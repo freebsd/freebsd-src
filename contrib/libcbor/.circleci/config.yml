@@ -4,12 +4,14 @@ commands:
   linux-setup:
     steps:
     - run: sudo apt-get update
-    - run: sudo apt-get install -y cmake ${TOOLCHAIN_PACKAGES}
-    - run: sudo apt install libcmocka-dev
+    # NEEDRESTART_MODE prevents automatic restarts which seem to hang.
+    - run: sudo NEEDRESTART_MODE=l apt-get install -y cmake ${TOOLCHAIN_PACKAGES}
+    - run: sudo NEEDRESTART_MODE=l apt-get install -y libcmocka-dev libcjson-dev
   build:
     steps:
     - run: >
         cmake -DWITH_TESTS=ON \
+          -DWITH_EXAMPLES=ON \
           -DCMAKE_BUILD_TYPE=Debug \
           -DSANITIZE=OFF \
           -DCOVERAGE="${CMAKE_COVERAGE:='OFF'}" \
@@ -31,14 +33,14 @@ orbs:
 
 jobs:
   static-test:
-    machine:
-      image: ubuntu-2204:2022.10.2
+    machine: &default-machine
+      image: ubuntu-2204:2023.07.2
     environment:
       TOOLCHAIN_PACKAGES: g++
     steps:
       - checkout
       - linux-setup
-      - run: sudo apt-get install -y clang-format doxygen cppcheck
+      - run: sudo NEEDRESTART_MODE=l apt-get install -y clang-format doxygen cppcheck
       - run: cppcheck --inline-suppr --error-exitcode=1 .
       - run: bash clang-format.sh --verbose
       - run: >
@@ -60,14 +62,14 @@ jobs:
 
   build-and-test:
     machine:
-      image: ubuntu-2204:2022.10.2
+      <<: *default-machine
     environment:
       TOOLCHAIN_PACKAGES: g++
       CMAKE_COVERAGE: ON
     steps:
       - checkout
       - linux-setup
-      - run: sudo apt-get install -y valgrind
+      - run: sudo NEEDRESTART_MODE=l apt-get install -y valgrind
       - build
       - test
       - run: ctest -T Coverage
@@ -81,7 +83,7 @@ jobs:
 
   build-and-test-clang:
     machine:
-      image: ubuntu-2204:2022.10.2
+      <<: *default-machine
     environment:
       TOOLCHAIN_PACKAGES: clang
       CC: clang
@@ -94,11 +96,11 @@ jobs:
 
   build-and-test-32b:
     machine:
-      image: ubuntu-2204:2022.10.2
+      <<: *default-machine
     steps:
       - checkout
       - run: sudo apt-get update
-      - run: sudo apt-get install -y cmake gcc-multilib g++-multilib libc6-dev-i386
+      - run: sudo NEEDRESTART_MODE=l apt-get install -y cmake gcc-multilib g++-multilib libc6-dev-i386
       # Make cmocka from source w/ 32b setup
       - run: git clone https://git.cryptomilk.org/projects/cmocka.git ~/cmocka
       - run: >
@@ -117,7 +119,7 @@ jobs:
 
   build-and-test-release-clang:
     machine:
-      image: ubuntu-2204:2022.10.2
+      <<: *default-machine
     environment:
       TOOLCHAIN_PACKAGES: clang
       CC: clang
@@ -130,7 +132,7 @@ jobs:
 
   llvm-coverage:
     machine:
-      image: ubuntu-2204:2022.10.2
+      <<: *default-machine
     environment:
       TOOLCHAIN_PACKAGES: clang
       CC: clang
@@ -145,7 +147,7 @@ jobs:
 
   build-and-test-arm:
     machine:
-      image: ubuntu-2204:2022.10.2
+      <<: *default-machine
     environment:
       TOOLCHAIN_PACKAGES: g++
     resource_class: arm.medium
@@ -157,7 +159,7 @@ jobs:
 
   build-bazel:
     machine:
-      image: ubuntu-2204:2022.10.2
+      image: ubuntu-2204:2023.07.2
     environment:
       TOOLCHAIN_PACKAGES: g++
     steps:

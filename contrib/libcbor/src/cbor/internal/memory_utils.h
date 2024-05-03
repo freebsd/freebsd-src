@@ -21,7 +21,7 @@ bool _cbor_safe_to_multiply(size_t a, size_t b);
 _CBOR_NODISCARD
 bool _cbor_safe_to_add(size_t a, size_t b);
 
-/** Adds `a` and `b`, propagating zeros and returing 0 on overflow. */
+/** Adds `a` and `b`, propagating zeros and returning 0 on overflow. */
 _CBOR_NODISCARD
 size_t _cbor_safe_signaling_add(size_t a, size_t b);
 

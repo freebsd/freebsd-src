@@ -2,7 +2,7 @@
 
 libcbor is maintained by [@PJK](https://github.com/PJK) in his spare time on a best-effort basis.
 
-Community contributions are welcome as long as they align with the [project priorities](https://github.com/PJK/libcbor#main-features) and [goals](https://libcbor.readthedocs.io/en/latest/development.html#goals) and follow the guidelines described belows. 
+Community contributions are welcome as long as they align with the [project priorities](https://github.com/PJK/libcbor#main-features) and [goals](https://libcbor.readthedocs.io/en/latest/development.html#goals) and follow the guidelines described below. 
 
 ## Principles
 

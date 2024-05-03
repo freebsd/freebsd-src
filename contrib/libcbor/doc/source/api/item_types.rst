@@ -1,7 +1,7 @@
 Types of items
 ===============================================
 
-Every :type:`cbor_item_t` has a :type:`cbor_type` associated with it - these constants correspond to the types specified by the `CBOR standard <http://tools.ietf.org/html/rfc7049>`_:
+Every :type:`cbor_item_t` has a :type:`cbor_type` associated with it - these constants correspond to the types specified by the `CBOR standard <https://www.rfc-editor.org/info/std94>`_:
 
 .. doxygenenum:: cbor_type
 

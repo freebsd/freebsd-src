@@ -102,6 +102,28 @@ static void test_nested_tag(void **_CBOR_UNUSED(_state)) {
   assert_null(nested_tag);
 }
 
+static void test_all_tag_values_supported(void **_CBOR_UNUSED(_state)) {
+  /* Test all items in the protected range of
+   * https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml */
+  for (int64_t tag_value = 0; tag_value <= 32767; tag_value++) {
+    cbor_item_t *tag_item =
+        cbor_build_tag(tag_value, cbor_move(cbor_build_uint8(42)));
+    unsigned char *serialized_tag;
+    size_t serialized_tag_size =
+        cbor_serialize_alloc(tag_item, &serialized_tag, NULL);
+    assert_true(serialized_tag_size > 0);
+    tag = cbor_load(serialized_tag, serialized_tag_size, &res);
+    assert_true(res.read == serialized_tag_size);
+    assert_true(cbor_typeof(tag) == CBOR_TYPE_TAG);
+    assert_true(cbor_tag_value(tag) == tag_value);
+    cbor_decref(&tag);
+    assert_null(tag);
+    cbor_decref(&tag_item);
+    assert_null(tag_item);
+    free(serialized_tag);
+  }
+}
+
 static void test_build_tag(void **_CBOR_UNUSED(_state)) {
   tag = cbor_build_tag(1, cbor_move(cbor_build_uint8(42)));
 
@@ -134,6 +156,7 @@ int main(void) {
       cmocka_unit_test(test_int32_tag),
       cmocka_unit_test(test_int64_tag),
       cmocka_unit_test(test_nested_tag),
+      cmocka_unit_test(test_all_tag_values_supported),
       cmocka_unit_test(test_build_tag),
       cmocka_unit_test(test_build_tag_failure),
       cmocka_unit_test(test_tag_creation),

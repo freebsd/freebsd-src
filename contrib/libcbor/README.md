@@ -1,16 +1,15 @@
 # [libcbor](https://github.com/PJK/libcbor)
 
 [![CircleCI](https://circleci.com/gh/PJK/libcbor/tree/master.svg?style=svg)](https://circleci.com/gh/PJK/libcbor/tree/master)
-[![Build status](https://ci.appveyor.com/api/projects/status/8kkmvmefelsxp5u2?svg=true)](https://ci.appveyor.com/project/PJK/libcbor)
 [![Documentation Status](https://readthedocs.org/projects/libcbor/badge/?version=latest)](https://readthedocs.org/projects/libcbor/?badge=latest)
 [![latest packaged version(s)](https://repology.org/badge/latest-versions/libcbor.svg)](https://repology.org/project/libcbor/versions)
 [![codecov](https://codecov.io/gh/PJK/libcbor/branch/master/graph/badge.svg)](https://codecov.io/gh/PJK/libcbor)
 
-**libcbor** is a C library for parsing and generating [CBOR](https://tools.ietf.org/html/rfc7049), the general-purpose schema-less binary data format.
+**libcbor** is a C library for parsing and generating [CBOR](https://cbor.io/), the general-purpose schema-less binary data format.
 
 ## Main features
- - Complete RFC conformance
- - Robust C99 implementation
+ - Complete [IETF RFC 8949 (STD 94)](https://www.rfc-editor.org/info/std94) conformance
+ - Robust platform-independent C99 implementation
  - Layered architecture offers both control and convenience
  - Flexible memory management
  - No shared global state - threading friendly

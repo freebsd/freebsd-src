@@ -8,6 +8,7 @@
 #include "strings.h"
 #include <string.h>
 #include "internal/memory_utils.h"
+#include "internal/unicode.h"
 
 cbor_item_t *cbor_new_definite_string(void) {
   cbor_item_t *item = _cbor_malloc(sizeof(cbor_item_t));
@@ -66,6 +67,15 @@ void cbor_string_set_handle(cbor_item_t *item,
   CBOR_ASSERT(cbor_string_is_definite(item));
   item->data = data;
   item->metadata.string_metadata.length = length;
+  struct _cbor_unicode_status unicode_status;
+  size_t codepoint_count =
+      _cbor_unicode_codepoint_count(data, length, &unicode_status);
+  CBOR_ASSERT(codepoint_count <= length);
+  if (unicode_status.status == _CBOR_UNICODE_OK) {
+    item->metadata.string_metadata.codepoint_count = codepoint_count;
+  } else {
+    item->metadata.string_metadata.codepoint_count = 0;
+  }
 }
 
 cbor_item_t **cbor_string_chunks_handle(const cbor_item_t *item) {

@@ -29,7 +29,7 @@ void finalize_mock_malloc(void) {
   free(expectations);
 }
 
-void print_backtrace() {
+void print_backtrace(void) {
 #if HAS_EXECINFO
   void *buffer[128];
   int frames = backtrace(buffer, 128);

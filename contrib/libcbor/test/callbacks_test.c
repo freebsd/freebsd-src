@@ -371,6 +371,30 @@ static void test_invalid_indef_break(void** _CBOR_UNUSED(_state)) {
   assert_true(res.error.code == CBOR_ERR_SYNTAXERROR);
 }
 
+static void test_invalid_state_indef_break(void** _CBOR_UNUSED(_state)) {
+  struct _cbor_stack stack = _cbor_stack_init();
+  assert_non_null(_cbor_stack_push(&stack, cbor_new_int8(), /*subitems=*/0));
+  struct _cbor_decoder_context context = {
+      .creation_failed = false,
+      .syntax_error = false,
+      .root = NULL,
+      .stack = &stack,
+  };
+
+  cbor_builder_indef_break_callback(&context);
+
+  assert_false(context.creation_failed);
+  assert_true(context.syntax_error);
+  assert_size_equal(context.stack->size, 1);
+  // The stack remains unchanged
+  cbor_item_t* small_int = stack.top->item;
+  assert_size_equal(cbor_refcount(small_int), 1);
+  assert_true(cbor_isa_uint(small_int));
+
+  cbor_decref(&small_int);
+  _cbor_stack_pop(&stack);
+}
+
 int main(void) {
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_default_callbacks),
@@ -388,6 +412,7 @@ int main(void) {
       cmocka_unit_test(test_append_array_failure),
       cmocka_unit_test(test_append_map_failure),
       cmocka_unit_test(test_invalid_indef_break),
+      cmocka_unit_test(test_invalid_state_indef_break),
   };
 
   cmocka_run_group_tests(tests, NULL, NULL);

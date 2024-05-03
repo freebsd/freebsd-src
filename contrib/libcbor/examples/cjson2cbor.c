@@ -7,7 +7,7 @@
 
 /**
  * This code demonstrates how cJSON (https://github.com/DaveGamble/cJSON)
- * callbacks can be used in conjuction with the streaming parser to translate
+ * callbacks can be used in conjunction with the streaming parser to translate
  * JSON to CBOR. Please note that cbor_builder_* APIs are internal and thus
  * subject to change.
  *
@@ -111,7 +111,7 @@ void cjson_cbor_stream_decode(cJSON *source,
 }
 
 void usage(void) {
-  printf("Usage: cjson [input JSON file]\n");
+  printf("Usage: cjson2cbor [input JSON file]\n");
   exit(1);
 }
 

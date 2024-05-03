@@ -66,12 +66,12 @@ uint32_t _cbor_unicode_decode(uint32_t* state, uint32_t* codep, uint32_t byte) {
   return *state;
 }
 
-uint64_t _cbor_unicode_codepoint_count(cbor_data source, uint64_t source_length,
-                                       struct _cbor_unicode_status* status) {
+size_t _cbor_unicode_codepoint_count(cbor_data source, size_t source_length,
+                                     struct _cbor_unicode_status* status) {
   *status =
       (struct _cbor_unicode_status){.location = 0, .status = _CBOR_UNICODE_OK};
   uint32_t codepoint, state = UTF8_ACCEPT, res;
-  uint64_t pos = 0, count = 0;
+  size_t pos = 0, count = 0;
 
   for (; pos < source_length; pos++) {
     res = _cbor_unicode_decode(&state, &codepoint, source[pos]);

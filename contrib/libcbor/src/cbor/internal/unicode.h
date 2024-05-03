@@ -19,12 +19,12 @@ enum _cbor_unicode_status_error { _CBOR_UNICODE_OK, _CBOR_UNICODE_BADCP };
 /** Signals unicode validation error and possibly its location */
 struct _cbor_unicode_status {
   enum _cbor_unicode_status_error status;
-  uint64_t location;
+  size_t location;
 };
 
 _CBOR_NODISCARD
-uint64_t _cbor_unicode_codepoint_count(cbor_data source, uint64_t source_length,
-                                       struct _cbor_unicode_status* status);
+size_t _cbor_unicode_codepoint_count(cbor_data source, size_t source_length,
+                                     struct _cbor_unicode_status* status);
 
 #ifdef __cplusplus
 }

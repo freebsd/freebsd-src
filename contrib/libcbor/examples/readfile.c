@@ -58,7 +58,7 @@ int main(int argc, char* argv[]) {
       case CBOR_ERR_SYNTAXERROR: {
         printf(
             "Syntactically malformed data -- see "
-            "http://tools.ietf.org/html/rfc7049\n");
+            "https://www.rfc-editor.org/info/std94\n");
         break;
       }
       case CBOR_ERR_NONE: {
