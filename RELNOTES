@@ -10,6 +10,20 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+a15f7c96a276,a8089ea5aee5:
+	NVMe over Fabrics controller.  The nvmft(4) kernel module adds
+	a new frontend to the CAM target layer which exports ctl(4)
+	LUNs as NVMe namespaces to remote hosts.  The nvmfd(8) daemon
+	is responsible for accepting incoming connection requests and
+	handing off connected queue pairs to nvmft(4).
+
+a1eda74167b5,1058c12197ab:
+	NVMe over Fabrics host.  New commands added to nvmecontrol(8)
+	to establish connections to remote controllers.  Once
+	connections are established they are handed off to the nvmf(4)
+	kernel module which creates nvmeX devices and exports remote
+	namespaces as nda(4) disks.
+
 25723d66369f:
 	As a side-effect of retiring the unit.* code in sound(4), the
 	hw.snd.maxunit loader(8) tunable is also retired.
