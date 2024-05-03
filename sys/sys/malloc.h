@@ -60,8 +60,9 @@
 #define	M_BESTFIT	0x2000		/* only for vmem, low fragmentation */
 #define	M_EXEC		0x4000		/* allocate executable space */
 #define	M_NEXTFIT	0x8000		/* only for vmem, follow cursor */
+#define	M_NEVERFREED 	0x10000		/* chunk will never get freed */
 
-#define	M_VERSION	2020110501
+#define	M_VERSION	2024073001
 
 /*
  * Two malloc type structures are present: malloc_type, which is used by a
