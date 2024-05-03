@@ -15,20 +15,22 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/capsicum.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/capsicum.h>
+#ifndef DIFF_NO_MMAP
+#include <sys/mman.h>
+#endif
+#include <sys/stat.h>
 
 #include <capsicum_helpers.h>
 #include <err.h>
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
-#include <time.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "diff.h"
@@ -266,10 +268,12 @@ done:
 	diff_result_free(result);
 	diff_data_free(&left);
 	diff_data_free(&right);
+#ifndef DIFF_NO_MMAP
 	if (str1)
 		munmap(str1, st1.st_size);
 	if (str2)
 		munmap(str2, st2.st_size);
+#endif
 	fclose(f1);
 	fclose(f2);
 
