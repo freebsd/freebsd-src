@@ -1,4 +1,4 @@
-# $NetBSD: varmod-ifelse.mk,v 1.26 2023/12/10 20:12:28 rillig Exp $
+# $NetBSD: varmod-ifelse.mk,v 1.28 2024/04/23 22:51:28 rillig Exp $
 #
 # Tests for the ${cond:?then:else} variable modifier, which evaluates either
 # the then-expression or the else-expression, depending on the condition.
@@ -156,7 +156,7 @@ STRING=		string
 NUMBER=		no		# not really a number
 # expect+1: no.
 .info ${${STRING} == "literal" && ${NUMBER} >= 10:?yes:no}.
-# expect+3: Comparison with '>=' requires both operands 'no' and '10' to be numeric
+# expect+3: while evaluating variable "string == "literal" || no >= 10": Comparison with '>=' requires both operands 'no' and '10' to be numeric
 # expect: make: Bad conditional expression 'string == "literal" || no >= 10' before '?yes:no'
 # expect+1: .
 .info ${${STRING} == "literal" || ${NUMBER} >= 10:?yes:no}.
@@ -294,7 +294,7 @@ INDIRECT_COND2=	$${DELAYED} == "two"
 
 
 # In the modifier parts for the 'then' and 'else' branches, subexpressions are
-# parsed in by inspecting the actual modifiers.  In 2008, 2015, 2020, 2022 and
+# parsed by inspecting the actual modifiers.  In 2008, 2015, 2020, 2022 and
 # 2023, the exact parsing algorithm switched a few times, counting balanced
 # braces instead of proper subexpressions, which meant that unbalanced braces
 # were parsed differently, depending on whether the branch was active or not.

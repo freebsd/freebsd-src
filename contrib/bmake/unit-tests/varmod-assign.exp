@@ -42,7 +42,7 @@ mod-assign-empty: value}
 make: Bad modifier ":" for variable ""
 mod-assign-empty: overwritten}
 mod-assign-empty: VAR=overwritten
-make: Unknown modifier ":x"
+make: in target "mod-assign-parse": while evaluating variable "ASSIGN": Unknown modifier ":x"
 
 sysv:y
 make: Unfinished modifier for "ASSIGN" ('}' missing)

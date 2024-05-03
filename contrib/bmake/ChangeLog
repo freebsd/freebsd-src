@@ -1,3 +1,74 @@
+2024-04-30  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240430
+	Merge with NetBSD make, pick up
+	o main.c: ensure '.include <makefile>' respects MAKESYSPATH.
+	Dir_FindFile will search .CURDIR first unless ".DOTLAST" is seen.
+
+2024-04-28  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240428
+	Merge with NetBSD make, pick up
+	o simplify freeing of lists
+	o arch.c: trim pointless comments
+	o var.c: delay variable assignments until actually needed
+	don't reallocate memory after evaluating an expression, result is
+	almost always short-lived.
+
+2024-04-26  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240426
+	Merge with NetBSD make, pick up
+	o job.c: in debug output, print the directory in which a job
+	failed at same time as failed target so it is more easily found in
+	build log.
+
+2024-04-24  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240424
+	Merge with NetBSD make, pick up
+	o clean up comments, code and tests
+
+2024-04-23  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240422
+	Merge with NetBSD make, pick up
+	o var.c: avoid LazyBuf for :*time modifiers.
+	LazyBuf's are not nul terminated so not suitable for passing to
+	functions that expect that. These modifiers are used sparingly so
+	an extra allocation is not a problem.
+
+2024-04-20  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240420
+	Merge with NetBSD make, pick up
+	o provide more context information for parse/evaluate errors
+
+2024-04-14  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240414
+	Merge with NetBSD make, pick up
+	o parse.c: print -dp debug info earlier so we see which
+	.if or .for line is being parsed.
+
+2024-04-04  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240404
+	Merge with NetBSD make, pick up
+	o fix some unit tests for Cygwin
+	o parse.c: exit immediately after reading a null byte from a makefile
+
+	* fix generation of bmake.cat1
+
+2024-03-19  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240314
+	Add/Improve support for Cygwin
+	o uname -s output isn't useful so allow configure to
+	set FORCE_MAKE_OS - to force the value of .MAKE.OS
+	and use Cygwin which matches uname -o
+	o fix some unit-tests for Cygwin
+
 2024-03-10  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* boot-strap: tests can take a long time; use a cookie to
@@ -2175,10 +2246,10 @@
 
 	* VERSION (_MAKE_VERSION): 20200418
 
-	* configure.in: use_makefile=no for cygwin et al.
+	* configure.in: use_makefile=no for Cygwin et al.
 	case insensitive filesystems just don't work if both
 	makefile and Makefile exist.
-	NOTE: bmake does not support cygwin and likely never will,
+	NOTE: bmake does not support Cygwin and likely never will,
 	but if brave souls want to try it - help them out.
 
 2020-04-02  Simon J Gerraty  <sjg@beast.crufty.net>

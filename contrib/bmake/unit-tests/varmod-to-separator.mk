@@ -1,4 +1,4 @@
-# $NetBSD: varmod-to-separator.mk,v 1.13 2023/11/19 21:47:52 rillig Exp $
+# $NetBSD: varmod-to-separator.mk,v 1.14 2024/04/20 10:18:55 rillig Exp $
 #
 # Tests for the :ts variable modifier, which joins the words of the variable
 # using an arbitrary character as word separator.
@@ -150,7 +150,7 @@ WORDS=	one two three four five six
 # for an unsigned character though.
 #
 # Since 2020-11-01, these out-of-bounds values are rejected.
-# expect+2: Invalid character number at "400:tu}"
+# expect+2: while evaluating variable "WORDS": Invalid character number at "400:tu}"
 # expect+1: Malformed conditional (${WORDS:[1..3]:ts\400:tu})
 .if ${WORDS:[1..3]:ts\400:tu}
 .  warning The separator \400 is accepted even though it is out of bounds.
@@ -166,7 +166,7 @@ WORDS=	one two three four five six
 # The hexadecimal number must be in the range of an unsigned char.
 #
 # Since 2020-11-01, these out-of-bounds values are rejected.
-# expect+2: Invalid character number at "100:tu}"
+# expect+2: while evaluating variable "WORDS": Invalid character number at "100:tu}"
 # expect+1: Malformed conditional (${WORDS:[1..3]:ts\x100:tu})
 .if ${WORDS:[1..3]:ts\x100:tu}
 .  warning The separator \x100 is accepted even though it is out of bounds.
@@ -253,7 +253,7 @@ WORDS=	one two three four five six
 .endif
 
 # Try whether bmake is Unicode-ready.
-# expect+2: Invalid character number at "1F60E}"
+# expect+2: while evaluating "${:Ua b:ts\x1F60E}": Invalid character number at "1F60E}"
 # expect+1: Malformed conditional (${:Ua b:ts\x1F60E})
 .if ${:Ua b:ts\x1F60E}		# U+1F60E "smiling face with sunglasses"
 .  error

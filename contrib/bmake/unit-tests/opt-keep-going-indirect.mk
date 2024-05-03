@@ -1,4 +1,4 @@
-# $NetBSD: opt-keep-going-indirect.mk,v 1.2 2022/02/12 20:05:36 rillig Exp $
+# $NetBSD: opt-keep-going-indirect.mk,v 1.3 2024/04/02 15:05:15 rillig Exp $
 #
 # Tests for the -k command line option, which stops building a target as soon
 # as an error is detected, but continues building the other, independent
@@ -49,19 +49,19 @@
 # to the child processes.
 all:
 	@echo 'direct compat'
-	@set +e; env -i ${MAKE} -r -f ${MAKEFILE} -k direct; echo "exited $$?"
+	@set +e; env -i "PATH=$$PATH" ${MAKE} -r -f ${MAKEFILE} -k direct; echo "exited $$?"
 	@echo
 
 	@echo 'direct jobs'
-	@set +e; env -i ${MAKE} -r -f ${MAKEFILE} -k direct -j1; echo "exited $$?"
+	@set +e; env -i "PATH=$$PATH" ${MAKE} -r -f ${MAKEFILE} -k direct -j1; echo "exited $$?"
 	@echo
 
 	@echo 'indirect compat'
-	@set +e; env -i ${MAKE} -r -f ${MAKEFILE} -k indirect; echo "exited $$?"
+	@set +e; env -i "PATH=$$PATH" ${MAKE} -r -f ${MAKEFILE} -k indirect; echo "exited $$?"
 	@echo
 
 	@echo 'indirect jobs'
-	@set +e; env -i ${MAKE} -r -f ${MAKEFILE} -k indirect -j1; echo "exited $$?"
+	@set +e; env -i "PATH=$$PATH" ${MAKE} -r -f ${MAKEFILE} -k indirect -j1; echo "exited $$?"
 	@echo
 
 indirect: direct

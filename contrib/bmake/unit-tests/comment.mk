@@ -1,4 +1,4 @@
-# $NetBSD: comment.mk,v 1.6 2023/11/19 21:47:52 rillig Exp $
+# $NetBSD: comment.mk,v 1.7 2024/04/23 22:51:28 rillig Exp $
 #
 # Demonstrate how comments are written in makefiles.
 
@@ -53,9 +53,9 @@ VAR=	\#		# Both in the assignment.
 .  error
 .endif
 
-# Since 2012-03-24 the variable modifier :[#] does not need to be escaped.
-# To keep the parsing code simple, any "[#" does not start a comment, even
-# outside of an expression.
+# Since 2012-03-24 the modifier :[#] does not need to be escaped.
+# To keep the parsing code simple, the "#" in "[#" does not start a comment,
+# regardless of the syntactical context it appears in.
 WORDS=	${VAR:[#]} [#
 .if ${WORDS} != "1 [#"
 .  error

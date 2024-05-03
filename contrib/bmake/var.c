@@ -1,4 +1,4 @@
-/*	$NetBSD: var.c,v 1.1101 2024/03/01 17:53:30 rillig Exp $	*/
+/*	$NetBSD: var.c,v 1.1108 2024/04/28 15:10:19 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -81,8 +81,7 @@
  *	Var_End		Clean up the module.
  *
  *	Var_Set
- *	Var_SetExpand
- *			Set the value of the variable, creating it if
+ *	Var_SetExpand	Set the value of the variable, creating it if
  *			necessary.
  *
  *	Var_Append
@@ -102,8 +101,7 @@
  *
  *	Var_Parse	Parse an expression such as ${VAR:Mpattern}.
  *
- *	Var_Delete
- *			Delete a variable.
+ *	Var_Delete	Delete a variable.
  *
  *	Var_ReexportVars
  *			Export some or even all variables to the environment
@@ -118,9 +116,6 @@
  *	Var_Stats	Print out hashing statistics if in -dh mode.
  *
  *	Var_Dump	Print out all variables defined in the given scope.
- *
- * XXX: There's a lot of almost duplicate code in these functions that only
- *  differs in subtle details that are not mentioned in the manual page.
  */
 
 #include <sys/stat.h>
@@ -148,7 +143,7 @@
 #include "metachar.h"
 
 /*	"@(#)var.c	8.3 (Berkeley) 3/19/94" */
-MAKE_RCSID("$NetBSD: var.c,v 1.1101 2024/03/01 17:53:30 rillig Exp $");
+MAKE_RCSID("$NetBSD: var.c,v 1.1108 2024/04/28 15:10:19 rillig Exp $");
 
 /*
  * Variables are defined using one of the VAR=value assignments.  Their
@@ -158,7 +153,7 @@ MAKE_RCSID("$NetBSD: var.c,v 1.1101 2024/03/01 17:53:30 rillig Exp $");
  * There are 3 kinds of variables: scope variables, environment variables,
  * undefined variables.
  *
- * Scope variables are stored in a GNode.scope.  The only way to undefine
+ * Scope variables are stored in GNode.vars.  The only way to undefine
  * a scope variable is using the .undef directive.  In particular, it must
  * not be possible to undefine a variable during the evaluation of an
  * expression, or Var.name might point nowhere.  (There is another,
@@ -193,7 +188,7 @@ typedef struct Var {
 
 	/*
 	 * The variable comes from the environment.
-	 * Appending to its value moves the variable to the global scope.
+	 * Appending to its value depends on the scope, see var-op-append.mk.
 	 */
 	bool fromEnvironment:1;
 
@@ -269,6 +264,18 @@ typedef struct SepBuf {
 	char sep;
 } SepBuf;
 
+typedef struct {
+	const char *target;
+	const char *varname;
+	const char *expr;
+} EvalStackElement;
+
+typedef struct {
+	EvalStackElement *elems;
+	size_t len;
+	size_t cap;
+	Buffer details;
+} EvalStack;
 
 /* Whether we have replaced the original environ (which we cannot free). */
 char **savedEnv = NULL;
@@ -337,6 +344,58 @@ static const char VarEvalMode_Name[][32] = {
 	"eval-keep-dollar-and-undefined",
 };
 
+static EvalStack evalStack;
+
+
+void
+EvalStack_Push(const char *target, const char *expr, const char *varname)
+{
+	if (evalStack.len >= evalStack.cap) {
+		evalStack.cap = 16 + 2 * evalStack.cap;
+		evalStack.elems = bmake_realloc(evalStack.elems,
+		    evalStack.cap * sizeof(*evalStack.elems));
+	}
+	evalStack.elems[evalStack.len].target = target;
+	evalStack.elems[evalStack.len].expr = expr;
+	evalStack.elems[evalStack.len].varname = varname;
+	evalStack.len++;
+}
+
+void
+EvalStack_Pop(void)
+{
+	assert(evalStack.len > 0);
+	evalStack.len--;
+}
+
+const char *
+EvalStack_Details(void)
+{
+	size_t i;
+	Buffer *buf = &evalStack.details;
+
+
+	buf->len = 0;
+	for (i = 0; i < evalStack.len; i++) {
+		EvalStackElement *elem = evalStack.elems + i;
+		if (elem->target != NULL) {
+			Buf_AddStr(buf, "in target \"");
+			Buf_AddStr(buf, elem->target);
+			Buf_AddStr(buf, "\": ");
+		}
+		if (elem->expr != NULL) {
+			Buf_AddStr(buf, "while evaluating \"");
+			Buf_AddStr(buf, elem->expr);
+			Buf_AddStr(buf, "\": ");
+		}
+		if (elem->varname != NULL) {
+			Buf_AddStr(buf, "while evaluating variable \"");
+			Buf_AddStr(buf, elem->varname);
+			Buf_AddStr(buf, "\": ");
+		}
+	}
+	return buf->len > 0 ? buf->data : "";
+}
 
 static Var *
 VarNew(FStr name, const char *value,
@@ -432,11 +491,8 @@ VarFindSubstring(Substring name, GNode *scope, bool elsewhere)
 	}
 
 	if (var == NULL) {
-		FStr envName;
-		const char *envValue;
-
-		envName = Substring_Str(name);
-		envValue = getenv(envName.str);
+		FStr envName = Substring_Str(name);
+		const char *envValue = getenv(envName.str);
 		if (envValue != NULL)
 			return VarNew(envName, envValue, true, true, false);
 		FStr_Done(&envName);
@@ -951,9 +1007,10 @@ Var_SetWithFlags(GNode *scope, const char *name, const char *val,
 	if (v == NULL) {
 		if (scope == SCOPE_CMDLINE && !(flags & VAR_SET_NO_EXPORT)) {
 			/*
-			 * This var would normally prevent the same name being
-			 * added to SCOPE_GLOBAL, so delete it from there if
-			 * needed. Otherwise -V name may show the wrong value.
+			 * This variable would normally prevent the same name
+			 * being added to SCOPE_GLOBAL, so delete it from
+			 * there if needed. Otherwise -V name may show the
+			 * wrong value.
 			 *
 			 * See ExistsInCmdline.
 			 */
@@ -2336,9 +2393,9 @@ ApplyModifier_Loop(const char **pp, ModChain *ch)
 	args.var = tvar.str;
 	if (strchr(args.var, '$') != NULL) {
 		Parse_Error(PARSE_FATAL,
-		    "In the :@ modifier of \"%s\", the variable name \"%s\" "
+		    "In the :@ modifier, the variable name \"%s\" "
 		    "must not contain a dollar",
-		    expr->name, args.var);
+		    args.var);
 		return AMR_CLEANUP;
 	}
 
@@ -2480,22 +2537,22 @@ ApplyModifier_Time(const char **pp, ModChain *ch)
 	if (args[0] == '=') {
 		const char *p = args + 1;
 		LazyBuf buf;
+		FStr arg;
 		if (!ParseModifierPartSubst(&p, true, '\0', ch->expr->emode,
 		    ch, &buf, NULL, NULL))
 			return AMR_CLEANUP;
+		arg = LazyBuf_DoneGet(&buf);
 		if (ModChain_ShouldEval(ch)) {
-			Substring arg = LazyBuf_Get(&buf);
-			const char *arg_p = arg.start;
-			if (!TryParseTime(&arg_p, &t) || arg_p != arg.end) {
+			const char *arg_p = arg.str;
+			if (!TryParseTime(&arg_p, &t) || *arg_p != '\0') {
 				Parse_Error(PARSE_FATAL,
-				    "Invalid time value \"%.*s\"",
-				    (int)Substring_Length(arg), arg.start);
-				LazyBuf_Done(&buf);
+				    "Invalid time value \"%s\"", arg.str);
+				FStr_Done(&arg);
 				return AMR_CLEANUP;
 			}
 		} else
 			t = 0;
-		LazyBuf_Done(&buf);
+		FStr_Done(&arg);
 		*pp = p;
 	} else {
 		t = 0;
@@ -3076,28 +3133,20 @@ ok:
 static char *
 str_toupper(const char *str)
 {
-	char *res;
-	size_t i, len;
-
-	len = strlen(str);
-	res = bmake_malloc(len + 1);
-	for (i = 0; i < len + 1; i++)
+	size_t i, n = strlen(str) + 1;
+	char *res = bmake_malloc(n);
+	for (i = 0; i < n; i++)
 		res[i] = ch_toupper(str[i]);
-
 	return res;
 }
 
 static char *
 str_tolower(const char *str)
 {
-	char *res;
-	size_t i, len;
-
-	len = strlen(str);
-	res = bmake_malloc(len + 1);
-	for (i = 0; i < len + 1; i++)
+	size_t i, n = strlen(str) + 1;
+	char *res = bmake_malloc(n);
+	for (i = 0; i < n; i++)
 		res[i] = ch_tolower(str[i]);
-
 	return res;
 }
 
@@ -4390,7 +4439,7 @@ Expr_Init(const char *name, FStr value,
  * by .for loops and are boring, so evaluate them without debug logging.
  */
 static bool
-Var_Parse_FastLane(const char **pp, VarEvalMode emode, FStr *out_value)
+Var_Parse_U(const char **pp, VarEvalMode emode, FStr *out_value)
 {
 	const char *p;
 
@@ -4449,8 +4498,7 @@ Var_Parse_FastLane(const char **pp, VarEvalMode emode, FStr *out_value)
 FStr
 Var_Parse(const char **pp, GNode *scope, VarEvalMode emode)
 {
-	const char *p = *pp;
-	const char *const start = p;
+	const char *start, *p;
 	bool haveModifier;	/* true for ${VAR:...}, false for ${VAR} */
 	char startc;		/* the actual '{' or '(' or '\0' */
 	char endc;		/* the expected '}' or ')' or '\0' */
@@ -4467,9 +4515,11 @@ Var_Parse(const char **pp, GNode *scope, VarEvalMode emode)
 	    scope, DEF_REGULAR);
 	FStr val;
 
-	if (Var_Parse_FastLane(pp, emode, &val))
+	if (Var_Parse_U(pp, emode, &val))
 		return val;
 
+	p = *pp;
+	start = p;
 	DEBUG2(VAR, "Var_Parse: %s (%s)\n", start, VarEvalMode_Name[emode]);
 
 	val = FStr_InitRefer(NULL);
@@ -4510,7 +4560,7 @@ Var_Parse(const char **pp, GNode *scope, VarEvalMode emode)
 	 * while its value is still being used:
 	 *
 	 *	VAR=	value
-	 *	_:=	${VAR:${:U@VAR@loop@}:S,^,prefix,}
+	 *	_:=	${VAR:${:U:@VAR@@}:S,^,prefix,}
 	 *
 	 * The same effect might be achievable using the '::=' or the ':_'
 	 * modifiers.
@@ -4520,6 +4570,11 @@ Var_Parse(const char **pp, GNode *scope, VarEvalMode emode)
 	 * undefined behavior.
 	 */
 	expr.value = FStr_InitRefer(v->val.data);
+
+	if (expr.name[0] != '\0')
+		EvalStack_Push(NULL, NULL, expr.name);
+	else
+		EvalStack_Push(NULL, start, NULL);
 
 	/*
 	 * Before applying any modifiers, expand any nested expressions from
@@ -4577,6 +4632,7 @@ Var_Parse(const char **pp, GNode *scope, VarEvalMode emode)
 		VarFreeShortLived(v);
 	}
 
+	EvalStack_Pop();
 	return expr.value;
 }
 
@@ -4664,10 +4720,9 @@ VarSubstPlain(const char **pp, Buffer *res)
  * given string.
  *
  * Input:
- *	str		The string in which the expressions are
- *			expanded.
- *	scope		The scope in which to start searching for
- *			variables.  The other scopes are searched as well.
+ *	str		The string in which the expressions are expanded.
+ *	scope		The scope in which to start searching for variables.
+ *			The other scopes are searched as well.
  *	emode		The mode for parsing or evaluating subexpressions.
  */
 char *
@@ -4694,7 +4749,7 @@ Var_Subst(const char *str, GNode *scope, VarEvalMode emode)
 			VarSubstPlain(&p, &res);
 	}
 
-	return Buf_DoneDataCompact(&res);
+	return Buf_DoneData(&res);
 }
 
 void

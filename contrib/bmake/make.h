@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.329 2024/03/10 02:53:37 sjg Exp $	*/
+/*	$NetBSD: make.h,v 1.332 2024/04/27 20:41:32 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -139,6 +139,12 @@
 #define MAKE_ATTR_USE		__attribute__((__warn_unused_result__))
 #else
 #define MAKE_ATTR_USE		/* delete */
+#endif
+
+#if MAKE_GNUC_PREREQ(8, 0)
+#define MAKE_ATTR_NOINLINE		__attribute__((__noinline__))
+#else
+#define MAKE_ATTR_NOINLINE		/* delete */
 #endif
 
 #if __STDC_VERSION__ >= 199901L || defined(lint)
@@ -422,7 +428,7 @@ typedef struct SearchPath {
 
 /*
  * A graph node represents a target that can possibly be made, including its
- * relation to other targets and a lot of other details.
+ * relation to other targets.
  */
 typedef struct GNode {
 	/* The target's name, such as "clean" or "make.c" */
@@ -604,8 +610,8 @@ extern GNode *SCOPE_GLOBAL;
 extern GNode *SCOPE_CMDLINE;
 
 /*
- * Value returned by Var_Parse when an error is encountered. It actually
- * points to an empty string, so naive callers needn't worry about it.
+ * Value returned by Var_Parse when an error is encountered. It points to an
+ * empty string, so naive callers needn't worry about it.
  */
 extern char var_Error[];
 
@@ -701,11 +707,11 @@ typedef enum PrintVarsMode {
 
 /* Command line options */
 typedef struct CmdOpts {
-	/* -B: whether we are make compatible */
+	/* -B: whether to be compatible to traditional make */
 	bool compatMake;
 
 	/*
-	 * -d: debug control: There is one bit per module.  It is up to the
+	 * -d: debug control: There is one flag per module.  It is up to the
 	 * module what debug information to print.
 	 */
 	DebugFlags debug;
@@ -1045,6 +1051,10 @@ void Global_Set(const char *, const char *);
 void Global_Append(const char *, const char *);
 void Global_Delete(const char *);
 void Global_Set_ReadOnly(const char *, const char *);
+
+void EvalStack_Push(const char *, const char *, const char *);
+void EvalStack_Pop(void);
+const char *EvalStack_Details(void);
 
 /* util.c */
 typedef void (*SignalProc)(int);

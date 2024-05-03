@@ -17,7 +17,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: os.sh,v 1.63 2023/05/22 20:44:47 sjg Exp $
+#	$Id: os.sh,v 1.64 2024/03/19 16:03:23 sjg Exp $
 #
 #	@(#) Copyright (c) 1994 Simon J. Gerraty
 #
@@ -91,6 +91,10 @@ AIX)	# everyone loves to be different...
 	PS_AXC=-e
 	SHARE_ARCH=$OS/$OSMAJOR.X
 	;;
+CYGWIN*) # uname -s not very useful
+        # uname -o produces just Cygwin which is better
+        OS=Cygwin
+        ;;
 Darwin) # this is more explicit (arm64 vs arm)
         HOST_ARCH=$MACHINE
         ;;
