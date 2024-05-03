@@ -591,7 +591,12 @@ g_stripe_start(struct bio *bp)
 		g_stripe_pushdown(sc, bp);
 		return;
 	case BIO_GETATTR:
-		/* To which provider it should be delivered? */
+		if (!strcmp(bp->bio_attribute, "GEOM::candelete")) {
+			int val = (sc->sc_flags & G_STRIPE_FLAG_CANDELETE) != 0;
+			g_handleattr(bp, "GEOM::candelete", &val, sizeof(val));
+			return;
+		}
+		/* otherwise: To which provider it should be delivered? */
 	default:
 		g_io_deliver(bp, EOPNOTSUPP);
 		return;
@@ -794,6 +799,20 @@ g_stripe_add_disk(struct g_stripe_softc *sc, struct g_provider *pp, u_int no)
 	}
 
 	sc->sc_disks[no] = cp;
+
+	/* cascade candelete */
+	error = g_access(cp, 1, 0, 0);
+	if (error == 0) {
+		int can_delete;
+
+		error = g_getattr("GEOM::candelete", cp, &can_delete);
+		if (error == 0 && can_delete != 0)
+			sc->sc_flags |= G_STRIPE_FLAG_CANDELETE;
+		G_STRIPE_DEBUG(1, "Provider %s candelete %i.", pp->name,
+		    can_delete);
+		g_access(cp, -1, 0, 0);
+	}
+
 	G_STRIPE_DEBUG(0, "Disk %s attached to %s.", pp->name, sc->sc_name);
 	g_stripe_check_and_run(sc);
 
