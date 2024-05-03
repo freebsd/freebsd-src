@@ -102,7 +102,7 @@ walk_cb_call(struct cxa_thread_dtor *dtor)
 {
 	struct dl_phdr_info phdr_info;
 
-	if (_rtld_addr_phdr(dtor->dso, &phdr_info) &&
+	if (_rtld_addr_phdr(dtor->func, &phdr_info) &&
 	    __elf_phdr_match_addr(&phdr_info, dtor->func))
 		dtor->func(dtor->obj);
 	else
