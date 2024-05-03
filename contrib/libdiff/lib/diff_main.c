@@ -54,7 +54,8 @@ diff_chunk_type(const struct diff_chunk *chunk)
 static int
 read_at(FILE *f, off_t at_pos, unsigned char *buf, size_t len)
 {
-	int r;
+	ssize_t r;
+
 	if (fseeko(f, at_pos, SEEK_SET) == -1)
 		return errno;
 	r = fread(buf, sizeof(char), len, f);
@@ -153,7 +154,7 @@ diff_atom_cmp(int *cmp,
 		unsigned char buf_left[chunksz], buf_right[chunksz];
 		const uint8_t *p_left, *p_right;
 		off_t n_left, n_right;
-		ssize_t r;
+		int r;
 
 		if (!remain_right) {
 			*cmp = 1;
