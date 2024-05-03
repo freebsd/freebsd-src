@@ -1,4 +1,4 @@
-# $NetBSD: cond-cmp-string.mk,v 1.18 2023/11/19 21:47:52 rillig Exp $
+# $NetBSD: cond-cmp-string.mk,v 1.19 2024/04/23 22:51:28 rillig Exp $
 #
 # Tests for string comparisons in .if conditions.
 
@@ -20,12 +20,12 @@
 .  error
 .endif
 
-# The left-hand side of the comparison requires that any expression
-# is defined.
+# An expression that occurs on the left-hand side of the comparison must be
+# defined.
 #
 # The variable named "" is never defined, nevertheless it can be used as a
-# starting point for expressions.  Applying the :U modifier to such
-# an undefined expression turns it into a defined expression.
+# starting point for an expression.  Applying the :U modifier to such an
+# undefined expression turns it into a defined expression.
 #
 # See ApplyModifier_Defined and DEF_DEFINED.
 .if ${:Ustr} != "str"
@@ -69,8 +69,9 @@
 .endif
 
 # Between 2003-01-01 (maybe even earlier) and 2020-10-30, adding one of the
-# characters " \t!=><" directly after an expression resulted in a
-# "Malformed conditional", even though the string was well-formed.
+# characters " \t!=><" directly after an expression in a string literal
+# resulted in a "Malformed conditional", even though the string was
+# well-formed.
 .if ${:Uword } != "${:Uword} "
 .  error
 .endif
@@ -94,8 +95,7 @@
 .  error
 .endif
 
-# Adding a space at the beginning of the quoted expression works
-# though.
+# Adding a space at the beginning of the quoted expression works though.
 .if ${:U word } != " ${:Uword} "
 .  error
 .endif
@@ -145,7 +145,7 @@
 .  error
 .endif
 
-# Two variables with different values compare unequal.
+# Two expressions with different values compare unequal.
 VAR1=	value1
 VAR2=	value2
 .if ${VAR1} != ${VAR2}

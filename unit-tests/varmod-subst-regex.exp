@@ -20,7 +20,7 @@ mod-regex-limits:22-ok:1 33 556
 mod-regex-limits:capture:ihgfedcbaabcdefghijABCDEFGHIJa0a1a2rest
 make: Regex compilation error: (details omitted)
 mod-regex-errors:
-make: Unknown modifier "Z"
+make: in target "mod-regex-errors": while evaluating variable "word": while evaluating "${:U:Z}y,W}": Unknown modifier "Z"
 mod-regex-errors: xy
 unmatched-subexpression.ok: one one 2 3 5 8 one3 2one 34
 make: No match for subexpression \2

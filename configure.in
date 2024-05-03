@@ -1,11 +1,11 @@
 dnl
 dnl RCSid:
-dnl	$Id: configure.in,v 1.103 2024/02/16 17:54:38 sjg Exp $
+dnl	$Id: configure.in,v 1.105 2024/03/19 19:08:20 sjg Exp $
 dnl
 dnl Process this file with autoconf to produce a configure script
 dnl
 AC_PREREQ([2.71])
-AC_INIT([bmake],[20240212],[sjg@NetBSD.org])
+AC_INIT([bmake],[20240314],[sjg@NetBSD.org])
 AC_CONFIG_HEADERS(config.h)
 
 dnl make srcdir absolute
@@ -61,10 +61,22 @@ no)    ;;
 *)     use_defshell $with_defshell;;
 esac])
 dnl
+dnl sometimes uname -s output is not useful
+FORCE_MAKE_OS=
+make_os=
 case "$OS" in
-CYGWIN*|Darwin|MINGW*) use_makefile=no;;
+CYGWIN*)
+	use_makefile=no
+	OS=Cygwin
+	FORCE_MAKE_OS=$OS
+	;;
+Darwin|MINGW*) use_makefile=no;;
 *) use_makefile=yes;;
 esac
+if test "x$FORCE_MAKE_OS" != x; then
+	force_make_os=FORCE_
+	make_os=${FORCE_MAKE_OS}
+fi
 AC_ARG_WITH(makefile,
 [  --without-makefile disable use of generated makefile],
 [case "${withval}" in
@@ -141,9 +153,12 @@ Minix)	CPPFLAGS="${CPPFLAGS} -D_NETBSD_SOURCE"
 	;;
 SCO_SV)	# /bin/sh is not usable
 	ALT_DEF_SHELLS="/bin/lsh /usr/bin/bash /bin/ksh"
-	CPPFLAGS="${CPPFLAGS} -DFORCE_USE_SHELL"
+	FORCE_USE_SHELL=1
 	;;
 esac
+if test "x$FORCE_USE_SHELL" != x; then
+	CPPFLAGS="${CPPFLAGS} -DFORCE_USE_SHELL"
+fi
 dnl
 # Not everyone groks TZ=Europe/Berlin
 # which is used by the localtime tests
@@ -549,6 +564,8 @@ bmake) egrep=egrep;;
 esac
 dnl
 AC_SUBST(egrep)
+AC_SUBST(make_os)
+AC_SUBST(force_make_os)
 AC_SUBST(machine)
 AC_SUBST(force_machine)
 AC_SUBST(machine_arch)

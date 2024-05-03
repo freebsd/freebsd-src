@@ -1,4 +1,4 @@
-# $NetBSD: archive.mk,v 1.12 2021/04/09 14:42:00 christos Exp $
+# $NetBSD: archive.mk,v 1.13 2024/04/27 20:23:22 rillig Exp $
 #
 # Very basic demonstration of handling archives, based on the description
 # in PSD.doc/tutorial.ms.
@@ -24,6 +24,12 @@ all:
 	@${MAKE} -f ${MAKEFILE} depend-on-existing-member
 	@${MAKE} -f ${MAKEFILE} depend-on-nonexistent-member
 	@${MAKE} -f ${MAKEFILE} remove-archive
+	@${MAKE} -f ${MAKEFILE} set-up-library
+	@${MAKE} -f ${MAKEFILE} -dm library 2>&1 \
+	| sed -n '/^Examining/p' \
+	| sed 's,\.\.\.modified[^.]*,,'
+	@${MAKE} -f ${MAKEFILE} tear-down-library
+
 
 create-archive: ${ARCHIVE} pre post
 
@@ -58,3 +64,28 @@ pre: .USEBEFORE
 	@echo Making ${.TARGET} ${.OODATE:C,.+,out-of-date,W} ${.OODATE:O}
 post: .USE
 	@echo
+
+
+set-up-library: .PHONY
+	@echo "member" > member.txt
+	@echo "not a library" > libbad.a
+	@ar cr libgood.a member.txt
+	@echo "begin library"
+
+.if make(library)
+.SUFFIXES: .a
+.LIBS: .a
+.endif
+# The two lines for libgood contain the word "library", the two lines for
+# libbad don't.
+#
+# expect: Examining libbad.a...up-to-date.
+# expect: Examining -lbad...up-to-date.
+# expect: Examining libgood.a...library...up-to-date.
+# expect: Examining -lgood...library...up-to-date.
+library: .PHONY libbad.a -lbad libgood.a -lgood
+	: Making ${.TARGET} from ${.ALLSRC}
+
+tear-down-library: .PHONY
+	@echo "end library"
+	@rm member.txt libbad.a libgood.a

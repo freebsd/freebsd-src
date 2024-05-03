@@ -1,14 +1,14 @@
-make: "varmod-match.mk" line 289: warning: Unfinished character list in pattern 'a[' of modifier ':M'
-make: "varmod-match.mk" line 297: warning: Unfinished character list in pattern 'a[^' of modifier ':M'
-make: "varmod-match.mk" line 305: warning: Unfinished character list in pattern '[-x1-3' of modifier ':M'
-make: "varmod-match.mk" line 313: warning: Unfinished character list in pattern '*[-x1-3' of modifier ':M'
-make: "varmod-match.mk" line 322: warning: Unfinished character list in pattern '[^-x1-3' of modifier ':M'
-make: "varmod-match.mk" line 336: warning: Unfinished character list in pattern '?[\' of modifier ':M'
-make: "varmod-match.mk" line 344: warning: Unfinished character range in pattern '[x-' of modifier ':M'
-make: "varmod-match.mk" line 356: warning: Unfinished character range in pattern '[^x-' of modifier ':M'
-make: "varmod-match.mk" line 364: warning: Unfinished character list in pattern '[' of modifier ':M'
-make: "varmod-match.mk" line 364: Unknown modifier "]"
-make: "varmod-match.mk" line 364: Malformed conditional (${ ${:U\:} ${:U\:\:} :L:M[:]} != ":")
+make: "varmod-match.mk" line 290: while evaluating variable "WORDS": warning: Unfinished character list in pattern 'a[' of modifier ':M'
+make: "varmod-match.mk" line 298: while evaluating variable "WORDS": warning: Unfinished character list in pattern 'a[^' of modifier ':M'
+make: "varmod-match.mk" line 306: while evaluating variable "WORDS": warning: Unfinished character list in pattern '[-x1-3' of modifier ':M'
+make: "varmod-match.mk" line 314: while evaluating variable "WORDS": warning: Unfinished character list in pattern '*[-x1-3' of modifier ':M'
+make: "varmod-match.mk" line 323: while evaluating variable "WORDS": warning: Unfinished character list in pattern '[^-x1-3' of modifier ':M'
+make: "varmod-match.mk" line 337: while evaluating variable "WORDS": warning: Unfinished character list in pattern '?[\' of modifier ':M'
+make: "varmod-match.mk" line 345: while evaluating variable "WORDS": warning: Unfinished character range in pattern '[x-' of modifier ':M'
+make: "varmod-match.mk" line 357: while evaluating variable "WORDS": warning: Unfinished character range in pattern '[^x-' of modifier ':M'
+make: "varmod-match.mk" line 365: while evaluating variable " : :: ": warning: Unfinished character list in pattern '[' of modifier ':M'
+make: "varmod-match.mk" line 365: while evaluating variable " : :: ": Unknown modifier "]"
+make: "varmod-match.mk" line 365: Malformed conditional (${ ${:U\:} ${:U\:\:} :L:M[:]} != ":")
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

@@ -15,10 +15,10 @@ make: "varmod-edge.mk" line 184: ok eq-bs
 make: Unfinished modifier for "INP.eq-esc" ('=' missing)
 make: "varmod-edge.mk" line 184: ok eq-esc
 make: "varmod-edge.mk" line 184: ok colon
-make: "varmod-edge.mk" line 167: Unknown modifier ":"
-make: "varmod-edge.mk" line 167: Unknown modifier ":"
+make: "varmod-edge.mk" line 167: while evaluating variable "MOD.colons": while evaluating variable "INP.colons": Unknown modifier ":"
+make: "varmod-edge.mk" line 167: while evaluating variable "MOD.colons": while evaluating variable "INP.colons": Unknown modifier ":"
 make: "varmod-edge.mk" line 184: ok colons
-make: "varmod-edge.mk" line 195: Unknown modifier "Z"
+make: "varmod-edge.mk" line 195: while evaluating "${:Z}": Unknown modifier "Z"
 make: "varmod-edge.mk" line 195: Malformed conditional (${:Z})
 make: Unfinished modifier for "" (',' missing)
 make: "varmod-edge.mk" line 209: Malformed conditional (${:S,})

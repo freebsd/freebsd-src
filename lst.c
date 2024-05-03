@@ -1,4 +1,4 @@
-/* $NetBSD: lst.c,v 1.107 2023/12/29 20:43:58 rillig Exp $ */
+/* $NetBSD: lst.c,v 1.108 2024/04/27 17:33:46 rillig Exp $ */
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -34,7 +34,7 @@
 
 #include "make.h"
 
-MAKE_RCSID("$NetBSD: lst.c,v 1.107 2023/12/29 20:43:58 rillig Exp $");
+MAKE_RCSID("$NetBSD: lst.c,v 1.108 2024/04/27 17:33:46 rillig Exp $");
 
 static ListNode *
 LstNodeNew(ListNode *prev, ListNode *next, void *datum)
@@ -60,13 +60,13 @@ Lst_Done(List *list)
 }
 
 void
-Lst_DoneCall(List *list, LstFreeProc freeProc)
+Lst_DoneFree(List *list)
 {
 	ListNode *ln, *next;
 
 	for (ln = list->first; ln != NULL; ln = next) {
 		next = ln->next;
-		freeProc(ln->datum);
+		free(ln->datum);
 		free(ln);
 	}
 }

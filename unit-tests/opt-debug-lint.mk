@@ -1,4 +1,4 @@
-# $NetBSD: opt-debug-lint.mk,v 1.16 2023/11/19 21:47:52 rillig Exp $
+# $NetBSD: opt-debug-lint.mk,v 1.17 2024/04/20 10:18:55 rillig Exp $
 #
 # Tests for the -dL command line option, which runs additional checks
 # to catch common mistakes, such as unclosed expressions.
@@ -62,8 +62,8 @@ ${UNDEF}: ${UNDEF}
 
 # Since 2020-10-03, in lint mode the variable modifier must be separated
 # by colons.  See varparse-mod.mk.
-# expect+2: Missing delimiter ':' after modifier "L"
-# expect+1: Missing delimiter ':' after modifier "P"
+# expect+2: while evaluating variable "value": Missing delimiter ':' after modifier "L"
+# expect+1: while evaluating variable "value": Missing delimiter ':' after modifier "P"
 .if ${value:LPL} != "value"
 .  error
 .endif
@@ -72,7 +72,7 @@ ${UNDEF}: ${UNDEF}
 # variable modifier had to be separated by colons.  This was wrong though
 # since make always fell back trying to parse the indirect modifier as a
 # SysV modifier.
-# expect+1: Unknown modifier "${"
+# expect+1: while evaluating variable "value": Unknown modifier "${"
 .if ${value:${:UL}PL} != "LPL}"		# FIXME: "LPL}" is unexpected here.
 .  error ${value:${:UL}PL}
 .endif

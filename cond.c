@@ -1,4 +1,4 @@
-/*	$NetBSD: cond.c,v 1.362 2024/02/07 07:21:22 rillig Exp $	*/
+/*	$NetBSD: cond.c,v 1.363 2024/04/23 22:51:28 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -91,7 +91,7 @@
 #include "dir.h"
 
 /*	"@(#)cond.c	8.2 (Berkeley) 1/2/94"	*/
-MAKE_RCSID("$NetBSD: cond.c,v 1.362 2024/02/07 07:21:22 rillig Exp $");
+MAKE_RCSID("$NetBSD: cond.c,v 1.363 2024/04/23 22:51:28 rillig Exp $");
 
 /*
  * Conditional expressions conform to this grammar:
@@ -424,13 +424,12 @@ CondParser_StringExpr(CondParser *par, const char *start,
  * Parse a string from an expression or an optionally quoted string,
  * on the left-hand and right-hand sides of comparisons.
  *
- * Results:
- *	Returns the string without any enclosing quotes, or NULL on error.
- *	Sets out_quoted if the leaf was a quoted string literal.
+ * Return the string without any enclosing quotes, or NULL on error.
+ * Sets out_quoted if the leaf was a quoted string literal.
  */
-static void
+static FStr
 CondParser_Leaf(CondParser *par, bool doEval, bool unquotedOK,
-		  FStr *out_str, bool *out_quoted)
+		bool *out_quoted)
 {
 	Buffer buf;
 	FStr str;
@@ -492,7 +491,7 @@ return_buf:
 	buf.data = NULL;
 return_str:
 	Buf_Done(&buf);
-	*out_str = str;
+	return str;
 }
 
 /*
@@ -602,7 +601,7 @@ CondParser_Comparison(CondParser *par, bool doEval)
 	ComparisonOp op;
 	bool lhsQuoted, rhsQuoted;
 
-	CondParser_Leaf(par, doEval, par->leftUnquotedOK, &lhs, &lhsQuoted);
+	lhs = CondParser_Leaf(par, doEval, par->leftUnquotedOK, &lhsQuoted);
 	if (lhs.str == NULL)
 		goto done_lhs;
 
@@ -622,7 +621,7 @@ CondParser_Comparison(CondParser *par, bool doEval)
 		goto done_lhs;
 	}
 
-	CondParser_Leaf(par, doEval, true, &rhs, &rhsQuoted);
+	rhs = CondParser_Leaf(par, doEval, true, &rhsQuoted);
 	t = rhs.str == NULL ? TOK_ERROR
 	    : !doEval ? TOK_FALSE
 	    : EvalCompare(par, lhs.str, lhsQuoted, op, rhs.str, rhsQuoted);
