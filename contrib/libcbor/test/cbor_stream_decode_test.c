@@ -613,9 +613,9 @@ static void test_int64_tag_decoding(void **_CBOR_UNUSED(_state)) {
   assert_minimum_input_size(9, int64_tag_data);
 }
 
-unsigned char bad_tag_data[] = {0xC6};
-static void test_bad_tag_decoding(void **_CBOR_UNUSED(_state)) {
-  assert_decoder_result(0, CBOR_DECODER_ERROR, decode(bad_tag_data, 1));
+unsigned char reserved_byte_data[] = {0xDC};
+static void test_reserved_byte_decoding(void **_CBOR_UNUSED(_state)) {
+  assert_decoder_result(0, CBOR_DECODER_ERROR, decode(reserved_byte_data, 1));
 }
 
 unsigned char float2_data[] = {0xF9, 0x7B, 0xFF};
@@ -729,7 +729,7 @@ int main(void) {
       stream_test(test_int16_tag_decoding),
       stream_test(test_int32_tag_decoding),
       stream_test(test_int64_tag_decoding),
-      stream_test(test_bad_tag_decoding),
+      stream_test(test_reserved_byte_decoding),
 
       stream_test(test_float2_decoding),
       stream_test(test_float4_decoding),

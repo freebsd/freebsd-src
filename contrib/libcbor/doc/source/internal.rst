@@ -6,7 +6,7 @@ Internal workings of *libcbor* are mostly derived from the specification. The pu
 Terminology
 ---------------
 ===  ======================  ========================================================================================================================================
-MTB  Major Type Byte         http://tools.ietf.org/html/rfc7049#section-2.1
+MTB  Major Type Byte         https://www.rfc-editor.org/rfc/rfc8949.html#section-3.1
 ---  ----------------------  ----------------------------------------------------------------------------------------------------------------------------------------
 DST  Dynamically Sized Type  Type whose storage requirements cannot be determined
 
@@ -32,7 +32,7 @@ and also borrowing from
 
 General notes on the API design
 --------------------------------
-The API design has two main driving priciples:
+The API design has two main driving principles:
 
  1. Let the client manage the memory as much as possible
  2. Behave exactly as specified by the standard

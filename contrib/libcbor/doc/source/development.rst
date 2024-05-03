@@ -22,15 +22,15 @@ everywhere.
 Goals
 ~~~~~~~~~~~~~~~~~~~~~~
 
-RFC-conformance and full feature support
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Standard conformance and full feature support
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Anything the standard allows, libcbor can do.
 
 **Why?** Because conformance and interoperability is the point of defining
 standards. Clients expect the support to be feature-complete and
 there is no significant complexity reduction that can be achieved by slightly
-cutting corners, which means that the incremental cost of full RFC support is
+cutting corners, which means that the incremental cost of full [CBOR standard](https://www.rfc-editor.org/info/std94) support is
 comparatively small over "almost-conformance" seen in many alternatives.
 
 
