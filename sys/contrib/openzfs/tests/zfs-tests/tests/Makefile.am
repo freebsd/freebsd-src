@@ -1593,6 +1593,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/mmp/mmp_on_zdb.ksh \
 	functional/mmp/mmp_reset_interval.ksh \
 	functional/mmp/mmp_write_distribution.ksh \
+	functional/mmp/mmp_write_slow_disk.ksh \
 	functional/mmp/mmp_write_uberblocks.ksh \
 	functional/mmp/multihost_history.ksh \
 	functional/mmp/setup.ksh \
@@ -2074,6 +2075,9 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/xattr/xattr_012_pos.ksh \
 	functional/xattr/xattr_013_pos.ksh \
 	functional/xattr/xattr_compat.ksh \
+	functional/zap_shrink/cleanup.ksh \
+	functional/zap_shrink/zap_shrink_001_pos.ksh \
+	functional/zap_shrink/setup.ksh \
 	functional/zpool_influxdb/cleanup.ksh \
 	functional/zpool_influxdb/setup.ksh \
 	functional/zpool_influxdb/zpool_influxdb.ksh \
