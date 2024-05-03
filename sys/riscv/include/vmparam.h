@@ -234,7 +234,7 @@
 #define	VM_INITIAL_PAGEIN	16
 #endif
 
-#define	UMA_MD_SMALL_ALLOC
+#define UMA_USE_DMAP
 
 #ifndef LOCORE
 extern vm_paddr_t dmap_phys_base;
