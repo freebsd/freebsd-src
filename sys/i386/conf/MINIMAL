@@ -157,3 +157,15 @@ device		xentimer		# Xen x86 PV timer device
 options 	EVDEV_SUPPORT		# evdev support in legacy drivers
 device		evdev			# input event device support
 device		uinput			# install /dev/uinput cdev
+
+# NVM Express (NVMe) support
+device		nvme			# base NVMe driver
+
+# ATA controllers
+device		ahci			# AHCI-compatible SATA controllers
+
+# CAM
+device		scbus			# SCSI bus (required for ATA/SCSI)
+device		da			# Direct Access (disks)
+device		cd			# CD
+device		pass			# Passthrough device (direct ATA/SCSI access)
