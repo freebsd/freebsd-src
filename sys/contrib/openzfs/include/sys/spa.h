@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2021 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2024 by Delphix. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  * Copyright 2013 Saso Kiselkov. All rights reserved.
@@ -769,7 +769,7 @@ extern int bpobj_enqueue_free_cb(void *arg, const blkptr_t *bp, dmu_tx_t *tx);
 
 #define	SPA_ASYNC_CONFIG_UPDATE			0x01
 #define	SPA_ASYNC_REMOVE			0x02
-#define	SPA_ASYNC_PROBE				0x04
+#define	SPA_ASYNC_FAULT_VDEV			0x04
 #define	SPA_ASYNC_RESILVER_DONE			0x08
 #define	SPA_ASYNC_RESILVER			0x10
 #define	SPA_ASYNC_AUTOEXPAND			0x20
@@ -784,7 +784,7 @@ extern int bpobj_enqueue_free_cb(void *arg, const blkptr_t *bp, dmu_tx_t *tx);
 #define	SPA_ASYNC_DETACH_SPARE			0x4000
 
 /* device manipulation */
-extern int spa_vdev_add(spa_t *spa, nvlist_t *nvroot);
+extern int spa_vdev_add(spa_t *spa, nvlist_t *nvroot, boolean_t ashift_check);
 extern int spa_vdev_attach(spa_t *spa, uint64_t guid, nvlist_t *nvroot,
     int replacing, int rebuild);
 extern int spa_vdev_detach(spa_t *spa, uint64_t guid, uint64_t pguid,
@@ -966,6 +966,10 @@ extern int spa_import_progress_set_max_txg(uint64_t pool_guid,
     uint64_t max_txg);
 extern int spa_import_progress_set_state(uint64_t pool_guid,
     spa_load_state_t spa_load_state);
+extern void spa_import_progress_set_notes(spa_t *spa,
+    const char *fmt, ...) __printflike(2, 3);
+extern void spa_import_progress_set_notes_nolog(spa_t *spa,
+    const char *fmt, ...) __printflike(2, 3);
 
 /* Pool configuration locks */
 extern int spa_config_tryenter(spa_t *spa, int locks, const void *tag,
@@ -1108,6 +1112,8 @@ extern boolean_t spa_multihost(spa_t *spa);
 extern uint32_t spa_get_hostid(spa_t *spa);
 extern void spa_activate_allocation_classes(spa_t *, dmu_tx_t *);
 extern boolean_t spa_livelist_delete_check(spa_t *spa);
+
+extern boolean_t spa_mmp_remote_host_activity(spa_t *spa);
 
 extern spa_mode_t spa_mode(spa_t *spa);
 extern uint64_t zfs_strtonum(const char *str, char **nptr);

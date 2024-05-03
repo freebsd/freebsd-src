@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2020 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2024 by Delphix. All rights reserved.
  * Copyright (c) 2018, Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  * Copyright 2013 Saso Kiselkov. All rights reserved.
@@ -3324,6 +3324,7 @@ spa_load(spa_t *spa, spa_load_state_t state, spa_import_type_t type)
 	spa->spa_load_state = state;
 	(void) spa_import_progress_set_state(spa_guid(spa),
 	    spa_load_state(spa));
+	spa_import_progress_set_notes(spa, "spa_load()");
 
 	gethrestime(&spa->spa_loaded_ts);
 	error = spa_load_impl(spa, type, &ereport);
@@ -3541,18 +3542,23 @@ spa_activity_check_duration(spa_t *spa, uberblock_t *ub)
 }
 
 /*
- * Perform the import activity check.  If the user canceled the import or
- * we detected activity then fail.
+ * Remote host activity check.
+ *
+ * error results:
+ *          0 - no activity detected
+ *  EREMOTEIO - remote activity detected
+ *      EINTR - user canceled the operation
  */
 static int
-spa_activity_check(spa_t *spa, uberblock_t *ub, nvlist_t *config)
+spa_activity_check(spa_t *spa, uberblock_t *ub, nvlist_t *config,
+    boolean_t importing)
 {
 	uint64_t txg = ub->ub_txg;
 	uint64_t timestamp = ub->ub_timestamp;
 	uint64_t mmp_config = ub->ub_mmp_config;
 	uint16_t mmp_seq = MMP_SEQ_VALID(ub) ? MMP_SEQ(ub) : 0;
 	uint64_t import_delay;
-	hrtime_t import_expire;
+	hrtime_t import_expire, now;
 	nvlist_t *mmp_label = NULL;
 	vdev_t *rvd = spa->spa_root_vdev;
 	kcondvar_t cv;
@@ -3590,9 +3596,23 @@ spa_activity_check(spa_t *spa, uberblock_t *ub, nvlist_t *config)
 
 	import_expire = gethrtime() + import_delay;
 
-	while (gethrtime() < import_expire) {
-		(void) spa_import_progress_set_mmp_check(spa_guid(spa),
-		    NSEC2SEC(import_expire - gethrtime()));
+	if (importing) {
+		spa_import_progress_set_notes(spa, "Checking MMP activity, "
+		    "waiting %llu ms", (u_longlong_t)NSEC2MSEC(import_delay));
+	}
+
+	int iterations = 0;
+	while ((now = gethrtime()) < import_expire) {
+		if (importing && iterations++ % 30 == 0) {
+			spa_import_progress_set_notes(spa, "Checking MMP "
+			    "activity, %llu ms remaining",
+			    (u_longlong_t)NSEC2MSEC(import_expire - now));
+		}
+
+		if (importing) {
+			(void) spa_import_progress_set_mmp_check(spa_guid(spa),
+			    NSEC2SEC(import_expire - gethrtime()));
+		}
 
 		vdev_uberblock_load(rvd, ub, &mmp_label);
 
@@ -3672,6 +3692,61 @@ out:
 		nvlist_free(mmp_label);
 
 	return (error);
+}
+
+/*
+ * Called from zfs_ioc_clear for a pool that was suspended
+ * after failing mmp write checks.
+ */
+boolean_t
+spa_mmp_remote_host_activity(spa_t *spa)
+{
+	ASSERT(spa_multihost(spa) && spa_suspended(spa));
+
+	nvlist_t *best_label;
+	uberblock_t best_ub;
+
+	/*
+	 * Locate the best uberblock on disk
+	 */
+	vdev_uberblock_load(spa->spa_root_vdev, &best_ub, &best_label);
+	if (best_label) {
+		/*
+		 * confirm that the best hostid matches our hostid
+		 */
+		if (nvlist_exists(best_label, ZPOOL_CONFIG_HOSTID) &&
+		    spa_get_hostid(spa) !=
+		    fnvlist_lookup_uint64(best_label, ZPOOL_CONFIG_HOSTID)) {
+			nvlist_free(best_label);
+			return (B_TRUE);
+		}
+		nvlist_free(best_label);
+	} else {
+		return (B_TRUE);
+	}
+
+	if (!MMP_VALID(&best_ub) ||
+	    !MMP_FAIL_INT_VALID(&best_ub) ||
+	    MMP_FAIL_INT(&best_ub) == 0) {
+		return (B_TRUE);
+	}
+
+	if (best_ub.ub_txg != spa->spa_uberblock.ub_txg ||
+	    best_ub.ub_timestamp != spa->spa_uberblock.ub_timestamp) {
+		zfs_dbgmsg("txg mismatch detected during pool clear "
+		    "txg %llu ub_txg %llu timestamp %llu ub_timestamp %llu",
+		    (u_longlong_t)spa->spa_uberblock.ub_txg,
+		    (u_longlong_t)best_ub.ub_txg,
+		    (u_longlong_t)spa->spa_uberblock.ub_timestamp,
+		    (u_longlong_t)best_ub.ub_timestamp);
+		return (B_TRUE);
+	}
+
+	/*
+	 * Perform an activity check looking for any remote writer
+	 */
+	return (spa_activity_check(spa, &spa->spa_uberblock, spa->spa_config,
+	    B_FALSE) != 0);
 }
 
 static int
@@ -3994,7 +4069,8 @@ spa_ld_select_uberblock(spa_t *spa, spa_import_type_t type)
 			return (spa_vdev_err(rvd, VDEV_AUX_ACTIVE, EREMOTEIO));
 		}
 
-		int error = spa_activity_check(spa, ub, spa->spa_config);
+		int error =
+		    spa_activity_check(spa, ub, spa->spa_config, B_TRUE);
 		if (error) {
 			nvlist_free(label);
 			return (error);
@@ -5204,6 +5280,7 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 	/*
 	 * Retrieve the checkpoint txg if the pool has a checkpoint.
 	 */
+	spa_import_progress_set_notes(spa, "Loading checkpoint txg");
 	error = spa_ld_read_checkpoint_txg(spa);
 	if (error != 0)
 		return (error);
@@ -5216,6 +5293,7 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 	 * initiated. Otherwise we could be reading from indirect vdevs before
 	 * we have loaded their mappings.
 	 */
+	spa_import_progress_set_notes(spa, "Loading indirect vdev metadata");
 	error = spa_ld_open_indirect_vdev_metadata(spa);
 	if (error != 0)
 		return (error);
@@ -5224,6 +5302,7 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 	 * Retrieve the full list of active features from the MOS and check if
 	 * they are all supported.
 	 */
+	spa_import_progress_set_notes(spa, "Checking feature flags");
 	error = spa_ld_check_features(spa, &missing_feat_write);
 	if (error != 0)
 		return (error);
@@ -5232,6 +5311,7 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 	 * Load several special directories from the MOS needed by the dsl_pool
 	 * layer.
 	 */
+	spa_import_progress_set_notes(spa, "Loading special MOS directories");
 	error = spa_ld_load_special_directories(spa);
 	if (error != 0)
 		return (error);
@@ -5239,6 +5319,7 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 	/*
 	 * Retrieve pool properties from the MOS.
 	 */
+	spa_import_progress_set_notes(spa, "Loading properties");
 	error = spa_ld_get_props(spa);
 	if (error != 0)
 		return (error);
@@ -5247,6 +5328,7 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 	 * Retrieve the list of auxiliary devices - cache devices and spares -
 	 * and open them.
 	 */
+	spa_import_progress_set_notes(spa, "Loading AUX vdevs");
 	error = spa_ld_open_aux_vdevs(spa, type);
 	if (error != 0)
 		return (error);
@@ -5255,14 +5337,17 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 	 * Load the metadata for all vdevs. Also check if unopenable devices
 	 * should be autoreplaced.
 	 */
+	spa_import_progress_set_notes(spa, "Loading vdev metadata");
 	error = spa_ld_load_vdev_metadata(spa);
 	if (error != 0)
 		return (error);
 
+	spa_import_progress_set_notes(spa, "Loading dedup tables");
 	error = spa_ld_load_dedup_tables(spa);
 	if (error != 0)
 		return (error);
 
+	spa_import_progress_set_notes(spa, "Loading BRT");
 	error = spa_ld_load_brt(spa);
 	if (error != 0)
 		return (error);
@@ -5271,6 +5356,7 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 	 * Verify the logs now to make sure we don't have any unexpected errors
 	 * when we claim log blocks later.
 	 */
+	spa_import_progress_set_notes(spa, "Verifying Log Devices");
 	error = spa_ld_verify_logs(spa, type, ereport);
 	if (error != 0)
 		return (error);
@@ -5292,6 +5378,7 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 	 * state. When performing an extreme rewind, we verify the whole pool,
 	 * which can take a very long time.
 	 */
+	spa_import_progress_set_notes(spa, "Verifying pool data");
 	error = spa_ld_verify_pool_data(spa);
 	if (error != 0)
 		return (error);
@@ -5301,6 +5388,7 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 	 * we write anything to the pool because we'd need to update the space
 	 * accounting using the deflated sizes.
 	 */
+	spa_import_progress_set_notes(spa, "Calculating deflated space");
 	spa_update_dspace(spa);
 
 	/*
@@ -5308,6 +5396,7 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 	 * pool. If we are importing the pool in read-write mode, a few
 	 * additional steps must be performed to finish the import.
 	 */
+	spa_import_progress_set_notes(spa, "Starting import");
 	if (spa_writeable(spa) && (spa->spa_load_state == SPA_LOAD_RECOVER ||
 	    spa->spa_load_max_txg == UINT64_MAX)) {
 		uint64_t config_cache_txg = spa->spa_config_txg;
@@ -5324,6 +5413,7 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 			    (u_longlong_t)spa->spa_uberblock.ub_checkpoint_txg);
 		}
 
+		spa_import_progress_set_notes(spa, "Claiming ZIL blocks");
 		/*
 		 * Traverse the ZIL and claim all blocks.
 		 */
@@ -5343,6 +5433,7 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 		 * will have been set for us by ZIL traversal operations
 		 * performed above.
 		 */
+		spa_import_progress_set_notes(spa, "Syncing ZIL claims");
 		txg_wait_synced(spa->spa_dsl_pool, spa->spa_claim_max_txg);
 
 		/*
@@ -5350,6 +5441,7 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 		 * next sync, we would update the config stored in vdev labels
 		 * and the cachefile (by default /etc/zfs/zpool.cache).
 		 */
+		spa_import_progress_set_notes(spa, "Updating configs");
 		spa_ld_check_for_config_update(spa, config_cache_txg,
 		    update_config_cache);
 
@@ -5358,6 +5450,7 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 		 * Then check all DTLs to see if anything needs resilvering.
 		 * The resilver will be deferred if a rebuild was started.
 		 */
+		spa_import_progress_set_notes(spa, "Starting resilvers");
 		if (vdev_rebuild_active(spa->spa_root_vdev)) {
 			vdev_rebuild_restart(spa);
 		} else if (!dsl_scan_resilvering(spa->spa_dsl_pool) &&
@@ -5371,6 +5464,8 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 		 */
 		spa_history_log_version(spa, "open", NULL);
 
+		spa_import_progress_set_notes(spa,
+		    "Restarting device removals");
 		spa_restart_removal(spa);
 		spa_spawn_aux_threads(spa);
 
@@ -5383,19 +5478,26 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 		 * auxiliary threads above (from which the livelist
 		 * deletion zthr is part of).
 		 */
+		spa_import_progress_set_notes(spa,
+		    "Cleaning up inconsistent objsets");
 		(void) dmu_objset_find(spa_name(spa),
 		    dsl_destroy_inconsistent, NULL, DS_FIND_CHILDREN);
 
 		/*
 		 * Clean up any stale temporary dataset userrefs.
 		 */
+		spa_import_progress_set_notes(spa,
+		    "Cleaning up temporary userrefs");
 		dsl_pool_clean_tmp_userrefs(spa->spa_dsl_pool);
 
 		spa_config_enter(spa, SCL_CONFIG, FTAG, RW_READER);
+		spa_import_progress_set_notes(spa, "Restarting initialize");
 		vdev_initialize_restart(spa->spa_root_vdev);
+		spa_import_progress_set_notes(spa, "Restarting TRIM");
 		vdev_trim_restart(spa->spa_root_vdev);
 		vdev_autotrim_restart(spa);
 		spa_config_exit(spa, SCL_CONFIG, FTAG);
+		spa_import_progress_set_notes(spa, "Finished importing");
 	}
 
 	spa_import_progress_remove(spa_guid(spa));
@@ -6978,7 +7080,7 @@ spa_draid_feature_incr(void *arg, dmu_tx_t *tx)
  * Add a device to a storage pool.
  */
 int
-spa_vdev_add(spa_t *spa, nvlist_t *nvroot)
+spa_vdev_add(spa_t *spa, nvlist_t *nvroot, boolean_t check_ashift)
 {
 	uint64_t txg, ndraid = 0;
 	int error;
@@ -7065,6 +7167,16 @@ spa_vdev_add(spa_t *spa, nvlist_t *nvroot)
 						    txg, EINVAL));
 					}
 				}
+			}
+		}
+	}
+
+	if (check_ashift && spa->spa_max_ashift == spa->spa_min_ashift) {
+		for (int c = 0; c < vd->vdev_children; c++) {
+			tvd = vd->vdev_child[c];
+			if (tvd->vdev_ashift != spa->spa_max_ashift) {
+				return (spa_vdev_exit(spa, vd, txg,
+				    ZFS_ERR_ASHIFT_MISMATCH));
 			}
 		}
 	}
@@ -8542,15 +8654,16 @@ spa_async_remove(spa_t *spa, vdev_t *vd)
 }
 
 static void
-spa_async_probe(spa_t *spa, vdev_t *vd)
+spa_async_fault_vdev(spa_t *spa, vdev_t *vd)
 {
-	if (vd->vdev_probe_wanted) {
-		vd->vdev_probe_wanted = B_FALSE;
-		vdev_reopen(vd);	/* vdev_open() does the actual probe */
+	if (vd->vdev_fault_wanted) {
+		vd->vdev_fault_wanted = B_FALSE;
+		vdev_set_state(vd, B_TRUE, VDEV_STATE_FAULTED,
+		    VDEV_AUX_ERR_EXCEEDED);
 	}
 
 	for (int c = 0; c < vd->vdev_children; c++)
-		spa_async_probe(spa, vd->vdev_child[c]);
+		spa_async_fault_vdev(spa, vd->vdev_child[c]);
 }
 
 static void
@@ -8638,11 +8751,11 @@ spa_async_thread(void *arg)
 	}
 
 	/*
-	 * See if any devices need to be probed.
+	 * See if any devices need to be marked faulted.
 	 */
-	if (tasks & SPA_ASYNC_PROBE) {
+	if (tasks & SPA_ASYNC_FAULT_VDEV) {
 		spa_vdev_state_enter(spa, SCL_NONE);
-		spa_async_probe(spa, spa->spa_root_vdev);
+		spa_async_fault_vdev(spa, spa->spa_root_vdev);
 		(void) spa_vdev_state_exit(spa, NULL, 0);
 	}
 

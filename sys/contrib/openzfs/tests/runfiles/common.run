@@ -246,7 +246,7 @@ tests = ['zfs_mount_001_pos', 'zfs_mount_002_pos', 'zfs_mount_003_pos',
     'zfs_mount_009_neg', 'zfs_mount_010_neg', 'zfs_mount_011_neg',
     'zfs_mount_012_pos', 'zfs_mount_all_001_pos', 'zfs_mount_encrypted',
     'zfs_mount_remount', 'zfs_mount_all_fail', 'zfs_mount_all_mountpoints',
-    'zfs_mount_test_race']
+    'zfs_mount_test_race', 'zfs_mount_recursive']
 tags = ['functional', 'cli_root', 'zfs_mount']
 
 [tests/functional/cli_root/zfs_program]
@@ -372,7 +372,8 @@ tags = ['functional', 'cli_root', 'zpool']
 tests = ['zpool_add_001_pos', 'zpool_add_002_pos', 'zpool_add_003_pos',
     'zpool_add_004_pos', 'zpool_add_006_pos', 'zpool_add_007_neg',
     'zpool_add_008_neg', 'zpool_add_009_neg', 'zpool_add_010_pos',
-    'add-o_ashift', 'add_prop_ashift', 'zpool_add_dryrun_output']
+    'add-o_ashift', 'add_prop_ashift', 'zpool_add_dryrun_output',
+    'zpool_add--allow-ashift-mismatch']
 tags = ['functional', 'cli_root', 'zpool_add']
 
 [tests/functional/cli_root/zpool_attach]
@@ -458,7 +459,8 @@ tests = ['zpool_import_001_pos', 'zpool_import_002_pos',
     'import_devices_missing', 'import_log_missing',
     'import_paths_changed',
     'import_rewind_config_changed',
-    'import_rewind_device_replaced']
+    'import_rewind_device_replaced',
+    'zpool_import_status']
 tags = ['functional', 'cli_root', 'zpool_import']
 timeout = 1200
 

@@ -22,6 +22,7 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011, 2020 by Delphix. All rights reserved.
  * Copyright (c) 2017, Intel Corporation.
+ * Copyright (c) 2023, Klara Inc.
  */
 
 #ifndef _SYS_VDEV_IMPL_H
@@ -273,7 +274,7 @@ struct vdev {
 	txg_list_t	vdev_dtl_list;	/* per-txg dirty DTL lists	*/
 	txg_node_t	vdev_txg_node;	/* per-txg dirty vdev linkage	*/
 	boolean_t	vdev_remove_wanted; /* async remove wanted?	*/
-	boolean_t	vdev_probe_wanted; /* async probe wanted?	*/
+	boolean_t	vdev_fault_wanted; /* async faulted wanted?	*/
 	list_node_t	vdev_config_dirty_node; /* config dirty list	*/
 	list_node_t	vdev_state_dirty_node; /* state dirty list	*/
 	uint64_t	vdev_deflate_ratio; /* deflation ratio (x512)	*/
@@ -453,12 +454,14 @@ struct vdev {
 	zfs_ratelimit_t vdev_checksum_rl;
 
 	/*
-	 * Checksum and IO thresholds for tuning ZED
+	 * Vdev properties for tuning ZED or zfsd
 	 */
 	uint64_t	vdev_checksum_n;
 	uint64_t	vdev_checksum_t;
 	uint64_t	vdev_io_n;
 	uint64_t	vdev_io_t;
+	uint64_t	vdev_slow_io_n;
+	uint64_t	vdev_slow_io_t;
 };
 
 #define	VDEV_PAD_SIZE		(8 << 10)

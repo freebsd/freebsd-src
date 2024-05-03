@@ -569,8 +569,10 @@ dmu_buf_hold_array_by_dnode(dnode_t *dn, uint64_t offset, uint64_t length,
 	for (i = 0; i < nblks; i++) {
 		dmu_buf_impl_t *db = dbuf_hold(dn, blkid + i, tag);
 		if (db == NULL) {
-			if (zs)
-				dmu_zfetch_run(zs, missed, B_TRUE);
+			if (zs) {
+				dmu_zfetch_run(&dn->dn_zfetch, zs, missed,
+				    B_TRUE);
+			}
 			rw_exit(&dn->dn_struct_rwlock);
 			dmu_buf_rele_array(dbp, nblks, tag);
 			if (read)
@@ -606,7 +608,7 @@ dmu_buf_hold_array_by_dnode(dnode_t *dn, uint64_t offset, uint64_t length,
 		zfs_racct_write(length, nblks);
 
 	if (zs)
-		dmu_zfetch_run(zs, missed, B_TRUE);
+		dmu_zfetch_run(&dn->dn_zfetch, zs, missed, B_TRUE);
 	rw_exit(&dn->dn_struct_rwlock);
 
 	if (read) {
@@ -695,72 +697,99 @@ dmu_buf_rele_array(dmu_buf_t **dbp_fake, int numbufs, const void *tag)
 }
 
 /*
- * Issue prefetch i/os for the given blocks.  If level is greater than 0, the
+ * Issue prefetch I/Os for the given blocks.  If level is greater than 0, the
  * indirect blocks prefetched will be those that point to the blocks containing
- * the data starting at offset, and continuing to offset + len.
+ * the data starting at offset, and continuing to offset + len.  If the range
+ * it too long, prefetch the first dmu_prefetch_max bytes as requested, while
+ * for the rest only a higher level, also fitting within dmu_prefetch_max.  It
+ * should primarily help random reads, since for long sequential reads there is
+ * a speculative prefetcher.
  *
  * Note that if the indirect blocks above the blocks being prefetched are not
- * in cache, they will be asynchronously read in.
+ * in cache, they will be asynchronously read in.  Dnode read by dnode_hold()
+ * is currently synchronous.
  */
 void
 dmu_prefetch(objset_t *os, uint64_t object, int64_t level, uint64_t offset,
     uint64_t len, zio_priority_t pri)
 {
 	dnode_t *dn;
-	uint64_t blkid;
-	int nblks, err;
 
-	if (len == 0) {  /* they're interested in the bonus buffer */
-		dn = DMU_META_DNODE(os);
-
-		if (object == 0 || object >= DN_MAX_OBJECT)
-			return;
-
-		rw_enter(&dn->dn_struct_rwlock, RW_READER);
-		blkid = dbuf_whichblock(dn, level,
-		    object * sizeof (dnode_phys_t));
-		dbuf_prefetch(dn, level, blkid, pri, 0);
-		rw_exit(&dn->dn_struct_rwlock);
+	if (dmu_prefetch_max == 0 || len == 0) {
+		dmu_prefetch_dnode(os, object, pri);
 		return;
 	}
 
-	/*
-	 * See comment before the definition of dmu_prefetch_max.
-	 */
-	len = MIN(len, dmu_prefetch_max);
-
-	/*
-	 * XXX - Note, if the dnode for the requested object is not
-	 * already cached, we will do a *synchronous* read in the
-	 * dnode_hold() call.  The same is true for any indirects.
-	 */
-	err = dnode_hold(os, object, FTAG, &dn);
-	if (err != 0)
+	if (dnode_hold(os, object, FTAG, &dn) != 0)
 		return;
 
-	/*
-	 * offset + len - 1 is the last byte we want to prefetch for, and offset
-	 * is the first.  Then dbuf_whichblk(dn, level, off + len - 1) is the
-	 * last block we want to prefetch, and dbuf_whichblock(dn, level,
-	 * offset)  is the first.  Then the number we need to prefetch is the
-	 * last - first + 1.
-	 */
-	rw_enter(&dn->dn_struct_rwlock, RW_READER);
-	if (level > 0 || dn->dn_datablkshift != 0) {
-		nblks = dbuf_whichblock(dn, level, offset + len - 1) -
-		    dbuf_whichblock(dn, level, offset) + 1;
-	} else {
-		nblks = (offset < dn->dn_datablksz);
-	}
-
-	if (nblks != 0) {
-		blkid = dbuf_whichblock(dn, level, offset);
-		for (int i = 0; i < nblks; i++)
-			dbuf_prefetch(dn, level, blkid + i, pri, 0);
-	}
-	rw_exit(&dn->dn_struct_rwlock);
+	dmu_prefetch_by_dnode(dn, level, offset, len, pri);
 
 	dnode_rele(dn, FTAG);
+}
+
+void
+dmu_prefetch_by_dnode(dnode_t *dn, int64_t level, uint64_t offset,
+    uint64_t len, zio_priority_t pri)
+{
+	int64_t level2 = level;
+	uint64_t start, end, start2, end2;
+
+	/*
+	 * Depending on len we may do two prefetches: blocks [start, end) at
+	 * level, and following blocks [start2, end2) at higher level2.
+	 */
+	rw_enter(&dn->dn_struct_rwlock, RW_READER);
+	if (dn->dn_datablkshift != 0) {
+		/*
+		 * The object has multiple blocks.  Calculate the full range
+		 * of blocks [start, end2) and then split it into two parts,
+		 * so that the first [start, end) fits into dmu_prefetch_max.
+		 */
+		start = dbuf_whichblock(dn, level, offset);
+		end2 = dbuf_whichblock(dn, level, offset + len - 1) + 1;
+		uint8_t ibs = dn->dn_indblkshift;
+		uint8_t bs = (level == 0) ? dn->dn_datablkshift : ibs;
+		uint_t limit = P2ROUNDUP(dmu_prefetch_max, 1 << bs) >> bs;
+		start2 = end = MIN(end2, start + limit);
+
+		/*
+		 * Find level2 where [start2, end2) fits into dmu_prefetch_max.
+		 */
+		uint8_t ibps = ibs - SPA_BLKPTRSHIFT;
+		limit = P2ROUNDUP(dmu_prefetch_max, 1 << ibs) >> ibs;
+		do {
+			level2++;
+			start2 = P2ROUNDUP(start2, 1 << ibps) >> ibps;
+			end2 = P2ROUNDUP(end2, 1 << ibps) >> ibps;
+		} while (end2 - start2 > limit);
+	} else {
+		/* There is only one block.  Prefetch it or nothing. */
+		start = start2 = end2 = 0;
+		end = start + (level == 0 && offset < dn->dn_datablksz);
+	}
+
+	for (uint64_t i = start; i < end; i++)
+		dbuf_prefetch(dn, level, i, pri, 0);
+	for (uint64_t i = start2; i < end2; i++)
+		dbuf_prefetch(dn, level2, i, pri, 0);
+	rw_exit(&dn->dn_struct_rwlock);
+}
+
+/*
+ * Issue prefetch I/Os for the given object's dnode.
+ */
+void
+dmu_prefetch_dnode(objset_t *os, uint64_t object, zio_priority_t pri)
+{
+	if (object == 0 || object >= DN_MAX_OBJECT)
+		return;
+
+	dnode_t *dn = DMU_META_DNODE(os);
+	rw_enter(&dn->dn_struct_rwlock, RW_READER);
+	uint64_t blkid = dbuf_whichblock(dn, 0, object * sizeof (dnode_phys_t));
+	dbuf_prefetch(dn, 0, blkid, pri, 0);
+	rw_exit(&dn->dn_struct_rwlock);
 }
 
 /*
@@ -2238,11 +2267,13 @@ dmu_read_l0_bps(objset_t *os, uint64_t object, uint64_t offset, uint64_t length,
 
 		if (bp == NULL) {
 			/*
-			 * The block was created in this transaction group,
-			 * so it has no BP yet.
+			 * The file size was increased, but the block was never
+			 * written, otherwise we would either have the block
+			 * pointer or the dirty record and would not get here.
+			 * It is effectively a hole, so report it as such.
 			 */
-			error = SET_ERROR(EAGAIN);
-			goto out;
+			BP_ZERO(&bps[i]);
+			continue;
 		}
 		/*
 		 * Make sure we clone only data blocks.
@@ -2334,18 +2365,16 @@ dmu_brt_clone(objset_t *os, uint64_t object, uint64_t offset, uint64_t length,
 		ASSERT3U(dr->dr_txg, ==, tx->tx_txg);
 		dl = &dr->dt.dl;
 		dl->dr_overridden_by = *bp;
-		dl->dr_brtwrite = B_TRUE;
-		dl->dr_override_state = DR_OVERRIDDEN;
-		if (BP_IS_HOLE(bp)) {
-			dl->dr_overridden_by.blk_birth = 0;
-			dl->dr_overridden_by.blk_phys_birth = 0;
-		} else {
-			dl->dr_overridden_by.blk_birth = dr->dr_txg;
+		if (!BP_IS_HOLE(bp) || bp->blk_birth != 0) {
 			if (!BP_IS_EMBEDDED(bp)) {
-				dl->dr_overridden_by.blk_phys_birth =
-				    BP_PHYSICAL_BIRTH(bp);
+				BP_SET_BIRTH(&dl->dr_overridden_by, dr->dr_txg,
+				    BP_PHYSICAL_BIRTH(bp));
+			} else {
+				dl->dr_overridden_by.blk_birth = dr->dr_txg;
 			}
 		}
+		dl->dr_brtwrite = B_TRUE;
+		dl->dr_override_state = DR_OVERRIDDEN;
 
 		mutex_exit(&db->db_mtx);
 
@@ -2544,6 +2573,8 @@ EXPORT_SYMBOL(dmu_bonus_hold_by_dnode);
 EXPORT_SYMBOL(dmu_buf_hold_array_by_bonus);
 EXPORT_SYMBOL(dmu_buf_rele_array);
 EXPORT_SYMBOL(dmu_prefetch);
+EXPORT_SYMBOL(dmu_prefetch_by_dnode);
+EXPORT_SYMBOL(dmu_prefetch_dnode);
 EXPORT_SYMBOL(dmu_free_range);
 EXPORT_SYMBOL(dmu_free_long_range);
 EXPORT_SYMBOL(dmu_free_long_object);

@@ -93,6 +93,9 @@
 /* bdev_check_media_change() exists */
 /* #undef HAVE_BDEV_CHECK_MEDIA_CHANGE */
 
+/* bdev_file_open_by_path() exists */
+/* #undef HAVE_BDEV_FILE_OPEN_BY_PATH */
+
 /* bdev_*_io_acct() available */
 /* #undef HAVE_BDEV_IO_ACCT_63 */
 
@@ -159,14 +162,23 @@
 /* blkdev_get_by_path() handles ERESTARTSYS */
 /* #undef HAVE_BLKDEV_GET_ERESTARTSYS */
 
-/* blkdev_issue_discard() is available */
-/* #undef HAVE_BLKDEV_ISSUE_DISCARD */
+/* __blkdev_issue_discard(flags) is available */
+/* #undef HAVE_BLKDEV_ISSUE_DISCARD_ASYNC_FLAGS */
 
 /* __blkdev_issue_discard() is available */
-/* #undef HAVE_BLKDEV_ISSUE_DISCARD_ASYNC */
+/* #undef HAVE_BLKDEV_ISSUE_DISCARD_ASYNC_NOFLAGS */
+
+/* blkdev_issue_discard(flags) is available */
+/* #undef HAVE_BLKDEV_ISSUE_DISCARD_FLAGS */
+
+/* blkdev_issue_discard() is available */
+/* #undef HAVE_BLKDEV_ISSUE_DISCARD_NOFLAGS */
 
 /* blkdev_issue_secure_erase() is available */
 /* #undef HAVE_BLKDEV_ISSUE_SECURE_ERASE */
+
+/* blkdev_put() exists */
+/* #undef HAVE_BLKDEV_PUT */
 
 /* blkdev_put() accepts void* as arg 2 */
 /* #undef HAVE_BLKDEV_PUT_HOLDER */
@@ -183,6 +195,9 @@
 /* blk_alloc_disk() exists */
 /* #undef HAVE_BLK_ALLOC_DISK */
 
+/* blk_alloc_disk() exists and takes 2 args */
+/* #undef HAVE_BLK_ALLOC_DISK_2ARG */
+
 /* blk_alloc_queue() expects request function */
 /* #undef HAVE_BLK_ALLOC_QUEUE_REQUEST_FN */
 
@@ -197,6 +212,9 @@
 
 /* block multiqueue is available */
 /* #undef HAVE_BLK_MQ */
+
+/* block multiqueue hardware context is cached in struct request */
+/* #undef HAVE_BLK_MQ_RQ_HCTX */
 
 /* blk queue backing_dev_info is dynamic */
 /* #undef HAVE_BLK_QUEUE_BDI_DYNAMIC */
@@ -550,7 +568,7 @@
 /* yes */
 /* #undef HAVE_IO_SCHEDULE_TIMEOUT */
 
-/* Define to 1 if you have the `issetugid' function. */
+/* Define to 1 if you have the 'issetugid' function. */
 #define HAVE_ISSETUGID 1
 
 /* iter_iov() is available */
@@ -658,8 +676,11 @@
 /* iops->mkdir() takes umode_t */
 /* #undef HAVE_MKDIR_UMODE_T */
 
-/* Define to 1 if you have the `mlockall' function. */
+/* Define to 1 if you have the 'mlockall' function. */
 #define HAVE_MLOCKALL 1
+
+/* page_size() is available */
+/* #undef HAVE_MM_PAGE_SIZE */
 
 /* lookup_bdev() wants mode arg */
 /* #undef HAVE_MODE_LOOKUP_BDEV */
@@ -861,10 +882,10 @@
 /* Define to 1 if you have the <string.h> header file. */
 #define HAVE_STRING_H 1
 
-/* Define to 1 if you have the `strlcat' function. */
+/* Define to 1 if you have the 'strlcat' function. */
 #define HAVE_STRLCAT 1
 
-/* Define to 1 if you have the `strlcpy' function. */
+/* Define to 1 if you have the 'strlcpy' function. */
 #define HAVE_STRLCPY 1
 
 /* submit_bio is member of struct block_device_operations */
@@ -912,7 +933,7 @@
 /* kernel has totalram_pages() */
 /* #undef HAVE_TOTALRAM_PAGES_FUNC */
 
-/* Define to 1 if you have the `udev_device_get_is_initialized' function. */
+/* Define to 1 if you have the 'udev_device_get_is_initialized' function. */
 /* #undef HAVE_UDEV_DEVICE_GET_IS_INITIALIZED */
 
 /* kernel has __kernel_fpu_* functions */
@@ -989,6 +1010,9 @@
 
 /* __set_page_dirty_nobuffers exists */
 /* #undef HAVE_VFS_SET_PAGE_DIRTY_NOBUFFERS */
+
+/* splice_copy_file_range() is available */
+/* #undef HAVE_VFS_SPLICE_COPY_FILE_RANGE */
 
 /* __vmalloc page flags exists */
 /* #undef HAVE_VMALLOC_PAGE_KERNEL */
@@ -1104,7 +1128,7 @@
 /* pde_data() is PDE_DATA() */
 /* #undef SPL_PDE_DATA */
 
-/* Define to 1 if all of the C90 standard headers exist (not just the ones
+/* Define to 1 if all of the C89 standard headers exist (not just the ones
    required in a freestanding environment). This macro is provided for
    backward compatibility; new code need not use it. */
 #define SYSTEM_FREEBSD 1
@@ -1152,7 +1176,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.2.3-FreeBSD_gc883088df"
+#define ZFS_META_ALIAS "zfs-2.2.4-FreeBSD_g256659204"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -1161,7 +1185,7 @@
 /* #undef ZFS_META_DATA */
 
 /* Define the maximum compatible kernel version. */
-#define ZFS_META_KVER_MAX "6.7"
+#define ZFS_META_KVER_MAX "6.8"
 
 /* Define the minimum compatible kernel version. */
 #define ZFS_META_KVER_MIN "3.10"
@@ -1182,10 +1206,10 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "FreeBSD_gc883088df"
+#define ZFS_META_RELEASE "FreeBSD_g256659204"
 
 /* Define the project version. */
-#define ZFS_META_VERSION "2.2.3"
+#define ZFS_META_VERSION "2.2.4"
 
 /* count is located in percpu_ref.data */
 /* #undef ZFS_PERCPU_REF_COUNT_IN_DATA */
