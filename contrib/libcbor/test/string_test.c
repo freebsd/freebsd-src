@@ -217,6 +217,22 @@ static void test_short_indef_string(void **_CBOR_UNUSED(_state)) {
   assert_null(string);
 }
 
+static void test_invalid_utf(void **_CBOR_UNUSED(_state)) {
+  /* 0x60 + 1 | 0xC5 (invalid unfinished 2B codepoint) */
+  unsigned char string_data[] = {0x61, 0xC5};
+  string = cbor_load(string_data, 2, &res);
+
+  assert_non_null(string);
+  assert_true(cbor_typeof(string) == CBOR_TYPE_STRING);
+  assert_true(cbor_isa_string(string));
+  assert_size_equal(cbor_string_length(string), 1);
+  assert_size_equal(cbor_string_codepoint_count(string), 0);
+  assert_true(cbor_string_is_definite(string));
+  assert_true(res.read == 2);
+
+  cbor_decref(&string);
+}
+
 static void test_inline_creation(void **_CBOR_UNUSED(_state)) {
   string = cbor_build_string("Hello!");
   assert_memory_equal(cbor_string_handle(string), "Hello!", strlen("Hello!"));
@@ -275,6 +291,53 @@ static void test_add_chunk_reallocation_overflow(void **_CBOR_UNUSED(_state)) {
   cbor_decref(&string);
 }
 
+static void test_set_handle(void **_CBOR_UNUSED(_state)) {
+  string = cbor_new_definite_string();
+  char *test_string = "Hello";
+  unsigned char *string_data = malloc(strlen(test_string));
+  memcpy(string_data, test_string, strlen(test_string));
+  assert_ptr_not_equal(string_data, NULL);
+  cbor_string_set_handle(string, string_data, strlen(test_string));
+
+  assert_ptr_equal(cbor_string_handle(string), string_data);
+  assert_size_equal(cbor_string_length(string), 5);
+  assert_size_equal(cbor_string_codepoint_count(string), 5);
+
+  cbor_decref(&string);
+}
+
+static void test_set_handle_multibyte_codepoint(void **_CBOR_UNUSED(_state)) {
+  string = cbor_new_definite_string();
+  // "Štěstíčko" in UTF-8
+  char *test_string = "\xc5\xa0t\xc4\x9bst\xc3\xad\xc4\x8dko";
+  unsigned char *string_data = malloc(strlen(test_string));
+  memcpy(string_data, test_string, strlen(test_string));
+  assert_ptr_not_equal(string_data, NULL);
+  cbor_string_set_handle(string, string_data, strlen(test_string));
+
+  assert_ptr_equal(cbor_string_handle(string), string_data);
+  assert_size_equal(cbor_string_length(string), 13);
+  assert_size_equal(cbor_string_codepoint_count(string), 9);
+
+  cbor_decref(&string);
+}
+
+static void test_set_handle_invalid_utf(void **_CBOR_UNUSED(_state)) {
+  string = cbor_new_definite_string();
+  // Invalid multi-byte character (missing the second byte).
+  char *test_string = "Test: \xc5";
+  unsigned char *string_data = malloc(strlen(test_string));
+  memcpy(string_data, test_string, strlen(test_string));
+  assert_ptr_not_equal(string_data, NULL);
+  cbor_string_set_handle(string, string_data, strlen(test_string));
+
+  assert_ptr_equal(cbor_string_handle(string), string_data);
+  assert_size_equal(cbor_string_length(string), 7);
+  assert_size_equal(cbor_string_codepoint_count(string), 0);
+
+  cbor_decref(&string);
+}
+
 int main(void) {
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_empty_string),
@@ -285,10 +348,14 @@ int main(void) {
       cmocka_unit_test(test_int32_string),
       cmocka_unit_test(test_int64_string),
       cmocka_unit_test(test_short_indef_string),
+      cmocka_unit_test(test_invalid_utf),
       cmocka_unit_test(test_inline_creation),
       cmocka_unit_test(test_string_creation),
       cmocka_unit_test(test_string_add_chunk),
       cmocka_unit_test(test_add_chunk_reallocation_overflow),
+      cmocka_unit_test(test_set_handle),
+      cmocka_unit_test(test_set_handle_multibyte_codepoint),
+      cmocka_unit_test(test_set_handle_invalid_utf),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

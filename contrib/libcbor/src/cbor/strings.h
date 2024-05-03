@@ -33,7 +33,8 @@ _CBOR_NODISCARD CBOR_EXPORT size_t cbor_string_length(const cbor_item_t *item);
 
 /** The number of codepoints in this string
  *
- * Might differ from length if there are multibyte ones
+ * Might differ from `cbor_string_length` if there are multibyte codepoints.
+ * If the string data is not valid UTF-8, returns 0.
  *
  * @param item A string
  * @return The number of codepoints in this string
@@ -71,6 +72,8 @@ cbor_string_handle(const cbor_item_t *item);
 
 /** Set the handle to the underlying string
  *
+ * The data is assumed to be a valid UTF-8 string. If the string is non-empty
+ * and invalid, `cbor_string_codepoint_count` will return 0.
  *
  * \rst
  * .. warning:: Using a pointer to a stack allocated constant is a common
@@ -144,7 +147,11 @@ _CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_new_indefinite_string(void);
 
 /** Creates a new string and initializes it
  *
- * The `val` will be copied to a newly allocated block
+ * The data from `val` will be copied to a newly allocated memory block.
+ *
+ * Note that valid UTF-8 strings do not contain null bytes, so this routine is
+ * correct for all valid inputs. If the input is not guaranteed to be valid,
+ * use `cbor_build_stringn` instead.
  *
  * @param val A null-terminated UTF-8 string
  * @return Reference to the new string item. The item's reference count is
@@ -155,10 +162,12 @@ _CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_build_string(const char *val);
 
 /** Creates a new string and initializes it
  *
- * The `handle` will be copied to a newly allocated block
+ * The data from `handle` will be copied to a newly allocated memory block.
  *
- * @param val A UTF-8 string, at least @p `length` long (excluding the null
- * byte)
+ * All @p `length` bytes will be stored in the string, even if there are null
+ * bytes or invalid UTF-8 sequences.
+ *
+ * @param val A UTF-8 string, at least @p `length` bytes long
  * @param length Length (in bytes) of the string passed in @p `val`.
  * @return Reference to the new string item. The item's reference count is
  * initialized to one.

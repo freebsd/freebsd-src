@@ -9,7 +9,7 @@ Overview
 
 
 Main features
- - Complete RFC conformance [#]_
+ - Complete `IETF RFC 8949 (STD 94) <https://www.rfc-editor.org/info/std94>`_ conformance [#]_
  - Robust C99 implementation
  - Layered architecture offers both control and convenience
  - Flexible memory management
@@ -19,7 +19,7 @@ Main features
  - Extensive documentation and test suite
  - No runtime dependencies, small footprint
 
-.. [#] See :doc:`rfc_conformance`
+.. [#] See :doc:`standard_conformance`
 
 .. [#] With the exception of custom memory allocators (see :doc:`api/item_reference_counting`)
 
@@ -31,9 +31,9 @@ Contents
    using
    api
    tests
-   rfc_conformance
+   standard_conformance
    internal
    changelog
    development
 
-.. _CBOR: http://tools.ietf.org/html/rfc7049
+.. _CBOR: https://www.rfc-editor.org/info/std94

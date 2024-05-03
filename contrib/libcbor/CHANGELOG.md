@@ -4,6 +4,19 @@ Template:
 Next
 ---------------------
 
+0.11.0 (2024-02-04)
+---------------------
+- [Updated documentation to refer to RFC 8949](https://github.com/PJK/libcbor/issues/269)
+- Improvements to `cbor_describe`
+  - [Bytestring data will now be printed as well](https://github.com/PJK/libcbor/pull/281) by  [akallabeth](https://github.com/akallabeth)
+  - [Formatting consistency and clarity improvements](https://github.com/PJK/libcbor/pull/285)
+- [Fix `cbor_string_set_handle` not setting the codepoint count](https://github.com/PJK/libcbor/pull/286)
+- BREAKING: [`cbor_load` will no longer fail on input strings that are well-formed but not valid UTF-8](https://github.com/PJK/libcbor/pull/286)
+  - If you were relying on the validation, please check the result using `cbor_string_codepoint_count` instead 
+- BREAKING: [All decoders like `cbor_load` and `cbor_stream_decode` will accept all well-formed tag values](https://github.com/PJK/libcbor/pull/308) (bug discovered by [dskern-github](https://github.com/dskern-github))
+  - Previously, decoding of certain values would fail with `CBOR_ERR_MALFORMATED` or `CBOR_DECODER_ERROR`
+  - This also makes decoding symmetrical with serialization, which already accepts all values
+
 0.10.2 (2023-01-31)
 ---------------------
 - [Fixed minor test bug causing failures for x86 Linux](https://github.com/PJK/libcbor/pull/266) (discovered by [trofi](https://github.com/PJK/libcbor/issues/263))
@@ -117,7 +130,7 @@ Next
 Breaks build & header compatibility due to:
 
 - Improved build configuration and feature check macros
-- Endianess configuration fixes (by Erwin Kroon and David Grigsby)
+- Endianness configuration fixes (by Erwin Kroon and David Grigsby)
 - pkg-config compatibility (by Vincent Bernat)
 - enable use of versioned SONAME (by Vincent Bernat)
 - better fuzzer (wasn't random until now, ooops)
