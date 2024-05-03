@@ -121,26 +121,47 @@ receiver(void *arg)
 	return NULL;
 }
 
+static void
+usage(void)
+{
+	errx(1, "usage: %s [-u] <file> <start> <len> <flags>", getprogname());
+}
+
 int
 main(int argc, char **argv)
 {
 	pthread_t pt;
 	off_t start;
-	int fd, ss[2], flags, error;
+	int ch, fd, ss[2], flags, error;
+	bool pf_unix = false;
 
-	if (argc != 5)
-		errx(1, "usage: %s <file> <start> <len> <flags>",
-		    getprogname());
+	while ((ch = getopt(argc, argv, "u")) != -1)
+		switch (ch) {
+		case 'u':
+			pf_unix = true;
+			break;
+		default:
+			usage();
+		}
+	argc -= optind;
+	argv += optind;
 
-	start = strtoull(argv[2], NULL, 0);
-	readlen = strtoull(argv[3], NULL, 0);
-	flags = strtoul(argv[4], NULL, 0);
+	if (argc != 4)
+		usage();
 
-	fd = open(argv[1], O_RDONLY);
+	start = strtoull(argv[1], NULL, 0);
+	readlen = strtoull(argv[2], NULL, 0);
+	flags = strtoul(argv[3], NULL, 0);
+
+	fd = open(argv[0], O_RDONLY);
 	if (fd < 0)
 		err(1, "open");
 
-	tcp_socketpair(ss);
+	if (pf_unix) {
+		if (socketpair(PF_LOCAL, SOCK_STREAM, 0, ss) != 0)
+			err(1, "socketpair");
+	} else
+		tcp_socketpair(ss);
 
 	error = pthread_create(&pt, NULL, receiver, &ss[1]);
 	if (error)
