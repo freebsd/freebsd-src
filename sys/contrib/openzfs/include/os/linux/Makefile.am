@@ -5,6 +5,7 @@ kernel_linux_HEADERS = \
 	%D%/kernel/linux/compiler_compat.h \
 	%D%/kernel/linux/dcache_compat.h \
 	%D%/kernel/linux/kmap_compat.h \
+	%D%/kernel/linux/mm_compat.h \
 	%D%/kernel/linux/mod_compat.h \
 	%D%/kernel/linux/page_compat.h \
 	%D%/kernel/linux/percpu_compat.h \
@@ -46,6 +47,7 @@ kernel_sys_HEADERS = \
 
 kernel_spl_rpcdir = $(kerneldir)/spl/rpc
 kernel_spl_rpc_HEADERS = \
+	%D%/spl/rpc/types.h \
 	%D%/spl/rpc/xdr.h
 
 kernel_spl_sysdir = $(kerneldir)/spl/sys

@@ -1435,23 +1435,10 @@ zio_t *
 zio_ioctl(zio_t *pio, spa_t *spa, vdev_t *vd, int cmd,
     zio_done_func_t *done, void *private, zio_flag_t flags)
 {
-	zio_t *zio;
-	int c;
-
-	if (vd->vdev_children == 0) {
-		zio = zio_create(pio, spa, 0, NULL, NULL, 0, 0, done, private,
-		    ZIO_TYPE_IOCTL, ZIO_PRIORITY_NOW, flags, vd, 0, NULL,
-		    ZIO_STAGE_OPEN, ZIO_IOCTL_PIPELINE);
-
-		zio->io_cmd = cmd;
-	} else {
-		zio = zio_null(pio, spa, NULL, NULL, NULL, flags);
-
-		for (c = 0; c < vd->vdev_children; c++)
-			zio_nowait(zio_ioctl(zio, spa, vd->vdev_child[c], cmd,
-			    done, private, flags));
-	}
-
+	zio_t *zio = zio_create(pio, spa, 0, NULL, NULL, 0, 0, done, private,
+	    ZIO_TYPE_IOCTL, ZIO_PRIORITY_NOW, flags, vd, 0, NULL,
+	    ZIO_STAGE_OPEN, ZIO_IOCTL_PIPELINE);
+	zio->io_cmd = cmd;
 	return (zio);
 }
 
@@ -1622,11 +1609,18 @@ zio_vdev_delegated_io(vdev_t *vd, uint64_t offset, abd_t *data, uint64_t size,
 }
 
 void
-zio_flush(zio_t *zio, vdev_t *vd)
+zio_flush(zio_t *pio, vdev_t *vd)
 {
-	zio_nowait(zio_ioctl(zio, zio->io_spa, vd, DKIOCFLUSHWRITECACHE,
-	    NULL, NULL,
-	    ZIO_FLAG_CANFAIL | ZIO_FLAG_DONT_PROPAGATE | ZIO_FLAG_DONT_RETRY));
+	if (vd->vdev_nowritecache)
+		return;
+	if (vd->vdev_children == 0) {
+		zio_nowait(zio_ioctl(pio, vd->vdev_spa, vd,
+		    DKIOCFLUSHWRITECACHE, NULL, NULL, ZIO_FLAG_CANFAIL |
+		    ZIO_FLAG_DONT_PROPAGATE | ZIO_FLAG_DONT_RETRY));
+	} else {
+		for (uint64_t c = 0; c < vd->vdev_children; c++)
+			zio_flush(pio, vd->vdev_child[c]);
+	}
 }
 
 void
@@ -2509,8 +2503,10 @@ zio_suspend(spa_t *spa, zio_t *zio, zio_suspend_reason_t reason)
 		    "failure and the failure mode property for this pool "
 		    "is set to panic.", spa_name(spa));
 
-	cmn_err(CE_WARN, "Pool '%s' has encountered an uncorrectable I/O "
-	    "failure and has been suspended.\n", spa_name(spa));
+	if (reason != ZIO_SUSPEND_MMP) {
+		cmn_err(CE_WARN, "Pool '%s' has encountered an uncorrectable "
+		    "I/O failure and has been suspended.\n", spa_name(spa));
+	}
 
 	(void) zfs_ereport_post(FM_EREPORT_ZFS_IO_FAILURE, spa, NULL,
 	    NULL, NULL, 0);

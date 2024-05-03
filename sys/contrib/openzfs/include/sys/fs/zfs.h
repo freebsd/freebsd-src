@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2020 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2024 by Delphix. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2013, 2017 Joyent, Inc. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
@@ -191,6 +191,7 @@ typedef enum {
 	ZFS_PROP_REDACTED,
 	ZFS_PROP_REDACT_SNAPS,
 	ZFS_PROP_SNAPSHOTS_CHANGED,
+	ZFS_PROP_PREFETCH,
 	ZFS_NUM_PROPS
 } zfs_prop_t;
 
@@ -363,6 +364,9 @@ typedef enum {
 	VDEV_PROP_CHECKSUM_T,
 	VDEV_PROP_IO_N,
 	VDEV_PROP_IO_T,
+	VDEV_PROP_RAIDZ_EXPANDING,
+	VDEV_PROP_SLOW_IO_N,
+	VDEV_PROP_SLOW_IO_T,
 	VDEV_NUM_PROPS
 } vdev_prop_t;
 
@@ -542,6 +546,12 @@ typedef enum zfs_key_location {
 	ZFS_KEYLOCATION_URI,
 	ZFS_KEYLOCATION_LOCATIONS
 } zfs_keylocation_t;
+
+typedef enum {
+	ZFS_PREFETCH_NONE = 0,
+	ZFS_PREFETCH_METADATA = 1,
+	ZFS_PREFETCH_ALL = 2
+} zfs_prefetch_type_t;
 
 #define	DEFAULT_PBKDF2_ITERATIONS 350000
 #define	MIN_PBKDF2_ITERATIONS 100000
@@ -1569,6 +1579,8 @@ typedef enum {
 	ZFS_ERR_NOT_USER_NAMESPACE,
 	ZFS_ERR_RESUME_EXISTS,
 	ZFS_ERR_CRYPTO_NOTSUP,
+	ZFS_ERR_RAIDZ_EXPAND_IN_PROGRESS,
+	ZFS_ERR_ASHIFT_MISMATCH,
 } zfs_errno_t;
 
 /*
