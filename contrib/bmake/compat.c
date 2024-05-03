@@ -1,4 +1,4 @@
-/*	$NetBSD: compat.c,v 1.254 2024/03/10 02:53:37 sjg Exp $	*/
+/*	$NetBSD: compat.c,v 1.255 2024/04/20 10:18:55 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -94,7 +94,7 @@
 #include "pathnames.h"
 
 /*	"@(#)compat.c	8.2 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: compat.c,v 1.254 2024/03/10 02:53:37 sjg Exp $");
+MAKE_RCSID("$NetBSD: compat.c,v 1.255 2024/04/20 10:18:55 rillig Exp $");
 
 static GNode *curTarg = NULL;
 static pid_t compatChild;
@@ -237,7 +237,9 @@ Compat_RunCommand(const char *cmdp, GNode *gn, StringListNode *ln)
 	errCheck = !(gn->type & OP_IGNORE);
 	doIt = false;
 
+	EvalStack_Push(gn->name, NULL, NULL);
 	cmdStart = Var_Subst(cmd, gn, VARE_WANTRES);
+	EvalStack_Pop();
 	/* TODO: handle errors */
 
 	if (cmdStart[0] == '\0') {

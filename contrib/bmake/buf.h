@@ -1,4 +1,4 @@
-/*	$NetBSD: buf.h,v 1.49 2023/12/19 19:33:39 rillig Exp $	*/
+/*	$NetBSD: buf.h,v 1.50 2024/04/28 15:10:19 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -124,6 +124,5 @@ void Buf_Init(Buffer *);
 void Buf_InitSize(Buffer *, size_t);
 void Buf_Done(Buffer *);
 char *Buf_DoneData(Buffer *) MAKE_ATTR_USE;
-char *Buf_DoneDataCompact(Buffer *) MAKE_ATTR_USE;
 
 #endif

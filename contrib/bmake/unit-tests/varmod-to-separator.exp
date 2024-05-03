@@ -1,6 +1,6 @@
-make: "varmod-to-separator.mk" line 155: Invalid character number at "400:tu}"
+make: "varmod-to-separator.mk" line 155: while evaluating variable "WORDS": Invalid character number at "400:tu}"
 make: "varmod-to-separator.mk" line 155: Malformed conditional (${WORDS:[1..3]:ts\400:tu})
-make: "varmod-to-separator.mk" line 171: Invalid character number at "100:tu}"
+make: "varmod-to-separator.mk" line 171: while evaluating variable "WORDS": Invalid character number at "100:tu}"
 make: "varmod-to-separator.mk" line 171: Malformed conditional (${WORDS:[1..3]:ts\x100:tu})
 make: Bad modifier ":ts\-300" for variable "WORDS"
 make: "varmod-to-separator.mk" line 179: Malformed conditional (${WORDS:[1..3]:ts\-300:tu})
@@ -18,7 +18,7 @@ make: Bad modifier ":t\X" for variable "WORDS"
 make: "varmod-to-separator.mk" line 232: Malformed conditional (${WORDS:t\X} != "anything")
 make: Bad modifier ":ts\69" for variable ""
 make: "varmod-to-separator.mk" line 249: Malformed conditional (${:Ua b:ts\69})
-make: "varmod-to-separator.mk" line 258: Invalid character number at "1F60E}"
+make: "varmod-to-separator.mk" line 258: while evaluating "${:Ua b:ts\x1F60E}": Invalid character number at "1F60E}"
 make: "varmod-to-separator.mk" line 258: Malformed conditional (${:Ua b:ts\x1F60E})
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests

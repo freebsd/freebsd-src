@@ -1,4 +1,4 @@
-# $NetBSD: varmod.mk,v 1.10 2024/02/03 00:20:23 sjg Exp $
+# $NetBSD: varmod.mk,v 1.11 2024/04/20 10:18:56 rillig Exp $
 #
 # Tests for variable modifiers, such as :Q, :S,from,to or :Ufallback.
 #
@@ -103,7 +103,7 @@ DOLLAR2=	${:U\$}
 .endif
 
 # A '$' followed by nothing is an error as well.
-# expect+1: Dollar followed by nothing
+# expect+1: while evaluating "${:Uword:@word@${word}$@} != "word"": Dollar followed by nothing
 .if ${:Uword:@word@${word}$@} != "word"
 .  error
 .endif
@@ -113,7 +113,7 @@ DOLLAR2=	${:U\$}
 # XXX: The .error should not be reached since the expression is
 # malformed, and this error should be propagated up to Cond_EvalLine.
 VAR=	STOP
-# expect+1: Missing delimiter ':' after modifier "P"
+# expect+1: while evaluating variable "VAR": Missing delimiter ':' after modifier "P"
 .if ${VAR:P=RE} != "STORE"
 # expect+1: Missing argument for ".error"
 .  error

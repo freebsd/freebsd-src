@@ -1,4 +1,4 @@
-# $NetBSD: opt-m-include-dir.mk,v 1.4 2020/09/01 20:14:34 rillig Exp $
+# $NetBSD: opt-m-include-dir.mk,v 1.5 2024/04/30 16:13:34 sjg Exp $
 #
 # Tests for the -m command line option, which adds a directory to the
 # search path for the .include <...> directive.
@@ -22,11 +22,14 @@
 TEST_DIR:=	${.PARSEFILE:R}.tmp/sub/sub/sub/workdir
 CANARY_FILE:=	${.PARSEFILE:R}.tmp/sub/opt-m-canary.mk
 ACTUAL_FILE:=	${.PARSEFILE:R}.tmp/sub/opt-m-step3.mk
+WANTED_FILE:=	${.PARSEFILE:R}.tmp/sub/opt-m-check.mk
 
 _!=	mkdir -p ${TEST_DIR}
 _!=	> ${CANARY_FILE}
 _!=	cp ${MAKEFILE} ${TEST_DIR}/step2.mk
 _!=	cp ${MAKEFILE} ${ACTUAL_FILE}
+_!=	echo CHECK=ok > ${WANTED_FILE}
+_!=	echo CHECK=${WANTED_FILE:T} found in .CURDIR > ${TEST_DIR}/${WANTED_FILE:T}
 
 step1:
 	@${.MAKE} -C ${TEST_DIR} -f step2.mk step2
@@ -52,9 +55,10 @@ step1:
 .elif ${.PARSEFILE:T} == "opt-m-step3.mk"
 
 # This file is included by step2.mk.
+.include <opt-m-check.mk>
 
 step2:
-	@echo ok
+	@echo ${CHECK}
 
 .else
 .  error

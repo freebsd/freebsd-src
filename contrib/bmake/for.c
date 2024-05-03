@@ -1,4 +1,4 @@
-/*	$NetBSD: for.c,v 1.178 2024/01/21 15:02:17 rillig Exp $	*/
+/*	$NetBSD: for.c,v 1.179 2024/04/01 12:33:27 rillig Exp $	*/
 
 /*
  * Copyright (c) 1992, The Regents of the University of California.
@@ -58,7 +58,7 @@
 #include "make.h"
 
 /*	"@(#)for.c	8.1 (Berkeley) 6/6/93"	*/
-MAKE_RCSID("$NetBSD: for.c,v 1.178 2024/01/21 15:02:17 rillig Exp $");
+MAKE_RCSID("$NetBSD: for.c,v 1.179 2024/04/01 12:33:27 rillig Exp $");
 
 
 typedef struct ForLoop {
@@ -196,11 +196,7 @@ ForLoop_ParseItems(ForLoop *f, const char *p)
 	cpp_skip_whitespace(&p);
 
 	items = Var_Subst(p, SCOPE_GLOBAL, VARE_WANTRES);
-	if (items == var_Error) {
-		/* TODO: Make this part of the code reachable. */
-		Parse_Error(PARSE_FATAL, "Error in .for loop items");
-		return false;
-	}
+	/* TODO: handle errors */
 
 	f->items = Substring_Words(items, false);
 	free(items);
@@ -490,12 +486,11 @@ ForLoop_SubstBody(ForLoop *f, unsigned int firstItem, Buffer *body)
 			p += 2;
 			ForLoop_SubstVarLong(f, firstItem, body,
 			    &p, endc, &mark);
-		} else if (p[1] != '\0') {
+		} else {
 			ForLoop_SubstVarShort(f, firstItem, body,
 			    p + 1, &mark);
 			p += 2;
-		} else
-			break;
+		}
 	}
 
 	Buf_AddRange(body, mark, end);

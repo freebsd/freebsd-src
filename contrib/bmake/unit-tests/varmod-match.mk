@@ -1,4 +1,4 @@
-# $NetBSD: varmod-match.mk,v 1.20 2023/12/17 23:19:02 rillig Exp $
+# $NetBSD: varmod-match.mk,v 1.22 2024/04/23 22:51:28 rillig Exp $
 #
 # Tests for the ':M' modifier, which keeps only those words that match the
 # given pattern.
@@ -33,22 +33,22 @@
 # The pattern character '?' matches exactly 1 character, the pattern character
 # '*' matches 0 or more characters.  The whole pattern matches all words that
 # start with 's' and have 3 or more characters.
-.if ${One Two Three Four five six seven:L:Ms??*} != "six seven"
+.if ${One Two Three Four five six seven so s:L:Ms??*} != "six seven"
 .  error
 .endif
 
-# Ensure that a pattern without placeholders only matches itself.
+# A pattern without placeholders only matches itself.
 .if ${a aa aaa b ba baa bab:L:Ma} != "a"
 .  error
 .endif
 
-# Ensure that a pattern that ends with '*' is properly anchored at the
+# A pattern that ends with '*' is anchored at the
 # beginning.
 .if ${a aa aaa b ba baa bab:L:Ma*} != "a aa aaa"
 .  error
 .endif
 
-# Ensure that a pattern that starts with '*' is properly anchored at the end.
+# A pattern that starts with '*' is anchored at the end.
 .if ${a aa aaa b ba baa bab:L:M*a} != "a aa aaa ba baa"
 .  error
 .endif
@@ -257,8 +257,9 @@ ${:U*}=		asterisk
 .  error
 .endif
 
-# Without the modifier ':tW', the string is split into words.  All whitespace
-# around and between the words is normalized to a single space.
+# Without the modifier ':tW', the string is split into words.  Whitespace
+# around the words is discarded, and whitespace between the words is
+# normalized to a single space.
 .if ${   plain    string   :L:M*} != "plain string"
 .  error
 .endif
@@ -285,7 +286,7 @@ ${:U*}=		asterisk
 
 #	[	Incomplete empty character list, never matches.
 WORDS=		a a[
-# expect+1: warning: Unfinished character list in pattern 'a[' of modifier ':M'
+# expect+1: while evaluating variable "WORDS": warning: Unfinished character list in pattern 'a[' of modifier ':M'
 .if ${WORDS:Ma[} != ""
 .  error
 .endif
@@ -293,7 +294,7 @@ WORDS=		a a[
 #	[^	Incomplete negated empty character list, matches any single
 #		character.
 WORDS=		a a[ aX
-# expect+1: warning: Unfinished character list in pattern 'a[^' of modifier ':M'
+# expect+1: while evaluating variable "WORDS": warning: Unfinished character list in pattern 'a[^' of modifier ':M'
 .if ${WORDS:Ma[^} != "a[ aX"
 .  error
 .endif
@@ -301,7 +302,7 @@ WORDS=		a a[ aX
 #	[-x1-3	Incomplete character list, matches those elements that can be
 #		parsed without lookahead.
 WORDS=		- + x xx 0 1 2 3 4 [x1-3
-# expect+1: warning: Unfinished character list in pattern '[-x1-3' of modifier ':M'
+# expect+1: while evaluating variable "WORDS": warning: Unfinished character list in pattern '[-x1-3' of modifier ':M'
 .if ${WORDS:M[-x1-3} != "- x 1 2 3"
 .  error
 .endif
@@ -309,7 +310,7 @@ WORDS=		- + x xx 0 1 2 3 4 [x1-3
 #	*[-x1-3	Incomplete character list after a wildcard, matches those
 #		words that end with one of the characters from the list.
 WORDS=		- + x xx 0 1 2 3 4 00 01 10 11 000 001 010 011 100 101 110 111 [x1-3
-# expect+1: warning: Unfinished character list in pattern '*[-x1-3' of modifier ':M'
+# expect+1: while evaluating variable "WORDS": warning: Unfinished character list in pattern '*[-x1-3' of modifier ':M'
 .if ${WORDS:M*[-x1-3} != "- x xx 1 2 3 01 11 001 011 101 111 [x1-3"
 .  warning ${WORDS:M*[-x1-3}
 .endif
@@ -318,7 +319,7 @@ WORDS=		- + x xx 0 1 2 3 4 00 01 10 11 000 001 010 011 100 101 110 111 [x1-3
 #		Incomplete negated character list, matches any character
 #		except those elements that can be parsed without lookahead.
 WORDS=		- + x xx 0 1 2 3 4 [x1-3
-# expect+1: warning: Unfinished character list in pattern '[^-x1-3' of modifier ':M'
+# expect+1: while evaluating variable "WORDS": warning: Unfinished character list in pattern '[^-x1-3' of modifier ':M'
 .if ${WORDS:M[^-x1-3} != "+ 0 4"
 .  error
 .endif
@@ -332,7 +333,7 @@ WORDS=		- + x xx 0 1 2 3 4 [x1-3
 #		'\', as there is no following space that could be escaped.
 WORDS=		\\ \a ${:Ux\\}
 PATTERN=	${:U?[\\}
-# expect+1: warning: Unfinished character list in pattern '?[\' of modifier ':M'
+# expect+1: while evaluating variable "WORDS": warning: Unfinished character list in pattern '?[\' of modifier ':M'
 .if ${WORDS:M${PATTERN}} != "\\\\ x\\"
 .  error
 .endif
@@ -340,7 +341,7 @@ PATTERN=	${:U?[\\}
 #	[x-	Incomplete character list containing an incomplete character
 #		range, matches only the 'x'.
 WORDS=		[x- x x- y
-# expect+1: warning: Unfinished character range in pattern '[x-' of modifier ':M'
+# expect+1: while evaluating variable "WORDS": warning: Unfinished character range in pattern '[x-' of modifier ':M'
 .if ${WORDS:M[x-} != "x"
 .  error
 .endif
@@ -352,14 +353,14 @@ WORDS=		[x- x x- y
 #		XXX: Even matches strings that are longer than a single
 #		character.
 WORDS=		[x- x x- y yyyyy
-# expect+1: warning: Unfinished character range in pattern '[^x-' of modifier ':M'
+# expect+1: while evaluating variable "WORDS": warning: Unfinished character range in pattern '[^x-' of modifier ':M'
 .if ${WORDS:M[^x-} != "[x- y yyyyy"
 .  error
 .endif
 
 #	[:]	matches never since the ':' starts the next modifier
-# expect+3: warning: Unfinished character list in pattern '[' of modifier ':M'
-# expect+2: Unknown modifier "]"
+# expect+3: while evaluating variable " : :: ": warning: Unfinished character list in pattern '[' of modifier ':M'
+# expect+2: while evaluating variable " : :: ": Unknown modifier "]"
 # expect+1: Malformed conditional (${ ${:U\:} ${:U\:\:} :L:M[:]} != ":")
 .if ${ ${:U\:} ${:U\:\:} :L:M[:]} != ":"
 .  error
@@ -372,9 +373,16 @@ WORDS=		[x- x x- y yyyyy
 
 # Before var.c 1.1031 from 2022-08-24, the following expressions caused an
 # out-of-bounds read beyond the indirect ':M' modifiers.
-.if ${:U:${:UM\\}}		# The ':M' pattern need not be unescaped, the
-.  error			# resulting pattern is '\', it never matches
-.endif				# anything.
-.if ${:U:${:UM\\\:\\}}		# The ':M' pattern must be unescaped, the
-.  error			# resulting pattern is ':\', it never matches
-.endif				# anything.
+#
+# The argument to the inner ':U' is unescaped to 'M\'.
+# This 'M\' becomes an # indirect modifier ':M' with the pattern '\'.
+# The pattern '\' never matches.
+.if ${:U:${:UM\\}}
+.  error
+.endif
+# The argument to the inner ':U' is unescaped to 'M\:\'.
+# This 'M\:\' becomes an indirect modifier ':M' with the pattern ':\'.
+# The pattern ':\' never matches.
+.if ${:U:${:UM\\\:\\}}
+.  error
+.endif

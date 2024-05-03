@@ -1,4 +1,4 @@
-/*	$NetBSD: parse.c,v 1.717 2024/02/07 06:43:02 rillig Exp $	*/
+/*	$NetBSD: parse.c,v 1.722 2024/04/27 17:33:46 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -121,7 +121,7 @@
 #include "pathnames.h"
 
 /*	"@(#)parse.c	8.3 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: parse.c,v 1.717 2024/02/07 06:43:02 rillig Exp $");
+MAKE_RCSID("$NetBSD: parse.c,v 1.722 2024/04/27 17:33:46 rillig Exp $");
 
 /* Detects a multiple-inclusion guard in a makefile. */
 typedef enum {
@@ -537,6 +537,7 @@ ParseVErrorInternal(FILE *f, bool useVars, const GNode *gn,
 	(void)fprintf(f, "%s: ", progname);
 
 	PrintLocation(f, useVars, gn);
+	fprintf(f, "%s", EvalStack_Details());
 	if (level == PARSE_WARNING)
 		(void)fprintf(f, "warning: ");
 	(void)vfprintf(f, fmt, ap);
@@ -1637,10 +1638,10 @@ ParseDependencySources(char *p, GNodeType targetAttr,
  * Transformation rules such as '.c.o' are also handled here, see
  * Suff_AddTransform.
  *
- * Upon return, the value of the line is unspecified.
+ * Upon return, the value of expandedLine is unspecified.
  */
 static void
-ParseDependency(char *line, const char *unexpanded_line)
+ParseDependency(char *expandedLine, const char *unexpandedLine)
 {
 	char *p;
 	SearchPathList *paths;	/* search paths to alter when parsing a list
@@ -1651,14 +1652,14 @@ ParseDependency(char *line, const char *unexpanded_line)
 				 * vice versa */
 	GNodeType op;
 
-	DEBUG1(PARSE, "ParseDependency(%s)\n", line);
-	p = line;
+	DEBUG1(PARSE, "ParseDependency(%s)\n", expandedLine);
+	p = expandedLine;
 	paths = NULL;
 	targetAttr = OP_NONE;
 	special = SP_NOT;
 
-	if (!ParseDependencyTargets(&p, line, &special, &targetAttr, &paths,
-	    unexpanded_line))
+	if (!ParseDependencyTargets(&p, expandedLine, &special, &targetAttr,
+	    &paths, unexpandedLine))
 		goto out;
 
 	if (!Lst_IsEmpty(targets))
@@ -1666,7 +1667,7 @@ ParseDependency(char *line, const char *unexpanded_line)
 
 	op = ParseDependencyOp(&p);
 	if (op == OP_NONE) {
-		InvalidLineType(line, unexpanded_line);
+		InvalidLineType(expandedLine, unexpandedLine);
 		goto out;
 	}
 	ApplyDependencyOperator(op);
@@ -2384,7 +2385,7 @@ ParseRawLine(IncludedFile *curFile, char **out_line, char **out_line_end,
 		ch = *p;
 		if (ch == '\0' || (ch == '\\' && p[1] == '\0')) {
 			Parse_Error(PARSE_FATAL, "Zero byte read from file");
-			return PRLR_ERROR;
+			exit(2);
 		}
 
 		/* Treat next character after '\' as literal. */
@@ -2623,6 +2624,7 @@ ReadHighLevelLine(void)
 		if (line == NULL)
 			return NULL;
 
+		DEBUG2(PARSE, "Parsing line %u: %s\n", curFile->lineno, line);
 		if (curFile->guardState != GS_NO
 		    && ((curFile->guardState == GS_START && line[0] != '.')
 			|| curFile->guardState == GS_DONE))
@@ -2945,8 +2947,6 @@ Parse_File(const char *name, int fd)
 
 	do {
 		while ((line = ReadHighLevelLine()) != NULL) {
-			DEBUG2(PARSE, "Parsing line %u: %s\n",
-			    CurFile()->lineno, line);
 			ParseLine(line);
 		}
 	} while (ParseEOF());
@@ -2982,7 +2982,7 @@ Parse_End(void)
 #ifdef CLEANUP
 	HashIter hi;
 
-	Lst_DoneCall(&targCmds, free);
+	Lst_DoneFree(&targCmds);
 	assert(targets == NULL);
 	SearchPath_Free(defSysIncPath);
 	SearchPath_Free(sysIncPath);

@@ -10,6 +10,7 @@ Pattern for ':N' is "*"
 ModifyWords: split "<>" into 1 word
 Result of ${UT_VAR:N*} is ""
 ParseDependency(: )
+Parsing line 42: .if ${:!echo "\$UT_VAR"!} != "<>"
 CondParser_Eval: ${:!echo "\$UT_VAR"!} != "<>"
 Var_Parse: ${:!echo "\$UT_VAR"!} != "<>" (eval-defined)
 Evaluating modifier ${:!...} on value "" (eval-defined, undefined)
@@ -34,6 +35,7 @@ Result of ${UT_VAR:N*} is ""
 ParseDependency(: )
 Parsing line 54: REF=		defined
 Global: REF = defined
+Parsing line 58: .if ${:!echo "\$UT_VAR"!} != "<defined>"
 CondParser_Eval: ${:!echo "\$UT_VAR"!} != "<defined>"
 Var_Parse: ${:!echo "\$UT_VAR"!} != "<defined>" (eval-defined)
 Evaluating modifier ${:!...} on value "" (eval-defined, undefined)

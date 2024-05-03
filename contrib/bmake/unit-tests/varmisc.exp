@@ -44,26 +44,26 @@ parse-dynamic: parse-dynamic parse-dynamic before
 parse-dynamic: parse-dynamic parse-dynamic after
 parse-dynamic: parse-dynamic parse-dynamic after
 varerror-unclosed:begin
-make: Unclosed variable ""
+make: in target "varerror-unclosed": Unclosed variable ""
 
-make: Unclosed variable "UNCLOSED"
+make: in target "varerror-unclosed": Unclosed variable "UNCLOSED"
 
-make: Unclosed variable "UNCLOSED"
+make: in target "varerror-unclosed": Unclosed variable "UNCLOSED"
 
-make: Unclosed variable "PATTERN"
+make: in target "varerror-unclosed": while evaluating variable "UNCLOSED": Unclosed variable "PATTERN"
 make: Unclosed expression, expecting '}' for modifier "M${PATTERN" of variable "UNCLOSED" with value ""
 
-make: Unclosed variable "param"
-make: Unclosed variable "UNCLOSED."
+make: in target "varerror-unclosed": Unclosed variable "param"
+make: in target "varerror-unclosed": Unclosed variable "UNCLOSED."
 
 
-make: Unclosed variable "UNCLOSED.1"
+make: in target "varerror-unclosed": Unclosed variable "UNCLOSED.1"
 
-make: Unclosed variable "UNCLOSED.2"
+make: in target "varerror-unclosed": Unclosed variable "UNCLOSED.2"
 
-make: Unclosed variable "UNCLOSED.3"
+make: in target "varerror-unclosed": Unclosed variable "UNCLOSED.3"
 
-make: Unclosed variable "UNCLOSED_ORIG"
+make: in target "varerror-unclosed": while evaluating variable "UNCLOSED_INDIR_2": while evaluating variable "UNCLOSED_INDIR_1": Unclosed variable "UNCLOSED_ORIG"
 
 varerror-unclosed:end
 target1-flags: we have: one two

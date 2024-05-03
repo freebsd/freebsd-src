@@ -17,7 +17,7 @@ make: "directive-for.mk" line 146: }{ }{ }{
 make: "directive-for.mk" line 166: invalid character ':' in .for loop variable name
 make: "directive-for.mk" line 173: invalid character '$' in .for loop variable name
 make: "directive-for.mk" line 185: invalid character '$' in .for loop variable name
-make: "directive-for.mk" line 210: Unknown modifier "Z"
+make: "directive-for.mk" line 210: while evaluating "${:Uword2:Z}-after word3": Unknown modifier "Z"
 make: "directive-for.mk" line 211: XXX: Should not reach word1
 make: "directive-for.mk" line 211: XXX: Should not reach before--after
 make: "directive-for.mk" line 211: XXX: Should not reach word3

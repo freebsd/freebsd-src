@@ -1,4 +1,4 @@
-# $NetBSD: varmod-edge.mk,v 1.19 2023/11/19 22:06:15 rillig Exp $
+# $NetBSD: varmod-edge.mk,v 1.20 2024/04/20 10:18:55 rillig Exp $
 #
 # Tests for edge cases in variable modifiers.
 #
@@ -162,8 +162,8 @@ MOD.colons=	${INP.colons::::}
 EXP.colons=	# empty
 
 .for test in ${TESTS}
-# expect+2: Unknown modifier ":"
-# expect+1: Unknown modifier ":"
+# expect+2: while evaluating variable "MOD.colons": while evaluating variable "INP.colons": Unknown modifier ":"
+# expect+1: while evaluating variable "MOD.colons": while evaluating variable "INP.colons": Unknown modifier ":"
 .  if ${MOD.${test}} == ${EXP.${test}}
 # expect+16: ok M-paren
 # expect+15: ok M-mixed
@@ -191,7 +191,7 @@ EXP.colons=	# empty
 # XXX: The error message should mention the variable name of the expression,
 # even though that name is empty in this case.
 # expect+2: Malformed conditional (${:Z})
-# expect+1: Unknown modifier "Z"
+# expect+1: while evaluating "${:Z}": Unknown modifier "Z"
 .if ${:Z}
 .  error
 .else

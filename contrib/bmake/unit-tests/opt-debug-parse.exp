@@ -1,3 +1,4 @@
+Parsing line 16: .for  var  in  value
 Parse_PushInput: .for loop in opt-debug-parse.mk, line 16
 SetFilenameVars: ${.PARSEDIR} = <some-dir> ${.PARSEFILE} = `opt-debug-parse.mk'
 Parsing line 21: .info trace with multi-line .for loop head
@@ -11,6 +12,7 @@ SetFilenameVars: ${.PARSEDIR} = <some-dir> ${.PARSEFILE} = `null'
 SetFilenameVars: ${.INCLUDEDFROMDIR} = <some-dir> ${.INCLUDEDFROMFILE} = `opt-debug-parse.mk'
 ParseEOF: returning to file opt-debug-parse.mk, line 27
 SetFilenameVars: ${.PARSEDIR} = <some-dir> ${.PARSEFILE} = `opt-debug-parse.mk'
+Parsing line 31: .for a b c in 1 2 3 ${:U4 5 6}
 Parse_PushInput: .for loop in opt-debug-parse.mk, line 31
 SetFilenameVars: ${.PARSEDIR} = <some-dir> ${.PARSEFILE} = `opt-debug-parse.mk'
 Parsing line 34: .info trace

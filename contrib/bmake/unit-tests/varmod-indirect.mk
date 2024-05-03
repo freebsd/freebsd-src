@@ -1,4 +1,4 @@
-# $NetBSD: varmod-indirect.mk,v 1.18 2024/02/04 10:03:10 rillig Exp $
+# $NetBSD: varmod-indirect.mk,v 1.19 2024/04/20 10:18:55 rillig Exp $
 #
 # Tests for indirect variable modifiers, such as in ${VAR:${M_modifiers}}.
 # These can be used for very basic purposes like converting a string to either
@@ -15,7 +15,7 @@
 # The following expression generates a parse error since its indirect
 # modifier contains more than a sole expression.
 #
-# expect+1: Unknown modifier "${"
+# expect+1: while evaluating variable "value": Unknown modifier "${"
 .if ${value:L:${:US}${:U,value,replacement,}} != "S,value,replacement,}"
 .  warning unexpected
 .endif
@@ -47,7 +47,7 @@
 # error.  Because of this parse error, this feature cannot be used reasonably
 # in practice.
 #
-# expect+2: Unknown modifier "${"
+# expect+2: while evaluating variable "value": Unknown modifier "${"
 #.MAKEFLAGS: -dvc
 .if ${value:L:${:UM*}S,value,replaced,} == "M*S,value,replaced,}"
 # expect+1: warning: FIXME: this expression should have resulted in a parse error rather than returning the unparsed portion of the expression.
@@ -160,7 +160,7 @@ M_NoPrimes=	${PRIMES:${M_ListToSkip}}
 .endfor
 
 # An error in an indirect modifier.
-# expect+1: Unknown modifier "Z"
+# expect+1: while evaluating variable "UNDEF": Unknown modifier "Z"
 .for var in before ${UNDEF:${:UZ}} after
 # expect+2: before
 # expect+1: after
@@ -191,7 +191,7 @@ _:=	before ${UNDEF:${:U}} after
 # XXX: This expands to ${UNDEF:Z}, which will behave differently if the
 # variable '_' is used in a context where the expression ${_} is
 # parsed but not evaluated.
-# expect+1: Unknown modifier "Z"
+# expect+1: while evaluating variable "UNDEF": Unknown modifier "Z"
 _:=	before ${UNDEF:${:UZ}} after
 
 .MAKEFLAGS: -d0
