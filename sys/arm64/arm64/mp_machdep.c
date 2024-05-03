@@ -430,10 +430,10 @@ enable_cpu_spin(uint64_t cpu, vm_paddr_t entry, vm_paddr_t release_paddr)
 		return (ENOMEM);
 
 	*release_addr = entry;
+	cpu_dcache_wbinv_range(release_addr, sizeof(*release_addr));
 	pmap_unmapdev(release_addr, sizeof(*release_addr));
 
 	__asm __volatile(
-	    "dsb sy	\n"
 	    "sev	\n"
 	    ::: "memory");
 
