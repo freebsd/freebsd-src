@@ -1,4 +1,4 @@
-/*	$NetBSD: lst.h,v 1.104 2023/12/29 20:43:58 rillig Exp $	*/
+/*	$NetBSD: lst.h,v 1.105 2024/04/27 17:33:46 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -103,13 +103,10 @@ struct List {
 	ListNode *last;
 };
 
-/* Free the datum of a node, called before freeing the node itself. */
-typedef void LstFreeProc(void *);
-
-/* Free the list nodes, but not the list itself. */
+/* Free the list nodes. */
 void Lst_Done(List *);
-/* Free the list nodes, freeing the node data using the given function. */
-void Lst_DoneCall(List *, LstFreeProc);
+/* Free the list nodes, as well as each node's datum. */
+void Lst_DoneFree(List *);
 
 #define LST_INIT { NULL, NULL }
 

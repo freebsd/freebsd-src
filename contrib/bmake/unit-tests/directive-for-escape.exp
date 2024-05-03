@@ -106,6 +106,7 @@ make: "directive-for-escape.mk" line 228: long: " "
 For: end for 1
 For: loop body with i = "
 ":
+Parsing line 244: .for i in "${.newline}"
 For: end for 1
 Parse_PushInput: .for loop in directive-for-escape.mk, line 244
 make: "directive-for-escape.mk" line 244: newline in .for value

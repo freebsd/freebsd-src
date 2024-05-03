@@ -1,4 +1,4 @@
-# $NetBSD: varmod-range.mk,v 1.10 2023/12/17 14:07:22 rillig Exp $
+# $NetBSD: varmod-range.mk,v 1.11 2024/04/20 10:18:55 rillig Exp $
 #
 # Tests for the :range variable modifier, which generates sequences
 # of integers from the given range.
@@ -62,7 +62,7 @@
 #
 # Since 2020-11-01, the parser issues a more precise "Invalid number" error
 # instead.
-# expect+2: Invalid number "x}Rest" != "Rest"" for ':range' modifier
+# expect+2: while evaluating "${:U:range=x}Rest" != "Rest"": Invalid number "x}Rest" != "Rest"" for ':range' modifier
 # expect+1: Malformed conditional ("${:U:range=x}Rest" != "Rest")
 .if "${:U:range=x}Rest" != "Rest"
 .  error
@@ -73,7 +73,7 @@
 # The upper limit of the range must always be given in decimal.
 # This parse error stops at the 'x', trying to parse it as a variable
 # modifier.
-# expect+2: Unknown modifier "x0"
+# expect+2: while evaluating "${:U:range=0x0}Rest" != "Rest"": Unknown modifier "x0"
 # expect+1: Malformed conditional ("${:U:range=0x0}Rest" != "Rest")
 .if "${:U:range=0x0}Rest" != "Rest"
 .  error
@@ -91,7 +91,7 @@
 #.endif
 
 # modifier name too short
-# expect+2: Unknown modifier "rang"
+# expect+2: while evaluating variable "a b c": Unknown modifier "rang"
 # expect+1: Malformed conditional ("${a b c:L:rang}Rest" != "Rest")
 .if "${a b c:L:rang}Rest" != "Rest"
 .  error
@@ -100,7 +100,7 @@
 .endif
 
 # misspelled modifier name
-# expect+2: Unknown modifier "rango"
+# expect+2: while evaluating variable "a b c": Unknown modifier "rango"
 # expect+1: Malformed conditional ("${a b c:L:rango}Rest" != "Rest")
 .if "${a b c:L:rango}Rest" != "Rest"
 .  error
@@ -109,7 +109,7 @@
 .endif
 
 # modifier name too long
-# expect+2: Unknown modifier "ranger"
+# expect+2: while evaluating variable "a b c": Unknown modifier "ranger"
 # expect+1: Malformed conditional ("${a b c:L:ranger}Rest" != "Rest")
 .if "${a b c:L:ranger}Rest" != "Rest"
 .  error

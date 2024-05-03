@@ -1,4 +1,4 @@
-# $Id: own.mk,v 1.47 2024/02/19 00:06:19 sjg Exp $
+# $Id: own.mk,v 1.48 2024/04/09 21:52:52 sjg Exp $
 
 # should be set properly in sys.mk
 _this ?= ${.PARSEFILE:S,bsd.,,}
@@ -136,8 +136,7 @@ INCDIR?=	${INCLUDEDIR}
 # Define MANZ to have the man pages compressed (gzip)
 #MANZ=		1
 
-MANTARGET?= cat
-MANDIR?=	${prefix}/share/man/${MANTARGET}
+MANDIR?=	${prefix}/share/man
 MANGRP?=	${BINGRP}
 MANOWN?=	${BINOWN}
 MANMODE?=	${NONBINMODE}

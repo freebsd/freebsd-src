@@ -54,6 +54,7 @@ sys.dependfile.mk
 sys.dirdeps.mk
 sys.vars.mk
 sys/AIX.mk
+sys/Cygwin.mk
 sys/Darwin.mk
 sys/Generic.mk
 sys/HP-UX.mk

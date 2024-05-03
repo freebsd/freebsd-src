@@ -1,5 +1,5 @@
-make: "varparse-errors.mk" line 38: Unknown modifier "Z"
-make: "varparse-errors.mk" line 47: Unknown modifier "Z"
+make: "varparse-errors.mk" line 38: while evaluating "${:U:Z}": Unknown modifier "Z"
+make: "varparse-errors.mk" line 47: while evaluating "${:U:Z}post": Unknown modifier "Z"
 make: Bad modifier ":OX" for variable ""
 make: "varparse-errors.mk" line 71: Undefined variable "${:U:OX"
 make: Bad modifier ":OX" for variable ""

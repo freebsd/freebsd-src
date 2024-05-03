@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# $Id: progs.mk,v 1.17 2024/02/17 17:26:57 sjg Exp $
+# $Id: progs.mk,v 1.18 2024/04/09 17:18:24 sjg Exp $
 #
 #	@(#) Copyright (c) 2006, Simon J. Gerraty
 #
@@ -39,16 +39,26 @@ PROG ?= $t
 # just one of many
 PROG_VARS += \
 	BINDIR \
-	CFLAGS \
-	COPTS \
-	CPPFLAGS \
 	CXXFLAGS \
 	DPADD \
 	DPLIBS \
 	LDADD \
-	LDFLAGS \
 	MAN \
-	SRCS
+
+.ifndef SYS_OS_MK
+# assume we are not using init.mk, otherwise
+# we need to avoid overlap with its
+# QUALIFIED_VAR_LIST which includes these and its
+# VAR_QUALIFIER_LIST includes .TARGET which
+# would match PROG
+PROG_VARS += \
+	CFLAGS \
+	COPTS \
+	CPPFLAGS \
+	LDFLAGS \
+	SRCS \
+
+.endif
 
 .for v in ${PROG_VARS:O:u}
 .if defined(${v}.${PROG}) || defined(${v}_${PROG})

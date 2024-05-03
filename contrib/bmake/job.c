@@ -1,4 +1,4 @@
-/*	$NetBSD: job.c,v 1.467 2024/03/10 02:53:37 sjg Exp $	*/
+/*	$NetBSD: job.c,v 1.470 2024/04/27 20:41:32 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -154,7 +154,7 @@
 #include "trace.h"
 
 /*	"@(#)job.c	8.2 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: job.c,v 1.467 2024/03/10 02:53:37 sjg Exp $");
+MAKE_RCSID("$NetBSD: job.c,v 1.470 2024/04/27 20:41:32 rillig Exp $");
 
 /*
  * A shell defines how the commands are run.  All commands for a target are
@@ -930,7 +930,9 @@ JobWriteCommand(Job *job, ShellWriter *wr, StringListNode *ln, const char *ucmd)
 
 	run = GNode_ShouldExecute(job->node);
 
+	EvalStack_Push(job->node->name, NULL, NULL);
 	xcmd = Var_Subst(ucmd, job->node, VARE_WANTRES);
+	EvalStack_Pop();
 	/* TODO: handle errors */
 	xcmdStart = xcmd;
 
@@ -1057,7 +1059,9 @@ JobSaveCommands(Job *job)
 		 * variables such as .TARGET, .IMPSRC.  It is not intended to
 		 * expand the other variables as well; see deptgt-end.mk.
 		 */
+		EvalStack_Push(job->node->name, NULL, NULL);
 		expanded_cmd = Var_Subst(cmd, job->node, VARE_WANTRES);
+		EvalStack_Pop();
 		/* TODO: handle errors */
 		Lst_Append(&Targ_GetEndNode()->commands, expanded_cmd);
 	}
@@ -1087,6 +1091,7 @@ DebugFailedJob(const Job *job)
 
 	debug_printf("\n");
 	debug_printf("*** Failed target: %s\n", job->node->name);
+	debug_printf("*** In directory: %s\n", curdir);
 	debug_printf("*** Failed commands:\n");
 	for (ln = job->node->commands.first; ln != NULL; ln = ln->next) {
 		const char *cmd = ln->datum;
@@ -1784,7 +1789,7 @@ JobStart(GNode *gn, bool special)
  * itself.
  */
 static char *
-PrintFilteredOutput(char *p, char *endp)	/* XXX: should all be const */
+PrintFilteredOutput(char *p, const char *endp)	/* XXX: p should be const */
 {
 	char *ep;		/* XXX: should be const */
 

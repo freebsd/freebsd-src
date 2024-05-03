@@ -1,4 +1,4 @@
-# $NetBSD: cmdline.mk,v 1.4 2022/06/10 18:58:07 rillig Exp $
+# $NetBSD: cmdline.mk,v 1.5 2024/04/23 22:51:28 rillig Exp $
 #
 # Tests for command line parsing and related special variables.
 
@@ -24,7 +24,7 @@ makeobjdir-direct:
 	@${MAKE_CMD} MAKEOBJDIR=${DIR2} show-objdir
 
 # The .OBJDIR can be set via the MAKEOBJDIR command line variable,
-# and that variable could even contain the usual modifiers.
+# and expressions based on that variable can contain the usual modifiers.
 # Since the .OBJDIR=MAKEOBJDIR assignment happens very early,
 # the SUB2 variable in the modifier is not defined yet and is therefore empty.
 # The SUB1 in the resulting path comes from the environment variable TMPBASE,

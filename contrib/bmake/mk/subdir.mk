@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
-#	$Id: subdir.mk,v 1.22 2024/02/19 00:06:19 sjg Exp $
+#	$Id: subdir.mk,v 1.24 2024/04/10 01:47:23 sjg Exp $
 #
 #	@(#) Copyright (c) 2002-2024, Simon J. Gerraty
 #
@@ -37,7 +37,6 @@ __${_this}__: .NOTMAIN
 _SUBDIRUSE:
 .elif !commands(_SUBDIRUSE) && !defined(NO_SUBDIR) && !defined(NOSUBDIR)
 .-include <local.subdir.mk>
-.-include <${.CURDIR}/Makefile.inc>
 .if !target(.MAIN)
 .MAIN: all
 .endif
@@ -82,7 +81,7 @@ realinstall: beforeinstall _SUBDIRUSE
 
 # the interface from others
 # this may require additions to SUBDIR_TAREGTS
-_SUBDIRUSE: .USE subdir-${.TARGET}
+_SUBDIRUSE: .USE subdir-${.TARGET:C/-.*//:S/real//:S/.depend/depend/}
 
 SUBDIR_TARGETS += \
 	all \
@@ -93,7 +92,6 @@ SUBDIR_TARGETS += \
 	depend \
 	lint \
 	obj \
-	realinstall \
 	tags \
 	etags
 

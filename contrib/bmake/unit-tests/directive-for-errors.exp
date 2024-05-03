@@ -8,7 +8,7 @@ make: "directive-for-errors.mk" line 44: invalid character '$' in .for loop vari
 make: "directive-for-errors.mk" line 52: no iteration variables in for
 make: "directive-for-errors.mk" line 64: Wrong number of words (5) in .for substitution list with 3 variables
 make: "directive-for-errors.mk" line 78: missing `in' in for
-make: "directive-for-errors.mk" line 89: Unknown modifier "Z"
+make: "directive-for-errors.mk" line 89: while evaluating "${:U3:Z} 4": Unknown modifier "Z"
 make: "directive-for-errors.mk" line 90: warning: Should not be reached.
 make: "directive-for-errors.mk" line 90: warning: Should not be reached.
 make: "directive-for-errors.mk" line 90: warning: Should not be reached.

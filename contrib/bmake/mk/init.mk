@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# $Id: init.mk,v 1.37 2024/02/25 19:12:13 sjg Exp $
+# $Id: init.mk,v 1.38 2024/04/09 17:18:24 sjg Exp $
 #
 #	@(#) Copyright (c) 2002-2024, Simon J. Gerraty
 #
@@ -72,7 +72,7 @@ QUALIFIED_VAR_LIST += \
 # a final :U avoids errors if someone uses :=
 .for V in ${QUALIFIED_VAR_LIST:O:u:@q@$q $q_LAST@}
 .for Q in ${VAR_QUALIFIER_LIST:u}
-$V += ${$V.$Q:U} ${$V.$Q.${COMPILER_TYPE}:U}
+$V += ${$V_$Q:U${$V.$Q:U}} ${V_$Q_${COMPILER_TYPE}:U${$V.$Q.${COMPILER_TYPE}:U}}
 .endfor
 .endfor
 

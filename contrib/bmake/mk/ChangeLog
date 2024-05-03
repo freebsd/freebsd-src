@@ -1,3 +1,39 @@
+2024-04-24  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* meta.autodep.mk: do not override start_utc
+
+2024-04-18  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* sys.dirdeps.mk: set defaults for DEP_* at level 0 too.
+	These help when first include of Makefile.depend happens in a leaf
+	dir.
+
+	* install-mk (MK_VERSION): 20240414
+
+2024-04-09  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20240408
+
+	* init.mk: allow for _ as well as . to join V
+	and Q from QUALIFIED_VAR_LIST and VAR_QUALIFIER_LIST.
+
+	* progs.mk: avoid overlap between PROG_VARS and
+	init.mk's QUALIFIED_VAR_LIST since PROG would also
+	match its VAR_QUALIFIER_LIST,
+	libs.mk does not have the same issue.
+
+	* subdir.mk: _SUBDIRUSE for realinstall should run install
+	remove include of ${.CURDIR}/Makefile.inc that can be done via
+	local.subdir.mk where needed
+
+	* own.mk: do not conflict with man.mk
+
+2024-03-19  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20240314
+
+	* add sys/Cygwin.mk from Christian Franke
+
 2024-03-09  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* install-mk (MK_VERSION): 20240309

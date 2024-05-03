@@ -1,4 +1,4 @@
-# $NetBSD: varmod-assign.mk,v 1.19 2024/01/07 11:42:22 rillig Exp $
+# $NetBSD: varmod-assign.mk,v 1.20 2024/04/20 10:18:55 rillig Exp $
 #
 # Tests for the obscure ::= variable modifiers, which perform variable
 # assignments during evaluation, just like the = operator in C.
@@ -90,7 +90,7 @@ mod-assign-empty:
 mod-assign-parse:
 	# The modifier for assignment operators starts with a ':'.
 	# An 'x' after that is an invalid modifier.
-	# expect: make: Unknown modifier ":x"
+	# expect: make: in target "mod-assign-parse": while evaluating variable "ASSIGN": Unknown modifier ":x"
 	@echo ${ASSIGN::x}
 
 	# When parsing an assignment operator fails because the operator is

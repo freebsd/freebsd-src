@@ -1,9 +1,9 @@
 : undefined--eol
-make: Unclosed variable "UNCLOSED"
-: unclosed-variable-
+make: in target "unclosed-expression": Unclosed variable "UNCLOSED"
+: unclosed-expression-
 make: Unclosed expression, expecting '}' for "UNCLOSED"
 : unclosed-modifier-
-make: Unknown modifier "Z"
+make: in target "unknown-modifier": while evaluating variable "UNKNOWN": Unknown modifier "Z"
 : unknown-modifier--eol
 : end-eol
 exit status 0
