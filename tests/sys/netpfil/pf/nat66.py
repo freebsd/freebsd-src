@@ -47,7 +47,7 @@ class DelayedSend(threading.Thread):
         sp.send(self._packet)
 
 class TestNAT66(VnetTestTemplate):
-    REQUIRED_MODUES = [ "pf" ]
+    REQUIRED_MODULES = [ "pf" ]
     TOPOLOGY = {
         "vnet1": {"ifaces": ["if1"]},
         "vnet2": {"ifaces": ["if1", "if2"]},
