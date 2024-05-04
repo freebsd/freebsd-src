@@ -62,6 +62,8 @@ list(APPEND MAN_ALIAS
 	fido_assert_allow_cred fido_assert_empty_allow_list
 	fido_assert_new fido_assert_authdata_len
 	fido_assert_new fido_assert_authdata_ptr
+	fido_assert_new fido_assert_authdata_raw_len
+	fido_assert_new fido_assert_authdata_raw_ptr
 	fido_assert_new fido_assert_blob_len
 	fido_assert_new fido_assert_blob_ptr
 	fido_assert_new fido_assert_clientdata_hash_len
@@ -95,6 +97,7 @@ list(APPEND MAN_ALIAS
 	fido_assert_set_authdata fido_assert_set_sig
 	fido_assert_set_authdata fido_assert_set_up
 	fido_assert_set_authdata fido_assert_set_uv
+	fido_assert_set_authdata fido_assert_set_winhello_appid
 	fido_bio_dev_get_info fido_bio_dev_enroll_begin
 	fido_bio_dev_get_info fido_bio_dev_enroll_cancel
 	fido_bio_dev_get_info fido_bio_dev_enroll_continue

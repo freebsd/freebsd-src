@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2023 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  * SPDX-License-Identifier: BSD-2-Clause
@@ -29,7 +29,7 @@ void
 usage(void)
 {
 	fprintf(stderr,
-"usage: fido2-assert -G [-bdhpruv] [-t option] [-i input_file] [-o output_file] device\n"
+"usage: fido2-assert -G [-bdhpruvw] [-t option] [-i input_file] [-o output_file] device\n"
 "       fido2-assert -V [-dhpv] [-i input_file] key_file [type]\n"
 	);
 

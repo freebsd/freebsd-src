@@ -183,6 +183,7 @@ try {
 	    -DBUILD_SHARED_LIBS="${SHARED}" `
 	    -DCMAKE_C_FLAGS_DEBUG="${CFLAGS_DEBUG}" `
 	    -DCMAKE_C_FLAGS_RELEASE="${CFLAGS_RELEASE}" `
+	    -DCMAKE_MSVC_RUNTIME_LIBRARY="${CMAKE_MSVC_RUNTIME_LIBRARY}" `
 	    -DCMAKE_INSTALL_PREFIX="${PREFIX}" "${CMAKE_SYSTEM_VERSION}"; `
 	    ExitOnError
 	& $CMake --build . --config ${Config} --verbose; ExitOnError

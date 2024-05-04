@@ -1,0 +1,30 @@
+# Copyright (c) 2022 Yubico AB. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+# SPDX-License-Identifier: BSD-2-Clause
+
+name: cygwin
+
+on:
+  pull_request:
+    branches:
+    - main
+  push:
+    branches:
+    - main
+    - '*-ci'
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ windows-2022 ]
+        arch: [ x64 ]
+        config: [ "Debug", "Release" ]
+    steps:
+    - uses: actions/checkout@v4
+    - name: build
+      run: |
+        .\windows\cygwin.ps1 -Config ${{ matrix.config }}

@@ -198,17 +198,41 @@ KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2c97", ATTRS{idProduct
 # Ledger Blue Legacy by LEDGER
 KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2c97", ATTRS{idProduct}=="0015", TAG+="uaccess", GROUP="plugdev", MODE="0660"
 
-# Ledger Nano S by LEDGER
+# Ledger Nano S HID+U2F by LEDGER
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2c97", ATTRS{idProduct}=="1005", TAG+="uaccess", GROUP="plugdev", MODE="0660"
+
+# Ledger Nano S HID+WEBUSB by LEDGER
 KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2c97", ATTRS{idProduct}=="1011", TAG+="uaccess", GROUP="plugdev", MODE="0660"
 
-# Ledger Nano S Legacy by LEDGER
+# Ledger Nano S HID+U2F+WEBUSB by LEDGER
 KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2c97", ATTRS{idProduct}=="1015", TAG+="uaccess", GROUP="plugdev", MODE="0660"
 
-# Ledger Nano X by LEDGER
+# Ledger Nano X HID+U2F by LEDGER
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2c97", ATTRS{idProduct}=="4005", TAG+="uaccess", GROUP="plugdev", MODE="0660"
+
+# Ledger Nano X HID+WEBUSB by LEDGER
 KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2c97", ATTRS{idProduct}=="4011", TAG+="uaccess", GROUP="plugdev", MODE="0660"
 
-# Ledger Nano X Legacy by LEDGER
+# Ledger Nano X HID+U2F+WEBUSB by LEDGER
 KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2c97", ATTRS{idProduct}=="4015", TAG+="uaccess", GROUP="plugdev", MODE="0660"
+
+# Ledger Nano S+ HID+U2F by LEDGER
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2c97", ATTRS{idProduct}=="5005", TAG+="uaccess", GROUP="plugdev", MODE="0660"
+
+# Ledger Nano S+ HID+WEBUSB by LEDGER
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2c97", ATTRS{idProduct}=="5011", TAG+="uaccess", GROUP="plugdev", MODE="0660"
+
+# Ledger Nano S+ HID+U2F+WEBUSB by LEDGER
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2c97", ATTRS{idProduct}=="5015", TAG+="uaccess", GROUP="plugdev", MODE="0660"
+
+# Ledger Stax HID+U2F by LEDGER
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2c97", ATTRS{idProduct}=="6005", TAG+="uaccess", GROUP="plugdev", MODE="0660"
+
+# Ledger Stax HID+WEBUSB by LEDGER
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2c97", ATTRS{idProduct}=="6011", TAG+="uaccess", GROUP="plugdev", MODE="0660"
+
+# Ledger stax HID+U2F+WEBUSB by LEDGER
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2c97", ATTRS{idProduct}=="6015", TAG+="uaccess", GROUP="plugdev", MODE="0660"
 
 # Hypersecu HyperFIDO by Hypersecu Information Systems, Inc.
 KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2ccf", ATTRS{idProduct}=="0880", TAG+="uaccess", GROUP="plugdev", MODE="0660"

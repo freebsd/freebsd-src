@@ -20,6 +20,8 @@
 		fido_assert_allow_cred;
 		fido_assert_authdata_len;
 		fido_assert_authdata_ptr;
+		fido_assert_authdata_raw_len;
+		fido_assert_authdata_raw_ptr;
 		fido_assert_blob_len;
 		fido_assert_blob_ptr;
 		fido_assert_clientdata_hash_len;

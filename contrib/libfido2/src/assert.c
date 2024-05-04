@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2023 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  * SPDX-License-Identifier: BSD-2-Clause
@@ -63,6 +63,10 @@ parse_assert_reply(const cbor_item_t *key, const cbor_item_t *val, void *arg)
 	case 1: /* credential id */
 		return (cbor_decode_cred_id(val, &stmt->id));
 	case 2: /* authdata */
+		if (fido_blob_decode(val, &stmt->authdata_raw) < 0) {
+			fido_log_debug("%s: fido_blob_decode", __func__);
+			return (-1);
+		}
 		return (cbor_decode_assert_authdata(val, &stmt->authdata_cbor,
 		    &stmt->authdata, &stmt->authdata_ext));
 	case 3: /* signature */
@@ -643,6 +647,34 @@ fido_assert_set_rp(fido_assert_t *assert, const char *id)
 	return (FIDO_OK);
 }
 
+#ifdef USE_WINHELLO
+int
+fido_assert_set_winhello_appid(fido_assert_t *assert, const char *id)
+{
+	if (assert->appid != NULL) {
+		free(assert->appid);
+		assert->appid = NULL;
+	}
+
+	if (id == NULL)
+		return (FIDO_ERR_INVALID_ARGUMENT);
+
+	if ((assert->appid = strdup(id)) == NULL)
+		return (FIDO_ERR_INTERNAL);
+
+	return (FIDO_OK);
+}
+#else
+int
+fido_assert_set_winhello_appid(fido_assert_t *assert, const char *id)
+{
+	(void)assert;
+	(void)id;
+
+	return (FIDO_ERR_UNSUPPORTED_EXTENSION);
+}
+#endif /* USE_WINHELLO */
+
 int
 fido_assert_allow_cred(fido_assert_t *assert, const unsigned char *ptr,
     size_t len)
@@ -745,12 +777,14 @@ void
 fido_assert_reset_tx(fido_assert_t *assert)
 {
 	free(assert->rp_id);
+	free(assert->appid);
 	fido_blob_reset(&assert->cd);
 	fido_blob_reset(&assert->cdh);
 	fido_blob_reset(&assert->ext.hmac_salt);
 	fido_assert_empty_allow_list(assert);
 	memset(&assert->ext, 0, sizeof(assert->ext));
 	assert->rp_id = NULL;
+	assert->appid = NULL;
 	assert->up = FIDO_OPT_OMIT;
 	assert->uv = FIDO_OPT_OMIT;
 }
@@ -774,6 +808,7 @@ fido_assert_reset_rx(fido_assert_t *assert)
 		fido_blob_reset(&assert->stmt[i].id);
 		fido_blob_reset(&assert->stmt[i].hmac_secret);
 		fido_blob_reset(&assert->stmt[i].authdata_cbor);
+		fido_blob_reset(&assert->stmt[i].authdata_raw);
 		fido_blob_reset(&assert->stmt[i].largeblob_key);
 		fido_blob_reset(&assert->stmt[i].sig);
 		fido_assert_reset_extattr(&assert->stmt[i].authdata_ext);
@@ -844,6 +879,24 @@ fido_assert_authdata_len(const fido_assert_t *assert, size_t idx)
 		return (0);
 
 	return (assert->stmt[idx].authdata_cbor.len);
+}
+
+const unsigned char *
+fido_assert_authdata_raw_ptr(const fido_assert_t *assert, size_t idx)
+{
+	if (idx >= assert->stmt_len)
+		return (NULL);
+
+	return (assert->stmt[idx].authdata_raw.ptr);
+}
+
+size_t
+fido_assert_authdata_raw_len(const fido_assert_t *assert, size_t idx)
+{
+	if (idx >= assert->stmt_len)
+		return (0);
+
+	return (assert->stmt[idx].authdata_raw.len);
 }
 
 const unsigned char *
@@ -985,6 +1038,7 @@ static void
 fido_assert_clean_authdata(fido_assert_stmt *stmt)
 {
 	fido_blob_reset(&stmt->authdata_cbor);
+	fido_blob_reset(&stmt->authdata_raw);
 	fido_assert_reset_extattr(&stmt->authdata_ext);
 	memset(&stmt->authdata, 0, sizeof(stmt->authdata));
 }
@@ -1008,6 +1062,12 @@ fido_assert_set_authdata(fido_assert_t *assert, size_t idx,
 		fido_log_debug("%s: cbor_load", __func__);
 		r = FIDO_ERR_INVALID_ARGUMENT;
 		goto fail;
+	}
+
+	if (fido_blob_decode(item, &stmt->authdata_raw) < 0) {
+	    fido_log_debug("%s: fido_blob_decode", __func__);
+	    r = FIDO_ERR_INTERNAL;
+	    goto fail;
 	}
 
 	if (cbor_decode_assert_authdata(item, &stmt->authdata_cbor,
@@ -1041,6 +1101,12 @@ fido_assert_set_authdata_raw(fido_assert_t *assert, size_t idx,
 
 	stmt = &assert->stmt[idx];
 	fido_assert_clean_authdata(stmt);
+
+	if (fido_blob_set(&stmt->authdata_raw, ptr, len) < 0) {
+		fido_log_debug("%s: fido_blob_set", __func__);
+		r = FIDO_ERR_INTERNAL;
+		goto fail;
+	}
 
 	if ((item = cbor_build_bytestring(ptr, len)) == NULL) {
 		fido_log_debug("%s: cbor_build_bytestring", __func__);

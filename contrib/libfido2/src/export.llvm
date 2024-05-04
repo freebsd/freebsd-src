@@ -18,6 +18,8 @@ _es384_pk_to_EVP_PKEY
 _fido_assert_allow_cred
 _fido_assert_authdata_len
 _fido_assert_authdata_ptr
+_fido_assert_authdata_raw_len
+_fido_assert_authdata_raw_ptr
 _fido_assert_blob_len
 _fido_assert_blob_ptr
 _fido_assert_clientdata_hash_len
@@ -47,6 +49,7 @@ _fido_assert_set_rp
 _fido_assert_set_sig
 _fido_assert_set_up
 _fido_assert_set_uv
+_fido_assert_set_winhello_appid
 _fido_assert_sigcount
 _fido_assert_sig_len
 _fido_assert_sig_ptr

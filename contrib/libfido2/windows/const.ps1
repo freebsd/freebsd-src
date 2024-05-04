@@ -5,20 +5,20 @@
 
 # LibreSSL coordinates.
 New-Variable -Name 'LIBRESSL_URL' `
-    -Value 'https://fastly.cdn.openbsd.org/pub/OpenBSD/LibreSSL' `
+    -Value 'https://cloudflare.cdn.openbsd.org/pub/OpenBSD/LibreSSL' `
     -Option Constant
-New-Variable -Name 'LIBRESSL' -Value 'libressl-3.6.2' -Option Constant
+New-Variable -Name 'LIBRESSL' -Value 'libressl-3.7.3' -Option Constant
 New-Variable -Name 'CRYPTO_LIBRARIES' -Value 'crypto-50' -Option Constant
 
 # libcbor coordinates.
-New-Variable -Name 'LIBCBOR' -Value 'libcbor-0.10.1' -Option Constant
-New-Variable -Name 'LIBCBOR_BRANCH' -Value 'v0.10.1' -Option Constant
+New-Variable -Name 'LIBCBOR' -Value 'libcbor-0.10.2' -Option Constant
+New-Variable -Name 'LIBCBOR_BRANCH' -Value 'v0.10.2' -Option Constant
 New-Variable -Name 'LIBCBOR_GIT' -Value 'https://github.com/pjk/libcbor' `
     -Option Constant
 
 # zlib coordinates.
-New-Variable -Name 'ZLIB' -Value 'zlib-1.2.13' -Option Constant
-New-Variable -Name 'ZLIB_BRANCH' -Value 'v1.2.13' -Option Constant
+New-Variable -Name 'ZLIB' -Value 'zlib-1.3' -Option Constant
+New-Variable -Name 'ZLIB_BRANCH' -Value 'v1.3' -Option Constant
 New-Variable -Name 'ZLIB_GIT' -Value 'https://github.com/madler/zlib' `
     -Option Constant
 
@@ -34,9 +34,13 @@ New-Variable -Name 'PREFIX' -Value "${OUTPUT}\${Arch}\${Type}" -Option Constant
 if ("${Type}" -eq "dynamic") {
 	New-Variable -Name 'RUNTIME' -Value '/MD' -Option Constant
 	New-Variable -Name 'SHARED' -Value 'ON' -Option Constant
+	New-Variable -Name 'CMAKE_MSVC_RUNTIME_LIBRARY' -Option Constant `
+	    -Value 'MultiThreaded$<$<CONFIG:Debug>:Debug>DLL'
 } else {
 	New-Variable -Name 'RUNTIME' -Value '/MT' -Option Constant
 	New-Variable -Name 'SHARED' -Value 'OFF' -Option Constant
+	New-Variable -Name 'CMAKE_MSVC_RUNTIME_LIBRARY' -Option Constant `
+	    -Value 'MultiThreaded$<$<CONFIG:Debug>:Debug>'
 }
 New-Variable -Name 'CFLAGS_DEBUG' -Value "${RUNTIME}d /Zi /guard:cf /sdl" `
     -Option Constant

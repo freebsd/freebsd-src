@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2023 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  * SPDX-License-Identifier: BSD-2-Clause
@@ -27,7 +27,7 @@ void
 usage(void)
 {
 	fprintf(stderr,
-"usage: fido2-cred -M [-bdhqruv] [-c cred_protect] [-i input_file] [-o output_file] device [type]\n"
+"usage: fido2-cred -M [-bdhqruvw] [-c cred_protect] [-i input_file] [-o output_file] device [type]\n"
 "       fido2-cred -V [-dhv] [-c cred_protect] [-i input_file] [-o output_file] [type]\n"
 	);
 

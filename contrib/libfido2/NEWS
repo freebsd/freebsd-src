@@ -1,3 +1,13 @@
+* Version 1.14.0 (2023-11-13)
+ ** fido2-cred -M, fido2-token -G: support raw client data via -w flag.
+ ** winhello: support U2F AppID extension for assertions.
+ ** winhello: fix restrictive parsing of the hmac-secret on assertions.
+ ** winhello: translate NTE_USER_CANCELLED to FIDO_ERR_OPERATION_DENIED; gh#685.
+ ** New API calls:
+    ** fido_assert_authdata_raw_len;
+    ** fido_assert_authdata_raw_ptr;
+    ** fido_assert_set_winhello_appid.
+
 * Version 1.13.0 (2023-02-20)
  ** Support for linking against OpenSSL on Windows; gh#668.
  ** New API calls:

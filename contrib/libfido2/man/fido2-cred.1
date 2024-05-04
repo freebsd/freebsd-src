@@ -1,4 +1,4 @@
-.\" Copyright (c) 2018 Yubico AB. All rights reserved.
+.\" Copyright (c) 2018-2023 Yubico AB. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions are
@@ -25,7 +25,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd $Mdocdate: November 5 2019 $
+.Dd $Mdocdate: July 3 2023 $
 .Dt FIDO2-CRED 1
 .Os
 .Sh NAME
@@ -34,7 +34,7 @@
 .Sh SYNOPSIS
 .Nm
 .Fl M
-.Op Fl bdhqruv
+.Op Fl bdhqruvw
 .Op Fl c Ar cred_protect
 .Op Fl i Ar input_file
 .Op Fl o Ar output_file
@@ -177,6 +177,13 @@ U2F otherwise.
 If making a credential, request user verification.
 If verifying a credential, check whether the user verification bit
 was signed by the authenticator.
+.It Fl w
+Tells
+.Nm
+that the first line of input when making a credential shall be
+interpreted as unhashed client data.
+This is required by Windows Hello, which calculates the client data hash
+internally.
 .El
 .Sh INPUT FORMAT
 The input of

@@ -3,7 +3,7 @@
 # license that can be found in the LICENSE file.
 # SPDX-License-Identifier: BSD-2-Clause
 
-IMAGE		:= libfido2-coverage:1.13.1
+IMAGE		:= libfido2-coverage:1.14.0
 RUNNER		:= libfido2-runner
 PROFDATA	:= llvm-profdata
 COV		:= llvm-cov

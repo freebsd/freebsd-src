@@ -123,7 +123,7 @@ valid_key(void)
 	eddsa_pk_t *pkA = NULL;
 	eddsa_pk_t *pkB = NULL;
 
-#if defined(LIBRESSL_VERSION_NUMBER)
+#if defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x3070000f
 	/* incomplete support; test what we can */
 	ASSERT_NULL(EVP_PKEY_from_PEM(eddsa, sizeof(eddsa)));
 	ASSERT_NOT_NULL((pkB = eddsa_pk_new()));

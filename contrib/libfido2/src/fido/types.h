@@ -199,6 +199,7 @@ typedef struct _fido_assert_stmt {
 	fido_blob_t           hmac_secret;   /* hmac secret */
 	fido_assert_extattr_t authdata_ext;  /* decoded extensions */
 	fido_blob_t           authdata_cbor; /* raw cbor payload */
+	fido_blob_t           authdata_raw;  /* raw authdata */
 	fido_authdata_t       authdata;      /* decoded authdata payload */
 	fido_blob_t           sig;           /* signature of cdh + authdata */
 	fido_blob_t           largeblob_key; /* decoded large blob key */
@@ -211,6 +212,7 @@ typedef struct fido_assert_ext {
 
 typedef struct fido_assert {
 	char              *rp_id;        /* relying party id */
+	char              *appid;        /* winhello u2f appid */
 	fido_blob_t        cd;           /* client data */
 	fido_blob_t        cdh;          /* client data hash */
 	fido_blob_array_t  allow_list;   /* list of allowed credentials */
