@@ -4774,6 +4774,9 @@ ahc_init(struct ahc_softc *ahc)
 {
 	int	 max_targ;
 	int	 error;
+#ifdef AHC_TARGET_MODE
+	int	 tmode_enable;
+#endif
 	u_int	 i;
 	u_int	 scsi_conf;
 	u_int	 ultraenb;
@@ -4826,8 +4829,22 @@ ahc_init(struct ahc_softc *ahc)
 	/*
 	 * Only allow target mode features if this unit has them enabled.
 	 */
-	if ((AHC_TMODE_ENABLE & (0x1 << ahc->unit)) == 0)
+#ifdef AHC_TARGET_MODE
+	tmode_enable = ((AHC_TMODE_ENABLE & (0x1 << ahc->unit)) != 0);
+	resource_int_value(device_get_name(ahc->dev_softc),
+			       device_get_unit(ahc->dev_softc),
+			       "tmode_enable", &tmode_enable);
+
+	if (tmode_enable == 0) {
 		ahc->features &= ~AHC_TARGETMODE;
+	} else {
+		if (bootverbose && ((ahc->features & AHC_TARGETMODE) != 0))
+			printf("%s: enabling target mode\n", ahc_name(ahc));
+	}
+
+#else
+	ahc->features &= ~AHC_TARGETMODE;
+#endif
 
 	/* DMA tag for mapping buffers into device visible space. */
 	if (aic_dma_tag_create(ahc, ahc->parent_dmat, /*alignment*/1,

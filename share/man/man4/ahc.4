@@ -40,12 +40,6 @@ kernel configuration file:
 .Pp
 For one or more PCI cards:
 .Cd "device pci"
-.Pp
-To allow PCI adapters to use memory mapped I/O if enabled:
-.Cd options AHC_ALLOW_MEMIO
-.Pp
-To configure one or more controllers to assume the target role:
-.Cd options AHC_TMODE_ENABLE <bitmask of units>
 .Ed
 .Pp
 Alternatively, to load the driver as a
@@ -65,29 +59,6 @@ host adapter chips.
 Driver features include support for twin and wide busses,
 fast, ultra or ultra2 synchronous transfers depending on controller type,
 tagged queueing, SCB paging, and target mode.
-.Pp
-Memory mapped I/O can be enabled for PCI devices with the
-.Dq Dv AHC_ALLOW_MEMIO
-configuration option.
-Memory mapped I/O is more efficient than the alternative, programmed I/O.
-Most PCI BIOSes will map devices so that either technique for communicating
-with the card is available.
-In some cases,
-usually when the PCI device is sitting behind a PCI->PCI bridge,
-the BIOS may fail to properly initialize the chip for memory mapped I/O.
-The typical symptom of this problem is a system hang if memory mapped I/O
-is attempted.
-Most modern motherboards perform the initialization correctly and work fine
-with this option enabled.
-.Pp
-Individual controllers may be configured to operate in the target role
-through the
-.Dq Dv AHC_TMODE_ENABLE
-configuration option.
-The value assigned to this option should be a bitmap
-of all units where target mode is desired.
-For example, a value of 0x25, would enable target mode on units 0, 2, and 5.
-A value of 0x8a enables it for units 1, 3, and 7.
 .Pp
 Per target configuration performed in the
 .Tn SCSI-Select
@@ -154,6 +125,45 @@ sequencer.
 .It
 Multiple Target IDs - Allows the controller to respond to selection as a
 target on multiple SCSI IDs.
+.El
+.Ed
+.Sh CONFIGURATION OPTIONS
+.Pp
+To allow PCI adapters to use memory mapped I/O if enabled:
+.Pp
+.Cd options AHC_ALLOW_MEMIO
+.Bd -ragged -offset indent
+Memory mapped I/O is more efficient than the alternative, programmed I/O.
+Most PCI BIOSes will map devices so that either technique for communicating
+with the card is available.  In some cases, usually when the PCI device is
+sitting behind a PCI->PCI bridge, the BIOS may fail to properly initialize
+the chip for memory mapped I/O. The typical symptom of this problem is a
+system hang if memory mapped I/O is attempted.
+.Pp
+Most modern motherboards perform the initialization correctly and work fine
+with this option enabled.
+.Ed
+.Pp
+To statically configure one or more controllers to assume the target role:
+.Pp
+.Cd options AHC_TMODE_ENABLE <bitmask of units>
+.Bd -ragged -offset indent
+The value assigned to this option should be a bitmap of all units where target
+mode is desired. For example, a value of 0x25, would enable target mode on
+units 0, 2, and 5. A value of 0x8a enables it for units 1, 3, and 7.
+.Pp
+Note that controllers can be dynamically configured through a device hint
+documented below.
+.El
+.Ed
+.Sh BOOT OPTIONS
+The following options are switchable by setting values in
+.Pa /boot/device.hints .
+.Pp
+They are:
+.Bl -tag -width indent
+.It Va hint.ahc. Ns Ar N Ns Va .tmode_enable
+A hint to define whether the SCSI target mode is enabled (0 -- disabled, 1 -- enabled).
 .El
 .Ed
 .Sh HARDWARE
