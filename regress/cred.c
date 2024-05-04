@@ -9,6 +9,8 @@
 
 #include <assert.h>
 #include <string.h>
+#include <stdlib.h>
+#include <stdbool.h>
 
 #define _FIDO_INTERNAL
 
@@ -2094,7 +2096,7 @@ fmt_none(void)
 }
 
 static void
-valid_tpm_rs256_cred(void)
+valid_tpm_rs256_cred(bool xfail)
 {
 	fido_cred_t *c;
 
@@ -2107,7 +2109,8 @@ valid_tpm_rs256_cred(void)
 	assert(fido_cred_set_uv(c, FIDO_OPT_TRUE) == FIDO_OK);
 	assert(fido_cred_set_fmt(c, "tpm") == FIDO_OK);
 	assert(fido_cred_set_attstmt(c, attstmt_tpm_rs256, sizeof(attstmt_tpm_rs256)) == FIDO_OK);
-	assert(fido_cred_verify(c) == FIDO_OK);
+	// XXX: RHEL9 has deprecated SHA-1 for signing.
+	assert(fido_cred_verify(c) == (xfail ? FIDO_ERR_INVALID_SIG : FIDO_OK));
 	assert(fido_cred_prot(c) == 0);
 	assert(fido_cred_pubkey_len(c) == sizeof(pubkey_tpm_rs256));
 	assert(memcmp(fido_cred_pubkey_ptr(c), pubkey_tpm_rs256, sizeof(pubkey_tpm_rs256)) == 0);
@@ -2119,7 +2122,7 @@ valid_tpm_rs256_cred(void)
 }
 
 static void
-valid_tpm_es256_cred(void)
+valid_tpm_es256_cred(bool xfail)
 {
 	fido_cred_t *c;
 
@@ -2132,7 +2135,8 @@ valid_tpm_es256_cred(void)
 	assert(fido_cred_set_uv(c, FIDO_OPT_TRUE) == FIDO_OK);
 	assert(fido_cred_set_fmt(c, "tpm") == FIDO_OK);
 	assert(fido_cred_set_attstmt(c, attstmt_tpm_es256, sizeof(attstmt_tpm_es256)) == FIDO_OK);
-	assert(fido_cred_verify(c) == FIDO_OK);
+	// XXX: RHEL9 has deprecated SHA-1 for signing.
+	assert(fido_cred_verify(c) == (xfail ? FIDO_ERR_INVALID_SIG : FIDO_OK));
 	assert(fido_cred_prot(c) == 0);
 	assert(fido_cred_pubkey_len(c) == sizeof(pubkey_tpm_es256));
 	assert(memcmp(fido_cred_pubkey_ptr(c), pubkey_tpm_es256, sizeof(pubkey_tpm_es256)) == 0);
@@ -2146,6 +2150,8 @@ valid_tpm_es256_cred(void)
 int
 main(void)
 {
+	bool xfail = getenv("FIDO_REGRESS_RS1_XFAIL") != NULL;
+
 	fido_init(0);
 
 	empty_cred();
@@ -2172,8 +2178,8 @@ main(void)
 	wrong_credprot();
 	raw_authdata();
 	fmt_none();
-	valid_tpm_rs256_cred();
-	valid_tpm_es256_cred();
+	valid_tpm_rs256_cred(xfail);
+	valid_tpm_es256_cred(xfail);
 
 	exit(0);
 }

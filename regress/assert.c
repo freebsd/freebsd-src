@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2021 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2023 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  * SPDX-License-Identifier: BSD-2-Clause
@@ -230,6 +230,8 @@ empty_assert(fido_dev_t *d, fido_assert_t *a, size_t idx)
 	assert(fido_assert_flags(a, idx) == 0);
 	assert(fido_assert_authdata_len(a, idx) == 0);
 	assert(fido_assert_authdata_ptr(a, idx) == NULL);
+	assert(fido_assert_authdata_raw_len(a, idx) == 0);
+	assert(fido_assert_authdata_raw_ptr(a, idx) == NULL);
 	assert(fido_assert_clientdata_hash_len(a) == 0);
 	assert(fido_assert_clientdata_hash_ptr(a) == NULL);
 	assert(fido_assert_id_len(a, idx) == 0);
@@ -496,6 +498,10 @@ junk_authdata(void)
 	assert(fido_assert_set_count(a, 1) == FIDO_OK);
 	assert(fido_assert_set_authdata(a, 0, junk,
 	    sizeof(authdata)) == FIDO_ERR_INVALID_ARGUMENT);
+	assert(fido_assert_authdata_ptr(a, 0) == NULL);
+	assert(fido_assert_authdata_len(a, 0) == 0);
+	assert(fido_assert_authdata_raw_ptr(a, 0) == NULL);
+	assert(fido_assert_authdata_raw_len(a, 0) == 0);
 	free_assert(a);
 	free(junk);
 }
@@ -613,6 +619,47 @@ es256_PKEY(void)
 	EVP_PKEY_free(pkey);
 }
 
+static void
+raw_authdata(void)
+{
+	fido_assert_t *a;
+	cbor_item_t *item;
+	struct cbor_load_result cbor_result;
+	const unsigned char *ptr;
+	unsigned char *cbor;
+	size_t len;
+	size_t cbor_len;
+	size_t alloclen;
+
+	a = alloc_assert();
+	assert(fido_assert_set_count(a, 1) == FIDO_OK);
+	assert(fido_assert_set_authdata(a, 0, authdata,
+	    sizeof(authdata)) == FIDO_OK);
+	assert((ptr = fido_assert_authdata_ptr(a, 0)) != NULL);
+	assert((len = fido_assert_authdata_len(a, 0)) != 0);
+	assert((item = cbor_load(ptr, len, &cbor_result)) != NULL);
+	assert(cbor_result.read == len);
+	assert(cbor_isa_bytestring(item));
+	assert((ptr = fido_assert_authdata_raw_ptr(a, 0)) != NULL);
+	assert((len = fido_assert_authdata_raw_len(a, 0)) != 0);
+	assert(cbor_bytestring_length(item) == len);
+	assert(memcmp(ptr, cbor_bytestring_handle(item), len) == 0);
+	assert((len = fido_assert_authdata_len(a, 0)) != 0);
+	assert((cbor_len = cbor_serialize_alloc(item, &cbor, &alloclen)) == len);
+	assert((ptr = cbor_bytestring_handle(item)) != NULL);
+	assert((len = cbor_bytestring_length(item)) != 0);
+	assert(fido_assert_set_authdata_raw(a, 0, ptr, len) == FIDO_OK);
+	assert((ptr = fido_assert_authdata_ptr(a, 0)) != NULL);
+	assert((len = fido_assert_authdata_len(a, 0)) != 0);
+	assert(len == cbor_len);
+	assert(memcmp(cbor, ptr, len) == 0);
+	assert(cbor_len == sizeof(authdata));
+	assert(memcmp(cbor, authdata, cbor_len) == 0);
+	cbor_decref(&item);
+	free(cbor);
+	free_assert(a);
+}
+
 int
 main(void)
 {
@@ -632,6 +679,7 @@ main(void)
 	bad_cbor_serialize();
 	rs256_PKEY();
 	es256_PKEY();
+	raw_authdata();
 
 	exit(0);
 }

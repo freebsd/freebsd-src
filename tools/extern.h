@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2023 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  * SPDX-License-Identifier: BSD-2-Clause
@@ -23,14 +23,15 @@ struct blob {
 
 #define TOKEN_OPT	"CDGILPRSVabcdefi:k:l:m:n:p:ru"
 
-#define FLAG_DEBUG	0x01
-#define FLAG_QUIET	0x02
-#define FLAG_RK		0x04
-#define FLAG_UV		0x08
-#define FLAG_U2F	0x10
-#define FLAG_HMAC	0x20
-#define FLAG_UP		0x40
-#define FLAG_LARGEBLOB	0x80
+#define FLAG_DEBUG	0x001
+#define FLAG_QUIET	0x002
+#define FLAG_RK		0x004
+#define FLAG_UV		0x008
+#define FLAG_U2F	0x010
+#define FLAG_HMAC	0x020
+#define FLAG_UP		0x040
+#define FLAG_LARGEBLOB	0x080
+#define FLAG_CD		0x100
 
 #define PINBUF_LEN	256
 

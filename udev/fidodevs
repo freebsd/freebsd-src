@@ -107,10 +107,18 @@ product LEDGER		0x0001	Ledger Nano S Old firmware
 product LEDGER		0x0004	Ledger Nano X Old firmware
 product LEDGER		0x0011  Ledger Blue
 product LEDGER		0x0015  Ledger Blue Legacy
-product LEDGER		0x1011	Ledger Nano S
-product LEDGER		0x1015	Ledger Nano S Legacy
-product LEDGER		0x4011	Ledger Nano X
-product LEDGER		0x4015	Ledger Nano X Legacy
+product LEDGER		0x1005	Ledger Nano S HID+U2F
+product LEDGER		0x1011	Ledger Nano S HID+WEBUSB
+product LEDGER		0x1015	Ledger Nano S HID+U2F+WEBUSB
+product LEDGER		0x4005	Ledger Nano X HID+U2F
+product LEDGER		0x4011	Ledger Nano X HID+WEBUSB
+product LEDGER		0x4015	Ledger Nano X HID+U2F+WEBUSB
+product LEDGER		0x5005	Ledger Nano S+ HID+U2F
+product LEDGER		0x5011	Ledger Nano S+ HID+WEBUSB
+product LEDGER		0x5015	Ledger Nano S+ HID+U2F+WEBUSB
+product LEDGER		0x6005	Ledger Stax HID+U2F
+product LEDGER		0x6011	Ledger Stax HID+WEBUSB
+product LEDGER		0x6015	Ledger stax HID+U2F+WEBUSB
 
 product HYPERSECU	0x0880	Hypersecu HyperFIDO
 

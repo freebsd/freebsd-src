@@ -1,0 +1,51 @@
+# Copyright (c) 2022 Yubico AB. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+# SPDX-License-Identifier: BSD-2-Clause
+
+name: openssl3
+
+on:
+  pull_request:
+    branches:
+    - main
+  push:
+    branches:
+    - main
+    - '*-ci'
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            cc: gcc-11
+          - os: ubuntu-22.04
+            cc: clang-16
+          - os: ubuntu-22.04
+            cc: i686-w64-mingw32-gcc-10
+    steps:
+    - uses: actions/checkout@v4
+    - name: dependencies
+      env:
+        CC: ${{ matrix.cc }}
+      run: |
+        sudo apt -q update
+        sudo apt install -q -y libcbor-dev libudev-dev libz-dev \
+          original-awk mandoc libpcsclite-dev
+        sudo apt remove -y libssl-dev
+        if [ "${CC%-*}" == "clang" ]; then
+          sudo ./.actions/setup_clang "${CC}"
+        elif [ "${CC%-*}" == "i686-w64-mingw32-gcc" ]; then
+          sudo apt install -q -y binutils-mingw-w64-i686 gcc-mingw-w64 \
+           g++-mingw-w64 mingw-w64-i686-dev
+        else
+          sudo apt install -q -y "${CC}"
+        fi
+    - name: build
+      env:
+        CC: ${{ matrix.cc }}
+      run: ./.actions/build-linux-openssl3-${CC%-*}
