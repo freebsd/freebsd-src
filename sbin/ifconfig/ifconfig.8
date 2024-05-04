@@ -173,15 +173,15 @@ Adjust the display of inet address subnet masks:
 .It Cm cidr
 CIDR notation, for example:
 .Ql 203.0.113.224/26
-.It Cm default
-Default format,
-.Cm hex
 .It Cm dotted
 Dotted quad notation, for example:
 .Ql 255.255.255.192
 .It Cm hex
 Hexadecimal format, for example:
 .Ql 0xffffffc0
+.It Cm default
+Default format,
+.Cm cidr
 .El
 .It Cm inet6
 Adjust the display of inet6 address prefixes (subnet masks):
@@ -192,12 +192,12 @@ CIDR notation, for example:
 .Ql ::1/128
 or
 .Ql fe80::1%lo0/64
-.It Cm default
-Default format,
-.Cm numeric
 .It Cm numeric
 Integer format, for example:
 .Ql prefixlen 64
+.It Cm default
+Default format,
+.Cm cidr
 .El
 .El
 .It Fl G Ar groupname

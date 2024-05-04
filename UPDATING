@@ -27,6 +27,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20240504:
+	The default output format of ifconfig(8) has changed to use CIDR
+	notation for IPv4 and IPv6 addresses.  If you have shell scripts that
+	rely on parsing ifconfig(8) output, you may want to set
+	"IFCONFIG_FORMAT=inet:hex,inet6:numeric".
+
 20240428:
 	OpenBSM auditing runtime (auditd, etc.) has been moved into the new
 	package FreeBSD-audit.  If you use OpenBSM auditing and pkgbase, you

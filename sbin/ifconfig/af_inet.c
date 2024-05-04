@@ -71,7 +71,6 @@ static struct in_pdata in_add, in_del;
 #endif
 
 static char addr_buf[NI_MAXHOST];	/*for getnameinfo()*/
-extern char *f_inet, *f_addr;
 
 static void
 print_addr(struct sockaddr_in *sin)
@@ -116,7 +115,9 @@ in_status(if_ctx *ctx __unused, const struct ifaddrs *ifa)
 	sin = satosin(ifa->ifa_netmask);
 	if (sin == NULL)
 		sin = &null_sin;
-	if (f_inet != NULL && strcmp(f_inet, "cidr") == 0) {
+
+	switch (f_inet) {
+	case INET_CIDR: {
 		int cidr = 32;
 		unsigned long smask;
 
@@ -128,10 +129,15 @@ in_status(if_ctx *ctx __unused, const struct ifaddrs *ifa)
 				break;
 		}
 		printf("/%d", cidr);
-	} else if (f_inet != NULL && strcmp(f_inet, "dotted") == 0)
+		break;
+	}
+	case INET_DOTTED:
 		printf(" netmask %s", inet_ntoa(sin->sin_addr));
-	else
+		break;
+	case INET_HEX:
 		printf(" netmask 0x%lx", (unsigned long)ntohl(sin->sin_addr.s_addr));
+		break;
+	}
 
 	if (ifa->ifa_flags & IFF_BROADCAST) {
 		sin = satosin(ifa->ifa_broadaddr);
@@ -168,12 +174,18 @@ in_status_nl(if_ctx *ctx __unused, if_link_t *link, if_addr_t *ifa)
 
 		printf(" --> %s", inet_ntoa(dst->sin_addr));
 	}
-	if (f_inet != NULL && strcmp(f_inet, "cidr") == 0) {
+
+	switch (f_inet) {
+	case INET_CIDR:
 		printf("/%d", plen);
-	} else if (f_inet != NULL && strcmp(f_inet, "dotted") == 0)
+		break;
+	case INET_DOTTED:
 		printf(" netmask %s", inet_ntoa(get_mask(plen)));
-	else
+		break;
+	case INET_HEX:
 		printf(" netmask 0x%lx", (unsigned long)ntohl(get_mask(plen).s_addr));
+		break;
+	}
 
 	if ((link->ifi_flags & IFF_BROADCAST) && plen != 0)  {
 		struct sockaddr_in *brd = satosin(ifa->ifa_broadcast);

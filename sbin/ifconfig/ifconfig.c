@@ -90,7 +90,9 @@ int	exit_code = 0;
 static char ifname_to_print[IFNAMSIZ]; /* Helper for printifnamemaybe() */
 
 /* Formatter Strings */
-char	*f_inet, *f_inet6, *f_ether, *f_addr;
+inet_format_t f_inet;
+inet6_format_t f_inet6;
+char	*f_ether, *f_addr;
 
 #ifdef WITHOUT_NETLINK
 static void list_interfaces_ioctl(if_ctx *ctx);
@@ -313,10 +315,6 @@ cmpifaddrs(struct ifaddrs *a, struct ifaddrs *b, struct ifa_queue *q)
 static void freeformat(void)
 {
 
-	if (f_inet != NULL)
-		free(f_inet);
-	if (f_inet6 != NULL)
-		free(f_inet6);
 	if (f_ether != NULL)
 		free(f_ether);
 	if (f_addr != NULL)
@@ -344,10 +342,19 @@ static void setformat(char *input)
 			f_addr = strdup(modifier);
 		else if (strcmp(category, "ether") == 0)
 			f_ether = strdup(modifier);
-		else if (strcmp(category, "inet") == 0)
-			f_inet = strdup(modifier);
-		else if (strcmp(category, "inet6") == 0)
-			f_inet6 = strdup(modifier);
+		else if (strcmp(category, "inet") == 0) {
+			if (strcmp(modifier, "hex") == 0)
+				f_inet = INET_HEX;
+			else if (strcmp(modifier, "cidr") == 0)
+				f_inet = INET_CIDR;
+			else if (strcmp(modifier, "dotted") == 0)
+				f_inet = INET_DOTTED;
+		} else if (strcmp(category, "inet6") == 0) {
+			if (strcmp(modifier, "cidr") == 0)
+				f_inet6 = INET6_CIDR;
+			else if (strcmp(modifier, "numeric") == 0)
+				f_inet6 = INET6_NUMERIC;
+		}
 	}
 	free(formatstr);
 }
@@ -612,7 +619,7 @@ main(int ac, char *av[])
 		.io_s = -1,
 	};
 
-	f_inet = f_inet6 = f_ether = f_addr = NULL;
+	f_ether = f_addr = NULL;
 
 	lifh = ifconfig_open();
 	if (lifh == NULL)

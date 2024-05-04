@@ -85,7 +85,6 @@ static	int prefix(void *, int);
 #endif
 static	char *sec2str(time_t);
 static	int explicit_prefix = 0;
-extern	char *f_inet6, *f_addr;
 
 extern void setnd6flags(if_ctx *, const char *, int);
 extern void setnd6defif(if_ctx *,const char *, int);
@@ -246,10 +245,14 @@ print_p2p(struct sockaddr_in6 *sin)
 static void
 print_mask(int plen)
 {
-	if (f_inet6 != NULL && strcmp(f_inet6, "cidr") == 0)
+	switch (f_inet6) {
+	case INET6_CIDR:
 		printf("/%d", plen);
-	else
+		break;
+	case INET6_NUMERIC:
 		printf(" prefixlen %d", plen);
+		break;
+	}
 }
 
 static void

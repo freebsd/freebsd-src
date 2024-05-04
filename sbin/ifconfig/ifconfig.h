@@ -253,7 +253,21 @@ void	opt_register(struct option *);
 extern	ifconfig_handle_t *lifh;
 extern	int allmedia;
 extern	int exit_code;
-extern	char *f_inet, *f_inet6, *f_ether, *f_addr;
+
+typedef enum {
+	INET_CIDR = 0,
+	INET_HEX,
+	INET_DOTTED
+} inet_format_t;
+extern inet_format_t f_inet;
+
+typedef enum {
+	INET6_CIDR = 0,
+	INET6_NUMERIC
+} inet6_format_t;
+extern inet6_format_t f_inet6;
+
+extern	char *f_ether, *f_addr;
 
 void	clearifcap(if_ctx *ctx, const char *, int value);
 void	setifcap(if_ctx *ctx, const char *, int value);
