@@ -3,6 +3,7 @@
 
 .PATH:	${SRCTOP}/contrib/ntp/sntp
 
+PACKAGE=ntp
 PROG=	sntp
 MAN=
 SRCS= 	crypto.c kod_management.c log.c main.c networking.c \

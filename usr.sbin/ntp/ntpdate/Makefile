@@ -3,6 +3,7 @@
 
 .PATH: ${SRCTOP}/contrib/ntp/ntpdate
 
+PACKAGE=ntp
 PROG=	ntpdate
 MAN=
 SRCS=	ntpdate.c version.c

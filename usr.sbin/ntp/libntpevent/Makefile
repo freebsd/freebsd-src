@@ -3,6 +3,7 @@
 
 .PATH: ${SRCTOP}/contrib/libevent
 
+PACKAGE= ntp
 LIB= ntpevent
 INTERNALLIB=
 
