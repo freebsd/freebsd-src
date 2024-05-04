@@ -25,6 +25,20 @@ THIS SOFTWARE.
 This file lists all bug fixes, changes, etc., made since the 
 second edition of the AWK book was published in September 2023.
 
+Apr 22, 2024:
+	fixed regex engine gototab reallocation issue that was
+	introduced during the Nov 24 rewrite. Thanks to Arnold Robbins.
+	Fixed a scan bug in split in the case the separator is a single
+	character. thanks to Oguz Ismail for spotting the issue.
+
+Mar 10, 2024:
+	fixed use-after-free bug in fnematch due to adjbuf invalidating
+	the pointers to buf. thanks to github user caffe3 for spotting
+	the issue and providing a fix, and to Miguel Pineiro Jr.
+	for the alternative fix.
+	MAX_UTF_BYTES in fnematch has been replaced with awk_mb_cur_max.
+	thanks to Miguel Pineiro Jr.
+
 Jan 22, 2024:
 	Restore the ability to compile with g++. Thanks to
 	Arnold Robbins.

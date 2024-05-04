@@ -651,8 +651,8 @@ static int set_gototab(fa *f, int state, int ch, int val) /* hide gototab implem
 		if (tab->inuse + 1 >= tab->allocated)
 			resize_gototab(f, state);
 
-		f->gototab[state].entries[f->gototab[state].inuse-1].ch = ch;
-		f->gototab[state].entries[f->gototab[state].inuse-1].state = val;
+		f->gototab[state].entries[f->gototab[state].inuse].ch = ch;
+		f->gototab[state].entries[f->gototab[state].inuse].state = val;
 		f->gototab[state].inuse++;
 		return val;
 	} else {
@@ -677,9 +677,9 @@ static int set_gototab(fa *f, int state, int ch, int val) /* hide gototab implem
 	gtt *tab = & f->gototab[state];
 	if (tab->inuse + 1 >= tab->allocated)
 		resize_gototab(f, state);
-	++tab->inuse;
 	f->gototab[state].entries[tab->inuse].ch = ch;
 	f->gototab[state].entries[tab->inuse].state = val;
+	++tab->inuse;
 
 	qsort(f->gototab[state].entries,
 		f->gototab[state].inuse, sizeof(gtte), entry_cmp);
@@ -830,8 +830,6 @@ int nematch(fa *f, const char *p0)	/* non-empty match, for sub */
 }
 
 
-#define MAX_UTF_BYTES	4	// UTF-8 is up to 4 bytes long
-
 /*
  * NAME
  *     fnematch
@@ -868,16 +866,28 @@ bool fnematch(fa *pfa, FILE *f, char **pbuf, int *pbufsize, int quantum)
 
 	do {
 		/*
-		 * Call u8_rune with at least MAX_UTF_BYTES ahead in
+		 * Call u8_rune with at least awk_mb_cur_max ahead in
 		 * the buffer until EOF interferes.
 		 */
-		if (k - j < MAX_UTF_BYTES) {
-			if (k + MAX_UTF_BYTES > buf + bufsize) {
+		if (k - j < awk_mb_cur_max) {
+			if (k + awk_mb_cur_max > buf + bufsize) {
+				char *obuf = buf;
 				adjbuf((char **) &buf, &bufsize,
-				    bufsize + MAX_UTF_BYTES,
+				    bufsize + awk_mb_cur_max,
 				    quantum, 0, "fnematch");
+
+				/* buf resized, maybe moved. update pointers */
+				*pbufsize = bufsize;
+				if (obuf != buf) {
+					i = buf + (i - obuf);
+					j = buf + (j - obuf);
+					k = buf + (k - obuf);
+					*pbuf = buf;
+					if (patlen)
+						patbeg = buf + (patbeg - obuf);
+				}
 			}
-			for (n = MAX_UTF_BYTES ; n > 0; n--) {
+			for (n = awk_mb_cur_max ; n > 0; n--) {
 				*k++ = (c = getc(f)) != EOF ? c : 0;
 				if (c == EOF) {
 					if (ferror(f))
@@ -913,10 +923,6 @@ bool fnematch(fa *pfa, FILE *f, char **pbuf, int *pbufsize, int quantum)
 		j = i;
 		s = 2;
 	} while (1);
-
-	/* adjbuf() may have relocated a resized buffer. Inform the world. */
-	*pbuf = buf;
-	*pbufsize = bufsize;
 
 	if (patlen) {
 		/*
