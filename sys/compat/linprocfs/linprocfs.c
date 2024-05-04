@@ -126,6 +126,9 @@
 #define P2K(x) ((x) << (PAGE_SHIFT - 10))		/* pages to kbytes */
 #define TV2J(x)	((x)->tv_sec * 100UL + (x)->tv_usec / 10000)
 
+/* Value defined in sys/kern/sysv_shm.c */
+#define SHMSEG_ALLOCATED	0x0800
+
 /**
  * @brief Mapping of ki_stat in struct kinfo_proc to the linux state
  *
@@ -2093,6 +2096,176 @@ linprocfs_domax_map_cnt(PFS_FILL_ARGS)
 }
 
 /*
+ * Filler function for proc/sysvipc/msg
+ */
+static int
+linprocfs_dosysvipc_msg(PFS_FILL_ARGS)
+{
+	struct msqid_kernel *msqids;
+	u_long id, msgmni;
+	size_t sz;
+	int error;
+
+	sbuf_printf(sb,
+	    "%10s %10s %4s  %10s %10s %5s %5s %5s %5s %5s %5s %10s %10s %10s\n",
+	    "key", "msqid", "perms", "cbytes", "qnum", "lspid", "lrpid",
+	    "uid", "gid", "cuid", "cgid", "stime", "rtime", "ctime");
+
+again:
+	msgmni = msginfo.msgmni;
+	sz = sizeof(struct msqid_kernel) * msgmni;
+	msqids = malloc(sz, M_TEMP, M_NOWAIT);
+	if (msqids == NULL)
+		return (ENOMEM);
+	if (msgmni != msginfo.msgmni) {
+		free(msqids, M_TEMP);
+		goto again;
+	}
+
+	error = kernel_sysctlbyname(curthread, "kern.ipc.msqids", msqids, &sz,
+	    NULL, 0, 0, 0);
+	if (error != 0) {
+		free(msqids, M_TEMP);
+		return (error);
+	}
+	msgmni = sz / sizeof(struct msqid_kernel);
+
+	for (id = 0; id < msgmni; id++)
+		if (msqids[id].u.msg_qbytes != 0)
+			sbuf_printf(sb,
+			    "%10d %10lu  %4o  %10lu %10lu %5u %5u %5u %5u %5u %5u %10ld %10ld %10ld\n",
+			    (int) msqids[id].u.msg_perm.key,
+			    IXSEQ_TO_IPCID(id, msqids[id].u.msg_perm),
+			    msqids[id].u.msg_perm.mode,
+			    msqids[id].u.msg_cbytes,
+			    msqids[id].u.msg_qnum,
+			    msqids[id].u.msg_lspid,
+			    msqids[id].u.msg_lrpid,
+			    msqids[id].u.msg_perm.uid,
+			    msqids[id].u.msg_perm.gid,
+			    msqids[id].u.msg_perm.cuid,
+			    msqids[id].u.msg_perm.cgid,
+			    msqids[id].u.msg_stime,
+			    msqids[id].u.msg_rtime,
+			    msqids[id].u.msg_ctime);
+
+	free(msqids, M_TEMP);
+	return (0);
+}
+
+/*
+ * Filler function for proc/sysvipc/sem
+ */
+static int
+linprocfs_dosysvipc_sem(PFS_FILL_ARGS)
+{
+	struct semid_kernel *semids;
+	u_long id, semmni;
+	size_t sz;
+	int error;
+
+	sbuf_printf(sb, "%10s %10s %4s %10s %5s %5s %5s %5s %10s %10s\n",
+	    "key", "semid", "perms", "nsems", "uid", "gid", "cuid", "cgid",
+	    "otime", "ctime");
+
+again:
+	semmni = seminfo.semmni;
+	sz = sizeof(struct semid_kernel) * semmni;
+	semids = malloc(sz, M_TEMP, M_NOWAIT);
+	if (semids == NULL)
+		return (ENOMEM);
+	if (semmni != seminfo.semmni) {
+		free(semids, M_TEMP);
+		goto again;
+	}
+
+	error = kernel_sysctlbyname(curthread, "kern.ipc.sema", semids, &sz,
+	    NULL, 0, 0, 0);
+	if (error != 0) {
+		free(semids, M_TEMP);
+		return (error);
+	}
+	semmni = sz / sizeof(struct semid_kernel);
+
+	for (id = 0; id < semmni; id++)
+		if ((semids[id].u.sem_perm.mode & SEM_ALLOC) != 0)
+			sbuf_printf(sb,
+			    "%10d %10lu  %4o %10u %5u %5u %5u %5u %10ld %10ld\n",
+			    (int) semids[id].u.sem_perm.key,
+			    IXSEQ_TO_IPCID(id, semids[id].u.sem_perm),
+			    semids[id].u.sem_perm.mode,
+			    semids[id].u.sem_nsems,
+			    semids[id].u.sem_perm.uid,
+			    semids[id].u.sem_perm.gid,
+			    semids[id].u.sem_perm.cuid,
+			    semids[id].u.sem_perm.cgid,
+			    semids[id].u.sem_otime,
+			    semids[id].u.sem_ctime);
+
+	free(semids, M_TEMP);
+	return (0);
+}
+
+/*
+ * Filler function for proc/sysvipc/shm
+ */
+static int
+linprocfs_dosysvipc_shm(PFS_FILL_ARGS)
+{
+	struct shmid_kernel *shmids;
+	u_long id, shmmni;
+	size_t sz;
+	int error;
+
+	sbuf_printf(sb,
+	    "%10s %10s %s %21s %5s %5s %5s %5s %5s %5s %5s %10s %10s %10s %21s %21s\n",
+	    "key", "shmid", "perms", "size", "cpid", "lpid", "nattch", "uid",
+	    "gid", "cuid", "cgid", "atime", "dtime", "ctime", "rss", "swap");
+
+again:
+	shmmni = shminfo.shmmni;
+	sz = sizeof(struct shmid_kernel) * shmmni;
+	shmids = malloc(sz, M_TEMP, M_NOWAIT);
+	if (shmids == NULL)
+		return (ENOMEM);
+	if (shmmni != shminfo.shmmni) {
+		free(shmids, M_TEMP);
+		goto again;
+	}
+
+	error = kernel_sysctlbyname(curthread, "kern.ipc.shmsegs", shmids, &sz,
+	    NULL, 0, 0, 0);
+	if (error != 0) {
+		free(shmids, M_TEMP);
+		return (error);
+	}
+	shmmni = sz / sizeof(struct shmid_kernel);
+
+	for (id = 0; id < shmmni; id++)
+		if ((shmids[id].u.shm_perm.mode & SHMSEG_ALLOCATED) != 0)
+			sbuf_printf(sb,
+			    "%10d %10lu  %4o %21lu %5u %5u  %5u %5u %5u %5u %5u %10ld %10ld %10ld %21d %21d\n",
+			    (int) shmids[id].u.shm_perm.key,
+			    IXSEQ_TO_IPCID(id, shmids[id].u.shm_perm),
+			    shmids[id].u.shm_perm.mode,
+			    shmids[id].u.shm_segsz,
+			    shmids[id].u.shm_cpid,
+			    shmids[id].u.shm_lpid,
+			    shmids[id].u.shm_nattch,
+			    shmids[id].u.shm_perm.uid,
+			    shmids[id].u.shm_perm.gid,
+			    shmids[id].u.shm_perm.cuid,
+			    shmids[id].u.shm_perm.cgid,
+			    shmids[id].u.shm_atime,
+			    shmids[id].u.shm_dtime,
+			    shmids[id].u.shm_ctime,
+			    0, 0);	/* XXX rss & swp are not supported */
+
+	free(shmids, M_TEMP);
+	return (0);
+}
+
+/*
  * Constructor
  */
 static int
@@ -2239,6 +2412,15 @@ linprocfs_init(PFS_INIT_ARGS)
 	pfs_create_file(dir, "min_free_kbytes", &linprocfs_dominfree,
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "max_map_count", &linprocfs_domax_map_cnt,
+	    NULL, NULL, NULL, PFS_RD);
+
+	/* /proc/sysvipc/... */
+	dir = pfs_create_dir(root, "sysvipc", NULL, NULL, NULL, 0);
+	pfs_create_file(dir, "msg", &linprocfs_dosysvipc_msg,
+	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(dir, "sem", &linprocfs_dosysvipc_sem,
+	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(dir, "shm", &linprocfs_dosysvipc_shm,
 	    NULL, NULL, NULL, PFS_RD);
 
 	return (0);
