@@ -2655,7 +2655,7 @@ sub process {
 	}
 
 	if ($has_sob == 0) {
-	    ERROR("Missing Signed-off-by: line");
+	    WARN("Missing Signed-off-by: line");
 	}
 
 	# If we have no input at all, then there is nothing to report on
