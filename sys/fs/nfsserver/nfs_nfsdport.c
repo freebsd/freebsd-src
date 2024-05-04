@@ -1655,8 +1655,8 @@ out1:
  * Link vnode op.
  */
 int
-nfsvno_link(struct nameidata *ndp, struct vnode *vp, struct ucred *cred,
-    struct thread *p, struct nfsexstuff *exp)
+nfsvno_link(struct nameidata *ndp, struct vnode *vp, nfsquad_t clientid,
+    struct ucred *cred, struct thread *p, struct nfsexstuff *exp)
 {
 	struct vnode *xp;
 	int error = 0;
@@ -1671,9 +1671,11 @@ nfsvno_link(struct nameidata *ndp, struct vnode *vp, struct ucred *cred,
 	}
 	if (!error) {
 		NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY);
-		if (!VN_IS_DOOMED(vp))
-			error = VOP_LINK(ndp->ni_dvp, vp, &ndp->ni_cnd);
-		else
+		if (!VN_IS_DOOMED(vp)) {
+			error = nfsrv_checkremove(vp, 0, NULL, clientid, p);
+			if (error == 0)
+				error = VOP_LINK(ndp->ni_dvp, vp, &ndp->ni_cnd);
+		} else
 			error = EPERM;
 		if (ndp->ni_dvp == vp) {
 			vrele(ndp->ni_dvp);

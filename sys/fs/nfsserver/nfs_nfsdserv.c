@@ -1797,6 +1797,7 @@ nfsrvd_link(struct nfsrv_descript *nd, int isdgram,
 	char *bufp;
 	u_long *hashp;
 	struct thread *p = curthread;
+	nfsquad_t clientid;
 
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
@@ -1858,8 +1859,14 @@ nfsrvd_link(struct nfsrv_descript *nd, int isdgram,
 			    NULL);
 		}
 	}
-	if (!nd->nd_repstat)
-		nd->nd_repstat = nfsvno_link(&named, vp, nd->nd_cred, p, exp);
+	if (!nd->nd_repstat) {
+		clientid.qval = 0;
+		if ((nd->nd_flag & (ND_IMPLIEDCLID | ND_NFSV41)) ==
+		    (ND_IMPLIEDCLID | ND_NFSV41))
+			clientid.qval = nd->nd_clientid.qval;
+		nd->nd_repstat = nfsvno_link(&named, vp, clientid, nd->nd_cred,
+		    p, exp);
+	}
 	if (nd->nd_flag & ND_NFSV3)
 		getret = nfsvno_getattr(vp, &at, nd, p, 0, NULL);
 	if (dirp) {
