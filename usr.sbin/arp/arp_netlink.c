@@ -385,7 +385,7 @@ set_nl(uint32_t ifindex, struct sockaddr_in *dst, struct sockaddr_dl *sdl, char 
 
 	ifindex = fix_ifindex(&ss, ifindex, dst->sin_addr);
 	if (ifindex == 0) {
-		xo_warnx("delete: cannot locate %s", host);
+		xo_warnx("set: cannot locate %s", host);
 		snl_free(&ss);
 		return (0);
 	}
