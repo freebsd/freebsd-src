@@ -28,7 +28,7 @@ ${GENSRCS}:								 \
 			-I${SYSDIR}/dev/aic7xxx		 \
 			-o aic7xxx_seq.h -r aic7xxx_reg.h		 \
 			${REG_PRINT_OPT}				 \
-			-i ${SYSDIR}/dev/aic7xxx/aic7xxx_osm.h \
+			-i "<dev/aic7xxx/aic7xxx_osm.h>" \
 			${SYSDIR}/dev/aic7xxx/aic7xxx.seq
 .elif defined(.MAKE.LEVEL)
 # This target interfers with fmake's world view and causes this message
