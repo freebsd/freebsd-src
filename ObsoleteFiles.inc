@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20240508: Remove remnants of portsnap(8)
+OLD_DIRS+=var/db/portsnap
+
 # 20240507: remove gbde
 OLD_FILES+=boot/kernel/geom_bde.ko
 OLD_FILES+=etc/rc.d/gbde
