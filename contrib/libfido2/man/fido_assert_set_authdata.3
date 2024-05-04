@@ -25,7 +25,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd $Mdocdate: April 27 2022 $
+.Dd $Mdocdate: April 8 2023 $
 .Dt FIDO_ASSERT_SET_AUTHDATA 3
 .Os
 .Sh NAME
@@ -40,7 +40,8 @@
 .Nm fido_assert_set_up ,
 .Nm fido_assert_set_uv ,
 .Nm fido_assert_set_rp ,
-.Nm fido_assert_set_sig
+.Nm fido_assert_set_sig ,
+.Nm fido_assert_set_winhello_appid
 .Nd set parameters of a FIDO2 assertion
 .Sh SYNOPSIS
 .In fido.h
@@ -75,6 +76,8 @@ typedef enum {
 .Fn fido_assert_set_rp "fido_assert_t *assert" "const char *id"
 .Ft int
 .Fn fido_assert_set_sig "fido_assert_t *assert" "size_t idx" "const unsigned char *ptr" "size_t len"
+.Ft int
+.Fn fido_assert_set_winhello_appid "fido_assert_t *assert" "const char *id"
 .Sh DESCRIPTION
 The
 .Nm
@@ -226,6 +229,55 @@ Both are
 .Dv FIDO_OPT_OMIT
 by default, allowing the authenticator to use its default settings.
 .Pp
+The
+.Fn fido_assert_set_winhello_appid
+function sets the U2F application
+.Fa id
+.Pq Dq U2F AppID
+of
+.Fa assert ,
+where
+.Fa id
+is a NUL-terminated UTF-8 string.
+The content of
+.Fa id
+is copied, and no references to the passed pointer are kept.
+The
+.Fn fido_assert_set_winhello_appid
+function is a no-op unless
+.Fa assert
+is passed to
+.Xr fido_dev_get_assert 3
+with a device
+.Fa dev
+on which
+.Xr fido_dev_is_winhello 3
+holds true.
+In this case,
+.Em libfido2
+will instruct Windows Hello to try the assertion twice,
+first with the
+.Fa id
+passed to
+.Fn fido_assert_set_rp ,
+and a second time with the
+.Fa id
+passed to
+.Fn fido_assert_set_winhello_appid .
+If the second assertion succeeds,
+.Xr fido_assert_rp_id 3
+will point to the U2F AppID once
+.Xr fido_dev_get_assert 3
+completes.
+This mechanism exists in Windows Hello to ensure U2F backwards
+compatibility without the application inadvertently prompting the
+user twice.
+Note that
+.Fn fido_assert_set_winhello_appid
+is not needed on platforms offering CTAP primitives, since the
+authenticator can be silently probed for the existence of U2F
+credentials.
+.Pp
 Use of the
 .Nm
 set of functions may happen in two distinct situations:
@@ -258,4 +310,5 @@ set of functions are defined in
 .Sh SEE ALSO
 .Xr fido_assert_allow_cred 3 ,
 .Xr fido_assert_verify 3 ,
-.Xr fido_dev_get_assert 3
+.Xr fido_dev_get_assert 3 ,
+.Xr fido_dev_is_winhello 3
