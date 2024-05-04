@@ -32,8 +32,9 @@
 .Dt INTRO 2
 .Os
 .Sh NAME
-.Nm intro
-.Nd introduction to system calls and error numbers
+.Nm intro ,
+.Nm errno
+.Nd introduction to system calls and their error numbers
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -333,7 +334,7 @@ Table of currently available system calls.
 .Sh ERRORS
 Nearly all of the system calls provide an error number referenced via
 the external identifier
-.Va errno .
+.Nm errno .
 This identifier is defined in
 .In sys/errno.h
 as:
@@ -349,7 +350,7 @@ For the initial thread and
 non-threaded processes,
 .Va __error()
 returns a pointer to a global
-.Va errno
+.Nm errno
 variable that is compatible with the previous definition.
 .Pp
 When a system call detects an error,
@@ -357,12 +358,12 @@ it returns an integer value
 indicating failure
 .Pq usually -1
 and sets the variable
-.Va errno
+.Nm errno
 accordingly.
 This allows interpretation of the failure on receiving
 -1 and to take action accordingly.
 Successful calls never set
-.Va errno ;
+.Nm errno ;
 once set, it remains until another error occurs.
 It should only be examined after an error.
 Note that a number of system calls overload the meanings of these
