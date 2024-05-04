@@ -27,6 +27,6 @@ do
 	then
 		rm -f $OUT
 	else
-		echo '++++ $i failed!'
+		echo "+++ $i failed!"
 	fi
 done
