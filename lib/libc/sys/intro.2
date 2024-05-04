@@ -229,8 +229,13 @@ system call was issued on a socket, pipe or
 An attempt was made to modify a file or directory
 on a file system that was read-only at the time.
 .It Er 31 EMLINK Em "Too many links" .
-Maximum allowable hard links to a single file has been exceeded (limit
-of 32767 hard links per file).
+Maximum allowable hard links to a single file has been exceeded.
+This limit is a filesystem dependent variable
+.Po
+.Va UFS_LINK_MAX No on Xr ufs 4 ,
+.Va FUSE_LINK_MAX No on Xr fusefs 4 , and
+.Va TMPFS_MAX No on Xr tmpfs 4
+.Pc .
 .It Er 32 EPIPE Em "Broken pipe" .
 A write on a pipe, socket or
 .Tn FIFO
