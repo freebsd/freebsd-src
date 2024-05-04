@@ -1,0 +1,42 @@
+# Copyright (c) 2022 Yubico AB. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+# SPDX-License-Identifier: BSD-2-Clause
+
+name: "codeql"
+
+on:
+  pull_request:
+    branches:
+    - main
+  push:
+    branches:
+    - main
+    - '*-ci'
+  schedule:
+    - cron: '0 0 * * 0'
+
+permissions:
+  security-events: write
+
+jobs:
+  codeql-build:
+    if: github.repository == 'Yubico/libfido2'
+    runs-on: ubuntu-22.04
+    steps:
+    - name: checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 2
+    - name: init codeql
+      uses: github/codeql-action/init@v2
+    - name: build
+      env:
+        CC: gcc
+      run: |
+        sudo apt -q update
+        sudo apt install -q -y libcbor-dev libudev-dev libz-dev original-awk \
+         libpcsclite-dev
+        ./.actions/build-linux-gcc
+    - name: perform codeql analysis
+      uses: github/codeql-action/analyze@v2

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022 Yubico AB. All rights reserved.
+ * Copyright (c) 2019-2023 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  * SPDX-License-Identifier: BSD-2-Clause
@@ -467,6 +467,8 @@ test(const struct param *p)
 		    fido_assert_authdata_len(assert, i),
 		    fido_assert_sig_ptr(assert, i),
 		    fido_assert_sig_len(assert, i), p->up, p->uv, p->ext, pk);
+		consume(fido_assert_authdata_raw_ptr(assert, i),
+		    fido_assert_authdata_raw_len(assert, i));
 		consume(fido_assert_id_ptr(assert, i),
 		    fido_assert_id_len(assert, i));
 		consume(fido_assert_user_id_ptr(assert, i),

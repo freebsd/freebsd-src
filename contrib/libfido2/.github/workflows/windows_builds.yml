@@ -1,0 +1,32 @@
+# Copyright (c) 2022 Yubico AB. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+# SPDX-License-Identifier: BSD-2-Clause
+
+name: windows
+
+on:
+  pull_request:
+    branches:
+    - main
+  push:
+    branches:
+    - main
+    - '*-ci'
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ windows-2022 ]
+        arch: [ x64, Win32, ARM64, ARM ]
+        type: [ dynamic, static ]
+        config: [ "Release" ]
+    steps:
+    - uses: actions/checkout@v4
+    - name: build
+      run: |
+        .\windows\build.ps1 -Fido2Flags '/analyze' -Arch ${{ matrix.arch }} `
+          -Type ${{ matrix.type }} -Config ${{ matrix.config }}
