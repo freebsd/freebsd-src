@@ -5,6 +5,7 @@ MAN=
 
 .PATH: ${SRCTOP}/contrib/ntp/ntpdc
 
+PACKAGE=ntp
 PROG=	ntpdc
 SRCS= 	ntpdc.c ntpdc_ops.c ntpdc-opts.c version.c
 

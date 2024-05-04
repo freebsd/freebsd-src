@@ -5,6 +5,7 @@
 	${SRCTOP}/contrib/ntp/libntp/lib/isc/pthreads \
 	${SRCTOP}/contrib/ntp/libntp/lib/isc/unix \
 
+PACKAGE= ntp
 LIB= ntp
 INTERNALLIB=
 

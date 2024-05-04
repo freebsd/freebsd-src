@@ -44,8 +44,11 @@ CONFS+=	130.clean-msgs
 .endif
 
 .if ${MK_NTP} != "no"
-CONFS+=	480.status-ntpd \
-	480.leapfile-ntpd
+CONFGROUPS+=	NTP
+NTP+=		480.status-ntpd \
+		480.leapfile-ntpd
+NTPMODE=	${BINMODE}
+NTPPACKAGE=	ntp
 .endif
 
 .if ${MK_SENDMAIL} != "no"

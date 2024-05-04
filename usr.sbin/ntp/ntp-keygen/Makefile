@@ -6,6 +6,7 @@ MAN=
 .PATH:	${SRCTOP}/contrib/ntp/util \
 	${SRCTOP}/contrib/ntp/ntpd
 
+PACKAGE=ntp
 PROG=	ntp-keygen
 SRCS=	ntp-keygen.c ntp-keygen-opts.c
 

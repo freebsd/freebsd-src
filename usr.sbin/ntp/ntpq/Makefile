@@ -7,6 +7,7 @@ MAN=
 
 BINDIR=	/usr/bin
 
+PACKAGE=ntp
 PROG=	ntpq
 SRCS= 	ntpq.c ntpq-opts.c ntpq-subs.c version.c
 
