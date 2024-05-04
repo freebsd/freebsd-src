@@ -713,7 +713,7 @@ int nfsvno_rmdirsub(struct nameidata *, int, struct ucred *, NFSPROC_T *,
     struct nfsexstuff *);
 int nfsvno_rename(struct nameidata *, struct nameidata *, u_int32_t,
     u_int32_t, struct ucred *, NFSPROC_T *);
-int nfsvno_link(struct nameidata *, vnode_t, struct ucred *,
+int nfsvno_link(struct nameidata *, vnode_t, nfsquad_t, struct ucred *,
     NFSPROC_T *, struct nfsexstuff *);
 int nfsvno_fsync(vnode_t, u_int64_t, int, struct ucred *, NFSPROC_T *);
 int nfsvno_statfs(vnode_t, struct statfs *);
