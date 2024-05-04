@@ -558,6 +558,7 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 	int i, j, num_sack_blks;
 	sackstatus_t sack_changed;
 	int delivered_data, left_edge_delta;
+	int maxseg = tp->t_maxseg - MAX_TCPOPTLEN;
 
 	tcp_seq loss_hiack = 0;
 	int loss_thresh = 0;
@@ -604,7 +605,9 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 			    SEQ_GT(sack.start, th_ack) &&
 			    SEQ_LT(sack.start, tp->snd_max) &&
 			    SEQ_GT(sack.end, tp->snd_una) &&
-			    SEQ_LEQ(sack.end, tp->snd_max)) {
+			    SEQ_LEQ(sack.end, tp->snd_max) &&
+			    ((sack.end - sack.start) >= maxseg ||
+			     SEQ_GEQ(sack.end, tp->snd_max))) {
 				sack_blocks[num_sack_blks++] = sack;
 			} else if (SEQ_LEQ(sack.start, th_ack) &&
 			    SEQ_LEQ(sack.end, th_ack)) {
