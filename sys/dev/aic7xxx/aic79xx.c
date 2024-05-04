@@ -6229,6 +6229,9 @@ ahd_init(struct ahd_softc *ahd)
 	size_t		 driver_data_size;
 	int		 i;
 	int		 error;
+#ifdef AHD_TARGET_MODE
+	int		 tmode_enable;
+#endif
 	u_int		 warn_user;
 	uint8_t		 current_sensing;
 	uint8_t		 fstat;
@@ -6261,8 +6264,22 @@ ahd_init(struct ahd_softc *ahd)
 	/*
 	 * Only allow target mode features if this unit has them enabled.
 	 */
-	if ((AHD_TMODE_ENABLE & (0x1 << ahd->unit)) == 0)
+#ifdef AHD_TARGET_MODE
+	tmode_enable = ((AHD_TMODE_ENABLE & (0x1 << ahd->unit)) != 0);
+	resource_int_value(device_get_name(ahd->dev_softc),
+			       device_get_unit(ahd->dev_softc),
+			       "tmode_enable", &tmode_enable);
+
+	if (tmode_enable == 0) {
 		ahd->features &= ~AHD_TARGETMODE;
+	} else {
+		if (bootverbose && ((ahd->features & AHD_TARGETMODE) != 0))
+			printf("%s: enabling target mode\n", ahd_name(ahd));
+	}
+
+#else
+	ahd->features &= ~AHD_TARGETMODE;
+#endif
 
 	/* DMA tag for mapping buffers into device visible space. */
 	if (aic_dma_tag_create(ahd, ahd->parent_dmat, /*alignment*/1,
