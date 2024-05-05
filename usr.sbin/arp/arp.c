@@ -144,7 +144,7 @@ main(int argc, char *argv[])
 	if (!func)
 		func = F_GET;
 	if (opts.rifname) {
-		if (func != F_GET && !(func == F_DELETE && opts.aflag))
+		if (func != F_GET && func != F_SET && !(func == F_DELETE && opts.aflag))
 			xo_errx(1, "-i not applicable to this operation");
 		if ((opts.rifindex = if_nametoindex(opts.rifname)) == 0) {
 			if (errno == ENXIO)
@@ -375,7 +375,7 @@ set(int argc, char **argv)
 		}
 	}
 #ifndef WITHOUT_NETLINK
-	return (set_nl(0, dst, &sdl_m, host));
+	return (set_nl(opts.rifindex, dst, &sdl_m, host));
 #else
 	return (set_rtsock(dst, &sdl_m, host));
 #endif
