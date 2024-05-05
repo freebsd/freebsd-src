@@ -3674,6 +3674,9 @@ out:
 		/* Check if module is present before doing an access */
 		module_status = mlx5_query_module_status(priv->mdev, module_num);
 		if (module_status != MLX5_MODULE_STATUS_PLUGGED_ENABLED) {
+			mlx5_en_err(ifp,
+			    "Query module %d status: not plugged (%d), eeprom reading is not supported\n",
+			    module_num, module_status);
 			error = EINVAL;
 			goto err_i2c;
 		}
