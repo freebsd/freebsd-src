@@ -5134,6 +5134,16 @@ bbr_timeout_rxt(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 				tp->t_flags2 |= TF2_PLPMTU_PMTUD;
 				tp->t_flags2 &= ~TF2_PLPMTU_BLACKHOLE;
 				tp->t_maxseg = tp->t_pmtud_saved_maxseg;
+				if (tp->t_maxseg < V_tcp_mssdflt) {
+					/*
+					 * The MSS is so small we should not 
+					 * process incoming SACK's since we are 
+					 * subject to attack in such a case.
+					 */
+					tp->t_flags2 |= TF2_PROC_SACK_PROHIBIT;
+				} else {
+					tp->t_flags2 &= ~TF2_PROC_SACK_PROHIBIT;
+				}
 				KMOD_TCPSTAT_INC(tcps_pmtud_blackhole_failed);
 			}
 		}
@@ -7556,7 +7566,7 @@ proc_sack:
 	 * Sort the SACK blocks so we can update the rack scoreboard with
 	 * just one pass.
 	 */
-	new_sb = sack_filter_blks(&bbr->r_ctl.bbr_sf, sack_blocks,
+	new_sb = sack_filter_blks(tp, &bbr->r_ctl.bbr_sf, sack_blocks,
 				  num_sack_blks, th->th_ack);
 	ctf_log_sack_filter(bbr->rc_tp, new_sb, sack_blocks);
 	BBR_STAT_ADD(bbr_sack_blocks, num_sack_blks);
@@ -11323,7 +11333,14 @@ bbr_do_segment_nounlock(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 	tcp_dooptions(&to, (u_char *)(th + 1),
 	    (th->th_off << 2) - sizeof(struct tcphdr),
 	    (thflags & TH_SYN) ? TO_SYN : 0);
-
+	if (tp->t_flags2 & TF2_PROC_SACK_PROHIBIT) {
+		/*
+		 * We don't look at sack's from the
+		 * peer because the MSS is too small which
+		 * can subject us to an attack.
+		 */
+		to.to_flags &= ~TOF_SACK;
+	}
 	/*
 	 * If timestamps were negotiated during SYN/ACK and a
 	 * segment without a timestamp is received, silently drop
@@ -13773,6 +13790,16 @@ nomore:
 				if (old_maxseg <= tp->t_maxseg) {
 					/* Huh it did not shrink? */
 					tp->t_maxseg = old_maxseg - 40;
+					if (tp->t_maxseg < V_tcp_mssdflt) {
+						/*
+						 * The MSS is so small we should not 
+						 * process incoming SACK's since we are 
+						 * subject to attack in such a case.
+						 */
+						tp->t_flags2 |= TF2_PROC_SACK_PROHIBIT;
+					} else {
+						tp->t_flags2 &= ~TF2_PROC_SACK_PROHIBIT;
+					}
 					bbr_log_msgsize_fail(bbr, tp, len, maxseg, mtu, 0, tso, cts);
 				}
 				/*
