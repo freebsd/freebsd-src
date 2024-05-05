@@ -8583,6 +8583,16 @@ drop_it:
 				tp->t_flags2 |= TF2_PLPMTU_PMTUD;
 				tp->t_flags2 &= ~TF2_PLPMTU_BLACKHOLE;
 				tp->t_maxseg = tp->t_pmtud_saved_maxseg;
+				if (tp->t_maxseg < V_tcp_mssdflt) {
+					/*
+					 * The MSS is so small we should not 
+					 * process incoming SACK's since we are 
+					 * subject to attack in such a case.
+					 */
+					tp->t_flags2 |= TF2_PROC_SACK_PROHIBIT;
+				} else {
+					tp->t_flags2 &= ~TF2_PROC_SACK_PROHIBIT;
+				}
 				KMOD_TCPSTAT_INC(tcps_pmtud_blackhole_failed);
 			}
 		}
@@ -11197,7 +11207,7 @@ rack_process_to_cumack(struct tcpcb *tp, struct tcp_rack *rack, register uint32_
 		 * If we have some sack blocks in the filter
 		 * lets prune them out by calling sfb with no blocks.
 		 */
-		sack_filter_blks(&rack->r_ctl.rack_sf, NULL, 0, th_ack);
+		sack_filter_blks(tp, &rack->r_ctl.rack_sf, NULL, 0, th_ack);
 	}
 	if (SEQ_GT(th_ack, tp->snd_una)) {
 		/* Clear any app ack remembered settings */
@@ -12052,7 +12062,7 @@ rack_log_ack(struct tcpcb *tp, struct tcpopt *to, struct tcphdr *th, int entered
 	 * just one pass.
 	 */
 	o_cnt = num_sack_blks;
-	num_sack_blks = sack_filter_blks(&rack->r_ctl.rack_sf, sack_blocks,
+	num_sack_blks = sack_filter_blks(tp, &rack->r_ctl.rack_sf, sack_blocks,
 					 num_sack_blks, th->th_ack);
 	ctf_log_sack_filter(rack->rc_tp, num_sack_blks, sack_blocks);
 	if (sacks_seen != NULL)
@@ -17933,7 +17943,14 @@ rack_do_segment_nounlock(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 	    __func__));
 	KASSERT(tp->t_state != TCPS_TIME_WAIT, ("%s: TCPS_TIME_WAIT",
 	    __func__));
-
+	if (tp->t_flags2 & TF2_PROC_SACK_PROHIBIT) {
+		/*
+		 * We don't look at sack's from the
+		 * peer because the MSS is too small which
+		 * can subject us to an attack.
+		 */
+		to.to_flags &= ~TOF_SACK;
+	}
 	if ((tp->t_state >= TCPS_FIN_WAIT_1) &&
 	    (tp->t_flags & TF_GPUTINPROG)) {
 		/*
