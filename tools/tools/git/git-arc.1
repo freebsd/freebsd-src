@@ -50,6 +50,7 @@
 .Op Ar commit ... Ns | Ns Ar commit-range
 .Nm
 .Cm update
+.Op Fl l
 .Op Fl m Ar message
 .Op Ar commit ... Ns | Ns Ar commit-range
 .Sh DESCRIPTION
@@ -117,6 +118,11 @@ each revision.
 If an empty message is supplied via
 .Fl m ,
 then no notes will be added when updating Differential Revisions.
+.Pp
+If
+.Fl l
+is used, display list of commits to be updated and wait for confirmation
+of the list rather than prompting for each commit.
 .El
 .Sh CONFIGURATION
 These are manipulated by
@@ -138,9 +144,9 @@ Defaults to false.
 Always use
 .Dq list mode
 .Pq Fl l
-with create.
-In this mode, the list of git revisions to create reviews for
-is listed with a single prompt before creating reviews.
+with create and update.
+In this mode, the list of git revisions to use
+is listed with a single prompt before creating or updating reviews.
 The diffs for individual commits are not shown.
 Defaults to false.
 .It Va arc.verbose
@@ -226,6 +232,13 @@ List the status of reviews for all the commits in the branch
 .Dq feature :
 .Bd -literal -offset indent
 $ git arc list main..feature
+.Ed
+.Pp
+Update reviews for all commits in the branch
+.Dq feature
+after rebasing:
+.Bd -literal -offset indent
+$ git arc update -lm "Rebase" main..feature
 .Ed
 .Sh SEE ALSO
 .Xr build 7 ,
