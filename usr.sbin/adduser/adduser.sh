@@ -194,7 +194,7 @@ save_config() {
 #
 add_user() {
 	local _uid _name _comment _gecos _home _group _grouplist _shell _class
-	local _dotdir _expire _pwexpire _passwd _upasswd _passwdmethod
+	local _dotdir _expire _pwexpire _passwd _upasswd _passwdmethod _pwcmd
 
 	# Is this a configuration run? If so, don't modify user database.
 	#
@@ -519,7 +519,7 @@ get_uid() {
 #	Reads login class of account. Can be used in interactive or batch mode.
 #
 get_class() {
-	local _input _uclass
+	local _input _class
 	uclass="$defaultclass"
 	_class=${uclass:-"default"}
 
@@ -740,7 +740,6 @@ input_interactive() {
 	local _logingroup_ok="no"
 	local _groups_ok="no"
 	local _all_ok="yes"
-	local _another_user="no"
 	case $passwdtype in
 	none)
 		_emptypass="yes"
@@ -1129,6 +1128,7 @@ if [ -n "$fflag" ]; then
 else
 	input_interactive
 	while : ; do
+		_another_user="no"
 		if [ -z "$configflag" ]; then
 			echo -n "Add another user? (yes/no) [$_another_user]: "
 		else
