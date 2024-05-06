@@ -1098,7 +1098,7 @@ dxr2_try_squeeze:
 }
 
 /*
- * Glue functions for attaching to FreeBSD 13 fib_algo infrastructure.
+ * Glue functions for attaching to the FIB_ALGO infrastructure.
  */
 
 static struct nhop_object *
