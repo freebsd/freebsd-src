@@ -1142,14 +1142,11 @@ static void
 dxr_destroy(void *data)
 {
 	struct dxr *dxr = data;
-	struct dxr_aux *da;
+	struct dxr_aux *da = dxr->aux;
 	struct chunk_desc *cdp;
 	struct trie_desc *tp;
 
-	if (dxr->d != NULL)
-		free(dxr->d, M_DXRLPM);
-
-	da = dxr->aux;
+	free(dxr->d, M_DXRLPM);
 	free(dxr, M_DXRAUX);
 
 	if (da == NULL || atomic_fetchadd_int(&da->refcnt, -1) > 1)
