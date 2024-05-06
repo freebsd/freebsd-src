@@ -80,8 +80,14 @@ vm_install_base() {
 		echo "zfs_enable=\"YES\"" >> ${DESTDIR}/etc/rc.conf
 		echo "zpool_reguid=\"zroot\"" >> ${DESTDIR}/etc/rc.conf
 		echo "zpool_upgrade=\"zroot\"" >> ${DESTDIR}/etc/rc.conf
+		echo "kern.geom.label.disk_ident.enable=0" >> ${DESTDIR}/boot/loader.conf
+		echo "zfs_load=YES" >> ${DESTDIR}/boot/loader.conf
 	fi
 
+	return 0
+}
+
+vm_emulation_setup() {
 	if ! [ -z "${QEMUSTATIC}" ]; then
 		export EMULATOR=/qemu
 		cp ${QEMUSTATIC} ${DESTDIR}/${EMULATOR}
@@ -91,14 +97,7 @@ vm_install_base() {
 	mount -t devfs devfs ${DESTDIR}/dev
 	chroot ${DESTDIR} ${EMULATOR} /usr/bin/newaliases
 	chroot ${DESTDIR} ${EMULATOR} /bin/sh /etc/rc.d/ldconfig forcestart
-	umount_loop ${DESTDIR}/dev
-
 	cp /etc/resolv.conf ${DESTDIR}/etc/resolv.conf
-
-        if [ "${VMFS}" = zfs ]; then
-		echo "kern.geom.label.disk_ident.enable=0" >> ${DESTDIR}/boot/loader.conf
-		echo "zfs_load=YES" >> ${DESTDIR}/boot/loader.conf
-        fi
 
 	return 0
 }
@@ -133,15 +132,12 @@ vm_extra_install_packages() {
 	if [ -z "${VM_EXTRA_PACKAGES}" ]; then
 		return 0
 	fi
-	mkdir -p ${DESTDIR}/dev
-	mount -t devfs devfs ${DESTDIR}/dev
 	chroot ${DESTDIR} ${EMULATOR} env ASSUME_ALWAYS_YES=yes \
 		/usr/sbin/pkg bootstrap -y
 	for p in ${VM_EXTRA_PACKAGES}; do
 		chroot ${DESTDIR} ${EMULATOR} env ASSUME_ALWAYS_YES=yes \
 			/usr/sbin/pkg install -y ${p}
 	done
-	umount_loop ${DESTDIR}/dev
 
 	return 0
 }
@@ -156,13 +152,16 @@ vm_extra_install_ports() {
 vm_extra_pre_umount() {
 	# Prototype.  When overridden, performs additional tasks within the
 	# virtual machine environment prior to unmounting the filesystem.
-	# Note: When overriding this function, removing resolv.conf in the
-	# disk image must be included.
 
+	return 0
+}
+
+vm_emulation_cleanup() {
 	if ! [ -z "${QEMUSTATIC}" ]; then
 		rm -f ${DESTDIR}/${EMULATOR}
 	fi
 	rm -f ${DESTDIR}/etc/resolv.conf
+	umount_loop ${DESTDIR}/dev
 	return 0
 }
 
