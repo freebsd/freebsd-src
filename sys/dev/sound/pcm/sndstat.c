@@ -51,7 +51,6 @@
 
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/pcm.h>
-#include <dev/sound/version.h>
 
 #include "feeder_if.h"
 
@@ -1271,11 +1270,8 @@ sndstat_prepare(struct sndstat_file *pf_self)
 	/* make sure buffer is reset */
 	sbuf_clear(s);
 
-	if (snd_verbose > 0) {
-		sbuf_printf(s, "FreeBSD Audio Driver (%ubit %d/%s)\n",
-		    (u_int)sizeof(intpcm32_t) << 3, SND_DRV_VERSION,
-		    MACHINE_ARCH);
-	}
+	if (snd_verbose > 0)
+		sbuf_printf(s, "FreeBSD Audio Driver\n");
 
 	/* generate list of installed devices */
 	k = 0;
