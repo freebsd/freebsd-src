@@ -50,7 +50,7 @@ nvmf_tcp_validate_pdu_header(const struct nvme_tcp_common_pdu_hdr *ch,
 	/* Validate pdu_type. */
 
 	/* Controllers only receive PDUs with a PDU direction of 0. */
-	if (controller != (ch->pdu_type & 0x01) == 0) {
+	if (controller != ((ch->pdu_type & 0x01) == 0)) {
 		printf("NVMe/TCP: Invalid PDU type %u\n", ch->pdu_type);
 		*fes = NVME_TCP_TERM_REQ_FES_INVALID_HEADER_FIELD;
 		*fei = offsetof(struct nvme_tcp_common_pdu_hdr, pdu_type);
