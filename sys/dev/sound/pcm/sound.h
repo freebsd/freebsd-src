@@ -247,7 +247,6 @@ enum {
 
 extern int pcm_veto_load;
 extern int snd_unit;
-extern int snd_maxautovchans;
 extern int snd_verbose;
 extern devclass_t pcm_devclass;
 extern struct unrhdr *pcmsg_unrhdr;
@@ -265,7 +264,6 @@ extern struct unrhdr *pcmsg_unrhdr;
 
 SYSCTL_DECL(_hw_snd);
 
-int pcm_setvchans(struct snddev_info *d, int direction, int newcnt, int num);
 int pcm_chnalloc(struct snddev_info *d, struct pcm_channel **ch, int direction,
     pid_t pid, char *comm);
 
