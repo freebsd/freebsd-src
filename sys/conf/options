@@ -208,6 +208,7 @@ SCHED_STATS	opt_sched.h
 SCHED_ULE	opt_sched.h
 SLEEPQUEUE_PROFILING
 SLHCI_DEBUG	opt_slhci.h
+SOCKET_HHOOK	opt_global.h
 STACK		opt_stack.h
 SUIDDIR
 MSGMNB		opt_sysvipc.h
