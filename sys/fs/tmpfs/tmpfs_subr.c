@@ -1061,14 +1061,18 @@ loop:
 		KASSERT((object->flags & OBJ_TMPFS_VREF) == 0,
 		    ("%s: object %p with OBJ_TMPFS_VREF but without vnode",
 		    __func__, object));
-		KASSERT(object->un_pager.swp.writemappings == 0,
-		    ("%s: object %p has writemappings",
-		    __func__, object));
 		VI_LOCK(vp);
 		KASSERT(vp->v_object == NULL, ("Not NULL v_object in tmpfs"));
 		vp->v_object = object;
 		vn_irflag_set_locked(vp, (tm->tm_pgread ? VIRF_PGREAD : 0));
 		VI_UNLOCK(vp);
+		VNASSERT((object->flags & OBJ_TMPFS_VREF) == 0, vp,
+		    ("leaked OBJ_TMPFS_VREF"));
+		if (object->un_pager.swp.writemappings > 0) {
+			vrefact(vp);
+			vlazy(vp);
+			vm_object_set_flag(object, OBJ_TMPFS_VREF);
+		}
 		VM_OBJECT_WUNLOCK(object);
 		break;
 	case VDIR:
