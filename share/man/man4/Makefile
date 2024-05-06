@@ -494,6 +494,7 @@ MAN=	aac.4 \
 	send.4 \
 	ses.4 \
 	${_sfxge.4} \
+	sg.4 \
 	sge.4 \
 	siba.4 \
 	siftr.4 \
