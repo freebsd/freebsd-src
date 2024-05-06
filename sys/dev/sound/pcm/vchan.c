@@ -706,13 +706,8 @@ vchan_create(struct pcm_channel *parent, int num)
 	}
 
 	/* add us to our grandparent's channel list */
-	ret = pcm_chn_add(d, ch);
+	pcm_chn_add(d, ch);
 	PCM_UNLOCK(d);
-	if (ret != 0) {
-		chn_kill(ch);
-		CHN_LOCK(parent);
-		return (ret);
-	}
 
 	CHN_LOCK(parent);
 	/*
@@ -727,6 +722,7 @@ vchan_create(struct pcm_channel *parent, int num)
 
 	parent->flags |= CHN_F_HAS_VCHAN;
 
+	ret = 0;
 	parent_caps = chn_getcaps(parent);
 	if (parent_caps == NULL)
 		ret = EINVAL;
