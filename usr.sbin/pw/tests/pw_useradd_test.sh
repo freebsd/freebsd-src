@@ -305,6 +305,22 @@ user_add_R_symlink_body() {
 	atf_check -s exit:0 -o inline:"usr/home\n" readlink ${HOME}/home
 }
 
+atf_test_case user_add_dir
+user_add_dir_body() {
+	populate_root_etc_skel
+
+	atf_check -s exit:0 ${RPW} useradd foo -M 0705 -m
+	atf_check grep -q '^foo:' $HOME/etc/master.passwd
+	atf_check test -d ${HOME}/home/foo
+	atf_check -o save:ugid \
+	      awk -F: '$1 == "foo" { print $3, $4 }' \
+	      $HOME/etc/master.passwd
+	atf_check -o file:ugid \
+	    stat -f '%u %g' ${HOME}/home/foo
+	atf_check -o inline:"40705\n" \
+	    stat -f '%p' ${HOME}/home/foo
+}
+
 atf_test_case user_add_skel
 user_add_skel_body() {
 	populate_root_etc_skel
@@ -479,6 +495,7 @@ atf_init_test_cases() {
 	atf_add_test_case user_add_password_from_h
 	atf_add_test_case user_add_R
 	atf_add_test_case user_add_R_symlink
+	atf_add_test_case user_add_dir
 	atf_add_test_case user_add_skel
 	atf_add_test_case user_add_uid0
 	atf_add_test_case user_add_uid_too_large
