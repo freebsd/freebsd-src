@@ -165,7 +165,7 @@ vchan_alloc:
 	/* no channel available */
 	if (!(vchancount > 0 && vchancount < snd_maxautovchans))
 		return (err);
-	err = vchan_setnew(d, direction, vchancount + 1, -1);
+	err = vchan_setnew(d, direction, vchancount + 1);
 	if (err == 0) {
 		retry = true;
 		goto retry_chnalloc;
@@ -274,7 +274,7 @@ pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo)
 	PCM_BUSYASSERT(d);
 
 	PCM_LOCK(d);
-	ch = chn_init(d, NULL, cls, dir, -1, devinfo);
+	ch = chn_init(d, NULL, cls, dir, devinfo);
 	if (!ch) {
 		device_printf(d->dev, "chn_init(%s, %d, %p) failed\n",
 		    cls->name, dir, devinfo);
