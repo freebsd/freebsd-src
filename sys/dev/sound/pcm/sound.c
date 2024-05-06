@@ -403,7 +403,7 @@ pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch)
 		d->rvchancount++;
 		break;
 	default:
-		break;
+		__assert_unreachable();
 	}
 
 	return (0);
@@ -443,7 +443,7 @@ pcm_chn_remove(struct snddev_info *d, struct pcm_channel *ch)
 		d->rvchancount--;
 		break;
 	default:
-		break;
+		__assert_unreachable();
 	}
 
 	return (0);
