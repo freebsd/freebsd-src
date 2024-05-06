@@ -172,7 +172,7 @@ struct nvmf_fabric_cmd {
 	uint16_t	cid;
 	uint8_t		fctype;
 	uint8_t		reserved2[59];
-};
+} __aligned(8);
 
 struct nvmf_fabric_auth_recv_cmd {
 	uint8_t		opcode;
