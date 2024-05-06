@@ -297,7 +297,6 @@ int pcm_setvchans(struct snddev_info *d, int direction, int newcnt, int num);
 int pcm_chnalloc(struct snddev_info *d, struct pcm_channel **ch, int direction,
     pid_t pid, char *comm);
 
-struct pcm_channel *pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls, int dir, int num, void *devinfo);
 int pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch);
 int pcm_chn_remove(struct snddev_info *d, struct pcm_channel *ch);
 

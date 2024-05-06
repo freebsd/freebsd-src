@@ -259,7 +259,8 @@ int chn_sync(struct pcm_channel *c, int threshold);
 int chn_flush(struct pcm_channel *c);
 int chn_poll(struct pcm_channel *c, int ev, struct thread *td);
 
-int chn_init(struct pcm_channel *c, void *devinfo, int dir, int direction);
+struct pcm_channel *chn_init(struct snddev_info *d, struct pcm_channel *parent,
+    kobj_class_t cls, int dir, int num, void *devinfo);
 void chn_kill(struct pcm_channel *c);
 void chn_shutdown(struct pcm_channel *c);
 int chn_release(struct pcm_channel *c);
