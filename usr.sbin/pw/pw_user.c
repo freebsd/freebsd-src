@@ -708,9 +708,13 @@ pw_user_next(int argc, char **argv, char *name __unused)
 			quiet = true;
 			break;
 		default:
-			exit(EX_USAGE);
+			usage();
 		}
 	}
+	argc -= optind;
+	argv += optind;
+	if (argc > 0)
+		usage();
 
 	if (quiet)
 		freopen(_PATH_DEVNULL, "w", stderr);
@@ -772,9 +776,13 @@ pw_user_show(int argc, char **argv, char *arg1)
 			v7 = true;
 			break;
 		default:
-			exit(EX_USAGE);
+			usage();
 		}
 	}
+	argc -= optind;
+	argv += optind;
+	if (argc > 0)
+		usage();
 
 	if (quiet)
 		freopen(_PATH_DEVNULL, "w", stderr);
@@ -855,9 +863,13 @@ pw_user_del(int argc, char **argv, char *arg1)
 			nis = true;
 			break;
 		default:
-			exit(EX_USAGE);
+			usage();
 		}
 	}
+	argc -= optind;
+	argv += optind;
+	if (argc > 0)
+		usage();
 
 	if (quiet)
 		freopen(_PATH_DEVNULL, "w", stderr);
@@ -1003,9 +1015,13 @@ pw_user_lock(int argc, char **argv, char *arg1)
 			/* compatibility */
 			break;
 		default:
-			exit(EX_USAGE);
+			usage();
 		}
 	}
+	argc -= optind;
+	argv += optind;
+	if (argc > 0)
+		usage();
 
 	return (pw_userlock(arg1, M_LOCK));
 }
@@ -1022,9 +1038,13 @@ pw_user_unlock(int argc, char **argv, char *arg1)
 			/* compatibility */
 			break;
 		default:
-			exit(EX_USAGE);
+			usage();
 		}
 	}
+	argc -= optind;
+	argv += optind;
+	if (argc > 0)
+		usage();
 
 	return (pw_userlock(arg1, M_UNLOCK));
 }
@@ -1291,9 +1311,13 @@ pw_user_add(int argc, char **argv, char *arg1)
 			nis = true;
 			break;
 		default:
-			exit(EX_USAGE);
+			usage();
 		}
 	}
+	argc -= optind;
+	argv += optind;
+	if (argc > 0)
+		usage();
 
 	if (geteuid() != 0 && ! dryrun)
 		errx(EX_NOPERM, "you must be root");
@@ -1604,9 +1628,13 @@ pw_user_mod(int argc, char **argv, char *arg1)
 			nis = true;
 			break;
 		default:
-			exit(EX_USAGE);
+			usage();
 		}
 	}
+	argc -= optind;
+	argv += optind;
+	if (argc > 0)
+		usage();
 
 	if (geteuid() != 0 && ! dryrun)
 		errx(EX_NOPERM, "you must be root");
