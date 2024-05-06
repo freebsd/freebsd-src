@@ -379,7 +379,7 @@ SYSCTL_PROC(_hw_snd, OID_AUTO, maxautovchans,
     sysctl_hw_snd_maxautovchans, "I",
     "maximum virtual channel");
 
-int
+void
 pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch)
 {
 	PCM_BUSYASSERT(d);
@@ -405,8 +405,6 @@ pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch)
 	default:
 		__assert_unreachable();
 	}
-
-	return (0);
 }
 
 int
@@ -454,7 +452,6 @@ pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo)
 {
 	struct snddev_info *d = device_get_softc(dev);
 	struct pcm_channel *ch;
-	int err;
 
 	PCM_BUSYASSERT(d);
 
@@ -467,15 +464,10 @@ pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo)
 		return (ENODEV);
 	}
 
-	err = pcm_chn_add(d, ch);
+	pcm_chn_add(d, ch);
 	PCM_UNLOCK(d);
-	if (err) {
-		device_printf(d->dev, "pcm_chn_add(%s) failed, err=%d\n",
-		    ch->name, err);
-		chn_kill(ch);
-	}
 
-	return (err);
+	return (0);
 }
 
 static void
