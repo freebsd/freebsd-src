@@ -379,116 +379,6 @@ SYSCTL_PROC(_hw_snd, OID_AUTO, maxautovchans,
     sysctl_hw_snd_maxautovchans, "I",
     "maximum virtual channel");
 
-struct pcm_channel *
-pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls, int dir, int num, void *devinfo)
-{
-	struct pcm_channel *ch;
-	int direction, err, rpnum, *pnum, max;
-	int type, unit;
-	char *dirs, *devname, buf[CHN_NAMELEN];
-
-	PCM_BUSYASSERT(d);
-	PCM_LOCKASSERT(d);
-	KASSERT(num >= -1, ("invalid num=%d", num));
-
-	switch (dir) {
-	case PCMDIR_PLAY:
-		dirs = "play";
-		direction = PCMDIR_PLAY;
-		pnum = &d->playcount;
-		type = SND_DEV_DSPHW_PLAY;
-		max = SND_MAXHWCHAN;
-		break;
-	case PCMDIR_PLAY_VIRTUAL:
-		dirs = "virtual_play";
-		direction = PCMDIR_PLAY;
-		pnum = &d->pvchancount;
-		type = SND_DEV_DSPHW_VPLAY;
-		max = SND_MAXVCHANS;
-		break;
-	case PCMDIR_REC:
-		dirs = "record";
-		direction = PCMDIR_REC;
-		pnum = &d->reccount;
-		type = SND_DEV_DSPHW_REC;
-		max = SND_MAXHWCHAN;
-		break;
-	case PCMDIR_REC_VIRTUAL:
-		dirs = "virtual_record";
-		direction = PCMDIR_REC;
-		pnum = &d->rvchancount;
-		type = SND_DEV_DSPHW_VREC;
-		max = SND_MAXVCHANS;
-		break;
-	default:
-		return (NULL);
-	}
-
-	unit = (num == -1) ? 0 : num;
-
-	if (*pnum >= max || unit >= max)
-		return (NULL);
-
-	rpnum = 0;
-
-	CHN_FOREACH(ch, d, channels.pcm) {
-		if (ch->type != type)
-			continue;
-		if (unit == ch->unit && num != -1) {
-			device_printf(d->dev,
-			    "channel num=%d allocated!\n", unit);
-			return (NULL);
-		}
-		unit++;
-		if (unit >= max) {
-			device_printf(d->dev,
-			    "chan=%d > %d\n", unit, max);
-			return (NULL);
-		}
-		rpnum++;
-	}
-
-	if (*pnum != rpnum) {
-		device_printf(d->dev,
-		    "%s(): WARNING: pnum screwed : dirs=%s pnum=%d rpnum=%d\n",
-		    __func__, dirs, *pnum, rpnum);
-		return (NULL);
-	}
-
-	PCM_UNLOCK(d);
-	ch = malloc(sizeof(*ch), M_DEVBUF, M_WAITOK | M_ZERO);
-	ch->methods = kobj_create(cls, M_DEVBUF, M_WAITOK | M_ZERO);
-	ch->type = type;
-	ch->unit = unit;
-	ch->pid = -1;
-	strlcpy(ch->comm, CHN_COMM_UNUSED, sizeof(ch->comm));
-	ch->parentsnddev = d;
-	ch->parentchannel = parent;
-	ch->dev = d->dev;
-	ch->trigger = PCMTRIG_STOP;
-	devname = dsp_unit2name(buf, sizeof(buf), ch);
-	if (devname == NULL) {
-		device_printf(d->dev, "Failed to query device name");
-		kobj_delete(ch->methods, M_DEVBUF);
-		free(ch, M_DEVBUF);
-		return (NULL);
-	}
-	snprintf(ch->name, sizeof(ch->name), "%s:%s:%s",
-	    device_get_nameunit(ch->dev), dirs, devname);
-
-	err = chn_init(ch, devinfo, dir, direction);
-	PCM_LOCK(d);
-	if (err) {
-		device_printf(d->dev, "chn_init(%s) failed: err = %d\n",
-		    ch->name, err);
-		kobj_delete(ch->methods, M_DEVBUF);
-		free(ch, M_DEVBUF);
-		return (NULL);
-	}
-
-	return (ch);
-}
-
 int
 pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch)
 {
@@ -569,9 +459,9 @@ pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo)
 	PCM_BUSYASSERT(d);
 
 	PCM_LOCK(d);
-	ch = pcm_chn_create(d, NULL, cls, dir, -1, devinfo);
+	ch = chn_init(d, NULL, cls, dir, -1, devinfo);
 	if (!ch) {
-		device_printf(d->dev, "pcm_chn_create(%s, %d, %p) failed\n",
+		device_printf(d->dev, "chn_init(%s, %d, %p) failed\n",
 		    cls->name, dir, devinfo);
 		PCM_UNLOCK(d);
 		return (ENODEV);
