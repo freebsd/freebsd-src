@@ -803,7 +803,7 @@ nvmf_tcp_validate_ic_pdu(struct nvmf_association *na, struct nvmf_tcp_qpair *qp,
 	/* Validate pdu_type. */
 
 	/* Controllers only receive PDUs with a PDU direction of 0. */
-	if (na->na_controller != (ch->pdu_type & 0x01) == 0) {
+	if (na->na_controller != ((ch->pdu_type & 0x01) == 0)) {
 		na_error(na, "NVMe/TCP: Invalid PDU type %u", ch->pdu_type);
 		nvmf_tcp_report_error(na, qp,
 		    NVME_TCP_TERM_REQ_FES_INVALID_HEADER_FIELD, 0, ch, pdu_len,
