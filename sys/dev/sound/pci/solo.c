@@ -35,7 +35,6 @@
 #include <dev/pci/pcivar.h>
 
 #include  <dev/sound/isa/sb.h>
-#include  <dev/sound/chip.h>
 
 #include "mixer_if.h"
 

@@ -90,7 +90,6 @@
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/usb/uaudioreg.h>
 #include <dev/sound/usb/uaudio.h>
-#include <dev/sound/chip.h>
 #include "feeder_if.h"
 
 static int uaudio_default_rate = 0;		/* use rate list */
