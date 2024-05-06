@@ -273,9 +273,13 @@ pw_group_next(int argc, char **argv, char *arg1 __unused)
 			quiet = true;
 			break;
 		default:
-			exit(EX_USAGE);
+			usage();
 		}
 	}
+	argc -= optind;
+	argv += optind;
+	if (argc > 0)
+		usage();
 
 	if (quiet)
 		freopen(_PATH_DEVNULL, "w", stderr);
@@ -332,9 +336,13 @@ pw_group_show(int argc, char **argv, char *arg1)
 			all = true;
 			break;
 		default:
-			exit(EX_USAGE);
+			usage();
 		}
 	}
+	argc -= optind;
+	argv += optind;
+	if (argc > 0)
+		usage();
 
 	if (quiet)
 		freopen(_PATH_DEVNULL, "w", stderr);
@@ -391,9 +399,13 @@ pw_group_del(int argc, char **argv, char *arg1)
 			nis = true;
 			break;
 		default:
-			exit(EX_USAGE);
+			usage();
 		}
 	}
+	argc -= optind;
+	argv += optind;
+	if (argc > 0)
+		usage();
 
 	if (quiet)
 		freopen(_PATH_DEVNULL, "w", stderr);
@@ -551,9 +563,13 @@ pw_group_add(int argc, char **argv, char *arg1)
 			nis = true;
 			break;
 		default:
-			exit(EX_USAGE);
+			usage();
 		}
 	}
+	argc -= optind;
+	argv += optind;
+	if (argc > 0)
+		usage();
 
 	if (quiet)
 		freopen(_PATH_DEVNULL, "w", stderr);
@@ -645,9 +661,14 @@ pw_group_mod(int argc, char **argv, char *arg1)
 			nis = true;
 			break;
 		default:
-			exit(EX_USAGE);
+			usage();
 		}
 	}
+	argc -= optind;
+	argv += optind;
+	if (argc > 0)
+		usage();
+
 	if (quiet)
 		freopen(_PATH_DEVNULL, "w", stderr);
 	cnf = get_userconfig(cfg);
@@ -697,11 +718,11 @@ pw_group_mod(int argc, char **argv, char *arg1)
 	if ((grp = GETGRNAM(name)) == NULL)
 		errx(EX_SOFTWARE, "group disappeared during update");
 
-	pw_log(cnf, M_UPDATE, W_GROUP, "%s(%ju)", grp->gr_name,
+	pw_log(cnf, M_MODIFY, W_GROUP, "%s(%ju)", grp->gr_name,
 	    (uintmax_t)grp->gr_gid);
 
 	if (nis && nis_update() == 0)
-		pw_log(cnf, M_UPDATE, W_GROUP, "NIS maps updated");
+		pw_log(cnf, M_MODIFY, W_GROUP, "NIS maps updated");
 
 	return (EXIT_SUCCESS);
 }
