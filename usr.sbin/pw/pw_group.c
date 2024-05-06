@@ -697,11 +697,11 @@ pw_group_mod(int argc, char **argv, char *arg1)
 	if ((grp = GETGRNAM(name)) == NULL)
 		errx(EX_SOFTWARE, "group disappeared during update");
 
-	pw_log(cnf, M_UPDATE, W_GROUP, "%s(%ju)", grp->gr_name,
+	pw_log(cnf, M_MODIFY, W_GROUP, "%s(%ju)", grp->gr_name,
 	    (uintmax_t)grp->gr_gid);
 
 	if (nis && nis_update() == 0)
-		pw_log(cnf, M_UPDATE, W_GROUP, "NIS maps updated");
+		pw_log(cnf, M_MODIFY, W_GROUP, "NIS maps updated");
 
 	return (EXIT_SUCCESS);
 }
