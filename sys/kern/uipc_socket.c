@@ -173,7 +173,6 @@ static int	filt_soread(struct knote *kn, long hint);
 static void	filt_sowdetach(struct knote *kn);
 static int	filt_sowrite(struct knote *kn, long hint);
 static int	filt_soempty(struct knote *kn, long hint);
-static int inline hhook_run_socket(struct socket *so, void *hctx, int32_t h_id);
 fo_kqfilter_t	soo_kqfilter;
 
 static struct filterops soread_filtops = {
@@ -201,8 +200,11 @@ MALLOC_DEFINE(M_PCB, "pcb", "protocol control block");
 	VNET_ASSERT(curvnet != NULL,					\
 	    ("%s:%d curvnet is NULL, so=%p", __func__, __LINE__, (so)));
 
+#ifdef SOCKET_HHOOK
 VNET_DEFINE(struct hhook_head *, socket_hhh[HHOOK_SOCKET_LAST + 1]);
 #define	V_socket_hhh		VNET(socket_hhh)
+static inline int hhook_run_socket(struct socket *, void *, int32_t);
+#endif
 
 /*
  * Limit on the number of connections in the listen queue waiting
@@ -277,6 +279,20 @@ socket_zone_change(void *tag)
 }
 
 static void
+socket_init(void *tag)
+{
+
+	socket_zone = uma_zcreate("socket", sizeof(struct socket), NULL, NULL,
+	    NULL, NULL, UMA_ALIGN_PTR, 0);
+	maxsockets = uma_zone_set_max(socket_zone, maxsockets);
+	uma_zone_set_warning(socket_zone, "kern.ipc.maxsockets limit reached");
+	EVENTHANDLER_REGISTER(maxsockets_change, socket_zone_change, NULL,
+	    EVENTHANDLER_PRI_FIRST);
+}
+SYSINIT(socket, SI_SUB_PROTO_DOMAININIT, SI_ORDER_ANY, socket_init, NULL);
+
+#ifdef SOCKET_HHOOK
+static void
 socket_hhook_register(int subtype)
 {
 
@@ -293,19 +309,6 @@ socket_hhook_deregister(int subtype)
 	if (hhook_head_deregister(V_socket_hhh[subtype]) != 0)
 		printf("%s: WARNING: unable to deregister hook\n", __func__);
 }
-
-static void
-socket_init(void *tag)
-{
-
-	socket_zone = uma_zcreate("socket", sizeof(struct socket), NULL, NULL,
-	    NULL, NULL, UMA_ALIGN_PTR, 0);
-	maxsockets = uma_zone_set_max(socket_zone, maxsockets);
-	uma_zone_set_warning(socket_zone, "kern.ipc.maxsockets limit reached");
-	EVENTHANDLER_REGISTER(maxsockets_change, socket_zone_change, NULL,
-	    EVENTHANDLER_PRI_FIRST);
-}
-SYSINIT(socket, SI_SUB_PROTO_DOMAININIT, SI_ORDER_ANY, socket_init, NULL);
 
 static void
 socket_vnet_init(const void *unused __unused)
@@ -329,6 +332,7 @@ socket_vnet_uninit(const void *unused __unused)
 }
 VNET_SYSUNINIT(socket_vnet_uninit, SI_SUB_PROTO_DOMAININIT, SI_ORDER_ANY,
     socket_vnet_uninit, NULL);
+#endif	/* SOCKET_HHOOK */
 
 /*
  * Initialise maxsockets.  This SYSINIT must be run after
@@ -423,12 +427,14 @@ soalloc(struct vnet *vnet)
 	    __func__, __LINE__, so));
 	so->so_vnet = vnet;
 #endif
+#ifdef SOCKET_HHOOK
 	/* We shouldn't need the so_global_mtx */
 	if (hhook_run_socket(so, NULL, HHOOK_SOCKET_CREATE)) {
 		/* Do we need more comprehensive error returns? */
 		uma_zfree(socket_zone, so);
 		return (NULL);
 	}
+#endif
 	mtx_lock(&so_global_mtx);
 	so->so_gencnt = ++so_gencnt;
 	++numopensockets;
@@ -464,7 +470,9 @@ sodealloc(struct socket *so)
 #ifdef MAC
 	mac_socket_destroy(so);
 #endif
+#ifdef SOCKET_HHOOK
 	hhook_run_socket(so, NULL, HHOOK_SOCKET_CLOSE);
+#endif
 
 	khelp_destroy_osd(&so->osd);
 	if (SOLISTENING(so)) {
@@ -773,6 +781,7 @@ solisten_clone(struct socket *head)
 	so->so_fibnum = head->so_fibnum;
 	so->so_proto = head->so_proto;
 	so->so_cred = crhold(head->so_cred);
+#ifdef SOCKET_HHOOK
 	if (V_socket_hhh[HHOOK_SOCKET_NEWCONN]->hhh_nhooks > 0) {
 		if (hhook_run_socket(so, head, HHOOK_SOCKET_NEWCONN)) {
 			sodealloc(so);
@@ -780,6 +789,7 @@ solisten_clone(struct socket *head)
 			return (NULL);
 		}
 	}
+#endif
 #ifdef MAC
 	mac_socket_newconn(head, so);
 #endif
@@ -3019,11 +3029,12 @@ sorflush(struct socket *so)
 
 }
 
+#ifdef SOCKET_HHOOK
 /*
  * Wrapper for Socket established helper hook.
  * Parameters: socket, context of the hook point, hook id.
  */
-static int inline
+static inline int
 hhook_run_socket(struct socket *so, void *hctx, int32_t h_id)
 {
 	struct socket_hhook_data hhook_data = {
@@ -3040,6 +3051,7 @@ hhook_run_socket(struct socket *so, void *hctx, int32_t h_id)
 	/* Ugly but needed, since hhooks return void for now */
 	return (hhook_data.status);
 }
+#endif
 
 /*
  * Perhaps this routine, and sooptcopyout(), below, ought to come in an
@@ -3268,10 +3280,12 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 			break;
 
 		default:
+#ifdef SOCKET_HHOOK
 			if (V_socket_hhh[HHOOK_SOCKET_OPT]->hhh_nhooks > 0)
 				error = hhook_run_socket(so, sopt,
 				    HHOOK_SOCKET_OPT);
 			else
+#endif
 				error = ENOPROTOOPT;
 			break;
 		}
@@ -3485,10 +3499,12 @@ integer:
 			goto integer;
 
 		default:
+#ifdef SOCKET_HHOOK
 			if (V_socket_hhh[HHOOK_SOCKET_OPT]->hhh_nhooks > 0)
 				error = hhook_run_socket(so, sopt,
 				    HHOOK_SOCKET_OPT);
 			else
+#endif
 				error = ENOPROTOOPT;
 			break;
 		}
@@ -3785,8 +3801,12 @@ filt_soread(struct knote *kn, long hint)
 	} else if (sbavail(&so->so_rcv) >= so->so_rcv.sb_lowat)
 		return (1);
 
+#ifdef SOCKET_HHOOK
 	/* This hook returning non-zero indicates an event, not error */
 	return (hhook_run_socket(so, NULL, HHOOK_FILT_SOREAD));
+#else
+	return (0);
+#endif
 }
 
 static void
@@ -3815,7 +3835,9 @@ filt_sowrite(struct knote *kn, long hint)
 	SOCK_SENDBUF_LOCK_ASSERT(so);
 	kn->kn_data = sbspace(&so->so_snd);
 
+#ifdef SOCKET_HHOOK
 	hhook_run_socket(so, kn, HHOOK_FILT_SOWRITE);
+#endif
 
 	if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
 		kn->kn_flags |= EV_EOF;

@@ -1029,6 +1029,7 @@ device		wg
 # TCP_BLACKBOX enables enhanced TCP event logging.
 #
 # TCP_HHOOK enables the hhook(9) framework hooks for the TCP stack.
+# SOCKET_HHOOK enables the hhook(9) framework hooks for socket operations.
 #
 # ROUTE_MPATH provides support for multipath routing.
 #
@@ -1050,6 +1051,7 @@ options 	PF_DEFAULT_TO_DROP	#drop everything by default
 options 	TCPPCAP
 options 	TCP_BLACKBOX
 options 	TCP_HHOOK
+options		SOCKET_HHOOK
 options 	ROUTE_MPATH
 
 # The MBUF_STRESS_TEST option enables options which create
