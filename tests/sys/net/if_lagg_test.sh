@@ -83,10 +83,6 @@ status_stress_body()
 {
 	local TAP0 TAP1 LAGG MAC
 
-	if [ "$(atf_config_get ci false)" = "true" ]; then
-		atf_skip "Skipping this test because it panics the machine fairly often"
-	fi
-
 	# Configure the lagg interface to use an RFC5737 nonrouteable addresses
 	ADDR="192.0.2.2"
 	MASK="24"
@@ -141,8 +137,6 @@ create_destroy_stress_head()
 create_destroy_stress_body()
 {
 	local TAP0 TAP1 LAGG MAC
-
-	atf_skip "Skipping this test because it easily panics the machine"
 
 	TAP0=`get_tap`
 	TAP1=`get_tap`
@@ -260,8 +254,6 @@ up_destroy_stress_head()
 up_destroy_stress_body()
 {
 	local TAP0 TAP1 LAGG MAC SRCDIR
-
-	atf_skip "Skipping this test because it panics the machine fairly often"
 
 	# Configure the lagg interface to use an RFC5737 nonrouteable addresses
 	ADDR="192.0.2.2"
