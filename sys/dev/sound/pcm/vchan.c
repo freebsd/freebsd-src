@@ -251,7 +251,7 @@ static kobj_method_t vchan_methods[] = {
 CHANNEL_DECLARE(vchan);
 
 static void
-pcm_getparentchannel(struct snddev_info *d,
+vchan_getparentchannel(struct snddev_info *d,
     struct pcm_channel **wrch, struct pcm_channel **rdch)
 {
 	struct pcm_channel **ch, *wch, *rch, *c;
@@ -380,9 +380,9 @@ sysctl_dev_pcm_vchanmode(SYSCTL_HANDLER_ARGS)
 	PCM_UNLOCK(d);
 
 	if (direction == PCMDIR_PLAY)
-		pcm_getparentchannel(d, &c, NULL);
+		vchan_getparentchannel(d, &c, NULL);
 	else
-		pcm_getparentchannel(d, NULL, &c);
+		vchan_getparentchannel(d, NULL, &c);
 
 	if (c == NULL) {
 		PCM_RELEASE_QUICK(d);
@@ -482,9 +482,9 @@ sysctl_dev_pcm_vchanrate(SYSCTL_HANDLER_ARGS)
 	PCM_UNLOCK(d);
 
 	if (direction == PCMDIR_PLAY)
-		pcm_getparentchannel(d, &c, NULL);
+		vchan_getparentchannel(d, &c, NULL);
 	else
-		pcm_getparentchannel(d, NULL, &c);
+		vchan_getparentchannel(d, NULL, &c);
 
 	if (c == NULL) {
 		PCM_RELEASE_QUICK(d);
@@ -591,9 +591,9 @@ sysctl_dev_pcm_vchanformat(SYSCTL_HANDLER_ARGS)
 	PCM_UNLOCK(d);
 
 	if (direction == PCMDIR_PLAY)
-		pcm_getparentchannel(d, &c, NULL);
+		vchan_getparentchannel(d, &c, NULL);
 	else
-		pcm_getparentchannel(d, NULL, &c);
+		vchan_getparentchannel(d, NULL, &c);
 
 	if (c == NULL) {
 		PCM_RELEASE_QUICK(d);
