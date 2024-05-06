@@ -28,7 +28,6 @@
 #endif
 
 #include <dev/sound/pcm/sound.h>
-#include <dev/sound/chip.h>
 
 #include "mixer_if.h"
 

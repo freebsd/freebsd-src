@@ -40,7 +40,6 @@
 #include <machine/bus.h>
 
 #include <dev/sound/pcm/sound.h>
-#include <dev/sound/chip.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
