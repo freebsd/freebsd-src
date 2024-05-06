@@ -41,7 +41,6 @@
 #include <dev/sound/pcm/ac97.h>
 #include <dev/sound/pcm/vchan.h>
 #include <dev/sound/pcm/dsp.h>
-#include <dev/sound/version.h>
 #include <sys/limits.h>
 #include <sys/sysctl.h>
 
@@ -63,15 +62,6 @@ SYSCTL_NODE(_hw, OID_AUTO, snd, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Sound driver");
 
 static void pcm_sysinit(device_t);
-
-/*
- * XXX I've had enough with people not telling proper version/arch
- *     while reporting problems, not after 387397913213th questions/requests.
- */
-static char snd_driver_version[] =
-    __XSTRING(SND_DRV_VERSION)"/"MACHINE_ARCH;
-SYSCTL_STRING(_hw_snd, OID_AUTO, version, CTLFLAG_RD, &snd_driver_version,
-    0, "driver version/arch");
 
 /**
  * @brief Unit number allocator for syncgroup IDs
