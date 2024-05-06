@@ -1159,7 +1159,7 @@ chn_reset(struct pcm_channel *c, uint32_t fmt, uint32_t spd)
 
 struct pcm_channel *
 chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
-    int dir, int num, void *devinfo)
+    int dir, void *devinfo)
 {
 	struct pcm_channel *c;
 	struct feeder_class *fc;
@@ -1169,7 +1169,6 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 
 	PCM_BUSYASSERT(d);
 	PCM_LOCKASSERT(d);
-	KASSERT(num >= -1, ("invalid num=%d", num));
 
 	switch (dir) {
 	case PCMDIR_PLAY:
@@ -1207,7 +1206,7 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 		goto out1;
 	}
 
-	unit = (num == -1) ? 0 : num;
+	unit = 0;
 
 	if (*pnum >= max || unit >= max) {
 		device_printf(d->dev, "%s(): unit=%d or pnum=%d >= than "
@@ -1220,12 +1219,6 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	CHN_FOREACH(c, d, channels.pcm) {
 		if (c->type != type)
 			continue;
-		if (unit == c->unit && num != -1) {
-			device_printf(d->dev,
-			    "%s(): channel num=%d already allocated\n",
-			    __func__, unit);
-			goto out1;
-		}
 		unit++;
 		if (unit >= max) {
 			device_printf(d->dev,

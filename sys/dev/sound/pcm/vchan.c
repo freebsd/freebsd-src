@@ -339,7 +339,7 @@ sysctl_dev_pcm_vchans(SYSCTL_HANDLER_ARGS)
 			cnt = 0;
 		if (cnt > SND_MAXVCHANS)
 			cnt = SND_MAXVCHANS;
-		err = vchan_setnew(d, direction, cnt, -1);
+		err = vchan_setnew(d, direction, cnt);
 	}
 
 	PCM_RELEASE_QUICK(d);
@@ -664,7 +664,7 @@ sysctl_dev_pcm_vchanformat(SYSCTL_HANDLER_ARGS)
 				"play.vchanrate" : "rec.vchanrate"
 
 int
-vchan_create(struct pcm_channel *parent, int num)
+vchan_create(struct pcm_channel *parent)
 {
 	struct snddev_info *d;
 	struct pcm_channel *ch;
@@ -700,7 +700,7 @@ vchan_create(struct pcm_channel *parent, int num)
 	}
 
 	/* create a new playback channel */
-	ch = chn_init(d, parent, &vchan_class, direction, num, parent);
+	ch = chn_init(d, parent, &vchan_class, direction, parent);
 	if (ch == NULL) {
 		PCM_UNLOCK(d);
 		CHN_LOCK(parent);
@@ -933,7 +933,7 @@ vchan_sync(struct pcm_channel *c)
 }
 
 int
-vchan_setnew(struct snddev_info *d, int direction, int newcnt, int num)
+vchan_setnew(struct snddev_info *d, int direction, int newcnt)
 {
 	struct pcm_channel *c, *ch, *nch;
 	struct pcmchan_caps *caps;
@@ -959,10 +959,9 @@ vchan_setnew(struct snddev_info *d, int direction, int newcnt, int num)
 		return (EINVAL);
 
 	if (newcnt > vcnt) {
-		KASSERT(num == -1 ||
-		    (num >= 0 && num < SND_MAXVCHANS && (newcnt - 1) == vcnt),
-		    ("bogus vchan_create() request num=%d newcnt=%d vcnt=%d",
-		    num, newcnt, vcnt));
+		KASSERT((newcnt - 1) == vcnt,
+		    ("bogus vchan_create() request newcnt=%d vcnt=%d",
+		    newcnt, vcnt));
 		/* add new vchans - find a parent channel first */
 		ch = NULL;
 		CHN_FOREACH(c, d, channels.pcm) {
@@ -1004,7 +1003,7 @@ vchan_setnew(struct snddev_info *d, int direction, int newcnt, int num)
 		ch->flags |= CHN_F_BUSY;
 		err = 0;
 		while (err == 0 && newcnt > vcnt) {
-			err = vchan_create(ch, num);
+			err = vchan_create(ch);
 			if (err == 0)
 				vcnt++;
 			else if (err == E2BIG && newcnt > vcnt)
@@ -1018,8 +1017,6 @@ vchan_setnew(struct snddev_info *d, int direction, int newcnt, int num)
 		if (err != 0)
 			return (err);
 	} else if (newcnt < vcnt) {
-		KASSERT(num == -1,
-		    ("bogus vchan_destroy() request num=%d", num));
 		CHN_FOREACH(c, d, channels.pcm) {
 			CHN_LOCK(c);
 			if (c->direction != direction ||
@@ -1061,14 +1058,14 @@ vchan_setmaxauto(struct snddev_info *d, int num)
 		return;
 
 	if (num >= 0 && d->pvchancount > num)
-		(void)vchan_setnew(d, PCMDIR_PLAY, num, -1);
+		(void)vchan_setnew(d, PCMDIR_PLAY, num);
 	else if (num > 0 && d->pvchancount == 0)
-		(void)vchan_setnew(d, PCMDIR_PLAY, 1, -1);
+		(void)vchan_setnew(d, PCMDIR_PLAY, 1);
 
 	if (num >= 0 && d->rvchancount > num)
-		(void)vchan_setnew(d, PCMDIR_REC, num, -1);
+		(void)vchan_setnew(d, PCMDIR_REC, num);
 	else if (num > 0 && d->rvchancount == 0)
-		(void)vchan_setnew(d, PCMDIR_REC, 1, -1);
+		(void)vchan_setnew(d, PCMDIR_REC, 1);
 }
 
 static int
