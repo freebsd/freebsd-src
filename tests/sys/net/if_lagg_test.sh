@@ -358,7 +358,6 @@ updown_body()
 {
 	local TAP0 TAP1 LAGG MAC
 
-	atf_expect_fail "PR 226144 Upping a lagg interrface should automatically up its children"
 	# Configure the lagg interface to use an RFC5737 nonrouteable addresses
 	ADDR="192.0.2.2"
 	MASK="24"

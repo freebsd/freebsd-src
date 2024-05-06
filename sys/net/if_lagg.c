@@ -137,6 +137,7 @@ static void	lagg_port_ifdetach(void *arg __unused, struct ifnet *);
 static int	lagg_port_checkstacking(struct lagg_softc *);
 #endif
 static void	lagg_port2req(struct lagg_port *, struct lagg_reqport *);
+static void	lagg_if_updown(struct lagg_softc *, bool);
 static void	lagg_init(void *);
 static void	lagg_stop(struct lagg_softc *);
 static int	lagg_ioctl(struct ifnet *, u_long, caddr_t);
@@ -1266,6 +1267,25 @@ lagg_watchdog_infiniband(void *arg)
 }
 
 static void
+lagg_if_updown(struct lagg_softc *sc, bool up)
+{
+	struct ifreq ifr = {};
+	struct lagg_port *lp;
+
+	LAGG_XLOCK_ASSERT(sc);
+
+	CK_SLIST_FOREACH(lp, &sc->sc_ports, lp_entries) {
+		if (up)
+			if_up(lp->lp_ifp);
+		else
+			if_down(lp->lp_ifp);
+
+		if (lp->lp_ioctl != NULL)
+			lp->lp_ioctl(lp->lp_ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
+	}
+}
+
+static void
 lagg_init(void *xsc)
 {
 	struct lagg_softc *sc = (struct lagg_softc *)xsc;
@@ -1290,6 +1310,8 @@ lagg_init(void *xsc)
 		    ifp->if_addrlen) != 0)
 			if_setlladdr(lp->lp_ifp, IF_LLADDR(ifp), ifp->if_addrlen);
 	}
+
+	lagg_if_updown(sc, true);
 
 	lagg_proto_init(sc);
 
@@ -1319,6 +1341,8 @@ lagg_stop(struct lagg_softc *sc)
 	mtx_lock(&sc->sc_mtx);
 	callout_stop(&sc->sc_watchdog);
 	mtx_unlock(&sc->sc_mtx);
+
+	lagg_if_updown(sc, false);
 
 	callout_drain(&sc->sc_watchdog);
 }
