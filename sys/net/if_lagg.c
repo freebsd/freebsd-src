@@ -1015,7 +1015,6 @@ lagg_port_destroy(struct lagg_port *lp, int rundelport)
 static int
 lagg_port_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-	struct epoch_tracker et;
 	struct lagg_reqport *rp = (struct lagg_reqport *)data;
 	struct lagg_softc *sc;
 	struct lagg_port *lp = NULL;
@@ -1040,17 +1039,13 @@ lagg_port_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 
-		NET_EPOCH_ENTER(et);
-		if ((lp = ifp->if_lagg) == NULL || lp->lp_softc != sc) {
-			error = ENOENT;
-			NET_EPOCH_EXIT(et);
-			break;
-		}
-
 		LAGG_SLOCK(sc);
-		lagg_port2req(lp, rp);
+		if (__predict_true((lp = ifp->if_lagg) != NULL &&
+		    lp->lp_softc == sc))
+			lagg_port2req(lp, rp);
+		else
+			error = ENOENT;	/* XXXGL: can happen? */
 		LAGG_SUNLOCK(sc);
-		NET_EPOCH_EXIT(et);
 		break;
 
 	case SIOCSIFCAP:
@@ -1350,7 +1345,6 @@ lagg_stop(struct lagg_softc *sc)
 static int
 lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-	struct epoch_tracker et;
 	struct lagg_softc *sc = (struct lagg_softc *)ifp->if_softc;
 	struct lagg_reqall *ra = (struct lagg_reqall *)data;
 	struct lagg_reqopts *ro = (struct lagg_reqopts *)data;
@@ -1600,21 +1594,16 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 
-		NET_EPOCH_ENTER(et);
-		if ((lp = (struct lagg_port *)tpif->if_lagg) == NULL ||
-		    lp->lp_softc != sc) {
-			error = ENOENT;
-			NET_EPOCH_EXIT(et);
-			if_rele(tpif);
-			break;
-		}
-
 		LAGG_SLOCK(sc);
-		lagg_port2req(lp, rp);
+		if (__predict_true((lp = tpif->if_lagg) != NULL &&
+		    lp->lp_softc == sc))
+			lagg_port2req(lp, rp);
+		else
+			error = ENOENT;	/* XXXGL: can happen? */
 		LAGG_SUNLOCK(sc);
-		NET_EPOCH_EXIT(et);
 		if_rele(tpif);
 		break;
+
 	case SIOCSLAGGPORT:
 		error = priv_check(td, PRIV_NET_LAGG);
 		if (error)
