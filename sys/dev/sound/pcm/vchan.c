@@ -698,7 +698,7 @@ vchan_create(struct pcm_channel *parent, int num)
 	}
 
 	/* create a new playback channel */
-	ch = pcm_chn_create(d, parent, &vchan_class, direction, num, parent);
+	ch = chn_init(d, parent, &vchan_class, direction, num, parent);
 	if (ch == NULL) {
 		PCM_UNLOCK(d);
 		CHN_LOCK(parent);
