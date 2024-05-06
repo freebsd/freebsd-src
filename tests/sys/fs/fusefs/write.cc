@@ -184,7 +184,7 @@ virtual void SetUp() {
 	if (m_maxphys < 2 * DFLTPHYS)
 		GTEST_SKIP() << "MAXPHYS must be at least twice DFLTPHYS"
 			<< " for this test";
-	if (m_maxphys < 2 * m_maxbcachebuf)
+	if (m_maxphys < 2 * (unsigned long )m_maxbcachebuf)
 		GTEST_SKIP() << "MAXPHYS must be at least twice maxbcachebuf"
 			<< " for this test";
 }
@@ -860,7 +860,8 @@ TEST_F(WriteMaxWrite, write)
 	ssize_t halfbufsize, bufsize;
 
 	halfbufsize = m_mock->m_maxwrite;
-	if (halfbufsize >= m_maxbcachebuf || halfbufsize >= m_maxphys)
+	if (halfbufsize >= m_maxbcachebuf ||
+	    (unsigned long )halfbufsize >= m_maxphys)
 		GTEST_SKIP() << "Must lower m_maxwrite for this test";
 	bufsize = halfbufsize * 2;
 	contents = new int[bufsize / sizeof(int)];

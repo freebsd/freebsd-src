@@ -130,8 +130,7 @@ class FuseEnv: public Environment {
 void FuseTest::SetUp() {
 	const char *maxbcachebuf_node = "vfs.maxbcachebuf";
 	const char *maxphys_node = "kern.maxphys";
-	int val = 0;
-	size_t size = sizeof(val);
+	size_t size;
 
 	/*
 	 * XXX check_environment should be called from FuseEnv::SetUp, but
@@ -141,12 +140,12 @@ void FuseTest::SetUp() {
 	if (IsSkipped())
 		return;
 
-	ASSERT_EQ(0, sysctlbyname(maxbcachebuf_node, &val, &size, NULL, 0))
+	size = sizeof(m_maxbcachebuf);
+	ASSERT_EQ(0, sysctlbyname(maxbcachebuf_node, &m_maxbcachebuf, &size,
+		NULL, 0)) << strerror(errno);
+	size = sizeof(m_maxphys);
+	ASSERT_EQ(0, sysctlbyname(maxphys_node, &m_maxphys, &size, NULL, 0))
 		<< strerror(errno);
-	m_maxbcachebuf = val;
-	ASSERT_EQ(0, sysctlbyname(maxphys_node, &val, &size, NULL, 0))
-		<< strerror(errno);
-	m_maxphys = val;
 	/*
 	 * Set the default max_write to a distinct value from MAXPHYS to catch
 	 * bugs that confuse the two.
