@@ -4871,6 +4871,9 @@ if_resolvemulti(if_t ifp, struct sockaddr **srcs, struct sockaddr *dst)
 int
 if_ioctl(if_t ifp, u_long cmd, void *data)
 {
+	if (ifp->if_ioctl == NULL)
+		return (EOPNOTSUPP);
+
 	return (ifp->if_ioctl(ifp, cmd, data));
 }
 
