@@ -1325,6 +1325,7 @@ keyattach:
 						    sk : NULL);
 						printf("\n");
 					}
+					s->timeout = PFTM_UNLINKED;
 					PF_HASHROW_UNLOCK(ih);
 					KEYS_UNLOCK();
 					uma_zfree(V_pf_state_key_z, sk);
@@ -1391,6 +1392,8 @@ pf_detach_state(struct pf_kstate *s)
 {
 	struct pf_state_key *sks = s->key[PF_SK_STACK];
 	struct pf_keyhash *kh;
+
+	MPASS(s->timeout >= PFTM_MAX);
 
 	pf_sctp_multihome_detach_addr(s);
 
@@ -1517,6 +1520,7 @@ pf_state_insert(struct pfi_kkif *kif, struct pfi_kkif *orig_kif,
 			break;
 
 	if (cur != NULL) {
+		s->timeout = PFTM_UNLINKED;
 		PF_HASHROW_UNLOCK(ih);
 		if (V_pf_status.debug >= PF_DEBUG_MISC) {
 			printf("pf: state ID collision: "
