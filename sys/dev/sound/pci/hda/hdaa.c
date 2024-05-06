@@ -267,7 +267,8 @@ hdaa_channels_handler(struct hdaa_audio_as *as)
 	struct hdaa_chan *ch = &devinfo->chans[as->chans[0]];
 	struct hdaa_widget *w;
 	uint8_t *eld;
-	int i, total, sub, assume, channels;
+	int total, sub, assume, channels;
+	size_t i;
 	uint16_t cpins, upins, tpins;
 
 	cpins = upins = 0;
@@ -347,7 +348,7 @@ hdaa_channels_handler(struct hdaa_audio_as *as)
 			printf("\n");
 		);
 		/* Look for maximal fitting matrix. */
-		for (i = 0; i < sizeof(matrixes) / sizeof(struct matrix); i++) {
+		for (i = 0; i < nitems(matrixes); i++) {
 			if (as->pinset != 0 && matrixes[i].analog == 0)
 				continue;
 			if ((matrixes[i].m.mask & ~channels) == 0) {
@@ -1252,7 +1253,8 @@ hdaa_sysctl_config(SYSCTL_HANDLER_ARGS)
 static void
 hdaa_config_fetch(const char *str, uint32_t *on, uint32_t *off)
 {
-	int i = 0, j, k, len, inv;
+	size_t k;
+	int i = 0, j, len, inv;
 
 	for (;;) {
 		while (str[i] != '\0' &&
@@ -1292,7 +1294,8 @@ static int
 hdaa_sysctl_quirks(SYSCTL_HANDLER_ARGS)
 {
 	char buf[256];
-	int error, n = 0, i;
+	int error, n = 0;
+	size_t i;
 	uint32_t quirks, quirks_off;
 
 	quirks = *(uint32_t *)oidp->oid_arg1;

@@ -1966,7 +1966,7 @@ dsp_clone(void *arg, struct ucred *cred, char *name, int namelen,
     struct cdev **dev)
 {
 	struct snddev_info *d;
-	int i;
+	size_t i;
 
 	if (*dev != NULL)
 		return;
@@ -2017,7 +2017,7 @@ SYSUNINIT(dsp_sysuninit, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, dsp_sysuninit, NULL);
 char *
 dsp_unit2name(char *buf, size_t len, struct pcm_channel *ch)
 {
-	int i;
+	size_t i;
 
 	KASSERT(buf != NULL && len != 0,
 	    ("bogus buf=%p len=%ju", buf, (uintmax_t)len));
