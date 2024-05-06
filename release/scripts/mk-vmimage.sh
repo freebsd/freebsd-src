@@ -97,13 +97,14 @@ main() {
 
 	vm_create_base
 	vm_install_base
+	vm_emulation_setup
 	vm_extra_install_base
 	vm_extra_install_packages
 	vm_extra_install_ports
 	vm_extra_enable_services
 	vm_extra_pre_umount
 	vm_extra_pkg_rmcache
-	cleanup
+	vm_emulation_cleanup
 	vm_copy_base
 	vm_create_disk || return 0
 	vm_extra_create_disk
