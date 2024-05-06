@@ -94,35 +94,35 @@ Returns the execution time of the calling thread.
 .El
 .Pp
 The clock IDs
-.Fa CLOCK_REALTIME ,
-.Fa CLOCK_MONOTONIC ,
+.Dv CLOCK_REALTIME ,
+.Dv CLOCK_MONOTONIC ,
 and
-.Fa CLOCK_UPTIME
+.Dv CLOCK_UPTIME
 perform a full time counter query.
 The clock IDs with the _FAST suffix, i.e.,
-.Fa CLOCK_REALTIME_FAST ,
-.Fa CLOCK_MONOTONIC_FAST ,
+.Dv CLOCK_REALTIME_FAST ,
+.Dv CLOCK_MONOTONIC_FAST ,
 and
-.Fa CLOCK_UPTIME_FAST ,
+.Dv CLOCK_UPTIME_FAST ,
 do not perform
 a full time counter query, so their accuracy is one timer tick.
 Similarly,
-.Fa CLOCK_REALTIME_PRECISE ,
-.Fa CLOCK_MONOTONIC_PRECISE ,
+.Dv CLOCK_REALTIME_PRECISE ,
+.Dv CLOCK_MONOTONIC_PRECISE ,
 and
-.Fa CLOCK_UPTIME_PRECISE
+.Dv CLOCK_UPTIME_PRECISE
 are used to get the most exact value as possible, at the expense of
 execution time.
 The clock IDs
-.Fa CLOCK_REALTIME_COARSE
+.Dv CLOCK_REALTIME_COARSE
 and
-.Fa CLOCK_MONOTONIC_COARSE
+.Dv CLOCK_MONOTONIC_COARSE
 are aliases of corresponding IDs with _FAST suffix for compatibility with other
 systems.
 Finally,
-.Fa CLOCK_BOOTTIME
+.Dv CLOCK_BOOTTIME
 is an alias for
-.Fa CLOCK_UPTIME
+.Dv CLOCK_UPTIME
 for compatibility with other systems and is unrelated to the
 .Fa kern.boottime
 .Xr sysctl 8 .
@@ -140,7 +140,7 @@ struct timespec {
 .Ed
 .Pp
 Only the super-user may set the time of day, using only
-.Fa CLOCK_REALTIME .
+.Dv CLOCK_REALTIME .
 If the system
 .Xr securelevel 7
 is greater than 1 (see
@@ -188,14 +188,14 @@ and
 system calls conform to
 .St -p1003.1b-93 .
 The clock IDs
-.Fa CLOCK_REALTIME_FAST ,
-.Fa CLOCK_REALTIME_PRECISE ,
-.Fa CLOCK_MONOTONIC_FAST ,
-.Fa CLOCK_MONOTONIC_PRECISE ,
-.Fa CLOCK_UPTIME ,
-.Fa CLOCK_UPTIME_FAST ,
-.Fa CLOCK_UPTIME_PRECISE ,
-.Fa CLOCK_SECOND
+.Dv CLOCK_REALTIME_FAST ,
+.Dv CLOCK_REALTIME_PRECISE ,
+.Dv CLOCK_MONOTONIC_FAST ,
+.Dv CLOCK_MONOTONIC_PRECISE ,
+.Dv CLOCK_UPTIME ,
+.Dv CLOCK_UPTIME_FAST ,
+.Dv CLOCK_UPTIME_PRECISE ,
+.Dv CLOCK_SECOND
 are
 .Fx
 extensions to the POSIX interface.
