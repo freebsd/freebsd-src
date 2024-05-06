@@ -1339,7 +1339,7 @@ TEST_P(ReadAhead, readahead) {
 	expect_open(ino, 0, 1);
 	maxcontig = m_noclusterr ? m_maxbcachebuf :
 		m_maxbcachebuf + m_maxreadahead;
-	clustersize = MIN(maxcontig, m_maxphys);
+	clustersize = MIN((unsigned long )maxcontig, m_maxphys);
 	for (offs = 0; offs < bufsize; offs += clustersize) {
 		len = std::min((size_t)clustersize, (size_t)(filesize - offs));
 		expect_read(ino, offs, len, len, contents + offs);
