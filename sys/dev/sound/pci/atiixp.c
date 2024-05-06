@@ -1168,12 +1168,12 @@ atiixp_release_resource(struct atiixp_info *sc)
 static int
 atiixp_pci_probe(device_t dev)
 {
-	int i;
+	size_t i;
 	uint16_t devid, vendor;
 
 	vendor = pci_get_vendor(dev);
 	devid = pci_get_device(dev);
-	for (i = 0; i < sizeof(atiixp_hw) / sizeof(atiixp_hw[0]); i++) {
+	for (i = 0; i < nitems(atiixp_hw); i++) {
 		if (vendor == atiixp_hw[i].vendor &&
 		    devid == atiixp_hw[i].devid) {
 			device_set_desc(dev, atiixp_hw[i].desc);
