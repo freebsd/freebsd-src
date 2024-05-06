@@ -880,7 +880,8 @@ sound_oss_sysinfo(oss_sysinfo *si)
 
 	struct snddev_info *d;
 	struct pcm_channel *c;
-	int i, j, ncards;
+	int j, ncards;
+	size_t i;
 
 	ncards = 0;
 
@@ -958,7 +959,7 @@ sound_oss_sysinfo(oss_sysinfo *si)
 	 * Si->filler is a reserved array, but according to docs each
 	 * element should be set to -1.
 	 */
-	for (i = 0; i < sizeof(si->filler)/sizeof(si->filler[0]); i++)
+	for (i = 0; i < nitems(si->filler); i++)
 		si->filler[i] = -1;
 }
 

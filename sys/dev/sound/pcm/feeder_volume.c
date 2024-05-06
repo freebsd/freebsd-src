@@ -337,7 +337,7 @@ feeder_volume_apply_matrix(struct pcm_feeder *f, struct pcmchan_matrix *m)
 
 	info = f->data;
 
-	for (i = 0; i < (sizeof(info->matrix) / sizeof(info->matrix[0])); i++) {
+	for (i = 0; i < nitems(info->matrix); i++) {
 		if (i < m->channels)
 			info->matrix[i] = m->map[i].type;
 		else

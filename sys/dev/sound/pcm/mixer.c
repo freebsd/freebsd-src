@@ -650,7 +650,7 @@ mixer_obj_create(device_t dev, kobj_class_t cls, void *devinfo,
     int type, const char *desc)
 {
 	struct snd_mixer *m;
-	int i;
+	size_t i;
 
 	KASSERT(dev != NULL && cls != NULL && devinfo != NULL,
 	    ("%s(): NULL data dev=%p cls=%p devinfo=%p",
@@ -671,7 +671,7 @@ mixer_obj_create(device_t dev, kobj_class_t cls, void *devinfo,
 	m->devinfo = devinfo;
 	m->busy = 0;
 	m->dev = dev;
-	for (i = 0; i < (sizeof(m->parent) / sizeof(m->parent[0])); i++) {
+	for (i = 0; i < nitems(m->parent); i++) {
 		m->parent[i] = SOUND_MIXER_NONE;
 		m->child[i] = 0;
 		m->realdev[i] = i;
