@@ -10,6 +10,9 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+7398d1ece5cf:
+	hw.snd.version is removed.
+
 a15f7c96a276,a8089ea5aee5:
 	NVMe over Fabrics controller.  The nvmft(4) kernel module adds
 	a new frontend to the CAM target layer which exports ctl(4)
