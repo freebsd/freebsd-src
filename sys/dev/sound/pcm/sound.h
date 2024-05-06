@@ -228,45 +228,17 @@ struct snd_mixer;
 #define AFMT_NE		(AFMT_SIGNED_NE | AFMT_U8_NE | AFMT_U16_NE |	\
 			 AFMT_U24_NE | AFMT_U32_NE)
 
-/*
- * Minor numbers for the sound driver.
- *
- * Unfortunately Creative called the codec chip of SB as a DSP. For this
- * reason the /dev/dsp is reserved for digitized audio use. There is a
- * device for true DSP processors but it will be called something else.
- * In v3.0 it's /dev/sndproc but this could be a temporary solution.
- */
-
-#define SND_DEV_CTL	0	/* Control port /dev/mixer */
-#define SND_DEV_SEQ	1	/* Sequencer /dev/sequencer */
-#define SND_DEV_MIDIN	2	/* Raw midi access */
-#define SND_DEV_DSP	3	/* Digitized voice /dev/dsp */
-#define SND_DEV_AUDIO	4	/* Sparc compatible /dev/audio */
-#define SND_DEV_DSP16	5	/* Like /dev/dsp but 16 bits/sample */
-#define SND_DEV_STATUS	6	/* /dev/sndstat */
-				/* #7 not in use now. */
-#define SND_DEV_SEQ2	8	/* /dev/sequencer, level 2 interface */
-#define SND_DEV_SNDPROC 9	/* /dev/sndproc for programmable devices */
-#define SND_DEV_PSS	SND_DEV_SNDPROC /* ? */
-#define SND_DEV_NORESET	10
-
-#define SND_DEV_DSPHW_PLAY	11	/* specific playback channel */
-#define SND_DEV_DSPHW_VPLAY	12	/* specific virtual playback channel */
-#define SND_DEV_DSPHW_REC	13	/* specific record channel */
-#define SND_DEV_DSPHW_VREC	14	/* specific virtual record channel */
-
-#define SND_DEV_DSPHW_CD	15	/* s16le/stereo 44100Hz CD */
-
-/* 
- * OSSv4 compatible device. For now, it serve no purpose and
- * the cloning itself will forward the request to ordinary /dev/dsp
- * instead.
- */
-#define SND_DEV_DSP_MMAP	16	/* /dev/dsp_mmap     */
-#define SND_DEV_DSP_AC3		17	/* /dev/dsp_ac3      */
-#define SND_DEV_DSP_MULTICH	18	/* /dev/dsp_multich  */
-#define SND_DEV_DSP_SPDIFOUT	19	/* /dev/dsp_spdifout */
-#define SND_DEV_DSP_SPDIFIN	20	/* /dev/dsp_spdifin  */
+enum {
+	SND_DEV_CTL = 0,	/* Control port /dev/mixer */
+	SND_DEV_SEQ,		/* Sequencer /dev/sequencer */
+	SND_DEV_MIDIN,		/* Raw midi access */
+	SND_DEV_DSP,		/* Digitized voice /dev/dsp */
+	SND_DEV_STATUS,		/* /dev/sndstat */
+	SND_DEV_DSPHW_PLAY,	/* specific playback channel */
+	SND_DEV_DSPHW_VPLAY,	/* specific virtual playback channel */
+	SND_DEV_DSPHW_REC,	/* specific record channel */
+	SND_DEV_DSPHW_VREC,	/* specific virtual record channel */
+};
 
 #define DSP_DEFAULT_SPEED	8000
 

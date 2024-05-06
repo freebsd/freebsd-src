@@ -203,13 +203,6 @@ relchns(struct dsp_cdevpriv *priv, uint32_t prio)
 		CHN_UNLOCK(priv->wrch);
 }
 
-/* duplex / simplex cdev type */
-enum {
-	DSP_CDEV_TYPE_RDONLY,		/* simplex read-only (record)   */
-	DSP_CDEV_TYPE_WRONLY,		/* simplex write-only (play)    */
-	DSP_CDEV_TYPE_RDWR		/* duplex read, write, or both  */
-};
-
 #define DSP_F_VALID(x)		((x) & (FREAD | FWRITE))
 #define DSP_F_DUPLEX(x)		(((x) & (FREAD | FWRITE)) == (FREAD | FWRITE))
 #define DSP_F_SIMPLEX(x)	(!DSP_F_DUPLEX(x))
@@ -221,48 +214,18 @@ static const struct {
 	char *name;
 	char *sep;
 	char *alias;
-	int use_sep;
-	int hw;
-	int max;
-	int volctl;
-	uint32_t fmt, spd;
-	int query;
 } dsp_cdevs[] = {
-	{ SND_DEV_DSP,         "dsp",    ".", NULL, 0, 0, 0, 0,
-	  SND_FORMAT(AFMT_U8, 1, 0),     DSP_DEFAULT_SPEED,
-	  DSP_CDEV_TYPE_RDWR },
-	{ SND_DEV_AUDIO,       "audio",  ".", NULL, 0, 0, 0, 0,
-	  SND_FORMAT(AFMT_MU_LAW, 1, 0), DSP_DEFAULT_SPEED,
-	  DSP_CDEV_TYPE_RDWR },
-	{ SND_DEV_DSP16,       "dspW",   ".", NULL, 0, 0, 0, 0,
-	  SND_FORMAT(AFMT_S16_LE, 1, 0), DSP_DEFAULT_SPEED,
-	  DSP_CDEV_TYPE_RDWR },
-	{ SND_DEV_DSPHW_PLAY,  "dsp",   ".p", NULL, 1, 1, SND_MAXHWCHAN, 1,
-	  SND_FORMAT(AFMT_S16_LE, 2, 0), 48000, DSP_CDEV_TYPE_WRONLY },
-	{ SND_DEV_DSPHW_VPLAY, "dsp",  ".vp", NULL, 1, 1, SND_MAXVCHANS, 1,
-	  SND_FORMAT(AFMT_S16_LE, 2, 0), 48000, DSP_CDEV_TYPE_WRONLY },
-	{ SND_DEV_DSPHW_REC,   "dsp",   ".r", NULL, 1, 1, SND_MAXHWCHAN, 1,
-	  SND_FORMAT(AFMT_S16_LE, 2, 0), 48000, DSP_CDEV_TYPE_RDONLY },
-	{ SND_DEV_DSPHW_VREC,  "dsp",  ".vr", NULL, 1, 1, SND_MAXVCHANS, 1,
-	  SND_FORMAT(AFMT_S16_LE, 2, 0), 48000, DSP_CDEV_TYPE_RDONLY },
-	{ SND_DEV_DSPHW_CD,    "dspcd",  ".", NULL, 0, 0, 0, 0,
-	  SND_FORMAT(AFMT_S16_LE, 2, 0), 44100, DSP_CDEV_TYPE_RDWR   },
+	{ SND_DEV_DSP,         "dsp",    ".", NULL },
+	{ SND_DEV_DSPHW_PLAY,  "dsp",   ".p", NULL },
+	{ SND_DEV_DSPHW_VPLAY, "dsp",  ".vp", NULL },
+	{ SND_DEV_DSPHW_REC,   "dsp",   ".r", NULL },
+	{ SND_DEV_DSPHW_VREC,  "dsp",  ".vr", NULL },
 	/* Low priority, OSSv4 aliases. */
-	{ SND_DEV_DSP,      "dsp_ac3",   ".", "dsp", 0, 0, 0, 0,
-	  SND_FORMAT(AFMT_U8, 1, 0),     DSP_DEFAULT_SPEED,
-	  DSP_CDEV_TYPE_RDWR },
-	{ SND_DEV_DSP,     "dsp_mmap",   ".", "dsp", 0, 0, 0, 0,
-	  SND_FORMAT(AFMT_U8, 1, 0),     DSP_DEFAULT_SPEED,
-	  DSP_CDEV_TYPE_RDWR },
-	{ SND_DEV_DSP,  "dsp_multich",   ".", "dsp", 0, 0, 0, 0,
-	  SND_FORMAT(AFMT_U8, 1, 0),     DSP_DEFAULT_SPEED,
-	  DSP_CDEV_TYPE_RDWR },
-	{ SND_DEV_DSP, "dsp_spdifout",   ".", "dsp", 0, 0, 0, 0,
-	  SND_FORMAT(AFMT_U8, 1, 0),     DSP_DEFAULT_SPEED,
-	  DSP_CDEV_TYPE_RDWR },
-	{ SND_DEV_DSP,  "dsp_spdifin",   ".", "dsp", 0, 0, 0, 0,
-	  SND_FORMAT(AFMT_U8, 1, 0),     DSP_DEFAULT_SPEED,
-	  DSP_CDEV_TYPE_RDWR },
+	{ SND_DEV_DSP,      "dsp_ac3",   ".", "dsp" },
+	{ SND_DEV_DSP,     "dsp_mmap",   ".", "dsp" },
+	{ SND_DEV_DSP,  "dsp_multich",   ".", "dsp" },
+	{ SND_DEV_DSP, "dsp_spdifout",   ".", "dsp" },
+	{ SND_DEV_DSP,  "dsp_spdifin",   ".", "dsp" },
 };
 
 static void
