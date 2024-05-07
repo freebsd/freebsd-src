@@ -703,15 +703,15 @@ crypto/openssl/ossl_sha1.c	optional ossl
 crypto/openssl/ossl_sha256.c	optional ossl
 crypto/openssl/ossl_sha512.c	optional ossl
 crypto/rc4/rc4.c		optional netgraph_mppc_encryption
-crypto/rijndael/rijndael-alg-fst.c optional crypto | ekcd | geom_bde | \
+crypto/rijndael/rijndael-alg-fst.c optional crypto | ekcd | \
 	!random_loadable | wlan_ccmp
-crypto/rijndael/rijndael-api-fst.c optional ekcd | geom_bde | !random_loadable
+crypto/rijndael/rijndael-api-fst.c optional ekcd | !random_loadable
 crypto/rijndael/rijndael-api.c	optional crypto | wlan_ccmp
 crypto/sha1.c			optional carp | crypto | ether | \
 	netgraph_mppc_encryption | sctp
-crypto/sha2/sha256c.c		optional crypto | ekcd | geom_bde | \
+crypto/sha2/sha256c.c		optional crypto | ekcd | \
 	!random_loadable | sctp | zfs
-crypto/sha2/sha512c.c		optional crypto | geom_bde | zfs
+crypto/sha2/sha512c.c		optional crypto | zfs
 crypto/skein/skein.c		optional crypto | zfs
 crypto/skein/skein_block.c	optional crypto | zfs
 crypto/siphash/siphash.c	optional inet | inet6 | wg
@@ -3630,10 +3630,6 @@ gdb/gdb_cons.c			optional gdb
 gdb/gdb_main.c			optional gdb
 gdb/gdb_packet.c		optional gdb
 gdb/netgdb.c			optional ddb debugnet gdb netgdb inet
-geom/bde/g_bde.c		optional geom_bde
-geom/bde/g_bde_crypt.c		optional geom_bde
-geom/bde/g_bde_lock.c		optional geom_bde
-geom/bde/g_bde_work.c		optional geom_bde
 geom/cache/g_cache.c		optional geom_cache
 geom/concat/g_concat.c		optional geom_concat
 geom/eli/g_eli.c		optional geom_eli
