@@ -22,7 +22,6 @@ SUBDIR=adjkerntz \
 	fsck_msdosfs \
 	fsdb \
 	fsirand \
-	gbde \
 	geom \
 	ggate \
 	growfs \
