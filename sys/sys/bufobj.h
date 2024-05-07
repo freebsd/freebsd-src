@@ -33,7 +33,7 @@
  * cache.
  *
  * This used to be vnodes, but we need non-vnode code to be able
- * to use the buffer cache as well, specifically geom classes like gbde,
+ * to use the buffer cache as well, specifically geom classes like
  * raid3 and raid5.
  *
  * All vnodes will contain a bufobj initially, but down the road we may
