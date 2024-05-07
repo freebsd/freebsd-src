@@ -1280,6 +1280,9 @@ dxr_change_rib_batch(struct rib_head *rnh, struct fib_change_queue *q,
 
 	da = dxr->aux;
 	KASSERT(da != NULL, ("%s: NULL dxr->aux", __FUNCTION__));
+	KASSERT(da->fd != NULL, ("%s: da->fd %p", __FUNCTION__, da->fd));
+	KASSERT(da->refcnt > 0, ("%s: da->refcnt %d", __FUNCTION__,
+	    da->refcnt));
 
 	FIB_PRINTF(LOG_INFO, da->fd, "processing %d update(s)", q->count);
 	for (ui = 0; ui < q->count; ui++) {
