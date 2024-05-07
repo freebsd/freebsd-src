@@ -115,8 +115,15 @@ cdev_pager_lookup(void *handle)
 {
 	vm_object_t object;
 
+again:
 	mtx_lock(&dev_pager_mtx);
 	object = vm_pager_object_lookup(&dev_pager_object_list, handle);
+	if (object != NULL && object->un_pager.devp.dev == NULL) {
+		msleep(&object->un_pager.devp.dev, &dev_pager_mtx,
+		    PVM | PDROP, "cdplkp", 0);
+		vm_object_deallocate(object);
+		goto again;
+	}
 	mtx_unlock(&dev_pager_mtx);
 	return (object);
 }
@@ -126,9 +133,8 @@ cdev_pager_allocate(void *handle, enum obj_type tp,
     const struct cdev_pager_ops *ops, vm_ooffset_t size, vm_prot_t prot,
     vm_ooffset_t foff, struct ucred *cred)
 {
-	vm_object_t object, object1;
+	vm_object_t object;
 	vm_pindex_t pindex;
-	u_short color;
 
 	if (tp != OBJT_DEVICE && tp != OBJT_MGTDEVICE)
 		return (NULL);
@@ -154,16 +160,16 @@ cdev_pager_allocate(void *handle, enum obj_type tp,
 	    pindex < OFF_TO_IDX(size))
 		return (NULL);
 
-	if (ops->cdev_pg_ctor(handle, size, prot, foff, cred, &color) != 0)
-		return (NULL);
+again:
 	mtx_lock(&dev_pager_mtx);
 
 	/*
 	 * Look up pager, creating as necessary.
 	 */
-	object1 = NULL;
 	object = vm_pager_object_lookup(&dev_pager_object_list, handle);
 	if (object == NULL) {
+		vm_object_t object1;
+
 		/*
 		 * Allocate object and associate it with the pager.  Initialize
 		 * the object's pg_color based upon the physical address of the
@@ -171,15 +177,19 @@ cdev_pager_allocate(void *handle, enum obj_type tp,
 		 */
 		mtx_unlock(&dev_pager_mtx);
 		object1 = vm_object_allocate(tp, pindex);
-		object1->flags |= OBJ_COLORED;
-		object1->pg_color = color;
-		object1->handle = handle;
-		object1->un_pager.devp.ops = ops;
-		object1->un_pager.devp.dev = handle;
-		TAILQ_INIT(&object1->un_pager.devp.devp_pglist);
 		mtx_lock(&dev_pager_mtx);
 		object = vm_pager_object_lookup(&dev_pager_object_list, handle);
 		if (object != NULL) {
+			object1->type = OBJT_DEAD;
+			vm_object_deallocate(object1);
+			object1 = NULL;
+			if (object->un_pager.devp.dev == NULL) {
+				msleep(&object->un_pager.devp.dev,
+				    &dev_pager_mtx, PVM | PDROP, "cdplkp", 0);
+				vm_object_deallocate(object);
+				goto again;
+			}
+
 			/*
 			 * We raced with other thread while allocating object.
 			 */
@@ -191,29 +201,51 @@ cdev_pager_allocate(void *handle, enum obj_type tp,
 			KASSERT(object->un_pager.devp.ops == ops,
 			    ("Inconsistent devops %p %p", object, ops));
 		} else {
+			u_short color;
+
 			object = object1;
 			object1 = NULL;
 			object->handle = handle;
+			object->un_pager.devp.ops = ops;
+			TAILQ_INIT(&object->un_pager.devp.devp_pglist);
 			TAILQ_INSERT_TAIL(&dev_pager_object_list, object,
 			    pager_object_list);
+			mtx_unlock(&dev_pager_mtx);
 			if (ops->cdev_pg_populate != NULL)
 				vm_object_set_flag(object, OBJ_POPULATE);
+			if (ops->cdev_pg_ctor(handle, size, prot, foff,
+			    cred, &color) != 0) {
+				mtx_lock(&dev_pager_mtx);
+				TAILQ_REMOVE(&dev_pager_object_list, object,
+				    pager_object_list);
+				wakeup(&object->un_pager.devp.dev);
+				mtx_unlock(&dev_pager_mtx);
+				object->type = OBJT_DEAD;
+				vm_object_deallocate(object);
+				object = NULL;
+				mtx_lock(&dev_pager_mtx);
+			} else {
+				mtx_lock(&dev_pager_mtx);
+				object->flags |= OBJ_COLORED;
+				object->pg_color = color;
+				object->un_pager.devp.dev = handle;
+				wakeup(&object->un_pager.devp.dev);
+			}
 		}
+		MPASS(object1 == NULL);
 	} else {
+		if (object->un_pager.devp.dev == NULL) {
+			msleep(&object->un_pager.devp.dev,
+			    &dev_pager_mtx, PVM | PDROP, "cdplkp", 0);
+			vm_object_deallocate(object);
+			goto again;
+		}
 		if (pindex > object->size)
 			object->size = pindex;
 		KASSERT(object->type == tp,
 		    ("Inconsistent device pager type %p %d", object, tp));
 	}
 	mtx_unlock(&dev_pager_mtx);
-	if (object1 != NULL) {
-		object1->handle = object1;
-		mtx_lock(&dev_pager_mtx);
-		TAILQ_INSERT_TAIL(&dev_pager_object_list, object1,
-		    pager_object_list);
-		mtx_unlock(&dev_pager_mtx);
-		vm_object_deallocate(object1);
-	}
 	return (object);
 }
 
