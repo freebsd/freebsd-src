@@ -92,7 +92,7 @@ CRUNCH_SRCDIRS+= sbin
 CRUNCH_PROGS_sbin= 						\
 	camcontrol clri devfs dmesg dump			\
 	dumpfs dumpon fsck fsck_ffs fsck_msdosfs fsdb		\
-	fsirand gbde geom ifconfig init 			\
+	fsirand geom ifconfig init 				\
 	kldconfig kldload kldstat kldunload ldconfig 		\
 	md5 mdconfig mdmfs mknod mount mount_cd9660		\
 	mount_msdosfs mount_nfs mount_nullfs			\
