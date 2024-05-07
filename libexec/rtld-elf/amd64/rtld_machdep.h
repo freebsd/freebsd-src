@@ -35,6 +35,8 @@
 
 struct Struct_Obj_Entry;
 
+#define	MD_OBJ_ENTRY
+
 /* Return the address of the .dynamic section in the dynamic linker. */
 Elf_Dyn *rtld_dynamic_addr(void);
 #define	rtld_dynamic(obj)	rtld_dynamic_addr()

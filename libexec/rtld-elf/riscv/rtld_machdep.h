@@ -42,6 +42,8 @@
 
 struct Struct_Obj_Entry;
 
+#define	MD_OBJ_ENTRY
+
 uint64_t set_gp(struct Struct_Obj_Entry *obj);
 
 /* Return the address of the .dynamic section in the dynamic linker. */
