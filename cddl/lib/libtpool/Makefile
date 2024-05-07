@@ -22,4 +22,9 @@ CFLAGS+= -include ${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/spl/sys/ccomp
 CFLAGS+= -DHAVE_ISSETUGID 
 CFLAGS+= -include ${SRCTOP}/sys/modules/zfs/zfs_config.h
 
+.include <src.opts.mk>
+
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+=	tests
+
 .include <bsd.lib.mk>
