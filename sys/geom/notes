@@ -95,9 +95,9 @@ set an upper bound in this field.  Geom_disk will inherit the upper
 bound set by the device driver.
 
 stripesize is the width of any natural request boundaries for the
-device.  This would be the width of a stripe on a raid-5 unit or
-one zone in GBDE.  The idea with this field is to hint to clustering
-type code to not trivially overrun these boundaries.
+device.  This would be the optimal width of a stripe on a raid unit.
+The idea with this field is to hint to clustering type code to not
+trivially overrun these boundaries.
 
 stripeoffset is the amount of the first stripe which lies before the
 devices beginning.
