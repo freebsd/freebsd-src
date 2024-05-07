@@ -497,8 +497,11 @@ chunk_ref(struct dxr_aux *da, uint32_t chunk)
 		da->range_tbl = realloc(da->range_tbl,
 		    sizeof(*da->range_tbl) * da->rtbl_size + FRAGS_PREF_SHORT,
 		    M_DXRAUX, M_NOWAIT);
-		if (da->range_tbl == NULL)
+		if (da->range_tbl == NULL) {
+			FIB_PRINTF(LOG_NOTICE, da->fd,
+			    "Unable to allocate DXR range table");
 			return (1);
+		}
 	}
 
 	return (0);
@@ -632,8 +635,11 @@ trie_ref(struct dxr_aux *da, uint32_t index)
 		da->xtbl_size += XTBL_SIZE_INCR;
 		da->x_tbl = realloc(da->x_tbl,
 		    sizeof(*da->x_tbl) * da->xtbl_size, M_DXRAUX, M_NOWAIT);
-		if (da->x_tbl == NULL)
+		if (da->x_tbl == NULL) {
+			FIB_PRINTF(LOG_NOTICE, da->fd,
+			    "Unable to allocate DXR extension table");
 			return (-1);
+		}
 	}
 	return(tp->td_index);
 }
@@ -873,8 +879,11 @@ dxr_build(struct dxr *dxr)
 
 	if (da == NULL) {
 		da = malloc(sizeof(*dxr->aux), M_DXRAUX, M_NOWAIT);
-		if (da == NULL)
+		if (da == NULL) {
+			FIB_PRINTF(LOG_NOTICE, dxr->fd,
+			    "Unable to allocate DXR aux struct");
 			return;
+		}
 		dxr->aux = da;
 		da->fibnum = dxr->fibnum;
 		da->refcnt = 1;
@@ -894,16 +903,22 @@ dxr_build(struct dxr *dxr)
 	if (da->range_tbl == NULL) {
 		da->range_tbl = malloc(sizeof(*da->range_tbl) * da->rtbl_size
 		    + FRAGS_PREF_SHORT, M_DXRAUX, M_NOWAIT);
-		if (da->range_tbl == NULL)
+		if (da->range_tbl == NULL) {
+			FIB_PRINTF(LOG_NOTICE, da->fd,
+			    "Unable to allocate DXR range table");
 			return;
+		}
 		range_rebuild = 1;
 	}
 #ifdef DXR2
 	if (da->x_tbl == NULL) {
 		da->x_tbl = malloc(sizeof(*da->x_tbl) * da->xtbl_size,
 		    M_DXRAUX, M_NOWAIT);
-		if (da->x_tbl == NULL)
+		if (da->x_tbl == NULL) {
+			FIB_PRINTF(LOG_NOTICE, da->fd,
+			    "Unable to allocate DXR extension table");
 			return;
+		}
 		trie_rebuild = 1;
 	}
 #endif
@@ -1039,8 +1054,11 @@ dxr2_try_squeeze:
 #endif
 
 	dxr->d = malloc(dxr_tot_size, M_DXRLPM, M_NOWAIT);
-	if (dxr->d == NULL)
+	if (dxr->d == NULL) {
+		FIB_PRINTF(LOG_NOTICE, da->fd,
+		    "Unable to allocate DXR lookup table");
 		return;
+	}
 #ifdef DXR2
 	memcpy(dxr->d, da->d_tbl, d_size);
 	dxr->x = ((char *) dxr->d) + d_size;
@@ -1119,7 +1137,8 @@ dxr_init(uint32_t fibnum, struct fib_data *fd, void *old_data, void **data)
 
 	dxr = malloc(sizeof(*dxr), M_DXRAUX, M_NOWAIT);
 	if (dxr == NULL) {
-		FIB_PRINTF(LOG_NOTICE, fd, "Unable to allocate DXR struct");
+		FIB_PRINTF(LOG_NOTICE, fd,
+		    "Unable to allocate DXR container struct");
 		return (FLM_REBUILD);
 	}
 
@@ -1212,41 +1231,11 @@ dxr_dump_end(void *data, struct fib_dp *dp)
 	dxr_build(dxr);
 
 	da = dxr->aux;
-	if (da == NULL) {
-		/* malloc(, M_DXRAUX, M_NOWAIT) failed, retry later */
-		FIB_PRINTF(LOG_NOTICE, dxr->fd,
-		    "Unable to allocate DXR aux struct");
+	if (da == NULL || dxr->d == NULL)
 		return (FLM_REBUILD);
-	}
 
-	if (da->range_tbl == NULL) {
-		/* malloc(, M_DXRAUX, M_NOWAIT) failed, retry later */
-		FIB_PRINTF(LOG_NOTICE, dxr->fd,
-		    "Unable to allocate DXR range table");
-		return (FLM_REBUILD);
-	}
-
-#ifdef DXR2
-	if (da->x_tbl == NULL) {
-		/* malloc(, M_DXRAUX, M_NOWAIT) failed, retry later */
-		FIB_PRINTF(LOG_NOTICE, dxr->fd,
-		    "Unable to allocate DXR extension table");
-		return (FLM_REBUILD);
-	}
-#endif
-
-	if (da->rtbl_top >= BASE_MAX) {
-		/* Structural limit exceeded, hard error */
-		FIB_PRINTF(LOG_ERR, dxr->fd, "DXR structural limit exceeded");
+	if (da->rtbl_top >= BASE_MAX)
 		return (FLM_ERROR);
-	}
-
-	if (dxr->d == NULL) {
-		/* malloc(, M_DXRLPM, M_NOWAIT) failed, retry later */
-		FIB_PRINTF(LOG_NOTICE, dxr->fd,
-		    "Unable to allocate DXR lookup table");
-		return (FLM_REBUILD);
-	}
 
 	dp->f = choose_lookup_fn(da);
 	dp->arg = dxr;
@@ -1334,18 +1323,11 @@ dxr_change_rib_batch(struct rib_head *rnh, struct fib_change_queue *q,
 	dxr_build(new_dxr);
 
 	/* Structural limit exceeded, hard error */
-	if (da->rtbl_top >= BASE_MAX) {
-		/* Structural limit exceeded, hard error */
-		dxr_destroy(new_dxr);
-		FIB_PRINTF(LOG_ERR, dxr->fd, "DXR structural limit exceeded");
+	if (da->rtbl_top >= BASE_MAX)
 		return (FLM_ERROR);
-	}
 
 	if (new_dxr->d == NULL) {
-		/* malloc(, M_DXRLPM, M_NOWAIT) failed, retry later */
 		dxr_destroy(new_dxr);
-		FIB_PRINTF(LOG_NOTICE, dxr->fd,
-		    "Unable to allocate DXR lookup table");
 		return (FLM_REBUILD);
 	}
 
@@ -1357,6 +1339,7 @@ dxr_change_rib_batch(struct rib_head *rnh, struct fib_change_queue *q,
 		return (FLM_SUCCESS);
 	}
 
+	FIB_PRINTF(LOG_NOTICE, dxr->fd, "fib_set_datapath_ptr() failed");
 	dxr_destroy(new_dxr);
 	return (FLM_REBUILD);
 }
