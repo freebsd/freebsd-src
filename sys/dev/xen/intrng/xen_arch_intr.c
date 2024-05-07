@@ -145,6 +145,10 @@ struct xen_softc {
 	int			rid;
 	device_t		dev;
 	struct intr_pic		*pic;
+	struct {
+		int rid;
+		struct resource *res;
+	}			regions[8];
 };
 
 struct xen_softc *xen_sc = NULL;
@@ -167,6 +171,7 @@ static int
 xen_attach(device_t dev)
 {
 	struct xen_softc *sc;
+	u_int i;
 
 	if (xen_sc != NULL)
 		return (ENXIO);
@@ -198,6 +203,46 @@ xen_attach(device_t dev)
 		    xen_intr_handle_upcall, NULL, sc, &sc->cookie)) {
 		panic("Could not setup event channel interrupt");
 		return (ENXIO);
+	}
+
+	/* Allocate memory regions for grant-table/foreign mappings */
+	for (i = 0; i < nitems(sc->regions); ++i) {
+		sc->regions[i].rid = i;
+		sc->regions[i].res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+		    &sc->regions[i].rid, RF_ACTIVE | RF_UNMAPPED);
+		if (sc->regions[i].res == NULL)
+			break;
+	}
+
+	if (sc->regions[nitems(sc->regions) - 1].res != NULL)
+		device_printf(dev, "NOTICE: memory region list exhausted!\n");
+
+	return (0);
+}
+
+int
+xen_arch_init_physmem(device_t dev, struct rman *mem)
+{
+	u_int i;
+	int error;
+
+	for (i = 0; i < nitems(xen_sc->regions) &&
+	    xen_sc->regions[i].res != NULL; ++i) {
+
+		if (bootverbose != 0)
+			device_printf(dev,
+			    "scratch mapping region @ [%#lx, %#lx]\n",
+			    rman_get_start(xen_sc->regions[i].res),
+			    rman_get_end(xen_sc->regions[i].res));
+
+		error = rman_manage_region(mem,
+		    rman_get_start(xen_sc->regions[i].res),
+		    rman_get_end(xen_sc->regions[i].res));
+		if (error != 0)
+			device_printf(dev,
+			    "unable to add scratch region [%#lx, %#lx]: %d\n",
+			    rman_get_start(xen_sc->regions[i].res),
+			    rman_get_end(xen_sc->regions[i].res), error);
 	}
 
 	return (0);
