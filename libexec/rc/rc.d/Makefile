@@ -24,7 +24,6 @@ CONFS=	DAEMON \
 	dmesg \
 	dumpon \
 	fsck \
-	gbde \
 	geli \
 	geli2 \
 	gptboot \
