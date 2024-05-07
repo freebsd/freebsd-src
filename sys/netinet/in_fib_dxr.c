@@ -877,6 +877,7 @@ dxr_build(struct dxr *dxr)
 			return;
 		dxr->aux = da;
 		da->fibnum = dxr->fibnum;
+		da->fd = dxr->fd;
 		da->refcnt = 1;
 		LIST_INIT(&da->all_chunks);
 		LIST_INIT(&da->all_trie);
@@ -907,7 +908,6 @@ dxr_build(struct dxr *dxr)
 		trie_rebuild = 1;
 	}
 #endif
-	da->fd = dxr->fd;
 
 	microuptime(&t0);
 
