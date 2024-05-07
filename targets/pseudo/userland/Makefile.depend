@@ -68,7 +68,6 @@ DIRDEPS+= \
 	sbin/fsck_msdosfs \
 	sbin/fsdb \
 	sbin/fsirand \
-	sbin/gbde \
 	sbin/geom/core \
 	sbin/ggate/ggatec \
 	sbin/ggate/ggated \
