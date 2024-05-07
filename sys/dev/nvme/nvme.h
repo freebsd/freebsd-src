@@ -1601,7 +1601,7 @@ struct nvme_health_information_page {
 	uint32_t		ttftmt2;
 
 	uint8_t			reserved2[280];
-} __packed __aligned(4);
+} __packed __aligned(8);
 
 _Static_assert(sizeof(struct nvme_health_information_page) == 512, "bad size for nvme_health_information_page");
 
