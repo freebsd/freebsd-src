@@ -27,9 +27,14 @@ ldns_fget_token(FILE *f, char *token, const char *delim, size_t limit)
 	return ldns_fget_token_l(f, token, delim, limit, NULL);
 }
 
-ldns_status
-ldns_fget_token_l_st(FILE *f, char **token, size_t *limit, bool fixed
-                    , const char *delim, int *line_nr)
+enum file_type2parse {
+	zone_file_type, resolv_conf_file_type
+};
+
+static ldns_status
+ldns_fget_token_l_st_file_type(FILE *f, char **token, size_t *limit,
+		bool fixed, const char *delim, int *line_nr,
+		enum file_type2parse file_type)
 {
 	int c, prev_c;
 	int p; /* 0 -> no parentheses seen, >0 nr of ( seen */
@@ -98,7 +103,9 @@ ldns_fget_token_l_st(FILE *f, char **token, size_t *limit, bool fixed
 		}
 
 		/* do something with comments ; */
-		if (c == ';' && quoted == 0) {
+		if ((c == ';'
+		||  (c == '#' && file_type == resolv_conf_file_type))
+				&& quoted == 0) {
 			if (prev_c != '\\') {
 				com = 1;
 			}
@@ -215,6 +222,26 @@ tokenread:
 	return i == 0 ? LDNS_STATUS_SYNTAX_EMPTY : LDNS_STATUS_OK;
 }
 
+ldns_status
+ldns_fget_token_l_st(FILE *f, char **token, size_t *limit, bool fixed
+                    , const char *delim, int *line_nr)
+{
+	return ldns_fget_token_l_st_file_type(
+		f, token, limit, fixed, delim, line_nr, zone_file_type);
+}
+
+ssize_t
+ldns_fget_token_l_resolv_conf(FILE *f, char *token, const char *delim,
+		size_t limit, int *line_nr)
+{
+	if (limit == 0)
+		limit = LDNS_MAX_LINELEN;
+	if (ldns_fget_token_l_st_file_type(f, &token, &limit, true, delim,
+				line_nr, resolv_conf_file_type))
+		return -1;
+	else
+		return (ssize_t)strlen(token);
+}
 
 ssize_t
 ldns_fget_token_l(FILE *f, char *token, const char *delim, size_t limit, int *line_nr)
