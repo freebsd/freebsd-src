@@ -25,12 +25,12 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd November 24, 2015
+.Dd May 7, 2024
 .Dt SMSC 4
 .Os
 .Sh NAME
 .Nm smsc
-.Nd "USB SMSC LAN9xxx Fast Ethernet driver"
+.Nd "USB Microchip LAN9xxx Fast Ethernet driver"
 .Sh SYNOPSIS
 To load the driver as a module at boot time, place the
 following line in
@@ -53,7 +53,7 @@ following lines in your kernel configuration file:
 The
 .Nm
 device driver provides support for USB Fast Ethernet adapters based
-on the SMSC LAN9xxx chipsets.
+on the Microchip (formerly SMSC) LAN9xxx chipsets.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
@@ -64,11 +64,11 @@ driver:
 .Pp
 .Bl -bullet -compact
 .It
-SMSC LAN9500, LAN9500A, LAN9505 and LAN9505A based Ethernet adapters
+LAN9500, LAN9500A, LAN9505 and LAN9505A based Ethernet adapters
 .It
-SMSC LAN89530, LAN9530 and LAN9730 based Ethernet adapters
+LAN89530, LAN9530 and LAN9730 based Ethernet adapters
 .It
-SMSC LAN951x Ethernet adapters with integrated USB hub
+LAN951x Ethernet adapters with integrated USB hub
 .El
 .Sh SEE ALSO
 .Xr arp 4 ,

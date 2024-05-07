@@ -28,7 +28,7 @@
 
 #include <sys/cdefs.h>
 /*
- * SMSC LAN9xxx devices (http://www.smsc.com/)
+ * Microchip LAN9xxx devices (https://www.microchip.com/en-us/product/lan9500a)
  * 
  * The LAN9500 & LAN9500A devices are stand-alone USB to Ethernet chips that
  * support USB 2.0 and 10/100 Mbps Ethernet.
@@ -38,7 +38,7 @@
  * supports the hub part.
  *
  * This driver is closely modelled on the Linux driver written and copyrighted
- * by SMSC.
+ * by SMSC (later acquired by Microchip).
  *
  *
  *
