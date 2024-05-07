@@ -47,6 +47,9 @@ struct Struct_Obj_Entry;
 	(const Elf_Dyn *)_dynamic_addr;					\
 })
 
+/* No arch-specific dynamic tags */
+#define	arch_digest_dynamic(obj, dynp)	false
+
 bool arch_digest_note(struct Struct_Obj_Entry *obj, const Elf_Note *note);
 
 Elf_Addr reloc_jmpslot(Elf_Addr *where, Elf_Addr target,

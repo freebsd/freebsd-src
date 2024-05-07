@@ -41,6 +41,9 @@ struct Struct_Obj_Entry;
 Elf_Dyn *rtld_dynamic_addr(void);
 #define	rtld_dynamic(obj)	rtld_dynamic_addr()
 
+/* No arch-specific dynamic tags */
+#define	arch_digest_dynamic(obj, dynp)	false
+
 /* No architecture specific notes */
 #define	arch_digest_note(obj, note)	false
 

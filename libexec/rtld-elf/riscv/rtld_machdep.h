@@ -54,6 +54,9 @@ uint64_t set_gp(struct Struct_Obj_Entry *obj);
 	(const Elf_Dyn *)_dynamic_addr;                                 \
 })
 
+/* No arch-specific dynamic tags */
+#define	arch_digest_dynamic(obj, dynp)	false
+
 /* No architecture specific notes */
 #define	arch_digest_note(obj, note)	false
 

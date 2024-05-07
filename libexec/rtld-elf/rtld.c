@@ -1554,6 +1554,9 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 	    break;
 
 	default:
+	    if (arch_digest_dynamic(obj, dynp))
+		break;
+
 	    if (!early) {
 		dbg("Ignoring d_tag %ld = %#lx", (long)dynp->d_tag,
 		    (long)dynp->d_tag);
