@@ -288,6 +288,8 @@ CSTD=	c99
 
 CFLAGS+=	-g -DDEBUG=1
 
+CFLAGS.gcc+=	-Wno-pointer-to-int-cast
+
 # Pointer values are used as debugging "tags" to mark reference count
 # ownerships and in some cases the tag reference is dropped after an
 # object is freed.
