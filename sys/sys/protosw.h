@@ -163,30 +163,6 @@ struct protosw {
 #define	PR_CAPATTACH	0x80		/* socket can attach in cap mode */
 #define	PR_SOCKBUF	0x100		/* private implementation of buffers */
 
-/*
- * The arguments to ctloutput are:
- *	(*protosw[].pr_ctloutput)(req, so, level, optname, optval, p);
- * req is one of the actions listed below, so is a (struct socket *),
- * level is an indication of which protocol layer the option is intended.
- * optname is a protocol dependent socket option request,
- * optval is a pointer to a mbuf-chain pointer, for value-return results.
- * The protocol is responsible for disposal of the mbuf chain *optval
- * if supplied,
- * the caller is responsible for any space held by *optval, when returned.
- * A non-zero return from ctloutput gives an
- * UNIX error number which should be passed to higher level software.
- */
-#define	PRCO_GETOPT	0
-#define	PRCO_SETOPT	1
-
-#define	PRCO_NCMDS	2
-
-#ifdef PRCOREQUESTS
-char	*prcorequests[] = {
-	"GETOPT", "SETOPT",
-};
-#endif
-
 #ifdef _KERNEL
 struct domain *pffinddomain(int family);
 struct protosw *pffindproto(int family, int type, int proto);
