@@ -80,6 +80,8 @@
     ..
     cddl
         lib
+            libtpool
+            ..
         ..
         sbin
         ..
