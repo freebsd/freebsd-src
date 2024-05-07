@@ -44,7 +44,6 @@ geli_start()
 
 	if [ -z "${geli_tries}" ]; then
 		if [ -n "${geli_attach_attempts}" ]; then
-			# Compatibility with rc.d/gbde.
 			geli_tries=${geli_attach_attempts}
 		else
 			geli_tries=`${SYSCTL_N} kern.geom.eli.tries`
