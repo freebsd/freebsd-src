@@ -56,7 +56,6 @@
 
 static void usage(void) __dead2;
 static const char *swap_on_off(const char *, int, char *);
-static const char *swap_on_off_gbde(const char *, int);
 static const char *swap_on_off_geli(const char *, char *, int);
 static const char *swap_on_off_md(const char *, char *, int);
 static const char *swap_on_off_sfile(const char *, int);
@@ -238,12 +237,6 @@ swap_on_off(const char *name, int doingall, char *mntops)
 	basebuf = strdup(name);
 	base = basename(basebuf);
 
-	/* Swap on encrypted device by GEOM_BDE. */
-	if (fnmatch("*.bde", base, 0) == 0) {
-		free(basebuf);
-		return (swap_on_off_gbde(name, doingall));
-	}
-
 	/* Swap on encrypted device by GEOM_ELI. */
 	if (fnmatch("*.eli", base, 0) == 0) {
 		free(basebuf);
@@ -267,59 +260,6 @@ swap_basename(const char *name)
 	*p = '\0';
 
 	return (dname);
-}
-
-static const char *
-swap_on_off_gbde(const char *name, int doingall)
-{
-	const char *ret;
-	char pass[64 * 2 + 1];
-	unsigned char bpass[64];
-	char *dname;
-	int i, error;
-
-	dname = swap_basename(name);
-	if (dname == NULL)
-		return (NULL);
-
-	if (which_prog == SWAPON) {
-		arc4random_buf(bpass, sizeof(bpass));
-		for (i = 0; i < (int)sizeof(bpass); i++)
-			sprintf(&pass[2 * i], "%02x", bpass[i]);
-		pass[sizeof(pass) - 1] = '\0';
-
-		error = run_cmd(NULL, "%s init %s -P %s", _PATH_GBDE,
-		    dname, pass);
-		if (error) {
-			/* bde device found.  Ignore it. */
-			free(dname);
-			if (qflag == 0)
-				warnx("%s: Device already in use", name);
-			return (NULL);
-		}
-		error = run_cmd(NULL, "%s attach %s -p %s", _PATH_GBDE,
-		    dname, pass);
-		free(dname);
-		if (error) {
-			warnx("gbde (attach) error: %s", name);
-			return (NULL);
-		}
-	}
-
-	ret = swap_on_off_sfile(name, doingall);
-
-	if (which_prog == SWAPOFF) {
-		error = run_cmd(NULL, "%s detach %s", _PATH_GBDE, dname);
-		free(dname);
-		if (error) {
-			/* bde device not found.  Ignore it. */
-			if (qflag == 0)
-				warnx("%s: Device not found", name);
-			return (NULL);
-		}
-	}
-
-	return (ret);
 }
 
 /* Build geli(8) arguments from mntops */
