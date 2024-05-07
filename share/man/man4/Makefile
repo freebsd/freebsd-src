@@ -163,7 +163,6 @@ MAN=	aac.4 \
 	fwip.4 \
 	fwohci.4 \
 	fxp.4 \
-	gbde.4 \
 	gdb.4 \
 	gem.4 \
 	genet.4 \
