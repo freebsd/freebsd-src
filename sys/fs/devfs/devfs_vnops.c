@@ -555,8 +555,7 @@ loop:
 		if (devfs_allocv_drop_refs(0, dmp, de)) {
 			vput(vp);
 			return (ENOENT);
-		}
-		else if (VN_IS_DOOMED(vp)) {
+		} else if (VN_IS_DOOMED(vp)) {
 			mtx_lock(&devfs_de_interlock);
 			if (de->de_vnode == vp) {
 				de->de_vnode = NULL;
