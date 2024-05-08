@@ -137,6 +137,11 @@ SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, lrd, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_lrd), 1,
     "Perform Lost Retransmission Detection");
 
+VNET_DEFINE(int, tcp_sack_tso) = 0;
+SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, tso, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(tcp_sack_tso), 0,
+    "Allow TSO during SACK loss recovery");
+
 VNET_DEFINE(int, tcp_sack_maxholes) = 128;
 SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, maxholes, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_sack_maxholes), 0,
