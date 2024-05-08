@@ -556,7 +556,7 @@ ip17x_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 static int
 ip17x_readreg(device_t dev, int addr)
 {
-	struct ip17x_softc *sc;
+	struct ip17x_softc *sc __diagused;
 
 	sc = device_get_softc(dev);
 	IP17X_LOCK_ASSERT(sc, MA_OWNED);
@@ -568,7 +568,7 @@ ip17x_readreg(device_t dev, int addr)
 static int
 ip17x_writereg(device_t dev, int addr, int value)
 {
-	struct ip17x_softc *sc;
+	struct ip17x_softc *sc __diagused;
 
 	sc = device_get_softc(dev);
 	IP17X_LOCK_ASSERT(sc, MA_OWNED);
