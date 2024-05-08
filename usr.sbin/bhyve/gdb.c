@@ -192,7 +192,6 @@ static const struct gdb_reg {
 	{ .id = VM_REG_GUEST_EFER, .size = 8 },
 };
 
-#define	GDB_LOG
 #ifdef GDB_LOG
 #include <stdarg.h>
 #include <stdio.h>
