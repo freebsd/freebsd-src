@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_bhyve_snapshot.h"
 
 #include <sys/param.h>
@@ -163,14 +162,14 @@ vcpu_lock_one(struct vcpu *vcpu)
 }
 
 static void
-vcpu_unlock_one(struct vmmdev_softc *sc, int vcpuid, struct vcpu *vcpu)
+vcpu_unlock_one(struct vcpu *vcpu)
 {
 	enum vcpu_state state;
 
 	state = vcpu_get_state(vcpu, NULL);
 	if (state != VCPU_FROZEN) {
-		panic("vcpu %s(%d) has invalid state %d", vm_name(sc->vm),
-		    vcpuid, state);
+		panic("vcpu %s(%d) has invalid state %d",
+		    vm_name(vcpu_vm(vcpu)), vcpu_vcpuid(vcpu), state);
 	}
 
 	vcpu_set_state(vcpu, VCPU_IDLE, false);
@@ -200,7 +199,7 @@ vcpu_lock_all(struct vmmdev_softc *sc)
 			vcpu = vm_vcpu(sc->vm, j);
 			if (vcpu == NULL)
 				continue;
-			vcpu_unlock_one(sc, j, vcpu);
+			vcpu_unlock_one(vcpu);
 		}
 		vm_unlock_vcpus(sc->vm);
 	}
@@ -219,7 +218,7 @@ vcpu_unlock_all(struct vmmdev_softc *sc)
 		vcpu = vm_vcpu(sc->vm, i);
 		if (vcpu == NULL)
 			continue;
-		vcpu_unlock_one(sc, i, vcpu);
+		vcpu_unlock_one(vcpu);
 	}
 	vm_unlock_vcpus(sc->vm);
 }
@@ -1086,7 +1085,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 
 done:
 	if (vcpus_locked == SINGLE)
-		vcpu_unlock_one(sc, vcpuid, vcpu);
+		vcpu_unlock_one(vcpu);
 	else if (vcpus_locked == ALL)
 		vcpu_unlock_all(sc);
 	if (memsegs_locked)
@@ -1231,7 +1230,7 @@ sysctl_vmm_destroy(SYSCTL_HANDLER_ARGS)
 	 * is scheduled for destruction.
 	 */
 	cdev = sc->cdev;
-	sc->cdev = NULL;		
+	sc->cdev = NULL;
 	mtx_unlock(&vmmdev_mtx);
 
 	/*
