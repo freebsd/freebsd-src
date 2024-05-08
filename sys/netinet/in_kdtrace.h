@@ -286,6 +286,7 @@ SDT_PROBE_DECLARE(mib, tcp, count, tcps_finwait2_drops);
 
 SDT_PROBE_DECLARE(mib, tcp, count, tcps_sack_recovery_episode);
 SDT_PROBE_DECLARE(mib, tcp, count, tcps_sack_rexmits);
+SDT_PROBE_DECLARE(mib, tcp, count, tcps_sack_rexmits_tso);
 SDT_PROBE_DECLARE(mib, tcp, count, tcps_sack_rexmit_bytes);
 SDT_PROBE_DECLARE(mib, tcp, count, tcps_sack_rcv_blocks);
 SDT_PROBE_DECLARE(mib, tcp, count, tcps_sack_send_blocks);
