@@ -179,6 +179,9 @@ tmpfs_pager_release_writecount(vm_object_t object, vm_offset_t start,
 	KASSERT((object->flags & OBJ_ANON) == 0,
 	    ("%s: object %p with OBJ_ANON", __func__, object));
 	old = object->un_pager.swp.writemappings;
+	KASSERT(old >= (vm_ooffset_t)end - start,
+	    ("tmpfs obj %p writecount %jx dec %jx", object, (uintmax_t)old,
+	    (uintmax_t)((vm_ooffset_t)end - start)));
 	object->un_pager.swp.writemappings -= (vm_ooffset_t)end - start;
 	new = object->un_pager.swp.writemappings;
 	tmpfs_pager_writecount_recalc(object, old, new);
