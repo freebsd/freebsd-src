@@ -188,22 +188,19 @@ __thr_connect(int fd, const struct sockaddr *name, socklen_t namelen)
  *   if it is canceled.
  */
 static int
-__thr_fcntl(int fd, int cmd, ...)
+__thr_fcntl(int fd, int cmd, __intptr_t arg)
 {
 	struct pthread *curthread;
 	int ret;
-	va_list	ap;
 
 	curthread = _get_curthread();
-	va_start(ap, cmd);
 	if (cmd == F_OSETLKW || cmd == F_SETLKW) {
 		_thr_cancel_enter(curthread);
-		ret = __sys_fcntl(fd, cmd, (intptr_t)va_arg(ap, void *));
+		ret = __sys_fcntl(fd, cmd, arg);
 		_thr_cancel_leave(curthread, ret == -1);
 	} else {
-		ret = __sys_fcntl(fd, cmd, (intptr_t)va_arg(ap, void *));
+		ret = __sys_fcntl(fd, cmd, arg);
 	}
-	va_end(ap);
 
 	return (ret);
 }
@@ -294,23 +291,11 @@ __thr_nanosleep(const struct timespec *time_to_sleep,
  *   If the thread is canceled, file is not opened.
  */
 static int
-__thr_openat(int fd, const char *path, int flags, ...)
+__thr_openat(int fd, const char *path, int flags, int mode)
 {
 	struct pthread *curthread;
-	int mode, ret;
-	va_list	ap;
+	int ret;
 
-	
-	/* Check if the file is being created: */
-	if ((flags & O_CREAT) != 0) {
-		/* Get the creation mode: */
-		va_start(ap, flags);
-		mode = va_arg(ap, int);
-		va_end(ap);
-	} else {
-		mode = 0;
-	}
-	
 	curthread = _get_curthread();
 	_thr_cancel_enter(curthread);
 	ret = __sys_openat(fd, path, flags, mode);
