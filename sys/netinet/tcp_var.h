@@ -1030,6 +1030,7 @@ struct	tcpstat {
 	/* SACK related stats */
 	uint64_t tcps_sack_recovery_episode; /* SACK recovery episodes */
 	uint64_t tcps_sack_rexmits;	    /* SACK rexmit segments   */
+	uint64_t tcps_sack_rexmits_tso;	    /* SACK rexmit TSO chunks */
 	uint64_t tcps_sack_rexmit_bytes;    /* SACK rexmit bytes      */
 	uint64_t tcps_sack_rcv_blocks;	    /* SACK blocks (options) received */
 	uint64_t tcps_sack_send_blocks;	    /* SACK blocks (options) sent     */
@@ -1088,7 +1089,7 @@ struct	tcpstat {
 	uint64_t tcps_tlpresend_bytes;	/* number of bytes resent by tlp */
 
 
-	uint64_t _pad[4];		/* 4 TBD placeholder for STABLE */
+	uint64_t _pad[3];		/* 3 TBD placeholder for STABLE */
 };
 
 #define	tcps_rcvmemdrop	tcps_rcvreassfull	/* compat */

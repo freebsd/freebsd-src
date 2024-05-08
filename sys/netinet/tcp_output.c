@@ -1037,6 +1037,9 @@ send:
 			TCPSTAT_ADD(tcps_sndrexmitbyte, len);
 			if (sack_rxmit) {
 				TCPSTAT_INC(tcps_sack_rexmits);
+				if (tso) {
+					TCPSTAT_INC(tcps_sack_rexmits_tso);
+				}
 				TCPSTAT_ADD(tcps_sack_rexmit_bytes, len);
 			}
 #ifdef STATS
