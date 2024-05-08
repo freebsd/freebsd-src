@@ -190,6 +190,7 @@ xen_attach(device_t dev)
 
 
 	/* Resources */
+	sc->rid = 0;
 	sc->intr = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->rid, RF_ACTIVE);
 	if (sc->intr == NULL) {
 		panic("Unable to retrieve Xen event channel interrupt");
