@@ -541,30 +541,29 @@ void lkpi_arch_phys_wc_del(int);
 #define	arch_phys_wc_index(x)	\
 	(((x) < __MTRR_ID_BASE) ? -1 : ((x) - __MTRR_ID_BASE))
 
-#if defined(__amd64__) || defined(__i386__) || defined(__aarch64__) || defined(__powerpc__) || defined(__riscv)
 static inline int
 arch_io_reserve_memtype_wc(resource_size_t start, resource_size_t size)
 {
+#if defined(__amd64__)
 	vm_offset_t va;
 
 	va = PHYS_TO_DMAP(start);
-
-#ifdef VM_MEMATTR_WRITE_COMBINING
 	return (-pmap_change_attr(va, size, VM_MEMATTR_WRITE_COMBINING));
 #else
-	return (-pmap_change_attr(va, size, VM_MEMATTR_UNCACHEABLE));
+	return (0);
 #endif
 }
 
 static inline void
 arch_io_free_memtype_wc(resource_size_t start, resource_size_t size)
 {
+#if defined(__amd64__)
 	vm_offset_t va;
 
 	va = PHYS_TO_DMAP(start);
 
 	pmap_change_attr(va, size, VM_MEMATTR_WRITE_BACK);
-}
 #endif
+}
 
 #endif	/* _LINUXKPI_LINUX_IO_H_ */
