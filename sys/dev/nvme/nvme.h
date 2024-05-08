@@ -832,7 +832,7 @@ struct nvme_command {
 	uint32_t cdw13;		/* command-specific */
 	uint32_t cdw14;		/* command-specific */
 	uint32_t cdw15;		/* command-specific */
-};
+} __aligned(8);
 
 _Static_assert(sizeof(struct nvme_command) == 16 * 4, "bad size for nvme_command");
 
