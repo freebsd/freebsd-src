@@ -5241,6 +5241,10 @@ sctp_kick_prsctp_reorder_queue(struct sctp_tcb *stcb,
 	uint32_t mid;
 	int need_reasm_check = 0;
 
+	KASSERT(stcb != NULL, ("stcb == NULL"));
+	SCTP_TCB_LOCK_ASSERT(stcb);
+	SCTP_INP_READ_LOCK_ASSERT(stcb->sctp_ep);
+
 	asoc = &stcb->asoc;
 	mid = strmin->last_mid_delivered;
 	/*
@@ -5278,11 +5282,9 @@ sctp_kick_prsctp_reorder_queue(struct sctp_tcb *stcb,
 				/* deliver it to at least the delivery-q */
 				if (stcb->sctp_socket) {
 					sctp_mark_non_revokable(asoc, control->sinfo_tsn);
-					sctp_add_to_readq(stcb->sctp_ep, stcb,
-					    control,
-					    &stcb->sctp_socket->so_rcv,
-					    1, SCTP_READ_LOCK_HELD,
-					    SCTP_SO_NOT_LOCKED);
+					sctp_add_to_readq(stcb->sctp_ep, stcb, control,
+					    &stcb->sctp_socket->so_rcv, 1,
+					    SCTP_READ_LOCK_HELD, SCTP_SO_NOT_LOCKED);
 				}
 			} else {
 				/* Its a fragmented message */
@@ -5352,8 +5354,7 @@ sctp_kick_prsctp_reorder_queue(struct sctp_tcb *stcb,
 				strmin->last_mid_delivered = control->mid;
 				if (stcb->sctp_socket) {
 					sctp_mark_non_revokable(asoc, control->sinfo_tsn);
-					sctp_add_to_readq(stcb->sctp_ep, stcb,
-					    control,
+					sctp_add_to_readq(stcb->sctp_ep, stcb, control,
 					    &stcb->sctp_socket->so_rcv, 1,
 					    SCTP_READ_LOCK_HELD, SCTP_SO_NOT_LOCKED);
 				}
@@ -5394,6 +5395,11 @@ sctp_flush_reassm_for_str_seq(struct sctp_tcb *stcb,
 	 * it can be delivered... But for now we just dump everything on the
 	 * queue.
 	 */
+
+	KASSERT(stcb != NULL, ("stcb == NULL"));
+	SCTP_TCB_LOCK_ASSERT(stcb);
+	SCTP_INP_READ_LOCK_ASSERT(stcb->sctp_ep);
+
 	if (!asoc->idata_supported && !ordered &&
 	    control->first_frag_seen &&
 	    SCTP_TSN_GT(control->fsn_included, cumtsn)) {
