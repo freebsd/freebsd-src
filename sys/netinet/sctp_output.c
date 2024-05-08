@@ -6705,7 +6705,9 @@ sctp_sendall_iterator(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 		} else {
 			m = sctp_get_mbuf_for_msg(sizeof(struct sctp_paramhdr),
 			    0, M_NOWAIT, 1, MT_DATA);
-			SCTP_BUF_LEN(m) = sizeof(struct sctp_paramhdr);
+			if (m != NULL) {
+				SCTP_BUF_LEN(m) = sizeof(struct sctp_paramhdr);
+			}
 		}
 		if (m != NULL) {
 			struct sctp_paramhdr *ph;
