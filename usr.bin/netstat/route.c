@@ -183,16 +183,15 @@ pr_family(int af1)
 }
 
 /* column widths; each followed by one space */
+#define WID_IF_DEFAULT		(Wflag ? IFNAMSIZ : 12)	/* width of netif column */
 #ifndef INET6
 #define	WID_DST_DEFAULT(af) 	18	/* width of destination column */
 #define	WID_GW_DEFAULT(af)	18	/* width of gateway column */
-#define	WID_IF_DEFAULT(af)	(Wflag ? 10 : 8) /* width of netif column */
 #else
 #define	WID_DST_DEFAULT(af) \
 	((af) == AF_INET6 ? (numeric_addr ? 33: 18) : 18)
 #define	WID_GW_DEFAULT(af) \
 	((af) == AF_INET6 ? (numeric_addr ? 29 : 18) : 18)
-#define	WID_IF_DEFAULT(af)	((af) == AF_INET6 ? 8 : (Wflag ? 10 : 8))
 #endif /*INET6*/
 
 static int wid_dst;
@@ -283,7 +282,7 @@ p_rtable_sysctl(int fibnum, int af)
 			wid_flags = 6;
 			wid_pksent = 8;
 			wid_mtu = 6;
-			wid_if = WID_IF_DEFAULT(fam);
+			wid_if = WID_IF_DEFAULT;
 			wid_expire = 6;
 			xo_open_instance("rt-family");
 			pr_family(fam);
