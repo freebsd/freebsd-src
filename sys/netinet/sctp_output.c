@@ -6911,10 +6911,20 @@ static int
 sctp_sendall(struct sctp_inpcb *inp, struct uio *uio, struct mbuf *m,
     struct sctp_nonpad_sndrcvinfo *srcv)
 {
-	int ret;
 	struct sctp_copy_all *ca;
+	struct mbuf *mat;
+	ssize_t sndlen;
+	int ret;
 
-	if (uio->uio_resid > (ssize_t)SCTP_BASE_SYSCTL(sctp_sendall_limit)) {
+	if (uio != NULL) {
+		sndlen = uio->uio_resid;
+	} else {
+		sndlen = 0;
+		for (mat = m; mat; mat = SCTP_BUF_NEXT(mat)) {
+			sndlen += SCTP_BUF_LEN(mat);
+		}
+	}
+	if (sndlen > (ssize_t)SCTP_BASE_SYSCTL(sctp_sendall_limit)) {
 		/* You must not be larger than the limit! */
 		return (EMSGSIZE);
 	}
@@ -6926,12 +6936,10 @@ sctp_sendall(struct sctp_inpcb *inp, struct uio *uio, struct mbuf *m,
 		return (ENOMEM);
 	}
 	memset(ca, 0, sizeof(struct sctp_copy_all));
-
 	ca->inp = inp;
 	if (srcv != NULL) {
 		memcpy(&ca->sndrcv, srcv, sizeof(struct sctp_nonpad_sndrcvinfo));
 	}
-
 	/* Serialize. */
 	SCTP_INP_WLOCK(inp);
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_SND_ITERATOR_UP) != 0) {
@@ -6942,15 +6950,14 @@ sctp_sendall(struct sctp_inpcb *inp, struct uio *uio, struct mbuf *m,
 	}
 	inp->sctp_flags |= SCTP_PCB_FLAGS_SND_ITERATOR_UP;
 	SCTP_INP_WUNLOCK(inp);
-
 	/*
 	 * take off the sendall flag, it would be bad if we failed to do
 	 * this :-0
 	 */
 	ca->sndrcv.sinfo_flags &= ~SCTP_SENDALL;
 	/* get length and mbuf chain */
-	if (uio) {
-		ca->sndlen = uio->uio_resid;
+	ca->sndlen = sndlen;
+	if (uio != NULL) {
 		ca->m = sctp_copy_out_all(uio, ca->sndlen);
 		if (ca->m == NULL) {
 			SCTP_FREE(ca, SCTP_M_COPYAL);
@@ -6962,20 +6969,14 @@ sctp_sendall(struct sctp_inpcb *inp, struct uio *uio, struct mbuf *m,
 			return (ENOMEM);
 		}
 	} else {
-		/* Gather the length of the send */
-		struct mbuf *mat;
-
-		ca->sndlen = 0;
-		for (mat = m; mat; mat = SCTP_BUF_NEXT(mat)) {
-			ca->sndlen += SCTP_BUF_LEN(mat);
-		}
+		ca->m = m;
 	}
 	ret = sctp_initiate_iterator(NULL, sctp_sendall_iterator, NULL,
 	    SCTP_PCB_ANY_FLAGS, SCTP_PCB_ANY_FEATURES,
 	    SCTP_ASOC_ANY_STATE,
 	    (void *)ca, 0,
 	    sctp_sendall_completes, inp, 1);
-	if (ret) {
+	if (ret != 0) {
 		SCTP_INP_WLOCK(inp);
 		inp->sctp_flags &= ~SCTP_PCB_FLAGS_SND_ITERATOR_UP;
 		SCTP_INP_WUNLOCK(inp);
