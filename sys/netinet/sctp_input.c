@@ -4231,6 +4231,8 @@ sctp_handle_packet_dropped(struct sctp_pktdrop_chunk *cp,
 				SCTP_STAT_INCR(sctps_pdrpmbda);
 			}
 		} else {
+			desc.tsn_ifany = htonl(0);
+			memset(desc.data_bytes, 0, SCTP_NUM_DB_TO_VERIFY);
 			if (pktdrp_flags & SCTP_FROM_MIDDLE_BOX) {
 				SCTP_STAT_INCR(sctps_pdrpmbct);
 			}
