@@ -23,7 +23,7 @@ checkstack(void)
 	struct kinfo_vmentry *freep, *kve;
 	struct kinfo_proc *p;
 	struct procstat *prstat;
-	uint64_t stack;
+	uintptr_t stack;
 	int i, cnt;
 
 	prstat = procstat_open_sysctl();
@@ -33,7 +33,7 @@ checkstack(void)
 	freep = procstat_getvmmap(prstat, p, &cnt);
 	assert(freep != NULL);
 
-	stack = (uint64_t)&i;
+	stack = (uintptr_t)&i;
 	for (i = 0; i < cnt; i++) {
 		kve = &freep[i];
 		if (stack < kve->kve_start || stack > kve->kve_end)
