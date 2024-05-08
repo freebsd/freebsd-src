@@ -560,7 +560,7 @@ after_sack_rexmit:
 	if ((tp->t_flags & TF_TSO) && V_tcp_do_tso && len > tp->t_maxseg &&
 	    (tp->t_port == 0) &&
 	    ((tp->t_flags & TF_SIGNATURE) == 0) &&
-	    tp->rcv_numsacks == 0 && sack_rxmit == 0 &&
+	    tp->rcv_numsacks == 0 && ((sack_rxmit == 0) || V_tcp_sack_tso) &&
 	    ipoptlen == 0 && !(flags & TH_SYN))
 		tso = 1;
 
