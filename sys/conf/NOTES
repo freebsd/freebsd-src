@@ -2093,6 +2093,7 @@ device		sound
 # snd_fm801:		Forte Media FM801 PCI.
 # snd_hda:		Intel High Definition Audio (Controller) and
 #			compatible.
+# snd_hdsp:		RME HDSP 9632 and HDSP 9652
 # snd_hdspe:		RME HDSPe AIO and RayDAT.
 # snd_ich:		Intel ICH AC'97 and some more audio controllers
 #			embedded in a chipset, for example nVidia
@@ -2120,6 +2121,7 @@ device		snd_envy24ht
 device		snd_es137x
 device		snd_fm801
 device		snd_hda
+device		snd_hdsp
 device		snd_hdspe
 device		snd_ich
 device		snd_maestro3
