@@ -443,10 +443,10 @@ intr_lookup(int irq)
 }
 
 int
-intr_setaffinity(int irq, int mode, void *m)
+intr_setaffinity(int irq, int mode, const void *m)
 {
 	struct intr_event *ie;
-	cpuset_t *mask;
+	const cpuset_t *mask;
 	int cpu, n;
 
 	mask = m;
