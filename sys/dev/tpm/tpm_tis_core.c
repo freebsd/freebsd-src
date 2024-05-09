@@ -469,6 +469,7 @@ tpmtis_transmit(device_t dev, size_t length)
 	}
 	tpmtis_relinquish_locality(sc);
 	sc->pending_data_length = bytes_available;
+	sc->total_length = bytes_available;
 
 	return (0);
 }
