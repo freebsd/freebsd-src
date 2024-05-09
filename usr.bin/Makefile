@@ -88,6 +88,7 @@ SUBDIR=	alias \
 	lzmainfo \
 	m4 \
 	mandoc \
+	mdo \
 	mesg \
 	ministat \
 	mkdep \

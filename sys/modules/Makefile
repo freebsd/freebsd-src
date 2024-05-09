@@ -223,6 +223,7 @@ SUBDIR=	\
 	${_mac_biba} \
 	${_mac_bsdextended} \
 	${_mac_ddb} \
+	${_mac_do} \
 	${_mac_ifoff} \
 	${_mac_ipacl} \
 	${_mac_lomac} \
@@ -586,6 +587,7 @@ _mac_bsdextended= mac_bsdextended
 .if ${KERN_OPTS:MDDB} || defined(ALL_MODULES)
 _mac_ddb=	mac_ddb
 .endif
+_mac_do=	mac_do
 _mac_ifoff=	mac_ifoff
 _mac_ipacl=	mac_ipacl
 _mac_lomac=	mac_lomac
