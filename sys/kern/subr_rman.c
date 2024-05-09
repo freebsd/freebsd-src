@@ -154,7 +154,7 @@ rman_manage_region(struct rman *rm, rman_res_t start, rman_res_t end)
 	struct resource_i *r, *s, *t;
 	int rv = 0;
 
-	DPRINTF("rman_manage_region: <%s> request: start %#jx, end %#jx\n",
+	DPRINTF("%s: <%s> request: start %#jx, end %#jx\n", __func__,
 	    rm->rm_descr, start, end);
 	if (start < rm->rm_start || end > rm->rm_end)
 		return EINVAL;
@@ -439,10 +439,9 @@ rman_reserve_resource_bound(struct rman *rm, rman_res_t start, rman_res_t end,
 
 	rv = NULL;
 
-	DPRINTF("rman_reserve_resource_bound: <%s> request: [%#jx, %#jx], "
-	       "length %#jx, flags %x, device %s\n", rm->rm_descr, start, end,
-	       count, flags,
-	       dev == NULL ? "<null>" : device_get_nameunit(dev));
+	DPRINTF("%s: <%s> request: [%#jx, %#jx], length %#jx, flags %x, "
+	    "device %s\n", __func__, rm->rm_descr, start, end, count, flags,
+	    dev == NULL ? "<null>" : device_get_nameunit(dev));
 	KASSERT(count != 0, ("%s: attempted to allocate an empty range",
 	    __func__));
 	KASSERT((flags & RF_FIRSTSHARE) == 0,
@@ -452,19 +451,17 @@ rman_reserve_resource_bound(struct rman *rm, rman_res_t start, rman_res_t end,
 	mtx_lock(rm->rm_mtx);
 
 	r = TAILQ_FIRST(&rm->rm_list);
-	if (r == NULL) {
-	    DPRINTF("NULL list head\n");
-	} else {
-	    DPRINTF("rman_reserve_resource_bound: trying %#jx <%#jx,%#jx>\n",
-		    r->r_end, start, count-1);
-	}
+	if (r == NULL)
+		DPRINTF("NULL list head\n");
+	else
+		DPRINTF("%s: trying %#jx <%#jx,%#jx>\n", __func__, r->r_end,
+		    start, count-1);
+
 	for (r = TAILQ_FIRST(&rm->rm_list);
 	     r && r->r_end < start + count - 1;
-	     r = TAILQ_NEXT(r, r_link)) {
-		;
-		DPRINTF("rman_reserve_resource_bound: tried %#jx <%#jx,%#jx>\n",
-			r->r_end, start, count-1);
-	}
+	     r = TAILQ_NEXT(r, r_link))
+		DPRINTF("%s: tried %#jx <%#jx,%#jx>\n", __func__, r->r_end,
+		    start, count-1);
 
 	if (r == NULL) {
 		DPRINTF("could not find a region\n");
