@@ -429,13 +429,12 @@ rman_adjust_resource(struct resource *rr, rman_res_t start, rman_res_t end)
 #define	SHARE_TYPE(f)	(f & (RF_SHAREABLE | RF_PREFETCHABLE))
 
 struct resource *
-rman_reserve_resource_bound(struct rman *rm, rman_res_t start, rman_res_t end,
-			    rman_res_t count, rman_res_t bound, u_int flags,
-			    device_t dev)
+rman_reserve_resource(struct rman *rm, rman_res_t start, rman_res_t end,
+			    rman_res_t count, u_int flags, device_t dev)
 {
 	u_int new_rflags;
 	struct resource_i *r, *s, *rv;
-	rman_res_t rstart, rend, amask, bmask;
+	rman_res_t rstart, rend, amask;
 
 	rv = NULL;
 
@@ -472,8 +471,6 @@ rman_reserve_resource_bound(struct rman *rm, rman_res_t start, rman_res_t end,
 	KASSERT(start <= RM_MAX_END - amask,
 	    ("start (%#jx) + amask (%#jx) would wrap around", start, amask));
 
-	/* If bound is 0, bmask will also be 0 */
-	bmask = ~(bound - 1);
 	/*
 	 * First try to find an acceptable totally-unshared region.
 	 */
@@ -505,8 +502,6 @@ rman_reserve_resource_bound(struct rman *rm, rman_res_t start, rman_res_t end,
 		 */
 		do {
 			rstart = (rstart + amask) & ~amask;
-			if (((rstart ^ (rstart + count - 1)) & bmask) != 0)
-				rstart += bound - (rstart & ~bmask);
 		} while ((rstart & amask) != 0 && rstart < end &&
 		    rstart < s->r_end);
 		rend = ummin(s->r_end, ummax(rstart + count - 1, end));
@@ -607,8 +602,7 @@ rman_reserve_resource_bound(struct rman *rm, rman_res_t start, rman_res_t end,
 		if (SHARE_TYPE(s->r_flags) == SHARE_TYPE(flags) &&
 		    s->r_start >= start &&
 		    (s->r_end - s->r_start + 1) == count &&
-		    (s->r_start & amask) == 0 &&
-		    ((s->r_start ^ s->r_end) & bmask) == 0) {
+		    (s->r_start & amask) == 0) {
 			rv = int_alloc_resource(M_NOWAIT);
 			if (rv == NULL)
 				goto out;
@@ -642,15 +636,6 @@ rman_reserve_resource_bound(struct rman *rm, rman_res_t start, rman_res_t end,
 out:
 	mtx_unlock(rm->rm_mtx);
 	return (rv == NULL ? NULL : &rv->r_r);
-}
-
-struct resource *
-rman_reserve_resource(struct rman *rm, rman_res_t start, rman_res_t end,
-		      rman_res_t count, u_int flags, device_t dev)
-{
-
-	return (rman_reserve_resource_bound(rm, start, end, count, 0, flags,
-	    dev));
 }
 
 int
