@@ -6,7 +6,7 @@ SYSDIR?=${SRCTOP}/sys
 # MK_SOURCELESS_UCODE option (see below).
 
 SUBDIR=		als4000 atiixp cs4281 ${_csa} emu10k1 emu10kx
-SUBDIR+=	envy24 envy24ht es137x fm801 hda hdspe ich
+SUBDIR+=	envy24 envy24ht es137x fm801 hda hdsp hdspe ich
 SUBDIR+=	${_maestro3} neomagic solo spicds t4dwave via8233
 SUBDIR+=	via82c686 vibes driver uaudio
 

@@ -67,6 +67,7 @@ MODULE_DEPEND(snd_driver, snd_envy24ht, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_es137x, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_fm801, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_hda, 1, 1, 1);
+MODULE_DEPEND(snd_driver, snd_hdsp, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_hdspe, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_ich, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_maestro3, 1, 1, 1);
