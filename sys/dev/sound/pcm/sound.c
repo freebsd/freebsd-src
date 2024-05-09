@@ -708,10 +708,8 @@ sound_oss_sysinfo(oss_sysinfo *si)
 
 	struct snddev_info *d;
 	struct pcm_channel *c;
-	int j, ncards;
+	int j;
 	size_t i;
-
-	ncards = 0;
 
 	strlcpy(si->product, si_product, sizeof(si->product));
 	strlcpy(si->version, si_version, sizeof(si->version));
@@ -720,7 +718,7 @@ sound_oss_sysinfo(oss_sysinfo *si)
 
 	/*
 	 * Iterate over PCM devices and their channels, gathering up data
-	 * for the numaudios, ncards, and openedaudio fields.
+	 * for the numaudios and openedaudio fields.
 	 */
 	si->numaudios = 0;
 	bzero((void *)&si->openedaudio, sizeof(si->openedaudio));
@@ -740,7 +738,6 @@ sound_oss_sysinfo(oss_sysinfo *si)
 		PCM_LOCK(d);
 
 		si->numaudios += PCM_CHANCOUNT(d);
-		++ncards;
 
 		CHN_FOREACH(c, d, channels.pcm) {
 			CHN_UNLOCKASSERT(c);
@@ -771,7 +768,7 @@ sound_oss_sysinfo(oss_sysinfo *si)
 	si->nummidis = 0;
 	si->numtimers = 0;
 	si->nummixers = mixer_count;
-	si->numcards = ncards;
+	si->numcards = devclass_get_maxunit(pcm_devclass);
 		/* OSSv4 docs:	Intended only for test apps; API doesn't
 		   really have much of a concept of cards.  Shouldn't be
 		   used by applications. */
