@@ -98,7 +98,7 @@ static int rman_debug = 0;
 SYSCTL_INT(_debug, OID_AUTO, rman_debug, CTLFLAG_RWTUN,
     &rman_debug, 0, "rman debug");
 
-#define DPRINTF(params) if (rman_debug) printf params
+#define DPRINTF(...) do { if (rman_debug) printf(__VA_ARGS__); } while (0)
 
 static MALLOC_DEFINE(M_RMAN, "rman", "Resource manager");
 
@@ -154,8 +154,8 @@ rman_manage_region(struct rman *rm, rman_res_t start, rman_res_t end)
 	struct resource_i *r, *s, *t;
 	int rv = 0;
 
-	DPRINTF(("rman_manage_region: <%s> request: start %#jx, end %#jx\n",
-	    rm->rm_descr, start, end));
+	DPRINTF("rman_manage_region: <%s> request: start %#jx, end %#jx\n",
+	    rm->rm_descr, start, end);
 	if (start < rm->rm_start || end > rm->rm_end)
 		return EINVAL;
 	r = int_alloc_resource(M_NOWAIT);
@@ -439,10 +439,10 @@ rman_reserve_resource_bound(struct rman *rm, rman_res_t start, rman_res_t end,
 
 	rv = NULL;
 
-	DPRINTF(("rman_reserve_resource_bound: <%s> request: [%#jx, %#jx], "
+	DPRINTF("rman_reserve_resource_bound: <%s> request: [%#jx, %#jx], "
 	       "length %#jx, flags %x, device %s\n", rm->rm_descr, start, end,
 	       count, flags,
-	       dev == NULL ? "<null>" : device_get_nameunit(dev)));
+	       dev == NULL ? "<null>" : device_get_nameunit(dev));
 	KASSERT(count != 0, ("%s: attempted to allocate an empty range",
 	    __func__));
 	KASSERT((flags & RF_FIRSTSHARE) == 0,
@@ -453,21 +453,21 @@ rman_reserve_resource_bound(struct rman *rm, rman_res_t start, rman_res_t end,
 
 	r = TAILQ_FIRST(&rm->rm_list);
 	if (r == NULL) {
-	    DPRINTF(("NULL list head\n"));
+	    DPRINTF("NULL list head\n");
 	} else {
-	    DPRINTF(("rman_reserve_resource_bound: trying %#jx <%#jx,%#jx>\n",
-		    r->r_end, start, count-1));
+	    DPRINTF("rman_reserve_resource_bound: trying %#jx <%#jx,%#jx>\n",
+		    r->r_end, start, count-1);
 	}
 	for (r = TAILQ_FIRST(&rm->rm_list);
 	     r && r->r_end < start + count - 1;
 	     r = TAILQ_NEXT(r, r_link)) {
 		;
-		DPRINTF(("rman_reserve_resource_bound: tried %#jx <%#jx,%#jx>\n",
-			r->r_end, start, count-1));
+		DPRINTF("rman_reserve_resource_bound: tried %#jx <%#jx,%#jx>\n",
+			r->r_end, start, count-1);
 	}
 
 	if (r == NULL) {
-		DPRINTF(("could not find a region\n"));
+		DPRINTF("could not find a region\n");
 		goto out;
 	}
 
@@ -481,23 +481,23 @@ rman_reserve_resource_bound(struct rman *rm, rman_res_t start, rman_res_t end,
 	 * First try to find an acceptable totally-unshared region.
 	 */
 	for (s = r; s; s = TAILQ_NEXT(s, r_link)) {
-		DPRINTF(("considering [%#jx, %#jx]\n", s->r_start, s->r_end));
+		DPRINTF("considering [%#jx, %#jx]\n", s->r_start, s->r_end);
 		/*
 		 * The resource list is sorted, so there is no point in
 		 * searching further once r_start is too large.
 		 */
 		if (s->r_start > end - (count - 1)) {
-			DPRINTF(("s->r_start (%#jx) + count - 1> end (%#jx)\n",
-			    s->r_start, end));
+			DPRINTF("s->r_start (%#jx) + count - 1> end (%#jx)\n",
+			    s->r_start, end);
 			break;
 		}
 		if (s->r_start > RM_MAX_END - amask) {
-			DPRINTF(("s->r_start (%#jx) + amask (%#jx) too large\n",
-			    s->r_start, amask));
+			DPRINTF("s->r_start (%#jx) + amask (%#jx) too large\n",
+			    s->r_start, amask);
 			break;
 		}
 		if (s->r_flags & RF_ALLOCATED) {
-			DPRINTF(("region is allocated\n"));
+			DPRINTF("region is allocated\n");
 			continue;
 		}
 		rstart = ummax(s->r_start, start);
@@ -514,17 +514,17 @@ rman_reserve_resource_bound(struct rman *rm, rman_res_t start, rman_res_t end,
 		    rstart < s->r_end);
 		rend = ummin(s->r_end, ummax(rstart + count - 1, end));
 		if (rstart > rend) {
-			DPRINTF(("adjusted start exceeds end\n"));
+			DPRINTF("adjusted start exceeds end\n");
 			continue;
 		}
-		DPRINTF(("truncated region: [%#jx, %#jx]; size %#jx (requested %#jx)\n",
-		       rstart, rend, (rend - rstart + 1), count));
+		DPRINTF("truncated region: [%#jx, %#jx]; size %#jx (requested %#jx)\n",
+		       rstart, rend, (rend - rstart + 1), count);
 
 		if ((rend - rstart) >= (count - 1)) {
-			DPRINTF(("candidate region: [%#jx, %#jx], size %#jx\n",
-			       rstart, rend, (rend - rstart + 1)));
+			DPRINTF("candidate region: [%#jx, %#jx], size %#jx\n",
+			       rstart, rend, (rend - rstart + 1));
 			if ((s->r_end - s->r_start + 1) == count) {
-				DPRINTF(("candidate region is entire chunk\n"));
+				DPRINTF("candidate region is entire chunk\n");
 				rv = s;
 				rv->r_flags = new_rflags;
 				rv->r_dev = dev;
@@ -551,11 +551,11 @@ rman_reserve_resource_bound(struct rman *rm, rman_res_t start, rman_res_t end,
 			rv->r_rm = rm;
 
 			if (s->r_start < rv->r_start && s->r_end > rv->r_end) {
-				DPRINTF(("splitting region in three parts: "
+				DPRINTF("splitting region in three parts: "
 				       "[%#jx, %#jx]; [%#jx, %#jx]; [%#jx, %#jx]\n",
 				       s->r_start, rv->r_start - 1,
 				       rv->r_start, rv->r_end,
-				       rv->r_end + 1, s->r_end));
+				       rv->r_end + 1, s->r_end);
 				/*
 				 * We are allocating in the middle.
 				 */
@@ -575,14 +575,14 @@ rman_reserve_resource_bound(struct rman *rm, rman_res_t start, rman_res_t end,
 				TAILQ_INSERT_AFTER(&rm->rm_list, rv, r,
 						     r_link);
 			} else if (s->r_start == rv->r_start) {
-				DPRINTF(("allocating from the beginning\n"));
+				DPRINTF("allocating from the beginning\n");
 				/*
 				 * We are allocating at the beginning.
 				 */
 				s->r_start = rv->r_end + 1;
 				TAILQ_INSERT_BEFORE(s, rv, r_link);
 			} else {
-				DPRINTF(("allocating at the end\n"));
+				DPRINTF("allocating at the end\n");
 				/*
 				 * We are allocating at the end.
 				 */
@@ -602,7 +602,7 @@ rman_reserve_resource_bound(struct rman *rm, rman_res_t start, rman_res_t end,
 	 * former restriction could probably be lifted without too much
 	 * additional work, but this does not seem warranted.)
 	 */
-	DPRINTF(("no unshared regions found\n"));
+	DPRINTF("no unshared regions found\n");
 	if ((flags & RF_SHAREABLE) == 0)
 		goto out;
 
