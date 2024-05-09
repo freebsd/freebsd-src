@@ -1519,7 +1519,7 @@ pfl_scan_ruleset(const char *path)
 	struct pfl_entry *e;
 	u_int32_t nr, i;
 
-	if (pfctl_get_rules_info(pfctl_fd(pfh), &rules, PF_PASS, path)) {
+	if (pfctl_get_rules_info_h(pfh, &rules, PF_PASS, path)) {
 		syslog(LOG_ERR, "pfl_scan_ruleset: ioctl(DIOCGETRULES): %s",
 		    strerror(errno));
 		goto err;

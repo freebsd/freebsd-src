@@ -412,6 +412,9 @@ int	pfctl_get_eth_rule(int dev, uint32_t nr, uint32_t ticket,
 	    char *anchor_call);
 int	pfctl_add_eth_rule(int dev, const struct pfctl_eth_rule *r,
 	    const char *anchor, const char *anchor_call, uint32_t ticket);
+int	pfctl_get_rules_info_h(struct pfctl_handle *h,
+	    struct pfctl_rules_info *rules, uint32_t ruleset,
+	    const char *path);
 int	pfctl_get_rules_info(int dev, struct pfctl_rules_info *rules,
 	    uint32_t ruleset, const char *path);
 int	pfctl_get_rule(int dev, uint32_t nr, uint32_t ticket,

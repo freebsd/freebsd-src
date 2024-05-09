@@ -75,6 +75,7 @@ struct pfr_buffer;	/* forward definition */
 
 struct pfctl {
 	int dev;
+	struct pfctl_handle *h;
 	int opts;
 	int optimize;
 	int loadopt;
