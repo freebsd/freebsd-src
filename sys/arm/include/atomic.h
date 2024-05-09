@@ -1052,6 +1052,12 @@ atomic_thread_fence_seq_cst(void)
 	dmb();
 }
 
+#define atomic_add_ptr			atomic_add_32
+#define atomic_add_acq_ptr		atomic_add_acq_32
+#define atomic_add_rel_ptr		atomic_add_rel_32
+#define atomic_subtract_ptr		atomic_subtract_32
+#define atomic_subtract_acq_ptr		atomic_subtract_acq_32
+#define atomic_subtract_rel_ptr		atomic_subtract_rel_32
 #define atomic_clear_ptr		atomic_clear_32
 #define atomic_clear_acq_ptr		atomic_clear_acq_32
 #define atomic_clear_rel_ptr		atomic_clear_rel_32
@@ -1059,15 +1065,16 @@ atomic_thread_fence_seq_cst(void)
 #define atomic_set_acq_ptr		atomic_set_acq_32
 #define atomic_set_rel_ptr		atomic_set_rel_32
 #define atomic_fcmpset_ptr		atomic_fcmpset_32
-#define atomic_fcmpset_rel_ptr		atomic_fcmpset_rel_32
 #define atomic_fcmpset_acq_ptr		atomic_fcmpset_acq_32
+#define atomic_fcmpset_rel_ptr		atomic_fcmpset_rel_32
 #define atomic_cmpset_ptr		atomic_cmpset_32
 #define atomic_cmpset_acq_ptr		atomic_cmpset_acq_32
 #define atomic_cmpset_rel_ptr		atomic_cmpset_rel_32
+#define atomic_fetchadd_ptr		atomic_fetchadd_32
+#define atomic_readandclear_ptr		atomic_readandclear_32
 #define atomic_load_acq_ptr		atomic_load_acq_32
 #define atomic_store_rel_ptr		atomic_store_rel_32
 #define atomic_swap_ptr			atomic_swap_32
-#define atomic_readandclear_ptr		atomic_readandclear_32
 
 #define atomic_add_int			atomic_add_32
 #define atomic_add_acq_int		atomic_add_acq_32
