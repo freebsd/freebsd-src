@@ -297,6 +297,7 @@ MAN=	aac.4 \
 	mac_biba.4 \
 	mac_bsdextended.4 \
 	mac_ddb.4 \
+	mac_do.4 \
 	mac_ifoff.4 \
 	mac_ipacl.4 \
 	mac_lomac.4 \
