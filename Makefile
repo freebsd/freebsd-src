@@ -96,7 +96,7 @@
 #
 # Once you have installed the necessary cross toolchain, simply pass
 # CROSS_TOOLCHAIN=${TARGET_ARCH}-gccN while building with the above steps,
-# e.g., `make buildworld CROSS_TOOLCHAIN=amd64-gcc6`.
+# e.g., `make buildworld CROSS_TOOLCHAIN=amd64-gcc13`.
 #
 # The ${TARGET_ARCH}-gccN packages are provided as flavors of the
 # devel/freebsd-gccN ports.
