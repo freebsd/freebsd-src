@@ -2224,9 +2224,9 @@ dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai)
 			ai->mixer_dev = (d->mixer_dev != NULL) ? unit : -1;
 			/**
 			 * @note
-			 * @c real_device - OSSv4 docs:  "Obsolete."
+			 * @c legacy_device - OSSv4 docs:  "Obsolete."
 			 */
-			ai->real_device = -1;
+			ai->legacy_device = -1;
 			snprintf(ai->devnode, sizeof(ai->devnode), "/dev/dsp%d", unit);
 			ai->enabled = device_is_attached(d->dev) ? 1 : 0;
 			/**
