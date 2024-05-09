@@ -1878,7 +1878,7 @@ typedef struct oss_audioinfo
 	int	card_number;
 	int	port_number;
 	int	mixer_dev;
-	int	real_device;	/* Obsolete field. Replaced by devnode */
+	int	legacy_device;	/* Obsolete field. Replaced by devnode */
 	int	enabled;	/* 1=enabled, 0=device not ready at this
 				   moment */
 	int	flags;		/* For internal use only - no practical
