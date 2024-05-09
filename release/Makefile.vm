@@ -223,14 +223,16 @@ vm-install:
 		${DESTDIR}/vmimages/CHECKSUM.SHA256
 .endif
 
-vm-release:
 .if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
-	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${VMTARGETS}
+vm-release:	${VMTARGETS}
+.else
+vm-release:
 .endif
 
-cloudware-release:
 .if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
-	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${CLOUDTARGETS}
+cloudware-release:	${CLOUDTARGETS}
+.else
+cloudware-release:
 .endif
 
 .include "${.CURDIR}/Makefile.azure"
