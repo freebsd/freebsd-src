@@ -179,7 +179,7 @@ class WriteCluster: public WriteBack {
 public:
 virtual void SetUp() {
 	m_async = true;
-	m_maxwrite = 1 << 25;	// Anything larger than MAXPHYS will suffice
+	m_maxwrite = UINT32_MAX; // Anything larger than MAXPHYS will suffice
 	WriteBack::SetUp();
 	if (m_maxphys < 2 * DFLTPHYS)
 		GTEST_SKIP() << "MAXPHYS must be at least twice DFLTPHYS"
