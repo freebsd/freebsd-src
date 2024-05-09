@@ -19,7 +19,7 @@ bhnd_nvram_map_data.h		optional bhnd				   \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"bhnd_nvram_map_data.h"
 fdt_static_dtb.h		optional fdt fdt_dtb_static \
-	compile-with "sh -c 'MACHINE=${MACHINE} $S/tools/fdt/make_dtbh.sh ${FDT_DTS_FILE} ${.CURDIR}'" \
+	compile-with "sh -c 'MACHINE=${MACHINE} $S/tools/fdt/make_dtbh.sh ${FDT_DTS_FILE} ${.OBJDIR}'" \
 	dependency	"${FDT_DTS_FILE:T:R}.dtb" \
 	no-obj no-implicit-rule before-depend \
 	clean		"fdt_static_dtb.h"
