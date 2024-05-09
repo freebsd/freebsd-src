@@ -4,6 +4,6 @@
 
 KMOD= qat_dh895xcc_fw
 
-FIRMWS= ${SRCTOP}/sys/contrib/dev/qat/qat_895xcc.bin:qat_dh895xcc_fw:111 ${SRCTOP}/sys/contrib/dev/qat/qat_895xcc_mmp.bin:qat_dh895xcc_mmp_fw:111
+FIRMWS= qat_895xcc.bin:qat_dh895xcc_fw:111 qat_895xcc_mmp.bin:qat_dh895xcc_mmp_fw:111
 
 .include <bsd.kmod.mk>
