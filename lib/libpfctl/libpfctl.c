@@ -1336,22 +1336,20 @@ static struct snl_field_parser fp_getrules[] = {
 SNL_DECLARE_PARSER(getrules_parser, struct genlmsghdr, fp_getrules, ap_getrules);
 
 int
-pfctl_get_rules_info(int dev __unused, struct pfctl_rules_info *rules, uint32_t ruleset,
+pfctl_get_rules_info_h(struct pfctl_handle *h, struct pfctl_rules_info *rules, uint32_t ruleset,
     const char *path)
 {
-	struct snl_state ss = {};
 	struct snl_errmsg_data e = {};
 	struct nlmsghdr *hdr;
 	struct snl_writer nw;
 	uint32_t seq_id;
 	int family_id;
 
-	snl_init(&ss, NETLINK_GENERIC);
-	family_id = snl_get_genl_family(&ss, PFNL_FAMILY_NAME);
+	family_id = snl_get_genl_family(&h->ss, PFNL_FAMILY_NAME);
 	if (family_id == 0)
 		return (ENOTSUP);
 
-	snl_init_writer(&ss, &nw);
+	snl_init_writer(&h->ss, &nw);
 	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_GETRULES);
 	hdr->nlmsg_flags |= NLM_F_DUMP;
 
@@ -1363,15 +1361,31 @@ pfctl_get_rules_info(int dev __unused, struct pfctl_rules_info *rules, uint32_t 
 		return (ENOMEM);
 
 	seq_id = hdr->nlmsg_seq;
-	if (! snl_send_message(&ss, hdr))
+	if (! snl_send_message(&h->ss, hdr))
 		return (ENXIO);
 
-	while ((hdr = snl_read_reply_multi(&ss, seq_id, &e)) != NULL) {
-		if (! snl_parse_nlmsg(&ss, hdr, &getrules_parser, rules))
+	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
+		if (! snl_parse_nlmsg(&h->ss, hdr, &getrules_parser, rules))
 			continue;
 	}
 
 	return (e.error);
+}
+
+int
+pfctl_get_rules_info(int dev __unused, struct pfctl_rules_info *rules, uint32_t ruleset,
+    const char *path)
+{
+	struct pfctl_handle *h;
+	int error;
+
+	h = pfctl_open(PF_DEVICE);
+	if (h == NULL)
+		return (ENOTSUP);
+	error = pfctl_get_rules_info_h(h, rules, ruleset, path);
+	pfctl_close(h);
+
+	return (error);
 }
 
 int

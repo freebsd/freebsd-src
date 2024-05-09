@@ -889,7 +889,7 @@ load_feedback_profile(struct pfctl *pf, struct superblocks *superblocks)
 	TAILQ_INIT(&queue);
 	TAILQ_INIT(&prof_superblocks);
 
-	if (pfctl_get_rules_info(pf->dev, &rules, PF_PASS, "")) {
+	if (pfctl_get_rules_info_h(pf->h, &rules, PF_PASS, "")) {
 		warn("DIOCGETRULES");
 		return (1);
 	}

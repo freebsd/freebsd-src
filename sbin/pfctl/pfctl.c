@@ -1283,14 +1283,14 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 	}
 
 	if (opts & PF_OPT_SHOWALL) {
-		ret = pfctl_get_rules_info(dev, &ri, PF_PASS, path);
+		ret = pfctl_get_rules_info_h(pfh, &ri, PF_PASS, path);
 		if (ret != 0) {
 			warn("DIOCGETRULES");
 			goto error;
 		}
 		header++;
 	}
-	ret = pfctl_get_rules_info(dev, &ri, PF_SCRUB, path);
+	ret = pfctl_get_rules_info_h(pfh, &ri, PF_SCRUB, path);
 	if (ret != 0) {
 		warn("DIOCGETRULES");
 		goto error;
@@ -1328,7 +1328,7 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 		}
 		pfctl_clear_pool(&rule.rpool);
 	}
-	ret = pfctl_get_rules_info(dev, &ri, PF_PASS, path);
+	ret = pfctl_get_rules_info_h(pfh, &ri, PF_PASS, path);
 	if (ret != 0) {
 		warn("DIOCGETRULES");
 		goto error;
@@ -1435,7 +1435,7 @@ pfctl_show_nat(int dev, char *path, int opts, char *anchorname, int depth)
 		snprintf(&path[len], MAXPATHLEN - len, "%s", anchorname);
 
 	for (i = 0; i < 3; i++) {
-		ret = pfctl_get_rules_info(dev, &ri, nattype[i], path);
+		ret = pfctl_get_rules_info_h(pfh, &ri, nattype[i], path);
 		if (ret != 0) {
 			warn("DIOCGETRULES");
 			return (-1);
@@ -2130,6 +2130,7 @@ pfctl_rules(int dev, char *filename, int opts, int optimize,
 	    sizeof(trs.pfrt_anchor)) >= sizeof(trs.pfrt_anchor))
 		ERRX("pfctl_rules: strlcpy");
 	pf.dev = dev;
+	pf.h = pfh;
 	pf.opts = opts;
 	pf.optimize = optimize;
 	pf.loadopt = loadopt;
