@@ -148,9 +148,6 @@ int	rman_release_resource(struct resource *r);
 struct resource *rman_reserve_resource(struct rman *rm, rman_res_t start,
 					rman_res_t end, rman_res_t count,
 					u_int flags, device_t dev);
-struct resource *rman_reserve_resource_bound(struct rman *rm, rman_res_t start,
-					rman_res_t end, rman_res_t count, rman_res_t bound,
-					u_int flags, device_t dev);
 void	rman_set_bushandle(struct resource *_r, bus_space_handle_t _h);
 void	rman_set_bustag(struct resource *_r, bus_space_tag_t _t);
 void	rman_set_device(struct resource *_r, device_t _dev);
