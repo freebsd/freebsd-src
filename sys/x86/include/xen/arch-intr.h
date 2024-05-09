@@ -67,7 +67,7 @@ xen_arch_intr_add_handler(const char *name, driver_filter_t filter,
     struct xenisrc *isrc, void **cookiep)
 {
 
-	return (intr_add_handler(name, isrc->xi_arch.vector, filter, handler,
+	return (intr_add_handler(&isrc->xi_arch.intsrc, name, filter, handler,
 	    arg, flags, cookiep, 0));
 }
 
@@ -75,7 +75,7 @@ static inline int
 xen_arch_intr_describe(struct xenisrc *isrc, void *cookie, const char *descr)
 {
 
-	return (intr_describe(isrc->xi_arch.vector, cookie, descr));
+	return (intr_describe(&isrc->xi_arch.intsrc, cookie, descr));
 }
 
 static inline int
