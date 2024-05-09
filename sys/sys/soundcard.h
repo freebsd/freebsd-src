@@ -1925,7 +1925,9 @@ typedef struct oss_mixerinfo
    * as the default mixer.
    */
   int priority;
-  int filler[254];		/* Reserved */
+  oss_devnode_t devnode;
+  int legacy_device;
+  int filler[245];		/* Reserved */
 } oss_mixerinfo;
 
 typedef struct oss_midi_info

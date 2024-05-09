@@ -1516,6 +1516,7 @@ mixer_oss_mixerinfo(struct cdev *i_dev, oss_mixerinfo *mi)
 			 * Mixer extensions currently aren't supported, so
 			 * leave @sa oss_mixerinfo::nrext blank for now.
 			 */
+
 			/**
 			 * @todo Fill in @sa oss_mixerinfo::priority (requires
 			 *       touching drivers?)
@@ -1529,13 +1530,11 @@ mixer_oss_mixerinfo(struct cdev *i_dev, oss_mixerinfo *mi)
 			 * default mixer. Other devices use values 1 to 9
 			 * depending on the estimated probability of being the
 			 * default device.
-			 *
-			 * XXX Described by Hannu@4Front, but not found in
-			 *     soundcard.h.
-			strlcpy(mi->devnode, devtoname(d->mixer_dev),
-			sizeof(mi->devnode));
-			mi->legacy_device = i;
 			 */
+
+			snprintf(mi->devnode, sizeof(mi->devnode), "/dev/mixer%d", i);
+			mi->legacy_device = i;
+
 			mtx_unlock(m->lock);
 		}
 
