@@ -4,6 +4,6 @@
 
 KMOD= qat_c3xxx_fw
 
-FIRMWS= ${SRCTOP}/sys/contrib/dev/qat/qat_c3xxx.bin:qat_c3xxx_fw:111 ${SRCTOP}/sys/contrib/dev/qat/qat_c3xxx_mmp.bin:qat_c3xxx_mmp_fw:111
+FIRMWS= qat_c3xxx.bin:qat_c3xxx_fw:111 qat_c3xxx_mmp.bin:qat_c3xxx_mmp_fw:111
 
 .include <bsd.kmod.mk>
