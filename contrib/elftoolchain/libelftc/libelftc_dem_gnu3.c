@@ -2138,7 +2138,7 @@ cpp_demangle_read_sname(struct cpp_demangle_data *ddata)
 	assert(ddata->cur_output->size > 0);
 	if (vector_read_cmd_find(&ddata->cmd, READ_TMPL) == NULL)
 		ddata->last_sname =
-		    ddata->cur_output->container[ddata->output.size - 1];
+		    ddata->cur_output->container[ddata->cur_output->size - 1];
 
 	ddata->cur += len;
 
