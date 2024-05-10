@@ -25,7 +25,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #define RP_NONE		0
 #define	RP_RECVFROM	-1
 #define	RP_TOOSMALL	-2
