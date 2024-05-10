@@ -263,8 +263,8 @@ struct sctp_base_info {
  * access /dev/random.
  */
 struct sctp_pcb {
-	unsigned int time_of_secret_change;	/* number of seconds from
-						 * timeval.tv_sec */
+	time_t time_of_secret_change;	/* number of seconds from
+					 * timeval.tv_sec */
 	uint32_t secret_key[SCTP_HOW_MANY_SECRETS][SCTP_NUMBER_OF_SECRETS];
 	unsigned int size_of_a_cookie;
 
