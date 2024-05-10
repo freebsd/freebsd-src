@@ -131,7 +131,7 @@ target on multiple SCSI IDs.
 .Pp
 To allow PCI adapters to use memory mapped I/O if enabled:
 .Pp
-.Cd options AHC_ALLOW_MEMIO
+.Cd options AHC_ALLOW_MEMIO=(0 -- disabled, 1 -- enabled)
 .Bd -ragged -offset indent
 Memory mapped I/O is more efficient than the alternative, programmed I/O.
 Most PCI BIOSes will map devices so that either technique for communicating
@@ -141,12 +141,13 @@ the chip for memory mapped I/O. The typical symptom of this problem is a
 system hang if memory mapped I/O is attempted.
 .Pp
 Most modern motherboards perform the initialization correctly and work fine
-with this option enabled.
+with this option enabled and it is the default. This option can also be
+dynamically configued through a device hint documented below.
 .Ed
 .Pp
 To statically configure one or more controllers to assume the target role:
 .Pp
-.Cd options AHC_TMODE_ENABLE <bitmask of units>
+.Cd options AHC_TMODE_ENABLE=<bitmask of units>
 .Bd -ragged -offset indent
 The value assigned to this option should be a bitmap of all units where target
 mode is desired. For example, a value of 0x25, would enable target mode on
@@ -163,7 +164,11 @@ The following options are switchable by setting values in
 They are:
 .Bl -tag -width indent
 .It Va hint.ahc. Ns Ar N Ns Va .tmode_enable
-A hint to define whether the SCSI target mode is enabled (0 -- disabled, 1 -- enabled).
+A hint to define whether the SCSI target mode is enabled, defaults to disabled
+(0 -- disabled, 1 -- enabled).
+.It Va hint.ahc. Ns Ar N Ns Va .allow_memio
+A hint to define whether memory mapped io is enabled or disabled for this
+adapter, defaults to enabled (0 -- disabled, 1 -- enabled).
 .El
 .Ed
 .Sh HARDWARE
