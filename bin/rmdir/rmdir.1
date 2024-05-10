@@ -74,14 +74,14 @@ The
 .Nm
 utility exits with one of the following values:
 .Bl -tag -width indent
-.It Li 0
-Each directory entry specified by a
+.It Er 0
+Each
 .Ar directory
-operand
-referred to an empty directory and was removed
-successfully.
-.It Li >0
-An error occurred.
+referred to an empty directory and was removed successfully.
+.It Er 1
+An error occurred while attempting to remove one or more directories.
+.It Er 2
+Invalid arguments.
 .El
 .Sh EXAMPLES
 Remove the directory
@@ -97,6 +97,7 @@ stopping at the first non-empty directory (if any):
 .Dl $ rmdir -p cow/horse/monkey
 .Sh SEE ALSO
 .Xr rm 1
+.Xr rmdir 2
 .Sh STANDARDS
 The
 .Nm
