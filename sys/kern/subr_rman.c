@@ -787,28 +787,28 @@ rman_make_alignment_flags(uint32_t size)
 }
 
 rman_res_t
-rman_get_start(struct resource *r)
+rman_get_start(const struct resource *r)
 {
 
 	return (r->__r_i->r_start);
 }
 
 rman_res_t
-rman_get_end(struct resource *r)
+rman_get_end(const struct resource *r)
 {
 
 	return (r->__r_i->r_end);
 }
 
 rman_res_t
-rman_get_size(struct resource *r)
+rman_get_size(const struct resource *r)
 {
 
 	return (r->__r_i->r_end - r->__r_i->r_start + 1);
 }
 
 u_int
-rman_get_flags(struct resource *r)
+rman_get_flags(const struct resource *r)
 {
 
 	return (r->__r_i->r_flags);
@@ -822,7 +822,7 @@ rman_set_virtual(struct resource *r, void *v)
 }
 
 void *
-rman_get_virtual(struct resource *r)
+rman_get_virtual(const struct resource *r)
 {
 
 	return (r->__r_i->r_virtual);
@@ -836,7 +836,7 @@ rman_set_irq_cookie(struct resource *r, void *c)
 }
 
 void *
-rman_get_irq_cookie(struct resource *r)
+rman_get_irq_cookie(const struct resource *r)
 {
 
 	return (r->__r_i->r_irq_cookie);
@@ -850,7 +850,7 @@ rman_set_bustag(struct resource *r, bus_space_tag_t t)
 }
 
 bus_space_tag_t
-rman_get_bustag(struct resource *r)
+rman_get_bustag(const struct resource *r)
 {
 
 	return (r->r_bustag);
@@ -864,7 +864,7 @@ rman_set_bushandle(struct resource *r, bus_space_handle_t h)
 }
 
 bus_space_handle_t
-rman_get_bushandle(struct resource *r)
+rman_get_bushandle(const struct resource *r)
 {
 
 	return (r->r_bushandle);
@@ -882,7 +882,7 @@ rman_set_mapping(struct resource *r, struct resource_map *map)
 }
 
 void
-rman_get_mapping(struct resource *r, struct resource_map *map)
+rman_get_mapping(const struct resource *r, struct resource_map *map)
 {
 
 	map->r_bustag = rman_get_bustag(r);
@@ -899,7 +899,7 @@ rman_set_rid(struct resource *r, int rid)
 }
 
 int
-rman_get_rid(struct resource *r)
+rman_get_rid(const struct resource *r)
 {
 
 	return (r->__r_i->r_rid);
@@ -912,7 +912,7 @@ rman_set_type(struct resource *r, int type)
 }
 
 int
-rman_get_type(struct resource *r)
+rman_get_type(const struct resource *r)
 {
 	return (r->__r_i->r_type);
 }
@@ -925,14 +925,14 @@ rman_set_device(struct resource *r, device_t dev)
 }
 
 device_t
-rman_get_device(struct resource *r)
+rman_get_device(const struct resource *r)
 {
 
 	return (r->__r_i->r_dev);
 }
 
 int
-rman_is_region_manager(struct resource *r, struct rman *rm)
+rman_is_region_manager(const struct resource *r, const struct rman *rm)
 {
 
 	return (r->__r_i->r_rm == rm);
