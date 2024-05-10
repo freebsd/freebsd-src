@@ -4,21 +4,21 @@ AC_PREREQ([2.56])
 sinclude(acx_nlnetlabs.m4)
 sinclude(ax_pthread.m4)
 sinclude(acx_python.m4)
-sinclude(ac_pkg_swig.m4)
+sinclude(ax_pkg_swig.m4)
 sinclude(dnstap/dnstap.m4)
 sinclude(dnscrypt/dnscrypt.m4)
 
 # must be numbers. ac_defun because of later processing
 m4_define([VERSION_MAJOR],[1])
-m4_define([VERSION_MINOR],[19])
-m4_define([VERSION_MICRO],[3])
+m4_define([VERSION_MINOR],[20])
+m4_define([VERSION_MICRO],[0])
 AC_INIT([unbound],m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]),[unbound-bugs@nlnetlabs.nl or https://github.com/NLnetLabs/unbound/issues],[unbound])
 AC_SUBST(UNBOUND_VERSION_MAJOR, [VERSION_MAJOR])
 AC_SUBST(UNBOUND_VERSION_MINOR, [VERSION_MINOR])
 AC_SUBST(UNBOUND_VERSION_MICRO, [VERSION_MICRO])
 
 LIBUNBOUND_CURRENT=9
-LIBUNBOUND_REVISION=26
+LIBUNBOUND_REVISION=27
 LIBUNBOUND_AGE=1
 # 1.0.0 had 0:12:0
 # 1.0.1 had 0:13:0
@@ -112,6 +112,7 @@ LIBUNBOUND_AGE=1
 # 1.19.1 had 9:24:1
 # 1.19.2 had 9:25:1
 # 1.19.3 had 9:26:1
+# 1.20.0 had 9:27:1
 
 #   Current  -- the number of the binary API that we're implementing
 #   Revision -- which iteration of the implementation of the binary
@@ -272,6 +273,9 @@ AC_DEFINE_UNQUOTED(UB_USERNAME, ["$UNBOUND_USERNAME"], [default username])
 AC_DEFINE(WINVER, 0x0502, [the version of the windows API enabled])
 ACX_RSRC_VERSION(wnvs)
 AC_DEFINE_UNQUOTED(RSRC_PACKAGE_VERSION, [$wnvs], [version number for resource files])
+
+# Check for 'grep -e' program, here, since ACX_CHECK_FLTO needs that.
+AC_PROG_GREP
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -795,9 +799,9 @@ if test x_$ub_test_python != x_no; then
       ub_have_swig=no
       AC_ARG_ENABLE(swig-version-check, AS_HELP_STRING([--disable-swig-version-check],[Disable swig version check to build python modules with older swig even though that is unreliable]))
       if test "$enable_swig_version_check" = "yes"; then
-      	AC_PROG_SWIG(2.0.1)
+      	AX_PKG_SWIG(2.0.1)
       else
-      	AC_PROG_SWIG
+      	AX_PKG_SWIG
       fi
       AC_MSG_CHECKING(SWIG)
       if test ! -x "$SWIG"; then

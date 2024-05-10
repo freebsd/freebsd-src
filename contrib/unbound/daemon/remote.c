@@ -1992,12 +1992,19 @@ static int
 print_root_fwds(RES* ssl, struct iter_forwards* fwds, uint8_t* root)
 {
 	struct delegpt* dp;
-	dp = forwards_lookup(fwds, root, LDNS_RR_CLASS_IN);
-	if(!dp)
+	int nolock = 0;
+	dp = forwards_lookup(fwds, root, LDNS_RR_CLASS_IN, nolock);
+	if(!dp) {
 		return ssl_printf(ssl, "off (using root hints)\n");
+	}
 	/* if dp is returned it must be the root */
 	log_assert(query_dname_compare(dp->name, root)==0);
-	return ssl_print_name_dp(ssl, NULL, root, LDNS_RR_CLASS_IN, dp);
+	if(!ssl_print_name_dp(ssl, NULL, root, LDNS_RR_CLASS_IN, dp)) {
+		lock_rw_unlock(&fwds->lock);
+		return 0;
+	}
+	lock_rw_unlock(&fwds->lock);
+	return 1;
 }
 
 /** parse args into delegpt */
@@ -2069,6 +2076,7 @@ do_forward(RES* ssl, struct worker* worker, char* args)
 {
 	struct iter_forwards* fwd = worker->env.fwds;
 	uint8_t* root = (uint8_t*)"\000";
+	int nolock = 0;
 	if(!fwd) {
 		(void)ssl_printf(ssl, "error: structure not allocated\n");
 		return;
@@ -2082,12 +2090,12 @@ do_forward(RES* ssl, struct worker* worker, char* args)
 	/* delete all the existing queries first */
 	mesh_delete_all(worker->env.mesh);
 	if(strcmp(args, "off") == 0) {
-		forwards_delete_zone(fwd, LDNS_RR_CLASS_IN, root);
+		forwards_delete_zone(fwd, LDNS_RR_CLASS_IN, root, nolock);
 	} else {
 		struct delegpt* dp;
 		if(!(dp = parse_delegpt(ssl, args, root)))
 			return;
-		if(!forwards_add_zone(fwd, LDNS_RR_CLASS_IN, dp)) {
+		if(!forwards_add_zone(fwd, LDNS_RR_CLASS_IN, dp, nolock)) {
 			(void)ssl_printf(ssl, "error out of memory\n");
 			return;
 		}
@@ -2097,7 +2105,7 @@ do_forward(RES* ssl, struct worker* worker, char* args)
 
 static int
 parse_fs_args(RES* ssl, char* args, uint8_t** nm, struct delegpt** dp,
-	int* insecure, int* prime)
+	int* insecure, int* prime, int* tls)
 {
 	char* zonename;
 	char* rest;
@@ -2112,6 +2120,8 @@ parse_fs_args(RES* ssl, char* args, uint8_t** nm, struct delegpt** dp,
 				*insecure = 1;
 			else if(*args == 'p' && prime)
 				*prime = 1;
+			else if(*args == 't' && tls)
+				*tls = 1;
 			else {
 				(void)ssl_printf(ssl, "error: unknown option %s\n", args);
 				return 0;
@@ -2144,25 +2154,33 @@ static void
 do_forward_add(RES* ssl, struct worker* worker, char* args)
 {
 	struct iter_forwards* fwd = worker->env.fwds;
-	int insecure = 0;
+	int insecure = 0, tls = 0;
 	uint8_t* nm = NULL;
 	struct delegpt* dp = NULL;
-	if(!parse_fs_args(ssl, args, &nm, &dp, &insecure, NULL))
+	int nolock = 1;
+	if(!parse_fs_args(ssl, args, &nm, &dp, &insecure, NULL, &tls))
 		return;
+	if(tls)
+		dp->ssl_upstream = 1;
+	/* prelock forwarders for atomic operation with anchors */
+	lock_rw_wrlock(&fwd->lock);
 	if(insecure && worker->env.anchors) {
 		if(!anchors_add_insecure(worker->env.anchors, LDNS_RR_CLASS_IN,
 			nm)) {
+			lock_rw_unlock(&fwd->lock);
 			(void)ssl_printf(ssl, "error out of memory\n");
 			delegpt_free_mlc(dp);
 			free(nm);
 			return;
 		}
 	}
-	if(!forwards_add_zone(fwd, LDNS_RR_CLASS_IN, dp)) {
+	if(!forwards_add_zone(fwd, LDNS_RR_CLASS_IN, dp, nolock)) {
+		lock_rw_unlock(&fwd->lock);
 		(void)ssl_printf(ssl, "error out of memory\n");
 		free(nm);
 		return;
 	}
+	lock_rw_unlock(&fwd->lock);
 	free(nm);
 	send_ok(ssl);
 }
@@ -2174,12 +2192,16 @@ do_forward_remove(RES* ssl, struct worker* worker, char* args)
 	struct iter_forwards* fwd = worker->env.fwds;
 	int insecure = 0;
 	uint8_t* nm = NULL;
-	if(!parse_fs_args(ssl, args, &nm, NULL, &insecure, NULL))
+	int nolock = 1;
+	if(!parse_fs_args(ssl, args, &nm, NULL, &insecure, NULL, NULL))
 		return;
+	/* prelock forwarders for atomic operation with anchors */
+	lock_rw_wrlock(&fwd->lock);
 	if(insecure && worker->env.anchors)
 		anchors_delete_insecure(worker->env.anchors, LDNS_RR_CLASS_IN,
 			nm);
-	forwards_delete_zone(fwd, LDNS_RR_CLASS_IN, nm);
+	forwards_delete_zone(fwd, LDNS_RR_CLASS_IN, nm, nolock);
+	lock_rw_unlock(&fwd->lock);
 	free(nm);
 	send_ok(ssl);
 }
@@ -2189,38 +2211,53 @@ static void
 do_stub_add(RES* ssl, struct worker* worker, char* args)
 {
 	struct iter_forwards* fwd = worker->env.fwds;
-	int insecure = 0, prime = 0;
+	int insecure = 0, prime = 0, tls = 0;
 	uint8_t* nm = NULL;
 	struct delegpt* dp = NULL;
-	if(!parse_fs_args(ssl, args, &nm, &dp, &insecure, &prime))
+	int nolock = 1;
+	if(!parse_fs_args(ssl, args, &nm, &dp, &insecure, &prime, &tls))
 		return;
+	if(tls)
+		dp->ssl_upstream = 1;
+	/* prelock forwarders and hints for atomic operation with anchors */
+	lock_rw_wrlock(&fwd->lock);
+	lock_rw_wrlock(&worker->env.hints->lock);
 	if(insecure && worker->env.anchors) {
 		if(!anchors_add_insecure(worker->env.anchors, LDNS_RR_CLASS_IN,
 			nm)) {
+			lock_rw_unlock(&fwd->lock);
+			lock_rw_unlock(&worker->env.hints->lock);
 			(void)ssl_printf(ssl, "error out of memory\n");
 			delegpt_free_mlc(dp);
 			free(nm);
 			return;
 		}
 	}
-	if(!forwards_add_stub_hole(fwd, LDNS_RR_CLASS_IN, nm)) {
+	if(!forwards_add_stub_hole(fwd, LDNS_RR_CLASS_IN, nm, nolock)) {
 		if(insecure && worker->env.anchors)
 			anchors_delete_insecure(worker->env.anchors,
 				LDNS_RR_CLASS_IN, nm);
+		lock_rw_unlock(&fwd->lock);
+		lock_rw_unlock(&worker->env.hints->lock);
 		(void)ssl_printf(ssl, "error out of memory\n");
 		delegpt_free_mlc(dp);
 		free(nm);
 		return;
 	}
-	if(!hints_add_stub(worker->env.hints, LDNS_RR_CLASS_IN, dp, !prime)) {
+	if(!hints_add_stub(worker->env.hints, LDNS_RR_CLASS_IN, dp, !prime,
+		nolock)) {
 		(void)ssl_printf(ssl, "error out of memory\n");
-		forwards_delete_stub_hole(fwd, LDNS_RR_CLASS_IN, nm);
+		forwards_delete_stub_hole(fwd, LDNS_RR_CLASS_IN, nm, nolock);
 		if(insecure && worker->env.anchors)
 			anchors_delete_insecure(worker->env.anchors,
 				LDNS_RR_CLASS_IN, nm);
+		lock_rw_unlock(&fwd->lock);
+		lock_rw_unlock(&worker->env.hints->lock);
 		free(nm);
 		return;
 	}
+	lock_rw_unlock(&fwd->lock);
+	lock_rw_unlock(&worker->env.hints->lock);
 	free(nm);
 	send_ok(ssl);
 }
@@ -2232,13 +2269,19 @@ do_stub_remove(RES* ssl, struct worker* worker, char* args)
 	struct iter_forwards* fwd = worker->env.fwds;
 	int insecure = 0;
 	uint8_t* nm = NULL;
-	if(!parse_fs_args(ssl, args, &nm, NULL, &insecure, NULL))
+	int nolock = 1;
+	if(!parse_fs_args(ssl, args, &nm, NULL, &insecure, NULL, NULL))
 		return;
+	/* prelock forwarders and hints for atomic operation with anchors */
+	lock_rw_wrlock(&fwd->lock);
+	lock_rw_wrlock(&worker->env.hints->lock);
 	if(insecure && worker->env.anchors)
 		anchors_delete_insecure(worker->env.anchors, LDNS_RR_CLASS_IN,
 			nm);
-	forwards_delete_stub_hole(fwd, LDNS_RR_CLASS_IN, nm);
-	hints_delete_stub(worker->env.hints, LDNS_RR_CLASS_IN, nm);
+	forwards_delete_stub_hole(fwd, LDNS_RR_CLASS_IN, nm, nolock);
+	hints_delete_stub(worker->env.hints, LDNS_RR_CLASS_IN, nm, nolock);
+	lock_rw_unlock(&fwd->lock);
+	lock_rw_unlock(&worker->env.hints->lock);
 	free(nm);
 	send_ok(ssl);
 }
@@ -2667,6 +2710,7 @@ do_list_forwards(RES* ssl, struct worker* worker)
 	struct iter_forward_zone* z;
 	struct trust_anchor* a;
 	int insecure;
+	lock_rw_rdlock(&fwds->lock);
 	RBTREE_FOR(z, struct iter_forward_zone*, fwds->tree) {
 		if(!z->dp) continue; /* skip empty marker for stub */
 
@@ -2681,9 +2725,12 @@ do_list_forwards(RES* ssl, struct worker* worker)
 		}
 
 		if(!ssl_print_name_dp(ssl, (insecure?"forward +i":"forward"),
-			z->name, z->dclass, z->dp))
+			z->name, z->dclass, z->dp)) {
+			lock_rw_unlock(&fwds->lock);
 			return;
+		}
 	}
+	lock_rw_unlock(&fwds->lock);
 }
 
 /** do the list_stubs command */
@@ -2694,6 +2741,7 @@ do_list_stubs(RES* ssl, struct worker* worker)
 	struct trust_anchor* a;
 	int insecure;
 	char str[32];
+	lock_rw_rdlock(&worker->env.hints->lock);
 	RBTREE_FOR(z, struct iter_hints_stub*, &worker->env.hints->tree) {
 
 		/* see if it is insecure */
@@ -2709,9 +2757,12 @@ do_list_stubs(RES* ssl, struct worker* worker)
 		snprintf(str, sizeof(str), "stub %sprime%s",
 			(z->noprime?"no":""), (insecure?" +i":""));
 		if(!ssl_print_name_dp(ssl, str, z->node.name,
-			z->node.dclass, z->dp))
+			z->node.dclass, z->dp)) {
+			lock_rw_unlock(&worker->env.hints->lock);
 			return;
+		}
 	}
+	lock_rw_unlock(&worker->env.hints->lock);
 }
 
 /** do the list_auth_zones command */
@@ -3071,26 +3122,6 @@ execute_cmd(struct daemon_remote* rc, RES* ssl, char* cmd,
 	} else if(cmdcmp(p, "auth_zone_transfer", 18)) {
 		do_auth_zone_transfer(ssl, worker, skipwhite(p+18));
 		return;
-	} else if(cmdcmp(p, "stub_add", 8)) {
-		/* must always distribute this cmd */
-		if(rc) distribute_cmd(rc, ssl, cmd);
-		do_stub_add(ssl, worker, skipwhite(p+8));
-		return;
-	} else if(cmdcmp(p, "stub_remove", 11)) {
-		/* must always distribute this cmd */
-		if(rc) distribute_cmd(rc, ssl, cmd);
-		do_stub_remove(ssl, worker, skipwhite(p+11));
-		return;
-	} else if(cmdcmp(p, "forward_add", 11)) {
-		/* must always distribute this cmd */
-		if(rc) distribute_cmd(rc, ssl, cmd);
-		do_forward_add(ssl, worker, skipwhite(p+11));
-		return;
-	} else if(cmdcmp(p, "forward_remove", 14)) {
-		/* must always distribute this cmd */
-		if(rc) distribute_cmd(rc, ssl, cmd);
-		do_forward_remove(ssl, worker, skipwhite(p+14));
-		return;
 	} else if(cmdcmp(p, "insecure_add", 12)) {
 		/* must always distribute this cmd */
 		if(rc) distribute_cmd(rc, ssl, cmd);
@@ -3100,11 +3131,6 @@ execute_cmd(struct daemon_remote* rc, RES* ssl, char* cmd,
 		/* must always distribute this cmd */
 		if(rc) distribute_cmd(rc, ssl, cmd);
 		do_insecure_remove(ssl, worker, skipwhite(p+15));
-		return;
-	} else if(cmdcmp(p, "forward", 7)) {
-		/* must always distribute this cmd */
-		if(rc) distribute_cmd(rc, ssl, cmd);
-		do_forward(ssl, worker, skipwhite(p+7));
 		return;
 	} else if(cmdcmp(p, "flush_stats", 11)) {
 		/* must always distribute this cmd */
@@ -3147,6 +3173,16 @@ execute_cmd(struct daemon_remote* rc, RES* ssl, char* cmd,
 		do_data_add(ssl, worker->daemon->local_zones, skipwhite(p+10));
 	} else if(cmdcmp(p, "local_datas", 11)) {
 		do_datas_add(ssl, worker->daemon->local_zones);
+	} else if(cmdcmp(p, "forward_add", 11)) {
+		do_forward_add(ssl, worker, skipwhite(p+11));
+	} else if(cmdcmp(p, "forward_remove", 14)) {
+		do_forward_remove(ssl, worker, skipwhite(p+14));
+	} else if(cmdcmp(p, "forward", 7)) {
+		do_forward(ssl, worker, skipwhite(p+7));
+	} else if(cmdcmp(p, "stub_add", 8)) {
+		do_stub_add(ssl, worker, skipwhite(p+8));
+	} else if(cmdcmp(p, "stub_remove", 11)) {
+		do_stub_remove(ssl, worker, skipwhite(p+11));
 	} else if(cmdcmp(p, "view_local_zone_remove", 22)) {
 		do_view_zone_remove(ssl, worker, skipwhite(p+22));
 	} else if(cmdcmp(p, "view_local_zone", 15)) {
