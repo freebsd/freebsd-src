@@ -218,6 +218,15 @@
 #define	CNTPCT_EL0_CRm		0
 #define	CNTPCT_EL0_op2		1
 
+/* CONTEXTIDR_EL1 - Context ID register */
+#define	CONTEXTIDR_EL1		MRS_REG(CONTEXTIDR_EL1)
+#define	CONTEXTIDR_EL1_REG	MRS_REG_ALT_NAME(CONTEXTIDR_EL1)
+#define	CONTEXTIDR_EL1_op0	3
+#define	CONTEXTIDR_EL1_op1	0
+#define	CONTEXTIDR_EL1_CRn	13
+#define	CONTEXTIDR_EL1_CRm	0
+#define	CONTEXTIDR_EL1_op2	1
+
 /* CPACR_EL1 */
 #define	CPACR_ZEN_MASK		(0x3 << 16)
 #define	 CPACR_ZEN_TRAP_ALL1	(0x0 << 16) /* Traps from EL0 and EL1 */
