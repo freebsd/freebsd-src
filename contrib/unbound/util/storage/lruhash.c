@@ -528,6 +528,40 @@ lruhash_setmarkdel(struct lruhash* table, lruhash_markdelfunc_type md)
 	lock_quick_unlock(&table->lock);
 }
 
+void
+lruhash_update_space_used(struct lruhash* table, void* cb_arg, int diff_size)
+{
+	struct lruhash_entry *reclaimlist = NULL;
+
+	fptr_ok(fptr_whitelist_hash_sizefunc(table->sizefunc));
+	fptr_ok(fptr_whitelist_hash_delkeyfunc(table->delkeyfunc));
+	fptr_ok(fptr_whitelist_hash_deldatafunc(table->deldatafunc));
+	fptr_ok(fptr_whitelist_hash_markdelfunc(table->markdelfunc));
+
+	if(cb_arg == NULL) cb_arg = table->cb_arg;
+
+	/* update space used */
+	lock_quick_lock(&table->lock);
+
+	if((int)table->space_used + diff_size < 0)
+		table->space_used = 0;
+	else table->space_used = (size_t)((int)table->space_used + diff_size);
+
+	if(table->space_used > table->space_max)
+		reclaim_space(table, &reclaimlist);
+
+	lock_quick_unlock(&table->lock);
+
+	/* finish reclaim if any (outside of critical region) */
+	while(reclaimlist) {
+		struct lruhash_entry* n = reclaimlist->overflow_next;
+		void* d = reclaimlist->data;
+		(*table->delkeyfunc)(reclaimlist->key, cb_arg);
+		(*table->deldatafunc)(d, cb_arg);
+		reclaimlist = n;
+	}
+}
+
 void 
 lruhash_traverse(struct lruhash* h, int wr, 
 	void (*func)(struct lruhash_entry*, void*), void* arg)

@@ -58,6 +58,7 @@ stop() {
     killproc -p $pidfile unbound
     retval=$?
     [ $retval -eq 0 ] && rm -f $lockfile
+    [ $retval -eq 0 ] && rm -f $pidfile
     for mountfile in /dev/log /dev/urandom /etc/localtime /etc/resolv.conf /var/run/unbound
     do
     if egrep -q '^/[^[:space:]]+[[:space:]]+'${rootdir}''${mountfile}'' /proc/mounts; then

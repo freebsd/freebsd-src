@@ -1,4 +1,4 @@
-.TH "unbound-control" "8" "Mar 14, 2024" "NLnet Labs" "unbound 1.19.3"
+.TH "unbound-control" "8" "May  8, 2024" "NLnet Labs" "unbound 1.20.0"
 .\"
 .\" unbound-control.8 -- unbound remote control manual
 .\"
@@ -239,22 +239,24 @@ still be bogus, use \fBflush_zone\fR to remove it), does not affect the config f
 .B insecure_remove \fIzone
 Removes domain\-insecure for the given zone.
 .TP
-.B forward_add \fR[\fI+i\fR] \fIzone addr ...
+.B forward_add \fR[\fI+it\fR] \fIzone addr ...
 Add a new forward zone to running Unbound.  With +i option also adds a
 \fIdomain\-insecure\fR for the zone (so it can resolve insecurely if you have
 a DNSSEC root trust anchor configured for other names).
 The addr can be IP4, IP6 or nameserver names, like \fIforward-zone\fR config
 in unbound.conf.
+The +t option sets it to use tls upstream, like \fIforward\-tls\-upstream\fR: yes.
 .TP
 .B forward_remove \fR[\fI+i\fR] \fIzone
 Remove a forward zone from running Unbound.  The +i also removes a
 \fIdomain\-insecure\fR for the zone.
 .TP
-.B stub_add \fR[\fI+ip\fR] \fIzone addr ...
+.B stub_add \fR[\fI+ipt\fR] \fIzone addr ...
 Add a new stub zone to running Unbound.  With +i option also adds a
 \fIdomain\-insecure\fR for the zone.  With +p the stub zone is set to prime,
 without it it is set to notprime.  The addr can be IP4, IP6 or nameserver
 names, like the \fIstub-zone\fR config in unbound.conf.
+The +t option sets it to use tls upstream, like \fIstub\-tls\-upstream\fR: yes.
 .TP
 .B stub_remove \fR[\fI+i\fR] \fIzone
 Remove a stub zone from running Unbound.  The +i also removes a
