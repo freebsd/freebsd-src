@@ -19,7 +19,7 @@
 .\"
 .\" $Id: crontab.5,v 1.2 1998/08/14 00:32:38 vixie Exp $
 .\"
-.Dd March 29, 2020
+.Dd May 10, 2024
 .Dt CRONTAB 5
 .Os
 .Sh NAME
@@ -151,11 +151,15 @@ usually does not read its mail.
 .Pp
 The format of a cron command is very much the V7 standard, with a number of
 upward-compatible extensions.
-Each line has five time and date fields,
-followed by a user name
-(with optional ``:<group>'' and ``/<login-class>'' suffixes)
-if this is the system crontab file,
+.Pp
+Each user cron line has five time and date fields, followed by a command.
+.Pp
+Each line in system crontab (
+.Pa /etc/crontab, /etc/cron.d, /usr/local/etc/cron.d
+) has five time and date fields, followed by a valid user name
+(with optional ``:<group>'' and ``/<login-class>'' suffixes),
 followed by a command.
+.Pp
 Commands are executed by
 .Xr cron 8
 when the minute, hour, and month of year fields match the current time,
@@ -281,9 +285,15 @@ Note, however, that overlap may occur if the job is running when the file
 containing the job is modified and subsequently reloaded.
 The first run is scheduled for the specified number of seconds after cron
 is started or the crontab entry is reloaded.
-.Sh EXAMPLE CRON FILE
+.Sh EXAMPLE SYSTEM CRON FILE
 .Bd -literal
-
+# sample /etc/cron.d/vmstat
+# run vmstat every five minutes
+# note the username as sixth field!
+*/5 * * * * root vmstat
+.Ed
+.Sh EXAMPLE USER CRON FILE
+.Bd -literal
 # use /bin/sh to run commands, overriding the default set by cron
 SHELL=/bin/sh
 # mail any output to `paul', no matter whose crontab this is
