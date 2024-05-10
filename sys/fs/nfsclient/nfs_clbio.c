@@ -680,36 +680,6 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		}
 
 		/*
-		 * If not eof and read aheads are enabled, start one.
-		 * (You need the current block first, so that you have the
-		 *  directory offset cookie of the next block.)
-		 */
-		NFSLOCKNODE(np);
-		if (nmp->nm_readahead > 0 && ncl_bioread_dora(vp) &&
-		    (bp->b_flags & B_INVAL) == 0 &&
-		    (np->n_direofoffset == 0 ||
-		    (lbn + 1) * NFS_DIRBLKSIZ < np->n_direofoffset) &&
-		    incore(&vp->v_bufobj, lbn + 1) == NULL) {
-			NFSUNLOCKNODE(np);
-			rabp = nfs_getcacheblk(vp, lbn + 1, NFS_DIRBLKSIZ, td);
-			if (rabp) {
-			    if ((rabp->b_flags & (B_CACHE|B_DELWRI)) == 0) {
-				rabp->b_flags |= B_ASYNC;
-				rabp->b_iocmd = BIO_READ;
-				vfs_busy_pages(rabp, 0);
-				if (ncl_asyncio(nmp, rabp, cred, td)) {
-				    rabp->b_flags |= B_INVAL;
-				    rabp->b_ioflags |= BIO_ERROR;
-				    vfs_unbusy_pages(rabp);
-				    brelse(rabp);
-				}
-			    } else {
-				brelse(rabp);
-			    }
-			}
-			NFSLOCKNODE(np);
-		}
-		/*
 		 * Unlike VREG files, whos buffer size ( bp->b_bcount ) is
 		 * chopped for the EOF condition, we cannot tell how large
 		 * NFS directories are going to be until we hit EOF.  So
@@ -721,6 +691,7 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		 * in np->n_direofoffset and chop it off as an extra step
 		 * right here.
 		 */
+		NFSLOCKNODE(np);
 		n = lmin(uio->uio_resid, NFS_DIRBLKSIZ - bp->b_resid - on);
 		if (np->n_direofoffset && n > np->n_direofoffset - uio->uio_offset)
 			n = np->n_direofoffset - uio->uio_offset;
