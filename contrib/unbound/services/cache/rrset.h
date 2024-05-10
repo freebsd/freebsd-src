@@ -232,6 +232,37 @@ void rrset_check_sec_status(struct rrset_cache* r,
 	struct ub_packed_rrset_key* rrset, time_t now);
 
 /**
+ * Removes rrsets above the qname, returns upper qname.
+ * @param r: the rrset cache.
+ * @param qname: the start qname, also used as the output.
+ * @param qnamelen: length of qname, updated when it returns.
+ * @param searchtype: qtype to search for.
+ * @param qclass: qclass to search for.
+ * @param now: current time.
+ * @param qnametop: the top qname to stop removal (it is not removed).
+ * @param qnametoplen: length of qnametop.
+ */
+void rrset_cache_remove_above(struct rrset_cache* r, uint8_t** qname,
+	size_t* qnamelen, uint16_t searchtype, uint16_t qclass, time_t now,
+	uint8_t* qnametop, size_t qnametoplen);
+
+/**
+ * Sees if an rrset is expired above the qname, returns upper qname.
+ * @param r: the rrset cache.
+ * @param qname: the start qname, also used as the output.
+ * @param qnamelen: length of qname, updated when it returns.
+ * @param searchtype: qtype to search for.
+ * @param qclass: qclass to search for.
+ * @param now: current time.
+ * @param qnametop: the top qname, don't look farther than that.
+ * @param qnametoplen: length of qnametop.
+ * @return true if there is an expired rrset above, false otherwise.
+ */
+int rrset_cache_expired_above(struct rrset_cache* r, uint8_t** qname,
+	size_t* qnamelen, uint16_t searchtype, uint16_t qclass, time_t now,
+	uint8_t* qnametop, size_t qnametoplen);
+
+/**
  * Remove an rrset from the cache, by name and type and flags
  * @param r: rrset cache
  * @param nm: name of rrset

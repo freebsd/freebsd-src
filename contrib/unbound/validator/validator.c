@@ -621,7 +621,6 @@ prime_trust_anchor(struct module_qstate* qstate, struct val_qstate* vq,
  * @param vq: validator query state.
  * @param env: module env for verify.
  * @param ve: validator env for verify.
- * @param qchase: query that was made.
  * @param chase_reply: answer to validate.
  * @param key_entry: the key entry, which is trusted, and which matches
  * 	the signer of the answer. The key entry isgood().
@@ -632,7 +631,7 @@ prime_trust_anchor(struct module_qstate* qstate, struct val_qstate* vq,
  */
 static int
 validate_msg_signatures(struct module_qstate* qstate, struct val_qstate* vq,
-	struct module_env* env, struct val_env* ve, struct query_info* qchase,
+	struct module_env* env, struct val_env* ve,
 	struct reply_info* chase_reply, struct key_entry_key* key_entry,
 	int* suspend)
 {
@@ -640,7 +639,7 @@ validate_msg_signatures(struct module_qstate* qstate, struct val_qstate* vq,
 	size_t i, slen;
 	struct ub_packed_rrset_key* s;
 	enum sec_status sec;
-	int dname_seen = 0, num_verifies = 0, verified, have_state = 0;
+	int num_verifies = 0, verified, have_state = 0;
 	char* reason = NULL;
 	sldns_ede_code reason_bogus = LDNS_EDE_DNSSEC_BOGUS;
 	*suspend = 0;
@@ -658,9 +657,13 @@ validate_msg_signatures(struct module_qstate* qstate, struct val_qstate* vq,
 		/* Skip the CNAME following a (validated) DNAME.
 		 * Because of the normalization routines in the iterator, 
 		 * there will always be an unsigned CNAME following a DNAME 
-		 * (unless qtype=DNAME). */
-		if(dname_seen && ntohs(s->rk.type) == LDNS_RR_TYPE_CNAME) {
-			dname_seen = 0;
+		 * (unless qtype=DNAME in the answer part). */
+		if(i>0 && ntohs(chase_reply->rrsets[i-1]->rk.type) ==
+			LDNS_RR_TYPE_DNAME &&
+			ntohs(s->rk.type) == LDNS_RR_TYPE_CNAME &&
+			((struct packed_rrset_data*)chase_reply->rrsets[i-1]->entry.data)->security == sec_status_secure &&
+			dname_strict_subdomain_c(s->rk.dname, chase_reply->rrsets[i-1]->rk.dname)
+			) {
 			/* CNAME was synthesized by our own iterator */
 			/* since the DNAME verified, mark the CNAME as secure */
 			((struct packed_rrset_data*)s->entry.data)->security =
@@ -691,12 +694,6 @@ validate_msg_signatures(struct module_qstate* qstate, struct val_qstate* vq,
 			return 0;
 		}
 
-		/* Notice a DNAME that should be followed by an unsigned 
-		 * CNAME. */
-		if(qchase->qtype != LDNS_RR_TYPE_DNAME && 
-			ntohs(s->rk.type) == LDNS_RR_TYPE_DNAME) {
-			dname_seen = 1;
-		}
 		num_verifies += verified;
 		if(num_verifies > MAX_VALIDATE_AT_ONCE &&
 			i+1 < (env->cfg->val_clean_additional?
@@ -2186,7 +2183,7 @@ processValidate(struct module_qstate* qstate, struct val_qstate* vq,
 
 	/* check signatures in the message; 
 	 * answer and authority must be valid, additional is only checked. */
-	if(!validate_msg_signatures(qstate, vq, qstate->env, ve, &vq->qchase,
+	if(!validate_msg_signatures(qstate, vq, qstate->env, ve,
 		vq->chase_reply, vq->key_entry, &suspend)) {
 		if(suspend) {
 			if(!validate_suspend_setup_timer(qstate, vq,
@@ -2456,19 +2453,12 @@ processFinished(struct module_qstate* qstate, struct val_qstate* vq,
 				log_query_info(NO_VERBOSE, "validation failure",
 					&qstate->qinfo);
 			else {
-				char* err_str = errinf_to_str_bogus(qstate);
+				char* err_str = errinf_to_str_bogus(qstate,
+					qstate->region);
 				if(err_str) {
-					size_t err_str_len = strlen(err_str);
 					log_info("%s", err_str);
-					/* allocate space and store the error
-					 * string */
-					vq->orig_msg->rep->reason_bogus_str = regional_alloc(
-						qstate->region,
-						sizeof(char) * (err_str_len+1));
-					memcpy(vq->orig_msg->rep->reason_bogus_str,
-						err_str, err_str_len+1);
+					vq->orig_msg->rep->reason_bogus_str = err_str;
 				}
-				free(err_str);
 			}
 		}
 		/*

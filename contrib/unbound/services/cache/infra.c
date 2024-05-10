@@ -234,6 +234,81 @@ setup_domain_limits(struct infra_cache* infra, struct config_file* cfg)
 	return 1;
 }
 
+/** find or create element in wait limit netblock tree */
+static struct wait_limit_netblock_info*
+wait_limit_netblock_findcreate(struct infra_cache* infra, char* str,
+	int cookie)
+{
+	rbtree_type* tree;
+	struct sockaddr_storage addr;
+	int net;
+	socklen_t addrlen;
+	struct wait_limit_netblock_info* d;
+
+	if(!netblockstrtoaddr(str, 0, &addr, &addrlen, &net)) {
+		log_err("cannot parse wait limit netblock '%s'", str);
+		return 0;
+	}
+
+	/* can we find it? */
+	if(cookie)
+		tree = &infra->wait_limits_cookie_netblock;
+	else
+		tree = &infra->wait_limits_netblock;
+	d = (struct wait_limit_netblock_info*)addr_tree_find(tree, &addr,
+		addrlen, net);
+	if(d)
+		return d;
+
+	/* create it */
+	d = (struct wait_limit_netblock_info*)calloc(1, sizeof(*d));
+	if(!d)
+		return NULL;
+	d->limit = -1;
+	if(!addr_tree_insert(tree, &d->node, &addr, addrlen, net)) {
+		log_err("duplicate element in domainlimit tree");
+		free(d);
+		return NULL;
+	}
+	return d;
+}
+
+
+/** insert wait limit information into lookup tree */
+static int
+infra_wait_limit_netblock_insert(struct infra_cache* infra,
+	struct config_file* cfg)
+{
+	struct config_str2list* p;
+	struct wait_limit_netblock_info* d;
+	for(p = cfg->wait_limit_netblock; p; p = p->next) {
+		d = wait_limit_netblock_findcreate(infra, p->str, 0);
+		if(!d)
+			return 0;
+		d->limit = atoi(p->str2);
+	}
+	for(p = cfg->wait_limit_cookie_netblock; p; p = p->next) {
+		d = wait_limit_netblock_findcreate(infra, p->str, 1);
+		if(!d)
+			return 0;
+		d->limit = atoi(p->str2);
+	}
+	return 1;
+}
+
+/** setup wait limits tree (0 on failure) */
+static int
+setup_wait_limits(struct infra_cache* infra, struct config_file* cfg)
+{
+	addr_tree_init(&infra->wait_limits_netblock);
+	addr_tree_init(&infra->wait_limits_cookie_netblock);
+	if(!infra_wait_limit_netblock_insert(infra, cfg))
+		return 0;
+	addr_tree_init_parents(&infra->wait_limits_netblock);
+	addr_tree_init_parents(&infra->wait_limits_cookie_netblock);
+	return 1;
+}
+
 struct infra_cache* 
 infra_create(struct config_file* cfg)
 {
@@ -267,6 +342,10 @@ infra_create(struct config_file* cfg)
 		infra_delete(infra);
 		return NULL;
 	}
+	if(!setup_wait_limits(infra, cfg)) {
+		infra_delete(infra);
+		return NULL;
+	}
 	infra_ip_ratelimit = cfg->ip_ratelimit;
 	infra->client_ip_rates = slabhash_create(cfg->ip_ratelimit_slabs,
 	    INFRA_HOST_STARTSIZE, cfg->ip_ratelimit_size, &ip_rate_sizefunc,
@@ -287,6 +366,12 @@ static void domain_limit_free(rbnode_type* n, void* ATTR_UNUSED(arg))
 	}
 }
 
+/** delete wait_limit_netblock_info entries */
+static void wait_limit_netblock_del(rbnode_type* n, void* ATTR_UNUSED(arg))
+{
+	free(n);
+}
+
 void 
 infra_delete(struct infra_cache* infra)
 {
@@ -296,6 +381,10 @@ infra_delete(struct infra_cache* infra)
 	slabhash_delete(infra->domain_rates);
 	traverse_postorder(&infra->domain_limits, domain_limit_free, NULL);
 	slabhash_delete(infra->client_ip_rates);
+	traverse_postorder(&infra->wait_limits_netblock,
+		wait_limit_netblock_del, NULL);
+	traverse_postorder(&infra->wait_limits_cookie_netblock,
+		wait_limit_netblock_del, NULL);
 	free(infra);
 }
 
@@ -880,7 +969,8 @@ static void infra_create_ratedata(struct infra_cache* infra,
 
 /** create rate data item for ip address */
 static void infra_ip_create_ratedata(struct infra_cache* infra,
-	struct sockaddr_storage* addr, socklen_t addrlen, time_t timenow)
+	struct sockaddr_storage* addr, socklen_t addrlen, time_t timenow,
+	int mesh_wait)
 {
 	hashvalue_type h = hash_addr(addr, addrlen, 0);
 	struct ip_rate_key* k = (struct ip_rate_key*)calloc(1, sizeof(*k));
@@ -898,6 +988,7 @@ static void infra_ip_create_ratedata(struct infra_cache* infra,
 	k->entry.data = d;
 	d->qps[0] = 1;
 	d->timestamp[0] = timenow;
+	d->mesh_wait = mesh_wait;
 	slabhash_insert(infra->client_ip_rates, h, &k->entry, d, NULL);
 }
 
@@ -1121,6 +1212,81 @@ int infra_ip_ratelimit_inc(struct infra_cache* infra,
 	}
 
 	/* create */
-	infra_ip_create_ratedata(infra, addr, addrlen, timenow);
+	infra_ip_create_ratedata(infra, addr, addrlen, timenow, 0);
 	return 1;
+}
+
+int infra_wait_limit_allowed(struct infra_cache* infra, struct comm_reply* rep,
+	int cookie_valid, struct config_file* cfg)
+{
+	struct lruhash_entry* entry;
+	if(cfg->wait_limit == 0)
+		return 1;
+
+	entry = infra_find_ip_ratedata(infra, &rep->client_addr,
+		rep->client_addrlen, 0);
+	if(entry) {
+		rbtree_type* tree;
+		struct wait_limit_netblock_info* w;
+		struct rate_data* d = (struct rate_data*)entry->data;
+		int mesh_wait = d->mesh_wait;
+		lock_rw_unlock(&entry->lock);
+
+		/* have the wait amount, check how much is allowed */
+		if(cookie_valid)
+			tree = &infra->wait_limits_cookie_netblock;
+		else	tree = &infra->wait_limits_netblock;
+		w = (struct wait_limit_netblock_info*)addr_tree_lookup(tree,
+			&rep->client_addr, rep->client_addrlen);
+		if(w) {
+			if(w->limit != -1 && mesh_wait > w->limit)
+				return 0;
+		} else {
+			/* if there is no IP netblock specific information,
+			 * use the configured value. */
+			if(mesh_wait > (cookie_valid?cfg->wait_limit_cookie:
+				cfg->wait_limit))
+				return 0;
+		}
+	}
+	return 1;
+}
+
+void infra_wait_limit_inc(struct infra_cache* infra, struct comm_reply* rep,
+	time_t timenow, struct config_file* cfg)
+{
+	struct lruhash_entry* entry;
+	if(cfg->wait_limit == 0)
+		return;
+
+	/* Find it */
+	entry = infra_find_ip_ratedata(infra, &rep->client_addr,
+		rep->client_addrlen, 1);
+	if(entry) {
+		struct rate_data* d = (struct rate_data*)entry->data;
+		d->mesh_wait++;
+		lock_rw_unlock(&entry->lock);
+		return;
+	}
+
+	/* Create it */
+	infra_ip_create_ratedata(infra, &rep->client_addr,
+		rep->client_addrlen, timenow, 1);
+}
+
+void infra_wait_limit_dec(struct infra_cache* infra, struct comm_reply* rep,
+	struct config_file* cfg)
+{
+	struct lruhash_entry* entry;
+	if(cfg->wait_limit == 0)
+		return;
+
+	entry = infra_find_ip_ratedata(infra, &rep->client_addr,
+		rep->client_addrlen, 1);
+	if(entry) {
+		struct rate_data* d = (struct rate_data*)entry->data;
+		if(d->mesh_wait > 0)
+			d->mesh_wait--;
+		lock_rw_unlock(&entry->lock);
+	}
 }

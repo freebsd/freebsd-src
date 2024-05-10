@@ -2152,6 +2152,16 @@ auth_zones_cfg(struct auth_zones* az, struct config_auth* c)
 		if(az->rpz_first)
 			az->rpz_first->rpz_az_prev = z;
 		az->rpz_first = z;
+	} else if(c->isrpz && z->rpz) {
+		if(!rpz_config(z->rpz, c)) {
+			log_err("Could not change rpz config");
+			if(x) {
+				lock_basic_unlock(&x->lock);
+			}
+			lock_rw_unlock(&z->lock);
+			lock_rw_unlock(&az->rpz_lock);
+			return 0;
+		}
 	}
 	if(c->isrpz) {
 		lock_rw_unlock(&az->rpz_lock);

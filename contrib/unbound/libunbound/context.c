@@ -53,6 +53,8 @@
 #include "util/storage/slabhash.h"
 #include "util/edns.h"
 #include "sldns/sbuffer.h"
+#include "iterator/iter_fwd.h"
+#include "iterator/iter_hints.h"
 
 int 
 context_finalize(struct ub_ctx* ctx)
@@ -84,6 +86,12 @@ context_finalize(struct ub_ctx* ctx)
 		return UB_INITFAIL;
 	if(!auth_zones_apply_cfg(ctx->env->auth_zones, cfg, 1, &is_rpz,
 		ctx->env, &ctx->mods))
+		return UB_INITFAIL;
+	if(!(ctx->env->fwds = forwards_create()) ||
+		!forwards_apply_cfg(ctx->env->fwds, cfg))
+		return UB_INITFAIL;
+	if(!(ctx->env->hints = hints_create()) ||
+		!hints_apply_cfg(ctx->env->hints, cfg))
 		return UB_INITFAIL;
 	if(!edns_strings_apply_cfg(ctx->env->edns_strings, cfg))
 		return UB_INITFAIL;

@@ -75,6 +75,7 @@ stop() {
     retval=$?
     echo
     [ $retval -eq 0 ] && rm -f $lockfile
+    [ $retval -eq 0 ] && rm -f $pidfile
     if egrep -q '^/[^[:space:]]+[[:space:]]+'${rootdir}'/dev/log' /proc/mounts; then
 	umount ${rootdir}/dev/log >/dev/null 2>&1
     fi;

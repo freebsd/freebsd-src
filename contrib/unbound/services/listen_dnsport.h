@@ -107,11 +107,13 @@ enum listen_type {
  * socket properties (just like NSD nsd_socket structure definition)
  */
 struct unbound_socket {
-	/** socket-address structure */
-	struct addrinfo* addr;
+	/** the address of the socket */
+	struct sockaddr* addr;
+	/** length of the address */
+	socklen_t addrlen;
 	/** socket descriptor returned by socket() syscall */
 	int s;
-	/** address family (AF_INET/IF_INET6) */
+	/** address family (AF_INET/AF_INET6) */
 	int fam;
 	/** ACL on the socket (listening interface) */
 	struct acl_addr* acl;

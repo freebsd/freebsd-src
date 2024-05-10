@@ -46,6 +46,7 @@
 #include "util/data/packed_rrset.h"
 #include "util/data/msgreply.h"
 #include "util/data/msgparse.h"
+#include "util/data/dname.h"
 #include "util/regional.h"
 #include "util/alloc.h"
 #include "util/net_help.h"
@@ -127,6 +128,9 @@ need_to_update_rrset(void* nd, void* cd, time_t timenow, int equal, int ns)
 {
 	struct packed_rrset_data* newd = (struct packed_rrset_data*)nd;
 	struct packed_rrset_data* cached = (struct packed_rrset_data*)cd;
+	/*	o if new data is expired, current data is better */
+	if( newd->ttl < timenow && cached->ttl >= timenow)
+		return 0;
 	/* 	o store if rrset has been validated 
 	 *  		everything better than bogus data 
 	 *  		secure is preferred */
@@ -438,6 +442,89 @@ rrset_check_sec_status(struct rrset_cache* r,
 			updata->trust = cachedata->trust;
 	}
 	lock_rw_unlock(&e->lock);
+}
+
+void
+rrset_cache_remove_above(struct rrset_cache* r, uint8_t** qname, size_t*
+	qnamelen, uint16_t searchtype, uint16_t qclass, time_t now, uint8_t*
+	qnametop, size_t qnametoplen)
+{
+	struct ub_packed_rrset_key *rrset;
+	uint8_t lablen;
+
+	while(*qnamelen > 0) {
+		/* look one label higher */
+		lablen = **qname;
+		*qname += lablen + 1;
+		*qnamelen -= lablen + 1;
+		if(*qnamelen <= 0)
+			return;
+
+		/* stop at qnametop */
+		if(qnametop && *qnamelen == qnametoplen &&
+			query_dname_compare(*qname, qnametop)==0)
+			return;
+
+		if(verbosity >= VERB_ALGO) {
+			/* looks up with a time of 0, to see expired entries */
+			if((rrset = rrset_cache_lookup(r, *qname,
+				*qnamelen, searchtype, qclass, 0, 0, 0))) {
+				struct packed_rrset_data* data =
+					(struct packed_rrset_data*)rrset->entry.data;
+				int expired = (now > data->ttl);
+				lock_rw_unlock(&rrset->entry.lock);
+				if(expired)
+					log_nametypeclass(verbosity, "this "
+						"(grand)parent rrset will be "
+						"removed (expired)",
+						*qname, searchtype, qclass);
+				else	log_nametypeclass(verbosity, "this "
+						"(grand)parent rrset will be "
+						"removed",
+						*qname, searchtype, qclass);
+			}
+		}
+		rrset_cache_remove(r, *qname, *qnamelen, searchtype, qclass, 0);
+	}
+}
+
+int
+rrset_cache_expired_above(struct rrset_cache* r, uint8_t** qname, size_t*
+	qnamelen, uint16_t searchtype, uint16_t qclass, time_t now, uint8_t*
+	qnametop, size_t qnametoplen)
+{
+	struct ub_packed_rrset_key *rrset;
+	uint8_t lablen;
+
+	while(*qnamelen > 0) {
+		/* look one label higher */
+		lablen = **qname;
+		*qname += lablen + 1;
+		*qnamelen -= lablen + 1;
+		if(*qnamelen <= 0)
+			break;
+
+		/* looks up with a time of 0, to see expired entries */
+		if((rrset = rrset_cache_lookup(r, *qname,
+			*qnamelen, searchtype, qclass, 0, 0, 0))) {
+			struct packed_rrset_data* data =
+				(struct packed_rrset_data*)rrset->entry.data;
+			if(now > data->ttl) {
+				/* it is expired, this is not wanted */
+				lock_rw_unlock(&rrset->entry.lock);
+				log_nametypeclass(VERB_ALGO, "this rrset is expired", *qname, searchtype, qclass);
+				return 1;
+			}
+			/* it is not expired, continue looking */
+			lock_rw_unlock(&rrset->entry.lock);
+		}
+
+		/* do not look above the qnametop. */
+		if(qnametop && *qnamelen == qnametoplen &&
+			query_dname_compare(*qname, qnametop)==0)
+			break;
+	}
+	return 0;
 }
 
 void rrset_cache_remove(struct rrset_cache* r, uint8_t* nm, size_t nmlen,

@@ -22,4 +22,13 @@ pidfile=${unbound_pidfile:-"/usr/local/etc/unbound/unbound.pid"}
 command_args=${unbound_flags:-"-c /usr/local/etc/unbound/unbound.conf"}
 extra_commands="reload"
 
+if test "$1" = "stop" ; then
+	run_rc_command "$1"
+	ret=$?
+	if test $ret -eq 0; then
+		rm -f "$pidfile"
+	fi
+	exit $ret
+fi
+
 run_rc_command "$1"

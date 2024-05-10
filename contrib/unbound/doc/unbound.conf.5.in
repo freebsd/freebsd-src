@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Mar 14, 2024" "NLnet Labs" "unbound 1.19.3"
+.TH "unbound.conf" "5" "May  8, 2024" "NLnet Labs" "unbound 1.20.0"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -302,6 +302,36 @@ Increase this if you are behind a slow satellite link, to eg. 1128.
 That would then avoid re\-querying every initial query because it times out.
 Default is 376 msec.
 .TP
+.B discard\-timeout: \fI<msec>
+The wait time in msec where recursion requests are dropped. This is
+to stop a large number of replies from accumulating. They receive
+no reply, the work item continues to recurse. It is nice to be a bit
+larger than serve\-expired\-client\-timeout if that is enabled.
+A value of 1900 msec is suggested. The value 0 disables it.
+Default 1900 msec.
+.TP
+.B wait\-limit: \fI<number>
+The number of replies that can wait for recursion, for an IP address.
+This makes a ratelimit per IP address of waiting replies for recursion.
+It stops very large amounts of queries waiting to be returned to one
+destination. The value 0 disables wait limits. Default is 1000.
+.TP
+.B wait\-limit\-cookie: \fI<number>
+The number of replies that can wait for recursion, for an IP address
+that sent the query with a valid DNS cookie. Since the cookie validates
+the client address, the limit can be higher. Default is 10000.
+.TP
+.B wait\-limit\-netblock: \fI<netblock> <number>
+The wait limit for the netblock. If not given the wait\-limit value is
+used. The most specific netblock is used to determine the limit. Useful for
+overriding the default for a specific, group or individual, server.
+The value -1 disables wait limits for the netblock.
+.TP
+.B wait\-limit\-cookie\-netblock: \fI<netblock> <number>
+The wait limit for the netblock, when the query has a DNS cookie.
+If not given, the wait\-limit\-cookie value is used.
+The value -1 disables wait limits for the netblock.
+.TP
 .B so\-rcvbuf: \fI<number>
 If not 0, then set the SO_RCVBUF socket option to get more buffer
 space on UDP port 53 incoming queries.  So that short spikes on busy
@@ -388,6 +418,15 @@ Time to live maximum for negative responses, these have a SOA in the
 authority section that is limited in time.  Default is 3600.
 This applies to nxdomain and nodata answers.
 .TP
+.B cache\-min\-negative\-ttl: \fI<seconds>
+Time to live minimum for negative responses, these have a SOA in the
+authority section that is limited in time.
+Default is 0 (disabled).
+If this is disabled and \fBcache-min-ttl\fR is configured, it will take effect
+instead.
+In that case you can set this to 1 to honor the upstream TTL.
+This applies to nxdomain and nodata answers.
+.TP
 .B infra\-host\-ttl: \fI<seconds>
 Time to live for entries in the host cache. The host cache contains
 roundtrip timing, lameness and EDNS support information. Default is 900.
@@ -472,6 +511,8 @@ configured value if the number of free buffers falls below 35% of the
 total number configured, and finally to 0 if the number of free buffers
 falls below 20% of the total number configured. A minimum timeout of
 200 milliseconds is observed regardless of the option value used.
+It will be overriden by \fBedns\-tcp\-keepalive\-timeout\fR if
+\fBedns\-tcp\-keepalive\fR is enabled.
 .TP
 .B tcp-reuse-timeout: \fI<msec>\fR
 The period Unbound will keep TCP persistent connections open to
@@ -490,20 +531,11 @@ This option defaults to 3000 milliseconds.
 Enable or disable EDNS TCP Keepalive. Default is no.
 .TP
 .B edns-tcp-keepalive-timeout: \fI<msec>\fR
-The period Unbound will wait for a query on a TCP connection when
-EDNS TCP Keepalive is active. If this timeout expires Unbound closes
-the connection. If the client supports the EDNS TCP Keepalive option,
+Overrides \fBtcp\-idle\-timeout\fR when \fBedns\-tcp\-keepalive\fR is enabled.
+If the client supports the EDNS TCP Keepalive option,
 Unbound sends the timeout value to the client to encourage it to
 close the connection before the server times out.
 This option defaults to 120000 milliseconds.
-When the number of free incoming TCP buffers falls below 50% of
-the total number configured, the advertised timeout is progressively
-reduced to 1% of the configured value, then to 0.2% of the configured
-value if the number of free buffers falls below 35% of the total number
-configured, and finally to 0 if the number of free buffers falls below
-20% of the total number configured.
-A minimum actual timeout of 200 milliseconds is observed regardless of the
-advertised timeout.
 .TP
 .B sock\-queue\-timeout: \fI<sec>\fR
 UDP queries that have waited in the socket buffer for a long time can be
@@ -2638,11 +2670,7 @@ If Unbound cannot even find an answer in the backend, it resolves the
 query as usual, and stores the answer in the backend.
 .P
 This module interacts with the \fBserve\-expired\-*\fR options and will reply
-with expired data if Unbound is configured for that.  Currently the use
-of \fBserve\-expired\-client\-timeout:\fR and
-\fBserve\-expired\-reply\-ttl:\fR is not consistent for data originating from
-the external cache as these will result in a reply with 0 TTL without trying to
-update the data first, ignoring the configured values.
+with expired data if Unbound is configured for that.
 .P
 If Unbound was built with
 \fB\-\-with\-libhiredis\fR
@@ -2698,6 +2726,16 @@ This option defaults to "default".
 If the backend should be read from, but not written to. This makes this
 instance not store dns messages in the backend. But if data is available it
 is retrieved. The default is no.
+.TP
+.B cachedb-check-when-serve-expired: \fI<yes or no>\fR
+If enabled, the cachedb is checked before an expired response is returned.
+When \fBserve\-expired\fR is enabled, without \fBserve\-expired\-client\-timeout\fR, it then
+does not immediately respond with an expired response from cache, but instead
+first checks the cachedb for valid contents, and if so returns it. If the
+cachedb also has no valid contents, the serve expired response is sent.
+If also \fBserve\-expired\-client\-timeout\fR is enabled, the expired response
+is delayed until the timeout expires. Unless the lookup succeeds within the
+timeout. The default is yes.
 .P
 The following
 .B cachedb

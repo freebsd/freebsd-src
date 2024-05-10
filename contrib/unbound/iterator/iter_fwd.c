@@ -71,6 +71,7 @@ forwards_create(void)
 		sizeof(struct iter_forwards));
 	if(!fwd)
 		return NULL;
+	lock_rw_init(&fwd->lock);
 	return fwd;
 }
 
@@ -100,6 +101,7 @@ forwards_delete(struct iter_forwards* fwd)
 {
 	if(!fwd) 
 		return;
+	lock_rw_destroy(&fwd->lock);
 	fwd_del_tree(fwd);
 	free(fwd);
 }
@@ -332,45 +334,64 @@ make_stub_holes(struct iter_forwards* fwd, struct config_file* cfg)
 int 
 forwards_apply_cfg(struct iter_forwards* fwd, struct config_file* cfg)
 {
+	if(fwd->tree) {
+		lock_unprotect(&fwd->lock, fwd->tree);
+	}
 	fwd_del_tree(fwd);
 	fwd->tree = rbtree_create(fwd_cmp);
 	if(!fwd->tree)
 		return 0;
+	lock_protect(&fwd->lock, fwd->tree, sizeof(*fwd->tree));
 
+	lock_rw_wrlock(&fwd->lock);
 	/* read forward zones */
-	if(!read_forwards(fwd, cfg))
+	if(!read_forwards(fwd, cfg)) {
+		lock_rw_unlock(&fwd->lock);
 		return 0;
-	if(!make_stub_holes(fwd, cfg))
+	}
+	if(!make_stub_holes(fwd, cfg)) {
+		lock_rw_unlock(&fwd->lock);
 		return 0;
+	}
 	fwd_init_parents(fwd);
+	lock_rw_unlock(&fwd->lock);
 	return 1;
 }
 
 struct delegpt* 
-forwards_find(struct iter_forwards* fwd, uint8_t* qname, uint16_t qclass)
+forwards_find(struct iter_forwards* fwd, uint8_t* qname, uint16_t qclass,
+	int nolock)
 {
-	rbnode_type* res = NULL;
+	struct iter_forward_zone* res;
 	struct iter_forward_zone key;
+	int has_dp;
 	key.node.key = &key;
 	key.dclass = qclass;
 	key.name = qname;
 	key.namelabs = dname_count_size_labels(qname, &key.namelen);
-	res = rbtree_search(fwd->tree, &key);
-	if(res) return ((struct iter_forward_zone*)res)->dp;
-	return NULL;
+	/* lock_() calls are macros that could be nothing, surround in {} */
+	if(!nolock) { lock_rw_rdlock(&fwd->lock); }
+	res = (struct iter_forward_zone*)rbtree_search(fwd->tree, &key);
+	has_dp = res && res->dp;
+	if(!has_dp && !nolock) { lock_rw_unlock(&fwd->lock); }
+	return has_dp?res->dp:NULL;
 }
 
 struct delegpt* 
-forwards_lookup(struct iter_forwards* fwd, uint8_t* qname, uint16_t qclass)
+forwards_lookup(struct iter_forwards* fwd, uint8_t* qname, uint16_t qclass,
+	int nolock)
 {
 	/* lookup the forward zone in the tree */
 	rbnode_type* res = NULL;
 	struct iter_forward_zone *result;
 	struct iter_forward_zone key;
+	int has_dp;
 	key.node.key = &key;
 	key.dclass = qclass;
 	key.name = qname;
 	key.namelabs = dname_count_size_labels(qname, &key.namelen);
+	/* lock_() calls are macros that could be nothing, surround in {} */
+	if(!nolock) { lock_rw_rdlock(&fwd->lock); }
 	if(rbtree_find_less_equal(fwd->tree, &key, &res)) {
 		/* exact */
 		result = (struct iter_forward_zone*)res;
@@ -378,8 +399,10 @@ forwards_lookup(struct iter_forwards* fwd, uint8_t* qname, uint16_t qclass)
 		/* smaller element (or no element) */
 		int m;
 		result = (struct iter_forward_zone*)res;
-		if(!result || result->dclass != qclass)
+		if(!result || result->dclass != qclass) {
+			if(!nolock) { lock_rw_unlock(&fwd->lock); }
 			return NULL;
+		}
 		/* count number of labels matched */
 		(void)dname_lab_cmp(result->name, result->namelabs, key.name,
 			key.namelabs, &m);
@@ -389,20 +412,22 @@ forwards_lookup(struct iter_forwards* fwd, uint8_t* qname, uint16_t qclass)
 			result = result->parent;
 		}
 	}
-	if(result)
-		return result->dp;
-	return NULL;
+	has_dp = result && result->dp;
+	if(!has_dp && !nolock) { lock_rw_unlock(&fwd->lock); }
+	return has_dp?result->dp:NULL;
 }
 
 struct delegpt* 
-forwards_lookup_root(struct iter_forwards* fwd, uint16_t qclass)
+forwards_lookup_root(struct iter_forwards* fwd, uint16_t qclass, int nolock)
 {
 	uint8_t root = 0;
-	return forwards_lookup(fwd, &root, qclass);
+	return forwards_lookup(fwd, &root, qclass, nolock);
 }
 
-int
-forwards_next_root(struct iter_forwards* fwd, uint16_t* dclass)
+/* Finds next root item in forwards lookup tree.
+ * Caller needs to handle locking of the forwards structure. */
+static int
+next_root_locked(struct iter_forwards* fwd, uint16_t* dclass)
 {
 	struct iter_forward_zone key;
 	rbnode_type* n;
@@ -419,7 +444,7 @@ forwards_next_root(struct iter_forwards* fwd, uint16_t* dclass)
 		}
 		/* root not first item? search for higher items */
 		*dclass = p->dclass + 1;
-		return forwards_next_root(fwd, dclass);
+		return next_root_locked(fwd, dclass);
 	}
 	/* find class n in tree, we may get a direct hit, or if we don't
 	 * this is the last item of the previous class so rbtree_next() takes
@@ -447,8 +472,19 @@ forwards_next_root(struct iter_forwards* fwd, uint16_t* dclass)
 		}
 		/* not a root node, return next higher item */
 		*dclass = p->dclass+1;
-		return forwards_next_root(fwd, dclass);
+		return next_root_locked(fwd, dclass);
 	}
+}
+
+int
+forwards_next_root(struct iter_forwards* fwd, uint16_t* dclass, int nolock)
+{
+	int ret;
+	/* lock_() calls are macros that could be nothing, surround in {} */
+	if(!nolock) { lock_rw_rdlock(&fwd->lock); }
+	ret = next_root_locked(fwd, dclass);
+	if(!nolock) { lock_rw_unlock(&fwd->lock); }
+	return ret;
 }
 
 size_t 
@@ -458,10 +494,12 @@ forwards_get_mem(struct iter_forwards* fwd)
 	size_t s;
 	if(!fwd)
 		return 0;
+	lock_rw_rdlock(&fwd->lock);
 	s = sizeof(*fwd) + sizeof(*fwd->tree);
 	RBTREE_FOR(p, struct iter_forward_zone*, fwd->tree) {
 		s += sizeof(*p) + p->namelen + delegpt_get_mem(p->dp);
 	}
+	lock_rw_unlock(&fwd->lock);
 	return s;
 }
 
@@ -477,49 +515,78 @@ fwd_zone_find(struct iter_forwards* fwd, uint16_t c, uint8_t* nm)
 }
 
 int 
-forwards_add_zone(struct iter_forwards* fwd, uint16_t c, struct delegpt* dp)
+forwards_add_zone(struct iter_forwards* fwd, uint16_t c, struct delegpt* dp,
+	int nolock)
 {
 	struct iter_forward_zone *z;
+	/* lock_() calls are macros that could be nothing, surround in {} */
+	if(!nolock) { lock_rw_wrlock(&fwd->lock); }
 	if((z=fwd_zone_find(fwd, c, dp->name)) != NULL) {
 		(void)rbtree_delete(fwd->tree, &z->node);
 		fwd_zone_free(z);
 	}
-	if(!forwards_insert(fwd, c, dp))
+	if(!forwards_insert(fwd, c, dp)) {
+		if(!nolock) { lock_rw_unlock(&fwd->lock); }
 		return 0;
+	}
 	fwd_init_parents(fwd);
+	if(!nolock) { lock_rw_unlock(&fwd->lock); }
 	return 1;
 }
 
 void 
-forwards_delete_zone(struct iter_forwards* fwd, uint16_t c, uint8_t* nm)
+forwards_delete_zone(struct iter_forwards* fwd, uint16_t c, uint8_t* nm,
+	int nolock)
 {
 	struct iter_forward_zone *z;
-	if(!(z=fwd_zone_find(fwd, c, nm)))
+	/* lock_() calls are macros that could be nothing, surround in {} */
+	if(!nolock) { lock_rw_wrlock(&fwd->lock); }
+	if(!(z=fwd_zone_find(fwd, c, nm))) {
+		if(!nolock) { lock_rw_unlock(&fwd->lock); }
 		return; /* nothing to do */
+	}
 	(void)rbtree_delete(fwd->tree, &z->node);
 	fwd_zone_free(z);
 	fwd_init_parents(fwd);
+	if(!nolock) { lock_rw_unlock(&fwd->lock); }
 }
 
 int
-forwards_add_stub_hole(struct iter_forwards* fwd, uint16_t c, uint8_t* nm)
+forwards_add_stub_hole(struct iter_forwards* fwd, uint16_t c, uint8_t* nm,
+	int nolock)
 {
+	/* lock_() calls are macros that could be nothing, surround in {} */
+	if(!nolock) { lock_rw_wrlock(&fwd->lock); }
+	if(fwd_zone_find(fwd, c, nm) != NULL) {
+		if(!nolock) { lock_rw_unlock(&fwd->lock); }
+		return 1; /* already a stub zone there */
+	}
 	if(!fwd_add_stub_hole(fwd, c, nm)) {
+		if(!nolock) { lock_rw_unlock(&fwd->lock); }
 		return 0;
 	}
 	fwd_init_parents(fwd);
+	if(!nolock) { lock_rw_unlock(&fwd->lock); }
 	return 1;
 }
 
 void
-forwards_delete_stub_hole(struct iter_forwards* fwd, uint16_t c, uint8_t* nm)
+forwards_delete_stub_hole(struct iter_forwards* fwd, uint16_t c,
+	uint8_t* nm, int nolock)
 {
 	struct iter_forward_zone *z;
-	if(!(z=fwd_zone_find(fwd, c, nm)))
+	/* lock_() calls are macros that could be nothing, surround in {} */
+	if(!nolock) { lock_rw_wrlock(&fwd->lock); }
+	if(!(z=fwd_zone_find(fwd, c, nm))) {
+		if(!nolock) { lock_rw_unlock(&fwd->lock); }
 		return; /* nothing to do */
-	if(z->dp != NULL)
+	}
+	if(z->dp != NULL) {
+		if(!nolock) { lock_rw_unlock(&fwd->lock); }
 		return; /* not a stub hole */
+	}
 	(void)rbtree_delete(fwd->tree, &z->node);
 	fwd_zone_free(z);
 	fwd_init_parents(fwd);
+	if(!nolock) { lock_rw_unlock(&fwd->lock); }
 }

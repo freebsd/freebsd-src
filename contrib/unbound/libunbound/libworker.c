@@ -70,8 +70,6 @@
 #include "util/data/msgreply.h"
 #include "util/data/msgencode.h"
 #include "util/tube.h"
-#include "iterator/iter_fwd.h"
-#include "iterator/iter_hints.h"
 #include "sldns/sbuffer.h"
 #include "sldns/str2wire.h"
 #ifdef USE_DNSTAP
@@ -100,8 +98,6 @@ libworker_delete_env(struct libworker* w)
 			!w->is_bg || w->is_bg_thread);
 		sldns_buffer_free(w->env->scratch_buffer);
 		regional_destroy(w->env->scratch);
-		forwards_delete(w->env->fwds);
-		hints_delete(w->env->hints);
 		ub_randfree(w->env->rnd);
 		free(w->env);
 	}
@@ -159,30 +155,19 @@ libworker_setup(struct ub_ctx* ctx, int is_bg, struct ub_event_base* eb)
 	}
 	w->env->scratch = regional_create_custom(cfg->msg_buffer_size);
 	w->env->scratch_buffer = sldns_buffer_new(cfg->msg_buffer_size);
-	w->env->fwds = forwards_create();
-	if(w->env->fwds && !forwards_apply_cfg(w->env->fwds, cfg)) { 
-		forwards_delete(w->env->fwds);
-		w->env->fwds = NULL;
-	}
-	w->env->hints = hints_create();
-	if(w->env->hints && !hints_apply_cfg(w->env->hints, cfg)) { 
-		hints_delete(w->env->hints);
-		w->env->hints = NULL;
-	}
 #ifdef HAVE_SSL
 	w->sslctx = connect_sslctx_create(NULL, NULL,
 		cfg->tls_cert_bundle, cfg->tls_win_cert);
 	if(!w->sslctx) {
 		/* to make the setup fail after unlock */
-		hints_delete(w->env->hints);
-		w->env->hints = NULL;
+		sldns_buffer_free(w->env->scratch_buffer);
+		w->env->scratch_buffer = NULL;
 	}
 #endif
 	if(!w->is_bg || w->is_bg_thread) {
 		lock_basic_unlock(&ctx->cfglock);
 	}
-	if(!w->env->scratch || !w->env->scratch_buffer || !w->env->fwds ||
-		!w->env->hints) {
+	if(!w->env->scratch || !w->env->scratch_buffer) {
 		libworker_delete(w);
 		return NULL;
 	}

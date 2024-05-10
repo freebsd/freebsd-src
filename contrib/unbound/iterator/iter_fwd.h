@@ -43,6 +43,7 @@
 #ifndef ITERATOR_ITER_FWD_H
 #define ITERATOR_ITER_FWD_H
 #include "util/rbtree.h"
+#include "util/locks.h"
 struct config_file;
 struct delegpt;
 
@@ -50,6 +51,11 @@ struct delegpt;
  * Iterator forward zones structure
  */
 struct iter_forwards {
+	/** lock on the forwards tree.
+	 * When grabbing both this lock and the anchors.lock, this lock
+	 * is grabbed first. When grabbing both this lock and the hints.lock
+	 * this lock is grabbed first. */
+	lock_rw_type lock;
 	/** 
 	 * Zones are stored in this tree. Sort order is specially chosen.
 	 * first sorted on qclass. Then on dname in nsec-like order, so that
@@ -106,47 +112,65 @@ int forwards_apply_cfg(struct iter_forwards* fwd, struct config_file* cfg);
 
 /**
  * Find forward zone exactly by name
+ * The return value is contents of the forwards structure.
+ * Caller should lock and unlock a readlock on the forwards structure if nolock
+ * is set.
+ * Otherwise caller should unlock the readlock on the forwards structure if a
+ * value was returned.
  * @param fwd: forward storage.
  * @param qname: The qname of the query.
  * @param qclass: The qclass of the query.
+ * @param nolock: Skip locking, locking is handled by the caller.
  * @return: A delegation point or null.
  */
 struct delegpt* forwards_find(struct iter_forwards* fwd, uint8_t* qname,
-	uint16_t qclass);
+	uint16_t qclass, int nolock);
 
 /**
  * Find forward zone information
  * For this qname/qclass find forward zone information, returns delegation
  * point with server names and addresses, or NULL if no forwarding is needed.
+ * The return value is contents of the forwards structure.
+ * Caller should lock and unlock a readlock on the forwards structure if nolock
+ * is set.
+ * Otherwise caller should unlock the readlock on the forwards structure if a
+ * value was returned.
  *
  * @param fwd: forward storage.
  * @param qname: The qname of the query.
  * @param qclass: The qclass of the query.
+ * @param nolock: Skip locking, locking is handled by the caller.
  * @return: A delegation point if the query has to be forwarded to that list,
  *         otherwise null.
  */
-struct delegpt* forwards_lookup(struct iter_forwards* fwd, 
-	uint8_t* qname, uint16_t qclass);
+struct delegpt* forwards_lookup(struct iter_forwards* fwd,
+	uint8_t* qname, uint16_t qclass, int nolock);
 
 /**
  * Same as forwards_lookup, but for the root only
  * @param fwd: forward storage.
  * @param qclass: The qclass of the query.
+ * @param nolock: Skip locking, locking is handled by the caller.
  * @return: A delegation point if root forward exists, otherwise null.
  */
-struct delegpt* forwards_lookup_root(struct iter_forwards* fwd, 
-	uint16_t qclass);
+struct delegpt* forwards_lookup_root(struct iter_forwards* fwd,
+	uint16_t qclass, int nolock);
 
 /**
  * Find next root item in forwards lookup tree.
+ * Handles its own locking unless nolock is set. In that case the caller
+ * should lock and unlock a readlock on the forwards structure.
  * @param fwd: the forward storage
  * @param qclass: class to look at next, or higher.
+ * @param nolock: Skip locking, locking is handled by the caller.
  * @return false if none found, or if true stored in qclass.
  */
-int forwards_next_root(struct iter_forwards* fwd, uint16_t* qclass);
+int forwards_next_root(struct iter_forwards* fwd, uint16_t* qclass,
+	int nolock);
 
 /**
  * Get memory in use by forward storage
+ * Locks and unlocks the structure.
  * @param fwd: forward storage.
  * @return bytes in use
  */
@@ -158,42 +182,56 @@ int fwd_cmp(const void* k1, const void* k2);
 /**
  * Add zone to forward structure. For external use since it recalcs 
  * the tree parents.
+ * Handles its own locking unless nolock is set. In that case the caller
+ * should lock and unlock a writelock on the forwards structure.
  * @param fwd: the forward data structure
  * @param c: class of zone
  * @param dp: delegation point with name and target nameservers for new
  *	forward zone. malloced.
+ * @param nolock: Skip locking, locking is handled by the caller.
  * @return false on failure (out of memory);
  */
-int forwards_add_zone(struct iter_forwards* fwd, uint16_t c, 
-	struct delegpt* dp);
+int forwards_add_zone(struct iter_forwards* fwd, uint16_t c,
+	struct delegpt* dp, int nolock);
 
 /**
  * Remove zone from forward structure. For external use since it 
  * recalcs the tree parents.
+ * Handles its own locking unless nolock is set. In that case the caller
+ * should lock and unlock a writelock on the forwards structure.
  * @param fwd: the forward data structure
  * @param c: class of zone
  * @param nm: name of zone (in uncompressed wireformat).
+ * @param nolock: Skip locking, locking is handled by the caller.
  */
-void forwards_delete_zone(struct iter_forwards* fwd, uint16_t c, uint8_t* nm);
+void forwards_delete_zone(struct iter_forwards* fwd, uint16_t c,
+	uint8_t* nm, int nolock);
 
 /**
  * Add stub hole (empty entry in forward table, that makes resolution skip
  * a forward-zone because the stub zone should override the forward zone).
  * Does not add one if not necessary.
+ * Handles its own locking unless nolock is set. In that case the caller
+ * should lock and unlock a writelock on the forwards structure.
  * @param fwd: the forward data structure
  * @param c: class of zone
  * @param nm: name of zone (in uncompressed wireformat).
+ * @param nolock: Skip locking, locking is handled by the caller.
  * @return false on failure (out of memory);
  */
-int forwards_add_stub_hole(struct iter_forwards* fwd, uint16_t c, uint8_t* nm);
+int forwards_add_stub_hole(struct iter_forwards* fwd, uint16_t c,
+	uint8_t* nm, int nolock);
 
 /**
  * Remove stub hole, if one exists.
+ * Handles its own locking unless nolock is set. In that case the caller
+ * should lock and unlock a writelock on the forwards structure.
  * @param fwd: the forward data structure
  * @param c: class of zone
  * @param nm: name of zone (in uncompressed wireformat).
+ * @param nolock: Skip locking, locking is handled by the caller.
  */
 void forwards_delete_stub_hole(struct iter_forwards* fwd, uint16_t c,
-	uint8_t* nm);
+	uint8_t* nm, int nolock);
 
 #endif /* ITERATOR_ITER_FWD_H */

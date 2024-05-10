@@ -41,6 +41,7 @@
  */
 #include "util/module.h"
 struct cachedb_backend;
+struct module_stack;
 
 /**
  * The global variable environment contents for the cachedb
@@ -110,3 +111,18 @@ size_t cachedb_get_mem(struct module_env* env, int id);
  */
 struct module_func_block* cachedb_get_funcblock(void);
 
+/**
+ * See if the cachedb is enabled.
+ * @param mods: module stack. It finds the cachedb module environment.
+ * @param env: module environment.
+ * @return true if exists and enabled.
+ */
+int cachedb_is_enabled(struct module_stack* mods, struct module_env* env);
+
+/**
+ * Remove a message from the global cache. Because edns subnet has a more
+ * specific entry, and if not removed when everything expires, the global
+ * entry is used, instead of a fresh lookup of the edns subnet entry.
+ * @param qstate: query state.
+ */
+void cachedb_msg_remove(struct module_qstate* qstate);

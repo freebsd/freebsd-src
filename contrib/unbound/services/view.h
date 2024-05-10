@@ -126,7 +126,8 @@ void view_delete(struct view* v);
  */
 void views_print(struct views* v);
 
-/* Find a view by name.
+/**
+ * Find a view by name.
  * @param vs: views
  * @param name: name of the view we are looking for
  * @param write: 1 for obtaining write lock on found view, 0 for read lock

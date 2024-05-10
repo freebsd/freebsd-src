@@ -226,6 +226,14 @@ int rpz_clear(struct rpz* r);
 struct rpz* rpz_create(struct config_auth* p);
 
 /**
+ * Change config on rpz, after reload.
+ * @param r: the rpz structure.
+ * @param p: the config that was read.
+ * @return false on failure.
+ */
+int rpz_config(struct rpz* r, struct config_auth* p);
+
+/**
  * String for RPZ action enum
  * @param a: RPZ action to get string for
  * @return: string for RPZ action

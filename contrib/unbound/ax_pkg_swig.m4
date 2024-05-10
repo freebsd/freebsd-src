@@ -1,39 +1,43 @@
 # ===========================================================================
-#              http://autoconf-archive.cryp.to/ac_pkg_swig.html
+#       https://www.gnu.org/software/autoconf-archive/ax_pkg_swig.html
 # ===========================================================================
 #
 # SYNOPSIS
 #
-#   AC_PROG_SWIG([major.minor.micro])
+#   AX_PKG_SWIG([major.minor.micro], [action-if-found], [action-if-not-found])
 #
 # DESCRIPTION
 #
-#   This macro searches for a SWIG installation on your system. If found you
-#   should call SWIG via $(SWIG). You can use the optional first argument to
-#   check if the version of the available SWIG is greater than or equal to
-#   the value of the argument. It should have the format: N[.N[.N]] (N is a
-#   number between 0 and 999. Only the first N is mandatory.)
+#   This macro searches for a SWIG installation on your system. If found,
+#   then SWIG is AC_SUBST'd; if not found, then $SWIG is empty.  If SWIG is
+#   found, then SWIG_LIB is set to the SWIG library path, and AC_SUBST'd.
 #
-#   If the version argument is given (e.g. 1.3.17), AC_PROG_SWIG checks that
-#   the swig package is this version number or higher.
+#   You can use the optional first argument to check if the version of the
+#   available SWIG is greater than or equal to the value of the argument. It
+#   should have the format: N[.N[.N]] (N is a number between 0 and 999. Only
+#   the first N is mandatory.) If the version argument is given (e.g.
+#   1.3.17), AX_PKG_SWIG checks that the swig package is this version number
+#   or higher.
+#
+#   As usual, action-if-found is executed if SWIG is found, otherwise
+#   action-if-not-found is executed.
 #
 #   In configure.in, use as:
 #
-#     AC_PROG_SWIG(1.3.17)
-#     SWIG_ENABLE_CXX
-#     SWIG_MULTI_MODULE_SUPPORT
-#     SWIG_PYTHON
+#     AX_PKG_SWIG(1.3.17, [], [ AC_MSG_ERROR([SWIG is required to build..]) ])
+#     AX_SWIG_ENABLE_CXX
+#     AX_SWIG_MULTI_MODULE_SUPPORT
+#     AX_SWIG_PYTHON
 #
-# LAST MODIFICATION
-#
-#   2008-04-12
-#
-# COPYLEFT
+# LICENSE
 #
 #   Copyright (c) 2008 Sebastian Huber <sebastian-huber@web.de>
-#   Copyright (c) 2008 Alan W. Irwin <irwin@beluga.phys.uvic.ca>
+#   Copyright (c) 2008 Alan W. Irwin
 #   Copyright (c) 2008 Rafael Laboissiere <rafael@laboissiere.net>
-#   Copyright (c) 2008 Andrew Collier <colliera@ukzn.ac.za>
+#   Copyright (c) 2008 Andrew Collier
+#   Copyright (c) 2011 Murray Cumming <murrayc@openismus.com>
+#   Copyright (c) 2018 Reini Urban <rurban@cpan.org>
+#   Copyright (c) 2021 Vincent Danjean <Vincent.Danjean@ens-lyon.org>
 #
 #   This program is free software; you can redistribute it and/or modify it
 #   under the terms of the GNU General Public License as published by the
@@ -46,7 +50,7 @@
 #   Public License for more details.
 #
 #   You should have received a copy of the GNU General Public License along
-#   with this program. If not, see <http://www.gnu.org/licenses/>.
+#   with this program. If not, see <https://www.gnu.org/licenses/>.
 #
 #   As a special exception, the respective Autoconf Macro's copyright owner
 #   gives unlimited permission to copy, distribute and modify the configure
@@ -57,17 +61,21 @@
 #   all other use of the material that constitutes the Autoconf Macro.
 #
 #   This special exception to the GPL applies to versions of the Autoconf
-#   Macro released by the Autoconf Macro Archive. When you make and
-#   distribute a modified version of the Autoconf Macro, you may extend this
-#   special exception to the GPL to apply to your modified version as well.
+#   Macro released by the Autoconf Archive. When you make and distribute a
+#   modified version of the Autoconf Macro, you may extend this special
+#   exception to the GPL to apply to your modified version as well.
 
-AC_DEFUN([AC_PROG_SWIG],[
-        AC_PATH_PROG([SWIG],[swig])
+#serial 15
+
+AC_DEFUN([AX_PKG_SWIG],[
+        # Find path to the "swig" executable.
+        AC_PATH_PROGS([SWIG],[swig swig3.0 swig2.0])
         if test -z "$SWIG" ; then
-                AC_MSG_WARN([cannot find 'swig' program. You should look at http://www.swig.org])
-                SWIG='echo "Error: SWIG is not installed. You should look at http://www.swig.org" ; false'
-        elif test -n "$1" ; then
-                AC_MSG_CHECKING([for SWIG version])
+                m4_ifval([$3],[$3],[:])
+        elif test -z "$1" ; then
+                m4_ifval([$2],[$2],[:])
+	else
+                AC_MSG_CHECKING([SWIG version])
                 [swig_version=`$SWIG -version 2>&1 | grep 'SWIG Version' | sed 's/.*\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/g'`]
                 AC_MSG_RESULT([$swig_version])
                 if test -n "$swig_version" ; then
@@ -77,12 +85,12 @@ AC_DEFUN([AC_PROG_SWIG],[
                         if test -z "$required_major" ; then
                                 [required_major=0]
                         fi
-                        [required=`echo $required | sed 's/[0-9]*[^0-9]//'`]
+                        [required=`echo $required. | sed 's/[0-9]*[^0-9]//'`]
                         [required_minor=`echo $required | sed 's/[^0-9].*//'`]
                         if test -z "$required_minor" ; then
                                 [required_minor=0]
                         fi
-                        [required=`echo $required | sed 's/[0-9]*[^0-9]//'`]
+                        [required=`echo $required. | sed 's/[0-9]*[^0-9]//'`]
                         [required_patch=`echo $required | sed 's/[^0-9].*//'`]
                         if test -z "$required_patch" ; then
                                 [required_patch=0]
@@ -103,30 +111,28 @@ AC_DEFUN([AC_PROG_SWIG],[
                         if test -z "$available_patch" ; then
                                 [available_patch=0]
                         fi
-			[badversion=0]
-			if test $available_major -lt $required_major ; then
-				[badversion=1]
-			fi
-                        if test $available_major -eq $required_major \
-                                -a $available_minor -lt $required_minor ; then
-				[badversion=1]
-			fi
-                        if test $available_major -eq $required_major \
-                                -a $available_minor -eq $required_minor \
-                                -a $available_patch -lt $required_patch ; then
-				[badversion=1]
-			fi
-			if test $badversion -eq 1 ; then
-                                AC_MSG_WARN([SWIG version >= $1 is required.  You have $swig_version.  You should look at http://www.swig.org])
-                                SWIG='echo "Error: SWIG version >= $1 is required.  You have '"$swig_version"'.  You should look at http://www.swig.org" ; false'
+                        # Convert the version tuple into a single number for easier comparison.
+                        # Using base 100 should be safe since SWIG internally uses BCD values
+                        # to encode its version number.
+                        required_swig_vernum=`expr $required_major \* 10000 \
+                            \+ $required_minor \* 100 \+ $required_patch`
+                        available_swig_vernum=`expr $available_major \* 10000 \
+                            \+ $available_minor \* 100 \+ $available_patch`
+
+                        if test $available_swig_vernum -lt $required_swig_vernum; then
+                                AC_MSG_WARN([SWIG version >= $1 is required.  You have $swig_version.])
+                                SWIG=''
+                                m4_ifval([$3],[$3],[])
                         else
-                                AC_MSG_NOTICE([SWIG executable is '$SWIG'])
-                                SWIG_LIB=`$SWIG -swiglib`
-                                AC_MSG_NOTICE([SWIG library directory is '$SWIG_LIB'])
+                                AC_MSG_CHECKING([for SWIG library])
+                                SWIG_LIB=`$SWIG -swiglib | tr '\r\n' '  '`
+                                AC_MSG_RESULT([$SWIG_LIB])
+                                m4_ifval([$2],[$2],[])
                         fi
                 else
                         AC_MSG_WARN([cannot determine SWIG version])
-                        SWIG='echo "Error: Cannot determine SWIG version.  You should look at http://www.swig.org" ; false'
+                        SWIG=''
+                        m4_ifval([$3],[$3],[])
                 fi
         fi
         AC_SUBST([SWIG_LIB])

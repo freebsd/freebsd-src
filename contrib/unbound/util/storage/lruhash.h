@@ -303,6 +303,17 @@ void lru_touch(struct lruhash* table, struct lruhash_entry* entry);
  */
 void lruhash_setmarkdel(struct lruhash* table, lruhash_markdelfunc_type md);
 
+/**
+ * Update the size of an element in the hashtable.
+ *
+ * @param table: hash table.
+ * @param cb_override: if not NULL overrides the cb_arg for deletefunc.
+ * @param diff_size: difference in size to the hash table storage.
+ * 	This is newsize - oldsize, a positive number uses more space.
+ */
+void lruhash_update_space_used(struct lruhash* table, void* cb_override,
+	int diff_size);
+
 /************************* getdns functions ************************/
 /*** these are used by getdns only and not by unbound. ***/
 

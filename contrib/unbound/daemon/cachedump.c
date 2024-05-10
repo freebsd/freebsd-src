@@ -839,6 +839,7 @@ int print_deleg_lookup(RES* ssl, struct worker* worker, uint8_t* nm,
 	char b[260];
 	struct query_info qinfo;
 	struct iter_hints_stub* stub;
+	int nolock = 0;
 	regional_free_all(region);
 	qinfo.qname = nm;
 	qinfo.qname_len = nmlen;
@@ -850,13 +851,16 @@ int print_deleg_lookup(RES* ssl, struct worker* worker, uint8_t* nm,
 	if(!ssl_printf(ssl, "The following name servers are used for lookup "
 		"of %s\n", b)) 
 		return 0;
-	
-	dp = forwards_lookup(worker->env.fwds, nm, qinfo.qclass);
+
+	dp = forwards_lookup(worker->env.fwds, nm, qinfo.qclass, nolock);
 	if(dp) {
-		if(!ssl_printf(ssl, "forwarding request:\n"))
+		if(!ssl_printf(ssl, "forwarding request:\n")) {
+			lock_rw_unlock(&worker->env.fwds->lock);
 			return 0;
+		}
 		print_dp_main(ssl, dp, NULL);
 		print_dp_details(ssl, worker, dp);
+		lock_rw_unlock(&worker->env.fwds->lock);
 		return 1;
 	}
 	
@@ -892,21 +896,26 @@ int print_deleg_lookup(RES* ssl, struct worker* worker, uint8_t* nm,
 					return 0;
 				continue;
 			}
-		} 
+		}
 		stub = hints_lookup_stub(worker->env.hints, nm, qinfo.qclass,
-			dp);
+			dp, nolock);
 		if(stub) {
 			if(stub->noprime) {
 				if(!ssl_printf(ssl, "The noprime stub servers "
-					"are used:\n"))
+					"are used:\n")) {
+					lock_rw_unlock(&worker->env.hints->lock);
 					return 0;
+				}
 			} else {
 				if(!ssl_printf(ssl, "The stub is primed "
-						"with servers:\n"))
+						"with servers:\n")) {
+					lock_rw_unlock(&worker->env.hints->lock);
 					return 0;
+				}
 			}
 			print_dp_main(ssl, stub->dp, NULL);
 			print_dp_details(ssl, worker, stub->dp);
+			lock_rw_unlock(&worker->env.hints->lock);
 		} else {
 			print_dp_main(ssl, dp, msg);
 			print_dp_details(ssl, worker, dp);

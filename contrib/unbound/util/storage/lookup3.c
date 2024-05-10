@@ -89,7 +89,7 @@ on 1 byte), but shoehorning those bytes into integers efficiently is messy.
 # if (defined(__BYTE_ORDER) && defined(__LITTLE_ENDIAN) && \
       __BYTE_ORDER == __LITTLE_ENDIAN) || \
      (defined(i386) || defined(__i386__) || defined(__i486__) || \
-      defined(__i586__) || defined(__i686__) || defined(vax) || defined(MIPSEL) || defined(__x86))
+      defined(__i586__) || defined(__i686__) || defined(vax) || defined(MIPSEL) || defined(__x86) || defined(__loongarch__))
 #  define HASH_LITTLE_ENDIAN 1
 #  define HASH_BIG_ENDIAN 0
 # elif (defined(__BYTE_ORDER) && defined(__BIG_ENDIAN) && \

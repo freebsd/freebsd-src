@@ -77,6 +77,8 @@
 
 /** max length of an IP address (the address portion) that we allow */
 #define MAX_ADDR_STRLEN 128 /* characters */
+/** max length of a hostname (with port and tls name) that we allow */
+#define MAX_HOST_STRLEN (LDNS_MAX_DOMAINLEN * 3) /* characters */
 /** default value for EDNS ADVERTISED size */
 uint16_t EDNS_ADVERTISED_SIZE = 4096;
 
@@ -486,28 +488,38 @@ uint8_t* authextstrtodname(char* str, int* port, char** auth_name)
 	*port = UNBOUND_DNS_PORT;
 	*auth_name = NULL;
 	if((s=strchr(str, '@'))) {
+		char buf[MAX_HOST_STRLEN];
+		size_t len = (size_t)(s-str);
 		char* hash = strchr(s+1, '#');
 		if(hash) {
 			*auth_name = hash+1;
 		} else {
 			*auth_name = NULL;
 		}
+		if(len >= MAX_HOST_STRLEN) {
+			return NULL;
+		}
+		(void)strlcpy(buf, str, sizeof(buf));
+		buf[len] = 0;
 		*port = atoi(s+1);
 		if(*port == 0) {
 			if(!hash && strcmp(s+1,"0")!=0)
-				return 0;
+				return NULL;
 			if(hash && strncmp(s+1,"0#",2)!=0)
-				return 0;
+				return NULL;
 		}
-		*s = 0;
-		dname = sldns_str2wire_dname(str, &dname_len);
-		*s = '@';
+		dname = sldns_str2wire_dname(buf, &dname_len);
 	} else if((s=strchr(str, '#'))) {
+		char buf[MAX_HOST_STRLEN];
+		size_t len = (size_t)(s-str);
+		if(len >= MAX_HOST_STRLEN) {
+			return NULL;
+		}
+		(void)strlcpy(buf, str, sizeof(buf));
+		buf[len] = 0;
 		*port = UNBOUND_DNS_OVER_TLS_PORT;
 		*auth_name = s+1;
-		*s = 0;
-		dname = sldns_str2wire_dname(str, &dname_len);
-		*s = '#';
+		dname = sldns_str2wire_dname(buf, &dname_len);
 	} else {
 		dname = sldns_str2wire_dname(str, &dname_len);
 	}
@@ -1026,11 +1038,11 @@ static void log_crypto_err_io_code_arg(const char* str, int r,
 	} else {
 		if(print_errno) {
 			if(errno == 0)
-				log_err("str: syscall error with errno %s",
-					strerror(errno));
-			else log_err("str: %s", strerror(errno));
+				log_err("%s: syscall error with errno %s",
+					str, strerror(errno));
+			else log_err("%s: %s", str, strerror(errno));
 		} else {
-			log_err("str: %s", inf);
+			log_err("%s: %s", str, inf);
 		}
 	}
 }
