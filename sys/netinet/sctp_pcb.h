@@ -130,7 +130,7 @@ struct sctp_block_entry {
 };
 
 struct sctp_timewait {
-	uint32_t tv_sec_at_expire;	/* the seconds from boot to expire */
+	time_t tv_sec_at_expire;	/* the seconds from boot to expire */
 	uint32_t v_tag;		/* the vtag that can not be reused */
 	uint16_t lport;		/* the local port used in vtag */
 	uint16_t rport;		/* the remote port used in vtag */
