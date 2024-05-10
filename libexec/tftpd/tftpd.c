@@ -172,7 +172,7 @@ main(int argc, char *argv[])
 			options_extra_enabled = 0;
 			break;
 		case 'p':
-			packetdroppercentage = atoi(optarg);
+			packetdroppercentage = (unsigned int)atoi(optarg);
 			tftp_log(LOG_INFO,
 			    "Randomly dropping %d out of 100 packets",
 			    packetdroppercentage);
@@ -463,9 +463,9 @@ static char *
 parse_header(int peer, char *recvbuffer, size_t size,
 	char **filename, char **mode)
 {
-	char	*cp;
-	int	i;
 	struct formats *pf;
+	char	*cp;
+	size_t	i;
 
 	*mode = NULL;
 	cp = recvbuffer;
@@ -482,12 +482,11 @@ parse_header(int peer, char *recvbuffer, size_t size,
 
 	i = get_field(peer, cp, size);
 	*mode = cp;
-	cp += i;
 
 	/* Find the file transfer mode */
-	for (cp = *mode; *cp; cp++)
-		if (isupper(*cp))
-			*cp = tolower(*cp);
+	for (; *cp; cp++)
+		if (isupper((unsigned char)*cp))
+			*cp = tolower((unsigned char)*cp);
 	for (pf = formats; pf->f_mode; pf++)
 		if (strcmp(pf->f_mode, *mode) == 0)
 			break;
@@ -624,12 +623,20 @@ tftp_rrq(int peer, char *recvbuffer, size_t size)
 static int
 find_next_name(char *filename, int *fd)
 {
-	int i;
-	time_t tval;
-	size_t len;
-	struct tm lt;
-	char yyyymmdd[MAXPATHLEN];
+	/*
+	 * GCC "knows" that we might write all of yyyymmdd plus the static
+	 * elemenents in the format into into newname and thus complains
+	 * unless we reduce the size.  This array is still too big, but since
+	 * the format is user supplied, it's not clear what a better limit
+	 * value would be and this is sufficent to silence the warnings.
+	 */
+	static const int suffix_len = strlen("..00");
+	char yyyymmdd[MAXPATHLEN - suffix_len];
 	char newname[MAXPATHLEN];
+	int i, ret;
+	time_t tval;
+	size_t len, namelen;
+	struct tm lt;
 
 	/* Create the YYYYMMDD part of the filename */
 	time(&tval);
@@ -637,26 +644,33 @@ find_next_name(char *filename, int *fd)
 	len = strftime(yyyymmdd, sizeof(yyyymmdd), newfile_format, &lt);
 	if (len == 0) {
 		syslog(LOG_WARNING,
-			"Filename suffix too long (%d characters maximum)",
-			MAXPATHLEN);
+			"Filename suffix too long (%zu characters maximum)",
+			sizeof(yyyymmdd) - 1);
 		return (EACCESS);
 	}
 
 	/* Make sure the new filename is not too long */
-	if (strlen(filename) > MAXPATHLEN - len - 5) {
+	namelen = strlen(filename);
+	if (namelen >= sizeof(newname) - len - suffix_len) {
 		syslog(LOG_WARNING,
-			"Filename too long (%zd characters, %zd maximum)",
-			strlen(filename), MAXPATHLEN - len - 5);
+			"Filename too long (%zu characters, %zu maximum)",
+			namelen,
+			sizeof(newname) - len - suffix_len - 1);
 		return (EACCESS);
 	}
 
 	/* Find the first file which doesn't exist */
 	for (i = 0; i < 100; i++) {
-		sprintf(newname, "%s.%s.%02d", filename, yyyymmdd, i);
-		*fd = open(newname,
-		    O_WRONLY | O_CREAT | O_EXCL,
-		    S_IRUSR | S_IWUSR | S_IRGRP |
-		    S_IWGRP | S_IROTH | S_IWOTH);
+		ret = snprintf(newname, sizeof(newname), "%s.%s.%02d",
+		    filename, yyyymmdd, i);
+		/*
+		 * Size checked above so this can't happen, we'd use a
+		 * (void) cast, but gcc intentionally ignores that if
+		 * snprintf has __attribute__((warn_unused_result)).
+		 */
+		if (ret < 0 || (size_t)ret >= sizeof(newname))
+			__unreachable();
+		*fd = open(newname, O_WRONLY | O_CREAT | O_EXCL, 0666);
 		if (*fd > 0)
 			return 0;
 	}

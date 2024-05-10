@@ -204,7 +204,7 @@ struct debugs debugs[] = {
 	{ DEBUG_ACCESS,		"access",	"TCPd access debugging"	},
 	{ DEBUG_NONE,		NULL,		"No debugging"		},
 };
-int	packetdroppercentage = 0;
+unsigned int packetdroppercentage = 0;
 
 int
 debug_find(char *s)
