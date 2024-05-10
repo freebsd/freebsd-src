@@ -57,6 +57,8 @@ hints_create(void)
 		sizeof(struct iter_hints));
 	if(!hints)
 		return NULL;
+	lock_rw_init(&hints->lock);
+	lock_protect(&hints->lock, &hints->tree, sizeof(hints->tree));
 	return hints;
 }
 
@@ -83,6 +85,7 @@ hints_delete(struct iter_hints* hints)
 {
 	if(!hints) 
 		return;
+	lock_rw_destroy(&hints->lock);
 	hints_del_tree(hints);
 	free(hints);
 }
@@ -438,47 +441,70 @@ read_root_hints_list(struct iter_hints* hints, struct config_file* cfg)
 int 
 hints_apply_cfg(struct iter_hints* hints, struct config_file* cfg)
 {
+	int nolock = 1;
+	lock_rw_wrlock(&hints->lock);
 	hints_del_tree(hints);
 	name_tree_init(&hints->tree);
-	
+
 	/* read root hints */
-	if(!read_root_hints_list(hints, cfg))
+	if(!read_root_hints_list(hints, cfg)) {
+		lock_rw_unlock(&hints->lock);
 		return 0;
+	}
 
 	/* read stub hints */
-	if(!read_stubs(hints, cfg))
+	if(!read_stubs(hints, cfg)) {
+		lock_rw_unlock(&hints->lock);
 		return 0;
+	}
 
 	/* use fallback compiletime root hints */
-	if(!hints_lookup_root(hints, LDNS_RR_CLASS_IN)) {
+	if(!hints_find_root(hints, LDNS_RR_CLASS_IN, nolock)) {
 		struct delegpt* dp = compile_time_root_prime(cfg->do_ip4,
 			cfg->do_ip6);
 		verbose(VERB_ALGO, "no config, using builtin root hints.");
-		if(!dp) 
+		if(!dp) {
+			lock_rw_unlock(&hints->lock);
 			return 0;
-		if(!hints_insert(hints, LDNS_RR_CLASS_IN, dp, 0))
+		}
+		if(!hints_insert(hints, LDNS_RR_CLASS_IN, dp, 0)) {
+			lock_rw_unlock(&hints->lock);
 			return 0;
+		}
 	}
 
 	name_tree_init_parents(&hints->tree);
+	lock_rw_unlock(&hints->lock);
 	return 1;
 }
 
-struct delegpt* 
-hints_lookup_root(struct iter_hints* hints, uint16_t qclass)
+struct delegpt*
+hints_find(struct iter_hints* hints, uint8_t* qname, uint16_t qclass,
+	int nolock)
+{
+	struct iter_hints_stub *stub;
+	size_t len;
+	int has_dp;
+	int labs = dname_count_size_labels(qname, &len);
+	/* lock_() calls are macros that could be nothing, surround in {} */
+	if(!nolock) { lock_rw_rdlock(&hints->lock); }
+	stub = (struct iter_hints_stub*)name_tree_find(&hints->tree,
+		qname, len, labs, qclass);
+	has_dp = stub && stub->dp;
+	if(!has_dp && !nolock) { lock_rw_unlock(&hints->lock); }
+	return has_dp?stub->dp:NULL;
+}
+
+struct delegpt*
+hints_find_root(struct iter_hints* hints, uint16_t qclass, int nolock)
 {
 	uint8_t rootlab = 0;
-	struct iter_hints_stub *stub;
-	stub = (struct iter_hints_stub*)name_tree_find(&hints->tree,
-		&rootlab, 1, 1, qclass);
-	if(!stub)
-		return NULL;
-	return stub->dp;
+	return hints_find(hints, &rootlab, qclass, nolock);
 }
 
 struct iter_hints_stub* 
-hints_lookup_stub(struct iter_hints* hints, uint8_t* qname, 
-	uint16_t qclass, struct delegpt* cache_dp)
+hints_lookup_stub(struct iter_hints* hints, uint8_t* qname,
+	uint16_t qclass, struct delegpt* cache_dp, int nolock)
 {
 	size_t len;
 	int labs;
@@ -486,14 +512,20 @@ hints_lookup_stub(struct iter_hints* hints, uint8_t* qname,
 
 	/* first lookup the stub */
 	labs = dname_count_size_labels(qname, &len);
+	/* lock_() calls are macros that could be nothing, surround in {} */
+	if(!nolock) { lock_rw_rdlock(&hints->lock); }
 	r = (struct iter_hints_stub*)name_tree_lookup(&hints->tree, qname,
 		len, labs, qclass);
-	if(!r) return NULL;
+	if(!r) {
+		if(!nolock) { lock_rw_unlock(&hints->lock); }
+		return NULL;
+	}
 
 	/* If there is no cache (root prime situation) */
 	if(cache_dp == NULL) {
 		if(r->dp->namelabs != 1)
 			return r; /* no cache dp, use any non-root stub */
+		if(!nolock) { lock_rw_unlock(&hints->lock); }
 		return NULL;
 	}
 
@@ -510,12 +542,18 @@ hints_lookup_stub(struct iter_hints* hints, uint8_t* qname,
 	if(dname_strict_subdomain(r->dp->name, r->dp->namelabs,
 		cache_dp->name, cache_dp->namelabs))
 		return r; /* need to prime this stub */
+	if(!nolock) { lock_rw_unlock(&hints->lock); }
 	return NULL;
 }
 
-int hints_next_root(struct iter_hints* hints, uint16_t* qclass)
+int hints_next_root(struct iter_hints* hints, uint16_t* qclass, int nolock)
 {
-	return name_tree_next_root(&hints->tree, qclass);
+	int ret;
+	/* lock_() calls are macros that could be nothing, surround in {} */
+	if(!nolock) { lock_rw_rdlock(&hints->lock); }
+	ret = name_tree_next_root(&hints->tree, qclass);
+	if(!nolock) { lock_rw_unlock(&hints->lock); }
+	return ret;
 }
 
 size_t 
@@ -524,39 +562,52 @@ hints_get_mem(struct iter_hints* hints)
 	size_t s;
 	struct iter_hints_stub* p;
 	if(!hints) return 0;
+	lock_rw_rdlock(&hints->lock);
 	s = sizeof(*hints);
 	RBTREE_FOR(p, struct iter_hints_stub*, &hints->tree) {
 		s += sizeof(*p) + delegpt_get_mem(p->dp);
 	}
+	lock_rw_unlock(&hints->lock);
 	return s;
 }
 
 int 
 hints_add_stub(struct iter_hints* hints, uint16_t c, struct delegpt* dp,
-	int noprime)
+	int noprime, int nolock)
 {
 	struct iter_hints_stub *z;
+	/* lock_() calls are macros that could be nothing, surround in {} */
+	if(!nolock) { lock_rw_wrlock(&hints->lock); }
 	if((z=(struct iter_hints_stub*)name_tree_find(&hints->tree,
 		dp->name, dp->namelen, dp->namelabs, c)) != NULL) {
 		(void)rbtree_delete(&hints->tree, &z->node);
 		hints_stub_free(z);
 	}
-	if(!hints_insert(hints, c, dp, noprime))
+	if(!hints_insert(hints, c, dp, noprime)) {
+		if(!nolock) { lock_rw_unlock(&hints->lock); }
 		return 0;
+	}
 	name_tree_init_parents(&hints->tree);
+	if(!nolock) { lock_rw_unlock(&hints->lock); }
 	return 1;
 }
 
 void 
-hints_delete_stub(struct iter_hints* hints, uint16_t c, uint8_t* nm)
+hints_delete_stub(struct iter_hints* hints, uint16_t c, uint8_t* nm,
+	int nolock)
 {
 	struct iter_hints_stub *z;
 	size_t len;
 	int labs = dname_count_size_labels(nm, &len);
+	/* lock_() calls are macros that could be nothing, surround in {} */
+	if(!nolock) { lock_rw_wrlock(&hints->lock); }
 	if(!(z=(struct iter_hints_stub*)name_tree_find(&hints->tree,
-		nm, len, labs, c)))
+		nm, len, labs, c))) {
+		if(!nolock) { lock_rw_unlock(&hints->lock); }
 		return; /* nothing to do */
+	}
 	(void)rbtree_delete(&hints->tree, &z->node);
 	hints_stub_free(z);
 	name_tree_init_parents(&hints->tree);
+	if(!nolock) { lock_rw_unlock(&hints->lock); }
 }

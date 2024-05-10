@@ -48,6 +48,7 @@
 #include "testcode/fake_event.h"
 #include "daemon/remote.h"
 #include "libunbound/worker.h"
+#include "daemon/worker.h"
 #include "util/config_file.h"
 #include "sldns/keyraw.h"
 #ifdef UB_ON_WINDOWS
@@ -532,9 +533,10 @@ void daemon_remote_clear(struct daemon_remote* ATTR_UNUSED(rc))
 }
 
 int daemon_remote_open_accept(struct daemon_remote* ATTR_UNUSED(rc),
-        struct listen_port* ATTR_UNUSED(ports), 
-	struct worker* ATTR_UNUSED(worker))
+        struct listen_port* ATTR_UNUSED(ports), struct worker* worker)
 {
+	struct replay_runtime* runtime = (struct replay_runtime*)worker->base;
+	runtime->daemon = worker->daemon;
 	return 1;
 }
 

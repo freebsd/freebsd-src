@@ -122,6 +122,10 @@ struct infra_cache {
 	rbtree_type domain_limits;
 	/** hash table with query rates per client ip: ip_rate_key, ip_rate_data */
 	struct slabhash* client_ip_rates;
+	/** tree of addr_tree_node, with wait_limit_netblock_info information */
+	rbtree_type wait_limits_netblock;
+	/** tree of addr_tree_node, with wait_limit_netblock_info information */
+	rbtree_type wait_limits_cookie_netblock;
 };
 
 /** ratelimit, unless overridden by domain_limits, 0 is off */
@@ -184,9 +188,21 @@ struct rate_data {
 	/** what the timestamp is of the qps array members, counter is
 	 * valid for that timestamp.  Usually now and now-1. */
 	time_t timestamp[RATE_WINDOW];
+	/** the number of queries waiting in the mesh */
+	int mesh_wait;
 };
 
 #define ip_rate_data rate_data
+
+/**
+ * Data to store the configuration per netblock for the wait limit
+ */
+struct wait_limit_netblock_info {
+	/** The addr tree node, this must be first. */
+	struct addr_tree_node node;
+	/** the limit on the amount */
+	int limit;
+};
 
 /** infra host cache default hash lookup size */
 #define INFRA_HOST_STARTSIZE 32
@@ -473,5 +489,17 @@ void ip_rate_delkeyfunc(void* d, void* arg);
 
 /* delete data */
 #define ip_rate_deldatafunc rate_deldatafunc
+
+/** See if the IP address can have another reply in the wait limit */
+int infra_wait_limit_allowed(struct infra_cache* infra, struct comm_reply* rep,
+	int cookie_valid, struct config_file* cfg);
+
+/** Increment number of waiting replies for IP */
+void infra_wait_limit_inc(struct infra_cache* infra, struct comm_reply* rep,
+	time_t timenow, struct config_file* cfg);
+
+/** Decrement number of waiting replies for IP */
+void infra_wait_limit_dec(struct infra_cache* infra, struct comm_reply* rep,
+	struct config_file* cfg);
 
 #endif /* SERVICES_CACHE_INFRA_H */

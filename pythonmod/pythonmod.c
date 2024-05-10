@@ -356,11 +356,11 @@ int pythonmod_init(struct module_env* env, int id)
 	return 0;
       }
 #endif
-      Py_NoSiteFlag = 1;
 #if PY_MAJOR_VERSION >= 3
       PyImport_AppendInittab(SWIG_name, (void*)SWIG_init);
 #endif
 #if PY_VERSION_HEX < 0x03080000
+      Py_NoSiteFlag = 1;
       Py_Initialize();
 #else
       PyConfig_InitPythonConfig(&config);

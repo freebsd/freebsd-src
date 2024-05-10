@@ -690,4 +690,10 @@ mesh_serve_expired_lookup(struct module_qstate* qstate,
  */
 int mesh_jostle_exceeded(struct mesh_area* mesh);
 
+/**
+ * Give the serve expired responses.
+ * @param mstate: mesh state for query that has serve_expired_data.
+ */
+void mesh_respond_serve_expired(struct mesh_state* mstate);
+
 #endif /* SERVICES_MESH_H */

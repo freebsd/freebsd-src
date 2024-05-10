@@ -78,6 +78,15 @@ section "Root anchor - DNSSEC" SectionRootKey
 sectionEnd
 
 section "-hidden.postinstall"
+	# if Unbund is already installed, ask to stop it to allow file replacement
+	IfFileExists "$INSTDIR\unbound-service-remove.exe" 0 service_remove_end
+	MessageBox MB_YESNO|MB_ICONEXCLAMATION "Unbound is already installed!$\r$\n$\r$\nWould you like to stop the service to continue with the update?" /SD IDYES IDNO service_remove_quit # defaults to yes on silent installations
+		nsExec::ExecToLog '"$INSTDIR\unbound-service-remove.exe" stop'
+		Sleep 1000
+		Goto service_remove_end
+	service_remove_quit:
+		Quit
+	service_remove_end:
 	# copy files
 	SetRegView 64
 	setOutPath $INSTDIR
@@ -134,6 +143,7 @@ section "-hidden.postinstall"
 
 	# register uninstaller
 	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Unbound" "DisplayName" "Unbound"
+	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Unbound" "DisplayVersion" "${VERSION}"
 	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Unbound" "UninstallString" "$\"$INSTDIR\uninst.exe$\""
 	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Unbound" "QuietUninstallString" "$\"$INSTDIR\uninst.exe$\" /S"
 	WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Unbound" "NoModify" "1"

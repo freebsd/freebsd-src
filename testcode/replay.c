@@ -348,6 +348,20 @@ replay_moment_read(char* remain, FILE* in, const char* name,
 		mom->string = strdup(m);
 		if(!mom->string) fatal_exit("out of memory");
 		if(!mom->variable) fatal_exit("out of memory");
+	} else if(parse_keyword(&remain, "FLUSH_MESSAGE")) {
+		mom->evt_type = repevt_flush_message;
+		while(isspace((unsigned char)*remain))
+			remain++;
+		strip_end_white(remain);
+		mom->string = strdup(remain);
+		if(!mom->string) fatal_exit("out of memory");
+	} else if(parse_keyword(&remain, "EXPIRE_MESSAGE")) {
+		mom->evt_type = repevt_expire_message;
+		while(isspace((unsigned char)*remain))
+			remain++;
+		strip_end_white(remain);
+		mom->string = strdup(remain);
+		if(!mom->string) fatal_exit("out of memory");
 	} else {
 		log_err("%d: unknown event type %s", pstate->lineno, remain);
 		free(mom);

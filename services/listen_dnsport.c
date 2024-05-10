@@ -140,9 +140,11 @@ void
 verbose_print_unbound_socket(struct unbound_socket* ub_sock)
 {
 	if(verbosity >= VERB_ALGO) {
+		char buf[256];
 		log_info("listing of unbound_socket structure:");
-		verbose_print_addr(ub_sock->addr);
-		log_info("s is: %d, fam is: %s, acl: %s", ub_sock->s,
+		addr_to_str((void*)ub_sock->addr, ub_sock->addrlen, buf,
+			sizeof(buf));
+		log_info("%s s is: %d, fam is: %s, acl: %s", buf, ub_sock->s,
 			ub_sock->fam == AF_INET?"AF_INET":"AF_INET6",
 			ub_sock->acl?"yes":"no");
 	}
@@ -610,7 +612,9 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 #  elif defined(IP_DONTFRAG) && !defined(__APPLE__)
 		/* the IP_DONTFRAG option if defined in the 11.0 OSX headers,
 		 * but does not work on that version, so we exclude it */
-		int off = 0;
+		/* a nonzero value disables fragmentation, according to
+		 * docs.oracle.com for ip(4). */
+		int off = 1;
 		if (setsockopt(s, IPPROTO_IP, IP_DONTFRAG,
 			&off, (socklen_t)sizeof(off)) < 0) {
 			log_err("setsockopt(..., IP_DONTFRAG, ...) failed: %s",
@@ -1047,7 +1051,22 @@ make_sock(int stype, const char* ifname, const char* port,
 		}
 	}
 
-	ub_sock->addr = res;
+	if(!res->ai_addr) {
+		log_err("getaddrinfo returned no address");
+		freeaddrinfo(res);
+		sock_close(s);
+		return -1;
+	}
+	ub_sock->addr = memdup(res->ai_addr, res->ai_addrlen);
+	ub_sock->addrlen = res->ai_addrlen;
+	if(!ub_sock->addr) {
+		log_err("out of memory: allocate listening address");
+		freeaddrinfo(res);
+		sock_close(s);
+		return -1;
+	}
+	freeaddrinfo(res);
+
 	ub_sock->s = s;
 	ub_sock->fam = hints->ai_family;
 	ub_sock->acl = NULL;
@@ -1277,8 +1296,7 @@ ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp,
 		if((s = make_sock_port(SOCK_DGRAM, ifname, port, hints, 1,
 			&noip6, rcv, snd, reuseport, transparent,
 			tcp_mss, nodelay, freebind, use_systemd, dscp, ub_sock)) == -1) {
-			if(ub_sock->addr)
-				freeaddrinfo(ub_sock->addr);
+			free(ub_sock->addr);
 			free(ub_sock);
 			if(noip6) {
 				log_warn("IPv6 protocol not available");
@@ -1289,8 +1307,7 @@ ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp,
 		/* getting source addr packet info is highly non-portable */
 		if(!set_recvpktinfo(s, hints->ai_family)) {
 			sock_close(s);
-			if(ub_sock->addr)
-				freeaddrinfo(ub_sock->addr);
+			free(ub_sock->addr);
 			free(ub_sock);
 			return 0;
 		}
@@ -1301,8 +1318,7 @@ ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp,
 			?listen_type_udpancil_dnscrypt:listen_type_udpancil,
 			is_pp2, ub_sock)) {
 			sock_close(s);
-			if(ub_sock->addr)
-				freeaddrinfo(ub_sock->addr);
+			free(ub_sock->addr);
 			free(ub_sock);
 			return 0;
 		}
@@ -1314,8 +1330,7 @@ ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp,
 		if((s = make_sock_port(SOCK_DGRAM, ifname, port, hints, 1,
 			&noip6, rcv, snd, reuseport, transparent,
 			tcp_mss, nodelay, freebind, use_systemd, dscp, ub_sock)) == -1) {
-			if(ub_sock->addr)
-				freeaddrinfo(ub_sock->addr);
+			free(ub_sock->addr);
 			free(ub_sock);
 			if(noip6) {
 				log_warn("IPv6 protocol not available");
@@ -1332,8 +1347,7 @@ ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp,
 				listen_type_udpancil:listen_type_udp),
 			is_pp2, ub_sock)) {
 			sock_close(s);
-			if(ub_sock->addr)
-				freeaddrinfo(ub_sock->addr);
+			free(ub_sock->addr);
 			free(ub_sock);
 			return 0;
 		}
@@ -1356,8 +1370,7 @@ ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp,
 		if((s = make_sock_port(SOCK_STREAM, ifname, port, hints, 1,
 			&noip6, 0, 0, reuseport, transparent, tcp_mss, nodelay,
 			freebind, use_systemd, dscp, ub_sock)) == -1) {
-			if(ub_sock->addr)
-				freeaddrinfo(ub_sock->addr);
+			free(ub_sock->addr);
 			free(ub_sock);
 			if(noip6) {
 				/*log_warn("IPv6 protocol not available");*/
@@ -1369,8 +1382,7 @@ ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp,
 			verbose(VERB_ALGO, "setup TCP for SSL service");
 		if(!port_insert(list, s, port_type, is_pp2, ub_sock)) {
 			sock_close(s);
-			if(ub_sock->addr)
-				freeaddrinfo(ub_sock->addr);
+			free(ub_sock->addr);
 			free(ub_sock);
 			return 0;
 		}
@@ -1952,8 +1964,7 @@ void listening_ports_free(struct listen_port* list)
 		}
 		/* rc_ports don't have ub_socket */
 		if(list->socket) {
-			if(list->socket->addr)
-				freeaddrinfo(list->socket->addr);
+			free(list->socket->addr);
 			free(list->socket);
 		}
 		free(list);

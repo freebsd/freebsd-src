@@ -57,6 +57,9 @@
 #include "sldns/sbuffer.h"
 #include "sldns/wire2str.h"
 #include "iterator/iter_utils.h"
+#ifdef USE_CACHEDB
+#include "cachedb/cachedb.h"
+#endif
 
 /** externally called */
 void 
@@ -152,7 +155,7 @@ int ecs_whitelist_check(struct query_info* qinfo,
 
 	/* Cache by default, might be disabled after parsing EDNS option
 	 * received from nameserver. */
-	if(!iter_stub_fwd_no_cache(qstate, &qstate->qinfo, NULL, NULL)) {
+	if(!iter_stub_fwd_no_cache(qstate, &qstate->qinfo, NULL, NULL, NULL, 0)) {
 		qstate->no_cache_store = 0;
 	}
 
@@ -310,9 +313,18 @@ delfunc(void *envptr, void *elemptr) {
 static size_t
 sizefunc(void *elemptr) {
 	struct reply_info *elem  = (struct reply_info *)elemptr;
-	return sizeof (struct reply_info) - sizeof (struct rrset_ref)
+	size_t s = sizeof (struct reply_info) - sizeof (struct rrset_ref)
 		+ elem->rrset_count * sizeof (struct rrset_ref)
 		+ elem->rrset_count * sizeof (struct ub_packed_rrset_key *);
+	size_t i;
+	for (i = 0; i < elem->rrset_count; i++) {
+		struct ub_packed_rrset_key *key = elem->rrsets[i];
+		struct packed_rrset_data *data = key->entry.data;
+		s += ub_rrset_sizefunc(key, data);
+	}
+	if(elem->reason_bogus_str)
+		s += strlen(elem->reason_bogus_str)+1;
+	return s;
 }
 
 /**
@@ -352,7 +364,7 @@ update_cache(struct module_qstate *qstate, int id)
 	struct slabhash *subnet_msg_cache = sne->subnet_msg_cache;
 	struct ecs_data *edns = &sq->ecs_client_in;
 	size_t i;
-	int only_match_scope_zero;
+	int only_match_scope_zero, diff_size;
 
 	/* We already calculated hash upon lookup (lookup_and_reply) if we were
 	 * allowed to look in the ECS cache */
@@ -412,19 +424,25 @@ update_cache(struct module_qstate *qstate, int id)
 		rep->ref[i].id = rep->rrsets[i]->id;
 	}
 	reply_info_set_ttls(rep, *qstate->env->now);
+	reply_info_sortref(rep);
 	rep->flags |= (BIT_RA | BIT_QR); /* fix flags to be sensible for */
 	rep->flags &= ~(BIT_AA | BIT_CD);/* a reply based on the cache   */
 	if(edns->subnet_source_mask == 0 && edns->subnet_scope_mask == 0)
 		only_match_scope_zero = 1;
 	else only_match_scope_zero = 0;
+	diff_size = (int)tree->size_bytes;
 	addrtree_insert(tree, (addrkey_t*)edns->subnet_addr, 
 		edns->subnet_source_mask, sq->max_scope, rep,
 		rep->ttl, *qstate->env->now, only_match_scope_zero);
+	diff_size = (int)tree->size_bytes - diff_size;
 
 	lock_rw_unlock(&lru_entry->lock);
 	if (need_to_insert) {
 		slabhash_insert(subnet_msg_cache, h, lru_entry, lru_entry->data,
 			NULL);
+	} else {
+		slabhash_update_space_used(subnet_msg_cache, h, NULL,
+			diff_size);
 	}
 }
 
@@ -587,7 +605,21 @@ eval_response(struct module_qstate *qstate, int id, struct subnet_qstate *sq)
 	}
 	sne->num_msg_nocache++;
 	lock_rw_unlock(&sne->biglock);
-	
+
+	/* If there is an expired answer in the global cache, remove that,
+	 * because expired answers would otherwise resurface once the ecs data
+	 * expires, giving once in a while global data responses for ecs
+	 * domains, with serve expired enabled. */
+	if(qstate->env->cfg->serve_expired) {
+		msg_cache_remove(qstate->env, qstate->qinfo.qname,
+			qstate->qinfo.qname_len, qstate->qinfo.qtype,
+			qstate->qinfo.qclass, 0);
+#ifdef USE_CACHEDB
+		if(qstate->env->cachedb_enabled)
+			cachedb_msg_remove(qstate);
+#endif
+	}
+
 	if (sq->subnet_downstream) {
 		/* Client wants to see the answer, echo option back
 		 * and adjust the scope. */

@@ -68,6 +68,17 @@ static struct thr_check* thread_infos[THRDEBUG_MAX_THREADS];
 int check_locking_order = 1;
 /** the pid of this runset, reasonably unique. */
 static pid_t check_lock_pid;
+/**
+ * Should checklocks print a trace of the lock and unlock calls.
+ * It uses fprintf for that because the log function uses a lock and that
+ * would loop otherwise.
+ */
+static int verbose_locking = 0;
+/**
+ * Assume lock 0 0 (create_thread, create_instance), is the log lock and
+ * do not print for that. Otherwise the output is full of log lock accesses.
+ */
+static int verbose_locking_not_loglock = 1;
 
 /** print all possible debug info on the state of the system */
 static void total_debug_info(void);
@@ -508,6 +519,9 @@ checklock_rdlock(enum check_lock_type type, struct checked_lock* lock,
 	if(key_deleted)
 		return;
 
+	if(verbose_locking && !(verbose_locking_not_loglock &&
+		lock->create_thread == 0 && lock->create_instance == 0))
+		fprintf(stderr, "checklock_rdlock lock %d %d %s:%d at %s:%d\n", lock->create_thread, lock->create_instance, lock->create_file, lock->create_line, file, line);
 	log_assert(type == check_lock_rwlock);
 	checklock_lockit(type, lock, func, file, line,
 		try_rd, timed_rd, &lock->u.rwlock, 0, 0);
@@ -528,6 +542,9 @@ checklock_wrlock(enum check_lock_type type, struct checked_lock* lock,
 	if(key_deleted)
 		return;
 	log_assert(type == check_lock_rwlock);
+	if(verbose_locking && !(verbose_locking_not_loglock &&
+		lock->create_thread == 0 && lock->create_instance == 0))
+		fprintf(stderr, "checklock_wrlock lock %d %d %s:%d at %s:%d\n", lock->create_thread, lock->create_instance, lock->create_file, lock->create_line, file, line);
 	checklock_lockit(type, lock, func, file, line,
 		try_wr, timed_wr, &lock->u.rwlock, 0, 1);
 }
@@ -565,6 +582,9 @@ checklock_lock(enum check_lock_type type, struct checked_lock* lock,
 	if(key_deleted)
 		return;
 	log_assert(type != check_lock_rwlock);
+	if(verbose_locking && !(verbose_locking_not_loglock &&
+		lock->create_thread == 0 && lock->create_instance == 0))
+		fprintf(stderr, "checklock_lock lock %d %d %s:%d at %s:%d\n", lock->create_thread, lock->create_instance, lock->create_file, lock->create_line, file, line);
 	switch(type) {
 		case check_lock_mutex:
 			checklock_lockit(type, lock, func, file, line,
@@ -601,6 +621,10 @@ checklock_unlock(enum check_lock_type type, struct checked_lock* lock,
 	}
 	if(lock->hold_count <= 0)
 		lock_error(lock, func, file, line, "too many unlocks");
+
+	if(verbose_locking && !(verbose_locking_not_loglock &&
+		lock->create_thread == 0 && lock->create_instance == 0))
+		fprintf(stderr, "checklock_unlock lock %d %d %s:%d at %s:%d\n", lock->create_thread, lock->create_instance, lock->create_file, lock->create_line, file, line);
 
 	/* store this point as last touched by */
 	lock->holder = thr;

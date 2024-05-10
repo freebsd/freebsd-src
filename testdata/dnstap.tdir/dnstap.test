@@ -81,6 +81,46 @@ for x in q1 q2 q3 q4 5 q6 q7 q8 q9 q10; do
 	fi
 done
 
+echo "> query for a short ttl record"
+dig @127.0.0.1 -p $UNBOUND_PORT short.example.com.
+echo "> wait for log to happen on timer"
+sleep 3
+if grep "short.example.com" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "short.example.com" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "short.example.com" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "short.example.com" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "short.example.com" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "short.example.com" tap.log >/dev/null; then :; else sleep 10; fi
+if grep "short.example.com" tap.log; then echo "yes it is in tap.log";
+else
+        echo "short.example.com. information not in tap.log"
+        echo "failed"
+        echo "> cat logfiles"
+        cat tap.log
+        cat tap.errlog
+        cat fwd.log
+        cat unbound.log
+        echo "Not OK"
+        exit 1
+fi
+echo "> query again for the now expired record"
+dig @127.0.0.1 -p $UNBOUND_PORT short.example.com.
+echo "> wait for log to happen on timer"
+sleep 3
+num_responses=`grep "short.example.com" tap.log | grep CLIENT_RESPONSE | wc -l`
+# Responses should be 2 for the 2 distinct dig commands.
+if test $num_responses -gt 2; then
+        echo "Duplicate client responses for short.example.com. in tap.log"
+        echo "failed"
+        echo "> cat logfiles"
+        cat tap.log
+        cat tap.errlog
+        cat fwd.log
+        cat unbound.log
+        echo "Not OK"
+        exit 1
+fi
+
 echo "> cat logfiles"
 cat tap.log
 cat tap.errlog

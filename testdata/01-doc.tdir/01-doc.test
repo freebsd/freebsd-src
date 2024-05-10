@@ -12,6 +12,9 @@ get_make
 (cd $PRE ; $MAKE doc) > mylog 2>&1
 
 bad=0
+# filter out doxygen warnings about unsupported tags in the config, print first
+grep -e "warning: ignoring unsupported tag.*file .*/doc/unbound.doxygen" mylog
+grep -v -e "warning: ignoring unsupported tag.*file .*/doc/unbound.doxygen" mylog > ilog; mv ilog mylog
 if grep -e "Warning" -e "warning" -e "Error" -e "error" mylog >/dev/null 2>&1;
 then
 	cat mylog

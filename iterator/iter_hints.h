@@ -43,6 +43,7 @@
 #ifndef ITERATOR_ITER_HINTS_H
 #define ITERATOR_ITER_HINTS_H
 #include "util/storage/dnstree.h"
+#include "util/locks.h"
 struct iter_env;
 struct config_file;
 struct delegpt;
@@ -51,6 +52,10 @@ struct delegpt;
  * Iterator hints structure
  */
 struct iter_hints {
+	/** lock on the forwards tree.
+	 * When grabbing both this lock and the anchors.lock, this lock
+	 * is grabbed first. */
+	lock_rw_type lock;
 	/** 
 	 * Hints are stored in this tree. Sort order is specially chosen.
 	 * first sorted on qclass. Then on dname in nsec-like order, so that
@@ -95,42 +100,70 @@ void hints_delete(struct iter_hints* hints);
 int hints_apply_cfg(struct iter_hints* hints, struct config_file* cfg);
 
 /**
- * Find root hints for the given class.
+ * Find hints for the given class.
+ * The return value is contents of the hints structure.
+ * Caller should lock and unlock a readlock on the hints structure if nolock
+ * is set.
+ * Otherwise caller should unlock the readlock on the hints structure if a
+ * value was returned.
  * @param hints: hint storage.
+ * @param qname: the qname that generated the delegation point.
  * @param qclass: class for which root hints are requested. host order.
+ * @param nolock: Skip locking, locking is handled by the caller.
  * @return: NULL if no hints, or a ptr to stored hints.
  */
-struct delegpt* hints_lookup_root(struct iter_hints* hints, uint16_t qclass);
+struct delegpt* hints_find(struct iter_hints* hints, uint8_t* qname,
+	uint16_t qclass, int nolock);
+
+/**
+ * Same as hints_lookup, but for the root only.
+ * @param hints: hint storage.
+ * @param qclass: class for which root hints are requested. host order.
+ * @param nolock: Skip locking, locking is handled by the caller.
+ * @return: NULL if no hints, or a ptr to stored hints.
+ */
+struct delegpt* hints_find_root(struct iter_hints* hints,
+	uint16_t qclass, int nolock);
 
 /**
  * Find next root hints (to cycle through all root hints).
+ * Handles its own locking unless nolock is set. In that case the caller
+ * should lock and unlock a readlock on the hints structure.
  * @param hints: hint storage
  * @param qclass: class for which root hints are sought.
  * 	0 means give the first available root hints class.
  * 	x means, give class x or a higher class if any.
  * 	returns the found class in this variable.
+ * @param nolock: Skip locking, locking is handled by the caller.
  * @return true if a root hint class is found.
  * 	false if not root hint class is found (qclass may have been changed).
  */
-int hints_next_root(struct iter_hints* hints, uint16_t* qclass);
+int hints_next_root(struct iter_hints* hints, uint16_t* qclass, int nolock);
 
 /**
  * Given a qname/qclass combination, and the delegation point from the cache
  * for this qname/qclass, determine if this combination indicates that a
  * stub hint exists and must be primed.
+ * The return value is contents of the hints structure.
+ * Caller should lock and unlock a readlock on the hints structure if nolock
+ * is set.
+ * Otherwise caller should unlock the readlock on the hints structure if a
+ * value was returned.
  *
  * @param hints: hint storage.
  * @param qname: The qname that generated the delegation point.
  * @param qclass: The qclass that generated the delegation point.
  * @param dp: The cache generated delegation point.
+ * @param nolock: Skip locking, locking is handled by the caller.
  * @return: A priming delegation point if there is a stub hint that must
  *         be primed, otherwise null.
  */
-struct iter_hints_stub* hints_lookup_stub(struct iter_hints* hints, 
-	uint8_t* qname, uint16_t qclass, struct delegpt* dp);
+struct iter_hints_stub* hints_lookup_stub(struct iter_hints* hints,
+	uint8_t* qname, uint16_t qclass, struct delegpt* dp, int nolock);
 
 /**
  * Get memory in use by hints
+ * Locks and unlocks the structure.
  * @param hints: hint storage.
  * @return bytes in use
  */
@@ -139,23 +172,30 @@ size_t hints_get_mem(struct iter_hints* hints);
 /**
  * Add stub to hints structure. For external use since it recalcs 
  * the tree parents.
+ * Handles its own locking unless nolock is set. In that case the caller
+ * should lock and unlock a writelock on the hints structure.
  * @param hints: the hints data structure
  * @param c: class of zone
  * @param dp: delegation point with name and target nameservers for new
  *	hints stub. malloced.
  * @param noprime: set noprime option to true or false on new hint stub.
+ * @param nolock: Skip locking, locking is handled by the caller.
  * @return false on failure (out of memory);
  */
 int hints_add_stub(struct iter_hints* hints, uint16_t c, struct delegpt* dp,
-	int noprime);
+	int noprime, int nolock);
 
 /**
  * Remove stub from hints structure. For external use since it 
  * recalcs the tree parents.
+ * Handles its own locking unless nolock is set. In that case the caller
+ * should lock and unlock a writelock on the hints structure.
  * @param hints: the hints data structure
  * @param c: class of stub zone
  * @param nm: name of stub zone (in uncompressed wireformat).
+ * @param nolock: Skip locking, locking is handled by the caller.
  */
-void hints_delete_stub(struct iter_hints* hints, uint16_t c, uint8_t* nm);
+void hints_delete_stub(struct iter_hints* hints, uint16_t c,
+	uint8_t* nm, int nolock);
 
 #endif /* ITERATOR_ITER_HINTS_H */

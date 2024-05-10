@@ -85,6 +85,8 @@
  *		The file contents is macro expanded before match.
  *	o CHECK_TEMPFILE [fname] - followed by FILE_BEGIN [to match] FILE_END
  *	o INFRA_RTT [ip] [dp] [rtt] - update infra cache entry with rtt.
+ *	o FLUSH_MESSAGE name type class - flushes entry in message cache.
+ *	o EXPIRE_MESSAGE name type class - expires entry in message cache.
  *	o ERROR
  * ; following entry starts on the next line, ENTRY_BEGIN.
  * ; more STEP items
@@ -148,6 +150,7 @@ struct fake_timer;
 struct replay_var;
 struct infra_cache;
 struct sldns_buffer;
+struct daemon;
 
 /**
  * A replay scenario.
@@ -212,6 +215,10 @@ struct replay_moment {
 		repevt_assign,
 		/** store infra rtt cache entry: addr and string (int) */
 		repevt_infra_rtt,
+		/** flush message cache entry */
+		repevt_flush_message,
+		/** expire message cache entry */
+		repevt_expire_message,
 		/** cause traffic to flow */
 		repevt_traffic
 	}
@@ -297,6 +304,8 @@ struct replay_runtime {
 
 	/** ref the infra cache (was passed to outside_network_create) */
 	struct infra_cache* infra;
+	/** the daemon structure passed in worker call to remote accept open */
+	struct daemon* daemon;
 
 	/** the current time in seconds */
 	time_t now_secs;
