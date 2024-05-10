@@ -78,7 +78,12 @@
 #define	MAX_APIC_ID		0x800
 #define	APIC_ID_ALL		0xffffffff
 
-#define	IOAPIC_MAX_ID		xAPIC_MAX_APIC_ID
+/*
+ * The 0xff ID is used for broadcast IPIs for local APICs when not using
+ * x2APIC.  IPIs are not sent to I/O APICs so it's acceptable for an I/O APIC
+ * to use that ID.
+ */
+#define	IOAPIC_MAX_ID		0xff
 
 /* I/O Interrupts are used for external devices such as ISA, PCI, etc. */
 #define	APIC_IO_INTS	(IDT_IO_INTS + 16)
