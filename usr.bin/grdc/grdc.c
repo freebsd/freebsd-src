@@ -1,3 +1,10 @@
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
+ * Copyright 1979, 1980, 1983, 1986, 1988, 1989, 1991, 1992, 1993, 1994
+ *	The Regents of the University of California.  All rights reserved.
+ */
+
 /*
  * Grand digital clock for curses compatible terminals
  * Usage: grdc [-st] [n]   -- run for n seconds (default infinity)
