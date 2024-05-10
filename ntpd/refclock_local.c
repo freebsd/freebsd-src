@@ -213,5 +213,5 @@ local_poll(
 	refclock_receive(peer);
 }
 #else
-int refclock_local_bs;
+NONEMPTY_TRANSLATION_UNIT
 #endif /* REFCLOCK */

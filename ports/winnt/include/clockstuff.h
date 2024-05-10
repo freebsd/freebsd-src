@@ -39,6 +39,12 @@ typedef void (WINAPI *PGSTAFT)(LPFILETIME pftResult);
 extern PGSTAFT get_sys_time_as_filetime;
 extern PGSTAFT pGetSystemTimePreciseAsFileTime;
 
+/* This should really be in a ntpd_win.h or similar:
+ * Set thread description visible in debugger.
+ */
+typedef HRESULT (WINAPI *PSTD)(HANDLE hThread, PCWSTR pwstr);
+extern PSTD pSetThreadDescription;
+
 void lock_thread_to_processor(HANDLE);
 
 #endif

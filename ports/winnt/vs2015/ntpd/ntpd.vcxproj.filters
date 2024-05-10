@@ -309,6 +309,9 @@
     <ClCompile Include="..\..\..\..\ntpd\refclock_gpsdjson.c">
       <Filter>Reference Clock</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\libparse\clk_sel240x.c">
+      <Filter>Parse Lib</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\include\ascii.h">
@@ -552,18 +555,13 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\libntp\MSG00001.bin">
-      <Filter>Generated Files</Filter>
-    </None>
-    <None Include="..\libntp\messages.mc">
-      <Filter>Resource Files</Filter>
-    </None>
     <None Include="..\..\..\..\ChangeLog" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\..\..\..\ntpd\ntp_parser.h">
       <Filter>Header Files</Filter>
     </CustomBuild>
-    <CustomBuild Include="..\..\..\..\packageinfo.sh" />
+    <CustomBuild Include="..\..\..\..\.bk\SCCS\ChangeSet,s" />
+    <CustomBuild Include="scm-rev" />
   </ItemGroup>
 </Project>

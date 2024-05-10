@@ -89,6 +89,7 @@ build_triplet = @build@
 host_triplet = @host@
 check_PROGRAMS = bug-2803$(EXEEXT)
 @NTP_CROSSCOMPILE_FALSE@am__append_1 = $(check_PROGRAMS)
+@LIBNTP_SUBMAKES_TRUE@am__append_2 = check-libntp
 subdir = tests/bug-2803
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/sntp/libopts/m4/libopts.m4 \
@@ -592,6 +593,7 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_NET_SNMP_CONFIG = @PATH_NET_SNMP_CONFIG@
+PATH_OPENSSL = @PATH_OPENSSL@
 PATH_PERL = @PATH_PERL@
 PATH_RUBY = @PATH_RUBY@
 PATH_SEPARATOR = @PATH_SEPARATOR@
@@ -691,8 +693,8 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 NULL = 
-BUILT_SOURCES = check-libntp check-libunity .deps-ver
-CLEANFILES = check-libntp .deps-ver
+BUILT_SOURCES = $(am__append_2) check-libunity .deps-ver
+CLEANFILES = check-libunity .deps-ver
 DISTCLEANFILES = $(DEPDIR)/deps-ver
 std_unity_list = \
 	$(abs_top_srcdir)/sntp/unity/auto/generate_test_runner.rb	\
@@ -1219,14 +1221,13 @@ uninstall-am:
 $(srcdir)/run-bug-2803.c: $(srcdir)/bug-2803.c $(std_unity_list)
 	$(run_unity) $< $@
 
-check-libntp: $(top_builddir)/libntp/libntp.a
-	@: avoid default SCCS get by some make implementations
+.PHONY: check-libntp
 
-$(top_builddir)/libntp/libntp.a:
-	cd $(top_builddir)/libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
+@LIBNTP_SUBMAKES_TRUE@check-libntp:
+@LIBNTP_SUBMAKES_TRUE@	cd $(top_builddir)/libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
 
 check-libunity: $(top_builddir)/sntp/unity/libunity.a
-	 @: avoid default SCCS get by some make implementations
+	@echo stamp > $@
 
 $(top_builddir)/sntp/unity/libunity.a:
 	cd $(top_builddir)/sntp/unity && $(MAKE) $(AM_MAKEFLAGS) libunity.a

@@ -121,6 +121,7 @@
     <ClCompile Include="..\..\..\..\libparse\clk_rawdcf.c" />
     <ClCompile Include="..\..\..\..\libparse\clk_rcc8000.c" />
     <ClCompile Include="..\..\..\..\libparse\clk_schmid.c" />
+    <ClCompile Include="..\..\..\..\libparse\clk_sel240x.c" />
     <ClCompile Include="..\..\..\..\libparse\clk_trimtaip.c" />
     <ClCompile Include="..\..\..\..\libparse\clk_trimtsip.c" />
     <ClCompile Include="..\..\..\..\libparse\clk_varitext.c" />

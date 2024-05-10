@@ -274,8 +274,7 @@ libevent: distdir-pre-check
 distdir-pre-check:
 	case "$(DIST_FAIL)" in	\
 	 '')  ;;		\
-	 *) $(error re-run configure adding $(DIST_FAIL) if you want to make a distribution.);	\
-	    echo "re-run configure adding $(DIST_FAIL) if you want to make a distribution.";	\
+	 *) echo "re-run configure adding $(DIST_FAIL) if you want to make a distribution.";	\
 	    exit 1 ;;		\
 	esac
 

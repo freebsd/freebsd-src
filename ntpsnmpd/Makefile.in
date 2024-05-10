@@ -94,6 +94,7 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 EXTRA_PROGRAMS = ntpsnmpd$(EXEEXT)
+@LIBNTP_SUBMAKES_TRUE@am__append_1 = check-libntp
 subdir = ntpsnmpd
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/sntp/libopts/m4/libopts.m4 \
@@ -150,7 +151,6 @@ PROGRAMS = $(bin_PROGRAMS) $(libexec_PROGRAMS) $(sbin_PROGRAMS)
 am_ntpsnmpd_OBJECTS = netsnmp_daemonize.$(OBJEXT) ntpsnmpd.$(OBJEXT) \
 	ntpSnmpSubagentObject.$(OBJEXT) ntpsnmpd-opts.$(OBJEXT)
 ntpsnmpd_OBJECTS = $(am_ntpsnmpd_OBJECTS)
-ntpsnmpd_LDADD = $(LDADD)
 am__DEPENDENCIES_1 =
 ntpsnmpd_DEPENDENCIES = ../ntpq/libntpq.a ../libntp/libntp.a \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
@@ -425,6 +425,7 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_NET_SNMP_CONFIG = @PATH_NET_SNMP_CONFIG@
+PATH_OPENSSL = @PATH_OPENSSL@
 PATH_PERL = @PATH_PERL@
 PATH_RUBY = @PATH_RUBY@
 PATH_SEPARATOR = @PATH_SEPARATOR@
@@ -532,12 +533,12 @@ ntpsnmpd_SOURCES = netsnmp_daemonize.c ntpsnmpd.c ntpSnmpSubagentObject.c \
 		ntp_snmp.h
 
 # HMS: we probably want a version.o file here, too.
-LDADD = ../ntpq/libntpq.a ../libntp/libntp.a $(SNMP_LIBS) \
-	$(LDADD_LIBNTP) $(LIBM) $(PTHREAD_LIBS) $(LDADD_NTP) \
-	$(LIBOPTS_LDADD)
+ntpsnmpd_LDADD = ../ntpq/libntpq.a ../libntp/libntp.a $(LDADD_LIBNTP) \
+	$(LIBM) $(PTHREAD_LIBS) $(LDADD_NTP) $(LIBOPTS_LDADD) \
+	$(SNMP_LIBS)
 AM_CFLAGS = $(SNMP_CFLAGS) $(CFLAGS_NTP) $(NTP_HARD_CFLAGS)
 AM_CPPFLAGS = -I$(top_srcdir)/ntpq $(NTP_INCS) $(LIBOPTS_CFLAGS) \
-	$(SNMP_CPPFLAGS) $(CPPFLAGS_NTP) $(NTP_HARD_CPPFLAGS)
+	$(CPPFLAGS_NTP) $(SNMP_CPPFLAGS) $(NTP_HARD_CPPFLAGS)
 AM_LDFLAGS = $(LDFLAGS_NTP) $(NTP_HARD_LDFLAGS)
 EXTRA_DIST = \
 	invoke-ntpsnmpd.menu	\
@@ -552,9 +553,9 @@ EXTRA_DIST = \
 	ntpv4-mib.mib		\
 	$(NULL)
 
-BUILT_SOURCES = ntpsnmpd-opts.c ntpsnmpd-opts.h check-libntp \
+BUILT_SOURCES = ntpsnmpd-opts.c ntpsnmpd-opts.h $(am__append_1) \
 	check-libopts .deps-ver
-CLEANFILES = check-libntp check-libopts .deps-ver
+CLEANFILES = check-libopts .deps-ver
 DISTCLEANFILES = config.log $(man_MANS) $(DEPDIR)/deps-ver
 html_DATA = \
 	$(srcdir)/ntpsnmpd.html		\
@@ -1219,11 +1220,10 @@ install-exec-hook:
 
 #
 
-check-libntp: $(top_builddir)/libntp/libntp.a
-	@: avoid default SCCS get by some make implementations
+.PHONY: check-libntp
 
-$(top_builddir)/libntp/libntp.a:
-	cd $(top_builddir)/libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
+@LIBNTP_SUBMAKES_TRUE@check-libntp:
+@LIBNTP_SUBMAKES_TRUE@	cd $(top_builddir)/libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
 
 check-libopts: ../sntp/libopts/libopts.la
 	@echo stamp > $@

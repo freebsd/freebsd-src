@@ -6,6 +6,7 @@
   <PropertyGroup>
     <_ProjectFileVersion>12.0.30501.0</_ProjectFileVersion>
     <_PropertySheetDisplayName>debug-x86</_PropertySheetDisplayName>
+    <LinkIncremental>true</LinkIncremental>	<!-- Edit & Continue -->
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
@@ -14,10 +15,20 @@
       <AdditionalIncludeDirectories>$(OPENSSL_INC);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_DEBUG;OPENSSL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+	<!-- vvv Edit & Continue vvv -->
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+      <MinimalRebuild>true</MinimalRebuild>
+      <MultiProcessorCompilation>false</MultiProcessorCompilation>
+	<!-- ^^^ Edit & Continue ^^^ -->
     </ClCompile>
     <Link>
       <TargetMachine>MachineX86</TargetMachine>
       <AdditionalLibraryDirectories>$(OPENSSL_LIB)</AdditionalLibraryDirectories>
+	<!-- vvv Edit & Continue vvv -->
+      <EnableCOMDATFolding>false</EnableCOMDATFolding>
+      <OptimizeReferences>false</OptimizeReferences>
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
+	<!-- ^^^ Edit & Continue ^^^ -->
     </Link>
   </ItemDefinitionGroup>
 </Project>

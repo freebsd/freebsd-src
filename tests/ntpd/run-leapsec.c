@@ -27,7 +27,6 @@
 #include "ntp_calendar.h"
 #include "ntp_stdlib.h"
 #include "ntp_leapsec.h"
-#include "lib_strbuf.h"
 #include "test-libntp.h"
 #include <string.h>
 
@@ -95,39 +94,39 @@ int main(int argc, char *argv[])
   progname = argv[0];
   suite_setup();
   UnityBegin("leapsec.c");
-  RUN_TEST(test_ValidateGood, 329);
-  RUN_TEST(test_ValidateNoHash, 339);
-  RUN_TEST(test_ValidateBad, 349);
-  RUN_TEST(test_ValidateMalformed, 359);
-  RUN_TEST(test_ValidateMalformedShort, 369);
-  RUN_TEST(test_ValidateNoLeadZero, 379);
-  RUN_TEST(test_tableSelect, 394);
-  RUN_TEST(test_loadFileExpire, 431);
-  RUN_TEST(test_loadFileTTL, 449);
-  RUN_TEST(test_lsQueryPristineState, 482);
-  RUN_TEST(test_ls2009faraway, 496);
-  RUN_TEST(test_ls2009weekaway, 515);
-  RUN_TEST(test_ls2009houraway, 534);
-  RUN_TEST(test_ls2009secaway, 553);
-  RUN_TEST(test_ls2009onspot, 572);
-  RUN_TEST(test_ls2009nodata, 591);
-  RUN_TEST(test_ls2009limdata, 610);
-  RUN_TEST(test_qryJumpFarAhead, 633);
-  RUN_TEST(test_qryJumpAheadToTransition, 656);
-  RUN_TEST(test_qryJumpAheadOverTransition, 679);
-  RUN_TEST(test_addDynamic, 706);
-  RUN_TEST(test_taiEmptyTable, 892);
-  RUN_TEST(test_taiTableFixed, 906);
-  RUN_TEST(test_taiTableDynamic, 920);
-  RUN_TEST(test_taiTableDynamicDeadZone, 948);
-  RUN_TEST(test_ls2009seqInsElectric, 970);
-  RUN_TEST(test_ls2009seqInsDumb, 1015);
-  RUN_TEST(test_ls2009seqDelElectric, 1064);
-  RUN_TEST(test_ls2009seqDelDumb, 1109);
-  RUN_TEST(test_ls2012seqInsElectric, 1153);
-  RUN_TEST(test_ls2012seqInsDumb, 1198);
-  RUN_TEST(test_lsEmptyTableDumb, 1249);
-  RUN_TEST(test_lsEmptyTableElectric, 1272);
+  RUN_TEST(test_ValidateGood, 328);
+  RUN_TEST(test_ValidateNoHash, 338);
+  RUN_TEST(test_ValidateBad, 348);
+  RUN_TEST(test_ValidateMalformed, 358);
+  RUN_TEST(test_ValidateMalformedShort, 368);
+  RUN_TEST(test_ValidateNoLeadZero, 378);
+  RUN_TEST(test_tableSelect, 393);
+  RUN_TEST(test_loadFileExpire, 430);
+  RUN_TEST(test_loadFileTTL, 448);
+  RUN_TEST(test_lsQueryPristineState, 481);
+  RUN_TEST(test_ls2009faraway, 495);
+  RUN_TEST(test_ls2009weekaway, 514);
+  RUN_TEST(test_ls2009houraway, 533);
+  RUN_TEST(test_ls2009secaway, 552);
+  RUN_TEST(test_ls2009onspot, 571);
+  RUN_TEST(test_ls2009nodata, 590);
+  RUN_TEST(test_ls2009limdata, 609);
+  RUN_TEST(test_qryJumpFarAhead, 632);
+  RUN_TEST(test_qryJumpAheadToTransition, 655);
+  RUN_TEST(test_qryJumpAheadOverTransition, 678);
+  RUN_TEST(test_addDynamic, 705);
+  RUN_TEST(test_taiEmptyTable, 891);
+  RUN_TEST(test_taiTableFixed, 905);
+  RUN_TEST(test_taiTableDynamic, 919);
+  RUN_TEST(test_taiTableDynamicDeadZone, 947);
+  RUN_TEST(test_ls2009seqInsElectric, 969);
+  RUN_TEST(test_ls2009seqInsDumb, 1014);
+  RUN_TEST(test_ls2009seqDelElectric, 1063);
+  RUN_TEST(test_ls2009seqDelDumb, 1108);
+  RUN_TEST(test_ls2012seqInsElectric, 1152);
+  RUN_TEST(test_ls2012seqInsDumb, 1197);
+  RUN_TEST(test_lsEmptyTableDumb, 1248);
+  RUN_TEST(test_lsEmptyTableElectric, 1271);
 
   return (UnityEnd());
 }

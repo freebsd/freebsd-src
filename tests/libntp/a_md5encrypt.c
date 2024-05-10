@@ -9,34 +9,56 @@
 #include "ntp.h"
 #include "ntp_stdlib.h"
 
-u_long current_time = 4;
-
 
 /*
- * Example packet with MD5 hash calculated manually.
+ * Example packet with SHA1 hash calculated manually:
+ * echo -n abcdefghijklmnopqrstuvwx | openssl sha1 -
  */
-const int keytype = KEY_TYPE_MD5;
-const u_char *key = (const u_char*)"abcdefgh";
-const u_short keyLength = 8;
-const u_char *packet = (const u_char*)"ijklmnopqrstuvwx";
-#define packetLength 16
-#define keyIdLength  4
-#define digestLength 16
-#define totalLength (packetLength + keyIdLength + digestLength)
+#ifdef OPENSSL
+const keyid_t keyId = 42;
+const int keytype = NID_sha1;
+const u_char key[] = "abcdefgh";
+const size_t keyLength = sizeof(key) - 1;
+const u_char payload[] = "ijklmnopqrstuvwx";
+#define payloadLength (sizeof(payload) - 1)
+#define keyIdLength  (sizeof(keyid_t))
+#define digestLength SHA1_LENGTH
+#define packetLength (payloadLength + keyIdLength + digestLength)
 union {
-	u_char		u8 [totalLength];
+	u_char		u8 [packetLength];
 	uint32_t	u32[1];
-} expectedPacket = {
-	"ijklmnopqrstuvwx\0\0\0\0\x0c\x0e\x84\xcf\x0b\xb7\xa8\x68\x8e\x52\x38\xdb\xbc\x1c\x39\x53"
+} expectedPacket =
+{
+    {
+	'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p',
+	'q', 'r', 's', 't', 'u', 'v', 'w', 'x',
+	0x00, 0x00, 0x00, 0x00,
+	0xd7, 0x17, 0xe2, 0x2e,
+	0x16, 0x59, 0x30, 0x5f,
+	0xad, 0x6e, 0xf0, 0x88,
+	0x64, 0x92, 0x3d, 0xb6,
+	0x4a, 0xba, 0x9c, 0x08
+    }
 };
 union {
-	u_char		u8 [totalLength];
+	u_char		u8 [packetLength];
 	uint32_t	u32[1];
-} invalidPacket = {
-	"ijklmnopqrstuvwx\0\0\0\0\x0c\x0e\x84\xcf\x0b\xb7\xa8\x68\x8e\x52\x38\xdb\xbc\x1c\x39\x54"
-};
+} invalidPacket =
+{
+    {
+	'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p',
+	'q', 'r', 's', 't', 'u', 'v', 'w', 'x',
+	0x00, 0x00, 0x00, 0x00,
+	0xd7, 0x17, 0xe2, 0x2e,
+	0x16, 0x59, 0x30, 0x5f,
+	0xad, 0x6e, 0xf0, 0x88,
+	0x64, 0x92, 0x3d, 0xb6,
+	0x4a, 0xba, 0x9c, 0xff
+    }
+}; /* same as expectedPacket but with last octet modified */
+#endif	/* OPENSSL */
 
-static const keyid_t keyId = 42;
+u_long current_time = 4;
 
 void test_Encrypt(void);
 void test_DecryptValid(void);
@@ -46,45 +68,66 @@ void test_IPv6AddressToRefId(void);
 
 
 void
-test_Encrypt(void) {
+test_Encrypt(void)
+{
+#ifndef OPENSSL
+	TEST_IGNORE_MESSAGE("non-SSL build");
+#else
 	u_int32 *packetPtr;
-	int length;
+	size_t length;
 
-	packetPtr = emalloc_zero(totalLength * sizeof(*packetPtr));
-	memcpy(packetPtr, packet, packetLength);
+	packetPtr = emalloc_zero(packetLength);
+	memcpy(packetPtr, payload, payloadLength);
 
-	length = MD5authencrypt(keytype, key, keyLength, packetPtr, packetLength);
+	length = MD5authencrypt(keytype, key, keyLength,
+				packetPtr, payloadLength);
 
-	TEST_ASSERT_TRUE(MD5authdecrypt(keytype, key, keyLength, packetPtr, packetLength, length, keyId));
+	TEST_ASSERT_EQUAL(MAX_SHA1_LEN, length);
 
-	TEST_ASSERT_EQUAL(20, length);
-	TEST_ASSERT_EQUAL_MEMORY(expectedPacket.u8, packetPtr, totalLength);
+	TEST_ASSERT_TRUE(MD5authdecrypt(keytype, key, keyLength, packetPtr,
+				        payloadLength, MAX_SHA1_LEN, keyId));
+	TEST_ASSERT_EQUAL_MEMORY(expectedPacket.u8, packetPtr, packetLength);
 
 	free(packetPtr);
+#endif	/* OPENSSL */
 }
 
 void
-test_DecryptValid(void) {
-	TEST_ASSERT_TRUE(MD5authdecrypt(keytype, key, keyLength, expectedPacket.u32, packetLength, 20, keyId));
+test_DecryptValid(void)
+{
+#ifndef OPENSSL
+	TEST_IGNORE_MESSAGE("non-SSL build");
+#else
+	TEST_ASSERT_TRUE(MD5authdecrypt(keytype, key, keyLength,
+					expectedPacket.u32, payloadLength,
+					MAX_SHA1_LEN, keyId));
+#endif	/* OPENSSL */
 }
 
 void
-test_DecryptInvalid(void) {
-	TEST_ASSERT_FALSE(MD5authdecrypt(keytype, key, keyLength, invalidPacket.u32, packetLength, 20, keyId));
+test_DecryptInvalid(void)
+{
+#ifndef OPENSSL
+	TEST_IGNORE_MESSAGE("non-SSL build");
+#else
+	TEST_ASSERT_FALSE(MD5authdecrypt(keytype, key, keyLength,
+					 invalidPacket.u32, payloadLength,
+					 MAX_SHA1_LEN, keyId));
+#endif	/* OPENSSL */
 }
 
 void
-test_IPv4AddressToRefId(void) {
-	sockaddr_u addr;
-	addr.sa4.sin_family = AF_INET;
-	u_int32 address;
+test_IPv4AddressToRefId(void)
+{
+	sockaddr_u	addr;
+	u_int32		addr4n;
 
-	addr.sa4.sin_port = htons(80);
+	AF(&addr) = AF_INET;
+	SET_PORT(&addr, htons(80));
+	addr4n = inet_addr("192.0.2.1");
+	NSRCADR(&addr) = addr4n;
 
-	address = inet_addr("192.0.2.1");
-	addr.sa4.sin_addr.s_addr = address;
-
-	TEST_ASSERT_EQUAL(address, addr2refid(&addr));
+	TEST_ASSERT_EQUAL_UINT32(addr4n, addr2refid(&addr));
 }
 
 void
@@ -98,15 +141,8 @@ test_IPv6AddressToRefId(void) {
 	} } };
 	sockaddr_u addr;
 
-	addr.sa6.sin6_family = AF_INET6;
+	AF(&addr) = AF_INET6;
+	SOCK_ADDR6(&addr) = address;
 
-	addr.sa6.sin6_addr = address;
-
-
-#if 0
 	TEST_ASSERT_EQUAL(expected, addr2refid(&addr));
-#else
-	(void)expected;
-	TEST_IGNORE_MESSAGE("Skipping because of big endian problem?");
-#endif
 }

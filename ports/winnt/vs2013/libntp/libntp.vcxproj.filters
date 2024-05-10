@@ -209,9 +209,6 @@
     <ClCompile Include="..\..\..\..\libntp\numtoa.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\libntp\numtohost.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\..\libntp\octtoint.c">
       <Filter>Source Files</Filter>
     </ClCompile>

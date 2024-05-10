@@ -1,4 +1,5 @@
 #! @PATH_PERL@
+# @configure_input@
 
 # DESCRIPTION
 #

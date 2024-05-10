@@ -25,7 +25,6 @@
 #include "config.h"
 #include "ntp_calendar.h"
 #include "ntp_stdlib.h"
-#include "lib_strbuf.h"
 #include "test-libntp.h"
 #include <string.h>
 
@@ -64,10 +63,10 @@ int main(int argc, char *argv[])
   progname = argv[0];
   suite_setup();
   UnityBegin("caljulian.c");
-  RUN_TEST(test_RegularTime, 15);
-  RUN_TEST(test_LeapYear, 16);
-  RUN_TEST(test_uLongBoundary, 17);
-  RUN_TEST(test_uLongWrapped, 18);
+  RUN_TEST(test_RegularTime, 14);
+  RUN_TEST(test_LeapYear, 15);
+  RUN_TEST(test_uLongBoundary, 16);
+  RUN_TEST(test_uLongWrapped, 17);
 
   return (UnityEnd());
 }

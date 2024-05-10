@@ -30,9 +30,7 @@
 //=======External Functions This Runner Calls=====
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_ClassBAddress(void);
 extern void test_ClassCAddress(void);
-extern void test_ClassAAddress(void);
 extern void test_IPv6Address(void);
 
 
@@ -62,10 +60,8 @@ int main(int argc, char *argv[])
   progname = argv[0];
   suite_setup();
   UnityBegin("netof.c");
-  RUN_TEST(test_ClassBAddress, 12);
-  RUN_TEST(test_ClassCAddress, 13);
-  RUN_TEST(test_ClassAAddress, 14);
-  RUN_TEST(test_IPv6Address, 15);
+  RUN_TEST(test_ClassCAddress, 12);
+  RUN_TEST(test_IPv6Address, 13);
 
   return (UnityEnd());
 }

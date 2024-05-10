@@ -429,10 +429,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\libntp\numtohost.c"
-				>
-			</File>
-			<File
 				RelativePath="..\..\..\libntp\octtoint.c"
 				>
 			</File>

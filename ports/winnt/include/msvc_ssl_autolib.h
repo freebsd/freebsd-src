@@ -19,7 +19,7 @@
  *   https://slproweb.com/products/Win32OpenSSL.html
  *
  * If 'OPENSSL_AUTOLINK_STRICT' is defined, then target bit width,
- * runtime model and debug/release info are incoded into the library
+ * runtime model and debug/release info are encoded into the library
  * file name, according to this scheme:
  *
  *  basename<width><RT><DebRel>.lib

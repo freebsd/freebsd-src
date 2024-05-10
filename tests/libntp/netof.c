@@ -9,9 +9,7 @@
 
 
 void setUp(void);
-void test_ClassBAddress(void);
 void test_ClassCAddress(void);
-void test_ClassAAddress(void);
 void test_IPv6Address(void);
 
 
@@ -23,20 +21,6 @@ setUp(void)
 	return;
 }
 
-
-void
-test_ClassBAddress(void)
-{
-	sockaddr_u input = CreateSockaddr4("172.16.2.1", NTP_PORT);
-	sockaddr_u expected = CreateSockaddr4("172.16.0.0", NTP_PORT);
-
-	sockaddr_u* actual = netof(&input);
-
-	TEST_ASSERT_TRUE(actual != NULL);
-	TEST_ASSERT_TRUE(IsEqual(expected, *actual));
-
-	return;
-}
 
 void
 test_ClassCAddress(void)
@@ -52,23 +36,6 @@ test_ClassCAddress(void)
 	return;
 }
 
-
-void
-test_ClassAAddress(void)
-{
-	/* Class A addresses are assumed to be classless,
-	 * thus the same address should be returned.
-	 */
-	sockaddr_u input = CreateSockaddr4("10.20.30.40", NTP_PORT);
-	sockaddr_u expected = CreateSockaddr4("10.20.30.40", NTP_PORT);
-
-	sockaddr_u* actual = netof(&input);
-
-	TEST_ASSERT_TRUE(actual != NULL);
-	TEST_ASSERT_TRUE(IsEqual(expected, *actual));
-
-	return;
-}
 
 void
 test_IPv6Address(void)

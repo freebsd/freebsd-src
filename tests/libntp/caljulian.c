@@ -2,7 +2,6 @@
 
 #include "ntp_calendar.h"
 #include "ntp_stdlib.h"
-#include "lib_strbuf.h"
 
 #include "unity.h"
 #include "test-libntp.h"

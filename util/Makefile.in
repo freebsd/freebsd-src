@@ -95,9 +95,11 @@ build_triplet = @build@
 host_triplet = @host@
 EXTRA_PROGRAMS = audio-pcm$(EXEEXT) byteorder$(EXEEXT) hist$(EXEEXT) \
 	jitter$(EXEEXT) kern$(EXEEXT) longsize$(EXEEXT) \
-	ntp-keygen$(EXEEXT) ntptime$(EXEEXT) pps-api$(EXEEXT) \
-	precision$(EXEEXT) sht$(EXEEXT) testrs6000$(EXEEXT) \
-	tg$(EXEEXT) tg2$(EXEEXT) tickadj$(EXEEXT) timetrim$(EXEEXT)
+	lsf-times$(EXEEXT) ntp-keygen$(EXEEXT) ntptime$(EXEEXT) \
+	pps-api$(EXEEXT) precision$(EXEEXT) sht$(EXEEXT) \
+	testrs6000$(EXEEXT) tg$(EXEEXT) tg2$(EXEEXT) tickadj$(EXEEXT) \
+	timetrim$(EXEEXT)
+@LIBNTP_SUBMAKES_TRUE@am__append_1 = check-libntp
 subdir = util
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/sntp/libopts/m4/libopts.m4 \
@@ -184,6 +186,11 @@ longsize_OBJECTS = longsize.$(OBJEXT)
 longsize_LDADD = $(LDADD)
 longsize_DEPENDENCIES = ../libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
+lsf_times_SOURCES = lsf-times.c
+lsf_times_OBJECTS = lsf-times.$(OBJEXT)
+lsf_times_LDADD = $(LDADD)
+lsf_times_DEPENDENCIES = ../libntp/libntp.a $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_ntp_keygen_OBJECTS = ntp-keygen.$(OBJEXT) ntp-keygen-opts.$(OBJEXT)
 nodist_ntp_keygen_OBJECTS = version.$(OBJEXT)
 ntp_keygen_OBJECTS = $(am_ntp_keygen_OBJECTS) \
@@ -254,12 +261,13 @@ am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ./$(DEPDIR)/audio-pcm.Po \
 	./$(DEPDIR)/byteorder.Po ./$(DEPDIR)/hist.Po \
 	./$(DEPDIR)/jitter.Po ./$(DEPDIR)/kern.Po \
-	./$(DEPDIR)/longsize.Po ./$(DEPDIR)/ntp-keygen-opts.Po \
-	./$(DEPDIR)/ntp-keygen.Po ./$(DEPDIR)/ntptime.Po \
-	./$(DEPDIR)/pps-api.Po ./$(DEPDIR)/precision.Po \
-	./$(DEPDIR)/sht.Po ./$(DEPDIR)/testrs6000.Po ./$(DEPDIR)/tg.Po \
-	./$(DEPDIR)/tg2.Po ./$(DEPDIR)/tickadj.Po \
-	./$(DEPDIR)/timetrim.Po ./$(DEPDIR)/version.Po
+	./$(DEPDIR)/longsize.Po ./$(DEPDIR)/lsf-times.Po \
+	./$(DEPDIR)/ntp-keygen-opts.Po ./$(DEPDIR)/ntp-keygen.Po \
+	./$(DEPDIR)/ntptime.Po ./$(DEPDIR)/pps-api.Po \
+	./$(DEPDIR)/precision.Po ./$(DEPDIR)/sht.Po \
+	./$(DEPDIR)/testrs6000.Po ./$(DEPDIR)/tg.Po ./$(DEPDIR)/tg2.Po \
+	./$(DEPDIR)/tickadj.Po ./$(DEPDIR)/timetrim.Po \
+	./$(DEPDIR)/version.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -280,12 +288,13 @@ am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
 SOURCES = audio-pcm.c byteorder.c hist.c $(jitter_SOURCES) kern.c \
-	longsize.c $(ntp_keygen_SOURCES) $(nodist_ntp_keygen_SOURCES) \
-	ntptime.c pps-api.c precision.c sht.c testrs6000.c tg.c tg2.c \
-	tickadj.c timetrim.c
+	longsize.c lsf-times.c $(ntp_keygen_SOURCES) \
+	$(nodist_ntp_keygen_SOURCES) ntptime.c pps-api.c precision.c \
+	sht.c testrs6000.c tg.c tg2.c tickadj.c timetrim.c
 DIST_SOURCES = audio-pcm.c byteorder.c hist.c $(jitter_SOURCES) kern.c \
-	longsize.c $(ntp_keygen_SOURCES) ntptime.c pps-api.c \
-	precision.c sht.c testrs6000.c tg.c tg2.c tickadj.c timetrim.c
+	longsize.c lsf-times.c $(ntp_keygen_SOURCES) ntptime.c \
+	pps-api.c precision.c sht.c testrs6000.c tg.c tg2.c tickadj.c \
+	timetrim.c
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -513,6 +522,7 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_NET_SNMP_CONFIG = @PATH_NET_SNMP_CONFIG@
+PATH_OPENSSL = @PATH_OPENSSL@
 PATH_PERL = @PATH_PERL@
 PATH_RUBY = @PATH_RUBY@
 PATH_SEPARATOR = @PATH_SEPARATOR@
@@ -632,6 +642,7 @@ tickadj_LDADD = ../libntp/libntp.a $(LDADD_LIBNTP) $(LIBM) $(PTHREAD_LIBS) $(LDA
 EXTRA_DIST = \
 	invoke-ntp-keygen.menu		\
 	invoke-ntp-keygen.texi		\
+	lsf-times.c			\
 	ntp-keygen-opts.def		\
 	ntp-keygen.1ntp-keygenman	\
 	ntp-keygen.1ntp-keygenmdoc	\
@@ -642,9 +653,9 @@ EXTRA_DIST = \
 	ntp-keygen.texi			\
 	$(NULL)
 
-BUILT_SOURCES = ntp-keygen-opts.c ntp-keygen-opts.h check-libntp \
+BUILT_SOURCES = ntp-keygen-opts.c ntp-keygen-opts.h $(am__append_1) \
 	check-libopts .deps-ver
-CLEANFILES = .version version.c check-libntp check-libopts .deps-ver
+CLEANFILES = .version version.c check-libopts .deps-ver
 DISTCLEANFILES = config.log $(man_MANS) $(DEPDIR)/deps-ver
 html_DATA = \
 	$(srcdir)/ntp-keygen.html	\
@@ -886,6 +897,10 @@ longsize$(EXEEXT): $(longsize_OBJECTS) $(longsize_DEPENDENCIES) $(EXTRA_longsize
 	@rm -f longsize$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(longsize_OBJECTS) $(longsize_LDADD) $(LIBS)
 
+lsf-times$(EXEEXT): $(lsf_times_OBJECTS) $(lsf_times_DEPENDENCIES) $(EXTRA_lsf_times_DEPENDENCIES) 
+	@rm -f lsf-times$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(lsf_times_OBJECTS) $(lsf_times_LDADD) $(LIBS)
+
 ntp-keygen$(EXEEXT): $(ntp_keygen_OBJECTS) $(ntp_keygen_DEPENDENCIES) $(EXTRA_ntp_keygen_DEPENDENCIES) 
 	@rm -f ntp-keygen$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(ntp_keygen_OBJECTS) $(ntp_keygen_LDADD) $(LIBS)
@@ -938,6 +953,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/jitter.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/kern.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/longsize.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lsf-times.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ntp-keygen-opts.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ntp-keygen.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ntptime.Po@am__quote@ # am--include-marker
@@ -1233,6 +1249,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/jitter.Po
 	-rm -f ./$(DEPDIR)/kern.Po
 	-rm -f ./$(DEPDIR)/longsize.Po
+	-rm -f ./$(DEPDIR)/lsf-times.Po
 	-rm -f ./$(DEPDIR)/ntp-keygen-opts.Po
 	-rm -f ./$(DEPDIR)/ntp-keygen.Po
 	-rm -f ./$(DEPDIR)/ntptime.Po
@@ -1298,6 +1315,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/jitter.Po
 	-rm -f ./$(DEPDIR)/kern.Po
 	-rm -f ./$(DEPDIR)/longsize.Po
+	-rm -f ./$(DEPDIR)/lsf-times.Po
 	-rm -f ./$(DEPDIR)/ntp-keygen-opts.Po
 	-rm -f ./$(DEPDIR)/ntp-keygen.Po
 	-rm -f ./$(DEPDIR)/ntptime.Po
@@ -1418,11 +1436,10 @@ install-exec-hook:
 
 #
 
-check-libntp: $(top_builddir)/libntp/libntp.a
-	@: avoid default SCCS get by some make implementations
+.PHONY: check-libntp
 
-$(top_builddir)/libntp/libntp.a:
-	cd $(top_builddir)/libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
+@LIBNTP_SUBMAKES_TRUE@check-libntp:
+@LIBNTP_SUBMAKES_TRUE@	cd $(top_builddir)/libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
 
 check-libopts: ../sntp/libopts/libopts.la
 	@echo stamp > $@
@@ -1432,10 +1449,9 @@ check-libopts: ../sntp/libopts/libopts.la
 $(top_srcdir)/sntp/scm-rev: FRC.scm-rev
 	$(AM_V_GEN)cd $(top_builddir)/sntp && $(MAKE) $(AM_MAKEFLAGS) check-scm-rev
 
+.PHONY: FRC.scm-rev
 FRC.scm-rev:
-	@: FRC.scm-rev "force" depends on nothing and is not a file, so is	\
-	   always out-of-date causing targets which depend on it to also		\
-	   be outdated so their rules to fire each time they are built.
+	@: FRC.scm-rev is always out of date, triggering the check every make invocation.
 $(DEPDIR)/deps-ver: $(top_srcdir)/deps-ver
 	@[ -f $@ ] ||							\
 		cp $(top_srcdir)/deps-ver $@

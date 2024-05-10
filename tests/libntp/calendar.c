@@ -1015,7 +1015,7 @@ test_CalIMod7(void)
  */
 
 void
-test_RellezCentury1_1()
+test_RellezCentury1_1(void)
 {
 	/* 1st day of a century */
 	TEST_ASSERT_EQUAL(1901, ntpcal_expand_century( 1, 1, 1, CAL_TUESDAY  ));
@@ -1029,7 +1029,7 @@ test_RellezCentury1_1()
 }
 
 void
-test_RellezCentury3_1()
+test_RellezCentury3_1(void)
 {
 	/* 1st day in March of a century (the tricky point) */
 	TEST_ASSERT_EQUAL(1901, ntpcal_expand_century( 1, 3, 1, CAL_FRIDAY   ));
@@ -1043,7 +1043,7 @@ test_RellezCentury3_1()
 }
 
 void
-test_RellezYearZero()
+test_RellezYearZero(void)
 {
 	/* the infamous year zero */
 	TEST_ASSERT_EQUAL(1900, ntpcal_expand_century( 0, 1, 1, CAL_MONDAY   ));

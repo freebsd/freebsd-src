@@ -391,7 +391,7 @@ int main(int argc, char *argv[])
         MessageBoxA(NULL,
                     "This application cannot run on Windows 3.1.\n"
                     "This application will now terminate.",
-                    "NAMED",
+                    "instsrv",
                     MB_OK | MB_ICONSTOP | MB_SETFOREGROUND );
         return 1;
     }

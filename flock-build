@@ -34,23 +34,11 @@ case "$PARALLEL_BUILDS" in
  *)  echo Launching $PARALLEL_BUILDS parallel builds on each machine
 esac
 
-# Backroom:
-#   barnstable	   freebsd-6.1
-#   beauregard	   freebsd-6.0
-# X churchy	   alpha-dec-osf5.1
-#   deacon	   sparc-sun-solaris2.10
-#   grundoon	   freebsd-6.2
-#   howland	   freebsd-6.1
-# o macabre	   freebsd-6.1-STABLE
-# o mort	   freebsd-6.1
-#   whimsy	   sparc-sun-solaris2.10
-
 # Campus:
 # * baldwin	   sparc-sun-solaris2.10
 # * bridgeport	   sparc-sun-solaris2.10
-# * malarky	   sparc-sun-solaris2.10
 # * pogo	   sparc-sun-solaris2.10
-# * rackety	   freebsd-6.1
+# * rackety	   sparc-sun-solaris2.10
 
 if [ ! -r sntp/libevent/build-aux/config.guess ] ; then
 	echo "Error: bootstrap required." 1>&2 && exit 1
@@ -80,8 +68,8 @@ do
 	case "1" in
 	 0)
 	    ssh $i "cd $c_d ; ./build $SIG $PARSE $STD $BUILD_ARGS" &
-	    ssh $i "cd $c_d ; ./build $SIG $PARSE $STD --disable-debugging $BUILD_ARGS" &
-	    ssh $i "cd $c_d ; ./build $SIG $PARSE $STD --without-crypto --enable-c99-snprintf $BUILD_ARGS" &
+	    ssh $i "cd $c_d ; ./build $SIG $PARSE $STD --disable-debugging --disable-saveconfig $BUILD_ARGS" &
+	    ssh $i "cd $c_d ; ./build $SIG $PARSE $STD --without-crypto --enable-c99-snprintf --enable-leap-smear $BUILD_ARGS" &
 	    ssh $i "cd $c_d ; ./build $SIG        $STD --disable-all-clocks --disable-autokey --without-sntp --disable-thread-support $BUILD_ARGS" &
 	    ;;
 	 1)
@@ -103,13 +91,13 @@ do
 
 		case $FB_FIRSTONLY in
 		 '0')
-			./build $SIG $PARSE $STD --disable-debugging $BUILD_ARGS &
+			./build $SIG $PARSE $STD --disable-debugging --disable-saveconfig $BUILD_ARGS &
 
 			COUNT=\`expr \$COUNT + 1\`
 			echo \`date -u '+%H:%M:%S'\` $i started build \$COUNT of 4
 			[ 0 -lt \`expr \$COUNT % $PARALLEL_BUILDS\` ] || wait
 
-			./build $SIG $PARSE $STD --without-crypto --enable-c99-snprintf $BUILD_ARGS &
+			./build $SIG $PARSE $STD --without-crypto --enable-c99-snprintf --enable-leap-smear $BUILD_ARGS &
 
 			COUNT=\`expr \$COUNT + 1\`
 			echo \`date -u '+%H:%M:%S'\` $i started build \$COUNT of 4

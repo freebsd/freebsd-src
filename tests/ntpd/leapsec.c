@@ -6,7 +6,6 @@
 #include "ntp_calendar.h"
 #include "ntp_stdlib.h"
 #include "ntp_leapsec.h"
-#include "lib_strbuf.h"
 
 #include "unity.h"
 

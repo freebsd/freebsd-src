@@ -14,7 +14,9 @@ Some notes on the implementation:
   * Second, for the sake of the time stamp interpolation the threads
     must run on the same CPU as the time interpolation thread. This
     makes using more than one thread useless, as they would compete for
-    the same core and create contention.
+    the same core and create contention.  This is only an issue on
+    Windows Vista and earlier.  On Windows 8 and later ntpd does not use
+    its own clock interpolation.
 
 + Some IO operations need a possibly lengthy post-processing. Emulating
   the UN*X line discipline is currently the only but prominent example.
@@ -62,6 +64,7 @@ Juergen Perlinger (perlinger@ntp.org) Feb 2012
 
 #include "ntpd.h"
 #include "ntp_request.h"
+#include <isc/win32os.h>
 
 #include "ntp_iocompletionport.h"
 #include "ntp_iocplmem.h"
@@ -76,6 +79,8 @@ enum io_packet_handling {
 	PKT_DROP,
 	PKT_SOCKET_ERROR
 };
+
+
 
 static const char * const st_packet_handling[3] = {
 	"accepted",
@@ -122,6 +127,9 @@ static	HANDLE	hMainRpcDone;
 
 DWORD	ActiveWaitHandles;
 HANDLE	WaitHandles[4];
+
+NotifyIpInterfaceChange_ptr	pNotifyIpInterfaceChange;
+
 
 
 /*
@@ -177,7 +185,7 @@ iocompletionthread(
 	/* Socket and refclock receive call gettimeofday() so the I/O
 	 * thread needs to be on the same processor as the main and
 	 * timing threads to ensure consistent QueryPerformanceCounter()
-	 * results.
+	 * results, if we are interpolating the clock (pre-Win8).
 	 *
 	 * This gets seriously into the way of efficient thread pooling
 	 * on multi-core systems.
@@ -225,47 +233,39 @@ iocompletionthread(
 void
 init_io_completion_port(void)
 {
-	OSVERSIONINFO vi;
+	FARPROC		pfn;
+	HANDLE		hNotify;
+	HANDLE		hDll;
 
 #   ifdef DEBUG
 	atexit(&free_io_completion_port_mem);
 #   endif
 
-	memset(&vi, 0, sizeof(vi));
-	vi.dwOSVersionInfoSize = sizeof(vi);
-
-	/* For windows 7 and above, schedule more than one receive */
-	if (GetVersionEx(&vi) && vi.dwMajorVersion >= 6)
+	/* For Windows Vista and above, schedule more than one receive */
+	if (isc_win32os_versioncheck(6, 0, 0, 0) >= 0) {
 		s_SockRecvSched = 4;
+	}
 
 	/* Create the context pool first. */
 	IOCPLPoolInit(20);
 
-	/* Create the event used to signal an IO event */
+	/* Signal I/O ready */
 	WaitableIoEventHandle = CreateEvent(NULL, FALSE, FALSE, NULL);
-	if (WaitableIoEventHandle == NULL) {
-		msyslog(LOG_ERR, "Can't create I/O event handle: %m");
-		exit(1);
-	}
-	/* Create the event used to signal an exit event */
+
+	/* Signal an exit request */
 	WaitableExitEventHandle = CreateEvent(NULL, FALSE, FALSE, NULL);
-	if (WaitableExitEventHandle == NULL) {
-		msyslog(LOG_ERR, "Can't create exit event handle: %m");
-		exit(1);
-	}
+
+	/* Signal a pps wakeup for attaching */
 	hMainRpcDone = CreateEvent(NULL, FALSE, FALSE, NULL);
-	if (hMainRpcDone == NULL) {
-		msyslog(LOG_ERR, "Can't create RPC sync handle: %m");
-		exit(1);
-	}
 
 	/* Create the IO completion port */
 	hndIOCPLPort = CreateIoCompletionPort(
 		INVALID_HANDLE_VALUE, NULL, 0, 0);
-	if (hndIOCPLPort == NULL) {
-		msyslog(LOG_ERR, "Can't create I/O completion port: %m");
-		exit(1);
-	}
+
+	INSIST(    NULL != WaitableIoEventHandle
+		&& NULL != WaitableExitEventHandle
+		&& NULL != hMainRpcDone
+		&& NULL != hndIOCPLPort);
 
 	/* Initialize the Wait Handles table */
 	WaitHandles[0] = WaitableTimerHandle;
@@ -280,6 +280,25 @@ init_io_completion_port(void)
 	 */
 	addremove_io_semaphore = &ntpd_addremove_semaphore;
 
+	/* Avoid periodic endpoint scans if we are getting change notifications */
+	hDll = LoadLibrary("iphlpapi");
+	pfn = GetProcAddress(hDll, "NotifyIpInterfaceChange");
+	if (NULL != pfn) {
+		pNotifyIpInterfaceChange = (NotifyIpInterfaceChange_ptr)pfn;
+		hNotify = NULL;
+		(*pNotifyIpInterfaceChange)(
+			AF_UNSPEC,
+			&IpInterfaceChangedCallback,
+			NULL,
+			FALSE,
+			&hNotify
+			);
+		if (NULL != hNotify) {
+			/* some systems get notifications minutes to hours late */
+			/* no_periodic_scan = TRUE; */
+		}
+	}
+
 	/* Create a true handle for the main thread (APC processing) */
 	DuplicateHandle(GetCurrentProcess(), GetCurrentThread(),
 		GetCurrentProcess(), &hMainThread,
@@ -291,8 +310,13 @@ init_io_completion_port(void)
 		0, 
 		iocompletionthread, 
 		NULL, 
-		0, 
+		CREATE_SUSPENDED,
 		&tidCompletionThread);
+	if (NULL != pSetThreadDescription) {
+		(*pSetThreadDescription)(hIoCompletionThread, L"ntp_iocp");
+		(*pSetThreadDescription)(hMainThread, L"ntp_main");
+	}
+	ResumeThread(hIoCompletionThread);
 }
 
 
@@ -321,7 +345,7 @@ uninit_io_completion_port(
 			/* Thread lost. Kill off with TerminateThread. */
 			msyslog(LOG_ERR,
 				"IO completion thread refuses to terminate");
-			TerminateThread(hIoCompletionThread, ~0UL);
+			TerminateThread(hIoCompletionThread, 0);
 		}
 	}
 
@@ -341,6 +365,49 @@ uninit_io_completion_port(
 	hndIOCPLPort = NULL;
 	CloseHandle(hMainRpcDone);
 	hMainRpcDone = NULL;
+}
+
+
+/*
+ * IpInterfaceChangedCallback() is invoked on a worker thread created
+ * by the system, not the main thread nor the IOCP thread.  Hand off
+ * to the main thread via APC invoking ip_interface_changed().
+ */
+void WINAPI
+IpInterfaceChangedCallback(
+	PVOID ctx,
+	PVOID row,
+	MIB_NOTIF_TYPE type
+)
+{
+	UNUSED_ARG(ctx);
+	UNUSED_ARG(row);
+	UNUSED_ARG(type);
+
+	QueueUserAPC(&ip_interface_changed, hMainThread, 0);
+}
+
+
+/*
+ * ip_interface_changed() is a user APC called on the main thread once
+ * for each changed row of a table of IP addresses mapping them to
+ * interfaces.  Trigger a rescan of interfaces but delay it to the next
+ * tick of the seconds to avoid pointless multiplication of scans.
+ */
+void WINAPI
+ip_interface_changed(ULONG_PTR ctx)
+{
+	static u_long last_scan;
+
+	UNUSED_ARG(ctx);
+
+	/* delay by a few seconds if we just rescanned */
+	if (current_time - last_scan > 1) {
+		endpt_scan_timer = current_time + 1;
+	} else {
+		endpt_scan_timer = current_time + 3;
+	}
+	last_scan = current_time;
 }
 
 
@@ -411,7 +478,7 @@ free_io_completion_port_mem(void)
 void
 iocpl_notify(
 	IoHndPad_T *	iopad,
-	void		(*pfunc)(ULONG_PTR, IoCtx_t *),
+	IoCompleteFunc	pfunc,
 	UINT_PTR	fdn
 	)
 {
@@ -428,28 +495,28 @@ iocpl_notify(
 
 /*
  * -------------------------------------------------------------------
- * APC callback for scheduling interface scans.
+ * APC callback for socket send failure executed in the main thread.
  *
  * We get an error when trying to send if the network interface is
  * gone or has lost link. Rescan interfaces to catch on sooner, but no
- * more often than once per minute.  Once ntpd is able to detect
- * changes without polling this should be unnecessary.
+ * more than around once per minute.
  */
 static void WINAPI
 apcOnUnexpectedNetworkError(
 	ULONG_PTR arg
 	)
 {
-	static u_long time_next_ifscan_after_error;
+	static u_long earliest_rescan_time;
 
 	UNUSED_ARG(arg);
 
-	if (time_next_ifscan_after_error < current_time) {
-		time_next_ifscan_after_error = current_time + 60;
-		timer_interfacetimeout(current_time);
+	if (earliest_rescan_time < current_time) {
+		endpt_scan_timer = current_time;
+		earliest_rescan_time = current_time + SECSPERMIN - 1;
 	}
 	DPRINTF(4, ("UnexpectedNetworkError: interface may be down\n"));
 }
+
 
 /* -------------------------------------------------------------------
  *
@@ -859,11 +926,11 @@ QueueSerialReadCommon(
 	/* 'buff->recv_length' must be set already! */
 	buff->fd        = lpo->iopad->riofd;
 	buff->dstadr    = NULL;
-	buff->receiver  = process_refclock_packet;
+	buff->receiver  = &process_refclock_packet;
 	buff->recv_peer = lpo->iopad->rsrc.rio->srcclock;
 
 	rc = ReadFile(lpo->io.hnd,
-		(char*)buff->recv_buffer + buff->recv_length,
+		(char *)buff->recv_buffer + buff->recv_length,
 		sizeof(buff->recv_buffer) - buff->recv_length,
 		NULL, &lpo->ol);
 	return rc || IoResultCheck(GetLastError(), lpo, msgh);
@@ -967,22 +1034,22 @@ OnDeferredStartWait(
 	IoCtx_t *	lpo
 )
 {
-	IoCtxStartChecked(lpo, QueueSerialWait, lpo->recv_buf);
+	IoCtxStartChecked(lpo, &QueueSerialWait, lpo->recv_buf);
 }
 
 /* -------------------------------------------------------------------
- * APC deferred bouncer -- put buffer to receive queueor eventually
+ * APC deferred bouncer -- put buffer to receive queue or eventually
  * discard it if source is already disabled. Runs in the context
  * of the main thread exclusively.
  */
 static void WINAPI
 OnEnqueAPC(
 	ULONG_PTR arg
-)
+	)
 {
-	recvbuf_t *	buff  = (recvbuf_t*)arg;
-	IoHndPad_T *	iopad = (IoHndPad_T*)buff->recv_peer;
-	RIO_t *         rio   = iopad->rsrc.rio;
+	recvbuf_t *	buff  = (recvbuf_t *)arg;
+	IoHndPad_T *	iopad = (IoHndPad_T *)buff->recv_peer;
+	RIO_t *		rio   = iopad->rsrc.rio;
 
 	/* Down below we make a nasty hack to transport the iopad
 	 * pointer in the buffer so we can avoid another temporary
@@ -991,7 +1058,7 @@ OnEnqueAPC(
 	if (NULL != rio) {
 		/* OK, refclock still attached */
 		buff->recv_peer = rio->srcclock;
-		if (iohpQueueLocked(iopad, iohpRefClockOK, buff))
+		if (iohpQueueLocked(iopad, &iohpRefClockOK, buff))
 			++rio->srcclock->received;
 	} else {
 		/* refclock detached while in flight... */
@@ -1018,7 +1085,7 @@ OnSerialReadWorker(
 
 	/* We should never gat a zero-byte read here. If we do, nothing
 	 * really bad happens, just a useless rescan of data we have
-	 * already processed. But somethings not quite right in logic
+	 * already processed. But something's not quite right in logic
 	 * and we croak loudly in debug builds.
 	 */
 	DEBUG_INSIST(lpo->byteCount > 0);
@@ -1041,10 +1108,10 @@ st_new_obuf:
 		buff->recv_length = 0;
 		goto st_read_fresh;
 	}
-	obuf->fd        = buff->fd;
-	obuf->receiver  = buff->receiver;
-	obuf->dstadr    = NULL;
-	obuf->recv_peer = buff->recv_peer;
+	obuf->fd	= buff->fd;
+	obuf->receiver	= buff->receiver;
+	obuf->dstadr	= NULL;
+	obuf->recv_peer	= buff->recv_peer;
 	set_serial_recv_time(obuf, lpo);
 
 st_copy_start:
@@ -1100,8 +1167,8 @@ st_pass_buffer:
 	 * the IOPAD matches the RIO in the buffer is dangerous: That
 	 * pointer is manipulated by the other threads!
 	 */
-	obuf->recv_peer = (struct peer*)iohpAttach(lpo->iopad);
-	QueueUserAPC(OnEnqueAPC, hMainThread, (ULONG_PTR)obuf);
+	obuf->recv_peer = (struct peer *)iohpAttach(lpo->iopad);
+	QueueUserAPC(&OnEnqueAPC, hMainThread, (ULONG_PTR)obuf);
 	if (sptr != send)
 		goto st_new_obuf;
 	buff->recv_length = 0;
@@ -1121,8 +1188,10 @@ st_read_fresh:
 	 * just mop up the pieces.
 	 */
 	lpo->onIoDone = OnDeferredStartWait;
-	if (!(hndIOCPLPort && PostQueuedCompletionStatus(hndIOCPLPort, 1, 0, &lpo->ol)))
+	if (   NULL == hndIOCPLPort
+	    || !PostQueuedCompletionStatus(hndIOCPLPort, 1, 0, &lpo->ol)) {
 		IoCtxRelease(lpo);
+	}
 	return 0;
 }
 
@@ -1846,17 +1915,14 @@ fail:
 /* --------------------------------------------------------------------
  * GetReceivedBuffers
  * Note that this is in effect the main loop for processing requests
- * both send and receive. This should be reimplemented
+ * both send and receive.  Executed on the main thread.
  */
 int
 GetReceivedBuffers(void)
 {
 	DWORD	index;
 	HANDLE	ready;
-	int	errcode;
-	BOOL	dynbuf;
 	BOOL	have_packet;
-	char *	msgbuf;
 
 	have_packet = FALSE;
 	while (!have_packet) {
@@ -1883,20 +1949,12 @@ GetReceivedBuffers(void)
 			break;
 
 		case WAIT_TIMEOUT:
-			msyslog(LOG_ERR,
-				"WaitForMultipleObjectsEx INFINITE timed out.");
+			DEBUG_INVARIANT(!"INFINITE wait timed out");
 			break;
 
 		case WAIT_FAILED:
-			dynbuf = FALSE;
-			errcode = GetLastError();
-			msgbuf = NTstrerror(errcode, &dynbuf);
-			msyslog(LOG_ERR,
-				"WaitForMultipleObjectsEx Failed: Errcode = %n, msg = %s", errcode, msgbuf);
-			if (dynbuf)
-				LocalFree(msgbuf);
-			exit(1);
-		break;
+			DEBUG_INVARIANT(!"IOCP wait failed");
+			break;
 
 		default:
 			DEBUG_INSIST((index - WAIT_OBJECT_0) <

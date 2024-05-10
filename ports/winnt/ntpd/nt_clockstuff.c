@@ -2,7 +2,7 @@
  *
  * Created by Sven Dietrich  sven@inter-yacht.com
  *
- * New interpolation scheme by Dave Hart <davehart@davehart.com> in
+ * New interpolation scheme by Dave Hart <davehart@gmail.com> in
  * February 2009 overcomes 500us-1ms inherent jitter with the older
  * scheme, first identified by Peter Rosin (nee Ekberg)
  * <peda@lysator.liu.se> in 2003 [Bug 216].
@@ -19,11 +19,10 @@
 #include "config.h"
 #endif
 
+#include "isc/win32os.h"
 #include <sys/resource.h>	/* our private version */
 
-#if defined(_MSC_VER) && _MSC_VER >= 1400	/* VS 2005 */
 #include <intrin.h>				/* for __rdtsc() */
-#endif
 
 #ifdef HAVE_PPSAPI
 #include <timepps.h>
@@ -240,23 +239,6 @@ do {	\
 #define PERF2HNS(ctr)	((ctr) * HECTONANOSECONDS / PerfCtrFreq)
 
 
-#if defined(_MSC_VER) && _MSC_VER >= 1400	/* VS 2005 */
-#define	get_pcc()	__rdtsc()
-#else
-/*
- * something like this can be used for a compiler without __rdtsc()
- */
-ULONGLONG __forceinline 
-get_pcc(void)
-{
-	/* RDTSC returns in EDX:EAX, same as C compiler */
-	__asm {
-		RDTSC
-	}
-}
-#endif
-
-
 /*
  * perf_ctr() returns the current performance counter value, 
  * from QueryPerformanceCounter or RDTSC.
@@ -266,9 +248,9 @@ perf_ctr(void)
 {
 	FT_ULL ft;
 
-	if (use_pcc)
-		return get_pcc();
-	else {
+	if (use_pcc) {
+		return __rdtsc();
+	} else {
 		QueryPerformanceCounter(&ft.li);
 		return ft.ull;
 	}
@@ -283,29 +265,18 @@ perf_ctr(void)
  */
 static void init_small_adjustment(void)
 {
-	OSVERSIONINFO vi;
-	memset(&vi, 0, sizeof(vi));
-	vi.dwOSVersionInfoSize = sizeof(vi);
-
-	if (!GetVersionEx(&vi)) {
-		msyslog(LOG_WARNING, "GetVersionEx failed with error code %d.", GetLastError());
-		os_ignores_small_adjustment = FALSE;
-		return;
-	}
-
-	if (vi.dwMajorVersion == 6 && vi.dwMinorVersion == 1) {
-		// Windows 7 and Windows Server 2008 R2
-		//
-		// Windows 7 is documented as affected.
-		// Windows Server 2008 R2 is assumed affected.
-		os_ignores_small_adjustment = TRUE;
-	} else if (vi.dwMajorVersion == 6 && vi.dwMinorVersion == 0) {
-		// Windows Vista and Windows Server 2008
+	if (   isc_win32os_versioncheck(6, 0, 0, 0) >= 0
+	    && isc_win32os_versioncheck(6, 2, 0, 0) < 0) {
+		// 6.0 Windows Vista and Windows Server 2008
+		// 6.1 Windows 7 and Windows Server 2008 R2
 		//
 		// Windows Vista is documented as affected.
 		// Windows Server 2008 is assumed affected.
+		// Windows 7 is documented as affected.
+		// Windows Server 2008 R2 is assumed affected.
 		os_ignores_small_adjustment = TRUE;
-	} else {
+	}
+	else {
 		os_ignores_small_adjustment = FALSE;
 	}
 }
@@ -413,11 +384,11 @@ is_qpc_built_on_pcc(void)
 	REQUIRE(NomPerfCtrFreq != 0);
 
 	QueryPerformanceCounter(&ft1.li);
-	ft2.ull = get_pcc();
+	ft2.ull = __rdtsc();
 	Sleep(1);
 	QueryPerformanceCounter(&ft3.li);
 	Sleep(1);
-	ft4.ull = get_pcc();
+	ft4.ull = __rdtsc();
 	Sleep(1);
 	QueryPerformanceCounter(&ft5.li);
 
@@ -1100,6 +1071,9 @@ StartClockThread(void)
 		/* remember the thread priority is only within the process class */
 		if (!SetThreadPriority(clock_thread, THREAD_PRIORITY_TIME_CRITICAL)) {
 			DPRINTF(1, ("Error setting thread priority\n"));
+		}
+		if (NULL != pSetThreadDescription) {
+			(*pSetThreadDescription)(clock_thread, L"ntpd_interp_clock");
 		}
 
 		lock_thread_to_processor(clock_thread);

@@ -11,10 +11,12 @@
 
 #include "declcond.h"	/* ntpd uses ntpd/declcond.h, others include/ */
 #include "l_stdlib.h"
+#include "lib_strbuf.h"
 #include "ntp_md5.h"
 #include "ntp_net.h"
 #include "ntp_debug.h"
 #include "ntp_malloc.h"
+#include "lib_strbuf.h"
 #include "ntp_string.h"
 #include "ntp_syslog.h"
 #include "ntp_keyacc.h"
@@ -113,7 +115,7 @@ extern	size_t	MD5authencrypt	(int type, const u_char *key, size_t klen,
 extern	int	MD5authdecrypt	(int type, const u_char *key, size_t klen,
 				 u_int32 *pkt, size_t length, size_t size,
 				 keyid_t keyno);
-extern	u_int32	addr2refid(sockaddr_u *);
+extern	u_int32	addr2refid	(sockaddr_u *);
 
 /* authkeys.c */
 extern	void	MD5auth_setkey	(keyid_t, int, const u_char *, size_t,
@@ -180,7 +182,6 @@ extern	const char * k_st_flags	(u_int32);
 extern	char *	statustoa	(int, int);
 extern	sockaddr_u * netof	(sockaddr_u *);
 extern	char *	numtoa		(u_int32);
-extern	char *	numtohost	(u_int32);
 extern	const char * socktoa	(const sockaddr_u *);
 extern	const char * sockporttoa(const sockaddr_u *);
 extern	u_short	sock_hash	(const sockaddr_u *);
@@ -242,18 +243,21 @@ extern pset_tod_using	set_tod_using;
 #ifdef OPENSSL
 extern	void	ssl_init		(void);
 extern	void	ssl_check_version	(void);
-extern	int	ssl_init_done;
+extern	EVP_MD_CTX* digest_ctx;		/* also ssl_init_done */
 #define	INIT_SSL()				\
 	do {					\
-		if (!ssl_init_done)		\
+		if (NULL == digest_ctx)	{	\
 			ssl_init();		\
-	} while (0)
+		}				\
+	} while (FALSE)
 #else	/* !OPENSSL follows */
+#define ssl_check_version()	do {} while (0)
 #define	INIT_SSL()		do {} while (0)
 #endif
-extern	int	keytype_from_text	(const char *,	size_t *);
-extern	const char *keytype_name	(int);
-extern	char *	getpass_keytype		(int);
+extern	int	keytype_from_text	(const char *text,
+					 size_t *pdigest_len);
+extern	const char *keytype_name	(int type);
+extern	char *	getpass_keytype		(int type);
 
 /* strl-obsd.c */
 #ifndef HAVE_STRLCPY		/* + */

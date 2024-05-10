@@ -6,9 +6,6 @@
 #include "unity.h"
 
 
-/* Might need to be updated if a new refclock gets this id. */
-static const int UNUSED_REFCLOCK_ID = 250;
-
 void setUp(void);
 void test_LocalClock(void);
 void test_UnknownId(void);
@@ -27,22 +24,21 @@ void
 test_LocalClock(void) {
 #ifdef REFCLOCK		/* clockname() is useless otherwise */
 	/* We test with a refclock address of type LOCALCLOCK.
-	 * with id 8
+	 * with unit id 8
 	 */
-	u_int32 addr = REFCLOCK_ADDR;
-	addr |= REFCLK_LOCALCLOCK << 8;
-	addr |= 0x8;
-
+	const u_char unit = 8;
+	u_int32 addr;
+	char expected[100];
 	sockaddr_u address;
-	address.sa4.sin_family = AF_INET;
-	address.sa4.sin_addr.s_addr = htonl(addr);
 
-	char stringStart[100]= "";
+	addr = REFCLOCK_ADDR;
+	addr |= REFCLK_LOCALCLOCK << 8;
+	addr |= unit;
 
-	strcat(stringStart, clockname(REFCLK_LOCALCLOCK));
-	strcat(stringStart, "(8)");
-
-	char * expected = stringStart;
+	AF(&address) = AF_INET;
+	NSRCADR(&address) = htonl(addr);
+	snprintf(expected, sizeof(expected), "%s(%u)",
+		 clockname(REFCLK_LOCALCLOCK), unit);
 
 	TEST_ASSERT_EQUAL_STRING(expected, refnumtoa(&address));
 #else
@@ -54,20 +50,22 @@ void
 test_UnknownId(void) {
 #ifdef REFCLOCK		/* refnumtoa() is useless otherwise */
 	/* We test with a currently unused refclock ID */
-	u_int32 addr = REFCLOCK_ADDR;
-	addr |= UNUSED_REFCLOCK_ID << 8;
-	addr |= 0x4;
-
+	/* Might need to be updated if a new refclock gets this id. */
+	const u_char UNUSED_REFCLOCK_ID = 250;
+	const u_char unit = 4;
+	u_int32 addr;
+	char expected[100];
 	sockaddr_u address;
-	address.sa4.sin_family = AF_INET;
-	address.sa4.sin_addr.s_addr = htonl(addr);
 
-	char stringStart[100]= "REFCLK(";
-	char value[100] ;
-	snprintf(value, sizeof(value), "%d", UNUSED_REFCLOCK_ID);
-	strcat(stringStart,value);
-	strcat(stringStart,",4)");
-	char * expected = stringStart;
+	addr = REFCLOCK_ADDR;
+	addr |= UNUSED_REFCLOCK_ID << 8;
+	addr |= unit;
+
+	AF(&address) = AF_INET;
+	NSRCADR(&address) = htonl(addr);
+
+	snprintf(expected, sizeof(expected), "REFCLK(%u,%u)",
+		 UNUSED_REFCLOCK_ID, unit);
 
 	TEST_ASSERT_EQUAL_STRING(expected, refnumtoa(&address));
 #else

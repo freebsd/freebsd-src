@@ -1,16 +1,9 @@
 dnl ######################################################################
 dnl Common m4sh code for compiler stuff
 AC_DEFUN([NTP_COMPILER], [
+AC_REQUIRE([AC_PROG_CC_STDC])
 
 AC_USE_SYSTEM_EXTENSIONS
-
-# Ralf Wildenhues: With per-target flags we need CC_C_O
-# AM_PROG_CC_C_O supersets AC_PROG_CC_C_O
-AM_PROG_CC_C_O
-AC_PROG_GCC_TRADITIONAL
-AC_REQUIRE([AC_PROG_CC_STDC])
-dnl AC_REQUIRE([AC_PROG_CC_C89])
-dnl AC_REQUIRE([AC_PROG_CC_C99])
 
 CC_NOFORMAT=
 CFLAGS_NTP=
@@ -104,13 +97,15 @@ case "$GCC" in
 	]
     )
     #
+    # $ntp_cv_gcc_Winit_self is tested later to add the 
+    # flag to CFLAGS_NTP.
+    #
     # libopts specifically builds a string with embedded NULs.
     # This causes a bunch of distracting warnings due to -Wformat.
-    # Let's see if we can figure out how to disable these.
     #
-    CFLAGS="$SAVED_CFLAGS -Wno-format"
+    CFLAGS="$SAVED_CFLAGS -Wno-format -Wno-format-security"
     AC_CACHE_CHECK(
-	[if $CC can handle -Wno-format], 
+	[if $CC can handle -Wno-format -Wno-format-security], 
 	[ntp_cv_gcc_Wno_format],
 	[
 	    AC_COMPILE_IFELSE(
@@ -120,35 +115,44 @@ case "$GCC" in
 	    )
 	]
     )
-
     case "$ntp_cv_gcc_Wno_format" in
+      no) ntp_cv_gcc_Wno_format_truncation=no
+	  ;;
      yes)
-	CC_NOFORMAT="$CC_NOFORMAT -Wno-format"
-	;;
-     no)
-	;;
+	CC_NOFORMAT="-Wno-format -Wno-format-security"
+	CFLAGS="$SAVED_CFLAGS -Wformat -Wno-format-truncation -Werror"
+	AC_CACHE_CHECK(
+		[if $CC can handle -Wformat -Wno-format-truncation], 
+		[ntp_cv_gcc_Wno_format_truncation], 
+		[AC_COMPILE_IFELSE(
+		    [AC_LANG_PROGRAM([[]], [[]])],
+		    [ntp_cv_gcc_Wno_format_truncation=yes],
+		    [ntp_cv_gcc_Wno_format_truncation=no]
+		)	]
+	)
+	#
+	# $ntp_cv_gcc_Wno_format_truncation is tested later to add the 
+	# flag to CFLAGS.
+	#
     esac
 
     CFLAGS="$SAVED_CFLAGS"
     AS_UNSET([SAVED_CFLAGS])
-    #
-    # $ntp_cv_gcc_Winit_self is tested later to add the 
-    # flag to CFLAGS_NTP.
-    #
+
     AC_CACHE_CHECK(
 	[if linker supports omitting unused code and data],
 	[ntp_cv_gc_sections_runs],
 	[
-	    dnl  NetBSD will link but likely not run with --gc-sections
-	    dnl  http://bugs.ntp.org/1844
-	    dnl  http://gnats.netbsd.org/40401
-	    dnl  --gc-sections causes attempt to load as linux elf, with
-	    dnl  wrong syscalls in place.  Test a little gauntlet of
-	    dnl  simple stdio read code checking for errors, expecting
-	    dnl  enough syscall differences that the NetBSD code will
-	    dnl  fail even with Linux emulation working as designed.
-	    dnl  A shorter test could be refined by someone with access
-	    dnl  to a NetBSD host with Linux emulation working.
+	    #  NetBSD will link but likely not run with --gc-sections
+	    #  http://bugs.ntp.org/1844
+	    #  http://gnats.netbsd.org/40401
+	    #  --gc-sections causes attempt to load as linux elf, with
+	    #  wrong syscalls in place.  Test a little gauntlet of
+	    #  simple stdio read code checking for errors, expecting
+	    #  enough syscall differences that the NetBSD code will
+	    #  fail even with Linux emulation working as designed.
+	    #  A shorter test could be refined by someone with access
+	    #  to a NetBSD host with Linux emulation working.
 	    origCFLAGS="$CFLAGS"
 	    CFLAGS="$CFLAGS -Wl,--gc-sections"
 	    AC_LINK_IFELSE(
@@ -222,6 +226,10 @@ case "$GCC" in
     case "$ntp_cv_gcc_Wstrict_overflow" in
      yes)
 	CFLAGS_NTP="$CFLAGS_NTP -Wstrict-overflow"
+    esac
+    case "$ntp_cv_gcc_Wno_format_truncation" in
+     yes)
+	CFLAGS_NTP="$CFLAGS_NTP -Wno-format-truncation"
     esac
     # -W[no-]strict-prototypes might be added by NTP_OPENSSL
 esac

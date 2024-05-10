@@ -97,6 +97,7 @@ check_PROGRAMS = test-crypto$(EXEEXT) test-keyFile$(EXEEXT) \
 @BUILD_TEST_KODDATABASE_TRUE@am__append_1 = test-kodDatabase
 @BUILD_TEST_KODFILE_TRUE@am__append_2 = test-kodFile
 @NTP_CROSSCOMPILE_FALSE@am__append_3 = $(check_PROGRAMS)
+@LIBNTP_SUBMAKES_TRUE@am__append_4 = check-libntp
 subdir = tests
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/libopts/m4/libopts.m4 \
@@ -107,6 +108,7 @@ am__aclocal_m4_deps = $(top_srcdir)/libopts/m4/libopts.m4 \
 	$(top_srcdir)/m4/ntp_cacheversion.m4 \
 	$(top_srcdir)/m4/ntp_compiler.m4 \
 	$(top_srcdir)/m4/ntp_crosscompile.m4 \
+	$(top_srcdir)/m4/ntp_crypto_rand.m4 \
 	$(top_srcdir)/m4/ntp_debug.m4 $(top_srcdir)/m4/ntp_dir_sep.m4 \
 	$(top_srcdir)/m4/ntp_facilitynames.m4 \
 	$(top_srcdir)/m4/ntp_harden.m4 $(top_srcdir)/m4/ntp_ipv6.m4 \
@@ -675,6 +677,7 @@ PACKAGE_STRING = @PACKAGE_STRING@
 PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
+PATH_OPENSSL = @PATH_OPENSSL@
 PATH_RUBY = @PATH_RUBY@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PKG_CONFIG = @PKG_CONFIG@
@@ -768,7 +771,7 @@ BUILT_SOURCES = $(srcdir)/run-crypto.c $(srcdir)/run-keyFile.c \
 	$(srcdir)/run-kodDatabase.c $(srcdir)/run-kodFile.c \
 	$(srcdir)/run-networking.c $(srcdir)/run-packetHandling.c \
 	$(srcdir)/run-packetProcessing.c $(srcdir)/run-utilities.c \
-	$(NULL) check-libntp check-libsntp check-libunity .deps-ver
+	$(NULL) $(am__append_4) check-libsntp check-libunity .deps-ver
 
 # data CLEANFILES down below
 CLEANFILES = debug-output-lfp-bin debug-output-lfp-dec \
@@ -777,8 +780,7 @@ CLEANFILES = debug-output-lfp-bin debug-output-lfp-dec \
 	version.c $(NULL) data/kod-output-multiple \
 	data/kod-output-single data/debug-output-pkt \
 	data/debug-output-lfp-dec data/kod-output-blank \
-	data/debug-output-lfp-bin $(NULL) check-libntp check-libsntp \
-	check-libunity .deps-ver
+	data/debug-output-lfp-bin $(NULL) check-libunity .deps-ver
 DISTCLEANFILES = kod-output-blank kod-output-single \
 	kod-output-multiple testLogfile.log testLogfile2.log $(NULL) \
 	$(DEPDIR)/deps-ver
@@ -1614,20 +1616,17 @@ FRC.scm-rev:
 	   always out-of-date causing targets which depend on it to also	\
 	   be outdated so their rules to fire each time they are built.
 
-check-libntp: $(top_builddir)/../libntp/libntp.a
-	@: avoid default SCCS get by some make implementations
+.PHONY: check-libntp
 
-$(top_builddir)/../libntp/libntp.a:
-	cd $(top_builddir)/../libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
+@LIBNTP_SUBMAKES_TRUE@check-libntp:
+@LIBNTP_SUBMAKES_TRUE@	cd $(top_builddir)/../libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
 
-check-libsntp: $(top_builddir)/sntp/libsntp.a
-	@: avoid default SCCS get by some make implementations
-
-$(top_builddir)/sntp/libsntp.a:
+.PHONY: check-libsntp
+check-libsntp:
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) libsntp.a
 
 check-libunity: $(top_builddir)/unity/libunity.a
-	 @: avoid default SCCS get by some make implementations
+	@echo stamp > $@
 
 $(top_builddir)/unity/libunity.a:
 	cd $(top_builddir)/unity && $(MAKE) $(AM_MAKEFLAGS) libunity.a

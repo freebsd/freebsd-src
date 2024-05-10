@@ -55,36 +55,19 @@ struct {
 BOOL
 OpenHopfDevice(void)
 {
-	OSVERSIONINFO	VersionInfo;
-	ULONG		deviceNumber;
+	ULONG		deviceNumber = 0;
 	CHAR		deviceName[255];
 			
-	VersionInfo.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
-	GetVersionEx(&VersionInfo);
-	switch (VersionInfo.dwPlatformId) {
-
-	case VER_PLATFORM_WIN32_WINDOWS:	// Win95/98
-		return FALSE;	// "NTP does not support Win 95-98."
-		break;
-
-	case VER_PLATFORM_WIN32_NT:	// WinNT
-		deviceNumber = 0;
-		snprintf(deviceName, sizeof(deviceName),
-			 "\\\\.\\hclk6039%d", deviceNumber + 1);
-		hDevice = CreateFile(
-			deviceName,
-			GENERIC_WRITE | GENERIC_READ,
-			FILE_SHARE_WRITE | FILE_SHARE_READ,
-			NULL,
-			OPEN_EXISTING,
-			FILE_FLAG_DELETE_ON_CLOSE | FILE_FLAG_OVERLAPPED,
-			NULL);
-		break;
-
-	default:
-		hDevice = INVALID_HANDLE_VALUE;
-		break;
-	} // end switch
+	snprintf(deviceName, sizeof(deviceName),
+		 "\\\\.\\hclk6039%d", deviceNumber + 1);
+	hDevice = CreateFile(
+		deviceName,
+		GENERIC_WRITE | GENERIC_READ,
+		FILE_SHARE_WRITE | FILE_SHARE_READ,
+		NULL,
+		OPEN_EXISTING,
+		FILE_FLAG_DELETE_ON_CLOSE | FILE_FLAG_OVERLAPPED,
+		NULL);
 
 	if (INVALID_HANDLE_VALUE == hDevice) // the system didn't return a handle
 		return FALSE;  //"A handle to the driver could not be obtained properly"

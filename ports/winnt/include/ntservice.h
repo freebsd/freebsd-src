@@ -25,7 +25,6 @@ void ntservice_init(void);
 void ntservice_isup(void);
 void UpdateSCM(DWORD);
 void WINAPI ServiceControl(DWORD dwCtrlCode);
-void ntservice_shutdown(void);
 BOOL ntservice_systemisshuttingdown(void);
 BOOL WINAPI OnConsoleEvent(DWORD dwCtrlType);
 

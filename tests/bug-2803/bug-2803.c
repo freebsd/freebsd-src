@@ -7,7 +7,6 @@
 #include <timevalops.h>
 
 #include "unity.h"
-//#include "bug-2803.h"
 
 /* microseconds per second */
 #define MICROSECONDS 1000000
@@ -53,10 +52,10 @@ static int do_test( struct timeval timetv, struct timeval tvlast )
 
 	if ( failed || verbose )
 		printf( "timetv %lli|%07li, tvlast  %lli|%07li: tvdiff_old: %lli|%07li -> %i, tvdiff_new: %lli|%07li -> %i, same cond: %s\n",
-			(long long) timetv.tv_sec, timetv.tv_usec,
-			(long long) tvlast.tv_sec, tvlast.tv_usec,
-			(long long) tvdiff_old.tv_sec, tvdiff_old.tv_usec, cond_old,
-			(long long) tvdiff_new.tv_sec, tvdiff_new.tv_usec, cond_new,
+			(long long) timetv.tv_sec, (u_long)timetv.tv_usec,
+			(long long) tvlast.tv_sec, (u_long)tvlast.tv_usec,
+			(long long) tvdiff_old.tv_sec, (u_long)tvdiff_old.tv_usec, cond_old,
+			(long long) tvdiff_new.tv_sec, (u_long)tvdiff_new.tv_usec, cond_new,
 			failed ? "NO <<" : "yes" );
 
 	return failed ? -1 : 0;

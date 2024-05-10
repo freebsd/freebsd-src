@@ -13,10 +13,6 @@
 #include "unity.h"
 
 
-static const size_t TEST_MD5_DIGEST_LENGTH = 16;
-static const size_t TEST_SHA1_DIGEST_LENGTH = 20;
-static const size_t TEST_CMAC_DIGEST_LENGTH = 16;
-
 void test_MD5KeyTypeWithoutDigestLength(void);
 void test_MD5KeyTypeWithDigestLength(void);
 void test_SHA1KeyTypeWithDigestLength(void);
@@ -35,7 +31,7 @@ test_MD5KeyTypeWithoutDigestLength(void) {
 void
 test_MD5KeyTypeWithDigestLength(void) {
 	size_t digestLength;
-	size_t expected = TEST_MD5_DIGEST_LENGTH;
+	size_t expected = MD5_LENGTH;
 
 	TEST_ASSERT_EQUAL(KEY_TYPE_MD5, keytype_from_text("MD5", &digestLength));
 	TEST_ASSERT_EQUAL(expected, digestLength);
@@ -46,7 +42,7 @@ void
 test_SHA1KeyTypeWithDigestLength(void) {
 #ifdef OPENSSL
 	size_t digestLength;
-	size_t expected = TEST_SHA1_DIGEST_LENGTH;
+	size_t expected = SHA1_LENGTH;
 
 	TEST_ASSERT_EQUAL(NID_sha1, keytype_from_text("SHA1", &digestLength));
 	TEST_ASSERT_EQUAL(expected, digestLength);
@@ -61,7 +57,7 @@ void
 test_CMACKeyTypeWithDigestLength(void) {
 #if defined(OPENSSL) && defined(ENABLE_CMAC)
 	size_t digestLength;
-	size_t expected = TEST_CMAC_DIGEST_LENGTH;
+	size_t expected = CMAC_LENGTH;
 
 	TEST_ASSERT_EQUAL(NID_cmac, keytype_from_text(CMAC, &digestLength));
 	TEST_ASSERT_EQUAL(expected, digestLength);

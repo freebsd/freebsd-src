@@ -14,6 +14,7 @@
  */
 PGSTAFT get_sys_time_as_filetime;
 PGSTAFT pGetSystemTimePreciseAsFileTime;
+PSTD	pSetThreadDescription;
 
 
 int
@@ -61,5 +62,11 @@ init_win_precise_time(void)
 		get_sys_time_as_filetime = pGetSystemTimePreciseAsFileTime;
 	} else {
 		get_sys_time_as_filetime = &GetSystemTimeAsFileTime;
+	}
+	/* Identify threads by name in debugger */
+	hDll = LoadLibrary("KernelBase");
+	pfn = GetProcAddress(hDll, "SetThreadDescription");
+	if (NULL != pfn) {
+		pSetThreadDescription = (PSTD)pfn;
 	}
 }

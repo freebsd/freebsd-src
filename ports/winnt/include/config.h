@@ -10,18 +10,22 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-/*
- * Known predifined MS compiler version codes:
- *  1800: MSVC++ 12.0 (Visual Studio 2013)
- *  1700: MSVC++ 11.0 (Visual Studio 2012)
- *  1600: MSVC++ 10.0 (Visual Studio 2010)
- *  1500: MSVC++ 9.0  (Visual Studio 2008)
- *  1400: MSVC++ 8.0  (Visual Studio 2005)
- *  1310: MSVC++ 7.1  (Visual Studio 2003)
- *  1300: MSVC++ 7.0
- *  1200: MSVC++ 6.0  (Visual C++ 6)
- *  1100: MSVC++ 5.0
- */
+ /*
+  * Known predifined MS C compiler _MSC_VER values:
+  *
+  *  1930  MSVC++ 14.3 (Visual Studio 2022)
+  *  1920  MSVC++ 14.2 (Visual Studio 2019)
+  *  1910  MSVC++ 14.1 (Visual Studio 2017)
+  *  1900  MSVC++ 14.0 (Visual Studio 2015)
+  *  1800: MSVC++ 12.0 (Visual Studio 2013)
+  *  1700: MSVC++ 11.0 (Visual Studio 2012)
+  *  1600: MSVC++ 10.0 (Visual Studio 2010)
+  *  1500: MSVC++ 9.0  (Visual Studio 2008)
+  *  1400: MSVC++ 8.0  (Visual Studio 2005) (minimum supported)
+  *
+  * Note comparisons should be made using <, >, <=, or >= as there are
+  * other revisions released between major versions.
+  */
 
 #if defined(_MSC_VER) && _MSC_VER < 1400
 #error Minimum supported Microsoft compiler is Visual C++ 2005.
@@ -553,10 +557,20 @@ typedef unsigned long uintptr_t;
 
 #define  SIOCGIFFLAGS SIO_GET_INTERFACE_LIST /* used in ntp_io.c */
 
-/* Bug 2978 mitigation -- unless defined elsewhere, do it here*/
+/* Bug 2978 mitigation -- unless defined elsewhere, do it here */
 #ifndef DYNAMIC_INTERLEAVE
 # define DYNAMIC_INTERLEAVE 0
 #endif
+
+/*
+ * Macro to use in otherwise-empty source files to comply with ANSI C
+ * requirement that each translation unit (source file) contain some
+ * declaration.  This has commonly been done by declaring an unused
+ * global variable of type int or char.  An extern reference to abs()
+ * serves the same purpose without bloat.  We once used exit() but
+ * that can produce warnings on systems that declare exit() noreturn.
+ */
+#define	NONEMPTY_TRANSLATION_UNIT	extern int abs(int);
 
 /*
  * Below this line are includes which must happen after the bulk of

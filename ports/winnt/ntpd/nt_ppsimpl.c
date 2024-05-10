@@ -20,7 +20,6 @@
 
 #include "timepps.h"
 #include "ntp_stdlib.h"
-#include "lib_strbuf.h"
 #include "ntp_iocpltypes.h"
 #include "ntp_iocplmem.h"
 
@@ -456,7 +455,7 @@ load_pps_provider(
 	HMODULE			hmod;
 	pppsapi_prov_init	pprov_init;
 
-	prov = emalloc(sizeof(*prov));
+	prov = emalloc_zero(sizeof(*prov));
 	hmod = LoadLibraryA(dllpath);
 	if (NULL == hmod) {
 		msyslog(LOG_WARNING, msgfmt, dllpath,

@@ -89,6 +89,7 @@ build_triplet = @build@
 host_triplet = @host@
 check_PROGRAMS = sec-2853$(EXEEXT)
 @NTP_CROSSCOMPILE_FALSE@am__append_1 = $(check_PROGRAMS)
+@LIBNTP_SUBMAKES_TRUE@am__append_2 = check-libntp
 subdir = tests/sec-2853
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/sntp/libopts/m4/libopts.m4 \
@@ -593,6 +594,7 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_NET_SNMP_CONFIG = @PATH_NET_SNMP_CONFIG@
+PATH_OPENSSL = @PATH_OPENSSL@
 PATH_PERL = @PATH_PERL@
 PATH_RUBY = @PATH_RUBY@
 PATH_SEPARATOR = @PATH_SEPARATOR@
@@ -694,14 +696,9 @@ top_srcdir = @top_srcdir@
 
 #AUTOMAKE_OPTIONS = foreign 1.9 subdir-objects
 NULL = 
-BUILT_SOURCES = $(srcdir)/run-sec-2853.c check-libntp check-libntpd \
+BUILT_SOURCES = $(srcdir)/run-sec-2853.c $(am__append_2) check-libntpd \
 	check-libunity .deps-ver
-
-# CLEANFILES addition below won't be needed after a while.
-# Leave it in for now for folks tracking the source repo
-# who have the file from a former version of the rule.
-# DLH Jan 2023
-CLEANFILES = check-libntp check-libntpd .deps-ver
+CLEANFILES = check-libunity .deps-ver
 DISTCLEANFILES = $(DEPDIR)/deps-ver
 std_unity_list = \
 	$(abs_top_srcdir)/sntp/unity/auto/generate_test_runner.rb	\
@@ -1229,20 +1226,17 @@ uninstall-am:
 $(srcdir)/run-sec-2853.c: $(srcdir)/sec-2853.c $(std_unity_list)
 	$(run_unity) $< $@
 
-check-libntp: $(top_builddir)/libntp/libntp.a
-	@: avoid default SCCS get by some make implementations
+.PHONY: check-libntp
 
-$(top_builddir)/libntp/libntp.a:
-	cd $(top_builddir)/libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
+@LIBNTP_SUBMAKES_TRUE@check-libntp:
+@LIBNTP_SUBMAKES_TRUE@	cd $(top_builddir)/libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
 
-check-libntpd: $(top_builddir)/ntpd/libntpd.a
-	 @: avoid default SCCS get by some make implementations
-
-$(top_builddir)/ntpd/libntpd.a:
+.PHONY: check-libntpd
+check-libntpd:
 	cd $(top_builddir)/ntpd && $(MAKE) $(AM_MAKEFLAGS) libntpd.a
 
 check-libunity: $(top_builddir)/sntp/unity/libunity.a
-	 @: avoid default SCCS get by some make implementations
+	@echo stamp > $@
 
 $(top_builddir)/sntp/unity/libunity.a:
 	cd $(top_builddir)/sntp/unity && $(MAKE) $(AM_MAKEFLAGS) libunity.a

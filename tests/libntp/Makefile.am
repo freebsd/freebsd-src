@@ -45,7 +45,6 @@ check_PROGRAMS =		\
 	test-msyslog		\
 	test-netof		\
 	test-numtoa		\
-	test-numtohost		\
 	test-octtoint		\
 	test-prettydate		\
 	test-realpath		\
@@ -112,7 +111,6 @@ BUILT_SOURCES +=			\
 	$(srcdir)/run-msyslog.c		\
 	$(srcdir)/run-netof.c		\
 	$(srcdir)/run-numtoa.c		\
-	$(srcdir)/run-numtohost.c	\
 	$(srcdir)/run-octtoint.c	\
 	$(srcdir)/run-prettydate.c	\
 	$(srcdir)/run-realpath.c	\
@@ -378,16 +376,6 @@ test_numtoa_SOURCES =		\
 	$(NULL)
 
 $(srcdir)/run-numtoa.c: $(srcdir)/numtoa.c $(std_unity_list)
-	$(run_unity) $< $@
-
-###
-
-test_numtohost_SOURCES =	\
-	numtohost.c		\
-	run-numtohost.c		\
-	$(NULL)
-
-$(srcdir)/run-numtohost.c: $(srcdir)/numtohost.c $(std_unity_list)
 	$(run_unity) $< $@
 
 ###

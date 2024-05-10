@@ -22,14 +22,21 @@
 #define SIO_UDP_CONNRESET _WSAIOW(IOC_VENDOR,12) 
 #endif
 
+
 void
 InitSockets(
 	void
 	)
 {
+	static int done;
 	WORD wVersionRequested;
 	WSADATA wsaData;
 	int err;
+
+	if (done) {
+		return;
+	}
+	done = TRUE;
 
 	/* Need Winsock 2.0 or better */
 	wVersionRequested = MAKEWORD(2, 0);
@@ -37,22 +44,19 @@ InitSockets(
 	err = WSAStartup(wVersionRequested, &wsaData);
 	if ( err != 0 ) {
 		SetLastError(err);
-		mfprintf(stderr, "No usable winsock: %m\n");
-		SetLastError(err);
 		msyslog(LOG_ERR, "No usable winsock: %m");
 		exit(1);
 	}
 }
 
 /*
- * Windows 2000 systems incorrectly cause UDP sockets using WASRecvFrom
- * to not work correctly, returning a WSACONNRESET error when a WSASendTo
- * fails with an "ICMP port unreachable" response and preventing the
- * socket from using the WSARecvFrom in subsequent operations.
- * The function below fixes this, but requires that Windows 2000
- * Service Pack 2 or later be installed on the system.  NT 4.0
- * systems are not affected by this and work correctly.
+ * Windows 2000 SP2 and later systems cause UDP sockets using WASRecvFrom
+ * to return a WSACONNRESET error when a prior WSASendTo on the socket
+ * fails with an "ICMP port unreachable" response.  After the error the
+ * socket is unusable and must be closed. We disable this behavior.
  * See Microsoft Knowledge Base Article Q263823 for details of this.
+ * https://www.betaarchive.com/wiki/index.php?title=Microsoft_KB_Archive/263823
+ * https://web.archive.org/web/20111205034113/support.microsoft.com/kb/263823
  */
 void
 connection_reset_fix(

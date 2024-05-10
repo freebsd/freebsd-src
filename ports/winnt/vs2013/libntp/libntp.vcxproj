@@ -258,7 +258,6 @@
     <ClCompile Include="..\..\..\..\libntp\ntp_rfc2553.c" />
     <ClCompile Include="..\..\..\..\libntp\ntp_worker.c" />
     <ClCompile Include="..\..\..\..\libntp\numtoa.c" />
-    <ClCompile Include="..\..\..\..\libntp\numtohost.c" />
     <ClCompile Include="..\..\..\..\libntp\octtoint.c" />
     <ClCompile Include="..\..\..\..\libntp\prettydate.c" />
     <ClCompile Include="..\..\..\..\libntp\recvbuff.c" />

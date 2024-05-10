@@ -28,7 +28,7 @@ void test_AlwaysInLimit(void);
  */
 
 void
-setUp()
+setUp(void)
 {
 	ntpcal_set_timefunc(timefunc);
 	settime(2000, 1, 1, 0, 0, 0);
@@ -37,7 +37,7 @@ setUp()
 }
 
 void
-tearDown()
+tearDown(void)
 {
 	ntpcal_set_timefunc(NULL);
 

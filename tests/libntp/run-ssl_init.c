@@ -63,13 +63,13 @@ int main(int argc, char *argv[])
   progname = argv[0];
   suite_setup();
   UnityBegin("ssl_init.c");
-  RUN_TEST(test_MD5KeyTypeWithoutDigestLength, 20);
-  RUN_TEST(test_MD5KeyTypeWithDigestLength, 21);
-  RUN_TEST(test_SHA1KeyTypeWithDigestLength, 22);
-  RUN_TEST(test_CMACKeyTypeWithDigestLength, 23);
-  RUN_TEST(test_MD5KeyName, 24);
-  RUN_TEST(test_SHA1KeyName, 25);
-  RUN_TEST(test_CMACKeyName, 26);
+  RUN_TEST(test_MD5KeyTypeWithoutDigestLength, 16);
+  RUN_TEST(test_MD5KeyTypeWithDigestLength, 17);
+  RUN_TEST(test_SHA1KeyTypeWithDigestLength, 18);
+  RUN_TEST(test_CMACKeyTypeWithDigestLength, 19);
+  RUN_TEST(test_MD5KeyName, 20);
+  RUN_TEST(test_SHA1KeyName, 21);
+  RUN_TEST(test_CMACKeyName, 22);
 
   return (UnityEnd());
 }

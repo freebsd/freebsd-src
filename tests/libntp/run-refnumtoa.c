@@ -59,8 +59,8 @@ int main(int argc, char *argv[])
   progname = argv[0];
   suite_setup();
   UnityBegin("refnumtoa.c");
-  RUN_TEST(test_LocalClock, 13);
-  RUN_TEST(test_UnknownId, 14);
+  RUN_TEST(test_LocalClock, 10);
+  RUN_TEST(test_UnknownId, 11);
 
   return (UnityEnd());
 }
