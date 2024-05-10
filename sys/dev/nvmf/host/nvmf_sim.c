@@ -183,7 +183,7 @@ nvmf_sim_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->xport_specific.nvmf.nsid =
 		    xpt_path_lun_id(ccb->ccb_h.path);
 		cpi->xport_specific.nvmf.trtype = sc->trtype;
-		strncpy(cpi->xport_specific.nvmf.dev_name,
+		strlcpy(cpi->xport_specific.nvmf.dev_name,
 		    device_get_nameunit(sc->dev),
 		    sizeof(cpi->xport_specific.nvmf.dev_name));
 		cpi->maxio = sc->max_xfer_size;
