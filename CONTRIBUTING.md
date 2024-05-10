@@ -106,19 +106,21 @@ command can help minimize churn by only formatting the areas nearby the changes.
 not perfect, using these tools will maximize your chances of not having style
 comments on your pull requests.
 
+For [Lua](https://www.lua.org), see
+[style.lua(9)](https://man.freebsd.org/cgi/man.cgi?query=style.lua&sektion=9)
+for details. Lua is used for the boot loader and a few scripts in the base system.
+
 For Makefiles changes, see
 [style.Makefile(5)](https://man.freebsd.org/cgi/man.cgi?query=style.Makefile&sektion=5)
 for details. FreeBSD's base system uses the in-tree make, not GNU Make, so
 [make(1)](https://man.freebsd.org/cgi/man.cgi?query=make&sektion=1) is another useful
 resource.
 
-The project uses mdoc for all its man pages. Changes should pass `mandoc -Tlint` and igor (install the latter with `pkg install igor`).
-Please be sure to observe the one-sentence-per-line rule so manual pages properly render. Any semantic changes to the manual pages should bump the date.
-[style.mdoc(5)](https://man.freebsd.org/cgi/man.cgi?query=style.mdoc&sektion=5) has the all details.
-
-For [Lua](https://www.lua.org), please see
-[style.lua(9)](https://man.freebsd.org/cgi/man.cgi?query=style.lua&sektion=9)
-for details. Lua is used for the boot loader and a few scripts in the base system.
+For manual page changes, see
+[style.mdoc(5)](https://man.freebsd.org/cgi/man.cgi?query=style.mdoc&sektion=5)
+for details. Changes should pass `mandoc -Tlint` and igor (install the latter with `pkg install igor`).
+Please be sure to observe the one-sentence-per-line rule so manual pages properly render.
+Proposed changes to manual pages should not bump the document date until merged.
 
 For shell scripts, avoid using bash. The system shell (/bin/sh) is preferred.
 Shell scripts in the base system cannot use bash or bash extensions
