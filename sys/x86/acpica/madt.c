@@ -368,8 +368,8 @@ madt_add_cpu(u_int acpi_id, u_int apic_id, u_int flags)
 	 * MP code figure out which CPU is the BSP on its own.
 	 */
 	if (bootverbose)
-		printf("MADT: Found CPU APIC ID %u ACPI ID %u: %s\n",
-		    apic_id, acpi_id, flags & ACPI_MADT_ENABLED ?
+		printf("MADT: Found CPU APIC ID %d ACPI ID %u: %s\n",
+		    (int)apic_id, acpi_id, flags & ACPI_MADT_ENABLED ?
 		    "enabled" : "disabled");
 	if (!(flags & ACPI_MADT_ENABLED))
 		return;
