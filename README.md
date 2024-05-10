@@ -15,6 +15,8 @@ See build(7), config(8), [FreeBSD handbook on building userland](https://docs.fr
 For information on the CPU architectures and platforms supported by FreeBSD, see the [FreeBSD
 website's Platforms page](https://www.freebsd.org/platforms/).
 
+For official FreeBSD bootable images, see the [release page](https://download.freebsd.org/ftp/releases/ISO-IMAGES/).
+
 Source Roadmap:
 ---------------
 | Directory | Description |
