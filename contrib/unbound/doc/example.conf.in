@@ -1,7 +1,7 @@
 #
 # Example configuration file.
 #
-# See unbound.conf(5) man page, version 1.19.3.
+# See unbound.conf(5) man page, version 1.20.0.
 #
 # this is a comment.
 
@@ -191,6 +191,21 @@ server:
 	# are behind a slow satellite link, to eg. 1128.
 	# unknown-server-time-limit: 376
 
+	# msec before recursion replies are dropped. The work item continues.
+	# discard-timeout: 1900
+
+	# Max number of replies waiting for recursion per IP address.
+	# wait-limit: 1000
+
+	# Max replies waiting for recursion for IP address with cookie.
+	# wait-limit-cookie: 10000
+
+	# Apart from the default, the wait limit can be set for a netblock.
+	# wait-limit-netblock: 192.0.2.0/24 50000
+
+	# Apart from the default, the wait limit with cookie can be adjusted.
+	# wait-limit-cookie-netblock: 192.0.2.0/24 50000
+
 	# the amount of memory to use for the RRset cache.
 	# plain value in bytes or you can append k, m or G. default is "4Mb".
 	# rrset-cache-size: 4m
@@ -210,6 +225,11 @@ server:
 
 	# the time to live (TTL) value cap for negative responses in the cache
 	# cache-max-negative-ttl: 3600
+
+	# the time to live (TTL) value lower bound, in seconds. Default 0.
+	# For negative responses in the cache. If disabled, default,
+	# cache-min-tll applies if configured.
+	# cache-min-negative-ttl: 0
 
 	# the time to live (TTL) value for cached roundtrip times, lameness and
 	# EDNS version information for hosts. In seconds.
@@ -283,7 +303,8 @@ server:
 	# Enable EDNS TCP keepalive option.
 	# edns-tcp-keepalive: no
 
-	# Timeout for EDNS TCP keepalive, in msec.
+	# Timeout for EDNS TCP keepalive, in msec. Overrides tcp-idle-timeout
+	# if edns-tcp-keepalive is set.
 	# edns-tcp-keepalive-timeout: 120000
 
 	# UDP queries that have waited in the socket buffer for a long time
@@ -1247,6 +1268,9 @@ remote-control:
 #     secret-seed: "default"
 #     # if the backend should be read from, but not written to.
 #     cachedb-no-store: no
+#     # if the cachedb should be checked before a serve-expired response is
+#     # given, when serve-expired is enabled.
+#     cachedb-check-when-serve-expired: yes
 #
 #     # For "redis" backend:
 #     # (to enable, use --with-libhiredis to configure before compiling)

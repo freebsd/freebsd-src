@@ -118,7 +118,30 @@ val_classify_response(uint16_t query_flags, struct query_info* origqinf,
 	 * ANY responses are validated differently. */
 	if(rcode == LDNS_RCODE_NOERROR && qinf->qtype == LDNS_RR_TYPE_ANY)
 		return VAL_CLASS_ANY;
-	
+
+	/* For the query type DNAME, the name matters. Equal name is the
+	 * answer looked for, but a subdomain redirects the query. */
+	if(qinf->qtype == LDNS_RR_TYPE_DNAME) {
+		for(i=skip; i<rep->an_numrrsets; i++) {
+			if(rcode == LDNS_RCODE_NOERROR &&
+				ntohs(rep->rrsets[i]->rk.type)
+				== LDNS_RR_TYPE_DNAME &&
+				query_dname_compare(qinf->qname,
+				rep->rrsets[i]->rk.dname) == 0) {
+				/* type is DNAME and name is equal, it is
+				 * the answer. For the query name a subdomain
+				 * of the rrset.dname it would redirect. */
+				return VAL_CLASS_POSITIVE;
+			}
+			if(ntohs(rep->rrsets[i]->rk.type)
+				== LDNS_RR_TYPE_CNAME)
+				return VAL_CLASS_CNAME;
+		}
+		log_dns_msg("validator: error. failed to classify response message: ",
+			qinf, rep);
+		return VAL_CLASS_UNKNOWN;
+	}
+
 	/* Note that DNAMEs will be ignored here, unless qtype=DNAME. Unless
 	 * qtype=CNAME, this will yield a CNAME response. */
 	for(i=skip; i<rep->an_numrrsets; i++) {
@@ -231,6 +254,21 @@ val_find_signer(enum val_classification subtype, struct query_info* qinf,
 				rep->rrsets[i]->rk.dname) == 0) {
 				val_find_rrset_signer(rep->rrsets[i], 
 					signer_name, signer_len);
+				/* If there was no signer, and the query
+				 * was for type CNAME, and this is a CNAME,
+				 * and the previous is a DNAME, then this
+				 * is the synthesized CNAME, use the signer
+				 * of the DNAME record. */
+				if(*signer_name == NULL &&
+				   qinf->qtype == LDNS_RR_TYPE_CNAME &&
+				   ntohs(rep->rrsets[i]->rk.type) ==
+				   LDNS_RR_TYPE_CNAME && i > skip &&
+				   ntohs(rep->rrsets[i-1]->rk.type) ==
+				   LDNS_RR_TYPE_DNAME &&
+				   dname_strict_subdomain_c(rep->rrsets[i]->rk.dname, rep->rrsets[i-1]->rk.dname)) {
+					val_find_rrset_signer(rep->rrsets[i-1],
+						signer_name, signer_len);
+				}
 				return;
 			}
 		}
