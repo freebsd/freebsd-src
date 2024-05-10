@@ -372,7 +372,7 @@ struct sigaction {
 #define	SA_NOCLDSTOP	0x0008	/* do not generate SIGCHLD on child stop */
 #endif /* __POSIX_VISIBLE || __XSI_VISIBLE */
 
-#if __XSI_VISIBLE
+#if __XSI_VISIBLE || __POSIX_VISIBLE >= 200809
 #define	SA_ONSTACK	0x0001	/* take signal on signal stack */
 #define	SA_RESTART	0x0002	/* restart system call on signal return */
 #define	SA_RESETHAND	0x0004	/* reset to SIG_DFL when taking signal */
