@@ -1,7 +1,7 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.\" Copyright (c) 1996 Joerg Wunsch
-.\"
-.\" All rights reserved.
+.\" Copyright (c) 1996 Joerg Wunsch. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -23,27 +23,20 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" "
-.Dd January 21, 2010
+.Dd May 9, 2024
 .Dt SYSEXITS 3
 .Os
 .Sh NAME
 .Nm sysexits
-.Nd preferable exit codes for programs
+.Nd legacy exit status codes for system programs
 .Sh SYNOPSIS
 .In sysexits.h
 .Sh DESCRIPTION
-According to
-.Xr style 9 ,
-it is not a good practice to call
-.Xr exit 3
-with arbitrary values to indicate a failure condition when ending
-a program.
-Instead, the pre-defined exit codes from
-.Nm
-should be used, so the caller of the process can get a rough
-estimation about the failure class without looking up the source code.
-.Pp
+Some commands attempt to describe the nature of a failure condition
+by using these pre-defined exit codes.
+This interface has been deprecated and is retained only for compatibility.
+Its use is discouraged.
+.Sh ERRORS
 The successful exit is always indicated by a status of 0, or
 .Sy EX_OK .
 Error numbers begin at
@@ -112,8 +105,7 @@ The remote system returned something that was
 during a protocol exchange.
 .It Sy EX_NOPERM Pq 77
 You did not have sufficient permission to perform the operation.
-This
-is not intended for file system problems, which should use
+This is not intended for file system problems, which should use
 .Sy EX_NOINPUT
 or
 .Sy EX_CANTCREAT ,
@@ -131,12 +123,13 @@ parenthesis for easy reference.
 .Sh HISTORY
 The
 .Nm
-file appeared somewhere after
-.Bx 4.3 .
+file first appeared in
+.Bx 4 .
 .Sh AUTHORS
 This manual page was written by
-.An J\(:org Wunsch
-after the comments in
-.In sysexits.h .
+.An J\(:org Wunsch .
 .Sh BUGS
-The choice of an appropriate exit value is often ambiguous.
+.Bl -tag -width 0 -compact
+.It This interface is not portable.
+.It The choice of an appropriate exit value is often ambiguous.
+.El
