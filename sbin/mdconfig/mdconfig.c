@@ -56,7 +56,7 @@
 
 static struct md_ioctl mdio;
 static enum {UNSET, ATTACH, DETACH, RESIZE, LIST} action = UNSET;
-static int nflag;
+static int md_fd, nflag;
 
 static void usage(void) __dead2;
 static void md_set_file(const char *);
@@ -65,6 +65,7 @@ static int md_query(const char *, const int, const char *);
 static int md_list(const char *, int, const char *);
 static char *geom_config_get(struct gconf *g, const char *name);
 static void md_prthumanval(char *length);
+static void print_options(const char *s, const char *);
 
 #define OPT_VERBOSE	0x01
 #define OPT_UNIT	0x02
@@ -86,11 +87,11 @@ usage(void)
 "       mdconfig -l [-v] [-n] [-f file] [-u unit]\n"
 "       mdconfig file\n");
 	fprintf(stderr, "\t\ttype = {malloc, vnode, swap}\n");
-	fprintf(stderr, "\t\toption = {cache, cluster, compress, force,\n");
-	fprintf(stderr, "\t\t          mustdealloc, readonly, reserve, ro,\n");
-	fprintf(stderr, "\t\t          verify}\n");
+	fprintf(stderr, "\t\toption = {async, cache, cluster, compress,\n");
+	fprintf(stderr, "\t\t          force, mustdealloc, readonly, ro,\n");
+	fprintf(stderr, "\t\t          reserve, verify}\n");
 	fprintf(stderr, "\t\tsize = %%d (512 byte blocks), %%db (B),\n");
-	fprintf(stderr, "\t\t       %%dk (kB), %%dm (MB), %%dg (GB), \n");
+	fprintf(stderr, "\t\t       %%dk (kB), %%dm (MB), %%dg (GB),\n");
 	fprintf(stderr, "\t\t       %%dt (TB), or %%dp (PB)\n");
 	exit(1);
 }
@@ -98,7 +99,7 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-	int ch, fd, i, vflag;
+	int ch, i, vflag;
 	char *p;
 	char *fflag = NULL, *sflag = NULL, *tflag = NULL, *uflag = NULL;
 
@@ -366,12 +367,12 @@ main(int argc, char **argv)
 	if (!kld_isloaded("g_md") && kld_load("geom_md") == -1)
 		err(1, "failed to load geom_md module");
 
-	fd = open(_PATH_DEV MDCTL_NAME, O_RDWR, 0);
-	if (fd < 0)
+	md_fd = open(_PATH_DEV MDCTL_NAME, O_RDWR, 0);
+	if (md_fd < 0)
 		err(1, "open(%s%s)", _PATH_DEV, MDCTL_NAME);
 
 	if (action == ATTACH) {
-		i = ioctl(fd, MDIOCATTACH, &mdio);
+		i = ioctl(md_fd, MDIOCATTACH, &mdio);
 		if (i < 0)
 			err(1, "ioctl(%s%s)", _PATH_DEV, MDCTL_NAME);
 		if (mdio.md_options & MD_AUTOUNIT)
@@ -379,13 +380,13 @@ main(int argc, char **argv)
 	} else if (action == DETACH) {
 		if (mdio.md_options & MD_AUTOUNIT)
 			errx(1, "-d requires -u");
-		i = ioctl(fd, MDIOCDETACH, &mdio);
+		i = ioctl(md_fd, MDIOCDETACH, &mdio);
 		if (i < 0)
 			err(1, "ioctl(%s%s)", _PATH_DEV, MDCTL_NAME);
 	} else if (action == RESIZE) {
 		if (mdio.md_options & MD_AUTOUNIT)
 			errx(1, "-r requires -u");
-		i = ioctl(fd, MDIOCRESIZE, &mdio);
+		i = ioctl(md_fd, MDIOCRESIZE, &mdio);
 		if (i < 0)
 			err(1, "ioctl(%s%s)", _PATH_DEV, MDCTL_NAME);
 	} else if (action == LIST) {
@@ -399,8 +400,68 @@ main(int argc, char **argv)
 			return (md_query(uflag, vflag, fflag));
 	} else
 		usage();
-	close(fd);
+	close(md_fd);
 	return (0);
+}
+
+static void
+print_options(const char *dev, const char *file)
+{
+	struct md_ioctl mdiox;
+	int unit;
+	char sep = '\0';
+
+	if (sscanf(dev, "md%d", &unit) != 1)
+		err(1, "invalid device: %s", dev);
+
+	memset(&mdiox, 0, sizeof(mdiox));
+	mdiox.md_version = MDIOVERSION;
+	mdiox.md_unit = unit;
+	mdiox.md_file = file[0] == '-' ? NULL : strdup(file);
+
+	if (ioctl(md_fd, MDIOCQUERY, &mdiox) < 0)
+		err(1, "ioctl(%s%s)", _PATH_DEV, MDCTL_NAME);
+
+	if (mdiox.md_file != NULL)
+		free(mdiox.md_file);
+
+	printf("\t");
+	if (mdiox.md_options & MD_ASYNC) {
+		printf("%casync", sep);
+		sep = ',';
+	}
+	if (mdiox.md_options & MD_CACHE) {
+		printf("%ccache", sep);
+		sep = ',';
+	}
+	if (mdiox.md_options & MD_CLUSTER) {
+		printf("%ccluster", sep);
+		sep = ',';
+	}
+	if (mdiox.md_options & MD_COMPRESS) {
+		printf("%ccompress", sep);
+		sep = ',';
+	}
+	if (mdiox.md_options & MD_FORCE) {
+		printf("%cforce", sep);
+		sep = ',';
+	}
+	if (mdiox.md_options & MD_READONLY) {
+		printf("%creadonly", sep);
+		sep = ',';
+	}
+	if (mdiox.md_options & MD_RESERVE) {
+		printf("%creserve", sep);
+		sep = ',';
+	}
+	if (mdiox.md_options & MD_VERIFY) {
+		printf("%cverify", sep);
+		sep = ',';
+	}
+	if (mdiox.md_options & MD_MUSTDEALLOC) {
+		printf("%cmustdealloc", sep);
+		sep = ',';
+	}
 }
 
 static void
@@ -500,11 +561,12 @@ md_list(const char *units, int opt, const char *fflag)
 				if (file == NULL)
 					file = "-";
 				printf("\t%s", file);
-				file = NULL;
 				label = geom_config_get(gc, "label");
 				if (label == NULL)
-					label = "";
+					label = "-";
 				printf("\t%s", label);
+				print_options(pp->lg_name, file);
+				file = label = NULL;
 			}
 			opt |= OPT_DONE;
 			if ((opt & OPT_LIST) && !(opt & OPT_VERBOSE))
