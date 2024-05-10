@@ -453,7 +453,9 @@ p_ere_exp(struct parse *p, struct branchc *bc)
 	case '*':
 	case '+':
 	case '?':
+#ifndef NO_STRICT_REGEX
 	case '{':
+#endif
 		SETERROR(REG_BADRPT);
 		break;
 	case '.':
@@ -536,6 +538,11 @@ p_ere_exp(struct parse *p, struct branchc *bc)
 			break;
 		}
 		break;
+#ifdef NO_STRICT_REGEX
+	case '{':               /* okay as ordinary except if digit follows */
+	    (void)REQUIRE(!MORE() || !isdigit((uch)PEEK()), REG_BADRPT);
+	    /* FALLTHROUGH */
+#endif
 	default:
 		if (p->error != 0)
 			return (false);
@@ -549,11 +556,19 @@ p_ere_exp(struct parse *p, struct branchc *bc)
 		return (false);
 	c = PEEK();
 	/* we call { a repetition if followed by a digit */
-	if (!( c == '*' || c == '+' || c == '?' || c == '{'))
+	if (!( c == '*' || c == '+' || c == '?' ||
+#ifdef NO_STRICT_REGEX
+	       (c == '{' && MORE2() && isdigit((uch)PEEK2()))
+#else
+	       c == '{'
+#endif
+	       ))
 		return (false);		/* no repetition, we're done */
+#ifndef NO_STRICT_REGEX
 	else if (c == '{')
 		(void)REQUIRE(MORE2() && \
 		    (isdigit((uch)PEEK2()) || PEEK2() == ','), REG_BADRPT);
+#endif
 	NEXT();
 
 	(void)REQUIRE(!wascaret, REG_BADRPT);
@@ -892,6 +907,9 @@ p_simp_re(struct parse *p, struct branchc *bc)
 			(void)REQUIRE(EATTWO('\\', ')'), REG_EPAREN);
 			break;
 		case BACKSL|')':	/* should not get here -- must be user */
+#ifdef NO_STRICT_REGEX
+		case BACKSL|'}':
+#endif
 			SETERROR(REG_EPAREN);
 			break;
 		case BACKSL|'1':
