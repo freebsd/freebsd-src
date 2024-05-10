@@ -292,8 +292,6 @@ nvmf_transport_module_handler(struct module *mod, int what, void *arg)
 			prev = nt;
 		}
 		if (nt == NULL) {
-			KASSERT(nt->nt_active_qpairs == 0,
-			    ("unregistered transport has connections"));
 			sx_xunlock(&nvmf_transports_lock);
 			return (0);
 		}
