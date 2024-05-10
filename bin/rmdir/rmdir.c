@@ -112,5 +112,5 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "usage: rmdir [-pv] directory ...\n");
-	exit(1);
+	exit(2);
 }
