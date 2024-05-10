@@ -160,7 +160,7 @@ main(int argc, char *argv[])
 			options_extra_enabled = 0;
 			break;
 		case 'p':
-			packetdroppercentage = atoi(optarg);
+			packetdroppercentage = (unsigned int)atoi(optarg);
 			tftp_log(LOG_INFO,
 			    "Randomly dropping %d out of 100 packets",
 			    packetdroppercentage);
@@ -451,9 +451,9 @@ static char *
 parse_header(int peer, char *recvbuffer, size_t size,
 	char **filename, char **mode)
 {
-	char	*cp;
-	int	i;
 	struct formats *pf;
+	char	*cp;
+	size_t	i;
 
 	*mode = NULL;
 	cp = recvbuffer;
@@ -470,12 +470,11 @@ parse_header(int peer, char *recvbuffer, size_t size,
 
 	i = get_field(peer, cp, size);
 	*mode = cp;
-	cp += i;
 
 	/* Find the file transfer mode */
-	for (cp = *mode; *cp; cp++)
-		if (isupper(*cp))
-			*cp = tolower(*cp);
+	for (; *cp; cp++)
+		if (isupper((unsigned char)*cp))
+			*cp = tolower((unsigned char)*cp);
 	for (pf = formats; pf->f_mode; pf++)
 		if (strcmp(pf->f_mode, *mode) == 0)
 			break;
