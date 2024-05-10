@@ -488,7 +488,7 @@ connect_nvm_queues(const struct nvmf_association_params *aparams,
 	}
 
 	/* I/O queues. */
-	memset(io, 0, sizeof(io) * num_io_queues);
+	memset(io, 0, sizeof(*io) * num_io_queues);
 	for (u_int i = 0; i < num_io_queues; i++) {
 		memset(&qparams, 0, sizeof(qparams));
 		qparams.admin = false;
