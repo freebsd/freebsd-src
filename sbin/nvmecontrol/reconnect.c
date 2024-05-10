@@ -85,12 +85,15 @@ reconnect_nvm_controller(int fd, enum nvmf_trtype trtype, int adrfam,
 	error = connect_nvm_queues(&aparams, trtype, adrfam, address, port,
 	    rparams.cntlid, rparams.subnqn, opt.hostnqn, opt.kato, &admin, io,
 	    opt.num_io_queues, opt.queue_size, &cdata);
-	if (error != 0)
+	if (error != 0) {
+		free(io);
 		return (error);
+	}
 
 	error = nvmf_reconnect_host(fd, admin, opt.num_io_queues, io, &cdata);
 	if (error != 0) {
 		warnc(error, "Failed to handoff queues to kernel");
+		free(io);
 		return (EX_IOERR);
 	}
 	free(io);
