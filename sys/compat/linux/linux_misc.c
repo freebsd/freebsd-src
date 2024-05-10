@@ -1125,16 +1125,16 @@ linux_getgroups(struct thread *td, struct linux_getgroups_args *args)
 }
 
 static bool
-linux_get_dummy_limit(l_uint resource, struct rlimit *rlim)
+linux_get_dummy_limit(struct thread *td, l_uint resource, struct rlimit *rlim)
 {
+	ssize_t size;
+	int res, error;
 
 	if (linux_dummy_rlimits == 0)
 		return (false);
 
 	switch (resource) {
 	case LINUX_RLIMIT_LOCKS:
-	case LINUX_RLIMIT_SIGPENDING:
-	case LINUX_RLIMIT_MSGQUEUE:
 	case LINUX_RLIMIT_RTTIME:
 		rlim->rlim_cur = LINUX_RLIM_INFINITY;
 		rlim->rlim_max = LINUX_RLIM_INFINITY;
@@ -1143,6 +1143,23 @@ linux_get_dummy_limit(l_uint resource, struct rlimit *rlim)
 	case LINUX_RLIMIT_RTPRIO:
 		rlim->rlim_cur = 0;
 		rlim->rlim_max = 0;
+		return (true);
+	case LINUX_RLIMIT_SIGPENDING:
+		error = kernel_sysctlbyname(td,
+		    "kern.sigqueue.max_pending_per_proc",
+		    &res, &size, 0, 0, 0, 0);
+		if (error != 0)
+			return (false);
+		rlim->rlim_cur = res;
+		rlim->rlim_max = res;
+		return (true);
+	case LINUX_RLIMIT_MSGQUEUE:
+		error = kernel_sysctlbyname(td,
+		    "kern.ipc.msgmnb", &res, &size, 0, 0, 0, 0);
+		if (error != 0)
+			return (false);
+		rlim->rlim_cur = res;
+		rlim->rlim_max = res;
 		return (true);
 	default:
 		return (false);
@@ -1181,7 +1198,7 @@ linux_old_getrlimit(struct thread *td, struct linux_old_getrlimit_args *args)
 	struct rlimit bsd_rlim;
 	u_int which;
 
-	if (linux_get_dummy_limit(args->resource, &bsd_rlim)) {
+	if (linux_get_dummy_limit(td, args->resource, &bsd_rlim)) {
 		rlim.rlim_cur = bsd_rlim.rlim_cur;
 		rlim.rlim_max = bsd_rlim.rlim_max;
 		return (copyout(&rlim, args->rlim, sizeof(rlim)));
@@ -1222,7 +1239,7 @@ linux_getrlimit(struct thread *td, struct linux_getrlimit_args *args)
 	struct rlimit bsd_rlim;
 	u_int which;
 
-	if (linux_get_dummy_limit(args->resource, &bsd_rlim)) {
+	if (linux_get_dummy_limit(td, args->resource, &bsd_rlim)) {
 		rlim.rlim_cur = bsd_rlim.rlim_cur;
 		rlim.rlim_max = bsd_rlim.rlim_max;
 		return (copyout(&rlim, args->rlim, sizeof(rlim)));
@@ -2009,7 +2026,7 @@ linux_prlimit64(struct thread *td, struct linux_prlimit64_args *args)
 	int error;
 
 	if (args->new == NULL && args->old != NULL) {
-		if (linux_get_dummy_limit(args->resource, &rlim)) {
+		if (linux_get_dummy_limit(td, args->resource, &rlim)) {
 			lrlim.rlim_cur = rlim.rlim_cur;
 			lrlim.rlim_max = rlim.rlim_max;
 			return (copyout(&lrlim, args->old, sizeof(lrlim)));
