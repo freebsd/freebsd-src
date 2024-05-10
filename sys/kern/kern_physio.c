@@ -116,14 +116,17 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 #ifdef RACCT
 		if (racct_enable) {
 			PROC_LOCK(curproc);
-			if (uio->uio_rw == UIO_READ) {
+			switch (uio->uio_rw) {
+			case UIO_READ:
 				racct_add_force(curproc, RACCT_READBPS,
 				    uio->uio_iov[i].iov_len);
 				racct_add_force(curproc, RACCT_READIOPS, 1);
-			} else {
+				break;
+			case UIO_WRITE:
 				racct_add_force(curproc, RACCT_WRITEBPS,
 				    uio->uio_iov[i].iov_len);
 				racct_add_force(curproc, RACCT_WRITEIOPS, 1);
+				break;
 			}
 			PROC_UNLOCK(curproc);
 		}
@@ -131,12 +134,15 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 
 		while (uio->uio_iov[i].iov_len) {
 			g_reset_bio(bp);
-			if (uio->uio_rw == UIO_READ) {
+			switch (uio->uio_rw) {
+			case UIO_READ:
 				bp->bio_cmd = BIO_READ;
 				curthread->td_ru.ru_inblock++;
-			} else {
+				break;
+			case UIO_WRITE:
 				bp->bio_cmd = BIO_WRITE;
 				curthread->td_ru.ru_oublock++;
+				break;
 			}
 			bp->bio_offset = uio->uio_offset;
 			base = uio->uio_iov[i].iov_base;
