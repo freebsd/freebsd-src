@@ -341,6 +341,7 @@ MAN=	aac.4 \
 	netlink.4 \
 	netmap.4 \
 	${_nfe.4} \
+	nfslockd.4 \
 	${_nfsmb.4} \
 	ng_async.4 \
 	ng_bpf.4 \
