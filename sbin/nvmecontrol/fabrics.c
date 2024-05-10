@@ -168,6 +168,7 @@ tcp_qpair_params(struct nvmf_qpair_params *params, int adrfam,
 		return (true);
 	}
 	warn("Failed to connect to controller at %s:%s", address, port);
+	freeaddrinfo(list);
 	return (false);
 }
 
