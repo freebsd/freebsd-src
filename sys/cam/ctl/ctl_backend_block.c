@@ -1339,7 +1339,7 @@ ctl_be_block_namespace_data(struct ctl_be_block_lun *be_lun,
 	memset(nsdata, 0, sizeof(*nsdata));
 	nsdata->nsze = htole64(be_lun->size_blocks);
 	nsdata->ncap = nsdata->nsze;
-	nsdata->nuse = nsdata->nuse;
+	nsdata->nuse = nsdata->nsze;
 	nsdata->nlbaf = 1 - 1;
 	nsdata->dlfeat = NVMEM(NVME_NS_DATA_DLFEAT_DWZ) |
 	    NVMEF(NVME_NS_DATA_DLFEAT_READ, NVME_NS_DATA_DLFEAT_READ_00);
