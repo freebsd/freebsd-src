@@ -61,6 +61,8 @@ time_t MAX_TTL = 3600 * 24 * 10; /* ten days */
 time_t MIN_TTL = 0;
 /** MAX Negative TTL, for SOA records in authority section */
 time_t MAX_NEG_TTL = 3600; /* one hour */
+/** MIN Negative TTL, for SOA records in authority section */
+time_t MIN_NEG_TTL = 0;
 /** If we serve expired entries and prefetch them */
 int SERVE_EXPIRED = 0;
 /** Time to serve records after expiration */
@@ -223,18 +225,25 @@ rdata_copy(sldns_buffer* pkt, struct packed_rrset_data* data, uint8_t* to,
 	if(type == LDNS_RR_TYPE_SOA && section == LDNS_SECTION_AUTHORITY) {
 		/* negative response. see if TTL of SOA record larger than the
 		 * minimum-ttl in the rdata of the SOA record */
-		if(*rr_ttl > soa_find_minttl(rr))
-			*rr_ttl = soa_find_minttl(rr);
-	}
-	if(!SERVE_ORIGINAL_TTL && (*rr_ttl < MIN_TTL))
-		*rr_ttl = MIN_TTL;
-	if(!SERVE_ORIGINAL_TTL && (*rr_ttl > MAX_TTL))
-		*rr_ttl = MAX_TTL;
-	if(type == LDNS_RR_TYPE_SOA && section == LDNS_SECTION_AUTHORITY) {
-		/* max neg ttl overrides the min and max ttl of everything
-		 * else, it is for a more specific record */
-		if(*rr_ttl > MAX_NEG_TTL)
-			*rr_ttl = MAX_NEG_TTL;
+		if(*rr_ttl > soa_find_minttl(rr)) *rr_ttl = soa_find_minttl(rr);
+		if(!SERVE_ORIGINAL_TTL) {
+			/* If MIN_NEG_TTL is configured skip setting MIN_TTL */
+			if(MIN_NEG_TTL <= 0 && *rr_ttl < MIN_TTL) {
+				*rr_ttl = MIN_TTL;
+			}
+			if(*rr_ttl > MAX_TTL) *rr_ttl = MAX_TTL;
+		}
+		/* MAX_NEG_TTL overrides the min and max ttl of everything
+		 * else; it is for a more specific record */
+		if(*rr_ttl > MAX_NEG_TTL) *rr_ttl = MAX_NEG_TTL;
+		/* MIN_NEG_TTL overrides the min and max ttl of everything
+		 * else if configured; it is for a more specific record */
+		if(MIN_NEG_TTL > 0 && *rr_ttl < MIN_NEG_TTL) {
+			*rr_ttl = MIN_NEG_TTL;
+		}
+	} else if(!SERVE_ORIGINAL_TTL) {
+		if(*rr_ttl < MIN_TTL) *rr_ttl = MIN_TTL;
+		if(*rr_ttl > MAX_TTL) *rr_ttl = MAX_TTL;
 	}
 	if(*rr_ttl < data->ttl)
 		data->ttl = *rr_ttl;

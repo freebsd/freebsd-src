@@ -181,6 +181,8 @@ struct comm_point {
 	/** if the event is added or not */
 	int event_added;
 
+	/** Reference to struct that is part of the listening ports,
+	 * where for listening ports information is kept about the address. */
 	struct unbound_socket* socket;
 
 	/** file descriptor for communication point */

@@ -4772,9 +4772,9 @@ comm_point_send_reply(struct comm_reply *repinfo)
 		 * sending src (client)/dst (local service) addresses over DNSTAP from udp callback
 		 */
 		if(repinfo->c->dtenv != NULL && repinfo->c->dtenv->log_client_response_messages) {
-			log_addr(VERB_ALGO, "from local addr", (void*)repinfo->c->socket->addr->ai_addr, repinfo->c->socket->addr->ai_addrlen);
+			log_addr(VERB_ALGO, "from local addr", (void*)repinfo->c->socket->addr, repinfo->c->socket->addrlen);
 			log_addr(VERB_ALGO, "response to client", &repinfo->client_addr, repinfo->client_addrlen);
-			dt_msg_send_client_response(repinfo->c->dtenv, &repinfo->client_addr, (void*)repinfo->c->socket->addr->ai_addr, repinfo->c->type, repinfo->c->ssl, repinfo->c->buffer);
+			dt_msg_send_client_response(repinfo->c->dtenv, &repinfo->client_addr, (void*)repinfo->c->socket->addr, repinfo->c->type, repinfo->c->ssl, repinfo->c->buffer);
 		}
 #endif
 	} else {
@@ -4783,9 +4783,9 @@ comm_point_send_reply(struct comm_reply *repinfo)
 		 * sending src (client)/dst (local service) addresses over DNSTAP from TCP callback
 		 */
 		if(repinfo->c->tcp_parent->dtenv != NULL && repinfo->c->tcp_parent->dtenv->log_client_response_messages) {
-			log_addr(VERB_ALGO, "from local addr", (void*)repinfo->c->socket->addr->ai_addr, repinfo->c->socket->addr->ai_addrlen);
+			log_addr(VERB_ALGO, "from local addr", (void*)repinfo->c->socket->addr, repinfo->c->socket->addrlen);
 			log_addr(VERB_ALGO, "response to client", &repinfo->client_addr, repinfo->client_addrlen);
-			dt_msg_send_client_response(repinfo->c->tcp_parent->dtenv, &repinfo->client_addr, (void*)repinfo->c->socket->addr->ai_addr, repinfo->c->type, repinfo->c->ssl,
+			dt_msg_send_client_response(repinfo->c->tcp_parent->dtenv, &repinfo->client_addr, (void*)repinfo->c->socket->addr, repinfo->c->type, repinfo->c->ssl,
 				( repinfo->c->tcp_req_info? repinfo->c->tcp_req_info->spool_buffer: repinfo->c->buffer ));
 		}
 #endif

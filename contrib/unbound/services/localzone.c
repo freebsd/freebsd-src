@@ -330,14 +330,16 @@ get_rr_nameclass(const char* str, uint8_t** nm, uint16_t* dclass,
 static struct local_rrset*
 local_data_find_type(struct local_data* data, uint16_t type, int alias_ok)
 {
-	struct local_rrset* p;
+	struct local_rrset* p, *cname = NULL;
 	type = htons(type);
 	for(p = data->rrsets; p; p = p->next) {
 		if(p->rrset->rk.type == type)
 			return p;
 		if(alias_ok && p->rrset->rk.type == htons(LDNS_RR_TYPE_CNAME))
-			return p;
+			cname = p;
 	}
+	if(alias_ok)
+		return cname;
 	return NULL;
 }
 
