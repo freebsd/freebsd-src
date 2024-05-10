@@ -188,7 +188,8 @@ main(int argc, char **argv)
 	kernel_lockd_client = FALSE;
 	if (modfind("nfslockd") < 0) {
 		if (kldload("nfslockd") < 0) {
-			fprintf(stderr, "Can't find or load kernel support for rpc.lockd - using non-kernel implementation\n");
+			fprintf(stderr, "Unable to load nfslockd(4), "
+			    "using userland implementation\n");
 		} else {
 			kernel_lockd = TRUE;
 		}
