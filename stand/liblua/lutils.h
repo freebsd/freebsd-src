@@ -34,7 +34,7 @@ int	luaopen_pager(lua_State *);
 #include <sys/linker_set.h>
 
 typedef void lua_init_md_t(lua_State *);
-#define _LUA_COMPIE_SET Xlua_compile_set
+#define _LUA_COMPILE_SET Xlua_compile_set
 #define LUA_COMPILE_SET(func)	\
 	DATA_SET(_LUA_COMPILE_SET, func)
 #define LUA_FOREACH_SET(s) \
