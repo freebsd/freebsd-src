@@ -96,9 +96,9 @@ telemetry_log(const struct cmd *f, int argc, char *argv[])
 	int				fd, fdout;
 	char				*path;
 	uint32_t			nsid;
-	uint64_t			size;
+	ssize_t				size;
 	uint64_t			off;
-	uint32_t			chunk;
+	ssize_t				chunk;
 	struct nvme_controller_data	cdata;
 	bool				can_telemetry;
 	struct nvme_telemetry_log_page  tlp, buf;
