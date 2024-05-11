@@ -516,11 +516,10 @@ booti_no_fdt:
 common:
 #if PAGE_SIZE != PAGE_SIZE_4K
 	/*
-	 * Create L3 pages. The kernel will be loaded at a 2M aligned
-	 * address, however L2 blocks are too large when the page size is
-	 * not 4k to map the kernel with such an aligned address. However,
-	 * when the page size is larger than 4k, L2 blocks are too large to
-	 * map the kernel with such an alignment.
+	 * Create L3 and L3C pages. The kernel will be loaded at a 2M aligned
+	 * address, enabling the creation of L3C pages. However, when the page
+	 * size is larger than 4k, L2 blocks are too large to map the kernel
+	 * with 2M alignment.
 	 */
 #define	PTE_SHIFT	L3_SHIFT
 #define	BUILD_PTE_FUNC	build_l3_page_pagetable
@@ -784,13 +783,17 @@ LENTRY(link_l2_pagetable)
 LEND(link_l2_pagetable)
 
 /*
- * Builds count level 3 page table entries
+ * Builds count level 3 page table entries. Uses ATTR_CONTIGUOUS to create
+ * large page (L3C) mappings when the current VA and remaining count allow
+ * it.
  *  x6  = L3 table
  *  x7  = Block attributes
  *  x8  = VA start
  *  x9  = PA start (trashed)
  *  x10 = Entry count (trashed)
  *  x11, x12 and x13 are trashed
+ *
+ * VA start (x8) modulo L3C_SIZE must equal PA start (x9) modulo L3C_SIZE.
  */
 LENTRY(build_l3_page_pagetable)
 	/*
@@ -811,8 +814,17 @@ LENTRY(build_l3_page_pagetable)
 	/* Only use the output address bits */
 	lsr	x9, x9, #L3_SHIFT
 
+	/* Check if an ATTR_CONTIGUOUS mapping is possible */
+1:	tst	x11, #(L3C_ENTRIES - 1)
+	b.ne	2f
+	cmp	x10, #L3C_ENTRIES
+	b.lo	3f
+	orr	x12, x12, #(ATTR_CONTIGUOUS)
+	b	2f
+3:	and	x12, x12, #(~ATTR_CONTIGUOUS)
+
 	/* Set the physical address for this virtual address */
-1:	orr	x13, x12, x9, lsl #L3_SHIFT
+2:	orr	x13, x12, x9, lsl #L3_SHIFT
 
 	/* Store the entry */
 	str	x13, [x6, x11, lsl #3]
