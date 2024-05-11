@@ -22776,7 +22776,8 @@ send:
 		 * is acked first.
 		 */
 		flags &= ~TH_FIN;
-		if ((sbused(sb) == (tp->snd_max - tp->snd_una)) &&
+		if (TCPS_HAVEESTABLISHED(tp->t_state) &&
+		    (sbused(sb) == (tp->snd_max - tp->snd_una)) &&
 		    ((tp->snd_max - tp->snd_una) <= segsiz)) {
 			/*
 			 * Ok less than or right at a MSS is
