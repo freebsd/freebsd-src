@@ -33,9 +33,11 @@ SRCS=	linux${SFX}_dummy_machdep.c \
 	linux_timer.c \
 	linux_uid16.c \
 	linux_vdso.c \
+	opt_inet.h \
 	opt_inet6.h \
 	opt_ktrace.h \
 	opt_posix.h \
+	opt_usb.h \
 	bus_if.h \
 	device_if.h \
 	vnode_if.h
