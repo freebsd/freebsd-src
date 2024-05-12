@@ -51,6 +51,28 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20240511: move file system driver manuals to section four
+OLD_FILES+=usr/share/man/man5/autofs.5.gz
+OLD_FILES+=usr/share/man/man5/cd9660.5.gz
+OLD_FILES+=usr/share/man/man5/devfs.5.gz
+OLD_FILES+=usr/share/man/man5/ext2fs.5.gz
+OLD_FILES+=usr/share/man/man5/ext4fs.5.gz
+OLD_FILES+=usr/share/man/man5/fdescfs.5.gz
+OLD_FILES+=usr/share/man/man5/fusefs.5.gz
+OLD_FILES+=usr/share/man/man5/lindebugfs.5.gz
+OLD_FILES+=usr/share/man/man5/linprocfs.5.gz
+OLD_FILES+=usr/share/man/man5/linsysfs.5.gz
+OLD_FILES+=usr/share/man/man5/mqueuefs.5.gz
+OLD_FILES+=usr/share/man/man5/msdosfs.5.gz
+OLD_FILES+=usr/share/man/man5/msdos.5.gz
+OLD_FILES+=usr/share/man/man5/nullfs.5.gz
+OLD_FILES+=usr/share/man/man5/procfs.5.gz
+OLD_FILES+=usr/share/man/man5/smbfs.5.gz
+OLD_FILES+=usr/share/man/man5/tarfs.5.gz
+OLD_FILES+=usr/share/man/man5/tmpfs.5.gz
+OLD_FILES+=usr/share/man/man5/unionfs.5.gz
+OLD_FILES+=usr/share/man/man7/ffs.7.gz
+
 # 20240508: Remove remnants of portsnap(8)
 OLD_DIRS+=var/db/portsnap
 
