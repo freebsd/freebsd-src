@@ -200,14 +200,18 @@ static SYSCTL_NODE(_kern, OID_AUTO, mqueue, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 	"POSIX real time message queue");
 
 static int	default_maxmsg  = 10;
+SYSCTL_INT(_kern_mqueue, OID_AUTO, default_maxmsg, CTLFLAG_RD,
+    &default_maxmsg, 0, "Default maximum messages in queue");
 static int	default_msgsize = 1024;
+SYSCTL_INT(_kern_mqueue, OID_AUTO, default_msgsize, CTLFLAG_RD,
+    &default_msgsize, 0, "Default maximum message size");
 
 static int	maxmsg = 100;
 SYSCTL_INT(_kern_mqueue, OID_AUTO, maxmsg, CTLFLAG_RW,
-    &maxmsg, 0, "Default maximum messages in queue");
+    &maxmsg, 0, "maximum messages in queue");
 static int	maxmsgsize = 16384;
 SYSCTL_INT(_kern_mqueue, OID_AUTO, maxmsgsize, CTLFLAG_RW,
-    &maxmsgsize, 0, "Default maximum message size");
+    &maxmsgsize, 0, "maximum message size");
 static int	maxmq = 100;
 SYSCTL_INT(_kern_mqueue, OID_AUTO, maxmq, CTLFLAG_RW,
     &maxmq, 0, "maximum message queues");
