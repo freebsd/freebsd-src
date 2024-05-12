@@ -979,7 +979,7 @@ typedef struct _ipfw_range_tlv {
 #define	IPFW_RCFLAG_USER	(IPFW_RCFLAG_RANGE | IPFW_RCFLAG_ALL | \
 	IPFW_RCFLAG_SET | IPFW_RCFLAG_DYNAMIC)
 /* Internally used flags */
-#define	IPFW_RCFLAG_DEFAULT	0x0100	/* Do not skip defaul rule	*/
+#define	IPFW_RCFLAG_DEFAULT	0x0100	/* Do not skip default rule	*/
 
 typedef struct _ipfw_ta_tinfo {
 	uint32_t	flags;		/* Format flags			*/
