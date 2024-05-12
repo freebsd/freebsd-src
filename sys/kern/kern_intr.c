@@ -3,7 +3,7 @@
  *
  * Copyright (c) 1997, Stefan Esser <se@freebsd.org>
  * All rights reserved.
- * Copyright © 2022-2023 Elliott Mitchell
+ * Copyright © 2022-2024 Elliott Mitchell
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,6 +33,7 @@
 #include "opt_kstack_usage_prof.h"
 
 #include <sys/param.h>
+#include <sys/bitstring.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/cpuset.h>
@@ -46,6 +47,7 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/pcpu.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/epoch.h>
@@ -138,6 +140,10 @@ do {					\
 		PMC_SOFT_CALL( , , intr, event);		\
 } while (0)
 #endif
+
+#define INTRCNT_MULTI_COUNT 64
+DPCPU_DEFINE_STATIC(u_long, intrcnt_multi[INTRCNT_MULTI_COUNT]);
+static bitstr_t bit_decl(intrcnt_multi_inuse, INTRCNT_MULTI_COUNT);
 
 /* Map an interrupt type to an ithread priority. */
 u_char
@@ -306,6 +312,14 @@ intr_event_create(struct intr_event **event, void *source, int flags, u_int irq,
 	va_end(ap);
 	strlcpy(ie->ie_fullname, ie->ie_name, sizeof(ie->ie_fullname));
 	mtx_lock(&event_lock);
+	if (flags & IE_MULTIPROC) {
+		int idx;
+		bit_ffc(intrcnt_multi_inuse, INTRCNT_MULTI_COUNT, &idx);
+		if (idx == -1)
+			panic("Exhausted multiprocessor interrupt counters");
+		bit_set(intrcnt_multi_inuse, idx);
+		ie->ie_intrcnt = idx;
+	}
 	TAILQ_INSERT_TAIL(&event_list, ie, ie_list);
 	mtx_unlock(&event_lock);
 	if (event != NULL)
@@ -543,7 +557,16 @@ intr_event_destroy(struct intr_event *ie)
 		return (EBUSY);
 	}
 	TAILQ_REMOVE(&event_list, ie, ie_list);
+
+	if (__predict_false(ie->ie_flags & IE_MULTIPROC)) {
+		u_int i;
+
+		CPU_FOREACH(i)
+			DPCPU_ID_GET(i, intrcnt_multi)[ie->ie_intrcnt] = 0;
+		bit_clear(intrcnt_multi_inuse, ie->ie_intrcnt);
+	}
 	mtx_unlock(&event_lock);
+
 	if (ie->ie_thread != NULL)
 		ithread_destroy(ie->ie_thread);
 	mtx_unlock(&ie->ie_lock);
@@ -1330,6 +1353,30 @@ ithread_loop(void *arg)
 }
 
 /*
+ * Increment event counter on event.
+ *
+ * Input:
+ * o ie:                        the event connected to this interrupt.
+ *
+ */
+void
+intr_event_incr(struct intr_event *ie)
+{
+
+	/*
+	 * Note about interrupt counters.  Having per-processor counters avoids
+	 * the need for atomic increment of counters.  Whereas other interrupt
+	 * types will be bound to a single processor and not need atomics.
+	 * Per-processor interrupts are *never* flagged as stray, so stray
+	 * counters don't need atomic increment.
+	 */
+	if (__predict_false(ie->ie_flags & IE_MULTIPROC))
+		++DPCPU_GET(intrcnt_multi)[ie->ie_intrcnt];
+	else
+		++ie->ie_intrcnt;
+}
+
+/*
  * Main interrupt handling body.
  *
  * Input:
@@ -1364,7 +1411,7 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 		return (EINVAL);
 
 	/* Increment the interrupt counter. */
-	++ie->ie_intrcnt;
+	intr_event_incr(ie);
 
 	/* An interrupt with no handlers is a stray interrupt. */
 	if (CK_SLIST_EMPTY(&ie->ie_handlers)) {
