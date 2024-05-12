@@ -2221,6 +2221,97 @@ linprocfs_dosysvipc_shm(PFS_FILL_ARGS)
 }
 
 /*
+ * Filler function for proc/sys/fs/mqueue/msg_default
+ */
+static int
+linprocfs_domqueue_msg_default(PFS_FILL_ARGS)
+{
+	int res, error;
+	size_t size = sizeof(res);
+
+	error = kernel_sysctlbyname(curthread, "kern.mqueue.default_maxmsg",
+	    &res, &size, NULL, 0, 0, 0);
+	if (error != 0)
+		return (error);
+
+	sbuf_printf(sb, "%d\n", res);
+	return (0);
+}
+
+/*
+ * Filler function for proc/sys/fs/mqueue/msgsize_default
+ */
+static int
+linprocfs_domqueue_msgsize_default(PFS_FILL_ARGS)
+{
+	int res, error;
+	size_t size = sizeof(res);
+
+	error = kernel_sysctlbyname(curthread, "kern.mqueue.default_msgsize",
+	    &res, &size, NULL, 0, 0, 0);
+	if (error != 0)
+		return (error);
+
+	sbuf_printf(sb, "%d\n", res);
+	return (0);
+
+}
+
+/*
+ * Filler function for proc/sys/fs/mqueue/msg_max
+ */
+static int
+linprocfs_domqueue_msg_max(PFS_FILL_ARGS)
+{
+	int res, error;
+	size_t size = sizeof(res);
+
+	error = kernel_sysctlbyname(curthread, "kern.mqueue.maxmsg",
+	    &res, &size, NULL, 0, 0, 0);
+	if (error != 0)
+		return (error);
+
+	sbuf_printf(sb, "%d\n", res);
+	return (0);
+}
+
+/*
+ * Filler function for proc/sys/fs/mqueue/msgsize_max
+ */
+static int
+linprocfs_domqueue_msgsize_max(PFS_FILL_ARGS)
+{
+	int res, error;
+	size_t size = sizeof(res);
+
+	error = kernel_sysctlbyname(curthread, "kern.mqueue.maxmsgsize",
+	    &res, &size, NULL, 0, 0, 0);
+	if (error != 0)
+		return (error);
+
+	sbuf_printf(sb, "%d\n", res);
+	return (0);
+}
+
+/*
+ * Filler function for proc/sys/fs/mqueue/queues_max
+ */
+static int
+linprocfs_domqueue_queues_max(PFS_FILL_ARGS)
+{
+	int res, error;
+	size_t size = sizeof(res);
+
+	error = kernel_sysctlbyname(curthread, "kern.mqueue.maxmq",
+	    &res, &size, NULL, 0, 0, 0);
+	if (error != 0)
+		return (error);
+
+	sbuf_printf(sb, "%d\n", res);
+	return (0);
+}
+
+/*
  * Constructor
  */
 static int
@@ -2376,6 +2467,22 @@ linprocfs_init(PFS_INIT_ARGS)
 	pfs_create_file(dir, "sem", &linprocfs_dosysvipc_sem,
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "shm", &linprocfs_dosysvipc_shm,
+	    NULL, NULL, NULL, PFS_RD);
+
+	/* /proc/sys/fs/... */
+	dir = pfs_create_dir(sys, "fs", NULL, NULL, NULL, 0);
+
+	/* /proc/sys/fs/mqueue/... */
+	dir = pfs_create_dir(dir, "mqueue", NULL, NULL, NULL, 0);
+	pfs_create_file(dir, "msg_default", &linprocfs_domqueue_msg_default,
+	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(dir, "msgsize_default", &linprocfs_domqueue_msgsize_default,
+	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(dir, "msg_max", &linprocfs_domqueue_msg_max,
+	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(dir, "msgsize_max", &linprocfs_domqueue_msgsize_max,
+	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(dir, "queues_max", &linprocfs_domqueue_queues_max,
 	    NULL, NULL, NULL, PFS_RD);
 
 	return (0);
