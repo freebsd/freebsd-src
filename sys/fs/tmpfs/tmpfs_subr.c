@@ -120,7 +120,7 @@ tmpfs_pager_writecount_recalc(vm_object_t object, vm_offset_t old,
 	/*
 	 * Forced unmount?
 	 */
-	if (vp == NULL) {
+	if (vp == NULL || vp->v_object == NULL) {
 		KASSERT((object->flags & OBJ_TMPFS_VREF) == 0,
 		    ("object %p with OBJ_TMPFS_VREF but without vnode",
 		    object));
@@ -957,6 +957,8 @@ tmpfs_destroy_vobject(struct vnode *vp, vm_object_t obj)
 
 	VM_OBJECT_WLOCK(obj);
 	VI_LOCK(vp);
+	vp->v_object = NULL;
+
 	/*
 	 * May be going through forced unmount.
 	 */
