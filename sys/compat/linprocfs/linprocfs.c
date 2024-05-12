@@ -2093,6 +2093,134 @@ linprocfs_domax_map_cnt(PFS_FILL_ARGS)
 }
 
 /*
+ * Filler function for proc/sysvipc/msg
+ */
+static int
+linprocfs_dosysvipc_msg(PFS_FILL_ARGS)
+{
+	struct msqid_kernel *msqids;
+	size_t id, size;
+	int error;
+
+	sbuf_printf(sb,
+	    "%10s %10s %4s  %10s %10s %5s %5s %5s %5s %5s %5s %10s %10s %10s\n",
+	    "key", "msqid", "perms", "cbytes", "qnum", "lspid", "lrpid",
+	    "uid", "gid", "cuid", "cgid", "stime", "rtime", "ctime");
+
+	error = kern_get_msqids(curthread, &msqids, &size);
+	if (error != 0)
+		return (error);
+
+	for (id = 0; id < size; id++) {
+		if (msqids[id].u.msg_qbytes == 0)
+			continue;
+		sbuf_printf(sb,
+		    "%10d %10lu  %4o  %10lu %10lu %5u %5u %5u %5u %5u %5u %jd %jd %jd\n",
+		    (int)msqids[id].u.msg_perm.key,
+		    IXSEQ_TO_IPCID(id, msqids[id].u.msg_perm),
+		    msqids[id].u.msg_perm.mode,
+		    msqids[id].u.msg_cbytes,
+		    msqids[id].u.msg_qnum,
+		    msqids[id].u.msg_lspid,
+		    msqids[id].u.msg_lrpid,
+		    msqids[id].u.msg_perm.uid,
+		    msqids[id].u.msg_perm.gid,
+		    msqids[id].u.msg_perm.cuid,
+		    msqids[id].u.msg_perm.cgid,
+		    (intmax_t)msqids[id].u.msg_stime,
+		    (intmax_t)msqids[id].u.msg_rtime,
+		    (intmax_t)msqids[id].u.msg_ctime);
+	}
+
+	free(msqids, M_TEMP);
+	return (0);
+}
+
+/*
+ * Filler function for proc/sysvipc/sem
+ */
+static int
+linprocfs_dosysvipc_sem(PFS_FILL_ARGS)
+{
+	struct semid_kernel *semids;
+	size_t id, size;
+	int error;
+
+	sbuf_printf(sb, "%10s %10s %4s %10s %5s %5s %5s %5s %10s %10s\n",
+	    "key", "semid", "perms", "nsems", "uid", "gid", "cuid", "cgid",
+	    "otime", "ctime");
+
+	error = kern_get_sema(curthread, &semids, &size);
+	if (error != 0)
+		return (error);
+
+	for (id = 0; id < size; id++) {
+		if ((semids[id].u.sem_perm.mode & SEM_ALLOC) == 0)
+			continue;
+		sbuf_printf(sb,
+		    "%10d %10lu  %4o %10u %5u %5u %5u %5u %jd %jd\n",
+		    (int)semids[id].u.sem_perm.key,
+		    IXSEQ_TO_IPCID(id, semids[id].u.sem_perm),
+		    semids[id].u.sem_perm.mode,
+		    semids[id].u.sem_nsems,
+		    semids[id].u.sem_perm.uid,
+		    semids[id].u.sem_perm.gid,
+		    semids[id].u.sem_perm.cuid,
+		    semids[id].u.sem_perm.cgid,
+		    (intmax_t)semids[id].u.sem_otime,
+		    (intmax_t)semids[id].u.sem_ctime);
+	}
+
+	free(semids, M_TEMP);
+	return (0);
+}
+
+/*
+ * Filler function for proc/sysvipc/shm
+ */
+static int
+linprocfs_dosysvipc_shm(PFS_FILL_ARGS)
+{
+	struct shmid_kernel *shmids;
+	size_t id, size;
+	int error;
+
+	sbuf_printf(sb,
+	    "%10s %10s %s %21s %5s %5s %5s %5s %5s %5s %5s %10s %10s %10s %21s %21s\n",
+	    "key", "shmid", "perms", "size", "cpid", "lpid", "nattch", "uid",
+	    "gid", "cuid", "cgid", "atime", "dtime", "ctime", "rss", "swap");
+
+	error = kern_get_shmsegs(curthread, &shmids, &size);
+	if (error != 0)
+		return (error);
+
+	for (id = 0; id < size; id++) {
+		if ((shmids[id].u.shm_perm.mode & SHMSEG_ALLOCATED) == 0)
+			continue;
+		sbuf_printf(sb,
+		    "%10d %10lu  %4o %21zu %5u %5u  %5u %5u %5u %5u %5u %jd %jd %jd %21d %21d\n",
+		    (int)shmids[id].u.shm_perm.key,
+		    IXSEQ_TO_IPCID(id, shmids[id].u.shm_perm),
+		    shmids[id].u.shm_perm.mode,
+		    shmids[id].u.shm_segsz,
+		    shmids[id].u.shm_cpid,
+		    shmids[id].u.shm_lpid,
+		    shmids[id].u.shm_nattch,
+		    shmids[id].u.shm_perm.uid,
+		    shmids[id].u.shm_perm.gid,
+		    shmids[id].u.shm_perm.cuid,
+		    shmids[id].u.shm_perm.cgid,
+		    (intmax_t)shmids[id].u.shm_atime,
+		    (intmax_t)shmids[id].u.shm_dtime,
+		    (intmax_t)shmids[id].u.shm_ctime,
+		    0, 0);	/* XXX rss & swp are not supported */
+	}
+
+	free(shmids, M_TEMP);
+	return (0);
+}
+
+/*
  * Constructor
  */
 static int
@@ -2239,6 +2367,15 @@ linprocfs_init(PFS_INIT_ARGS)
 	pfs_create_file(dir, "min_free_kbytes", &linprocfs_dominfree,
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "max_map_count", &linprocfs_domax_map_cnt,
+	    NULL, NULL, NULL, PFS_RD);
+
+	/* /proc/sysvipc/... */
+	dir = pfs_create_dir(root, "sysvipc", NULL, NULL, NULL, 0);
+	pfs_create_file(dir, "msg", &linprocfs_dosysvipc_msg,
+	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(dir, "sem", &linprocfs_dosysvipc_sem,
+	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(dir, "shm", &linprocfs_dosysvipc_shm,
 	    NULL, NULL, NULL, PFS_RD);
 
 	return (0);
