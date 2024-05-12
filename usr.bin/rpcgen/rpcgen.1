@@ -51,14 +51,11 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility is a tool that generates C code to implement an
-.Tn RPC
-protocol.
+utility is a tool that generates C code to implement an RPC protocol.
 The input to
 .Nm
-is a language similar to C known as
-.Tn RPC
-Language (Remote Procedure Call Language).
+is a language similar to C known as RPC Language 
+(Remote Procedure Call Language).
 .Pp
 The
 .Nm
@@ -81,9 +78,7 @@ and client-side stubs in
 With the
 .Fl T
 option,
-it also generates the
-.Tn RPC
-dispatch table in
+it also generates the RPC dispatch table in
 .Pa proto_tbl.i .
 .Pp
 The
@@ -145,17 +140,11 @@ A special define symbol
 can be used to run the server process in foreground.
 .Pp
 The second synopsis provides special features which allow
-for the creation of more sophisticated
-.Tn RPC
-servers.
+for the creation of more sophisticated RPC servers.
 These features include support for user provided
 .Em #defines
-and
-.Tn RPC
-dispatch tables.
-The entries in the
-.Tn RPC
-dispatch table contain:
+and RPC dispatch tables.
+The entries in the RPC dispatch table contain:
 .Bl -bullet -offset indent -compact
 .It
 pointers to the service routine corresponding to that procedure,
@@ -233,9 +222,7 @@ assumes that there exists a
 routine with the string
 .Em xdr_
 prepended to the name of the data type.
-If this routine does not exist in the
-.Tn RPC/XDR
-library, it must be provided.
+If this routine does not exist in the RPC/XDR library, it must be provided.
 Providing an undefined data type
 allows customization of
 .Xr xdr 3
@@ -247,20 +234,15 @@ The following options are available:
 Generate all files, including sample files.
 .It Fl b
 Backward compatibility mode.
-Generate transport specific
-.Tn RPC
-code for older versions
-of the operating system.
+Generate transport specific RPC code for older versions of the operating
+system.
 .It Fl c
-Compile into
-.Tn XDR
-routines.
+Compile into XDR routines.
 .It Fl C
 Generate ANSI C code.
 This is always done, the flag is only provided for backwards compatibility.
 .It Fl D Ns Ar name
 .It Fl D Ns Ar name=value
-.\".It Fl D Ns Ar name Ns Op Ar =value
 Define a symbol
 .Ar name .
 Equivalent to the
@@ -277,9 +259,7 @@ This option may be specified more than once.
 Compile into C data-definitions (a header).
 .Fl T
 option can be used in conjunction to produce a
-header which supports
-.Tn RPC
-dispatch tables.
+header which supports RPC dispatch tables.
 .It Fl i Ar size
 Size at which to start generating inline code.
 This option is useful for optimization.
@@ -457,13 +437,9 @@ which can be used for compiling the application.
 .It Fl \&Ss
 Generate sample server code that uses remote procedure calls.
 .It Fl t
-Compile into
-.Tn RPC
-dispatch table.
+Compile into RPC dispatch table.
 .It Fl T
-Generate the code to support
-.Tn RPC
-dispatch tables.
+Generate the code to support RPC dispatch tables.
 .Pp
 The options
 .Fl c ,
