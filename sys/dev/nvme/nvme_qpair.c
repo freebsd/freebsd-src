@@ -1315,6 +1315,11 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 		return;
 	}
 
+	/*
+	 * tr->deadline updating when nvme_payload_map calls
+	 * nvme_qpair_submit_tracker (we call it above directly
+	 * when there's no map to load).
+	 */
 	err = bus_dmamap_load_mem(tr->qpair->dma_tag_payload,
 	    tr->payload_dma_map, &req->payload, nvme_payload_map, tr, 0);
 	if (err != 0) {
