@@ -414,9 +414,11 @@ static void
 nvme_qpair_complete_tracker(struct nvme_tracker *tr,
     struct nvme_completion *cpl, error_print_t print_on_error)
 {
-	struct nvme_qpair * qpair = tr->qpair;
+	struct nvme_qpair	*qpair = tr->qpair;
 	struct nvme_request	*req;
 	bool			retry, error, retriable;
+
+	mtx_assert(&qpair->lock, MA_NOTOWNED);
 
 	req = tr->req;
 	error = nvme_completion_is_error(cpl);
@@ -486,10 +488,11 @@ nvme_qpair_manual_complete_tracker(
     error_print_t print_on_error)
 {
 	struct nvme_completion	cpl;
+	struct nvme_qpair * qpair = tr->qpair;
+
+	mtx_assert(&qpair->lock, MA_NOTOWNED);
 
 	memset(&cpl, 0, sizeof(cpl));
-
-	struct nvme_qpair * qpair = tr->qpair;
 
 	cpl.sqid = qpair->id;
 	cpl.cid = tr->cid;
