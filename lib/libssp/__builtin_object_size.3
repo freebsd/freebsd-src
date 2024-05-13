@@ -1,0 +1,110 @@
+.\"	$NetBSD: __builtin_object_size.3,v 1.11 2017/07/03 21:32:49 wiz Exp $
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2007 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Christos Zoulas.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"
+.Dd April 27, 2024
+.Dt __BUILTIN_OBJECT_SIZE 3
+.Os
+.Sh NAME
+.Nm __builtin_object_size
+.Nd return the size of the given object
+.Sh SYNOPSIS
+.Ft size_t
+.Fn __builtin_object_size "void *ptr" "int type"
+.Sh DESCRIPTION
+The
+.Fn __builtin_object_size
+function is a
+.Xr clang 1
+and
+.Xr gcc 1
+built-in function that returns the size of the object referenced by
+.Fa ptr
+if known at compile time.
+If the
+.Fa ptr
+expression has any side effects, then they will not be evaluated.
+.Sh RETURN VALUES
+If the size of the object is not known or the
+.Fa ptr
+expression has side effects, the
+.Fn __builtin_object_size
+function returns:
+.Bl -tag -width (size_t)\-1 -offset indent
+.It Dv (size_t)\-1
+for
+.Fa type
+.Dv 0
+and
+.Dv 1 .
+.It Dv (size_t)0
+for
+.Fa type
+.Dv 2
+and
+.Dv 3 .
+.El
+.Pp
+If the size of the object is known, then the
+.Fn __builtin_object_size
+function returns the maximum size of all the objects that the compiler
+knows can be pointed to by
+.Fa ptr
+when
+.Fa type
+.Dv & 2 == 0 ,
+and the minimum size when
+.Fa type
+.Dv & 2 != 0 .
+.Sh SEE ALSO
+.Xr clang 1 ,
+.Xr gcc 1 ,
+.Xr __builtin_return_address 3 ,
+.Xr attribute 3 ,
+.Xr ssp 3
+.Sh HISTORY
+The
+.Fn __builtin_object_size
+appeared in
+.Tn GCC 4.1 .
+.Sh CAVEATS
+This is a non-standard, compiler-specific extension.
+.Pp
+Note that currently the object size calculation pass is only done at -O1
+or above, meaning that this function always returns \-1 when the optimizer
+is off.
+.Pp
+There are some discussions about always doing the object size pass, but
+the issue is that without the optimization pass data sizes are not going
+to be correct.
+.Pp
+For that reason code fortification (size-checked replacement
+functions) is currently disabled when optimization is off.
