@@ -152,6 +152,9 @@ struct msqid_kernel {
 #ifdef _KERNEL
 extern struct msginfo	msginfo;
 
+int	kern_get_msqids(struct thread *td, struct msqid_kernel **res,
+	    size_t *sz);
+
 #else /* _KERNEL */
 
 __BEGIN_DECLS
