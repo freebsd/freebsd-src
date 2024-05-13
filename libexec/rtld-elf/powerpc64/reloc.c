@@ -52,6 +52,17 @@ struct funcdesc {
 };
 #endif
 
+bool
+arch_digest_dynamic(struct Struct_Obj_Entry *obj, const Elf_Dyn *dynp)
+{
+	if (dynp->d_tag == DT_PPC64_GLINK) {
+		obj->glink = (Elf_Addr)(obj->relocbase + dynp->d_un.d_ptr);
+		return (true);
+	}
+
+	return (false);
+}
+
 /*
  * Process the R_PPC_COPY relocations
  */
