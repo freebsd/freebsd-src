@@ -15,6 +15,10 @@ MK_UBSAN=	no
 
 .include <bsd.compat.pre.mk>
 
+# SSP forced off already implies FORTIFY_SOURCE=0, but we must make sure that
+# one cannot turn it back on.
+FORTIFY_SOURCE=	0
+
 .if !defined(NEED_COMPAT)
 CONFS=		libmap.conf
 .endif
