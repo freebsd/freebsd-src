@@ -379,12 +379,18 @@ EOF
 The following options accept a single value from a list of valid values.
 .Bl -tag -width indent
 EOF
+	prev_opt=
 	show_group_options |
 	while read opt ; do
 		if [ ! -f ${opt} ] ; then
 			echo "no description found for ${opt}, skipping" >&2
 			continue
 		fi
+		if [ $opt = "$prev_opt" ]; then
+			echo "ignoring duplicate option $opt" >&2
+			continue
+		fi
+		prev_opt=$opt
 
 		echo ".It Va ${opt}"
 		cat ${opt}
