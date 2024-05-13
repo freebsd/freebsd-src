@@ -497,7 +497,7 @@
 		    int flags
 		);
 	}
-66	AUE_VFORK	STD {
+66	AUE_VFORK	STD|CAPENABLED {
 		int vfork(void);
 	}
 67	AUE_NULL	OBSOL	vread
