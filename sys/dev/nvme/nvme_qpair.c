@@ -1203,7 +1203,7 @@ nvme_qpair_submit_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr)
 
 	bus_dmamap_sync(qpair->dma_tag, qpair->queuemem_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-	bus_space_write_4(qpair->ctrlr->bus_tag, qpair->ctrlr->bus_handle,
+	bus_space_write_4(ctrlr->bus_tag, ctrlr->bus_handle,
 	    qpair->sq_tdbl_off, qpair->sq_tail);
 	qpair->num_cmds++;
 }
