@@ -1078,7 +1078,7 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 {
 	struct linuxkpi_ieee80211_channel *chan;
 	struct lkpi_chanctx *lchanctx;
-	struct ieee80211_chanctx_conf *conf;
+	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct lkpi_hw *lhw;
 	struct ieee80211_hw *hw;
 	struct lkpi_vif *lvif;
@@ -1144,54 +1144,54 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 
 	/* Add chanctx (or if exists, change it). */
 	if (vif->chanctx_conf != NULL) {
-		conf = vif->chanctx_conf;
-		lchanctx = CHANCTX_CONF_TO_LCHANCTX(conf);
+		chanctx_conf = vif->chanctx_conf;
+		lchanctx = CHANCTX_CONF_TO_LCHANCTX(chanctx_conf);
 		IMPROVE("diff changes for changed, working on live copy, rcu");
 	} else {
 		/* Keep separate alloc as in Linux this is rcu managed? */
 		lchanctx = malloc(sizeof(*lchanctx) + hw->chanctx_data_size,
 		    M_LKPI80211, M_WAITOK | M_ZERO);
-		conf = &lchanctx->conf;
+		chanctx_conf = &lchanctx->chanctx_conf;
 	}
 
-	conf->rx_chains_dynamic = 1;
-	conf->rx_chains_static = 1;
-	conf->radar_enabled =
+	chanctx_conf->rx_chains_dynamic = 1;
+	chanctx_conf->rx_chains_static = 1;
+	chanctx_conf->radar_enabled =
 	    (chan->flags & IEEE80211_CHAN_RADAR) ? true : false;
-	conf->def.chan = chan;
-	conf->def.width = NL80211_CHAN_WIDTH_20_NOHT;
-	conf->def.center_freq1 = chan->center_freq;
-	conf->def.center_freq2 = 0;
+	chanctx_conf->def.chan = chan;
+	chanctx_conf->def.width = NL80211_CHAN_WIDTH_20_NOHT;
+	chanctx_conf->def.center_freq1 = chan->center_freq;
+	chanctx_conf->def.center_freq2 = 0;
 	IMPROVE("Check vht_cap from band not just chan?");
 	KASSERT(ni->ni_chan != NULL && ni->ni_chan != IEEE80211_CHAN_ANYC,
 	   ("%s:%d: ni %p ni_chan %p\n", __func__, __LINE__, ni, ni->ni_chan));
 #ifdef LKPI_80211_HT
 	if (IEEE80211_IS_CHAN_HT(ni->ni_chan)) {
 		if (IEEE80211_IS_CHAN_HT40(ni->ni_chan)) {
-			conf->def.width = NL80211_CHAN_WIDTH_40;
+			chanctx_conf->def.width = NL80211_CHAN_WIDTH_40;
 		} else
-			conf->def.width = NL80211_CHAN_WIDTH_20;
+			chanctx_conf->def.width = NL80211_CHAN_WIDTH_20;
 	}
 #endif
 #ifdef LKPI_80211_VHT
 	if (IEEE80211_IS_CHAN_VHT(ni->ni_chan)) {
 #ifdef __notyet__
 		if (IEEE80211_IS_CHAN_VHT80P80(ni->ni_chan)) {
-			conf->def.width = NL80211_CHAN_WIDTH_80P80;
-			conf->def.center_freq2 = 0;	/* XXX */
+			chanctx_conf->def.width = NL80211_CHAN_WIDTH_80P80;
+			chanctx_conf->def.center_freq2 = 0;	/* XXX */
 		} else
 #endif
 		if (IEEE80211_IS_CHAN_VHT160(ni->ni_chan))
-			conf->def.width = NL80211_CHAN_WIDTH_160;
+			chanctx_conf->def.width = NL80211_CHAN_WIDTH_160;
 		else if (IEEE80211_IS_CHAN_VHT80(ni->ni_chan))
-			conf->def.width = NL80211_CHAN_WIDTH_80;
+			chanctx_conf->def.width = NL80211_CHAN_WIDTH_80;
 	}
 #endif
 	/* Responder ... */
-	conf->min_def.chan = chan;
-	conf->min_def.width = NL80211_CHAN_WIDTH_20_NOHT;
-	conf->min_def.center_freq1 = chan->center_freq;
-	conf->min_def.center_freq2 = 0;
+	chanctx_conf->min_def.chan = chan;
+	chanctx_conf->min_def.width = NL80211_CHAN_WIDTH_20_NOHT;
+	chanctx_conf->min_def.center_freq1 = chan->center_freq;
+	chanctx_conf->min_def.center_freq2 = 0;
 	IMPROVE("currently 20_NOHT min_def only");
 
 	/* Set bss info (bss_info_changed). */
@@ -1217,14 +1217,14 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 		changed |= IEEE80211_CHANCTX_CHANGE_RADAR;
 		changed |= IEEE80211_CHANCTX_CHANGE_RX_CHAINS;
 		changed |= IEEE80211_CHANCTX_CHANGE_WIDTH;
-		lkpi_80211_mo_change_chanctx(hw, conf, changed);
+		lkpi_80211_mo_change_chanctx(hw, chanctx_conf, changed);
 	} else {
-		error = lkpi_80211_mo_add_chanctx(hw, conf);
+		error = lkpi_80211_mo_add_chanctx(hw, chanctx_conf);
 		if (error == 0 || error == EOPNOTSUPP) {
-			vif->bss_conf.chandef.chan = conf->def.chan;
-			vif->bss_conf.chandef.width = conf->def.width;
+			vif->bss_conf.chandef.chan = chanctx_conf->def.chan;
+			vif->bss_conf.chandef.width = chanctx_conf->def.width;
 			vif->bss_conf.chandef.center_freq1 =
-			    conf->def.center_freq1;
+			    chanctx_conf->def.center_freq1;
 #ifdef LKPI_80211_HT
 			if (vif->bss_conf.chandef.width == NL80211_CHAN_WIDTH_40) {
 				/* Note: it is 10 not 20. */
@@ -1235,26 +1235,26 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 			}
 #endif
 			vif->bss_conf.chandef.center_freq2 =
-			    conf->def.center_freq2;
+			    chanctx_conf->def.center_freq2;
 		} else {
 			ic_printf(vap->iv_ic, "%s:%d: mo_add_chanctx "
 			    "failed: %d\n", __func__, __LINE__, error);
 			goto out;
 		}
 
-		vif->bss_conf.chanctx_conf = conf;
+		vif->bss_conf.chanctx_conf = chanctx_conf;
 
 		/* Assign vif chanctx. */
 		if (error == 0)
 			error = lkpi_80211_mo_assign_vif_chanctx(hw, vif,
-			    &vif->bss_conf, conf);
+			    &vif->bss_conf, chanctx_conf);
 		if (error == EOPNOTSUPP)
 			error = 0;
 		if (error != 0) {
 			ic_printf(vap->iv_ic, "%s:%d: mo_assign_vif_chanctx "
 			    "failed: %d\n", __func__, __LINE__, error);
-			lkpi_80211_mo_remove_chanctx(hw, conf);
-			lchanctx = CHANCTX_CONF_TO_LCHANCTX(conf);
+			lkpi_80211_mo_remove_chanctx(hw, chanctx_conf);
+			lchanctx = CHANCTX_CONF_TO_LCHANCTX(chanctx_conf);
 			free(lchanctx, M_LKPI80211);
 			goto out;
 		}
@@ -1456,9 +1456,9 @@ lkpi_sta_auth_to_scan(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	/* Take the chan ctx down. */
 	if (vif->chanctx_conf != NULL) {
 		struct lkpi_chanctx *lchanctx;
-		struct ieee80211_chanctx_conf *conf;
+		struct ieee80211_chanctx_conf *chanctx_conf;
 
-		conf = vif->chanctx_conf;
+		chanctx_conf = vif->chanctx_conf;
 		/* Remove vif context. */
 		lkpi_80211_mo_unassign_vif_chanctx(hw, vif, &vif->bss_conf, &vif->chanctx_conf);
 		/* NB: vif->chanctx_conf is NULL now. */
@@ -1466,8 +1466,8 @@ lkpi_sta_auth_to_scan(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 		lkpi_hw_conf_idle(hw, true);
 
 		/* Remove chan ctx. */
-		lkpi_80211_mo_remove_chanctx(hw, conf);
-		lchanctx = CHANCTX_CONF_TO_LCHANCTX(conf);
+		lkpi_80211_mo_remove_chanctx(hw, chanctx_conf);
+		lchanctx = CHANCTX_CONF_TO_LCHANCTX(chanctx_conf);
 		free(lchanctx, M_LKPI80211);
 	}
 
@@ -1794,9 +1794,9 @@ _lkpi_sta_assoc_to_down(struct ieee80211vap *vap, enum ieee80211_state nstate, i
 	/* Take the chan ctx down. */
 	if (vif->chanctx_conf != NULL) {
 		struct lkpi_chanctx *lchanctx;
-		struct ieee80211_chanctx_conf *conf;
+		struct ieee80211_chanctx_conf *chanctx_conf;
 
-		conf = vif->chanctx_conf;
+		chanctx_conf = vif->chanctx_conf;
 		/* Remove vif context. */
 		lkpi_80211_mo_unassign_vif_chanctx(hw, vif, &vif->bss_conf, &vif->chanctx_conf);
 		/* NB: vif->chanctx_conf is NULL now. */
@@ -1804,8 +1804,8 @@ _lkpi_sta_assoc_to_down(struct ieee80211vap *vap, enum ieee80211_state nstate, i
 		lkpi_hw_conf_idle(hw, true);
 
 		/* Remove chan ctx. */
-		lkpi_80211_mo_remove_chanctx(hw, conf);
-		lchanctx = CHANCTX_CONF_TO_LCHANCTX(conf);
+		lkpi_80211_mo_remove_chanctx(hw, chanctx_conf);
+		lchanctx = CHANCTX_CONF_TO_LCHANCTX(chanctx_conf);
 		free(lchanctx, M_LKPI80211);
 	}
 
@@ -2363,9 +2363,9 @@ lkpi_sta_run_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 	/* Take the chan ctx down. */
 	if (vif->chanctx_conf != NULL) {
 		struct lkpi_chanctx *lchanctx;
-		struct ieee80211_chanctx_conf *conf;
+		struct ieee80211_chanctx_conf *chanctx_conf;
 
-		conf = vif->chanctx_conf;
+		chanctx_conf = vif->chanctx_conf;
 		/* Remove vif context. */
 		lkpi_80211_mo_unassign_vif_chanctx(hw, vif, &vif->bss_conf, &vif->chanctx_conf);
 		/* NB: vif->chanctx_conf is NULL now. */
@@ -2373,8 +2373,8 @@ lkpi_sta_run_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 		lkpi_hw_conf_idle(hw, true);
 
 		/* Remove chan ctx. */
-		lkpi_80211_mo_remove_chanctx(hw, conf);
-		lchanctx = CHANCTX_CONF_TO_LCHANCTX(conf);
+		lkpi_80211_mo_remove_chanctx(hw, chanctx_conf);
+		lchanctx = CHANCTX_CONF_TO_LCHANCTX(chanctx_conf);
 		free(lchanctx, M_LKPI80211);
 	}
 
@@ -4770,7 +4770,7 @@ linuxkpi_ieee80211_iterate_chan_contexts(struct ieee80211_hw *hw,
 		if (!lchanctx->added_to_drv)
 			continue;
 
-		iterfunc(hw, &lchanctx->conf, arg);
+		iterfunc(hw, &lchanctx->chanctx_conf, arg);
 	}
 	LKPI_80211_LHW_LVIF_UNLOCK(lhw);
 }
