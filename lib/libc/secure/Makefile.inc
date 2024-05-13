@@ -4,7 +4,7 @@
 .PATH: ${LIBC_SRCTOP}/secure
 
 # _FORTIFY_SOURCE
-SRCS+=	gets_chk.c fgets_chk.c memcpy_chk.c memmove_chk.c memset_chk.c \
+SRCS+=	fgets_chk.c memcpy_chk.c memmove_chk.c memset_chk.c \
 	snprintf_chk.c sprintf_chk.c stpcpy_chk.c stpncpy_chk.c \
 	strcat_chk.c strcpy_chk.c strncat_chk.c strncpy_chk.c \
 	vsnprintf_chk.c vsprintf_chk.c
