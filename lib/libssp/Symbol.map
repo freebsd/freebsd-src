@@ -20,7 +20,6 @@ LIBSSP_1.0 {
 };
 
 LIBSSP_1.1 {
-	__gets_chk;
 	__fgets_chk;
 	__memmove_chk;
 	__stpncpy_chk;

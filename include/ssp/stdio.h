@@ -48,7 +48,6 @@ int __snprintf_chk(char *__restrict, size_t, int, size_t,
 int __vsnprintf_chk(char *__restrict, size_t, int, size_t,
      const char *__restrict, __va_list)
     __printflike(5, 0);
-char *__gets_chk(char *, size_t);
 char *__fgets_chk(char *, int, size_t, FILE *);
 __END_DECLS
 
@@ -76,11 +75,6 @@ __END_DECLS
     char *_ssp_str = (str);		\
     __builtin___vsnprintf_chk(_ssp_str, len, 0, __ssp_bos(_ssp_str),	\
         fmt, ap);			\
-})
-
-#define gets(str) ({			\
-   char *_ssp_str = (str);		\
-    __gets_chk(_ssp_str, __ssp_bos(_ssp_str));	\
 })
 
 #define fgets(str, len, fp) ({		\

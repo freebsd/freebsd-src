@@ -5,7 +5,6 @@ FBSD_1.0 {
 };
 
 FBSD_1.8 {
-	__gets_chk;
 	__fgets_chk;
 	__memcpy_chk;
 	__memmove_chk;
