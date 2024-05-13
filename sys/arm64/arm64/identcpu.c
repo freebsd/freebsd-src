@@ -138,15 +138,11 @@ struct cpu_desc {
 	uint64_t	id_aa64mmfr0;
 	uint64_t	id_aa64mmfr1;
 	uint64_t	id_aa64mmfr2;
-#ifdef NOTYET
 	uint64_t	id_aa64mmfr3;
 	uint64_t	id_aa64mmfr4;
-#endif
 	uint64_t	id_aa64pfr0;
 	uint64_t	id_aa64pfr1;
-#ifdef NOTYET
 	uint64_t	id_aa64pfr2;
-#endif
 	uint64_t	id_aa64zfr0;
 	uint64_t	ctr;
 #ifdef COMPAT_FREEBSD32
@@ -1297,7 +1293,6 @@ static const struct mrs_field id_aa64mmfr2_fields[] = {
 };
 
 
-#ifdef NOTYET
 /* ID_AA64MMFR2_EL1 */
 static const struct mrs_field_value id_aa64mmfr3_spec_fpacc[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR3, Spec_FPACC, NONE, IMPL),
@@ -1333,7 +1328,6 @@ static const struct mrs_field id_aa64mmfr3_fields[] = {
 static const struct mrs_field id_aa64mmfr4_fields[] = {
 	MRS_FIELD_END,
 };
-#endif
 
 
 /* ID_AA64PFR0_EL1 */
@@ -1572,12 +1566,10 @@ static const struct mrs_field id_aa64pfr1_fields[] = {
 };
 
 
-#ifdef NOTYET
 /* ID_AA64PFR2_EL1 */
 static const struct mrs_field id_aa64pfr2_fields[] = {
 	MRS_FIELD_END,
 };
-#endif
 
 
 /* ID_AA64ZFR0_EL1 */
@@ -1880,16 +1872,12 @@ static const struct mrs_user_reg user_regs[] = {
 	USER_REG(ID_AA64MMFR0_EL1, id_aa64mmfr0, true),
 	USER_REG(ID_AA64MMFR1_EL1, id_aa64mmfr1, true),
 	USER_REG(ID_AA64MMFR2_EL1, id_aa64mmfr2, true),
-#ifdef NOTYET
 	USER_REG(ID_AA64MMFR3_EL1, id_aa64mmfr3, true),
 	USER_REG(ID_AA64MMFR4_EL1, id_aa64mmfr4, true),
-#endif
 
 	USER_REG(ID_AA64PFR0_EL1, id_aa64pfr0, true),
 	USER_REG(ID_AA64PFR1_EL1, id_aa64pfr1, true),
-#ifdef NOTYET
 	USER_REG(ID_AA64PFR2_EL1, id_aa64pfr2, true),
-#endif
 
 	USER_REG(ID_AA64ZFR0_EL1, id_aa64zfr0, true),
 
@@ -2669,12 +2657,10 @@ print_cpu_features(u_int cpu, struct cpu_desc *desc,
 		print_id_register(sb, "Processor Features 1",
 		    desc->id_aa64pfr1, id_aa64pfr1_fields);
 
-#ifdef NOTYET
 	/* AArch64 Processor Feature Register 2 */
 	if (SHOULD_PRINT_REG(id_aa64pfr2))
 		print_id_register(sb, "Processor Features 2",
 		    desc->id_aa64pfr2, id_aa64pfr2_fields);
-#endif
 
 	/* AArch64 Memory Model Feature Register 0 */
 	if (SHOULD_PRINT_REG(id_aa64mmfr0))
@@ -2691,7 +2677,6 @@ print_cpu_features(u_int cpu, struct cpu_desc *desc,
 		print_id_register(sb, "Memory Model Features 2",
 		    desc->id_aa64mmfr2, id_aa64mmfr2_fields);
 
-#ifdef NOTYET
 	/* AArch64 Memory Model Feature Register 3 */
 	if (SHOULD_PRINT_REG(id_aa64mmfr3))
 		print_id_register(sb, "Memory Model Features 3",
@@ -2701,7 +2686,6 @@ print_cpu_features(u_int cpu, struct cpu_desc *desc,
 	if (SHOULD_PRINT_REG(id_aa64mmfr4))
 		print_id_register(sb, "Memory Model Features 4",
 		    desc->id_aa64mmfr4, id_aa64mmfr4_fields);
-#endif
 
 	/* AArch64 Debug Feature Register 0 */
 	if (SHOULD_PRINT_REG(id_aa64dfr0))
@@ -2809,23 +2793,19 @@ identify_cpu(u_int cpu)
 	CPU_AFFINITY(cpu) = desc->mpidr & CPU_AFF_MASK;
 
 	desc->ctr = READ_SPECIALREG(ctr_el0);
-	desc->id_aa64dfr0 = READ_SPECIALREG(id_aa64dfr0_el1);
-	desc->id_aa64dfr1 = READ_SPECIALREG(id_aa64dfr1_el1);
-	desc->id_aa64isar0 = READ_SPECIALREG(id_aa64isar0_el1);
-	desc->id_aa64isar1 = READ_SPECIALREG(id_aa64isar1_el1);
-	desc->id_aa64isar2 = READ_SPECIALREG(id_aa64isar2_el1);
-	desc->id_aa64mmfr0 = READ_SPECIALREG(id_aa64mmfr0_el1);
-	desc->id_aa64mmfr1 = READ_SPECIALREG(id_aa64mmfr1_el1);
-	desc->id_aa64mmfr2 = READ_SPECIALREG(id_aa64mmfr2_el1);
-#ifdef NOTYET
-	desc->id_aa64mmfr3 = READ_SPECIALREG(id_aa64mmfr3_el1);
-	desc->id_aa64mmfr4 = READ_SPECIALREG(id_aa64mmfr4_el1);
-#endif
-	desc->id_aa64pfr0 = READ_SPECIALREG(id_aa64pfr0_el1);
-	desc->id_aa64pfr1 = READ_SPECIALREG(id_aa64pfr1_el1);
-#ifdef NOTYET
-	desc->id_aa64pfr2 = READ_SPECIALREG(id_aa64pfr2_el1);
-#endif
+	desc->id_aa64dfr0 = READ_SPECIALREG(ID_AA64DFR0_EL1_REG);
+	desc->id_aa64dfr1 = READ_SPECIALREG(ID_AA64DFR1_EL1_REG);
+	desc->id_aa64isar0 = READ_SPECIALREG(ID_AA64ISAR0_EL1_REG);
+	desc->id_aa64isar1 = READ_SPECIALREG(ID_AA64ISAR1_EL1_REG);
+	desc->id_aa64isar2 = READ_SPECIALREG(ID_AA64ISAR2_EL1_REG);
+	desc->id_aa64mmfr0 = READ_SPECIALREG(ID_AA64MMFR0_EL1_REG);
+	desc->id_aa64mmfr1 = READ_SPECIALREG(ID_AA64MMFR1_EL1_REG);
+	desc->id_aa64mmfr2 = READ_SPECIALREG(ID_AA64MMFR2_EL1_REG);
+	desc->id_aa64mmfr3 = READ_SPECIALREG(ID_AA64MMFR3_EL1_REG);
+	desc->id_aa64mmfr4 = READ_SPECIALREG(ID_AA64MMFR4_EL1_REG);
+	desc->id_aa64pfr0 = READ_SPECIALREG(ID_AA64PFR0_EL1_REG);
+	desc->id_aa64pfr1 = READ_SPECIALREG(ID_AA64PFR1_EL1_REG);
+	desc->id_aa64pfr2 = READ_SPECIALREG(ID_AA64PFR2_EL1_REG);
 
 	/*
 	 * ID_AA64ZFR0_EL1 is only valid when at least one of:
