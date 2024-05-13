@@ -550,6 +550,10 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, pcid_enabled, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
 int invpcid_works = 0;
 SYSCTL_INT(_vm_pmap, OID_AUTO, invpcid_works, CTLFLAG_RD, &invpcid_works, 0,
     "Is the invpcid instruction available ?");
+int invlpgb_works;
+SYSCTL_INT(_vm_pmap, OID_AUTO, invlpgb_works, CTLFLAG_RD, &invlpgb_works, 0,
+    "Is the invlpgb instruction available?");
+int invlpgb_maxcnt;
 int pmap_pcid_invlpg_workaround = 0;
 SYSCTL_INT(_vm_pmap, OID_AUTO, pcid_invlpg_workaround,
     CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
