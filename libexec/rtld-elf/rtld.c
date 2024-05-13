@@ -1520,18 +1520,6 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 		    obj->static_tls = true;
 	    break;
 
-#ifdef __powerpc__
-#ifdef __powerpc64__
-	case DT_PPC64_GLINK:
-		obj->glink = (Elf_Addr)(obj->relocbase + dynp->d_un.d_ptr);
-		break;
-#else
-	case DT_PPC_GOT:
-		obj->gotptr = (Elf_Addr *)(obj->relocbase + dynp->d_un.d_ptr);
-		break;
-#endif
-#endif
-
 	case DT_FLAGS_1:
 		if (dynp->d_un.d_val & DF_1_NOOPEN)
 		    obj->z_noopen = true;

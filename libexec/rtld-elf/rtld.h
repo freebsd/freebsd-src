@@ -183,13 +183,6 @@ typedef struct Struct_Obj_Entry {
     const Elf_Sym *symtab;	/* Symbol table */
     const char *strtab;		/* String table */
     unsigned long strsize;	/* Size in bytes of string table */
-#ifdef __powerpc__
-#ifdef __powerpc64__
-    Elf_Addr glink;		/* GLINK PLT call stub section */
-#else
-    Elf_Addr *gotptr;		/* GOT pointer (secure-plt only) */
-#endif
-#endif
 
     const Elf_Verneed *verneed; /* Required versions. */
     Elf_Word verneednum;	/* Number of entries in verneed table */
