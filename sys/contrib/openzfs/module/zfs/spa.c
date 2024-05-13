@@ -7087,6 +7087,10 @@ export_spa:
 	if (new_state != POOL_STATE_UNINITIALIZED) {
 		if (!hardforce)
 			spa_write_cachefile(spa, B_TRUE, B_TRUE, B_FALSE);
+
+		if (new_state == POOL_STATE_EXPORTED)
+			zio_handle_export_delay(spa, gethrtime() - export_start);
+
 		spa_remove(spa);
 	} else {
 		/*
@@ -7096,9 +7100,6 @@ export_spa:
 		 */
 		spa->spa_is_exporting = B_FALSE;
 	}
-
-	if (new_state == POOL_STATE_EXPORTED)
-		zio_handle_export_delay(spa, gethrtime() - export_start);
 
 	mutex_exit(&spa_namespace_lock);
 	return (0);
