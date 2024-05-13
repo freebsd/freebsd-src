@@ -255,6 +255,7 @@ static const char ovpnname[] = "ovpn";
 static const char ovpngroupname[] = "openvpn";
 
 static MALLOC_DEFINE(M_OVPN, ovpnname, "OpenVPN DCO Interface");
+#define	MTAG_OVPN_LOOP		0x6f76706e /* ovpn */
 
 SYSCTL_DECL(_net_link);
 static SYSCTL_NODE(_net_link, IFT_OTHER, openvpn, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
@@ -1853,6 +1854,14 @@ ovpn_transmit_to_peer(struct ifnet *ifp, struct mbuf *m,
 	/* Don't capture control packets. */
 	if (af != 0)
 		BPF_MTAP2(ifp, &af, sizeof(af), m);
+
+	if (__predict_false(if_tunnel_check_nesting(ifp, m, MTAG_OVPN_LOOP, 3))) {
+		if (_ovpn_lock_trackerp != NULL)
+			OVPN_RUNLOCK(sc);
+		OVPN_COUNTER_ADD(sc, lost_data_pkts_out, 1);
+		m_freem(m);
+		return (ELOOP);
+	}
 
 	len = m->m_pkthdr.len;
 	MPASS(len <= ifp->if_mtu);
