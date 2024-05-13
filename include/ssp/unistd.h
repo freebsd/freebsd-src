@@ -39,8 +39,12 @@
 #if __SSP_FORTIFY_LEVEL > 0
 __BEGIN_DECLS
 
-__ssp_redirect0(ssize_t, read, (int __fd, void *__buf, size_t __len), \
-    (__fd, __buf, __len));
+#ifndef _FORTIFY_SOURCE_read
+#define	_FORTIFY_SOURCE_read	read
+#endif
+
+__ssp_redirect0(ssize_t, _FORTIFY_SOURCE_read, (int __fd, void *__buf,
+    size_t __len), (__fd, __buf, __len));
 
 __ssp_redirect(ssize_t, readlink, (const char *__restrict __path, \
     char *__restrict __buf, size_t __len), (__path, __buf, __len));
