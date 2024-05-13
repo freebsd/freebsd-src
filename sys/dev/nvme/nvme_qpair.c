@@ -953,27 +953,26 @@ nvme_admin_qpair_abort_aers(struct nvme_qpair *qpair)
 	/*
 	 * nvme_complete_tracker must be called without the qpair lock held. It
 	 * takes the lock to adjust outstanding_tr list, so make sure we don't
-	 * have it yet (since this is a general purpose routine). We take the
-	 * lock to make the list traverse safe, but have to drop the lock to
-	 * complete any AER. We restart the list scan when we do this to make
-	 * this safe. There's interlock with the ISR so we know this tracker
-	 * won't be completed twice.
+	 * have it yet. We need the lock to make the list traverse safe, but
+	 * have to drop the lock to complete any AER. We restart the list scan
+	 * when we do this to make this safe. There's interlock with the ISR so
+	 * we know this tracker won't be completed twice.
 	 */
 	mtx_assert(&qpair->lock, MA_NOTOWNED);
 
 	mtx_lock(&qpair->lock);
 	tr = TAILQ_FIRST(&qpair->outstanding_tr);
 	while (tr != NULL) {
-		if (tr->req->cmd.opc == NVME_OPC_ASYNC_EVENT_REQUEST) {
-			mtx_unlock(&qpair->lock);
-			nvme_qpair_manual_complete_tracker(tr,
-			    NVME_SCT_GENERIC, NVME_SC_ABORTED_SQ_DELETION, 0,
-			    ERROR_PRINT_NONE);
-			mtx_lock(&qpair->lock);
-			tr = TAILQ_FIRST(&qpair->outstanding_tr);
-		} else {
+		if (tr->req->cmd.opc != NVME_OPC_ASYNC_EVENT_REQUEST) {
 			tr = TAILQ_NEXT(tr, tailq);
+			continue;
 		}
+		mtx_unlock(&qpair->lock);
+		nvme_qpair_manual_complete_tracker(tr,
+		    NVME_SCT_GENERIC, NVME_SC_ABORTED_SQ_DELETION, 0,
+		    ERROR_PRINT_NONE);
+		mtx_lock(&qpair->lock);
+		tr = TAILQ_FIRST(&qpair->outstanding_tr);
 	}
 	mtx_unlock(&qpair->lock);
 }
