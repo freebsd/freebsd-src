@@ -258,9 +258,8 @@ nvmf_ns_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag,
 		return (nvmf_passthrough_cmd(ns->sc, pt, false));
 	case NVME_GET_NSID:
 		gnsid = (struct nvme_get_nsid *)arg;
-		strncpy(gnsid->cdev, device_get_nameunit(ns->sc->dev),
+		strlcpy(gnsid->cdev, device_get_nameunit(ns->sc->dev),
 		    sizeof(gnsid->cdev));
-		gnsid->cdev[sizeof(gnsid->cdev) - 1] = '\0';
 		gnsid->nsid = ns->id;
 		return (0);
 	case DIOCGMEDIASIZE:
