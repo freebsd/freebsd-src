@@ -57,6 +57,7 @@ extern	u_int	cpu_max_ext_state_size;
 extern	u_int	cpu_mxcsr_mask;
 extern	u_int	cpu_procinfo;
 extern	u_int	cpu_procinfo2;
+extern	u_int	cpu_procinfo3;
 extern	char	cpu_vendor[];
 extern	char	cpu_model[];
 extern	u_int	cpu_vendor_id;
