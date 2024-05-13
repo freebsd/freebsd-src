@@ -142,6 +142,9 @@ extern struct seminfo	seminfo;
  */
 void	semexit(struct proc *p);
 
+int	kern_get_sema(struct thread *td, struct semid_kernel **res,
+	    size_t *sz);
+
 #else /* !_KERNEL */
 
 __BEGIN_DECLS
