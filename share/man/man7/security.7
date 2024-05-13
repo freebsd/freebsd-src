@@ -939,6 +939,81 @@ option that SSH allows in its
 .Pa authorized_keys
 file to make the key only usable to entities logging in from specific
 machines.
+.Sh STACK OVERFLOW PROTECTION
+.Fx
+supports stack overflow protection using the Stack Smashing Protector
+.Pq SSP
+compiler feature.
+In userland, SSP adds a per-process randomized canary at the end of every stack
+frame which is checked for corruption upon return from the function.
+In the kernel, a single randomized canary is used globally except on aarch64,
+which has a
+.Dv PERTHREAD_SSP
+.Xr config 8
+option to enable per-thread randomized canaries.
+If stack corruption is detected, then the process aborts to avoid potentially
+malicious execution as a result of the corruption.
+SSP may be enabled or disabled when building
+.Fx
+base with the
+.Xr src.conf 5
+SSP knob.
+.Pp
+When
+.Va WITH_SSP
+is enabled, which is the default, world is built with the
+.Fl fstack-protector-strong
+compiler option.
+The kernel is built with the
+.Fl fstack-protector
+option.
+.Pp
+In addition to SSP, a
+.Dq FORTIFY_SOURCE
+implementation is supported up to level 2 by defining
+.Va _FORTIFY_SOURCE
+to
+.Dv 1
+or
+.Dv 2
+before including any
+.Fx
+headers.
+.Fx
+world builds can set
+.Va FORTIFY_SOURCE
+to provide a default value for
+.Va _FORTIFY_SOURCE .
+When enabled,
+.Dq FORTIFY_SOURCE
+enables extra bounds checking in various functions that accept buffers to be
+written into.
+These functions currently have extra bounds checking support:
+.Bl -column -offset indent "snprintf" "memmove" "strncpy" "vsnprintf" "readlink"
+.It bcopy    Ta bzero    Ta fgets     Ta getcwd    Ta gets
+.It memcpy   Ta memmove  Ta memset    Ta read      Ta readlink
+.It snprintf Ta sprintf  Ta stpcpy    Ta stpncpy   Ta strcat
+.It strcpy   Ta strncat  Ta strncpy   Ta vsnprintf Ta vsprintf
+.El
+.Pp
+.Dq FORTIFY_SOURCE
+requires compiler support from
+.Xr clang 1
+or
+.Xr gcc 1 ,
+which provide the
+.Xr __builtin_object_size 3
+function that is used to determine the bounds of an object.
+This feature works best at optimization levels
+.Fl O1
+and above, as some object sizes may be less obvious without some data that the
+compiler would collect in an optimization pass.
+.Pp
+Similar to SSP, violating the bounds of an object will cause the program to
+abort in an effort to avoid malicious execution.
+This effectively provides finer-grained protection than SSP for some class of
+function and system calls, along with some protection for buffers allocated as
+part of the program data.
 .Sh KNOBS AND TWEAKS
 .Fx
 provides several knobs and tweak handles that make some introspection
