@@ -872,9 +872,8 @@ nvmf_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 		return (nvmf_passthrough_cmd(sc, pt, true));
 	case NVME_GET_NSID:
 		gnsid = (struct nvme_get_nsid *)arg;
-		strncpy(gnsid->cdev, device_get_nameunit(sc->dev),
+		strlcpy(gnsid->cdev, device_get_nameunit(sc->dev),
 		    sizeof(gnsid->cdev));
-		gnsid->cdev[sizeof(gnsid->cdev) - 1] = '\0';
 		gnsid->nsid = 0;
 		return (0);
 	case NVME_GET_MAX_XFER_SIZE:
