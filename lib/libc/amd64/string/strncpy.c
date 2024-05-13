@@ -29,6 +29,8 @@
 #include <sys/cdefs.h>
 #include <string.h>
 
+#undef strncpy	/* _FORTIFY_SOURCE */
+
 char *__stpncpy(char *restrict, const char *restrict, size_t);
 
 char *

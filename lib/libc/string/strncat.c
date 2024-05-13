@@ -34,6 +34,8 @@
 
 #include <string.h>
 
+#undef strncat	/* _FORTIFY_SOURCE */
+
 /*
  * Concatenate src on the end of dst.  At most strlen(dst)+n+1 bytes
  * are written at dst (at most n+1 bytes being appended).  Return dst.

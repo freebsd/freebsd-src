@@ -43,6 +43,8 @@
 #include "local.h"
 #include "xlocale_private.h"
 
+#undef sprintf	/* _FORTIFY_SOURCE */
+
 int
 sprintf(char * __restrict str, char const * __restrict fmt, ...)
 {
