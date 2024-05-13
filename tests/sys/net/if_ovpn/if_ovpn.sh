@@ -95,6 +95,10 @@ atf_test_case "4in4" "cleanup"
 
 	echo 'foo' | jexec b nc -u -w 2 192.0.2.1 1194
 	atf_check -s exit:0 -o ignore jexec b ping -c 3 198.51.100.1
+
+	# Test routing loop protection
+	jexec b route add 192.0.2.1 198.51.100.1
+	atf_check -s exit:2 -o ignore jexec b ping -t 1 -c 1 198.51.100.1
 }
 
 4in4_cleanup()
@@ -404,6 +408,10 @@ atf_test_case "6in6" "cleanup"
 
 	atf_check -s exit:0 -o ignore jexec b ping6 -c 3 2001:db8:1::1
 	atf_check -s exit:0 -o ignore jexec b ping6 -c 3 -z 16 2001:db8:1::1
+
+	# Test routing loop protection
+	jexec b route add -6 2001:db8::1 2001:db8:1::1
+	atf_check -s exit:2 -o ignore jexec b ping6 -t 1 -c 3 2001:db8:1::1
 }
 
 6in6_cleanup()
