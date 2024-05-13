@@ -80,9 +80,15 @@ If the
 .Fl a
 option is given, then tabs are inserted whenever they would compress the
 resultant file by replacing two or more characters.
-.It Fl t \&Sm Ar tab1 , tab2 , ... , tabn \&Sm
+.It Fl t Xo
+.Sm off
+.Ar tab1 , tab2 , ... , tabn
+.Sm on
+.Xc
 Set tab stops at column positions
+.Sm off
 .Ar tab1 , tab2 , ... , tabn .
+.Sm on
 If only a single number is given, tab stops are set that number of
 column positions apart instead of the default number of 8.
 .El
