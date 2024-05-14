@@ -1,3 +1,10 @@
+2024-05-04  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20240504
+
+	* dirdeps.mk: allow BUILD_DIRDEPS_OVERRIDES to pass overrides to
+	sub-make building DIRDEPS_CACHE.
+
 2024-04-24  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* meta.autodep.mk: do not override start_utc

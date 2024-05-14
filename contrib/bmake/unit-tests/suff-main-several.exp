@@ -88,6 +88,7 @@ ParseDependency(.MAKEFLAGS: -d0 -dg1)
 .MAKE.GID        = <details omitted>
 .MAKE.JOBS.C     = <details omitted>
 .MAKE.LEVEL      = <details omitted>
+.MAKE.LEVEL.ENV  = MAKELEVEL
 .MAKE.MAKEFILES  = <details omitted>
 .MAKE.MAKEFILE_PREFERENCE = <details omitted>
 .MAKE.OS         = <details omitted>
@@ -106,7 +107,6 @@ MACHINE_ARCH     = <details omitted>
 MAKE             = <details omitted>
 MFLAGS           =   -r -k -d mps -d 0 -d g1
 #*** Command-line Variables:
-.MAKE.LEVEL.ENV  = MAKELEVEL
 
 #*** Directory Cache:
 # Stats: 0 hits 2 misses 0 near misses 0 losers (0%)
