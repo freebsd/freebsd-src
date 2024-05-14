@@ -45,6 +45,7 @@
 #include <disk.h>
 #include <dev_net.h>
 #include <net.h>
+#include <inttypes.h>
 
 #include <efi.h>
 #include <efilib.h>
@@ -923,7 +924,7 @@ acpi_detect(void)
 		if ((rsdp = efi_get_table(&acpi)) == NULL)
 			return;
 
-	sprintf(buf, "0x%016llx", (unsigned long long)rsdp);
+	sprintf(buf, "0x%016"PRIxPTR, (uintptr_t)rsdp);
 	setenv("acpi.rsdp", buf, 1);
 	revision = rsdp->Revision;
 	if (revision == 0)
