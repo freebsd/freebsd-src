@@ -966,7 +966,7 @@ main(int argc, CHAR16 *argv[])
 	archsw.arch_getdev = efi_getdev;
 	archsw.arch_copyin = efi_copyin;
 	archsw.arch_copyout = efi_copyout;
-#ifdef __amd64__
+#if defined(__amd64__) || defined(__i386__)
 	archsw.arch_hypervisor = x86_hypervisor;
 #endif
 	archsw.arch_readin = efi_readin;
