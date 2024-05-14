@@ -182,13 +182,13 @@ out:
 #endif
 
 #if defined(__aarch64__) || defined(__amd64__) || defined(__arm__) || \
-    defined(__riscv)
+    defined(__riscv) || defined(__i386__)
 #define	EFI_STAGING_2M_ALIGN	1
 #else
 #define	EFI_STAGING_2M_ALIGN	0
 #endif
 
-#if defined(__amd64__)
+#if defined(__amd64__) || defined(__i386__)
 #define	EFI_STAGING_SLOP	M(8)
 #else
 #define	EFI_STAGING_SLOP	0
@@ -209,7 +209,7 @@ efi_copy_free(void)
 	stage_offset = 0;
 }
 
-#ifdef __amd64__
+#if defined(__amd64__) || defined(__i386__)
 int copy_staging = COPY_STAGING_AUTO;
 
 static int
@@ -281,7 +281,7 @@ command_staging_slop(int argc, char *argv[])
 COMMAND_SET(staging_slop, "staging_slop", "set staging slop",
     command_staging_slop);
 
-#if defined(__amd64__)
+#if defined(__amd64__) || defined(__i386__)
 /*
  * The staging area must reside in the first 1GB or 4GB physical
  * memory: see elf64_exec() in
@@ -320,7 +320,8 @@ efi_copy_init(void)
 	 */
 	if (running_on_hyperv())
 		efi_verify_staging_size(&nr_pages);
-
+#endif
+#if defined(__amd64__) || defined(__i386__)
 	staging = get_staging_max();
 #endif
 	status = BS->AllocatePages(EFI_ALLOC_METHOD, EfiLoaderCode,
@@ -380,9 +381,10 @@ efi_check_space(vm_offset_t end)
 	end += staging_slop;
 
 	nr_pages = EFI_SIZE_TO_PAGES(end - staging_end);
-#if defined(__amd64__)
+#if defined(__amd64__) || defined(__i386__)
 	/*
-	 * amd64 needs all memory to be allocated under the 1G or 4G boundary.
+	 * The amd64 kernel needs all memory to be allocated under the 1G or
+	 * 4G boundary.
 	 */
 	if (end > get_staging_max())
 		goto before_staging;
@@ -427,7 +429,7 @@ expand:
 #if EFI_STAGING_2M_ALIGN
 	nr_pages += M(2) / EFI_PAGE_SIZE;
 #endif
-#if defined(__amd64__)
+#if defined(__amd64__) || defined(__i386__)
 	new_base = get_staging_max();
 #endif
 	status = BS->AllocatePages(EFI_ALLOC_METHOD, EfiLoaderCode,
