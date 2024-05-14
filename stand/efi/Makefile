@@ -4,6 +4,7 @@ NO_OBJ=t
 .include <bsd.init.mk>
 
 SUBDIR.yes+=	libefi
+SUBDIR.${MK_LOADER_IA32}+=	libefi32
 SUBDIR.${MK_FDT}+=	fdt
 SUBDIR.yes+=	.WAIT
 
