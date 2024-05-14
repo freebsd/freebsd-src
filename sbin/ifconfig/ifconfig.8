@@ -27,7 +27,7 @@
 .\"
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\"
-.Dd February 1, 2023
+.Dd May 12, 2024
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -131,7 +131,7 @@ and their associated
 .Ar format
 strings are:
 .Pp
-.Bl -tag -width ether
+.Bl -tag -width default
 .It Cm addr
 Adjust the display of inet and inet6 addresses:
 .Pp
@@ -193,6 +193,16 @@ Integer format, for example:
 .Ql prefixlen 64
 .El
 .El
+.Pp
+In addition, the following shortcuts are accepted:
+.Bl -tag -width default
+.It Cm default
+Resets all formats to their default values.
+.It Cm cidr
+Shortcut notation for
+.Cm inet:cidr,inet6:cidr .
+.El
+.Pp
 .It Fl G Ar groupname
 Exclude members of the specified
 .Ar groupname
