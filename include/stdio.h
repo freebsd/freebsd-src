@@ -530,7 +530,7 @@ extern int __isthreaded;
 __END_DECLS
 __NULLABILITY_PRAGMA_POP
 
-#if defined(_FORTIFY_SOURCE) && _FORTIFY_SOURCE > 0
+#if !defined(_STANDALONE) && defined(_FORTIFY_SOURCE) && _FORTIFY_SOURCE > 0
 #include <ssp/stdio.h>
 #endif
 #endif /* !_STDIO_H_ */

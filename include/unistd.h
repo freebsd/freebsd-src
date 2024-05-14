@@ -37,7 +37,7 @@
 #include <sys/_null.h>
 #include <sys/_types.h>
 
-#if defined(_FORTIFY_SOURCE) && _FORTIFY_SOURCE > 0
+#if !defined(_STANDALONE) && defined(_FORTIFY_SOURCE) && _FORTIFY_SOURCE > 0
 #include <ssp/unistd.h>
 #endif
 

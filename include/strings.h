@@ -68,7 +68,7 @@ int	 strncasecmp(const char *, const char *, size_t) __pure;
 #endif
 __END_DECLS
 
-#if defined(_FORTIFY_SOURCE) && _FORTIFY_SOURCE > 0
+#if !defined(_STANDALONE) && defined(_FORTIFY_SOURCE) && _FORTIFY_SOURCE > 0
 #include <ssp/strings.h>
 #endif
 #endif /* _STRINGS_H_ */

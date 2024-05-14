@@ -39,7 +39,7 @@
 
 #if __SSP_FORTIFY_LEVEL > 0
 
-#define _ssp_bcopy(srcvar, src, dstvar, dst, lenvar,  len) ({	\
+#define _ssp_bcopy(srcvar, src, dstvar, dst, lenvar,  len) __extension__ ({ \
     const void *srcvar = (src);			\
     void *dstvar = (dst);			\
     size_t lenvar = (len);			\
@@ -52,7 +52,7 @@
 #define	bcopy(src, dst, len)			\
     _ssp_bcopy(__ssp_var(srcv), src, __ssp_var(dstv), dst, __ssp_var(lenv), len)
 
-#define _ssp_bzero(dstvar, dst, lenvar, len) ({		\
+#define _ssp_bzero(dstvar, dst, lenvar, len) __extension__ ({		\
     void *dstvar = (dst);			\
     size_t lenvar = (len);			\
     ((__ssp_bos0(dstvar) != (size_t)-1) ?	\
