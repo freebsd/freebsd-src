@@ -18,7 +18,11 @@ CFLAGS+=	-fPIC
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
+.if ${DO32:U0} == 1
+EFI_TARGET=	efi-app-ia32
+.else
 EFI_TARGET=	efi-app-x86_64
+.endif
 .else
 EFI_TARGET=	binary
 .endif
