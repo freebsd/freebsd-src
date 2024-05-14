@@ -32,7 +32,7 @@
 #include <readin.h>
 #include <efi.h>
 
-#ifdef __amd64__
+#if defined(__amd64__) || defined(__i386__)
 enum {
 	COPY_STAGING_ENABLE,
 	COPY_STAGING_DISABLE,
