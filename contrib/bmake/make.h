@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.332 2024/04/27 20:41:32 rillig Exp $	*/
+/*	$NetBSD: make.h,v 1.333 2024/05/07 18:26:22 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -1013,7 +1013,8 @@ typedef enum VarSetFlags {
 	 * except for another call to Var_Set with the same flag. See the
 	 * special targets '.NOREADONLY' and '.READONLY'.
 	 */
-	VAR_SET_READONLY	= 1 << 1
+	VAR_SET_READONLY	= 1 << 1,
+	VAR_SET_INTERNAL	= 1 << 2
 } VarSetFlags;
 
 typedef enum VarExportMode {

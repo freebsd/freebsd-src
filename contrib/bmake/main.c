@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.614 2024/04/30 16:13:33 sjg Exp $	*/
+/*	$NetBSD: main.c,v 1.615 2024/05/07 18:26:22 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -111,7 +111,7 @@
 #include "trace.h"
 
 /*	"@(#)main.c	8.3 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: main.c,v 1.614 2024/04/30 16:13:33 sjg Exp $");
+MAKE_RCSID("$NetBSD: main.c,v 1.615 2024/05/07 18:26:22 sjg Exp $");
 #if defined(MAKE_NATIVE)
 __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993 "
 	    "The Regents of the University of California.  "
@@ -1411,7 +1411,7 @@ main_Init(int argc, char **argv)
 	Global_Set(".MAKEOVERRIDES", "");
 	Global_Set("MFLAGS", "");
 	Global_Set(".ALLTARGETS", "");
-	Var_Set(SCOPE_CMDLINE, ".MAKE.LEVEL.ENV", MAKE_LEVEL_ENV);
+	Global_Set_ReadOnly(".MAKE.LEVEL.ENV", MAKE_LEVEL_ENV);
 
 	/* Set some other useful variables. */
 	{
