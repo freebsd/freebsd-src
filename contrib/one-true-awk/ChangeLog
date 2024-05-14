@@ -47,6 +47,30 @@
 	* test/T.lilly: Remove gawk warnings from output, improves
 	portability.
 
+2019-10-17         Arnold D. Robbins     <arnold@skeeve.com>
+
+	Pull in systime() and strftime() from the NetBSD awk.
+
+	* awk.1: Document the functions.
+	* run.c (bltin): Implement the functions.
+	* awk.h: Add defines for systime and strftime.
+	* lex.c: Add support for systime and strftime.
+
+2019-10-07         Arnold D. Robbins     <arnold@skeeve.com>
+
+	Integrate features from different *BSD versions of awk.
+	Gensub support from NetBSD. Bitwise functions from OpenBSD.
+
+	* awk.h: Add defines for and, or, xor, compl, lshift and rshift.
+	* awkgram.y: Add support for gensub.
+	* maketab.c: Ditto.
+	* lex.c: Add support for gensub and bitwise functions.
+	* parse.c (node5, op5): New functions.
+	* proto.h (node5, op5): New declarations.
+	* run.c (bltin): Implement the bitwise functions.
+	(gensub): New function.
+	* awk.1: Document additional functions.
+
 2019-10-07         Arnold D. Robbins     <arnold@skeeve.com>
 
 	* b.c (fnematch): Change type of pbuf from unsigned char to char.
