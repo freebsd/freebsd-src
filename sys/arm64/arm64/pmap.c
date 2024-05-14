@@ -5662,6 +5662,19 @@ retry:
 			}
 		}
 		l3p = (pt_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(*ml3p));
+
+have_l3p:
+		/*
+		 * If bti is not the same for the whole L3C range, return
+		 * failure and let vm_fault() cope.  Check after L3 allocation,
+		 * since it could sleep.
+		 */
+		if (!pmap_bti_same(pmap, va, va + L3C_SIZE)) {
+			(*ml3p)->ref_count -= L3C_ENTRIES - 1;
+			pmap_abort_ptp(pmap, va, *ml3p);
+			*ml3p = NULL;
+			return (KERN_PROTECTION_FAILURE);
+		}
 	} else {
 		*ml3p = NULL;
 
@@ -5684,21 +5697,7 @@ retry:
 			    pmap_load(pde)));
 		}
 	}
-have_l3p:
 	l3p = &l3p[pmap_l3_index(va)];
-
-	/*
-	 * If bti is not the same for the whole L3C range, return failure
-	 * and let vm_fault() cope.  Check after L3 allocation, since
-	 * it could sleep.
-	 */
-	if (!pmap_bti_same(pmap, va, va + L3C_SIZE)) {
-		KASSERT(*ml3p != NULL, ("pmap_enter_l3c: missing L3 PTP"));
-		(*ml3p)->ref_count -= L3C_ENTRIES - 1;
-		pmap_abort_ptp(pmap, va, *ml3p);
-		*ml3p = NULL;
-		return (KERN_PROTECTION_FAILURE);
-	}
 
 	/*
 	 * If there are existing mappings, either abort or remove them.
