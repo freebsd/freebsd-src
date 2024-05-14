@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 12, 2024
+.Dd April 13, 2024
 .Dt STYLE.MDOC 5
 .Os
 .Sh NAME
@@ -134,6 +134,9 @@ Print the version.
 \&.El
 .Ed
 .Pp
+Do not put macros inside the
+.Fl width
+arguement, this has unpredictable results.
 In case the longest item is too long and hurts readability,
 the recommendation is to set
 the
@@ -248,6 +251,11 @@ for
 .Xr sysctl 8
 variables like
 .Va kdb.enter.panic .
+.It
+Use
+.Sy \&Dv
+for file descriptors like
+.Xr stdout 4 .
 .It
 Use the angle brackets
 .Sy \&Aq
