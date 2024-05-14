@@ -57,6 +57,7 @@ all             : made-target error-target aborted-target
 .MAKE.GID        = <details omitted>
 .MAKE.JOBS.C     = <details omitted>
 .MAKE.LEVEL      = <details omitted>
+.MAKE.LEVEL.ENV  = MAKELEVEL
 .MAKE.MAKEFILES  = <details omitted>
 .MAKE.MAKEFILE_PREFERENCE = <details omitted>
 .MAKE.OS         = <details omitted>
@@ -75,7 +76,6 @@ MACHINE_ARCH     = <details omitted>
 MAKE             = <details omitted>
 MFLAGS           =   -r -k -d g2
 #*** Command-line Variables:
-.MAKE.LEVEL.ENV  = MAKELEVEL
 .SHELL           = <details omitted>
 
 #*** Directory Cache:

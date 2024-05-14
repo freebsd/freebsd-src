@@ -1,4 +1,4 @@
-# $NetBSD: varname-dot-makeoverrides.mk,v 1.5 2023/02/25 06:54:08 rillig Exp $
+# $NetBSD: varname-dot-makeoverrides.mk,v 1.6 2024/05/07 18:26:22 sjg Exp $
 #
 # Tests for the special .MAKEOVERRIDES variable, which lists the names of the
 # variables that are passed on to child processes via the MAKEFLAGS
@@ -13,7 +13,7 @@ all:
 
 stage_1:
 	@echo '$@: overrides=<'${.MAKEOVERRIDES:Q}'>'
-	${MAKE} -f ${MAKEFILE} stage_2
+	${MAKE} -f ${MAKEFILE} stage_2 .VAR=too
 
 stage_2:
 	@echo '$@: overrides=<'${.MAKEOVERRIDES:Q}'>'
