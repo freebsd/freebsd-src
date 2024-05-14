@@ -792,9 +792,7 @@ int
 sound_oss_card_info(oss_card_info *si)
 {
 	struct snddev_info *d;
-	int i, ncards;
-
-	ncards = 0;
+	int i;
 
 	for (i = 0; pcm_devclass != NULL &&
 	    i < devclass_get_maxunit(pcm_devclass); i++) {
@@ -802,7 +800,7 @@ sound_oss_card_info(oss_card_info *si)
 		if (!PCM_REGISTERED(d))
 			continue;
 
-		if (ncards++ != si->card)
+		if (i != si->card)
 			continue;
 
 		PCM_UNLOCKASSERT(d);
