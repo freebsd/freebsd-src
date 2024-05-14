@@ -9,8 +9,8 @@
 #	The latest version can be obtained from
 #		http://www.linux-usb.org/usb.ids
 #
-# Version: 2024.01.30
-# Date:    2024-01-30 20:34:02
+# Version: 2024.03.18
+# Date:    2024-03-18 20:34:02
 #
 
 # Vendors, devices and interfaces. Please keep sorted.
@@ -209,6 +209,7 @@
 	0012  DeskJet 1125C Printer Port
 	0024  KU-0316 Keyboard
 	002a  LaserJet P1102
+	0036  CCID Smartcard Keyboard KUS0133
 	0053  DeskJet 2620 All-in-One Printer
 	0101  ScanJet 4100c
 	0102  PhotoSmart S20
@@ -2401,6 +2402,7 @@
 	02ea  Xbox One Controller
 	02fd  Xbox One S Controller [Bluetooth]
 	02fe  Xbox Wireless Adapter for Windows
+	0306  Surface Pro 7 SD Card Reader
 	0400  Windows Powered Pocket PC 2002
 	0401  Windows Powered Pocket PC 2002
 	0402  Windows Powered Pocket PC 2002
@@ -5049,6 +5051,7 @@
 	072d  Revio KD410Z
 04ca  Lite-On Technology Corp.
 	0020  USB Keyboard
+	003a  Multimedia Keyboard
 	004b  Keyboard
 	004f  SK-9020 keyboard
 	008a  Acer Wired Mouse Model SM-9023
@@ -8243,6 +8246,7 @@
 	1093  Rugged
 	1094  Rugged THB
 	1095  Rugged
+	1105  Mobile Drive (RLSD: 2022)
 	a601  HardDrive
 	a602  CD R/W
 05a0  Vetronix Corp.
@@ -9283,6 +9287,8 @@
 # typo?
 	4004  Minolta Dimage Scan Elite II AF-2920 (2888)
 0639  Chrontel, Inc.
+	7213  CH7213
+	7231  CH7213
 063a  Techwin Corp.
 063b  Taugagreining HF
 063c  Yamaichi Electronics Co., Ltd (Sakura)
@@ -11443,6 +11449,7 @@
 0826  Data Transit
 0827  BroadLogic, Inc.
 0828  Sato Corp.
+	a003  WS408 Label Printer
 0829  DirecTV Broadband, Inc. (Telocity)
 082d  Handspring
 	0100  Visor
@@ -12081,6 +12088,12 @@
 	04b2  NC interface
 	04b3  keyboard front panel Cockpit
 	04b4  SCR_CCID
+	04b5  Camera
+	04b6  Cockpit Touchkeypad
+	04b7  Cockpit Touchkeypad Bootloader
+	04b8  MediSET USB4-W
+	04b9  MediSET USB4-R
+	04ba  MediSET USB4-G
 	2701  ShenZhen SANZHAI Technology Co.,Ltd Spy Pen VGA
 0909  Audio-Technica Corp.
 	001b  ATR2100-USB
@@ -12188,6 +12201,7 @@
 	4cda  Fenix 6 Sapphire
 	4cdb  Fenix 6
 0920  Echelon Co.
+	5550  U60 FT Network Interface
 	7500  Network Interface
 0921  GoHubs, Inc.
 	1001  GoCOM232 Serial
@@ -12406,6 +12420,7 @@
 	010f  nanoKONTROL studio controller
 	0117  nanoKONTROL2 MIDI Controller
 	012f  SQ-1
+	0203  KRONOS
 	0f03  K-Series K61P MIDI studio controller
 0945  Pasco Scientific
 0948  Kronauer music in digital
@@ -12477,7 +12492,8 @@
 	7140  T124 [Tegra K1/Logan 32-bit]
 	7210  SHIELD Controller
 	7321  Switch [Tegra Erista] recovery mode
-	7423  T234 [Orin NX] recovery mode
+	7323  T234 [Orin NX 16GB] recovery mode
+	7423  T234 [Orin NX 8GB] recovery mode
 	7721  T210 [TX1 Tegra Erista] recovery mode
 	7820  T20 [Tegra 2] recovery mode
 	7c18  T186 [TX2 Tegra Parker] recovery mode
@@ -12678,6 +12694,8 @@
 09d8  ELATEC GmbH
 	0320  TWN3 Multi125
 	0406  TWN4 MIFARE NFC
+	0410  TWN4 HID
+	0420  TWN4 CDC
 09d9  KRF Tech, Ltd
 09da  A4Tech Co., Ltd.
 	0006  Optical Mouse WOP-35 / Trust 450L Optical Mouse
@@ -12686,6 +12704,7 @@
 	0018  Trust Human Interface Device
 	001a  Wireless Mouse & RXM-15 Receiver
 	002a  Wireless Optical Mouse NB-30
+	0103  Oscar X-710BK Gaming Mouse
 	022b  Wireless Mouse (Battery Free)
 	024f  RF Receiver and G6-20D Wireless Optical Mouse
 	0260  KV-300H Isolation Keyboard
@@ -12693,12 +12712,16 @@
 	09da  Bloody V8 Mouse
 	1068  Bloody A90 Mouse
 	112c  Bloody V5 Mouse
+	2268  Keyboard (FK11)
+	2690  PK-635G
 	3a60  Bloody V8M Core 2 Mouse
 	8090  X-718BK Oscar Optical Gaming Mouse
 	9033  X-718BK Optical Mouse
 	9066  F3 V-Track Gaming Mouse
-	9090  XL-730K / XL-750BK / XL-755BK Mice
+	9090  XL-730K / XL-747H / XL-750BK / XL-755BK Mice
 	f613  Bloody V7M Mouse
+	f6cc  B314 Light Strike Gaming Keyboard
+	fa44  B930 Light Strike RGB Mechanical Gaming Keyboard
 09db  Measurement Computing Corp.
 	0075  MiniLab 1008
 	0076  PMD-1024
@@ -12715,11 +12738,13 @@
 09e6  Silutia, Inc.
 09e7  Real 3D, Inc.
 09e8  AKAI  Professional M.I. Corp.
+	0029  APC40 mkII
 	0045  MPK Mini Mk II MIDI Controller
 	0062  MPD16 MIDI Pad Controller Unit
 	006d  EWI electronic wind instrument
 	0071  MPK25 MIDI Keyboard
 	0076  LPK25 MIDI Keyboard
+	007c  MPK Mini MIDI Controller
 09e9  Chen-Source, Inc.
 09eb  IM Networks, Inc.
 	4331  iRhythm Tuner Remote
@@ -12783,6 +12808,9 @@
 	1010  Bluetooth Device
 	1011  Bluetooth Device
 	1012  Bluetooth Device
+	1243  CSRA64210 [TaoTronics Headset BH-22 in charging mode]
+	4007  Mpow HC5 Headset in charging mode - HID / Mass Storage
+	4010  Mpow HC5 Headset in charging mode - USB Hub
 	ffff  USB Bluetooth Device in DFU State
 0a13  Telebyte, Inc.
 0a14  Spacelabs Medical, Inc.
@@ -12826,6 +12854,7 @@
 0a35  Radikal Technologies
 	002a  SAC - Software Assigned Controller
 	008a  SAC Hub
+0a38  IRIS sa
 0a39  Gilat Satellite Networks, Ltd
 0a3a  PentaMedia Co., Ltd
 	0163  KN-W510U 1.0 Wireless LAN Adapter
@@ -12950,6 +12979,7 @@
 	217f  BCM2045B (BDC-2.1)
 	2198  Bluetooth 3.0 Device
 	219b  Bluetooth 2.1 Device
+	219c  BCM2070 Bluetooth
 	21b1  HP Bluetooth Module
 	21b4  BCM2070 Bluetooth 2.1 + EDR
 	21b9  BCM2070 Bluetooth 2.1 + EDR
@@ -12973,6 +13003,7 @@
 	5802  BCM5880 Secure Applications Processor with fingerprint touch sensor
 	5803  BCM5880 Secure Applications Processor with secure keyboard
 	5804  BCM5880 Secure Applications Processor with fingerprint swipe sensor
+	5832  BCM5880 Secure Applications Processor Smartcard reader
 	6300  Pirelli Remote NDIS Device
 	6410  BCM20703A1 Bluetooth 4.1 + LE
 	bd11  BCM4320 802.11bg Wireless Adapter
@@ -21442,6 +21473,8 @@
 20a0  Clay Logic
 	0006  flirc
 	4107  GPF Crypto Stick V1.2
+	4108  Nitrokey Pro
+	4109  Nitrokey Storage
 	4123  IKALOGIC SCANALOGIC 2
 	414a  MDE SPI Interface
 	415a  OpenPilot
@@ -21450,7 +21483,16 @@
 	41e5  BlinkStick
 	4211  Nitrokey Start
 	4223  ATSAMD21 [castAR]
+	4230  Nitrokey HSM
+	4287  Nitrokey FIDO U2F
 	428d  Electrosense wideband converter
+	42b1  Nitrokey FIDO2
+	42b2  Nitrokey 3A Mini/3A NFC/3C NFC
+	42b4  Nitrokey Pro Bootloader
+	42da  MuteMe
+	42dd  Nitrokey 3A NFC Bootloader/3C NFC Bootloader
+	42e8  Nitrokey 3A Mini Bootloader
+	42ec  RP2040 [PicoWifi]
 20b1  XMOS Ltd
 	10ad  XUSB Loader
 	f7d1  XTAG2 - JTAG Adapter
@@ -22171,7 +22213,7 @@
 2581  Plug-up
 	1807  Generic HID Smartcard
 	1808  WinUSB Smartcard
-	f1d0  FIDO U2F Security Key
+	f1d0  Nitrokey U2F
 258d  Sequans Communications
 259a  TriQuint Semiconductor
 25a7  Areson Technology Corp
