@@ -53,7 +53,7 @@ Node	*arglist = 0;	/* list of args for current function */
 %token	<i>	FINAL DOT ALL CCL NCCL CHAR OR STAR QUEST PLUS EMPTYRE ZERO
 %token	<i>	AND BOR APPEND EQ GE GT LE LT NE IN
 %token	<i>	ARG BLTIN BREAK CLOSE CONTINUE DELETE DO EXIT FOR FUNC
-%token	<i>	SUB GSUB IF INDEX LSUBSTR MATCHFCN NEXT NEXTFILE
+%token	<i>	GENSUB SUB GSUB IF INDEX LSUBSTR MATCHFCN NEXT NEXTFILE
 %token	<i>	ADD MINUS MULT DIVIDE MOD
 %token	<i>	ASSIGN ASGNOP ADDEQ SUBEQ MULTEQ DIVEQ MODEQ POWEQ
 %token	<i>	PRINT PRINTF SPRINTF
@@ -377,6 +377,24 @@ term:
 	| INCR var			{ $$ = op1(PREINCR, $2); }
 	| var DECR			{ $$ = op1(POSTDECR, $1); }
 	| var INCR			{ $$ = op1(POSTINCR, $1); }
+	| GENSUB '(' reg_expr comma pattern comma pattern ')'
+		{ $$ = op5(GENSUB, NIL, (Node*)makedfa($3, 1), $5, $7, rectonode()); }
+	| GENSUB '(' pattern comma pattern comma pattern ')'
+		{ if (constnode($3)) {
+			$$ = op5(GENSUB, NIL, (Node *)makedfa(strnode($3), 1), $5, $7, rectonode());
+			free($3);
+		  } else
+			$$ = op5(GENSUB, (Node *)1, $3, $5, $7, rectonode());
+		}
+	| GENSUB '(' reg_expr comma pattern comma pattern comma pattern ')'
+		{ $$ = op5(GENSUB, NIL, (Node*)makedfa($3, 1), $5, $7, $9); }
+	| GENSUB '(' pattern comma pattern comma pattern comma pattern ')'
+		{ if (constnode($3)) {
+			$$ = op5(GENSUB, NIL, (Node *)makedfa(strnode($3),1), $5,$7,$9);
+			free($3);
+		  } else
+			$$ = op5(GENSUB, (Node *)1, $3, $5, $7, $9);
+		}
 	| GETLINE var LT term		{ $$ = op3(GETLINE, $2, itonp($3), $4); }
 	| GETLINE LT term		{ $$ = op3(GETLINE, NIL, itonp($2), $3); }
 	| GETLINE var			{ $$ = op3(GETLINE, $2, NIL, NIL); }

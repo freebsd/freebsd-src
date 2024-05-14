@@ -104,6 +104,7 @@ struct xx
 	{ ARG, "arg", "arg" },
 	{ VARNF, "getnf", "NF" },
 	{ GETLINE, "awkgetline", "getline" },
+	{ GENSUB, "gensub", "gensub" },
 	{ 0, "", "" },
 };
 
