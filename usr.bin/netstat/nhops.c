@@ -64,7 +64,7 @@
 #include "common.h"
 
 /* column widths; each followed by one space */
-#define WID_IF_DEFAULT		12	/* width of netif column */
+#define WID_IF_DEFAULT		(Wflag ? IFNAMSIZ : 12)	/* width of netif column */
 #ifndef INET6
 #define	WID_DST_DEFAULT(af) 	18	/* width of destination column */
 #define	WID_GW_DEFAULT(af)	18	/* width of gateway column */
