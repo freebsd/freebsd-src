@@ -53,31 +53,31 @@ __END_DECLS
 
 #if __SSP_FORTIFY_LEVEL > 0
 
-#define sprintf(str, ...) ({	\
+#define sprintf(str, ...) __extension__ ({	\
     char *_ssp_str = (str);	\
     __builtin___sprintf_chk(_ssp_str, 0, __ssp_bos(_ssp_str),		\
         __VA_ARGS__); \
 })
 
-#define vsprintf(str, fmt, ap) ({	\
+#define vsprintf(str, fmt, ap) __extension__ ({	\
     char *_ssp_str = (str);		\
     __builtin___vsprintf_chk(_ssp_str, 0, __ssp_bos(_ssp_str), fmt,	\
         ap);				\
 })
 
-#define snprintf(str, len, ...) ({	\
+#define snprintf(str, len, ...) __extension__ ({	\
     char *_ssp_str = (str);		\
     __builtin___snprintf_chk(_ssp_str, len, 0, __ssp_bos(_ssp_str),	\
         __VA_ARGS__);			\
 })
 
-#define vsnprintf(str, len, fmt, ap) ({	\
+#define vsnprintf(str, len, fmt, ap) __extension__ ({	\
     char *_ssp_str = (str);		\
     __builtin___vsnprintf_chk(_ssp_str, len, 0, __ssp_bos(_ssp_str),	\
         fmt, ap);			\
 })
 
-#define fgets(str, len, fp) ({		\
+#define fgets(str, len, fp) __extension__ ({		\
     char *_ssp_str = (str);		\
     __fgets_chk(_ssp_str, len, __ssp_bos(_ssp_str), fp);	\
 })

@@ -51,7 +51,7 @@ __END_DECLS
 #if __SSP_FORTIFY_LEVEL > 0
 
 #define __ssp_bos_check3_typed_var(fun, dsttype, dsrvar, dst, srctype, srcvar, \
-    src, lenvar, len) ({				\
+    src, lenvar, len) __extension__ ({				\
     srctype srcvar = (src);				\
     dsttype dstvar = (dst);				\
     size_t lenvar = (len);				\
@@ -69,7 +69,7 @@ __END_DECLS
     __ssp_bos_check3_typed_var(fun, void *, __ssp_var(dstv), dst,	\
         const void *, __ssp_var(srcv), src, __ssp_var(lenv), len)
 
-#define __ssp_bos_check2_var(fun, dstvar, dst, srcvar, src) ({		\
+#define __ssp_bos_check2_var(fun, dstvar, dst, srcvar, src) __extension__ ({ 	\
     const void *srcvar = (src);				\
     void *dstvar = (dst);				\
     ((__ssp_bos0(dstvar) != (size_t)-1) ?		\

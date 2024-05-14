@@ -168,7 +168,7 @@ errno_t memset_s(void *, rsize_t, int, rsize_t);
 #endif /* __EXT1_VISIBLE */
 __END_DECLS
 
-#if defined(_FORTIFY_SOURCE) && _FORTIFY_SOURCE > 0
+#if !defined(_STANDALONE) && defined(_FORTIFY_SOURCE) && _FORTIFY_SOURCE > 0
 #include <ssp/string.h>
 #endif
 #endif /* _STRING_H_ */
