@@ -305,6 +305,25 @@ and
 .B gsub
 return the number of replacements.
 .TP
+\fBgensub(\fIpat\fB, \fIrepl\fB, \fIhow\fR [\fB, \fItarget\fR]\fB)\fR
+replaces instances of
+.I pat
+in
+.I target
+with
+.IR repl .
+If
+.I how
+is \fB"g"\fR or \fB"G"\fR, do so globally. Otherwise,
+.I how
+is a number indicating which occurrence to replace.  If no
+.IR target ,
+use
+.BR $0 .
+Return the resulting string;
+.I target
+is not modified.
+.TP
 .BI sprintf( fmt , " expr" , " ...\fB)
 the string resulting from formatting
 .I expr ...
@@ -312,6 +331,28 @@ according to the
 .IR printf (3)
 format
 .IR fmt .
+.TP
+.B systime()
+returns the current date and time as a standard
+``seconds since the epoch'' value.
+.TP
+.BI strftime( fmt ", " timestamp\^ )
+formats
+.I timestamp
+(a value in seconds since the epoch)
+according to
+.IR fmt ,
+which is a format string as supported by
+.IR strftime (3).
+Both
+.I timestamp
+and
+.I fmt
+may be omitted; if no
+.IR timestamp ,
+the current time of day is used, and if no
+.IR fmt ,
+a default format of \fB"%a %b %e %H:%M:%S %Z %Y"\fR is used.
 .TP
 .BI system( cmd )
 executes
@@ -371,6 +412,17 @@ In all cases,
 .B getline
 returns 1 for a successful input,
 0 for end of file, and \-1 for an error.
+.PP
+The functions
+.BR compl ,
+.BR and ,
+.BR or ,
+.BR xor ,
+.BR lshift ,
+and
+.B rshift
+peform the corresponding bitwise operations on their
+operands, which are first truncated to integer.
 .PP
 Patterns are arbitrary Boolean combinations
 (with
