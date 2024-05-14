@@ -613,4 +613,4 @@ boottrace_init(void)
 	st.table = malloc(st.size * sizeof(struct bt_event), M_BOOTTRACE,
 	    M_WAITOK | M_ZERO);
 }
-SYSINIT(boottrace, SI_SUB_CPU, SI_ORDER_ANY, boottrace_init, 0);
+SYSINIT(boottrace, SI_SUB_CPU, SI_ORDER_ANY, boottrace_init, NULL);
