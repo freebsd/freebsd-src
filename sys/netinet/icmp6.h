@@ -63,6 +63,8 @@
 #ifndef _NETINET_ICMP6_H_
 #define _NETINET_ICMP6_H_
 
+#include <stdint.h>
+
 #define ICMPV6_PLD_MAXLEN	1232	/* IPV6_MMTU - sizeof(struct ip6_hdr)
 					   - sizeof(struct icmp6_hdr) */
 
@@ -375,10 +377,10 @@ struct nd_opt_dnssl {		/* DNSSL option (RFC 6106) */
 } __packed;
 
 struct nd_opt_pref64 {		/* PREF64 option (RFC 8781) */
-	u_int8_t	nd_opt_pref64_type;
-	u_int8_t	nd_opt_pref64_len;
+	uint8_t		nd_opt_pref64_type;
+	uint8_t		nd_opt_pref64_len;
 	/* bits 0-12 are the SL, bits 13-15 are the PLC */
-	u_int16_t	nd_opt_pref64_sl_plc;
+	uint16_t	nd_opt_pref64_sl_plc;
 	char		nd_opt_prefix[12];
 } __packed;
 
