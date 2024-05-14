@@ -652,14 +652,3 @@ runq_choose_fuzz(struct runq *rq, int fuzz)
 	CTR0(KTR_RUNQ, "runq_choose_fuzz: idlethread");
 	return (NULL);
 }
-
-struct thread *
-runq_choose_from(struct runq *const rq, int from_idx)
-{
-	struct thread *td;
-
-	td = runq_first_thread_range(rq, from_idx, RQ_NQS - 1);
-	if (td != NULL || from_idx == 0)
-		return (td);
-	return (runq_first_thread_range(rq, 0, from_idx - 1));
-}
