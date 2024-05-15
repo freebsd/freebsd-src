@@ -845,17 +845,14 @@ kern.tty_info_kstacks to 0 (off), 1 (on), or 2 (verbose), e.g.:
 
 		-- Michael Gmelin <grembo@FreeBSD.org>
 %
-
-Under X Windows, you can determine which fonts provide a particular Unicode
-character using fc-list from the fontconfig package.  For example, if your
-friend complains that the emoji you sent won't display, run fc-list with the hex
-value of the character to determine which font your friend should install.
+To determine which fonts provide a particular Unicode character, fc-list from
+the fontconfig package may be helpful.  For example, if your friend complains
+that the emoji you sent won't display, run fc-list with the hex value of the
+character to determine which font your friend should install.
 
 $ fc-list ':charset=0x1F4A1'
 /usr/local/share/fonts/noto/NotoColorEmoji.ttf: Noto Color Emoji:style=Regular
 
 $ pkg which /usr/local/share/fonts/noto/NotoColorEmoji.ttf
-/usr/local/share/fonts/noto/NotoColorEmoji.ttf was installed by package noto-emoji-2.042_1
-
-		-- Joe Mingrone <jrm@FreeBSD.org>
+/usr/local/share/fonts/noto/NotoColorEmoji.ttf was installed by package noto-emoji-2.042
 %
