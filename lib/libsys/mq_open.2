@@ -35,7 +35,7 @@
 .\" the referee document.  The original Standard can be obtained online at
 .\"	http://www.opengroup.org/unix/online.html.
 .\"
-.Dd September 26, 2023
+.Dd May 15, 2024
 .Dt MQ_OPEN 2
 .Os
 .Sh NAME
@@ -322,7 +322,7 @@ Support for POSIX message queues first appeared in
 .Sh BUGS
 This implementation places strict requirements on the value of
 .Fa name :
-it must begin with a slash
+it may begin with a slash
 .Pq Ql /
 and contain no other slash characters.
 .Pp
