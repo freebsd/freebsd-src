@@ -661,7 +661,7 @@
 107	AUE_NULL	STD	{
 		int linux_timer_create(
 		    clockid_t clock_id,
-		    struct sigevent *evp,
+		    struct l_sigevent *evp,
 		    l_timer_t *timerid
 		);
 	}
@@ -1107,7 +1107,7 @@
 184	AUE_NULL	STD	{
 		int linux_mq_notify(
 		    l_mqd_t mqd,
-		    const struct l_timespec *abs_timeout
+		    const struct l_sigevent *sevp
 		);
 	}
 185	AUE_NULL	STD	{
