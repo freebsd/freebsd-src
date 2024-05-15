@@ -382,9 +382,9 @@ linux_kq_assert_lock(void *arg, int what)
 	spinlock_t *s = arg;
 
 	if (what == LA_LOCKED)
-		mtx_assert(&s->m, MA_OWNED);
+		mtx_assert(s, MA_OWNED);
 	else
-		mtx_assert(&s->m, MA_NOTOWNED);
+		mtx_assert(s, MA_NOTOWNED);
 #endif
 }
 
@@ -1094,7 +1094,7 @@ linux_file_kqfilter_read_event(struct knote *kn, long hint)
 {
 	struct linux_file *filp = kn->kn_hook;
 
-	mtx_assert(&filp->f_kqlock.m, MA_OWNED);
+	mtx_assert(&filp->f_kqlock, MA_OWNED);
 
 	return ((filp->f_kqflags & LINUX_KQ_FLAG_NEED_READ) ? 1 : 0);
 }
@@ -1104,7 +1104,7 @@ linux_file_kqfilter_write_event(struct knote *kn, long hint)
 {
 	struct linux_file *filp = kn->kn_hook;
 
-	mtx_assert(&filp->f_kqlock.m, MA_OWNED);
+	mtx_assert(&filp->f_kqlock, MA_OWNED);
 
 	return ((filp->f_kqflags & LINUX_KQ_FLAG_NEED_WRITE) ? 1 : 0);
 }
