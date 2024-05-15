@@ -69,7 +69,7 @@ idr_preload_dequeue_locked(struct linux_idr_cache *lic)
 	struct idr_layer *retval;
 
 	/* check if wrong thread is trying to dequeue */
-	if (mtx_owned(&lic->lock.m) == 0)
+	if (mtx_owned(&lic->lock) == 0)
 		return (NULL);
 
 	retval = lic->head;
