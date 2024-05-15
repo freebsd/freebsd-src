@@ -761,8 +761,6 @@ ldns_resolver_new_frm_fp(ldns_resolver **res, FILE *fp)
 	return ldns_resolver_new_frm_fp_l(res, fp, NULL);
 }
 
-ssize_t ldns_fget_token_l_resolv_conf(FILE *f, char *token, const char *delim,
-		size_t limit, int *line_nr);
 ldns_status
 ldns_resolver_new_frm_fp_l(ldns_resolver **res, FILE *fp, int *line_nr)
 {
