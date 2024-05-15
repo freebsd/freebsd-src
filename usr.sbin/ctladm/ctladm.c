@@ -3920,7 +3920,6 @@ cctl_nvlist_end_element(void *user_data, const char *name)
 		str = NULL;
 	} else if (strcmp(name, "trtype") == 0) {
 		cur_conn->trtype = atoi(str);
-		str = NULL;
 	} else if (strcmp(name, "connection") == 0) {
 		nvlist->cur_conn = NULL;
 	} else if (strcmp(name, "ctlnvmflist") == 0) {
