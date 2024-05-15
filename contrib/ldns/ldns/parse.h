@@ -95,6 +95,8 @@ ssize_t ldns_fget_token_l(FILE *f, char *token, const char *delim, size_t limit,
  */
 ldns_status ldns_fget_token_l_st(FILE *f, char **token, size_t *limit, bool fixed, const char *delim, int *line_nr);
 
+ssize_t ldns_fget_token_l_resolv_conf(FILE *f, char *token, const char *delim, size_t limit, int *line_nr);
+
 /**
  * returns a token/char from the buffer b.
  * This function deals with ( and ) in the buffer,
