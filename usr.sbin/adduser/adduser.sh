@@ -53,7 +53,7 @@ info() {
 #	by pw(8).
 #
 get_nextuid () {
-	local _uid=$1 _nextuid
+	local _uid=$1 _nextuid=
 
 	if [ -z "$_uid" ]; then
 		_nextuid="$(${PWCMD} usernext | cut -f1 -d:)"
@@ -101,7 +101,7 @@ show_usage() {
 #	basename of the shell is output.
 #
 valid_shells() {
-	local _prefix
+	local _prefix=
 
 	${GREPCMD} '^[^#]' ${ETCSHELLS} |
 	while read _path _junk ; do
@@ -119,7 +119,7 @@ valid_shells() {
 #	full path to the shell from the /etc/shells file.
 #
 fullpath_from_shell() {
-	local _shell=$1 _fullpath
+	local _shell=$1 _fullpath=
 
 	if [ -z "$_shell" ]; then
 		return
@@ -154,7 +154,7 @@ fullpath_from_shell() {
 #	will emit an informational message saying so.
 #
 shell_exists() {
-	local _sh="$1"
+	local _sh=$1
 
 	if [ -z "$(fullpath_from_shell "$_sh")" ] ; then
 		err "Invalid shell ($_sh) for user $username."
@@ -193,8 +193,9 @@ save_config() {
 #	message or lock the account, do so.
 #
 add_user() {
-	local _uid _name _comment _gecos _home _group _grouplist _shell _class
-	local _dotdir _expire _pwexpire _passwd _upasswd _passwdmethod _pwcmd
+	local _uid= _name= _comment= _gecos= _home= _group= _grouplist=
+	local _shell= _class= _dotdir= _expire= _pwexpire= _passwd= _upasswd=
+	local _passwdmethod= _pwcmd=
 
 	# Is this a configuration run? If so, don't modify user database.
 	#
@@ -299,7 +300,7 @@ add_user() {
 		fi
 	fi
 
-	local _line _owner _perms _file _dir
+	local _line= _owner= _perms= _file= _dir=
 	if [ -n "$msgflag" ]; then
 		if [ -r "$msgfile" ]; then
 			# We're evaluating the contents of an external file.
@@ -331,7 +332,7 @@ add_user() {
 #	a file it will output an error message and return to the caller.
 #
 get_user() {
-	local _input
+	local _input=
 
 	# No need to take down user names if this is a configuration saving run.
 	[ -n "$configflag" ] && return
@@ -366,7 +367,7 @@ get_user() {
 #	and batch (from file) mode.
 #
 get_gecos() {
-	local _input
+	local _input=
 
 	# No need to take down additional user information for a configuration run.
 	[ -n "$configflag" ] && return
@@ -386,7 +387,7 @@ get_gecos() {
 #	If an invalid shell is entered it will simply use the default shell.
 #
 get_shell() {
-	local _input _fullpath
+	local _input= _fullpath=
 	ushell="$defaultshell"
 
 	# Make sure the current value of the shell is a valid one
@@ -424,7 +425,7 @@ get_shell() {
 #	and batch input.
 #
 get_homedir() {
-	_input=
+	local _input=
 	if [ -z "$fflag" ]; then
 		echo -n "Home directory [${homeprefix}/${username}]: "
 		read _input
@@ -450,7 +451,7 @@ get_homedir() {
 #	Reads the account's home directory permissions.
 #
 get_homeperm() {
-	local _input _prompt
+	local _input= _prompt=
 	uhomeperm=$defaultHomePerm
 
 	if [ -n "$uhomeperm" ]; then
@@ -473,7 +474,7 @@ get_homeperm() {
 #	so, enable ZFS home dataset creation.
 #
 get_zfs_home() {
-	local _prefix
+	local _prefix=
 
 	# check if zfs kernel module is loaded before attempting to run zfs to
 	# prevent loading the kernel module on systems that don't use ZFS
@@ -494,7 +495,7 @@ get_zfs_home() {
 #	allocates one if it is not specified.
 #
 get_uid() {
-	local _input _prompt
+	local _input= _prompt=
 	uuid=${uidstart}
 
 	if [ -n "$uuid" ]; then
@@ -519,7 +520,7 @@ get_uid() {
 #	Reads login class of account. Can be used in interactive or batch mode.
 #
 get_class() {
-	local _input _class
+	local _input= _class=
 	uclass="$defaultclass"
 	_class=${uclass:-"default"}
 
@@ -541,7 +542,7 @@ get_class() {
 #	will then provide a login group with the same name as the username.
 #
 get_logingroup() {
-	local _input
+	local _input=
 	ulogingroup="$defaultLgroup"
 
 	if [ -z "$fflag" ]; then
@@ -560,7 +561,7 @@ get_logingroup() {
 #	and batch modes.
 #
 get_groups() {
-	local _input _group
+	local _input= _group=
 	ugroups="$defaultgroups"
 	_group=${ulogingroup:-"${username}"}
 
@@ -626,7 +627,7 @@ get_password() {
 #	Ask user if they want to enable encryption on their ZFS home dataset.
 #
 get_zfs_encryption() {
-	local _input _prompt
+	local _input= _prompt=
 	_prompt="Enable ZFS encryption? (yes/no) [${Zencrypt}]: "
 	while : ; do
 		echo -n "$_prompt"
@@ -702,7 +703,7 @@ set_zfs_perms() {
 #	adds it to the user database.
 #
 input_from_file() {
-	local _field
+	local _field=
 
 	while read -r fileline ; do
 		case "$fileline" in
@@ -733,7 +734,7 @@ input_from_file() {
 #	the user database.
 #
 input_interactive() {
-	local _disable _pass _passconfirm _input
+	local _disable= _pass= _passconfirm= _input=
 	local _random="no"
 	local _emptypass="no"
 	local _usepass="yes"
