@@ -81,7 +81,7 @@ structure for a new device, which is returned into the
 .Fa cdev
 argument.
 It also notifies
-.Xr devfs 5
+.Xr devfs 4
 of the presence of the new device, that causes corresponding nodes
 to be created.
 Besides this, a
@@ -123,7 +123,7 @@ would print it.
 The name determines its path under
 .Pa /dev
 or other
-.Xr devfs 5
+.Xr devfs 4
 mount point and may contain slash
 .Ql /
 characters to denote subdirectories.
@@ -457,7 +457,7 @@ flag was specified and the provided device name already exists.
 .El
 .Sh SEE ALSO
 .Xr devctl 4 ,
-.Xr devfs 5 ,
+.Xr devfs 4 ,
 .Xr dev_clone 9
 .Sh HISTORY
 The

@@ -285,7 +285,7 @@ Use the most recently attached device.
 .It Va hw.snd.default_unit
 Default sound card for systems with multiple sound cards.
 When using
-.Xr devfs 5 ,
+.Xr devfs 4 ,
 the default device for
 .Pa /dev/dsp .
 Equivalent to a symlink from
@@ -597,6 +597,7 @@ or outgoing (record) data.
 A device node is not created properly.
 .El
 .Sh SEE ALSO
+.Xr devfs 4 ,
 .Xr snd_ai2s 4 ,
 .Xr snd_als4000 4 ,
 .Xr snd_atiixp 4 ,
@@ -623,7 +624,6 @@ A device node is not created properly.
 .Xr snd_via8233 4 ,
 .Xr snd_via82c686 4 ,
 .Xr snd_vibes 4 ,
-.Xr devfs 5 ,
 .Xr device.hints 5 ,
 .Xr loader.conf 5 ,
 .Xr dmesg 8 ,

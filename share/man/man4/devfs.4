@@ -65,13 +65,13 @@ tool can be used to recover deleted device entries under
 .Nm .
 .Pp
 The
-.Xr fdescfs 5
+.Xr fdescfs 4
 filesystem is an alternate means for populating
 .Pa /dev/fd .
 The character devices that both
 .Nm
 and
-.Xr fdescfs 5
+.Xr fdescfs 4
 present in
 .Pa /dev/fd
 correspond to the open file descriptors of the process
@@ -82,7 +82,7 @@ only creates files for the standard file descriptors
 .Pa 1
 and
 .Pa 2 .
-.Xr fdescfs 5
+.Xr fdescfs 4
 creates files for all open descriptors.
 .Pp
 The options are as follows:
@@ -123,7 +123,7 @@ volume located on
 .Pp
 .Dl "mount -t devfs devfs /mychroot/dev"
 .Sh SEE ALSO
-.Xr fdescfs 5 ,
+.Xr fdescfs 4 ,
 .Xr devfs 8 ,
 .Xr mount 8 ,
 .Xr make_dev 9

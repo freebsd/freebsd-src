@@ -333,7 +333,7 @@ mdconfig -rs 2g -u md3
 .Ed
 .Pp
 Create a 1 gigabyte swap backed disk, initialize an
-.Xr ffs 7
+.Xr ffs 4
 file system on it, and mount it on
 .Pa /tmp :
 .Bd -literal -offset indent
@@ -366,8 +366,8 @@ mount /dev/md1.nop /mnt
 .Xr fpathconf 2 ,
 .Xr fspacectl 2 ,
 .Xr open 2 ,
+.Xr ffs 4 ,
 .Xr md 4 ,
-.Xr ffs 7 ,
 .Xr gpart 8 ,
 .Xr mdmfs 8 ,
 .Xr malloc 9 ,

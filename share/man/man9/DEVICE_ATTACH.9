@@ -46,7 +46,7 @@ The
 .Fn DEVICE_ATTACH
 method should initialize the hardware and allocate other
 system resources (such as
-.Xr devfs 5
+.Xr devfs 4
 entries).
 .Pp
 Devices which implement buses should use this method to probe for
@@ -58,7 +58,7 @@ the child devices will be automatically probed and attached.
 .Sh RETURN VALUES
 Zero is returned on success, otherwise an appropriate error is returned.
 .Sh SEE ALSO
-.Xr devfs 5 ,
+.Xr devfs 4 ,
 .Xr device 9 ,
 .Xr DEVICE_DETACH 9 ,
 .Xr DEVICE_IDENTIFY 9 ,

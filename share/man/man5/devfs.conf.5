@@ -54,7 +54,7 @@ The action to take for the device.
 The action names are only significant to the first unique character.
 .It Ar devname
 The name of the device created by
-.Xr devfs 5 .
+.Xr devfs 4 .
 .It Ar arg
 The argument of the
 .Ar action .
@@ -68,7 +68,7 @@ This action creates a symbolic link named
 that points to
 .Ar devname ,
 the name of the device created by
-.Xr devfs 5 .
+.Xr devfs 4 .
 .It Ic own
 This action changes the ownership of
 .Ar devname .
@@ -118,8 +118,8 @@ perm	cd0	0660
 .Ed
 .Sh SEE ALSO
 .Xr chmod 1 ,
+.Xr devfs 4 ,
 .Xr devd.conf 5 ,
-.Xr devfs 5 ,
 .Xr devfs.rules 5 ,
 .Xr chown 8
 .Sh AUTHORS
