@@ -954,7 +954,7 @@ An
 format file containing filesystems to mount before creating a jail.
 .It Va mount.devfs
 Mount a
-.Xr devfs 5
+.Xr devfs 4
 filesystem on the chrooted
 .Pa /dev
 directory, and apply the ruleset in the
@@ -963,13 +963,13 @@ parameter (or a default of ruleset 4: devfsrules_jail)
 to restrict the devices visible inside the jail.
 .It Va mount.fdescfs
 Mount a
-.Xr fdescfs 5
+.Xr fdescfs 4
 filesystem on the chrooted
 .Pa /dev/fd
 directory.
 .It Va mount.procfs
 Mount a
-.Xr procfs 5
+.Xr procfs 4
 filesystem on the chrooted
 .Pa /proc
 directory.
@@ -1416,13 +1416,13 @@ environment of the first jail.
 .Xr ps 1 ,
 .Xr quota 1 ,
 .Xr jail_set 2 ,
+.Xr devfs 4 ,
+.Xr fdescfs 4 ,
+.Xr linprocfs 4 ,
+.Xr linsysfs 4 ,
+.Xr procfs 4 ,
 .Xr vmm 4 ,
-.Xr devfs 5 ,
-.Xr fdescfs 5 ,
 .Xr jail.conf 5 ,
-.Xr linprocfs 5 ,
-.Xr linsysfs 5 ,
-.Xr procfs 5 ,
 .Xr rc.conf 5 ,
 .Xr sysctl.conf 5 ,
 .Xr bsdconfig 8 ,

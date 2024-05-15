@@ -156,30 +156,30 @@ Defaults to 0.
 Linux run-time environment
 .It Pa /compat/linux/dev
 device file system, see
-.Xr devfs 5
+.Xr devfs 4
 .It Pa /compat/linux/dev/fd
 file descriptor file system mounted with the
 .Cm linrdlnk
 option, see
-.Xr fdescfs 5
+.Xr fdescfs 4
 .It Pa /compat/linux/dev/shm
 in-memory file system, see
-.Xr tmpfs 5
+.Xr tmpfs 4
 .It Pa /compat/linux/proc
 Linux process file system, see
-.Xr linprocfs 5
+.Xr linprocfs 4
 .It Pa /compat/linux/sys
 Linux kernel objects file system, see
-.Xr linsysfs 5
+.Xr linsysfs 4
 .El
 .Sh SEE ALSO
 .Xr brandelf 1 ,
+.Xr fdescfs 4 ,
+.Xr linprocfs 4 ,
+.Xr linsysfs 4 ,
 .Xr pty 4 ,
-.Xr elf 5 ,
-.Xr fdescfs 5 ,
-.Xr linprocfs 5 ,
-.Xr linsysfs 5 ,
-.Xr tmpfs 5
+.Xr tmpfs 4 ,
+.Xr elf 5
 .Sh HISTORY
 Linux ABI support first appeared for i386 in
 .Fx 2.1 .

@@ -126,7 +126,7 @@ Starting with
 .Fx 11
 .Nm
 sending files off the
-.Xr ffs 7
+.Xr ffs 4
 filesystem does not block on I/O
 (see
 .Sx IMPLEMENTATION NOTES
@@ -209,7 +209,7 @@ The
 implementation of
 .Fn sendfile
 does not block on disk I/O when it sends a file off the
-.Xr ffs 7
+.Xr ffs 4
 filesystem.
 The syscall returns success before the actual I/O completes, and data
 is put into the socket later unattended.

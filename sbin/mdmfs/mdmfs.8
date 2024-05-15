@@ -32,7 +32,7 @@
 .Nd configure and mount an in-memory file system using the
 .Xr md 4
 driver or the
-.Xr tmpfs 5
+.Xr tmpfs 4
 filesystem
 .Sh SYNOPSIS
 .Nm
@@ -69,7 +69,7 @@ Based on
 the
 .Nm
 utility either creates a
-.Xr tmpfs 5
+.Xr tmpfs 4
 filesystem, or it configures an
 .Xr md 4
 disk using
@@ -91,7 +91,7 @@ When
 is `auto',
 .Nm
 uses
-.Xr tmpfs 5
+.Xr tmpfs 4
 if it is present in the kernel or can be loaded as a module,
 otherwise it falls back to using
 .Xr md 4
@@ -102,14 +102,14 @@ When
 is `tmpfs',
 .Nm
 mounts a
-.Xr tmpfs 5
+.Xr tmpfs 4
 filesystem, translating the
 .Fl s
 size option, if present, into a `-o size=' mount option.
 Any
 .Fl o
 options on the command line are passed through to the
-.Xr tmpfs 5
+.Xr tmpfs 4
 mount.
 Options specific to
 .Xr mdconfig 8
@@ -120,7 +120,7 @@ are ignored.
 When
 .Ar md-device
 does not result in
-.Xr tmpfs 5
+.Xr tmpfs 4
 being used, then an
 .Xr md 4
 device is configured instead.
@@ -435,8 +435,8 @@ was given on the command line.
 .El
 .Sh SEE ALSO
 .Xr md 4 ,
+.Xr tmpfs 4 ,
 .Xr fstab 5 ,
-.Xr tmpfs 5 ,
 .Xr mdconfig 8 ,
 .Xr mount 8 ,
 .Xr newfs 8

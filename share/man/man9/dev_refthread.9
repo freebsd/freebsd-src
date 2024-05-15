@@ -47,7 +47,7 @@ The
 and
 .Fn dev_relthread
 routines provide a safe way to access
-.Xr devfs 5
+.Xr devfs 4
 devices that may be concurrently destroyed by
 .Fn destroy_dev
 (e.g., removable media).
@@ -143,7 +143,7 @@ and do not initialize the value pointed to by the
 parameter in any way.
 .Ef
 .Sh SEE ALSO
-.Xr devfs 5 ,
+.Xr devfs 4 ,
 .Xr destroy_dev 9
 .Sh CAVEATS
 Do not invoke

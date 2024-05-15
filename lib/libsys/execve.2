@@ -325,9 +325,9 @@ argument is not a valid file descriptor open for executing.
 .Xr execl 3 ,
 .Xr exit 3 ,
 .Xr sysctl 3 ,
+.Xr fdescfs 4 ,
 .Xr a.out 5 ,
 .Xr elf 5 ,
-.Xr fdescfs 5 ,
 .Xr environ 7 ,
 .Xr mount 8
 .Sh STANDARDS
@@ -374,6 +374,6 @@ is the file descriptor passed in the
 argument to
 .Fn fexecve .
 For this construction to work correctly, the
-.Xr fdescfs 5
+.Xr fdescfs 4
 filesystem shall be mounted on
 .Pa /dev/fd .

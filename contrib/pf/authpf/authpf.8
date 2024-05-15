@@ -44,7 +44,7 @@ It is meant to be used with users who can connect via
 only, and requires the
 .Xr pf 4
 subsystem and an
-.Xr fdescfs 5
+.Xr fdescfs 4
 file system mounted at
 .Pa /dev/fd
 to be enabled.
@@ -561,8 +561,8 @@ pass out on $internal_if from (self) to $workstation_ip port 3389 \e
 .It Pa /etc/authpf/authpf.problem
 .El
 .Sh SEE ALSO
+.Xr fdescfs 4 ,
 .Xr pf 4 ,
-.Xr fdescfs 5 ,
 .Xr pf.conf 5 ,
 .Xr securelevel 7 ,
 .Xr ftp-proxy 8
