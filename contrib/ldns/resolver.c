@@ -775,7 +775,7 @@ ldns_resolver_new_frm_fp_l(ldns_resolver **res, FILE *fp, int *line_nr)
 #endif
 	ssize_t gtr, bgtr;
 	ldns_buffer *b;
-        int lnr = 0, oldline;
+        int lnr = 0;
 	FILE* myfp = fp;
         if(!line_nr) line_nr = &lnr;
 
@@ -809,36 +809,18 @@ ldns_resolver_new_frm_fp_l(ldns_resolver **res, FILE *fp, int *line_nr)
 
 	gtr = 1;
 	word[0] = 0;
-        oldline = *line_nr;
         expect = LDNS_RESOLV_KEYWORD;
 	while (gtr > 0) {
-		/* check comments */
-		if (word[0] == '#') {
-                        word[0]='x';
-                        if(oldline == *line_nr) {
-                                /* skip until end of line */
-                                int c;
-                                do {
-                                        c = fgetc(myfp);
-                                } while(c != EOF && c != '\n');
-                                if(c=='\n') (*line_nr)++;
-                        }
-			/* and read next to prepare for further parsing */
-                        oldline = *line_nr;
-			continue;
-		}
-                oldline = *line_nr;
 		switch(expect) {
 			case LDNS_RESOLV_KEYWORD:
 				/* keyword */
-				gtr = ldns_fget_token_l(myfp, word, LDNS_PARSE_NORMAL, 0, line_nr);
+				gtr = ldns_fget_token_l_resolv_conf(myfp, word, LDNS_PARSE_NORMAL, 0, line_nr);
 				if (gtr != 0) {
-                                        if(word[0] == '#') continue;
 					for(i = 0; i < LDNS_RESOLV_KEYWORDS; i++) {
 						if (strcasecmp(keyword[i], word) == 0) {
 							/* chosen the keyword and
 							 * expect values carefully
-	        					 */
+							 */
 							expect = i;
 							break;
 						}
@@ -856,16 +838,12 @@ ldns_resolver_new_frm_fp_l(ldns_resolver **res, FILE *fp, int *line_nr)
 				break;
 			case LDNS_RESOLV_DEFDOMAIN:
 				/* default domain dname */
-				gtr = ldns_fget_token_l(myfp, word, LDNS_PARSE_NORMAL, 0, line_nr);
+				gtr = ldns_fget_token_l_resolv_conf(myfp, word, LDNS_PARSE_NORMAL, 0, line_nr);
 				if (gtr == 0) {
 					if(!fp) fclose(myfp);
 					ldns_resolver_deep_free(r);
 					return LDNS_STATUS_SYNTAX_MISSING_VALUE_ERR;
 				}
-                                if(word[0] == '#') {
-                                        expect = LDNS_RESOLV_KEYWORD;
-                                        continue;
-                                }
 				tmp = ldns_rdf_new_frm_str(LDNS_RDF_TYPE_DNAME, word);
 				if (!tmp) {
 					if(!fp) fclose(myfp);
@@ -879,16 +857,12 @@ ldns_resolver_new_frm_fp_l(ldns_resolver **res, FILE *fp, int *line_nr)
 				break;
 			case LDNS_RESOLV_NAMESERVER:
 				/* NS aaaa or a record */
-				gtr = ldns_fget_token_l(myfp, word, LDNS_PARSE_NORMAL, 0, line_nr);
+				gtr = ldns_fget_token_l_resolv_conf(myfp, word, LDNS_PARSE_NORMAL, 0, line_nr);
 				if (gtr == 0) {
 					if(!fp) fclose(myfp);
 					ldns_resolver_deep_free(r);
 					return LDNS_STATUS_SYNTAX_MISSING_VALUE_ERR;
 				}
-                                if(word[0] == '#') {
-                                        expect = LDNS_RESOLV_KEYWORD;
-                                        continue;
-                                }
                                 if(strchr(word, '%')) {
                                         /* snip off interface labels,
                                          * fe80::222:19ff:fe31:4222%eth0 */
@@ -911,7 +885,7 @@ ldns_resolver_new_frm_fp_l(ldns_resolver **res, FILE *fp, int *line_nr)
 				break;
 			case LDNS_RESOLV_SEARCH:
 				/* search list domain dname */
-				gtr = ldns_fget_token_l(myfp, word, LDNS_PARSE_SKIP_SPACE, 0, line_nr);
+				gtr = ldns_fget_token_l_resolv_conf(myfp, word, LDNS_PARSE_SKIP_SPACE, 0, line_nr);
 				b = LDNS_MALLOC(ldns_buffer);
 				if(!b) {
 					ldns_resolver_deep_free(r);
@@ -929,10 +903,6 @@ ldns_resolver_new_frm_fp_l(ldns_resolver **res, FILE *fp, int *line_nr)
 				bgtr = ldns_bget_token(b, word, LDNS_PARSE_NORMAL, (size_t) gtr + 1);
 				while (bgtr > 0) {
 					gtr -= bgtr;
-                                        if(word[0] == '#') {
-                                                expect = LDNS_RESOLV_KEYWORD;
-                                                break;
-                                        }
 					tmp = ldns_rdf_new_frm_str(LDNS_RDF_TYPE_DNAME, word);
 					if (!tmp) {
 						ldns_resolver_deep_free(r);
@@ -954,28 +924,23 @@ ldns_resolver_new_frm_fp_l(ldns_resolver **res, FILE *fp, int *line_nr)
 				}
 				break;
 			case LDNS_RESOLV_SORTLIST:
-				gtr = ldns_fget_token_l(myfp, word, LDNS_PARSE_SKIP_SPACE, 0, line_nr);
+				gtr = ldns_fget_token_l_resolv_conf(myfp, word, LDNS_PARSE_SKIP_SPACE, 0, line_nr);
 				/* sortlist not implemented atm */
 				expect = LDNS_RESOLV_KEYWORD;
 				break;
 			case LDNS_RESOLV_OPTIONS:
-				gtr = ldns_fget_token_l(myfp, word, LDNS_PARSE_SKIP_SPACE, 0, line_nr);
+				gtr = ldns_fget_token_l_resolv_conf(myfp, word, LDNS_PARSE_SKIP_SPACE, 0, line_nr);
 				/* options not implemented atm */
 				expect = LDNS_RESOLV_KEYWORD;
 				break;
 			case LDNS_RESOLV_ANCHOR:
 				/* a file containing a DNSSEC trust anchor */
-				gtr = ldns_fget_token_l(myfp, word, LDNS_PARSE_NORMAL, 0, line_nr);
+				gtr = ldns_fget_token_l_resolv_conf(myfp, word, LDNS_PARSE_NORMAL, 0, line_nr);
 				if (gtr == 0) {
 					ldns_resolver_deep_free(r);
 					if(!fp) fclose(myfp);
 					return LDNS_STATUS_SYNTAX_MISSING_VALUE_ERR;
 				}
-                                if(word[0] == '#') {
-                                        expect = LDNS_RESOLV_KEYWORD;
-                                        continue;
-                                }
-
 #ifdef HAVE_SSL
 				tmp_rr = ldns_read_anchor_file(word);
 				(void) ldns_resolver_push_dnssec_anchor(r, tmp_rr);
