@@ -505,7 +505,7 @@ _ipfw_nptv6=	ipfw_nptv6
 _ipfilter=	ipfilter
 .endif
 
-.if ${MK_INET_SUPPORT} != "no" && ${KERN_OPTS:MFIB_ALGO}
+.if ${MK_INET_SUPPORT} != "no" && ${KERN_OPTS:MFIB_ALGO} && ${KERN_OPTS:MINET}
 _dpdk_lpm4=	dpdk_lpm4
 _fib_dxr=	fib_dxr
 .endif
