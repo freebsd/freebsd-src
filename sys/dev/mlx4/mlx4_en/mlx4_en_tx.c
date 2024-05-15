@@ -91,8 +91,8 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 	ring->size_mask = size - 1;
 	ring->stride = stride;
 	ring->inline_thold = MAX(MIN_PKT_LEN, MIN(priv->prof->inline_thold, MAX_INLINE));
-	mtx_init(&ring->tx_lock.m, "mlx4 tx", NULL, MTX_DEF);
-	mtx_init(&ring->comp_lock.m, "mlx4 comp", NULL, MTX_DEF);
+	mtx_init(&ring->tx_lock, "mlx4 tx", NULL, MTX_DEF);
+	mtx_init(&ring->comp_lock, "mlx4 comp", NULL, MTX_DEF);
 
 	tmp = size * sizeof(struct mlx4_en_tx_info);
 	ring->tx_info = kzalloc_node(tmp, GFP_KERNEL, node);
@@ -205,8 +205,8 @@ void mlx4_en_destroy_tx_ring(struct mlx4_en_priv *priv,
 	for (x = 0; x != ring->size; x++)
 		bus_dmamap_destroy(ring->dma_tag, ring->tx_info[x].dma_map);
 	vfree(ring->tx_info);
-	mtx_destroy(&ring->tx_lock.m);
-	mtx_destroy(&ring->comp_lock.m);
+	mtx_destroy(&ring->tx_lock);
+	mtx_destroy(&ring->comp_lock);
 	bus_dma_tag_destroy(ring->dma_tag);
 	kfree(ring);
 	*pring = NULL;
