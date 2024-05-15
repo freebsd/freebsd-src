@@ -167,65 +167,104 @@
     ATF_CHECK_MSG((expected) == (actual), "%s != %s: " fmt, \
                   #expected, #actual, ##__VA_ARGS__)
 
-#define ATF_REQUIRE_STREQ(expected, actual) \
-    ATF_REQUIRE_MSG(strcmp(expected, actual) == 0, "%s != %s (%s != %s)", \
-                    #expected, #actual, expected, actual)
+#define ATF_REQUIRE_STREQ(expected, actual) do {			\
+	const char *_atf_expected = (expected);				\
+	const char *_atf_actual = (actual);				\
+	ATF_REQUIRE_MSG(strcmp(_atf_expected, _atf_actual) == 0,	\
+	    "%s != %s (%s != %s)", #expected, #actual,			\
+	    _atf_expected, _atf_actual);				\
+    } while (0)
 
-#define ATF_CHECK_STREQ(expected, actual) \
-    ATF_CHECK_MSG(strcmp(expected, actual) == 0, "%s != %s (%s != %s)", \
-                  #expected, #actual, expected, actual)
+#define ATF_CHECK_STREQ(expected, actual) do {				\
+	const char *_atf_expected = (expected);				\
+	const char *_atf_actual = (actual);				\
+	ATF_CHECK_MSG(strcmp(_atf_expected, _atf_actual) == 0,		\
+	    "%s != %s (%s != %s)", #expected, #actual,			\
+	    _atf_expected, _atf_actual);				\
+    } while (0)
 
-#define ATF_REQUIRE_STREQ_MSG(expected, actual, fmt, ...) \
-    ATF_REQUIRE_MSG(strcmp(expected, actual) == 0, \
-                    "%s != %s (%s != %s): " fmt, \
-                    #expected, #actual, expected, actual, ##__VA_ARGS__)
+#define ATF_REQUIRE_STREQ_MSG(expected, actual, fmt, ...) do {		\
+	const char *_atf_expected = (expected);				\
+	const char *_atf_actual = (actual);				\
+	ATF_REQUIRE_MSG(strcmp(_atf_expected, _atf_actual) == 0,	\
+	    "%s != %s (%s != %s): " fmt, #expected, #actual,		\
+	    _atf_expected, _atf_actual, ##__VA_ARGS__);			\
+    } while (0)
 
-#define ATF_CHECK_STREQ_MSG(expected, actual, fmt, ...) \
-    ATF_CHECK_MSG(strcmp(expected, actual) == 0, \
-                  "%s != %s (%s != %s): " fmt, \
-                  #expected, #actual, expected, actual, ##__VA_ARGS__)
+#define ATF_CHECK_STREQ_MSG(expected, actual, fmt, ...) do { 		\
+	const char *_atf_expected = (expected);				\
+	const char *_atf_actual = (actual);				\
+	ATF_CHECK_MSG(strcmp(_atf_expected, _atf_actual) == 0,		\
+	    "%s != %s (%s != %s): " fmt, #expected, #actual,		\
+	    _atf_expected, _atf_actual, ##__VA_ARGS__);			\
+    } while (0)
 
-#define ATF_REQUIRE_INTEQ(expected, actual) \
-    ATF_REQUIRE_MSG((expected) == (actual), "%s != %s (%jd != %jd)", \
-                    #expected, #actual, (intmax_t)(expected),        \
-                    (intmax_t)(actual))
+#define ATF_REQUIRE_INTEQ(expected, actual) do {			\
+	intmax_t _atf_expected = (expected);				\
+	intmax_t _atf_actual = (actual);				\
+	ATF_REQUIRE_MSG(_atf_expected == _atf_actual,			\
+	    "%s != %s (%jd != %jd)", #expected, #actual,		\
+	    _atf_expected, _atf_actual);				\
+    } while (0)
 
-#define ATF_CHECK_INTEQ(expected, actual) \
-    ATF_CHECK_MSG((expected) == (actual), "%s != %s (%jd != %jd)", #expected, \
-                  #actual, (intmax_t)(expected), (intmax_t)(actual))
+#define ATF_CHECK_INTEQ(expected, actual) do {				\
+	intmax_t _atf_expected = (expected);				\
+	intmax_t _atf_actual = (actual);				\
+	ATF_CHECK_MSG(_atf_expected == _atf_actual,			\
+	    "%s != %s (%jd != %jd)", #expected, #actual,		\
+	    _atf_expected, _atf_actual);				\
+    } while (0)
 
-#define ATF_REQUIRE_INTEQ_MSG(expected, actual, fmt, ...) \
-    ATF_REQUIRE_MSG((expected) == (actual), "%s != %s (%jd != %jd): " fmt, \
-                    #expected, #actual, (intmax_t)(expected), \
-                    (intmax_t)(actual), ##__VA_ARGS__)
+#define ATF_REQUIRE_INTEQ_MSG(expected, actual, fmt, ...) do {		\
+	intmax_t _atf_expected = (expected);				\
+	intmax_t _atf_actual = (actual);				\
+	ATF_REQUIRE_MSG(_atf_expected == _atf_actual,			\
+	    "%s != %s (%jd != %jd): " fmt, #expected, #actual,		\
+	    _atf_expected, _atf_actual, ##__VA_ARGS__);			\
+    } while (0)
 
-#define ATF_CHECK_INTEQ_MSG(expected, actual, fmt, ...) \
-    ATF_CHECK_MSG((expected) == (actual), "%s != %s (%jd != %jd): " fmt, \
-                  #expected, #actual, (intmax_t)(expected), \
-                  (intmax_t)(actual), ##__VA_ARGS__)
+#define ATF_CHECK_INTEQ_MSG(expected, actual, fmt, ...) do {		\
+	intmax_t _atf_expected = (expected);				\
+	intmax_t _atf_actual = (actual);				\
+	ATF_CHECK_MSG(_atf_expected == _atf_actual,			\
+	    "%s != %s (%jd != %jd): " fmt, #expected, #actual,		\
+	    _atf_expected, _atf_actual, ##__VA_ARGS__);			\
+    } while (0)
 
-#define ATF_REQUIRE_MATCH(regexp, string) \
-    ATF_REQUIRE_MSG(atf_utils_grep_string("%s", string, regexp), \
-                    "'%s' not matched in '%s'", regexp, string);
+#define ATF_REQUIRE_MATCH(regexp, string) do {				\
+	const char *_atf_regexp = (regexp);				\
+	const char *_atf_string = (string);				\
+	ATF_REQUIRE_MSG(atf_utils_grep_string("%s", _atf_string, _atf_regexp),	\
+	    "'%s' not matched in '%s'", _atf_regexp, _atf_string);	\
+    } while (0)
 
-#define ATF_CHECK_MATCH(regexp, string) \
-    ATF_CHECK_MSG(atf_utils_grep_string("%s", string, regexp), \
-                  "'%s' not matched in '%s'", regexp, string);
+#define ATF_CHECK_MATCH(regexp, string) do {				\
+	const char *_atf_regexp = (regexp);				\
+	const char *_atf_string = (string);				\
+	ATF_CHECK_MSG(atf_utils_grep_string("%s", _atf_string, _atf_regexp), \
+	    "'%s' not matched in '%s'", _atf_regexp, _atf_string);	\
+    } while (0)
 
-#define ATF_REQUIRE_MATCH_MSG(regexp, string, fmt, ...) \
-    ATF_REQUIRE_MSG(atf_utils_grep_string("%s", string, regexp), \
-                    "'%s' not matched in '%s': " fmt, regexp, string, \
-                    ##__VA_ARGS__);
+#define ATF_REQUIRE_MATCH_MSG(regexp, string, fmt, ...) do {		\
+	const char *_atf_regexp = (regexp);				\
+	const char *_atf_string = (string);				\
+	ATF_REQUIRE_MSG(atf_utils_grep_string("%s", _atf_string, _atf_regexp),	\
+	    "'%s' not matched in '%s': " fmt, _atf_regexp, _atf_string,	\
+	    ##__VA_ARGS__);						\
+    } while (0)
 
-#define ATF_CHECK_MATCH_MSG(regexp, string, fmt, ...) \
-    ATF_CHECK_MSG(atf_utils_grep_string("%s", string, regexp), \
-                  "'%s' not matched in '%s': " fmt, regexp, string, \
-                  ##__VA_ARGS__);
+#define ATF_CHECK_MATCH_MSG(regexp, string, fmt, ...) do {		\
+	const char *_atf_regexp = (regexp);				\
+	const char *_atf_string = (string);				\
+	ATF_CHECK_MSG(atf_utils_grep_string("%s", _atf_string, _atf_regexp),	\
+	    "'%s' not matched in '%s': " fmt, _atf_regexp, _atf_string,	\
+	    ##__VA_ARGS__);						\
+    } while (0)
 
 #define ATF_CHECK_ERRNO(exp_errno, bool_expr) \
-    atf_tc_check_errno(__FILE__, __LINE__, exp_errno, #bool_expr, bool_expr)
+    atf_tc_check_errno(__FILE__, __LINE__, (exp_errno), #bool_expr, (bool_expr))
 
 #define ATF_REQUIRE_ERRNO(exp_errno, bool_expr) \
-    atf_tc_require_errno(__FILE__, __LINE__, exp_errno, #bool_expr, bool_expr)
+    atf_tc_require_errno(__FILE__, __LINE__, (exp_errno), #bool_expr, (bool_expr))
 
 #endif /* !defined(ATF_C_MACROS_H) */
