@@ -472,13 +472,17 @@ sending out requests and listening for replies.
 .It Cm stickyarp
 Enable the so-called sticky ARP mode for the interface.
 If this option is enabled on the given interface, any resolved address is
-marked as a static one and never expires. This may be used to increase
+marked as a static one and never expires.
+This may be used to increase
 security of the network by preventing ARP spoofing or to reduce latency for
 high-performance Ethernet networks where the time needed for ARP resolution is
-too high. Please note that a similar feature is also provided for bridges. See
+too high.
+Please note that a similar feature is also provided for bridges.
+See
 the sticky option in the
 .Sx Bridge Interface Parameters
-section. Enabling this
+section.
+Enabling this
 option may impact techniques which rely on ARP expiration/overwriting feature
 such as load-balancers or high-availabity solutions such as
 .Xr carp 4 .
@@ -1236,8 +1240,8 @@ Set the interval at which beacon frames are sent when operating in
 ad-hoc or ap mode.
 The
 .Ar interval
-parameter is specified in TU's (1024 usecs).
-By default beacon frames are transmitted every 100 TU's.
+parameter is specified in TUs (1024 usecs).
+By default beacon frames are transmitted every 100 TUs.
 .It Cm bmissthreshold Ar count
 Set the number of consecutive missed beacons at which the station
 will attempt to roam (i.e., search for a new access point).
@@ -1894,8 +1898,8 @@ Use
 .Fl powersave
 to disable powersave operation when operating as a client.
 .It Cm powersavesleep Ar sleep
-Set the desired max powersave sleep time in TU's (1024 usecs).
-By default the max powersave sleep time is 100 TU's.
+Set the desired max powersave sleep time in TUs (1024 usecs).
+By default the max powersave sleep time is 100 TUs.
 .It Cm protmode Ar technique
 For interfaces operating in 802.11g, use the specified
 .Ar technique
