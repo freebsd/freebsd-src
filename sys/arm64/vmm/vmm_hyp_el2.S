@@ -30,7 +30,7 @@
 
 #include <machine/param.h>
 
-	.rodata
+	.section .rodata
 	.align PAGE_SHIFT
 	.globl vmm_hyp_code
 vmm_hyp_code:
