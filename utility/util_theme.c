@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2022-2023 Alfonso Sabato Siciliano
+ * Copyright (c) 2022-2024 Alfonso Sabato Siciliano
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -166,7 +166,7 @@ void savetheme(const char *file)
 		exit_error(false,
 		    "cannot save theme: %s", bsddialog_geterror());
 
-	if(time(&clock) < 0)
+	if (time(&clock) < 0)
 		exit_error(false, "cannot save profile getting current time");
 	if ((fp = fopen(file, "w")) == NULL)
 		exit_error(false, "cannot open %s to save profile", file);
@@ -235,11 +235,11 @@ void loadtheme(const char *file, bool compatibility)
 		exit_error(false, "Cannot get current theme: %s",
 		    bsddialog_geterror());
 
-	if((fp = fopen(file, "r")) == NULL)
+	if ((fp = fopen(file, "r")) == NULL)
 		exit_error(false, "Cannot open theme \"%s\" file", file);
 
-	while(fgets(line, BUFSIZ, fp) != NULL) {
-		if(line[0] == '#' || line[0] == '\n')
+	while (fgets(line, BUFSIZ, fp) != NULL) {
+		if (line[0] == '#' || line[0] == '\n')
 			continue;  /* superfluous, only for efficiency */
 		sscanf(line, "%s", name);
 		value = NULL; /* useless init, fix compiler warning */
@@ -322,7 +322,7 @@ void loadtheme(const char *file, bool compatibility)
 
 	fclose(fp);
 
-	if(bsddialog_set_theme(&t) != BSDDIALOG_OK)
+	if (bsddialog_set_theme(&t) != BSDDIALOG_OK)
 		exit_error(false, bsddialog_geterror());
 }
 

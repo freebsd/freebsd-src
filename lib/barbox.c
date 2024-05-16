@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2021-2023 Alfonso Sabato Siciliano
+ * Copyright (c) 2021-2024 Alfonso Sabato Siciliano
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,11 +36,11 @@
 #include "bsddialog_theme.h"
 #include "lib_util.h"
 
-#define BARPADDING   2  /* widget border | BARPADDING | box bar */
+#define BARPADDING   2  /* Dialog border | BARPADDING | box bar */
 #define BOXBORDERS   2
 #define MIN_WBAR     15
 #define MIN_WBOX     (BARPADDING + BOXBORDERS + MIN_WBAR + BARPADDING)
-#define MIN_WMGBAR   18
+#define MIN_WMGBAR   18 /* Mixedgauge main bar */
 #define MIN_WMGBOX   (BARPADDING + BOXBORDERS + MIN_WMGBAR + BARPADDING)
 #define HBOX         3
 #define WBOX(d)      ((d)->w - BORDERS - BARPADDING - BARPADDING)
@@ -206,12 +206,64 @@ bsddialog_gauge(struct bsddialog_conf *conf, const char *text, int rows,
 }
 
 /* Mixedgauge */
+static void
+mvwaddcstr(WINDOW *win, int y, int x, const char *mbstring, unsigned int cols)
+{
+	size_t charlen, n, w;
+	mbstate_t mbs;
+	const char *pmbstring;
+	wchar_t wch;
+
+	w = n = 0;
+	pmbstring = mbstring;
+	memset(&mbs, 0, sizeof(mbs));
+	while ((charlen = mbrlen(pmbstring, MB_CUR_MAX, &mbs)) != 0 &&
+	    charlen != (size_t)-1 && charlen != (size_t)-2) {
+		mbtowc(&wch, pmbstring, charlen);
+		w += (wch == L'\t') ? TABSIZE : wcwidth(wch);
+		if (w > cols)
+			break;
+		pmbstring += charlen;
+		n += charlen;
+	}
+	mvwaddnstr(win, y, x, mbstring, n);
+	if(w > cols)
+		mvwaddstr(win, y, (x + cols) - 3, "...");
+}
+
+static int
+mixedgauge_size_position(struct dialog *d, int nminibars,
+    const char **minilabels, int *htext)
+{
+	int i, max_minibarlen;
+
+	max_minibarlen = 0;
+	for (i = 0; i < (int)nminibars; i++)
+		max_minibarlen = MAX(max_minibarlen,
+		    (int)strcols(CHECK_STR(minilabels[i])));
+	max_minibarlen += 18; /* ' '<max_minibarlen>' ['13'] ' */
+	max_minibarlen = MAX(max_minibarlen, MIN_WMGBOX); /* mainbar */
+
+	if (set_widget_size(d->conf, d->rows, d->cols, &d->h, &d->w) != 0)
+		return (BSDDIALOG_ERROR);
+	if (set_widget_autosize(d->conf, d->rows, d->cols, &d->h, &d->w,
+	    d->text, htext, &d->bs, nminibars + HBOX, max_minibarlen) != 0)
+		return (BSDDIALOG_ERROR);
+	if (widget_checksize(d->h, d->w, &d->bs, nminibars + HBOX,
+	    MIN_WMGBOX) != 0)
+		return (BSDDIALOG_ERROR);
+	if (set_widget_position(d->conf, &d->y, &d->x, d->h, d->w) != 0)
+		return (BSDDIALOG_ERROR);
+
+	return (0);
+}
+
 static int
 do_mixedgauge(struct bsddialog_conf *conf, const char *text, int rows, int cols,
     unsigned int mainperc, unsigned int nminibars, const char **minilabels,
     int *minipercs, bool color)
 {
-	int i, miniperc, max_minibarlen;
+	int i, miniperc;
 	int ystext, htext;
 	int minicolor, red, green;
 	struct bar b;
@@ -223,17 +275,9 @@ do_mixedgauge(struct bsddialog_conf *conf, const char *text, int rows, int cols,
 	red   = bsddialog_color(BSDDIALOG_WHITE,BSDDIALOG_RED,  BSDDIALOG_BOLD);
 	green = bsddialog_color(BSDDIALOG_WHITE,BSDDIALOG_GREEN,BSDDIALOG_BOLD);
 
-	max_minibarlen = 0;
-	for (i = 0; i < (int)nminibars; i++)
-		max_minibarlen = MAX(max_minibarlen,
-		    (int)strcols(CHECK_STR(minilabels[i])));
-	max_minibarlen += 3 + 16; /* seps + [...] */
-	max_minibarlen = MAX(max_minibarlen, MIN_WMGBOX); /* mainbar */
-
 	if (prepare_dialog(conf, text, rows, cols, &d) != 0)
 		return (BSDDIALOG_ERROR);
-	if (dialog_size_position(&d, nminibars + HBOX, max_minibarlen,
-	    &htext) != 0)
+	if (mixedgauge_size_position(&d, nminibars, minilabels, &htext) != 0)
 		return (BSDDIALOG_ERROR);
 	if (draw_dialog(&d) != 0)
 		return (BSDDIALOG_ERROR);
@@ -249,7 +293,7 @@ do_mixedgauge(struct bsddialog_conf *conf, const char *text, int rows, int cols,
 		/* label */
 		if (color && miniperc >= 0)
 			wattron(d.widget, A_BOLD);
-		mvwaddstr(d.widget, i+1, 2, CHECK_STR(minilabels[i]));
+		mvwaddcstr(d.widget, i+1, 2, CHECK_STR(minilabels[i]), d.w-20);
 		if (color && miniperc >= 0)
 			wattroff(d.widget, A_BOLD);
 		/* perc */
@@ -472,10 +516,12 @@ bsddialog_rangebox(struct bsddialog_conf *conf, const char *text, int rows,
 			}
 			break;
 		case '\t': /* TAB */
+		case KEY_CTRL('n'):
 		case KEY_RIGHT:
 			d.bs.curr = (d.bs.curr + 1) % d.bs.nbuttons;
 			DRAW_BUTTONS(d);
 			break;
+		case KEY_CTRL('p'):
 		case KEY_LEFT:
 			d.bs.curr--;
 			if (d.bs.curr < 0)
@@ -502,15 +548,17 @@ bsddialog_rangebox(struct bsddialog_conf *conf, const char *text, int rows,
 				currvalue = max;
 			b.toupdate = true;
 			break;
+		case '-':
 		case KEY_UP:
-			if (currvalue < max) {
-				currvalue++;
+			if (currvalue > min) {
+				currvalue--;
 				b.toupdate = true;
 			}
 			break;
+		case '+':
 		case KEY_DOWN:
-			if (currvalue > min) {
-				currvalue--;
+			if (currvalue < max) {
+				currvalue++;
 				b.toupdate = true;
 			}
 			break;
@@ -523,6 +571,7 @@ bsddialog_rangebox(struct bsddialog_conf *conf, const char *text, int rows,
 			if (rangebox_redraw(&d, &b, &bigchange) != 0)
 				return (BSDDIALOG_ERROR);
 			break;
+		case KEY_CTRL('l'):
 		case KEY_RESIZE:
 			if (rangebox_redraw(&d, &b, &bigchange) != 0)
 				return (BSDDIALOG_ERROR);
@@ -641,6 +690,7 @@ bsddialog_pause(struct bsddialog_conf *conf, const char *text, int rows,
 			if (pause_redraw(&d, &b) != 0)
 				return (BSDDIALOG_ERROR);
 			break;
+		case KEY_CTRL('l'):
 		case KEY_RESIZE:
 			if (pause_redraw(&d, &b) != 0)
 				return (BSDDIALOG_ERROR);

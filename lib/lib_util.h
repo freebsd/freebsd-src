@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2021-2023 Alfonso Sabato Siciliano
+ * Copyright (c) 2021-2024 Alfonso Sabato Siciliano
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -62,14 +62,19 @@ extern bool hastermcolors;
 		RETURN_ERROR("*" #p " is NULL");                               \
 } while (0)
 #define CHECK_ARRAY(nitem, a) do {                                             \
-	if(nitem > 0 && a == NULL)                                             \
+	if (nitem > 0 && a == NULL)                                             \
 		RETURN_FMTERROR(#nitem " is %d but *" #a " is NULL", nitem);   \
 } while (0)
 /* widget utils */
+#define KEY_CTRL(c) (c & 037)
 #define TEXTPAD(d, downnotext) rtextpad(d, 0, 0, 0, downnotext)
 #define SCREENLINES (getmaxy(stdscr))
 #define SCREENCOLS  (getmaxx(stdscr))
 #define CHECK_STR(s) (s == NULL ? "" : s)
+#define UARROW(c) (c->ascii_lines ? '^' : ACS_UARROW)
+#define DARROW(c) (c->ascii_lines ? 'v' : ACS_DARROW)
+#define LARROW(c) (c->ascii_lines ? '<' : ACS_LARROW)
+#define RARROW(c) (c->ascii_lines ? '>' : ACS_RARROW)
 #define DRAW_BUTTONS(d) do {                                                   \
 	draw_buttons(&d);                                                      \
 	wnoutrefresh(d.widget);                                                \
