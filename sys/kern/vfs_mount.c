@@ -1359,7 +1359,7 @@ vfs_domount_update(
 
 	MNT_ILOCK(mp);
 	if (error == 0) {
-		mp->mnt_flag &=	~(MNT_UPDATE | MNT_RELOAD | MNT_FORCE |
+		mp->mnt_flag &= ~(MNT_UPDATE | MNT_RELOAD | MNT_FORCE |
 		    MNT_SNAPSHOT);
 	} else {
 		/*
