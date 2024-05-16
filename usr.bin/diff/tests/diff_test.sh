@@ -11,6 +11,7 @@ atf_test_case brief_format
 atf_test_case b230049
 atf_test_case stripcr_o
 atf_test_case b252515
+atf_test_case b278988
 atf_test_case Bflag
 atf_test_case Nflag
 atf_test_case tabsize
@@ -87,6 +88,15 @@ b252515_body()
 	printf 'a  b\n' > b252515_b.in
 	atf_check -o empty -s eq:0 \
 		diff -qw b252515_a.in b252515_b.in
+}
+
+b278988_body()
+{
+	printf 'a\nb\nn' > b278988.a.in
+	printf 'a\n\nb\nn' > b278988.b.in
+	atf_check -o empty -s eq:0 \
+		diff -Bw b278988.a.in b278988.b.in
+
 }
 
 header_body()
@@ -369,6 +379,7 @@ atf_init_test_cases()
 	atf_add_test_case b230049
 	atf_add_test_case stripcr_o
 	atf_add_test_case b252515
+	atf_add_test_case b278988
 	atf_add_test_case Bflag
 	atf_add_test_case Nflag
 	atf_add_test_case tabsize
