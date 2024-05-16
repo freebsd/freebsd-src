@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2022-2023 Alfonso Sabato Siciliano
+ * Copyright (c) 2022-2024 Alfonso Sabato Siciliano
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -120,7 +120,7 @@ init_date(unsigned int *year, unsigned int *month, unsigned int *day, int *yy,
 	if (*mm == 0)
 		*mm = 1;
 	*dd = (*day == 0) ? 1 : *day;
-	if(*dd > month_days(*yy, *mm))
+	if (*dd > month_days(*yy, *mm))
 		*dd = month_days(*yy, *mm);
 }
 
@@ -237,10 +237,8 @@ drawsquare(struct bsddialog_conf *conf, WINDOW *win, enum elevation elev,
 	if (focus) {
 		l = 2 + w%2;
 		wattron(win, t.dialog.arrowcolor);
-		mvwhline(win, 0, w/2 - l/2,
-		    conf->ascii_lines ? '^' : ACS_UARROW, l);
-		mvwhline(win, h-1, w/2 - l/2,
-		    conf->ascii_lines ? 'v' : ACS_DARROW, l);
+		mvwhline(win, 0, w/2 - l/2, UARROW(conf), l);
+		mvwhline(win, h-1, w/2 - l/2, DARROW(conf), l);
 		wattroff(win, t.dialog.arrowcolor);
 	}
 
@@ -267,10 +265,10 @@ print_calendar(struct bsddialog_conf *conf, WINDOW *win, int yy, int mm, int dd,
 	draw_borders(conf, win, RAISED);
 	if (active) {
 		wattron(win, t.dialog.arrowcolor);
-		mvwhline(win, 0, 15, conf->ascii_lines ? '^' : ACS_UARROW, 4);
-		mvwhline(win, h-1, 15, conf->ascii_lines ? 'v' : ACS_DARROW, 4);
-		mvwvline(win, 3, 0, conf->ascii_lines ? '<' : ACS_LARROW, 3);
-		mvwvline(win, 3, w-1, conf->ascii_lines ? '>' : ACS_RARROW, 3);
+		mvwhline(win, 0, 15, UARROW(conf), 4);
+		mvwhline(win, h-1, 15, DARROW(conf), 4);
+		mvwvline(win, 3, 0, LARROW(conf), 3);
+		mvwvline(win, 3, w-1, RARROW(conf), 3);
 		wattroff(win, t.dialog.arrowcolor);
 	}
 
@@ -402,6 +400,7 @@ bsddialog_calendar(struct bsddialog_conf *conf, const char *text, int rows,
 			}
 			DRAW_BUTTONS(d);
 			break;
+		case KEY_CTRL('n'):
 		case KEY_RIGHT:
 			if (focusbuttons) {
 				d.bs.curr++;
@@ -418,6 +417,7 @@ bsddialog_calendar(struct bsddialog_conf *conf, const char *text, int rows,
 			}
 			DRAW_BUTTONS(d);
 			break;
+		case KEY_CTRL('p'):
 		case KEY_LEFT:
 			if (focusbuttons) {
 				d.bs.curr--;
@@ -463,6 +463,28 @@ bsddialog_calendar(struct bsddialog_conf *conf, const char *text, int rows,
 				datectl(DOWN_DAY, &yy, &mm, &dd);
 			}
 			break;
+		case '-':
+			if (focusbuttons) {
+				break;
+			} else if (sel == 0) {
+				datectl(UP_MONTH, &yy, &mm, &dd);
+			} else if (sel == 1) {
+				datectl(UP_YEAR, &yy, &mm, &dd);
+			} else { /* sel = 2 */
+				datectl(LEFT_DAY, &yy, &mm, &dd);
+			}
+			break;
+		case '+':
+			if (focusbuttons) {
+				break;
+			} else if (sel == 0) {
+				datectl(DOWN_MONTH, &yy, &mm, &dd);
+			} else if (sel == 1) {
+				datectl(DOWN_YEAR, &yy, &mm, &dd);
+			} else { /* sel = 2 */
+				datectl(RIGHT_DAY, &yy, &mm, &dd);
+			}
+			break;
 		case KEY_HOME:
 			datectl(UP_MONTH, &yy, &mm, &dd);
 			break;
@@ -484,6 +506,7 @@ bsddialog_calendar(struct bsddialog_conf *conf, const char *text, int rows,
 			if (calendar_redraw(&d, yy_win, mm_win, dd_win) != 0)
 				return (BSDDIALOG_ERROR);
 			break;
+		case KEY_CTRL('l'):
 		case KEY_RESIZE:
 			if (calendar_redraw(&d, yy_win, mm_win, dd_win) != 0)
 				return (BSDDIALOG_ERROR);
@@ -628,8 +651,9 @@ bsddialog_datebox(struct bsddialog_conf *conf, const char *text, int rows,
 				loop = false;
 			}
 			break;
-		case KEY_RIGHT:
 		case '\t': /* TAB */
+		case KEY_CTRL('n'):
+		case KEY_RIGHT:
 			if (focusbuttons) {
 				d.bs.curr++;
 				focusbuttons = d.bs.curr < (int)d.bs.nbuttons ?
@@ -648,6 +672,7 @@ bsddialog_datebox(struct bsddialog_conf *conf, const char *text, int rows,
 			}
 			DRAW_BUTTONS(d);
 			break;
+		case KEY_CTRL('p'):
 		case KEY_LEFT:
 			if (focusbuttons) {
 				d.bs.curr--;
@@ -665,6 +690,10 @@ bsddialog_datebox(struct bsddialog_conf *conf, const char *text, int rows,
 			}
 			DRAW_BUTTONS(d);
 			break;
+		case '-':
+			if (focusbuttons == false)
+				datectl(di[sel].up, &yy, &mm, &dd);
+			break;
 		case KEY_UP:
 			if (focusbuttons) {
 				sel = 0;
@@ -675,6 +704,7 @@ bsddialog_datebox(struct bsddialog_conf *conf, const char *text, int rows,
 				datectl(di[sel].up, &yy, &mm, &dd);
 			}
 			break;
+		case '+':
 		case KEY_DOWN:
 			if (focusbuttons)
 				break;
@@ -689,6 +719,7 @@ bsddialog_datebox(struct bsddialog_conf *conf, const char *text, int rows,
 			if (datebox_redraw(&d, di) != 0)
 				return (BSDDIALOG_ERROR);
 			break;
+		case KEY_CTRL('l'):
 		case KEY_RESIZE:
 			if (datebox_redraw(&d, di) != 0)
 				return (BSDDIALOG_ERROR);

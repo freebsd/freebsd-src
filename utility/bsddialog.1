@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2021-2023 Alfonso Sabato Siciliano
+.\" Copyright (c) 2021-2024 Alfonso Sabato Siciliano
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 25, 2023
+.Dd April 7, 2024
 .Dt BSDDIALOG 1
 .Os
 .Sh NAME
@@ -438,6 +438,21 @@ timeout.
 .It Fl Fl title Ar title
 Dialog title.
 .El
+.Ss Keys
+The following keys are available at runtime:
+.Bl -tag -width Ds
+.It Ctrl-l
+Redraw the dialog.
+.It F1
+See
+.Fl Fl hfile
+and
+.Fl Fl hmsg .
+.It SPACE
+Select menu item.
+.It UP DOWN LEFT RIGHT - + HOME END PAGEUP PAGEDOWN Ctrl-p Ctrl-n TAB
+Navigate elements and set value, depending on the dialog.
+.El
 .Ss Dialogs
 The following dialogs are available:
 .Bl -tag -width Ds
@@ -472,20 +487,21 @@ and
 a field to get the input at the position
 .Ar yfield
 and
-.Ar xfield
-with graphical length
-.Ar fieldlen ,
-.Ar maxletters
-is the maximum input length.
-The field can be customized, if
+.Ar xfield .
 .Ar fieldlen
-is negative the field is read only and its absolute value is the field length.
-If
+is the field width, if negative is readonly and the width is the absolute value,
+if
+.Dv 0
+the field becomes readonly and its value is the
+.Ar init
+width.
 .Ar maxletters
-is 0 it is the absolute value of
+is the maximum input length, if is
+.Dv 0
+its value is
 .Ar fieldlen .
 .Ar init
-is a default value.
+is the default value in the field.
 .Ar formrows
 is the graphical height of the list,
 .Dv 0
@@ -509,7 +525,7 @@ Dialog to get a string in input,
 .Ar init
 is the default value.
 .It Fl Fl menu Ar text Ar rows Ar cols Ar menurows Oo Ar name desc Oc ...
-Builds a menu to select an item from a list, Space key is equivalent to Enter.
+Builds a menu to select an item from a list, SPACE key is equivalent to ENTER.
 An item has a
 .Ar name
 and a
@@ -526,19 +542,33 @@ at the position
 .Ar ylabel
 and
 .Ar xlabel ,
-a field to get the input with graphical length
-.Ar fieldlen
-at the position
+a field to get the input at the position
 .Ar yfield
 and
-.Ar xfield ,
-.Ar maxletters
-is the maximum input length,
+.Ar xfield .
+.Ar fieldlen
+is the field width, if negative is readonly and the width is the absolute value,
+if
+.Dv 0
+the field becomes readonly and its value is the
 .Ar init
-is a default value,
+width.
+.Ar maxletters
+is the maximum input length, if is
+.Dv 0
+its value is
+.Ar fieldlen .
+.Ar init
+is the default value in the field.
 .Ar flag
-can be 0 for normal field, 1 to hide the typed characters and 2 to set the
-field read only.
+can customize
+.Ar field :
+.Dv 0
+normal,
+.Dv 1
+hide typed characters,
+.Dv 2
+readonly.
 .Ar formrows
 is the graphical height of the list,
 .Dv 0
@@ -581,7 +611,6 @@ otherwise
 Dialog to diplay a message without the
 .Dq Cancel
 button.
-UP, DOWN, HOME, END, PAGEUP and PAGEDOWN keys are availble to scroll the text.
 .It Fl Fl passwordbox Ar text Ar rows Ar cols Op Ar init
 Dialog to get a password,
 .Ar init
@@ -617,13 +646,12 @@ Dialog to select a value between
 and
 .Ar max ,
 .Ar init
-is the default value, the keys UP, DOWN, HOME, END, PAGEUP and PAGEDOWN can
-change it.
+is the default value.
 .It Fl Fl textbox Ar file Ar rows Ar cols
 Opens and prints
 .Ar file .
-UP, DOWN, LEFT, RIGHT, HOME, END, PAGEUP and PAGEDOWN keys are available to
-navigate the file, TAB changes button.
+TAB changes button.
+Extra keys 0, h, l, k, j are available to navigate the text.
 .Dq OK
 button is renamed
 .Dq EXIT .
@@ -644,7 +672,6 @@ buttons are renamed
 .Dq Yes
 and
 .Dq \&No .
-UP, DOWN, HOME, END, PAGEUP and PAGEDOWN keys are availble to scroll the text.
 .El
 .Sh ENVIRONMENT
 The following environment variables take effect only on startup, other options
@@ -871,6 +898,8 @@ Options:
 .Fl Fl title ,
 .Fl Fl version ,
 .Fl Fl yes-label .
+.Pp
+Keys: Ctrl-l, F1.
 .Pp
 Dialogs:
 .Fl Fl calendar ,

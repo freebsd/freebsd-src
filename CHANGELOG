@@ -1,3 +1,35 @@
+2024-04-11 Version 1.0.2
+
+	Utility:
+	improvements and changes for --form and --mixedform:
+	    * add: <maxletters> 0 sets <maxletters> like <fieldlen>.
+	    * add: <fieldlen> 0 sets <fieldlen> like <init> width and readonly.
+	    * change: <maxletters> 0 was an error (remains error in lib).
+	    * change: <fieldlen> 0 was an error (remains error in lib)
+	      (<fieldlen> 0 and <init> "" is still an error.).
+
+	Library and implicitly utility:
+	* add: Ctrl-l to redraw dialog.
+	    Request stable@freebsd.org January 2024.
+	* add: -, +, Ctrl-p, Ctrl-n for several dialogs.
+	    +, - request for menus, private feature request.
+	    Ctrl-p, Ctrl-n for menu, request hackers@freebsd.org February 2024.
+	* fix: escaped text ending with an escape symbol.
+	* change: truncate mixedgauge long (over the screen/minibars)
+	    minilabels adding "...". As a result, avoid check-size error.
+	    https://gitlab.com/alfix/bsddialog/-/issues/6.
+	* change: invert UP/DOWN keys to set a rangebox value.
+
+
+2023-11-16 Version 1.0.1
+
+	Library Internal Refactoring:
+	* add: arrow macro handlers.
+	* change: Box-drawing characters, from utf8 to wide chars to avoid to
+	    handle "env NCURSES_NO_UTF8_ACS=1".
+	    Request https://bugs.freebsd.org/274472,
+	    Rationale https://reviews.freebsd.org/D42380.
+
 2023-08-01 Version 1.0
 
 	Utility:
