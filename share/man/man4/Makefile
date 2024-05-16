@@ -687,7 +687,7 @@ MLINKS+=em.4 if_em.4 \
 MLINKS+=enc.4 if_enc.4
 MLINKS+=epair.4 if_epair.4
 MLINKS+=et.4 if_et.4
-MLINKS+=ext2fs.4 ext4fs.4 \
+MLINKS+=ext2fs.4 ext4fs.4
 MLINKS+=fd.4 stderr.4 \
 	fd.4 stdin.4 \
 	fd.4 stdout.4
