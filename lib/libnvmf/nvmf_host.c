@@ -653,19 +653,23 @@ nvmf_host_fetch_discovery_log_page(struct nvmf_qpair *qp,
 	log = NULL;
 	for (;;) {
 		error = nvmf_get_discovery_log_page(qp, 0, &hdr, sizeof(hdr));
-		if (error != 0)
+		if (error != 0) {
+			free(log);
 			return (error);
+		}
 		nvme_discovery_log_swapbytes(&hdr);
 
 		if (hdr.recfmt != 0) {
 			printf("NVMF: Unsupported discovery log format: %d\n",
 			    hdr.recfmt);
+			free(log);
 			return (EINVAL);
 		}
 
 		if (hdr.numrec > 1024) {
 			printf("NVMF: Too many discovery log entries: %ju\n",
 			    (uintmax_t)hdr.numrec);
+			free(log);
 			return (EFBIG);
 		}
 
