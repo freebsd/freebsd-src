@@ -77,7 +77,7 @@ ENTRY(arm_smccc_1_2_\insn)
 	stp	x16, x17, [x19, #16 * 8]
 1:	ldp	xzr, x19, [sp], #16
 	ret
-END(arm_smccc_1_2\insn)
+END(arm_smccc_1_2_\insn)
 .endm
 /* int arm_smccc_1_2_*(const struct arm_smccc_1_2_regs *args,
  *     struct arm_smccc_1_2_regs *res)
