@@ -408,7 +408,8 @@ diffreg_stone(char *file1, char *file2, int flags, int capsicum)
 	}
 
 	if (diff_format == D_BRIEF && ignore_pats == NULL &&
-	    (flags & (D_FOLDBLANKS|D_IGNOREBLANKS|D_IGNORECASE|D_STRIPCR)) == 0)
+	    (flags & (D_FOLDBLANKS|D_IGNOREBLANKS|D_IGNORECASE|
+	    D_SKIPBLANKLINES|D_STRIPCR)) == 0)
 	{
 		rval = D_DIFFER;
 		status |= 1;
