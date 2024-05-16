@@ -112,6 +112,8 @@ copy_file(const FTSENT *entp, int dne)
 		if ((from_fd = open(entp->fts_path, O_RDONLY, 0)) < 0 ||
 		    fstat(from_fd, &sb) != 0) {
 			warn("%s", entp->fts_path);
+			if (from_fd >= 0)
+				(void)close(from_fd);
 			return (1);
 		}
 		/*
@@ -124,6 +126,7 @@ copy_file(const FTSENT *entp, int dne)
 		 */
 		if ((sb.st_mode & S_IFMT) != (fs->st_mode & S_IFMT)) {
 			warnx("%s: File changed", entp->fts_path);
+			(void)close(from_fd);
 			return (1);
 		}
 	}
