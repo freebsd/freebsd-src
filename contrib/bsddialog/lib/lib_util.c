@@ -983,41 +983,43 @@ void draw_borders(struct bsddialog_conf *conf, WINDOW *win, enum elevation elev)
 {
 	int h, w;
 	int leftcolor, rightcolor;
-	int ls, rs, ts, bs, tl, tr, bl, br, ltee, rtee;
+	cchar_t *ls, *rs, *ts, *bs, *tl, *tr, *bl, *br;
+	cchar_t hline, vline, corner;
 
 	if (conf->no_lines)
 		return;
 
 	if (conf->ascii_lines) {
-		ls = rs = '|';
-		ts = bs = '-';
-		tl = tr = bl = br = ltee = rtee = '+';
+		setcchar(&hline, L"|", 0, 0, NULL);
+		ls = rs = &hline;
+		setcchar(&vline, L"-", 0, 0, NULL);
+		ts = bs = &vline;
+		setcchar(&corner, L"+", 0, 0, NULL);
+		tl = tr = bl = br = &corner;
 	} else {
-		ls = rs = ACS_VLINE;
-		ts = bs = ACS_HLINE;
-		tl = ACS_ULCORNER;
-		tr = ACS_URCORNER;
-		bl = ACS_LLCORNER;
-		br = ACS_LRCORNER;
-		ltee = ACS_LTEE;
-		rtee = ACS_RTEE;
+		ls = rs = WACS_VLINE;
+		ts = bs = WACS_HLINE;
+		tl = WACS_ULCORNER;
+		tr = WACS_URCORNER;
+		bl = WACS_LLCORNER;
+		br = WACS_LRCORNER;
 	}
 
 	getmaxyx(win, h, w);
-	leftcolor = elev == RAISED ?
+	leftcolor = (elev == RAISED) ?
 	    t.dialog.lineraisecolor : t.dialog.linelowercolor;
-	rightcolor = elev == RAISED ?
+	rightcolor = (elev == RAISED) ?
 	    t.dialog.linelowercolor : t.dialog.lineraisecolor;
 
 	wattron(win, leftcolor);
-	wborder(win, ls, rs, ts, bs, tl, tr, bl, br);
+	wborder_set(win, ls, rs, ts, bs, tl, tr, bl, br);
 	wattroff(win, leftcolor);
 
 	wattron(win, rightcolor);
-	mvwaddch(win, 0, w-1, tr);
-	mvwvline(win, 1, w-1, rs, h-2);
-	mvwaddch(win, h-1, w-1, br);
-	mvwhline(win, h-1, 1, bs, w-2);
+	mvwadd_wch(win, 0, w-1, tr);
+	mvwvline_set(win, 1, w-1, rs, h-2);
+	mvwadd_wch(win, h-1, w-1, br);
+	mvwhline_set(win, h-1, 1, bs, w-2);
 	wattroff(win, rightcolor);
 }
 
@@ -1126,30 +1128,31 @@ static void
 print_string(WINDOW *win, int *rows, int cols, int *y, int *x, wchar_t *str,
     bool color)
 {
-	int i, j, len, reallen, wc;
+	int charwidth, i, j, strlen, strwidth;
 	wchar_t ws[2];
 
 	ws[1] = L'\0';
 
-	len = wcslen(str);
+	strlen = wcslen(str);
 	if (color) {
-		reallen = 0;
+		strwidth = 0;
 		i=0;
-		while (i < len) {
+		while (i < strlen) {
 			if (is_wtext_attr(str+i) == false) {
-				reallen += wcwidth(str[i]);
+				strwidth += wcwidth(str[i]);
 				i++;
 			} else {
-				i +=3 ;
+				i += 3;
 			}
 		}
 	} else
-		reallen = wcswidth(str, len);
+		strwidth = wcswidth(str, strlen);
 
 	i = 0;
-	while (i < len) {
-		if (*x + reallen > cols) {
-			*y = (*x != 0 ? *y+1 : *y);
+	while (i < strlen) {
+		if (*x + strwidth > cols) {
+			if (*x != 0)
+				*y = *y + 1;
 			if (*y >= *rows) {
 				*rows = *y + 1;
 				wresize(win, *rows, cols);
@@ -1157,21 +1160,22 @@ print_string(WINDOW *win, int *rows, int cols, int *y, int *x, wchar_t *str,
 			*x = 0;
 		}
 		j = *x;
-		while (j < cols && i < len) {
+		while (i < strlen) {
 			if (color && check_set_wtext_attr(win, str+i)) {
 				i += 3;
-			} else if (j + wcwidth(str[i]) > cols) {
-				break;
-			} else {
-				/* inline mvwaddwch() for efficiency */
-				ws[0] = str[i];
-				mvwaddwstr(win, *y, j, ws);
-				wc = wcwidth(str[i]);;
-				reallen -= wc;
-				j += wc;
-				i++;
-				*x = j;
+				continue;
 			}
+
+			charwidth = wcwidth(str[i]);
+			if (j + wcwidth(str[i]) > cols)
+				break;
+			/* inline mvwaddwch() for efficiency */
+			ws[0] = str[i];
+			mvwaddwstr(win, *y, j, ws);
+			strwidth -= charwidth;
+			j += charwidth;
+			*x = j;
+			i++;
 		}
 	}
 }
@@ -1248,11 +1252,18 @@ print_textpad(struct bsddialog_conf *conf, WINDOW *pad, const char *text)
 
 int draw_dialog(struct dialog *d)
 {
-	int wtitle, wbottomtitle, ts, ltee, rtee;
+	int wtitle, wbottomtitle;
+	cchar_t ts, ltee, rtee;
 
-	ts   = d->conf->ascii_lines ? '-' : ACS_HLINE;
-	ltee = d->conf->ascii_lines ? '+' : ACS_LTEE;
-	rtee = d->conf->ascii_lines ? '+' : ACS_RTEE;
+	if (d->conf->ascii_lines) {
+		setcchar(&ts, L"-", 0, 0, NULL);
+		setcchar(&ltee, L"+", 0, 0,NULL);
+		setcchar(&rtee, L"+", 0, 0, NULL);
+	} else {
+		ts = *WACS_HLINE;
+		ltee = *WACS_LTEE;
+		rtee = *WACS_RTEE;
+	}
 
 	if (d->conf->shadow) {
 		wclear(d->shadow);
@@ -1271,7 +1282,7 @@ int draw_dialog(struct dialog *d)
 			return (BSDDIALOG_ERROR);
 		if (t.dialog.delimtitle && d->conf->no_lines == false) {
 			wattron(d->widget, t.dialog.lineraisecolor);
-			mvwaddch(d->widget, 0, d->w/2 - wtitle/2 -1, rtee);
+			mvwadd_wch(d->widget, 0, d->w/2 - wtitle/2 -1, &rtee);
 			wattroff(d->widget, t.dialog.lineraisecolor);
 		}
 		wattron(d->widget, t.dialog.titlecolor);
@@ -1279,7 +1290,7 @@ int draw_dialog(struct dialog *d)
 		wattroff(d->widget, t.dialog.titlecolor);
 		if (t.dialog.delimtitle && d->conf->no_lines == false) {
 			wattron(d->widget, t.dialog.lineraisecolor);
-			waddch(d->widget, ltee);
+			wadd_wch(d->widget, &ltee);
 			wattroff(d->widget, t.dialog.lineraisecolor);
 		}
 	}
@@ -1287,12 +1298,12 @@ int draw_dialog(struct dialog *d)
 	if (d->bs.nbuttons > 0) {
 		if (d->conf->no_lines == false) {
 			wattron(d->widget, t.dialog.lineraisecolor);
-			mvwaddch(d->widget, d->h-3, 0, ltee);
-			mvwhline(d->widget, d->h-3, 1, ts, d->w-2);
+			mvwadd_wch(d->widget, d->h-3, 0, &ltee);
+			mvwhline_set(d->widget, d->h-3, 1, &ts, d->w-2);
 			wattroff(d->widget, t.dialog.lineraisecolor);
 
 			wattron(d->widget, t.dialog.linelowercolor);
-			mvwaddch(d->widget, d->h-3, d->w-1, rtee);
+			mvwadd_wch(d->widget, d->h-3, d->w-1, &rtee);
 			wattroff(d->widget, t.dialog.linelowercolor);
 		}
 		draw_buttons(d);

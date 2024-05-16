@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2021-2023 Alfonso Sabato Siciliano
+ * Copyright (c) 2021-2024 Alfonso Sabato Siciliano
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -140,7 +140,7 @@ static void getenv_exitcodes(void)
 		value = (int)strtol(envvalue, NULL, 10);
 		exitcodes[i].value = value;
 		/* ITEM_HELP follows HELP without explicit setting */
-		if(i == BSDDIALOG_HELP + 1)
+		if (i == BSDDIALOG_HELP + 1)
 			exitcodes[BSDDIALOG_ITEM_HELP + 1].value = value;
 	}
 }
@@ -242,7 +242,7 @@ int main(int argc, char *argv[argc])
 		if (opt.dialogbuilder == NULL)
 			break;
 		if (opt.backtitle != NULL)
-			if(bsddialog_backtitle(&conf, opt.backtitle))
+			if (bsddialog_backtitle(&conf, opt.backtitle))
 				exit_error(false, bsddialog_geterror());
 		retval = opt.dialogbuilder(&conf, text, rows, cols, argc, argv,
 		    &opt);

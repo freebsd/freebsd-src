@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2021-2023 Alfonso Sabato Siciliano
+.\" Copyright (c) 2021-2024 Alfonso Sabato Siciliano
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 28, 2023
+.Dd March 16, 2024
 .Dt BSDDIALOG 3
 .Os
 .Sh NAME
@@ -719,9 +719,8 @@ the loop ends reading
 builds a dialog without buttons and returns instantly.
 .Pp
 .Fn bsddialog_menu
-builds a dialog to select an item from a list via SPACE or ENTER.
-An item is
-defined like:
+builds a dialog to select an item from a list via SPACE and ENTER.
+An item is defined like:
 .Pp
 .Bd -literal -offset indent -compact
 struct bsddialog_menuitem {
@@ -878,14 +877,13 @@ and
 .Fa max .
 .Fa value
 is the default value on startup and the selected value at exit.
-The current value is printed inside a bar, the keys UP, DOWN, HOME, END, PAGEUP
-and PAGEDOWN can change it.
+The current value is printed inside a bar.
 .Pp
 .Fn bsddialog_textbox
 opens and prints
 .Fa file .
-UP, DOWN, LEFT, RIGHT, HOME, END, PAGEUP and PAGEDOWN keys are available to
-navigate the file, TAB changes button.
+TAB key changes button.
+Extra keys 0, h, l, k, j are available to navigate the text.
 .Dq OK
 button is renamed
 .Dq EXIT .
@@ -901,7 +899,24 @@ are default values on startup, selected time at exit.
 .Fn bsddialog_yesno
 provides a dialog for a
 .Dq Yes-No Question ,
-the labels on buttons are Yes and No.
+the labels on buttons are
+.Dq Yes
+and
+.Dq No .
+.Ss Keys
+.Bl -tag -width Ds
+.It Ctrl-l
+Redraw the dialog.
+.It F1
+Refer to
+.Fa conf.key.f1_file
+and
+.Fa conf.key.f1_message .
+.It SPACE
+Select menu item.
+.It UP DOWN LEFT RIGHT - + HOME END PAGEUP PAGEDOWN Ctrl-p Ctrl-n TAB
+Navigate elements and set value, depending on the dialog.
+.El
 .Ss Theme
 The graphical properties are global to the library.
 They are represented by
@@ -1089,7 +1104,7 @@ case BSDDIALOG_YES:
 	printf("Yes\\n");
 	break;
 case BSDDIALOG_NO
-	printf("NO\\n");
+	printf("No\\n");
 	break;
 case BSDDIALOG_ERROR:
 	printf("Error: %s\\n", bsddialog_geterror());

@@ -50,7 +50,7 @@ int main()
 	conf.title = "gauge";
 	rv = bsddialog_gauge(&conf, "Example", 7, 30, 0, fd[0], "SEP", "EOF");
 	bsddialog_end();
-	if(rv == BSDDIALOG_ERROR)
+	if (rv == BSDDIALOG_ERROR)
 		printf("Error: %s\n", bsddialog_geterror());
 
 	return (0);

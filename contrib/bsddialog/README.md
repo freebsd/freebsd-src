@@ -1,4 +1,4 @@
-# BSDDialog 1.0
+# BSDDialog 1.0.2
 
 This project provides **bsddialog** and **libbsddialog**, an utility
 and a library to build scripts and tools with TUI dialogs and widgets.
@@ -114,18 +114,27 @@ in the _Public Domain_ to build new projects:
 
 ## TODO and Ideas
 
- - menubar feature
- - key callback
- - Right-To-Left text
+ - menubar feature.
+ - key callback.
+ - Right-To-Left text.
  - some terminal does not hide the cursor, move it bottom-right before to getch.
- - refactor backtitle: multiline, conf.backtitle, WINDOW \*dialog.backtitle.
- - refactor bottomdesc: WINDOW \*dialog.bottomdesc -> fix expandig screen.
- - accessibility https://wiki.freebsd.org/Accessibility/Wishlist/Base
+ - refactor backtitle: add WINDOW \*dialog.backtitle for multiline and fix expanding screen.
+ - refactor bottomdesc: add WINDOW \*dialog.bottomdesc to fix expandig screen.
+ - accessibility https://wiki.freebsd.org/Accessibility/Wishlist/Base.
  - add bool conf.menu.depthlines.
  - implement custom getopt\_long().
  - refactor/redesign gauge().
  - improve grey lines expanding terminal (maybe redrawwin() in hide\_dialog()).
  - more restrictive strtol() and strtoul().
  - implement global buttons handler.
- - add/move external tutorial.
- - implement menutype.min_on.
+ - doc: external tutorial, theming guide.
+ - implement menutype.min\_on.
+ - improve refresh at startup, avoid dialog refresh before drawing text.
+ - add debug API: bsddialog\_debug(y,x,refresh,"fmt",...).
+ - add mouse support.
+ - use alarm(2) for bsddialog\_pause.
+ - delete form fieldlen constraint, hide or truncate long field in little screens.
+ - improve --inputbox autosizing, consider also input length.
+ - fix --form "" 0 0 0 Label 1 0 Init 1 12 0 0 (with 0 editable field).
+ - fix --mixedform "" 0 0 0 Label 1 0 Init 1 12 0 0 2 (with 0 editable field).
+ - add *text* customization to --hmsg *help-message*
