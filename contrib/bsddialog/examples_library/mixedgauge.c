@@ -69,7 +69,7 @@ int main()
 		minipercs[12] = i * 10;
 		retval= bsddialog_mixedgauge(&conf, "Example", 20, 40,
 		    50 + i * 5, NMINIBAR, minilabels, minipercs);
-    		if(retval == BSDDIALOG_ERROR)
+		if (retval == BSDDIALOG_ERROR)
 			exit_error();
 		sleep(1);
 	}
