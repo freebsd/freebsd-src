@@ -154,17 +154,17 @@ GCC_3.4.4 {
 GCC_4.0.0 {
 	__divdc3;
 	__divsc3;
-#if defined(__amd64__) && define(__i386__)
+#if defined(__amd64__) || defined(__i386__)
 	__divxc3;
 #endif
 	__muldc3;
 	__mulsc3;
-#if defined(__amd64__) && define(__i386__)
+#if defined(__amd64__) || defined(__i386__)
 	__mulxc3;
 #endif
 	__powidf2;
 	__powisf2;
-#if defined(__amd64__) && define(__i386__)
+#if defined(__amd64__) || defined(__i386__)
 	__powixf2;
 #endif
 };
@@ -172,7 +172,7 @@ GCC_4.0.0 {
 GCC_4.2.0 {
 	__floatundidf;
 	__floatundisf;
-#if defined(__amd64__) && define(__i386__)
+#if defined(__amd64__) || defined(__i386__)
 	__floatundixf;
 #endif
 	_Unwind_GetIPInfo;
