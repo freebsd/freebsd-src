@@ -140,7 +140,7 @@ typedef struct mtx spinlock_t;
 #define	spin_lock_name(name)		_spin_lock_name(name, __FILE__, __LINE__)
 
 #define	spin_lock_init(lock)	mtx_init(lock, spin_lock_name("lnxspin"), \
-				  NULL, MTX_DEF | MTX_NOWITNESS)
+				  NULL, MTX_DEF | MTX_NOWITNESS | MTX_NEW)
 
 #define	spin_lock_destroy(_l)	mtx_destroy(_l)
 
