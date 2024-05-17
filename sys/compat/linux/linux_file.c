@@ -104,7 +104,7 @@ linux_creat(struct thread *td, struct linux_creat_args *args)
 }
 #endif
 
-static int
+int
 linux_common_openflags(int l_flags)
 {
 	int bsd_flags;
