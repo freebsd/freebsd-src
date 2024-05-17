@@ -172,6 +172,13 @@ LIBCOMPAT_INCLUDE_DIRS+= i386
 LIBCOMPAT_INCLUDE_DIRS+= arm
 .endif
 
+.if ((defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == "gcc") || \
+     (!defined(X_COMPILER_TYPE) && ${COMPILER_TYPE} == "gcc"))
+.if ${TARGET} == "arm"
+.error "armv6/armv7 build are broken with gcc. See https://reviews.freebsd.org/D36754"
+.endif
+.endif
+
 .if ${.MAKE.OS} != "FreeBSD"
 CROSSBUILD_HOST=${.MAKE.OS}
 .if ${.MAKE.OS} != "Linux" && ${.MAKE.OS} != "Darwin"
