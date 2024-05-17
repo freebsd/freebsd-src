@@ -100,7 +100,7 @@ snl_attr_get_ip(struct snl_state *ss, struct nlattr *nla,
 static inline struct sockaddr *
 parse_rta_via(struct snl_state *ss, struct rtattr *rta, int *perror)
 {
-	struct rtvia *via = NL_RTA_DATA(rta);
+	struct rtvia *via = (struct rtvia *)NL_RTA_DATA(rta);
 
 	switch (via->rtvia_family) {
 	case AF_INET:
