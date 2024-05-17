@@ -303,7 +303,7 @@ __DEFAULT_YES_OPTIONS+=LLDB
 __DEFAULT_NO_OPTIONS+=LLDB
 .endif
 # LIB32 is not supported on all 64-bit architectures.
-.if (${__T} == "amd64" || ${__T:Maarch64*} != "" || ${__T} == "powerpc64")
+.if (${__T:Maarch64*} != "" && ((defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} != "gcc") || (!defined(X_COMPILER_TYPE) && ${COMPILER_TYPE} != "gcc"))) || ${__T} == "amd64" || ${__T} == "powerpc64"
 __DEFAULT_YES_OPTIONS+=LIB32
 .else
 BROKEN_OPTIONS+=LIB32
