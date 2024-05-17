@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2012-2022 Marko Zec
+ * Copyright (c) 2012-2024 Marko Zec
  * Copyright (c) 2005, 2018 University of Zagreb
  * Copyright (c) 2005 International Computer Science Institute
  *
@@ -67,9 +67,6 @@
 #define	DXR_TRIE_BITS		20
 
 CTASSERT(DXR_TRIE_BITS >= 16 && DXR_TRIE_BITS <= 24);
-
-/* DXR2: two-stage primary trie, instead of a single direct lookup table */
-#define	DXR2
 
 #if DXR_TRIE_BITS > 16
 #define	DXR_D			16
@@ -317,7 +314,6 @@ range_lookup(struct range_entry_long *rt, struct direct_entry de, uint32_t dst)
 		    ntohl(key.addr4.s_addr))]);				\
 	}
 
-#ifdef DXR2
 #if DXR_TRIE_BITS > 16
 DXR_LOOKUP_DEFINE(16)
 #endif
@@ -328,23 +324,16 @@ DXR_LOOKUP_DEFINE(12)
 DXR_LOOKUP_DEFINE(11)
 DXR_LOOKUP_DEFINE(10)
 DXR_LOOKUP_DEFINE(9)
-#endif /* DXR2 */
 
 static int inline
 dxr_lookup(struct dxr *dxr, uint32_t dst)
 {
 	struct direct_entry de;
-#ifdef DXR2
 	uint16_t *dt = dxr->d;
 	struct direct_entry *xt = dxr->x;
 
 	de = xt[(dt[dst >> dxr->d_shift] << dxr->x_shift) +
 	    ((dst >> DXR_RANGE_SHIFT) & dxr->x_mask)];
-#else /* !DXR2 */
-	struct direct_entry *dt = dxr->d;
-
-	de = dt[dst >> DXR_RANGE_SHIFT];
-#endif /* !DXR2 */
 	if (__predict_true(de.fragments == FRAGS_MARK_HIT))
 		return (de.base);
 	return (range_lookup(dxr->r, de, dst));
@@ -571,7 +560,6 @@ chunk_unref(struct dxr_aux *da, uint32_t chunk)
 	LIST_INSERT_HEAD(&da->unused_chunks[i], cdp, cd_hash_le);
 }
 
-#ifdef DXR2
 static uint32_t
 trie_hash(struct dxr_aux *da, uint32_t dxr_x, uint32_t index)
 {
@@ -670,7 +658,6 @@ trie_unref(struct dxr_aux *da, uint32_t index)
 			}
 	} while (tp != NULL);
 }
-#endif
 
 static void
 heap_inject(struct dxr_aux *da, uint32_t start, uint32_t end, uint32_t preflen,
@@ -864,12 +851,10 @@ dxr_build(struct dxr *dxr)
 	uint32_t r_size, dxr_tot_size;
 	uint32_t i, m, range_rebuild = 0;
 	uint32_t range_frag;
-#ifdef DXR2
 	struct trie_desc *tp;
 	uint32_t d_tbl_size, dxr_x, d_size, x_size;
 	uint32_t ti, trie_rebuild = 0, prev_size = 0;
 	uint32_t trie_frag;
-#endif
 
 	MPASS(dxr->d == NULL);
 
@@ -907,7 +892,6 @@ dxr_build(struct dxr *dxr)
 		}
 		range_rebuild = 1;
 	}
-#ifdef DXR2
 	if (da->x_tbl == NULL) {
 		da->x_tbl = malloc(sizeof(*da->x_tbl) * da->xtbl_size,
 		    M_DXRAUX, M_NOWAIT);
@@ -918,7 +902,6 @@ dxr_build(struct dxr *dxr)
 		}
 		trie_rebuild = 1;
 	}
-#endif
 
 	microuptime(&t0);
 
@@ -970,7 +953,6 @@ range_build:
 	r_size = sizeof(*da->range_tbl) * da->rtbl_top;
 	microuptime(&t1);
 
-#ifdef DXR2
 	if (range_rebuild ||
 	    abs(fls(da->prefixes) - fls(da->trie_rebuilt_prefixes)) > 1)
 		trie_rebuild = 1;
@@ -1044,10 +1026,6 @@ dxr2_try_squeeze:
 		goto dxr2_try_squeeze;
 	}
 	microuptime(&t2);
-#else /* !DXR2 */
-	dxr_tot_size = sizeof(da->direct_tbl) + r_size;
-	t2 = t1;
-#endif
 
 	dxr->d = malloc(dxr_tot_size, M_DXRLPM, M_NOWAIT);
 	if (dxr->d == NULL) {
@@ -1055,7 +1033,6 @@ dxr2_try_squeeze:
 		    "Unable to allocate DXR lookup table");
 		return;
 	}
-#ifdef DXR2
 	memcpy(dxr->d, da->d_tbl, d_size);
 	dxr->x = ((char *) dxr->d) + d_size;
 	memcpy(dxr->x, da->x_tbl, x_size);
@@ -1063,10 +1040,6 @@ dxr2_try_squeeze:
 	dxr->d_shift = 32 - da->d_bits;
 	dxr->x_shift = dxr_x;
 	dxr->x_mask = 0xffffffffU >> (32 - dxr_x);
-#else /* !DXR2 */
-	memcpy(dxr->d, da->direct_tbl, sizeof(da->direct_tbl));
-	dxr->r = ((char *) dxr->d) + sizeof(da->direct_tbl);
-#endif
 	memcpy(dxr->r, da->range_tbl, r_size);
 
 	if (da->updates_low <= da->updates_high)
@@ -1076,36 +1049,24 @@ dxr2_try_squeeze:
 	da->updates_high = 0;
 	microuptime(&t3);
 
-#ifdef DXR2
 	FIB_PRINTF(LOG_INFO, da->fd, "D%dX%dR, %d prefixes, %d nhops (max)",
 	    da->d_bits, dxr_x, rinfo.num_prefixes, rinfo.num_nhops);
-#else
-	FIB_PRINTF(LOG_INFO, da->fd, "D%dR, %d prefixes, %d nhops (max)",
-	    DXR_D, rinfo.num_prefixes, rinfo.num_nhops);
-#endif
 	i = dxr_tot_size * 100;
 	if (rinfo.num_prefixes)
 		i /= rinfo.num_prefixes;
 	FIB_PRINTF(LOG_INFO, da->fd, "%d.%02d KBytes, %d.%02d Bytes/prefix",
 	    dxr_tot_size / 1024, dxr_tot_size * 100 / 1024 % 100,
 	    i / 100, i % 100);
-#ifdef DXR2
 	FIB_PRINTF(LOG_INFO, da->fd,
 	    "%d.%02d%% trie, %d.%02d%% range fragmentation",
 	    trie_frag / 100, trie_frag % 100,
 	    range_frag / 100, range_frag % 100);
-#else
-	FIB_PRINTF(LOG_INFO, da->fd, "%d.%01d%% range fragmentation",
-	    range_frag / 100, range_frag % 100);
-#endif
 	i = (t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec;
 	FIB_PRINTF(LOG_INFO, da->fd, "range table %s in %u.%03u ms",
 	    range_rebuild ? "rebuilt" : "updated", i / 1000, i % 1000);
-#ifdef DXR2
 	i = (t2.tv_sec - t1.tv_sec) * 1000000 + t2.tv_usec - t1.tv_usec;
 	FIB_PRINTF(LOG_INFO, da->fd, "trie %s in %u.%03u ms",
 	    trie_rebuild ? "rebuilt" : "updated", i / 1000, i % 1000);
-#endif
 	i = (t3.tv_sec - t2.tv_sec) * 1000000 + t3.tv_usec - t2.tv_usec;
 	FIB_PRINTF(LOG_INFO, da->fd, "snapshot forked in %u.%03u ms",
 	    i / 1000, i % 1000);
@@ -1194,7 +1155,6 @@ static void *
 choose_lookup_fn(struct dxr_aux *da)
 {
 
-#ifdef DXR2
 	switch (da->d_bits) {
 #if DXR_TRIE_BITS > 16
 	case 16:
@@ -1215,7 +1175,6 @@ choose_lookup_fn(struct dxr_aux *da)
 	case 9:
 		return (dxr_fib_lookup_9);
 	}
-#endif /* DXR2 */
 	return (dxr_fib_lookup);
 }
 
