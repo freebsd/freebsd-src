@@ -52,6 +52,6 @@ typedef struct rwlock rwlock_t;
     do { read_unlock(lock); } while (0)
 #define	write_unlock_irqrestore(lock, flags)				\
     do { write_unlock(lock); } while (0)
-#define	rwlock_init(_l)	rw_init_flags(_l, "lnxrw", RW_NOWITNESS)
+#define	rwlock_init(_l)	rw_init_flags(_l, "lnxrw", RW_NOWITNESS | RW_NEW)
 
 #endif	/* _LINUXKPI_LINUX_RWLOCK_H_ */
