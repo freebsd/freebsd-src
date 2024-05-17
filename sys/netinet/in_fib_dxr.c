@@ -1320,8 +1320,10 @@ dxr_change_rib_batch(struct rib_head *rnh, struct fib_change_queue *q,
 	dxr_build(new_dxr);
 
 	/* Structural limit exceeded, hard error */
-	if (da->rtbl_top >= BASE_MAX)
+	if (da->rtbl_top >= BASE_MAX) {
+		dxr_destroy(new_dxr);
 		return (FLM_ERROR);
+	}
 
 	if (new_dxr->d == NULL) {
 		dxr_destroy(new_dxr);
