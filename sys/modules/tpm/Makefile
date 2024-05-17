@@ -22,6 +22,7 @@ SRCS+=  tpm_spibus.c tpm_tis_spibus.c spibus_if.h
 SRCS+= acpi_if.h
 SRCS+= tpm_tis_acpi.c
 SRCS+= tpm_crb.c
+SRCS+= tpm_bus.c
 .endif
 
 .include <bsd.kmod.mk>
