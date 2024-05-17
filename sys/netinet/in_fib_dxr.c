@@ -1139,7 +1139,8 @@ dxr_init(uint32_t fibnum, struct fib_data *fd, void *old_data, void **data)
 	}
 
 	/* Check whether we may reuse the old auxiliary structures */
-	if (old_dxr != NULL && old_dxr->aux != NULL) {
+	if (old_dxr != NULL && old_dxr->aux != NULL &&
+	    old_dxr->aux->fd == fd) {
 		da = old_dxr->aux;
 		atomic_add_int(&da->refcnt, 1);
 	}
@@ -1275,7 +1276,7 @@ dxr_change_rib_batch(struct rib_head *rnh, struct fib_change_queue *q,
 
 	da = dxr->aux;
 	MPASS(da != NULL);
-	MPASS(da->fd != NULL);
+	MPASS(da->fd == dxr->fd);
 	MPASS(da->refcnt > 0);
 
 	FIB_PRINTF(LOG_INFO, da->fd, "processing %d update(s)", q->count);
