@@ -2003,7 +2003,7 @@ notifier_remove(struct proc *p, struct mqueue *mq, int fd)
 	PROC_UNLOCK(p);
 }
 
-static int
+int
 kern_kmq_open(struct thread *td, const char *upath, int flags, mode_t mode,
     const struct mq_attr *attr)
 {
@@ -2223,7 +2223,7 @@ getmq_write(struct thread *td, int fd, struct file **fpp,
 	    fpp, ppn, pmq);
 }
 
-static int
+int
 kern_kmq_setattr(struct thread *td, int mqd, const struct mq_attr *attr,
     struct mq_attr *oattr)
 {
@@ -2329,7 +2329,7 @@ out:
 	return (error);
 }
 
-static int
+int
 kern_kmq_notify(struct thread *td, int mqd, struct sigevent *sigev)
 {
 	struct filedesc *fdp;
