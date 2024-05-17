@@ -592,67 +592,6 @@ linux_get_thread_area(struct thread *td, struct linux_get_thread_area_args *args
 	return (0);
 }
 
-/* XXX: this wont work with module - convert it */
-int
-linux_mq_open(struct thread *td, struct linux_mq_open_args *args)
-{
-#ifdef P1003_1B_MQUEUE
-	return (sys_kmq_open(td, (struct kmq_open_args *)args));
-#else
-	return (ENOSYS);
-#endif
-}
-
-int
-linux_mq_unlink(struct thread *td, struct linux_mq_unlink_args *args)
-{
-#ifdef P1003_1B_MQUEUE
-	return (sys_kmq_unlink(td, (struct kmq_unlink_args *)args));
-#else
-	return (ENOSYS);
-#endif
-}
-
-int
-linux_mq_timedsend(struct thread *td, struct linux_mq_timedsend_args *args)
-{
-#ifdef P1003_1B_MQUEUE
-	return (sys_kmq_timedsend(td, (struct kmq_timedsend_args *)args));
-#else
-	return (ENOSYS);
-#endif
-}
-
-int
-linux_mq_timedreceive(struct thread *td, struct linux_mq_timedreceive_args *args)
-{
-#ifdef P1003_1B_MQUEUE
-	return (sys_kmq_timedreceive(td, (struct kmq_timedreceive_args *)args));
-#else
-	return (ENOSYS);
-#endif
-}
-
-int
-linux_mq_notify(struct thread *td, struct linux_mq_notify_args *args)
-{
-#ifdef P1003_1B_MQUEUE
-	return (sys_kmq_notify(td, (struct kmq_notify_args *)args));
-#else
-	return (ENOSYS);
-#endif
-}
-
-int
-linux_mq_getsetattr(struct thread *td, struct linux_mq_getsetattr_args *args)
-{
-#ifdef P1003_1B_MQUEUE
-	return (sys_kmq_setattr(td, (struct kmq_setattr_args *)args));
-#else
-	return (ENOSYS);
-#endif
-}
-
 void
 bsd_to_linux_regset(const struct reg *b_reg,
     struct linux_pt_regset *l_regset)

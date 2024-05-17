@@ -42,10 +42,4 @@ LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
  * Before adding new stubs to this file, please check if a stub can be added to
  * the machine-independent code in sys/compat/linux/linux_dummy.c.
  */
-DUMMY(mq_open);
-DUMMY(mq_unlink);
-DUMMY(mq_timedsend);
-DUMMY(mq_timedreceive);
-DUMMY(mq_notify);
-DUMMY(mq_getsetattr);
 DUMMY(kexec_file_load);

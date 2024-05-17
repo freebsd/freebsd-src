@@ -29,6 +29,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "opt_posix.h"
+
 #include <sys/param.h>
 #include <sys/fcntl.h>
 #include <sys/jail.h>
@@ -36,6 +38,7 @@
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/msgbuf.h>
+#include <sys/mqueue.h>
 #include <sys/mutex.h>
 #include <sys/poll.h>
 #include <sys/priv.h>
@@ -2963,3 +2966,124 @@ linux_ioprio_set(struct thread *td, struct linux_ioprio_set_args *args)
 	}
 	return (error);
 }
+
+/* The only flag is O_NONBLOCK */
+#define B2L_MQ_FLAGS(bflags)	((bflags) != 0 ? LINUX_O_NONBLOCK : 0)
+#define L2B_MQ_FLAGS(lflags)	((lflags) != 0 ? O_NONBLOCK : 0)
+
+int
+linux_mq_open(struct thread *td, struct linux_mq_open_args *args)
+{
+	struct mq_attr attr;
+	int error, flags;
+
+	flags = linux_common_openflags(args->oflag);
+	if ((flags & O_ACCMODE) == O_ACCMODE || (flags & O_EXEC) != 0)
+		return (EINVAL);
+	flags = FFLAGS(flags);
+	if ((flags & O_CREAT) != 0 && args->attr != NULL) {
+		error = copyin(args->attr, &attr, sizeof(attr));
+		if (error != 0)
+			return (error);
+		attr.mq_flags = L2B_MQ_FLAGS(attr.mq_flags);
+	}
+
+	return (kern_kmq_open(td, args->name, flags, args->mode,
+	    args->attr != NULL ? &attr : NULL));
+}
+
+int
+linux_mq_unlink(struct thread *td, struct linux_mq_unlink_args *args)
+{
+	struct kmq_unlink_args bsd_args = {
+		.path = PTRIN(args->name)
+	};
+
+	return (sys_kmq_unlink(td, &bsd_args));
+}
+
+int
+linux_mq_timedsend(struct thread *td, struct linux_mq_timedsend_args *args)
+{
+	struct timespec ts, *abs_timeout;
+	int error;
+
+	if (args->abs_timeout == NULL)
+		abs_timeout = NULL;
+	else {
+		error = linux_get_timespec(&ts, args->abs_timeout);
+		if (error != 0)
+			return (error);
+		abs_timeout = &ts;
+	}
+
+	return (kern_kmq_timedsend(td, args->mqd, PTRIN(args->msg_ptr),
+		args->msg_len, args->msg_prio, abs_timeout));
+}
+
+int
+linux_mq_timedreceive(struct thread *td, struct linux_mq_timedreceive_args *args)
+{
+	struct timespec ts, *abs_timeout;
+	int error;
+
+	if (args->abs_timeout == NULL)
+		abs_timeout = NULL;
+	else {
+		error = linux_get_timespec(&ts, args->abs_timeout);
+		if (error != 0)
+			return (error);
+		abs_timeout = &ts;
+	}
+
+	return (kern_kmq_timedreceive(td, args->mqd, PTRIN(args->msg_ptr),
+		args->msg_len, args->msg_prio, abs_timeout));
+}
+
+int
+linux_mq_notify(struct thread *td, struct linux_mq_notify_args *args)
+{
+	struct sigevent ev, *evp;
+	struct l_sigevent l_ev;
+	int error;
+
+	if (args->sevp == NULL)
+		evp = NULL;
+	else {
+		error = copyin(args->sevp, &l_ev, sizeof(l_ev));
+		if (error != 0)
+			return (error);
+		error = linux_convert_l_sigevent(&l_ev, &ev);
+		if (error != 0)
+			return (error);
+		evp = &ev;
+	}
+
+	return (kern_kmq_notify(td, args->mqd, evp));
+}
+
+int
+linux_mq_getsetattr(struct thread *td, struct linux_mq_getsetattr_args *args)
+{
+	struct mq_attr attr, oattr;
+	int error;
+
+	if (args->attr != NULL) {
+		error = copyin(args->attr, &attr, sizeof(attr));
+		if (error != 0)
+			return (error);
+		attr.mq_flags = L2B_MQ_FLAGS(attr.mq_flags);
+	}
+
+	error = kern_kmq_setattr(td, args->mqd, args->attr != NULL ? &attr : NULL,
+	    &oattr);
+	if (error == 0 && args->oattr != NULL) {
+		oattr.mq_flags = B2L_MQ_FLAGS(oattr.mq_flags);
+		bzero(oattr.__reserved, sizeof(oattr.__reserved));
+		error = copyout(&oattr, args->oattr, sizeof(oattr));
+	}
+
+	return (error);
+}
+
+MODULE_DEPEND(linux, mqueuefs, 1, 1, 1);

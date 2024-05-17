@@ -56,12 +56,6 @@ DUMMY(io_destroy);
 DUMMY(io_getevents);
 DUMMY(io_submit);
 DUMMY(io_cancel);
-DUMMY(mq_open);
-DUMMY(mq_unlink);
-DUMMY(mq_timedsend);
-DUMMY(mq_timedreceive);
-DUMMY(mq_notify);
-DUMMY(mq_getsetattr);
 DUMMY(readahead);
 DUMMY(restart_syscall);
 /* Linux 3.15: */
