@@ -43,8 +43,8 @@
 #endif
 #include <compat/linux/linux_time.h>
 
-static int
-linux_convert_l_sigevent(struct l_sigevent *l_sig, struct sigevent *sig)
+int
+linux_convert_l_sigevent(const struct l_sigevent *l_sig, struct sigevent *sig)
 {
 
 	CP(*l_sig, *sig, sigev_notify);
