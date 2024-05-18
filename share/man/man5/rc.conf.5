@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 4, 2024
+.Dd May 18, 2024
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -334,10 +334,6 @@ A whitespace-separated list of kernel modules to load right after
 the local disks are mounted, without any
 .Pa .ko
 extension or path.
-Loading modules at this point in the boot process is
-much faster than doing it via
-.Pa /boot/loader.conf
-for those modules not necessary for mounting local disks.
 .It Va kldxref_enable
 .Pq Vt bool
 Set to
