@@ -2275,29 +2275,57 @@ sys_kmq_setattr(struct thread *td, struct kmq_setattr_args *uap)
 }
 
 int
-sys_kmq_timedreceive(struct thread *td, struct kmq_timedreceive_args *uap)
+kern_kmq_timedreceive(struct thread *td, int mqd, char *msg_ptr,
+	size_t msg_len, unsigned int *msg_prio, const struct timespec *abs_timeout)
 {
 	struct mqueue *mq;
 	struct file *fp;
+	int error, waitok;
+
+	AUDIT_ARG_FD(mqd);
+	error = getmq_read(td, mqd, &fp, NULL, &mq);
+	if (error != 0)
+		return (error);
+	waitok = (fp->f_flag & O_NONBLOCK) == 0;
+	error = mqueue_receive(mq, msg_ptr, msg_len, msg_prio, waitok,
+	    abs_timeout);
+	fdrop(fp, td);
+	return (error);
+}
+
+int
+sys_kmq_timedreceive(struct thread *td, struct kmq_timedreceive_args *uap)
+{
 	struct timespec *abs_timeout, ets;
 	int error;
-	int waitok;
 
-	AUDIT_ARG_FD(uap->mqd);
-	error = getmq_read(td, uap->mqd, &fp, NULL, &mq);
-	if (error)
-		return (error);
 	if (uap->abs_timeout != NULL) {
 		error = copyin(uap->abs_timeout, &ets, sizeof(ets));
 		if (error != 0)
-			goto out;
+			return (error);
 		abs_timeout = &ets;
 	} else
 		abs_timeout = NULL;
-	waitok = !(fp->f_flag & O_NONBLOCK);
-	error = mqueue_receive(mq, uap->msg_ptr, uap->msg_len,
-		uap->msg_prio, waitok, abs_timeout);
-out:
+
+	return (kern_kmq_timedreceive(td, uap->mqd, uap->msg_ptr, uap->msg_len,
+		uap->msg_prio, abs_timeout));
+}
+
+int
+kern_kmq_timedsend(struct thread *td, int mqd, const char *msg_ptr,
+	size_t msg_len, unsigned int msg_prio, const struct timespec *abs_timeout)
+{
+	struct mqueue *mq;
+	struct file *fp;
+	int error, waitok;
+
+	AUDIT_ARG_FD(mqd);
+	error = getmq_write(td, mqd, &fp, NULL, &mq);
+	if (error != 0)
+		return (error);
+	waitok = (fp->f_flag & O_NONBLOCK) == 0;
+	error = mqueue_send(mq, msg_ptr, msg_len, msg_prio, waitok,
+		abs_timeout);
 	fdrop(fp, td);
 	return (error);
 }
@@ -2305,28 +2333,19 @@ out:
 int
 sys_kmq_timedsend(struct thread *td, struct kmq_timedsend_args *uap)
 {
-	struct mqueue *mq;
-	struct file *fp;
 	struct timespec *abs_timeout, ets;
-	int error, waitok;
+	int error;
 
-	AUDIT_ARG_FD(uap->mqd);
-	error = getmq_write(td, uap->mqd, &fp, NULL, &mq);
-	if (error)
-		return (error);
 	if (uap->abs_timeout != NULL) {
 		error = copyin(uap->abs_timeout, &ets, sizeof(ets));
 		if (error != 0)
-			goto out;
+			return (error);
 		abs_timeout = &ets;
 	} else
 		abs_timeout = NULL;
-	waitok = !(fp->f_flag & O_NONBLOCK);
-	error = mqueue_send(mq, uap->msg_ptr, uap->msg_len,
-		uap->msg_prio, waitok, abs_timeout);
-out:
-	fdrop(fp, td);
-	return (error);
+
+	return (kern_kmq_timedsend(td, uap->mqd, uap->msg_ptr, uap->msg_len,
+		uap->msg_prio, abs_timeout));
 }
 
 int
@@ -2801,63 +2820,44 @@ int
 freebsd32_kmq_timedsend(struct thread *td,
     struct freebsd32_kmq_timedsend_args *uap)
 {
-	struct mqueue *mq;
-	struct file *fp;
 	struct timespec32 ets32;
 	struct timespec *abs_timeout, ets;
 	int error;
-	int waitok;
 
-	AUDIT_ARG_FD(uap->mqd);
-	error = getmq_write(td, uap->mqd, &fp, NULL, &mq);
-	if (error)
-		return (error);
 	if (uap->abs_timeout != NULL) {
 		error = copyin(uap->abs_timeout, &ets32, sizeof(ets32));
 		if (error != 0)
-			goto out;
+			return (error);
 		CP(ets32, ets, tv_sec);
 		CP(ets32, ets, tv_nsec);
 		abs_timeout = &ets;
 	} else
 		abs_timeout = NULL;
-	waitok = !(fp->f_flag & O_NONBLOCK);
-	error = mqueue_send(mq, uap->msg_ptr, uap->msg_len,
-	    uap->msg_prio, waitok, abs_timeout);
-out:
-	fdrop(fp, td);
-	return (error);
+
+	return (kern_kmq_timedsend(td, uap->mqd, uap->msg_ptr, uap->msg_len,
+		uap->msg_prio, abs_timeout));
 }
 
 int
 freebsd32_kmq_timedreceive(struct thread *td,
     struct freebsd32_kmq_timedreceive_args *uap)
 {
-	struct mqueue *mq;
-	struct file *fp;
 	struct timespec32 ets32;
 	struct timespec *abs_timeout, ets;
-	int error, waitok;
+	int error;
 
-	AUDIT_ARG_FD(uap->mqd);
-	error = getmq_read(td, uap->mqd, &fp, NULL, &mq);
-	if (error)
-		return (error);
 	if (uap->abs_timeout != NULL) {
 		error = copyin(uap->abs_timeout, &ets32, sizeof(ets32));
 		if (error != 0)
-			goto out;
+			return (error);
 		CP(ets32, ets, tv_sec);
 		CP(ets32, ets, tv_nsec);
 		abs_timeout = &ets;
 	} else
 		abs_timeout = NULL;
-	waitok = !(fp->f_flag & O_NONBLOCK);
-	error = mqueue_receive(mq, uap->msg_ptr, uap->msg_len,
-	    uap->msg_prio, waitok, abs_timeout);
-out:
-	fdrop(fp, td);
-	return (error);
+
+	return (kern_kmq_timedreceive(td, uap->mqd, uap->msg_ptr, uap->msg_len,
+		uap->msg_prio, abs_timeout));
 }
 
 int
