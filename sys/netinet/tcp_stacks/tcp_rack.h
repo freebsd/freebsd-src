@@ -199,7 +199,6 @@ struct rack_opts_stats {
 	uint64_t tcp_rack_min_pace_seg;
 	uint64_t tcp_rack_pace_rate_ca;
 	uint64_t tcp_rack_rr;
-	uint64_t tcp_rack_do_detection;
 	uint64_t tcp_rack_rrr_no_conf_rate;
 	uint64_t tcp_initial_rate;
 	uint64_t tcp_initial_win;
@@ -458,10 +457,6 @@ struct rack_control {
 	uint16_t rack_per_of_gp_rec; /* 100 = 100%, so from 65536 = 655 x bw, 0=off */
 	uint16_t rack_per_of_gp_probertt; /* 100 = 100%, so from 65536 = 655 x bw, 0=off */
 	uint32_t rc_high_rwnd;
-	uint32_t ack_count;
-	uint32_t sack_count;
-	uint32_t sack_noextra_move;
-	uint32_t sack_moved_extra;
 	struct rack_rtt_sample rack_rs;
 	const struct tcp_hwrate_limit_table *crte;
 	uint32_t rc_agg_early;
@@ -563,7 +558,6 @@ struct rack_control {
 	uint32_t rc_min_to;	/* Socket option value Lock(a) */
 	uint32_t rc_pkt_delay;	/* Socket option value Lock(a) */
 	uint32_t persist_lost_ends;
-	uint32_t ack_during_sd;
 	uint32_t input_pkt;
 	uint32_t saved_input_pkt;
 	uint32_t saved_policer_val; 	/* The encoded value we used to setup policer detection */
@@ -790,8 +784,7 @@ struct tcp_rack {
 		set_pacing_done_a_iw : 1,
 		use_rack_rr : 1,
 		alloc_limit_reported : 1,
-		sack_attack_disable : 1,
-		do_detection : 1,
+		rack_avail : 2,
 		rc_force_max_seg : 1;
 	uint8_t r_early : 1,
 		r_late : 1,

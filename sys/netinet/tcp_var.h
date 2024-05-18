@@ -1421,19 +1421,6 @@ extern counter_u64_t tcp_comp_total;
 extern counter_u64_t tcp_uncomp_total;
 extern counter_u64_t tcp_bad_csums;
 
-#ifdef TCP_SAD_DETECTION
-/* Various SACK attack thresholds */
-extern int32_t tcp_force_detection;
-extern int32_t tcp_sad_limit;
-extern int32_t tcp_sack_to_ack_thresh;
-extern int32_t tcp_sack_to_move_thresh;
-extern int32_t tcp_restoral_thresh;
-extern int32_t tcp_sad_decay_val;
-extern int32_t tcp_sad_pacing_interval;
-extern int32_t tcp_sad_low_pps;
-extern int32_t tcp_map_minimum;
-extern int32_t tcp_attack_on_turns_on_logging;
-#endif
 extern uint32_t tcp_ack_war_time_window;
 extern uint32_t tcp_ack_war_cnt;
 
