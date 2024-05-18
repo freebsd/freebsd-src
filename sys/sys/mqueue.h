@@ -38,14 +38,8 @@ struct mq_attr {
 };
 
 #ifdef _KERNEL
-struct sigevent;
 struct thread;
 struct file;
 extern void	(*mq_fdclose)(struct thread *td, int fd, struct file *fp);
-int	kern_kmq_notify(struct thread *, int, struct sigevent *);
-int	kern_kmq_open(struct thread *, const char *, int, mode_t,
-		const struct mq_attr *);
-int	kern_kmq_setattr(struct thread *, int, const struct mq_attr *,
-		struct mq_attr *);
 #endif
 #endif
