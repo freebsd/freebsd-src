@@ -536,7 +536,7 @@ static int32_t rack_output(struct tcpcb *tp);
 static uint32_t
 rack_proc_sack_blk(struct tcpcb *tp, struct tcp_rack *rack,
     struct sackblk *sack, struct tcpopt *to, struct rack_sendmap **prsm,
-    uint32_t cts, int *no_extra, int *moved_two, uint32_t segsiz);
+    uint32_t cts, uint32_t segsiz);
 static void rack_post_recovery(struct tcpcb *tp, uint32_t th_seq);
 static void rack_remxt_tmr(struct tcpcb *tp);
 static int rack_set_sockopt(struct tcpcb *tp, struct sockopt *sopt);
@@ -2752,8 +2752,6 @@ rack_log_retran_reason(struct tcp_rack *rack, struct rack_sendmap *rsm, uint32_t
 		union tcp_log_stackspecific log;
 		struct timeval tv;
 
-		if (rack->sack_attack_disable > 0)
-			goto log_anyway;
 		if ((mod != 1) && (rack_verbose_logging == 0))  {
 			/*
 			 * We get 3 values currently for mod
@@ -2766,7 +2764,6 @@ rack_log_retran_reason(struct tcp_rack *rack, struct rack_sendmap *rsm, uint32_t
 			 */
 			return;
 		}
-log_anyway:
 		memset(&log.u_bbr, 0, sizeof(log.u_bbr));
 		log.u_bbr.flex1 = tsused;
 		log.u_bbr.flex2 = thresh;
@@ -3007,13 +3004,8 @@ rack_log_rtt_sample(struct tcp_rack *rack, uint32_t rtt)
 		/* Convert our ms to a microsecond */
 		memset(&log, 0, sizeof(log));
 		log.u_bbr.flex1 = rtt;
-		log.u_bbr.flex2 = rack->r_ctl.ack_count;
-		log.u_bbr.flex3 = rack->r_ctl.sack_count;
-		log.u_bbr.flex4 = rack->r_ctl.sack_noextra_move;
-		log.u_bbr.flex5 = rack->r_ctl.sack_moved_extra;
 		log.u_bbr.flex6 = rack->rc_tp->t_rxtcur;
 		log.u_bbr.flex7 = 1;
-		log.u_bbr.flex8 = rack->sack_attack_disable;
 		log.u_bbr.timeStamp = tcp_get_usecs(&tv);
 		log.u_bbr.inflight = ctf_flight_size(rack->rc_tp, rack->r_ctl.rc_sacked);
 		log.u_bbr.pkts_out = rack->r_ctl.rc_out_at_rto;
@@ -3144,7 +3136,6 @@ rack_log_type_bbrsnd(struct tcp_rack *rack, uint32_t len, uint32_t slot, uint32_
 		else
 			log.u_bbr.flex2 = rack->r_ctl.rc_prr_sndcnt;
 		log.u_bbr.flex4 = rack->r_ctl.rc_hpts_flags;
-		log.u_bbr.flex5 = rack->r_ctl.ack_during_sd;
 		log.u_bbr.flex6 = line;
 		log.u_bbr.flex7 = (0x0000ffff & rack->r_ctl.rc_hpts_flags);
 		log.u_bbr.flex8 = rack->rc_in_persist;
@@ -3406,40 +3397,6 @@ rack_log_to_prr(struct tcp_rack *rack, int frm, int orig_cwnd, int line)
 	}
 }
 
-#ifdef TCP_SAD_DETECTION
-static void
-rack_log_sad(struct tcp_rack *rack, int event)
-{
-	if (tcp_bblogging_on(rack->rc_tp)) {
-		union tcp_log_stackspecific log;
-		struct timeval tv;
-
-		memset(&log.u_bbr, 0, sizeof(log.u_bbr));
-		log.u_bbr.flex1 = rack->r_ctl.sack_count;
-		log.u_bbr.flex2 = rack->r_ctl.ack_count;
-		log.u_bbr.flex3 = rack->r_ctl.sack_moved_extra;
-		log.u_bbr.flex4 = rack->r_ctl.sack_noextra_move;
-		log.u_bbr.flex5 = rack->r_ctl.rc_num_maps_alloced;
-		log.u_bbr.flex6 = tcp_sack_to_ack_thresh;
-		log.u_bbr.pkts_out = tcp_sack_to_move_thresh;
-		log.u_bbr.lt_epoch = (tcp_force_detection << 8);
-		log.u_bbr.lt_epoch |= rack->do_detection;
-		log.u_bbr.applimited = tcp_map_minimum;
-		log.u_bbr.flex7 = rack->sack_attack_disable;
-		log.u_bbr.flex8 = event;
-		log.u_bbr.bbr_state = rack->rc_suspicious;
-		log.u_bbr.timeStamp = tcp_get_usecs(&tv);
-		log.u_bbr.inflight = ctf_flight_size(rack->rc_tp, rack->r_ctl.rc_sacked);
-		log.u_bbr.delivered = tcp_sad_decay_val;
-		TCP_LOG_EVENTP(rack->rc_tp, NULL,
-		    &rack->rc_inp->inp_socket->so_rcv,
-		    &rack->rc_inp->inp_socket->so_snd,
-		    TCP_SAD_DETECT, 0,
-		    0, &log, false, &tv);
-	}
-}
-#endif
-
 static void
 rack_counter_destroy(void)
 {
@@ -3549,7 +3506,6 @@ static struct rack_sendmap *
 rack_alloc_full_limit(struct tcp_rack *rack)
 {
 	if ((V_tcp_map_entries_limit > 0) &&
-	    (rack->do_detection == 0) &&
 	    (rack->r_ctl.rc_num_maps_alloced >= V_tcp_map_entries_limit)) {
 		counter_u64_add(rack_to_alloc_limited, 1);
 		if (!rack->alloc_limit_reported) {
@@ -3570,7 +3526,6 @@ rack_alloc_limit(struct tcp_rack *rack, uint8_t limit_type)
 	if (limit_type) {
 		/* currently there is only one limit type */
 		if (rack->r_ctl.rc_split_limit > 0 &&
-		    (rack->do_detection == 0) &&
 		    rack->r_ctl.rc_num_split_allocs >= rack->r_ctl.rc_split_limit) {
 			counter_u64_add(rack_split_limited, 1);
 			if (!rack->alloc_limit_reported) {
@@ -3578,17 +3533,6 @@ rack_alloc_limit(struct tcp_rack *rack, uint8_t limit_type)
 				counter_u64_add(rack_alloc_limited_conns, 1);
 			}
 			return (NULL);
-#ifdef TCP_SAD_DETECTION
-		} else if ((tcp_sad_limit != 0) &&
-			   (rack->do_detection == 1) &&
-			   (rack->r_ctl.rc_num_split_allocs >= tcp_sad_limit)) {
-			counter_u64_add(rack_split_limited, 1);
-			if (!rack->alloc_limit_reported) {
-				rack->alloc_limit_reported = 1;
-				counter_u64_add(rack_alloc_limited_conns, 1);
-			}
-			return (NULL);
-#endif
 		}
 	}
 
@@ -6812,7 +6756,6 @@ rack_timer_start(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts, int sup_
 	}
 	rack->rc_on_min_to = 0;
 	if ((tp->t_state < TCPS_ESTABLISHED) ||
-	    (rack->sack_attack_disable > 0) ||
 	    ((tp->t_flags & TF_SACK_PERMIT) == 0)) {
 		goto activate_rxt;
 	}
@@ -6883,16 +6826,6 @@ activate_rxt:
 			/* No lowest? */
 			goto activate_rxt;
 		}
-	}
-	if (rack->sack_attack_disable) {
-		/*
-		 * We don't want to do
-		 * any TLP's if you are an attacker.
-		 * Though if you are doing what
-		 * is expected you may still have
-		 * SACK-PASSED marks.
-		 */
-		goto activate_rxt;
 	}
 	/* Convert from ms to usecs */
 	if ((rsm->r_flags & RACK_SACK_PASSED) ||
@@ -7304,25 +7237,6 @@ rack_start_hpts_timer (struct tcp_rack *rack, struct tcpcb *tp, uint32_t cts,
 		}
 	}
 	hpts_timeout = rack_timer_start(tp, rack, cts, sup_rack);
-#ifdef TCP_SAD_DETECTION
-	if (rack->sack_attack_disable &&
-	    (rack->r_ctl.ack_during_sd > 0) &&
-	    (slot < tcp_sad_pacing_interval)) {
-		/*
-		 * We have a potential attacker on
-		 * the line. We have possibly some
-		 * (or now) pacing time set. We want to
-		 * slow down the processing of sacks by some
-		 * amount (if it is an attacker). Set the default
-		 * slot for attackers in place (unless the original
-		 * interval is longer). Its stored in
-		 * micro-seconds, so lets convert to msecs.
-		 */
-		slot = tcp_sad_pacing_interval;
-		rack_log_type_bbrsnd(rack, tot_len_this_send, slot, us_cts, &tv, __LINE__);
-		rack->r_ctl.ack_during_sd = 0;
-	}
-#endif
 	if (tp->t_flags & TF_DELACK) {
 		delayed_ack = TICKS_2_USEC(tcp_delacktime);
 		rack->r_ctl.rc_hpts_flags |= PACE_TMR_DELACK;
@@ -7472,11 +7386,7 @@ rack_start_hpts_timer (struct tcp_rack *rack, struct tcpcb *tp, uint32_t cts,
 				tp->t_flags2 |= TF2_DONT_SACK_QUEUE;
 			}
 		}
-		/* For sack attackers we want to ignore sack */
-		if (rack->sack_attack_disable == 1) {
-			tp->t_flags2 |= (TF2_DONT_SACK_QUEUE |
-			    TF2_MBUF_QUEUE_READY);
-		} else if (rack->rc_ack_can_sendout_data) {
+		if (rack->rc_ack_can_sendout_data) {
 			/*
 			 * Ahh but wait, this is that special case
 			 * where the pacing timer can be disturbed
@@ -8281,11 +8191,8 @@ rack_remxt_tmr(struct tcpcb *tp)
 	rack->r_ctl.rc_resend = tqhash_min(rack->r_ctl.tqh);
 	if (rack->r_ctl.rc_resend != NULL)
 		rack->r_ctl.rc_resend->r_flags |= RACK_TO_REXT;
-	if ((((tp->t_flags & TF_SACK_PERMIT) == 0)
-#ifdef TCP_SAD_DETECTION
-	     || (rack->sack_attack_disable != 0)
-#endif
-		    ) && ((tp->t_flags & TF_SENTFIN) == 0)) {
+	if (((tp->t_flags & TF_SACK_PERMIT) == 0) &&
+	    ((tp->t_flags & TF_SENTFIN) == 0)) {
 		/*
 		 * For non-sack customers new data
 		 * needs to go out as retransmits until
@@ -10102,40 +10009,19 @@ is_rsm_inside_declared_tlp_block(struct tcp_rack *rack, struct rack_sendmap *rsm
 static uint32_t
 rack_proc_sack_blk(struct tcpcb *tp, struct tcp_rack *rack, struct sackblk *sack,
 		   struct tcpopt *to, struct rack_sendmap **prsm, uint32_t cts,
-		   int *no_extra,
-		   int *moved_two, uint32_t segsiz)
+		   uint32_t segsiz)
 {
 	uint32_t start, end, changed = 0;
 	struct rack_sendmap stack_map;
 	struct rack_sendmap *rsm, *nrsm, *prev, *next;
 	int insret __diagused;
 	int32_t used_ref = 1;
-	int moved = 0;
-#ifdef TCP_SAD_DETECTION
-	int allow_segsiz;
-	int first_time_through = 1;
-#endif
-	int noextra = 0;
 	int can_use_hookery = 0;
 
 	start = sack->start;
 	end = sack->end;
 	rsm = *prsm;
 
-#ifdef TCP_SAD_DETECTION
-	/*
-	 * There are a strange number of proxys and meddle boxes in the world
-	 * that seem to cut up segments on different boundaries. This gets us
-	 * smaller sacks that are still ok in terms of it being an attacker.
-	 * We use the base segsiz to calculate an allowable smallness but
-	 * also enforce a min on the segsiz in case it is an attacker playing
-	 * games with MSS. So basically if the sack arrives and it is
-	 * larger than a worse case 960 bytes, we don't classify the guy
-	 * as supicious.
-	 */
-	allow_segsiz = max(segsiz, 1200) * sad_seg_size_per;
-	allow_segsiz /= 1000;
-#endif
 do_rest_ofb:
 	if ((rsm == NULL) ||
 	    (SEQ_LT(end, rsm->r_start)) ||
@@ -10147,105 +10033,11 @@ do_rest_ofb:
 		 */
 		used_ref = 0;
 		rsm = tqhash_find(rack->r_ctl.tqh, start);
-		moved++;
 	}
 	if (rsm == NULL) {
 		/* TSNH */
 		goto out;
 	}
-#ifdef TCP_SAD_DETECTION
-	/* Now we must check for suspicous activity */
-	if ((first_time_through == 1) &&
-	    ((end - start) < min((rsm->r_end - rsm->r_start), allow_segsiz)) &&
-	    ((rsm->r_flags & RACK_PMTU_CHG) == 0) &&
-	    ((rsm->r_flags & RACK_TLP) == 0)) {
-		/*
-		 * Its less than a full MSS or the segment being acked
-		 * this should only happen if the rsm in question had the
-		 * r_just_ret flag set <and> the end matches the end of
-		 * the rsm block.
-		 *
-		 * Note we do not look at segments that have had TLP's on
-		 * them since we can get un-reported rwnd collapses that
-		 * basically we TLP on and then we get back a sack block
-		 * that goes from the start to only a small way.
-		 *
-		 */
-		int loss, ok;
-
-		ok = 0;
-		if (SEQ_GEQ(end, rsm->r_end)) {
-			if (rsm->r_just_ret == 1) {
-				/* This was at the end of a send which is ok */
-				ok = 1;
-			} else {
-				/* A bit harder was it the end of our segment */
-				int segs, len;
-
-				len = (rsm->r_end - rsm->r_start);
-				segs = len / segsiz;
-				segs *= segsiz;
-				if ((segs + (rsm->r_end - start)) == len) {
-					/*
-					 * So this last bit was the
-					 * end of our send if we cut it
-					 * up into segsiz pieces so its ok.
-					 */
-					ok = 1;
-				}
-			}
-		}
-		if (ok == 0) {
-			/*
-			 * This guy is doing something suspicious
-			 * lets start detection.
-			 */
-			if (rack->rc_suspicious == 0) {
-				tcp_trace_point(rack->rc_tp, TCP_TP_SAD_SUSPECT);
-				counter_u64_add(rack_sack_attacks_suspect, 1);
-				rack->rc_suspicious = 1;
-				rack_log_sad(rack, 4);
-				if (tcp_bblogging_on(rack->rc_tp)) {
-					union tcp_log_stackspecific log;
-					struct timeval tv;
-
-					memset(&log.u_bbr, 0, sizeof(log.u_bbr));
-					log.u_bbr.flex1 = end;
-					log.u_bbr.flex2 = start;
-					log.u_bbr.flex3 = rsm->r_end;
-					log.u_bbr.flex4 = rsm->r_start;
-					log.u_bbr.flex5 = segsiz;
-					log.u_bbr.flex6 = rsm->r_fas;
-					log.u_bbr.flex7 = rsm->r_bas;
-					log.u_bbr.flex8 = 5;
-					log.u_bbr.pkts_out = rsm->r_flags;
-					log.u_bbr.bbr_state = rack->rc_suspicious;
-					log.u_bbr.bbr_substate = rsm->r_just_ret;
-					log.u_bbr.timeStamp = tcp_get_usecs(&tv);
-					log.u_bbr.inflight = ctf_flight_size(rack->rc_tp, rack->r_ctl.rc_sacked);
-					TCP_LOG_EVENTP(rack->rc_tp, NULL,
-						       &rack->rc_inp->inp_socket->so_rcv,
-						       &rack->rc_inp->inp_socket->so_snd,
-						       TCP_SAD_DETECTION, 0,
-						       0, &log, false, &tv);
-				}
-			}
-			/* You loose some ack count every time you sack
-			 * a small bit that is not butting to the end of
-			 * what we have sent. This is because we never
-			 * send small bits unless its the end of the sb.
-			 * Anyone sending a sack that is not at the end
-			 * is thus very very suspicious.
-			 */
-			loss = (segsiz/2) / (end - start);
-			if (loss < rack->r_ctl.ack_count)
-				rack->r_ctl.ack_count -= loss;
-			else
-				rack->r_ctl.ack_count = 0;
-		}
-	}
-	first_time_through = 0;
-#endif
 	/* Ok we have an ACK for some piece of this rsm */
 	if (rsm->r_start != start) {
 		if ((rsm->r_flags & RACK_ACKED) == 0) {
@@ -10342,7 +10134,6 @@ do_rest_ofb:
 				 * use to update all the gizmos.
 				 */
 				/* Copy up our fudge block */
-				noextra++;
 				nrsm = &stack_map;
 				memcpy(nrsm, rsm, sizeof(struct rack_sendmap));
 				/* Now adjust our tree blocks */
@@ -10393,9 +10184,6 @@ do_rest_ofb:
 				if (rack->app_limited_needs_set)
 					rack_need_set_test(tp, rack, nrsm, tp->snd_una, __LINE__, RACK_USE_END);
 				changed += (nrsm->r_end - nrsm->r_start);
-				/* You get a count for acking a whole segment or more */
-				if ((nrsm->r_end - nrsm->r_start) >= segsiz)
-					rack->r_ctl.ack_count += ((nrsm->r_end - nrsm->r_start) / segsiz);
 				rack->r_ctl.rc_sacked += (nrsm->r_end - nrsm->r_start);
 				if (rsm->r_flags & RACK_WAS_LOST) {
 					int my_chg;
@@ -10473,7 +10261,6 @@ do_rest_ofb:
 				}
 				counter_u64_add(rack_sack_splits, 1);
 				rack_clone_rsm(rack, nrsm, rsm, start);
-				moved++;
 				rsm->r_just_ret = 0;
 #ifndef INVARIANTS
 				(void)tqhash_insert(rack->r_ctl.tqh, nrsm);
@@ -10495,14 +10282,12 @@ do_rest_ofb:
 		} else {
 			/* Already sacked this piece */
 			counter_u64_add(rack_sack_skipped_acked, 1);
-			moved++;
 			if (end == rsm->r_end) {
 				/* Done with block */
 				rsm = tqhash_next(rack->r_ctl.tqh, rsm);
 				goto out;
 			} else if (SEQ_LT(end, rsm->r_end)) {
 				/* A partial sack to a already sacked block */
-				moved++;
 				rsm = tqhash_next(rack->r_ctl.tqh, rsm);
 				goto out;
 			} else {
@@ -10569,8 +10354,6 @@ do_rest_ofb:
 			rack_update_rtt(tp, rack, rsm, to, cts, SACKED, 0);
 			changed += (rsm->r_end - rsm->r_start);
 			/* You get a count for acking a whole segment or more */
-			if ((rsm->r_end - rsm->r_start) >= segsiz)
-				rack->r_ctl.ack_count += ((rsm->r_end - rsm->r_start) / segsiz);
 			if (rsm->r_flags & RACK_WAS_LOST) {
 				int my_chg;
 
@@ -10605,7 +10388,6 @@ do_rest_ofb:
 			rack_log_map_chg(tp, rack, NULL, rsm, NULL, MAP_SACK_M3, end, __LINE__);
 		} else {
 			counter_u64_add(rack_sack_skipped_acked, 1);
-			moved++;
 		}
 		if (end == rsm->r_end) {
 			/* This block only - done, setup for next */
@@ -10703,7 +10485,6 @@ do_rest_ofb:
 			 * Note if either prev/rsm is a TLP we don't
 			 * do this.
 			 */
-			noextra++;
 			nrsm = &stack_map;
 			memcpy(nrsm, rsm, sizeof(struct rack_sendmap));
 			tqhash_update_end(rack->r_ctl.tqh, prev, end);
@@ -10762,10 +10543,6 @@ do_rest_ofb:
 			if (rack->app_limited_needs_set)
 				rack_need_set_test(tp, rack, nrsm, tp->snd_una, __LINE__, RACK_USE_END);
 			changed += (nrsm->r_end - nrsm->r_start);
-			/* You get a count for acking a whole segment or more */
-			if ((nrsm->r_end - nrsm->r_start) >= segsiz)
-				rack->r_ctl.ack_count += ((nrsm->r_end - nrsm->r_start) / segsiz);
-
 			rack->r_ctl.rc_sacked += (nrsm->r_end - nrsm->r_start);
 			if (rsm->r_flags & RACK_WAS_LOST) {
 				int my_chg;
@@ -10852,7 +10629,6 @@ do_rest_ofb:
 			 */
 			counter_u64_add(rack_sack_splits, 1);
 			rack_clone_rsm(rack, nrsm, rsm, end);
-			moved++;
 			rsm->r_flags &= (~RACK_HAS_FIN);
 			rsm->r_just_ret = 0;
 #ifndef INVARIANTS
@@ -10871,9 +10647,6 @@ do_rest_ofb:
 			rack_log_retran_reason(rack, nrsm, __LINE__, 0, 2);
 			rack_update_rtt(tp, rack, rsm, to, cts, SACKED, 0);
 			changed += (rsm->r_end - rsm->r_start);
-			/* You get a count for acking a whole segment or more */
-			if ((rsm->r_end - rsm->r_start) >= segsiz)
-				rack->r_ctl.ack_count += ((rsm->r_end - rsm->r_start) / segsiz);
 			if (rsm->r_flags & RACK_WAS_LOST) {
 				int my_chg;
 
@@ -10913,7 +10686,6 @@ do_rest_ofb:
 		 * The block was already acked.
 		 */
 		counter_u64_add(rack_sack_skipped_acked, 1);
-		moved++;
 	}
 out:
 	if (rsm &&
@@ -10950,7 +10722,6 @@ out:
 			if (next->r_flags & RACK_ACKED) {
 				/* yep this and next can be merged */
 				rsm = rack_merge_rsm(rack, rsm, next);
-				noextra++;
 				next = tqhash_next(rack->r_ctl.tqh, rsm);
 			} else
 				break;
@@ -10982,7 +10753,6 @@ out:
 			if (prev->r_flags & RACK_ACKED) {
 				/* yep the previous and this can be merged */
 				rsm = rack_merge_rsm(rack, prev, rsm);
-				noextra++;
 				prev = tqhash_prev(rack->r_ctl.tqh, rsm);
 			} else
 				break;
@@ -10996,9 +10766,6 @@ out:
 	/* Save off the next one for quick reference. */
 	nrsm = tqhash_find(rack->r_ctl.tqh, end);
 	*prsm = rack->r_ctl.rc_sacklast = nrsm;
-	/* Pass back the moved. */
-	*moved_two = moved;
-	*no_extra = noextra;
 	if (IN_RECOVERY(tp->t_flags)) {
 		rack->r_ctl.bytes_acked_in_recovery += changed;
 	}
@@ -11040,66 +10807,6 @@ rack_peer_reneges(struct tcp_rack *rack, struct rack_sendmap *rsm, tcp_seq th_ac
 
 }
 
-static void
-rack_do_decay(struct tcp_rack *rack)
-{
-	struct timeval res;
-
-#define	timersub(tvp, uvp, vvp)						\
-	do {								\
-		(vvp)->tv_sec = (tvp)->tv_sec - (uvp)->tv_sec;		\
-		(vvp)->tv_usec = (tvp)->tv_usec - (uvp)->tv_usec;	\
-		if ((vvp)->tv_usec < 0) {				\
-			(vvp)->tv_sec--;				\
-			(vvp)->tv_usec += 1000000;			\
-		}							\
-	} while (0)
-
-	timersub(&rack->r_ctl.act_rcv_time, &rack->r_ctl.rc_last_time_decay, &res);
-#undef timersub
-
-	rack->r_ctl.input_pkt++;
-	if ((rack->rc_in_persist) ||
-	    (res.tv_sec >= 1) ||
-	    (rack->rc_tp->snd_max == rack->rc_tp->snd_una)) {
-		/*
-		 * Check for decay of non-SAD,
-		 * we want all SAD detection metrics to
-		 * decay 1/4 per second (or more) passed.
-		 * Current default is 800 so it decays
-		 * 80% every second.
-		 */
-#ifdef TCP_SAD_DETECTION
-		uint32_t pkt_delta;
-
-		pkt_delta = rack->r_ctl.input_pkt - rack->r_ctl.saved_input_pkt;
-#endif
-		/* Update our saved tracking values */
-		rack->r_ctl.saved_input_pkt = rack->r_ctl.input_pkt;
-		rack->r_ctl.rc_last_time_decay = rack->r_ctl.act_rcv_time;
-		/* Now do we escape without decay? */
-#ifdef TCP_SAD_DETECTION
-		if (rack->rc_in_persist ||
-		    (rack->rc_tp->snd_max == rack->rc_tp->snd_una) ||
-		    (pkt_delta < tcp_sad_low_pps)){
-			/*
-			 * We don't decay idle connections
-			 * or ones that have a low input pps.
-			 */
-			return;
-		}
-		/* Decay the counters */
-		rack->r_ctl.ack_count = ctf_decay_count(rack->r_ctl.ack_count,
-							tcp_sad_decay_val);
-		rack->r_ctl.sack_count = ctf_decay_count(rack->r_ctl.sack_count,
-							 tcp_sad_decay_val);
-		rack->r_ctl.sack_moved_extra = ctf_decay_count(rack->r_ctl.sack_moved_extra,
-							       tcp_sad_decay_val);
-		rack->r_ctl.sack_noextra_move = ctf_decay_count(rack->r_ctl.sack_noextra_move,
-								tcp_sad_decay_val);
-#endif
-	}
-}
 
 static void inline
 rack_rsm_sender_update(struct tcp_rack *rack, struct tcpcb *tp, struct rack_sendmap *rsm, uint8_t from)
@@ -11623,185 +11330,6 @@ rack_handle_might_revert(struct tcpcb *tp, struct tcp_rack *rack)
 	}
 }
 
-#ifdef TCP_SAD_DETECTION
-
-static void
-rack_merge_out_sacks(struct tcp_rack *rack)
-{
-	struct rack_sendmap *cur, *next, *rsm, *trsm = NULL;
-
-	cur = tqhash_min(rack->r_ctl.tqh);
-	while(cur) {
-		next = tqhash_next(rack->r_ctl.tqh, cur);
-		/*
-		 * The idea is to go through all and merge back
-		 * together the pieces sent together,
-		 */
-		if ((next != NULL) &&
-		    (cur->r_tim_lastsent[0] == next->r_tim_lastsent[0])) {
-			rack_merge_rsm(rack, cur, next);
-		} else {
-			cur = next;
-		}
-	}
-	/*
-	 * now treat it like a rxt event, everything is outstanding
-	 * and sent nothing acvked and dupacks are all zero. If this
-	 * is not an attacker it will have to dupack its way through
-	 * it all.
-	 */
-	TAILQ_INIT(&rack->r_ctl.rc_tmap);
-	TQHASH_FOREACH(rsm, rack->r_ctl.tqh)  {
-		rsm->r_dupack = 0;
-		/* We must re-add it back to the tlist */
-		if (trsm == NULL) {
-			TAILQ_INSERT_HEAD(&rack->r_ctl.rc_tmap, rsm, r_tnext);
-		} else {
-			TAILQ_INSERT_AFTER(&rack->r_ctl.rc_tmap, trsm, rsm, r_tnext);
-		}
-		rsm->r_in_tmap = 1;
-		trsm = rsm;
-		rsm->r_flags &= ~(RACK_ACKED | RACK_SACK_PASSED | RACK_WAS_SACKPASS | RACK_RWND_COLLAPSED);
-	}
-	sack_filter_clear(&rack->r_ctl.rack_sf, rack->rc_tp->snd_una);
-}
-
-static void
-rack_do_detection(struct tcpcb *tp, struct tcp_rack *rack,  uint32_t bytes_this_ack, uint32_t segsiz)
-{
-	int do_detection = 0;
-
-	if (rack->sack_attack_disable || rack->rc_suspicious) {
-		/*
-		 * If we have been disabled we must detect
-		 * to possibly reverse it. Or if the guy has
-		 * sent in suspicious sacks we want to do detection too.
-		 */
-		do_detection = 1;
-
-	} else if  ((rack->do_detection || tcp_force_detection) &&
-		    (tcp_sack_to_ack_thresh > 0) &&
-		    (tcp_sack_to_move_thresh > 0) &&
-		    (rack->r_ctl.rc_num_maps_alloced > tcp_map_minimum)) {
-		/*
-		 * We only detect here if:
-		 * 1) System wide forcing is on <or> do_detection is on
-		 *   <and>
-		 * 2) We have thresholds for move and ack (set one to 0 and we are off)
-		 *   <and>
-		 * 3) We have maps allocated larger than our min (500).
-		 */
-		do_detection = 1;
-	}
-	if (do_detection > 0) {
-		/*
-		 * We have thresholds set to find
-		 * possible attackers and disable sack.
-		 * Check them.
-		 */
-		uint64_t ackratio, moveratio, movetotal;
-
-		/* Log detecting */
-		rack_log_sad(rack, 1);
-		/* Do we establish a ack ratio */
-		if ((rack->r_ctl.sack_count > tcp_map_minimum)  ||
-		    (rack->rc_suspicious == 1) ||
-		    (rack->sack_attack_disable > 0)) {
-			ackratio = (uint64_t)(rack->r_ctl.sack_count);
-			ackratio *= (uint64_t)(1000);
-			if (rack->r_ctl.ack_count)
-				ackratio /= (uint64_t)(rack->r_ctl.ack_count);
-			else {
-				/* We can hit this due to ack totals degregation (via small sacks) */
-				ackratio = 1000;
-			}
-		} else {
-			/*
-			 * No ack ratio needed if we have not
-			 * seen more sacks then the number of map entries.
-			 * The exception to that is if we have disabled sack then
-			 * we need to find a ratio.
-			 */
-			ackratio = 0;
-		}
-
-		if ((rack->sack_attack_disable == 0) &&
-		    (ackratio > rack_highest_sack_thresh_seen))
-			rack_highest_sack_thresh_seen = (uint32_t)ackratio;
-		/* Do we establish a move ratio? */
-		if ((rack->r_ctl.sack_moved_extra > tcp_map_minimum) ||
-		    (rack->rc_suspicious == 1) ||
-		    (rack->sack_attack_disable > 0)) {
-			/*
-			 * We need to have more sack moves than maps
-			 * allocated to have a move ratio considered.
-			 */
-			movetotal = rack->r_ctl.sack_moved_extra;
-			movetotal += rack->r_ctl.sack_noextra_move;
-			moveratio = rack->r_ctl.sack_moved_extra;
-			moveratio *= (uint64_t)1000;
-			if (movetotal)
-				moveratio /= movetotal;
-			else {
-				/* No moves, thats pretty good */
-				moveratio = 0;
-			}
-		} else {
-			/*
-			 * Not enough moves have occured to consider
-			 * if we are out of whack in that ratio.
-			 * The exception to that is if we have disabled sack then
-			 * we need to find a ratio.
-			 */
-			moveratio = 0;
-		}
-		if ((rack->sack_attack_disable == 0) &&
-		    (moveratio > rack_highest_move_thresh_seen))
-			rack_highest_move_thresh_seen = (uint32_t)moveratio;
-		/* Now the tests */
-		if (rack->sack_attack_disable == 0) {
-			/* Not disabled, do we need to disable? */
-			if ((ackratio > tcp_sack_to_ack_thresh) &&
-			    (moveratio > tcp_sack_to_move_thresh)) {
-				/* Disable sack processing */
-				tcp_trace_point(rack->rc_tp, TCP_TP_SAD_TRIGGERED);
-				rack->sack_attack_disable = 1;
-				/* set it so we have the built in delay */
-				rack->r_ctl.ack_during_sd = 1;
-				if (rack_merge_out_sacks_on_attack)
-					rack_merge_out_sacks(rack);
-				counter_u64_add(rack_sack_attacks_detected, 1);
-				tcp_trace_point(rack->rc_tp, TCP_TP_SAD_TRIGGERED);
-				/* Clamp the cwnd at flight size */
-				rack->r_ctl.rc_saved_cwnd = rack->rc_tp->snd_cwnd;
-				rack->rc_tp->snd_cwnd = ctf_flight_size(rack->rc_tp, rack->r_ctl.rc_sacked);
-				rack_log_sad(rack, 2);
-			}
-		} else {
-			/* We are sack-disabled check for false positives */
-			if ((ackratio <= tcp_restoral_thresh) ||
-			    ((rack_merge_out_sacks_on_attack == 0) &&
-			     (rack->rc_suspicious == 0) &&
-			     (rack->r_ctl.rc_num_maps_alloced <= (tcp_map_minimum/2)))) {
-				rack->sack_attack_disable = 0;
-				rack_log_sad(rack, 3);
-				/* Restart counting */
-				rack->r_ctl.sack_count = 0;
-				rack->r_ctl.sack_moved_extra = 0;
-				rack->r_ctl.sack_noextra_move = 1;
-				rack->rc_suspicious = 0;
-				rack->r_ctl.ack_count = max(1,
-							    (bytes_this_ack / segsiz));
-
-				counter_u64_add(rack_sack_attacks_reversed, 1);
-				/* Restore the cwnd */
-				if (rack->r_ctl.rc_saved_cwnd > rack->rc_tp->snd_cwnd)
-					rack->rc_tp->snd_cwnd = rack->r_ctl.rc_saved_cwnd;
-			}
-		}
-	}
-}
-#endif
 
 static int
 rack_note_dsack(struct tcp_rack *rack, tcp_seq start, tcp_seq end)
@@ -11958,9 +11486,9 @@ rack_log_ack(struct tcpcb *tp, struct tcpopt *to, struct tcphdr *th, int entered
 	register uint32_t th_ack;
 	int32_t i, j, k, num_sack_blks = 0;
 	uint32_t cts, acked, ack_point;
-	int loop_start = 0, moved_two = 0, no_extra = 0;
+	int loop_start = 0;
 	uint32_t tsused;
-	uint32_t segsiz, o_cnt;
+	uint32_t segsiz;
 
 
 	INP_WLOCK_ASSERT(tptoinpcb(tp));
@@ -11973,8 +11501,6 @@ rack_log_ack(struct tcpcb *tp, struct tcpopt *to, struct tcphdr *th, int entered
 	rsm = tqhash_min(rack->r_ctl.tqh);
 	changed = 0;
 	th_ack = th->th_ack;
-	if (rack->sack_attack_disable == 0)
-		rack_do_decay(rack);
 	segsiz = ctf_fixed_maxseg(rack->rc_tp);
 	if (BYTES_THIS_ACK(tp, th) >=  segsiz) {
 		/*
@@ -11985,16 +11511,7 @@ rack_log_ack(struct tcpcb *tp, struct tcpopt *to, struct tcphdr *th, int entered
 		int ac;
 
 		ac = BYTES_THIS_ACK(tp, th) / ctf_fixed_maxseg(rack->rc_tp);
-		rack->r_ctl.ack_count += ac;
 		counter_u64_add(rack_ack_total, ac);
-	}
-	if (rack->r_ctl.ack_count > 0xfff00000) {
-		/*
-		 * reduce the number to keep us under
-		 * a uint32_t.
-		 */
-		rack->r_ctl.ack_count /= 2;
-		rack->r_ctl.sack_count /= 2;
 	}
 	if (SEQ_GT(th_ack, tp->snd_una)) {
 		rack_log_progress_event(rack, tp, ticks, PROGRESS_UPDATE, __LINE__);
@@ -12061,7 +11578,6 @@ rack_log_ack(struct tcpcb *tp, struct tcpopt *to, struct tcphdr *th, int entered
 	 * Sort the SACK blocks so we can update the rack scoreboard with
 	 * just one pass.
 	 */
-	o_cnt = num_sack_blks;
 	num_sack_blks = sack_filter_blks(tp, &rack->r_ctl.rack_sf, sack_blocks,
 					 num_sack_blks, th->th_ack);
 	ctf_log_sack_filter(rack->rc_tp, num_sack_blks, sack_blocks);
@@ -12069,44 +11585,9 @@ rack_log_ack(struct tcpcb *tp, struct tcpopt *to, struct tcphdr *th, int entered
 		*sacks_seen = num_sack_blks;
 	if (num_sack_blks == 0) {
 		/* Nothing to sack, but we need to update counts */
-		if ((o_cnt == 1) &&
-		    (*dsack_seen != 1))
-			rack->r_ctl.sack_count++;
-		else if (o_cnt > 1)
-			rack->r_ctl.sack_count++;
 		goto out_with_totals;
 	}
-	if (rack->sack_attack_disable) {
-		/*
-		 * An attacker disablement is in place, for
-		 * every sack block that is not at least a full MSS
-		 * count up sack_count.
-		 */
-		for (i = 0; i < num_sack_blks; i++) {
-			if ((sack_blocks[i].end - sack_blocks[i].start) < segsiz) {
-				rack->r_ctl.sack_count++;
-			}
-			if (rack->r_ctl.sack_count > 0xfff00000) {
-				/*
-				 * reduce the number to keep us under
-				 * a uint32_t.
-				 */
-				rack->r_ctl.ack_count /= 2;
-				rack->r_ctl.sack_count /= 2;
-			}
-		}
-		goto out;
-	}
 	/* Its a sack of some sort */
-	rack->r_ctl.sack_count += num_sack_blks;
-	if (rack->r_ctl.sack_count > 0xfff00000) {
-		/*
-		 * reduce the number to keep us under
-		 * a uint32_t.
-		 */
-		rack->r_ctl.ack_count /= 2;
-		rack->r_ctl.sack_count /= 2;
-	}
 	if (num_sack_blks < 2) {
 		/* Only one, we don't need to sort */
 		goto do_sack_work;
@@ -12174,7 +11655,7 @@ do_sack_work:
 		 * We probably did the FR and the next
 		 * SACK in continues as we would expect.
 		 */
-		acked = rack_proc_sack_blk(tp, rack, &sack_blocks[0], to, &rsm, cts, &no_extra, &moved_two, segsiz);
+		acked = rack_proc_sack_blk(tp, rack, &sack_blocks[0], to, &rsm, cts, segsiz);
 		if (acked) {
 			rack->r_wanted_output = 1;
 			changed += acked;
@@ -12190,40 +11671,8 @@ do_sack_work:
 			 * are acked). Count this as ACK'd data to boost
 			 * up the chances of recovering any false positives.
 			 */
-			rack->r_ctl.ack_count += (acked / ctf_fixed_maxseg(rack->rc_tp));
 			counter_u64_add(rack_ack_total, (acked / ctf_fixed_maxseg(rack->rc_tp)));
 			counter_u64_add(rack_express_sack, 1);
-			if (rack->r_ctl.ack_count > 0xfff00000) {
-				/*
-				 * reduce the number to keep us under
-				 * a uint32_t.
-				 */
-				rack->r_ctl.ack_count /= 2;
-				rack->r_ctl.sack_count /= 2;
-			}
-			if (moved_two) {
-				/*
-				 * If we did not get a SACK for at least a MSS and
-				 * had to move at all, or if we moved more than our
-				 * threshold, it counts against the "extra" move.
-				 */
-				rack->r_ctl.sack_moved_extra += moved_two;
-				rack->r_ctl.sack_noextra_move += no_extra;
-				counter_u64_add(rack_move_some, 1);
-			} else {
-				/*
-				 * else we did not have to move
-				 * any more than we would expect.
-				 */
-				rack->r_ctl.sack_noextra_move += no_extra;
-				rack->r_ctl.sack_noextra_move++;
-				counter_u64_add(rack_move_none, 1);
-			}
-			if ((rack->r_ctl.sack_moved_extra > 0xfff00000) ||
-			    (rack->r_ctl.sack_noextra_move > 0xfff00000)) {
-				rack->r_ctl.sack_moved_extra /= 2;
-				rack->r_ctl.sack_noextra_move /= 2;
-			}
 			goto out_with_totals;
 		} else {
 			/*
@@ -12236,57 +11685,11 @@ do_sack_work:
 	counter_u64_add(rack_sack_total, 1);
 	rsm = rack->r_ctl.rc_sacklast;
 	for (i = loop_start; i < num_sack_blks; i++) {
-		acked = rack_proc_sack_blk(tp, rack, &sack_blocks[i], to, &rsm, cts, &no_extra, &moved_two, segsiz);
+		acked = rack_proc_sack_blk(tp, rack, &sack_blocks[i], to, &rsm, cts,  segsiz);
 		if (acked) {
 			rack->r_wanted_output = 1;
 			changed += acked;
 		}
-		if (moved_two) {
-			/*
-			 * If we did not get a SACK for at least a MSS and
-			 * had to move at all, or if we moved more than our
-			 * threshold, it counts against the "extra" move.
-			 */
-			rack->r_ctl.sack_moved_extra += moved_two;
-			rack->r_ctl.sack_noextra_move += no_extra;
-			counter_u64_add(rack_move_some, 1);
-		} else {
-			/*
-			 * else we did not have to move
-			 * any more than we would expect.
-			 */
-			rack->r_ctl.sack_noextra_move += no_extra;
-			rack->r_ctl.sack_noextra_move++;
-			counter_u64_add(rack_move_none, 1);
-		}
-		if ((rack->r_ctl.sack_moved_extra > 0xfff00000) ||
-		    (rack->r_ctl.sack_noextra_move > 0xfff00000)) {
-			rack->r_ctl.sack_moved_extra /= 2;
-			rack->r_ctl.sack_noextra_move /= 2;
-		}
-		if (moved_two && (acked < ctf_fixed_maxseg(rack->rc_tp))) {
-			/*
-			 * If the SACK was not a full MSS then
-			 * we add to sack_count the number of
-			 * MSS's (or possibly more than
-			 * a MSS if its a TSO send) we had to skip by.
-			 */
-			rack->r_ctl.sack_count += moved_two;
-			if (rack->r_ctl.sack_count > 0xfff00000) {
-				rack->r_ctl.ack_count /= 2;
-				rack->r_ctl.sack_count /= 2;
-			}
-			counter_u64_add(rack_sack_total, moved_two);
-		}
-		/*
-		 * Now we need to setup for the next
-		 * round. First we make sure we won't
-		 * exceed the size of our uint32_t on
-		 * the various counts, and then clear out
-		 * moved_two.
-		 */
-		moved_two = 0;
-		no_extra = 0;
 	}
 out_with_totals:
 	if (num_sack_blks > 1) {
@@ -12298,13 +11701,9 @@ out_with_totals:
 		 * it could be an attacker constantly
 		 * moving us.
 		 */
-		rack->r_ctl.sack_moved_extra++;
 		counter_u64_add(rack_move_some, 1);
 	}
 out:
-#ifdef TCP_SAD_DETECTION
-	rack_do_detection(tp, rack, BYTES_THIS_ACK(tp, th), ctf_fixed_maxseg(rack->rc_tp));
-#endif
 	if (changed) {
 		/* Something changed cancel the rack timer */
 		rack_timer_cancel(tp, rack, rack->r_ctl.rc_rcvtime, __LINE__);
@@ -13102,24 +12501,6 @@ rack_process_ack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		}
 		rack_log_ack(tp, to, th, ((in_rec == 0) && IN_FASTRECOVERY(tp->t_flags)),
 			     dup_ack_struck, &dsack_seen, &sacks_seen);
-		if ((rack->sack_attack_disable > 0) &&
-		    (th->th_ack == tp->snd_una) &&
-		    (tiwin == tp->snd_wnd) &&
-		    (orig_tlen == 0) &&
-		    (dsack_seen == 0) &&
-		    (sacks_seen > 0)) {
-			/*
-			 * If sacks have been disabled we may
-			 * want to strike a dup-ack "ignoring" the
-			 * sack as long as the sack was not a "dsack". Note
-			 * that if no sack is sent (TOF_SACK is off) then the
-			 * normal dsack code above rack_log_ack() would have
-			 * already struck. So this is just to catch the case
-			 * were we are ignoring sacks from this guy due to
-			 * it being a suspected attacker.
-			 */
-			rack_strike_dupack(rack, th->th_ack);
-		}
 
 	}
 	if (__predict_false(SEQ_LEQ(th->th_ack, tp->snd_una))) {
@@ -16152,11 +15533,6 @@ rack_init(struct tcpcb *tp, void **ptr)
 		rack->rack_hdw_pace_ena = 1;
 	if (rack_hw_rate_caps)
 		rack->r_rack_hw_rate_caps = 1;
-#ifdef TCP_SAD_DETECTION
-	rack->do_detection = 1;
-#else
-	rack->do_detection = 0;
-#endif
 	if (rack_non_rxt_use_cr)
 		rack->rack_rec_nonrxt_use_cr = 1;
 	/* Lets setup the fsb block */
@@ -17174,10 +16550,7 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 			/* Case C */
 			ae->ack_val_set = ACK_RWND;
 		}
-		if (rack->sack_attack_disable > 0) {
-			rack_log_type_bbrsnd(rack, 0, 0, cts, tv, __LINE__);
-			rack->r_ctl.ack_during_sd++;
-		}
+		rack_log_type_bbrsnd(rack, 0, 0, cts, tv, __LINE__);
 		rack_log_input_packet(tp, rack, ae, ae->ack_val_set, high_seq);
 		/* Validate timestamp */
 		if (ae->flags & HAS_TSTMP) {
@@ -17384,28 +16757,6 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 		 * since cum-ack moved forward.
 		 */
 		rack->probe_not_answered = 0;
-		if (rack->sack_attack_disable == 0)
-			rack_do_decay(rack);
-		if (acked >= segsiz) {
-			/*
-			 * You only get credit for
-			 * MSS and greater (and you get extra
-			 * credit for larger cum-ack moves).
-			 */
-			int ac;
-
-			ac = acked / segsiz;
-			rack->r_ctl.ack_count += ac;
-			counter_u64_add(rack_ack_total, ac);
-		}
-		if (rack->r_ctl.ack_count > 0xfff00000) {
-			/*
-			 * reduce the number to keep us under
-			 * a uint32_t.
-			 */
-			rack->r_ctl.ack_count /= 2;
-			rack->r_ctl.sack_count /= 2;
-		}
 		if (tp->t_flags & TF_NEEDSYN) {
 			/*
 			 * T/TCP: Connection was half-synchronized, and our SYN has
@@ -17419,16 +16770,6 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 		}
 		if (acked > sbavail(&so->so_snd))
 			acked_amount = sbavail(&so->so_snd);
-#ifdef TCP_SAD_DETECTION
-		/*
-		 * We only care on a cum-ack move if we are in a sack-disabled
-		 * state. We have already added in to the ack_count, and we never
-		 * would disable on a cum-ack move, so we only care to do the
-		 * detection if it may "undo" it, i.e. we were in disabled already.
-		 */
-		if (rack->sack_attack_disable)
-			rack_do_detection(tp, rack, acked_amount, segsiz);
-#endif
 		if (IN_FASTRECOVERY(tp->t_flags) &&
 		    (rack->rack_no_prr == 0))
 			rack_update_prr(tp, rack, acked_amount, high_seq);
@@ -18059,10 +17400,7 @@ rack_do_segment_nounlock(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 	/* Remove ack required flag if set, we have one  */
 	if (thflags & TH_ACK)
 		rack->rc_ack_required = 0;
-	if (rack->sack_attack_disable > 0) {
-		rack->r_ctl.ack_during_sd++;
-		rack_log_type_bbrsnd(rack, 0, 0, cts, tv, __LINE__);
-	}
+	rack_log_type_bbrsnd(rack, 0, 0, cts, tv, __LINE__);
 	if ((thflags & TH_SYN) && (thflags & TH_FIN) && V_drop_synfin) {
 		way_out = 4;
 		retval = 0;
@@ -18458,7 +17796,6 @@ tcp_rack_output(struct tcpcb *tp, struct tcp_rack *rack, uint32_t tsused)
 	struct rack_sendmap *rsm = NULL;
 	int32_t idx;
 	uint32_t srtt = 0, thresh = 0, ts_low = 0;
-	int no_sack = 0;
 
 	/* Return the next guy to be re-transmitted */
 	if (tqhash_empty(rack->r_ctl.tqh)) {
@@ -18481,11 +17818,7 @@ tcp_rack_output(struct tcpcb *tp, struct tcp_rack *rack, uint32_t tsused)
 		return (NULL);
 	}
 check_it:
-	if (((rack->rc_tp->t_flags & TF_SACK_PERMIT) == 0) ||
-	    (rack->sack_attack_disable > 0)) {
-		no_sack = 1;
-	}
-	if ((no_sack > 0) &&
+	if (((rack->rc_tp->t_flags & TF_SACK_PERMIT) == 0) &&
 	    (rsm->r_dupack >= DUP_ACK_THRESHOLD)) {
 		/*
 		 * No sack so we automatically do the 3 strikes and
@@ -18515,8 +17848,7 @@ check_it:
 		return (NULL);
 	}
 	if ((rsm->r_dupack >= DUP_ACK_THRESHOLD) ||
-	    ((rsm->r_flags & RACK_SACK_PASSED) &&
-	     (rack->sack_attack_disable == 0))) {
+	    ((rsm->r_flags & RACK_SACK_PASSED))) {
 		/*
 		 * We have passed the dup-ack threshold <or>
 		 * a SACK has indicated this is missing.
@@ -21858,7 +21190,6 @@ again:
 	 * as long as we are not retransmiting.
 	 */
 	if ((rsm == NULL) &&
-	    (rack->do_detection == 0) &&
 	    (V_tcp_map_entries_limit > 0) &&
 	    (rack->r_ctl.rc_num_maps_alloced >= V_tcp_map_entries_limit)) {
 		counter_u64_add(rack_to_alloc_limited, 1);
@@ -24947,11 +24278,7 @@ rack_process_option(struct tcpcb *tp, struct tcp_rack *rack, int sopt_name,
 		}
 		break;
 	case TCP_RACK_DO_DETECTION:
-		RACK_OPTS_INC(tcp_rack_do_detection);
-		if (optval == 0)
-			rack->do_detection = 0;
-		else
-			rack->do_detection = 1;
+		error = EINVAL;
 		break;
 	case TCP_RACK_TLP_USE:
 		if ((optval < TLP_USE_ID) || (optval > TLP_USE_TWO_TWO)) {
@@ -25643,11 +24970,6 @@ rack_inherit(struct tcpcb *tp, struct inpcb *parent)
 		dest->r_ctl.rack_per_of_gp_ca = src->r_ctl.rack_per_of_gp_ca;
 		cnt++;
 	}
-	/* TCP_RACK_DO_DETECTION */
-	if (dest->do_detection != src->do_detection) {
-		dest->do_detection = src->do_detection;
-		cnt++;
-	}
 	/* TCP_RACK_TLP_USE */
 	if (dest->rack_tlp_threshold_use != src->rack_tlp_threshold_use) {
 		dest->rack_tlp_threshold_use = src->rack_tlp_threshold_use;
@@ -26038,7 +25360,6 @@ rack_set_sockopt(struct tcpcb *tp, struct sockopt *sopt)
 		case TCP_RACK_TLP_USE:			/*  URL:tlp_use */
 		case TCP_BBR_RACK_RTT_USE:		/*  URL:rttuse */
 		case TCP_BBR_USE_RACK_RR:		/*  URL:rackrr */
-		case TCP_RACK_DO_DETECTION:		/*  URL:detect */
 		case TCP_NO_PRR:			/*  URL:noprr */
 		case TCP_TIMELY_DYN_ADJ:      		/*  URL:dynamic */
 		case TCP_DATA_AFTER_CLOSE:		/*  no URL */
@@ -26345,7 +25666,7 @@ rack_get_sockopt(struct tcpcb *tp, struct sockopt *sopt)
 		}
 		break;
 	case TCP_RACK_DO_DETECTION:
-		optval = rack->do_detection;
+		error = EINVAL;
 		break;
 	case TCP_RACK_MBUF_QUEUE:
 		/* Now do we use the LRO mbuf-queue feature */

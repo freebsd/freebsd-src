@@ -242,7 +242,6 @@ TCP_RACK	opt_inet.h
 # algorithm that uses "normal" behaviour with SACK's to detect
 # a possible attack. It is strictly experimental at this point.
 #
-TCP_SAD_DETECTION opt_inet.h
 TURNSTILE_PROFILING
 UMTX_PROFILING
 UMTX_CHAINS	opt_global.h
