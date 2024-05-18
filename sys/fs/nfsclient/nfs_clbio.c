@@ -366,7 +366,7 @@ nfs_bioread_check_cons(struct vnode *vp, struct thread *td, struct ucred *cred)
 	bool old_lock;
 
 	/*
-	 * Ensure the exclusove access to the node before checking
+	 * Ensure the exclusive access to the node before checking
 	 * whether the cache is consistent.
 	 */
 	old_lock = ncl_excl_start(vp);
