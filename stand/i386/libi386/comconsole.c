@@ -140,8 +140,8 @@ comc_init(int arg)
 
 	if ((comconsole.c_flags & (C_PRESENTIN | C_PRESENTOUT)) ==
 	    (C_PRESENTIN | C_PRESENTOUT))
-		return (CMD_OK);
-	return (CMD_ERROR);
+		return (0);
+	return (1);
 }
 
 static void
