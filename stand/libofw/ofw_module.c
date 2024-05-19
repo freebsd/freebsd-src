@@ -42,5 +42,5 @@ int
 ofw_autoload(void)
 {
     /* XXX Call some machdep autoload routine? */
-    return(0);
+    return (0);
 }

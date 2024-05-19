@@ -119,14 +119,14 @@ ofw_copyin(const void *src, vm_offset_t dest, const size_t len)
         }
 
         bcopy(src, (void *)dest, len);
-        return(len);
+        return (len);
 }
 
 ssize_t
 ofw_copyout(const vm_offset_t src, void *dest, const size_t len)
 {
 	bcopy((void *)src, dest, len);
-	return(len);
+	return (len);
 }
 
 ssize_t
@@ -143,7 +143,7 @@ ofw_readin(readin_handle_t fd, vm_offset_t dest, const size_t len)
 	buf = malloc(chunk);
 	if (buf == NULL) {
 		printf("ofw_readin: buf malloc failed\n");
-		return(0);
+		return (0);
 	}
 
         if (ofw_mapmem(dest, len)) {
@@ -166,5 +166,5 @@ ofw_readin(readin_handle_t fd, vm_offset_t dest, const size_t len)
 	}
 
 	free(buf);
-	return(len - resid);
+	return (len - resid);
 }

@@ -62,7 +62,7 @@ ofw_cons_probe(struct console *cp)
 static int
 ofw_cons_init(int arg)
 {
-	return 0;
+	return (0);
 }
 
 void
@@ -90,7 +90,7 @@ ofw_cons_getchar(void)
 	if (saved_char != -1) {
 		l = saved_char;
 		saved_char = -1;
-		return l;
+		return (l);
 	}
 
 	/* At least since version 4.0.0, QEMU became bug-compatible
@@ -109,12 +109,12 @@ ofw_cons_poll(void)
 	unsigned char ch;
 
 	if (saved_char != -1)
-		return 1;
+		return (1);
 
 	if (OF_read(stdin, &ch, 1) > 0) {
 		saved_char = ch;
-		return 1;
+		return (1);
 	}
 
-	return 0;
+	return (0);
 }
