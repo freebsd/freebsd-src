@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 9, 2022
+.Dd May 19, 2024
 .Dt LINUX 4
 .Os
 .Sh NAME
@@ -162,6 +162,9 @@ file descriptor file system mounted with the
 .Cm linrdlnk
 option, see
 .Xr fdescfs 4
+.It Pa /compat/linux/dev/mqueue
+symbolic link to a mqueuefs mount, see
+.Xr mqueuefs 4
 .It Pa /compat/linux/dev/shm
 in-memory file system, see
 .Xr tmpfs 4
@@ -177,6 +180,7 @@ Linux kernel objects file system, see
 .Xr fdescfs 4 ,
 .Xr linprocfs 4 ,
 .Xr linsysfs 4 ,
+.Xr mqueuefs 4 ,
 .Xr pty 4 ,
 .Xr tmpfs 4 ,
 .Xr elf 5
