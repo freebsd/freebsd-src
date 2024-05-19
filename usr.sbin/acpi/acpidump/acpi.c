@@ -1504,7 +1504,7 @@ acpi_handle_dmar(ACPI_TABLE_HEADER *sdp)
 static void
 acpi_handle_ivrs_ivhd_header(ACPI_IVRS_HEADER *addr)
 {
-	printf("\n\tIVHD Type=%#x IOMMUId=%x\n\tFlags=",
+	printf("\n\tIVHD Type=%#x IOMMU DeviceId=%#06x\n\tFlags=",
 	    addr->Type, addr->DeviceId);
 #define PRINTFLAG(flag, name) printflag(addr->Flags, flag, #name)
 	PRINTFLAG(ACPI_IVHD_TT_ENABLE, HtTunEn);
