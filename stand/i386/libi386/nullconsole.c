@@ -45,14 +45,13 @@ static int	nullc_getchar(void);
 static int	nullc_ischar(void);
 
 struct console nullconsole = {
-	"nullconsole",
-	"null port",
-	0,
-	nullc_probe,
-	nullc_init,
-	nullc_putchar,
-	nullc_getchar,
-	nullc_ischar
+	.c_name = "nullconsole",
+	.c_desc = "null port",
+	.c_probe = nullc_probe,
+	.c_init = nullc_init,
+	.c_out = nullc_putchar,
+	.c_in = nullc_getchar,
+	.c_ready = nullc_ischar
 };
 
 static void
