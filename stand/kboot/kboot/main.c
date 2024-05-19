@@ -357,17 +357,17 @@ main(int argc, const char **argv)
 	/* Parse the command line args -- ignoring for now the console selection */
 	parse_args(argc, argv);
 
-	parse_file("host:/kboot.conf");
+	hostfs_root = getenv("hostfs_root");
+	if (hostfs_root == NULL)
+		hostfs_root = "/";
 
 	/* Initialize all the devices */
 	devinit();
 
+	/* Figure out where we're booting from */
 	bootdev = getenv("bootdev");
 	if (bootdev == NULL)
 		bootdev = hostdisk_gen_probe();
-	hostfs_root = getenv("hostfs_root");
-	if (hostfs_root == NULL)
-		hostfs_root = "/";
 #if defined(LOADER_ZFS_SUPPORT)
 	if (bootdev == NULL || strcmp(bootdev, "zfs:") == 0) {
 		/*
