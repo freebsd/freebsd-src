@@ -70,14 +70,13 @@ static int	esc;
 
 
 struct console textvidc = {
-    "vidconsole",
-    "internal video/keyboard",
-    0,
-    vidc_probe,
-    vidc_init,
-    vidc_putchar,
-    vidc_getchar,
-    vidc_ischar
+	.c_name = "vidconsole",
+	.c_desc = "internal video/keyboard",
+	.c_probe = vidc_probe,
+	.c_init = vidc_init,
+	.c_out = vidc_putchar,
+	.c_in = vidc_getchar,
+	.c_ready = vidc_ischar
 };
 
 static void
