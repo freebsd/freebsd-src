@@ -29,8 +29,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "opt_posix.h"
-
 #include <sys/param.h>
 #include <sys/fcntl.h>
 #include <sys/jail.h>
