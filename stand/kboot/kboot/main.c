@@ -342,15 +342,22 @@ main(int argc, const char **argv)
 	heapbase = host_getmem(heapsize);
 	setheap(heapbase, heapbase + heapsize);
 
+	/*
+	 * Set up console so we get error messages.
+	 */
+	cons_probe();
+
+	/*
+	 * Find acpi and smbios, if they exists. This allows command line and
+	 * later scripts to override if necessary.
+	 */
+	find_acpi();
+	find_smbios();
+
 	/* Parse the command line args -- ignoring for now the console selection */
 	parse_args(argc, argv);
 
 	parse_file("host:/kboot.conf");
-
-	/*
-	 * Set up console.
-	 */
-	cons_probe();
 
 	/* Initialize all the devices */
 	devinit();
@@ -393,13 +400,6 @@ main(int argc, const char **argv)
 
 	memory_limits();
 	enumerate_memory_arch();
-
-	/*
-	 * Find acpi, if it exists
-	 */
-	find_acpi();
-
-	find_smbios();
 
 	interact();			/* doesn't return */
 
