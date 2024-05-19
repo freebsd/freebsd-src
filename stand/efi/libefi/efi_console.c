@@ -126,14 +126,14 @@ int efi_cons_poll(void);
 static void cons_draw_frame(teken_attr_t *);
 
 struct console efi_console = {
-	"efi",
-	"EFI console",
-	C_WIDEOUT,
-	efi_cons_probe,
-	efi_cons_init,
-	efi_cons_putchar,
-	efi_cons_getchar,
-	efi_cons_poll
+	.c_name = "efi",
+	.c_desc = "EFI console",
+	.c_flags = C_WIDEOUT,
+	.c_probe = efi_cons_probe,
+	.c_init = efi_cons_init,
+	.c_out = efi_cons_putchar,
+	.c_in = efi_cons_getchar,
+	.c_ready = efi_cons_poll
 };
 
 /*
