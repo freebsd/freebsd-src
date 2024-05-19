@@ -47,14 +47,13 @@ static int	spinc_ischar(void);
 extern struct console *consoles[];
 
 struct console spinconsole = {
-	"spinconsole",
-	"spin port",
-	0,
-	spinc_probe,
-	spinc_init,
-	spinc_putchar,
-	spinc_getchar,
-	spinc_ischar
+	.c_name = "spinconsole",
+	.c_desc = "spin port",
+	.c_probe = spinc_probe,
+	.c_init = spinc_init,
+	.c_out = spinc_putchar,
+	.c_in = spinc_getchar,
+	.c_ready = spinc_ischar
 };
 
 static struct console *parent = NULL;
