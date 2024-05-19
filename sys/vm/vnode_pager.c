@@ -146,27 +146,22 @@ vnode_pager_init(void *dummy)
 SYSINIT(vnode_pager, SI_SUB_CPU, SI_ORDER_ANY, vnode_pager_init, NULL);
 
 /* Create the VM system backing object for this vnode */
-int
-vnode_create_vobject(struct vnode *vp, off_t isize, struct thread *td)
+static int
+vnode_create_vobject_any(struct vnode *vp, off_t isize, struct thread *td)
 {
 	vm_object_t object;
-	vm_ooffset_t size = isize;
+	vm_ooffset_t size;
 	bool last;
-
-	if (!vn_isdisk(vp) && vn_canvmio(vp) == FALSE)
-		return (0);
 
 	object = vp->v_object;
 	if (object != NULL)
 		return (0);
 
-	if (size == 0) {
-		if (vn_isdisk(vp)) {
-			size = IDX_TO_OFF(INT_MAX);
-		} else {
-			if (vn_getsize_locked(vp, &size, td->td_ucred) != 0)
-				return (0);
-		}
+	if (isize == VNODE_NO_SIZE) {
+		if (vn_getsize_locked(vp, &size, td->td_ucred) != 0)
+			return (0);
+	} else {
+		size = isize;
 	}
 
 	object = vnode_pager_alloc(vp, size, 0, 0, td->td_ucred);
@@ -182,9 +177,31 @@ vnode_create_vobject(struct vnode *vp, off_t isize, struct thread *td)
 	if (last)
 		vrele(vp);
 
-	KASSERT(vp->v_object != NULL, ("vnode_create_vobject: NULL object"));
+	VNASSERT(vp->v_object != NULL, vp, ("%s: NULL object", __func__));
 
 	return (0);
+}
+
+int
+vnode_create_vobject(struct vnode *vp, off_t isize, struct thread *td)
+{
+	VNASSERT(!vn_isdisk(vp), vp, ("%s: disk vnode", __func__));
+	VNASSERT(isize == VNODE_NO_SIZE || isize >= 0, vp,
+	    ("%s: invalid size (%jd)", __func__, (intmax_t)isize));
+
+	if (!vn_canvmio(vp))
+		return (0);
+
+	return (vnode_create_vobject_any(vp, isize, td));
+}
+
+int
+vnode_create_disk_vobject(struct vnode *vp, off_t isize, struct thread *td)
+{
+	VNASSERT(isize > 0, vp, ("%s: invalid size (%jd)", __func__,
+	    (intmax_t)isize));
+
+	return (vnode_create_vobject_any(vp, isize, td));
 }
 
 void

@@ -354,7 +354,7 @@ void
 fuse_vnode_open(struct vnode *vp, int32_t fuse_open_flags, struct thread *td)
 {
 	if (vnode_vtype(vp) == VREG)
-		vnode_create_vobject(vp, 0, td);
+		vnode_create_vobject(vp, VNODE_NO_SIZE, td);
 }
 
 int
