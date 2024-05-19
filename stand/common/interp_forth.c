@@ -337,12 +337,21 @@ bf_run(const char *line)
 	return (result);
 }
 
+static bool preinit_run = false;
+
+void
+interp_preinit(void)
+{
+	if (preinit_run)
+		return;
+	setenv("script.lang", "forth", 1);
+	bf_init();
+	preinit_run = true;
+}
+
 void
 interp_init(void)
 {
-
-	setenv("script.lang", "forth", 1);
-	bf_init();
 	/* Read our default configuration. */
 	interp_include("/boot/loader.rc");
 }

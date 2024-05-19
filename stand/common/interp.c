@@ -60,6 +60,7 @@ interact(void)
 	 * we need to switch interpreters.
 	 */
 	interp_identifier = bootprog_interp;
+	interp_preinit();
 	interp_init();
 
 	printf("\n");
