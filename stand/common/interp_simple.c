@@ -35,6 +35,11 @@
 INTERP_DEFINE("simp");
 
 void
+interp_preinit(void)
+{
+}
+
+void
 interp_init(void)
 {
 

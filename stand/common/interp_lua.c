@@ -96,16 +96,20 @@ static const luaL_Reg loadedlibs[] = {
   {NULL, NULL}
 };
 
+static bool preinit_done = false;
+
 void
-interp_init(void)
+interp_preinit(void)
 {
 	lua_State *luap;
 	struct interp_lua_softc	*softc = &lua_softc;
-	const char *filename;
 	const luaL_Reg *lib;
 	lua_init_md_t **fnpp;
 
 	TSENTER();
+
+	if (preinit_done)
+		return;
 
 	setenv("script.lang", "lua", 1);
 	LDBG("creating context");
@@ -126,6 +130,21 @@ interp_init(void)
 	LUA_FOREACH_SET(fnpp)
 	    (*fnpp)(luap);
 
+	preinit_done = true;
+
+	TSEXIT();
+}
+
+void
+interp_init(void)
+{
+	lua_State *luap;
+	struct interp_lua_softc	*softc = &lua_softc;
+	const char *filename;
+
+	TSENTER();
+
+	luap = softc->luap;
 	filename = getenv("loader_lua");
 	if (filename == NULL)
 		filename = LOADER_LUA;
