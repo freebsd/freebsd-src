@@ -80,13 +80,13 @@ static void		*dmabuf;
 static int
 ofwn_match(struct netif *nif, void *machdep_hint)
 {
-	return 1;
+	return (1);
 }
 
 static int
 ofwn_probe(struct netif *nif, void *machdep_hint)
 {
-	return 0;
+	return (0);
 }
 
 static ssize_t
@@ -123,7 +123,7 @@ ofwn_put(struct iodesc *desc, void *pkt, size_t len)
 	printf("netif_put: OF_write returned %d\n", rv);
 #endif
 
-	return rv;
+	return (rv);
 }
 
 static ssize_t
@@ -256,13 +256,13 @@ ofwn_getunit(const char *path)
 	for (i = 0; i < nofwninfo; i++) {
 		printf(">>> test =\t%s\n", ofwninfo[i].ofwn_path);
 		if (strcmp(path, ofwninfo[i].ofwn_path) == 0)
-			return i;
+			return (i);
 
 		if (strcmp(newpath, ofwninfo[i].ofwn_path) == 0)
-			return i;
+			return (i);
 	}
 
-	return -1;
+	return (-1);
 }
 #endif
 
