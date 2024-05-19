@@ -37,14 +37,13 @@ static int uboot_cons_getchar(void);
 static int uboot_cons_poll(void);
 
 struct console uboot_console = {
-	"uboot",
-	"U-Boot console",
-	0,
-	uboot_cons_probe,
-	uboot_cons_init,
-	uboot_cons_putchar,
-	uboot_cons_getchar,
-	uboot_cons_poll,
+	.c_name = "uboot",
+	.c_desc = "U-Boot console",
+	.c_probe = uboot_cons_probe,
+	.c_init = uboot_cons_init,
+	.c_out = uboot_cons_putchar,
+	.c_int = uboot_cons_getchar,
+	.c_ready = uboot_cons_poll,
 };
 
 static void
