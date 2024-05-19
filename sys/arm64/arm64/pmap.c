@@ -5848,7 +5848,6 @@ static vm_page_t
 pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
     vm_prot_t prot, vm_page_t mpte, struct rwlock **lockp)
 {
-	pd_entry_t *pde;
 	pt_entry_t *l1, *l2, *l3, l3_val;
 	vm_paddr_t pa;
 	int lvl;
@@ -5913,13 +5912,13 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		l3 = &l3[pmap_l3_index(va)];
 	} else {
 		mpte = NULL;
-		pde = pmap_pde(kernel_pmap, va, &lvl);
-		KASSERT(pde != NULL,
+		l2 = pmap_pde(kernel_pmap, va, &lvl);
+		KASSERT(l2 != NULL,
 		    ("pmap_enter_quick_locked: Invalid page entry, va: 0x%lx",
 		     va));
 		KASSERT(lvl == 2,
 		    ("pmap_enter_quick_locked: Invalid level %d", lvl));
-		l3 = pmap_l2_to_l3(pde, va);
+		l3 = pmap_l2_to_l3(l2, va);
 	}
 
 	/*
