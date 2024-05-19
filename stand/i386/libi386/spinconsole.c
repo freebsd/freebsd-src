@@ -71,7 +71,7 @@ static int
 spinc_init(int arg)
 {
 
-	return(parent->c_init(arg));
+	return (parent->c_init(arg));
 }
 
 static void
@@ -97,12 +97,12 @@ static int
 spinc_getchar(void)
 {
 
-	return(-1);
+	return (-1);
 }
 
 static int
 spinc_ischar(void)
 {
 
-	return(0);
+	return (0);
 }
