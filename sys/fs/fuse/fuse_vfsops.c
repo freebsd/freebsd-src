@@ -286,7 +286,7 @@ fuse_vfsop_fhtovp(struct mount *mp, struct fid *fhp, int flags,
 		return (ESTALE);
 	}
 	*vpp = nvp;
-	vnode_create_vobject(*vpp, 0, curthread);
+	vnode_create_vobject(*vpp, VNODE_NO_SIZE, curthread);
 	return (0);
 }
 

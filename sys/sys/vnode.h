@@ -1081,7 +1081,14 @@ vrefcnt(struct vnode *vp)
 	vref(vp);							\
 } while (0)
 
+/*
+ * The caller doesn't know the file size and vnode_create_vobject() should
+ * determine the size on its own.
+ */
+#define	VNODE_NO_SIZE	((off_t)-1)
+
 int vnode_create_vobject(struct vnode *vp, off_t size, struct thread *td);
+int vnode_create_disk_vobject(struct vnode *vp, off_t size, struct thread *td);
 void vnode_destroy_vobject(struct vnode *vp);
 
 extern struct vop_vector fifo_specops;
