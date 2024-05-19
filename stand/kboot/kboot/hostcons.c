@@ -35,14 +35,13 @@ static int hostcons_getchar(void);
 static int hostcons_poll(void);
 
 struct console hostconsole = {
-	"host",
-	"Host Console",
-	0,
-	hostcons_probe,
-	hostcons_init,
-	hostcons_putchar,
-	hostcons_getchar,
-	hostcons_poll,
+	.c_name = "host",
+	.c_desc = "Host Console",
+	.c_probe = hostcons_probe,
+	.c_init = hostcons_init,
+	.c_out = hostcons_putchar,
+	.c_in = hostcons_getchar,
+	.c_ready = hostcons_poll,
 };
 
 static struct host_termios old_settings;
