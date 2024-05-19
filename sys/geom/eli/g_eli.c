@@ -1045,10 +1045,12 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	bioq_init(&sc->sc_queue);
 	mtx_init(&sc->sc_queue_mtx, "geli:queue", NULL, MTX_DEF);
 	mtx_init(&sc->sc_ekeys_lock, "geli:ekeys", NULL, MTX_DEF);
+	g_eli_init_uma();
 
 	pp = NULL;
 	cp = g_new_consumer(gp);
 	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
+
 	error = g_attach(cp, bpp);
 	if (error != 0) {
 		if (req != NULL) {
@@ -1091,7 +1093,6 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	if (threads == 0)
 		threads = mp_ncpus;
 	sc->sc_cpubind = (mp_ncpus > 1 && threads == mp_ncpus);
-	g_eli_init_uma();
 	for (i = 0; i < threads; i++) {
 		if (g_eli_cpu_is_disabled(i)) {
 			G_ELI_DEBUG(1, "%s: CPU %u disabled, skipping.",
@@ -1163,6 +1164,7 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	    sc->sc_crypto == G_ELI_CRYPTO_SW_ACCEL ? "accelerated software" :
 	    sc->sc_crypto == G_ELI_CRYPTO_SW ? "software" : "hardware");
 	return (gp);
+
 failed:
 	mtx_lock(&sc->sc_queue_mtx);
 	sc->sc_flags |= G_ELI_FLAG_DESTROY;
