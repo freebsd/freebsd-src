@@ -96,7 +96,6 @@ b278988_body()
 	printf 'a\n\nb\nn' > b278988.b.in
 	atf_check -o empty -s eq:0 \
 		diff -Bw b278988.a.in b278988.b.in
-
 }
 
 header_body()
