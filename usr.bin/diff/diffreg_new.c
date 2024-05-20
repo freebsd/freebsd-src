@@ -218,10 +218,14 @@ diffreg_new(char *file1, char *file2, int flags, int capsicum)
 		rc = D_ERROR;
 		goto done;
 	}
+	if (left.atomizer_flags & DIFF_ATOMIZER_FILE_TRUNCATED)
+		warnx("%s truncated", file1);
 	if (diff_atomize_file(&right, cfg, f2, (uint8_t *)str2, st2.st_size, diff_flags)) {
 		rc = D_ERROR;
 		goto done;
 	}
+	if (right.atomizer_flags & DIFF_ATOMIZER_FILE_TRUNCATED)
+		warnx("%s truncated", file2);
 
 	result = diff_main(cfg, &left, &right);
 	if (result->rc != DIFF_RC_OK) {
