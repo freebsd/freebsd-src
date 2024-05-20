@@ -1261,8 +1261,6 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	bs = NULL;
 	CHN_INIT(c, children);
 	CHN_INIT(c, children.busy);
-	c->devinfo = NULL;
-	c->feeder = NULL;
 	c->latency = -1;
 	c->timeout = 1;
 
