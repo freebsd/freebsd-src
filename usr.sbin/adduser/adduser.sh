@@ -474,7 +474,7 @@ get_homeperm() {
 #	so, enable ZFS home dataset creation.
 #
 get_zfs_home() {
-	local _prefix=
+	local _prefix= _tmp=
 
 	# check if zfs kernel module is loaded before attempting to run zfs to
 	# prevent loading the kernel module on systems that don't use ZFS
@@ -484,6 +484,13 @@ get_zfs_home() {
 	fi
 	if ! _prefix=$(${ZFSCMD} list -Ho name "${homeprefix}" 2>/dev/null) ||
 	    [ -z "${_prefix}" ]; then
+		Zcreate="no"
+		return
+	fi
+	# Make sure that _prefix is not a subdirectory within a dataset.  If it
+	# is, the containing dataset will be the same for it and its parent.
+	_tmp=$(${ZFSCMD} list -Ho name "$(dirname "${homeprefix}")" 2>/dev/null)
+	if [ "${_tmp}" = "${_prefix}" ]; then
 		Zcreate="no"
 		return
 	fi
