@@ -1236,6 +1236,8 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	}
 
 	PCM_UNLOCK(d);
+	b = NULL;
+	bs = NULL;
 	c = malloc(sizeof(*c), M_DEVBUF, M_WAITOK | M_ZERO);
 	c->methods = kobj_create(cls, M_DEVBUF, M_WAITOK | M_ZERO);
 	c->type = type;
@@ -1257,8 +1259,6 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	snprintf(c->name, sizeof(c->name), "%s:%s:%s",
 	    device_get_nameunit(c->dev), dirs, devname);
 
-	b = NULL;
-	bs = NULL;
 	CHN_INIT(c, children);
 	CHN_INIT(c, children.busy);
 	c->latency = -1;
