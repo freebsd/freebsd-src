@@ -85,7 +85,6 @@
 #include <sys/sysent.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
-#include <sys/taskqueue.h>
 #include <sys/unistd.h>
 #include <sys/user.h>
 #include <sys/vnode.h>
@@ -788,7 +787,6 @@ found:
 	(*vpp)->v_data = vd;
 	vd->mv_vnode = *vpp;
 	vd->mv_node = pn;
-	TASK_INIT(&vd->mv_task, 0, do_recycle, *vpp);
 	LIST_INSERT_HEAD(&pn->mn_vnodes, vd, mv_link);
 	mqnode_addref(pn);
 	switch (pn->mn_type) {
@@ -1037,7 +1035,6 @@ int do_unlink(struct mqfs_node *pn, struct ucred *ucred)
 		LIST_FOREACH(vd, &pn->mn_vnodes, mv_link) {
 			cache_purge(vd->mv_vnode);
 			vhold(vd->mv_vnode);
-			taskqueue_enqueue(taskqueue_thread, &vd->mv_task);
 		}
 		mqnode_release(pn);
 		mqnode_release(parent);
