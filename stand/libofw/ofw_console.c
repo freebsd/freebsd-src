@@ -41,7 +41,7 @@ static ihandle_t stdin;
 static ihandle_t stdout;
 
 struct console ofwconsole = {
-	.c_cname = "ofw",
+	.c_name = "ofw",
 	.c_desc = "Open Firmware console",
 	.c_probe = ofw_cons_probe,
 	.c_init = ofw_cons_init,
