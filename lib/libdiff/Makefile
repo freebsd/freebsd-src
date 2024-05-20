@@ -1,3 +1,5 @@
+.include <src.opts.mk>
+
 LIB=	diff
 INTERNALLIB=	# API not published or supported.
 
@@ -11,5 +13,8 @@ SRCS=	diff_atomize_text.c diff_main.c diff_myers.c \
 WARNS=
 CFLAGS+= -I${SRCTOP}/contrib/libdiff/compat/include
 CFLAGS+= -I${SRCTOP}/contrib/libdiff/include
+
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.lib.mk>

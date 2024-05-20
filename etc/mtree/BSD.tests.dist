@@ -419,6 +419,8 @@
         ..
         libdevdctl
         ..
+        libdiff
+        ..
         libexecinfo
         ..
         libkvm
