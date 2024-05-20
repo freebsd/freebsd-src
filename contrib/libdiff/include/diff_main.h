@@ -118,6 +118,7 @@ struct diff_data {
 
 /* Flags set by file atomizer. */
 #define DIFF_ATOMIZER_FOUND_BINARY_DATA	0x00000001
+#define DIFF_ATOMIZER_FILE_TRUNCATED	0x00000002
 
 /* Flags set by caller of diff_main(). */
 #define DIFF_FLAG_IGNORE_WHITESPACE	0x00000001
