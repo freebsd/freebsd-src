@@ -201,6 +201,10 @@ decho() {
 # Returns true if glob resolves to a real file and store the first
 # found filename in the variable $found
 exists() {
+	if [ -z "$1" ]; then
+		return 1
+	fi
+
 	local IFS
 
 	# Don't accidentally inherit callers IFS (breaks perl manpages)
