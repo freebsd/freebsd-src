@@ -42,7 +42,7 @@ struct console uboot_console = {
 	.c_probe = uboot_cons_probe,
 	.c_init = uboot_cons_init,
 	.c_out = uboot_cons_putchar,
-	.c_int = uboot_cons_getchar,
+	.c_in = uboot_cons_getchar,
 	.c_ready = uboot_cons_poll,
 };
 
