@@ -74,6 +74,11 @@ struct sndstioc_nv_arg {
 #define SNDST_DSPS_SOUND4_PVCHAN	"pvchan"
 #define SNDST_DSPS_SOUND4_RVCHAN	"rvchan"
 
+/*
+ * Maximum user-specified nvlist buffer size
+ */
+#define SNDST_UNVLBUF_MAX		65535
+
 #define SNDSTIOC_REFRESH_DEVS \
 	_IO('D', 100)
 #define SNDSTIOC_GET_DEVS \
