@@ -74,7 +74,7 @@ LIN_SDT_PROBE_DEFINE1(sysctl, linux_sysctl, unsupported_sysctl, "char *");
 
 #ifdef LINUX_LEGACY_SYSCALLS
 static int
-handle_string(struct l___sysctl_args *la, char *value)
+handle_string(struct l___sysctl_args *la, const char *value)
 {
 	int error;
 
