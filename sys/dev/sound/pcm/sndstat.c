@@ -864,6 +864,11 @@ sndstat_add_user_devs(struct sndstat_file *pf, caddr_t data)
 		goto done;
 	}
 
+	if (arg->nbytes > SNDST_UNVLBUF_MAX) {
+		err = ENOMEM;
+		goto done;
+	}
+
 	err = sndstat_unpack_user_nvlbuf(arg->buf, arg->nbytes, &nvl);
 	if (err != 0)
 		goto done;
