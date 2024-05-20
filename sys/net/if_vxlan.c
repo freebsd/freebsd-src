@@ -432,6 +432,21 @@ TUNABLE_INT("net.link.vxlan.legacy_port", &vxlan_legacy_port);
 static int vxlan_reuse_port = 0;
 TUNABLE_INT("net.link.vxlan.reuse_port", &vxlan_reuse_port);
 
+/*
+ * This macro controls the default upper limitation on nesting of vxlan
+ * tunnels. By default it is 3, as the overhead of IPv6 vxlan tunnel is 70
+ * bytes, this will create at most 210 bytes overhead and the most inner
+ * tunnel's MTU will be 1290 which will meet IPv6 minimum MTU size 1280.
+ * Be careful to configure the tunnels when raising the limit. A large
+ * number of nested tunnels can introduce system crash.
+ */
+#ifndef MAX_VXLAN_NEST
+#define MAX_VXLAN_NEST	3
+#endif
+static int max_vxlan_nesting = MAX_VXLAN_NEST;
+SYSCTL_INT(_net_link_vxlan, OID_AUTO, max_nesting, CTLFLAG_RW,
+    &max_vxlan_nesting, 0, "Max nested tunnels");
+
 /* Default maximum number of addresses in the forwarding table. */
 #ifndef VXLAN_FTABLE_MAX
 #define VXLAN_FTABLE_MAX	2000
@@ -2721,6 +2736,7 @@ vxlan_encap6(struct vxlan_softc *sc, const union vxlan_sockaddr *fvxlsa,
 #endif
 }
 
+#define MTAG_VXLAN_LOOP	0x7876706c /* vxlp */
 static int
 vxlan_transmit(struct ifnet *ifp, struct mbuf *m)
 {
@@ -2745,6 +2761,13 @@ vxlan_transmit(struct ifnet *ifp, struct mbuf *m)
 		VXLAN_RUNLOCK(sc, &tracker);
 		m_freem(m);
 		return (ENETDOWN);
+	}
+	if (__predict_false(if_tunnel_check_nesting(ifp, m, MTAG_VXLAN_LOOP,
+	    max_vxlan_nesting) != 0)) {
+		VXLAN_RUNLOCK(sc, &tracker);
+		m_freem(m);
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+		return (ELOOP);
 	}
 
 	if ((m->m_flags & (M_BCAST | M_MCAST)) == 0)
