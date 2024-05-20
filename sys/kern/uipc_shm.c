@@ -1910,21 +1910,19 @@ shm_fill_kinfo_locked(struct shmfd *shmfd, struct kinfo_file *kif, bool list)
 	kif->kf_un.kf_file.kf_file_mode = S_IFREG | shmfd->shm_mode;
 	kif->kf_un.kf_file.kf_file_size = shmfd->shm_size;
 	if (shmfd->shm_path != NULL) {
-		if (shmfd->shm_path != NULL) {
-			path = shmfd->shm_path;
-			pr_path = curthread->td_ucred->cr_prison->pr_path;
-			if (strcmp(pr_path, "/") != 0) {
-				/* Return the jail-rooted pathname. */
-				pr_pathlen = strlen(pr_path);
-				visible = strncmp(path, pr_path, pr_pathlen)
-				    == 0 && path[pr_pathlen] == '/';
-				if (list && !visible)
-					return (EPERM);
-				if (visible)
-					path += pr_pathlen;
-			}
-			strlcpy(kif->kf_path, path, sizeof(kif->kf_path));
+		path = shmfd->shm_path;
+		pr_path = curthread->td_ucred->cr_prison->pr_path;
+		if (strcmp(pr_path, "/") != 0) {
+			/* Return the jail-rooted pathname. */
+			pr_pathlen = strlen(pr_path);
+			visible = strncmp(path, pr_path, pr_pathlen) == 0 &&
+			    path[pr_pathlen] == '/';
+			if (list && !visible)
+				return (EPERM);
+			if (visible)
+				path += pr_pathlen;
 		}
+		strlcpy(kif->kf_path, path, sizeof(kif->kf_path));
 	}
 	return (0);
 }
