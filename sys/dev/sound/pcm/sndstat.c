@@ -705,7 +705,7 @@ sndstat_unpack_user_nvlbuf(const void *unvlbuf, size_t nbytes, nvlist_t **nvl)
 	}
 	*nvl = nvlist_unpack(nvlbuf, nbytes, 0);
 	free(nvlbuf, M_DEVBUF);
-	if (nvl == NULL) {
+	if (*nvl == NULL) {
 		return (EINVAL);
 	}
 
