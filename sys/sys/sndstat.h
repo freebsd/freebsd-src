@@ -77,7 +77,7 @@ struct sndstioc_nv_arg {
 /*
  * Maximum user-specified nvlist buffer size
  */
-#define SNDST_UNVLBUF_MAX		65535
+#define SNDST_UNVLBUF_MAX		65536
 
 #define SNDSTIOC_REFRESH_DEVS \
 	_IO('D', 100)
