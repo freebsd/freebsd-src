@@ -79,9 +79,9 @@ dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
 #define	INVERSE_ESTCPU_WEIGHT	8	/* 1 / (priorities per estcpu level). */
 #endif
 #define	NICE_WEIGHT		1	/* Priorities per nice level. */
-#define	ESTCPULIM(e) \
-    min((e), INVERSE_ESTCPU_WEIGHT * (NICE_WEIGHT * (PRIO_MAX - PRIO_MIN) - \
-    RQ_PPQ) + INVERSE_ESTCPU_WEIGHT - 1)
+#define	ESTCPULIM(e)							\
+	min((e), INVERSE_ESTCPU_WEIGHT * (NICE_WEIGHT * (PRIO_MAX - PRIO_MIN)) \
+	    + INVERSE_ESTCPU_WEIGHT - 1)
 
 #define	TS_NAME_LEN (MAXCOMLEN + sizeof(" td ") + sizeof(__XSTRING(UINT_MAX)))
 
