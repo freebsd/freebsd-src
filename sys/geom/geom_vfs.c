@@ -124,12 +124,12 @@ g_vfs_done(struct bio *bip)
 			mp = cdevp->si_mountpt;
 		if (mp != NULL) {
 			if (bp->b_iocmd == BIO_READ) {
-				if (LK_HOLDER(bp->b_lock.lk_lock) == LK_KERNPROC)
+				if (BUF_DISOWNED(bp))
 					mp->mnt_stat.f_asyncreads++;
 				else
 					mp->mnt_stat.f_syncreads++;
 			} else if (bp->b_iocmd == BIO_WRITE) {
-				if (LK_HOLDER(bp->b_lock.lk_lock) == LK_KERNPROC)
+				if (BUF_DISOWNED(bp))
 					mp->mnt_stat.f_asyncwrites++;
 				else
 					mp->mnt_stat.f_syncwrites++;

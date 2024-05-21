@@ -341,6 +341,13 @@ struct buf {
  */
 #define	BUF_ISLOCKED(bp)						\
 	lockstatus(&(bp)->b_lock)
+
+/*
+ * Check if a buffer lock is currently held by LK_KERNPROC.
+ */
+#define	BUF_DISOWNED(bp)						\
+	lockmgr_disowned(&(bp)->b_lock)
+
 /*
  * Free a buffer lock.
  */
