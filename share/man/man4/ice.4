@@ -1,0 +1,250 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\"
+.\" Copyright (c) 2019-2020, Intel Corporation
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms of the Software, with or
+.\" without modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright notice,
+.\"    this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright notice,
+.\"    this list of conditions and the following disclaimer in the documentation
+.\"    and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Intel Corporation nor the names of its
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this Software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" * Other names and brands may be claimed as the property of others.
+.\"
+.Dd May 20, 2024
+.Dt ICE 4
+.Os
+.Sh NAME
+.Nm ice
+.Nd "Intel Ethernet 800 Series Driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device iflib"
+.Cd "device ice"
+.Ed
+.Pp
+To load the driver as a module at boot time, place the following lines in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_ice_load="YES"
+.Ed
+.Sh DESCRIPTION
+.Ss Features
+The
+.Nm
+driver provides support for any PCI Express adapter or LOM
+(LAN On Motherboard)
+in the Intel Ethernet 800 Series.
+As of this writing, the series includes devices with these model numbers:
+.Pp
+.Bl -bullet -compact
+.It
+Intel\(rg Ethernet Controller E810\-C
+.It
+Intel\(rg Ethernet Controller E810\-XXV
+.It
+Intel\(rg Ethernet Connection E822\-C
+.It
+Intel\(rg Ethernet Connection E822\-L
+.It
+Intel\(rg Ethernet Connection E823\-C
+.It
+Intel\(rg Ethernet Connection E823\-L
+.El
+.Pp
+For questions related to hardware requirements, refer to the documentation
+supplied with your adapter.
+.Pp
+Support for Jumbo Frames is provided via the interface MTU setting.
+Selecting an MTU larger than 1500 bytes with the
+.Xr ifconfig 8
+utility configures the adapter to receive and transmit Jumbo Frames.
+The maximum MTU size for Jumbo Frames is 9706.
+This value coincides with the maximum Jumbo Frame size of 9728.
+.Pp
+This driver version supports VLANs.
+For information on enabling VLANs, see the
+.Pa README .
+.Pp
+Offloads are also controlled via the interface, for instance, checksumming for
+both IPv4 and IPv6 can be set and unset, TSO4 and/or TSO6, and finally LRO can
+be set and unset.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Ss Additional Utilities
+There are additional tools available from Intel to help configure and update
+the adapters covered by this driver.
+These tools can be downloaded directly from Intel at
+.Lk https://downloadcenter.intel.com ,
+by searching for their names, or by installing certain packages:
+.Bl -bullet
+.It
+To change the behavior of the QSFP28 ports on E810-C adapters, use the
+Intel EPCT (Ethernet Port configuration tool); installed by the
+.Em sysutils/intel-epct
+package.
+.It
+To update the firmware on an adapter, use the Intel Non-Volatile Memory (NVM)
+Update Utility for Intel Network Adapter 800 series; installed by the
+.Em sysutils/intel-nvmupdate-100g
+package.
+.El
+.Sh HARDWARE
+Most adapters in the Intel Ethernet 800 Series with SFP28/QSFP28 cages
+have firmware that requires that Intel qualified modules are used; these
+qualified modules are listed below.
+This qualification check cannot be disabled by the driver.
+.Pp
+The
+.Nm
+driver supports 100Gb Ethernet adapters with these QSFP28 modules:
+.Pp
+.Bl -bullet -compact
+.It
+Intel\(rg 100G QSFP28 100GBASE-SR4   E100GQSFPSR28SRX
+.It
+Intel\(rg 100G QSFP28 100GBASE-SR4   SPTMBP1PMCDF
+.It
+Intel\(rg 100G QSFP28 100GBASE-CWDM4 SPTSBP3CLCCO
+.It
+Intel\(rg 100G QSFP28 100GBASE-DR    SPTSLP2SLCDF
+.El
+.Pp
+The
+.Nm
+driver supports 25Gb and 10Gb Ethernet adapters with these SFP28 modules:
+.Pp
+.Bl -bullet -compact
+.It
+Intel\(rg 10G/25G SFP28 25GBASE-SR E25GSFP28SR
+.It
+Intel\(rg     25G SFP28 25GBASE-SR E25GSFP28SRX (Extended Temp)
+.It
+Intel\(rg     25G SFP28 25GBASE-LR E25GSFP28LRX (Extended Temp)
+.El
+.Pp
+The
+.Nm
+driver supports 10Gb and 1Gb Ethernet adapters with these SFP+ modules:
+.Pp
+.Bl -bullet -compact
+.It
+Intel\(rg 1G/10G SFP+ 10GBASE-SR E10GSFPSR
+.It
+Intel\(rg 1G/10G SFP+ 10GBASE-SR E10GSFPSRG1P5
+.It
+Intel\(rg 1G/10G SFP+ 10GBASE-SR E10GSFPSRG2P5
+.It
+Intel\(rg    10G SFP+ 10GBASE-SR E10GSFPSRX (Extended Temp)
+.It
+Intel\(rg 1G/10G SFP+ 10GBASE-LR E10GSFPLR
+.El
+.Pp
+Note that adapters also support all passive and active
+limiting direct attach cables that comply with SFF-8431 v4.1 and
+SFF-8472 v10.4 specifications.
+.Pp
+This is not an exhaustive list; please consult product documentation for an
+up-to-date list of supported media.
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+See the
+.Xr iflib 4
+man page for more information on using iflib sysctl variables as tunables.
+.Bl -tag -width indent
+.It Va hw.ice.#.enable_health_events
+TBW
+.It Va hw.ice.#.debug.enable_tx_fc_filter
+TBW
+.It Va hw.ice.#.debug.enable_tx_lldp_filter
+TBW
+.It Va hw.ice.#.debug.enable_health_events
+TBW
+.El
+.Sh SYSCTL PROCEDURES
+.Bl -tag -width indent
+.It Va dev.ice.#.fc
+Allows one to set the flow control value.
+A value of 0 disables flow control, 3 enables full, 1 is RX, and 2 is
+TX pause.
+.It Va dev.ice.#.advertise_speed
+Allows one to set advertised link speeds, this will then cause a link
+renegotiation.
+.It Va dev.ice.#.current_speed
+This is a display of the current setting.
+.It Va dev.ice.#.fw_version
+Displays the current firmware and NVM versions of the adapter.
+.It Va dev.ice.#.ddp_version
+TBW
+.It Va dev.ice.#.requested_fec
+TBW
+.It Va dev.ice.#.negotiated_fec
+TBW
+.It Va dev.ice.#.fw_lldp_agent
+TBW
+.It Va dev.ice.#.ets_min_rate
+TBW
+.It Va dev.ice.#.up2tc_map
+TBW
+.It Va dev.ice.#.pfc
+TBW
+.El
+.Sh INTERRUPT STORMS
+It is important to note that 100G operation can generate high
+numbers of interrupts, often incorrectly being interpreted as
+a storm condition in the kernel.
+It is suggested that this be resolved by setting
+.Va hw.intr_storm_threshold
+to 0.
+.Sh SUPPORT
+For general information and support,
+go to the Intel support website at:
+.Lk http://www.intel.com/support/ .
+.Pp
+If an issue is identified with this driver with a supported adapter,
+email all the specific information related to the issue to
+.Aq Mt freebsd@intel.com .
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr iflib 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 12.2 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Intel Corporation Aq Mt freebsd@intel.com .
