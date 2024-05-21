@@ -4010,8 +4010,23 @@ getblkx(struct vnode *vp, daddr_t blkno, daddr_t dblkno, int size, int slpflag,
 
 	error = BUF_TIMELOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL, "getblku", 0,
 	    0);
-	if (error != 0)
+	if (error != 0) {
+		KASSERT(error == EBUSY,
+		    ("getblk: unexpected error %d from buf try-lock", error));
+		/*
+		 * We failed a buf try-lock.
+		 *
+		 * With GB_LOCK_NOWAIT, just return, rather than taking the
+		 * bufobj interlock and trying again, since we would probably
+		 * fail again anyway.  This is okay even if the buf's identity
+		 * changed and we contended on the wrong lock, as changing
+		 * identity itself requires the buf lock, and we could have
+		 * contended on the right lock.
+		 */
+		if ((flags & GB_LOCK_NOWAIT) != 0)
+			return (error);
 		goto loop;
+	}
 
 	/* Verify buf identify has not changed since lookup. */
 	if (bp->b_bufobj == bo && bp->b_lblkno == blkno)
@@ -4019,6 +4034,10 @@ getblkx(struct vnode *vp, daddr_t blkno, daddr_t dblkno, int size, int slpflag,
 
 	/* It changed, fallback to locked lookup. */
 	BUF_UNLOCK_RAW(bp);
+
+	/* As above, with GB_LOCK_NOWAIT, just return. */
+	if ((flags & GB_LOCK_NOWAIT) != 0)
+		return (EBUSY);
 
 loop:
 	BO_RLOCK(bo);
