@@ -451,12 +451,12 @@ cmd
 	| LIST check_login CRLF
 		{
 			if ($2)
-				retrieve(_PATH_LS " -lgA", "");
+				retrieve(_PATH_LS " -lA", "");
 		}
 	| LIST check_login SP pathstring CRLF
 		{
 			if ($2)
-				retrieve(_PATH_LS " -lgA %s", $4);
+				retrieve(_PATH_LS " -lA %s", $4);
 			free($4);
 		}
 	| STAT check_login SP pathname CRLF
