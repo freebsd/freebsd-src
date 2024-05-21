@@ -1253,7 +1253,7 @@ ieee80211_hw_restart_disconnect(struct ieee80211_vif *vif)
 	    (_link = rcu_dereference((_vif)->link_conf[_linkid])) )
 
 #define	for_each_sta_active_link(_vif, _sta, _linksta, _linkid)		\
-    for (_linkid = 0; _linkid < nitems((_vif)->link_conf); _linkid++)	\
+    for (_linkid = 0; _linkid < nitems((_sta)->link); _linkid++)	\
 	if ( ((_vif)->active_links == 0 /* no MLO */ ||			\
 	    ((_vif)->active_links & BIT(_linkid)) != 0) &&		\
 	    (_linksta = link_sta_dereference_protected((_sta), (_linkid))) )
