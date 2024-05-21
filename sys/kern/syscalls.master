@@ -1455,7 +1455,7 @@
 		    int inherit
 		);
 	}
-251	AUE_RFORK	STD {
+251	AUE_RFORK	STD|CAPENABLED {
 		int rfork(
 		    int flags
 		);
