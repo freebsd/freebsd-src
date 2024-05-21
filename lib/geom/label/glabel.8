@@ -137,7 +137,7 @@ e.g.
 .Pa /dev/diskid/DISK-6QG3Z026  .
 .Pp
 Generic labels created and managed solely by
-.Xr glabel 8
+.Nm
 are created in the
 .Pa /dev/label/
 directory.
@@ -164,13 +164,25 @@ device will be one sector smaller than the device from which it was created.
 .Pp
 Note that for all label types, nested GEOM classes will cause additional
 device nodes to be created, with context-specific data appended to their
-names. E.g. for every node like
+names.
+E.g. for every node like
 .Pa /dev/label/bigdisk
 there will be additional entries for any partitions which the device
 contains, like
 .Pa /dev/label/bigdiskp1
 and
 .Pa /dev/label/bigdiskp1a .
+.Pp
+.Nm
+requires write access to a device to create, modify, and destroy
+"automatic" labels.
+It will fail to persist changes if they are applied while a file
+system on the device is currently mounted.
+To ensure that modifications are stored across a reboot, the file system
+needs to be unmounted first.
+If the device holds the system's root file system, entering into
+single user mode and mounting in read-only mode is required to persist
+the change.
 .Pp
 The first argument to
 .Nm
@@ -252,12 +264,13 @@ Most
 .Nm LABEL
 providers implement a
 .Xr sysctl 8
-flag and a tunable variable named in the above format. This flag
-controls if the label provider will be active, tasting devices
+flag and a tunable variable named in the above format.
+This flag controls if the label provider will be active, tasting devices
 and creating label nodes in the
 .Xr devfs 4
-tree. It is sometimes desirable to disable certain label types if
-they conflict with other classes in complex GEOM topologies.
+tree.
+It is sometimes desirable to disable certain label types if they
+conflict with other classes in complex GEOM topologies.
 .El
 .Sh EXIT STATUS
 Exit status is 0 on success, and 1 if the command fails.
