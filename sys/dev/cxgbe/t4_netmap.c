@@ -1025,29 +1025,28 @@ cxgbe_nm_tx(struct adapter *sc, struct sge_nm_txq *nm_txq,
 			nm_txq->pidx = 0;
 		}
 
-		if (npkt == 0 && npkt_remaining == 0) {
+		if (npkt + npkt_remaining == 0) {
 			/* All done. */
-			if (lazy_tx_credit_flush == 0) {
+			if (lazy_tx_credit_flush == 0 ||
+			    NMIDXDIFF(nm_txq, equiqidx) >= nm_txq->sidx / 2) {
 				wr->equiq_to_len16 |= htobe32(F_FW_WR_EQUEQ |
 				    F_FW_WR_EQUIQ);
 				nm_txq->equeqidx = nm_txq->pidx;
 				nm_txq->equiqidx = nm_txq->pidx;
+			} else if (NMIDXDIFF(nm_txq, equeqidx) >= 64) {
+				wr->equiq_to_len16 |= htobe32(F_FW_WR_EQUEQ);
+				nm_txq->equeqidx = nm_txq->pidx;
 			}
 			ring_nm_txq_db(sc, nm_txq);
 			return;
 		}
-
-		if (NMIDXDIFF(nm_txq, equiqidx) >= nm_txq->sidx / 2) {
-			wr->equiq_to_len16 |= htobe32(F_FW_WR_EQUEQ |
-			    F_FW_WR_EQUIQ);
-			nm_txq->equeqidx = nm_txq->pidx;
-			nm_txq->equiqidx = nm_txq->pidx;
-		} else if (NMIDXDIFF(nm_txq, equeqidx) >= 64) {
-			wr->equiq_to_len16 |= htobe32(F_FW_WR_EQUEQ);
-			nm_txq->equeqidx = nm_txq->pidx;
-		}
-		if (NMIDXDIFF(nm_txq, dbidx) >= 2 * SGE_MAX_WR_NDESC)
+		if (NMIDXDIFF(nm_txq, dbidx) >= 2 * SGE_MAX_WR_NDESC) {
+			if (NMIDXDIFF(nm_txq, equeqidx) >= 64) {
+				wr->equiq_to_len16 |= htobe32(F_FW_WR_EQUEQ);
+				nm_txq->equeqidx = nm_txq->pidx;
+			}
 			ring_nm_txq_db(sc, nm_txq);
+		}
 	}
 
 	/* Will get called again. */
