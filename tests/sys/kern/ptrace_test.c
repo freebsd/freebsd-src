@@ -36,7 +36,6 @@
 #include <sys/ptrace.h>
 #include <sys/procfs.h>
 #include <sys/queue.h>
-#include <sys/runq.h>
 #include <sys/syscall.h>
 #include <sys/sysctl.h>
 #include <sys/user.h>
@@ -2029,7 +2028,7 @@ ATF_TC_BODY(ptrace__PT_KILL_competing_signal, tc)
 		    sched_get_priority_min(SCHED_FIFO)) / 2;
 		CHILD_REQUIRE(pthread_setschedparam(pthread_self(),
 		    SCHED_FIFO, &sched_param) == 0);
-		sched_param.sched_priority -= RQ_PPQ;
+		sched_param.sched_priority -= 1;
 		CHILD_REQUIRE(pthread_setschedparam(t, SCHED_FIFO,
 		    &sched_param) == 0);
 
@@ -2132,7 +2131,7 @@ ATF_TC_BODY(ptrace__PT_KILL_competing_stop, tc)
 		    sched_get_priority_min(SCHED_FIFO)) / 2;
 		CHILD_REQUIRE(pthread_setschedparam(pthread_self(),
 		    SCHED_FIFO, &sched_param) == 0);
-		sched_param.sched_priority -= RQ_PPQ;
+		sched_param.sched_priority -= 1;
 		CHILD_REQUIRE(pthread_setschedparam(t, SCHED_FIFO,
 		    &sched_param) == 0);
 
