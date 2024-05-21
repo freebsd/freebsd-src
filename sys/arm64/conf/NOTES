@@ -240,6 +240,8 @@ nooptions 	COMPAT_FREEBSD10
 # arm64 supports 32-bit FreeBSD/arm binaries (armv[67] ABIs)
 options 	COMPAT_FREEBSD32	# Compatible with FreeBSD/arm
 
+options		IOMMU # ARM64 SMMU/IOMMU
+
 #####################################################################
 # ZFS support
 
