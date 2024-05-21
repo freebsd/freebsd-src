@@ -1,3 +1,6 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\"
 .\" Copyright (c) 2013-2018, Intel Corporation
 .\" All rights reserved.
 .\"
@@ -29,12 +32,12 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd January 30, 2019
+.Dd May 21, 2024
 .Dt IAVF 4
 .Os
 .Sh NAME
 .Nm iavf
-.Nd "Intel Adaptive Virtual Function driver"
+.Nd "Intel Ethernet Adaptive Virtual Function Driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel, place the following lines in your
 kernel configuration file:
@@ -51,87 +54,300 @@ if_iavf_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for the PCI Virtual Functions from the 700 Series of
-ethernet devices and newer product families.
-The driver supports Jumbo Frames, TX/RX checksum offload,
-TCP segmentation offload (TSO), Large Receive Offload (LRO), VLAN
-tag insertion/extraction, VLAN checksum offload, VLAN TSO, and
-Receive Side Steering (RSS), all for both IPv4 and IPv6.
-For further hardware information and questions related to hardware
-requirements, see
-.Pa http://support.intel.com/ .
+driver provides support for any PCI Virtual Function created from certain
+Intel Ethernet devices.
+This driver is compatible with virtual functions bound to devices based on the
+following:
 .Pp
-Support for Jumbo Frames is provided via the interface MTU setting.
-Selecting an MTU larger than 1500 bytes with the
+.Bl -bullet -compact
+.It
+Intel\(rg Ethernet Controller E810\-C
+.It
+Intel\(rg Ethernet Controller E810\-XXV
+.It
+Intel\(rg Ethernet Connection E822\-C
+.It
+Intel\(rg Ethernet Connection E822\-L
+.It
+Intel\(rg Ethernet Connection E823\-C
+.It
+Intel\(rg Ethernet Connection E823\-L
+.It
+Intel\(rg Ethernet Controller I710
+.It
+Intel\(rg Ethernet Controller X710
+.It
+Intel\(rg Ethernet Controller XL710
+.It
+Intel\(rg Ethernet Network Connection X722
+.It
+Intel\(rg Ethernet Controller XXV710
+.It
+Intel\(rg Ethernet Controller V710
+.El
+.Pp
+The associated Physical Function (PF) drivers for this VF driver are:
+.Pp
+.Bl -bullet -compact
+.It
+.Xr ice 4
+.It
+.Xr ixl 4
+.El
+.Pp
+For questions related to hardware requirements, refer to the documentation
+supplied with your Intel Ethernet Adapter.
+All hardware requirements listed apply to use with
+.Fx .
+.Ss The VF Driver
+The VF driver is normally used in a virtualized environment where a host driver
+manages SR\-IOV, and provides a VF device to the guest.
+.Pp
+In the
+.Fx
+guest, the iavf driver would be loaded and will function using
+the VF device assigned to it.
+.Pp
+The VF driver provides most of the same functionality as the core driver, but
+is actually a subordinate to the host.
+Access to many controls is accomplished by a request to the host via what is
+called the "Admin queue."
+These are startup and initialization events, however; once in operation, the
+device is self\-contained and should achieve near native performance.
+.Pp
+Some notable limitations of the VF environment:
+.Bl -bullet
+.It
+The PF can configure the VF to allow promiscuous mode, using a configuration
+parameter in
+.Xr iovctl.conf 5 ;
+otherwise, promiscuous mode will not work
+.It
+Media info is not available from the PF, so the active media will always be
+displayed as auto in
 .Xr ifconfig 8
-utility configures the adapter to receive and transmit Jumbo Frames.
-The maximum MTU size for Jumbo Frames is 9706.
+.El
+.Ss Adaptive Virtual Function
+Adaptive Virtual Function (AVF) allows the virtual function driver, or VF, to
+adapt to changing feature sets of the physical function driver (PF) with which
+it is associated.
+This allows system administrators to update a PF without having to update all
+the VFs associated with it.
+All AVFs have a single common device ID and branding string.
 .Pp
-Offloads are also controlled via the interface, for instance,
-checksumming for both IPv4 and IPv6 can be set and unset, TSO4
-and/or TSO6, and finally LRO can be set and unset.
+AVFs have a minimum set of features known as "base mode," but may provide
+additional features depending on what features are available in the PF with
+which the AVF is associated.
+The following are base mode features:
+.Bl -bullet -compact
+.It
+4 Queue Pairs (QP) and associated Configuration Status Registers (CSRs)
+for Tx/Rx
+.It
+iavf descriptors and ring format
+.It
+Descriptor write\-back completion
+.It
+1 control queue, with iavf descriptors, CSRs and ring format
+.It
+5 MSI\-X interrupt vectors and corresponding iavf CSRs
+.It
+1 Interrupt Throttle Rate (ITR) index
+.It
+1 Virtual Station Interface (VSI) per VF
+.It
+1 Traffic Class (TC), TC0
+.It
+Receive Side Scaling (RSS) with 64 entry indirection table and key,
+configured through the PF
+.It
+1 unicast MAC address reserved per VF
+.It
+8 MAC address filters for each VF on an Intel\(rg Ethernet 800 Series device
+.It
+16 MAC address filters for each VF on an Intel\(rg Ethernet 700 Series device
+.It
+Stateless offloads \- non\-tunneled checksums
+.It
+AVF device ID
+.It
+HW mailbox is used for VF to PF communications
+.El
+.Sh CONFIGURATION AND TUNING
+.Ss Important System Configuration Changes
+It is important to note that 100G operation can generate high
+numbers of interrupts, often incorrectly being interpreted as
+a storm condition in the kernel.
+It is suggested that this be resolved by setting
+.Va hw.intr_storm_threshold
+to 0.
 .Pp
-For more information on configuring this device, see
+The default is 1000.
+.Pp
+Best throughput results are seen with a large MTU; use 9706 if possible.
+The default number of descriptors per ring is 1024.
+Increasing this may improve performance, depending on your use case.
+.Ss Configuring for no iflib
+.Xr iflib 4
+is a common framework for network interface drivers for
+.Fx
+that uses a shared set of sysctl names.
+.Pp
+The default
+.Nm
+driver depends on it, but it can be compiled without it.
+.Ss Jumbo Frames
+Jumbo Frames support is enabled by changing the Maximum Transmission Unit (MTU)
+to a value larger than the default value of 1500.
+.Pp
+Use the
+.Xr ifconfig 8
+command to increase the MTU size.
+.Pp
+To confirm the MTU used between two specific devices, use
+.Xr route 8 :
+.Bd -literal -offset indent
+route get <destination_IP_address>
+.Ed
+.Pp
+NOTE:
+.Bl -bullet
+.It
+The maximum MTU setting for jumbo frames is 9706.
+This corresponds to the maximum jumbo frame size of 9728 bytes.
+.It
+This driver will attempt to use multiple page-sized buffers to receive
+each jumbo packet.
+This should help to avoid buffer starvation issues when allocating receive
+packets.
+.It
+Packet loss may have a greater impact on throughput when you use jumbo
+frames.
+If you observe a drop in performance after enabling jumbo frames, enabling
+flow control may mitigate the issue.
+.El
+.Ss Checksum Offload
+Checksum offloading supports both TCP and UDP packets and is supported for both
+transmit and receive.
+.Pp
+TSO (TCP Segmentation Offload) supports both IPv4 and IPv6.
+Both of these features are enabled and disabled via
 .Xr ifconfig 8 .
 .Pp
-.Em NOTE :
-This
-.Nm
-driver is only for Virtual Functions.
-For 700 series Physical Functions, use the
-.Xr ixl 4
-driver.
-.Sh LOADER TUNABLES
-Tunables can be set at the
-.Xr loader 8
-prompt before booting the kernel or stored in
-.Xr loader.conf 5 .
-.Bl -tag -width indent
-.It Va hw.iavf.rx_itr
-The RX interrupt rate value, set to 62 (124 usec) by default.
-.It Va hw.iavf.tx_itr
-The TX interrupt rate value, set to 122 (244 usec) by default.
-.It Va hw.iavf.enable_head_writeback
-When the driver is finding the last TX descriptor processed by the hardware,
-use a value written to memory by the hardware instead of scanning the
-descriptor ring for completed descriptors.
-Disabled by default; this mimics the "legacy" TX behavior found in
-.Xr ixgbe 4 .
-to ensure compatibility with future, non-700 series VF devices.
+NOTE:
+.Bl -bullet -compact
+.It
+TSO requires Tx checksum; if Tx checksum is disabled then TSO will also
+be disabled.
 .El
-.Sh SUPPORT
-For general information and support,
-go to the Intel support website at:
-.Pa http://support.intel.com/ .
-.Pp
-If an issue is identified with this driver with a supported adapter,
-email all the specific information related to the issue to
-.Mt freebsd@intel.com .
+.Ss LRO
+LRO (Large Receive Offload) may provide Rx performance improvement.
+However, it is incompatible with packet\-forwarding workloads.
+You should carefully evaluate the environment and enable LRO when possible.
+.Ss Rx and Tx Descriptor Rings
+Allows you to set the Rx and Tx descriptor rings independently.
+Set them via these
+.Xr iflib 4
+sysctls:
+.Bl -tag -width indent
+.It dev.iavf.#.iflib.override_nrxds
+.It dev.iavf.#.iflib.override_ntxds
+.El
+.Ss Link\-Level Flow Control (LFC)
+The VF driver does not have access to flow control settings.
+It must be managed from the host side.
 .Sh SEE ALSO
 .Xr arp 4 ,
+.Xr ice 4 ,
+.Xr iflib 4 ,
 .Xr ixl 4 ,
 .Xr netintro 4 ,
 .Xr vlan 4 ,
-.Xr ifconfig 8 ,
-.Xr iflib 9
+.Xr ifconfig 8
+.Pp
+See the
+.Dq Intel\(rg Ethernet Adapters and Devices User Guide
+for additional information on features.
+It is available on the Intel website at either of the following:
+.Bl -bullet
+.It
+.Lk https://cdrdv2.intel.com/v1/dl/getContent/705831
+.It
+.Lk https://www.intel.com/content/www/us/en/download/19373/adapter\-user\-guide\-for\-intel\-ethernet\-adapters.html
+.El
+.Pp
+For information on how to identify your adapter, and for the latest Intel
+network drivers, refer to the Intel Support website:
+.Aq Lk http://www.intel.com/support
+.Sh CAVEATS
+.Ss Driver Buffer Overflow Fix
+The fix to resolve CVE\-2016\-8105, referenced in Intel SA\-00069
+.Aq Lk https://www.intel.com/content/www/us/en/security\-center/advisory/intel\-sa\-00069.html ,
+is included in this and future versions of the driver.
+.Ss Network Memory Buffer Allocation
+.Fx
+may have a low number of network memory buffers (mbufs) by default.
+If your mbuf value is too low, it may cause the driver to fail to initialize
+and/or cause the system to become unresponsive.
+You can check to see if the system is mbuf\-starved by running
+.Li "netstat -m" .
+Increase the number of mbufs by editing the lines below in
+.Xr sysctl.conf 5 :
+.Bd -literal -offset indent
+kern.ipc.nmbclusters
+kern.ipc.nmbjumbop
+kern.ipc.nmbjumbo9
+kern.ipc.nmbjumbo16
+kern.ipc.nmbufs
+.Ed
+.Pp
+The amount of memory that you allocate is system specific, and may require
+some trial and error.
+Also, increasing the following in
+.Xr sysctl.conf 5
+could help increase
+network performance:
+.Bd -literal -offset indent
+kern.ipc.maxsockbuf
+net.inet.tcp.sendspace
+net.inet.tcp.recvspace
+net.inet.udp.maxdgram
+net.inet.udp.recvspace
+.Ed
+.Ss UDP Stress Test Dropped Packet Issue
+Under small packet UDP stress with the
+.Nm
+driver, the system may drop UDP packets due to socket buffers being full.
+Setting the PF driver's Flow Control variables to the minimum may resolve the
+issue.
+.Ss Disable LRO when routing/bridging
+LRO must be turned off when forwarding traffic.
+.Sh SUPPORT
+For general information, go to the Intel support website at
+.Aq Lk http://www.intel.com/support/ .
+.Pp
+If an issue is identified with the released source code on a supported kernel
+with a supported adapter, email the specific information related to the issue
+to
+.Aq Mt freebsd@intel.com .
+.Sh LEGAL
+Intel\(rg is a trademark or registered trademark of Intel Corporation
+or its subsidiaries in the United States and / or other countries.
+.Pp
+Other names and brands may be claimed as the property of others.
 .Sh HISTORY
 The
 .Nm
 device driver first appeared in
-.Fx 10.1 .
-under the name "ixlv"
+.Fx 10.1
+under the name
+.Nm ixlv .
 It was converted to use
-.Xr iflib 9
-and changed to its current name in
-.Fx 12 .
+.Xr iflib 4
+and renamed in
+.Fx 12.4 .
 .Sh AUTHORS
-.An -nosplit
 The
 .Nm
-driver was written by
-.An Jack Vogel Aq Mt jfv@freebsd.org
-and
-.An Eric Joyner Aq Mt erj@freebsd.org .
-.Sh CAVEATS
-This driver is supposed to function on VFs spawned from future network devices by Intel,
-but at the time of this writing, has only been tested on the 700 series VFs.
+driver was written by the
+.An Intel Corporation Aq Mt freebsd@intel.com
