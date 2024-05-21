@@ -164,13 +164,6 @@ if citype == "config-2" then
 		nuage.err("nuageinit: error parsing config-2: meta_data.json: " .. err)
 	end
 	local obj = parser:get_object()
-	local sshkeys = obj["public_keys"]
-	if sshkeys then
-		local homedir = nuage.adduser(default_user)
-		for _,v in pairs(sshkeys) do
-			nuage.addsshkey(root .. homedir, v)
-		end
-	end
 	nuage.sethostname(obj["hostname"])
 
 	-- network
