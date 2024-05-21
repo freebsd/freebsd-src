@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 13, 2024
+.Dd May 21, 2024
 .Dt ACCESS 2
 .Os
 .Sh NAME
@@ -45,35 +45,43 @@
 .Fn faccessat "int fd" "const char *path" "int mode" "int flag"
 .Sh DESCRIPTION
 The
-.Fn access
-and
+.Fn access ,
 .Fn eaccess
-system calls check the accessibility of the
-file named by
-the
+and
+.Fn faccessat
+system calls report whether an attempt to access the file designated
+by their
 .Fa path
-argument
-for the access permissions indicated by
-the
+in the manner described by their
 .Fa mode
-argument.
+argument is likely to succeed.
 The value of
 .Fa mode
-is either the bitwise-inclusive OR of the access permissions to be
-checked
-.Dv ( R_OK
+is either the bitwise-inclusive OR of the desired permissions
+.Po
+.Dv R_OK
 for read permission,
 .Dv W_OK
 for write permission, and
 .Dv X_OK
-for execute/search permission),
-or the existence test
-.Pq Dv F_OK .
+for execute / search permission
+.Pc
+or
+.Dv F_OK
+to simply check whether the file exists.
 .Pp
-For additional information, see the
-.Sx "File Access Permission"
-section of
-.Xr intro 2 .
+For a number of reasons, these system calls cannot be relied upon to
+give a correct and definitive answer.
+They can at best provide an early indication of the expected outcome,
+to be confirmed by actually attempting the operation.
+For existence checks, either
+.Xr stat 2
+or
+.Xr lstat 2
+should be used instead.
+See also
+.Sx SECURITY CONSIDERATIONS
+below.
 .Pp
 The
 .Fn eaccess
@@ -86,6 +94,13 @@ system call uses
 the real user ID in place of the effective user ID,
 the real group ID in place of the effective group ID,
 and the rest of the group access list.
+.Pp
+See the
+.Sx DEFINITIONS
+section of
+.Xr intro 2
+for additional information on file access permissions and real
+vs. effective user and group IDs.
 .Pp
 The
 .Fn faccessat
@@ -114,8 +129,10 @@ list, defined in
 .In fcntl.h :
 .Bl -tag -width indent
 .It Dv AT_EACCESS
-The checks for accessibility are performed using the effective user and group
-IDs instead of the real user and group ID as required in a call to
+The checks are performed using the effective user and group IDs,
+like
+.Fn eaccess ,
+instead of the real user and group ID, like
 .Fn access .
 .It Dv AT_RESOLVE_BENEATH
 Only walk paths below the directory specified by the
@@ -147,23 +164,15 @@ Likewise for
 .Dv R_OK
 and
 .Dv W_OK .
-.Pp
-.Fn access ,
-.Fn eaccess
-and
-.Fn faccessat
-will always dereference symbolic links.
-If the symbolic link itself needs to be referenced,
-.Xr lstat 2
-should be used instead.
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
+The
 .Fn access ,
 .Fn eaccess ,
-or
+and
 .Fn faccessat
-will fail if:
+system calls may fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The value of the
@@ -254,25 +263,11 @@ system call appeared in
 .Fx 8.0 .
 .Sh SECURITY CONSIDERATIONS
 The
-.Fn access
-system call
-is a potential security hole due to race conditions and
-should never be used.
-Set-user-ID and set-group-ID applications should restore the
-effective user or group ID,
-and perform actions directly rather than use
-.Fn access
-to simulate access checks for the real user or group ID.
-The
-.Fn eaccess
-system call
-likewise may be subject to races if used inappropriately.
-.Pp
-.Fn access
-remains useful for providing clues to users as to whether operations
-make sense for particular filesystem objects (e.g. 'delete' menu
-item only highlighted in a writable folder ... avoiding interpretation
-of the st_mode bits that the application might not understand --
-e.g. in the case of AFS).
-It also allows a cheaper file existence test than
-.Xr stat 2 .
+.Fn access ,
+.Fn eaccess ,
+and
+.Fn faccessat
+system calls are subject to time-of-check-to-time-of-use races and
+should not be relied upon for file permission enforcement purposes.
+Instead, applications should perform the desired action using the
+requesting user's credentials.
