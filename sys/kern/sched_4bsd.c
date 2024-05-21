@@ -80,7 +80,9 @@ dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
 #endif
 #define	NICE_WEIGHT		1	/* Priorities per nice level. */
 #define	ESTCPULIM(e)							\
-	min((e), INVERSE_ESTCPU_WEIGHT * (NICE_WEIGHT * (PRIO_MAX - PRIO_MIN)) \
+	min((e), INVERSE_ESTCPU_WEIGHT *				\
+	    (NICE_WEIGHT * (PRIO_MAX - PRIO_MIN) +			\
+	    PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE)			\
 	    + INVERSE_ESTCPU_WEIGHT - 1)
 
 #define	TS_NAME_LEN (MAXCOMLEN + sizeof(" td ") + sizeof(__XSTRING(UINT_MAX)))
