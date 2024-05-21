@@ -136,7 +136,7 @@
  *	aes-ccm128	128-bit AES-CCM
  *	aes-ccm192	192-bit AES-CCM
  *	aes-ccm256	256-bit AES-CCM
- *	chacha20-poly1305 Chacha20 with Poly1305 per RFC 8439
+ *	chacha20-poly1305 Chacha20 (96 bit nonce) with Poly1305 per RFC 8439
  */
 
 #include <sys/param.h>
@@ -253,7 +253,7 @@ static const struct alg {
 	  .evp_cipher = EVP_aes_256_ccm },
 	{ .name = "chacha20-poly1305", .cipher = CRYPTO_CHACHA20_POLY1305,
 	  .type = T_AEAD, .tag_len = POLY1305_HASH_LEN,
-	  .iv_sizes = { CHACHA20_POLY1305_IV_LEN, 8 },
+	  .iv_sizes = { CHACHA20_POLY1305_IV_LEN },
 	  .evp_cipher = EVP_chacha20_poly1305 },
 };
 
