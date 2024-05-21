@@ -138,9 +138,6 @@ LK_CAN_SHARE(uintptr_t x, int flags, bool fp)
 #define	LK_TRYWIT(x)							\
 	(LK_TRYOP(x) ? LOP_TRYLOCK : 0)
 
-#define	lockmgr_disowned(lk)						\
-	(((lk)->lk_lock & ~(LK_FLAGMASK & ~LK_SHARE)) == LK_KERNPROC)
-
 #define	lockmgr_xlocked_v(v)						\
 	(((v) & ~(LK_FLAGMASK & ~LK_SHARE)) == (uintptr_t)curthread)
 
@@ -243,7 +240,7 @@ static void
 lockmgr_note_exclusive_release(struct lock *lk, const char *file, int line)
 {
 
-	if (LK_HOLDER(lockmgr_read_value(lk)) != LK_KERNPROC) {
+	if (!lockmgr_disowned(lk)) {
 		WITNESS_UNLOCK(&lk->lock_object, LOP_EXCLUSIVE, file, line);
 		TD_LOCKS_DEC(curthread);
 	}
@@ -1135,7 +1132,7 @@ lockmgr_xunlock_hard(struct lock *lk, uintptr_t x, u_int flags, struct lock_obje
 	 * any waiter.
 	 * Fix-up the tid var if the lock has been disowned.
 	 */
-	if (LK_HOLDER(x) == LK_KERNPROC)
+	if (lockmgr_disowned_v(x))
 		tid = LK_KERNPROC;
 
 	/*
