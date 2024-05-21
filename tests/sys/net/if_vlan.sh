@@ -297,6 +297,42 @@ bpf_pcp_cleanup()
 	vnet_cleanup
 }
 
+atf_test_case "conflict_id" "cleanup"
+conflict_id_head()
+{
+	atf_set descr 'Test conflicting VLAN IDs, PR #279195'
+	atf_set require.user root
+}
+
+conflict_id_body()
+{
+	vnet_init
+
+	epair=$(vnet_mkepair)
+
+	vnet_mkjail alcatraz ${epair}b
+	vlan_a=$(jexec alcatraz ifconfig vlan create)
+	vlan_b=$(jexec alcatraz ifconfig vlan create)
+
+	jexec alcatraz ifconfig ${vlan_a} vlan 100 vlandev ${epair}b
+	jexec alcatraz ifconfig ${vlan_b} vlan 101 vlandev ${epair}b
+
+	atf_check -s exit:1 -o ignore -e ignore \
+	    jexec alcatraz ifconfig ${vlan_a} vlan 101
+
+	atf_check -s exit:0 -o match:"vlan: 100" \
+	    jexec alcatraz ifconfig ${vlan_a}
+
+	atf_check -s exit:0 -o ignore -e ignore \
+	    jexec alcatraz ifconfig ${vlan_a} vlan 100
+}
+
+conflict_id_cleanup()
+{
+	vnet_cleanup
+
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic"
@@ -306,4 +342,5 @@ atf_init_test_cases()
 	atf_add_test_case "qinq_dot"
 	atf_add_test_case "qinq_setflags"
 	atf_add_test_case "bpf_pcp"
+	atf_add_test_case "conflict_id"
 }

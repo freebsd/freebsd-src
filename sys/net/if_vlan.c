@@ -1702,10 +1702,20 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t vid,
 		ifv->ifv_proto = proto;
 
 		if (ifv->ifv_vid != vid) {
+			int oldvid = ifv->ifv_vid;
+
 			/* Re-hash */
 			vlan_remhash(trunk, ifv);
 			ifv->ifv_vid = vid;
 			error = vlan_inshash(trunk, ifv);
+			if (error) {
+				int ret __diagused;
+
+				ifv->ifv_vid = oldvid;
+				/* Re-insert back where we found it. */
+				ret = vlan_inshash(trunk, ifv);
+				MPASS(ret == 0);
+			}
 		}
 		/* Will unlock */
 		goto done;
