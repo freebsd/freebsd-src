@@ -60,6 +60,7 @@
 #include "ifconfig.h"
 
 #define	NOTAG	((u_short) -1)
+#define	NOPROTO	((u_short) -1)
 
 static const char proto_8021Q[]  = "802.1q";
 static const char proto_8021ad[] = "802.1ad";
@@ -67,7 +68,7 @@ static const char proto_qinq[] = "qinq";
 
 static 	struct vlanreq params = {
 	.vlr_tag	= NOTAG,
-	.vlr_proto	= ETHERTYPE_VLAN,
+	.vlr_proto	= NOPROTO,
 };
 
 static void
@@ -157,6 +158,8 @@ vlan_create(if_ctx *ctx, struct ifreq *ifr)
 			errx(1, "must specify a tag for vlan create");
 		if (params.vlr_parent[0] == '\0')
 			errx(1, "must specify a parent device for vlan create");
+		if (params.vlr_proto == NOPROTO)
+			params.vlr_proto = ETHERTYPE_VLAN;
 		ifr->ifr_data = (caddr_t) &params;
 	}
 	ifcreate_ioctl(ctx, ifr);
@@ -173,6 +176,8 @@ static void
 vlan_set(int s, struct ifreq *ifr)
 {
 	if (params.vlr_tag != NOTAG && params.vlr_parent[0] != '\0') {
+		if (params.vlr_proto == NOPROTO)
+			params.vlr_proto = ETHERTYPE_VLAN;
 		ifr->ifr_data = (caddr_t) &params;
 		if (ioctl(s, SIOCSETVLAN, (caddr_t)ifr) == -1)
 			err(1, "SIOCSETVLAN");
@@ -196,8 +201,16 @@ setvlantag(if_ctx *ctx, const char *val, int dummy __unused)
 		errx(1, "value for vlan out of range");
 
 	if (ioctl_ctx_ifr(ctx, SIOCGETVLAN, &ifr) != -1) {
-		vreq.vlr_tag = params.vlr_tag;
-		memcpy(&params, &vreq, sizeof(params));
+		/*
+		 * Retrieve the current settings if the interface has already
+		 * been configured.
+		 */
+		if (vreq.vlr_parent[0] != '\0') {
+			if (params.vlr_parent[0] == '\0')
+				strlcpy(params.vlr_parent, vreq.vlr_parent, IFNAMSIZ);
+			if (params.vlr_proto == NOPROTO)
+				params.vlr_proto = vreq.vlr_proto;
+		}
 		vlan_set(ctx->io_s, &ifr);
 	}
 }
@@ -230,8 +243,16 @@ setvlanproto(if_ctx *ctx, const char *val, int dummy __unused)
 		errx(1, "invalid value for vlanproto");
 
 	if (ioctl_ctx_ifr(ctx, SIOCGETVLAN, &ifr) != -1) {
-		vreq.vlr_proto = params.vlr_proto;
-		memcpy(&params, &vreq, sizeof(params));
+		/*
+		 * Retrieve the current settings if the interface has already
+		 * been configured.
+		 */
+		if (vreq.vlr_parent[0] != '\0') {
+			if (params.vlr_parent[0] == '\0')
+				strlcpy(params.vlr_parent, vreq.vlr_parent, IFNAMSIZ);
+			if (params.vlr_tag == NOTAG)
+				params.vlr_tag = vreq.vlr_tag;
+		}
 		vlan_set(ctx->io_s, &ifr);
 	}
 }

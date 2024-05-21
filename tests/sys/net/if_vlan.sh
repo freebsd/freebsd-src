@@ -22,8 +22,12 @@ basic_body()
 	jexec alcatraz ifconfig ${epair_vlan}a up
 	jexec alcatraz ifconfig ${vlan0} 10.0.0.1/24 up
 
-	vlan1=$(jexec singsing ifconfig vlan create vlandev ${epair_vlan}b \
-		vlan 42)
+	vlan1=$(jexec singsing ifconfig vlan create)
+
+	# Test associating the physical interface
+	atf_check -s exit:0 \
+	    jexec singsing ifconfig ${vlan1} vlandev ${epair_vlan}b vlan 42
+
 	jexec singsing ifconfig ${epair_vlan}b up
 	jexec singsing ifconfig ${vlan1} 10.0.0.2/24 up
 
@@ -37,7 +41,7 @@ basic_body()
 	# And change back
 	# Test changing the vlan ID
 	atf_check -s exit:0 \
-	    jexec singsing ifconfig ${vlan1} vlandev ${epair_vlan}b vlan 42
+	    jexec singsing ifconfig ${vlan1} vlan 42 vlandev ${epair_vlan}b
 	atf_check -s exit:0 -o ignore jexec singsing ping -c 1 10.0.0.1
 }
 
