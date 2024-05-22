@@ -1109,9 +1109,9 @@ mqfs_reclaim(struct vop_reclaim_args *ap)
 	sx_xlock(&mqfs->mi_lock);
 	vp->v_data = NULL;
 	LIST_REMOVE(vd, mv_link);
-	uma_zfree(mvdata_zone, vd);
 	mqnode_release(pn);
 	sx_xunlock(&mqfs->mi_lock);
+	uma_zfree(mvdata_zone, vd);
 	return (0);
 }
 
