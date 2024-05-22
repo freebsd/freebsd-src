@@ -994,33 +994,37 @@ lkpi_hw_conf_idle(struct ieee80211_hw *hw, bool new)
 	}
 }
 
-static void
+static enum ieee80211_bss_changed
 lkpi_disassoc(struct ieee80211_sta *sta, struct ieee80211_vif *vif,
     struct lkpi_hw *lhw)
 {
+	enum ieee80211_bss_changed changed;
+
+	changed = 0;
 	sta->aid = 0;
 	if (vif->cfg.assoc) {
-		struct ieee80211_hw *hw;
-		enum ieee80211_bss_changed changed;
 
 		lhw->update_mc = true;
 		lkpi_update_mcast_filter(lhw->ic, true);
 
-		changed = 0;
 		vif->cfg.assoc = false;
 		vif->cfg.aid = 0;
 		changed |= BSS_CHANGED_ASSOC;
-		/*
-		 * This will remove the sta from firmware for iwlwifi.
-		 * So confusing that they use state and flags and ... ^%$%#%$^.
-		 */
 		IMPROVE();
-		hw = LHW_TO_HW(lhw);
-		lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf,
-		    changed);
 
-		lkpi_hw_conf_idle(hw, true);
+		/*
+		 * Executing the bss_info_changed(BSS_CHANGED_ASSOC) with
+		 * assoc = false right away here will remove the sta from
+		 * firmware for iwlwifi.
+		 * We no longer do this but only return the BSS_CHNAGED value.
+		 * The caller is responsible for removing the sta gong to
+		 * IEEE80211_STA_NOTEXIST and then executing the
+		 * bss_info_changed() update.
+		 * See lkpi_sta_run_to_init() for more detailed comment.
+		 */
 	}
+
+	return (changed);
 }
 
 static void
@@ -1460,6 +1464,8 @@ lkpi_sta_auth_to_scan(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 		lkpi_80211_mo_unassign_vif_chanctx(hw, vif, &vif->bss_conf, &vif->chanctx_conf);
 		/* NB: vif->chanctx_conf is NULL now. */
 
+		lkpi_hw_conf_idle(hw, true);
+
 		/* Remove chan ctx. */
 		lkpi_80211_mo_remove_chanctx(hw, conf);
 		lchanctx = CHANCTX_CONF_TO_LCHANCTX(conf);
@@ -1743,16 +1749,11 @@ _lkpi_sta_assoc_to_down(struct ieee80211vap *vap, enum ieee80211_state nstate, i
 		goto out;
 	}
 
-	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
+	/* See comment in lkpi_sta_run_to_init(). */
+	bss_changed = 0;
+	bss_changed |= lkpi_disassoc(sta, vif, lhw);
 
-	/* Update bss info (bss_info_changed) (assoc, aid, ..). */
-	/*
-	 * We need to do this now, before sta changes to IEEE80211_STA_NOTEXIST
-	 * as otherwise drivers (iwlwifi at least) will silently not remove
-	 * the sta from the firmware and when we will add a new one trigger
-	 * a fw assert.
-	 */
-	lkpi_disassoc(sta, vif, lhw);
+	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
 
 	/* Adjust sta and change state (from NONE) to NOTEXIST. */
 	KASSERT(lsta != NULL, ("%s: ni %p lsta is NULL\n", __func__, ni));
@@ -1769,7 +1770,6 @@ _lkpi_sta_assoc_to_down(struct ieee80211vap *vap, enum ieee80211_state nstate, i
 	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);	/* sta no longer save to use. */
 
 	IMPROVE("Any bss_info changes to announce?");
-	bss_changed = 0;
 	vif->bss_conf.qos = 0;
 	bss_changed |= BSS_CHANGED_QOS;
 	vif->cfg.ssid_len = 0;
@@ -1801,6 +1801,8 @@ _lkpi_sta_assoc_to_down(struct ieee80211vap *vap, enum ieee80211_state nstate, i
 		/* Remove vif context. */
 		lkpi_80211_mo_unassign_vif_chanctx(hw, vif, &vif->bss_conf, &vif->chanctx_conf);
 		/* NB: vif->chanctx_conf is NULL now. */
+
+		lkpi_hw_conf_idle(hw, true);
 
 		/* Remove chan ctx. */
 		lkpi_80211_mo_remove_chanctx(hw, conf);
@@ -2290,14 +2292,33 @@ lkpi_sta_run_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 		goto out;
 	}
 
-	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
-
-	/* Update bss info (bss_info_changed) (assoc, aid, ..). */
+	bss_changed = 0;
 	/*
+	 * Start updating bss info (bss_info_changed) (assoc, aid, ..).
+	 *
 	 * One would expect this to happen when going off AUTHORIZED.
-	 * See comment there; removes the sta from fw.
+	 * See comment there; removes the sta from fw if not careful
+	 * (bss_info_changed() change is executed right away).
+	 *
+	 * We need to do this now, before sta changes to IEEE80211_STA_NOTEXIST
+	 * as otherwise drivers (iwlwifi at least) will silently not remove
+	 * the sta from the firmware and when we will add a new one trigger
+	 * a fw assert.
+	 *
+	 * The order which works best so far avoiding early removal or silent
+	 * non-removal seems to be (for iwlwifi::mld-mac80211.c cases;
+	 * the iwlwifi:mac80211.c case still to be tested):
+	 * 1) lkpi_disassoc(): set vif->cfg.assoc = false (aid=0 side effect here)
+	 * 2) call the last sta_state update -> IEEE80211_STA_NOTEXIST
+	 *    (removes the sta given assoc is false)
+	 * 3) add the remaining BSS_CHANGED changes and call bss_info_changed()
+	 * 4) call unassign_vif_chanctx
+	 * 5) call lkpi_hw_conf_idle
+	 * 6) call remove_chanctx
 	 */
-	lkpi_disassoc(sta, vif, lhw);
+	bss_changed |= lkpi_disassoc(sta, vif, lhw);
+
+	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
 
 	/* Adjust sta and change state (from NONE) to NOTEXIST. */
 	KASSERT(lsta != NULL, ("%s: ni %p lsta is NULL\n", __func__, ni));
@@ -2311,15 +2332,19 @@ lkpi_sta_run_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 		goto out;
 	}
 
+	lkpi_lsta_remove(lsta, lvif);
+
 	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);	/* sta no longer save to use. */
 
 	IMPROVE("Any bss_info changes to announce?");
-	bss_changed = 0;
 	vif->bss_conf.qos = 0;
 	bss_changed |= BSS_CHANGED_QOS;
 	vif->cfg.ssid_len = 0;
 	memset(vif->cfg.ssid, '\0', sizeof(vif->cfg.ssid));
 	bss_changed |= BSS_CHANGED_BSSID;
+	vif->bss_conf.use_short_preamble = false;
+	vif->bss_conf.qos = false;
+	/* XXX BSS_CHANGED_???? */
 	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
 
 	LKPI_80211_LVIF_LOCK(lvif);
@@ -2327,7 +2352,6 @@ lkpi_sta_run_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 	lvif->lvif_bss = NULL;
 	lvif->lvif_bss_synched = false;
 	LKPI_80211_LVIF_UNLOCK(lvif);
-	lkpi_lsta_remove(lsta, lvif);
 	/*
 	 * The very last release the reference on the ni for the ni/lsta on
 	 * lvif->lvif_bss.  Upon return from this both ni and lsta are invalid
@@ -2346,6 +2370,8 @@ lkpi_sta_run_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 		/* Remove vif context. */
 		lkpi_80211_mo_unassign_vif_chanctx(hw, vif, &vif->bss_conf, &vif->chanctx_conf);
 		/* NB: vif->chanctx_conf is NULL now. */
+
+		lkpi_hw_conf_idle(hw, true);
 
 		/* Remove chan ctx. */
 		lkpi_80211_mo_remove_chanctx(hw, conf);
