@@ -27,9 +27,8 @@ if sysctl $ACPI_SUSPEND_STATE >/dev/null 2>&1; then
 		# execute ACPI style suspend command
 		exec acpiconf -s "$SUSPEND_STATE"
 	else
-		echo -n "Requested suspend state $SUSPEND_STATE "
-		echo -n "is not supported."
-		echo    "Supported states: $SUPPORTED_STATES"
+		echo "Requested suspend state $SUSPEND_STATE is not supported."
+		echo "Supported states: $SUPPORTED_STATES"
 	fi
 # Check for APM support
 elif sysctl $APM_SUSPEND_DELAY >/dev/null 2>&1; then
