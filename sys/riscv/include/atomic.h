@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2024 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -105,8 +105,6 @@ atomic_fcmpset_rel_##WIDTH(__volatile uint##WIDTH##_t *p,		\
 
 ATOMIC_CMPSET_ACQ_REL(8);
 ATOMIC_FCMPSET_ACQ_REL(8);
-ATOMIC_CMPSET_ACQ_REL(16);
-ATOMIC_FCMPSET_ACQ_REL(16);
 
 #define	atomic_cmpset_char		atomic_cmpset_8
 #define	atomic_cmpset_acq_char		atomic_cmpset_acq_8
@@ -116,11 +114,40 @@ ATOMIC_FCMPSET_ACQ_REL(16);
 #define	atomic_fcmpset_rel_char		atomic_fcmpset_rel_8
 
 #define	atomic_cmpset_short		atomic_cmpset_16
-#define	atomic_cmpset_acq_short		atomic_cmpset_acq_16
-#define	atomic_cmpset_rel_short		atomic_cmpset_rel_16
 #define	atomic_fcmpset_short		atomic_fcmpset_16
+
+ATOMIC_CMPSET_ACQ_REL(16);
+ATOMIC_FCMPSET_ACQ_REL(16);
+
+#define	atomic_load_acq_16	atomic_load_acq_16
+static __inline uint16_t
+atomic_load_acq_16(volatile uint16_t *p)
+{
+	uint16_t ret;
+
+	ret = *p;
+
+	fence();
+
+	return (ret);
+}
+
+static __inline void
+atomic_store_rel_16(volatile uint16_t *p, uint16_t val)
+{
+
+	fence();
+
+	*p = val;
+}
+
+#define	atomic_cmpset_acq_short		atomic_cmpset_acq_16
 #define	atomic_fcmpset_acq_short	atomic_fcmpset_acq_16
+#define	atomic_load_acq_short		atomic_load_acq_16
+
+#define	atomic_cmpset_rel_short		atomic_cmpset_rel_16
 #define	atomic_fcmpset_rel_short	atomic_fcmpset_rel_16
+#define	atomic_store_rel_short		atomic_store_rel_16
 
 static __inline void
 atomic_add_32(volatile uint32_t *p, uint32_t val)
