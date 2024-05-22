@@ -10,6 +10,10 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+8aac90f18aef:
+	new MAC/do policy and mdo(1) utility which enables a user to
+	become another user without the requirement of setuid root.
+
 7398d1ece5cf:
 	hw.snd.version is removed.
 
