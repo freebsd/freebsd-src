@@ -1076,7 +1076,7 @@ run_rc_command()
 		err 3 'run_rc_command: $name is not set.'
 	fi
 
-	DebugOn rc:$name rc:$name:$rc_arg $name:$rc_arg
+	DebugOn rc:all rc:all:$rc_arg rc:$name rc:$name:$rc_arg $name:$rc_arg
 
 	# Don't repeat the first argument when passing additional command-
 	# line arguments to the command subroutines.
