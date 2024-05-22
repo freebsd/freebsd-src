@@ -77,6 +77,86 @@
 
 #define	UL(x)	UINT64_C(x)
 
+/* APDAKeyHi_EL1 */
+#define	APDAKeyHi_EL1_REG	MRS_REG_ALT_NAME(APDAKeyHi_EL1)
+#define	APDAKeyHi_EL1_op0	3
+#define	APDAKeyHi_EL1_op1	0
+#define	APDAKeyHi_EL1_CRn	2
+#define	APDAKeyHi_EL1_CRm	2
+#define	APDAKeyHi_EL1_op2	1
+
+/* APDAKeyLo_EL1 */
+#define	APDAKeyLo_EL1_REG	MRS_REG_ALT_NAME(APDAKeyLo_EL1)
+#define	APDAKeyLo_EL1_op0	3
+#define	APDAKeyLo_EL1_op1	0
+#define	APDAKeyLo_EL1_CRn	2
+#define	APDAKeyLo_EL1_CRm	2
+#define	APDAKeyLo_EL1_op2	0
+
+/* APDBKeyHi_EL1 */
+#define	APDBKeyHi_EL1_REG	MRS_REG_ALT_NAME(APDBKeyHi_EL1)
+#define	APDBKeyHi_EL1_op0	3
+#define	APDBKeyHi_EL1_op1	0
+#define	APDBKeyHi_EL1_CRn	2
+#define	APDBKeyHi_EL1_CRm	2
+#define	APDBKeyHi_EL1_op2	3
+
+/* APDBKeyLo_EL1 */
+#define	APDBKeyLo_EL1_REG	MRS_REG_ALT_NAME(APDBKeyLo_EL1)
+#define	APDBKeyLo_EL1_op0	3
+#define	APDBKeyLo_EL1_op1	0
+#define	APDBKeyLo_EL1_CRn	2
+#define	APDBKeyLo_EL1_CRm	2
+#define	APDBKeyLo_EL1_op2	2
+
+/* APGAKeyHi_EL1 */
+#define	APGAKeyHi_EL1_REG	MRS_REG_ALT_NAME(APGAKeyHi_EL1)
+#define	APGAKeyHi_EL1_op0	3
+#define	APGAKeyHi_EL1_op1	0
+#define	APGAKeyHi_EL1_CRn	2
+#define	APGAKeyHi_EL1_CRm	3
+#define	APGAKeyHi_EL1_op2	1
+
+/* APGAKeyLo_EL1 */
+#define	APGAKeyLo_EL1_REG	MRS_REG_ALT_NAME(APGAKeyLo_EL1)
+#define	APGAKeyLo_EL1_op0	3
+#define	APGAKeyLo_EL1_op1	0
+#define	APGAKeyLo_EL1_CRn	2
+#define	APGAKeyLo_EL1_CRm	3
+#define	APGAKeyLo_EL1_op2	0
+
+/* APIAKeyHi_EL1 */
+#define	APIAKeyHi_EL1_REG	MRS_REG_ALT_NAME(APIAKeyHi_EL1)
+#define	APIAKeyHi_EL1_op0	3
+#define	APIAKeyHi_EL1_op1	0
+#define	APIAKeyHi_EL1_CRn	2
+#define	APIAKeyHi_EL1_CRm	1
+#define	APIAKeyHi_EL1_op2	1
+
+/* APIAKeyLo_EL1 */
+#define	APIAKeyLo_EL1_REG	MRS_REG_ALT_NAME(APIAKeyLo_EL1)
+#define	APIAKeyLo_EL1_op0	3
+#define	APIAKeyLo_EL1_op1	0
+#define	APIAKeyLo_EL1_CRn	2
+#define	APIAKeyLo_EL1_CRm	1
+#define	APIAKeyLo_EL1_op2	0
+
+/* APIBKeyHi_EL1 */
+#define	APIBKeyHi_EL1_REG	MRS_REG_ALT_NAME(APIBKeyHi_EL1)
+#define	APIBKeyHi_EL1_op0	3
+#define	APIBKeyHi_EL1_op1	0
+#define	APIBKeyHi_EL1_CRn	2
+#define	APIBKeyHi_EL1_CRm	1
+#define	APIBKeyHi_EL1_op2	3
+
+/* APIBKeyLo_EL1 */
+#define	APIBKeyLo_EL1_REG	MRS_REG_ALT_NAME(APIBKeyLo_EL1)
+#define	APIBKeyLo_EL1_op0	3
+#define	APIBKeyLo_EL1_op1	0
+#define	APIBKeyLo_EL1_CRn	2
+#define	APIBKeyLo_EL1_CRm	1
+#define	APIBKeyLo_EL1_op2	2
+
 /* CCSIDR_EL1 - Cache Size ID Register */
 #define	CCSIDR_NumSets_MASK	0x0FFFE000
 #define	CCSIDR_NumSets64_MASK	0x00FFFFFF00000000
