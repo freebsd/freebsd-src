@@ -1,0 +1,4 @@
+Build with branch protection enabled.
+On arm64 enable the use of pointer authentication and
+branch target identification instructions on arm64.
+These can be used to help mitigate some exploit techniques.
