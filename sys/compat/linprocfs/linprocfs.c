@@ -2115,7 +2115,7 @@ linprocfs_dosysvipc_msg(PFS_FILL_ARGS)
 		if (msqids[id].u.msg_qbytes == 0)
 			continue;
 		sbuf_printf(sb,
-		    "%10d %10lu  %4o  %10lu %10lu %5u %5u %5u %5u %5u %5u %jd %jd %jd\n",
+		    "%10d %10zu  %4o  %10lu %10lu %5u %5u %5u %5u %5u %5u %jd %jd %jd\n",
 		    (int)msqids[id].u.msg_perm.key,
 		    IXSEQ_TO_IPCID(id, msqids[id].u.msg_perm),
 		    msqids[id].u.msg_perm.mode,
@@ -2158,7 +2158,7 @@ linprocfs_dosysvipc_sem(PFS_FILL_ARGS)
 		if ((semids[id].u.sem_perm.mode & SEM_ALLOC) == 0)
 			continue;
 		sbuf_printf(sb,
-		    "%10d %10lu  %4o %10u %5u %5u %5u %5u %jd %jd\n",
+		    "%10d %10zu  %4o %10u %5u %5u %5u %5u %jd %jd\n",
 		    (int)semids[id].u.sem_perm.key,
 		    IXSEQ_TO_IPCID(id, semids[id].u.sem_perm),
 		    semids[id].u.sem_perm.mode,
@@ -2198,7 +2198,7 @@ linprocfs_dosysvipc_shm(PFS_FILL_ARGS)
 		if ((shmids[id].u.shm_perm.mode & SHMSEG_ALLOCATED) == 0)
 			continue;
 		sbuf_printf(sb,
-		    "%10d %10lu  %4o %21zu %5u %5u  %5u %5u %5u %5u %5u %jd %jd %jd %21d %21d\n",
+		    "%10d %10zu  %4o %21zu %5u %5u  %5u %5u %5u %5u %5u %jd %jd %jd %21d %21d\n",
 		    (int)shmids[id].u.shm_perm.key,
 		    IXSEQ_TO_IPCID(id, shmids[id].u.shm_perm),
 		    shmids[id].u.shm_perm.mode,
