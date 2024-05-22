@@ -10,7 +10,7 @@
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
 .\"
-.Dd November 3, 2021
+.Dd May 22, 2024
 .Dt BLACKHOLE 4
 .Os
 .Sh NAME
@@ -51,7 +51,7 @@ when unexpected packets are received.
 .Ss TCP
 Normal behaviour, when a TCP SYN segment is received on a port where
 there is no socket accepting connections, is for the system to return
-a RST segment, and drop the connection.
+a RST segment, and drop the incoming SYN segment.
 The connecting system will
 see this as a
 .Dq Connection refused .
