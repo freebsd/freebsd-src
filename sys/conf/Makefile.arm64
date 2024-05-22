@@ -30,7 +30,8 @@ CFLAGS += -DLINUX_DTS_VERSION=\"${LINUX_DTS_VERSION}\"
 
 PERTHREAD_SSP_ENABLED!=	grep PERTHREAD_SSP opt_global.h || true ; echo
 .if !empty(PERTHREAD_SSP_ENABLED)
-. if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 130000
+. if (${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 130000) || \
+  ${COMPILER_TYPE} == "gcc"
 ARM64_SSP_CFLAGS = -mstack-protector-guard=sysreg
 ARM64_SSP_CFLAGS += -mstack-protector-guard-reg=sp_el0
 ARM64_SSP_CFLAGS += -mstack-protector-guard-offset=0
