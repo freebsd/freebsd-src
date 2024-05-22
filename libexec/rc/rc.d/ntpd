@@ -28,6 +28,9 @@ pidfile="${_ntp_default_dir}/${name}.pid"
 
 load_rc_config $name
 
+# doesn't make sense to run in a svcj: nojail keyword
+ntpd_svcj="NO"
+
 leapfile_is_disabled() {
 	# Return true (0) if automatic leapfile handling is disabled.
 	case "$ntp_db_leapfile" in

@@ -14,7 +14,11 @@ rcvar="nfs_server_enable"
 command="/usr/sbin/${name}"
 nfs_server_vhost=""
 
+: ${nfsd_svcj_options:="net_basic nfsd"}
+
 load_rc_config $name
+# precmd is not compatible with svcj
+nfsd_svcj="NO"
 start_precmd="nfsd_precmd"
 sig_stop="USR1"
 

@@ -16,6 +16,8 @@ command="/usr/sbin/${name}"
 pidfile="/var/run/${name}.pid"
 start_postcmd="rtsold_poststart"
 
+: ${rtsold_svcj_options:="net_basic"}
+
 rtsold_poststart()
 {
 	# wait for DAD

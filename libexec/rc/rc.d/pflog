@@ -17,6 +17,9 @@ start_precmd="pflog_prestart"
 stop_postcmd="pflog_poststop"
 extra_commands="reload resync"
 
+# no svcj options needed
+: ${pflog_svcj_options:=""}
+
 # for backward compatibility
 resync_cmd="pflog_resync"
 
@@ -69,6 +72,9 @@ pflog_resync()
 }
 
 load_rc_config $name
+
+# precmd is not compatible with svcj
+pflog_svcj="NO"
 
 # Check if spawning multiple pflogd and told what to spawn
 if [ -n "$2" ]; then

@@ -18,6 +18,9 @@ extra_commands="reload"
 required_files="${ipnat_rules}"
 required_modules="ipl:ipfilter"
 
+# doesn't make sense to run in a svcj: config setting
+ipnat_svcj="NO"
+
 ipnat_start()
 {
 	echo "Installing NAT rules."

@@ -15,5 +15,7 @@ rcvar="bootparamd_enable"
 required_files="/etc/bootparams"
 command="/usr/sbin/${name}"
 
+: ${bootparamd_svcj_options:="net_basic"}
+
 load_rc_config $name
 run_rc_command "$1"

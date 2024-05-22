@@ -17,6 +17,8 @@ required_files="/etc/exports"
 start_precmd="mountd_precmd"
 extra_commands="reload"
 
+: ${mountd_svcj_options:="net_basic nfsd"}
+
 mountd_precmd()
 {
 
@@ -68,4 +70,8 @@ mountd_precmd()
 }
 
 load_rc_config $name
+
+# precmd is not compatible with svcj
+mountd_svcj="NO"
+
 run_rc_command "$1"

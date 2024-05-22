@@ -86,4 +86,8 @@ mountcritremote_start()
 }
 
 load_rc_config $name
+
+# mounting shall not be performed in a svcj
+mountcritremote_svcj="NO"
+
 run_rc_command "$1"

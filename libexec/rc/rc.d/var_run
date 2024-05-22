@@ -17,6 +17,9 @@ stop_cmd="_var_run_stop"
 
 load_rc_config $name
 
+# doesn't make sense to run in a svcj: config setting
+var_run_svcj="NO"
+
 _var_run_load() {
 	test -f ${var_run_mtree} &&
 		mtree -U -i -q -f ${var_run_mtree} -p /var/run > /dev/null

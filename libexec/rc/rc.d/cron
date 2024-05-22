@@ -16,6 +16,11 @@ command="/usr/sbin/${name}"
 pidfile="/var/run/${name}.pid"
 
 load_rc_config $name
+
+# doesn't make sense to run in a svcj: in the generic case it may need
+# access to more than a jails allows
+cron_svcj="NO"
+
 if checkyesno cron_dst
 then
 	cron_flags="$cron_flags -s"

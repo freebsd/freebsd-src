@@ -51,4 +51,8 @@ kld_start()
 }
 
 load_rc_config $name
+
+# doesn't make sense to run in a svcj
+kld_svcj="NO"
+
 run_rc_command "$1"

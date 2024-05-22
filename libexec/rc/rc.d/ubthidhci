@@ -28,6 +28,10 @@ ubthidhci_prestart()
 }
 
 load_rc_config $name
+
+# doesn't make sense to run in a svcj: nojail keyword
+ubthidhci_svcj="NO"
+
 #
 # We discard the output because:
 # 1) we don't want it to show up during boot; and

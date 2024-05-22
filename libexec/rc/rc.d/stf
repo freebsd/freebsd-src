@@ -75,4 +75,8 @@ stf_down()
 }
 
 load_rc_config $name
+
+# doesn't make sense to run in a svcj: config setting
+stf_svcj="NO"
+
 run_rc_command "$1"

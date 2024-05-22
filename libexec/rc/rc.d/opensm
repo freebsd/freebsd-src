@@ -12,6 +12,8 @@ name="opensm"
 start_cmd="opensm_start"
 rcvar="opensm_enable"
 
+: ${opensm_svcj_options:="net_basic"}
+
 command=/usr/bin/opensm
 command_args="-B"
 

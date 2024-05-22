@@ -18,6 +18,9 @@ load_rc_config $name
 start_cmd="quota_start"
 stop_cmd="/usr/sbin/quotaoff ${quotaoff_flags}"
 
+# doesn't make sense to run in a svcj: config setting
+quota_svcj="NO"
+
 quota_start()
 {
 	if checkyesno check_quotas; then

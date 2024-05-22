@@ -85,4 +85,8 @@ be_stop()
 }
 
 load_rc_config $name
+
+# doesn't make sense to run in a svcj: mounting / config setting
+zfsbe_svcj="NO"
+
 run_rc_command "$1"

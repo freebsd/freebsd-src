@@ -211,6 +211,9 @@ fi
 
 load_rc_config $name
 
+# doesn't make sense to run in a svcj: config setting
+mdconfig2_svcj="NO"
+
 if [ -z "${_mdconfig2_list}" ]; then
 	for _mdconfig2_config in `list_vars mdconfig_md[0-9]\* |
 		sort_lite -nk1.12`

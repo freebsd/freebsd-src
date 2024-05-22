@@ -57,4 +57,8 @@ ipsec_reload()
 }
 
 load_rc_config $name
+
+# doesn't make sense to run in a svcj: config setting
+ipsec_svcj="NO"
+
 run_rc_command "$1"

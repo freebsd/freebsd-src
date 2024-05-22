@@ -14,7 +14,11 @@ rcvar="nfsuserd_enable"
 command="/usr/sbin/${name}"
 sig_stop="USR1"
 
+: ${nfsuserd_svcj_options:="net_basic nfsd"}
+
 load_rc_config $name
+# precmd is not compatible with svcj
+nfsuserd_svcj="NO"
 start_precmd="nfsuserd_precmd"
 
 nfsuserd_precmd()

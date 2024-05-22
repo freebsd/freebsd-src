@@ -17,6 +17,8 @@ rcvar="keyserv_enable"
 command="/usr/sbin/${name}"
 start_precmd="keyserv_prestart"
 
+: ${keyserv_svcj_options:="net_basic"}
+
 keyserv_prestart()
 {
 	force_depend rpcbind || return 1
