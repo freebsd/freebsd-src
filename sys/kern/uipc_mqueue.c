@@ -811,6 +811,7 @@ found:
 		panic("%s has unexpected type: %d", pn->mn_name, pn->mn_type);
 	}
 	sx_xunlock(&mqfs->mi_lock);
+	vn_set_state(*vpp, VSTATE_CONSTRUCTED);
 	return (0);
 }
 
