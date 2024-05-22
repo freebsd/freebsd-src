@@ -10,6 +10,10 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+c333758fca3e:
+	new MAC/do policy and mdo(1) utility which enables a user to
+	become another user without the requirement of setuid root.
+
 eeb04a736cb9:
 	date(1) now supports nanoseconds. For example:
 	`date -Ins` prints "2024-04-22T12:20:28,763742224+02:00" and
