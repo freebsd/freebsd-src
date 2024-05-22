@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 18, 2024
+.Dd May 22, 2024
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -263,6 +263,19 @@ value.
 .It Ao Ar name Ac Ns Va _user
 .Pq Vt str
 Run the service under this user account.
+.It Ao Ar name Ac Ns Va _svcj
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+auto-jail the service with inherited filesystem and other
+jail properties depending on
+.Ao Ar name Ac Ns Va _svcj_options .
+.It Ao Ar name Ac Ns Va _svcj_options
+.Pq Vt str
+A list of jail properties for the service.
+See
+.Sx SERVICE JAILS
+for a list of valid properties.
 .It Va apm_enable
 .Pq Vt bool
 If set to
@@ -392,6 +405,12 @@ is set to
 these are the flags to pass to the
 .Xr powerd 8
 daemon.
+.It Va svcj_all_enable
+Enable auto-jailing of all services which are not explicitly
+excluded.
+See
+.Sx SERVICE JAILS
+for more info.
 .It Va tmpmfs
 Controls the creation of a
 .Pa /tmp
@@ -4916,6 +4935,97 @@ daemon.
 .Dq Li YES ,
 these are the flags to pass to the
 .Xr sendmail 8
+.El
+.Sh SERVICE JAILS
+The service jails part of the rc system automatically puts a service
+into a jail.
+This jail inherits the filesystem and various other parts of the
+parent (if you allow child-jails in your jails, service jails
+can be used in jails) depending on the content of the
+.Ao Ar name Ac Ns Va _svcj_options
+variable.
+Typically this variable is set inside rc scripts, but it can be
+overriden in the rc config.
+Valid options for
+.Ao Ar name Ac Ns Va _svcj_options
+are:
+.Bl -tag -width indent-two
+.It mlock
+Allows to lock memory pages into the physical memory.
+.It netv4
+Inherit the IPv4 address and allows to open reserved ports.
+This can not be combined with
+.Pa netv6 .
+.It netv6
+Inherit the IPv6 address and allows to open reserved ports.
+This can not be combined with
+.Pa netv4 .
+.It net_basic
+Inherits the IPv4 and IPv6 addresses and allows to open
+reserved ports.
+.It net_raw
+Allow to open raw sockets.
+This option can be combined with
+.Pa netv4 ,
+.Pa netv6 ,
+.Pa net_basic .
+.It net_all
+Inherits the IPv4 and IPv6 addresses, allows to open reserved
+ports, allows to open raw sockets, and allows to open sockets
+of protocol stacks that have not had jail functionality added
+to them.
+.It nfsd
+Allows to run nfsd and affiliated daemons.
+.It sysvipc
+Allows access to SysV semaphores, SysV shared memory and
+SysV messages.
+.It vmm
+Allows access to
+.Xr vmm 4 .
+This option is only available when
+.Xr vmm 4
+is enabled in the kernel.
+.El
+
+All non-network options can be combined with all other options.
+
+If the
+.Ao Ar name Ac Ns Va _svcj
+variable is set to
+.Dq Li YES ,
+this particular service is started in a
+service jail named
+.Va svcj- Ns Ar name Ac .
+
+The
+.Va svcj_all_enable
+variable allows to enable service jails for all services of the
+system at once.
+Services which have
+.Ao Ar name Ac Ns Va _svcj
+set to
+.Dq Li NO
+are excluded.
+Some services may set
+.Ao Ar name Ac Ns Va _svcj
+to
+.Dq Li NO
+in the script to either prevent service jails for this
+service at all, or may set it to
+.Dq Li NO
+if it is not set in the
+rc config, to exclude it from
+.Va svcj_all_enable
+but allow to explicitely enable it.
+The sshd service for example would not see other jails, if
+it would run as a service jail.
+This may or may not be what is needed, and as such it is
+excluded from
+.Va svcj_all_enable
+but can be enabled via setting
+.Va sshd_svcj
+to
+.Dq Li YES .
 .El
 .Sh FILES
 .Bl -tag -width "/etc/defaults/rc.conf" -compact
