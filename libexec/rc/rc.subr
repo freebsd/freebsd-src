@@ -50,6 +50,9 @@ PROTECT="/usr/bin/protect"
 ID="/usr/bin/id"
 IDCMD="if [ -x $ID ]; then $ID -un; fi"
 PS="/bin/ps -ww"
+SERVICE=/usr/sbin/service
+JAIL_CMD=/usr/sbin/jail
+_svcj_generic_params="path=/ mount.nodevfs host=inherit"
 JID=0
 CPUSET="/bin/cpuset"
 
@@ -521,6 +524,16 @@ _find_processes()
 		    $_procname|$_procnamebn|${_procnamebn}:|"(${_procnamebn})"|"[${_procnamebn}]")'
 	fi
 
+	if checkyesno ${name}_svcj && [ "${_rc_svcj}" != jailing ]; then
+		JID=$(/usr/sbin/jls -j svcj-${name} jid 2>/dev/null)
+
+		case ${JID} in
+		''|*[!0-9]*)
+			# svcj-jail doesn't exist, fallback to host-check
+			JID=0
+			;;
+		esac
+	fi
 	_proccheck="\
 		$PS 2>/dev/null -o pid= -o jid= -o command= $_psargs"' |
 		while read _npid _jid '"$_fp_args"'; do
@@ -1138,6 +1151,18 @@ run_rc_command()
 		_cpusetcmd="$CPUSET -l $_cpuset"
 	fi
 
+	# If a specific jail has a specific svcj request, honor it (YES/NO).
+	# If not (variable empty), evaluate the global svcj catch-all.
+	# A global YES can be overriden by a specific NO, and a global NO is overriden
+	# by a specific YES.
+	eval _svcj=\$${name}_svcj
+	if [ -z "$_svcj" ]; then
+		_svcj=${svcj_all_enable}
+		if [ -z "$_svcj" ]; then
+			eval ${name}_svcj=NO
+		fi
+	fi
+
 					# setup pid check command
 	if [ -n "$_procname" ]; then
 		if [ -n "$pidfile" ]; then
@@ -1174,7 +1199,7 @@ run_rc_command()
 	    _prepend=\$${name}_prepend	_login_class=\${${name}_login_class:-daemon} \
 	    _limits=\$${name}_limits	_oomprotect=\$${name}_oomprotect \
 	    _setup=\$${name}_setup	_env_file=\$${name}_env_file \
-	    _umask=\$${name}_umask
+	    _umask=\$${name}_umask	_svcj_options=\$${name}_svcj_options
 
 	if [ -n "$_env_file" ] && [ -r "${_env_file}" ]; then	# load env from file
 		set -a
@@ -1186,6 +1211,45 @@ run_rc_command()
 		if [ "$_user" = "$(eval $IDCMD)" ]; then
 			unset _user
 		fi
+	fi
+
+	if [ -n "$_svcj_options" ]; then	# translate service jail options
+		_svcj_cmd_options=""
+
+		for _svcj_option in $_svcj_options; do
+			case "$_svcj_option" in
+				mlock)
+					_svcj_cmd_options="allow.mlock ${_svcj_cmd_options}"
+					;;
+				netv4)
+					_svcj_cmd_options="ip4=inherit allow.reserved_ports ${_svcj_cmd_options}"
+					;;
+				netv6)
+					_svcj_cmd_options="ip6=inherit allow.reserved_ports ${_svcj_cmd_options}"
+					;;
+				net_basic)
+					_svcj_cmd_options="ip4=inherit ip6=inherit allow.reserved_ports ${_svcj_cmd_options}"
+					;;
+				net_raw)
+					_svcj_cmd_options="allow.raw_sockets ${_svcj_cmd_options}"
+					;;
+				net_all)
+					_svcj_cmd_options="allow.socket_af allow.raw_sockets allow.reserved_ports ip4=inherit ip6=inherit ${_svcj_cmd_options}"
+					;;
+				nfsd)
+					_svcj_cmd_options="allow.nfsd enforce_statfs=1 ${_svcj_cmd_options}"
+					;;
+				sysvipc)
+					_svcj_cmd_options="sysvmsg=inherit sysvsem=inherit sysvshm=inherit  ${_svcj_cmd_options}"
+					;;
+				vmm)
+					_svcj_cmd_options="allow.vmm ${_svcj_cmd_options}"
+					;;
+				*)
+					echo ${name}: unknown service jail option: $_svcj_option
+					;;
+			esac
+		done
 	fi
 
 	[ -z "$autoboot" ] && eval $_pidcmd	# determine the pid if necessary
@@ -1235,9 +1299,49 @@ run_rc_command()
 			if [ -n "$_env" ]; then
 				eval "export -- $_env"
 			fi
-			_run_rc_precmd || return 1
-			_run_rc_doit "$_cpusetcmd $_cmd $rc_extra_args" || return 1
-			_run_rc_postcmd
+
+			if [ "${_rc_svcj}" != jailing ]; then
+				_run_rc_precmd || return 1
+			fi
+			if ! checkyesno ${name}_svcj; then
+				_run_rc_doit "$_cpusetcmd $_cmd $rc_extra_args" || return 1
+			else
+				case "$rc_arg" in
+				start)
+					if [ "${_rc_svcj}" != jailing ]; then
+						_return=1
+						$JAIL_CMD -c $_svcj_generic_params $_svcj_cmd_options \
+						    exec.start="${SERVICE} -E _rc_svcj=jailing ${name} ${_rc_prefix}start $rc_extra_args" \
+						    exec.stop="${SERVICE} -E _rc_svcj=jailing ${name} ${_rc_prefix}stop $rc_extra_args" \
+						    exec.consolelog="/var/log/svcj_${name}_console.log" \
+						    name=svcj-${name} && _return=0
+					else
+						_run_rc_doit "$_cpusetcmd $_cmd $rc_extra_args" || _return=1
+					fi
+					;;
+				stop)
+					if [ "${_rc_svcj}" != jailing ]; then
+						$SERVICE -E _rc_svcj=jailing -j svcj-${name} ${name} ${_rc_prefix}stop $rc_extra_args || _return=1
+						$JAIL_CMD -r svcj-${name} 2>/dev/null
+					else
+						_run_rc_doit "$_cpusetcmd $_cmd $rc_extra_args" || _return=1
+					fi
+					;;
+				restart|status) ;; # no special case needed for svcj or handled somewhere else
+				*)
+					eval _rc_svcj_extra_cmd=\$${name}_${rc_arg}_svcj_enable
+					: ${_rc_svcj_extra_cmd:=NO}
+					if checkyesno _rc_svcj_extra_cmd && [ "${_rc_svcj}" != jailing ]; then
+						$SERVICE -v -E _rc_svcj=jailing -j svcj-${name} ${name} ${_rc_prefix}${rc_arg} $rc_extra_args || _return=1
+					else
+						_run_rc_doit "$_cpusetcmd $_cmd $rc_extra_args" || _return=1
+					fi
+					;;
+				esac
+			fi
+			if [ "${_rc_svcj}" != jailing ]; then
+				_run_rc_postcmd
+			fi
 			return $_return
 		fi
 
@@ -1295,9 +1399,21 @@ run_rc_command()
 				return 1
 			fi
 
-			if ! _run_rc_precmd; then
-				warn "failed precmd routine for ${name}"
-				return 1
+			if [ "${_rc_svcj}" != jailing ]; then
+				if ! _run_rc_precmd; then
+					warn "failed precmd routine for ${name}"
+					return 1
+				fi
+			fi
+
+			if checkyesno ${name}_svcj; then
+				if [ "${_rc_svcj}" != jailing ]; then
+					$JAIL_CMD -c $_svcj_generic_params $_svcj_cmd_options\
+					    exec.start="${SERVICE} -E _rc_svcj=jailing ${name} ${_rc_prefix}start $rc_extra_args" \
+					    exec.stop="${SERVICE} -E _rc_svcj=jailing ${name} ${_rc_prefix}stop $rc_extra_args" \
+					    exec.consolelog="/var/log/svcj_${name}_console.log" \
+					    name=svcj-${name} || return 1
+				fi
 			fi
 
 					# setup the full command to run
@@ -1341,16 +1457,28 @@ $_cpusetcmd $command $rc_flags $command_args"
 					# Prepend default limits
 			_doit="$_cd limits -C $_login_class $_limits $_doit"
 
-					# run the full command
-					#
-			if ! _run_rc_doit "$_doit"; then
-				warn "failed to start ${name}"
-				return 1
+
+			local _really_run_it=true
+			if checkyesno ${name}_svcj; then
+				if [ "${_rc_svcj}" != jailing ]; then
+					_really_run_it=false
+				fi
 			fi
 
+			if [ "$_really_run_it" = true ]; then
+					# run the full command
+					#
+				if ! _run_rc_doit "$_doit"; then
+					warn "failed to start ${name}"
+					return 1
+				fi
+			fi
+
+			if [ "${_rc_svcj}" != jailing ]; then
 					# finally, run postcmd
 					#
-			_run_rc_postcmd
+				_run_rc_postcmd
+			fi
 			;;
 
 		stop)
@@ -1371,6 +1499,11 @@ $_cpusetcmd $command $rc_flags $command_args"
 					# wait for the command to exit,
 					# and run postcmd.
 			wait_for_pids $rc_pid
+
+			if checkyesno ${name}_svcj; then
+				# remove service jail
+				$JAIL_CMD -r svcj-${name} 2>/dev/null
+			fi
 
 			_run_rc_postcmd
 			;;
