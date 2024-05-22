@@ -902,7 +902,7 @@
 /* Provide fallback versions for other compilers (GCC/Clang < 10): */
 #if !__has_builtin(__builtin_is_aligned)
 #define __builtin_is_aligned(x, align)	\
-	(((__uintptr_t)x & ((align) - 1)) == 0)
+	(((__uintptr_t)(x) & ((align) - 1)) == 0)
 #endif
 #if !__has_builtin(__builtin_align_up)
 #define __builtin_align_up(x, align)	\
