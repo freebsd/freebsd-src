@@ -2249,6 +2249,7 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 				if (vap->va_uid != old_va.va_uid)
 					return err;
 				drop_suid = true;
+			}
 		}
 		accmode |= VADMIN;
 	}
@@ -2269,6 +2270,7 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 					return (err2);
 				if (vap->va_gid != old_va.va_gid)
 					return err;
+			}
 		}
 		accmode |= VADMIN;
 	}
