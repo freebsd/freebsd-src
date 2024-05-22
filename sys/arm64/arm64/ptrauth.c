@@ -169,13 +169,11 @@ ptrauth_thread_alloc(struct thread *td)
  * Load the userspace keys. We can't use WRITE_SPECIALREG as we need
  * to set the architecture extension.
  */
-#define	LOAD_KEY(space, name)					\
-__asm __volatile(						\
-	".arch_extension pauth			\n"		\
-	"msr	"#name"keylo_el1, %0		\n"		\
-	"msr	"#name"keyhi_el1, %1		\n"		\
-	".arch_extension nopauth		\n"		\
-	:: "r"(td->td_md.md_ptrauth_##space.name.pa_key_lo),	\
+#define	LOAD_KEY(space, name, reg)					\
+__asm __volatile(							\
+	"msr	"__XSTRING(MRS_REG_ALT_NAME(reg ## KeyLo_EL1))", %0	\n"	\
+	"msr	"__XSTRING(MRS_REG_ALT_NAME(reg ## KeyHi_EL1))", %1	\n"	\
+	:: "r"(td->td_md.md_ptrauth_##space.name.pa_key_lo),		\
 	   "r"(td->td_md.md_ptrauth_##space.name.pa_key_hi))
 
 void
@@ -187,7 +185,7 @@ ptrauth_thread0(struct thread *td)
 	/* TODO: Generate a random number here */
 	memset(&td->td_md.md_ptrauth_kern, 0,
 	    sizeof(td->td_md.md_ptrauth_kern));
-	LOAD_KEY(kern, apia);
+	LOAD_KEY(kern, apia, APIA);
 	/*
 	 * No isb as this is called before ptrauth_start so can rely on
 	 * the instruction barrier there.
@@ -240,8 +238,8 @@ ptrauth_mp_start(uint64_t cpu)
 
 	__asm __volatile(
 	    ".arch_extension pauth		\n"
-	    "msr	apiakeylo_el1, %0	\n"
-	    "msr	apiakeyhi_el1, %1	\n"
+	    "msr	"__XSTRING(APIAKeyLo_EL1_REG)", %0	\n"
+	    "msr	"__XSTRING(APIAKeyHi_EL1_REG)", %1	\n"
 	    ".arch_extension nopauth		\n"
 	    :: "r"(start_key.pa_key_lo), "r"(start_key.pa_key_hi));
 
@@ -257,7 +255,7 @@ struct thread *
 ptrauth_switch(struct thread *td)
 {
 	if (enable_ptrauth) {
-		LOAD_KEY(kern, apia);
+		LOAD_KEY(kern, apia, APIA);
 		isb();
 	}
 
@@ -271,7 +269,7 @@ ptrauth_exit_el0(struct thread *td)
 	if (!enable_ptrauth)
 		return;
 
-	LOAD_KEY(kern, apia);
+	LOAD_KEY(kern, apia, APIA);
 	isb();
 }
 
@@ -282,11 +280,11 @@ ptrauth_enter_el0(struct thread *td)
 	if (!enable_ptrauth)
 		return;
 
-	LOAD_KEY(user, apia);
-	LOAD_KEY(user, apib);
-	LOAD_KEY(user, apda);
-	LOAD_KEY(user, apdb);
-	LOAD_KEY(user, apga);
+	LOAD_KEY(user, apia, APIA);
+	LOAD_KEY(user, apib, APIB);
+	LOAD_KEY(user, apda, APDA);
+	LOAD_KEY(user, apdb, APDB);
+	LOAD_KEY(user, apga, APGA);
 	/*
 	 * No isb as this is called from the exception handler so can rely
 	 * on the eret instruction to be the needed context synchronizing event.
