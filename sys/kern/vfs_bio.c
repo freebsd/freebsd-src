@@ -754,7 +754,7 @@ bufspace_wait(struct bufdomain *bd, struct vnode *vp, int gbflags,
 				break;
 		}
 		error = msleep(&bd->bd_wanted, BD_LOCKPTR(bd),
-		    (PRIBIO + 4) | slpflag, "newbuf", slptimeo);
+		    PVFS | slpflag, "newbuf", slptimeo);
 		if (error != 0)
 			break;
 	}
@@ -2653,8 +2653,7 @@ bwillwrite(void)
 		mtx_lock(&bdirtylock);
 		while (buf_dirty_count_severe()) {
 			bdirtywait = 1;
-			msleep(&bdirtywait, &bdirtylock, (PRIBIO + 4),
-			    "flswai", 0);
+			msleep(&bdirtywait, &bdirtylock, PVFS, "flswai", 0);
 		}
 		mtx_unlock(&bdirtylock);
 	}
@@ -5214,7 +5213,7 @@ bufobj_wwait(struct bufobj *bo, int slpflag, int timeo)
 	while (bo->bo_numoutput) {
 		bo->bo_flag |= BO_WWAIT;
 		error = msleep(&bo->bo_numoutput, BO_LOCKPTR(bo),
-		    slpflag | (PRIBIO + 1), "bo_wwait", timeo);
+		    slpflag | PRIBIO, "bo_wwait", timeo);
 		if (error)
 			break;
 	}

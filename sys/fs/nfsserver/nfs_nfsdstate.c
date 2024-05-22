@@ -552,7 +552,7 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 		 */
 		while (clp->lc_cbref) {
 			clp->lc_flags |= LCL_WAKEUPWANTED;
-			(void)mtx_sleep(clp, NFSSTATEMUTEXPTR, PZERO - 1,
+			(void)mtx_sleep(clp, NFSSTATEMUTEXPTR, PVFS,
 			    "nfsd clp", 10 * hz);
 		}
 		NFSUNLOCKSTATE();
@@ -629,7 +629,7 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 			NFSLOCKSTATE();
 		while (clp->lc_cbref) {
 			clp->lc_flags |= LCL_WAKEUPWANTED;
-			(void)mtx_sleep(clp, NFSSTATEMUTEXPTR, PZERO - 1,
+			(void)mtx_sleep(clp, NFSSTATEMUTEXPTR, PVFS,
 			    "nfsdclp", 10 * hz);
 		}
 		NFSUNLOCKSTATE();

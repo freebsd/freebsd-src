@@ -153,7 +153,7 @@ fdata_dtor(void *arg)
 	FUSE_LOCK();
 	fuse_lck_mtx_lock(fdata->aw_mtx);
 	/* wakup poll()ers */
-	selwakeuppri(&fdata->ks_rsel, PZERO + 1);
+	selwakeuppri(&fdata->ks_rsel, PZERO);
 	/* Don't let syscall handlers wait in vain */
 	while ((tick = fuse_aw_pop(fdata))) {
 		fuse_lck_mtx_lock(tick->tk_aw_mtx);

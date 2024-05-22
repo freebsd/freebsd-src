@@ -181,7 +181,7 @@ chkdq(struct inode *ip, ufs2_daddr_t change, struct ucred *cred, int flags)
 			if ((dq = ip->i_dquot[i]) == NODQUOT)
 				continue;
 			DQI_LOCK(dq);
-			DQI_WAIT(dq, PINOD+1, "chkdq1");
+			DQI_WAIT(dq, PINOD, "chkdq1");
 			ncurblocks = dq->dq_curblocks + change;
 			if (ncurblocks >= 0)
 				dq->dq_curblocks = ncurblocks;
@@ -203,7 +203,7 @@ chkdq(struct inode *ip, ufs2_daddr_t change, struct ucred *cred, int flags)
 			continue;
 		warn = 0;
 		DQI_LOCK(dq);
-		DQI_WAIT(dq, PINOD+1, "chkdq2");
+		DQI_WAIT(dq, PINOD, "chkdq2");
 		if (do_check) {
 			error = chkdqchg(ip, change, cred, i, &warn);
 			if (error) {
@@ -217,7 +217,7 @@ chkdq(struct inode *ip, ufs2_daddr_t change, struct ucred *cred, int flags)
 					if (dq == NODQUOT)
 						continue;
 					DQI_LOCK(dq);
-					DQI_WAIT(dq, PINOD+1, "chkdq3");
+					DQI_WAIT(dq, PINOD, "chkdq3");
 					ncurblocks = dq->dq_curblocks - change;
 					if (ncurblocks >= 0)
 						dq->dq_curblocks = ncurblocks;
@@ -322,7 +322,7 @@ chkiq(struct inode *ip, int change, struct ucred *cred, int flags)
 			if ((dq = ip->i_dquot[i]) == NODQUOT)
 				continue;
 			DQI_LOCK(dq);
-			DQI_WAIT(dq, PINOD+1, "chkiq1");
+			DQI_WAIT(dq, PINOD, "chkiq1");
 			if (dq->dq_curinodes >= -change)
 				dq->dq_curinodes += change;
 			else
@@ -343,7 +343,7 @@ chkiq(struct inode *ip, int change, struct ucred *cred, int flags)
 			continue;
 		warn = 0;
 		DQI_LOCK(dq);
-		DQI_WAIT(dq, PINOD+1, "chkiq2");
+		DQI_WAIT(dq, PINOD, "chkiq2");
 		if (do_check) {
 			error = chkiqchg(ip, change, cred, i, &warn);
 			if (error) {
@@ -357,7 +357,7 @@ chkiq(struct inode *ip, int change, struct ucred *cred, int flags)
 					if (dq == NODQUOT)
 						continue;
 					DQI_LOCK(dq);
-					DQI_WAIT(dq, PINOD+1, "chkiq3");
+					DQI_WAIT(dq, PINOD, "chkiq3");
 					if (dq->dq_curinodes >= change)
 						dq->dq_curinodes -= change;
 					else
@@ -857,7 +857,7 @@ _setquota(struct thread *td, struct mount *mp, uint64_t id, int type,
 		return (error);
 	dq = ndq;
 	DQI_LOCK(dq);
-	DQI_WAIT(dq, PINOD+1, "setqta");
+	DQI_WAIT(dq, PINOD, "setqta");
 	/*
 	 * Copy all but the current values.
 	 * Reset time limit if previously had no soft limit or were
@@ -920,7 +920,7 @@ _setuse(struct thread *td, struct mount *mp, uint64_t id, int type,
 		return (error);
 	dq = ndq;
 	DQI_LOCK(dq);
-	DQI_WAIT(dq, PINOD+1, "setuse");
+	DQI_WAIT(dq, PINOD, "setuse");
 	/*
 	 * Reset time limit if have a soft limit and were
 	 * previously under it, but are now over it.
@@ -1316,7 +1316,7 @@ dqget(struct vnode *vp, uint64_t id, struct ufsmount *ump, int type,
 	if (dq != NULL) {
 		DQH_UNLOCK();
 hfound:		DQI_LOCK(dq);
-		DQI_WAIT(dq, PINOD+1, "dqget");
+		DQI_WAIT(dq, PINOD, "dqget");
 		DQI_UNLOCK(dq);
 		if (dq->dq_ump == NULL) {
 			dqrele(vp, dq);
@@ -1590,7 +1590,7 @@ dqsync(struct vnode *vp, struct dquot *dq)
 		vn_lock(dqvp, LK_EXCLUSIVE | LK_RETRY);
 
 	DQI_LOCK(dq);
-	DQI_WAIT(dq, PINOD+2, "dqsync");
+	DQI_WAIT(dq, PINOD, "dqsync");
 	if ((dq->dq_flags & DQ_MOD) == 0)
 		goto out;
 	dq->dq_flags |= DQ_LOCK;
@@ -1744,7 +1744,7 @@ quotaadj(struct dquot **qrp, struct ufsmount *ump, int64_t blkcount)
 		if ((dq = qrp[i]) == NODQUOT)
 			continue;
 		DQI_LOCK(dq);
-		DQI_WAIT(dq, PINOD+1, "adjqta");
+		DQI_WAIT(dq, PINOD, "adjqta");
 		ncurblocks = dq->dq_curblocks + blkcount;
 		if (ncurblocks >= 0)
 			dq->dq_curblocks = ncurblocks;

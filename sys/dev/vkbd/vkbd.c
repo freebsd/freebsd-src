@@ -82,7 +82,7 @@ MALLOC_DEFINE(M_VKBD, KEYBOARD_NAME, "Virtual AT keyboard");
 #define VKBD_UNLOCK(s)		mtx_unlock(&(s)->ks_lock)
 #define VKBD_LOCK_ASSERT(s, w)	mtx_assert(&(s)->ks_lock, w)
 #define VKBD_SLEEP(s, f, d, t) \
-	msleep(&(s)->f, &(s)->ks_lock, PCATCH | (PZERO + 1), d, t)
+	msleep(&(s)->f, &(s)->ks_lock, PCATCH | PZERO, d, t)
 #else
 #define VKBD_LOCK_DECL
 #define VKBD_LOCK_INIT(s)
@@ -90,7 +90,7 @@ MALLOC_DEFINE(M_VKBD, KEYBOARD_NAME, "Virtual AT keyboard");
 #define VKBD_LOCK(s)
 #define VKBD_UNLOCK(s)
 #define VKBD_LOCK_ASSERT(s, w)
-#define VKBD_SLEEP(s, f, d, t)	tsleep(&(s)->f, PCATCH | (PZERO + 1), d, t)
+#define VKBD_SLEEP(s, f, d, t)	tsleep(&(s)->f, PCATCH | PZERO, d, t)
 #endif
 
 #define VKBD_KEYBOARD(d) \
@@ -268,8 +268,8 @@ vkbd_dev_close(struct cdev *dev, int foo, int bar, struct thread *td)
 		VKBD_SLEEP(state, ks_task, "vkbdc", 0);
 
 	/* wakeup poll()ers */
-	selwakeuppri(&state->ks_rsel, PZERO + 1);
-	selwakeuppri(&state->ks_wsel, PZERO + 1);
+	selwakeuppri(&state->ks_rsel, PZERO);
+	selwakeuppri(&state->ks_wsel, PZERO);
 
 	state->ks_flags &= ~OPEN;
 	state->ks_dev = NULL;
@@ -498,7 +498,7 @@ vkbd_status_changed(vkbd_state_t *state)
 
 	if (!(state->ks_flags & STATUS)) {
 		state->ks_flags |= STATUS;
-		selwakeuppri(&state->ks_rsel, PZERO + 1);
+		selwakeuppri(&state->ks_rsel, PZERO);
 		wakeup(&state->ks_flags);
 	}
 }
@@ -531,7 +531,7 @@ vkbd_data_read(vkbd_state_t *state, int wait)
 		q->head = 0;
 
 	/* wakeup ks_inq writers/poll()ers */
-	selwakeuppri(&state->ks_wsel, PZERO + 1);
+	selwakeuppri(&state->ks_wsel, PZERO);
 	wakeup(q);
 
 	return (c);
@@ -1246,7 +1246,7 @@ vkbd_clear_state_locked(vkbd_state_t *state)
 
 	/* flush ks_inq and wakeup writers/poll()ers */
 	state->ks_inq.head = state->ks_inq.tail = state->ks_inq.cc = 0;
-	selwakeuppri(&state->ks_wsel, PZERO + 1);
+	selwakeuppri(&state->ks_wsel, PZERO);
 	wakeup(&state->ks_inq);
 }
 

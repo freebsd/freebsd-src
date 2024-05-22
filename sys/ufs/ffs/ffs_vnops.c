@@ -1402,8 +1402,7 @@ ffs_lock_ea(struct vnode *vp)
 	VI_LOCK(vp);
 	while (ip->i_flag & IN_EA_LOCKED) {
 		UFS_INODE_SET_FLAG(ip, IN_EA_LOCKWAIT);
-		msleep(&ip->i_ea_refs, &vp->v_interlock, PINOD + 2, "ufs_ea",
-		    0);
+		msleep(&ip->i_ea_refs, &vp->v_interlock, PINOD, "ufs_ea", 0);
 	}
 	UFS_INODE_SET_FLAG(ip, IN_EA_LOCKED);
 	VI_UNLOCK(vp);
