@@ -99,7 +99,6 @@ static struct {
 	{ "MVEBU ", "CN9130  ", PCIE_ECAM_DESIGNWARE_QUIRK },
 	{ "MVEBU ", "CN9131  ", PCIE_ECAM_DESIGNWARE_QUIRK },
 	{ "MVEBU ", "CN9132  ", PCIE_ECAM_DESIGNWARE_QUIRK },
-	{ 0 },
 };
 
 /* Forward prototypes */
@@ -202,9 +201,9 @@ static void
 pci_host_acpi_get_oem_quirks(struct generic_pcie_acpi_softc *sc,
     ACPI_TABLE_HEADER *hdr)
 {
-	int i;
+	size_t i;
 
-	for (i = 0; pci_acpi_quirks[i].quirks; i++) {
+	for (i = 0; i < nitems(pci_acpi_quirks); i++) {
 		if (memcmp(hdr->OemId, pci_acpi_quirks[i].oem_id,
 		    ACPI_OEM_ID_SIZE) != 0)
 			continue;
