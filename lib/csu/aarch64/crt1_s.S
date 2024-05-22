@@ -44,8 +44,8 @@ ENTRY(_start)
 	add	x2, x1, x0, lsl #3 /* env is after argv */
 	add	x2, x2, #8	/* argv is null terminated */
 #ifdef PIC
-	adrp	x4, main
-	add	x4, x4, :lo12:main
+	adrp	x4, :got:main
+	ldr	x4, [x4, :got_lo12:main]
 #else
 	ldr	x4, =main
 #endif
