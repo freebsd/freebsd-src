@@ -629,7 +629,7 @@ smbfs_vinvalbuf(struct vnode *vp, struct thread *td)
 
 	while (np->n_flag & NFLUSHINPROG) {
 		np->n_flag |= NFLUSHWANT;
-		error = tsleep(&np->n_flag, PRIBIO + 2, "smfsvinv", 2 * hz);
+		error = tsleep(&np->n_flag, PRIBIO, "smfsvinv", 2 * hz);
 		error = smb_td_intr(td);
 		if (error == EINTR)
 			return EINTR;

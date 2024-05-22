@@ -4723,7 +4723,7 @@ newnfs_sndlock(int *flagp)
 		ts.tv_sec = 0;
 		ts.tv_nsec = 0;
 		(void) nfsmsleep((caddr_t)flagp, NFSSOCKMUTEXPTR,
-		    PZERO - 1, "nfsndlck", &ts);
+		    PVFS, "nfsndlck", &ts);
 	}
 	*flagp |= NFSR_SNDLOCK;
 	NFSUNLOCKSOCK();
