@@ -41,7 +41,7 @@ METHOD int transmit {
 
 METHOD uint64_t read_8 {
 	device_t dev;
-	bus_addr_t addr;
+	bus_size_t addr;
 }
 
 #
@@ -49,28 +49,28 @@ METHOD uint64_t read_8 {
 #
 METHOD uint32_t read_4 {
 	device_t dev;
-	bus_addr_t addr;
+	bus_size_t addr;
 };
 
 METHOD uint8_t read_1 {
 	device_t dev;
-	bus_addr_t addr;
+	bus_size_t addr;
 };
 
 METHOD void write_4 {
 	device_t dev;
-	bus_addr_t addr;
+	bus_size_t addr;
 	uint32_t value;
 };
 
 METHOD void write_1 {
 	device_t dev;
-	bus_addr_t addr;
+	bus_size_t addr;
 	uint8_t value;
 };
 
 METHOD void write_barrier {
 	device_t dev;
-	bus_addr_t off;
+	bus_size_t off;
 	bus_size_t length;
 }

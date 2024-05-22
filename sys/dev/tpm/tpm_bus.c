@@ -77,7 +77,7 @@ tpm_write_4(device_t dev, bus_size_t off, uint32_t val)
 }
 
 static void
-tpm_write_barrier(device_t dev, bus_addr_t off, bus_size_t length)
+tpm_write_barrier(device_t dev, bus_size_t off, bus_size_t length)
 {
 	struct tpm_sc *sc = device_get_softc(dev);
 
