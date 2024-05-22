@@ -68,7 +68,7 @@ SECTIONS
   . = ALIGN(16);
   .dynsym	: { *(.dynsym) }
   _edata = .;
-  __data_size = . - __data_start;
+  __data_size = ABSOLUTE(. - __data_start);
 
   /* Unused sections */
   .interp	: { *(.interp) }
