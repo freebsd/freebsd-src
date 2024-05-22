@@ -1,4 +1,4 @@
-OUTPUT_FORMAT("elf64-aarch64", "elf64-aarch64", "elf64-aarch64")
+OUTPUT_FORMAT("elf64-littleaarch64")
 OUTPUT_ARCH(aarch64)
 ENTRY(_start)
 SECTIONS
