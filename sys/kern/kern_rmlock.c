@@ -1010,7 +1010,8 @@ rms_rlock_fallback(struct rmslock *rms)
 
 	mtx_lock(&rms->mtx);
 	while (rms->writers > 0)
-		msleep(&rms->readers, &rms->mtx, PUSER - 1, mtx_name(&rms->mtx), 0);
+		msleep(&rms->readers, &rms->mtx, PRI_MAX_KERN,
+		    mtx_name(&rms->mtx), 0);
 	critical_enter();
 	rms_int_readers_inc(rms, rms_int_pcpu(rms));
 	mtx_unlock(&rms->mtx);
@@ -1197,7 +1198,7 @@ rms_wlock(struct rmslock *rms)
 	mtx_lock(&rms->mtx);
 	rms->writers++;
 	if (rms->writers > 1) {
-		msleep(&rms->owner, &rms->mtx, (PUSER - 1),
+		msleep(&rms->owner, &rms->mtx, PRI_MAX_KERN,
 		    mtx_name(&rms->mtx), 0);
 		MPASS(rms->readers == 0);
 		KASSERT(rms->owner == RMS_TRANSIENT,
@@ -1213,7 +1214,7 @@ rms_wlock(struct rmslock *rms)
 	rms_assert_no_pcpu_readers(rms);
 
 	if (rms->readers > 0) {
-		msleep(&rms->writers, &rms->mtx, (PUSER - 1),
+		msleep(&rms->writers, &rms->mtx, PRI_MAX_KERN,
 		    mtx_name(&rms->mtx), 0);
 	}
 

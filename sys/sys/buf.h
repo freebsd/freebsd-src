@@ -296,7 +296,7 @@ struct buf {
  * Initialize a lock.
  */
 #define BUF_LOCKINIT(bp, wmesg)						\
-	lockinit(&(bp)->b_lock, PRIBIO + 4, wmesg, 0, LK_NEW)
+	lockinit(&(bp)->b_lock, PVFS, wmesg, 0, LK_NEW)
 /*
  *
  * Get a lock sleeping non-interruptably until it becomes available.
@@ -311,7 +311,7 @@ struct buf {
  */
 #define	BUF_TIMELOCK(bp, locktype, interlock, wmesg, catch, timo)	\
 	_lockmgr_args_rw(&(bp)->b_lock, (locktype) | LK_TIMELOCK,	\
-	    (interlock), (wmesg), (PRIBIO + 4) | (catch), (timo),	\
+	    (interlock), (wmesg), PVFS | (catch), (timo),	\
 	    LOCK_FILE, LOCK_LINE)
 
 /*

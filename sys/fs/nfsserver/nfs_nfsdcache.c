@@ -392,7 +392,7 @@ loop:
 		nfsaddr_match(NETFAMILY(rp), &rp->rc_haddr, nd->nd_nam)) {
 			if ((rp->rc_flag & RC_LOCKED) != 0) {
 				rp->rc_flag |= RC_WANTED;
-				(void)mtx_sleep(rp, mutex, (PZERO - 1) | PDROP,
+				(void)mtx_sleep(rp, mutex, PVFS | PDROP,
 				    "nfsrc", 10 * hz);
 				goto loop;
 			}
@@ -678,7 +678,7 @@ tryagain:
 		rp = hitrp;
 		if ((rp->rc_flag & RC_LOCKED) != 0) {
 			rp->rc_flag |= RC_WANTED;
-			(void)mtx_sleep(rp, mutex, (PZERO - 1) | PDROP,
+			(void)mtx_sleep(rp, mutex, PVFS | PDROP,
 			    "nfsrc", 10 * hz);
 			goto tryagain;
 		}
@@ -750,7 +750,7 @@ nfsrc_lock(struct nfsrvcache *rp)
 	mtx_assert(mutex, MA_OWNED);
 	while ((rp->rc_flag & RC_LOCKED) != 0) {
 		rp->rc_flag |= RC_WANTED;
-		(void)mtx_sleep(rp, mutex, PZERO - 1, "nfsrc", 0);
+		(void)mtx_sleep(rp, mutex, PVFS, "nfsrc", 0);
 	}
 	rp->rc_flag |= RC_LOCKED;
 }

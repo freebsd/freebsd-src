@@ -932,7 +932,7 @@ fuse_io_invalbuf(struct vnode *vp, struct thread *td)
 		if (vp->v_mount->mnt_kern_flag & MNTK_UNMOUNTF)
 			return EIO;
 		fvdat->flag |= FN_FLUSHWANT;
-		tsleep(&fvdat->flag, PRIBIO + 2, "fusevinv", 2 * hz);
+		tsleep(&fvdat->flag, PRIBIO, "fusevinv", 2 * hz);
 		error = 0;
 		if (p != NULL) {
 			PROC_LOCK(p);

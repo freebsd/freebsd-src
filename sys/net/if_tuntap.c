@@ -834,7 +834,7 @@ tunstart(struct ifnet *ifp)
 		tp->tun_flags &= ~TUN_RWAIT;
 		wakeup(tp);
 	}
-	selwakeuppri(&tp->tun_rsel, PZERO + 1);
+	selwakeuppri(&tp->tun_rsel, PZERO);
 	KNOTE_LOCKED(&tp->tun_rsel.si_note, 0);
 	if (tp->tun_flags & TUN_ASYNC && tp->tun_sigio) {
 		TUN_UNLOCK(tp);
@@ -895,7 +895,7 @@ tunstart_l2(struct ifnet *ifp)
 			TUN_LOCK(tp);
 		}
 
-		selwakeuppri(&tp->tun_rsel, PZERO+1);
+		selwakeuppri(&tp->tun_rsel, PZERO);
 		KNOTE_LOCKED(&tp->tun_rsel.si_note, 0);
 		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1); /* obytes are counted in ether_output */
 	}
@@ -1169,7 +1169,7 @@ out:
 	CURVNET_RESTORE();
 
 	funsetown(&tp->tun_sigio);
-	selwakeuppri(&tp->tun_rsel, PZERO + 1);
+	selwakeuppri(&tp->tun_rsel, PZERO);
 	KNOTE_LOCKED(&tp->tun_rsel.si_note, 0);
 	TUNDEBUG (ifp, "closed\n");
 	tp->tun_flags &= ~TUN_OPEN;
@@ -1703,7 +1703,7 @@ tunread(struct cdev *dev, struct uio *uio, int flag)
 			return (EWOULDBLOCK);
 		}
 		tp->tun_flags |= TUN_RWAIT;
-		error = mtx_sleep(tp, &tp->tun_mtx, PCATCH | (PZERO + 1),
+		error = mtx_sleep(tp, &tp->tun_mtx, PCATCH | PZERO,
 		    "tunread", 0);
 		if (error != 0) {
 			TUN_UNLOCK(tp);
