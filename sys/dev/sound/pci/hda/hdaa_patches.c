@@ -359,6 +359,17 @@ hdac_pin_patch(struct hdaa_widget *w)
 			patch_str = "as=4 seq=15";
 			break;
 		}
+	} else if (id == HDA_CODEC_ALC294 &&
+	    subid == ASUS_UX331_SUBVENDOR) {
+		switch (nid) {
+		case 25:
+			/* XXX You are not expected to understand this. */
+			config = 0x01a1103c;
+			break;
+		case 33:
+			patch_str = "as=1 seq=15";
+			break;
+		}
 	} else {
 		/*
 		 * loop over hdaa_model_pin_patch
