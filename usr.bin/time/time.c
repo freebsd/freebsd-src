@@ -54,7 +54,7 @@ static void showtime(FILE *, struct timespec *, struct timespec *,
 static void siginfo(int);
 static void usage(void) __dead2;
 
-static sig_atomic_t siginfo_recvd;
+static volatile sig_atomic_t siginfo_recvd;
 static char decimal_point;
 static struct timespec before_ts;
 static int hflag, pflag;
