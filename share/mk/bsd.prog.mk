@@ -69,6 +69,12 @@ LDFLAGS+= -Wl,-zretpolineplt
 .endif
 # LLD sensibly defaults to -znoexecstack, so do the same for BFD
 LDFLAGS.bfd+= -Wl,-znoexecstack
+.if ${MK_BRANCH_PROTECTION} != "no"
+CFLAGS+=  -mbranch-protection=standard
+.if ${MACHINE_ARCH} == "aarch64" && defined(BTI_REPORT_ERROR)
+LDFLAGS+= -Wl,-zbti-report=error
+.endif
+.endif
 
 # Initialize stack variables on function entry
 .if ${OPT_INIT_ALL} != "none"
