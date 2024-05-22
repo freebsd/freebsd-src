@@ -122,4 +122,8 @@ netoptions_inet6()
 }
 
 load_rc_config $name
+
+# doesn't make sense to run in a svcj: config setting
+netoptions_svcj="NO"
+
 run_rc_command $1

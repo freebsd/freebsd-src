@@ -22,6 +22,8 @@ extra_commands="reload"
 sockfile="/var/run/syslogd.sockets"
 evalargs="rc_flags=\"\`set_socketlist\` \$rc_flags\""
 
+: ${syslogd_svcj_options:="net_basic"}
+
 syslogd_precmd()
 {
 	local _l _ldir

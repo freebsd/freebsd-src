@@ -268,4 +268,8 @@ netif_common()
 # This is needed for mfsBSD at least.
 load_rc_config network
 load_rc_config $name
+
+# doesn't make sense to run in a svcj: config setting
+netif_svcj="NO"
+
 run_rc_command $*

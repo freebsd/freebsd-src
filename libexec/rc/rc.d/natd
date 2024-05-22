@@ -40,4 +40,8 @@ natd_precmd()
 }
 
 load_rc_config $name
+
+# precmd is not compatible with svcj
+natd_svcj="NO"
+
 run_rc_command "$1"

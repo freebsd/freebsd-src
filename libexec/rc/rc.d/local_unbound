@@ -35,6 +35,7 @@ load_rc_config $name
 : ${local_unbound_tls:=}
 : ${local_unbound_pidfile:=${pidfile}}
 pidfile=${local_unbound_pidfile}
+: ${local_unbound_svcj_options:="net_basic"}
 
 do_as_unbound()
 {

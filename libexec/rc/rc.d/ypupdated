@@ -11,6 +11,8 @@
 name="ypupdated"
 rcvar="rpc_ypupdated_enable"
 
+: ${ypupdated_svcj_options:="net_basic"}
+
 load_rc_config $name
 
 command="/usr/sbin/rpc.${name}"

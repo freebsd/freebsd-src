@@ -38,4 +38,8 @@ required_modules="wlan_xauth wlan_wep wlan_tkip wlan_ccmp"
 extra_commands="reload"
 
 load_rc_config ${name}
+
+# doesn't make sense to run in a svcj: nojail keyword
+hostapd_svcj="NO"
+
 run_rc_command "$1"

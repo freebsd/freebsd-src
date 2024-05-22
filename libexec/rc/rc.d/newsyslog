@@ -23,4 +23,8 @@ newsyslog_start()
 }
 
 load_rc_config $name
+
+# doesn't make sense to run in a svcj: needs to send signals outside the svcj
+newsyslog_svcj="NO"
+
 run_rc_command "$1"

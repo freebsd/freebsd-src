@@ -21,6 +21,9 @@ name="nscd"
 desc="Name-service caching daemon"
 rcvar="nscd_enable"
 
+# no svcj options needed
+: ${nscd_svcj_options:=""}
+
 command=/usr/sbin/nscd
 extra_commands="flush"
 flush_cmd="${command} -I all"

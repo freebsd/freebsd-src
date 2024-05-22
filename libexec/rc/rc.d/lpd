@@ -16,6 +16,8 @@ command="/usr/sbin/${name}"
 required_files="/etc/printcap"
 start_precmd="chkprintcap"
 
+: ${lpd_svcj_options:="net_basic"}
+
 chkprintcap()
 {
 	if checkyesno chkprintcap_enable ; then

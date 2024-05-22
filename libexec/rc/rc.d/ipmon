@@ -15,6 +15,9 @@ rcvar="ipmon_enable"
 command="/sbin/${name}"
 start_precmd="ipmon_precmd"
 
+# no svcj options needed
+: ${ipmon_svcj_options:=""}
+
 ipmon_precmd()
 {
 	# Continue only if ipfilter or ipnat is enabled and the

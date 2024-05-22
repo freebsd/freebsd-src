@@ -22,6 +22,9 @@ extra_commands="check reload resync"
 required_files="$pf_rules"
 required_modules="pf"
 
+# doesn't make sense to run in a svcj: config setting
+pf_svcj="NO"
+
 pf_fallback()
 {
 	warn "Unable to load $pf_rules."

@@ -59,6 +59,9 @@ dhclient_prestart()
 load_rc_config $name
 load_rc_config network
 
+# dhclient_prestart is not compatible with svcj
+dhclient_svcj="NO"
+
 if [ -z $ifn ] ; then
 	# only complain if a command was specified but no interface
 	if [ -n "$1" ] ; then

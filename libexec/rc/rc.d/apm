@@ -43,4 +43,8 @@ apm_status()
 }
 
 load_rc_config $name
+
+# doesn't make sense to run in a svcj: nojail keyword
+apm_svcj="NO"
+
 run_rc_command "$1"

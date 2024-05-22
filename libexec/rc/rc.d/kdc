@@ -14,6 +14,7 @@ desc="Kerberos 5 server"
 rcvar=${name}_enable
 : ${kdc_restart:="NO"}
 : ${kdc_restart_delay:=""}
+: ${kdc_svcj_options:="net_basic"}
 
 set_rcvar_obsolete kerberos5_server_enable kdc_enable
 set_rcvar_obsolete kerberos5_server kdc_program

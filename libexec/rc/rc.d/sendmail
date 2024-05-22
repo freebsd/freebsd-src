@@ -19,6 +19,8 @@ rcvar="sendmail_enable"
 required_files="/etc/mail/${name}.cf"
 start_precmd="sendmail_precmd"
 
+: ${sendmail_svcj_options:="net_basic"}
+
 load_rc_config $name
 command=${sendmail_program:-/usr/sbin/${name}}
 pidfile=${sendmail_pidfile:-/var/run/${name}.pid}

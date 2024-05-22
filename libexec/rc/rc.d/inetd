@@ -16,5 +16,7 @@ pidfile="/var/run/${name}.pid"
 required_files="/etc/${name}.conf"
 extra_commands="reload"
 
+: ${inetd_svcj_options:="net_basic"}
+
 load_rc_config $name
 run_rc_command "$1"

@@ -605,6 +605,10 @@ jail_warn()
 }
 
 load_rc_config $name
+
+# doesn't make sense to run in a svcj
+jail_svcj="NO"
+
 case $# in
 1)	run_rc_command $@ ${jail_list:-_ALL} ;;
 *)	jail_reverse_stop="no"

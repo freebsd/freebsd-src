@@ -81,4 +81,8 @@ linux_start()
 }
 
 load_rc_config $name
+
+# doesn't make sense to run in a svcj: kernel modules and FS-mounting
+linux_svcj="NO"
+
 run_rc_command "$1"

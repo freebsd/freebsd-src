@@ -35,4 +35,7 @@ load_rc_config $name
 required_files="${ddb_config}"
 command_args="${ddb_config}"
 
+# doesn't make sense to run in a svcj: privileged operation
+ddb_svcj="NO"
+
 run_rc_command "$1"

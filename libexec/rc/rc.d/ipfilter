@@ -15,6 +15,9 @@ rcvar="ipfilter_enable"
 load_rc_config $name
 stop_precmd="test -f ${ipfilter_rules}"
 
+# doesn't make sense to run in a svcj: config setting
+ipfilter_svcj="NO"
+
 start_precmd="$stop_precmd"
 start_cmd="ipfilter_start"
 stop_cmd="ipfilter_stop"

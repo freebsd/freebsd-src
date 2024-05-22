@@ -131,4 +131,8 @@ ppp_stop() {
 }
 
 load_rc_config $name
+
+# doesn't make sense to run in a svcj: nojail keyword
+ppp_svcj="NO"
+
 run_rc_command $*

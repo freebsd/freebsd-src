@@ -78,4 +78,8 @@ devmatch_start()
 }
 
 load_rc_config $name
+
+# doesn't make sense to run in a svcj: privileged operations
+devmatch_svcj="NO"
+
 run_rc_command "$1"

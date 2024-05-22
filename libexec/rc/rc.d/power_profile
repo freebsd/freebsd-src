@@ -62,6 +62,9 @@ if [ $# -ne 1 ]; then
 fi
 load_rc_config $name
 
+# doesn't make sense to run in a svcj: privileged operations
+power_profile_svcj="NO"
+
 # Find the next state (performance or economy).
 state=$1
 case ${state} in

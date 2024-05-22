@@ -21,4 +21,7 @@ group="${sdpd_groupname:-nobody}"
 user="${sdpd_username:-nobody}"
 command_args="-c ${control} -g ${group} -u ${user}"
 
+# doesn't make sense to run in a svcj: nojail keyword
+sdpd_svcj="NO"
+
 run_rc_command "$1"

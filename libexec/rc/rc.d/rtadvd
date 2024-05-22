@@ -18,6 +18,8 @@ extra_commands="reload"
 reload_cmd="rtadvd_reload"
 start_precmd="rtadvd_precmd"
 
+: ${rtadvd_svcj_options:="net_basic"}
+
 rtadvd_precmd()
 {
 	# This should be enabled with a great care.
@@ -69,4 +71,7 @@ rtadvd_reload() {
 }
 
 load_rc_config $name
+
+# precmd is not compatible with svcj
+rtadvd_svcj="NO"
 run_rc_command "$1"
