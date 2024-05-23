@@ -19,7 +19,6 @@
 .\" OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 .\" THE SOFTWARE.
 .\"
-
 .Dd May 22, 2024
 .Dt MIXER 3
 .Os
@@ -168,13 +167,15 @@ is always equal to the number of that pcmX device.
 For example, if the audio device's number is 0 (i.e pcm0), then
 .Ar unit
 is 0 as well.
-This number is useful when checking if the mixer's audio card is the default one.
+This number is useful when checking if the mixer's audio card is the default
+one.
 .It Fa ndev
 Number of devices in
 .Ar devs .
 .It Fa devmask
 Bit mask containing all supported devices for the mixer.
-For example, if device 10 is supported, then the 10th bit in the mask will be set.
+For example, if device 10 is supported, then the 10th bit in the mask will be
+set.
 By default,
 .Fn mixer_open
 stores only the supported devices in devs, so it is very unlikely this mask will
@@ -318,23 +319,27 @@ opens the default mixer (hw.snd.default_unit).
 The
 .Fn mixer_close
 function frees resources and closes the mixer device.
-It is a good practice to always call it when the application is done using the mixer.
+It is a good practice to always call it when the application is done using the
+mixer.
 .Ss Manipulating the mixer
 The
 .Fn mixer_get_dev
 and
 .Fn mixer_get_dev_byname
-functions select a mixer device, either by its number or by its name respectively.
-The mixer structure keeps a list of all the devices, but only \
-one can be manipulated at a time.
-Each time a new device is to be manipulated, one of the two functions has to be called.
+functions select a mixer device, either by its number or by its name
+respectively.
+The mixer structure keeps a list of all the devices, but only one can be
+manipulated at a time.
+Each time a new device is to be manipulated, one of the two functions has to be
+called.
 .Pp
 The
 .Fn mixer_set_vol
 function changes the volume of the selected mixer device.
 The
 .Ar vol
-parameter is a structure that stores the left and right volumes of a given device.
+parameter is a structure that stores the left and right volumes of a given
+device.
 The allowed volume values are between MIX_VOLMIN (0.0) and MIX_VOLMAX (1.0).
 .Pp
 The
@@ -355,7 +360,8 @@ Toggle the device's mute (e.g mute if unmuted and unmute if muted).
 The
 .Fn mixer_mod_recsrc
 function modifies a recording device.
-The selected device has to be a recording device, otherwise the function will fail.
+The selected device has to be a recording device, otherwise the function will
+fail.
 The
 .Ar opt
 parameter has to be one of the following options:
