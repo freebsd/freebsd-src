@@ -40,6 +40,7 @@
 .Nm mixer_set_dunit ,
 .Nm mixer_get_mode ,
 .Nm mixer_get_nmixers ,
+.Nm mixer_get_path ,
 .Nm MIX_ISDEV ,
 .Nm MIX_ISMUTE ,
 .Nm MIX_ISREC ,
@@ -85,6 +86,8 @@ Mixer library (libmixer, -lmixer)
 .Fn mixer_get_mode "int unit"
 .Ft int
 .Fn mixer_get_nmixers "void"
+.Ft int
+.Fn mixer_get_path "char * buf" "size_t size" "int unit"
 .Ft int
 .Fn MIX_ISDEV "struct mixer *m" "int devno"
 .Ft int
@@ -398,7 +401,21 @@ The
 function returns the maximum mixer unit number.
 Although this might sound as incorrect behavior, given that one would expect
 "nmixers" to refer to the total number of active mixers, it is more intuitive
-for applications that want to loop through all mixer devices.
+for applications that want to loop through all mixer devices (see the
+.Sx EXAMPLES
+section).
+.Pp
+The
+.Fn mixer_get_path
+function writes the path of the mixer device specified in the
+.Ar unit
+argument to the buffer specified in
+.Ar buf .
+.Ar unit
+can be either -1, in which case
+.Fn mixer_get_path
+will fetch the path of the default mixer, or between 0 and the maximum mixer
+unit.
 .Pp
 The
 .Fn MIX_ISDEV
@@ -470,9 +487,10 @@ The
 .Fn mixer_set_mute ,
 .Fn mixer_mod_recsrc ,
 .Fn mixer_get_dunut ,
-.Fn mixer_set_dunit
+.Fn mixer_set_dunit ,
+.Fn mixer_get_nmixers ,
 and
-.Fn mixer_get_nmixers
+.Fn mixer_get_path
 functions return 0 or positive values on success and -1 on failure.
 .Pp
 The
@@ -541,6 +559,22 @@ TAILQ_FOREACH(dp, &m->devs, devs) {
 }
 
 (void)mixer_close(m);
+.Ed
+.Ss Loop through all mixer devices in the system
+.Bd -literal
+struct mixer *m;
+char buf[NAME_MAX];
+int n;
+
+if ((n = mixer_get_nmixers()) < 0)
+	errx(1, "no mixers present in the system");
+for (i = 0; i < n; i++) {
+	(void)mixer_get_path(buf, sizeof(buf), i);
+	if ((m = mixer_open(buf)) == NULL)
+		continue;
+	...
+	(void)mixer_close(m);
+}
 .Ed
 .Sh SEE ALSO
 .Xr queue 3 ,

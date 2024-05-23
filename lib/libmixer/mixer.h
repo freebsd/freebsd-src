@@ -115,6 +115,7 @@ int mixer_get_dunit(void);
 int mixer_set_dunit(struct mixer *, int);
 int mixer_get_mode(int);
 int mixer_get_nmixers(void);
+int mixer_get_path(char *, size_t, int);
 
 __END_DECLS
 

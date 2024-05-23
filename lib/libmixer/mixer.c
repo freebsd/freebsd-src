@@ -493,3 +493,28 @@ mixer_get_nmixers(void)
 
 	return (si.nummixers);
 }
+
+/*
+ * Get the full path to a mixer device.
+ */
+int
+mixer_get_path(char *buf, size_t size, int unit)
+{
+	size_t n;
+
+	if (!(unit == -1 || (unit >= 0 && unit < mixer_get_nmixers()))) {
+		errno = EINVAL;
+		return (-1);
+	}
+	if (unit == -1)
+		n = strlcpy(buf, BASEPATH, size);
+	else
+		n = snprintf(buf, size, BASEPATH "%d", unit);
+
+	if (n >= size) {
+		errno = ENOMEM;
+		return (-1);
+	}
+
+	return (0);
+}
