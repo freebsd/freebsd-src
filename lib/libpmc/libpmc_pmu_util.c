@@ -622,7 +622,6 @@ pmc_pmu_pmcallocate_md(const char *event_name, struct pmc_op_pmcallocate *pm)
 	if (pmu_parse_event(&ped, pe->event))
 		return (ENOENT);
 
-	assert(ped.ped_event >= 0);
 	pm->pm_ev = idx;
 	pm->pm_md.pm_event = ped.ped_event;
 	pm->pm_class = PMC_CLASS_POWER8;
