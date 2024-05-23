@@ -20,7 +20,7 @@
 .\" THE SOFTWARE.
 .\"
 
-.Dd January 19, 2023
+.Dd May 22, 2024
 .Dt MIXER 3
 .Os
 .Sh NAME
@@ -395,7 +395,10 @@ Playback and recording.
 .Pp
 The
 .Fn mixer_get_nmixers
-function returns the total number of mixer devices in the system.
+function returns the maximum mixer unit number.
+Although this might sound as incorrect behavior, given that one would expect
+"nmixers" to refer to the total number of active mixers, it is more intuitive
+for applications that want to loop through all mixer devices.
 .Pp
 The
 .Fn MIX_ISDEV

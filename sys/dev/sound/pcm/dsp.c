@@ -2040,6 +2040,19 @@ dsp_unit2name(char *buf, size_t len, struct pcm_channel *ch)
 	return (NULL);
 }
 
+static void
+dsp_oss_audioinfo_unavail(oss_audioinfo *ai, int unit)
+{
+	bzero(ai, sizeof(*ai));
+	ai->dev = unit;
+	snprintf(ai->name, sizeof(ai->name), "pcm%d (unavailable)", unit);
+	ai->pid = -1;
+	ai->card_number = unit;
+	ai->port_number = unit;
+	ai->mixer_dev = -1;
+	ai->legacy_device = unit;
+}
+
 /**
  * @brief Handler for SNDCTL_AUDIOINFO.
  *
@@ -2084,8 +2097,14 @@ dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai, bool ex)
 	    unit < devclass_get_maxunit(pcm_devclass); unit++) {
 		d = devclass_get_softc(pcm_devclass, unit);
 		if (!PCM_REGISTERED(d)) {
-			d = NULL;
-			continue;
+			if ((ai->dev == -1 && unit == snd_unit) ||
+			    ai->dev == unit) {
+				dsp_oss_audioinfo_unavail(ai, unit);
+				return (0);
+			} else {
+				d = NULL;
+				continue;
+			}
 		}
 
 		PCM_UNLOCKASSERT(d);
