@@ -778,9 +778,15 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 			ret = sound_oss_card_info((oss_card_info *)arg);
 			break;
 		case SNDCTL_AUDIOINFO:
+			ret = dsp_oss_audioinfo(i_dev, (oss_audioinfo *)arg,
+			    false);
+			break;
 		case SNDCTL_AUDIOINFO_EX:
+			ret = dsp_oss_audioinfo(i_dev, (oss_audioinfo *)arg,
+			    true);
+			break;
 		case SNDCTL_ENGINEINFO:
-			ret = dsp_oss_audioinfo(i_dev, (oss_audioinfo *)arg);
+			ret = dsp_oss_engineinfo(i_dev, (oss_audioinfo *)arg);
 			break;
 		case SNDCTL_MIXERINFO:
 			ret = mixer_oss_mixerinfo(i_dev, (oss_mixerinfo *)arg);
@@ -2034,8 +2040,152 @@ dsp_unit2name(char *buf, size_t len, struct pcm_channel *ch)
 	return (NULL);
 }
 
+/**
+ * @brief Handler for SNDCTL_AUDIOINFO.
+ *
+ * Gathers information about the audio device specified in ai->dev.  If
+ * ai->dev == -1, then this function gathers information about the current
+ * device.  If the call comes in on a non-audio device and ai->dev == -1,
+ * return EINVAL.
+ *
+ * This routine is supposed to go practically straight to the hardware,
+ * getting capabilities directly from the sound card driver, side-stepping
+ * the intermediate channel interface.
+ *
+ * @note
+ * Calling threads must not hold any snddev_info or pcm_channel locks.
+ *
+ * @param dev		device on which the ioctl was issued
+ * @param ai		ioctl request data container
+ * @param ex		flag to distinguish between SNDCTL_AUDIOINFO from
+ *			SNDCTL_AUDIOINFO_EX
+ *
+ * @retval 0		success
+ * @retval EINVAL	ai->dev specifies an invalid device
+ */
+int
+dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai, bool ex)
+{
+	struct pcmchan_caps *caps;
+	struct pcm_channel *ch;
+	struct snddev_info *d;
+	uint32_t fmts;
+	int i, minch, maxch, unit;
+
+	/*
+	 * If probing the device that received the ioctl, make sure it's a
+	 * DSP device.  (Users may use this ioctl with /dev/mixer and
+	 * /dev/midi.)
+	 */
+	if (ai->dev == -1 && i_dev->si_devsw != &dsp_cdevsw)
+		return (EINVAL);
+
+	for (unit = 0; pcm_devclass != NULL &&
+	    unit < devclass_get_maxunit(pcm_devclass); unit++) {
+		d = devclass_get_softc(pcm_devclass, unit);
+		if (!PCM_REGISTERED(d)) {
+			d = NULL;
+			continue;
+		}
+
+		PCM_UNLOCKASSERT(d);
+		PCM_LOCK(d);
+		if ((ai->dev == -1 && d->dsp_dev == i_dev) ||
+		    (ai->dev == unit)) {
+			PCM_UNLOCK(d);
+			break;
+		} else {
+			PCM_UNLOCK(d);
+			d = NULL;
+		}
+	}
+
+	/* Exhausted the search -- nothing is locked, so return. */
+	if (d == NULL)
+		return (EINVAL);
+
+	/* XXX Need Giant magic entry ??? */
+
+	PCM_UNLOCKASSERT(d);
+	PCM_LOCK(d);
+
+	bzero((void *)ai, sizeof(oss_audioinfo));
+	ai->dev = unit;
+	strlcpy(ai->name, device_get_desc(d->dev), sizeof(ai->name));
+	ai->pid = -1;
+	ai->card_number = -1;
+	ai->port_number = -1;
+	ai->mixer_dev = (d->mixer_dev != NULL) ? unit : -1;
+	ai->legacy_device = unit;
+	snprintf(ai->devnode, sizeof(ai->devnode), "/dev/dsp%d", unit);
+	ai->enabled = device_is_attached(d->dev) ? 1 : 0;
+	ai->next_play_engine = 0;
+	ai->next_rec_engine = 0;
+	ai->busy = 0;
+	ai->caps = PCM_CAP_REALTIME | PCM_CAP_MMAP | PCM_CAP_TRIGGER;
+	ai->iformats = 0;
+	ai->oformats = 0;
+	ai->min_rate = INT_MAX;
+	ai->max_rate = 0;
+	ai->min_channels = INT_MAX;
+	ai->max_channels = 0;
+
+	/* Gather global information about the device. */
+	CHN_FOREACH(ch, d, channels.pcm) {
+		CHN_UNLOCKASSERT(ch);
+		CHN_LOCK(ch);
+
+		/*
+		 * Skip physical channels if we are servicing SNDCTL_AUDIOINFO,
+		 * or VCHANs if we are servicing SNDCTL_AUDIOINFO_EX.
+		 */
+		if ((ex && (ch->flags & CHN_F_VIRTUAL) != 0) ||
+		    (!ex && (ch->flags & CHN_F_VIRTUAL) == 0)) {
+			CHN_UNLOCK(ch);
+			continue;
+		}
+
+		if ((ch->flags & CHN_F_BUSY) == 0) {
+			ai->busy |= (ch->direction == PCMDIR_PLAY) ?
+			    OPEN_WRITE : OPEN_READ;
+		}
+
+		ai->caps |=
+		    ((ch->flags & CHN_F_VIRTUAL) ? PCM_CAP_VIRTUAL : 0) |
+		    ((ch->direction == PCMDIR_PLAY) ? PCM_CAP_OUTPUT :
+		    PCM_CAP_INPUT);
+
+		caps = chn_getcaps(ch);
+
+		minch = INT_MAX;
+		maxch = 0;
+		fmts = 0;
+		for (i = 0; caps->fmtlist[i]; i++) {
+			fmts |= AFMT_ENCODING(caps->fmtlist[i]);
+			minch = min(AFMT_CHANNEL(caps->fmtlist[i]), minch);
+			maxch = max(AFMT_CHANNEL(caps->fmtlist[i]), maxch);
+		}
+
+		if (ch->direction == PCMDIR_PLAY)
+			ai->oformats |= fmts;
+		else
+			ai->iformats |= fmts;
+
+		ai->min_rate = min(ai->min_rate, caps->minspeed);
+		ai->max_rate = max(ai->max_rate, caps->maxspeed);
+		ai->min_channels = min(ai->min_channels, minch);
+		ai->max_channels = max(ai->max_channels, maxch);
+
+		CHN_UNLOCK(ch);
+	}
+
+	PCM_UNLOCK(d);
+
+	return (0);
+}
+
 static int
-dsp_oss_audioinfo_cb(void *data, void *arg)
+dsp_oss_engineinfo_cb(void *data, void *arg)
 {
 	struct dsp_cdevpriv *priv = data;
 	struct pcm_channel *ch = arg;
@@ -2047,10 +2197,10 @@ dsp_oss_audioinfo_cb(void *data, void *arg)
 }
 
 /**
- * @brief Handler for SNDCTL_AUDIOINFO.
+ * @brief Handler for SNDCTL_ENGINEINFO
  *
- * Gathers information about the audio device specified in ai->dev.  If
- * ai->dev == -1, then this function gathers information about the current
+ * Gathers information about the audio device's engine specified in ai->dev.
+ * If ai->dev == -1, then this function gathers information about the current
  * device.  If the call comes in on a non-audio device and ai->dev == -1,
  * return EINVAL.
  *
@@ -2066,11 +2216,9 @@ dsp_oss_audioinfo_cb(void *data, void *arg)
  *
  * @retval 0		success
  * @retval EINVAL	ai->dev specifies an invalid device
- *
- * @todo Verify correctness of Doxygen tags.  ;)
  */
 int
-dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai)
+dsp_oss_engineinfo(struct cdev *i_dev, oss_audioinfo *ai)
 {
 	struct pcmchan_caps *caps;
 	struct pcm_channel *ch;
@@ -2113,7 +2261,7 @@ dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai)
 			CHN_LOCK(ch);
 			if (ai->dev == -1) {
 				if (devfs_foreach_cdevpriv(i_dev,
-				    dsp_oss_audioinfo_cb, ch) != 0) {
+				    dsp_oss_engineinfo_cb, ch) != 0) {
 					devname = dsp_unit2name(buf,
 					    sizeof(buf), ch);
 				}
@@ -2182,18 +2330,13 @@ dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai)
 			 * if any channel is mono, minch = 1;
 			 * and if all channels are mono, maxch = 1.
 			 */
-			minch = 0;
+			minch = INT_MAX;
 			maxch = 0;
 			fmts = 0;
 			for (i = 0; caps->fmtlist[i]; i++) {
-				fmts |= caps->fmtlist[i];
-				if (AFMT_CHANNEL(caps->fmtlist[i]) > 1) {
-					minch = (minch == 0) ? 2 : minch;
-					maxch = 2;
-				} else {
-					minch = 1;
-					maxch = (maxch == 0) ? 1 : maxch;
-				}
+				fmts |= AFMT_ENCODING(caps->fmtlist[i]);
+				minch = min(AFMT_CHANNEL(caps->fmtlist[i]), minch);
+				maxch = max(AFMT_CHANNEL(caps->fmtlist[i]), maxch);
 			}
 
 			if (ch->direction == PCMDIR_PLAY)
