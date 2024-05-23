@@ -489,7 +489,7 @@ check_setuid(struct ucred *cred, uid_t uid)
 
 	if (do_enabled == 0)
 		return (0);
-	if (cred->cr_uid == uid || cred->cr_uid == 0)
+	if (cred->cr_uid == uid || cred->cr_uid == 0 || cred->cr_ruid == 0)
 		return (0);
 
 	if (vn_fullpath(curproc->p_textvp, &fullpath, &freebuf) != 0)
