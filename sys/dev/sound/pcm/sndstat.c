@@ -330,7 +330,6 @@ sndstat_get_caps(struct snddev_info *d, bool play, uint32_t *min_rate,
     uint32_t *max_rate, uint32_t *fmts, uint32_t *minchn, uint32_t *maxchn)
 {
 	struct pcm_channel *c;
-	unsigned int encoding;
 	int dir;
 
 	dir = play ? PCMDIR_PLAY : PCMDIR_REC;
@@ -347,11 +346,11 @@ sndstat_get_caps(struct snddev_info *d, bool play, uint32_t *min_rate,
 		return;
 	}
 
+	*fmts = 0;
 	*min_rate = UINT32_MAX;
 	*max_rate = 0;
 	*minchn = UINT32_MAX;
 	*maxchn = 0;
-	encoding = 0;
 	CHN_FOREACH(c, d, channels.pcm) {
 		struct pcmchan_caps *caps;
 		int i;
@@ -364,9 +363,9 @@ sndstat_get_caps(struct snddev_info *d, bool play, uint32_t *min_rate,
 		*min_rate = min(caps->minspeed, *min_rate);
 		*max_rate = max(caps->maxspeed, *max_rate);
 		for (i = 0; caps->fmtlist[i]; i++) {
-			encoding |= AFMT_ENCODING(caps->fmtlist[i]);
-			*minchn = min(AFMT_CHANNEL(encoding), *minchn);
-			*maxchn = max(AFMT_CHANNEL(encoding), *maxchn);
+			*fmts |= AFMT_ENCODING(caps->fmtlist[i]);
+			*minchn = min(AFMT_CHANNEL(caps->fmtlist[i]), *minchn);
+			*maxchn = max(AFMT_CHANNEL(caps->fmtlist[i]), *maxchn);
 		}
 		CHN_UNLOCK(c);
 	}
