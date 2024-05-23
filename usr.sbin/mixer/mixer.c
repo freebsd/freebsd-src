@@ -99,7 +99,7 @@ main(int argc, char *argv[])
 		for (i = 0; i < n; i++) {
 			(void)snprintf(buf, sizeof(buf), "/dev/mixer%d", i);
 			if ((m = mixer_open(buf)) == NULL)
-				errx(1, "%s: no such mixer", buf);
+				continue;
 			initctls(m);
 			if (sflag)
 				printrecsrc(m, oflag);
