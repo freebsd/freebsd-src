@@ -1,4 +1,4 @@
-/*	$NetBSD: parse.c,v 1.722 2024/04/27 17:33:46 rillig Exp $	*/
+/*	$NetBSD: parse.c,v 1.723 2024/05/19 20:09:40 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -121,7 +121,7 @@
 #include "pathnames.h"
 
 /*	"@(#)parse.c	8.3 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: parse.c,v 1.722 2024/04/27 17:33:46 rillig Exp $");
+MAKE_RCSID("$NetBSD: parse.c,v 1.723 2024/05/19 20:09:40 sjg Exp $");
 
 /* Detects a multiple-inclusion guard in a makefile. */
 typedef enum {
@@ -1269,7 +1269,7 @@ IncludeFile(const char *file, bool isSystem, bool depinc, bool silent)
 	if (fullname == NULL) {
 		SearchPath *path = Lst_IsEmpty(&sysIncPath->dirs)
 		    ? defSysIncPath : sysIncPath;
-		fullname = Dir_FindFile(file, path);
+		fullname = Dir_FindInclude(file, path);
 	}
 
 	if (fullname == NULL) {

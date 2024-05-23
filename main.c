@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.615 2024/05/07 18:26:22 sjg Exp $	*/
+/*	$NetBSD: main.c,v 1.616 2024/05/19 17:55:54 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -111,7 +111,7 @@
 #include "trace.h"
 
 /*	"@(#)main.c	8.3 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: main.c,v 1.615 2024/05/07 18:26:22 sjg Exp $");
+MAKE_RCSID("$NetBSD: main.c,v 1.616 2024/05/19 17:55:54 sjg Exp $");
 #if defined(MAKE_NATIVE)
 __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993 "
 	    "The Regents of the University of California.  "
@@ -1174,8 +1174,6 @@ InitDefSysIncPath(char *syspath)
 	else
 		syspath = bmake_strdup(syspath);
 
-	/* do NOT search .CURDIR first for .include <makefile> */
-	SearchPath_Add(defSysIncPath, ".DOTLAST");
 	for (start = syspath; *start != '\0'; start = p) {
 		for (p = start; *p != '\0' && *p != ':'; p++)
 			continue;
