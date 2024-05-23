@@ -667,7 +667,7 @@ upgrade_check_kmod_ports() {
 	local report
 	local w
 
-	if ! command -v pkg >/dev/null; then
+	if ! pkg -N 2>/dev/null; then
 		echo "Skipping kernel modules check. pkg(8) not present."
 		return
 	fi
