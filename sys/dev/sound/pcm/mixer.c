@@ -1282,9 +1282,13 @@ mixer_ioctl_cmd(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 		case SNDCTL_CARDINFO:
 			return (sound_oss_card_info((oss_card_info *)arg));
 	    	case SNDCTL_AUDIOINFO:
+			return (dsp_oss_audioinfo(i_dev, (oss_audioinfo *)arg,
+			    false));
 	    	case SNDCTL_AUDIOINFO_EX:
-	    	case SNDCTL_ENGINEINFO:
-			return (dsp_oss_audioinfo(i_dev, (oss_audioinfo *)arg));
+			return (dsp_oss_audioinfo(i_dev, (oss_audioinfo *)arg,
+			    true));
+		case SNDCTL_ENGINEINFO:
+			return (dsp_oss_engineinfo(i_dev, (oss_audioinfo *)arg));
 		case SNDCTL_MIXERINFO:
 			return (mixer_oss_mixerinfo(i_dev, (oss_mixerinfo *)arg));
 		}
