@@ -45,9 +45,6 @@
 #include <sys/nv.h>
 #include <sys/dnv.h>
 #include <sys/sx.h>
-#ifdef COMPAT_FREEBSD32
-#include <sys/sysent.h>
-#endif
 
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/pcm.h>
@@ -622,10 +619,9 @@ sndstat_refresh_devs(struct sndstat_file *pf)
 }
 
 static int
-sndstat_get_devs(struct sndstat_file *pf, caddr_t data)
+sndstat_get_devs(struct sndstat_file *pf, void *arg_buf, size_t *arg_nbytes)
 {
 	int err;
-	struct sndstioc_nv_arg *arg = (struct sndstioc_nv_arg *)data;
 
 	SNDSTAT_LOCK();
 	sx_xlock(&pf->lock);
@@ -664,22 +660,22 @@ sndstat_get_devs(struct sndstat_file *pf, caddr_t data)
 
 	SNDSTAT_UNLOCK();
 
-	if (!arg->nbytes) {
-		arg->nbytes = pf->devs_nbytes;
+	if (*arg_nbytes == 0) {
+		*arg_nbytes = pf->devs_nbytes;
 		err = 0;
 		goto done;
 	}
-	if (arg->nbytes < pf->devs_nbytes) {
-		arg->nbytes = 0;
+	if (*arg_nbytes < pf->devs_nbytes) {
+		*arg_nbytes = 0;
 		err = 0;
 		goto done;
 	}
 
-	err = copyout(pf->devs_nvlbuf, arg->buf, pf->devs_nbytes);
+	err = copyout(pf->devs_nvlbuf, arg_buf, pf->devs_nbytes);
 	if (err)
 		goto done;
 
-	arg->nbytes = pf->devs_nbytes;
+	*arg_nbytes = pf->devs_nbytes;
 
 	free(pf->devs_nvlbuf, M_NVLIST);
 	pf->devs_nvlbuf = NULL;
@@ -850,25 +846,24 @@ sndstat_dsp_unpack_nvlist(const nvlist_t *nvlist, struct sndstat_userdev *ud)
 }
 
 static int
-sndstat_add_user_devs(struct sndstat_file *pf, caddr_t data)
+sndstat_add_user_devs(struct sndstat_file *pf, void *nvlbuf, size_t nbytes)
 {
 	int err;
 	nvlist_t *nvl = NULL;
 	const nvlist_t * const *dsps;
 	size_t i, ndsps;
-	struct sndstioc_nv_arg *arg = (struct sndstioc_nv_arg *)data;
 
 	if ((pf->fflags & FWRITE) == 0) {
 		err = EPERM;
 		goto done;
 	}
 
-	if (arg->nbytes > SNDST_UNVLBUF_MAX) {
+	if (nbytes > SNDST_UNVLBUF_MAX) {
 		err = ENOMEM;
 		goto done;
 	}
 
-	err = sndstat_unpack_user_nvlbuf(arg->buf, arg->nbytes, &nvl);
+	err = sndstat_unpack_user_nvlbuf(nvlbuf, nbytes, &nvl);
 	if (err != 0)
 		goto done;
 
@@ -914,52 +909,17 @@ sndstat_flush_user_devs(struct sndstat_file *pf)
 	return (0);
 }
 
-#ifdef COMPAT_FREEBSD32
-static int
-compat_sndstat_get_devs32(struct sndstat_file *pf, caddr_t data)
-{
-	struct sndstioc_nv_arg32 *arg32 = (struct sndstioc_nv_arg32 *)data;
-	struct sndstioc_nv_arg arg;
-	int err;
-
-	arg.buf = (void *)(uintptr_t)arg32->buf;
-	arg.nbytes = arg32->nbytes;
-
-	err = sndstat_get_devs(pf, (caddr_t)&arg);
-	if (err == 0) {
-		arg32->buf = (uint32_t)(uintptr_t)arg.buf;
-		arg32->nbytes = arg.nbytes;
-	}
-
-	return (err);
-}
-
-static int
-compat_sndstat_add_user_devs32(struct sndstat_file *pf, caddr_t data)
-{
-	struct sndstioc_nv_arg32 *arg32 = (struct sndstioc_nv_arg32 *)data;
-	struct sndstioc_nv_arg arg;
-	int err;
-
-	arg.buf = (void *)(uintptr_t)arg32->buf;
-	arg.nbytes = arg32->nbytes;
-
-	err = sndstat_add_user_devs(pf, (caddr_t)&arg);
-	if (err == 0) {
-		arg32->buf = (uint32_t)(uintptr_t)arg.buf;
-		arg32->nbytes = arg.nbytes;
-	}
-
-	return (err);
-}
-#endif
-
 static int
 sndstat_ioctl(
     struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
 	int err;
 	struct sndstat_file *pf;
+	struct sndstioc_nv_arg *arg;
+#ifdef COMPAT_FREEBSD32
+	struct sndstioc_nv_arg32 *arg32;
+	size_t nbytes;
+#endif
 
 	err = devfs_get_cdevpriv((void **)&pf);
 	if (err != 0)
@@ -967,27 +927,30 @@ sndstat_ioctl(
 
 	switch (cmd) {
 	case SNDSTIOC_GET_DEVS:
-		err = sndstat_get_devs(pf, data);
+		arg = (struct sndstioc_nv_arg *)data;
+		err = sndstat_get_devs(pf, arg->buf, &arg->nbytes);
 		break;
 #ifdef COMPAT_FREEBSD32
 	case SNDSTIOC_GET_DEVS32:
-		if (!SV_CURPROC_FLAG(SV_ILP32)) {
-			err = ENODEV;
-			break;
+		arg32 = (struct sndstioc_nv_arg32 *)data;
+		nbytes = arg32->nbytes;
+		err = sndstat_get_devs(pf, (void *)(uintptr_t)arg32->buf,
+		    &nbytes);
+		if (err == 0) {
+			KASSERT(nbytes < UINT_MAX, ("impossibly many bytes"));
+			arg32->nbytes = nbytes;
 		}
-		err = compat_sndstat_get_devs32(pf, data);
 		break;
 #endif
 	case SNDSTIOC_ADD_USER_DEVS:
-		err = sndstat_add_user_devs(pf, data);
+		arg = (struct sndstioc_nv_arg *)data;
+		err = sndstat_add_user_devs(pf, arg->buf, arg->nbytes);
 		break;
 #ifdef COMPAT_FREEBSD32
 	case SNDSTIOC_ADD_USER_DEVS32:
-		if (!SV_CURPROC_FLAG(SV_ILP32)) {
-			err = ENODEV;
-			break;
-		}
-		err = compat_sndstat_add_user_devs32(pf, data);
+		arg32 = (struct sndstioc_nv_arg32 *)data;
+		err = sndstat_add_user_devs(pf, (void *)(uintptr_t)arg32->buf,
+		    arg32->nbytes);
 		break;
 #endif
 	case SNDSTIOC_REFRESH_DEVS:
