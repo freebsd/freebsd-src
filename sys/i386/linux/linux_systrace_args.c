@@ -1828,7 +1828,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 259: {
 		struct linux_timer_create_args *p = params;
 		iarg[a++] = p->clock_id; /* clockid_t */
-		uarg[a++] = (intptr_t)p->evp; /* struct sigevent * */
+		uarg[a++] = (intptr_t)p->evp; /* struct l_sigevent * */
 		uarg[a++] = (intptr_t)p->timerid; /* l_timer_t * */
 		*n_args = 3;
 		break;
@@ -2002,7 +2002,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 281: {
 		struct linux_mq_notify_args *p = params;
 		iarg[a++] = p->mqd; /* l_mqd_t */
-		uarg[a++] = (intptr_t)p->abs_timeout; /* const struct l_timespec * */
+		uarg[a++] = (intptr_t)p->sevp; /* const struct l_sigevent * */
 		*n_args = 2;
 		break;
 	}
@@ -6225,7 +6225,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "clockid_t";
 			break;
 		case 1:
-			p = "userland struct sigevent *";
+			p = "userland struct l_sigevent *";
 			break;
 		case 2:
 			p = "userland l_timer_t *";
@@ -6513,7 +6513,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_mqd_t";
 			break;
 		case 1:
-			p = "userland const struct l_timespec *";
+			p = "userland const struct l_sigevent *";
 			break;
 		default:
 			break;
