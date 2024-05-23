@@ -98,6 +98,7 @@ struct runq {
 };
 
 void	runq_init(struct runq *);
+bool	runq_is_queue_empty(struct runq *, int _idx);
 void	runq_add(struct runq *, struct thread *, int _flags);
 void	runq_add_idx(struct runq *, struct thread *, int _idx, int _flags);
 bool	runq_remove(struct runq *, struct thread *);

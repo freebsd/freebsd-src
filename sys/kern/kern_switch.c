@@ -271,10 +271,13 @@ static inline uintptr_t	runq_sw_set_not_empty_op(int idx, int sw_idx,
 			    rqsw_t sw_bit, rqsw_t *swp);
 static inline uintptr_t	runq_sw_set_empty_op(int idx, int sw_idx,
 			    rqsw_t sw_bit, rqsw_t *swp);
+static inline uintptr_t	runq_sw_is_empty_op(int idx, int sw_idx,
+			    rqsw_t sw_bit, rqsw_t *swp);
 
 /* Status words' individual bit manipulators. */
 static inline void	runq_sw_set_not_empty(struct runq *rq, int idx);
 static inline void	runq_sw_set_empty(struct runq *rq, int idx);
+static inline bool	runq_sw_is_empty(struct runq *rq, int idx);
 
 /*
  * Initialize a run structure.
@@ -356,6 +359,31 @@ runq_sw_set_empty(struct runq *rq, int idx)
 {
 
 	(void)runq_sw_apply(rq, idx, &runq_sw_set_empty_op);
+}
+
+static inline uintptr_t
+runq_sw_is_empty_op(int idx, int sw_idx, rqsw_t sw_bit, rqsw_t *swp)
+{
+	return ((*swp & sw_bit) == 0);
+}
+
+/*
+ * Returns whether the status words indicate that some queue is empty.
+ */
+static inline bool
+runq_sw_is_empty(struct runq *rq, int idx)
+{
+	return (runq_sw_apply(rq, idx, &runq_sw_is_empty_op));
+}
+
+/*
+ * Returns whether a particular queue is empty.
+ */
+bool
+runq_is_queue_empty(struct runq *rq, int idx)
+{
+
+	return (runq_sw_is_empty(rq, idx));
 }
 
 /*
