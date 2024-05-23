@@ -1,3 +1,18 @@
+2024-05-20  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION):
+	Merge with NetBSD make, pick up
+	o dir.c: in FindFile restore last search of .CURDIR even for
+	includes, as a number of existing makefiles are broken otherwise.
+
+2024-05-19  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240519
+	Merge with NetBSD make, pick up
+	o dir.c: Add Dir_FindInclude, FindFile without looking in .CURDIR.
+	Also fix Dir_SetSYSPATH to use defSysIncPath if sysIncPath is empty.
+	o main.c: no need to set .DOTLAST in sysIncPath
+
 2024-05-07  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* VERSION (_MAKE_VERSION): 20240508
