@@ -22,6 +22,7 @@ MLINKS+=	mixer.3 mixer_get_dunit.3
 MLINKS+=	mixer.3 mixer_set_dunit.3
 MLINKS+=	mixer.3 mixer_get_mode.3
 MLINKS+=	mixer.3 mixer_get_nmixers.3
+MLINKS+=	mixer.3 mixer_get_path.3
 MLINKS+=	mixer.3 MIX_ISDEV.3
 MLINKS+=	mixer.3 MIX_ISMUTE.3
 MLINKS+=	mixer.3 MIX_ISREC.3
