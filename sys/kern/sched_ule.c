@@ -2602,7 +2602,7 @@ sched_clock(struct thread *td, int cnt)
 	 */
 	if (tdq->tdq_idx == tdq->tdq_ridx) {
 		tdq->tdq_idx = (tdq->tdq_idx + 1) % RQ_NQS;
-		if (TAILQ_EMPTY(&tdq->tdq_timeshare.rq_queues[tdq->tdq_ridx]))
+		if (runq_is_queue_empty(&tdq->tdq_timeshare, tdq->tdq_ridx))
 			tdq->tdq_ridx = tdq->tdq_idx;
 	}
 	ts = td_get_sched(td);
