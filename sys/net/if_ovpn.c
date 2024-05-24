@@ -252,7 +252,6 @@ SDT_PROBE_DEFINE2(if_ovpn, tx, route, ip4, "struct in_addr *", "struct ovpn_kpee
 SDT_PROBE_DEFINE2(if_ovpn, tx, route, ip6, "struct in6_addr *", "struct ovpn_kpeer *");
 
 static const char ovpnname[] = "ovpn";
-static const char ovpngroupname[] = "openvpn";
 
 static MALLOC_DEFINE(M_OVPN, ovpnname, "OpenVPN DCO Interface");
 #define	MTAG_OVPN_LOOP		0x6f76706e /* ovpn */
@@ -2454,7 +2453,7 @@ ovpn_clone_create(struct if_clone *ifc, char *name, size_t len,
 	ifp = sc->ifp;
 	ifp->if_softc = sc;
 	strlcpy(ifp->if_xname, name, IFNAMSIZ);
-	ifp->if_dname = ovpngroupname;
+	ifp->if_dname = ovpnname;
 	ifp->if_dunit = unit;
 
 	ifp->if_addrlen = 0;
@@ -2544,7 +2543,7 @@ vnet_ovpn_init(const void *unused __unused)
 		.create_f = ovpn_clone_create,
 		.destroy_f = ovpn_clone_destroy,
 	};
-	V_ovpn_cloner = ifc_attach_cloner(ovpngroupname, &req);
+	V_ovpn_cloner = ifc_attach_cloner(ovpnname, &req);
 }
 VNET_SYSINIT(vnet_ovpn_init, SI_SUB_PSEUDO, SI_ORDER_ANY,
     vnet_ovpn_init, NULL);
