@@ -27,7 +27,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd February 10, 2024
+.Dd May 28, 2024
 .Dt RC.SUBR 8
 .Os
 .Sh NAME
@@ -826,8 +826,15 @@ This is a generic version of
 or
 .Va ${name}_nice .
 .It Va ${name}_setup
-Command to be run prior to
-.Va command .
+Optional command to be run during
+.Cm start ,
+.Cm restart ,
+and
+.Cm reload
+prior to the respective
+.Ar argument Ns Va _precmd .
+If the command fails for any reason it will output a warning,
+but execution will continue.
 .It Ar argument Ns Va _cmd
 Shell commands which override the default method for
 .Ar argument .
