@@ -911,23 +911,6 @@ findpcb:
 				log(LOG_INFO, "%s; %s: Connection attempt "
 				    "to closed port\n", s, __func__);
 		}
-		/*
-		 * When blackholing do not respond with a RST but
-		 * completely ignore the segment and drop it.
-		 */
-		if (((V_blackhole == 1 && (thflags & TH_SYN)) ||
-		    V_blackhole == 2) && (V_blackhole_local || (
-#ifdef INET6
-		    isipv6 ? !in6_localaddr(&ip6->ip6_src) :
-#endif
-#ifdef INET
-		    !in_localip(ip->ip_src)
-#else
-		    true
-#endif
-		    )))
-			goto dropunlock;
-
 		rstreason = BANDLIM_RST_CLOSEDPORT;
 		goto dropwithreset;
 	}
@@ -1406,15 +1389,27 @@ tfo_socket_result:
 	return (IPPROTO_DONE);
 
 dropwithreset:
+	/*
+	 * When blackholing do not respond with a RST but
+	 * completely ignore the segment and drop it.
+	 */
+	if (((rstreason == BANDLIM_RST_OPENPORT && V_blackhole == 3) ||
+	    (rstreason == BANDLIM_RST_CLOSEDPORT &&
+	    ((V_blackhole == 1 && (thflags & TH_SYN)) || V_blackhole > 1))) &&
+	    (V_blackhole_local || (
+#ifdef INET6
+	    isipv6 ? !in6_localaddr(&ip6->ip6_src) :
+#endif
+#ifdef INET
+	    !in_localip(ip->ip_src)
+#else
+	    true
+#endif
+	    )))
+		goto dropunlock;
 	TCP_PROBE5(receive, NULL, tp, m, tp, th);
-
-	if (inp != NULL) {
-		tcp_dropwithreset(m, th, tp, tlen, rstreason);
-		INP_UNLOCK(inp);
-	} else
-		tcp_dropwithreset(m, th, NULL, tlen, rstreason);
+	tcp_dropwithreset(m, th, tp, tlen, rstreason);
 	m = NULL;	/* mbuf chain got consumed. */
-	goto drop;
 
 dropunlock:
 	if (m != NULL)
