@@ -428,6 +428,7 @@ nvme_ns_split_bio(struct nvme_namespace *ns, struct bio *bp,
 	if (child_bios == NULL)
 		return (ENOMEM);
 
+	counter_u64_add(ns->ctrlr->alignment_splits, 1);
 	for (i = 0; i < num_bios; i++) {
 		child = child_bios[i];
 		err = nvme_ns_bio_process(ns, child, nvme_bio_child_done);
