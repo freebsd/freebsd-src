@@ -199,7 +199,6 @@ struct client_state {
 struct interface_info {
 	struct interface_info	*next;
 	struct hardware		 hw_address;
-	struct in_addr		 primary_address;
 	char			 name[IFNAMSIZ];
 	int			 rfdesc;
 	int			 wfdesc;
