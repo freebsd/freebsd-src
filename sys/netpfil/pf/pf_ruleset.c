@@ -368,16 +368,16 @@ pf_kanchor_setup(struct pf_krule *r, const struct pf_kruleset *s,
 
 int
 pf_kanchor_copyout(const struct pf_kruleset *rs, const struct pf_krule *r,
-    char *anchor_call)
+    char *anchor_call, size_t anchor_call_len)
 {
 	anchor_call[0] = 0;
 
 	if (r->anchor == NULL)
 		goto done;
 	if (!r->anchor_relative) {
-		strlcpy(anchor_call, "/", sizeof(anchor_call));
+		strlcpy(anchor_call, "/", anchor_call_len);
 		strlcat(anchor_call, r->anchor->path,
-		    sizeof(anchor_call));
+		    anchor_call_len);
 	} else {
 		char	 a[MAXPATHLEN];
 		char	*p;
@@ -391,7 +391,7 @@ pf_kanchor_copyout(const struct pf_kruleset *rs, const struct pf_krule *r,
 				p = a;
 			*p = 0;
 			strlcat(anchor_call, "../",
-			    sizeof(anchor_call));
+			    anchor_call_len);
 		}
 		if (strncmp(a, r->anchor->path, strlen(a))) {
 			printf("pf_anchor_copyout: '%s' '%s'\n", a,
@@ -400,12 +400,12 @@ pf_kanchor_copyout(const struct pf_kruleset *rs, const struct pf_krule *r,
 		}
 		if (strlen(r->anchor->path) > strlen(a))
 			strlcat(anchor_call, r->anchor->path + (a[0] ?
-			    strlen(a) + 1 : 0), sizeof(anchor_call));
+			    strlen(a) + 1 : 0), anchor_call_len);
 
 	}
 	if (r->anchor_wildcard)
 		strlcat(anchor_call, anchor_call[0] ? "/*" : "*",
-		    sizeof(anchor_call));
+		    anchor_call_len);
 
 done:
 
@@ -419,7 +419,7 @@ pf_kanchor_nvcopyout(const struct pf_kruleset *rs, const struct pf_krule *r,
 	char anchor_call[MAXPATHLEN] = { 0 };
 	int ret;
 
-	ret = pf_kanchor_copyout(rs, r, anchor_call);
+	ret = pf_kanchor_copyout(rs, r, anchor_call, sizeof(anchor_call));
 	MPASS(ret == 0);
 
 	nvlist_add_string(nvl, "anchor_call", anchor_call);

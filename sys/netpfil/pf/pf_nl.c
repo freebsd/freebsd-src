@@ -982,7 +982,7 @@ pf_handle_getrule(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	nlattr_add_u64(nw, PF_RT_STATES_TOTAL, counter_u64_fetch(rule->states_tot));
 	nlattr_add_u64(nw, PF_RT_SRC_NODES, counter_u64_fetch(rule->src_nodes));
 
-	error = pf_kanchor_copyout(ruleset, rule, anchor_call);
+	error = pf_kanchor_copyout(ruleset, rule, anchor_call, sizeof(anchor_call));
 	MPASS(error == 0);
 
 	nlattr_add_string(nw, PF_RT_ANCHOR_CALL, anchor_call);
