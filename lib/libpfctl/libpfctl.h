@@ -420,6 +420,9 @@ int	pfctl_get_rules_info(int dev, struct pfctl_rules_info *rules,
 int	pfctl_get_rule(int dev, uint32_t nr, uint32_t ticket,
 	    const char *anchor, uint32_t ruleset, struct pfctl_rule *rule,
 	    char *anchor_call);
+int	pfctl_get_rule_h(struct pfctl_handle *h, uint32_t nr, uint32_t ticket,
+	    const char *anchor, uint32_t ruleset, struct pfctl_rule *rule,
+	    char *anchor_call);
 int	pfctl_get_clear_rule(int dev, uint32_t nr, uint32_t ticket,
 	    const char *anchor, uint32_t ruleset, struct pfctl_rule *rule,
 	    char *anchor_call, bool clear);

@@ -1526,7 +1526,7 @@ pfl_scan_ruleset(const char *path)
 	}
 
 	for (nr = rules.nr, i = 0; i < nr; i++) {
-		if (pfctl_get_rule(pfctl_fd(pfh), i, rules.ticket, path,
+		if (pfctl_get_rule_h(pfh, i, rules.ticket, path,
 		    PF_PASS, &rule, anchor_call)) {
 			syslog(LOG_ERR, "pfl_scan_ruleset: ioctl(DIOCGETRULE):"
 			    " %s", strerror(errno));

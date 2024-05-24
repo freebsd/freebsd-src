@@ -1444,7 +1444,7 @@ pfctl_show_nat(int dev, char *path, int opts, char *anchorname, int depth)
 			brace = 0;
 			INDENT(depth, !(opts & PF_OPT_VERBOSE));
 
-			if (pfctl_get_rule(dev, nr, ri.ticket, path,
+			if (pfctl_get_rule_h(pfh, nr, ri.ticket, path,
 			    nattype[i], &rule, anchor_call)) {
 				warn("DIOCGETRULE");
 				return (-1);
