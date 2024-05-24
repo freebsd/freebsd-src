@@ -903,7 +903,7 @@ load_feedback_profile(struct pfctl *pf, struct superblocks *superblocks)
 			return (1);
 		}
 
-		if (pfctl_get_rule(pf->dev, nr, rules.ticket, "", PF_PASS,
+		if (pfctl_get_rule_h(pf->h, nr, rules.ticket, "", PF_PASS,
 		    &rule, anchor_call)) {
 			warn("DIOCGETRULENV");
 			return (1);

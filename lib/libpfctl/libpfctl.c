@@ -1389,6 +1389,14 @@ pfctl_get_rules_info(int dev __unused, struct pfctl_rules_info *rules, uint32_t 
 }
 
 int
+pfctl_get_rule_h(struct pfctl_handle *h, uint32_t nr, uint32_t ticket, const char *anchor,
+    uint32_t ruleset, struct pfctl_rule *rule, char *anchor_call)
+{
+	return (pfctl_get_clear_rule_h(h, nr, ticket, anchor, ruleset, rule,
+	    anchor_call, false));
+}
+
+int
 pfctl_get_rule(int dev, uint32_t nr, uint32_t ticket, const char *anchor,
     uint32_t ruleset, struct pfctl_rule *rule, char *anchor_call)
 {
