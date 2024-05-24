@@ -75,6 +75,9 @@ static int	g_io_transient_map_bio(struct bio *bp);
 static struct g_bioq g_bio_run_down;
 static struct g_bioq g_bio_run_up;
 
+static u_long nomem_count;
+static u_long pause_count;
+
 /*
  * Pace is a hint that we've had some trouble recently allocating
  * bios, so we should back off trying to send I/O down the stack
@@ -701,6 +704,7 @@ g_io_deliver(struct bio *bp, int error)
 
 	if (bootverbose)
 		printf("ENOMEM %p on %p(%s)\n", bp, pp, pp->name);
+	atomic_add_long(&nomem_count, 1);	/* Rare event, but no locks held */
 	bp->bio_children = 0;
 	bp->bio_inbed = 0;
 	bp->bio_driver1 = NULL;
@@ -734,6 +738,12 @@ int inflight_transient_maps;
 SYSCTL_INT(_kern_geom, OID_AUTO, inflight_transient_maps, CTLFLAG_RD,
     &inflight_transient_maps, 0,
     "Current count of the active transient maps");
+SYSCTL_ULONG(_kern_geom, OID_AUTO, nomem_count, CTLFLAG_RD,
+    &nomem_count, 0,
+    "Total count of requests completed with status of ENOMEM");
+SYSCTL_ULONG(_kern_geom, OID_AUTO, pause_count, CTLFLAG_RD,
+    &pause_count, 0,
+    "Total count of requests stalled due to low memory in g_down");
 
 static int
 g_io_transient_map_bio(struct bio *bp)
@@ -822,6 +832,7 @@ g_io_schedule_down(struct thread *tp __unused)
 			 * for that I/O.
 			 */
 			CTR0(KTR_GEOM, "g_down pacing self");
+			pause_count++;		/* g_down has only one thread */
 			pause("g_down", min(hz/1000, 1));
 			pace = 0;
 		}
