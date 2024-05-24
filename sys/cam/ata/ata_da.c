@@ -2518,7 +2518,16 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 			error = ada_zone_cmd(periph, start_ccb, bp, &queue_ccb);
 			if ((error != 0)
 			 || (queue_ccb == 0)) {
+				/*
+				 * g_io_deliver will recurisvely call start
+				 * routine for ENOMEM, so drop the periph
+				 * lock to allow that recursion.
+				 */
+				if (error == ENOMEM)
+					cam_periph_unlock(periph);
 				biofinish(bp, NULL, error);
+				if (error == ENOMEM)
+					cam_periph_lock(periph);
 				xpt_release_ccb(start_ccb);
 				return;
 			}

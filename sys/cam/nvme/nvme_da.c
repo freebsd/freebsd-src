@@ -1077,7 +1077,17 @@ ndastart(struct cam_periph *periph, union ccb *start_ccb)
 
 			trim = malloc(sizeof(*trim), M_NVMEDA, M_ZERO | M_NOWAIT);
 			if (trim == NULL) {
+				/*
+				 * We have to drop the periph lock when
+				 * returning ENOMEM. g_io_deliver treats these
+				 * request differently and will recursively call
+				 * the start routine which causes us to get into
+				 * ndastrategy with the periph lock held,
+				 * leading to a panic when its acquired again.
+				 */
+				cam_periph_unlock(periph);
 				biofinish(bp, NULL, ENOMEM);
+				cam_periph_lock(periph);
 				xpt_release_ccb(start_ccb);
 				ndaschedule(periph);
 				return;
