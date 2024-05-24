@@ -809,20 +809,17 @@ g_io_schedule_down(struct thread *tp __unused)
 		biotrack(bp, __func__);
 		if (pace != 0) {
 			/*
-			 * There has been at least one memory allocation
-			 * failure since the last I/O completed. Pause 1ms to
-			 * give the system a chance to free up memory. We only
-			 * do this once because a large number of allocations
-			 * can fail in the direct dispatch case and there's no
-			 * relationship between the number of these failures and
-			 * the length of the outage. If there's still an outage,
-			 * we'll pause again and again until it's
-			 * resolved. Older versions paused longer and once per
-			 * allocation failure. This was OK for a single threaded
-			 * g_down, but with direct dispatch would lead to max of
-			 * 10 IOPs for minutes at a time when transient memory
-			 * issues prevented allocation for a batch of requests
-			 * from the upper layers.
+			 * There has been at least one memory allocation failure
+			 * since the last I/O completed. Pause 1ms to give the
+			 * system a chance to free up memory. Pause time is not
+			 * scaled to the number of I/O failures since they tend
+			 * to cluster and the number is not predictive of how
+			 * long a pause is needed.
+			 *
+			 * Older versions had a longer pause, which limited the
+			 * IOPS to 10, which prolonged memory shortages that could
+			 * be alleviated by I/O completing since it eliminated
+			 * direct dispatch as well.
 			 *
 			 * XXX This pacing is really lame. It needs to be solved
 			 * by other methods. This is OK only because the worst
@@ -833,7 +830,7 @@ g_io_schedule_down(struct thread *tp __unused)
 			 */
 			CTR0(KTR_GEOM, "g_down pacing self");
 			pause_count++;		/* g_down has only one thread */
-			pause("g_down", min(hz/1000, 1));
+			pause_sbt("g_down", SBT_1MS, 0, 0);
 			pace = 0;
 		}
 		CTR2(KTR_GEOM, "g_down processing bp %p provider %s", bp,
