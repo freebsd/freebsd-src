@@ -490,7 +490,7 @@ _sctp=		sctp
 _if_stf=	if_stf
 .endif
 
-.if ${MK_INET_SUPPORT} != "no" || defined(ALL_MODULES)
+.if (${KERN_OPTS:MINET} && ${MK_INET_SUPPORT} != "no") || defined(ALL_MODULES)
 _if_me=		if_me
 _ipfw=		ipfw
 .if ${MK_INET6_SUPPORT} != "no" || defined(ALL_MODULES)
