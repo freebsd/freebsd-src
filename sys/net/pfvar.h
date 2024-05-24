@@ -2474,7 +2474,7 @@ void			 pf_init_keth(struct pf_keth_ruleset *);
 int			 pf_kanchor_setup(struct pf_krule *,
 			    const struct pf_kruleset *, const char *);
 int			 pf_kanchor_copyout(const struct pf_kruleset *,
-			    const struct pf_krule *, char *);
+			    const struct pf_krule *, char *, size_t);
 int			 pf_kanchor_nvcopyout(const struct pf_kruleset *,
 			    const struct pf_krule *, nvlist_t *);
 void			 pf_kanchor_remove(struct pf_krule *);
