@@ -32,6 +32,7 @@
 #include <sys/param.h>
 #include <sys/bio.h>
 #include <sys/bus.h>
+#include <sys/counter.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -317,6 +318,9 @@ struct nvme_controller {
 	bus_dmamap_t			hmb_desc_map;
 	struct nvme_hmb_desc		*hmb_desc_vaddr;
 	uint64_t			hmb_desc_paddr;
+
+	/* Statistics */
+	counter_u64_t			alignment_splits;
 };
 
 #define nvme_mmio_offsetof(reg)						       \
