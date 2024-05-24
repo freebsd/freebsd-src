@@ -737,7 +737,6 @@ sysbeep(int pitch __unused, sbintime_t duration __unused)
 /*
  * Temporary support for sc(4) to vt(4) transition.
  */
-static unsigned vty_prefer;
 static char vty_name[16];
 SYSCTL_STRING(_kern, OID_AUTO, vty, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, vty_name,
     0, "Console vty driver");
@@ -762,10 +761,6 @@ vty_enabled(unsigned vty)
 				break;
 			}
 #endif
-			if (vty_prefer != 0) {
-				vty_selected = vty_prefer;
-				break;
-			}
 #if defined(DEV_VT)
 			vty_selected = VTY_VT;
 #elif defined(DEV_SC)
@@ -779,17 +774,4 @@ vty_enabled(unsigned vty)
 			strcpy(vty_name, "sc");
 	}
 	return ((vty_selected & vty) != 0);
-}
-
-void
-vty_set_preferred(unsigned vty)
-{
-
-	vty_prefer = vty;
-#if !defined(DEV_SC)
-	vty_prefer &= ~VTY_SC;
-#endif
-#if !defined(DEV_VT)
-	vty_prefer &= ~VTY_VT;
-#endif
 }
