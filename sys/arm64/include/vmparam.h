@@ -233,7 +233,6 @@
 extern vm_paddr_t dmap_phys_base;
 extern vm_paddr_t dmap_phys_max;
 extern vm_offset_t dmap_max_addr;
-extern vm_offset_t vm_max_kernel_address;
 
 #endif
 
