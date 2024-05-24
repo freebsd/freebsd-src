@@ -71,16 +71,6 @@ struct md_page {
 	vm_memattr_t		pv_memattr;
 };
 
-/*
- * This structure is used to hold a virtual<->physical address
- * association and is used mostly by bootstrap code
- */
-struct pv_addr {
-	SLIST_ENTRY(pv_addr) pv_list;
-	vm_offset_t	pv_va;
-	vm_paddr_t	pv_pa;
-};
-
 enum pmap_stage {
 	PM_INVALID,
 	PM_STAGE1,
