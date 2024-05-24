@@ -58,6 +58,37 @@ pr183198_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "pr279225" "cleanup"
+pr279225_head()
+{
+	atf_set descr "Test that we can retrieve longer anchor names, PR 279225"
+	atf_set require.user root
+}
+
+pr279225_body()
+{
+	pft_init
+
+	vnet_mkjail alcatraz
+
+	pft_set_rules alcatraz \
+		"nat-anchor \"appjail-nat/jail/*\" all" \
+		"rdr-anchor \"appjail-rdr/*\" all" \
+		"anchor \"appjail/jail/*\" all"
+
+	atf_check -s exit:0 -o match:"nat-anchor \"appjail-nat/jail/\*\" all \{" \
+		jexec alcatraz pfctl -sn -a "*"
+	atf_check -s exit:0 -o match:"rdr-anchor \"appjail-rdr/\*\" all \{" \
+		jexec alcatraz pfctl -sn -a "*"
+	atf_check -s exit:0 -o match:"anchor \"appjail/jail/\*\" all \{" \
+		jexec alcatraz pfctl -sr -a "*"
+}
+
+pr279225_cleanup()
+{
+	pft_cleanup
+}
+
 atf_test_case "nested_anchor" "cleanup"
 nested_anchor_head()
 {
@@ -167,6 +198,7 @@ nested_label_cleanup()
 atf_init_test_cases()
 {
 	atf_add_test_case "pr183198"
+	atf_add_test_case "pr279225"
 	atf_add_test_case "nested_anchor"
 	atf_add_test_case "wildcard"
 	atf_add_test_case "nested_label"
