@@ -54,6 +54,7 @@
 #include <x86/include/busdma_impl.h>
 #include <x86/iommu/intel_reg.h>
 #include <dev/iommu/busdma_iommu.h>
+#include <x86/iommu/x86_iommu.h>
 #include <x86/iommu/intel_dmar.h>
 
 /*

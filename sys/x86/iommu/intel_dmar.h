@@ -238,16 +238,11 @@ iommu_gaddr_t pglvl_page_size(int total_pglvl, int lvl);
 iommu_gaddr_t domain_page_size(struct dmar_domain *domain, int lvl);
 int calc_am(struct dmar_unit *unit, iommu_gaddr_t base, iommu_gaddr_t size,
     iommu_gaddr_t *isizep);
-struct vm_page *dmar_pgalloc(vm_object_t obj, vm_pindex_t idx, int flags);
-void dmar_pgfree(vm_object_t obj, vm_pindex_t idx, int flags);
-void *dmar_map_pgtbl(vm_object_t obj, vm_pindex_t idx, int flags,
-    struct sf_buf **sf);
-void dmar_unmap_pgtbl(struct sf_buf *sf);
 int dmar_load_root_entry_ptr(struct dmar_unit *unit);
 int dmar_inv_ctx_glob(struct dmar_unit *unit);
 int dmar_inv_iotlb_glob(struct dmar_unit *unit);
 int dmar_flush_write_bufs(struct dmar_unit *unit);
-void dmar_flush_pte_to_ram(struct dmar_unit *unit, dmar_pte_t *dst);
+void dmar_flush_pte_to_ram(struct dmar_unit *unit, iommu_pte_t *dst);
 void dmar_flush_ctx_to_ram(struct dmar_unit *unit, dmar_ctx_entry_t *dst);
 void dmar_flush_root_to_ram(struct dmar_unit *unit, dmar_root_entry_t *dst);
 int dmar_disable_protected_regions(struct dmar_unit *unit);
@@ -315,9 +310,7 @@ void dmar_quirks_pre_use(struct iommu_unit *dmar);
 int dmar_init_irt(struct dmar_unit *unit);
 void dmar_fini_irt(struct dmar_unit *unit);
 
-extern iommu_haddr_t dmar_high;
 extern int haw;
-extern int dmar_tbl_pagecnt;
 extern int dmar_batch_coalesce;
 extern int dmar_rmrr_enable;
 

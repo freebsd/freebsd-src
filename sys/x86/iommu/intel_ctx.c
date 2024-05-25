@@ -65,6 +65,7 @@
 #include <x86/include/busdma_impl.h>
 #include <dev/iommu/busdma_iommu.h>
 #include <x86/iommu/intel_reg.h>
+#include <x86/iommu/x86_iommu.h>
 #include <x86/iommu/intel_dmar.h>
 
 static MALLOC_DEFINE(M_DMAR_CTX, "dmar_ctx", "Intel DMAR Context");
@@ -84,7 +85,7 @@ dmar_ensure_ctx_page(struct dmar_unit *dmar, int bus)
 	/*
 	 * Allocated context page must be linked.
 	 */
-	ctxm = dmar_pgalloc(dmar->ctx_obj, 1 + bus, IOMMU_PGF_NOALLOC);
+	ctxm = iommu_pgalloc(dmar->ctx_obj, 1 + bus, IOMMU_PGF_NOALLOC);
 	if (ctxm != NULL)
 		return;
 
@@ -95,14 +96,14 @@ dmar_ensure_ctx_page(struct dmar_unit *dmar, int bus)
 	 * threads are equal.
 	 */
 	TD_PREP_PINNED_ASSERT;
-	ctxm = dmar_pgalloc(dmar->ctx_obj, 1 + bus, IOMMU_PGF_ZERO |
+	ctxm = iommu_pgalloc(dmar->ctx_obj, 1 + bus, IOMMU_PGF_ZERO |
 	    IOMMU_PGF_WAITOK);
-	re = dmar_map_pgtbl(dmar->ctx_obj, 0, IOMMU_PGF_NOALLOC, &sf);
+	re = iommu_map_pgtbl(dmar->ctx_obj, 0, IOMMU_PGF_NOALLOC, &sf);
 	re += bus;
 	dmar_pte_store(&re->r1, DMAR_ROOT_R1_P | (DMAR_ROOT_R1_CTP_MASK &
 	    VM_PAGE_TO_PHYS(ctxm)));
 	dmar_flush_root_to_ram(dmar, re);
-	dmar_unmap_pgtbl(sf);
+	iommu_unmap_pgtbl(sf);
 	TD_PINNED_ASSERT;
 }
 
@@ -114,7 +115,7 @@ dmar_map_ctx_entry(struct dmar_ctx *ctx, struct sf_buf **sfp)
 
 	dmar = CTX2DMAR(ctx);
 
-	ctxp = dmar_map_pgtbl(dmar->ctx_obj, 1 + PCI_RID2BUS(ctx->context.rid),
+	ctxp = iommu_map_pgtbl(dmar->ctx_obj, 1 + PCI_RID2BUS(ctx->context.rid),
 	    IOMMU_PGF_NOALLOC | IOMMU_PGF_WAITOK, sfp);
 	ctxp += ctx->context.rid & 0xff;
 	return (ctxp);
@@ -186,7 +187,7 @@ ctx_id_entry_init(struct dmar_ctx *ctx, dmar_ctx_entry_t *ctxp, bool move,
 		    ("ctx %p non-null pgtbl_obj", ctx));
 		ctx_root = NULL;
 	} else {
-		ctx_root = dmar_pgalloc(domain->pgtbl_obj, 0,
+		ctx_root = iommu_pgalloc(domain->pgtbl_obj, 0,
 		    IOMMU_PGF_NOALLOC);
 	}
 
@@ -272,7 +273,7 @@ domain_init_rmrr(struct dmar_domain *domain, device_t dev, int bus,
 				    "region (%jx, %jx) corrected\n",
 				    domain->iodom.iommu->unit, start, end);
 			}
-			entry->end += DMAR_PAGE_SIZE * 0x20;
+			entry->end += IOMMU_PAGE_SIZE * 0x20;
 		}
 		size = OFF_TO_IDX(entry->end - entry->start);
 		ma = malloc(sizeof(vm_page_t) * size, M_TEMP, M_WAITOK);
@@ -601,9 +602,9 @@ dmar_get_ctx_for_dev1(struct dmar_unit *dmar, device_t dev, uint16_t rid,
 				    func, rid, domain->domain, domain->mgaw,
 				    domain->agaw, id_mapped ? "id" : "re");
 			}
-			dmar_unmap_pgtbl(sf);
+			iommu_unmap_pgtbl(sf);
 		} else {
-			dmar_unmap_pgtbl(sf);
+			iommu_unmap_pgtbl(sf);
 			dmar_domain_destroy(domain1);
 			/* Nothing needs to be done to destroy ctx1. */
 			free(ctx1, M_DMAR_CTX);
@@ -703,7 +704,7 @@ dmar_move_ctx_to_domain(struct dmar_domain *domain, struct dmar_ctx *ctx)
 	ctx->context.domain = &domain->iodom;
 	dmar_ctx_link(ctx);
 	ctx_id_entry_init(ctx, ctxp, true, PCI_BUSMAX + 100);
-	dmar_unmap_pgtbl(sf);
+	iommu_unmap_pgtbl(sf);
 	error = dmar_flush_for_ctx_entry(dmar, true);
 	/* If flush failed, rolling back would not work as well. */
 	printf("dmar%d rid %x domain %d->%d %s-mapped\n",
@@ -787,7 +788,7 @@ dmar_free_ctx_locked(struct dmar_unit *dmar, struct dmar_ctx *ctx)
 	if (ctx->refs > 1) {
 		ctx->refs--;
 		DMAR_UNLOCK(dmar);
-		dmar_unmap_pgtbl(sf);
+		iommu_unmap_pgtbl(sf);
 		TD_PINNED_ASSERT;
 		return;
 	}
@@ -809,7 +810,7 @@ dmar_free_ctx_locked(struct dmar_unit *dmar, struct dmar_ctx *ctx)
 		else
 			dmar_inv_iotlb_glob(dmar);
 	}
-	dmar_unmap_pgtbl(sf);
+	iommu_unmap_pgtbl(sf);
 	domain = CTX2DOM(ctx);
 	dmar_ctx_unlink(ctx);
 	free(ctx->context.tag, M_DMAR_CTX);

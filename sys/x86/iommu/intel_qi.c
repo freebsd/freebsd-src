@@ -55,6 +55,7 @@
 #include <x86/include/busdma_impl.h>
 #include <dev/iommu/busdma_iommu.h>
 #include <x86/iommu/intel_reg.h>
+#include <x86/iommu/x86_iommu.h>
 #include <x86/iommu/intel_dmar.h>
 
 static bool
@@ -501,7 +502,7 @@ dmar_init_qi(struct dmar_unit *unit)
 
 	/* The invalidation queue reads by DMARs are always coherent. */
 	unit->inv_queue = kmem_alloc_contig(unit->inv_queue_size, M_WAITOK |
-	    M_ZERO, 0, dmar_high, PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
+	    M_ZERO, 0, iommu_high, PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
 	unit->inv_waitd_seq_hw_phys = pmap_kextract(
 	    (vm_offset_t)&unit->inv_waitd_seq_hw);
 

@@ -54,6 +54,7 @@
 #include <x86/include/busdma_impl.h>
 #include <dev/iommu/busdma_iommu.h>
 #include <x86/iommu/intel_reg.h>
+#include <x86/iommu/x86_iommu.h>
 #include <x86/iommu/intel_dmar.h>
 #include <x86/iommu/iommu_intrmap.h>
 
@@ -340,7 +341,7 @@ dmar_init_irt(struct dmar_unit *unit)
 	}
 	unit->irte_cnt = clp2(num_io_irqs);
 	unit->irt = kmem_alloc_contig(unit->irte_cnt * sizeof(dmar_irte_t),
-	    M_ZERO | M_WAITOK, 0, dmar_high, PAGE_SIZE, 0,
+	    M_ZERO | M_WAITOK, 0, iommu_high, PAGE_SIZE, 0,
 	    DMAR_IS_COHERENT(unit) ?
 	    VM_MEMATTR_DEFAULT : VM_MEMATTR_UNCACHEABLE);
 	if (unit->irt == NULL)

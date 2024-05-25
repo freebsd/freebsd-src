@@ -63,6 +63,7 @@
 #include <x86/include/busdma_impl.h>
 #include <dev/iommu/busdma_iommu.h>
 #include <x86/iommu/intel_reg.h>
+#include <x86/iommu/x86_iommu.h>
 #include <x86/iommu/intel_dmar.h>
 
 u_int
@@ -182,7 +183,7 @@ pglvl_max_pages(int pglvl)
 	int i;
 
 	for (res = 0, i = pglvl; i > 0; i--) {
-		res *= DMAR_NPTEPG;
+		res *= IOMMU_NPTEPG;
 		res++;
 	}
 	return (res);
@@ -213,12 +214,12 @@ pglvl_page_size(int total_pglvl, int lvl)
 {
 	int rlvl;
 	static const iommu_gaddr_t pg_sz[] = {
-		(iommu_gaddr_t)DMAR_PAGE_SIZE,
-		(iommu_gaddr_t)DMAR_PAGE_SIZE << DMAR_NPTEPGSHIFT,
-		(iommu_gaddr_t)DMAR_PAGE_SIZE << (2 * DMAR_NPTEPGSHIFT),
-		(iommu_gaddr_t)DMAR_PAGE_SIZE << (3 * DMAR_NPTEPGSHIFT),
-		(iommu_gaddr_t)DMAR_PAGE_SIZE << (4 * DMAR_NPTEPGSHIFT),
-		(iommu_gaddr_t)DMAR_PAGE_SIZE << (5 * DMAR_NPTEPGSHIFT)
+		(iommu_gaddr_t)IOMMU_PAGE_SIZE,
+		(iommu_gaddr_t)IOMMU_PAGE_SIZE << IOMMU_NPTEPGSHIFT,
+		(iommu_gaddr_t)IOMMU_PAGE_SIZE << (2 * IOMMU_NPTEPGSHIFT),
+		(iommu_gaddr_t)IOMMU_PAGE_SIZE << (3 * IOMMU_NPTEPGSHIFT),
+		(iommu_gaddr_t)IOMMU_PAGE_SIZE << (4 * IOMMU_NPTEPGSHIFT),
+		(iommu_gaddr_t)IOMMU_PAGE_SIZE << (5 * IOMMU_NPTEPGSHIFT),
 	};
 
 	KASSERT(lvl >= 0 && lvl < total_pglvl,
@@ -243,7 +244,7 @@ calc_am(struct dmar_unit *unit, iommu_gaddr_t base, iommu_gaddr_t size,
 	int am;
 
 	for (am = DMAR_CAP_MAMV(unit->hw_cap);; am--) {
-		isize = 1ULL << (am + DMAR_PAGE_SHIFT);
+		isize = 1ULL << (am + IOMMU_PAGE_SHIFT);
 		if ((base & (isize - 1)) == 0 && size >= isize)
 			break;
 		if (am == 0)
@@ -253,112 +254,8 @@ calc_am(struct dmar_unit *unit, iommu_gaddr_t base, iommu_gaddr_t size,
 	return (am);
 }
 
-iommu_haddr_t dmar_high;
 int haw;
 int dmar_tbl_pagecnt;
-
-vm_page_t
-dmar_pgalloc(vm_object_t obj, vm_pindex_t idx, int flags)
-{
-	vm_page_t m;
-	int zeroed, aflags;
-
-	zeroed = (flags & IOMMU_PGF_ZERO) != 0 ? VM_ALLOC_ZERO : 0;
-	aflags = zeroed | VM_ALLOC_NOBUSY | VM_ALLOC_SYSTEM | VM_ALLOC_NODUMP |
-	    ((flags & IOMMU_PGF_WAITOK) != 0 ? VM_ALLOC_WAITFAIL :
-	    VM_ALLOC_NOWAIT);
-	for (;;) {
-		if ((flags & IOMMU_PGF_OBJL) == 0)
-			VM_OBJECT_WLOCK(obj);
-		m = vm_page_lookup(obj, idx);
-		if ((flags & IOMMU_PGF_NOALLOC) != 0 || m != NULL) {
-			if ((flags & IOMMU_PGF_OBJL) == 0)
-				VM_OBJECT_WUNLOCK(obj);
-			break;
-		}
-		m = vm_page_alloc_contig(obj, idx, aflags, 1, 0,
-		    dmar_high, PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
-		if ((flags & IOMMU_PGF_OBJL) == 0)
-			VM_OBJECT_WUNLOCK(obj);
-		if (m != NULL) {
-			if (zeroed && (m->flags & PG_ZERO) == 0)
-				pmap_zero_page(m);
-			atomic_add_int(&dmar_tbl_pagecnt, 1);
-			break;
-		}
-		if ((flags & IOMMU_PGF_WAITOK) == 0)
-			break;
-	}
-	return (m);
-}
-
-void
-dmar_pgfree(vm_object_t obj, vm_pindex_t idx, int flags)
-{
-	vm_page_t m;
-
-	if ((flags & IOMMU_PGF_OBJL) == 0)
-		VM_OBJECT_WLOCK(obj);
-	m = vm_page_grab(obj, idx, VM_ALLOC_NOCREAT);
-	if (m != NULL) {
-		vm_page_free(m);
-		atomic_subtract_int(&dmar_tbl_pagecnt, 1);
-	}
-	if ((flags & IOMMU_PGF_OBJL) == 0)
-		VM_OBJECT_WUNLOCK(obj);
-}
-
-void *
-dmar_map_pgtbl(vm_object_t obj, vm_pindex_t idx, int flags,
-    struct sf_buf **sf)
-{
-	vm_page_t m;
-	bool allocated;
-
-	if ((flags & IOMMU_PGF_OBJL) == 0)
-		VM_OBJECT_WLOCK(obj);
-	m = vm_page_lookup(obj, idx);
-	if (m == NULL && (flags & IOMMU_PGF_ALLOC) != 0) {
-		m = dmar_pgalloc(obj, idx, flags | IOMMU_PGF_OBJL);
-		allocated = true;
-	} else
-		allocated = false;
-	if (m == NULL) {
-		if ((flags & IOMMU_PGF_OBJL) == 0)
-			VM_OBJECT_WUNLOCK(obj);
-		return (NULL);
-	}
-	/* Sleepable allocations cannot fail. */
-	if ((flags & IOMMU_PGF_WAITOK) != 0)
-		VM_OBJECT_WUNLOCK(obj);
-	sched_pin();
-	*sf = sf_buf_alloc(m, SFB_CPUPRIVATE | ((flags & IOMMU_PGF_WAITOK)
-	    == 0 ? SFB_NOWAIT : 0));
-	if (*sf == NULL) {
-		sched_unpin();
-		if (allocated) {
-			VM_OBJECT_ASSERT_WLOCKED(obj);
-			dmar_pgfree(obj, m->pindex, flags | IOMMU_PGF_OBJL);
-		}
-		if ((flags & IOMMU_PGF_OBJL) == 0)
-			VM_OBJECT_WUNLOCK(obj);
-		return (NULL);
-	}
-	if ((flags & (IOMMU_PGF_WAITOK | IOMMU_PGF_OBJL)) ==
-	    (IOMMU_PGF_WAITOK | IOMMU_PGF_OBJL))
-		VM_OBJECT_WLOCK(obj);
-	else if ((flags & (IOMMU_PGF_WAITOK | IOMMU_PGF_OBJL)) == 0)
-		VM_OBJECT_WUNLOCK(obj);
-	return ((void *)sf_buf_kva(*sf));
-}
-
-void
-dmar_unmap_pgtbl(struct sf_buf *sf)
-{
-
-	sf_buf_free(sf);
-	sched_unpin();
-}
 
 static void
 dmar_flush_transl_to_ram(struct dmar_unit *unit, void *dst, size_t sz)
@@ -374,7 +271,7 @@ dmar_flush_transl_to_ram(struct dmar_unit *unit, void *dst, size_t sz)
 }
 
 void
-dmar_flush_pte_to_ram(struct dmar_unit *unit, dmar_pte_t *dst)
+dmar_flush_pte_to_ram(struct dmar_unit *unit, iommu_pte_t *dst)
 {
 
 	dmar_flush_transl_to_ram(unit, dst, sizeof(*dst));
@@ -686,11 +583,6 @@ dmar_timeout_sysctl(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-static SYSCTL_NODE(_hw_iommu, OID_AUTO, dmar, CTLFLAG_RD | CTLFLAG_MPSAFE,
-    NULL, "");
-SYSCTL_INT(_hw_iommu_dmar, OID_AUTO, tbl_pagecnt, CTLFLAG_RD,
-    &dmar_tbl_pagecnt, 0,
-    "Count of pages used for DMAR pagetables");
 SYSCTL_INT(_hw_iommu_dmar, OID_AUTO, batch_coalesce, CTLFLAG_RWTUN,
     &dmar_batch_coalesce, 0,
     "Number of qi batches between interrupt");
