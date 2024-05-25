@@ -352,6 +352,7 @@ x86/iommu/intel_intrmap.c	optional	acpi iommu pci
 x86/iommu/intel_qi.c		optional	acpi iommu pci
 x86/iommu/intel_quirks.c	optional	acpi iommu pci
 x86/iommu/intel_utils.c		optional	acpi iommu pci
+x86/iommu/iommu_utils.c		optional	acpi iommu pci
 x86/isa/atrtc.c			standard
 x86/isa/clock.c			standard
 x86/isa/isa.c			optional	isa

@@ -67,6 +67,7 @@
 #include <x86/include/busdma_impl.h>
 #include <dev/iommu/busdma_iommu.h>
 #include <x86/iommu/intel_reg.h>
+#include <x86/iommu/x86_iommu.h>
 #include <x86/iommu/intel_dmar.h>
 
 #ifdef DEV_APIC
@@ -179,9 +180,9 @@ dmar_identify(driver_t *driver, device_t parent)
 		return;
 	haw = dmartbl->Width + 1;
 	if ((1ULL << (haw + 1)) > BUS_SPACE_MAXADDR)
-		dmar_high = BUS_SPACE_MAXADDR;
+		iommu_high = BUS_SPACE_MAXADDR;
 	else
-		dmar_high = 1ULL << (haw + 1);
+		iommu_high = 1ULL << (haw + 1);
 	if (bootverbose) {
 		printf("DMAR HAW=%d flags=<%b>\n", dmartbl->Width,
 		    (unsigned)dmartbl->Flags,
@@ -490,7 +491,7 @@ dmar_attach(device_t dev)
 	 * address translation after the required invalidations are
 	 * done.
 	 */
-	dmar_pgalloc(unit->ctx_obj, 0, IOMMU_PGF_WAITOK | IOMMU_PGF_ZERO);
+	iommu_pgalloc(unit->ctx_obj, 0, IOMMU_PGF_WAITOK | IOMMU_PGF_ZERO);
 	DMAR_LOCK(unit);
 	error = dmar_load_root_entry_ptr(unit);
 	if (error != 0) {
