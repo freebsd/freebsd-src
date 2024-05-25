@@ -135,7 +135,6 @@ DRIVER_MODULE(usbus, octusb, usb_driver, 0, 0);
 
 /* Dual Mode Drivers */
 DRIVER_MODULE(usbus, dwcotg, usb_driver, 0, 0);
-DRIVER_MODULE(usbus, saf1761otg, usb_driver, 0, 0);
 
 /*------------------------------------------------------------------------*
  *	usb_probe
