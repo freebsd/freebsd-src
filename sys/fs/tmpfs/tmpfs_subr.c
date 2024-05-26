@@ -349,7 +349,7 @@ tmpfs_node_init(void *mem, int size, int flags)
 
 	node = mem;
 	node->tn_id = 0;
-	mtx_init(&node->tn_interlock, "tmpfsni", NULL, MTX_DEF);
+	mtx_init(&node->tn_interlock, "tmpfsni", NULL, MTX_DEF | MTX_NEW);
 	node->tn_gen = arc4random();
 	return (0);
 }
