@@ -2523,7 +2523,7 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 	 * If we haven't booted yet we need allocations to go through the
 	 * startup cache until the vm is ready.
 	 */
-#ifdef UMA_MD_SMALL_ALLOC
+#ifdef UMA_USE_DMAP
 	if (keg->uk_ppera == 1)
 		keg->uk_allocf = uma_small_alloc;
 	else
@@ -2536,7 +2536,7 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 		keg->uk_allocf = contig_alloc;
 	else
 		keg->uk_allocf = page_alloc;
-#ifdef UMA_MD_SMALL_ALLOC
+#ifdef UMA_USE_DMAP
 	if (keg->uk_ppera == 1)
 		keg->uk_freef = uma_small_free;
 	else
@@ -5221,7 +5221,7 @@ uma_zone_reserve_kva(uma_zone_t zone, int count)
 	keg->uk_kva = kva;
 	keg->uk_offset = 0;
 	zone->uz_max_items = pages * keg->uk_ipers;
-#ifdef UMA_MD_SMALL_ALLOC
+#ifdef UMA_USE_DMAP
 	keg->uk_allocf = (keg->uk_ppera > 1) ? noobj_alloc : uma_small_alloc;
 #else
 	keg->uk_allocf = noobj_alloc;
