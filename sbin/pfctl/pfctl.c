@@ -2035,7 +2035,7 @@ pfctl_load_rule(struct pfctl *pf, char *path, struct pfctl_rule *r, int depth)
 	if ((pf->opts & PF_OPT_NOACTION) == 0) {
 		if (pfctl_add_pool(pf, &r->rpool, r->af))
 			return (1);
-		error = pfctl_add_rule(pf->dev, r, anchor, name, ticket,
+		error = pfctl_add_rule_h(pf->h, r, anchor, name, ticket,
 		    pf->paddr.ticket);
 		switch (error) {
 		case 0:
