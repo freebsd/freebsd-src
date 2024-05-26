@@ -36,7 +36,7 @@
 #include <sys/cdefs.h>
 #include <stdlib.h>
 
-#ifdef __GLIBC__
+#ifdef __linux__
 extern const char *__progname;
 const char *
 getprogname(void)
@@ -48,4 +48,4 @@ setprogname(const char *progname)
 {
 	__progname = progname;
 }
-#endif /* __GLIBC__ */
+#endif /* __linux__ */
