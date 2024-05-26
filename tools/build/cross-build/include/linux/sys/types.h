@@ -37,6 +37,13 @@
 
 #include_next <sys/types.h>
 
+/*
+ * stddef.h for both gcc and clang will define __size_t when size_t has
+ * been defined (except on *BSD where it doesn't touch __size_t). So if
+ * we're building on Linux, we know that if that's not defined, we have
+ * to typedef __size_t for FreeBSD's use of __size_t in places to work
+ * during bootstrapping.
+ */
 #ifndef __size_t
 typedef __SIZE_TYPE__ __size_t;
 #endif
