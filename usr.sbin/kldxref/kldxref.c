@@ -745,7 +745,7 @@ usage(void)
 }
 
 static int
-#if defined(__GLIBC__) || defined(__APPLE__)
+#if defined(__linux__) || defined(__APPLE__)
 compare(const FTSENT **a, const FTSENT **b)
 #else
 compare(const FTSENT *const *a, const FTSENT *const *b)
