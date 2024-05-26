@@ -45,3 +45,5 @@
  * let's use 32 since that will work across all systems
  */
 #define MAXLOGNAME 33 /* max login name length (incl. NUL) */
+
+#include <sys/types.h>
