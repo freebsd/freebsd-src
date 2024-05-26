@@ -322,7 +322,7 @@ man_check_for_so() {
 	# We need to loop to accommodate multiple .so directives.
 	while true
 	do
-		line=$($cattool "$manpage" 2>/dev/null | head -n1)
+		line=$($cattool "$manpage" 2>/dev/null | grep -E -m1 -v '^\.\\"[ ]*|^[ ]*$')
 		case "$line" in
 		.so*)	trim "${line#.so}"
 			decho "$manpage includes $tstr"
