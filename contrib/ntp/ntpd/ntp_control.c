@@ -26,7 +26,6 @@
 #include "ntp_crypto.h"
 #include "ntp_assert.h"
 #include "ntp_leapsec.h"
-#include "lib_strbuf.h"
 #include "timexsup.h"
 
 #include <rc_cmdlength.h>
@@ -110,7 +109,7 @@ static	int	validate_nonce	(const char *, struct recvbuf *);
 static	void	req_nonce	(struct recvbuf *, int);
 static	void	unset_trap	(struct recvbuf *, int);
 static	struct ctl_trap *ctlfindtrap(sockaddr_u *,
-				     struct interface *);
+				     endpt *);
 
 int/*BOOL*/ is_safe_filename(const char * name);
 
@@ -804,7 +803,7 @@ static int	datalinelen;
 static int	datasent;	/* flag to avoid initial ", " */
 static int	datanotbinflag;
 static sockaddr_u *rmt_addr;
-static struct interface *lcl_inter;
+static endpt *lcl_inter;
 
 static u_char	res_authenticate;
 static u_char	res_authokay;
@@ -3179,8 +3178,8 @@ ctl_getitem(
 	    if (quiet_until <= current_time) {
 		    quiet_until = current_time + 300;
 		    msyslog(LOG_WARNING,
-			    "Possible 'ntpdx' exploit from %s#%u (possibly spoofed)",
-			    stoa(rmt_addr), SRCPORT(rmt_addr));
+			    "Possible 'ntpdx' exploit from %s (possibly spoofed)",
+			    sptoa(rmt_addr));
 	    }
 	reqpt = reqend; /* never again for this packet! */
 	return NULL;
@@ -3634,8 +3633,13 @@ static void configure(
 
 
 /*
- * derive_nonce - generate client-address-specific nonce value
- *		  associated with a given timestamp.
+ * derive_nonce - generate 32-bit nonce value derived from the client
+ *		  address and a request-specific timestamp.
+ *
+ * This uses MD5 for a non-authentication purpose -- the nonce is used
+ * analogous to the TCP 3-way handshake to confirm the UDP client can
+ * receive traffic from which it claims to originate, that is, to
+ * prevent spoofed requests leading to reflected amplification.
  */
 static u_int32 derive_nonce(
 	sockaddr_u *	addr,
@@ -3645,13 +3649,11 @@ static u_int32 derive_nonce(
 {
 	static u_int32	salt[4];
 	static u_long	last_salt_update;
+	MD5_CTX		ctx;
 	union d_tag {
-		u_char	digest[EVP_MAX_MD_SIZE];
+		u_char	digest[MD5_DIGEST_LENGTH];
 		u_int32 extract;
 	}		d;
-	EVP_MD_CTX	*ctx;
-	u_int		len;
-	int rc;
 
 	while (!salt[0] || current_time - last_salt_update >= 3600) {
 		salt[0] = ntp_random();
@@ -3661,32 +3663,18 @@ static u_int32 derive_nonce(
 		last_salt_update = current_time;
 	}
 
-	ctx = EVP_MD_CTX_new();
-#   if defined(OPENSSL) && defined(EVP_MD_CTX_FLAG_NON_FIPS_ALLOW)
-	/* [Bug 3457] set flags and don't kill them again */
-	EVP_MD_CTX_set_flags(ctx, EVP_MD_CTX_FLAG_NON_FIPS_ALLOW);
-	rc = EVP_DigestInit_ex(ctx, EVP_get_digestbynid(NID_md5), NULL);
-#   else
-	rc = EVP_DigestInit(ctx, EVP_get_digestbynid(NID_md5));
-#   endif
-	if (!rc) {
-		msyslog(LOG_ERR, "EVP_DigestInit failed in '%s'", __func__);
-		return (0);
+	MD5Init(&ctx);
+	MD5Update(&ctx, salt, sizeof(salt));
+	MD5Update(&ctx, &ts_i, sizeof(ts_i));
+	MD5Update(&ctx, &ts_f, sizeof(ts_f));
+	if (IS_IPV4(addr)) {
+		MD5Update(&ctx, &SOCK_ADDR4(addr), sizeof(SOCK_ADDR4(addr)));
+	} else {
+		MD5Update(&ctx, &SOCK_ADDR6(addr), sizeof(SOCK_ADDR6(addr)));
 	}
-
-	EVP_DigestUpdate(ctx, salt, sizeof(salt));
-	EVP_DigestUpdate(ctx, &ts_i, sizeof(ts_i));
-	EVP_DigestUpdate(ctx, &ts_f, sizeof(ts_f));
-	if (IS_IPV4(addr))
-		EVP_DigestUpdate(ctx, &SOCK_ADDR4(addr),
-			         sizeof(SOCK_ADDR4(addr)));
-	else
-		EVP_DigestUpdate(ctx, &SOCK_ADDR6(addr),
-			         sizeof(SOCK_ADDR6(addr)));
-	EVP_DigestUpdate(ctx, &NSRCPORT(addr), sizeof(NSRCPORT(addr)));
-	EVP_DigestUpdate(ctx, salt, sizeof(salt));
-	EVP_DigestFinal(ctx, d.digest, &len);
-	EVP_MD_CTX_free(ctx);
+	MD5Update(&ctx, &NSRCPORT(addr), sizeof(NSRCPORT(addr)));
+	MD5Update(&ctx, salt, sizeof(salt));
+	MD5Final(d.digest, &ctx);
 
 	return d.extract;
 }
@@ -3986,7 +3974,7 @@ static void read_mru_list(
 	int			mincount;
 	u_int			maxlstint;
 	sockaddr_u		laddr;
-	struct interface *	lcladr;
+	endpt *			lcladr;
 	u_int			count;
 	u_int			ui;
 	u_int			uf;
@@ -4787,7 +4775,7 @@ unset_trap(
 int
 ctlsettrap(
 	sockaddr_u *raddr,
-	struct interface *linter,
+	endpt *linter,
 	int traptype,
 	int version
 	)
@@ -4910,7 +4898,7 @@ ctlsettrap(
 int
 ctlclrtrap(
 	sockaddr_u *raddr,
-	struct interface *linter,
+	endpt *linter,
 	int traptype
 	)
 {
@@ -4935,7 +4923,7 @@ ctlclrtrap(
 static struct ctl_trap *
 ctlfindtrap(
 	sockaddr_u *raddr,
-	struct interface *linter
+	endpt *linter
 	)
 {
 	size_t	n;

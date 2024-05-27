@@ -23,67 +23,60 @@
 #  define CMAC_LENGTH	16
 #  define CMAC		"AES128CMAC"
 # endif /*HAVE_OPENSSL_CMAC_H*/
-int ssl_init_done;
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
+EVP_MD_CTX *digest_ctx;
+
 
 static void
 atexit_ssl_cleanup(void)
 {
-	if (!ssl_init_done) {
+	if (NULL == digest_ctx) {
 		return;
 	}
-
-	ssl_init_done = FALSE;
+	EVP_MD_CTX_free(digest_ctx);
+	digest_ctx = NULL;
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	EVP_cleanup();
 	ERR_free_strings();
+#endif	/* OpenSSL < 1.1 */
 }
+
 
 void
 ssl_init(void)
 {
 	init_lib();
 
-	if ( ! ssl_init_done) {
-	    ERR_load_crypto_strings();
-	    OpenSSL_add_all_algorithms();
-	    atexit(&atexit_ssl_cleanup);
-	    ssl_init_done = TRUE;
+	if (NULL == digest_ctx) {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+		ERR_load_crypto_strings();
+		OpenSSL_add_all_algorithms();
+#endif	/* OpenSSL < 1.1 */
+		digest_ctx = EVP_MD_CTX_new();
+		INSIST(digest_ctx != NULL);
+		atexit(&atexit_ssl_cleanup);
 	}
 }
-
-#else /* OPENSSL_VERSION_NUMBER >= 0x10100000L */
-
-void
-ssl_init(void)
-{
-	init_lib();
-	ssl_init_done = TRUE;
-}
-
-#endif /* OPENSSL_VERSION_NUMBER */
 
 
 void
 ssl_check_version(void)
 {
 	u_long	v;
+	char *  buf;
 
 	v = OpenSSL_version_num();
 	if ((v ^ OPENSSL_VERSION_NUMBER) & ~0xff0L) {
-		msyslog(LOG_WARNING,
-		    "OpenSSL version mismatch. Built against %lx, you have %lx",
-		    (u_long)OPENSSL_VERSION_NUMBER, v);
-		fprintf(stderr,
-		    "OpenSSL version mismatch. Built against %lx, you have %lx\n",
-		    (u_long)OPENSSL_VERSION_NUMBER, v);
+		LIB_GETBUF(buf);
+		snprintf(buf, LIB_BUFLENGTH, 
+			 "OpenSSL version mismatch."
+			 "Built against %lx, you have %lx\n",
+			 (u_long)OPENSSL_VERSION_NUMBER, v);
+		msyslog(LOG_WARNING, "%s", buf);
+		fputs(buf, stderr);
 	}
-
 	INIT_SSL();
 }
-
-#else	/* !OPENSSL */
-# define MD5_LENGTH	16
 #endif	/* OPENSSL */
 
 
@@ -102,7 +95,7 @@ keytype_from_text(
 	int		key_type;
 	u_int		digest_len;
 #ifdef OPENSSL	/* --*-- OpenSSL code --*-- */
-	const u_long	max_digest_len = MAX_MAC_LEN - sizeof(keyid_t);
+	const u_long	max_digest_len = MAX_MDG_LEN;
 	char *		upcased;
 	char *		pch;
 	EVP_MD const *	md;
@@ -204,7 +197,7 @@ keytype_from_text(
  */
 const char *
 keytype_name(
-	int nid
+	int type
 	)
 {
 	static const char unknown_type[] = "(unknown key type)";
@@ -212,23 +205,18 @@ keytype_name(
 
 #ifdef OPENSSL
 	INIT_SSL();
-	name = OBJ_nid2sn(nid);
+	name = OBJ_nid2sn(type);
 
 #   ifdef ENABLE_CMAC
-	if (NID_cmac == nid) {
+	if (NID_cmac == type) {
 		name = CMAC;
-
-		if (debug) {
-			fprintf(stderr, "%s:%d:%s():%s:nid\n",
-				__FILE__, __LINE__, __func__, CMAC);
-		}
 	} else
 #   endif /*ENABLE_CMAC*/
 	if (NULL == name) {
 		name = unknown_type;
 	}
 #else	/* !OPENSSL follows */
-	if (NID_md5 == nid)
+	if (NID_md5 == type)
 		name = "MD5";
 	else
 		name = unknown_type;
@@ -251,13 +239,13 @@ keytype_name(
  */
 char *
 getpass_keytype(
-	int	keytype
+	int	type
 	)
 {
 	char	pass_prompt[64 + 11 + 1]; /* 11 for " Password: " */
 
 	snprintf(pass_prompt, sizeof(pass_prompt),
-		 "%.64s Password: ", keytype_name(keytype));
+		 "%.64s Password: ", keytype_name(type));
 
 	return getpass(pass_prompt);
 }

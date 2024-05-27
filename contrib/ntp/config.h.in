@@ -496,9 +496,6 @@
 /* Define to 1 if the system has the type `int32'. */
 #undef HAVE_INT32
 
-/* int32 type in DNS headers, not others. */
-#undef HAVE_INT32_ONLY_WITH_DNS
-
 /* Define to 1 if the system has the type `int32_t'. */
 #undef HAVE_INT32_T
 
@@ -690,9 +687,6 @@
 
 /* Define to 1 if you have the <openssl/cmac.h> header file. */
 #undef HAVE_OPENSSL_CMAC_H
-
-/* Define to 1 if you have the <openssl/hmac.h> header file. */
-#undef HAVE_OPENSSL_HMAC_H
 
 /* Define to 1 if the system has the type `pid_t'. */
 #undef HAVE_PID_T
@@ -970,7 +964,7 @@
 /* Define to 1 if you have the <sysexits.h> header file. */
 #undef HAVE_SYSEXITS_H
 
-/* */
+/* syslog.h provides facilitynames */
 #undef HAVE_SYSLOG_FACILITYNAMES
 
 /* Define to 1 if you have the <sys/audioio.h> header file. */
@@ -1034,6 +1028,9 @@
 
 /* Define to 1 if you have the <sys/prctl.h> header file. */
 #undef HAVE_SYS_PRCTL_H
+
+/* Define to 1 if you have the <sys/procctl.h> header file. */
+#undef HAVE_SYS_PROCCTL_H
 
 /* Define to 1 if you have the <sys/procset.h> header file. */
 #undef HAVE_SYS_PROCSET_H
@@ -1220,9 +1217,6 @@
 
 /* Define to 1 if the system has the type `u_int32'. */
 #undef HAVE_U_INT32
-
-/* u_int32 type in DNS headers, not others. */
-#undef HAVE_U_INT32_ONLY_WITH_DNS
 
 /* Define to 1 if you have the <values.h> header file. */
 #undef HAVE_VALUES_H
@@ -1477,6 +1471,9 @@
 /* Use OpenSSL? */
 #undef OPENSSL
 
+/* Suppress OpenSSL 3 deprecation warnings */
+#undef OPENSSL_SUPPRESS_DEPRECATED
+
 /* Should we open the broadcast socket? */
 #undef OPEN_BCAST_SOCKET
 
@@ -1618,10 +1615,6 @@
 
 /* Is K_TICK_NAME in nanoseconds? */
 #undef TICK_NANO
-
-/* Define to 1 if you can safely include both <sys/time.h> and <time.h>. This
-   macro is obsolete. */
-#undef TIME_WITH_SYS_TIME
 
 /* Define to 1 if your <sys/time.h> declares `struct tm'. */
 #undef TM_IN_SYS_TIME
@@ -1820,15 +1813,8 @@ typedef unsigned int	uintptr_t;
 /* Define to `unsigned int' if <sys/types.h> does not define. */
 #undef size_t
 
-	
-	    #if !defined(_KERNEL) && !defined(PARSESTREAM)
-	    /*
-	     * stdio.h must be included after _GNU_SOURCE is defined
-	     * but before #define snprintf rpl_snprintf
-	     */
-	    # include <stdio.h>	
-	    #endif
-	
+	#include "c99_snprintf.h"
+    
 
 /* Define to rpl_snprintf if the replacement function should be used. */
 #undef snprintf
@@ -1887,3 +1873,15 @@ typedef union mpinfou {
 	# endif
 	#endif	/* !defined(_KERNEL) && !defined(PARSESTREAM) */
 	
+
+
+	/*
+	 * Macro to use in otherwise-empty source files to comply with ANSI C
+	 * requirement that each translation unit (source file) contain some
+	 * declaration.  This has commonly been done by declaring an unused
+	 * global variable of type int or char.  An extern reference to abs()
+	 * serves the same purpose without bloat.  We once used exit() but
+	 * that can produce warnings on systems that declare exit() noreturn.
+	 */
+	#define	NONEMPTY_TRANSLATION_UNIT	extern int abs(int);
+

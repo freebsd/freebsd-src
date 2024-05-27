@@ -1027,6 +1027,22 @@ rstclock(
 		    tc_counter));
 	if (trans != state && trans != EVNT_FSET)
 		report_event(trans, NULL, NULL);
+#ifdef HAVE_WORKING_FORK
+	if (trans != state && EVNT_SYNC == trans) {
+		/*
+		 * If our parent process is waiting for the
+		 * first clock sync, send them home satisfied.
+		 */
+		if (daemon_pipe[1] != -1) {
+			if (2 != write(daemon_pipe[1], "S\n", 2)) {
+				msyslog(LOG_ERR, "daemon failed to notify parent ntpd (--wait-sync)");
+			}
+			close(daemon_pipe[1]);
+			daemon_pipe[1] = -1;
+		}
+	}
+#endif /* HAVE_WORKING_FORK */
+
 	state = trans;
 	last_offset = clock_offset = offset;
 	clock_epoch = current_time;

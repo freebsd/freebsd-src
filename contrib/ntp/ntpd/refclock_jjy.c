@@ -4525,5 +4525,5 @@ printableString ( char *sOutput, int iOutputLen, const char *sInput, int iInputL
 /**************************************************************************************************/
 
 #else
-int refclock_jjy_bs ;
+NONEMPTY_TRANSLATION_UNIT
 #endif /* REFCLOCK */

@@ -331,5 +331,5 @@ fg_receive(
 
 
 #else
-int refclock_fg_bs;
+NONEMPTY_TRANSLATION_UNIT
 #endif /* REFCLOCK */

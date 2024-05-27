@@ -8,8 +8,7 @@ BUILT_SOURCES	+= check-libunity
 CLEANFILES	+= check-libunity
 
 check-libunity: $(top_builddir)/unity/libunity.a
-	 @: avoid default SCCS get by some make implementations
+	@echo stamp > $@
 
 $(top_builddir)/unity/libunity.a:
 	cd $(top_builddir)/unity && $(MAKE) $(AM_MAKEFLAGS) libunity.a
-

@@ -446,5 +446,5 @@ heath_poll(
 }
 
 #else
-int refclock_heath_bs;
+NONEMPTY_TRANSLATION_UNIT
 #endif /* REFCLOCK */

@@ -235,5 +235,5 @@ atom_poll(
 	refclock_receive(peer);
 }
 #else
-int refclock_atom_bs;
+NONEMPTY_TRANSLATION_UNIT
 #endif /* REFCLOCK */

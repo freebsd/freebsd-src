@@ -249,5 +249,5 @@ check_leap_sec(struct refclockproc *pp, int unit)
 }
 
 #else
-int	refclock_gpsvme_bs;
+NONEMPTY_TRANSLATION_UNIT
 #endif	/* REFCLOCK	*/

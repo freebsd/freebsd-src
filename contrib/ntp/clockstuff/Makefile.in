@@ -89,6 +89,7 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 EXTRA_PROGRAMS = propdelay$(EXEEXT) chutest$(EXEEXT)
+@LIBNTP_SUBMAKES_TRUE@am__append_1 = check-libntp
 subdir = clockstuff
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/sntp/libopts/m4/libopts.m4 \
@@ -384,6 +385,7 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_NET_SNMP_CONFIG = @PATH_NET_SNMP_CONFIG@
+PATH_OPENSSL = @PATH_OPENSSL@
 PATH_PERL = @PATH_PERL@
 PATH_RUBY = @PATH_RUBY@
 PATH_SEPARATOR = @PATH_SEPARATOR@
@@ -488,8 +490,8 @@ AM_CPPFLAGS = $(NTP_INCS) $(CPPFLAGS_NTP) $(NTP_HARD_CPPFLAGS)
 LDADD = ../libntp/libntp.a $(LDADD_LIBNTP) $(LIBM) $(PTHREAD_LIBS)
 AM_LDFLAGS = $(NTP_HARD_LDFLAGS)
 propdelay_LDADD = $(LDADD)
-BUILT_SOURCES = check-libntp .deps-ver
-CLEANFILES = check-libntp .deps-ver
+BUILT_SOURCES = $(am__append_1) .deps-ver
+CLEANFILES = .deps-ver
 DISTCLEANFILES = $(DEPDIR)/deps-ver
 NTP_INCS = -I$(top_srcdir)/include \
 	-I$(top_srcdir)/libntp/lib/isc/include \
@@ -809,11 +811,10 @@ uninstall-am:
 .PRECIOUS: Makefile
 
 
-check-libntp: $(top_builddir)/libntp/libntp.a
-	@: avoid default SCCS get by some make implementations
+.PHONY: check-libntp
 
-$(top_builddir)/libntp/libntp.a:
-	cd $(top_builddir)/libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
+@LIBNTP_SUBMAKES_TRUE@check-libntp:
+@LIBNTP_SUBMAKES_TRUE@	cd $(top_builddir)/libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
 $(DEPDIR)/deps-ver: $(top_srcdir)/deps-ver
 	@[ -f $@ ] ||							\
 		cp $(top_srcdir)/deps-ver $@
