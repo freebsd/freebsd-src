@@ -2362,23 +2362,21 @@ vm_pageout(void)
 {
 	struct proc *p;
 	struct thread *td;
-	int error, first, i, j, pageout_threads;
+	int error, i, j, pageout_threads;
 
 	p = curproc;
 	td = curthread;
 
 	mtx_init(&vm_oom_ratelim_mtx, "vmoomr", NULL, MTX_DEF);
 	swap_pager_swap_init();
-	for (first = -1, i = 0; i < vm_ndomains; i++) {
+	for (i = 0; i < vm_ndomains; i++) {
 		if (VM_DOMAIN_EMPTY(i)) {
 			if (bootverbose)
 				printf("domain %d empty; skipping pageout\n",
 				    i);
 			continue;
 		}
-		if (first == -1)
-			first = i;
-		else {
+		if (i != 0) {
 			error = kthread_add(vm_pageout_worker,
 			    (void *)(uintptr_t)i, p, NULL, 0, 0, "dom%d", i);
 			if (error != 0)
@@ -2403,8 +2401,8 @@ vm_pageout(void)
 	if (error != 0)
 		panic("starting uma_reclaim helper, error %d\n", error);
 
-	snprintf(td->td_name, sizeof(td->td_name), "dom%d", first);
-	vm_pageout_worker((void *)(uintptr_t)first);
+	snprintf(td->td_name, sizeof(td->td_name), "dom0");
+	vm_pageout_worker((void *)(uintptr_t)0);
 }
 
 /*
