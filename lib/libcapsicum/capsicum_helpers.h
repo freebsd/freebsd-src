@@ -133,8 +133,17 @@ caph_limit_stdio(void)
 static __inline void
 caph_cache_tzdata(void)
 {
+	time_t delta;
 
 	tzset();
+
+	/*
+	 * The tzset() function does not cache all time zones.
+	 * Some functions, such as gmtime(), require a GMT time zone.
+	 * The only way to cache them is to call the function directly.
+	 */
+	delta = 0;
+	(void)gmtime(&delta);
 }
 
 static __inline void
