@@ -82,10 +82,6 @@ distribution:
 		mail/aliases ${DESTDIR}/etc/aliases; \
 	fi
 .endif
-.if ${MK_LOCATE} != "no"
-	${INSTALL} -o nobody -g ${BINGRP} -m 644 -T "package=runtime"\
-	    /dev/null ${DESTDIR}/var/db/locate.database
-.endif
 	cd ${.CURDIR}/..; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 		-T "package=runtime" ${FREEBSD} ${DESTDIR}/
 .if ${MK_BOOT} != "no"
