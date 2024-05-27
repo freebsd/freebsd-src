@@ -101,16 +101,6 @@
 #include "recvbuff.h"
 #include "ntp_cmdargs.h"
 
-#if 0				/* HMS: I don't think we need this. 961223 */
-#ifdef LOCK_PROCESS
-# ifdef SYS_SOLARIS
-#  include <sys/mman.h>
-# else
-#  include <sys/lock.h>
-# endif
-#endif
-#endif
-
 #ifdef SYS_WINNT
 # include "ntservice.h"
 #endif
@@ -144,6 +134,13 @@
 # include <sys/resource.h>
 # include <seccomp.h>
 #endif /* LIBSECCOMP and KERN_SECCOMP */
+
+#if defined(__FreeBSD__) &&  __FreeBSD_version < 1400037 && defined(HAVE_SYS_PROCCTL_H)
+# include <sys/procctl.h>
+# ifdef PROC_STACKGAP_DISABLE
+#  define DISABLE_FREEBSD_STACKGAP
+# endif
+#endif
 
 #ifdef HAVE_DNSREGISTRATION
 # include <dns_sd.h>
@@ -427,6 +424,24 @@ main(
 	char *argv[]
 	)
 {
+# ifdef DISABLE_FREEBSD_STACKGAP
+	/*
+	* We must disable ASLR stack gap on FreeBSD that has
+	* PROC_STACKGAP_DISABLE up through early FreeBSD 14
+	* versions to avoid a segfault. See:
+	* 
+	* https://bugs.ntp.org/3627
+	* https://cgit.freebsd.org/src/commit/?id=889b56c8cd84c9a9f2d9e3b019c154d6f14d9021
+	* https://cgit.freebsd.org/src/commit/?id=fc393054398ea50fb0cee52704e9385afe888b48
+	* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=253208
+	* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=241421
+	* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=241960
+	*/
+	int aslr_var = PROC_STACKGAP_DISABLE;
+
+	procctl(P_PID, getpid(), PROC_STACKGAP_CTL, &aslr_var);
+# endif	/* DISABLE_FREEBSD_STACKGAP */
+
 	return ntpdmain(argc, argv);
 }
 #endif /* !SYS_WINNT */
@@ -560,7 +575,7 @@ set_process_priority(void)
 # ifdef HAVE_WORKING_FORK
 static void
 detach_from_terminal(
-	int pipe[2],
+	int pipes[2],
 	long wait_sync,
 	const char *logfilename
 	)
@@ -581,11 +596,10 @@ detach_from_terminal(
 			msyslog(LOG_ERR, "fork: %m");
 			exit_code = EX_OSERR;
 		} else {
-			close(pipe[1]);
-			pipe[1] = -1;
+			close(pipes[1]);
+			pipes[1] = -1;
 			exit_code = wait_child_sync_if(
-					pipe[0], wait_sync);
-			DPRINTF(1, ("sync_if: rc=%d\n", exit_code));
+					pipes[0], wait_sync);
 			if (exit_code <= 0) {
 				/* probe daemon exit code -- wait for
 				 * child process if we have an unexpected
@@ -593,7 +607,6 @@ detach_from_terminal(
 				 */
 				exit_code = wait_child_exit_if(
 						cpid, (exit_code < 0));
-				DPRINTF(1, ("exit_if: rc=%d\n", exit_code));
 			}
 		}
 		exit(exit_code);
@@ -610,8 +623,8 @@ detach_from_terminal(
 		syslog_file = NULL;
 		syslogit = TRUE;
 	}
-	close_all_except(pipe[1]);
-	pipe[0] = -1;
+	close_all_except(pipes[1]);
+	pipes[0] = -1;
 	INSIST(0 == open("/dev/null", 0) && 1 == dup2(0, 1) \
 		&& 2 == dup2(0, 2));
 
@@ -655,6 +668,7 @@ detach_from_terminal(
 	return;
 }
 # endif /* HAVE_WORKING_FORK */
+#endif /* !SIM && !SYS_WINNT */
 
 #ifdef HAVE_DROPROOT
 /*
@@ -793,7 +807,6 @@ set_user_group_ids(void)
 	return 1;
 }
 #endif /* HAVE_DROPROOT */
-#endif /* !SIM */
 
 /*
  * Main program.  Initialize us, disconnect us from the tty if necessary,
@@ -892,9 +905,12 @@ ntpdmain(
 	msyslog(LOG_NOTICE, "available at https://www.nwtime.org/support");
 	msyslog(LOG_NOTICE, "----------------------------------------------------");
 #ifdef DEBUG
-	msyslog(LOG_NOTICE, "DEBUG behavior is enabled - a violation of any");
-	msyslog(LOG_NOTICE, "diagnostic assertion will cause %s to abort", progname);
+	msyslog(LOG_NOTICE, "DEBUG behavior is enabled - a violation of any"
+			    " diagnostic assertion will cause %s to abort", 
+			    progname);
 #endif
+
+	ssl_check_version();
 
 	/*
 	 * Install trap handlers to log errors and assertion failures.
@@ -1267,11 +1283,10 @@ ntpdmain(
 		 * is associated with running with uid 0 - should be refined on
 		 * ports that allow binding to NTP_PORT with uid != 0
 		 */
-		disable_dynamic_updates |= (sw_uid != 0);  /* also notifies routing message listener */
+		scan_addrs_once |= (sw_uid != 0);  /* used by routing socket code */
 #  endif /* !HAVE_LINUX_CAPABILITIES && !HAVE_SOLARIS_PRIVS */
 
-		if (disable_dynamic_updates && interface_interval) {
-			interface_interval = 0;
+		if (scan_addrs_once) {
 			msyslog(LOG_INFO, "running as non-root disables dynamic interface tracking");
 		}
 
@@ -1285,9 +1300,9 @@ ntpdmain(
 			cap_t caps;
 			char *captext;
 			
-			captext = (0 != interface_interval)
-				      ? "cap_sys_time,cap_net_bind_service=pe"
-				      : "cap_sys_time=pe";
+			captext = (scan_addrs_once)
+				    ? "cap_sys_time=pe"
+				    : "cap_sys_time,cap_net_bind_service=pe";
 			caps = cap_from_text(captext);
 			if (!caps) {
 				msyslog(LOG_ERR,
@@ -1424,10 +1439,9 @@ int scmp_sc[] = {
 	}
 #endif /* LIBSECCOMP and KERN_SECCOMP */
 
-#if defined(SYS_WINNT)
 	ntservice_isup();
-#elif defined(HAVE_WORKING_FORK)
-	if (daemon_pipe[1] != -1) {
+#if defined(HAVE_WORKING_FORK)
+	if (daemon_pipe[1] != -1 && 0 == wait_sync) {
 		if (2 != write(daemon_pipe[1], "R\n", 2)) {
 			msyslog(LOG_ERR, "daemon failed to notify parent ntpd after init");
 		}
@@ -1435,6 +1449,10 @@ int scmp_sc[] = {
 		daemon_pipe[1] = -1;
 	}
 #endif /* HAVE_WORKING_FORK */
+
+	if (scan_addrs_once || no_periodic_scan) {
+		endpt_scan_timer = 0;
+	}
 
 # ifndef HAVE_IO_COMPLETION_PORT
 	BLOCK_IO_AND_ALARM();
@@ -1674,29 +1692,31 @@ wait_child_sync_if(
 		}
 		rc = read(pipe_read_fd, &ch, 1);
 		if (rc == 0) {
-			DPRINTF(2, ("daemon control: got EOF\n"));
+			/* DPRINTF is useless here as -d/-D disable forking */
+			fprintf(stderr, "daemon control: got EOF\n");
 			return -1;	/* unexpected EOF, check daemon */
 		} else if (rc == 1) {
-			DPRINTF(2, ("daemon control: got '%c'\n",
-				    (ch >= ' ' ? ch : '.')));
-			if (ch == 'R' && !wait_sync)
+			if (   ('S' == ch && wait_sync > 0)
+			    || ('R' == ch && 0 == wait_sync)) {
 				return 0;
-			if (ch == 'S' && wait_sync)
-				return 0;
+			}
 		} else {
-			DPRINTF(2, ("daemon control: read 1 char failed: %s\n",
-				    strerror(errno)));
+			mfprintf(stderr, "%s: daemon control: read 1 char failed: %m\n",
+				 progname);
+			msyslog(LOG_ERR, "daemon control: read 1 char failed: %m");
 			return EX_IOERR;
 		}
 	} while (wait_rem > 0);
 
-	if (wait_sync) {
+	if (wait_sync > 0) {
 		fprintf(stderr, "%s: -w/--wait-sync %ld timed out.\n",
 			progname, wait_sync);
+		msyslog(LOG_ERR, "-w/--wait-sync %ld timed out.", wait_sync);
 		return EX_PROTOCOL;
 	} else {
 		fprintf(stderr, "%s: daemon startup monitoring timed out.\n",
 			progname);
+		msyslog(LOG_ERR, "daemon startup monitoring timed out.");
 		return 0;
 	}
 }
@@ -1712,7 +1732,6 @@ wait_child_exit_if(
 	int	rc = 0;
 	int	wstatus;
 	if (cpid == waitpid(cpid, &wstatus, (blocking ? 0 : WNOHANG))) {
-		DPRINTF(1, ("child (pid=%d) dead now\n", cpid));
 		if (WIFEXITED(wstatus)) {
 			rc = WEXITSTATUS(wstatus);
 			msyslog(LOG_ERR, "daemon child exited with code %d",
@@ -1725,8 +1744,6 @@ wait_child_exit_if(
 			rc = EX_SOFTWARE;
 			msyslog(LOG_ERR, "daemon child died with unknown cause");
 		}
-	} else {
-		DPRINTF(1, ("child (pid=%d) still alive\n", cpid));
 	}
 	return rc;
 #    else

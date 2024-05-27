@@ -266,5 +266,5 @@ byte_swap(unsigned int input_num)
 }
 
 #else
-int refclock_tt560_bs;
+NONEMPTY_TRANSLATION_UNIT
 #endif /* REFCLOCK */

@@ -93,41 +93,54 @@ initialise_buffer(recvbuf_t *buff)
 
 static void
 create_buffers(
-	size_t		nbufs)
+	size_t			nbufs
+)
 {
+	static const u_int	chunk =
 #   ifndef DEBUG
-	static const u_int chunk = RECV_INC;
+					RECV_INC;
 #   else
 	/* Allocate each buffer individually so they can be free()d
 	 * during ntpd shutdown on DEBUG builds to keep them out of heap
 	 * leak reports.
 	 */
-	static const u_int chunk = 1;
+					1;
 #   endif
-
-	register recvbuf_t *bufp;
-	u_int i;
-	size_t abuf;
+	static int/*BOOL*/	doneonce;
+	recvbuf_t *		bufp;
+	u_int			i;
+	size_t			abuf;
 
 	/*[bug 3666]: followup -- reset shortfalls in all cases */
 	abuf = nbufs + buffer_shortfall;
 	buffer_shortfall = 0;
 
-	if (limit_recvbufs <= total_recvbufs)
+	if (limit_recvbufs <= total_recvbufs) {
+		if (!doneonce) {
+			msyslog(LOG_CRIT, "Unable to allocate receive"
+					  " buffer, %lu/%lu",
+				total_recvbufs, limit_recvbufs);
+			doneonce = TRUE;
+		}
 		return;
-	
-	if (abuf < nbufs || abuf > RECV_BATCH)
+	}
+
+	if (abuf < nbufs || abuf > RECV_BATCH) {
 		abuf = RECV_BATCH;	/* clamp on overflow */
-	else
+	} else {
 		abuf += (~abuf + 1) & (RECV_INC - 1);	/* round up */
-	
-	if (abuf > (limit_recvbufs - total_recvbufs))
+	}
+	if (abuf > (limit_recvbufs - total_recvbufs)) {
 		abuf = limit_recvbufs - total_recvbufs;
+	}
 	abuf += (~abuf + 1) & (chunk - 1);		/* round up */
 	
 	while (abuf) {
 		bufp = calloc(chunk, sizeof(*bufp));
 		if (!bufp) {
+			msyslog(LOG_CRIT, "Out of memory, allocating "
+					  "%u recvbufs, %lu bytes",
+				chunk, (u_long)sizeof(*bufp) * chunk);
 			limit_recvbufs = total_recvbufs;
 			break;
 		}

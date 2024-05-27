@@ -252,7 +252,7 @@ inp_varitext(
 }
 
 #else /* not (REFCLOCK && CLOCK_PARSE && CLOCK_VARITEXT) */
-int clk_varitext_bs;
+NONEMPTY_TRANSLATION_UNIT
 #endif /* not (REFCLOCK && CLOCK_PARSE && CLOCK_VARITEXT) */
 
 /*

@@ -72,8 +72,6 @@ static int  refclock_cmpl_fp (const void *, const void *);
 static int  refclock_sample (struct refclockproc *);
 static int  refclock_ioctl(int, u_int);
 static void refclock_checkburst(struct peer *, struct refclockproc *);
-static int  symBaud2numBaud(int symBaud);
-static int  numBaud2symBaud(int numBaud);
 
 /* circular buffer functions
  *
@@ -841,9 +839,9 @@ refclock_fdwrite(
 		} else if (nret != len) {
 			nerr = errno;
 			msyslog(LOG_NOTICE,
-				"%s: %s shortened, fd=%d, wrote %zu of %zu bytes",
+				"%s: %s shortened, fd=%d, wrote %u of %u bytes",
 				refnumtoa(&peer->srcadr), what,
-				fd, nret, len);
+				fd, (u_int)nret, (u_int)len);
 			errno = nerr;
 		}
 	}
@@ -1651,7 +1649,7 @@ refclock_pps(
  * -------------------------------------------------------------------
  */
 
-int/*BOOL*/
+int
 refclock_ppsaugment(
 	const struct refclock_atom * ap	    ,	/* for PPS io	  */
 	l_fp 			   * rcvtime ,
@@ -1826,10 +1824,11 @@ refclock_vformat_lcode(
 	long len;
 
 	len = vsnprintf(pp->a_lastcode, sizeof(pp->a_lastcode), fmt, va);
-	if (len <= 0)
+	if (len <= 0) {
 		len = 0;
-	else if (len >= sizeof(pp->a_lastcode))
+	} else if (len >= sizeof(pp->a_lastcode)) {
 		len = sizeof(pp->a_lastcode) - 1;
+	}
 
 	pp->lencode = (u_short)len;
 	pp->a_lastcode[len] = '\0';
@@ -1850,47 +1849,4 @@ refclock_format_lcode(
 	va_end(va);
 }
 
-static const int baudTable[][2] = {
-	{B0, 0},
-	{B50, 50},
-	{B75, 75},
-	{B110, 110},
-	{B134, 134},
-	{B150, 150},
-	{B200, 200},
-	{B300, 300},
-	{B600, 600},
-	{B1200, 1200},
-	{B1800, 1800},
-	{B2400, 2400},
-	{B4800, 4800},
-	{B9600, 9600},
-	{B19200, 19200},
-	{B38400, 38400},
-#   ifdef B57600
-	{B57600, 57600 },
-#   endif
-#   ifdef B115200
-	{B115200, 115200},
-#   endif
-	{-1, -1}
-};
-    
-
-static int  symBaud2numBaud(int symBaud)
-{
-	int i;
-	for (i = 0; baudTable[i][1] >= 0; ++i)
-		if (baudTable[i][0] == symBaud)
-			break;
-	return baudTable[i][1];
-}
-static int  numBaud2symBaud(int numBaud)
-{
-	int i;
-	for (i = 0; baudTable[i][1] >= 0; ++i)
-		if (baudTable[i][1] == numBaud)
-			break;
-	return baudTable[i][0];
-}
-#endif /* REFCLOCK */
+#endif	/* REFCLOCK */

@@ -13,37 +13,15 @@
 #include <sys/stat.h>
 #include <ctype.h>
 
-#include "ntp_types.h"
-#include "ntp_fp.h"
+#include "ntp.h"
 #include "ntp_stdlib.h"
 #include "ntp_calendar.h"
 #include "ntp_leapsec.h"
-#include "ntp.h"
 #include "vint64ops.h"
-#include "lib_strbuf.h"
 
 #include "isc/sha1.h"
 
 static const char * const logPrefix = "leapsecond file";
-
-/* ---------------------------------------------------------------------
- * GCC is rather sticky with its 'const' attribute. We have to do it more
- * explicit than with a cast if we want to get rid of a CONST qualifier.
- * Greetings from the PASCAL world, where casting was only possible via
- * untagged unions...
- */
-static inline void*
-noconst(
-	const void* ptr
-	)
-{
-	union {
-		const void * cp;
-		void *       vp;
-	} tmp;
-	tmp.cp = ptr;
-	return tmp.vp;
-}
 
 /* ---------------------------------------------------------------------
  * Our internal data structure
@@ -84,18 +62,20 @@ static leap_table_t _ltab[2], *_lptr;
 static int/*BOOL*/  _electric;
 
 /* Forward decls of local helpers */
-static int    add_range(leap_table_t*, const leap_info_t*);
-static char * get_line(leapsec_reader, void*, char*, size_t);
-static char * skipws(const char*);
-static int    parsefail(const char * cp, const char * ep);
-static void   reload_limits(leap_table_t*, const vint64*);
-static void   fetch_leap_era(leap_era_t*, const leap_table_t*,
-			     const vint64*);
-static int    betweenu32(uint32_t, uint32_t, uint32_t);
-static void   reset_times(leap_table_t*);
-static int    leapsec_add(leap_table_t*, const vint64*, int);
-static int    leapsec_raw(leap_table_t*, const vint64 *, int, int);
-static const char * lstostr(const vint64 * ts);
+static int		add_range	(leap_table_t *, const leap_info_t *);
+static char *		get_line	(leapsec_reader, void *, char *,
+					 size_t);
+static inline char *	skipws		(char *ptr);
+static int		parsefail	(const char *cp, const char *ep);
+static void		reload_limits	(leap_table_t *, const vint64 *);
+static void		fetch_leap_era	(leap_era_t *, const leap_table_t *,
+					 const vint64 *);
+static int		betweenu32	(u_int32, u_int32, u_int32);
+static void		reset_times	(leap_table_t *);
+static int		leapsec_add	(leap_table_t *, const vint64 *, int);
+static int		leapsec_raw	(leap_table_t *, const vint64 *, int,
+					 int);
+static const char *	lstostr		(const vint64 *ts);
 
 /* =====================================================================
  * Get & Set the current leap table
@@ -178,13 +158,13 @@ leapsec_clear(
  */
 int/*BOOL*/
 leapsec_load(
-	leap_table_t * pt  ,
-	leapsec_reader func,
-	void *         farg,
-	int            use_build_limit)
+	leap_table_t *	pt,
+	leapsec_reader	func,
+	void *		farg,
+	int		use_build_limit
+	)
 {
-	char const	*ep;
-	char		*cp, *endp, linebuf[50];
+	char		*cp, *ep, *endp, linebuf[50];
 	vint64		ttime, limit;
 	long		taiof;
 	struct calendar	build;
@@ -415,7 +395,7 @@ leapsec_reset_frame(void)
 }
 
 /* ------------------------------------------------------------------ */
-/* load a file from a FILE pointer. Note: If hcheck is true, load
+/* load a file from a FILE pointer. Note: If vhash is true, load
  * only after successful signature check. The stream must be seekable
  * or this will fail.
  */
@@ -433,7 +413,7 @@ leapsec_load_stream(
 		fname = "<unknown>";
 
 	if (vhash) {
-		rcheck = leapsec_validate((leapsec_reader)getc, ifp);
+		rcheck = leapsec_validate((leapsec_reader)&getc, ifp);
 		if (logall)
 			switch (rcheck)
 			{
@@ -822,13 +802,15 @@ get_line(
 }
 
 /* [internal] skips whitespace characters from a character buffer. */
-static char *
+static inline char *
 skipws(
-	const char *ptr)
+	char *	ptr
+	)
 {
-	while (isspace((u_char)*ptr))
+	while (isspace((u_char)*ptr)) {
 		ptr++;
-	return (char*)noconst(ptr);
+	}
+	return ptr;
 }
 
 /* [internal] check if a strtoXYZ ended at EOL or whitespace and
@@ -887,7 +869,7 @@ reload_limits(
 
 		if (_electric)
 			pt->head.dtime = pt->head.ttime;
-                else
+		else
 			pt->head.dtime = addv64i32(
 				&pt->head.ttime,
 				pt->head.next_tai - pt->head.this_tai);

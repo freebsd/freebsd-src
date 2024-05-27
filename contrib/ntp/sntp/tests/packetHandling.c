@@ -72,26 +72,36 @@ test_GenerateUnauthenticatedPacket(void)
 void
 test_GenerateAuthenticatedPacket(void)
 {
-	static const int EXPECTED_PKTLEN = LEN_PKT_NOMAC + MAX_MD5_LEN;
-	
+#ifdef OPENSSL
+
+	const int EXPECTED_PKTLEN = LEN_PKT_NOMAC + MAX_SHAKE128_LEN;
+
 	struct key	testkey;
 	struct pkt	testpkt;
 	struct timeval	xmt;
 	l_fp		expected_xmt, actual_xmt;
-	char 		expected_mac[MAX_MD5_LEN];
-	
+	const char key[] = "123456789";
+	size_t		mac_sz;
+	const u_char 	expected_mac[] = {
+				0x46, 0x79, 0x81, 0x6b,
+				0x22, 0xe3, 0xa7, 0xaf,
+				0x1d, 0x63, 0x20, 0xfb,
+				0xc7, 0xd6, 0x87, 0x2c
+			};
+
 	testkey.next = NULL;
 	testkey.key_id = 30;
-	testkey.key_len = 9;
-	memcpy(testkey.key_seq, "123456789", testkey.key_len);
-	strlcpy(testkey.typen, "MD5", sizeof(testkey.typen));
+	strlcpy(testkey.key_seq, key, sizeof(testkey.key_seq));
+	testkey.key_len = strlen(testkey.key_seq);
+	strlcpy(testkey.typen, "SHAKE128", sizeof(testkey.typen));
 	testkey.typei = keytype_from_text(testkey.typen, NULL);
 
-	GETTIMEOFDAY(&xmt, NULL);
-	xmt.tv_sec += JAN_1970;
+	xmt.tv_sec = JAN_1970;
+	xmt.tv_usec = 0;
 
 	TEST_ASSERT_EQUAL(EXPECTED_PKTLEN,
-			  generate_pkt(&testpkt, &xmt, testkey.key_id, &testkey));
+			  generate_pkt(&testpkt, &xmt, testkey.key_id,
+			  &testkey));
 
 	TEST_ASSERT_EQUAL(LEAP_NOTINSYNC, PKT_LEAP(testpkt.li_vn_mode));
 	TEST_ASSERT_EQUAL(NTP_VERSION, PKT_VERSION(testpkt.li_vn_mode));
@@ -105,10 +115,20 @@ test_GenerateAuthenticatedPacket(void)
 	TEST_ASSERT_TRUE(LfpEquality(expected_xmt, actual_xmt));
 
 	TEST_ASSERT_EQUAL(testkey.key_id, ntohl(testpkt.exten[0]));
-	
-	TEST_ASSERT_EQUAL(MAX_MD5_LEN - 4, /* Remove the key_id, only keep the mac. */
-			  make_mac(&testpkt, LEN_PKT_NOMAC, MAX_MD5_LEN-4, &testkey, expected_mac));
-	TEST_ASSERT_EQUAL_MEMORY(expected_mac, (char*)&testpkt.exten[1], MAX_MD5_LEN -4);
+
+	TEST_ASSERT_EQUAL(sizeof(expected_mac), SHAKE128_LENGTH);
+ 	mac_sz = make_mac(&testpkt, LEN_PKT_NOMAC, &testkey,
+			  &testpkt.exten[1], MAX_MDG_LEN);
+	TEST_ASSERT_EQUAL(mac_sz, SHAKE128_LENGTH);
+
+	TEST_ASSERT_EQUAL_MEMORY(expected_mac, (void *)&testpkt.exten[1],
+				 SHAKE128_LENGTH);
+
+#else	/* !OPENSSL follows */
+
+	TEST_IGNORE_MESSAGE("OpenSSL not found, skipping...");
+
+#endif
 }
 
 
@@ -169,7 +189,7 @@ test_OffsetCalculationNegativeOffset(void)
 	rpkt.precision = -1;
 	rpkt.rootdelay = HTONS_FP(DTOUFP(0.5));
 	rpkt.rootdisp = HTONS_FP(DTOUFP(0.5));
-	
+
 	/* Synch Distance is (0.5+0.5)/2.0, or 0.5 */
 	get_systime(&reftime);
 	HTONL_FP(&reftime, &rpkt.reftime);

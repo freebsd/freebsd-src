@@ -29,8 +29,8 @@
       <dd>Marks the reference clock as preferred. All other things being equal, this host will be chosen for synchronization among a set of correctly operating hosts. See the <a href="prefer.html">Mitigation Rules and the <tt>prefer</tt> Keyword</a> page for further information.</dd>
       <dt><tt>mode <i>int</i></tt></dt>
       <dd>Specifies a mode number which is interpreted in a device-specific fashion. For instance, it selects a dialing protocol in the ACTS driver and a device subtype in the <tt>parse</tt> drivers.</dd>
-      <dt><tt>minpoll <i>int</i></tt><br>
-        <tt>maxpoll <i>int</i></tt></dt>
+      <dt><tt>minpoll <i>int</i></tt></dt>
+      <dt><tt>maxpoll <i>int</i></tt></dt>
       <dd>These options specify the minimum and maximum polling interval for reference clock messages in log<sub>2</sub> seconds. For most directly connected reference clocks, both <tt>minpoll</tt> and <tt>maxpoll</tt> default to 6 (64 s). For modem reference clocks, <tt>minpoll</tt> is ordinarily set to 10 (about 17 m) and <tt>maxpoll</tt> to  15 (about 9 h). The allowable range is 4 (16 s) to 17 (36 h) inclusive.</dd>
     </dl>
   </dd>
@@ -48,7 +48,10 @@
       <dd>Specifies the stratum number assigned to the driver in the range 0 to 15, inclusive. This number overrides the default stratum number ordinarily assigned by the driver itself, usually zero.</dd>
       <dt><tt>refid <i>string</i></tt></dt>
       <dd>Specifies an ASCII string of from one to four characters which defines the reference identifier used by the driver. This string overrides the default identifier ordinarily assigned by the driver itself.</dd>
-      <dt><tt>flag1 flag2 flag3 flag4</tt></dt>
+      <dt><tt>flag1 0|1</tt></dt>
+      <dt><tt>flag2 0|1</tt></dt>
+      <dt><tt>flag3 0|1</tt></dt>
+      <dt><tt>flag4 0|1</tt></dt>
       <dd>These four flags are used for customizing the clock driver. The interpretation of these values, and whether they are used at all, is a function of the particular  driver. However, by convention <tt>flag4</tt> is used to enable recording monitoring data to the <tt>clockstats</tt> file configured with the <tt>filegen</tt> command. Additional information on the <tt>filegen</tt> command is on the <a href="monopt.html">Monitoring Options</a> page.</dd>
       <dt><tt>minjitter <i>secs</i></tt></dt>
       <dd>If the source has a jitter that cannot be sensibly estimated, because

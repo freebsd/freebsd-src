@@ -1635,5 +1635,5 @@ mx4200_send(peer, fmt, va_alist)
 }
 
 #else
-int refclock_mx4200_bs;
+NONEMPTY_TRANSLATION_UNIT
 #endif /* REFCLOCK */
