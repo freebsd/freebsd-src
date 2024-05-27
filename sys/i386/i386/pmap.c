@@ -952,7 +952,8 @@ pmap_ptelist_init(vm_offset_t *head, void *base, int npages)
 
 /*
  *	Initialize the pmap module.
- *	Called by vm_init, to initialize any structures that the pmap
+ *
+ *	Called by vm_mem_init(), to initialize any structures that the pmap
  *	system needs to map virtual memory.
  */
 static void

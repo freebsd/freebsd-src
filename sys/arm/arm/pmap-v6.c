@@ -1705,8 +1705,9 @@ pmap_pt2pg_init(pmap_t pmap, vm_offset_t va, vm_page_t m)
 
 /*
  *  Initialize the pmap module.
- *  Called by vm_init, to initialize any structures that the pmap
- *  system needs to map virtual memory.
+ *
+ *  Called by vm_mem_init(), to initialize any structures that the pmap system
+ *  needs to map virtual memory.
  */
 void
 pmap_init(void)

@@ -759,7 +759,8 @@ pmap_page_init(vm_page_t m)
 
 /*
  *	Initialize the pmap module.
- *	Called by vm_init, to initialize any structures that the pmap
+ *
+ *	Called by vm_mem_init(), to initialize any structures that the pmap
  *	system needs to map virtual memory.
  */
 void
