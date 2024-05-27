@@ -99,6 +99,7 @@ static struct wsp_tuning {
 	int	pressure_tap_threshold;
 	int	scr_hor_threshold;
 	int	enable_single_tap_clicks;
+	int	enable_single_tap_movement;
 }
 	wsp_tuning =
 {
@@ -110,6 +111,7 @@ static struct wsp_tuning {
 	.pressure_tap_threshold = 120,
 	.scr_hor_threshold = 20,
 	.enable_single_tap_clicks = 1,
+	.enable_single_tap_movement = 1,
 };
 
 static void
@@ -123,6 +125,7 @@ wsp_runing_rangecheck(struct wsp_tuning *ptun)
 	WSP_CLAMP(ptun->pressure_tap_threshold, 1, 255);
 	WSP_CLAMP(ptun->scr_hor_threshold, 1, 255);
 	WSP_CLAMP(ptun->enable_single_tap_clicks, 0, 1);
+	WSP_CLAMP(ptun->enable_single_tap_movement, 0, 1);
 }
 
 SYSCTL_INT(_hw_usb_wsp, OID_AUTO, scale_factor, CTLFLAG_RWTUN,
@@ -141,6 +144,9 @@ SYSCTL_INT(_hw_usb_wsp, OID_AUTO, scr_hor_threshold, CTLFLAG_RWTUN,
     &wsp_tuning.scr_hor_threshold, 0, "horizontal scrolling threshold");
 SYSCTL_INT(_hw_usb_wsp, OID_AUTO, enable_single_tap_clicks, CTLFLAG_RWTUN,
     &wsp_tuning.enable_single_tap_clicks, 0, "enable single tap clicks");
+SYSCTL_INT(_hw_usb_wsp, OID_AUTO, enable_single_tap_movement, CTLFLAG_RWTUN,
+    &wsp_tuning.enable_single_tap_movement, 0, "enable single tap movement");
+
 
 /*
  * Some tables, structures, definitions and constant values for the
@@ -1149,8 +1155,8 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				dx = sc->pos_x[0] - sc->pre_pos_x;
 				dy = sc->pos_y[0] - sc->pre_pos_y;
 
-				/* Ignore movement during button is releasing */
-				if (sc->ibtn != 0 && sc->sc_status.button == 0)
+				/* Optionally ignore movement during button is releasing */
+				if (tun.enable_single_tap_movement != 1 && sc->ibtn != 0 && sc->sc_status.button == 0)
 					dx = dy = 0;
 
 				/* Ignore movement if ntouch changed */
