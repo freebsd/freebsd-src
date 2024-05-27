@@ -101,7 +101,7 @@ static void vm_mem_init(void *);
 SYSINIT(vm_mem, SI_SUB_VM, SI_ORDER_FIRST, vm_mem_init, NULL);
 
 /*
- *	vm_init initializes the virtual memory system.
+ *	vm_mem_init() initializes the virtual memory system.
  *	This is done only by the first cpu up.
  */
 static void
