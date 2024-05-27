@@ -1587,7 +1587,7 @@ rpl_asprintf(va_alist) va_dcl
 }
 #endif	/* HW_WANT_RPL_ASPRINTF */
 #else	/* Dummy declaration to avoid empty translation unit warnings. */
-int main(void);
+NONEMPTY_TRANSLATION_UNIT
 #endif	/* HW_WANT_RPL_SNPRINTF || HW_WANT_RPL_VSNPRINTF || HW_WANT_RPL_ASPRINTF || [...] */
 
 #if TEST_SNPRINTF

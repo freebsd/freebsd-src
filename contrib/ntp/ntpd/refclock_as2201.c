@@ -385,5 +385,5 @@ as2201_poll(
 }
 
 #else
-int refclock_as2201_bs;
+NONEMPTY_TRANSLATION_UNIT
 #endif /* REFCLOCK */

@@ -97,6 +97,7 @@ build_triplet = @build@
 host_triplet = @host@
 EXTRA_PROGRAMS = check_y2k$(EXEEXT) keyword-gen$(EXEEXT) ntpd$(EXEEXT) \
 	ntpdsim$(EXEEXT)
+@LIBNTP_SUBMAKES_TRUE@am__append_1 = check-libntp
 subdir = ntpd
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/sntp/libopts/m4/libopts.m4 \
@@ -551,6 +552,7 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_NET_SNMP_CONFIG = @PATH_NET_SNMP_CONFIG@
+PATH_OPENSSL = @PATH_OPENSSL@
 PATH_PERL = @PATH_PERL@
 PATH_RUBY = @PATH_RUBY@
 PATH_SEPARATOR = @PATH_SEPARATOR@
@@ -688,8 +690,8 @@ B_S_DIST = \
 	$(NULL)
 
 BUILT_SOURCES = $(VPHACK) $(LIBPARSE) ntp_parser.c ntp_parser.h \
-	$(VPHACK_AFTER) $(B_S_DIST) $(NULL) check-libopts check-libntp \
-	.deps-ver
+	$(VPHACK_AFTER) $(B_S_DIST) $(NULL) check-libopts \
+	$(am__append_1) .deps-ver
 man1_MANS = 
 man5_MANS = ntp.conf.5 ntp.keys.5
 man8_MANS = 
@@ -708,7 +710,7 @@ CLEANFILES = check-psl0 check-psl1 check-psl2 check-pslsaveconfig \
 	psl0save.conf psl0save.conf+ psl1save.conf psl1save.conf+ \
 	psl2save.conf psl2save.conf+ .version version.c ntpd-version.c \
 	sim-version.c $(EXTRA_PROGRAMS) $(NULL) check-libopts \
-	check-libntp .deps-ver
+	.deps-ver
 EXTRA_DIST = \
 	complete.conf.in	\
 	invoke-ntp.conf.menu	\
@@ -2124,18 +2126,16 @@ check-libopts: ../sntp/libopts/libopts.la
 ../sntp/libopts/libopts.la:
 	-cd ../sntp/libopts && $(MAKE) $(AM_MAKEFLAGS) libopts.la
 
-check-libntp: $(top_builddir)/libntp/libntp.a
-	@: avoid default SCCS get by some make implementations
+.PHONY: check-libntp
 
-$(top_builddir)/libntp/libntp.a:
-	cd $(top_builddir)/libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
+@LIBNTP_SUBMAKES_TRUE@check-libntp:
+@LIBNTP_SUBMAKES_TRUE@	cd $(top_builddir)/libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
 $(top_srcdir)/sntp/scm-rev: FRC.scm-rev
 	$(AM_V_GEN)cd $(top_builddir)/sntp && $(MAKE) $(AM_MAKEFLAGS) check-scm-rev
 
+.PHONY: FRC.scm-rev
 FRC.scm-rev:
-	@: FRC.scm-rev "force" depends on nothing and is not a file, so is	\
-	   always out-of-date causing targets which depend on it to also		\
-	   be outdated so their rules to fire each time they are built.
+	@: FRC.scm-rev is always out of date, triggering the check every make invocation.
 $(DEPDIR)/deps-ver: $(top_srcdir)/deps-ver
 	@[ -f $@ ] ||							\
 		cp $(top_srcdir)/deps-ver $@

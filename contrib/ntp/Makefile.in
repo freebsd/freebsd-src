@@ -420,6 +420,7 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_NET_SNMP_CONFIG = @PATH_NET_SNMP_CONFIG@
+PATH_OPENSSL = @PATH_OPENSSL@
 PATH_PERL = @PATH_PERL@
 PATH_RUBY = @PATH_RUBY@
 PATH_SEPARATOR = @PATH_SEPARATOR@
@@ -583,7 +584,7 @@ DISTCLEANFILES = .gcc-warning
 BUILT_SOURCES = \
 	.gcc-warning			\
 	libtool				\
-	html/.datecheck			\
+	$(srcdir)/html/.datecheck	\
 	$(srcdir)/COPYRIGHT		\
 	$(srcdir)/.checkChangeLog	\
 	$(NULL)
@@ -1105,7 +1106,7 @@ uninstall-am: uninstall-local
 	@sleep 1
 	@touch $@
 
-html/.datecheck: FRC.html
+$(srcdir)/html/.datecheck: $(srcdir)/html/*.html
 	cd $(srcdir)/html && \
 	../scripts/build/checkHtmlFileDates
 
@@ -1150,7 +1151,7 @@ uninstall-local:
 CommitLog: FRC.CommitLog
 	cd $(srcdir)					\
 	&& $(PATH_TEST) -e CommitLog			\
-		-a SCCS/s.ChangeSet -ot CommitLog	\
+		-a .bk/SCCS/ChangeSet,s -ot CommitLog	\
 	|| scripts/build/genCommitLog
 
 .buildcvo:

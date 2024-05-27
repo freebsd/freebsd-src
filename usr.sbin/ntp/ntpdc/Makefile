@@ -17,12 +17,10 @@ CFLAGS+= -I${SRCTOP}/contrib/ntp/include \
 	-I${.CURDIR}/lib/libc/${MACHINE_ARCH} \
 	-I${.CURDIR:H} -I${.CURDIR}
 
-LIBADD=	edit ntp m opts pthread
+LIBADD=	edit ntp m md opts pthread
 
 .if ${MK_OPENSSL} != "no"
 LIBADD+=	crypto
-.else
-LIBADD+=	md
 .endif
 
 CLEANFILES+= .version version.c

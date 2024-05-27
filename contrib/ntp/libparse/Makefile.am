@@ -94,14 +94,9 @@ AM_LDFLAGS = $(NTP_HARD_LDFLAGS)
 EXTRA_DIST = parsesolaris.c parsestreams.c mkinfo_scmd.sed mkinfo_rcmd.sed info_trimble.c
 
 info_trimble.c: $(top_srcdir)/include/trimble.h $(srcdir)/Makefile.am $(srcdir)/mkinfo_scmd.sed $(srcdir)/mkinfo_rcmd.sed
-	sed -n -f $(srcdir)/mkinfo_scmd.sed $(top_srcdir)/include/trimble.h  > info_trimble.new
-	sed -n -f $(srcdir)/mkinfo_rcmd.sed $(top_srcdir)/include/trimble.h >> info_trimble.new
-	mv -f info_trimble.new $@
-
-#$(srcdir)/info_trimble.c: $(top_srcdir)/include/trimble.h $(srcdir)/Makefile.am $(srcdir)/mkinfo_scmd.sed $(srcdir)/mkinfo_rcmd.sed
-#	sed -n -f $(srcdir)/mkinfo_scmd.sed $(top_srcdir)/include/trimble.h  > info_trimble.new
-#	sed -n -f $(srcdir)/mkinfo_rcmd.sed $(top_srcdir)/include/trimble.h >> info_trimble.new
-#	mv -f info_trimble.new $@
+	$(AM_V_at)$(SED) -n -f $(srcdir)/mkinfo_scmd.sed $(top_srcdir)/include/trimble.h  > info_trimble.new
+	$(AM_V_at)$(SED) -n -f $(srcdir)/mkinfo_rcmd.sed $(top_srcdir)/include/trimble.h >> info_trimble.new
+	$(AM_V_at)mv -f info_trimble.new $@
 
 kieee754io.o: $(srcdir)/ieee754io.c
 	 $(COMPILE) $(K_CFLAGS) -c $(srcdir)/ieee754io.c -o $@
@@ -165,11 +160,11 @@ parse: $(parsesolaris_OBJECTS) libparse_kernel.a ../libntp/libntp.a
 
 parsesolaris.o: sys/systm.h
 
-# [Bug3608] Solaris has inconsistent definitions of ffs() and fls(). Drop the
+# [Bug 3608] Solaris has inconsistent definitions of ffs() and fls(). Drop the
 # ones from 'systm.h'.
 sys/systm.h:
 	-mkdir sys
-	sed -e '/f[fl]s(.*)/d' < /usr/include/sys/systm.h > sys/systm.h
+	$(SED) -e '/f[fl]s(.*)/d' < /usr/include/sys/systm.h > sys/systm.h
 
 ## check-libparse is invoked by ntpd/Makefile.am
 check-libparse: $(noinst_LIBRARIES)

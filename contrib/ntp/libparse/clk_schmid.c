@@ -222,7 +222,7 @@ inp_schmid(
 }
 
 #else /* not (REFCLOCK && CLOCK_PARSE && CLOCK_SCHMID) */
-int clk_schmid_bs;
+NONEMPTY_TRANSLATION_UNIT
 #endif /* not (REFCLOCK && CLOCK_PARSE && CLOCK_SCHMID) */
 
 /*

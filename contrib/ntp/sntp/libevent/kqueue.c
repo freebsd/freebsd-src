@@ -346,7 +346,7 @@ kq_dispatch(struct event_base *base, struct timeval *tv)
 			 * on FreeBSD. */
 			case EINVAL:
 				continue;
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) && defined(ENOTCAPABLE)
 			/*
 			 * This currently occurs if an FD is closed
 			 * before the EV_DELETE makes it out via kevent().

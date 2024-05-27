@@ -39,7 +39,7 @@
 #define AM_MODES	7	/* number of rows and columns */
 #define NO_PEER		0	/* action when no peer is found */
 
-int AM[AM_MODES][AM_MODES] = {
+const s_char AM[AM_MODES][AM_MODES] = {
 /*			packet->mode					    */
 /* peer { UNSPEC,   ACTIVE,     PASSIVE,    CLIENT,     SERVER,     BCAST } */
 /* mode */
@@ -58,7 +58,7 @@ int AM[AM_MODES][AM_MODES] = {
 /*BCL*/ { AM_ERR, AM_NOMATCH, AM_NOMATCH, AM_NOMATCH, AM_NOMATCH,  AM_PROCPKT},
 };
 
-#define MATCH_ASSOC(x, y)	AM[(x)][(y)]
+#define MATCH_ASSOC(x, y) (AM[CLAMP((x), 0, AM_MODES)][CLAMP((y), 0, AM_MODES)])
 
 /*
  * These routines manage the allocation of memory to peer structures
@@ -91,8 +91,8 @@ int	peer_free_count;		/* count of free structures */
  * Association ID.  We initialize this value randomly, then assign a new
  * value every time an association is mobilized.
  */
-static associd_t current_association_ID; /* association ID */
-static associd_t initial_association_ID; /* association ID */
+static associd_t current_association_ID; /* actually next poss. ID */
+static associd_t initial_association_ID;
 
 /*
  * Memory allocation watermarks.
@@ -256,7 +256,7 @@ findexistingpeer_addr(
 
 
 /*
- * findexistingpeer - search by address and return a pointer to a peer.
+ * findexistingpeer - search by name+family or address.
  */
 struct peer *
 findexistingpeer(
@@ -294,7 +294,7 @@ findexistingpeer(
  * enough. Authentication alone does not help here, since it does not
  * protect the UDP layer and leaves us open for a replay attack.
  *
- * So we do not update the adresses and wait until the next interface
+ * So we do not update the addresses and wait until the next interface
  * list update does the right thing for us.
  */
 struct peer *
@@ -347,18 +347,20 @@ findpeer(
 		}
 
 		/* if an error was returned, exit back right here. */
-		if (*action == AM_ERR)
+		if (*action == AM_ERR) {
 			return NULL;
+		}
 
 		/* if a match is found, we stop our search. */
-		if (*action != AM_NOMATCH)
+		if (*action != AM_NOMATCH) {
 			break;
+		}
 	}
 
 	/* If no matching association is found... */
-	if (NULL == p)
+	if (NULL == p) {
 		*action = MATCH_ASSOC(NO_PEER, pkt_mode);
-
+	}
 	return p;
 }
 
@@ -542,7 +544,8 @@ unpeer(
 	)
 {
 	mprintf_event(PEVNT_DEMOBIL, peer, "assoc %u", peer->associd);
-	restrict_source(&peer->srcadr, 1, 0);
+	restrict_source(&peer->srcadr, TRUE, 0);
+	peer->flags |= FLAG_DISABLED;
 	set_peerdstadr(peer, NULL);
 	peer_demobilizations++;
 	peer_associations--;
@@ -645,6 +648,24 @@ set_peerdstadr(
 		return;
 
 	/*
+	 * Do not change the local address of a link-local
+	 * peer address.
+	 */
+	if (   p->dstadr != NULL && is_linklocal(&p->dstadr->sin)
+	    && dstadr != NULL) {
+		return;
+	}
+
+	/*
+	 * Do not set the local address for a link-local IPv6 peer
+	 * to one with a different scope ID.
+	 */
+	if (   dstadr != NULL && IS_IPV6(&p->srcadr)
+	    && SCOPE(&dstadr->sin) != SCOPE(&p->srcadr)) {
+		return;
+	}
+
+	/*
 	 * Don't accept updates to a separate multicast receive-only
 	 * endpt while a BCLNT peer is running its unicast protocol.
 	 */
@@ -658,11 +679,14 @@ set_peerdstadr(
 		p->dstadr->peercnt--;
 		UNLINK_SLIST(unlinked, p->dstadr->peers, p, ilink,
 			     struct peer);
-		msyslog(LOG_INFO, "%s local addr %s -> %s",
-			stoa(&p->srcadr), latoa(p->dstadr),
-			latoa(dstadr));
 	}
-	
+	if (   !IS_MCAST(&p->srcadr) && !(FLAG_DISABLED & p->flags)
+	    && !initializing) {
+		msyslog(LOG_INFO, "%s local addr %s -> %s",
+			stoa(&p->srcadr), eptoa(p->dstadr),
+			eptoa(dstadr));
+	}
+
 	p->dstadr = dstadr;
 
 	/* link to list if we have an address after assignment */
@@ -741,14 +765,20 @@ refresh_all_peerinterfaces(void)
 	struct peer *p;
 
 	/*
-	 * this is called when the interface list has changed
-	 * give all peers a chance to find a better interface
-	 * but only if either they don't have an address already
-	 * or if the one they have hasn't worked for a while.
+	 * This is called when the interface list has changed.
+	 * Give peers a chance to find a better interface.
 	 */
 	for (p = peer_list; p != NULL; p = p->p_link) {
-		if (!(p->dstadr && (p->reach & 0x3)))	// Bug 2849 XOR 2043
-			peer_refresh_interface(p);
+		/* 
+		 * Bug 2849 XOR 2043
+		 * Change local address only if the peer doesn't
+		 * have a local address already or if the one
+		 * they have hasn't worked for a while.
+		 */
+		if (p->dstadr != NULL && (p->reach & 0x3)) {
+			continue;
+		}
+		peer_refresh_interface(p);
 	}
 }
 
@@ -777,7 +807,6 @@ newpeer(
 	u_int		hash;
 	int		ip_count = 0;
 
-
 	DEBUG_REQUIRE(srcadr);
 
 #ifdef AUTOKEY
@@ -789,7 +818,9 @@ newpeer(
 			return (NULL);
 
 		} else if (flags & FLAG_SKEY) {
-			msyslog(LOG_ERR, "Autokey not configured");
+			msyslog(LOG_ERR, "Rejecting Autokey with %s,"
+					 " built without support.",
+					 stoa(srcadr));
 			return (NULL);
 		} 
 	}
@@ -831,13 +862,34 @@ newpeer(
 	}
 
 	/*
+	 * In any case, do not create an association with a duplicate
+	 * remote address (srcadr) except for undefined (zero) address.
+	 * Arguably this should be part of the logic above but
+	 * [Bug 3888] exposed a situation with manycastclient where
+	 * duplicate associations happened.
+	 */
+	if (NULL == peer) {
+		for (peer = peer_list;
+		     peer != NULL;
+		     peer = peer->p_link) {
+			if (   SOCK_EQ(srcadr, &peer->srcadr)
+			    && !SOCK_UNSPEC(srcadr)
+			    && !SOCK_UNSPEC(&peer->srcadr)) {
+				/* leave peer non-NULL */
+				break;
+			}
+		}
+	}
+
+	/*
 	 * If a peer is found, this would be a duplicate and we don't
 	 * allow that. This avoids duplicate ephemeral (broadcast/
 	 * multicast) and preemptible (manycast and pool) client
 	 * associations.
 	 */
 	if (peer != NULL) {
-		DPRINTF(2, ("newpeer(%s) found existing association\n",
+		DPRINTF(2, ("%s(%s) found existing association\n",
+			__func__,
 			(hostname)
 			    ? hostname
 			    : stoa(srcadr)));
@@ -845,7 +897,7 @@ newpeer(
 	}
 
 #if 0
-DPRINTF(1, ("newpeer(%s) found no existing and %d other associations\n",
+	DPRINTF(1, ("newpeer(%s) found no existing and %d other associations\n",
 		(hostname)
 		    ? hostname
 		    : stoa(srcadr),
@@ -884,15 +936,19 @@ DPRINTF(1, ("newpeer(%s) found no existing and %d other associations\n",
 		peer_preempt++;
 
 	/*
-	 * Assign an association ID and increment the system variable.
+	 * Assign an available association ID.  Zero is reserved.
 	 */
+	do {
+		while (0 == ++current_association_ID) {
+			/* EMPTY */
+		}
+	} while (NULL != findpeerbyassoc(current_association_ID));
 	peer->associd = current_association_ID;
-	if (++current_association_ID == 0)
-		++current_association_ID;
 
 	peer->srcadr = *srcadr;
-	if (hostname != NULL)
+	if (hostname != NULL) {
 		peer->hostname = estrdup(hostname);
+	}
 	peer->hmode = hmode;
 	peer->version = version;
 	peer->flags = flags;
@@ -901,66 +957,67 @@ DPRINTF(1, ("newpeer(%s) found no existing and %d other associations\n",
 		       select_peerinterface(peer, srcadr, dstadr));
 
 	/*
-	 * It is an error to set minpoll less than NTP_MINPOLL or to
-	 * set maxpoll greater than NTP_MAXPOLL. However, minpoll is
-	 * clamped not greater than NTP_MAXPOLL and maxpoll is clamped
-	 * not less than NTP_MINPOLL without complaint. Finally,
-	 * minpoll is clamped not greater than maxpoll.
+	 * Zero for minpoll or maxpoll means use defaults.
 	 */
-	if (minpoll == 0)
-		peer->minpoll = NTP_MINDPOLL;
-	else
-		peer->minpoll = min(minpoll, NTP_MAXPOLL);
-	if (maxpoll == 0)
-		peer->maxpoll = NTP_MAXDPOLL;
-	else
-		peer->maxpoll = max(maxpoll, NTP_MINPOLL);
-	if (peer->minpoll > peer->maxpoll)
-		peer->minpoll = peer->maxpoll;
+	peer->maxpoll = (0 == maxpoll)
+			    ? NTP_MAXDPOLL
+			    : maxpoll;
+	peer->minpoll = (0 == minpoll)
+			    ? NTP_MINDPOLL
+			    : minpoll;
 
-	if (peer->dstadr != NULL)
+	/*
+	 * Clamp maxpoll and minpoll within NTP_MINPOLL and NTP_MAXPOLL,
+	 * and further clamp minpoll less than or equal maxpoll.
+	 */
+	peer->maxpoll = CLAMP(peer->maxpoll, NTP_MINPOLL, NTP_MAXPOLL);
+	peer->minpoll = CLAMP(peer->minpoll, NTP_MINPOLL, peer->maxpoll);
+
+	if (peer->dstadr != NULL) {
 		DPRINTF(3, ("newpeer(%s): using fd %d and our addr %s\n",
 			stoa(srcadr), peer->dstadr->fd,
 			stoa(&peer->dstadr->sin)));
-	else
-		DPRINTF(3, ("newpeer(%s): local interface currently not bound\n",
+	} else {
+		DPRINTF(3, ("newpeer(%s): local addr unavailable\n",
 			stoa(srcadr)));	
-
+	}
 	/*
 	 * Broadcast needs the socket enabled for broadcast
 	 */
-	if ((MDF_BCAST & cast_flags) && peer->dstadr != NULL)
+	if ((MDF_BCAST & cast_flags) && peer->dstadr != NULL) {
 		enable_broadcast(peer->dstadr, srcadr);
-
+	}
 	/*
 	 * Multicast needs the socket interface enabled for multicast
 	 */
-	if ((MDF_MCAST & cast_flags) && peer->dstadr != NULL)
+	if ((MDF_MCAST & cast_flags) && peer->dstadr != NULL) {
 		enable_multicast_if(peer->dstadr, srcadr);
-
+	}
 #ifdef AUTOKEY
 	if (key > NTP_MAXKEY)
 		peer->flags |= FLAG_SKEY;
 #endif	/* AUTOKEY */
 	peer->ttl = ttl;
 	peer->keyid = key;
-	if (ident != NULL)
+	if (ident != NULL) {
 		peer->ident = estrdup(ident);
+	}
 	peer->precision = sys_precision;
 	peer->hpoll = peer->minpoll;
-	if (cast_flags & MDF_ACAST)
+	if (cast_flags & MDF_ACAST) {
 		peer_clear(peer, "ACST");
-	else if (cast_flags & MDF_POOL)
+	} else if (cast_flags & MDF_POOL) {
 		peer_clear(peer, "POOL");
-	else if (cast_flags & MDF_MCAST)
+	} else if (cast_flags & MDF_MCAST) {
 		peer_clear(peer, "MCST");
-	else if (cast_flags & MDF_BCAST)
+	} else if (cast_flags & MDF_BCAST) {
 		peer_clear(peer, "BCST");
-	else
+	} else {
 		peer_clear(peer, "INIT");
-	if (mode_ntpdate)
+	}
+	if (mode_ntpdate) {
 		peer_ntpdate++;
-
+	}
 	/*
 	 * Note time on statistics timers.
 	 */
@@ -976,8 +1033,6 @@ DPRINTF(1, ("newpeer(%s) found no existing and %d other associations\n",
 		 * the peer timer, since the clock may have requirements
 		 * for this.
 		 */
-		if (maxpoll == 0)
-			peer->maxpoll = peer->minpoll;
 		if (!refclock_newpeer(peer)) {
 			/*
 			 * Dump it, something screwed up
@@ -1006,7 +1061,7 @@ DPRINTF(1, ("newpeer(%s) found no existing and %d other associations\n",
 	assoc_hash_count[hash]++;
 	LINK_SLIST(peer_list, peer, p_link);
 
-	restrict_source(&peer->srcadr, 0, 0);
+	restrict_source(&peer->srcadr, FALSE, 0);
 	mprintf_event(PEVNT_MOBIL, peer, "assoc %d", peer->associd);
 	DPRINTF(1, ("newpeer: %s->%s mode %u vers %u poll %u %u flags 0x%x 0x%x ttl %u key %08x\n",
 	    latoa(peer->dstadr), stoa(&peer->srcadr), peer->hmode,
@@ -1093,8 +1148,9 @@ findmanycastpeer(
 	for (peer = peer_list; peer != NULL; peer = peer->p_link)
 		if (MDF_SOLICIT_MASK & peer->cast_flags) {
 			NTOHL_FP(&pkt->org, &p_org);
-			if (L_ISEQU(&p_org, &peer->aorg))
+			if (L_ISEQU(&p_org, &peer->aorg)) {
 				break;
+			}
 		}
 
 	return peer;
@@ -1103,17 +1159,11 @@ findmanycastpeer(
 /* peer_cleanup - clean peer list prior to shutdown */
 void peer_cleanup(void)
 {
-        struct peer *peer;
-        associd_t assoc;
+	struct peer *peer;
+	struct peer *nextpeer;
 
-        for (assoc = initial_association_ID; assoc != current_association_ID; assoc++) {
-            if (assoc != 0U) {
-                peer = findpeerbyassoc(assoc);
-                if (peer != NULL)
-                    unpeer(peer);
-            }
-        }
-        peer = findpeerbyassoc(current_association_ID);
-        if (peer != NULL)
-            unpeer(peer);
+	for (peer = peer_list; peer != NULL; peer = nextpeer) {
+		nextpeer = peer->p_link;
+		unpeer(peer);
+	}
 }

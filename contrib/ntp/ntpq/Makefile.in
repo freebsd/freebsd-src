@@ -96,6 +96,7 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 EXTRA_PROGRAMS = ntpq$(EXEEXT)
+@LIBNTP_SUBMAKES_TRUE@am__append_1 = check-libntp
 subdir = ntpq
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/sntp/libopts/m4/libopts.m4 \
@@ -442,6 +443,7 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_NET_SNMP_CONFIG = @PATH_NET_SNMP_CONFIG@
+PATH_OPENSSL = @PATH_OPENSSL@
 PATH_PERL = @PATH_PERL@
 PATH_RUBY = @PATH_RUBY@
 PATH_SEPARATOR = @PATH_SEPARATOR@
@@ -557,7 +559,7 @@ noinst_HEADERS = ntpq.h
 noinst_LIBRARIES = libntpq.a
 libntpq_a_CFLAGS = $(AM_CFLAGS) -DNO_MAIN_ALLOWED -DBUILD_AS_LIB
 libntpq_a_CPPFLAGS = $(AM_CPPFLAGS)
-CLEANFILES = .version version.c check-libopts check-libntp .deps-ver
+CLEANFILES = .version version.c check-libopts .deps-ver
 DISTCLEANFILES = config.log $(man_MANS) $(DEPDIR)/deps-ver
 ETAGS_ARGS = Makefile.am
 EXTRA_DIST = \
@@ -572,7 +574,7 @@ EXTRA_DIST = \
 	ntpq.texi		\
 	$(NULL)
 
-BUILT_SOURCES = ntpq-opts.c ntpq-opts.h check-libopts check-libntp \
+BUILT_SOURCES = ntpq-opts.c ntpq-opts.h check-libopts $(am__append_1) \
 	.deps-ver
 html_DATA = \
 	$(srcdir)/ntpq.html		\
@@ -1295,18 +1297,16 @@ check-libopts: ../sntp/libopts/libopts.la
 ../sntp/libopts/libopts.la:
 	-cd ../sntp/libopts && $(MAKE) $(AM_MAKEFLAGS) libopts.la
 
-check-libntp: $(top_builddir)/libntp/libntp.a
-	@: avoid default SCCS get by some make implementations
+.PHONY: check-libntp
 
-$(top_builddir)/libntp/libntp.a:
-	cd $(top_builddir)/libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
+@LIBNTP_SUBMAKES_TRUE@check-libntp:
+@LIBNTP_SUBMAKES_TRUE@	cd $(top_builddir)/libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
 $(top_srcdir)/sntp/scm-rev: FRC.scm-rev
 	$(AM_V_GEN)cd $(top_builddir)/sntp && $(MAKE) $(AM_MAKEFLAGS) check-scm-rev
 
+.PHONY: FRC.scm-rev
 FRC.scm-rev:
-	@: FRC.scm-rev "force" depends on nothing and is not a file, so is	\
-	   always out-of-date causing targets which depend on it to also		\
-	   be outdated so their rules to fire each time they are built.
+	@: FRC.scm-rev is always out of date, triggering the check every make invocation.
 $(DEPDIR)/deps-ver: $(top_srcdir)/deps-ver
 	@[ -f $@ ] ||							\
 		cp $(top_srcdir)/deps-ver $@

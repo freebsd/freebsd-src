@@ -181,7 +181,7 @@ inp_trimtaip(
 }
 
 #else /* not (REFCLOCK && CLOCK_PARSE && CLOCK_TRIMTAIP) */
-int clk_trimtaip_bs;
+NONEMPTY_TRANSLATION_UNIT
 #endif /* not (REFCLOCK && CLOCK_PARSE && CLOCK_TRIMTAIP) */
 
 /*

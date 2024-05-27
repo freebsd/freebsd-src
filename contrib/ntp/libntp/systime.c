@@ -16,7 +16,6 @@
 #include "timevalops.h"
 #include "timespecops.h"
 #include "ntp_calendar.h"
-#include "lib_strbuf.h"
 
 #ifdef HAVE_SYS_PARAM_H
 # include <sys/param.h>

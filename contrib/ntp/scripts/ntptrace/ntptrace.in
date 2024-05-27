@@ -1,4 +1,5 @@
 #! @PATH_PERL@ -w
+# @configure_input@
 # John Hay -- John.Hay@icomtek.csir.co.za / jhay@FreeBSD.org
 
 package ntptrace;
@@ -6,6 +7,7 @@ use 5.006_000;
 use strict;
 use lib "@PERLLIBDIR@";
 use NTP::Util qw(ntp_read_vars do_dns);
+use Scalar::Util qw(looks_like_number);
 
 exit run(@ARGV) unless caller;
 
@@ -59,7 +61,16 @@ sub get_info {
     return if not defined $info;
     return if not exists $info->{stratum};
 
+    if (not (exists $info->{offset} && looks_like_number($info->{offset}))) {
+        $info->{offset} = "NaN";
+    }
     $info->{offset} /= 1000;
+    if (not (exists $info->{rootdisp} && looks_like_number($info->{rootdisp}))) {
+        $info->{rootdisp} = "NaN";
+    }
+    if (not (exists $info->{rootdelay} && looks_like_number($info->{rootdelay}))) {
+        $info->{rootdelay} = "NaN";
+    }
     $info->{syncdistance} = ($info->{rootdisp} + ($info->{rootdelay} / 2)) / 1000;
 
     return %$info;

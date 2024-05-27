@@ -35,7 +35,7 @@ AC_PRESERVE_HELP_ORDER
 # the date YYYYMMDD optionally with -HHMM if there is more than one
 # bump in a day.
 
-ntp_configure_cache_version=20230326
+ntp_configure_cache_version=20240218
 
 # When the cache version of config.cache and configure do not
 # match, NTP_CACHEVERSION will flush the cache.
@@ -55,6 +55,23 @@ AC_DEFINE_UNQUOTED([STR_SYSTEM], ["$host"],
 AC_CONFIG_HEADERS([config.h])
 dnl AC_ARG_PROGRAM
 
+AC_MSG_CHECKING([if we should enable build framework help])
+AC_ARG_ENABLE(
+    [build-framework-help],
+    [AS_HELP_STRING(
+	[--enable-build-framework-help],
+	[+ enable build framework help]
+    )],
+    [ntp_ok=$enableval],
+    [ntp_ok=yes]
+)
+case "$ntp_ok" in
+ yes)
+    ntp_cv_build_framework_help=yes ;;
+ *) ntp_cv_build_framework_help=no ;;
+esac
+AC_MSG_RESULT([$ntp_ok])
+
 ntp_atom_ok=${ntp_atom_ok=no}
 ntp_oncore_ok=${ntp_oncore_ok=no}
 ntp_parse_ok=${ntp_parse_ok=no}
@@ -70,7 +87,7 @@ AX_C99_STRUCT_INIT
 
 NTP_HARDEN([sntp])
 
-NTP_VPATH_HACK		dnl used only by ntpd/Makefile.am
+NTP_VPATH_HACK		dnl used by ntpd/Makefile.am libparse/Makefile.am
 
 NTP_LOCINFO([sntp])	dnl takes over from NTP_BINDIR, in NTP_LIBNTP
 
@@ -78,8 +95,7 @@ AM_PROG_AR
 
 # So far, the only shared library we might use is libopts.
 # It's a small library - we might as well use a static version of it.
-AC_DISABLE_SHARED
-AC_PROG_LIBTOOL
+LT_INIT([disable-shared])
 AC_SUBST([LIBTOOL_DEPS])
 
 # NTP has (so far) been relying on leading-edge autogen, which
@@ -87,7 +103,7 @@ AC_SUBST([LIBTOOL_DEPS])
 # Therefore, by default:
 # - use the version of libopts we ship with
 # - do not install it
-# - build a static copy (AC_DISABLE_SHARED - done earlier)
+# - build a static copy (disable-shared - done earlier)
 case "${enable_local_libopts+set}" in
  set) ;;
  *) enable_local_libopts=yes ;;
@@ -103,29 +119,13 @@ NTP_LIBEVENT_CHECK_NOBUILD([2], [sntp/libevent])
 
 NTP_LIBNTP
 
-AC_MSG_CHECKING([for deprecated --with-arlib])
-AC_ARG_WITH([arlib],
-	AS_HELP_STRING([--with-arlib], [- deprecated, arlib not distributed]),
-	[ans=$withval], [ans=no])
-AC_MSG_RESULT([$ans])
-
-case "$ans" in
- yes)
-    AC_MSG_WARN([Please do not use --with-arlib, arlib is no longer included.  In the future, --with-arlib will not be recognized.])
-    ;;
-esac
-
 dnl  we need to check for cross compile tools for vxWorks here
 AC_PROG_AWK
 AS_UNSET([ac_cv_prog_AWK])
 AC_SUBST([AWK])				dnl scripts/ntpver.in
 AC_PROG_MAKE_SET
 
-AC_SUBST([CFLAGS])
-AC_SUBST([LDFLAGS])
-
 AC_PROG_LN_S
-AC_ISC_POSIX
 
 
 AC_PATH_PROG([PATH_PERL], [perl])
@@ -277,13 +277,13 @@ case "$host" in
  *)
     # HMS: Make sure we check for -lrt for clock_* before this...
     case "$ac_cv_search_clock_gettime" in
-     '') AC_MSG_ERROR([Internal Error: Haven't looked for clock_gettime() yet!]) ;;
+     '') AC_MSG_FAILURE([Internal Error: Haven't looked for clock_gettime() yet!]) ;;
     esac
     AC_SEARCH_LIBS([sched_setscheduler], [rt posix4])
     ;;
 esac
 
-AC_CHECK_HEADERS([bstring.h])
+AC_CHECK_HEADERS([bstring.h sys/procctl.h])
 AC_CHECK_HEADER(
     [dns_sd.h],
     [AC_SEARCH_LIBS(
@@ -3008,23 +3008,7 @@ case "$ntp_libparse" in
 esac
 AC_MSG_RESULT([$ans])
 
-NTP_OPENSSL
-
-AC_MSG_CHECKING([if we want to enable CMAC support])
-case "$ac_cv_header_openssl_cmac_h" in
- yes)
-    AC_DEFINE([ENABLE_CMAC], [1], [Enable CMAC support?])
-    ans="yes"
-    ;;
- *) ans="no"
-    ;;
-esac
-AC_MSG_RESULT([$ans])
-
-NTP_CRYPTO_RAND
-
-# if we are using OpenSSL (--with-crypto), by default Autokey is enabled
-AC_MSG_CHECKING([if we want to include NTP Autokey protocol support])
+# if we have crypto, by default Autokey is enabled
 AC_ARG_ENABLE(
     [autokey],
     AS_HELP_STRING(
@@ -3040,7 +3024,7 @@ case "$ntp_autokey" in
  *)
     case "$ntp_openssl" in
      no)
-	AC_MSG_WARN([Disabling Autokey, --enable-autokey requires --with-crypto.])
+	AC_MSG_WARN([Disabling Autokey, crypto unavailable.])
 	ntp_autokey=no
 	;;
      *)
@@ -3050,6 +3034,7 @@ case "$ntp_autokey" in
     esac
     ;;
 esac
+AC_MSG_CHECKING([if NTP Autokey protocol will be supported])
 AC_MSG_RESULT([$ntp_autokey])
 
 AC_SUBST([MAKE_CHECK_LAYOUT])
@@ -4432,6 +4417,18 @@ AC_DEFINE_UNQUOTED([DYNAMIC_INTERLEAVE], [$ntp_dynamic_interleave],
     [support dynamic interleave?])
 AC_MSG_RESULT([$ntp_ok])
 
+AH_BOTTOM([
+	/*
+	 * Macro to use in otherwise-empty source files to comply with ANSI C
+	 * requirement that each translation unit (source file) contain some
+	 * declaration.  This has commonly been done by declaring an unused
+	 * global variable of type int or char.  An extern reference to abs()
+	 * serves the same purpose without bloat.  We once used exit() but
+	 * that can produce warnings on systems that declare exit() noreturn.
+	 */
+	#define	NONEMPTY_TRANSLATION_UNIT	extern int abs(int);
+])
+
 NTP_UNITYBUILD
 
 NTP_PROBLEM_TESTS
@@ -4455,7 +4452,7 @@ AC_CONFIG_FILES([kernel/sys/Makefile])
 AC_CONFIG_FILES([libntp/Makefile])
 AC_CONFIG_FILES([libparse/Makefile])
 AC_CONFIG_FILES([ntpd/Makefile])
-AC_CONFIG_FILES([ntpd/complete.conf],	[sed -e '/^rlimit$/d' -e '/^$/d' < ntpd/complete.conf > ntpd/complete.conf.new && mv ntpd/complete.conf.new ntpd/complete.conf])
+AC_CONFIG_FILES([ntpd/complete.conf],	[$SED -e '/^rlimit$/d' -e '/^$/d' < ntpd/complete.conf > ntpd/complete.conf.new && mv ntpd/complete.conf.new ntpd/complete.conf])
 AC_CONFIG_FILES([ntpdate/Makefile])
 AC_CONFIG_FILES([ntpdc/Makefile])
 AC_CONFIG_FILES([ntpdc/nl.pl],		[chmod +x ntpdc/nl.pl])

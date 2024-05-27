@@ -74,7 +74,6 @@ case "$ntp_use_local_libevent" in
  *) # If we have (a good enough) pkg-config, see if it can find libevent
     case "$PKG_CONFIG" in
      /*)
-	AC_MSG_CHECKING([if libevent $ntp_libevent_min_version or later is installed])
 	if $PKG_CONFIG --atleast-version=$ntp_libevent_min_version libevent
 	then
 	    ntp_use_local_libevent=no
@@ -83,6 +82,7 @@ case "$ntp_use_local_libevent" in
 	     *.*) ;;
 	     *) ntp_libevent_version='(unknown)' ;;
 	    esac
+	    AC_MSG_CHECKING([if libevent $ntp_libevent_min_version or later is installed])
 	    AC_MSG_RESULT([yes, version $ntp_libevent_version])
 	    CFLAGS_LIBEVENT=`$PKG_CONFIG --cflags libevent_pthreads`
 	    CPPFLAGS_LIBEVENT=`$PKG_CONFIG --cflags-only-I libevent`
@@ -116,6 +116,7 @@ case "$ntp_use_local_libevent" in
 	    # HMS: do we only need to do this if LIBISC_PTHREADS_NOTHREADS
 	    # is "pthreads"?
 	    CFLAGS_LIBEVENT=`$PKG_CONFIG --cflags libevent_pthreads`
+	    AC_MSG_CHECKING([if libevent $ntp_libevent_min_version or later is installed])
 	    AC_MSG_RESULT([no])
 	fi
 	;;
@@ -181,14 +182,15 @@ case "$ntp_use_local_libevent" in
     dnl User-supplied contradictory choices should prevail thanks to
     dnl "last wins".
     ac_configure_args=" --disable-openssl${ac_configure_args}"
+    ac_configure_args=" --disable-samples${ac_configure_args}"
     ac_configure_args=" --disable-shared${ac_configure_args}"
     ac_configure_args=" --disable-libevent-regress${ac_configure_args}"
     ac_configure_args=" --disable-libevent-install${ac_configure_args}"
     ac_configure_args=" --enable-silent-rules${ac_configure_args}"
     ac_configure_args=" --enable-function-sections${ac_configure_args}"
-    ac_configure_args=" LEP_CFLAGS='${NTP_HARD_CFLAGS}'${ac_configure_args}"
-    ac_configure_args=" LEP_CPPFLAGS='${NTP_HARD_CPPFLAGS}'${ac_configure_args}"
-    ac_configure_args=" LEP_LDFLAGS='${NTP_HARD_LDFLAGS}'${ac_configure_args}"
+    ac_configure_args=" LIBEVENT_CFLAGS='${NTP_HARD_CFLAGS}'${ac_configure_args}"
+    ac_configure_args=" LIBEVENT_CPPFLAGS='${NTP_HARD_CPPFLAGS}'${ac_configure_args}"
+    ac_configure_args=" LIBEVENT_LDFLAGS='${NTP_HARD_LDFLAGS}'${ac_configure_args}"
     AC_CONFIG_SUBDIRS([libevent])
     ;;
  *)

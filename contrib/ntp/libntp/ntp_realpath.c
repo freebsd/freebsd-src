@@ -103,7 +103,7 @@ realpath1(const char *path, char *resolved)
 	size_t left_len, resolved_len, next_token_len;
 	unsigned symlinks;
 	ssize_t slen;
-	char left[NTP_PATH_MAX], next_token[NTP_PATH_MAX], symlink[NTP_PATH_MAX];
+	char left[NTP_PATH_MAX], next_token[NTP_PATH_MAX], link_tgt[NTP_PATH_MAX];
 
 	symlinks = 0;
 	if (path[0] == '/') {
@@ -157,7 +157,7 @@ realpath1(const char *path, char *resolved)
 			resolved[resolved_len++] = '/';
 			resolved[resolved_len] = '\0';
 		}
-		if (next_token[0] == '\0') {
+		if ('\0' == next_token[0]) {
 			/* Handle consequential slashes. */
 			continue;
 		} else if (strcmp(next_token, ".") == 0) {
@@ -187,23 +187,24 @@ realpath1(const char *path, char *resolved)
 		if (lstat(resolved, &sb) != 0)
 			return (NULL);
 		if (S_ISLNK(sb.st_mode)) {
-			if (symlinks++ > NTP_MAXSYMLINKS) {
+			if (++symlinks > NTP_MAXSYMLINKS) {
 				errno = ELOOP;
 				return (NULL);
 			}
-			slen = readlink(resolved, symlink, sizeof(symlink));
-			if (slen <= 0 || slen >= (ssize_t)sizeof(symlink)) {
-				if (slen < 0)
-					; /* keep errno from readlink(2) call */
-				else if (slen == 0)
+			slen = readlink(resolved, link_tgt, sizeof(link_tgt));
+			if (slen <= 0 || slen >= (ssize_t)sizeof(link_tgt)) {
+				if (slen < 0) {
+					/* keep errno from readlink(2) call */
+				} else if (slen == 0) {
 					errno = ENOENT;
-				else
+				} else {
 					errno = ENAMETOOLONG;
+				}
 				return (NULL);
 			}
-			symlink[slen] = '\0';
-			if (symlink[0] == '/') {
-				resolved[1] = 0;
+			link_tgt[slen] = '\0';
+			if (link_tgt[0] == '/') {
+				resolved[1] = '\0';
 				resolved_len = 1;
 			} else {
 				/* Strip the last path component. */
@@ -214,26 +215,26 @@ realpath1(const char *path, char *resolved)
 
 			/*
 			 * If there are any path components left, then
-			 * append them to symlink. The result is placed
+			 * append them to link_tgt. The result is placed
 			 * in `left'.
 			 */
 			if (p != NULL) {
-				if (symlink[slen - 1] != '/') {
-					if (slen + 1 >= (ssize_t)sizeof(symlink)) {
+				if (link_tgt[slen - 1] != '/') {
+					if (slen + 1 >= (ssize_t)sizeof(link_tgt)) {
 						errno = ENAMETOOLONG;
 						return (NULL);
 					}
-					symlink[slen] = '/';
-					symlink[slen + 1] = 0;
+					link_tgt[slen] = '/';
+					link_tgt[slen + 1] = 0;
 				}
-				left_len = strlcat(symlink, left,
-				    sizeof(symlink));
-				if (left_len >= sizeof(symlink)) {
+				left_len = strlcat(link_tgt, left,
+						   sizeof(link_tgt));
+				if (left_len >= sizeof(link_tgt)) {
 					errno = ENAMETOOLONG;
 					return (NULL);
 				}
 			}
-			left_len = strlcpy(left, symlink, sizeof(left));
+			left_len = strlcpy(left, link_tgt, sizeof(left));
 		} else if (!S_ISDIR(sb.st_mode) && p != NULL) {
 			errno = ENOTDIR;
 			return (NULL);

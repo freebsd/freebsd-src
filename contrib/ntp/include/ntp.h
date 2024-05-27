@@ -171,8 +171,8 @@ typedef char s_char;
  * Eventually the struct tag will change from interface to endpt_tag.
  * endpt is unrelated to the select algorithm's struct endpoint.
  */
-typedef struct interface endpt;
-struct interface {
+typedef struct endpt_tag endpt;
+struct endpt_tag {
 	endpt *		elink;		/* endpt list link */
 	endpt *		mclink;		/* per-AF_* multicast list */
 	void *		ioreg_ctx;	/* IO registration context */
@@ -185,9 +185,12 @@ struct interface {
 	char		name[32];	/* name of interface */
 	u_short		family;		/* AF_INET/AF_INET6 */
 	u_short		phase;		/* phase in update cycle */
-	u_int32		flags;		/* interface flags */
+	u_int32		flags;		/* INT_ flags */
 	int		last_ttl;	/* last TTL specified */
 	u_int32		addr_refid;	/* IPv4 addr or IPv6 hash */
+#    ifdef WORDS_BIGENDIAN
+	u_int32		old_refid;	/* byte-swapped IPv6 refid */
+#    endif
 	int		num_mcast;	/* mcast addrs enabled */
 	u_long		starttime;	/* current_time at creation */
 	volatile long	received;	/* number of incoming packets */
@@ -200,11 +203,11 @@ struct interface {
 };
 
 /*
- * Flags for interfaces
+ * Flags for network endpoints (interfaces or really addresses)
  */
 #define INT_UP		0x001	/* Interface is up */
 #define	INT_PPP		0x002	/* Point-to-point interface */
-#define	INT_LOOPBACK	0x004	/* the loopback interface */
+#define	INT_LOOPBACK	0x004	/* ::1 or 127.0.0.1 */
 #define	INT_BROADCAST	0x008	/* can broadcast out this interface */
 #define INT_MULTICAST	0x010	/* can multicast out this interface */
 #define	INT_BCASTOPEN	0x020	/* broadcast receive socket is open */
@@ -212,7 +215,8 @@ struct interface {
 #define INT_WILDCARD	0x080	/* wildcard interface - usually skipped */
 #define INT_MCASTIF	0x100	/* bound directly to MCAST address */
 #define INT_PRIVACY	0x200	/* RFC 4941 IPv6 privacy address */
-#define INT_BCASTXMIT	0x400   /* socket setup to allow broadcasts */
+#define INT_BCASTXMIT	0x400	/* socket setup to allow broadcasts */
+#define INT_LL_OF_GLOB	0x800	/* IPv6 link-local duplicate of global */
 
 /*
  * Define flasher bits (tests 1 through 11 in packet procedure)
@@ -342,12 +346,12 @@ struct peer {
 	u_char	status;		/* peer status */
 	u_char	new_status;	/* under-construction status */
 	u_char	reach;		/* reachability register */
+	u_char	filter_nextpt;	/* index into filter shift register */
 	int	flash;		/* protocol error test tally bits */
 	u_long	epoch;		/* reference epoch */
 	int	burst;		/* packets remaining in burst */
 	int	retry;		/* retry counter */
 	int	flip;		/* interleave mode control */
-	int	filter_nextpt;	/* index into filter shift register */
 	double	filter_delay[NTP_SHIFT]; /* delay shift register */
 	double	filter_offset[NTP_SHIFT]; /* offset shift register */
 	double	filter_disp[NTP_SHIFT]; /* dispersion shift register */
@@ -463,11 +467,12 @@ struct peer {
 #define	FLAG_XLEAVE	0x1000	/* interleaved protocol */
 #define	FLAG_XB		0x2000	/* interleaved broadcast */
 #define	FLAG_XBOGUS	0x4000	/* interleaved bogus packet */
-#ifdef	OPENSSL
+#ifdef	AUTOKEY
 # define FLAG_ASSOC	0x8000	/* autokey request */
-#endif /* OPENSSL */
+#endif
 #define FLAG_TSTAMP_PPS	0x10000	/* PPS source provides absolute timestamp */
 #define FLAG_LOOPNONCE	0x20000	/* Use a nonce for the loopback test */
+#define FLAG_DISABLED	0x40000	/* peer is being torn down */
 
 /*
  * Definitions for the clear() routine.  We use memset() to clear
@@ -558,9 +563,15 @@ struct pkt {
 #define	MIN_V4_PKT_LEN	(12 * sizeof(u_int32))	/* min header length */
 #define	LEN_PKT_NOMAC	(12 * sizeof(u_int32))	/* min header length */
 #define	MIN_MAC_LEN	(1 * sizeof(u_int32))	/* crypto_NAK */
-#define	MAX_MD5_LEN	(5 * sizeof(u_int32))	/* MD5 */
-#define	MAX_MAC_LEN	(6 * sizeof(u_int32))	/* SHA */
+#define	MD5_LENGTH	16
+#define	SHAKE128_LENGTH	16
+#define	CMAC_LENGTH	16
+#define	SHA1_LENGTH	20
 #define	KEY_MAC_LEN	sizeof(u_int32)		/* key ID in MAC */
+#define	MAX_MD5_LEN	(KEY_MAC_LEN + MD5_LENGTH)
+#define	MAX_SHAKE128_LEN (KEY_MAC_LEN + SHAKE128_LENGTH)
+#define	MAX_SHA1_LEN	(KEY_MAC_LEN + SHA1_LENGTH)
+#define	MAX_MAC_LEN	(6 * sizeof(u_int32))	/* any MAC */
 #define	MAX_MDG_LEN	(MAX_MAC_LEN-KEY_MAC_LEN) /* max. digest len */
 
 	/*
@@ -703,6 +714,10 @@ struct pkt {
 #define	max(a,b)	(((a) > (b)) ? (a) : (b))
 #define	min3(a,b,c)	min(min((a),(b)), (c))
 
+/* clamp a value within a range */
+#define CLAMP(val, minval, maxval)				\
+			max((minval), min((val), (maxval)))
+
 
 /*
  * Configuration items.  These are for the protocol module (proto_config())
@@ -783,7 +798,7 @@ typedef struct mon_data	mon_entry;
 struct mon_data {
 	mon_entry *	hash_next;	/* next structure in hash list */
 	DECL_DLIST_LINK(mon_entry, mru);/* MRU list link pointers */
-	struct interface * lcladr;	/* address on which this arrived */
+	endpt *		lcladr;	/* address on which this arrived */
 	l_fp		first;		/* first time seen */
 	l_fp		last;		/* last time seen */
 	int		leak;		/* leaky bucket accumulator */
@@ -804,7 +819,7 @@ struct mon_data {
 #define	MDF_POOL	0x08	/* pool client solicitor */
 #define MDF_ACAST	0x10	/* manycast client solicitor */
 #define	MDF_BCLNT	0x20	/* eph. broadcast/multicast client */
-#define MDF_UCLNT	0x40	/* preemptible manycast or pool client */
+#define MDF_PCLNT	0x40	/* preemptible pool client */
 /*
  * In the context of struct peer in ntpd, three of the cast_flags bits
  * represent configured associations which never receive packets, and
@@ -841,11 +856,10 @@ typedef struct restrict_u_tag	restrict_u;
 struct restrict_u_tag {
 	restrict_u *	link;		/* link to next entry */
 	u_int32		count;		/* number of packets matched */
+	u_int32		expire;		/* valid until current_time */
 	u_short		rflags;		/* restrict (accesslist) flags */
-	u_short		mflags;		/* match flags */
-	short		ippeerlimit;	/* IP peer limit */
-	int		srvfuzrftpoll;	/* server response: fuzz reftime */
-	u_long		expire;		/* valid until time */
+	u_int32		mflags;		/* match flags */
+	short		ippeerlimit;	/* limit of associations matching */
 	union {				/* variant starting here */
 		res_addr4 v4;
 		res_addr6 v6;
@@ -856,15 +870,12 @@ struct restrict_u_tag {
 #define	V6_SIZEOF_RESTRICT_U	(offsetof(restrict_u, u)	\
 				 + sizeof(res_addr6))
 
+/* restrictions for (4) a given address */
 typedef struct r4addr_tag	r4addr;
 struct r4addr_tag {
 	u_short		rflags;		/* match flags */
 	short		ippeerlimit;	/* IP peer limit */
 };
-
-char *build_iflags(u_int32 flags);
-char *build_mflags(u_short mflags);
-char *build_rflags(u_short rflags);
 
 /*
  * Restrict (Access) flags (rflags)
@@ -876,10 +887,6 @@ char *build_rflags(u_short rflags);
 #define	RES_NOPEER		0x0010	/* new association denied */
 #define	RES_NOEPEER		0x0020	/* new ephemeral association denied */
 #define RES_LIMITED		0x0040	/* packet rate exceeded */
-#define RES_FLAGS		(RES_IGNORE | RES_DONTSERVE |\
-				    RES_DONTTRUST | RES_VERSION |\
-				    RES_NOPEER | RES_NOEPEER | RES_LIMITED)
-
 #define	RES_NOQUERY		0x0080	/* mode 6/7 packet denied */
 #define	RES_NOMODIFY		0x0100	/* mode 6/7 modify denied */
 #define	RES_NOTRAP		0x0200	/* mode 6/7 set trap denied */
@@ -894,7 +901,10 @@ char *build_rflags(u_short rflags);
 
 #define RES_UNUSED		0x0000	/* Unused flag bits (none left) */
 
-#define	RES_ALLFLAGS		(RES_FLAGS | RES_NOQUERY |	\
+#define	RES_ALLFLAGS		(RES_IGNORE | RES_DONTSERVE |	\
+				 RES_DONTTRUST | RES_VERSION |	\
+				 RES_NOPEER | RES_NOEPEER |	\
+				 RES_LIMITED | RES_NOQUERY |	\
 				 RES_NOMODIFY | RES_NOTRAP |	\
 				 RES_LPTRAP | RES_KOD |		\
 				 RES_MSSNTP | RES_FLAKE |	\
@@ -948,4 +958,15 @@ struct endpoint {
 #define MRU_ROW_LIMIT	256
 /* similar datagrams per response limit for ntpd */
 #define MRU_FRAGS_LIMIT	128
+
+/* found on POSIX systems in sysexit.h */
+#ifndef EX_SOFTWARE
+# define EX_SOFTWARE	70	/* internal software error */
+#endif
+
+#define BYTESWAP32(u32)							\
+			(((u_int32)(u32) & 0xff000000) >> 24 |		\
+			 ((u_int32)(u32) &   0xff0000) >>  8 |		\
+			 ((u_int32)(u32) &     0xff00) <<  8 |		\
+			 ((u_int32)(u32) &       0xff) << 24)
 #endif /* NTP_H */

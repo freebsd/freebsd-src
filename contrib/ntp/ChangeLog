@@ -1,4 +1,122 @@
 ---
+(4.2.8p18) 2024/05/25 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Bug 3918] Tweak openssl header/library handling. <stenn@ntp.org>
+* [Bug 3914] Spurious "Unexpected origin timestamp" logged after time
+             stepped. <hart@ntp.org>
+* [Bug 3913] Avoid duplicate IPv6 link-local manycast associations.
+             <hart@ntp.org>
+* [Bug 3912] Avoid rare math errors in ntptrace.  <brian.utterback@oracle.com>
+* [Bug 3910] Memory leak using openssl-3 <hart@ntp.org>
+* [Bug 3909] Do not select multicast local address for unicast peer.
+             <hart@ntp.org>
+* [Bug 3903] lib/isc/win32/strerror.c NTstrerror() is not thread-safe.
+             <hart@ntp.org>
+* [Bug 3901] LIB_GETBUF isn't thread-safe. <hart@ntp.org>
+* [Bug 3900] fast_xmit() selects wrong local addr responding to mcast on
+             Windows. <hart@ntp.org>
+* [Bug 3888] ntpd with multiple same-subnet IPs using manycastclient creates
+             duplicate associations. <hart@ntp.org>
+* [Bug 3872] Ignore restrict mask for hostname. <hart@ntp.org>
+* [Bug 3871] 4.2.8p17 build without hopf6021 refclock enabled fails.
+             Reported by Hans Mayer.  Moved NONEMPTY_TRANSLATION_UNIT
+             declaration from ntp_types.h to config.h.  <hart@ntp.org>
+* [Bug 3870] Server drops client packets with ppoll < 4.  <stenn@ntp.org>
+* [Bug 3869] Remove long-gone "calldelay" & "crypto sign" from docs.
+             Reported by PoolMUC@web.de. <hart@ntp.org>
+* [Bug 3868] Cannot restrict a pool peer. <hart@ntp.org>  Thanks to
+             Edward McGuire for tracking down the deficiency.
+* [Bug 3864] ntpd IPv6 refid different for big-endian and little-endian.
+             <hart@ntp.org>
+* [Bug 3859] Use NotifyIpInterfaceChange on Windows ntpd. <hart@ntp.org>
+* [Bug 3856] Enable Edit & Continue debugging with Visual Studio.
+             <hart@ntp.org>
+* [Bug 3855] ntpq lacks an equivalent to ntpdc's delrestrict. <hart@ntp.org>
+* [Bug 3854] ntpd 4.2.8p17 corrupts rawstats file with space in refid.
+             <hart@ntp.org>
+* [Bug 3853] Clean up warnings with modern compilers. <hart@ntp.org>
+* [Bug 3852] check-libntp.mf and friends are not triggering rebuilds as
+             intended. <hart@ntp.org>
+* [Bug 3851] Drop pool server when no local address can reach it.
+             <hart@ntp.org>
+* [Bug 3850] ntpq -c apeers breaks column formatting s2 w/refclock refid.
+             <hart@ntp.org>
+* [Bug 3849] ntpd --wait-sync times out. <hart@ntp.org>
+* [Bug 3847] SSL detection in configure should run-test if runpath is needed.
+             <hart@ntp.org>
+* [Bug 3846] Use -Wno-format-truncation by default. <hart@ntp.org>
+* [Bug 3845] accelerate pool clock_sync when IPv6 has only link-local access.
+             <hart@ntp.org>
+* [Bug 3842] Windows ntpd PPSAPI DLL load failure crashes. <hart@ntp.org>
+* [Bug 3841] 4.2.8p17 build break w/ gcc 12 -Wformat-security without -Wformat
+             Need to remove --Wformat-security when removing -Wformat to
+             silence numerous libopts warnings.  <hart@ntp.org>
+* [Bug 3837] NULL pointer deref crash when ntpd deletes last interface.
+             Reported by renmingshuai.  Correct UNLINK_EXPR_SLIST() when the
+             list is empty. <hart@ntp.org>
+* [Bug 3835] NTP_HARD_*FLAGS not used by libevent tearoff. <hart@ntp.org>
+* [Bug 3831] pollskewlist zeroed on runtime configuration. <hart@ntp.org>
+* [Bug 3830] configure libevent check intersperses output with answer. <stenn@>
+* [Bug 3828] BK should ignore a git repo in the same directory.
+             <burnicki@ntp.org>
+* [Bug 3827] Fix build in case CLOCK_HOPF6021 or CLOCK_WHARTON_400A
+             is disabled.  <burnicki@ntp.org>
+* [Bug 3825] Don't touch HTML files unless building inside a BK repo.
+             Fix the script checkHtmlFileDates.  <burnicki@ntp.org>
+* [Bug 3756] Improve OpenSSL library/header detection.
+* [Bug 3753] ntpd fails to start with FIPS-enabled OpenSSL 3. <hart@ntp.org>
+* [Bug 2734] TEST3 prevents initial interleave sync.  Fix from <PoolMUC@web.de>
+* Log failures to allocate receive buffers.  <hart@ntp.org>
+* Remove extraneous */ from libparse/ieee754io.c
+* Fix .datecheck target line in Makefile.am.  <stenn@ntp.org>
+* Update the copyright year.  <stenn@ntp.org>
+* Update ntp.conf documentation to add "delrestrict" and correct information
+  about KoD rate limiting.  <hart@ntp.org>
+* html/clockopt.html cleanup.  <stenn@ntp.org>
+* util/lsf-times - added.  <stenn@ntp.org>
+* Add DSA, DSA-SHA, and SHA to tests/libntp/digests.c. <hart@ntp.org>
+* Provide ntpd thread names to debugger on Windows. <hart@ntp.org>
+* Remove dead code libntp/numtohost.c and its unit tests. <hart@ntp.org>
+* Remove class A, B, C IPv4 distinctions in netof(). <hart@ntp.org>
+* Use @configure_input@ in various *.in files to include a comment that
+  the file is generated from another pointing to the *.in. <hart@ntp.org>
+* Correct underquoting, indents in ntp_facilitynames.m4. <hart@ntp.org>
+* Clean up a few warnings seen building with older gcc. <hart@ntp.org>
+* Fix build on older FreeBSD lacking sys/procctl.h. <hart@ntp.org>
+* Disable [Bug 3627] workaround on newer FreeBSD which has the kernel fix
+  that makes it unnecessary, re-enabling ASLR stack gap. <hart@ntp.org>
+* Use NONEMPTY_COMPILATION_UNIT in more conditionally-compiled files.
+* Remove useless pointer to Windows Help from system error messages.
+* Avoid newlines within Windows error messages. <hart@ntp.org>
+* Ensure unique association IDs if wrapped. <hart@ntp.org>
+* Simplify calc_addr_distance(). <hart@ntp.org>
+* Clamp min/maxpoll in edge cases in newpeer(). <hart@ntp.org>
+* Quiet local addr change logging when unpeering. <hart@ntp.org>
+* Correct missing arg for %s printf specifier in 
+  send_blocking_resp_internal(). <hart@ntp.org>
+* Suppress OpenSSL 3 deprecation warning clutter. <hart@ntp.org>
+* Correct OpenSSL usage in Autokey code to avoid warnings about
+  discarding const qualifiers with OpenSSL 3. <hart@ntp.org>
+* Display KoD refid as text in recently added message. <hart@ntp.org>
+* Avoid running checkHtmlFileDates script repeatedly when no html/*.html
+    files have changed. <hart@ntp.org>
+* Abort configure if --enable-crypto-rand given & unavailable. <hart@ntp.org>
+* Add configure --enable-verbose-ssl to trace SSL detection. <hart@ntp.org>
+* Add build test coverage for --disable-saveconfig to flock-build script.
+  <hart@ntp.org>
+* Remove deprecated configure --with-arlib option. <hart@ntp.org>
+* Remove configure support for ISC UNIX ca. 1998. <hart@ntp.org>
+* Move NTP_OPENSSL and NTP_CRYPTO_RAND invocations from configure.ac files
+  to NTP_LIBNTP. <hart@ntp.org>
+* Remove dead code: HAVE_U_INT32_ONLY_WITH_DNS. <hart@ntp.org>
+* Eliminate [v]snprintf redefinition warnings on macOS. <hart@ntp.org>
+* Fix clang 14 cast increases alignment warning on Linux. <hart@ntp.org>
+* Move ENABLE_CMAC to ntp_openssl.m4, reviving sntp/tests CMAC unit tests.
+  <hart@ntp.org>
+* Use NTP_HARD_CPPFLAGS in libopts tearoff. <hart@ntp.org>
+* wire in --enable-build-framework-help
+
+---
 (4.2.8p17) 2023/06/06 Released by Harlan Stenn <stenn@ntp.org>
 
 * [Bug 3824] Spurious "ntpd: daemon failed to notify parent!" logged at
@@ -10,7 +128,7 @@
 	     Miroslav Lichvar and Matt for rapid testing and identifying the
 	     problem. <hart@ntp.org>
 * Add tests/libntp/digests.c to catch regressions reading keys file or with
-  symmetric authentication digest output.
+  symmetric authentication digest output. <hart@ntp.org>
 
 ---
 (4.2.8p16) 2023/05/31 Released by Harlan Stenn <stenn@ntp.org>

@@ -20,12 +20,10 @@ CFLAGS+= -I${SRCTOP}/contrib/ntp/include \
 	-I${.CURDIR:H}/libntpevent \
 	-I${.CURDIR:H}
 
-LIBADD=	m opts ntp ntpevent pthread
+LIBADD=	m opts md ntp ntpevent pthread
 
 .if ${MK_OPENSSL} != "no"
 LIBADD+=	crypto
-.else
-LIBADD+=	md
 .endif
 
 .include <bsd.prog.mk>

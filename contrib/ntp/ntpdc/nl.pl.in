@@ -1,4 +1,5 @@
 #! @PATH_PERL@ -w
+# @configure_input@
 
 $found = 0;
 $last = 0;

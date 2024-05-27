@@ -21,7 +21,6 @@ typedef struct {
 	size_t		len;
 } rwbuffT;
 
-
 #if defined(OPENSSL) && defined(ENABLE_CMAC)
 static size_t
 cmac_ctx_size(
@@ -38,6 +37,37 @@ cmac_ctx_size(
 	return mlen;
 }
 #endif	/* OPENSSL && ENABLE_CMAC */
+
+
+/*
+ * Allocate and initialize a digest context.  As a speed optimization,
+ * take an idea from ntpsec and cache the context to avoid malloc/free
+ * overhead in time-critical paths.  ntpsec also caches the algorithms
+ * with each key.
+ * This is not thread-safe, but that is
+ * not a problem at present.
+ */
+static EVP_MD_CTX *
+get_md_ctx(
+	int		nid
+	)
+{
+#ifndef OPENSSL
+	static MD5_CTX	md5_ctx;
+
+	DEBUG_INSIST(NID_md5 == nid);
+	MD5Init(&md5_ctx);
+
+	return &md5_ctx;
+#else
+	if (!EVP_DigestInit(digest_ctx, EVP_get_digestbynid(nid))) {
+		msyslog(LOG_ERR, "%s init failed", OBJ_nid2sn(nid));
+		return NULL;
+	}
+
+	return digest_ctx;
+#endif	/* OPENSSL */
+}
 
 
 static size_t
@@ -99,26 +129,13 @@ make_mac(
 			CMAC_CTX_free(ctx);
 	}
 	else
-#   endif /*ENABLE_CMAC*/
+#   endif /* ENABLE_CMAC */
 	{	/* generic MAC handling */
-		EVP_MD_CTX *	ctx   = EVP_MD_CTX_new();
+		EVP_MD_CTX *	ctx;
 		u_int		uilen = 0;
 
-		if ( ! ctx) {
-			msyslog(LOG_ERR, "MAC encrypt: MAC %s Digest CTX new failed.",
-				OBJ_nid2sn(ktype));
-			goto mac_fail;
-		}
-
-	   #ifdef EVP_MD_CTX_FLAG_NON_FIPS_ALLOW
-		/* make sure MD5 is allowd */
-		EVP_MD_CTX_set_flags(ctx, EVP_MD_CTX_FLAG_NON_FIPS_ALLOW);
-	   #endif
-		/* [Bug 3457] DON'T use plain EVP_DigestInit! It would
-		 * kill the flags! */
-		if (!EVP_DigestInit_ex(ctx, EVP_get_digestbynid(ktype), NULL)) {
-			msyslog(LOG_ERR, "MAC encrypt: MAC %s Digest Init failed.",
-				OBJ_nid2sn(ktype));
+		ctx = get_md_ctx(ktype);
+		if (NULL == ctx) {
 			goto mac_fail;
 		}
 		if ((size_t)EVP_MD_CTX_size(ctx) > digest->len) {
@@ -143,39 +160,25 @@ make_mac(
 		}
 	  mac_fail:
 		retlen = (size_t)uilen;
-
-		if (ctx)
-			EVP_MD_CTX_free(ctx);
 	}
 
 #else /* !OPENSSL follows */
 
-	if (ktype == NID_md5)
-	{
-		EVP_MD_CTX *	ctx   = EVP_MD_CTX_new();
-		u_int		uilen = 0;
+	if (NID_md5 == ktype) {
+		EVP_MD_CTX *	ctx;
 
-		if (digest->len < 16) {
+		ctx = get_md_ctx(ktype);
+		if (digest->len < MD5_LENGTH) {
 			msyslog(LOG_ERR, "%s", "MAC encrypt: MAC md5 buf too small.");
+		} else {
+			MD5Init(ctx);
+			MD5Update(ctx, (const void *)key->buf, key->len);
+			MD5Update(ctx, (const void *)msg->buf, msg->len);
+			MD5Final(digest->buf, ctx);
+			retlen = MD5_LENGTH;
 		}
-		else if ( ! ctx) {
-			msyslog(LOG_ERR, "%s", "MAC encrypt: MAC md5 Digest CTX new failed.");
-		}
-		else if (!EVP_DigestInit(ctx, EVP_get_digestbynid(ktype))) {
-			msyslog(LOG_ERR, "%s", "MAC encrypt: MAC md5 Digest INIT failed.");
-		}
-		else {
-			EVP_DigestUpdate(ctx, key->buf, key->len);
-			EVP_DigestUpdate(ctx, msg->buf, msg->len);
-			EVP_DigestFinal(ctx, digest->buf, &uilen);
-		}
-		if (ctx)
-			EVP_MD_CTX_free(ctx);
-		retlen = (size_t)uilen;
-	}
-	else
-	{
-		msyslog(LOG_ERR, "MAC encrypt: invalid key type %d"  , ktype);
+	} else {
+		msyslog(LOG_ERR, "MAC encrypt: invalid key type %d", ktype);
 	}
 
 #endif /* !OPENSSL */
@@ -187,7 +190,7 @@ make_mac(
 /*
  * MD5authencrypt - generate message digest
  *
- * Returns length of MAC including key ID and digest.
+ * Returns 0 on failure or length of MAC including key ID.
  */
 size_t
 MD5authencrypt(
@@ -202,13 +205,14 @@ MD5authencrypt(
 	rwbuffT digb = { digest, sizeof(digest) };
 	robuffT keyb = { key, klen };
 	robuffT msgb = { pkt, length };
-	size_t	dlen = 0;
+	size_t	dlen;
 
 	dlen = make_mac(&digb, type, &keyb, &msgb);
-	/* If the MAC is longer than the MAX then truncate it. */
-	if (dlen > MAX_MDG_LEN)
-		dlen = MAX_MDG_LEN;
-	memcpy((u_char *)pkt + length + KEY_MAC_LEN, digest, dlen);
+	if (0 == dlen) {
+		return 0;
+	}
+	memcpy((u_char *)pkt + length + KEY_MAC_LEN, digest,
+	       min(dlen, MAX_MDG_LEN));
 	return (dlen + KEY_MAC_LEN);
 }
 
@@ -236,15 +240,11 @@ MD5authdecrypt(
 	size_t	dlen = 0;
 
 	dlen = make_mac(&digb, type, &keyb, &msgb);
-
-	/* If the MAC is longer than the MAX then truncate it. */
-	if (dlen > MAX_MDG_LEN)
-		dlen = MAX_MDG_LEN;
-	if (size != (size_t)dlen + KEY_MAC_LEN) {
+	if (0 == dlen || size != dlen + KEY_MAC_LEN) {
 		msyslog(LOG_ERR,
-			"MAC decrypt: MAC length error: len=%u key=%d",
-			(u_int)size, keyno);
-		return (0);
+			"MAC decrypt: MAC length error: %u not %u for key %u",
+			(u_int)size, (u_int)(dlen + KEY_MAC_LEN), keyno);
+		return FALSE;
 	}
 	return !isc_tsmemcmp(digest,
 		 (u_char *)pkt + length + KEY_MAC_LEN, dlen);
@@ -254,39 +254,36 @@ MD5authdecrypt(
  * Calculate the reference id from the address. If it is an IPv4
  * address, use it as is. If it is an IPv6 address, do a md5 on
  * it and use the bottom 4 bytes.
- * The result is in network byte order.
+ * The result is in network byte order for IPv4 addreseses.  For
+ * IPv6, ntpd long differed in the hash calculated on big-endian
+ * vs. little-endian because the first four bytes of the MD5 hash
+ * were used as a u_int32 without any byte swapping.  This broke
+ * the refid-based loop detection between mixed-endian systems.
+ * In order to preserve behavior on the more-common little-endian
+ * systems, the hash is now byte-swapped on big-endian systems to
+ * match the little-endian hash.  This is ugly but it seems better
+ * than changing the IPv6 refid calculation on the more-common
+ * systems.
+ * This is not thread safe, not a problem so far.
  */
 u_int32
 addr2refid(sockaddr_u *addr)
 {
-	u_char		digest[EVP_MAX_MD_SIZE];
-	u_int32		addr_refid;
-	EVP_MD_CTX	*ctx;
-	u_int		len;
+	static MD5_CTX	md5_ctx;
+	union u_tag {
+		u_char		digest[MD5_DIGEST_LENGTH];
+		u_int32		addr_refid;
+	} u;
 
-	if (IS_IPV4(addr))
+	if (IS_IPV4(addr)) {
 		return (NSRCADR(addr));
-
-	INIT_SSL();
-
-	ctx = EVP_MD_CTX_new();
-#   ifdef EVP_MD_CTX_FLAG_NON_FIPS_ALLOW
-	/* MD5 is not used as a crypto hash here. */
-	EVP_MD_CTX_set_flags(ctx, EVP_MD_CTX_FLAG_NON_FIPS_ALLOW);
-#   endif
-	/* [Bug 3457] DON'T use plain EVP_DigestInit! It would kill the
-	 * flags! */
-	if (!EVP_DigestInit_ex(ctx, EVP_md5(), NULL)) {
-		msyslog(LOG_ERR,
-		    "MD5 init failed");
-		EVP_MD_CTX_free(ctx);	/* pedantic... but safe */
-		exit(1);
 	}
-
-	EVP_DigestUpdate(ctx, (u_char *)PSOCK_ADDR6(addr),
-	    sizeof(struct in6_addr));
-	EVP_DigestFinal(ctx, digest, &len);
-	EVP_MD_CTX_free(ctx);
-	memcpy(&addr_refid, digest, sizeof(addr_refid));
-	return (addr_refid);
+	/* MD5 is not used for authentication here. */
+	MD5Init(&md5_ctx);
+	MD5Update(&md5_ctx, (void *)&SOCK_ADDR6(addr), sizeof(SOCK_ADDR6(addr)));
+	MD5Final(u.digest, &md5_ctx);
+#ifdef WORDS_BIGENDIAN
+	u.addr_refid = BYTESWAP32(u.addr_refid);
+#endif
+	return u.addr_refid;
 }

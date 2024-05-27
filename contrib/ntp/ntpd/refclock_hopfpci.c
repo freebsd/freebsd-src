@@ -254,5 +254,5 @@ hopfpci_poll(
 }
 
 #else
-int refclock_hopfpci_bs;
+NONEMPTY_TRANSLATION_UNIT
 #endif /* REFCLOCK */

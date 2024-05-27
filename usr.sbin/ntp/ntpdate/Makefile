@@ -14,12 +14,10 @@ CFLAGS+= -I${SRCTOP}/contrib/ntp/include \
 	-I${SRCTOP}/contrib/ntp/libntp/lib/isc/pthreads/include \
 	-I${.CURDIR:H}
 
-LIBADD=	ntp m pthread
+LIBADD=	ntp m md pthread
 
 .if ${MK_OPENSSL} != "no"
 LIBADD+=	crypto
-.else
-LIBADD+=	md
 .endif
 
 CLEANFILES+= .version version.c

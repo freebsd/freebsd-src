@@ -1,5 +1,5 @@
 /* 
- * netof - return the net address part of an ip address in a sockaddr_storage structure
+ * netof - return the net address part of an ip address in a sockaddr_u structure
  *         (zero out host part)
  */
 #include <config.h>
@@ -11,12 +11,19 @@
 #include "ntp_stdlib.h"
 #include "ntp.h"
 
+/* 
+ * Return the network portion of a host address.  Used by ntp_io.c
+ * findbcastinter() to find a multicast/broadcast interface for
+ * a given remote address.  Note static storage is used, with room
+ * for only two addresses, which is all that is needed at present.
+ * 
+ */
 sockaddr_u *
 netof(
 	sockaddr_u *hostaddr
 	)
 {
-	static sockaddr_u	netofbuf[8];
+	static sockaddr_u	netofbuf[2];
 	static int		next_netofbuf;
 	u_int32			netnum;
 	sockaddr_u *		netaddr;
@@ -27,20 +34,11 @@ netof(
 	memcpy(netaddr, hostaddr, sizeof(*netaddr));
 
 	if (IS_IPV4(netaddr)) {
-		netnum = SRCADR(netaddr);
-
 		/*
-		 * We live in a modern CIDR world where the basement nets, which
-		 * used to be class A, are now probably associated with each
-		 * host address. So, for class-A nets, all bits are significant.
+		 * We live in a modern classless IPv4 world.  Assume /24.
 		 */
-		if (IN_CLASSC(netnum))
-			netnum &= IN_CLASSC_NET;
-		else if (IN_CLASSB(netnum))
-			netnum &= IN_CLASSB_NET;
-
+		netnum = SRCADR(netaddr) & IN_CLASSC_NET;
 		SET_ADDR4(netaddr, netnum);
-
 	} else if (IS_IPV6(netaddr))
 		/* assume the typical /64 subnet size */
 		zero_mem(&NSRCADR6(netaddr)[8], 8);

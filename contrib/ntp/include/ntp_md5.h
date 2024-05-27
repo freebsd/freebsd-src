@@ -6,6 +6,18 @@
 #ifndef NTP_MD5_H
 #define NTP_MD5_H
 
+/* Use the system MD5 or fall back on libisc's */
+# if defined HAVE_MD5_H && defined HAVE_MD5INIT
+#  include <md5.h>
+# else
+#  include "isc/md5.h"
+   typedef isc_md5_t		MD5_CTX;
+#  define MD5_DIGEST_LENGTH	ISC_MD5_DIGESTLENGTH
+#  define MD5Init(c)		isc_md5_init(c)
+#  define MD5Update(c, p, s)	isc_md5_update(c, (const void *)p, s)
+#  define MD5Final(d, c)	isc_md5_final((c), (d))	/* swapped */
+# endif
+
 # define KEY_TYPE_MD5			NID_md5
 
 #ifdef OPENSSL
@@ -20,20 +32,11 @@
 /*
  * Provide OpenSSL-alike MD5 API if we're not using OpenSSL
  */
-# if defined HAVE_MD5_H && defined HAVE_MD5INIT
-#  include <md5.h>
-# else
-#  include "isc/md5.h"
-   typedef isc_md5_t		MD5_CTX;
-#  define MD5Init(c)		isc_md5_init(c)
-#  define MD5Update(c, p, s)	isc_md5_update(c, p, s)
-#  define MD5Final(d, c)	isc_md5_final((c), (d))	/* swapped */
-# endif
 
   typedef MD5_CTX			EVP_MD_CTX;
 
 # define NID_md5			4	/* from openssl/objects.h */
-# define EVP_MAX_MD_SIZE		64	/* from openssl/evp.h */
+# define EVP_MAX_MD_SIZE		MD5_DIGEST_LENGTH
 # define EVP_MD_CTX_free(c)		free(c)
 # define EVP_MD_CTX_new()		calloc(1, sizeof(MD5_CTX))
 # define EVP_get_digestbynid(t)		NULL
@@ -47,7 +50,7 @@
 # define EVP_DigestFinal(c, d, pdl)	\
 	do {				\
 		MD5Final((d), (c));	\
-		*(pdl) = 16;		\
+		*(pdl) = MD5_LENGTH;	\
 	} while (0)
 # endif	/* !OPENSSL */
 #endif	/* NTP_MD5_H */

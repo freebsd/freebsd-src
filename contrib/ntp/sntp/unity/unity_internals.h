@@ -519,6 +519,9 @@ void UnityAssertDoubleSpecial(const _UD actual,
                               const UNITY_FLOAT_TRAIT_T style);
 #endif
 
+void UnityExpectFailMessage(const char* msg,
+                            const UNITY_LINE_TYPE line);
+
 //-------------------------------------------------------
 // Error Strings We Might Need
 //-------------------------------------------------------
@@ -708,8 +711,7 @@ extern const char UnityStrErr64[];
 //End of UNITY_INTERNALS_H
 #endif
 
-//#define TEST_EXPECT_FAIL()																		Unity.isExpectingFail = 1;
-//#define TEST_EXPECT_FAIL_MESSAGE(message)														Unity.isExpectingFail = 1; Unity.XFAILMessage = message; //PROBLEM : does this work on all compilers?
+// Not part of standard distribution
 
-#define TEST_EXPECT_FAIL()																		UnityExpectFail();
-#define TEST_EXPECT_FAIL_MESSAGE(message)														UnityExpectFailMessage( (message) );
+#define TEST_EXPECT_FAIL()									UnityExpectFail();
+#define TEST_EXPECT_FAIL_MESSAGE(message)							UnityExpectFailMessage((message), __LINE__);

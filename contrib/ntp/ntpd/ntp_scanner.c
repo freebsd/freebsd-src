@@ -34,7 +34,7 @@
  * ------------------------
  */
 
-#define MAX_LEXEME (1024 + 1)	/* The maximum size of a lexeme */
+#define MAX_LEXEME	128	/* The maximum size of a lexeme */
 char yytext[MAX_LEXEME];	/* Buffer for storing the input text/lexeme */
 u_int32 conf_file_sum;		/* Simple sum of characters read */
 
@@ -278,7 +278,7 @@ lex_close(
  */
 
 static struct FILE_INFO *
-_drop_stack_do(
+drop_stack_do(
 	struct FILE_INFO * head
 	)
 {
@@ -320,9 +320,9 @@ lex_init_stack(
  * anything until the next 'lex_init_stack()' succeeded.
  */
 void
-lex_drop_stack()
+lex_drop_stack(void)
 {
-	lex_stack = _drop_stack_do(lex_stack);
+	lex_stack = drop_stack_do(lex_stack);
 }
 
 /* Flush the lexer input stack: This will nip all input objects on the
@@ -334,14 +334,14 @@ lex_drop_stack()
  * in the force-eof mode before this call.
  */
 int/*BOOL*/
-lex_flush_stack()
+lex_flush_stack(void)
 {
 	int retv = FALSE;
 
 	if (NULL != lex_stack) {
 		retv = !lex_stack->force_eof;
 		lex_stack->force_eof = TRUE;
-		lex_stack->st_next = _drop_stack_do(
+		lex_stack->st_next = drop_stack_do(
 					lex_stack->st_next);
 	}
 	return retv;
@@ -425,7 +425,7 @@ lex_from_file(void)
 }
 
 struct FILE_INFO *
-lex_current()
+lex_current(void)
 {
 	/* this became so simple, it could be a macro. But then,
 	 * lex_stack needed to be global...
@@ -910,9 +910,9 @@ yylex(void)
 
 normal_return:
 	if (T_EOC == token)
-		DPRINTF(4,("\t<end of command>\n"));
+		DPRINTF(10, ("\t<end of command>\n"));
 	else
-		DPRINTF(4, ("yylex: lexeme '%s' -> %s\n", yytext,
+		DPRINTF(10, ("yylex: lexeme '%s' -> %s\n", yytext,
 			    token_name(token)));
 
 	if (!yylval_was_set)
@@ -921,6 +921,10 @@ normal_return:
 	return token;
 
 lex_too_long:
+	/*
+	 * DLH: What is the purpose of the limit of 50?
+	 * Is there any reason for yytext[] to be bigger?
+	 */
 	yytext[min(sizeof(yytext) - 1, 50)] = 0;
 	msyslog(LOG_ERR, 
 		"configuration item on line %d longer than limit of %lu, began with '%s'",

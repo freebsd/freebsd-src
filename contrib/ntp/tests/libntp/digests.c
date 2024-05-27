@@ -110,7 +110,7 @@ do {									\
 	authtrust((key), 1);						\
 									\
 	res_sz = authencrypt((key), pkt, pkt_sz);			\
-	if (KEY_MAC_LEN == res_sz) {					\
+	if (0 == res_sz) {						\
 		TEST_IGNORE_MESSAGE("Likely OpenSSL 3 failed digest "	\
 				    "init.");				\
 		return;							\
@@ -363,12 +363,129 @@ void test_Digest_SHAKE128(void)
 			0xaa, 0xa6, 0xcd, 0x76
 		};
 	u_char expectedB[MAX_MAC_LEN] =
-		{ 
+		{
 			0, 0, 0, KEYID_B,
 			0x07, 0x04, 0x63, 0xcc,
 			0x46, 0xaf, 0xca, 0x00,
 			0x7d, 0xd1, 0x5a, 0x39,
 			0xfd, 0x34, 0xca, 0x10
+		};
+
+	TEST_ASSERT(setup);
+	TEST_ONE_DIGEST(KEYID_A, DG_SZ, expectedA);
+	TEST_ONE_DIGEST(KEYID_B, DG_SZ, expectedB);
+#else	/* ! OPENSSL follows  */
+	TEST_IGNORE_MESSAGE("Skipping, no OPENSSL");
+#endif
+}
+
+
+#define DSA_KEYID		8
+#undef KEYID_A
+#define KEYID_A			DSA_KEYID
+#undef DG_SZ
+#define DG_SZ			20
+#undef KEYID_B
+#define KEYID_B			(KEYID_A + HEX_KEYID_OFFSET)
+void test_Digest_DSA(void);
+void test_Digest_DSA(void)
+{
+#ifdef OPENSSL
+	u_char expectedA[MAX_MAC_LEN] =
+		{
+			0, 0, 0, KEYID_A,
+			0xaf, 0xa0, 0x1d, 0x0c,
+			0x92, 0xcb, 0xca, 0x95,
+			0x0d, 0x57, 0x60, 0x49,
+			0xe5, 0x28, 0x03, 0xf2,
+			0x7b, 0x5b, 0xb1, 0x4a
+		};
+	u_char expectedB[MAX_MAC_LEN] =
+		{
+			0, 0, 0, KEYID_B,
+			0x77, 0xcd, 0x88, 0xc2,
+			0xed, 0x5d, 0x57, 0xc5,
+			0x28, 0x92, 0xf0, 0x21,
+			0x2b, 0xb9, 0x48, 0xac,
+			0xfe, 0x9f, 0xf5, 0x1c
+		};
+
+	TEST_ASSERT(setup);
+	TEST_ONE_DIGEST(KEYID_A, DG_SZ, expectedA);
+	TEST_ONE_DIGEST(KEYID_B, DG_SZ, expectedB);
+#else	/* ! OPENSSL follows  */
+	TEST_IGNORE_MESSAGE("Skipping, no OPENSSL");
+#endif
+}
+
+
+#define DSA_SHA_KEYID		9
+#undef KEYID_A
+#define KEYID_A			DSA_SHA_KEYID
+#undef DG_SZ
+#define DG_SZ			20
+#undef KEYID_B
+#define KEYID_B			(KEYID_A + HEX_KEYID_OFFSET)
+void test_Digest_DSA_SHA(void);
+void test_Digest_DSA_SHA(void)
+{
+#ifdef OPENSSL
+	u_char expectedA[MAX_MAC_LEN] =
+		{
+			0, 0, 0, KEYID_A,
+			0x7c, 0xb5, 0x79, 0xd0,
+			0xf2, 0xcd, 0x47, 0xc0,
+			0x21, 0xf3, 0xf5, 0x04,
+			0x10, 0xc4, 0x59, 0x5c,
+			0xd9, 0xa4, 0x4f, 0x3b
+		};
+	u_char expectedB[MAX_MAC_LEN] =
+		{
+			0, 0, 0, KEYID_B,
+			0xb9, 0xca, 0xa6, 0x8e,
+			0xd3, 0xcb, 0x94, 0x6a,
+			0x6d, 0xae, 0xb4, 0xc8,
+			0x0e, 0xc9, 0xf6, 0xed,
+			0x58, 0x1a, 0xed, 0x22
+		};
+
+	TEST_ASSERT(setup);
+	TEST_ONE_DIGEST(KEYID_A, DG_SZ, expectedA);
+	TEST_ONE_DIGEST(KEYID_B, DG_SZ, expectedB);
+#else	/* ! OPENSSL follows  */
+	TEST_IGNORE_MESSAGE("Skipping, no OPENSSL");
+#endif
+}
+
+
+#define SHA_KEYID		10
+#undef KEYID_A
+#define KEYID_A			SHA_KEYID
+#undef DG_SZ
+#define DG_SZ			20
+#undef KEYID_B
+#define KEYID_B			(KEYID_A + HEX_KEYID_OFFSET)
+void test_Digest_SHA(void);
+void test_Digest_SHA(void)
+{
+#ifdef OPENSSL
+	u_char expectedA[MAX_MAC_LEN] =
+		{
+			0, 0, 0, KEYID_A,
+			0xd5, 0xbd, 0xb8, 0x55,
+			0x9b, 0x9e, 0x5e, 0x8f,
+			0x1a, 0x3d, 0x99, 0x60,
+			0xbd, 0x70, 0x0c, 0x5c,
+			0x68, 0xae, 0xb0, 0xbd
+		};
+	u_char expectedB[MAX_MAC_LEN] =
+		{
+			0, 0, 0, KEYID_B,
+			0x63, 0x05, 0x41, 0x45,
+			0xe9, 0x61, 0x84, 0xe7,
+			0xc6, 0x94, 0x24, 0xa4,
+			0x84, 0x76, 0xc7, 0xc9,
+			0xdd, 0x80, 0x80, 0x89
 		};
 
 	TEST_ASSERT(setup);
@@ -395,8 +512,8 @@ void dump_mac(
 
 	dc += snprintf(dump + dc, sizeof(dump) - dc, "digest with key %u { ", keyid);
 
-	for (idx = 0; idx < octets; idx++) {
-		if (10 == idx) {
+	for (idx = 4; idx < octets; idx++) {
+		if (14 == idx) {
 			msyslog(LOG_DEBUG, "%s", dump);
 			dc = 0;
 		}

@@ -1,3 +1,3224 @@
+ChangeSet@1.4062, 2024-05-25 00:06:49-07:00, ntpreleng@ntp-build.tal1.ntfo.org
+  NTP_4_2_8P18
+  TAG: NTP_4_2_8P18
+
+  ChangeLog@1.2103 +1 -0
+    NTP_4_2_8P18
+
+  ntpd/invoke-ntp.conf.texi@1.231 +1 -1
+    NTP_4_2_8P18
+
+  ntpd/invoke-ntp.keys.texi@1.214 +1 -1
+    NTP_4_2_8P18
+
+  ntpd/invoke-ntpd.texi@1.528 +2 -2
+    NTP_4_2_8P18
+
+  ntpd/ntp.conf.5man@1.265 +2 -2
+    NTP_4_2_8P18
+
+  ntpd/ntp.conf.5mdoc@1.265 +2 -2
+    NTP_4_2_8P18
+
+  ntpd/ntp.conf.html@1.213 +1 -1
+    NTP_4_2_8P18
+
+  ntpd/ntp.conf.man.in@1.265 +2 -2
+    NTP_4_2_8P18
+
+  ntpd/ntp.conf.mdoc.in@1.265 +2 -2
+    NTP_4_2_8P18
+
+  ntpd/ntp.keys.5man@1.248 +2 -2
+    NTP_4_2_8P18
+
+  ntpd/ntp.keys.5mdoc@1.248 +2 -2
+    NTP_4_2_8P18
+
+  ntpd/ntp.keys.html@1.208 +1 -1
+    NTP_4_2_8P18
+
+  ntpd/ntp.keys.man.in@1.248 +2 -2
+    NTP_4_2_8P18
+
+  ntpd/ntp.keys.mdoc.in@1.248 +2 -2
+    NTP_4_2_8P18
+
+  ntpd/ntpd-opts.c@1.553 +245 -245
+    NTP_4_2_8P18
+
+  ntpd/ntpd-opts.h@1.552 +3 -3
+    NTP_4_2_8P18
+
+  ntpd/ntpd.1ntpdman@1.357 +2 -2
+    NTP_4_2_8P18
+
+  ntpd/ntpd.1ntpdmdoc@1.357 +2 -2
+    NTP_4_2_8P18
+
+  ntpd/ntpd.html@1.202 +2 -2
+    NTP_4_2_8P18
+
+  ntpd/ntpd.man.in@1.357 +2 -2
+    NTP_4_2_8P18
+
+  ntpd/ntpd.mdoc.in@1.357 +2 -2
+    NTP_4_2_8P18
+
+  ntpdc/invoke-ntpdc.texi@1.527 +2 -2
+    NTP_4_2_8P18
+
+  ntpdc/ntpdc-opts.c@1.548 +113 -113
+    NTP_4_2_8P18
+
+  ntpdc/ntpdc-opts.h@1.547 +3 -3
+    NTP_4_2_8P18
+
+  ntpdc/ntpdc.1ntpdcman@1.358 +2 -2
+    NTP_4_2_8P18
+
+  ntpdc/ntpdc.1ntpdcmdoc@1.358 +2 -2
+    NTP_4_2_8P18
+
+  ntpdc/ntpdc.html@1.372 +2 -2
+    NTP_4_2_8P18
+
+  ntpdc/ntpdc.man.in@1.358 +2 -2
+    NTP_4_2_8P18
+
+  ntpdc/ntpdc.mdoc.in@1.358 +2 -2
+    NTP_4_2_8P18
+
+  ntpq/invoke-ntpq.texi@1.537 +2 -2
+    NTP_4_2_8P18
+
+  ntpq/ntpq-opts.c@1.557 +120 -120
+    NTP_4_2_8P18
+
+  ntpq/ntpq-opts.h@1.555 +3 -3
+    NTP_4_2_8P18
+
+  ntpq/ntpq.1ntpqman@1.365 +2 -2
+    NTP_4_2_8P18
+
+  ntpq/ntpq.1ntpqmdoc@1.365 +2 -2
+    NTP_4_2_8P18
+
+  ntpq/ntpq.html@1.202 +2 -2
+    NTP_4_2_8P18
+
+  ntpq/ntpq.man.in@1.365 +2 -2
+    NTP_4_2_8P18
+
+  ntpq/ntpq.mdoc.in@1.365 +2 -2
+    NTP_4_2_8P18
+
+  ntpsnmpd/invoke-ntpsnmpd.texi@1.527 +2 -2
+    NTP_4_2_8P18
+
+  ntpsnmpd/ntpsnmpd-opts.c@1.548 +68 -68
+    NTP_4_2_8P18
+
+  ntpsnmpd/ntpsnmpd-opts.h@1.547 +3 -3
+    NTP_4_2_8P18
+
+  ntpsnmpd/ntpsnmpd.1ntpsnmpdman@1.356 +2 -2
+    NTP_4_2_8P18
+
+  ntpsnmpd/ntpsnmpd.1ntpsnmpdmdoc@1.356 +2 -2
+    NTP_4_2_8P18
+
+  ntpsnmpd/ntpsnmpd.html@1.194 +1 -1
+    NTP_4_2_8P18
+
+  ntpsnmpd/ntpsnmpd.man.in@1.356 +2 -2
+    NTP_4_2_8P18
+
+  ntpsnmpd/ntpsnmpd.mdoc.in@1.356 +2 -2
+    NTP_4_2_8P18
+
+  packageinfo.sh@1.553 +2 -2
+    NTP_4_2_8P18
+
+  scripts/calc_tickadj/calc_tickadj.1calc_tickadjman@1.117 +2 -2
+    NTP_4_2_8P18
+
+  scripts/calc_tickadj/calc_tickadj.1calc_tickadjmdoc@1.119 +2 -2
+    NTP_4_2_8P18
+
+  scripts/calc_tickadj/calc_tickadj.html@1.118 +1 -1
+    NTP_4_2_8P18
+
+  scripts/calc_tickadj/calc_tickadj.man.in@1.116 +2 -2
+    NTP_4_2_8P18
+
+  scripts/calc_tickadj/calc_tickadj.mdoc.in@1.119 +2 -2
+    NTP_4_2_8P18
+
+  scripts/calc_tickadj/invoke-calc_tickadj.texi@1.121 +1 -1
+    NTP_4_2_8P18
+
+  scripts/invoke-plot_summary.texi@1.139 +2 -2
+    NTP_4_2_8P18
+
+  scripts/invoke-summary.texi@1.138 +2 -2
+    NTP_4_2_8P18
+
+  scripts/ntp-wait/invoke-ntp-wait.texi@1.350 +2 -2
+    NTP_4_2_8P18
+
+  scripts/ntp-wait/ntp-wait-opts@1.86 +2 -2
+    NTP_4_2_8P18
+
+  scripts/ntp-wait/ntp-wait.1ntp-waitman@1.345 +2 -2
+    NTP_4_2_8P18
+
+  scripts/ntp-wait/ntp-wait.1ntp-waitmdoc@1.347 +2 -2
+    NTP_4_2_8P18
+
+  scripts/ntp-wait/ntp-wait.html@1.366 +2 -2
+    NTP_4_2_8P18
+
+  scripts/ntp-wait/ntp-wait.man.in@1.345 +2 -2
+    NTP_4_2_8P18
+
+  scripts/ntp-wait/ntp-wait.mdoc.in@1.347 +2 -2
+    NTP_4_2_8P18
+
+  scripts/ntpsweep/invoke-ntpsweep.texi@1.136 +2 -2
+    NTP_4_2_8P18
+
+  scripts/ntpsweep/ntpsweep-opts@1.89 +2 -2
+    NTP_4_2_8P18
+
+  scripts/ntpsweep/ntpsweep.1ntpsweepman@1.124 +2 -2
+    NTP_4_2_8P18
+
+  scripts/ntpsweep/ntpsweep.1ntpsweepmdoc@1.124 +2 -2
+    NTP_4_2_8P18
+
+  scripts/ntpsweep/ntpsweep.html@1.138 +2 -2
+    NTP_4_2_8P18
+
+  scripts/ntpsweep/ntpsweep.man.in@1.124 +2 -2
+    NTP_4_2_8P18
+
+  scripts/ntpsweep/ntpsweep.mdoc.in@1.125 +2 -2
+    NTP_4_2_8P18
+
+  scripts/ntptrace/invoke-ntptrace.texi@1.139 +2 -2
+    NTP_4_2_8P18
+
+  scripts/ntptrace/ntptrace-opts@1.89 +2 -2
+    NTP_4_2_8P18
+
+  scripts/ntptrace/ntptrace.1ntptraceman@1.124 +2 -2
+    NTP_4_2_8P18
+
+  scripts/ntptrace/ntptrace.1ntptracemdoc@1.126 +2 -2
+    NTP_4_2_8P18
+
+  scripts/ntptrace/ntptrace.html@1.139 +2 -2
+    NTP_4_2_8P18
+
+  scripts/ntptrace/ntptrace.man.in@1.124 +2 -2
+    NTP_4_2_8P18
+
+  scripts/ntptrace/ntptrace.mdoc.in@1.127 +2 -2
+    NTP_4_2_8P18
+
+  scripts/plot_summary-opts@1.90 +2 -2
+    NTP_4_2_8P18
+
+  scripts/plot_summary.1plot_summaryman@1.137 +2 -2
+    NTP_4_2_8P18
+
+  scripts/plot_summary.1plot_summarymdoc@1.137 +2 -2
+    NTP_4_2_8P18
+
+  scripts/plot_summary.html@1.141 +2 -2
+    NTP_4_2_8P18
+
+  scripts/plot_summary.man.in@1.137 +2 -2
+    NTP_4_2_8P18
+
+  scripts/plot_summary.mdoc.in@1.137 +2 -2
+    NTP_4_2_8P18
+
+  scripts/summary-opts@1.89 +2 -2
+    NTP_4_2_8P18
+
+  scripts/summary.1summaryman@1.136 +2 -2
+    NTP_4_2_8P18
+
+  scripts/summary.1summarymdoc@1.136 +2 -2
+    NTP_4_2_8P18
+
+  scripts/summary.html@1.140 +2 -2
+    NTP_4_2_8P18
+
+  scripts/summary.man.in@1.136 +2 -2
+    NTP_4_2_8P18
+
+  scripts/summary.mdoc.in@1.136 +2 -2
+    NTP_4_2_8P18
+
+  scripts/update-leap/invoke-update-leap.texi@1.37 +1 -1
+    NTP_4_2_8P18
+
+  scripts/update-leap/update-leap-opts@1.39 +2 -2
+    NTP_4_2_8P18
+
+  scripts/update-leap/update-leap.1update-leapman@1.37 +2 -2
+    NTP_4_2_8P18
+
+  scripts/update-leap/update-leap.1update-leapmdoc@1.38 +2 -2
+    NTP_4_2_8P18
+
+  scripts/update-leap/update-leap.html@1.37 +1 -1
+    NTP_4_2_8P18
+
+  scripts/update-leap/update-leap.man.in@1.37 +2 -2
+    NTP_4_2_8P18
+
+  scripts/update-leap/update-leap.mdoc.in@1.38 +2 -2
+    NTP_4_2_8P18
+
+  sntp/invoke-sntp.texi@1.527 +2 -2
+    NTP_4_2_8P18
+
+  sntp/sntp-opts.c@1.549 +161 -161
+    NTP_4_2_8P18
+
+  sntp/sntp-opts.h@1.547 +3 -3
+    NTP_4_2_8P18
+
+  sntp/sntp.1sntpman@1.362 +2 -2
+    NTP_4_2_8P18
+
+  sntp/sntp.1sntpmdoc@1.362 +2 -2
+    NTP_4_2_8P18
+
+  sntp/sntp.html@1.543 +2 -2
+    NTP_4_2_8P18
+
+  sntp/sntp.man.in@1.362 +2 -2
+    NTP_4_2_8P18
+
+  sntp/sntp.mdoc.in@1.362 +2 -2
+    NTP_4_2_8P18
+
+  util/invoke-ntp-keygen.texi@1.530 +2 -2
+    NTP_4_2_8P18
+
+  util/ntp-keygen-opts.c@1.551 +174 -174
+    NTP_4_2_8P18
+
+  util/ntp-keygen-opts.h@1.549 +3 -3
+    NTP_4_2_8P18
+
+  util/ntp-keygen.1ntp-keygenman@1.358 +2 -2
+    NTP_4_2_8P18
+
+  util/ntp-keygen.1ntp-keygenmdoc@1.358 +2 -2
+    NTP_4_2_8P18
+
+  util/ntp-keygen.html@1.203 +2 -2
+    NTP_4_2_8P18
+
+  util/ntp-keygen.man.in@1.358 +2 -2
+    NTP_4_2_8P18
+
+  util/ntp-keygen.mdoc.in@1.358 +2 -2
+    NTP_4_2_8P18
+
+ChangeSet@1.4061, 2024-05-24 23:46:58-07:00, ntpreleng@ntp-build.tal1.ntfo.org
+  ntp-4.2.8p18
+
+  ChangeLog@1.2102 +0 -2
+    ntp-4.2.8p18
+
+ChangeSet@1.4060, 2024-05-24 22:53:53-07:00, ntpreleng@ntp-build.tal1.ntfo.org
+  NTP_4_2_8P18_RCGO
+  TAG: NTP_4_2_8P18_RCGO
+
+  ChangeLog@1.2101 +1 -0
+    NTP_4_2_8P18_RCGO
+
+  ntpd/invoke-ntp.conf.texi@1.230 +1 -1
+    NTP_4_2_8P18_RCGO
+
+  ntpd/invoke-ntp.keys.texi@1.213 +1 -1
+    NTP_4_2_8P18_RCGO
+
+  ntpd/invoke-ntpd.texi@1.527 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  ntpd/ntp.conf.5man@1.264 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  ntpd/ntp.conf.5mdoc@1.264 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  ntpd/ntp.conf.html@1.212 +1 -1
+    NTP_4_2_8P18_RCGO
+
+  ntpd/ntp.conf.man.in@1.264 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  ntpd/ntp.conf.mdoc.in@1.264 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  ntpd/ntp.keys.5man@1.247 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  ntpd/ntp.keys.5mdoc@1.247 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  ntpd/ntp.keys.html@1.207 +1 -1
+    NTP_4_2_8P18_RCGO
+
+  ntpd/ntp.keys.man.in@1.247 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  ntpd/ntp.keys.mdoc.in@1.247 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  ntpd/ntpd-opts.c@1.552 +7 -7
+    NTP_4_2_8P18_RCGO
+
+  ntpd/ntpd-opts.h@1.551 +3 -3
+    NTP_4_2_8P18_RCGO
+
+  ntpd/ntpd.1ntpdman@1.356 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  ntpd/ntpd.1ntpdmdoc@1.356 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  ntpd/ntpd.html@1.201 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  ntpd/ntpd.man.in@1.356 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  ntpd/ntpd.mdoc.in@1.356 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  ntpdc/invoke-ntpdc.texi@1.526 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  ntpdc/ntpdc-opts.c@1.547 +7 -7
+    NTP_4_2_8P18_RCGO
+
+  ntpdc/ntpdc-opts.h@1.546 +3 -3
+    NTP_4_2_8P18_RCGO
+
+  ntpdc/ntpdc.1ntpdcman@1.357 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  ntpdc/ntpdc.1ntpdcmdoc@1.357 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  ntpdc/ntpdc.html@1.371 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  ntpdc/ntpdc.man.in@1.357 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  ntpdc/ntpdc.mdoc.in@1.357 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  ntpq/invoke-ntpq.texi@1.536 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  ntpq/ntpq-opts.c@1.556 +7 -7
+    NTP_4_2_8P18_RCGO
+
+  ntpq/ntpq-opts.h@1.554 +3 -3
+    NTP_4_2_8P18_RCGO
+
+  ntpq/ntpq.1ntpqman@1.364 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  ntpq/ntpq.1ntpqmdoc@1.364 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  ntpq/ntpq.html@1.201 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  ntpq/ntpq.man.in@1.364 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  ntpq/ntpq.mdoc.in@1.364 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  ntpsnmpd/invoke-ntpsnmpd.texi@1.526 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  ntpsnmpd/ntpsnmpd-opts.c@1.547 +7 -7
+    NTP_4_2_8P18_RCGO
+
+  ntpsnmpd/ntpsnmpd-opts.h@1.546 +3 -3
+    NTP_4_2_8P18_RCGO
+
+  ntpsnmpd/ntpsnmpd.1ntpsnmpdman@1.355 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  ntpsnmpd/ntpsnmpd.1ntpsnmpdmdoc@1.355 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  ntpsnmpd/ntpsnmpd.html@1.193 +1 -1
+    NTP_4_2_8P18_RCGO
+
+  ntpsnmpd/ntpsnmpd.man.in@1.355 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  ntpsnmpd/ntpsnmpd.mdoc.in@1.355 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  packageinfo.sh@1.552 +3 -1
+    NTP_4_2_8P18_RCGO
+
+  scripts/calc_tickadj/calc_tickadj.1calc_tickadjman@1.116 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/calc_tickadj/calc_tickadj.1calc_tickadjmdoc@1.118 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/calc_tickadj/calc_tickadj.html@1.117 +1 -1
+    NTP_4_2_8P18_RCGO
+
+  scripts/calc_tickadj/calc_tickadj.man.in@1.115 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/calc_tickadj/calc_tickadj.mdoc.in@1.118 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/calc_tickadj/invoke-calc_tickadj.texi@1.120 +1 -1
+    NTP_4_2_8P18_RCGO
+
+  scripts/invoke-plot_summary.texi@1.138 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/invoke-summary.texi@1.137 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/ntp-wait/invoke-ntp-wait.texi@1.349 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/ntp-wait/ntp-wait-opts@1.85 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/ntp-wait/ntp-wait.1ntp-waitman@1.344 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/ntp-wait/ntp-wait.1ntp-waitmdoc@1.346 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/ntp-wait/ntp-wait.html@1.365 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/ntp-wait/ntp-wait.man.in@1.344 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/ntp-wait/ntp-wait.mdoc.in@1.346 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/ntpsweep/invoke-ntpsweep.texi@1.135 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/ntpsweep/ntpsweep-opts@1.88 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/ntpsweep/ntpsweep.1ntpsweepman@1.123 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/ntpsweep/ntpsweep.1ntpsweepmdoc@1.123 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/ntpsweep/ntpsweep.html@1.137 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/ntpsweep/ntpsweep.man.in@1.123 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/ntpsweep/ntpsweep.mdoc.in@1.124 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/ntptrace/invoke-ntptrace.texi@1.138 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/ntptrace/ntptrace-opts@1.88 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/ntptrace/ntptrace.1ntptraceman@1.123 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/ntptrace/ntptrace.1ntptracemdoc@1.125 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/ntptrace/ntptrace.html@1.138 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/ntptrace/ntptrace.man.in@1.123 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/ntptrace/ntptrace.mdoc.in@1.126 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/plot_summary-opts@1.89 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/plot_summary.1plot_summaryman@1.136 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/plot_summary.1plot_summarymdoc@1.136 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/plot_summary.html@1.140 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/plot_summary.man.in@1.136 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/plot_summary.mdoc.in@1.136 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/summary-opts@1.88 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/summary.1summaryman@1.135 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/summary.1summarymdoc@1.135 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/summary.html@1.139 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/summary.man.in@1.135 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/summary.mdoc.in@1.135 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/update-leap/invoke-update-leap.texi@1.36 +1 -1
+    NTP_4_2_8P18_RCGO
+
+  scripts/update-leap/update-leap-opts@1.38 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/update-leap/update-leap.1update-leapman@1.36 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/update-leap/update-leap.1update-leapmdoc@1.37 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/update-leap/update-leap.html@1.36 +1 -1
+    NTP_4_2_8P18_RCGO
+
+  scripts/update-leap/update-leap.man.in@1.36 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  scripts/update-leap/update-leap.mdoc.in@1.37 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  sntp/invoke-sntp.texi@1.526 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  sntp/sntp-opts.c@1.548 +7 -7
+    NTP_4_2_8P18_RCGO
+
+  sntp/sntp-opts.h@1.546 +3 -3
+    NTP_4_2_8P18_RCGO
+
+  sntp/sntp.1sntpman@1.361 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  sntp/sntp.1sntpmdoc@1.361 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  sntp/sntp.html@1.542 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  sntp/sntp.man.in@1.361 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  sntp/sntp.mdoc.in@1.361 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  util/invoke-ntp-keygen.texi@1.529 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  util/ntp-keygen-opts.c@1.550 +7 -7
+    NTP_4_2_8P18_RCGO
+
+  util/ntp-keygen-opts.h@1.548 +3 -3
+    NTP_4_2_8P18_RCGO
+
+  util/ntp-keygen.1ntp-keygenman@1.357 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  util/ntp-keygen.1ntp-keygenmdoc@1.357 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  util/ntp-keygen.html@1.202 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  util/ntp-keygen.man.in@1.357 +2 -2
+    NTP_4_2_8P18_RCGO
+
+  util/ntp-keygen.mdoc.in@1.357 +2 -2
+    NTP_4_2_8P18_RCGO
+
+ChangeSet@1.4059, 2024-05-24 00:40:40-07:00, ntpreleng@ntp-build.tal1.ntfo.org
+  Remove duplicate ChangeLog entries
+
+  ChangeLog@1.2100 +1 -1
+    Remove duplicate ChangeLog entries
+
+  NEWS@1.221 +3898 -7
+    Remove duplicate ChangeLog entries
+
+ChangeSet@1.4058, 2024-05-24 00:30:46-07:00, ntpreleng@ntp-build.tal1.ntfo.org
+  Remove duplicate ChangeLog entries
+
+  ChangeLog@1.2099 +0 -4
+    Remove duplicate ChangeLog entries
+
+ChangeSet@1.4057, 2024-05-07 16:50:59-07:00, ntpreleng@ntp-build.tal1.ntfo.org
+  NTP_4_2_8P18_RC1
+  TAG: NTP_4_2_8P18_RC1
+
+  ChangeLog@1.2098 +1 -0
+    NTP_4_2_8P18_RC1
+
+  ntpd/invoke-ntp.conf.texi@1.229 +1 -1
+    NTP_4_2_8P18_RC1
+
+  ntpd/invoke-ntp.keys.texi@1.212 +1 -1
+    NTP_4_2_8P18_RC1
+
+  ntpd/invoke-ntpd.texi@1.526 +2 -2
+    NTP_4_2_8P18_RC1
+
+  ntpd/ntp.conf.5man@1.263 +2 -2
+    NTP_4_2_8P18_RC1
+
+  ntpd/ntp.conf.5mdoc@1.263 +2 -2
+    NTP_4_2_8P18_RC1
+
+  ntpd/ntp.conf.html@1.211 +765 -817
+    NTP_4_2_8P18_RC1
+
+  ntpd/ntp.conf.man.in@1.263 +2 -2
+    NTP_4_2_8P18_RC1
+
+  ntpd/ntp.conf.mdoc.in@1.263 +2 -2
+    NTP_4_2_8P18_RC1
+
+  ntpd/ntp.keys.5man@1.246 +2 -2
+    NTP_4_2_8P18_RC1
+
+  ntpd/ntp.keys.5mdoc@1.246 +3 -3
+    NTP_4_2_8P18_RC1
+
+  ntpd/ntp.keys.html@1.206 +105 -97
+    NTP_4_2_8P18_RC1
+
+  ntpd/ntp.keys.man.in@1.246 +2 -2
+    NTP_4_2_8P18_RC1
+
+  ntpd/ntp.keys.mdoc.in@1.246 +3 -3
+    NTP_4_2_8P18_RC1
+
+  ntpd/ntpd-opts.c@1.551 +245 -245
+    NTP_4_2_8P18_RC1
+
+  ntpd/ntpd-opts.h@1.550 +3 -3
+    NTP_4_2_8P18_RC1
+
+  ntpd/ntpd.1ntpdman@1.355 +2 -2
+    NTP_4_2_8P18_RC1
+
+  ntpd/ntpd.1ntpdmdoc@1.355 +2 -2
+    NTP_4_2_8P18_RC1
+
+  ntpd/ntpd.html@1.200 +398 -427
+    NTP_4_2_8P18_RC1
+
+  ntpd/ntpd.man.in@1.355 +2 -2
+    NTP_4_2_8P18_RC1
+
+  ntpd/ntpd.mdoc.in@1.355 +2 -2
+    NTP_4_2_8P18_RC1
+
+  ntpdc/invoke-ntpdc.texi@1.525 +2 -2
+    NTP_4_2_8P18_RC1
+
+  ntpdc/ntpdc-opts.c@1.546 +113 -113
+    NTP_4_2_8P18_RC1
+
+  ntpdc/ntpdc-opts.h@1.545 +3 -3
+    NTP_4_2_8P18_RC1
+
+  ntpdc/ntpdc.1ntpdcman@1.356 +2 -2
+    NTP_4_2_8P18_RC1
+
+  ntpdc/ntpdc.1ntpdcmdoc@1.356 +2 -2
+    NTP_4_2_8P18_RC1
+
+  ntpdc/ntpdc.html@1.370 +209 -215
+    NTP_4_2_8P18_RC1
+
+  ntpdc/ntpdc.man.in@1.356 +2 -2
+    NTP_4_2_8P18_RC1
+
+  ntpdc/ntpdc.mdoc.in@1.356 +2 -2
+    NTP_4_2_8P18_RC1
+
+  ntpq/invoke-ntpq.texi@1.535 +2 -2
+    NTP_4_2_8P18_RC1
+
+  ntpq/ntpq-opts.c@1.555 +120 -120
+    NTP_4_2_8P18_RC1
+
+  ntpq/ntpq-opts.h@1.553 +3 -3
+    NTP_4_2_8P18_RC1
+
+  ntpq/ntpq.1ntpqman@1.363 +2 -2
+    NTP_4_2_8P18_RC1
+
+  ntpq/ntpq.1ntpqmdoc@1.363 +2 -2
+    NTP_4_2_8P18_RC1
+
+  ntpq/ntpq.html@1.200 +815 -813
+    NTP_4_2_8P18_RC1
+
+  ntpq/ntpq.man.in@1.363 +2 -2
+    NTP_4_2_8P18_RC1
+
+  ntpq/ntpq.mdoc.in@1.363 +2 -2
+    NTP_4_2_8P18_RC1
+
+  ntpsnmpd/invoke-ntpsnmpd.texi@1.525 +2 -2
+    NTP_4_2_8P18_RC1
+
+  ntpsnmpd/ntpsnmpd-opts.c@1.546 +68 -68
+    NTP_4_2_8P18_RC1
+
+  ntpsnmpd/ntpsnmpd-opts.h@1.545 +3 -3
+    NTP_4_2_8P18_RC1
+
+  ntpsnmpd/ntpsnmpd.1ntpsnmpdman@1.354 +2 -2
+    NTP_4_2_8P18_RC1
+
+  ntpsnmpd/ntpsnmpd.1ntpsnmpdmdoc@1.354 +2 -2
+    NTP_4_2_8P18_RC1
+
+  ntpsnmpd/ntpsnmpd.html@1.192 +52 -39
+    NTP_4_2_8P18_RC1
+
+  ntpsnmpd/ntpsnmpd.man.in@1.354 +2 -2
+    NTP_4_2_8P18_RC1
+
+  ntpsnmpd/ntpsnmpd.mdoc.in@1.354 +2 -2
+    NTP_4_2_8P18_RC1
+
+  packageinfo.sh@1.551 +3 -3
+    NTP_4_2_8P18_RC1
+
+  scripts/calc_tickadj/calc_tickadj.1calc_tickadjman@1.115 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/calc_tickadj/calc_tickadj.1calc_tickadjmdoc@1.117 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/calc_tickadj/calc_tickadj.html@1.116 +30 -51
+    NTP_4_2_8P18_RC1
+
+  scripts/calc_tickadj/calc_tickadj.man.in@1.114 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/calc_tickadj/calc_tickadj.mdoc.in@1.117 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/calc_tickadj/invoke-calc_tickadj.texi@1.119 +1 -1
+    NTP_4_2_8P18_RC1
+
+  scripts/invoke-plot_summary.texi@1.137 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/invoke-summary.texi@1.136 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/ntp-wait/invoke-ntp-wait.texi@1.348 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/ntp-wait/ntp-wait-opts@1.84 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/ntp-wait/ntp-wait.1ntp-waitman@1.343 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/ntp-wait/ntp-wait.1ntp-waitmdoc@1.345 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/ntp-wait/ntp-wait.html@1.364 +109 -93
+    NTP_4_2_8P18_RC1
+
+  scripts/ntp-wait/ntp-wait.man.in@1.343 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/ntp-wait/ntp-wait.mdoc.in@1.345 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/ntpsweep/invoke-ntpsweep.texi@1.134 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/ntpsweep/ntpsweep-opts@1.87 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/ntpsweep/ntpsweep.1ntpsweepman@1.122 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/ntpsweep/ntpsweep.1ntpsweepmdoc@1.122 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/ntpsweep/ntpsweep.html@1.136 +39 -65
+    NTP_4_2_8P18_RC1
+
+  scripts/ntpsweep/ntpsweep.man.in@1.122 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/ntpsweep/ntpsweep.mdoc.in@1.123 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/ntptrace/invoke-ntptrace.texi@1.137 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/ntptrace/ntptrace-opts@1.87 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/ntptrace/ntptrace.1ntptraceman@1.122 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/ntptrace/ntptrace.1ntptracemdoc@1.124 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/ntptrace/ntptrace.html@1.137 +96 -81
+    NTP_4_2_8P18_RC1
+
+  scripts/ntptrace/ntptrace.man.in@1.122 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/ntptrace/ntptrace.mdoc.in@1.125 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/plot_summary-opts@1.88 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/plot_summary.1plot_summaryman@1.135 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/plot_summary.1plot_summarymdoc@1.135 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/plot_summary.html@1.139 +46 -73
+    NTP_4_2_8P18_RC1
+
+  scripts/plot_summary.man.in@1.135 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/plot_summary.mdoc.in@1.135 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/summary-opts@1.87 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/summary.1summaryman@1.134 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/summary.1summarymdoc@1.134 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/summary.html@1.138 +41 -66
+    NTP_4_2_8P18_RC1
+
+  scripts/summary.man.in@1.134 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/summary.mdoc.in@1.134 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/update-leap/invoke-update-leap.texi@1.35 +1 -1
+    NTP_4_2_8P18_RC1
+
+  scripts/update-leap/update-leap-opts@1.37 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/update-leap/update-leap.1update-leapman@1.35 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/update-leap/update-leap.1update-leapmdoc@1.36 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/update-leap/update-leap.html@1.35 +48 -80
+    NTP_4_2_8P18_RC1
+
+  scripts/update-leap/update-leap.man.in@1.35 +2 -2
+    NTP_4_2_8P18_RC1
+
+  scripts/update-leap/update-leap.mdoc.in@1.36 +2 -2
+    NTP_4_2_8P18_RC1
+
+  sntp/invoke-sntp.texi@1.525 +2 -2
+    NTP_4_2_8P18_RC1
+
+  sntp/sntp-opts.c@1.547 +161 -161
+    NTP_4_2_8P18_RC1
+
+  sntp/sntp-opts.h@1.545 +3 -3
+    NTP_4_2_8P18_RC1
+
+  sntp/sntp.1sntpman@1.360 +2 -2
+    NTP_4_2_8P18_RC1
+
+  sntp/sntp.1sntpmdoc@1.360 +2 -2
+    NTP_4_2_8P18_RC1
+
+  sntp/sntp.html@1.541 +258 -267
+    NTP_4_2_8P18_RC1
+
+  sntp/sntp.man.in@1.360 +2 -2
+    NTP_4_2_8P18_RC1
+
+  sntp/sntp.mdoc.in@1.360 +2 -2
+    NTP_4_2_8P18_RC1
+
+  util/invoke-ntp-keygen.texi@1.528 +2 -2
+    NTP_4_2_8P18_RC1
+
+  util/ntp-keygen-opts.c@1.549 +174 -174
+    NTP_4_2_8P18_RC1
+
+  util/ntp-keygen-opts.h@1.547 +3 -3
+    NTP_4_2_8P18_RC1
+
+  util/ntp-keygen.1ntp-keygenman@1.356 +2 -2
+    NTP_4_2_8P18_RC1
+
+  util/ntp-keygen.1ntp-keygenmdoc@1.356 +2 -2
+    NTP_4_2_8P18_RC1
+
+  util/ntp-keygen.html@1.201 +676 -652
+    NTP_4_2_8P18_RC1
+
+  util/ntp-keygen.man.in@1.356 +2 -2
+    NTP_4_2_8P18_RC1
+
+  util/ntp-keygen.mdoc.in@1.356 +2 -2
+    NTP_4_2_8P18_RC1
+
+ChangeSet@1.4056, 2024-04-28 22:49:42-05:00, stenn@stenn.chi1.ntfo.org
+  [Bug 2734] TEST3 prevents initial interleave sync
+
+  ChangeLog@1.2097 +1 -0
+    [Bug 2734] TEST3 prevents initial interleave sync
+
+  ntpd/ntp_proto.c@1.459 +3 -1
+    [Bug 2734] TEST3 prevents initial interleave sync
+
+ChangeSet@1.4055, 2024-04-21 03:19:48-05:00, harlan@stenn.chi1.ntfo.org
+  [Bug 3910] Memory leak using openssl-3 <hart@ntp.org>
+
+  ChangeLog@1.2096 +1 -0
+    [Bug 3910] Memory leak using openssl-3 <hart@ntp.org>
+
+ChangeSet@1.4054, 2024-04-21 03:11:17-05:00, harlan@stenn.chi1.ntfo.org
+  [Bug 3918] Tweak openssl header/library handling. <stenn@ntp.org>
+
+  ChangeLog@1.2095 +3 -3
+    [Bug 3918] Tweak openssl header/library handling. <stenn@ntp.org>
+
+ChangeSet@1.4053, 2024-04-17 04:23:11-05:00, harlan@stenn.chi1.ntfo.org
+  [Bug 3870] Server drops client packets with ppoll < 4.  <stenn@ntp.org>
+
+  ChangeLog@1.2094 +1 -0
+    [Bug 3870] Server drops client packets with ppoll < 4.  <stenn@ntp.org>
+
+  ntpd/ntp_proto.c@1.458 +5 -0
+    [Bug 3870] Server drops client packets with ppoll < 4.  <stenn@ntp.org>
+
+ChangeSet@1.4052, 2024-04-17 01:06:36-05:00, harlan@stenn.chi1.ntfo.org
+  [Bug 3912] Avoid rare math errors in ntptrace.  <brian.utterback@oracle.com>
+
+  ChangeLog@1.2093 +1 -0
+    [Bug 3912] Avoid rare math errors in ntptrace.  <brian.utterback@oracle.com>
+
+  scripts/ntptrace/ntptrace.in@1.14 +10 -0
+    [Bug 3912] Avoid rare math errors in ntptrace.  <brian.utterback@oracle.com>
+
+ChangeSet@1.4051, 2024-04-16 21:21:02-05:00, harlan@stenn.chi1.ntfo.org
+  [Bug 3756] Improve OpenSSL-3 detection and usage.
+
+  ChangeLog@1.2092 +1 -0
+    [Bug 3756] Improve OpenSSL-3 detection and usage.
+
+ChangeSet@1.4050, 2024-04-16 18:54:42-05:00, harlan@stenn.chi1.ntfo.org
+  [Bug 3874] ntp_openssl.m4: openssl detection cleanup.  <stenn@ntp.org>
+
+  ChangeLog@1.2091 +1 -1
+    [Bug 3874] ntp_openssl.m4: openssl detection cleanup.  <stenn@ntp.org>
+
+ChangeSet@1.4040.3.2, 2024-04-15 18:23:02-07:00, harlan@ntp-testbuild.tal1.ntfo.org
+  openssl detection cleanup
+
+  ChangeLog@1.2085.3.2 +1 -0
+    openssl detection cleanup
+
+  sntp/m4/ntp_openssl.m4@1.36.1.1 +115 -0
+    openssl detection cleanup
+
+ChangeSet@1.4040.2.3, 2024-04-15 23:27:13+00:00, davehart@tl.ntp.md
+  revert unintended change to "case BLAH:" label indent level in ntp_proto.c
+
+  ntpd/ntp_proto.c@1.454.2.2 +10 -11
+    revert unintended change to "case BLAH:" label indent level.
+
+ChangeSet@1.4040.2.2, 2024-04-15 22:28:07+00:00, davehart@tl.ntp.md
+  Log failures to allocate receive buffers.
+
+  ChangeLog@1.2085.2.2 +1 -0
+    Log failures to allocate receive buffers.
+
+  libntp/recvbuff.c@1.46 +26 -13
+    Log failures to allocate receive buffers.
+
+ChangeSet@1.4040.3.1, 2024-04-14 23:49:56-07:00, harlan@ntp-testbuild.tal1.ntfo.org
+  Wire in --enable-build-framework
+
+  ChangeLog@1.2085.3.1 +1 -0
+    Wire in --enable-build-framework
+
+  configure.ac@1.634.2.1 +17 -0
+    Wire in --enable-build-framework
+
+ChangeSet@1.4040.2.1, 2024-04-13 18:47:27+00:00, davehart@tl.ntp.md
+  [Bug 3914] Spurious "Unexpected origin timestamp" logged after time stepped.
+
+  ChangeLog@1.2085.2.1 +2 -0
+    [Bug 3914] Spurious "Unexpected origin timestamp" logged after time stepped.
+
+  ntpd/ntp_proto.c@1.454.2.1 +34 -20
+    [Bug 3914] Spurious "Unexpected origin timestamp" logged after time stepped.
+    Log suggested poll value with KoD.
+
+ChangeSet@1.4040.1.5, 2024-04-12 12:23:49+00:00, davehart@tl.ntp.md
+  Update libtool initialization macros to recommended.
+  Quiet some more Autoconf deprecation warnings.
+
+  configure.ac@1.634.1.1 +2 -3
+    Update libtool initialization macros to recommended.
+
+  ntpsnmpd/netsnmp_daemonize.c@1.8 +4 -12
+    https://www.gnu.org/savannah-checkouts/gnu/autoconf/manual/autoconf-2.72/autoconf.html#AC_005fHEADER_005fTIME
+
+  sntp/configure.ac@1.92.1.1 +2 -3
+    Update libtool initialization macros to recommended.
+
+  sntp/libevent/configure.ac@1.21 +1 -1
+    Quiet Autoconf warning by using equivalent non-obsolete macro.
+
+  sntp/libevent/m4/acx_pthread.m4@1.2 +1 -1
+    Quiet Autoconf warning by using equivalent non-obsolete macro.
+
+  sntp/m4/ntp_compiler.m4@1.11 +1 -6
+    Quiet Autoconf warning by using equivalent non-obsolete macro.
+
+  sntp/m4/ntp_libntp.m4@1.41.1.1 +1 -1
+    https://www.gnu.org/savannah-checkouts/gnu/autoconf/manual/autoconf-2.72/autoconf.html#AC_005fHEADER_005fTIME
+
+ChangeSet@1.4040.1.4, 2024-04-11 02:51:34+00:00, davehart@tl.ntp.md
+  [Bug 3913] Avoid duplicate IPv6 link-local manycast associations.
+  Complete the switch from struct interface to endpt.
+
+  ChangeLog@1.2085.1.2 +2 -0
+    [Bug 3913] Avoid duplicate IPv6 link-local manycast associations.
+
+  include/ntp.h@1.239.1.1 +6 -5
+    Complete the switch from struct interface to endpt.
+
+  include/ntp_control.h@1.61 +1 -1
+    Complete the switch from struct interface to endpt.
+
+  include/ntp_net.h@1.15 +1 -1
+    Complete the switch from struct interface to endpt.
+
+  include/ntpd.h@1.214 +3 -3
+    Complete the switch from struct interface to endpt.
+
+  libntp/socket.c@1.11 +8 -8
+    Complete the switch from struct interface to endpt.
+
+  ntpd/ntp_config.c@1.389 +2 -2
+    Complete the switch from struct interface to endpt.
+
+  ntpd/ntp_control.c@1.242.1.1 +8 -8
+    Complete the switch from struct interface to endpt.
+
+  ntpd/ntp_crypto.c@1.193.1.3 +1 -1
+    Complete the switch from struct interface to endpt.
+
+  ntpd/ntp_io.c@1.443.1.2 +200 -262
+    [Bug 3913] Avoid duplicate IPv6 link-local manycast associations.
+
+  ntpd/ntp_proto.c@1.454.1.1 +33 -10
+    [Bug 3913] Avoid duplicate IPv6 link-local manycast associations.
+
+  ports/winnt/include/ntp_iocpltypes.h@1.7 +0 -1
+    omplete the switch from struct interface to endpt.
+
+ChangeSet@1.4040.1.3, 2024-04-11 01:49:09+00:00, davehart@tl.ntp.md
+  [Bug 3909] Do not select multicast local address for unicast peer.
+
+  ChangeLog@1.2085.1.1 +2 -0
+    [Bug 3909] Do not select multicast local address for unicast peer.
+
+  ntpd/ntp_io.c@1.443.1.1 +26 -20
+    [Bug 3909] Do not select multicast local address for unicast peer.
+
+ChangeSet@1.4047, 2024-04-08 04:35:34+00:00, davehart@tl.ntp.md
+  Fix mismatched braces breaking --enable-leap-smear builds (my mistake).
+  Test --enable-leap-smear in one of the flock-build variants.
+
+  flock-build@1.54 +3 -15
+    Build with leap smearing code active in the -noopenssl variant.
+    Remove references to Dr. Mills' backroom hosts, update udel hosts.
+
+  ntpd/ntp_timer.c@1.102 +3 -2
+    Fix mismatched braces breaking --enable-leap-smear builds (my mistake).
+
+ChangeSet@1.4045, 2024-04-04 21:49:45+00:00, davehart@fips-22-04.davehart.net
+  [Bug 3753] ntpd fails to start with FIPS-enabled OpenSSL 3.
+
+  ChangeLog@1.2088 +1 -0
+    [Bug 3753] ntpd fails to start with FIPS-enabled OpenSSL 3.
+
+  include/Makefile.am@1.59 +1 -0
+    add c99_snprintf.h to quiet [v]snprintf.h redefinition warnings.
+
+  include/ntp.h@1.240 +8 -2
+    Provide more digest size macros for unit tests.
+
+  libntp/a_md5encrypt.c@1.59 +12 -15
+    Do not terminate program on EVP_DigestInit() failure.
+
+  libntp/authkeys.c@1.48 +3 -0
+    Comment only
+
+  libntp/ssl_init.c@1.34 +0 -3
+    Move MD5_LENGTH macro to ntp.h
+
+  ntpd/ntp_io.c@1.446 +1 -1
+    Don't assume AF_UNSPEC is 0.
+
+  sntp/crypto.c@1.43 +33 -39
+    Use size_t rath4er than int/u_int.
+    Add digest buffer size arg to sntp's compute_mac().
+
+  sntp/crypto.h@1.16 +8 -7
+    Use size_t and keyid_t rather than int/u_int.
+
+  sntp/main.c@1.109 +10 -10
+    Close broadcast sockets in sntp's kill_asyncio().
+
+  sntp/tests/crypto.c@1.20 +124 -63
+    Switch unit test digest algorithm from MD5 to SHAKE128 so it works on FIPS OpenSSL.
+
+  sntp/tests/packetHandling.c@1.8 +35 -15
+    Switch unit test digest algorithm from MD5 to SHAKE128 so it works on FIPS OpenSSL.
+
+  sntp/tests/packetProcessing.c@1.21 +112 -54
+    Add SHAKE128 test, make MD5 test XFAIL to handle FIPS OpenSSL.
+
+  sntp/tests/run-crypto.c@1.10 +10 -10
+    generated
+
+  sntp/tests/run-packetProcessing.c@1.16 +19 -17
+    generated
+
+  sntp/unity/unity_internals.h@1.8 +6 -4
+    Make TEST_EXPECT_FAIL_MESSAGE() work.  (Not in upstream)
+
+  tests/libntp/a_md5encrypt.c@1.20 +76 -32
+    Convert MAC unit tests to use SHA1 instead of MD5 for FIPS.
+
+  tests/libntp/digests.c@1.3 +1 -1
+    FIPS OpenSSL is expected to fail to initialize some digests.
+
+  tests/libntp/run-a_md5encrypt.c@1.19 +5 -5
+    generated
+
+  tests/libntp/run-digests.c@1.4 +2 -2
+    generated
+
+  tests/libntp/run-ssl_init.c@1.12 +7 -7
+    generated
+
+  tests/libntp/ssl_init.c@1.12 +3 -7
+    Remove redundant digest length identifiers
+
+  util/lsf-times.c@1.1 +1 -0
+    Stub needed by prior cset util/Makefile.am
+
+  util/lsf-times.c@1.0 +0 -0
+
+ChangeSet@1.4004.7.1, 2024-03-27 02:27:21-07:00, ntpreleng@ntp-bk2git.tal1.ntfo.org
+  authors.txt:
+    Add another email for Pearly
+
+  BitKeeper/etc/authors.txt@1.4 +1 -0
+    Add another email for Pearly
+
+ChangeSet@1.4044, 2024-03-04 13:16:37+00:00, davehart@tl.ntp.md
+  Build MD5 support even with OpenSSL to accomodate FIPS OpenSSL which lacks it.
+  Cache EVP_MD_CTX to avoid many alloc/frees around digest ops.
+
+  include/ntp_md5.h@1.17 +13 -11
+    Build MD5 support even with OpenSSL to accomodate FIPS OpenSSL which lacks it.
+
+  include/ntp_stdlib.h@1.95 +4 -3
+    Cache EVP_MD_CTX to avoid many alloc/frees around digest ops.
+
+  libntp/a_md5encrypt.c@1.58 +33 -64
+    Cache EVP_MD_CTX to avoid many alloc/frees around digest ops.
+
+  libntp/ssl_init.c@1.33 +13 -9
+    Cache EVP_MD_CTX to avoid many alloc/frees around digest ops.
+
+  ntpd/ntp_control.c@1.243 +20 -31
+    Use non-OpenSSL MD5 for mode 6 nonce generation.
+
+  ntpd/ntp_crypto.c@1.196 +16 -41
+    Cache EVP_MD_CTX to avoid many alloc/frees around digest ops.
+
+  ntpd/ntp_proto.c@1.455 +3 -3
+    Clean up debug output of timestamps.
+
+  ports/winnt/include/msvc_ssl_autolib.h@1.4 +1 -1
+    spelling
+
+ChangeSet@1.4043, 2024-02-23 09:09:57+00:00, hart@hart.chi1.ntfo.org
+  ntp_io.c:
+    clean up warnings about math with void *
+
+  ntpd/ntp_io.c@1.445 +3 -2
+    clean up warnings about math with void *
+
+ChangeSet@1.4042, 2024-02-23 08:49:49+00:00, davehart@fips-22-04.davehart.net
+  Remove deprecated configure --with-arlib option.
+  Remove configure support for ISC UNIX ca. 1998.
+  Move NTP_OPENSSL and NTP_CRYPTO_RAND invocations from configure.ac files
+    to NTP_LIBNTP.
+  Move ENABLE_CMAC to ntp_openssl.m4, enabling sntp/tests CMAC unit tests.
+  Remove dead code: HAVE_U_INT32_ONLY_WITH_DNS.
+  Eliminate [v]snprintf redefinition warnings on macOS.
+  Fix clang 14 cast increases alignment warning on Linux.
+  Move ENABLE_CMAC to ntp_openssl.m4, reviving sntp/tests CMAC unit tests.
+  Use NTP_HARD_CPPFLAGS in libopts tearoff.
+
+  BitKeeper/etc/ignore@1.99 +2 -0
+    added sntp/libevent/build-aux/test-driver
+
+  BitKeeper/etc/ignore@1.98 +1 -0
+    added html/.datecheck
+
+  ChangeLog@1.2087 +12 -1
+    Remove deprecated configure --with-arlib option.
+    Remove configure support for ISC UNIX ca. 1998.
+    Move NTP_OPENSSL and NTP_CRYPTO_RAND invocations from configure.ac files
+      to NTP_LIBNTP.
+    Move ENABLE_CMAC to ntp_openssl.m4, enabling sntp/tests CMAC unit tests.
+    Remove dead code: HAVE_U_INT32_ONLY_WITH_DNS.
+    Eliminate [v]snprintf redefinition warnings on macOS.
+    Fix clang 14 cast increases alignment warning on Linux.
+    Move ENABLE_CMAC to ntp_openssl.m4, reviving sntp/tests CMAC unit tests.
+    Use NTP_HARD_CPPFLAGS in libopts tearoff.
+
+  configure.ac@1.635 +2 -30
+    Remove deprecated configure --with-arlib option.
+    Remove support for ISC UNIX ca. 1998.
+    Move NTP_OPENSSL and NTP_CRYPTO_RAND invocations from configure.ac files
+      to NTP_LIBNTP.
+    Move ENABLE_CMAC to ntp_openssl.m4, reviving sntp/tests CMAC unit tests.
+
+  include/c99_snprintf.h@1.1 +28 -0
+    Eliminate [v]snprintf redefinition warnings on macOS.
+
+  include/c99_snprintf.h@1.0 +0 -0
+
+  libntp/ntp_intres.c@1.103 +0 -6
+    Remove dead code: HAVE_U_INT32_ONLY_WITH_DNS.
+
+  ntpd/ntp_io.c@1.444 +3 -5
+    Eliminate clang 14 cast increases alignment warning re: nlmsghdr.
+
+  sntp/configure.ac@1.93 +1 -2
+    Move NTP_OPENSSL and NTP_CRYPTO_RAND invocations from configure.ac files
+      to NTP_LIBNTP.
+
+  sntp/libopts/Makefile.am@1.32 +1 -3
+    Remove unneeded libopts_la_CPPFLAGS which prevented NTP_HARD_CPPFLAGS from being used.
+    Eliminate [v]snprintf redefinition warnings on macOS.
+
+  sntp/m4/ntp_libntp.m4@1.42 +6 -66
+    Move NTP_OPENSSL and NTP_CRYPTO_RAND invocations from configure.ac files
+     to NTP_LIBNTP.
+    Remove dead code: HAVE_U_INT32_ONLY_WITH_DNS.
+    Eliminate [v]snprintf redefinition warnings on macOS.
+
+  sntp/m4/ntp_openssl.m4@1.37 +12 -1
+    Move ENABLE_CMAC to ntp_openssl.m4, enabling sntp/tests CMAC unit tests.
+    Fix ntp_openssl.m4 manual libcrypto search by clearing _cv_ var.
+
+  sntp/tests/crypto.c@1.19 +20 -20
+    Improve test ignore messages.
+
+  sntp/tests/packetProcessing.c@1.20 +1 -1
+    Improve test ignore messages.
+
+  sntp/tests/run-packetProcessing.c@1.15 +19 -19
+    Should have been regenerated last March, oops.
+
+ChangeSet@1.4040.1.1, 2024-02-18 01:31:23-08:00, harlan@ntp-testbuild.tal1.ntfo.org
+  Makefile.am:
+    distribute lsf-times.c in util/Makefile.am
+  lsf-times.c:
+    new file
+  run-refnumtoa.c, run-bug-2803.c:
+    Check in regenerated files
+
+  tests/bug-2803/run-bug-2803.c@1.12 +1 -1
+    Check in regenerated files
+
+  tests/libntp/run-refnumtoa.c@1.12 +2 -2
+    Check in regenerated files
+
+  util/Makefile.am@1.85 +1 -0
+    distribute lsf-times.c in util/Makefile.am
+
+  util/lsf-times.c@1.1 +220 -0
+    BitKeeper file util/lsf-times.c
+
+  util/lsf-times.c@1.0 +0 -0
+
+ChangeSet@1.4040, 2024-02-01 02:22:21-06:00, stenn@stenn.chi1.ntfo.org
+  Fix another extra */
+
+  libparse/ieee754io.c@1.15 +1 -1
+    Fix another extra */
+
+ChangeSet@1.4039, 2024-01-31 21:43:41-08:00, harlan@ntp-testbuild.tal1.ntfo.org
+  Remove an extra */ from libparse/ieee754io.c
+
+  ChangeLog@1.2085 +1 -0
+    Remove an extra */ from libparse/ieee754io.c
+
+  libparse/ieee754io.c@1.14 +1 -1
+    Remove an extra */ from libparse/ieee754io.c
+
+ChangeSet@1.4038, 2024-01-31 21:00:01-08:00, harlan@ntp-testbuild.tal1.ntfo.org
+  Fix .datecheck location in Makefile.am
+
+  ChangeLog@1.2084 +1 -0
+    Fix .datecheck location in Makefile.am
+
+  Makefile.am@1.140 +1 -1
+    Fix .datecheck location in Makefile.am
+
+ChangeSet@1.4036, 2024-01-31 20:47:13+00:00, davehart@tl.ntp.md
+  #ifdef out unused put_ieee754() which triggers a warning and appears buggy.
+  Insert newlines in long error messages in ntp_openssl.m4, ntp_crypto_rand.m4.
+
+  libparse/ieee754io.c@1.13 +21 -2
+    #ifdef out unused put_ieee754() which triggers a warning and appears buggy.
+
+  sntp/m4/ntp_crypto_rand.m4@1.5 +10 -9
+    Insert newlines in long error message.
+
+  sntp/m4/ntp_openssl.m4@1.36 +20 -13
+    Insert newlines in long error messages.
+
+ChangeSet@1.4035, 2024-01-30 09:00:44+00:00, davehart@tl.ntp.md
+  Avoid running checkHtmlFileDates script repeatedly when no html/*.html
+      files have changed.
+  Correct comment, clarify configure --help text re: --with-autokey.
+  Display KoD refid as text in recently added message.
+  Correct OpenSSL usage in Autokey code to avoid warnings about
+      discarding const qualifiers with OpenSSL 3.
+  Avoid clang warning "a function declaration without a prototype is
+      deprecated in all versions of C".
+  Abort configure if --enable-crypto-rand given & unavailable.
+  improve --help output for --enable-c99-snprintf.
+  Add configure --enable-verbose-ssl to trace SSL detection.
+  Silence warnings about dropping const qualifier by making a copy
+      of OpenSSL key data before modifying it in ntp-keygen.
+  Display KoD refid as text in recently added message.
+  Add build test coverage for --disable-saveconfig to flock-build script.
+
+  ChangeLog@1.2082 +11 -2
+    Display KoD refid as text in recently added message.
+    Correct OpenSSL usage in Autokey code to avoid warnings about
+        discarding const qualifiers with OpenSSL 3.
+    Avoid running checkHtmlFileDates script repeatedly when no html/*.html
+    +    files have changed.
+    Add configure --enable-verbose-ssl to trace SSL detection.
+    Add build test coverage for --disable-saveconfig to flock-build script.
+
+  Makefile.am@1.139 +1 -1
+    Avoid running checkHtmlFileDates script repeatedly when no html/*.html
+        files have changed.
+
+  configure.ac@1.634 +2 -2
+    Correct comment, clarify configure --help text re: --with-autokey.
+
+  flock-build@1.53 +2 -2
+    Add build test coverage for --disable-saveconfig to flock-build script.
+
+  libntp/numtoa.c@1.11 +37 -30
+    Display KoD refid as text in recently added message.
+
+  ntpd/ntp_crypto.c@1.193.1.2 +44 -28
+    Correct OpenSSL usage in Autokey code to avoid warnings about
+        discarding const qualifiers with OpenSSL 3.
+
+  ntpd/ntp_io.c@1.443 +1 -1
+    Avoid clang warning "a function declaration without a prototype is
+        deprecated in all versions of C"
+
+  ntpd/ntp_proto.c@1.454 +1 -1
+    Display KoD refid as text in recently added message.
+
+  ntpd/ntp_scanner.c@1.54 +3 -3
+    Avoid clang warning "a function declaration without a prototype is
+        deprecated in all versions of C"
+
+  ntpd/refclock_arc.c@1.35 +8 -5
+    Quiet unused-but-set warning when building non-debug.
+
+  scripts/build/checkHtmlFileDates@1.3 +18 -2
+    Avoid running checkHtmlFileDates script repeatedly when no html/*.html
+        files have changed.
+
+  sntp/m4/ntp_crypto_rand.m4@1.4 +29 -7
+    Abort configure if --enable-crypto-rand given & unavailable.
+
+  sntp/m4/ntp_libntp.m4@1.41 +4 -1
+    improve --help output for --enable-c99-snprintf.
+
+  sntp/m4/ntp_openssl.m4@1.35 +24 -11
+    Add configure --enable-verbose-ssl to trace SSL detection.
+
+  tests/libntp/calendar.c@1.19 +3 -3
+    Avoid clang warning "a function declaration without a prototype is
+        deprecated in all versions of C"
+
+  tests/libntp/clocktime.c@1.10 +2 -2
+    Avoid clang warning "a function declaration without a prototype is
+        deprecated in all versions of C"
+
+  tests/libntp/refnumtoa.c@1.8 +24 -26
+    Display KoD refid as text in recently added message.
+
+  util/ntp-keygen.c@1.113 +35 -20
+    Silence warnings about dropping const qualifier by making a copy
+        of OpenSSL key data before modifying it.
+
+ChangeSet@1.4034, 2024-01-27 00:22:53+00:00, davehart@tl.ntp.md
+  [Bug 3903] lib/isc/win32/strerror.c NTstrerror() is not thread-safe.
+  Suppress OpenSSL 3 deprecation warning clutter.
+  Fix problem with statisics files not being generated (broken after 4.2.8p17)
+  Remove unneeded 200ms wait during NT service shutdown.
+  Do not compile unneded bsd_strerror.c on Windows.
+  Reduce HAVE_IO_COMPLETION_PORT #ifdef clutter by moving calls
+    to io_completion_port_remove_socket into
+    close_and_delete_fd_from_list().
+  Silence warnings building on macOS about incompatible types
+      for timeval.tv_usec.
+  Move massive config parser debug output from debug level 5 to 9.
+  Move yylex() debug output from level 4 to level 10.
+  Change overallocated 1k static lexeme buffer to 128 bytes.
+
+  ChangeLog@1.2081 +3 -0
+    [Bug 3903] lib/isc/win32/strerror.c NTstrerror() is not thread-safe.
+    Suppress OpenSSL 3 deprecation warning clutter.
+
+  include/ntpd.h@1.213 +2 -1
+    Add eptoa() (endpoint to ascii) alternative name for latoa()
+        (local address to ascii).
+
+  libntp/lib/isc/win32/strerror.c@1.18 +21 -14
+    [Bug 3903] lib/isc/win32/strerror.c NTstrerror() is not thread-safe.
+
+  libntp/work_thread.c@1.29 +1 -1
+    correct the correction
+
+  ntpd/ntp_config.c@1.388 +9 -10
+    Fix problem with statisics files not being generated (broken since 4.2.8p17)
+    Move massive config parser debug output from debug level 5 to 9.
+    Avoid "may be used uninitialized" warning re: match_type & action.
+
+  ntpd/ntp_io.c@1.442 +30 -33
+    Reduce HAVE_IO_COMPLETION_PORT #ifdef clutter by moving calls
+      to io_completion_port_remove_socket into
+      close_and_delete_fd_from_list().
+
+  ntpd/ntp_peer.c@1.170 +36 -14
+    Use eptoa() iinstead of equivalent latoa() with endpt *
+
+  ntpd/ntp_scanner.c@1.53 +10 -6
+    Move yylex() debug output from level 4 to level 10.
+    Change overallocated 1k static lexeme buffer to 128 bytes.
+
+  ports/winnt/include/ntp_iocpltypes.h@1.6 +1 -1
+    comment only
+
+  ports/winnt/ntpd/ntservice.c@1.35 +1 -3
+    Do not shut down IO thread until after peers are removed to prevent
+      assertion unpeering a serial refclock.
+    Remove unneeded 200ms wait during service shutdown.
+
+  ports/winnt/vs2015/libntp/libntp.vcxproj@1.12 +0 -1
+    Do not compile unneded bsd_strerror.c on Windows
+
+  ports/winnt/vs2015/libntp/libntp.vcxproj.filters@1.12 +0 -3
+    Do not compile unneded bsd_strerror.c on Windows
+
+  sntp/m4/ntp_openssl.m4@1.34 +9 -1
+    Suppress OpenSSL 3 deprecation warning clutter.
+    Add missing -I in search for evp.h.
+
+  tests/bug-2803/bug-2803.c@1.11 +4 -5
+    Silence warnings building on macOS about incompatible types
+        for timeval.tv_usec.
+
+  tests/libntp/timevalops.c@1.16 +3 -3
+    Suppress OpenSSL 3 deprecation warning clutter.
+
+ChangeSet@1.4028.2.1, 2024-01-22 06:54:06+00:00, davehart@tl.ntp.md
+  [Bug 3901] LIB_GETBUF isn't thread-safe.
+  [Bug 3900] fast_xmit() selects wrong local addr responding to mcast on
+             Windows.
+  [Bug 3888] ntpd with multiple same-subnet IPs using manycastclient creates
+             duplicate associations.
+  Remove useless pointer to Windows Help from system error messages.
+  Avoid newlines within Windows error messages.
+  Ensure unique association IDs if wrapped.
+  Write frequency file to 6 digits after decimal.
+  Unpeer on shutdown as long done on POSIX systems.
+  
+  Simplify calc_addr_distance().
+  Clamp min/maxpoll in edge cases in newpeer().
+  Quiet local addr change logginig when unpeering.
+  Correct missing arg for %s printf specifier in
+    send_blocking_resp_internal().
+
+  ChangeLog@1.2077.2.1 +13 -0
+    [Bug 3901] LIB_GETBUF isn't thread-safe.
+    [Bug 3900] fast_xmit() selects wrong local addr responding to mcast on
+               Windows.
+    [Bug 3888] ntpd with multiple same-subnet IPs using manycastclient creates
+               duplicate associations.
+    Remove useless pointer to Windows Help from system error messages.
+    Avoid newlines within Windows error messages.
+    Ensure unique association IDs if wrapped.
+    Simplify calc_addr_distance().
+    Clamp min/maxpoll in edge cases in newpeer().
+    Quiet local addr change logginig when unpeering.
+    Correct missing arg for %s printf specifier in
+      send_blocking_resp_internal().
+
+  include/lib_strbuf.h@1.13 +10 -15
+    Minimize chances of LIB_STRBUF threading problems (more to come).
+    ---
+    [Bug 3901] LIB_GETBUF isn't thread-safe.
+
+  include/ntp.h@1.236.1.3 +5 -0
+    Quiet local addr change logginig when unpeering.
+
+  libntp/lib/isc/win32/strerror.c@1.17 +30 -3
+    Remove useless pointer to Windows Help from system error messages.
+    Avoid newlines within Windows error messages.
+
+  libntp/lib_strbuf.c@1.13 +39 -15
+    [Bug 3901] LIB_GETBUF isn't thread-safe.
+
+  libntp/work_thread.c@1.28 +6 -2
+    Correct missing arg for %s printf specifier in send_blocking_resp_internal.
+
+  ntpd/ntp_io.c@1.438.1.3 +47 -50
+    Simplify calc_addr_distance().
+
+  ntpd/ntp_peer.c@1.169 +97 -71
+    [Bug 3888] ntpd with multiple same-subnet IPs using manycastclient 
+               creates duplicate associations.
+    Ensure unique association IDs even if we wrap 16 bits.
+    Never change interface for a link-local remote addreess.
+    Clamp min/maxpoll in edge cases in newpeer().
+    Quiet local addr change logginig when unpeering.
+
+  ntpd/ntp_proto.c@1.450.1.3 +20 -7
+    [Bug 3900] fast_xmit() selects wrong local addr responding
+      to mcast on Windows.
+    ---
+    whoops
+
+  ntpd/ntp_util.c@1.125.1.1 +5 -7
+    Write frequency file to 6 digits after decimal.
+
+  ntpq/ntpq-subs.c@1.135.1.1 +1 -1
+    Remove no-op cast.
+
+  ports/winnt/ntpd/ntservice.c@1.34 +1 -0
+    Unpeer on shutdown as long done on POSIX systems.
+
+ChangeSet@1.4028.1.1, 2024-01-07 00:46:19-08:00, harlan@ntp-testbuild.tal1.ntfo.org
+  Makefile.am:
+    Added util/lsf-times
+  Many files:
+    Update copyright year to 2024
+
+  ChangeLog@1.2077.1.1 +2 -0
+    Update copyright year to 2024
+
+  html/copyright.html@1.74 +2 -2
+    Update copyright year to 2024
+
+  ntpd/invoke-ntp.conf.texi@1.228 +1 -1
+    Update copyright year to 2024
+
+  ntpd/invoke-ntp.keys.texi@1.211 +1 -1
+    Update copyright year to 2024
+
+  ntpd/invoke-ntpd.texi@1.525 +1 -1
+    Update copyright year to 2024
+
+  ntpd/ntp.conf.5man@1.262 +3 -3
+    Update copyright year to 2024
+
+  ntpd/ntp.conf.5mdoc@1.262 +3 -3
+    Update copyright year to 2024
+
+  ntpd/ntp.conf.html@1.210 +817 -765
+    Update copyright year to 2024
+
+  ntpd/ntp.conf.man.in@1.262 +3 -3
+    Update copyright year to 2024
+
+  ntpd/ntp.conf.mdoc.in@1.262 +3 -3
+    Update copyright year to 2024
+
+  ntpd/ntp.keys.5man@1.245 +3 -3
+    Update copyright year to 2024
+
+  ntpd/ntp.keys.5mdoc@1.245 +4 -4
+    Update copyright year to 2024
+
+  ntpd/ntp.keys.html@1.205 +97 -105
+    Update copyright year to 2024
+
+  ntpd/ntp.keys.man.in@1.245 +3 -3
+    Update copyright year to 2024
+
+  ntpd/ntp.keys.mdoc.in@1.245 +4 -4
+    Update copyright year to 2024
+
+  ntpd/ntpd-opts.c@1.550 +4 -4
+    Update copyright year to 2024
+
+  ntpd/ntpd-opts.h@1.549 +2 -2
+    Update copyright year to 2024
+
+  ntpd/ntpd.1ntpdman@1.354 +3 -3
+    Update copyright year to 2024
+
+  ntpd/ntpd.1ntpdmdoc@1.354 +3 -3
+    Update copyright year to 2024
+
+  ntpd/ntpd.html@1.199 +427 -398
+    Update copyright year to 2024
+
+  ntpd/ntpd.man.in@1.354 +3 -3
+    Update copyright year to 2024
+
+  ntpd/ntpd.mdoc.in@1.354 +3 -3
+    Update copyright year to 2024
+
+  ntpdc/invoke-ntpdc.texi@1.524 +1 -1
+    Update copyright year to 2024
+
+  ntpdc/ntpdc-opts.c@1.545 +4 -4
+    Update copyright year to 2024
+
+  ntpdc/ntpdc-opts.h@1.544 +2 -2
+    Update copyright year to 2024
+
+  ntpdc/ntpdc.1ntpdcman@1.355 +3 -3
+    Update copyright year to 2024
+
+  ntpdc/ntpdc.1ntpdcmdoc@1.355 +3 -3
+    Update copyright year to 2024
+
+  ntpdc/ntpdc.html@1.369 +215 -209
+    Update copyright year to 2024
+
+  ntpdc/ntpdc.man.in@1.355 +3 -3
+    Update copyright year to 2024
+
+  ntpdc/ntpdc.mdoc.in@1.355 +3 -3
+    Update copyright year to 2024
+
+  ntpq/invoke-ntpq.texi@1.534 +1 -1
+    Update copyright year to 2024
+
+  ntpq/ntpq-opts.c@1.554 +4 -4
+    Update copyright year to 2024
+
+  ntpq/ntpq-opts.h@1.552 +2 -2
+    Update copyright year to 2024
+
+  ntpq/ntpq.1ntpqman@1.362 +3 -3
+    Update copyright year to 2024
+
+  ntpq/ntpq.1ntpqmdoc@1.362 +3 -3
+    Update copyright year to 2024
+
+  ntpq/ntpq.html@1.199 +813 -815
+    Update copyright year to 2024
+
+  ntpq/ntpq.man.in@1.362 +3 -3
+    Update copyright year to 2024
+
+  ntpq/ntpq.mdoc.in@1.362 +3 -3
+    Update copyright year to 2024
+
+  ntpsnmpd/invoke-ntpsnmpd.texi@1.524 +2 -2
+    Update copyright year to 2024
+
+  ntpsnmpd/ntpsnmpd-opts.c@1.545 +4 -4
+    Update copyright year to 2024
+
+  ntpsnmpd/ntpsnmpd-opts.h@1.544 +2 -2
+    Update copyright year to 2024
+
+  ntpsnmpd/ntpsnmpd.1ntpsnmpdman@1.353 +3 -3
+    Update copyright year to 2024
+
+  ntpsnmpd/ntpsnmpd.1ntpsnmpdmdoc@1.353 +3 -3
+    Update copyright year to 2024
+
+  ntpsnmpd/ntpsnmpd.html@1.191 +39 -52
+    Update copyright year to 2024
+
+  ntpsnmpd/ntpsnmpd.man.in@1.353 +3 -3
+    Update copyright year to 2024
+
+  ntpsnmpd/ntpsnmpd.mdoc.in@1.353 +3 -3
+    Update copyright year to 2024
+
+  scripts/calc_tickadj/calc_tickadj.1calc_tickadjman@1.114 +2 -2
+    Update copyright year to 2024
+
+  scripts/calc_tickadj/calc_tickadj.1calc_tickadjmdoc@1.116 +2 -2
+    Update copyright year to 2024
+
+  scripts/calc_tickadj/calc_tickadj.html@1.115 +50 -29
+    Update copyright year to 2024
+
+  scripts/calc_tickadj/calc_tickadj.man.in@1.113 +2 -2
+    Update copyright year to 2024
+
+  scripts/calc_tickadj/calc_tickadj.mdoc.in@1.116 +2 -2
+    Update copyright year to 2024
+
+  scripts/calc_tickadj/invoke-calc_tickadj.texi@1.118 +1 -1
+    Update copyright year to 2024
+
+  scripts/invoke-plot_summary.texi@1.136 +1 -1
+    Update copyright year to 2024
+
+  scripts/invoke-summary.texi@1.135 +1 -1
+    Update copyright year to 2024
+
+  scripts/ntp-wait/invoke-ntp-wait.texi@1.347 +1 -1
+    Update copyright year to 2024
+
+  scripts/ntp-wait/ntp-wait-opts@1.83 +1 -1
+    Update copyright year to 2024
+
+  scripts/ntp-wait/ntp-wait.1ntp-waitman@1.342 +2 -2
+    Update copyright year to 2024
+
+  scripts/ntp-wait/ntp-wait.1ntp-waitmdoc@1.344 +2 -2
+    Update copyright year to 2024
+
+  scripts/ntp-wait/ntp-wait.html@1.363 +93 -109
+    Update copyright year to 2024
+
+  scripts/ntp-wait/ntp-wait.man.in@1.342 +2 -2
+    Update copyright year to 2024
+
+  scripts/ntp-wait/ntp-wait.mdoc.in@1.344 +2 -2
+    Update copyright year to 2024
+
+  scripts/ntpsweep/invoke-ntpsweep.texi@1.133 +1 -1
+    Update copyright year to 2024
+
+  scripts/ntpsweep/ntpsweep-opts@1.86 +1 -1
+    Update copyright year to 2024
+
+  scripts/ntpsweep/ntpsweep.1ntpsweepman@1.121 +2 -2
+    Update copyright year to 2024
+
+  scripts/ntpsweep/ntpsweep.1ntpsweepmdoc@1.121 +2 -2
+    Update copyright year to 2024
+
+  scripts/ntpsweep/ntpsweep.html@1.135 +63 -37
+    Update copyright year to 2024
+
+  scripts/ntpsweep/ntpsweep.man.in@1.121 +2 -2
+    Update copyright year to 2024
+
+  scripts/ntpsweep/ntpsweep.mdoc.in@1.122 +2 -2
+    Update copyright year to 2024
+
+  scripts/ntptrace/invoke-ntptrace.texi@1.136 +1 -1
+    Update copyright year to 2024
+
+  scripts/ntptrace/ntptrace-opts@1.86 +1 -1
+    Update copyright year to 2024
+
+  scripts/ntptrace/ntptrace.1ntptraceman@1.121 +2 -2
+    Update copyright year to 2024
+
+  scripts/ntptrace/ntptrace.1ntptracemdoc@1.123 +2 -2
+    Update copyright year to 2024
+
+  scripts/ntptrace/ntptrace.html@1.136 +81 -96
+    Update copyright year to 2024
+
+  scripts/ntptrace/ntptrace.man.in@1.121 +2 -2
+    Update copyright year to 2024
+
+  scripts/ntptrace/ntptrace.mdoc.in@1.124 +2 -2
+    Update copyright year to 2024
+
+  scripts/plot_summary-opts@1.87 +1 -1
+    Update copyright year to 2024
+
+  scripts/plot_summary.1plot_summaryman@1.134 +2 -2
+    Update copyright year to 2024
+
+  scripts/plot_summary.1plot_summarymdoc@1.134 +2 -2
+    Update copyright year to 2024
+
+  scripts/plot_summary.html@1.138 +71 -44
+    Update copyright year to 2024
+
+  scripts/plot_summary.man.in@1.134 +2 -2
+    Update copyright year to 2024
+
+  scripts/plot_summary.mdoc.in@1.134 +2 -2
+    Update copyright year to 2024
+
+  scripts/summary-opts@1.86 +1 -1
+    Update copyright year to 2024
+
+  scripts/summary.1summaryman@1.133 +2 -2
+    Update copyright year to 2024
+
+  scripts/summary.1summarymdoc@1.133 +2 -2
+    Update copyright year to 2024
+
+  scripts/summary.html@1.137 +64 -39
+    Update copyright year to 2024
+
+  scripts/summary.man.in@1.133 +2 -2
+    Update copyright year to 2024
+
+  scripts/summary.mdoc.in@1.133 +2 -2
+    Update copyright year to 2024
+
+  scripts/update-leap/invoke-update-leap.texi@1.34 +1 -1
+    Update copyright year to 2024
+
+  scripts/update-leap/update-leap-opts@1.36 +1 -1
+    Update copyright year to 2024
+
+  scripts/update-leap/update-leap.1update-leapman@1.34 +2 -2
+    Update copyright year to 2024
+
+  scripts/update-leap/update-leap.1update-leapmdoc@1.35 +2 -2
+    Update copyright year to 2024
+
+  scripts/update-leap/update-leap.html@1.34 +79 -47
+    Update copyright year to 2024
+
+  scripts/update-leap/update-leap.man.in@1.34 +2 -2
+    Update copyright year to 2024
+
+  scripts/update-leap/update-leap.mdoc.in@1.35 +2 -2
+    Update copyright year to 2024
+
+  sntp/include/copyright.def@1.32 +1 -1
+    Update copyright year to 2024
+
+  sntp/invoke-sntp.texi@1.524 +1 -1
+    Update copyright year to 2024
+
+  sntp/sntp-opts.c@1.546 +4 -4
+    Update copyright year to 2024
+
+  sntp/sntp-opts.h@1.544 +2 -2
+    Update copyright year to 2024
+
+  sntp/sntp.1sntpman@1.359 +3 -3
+    Update copyright year to 2024
+
+  sntp/sntp.1sntpmdoc@1.359 +3 -3
+    Update copyright year to 2024
+
+  sntp/sntp.html@1.540 +267 -258
+    Update copyright year to 2024
+
+  sntp/sntp.man.in@1.359 +3 -3
+    Update copyright year to 2024
+
+  sntp/sntp.mdoc.in@1.359 +3 -3
+    Update copyright year to 2024
+
+  util/Makefile.am@1.84 +2 -1
+    Added util/lsf-times
+
+  util/invoke-ntp-keygen.texi@1.527 +1 -1
+    Update copyright year to 2024
+
+  util/ntp-keygen-opts.c@1.548 +4 -4
+    Update copyright year to 2024
+
+  util/ntp-keygen-opts.h@1.546 +2 -2
+    Update copyright year to 2024
+
+  util/ntp-keygen.1ntp-keygenman@1.355 +3 -3
+    Update copyright year to 2024
+
+  util/ntp-keygen.1ntp-keygenmdoc@1.355 +3 -3
+    Update copyright year to 2024
+
+  util/ntp-keygen.html@1.200 +652 -676
+    Update copyright year to 2024
+
+  util/ntp-keygen.man.in@1.355 +3 -3
+    Update copyright year to 2024
+
+  util/ntp-keygen.mdoc.in@1.355 +3 -3
+    Update copyright year to 2024
+
+ChangeSet@1.4032, 2024-01-05 08:09:43+00:00, davehart@tl.ntp.md
+  Fix build failure with forking worker.
+
+  ntpd/ntpd.c@1.190.1.4 +1 -1
+    Fix simulator build.
+
+ChangeSet@1.4029.1.1, 2024-01-04 10:33:34+00:00, davehart@tl.ntp.md
+  Further changes to ensure ntp_openssl.m4 does the right thing on systems
+    where no extra flags are needed to use OpenSSL.
+  Do not disable periodic network interface scans if we are abot
+    to get notifications from Windows, as some systems are observed
+    to get those notifications very late.
+  Update NEWS to note change to require --without-crypto or error out of configure.
+
+  NEWS@1.220 +11 -0
+    Note change to require --without-crypto or error out of configure.
+
+  configure.ac@1.633 +1 -1
+    Force config.cache flush
+
+  ports/winnt/ntpd/ntp_iocompletionport.c@1.87 +2 -1
+    Do not disable periodic network interface scans if we are able
+      to get notifications from Windows, as some systems are observed
+      to get those notifications very late.
+
+  sntp/configure.ac@1.92 +1 -1
+    Force config.cache flush
+
+  sntp/m4/ntp_openssl.m4@1.33 +215 -137
+    Further changes to ensure ntp_openssl.m4 does the right thing on systems
+      where no extra flags are needed to use OpenSSL.
+    Avoid silent downgrade to crypto-free build, error unless --without-crypto.
+
+ChangeSet@1.4026.2.1, 2023-10-30 04:31:05+00:00, davehart@tl.ntp.md
+  [Bug 3847] SSL detection in configure should run-test if runpath is needed.
+  Use @configure_input@ in various *.in files to include a comment that
+    the file is generated from another pointing to the *.in.
+  Correct underquoting, indents in ntp_facilitynames.m4.
+  Clean up a few warnings seen building with older gcc.
+  Fix build on older FreeBSD lacking sys/procctl.h.
+  Disable [Bug 3627] workaround on newer FreeBSD which has the kernel fix
+    that makes it unnecessary, re-enabling ASLR stack gap.
+
+  ChangeLog@1.2075.2.1 +9 -0
+    [Bug 3847] SSL detection in configure should run-test if runpath is needed.
+    Use @configure_input@ in various *.in files to include a comment that
+      the file is generated from another pointing to the *.in.
+    Correct underquoting, indents in ntp_facilitynames.m4.
+    Clean up a few warnings seen building with older gcc.
+    Fix build on older FreeBSD lacking sys/procctl.h.
+    Disable [Bug 3627] workaround on newer FreeBSD which has the kernel fix
+      that makes it unnecessary, re-enabling ASLR stack gap.
+
+  check-libntp.mf@1.4 +4 -1
+    Skip libntp submakes with --disable-dependency-tracking to save time
+      for one-off builds.
+
+  configure.ac@1.630.1.1 +7 -10
+    Use AC_MSG_FAILURE for internal error, which refers user to config.log.
+    Bump configure cache version with ntp_openssl.m4 changes, s/b unneeded.
+    Remove unneded AC_SUBST of CFLAGS & LDFLAGS.
+    Fix build on older FreeBSD lacking sys/procctl.h.
+
+  libntp/ntp_realpath.c@1.3 +22 -21
+    Remove warning for shadowing 'symlink'.
+    Enforce NTP_MAXSYMLINKS correctly.
+
+  libntp/timexsup.c@1.4 +18 -4
+    Fix build on FreeBSD 7 and other ancient systems by following the
+      pattern used elsewhere in our source for including time.h and timex.h.
+
+  libparse/Makefile.am@1.36 +5 -10
+    Use silent rules, $(SED) from Autoconf.
+
+  ntpd/complete.conf.in@1.38.1.1 +11 -11
+    Use RFC 5737 IPv4 documentation prefixes, more exemplary pool hostnames,
+      remove reference to long-gone freenet6.net.
+
+  ntpd/ntp_config.c@1.385.1.1 +20 -16
+    Clean up warning for shadowing 'poll' by renaming attrtopsl() arg
+      from poll to log2_poll.
+
+  ntpd/ntp_util.c@1.124.1.1 +2 -2
+    Uninit FILE *fp, missing %s arg.
+    Add missing arg to statsdir too long msyslog().
+
+  ntpd/ntpd.c@1.190.2.1 +28 -26
+    Remove warning about shadowing "pipe" in detach_from_terminal().
+    Fix build on older FreeBSD lacking sys/procctl.h.
+    Disable [Bug 3627] workaround on newer FreeBSD which has the kernel fix
+      that makes it unnecessary, re-enabling ASLR stack gap.
+
+  ntpdc/nl.pl.in@1.10 +1 -0
+    Add @configure_input@ comment
+
+  ntpq/ntpq-subs.c@1.136 +2 -2
+    Correct comment, indent.
+
+  ntpsnmpd/Makefile.am@1.46 +1 -1
+    Be sure the OpenSSL includes we're using come before any we get
+      from SNMP configuration.
+
+  scripts/build/genAuthors.in@1.3 +1 -0
+    Add @configure_input@ comment
+
+  scripts/build/mkver.in@1.17 +2 -0
+    Add @configure_input@ comment
+
+  scripts/calc_tickadj/calc_tickadj.in@1.5 +1 -0
+    Add @configure_input@ comment
+
+  scripts/ntp-wait/ntp-wait.in@1.13 +1 -0
+    Add @configure_input@ comment
+
+  scripts/ntpsweep/ntpsweep.in@1.10 +1 -0
+    Add @configure_input@ comment
+
+  scripts/ntptrace/ntptrace.in@1.13 +1 -0
+    Add @configure_input@ comment
+
+  scripts/ntpver.in@1.4 +2 -1
+    Add @configure_input@ comment.
+    Use equivalent "version" system variable instead of "daemon_version"
+
+  scripts/plot_summary.in@1.4 +1 -0
+    Add @configure_input@ comment
+
+  scripts/summary.in@1.4 +1 -0
+    Add @configure_input@ comment
+
+  scripts/update-leap/update-leap.in@1.7 +1 -0
+    Add @configure_input@ comment
+
+  sntp/Makefile.am@1.95 +1 -2
+    Fix syntax error "; unexpected" when --enable-local-libevent 
+      is needed for "make dist"
+
+  sntp/check-libntp.mf@1.7 +5 -1
+    Skip libntp submakes with --disable-dependency-tracking to save time
+      for one-off builds.
+
+  sntp/configure.ac@1.91 +1 -1
+    Bump configure cache version, s/b unneeded
+
+  sntp/libevent/kqueue.c@1.9 +1 -1
+    Fix libevent build on older FreeBSD lacking ENOTCAPABLE.
+
+  sntp/m4/ntp_facilitynames.m4@1.2 +20 -13
+    Correct underquoting, indents.
+    No need to check for cross-compiling when we're not running the result.
+
+  sntp/m4/ntp_libntp.m4@1.40 +9 -3
+    Skip libntp submakes with --disable-dependency-tracking to save time
+      for one-off builds.
+    Require AC_PROG_SED, we get it already but document use for $SED/$(SED)
+
+  sntp/m4/ntp_openssl.m4@1.32 +323 -228
+    [Bug 3847] SSL detection in configure should run-test if runpath is needed.
+
+  sntp/tests/fileHandlingTest.h.in@1.16 +7 -1
+    Add @configure_input@ comment
+
+ChangeSet@1.4026.1.1, 2023-09-30 05:35:01+00:00, davehart@tl.ntp.md
+  [Bug 3871] 4.2.8p17 build without hopf6021 refclock enabled fails.
+             Reported by Hans Mayer.  Moved NONEMPTY_TRANSLATION_UNIT
+             declaration from ntp_types.h to config.h.
+  Use NONEMPTY_COMPILATION_UNIT in more conditionally-compiled files.
+
+  ChangeLog@1.2075.1.1 +4 -0
+    [Bug 3871] 4.2.8p17 build without hopf6021 refclock enabled fails.
+               Reported by Hans Mayer.  Moved NONEMPTY_TRANSLATION_UNIT
+               declaration from ntp_types.h to config.h.
+
+  configure.ac@1.631 +12 -0
+    Move NONEMPTY_TRANSLATION_UNIT declaration from ntp_types.h to config.h.
+
+  include/ntp_types.h@1.40 +0 -10
+    Move NONEMPTY_TRANSLATION_UNIT declaration from ntp_types.h to config.h.
+
+  libntp/adjtime.c@1.9 +1 -1
+    Lose unused global
+
+  libntp/audio.c@1.39 +1 -1
+    Lose unused global
+
+  libntp/bsd_strerror.c@1.7 +1 -1
+    Lose unused global
+
+  libntp/snprintf.c@1.14 +1 -1
+    Lose unused global
+
+  libparse/clk_computime.c@1.14 +1 -1
+    Lose unused global
+
+  libparse/clk_dcf7000.c@1.14 +1 -1
+    Lose unused global
+
+  libparse/clk_meinberg.c@1.17 +1 -1
+    Lose unused global
+
+  libparse/clk_rawdcf.c@1.25 +1 -1
+    Lose unused global
+
+  libparse/clk_rcc8000.c@1.13 +1 -1
+    Lose unused global
+
+  libparse/clk_schmid.c@1.16 +1 -1
+    Lose unused global
+
+  libparse/clk_sel240x.c@1.5 +1 -1
+    Lose unused global
+
+  libparse/clk_trimtaip.c@1.14 +1 -1
+    Lose unused global
+
+  libparse/clk_trimtsip.c@1.16 +1 -1
+    Lose unused global
+
+  libparse/clk_varitext.c@1.13 +1 -1
+    Lose unused global
+
+  libparse/parse.c@1.22 +1 -1
+    Lose unused global
+
+  libparse/parse_conf.c@1.12 +1 -1
+    Lose unused global
+
+  ntpd/ntp_crypto.c@1.193.1.1 +1 -1
+    Lose unused global
+
+  ntpd/refclock_acts.c@1.57 +1 -1
+    Lose unused global
+
+  ntpd/refclock_arbiter.c@1.23 +1 -1
+    Lose unused global
+
+  ntpd/refclock_as2201.c@1.19 +1 -1
+    Lose unused global
+
+  ntpd/refclock_atom.c@1.63 +1 -1
+    Lose unused global
+
+  ntpd/refclock_bancomm.c@1.18 +1 -1
+    Lose unused global
+
+  ntpd/refclock_chronolog.c@1.14 +1 -1
+    Lose unused global
+
+  ntpd/refclock_conf.c@1.36 +1 -1
+    Lose unused global
+
+  ntpd/refclock_dumbclock.c@1.21 +1 -1
+    Lose unused global
+
+  ntpd/refclock_fg.c@1.18 +1 -1
+    Lose unused global
+
+  ntpd/refclock_gpsvme.c@1.11 +1 -1
+    Lose unused global
+
+  ntpd/refclock_heath.c@1.22 +1 -1
+    Lose unused global
+
+  ntpd/refclock_hopfpci.c@1.15 +1 -1
+    Lose unused global
+
+  ntpd/refclock_hopfser.c@1.20 +1 -1
+    Lose unused global
+
+  ntpd/refclock_hpgps.c@1.19 +1 -1
+    Lose unused global
+
+  ntpd/refclock_irig.c@1.38 +1 -1
+    Lose unused global
+
+  ntpd/refclock_jjy.c@1.39 +1 -1
+    Lose unused global
+
+  ntpd/refclock_jupiter.c@1.36 +1 -1
+    Lose unused global
+
+  ntpd/refclock_local.c@1.23 +1 -1
+    Lose unused global
+
+  ntpd/refclock_mx4200.c@1.33 +1 -1
+    Lose unused global
+
+  ntpd/refclock_neoclock4x.c@1.25 +1 -1
+    Lose unused global
+
+  ntpd/refclock_oncore.c@1.109 +1 -1
+    Lose unused global
+
+  ntpd/refclock_palisade.c@1.52 +1 -1
+    Lose unused global
+
+  ntpd/refclock_pcf.c@1.14 +1 -1
+    Lose unused global
+
+  ntpd/refclock_pst.c@1.15 +1 -1
+    Lose unused global
+
+  ntpd/refclock_ripencc.c@1.20 +1 -1
+    Lose unused global
+
+  ntpd/refclock_tpro.c@1.15 +1 -1
+    Lose unused global
+
+  ntpd/refclock_true.c@1.29 +1 -1
+    Lose unused global
+
+  ntpd/refclock_tsyncpci.c@1.11 +1 -1
+    Lose unused global
+
+  ntpd/refclock_tt560.c@1.5 +1 -1
+    Lose unused global
+
+  ntpd/refclock_ulink.c@1.21 +1 -1
+    Lose unused global
+
+  ntpd/refclock_wwv.c@1.81 +1 -1
+    Lose unused global
+
+  ntpd/refclock_wwvb.c@1.37 +1 -1
+    Lose unused global
+
+  ntpd/refclock_zyfer.c@1.13 +1 -1
+    Lose unused global
+
+  ntpsnmpd/netsnmp_daemonize.c@1.7 +1 -1
+    Lose unused global
+
+  ports/winnt/include/config.h@1.121 +10 -0
+    Move NONEMPTY_TRANSLATION_UNIT declaration from ntp_types.h to config.h.
+
+  ports/winnt/vs2015/libntp/libntp.vcxproj@1.11 +1 -0
+    Add bsd_strerror.c ref
+
+  ports/winnt/vs2015/libntp/libntp.vcxproj.filters@1.11 +3 -0
+    Add bsd_strerror.c ref
+
+  ports/winnt/vs2015/ntpd/ntpd.vcxproj@1.12 +2 -1
+    Add clk_sel240x.c under Parse Lib
+
+  ports/winnt/vs2015/ntpd/ntpd.vcxproj.filters@1.9 +5 -7
+    Add clk_sel240x.c under Parse Lib
+
+ChangeSet@1.4027, 2023-09-30 03:53:06+00:00, davehart@tl.ntp.md
+  [Bug 3872] Ignore restrict mask for hostname.
+  [Bug 3868] Cannot restrict a pool peer.
+  [Bug 3855] ntpq lacks an equivalent to ntpdc's delrestrict.
+  Correct handling of not-found or unreadable or corrupt driftfile
+    to match comments by starting protocol engine in FREQ mode.
+  Add missing printf-style arg in ntp_util.c.
+  Update ntp.conf documentation to add "delrestrict" and correct
+    information about KoD rate limiting.
+
+  ChangeLog@1.2076 +6 -0
+    [Bug 3872] Ignore restrict mask for hostname.
+    [Bug 3868] Cannot restrict a pool peer.
+    [Bug 3855] ntpq lacks an equivalent to ntpdc's delrestrict.
+    Update ntp.conf documentation to add "delrestrict" and correct
+      information about KoD rate limiting.
+
+  include/ntp.h@1.236.1.2 +6 -7
+    Rearrange restrict_u members for better packing.
+    Change restrict_u.expire from u_long to u_int32.  136 years is plenty of range.
+    Lose RES_FLAGS as the single place it was used has gone away.
+
+  include/ntp_config.h@1.92 +9 -4
+    [Bug 3855] ntpq lacks an equivalent to ntpdc's delrestrict.
+    Expand restrict_node in syntax tree to allow delrestrict in ntp.conf
+      and preserve column along with line for error reporting.
+
+  include/ntpd.h@1.212 +6 -5
+    Indicate success with hack_restrict() return value.
+
+  include/vint64ops.h@1.4 +1 -1
+    Eliminate strtouv64() const warning mess by following strtol() model.
+
+  libntp/vint64ops.c@1.4 +11 -10
+    Eliminate strtouv64() const warning mess by following strtol() model.
+
+  ntpd/complete.conf.in@1.39 +16 -11
+    Add delrestrict lines interspersed with restrict lines.
+    Remove "ippeerlimit -1" entries as that is the default and saveconfig now omits it.
+    Remove all-ones masks as saveconfig now omits them.
+    Live up to the complete.conf name by referencing all the restrict bits.
+    Use doc-reserved IP prefixes.
+
+  ntpd/invoke-ntp.conf.texi@1.227 +40 -25
+    Autogen
+
+  ntpd/keyword-gen-utd@1.37 +1 -1
+    keyword-gen.c output
+
+  ntpd/keyword-gen.c@1.45 +1 -0
+    Add "delrestrict"
+
+  ntpd/ntp.conf.5man@1.261 +42 -26
+    Autogen
+
+  ntpd/ntp.conf.5mdoc@1.261 +45 -26
+    Autogen
+
+  ntpd/ntp.conf.def@1.38 +43 -24
+    Update ntp.conf doocumentation to reflect the addition of "delrestrict",
+      change references to "dotted-quad" addresses to "numeric" to generalize
+      for IPv6 as well, and correct the information about KoD rate limiting.
+
+  ntpd/ntp.conf.html@1.209 +40 -24
+    Autogen
+
+  ntpd/ntp.conf.man.in@1.261 +42 -26
+    Autogen
+
+  ntpd/ntp.conf.mdoc.in@1.261 +45 -26
+    Autogen
+
+  ntpd/ntp_config.c@1.386 +151 -77
+    omit "ipperlimit -1" which is default from restrict saveconfig.
+    Provide column in restrict error messages.
+    Report hack_restrict() failures.
+    Ignore restriction mask when address comes from hostname.
+    normal_dtoa(): don't use strlcpy() for overlapping buffers, undefined behavior.
+
+  ntpd/ntp_io.c@1.438.1.2 +20 -5
+    Make local address deletion message match addition message.
+    Report hack_restrict() failures.
+
+  ntpd/ntp_keyword.h@1.41 +1044 -1034
+    keyword-gen.c output
+
+  ntpd/ntp_leapsec.c@1.27 +1 -1
+    Correct misleading indent
+
+  ntpd/ntp_monitor.c@1.47 +11 -10
+    Use braces consistently, correct KoD rate-limiting comment.
+
+  ntpd/ntp_parser.c@1.121 +1593 -1546
+    bison ntp_parser.y
+
+  ntpd/ntp_parser.h@1.82 +371 -369
+    bison ntp_parser.y
+
+  ntpd/ntp_parser.y@1.109 +50 -21
+    Add "delrestrict" support.
+    Reduce code duplication by factoring out restrict mask parsing.
+    Correct out of bounds ippeerlimit line/col reporting.
+
+  ntpd/ntp_peer.c@1.168 +2 -2
+    Use TRUE/FALSE for restrict_source() remove argument.
+
+  ntpd/ntp_proto.c@1.450.1.2 +6 -12
+    Always add restrict source entry before soliciting pool server.
+
+  ntpd/ntp_request.c@1.134 +12 -3
+    report hack_restrict() failures.
+
+  ntpd/ntp_restrict.c@1.50 +185 -143
+    Sort RESM_SOURCE entries after others so static entries have precedence,
+      allowing runtime-added pool IP restrictions to be effective (Bug 3868].
+    Check for failure of hack_restrict() operations.
+    #ifdef DEBUG dump_restricts() code which was dead code in release builds.
+    Do not assume the first member of struct in_addr is s_addr.
+
+  ntpd/ntp_util.c@1.125 +9 -8
+    Correct handling of not-found or unreadable or corrupt driftfile
+      to match comments by starting protocol engine in FREQ mode.
+    Add missing printf-style arg.
+
+  ntpd/ntpd.c@1.190.1.2 +2 -2
+    Typo broke Linux build.
+
+  tests/libntp/vi64ops.c@1.8 +6 -6
+    Eliminate strtouv64() const warning mess by following strtol() model.
+
+ChangeSet@1.4026, 2023-09-05 20:40:34+00:00, davehart@tl.ntp.md
+  [Bug 3869] Remove long-gone "calldelay" & "crypto sign" from docs.
+  Correct ntp.conf docs burst packet count from 8 to 6.
+
+  ChangeLog@1.2075 +2 -0
+    [Bug 3869] Remove long-gone "calldelay" & "crypto sign" from docs.
+
+  html/release.html@1.44 +1 -1
+    typo
+
+  ntpd/invoke-ntp.conf.texi@1.226 +6 -30
+    Autogen
+
+  ntpd/ntp.conf.5man@1.260 +7 -33
+    Autogen
+
+  ntpd/ntp.conf.5mdoc@1.260 +6 -31
+    Autogen
+
+  ntpd/ntp.conf.def@1.37 +4 -29
+    Remove long-gone "calldelay" & "crypto sign" from docs.
+    Correct burst packet count from 8 to 6.
+
+  ntpd/ntp.conf.html@1.208 +5 -31
+    Autogen
+
+  ntpd/ntp.conf.man.in@1.260 +7 -33
+    Autogen
+
+  ntpd/ntp.conf.mdoc.in@1.260 +6 -31
+    Autogen
+
+ChangeSet@1.4020.3.1, 2023-08-28 19:23:24+00:00, davehart@tl.davehart.net
+  [Bug 3859] Use NotifyIpInterfaceChange on Windows ntpd.
+  Update CommitLog build rule for bk 7.x repo format.
+  Provide ntpd thread names to debugger on Windows.
+  Remove dead code libntp/numtohost.c and its unit tests.
+  Remove class A, B, C IPv4 distinctions in netof().
+
+  BitKeeper/deleted/88/run-test-numtohost.c~5477248c1ca0a276@1.14 +0 -0
+    Rename: tests/libntp/run-numtohost.c -> BitKeeper/deleted/88/run-test-numtohost.c~5477248c1ca0a276
+
+  BitKeeper/deleted/9d/numtohost.c~3e480692@1.7 +0 -0
+    Rename: libntp/numtohost.c -> BitKeeper/deleted/9d/numtohost.c~3e480692
+
+  BitKeeper/deleted/d4/numtohost.c~11c5a6cbd0341da7@1.8 +0 -0
+    Rename: tests/libntp/numtohost.c -> BitKeeper/deleted/d4/numtohost.c~11c5a6cbd0341da7
+
+  ChangeLog@1.2069.3.1 +4 -0
+    [Bug 3859] Use NotifyIpInterfaceChange on Windows ntpd.
+    Provide ntpd thread names to debugger on Windows.
+    Remove dead code libntp/numtohost.c and its unit tests.
+    Remove class A, B, C IPv4 distinctions in netof().
+
+  Makefile.am@1.138 +1 -1
+    Update CommitLog build rule for bk 7.x repo format.
+
+  include/ntp.h@1.236.1.1 +12 -9
+    Remove unused restrict_u member.
+    Move/rename bitflag dumpers for interface and restriction flags,
+      build_iflags() -> iflags_str()
+      build_mflags() -> mflags_str()
+      build_rflags() -> rflags_str()
+
+  include/ntp_net.h@1.12.1.1 +5 -0
+    Add IS_LOOPBACK_ADDR() macro.
+
+  include/ntp_psl.h@1.2 +7 -4
+    Use u_int32 for psl entries to save a few bytes on 64-bit systems.
+
+  include/ntp_stdlib.h@1.91.1.1 +2 -2
+    Include lib_strbuf.h from ntp_stdlib.h, remove many #includes.
+
+  include/ntpd.h@1.211 +51 -12
+    Rename globals for network addr rescans while changing use a bit.
+      interface_interval      -> endpt_scan_period
+      interface_timer         -> endpt_scan_timer
+      disable_dynamic_updates -> scan_addrs_once & no_periodic_scan
+    Move/rename bitflag dumpers for interface and restriction flags,
+      build_iflags() -> iflags_str()
+      build_mflags() -> mflags_str()
+      build_rflags() -> rflags_str()
+    Make the bigflag dumpers #ifdef DEBUG
+
+  libntp/Makefile.am@1.87 +0 -1
+    Remove dead code libntp/numtohost.c
+
+  libntp/clocktypes.c@1.22 +0 -1
+    Remove #include now in ntp_stdlib.h
+
+  libntp/dofptoa.c@1.11 +0 -2
+    Remove #include now in ntp_stdlib.h
+
+  libntp/dolfptoa.c@1.14 +0 -2
+    Remove #include now in ntp_stdlib.h
+
+  libntp/humandate.c@1.13 +0 -1
+    Remove #include now in ntp_stdlib.h
+
+  libntp/lib_strbuf.c@1.10.1.1 +0 -1
+    Remove #include now in ntp_stdlib.h
+
+  libntp/machines.c@1.26.1.1 +0 -1
+    Remove #include now in ntp_stdlib.h
+
+  libntp/modetoa.c@1.7 +0 -1
+    Remove #include now in ntp_stdlib.h
+
+  libntp/netof.c@1.10 +11 -13
+    IPv4 class A, B, C distinctions are now meaningless.
+
+  libntp/ntp_calendar.c@1.27 +0 -1
+    Remove #include now in ntp_stdlib.h
+
+  libntp/numtoa.c@1.8.1.1 +0 -1
+    Remove #include now in ntp_stdlib.h
+
+  libntp/prettydate.c@1.22 +0 -1
+    Remove #include now in ntp_stdlib.h
+
+  libntp/refnumtoa.c@1.13 +0 -1
+    Remove #include now in ntp_stdlib.h
+
+  libntp/socktoa.c@1.20 +0 -1
+    Remove #include now in ntp_stdlib.h
+
+  libntp/socktohost.c@1.17 +0 -1
+    Remove #include now in ntp_stdlib.h
+
+  libntp/statestr.c@1.32 +0 -1
+    Remove #include now in ntp_stdlib.h
+
+  libntp/systime.c@1.79 +0 -1
+    Remove #include now in ntp_stdlib.h
+
+  libntp/uglydate.c@1.6 +0 -1
+    Remove #include now in ntp_stdlib.h
+
+  libntp/work_thread.c@1.27 +6 -3
+    Provide thread name to debugger.
+    Correct comment.
+
+  libparse/ieee754io.c@1.12 +0 -2
+    Remove #include now in ntp_stdlib.h
+
+  ntpd/cmd_args.c@1.65 +7 -9
+    interface_interval -> endpt_scan_period
+
+  ntpd/keyword-gen.c@1.44 +0 -1
+    Remove #include now in ntp_stdlib.h
+
+  ntpd/ntp_config.c@1.385 +69 -339
+    Don't trigger addr rescan from config_nic_rules() during
+      initialization or if we've dropped privileges.
+    Make some internal error checks DEBUG-only.
+    Rename bitflag to string functions:
+      build_iflags() -> iflags_str()
+      build_mflags() -> mflags_str()
+      build_rflags() -> rflags_str()
+    Move iflags_str() to ntp_io.c, the other two to ntp_restrict.c
+    Rename appendstr() -> append_flagstr() and move to ntp_util.c
+    Check for not enough space in append_flagstr().
+    Remove 3k of static string buffers in favor of LIB_GETBUF().
+
+  ntpd/ntp_control.c@1.242 +0 -1
+    Remove #include now in ntp_stdlib.h
+
+  ntpd/ntp_io.c@1.438.1.1 +117 -82
+    Rescan net addrs when notified by Windows of a change.
+    Remove redundant comment
+    Remove #ifdef around init_io_completion_port() call
+    Change default net addr scan interval 300->301 to shift the scans from minute synchrony.
+    Reduce code duplication re: link/site local address classification.
+    Move/rename bitflag dumpers for interface flags:
+      build_iflags() -> iflags_str()
+
+  ntpd/ntp_leapsec.c@1.26 +31 -49
+    Remove #includes in ntp_stdlib.h
+
+  ntpd/ntp_parser.c@1.120 +396 -420
+    generated from ntp_parser.y
+
+  ntpd/ntp_parser.h@1.81 +8 -6
+    generated from ntp_parser.y
+
+  ntpd/ntp_parser.y@1.108 +6 -1
+    Use NTP_MINPOLL/NTP_MAXPOLL instead of hard-coding.
+
+  ntpd/ntp_peer.c@1.167 +6 -4
+    Do not log endpt changes for multicast addresses, they're
+      meaningless as we send from a list of endpoints (addresses).
+
+  ntpd/ntp_proto.c@1.449.1.1 +57 -61
+    Debug output improvements.
+    Display offset, delay, jitter to 9 decimal places in debug output.
+    Use mprintf_event() in a few places rather than snprintf + report_event.
+    Move/rename bitflag dumpers for interface and restriction flags,
+      build_iflags() -> iflags_str()
+      build_mflags() -> mflags_str()
+      build_rflags() -> rflags_str()
+    Use "0x%x" instead of "%#010x" displaying l_fp seconds as the
+      latter doesnn't work with Microsoft C.
+
+  ntpd/ntp_restrict.c@1.49 +264 -157
+    inline inc_/dec_res_limited()
+    Make some unlikely assertions DEBUG-only.
+    Remove voluminous debug output from match_restrict4_addr().
+    Rename roptoa() -> resoop_str().
+    Display flag bit names in hack_restrict() debug output.
+    Move/rename bitflag dumpers for restriction rflags, mflags.
+      build_mflags() -> mflags_str()
+      build_rflags() -> rflags_str()
+    The two above were moved from ntp_config.c and modified to use LIB_STRBUF().
+
+  ntpd/ntp_timer.c@1.99.1.1 +35 -36
+    Rescan interfaces when notified by Windows of a change.
+    Remove interface_timer and interface_interval variables implementing
+      network interface periodic scans.
+    Replace those variables with endpt_scan_timer and endpt_scan_period
+      which are implemented slightly differently to enable on-change scans
+      on Windows with periodic re-scans suppressed.
+    Split disable_dynamic_updates into two variables:
+      no_periodic_scans
+      scan_addrs_once
+
+  ntpd/ntp_util.c@1.124 +127 -107
+    Remove #include now in ntp_stdlib.h
+
+  ntpd/ntpd.c@1.190.1.1 +10 -18
+    Split disable_dynamic_updates into two variables:
+      no_periodic_scans
+      scan_addrs_once
+    Remove interface_timer and interface_interval variables implementing
+      network interface periodic scans.
+    Replace those variables with endpt_scan_timer and endpt_scan_period
+      which are implemented slightly differently to enable on-change scans
+      on Windows with periodic re-scans suppressed.
+
+  ntpd/refclock_nmea.c@1.85 +2 -0
+    Eliminate unused func field_length() warning.
+
+  ntpq/ntpq.c@1.199 +0 -4
+    Remove #includes in ntpq.h
+
+  ntpq/ntpq.h@1.34 +0 -1
+    Remove #include now in ntp_stdlib.h
+
+  ports/winnt/include/clockstuff.h@1.14 +6 -0
+    Provide thread names to debugger.
+
+  ports/winnt/include/config.h@1.120 +17 -13
+    Update list of known _MSC_VER values
+
+  ports/winnt/include/ntp_iocompletionport.h@1.24 +30 -5
+    Use NotifyIpInterfaceChange on Windows Vista and newer.
+
+  ports/winnt/include/ntservice.h@1.7 +0 -1
+    Remove dead function declaration.
+
+  ports/winnt/include/win32_io.h@1.3 +2 -2
+    whitespace
+
+  ports/winnt/instsrv/instsrv.c@1.13 +1 -1
+    Correct app name
+
+  ports/winnt/libntp/getclock.c@1.6 +7 -0
+    Provide thread names to debugger.
+
+  ports/winnt/libntp/syslog.c@1.12 +0 -56
+    Remove long-dead code.
+
+  ports/winnt/libntp/win32_io.c@1.4 +13 -9
+    Bail out of InitSockets() when called more than once.
+
+  ports/winnt/ntpd/hopf_PCI_io.c@1.10 +11 -28
+    ntpd has never been able to run on Win32s (Win 3.1), remove check.
+
+  ports/winnt/ntpd/nt_clockstuff.c@1.68 +18 -44
+    Provide thread names to debugger.
+    Update my email address.
+    Remove code for unsupported pre-VS 2008 compiler.
+    Use Windows version number already discovered by libisc.
+
+  ports/winnt/ntpd/nt_ppsimpl.c@1.7 +0 -1
+    Remove #include now in ntp_stdlib.h
+
+  ports/winnt/ntpd/ntp_iocompletionport.c@1.86 +125 -68
+    Rescan net addrs when notified by Windows of a change.
+    Provide thread names to debugger.
+    Use Windows version number already discovered by libisc.
+
+  ports/winnt/ntpd/ntservice.c@1.33 +10 -13
+    Return immediately from service control handler when asked
+      to stop rather than sleeping for 100ms after signaling
+      the main thread to exit().
+
+  ports/winnt/vs2005/libntp.vcproj@1.31 +0 -4
+    Remove dead code libntp/numtohost.c
+
+  ports/winnt/vs2008/libntp/libntp.vcproj@1.62 +0 -4
+    Remove dead code libntp/numtohost.c
+
+  ports/winnt/vs2013/libntp/libntp.vcxproj@1.18 +0 -1
+    Remove dead code libntp/numtohost.c
+
+  ports/winnt/vs2013/libntp/libntp.vcxproj.filters@1.16 +0 -3
+    Remove dead code libntp/numtohost.c
+
+  ports/winnt/vs2015/libntp/libntp.vcxproj@1.10 +0 -1
+    Remove dead code libntp/numtohost.c
+
+  ports/winnt/vs2015/libntp/libntp.vcxproj.filters@1.10 +0 -3
+    Remove dead code libntp/numtohost.c
+
+  sntp/tests/crypto.c@1.16.1.1 +0 -6
+    Remove unused locals in test_VerifyCMAC()
+
+  sntp/utilities.h@1.12 +0 -1
+    Remove #include now in ntp_stdlib.h
+
+  tests/libntp/Makefile.am@1.105 +0 -12
+    Remove tests for dead code libntp/numtohost.c
+
+  tests/libntp/caljulian.c@1.16 +0 -1
+    Remove #include now in ntp_stdlib.h
+
+  tests/libntp/netof.c@1.11 +0 -33
+    IPv4 class A, B, C distinctions are now meaningless.
+
+  tests/libntp/run-caljulian.c@1.17 +4 -5
+    generated
+
+  tests/libntp/run-netof.c@1.11 +2 -6
+    generated
+
+  tests/ntpd/leapsec.c@1.6 +0 -1
+    Remove #include now in ntp_stdlib.h
+
+  tests/ntpd/run-leapsec.c@1.10 +33 -34
+    generated
+
+ChangeSet@1.4023.2.1, 2023-08-24 14:06:05+00:00, davehart@tl.davehart.net
+  [Bug 3753] ntpd won't start with FIPS-enabled OpenSSL 3.x.
+
+  ChangeLog@1.2072.2.1 +1 -0
+    [Bug 3753] ntpd won't start with FIPS-enabled OpenSSL 3.x.
+
+  include/ntp_md5.h@1.16 +3 -2
+    Reduce use of magic numbers
+
+  include/ntp_stdlib.h@1.93 +5 -3
+    add arg names to func declarations
+
+  libntp/a_md5encrypt.c@1.55.1.1 +79 -60
+    [Bug 3753] ntpd won't start with FIPS-enabled OpenSSL 3.x.
+
+  libntp/ssl_init.c@1.32 +21 -29
+    Reduce code duplication.
+
+  ntpd/ntp_crypto.c@1.194 +0 -1
+    move ssl_check_version from autokey-specific code to ntpdmain()
+
+  ntpd/ntpd.c@1.191 +5 -2
+    Move ssl_check_version from autokey-specific code to ntpdmain().
+    Put debug behavior msyslog on a single log line.
+
+ChangeSet@1.4023.1.1, 2023-08-23 10:58:43+00:00, davehart@tl.davehart.net
+  [Bug 3864] ntpd IPv6 refid different for big-endian and little-endian.
+
+  ChangeLog@1.2072.1.1 +2 -0
+    [Bug 3864] ntpd IPv6 refid different for big-endian and little-endian.
+
+  include/ntp.h@1.237 +9 -0
+    Track old-style IPv6 refid on big-endian systems
+
+  libntp/a_md5encrypt.c@1.56 +14 -2
+    [Bug 3864] Ensure refid calculation is endian-independent.
+
+  ntpd/ntp_io.c@1.439 +5 -0
+    Track old-style IPv6 refid on big-endian systems
+
+  ntpd/ntp_proto.c@1.451 +26 -4
+    Check both old- and new-style IPv6 refids on big-endian systems.
+
+  tests/libntp/a_md5encrypt.c@1.19 +9 -18
+    Enable IPv6 refid unit test that failed due to bug 3864.
+
+ChangeSet@1.4020.2.1, 2023-08-23 03:34:00+00:00, davehart@tl.davehart.net
+  [Bug 3854] ntpd 4.2.8p17 corrupts rawstats file with space in refid.
+
+  ChangeLog@1.2069.2.1 +2 -0
+    [Bug 3854] ntpd 4.2.8p17 corrupts rawstats file with space in refid.
+
+  include/ntp_net.h@1.13 +6 -0
+    LOOPBACKADR_N in network order
+
+  libntp/numtoa.c@1.9 +15 -7
+    Replace unprintable characters with ? instead of space.
+    Do not treat orphan refid 127.0.0.1 as text.
+
+  ntpd/ntp_timer.c@1.100 +133 -127
+    Change orphan mode s1 refid from LOOP to ORPH.
+    Clean up indents in leap second handling code.
+
+ChangeSet@1.4020.1.1, 2023-08-02 19:07:28+00:00, davehart@tl.davehart.net
+  [Bug 3856] Enable Edit & Continue debugging with Visual Studio.
+
+  ChangeLog@1.2069.1.1 +2 -0
+    [Bug 3856] Enable Edit & Continue debugging with Visual Studio.
+
+  ports/winnt/vs2015/debug-x64.props@1.6 +10 -0
+    Enable Edit & Continue debugging
+
+  ports/winnt/vs2015/debug.props@1.6 +11 -0
+    Enable Edit & Continue debugging
+
+ChangeSet@1.4022, 2023-07-31 12:41:01+00:00, davehart@tl.davehart.net
+  [Bug 3853] Clean up warnings with modern compilers.
+             partial, more to come.
+
+  ChangeLog@1.2071 +1 -0
+    [Bug 3853] Clean up warnings with modern compilers.
+               partial, more to come.
+
+  include/lib_strbuf.h@1.12 +16 -11
+    Keep a pointer to each LIB_GETBUF buffer to avoid -Wrestrict warnings.
+
+  include/ntp_stdlib.h@1.92 +1 -0
+    Keep a pointer to each LIB_GETBUF buffer to avoid -Wrestrict warnings.
+
+  include/ntp_tty.h@1.7 +5 -0
+    Silence unused function warning.
+    Prepare for reuse of symBaud2numBaud() in Win32 code which has similar.
+
+  libntp/lib_strbuf.c@1.11 +13 -7
+    Keep a pointer to each LIB_GETBUF buffer to avoid -Wrestrict warnings.
+
+  libntp/machines.c@1.27 +57 -3
+    Prepare for reuse of symBaud2numBaud() in Win32 code which has similar.
+
+  ntpd/ntp_proto.c@1.450 +1 -1
+    Whitespace
+
+  ntpd/ntp_refclock.c@1.131 +7 -51
+    Silence unused function warning.
+    Prepare for reuse of symBaud2numBaud() in Win32 code which has similar.
+
+  sntp/tests/crypto.c@1.17 +0 -6
+    Unused locals.
+
+  tests/libntp/a_md5encrypt.c@1.18 +3 -2
+    Initialized but unused warning.
+
+ChangeSet@1.4021, 2023-07-31 09:31:00+00:00, davehart@tl.davehart.net
+  [Bug 3852] check-libntp.mf and friends are not triggering rebuilds as
+             intended.
+
+  ChangeLog@1.2070 +2 -0
+    [Bug 3852] check-libntp.mf and friends are not triggering rebuilds as
+               intended.
+
+  check-libntp.mf@1.3 +2 -5
+    Check libntp for updated sources every make invocation.
+
+  check-libntpd.mf@1.3 +2 -11
+    Check libntpd.a for updated sources every make invocation.
+
+  check-libunity.mf@1.3 +2 -2
+    Ensure libunity is built before dependents, but don't check for updated sources.
+
+  check-scm-rev.mf@1.2 +2 -4
+    Use .PHONY so things work even if someone makes a FRC.scm-rev file.
+
+  sntp/check-libntp.mf@1.6 +2 -6
+    Check libntp for updated sources every make invocation.
+
+  sntp/check-libsntp.mf@1.3 +2 -6
+    Check libsntp for updated sources every make invocation.
+
+  sntp/check-libunity.mf@1.3 +1 -2
+    Ensure libunity is built before dependents, but don't check for updated sources.
+
+ChangeSet@1.4016.2.2, 2023-07-30 22:14:18+00:00, davehart@tl.davehart.net
+  [Bug 3842] Windows ntpd ppsapi DLL load failure crashes.
+
+  ChangeLog@1.2065.2.2 +1 -0
+    [Bug 3842] Windows ntpd ppsapi DLL load failure crashes.
+
+  ports/winnt/ntpd/nt_ppsimpl.c@1.6 +1 -1
+    Avoid freeing garbage pointer during PPSAPI load failure cleanup.
+
+ChangeSet@1.4016.2.1, 2023-07-30 19:49:30+00:00, davehart@tl.davehart.net
+  [Bug 3850] ntpq -c apeers breaks column formatting s2 w/refclock refid.
+
+  ChangeLog@1.2065.2.1 +2 -0
+    [Bug 3850] ntpq -c apeers breaks column formatting s2 w/refclock refid.
+
+  ntpq/ntpq-subs.c@1.135 +22 -13
+    Limit apeers refid column to 8 characters, fix small leak.
+
+ChangeSet@1.4016.1.2, 2023-07-29 21:54:29+00:00, davehart@tl.davehart.net
+  [Bug 3851] Drop pool server when no local address can reach it.
+
+  ChangeLog@1.2065.1.2 +3 -1
+    [Bug 3851] Drop pool server when no local address can reach it.
+
+  include/ntp.h@1.236 +3 -3
+    Get rid of unused MDF_UCLNT, introduce MDF_PCLNT
+
+  include/ntpd.h@1.210 +2 -1
+    nit
+
+  ntpd/ntp_io.c@1.438 +34 -22
+    move linklocal test to is_linklocal() helper
+
+  ntpd/ntp_proto.c@1.446.1.2 +18 -4
+    [Bug 3851] Drop pool server when no local address can reach it.
+
+ChangeSet@1.4016.1.1, 2023-07-20 16:52:18+00:00, davehart@tl.davehart.net
+  [Bug 3845] accelerate pool clock_sync when IPv6 has only link-local access.
+
+  ChangeLog@1.2065.1.1 +2 -0
+    [Bug 3845] accelerate pool clock_sync when IPv6 has only link-local access.
+
+  include/ntpd.h@1.209 +3 -1
+    Track if any non-linklocal addreses are available.
+
+  ntpd/ntp_io.c@1.437 +35 -4
+    Track if any non-linklocal addreses are available for v4 and v6.
+
+  ntpd/ntp_proto.c@1.446.1.1 +17 -1
+    [Bug 3845] accelerate pool clock_sync when IPv6 has only link-local access.
+
+ChangeSet@1.4017, 2023-07-18 19:17:19+00:00, davehart@tl.davehart.net
+  [Bug 3849] ntpd --wait-sync times out.
+
+  ChangeLog@1.2066 +3 -2
+    [Bug 3849] ntpd --wait-sync times out.
+
+  libntp/msyslog.c@1.58 +3 -3
+    Reduce code duplication
+
+  ntpd/ntp_loopfilter.c@1.198 +16 -0
+    Signal first sync from rstclock()
+
+  ntpd/ntp_proto.c@1.447 +2 -16
+    Signal first sync from rstclock().
+    Remove redundant fabs() call.
+
+  ntpd/ntpd.c@1.190 +12 -15
+    [Bug 3849] ntpd --wait-sync times out.
+    Remove some useless DPRINTF() calls as -d/-D disables forking and
+      these calls are in the forking codepath.
+
+  ntpsnmpd/Makefile.am@1.45 +3 -3
+    Rearrange library order to put $(SNMP_LIBS) last, avoiding problems
+      when they reference older OpenSSL libraries.
+    Use ntpsnmpd_LDADD rather than LDADD to leave the latter to the
+      choices of the end-user.
+
+ChangeSet@1.4016, 2023-07-15 00:45:44-07:00, harlan@ntp-testbuild.tal1.ntfo.org
+  configure libevent check intersperses output with answer.
+
+  ChangeLog@1.2065 +1 -0
+    configure libevent check intersperses output with answer.
+
+  sntp/m4/ntp_libevent.m4@1.22 +2 -1
+    configure libevent check intersperses output with answer.
+
+ChangeSet@1.4014, 2023-07-14 22:43:54-07:00, harlan@ntp-testbuild.tal1.ntfo.org
+  clean up ChangeLog listing order
+
+  ChangeLog@1.2063 +12 -11
+    clean up ChangeLog listing order
+
+ChangeSet@1.4013, 2023-07-14 22:23:53-07:00, harlan@ntp-testbuild.tal1.ntfo.org
+  html/clockopt.html cleanup
+
+  ChangeLog@1.2062 +1 -0
+    html/clockopt.html cleanup
+
+  html/clockopt.html@1.30 +6 -3
+    html/clockopt.html cleanup
+
+ChangeSet@1.4004.6.1, 2023-07-14 21:33:19+00:00, davehart@tl.davehart.net
+  [Bug 3846] Use -Wno-format-truncation by default.
+
+  ChangeLog@1.2053.6.1 +3 -0
+    [Bug 3846] Use -Wno-format-truncation by default.
+
+  sntp/m4/ntp_compiler.m4@1.8.1.1 +38 -22
+    [Bug 3846] Use -Wno-format-truncation by default.
+
+ChangeSet@1.4004.1.2, 2023-06-28 00:04:04+00:00, davehart@tl.davehart.net
+  fix release build
+
+  libntp/authreadkeys.c@1.38 +1 -1
+    fix non-DEBUG build
+
+ChangeSet@1.4004.5.1, 2023-06-25 23:18:48+00:00, davehart@tl.davehart.net
+  Remove -Wformat-security when removing -Wformat to avoid gcc 12 error.
+
+  ChangeLog@1.2053.5.1 +5 -0
+    [Bug 3841] 4.2.8p17 build break w/ gcc 12 -Wformat-security without -Wformat
+
+  configure.ac@1.630 +1 -1
+    bump cache version for ntp_compiler.m4 change
+
+  sntp/configure.ac@1.90 +1 -1
+    bump cache version for ntp_compiler.m4 change
+
+  sntp/m4/ntp_compiler.m4@1.9 +3 -8
+    Remove -Wformat-security when removing -Wformat to avoid gcc 12 error.
+
+ChangeSet@1.4004.4.1, 2023-06-20 18:41:45+00:00, davehart@tl.davehart.net
+  [Bug 3837] NULL pointer deref crash when ntpd deletes last interface.
+             Correct UNLINK_EXPR_SLIST() when the list is empty.
+
+  ChangeLog@1.2053.4.1 +5 -0
+    [Bug 3837] NULL pointer deref crash when ntpd deletes last interface.
+
+  include/ntp_lists.h@1.17 +3 -1
+    Correct UNLINK_EXPR_SLIST() when the list is empty. 
+
+ChangeSet@1.4004.3.1, 2023-06-16 05:13:03+00:00, davehart@tl.davehart.net
+  Bug 3835 - NTP_HARD_*FLAGS not used by libevent tearoff.
+  
+  cvo.sh:
+    Fix on newer Linux with /etc/os-release
+  ntp_libevent.m4:
+    Newer libevent supports LIBEVENT_*FLAGS.
+    Disable building samples for the bundled libevent.
+  configure.ac:
+    One piece missing in LIBEVENT_*FLAGS support
+
+  ChangeLog@1.2053.3.1 +3 -0
+    Bug 3835 - NTP_HARD_*FLAGS not used by libevent tearoff.
+
+  sntp/libevent/configure.ac@1.20 +5 -0
+    One piece missing in LIBEVENT_*FLAGS support
+
+  sntp/m4/ntp_libevent.m4@1.21 +4 -3
+    Newer libevent supports LIBEVENT_*FLAGS.
+    Disable building samples for the bundled libevent.
+
+  sntp/scripts/cvo.sh@1.9 +7 -1
+    Fix on newer Linux with /etc/os-release
+
+ChangeSet@1.4004.2.1, 2023-06-11 14:09:22+00:00, davehart@tl.davehart.net
+  [Bug 3831] pollskewlist zeroed on runtime configuration.
+
+  ChangeLog@1.2053.2.1 +3 -0
+    [Bug 3831] pollskewlist zeroed on runtime configuration.
+
+  ntpd/ntp_config.c@1.384 +22 -29
+    [Bug 3831] pollskewlist zeroed on runtime configuration.
+    Replace magic numbers 3 & 17 with NTP_MINPOLL and NTP_MAXPOLL.
+
+ChangeSet@1.4004.1.1, 2023-06-09 19:11:34+00:00, davehart@tl.davehart.net
+  Add DSA, DSA-SHA, and SHA to tests/libntp/digests.c regression test.
+
+  ChangeLog@1.2053.1.1 +3 -0
+    Add DSA, DSA-SHA, and SHA to tests/libntp/digests.c
+
+  libntp/authkeys.c@1.47 +1 -0
+    Whitespace
+
+  libntp/authreadkeys.c@1.37 +7 -5
+    Provide the keytype when unable to use one loading ntp.keys
+    #ifdef DEBUG a "never happen" bit of code checking an internal errno.
+
+  libntp/ssl_init.c@1.31 +1 -6
+    Use MAX_MDG_LEN, remove leftover debugging code.
+
+  ntpq/ntpq.c@1.198 +8 -13
+    Remove unneeded code.  keytype_from_text upcases its input.
+
+  tests/libntp/data/ntp.keys@1.3 +12 -11
+    Add DSA, DSA-SHA, and SHA keys.
+
+  tests/libntp/digests.c@1.2 +120 -3
+    Add DSA, DSA-SHA, and SHA digest algorithms.
+
+  tests/libntp/run-digests.c@1.3 +6 -0
+    Add DSA, DSA-SHA, and SHA digest algorithms.
+
+ChangeSet@1.4007, 2023-06-07 18:36:14+02:00, burnicki@burnicki.chi1.ntfo.org
+  [Bug 3828] BK should ignore a git repo in the same directory.
+
+  BitKeeper/etc/ignore@1.97 +1 -0
+    [Bug 3828] BK should ignore a git repo in the same directory.
+
+  ChangeLog@1.2056 +2 -0
+    [Bug 3828] BK should ignore a git repo in the same directory.
+
+ChangeSet@1.4006, 2023-06-07 18:25:37+02:00, burnicki@burnicki.chi1.ntfo.org
+  [Bug 3827] Fix build in case CLOCK_HOPF6021 or CLOCK_WHARTON_400A is disabled.
+
+  ChangeLog@1.2055 +2 -0
+    [Bug 3827] Fix build in case CLOCK_HOPF6021 or CLOCK_WHARTON_400A is disabled.
+
+  libparse/clk_hopf6021.c@1.15 +2 -0
+    [Bug 3827] Fix build in case CLOCK_HOPF6021 is disabled.
+
+  libparse/clk_wharton.c@1.14 +2 -0
+    [Bug 3827] Fix build in case CLOCK_WHARTON_400A is disabled.
+
+ChangeSet@1.4005, 2023-06-07 18:21:52+02:00, burnicki@burnicki.chi1.ntfo.org
+  [Bug 3825] Don't touch HTML files unless building inside a BK repo.
+
+  ChangeLog@1.2054 +3 -0
+    [Bug 3825] Don't touch HTML files unless building inside a BK repo.
+
+  scripts/build/checkHtmlFileDates@1.2 +3 -1
+    [Bug 3825] Don't touch HTML files unless building inside a BK repo.
+
 ChangeSet@1.4004, 2023-06-06 04:40:27-07:00, ntpreleng@ntp-build.tal1.ntfo.org
   NTP_4_2_8P17
   TAG: NTP_4_2_8P17

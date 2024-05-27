@@ -15,24 +15,25 @@
 
 #include "ntp_types.h"
 #include "ntp_fp.h"
+#include "ntp_malloc.h"
 #include "vint64ops.h"
 
 /* -------------------------------------------------------------------------*/
 
 vint64
 strtouv64(
-	char const *		begp,
-	char const ** const	endp,
-	int			base
+	char *	begp,
+	char ** endp,
+	int	base
 	)
 {
-	vint64  res;
-	u_char  digit;
-	int     sig, num;
-	const u_char *src;
+	vint64	res;
+	u_char	digit;
+	int	sig, num;
+	u_char *src;
 	
 	num = sig = 0;
-	src = (const u_char*)begp;
+	src = (u_char *)begp;
 	while (isspace(*src))
 		src++;
 
@@ -61,7 +62,7 @@ strtouv64(
 		return res;
 	}
 	
-	memset(&res, 0, sizeof(res));
+	ZERO(res);
 	while (*src) {
 		if (isdigit(*src))
 			digit = *src - '0';
@@ -97,7 +98,7 @@ strtouv64(
 	if (!num)
 		errno = EINVAL;
 	if (endp)
-		*endp = (const char *)src;
+		*endp = (char *)src;
 	if (sig)
 		M_NEG(res.D_s.hi, res.D_s.lo);
 	return res;

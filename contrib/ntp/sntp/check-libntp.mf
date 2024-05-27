@@ -4,12 +4,12 @@
 ## The above file has a version of this for the non-sntp portion
 ## of the NTP package.
 
+.PHONY: check-libntp
+
+if LIBNTP_SUBMAKES
 BUILT_SOURCES	+= check-libntp
-CLEANFILES	+= check-libntp
 
-check-libntp: $(top_builddir)/../libntp/libntp.a
-	@: avoid default SCCS get by some make implementations
-
-$(top_builddir)/../libntp/libntp.a:
+check-libntp:
 	cd $(top_builddir)/../libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
 
+endif

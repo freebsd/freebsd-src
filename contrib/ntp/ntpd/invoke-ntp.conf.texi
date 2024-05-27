@@ -6,7 +6,7 @@
 #
 # EDIT THIS FILE WITH CAUTION  (invoke-ntp.conf.texi)
 #
-# It has been AutoGen-ed  June  6, 2023 at 04:37:38 AM by AutoGen 5.18.16
+# It has been AutoGen-ed  May 25, 2024 at 12:03:56 AM by AutoGen 5.18.16
 # From the definitions    ntp.conf.def
 # and the template file   agtexi-file.tpl
 @end ignore
@@ -251,27 +251,15 @@ include authentication fields encrypted using the autokey scheme
 described in
 @ref{Authentication Options}.
 @item @code{burst}
-when the server is reachable, send a burst of eight packets
-instead of the usual one.
-The packet spacing is normally 2 s;
-however, the spacing between the first and second packets
-can be changed with the
-@code{calldelay}
-command to allow
-additional time for a modem or ISDN call to complete.
-This is designed to improve timekeeping quality
-with the
+when the server is reachable, send a burst of six packets
+instead of the usual one. The packet spacing is 2 s.
+This is designed to improve timekeeping quality with the
 @code{server}
 command and s addresses.
 @item @code{iburst}
 When the server is unreachable, send a burst of eight packets
 instead of the usual one.
-The packet spacing is normally 2 s;
-however, the spacing between the first two packets can be
-changed with the
-@code{calldelay}
-command to allow
-additional time for a modem or ISDN call to complete.
+The packet spacing is 2 s.
 This is designed to speed the initial synchronization
 acquisition with the
 @code{server}
@@ -833,7 +821,7 @@ The
 argument is
 the key identifier for a trusted key, where the value can be in the
 range 1 to 65,535, inclusive.
-@item @code{crypto} @code{[@code{cert} @kbd{file}]} @code{[@code{leap} @kbd{file}]} @code{[@code{randfile} @kbd{file}]} @code{[@code{host} @kbd{file}]} @code{[@code{sign} @kbd{file}]} @code{[@code{gq} @kbd{file}]} @code{[@code{gqpar} @kbd{file}]} @code{[@code{iffpar} @kbd{file}]} @code{[@code{mvpar} @kbd{file}]} @code{[@code{pw} @kbd{password}]}
+@item @code{crypto} @code{[@code{cert} @kbd{file}]} @code{[@code{leap} @kbd{file}]} @code{[@code{randfile} @kbd{file}]} @code{[@code{host} @kbd{file}]} @code{[@code{gq} @kbd{file}]} @code{[@code{gqpar} @kbd{file}]} @code{[@code{iffpar} @kbd{file}]} @code{[@code{mvpar} @kbd{file}]} @code{[@code{pw} @kbd{password}]}
 This command requires the OpenSSL library.
 It activates public key
 cryptography, selects the message digest and signature
@@ -890,14 +878,6 @@ encrypted.
 Specifies the location of the random seed file used by the OpenSSL
 library.
 The defaults are described in the main text above.
-@item @code{sign} @kbd{file}
-Specifies the location of the optional sign key file.
-This overrides
-the link
-@file{ntpkey_sign_}@kbd{hostname}
-in the keys directory.
-If this file is
-not found, the host key is also the sign key.
 @end table
 @item @code{keys} @kbd{keyfile}
 Specifies the complete path and location of the MD5 key file
@@ -1477,25 +1457,26 @@ by default the probability of replacing it with an
 entry representing the client request being processed
 now is 10%. Conversely, if the oldest entry is more
 than 3000 seconds old, the probability is 100%.
-@item @code{restrict} @code{address} @code{[@code{mask} @kbd{mask}]} @code{[@code{ippeerlimit} @kbd{int}]} @code{[@kbd{flag} @kbd{...}]}
+@item @code{restrict} @kbd{address} @code{[@code{mask} @kbd{mask}]} @code{[@code{ippeerlimit} @kbd{int}]} @code{[@kbd{flag} @kbd{...}]}
 The
 @kbd{address}
 argument expressed in
-dotted-quad form is the address of a host or network.
+numeric form is the address of a host or network.
 Alternatively, the
 @kbd{address}
-argument can be a valid host DNS name.
+argument can be a valid hostname.  When a hostname
+is provided, a restriction entry is created for each
+address the hostname resolves to, and any provided
+@kbd{mask}
+is ignored and an individual host mask is
+used for each entry.
 The
 @kbd{mask}
-argument expressed in dotted-quad form defaults to
-@code{255.255.255.255},
-meaning that the
+argument expressed in numeric form defaults to
+all bits lit, meaning that the
 @kbd{address}
 is treated as the address of an individual host.
-A default entry (address
-@code{0.0.0.0},
-mask
-@code{0.0.0.0})
+A default entry with address and mask all zeroes
 is always included and is always the first entry in the list.
 Note that text string
 @code{default},
@@ -1532,12 +1513,12 @@ and
 @code{ntpdc(1ntpdcmdoc)}
 queries.
 @item @code{kod}
-If this flag is set when an access violation occurs, a kiss-o'-death
-(KoD) packet is sent.
-KoD packets are rate limited to no more than one
-per second.
-If another KoD packet occurs within one second after the
-last one, the packet is dropped.
+If this flag is set when a rate violation occurs, a kiss-o'-death
+(KoD) packet is sometimes sent.
+KoD packets are rate limited to no more than one per minimum
+average interpacket spacing, set by
+@code{discard} @code{average}
+defaulting to 8s.  Otherwise, no response is sent.
 @item @code{limited}
 Deny service if the packet spacing violates the lower limits specified
 in the
@@ -1627,15 +1608,13 @@ restriction flag.
 Its presence causes the restriction entry to be
 matched only if the source port in the packet is the standard NTP
 UDP port (123).
-Both
+There can be two restriction entries with the same IP address if
+one specifies
 @code{ntpport}
-and
-@code{non-ntpport}
-may
-be specified.
+and the other does not.
 The
 @code{ntpport}
-is considered more specific and
+entry is considered more specific and
 is sorted later in the list.
 @item @code{serverresponse fuzz}
 When reponding to server requests,
@@ -1647,12 +1626,28 @@ Deny packets that do not match the current NTP version.
 
 Default restriction list entries with the flags ignore, interface,
 ntpport, for each of the local host's interface addresses are
-inserted into the table at startup to prevent the server
-from attempting to synchronize to its own time.
+inserted into the table at startup to prevent ntpd
+from attempting to synchronize to itself, such as with
+@code{manycastclient}
+when
+@code{manycast}
+is also specified with the same multicast address.
 A default entry is also always present, though if it is
 otherwise unconfigured; no flags are associated
 with the default entry (i.e., everything besides your own
 NTP server is unrestricted).
+@item @code{delrestrict} @code{[source]} @kbd{address}
+Remove a previously-set restriction.  This is useful for
+runtime configuration via
+@code{ntpq(1ntpqmdoc)}
+.  If
+@code{source}
+is specified, a dynamic restriction created from the 
+@code{restrict} @code{source}
+template at the time
+an association was added is removed.  Without
+@code{source}
+a static restriction is removed.
 @end table
 @node Automatic NTP Configuration Options
 @subsection Automatic NTP Configuration Options
@@ -2357,10 +2352,6 @@ Typically (for Ethernet), a
 number between 0.003 and 0.007 seconds is appropriate.
 The default
 when this command is not used is 0.004 seconds.
-@item @code{calldelay} @kbd{delay}
-This option controls the delay in seconds between the first and second
-packets sent in burst or iburst mode to allow additional time for a modem
-or ISDN call to complete.
 @item @code{driftfile} @kbd{driftfile}
 This command specifies the complete path and name of the file used to
 record the frequency of the local clock oscillator.

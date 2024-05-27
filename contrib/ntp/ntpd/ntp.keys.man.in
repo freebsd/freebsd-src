@@ -1,8 +1,8 @@
-.TH ntp.keys 5 "06 Jun 2023" "4.2.8p17" "File Formats"
+.TH ntp.keys 5 "25 May 2024" "4.2.8p18" "File Formats"
 .\"
 .\"  EDIT THIS FILE WITH CAUTION  (ntp.man)
 .\"
-.\"  It has been AutoGen-ed  June  6, 2023 at 04:37:47 AM by AutoGen 5.18.16
+.\"  It has been AutoGen-ed  May 25, 2024 at 12:04:05 AM by AutoGen 5.18.16
 .\"  From the definitions    ntp.keys.def
 .\"  and the template file   agman-file.tpl
 .Sh NAME
@@ -176,7 +176,7 @@ the default name of the configuration file
 .SH "AUTHORS"
 The University of Delaware and Network Time Foundation
 .SH "COPYRIGHT"
-Copyright (C) 1992-2023 The University of Delaware and Network Time Foundation all rights reserved.
+Copyright (C) 1992-2024 The University of Delaware and Network Time Foundation all rights reserved.
 This program is released under the terms of the NTP license, <http://ntp.org/license>.
 .SH "BUGS"
 Please send bug reports to: https://bugs.ntp.org, bugs@ntp.org

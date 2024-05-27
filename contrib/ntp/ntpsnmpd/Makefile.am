@@ -9,9 +9,9 @@ ntpsnmpd_SOURCES= netsnmp_daemonize.c ntpsnmpd.c ntpSnmpSubagentObject.c \
 		ntpsnmpd-opts.c ntpsnmpd-opts.h ntpSnmpSubagentObject.h \
 		ntp_snmp.h
 # HMS: we probably want a version.o file here, too.
-LDADD  = ../ntpq/libntpq.a ../libntp/libntp.a
-LDADD += $(SNMP_LIBS) $(LDADD_LIBNTP) $(LIBM)
-LDADD += $(PTHREAD_LIBS) $(LDADD_NTP) $(LIBOPTS_LDADD)
+ntpsnmpd_LDADD  = ../ntpq/libntpq.a ../libntp/libntp.a
+ntpsnmpd_LDADD += $(LDADD_LIBNTP) $(LIBM) $(PTHREAD_LIBS)
+ntpsnmpd_LDADD += $(LDADD_NTP) $(LIBOPTS_LDADD) $(SNMP_LIBS)
 
 AM_CFLAGS  = $(SNMP_CFLAGS) $(CFLAGS_NTP)
 AM_CFLAGS += $(NTP_HARD_CFLAGS)
@@ -19,8 +19,8 @@ AM_CFLAGS += $(NTP_HARD_CFLAGS)
 AM_CPPFLAGS  = -I$(top_srcdir)/ntpq
 AM_CPPFLAGS += $(NTP_INCS)
 AM_CPPFLAGS += $(LIBOPTS_CFLAGS)
-AM_CPPFLAGS += $(SNMP_CPPFLAGS)
 AM_CPPFLAGS += $(CPPFLAGS_NTP)
+AM_CPPFLAGS += $(SNMP_CPPFLAGS)
 AM_CPPFLAGS += $(NTP_HARD_CPPFLAGS)
 
 AM_LDFLAGS  = $(LDFLAGS_NTP)

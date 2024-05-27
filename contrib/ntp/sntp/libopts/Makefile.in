@@ -98,6 +98,7 @@ am__aclocal_m4_deps = $(top_srcdir)/libopts/m4/libopts.m4 \
 	$(top_srcdir)/m4/ntp_cacheversion.m4 \
 	$(top_srcdir)/m4/ntp_compiler.m4 \
 	$(top_srcdir)/m4/ntp_crosscompile.m4 \
+	$(top_srcdir)/m4/ntp_crypto_rand.m4 \
 	$(top_srcdir)/m4/ntp_debug.m4 $(top_srcdir)/m4/ntp_dir_sep.m4 \
 	$(top_srcdir)/m4/ntp_facilitynames.m4 \
 	$(top_srcdir)/m4/ntp_harden.m4 $(top_srcdir)/m4/ntp_ipv6.m4 \
@@ -153,7 +154,7 @@ am__uninstall_files_from_dir = { \
 am__installdirs = "$(DESTDIR)$(libdir)"
 LTLIBRARIES = $(lib_LTLIBRARIES) $(noinst_LTLIBRARIES)
 libopts_la_LIBADD =
-am_libopts_la_OBJECTS = libopts_la-libopts.lo
+am_libopts_la_OBJECTS = libopts.lo
 libopts_la_OBJECTS = $(am_libopts_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -179,7 +180,7 @@ am__v_at_1 =
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/libevent/build-aux/depcomp
 am__maybe_remake_depfiles = depfiles
-am__depfiles_remade = ./$(DEPDIR)/libopts_la-libopts.Plo
+am__depfiles_remade = ./$(DEPDIR)/libopts.Plo
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -372,6 +373,7 @@ PACKAGE_STRING = @PACKAGE_STRING@
 PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
+PATH_OPENSSL = @PATH_OPENSSL@
 PATH_RUBY = @PATH_RUBY@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PKG_CONFIG = @PKG_CONFIG@
@@ -464,7 +466,6 @@ MAINTAINERCLEANFILES = Makefile.in
 @INSTALL_LIBOPTS_TRUE@lib_LTLIBRARIES = libopts.la
 @INSTALL_LIBOPTS_FALSE@noinst_LTLIBRARIES = libopts.la
 libopts_la_SOURCES = libopts.c
-libopts_la_CPPFLAGS = -I$(srcdir)
 libopts_la_LDFLAGS = -version-info  42:1:17
 EXTRA_DIST = _Noreturn.h stdnoreturn.in.h COPYING.gplv3 COPYING.lgplv3 \
 	COPYING.mbsd MakeDefs.inc README _Noreturn.h ag-char-map.h \
@@ -484,8 +485,7 @@ EXTRA_DIST = _Noreturn.h stdnoreturn.in.h COPYING.gplv3 COPYING.lgplv3 \
 BUILT_SOURCES = $(STDNORETURN_H)
 MOSTLYCLEANFILES = stdnoreturn.h stdnoreturn.h-t
 AM_CFLAGS = $(NTP_HARD_CFLAGS) $(CC_NOFORMAT)
-AM_CPPFLAGS = $(NTP_HARD_CPPFLAGS)
-AM_LDFLAGS = $(NTP_HARD_LDFLAGS)
+AM_CPPFLAGS = $(NTP_HARD_CPPFLAGS) -I$(top_srcdir)/../include
 
 # Makefile fragment from gnulib-s stdnoreturn module:
 #
@@ -580,7 +580,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libopts_la-libopts.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libopts.Plo@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
@@ -611,13 +611,6 @@ am--depfiles: $(am__depfiles_remade)
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LTCOMPILE) -c -o $@ $<
-
-libopts_la-libopts.lo: libopts.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libopts_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libopts_la-libopts.lo -MD -MP -MF $(DEPDIR)/libopts_la-libopts.Tpo -c -o libopts_la-libopts.lo `test -f 'libopts.c' || echo '$(srcdir)/'`libopts.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libopts_la-libopts.Tpo $(DEPDIR)/libopts_la-libopts.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='libopts.c' object='libopts_la-libopts.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libopts_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libopts_la-libopts.lo `test -f 'libopts.c' || echo '$(srcdir)/'`libopts.c
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -758,7 +751,7 @@ clean-am: clean-generic clean-libLTLIBRARIES clean-libtool \
 	clean-noinstLTLIBRARIES mostlyclean-am
 
 distclean: distclean-am
-		-rm -f ./$(DEPDIR)/libopts_la-libopts.Plo
+		-rm -f ./$(DEPDIR)/libopts.Plo
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -804,7 +797,7 @@ install-ps-am:
 installcheck-am:
 
 maintainer-clean: maintainer-clean-am
-		-rm -f ./$(DEPDIR)/libopts_la-libopts.Plo
+		-rm -f ./$(DEPDIR)/libopts.Plo
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 

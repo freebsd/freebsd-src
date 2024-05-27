@@ -95,6 +95,7 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 EXTRA_PROGRAMS = ntpdc$(EXEEXT) ntpdc-layout$(EXEEXT)
+@LIBNTP_SUBMAKES_TRUE@am__append_1 = check-libntp
 subdir = ntpdc
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/sntp/libopts/m4/libopts.m4 \
@@ -432,6 +433,7 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_NET_SNMP_CONFIG = @PATH_NET_SNMP_CONFIG@
+PATH_OPENSSL = @PATH_OPENSSL@
 PATH_PERL = @PATH_PERL@
 PATH_RUBY = @PATH_RUBY@
 PATH_SEPARATOR = @PATH_SEPARATOR@
@@ -536,7 +538,7 @@ libexec_PROGRAMS = $(NTPDC_DL)
 sbin_PROGRAMS = $(NTPDC_DS)
 EXTRA_DATA = check-layout
 BUILT_SOURCES = @MAKE_CHECK_LAYOUT@ ntpdc-opts.c ntpdc-opts.h \
-	check-libopts check-libntp .deps-ver
+	check-libopts $(am__append_1) .deps-ver
 AM_CFLAGS = $(CFLAGS_NTP) $(NTP_HARD_CFLAGS)
 AM_CPPFLAGS = $(NTP_INCS) $(LIBOPTS_CFLAGS) $(CPPFLAGS_NTP) \
 	$(NTP_HARD_CPPFLAGS)
@@ -549,7 +551,7 @@ ntpdc_LDADD = $(LIBOPTS_LDADD) ../libntp/libntp.a $(LDADD_LIBNTP) \
 ntpdc_layout_LDADD = 
 DISTCLEANFILES = $(man_MANS) config.log $(NULL) $(DEPDIR)/deps-ver
 CLEANFILES = check-layout layout.here nl.c ntpdc-layout .version \
-	version.c $(NULL) check-libopts check-libntp .deps-ver
+	version.c $(NULL) check-libopts .deps-ver
 noinst_HEADERS = ntpdc.h
 ETAGS_ARGS = Makefile.am
 EXTRA_DIST = \
@@ -1264,18 +1266,16 @@ check-libopts: ../sntp/libopts/libopts.la
 ../sntp/libopts/libopts.la:
 	-cd ../sntp/libopts && $(MAKE) $(AM_MAKEFLAGS) libopts.la
 
-check-libntp: $(top_builddir)/libntp/libntp.a
-	@: avoid default SCCS get by some make implementations
+.PHONY: check-libntp
 
-$(top_builddir)/libntp/libntp.a:
-	cd $(top_builddir)/libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
+@LIBNTP_SUBMAKES_TRUE@check-libntp:
+@LIBNTP_SUBMAKES_TRUE@	cd $(top_builddir)/libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
 $(top_srcdir)/sntp/scm-rev: FRC.scm-rev
 	$(AM_V_GEN)cd $(top_builddir)/sntp && $(MAKE) $(AM_MAKEFLAGS) check-scm-rev
 
+.PHONY: FRC.scm-rev
 FRC.scm-rev:
-	@: FRC.scm-rev "force" depends on nothing and is not a file, so is	\
-	   always out-of-date causing targets which depend on it to also		\
-	   be outdated so their rules to fire each time they are built.
+	@: FRC.scm-rev is always out of date, triggering the check every make invocation.
 $(DEPDIR)/deps-ver: $(top_srcdir)/deps-ver
 	@[ -f $@ ] ||							\
 		cp $(top_srcdir)/deps-ver $@

@@ -4136,5 +4136,5 @@ oncore_log_f(
 }
 
 #else
-int refclock_oncore_bs;
+NONEMPTY_TRANSLATION_UNIT
 #endif	/* REFCLOCK && CLOCK_ONCORE */

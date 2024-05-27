@@ -100,6 +100,7 @@ EXTRA_PROGRAMS = sntp$(EXEEXT)
 @BUILD_LIBEVENT_FALSE@am__append_2 = "--enable-local-libevent"
 @NEED_LIBOPTS_TRUE@am__append_3 = libopts
 @BUILD_SNTP_TRUE@am__append_4 = tests
+@LIBNTP_SUBMAKES_TRUE@am__append_5 = check-libntp
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/libopts/m4/libopts.m4 \
@@ -110,6 +111,7 @@ am__aclocal_m4_deps = $(top_srcdir)/libopts/m4/libopts.m4 \
 	$(top_srcdir)/m4/ntp_cacheversion.m4 \
 	$(top_srcdir)/m4/ntp_compiler.m4 \
 	$(top_srcdir)/m4/ntp_crosscompile.m4 \
+	$(top_srcdir)/m4/ntp_crypto_rand.m4 \
 	$(top_srcdir)/m4/ntp_debug.m4 $(top_srcdir)/m4/ntp_dir_sep.m4 \
 	$(top_srcdir)/m4/ntp_facilitynames.m4 \
 	$(top_srcdir)/m4/ntp_harden.m4 $(top_srcdir)/m4/ntp_ipv6.m4 \
@@ -489,6 +491,7 @@ PACKAGE_STRING = @PACKAGE_STRING@
 PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
+PATH_OPENSSL = @PATH_OPENSSL@
 PATH_RUBY = @PATH_RUBY@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PKG_CONFIG = @PKG_CONFIG@
@@ -660,9 +663,9 @@ EXTRA_DIST = \
 BUILT_SOURCES = $(srcdir)/COPYRIGHT libtool $(srcdir)/sntp-opts.c \
 	$(srcdir)/sntp-opts.h $(srcdir)/include/version.def \
 	$(srcdir)/m4/version.m4 $(srcdir)/include/version.texi $(NULL) \
-	check-libntp check-libopts .deps-ver
+	$(am__append_5) check-libopts .deps-ver
 CLEANFILES = check-COPYRIGHT-submake .version version.c $(NULL) \
-	check-libntp check-libopts .deps-ver
+	check-libopts .deps-ver
 man1_MANS = 
 man8_MANS = 
 man_MANS = sntp.$(SNTP_MS)
@@ -1648,8 +1651,7 @@ libevent: distdir-pre-check
 distdir-pre-check:
 	case "$(DIST_FAIL)" in	\
 	 '')  ;;		\
-	 *) $(error re-run configure adding $(DIST_FAIL) if you want to make a distribution.);	\
-	    echo "re-run configure adding $(DIST_FAIL) if you want to make a distribution.";	\
+	 *) echo "re-run configure adding $(DIST_FAIL) if you want to make a distribution.";	\
 	    exit 1 ;;		\
 	esac
 
@@ -1667,11 +1669,10 @@ install-exec-hook:
 
 #
 
-check-libntp: $(top_builddir)/../libntp/libntp.a
-	@: avoid default SCCS get by some make implementations
+.PHONY: check-libntp
 
-$(top_builddir)/../libntp/libntp.a:
-	cd $(top_builddir)/../libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
+@LIBNTP_SUBMAKES_TRUE@check-libntp:
+@LIBNTP_SUBMAKES_TRUE@	cd $(top_builddir)/../libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
 
 check-libopts: libopts/libopts.la
 	@echo stamp > $@

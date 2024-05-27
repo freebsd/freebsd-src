@@ -1,15 +1,16 @@
-# This unit test ntp.keys file has hard-coded the current set
-# of OpenSSL-supported digest algorithms.  It needs to be updated
-# after newer algorithms are available.  The current list can be
+# This unit test ntp.keys file has hard-coded the union of sets
+# of OpenSSL-supported digest algorithms we've come across.  It
+# needs to be updated as algorithms are observed.  A list can be
 # obtained with:
 #
 # ntpq -c "help keytype"
 #
-# tests/libntp/digest.c similarly hardcodes the list of digests
-# to test.
+# tests/libntp/digests.c similarly hardcodes the list of digests
+# to test.  This file must be kept in sync with it.
 #
 # Each digest is tested twice with keyids separated by 50 for
 # plaintext and hex-encoded keys.
+#
 
  1 AES128CMAC	X~A=%NWlo]p$dGq,S3M9
  2 MD4		oV'8?f+J5`_EOvW!B,R`
@@ -18,9 +19,9 @@
  5 RIPEMD160	I89p}f6QopwC\LwHBm;e
  6 SHA1		A;H=E;.m4N%t%EeJ90[d
  7 SHAKE128	|HxLoa,mzG<"y>^TI_(1
- 8 MD5		306+^SHLV5{"v7W`U3aY	# unused so far
- 9 MD5		lGyKZgsI_Pi"y"8JAT98	# unused
-10 MD5		2:VO]Q5u%/b&}.<P?T~9	# unused
+ 8 DSA		306+^SHLV5{"v7W`U3aY
+ 9 DSA-SHA	lGyKZgsI_Pi"y"8JAT98
+10 SHA		2:VO]Q5u%/b&}.<P?T~9
 
 51 AES128CMAC 	d0cd9f3ee181769ca7cccaada09f093c5fe8e628
 52 MD4		7080bc47eea6b379b2ff841805a144fb4a241a16
@@ -29,6 +30,6 @@
 55 RIPEMD160	6028ec169bfbe55ab61ffa7baa34b482020f0619
 56 SHA1		17d96a86eb9b9075f33e1c0a08bb2bb61e916e33
 57 SHAKE128	70da1a91030eb91836c1cf76cf67ddfd6b96fa91
-58 SHA1		7ce5deea7569d7423d5e1b497c8eb3bfeff852d5	# unused so far
-59 SHA1		9fd568e8f371deae54a65bc50b52bbe1f6529589	# unused
-60 SHA1		ce85046978a4df8366e102c4f1267399bbc25737	# unused
+58 DSA		7ce5deea7569d7423d5e1b497c8eb3bfeff852d5
+59 DSA-SHA	9fd568e8f371deae54a65bc50b52bbe1f6529589
+60 SHA		ce85046978a4df8366e102c4f1267399bbc25737

@@ -50,7 +50,7 @@ Next: <a href="#ntp_002econf-Description" accesskey="n" rel="next">ntp.conf Desc
 <p>This document describes the configuration file for the NTP Project&rsquo;s
 <code>ntpd</code> program.
 </p>
-<p>This document applies to version 4.2.8p17 of <code>ntp.conf</code>.
+<p>This document applies to version 4.2.8p18 of <code>ntp.conf</code>.
 </p>
 <span id="SEC_Overview"></span>
 <h2 class="shortcontents-heading">Short Table of Contents</h2>
@@ -362,28 +362,16 @@ described in
 &lsquo;Authentication Options&rsquo;.
 </p></dd>
 <dt><code>burst</code></dt>
-<dd><p>when the server is reachable, send a burst of eight packets
-instead of the usual one.
-The packet spacing is normally 2 s;
-however, the spacing between the first and second packets
-can be changed with the
-<code>calldelay</code>
-command to allow
-additional time for a modem or ISDN call to complete.
-This is designed to improve timekeeping quality
-with the
+<dd><p>when the server is reachable, send a burst of six packets
+instead of the usual one. The packet spacing is 2 s.
+This is designed to improve timekeeping quality with the
 <code>server</code>
 command and s addresses.
 </p></dd>
 <dt><code>iburst</code></dt>
 <dd><p>When the server is unreachable, send a burst of eight packets
 instead of the usual one.
-The packet spacing is normally 2 s;
-however, the spacing between the first two packets can be
-changed with the
-<code>calldelay</code>
-command to allow
-additional time for a modem or ISDN call to complete.
+The packet spacing is 2 s.
 This is designed to speed the initial synchronization
 acquisition with the
 <code>server</code>
@@ -966,7 +954,7 @@ argument is
 the key identifier for a trusted key, where the value can be in the
 range 1 to 65,535, inclusive.
 </p></dd>
-<dt><code>crypto</code> <code>[<code>cert</code> <kbd>file</kbd>]</code> <code>[<code>leap</code> <kbd>file</kbd>]</code> <code>[<code>randfile</code> <kbd>file</kbd>]</code> <code>[<code>host</code> <kbd>file</kbd>]</code> <code>[<code>sign</code> <kbd>file</kbd>]</code> <code>[<code>gq</code> <kbd>file</kbd>]</code> <code>[<code>gqpar</code> <kbd>file</kbd>]</code> <code>[<code>iffpar</code> <kbd>file</kbd>]</code> <code>[<code>mvpar</code> <kbd>file</kbd>]</code> <code>[<code>pw</code> <kbd>password</kbd>]</code></dt>
+<dt><code>crypto</code> <code>[<code>cert</code> <kbd>file</kbd>]</code> <code>[<code>leap</code> <kbd>file</kbd>]</code> <code>[<code>randfile</code> <kbd>file</kbd>]</code> <code>[<code>host</code> <kbd>file</kbd>]</code> <code>[<code>gq</code> <kbd>file</kbd>]</code> <code>[<code>gqpar</code> <kbd>file</kbd>]</code> <code>[<code>iffpar</code> <kbd>file</kbd>]</code> <code>[<code>mvpar</code> <kbd>file</kbd>]</code> <code>[<code>pw</code> <kbd>password</kbd>]</code></dt>
 <dd><p>This command requires the OpenSSL library.
 It activates public key
 cryptography, selects the message digest and signature
@@ -1030,15 +1018,6 @@ encrypted.
 <dd><p>Specifies the location of the random seed file used by the OpenSSL
 library.
 The defaults are described in the main text above.
-</p></dd>
-<dt><code>sign</code> <kbd>file</kbd></dt>
-<dd><p>Specifies the location of the optional sign key file.
-This overrides
-the link
-<samp>ntpkey_sign_</samp><kbd>hostname</kbd>
-in the keys directory.
-If this file is
-not found, the host key is also the sign key.
 </p></dd>
 </dl>
 </dd>
@@ -1670,25 +1649,26 @@ entry representing the client request being processed
 now is 10%. Conversely, if the oldest entry is more
 than 3000 seconds old, the probability is 100%.
 </p></dd>
-<dt><code>restrict</code> <code>address</code> <code>[<code>mask</code> <kbd>mask</kbd>]</code> <code>[<code>ippeerlimit</code> <kbd>int</kbd>]</code> <code>[<kbd>flag</kbd> <kbd>...</kbd>]</code></dt>
+<dt><code>restrict</code> <kbd>address</kbd> <code>[<code>mask</code> <kbd>mask</kbd>]</code> <code>[<code>ippeerlimit</code> <kbd>int</kbd>]</code> <code>[<kbd>flag</kbd> <kbd>...</kbd>]</code></dt>
 <dd><p>The
 <kbd>address</kbd>
 argument expressed in
-dotted-quad form is the address of a host or network.
+numeric form is the address of a host or network.
 Alternatively, the
 <kbd>address</kbd>
-argument can be a valid host DNS name.
+argument can be a valid hostname.  When a hostname
+is provided, a restriction entry is created for each
+address the hostname resolves to, and any provided
+<kbd>mask</kbd>
+is ignored and an individual host mask is
+used for each entry.
 The
 <kbd>mask</kbd>
-argument expressed in dotted-quad form defaults to
-<code>255.255.255.255</code>,
-meaning that the
+argument expressed in numeric form defaults to
+all bits lit, meaning that the
 <kbd>address</kbd>
 is treated as the address of an individual host.
-A default entry (address
-<code>0.0.0.0</code>,
-mask
-<code>0.0.0.0</code>)
+A default entry with address and mask all zeroes
 is always included and is always the first entry in the list.
 Note that text string
 <code>default</code>,
@@ -1726,12 +1706,12 @@ and
 queries.
 </p></dd>
 <dt><code>kod</code></dt>
-<dd><p>If this flag is set when an access violation occurs, a kiss-o&rsquo;-death
-(KoD) packet is sent.
-KoD packets are rate limited to no more than one
-per second.
-If another KoD packet occurs within one second after the
-last one, the packet is dropped.
+<dd><p>If this flag is set when a rate violation occurs, a kiss-o&rsquo;-death
+(KoD) packet is sometimes sent.
+KoD packets are rate limited to no more than one per minimum
+average interpacket spacing, set by
+<code>discard</code> <code>average</code>
+defaulting to 8s.  Otherwise, no response is sent.
 </p></dd>
 <dt><code>limited</code></dt>
 <dd><p>Deny service if the packet spacing violates the lower limits specified
@@ -1831,15 +1811,13 @@ restriction flag.
 Its presence causes the restriction entry to be
 matched only if the source port in the packet is the standard NTP
 UDP port (123).
-Both
+There can be two restriction entries with the same IP address if
+one specifies
 <code>ntpport</code>
-and
-<code>non-ntpport</code>
-may
-be specified.
+and the other does not.
 The
 <code>ntpport</code>
-is considered more specific and
+entry is considered more specific and
 is sorted later in the list.
 </p></dd>
 <dt><code>serverresponse fuzz</code></dt>
@@ -1854,12 +1832,29 @@ fuzz the low order bits of the
 
 <p>Default restriction list entries with the flags ignore, interface,
 ntpport, for each of the local host&rsquo;s interface addresses are
-inserted into the table at startup to prevent the server
-from attempting to synchronize to its own time.
+inserted into the table at startup to prevent ntpd
+from attempting to synchronize to itself, such as with
+<code>manycastclient</code>
+when
+<code>manycast</code>
+is also specified with the same multicast address.
 A default entry is also always present, though if it is
 otherwise unconfigured; no flags are associated
 with the default entry (i.e., everything besides your own
 NTP server is unrestricted).
+</p></dd>
+<dt><code>delrestrict</code> <code>[source]</code> <kbd>address</kbd></dt>
+<dd><p>Remove a previously-set restriction.  This is useful for
+runtime configuration via
+<code>ntpq(1ntpqmdoc)</code>
+.  If
+<code>source</code>
+is specified, a dynamic restriction created from the 
+<code>restrict</code> <code>source</code>
+template at the time
+an association was added is removed.  Without
+<code>source</code>
+a static restriction is removed.
 </p></dd>
 </dl>
 <hr>
@@ -2596,11 +2591,6 @@ Typically (for Ethernet), a
 number between 0.003 and 0.007 seconds is appropriate.
 The default
 when this command is not used is 0.004 seconds.
-</p></dd>
-<dt><code>calldelay</code> <kbd>delay</kbd></dt>
-<dd><p>This option controls the delay in seconds between the first and second
-packets sent in burst or iburst mode to allow additional time for a modem
-or ISDN call to complete.
 </p></dd>
 <dt><code>driftfile</code> <kbd>driftfile</kbd></dt>
 <dd><p>This command specifies the complete path and name of the file used to

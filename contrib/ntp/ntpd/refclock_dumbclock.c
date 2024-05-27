@@ -373,5 +373,5 @@ dumbclock_poll(
 #endif
 
 #else
-int refclock_dumbclock_bs;
+NONEMPTY_TRANSLATION_UNIT
 #endif	/* defined(REFCLOCK) && defined(CLOCK_DUMBCLOCK) */

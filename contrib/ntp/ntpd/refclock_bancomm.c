@@ -617,5 +617,5 @@ stfp_time2tvme(struct vmedate *time_vme, struct stfp_time *stfp)
 	return;
 }
 #else
-int refclock_bancomm_bs;
+NONEMPTY_TRANSLATION_UNIT
 #endif /* REFCLOCK */

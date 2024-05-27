@@ -100,4 +100,9 @@ extern	int	ntp_tty_ioctl(int, u_int);
 # endif
 #endif
 
+extern	int	symBaud2numBaud(int symBaud);
+# if 0
+extern	int	numBaud2symBaud(int numBaud);
+#endif
+
 #endif /* NTP_TTY_H */

@@ -16,14 +16,15 @@ size_t key_cnt = 0;
 
 typedef struct key Key_T;
 
-static u_int
+static size_t
 compute_mac(
-	u_char		digest[EVP_MAX_MD_SIZE],
+	u_char *	digest,
+	size_t		dig_sz,
 	char const *	macname,
 	void const *	pkt_data,
-	u_int		pkt_size,
+	size_t		pkt_len,
 	void const *	key_data,
-	u_int		key_size
+	size_t		key_size
 	)
 {
 	u_int		len  = 0;
@@ -56,7 +57,7 @@ compute_mac(
 				    EVP_aes_128_cbc(), NULL)) {
 			msyslog(LOG_ERR, "make_mac: CMAC %s Init failed.",      CMAC);
 		}
-		else if (!CMAC_Update(ctx, pkt_data, (size_t)pkt_size)) {
+		else if (!CMAC_Update(ctx, pkt_data, pkt_len)) {
 			msyslog(LOG_ERR, "make_mac: CMAC %s Update failed.",    CMAC);
 		}
 		else if (!CMAC_Final(ctx, digest, &slen)) {
@@ -95,7 +96,7 @@ compute_mac(
 				macname);
 			goto mac_fail;
 		}
-		if (!EVP_DigestUpdate(ctx, pkt_data, pkt_size)) {
+		if (!EVP_DigestUpdate(ctx, pkt_data, pkt_len)) {
 			msyslog(LOG_ERR, "make_mac: MAC %s Digest Update data failed.",
 				macname);
 			goto mac_fail;
@@ -112,7 +113,7 @@ compute_mac(
 			goto mac_fail;
 		}
 		EVP_DigestUpdate(ctx, key_data, key_size);
-		EVP_DigestUpdate(ctx, pkt_data, pkt_size);
+		EVP_DigestUpdate(ctx, pkt_data, pkt_len);
 		EVP_DigestFinal(ctx, digest, &len);
 #endif
 	  mac_fail:
@@ -122,34 +123,28 @@ compute_mac(
 	return len;
 }
 
-int
+
+size_t
 make_mac(
 	const void *	pkt_data,
-	int		pkt_size,
-	int		mac_size,
+	size_t		pkt_len,
 	Key_T const *	cmp_key,
-	void * 		digest
+	void * 		digest,
+	size_t		dig_sz
 	)
 {
 	u_int		len;
 	u_char		dbuf[EVP_MAX_MD_SIZE];
 
-	if (cmp_key->key_len > 64 || mac_size <= 0)
+	if (cmp_key->key_len > 64 || pkt_len % 4 != 0) {
 		return 0;
-	if (pkt_size % 4 != 0)
-		return 0;
-
-	len = compute_mac(dbuf, cmp_key->typen,
-			  pkt_data, (u_int)pkt_size,
-			  cmp_key->key_seq, (u_int)cmp_key->key_len);
-
-
-	if (len) {
-		if (len > (u_int)mac_size)
-			len = (u_int)mac_size;
-		memcpy(digest, dbuf, len);
 	}
-	return (int)len;
+	len = compute_mac(dbuf, sizeof(dbuf),  cmp_key->typen, pkt_data,
+			  pkt_len, cmp_key->key_seq, cmp_key->key_len);
+	INSIST(len <= dig_sz);
+	memcpy(digest, dbuf, len);
+
+	return len;
 }
 
 
@@ -161,8 +156,8 @@ make_mac(
 int
 auth_md5(
 	void const *	pkt_data,
-	int 		pkt_size,
-	int		mac_size,
+	size_t		pkt_len,
+	size_t		mac_len,
 	Key_T const *	cmp_key
 	)
 {
@@ -170,22 +165,20 @@ auth_md5(
 	u_char const *	pkt_ptr   = pkt_data;
 	u_char		dbuf[EVP_MAX_MD_SIZE];
 
-	if (mac_size <= 0 || (size_t)mac_size > sizeof(dbuf))
+	if (0 == mac_len || mac_len > sizeof(dbuf)) {
 		return FALSE;
+	}
+	len = compute_mac(dbuf, sizeof(dbuf), cmp_key->typen,
+			  pkt_ptr, pkt_len, cmp_key->key_seq,
+			  cmp_key->key_len);
 
-	len = compute_mac(dbuf, cmp_key->typen,
-			  pkt_ptr, (u_int)pkt_size,
-			  cmp_key->key_seq, (u_int)cmp_key->key_len);
-
-	pkt_ptr += pkt_size + 4;
-	if (len > (u_int)mac_size)
-		len = (u_int)mac_size;
+	pkt_ptr += pkt_len + sizeof(keyid_t);
 
 	/* isc_tsmemcmp will be better when its easy to link with.  sntp
 	 * is a 1-shot program, so snooping for timing attacks is
 	 * Harder.
 	 */
-	return ((u_int)mac_size == len) && !memcmp(dbuf, pkt_ptr, len);
+	return mac_len == len && !memcmp(dbuf, pkt_ptr, mac_len);
 }
 
 static int
@@ -312,14 +305,15 @@ auth_init(
  */
 void
 get_key(
-	int key_id,
-	struct key **d_key
+	keyid_t		key_id,
+	struct key **	d_key
 	)
 {
 	struct key *itr_key;
 
-	if (key_cnt == 0)
+	if (key_cnt == 0) {
 		return;
+	}
 	for (itr_key = key_ptr; itr_key; itr_key = itr_key->next) {
 		if (itr_key->key_id == key_id) {
 			*d_key = itr_key;

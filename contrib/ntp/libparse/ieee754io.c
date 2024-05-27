@@ -50,8 +50,6 @@ static void put_byte (unsigned char *, offsets_t, int *, unsigned char);
 
 #ifdef LIBDEBUG
 
-#include "lib_strbuf.h"
-
 static char *
 fmt_blong(
 	  unsigned long val,
@@ -396,7 +394,22 @@ fetch_ieee754(
 	}
     }
 }
-  
+
+/*
+ * DLH: This function is currently unused in ntpd.  If you think about
+ * using it, be sure it does what you intend.  I notice the bufpp arg
+ * is never referenced, and the calculated mantissa_high & mantissa_low
+ * are only referenced in debug output.  It seems they're supposed to
+ * be composed into an ieee754-format float and stored at *bufpp or
+ * possibly **bufpp.  Brought to my attention by this:
+ *
+ * ieee754io.c:414:10: warning: variable 'mantissa_low' set but not used
+ * [-Wunused-but-set-variable]
+ *
+ * To quiet it I'm #ifdef'ing the function away for now, here and below
+ * the call to it in main().
+ */
+#ifdef PUT_IEEE754_UNUSED_FUNC
 int
 put_ieee754(
 	    unsigned char **bufpp,
@@ -536,6 +549,7 @@ put_ieee754(
     }
   return IEEE_OK;
 }
+#endif	/* PUT_IEEE754_UNUSED_FUNC */
 
 
 #if defined(DEBUG) && defined(LIBDEBUG)
@@ -562,8 +576,11 @@ int main(
   printf("fetch from %f = %d\n", f, fetch_ieee754((void *)&f_p, IEEE_DOUBLE, &fp, native_off));
   printf("fp [%s %s] = %s\n", fmt_blong(fp.l_ui, 32), fmt_blong(fp.l_uf, 32), mfptoa(fp.l_ui, fp.l_uf, 15));
   f_p = &f;
+#ifdef PUT_IEEE754_UNUSED_FUNC
   put_ieee754((void *)&f_p, IEEE_DOUBLE, &fp, native_off);
-  
+/* there should be a check on *f_p (f) having the expected result here */
+#endif	/* PUT_IEEE754_UNUSED_FUNC */
+
   return 0;
 }
 

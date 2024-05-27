@@ -86,7 +86,7 @@
 AC_DEFUN([ACX_PTHREAD], [
 AC_REQUIRE([AC_CANONICAL_HOST])
 AC_LANG_SAVE
-AC_LANG_C
+AC_LANG([C])
 acx_pthread_ok=no
 
 # We used to check for pthread.h first, but this fails if pthread.h

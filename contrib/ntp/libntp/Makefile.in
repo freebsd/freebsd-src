@@ -175,12 +175,12 @@ am__libntp_a_SOURCES_DIST = systime.c a_md5encrypt.c adjtime.c \
 	mktime.c modetoa.c mstolfp.c msyslog.c netof.c ntp_calendar.c \
 	ntp_calgps.c ntp_crypto_rnd.c ntp_intres.c ntp_libopts.c \
 	ntp_lineedit.c ntp_random.c ntp_realpath.c ntp_rfc2553.c \
-	ntp_worker.c numtoa.c numtohost.c octtoint.c prettydate.c \
-	refidsmear.c recvbuff.c refnumtoa.c snprintf.c socket.c \
-	socktoa.c socktohost.c ssl_init.c statestr.c strdup.c \
-	strl_obsd.c syssignal.c timespecops.c timetoa.c timevalops.c \
-	timexsup.c uglydate.c vint64ops.c work_fork.c work_thread.c \
-	xsbprintf.c ymd2yd.c lib/isc/assertions.c lib/isc/buffer.c \
+	ntp_worker.c numtoa.c octtoint.c prettydate.c refidsmear.c \
+	recvbuff.c refnumtoa.c snprintf.c socket.c socktoa.c \
+	socktohost.c ssl_init.c statestr.c strdup.c strl_obsd.c \
+	syssignal.c timespecops.c timetoa.c timevalops.c timexsup.c \
+	uglydate.c vint64ops.c work_fork.c work_thread.c xsbprintf.c \
+	ymd2yd.c lib/isc/assertions.c lib/isc/buffer.c \
 	lib/isc/backtrace-emptytbl.c lib/isc/backtrace.c \
 	lib/isc/unix/dir.c lib/isc/error.c lib/isc/unix/errno2result.c \
 	lib/isc/event.c lib/isc/unix/file.c lib/isc/inet_ntop.c \
@@ -238,15 +238,15 @@ am__objects_5 = a_md5encrypt.$(OBJEXT) adjtime.$(OBJEXT) \
 	ntp_libopts.$(OBJEXT) ntp_lineedit.$(OBJEXT) \
 	ntp_random.$(OBJEXT) ntp_realpath.$(OBJEXT) \
 	ntp_rfc2553.$(OBJEXT) ntp_worker.$(OBJEXT) numtoa.$(OBJEXT) \
-	numtohost.$(OBJEXT) octtoint.$(OBJEXT) prettydate.$(OBJEXT) \
-	refidsmear.$(OBJEXT) recvbuff.$(OBJEXT) refnumtoa.$(OBJEXT) \
-	snprintf.$(OBJEXT) socket.$(OBJEXT) socktoa.$(OBJEXT) \
-	socktohost.$(OBJEXT) ssl_init.$(OBJEXT) statestr.$(OBJEXT) \
-	strdup.$(OBJEXT) strl_obsd.$(OBJEXT) syssignal.$(OBJEXT) \
-	timespecops.$(OBJEXT) timetoa.$(OBJEXT) timevalops.$(OBJEXT) \
-	timexsup.$(OBJEXT) uglydate.$(OBJEXT) vint64ops.$(OBJEXT) \
-	work_fork.$(OBJEXT) work_thread.$(OBJEXT) xsbprintf.$(OBJEXT) \
-	ymd2yd.$(OBJEXT) $(am__objects_4) $(am__objects_1)
+	octtoint.$(OBJEXT) prettydate.$(OBJEXT) refidsmear.$(OBJEXT) \
+	recvbuff.$(OBJEXT) refnumtoa.$(OBJEXT) snprintf.$(OBJEXT) \
+	socket.$(OBJEXT) socktoa.$(OBJEXT) socktohost.$(OBJEXT) \
+	ssl_init.$(OBJEXT) statestr.$(OBJEXT) strdup.$(OBJEXT) \
+	strl_obsd.$(OBJEXT) syssignal.$(OBJEXT) timespecops.$(OBJEXT) \
+	timetoa.$(OBJEXT) timevalops.$(OBJEXT) timexsup.$(OBJEXT) \
+	uglydate.$(OBJEXT) vint64ops.$(OBJEXT) work_fork.$(OBJEXT) \
+	work_thread.$(OBJEXT) xsbprintf.$(OBJEXT) ymd2yd.$(OBJEXT) \
+	$(am__objects_4) $(am__objects_1)
 am_libntp_a_OBJECTS = systime.$(OBJEXT) $(am__objects_5)
 libntp_a_OBJECTS = $(am_libntp_a_OBJECTS)
 libntpsim_a_AR = $(AR) $(ARFLAGS)
@@ -261,12 +261,12 @@ am__libntpsim_a_SOURCES_DIST = systime_s.c a_md5encrypt.c adjtime.c \
 	mktime.c modetoa.c mstolfp.c msyslog.c netof.c ntp_calendar.c \
 	ntp_calgps.c ntp_crypto_rnd.c ntp_intres.c ntp_libopts.c \
 	ntp_lineedit.c ntp_random.c ntp_realpath.c ntp_rfc2553.c \
-	ntp_worker.c numtoa.c numtohost.c octtoint.c prettydate.c \
-	refidsmear.c recvbuff.c refnumtoa.c snprintf.c socket.c \
-	socktoa.c socktohost.c ssl_init.c statestr.c strdup.c \
-	strl_obsd.c syssignal.c timespecops.c timetoa.c timevalops.c \
-	timexsup.c uglydate.c vint64ops.c work_fork.c work_thread.c \
-	xsbprintf.c ymd2yd.c lib/isc/assertions.c lib/isc/buffer.c \
+	ntp_worker.c numtoa.c octtoint.c prettydate.c refidsmear.c \
+	recvbuff.c refnumtoa.c snprintf.c socket.c socktoa.c \
+	socktohost.c ssl_init.c statestr.c strdup.c strl_obsd.c \
+	syssignal.c timespecops.c timetoa.c timevalops.c timexsup.c \
+	uglydate.c vint64ops.c work_fork.c work_thread.c xsbprintf.c \
+	ymd2yd.c lib/isc/assertions.c lib/isc/buffer.c \
 	lib/isc/backtrace-emptytbl.c lib/isc/backtrace.c \
 	lib/isc/unix/dir.c lib/isc/error.c lib/isc/unix/errno2result.c \
 	lib/isc/event.c lib/isc/unix/file.c lib/isc/inet_ntop.c \
@@ -321,21 +321,20 @@ am__depfiles_remade = ./$(DEPDIR)/a_md5encrypt.Po \
 	./$(DEPDIR)/ntp_libopts.Po ./$(DEPDIR)/ntp_lineedit.Po \
 	./$(DEPDIR)/ntp_random.Po ./$(DEPDIR)/ntp_realpath.Po \
 	./$(DEPDIR)/ntp_rfc2553.Po ./$(DEPDIR)/ntp_worker.Po \
-	./$(DEPDIR)/numtoa.Po ./$(DEPDIR)/numtohost.Po \
-	./$(DEPDIR)/octtoint.Po ./$(DEPDIR)/prettydate.Po \
-	./$(DEPDIR)/recvbuff.Po ./$(DEPDIR)/refidsmear.Po \
-	./$(DEPDIR)/refnumtoa.Po ./$(DEPDIR)/snprintf.Po \
-	./$(DEPDIR)/socket.Po ./$(DEPDIR)/socktoa.Po \
-	./$(DEPDIR)/socktohost.Po ./$(DEPDIR)/ssl_init.Po \
-	./$(DEPDIR)/statestr.Po ./$(DEPDIR)/strdup.Po \
-	./$(DEPDIR)/strl_obsd.Po ./$(DEPDIR)/syssignal.Po \
-	./$(DEPDIR)/systime.Po ./$(DEPDIR)/systime_s.Po \
-	./$(DEPDIR)/timespecops.Po ./$(DEPDIR)/timetoa.Po \
-	./$(DEPDIR)/timevalops.Po ./$(DEPDIR)/timexsup.Po \
-	./$(DEPDIR)/uglydate.Po ./$(DEPDIR)/vint64ops.Po \
-	./$(DEPDIR)/work_fork.Po ./$(DEPDIR)/work_thread.Po \
-	./$(DEPDIR)/xsbprintf.Po ./$(DEPDIR)/ymd2yd.Po \
-	lib/isc/$(DEPDIR)/assertions.Po \
+	./$(DEPDIR)/numtoa.Po ./$(DEPDIR)/octtoint.Po \
+	./$(DEPDIR)/prettydate.Po ./$(DEPDIR)/recvbuff.Po \
+	./$(DEPDIR)/refidsmear.Po ./$(DEPDIR)/refnumtoa.Po \
+	./$(DEPDIR)/snprintf.Po ./$(DEPDIR)/socket.Po \
+	./$(DEPDIR)/socktoa.Po ./$(DEPDIR)/socktohost.Po \
+	./$(DEPDIR)/ssl_init.Po ./$(DEPDIR)/statestr.Po \
+	./$(DEPDIR)/strdup.Po ./$(DEPDIR)/strl_obsd.Po \
+	./$(DEPDIR)/syssignal.Po ./$(DEPDIR)/systime.Po \
+	./$(DEPDIR)/systime_s.Po ./$(DEPDIR)/timespecops.Po \
+	./$(DEPDIR)/timetoa.Po ./$(DEPDIR)/timevalops.Po \
+	./$(DEPDIR)/timexsup.Po ./$(DEPDIR)/uglydate.Po \
+	./$(DEPDIR)/vint64ops.Po ./$(DEPDIR)/work_fork.Po \
+	./$(DEPDIR)/work_thread.Po ./$(DEPDIR)/xsbprintf.Po \
+	./$(DEPDIR)/ymd2yd.Po lib/isc/$(DEPDIR)/assertions.Po \
 	lib/isc/$(DEPDIR)/backtrace-emptytbl.Po \
 	lib/isc/$(DEPDIR)/backtrace.Po lib/isc/$(DEPDIR)/buffer.Po \
 	lib/isc/$(DEPDIR)/error.Po lib/isc/$(DEPDIR)/event.Po \
@@ -581,6 +580,7 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_NET_SNMP_CONFIG = @PATH_NET_SNMP_CONFIG@
+PATH_OPENSSL = @PATH_OPENSSL@
 PATH_PERL = @PATH_PERL@
 PATH_RUBY = @PATH_RUBY@
 PATH_SEPARATOR = @PATH_SEPARATOR@
@@ -822,7 +822,6 @@ libntp_a_SRCS = \
 	ntp_rfc2553.c					\
 	ntp_worker.c					\
 	numtoa.c					\
-	numtohost.c					\
 	octtoint.c					\
 	prettydate.c					\
 	refidsmear.c					\
@@ -1093,7 +1092,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ntp_rfc2553.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ntp_worker.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/numtoa.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/numtohost.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/octtoint.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/prettydate.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/recvbuff.Po@am__quote@ # am--include-marker
@@ -1380,7 +1378,6 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/ntp_rfc2553.Po
 	-rm -f ./$(DEPDIR)/ntp_worker.Po
 	-rm -f ./$(DEPDIR)/numtoa.Po
-	-rm -f ./$(DEPDIR)/numtohost.Po
 	-rm -f ./$(DEPDIR)/octtoint.Po
 	-rm -f ./$(DEPDIR)/prettydate.Po
 	-rm -f ./$(DEPDIR)/recvbuff.Po
@@ -1535,7 +1532,6 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/ntp_rfc2553.Po
 	-rm -f ./$(DEPDIR)/ntp_worker.Po
 	-rm -f ./$(DEPDIR)/numtoa.Po
-	-rm -f ./$(DEPDIR)/numtohost.Po
 	-rm -f ./$(DEPDIR)/octtoint.Po
 	-rm -f ./$(DEPDIR)/prettydate.Po
 	-rm -f ./$(DEPDIR)/recvbuff.Po

@@ -611,6 +611,9 @@ authhavekey(
 
 	/*
 	 * The key is found and trusted. Initialize the key cache.
+	 * The cache really should be a struct savekey to streamline
+	 * this code.  Using a sk pointer would be even faster but more
+	 * fragile around pointing to freed memory.
 	 */
 	cache_keyid = sk->keyid;
 	cache_type = sk->type;
@@ -926,6 +929,7 @@ authdecrypt(
 			      cache_secret, cache_secretsize,
 			      pkt, length, size, keyno);
 }
+
 
 /* password decoding helpers */
 static size_t

@@ -90,6 +90,7 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 EXTRA_PROGRAMS = parsestreams$(EXEEXT) parsesolaris$(EXEEXT)
+@LIBNTP_SUBMAKES_TRUE@am__append_1 = check-libntp
 subdir = libparse
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/sntp/libopts/m4/libopts.m4 \
@@ -423,6 +424,7 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_NET_SNMP_CONFIG = @PATH_NET_SNMP_CONFIG@
+PATH_OPENSSL = @PATH_OPENSSL@
 PATH_PERL = @PATH_PERL@
 PATH_RUBY = @PATH_RUBY@
 PATH_SEPARATOR = @PATH_SEPARATOR@
@@ -522,9 +524,9 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 NULL = 
-BUILT_SOURCES = $(VPHACK) info_trimble.c $(VPHACK_AFTER) check-libntp \
-	.deps-ver
-CLEANFILES = check-libntp .deps-ver
+BUILT_SOURCES = $(VPHACK) info_trimble.c $(VPHACK_AFTER) \
+	$(am__append_1) .deps-ver
+CLEANFILES = .deps-ver
 DISTCLEANFILES = $(DEPDIR)/deps-ver
 noinst_LIBRARIES = @MAKE_LIBPARSE@ @MAKE_LIBPARSE_KERNEL@
 EXTRA_LIBRARIES = libparse.a libparse_kernel.a
@@ -998,14 +1000,9 @@ vphack_after:
 		)
 
 info_trimble.c: $(top_srcdir)/include/trimble.h $(srcdir)/Makefile.am $(srcdir)/mkinfo_scmd.sed $(srcdir)/mkinfo_rcmd.sed
-	sed -n -f $(srcdir)/mkinfo_scmd.sed $(top_srcdir)/include/trimble.h  > info_trimble.new
-	sed -n -f $(srcdir)/mkinfo_rcmd.sed $(top_srcdir)/include/trimble.h >> info_trimble.new
-	mv -f info_trimble.new $@
-
-#$(srcdir)/info_trimble.c: $(top_srcdir)/include/trimble.h $(srcdir)/Makefile.am $(srcdir)/mkinfo_scmd.sed $(srcdir)/mkinfo_rcmd.sed
-#	sed -n -f $(srcdir)/mkinfo_scmd.sed $(top_srcdir)/include/trimble.h  > info_trimble.new
-#	sed -n -f $(srcdir)/mkinfo_rcmd.sed $(top_srcdir)/include/trimble.h >> info_trimble.new
-#	mv -f info_trimble.new $@
+	$(AM_V_at)$(SED) -n -f $(srcdir)/mkinfo_scmd.sed $(top_srcdir)/include/trimble.h  > info_trimble.new
+	$(AM_V_at)$(SED) -n -f $(srcdir)/mkinfo_rcmd.sed $(top_srcdir)/include/trimble.h >> info_trimble.new
+	$(AM_V_at)mv -f info_trimble.new $@
 
 kieee754io.o: $(srcdir)/ieee754io.c
 	 $(COMPILE) $(K_CFLAGS) -c $(srcdir)/ieee754io.c -o $@
@@ -1069,20 +1066,19 @@ parse: $(parsesolaris_OBJECTS) libparse_kernel.a ../libntp/libntp.a
 
 parsesolaris.o: sys/systm.h
 
-# [Bug3608] Solaris has inconsistent definitions of ffs() and fls(). Drop the
+# [Bug 3608] Solaris has inconsistent definitions of ffs() and fls(). Drop the
 # ones from 'systm.h'.
 sys/systm.h:
 	-mkdir sys
-	sed -e '/f[fl]s(.*)/d' < /usr/include/sys/systm.h > sys/systm.h
+	$(SED) -e '/f[fl]s(.*)/d' < /usr/include/sys/systm.h > sys/systm.h
 
 check-libparse: $(noinst_LIBRARIES)
 	@: do-nothing action to avoid default SCCS get
 
-check-libntp: $(top_builddir)/libntp/libntp.a
-	@: avoid default SCCS get by some make implementations
+.PHONY: check-libntp
 
-$(top_builddir)/libntp/libntp.a:
-	cd $(top_builddir)/libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
+@LIBNTP_SUBMAKES_TRUE@check-libntp:
+@LIBNTP_SUBMAKES_TRUE@	cd $(top_builddir)/libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
 $(DEPDIR)/deps-ver: $(top_srcdir)/deps-ver
 	@[ -f $@ ] ||							\
 		cp $(top_srcdir)/deps-ver $@

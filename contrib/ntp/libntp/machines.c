@@ -13,17 +13,16 @@
 #include "ntp_syslog.h"
 #include "ntp_stdlib.h"
 #include "ntp_unixtime.h"
-#include "lib_strbuf.h"
 #include "ntp_debug.h"
+#include "ntp_tty.h"
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 
 #ifdef SYS_WINNT
-int _getch(void);	/* Declare the one function rather than include conio.h */
+#include <conio.h>
 #else
-
 #ifdef SYS_VXWORKS
 #include "taskLib.h"
 #include "sysLib.h"
@@ -531,3 +530,58 @@ getpass(const char * prompt)
 	return password;
 }
 #endif /* SYS_WINNT */
+
+
+static const int baudTable[][2] = {
+	{B0, 0},
+	{B50, 50},
+	{B75, 75},
+	{B110, 110},
+	{B134, 134},
+	{B150, 150},
+	{B200, 200},
+	{B300, 300},
+	{B600, 600},
+	{B1200, 1200},
+	{B1800, 1800},
+	{B2400, 2400},
+	{B4800, 4800},
+	{B9600, 9600},
+	{B19200, 19200},
+	{B38400, 38400},
+#   ifdef B57600
+	{B57600, 57600 },
+#   endif
+#   ifdef B115200
+	{B115200, 115200},
+#   endif
+	{-1, -1}
+};
+
+
+int  symBaud2numBaud(int symBaud)
+{
+	int i;
+
+	for (i = 0; baudTable[i][1] >= 0; ++i) {
+		if (baudTable[i][0] == symBaud) {
+			break;
+		}
+	}
+	return baudTable[i][1];
+}
+
+
+#if 0	/* unused */
+int  numBaud2symBaud(int numBaud)
+{
+	int i;
+
+	for (i = 0; baudTable[i][1] >= 0; ++i) {
+		if (baudTable[i][1] == numBaud) {
+			break;
+		}
+	}
+	return baudTable[i][0];
+}
+#endif	/* unused fn */

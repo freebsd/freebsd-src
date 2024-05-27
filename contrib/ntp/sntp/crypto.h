@@ -17,18 +17,19 @@
 
 struct key {
 	struct key *	next;
-	int		key_id;
-	int		key_len;
+	keyid_t		key_id;
+	size_t		key_len;
 	int		typei;
 	char		typen[20];
 	char		key_seq[64];
 };
 
 extern	int	auth_init(const char *keyfile, struct key **keys);
-extern	void	get_key(int key_id, struct key **d_key);
-extern	int	make_mac(const void *pkt_data, int pkt_size, int mac_size,
-			 const struct key *cmp_key, void *digest);
-extern	int	auth_md5(const void *pkt_data, int pkt_size, int mac_size,
-			 const struct key *cmp_key);
+extern	void	get_key(keyid_t key_id, struct key **d_key);
+extern	size_t	make_mac(const void *pkt_data, size_t pkt_len,
+			 const struct key *cmp_key, void *digest,
+			 size_t dig_sz);
+extern	int	auth_md5(const void *pkt_data, size_t pkt_len,
+			 size_t dig_len, const struct key *cmp_key);
 
 #endif

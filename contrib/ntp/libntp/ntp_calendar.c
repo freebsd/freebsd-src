@@ -56,7 +56,6 @@
 #include "ntp_unixtime.h"
 
 #include "ntpd.h"
-#include "lib_strbuf.h"
 
 /* For now, let's take the conservative approach: if the target property
  * macros are not defined, check a few well-known compiler/architecture

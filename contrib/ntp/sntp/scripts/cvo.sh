@@ -26,7 +26,13 @@ case "$#" in
     CVO_OS=$4
     case "$cvo_KERN" in
      linux)			# Braindamage.  We want OS, not kernel info
-	if lsb_release > /dev/null 2>&1
+	if test -f /etc/os-release
+	then
+	    . /etc/os-release
+	    ID=`echo $ID | tr '-' '_'`
+	    CVO_OS="${ID}${VERSION_ID}"
+	    CVO_KOSVER=`uname -r`
+	elif lsb_release > /dev/null 2>&1
 	then
 	    CVO_OS=`lsb_release --id --short | tr '[:upper:]' '[:lower:]'`
 	    CVO_OS="$CVO_OS`lsb_release --release --short`"

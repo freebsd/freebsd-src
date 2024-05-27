@@ -9,7 +9,7 @@
 #include <config.h>
 #endif
 
-#include <ntp_types.h>
+#include "ntp_types.h"
 
 #if defined(REFCLOCK) && defined(CLOCK_PARSE) && defined(CLOCK_WHARTON_400A)
 /*
