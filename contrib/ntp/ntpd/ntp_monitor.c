@@ -329,9 +329,9 @@ ntp_monitor(
 
 	REQUIRE(rbufp != NULL);
 
-	if (mon_enabled == MON_OFF)
+	if (mon_enabled == MON_OFF) {
 		return ~(RES_LIMITED | RES_KOD) & flags;
-
+	}
 	pkt = &rbufp->recv_pkt;
 	hash = MON_HASH(&rbufp->recv_srcadr);
 	mode = PKT_MODE(pkt->li_vn_mode);
@@ -343,10 +343,11 @@ ntp_monitor(
 	 * otherwise cron'ed ntpdate or similar evades RES_LIMITED.
 	 */
 
-	for (; mon != NULL; mon = mon->hash_next)
-		if (SOCK_EQ(&mon->rmtadr, &rbufp->recv_srcadr))
+	for (; mon != NULL; mon = mon->hash_next) {
+		if (SOCK_EQ(&mon->rmtadr, &rbufp->recv_srcadr)) {
 			break;
-
+		}
+	}
 	if (mon != NULL) {
 		interval_fp = rbufp->recv_time;
 		L_SUB(&interval_fp, &mon->last);
@@ -388,17 +389,17 @@ ntp_monitor(
 		 * the average threshold plus the increment and leave
 		 * the RES_LIMITED and RES_KOD bits lit. Otherwise,
 		 * leave the counter alone and douse the RES_KOD bit.
-		 * This rate-limits the KoDs to no less than the average
-		 * headway.
+		 * This rate-limits the KoDs to no more often than the
+		 * average headway.
 		 */
 		if (interval + 1 >= ntp_minpkt && leak < limit) {
 			mon->leak = leak - 2;
 			restrict_mask &= ~(RES_LIMITED | RES_KOD);
-		} else if (mon->leak < limit)
+		} else if (mon->leak < limit) {
 			mon->leak = limit + head;
-		else
+		} else {
 			restrict_mask &= ~RES_KOD;
-
+		}
 		mon->flags = restrict_mask;
 
 		return mon->flags;

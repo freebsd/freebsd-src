@@ -96,6 +96,7 @@ bin_PROGRAMS =
 libexec_PROGRAMS =
 sbin_PROGRAMS =
 EXTRA_PROGRAMS = adjtimed$(EXEEXT)
+@LIBNTP_SUBMAKES_TRUE@am__append_1 = check-libntp
 subdir = adjtimed
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/sntp/libopts/m4/libopts.m4 \
@@ -389,6 +390,7 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_NET_SNMP_CONFIG = @PATH_NET_SNMP_CONFIG@
+PATH_OPENSSL = @PATH_OPENSSL@
 PATH_PERL = @PATH_PERL@
 PATH_RUBY = @PATH_RUBY@
 PATH_SEPARATOR = @PATH_SEPARATOR@
@@ -487,8 +489,8 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-BUILT_SOURCES = check-libntp .deps-ver
-CLEANFILES = check-libntp .deps-ver
+BUILT_SOURCES = $(am__append_1) .deps-ver
+CLEANFILES = .deps-ver
 DISTCLEANFILES = $(DEPDIR)/deps-ver
 AM_CFLAGS = $(CFLAGS_NTP) $(NTP_HARD_CFLAGS)
 AM_CPPFLAGS = $(NTP_INCS) $(CPPFLAGS_NTP) $(NTP_HARD_CPPFLAGS)
@@ -967,11 +969,10 @@ install-exec-hook:
 
 #
 
-check-libntp: $(top_builddir)/libntp/libntp.a
-	@: avoid default SCCS get by some make implementations
+.PHONY: check-libntp
 
-$(top_builddir)/libntp/libntp.a:
-	cd $(top_builddir)/libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
+@LIBNTP_SUBMAKES_TRUE@check-libntp:
+@LIBNTP_SUBMAKES_TRUE@	cd $(top_builddir)/libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
 $(DEPDIR)/deps-ver: $(top_srcdir)/deps-ver
 	@[ -f $@ ] ||							\
 		cp $(top_srcdir)/deps-ver $@

@@ -178,16 +178,14 @@ getCmdOpts(
 
 	if (HAVE_OPT( UPDATEINTERVAL )) {
 		long val = OPT_VALUE_UPDATEINTERVAL;
+		const char errfmt[] =
+			"-U/--updateinterval %ld must be >= 0\n";
 
-		if (val >= 0)
-			interface_interval = val;
-		else {
-			fprintf(stderr,
-				"command line interface update interval %ld must not be negative\n",
-				val);
-			msyslog(LOG_ERR,
-				"command line interface update interval %ld must not be negative",
-				val);
+		if (val >= 0) {
+			endpt_scan_period = val;
+		} else {
+			fprintf(stderr, errfmt, val);
+			msyslog(LOG_ERR, errfmt, val);
 			errflg++;
 		}
 	}

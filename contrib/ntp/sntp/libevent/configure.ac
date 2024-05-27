@@ -348,7 +348,7 @@ AM_CONDITIONAL(BUILD_MIDIPIX, test x$midipix = xtrue)
 AM_CONDITIONAL(BUILD_WITH_NO_UNDEFINED, test x$bwin32 = xtrue || test x$cygwin = xtrue || test x$midipix = xtrue)
 
 if test x$bwin32 = xtrue; then
-  AC_HAVE_LIBRARY([ws2_32])
+  AC_CHECK_LIB([ws2_32], [main])
 fi
 
 dnl Checks for typedefs, structures, and compiler characteristics.
@@ -988,6 +988,11 @@ fi
 AC_SUBST([LIBEVENT_GC_SECTIONS])
 
 AM_CONDITIONAL([INSTALL_LIBEVENT], [test "$enable_libevent_install" = "yes"])
+
+dnl Aloow addtional flags from a containing package such as NTP
+AC_SUBST([LIBEVENT_CFLAGS])
+AC_SUBST([LIBEVENT_CPPFLAGS])
+AC_SUBST([LIBEVENT_LDFLAGS])
 
 # Doxygen support
 DX_HTML_FEATURE(ON)

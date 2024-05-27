@@ -322,5 +322,5 @@ struct refclock * const refclock_conf[] = {
 u_char num_refclock_conf = sizeof(refclock_conf)/sizeof(struct refclock *);
 
 #else
-int refclock_conf_bs;
+NONEMPTY_TRANSLATION_UNIT
 #endif

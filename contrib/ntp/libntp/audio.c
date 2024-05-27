@@ -517,5 +517,5 @@ audio_show(void)
 #endif /* not PCM_STYLE_SOUND */
 }
 #else
-int audio_bs;
+NONEMPTY_TRANSLATION_UNIT
 #endif /* HAVE_{SYS_AUDIOIO,SUN_AUDIOIO,MACHINE_SOUNDCARD,SYS_SOUNDCARD}_H */

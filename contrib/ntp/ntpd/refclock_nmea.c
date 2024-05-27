@@ -1408,6 +1408,7 @@ typedef unsigned char const UCC;
 
 static char const * const s_eof_chars = ",*\r\n";
 
+#ifdef DEBUG
 static int field_length(UCC *cp, unsigned int nfields)
 {
 	char const * ep = (char const*)cp;
@@ -1419,6 +1420,7 @@ static int field_length(UCC *cp, unsigned int nfields)
 	    ? (int)((UCC*)ep - cp)
 	    : (int)strlen((char const*)cp);
 }
+#endif	/* DEBUG */
 
 /* /[,*\r\n]/ --> skip */
 static int _parse_eof(UCC *cp, UCC ** ep)

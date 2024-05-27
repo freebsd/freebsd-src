@@ -23,7 +23,6 @@
 
 #include <ntp_stdlib.h>
 #include <ntp_config.h>
-#include <lib_strbuf.h>
 #include "ntp_scanner.h"
 #include "ntp_parser.h"
 
@@ -45,6 +44,7 @@ struct key_tok ntp_keywords[] = {
 { "broadcastdelay",	T_Broadcastdelay,	FOLLBY_TOKEN },
 { "checkhash",		T_Checkhash,		FOLLBY_TOKEN },
 { "ctl",		T_Ctl,			FOLLBY_TOKEN },
+{ "delrestrict",	T_Delrestrict,		FOLLBY_TOKEN },
 { "device",		T_Device,		FOLLBY_STRING },
 { "disable",		T_Disable,		FOLLBY_TOKEN },
 { "driftfile",		T_Driftfile,		FOLLBY_STRING },

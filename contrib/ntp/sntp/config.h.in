@@ -18,6 +18,9 @@
 /* number of args to el_init() */
 #undef EL_INIT_ARGS
 
+/* Enable CMAC support? */
+#undef ENABLE_CMAC
+
 /* nls support in libopts */
 #undef ENABLE_NLS
 
@@ -130,9 +133,6 @@
 
 /* Define to 1 if the system has the type `int32'. */
 #undef HAVE_INT32
-
-/* int32 type in DNS headers, not others. */
-#undef HAVE_INT32_ONLY_WITH_DNS
 
 /* Define to 1 if the system has the type `int32_t'. */
 #undef HAVE_INT32_T
@@ -260,9 +260,6 @@
 /* Define to 1 if you have the <openssl/cmac.h> header file. */
 #undef HAVE_OPENSSL_CMAC_H
 
-/* Define to 1 if you have the <openssl/hmac.h> header file. */
-#undef HAVE_OPENSSL_HMAC_H
-
 /* Define this if pathfind(3) works */
 #undef HAVE_PATHFIND
 
@@ -313,6 +310,12 @@
 
 /* Define to 1 if the system has the type `ptrdiff_t'. */
 #undef HAVE_PTRDIFF_T
+
+/* Define to 1 if you have the `RAND_bytes' function. */
+#undef HAVE_RAND_BYTES
+
+/* Define to 1 if you have the `RAND_poll' function. */
+#undef HAVE_RAND_POLL
 
 /* Define to 1 if you have the <readline.h> header file. */
 #undef HAVE_READLINE_H
@@ -464,7 +467,7 @@
 /* Define to 1 if you have the <sysexits.h> header file. */
 #undef HAVE_SYSEXITS_H
 
-/* */
+/* syslog.h provides facilitynames */
 #undef HAVE_SYSLOG_FACILITYNAMES
 
 /* Define to 1 if you have the <syslog.h> header file. */
@@ -600,9 +603,6 @@
 
 /* Define to 1 if the system has the type `u_int32'. */
 #undef HAVE_U_INT32
-
-/* u_int32 type in DNS headers, not others. */
-#undef HAVE_U_INT32_ONLY_WITH_DNS
 
 /* Define to 1 if you have the <values.h> header file. */
 #undef HAVE_VALUES_H
@@ -754,6 +754,9 @@
 /* Use OpenSSL? */
 #undef OPENSSL
 
+/* Suppress OpenSSL 3 deprecation warnings */
+#undef OPENSSL_SUPPRESS_DEPRECATED
+
 /* Name of package */
 #undef PACKAGE
 
@@ -839,10 +842,6 @@
 /* enable thread safety */
 #undef THREAD_SAFE
 
-/* Define to 1 if you can safely include both <sys/time.h> and <time.h>. This
-   macro is obsolete. */
-#undef TIME_WITH_SYS_TIME
-
 /* Provide a typedef for uintptr_t? */
 #ifndef HAVE_UINTPTR_T
 typedef unsigned int	uintptr_t;
@@ -851,6 +850,9 @@ typedef unsigned int	uintptr_t;
 
 /* What type to use for setsockopt */
 #undef TYPEOF_IP_MULTICAST_LOOP
+
+/* Use OpenSSL's crypto random functions */
+#undef USE_OPENSSL_CRYPTO_RAND
 
 /* OK to use snprintb()? */
 #undef USE_SNPRINTB
@@ -1016,15 +1018,8 @@ typedef unsigned int	uintptr_t;
 /* Define to `unsigned int' if <sys/types.h> does not define. */
 #undef size_t
 
-	
-	    #if !defined(_KERNEL) && !defined(PARSESTREAM)
-	    /*
-	     * stdio.h must be included after _GNU_SOURCE is defined
-	     * but before #define snprintf rpl_snprintf
-	     */
-	    # include <stdio.h>	
-	    #endif
-	
+	#include "c99_snprintf.h"
+    
 
 /* Define to rpl_snprintf if the replacement function should be used. */
 #undef snprintf

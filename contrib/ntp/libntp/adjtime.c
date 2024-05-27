@@ -381,6 +381,6 @@ adjtime (struct timeval *delta, struct timeval *olddelta)
     return 0;
 }
 # else /* no special adjtime() needed */
-int adjtime_bs;
+NONEMPTY_TRANSLATION_UNIT
 # endif
 #endif

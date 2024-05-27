@@ -314,5 +314,5 @@ pst_poll(
 }
 
 #else
-int refclock_pst_int;
+NONEMPTY_TRANSLATION_UNIT
 #endif /* REFCLOCK */
