@@ -1,3 +1,12 @@
+2024-05-27 1.0.3
+
+	Utility:
+	change: --form and --mixedform do not print field value to output fd if
+	        <fieldlen> is <= 0 (readonly). To note --mixedgauge continues
+	        to print field value if <flag> = 2 (readonly) unless <fieldlen>
+	        is <= 0 (as described previously).
+
+
 2024-04-11 Version 1.0.2
 
 	Utility:

@@ -4,7 +4,7 @@
 # Written in 2023 by Alfonso Sabato Siciliano
 
 OUTPUT = bsddialog
-export VERSION=1.0.2
+export VERSION=1.0.3
 .CURDIR ?= ${CURDIR}
 LIBPATH = ${.CURDIR}/lib
 LIBBSDDIALOG = ${LIBPATH}/libbsddialog.so

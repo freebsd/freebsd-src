@@ -581,7 +581,8 @@ print_form_items(int output, int nitems, struct bsddialog_formitem *items,
 	}
 
 	for (i = 0; i < nitems; i++) {
-		dprintf(opt->output_fd, "%s\n", items[i].value);
+		if (!(items[i].flags & BSDDIALOG_FIELDREADONLY))
+			dprintf(opt->output_fd, "%s\n", items[i].value);
 		free(items[i].value);
 	}
 }
@@ -715,6 +716,10 @@ int mixedform_builder(BUILDER_ARGS)
 	focusitem = -1;
 	output = bsddialog_form(conf, text, rows, cols, formheight, nitems,
 	    items, &focusitem);
+	for (i = 0; i < nitems; i++) {
+		if ((int)strtol(argv[i * sizeitem + 6], NULL, 10) > 0)
+			items[i].flags &= ~ BSDDIALOG_FIELDREADONLY;
+	}
 	print_form_items(output, nitems, items, focusitem, opt);
 	free(items);
 
