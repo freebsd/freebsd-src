@@ -90,8 +90,8 @@ static void qlnx_init_ifnet(device_t dev, qlnx_host_t *ha);
 static void qlnx_init(void *arg);
 static void qlnx_init_locked(qlnx_host_t *ha);
 static int qlnx_set_multi(qlnx_host_t *ha, uint32_t add_multi);
-static int qlnx_set_promisc(qlnx_host_t *ha);
-static int qlnx_set_allmulti(qlnx_host_t *ha);
+static int qlnx_set_promisc(qlnx_host_t *ha, int enabled);
+static int qlnx_set_allmulti(qlnx_host_t *ha, int enabled);
 static int qlnx_ioctl(if_t ifp, u_long cmd, caddr_t data);
 static int qlnx_media_change(if_t ifp);
 static void qlnx_media_status(if_t ifp, struct ifmediareq *ifmr);
@@ -2595,7 +2595,7 @@ qlnx_set_multi(qlnx_host_t *ha, uint32_t add_multi)
 }
 
 static int
-qlnx_set_promisc(qlnx_host_t *ha)
+qlnx_set_promisc(qlnx_host_t *ha, int enabled)
 {
 	int	rc = 0;
 	uint8_t	filter;
@@ -2604,15 +2604,20 @@ qlnx_set_promisc(qlnx_host_t *ha)
 		return (0);
 
 	filter = ha->filter;
-	filter |= ECORE_ACCEPT_MCAST_UNMATCHED;
-	filter |= ECORE_ACCEPT_UCAST_UNMATCHED;
+	if (enabled) {
+		filter |= ECORE_ACCEPT_MCAST_UNMATCHED;
+		filter |= ECORE_ACCEPT_UCAST_UNMATCHED;
+	} else {
+		filter &= ~ECORE_ACCEPT_MCAST_UNMATCHED;
+		filter &= ~ECORE_ACCEPT_UCAST_UNMATCHED;
+	}
 
 	rc = qlnx_set_rx_accept_filter(ha, filter);
 	return (rc);
 }
 
 static int
-qlnx_set_allmulti(qlnx_host_t *ha)
+qlnx_set_allmulti(qlnx_host_t *ha, int enabled)
 {
 	int	rc = 0;
 	uint8_t	filter;
@@ -2621,7 +2626,11 @@ qlnx_set_allmulti(qlnx_host_t *ha)
 		return (0);
 
 	filter = ha->filter;
-	filter |= ECORE_ACCEPT_MCAST_UNMATCHED;
+	if (enabled) {
+		filter |= ECORE_ACCEPT_MCAST_UNMATCHED;
+	} else {
+		filter &= ~ECORE_ACCEPT_MCAST_UNMATCHED;
+	}
 	rc = qlnx_set_rx_accept_filter(ha, filter);
 
 	return (rc);
@@ -2689,10 +2698,10 @@ qlnx_ioctl(if_t ifp, u_long cmd, caddr_t data)
 			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 				if ((if_getflags(ifp) ^ ha->if_flags) &
 					IFF_PROMISC) {
-					ret = qlnx_set_promisc(ha);
+					ret = qlnx_set_promisc(ha, ifp->if_flags & IFF_PROMISC);
 				} else if ((if_getflags(ifp) ^ ha->if_flags) &
 					IFF_ALLMULTI) {
-					ret = qlnx_set_allmulti(ha);
+					ret = qlnx_set_allmulti(ha, ifp->if_flags & IFF_ALLMULTI);
 				}
 			} else {
 				ha->max_frame_size = if_getmtu(ifp) +
@@ -2702,9 +2711,9 @@ qlnx_ioctl(if_t ifp, u_long cmd, caddr_t data)
 		} else {
 			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 				qlnx_stop(ha);
-			ha->if_flags = if_getflags(ifp);
 		}
 
+		ha->if_flags = if_getflags(ifp);
 		QLNX_UNLOCK(ha);
 		break;
 
@@ -7075,8 +7084,10 @@ qlnx_set_rx_mode(qlnx_host_t *ha)
 			ECORE_ACCEPT_MCAST_MATCHED |
 			ECORE_ACCEPT_BCAST;
 
-	if (qlnx_vf_device(ha) == 0) {
+	if (qlnx_vf_device(ha) == 0 || (ha->ifp->if_flags & IFF_PROMISC)) {
 		filter |= ECORE_ACCEPT_UCAST_UNMATCHED;
+		filter |= ECORE_ACCEPT_MCAST_UNMATCHED;
+	} else if (ha->ifp->if_flags & IFF_ALLMULTI) {
 		filter |= ECORE_ACCEPT_MCAST_UNMATCHED;
 	}
 	ha->filter = filter;
