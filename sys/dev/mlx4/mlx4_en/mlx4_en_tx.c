@@ -688,7 +688,7 @@ int mlx4_en_xmit(struct mlx4_en_priv *priv, int tx_ind, struct mbuf **mbp)
 	dseg = &tx_desc->data;
 
 	/* send a copy of the frame to the BPF listener, if any */
-	if (ifp != NULL && if_getbpf(ifp) != NULL)
+	if (ifp != NULL)
 		ETHER_BPF_MTAP(ifp, mb);
 
 	/* get default flags */
