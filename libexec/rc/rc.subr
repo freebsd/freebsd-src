@@ -1856,7 +1856,8 @@ boottrace_fn()
 		set $_arg; . $_file
 		boottrace_sysctl "$_file done"
 	else
-		$boottrace_cmd "$_file" "$_arg"
+		_boot="${_boot}" rc_fast="${rc_fast}" autoboot="${autoboot}" \
+		    $boottrace_cmd "$_file" "$_arg"
 	fi
 }
 
