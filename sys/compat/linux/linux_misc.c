@@ -1819,6 +1819,14 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 #endif
 		error = EINVAL;
 		break;
+	case LINUX_PR_SET_CHILD_SUBREAPER:
+		if (args->arg2 == 0){
+			return (kern_procctl(td, P_PID, 0, PROC_REAP_RELEASE,
+			    NULL));
+		}
+
+		return (kern_procctl(td, P_PID, 0, PROC_REAP_ACQUIRE,
+		    NULL));
 	case LINUX_PR_SET_NO_NEW_PRIVS:
 		arg = args->arg2 == 1 ?
 		    PROC_NO_NEW_PRIVS_ENABLE : PROC_NO_NEW_PRIVS_DISABLE;
