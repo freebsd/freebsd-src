@@ -120,6 +120,9 @@ USE_ASM_SOURCES:=0
 .if exists(${MACHINE_ARCH}/sha1block.S)
 SRCS+=	sha1block.S
 CFLAGS+= -DSHA1_ASM
+.if exists(${MACHINE_ARCH}/sha1dispatch.c)
+SRCS+=  sha1dispatch.c
+.endif
 .endif
 .if exists(${MACHINE_ARCH}/rmd160.S)
 SRCS+=	rmd160.S
