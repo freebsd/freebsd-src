@@ -256,8 +256,6 @@ qlnx_rdma_deregister_if(qlnx_rdma_if_t *rdma_if)
 	int ret = 0;
 	qlnx_host_t *ha;
 
-	printf("%s: enter rdma_if = %p\n", __func__, rdma_if);
-
         if (mtx_initialized(&qlnx_rdma_dev_lock)) {
                 mtx_lock(&qlnx_rdma_dev_lock);
 
@@ -288,7 +286,6 @@ qlnx_rdma_deregister_if(qlnx_rdma_if_t *rdma_if)
 
                 mtx_unlock(&qlnx_rdma_dev_lock);
         }
-	printf("%s: exit rdma_if = %p\n", __func__, rdma_if);
 
         return (ret);
 }
