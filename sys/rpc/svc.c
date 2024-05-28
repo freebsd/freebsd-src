@@ -996,6 +996,7 @@ svc_getreq(SVCXPRT *xprt, struct svc_req **rqstp_ret)
 		 * enable TLS offload first.
 		 */
 		if (xprt->xp_doneddp == 0 && r->rq_proc != NULLPROC &&
+		    xprt->xp_socket != NULL &&
 		    atomic_cmpset_int(&xprt->xp_doneddp, 0, 1)) {
 			if (xprt->xp_socket->so_proto->pr_protocol ==
 			    IPPROTO_TCP) {
