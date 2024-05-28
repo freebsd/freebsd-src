@@ -391,7 +391,7 @@ struct qlnx_host {
 
 	int			msix_count;
 
-	struct sx		hw_lock;
+	struct mtx		hw_lock;
 
 	/* debug */
 
