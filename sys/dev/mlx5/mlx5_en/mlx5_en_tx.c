@@ -745,7 +745,7 @@ top:
 	mb = *mbp;
 
 	/* Send a copy of the frame to the BPF listener, if any */
-	if (ifp != NULL && ifp->if_bpf != NULL)
+	if (ifp != NULL)
 		ETHER_BPF_MTAP(ifp, mb);
 
 	if (mb->m_pkthdr.csum_flags & (CSUM_IP | CSUM_TSO)) {
