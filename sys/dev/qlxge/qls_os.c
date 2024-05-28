@@ -162,20 +162,20 @@ qls_sysctl_get_drvr_stats(SYSCTL_HANDLER_ARGS)
                 ha = (qla_host_t *)arg1;
 
                 for (i = 0; i < ha->num_tx_rings; i++) {
-                        device_printf(ha->pci_dev,
+                        QL_DPRINT2((ha->pci_dev,
                                 "%s: tx_ring[%d].tx_frames= %p\n",
 				__func__, i,
-                                (void *)ha->tx_ring[i].tx_frames);
+                                (void *)ha->tx_ring[i].tx_frames));
 
-                        device_printf(ha->pci_dev,
+                        QL_DPRINT2((ha->pci_dev,
                                 "%s: tx_ring[%d].tx_tso_frames= %p\n",
 				__func__, i,
-                                (void *)ha->tx_ring[i].tx_tso_frames);
+                                (void *)ha->tx_ring[i].tx_tso_frames));
 
-                        device_printf(ha->pci_dev,
+                        QL_DPRINT2((ha->pci_dev,
                                 "%s: tx_ring[%d].tx_vlan_frames= %p\n",
 				__func__, i,
-                                (void *)ha->tx_ring[i].tx_vlan_frames);
+                                (void *)ha->tx_ring[i].tx_vlan_frames));
 
                         device_printf(ha->pci_dev,
                                 "%s: tx_ring[%d].txr_free= 0x%08x\n",
@@ -199,15 +199,15 @@ qls_sysctl_get_drvr_stats(SYSCTL_HANDLER_ARGS)
 		}
 
                 for (i = 0; i < ha->num_rx_rings; i++) {
-                        device_printf(ha->pci_dev,
+                        QL_DPRINT2((ha->pci_dev,
                                 "%s: rx_ring[%d].rx_int= %p\n",
 				__func__, i,
-                                (void *)ha->rx_ring[i].rx_int);
+                                (void *)ha->rx_ring[i].rx_int));
 
-                        device_printf(ha->pci_dev,
+                        QL_DPRINT2((ha->pci_dev,
                                 "%s: rx_ring[%d].rss_int= %p\n",
 				__func__, i,
-                                (void *)ha->rx_ring[i].rss_int);
+                                (void *)ha->rx_ring[i].rss_int));
 
                         device_printf(ha->pci_dev,
                                 "%s: rx_ring[%d].lbq_next= 0x%08x\n",
@@ -385,9 +385,9 @@ qls_pci_attach(device_t dev)
 
 	ha->msix_count = qls_get_msix_count(ha);
 
-	device_printf(dev, "\n%s: ha %p pci_func 0x%x  msix_count 0x%x"
+	QL_DPRINT2((dev, "\n%s: ha %p pci_func 0x%x  msix_count 0x%x"
 		" pci_reg %p pci_reg1 %p\n", __func__, ha,
-		ha->pci_func, ha->msix_count, ha->pci_reg, ha->pci_reg1);
+		ha->pci_func, ha->msix_count, ha->pci_reg, ha->pci_reg1));
 
 	if (pci_alloc_msix(dev, &ha->msix_count)) {
 		device_printf(dev, "%s: pci_alloc_msi[%d] failed\n", __func__,
