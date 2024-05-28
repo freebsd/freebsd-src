@@ -652,8 +652,8 @@ ql_slowpath_log(qla_host_t *ha, qla_sp_log_t *log)
 		log->num_entries = ha->hw.sp_log_num_entries;
 	}
 	device_printf(ha->pci_dev,
-		"%s: exit [rval = %d][%p, next_idx = %d, %d entries, %d bytes]\n",
-		__func__, rval, log->buffer, log->next_idx, log->num_entries, size);
+		"%s: exit [rval = %d][next_idx = %d, %d entries, %d bytes]\n",
+		__func__, rval, log->next_idx, log->num_entries, size);
 	mtx_unlock(&ha->sp_log_lock);
 
 	return (rval);
