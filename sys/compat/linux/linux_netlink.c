@@ -94,7 +94,8 @@ rtnl_ifaddr_from_linux(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	struct ifaddrmsg *ifam = (struct ifaddrmsg *)(hdr + 1);
 	sa_family_t f;
 
-	if (hdr->nlmsg_len < sizeof(struct nlmsghdr) + sizeof(struct ifaddrmsg))
+	if (hdr->nlmsg_len < sizeof(struct nlmsghdr) +
+	    offsetof(struct ifaddrmsg, ifa_family) + sizeof(ifam->ifa_family))
 		return (EBADMSG);
 	if ((f = linux_to_bsd_domain(ifam->ifa_family)) == AF_UNKNOWN)
 		return (EPFNOSUPPORT);
