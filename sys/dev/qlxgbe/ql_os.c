@@ -326,7 +326,7 @@ static int
 qla_pci_attach(device_t dev)
 {
 	qla_host_t *ha = NULL;
-	uint32_t rsrc_len;
+	uint32_t rsrc_len __unused;
 	int i;
 	uint32_t num_rcvq = 0;
 
@@ -409,10 +409,10 @@ qla_pci_attach(device_t dev)
                         __func__);
                 goto qla_pci_attach_err;
         }
-        device_printf(dev, "%s: ha %p pci_func 0x%x rsrc_count 0x%08x"
+        QL_DPRINT2(ha, (dev, "%s: ha %p pci_func 0x%x rsrc_count 0x%08x"
                 " msix_count 0x%x pci_reg %p pci_reg1 %p num_rcvq = %d\n",
 		__func__, ha, ha->pci_func, rsrc_len, ha->msix_count,
-		ha->pci_reg, ha->pci_reg1, num_rcvq);
+		ha->pci_reg, ha->pci_reg1, num_rcvq));
 
         if ((ha->msix_count  < 64) || (num_rcvq != 32)) {
 		if (ha->hw.num_sds_rings > 15) {
@@ -1279,9 +1279,9 @@ qla_send(qla_host_t *ha, struct mbuf **m_headp, uint32_t txr_idx,
 			"mbuf = %p\n", __func__, __LINE__, txr_idx, tx_idx,\
 			ha->tx_ring[txr_idx].tx_buf[tx_idx].m_head));
 
-		device_printf(ha->pci_dev, "%s [%d]: txr_idx = %d tx_idx = %d "
+		QL_DPRINT2(ha, (ha->pci_dev, "%s [%d]: txr_idx = %d tx_idx = %d "
 			"mbuf = %p\n", __func__, __LINE__, txr_idx, tx_idx,
-			ha->tx_ring[txr_idx].tx_buf[tx_idx].m_head);
+			ha->tx_ring[txr_idx].tx_buf[tx_idx].m_head));
 
 		if (m_head)
 			m_freem(m_head);
