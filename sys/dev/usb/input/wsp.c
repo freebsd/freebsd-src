@@ -98,6 +98,8 @@ static struct wsp_tuning {
 	int	pressure_untouch_threshold;
 	int	pressure_tap_threshold;
 	int	scr_hor_threshold;
+	int	max_finger_area;
+	int	max_double_tap_distance;
 	int	enable_single_tap_clicks;
 	int	enable_single_tap_movement;
 }
@@ -110,6 +112,8 @@ static struct wsp_tuning {
 	.pressure_untouch_threshold = 10,
 	.pressure_tap_threshold = 120,
 	.scr_hor_threshold = 20,
+	.max_finger_area = 1900,
+	.max_double_tap_distance = 2500,
 	.enable_single_tap_clicks = 1,
 	.enable_single_tap_movement = 1,
 };
@@ -123,6 +127,8 @@ wsp_runing_rangecheck(struct wsp_tuning *ptun)
 	WSP_CLAMP(ptun->pressure_touch_threshold, 1, 255);
 	WSP_CLAMP(ptun->pressure_untouch_threshold, 1, 255);
 	WSP_CLAMP(ptun->pressure_tap_threshold, 1, 255);
+	WSP_CLAMP(ptun->max_finger_area, 1, 2400);
+	WSP_CLAMP(ptun->max_double_tap_distance, 1, 16384);
 	WSP_CLAMP(ptun->scr_hor_threshold, 1, 255);
 	WSP_CLAMP(ptun->enable_single_tap_clicks, 0, 1);
 	WSP_CLAMP(ptun->enable_single_tap_movement, 0, 1);
@@ -140,6 +146,10 @@ SYSCTL_INT(_hw_usb_wsp, OID_AUTO, pressure_untouch_threshold, CTLFLAG_RWTUN,
     &wsp_tuning.pressure_untouch_threshold, 0, "untouch pressure threshold");
 SYSCTL_INT(_hw_usb_wsp, OID_AUTO, pressure_tap_threshold, CTLFLAG_RWTUN,
     &wsp_tuning.pressure_tap_threshold, 0, "tap pressure threshold");
+SYSCTL_INT(_hw_usb_wsp, OID_AUTO, max_finger_area, CTLFLAG_RWTUN,
+    &wsp_tuning.max_finger_area, 0, "maximum finger area");
+SYSCTL_INT(_hw_usb_wsp, OID_AUTO, max_double_tap_distance, CTLFLAG_RWTUN,
+    &wsp_tuning.max_double_tap_distance, 0, "maximum double-finger click distance");
 SYSCTL_INT(_hw_usb_wsp, OID_AUTO, scr_hor_threshold, CTLFLAG_RWTUN,
     &wsp_tuning.scr_hor_threshold, 0, "horizontal scrolling threshold");
 SYSCTL_INT(_hw_usb_wsp, OID_AUTO, enable_single_tap_clicks, CTLFLAG_RWTUN,
@@ -573,13 +583,13 @@ struct wsp_softc {
 	struct tp_finger *index[MAX_FINGERS];	/* finger index data */
 	int16_t	pos_x[MAX_FINGERS];	/* position array */
 	int16_t	pos_y[MAX_FINGERS];	/* position array */
+	int16_t pre_pos_x[MAX_FINGERS];	/* previous position array */
+	int16_t pre_pos_y[MAX_FINGERS]; /* previous position array */
 	u_int	sc_touch;		/* touch status */
 #define	WSP_UNTOUCH		0x00
 #define	WSP_FIRST_TOUCH		0x01
 #define	WSP_SECOND_TOUCH	0x02
 #define	WSP_TOUCHING		0x04
-	int16_t	pre_pos_x;		/* previous position array */
-	int16_t	pre_pos_y;		/* previous position array */
 	int	dx_sum;			/* x axis cumulative movement */
 	int	dy_sum;			/* y axis cumulative movement */
 	int	dz_sum;			/* z axis cumulative movement */
@@ -596,7 +606,6 @@ struct wsp_softc {
 #define	WSP_TAP_THRESHOLD	3
 #define	WSP_TAP_MAX_COUNT	20
 	int	distance;		/* the distance of 2 fingers */
-#define	MAX_DISTANCE		2500	/* the max allowed distance */
 	uint8_t	ibtn;			/* button status in tapping */
 	uint8_t	ntaps;			/* finger status in tapping */
 	uint8_t	scr_mode;		/* scroll status in movement */
@@ -1040,13 +1049,35 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 		sc->sc_status.obutton = sc->sc_status.button;
 		sc->sc_status.button = 0;
 
+		if (ntouch == 2) {
+			sc->distance = max(sc->distance, max(
+			    abs(sc->pos_x[0] - sc->pos_x[1]),
+			    abs(sc->pos_y[0] - sc->pos_y[1])));
+		}
+
 		if (ibt != 0) {
-			if ((params->tp->caps & HAS_INTEGRATED_BUTTON) && ntouch == 2)
-				sc->sc_status.button |= MOUSE_BUTTON3DOWN;
-			else if ((params->tp->caps & HAS_INTEGRATED_BUTTON) && ntouch == 3)
-				sc->sc_status.button |= MOUSE_BUTTON2DOWN;
-			else 
+			if (params->tp->caps & HAS_INTEGRATED_BUTTON) {
+				switch (ntouch) {
+				case 1:
+					sc->sc_status.button |= MOUSE_BUTTON1DOWN;
+					break;
+				case 2:
+					if (sc->distance < tun.max_double_tap_distance && abs(sc->dx_sum) < 5 &&
+					    abs(sc->dy_sum) < 5)
+						sc->sc_status.button |= MOUSE_BUTTON3DOWN;
+					else
+						sc->sc_status.button |= MOUSE_BUTTON1DOWN;
+					break;
+				case 3:
+					sc->sc_status.button |= MOUSE_BUTTON2DOWN;
+					break;
+				default:
+					break;
+				}
+			} else {
 				sc->sc_status.button |= MOUSE_BUTTON1DOWN;
+			}
+
 			sc->ibtn = 1;
 		}
 		sc->intr_count++;
@@ -1055,7 +1086,7 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			switch (ntouch) {
 			case 1:
 				if (sc->index[0]->touch_major > tun.pressure_tap_threshold &&
-				    sc->index[0]->tool_major <= 1200)
+				    sc->index[0]->tool_major <= tun.max_finger_area)
 					sc->ntaps = 1;
 				break;
 			case 2:
@@ -1073,11 +1104,7 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				break;
 			}
 		}
-		if (ntouch == 2) {
-			sc->distance = max(sc->distance, max(
-			    abs(sc->pos_x[0] - sc->pos_x[1]),
-			    abs(sc->pos_y[0] - sc->pos_y[1])));
-		}
+
 		if (sc->index[0]->touch_major < tun.pressure_untouch_threshold &&
 		    sc->sc_status.button == 0) {
 			sc->sc_touch = WSP_UNTOUCH;
@@ -1098,7 +1125,7 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				case 2:
 					DPRINTFN(WSP_LLEVEL_INFO, "sum_x=%5d, sum_y=%5d\n",
 					    sc->dx_sum, sc->dy_sum);
-					if (sc->distance < MAX_DISTANCE && abs(sc->dx_sum) < 5 &&
+					if (sc->distance < tun.max_double_tap_distance && abs(sc->dx_sum) < 5 &&
 					    abs(sc->dy_sum) < 5) {
 						wsp_add_to_queue(sc, 0, 0, 0, MOUSE_BUTTON3DOWN);
 						DPRINTFN(WSP_LLEVEL_INFO, "RIGHT CLICK!\n");
@@ -1144,16 +1171,16 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 		} else if (sc->index[0]->touch_major >= tun.pressure_touch_threshold &&
 		    sc->sc_touch == WSP_FIRST_TOUCH) {	/* ignore second touch */
 			sc->sc_touch = WSP_SECOND_TOUCH;
-			DPRINTFN(WSP_LLEVEL_INFO, "Fist pre_x=%5d, pre_y=%5d\n",
-			    sc->pre_pos_x, sc->pre_pos_y);
+			DPRINTFN(WSP_LLEVEL_INFO, "First pre_x[0]=%5d, pre_y[0]=%5d\n",
+			    sc->pre_pos_x[0], sc->pre_pos_y[0]);
 		} else {
 			if (sc->sc_touch == WSP_SECOND_TOUCH)
 				sc->sc_touch = WSP_TOUCHING;
 
 			if (ntouch != 0 &&
 			    sc->index[0]->touch_major >= tun.pressure_touch_threshold) {
-				dx = sc->pos_x[0] - sc->pre_pos_x;
-				dy = sc->pos_y[0] - sc->pre_pos_y;
+				dx = sc->pos_x[0] - sc->pre_pos_x[0];
+				dy = sc->pos_y[0] - sc->pre_pos_y[0];
 
 				/* Optionally ignore movement during button is releasing */
 				if (tun.enable_single_tap_movement != 1 && sc->ibtn != 0 && sc->sc_status.button == 0)
@@ -1163,8 +1190,8 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				if (sc->o_ntouch != ntouch)
 					dx = dy = 0;
 
-				/* Ignore unexpeted movement when typing */
-				if (ntouch == 1 && sc->index[0]->tool_major > 1200)
+				/* Ignore unexpected movement when typing (palm detection) */
+				if (ntouch == 1 && sc->index[0]->tool_major > tun.max_finger_area)
 					dx = dy = 0;
 
 				if (sc->ibtn != 0 && ntouch == 1 && 
@@ -1173,8 +1200,8 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 					dx = dy = 0;
 
 				if (ntouch == 2 && sc->sc_status.button != 0) {
-					dx = sc->pos_x[sc->finger] - sc->pre_pos_x;
-					dy = sc->pos_y[sc->finger] - sc->pre_pos_y;
+					dx = sc->pos_x[sc->finger] - sc->pre_pos_x[sc->finger];
+					dy = sc->pos_y[sc->finger] - sc->pre_pos_y[sc->finger];
 					
 					/*
 					 * Ignore movement of switch finger or
@@ -1237,8 +1264,8 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				if (sc->dz_count == 0)
 					dz = (sc->dz_sum / tun.z_factor) * (tun.z_invert ? -1 : 1);
 				if (sc->scr_mode == WSP_SCR_HOR || 
-				    abs(sc->pos_x[0] - sc->pos_x[1]) > MAX_DISTANCE ||
-				    abs(sc->pos_y[0] - sc->pos_y[1]) > MAX_DISTANCE)
+				    abs(sc->pos_x[0] - sc->pos_x[1]) > tun.max_finger_area ||
+				    abs(sc->pos_y[0] - sc->pos_y[1]) > tun.max_finger_area)
 					dz = 0;
 			}
 			if (ntouch == 3)
@@ -1262,12 +1289,12 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				sc->rdz = 0;
 			}
 		}
-		sc->pre_pos_x = sc->pos_x[0];
-		sc->pre_pos_y = sc->pos_y[0];
+		sc->pre_pos_x[0] = sc->pos_x[0];
+		sc->pre_pos_y[0] = sc->pos_y[0];
 
 		if (ntouch == 2 && sc->sc_status.button != 0) {
-			sc->pre_pos_x = sc->pos_x[sc->finger];
-			sc->pre_pos_y = sc->pos_y[sc->finger];
+			sc->pre_pos_x[sc->finger] = sc->pos_x[sc->finger];
+			sc->pre_pos_y[sc->finger] = sc->pos_y[sc->finger];
 		}
 		sc->o_ntouch = ntouch;
 
