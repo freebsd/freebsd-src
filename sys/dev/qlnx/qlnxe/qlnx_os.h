@@ -140,8 +140,8 @@ MALLOC_DECLARE(M_QLNXBUF);
 /*
  * Locks
  */
-#define QLNX_LOCK(ha)		mtx_lock(&ha->hw_lock)
-#define QLNX_UNLOCK(ha)		mtx_unlock(&ha->hw_lock)
+#define QLNX_LOCK(ha)		sx_xlock(&ha->hw_lock)
+#define QLNX_UNLOCK(ha)		sx_xunlock(&ha->hw_lock)
 
 /*
  * structure encapsulating a DMA buffer

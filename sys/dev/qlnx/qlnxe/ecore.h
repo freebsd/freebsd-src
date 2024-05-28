@@ -789,6 +789,7 @@ struct ecore_dev {
 	u8				dp_level;
 	char				name[NAME_SIZE];
 	void				*dp_ctx;
+	void				*ha;
 
 	enum ecore_dev_type		type;
 /* Translate type/revision combo into the proper conditions */

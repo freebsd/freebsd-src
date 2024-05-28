@@ -785,7 +785,7 @@ qlnx_pci_attach(device_t dev)
 
         ha->pci_dev = dev;
 
-	mtx_init(&ha->hw_lock, "qlnx_hw_lock", MTX_NETWORK_LOCK, MTX_DEF);
+	sx_init(&ha->hw_lock, "qlnx_hw_lock");
 
         ha->flags.lock_init = 1;
 
@@ -1232,6 +1232,7 @@ qlnx_init_hw(qlnx_host_t *ha)
 	int				rval = 0;
 	struct ecore_hw_prepare_params	params;
 
+        ha->cdev.ha = ha;
 	ecore_init_struct(&ha->cdev);
 
 	/* ha->dp_module = ECORE_MSG_PROBE |
@@ -1376,7 +1377,7 @@ qlnx_release(qlnx_host_t *ha)
                 pci_release_msi(dev);
 
         if (ha->flags.lock_init) {
-                mtx_destroy(&ha->hw_lock);
+                sx_destroy(&ha->hw_lock);
         }
 
         if (ha->pci_reg)
@@ -5488,11 +5489,11 @@ qlnx_zalloc(uint32_t size)
 }
 
 void
-qlnx_barrier(void *p_hwfn)
+qlnx_barrier(void *p_dev)
 {
 	qlnx_host_t	*ha;
 
-	ha = (qlnx_host_t *)((struct ecore_hwfn *)p_hwfn)->p_dev;
+	ha = ((struct ecore_dev *) p_dev)->ha;
 	bus_barrier(ha->pci_reg,  0, 0, BUS_SPACE_BARRIER_WRITE);
 }
 

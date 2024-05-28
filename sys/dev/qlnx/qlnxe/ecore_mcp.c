@@ -191,17 +191,17 @@ enum _ecore_status_t ecore_mcp_free(struct ecore_hwfn *p_hwfn)
 		OSAL_FREE(p_hwfn->p_dev, p_hwfn->mcp_info->mfw_mb_cur);
 		OSAL_FREE(p_hwfn->p_dev, p_hwfn->mcp_info->mfw_mb_shadow);
 
-		OSAL_SPIN_LOCK(&p_hwfn->mcp_info->cmd_lock);
+		OSAL_MUTEX_ACQUIRE(&p_hwfn->mcp_info->cmd_lock);
 		OSAL_LIST_FOR_EACH_ENTRY_SAFE(p_cmd_elem, p_tmp,
 					      &p_hwfn->mcp_info->cmd_list, list,
 					      struct ecore_mcp_cmd_elem) {
 			ecore_mcp_cmd_del_elem(p_hwfn, p_cmd_elem);
 		}
-		OSAL_SPIN_UNLOCK(&p_hwfn->mcp_info->cmd_lock);
+		OSAL_MUTEX_RELEASE(&p_hwfn->mcp_info->cmd_lock);
 
 #ifdef CONFIG_ECORE_LOCK_ALLOC
-		OSAL_SPIN_LOCK_DEALLOC(&p_hwfn->mcp_info->cmd_lock);
-		OSAL_SPIN_LOCK_DEALLOC(&p_hwfn->mcp_info->link_lock);
+		OSAL_MUTEX_DEALLOC(&p_hwfn->mcp_info->cmd_lock);
+		OSAL_MUTEX_DEALLOC(&p_hwfn->mcp_info->link_lock);
 #endif
 	}
 
@@ -308,18 +308,18 @@ enum _ecore_status_t ecore_mcp_cmd_init(struct ecore_hwfn *p_hwfn,
 
 	/* Initialize the MFW spinlocks */
 #ifdef CONFIG_ECORE_LOCK_ALLOC
-	if (OSAL_SPIN_LOCK_ALLOC(p_hwfn, &p_info->cmd_lock)) {
+	if (OSAL_MUTEX_LOCK_ALLOC(p_hwfn, &p_info->cmd_lock)) {
 		OSAL_FREE(p_hwfn->p_dev, p_hwfn->mcp_info);
 		return ECORE_NOMEM;
 	}
-	if (OSAL_SPIN_LOCK_ALLOC(p_hwfn, &p_info->link_lock)) {
-		OSAL_SPIN_LOCK_DEALLOC(&p_info->cmd_lock);
+	if (OSAL_MUTEX_ALLOC(p_hwfn, &p_info->link_lock)) {
+		OSAL_MUTEX_DEALLOC(&p_info->cmd_lock);
 		OSAL_FREE(p_hwfn->p_dev, p_hwfn->mcp_info);
 		return ECORE_NOMEM;
 	}
 #endif
-	OSAL_SPIN_LOCK_INIT(&p_info->cmd_lock);
-	OSAL_SPIN_LOCK_INIT(&p_info->link_lock);
+	OSAL_MUTEX_INIT(&p_info->cmd_lock);
+	OSAL_MUTEX_INIT(&p_info->link_lock);
 
 	OSAL_LIST_INIT(&p_info->cmd_list);
 
@@ -381,7 +381,7 @@ enum _ecore_status_t ecore_mcp_reset(struct ecore_hwfn *p_hwfn,
 	}
 
 	/* Ensure that only a single thread is accessing the mailbox */
-	OSAL_SPIN_LOCK(&p_hwfn->mcp_info->cmd_lock);
+	OSAL_MUTEX_ACQUIRE(&p_hwfn->mcp_info->cmd_lock);
 
 	org_mcp_reset_seq = ecore_rd(p_hwfn, p_ptt, MISCS_REG_GENERIC_POR_0);
 
@@ -407,7 +407,7 @@ enum _ecore_status_t ecore_mcp_reset(struct ecore_hwfn *p_hwfn,
 		rc = ECORE_AGAIN;
 	}
 
-	OSAL_SPIN_UNLOCK(&p_hwfn->mcp_info->cmd_lock);
+	OSAL_MUTEX_RELEASE(&p_hwfn->mcp_info->cmd_lock);
 
 	return rc;
 }
@@ -551,7 +551,7 @@ _ecore_mcp_cmd_and_union(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt,
 		 * The spinlock stays locked until the command is sent.
 		 */
 
-		OSAL_SPIN_LOCK(&p_hwfn->mcp_info->cmd_lock);
+		OSAL_MUTEX_ACQUIRE(&p_hwfn->mcp_info->cmd_lock);
 
 		if (!ecore_mcp_has_pending_cmd(p_hwfn))
 			break;
@@ -562,7 +562,7 @@ _ecore_mcp_cmd_and_union(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt,
 		else if (rc != ECORE_AGAIN)
 			goto err;
 
-		OSAL_SPIN_UNLOCK(&p_hwfn->mcp_info->cmd_lock);
+		OSAL_MUTEX_RELEASE(&p_hwfn->mcp_info->cmd_lock);
 		if (ECORE_MB_FLAGS_IS_SET(p_mb_params, CAN_SLEEP)) {
 			OSAL_MSLEEP(msecs);
 		} else {
@@ -588,7 +588,7 @@ _ecore_mcp_cmd_and_union(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt,
 	}
 
 	__ecore_mcp_cmd_and_union(p_hwfn, p_ptt, p_mb_params, seq_num);
-	OSAL_SPIN_UNLOCK(&p_hwfn->mcp_info->cmd_lock);
+	OSAL_MUTEX_RELEASE(&p_hwfn->mcp_info->cmd_lock);
 
 	/* Wait for the MFW response */
 	do {
@@ -602,7 +602,7 @@ _ecore_mcp_cmd_and_union(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt,
 		} else {
 			OSAL_UDELAY(usecs);
 		}
-		OSAL_SPIN_LOCK(&p_hwfn->mcp_info->cmd_lock);
+		OSAL_MUTEX_ACQUIRE(&p_hwfn->mcp_info->cmd_lock);
 
 		if (p_cmd_elem->b_is_completed)
 			break;
@@ -613,7 +613,7 @@ _ecore_mcp_cmd_and_union(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt,
 		else if (rc != ECORE_AGAIN)
 			goto err;
 
-		OSAL_SPIN_UNLOCK(&p_hwfn->mcp_info->cmd_lock);
+		OSAL_MUTEX_RELEASE(&p_hwfn->mcp_info->cmd_lock);
 		OSAL_MFW_CMD_PREEMPT(p_hwfn);
 	} while (++cnt < max_retries);
 
@@ -623,9 +623,9 @@ _ecore_mcp_cmd_and_union(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt,
 			  p_mb_params->cmd, p_mb_params->param);
 		ecore_mcp_print_cpu_info(p_hwfn, p_ptt);
 
-		OSAL_SPIN_LOCK(&p_hwfn->mcp_info->cmd_lock);
+		OSAL_MUTEX_ACQUIRE(&p_hwfn->mcp_info->cmd_lock);
 		ecore_mcp_cmd_del_elem(p_hwfn, p_cmd_elem);
-		OSAL_SPIN_UNLOCK(&p_hwfn->mcp_info->cmd_lock);
+		OSAL_MUTEX_RELEASE(&p_hwfn->mcp_info->cmd_lock);
 
 		if (!ECORE_MB_FLAGS_IS_SET(p_mb_params, AVOID_BLOCK))
 			ecore_mcp_cmd_set_blocking(p_hwfn, true);
@@ -634,7 +634,7 @@ _ecore_mcp_cmd_and_union(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt,
 	}
 
 	ecore_mcp_cmd_del_elem(p_hwfn, p_cmd_elem);
-	OSAL_SPIN_UNLOCK(&p_hwfn->mcp_info->cmd_lock);
+	OSAL_MUTEX_RELEASE(&p_hwfn->mcp_info->cmd_lock);
 
 	DP_VERBOSE(p_hwfn, ECORE_MSG_SP,
 		   "MFW mailbox: response 0x%08x param 0x%08x [after %d.%03d ms]\n",
@@ -647,7 +647,7 @@ _ecore_mcp_cmd_and_union(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt,
 	return ECORE_SUCCESS;
 
 err:
-	OSAL_SPIN_UNLOCK(&p_hwfn->mcp_info->cmd_lock);
+	OSAL_MUTEX_RELEASE(&p_hwfn->mcp_info->cmd_lock);
 	return rc;
 }
 
@@ -1439,7 +1439,7 @@ static void ecore_mcp_handle_link_change(struct ecore_hwfn *p_hwfn,
 	u32 status = 0;
 
 	/* Prevent SW/attentions from doing this at the same time */
-	OSAL_SPIN_LOCK(&p_hwfn->mcp_info->link_lock);
+	OSAL_MUTEX_ACQUIRE(&p_hwfn->mcp_info->link_lock);
 
 	p_link = &p_hwfn->mcp_info->link_output;
 	OSAL_MEMSET(p_link, 0, sizeof(*p_link));
@@ -1585,7 +1585,7 @@ static void ecore_mcp_handle_link_change(struct ecore_hwfn *p_hwfn,
 
 	OSAL_LINK_UPDATE(p_hwfn, p_ptt);
 out:
-	OSAL_SPIN_UNLOCK(&p_hwfn->mcp_info->link_lock);
+	OSAL_MUTEX_RELEASE(&p_hwfn->mcp_info->link_lock);
 }
 
 enum _ecore_status_t ecore_mcp_set_link(struct ecore_hwfn *p_hwfn,
@@ -1774,7 +1774,7 @@ ecore_mcp_update_bw(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt)
 	struct public_func shmem_info;
 	u32 resp = 0, param = 0;
 
-	OSAL_SPIN_LOCK(&p_hwfn->mcp_info->link_lock);
+	OSAL_MUTEX_ACQUIRE(&p_hwfn->mcp_info->link_lock);
 
 	ecore_mcp_get_shmem_func(p_hwfn, p_ptt, &shmem_info,
 				 MCP_PF_ID(p_hwfn));
@@ -1787,7 +1787,7 @@ ecore_mcp_update_bw(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt)
 
 	ecore_configure_pf_max_bandwidth(p_hwfn->p_dev, p_info->bandwidth_max);
 
-	OSAL_SPIN_UNLOCK(&p_hwfn->mcp_info->link_lock);
+	OSAL_MUTEX_RELEASE(&p_hwfn->mcp_info->link_lock);
 
 	/* Acknowledge the MFW */
 	ecore_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_BW_UPDATE_ACK, 0, &resp,
