@@ -660,7 +660,7 @@ int bnxt_qplib_create_srq(struct bnxt_qplib_res *res,
 		goto exit;
 	/* Configure the request */
 	req.dpi = cpu_to_le32(srq->dpi->dpi);
-	req.srq_handle = cpu_to_le64(srq);
+	req.srq_handle = cpu_to_le64((uintptr_t)srq);
 	srq_size = min_t(u32, srq->hwq.depth, U16_MAX);
 	req.srq_size = cpu_to_le16(srq_size);
 	pg_sz_lvl |= (_get_base_pg_size(&srq->hwq) <<
