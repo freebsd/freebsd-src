@@ -220,7 +220,7 @@ gvt_d_setup_opregion(struct pci_devinst *const pi)
 
 	opregion->hpa = asls;
 	opregion->len = header->size * KB;
-	munmap(header, sizeof(header));
+	munmap(header, sizeof(*header));
 
 	opregion->hva = mmap(NULL, opregion->len * KB, PROT_READ, MAP_SHARED,
 	    memfd, opregion->hpa);
