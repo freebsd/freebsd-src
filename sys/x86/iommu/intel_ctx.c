@@ -76,6 +76,9 @@ static void dmar_unref_domain_locked(struct dmar_unit *dmar,
     struct dmar_domain *domain);
 static void dmar_domain_destroy(struct dmar_domain *domain);
 
+static void dmar_free_ctx_locked(struct dmar_unit *dmar, struct dmar_ctx *ctx);
+static void dmar_free_ctx(struct dmar_ctx *ctx);
+
 static void
 dmar_ensure_ctx_page(struct dmar_unit *dmar, int bus)
 {
@@ -747,7 +750,7 @@ dmar_unref_domain_locked(struct dmar_unit *dmar, struct dmar_domain *domain)
 	dmar_domain_destroy(domain);
 }
 
-void
+static void
 dmar_free_ctx_locked(struct dmar_unit *dmar, struct dmar_ctx *ctx)
 {
 	struct sf_buf *sf;
@@ -821,7 +824,7 @@ dmar_free_ctx_locked(struct dmar_unit *dmar, struct dmar_ctx *ctx)
 	TD_PINNED_ASSERT;
 }
 
-void
+static void
 dmar_free_ctx(struct dmar_ctx *ctx)
 {
 	struct dmar_unit *dmar;
@@ -869,7 +872,7 @@ dmar_domain_free_entry(struct iommu_map_entry *entry, bool free)
  * the entry's dmamap_link field.
  */
 void
-iommu_domain_unload_entry(struct iommu_map_entry *entry, bool free,
+dmar_domain_unload_entry(struct iommu_map_entry *entry, bool free,
     bool cansleep)
 {
 	struct dmar_domain *domain;
@@ -911,7 +914,7 @@ dmar_domain_unload_emit_wait(struct dmar_domain *domain,
 }
 
 void
-iommu_domain_unload(struct iommu_domain *iodom,
+dmar_domain_unload(struct iommu_domain *iodom,
     struct iommu_map_entries_tailq *entries, bool cansleep)
 {
 	struct dmar_domain *domain;
@@ -949,37 +952,34 @@ iommu_domain_unload(struct iommu_domain *iodom,
 }
 
 struct iommu_ctx *
-iommu_get_ctx(struct iommu_unit *iommu, device_t dev, uint16_t rid,
+dmar_get_ctx(struct iommu_unit *iommu, device_t dev, uint16_t rid,
     bool id_mapped, bool rmrr_init)
 {
 	struct dmar_unit *dmar;
 	struct dmar_ctx *ret;
 
 	dmar = IOMMU2DMAR(iommu);
-
 	ret = dmar_get_ctx_for_dev(dmar, dev, rid, id_mapped, rmrr_init);
-
 	return (CTX2IOCTX(ret));
 }
 
 void
-iommu_free_ctx_locked(struct iommu_unit *iommu, struct iommu_ctx *context)
+dmar_free_ctx_locked_method(struct iommu_unit *iommu,
+    struct iommu_ctx *context)
 {
 	struct dmar_unit *dmar;
 	struct dmar_ctx *ctx;
 
 	dmar = IOMMU2DMAR(iommu);
 	ctx = IOCTX2CTX(context);
-
 	dmar_free_ctx_locked(dmar, ctx);
 }
 
 void
-iommu_free_ctx(struct iommu_ctx *context)
+dmar_free_ctx_method(struct iommu_ctx *context)
 {
 	struct dmar_ctx *ctx;
 
 	ctx = IOCTX2CTX(context);
-
 	dmar_free_ctx(ctx);
 }

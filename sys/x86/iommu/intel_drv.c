@@ -64,6 +64,8 @@
 #include <dev/pci/pcivar.h>
 #include <machine/bus.h>
 #include <machine/pci_cfgreg.h>
+#include <machine/md_var.h>
+#include <machine/cputypes.h>
 #include <x86/include/busdma_impl.h>
 #include <dev/iommu/busdma_iommu.h>
 #include <x86/iommu/intel_reg.h>
@@ -1357,12 +1359,34 @@ DB_SHOW_ALL_COMMAND(dmars, db_show_all_dmars)
 }
 #endif
 
-struct iommu_unit *
-iommu_find(device_t dev, bool verbose)
+static struct iommu_unit *
+dmar_find_method(device_t dev, bool verbose)
 {
 	struct dmar_unit *dmar;
 
 	dmar = dmar_find(dev, verbose);
-
 	return (&dmar->iommu);
 }
+
+static struct x86_iommu dmar_x86_iommu = {
+	.domain_unload_entry = dmar_domain_unload_entry,
+	.domain_unload = dmar_domain_unload,
+	.get_ctx = dmar_get_ctx,
+	.free_ctx_locked = dmar_free_ctx_locked_method,
+	.free_ctx = dmar_free_ctx_method,
+	.find = dmar_find_method,
+	.alloc_msi_intr = dmar_alloc_msi_intr,
+	.map_msi_intr = dmar_map_msi_intr,
+	.unmap_msi_intr = dmar_unmap_msi_intr,
+	.map_ioapic_intr = dmar_map_ioapic_intr,
+	.unmap_ioapic_intr = dmar_unmap_ioapic_intr,
+};
+
+static void
+x86_iommu_set_intel(void *arg __unused)
+{
+	if (cpu_vendor_id == CPU_VENDOR_INTEL)
+		set_x86_iommu(&dmar_x86_iommu);
+}
+
+SYSINIT(x86_iommu, SI_SUB_TUNABLES, SI_ORDER_ANY, x86_iommu_set_intel, NULL);

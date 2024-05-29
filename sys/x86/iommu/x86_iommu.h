@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2013-2015 The FreeBSD Foundation
+ * Copyright (c) 2013-2015, 2024 The FreeBSD Foundation
  *
  * This software was developed by Konstantin Belousov <kib@FreeBSD.org>
  * under sponsorship from the FreeBSD Foundation.
@@ -58,5 +58,28 @@ extern int iommu_tbl_pagecnt;
 
 SYSCTL_DECL(_hw_iommu);
 SYSCTL_DECL(_hw_iommu_dmar);
+
+struct x86_iommu {
+	void (*domain_unload_entry)(struct iommu_map_entry *entry, bool free,
+	    bool cansleep);
+	void (*domain_unload)(struct iommu_domain *iodom,
+		struct iommu_map_entries_tailq *entries, bool cansleep);
+	struct iommu_ctx *(*get_ctx)(struct iommu_unit *iommu,
+	    device_t dev, uint16_t rid, bool id_mapped, bool rmrr_init);
+	void (*free_ctx_locked)(struct iommu_unit *iommu,
+	    struct iommu_ctx *context);
+	void (*free_ctx)(struct iommu_ctx *context);
+	struct iommu_unit *(*find)(device_t dev, bool verbose);
+	int (*alloc_msi_intr)(device_t src, u_int *cookies, u_int count);
+	int (*map_msi_intr)(device_t src, u_int cpu, u_int vector,
+	    u_int cookie, uint64_t *addr, uint32_t *data);
+	int (*unmap_msi_intr)(device_t src, u_int cookie);
+	int (*map_ioapic_intr)(u_int ioapic_id, u_int cpu, u_int vector,
+	    bool edge, bool activehi, int irq, u_int *cookie, uint32_t *hi,
+	    uint32_t *lo);
+	int (*unmap_ioapic_intr)(u_int ioapic_id, u_int *cookie);
+};
+void set_x86_iommu(struct x86_iommu *);
+struct x86_iommu *get_x86_iommu(void);
 
 #endif
