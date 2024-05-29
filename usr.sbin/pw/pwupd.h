@@ -139,7 +139,7 @@ void           vendgrent(void);
 
 void copymkdir(int rootfd, char const * dir, int skelfd, mode_t mode, uid_t uid,
     gid_t gid, int flags);
-void rm_r(int rootfd, char const * dir, uid_t uid);
+bool rm_r(int rootfd, char const * dir, uid_t uid);
 __END_DECLS
 
 #endif				/* !_PWUPD_H */
