@@ -11,7 +11,7 @@ LIB=	util
 SHLIB_MAJOR= 9
 
 SRCS=	_secure_path.c auth.c cpuset.c expand_number.c flopen.c fparseln.c \
-	getlocalbase.c  gr_util.c \
+	ftime.c getlocalbase.c gr_util.c \
 	hexdump.c humanize_number.c kinfo_getfile.c \
 	kinfo_getallproc.c kinfo_getproc.c kinfo_getvmmap.c \
 	kinfo_getvmobject.c kld.c \
@@ -29,8 +29,8 @@ CFLAGS+= -DINET6
 
 CFLAGS+= -I${.CURDIR} -I${SRCTOP}/lib/libc/gen/
 
-MAN+=	cpuset.3 expand_number.3 flopen.3 fparseln.3 getlocalbase.3 hexdump.3 \
-	humanize_number.3 kinfo_getallproc.3 kinfo_getfile.3 \
+MAN+=	cpuset.3 expand_number.3 flopen.3 fparseln.3 ftime.3 getlocalbase.3 \
+	hexdump.3 humanize_number.3 kinfo_getallproc.3 kinfo_getfile.3 \
 	kinfo_getproc.3 kinfo_getvmmap.3 kinfo_getvmobject.3 kld.3 \
 	login_auth.3 login_cap.3 \
 	login_class.3 login_ok.3 login_times.3 login_tty.3 pidfile.3 \
