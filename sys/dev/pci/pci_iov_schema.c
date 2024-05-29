@@ -54,11 +54,13 @@ static validate_func pci_iov_schema_validate_bool;
 static validate_func pci_iov_schema_validate_string;
 static validate_func pci_iov_schema_validate_uint;
 static validate_func pci_iov_schema_validate_unicast_mac;
+static validate_func pci_iov_schema_validate_vlan;
 
 static default_validate_t pci_iov_validate_bool_default;
 static default_validate_t pci_iov_validate_string_default;
 static default_validate_t pci_iov_validate_uint_default;
 static default_validate_t pci_iov_validate_unicast_mac_default;
+static default_validate_t pci_iov_validate_vlan_default;
 
 struct config_type_validator {
 	const char *type_name;
@@ -106,6 +108,11 @@ static struct config_type_validator pci_iov_schema_validators[] = {
 		.type_name = "unicast-mac",
 		.validate = pci_iov_schema_validate_unicast_mac,
 		.default_validate = pci_iov_validate_unicast_mac_default,
+	},
+	{
+		.type_name = "vlan",
+		.validate = pci_iov_schema_validate_vlan,
+		.default_validate = pci_iov_validate_vlan_default,
 	},
 };
 
@@ -261,6 +268,26 @@ pci_iov_schema_add_unicast_mac(nvlist_t *schema, const char *name,
 	nvlist_move_nvlist(schema, name, entry);
 }
 
+void
+pci_iov_schema_add_vlan(nvlist_t *schema, const char *name,
+    uint32_t flags, const uint16_t defaultVal)
+{
+	nvlist_t *entry;
+
+	entry = nvlist_create(NV_FLAG_IGNORE_CASE);
+	if (entry == NULL) {
+		nvlist_set_error(schema, ENOMEM);
+		return;
+	}
+
+	pci_iov_schema_add_type(entry, "vlan");
+	if (flags & IOV_SCHEMA_HASDEFAULT)
+		nvlist_add_number(entry, "default", defaultVal);
+	pci_iov_schema_add_required(entry, flags);
+
+	nvlist_move_nvlist(schema, name, entry);
+}
+
 static int
 pci_iov_schema_validate_bool(const struct config_type_validator * validator,
    const nvlist_t *config, const char *name)
@@ -315,6 +342,24 @@ pci_iov_schema_validate_unicast_mac(
 		return (EINVAL);
 
 	if (ETHER_IS_MULTICAST(mac))
+		return (EINVAL);
+
+	return (0);
+}
+
+static int
+pci_iov_schema_validate_vlan(
+    const struct config_type_validator * validator,
+    const nvlist_t *config, const char *name)
+{
+	uint16_t vlan;
+
+	if (!nvlist_exists_number(config, name))
+		return (EINVAL);
+
+	vlan = nvlist_get_number(config, name);
+
+	if (vlan > 4095 && vlan != VF_VLAN_TRUNK)
 		return (EINVAL);
 
 	return (0);
@@ -397,6 +442,22 @@ pci_iov_validate_unicast_mac_default(
 
 	if (ETHER_IS_MULTICAST(mac))
 		return (EINVAL);
+	return (0);
+}
+
+static int
+pci_iov_validate_vlan_default(
+    const struct config_type_validator * validator, const nvlist_t *param)
+{
+	uint16_t vlan;
+
+	if (! nvlist_exists_number(param, DEFAULT_SCHEMA_NAME))
+		return (EINVAL);
+
+	vlan = nvlist_get_number(param, DEFAULT_SCHEMA_NAME);
+	if (vlan > 4095 && vlan != VF_VLAN_TRUNK)
+		return (EINVAL);
+
 	return (0);
 }
 
