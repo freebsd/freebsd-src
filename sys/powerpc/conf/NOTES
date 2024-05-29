@@ -77,6 +77,7 @@ device		backlight
 nodevice	ccr
 nodevice	cxgbe		# XXX: builds on powerpc64 only.
 nodevice	cxgbev
+nodevice	bnxt
 nodevice	mpr		# no 64-bit atomics
 nodevice	mps		# no 64-bit atomics
 nodevice	ppc

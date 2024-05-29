@@ -90,6 +90,8 @@ nodevice	snd_cmi
 nodevice	mpr
 nodevice	mps
 
+nodevice	bnxt
+
 # Build SOC-specific modules...
 
 makeoptions	MODULES_EXTRA+="allwinner"
