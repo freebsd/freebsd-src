@@ -1820,7 +1820,7 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 		error = EINVAL;
 		break;
 	case LINUX_PR_SET_CHILD_SUBREAPER:
-		if (args->arg2 == 0){
+		if (args->arg2 == 0) {
 			return (kern_procctl(td, P_PID, 0, PROC_REAP_RELEASE,
 			    NULL));
 		}
