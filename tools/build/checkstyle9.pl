@@ -1556,6 +1556,11 @@ sub process {
 			}
 		}
 
+# Check for ){
+		if ($rawline =~ /^.*\)\{\n/) {
+			ERROR("Missing space before brace\n". $herecurr);
+		}
+
 # check for spaces before a quoted newline
 		if ($rawline =~ /^.*\".*\s\\n/) {
 			ERROR("unnecessary whitespace before a quoted newline\n" . $herecurr);
