@@ -28,7 +28,7 @@
  */
 
 #include <sys/param.h>
-#include <sys/types.h>
+#include <sys/wait.h>
 
 #include <assert.h>
 #include <ctype.h>
@@ -669,6 +669,7 @@ rmat(uid_t uid)
 
 		while ((e = readdir(d)) != NULL) {
 			struct stat     st;
+			pid_t		pid;
 
 			if (strncmp(e->d_name, ".lock", 5) != 0 &&
 			    stat(e->d_name, &st) == 0 &&
@@ -679,11 +680,12 @@ rmat(uid_t uid)
 					e->d_name,
 					NULL
 				};
-				if (posix_spawn(NULL, argv[0], NULL, NULL,
+				if (posix_spawn(&pid, argv[0], NULL, NULL,
 				    (char *const *) argv, environ)) {
 					warn("Failed to execute '%s %s'",
 					    argv[0], argv[1]);
-				}
+				} else
+					(void) waitpid(pid, NULL, 0);
 			}
 		}
 		closedir(d);
@@ -919,11 +921,14 @@ pw_user_del(int argc, char **argv, char *arg1)
 				"-r",
 				NULL
 			};
-			if (posix_spawnp(NULL, argv[0], NULL, NULL,
+			pid_t pid;
+
+			if (posix_spawnp(&pid, argv[0], NULL, NULL,
 						(char *const *) argv, environ)) {
 				warn("Failed to execute '%s %s'",
 						argv[0], argv[1]);
-			}
+			} else
+				(void) waitpid(pid, NULL, 0);
 		}
 	}
 

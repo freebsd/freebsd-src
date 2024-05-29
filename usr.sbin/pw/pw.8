@@ -741,6 +741,9 @@ Secondly, it will only remove files and directories that are actually owned by
 the user, or symbolic links owned by anyone under the user's home directory.
 Finally, after deleting all contents owned by the user only empty directories
 will be removed.
+If the home directory is a ZFS dataset and has been emptied,
+the dataset will be destroyed.
+ZFS datasets within the home directory and snapshots are not handled.
 If any additional cleanup work is required, this is left to the administrator.
 .El
 .Pp
@@ -1077,7 +1080,8 @@ No base home directory configured.
 .Xr passwd 5 ,
 .Xr pw.conf 5 ,
 .Xr pwd_mkdb 8 ,
-.Xr vipw 8
+.Xr vipw 8 ,
+.Xr zfs 8
 .Sh HISTORY
 The
 .Nm
