@@ -8,7 +8,7 @@ SRCS	+= qplib_res.c qplib_res.h
 SRCS	+= qplib_rcfw.c qplib_rcfw.h
 SRCS	+= stats.c stats.h
 SRCS	+= main.c bnxt_re.h
-SRCS	+= opt_inet.h opt_inet6.h
+SRCS	+= opt_inet.h opt_inet6.h opt_ratelimit.h
 SRCS	+= ${LINUXKPI_GENSRCS}
 
 CFLAGS+= -I${SRCTOP}/sys/dev/bnxt/bnxt_en
