@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2013, 2014 The FreeBSD Foundation
+ * Copyright (c) 2013, 2014, 2024 The FreeBSD Foundation
  *
  * This software was developed by Konstantin Belousov <kib@FreeBSD.org>
  * under sponsorship from the FreeBSD Foundation.
@@ -50,6 +50,7 @@
 #include <dev/iommu/busdma_iommu.h>
 #include <dev/iommu/iommu.h>
 #include <x86/iommu/x86_iommu.h>
+#include <x86/iommu/iommu_intrmap.h>
 
 vm_page_t
 iommu_pgalloc(vm_object_t obj, vm_pindex_t idx, int flags)
@@ -162,3 +163,91 @@ SYSCTL_NODE(_hw_iommu, OID_AUTO, dmar, CTLFLAG_RD | CTLFLAG_MPSAFE,
 SYSCTL_INT(_hw_iommu_dmar, OID_AUTO, tbl_pagecnt, CTLFLAG_RD,
     &iommu_tbl_pagecnt, 0,
     "Count of pages used for DMAR pagetables");
+
+static struct x86_iommu *x86_iommu;
+
+void
+set_x86_iommu(struct x86_iommu *x)
+{
+	MPASS(x86_iommu == NULL);
+	x86_iommu = x;
+}
+
+struct x86_iommu *
+get_x86_iommu(void)
+{
+	return (x86_iommu);
+}
+
+void
+iommu_domain_unload_entry(struct iommu_map_entry *entry, bool free,
+    bool cansleep)
+{
+	x86_iommu->domain_unload_entry(entry, free, cansleep);
+}
+
+void
+iommu_domain_unload(struct iommu_domain *iodom,
+    struct iommu_map_entries_tailq *entries, bool cansleep)
+{
+	x86_iommu->domain_unload(iodom, entries, cansleep);
+}
+
+struct iommu_ctx *
+iommu_get_ctx(struct iommu_unit *iommu, device_t dev, uint16_t rid,
+    bool id_mapped, bool rmrr_init)
+{
+	return (x86_iommu->get_ctx(iommu, dev, rid, id_mapped, rmrr_init));
+}
+
+void
+iommu_free_ctx_locked(struct iommu_unit *iommu, struct iommu_ctx *context)
+{
+	x86_iommu->free_ctx_locked(iommu, context);
+}
+
+void
+iommu_free_ctx(struct iommu_ctx *context)
+{
+	x86_iommu->free_ctx(context);
+}
+
+struct iommu_unit *
+iommu_find(device_t dev, bool verbose)
+{
+	return (x86_iommu->find(dev, verbose));
+}
+
+int
+iommu_alloc_msi_intr(device_t src, u_int *cookies, u_int count)
+{
+	return (x86_iommu->alloc_msi_intr(src, cookies, count));
+}
+
+int
+iommu_map_msi_intr(device_t src, u_int cpu, u_int vector, u_int cookie,
+    uint64_t *addr, uint32_t *data)
+{
+	return (x86_iommu->map_msi_intr(src, cpu, vector, cookie,
+	    addr, data));
+}
+
+int
+iommu_unmap_msi_intr(device_t src, u_int cookie)
+{
+	return (x86_iommu->unmap_msi_intr(src, cookie));
+}
+
+int
+iommu_map_ioapic_intr(u_int ioapic_id, u_int cpu, u_int vector, bool edge,
+    bool activehi, int irq, u_int *cookie, uint32_t *hi, uint32_t *lo)
+{
+	return (x86_iommu->map_ioapic_intr(ioapic_id, cpu, vector, edge,
+	    activehi, irq, cookie, hi, lo));
+}
+
+int
+iommu_unmap_ioapic_intr(u_int ioapic_id, u_int *cookie)
+{
+	return (x86_iommu->unmap_ioapic_intr(ioapic_id, cookie));
+}
