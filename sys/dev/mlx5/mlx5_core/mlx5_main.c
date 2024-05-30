@@ -52,8 +52,12 @@
 #include <dev/mlx5/mlx5_core/diag_cnt.h>
 #ifdef PCI_IOV
 #include <sys/nv.h>
+#include <sys/socket.h>
 #include <dev/pci/pci_iov.h>
 #include <sys/iov_schema.h>
+#include <sys/iov.h>
+#include <net/if.h>
+#include <net/if_vlan_var.h>
 #endif
 
 static const char mlx5_version[] = "Mellanox Core driver "
@@ -225,6 +229,7 @@ static void mlx5_set_driver_version(struct mlx5_core_dev *dev)
 
 #ifdef PCI_IOV
 static const char iov_mac_addr_name[] = "mac-addr";
+static const char iov_vlan_name[] = "vlan";
 static const char iov_node_guid_name[] = "node-guid";
 static const char iov_port_guid_name[] = "port-guid";
 #endif
@@ -1714,6 +1719,8 @@ static int init_one(struct pci_dev *pdev,
 			vf_schema = pci_iov_schema_alloc_node();
 			pci_iov_schema_add_unicast_mac(vf_schema,
 			    iov_mac_addr_name, 0, NULL);
+			pci_iov_schema_add_vlan(vf_schema,
+			    iov_vlan_name, 0, 0);
 			pci_iov_schema_add_uint64(vf_schema, iov_node_guid_name,
 			    0, 0);
 			pci_iov_schema_add_uint64(vf_schema, iov_port_guid_name,
@@ -1946,6 +1953,25 @@ mlx5_iov_add_vf(device_t dev, uint16_t vfnum, const nvlist_t *vf_config)
 		if (error != 0) {
 			mlx5_core_err(core_dev,
 			    "setting MAC for VF %d failed, error %d\n",
+			    vfnum + 1, error);
+		}
+	}
+
+	if (nvlist_exists_number(vf_config, iov_vlan_name)) {
+		uint16_t vlan = nvlist_get_number(vf_config, iov_vlan_name);
+
+		if (vlan == DOT1Q_VID_NULL)
+			error = ENOTSUP;
+		else {
+			if (vlan == VF_VLAN_TRUNK)
+				vlan = DOT1Q_VID_NULL;
+
+			error = -mlx5_eswitch_set_vport_vlan(priv->eswitch,
+			    vfnum + 1, vlan, 0);
+		}
+		if (error != 0) {
+			mlx5_core_err(core_dev,
+			    "setting VLAN for VF %d failed, error %d\n",
 			    vfnum + 1, error);
 		}
 	}
