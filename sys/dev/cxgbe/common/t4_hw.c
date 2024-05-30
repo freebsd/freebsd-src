@@ -11377,7 +11377,7 @@ out:
  *	@vlan: The vlanid to be set
  *
  */
-int t4_set_vlan_acl(struct adapter *adap, unsigned int mbox, unsigned int vf,
+int t4_set_vlan_acl(struct adapter *adap, unsigned int pf, unsigned int vf,
 		    u16 vlan)
 {
 	struct fw_acl_vlan_cmd vlan_cmd;
@@ -11389,9 +11389,10 @@ int t4_set_vlan_acl(struct adapter *adap, unsigned int mbox, unsigned int vf,
 					 F_FW_CMD_REQUEST |
 					 F_FW_CMD_WRITE |
 					 F_FW_CMD_EXEC |
-					 V_FW_ACL_VLAN_CMD_PFN(adap->pf) |
+					 V_FW_ACL_VLAN_CMD_PFN(pf) |
 					 V_FW_ACL_VLAN_CMD_VFN(vf));
-	vlan_cmd.en_to_len16 = cpu_to_be32(enable | FW_LEN16(vlan_cmd));
+	vlan_cmd.en_to_len16 = cpu_to_be32(enable | FW_LEN16(vlan_cmd) |
+					   V_FW_ACL_VLAN_CMD_PMASK(1 << pf));
 	/* Drop all packets that donot match vlan id */
 	vlan_cmd.dropnovlan_fm = (enable
 				  ? (F_FW_ACL_VLAN_CMD_DROPNOVLAN |
