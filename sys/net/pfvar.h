@@ -2502,6 +2502,7 @@ int			 pf_ioctl_getrules(struct pfioc_rule *);
 int			 pf_ioctl_addrule(struct pf_krule *, uint32_t,
 			    uint32_t, const char *, const char *, uid_t uid,
 			    pid_t);
+void			 pf_ioctl_clear_status(void);
 
 void			 pf_krule_free(struct pf_krule *);
 void			 pf_krule_clear_counters(struct pf_krule *);

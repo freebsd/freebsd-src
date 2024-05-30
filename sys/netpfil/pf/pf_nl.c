@@ -1214,6 +1214,14 @@ out:
 	return (error);
 }
 
+static int
+pf_handle_clear_status(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	pf_ioctl_clear_status();
+
+	return (0);
+}
+
 static const struct nlhdr_parser *all_parsers[] = {
 	&state_parser,
 	&addrule_parser,
@@ -1300,6 +1308,13 @@ static const struct genl_cmd pf_cmds[] = {
 		.cmd_name = "GETSTATUS",
 		.cmd_cb = pf_handle_get_status,
 		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_CLEAR_STATUS,
+		.cmd_name = "CLEARSTATUS",
+		.cmd_cb = pf_handle_clear_status,
+		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
 		.cmd_priv = PRIV_NETINET_PF,
 	},
 };
