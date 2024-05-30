@@ -134,9 +134,9 @@ write_nextboot(const char *fn, const char *env, bool force)
 	if (zfs) {
 		char *slash;
 
-		if ((slash = strchr(sfs.f_mntfromname, '/')) == NULL)
-			E("Can't find ZFS pool name in %s", sfs.f_mntfromname);
-		*slash = '\0';
+		slash = strchr(sfs.f_mntfromname, '/');
+		if (slash != NULL)
+			*slash = '\0';
 		zfsbootcfg(sfs.f_mntfromname, force);
 	}
 
