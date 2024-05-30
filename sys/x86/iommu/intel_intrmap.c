@@ -271,7 +271,7 @@ dmar_ir_program_irte(struct dmar_unit *unit, u_int idx, uint64_t low,
 	high = DMAR_IRTE2_SVT_RID | DMAR_IRTE2_SQ_RID |
 	    DMAR_IRTE2_SID_RID(rid);
 	if (bootverbose) {
-		device_printf(unit->dev,
+		device_printf(unit->iommu.dev,
 		    "programming irte[%d] rid %#x high %#jx low %#jx\n",
 		    idx, rid, (uintmax_t)high, (uintmax_t)low);
 	}
@@ -335,7 +335,7 @@ dmar_init_irt(struct dmar_unit *unit)
 	if (!unit->qi_enabled) {
 		unit->ir_enabled = 0;
 		if (bootverbose)
-			device_printf(unit->dev,
+			device_printf(unit->iommu.dev,
 	     "QI disabled, disabling interrupt remapping\n");
 		return (0);
 	}

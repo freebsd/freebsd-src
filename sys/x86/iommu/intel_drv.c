@@ -410,7 +410,6 @@ dmar_attach(device_t dev)
 	int i, error;
 
 	unit = device_get_softc(dev);
-	unit->dev = dev;
 	unit->iommu.unit = device_get_unit(dev);
 	unit->iommu.dev = dev;
 	dmaru = dmar_find_by_index(unit->iommu.unit);

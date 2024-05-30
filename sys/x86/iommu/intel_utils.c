@@ -136,7 +136,7 @@ domain_set_agaw(struct dmar_domain *domain, int mgaw)
 			return (0);
 		}
 	}
-	device_printf(domain->dmar->dev,
+	device_printf(domain->dmar->iommu.dev,
 	    "context request mgaw %d: no agaw found, sagaw %x\n",
 	    mgaw, sagaw);
 	return (EINVAL);

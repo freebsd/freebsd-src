@@ -123,7 +123,6 @@ struct dmar_msi_data {
 
 struct dmar_unit {
 	struct iommu_unit iommu;
-	device_t dev;
 	uint16_t segment;
 	uint64_t base;
 
