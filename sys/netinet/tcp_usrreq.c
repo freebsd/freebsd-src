@@ -179,12 +179,6 @@ tcp_usr_attach(struct socket *so, int proto, struct thread *td)
 		goto out;
 	}
 	tp->t_state = TCPS_CLOSED;
-	/* Can we inherit anything from the listener? */
-	if ((so->so_listen != NULL) &&
-	    (so->so_listen->so_pcb != NULL) &&
-	    (tp->t_fb->tfb_inherit != NULL)) {
-		(*tp->t_fb->tfb_inherit)(tp, sotoinpcb(so->so_listen));
-	}
 	tcp_bblog_pru(tp, PRU_ATTACH, error);
 	INP_WUNLOCK(inp);
 	TCPSTATES_INC(TCPS_CLOSED);
