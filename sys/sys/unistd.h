@@ -93,7 +93,7 @@
 #endif
 
 /* Define the POSIX.1 version we target for compliance. */
-#define	_POSIX_VERSION		200112L
+#define	_POSIX_VERSION		200808L
 
 /* access function */
 #define	F_OK		0	/* test for existence of file */
