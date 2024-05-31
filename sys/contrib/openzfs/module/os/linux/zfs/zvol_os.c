@@ -384,7 +384,7 @@ zvol_discard(zv_request_t *zvr)
 	 */
 	if (!io_is_secure_erase(bio, rq)) {
 		start = P2ROUNDUP(start, zv->zv_volblocksize);
-		end = P2ALIGN(end, zv->zv_volblocksize);
+		end = P2ALIGN_TYPED(end, zv->zv_volblocksize, uint64_t);
 		size = end - start;
 	}
 
@@ -798,7 +798,8 @@ retry:
 				if ((gethrtime() - start) > timeout)
 					return (SET_ERROR(-ERESTARTSYS));
 
-				schedule_timeout(MSEC_TO_TICK(10));
+				schedule_timeout_interruptible(
+					MSEC_TO_TICK(10));
 				goto retry;
 #endif
 			} else {

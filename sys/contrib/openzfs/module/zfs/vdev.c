@@ -113,6 +113,11 @@ int zfs_vdev_dtl_sm_blksz = (1 << 12);
 static unsigned int zfs_slow_io_events_per_second = 20;
 
 /*
+ * Rate limit deadman "hung IO" events to this many per second.
+ */
+static unsigned int zfs_deadman_events_per_second = 1;
+
+/*
  * Rate limit checksum events after this many checksum errors per second.
  */
 static unsigned int zfs_checksum_events_per_second = 20;
@@ -348,7 +353,8 @@ vdev_get_min_asize(vdev_t *vd)
 	 * to the nearest metaslab.
 	 */
 	if (vd == vd->vdev_top)
-		return (P2ALIGN(vd->vdev_asize, 1ULL << vd->vdev_ms_shift));
+		return (P2ALIGN_TYPED(vd->vdev_asize, 1ULL << vd->vdev_ms_shift,
+		    uint64_t));
 
 	return (pvd->vdev_ops->vdev_op_min_asize(pvd));
 }
@@ -665,7 +671,7 @@ vdev_alloc_common(spa_t *spa, uint_t id, uint64_t guid, vdev_ops_t *ops)
 	 */
 	zfs_ratelimit_init(&vd->vdev_delay_rl, &zfs_slow_io_events_per_second,
 	    1);
-	zfs_ratelimit_init(&vd->vdev_deadman_rl, &zfs_slow_io_events_per_second,
+	zfs_ratelimit_init(&vd->vdev_deadman_rl, &zfs_deadman_events_per_second,
 	    1);
 	zfs_ratelimit_init(&vd->vdev_checksum_rl,
 	    &zfs_checksum_events_per_second, 1);
@@ -2115,8 +2121,8 @@ vdev_open(vdev_t *vd)
 		}
 	}
 
-	osize = P2ALIGN(osize, (uint64_t)sizeof (vdev_label_t));
-	max_osize = P2ALIGN(max_osize, (uint64_t)sizeof (vdev_label_t));
+	osize = P2ALIGN_TYPED(osize, sizeof (vdev_label_t), uint64_t);
+	max_osize = P2ALIGN_TYPED(max_osize, sizeof (vdev_label_t), uint64_t);
 
 	if (vd->vdev_children == 0) {
 		if (osize < SPA_MINDEVSIZE) {
@@ -4764,9 +4770,9 @@ vdev_get_stats_ex(vdev_t *vd, vdev_stat_t *vs, vdev_stat_ex_t *vsx)
 		 * can expand.
 		 */
 		if (vd->vdev_aux == NULL && tvd != NULL) {
-			vs->vs_esize = P2ALIGN(
+			vs->vs_esize = P2ALIGN_TYPED(
 			    vd->vdev_max_asize - vd->vdev_asize,
-			    1ULL << tvd->vdev_ms_shift);
+			    1ULL << tvd->vdev_ms_shift, uint64_t);
 		}
 
 		vs->vs_configured_ashift = vd->vdev_top != NULL
@@ -6474,6 +6480,9 @@ ZFS_MODULE_PARAM(zfs_vdev, zfs_vdev_, ms_count_limit, UINT, ZMOD_RW,
 
 ZFS_MODULE_PARAM(zfs, zfs_, slow_io_events_per_second, UINT, ZMOD_RW,
 	"Rate limit slow IO (delay) events to this many per second");
+
+ZFS_MODULE_PARAM(zfs, zfs_, deadman_events_per_second, UINT, ZMOD_RW,
+	"Rate limit hung IO (deadman) events to this many per second");
 
 /* BEGIN CSTYLED */
 ZFS_MODULE_PARAM(zfs, zfs_, checksum_events_per_second, UINT, ZMOD_RW,

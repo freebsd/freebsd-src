@@ -292,8 +292,8 @@ dbuf_cons(void *vdb, void *unused, int kmflag)
 	dmu_buf_impl_t *db = vdb;
 	memset(db, 0, sizeof (dmu_buf_impl_t));
 
-	mutex_init(&db->db_mtx, NULL, MUTEX_DEFAULT, NULL);
-	rw_init(&db->db_rwlock, NULL, RW_DEFAULT, NULL);
+	mutex_init(&db->db_mtx, NULL, MUTEX_NOLOCKDEP, NULL);
+	rw_init(&db->db_rwlock, NULL, RW_NOLOCKDEP, NULL);
 	cv_init(&db->db_changed, NULL, CV_DEFAULT, NULL);
 	multilist_link_init(&db->db_cache_link);
 	zfs_refcount_create(&db->db_holds);
@@ -578,7 +578,7 @@ dbuf_evict_user(dmu_buf_impl_t *db)
 		 */
 		uint64_t size = dbu->dbu_size;
 		(void) zfs_refcount_remove_many(
-		    &dbuf_caches[db->db_caching_status].size, size, db);
+		    &dbuf_caches[db->db_caching_status].size, size, dbu);
 		if (db->db_caching_status == DB_DBUF_CACHE)
 			DBUF_STAT_DECR(cache_levels_bytes[db->db_level], size);
 	}
@@ -784,12 +784,15 @@ dbuf_evict_one(void)
 	if (db != NULL) {
 		multilist_sublist_remove(mls, db);
 		multilist_sublist_unlock(mls);
-		uint64_t size = db->db.db_size + dmu_buf_user_size(&db->db);
+		uint64_t size = db->db.db_size;
+		uint64_t usize = dmu_buf_user_size(&db->db);
 		(void) zfs_refcount_remove_many(
 		    &dbuf_caches[DB_DBUF_CACHE].size, size, db);
+		(void) zfs_refcount_remove_many(
+		    &dbuf_caches[DB_DBUF_CACHE].size, usize, db->db_user);
 		DBUF_STAT_BUMPDOWN(cache_levels[db->db_level]);
 		DBUF_STAT_BUMPDOWN(cache_count);
-		DBUF_STAT_DECR(cache_levels_bytes[db->db_level], size);
+		DBUF_STAT_DECR(cache_levels_bytes[db->db_level], size + usize);
 		ASSERT3U(db->db_caching_status, ==, DB_DBUF_CACHE);
 		db->db_caching_status = DB_NO_CACHE;
 		dbuf_destroy(db);
@@ -958,7 +961,7 @@ dbuf_init(void)
 	    0, dbuf_cons, dbuf_dest, NULL, NULL, NULL, 0);
 
 	for (int i = 0; i < hmsize; i++)
-		mutex_init(&h->hash_mutexes[i], NULL, MUTEX_DEFAULT, NULL);
+		mutex_init(&h->hash_mutexes[i], NULL, MUTEX_NOLOCKDEP, NULL);
 
 	dbuf_stats_init(h);
 
@@ -2850,6 +2853,7 @@ dmu_buf_fill_done(dmu_buf_t *dbuf, dmu_tx_t *tx, boolean_t failed)
 			failed = B_FALSE;
 		} else if (failed) {
 			VERIFY(!dbuf_undirty(db, tx));
+			arc_buf_destroy(db->db_buf, db);
 			db->db_buf = NULL;
 			dbuf_clear_data(db);
 			DTRACE_SET_STATE(db, "fill failed");
@@ -3794,16 +3798,21 @@ dbuf_hold_impl(dnode_t *dn, uint8_t level, uint64_t blkid,
 
 		multilist_remove(&dbuf_caches[db->db_caching_status].cache, db);
 
-		uint64_t size = db->db.db_size + dmu_buf_user_size(&db->db);
+		uint64_t size = db->db.db_size;
+		uint64_t usize = dmu_buf_user_size(&db->db);
 		(void) zfs_refcount_remove_many(
 		    &dbuf_caches[db->db_caching_status].size, size, db);
+		(void) zfs_refcount_remove_many(
+		    &dbuf_caches[db->db_caching_status].size, usize,
+		    db->db_user);
 
 		if (db->db_caching_status == DB_DBUF_METADATA_CACHE) {
 			DBUF_STAT_BUMPDOWN(metadata_cache_count);
 		} else {
 			DBUF_STAT_BUMPDOWN(cache_levels[db->db_level]);
 			DBUF_STAT_BUMPDOWN(cache_count);
-			DBUF_STAT_DECR(cache_levels_bytes[db->db_level], size);
+			DBUF_STAT_DECR(cache_levels_bytes[db->db_level],
+			    size + usize);
 		}
 		db->db_caching_status = DB_NO_CACHE;
 	}
@@ -4022,10 +4031,12 @@ dbuf_rele_and_unlock(dmu_buf_impl_t *db, const void *tag, boolean_t evicting)
 			db->db_caching_status = dcs;
 
 			multilist_insert(&dbuf_caches[dcs].cache, db);
-			uint64_t db_size = db->db.db_size +
-			    dmu_buf_user_size(&db->db);
-			size = zfs_refcount_add_many(
+			uint64_t db_size = db->db.db_size;
+			uint64_t dbu_size = dmu_buf_user_size(&db->db);
+			(void) zfs_refcount_add_many(
 			    &dbuf_caches[dcs].size, db_size, db);
+			size = zfs_refcount_add_many(
+			    &dbuf_caches[dcs].size, dbu_size, db->db_user);
 			uint8_t db_level = db->db_level;
 			mutex_exit(&db->db_mtx);
 
@@ -4038,7 +4049,7 @@ dbuf_rele_and_unlock(dmu_buf_impl_t *db, const void *tag, boolean_t evicting)
 				DBUF_STAT_MAX(cache_size_bytes_max, size);
 				DBUF_STAT_BUMP(cache_levels[db_level]);
 				DBUF_STAT_INCR(cache_levels_bytes[db_level],
-				    db_size);
+				    db_size + dbu_size);
 			}
 
 			if (dcs == DB_DBUF_CACHE && !evicting)
