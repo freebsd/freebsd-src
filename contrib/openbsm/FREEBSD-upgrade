@@ -52,5 +52,3 @@ be built with the version of the bsm/ include files in src/sys/bsm, not
 the version in contrib/openbsm/bsm, so buildworld tests before committing
 are necessary, and the commits to various parts of the system must be
 made in close succession.
-
-$FreeBSD$

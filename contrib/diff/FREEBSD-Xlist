@@ -1,5 +1,3 @@
-# $FreeBSD$
-
 INSTALL
 Makefile.am
 Makefile.in
