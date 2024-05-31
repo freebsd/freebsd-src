@@ -12,6 +12,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20240604:
+	14.1-RELEASE.
+
 20240202:
 	Loader now also read configuration files listed in local_loader_conf_files.
 	Files listed here are the last ones read. And /boot/loader.conf.local was
