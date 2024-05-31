@@ -409,7 +409,7 @@ print_options(const char *dev, const char *file)
 {
 	struct md_ioctl mdiox;
 	int unit;
-	char sep = '\0';
+	const char *sep = "";
 
 	if (sscanf(dev, "md%d", &unit) != 1)
 		err(1, "invalid device: %s", dev);
@@ -427,40 +427,40 @@ print_options(const char *dev, const char *file)
 
 	printf("\t");
 	if (mdiox.md_options & MD_ASYNC) {
-		printf("%casync", sep);
-		sep = ',';
+		printf("%sasync", sep);
+		sep = ",";
 	}
 	if (mdiox.md_options & MD_CACHE) {
-		printf("%ccache", sep);
-		sep = ',';
+		printf("%scache", sep);
+		sep = ",";
 	}
 	if (mdiox.md_options & MD_CLUSTER) {
-		printf("%ccluster", sep);
-		sep = ',';
+		printf("%scluster", sep);
+		sep = ",";
 	}
 	if (mdiox.md_options & MD_COMPRESS) {
-		printf("%ccompress", sep);
-		sep = ',';
+		printf("%scompress", sep);
+		sep = ",";
 	}
 	if (mdiox.md_options & MD_FORCE) {
-		printf("%cforce", sep);
-		sep = ',';
+		printf("%sforce", sep);
+		sep = ",";
 	}
 	if (mdiox.md_options & MD_READONLY) {
-		printf("%creadonly", sep);
-		sep = ',';
+		printf("%sreadonly", sep);
+		sep = ",";
 	}
 	if (mdiox.md_options & MD_RESERVE) {
-		printf("%creserve", sep);
-		sep = ',';
+		printf("%sreserve", sep);
+		sep = ",";
 	}
 	if (mdiox.md_options & MD_VERIFY) {
-		printf("%cverify", sep);
-		sep = ',';
+		printf("%sverify", sep);
+		sep = ",";
 	}
 	if (mdiox.md_options & MD_MUSTDEALLOC) {
-		printf("%cmustdealloc", sep);
-		sep = ',';
+		printf("%smustdealloc", sep);
+		sep = ",";
 	}
 }
 
