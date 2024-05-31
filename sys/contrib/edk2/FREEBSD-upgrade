@@ -1,5 +1,3 @@
-$FreeBSD$
-
 We try to maintain the minimal set of headers required to build, as the full
 set of files from MdePkg is quite large (10MB at the time of writing). To do
 this when performing an upgrade, execute the following:
