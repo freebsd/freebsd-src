@@ -8143,11 +8143,11 @@ l2arc_dev_get_next(void)
 
 		ASSERT3P(next, !=, NULL);
 	} while (vdev_is_dead(next->l2ad_vdev) || next->l2ad_rebuild ||
-	    next->l2ad_trim_all);
+	    next->l2ad_trim_all || next->l2ad_spa->spa_is_exporting);
 
 	/* if we were unable to find any usable vdevs, return NULL */
 	if (vdev_is_dead(next->l2ad_vdev) || next->l2ad_rebuild ||
-	    next->l2ad_trim_all)
+	    next->l2ad_trim_all || next->l2ad_spa->spa_is_exporting)
 		next = NULL;
 
 	l2arc_dev_last = next;
@@ -8886,7 +8886,7 @@ out:
 		 * assertions may be violated without functional consequences
 		 * as the device is about to be removed.
 		 */
-		ASSERT3U(dev->l2ad_hand + distance, <, dev->l2ad_end);
+		ASSERT3U(dev->l2ad_hand + distance, <=, dev->l2ad_end);
 		if (!dev->l2ad_first)
 			ASSERT3U(dev->l2ad_hand, <=, dev->l2ad_evict);
 	}

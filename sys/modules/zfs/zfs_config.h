@@ -87,6 +87,9 @@
 #define HAVE_AVX512VL 1
 #endif
 
+/* backtrace() is available */
+/* #undef HAVE_BACKTRACE */
+
 /* bdevname() is available */
 /* #undef HAVE_BDEVNAME */
 
@@ -597,6 +600,9 @@
 
 /* Define if compiler supports -Winfinite-recursion */
 /* #undef HAVE_KERNEL_INFINITE_RECURSION */
+
+/* kernel defines intptr_t */
+/* #undef HAVE_KERNEL_INTPTR_T */
 
 /* kernel has kernel_neon_* functions */
 /* #undef HAVE_KERNEL_NEON */
@@ -1188,7 +1194,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.2.99-474-FreeBSD_g8f1b7a6fa"
+#define ZFS_META_ALIAS "zfs-2.2.99-517-FreeBSD_ge2357561b"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -1218,7 +1224,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "474-FreeBSD_g8f1b7a6fa"
+#define ZFS_META_RELEASE "517-FreeBSD_ge2357561b"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.2.99"
