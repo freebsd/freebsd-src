@@ -41,7 +41,11 @@
 
 #include "ifconfig.h"
 
-#define	GREBITS	"\020\01ENABLE_CSUM\02ENABLE_SEQ\03UDPENCAP"
+static const char *GREBITS[] = {
+	[0] = "ENABLE_CSUM",
+	[1] = "ENABLE_SEQ",
+	[2] = "UDPENCAP",
+};
 
 static void
 gre_status(if_ctx *ctx)
@@ -60,7 +64,8 @@ gre_status(if_ctx *ctx)
 	ifr.ifr_data = (caddr_t)&port;
 	if (ioctl_ctx_ifr(ctx, GREGPORT, &ifr) == 0 && port != 0)
 		printf("\tudpport: %u\n", port);
-	printb("\toptions", opts, GREBITS);
+	printf("\toptions=%x", opts);
+	print_bits("options", &opts, 1, GREBITS, nitems(GREBITS));
 	putchar('\n');
 }
 
