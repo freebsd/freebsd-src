@@ -52,17 +52,22 @@
 #include "ifconfig.h"
 
 #define	MAX_SYSCTL_TRY	5
+static const char *ND6BITS[] = {
+	[0]  = "PERFORMNUD",
+	[1]  = "ACCEPT_RTADV",
+	[2]  = "PREFER_SOURCE",
+	[3]  = "IFDISABLED",
+	[4]  = "DONT_SET_IFROUTE",
+	[5]  = "AUTO_LINKLOCAL",
+	[6]  = "NO_RADR",
+	[7]  = "NO_PREFER_IFACE",
+	[8]  = "NO_DAD",
 #ifdef DRAFT_IETF_6MAN_IPV6ONLY_FLAG
-#define	ND6BITS	"\020\001PERFORMNUD\002ACCEPT_RTADV\003PREFER_SOURCE" \
-		"\004IFDISABLED\005DONT_SET_IFROUTE\006AUTO_LINKLOCAL" \
-		"\007NO_RADR\010NO_PREFER_IFACE\011NO_DAD" \
-		"\012IPV6_ONLY\013IPV6_ONLY_MANUAL" \
-		"\020DEFAULTIF"
-#else
-#define	ND6BITS	"\020\001PERFORMNUD\002ACCEPT_RTADV\003PREFER_SOURCE" \
-		"\004IFDISABLED\005DONT_SET_IFROUTE\006AUTO_LINKLOCAL" \
-		"\007NO_RADR\010NO_PREFER_IFACE\011NO_DAD\020DEFAULTIF"
+	[9]  = "IPV6_ONLY",
+	[10] = "IPV6_ONLY_MANUAL",
 #endif
+	[15] = "DEFAULTIF",
+};
 
 static int isnd6defif(if_ctx *ctx, int s);
 void setnd6flags(if_ctx *, const char *, int);
@@ -141,6 +146,7 @@ nd6_status(if_ctx *ctx)
 	int s6;
 	int error;
 	int isdefif;
+	uint32_t bits;
 
 	strlcpy(nd.ifname, ctx->ifname, sizeof(nd.ifname));
 	if ((s6 = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
@@ -159,7 +165,8 @@ nd6_status(if_ctx *ctx)
 	close(s6);
 	if (nd.ndi.flags == 0 && !isdefif)
 		return;
-	printb("\tnd6 options",
-	    (unsigned int)(nd.ndi.flags | (isdefif << 15)), ND6BITS);
+	bits = (nd.ndi.flags | (isdefif << 15));
+	printf("\tnd6 options=%x", bits);
+	print_bits("options", &bits, 1, ND6BITS, nitems(ND6BITS));
 	putchar('\n');
 }
