@@ -82,29 +82,6 @@ static const char	*IFFBITS[] = {
 };
 
 static void
-print_bits(const char *btype, uint32_t *v, const int v_count,
-    const char **names, const int n_count)
-{
-	int num = 0;
-
-	for (int i = 0; i < v_count * 32; i++) {
-		bool is_set = v[i / 32] & (1U << (i % 32));
-		if (is_set) {
-			if (num++ == 0)
-				printf("<");
-			if (num != 1)
-				printf(",");
-			if (i < n_count)
-				printf("%s", names[i]);
-			else
-				printf("%s_%d", btype, i);
-		}
-	}
-	if (num > 0)
-		printf(">");
-}
-
-static void
 nl_init_socket(struct snl_state *ss)
 {
 	if (snl_init(ss, NETLINK_ROUTE))
