@@ -291,7 +291,7 @@ attach_size_rounddown_body()
 	    -x "mdconfig -r -u ${md#md} -s ${ms2}b"
 	check_diskinfo "$md" 16384 2 $ss
 }
-attach_size_rounddown()
+attach_size_rounddown_cleanup()
 {
 	cleanup_common
 }
