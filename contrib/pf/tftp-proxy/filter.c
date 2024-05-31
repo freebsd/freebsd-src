@@ -363,26 +363,26 @@ int
 server_lookup4(struct sockaddr_in *client, struct sockaddr_in *proxy,
     struct sockaddr_in *server, u_int8_t proto)
 {
-	struct pfioc_natlook pnl;
+	struct pfctl_natlook_key k = {};
+	struct pfctl_natlook r = {};
 
-	memset(&pnl, 0, sizeof pnl);
-	pnl.direction = PF_OUT;
-	pnl.af = AF_INET;
-	pnl.proto = proto;
-	memcpy(&pnl.saddr.v4, &client->sin_addr.s_addr, sizeof pnl.saddr.v4);
-	memcpy(&pnl.daddr.v4, &proxy->sin_addr.s_addr, sizeof pnl.daddr.v4);
-	pnl.sport = client->sin_port;
-	pnl.dport = proxy->sin_port;
+	k.direction = PF_OUT;
+	k.af = AF_INET;
+	k.proto = proto;
+	memcpy(&k.saddr.v4, &client->sin_addr.s_addr, sizeof(k.saddr.v4));
+	memcpy(&k.daddr.v4, &proxy->sin_addr.s_addr, sizeof(k.daddr.v4));
+	k.sport = client->sin_port;
+	k.dport = proxy->sin_port;
 
-	if (ioctl(pfctl_fd(pfh), DIOCNATLOOK, &pnl) == -1)
+	if (pfctl_natlook(pfh, &k, &r))
 		return (-1);
 
 	memset(server, 0, sizeof(struct sockaddr_in));
 	server->sin_len = sizeof(struct sockaddr_in);
 	server->sin_family = AF_INET;
-	memcpy(&server->sin_addr.s_addr, &pnl.rdaddr.v4,
+	memcpy(&server->sin_addr.s_addr, &r.daddr.v4,
 	    sizeof server->sin_addr.s_addr);
-	server->sin_port = pnl.rdport;
+	server->sin_port = r.dport;
 
 	return (0);
 }
@@ -391,26 +391,26 @@ int
 server_lookup6(struct sockaddr_in6 *client, struct sockaddr_in6 *proxy,
     struct sockaddr_in6 *server, u_int8_t proto)
 {
-	struct pfioc_natlook pnl;
+	struct pfctl_natlook_key k = {};
+	struct pfctl_natlook r = {};
 
-	memset(&pnl, 0, sizeof pnl);
-	pnl.direction = PF_OUT;
-	pnl.af = AF_INET6;
-	pnl.proto = proto;
-	memcpy(&pnl.saddr.v6, &client->sin6_addr.s6_addr, sizeof pnl.saddr.v6);
-	memcpy(&pnl.daddr.v6, &proxy->sin6_addr.s6_addr, sizeof pnl.daddr.v6);
-	pnl.sport = client->sin6_port;
-	pnl.dport = proxy->sin6_port;
-	
-	if (ioctl(pfctl_fd(pfh), DIOCNATLOOK, &pnl) == -1)
+	k.direction = PF_OUT;
+	k.af = AF_INET6;
+	k.proto = proto;
+	memcpy(&k.saddr.v6, &client->sin6_addr.s6_addr, sizeof k.saddr.v6);
+	memcpy(&k.daddr.v6, &proxy->sin6_addr.s6_addr, sizeof k.daddr.v6);
+	k.sport = client->sin6_port;
+	k.dport = proxy->sin6_port;
+
+	if (pfctl_natlook(pfh, &k, &r))
 		return (-1);
 
 	memset(server, 0, sizeof(struct sockaddr_in6));
 	server->sin6_len = sizeof(struct sockaddr_in6);
 	server->sin6_family = AF_INET6;
-	memcpy(&server->sin6_addr.s6_addr, &pnl.rdaddr.v6,
+	memcpy(&server->sin6_addr.s6_addr, &r.daddr.v6,
 	    sizeof server->sin6_addr);
-	server->sin6_port = pnl.rdport;
+	server->sin6_port = r.dport;
 
 	return (0);
 }

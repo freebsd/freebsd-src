@@ -26,6 +26,9 @@
  * SUCH DAMAGE.
  *
  */
+#include <sys/cdefs.h>
+#include "opt_inet.h"
+#include "opt_inet6.h"
 
 #include <sys/param.h>
 #include <sys/malloc.h>
@@ -1222,12 +1225,108 @@ pf_handle_clear_status(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	return (0);
 }
 
+struct pf_nl_natlook {
+	sa_family_t af;
+	uint8_t direction;
+	uint8_t proto;
+	struct pf_addr src;
+	struct pf_addr dst;
+	uint16_t sport;
+	uint16_t dport;
+};
+
+#define	_IN(_field)	offsetof(struct genlmsghdr, _field)
+#define	_OUT(_field)	offsetof(struct pf_nl_natlook, _field)
+static const struct nlattr_parser nla_p_natlook[] = {
+	{ .type = PF_NL_AF, .off = _OUT(af), .cb = nlattr_get_uint8 },
+	{ .type = PF_NL_DIRECTION, .off = _OUT(direction), .cb = nlattr_get_uint8 },
+	{ .type = PF_NL_PROTO, .off = _OUT(proto), .cb = nlattr_get_uint8 },
+	{ .type = PF_NL_SRC_ADDR, .off = _OUT(src), .cb = nlattr_get_in6_addr },
+	{ .type = PF_NL_DST_ADDR, .off = _OUT(dst), .cb = nlattr_get_in6_addr },
+	{ .type = PF_NL_SRC_PORT, .off = _OUT(sport), .cb = nlattr_get_uint16 },
+	{ .type = PF_NL_DST_PORT, .off = _OUT(dport), .cb = nlattr_get_uint16 },
+};
+static const struct nlfield_parser nlf_p_natlook[] = {};
+#undef _IN
+#undef _OUT
+NL_DECLARE_PARSER(natlook_parser, struct genlmsghdr, nlf_p_natlook, nla_p_natlook);
+
+static int
+pf_handle_natlook(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	struct pf_nl_natlook	 attrs = {};
+	struct pf_state_key_cmp	 key = {};
+	struct nl_writer	*nw = npt->nw;
+	struct pf_state_key	*sk;
+	struct pf_kstate	*state;
+	struct genlmsghdr	*ghdr_new;
+	int			 error, m;
+	int			 sidx, didx;
+
+	error = nl_parse_nlmsg(hdr, &natlook_parser, npt, &attrs);
+	if (error != 0)
+		return (error);
+
+	if (attrs.proto == 0 ||
+	    PF_AZERO(&attrs.src, attrs.af) ||
+	    PF_AZERO(&attrs.dst, attrs.af) ||
+	    ((attrs.proto == IPPROTO_TCP || attrs.proto == IPPROTO_UDP) &&
+	     (attrs.sport == 0 || attrs.dport == 0)))
+		return (EINVAL);
+
+	/* NATLOOK src and dst are reversed, so reverse sidx/didx */
+	sidx = (attrs.direction == PF_IN) ? 1 : 0;
+	didx = (attrs.direction == PF_IN) ? 0 : 1;
+
+	key.af = attrs.af;
+	key.proto = attrs.proto;
+	PF_ACPY(&key.addr[sidx], &attrs.src, attrs.af);
+	key.port[sidx] = attrs.sport;
+	PF_ACPY(&key.addr[didx], &attrs.dst, attrs.af);
+	key.port[didx] = attrs.dport;
+
+	state = pf_find_state_all(&key, attrs.direction, &m);
+	if (state == NULL)
+		return (ENOENT);
+	if (m > 1) {
+		PF_STATE_UNLOCK(state);
+		return (E2BIG);
+	}
+
+	if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr))) {
+		PF_STATE_UNLOCK(state);
+		return (ENOMEM);
+	}
+
+	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+	ghdr_new->cmd = PFNL_CMD_NATLOOK;
+	ghdr_new->version = 0;
+	ghdr_new->reserved = 0;
+
+	sk = state->key[sidx];
+
+	nlattr_add_in6_addr(nw, PF_NL_SRC_ADDR, &sk->addr[sidx].v6);
+	nlattr_add_in6_addr(nw, PF_NL_DST_ADDR, &sk->addr[didx].v6);
+	nlattr_add_u16(nw, PF_NL_SRC_PORT, sk->port[sidx]);
+	nlattr_add_u16(nw, PF_NL_DST_PORT, sk->port[didx]);
+
+	PF_STATE_UNLOCK(state);
+
+	if (!nlmsg_end(nw)) {
+		nlmsg_abort(nw);
+		return (ENOMEM);
+	}
+
+	return (0);
+}
+
 static const struct nlhdr_parser *all_parsers[] = {
 	&state_parser,
 	&addrule_parser,
 	&getrules_parser,
 	&clear_states_parser,
 	&set_statusif_parser,
+	&natlook_parser,
 };
 
 static int family_id;
@@ -1315,6 +1414,13 @@ static const struct genl_cmd pf_cmds[] = {
 		.cmd_name = "CLEARSTATUS",
 		.cmd_cb = pf_handle_clear_status,
 		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_NATLOOK,
+		.cmd_name = "NATLOOK",
+		.cmd_cb = pf_handle_natlook,
+		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
 		.cmd_priv = PRIV_NETINET_PF,
 	},
 };
