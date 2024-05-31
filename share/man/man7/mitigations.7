@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 6, 2023
+.Dd May 31, 2024
 .Dt MITIGATIONS 7
 .Os
 .Sh NAME
@@ -234,8 +234,26 @@ and it is possible that some applications may not function correctly.
 .\"
 .\".Ss Stack Smashing Protection (SSP)
 .\"
-.\".Ss Supervisor mode memory protection
-.\"
+.Ss Supervisor mode memory protection
+Certain processors include features that prevent unintended access to memory
+pages accessible to userspace (non-privileged) code, while in a privileged
+mode.
+One feature prevents execution, intended to mitigate exploitation of kernel
+vulnerabilities from userland.
+Another feature prevents unintended reads from or writes to user space memory
+from the kernel.
+This also provides effective protection against NULL pointer dereferences from
+kernel.
+.Bl -column -offset indent "Architecture" "Feature" "Access Type Prevented"
+.It Sy Architecture Ta Sy Feature Ta Sy Access Type Prevented
+.It amd64       Ta SMAP  Ta Read / Write
+.It amd64       Ta SMEP  Ta Execute
+.It arm64       Ta PAN   Ta Read / Write
+.It arm64       Ta PXN   Ta Execute
+.El
+.Pp
+These features are automatically used by the kernel.
+There is no user-facing configuration.
 .Ss Hardware vulnerability controls
 See
 .Xr security 7
