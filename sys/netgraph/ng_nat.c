@@ -53,6 +53,12 @@
 #include <netgraph/ng_nat.h>
 #include <netgraph/netgraph.h>
 
+#ifdef NG_SEPARATE_MALLOC
+static MALLOC_DEFINE(M_NETGRAPH_NAT, "netgraph_nat", "netgraph nat node");
+#else
+#define M_NETGRAPH_NAT M_NETGRAPH
+#endif
+
 static ng_constructor_t	ng_nat_constructor;
 static ng_rcvmsg_t	ng_nat_rcvmsg;
 static ng_shutdown_t	ng_nat_shutdown;
@@ -306,7 +312,7 @@ ng_nat_constructor(node_p node)
 	priv_p priv;
 
 	/* Initialize private descriptor. */
-	priv = malloc(sizeof(*priv), M_NETGRAPH, M_WAITOK | M_ZERO);
+	priv = malloc(sizeof(*priv), M_NETGRAPH_NAT, M_WAITOK | M_ZERO);
 
 	/* Init aliasing engine. */
 	priv->lib = LibAliasInit(NULL);
@@ -422,7 +428,7 @@ ng_nat_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 
 			if ((entry = malloc(sizeof(struct ng_nat_rdr_lst),
-			    M_NETGRAPH, M_NOWAIT | M_ZERO)) == NULL) {
+			    M_NETGRAPH_NAT, M_NOWAIT | M_ZERO)) == NULL) {
 				error = ENOMEM;
 				break;
 			}
@@ -436,7 +442,7 @@ ng_nat_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 			if (entry->lnk == NULL) {
 				error = ENOMEM;
-				free(entry, M_NETGRAPH);
+				free(entry, M_NETGRAPH_NAT);
 				break;
 			}
 
@@ -481,7 +487,7 @@ ng_nat_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 
 			if ((entry = malloc(sizeof(struct ng_nat_rdr_lst),
-			    M_NETGRAPH, M_NOWAIT | M_ZERO)) == NULL) {
+			    M_NETGRAPH_NAT, M_NOWAIT | M_ZERO)) == NULL) {
 				error = ENOMEM;
 				break;
 			}
@@ -492,7 +498,7 @@ ng_nat_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 			if (entry->lnk == NULL) {
 				error = ENOMEM;
-				free(entry, M_NETGRAPH);
+				free(entry, M_NETGRAPH_NAT);
 				break;
 			}
 
@@ -533,7 +539,7 @@ ng_nat_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 
 			if ((entry = malloc(sizeof(struct ng_nat_rdr_lst),
-			    M_NETGRAPH, M_NOWAIT | M_ZERO)) == NULL) {
+			    M_NETGRAPH_NAT, M_NOWAIT | M_ZERO)) == NULL) {
 				error = ENOMEM;
 				break;
 			}
@@ -545,7 +551,7 @@ ng_nat_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 			if (entry->lnk == NULL) {
 				error = ENOMEM;
-				free(entry, M_NETGRAPH);
+				free(entry, M_NETGRAPH_NAT);
 				break;
 			}
 
@@ -611,7 +617,7 @@ ng_nat_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			/* Delete entry from our internal list. */
 			priv->rdrcount--;
 			STAILQ_REMOVE(&priv->redirhead, entry, ng_nat_rdr_lst, entries);
-			free(entry, M_NETGRAPH);
+			free(entry, M_NETGRAPH_NAT);
 		    }
 			break;
 		case NGM_NAT_ADD_SERVER:
@@ -912,12 +918,12 @@ ng_nat_shutdown(node_p node)
 	while (!STAILQ_EMPTY(&priv->redirhead)) {
 		struct ng_nat_rdr_lst *entry = STAILQ_FIRST(&priv->redirhead);
 		STAILQ_REMOVE_HEAD(&priv->redirhead, entries);
-		free(entry, M_NETGRAPH);
+		free(entry, M_NETGRAPH_NAT);
 	}
 
 	/* Final free. */
 	LibAliasUninit(priv->lib);
-	free(priv, M_NETGRAPH);
+	free(priv, M_NETGRAPH_NAT);
 
 	return (0);
 }
