@@ -475,4 +475,22 @@ int	pfctl_table_get_addrs(int dev, struct pfr_table *tbl, struct pfr_addr
 	    *addr, int *size, int flags);
 int	pfctl_set_statusif(struct pfctl_handle *h, const char *ifname);
 
+struct pfctl_natlook_key {
+	sa_family_t af;
+	uint8_t direction;
+	uint8_t proto;
+	struct pf_addr saddr;
+	struct pf_addr daddr;
+	uint16_t sport;
+	uint16_t dport;
+};
+struct pfctl_natlook {
+	struct pf_addr saddr;
+	struct pf_addr daddr;
+	uint16_t sport;
+	uint16_t dport;
+};
+int	pfctl_natlook(struct pfctl_handle *h,
+	    const struct pfctl_natlook_key *k, struct pfctl_natlook *r);
+
 #endif
