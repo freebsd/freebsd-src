@@ -1,5 +1,3 @@
-$FreeBSD$
-
 This document contains a collection of notes specific to the import
 of pjdfstest into head.  These notes are built on the instructions in
 the FreeBSD Subversion Primer that detail how to deal with vendor

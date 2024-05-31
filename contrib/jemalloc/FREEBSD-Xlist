@@ -1,4 +1,3 @@
-$FreeBSD$
 .appveyor.yml
 .autom4te.cfg
 .cirrus.yml
