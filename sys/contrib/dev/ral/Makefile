@@ -1,5 +1,3 @@
-#	$FreeBSD$
-
 FILES=	rt2561s.fw.uu rt2561.fw.uu rt2661.fw.uu rt2860.fw.uu
 
 rt2561s.fw.uu: microcode.h LICENSE
