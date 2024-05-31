@@ -656,7 +656,7 @@ efi_find_framebuffer(teken_gfx_t *gfx_state)
 	gfx_state->tg_shadow_sz =
 	    EFI_SIZE_TO_PAGES(efifb.fb_height * efifb.fb_width *
 	    sizeof(EFI_GRAPHICS_OUTPUT_BLT_PIXEL));
-	status = BS->AllocatePages(AllocateMaxAddress, EfiLoaderData,
+	status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData,
 	    gfx_state->tg_shadow_sz,
 	    (EFI_PHYSICAL_ADDRESS *)&gfx_state->tg_shadow_fb);
 	if (status != EFI_SUCCESS)
