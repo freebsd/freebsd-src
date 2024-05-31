@@ -65,19 +65,6 @@ libspl_gettid(void)
 }
 #endif
 
-#if defined(__APPLE__)
-static inline uint64_t
-libspl_gettid(void)
-{
-	uint64_t tid;
-
-	if (pthread_threadid_np(NULL, &tid) != 0)
-		tid = 0;
-
-	return (tid);
-}
-#endif
-
 static boolean_t libspl_assert_ok = B_FALSE;
 
 void
