@@ -88,6 +88,16 @@
 	(((cfg)->hdrtype == PCIM_HDRTYPE_NORMAL && reg == PCIR_BIOS) ||	\
 	 ((cfg)->hdrtype == PCIM_HDRTYPE_BRIDGE && reg == PCIR_BIOS_1))
 
+static device_probe_t	pci_probe;
+
+static bus_reset_post_t pci_reset_post;
+static bus_reset_prepare_t pci_reset_prepare;
+static bus_reset_child_t pci_reset_child;
+static bus_hint_device_unit_t pci_hint_device_unit;
+static bus_remap_intr_t pci_remap_intr_method;
+
+static pci_get_id_t	pci_get_id_method;
+
 static int		pci_has_quirk(uint32_t devid, int quirk);
 static pci_addr_t	pci_mapbase(uint64_t mapreg);
 static const char	*pci_maptype(uint64_t mapreg);
@@ -103,7 +113,6 @@ static void		pci_assign_interrupt(device_t bus, device_t dev,
 			    int force_route);
 static int		pci_add_map(device_t bus, device_t dev, int reg,
 			    struct resource_list *rl, int force, int prefetch);
-static int		pci_probe(device_t dev);
 static void		pci_load_vendor_data(void);
 static int		pci_describe_parse_line(char **ptr, int *vendor,
 			    int *device, char **desc);
@@ -125,17 +134,6 @@ static int		pci_msi_blacklisted(void);
 static int		pci_msix_blacklisted(void);
 static void		pci_resume_msi(device_t dev);
 static void		pci_resume_msix(device_t dev);
-static int		pci_remap_intr_method(device_t bus, device_t dev,
-			    u_int irq);
-static void		pci_hint_device_unit(device_t acdev, device_t child,
-			    const char *name, int *unitp);
-static int		pci_reset_post(device_t dev, device_t child);
-static int		pci_reset_prepare(device_t dev, device_t child);
-static int		pci_reset_child(device_t dev, device_t child,
-			    int flags);
-
-static int		pci_get_id_method(device_t dev, device_t child,
-			    enum pci_id_type type, uintptr_t *rid);
 static struct pci_devinfo * pci_fill_devinfo(device_t pcib, device_t bus, int d,
     int b, int s, int f, uint16_t vid, uint16_t did);
 
