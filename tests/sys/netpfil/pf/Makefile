@@ -7,6 +7,7 @@ TESTS_SUBDIRS+=	ioctl
 
 ATF_TESTS_SH+=	altq \
 		anchor \
+		debug \
 		divert-to \
 		dup \
 		ether \
