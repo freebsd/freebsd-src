@@ -1478,8 +1478,8 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	md_args.mda_mode = 0600;
 	md_args.mda_unit = device_get_unit(dev);
 	md_args.mda_si_drv1 = (void *)ctrlr;
-	status = make_dev_s(&md_args, &ctrlr->cdev, "nvme%d",
-	    device_get_unit(dev));
+	status = make_dev_s(&md_args, &ctrlr->cdev, "%s",
+	    device_get_nameunit(dev));
 	if (status != 0)
 		return (ENXIO);
 
