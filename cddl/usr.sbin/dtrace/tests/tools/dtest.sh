@@ -100,7 +100,7 @@ readonly STDOUT=$(mktemp)
 readonly TFILE=$(basename $1)
 readonly EXOUT=${TFILE}.out
 
-kldstat -q -m dtrace_test || kldload dtrace_test
+kldload -n dtrace_test
 cd $(dirname $1)
 runtest
 RESULT=$?
