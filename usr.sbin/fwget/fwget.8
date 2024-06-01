@@ -1,3 +1,6 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2023 Beckhoff Automation GmbH & Co. KG
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -20,40 +23,38 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd Apr 26, 2023
+.Dd June 27, 2024
 .Dt FWGET 8
 .Os
 .Sh NAME
 .Nm fwget
-.Nd Install firmwares for the running system
+.Nd install firmware packages for the running system
 .Sh SYNOPSIS
 .Nm
-.Op Fl v
 .Op Fl n
-.Ar subsystem
+.Op Fl v
+.Op Ar subsystem
 .Sh DESCRIPTION
 The
 .Nm
-utility can be used to install firmwares packaged needed for the running
-system
-.Pp
-If not specified the
-.Ar subsystem
-argument will default to pci cards.
+utility can be used to detect and install firmware packages
+for devices present on a running system.
 .Pp
 The options are as follows:
-.Bl -tag -width
+.Bl -tag -width Fl
 .It Fl n
 Dry run, only show needed packages
 .It Fl v
 Be more verbose
+.It Ar subsystem
+Hardware subsystem, default pci
 .El
 .Sh SEE ALSO
 .Xr firmware 9
 .Sh HISTORY
 The
 .Nm
-utility appeared in
+utility first appeared in
 .Fx 14.0 .
 .Sh AUTHORS
 .An -nosplit
@@ -61,4 +62,6 @@ The
 .Nm
 utility and this manual page were written by
 .An Emmanuel Vadot Aq Mt manu@FreeBSD.org
-for Beckhoff Automation GmbH & Co. KG .
+for Beckhoff Automation GmbH & Co\. KG.
+.Sh CAVEATS
+This utility currently only supports the pci subsystem.
