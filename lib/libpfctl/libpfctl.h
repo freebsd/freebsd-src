@@ -492,5 +492,6 @@ struct pfctl_natlook {
 };
 int	pfctl_natlook(struct pfctl_handle *h,
 	    const struct pfctl_natlook_key *k, struct pfctl_natlook *r);
+int	pfctl_set_debug(struct pfctl_handle *h, uint32_t level);
 
 #endif

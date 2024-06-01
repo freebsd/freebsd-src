@@ -2695,7 +2695,7 @@ pfctl_cfg_syncookies(struct pfctl *pf, uint8_t val, struct pfctl_watermarks *w)
 }
 
 int
-pfctl_set_debug(struct pfctl *pf, char *d)
+pfctl_do_set_debug(struct pfctl *pf, char *d)
 {
 	u_int32_t	level;
 
@@ -2719,7 +2719,7 @@ pfctl_set_debug(struct pfctl *pf, char *d)
 	level = pf->debug;
 
 	if ((pf->opts & PF_OPT_NOACTION) == 0)
-		if (ioctl(dev, DIOCSETDEBUG, &level))
+		if (pfctl_set_debug(pfh, level))
 			err(1, "DIOCSETDEBUG");
 
 	if (pf->opts & PF_OPT_VERBOSE)
@@ -2731,7 +2731,7 @@ pfctl_set_debug(struct pfctl *pf, char *d)
 int
 pfctl_load_debug(struct pfctl *pf, unsigned int level)
 {
-	if (ioctl(pf->dev, DIOCSETDEBUG, &level)) {
+	if (pfctl_set_debug(pf->h, level)) {
 		warnx("DIOCSETDEBUG");
 		return (1);
 	}
@@ -2777,7 +2777,7 @@ pfctl_set_interface_flags(struct pfctl *pf, char *ifname, int flags, int how)
 void
 pfctl_debug(int dev, u_int32_t level, int opts)
 {
-	if (ioctl(dev, DIOCSETDEBUG, &level))
+	if (pfctl_set_debug(pfh, level))
 		err(1, "DIOCSETDEBUG");
 	if ((opts & PF_OPT_QUIET) == 0) {
 		fprintf(stderr, "debug level set to '");

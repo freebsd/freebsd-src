@@ -291,7 +291,7 @@ int	pfctl_set_optimization(struct pfctl *, const char *);
 int	pfctl_set_limit(struct pfctl *, const char *, unsigned int);
 int	pfctl_set_logif(struct pfctl *, char *);
 int	pfctl_set_hostid(struct pfctl *, u_int32_t);
-int	pfctl_set_debug(struct pfctl *, char *);
+int	pfctl_do_set_debug(struct pfctl *, char *);
 int	pfctl_set_interface_flags(struct pfctl *, char *, int, int);
 int	pfctl_cfg_syncookies(struct pfctl *, uint8_t, struct pfctl_watermarks *);
 
