@@ -5883,9 +5883,19 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 		    ((rv = pmap_enter_l3c_rx(pmap, va, m, &mpte, prot,
 		    &lock)) == KERN_SUCCESS || rv == KERN_NO_SPACE))
 			m = &m[L3C_ENTRIES - 1];
-		else
-			mpte = pmap_enter_quick_locked(pmap, va, m, prot, mpte,
-			    &lock);
+		else {
+			/*
+			 * In general, if a superpage mapping were possible,
+			 * it would have been created above.  That said, if
+			 * start and end are not superpage aligned, then
+			 * promotion might be possible at the ends of [start,
+			 * end).  However, in practice, those promotion
+			 * attempts are so unlikely to succeed that they are
+			 * not worth trying.
+			 */
+			mpte = pmap_enter_quick_locked(pmap, va, m, prot |
+			    VM_PROT_NO_PROMOTE, mpte, &lock);
+		}
 		m = TAILQ_NEXT(m, listq);
 	}
 	if (lock != NULL)
@@ -6048,12 +6058,19 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 
 #if VM_NRESERVLEVEL > 0
 	/*
-	 * If both the PTP and the reservation are fully populated, then
-	 * attempt promotion.
+	 * First, attempt L3C promotion, if the virtual and physical addresses
+	 * are aligned with each other and an underlying reservation has the
+	 * neighboring L3 pages allocated.  The first condition is simply an
+	 * optimization that recognizes some eventual promotion failures early
+	 * at a lower run-time cost.  Then, attempt L2 promotion, if both the
+	 * PTP and the reservation are fully populated.
 	 */
 	if ((prot & VM_PROT_NO_PROMOTE) == 0 &&
-	    (mpte == NULL || mpte->ref_count == NL3PG) &&
+	    (va & L3C_OFFSET) == (pa & L3C_OFFSET) &&
 	    (m->flags & PG_FICTITIOUS) == 0 &&
+	    vm_reserv_is_populated(m, L3C_ENTRIES) &&
+	    pmap_promote_l3c(pmap, l3, va) &&
+	    (mpte == NULL || mpte->ref_count == NL3PG) &&
 	    vm_reserv_level_iffullpop(m) == 0) {
 		if (l2 == NULL)
 			l2 = pmap_pde(pmap, va, &lvl);
