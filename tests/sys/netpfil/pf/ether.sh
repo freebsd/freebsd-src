@@ -415,7 +415,7 @@ dummynet_body()
 	# Sanity check
 	atf_check -s exit:0 -o ignore ping -i .1 -c 3 -s 1200 192.0.2.2
 
-	jexec alcatraz dnctl pipe 1 config bw 30Byte/s
+	jexec alcatraz dnctl pipe 1 config bw 300Byte/s
 	jexec alcatraz pfctl -e
 	pft_set_rules alcatraz \
 		"ether pass in dnpipe 1"
@@ -430,14 +430,14 @@ dummynet_body()
 	ping -i .1 -c 5 -s 1200 192.0.2.2
 
 	# We should now be hitting the limits and get this packet dropped.
-	atf_check -s exit:2 -o ignore ping -c 1 -s 1200 192.0.2.2
+	atf_check -s exit:2 -o ignore ping -c 1 -t 1 -s 1200 192.0.2.2
 
 	# We can now also dummynet outbound traffic!
 	pft_set_rules alcatraz \
 		"ether pass out dnpipe 1"
 
 	# We should still be hitting the limits and get this packet dropped.
-	atf_check -s exit:2 -o ignore ping -c 1 -s 1200 192.0.2.2
+	atf_check -s exit:2 -o ignore ping -c 1 -t 1 -s 1200 192.0.2.2
 }
 
 dummynet_cleanup()
