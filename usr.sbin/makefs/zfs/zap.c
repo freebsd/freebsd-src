@@ -167,6 +167,15 @@ zap_add_uint64(zfs_zap_t *zap, const char *name, uint64_t val)
 }
 
 void
+zap_add_uint64_self(zfs_zap_t *zap, uint64_t val)
+{
+	char name[32];
+
+	snprintf(name, sizeof(name), "%jx", (uintmax_t)val);
+	zap_add(zap, name, sizeof(uint64_t), 1, (uint8_t *)&val);
+}
+
+void
 zap_add_string(zfs_zap_t *zap, const char *name, const char *val)
 {
 	zap_add(zap, name, 1, strlen(val) + 1, val);
