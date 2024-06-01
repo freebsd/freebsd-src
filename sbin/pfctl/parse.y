@@ -763,7 +763,7 @@ option		: SET REASSEMBLE yesno optnodf		{
 				free($3);
 				YYERROR;
 			}
-			if (pfctl_set_debug(pf, $3) != 0) {
+			if (pfctl_do_set_debug(pf, $3) != 0) {
 				yyerror("error setting debuglevel %s", $3);
 				free($3);
 				YYERROR;

@@ -1320,6 +1320,35 @@ pf_handle_natlook(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	return (0);
 }
 
+struct pf_nl_set_debug
+{
+	uint32_t level;
+};
+#define	_OUT(_field)	offsetof(struct pf_nl_set_debug, _field)
+static const struct nlattr_parser nla_p_set_debug[] = {
+	{ .type = PF_SD_LEVEL, .off = _OUT(level), .cb = nlattr_get_uint32 },
+};
+static const struct nlfield_parser nlf_p_set_debug[] = {};
+#undef _OUT
+NL_DECLARE_PARSER(set_debug_parser, struct genlmsghdr, nlf_p_set_debug, nla_p_set_debug);
+
+static int
+pf_handle_set_debug(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	struct pf_nl_set_debug attrs = {};
+	int error;
+
+	error = nl_parse_nlmsg(hdr, &set_debug_parser, npt, &attrs);
+	if (error != 0)
+		return (error);
+
+	PF_RULES_WLOCK();
+	V_pf_status.debug = attrs.level;
+	PF_RULES_WUNLOCK();
+
+	return (0);
+}
+
 static const struct nlhdr_parser *all_parsers[] = {
 	&state_parser,
 	&addrule_parser,
@@ -1327,6 +1356,7 @@ static const struct nlhdr_parser *all_parsers[] = {
 	&clear_states_parser,
 	&set_statusif_parser,
 	&natlook_parser,
+	&set_debug_parser,
 };
 
 static int family_id;
@@ -1421,6 +1451,13 @@ static const struct genl_cmd pf_cmds[] = {
 		.cmd_name = "NATLOOK",
 		.cmd_cb = pf_handle_natlook,
 		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_SET_DEBUG,
+		.cmd_name = "SET_DEBUG",
+		.cmd_cb = pf_handle_set_debug,
+		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
 		.cmd_priv = PRIV_NETINET_PF,
 	},
 };
