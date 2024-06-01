@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\" from: src/usr.sbin/vnconfig/vnconfig.8,v 1.19 2000/12/27 15:30:29
 .\"
-.Dd August 27, 2021
+.Dd June 1, 2024
 .Dt MDCONFIG 8
 .Os
 .Sh NAME
@@ -230,8 +230,6 @@ option tends to waste memory by giving unwanted double caching,
 but it saves time if there is memory to spare.
 .It Oo Cm no Oc Ns Cm reserve
 Allocate and reserve all needed storage from the start, rather than as needed.
-.It Oo Cm no Oc Ns Cm cluster
-Enable clustering on this disk.
 .It Oo Cm no Oc Ns Cm compress
 Enable/disable compression features to reduce memory usage.
 .It Oo Cm no Oc Ns Cm force
