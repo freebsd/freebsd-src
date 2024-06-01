@@ -604,10 +604,12 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 	md_args.mda_unit = unit;
 	md_args.mda_mode = 0600;
 	md_args.mda_si_drv1 = ns;
-	res = make_dev_s(&md_args, &ns->cdev, "nvme%dns%d",
-	    device_get_unit(ctrlr->dev), ns->id);
+	res = make_dev_s(&md_args, &ns->cdev, "%sn%d",
+	    device_get_nameunit(ctrlr->dev), ns->id);
 	if (res != 0)
 		return (ENXIO);
+	ns->cdev->si_drv2 = make_dev_alias(ns->cdev, "%sns%d",
+	    device_get_nameunit(ctrlr->dev), ns->id);
 
 	ns->cdev->si_flags |= SI_UNMAPPED;
 
@@ -618,6 +620,8 @@ void
 nvme_ns_destruct(struct nvme_namespace *ns)
 {
 
+	if (ns->cdev->si_drv2 != NULL)
+		destroy_dev(ns->cdev->si_drv2);
 	if (ns->cdev != NULL)
 		destroy_dev(ns->cdev);
 }
