@@ -48,6 +48,71 @@ struct pci_softc {
 extern int 	pci_do_power_resume;
 extern int 	pci_do_power_suspend;
 
+
+device_attach_t		pci_attach;
+device_detach_t		pci_detach;
+device_resume_t		pci_resume;
+
+bus_print_child_t	pci_print_child;
+bus_probe_nomatch_t	pci_probe_nomatch;
+bus_read_ivar_t		pci_read_ivar;
+bus_write_ivar_t	pci_write_ivar;
+bus_driver_added_t	pci_driver_added;
+bus_setup_intr_t	pci_setup_intr;
+bus_teardown_intr_t	pci_teardown_intr;
+
+bus_get_dma_tag_t	pci_get_dma_tag;
+bus_get_resource_list_t	pci_get_resource_list;
+bus_delete_resource_t	pci_delete_resource;
+bus_alloc_resource_t	pci_alloc_resource;
+bus_release_resource_t	pci_release_resource;
+bus_activate_resource_t	pci_activate_resource;
+bus_deactivate_resource_t pci_deactivate_resource;
+bus_child_deleted_t	pci_child_deleted;
+bus_child_detached_t	pci_child_detached;
+bus_child_pnpinfo_t	pci_child_pnpinfo_method;
+bus_child_location_t	pci_child_location_method;
+bus_get_device_path_t	pci_get_device_path_method;
+bus_suspend_child_t	pci_suspend_child;
+bus_resume_child_t	pci_resume_child;
+bus_rescan_t		pci_rescan_method;
+
+pci_read_config_t	pci_read_config_method;
+pci_write_config_t	pci_write_config_method;
+pci_enable_busmaster_t	pci_enable_busmaster_method;
+pci_disable_busmaster_t	pci_disable_busmaster_method;
+pci_enable_io_t		pci_enable_io_method;
+pci_disable_io_t	pci_disable_io_method;
+pci_get_vpd_ident_t	pci_get_vpd_ident_method;
+pci_get_vpd_readonly_t	pci_get_vpd_readonly_method;
+pci_get_powerstate_t	pci_get_powerstate_method;
+pci_set_powerstate_t	pci_set_powerstate_method;
+pci_assign_interrupt_t	pci_assign_interrupt_method;
+pci_find_cap_t		pci_find_cap_method;
+pci_find_next_cap_t	pci_find_next_cap_method;
+pci_find_extcap_t	pci_find_extcap_method;
+pci_find_next_extcap_t	pci_find_next_extcap_method;
+pci_find_htcap_t	pci_find_htcap_method;
+pci_find_next_htcap_t	pci_find_next_htcap_method;
+pci_alloc_msi_t		pci_alloc_msi_method;
+pci_alloc_msix_t	pci_alloc_msix_method;
+pci_enable_msi_t	pci_enable_msi_method;
+pci_enable_msix_t	pci_enable_msix_method;
+pci_disable_msi_t	pci_disable_msi_method;
+pci_remap_msix_t	pci_remap_msix_method;
+pci_release_msi_t	pci_release_msi_method;
+pci_msi_count_t		pci_msi_count_method;
+pci_msix_count_t	pci_msix_count_method;
+pci_msix_pba_bar_t	pci_msix_pba_bar_method;
+pci_msix_table_bar_t	pci_msix_table_bar_method;
+pci_alloc_devinfo_t	pci_alloc_devinfo_method;
+pci_child_added_t	pci_child_added_method;
+#ifdef PCI_IOV
+pci_iov_attach_t	pci_iov_attach_method;
+pci_iov_detach_t	pci_iov_detach_method;
+pci_create_iov_child_t	pci_create_iov_child_method;
+#endif
+
 void		pci_add_children(device_t dev, int domain, int busno);
 void		pci_add_child(device_t bus, struct pci_devinfo *dinfo);
 device_t	pci_add_iov_child(device_t bus, device_t pf, uint16_t rid,
@@ -55,95 +120,12 @@ device_t	pci_add_iov_child(device_t bus, device_t pf, uint16_t rid,
 void		pci_add_resources(device_t bus, device_t dev, int force,
 		    uint32_t prefetchmask);
 void		pci_add_resources_ea(device_t bus, device_t dev, int alloc_iov);
-struct pci_devinfo *pci_alloc_devinfo_method(device_t dev);
-int		pci_attach(device_t dev);
 int		pci_attach_common(device_t dev);
-int		pci_detach(device_t dev);
-int		pci_rescan_method(device_t dev);
-void		pci_driver_added(device_t dev, driver_t *driver);
 int		pci_ea_is_enabled(device_t dev, int rid);
-int		pci_print_child(device_t dev, device_t child);
-void		pci_probe_nomatch(device_t dev, device_t child);
-int		pci_read_ivar(device_t dev, device_t child, int which,
-		    uintptr_t *result);
-int		pci_write_ivar(device_t dev, device_t child, int which,
-		    uintptr_t value);
-int		pci_setup_intr(device_t dev, device_t child,
-		    struct resource *irq, int flags, driver_filter_t *filter,
-		    driver_intr_t *intr, void *arg, void **cookiep);
-int		pci_teardown_intr(device_t dev, device_t child,
-		    struct resource *irq, void *cookie);
-int		pci_get_vpd_ident_method(device_t dev, device_t child,
-		    const char **identptr);
-int		pci_get_vpd_readonly_method(device_t dev, device_t child,
-		    const char *kw, const char **vptr);
-int		pci_set_powerstate_method(device_t dev, device_t child,
-		    int state);
-int		pci_get_powerstate_method(device_t dev, device_t child);
-uint32_t	pci_read_config_method(device_t dev, device_t child, 
-		    int reg, int width);
-void		pci_write_config_method(device_t dev, device_t child, 
-		    int reg, uint32_t val, int width);
-int		pci_enable_busmaster_method(device_t dev, device_t child);
-int		pci_disable_busmaster_method(device_t dev, device_t child);
-int		pci_enable_io_method(device_t dev, device_t child, int space);
-int		pci_disable_io_method(device_t dev, device_t child, int space);
-int		pci_find_cap_method(device_t dev, device_t child,
-		    int capability, int *capreg);
-int		pci_find_next_cap_method(device_t dev, device_t child,
-		    int capability, int start, int *capreg);
-int		pci_find_extcap_method(device_t dev, device_t child,
-		    int capability, int *capreg);
-int		pci_find_next_extcap_method(device_t dev, device_t child,
-		    int capability, int start, int *capreg);
-int		pci_find_htcap_method(device_t dev, device_t child,
-		    int capability, int *capreg);
-int		pci_find_next_htcap_method(device_t dev, device_t child,
-		    int capability, int start, int *capreg);
-int		pci_alloc_msi_method(device_t dev, device_t child, int *count);
-int		pci_alloc_msix_method(device_t dev, device_t child, int *count);
-void		pci_enable_msi_method(device_t dev, device_t child,
-		    uint64_t address, uint16_t data);
-void		pci_enable_msix_method(device_t dev, device_t child,
-		    u_int index, uint64_t address, uint32_t data);
-void		pci_disable_msi_method(device_t dev, device_t child);
-int		pci_remap_msix_method(device_t dev, device_t child,
-		    int count, const u_int *vectors);
-int		pci_release_msi_method(device_t dev, device_t child);
-int		pci_msi_count_method(device_t dev, device_t child);
-int		pci_msix_count_method(device_t dev, device_t child);
-int		pci_msix_pba_bar_method(device_t dev, device_t child);
-int		pci_msix_table_bar_method(device_t dev, device_t child);
-struct resource	*pci_alloc_resource(device_t dev, device_t child, 
-		    int type, int *rid, rman_res_t start, rman_res_t end,
-		    rman_res_t count, u_int flags);
-int		pci_release_resource(device_t dev, device_t child,
-		    struct resource *r);
-int		pci_activate_resource(device_t dev, device_t child,
-		    struct resource *r);
-int		pci_deactivate_resource(device_t dev, device_t child,
-		    struct resource *r);
-void		pci_delete_resource(device_t dev, device_t child, 
-		    int type, int rid);
-struct resource_list *pci_get_resource_list (device_t dev, device_t child);
 struct pci_devinfo *pci_read_device(device_t pcib, device_t bus, int d, int b,
 		    int s, int f);
 void		pci_print_verbose(struct pci_devinfo *dinfo);
 int		pci_freecfg(struct pci_devinfo *dinfo);
-void		pci_child_deleted(device_t dev, device_t child);
-void		pci_child_detached(device_t dev, device_t child);
-int		pci_child_location_method(device_t cbdev, device_t child,
-		    struct sbuf *sb);
-int		pci_child_pnpinfo_method(device_t cbdev, device_t child,
-		    struct sbuf *sb);
-int		pci_get_device_path_method(device_t dev, device_t child,
-		    const char *locator, struct sbuf *sb);
-int		pci_assign_interrupt_method(device_t dev, device_t child);
-int		pci_resume(device_t dev);
-int		pci_resume_child(device_t dev, device_t child);
-int		pci_suspend_child(device_t dev, device_t child);
-bus_dma_tag_t pci_get_dma_tag(device_t bus, device_t dev);
-void		pci_child_added_method(device_t dev, device_t child);
 
 /** Restore the config register state.  The state must be previously
  * saved with pci_cfg_save.  However, the pci bus driver takes care of
@@ -170,14 +152,6 @@ struct resource *pci_reserve_map(device_t dev, device_t child, int type,
 struct resource *pci_alloc_multi_resource(device_t dev, device_t child,
 		    int type, int *rid, rman_res_t start, rman_res_t end,
 		    rman_res_t count, u_long num, u_int flags);
-
-int		pci_iov_attach_method(device_t bus, device_t dev,
-		    struct nvlist *pf_schema, struct nvlist *vf_schema,
-		    const char *name);
-int		pci_iov_detach_method(device_t bus, device_t dev);
-
-device_t	pci_create_iov_child_method(device_t bus, device_t pf,
-		    uint16_t rid, uint16_t vid, uint16_t did);
 
 struct resource *pci_vf_alloc_mem_resource(device_t dev, device_t child,
 		    int *rid, rman_res_t start, rman_res_t end,
