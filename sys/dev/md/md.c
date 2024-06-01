@@ -1345,7 +1345,7 @@ mdcreate_malloc(struct md_s *sc, struct md_req *mdr)
 		sc->fwsectors = mdr->md_fwsectors;
 	if (mdr->md_fwheads != 0)
 		sc->fwheads = mdr->md_fwheads;
-	sc->flags = mdr->md_options & (MD_COMPRESS | MD_FORCE);
+	sc->flags = mdr->md_options & (MD_COMPRESS | MD_FORCE | MD_RESERVE);
 	sc->indir = dimension(sc->mediasize / sc->sectorsize);
 	sc->uma = uma_zcreate(sc->name, sc->sectorsize, NULL, NULL, NULL, NULL,
 	    0x1ff, 0);
@@ -1470,7 +1470,7 @@ mdcreate_vnode(struct md_s *sc, struct md_req *mdr, struct thread *td)
 	snprintf(sc->ident, sizeof(sc->ident), "MD-DEV%ju-INO%ju",
 	    (uintmax_t)vattr.va_fsid, (uintmax_t)vattr.va_fileid);
 	sc->flags = mdr->md_options & (MD_ASYNC | MD_CACHE | MD_FORCE |
-	    MD_VERIFY);
+	    MD_VERIFY | MD_MUSTDEALLOC);
 	if (!(flags & FWRITE))
 		sc->flags |= MD_READONLY;
 	sc->vnode = nd.ni_vp;
