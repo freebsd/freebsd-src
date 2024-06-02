@@ -1755,10 +1755,14 @@ out:
 	 * If the VA of the entered page is not aligned with its PA,
 	 * don't try page promotion as it is not possible.
 	 * This reduces the number of promotion failures dramatically.
+	 *
+	 * Ignore VM_PROT_NO_PROMOTE unless PMAP_ENTER_QUICK_LOCKED.
 	 */
 	if (moea64_ps_enabled(pmap) && pmap != kernel_pmap && pvo != NULL &&
 	    (pvo->pvo_vaddr & PVO_MANAGED) != 0 &&
 	    (va & HPT_SP_MASK) == (pa & HPT_SP_MASK) &&
+	    ((prot & VM_PROT_NO_PROMOTE) == 0 ||
+	    (flags & PMAP_ENTER_QUICK_LOCKED) == 0) &&
 	    (m->flags & PG_FICTITIOUS) == 0 &&
 	    vm_reserv_level_iffullpop(m) == 0)
 		moea64_sp_promote(pmap, va, m);
@@ -1850,8 +1854,9 @@ moea64_enter_quick(pmap_t pm, vm_offset_t va, vm_page_t m,
     vm_prot_t prot)
 {
 
-	moea64_enter(pm, va, m, prot & (VM_PROT_READ | VM_PROT_EXECUTE),
-	    PMAP_ENTER_NOSLEEP | PMAP_ENTER_QUICK_LOCKED, 0);
+	moea64_enter(pm, va, m, prot & (VM_PROT_READ | VM_PROT_EXECUTE |
+	    VM_PROT_NO_PROMOTE), PMAP_ENTER_NOSLEEP | PMAP_ENTER_QUICK_LOCKED,
+	    0);
 }
 
 vm_paddr_t
