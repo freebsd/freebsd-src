@@ -4431,6 +4431,7 @@ ispell_op(void)
 	}
 	(void)sprintf(template, "/tmp/ee.XXXXXXXX");
 	fd = mkstemp(template);
+	name = template;
 	if (fd < 0) {
 		wmove(com_win, 0, 0);
 		wprintw(com_win, create_file_fail_msg, name);
