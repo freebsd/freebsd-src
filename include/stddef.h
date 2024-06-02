@@ -41,13 +41,6 @@ typedef	__ptrdiff_t	ptrdiff_t;
 #define	_PTRDIFF_T_DECLARED
 #endif
 
-#if __BSD_VISIBLE
-#ifndef _RUNE_T_DECLARED
-typedef	__rune_t	rune_t;
-#define	_RUNE_T_DECLARED
-#endif
-#endif
-
 #ifndef _SIZE_T_DECLARED
 typedef	__size_t	size_t;
 #define	_SIZE_T_DECLARED
