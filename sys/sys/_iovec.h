@@ -44,4 +44,28 @@ struct iovec {
 	size_t	 iov_len;	/* Length. */
 };
 
+#ifdef _KERNEL
+#define	IOVEC_INIT(iovp, base, len) 					\
+	*(iovp) = (struct iovec){ .iov_base = (base), .iov_len = (len) }
+
+/* String with length including NUL terminator */
+#define	IOVEC_INIT_CSTR(iovp, str)	do {				\
+	void *__str = (str);						\
+	IOVEC_INIT(iovp, __str, strlen(__str) + 1);			\
+} while(0)
+
+/* Object with size from sizeof() */
+#define	IOVEC_INIT_OBJ(iovp, obj)					\
+	IOVEC_INIT(iovp, &(obj), sizeof(obj))
+
+#define	IOVEC_ADVANCE(iovp, amt)	do {				\
+	struct iovec *__iovp = (iovp);					\
+	size_t __amt = (amt);						\
+	KASSERT(__amt <= __iovp->iov_len, ("%s: amount %zu > iov_len	\
+	    %zu", __func__, __amt, __iovp->iov_len));			\
+	__iovp->iov_len -= __amt;					\
+	__iovp->iov_base = (char *)__iovp->iov_base + __amt;		\
+} while(0)
+#endif /* _KERNEL */
+
 #endif /* !_SYS__IOVEC_H_ */
