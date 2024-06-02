@@ -215,12 +215,6 @@ fupci_phy_init(struct fupci_softc *sc)
 		return (error);
 	}
 
-	/* Hold PERST for 100ms as per the PCIe spec */
-	DELAY(100);
-
-	/* Deassert PERST_N */
-	FUDW_MGMT_WRITE(sc, FUDW_MGMT_PERST_N, 1);
-
 	/* Deassert core power-on reset (active low) */
 	error = gpio_pin_set_active(sc->porst_pin, true);
 	if (error != 0) {
@@ -279,6 +273,12 @@ fupci_phy_init(struct fupci_softc *sc)
 
 	/* Put the controller in Root Complex mode */
 	FUDW_MGMT_WRITE(sc, FUDW_MGMT_DEVICE_TYPE, FUDW_MGMT_DEVICE_TYPE_RC);
+
+	/* Hold PERST for 100ms as per the PCIe spec */
+	DELAY(100000);
+
+	/* Deassert PERST_N */
+	FUDW_MGMT_WRITE(sc, FUDW_MGMT_PERST_N, 1);
 
 	return (0);
 }
