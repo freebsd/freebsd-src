@@ -23,7 +23,7 @@
 .\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd January 12, 2024
+.Dd June 2, 2024
 .Dt NEWFS_MSDOS 8
 .Os
 .Sh NAME
@@ -91,7 +91,13 @@ A suffix s, k, m, g (lower or upper case)
 appended to the offset specifies that the
 number is in sectors, kilobytes, megabytes or gigabytes, respectively.
 .It Fl A
-Attempt to cluster align root directory, useful for SD card.
+Attempt to cluster align the data area, useful for SD card.
+If neither the
+.Fl A
+nor
+.Fl r
+option is used, the number of reserved sectors is set to a value that aligns
+the start of the data area to a multiple of the page size of the host.
 .It Fl B Ar boot
 Get bootstrap from file.
 .It Fl C Ar create-size
@@ -167,6 +173,12 @@ is 2.
 Number of hidden sectors.
 .It Fl r Ar reserved
 Number of reserved sectors.
+If neither the
+.Fl A
+nor
+.Fl r
+option is used, the number of reserved sectors is set to a value that aligns
+the start of the data area to a multiple of the page size of the host.
 .It Fl s Ar total
 File system size.
 .It Fl u Ar track-size
