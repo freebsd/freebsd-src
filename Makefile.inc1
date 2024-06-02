@@ -172,6 +172,7 @@ LIBCOMPAT_INCLUDE_DIRS+= i386
 LIBCOMPAT_INCLUDE_DIRS+= arm
 .endif
 
+.if !defined(_MKSHOWCONFIG)
 .if ((defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == "gcc") || \
      (!defined(X_COMPILER_TYPE) && ${COMPILER_TYPE} == "gcc"))
 .if ${TARGET} == "arm"
@@ -192,6 +193,7 @@ _GCC_BROKEN=boot code linker script issues.
 .warning Trying build anyway.
 .else
 .error Avoiding broken build.  Define TRY_GCC_BROKEN to try anyway.
+.endif
 .endif
 .endif
 .endif
