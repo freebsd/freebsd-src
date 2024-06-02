@@ -14,7 +14,8 @@ desc="Device state change daemon"
 rcvar="devd_enable"
 command="/sbin/${name}"
 
-start_precmd=${name}_prestart
+devd_offcmd=devd_off
+start_precmd=find_pidfile
 stop_precmd=find_pidfile
 
 find_pidfile()
@@ -26,10 +27,8 @@ find_pidfile()
 	fi
 }
 
-devd_prestart()
+devd_off()
 {
-	find_pidfile
-
 	# If devd is disabled, turn it off in the kernel to avoid unnecessary
 	# memory usage.
 	if ! checkyesno ${rcvar}; then
