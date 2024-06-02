@@ -27,7 +27,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd May 28, 2024
+.Dd June 2, 2024
 .Dt RC.SUBR 8
 .Os
 .Sh NAME
@@ -773,6 +773,8 @@ Login class to use with
 .Va ${name}_limits .
 Defaults to
 .Dq Li daemon .
+.It Va ${name}_offcmd
+Shell commands to run if a service is not enabled.
 .It Va ${name}_oomprotect
 .Xr protect 1
 .Va command
