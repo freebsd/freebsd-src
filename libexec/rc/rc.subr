@@ -816,6 +816,8 @@ startmsg()
 #
 #	${name}_limits	n	limits(1) to apply to ${command}.
 #
+#	${name}_offcmd	n	If set, run if a service is not enabled.
+#
 #	${rc_arg}_cmd	n	If set, use this as the method when invoked;
 #				Otherwise, use default command (see below)
 #
@@ -1051,13 +1053,13 @@ run_rc_command()
 		    -a "$rc_arg" != "describe" -a "$rc_arg" != "status" ] ||
 		    [ -n "${rcvar}" -a "$rc_arg" = "stop" -a -z "${rc_pid}" ]; then
 			if ! checkyesno ${rcvar}; then
-				if [ -n "${rc_quiet}" ]; then
-					return 0
-				fi
+			    [ "$rc_arg" = "start" ] && _run_rc_offcmd
+			    if [ -z "${rc_quiet}" ]; then
 				echo -n "Cannot '${rc_arg}' $name. Set ${rcvar} to "
 				echo -n "YES in /etc/rc.conf or use 'one${rc_arg}' "
 				echo "instead of '${rc_arg}'."
-				return 0
+			    fi
+			    return 0
 			fi
 		fi
 
@@ -1347,10 +1349,25 @@ $_cpusetcmd $command $rc_flags $command_args"
 #
 #	name	       R/W
 #	------------------
+#	_offcmd		R
 #	_precmd		R
 #	_postcmd	R
 #	_return		W
 #
+_run_rc_offcmd()
+{
+	eval _offcmd=\$${name}_offcmd
+	if [ -n "$_offcmd" ]; then
+		if [ -n "$_env" ]; then
+			eval "export -- $_env"
+		fi
+		debug "run_rc_command: ${name}_offcmd: $_offcmd $rc_extra_args"
+		eval "$_offcmd $rc_extra_args"
+		_return=$?
+	fi
+	return 0
+}
+
 _run_rc_precmd()
 {
 	check_required_before "$rc_arg" || return 1
