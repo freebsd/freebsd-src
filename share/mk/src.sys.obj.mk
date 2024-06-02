@@ -94,9 +94,6 @@ OBJTOP:=	${OBJROOT}${MACHINE}.${MACHINE_ARCH}
 # TARGET.TARGET_ARCH handled in OBJROOT already.
 OBJTOP:=	${OBJROOT:H}
 .endif	# ${MK_UNIFIED_OBJDIR} == "yes"
-.if ${.MAKE.LEVEL} > 0
-.export OBJTOP
-.endif
 .endif	# empty(OBJTOP)
 
 # Fixup OBJROOT/OBJTOP if using MAKEOBJDIRPREFIX.
