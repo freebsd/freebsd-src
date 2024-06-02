@@ -1658,7 +1658,7 @@ _run_rc_offcmd()
 		if [ -n "$_env" ]; then
 			eval "export -- $_env"
 		fi
-		debug "run_rc_command: ${rc_arg}_offcmd: $_offcmd $rc_extra_args"
+		debug "run_rc_command: ${name}_offcmd: $_offcmd $rc_extra_args"
 		eval "$_offcmd $rc_extra_args"
 		_return=$?
 	fi
