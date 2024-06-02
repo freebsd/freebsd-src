@@ -249,7 +249,7 @@ mkfs_msdos(const char *fname, const char *dtype, const struct msdos_options *op)
     ssize_t n;
     time_t now;
     u_int fat, bss, rds, cls, dir, lsn, x, x1, x2;
-    u_int extra_res, alignment, saved_x, attempts=0;
+    u_int extra_res, alignment, alignto, saved_x, attempts=0;
     bool set_res, set_spf, set_spc;
     int fd, fd1, rv;
     struct msdos_options o = *op;
@@ -412,8 +412,12 @@ mkfs_msdos(const char *fname, const char *dtype, const struct msdos_options *op)
 	}
 	bpb.bpbFATs = o.num_FAT;
     }
-    if (o.directory_entries)
-	bpb.bpbRootDirEnts = o.directory_entries;
+    if (o.directory_entries) {
+	bpb.bpbRootDirEnts = roundup(o.directory_entries,
+	    bpb.bpbBytesPerSec / sizeof(struct de));
+	if (bpb.bpbBytesPerSec == 0 || o.directory_entries >= MAXU16)
+	    bpb.bpbRootDirEnts = MAXU16;
+    }
     if (o.media_descriptor_set) {
 	if (o.media_descriptor < 0xf0) {
 	    warnx("illegal media descriptor (%#x)", o.media_descriptor);
@@ -564,14 +568,20 @@ mkfs_msdos(const char *fname, const char *dtype, const struct msdos_options *op)
 	    x1 += (bpb.bpbBigFATsecs - 1) * bpb.bpbFATs;
 	}
 	if (set_res) {
-	    /* attempt to align root directory */
-	    alignment = (bpb.bpbResSectors + bpb.bpbBigFATsecs * bpb.bpbFATs) %
-		bpb.bpbSecPerClust;
 	    if (o.align)
-		extra_res += bpb.bpbSecPerClust - alignment;
+		alignto = bpb.bpbSecPerClust;
+	    else
+		alignto = PAGE_SIZE / bpb.bpbBytesPerSec;
+	    if (alignto > 1) {
+		/* align data clusters */
+		alignment = (bpb.bpbResSectors + bpb.bpbBigFATsecs * bpb.bpbFATs + rds) %
+		    alignto;
+		if (alignment != 0)
+		    extra_res += alignto - alignment;
+	    }
 	}
 	attempts++;
-    } while (o.align && alignment != 0 && attempts < 2);
+    } while (alignment != 0 && attempts < 2);
     if (o.align && alignment != 0)
 	warnx("warning: Alignment failed.");
 
