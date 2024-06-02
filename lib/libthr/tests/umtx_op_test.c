@@ -35,7 +35,7 @@
 /*
  * This is an implementation detail of _umtx_op(2), pulled from
  * sys/kern/kern_umtx.c.  The relevant bug observed that requests above the
- * batch side would not function as intended, so it's important that this
+ * batch size would not function as intended, so it's important that this
  * reflects the BATCH_SIZE configured there.
  */
 #define	UMTX_OP_BATCH_SIZE	128
