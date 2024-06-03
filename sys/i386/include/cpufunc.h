@@ -63,15 +63,6 @@ bsfl(u_int mask)
 	return (result);
 }
 
-static __inline __pure2 u_int
-bsrl(u_int mask)
-{
-	u_int	result;
-
-	__asm("bsrl %1,%0" : "=r" (result) : "rm" (mask) : "cc");
-	return (result);
-}
-
 static __inline void
 clflush(u_long addr)
 {

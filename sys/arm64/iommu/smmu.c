@@ -309,15 +309,6 @@ smmu_write_ack(struct smmu_softc *sc, uint32_t reg,
 	return (0);
 }
 
-static inline int
-ilog2(long x)
-{
-
-	KASSERT(x > 0 && powerof2(x), ("%s: invalid arg %ld", __func__, x));
-
-	return (flsl(x) - 1);
-}
-
 static int
 smmu_init_queue(struct smmu_softc *sc, struct smmu_queue *q,
     uint32_t prod_off, uint32_t cons_off, uint32_t dwords)

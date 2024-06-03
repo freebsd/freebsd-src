@@ -171,15 +171,6 @@ find_first_zero_bit(const unsigned long *p, unsigned long max)
 }
 
 static inline unsigned long
-ilog2(unsigned long x)
-{
-	unsigned long log = x;
-	while (x >>= 1)
-		log++;
-	return (log);
-}
-
-static inline unsigned long
 roundup_pow_of_two(unsigned long x)
 {
 	return (1UL << flsl(x - 1));

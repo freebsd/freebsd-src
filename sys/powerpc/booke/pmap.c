@@ -239,7 +239,6 @@ static __inline uint32_t tlb_calc_wimg(vm_paddr_t pa, vm_memattr_t ma);
 
 static vm_size_t tsize2size(unsigned int);
 static unsigned int size2tsize(vm_size_t);
-static unsigned long ilog2(unsigned long);
 
 static void set_mas4_defaults(void);
 
