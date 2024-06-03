@@ -193,7 +193,7 @@ static __inline __pure2 int
 ilog2_int(int n)
 {
 
-	MPASS(n != 0);
+	KASSERT(n != 0, ("ilog argument must be nonzero"));
 	return (8 * sizeof(n) - 1 - __builtin_clz((u_int)n));
 }
 
@@ -201,7 +201,7 @@ static __inline __pure2 int
 ilog2_long(long n)
 {
 
-	MPASS(n != 0);
+	KASSERT(n != 0, ("ilog argument must be nonzero"));
 	return (8 * sizeof(n) - 1 - __builtin_clzl((u_long)n));
 }
 
@@ -209,7 +209,7 @@ static __inline __pure2 int
 ilog2_long_long(long long n)
 {
 
-	MPASS(n != 0);
+	KASSERT(n != 0, ("ilog argument must be nonzero"));
 	return (8 * sizeof(n) - 1 -
 	    __builtin_clzll((unsigned long long)n));
 }
