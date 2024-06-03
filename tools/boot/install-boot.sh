@@ -59,7 +59,12 @@ make_esp_file() {
     stagedir=$(mktemp -d /tmp/stand-test.XXXXXX)
     mkdir -p "${stagedir}/EFI/BOOT"
     efibootname=$(get_uefi_bootname)
+
     cp "${loader}" "${stagedir}/EFI/BOOT/${efibootname}.efi"
+    loader="${loader%.efi}_ia32.efi"
+    if [ -f "${loader}" ]; then
+        cp "${loader}" "${stagedir}/EFI/BOOT/bootia32.efi"
+    fi
     makefs -t msdos \
 	-o fat_type=${fatbits} \
 	-o sectors_per_cluster=1 \
@@ -95,6 +100,27 @@ make_esp_device() {
 
     efibootname=$(get_uefi_bootname)
     kbfree=$(df -k "${mntpt}" | tail -1 | cut -w -f 4)
+
+    # For amd64 there are two efi loaders, one for 64-bit uefi and the other for 32-bit.
+    # If we can figure out which one we need, we copy it to /EFI/freebsd/loader.efi
+    # If we can't, then install the 64-bit one as loader.efi and the 32-bit one as loader_ia32.efi
+    if ([ -n "${updatesystem}" ] && [ `sysctl -n machdep.efi_arch` == i386 ]) || \
+       ([ -f "${mntpt}/EFI/freebsd/loader.efi" ] && (file "${mntpt}/EFI/freebsd/loader.efi" | grep -q '80386')) ; then
+        file="${file%.efi}_ia32.efi"
+        efibootname="bootia32"
+
+        # No need to run efibootmgr
+        updatesystem=
+
+        echo "32-bit UEFI detected, installing the ia32 loader"
+        if [ ! -f "${file}" ]; then
+            die "Expected but couldn't find ${file}"
+        fi
+    elif [ `uname -m` == amd64 ] && [ ! -n "${updatesystem}" ] && [ -f "${file%.efi}_ia32.efi" ]; then
+        # We don't know what we need, so install both.
+        do32=true
+    fi
+
     loadersize=$(stat -f %z "${file}")
     loadersize=$((loadersize / 1024))
 
@@ -132,6 +158,9 @@ make_esp_device() {
 
     echo "Copying loader to /EFI/freebsd on ESP"
     cp "${file}" "${mntpt}/EFI/freebsd/loader.efi"
+    if [ -n "${do32}" ]; then
+        cp "${file%.efi}_ia32.efi" "${mntpt}/EFI/freebsd/loader_ia32.efi"
+    fi
 
     if [ -n "${updatesystem}" ]; then
         existingbootentryloaderfile=$(efibootmgr -v | grep "${mntpt}//EFI/freebsd/loader.efi")
@@ -164,6 +193,10 @@ make_esp_device() {
 		mkdir -p "${mntpt}/EFI/BOOT"
 	fi
 	cp "${file}" "${mntpt}/EFI/BOOT/${efibootname}.efi"
+
+        if [ -n "${do32}" ]; then
+            cp "${file%.efi}_ia32.efi" "${mntpt}/EFI/BOOT/bootia32.efi"
+        fi
     fi
 
     umount "${mntpt}"
