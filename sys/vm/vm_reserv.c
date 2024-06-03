@@ -889,30 +889,35 @@ out:
 static void
 vm_reserv_break(vm_reserv_t rv)
 {
-	int hi, lo, pos;
+	int pool, pos, pos0, pos1;
 
 	vm_reserv_assert_locked(rv);
 	CTR5(KTR_VM, "%s: rv %p object %p popcnt %d inpartpop %d",
 	    __FUNCTION__, rv, rv->object, rv->popcnt, rv->inpartpopq);
 	vm_reserv_remove(rv);
 	rv->pages->psind = 0;
-	hi = lo = -1;
-	pos = 0;
-	for (;;) {
-		bit_ff_at(rv->popmap, pos, VM_LEVEL_0_NPAGES, lo != hi, &pos);
-		if (lo == hi) {
-			if (pos == -1)
-				break;
-			lo = pos;
-			continue;
-		}
+	pool = rv->pages->pool;
+	rv->pages->pool = VM_NFREEPOOL;
+	pos0 = bit_test(rv->popmap, 0) ? -1 : 0;
+	pos1 = -1 - pos0;
+	for (pos = 0; pos < VM_LEVEL_0_NPAGES; ) {
+		/* Find the first different bit after pos. */
+		bit_ff_at(rv->popmap, pos + 1, VM_LEVEL_0_NPAGES,
+		    pos1 < pos0, &pos);
 		if (pos == -1)
 			pos = VM_LEVEL_0_NPAGES;
-		hi = pos;
+		if (pos0 <= pos1) {
+			/* Set pool for pages from pos1 to pos. */
+			pos0 = pos1;
+			while (pos0 < pos)
+				rv->pages[pos0++].pool = pool;
+			continue;
+		}
+		/* Free unused pages from pos0 to pos. */
+		pos1 = pos;
 		vm_domain_free_lock(VM_DOMAIN(rv->domain));
-		vm_phys_enqueue_contig(&rv->pages[lo], hi - lo);
+		vm_phys_enqueue_contig(&rv->pages[pos0], pool, pos1 - pos0);
 		vm_domain_free_unlock(VM_DOMAIN(rv->domain));
-		lo = hi;
 	}
 	bit_nclear(rv->popmap, 0, VM_LEVEL_0_NPAGES - 1);
 	rv->popcnt = 0;
