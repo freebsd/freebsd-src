@@ -3,14 +3,13 @@
 
 #############################################################################
 #
-# Updates the Doxygen generated documentation files in the source tree.
-# If the doxygen command is not installed, it will exit with an error.
-# This script can generate Doxygen documentation for all source files or for
-# just liblzma API header files.
+# While it's possible to use the Doxyfile as is to generate liblzma API
+# documentation, it is recommended to use this script because this adds
+# the XZ Utils version number to the generated HTML.
 #
-# It is recommended to use this script to update the Doxygen-generated HTML
-# files since this will include the package version in the output and,
-# in case of liblzma API docs, strip JavaScript files from the output.
+# Other features:
+#  - Generate documentation of the XZ Utils internals.
+#  - Set input and output paths for out-of-tree builds.
 #
 #############################################################################
 #
@@ -21,31 +20,67 @@
 
 set -e
 
+show_usage()
+{
+	echo "Usage: $0 <api|internal> [ABS_TOP_SRCDIR ABS_OUTDIR]"
+	echo
+	echo "Supported modes:"
+	echo " - 'api' (default): liblzma API docs into doc/api"
+	echo " - 'internal': internal docs into doc/internal"
+	echo
+	echo "Absolute source and output dirs may be set" \
+		"to do an out-of-tree build."
+	echo "The output directory must already exist."
+	exit 1
+}
+
+case $1 in
+	api|internal)
+		;;
+	*)
+		show_usage
+		;;
+esac
+
 if type doxygen > /dev/null 2>&1; then
 	:
 else
-	echo "doxygen/update-doxygen: 'doxygen' command not found." >&2
-	echo "doxygen/update-doxygen: Skipping Doxygen docs generation." >&2
+	echo "$0: 'doxygen' command not found" >&2
 	exit 1
 fi
 
-if test ! -f Doxyfile; then
-	cd `dirname "$0"` || exit 1
-	if test ! -f Doxyfile; then
-		echo "doxygen/update-doxygen: Cannot find Doxyfile" >&2
-		exit 1
-	fi
+case $# in
+	1)
+		# One argument: Building inside the source tree
+		ABS_TOP_SRCDIR=`dirname "$0"`/..
+		ABS_OUTDIR=$ABS_TOP_SRCDIR/doc
+		;;
+	3)
+		# Three arguments: Possibly an out of tree build
+		ABS_TOP_SRCDIR=$2
+		ABS_OUTDIR=$3
+		;;
+	*)
+		show_usage
+		;;
+esac
+
+if test ! -f "$ABS_TOP_SRCDIR/doxygen/Doxyfile"; then
+	echo "$0: Source dir '$ABS_TOP_SRCDIR/doxygen/Doxyfile' not found" >&2
+	exit 1
+fi
+if test ! -d "$ABS_OUTDIR"; then
+	echo "$0: Output dir '$ABS_OUTDIR' not found" >&2
+	exit 1
 fi
 
 # Get the package version so that it can be included in the generated docs.
-PACKAGE_VERSION=`cd .. && sh build-aux/version.sh` || exit 1
+PACKAGE_VERSION=`cd "$ABS_TOP_SRCDIR" && sh build-aux/version.sh`
 
-# If no arguments are specified, default to generating liblzma API header
-# documentation only.
 case $1 in
-	'' | api)
+	api)
 		# Remove old documentation before re-generating the new.
-		rm -rf ../doc/api
+		rm -rf "$ABS_OUTDIR/api"
 
 		# Generate the HTML documentation by preparing the Doxyfile
 		# in stdin and piping the result to the doxygen command.
@@ -53,57 +88,27 @@ case $1 in
 		# override any earlier assignment. So, we can use this
 		# feature to override the tags that need to change between
 		# "api" and "internal" modes.
+		ABS_SRCDIR=$ABS_TOP_SRCDIR/src/liblzma/api
 		(
-			cat Doxyfile
+			cat "$ABS_TOP_SRCDIR/doxygen/Doxyfile"
 			echo "PROJECT_NUMBER         = $PACKAGE_VERSION"
-		) | doxygen -
-
-		# As of Doxygen 1.8.0 - 1.9.6 and the Doxyfile options we use,
-		# the output is good without any JavaScript. Unfortunately
-		# Doxygen doesn't have an option to disable JavaScript usage
-		# completely so we strip it away with the hack below.
-		#
-		# Omitting the JavaScript code avoids some license hassle
-		# as jquery.js is fairly big, it contains more than jQuery
-		# itself, and doesn't include the actual license text (it
-		# only refers to the MIT license by name).
-		echo "Stripping JavaScript from Doxygen output..."
-		for F in ../doc/api/*.html
-		do
-			sed 's/<script [^>]*><\/script>//g
-				s/onclick="[^"]*"//g' \
-				"$F" > ../doc/api/tmp
-			mv -f ../doc/api/tmp "$F"
-		done
-		rm -f ../doc/api/*.js
+			echo "OUTPUT_DIRECTORY       = $ABS_OUTDIR"
+			echo "STRIP_FROM_PATH        = $ABS_SRCDIR"
+			echo "INPUT                  = $ABS_SRCDIR"
+		) | doxygen -q -
 		;;
 
 	internal)
-		# The docs from internal aren't for distribution so
-		# the JavaScript files aren't an issue here.
-		rm -rf ../doc/internal
+		rm -rf "$ABS_OUTDIR/internal"
 		(
-			cat Doxyfile
-			echo "PROJECT_NUMBER         = $PACKAGE_VERSION"
+			cat "$ABS_TOP_SRCDIR/doxygen/Doxyfile"
 			echo 'PROJECT_NAME           = "XZ Utils"'
-			echo 'STRIP_FROM_PATH        = ../src'
-			echo 'INPUT                  = ../src'
+			echo "PROJECT_NUMBER         = $PACKAGE_VERSION"
+			echo "OUTPUT_DIRECTORY       = $ABS_OUTDIR"
+			echo "STRIP_FROM_PATH        = $ABS_TOP_SRCDIR"
+			echo "INPUT                  = $ABS_TOP_SRCDIR/src"
 			echo 'HTML_OUTPUT            = internal'
-			echo 'EXTRACT_PRIVATE        = YES'
-			echo 'EXTRACT_STATIC         = YES'
-			echo 'EXTRACT_LOCAL_CLASSES  = YES'
 			echo 'SEARCHENGINE           = YES'
-		) | doxygen -
-		;;
-
-	*)
-		echo "doxygen/update-doxygen: Error: mode argument '$1'" \
-			"is not supported." >&2
-		echo "doxygen/update-doxygen: Supported modes:" >&2
-		echo "doxygen/update-doxygen: - 'api' (default):" \
-			"liblzma API docs into doc/api" >&2
-		echo "doxygen/update-doxygen: - 'internal':"\
-			"internal docs into doc/internal" >&2
-		exit 1
+		) | doxygen -q -
 		;;
 esac

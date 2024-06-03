@@ -67,6 +67,19 @@ lzma_memcmplen(const uint8_t *buf1, const uint8_t *buf2,
 	// This is only for x86-64 and ARM64 for now. This might be fine on
 	// other 64-bit processors too. On big endian one should use xor
 	// instead of subtraction and switch to __builtin_clzll().
+	//
+	// Reasons to use subtraction instead of xor:
+	//
+	//   - On some x86-64 processors (Intel Sandy Bridge to Tiger Lake),
+	//     sub+jz and sub+jnz can be fused but xor+jz or xor+jnz cannot.
+	//     Thus using subtraction has potential to be a tiny amount faster
+	//     since the code checks if the quotient is non-zero.
+	//
+	//   - Some processors (Intel Pentium 4) used to have more ALU
+	//     resources for add/sub instructions than and/or/xor.
+	//
+	// The processor info is based on Agner Fog's microarchitecture.pdf
+	// version 2023-05-26. https://www.agner.org/optimize/
 #define LZMA_MEMCMPLEN_EXTRA 8
 	while (len < limit) {
 		const uint64_t x = read64ne(buf1 + len) - read64ne(buf2 + len);

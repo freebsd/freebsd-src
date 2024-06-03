@@ -49,6 +49,10 @@ signal_handler(int sig)
 }
 
 
+#ifdef __APPLE__
+#	pragma GCC diagnostic push
+#	pragma GCC diagnostic ignored "-Wsign-conversion"
+#endif
 extern void
 signals_init(void)
 {
@@ -127,6 +131,9 @@ signals_init(void)
 
 	return;
 }
+#ifdef __APPLE__
+#	pragma GCC diagnostic pop
+#endif
 
 
 #ifndef __VMS

@@ -109,7 +109,7 @@ sandbox_enable_strict_if_allowed(int src_fd lzma_attribute((__unused__)),
 }
 
 
-#elif defined(HAVE_LINUX_LANDLOCK_H)
+#elif defined(HAVE_LINUX_LANDLOCK)
 
 //////////////
 // Landlock //

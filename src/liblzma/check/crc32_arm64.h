@@ -11,7 +11,6 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-
 #ifndef LZMA_CRC32_ARM64_H
 #define LZMA_CRC32_ARM64_H
 
@@ -21,6 +20,8 @@
 #	include <arm_acle.h>
 #endif
 
+// If both versions are going to be built, we need runtime detection
+// to check if the instructions are supported.
 #if defined(CRC32_GENERIC) && defined(CRC32_ARCH_OPTIMIZED)
 #	if defined(HAVE_GETAUXVAL) || defined(HAVE_ELF_AUX_INFO)
 #		include <sys/auxv.h>
@@ -36,8 +37,7 @@
 //
 // NOTE: Build systems check for this too, keep them in sync with this.
 #if (defined(__GNUC__) || defined(__clang__)) && !defined(__EDG__)
-#	define crc_attr_target \
-        __attribute__((__target__("+crc")))
+#	define crc_attr_target __attribute__((__target__("+crc")))
 #else
 #	define crc_attr_target
 #endif
@@ -51,7 +51,7 @@ crc32_arch_optimized(const uint8_t *buf, size_t size, uint32_t crc)
 
 	// Align the input buffer because this was shown to be
 	// significantly faster than unaligned accesses.
-	const size_t align_amount = my_min(size, (8 - (uintptr_t)buf) & 7);
+	const size_t align_amount = my_min(size, (0U - (uintptr_t)buf) & 7);
 
 	for (const uint8_t *limit = buf + align_amount; buf < limit; ++buf)
 		crc = __crc32b(crc, *buf);
@@ -62,7 +62,7 @@ crc32_arch_optimized(const uint8_t *buf, size_t size, uint32_t crc)
 	// ignoring the least significant three bits of size to ensure
 	// we do not process past the bounds of the buffer. This guarantees
 	// that limit is a multiple of 8 and is strictly less than size.
-	for (const uint8_t *limit = buf + (size & ~((size_t)7));
+	for (const uint8_t *limit = buf + (size & ~(size_t)7);
 			buf < limit; buf += 8)
 		crc = __crc32d(crc, aligned_read64le(buf));
 
@@ -84,8 +84,10 @@ is_arch_extension_supported(void)
 #elif defined(HAVE_ELF_AUX_INFO)
 	unsigned long feature_flags;
 
-	elf_aux_info(AT_HWCAP, &feature_flags, sizeof(feature_flags));
-	return feature_flags & HWCAP_CRC32 != 0;
+	if (elf_aux_info(AT_HWCAP, &feature_flags, sizeof(feature_flags)) != 0)
+		return false;
+
+	return (feature_flags & HWCAP_CRC32) != 0;
 
 #elif defined(_WIN32)
 	return IsProcessorFeaturePresent(
@@ -98,11 +100,12 @@ is_arch_extension_supported(void)
 	// The sysctlbyname() function requires a string identifier for the
 	// CPU feature it tests. The Apple documentation lists the string
 	// "hw.optional.armv8_crc32", which can be found here:
-	// (https://developer.apple.com/documentation/kernel/1387446-sysctlbyname/determining_instruction_set_characteristics#3915619)
-	int err = sysctlbyname("hw.optional.armv8_crc32", &has_crc32,
-			&size, NULL, 0);
+	// https://developer.apple.com/documentation/kernel/1387446-sysctlbyname/determining_instruction_set_characteristics#3915619
+	if (sysctlbyname("hw.optional.armv8_crc32", &has_crc32,
+			&size, NULL, 0) != 0)
+		return false;
 
-	return !err && has_crc32;
+	return has_crc32;
 
 #else
 	// If a runtime detection method cannot be found, then this must

@@ -385,15 +385,8 @@ crc64_arch_optimized(const uint8_t *buf, size_t size, uint64_t crc)
 #endif // BUILDING_CRC64_CLMUL
 
 
-// is_arch_extension_supported() must be inlined in this header file because
-// the ifunc resolver function may not support calling a function in another
-// translation unit. Depending on compiler-toolchain and flags, a call to
-// a function defined in another translation unit could result in a
-// reference to the PLT, which is unsafe to do in an ifunc resolver. The
-// ifunc resolver runs very early when loading a shared library, so the PLT
-// entries may not be setup at that time. Inlining this function duplicates
-// the function body in crc32_resolve() and crc64_resolve(), but this is
-// acceptable because the function results in very few instructions.
+// Inlining this function duplicates the function body in crc32_resolve() and
+// crc64_resolve(), but this is acceptable because this is a tiny function.
 static inline bool
 is_arch_extension_supported(void)
 {

@@ -9,6 +9,9 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
+#ifndef LZMA_OUTQUEUE_H
+#define LZMA_OUTQUEUE_H
+
 #include "common.h"
 
 
@@ -251,3 +254,5 @@ lzma_outq_outbuf_memusage(size_t buf_size)
 	assert(buf_size <= SIZE_MAX - sizeof(lzma_outbuf));
 	return sizeof(lzma_outbuf) + buf_size;
 }
+
+#endif

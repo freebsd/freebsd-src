@@ -116,7 +116,7 @@ AUIPC with rd != x0
         Zfh, F, D, and Q:
           * RV32I: LB, LH, LW, LBU, LHU, SB, SH, SW
           * RV64I has also: LD, LWU, SD
-          * Zhf: FLH, FSH
+          * Zfh: FLH, FSH
           * F: FLW, FSW
           * D: FLD, FSD
           * Q: FLQ, FSQ
@@ -320,11 +320,11 @@ AUIPC with rd == x0
 // The left-hand side takes care of (1) and (2).
 //   (a) The lowest 7 bits are already known to be AUIPC so subtracting 0x17
 //       makes those bits zeros.
-//   (b) If AUIPC rd equals x2, subtracting 0x10 makes bits [11:7] zeros.
+//   (b) If AUIPC rd equals x2, subtracting 0x100 makes bits [11:7] zeros.
 //       If rd doesn't equal x2, then there will be at least one non-zero bit
 //       and the next step (c) is irrelevant.
 //   (c) If the lowest two opcode bits of the packed inst2 are set in [13:12],
-//       then subtracting 0x300 will make those bits zeros. Otherwise there
+//       then subtracting 0x3000 will make those bits zeros. Otherwise there
 //       will be at least one non-zero bit.
 //
 // The shift by 18 removes the high bits from the final '>=' comparison and

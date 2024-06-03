@@ -11,6 +11,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "private.h"
+#include "tuklib_integer.h"
 
 
 /// Return value type for coder_init().
@@ -27,6 +28,8 @@ bool opt_auto_adjust = true;
 bool opt_single_stream = false;
 uint64_t opt_block_size = 0;
 block_list_entry *opt_block_list = NULL;
+uint64_t block_list_largest;
+uint32_t block_list_chain_mask;
 
 /// Stream used to communicate with liblzma
 static lzma_stream strm = LZMA_STREAM_INIT;
@@ -35,25 +38,19 @@ static lzma_stream strm = LZMA_STREAM_INIT;
 /// and 9 other filter chains can be specified with --filtersX.
 #define NUM_FILTER_CHAIN_MAX 10
 
-/// The default filter chain is in filters[0]. It is used for encoding
+/// The default filter chain is in chains[0]. It is used for encoding
 /// in all supported formats and also for decdoing raw streams. The other
 /// filter chains are set by --filtersX to support changing filters with
 /// the --block-list option.
-static lzma_filter filters[NUM_FILTER_CHAIN_MAX][LZMA_FILTERS_MAX + 1];
+static lzma_filter chains[NUM_FILTER_CHAIN_MAX][LZMA_FILTERS_MAX + 1];
 
-/// Bit mask representing the filters that are actually used when encoding
-/// in the xz format. This is needed since a filter chain could be
-/// specified in --filtersX (or the default filter chain), but never used
-/// in --block-list. The default filter chain is always assumed to be used,
-/// unless --block-list is specified and does not have a block using the
-/// default filter chain.
-static uint32_t filters_used_mask = 1;
-
-#ifdef HAVE_ENCODERS
-/// Track the memory usage for all filter chains (default or --filtersX).
-/// The memory usage may need to be scaled down depending on the memory limit.
-static uint64_t filter_memusages[ARRAY_SIZE(filters)];
-#endif
+/// Bitmask indicating which filter chains are actually used when encoding
+/// in the .xz format. This is needed since the filter chains specified using
+/// --filtersX (or the default filter chain) might in reality be unneeded
+/// if they are never used in --block-list. When --block-list isn't
+/// specified, only the default filter chain is used, thus the initial
+/// value of this variable is 1U << 0 (the number of the default chain is 0).
+static uint32_t chains_used_mask = 1U << 0;
 
 /// Input and output buffers
 static io_buf in_buf;
@@ -105,7 +102,7 @@ forget_filter_chain(void)
 	// Setting a preset or using --filters makes us forget
 	// the earlier custom filter chain (if any).
 	if (filters_count > 0) {
-		lzma_filters_free(filters[0], NULL);
+		lzma_filters_free(chains[0], NULL);
 		filters_count = 0;
 	}
 
@@ -142,11 +139,12 @@ coder_add_filter(lzma_vli id, void *options)
 	if (string_to_filter_used)
 		forget_filter_chain();
 
-	filters[0][filters_count].id = id;
-	filters[0][filters_count].options = options;
+	chains[0][filters_count].id = id;
+	chains[0][filters_count].options = options;
+
 	// Terminate the filter chain with LZMA_VLI_UNKNOWN to simplify
 	// implementation of forget_filter_chain().
-	filters[0][++filters_count].id = LZMA_VLI_UNKNOWN;
+	chains[0][++filters_count].id = LZMA_VLI_UNKNOWN;
 
 	// Setting a custom filter chain makes us forget the preset options.
 	// This makes a difference if one specifies e.g. "xz -9 --lzma2 -e"
@@ -163,7 +161,7 @@ str_to_filters(const char *str, uint32_t index, uint32_t flags)
 {
 	int error_pos;
 	const char *err = lzma_str_to_filters(str, &error_pos,
-			filters[index], flags, NULL);
+			chains[index], flags, NULL);
 
 	if (err != NULL) {
 		char filter_num[2] = "";
@@ -199,7 +197,7 @@ coder_add_filters_from_str(const char *filter_str)
 
 	// Set the filters_count to be the number of filters converted from
 	// the string.
-	for (filters_count = 0; filters[0][filters_count].id
+	for (filters_count = 0; chains[0][filters_count].id
 			!= LZMA_VLI_UNKNOWN;
 			++filters_count) ;
 
@@ -212,12 +210,12 @@ extern void
 coder_add_block_filters(const char *str, size_t slot)
 {
 	// Free old filters first, if they were previously allocated.
-	if (filters_used_mask & (1U << slot))
-		lzma_filters_free(filters[slot], NULL);
+	if (chains_used_mask & (1U << slot))
+		lzma_filters_free(chains[slot], NULL);
 
 	str_to_filters(str, slot, 0);
 
-	filters_used_mask |= 1U << slot;
+	chains_used_mask |= 1U << slot;
 }
 
 
@@ -233,29 +231,26 @@ memlimit_too_small(uint64_t memory_usage)
 
 
 #ifdef HAVE_ENCODERS
-// For a given opt_block_list index, validate that the filter has been
-// set. If it has not been set, we must exit with error to avoid using
-// an uninitialized filter chain.
-static void
-validate_block_list_filter(const uint32_t filter_num)
-{
-         if (!(filters_used_mask & (1U << filter_num)))
-		message_fatal(_("filter chain %u used by --block-list but "
-				"not specified with --filters%u="),
-				(unsigned)filter_num, (unsigned)filter_num);
-}
-
-
-// Sets the memory usage for each filter chain. It will return the maximum
-// memory usage of all of the filter chains.
+/// \brief      Calculate the memory usage of each filter chain.
+///
+/// \param      chains_memusages    If non-NULL, the memusage of the encoder
+///                                 or decoder for each chain is stored in
+///                                 this array.
+/// \param      mt                  If non-NULL, calculate memory usage of
+///                                 multithreaded encoder.
+/// \param      encode              Whether to calculate encoder or decoder
+///                                 memory usage. This must be true if
+///                                 mt != NULL.
+///
+/// \return     Return the highest memory usage of all of the filter chains.
 static uint64_t
-filters_memusage_max(const lzma_mt *mt, bool encode)
+get_chains_memusage(uint64_t *chains_memusages, const lzma_mt *mt, bool encode)
 {
 	uint64_t max_memusage = 0;
 
 #ifdef MYTHREAD_ENABLED
-	// Copy multithreaded options to a temporary struct since the
-	// filters member needs to be changed
+	// Copy multithreading options to a temporary struct since the
+	// "filters" member needs to be changed.
 	lzma_mt mt_local;
 	if (mt != NULL)
 		mt_local = *mt;
@@ -263,30 +258,29 @@ filters_memusage_max(const lzma_mt *mt, bool encode)
 	(void)mt;
 #endif
 
-	for (uint32_t i = 0; i < ARRAY_SIZE(filters); i++) {
-		if (!(filters_used_mask & (1U << i)))
+	for (uint32_t i = 0; i < ARRAY_SIZE(chains); i++) {
+		if (!(chains_used_mask & (1U << i)))
 			continue;
 
 		uint64_t memusage = UINT64_MAX;
 #ifdef MYTHREAD_ENABLED
 		if (mt != NULL) {
-			mt_local.filters = filters[i];
+			assert(encode);
+			mt_local.filters = chains[i];
 			memusage = lzma_stream_encoder_mt_memusage(&mt_local);
-			filter_memusages[i] = memusage;
-		}
-		else
+		} else
 #endif
-
 		if (encode) {
-			memusage = lzma_raw_encoder_memusage(filters[i]);
-			filter_memusages[i] = memusage;
+			memusage = lzma_raw_encoder_memusage(chains[i]);
 		}
-
 #ifdef HAVE_DECODERS
 		else {
-			memusage = lzma_raw_decoder_memusage(filters[i]);
+			memusage = lzma_raw_decoder_memusage(chains[i]);
 		}
 #endif
+
+		if (chains_memusages != NULL)
+			chains_memusages[i] = memusage;
 
 		if (memusage > max_memusage)
 			max_memusage = memusage;
@@ -294,8 +288,8 @@ filters_memusage_max(const lzma_mt *mt, bool encode)
 
 	return max_memusage;
 }
-
 #endif
+
 
 extern void
 coder_set_compression_settings(void)
@@ -305,48 +299,6 @@ coder_set_compression_settings(void)
 	assert(opt_format != FORMAT_LZIP);
 #endif
 
-#ifdef HAVE_ENCODERS
-#	ifdef MYTHREAD_ENABLED
-	// Represents the largest Block size specified with --block-list. This
-	// is needed to help reduce the Block size in the multithreaded encoder
-	// so memory is not wasted.
-	uint64_t max_block_list_size = 0;
-#	endif
-
-	if (opt_block_list != NULL) {
-		// This mask tracks the filters actually referenced in
-		// --block-list. It is used to help remove bits from
-		// filters_used_mask when a filter chain was specified
-		// but never actually used.
-		uint32_t filters_ref_mask = 0;
-
-		for (uint32_t i = 0; opt_block_list[i].size != 0; i++) {
-			validate_block_list_filter(
-					opt_block_list[i].filters_index);
-
-			// Mark the current filter as referenced.
-			filters_ref_mask |= 1U <<
-					opt_block_list[i].filters_index;
-
-#	ifdef MYTHREAD_ENABLED
-			if (opt_block_list[i].size > max_block_list_size)
-				max_block_list_size = opt_block_list[i].size;
-#	endif
-		}
-
-		assert(filters_ref_mask != 0);
-		// Note: The filters that were initialized but not used do
-		//       not free their options and do not have the filter
-		//       IDs set to LZMA_VLI_UNKNOWN. Filter chains are not
-		//       freed outside of debug mode and the default filter
-		//       chain is never freed.
-		filters_used_mask = filters_ref_mask;
-	} else {
-		// Reset filters used mask in case --block-list is not
-		// used, but --filtersX is used.
-		filters_used_mask = 1;
-	}
-#endif
 	// The default check type is CRC64, but fallback to CRC32
 	// if CRC64 isn't supported by the copy of liblzma we are
 	// using. CRC32 is always supported.
@@ -356,14 +308,56 @@ coder_set_compression_settings(void)
 			check = LZMA_CHECK_CRC32;
 	}
 
+#ifdef HAVE_ENCODERS
+	if (opt_block_list != NULL) {
+		// args.c ensures these.
+		assert(opt_mode == MODE_COMPRESS);
+		assert(opt_format == FORMAT_XZ);
+
+		// Find out if block_list_chain_mask has a bit set that
+		// isn't set in chains_used_mask.
+		const uint32_t missing_chains_mask
+				= (block_list_chain_mask ^ chains_used_mask)
+				& block_list_chain_mask;
+
+		// If a filter chain was specified in --block-list but no
+		// matching --filtersX option was used, exit with an error.
+		if (missing_chains_mask != 0) {
+			// Get the number of the first missing filter chain
+			// and show it in the error message.
+			const unsigned first_missing
+				= (unsigned)ctz32(missing_chains_mask);
+
+			message_fatal(_("filter chain %u used by "
+				"--block-list but not specified "
+				"with --filters%u="),
+				first_missing, first_missing);
+		}
+
+		// Omit the unused filter chains from mask of used chains.
+		//
+		// (FIXME? When built with debugging, coder_free() will free()
+		// the filter chains (except the default chain) which makes
+		// Valgrind show fewer reachable allocations. But coder_free()
+		// uses this mask to determine which chains to free. Thus it
+		// won't free the ones that are cleared here from the mask.
+		// In practice this doesn't matter.)
+		chains_used_mask &= block_list_chain_mask;
+	} else {
+		// Reset filters used mask in case --block-list is not
+		// used, but --filtersX is used.
+		chains_used_mask = 1U << 0;
+	}
+#endif
+
 	// Options for LZMA1 or LZMA2 in case we are using a preset.
 	static lzma_options_lzma opt_lzma;
 
-	// The first filter in the filters[] array is for the default
+	// The first filter in the chains[] array is for the default
 	// filter chain.
-	lzma_filter *default_filters = filters[0];
+	lzma_filter *default_filters = chains[0];
 
-	if (filters_count == 0 && filters_used_mask & 1) {
+	if (filters_count == 0 && chains_used_mask & 1) {
 		// We are using a preset. This is not a good idea in raw mode
 		// except when playing around with things. Different versions
 		// of this software may use different options in presets, and
@@ -403,14 +397,16 @@ coder_set_compression_settings(void)
 				"the LZMA1 filter"));
 
 	// If we are using the .xz format, make sure that there is no LZMA1
-	// filter to prevent LZMA_PROG_ERROR.
-	if (opt_format == FORMAT_XZ && filters_used_mask & 1)
+	// filter to prevent LZMA_PROG_ERROR. With the chains from --filtersX
+	// we have already ensured this by calling lzma_str_to_filters()
+	// without setting the flags that would allow non-.xz filters.
+	if (opt_format == FORMAT_XZ && chains_used_mask & 1)
 		for (size_t i = 0; i < filters_count; ++i)
 			if (default_filters[i].id == LZMA_FILTER_LZMA1)
 				message_fatal(_("LZMA1 cannot be used "
 						"with the .xz format"));
 
-	if (filters_used_mask & 1) {
+	if (chains_used_mask & 1) {
 		// Print the selected default filter chain.
 		message_filters_show(V_DEBUG, default_filters);
 	}
@@ -419,11 +415,11 @@ coder_set_compression_settings(void)
 	// from the filter chain. Currently the threaded encoder doesn't
 	// support LZMA_SYNC_FLUSH so single-threaded mode must be used.
 	if (opt_mode == MODE_COMPRESS && opt_flush_timeout != 0) {
-		for (uint32_t i = 0; i < ARRAY_SIZE(filters); ++i) {
-			if (!(filters_used_mask & (1U << i)))
+		for (unsigned i = 0; i < ARRAY_SIZE(chains); ++i) {
+			if (!(chains_used_mask & (1U << i)))
 				continue;
 
-			const lzma_filter *fc = filters[i];
+			const lzma_filter *fc = chains[i];
 			for (size_t j = 0; fc[j].id != LZMA_VLI_UNKNOWN; j++) {
 				switch (fc[j].id) {
 				case LZMA_FILTER_LZMA2:
@@ -434,7 +430,7 @@ coder_set_compression_settings(void)
 					message_fatal(_("Filter chain %u is "
 							"incompatible with "
 							"--flush-timeout"),
-							(unsigned)i);
+							i);
 				}
 			}
 		}
@@ -446,17 +442,22 @@ coder_set_compression_settings(void)
 		}
 	}
 
-	// Get the memory usage and memory limit. The memory usage is the
-	// maximum of the default filters[] and any filters specified by
-	// --filtersX.
-	// Note that if --format=raw was used, we can be decompressing and
-	// do not need to account for any filter chains created
-	// with --filtersX.
+	// Get memory limit and the memory usage of the used filter chains.
+	// Note that if --format=raw was used, we can be decompressing
+	// using the default filter chain.
 	//
 	// If multithreaded .xz compression is done, the memory limit
 	// will be replaced.
 	uint64_t memory_limit = hardware_memlimit_get(opt_mode);
 	uint64_t memory_usage = UINT64_MAX;
+
+#ifdef HAVE_ENCODERS
+	// Memory usage for each encoder filter chain (default
+	// or --filtersX). The encoder options may need to be
+	// scaled down depending on the memory usage limit.
+	uint64_t encoder_memusages[ARRAY_SIZE(chains)];
+#endif
+
 	if (opt_mode == MODE_COMPRESS) {
 #ifdef HAVE_ENCODERS
 #	ifdef MYTHREAD_ENABLED
@@ -465,16 +466,17 @@ coder_set_compression_settings(void)
 			mt_options.threads = hardware_threads_get();
 
 			uint64_t block_size = opt_block_size;
+
 			// If opt_block_size is not set, find the maximum
 			// recommended Block size based on the filter chains
 			if (block_size == 0) {
-				for (uint32_t i = 0; i < ARRAY_SIZE(filters);
+				for (unsigned i = 0; i < ARRAY_SIZE(chains);
 						i++) {
-					if (!(filters_used_mask & (1U << i)))
+					if (!(chains_used_mask & (1U << i)))
 						continue;
 
 					uint64_t size = lzma_mt_block_size(
-							filters[i]);
+							chains[i]);
 
 					// If this returns an error, then one
 					// of the filter chains in use is
@@ -483,33 +485,28 @@ coder_set_compression_settings(void)
 					if (size == UINT64_MAX)
 						message_fatal(_("Unsupported "
 							"options in filter "
-							"chain %u"),
-							(unsigned)i);
+							"chain %u"), i);
 
 					if (size > block_size)
 						block_size = size;
 				}
 
-				// If the largest block size specified
-				// with --block-list is less than the
-				// recommended Block size, then it is a waste
-				// of RAM to use a larger Block size. It may
-				// even allow more threads to be used in some
-				// situations. If the special 0 Block size is
-				// used (encode all remaining data in 1 Block)
-				// then max_block_list_size will be set to
-				// UINT64_MAX, so the recommended Block size
-				// will always be used in this case.
-				if (max_block_list_size > 0
-						&& max_block_list_size
-						< block_size)
-					block_size = max_block_list_size;
+				// If --block-list was used and our current
+				// Block size exceeds the largest size
+				// in --block-list, reduce the Block size of
+				// the multithreaded encoder. The extra size
+				// would only be a waste of RAM. With a
+				// smaller Block size we might even be able
+				// to use more threads in some cases.
+				if (block_list_largest > 0 && block_size
+						> block_list_largest)
+					block_size = block_list_largest;
 			}
 
 			mt_options.block_size = block_size;
 			mt_options.check = check;
 
-			memory_usage = filters_memusage_max(
+			memory_usage = get_chains_memusage(encoder_memusages,
 						&mt_options, true);
 			if (memory_usage != UINT64_MAX)
 				message(V_DEBUG, _("Using up to %" PRIu32
@@ -518,7 +515,8 @@ coder_set_compression_settings(void)
 		} else
 #	endif
 		{
-			memory_usage = filters_memusage_max(NULL, true);
+			memory_usage = get_chains_memusage(encoder_memusages,
+					NULL, true);
 		}
 #endif
 	} else {
@@ -533,21 +531,13 @@ coder_set_compression_settings(void)
 	// Print memory usage info before possible dictionary
 	// size auto-adjusting.
 	//
-	// NOTE: If only encoder support was built, we cannot show the
+	// NOTE: If only encoder support was built, we cannot show
 	// what the decoder memory usage will be.
 	message_mem_needed(V_DEBUG, memory_usage);
-#ifdef HAVE_DECODERS
-	if (opt_mode == MODE_COMPRESS) {
-#ifdef HAVE_ENCODERS
-		const uint64_t decmem =
-				filters_memusage_max(NULL, false);
-#else
-		// If encoders are not enabled, then --block-list is never
-		// usable, so the other filter chains 1-9 can never be used.
-		// So there is no need to find the maximum decoder memory
-		// required in this case.
-		const uint64_t decmem = lzma_raw_decoder_memusage(filters[0]);
-#endif
+
+#if defined(HAVE_ENCODERS) && defined(HAVE_DECODERS)
+	if (opt_mode == MODE_COMPRESS && message_verbosity_get() >= V_DEBUG) {
+		const uint64_t decmem = get_chains_memusage(NULL, NULL, false);
 		if (decmem != UINT64_MAX)
 			message(V_DEBUG, _("Decompression will need "
 					"%s MiB of memory."), uint64_to_str(
@@ -574,14 +564,21 @@ coder_set_compression_settings(void)
 			// Reduce the number of threads by one and check
 			// the memory usage.
 			--mt_options.threads;
-			memory_usage = filters_memusage_max(
+			memory_usage = get_chains_memusage(encoder_memusages,
 					&mt_options, true);
 			if (memory_usage == UINT64_MAX)
 				message_bug();
 
 			if (memory_usage <= memory_limit) {
 				// The memory usage is now low enough.
-				message(V_WARNING, _("Reduced the number of "
+				//
+				// Since 5.6.1: This is only shown at
+				// V_DEBUG instead of V_WARNING because
+				// changing the number of threads doesn't
+				// affect the output. On some systems this
+				// message would be too common now that
+				// multithreaded compression is the default.
+				message(V_DEBUG, _("Reduced the number of "
 					"threads from %s to %s to not exceed "
 					"the memory usage limit of %s MiB"),
 					uint64_to_str(
@@ -600,8 +597,11 @@ coder_set_compression_settings(void)
 		// way -T0 won't use insane amount of memory but at the same
 		// time the soft limit will never make xz fail and never make
 		// xz change settings that would affect the compressed output.
+		//
+		// Since 5.6.1: Like above, this is now shown at V_DEBUG
+		// instead of V_WARNING.
 		if (hardware_memlimit_mtenc_is_default()) {
-			message(V_WARNING, _("Reduced the number of threads "
+			message(V_DEBUG, _("Reduced the number of threads "
 				"from %s to one. The automatic memory usage "
 				"limit of %s MiB is still being exceeded. "
 				"%s MiB of memory is required. "
@@ -627,7 +627,8 @@ coder_set_compression_settings(void)
 		// the multithreaded mode but the output
 		// is also different.
 		hardware_threads_set(1);
-		memory_usage = filters_memusage_max(NULL, true);
+		memory_usage = get_chains_memusage(encoder_memusages,
+				NULL, true);
 		message(V_WARNING, _("Switching to single-threaded mode "
 			"to not exceed the memory usage limit of %s MiB"),
 			uint64_to_str(round_up_to_mib(memory_limit), 0));
@@ -642,137 +643,84 @@ coder_set_compression_settings(void)
 	if (!opt_auto_adjust)
 		memlimit_too_small(memory_usage);
 
-	// Decrease the dictionary size until we meet the memory usage limit.
-	// The struct is used to track data needed to correctly reduce the
-	// memory usage and report which filters were adjusted.
-	typedef struct {
-		// Pointer to the filter chain that needs to be reduced.
-		// NULL indicates that this filter chain was either never
-		// set or was never above the memory limit.
-		lzma_filter *filters;
-
-		// Original dictionary sizes are used to show how each
-		// filter's dictionary was reduced.
-		uint64_t orig_dict_size;
-
-		// Index of the LZMA filter in the filters member. We only
-		// adjust this filter's memusage because we don't know how
-		// to reduce the memory usage of the other filters.
-		uint32_t lzma_idx;
-
-		// Indicates if the filter's dictionary size needs to be
-		// reduced to fit under the memory limit (true) or if the
-		// filter chain is unused or is already under the memory
-		// limit (false).
-		bool reduce_dict_size;
-	} memusage_reduction_data;
-
-	memusage_reduction_data memusage_reduction[ARRAY_SIZE(filters)];
-
-	// Counter represents how many filter chains are above the memory
-	// limit.
-	size_t count = 0;
-
-	for (uint32_t i = 0; i < ARRAY_SIZE(filters); i++) {
-		// The short var name "r" will reduce the number of lines
-		// of code needed since less lines will stretch past 80
-		// characters.
-		memusage_reduction_data *r = &memusage_reduction[i];
-		r->filters = NULL;
-		r->reduce_dict_size = false;
-
-		if (!(filters_used_mask & (1U << i)))
+	// Adjust each filter chain that is exceeding the memory usage limit.
+	for (unsigned i = 0; i < ARRAY_SIZE(chains); i++) {
+		// Skip unused chains.
+		if (!(chains_used_mask & (1U << i)))
 			continue;
 
-		for (uint32_t j = 0; filters[i][j].id != LZMA_VLI_UNKNOWN;
-				j++)
-			if ((filters[i][j].id == LZMA_FILTER_LZMA2
-					|| filters[i][j].id
-						== LZMA_FILTER_LZMA1)
-					&& filter_memusages[i]
-						> memory_limit) {
-				count++;
-				r->filters = filters[i];
-				r->lzma_idx = j;
-				r->reduce_dict_size = true;
+		// Skip chains that already meet the memory usage limit.
+		if (encoder_memusages[i] <=  memory_limit)
+			continue;
 
-				lzma_options_lzma *opt = r->filters
-						[r->lzma_idx].options;
-				r->orig_dict_size = opt->dict_size;
-				opt->dict_size &= ~((UINT32_C(1) << 20) - 1);
-			}
-	}
+		// Look for the last filter if it is LZMA2 or LZMA1, so we
+		// can make it use less RAM. We cannot adjust other filters.
+		unsigned j = 0;
+		while (chains[i][j].id != LZMA_FILTER_LZMA2
+				&& chains[i][j].id != LZMA_FILTER_LZMA1) {
+			// NOTE: This displays the too high limit of this
+			// particular filter chain. If multiple chains are
+			// specified and another one would need more then
+			// this message could be confusing. As long as LZMA2
+			// is the only memory hungry filter in .xz this
+			// doesn't matter at all in practice.
+			//
+			// FIXME? However, it's sort of odd still if we had
+			// switched from multithreaded mode to single-threaded
+			// mode because single-threaded produces different
+			// output. So the messages could perhaps be clearer.
+			// Another case of this is a few lines below.
+			if (chains[i][j].id == LZMA_VLI_UNKNOWN)
+				memlimit_too_small(encoder_memusages[i]);
 
-	// Loop until all filters use <= memory_limit, or exit.
-	while (count > 0) {
-		for (uint32_t i = 0; i < ARRAY_SIZE(memusage_reduction); i++) {
-			memusage_reduction_data *r = &memusage_reduction[i];
+			++j;
+		}
 
-			if (!r->reduce_dict_size)
-				continue;
+		// Decrease the dictionary size until we meet the memory
+		// usage limit. First round down to full mebibytes.
+		lzma_options_lzma *opt = chains[i][j].options;
+		const uint32_t orig_dict_size = opt->dict_size;
+		opt->dict_size &= ~((UINT32_C(1) << 20) - 1);
 
-			lzma_options_lzma *opt =
-					r->filters[r->lzma_idx].options;
-
+		while (true) {
 			// If it is below 1 MiB, auto-adjusting failed.
-			// We could be more sophisticated and scale it
-			// down even more, but nobody has complained so far.
+			//
+			// FIXME? See the FIXME a few lines above.
 			if (opt->dict_size < (UINT32_C(1) << 20))
-				memlimit_too_small(memory_usage);
+				memlimit_too_small(encoder_memusages[i]);
 
-			uint64_t filt_mem_usage =
-					lzma_raw_encoder_memusage(r->filters);
-
-			if (filt_mem_usage == UINT64_MAX)
+			encoder_memusages[i]
+				= lzma_raw_encoder_memusage(chains[i]);
+			if (encoder_memusages[i] == UINT64_MAX)
 				message_bug();
 
-			if (filt_mem_usage < memory_limit) {
-				r->reduce_dict_size = false;
-				count--;
-			}
-			else {
-				opt->dict_size -= UINT32_C(1) << 20;
-			}
+			// Accept it if it is low enough.
+			if (encoder_memusages[i] <= memory_limit)
+				break;
+
+			// Otherwise adjust it 1 MiB down and try again.
+			opt->dict_size -= UINT32_C(1) << 20;
 		}
-	}
 
-	// Tell the user that we decreased the dictionary size for
-	// each filter that was adjusted.
-	for (uint32_t i = 0; i < ARRAY_SIZE(memusage_reduction); i++) {
-		memusage_reduction_data *r = &memusage_reduction[i];
-
-		// If the filters were never set, then the memory usage
-		// was never adjusted.
-		if (r->filters == NULL)
-			continue;
-
-		lzma_filter *filter_lzma = &(r->filters[r->lzma_idx]);
-		lzma_options_lzma *opt = filter_lzma->options;
-
-		// The first index is the default filter chain. The message
-		// should be slightly different if the default filter chain
-		// or if --filtersX was adjusted.
+		// Tell the user that we decreased the dictionary size.
+		// The message is slightly different between the default
+		// filter chain (0) or and chains from --filtersX.
+		const char lzma_num = chains[i][j].id == LZMA_FILTER_LZMA2
+					? '2' : '1';
+		const char *from_size = uint64_to_str(orig_dict_size >> 20, 0);
+		const char *to_size = uint64_to_str(opt->dict_size >> 20, 1);
+		const char *limit_size = uint64_to_str(round_up_to_mib(
+					memory_limit), 2);
 		if (i == 0)
 			message(V_WARNING, _("Adjusted LZMA%c dictionary "
 				"size from %s MiB to %s MiB to not exceed the "
 				"memory usage limit of %s MiB"),
-				filter_lzma->id == LZMA_FILTER_LZMA2
-					? '2' : '1',
-				uint64_to_str(r->orig_dict_size >> 20, 0),
-				uint64_to_str(opt->dict_size >> 20, 1),
-				uint64_to_str(round_up_to_mib(
-					memory_limit), 2));
+				lzma_num, from_size, to_size, limit_size);
 		else
 			message(V_WARNING, _("Adjusted LZMA%c dictionary size "
 				"for --filters%u from %s MiB to %s MiB to not "
 				"exceed the memory usage limit of %s MiB"),
-				filter_lzma->id == LZMA_FILTER_LZMA2
-					? '2' : '1',
-				(unsigned)i,
-				uint64_to_str(r->orig_dict_size >> 20, 0),
-				uint64_to_str(opt->dict_size >> 20, 1),
-				uint64_to_str(round_up_to_mib(
-					memory_limit), 2));
+				lzma_num, i, from_size, to_size, limit_size);
 	}
 #endif
 
@@ -870,11 +818,11 @@ coder_init(file_pair *pair)
 	allow_trailing_input = false;
 
 	// Set the first filter chain. If the --block-list option is not
-	// used then use the default filter chain (filters[0]).
+	// used then use the default filter chain (chains[0]).
 	// Otherwise, use first filter chain from the block list.
 	lzma_filter *active_filters = opt_block_list == NULL
-			? filters[0]
-			: filters[opt_block_list[0].filters_index];
+			? chains[0]
+			: chains[opt_block_list[0].chain_num];
 
 	if (opt_mode == MODE_COMPRESS) {
 #ifdef HAVE_ENCODERS
@@ -1119,11 +1067,11 @@ split_block(uint64_t *block_remaining,
 			++*list_pos;
 
 			// Update the filters if needed.
-			if (opt_block_list[*list_pos - 1].filters_index
-				!= opt_block_list[*list_pos].filters_index) {
-				const uint32_t filter_idx = opt_block_list
-						[*list_pos].filters_index;
-				const lzma_filter *next = filters[filter_idx];
+			if (opt_block_list[*list_pos - 1].chain_num
+				!= opt_block_list[*list_pos].chain_num) {
+				const unsigned chain_num
+					= opt_block_list[*list_pos].chain_num;
+				const lzma_filter *next = chains[chain_num];
 				const lzma_ret ret = lzma_filters_update(
 						&strm, next);
 
@@ -1139,7 +1087,7 @@ split_block(uint64_t *block_remaining,
 					message_fatal(
 						_("Error changing to "
 						"filter chain %u: %s"),
-						(unsigned)filter_idx,
+						chain_num,
 						message_strm(ret));
 				}
 			}
@@ -1278,9 +1226,10 @@ coder_normal(file_pair *pair)
 		ret = lzma_code(&strm, action);
 
 		// Write out if the output buffer became full.
-		if (strm.avail_out == 0)
+		if (strm.avail_out == 0) {
 			if (coder_write_output(pair))
 				break;
+		}
 
 #ifdef HAVE_ENCODERS
 		if (ret == LZMA_STREAM_END && (action == LZMA_SYNC_FLUSH
@@ -1514,9 +1463,9 @@ coder_free(void)
 	// in coder_set_compression_settings(). Since this is only run in
 	// debug mode and will be freed when the process ends anyway, we
 	// don't worry about freeing it.
-	for (uint32_t i = 1; i < ARRAY_SIZE(filters); i++) {
-		if (filters_used_mask & (1U << i))
-			lzma_filters_free(filters[i], NULL);
+	for (uint32_t i = 1; i < ARRAY_SIZE(chains); i++) {
+		if (chains_used_mask & (1U << i))
+			lzma_filters_free(chains[i], NULL);
 	}
 
 	lzma_end(&strm);

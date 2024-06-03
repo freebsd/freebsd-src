@@ -9,7 +9,7 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-#if defined(HAVE_PLEDGE) || defined(HAVE_LINUX_LANDLOCK_H) \
+#if defined(HAVE_PLEDGE) || defined(HAVE_LINUX_LANDLOCK) \
 		|| defined(HAVE_CAP_RIGHTS_LIMIT)
 #	define ENABLE_SANDBOX 1
 #endif

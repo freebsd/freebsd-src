@@ -17,11 +17,11 @@
 #if defined(HAVE_USABLE_CLMUL) && ((defined(__x86_64__) && defined(__SSSE3__) \
 			&& defined(__SSE4_1__) && defined(__PCLMUL__)) \
 		|| (defined(__e2k__) && __iset__ >= 6))
-#	define X86_CLMUL_NO_TABLE 1
+#	define NO_CRC64_TABLE
 #endif
 
 
-#ifdef X86_CLMUL_NO_TABLE
+#ifdef NO_CRC64_TABLE
 // No table needed. Use a typedef to avoid an empty translation unit.
 typedef void lzma_crc64_dummy;
 

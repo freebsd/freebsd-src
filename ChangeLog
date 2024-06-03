@@ -1,3 +1,2901 @@
+commit 3ec664d3f652133136587a51d4505b1abe1acdd7
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-29 18:03:51 +0300
+
+    Bump version and soname for 5.6.2
+
+ src/liblzma/Makefile.am        | 2 +-
+ src/liblzma/api/lzma/version.h | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+commit 3cc0aa702e50b786c52c6f3d3f831a635c4df197
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-29 18:03:04 +0300
+
+    Add NEWS for 5.6.2
+
+ NEWS | 130 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 130 insertions(+)
+
+commit 526d3f7f2c2d5e134157d08b37fb5fd0b125799e
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-29 18:03:04 +0300
+
+    Add NEWS for 5.4.7
+
+ NEWS | 89 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 89 insertions(+)
+
+commit 660b09279e8f544acf120d29194d5c3051b484eb
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-29 18:03:04 +0300
+
+    Add NEWS for 5.2.13
+
+ NEWS | 115 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 115 insertions(+)
+
+commit 7d76282dac766c0ced8ae24e0f7ce0005f3e377d
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-29 17:47:13 +0300
+
+    Translations: Run po4a/update-po
+    
+    Now the files are in the new formatting without source file
+    line numbers. Future updates should keep the diffs much smaller.
+
+ po4a/de.po    | 1592 ++++++++++---------
+ po4a/fr.po    | 4450 +++++++++++++++++-----------------------------------
+ po4a/ko.po    | 1592 ++++++++++---------
+ po4a/pt_BR.po | 4817 ++++++++++++++++++---------------------------------------
+ po4a/ro.po    | 1592 ++++++++++---------
+ po4a/uk.po    | 1592 ++++++++++---------
+ 6 files changed, 6114 insertions(+), 9521 deletions(-)
+
+commit 4470c3f7d8954bb47b280ec07ad0bd4be2223083
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-29 17:44:53 +0300
+
+    Translations: Run "make -C po update-po"
+    
+    In the past this wasn't done before releases; the Git repository
+    just contained the files from the Translation Project. But this
+    way it is clearer when comparing release tarballs against the
+    Git repository. In future releases this might no longer be necessary
+    within a stable branch as the .po files won't change so easily anymore
+    when creating a tarball.
+
+ po/ca.po    | 567 +++++++++++++++++++++++++---------------
+ po/cs.po    | 821 +++++++++++++++++++++++++++++++++++++--------------------
+ po/da.po    | 809 +++++++++++++++++++++++++++++++++++---------------------
+ po/de.po    | 403 ++++++++++++++--------------
+ po/eo.po    | 403 ++++++++++++++--------------
+ po/es.po    | 403 ++++++++++++++--------------
+ po/fi.po    | 578 +++++++++++++++++++++++++---------------
+ po/fr.po    | 538 +++++++++++++++++++++++---------------
+ po/hr.po    | 403 ++++++++++++++--------------
+ po/hu.po    | 403 ++++++++++++++--------------
+ po/it.po    | 854 +++++++++++++++++++++++++++++++++++++++---------------------
+ po/ko.po    | 403 ++++++++++++++--------------
+ po/pl.po    | 403 ++++++++++++++--------------
+ po/pt.po    | 842 +++++++++++++++++++++++++++++++++++++++--------------------
+ po/pt_BR.po | 567 +++++++++++++++++++++++++---------------
+ po/ro.po    | 403 ++++++++++++++--------------
+ po/sr.po    | 838 ++++++++++++++++++++++++++++++++++++++--------------------
+ po/sv.po    | 403 ++++++++++++++--------------
+ po/tr.po    | 567 +++++++++++++++++++++++++---------------
+ po/uk.po    | 403 ++++++++++++++--------------
+ po/vi.po    | 403 ++++++++++++++--------------
+ po/zh_CN.po | 417 +++++++++++++++--------------
+ po/zh_TW.po | 558 ++++++++++++++++++++++++---------------
+ 23 files changed, 7257 insertions(+), 5132 deletions(-)
+
+commit 33b8a85face5392b5ac843bdbe3a72f024cad6ef
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-29 16:33:24 +0300
+
+    Build: Update po/*.po files only when needed
+    
+    When po/xz.pot doesn't exist, running "make" or "make dist" will
+    create it. Then the .po files will be updated but only if they
+    actually would change more than the POT-Creation-Date line.
+    Then the .gmo files would be generated from the .po files.
+    This is the case before and after this commit.
+    
+    However, "make dist" and thus "make mydist" did a forced update
+    to the files, updating them even if the only change was the
+    POT-Creation-Date line. This had pros and cons: It made it clear
+    that the .po file really is in sync with the recent strings in
+    the package. On the other hand, it added noise in form of changed
+    files in the source tree and distribution tarballs. It can be
+    ignored with something like "diff -I'^"POT-Creation-Date: '" but
+    it's still a minor annoyance *if* there's not enough value in
+    having the most recent timestamp.
+    
+    Setting DIST_DEPENDS_ON_UPDATE_PO = no means that such forced
+    update won't happen in "make dist" anymore. However, the "mydist"
+    target will use xz.pot-update target which is the same target that
+    is run when xz.pot doesn't exist at all yet. Thus "mydist" will
+    ensure that the translations are up to date, without noise from
+    changes that would affect only the POT-Creation-Date line.
+    
+    Note that po4a always uses msgmerge with --update, so POT-Creation-Date
+    in the man page translations is never the only change in .po files.
+    In that sense this commit makes the message translations behave more
+    similarly to the man page translations.
+    
+    Distribution tarballs will still have non-reproducible POT-Creation-Date
+    in po/xz.pot and po4a/xz-man.pot but those are just two files. Even they
+    could be made reproducible from a Git timestamp if desired.
+    
+    (cherry picked from commit 9284f1aea31f0eb23e2ea72f7218b271e2234762)
+
+ Makefile.am | 3 ++-
+ po/Makevars | 6 +++++-
+ 2 files changed, 7 insertions(+), 2 deletions(-)
+
+commit 09daebd66b55799bbc495b84310a86c91bbfc1c8
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-28 21:10:33 +0300
+
+    po4a/update-po: Disable wrapping in .pot and .po files
+    
+    The .po files from the Translation Project come with unwrapped
+    strings so this matches it.
+    
+    This may reduce the noise in diffs too. When the beginning of
+    a paragraph had changed, the rest of the lines got rewrapped
+    in msgsid. Now it's just one very long line that changes when
+    a paragraph has been edited.
+    
+    The --add-location=file option was removed as redundant. The line
+    numbers don't exist in the .pot file due to --porefs file and thus
+    they cannot get copied to the .po files either.
+    
+    (cherry picked from commit 4beba1cd62d7f8f7a6f1e899b68292d94c53b599)
+
+ po4a/update-po | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)
+
+commit 51ad72dae4e516e9292f6f399bd1e4970b77f7c1
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-28 18:36:53 +0300
+
+    Update contact info in README
+    
+    (cherry picked from commit b14c130a58a649f9a73392eeb122cb252327c569)
+
+ README | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)
+
+commit 18463917f9b255b8f925fa54ab9388319735b14a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-28 13:25:07 +0300
+
+    Translations: Use --package-name=xz-man with po4a
+    
+    This is to match reality. See the added comment.
+    
+    (cherry picked from commit 75f5f2e014b0ee646963f36bc6a9c840fb272353)
+
+ po4a/update-po | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+commit 26bbcb13cd2bbb56fe406544a484b4edfc7e0837
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-28 13:03:40 +0300
+
+    Translations: Omit --package-name from po/Makevars
+    
+    This is closer to the reality in the po/*.po files.
+    
+    (cherry picked from commit eb217d016cfbbba1babc19a61095b3ea25898af6)
+
+ po/Makevars | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+commit c35ee804b89556d15bc8cdc16867f4316e69392f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-28 01:17:45 +0300
+
+    Translations: Omit man page line numbers from .pot and .po files
+    
+    (cherry picked from commit 9114267038deaecf4832a5cacb5acbe6591ac839)
+
+ po4a/update-po | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+commit 0f4429d47f9cfe2cdfbad115a7bc2f11221cb217
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-28 01:06:30 +0300
+
+    Translations: Use the xgettext option --add-location=file
+    
+    (cherry picked from commit 093490b58271e9424ce38a7b1b38bcf61b9c86c6)
+
+ po/Makevars | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+commit a93e2c2d1d34a6f609d24a8e62072ce78df7a734
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-28 00:43:53 +0300
+
+    Translations: Use the msgmerge option --add-location=file
+    
+    This way the PO file diffs are less noisy but the locations of the
+    strings are still present at file level, just without line numbers.
+    
+    The option is available since gettext 0.19 (2014).
+    configure.ac requires 0.19.6.
+    
+    (cherry picked from commit fccebe2b4fd513488fc920e4dac32562ed3c7637)
+
+ po/Makevars | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit d4389895592e9a8e0f6391fdad816ae0537bb07b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-27 12:22:08 +0300
+
+    Build: Use $(SHELL) instead of sh to run scripts in Makefile.am
+    
+    (cherry picked from commit f361d9ae85707a87eb28db400eb7229cec103d58)
+
+ Makefile.am | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+commit 5781414b6e3120098b0060d073aa2b0580ff6f40
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-23 17:25:13 +0300
+
+    Translations: Change the home page URLs in man page translations
+    
+    Since the source strings have changed, these would get marked as
+    fuzzy and the original string would be used instead. The original
+    and translated strings are identical in this case so it wouldn't
+    matter. But patching the translations helps still because then
+    po4a will show the correct translation percentage.
+    
+    (cherry picked from commit a26dece34793a09aac2476f954d162d03e9cf62b)
+
+ po4a/de.po    | 8 ++++----
+ po4a/fr.po    | 4 ++--
+ po4a/ko.po    | 4 ++--
+ po4a/pt_BR.po | 4 ++--
+ po4a/ro.po    | 8 ++++----
+ po4a/uk.po    | 8 ++++----
+ 6 files changed, 18 insertions(+), 18 deletions(-)
+
+commit 3670e0616eb9d86e7519d2b76242fd32c6e0c1ae
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-23 15:15:18 +0300
+
+    CMake: Add manual support for 32-bit x86 assembly files
+    
+    One has to pass -DENABLE_X86_ASM=ON to cmake to enable the
+    CRC assembly code. Autodetection isn't done. Looking at
+    CMAKE_SYSTEM_PROCESSOR might not work as it comes from uname
+    unless cross-compilation is done using a CMake toolchain file.
+    
+    On top of this, if the code is run on modern processors that support
+    the CLMUL instruction, then the C code should be faster (but then
+    one should also be using a x86-64 build if possible).
+    
+    (cherry picked from commit 24387c234b4eed1ef9a7eaa107391740b4095568)
+
+ CMakeLists.txt | 34 +++++++++++++++++++++++++++++++---
+ 1 file changed, 31 insertions(+), 3 deletions(-)
+
+commit c1b001b09e902ecacabb8a2ae1fc991018a4d1f8
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-23 14:26:45 +0300
+
+    CMake: Rename USE_DOXYGEN to ENABLE_DOXYGEN
+    
+    It's more consistent with the other option() uses.
+    
+    (cherry picked from commit 0fb3c9c3f684f5a25bd425ed079a20a79f0c969d)
+
+ CMakeLists.txt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit 7213fe39c717d4623c92af715484a71d9a6ff8d0
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-22 15:21:53 +0300
+
+    Use more confident language in COPYING
+    
+    (cherry picked from commit 62733592a1cc6f0b41f46ef52e06d1a6fe1ff38a)
+
+ COPYING | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+commit 15358be94a4e3f9c20f331b64b3980f3e5283760
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-29 17:16:38 +0300
+
+    Add SPDX license identifiers to files under tests/ossfuzz
+    
+    (cherry picked from commit 9ae2ebc1e504a1814b0788de95fb5c58c0328dde)
+
+ tests/ossfuzz/Makefile                          | 2 ++
+ tests/ossfuzz/config/fuzz_decode_alone.options  | 2 ++
+ tests/ossfuzz/config/fuzz_decode_stream.options | 2 ++
+ tests/ossfuzz/config/fuzz_encode_stream.options | 2 ++
+ tests/ossfuzz/config/fuzz_lzma.dict             | 2 ++
+ tests/ossfuzz/config/fuzz_xz.dict               | 2 ++
+ 6 files changed, 12 insertions(+)
+
+commit 1aa92c7ffd0bf8f9738ebf3bd1263bd6f5f096a2
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-29 17:16:06 +0300
+
+    Add SPDX license identifier to .codespellrc
+    
+    (cherry picked from commit 9000d70eb9815bd7f43ffddc1c3316c507aa0e05)
+
+ .codespellrc | 2 ++
+ 1 file changed, 2 insertions(+)
+
+commit 3c7e400fdcabc0a1b78863948fc17964667a9401
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-22 15:12:09 +0300
+
+    Move entries po4a/.gitignore to the top level .gitignore
+    
+    The po4a directory is in EXTRA_DIST and thus all files there
+    are included in the package. .gitignore doesn't belong in the
+    package so keep that file out of the po4a directory.
+    
+    (cherry picked from commit 903c16fcfa5bfad0cdb2a7383d941243bcb12e76)
+
+ .gitignore      | 4 ++++
+ po4a/.gitignore | 3 ---
+ 2 files changed, 4 insertions(+), 3 deletions(-)
+
+commit 8a99272d4a9358dabdb5bc0b72f4c5240a9dc066
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-20 16:55:00 +0300
+
+    CMake: Add comments
+    
+    (cherry picked from commit 9d997d6f9d4f042412e45c7b7a23a14ad2e4f9aa)
+
+ tests/tests.cmake | 2 ++
+ 1 file changed, 2 insertions(+)
+
+commit c35259c9e2400f6f88c269d95ecafdb223ff45d2
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-20 16:55:00 +0300
+
+    CMake: Remove the note that some tests aren't run
+    
+    They are now in the common build configurations.
+    
+    (cherry picked from commit d35368b33e54bad2f566df99fac29ffea38e34de)
+
+ CMakeLists.txt | 2 --
+ 1 file changed, 2 deletions(-)
+
+commit 30982a215395f19b3837c3da540e1cb3f913569f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-20 16:55:00 +0300
+
+    CMake: Add support for test_files.sh
+    
+    (cherry picked from commit dc232d584619b2819a9c52d6ad5d8b5d56b392ba)
+
+ tests/tests.cmake | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)
+
+commit 3a8f81e0ad4cd1c102a03ff09e703cf8cb074afc
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-20 16:55:00 +0300
+
+    Tests: Make test_files.sh more flexible
+    
+    Add a new optional argument to specify the directory of the xz and
+    xzdec executables.
+    
+    If ../config.h doesn't exist, assume that all encoders and decoders
+    are available.
+    
+    (cherry picked from commit a7e9230af9d1f87f474fe38886eb977d4149dc9b)
+
+ tests/test_files.sh | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)
+
+commit 0644675c829143112c85455f8a6aa91bfc4e1bbb
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-20 16:55:00 +0300
+
+    CMake: Add support for test_compress.sh tests
+    
+    (cherry picked from commit b40e6efbb48d740b9b5b303e59e344801cbb5bd8)
+
+ tests/tests.cmake | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)
+
+commit dcc02a6ca0e0ac4e330e820683754badbcf9815b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-20 16:55:00 +0300
+
+    Tests: Make test_compress.sh more flexible
+    
+    Add a new optional second argument: directory of the xz and xzdec
+    executables. This is need with the CMake build where the binaries
+    end up in the top-level build directory.
+    
+    If ../config.h doesn't exist, assume that all encoders and decoders
+    are available. This will make this script usable from CMake in the
+    most common build configuration.
+    
+    NOTE: Since the existence of ../config.h is checked, the working
+    directory of the test script must be a subdir in the build tree!
+    Otherwise ../config.h would look outside the build tree.
+    
+    Use the default check type instead of forcing CRC32 or CRC64.
+    Now the script doesn't need to check if CRC64 is available.
+    
+    (cherry picked from commit ac3222d2cb1ff3a15eb6d58f9ea9bc78e8bc3bb2)
+
+ tests/test_compress.sh | 41 +++++++++++++++++++++++++++++------------
+ 1 file changed, 29 insertions(+), 12 deletions(-)
+
+commit c761b7051fb2ebb6da3cbecafe695fb5af7b2c9c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-20 16:55:00 +0300
+
+    CMake: Prepare to support the test_*.sh tests
+    
+    This is a bit hacky since the scripts grep config.h to know which
+    features were built but the CMake build doesn't create config.h.
+    So instead those test scripts will be run only when all relevant
+    features have been enabled.
+    
+    (cherry picked from commit 006040b29c83104403621e950ada0c8956c56b3d)
+
+ tests/tests.cmake | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 49 insertions(+)
+
+commit a71bc2d75b95f85fe046f0fd1fb25d36be2b20ba
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-20 16:55:00 +0300
+
+    Tests: test_suffix.sh: Add a comment
+    
+    (cherry picked from commit 6167607a6ea72fb74eefb943c4566e3cab528cd2)
+
+ tests/test_suffix.sh | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit 8fda5ce872632e464a1f9660b3ab8dac939a03c6
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-18 00:34:07 +0300
+
+    Fix typos
+    
+    Thanks to xx on #tukaani.
+    
+    (cherry picked from commit 4e9023857d287f624562156b60dc23d2b64c0f10)
+
+ src/common/mythread.h                      | 2 +-
+ src/common/tuklib_integer.h                | 2 +-
+ src/liblzma/api/lzma/base.h                | 2 +-
+ src/liblzma/common/filter_buffer_decoder.c | 2 +-
+ src/liblzma/common/filter_common.c         | 2 +-
+ src/scripts/xzgrep.in                      | 2 +-
+ 6 files changed, 6 insertions(+), 6 deletions(-)
+
+commit 2729079bcb8dd1c3ab1a79426690d17f6f8e6f7d
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-18 00:23:52 +0300
+
+    liblzma: Fix white space
+    
+    Thanks to xx on #tukaani.
+    
+    (cherry picked from commit b14d08fbbc254485ace9ccfe7908674f608a62ae)
+
+ src/liblzma/simple/simple_coder.h | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+commit a289c4dfeb3ded35e129c48b13f46605f0138704
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-13 17:15:04 +0300
+
+    xz: Document the static function get_chains_memusage()
+    
+    (cherry picked from commit 142e670a413a7bce1a2647f1cf1f33f8ee2dbe88)
+
+ src/xz/coder.c | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)
+
+commit 6f0db31713845386ce2419c55b2df89b53b80dd3
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-13 17:07:22 +0300
+
+    xz: Rename filters_memusage_max() to get_chains_memusage()
+    
+    (cherry picked from commit 78e984399a64bfee5d11e7308e0bdbc1006db2ca)
+
+ src/xz/coder.c | 14 ++++++--------
+ 1 file changed, 6 insertions(+), 8 deletions(-)
+
+commit d7e2bf7e2dc9289a7a5dd0311d19d10de6d7ea1b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-13 17:04:05 +0300
+
+    xz: Rename filter_memusages to chains_memusages
+    
+    (cherry picked from commit 54c3db0a83d3e67d89aba92a0957f2dce9b111a7)
+
+ src/xz/coder.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+commit 58f200b6d1dc4cbc1ab3315a359120ab6eb84878
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-12 22:26:30 +0300
+
+    xz: Simplify the memory usage scaling code
+    
+    This is closer to what it was before the --filtersX support was added,
+    just extended to support for scaling all filter chains. The method
+    before this commit was an extended version of the original too but
+    it was done in a more complex way for no clear reason. In case of
+    an error, the complex version printed fewer informative messages
+    (a good thing) but it's not a sigificant benefit.
+    
+    In the limit is too low even for single-threaded mode, the required
+    amount of memory is now reported like in 5.4.x instead of like in
+    5.5.1alpha - 5.6.1 which showed the original non-scaled usage. It
+    had been a FIXME in the old code but it's not clear what message
+    makes the most sense.
+    
+    Fixes: 5f0c5a04388f8334962c70bc37a8c2ff8f605e0a
+    (cherry picked from commit d9e1ae79ec90d6a7eafeaceaf0ece4f0c83d4417)
+
+ src/xz/coder.c | 163 ++++++++++++++++++++-------------------------------------
+ 1 file changed, 57 insertions(+), 106 deletions(-)
+
+commit 41bdc9fa5cc2fc2a70f4331329ac724773cc2f26
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-13 12:14:00 +0300
+
+    xz: Edit comments
+    
+    (cherry picked from commit 0ee56983d198b776878432703de664049b1be32e)
+
+ src/xz/coder.h | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+commit 52e40c1912dfdbf8c7aa85e3a4c3eb138fa73d5d
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-13 12:03:51 +0300
+
+    xz: Rename chain_idx to chain_num
+    
+    (cherry picked from commit ec82a49c3553f7206104582dbfb8b64fa433b491)
+
+ src/xz/coder.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+commit 8a019633319c694423691f58c55fa23a46e45ded
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-12 22:29:11 +0300
+
+    xz: Edit coding style
+    
+    (cherry picked from commit a731a6993c34bbbd55abaf9c166718682b1da24f)
+
+ src/xz/coder.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit e3ad7eda74caea29849e2e9ec01212f5f7d0f574
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-12 22:16:05 +0300
+
+    xz: Edit comments
+    
+    Fixes: 5f0c5a04388f8334962c70bc37a8c2ff8f605e0a
+    (cherry picked from commit 32eb176b89243fce3112347fe43a8ad14a9fd2be)
+
+ src/xz/coder.c | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)
+
+commit 09cabae2ab47a06f6eee02419a815d4bfd0d9490
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-12 21:57:49 +0300
+
+    xz: Fix grammar in a comment
+    
+    Fixes: cb3111e3ed84152912b5138d690c8d9f00c6ef02
+    (cherry picked from commit b90339f4daa510d2b1b8c550f855a99667f1d004)
+
+ src/xz/coder.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit c10b66fbf9b2442741a1f052bdb4ce7009af9cda
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-12 21:46:56 +0300
+
+    xz: Rename filter_memusages to encoder_memusages
+    
+    (cherry picked from commit 4c0bdaf13d651b22ba13bd93f8379724d6ccdc13)
+
+ src/xz/coder.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+commit 9132ce3564b2c003bffd6de6294a3d98dccf314e
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-12 21:42:05 +0300
+
+    xz: Edit coding style
+    
+    (cherry picked from commit b54aa023e0ec291b06e976e5f094ab0549e7b09b)
+
+ src/xz/coder.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+commit d642e13874e93b03959d1de523f1c8ebe9428838
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-12 21:31:02 +0300
+
+    xz: Rename filters_index to chain_num
+    
+    The reason is the same as in bd0782c1f13e52cd0fd8415208e30e47004a4c68.
+    
+    (cherry picked from commit 49f67d3d3f42b640a7dfc4ca04c8934f658e10ce)
+
+ src/xz/args.c  | 8 ++++----
+ src/xz/coder.c | 8 ++++----
+ src/xz/coder.h | 2 +-
+ 3 files changed, 9 insertions(+), 9 deletions(-)
+
+commit 47599f3b73f0a2bc18e0a8367d723f1eb0f11b63
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-12 21:22:43 +0300
+
+    xz: Replace a few uint32_t with "unsigned" to reduce the number of casts
+    
+    These hold only tiny values.
+    
+    (cherry picked from commit ff9e8b3d069ecfa52ec43dcdb198542d1692a492)
+
+ src/xz/args.c  |  2 +-
+ src/xz/coder.c | 17 ++++++++---------
+ src/xz/coder.h |  2 +-
+ 3 files changed, 10 insertions(+), 11 deletions(-)
+
+commit 8f5ab75c454ea8676ed09c7f6eda8afe87b008ad
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-12 21:10:45 +0300
+
+    xz: Rename filters_used_mask to chains_used_mask
+    
+    The reason is the same as in bd0782c1f13e52cd0fd8415208e30e47004a4c68.
+    
+    (cherry picked from commit b5e6c1113b1ba02c282bd9163eccdb521c937a78)
+
+ src/xz/coder.c | 30 +++++++++++++++---------------
+ 1 file changed, 15 insertions(+), 15 deletions(-)
+
+commit 3eb7cf9dd5b90a074f741234225d7de51ad88774
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-12 17:14:43 +0300
+
+    xz: Move the setting of "check" in coder_set_compression_settings()
+    
+    It's more logical to do it in the beginning instead of in the middle
+    of the filter chain handling.
+    
+    Fixes: d6af7f347077b22403133239592e478931307759
+    (cherry picked from commit 32500dfaadae2ea36fda2e17b49ae7d9ac1acf52)
+
+ src/xz/coder.c | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)
+
+commit 067961ee0e1adaa66a43fbf8c3be31697554a839
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-12 17:09:17 +0300
+
+    xz: Rename "filters" to "chains"
+    
+    The convention is that
+    
+        lzma_filter filters[LZMA_FILTERS_MAX + 1];
+    
+    contains the filters of a single filter chain.
+    It was so here as well before the commit
+    d6af7f347077b22403133239592e478931307759.
+    It changes "filters" to a ten-element array of filter chains.
+    It's clearer to call this array-of-arrays "chains".
+    
+    This also renames "filter_idx" to "chain_idx" which is used
+    as an index as in chains[chain_idx].
+    
+    (cherry picked from commit ad146b1f42bbb678175a503a45ce525e779f9b8b)
+
+ src/xz/coder.c | 68 +++++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 34 insertions(+), 34 deletions(-)
+
+commit 6822f6f891d43c97ea379a51223ce8ea69439161
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-12 16:56:15 +0300
+
+    xz: Clean up a comment
+    
+    (cherry picked from commit 5a4ae4e4d0105404184e9a82ee08f94e1b7783e0)
+
+ src/xz/coder.c | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)
+
+commit 0e5e3e7bdcfcdc4b4607665ff0f6ad794e5195af
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-12 16:52:09 +0300
+
+    xz: Add clarifying assertions
+    
+    (cherry picked from commit 2de80494ed9a4dc7db395a32a5efb770ce769804)
+
+ src/xz/coder.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+commit 77bcf6b76a26833923e62b2dec717474d5d44700
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-10 20:23:33 +0300
+
+    xz: Add a clarifying assertion
+    
+    Fixes: 5f0c5a04388f8334962c70bc37a8c2ff8f605e0a
+    (cherry picked from commit 1eaad004bf7748976324672db028e34f42802e61)
+
+ src/xz/coder.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit df3efc058a256629ea0153b4750d3df308757038
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-12 16:47:17 +0300
+
+    xz: Clarify a comment
+    
+    (cherry picked from commit 605094329b986244833c967c04963cacc41a868d)
+
+ src/xz/coder.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+commit 4ebfe11cd33439675f03e1e3725abf03d6f8251b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-12 16:28:25 +0300
+
+    xz: Use the info collected in parse_block_list()
+    
+    This is slightly simpler and it avoids looping through
+    the opt_block_list array.
+    
+    (cherry picked from commit 8fac2577f2dbb9491afd8500f60d004c9071df3b)
+
+ src/xz/coder.c | 95 ++++++++++++++++++++++++----------------------------------
+ 1 file changed, 39 insertions(+), 56 deletions(-)
+
+commit bfea6913618357a7034a1d79079bccb688262124
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-12 15:48:45 +0300
+
+    xz: Remember the filter chains and the largest Block in parse_block_list()
+    
+    (cherry picked from commit 81d350dab864b985b740742772f3b132d4c52914)
+
+ src/xz/args.c  | 18 ++++++++++++++++++
+ src/xz/coder.c |  2 ++
+ src/xz/coder.h | 13 +++++++++++++
+ 3 files changed, 33 insertions(+)
+
+commit d4e33e73922427a0f5277b91b239af538fd41c06
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-12 15:38:48 +0300
+
+    xz: Update a comment and initialization of filters_used_mask
+    
+    (cherry picked from commit 46ab56968f7dfdac187710a1223659d832fa1565)
+
+ src/xz/coder.c | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
+
+commit 3c130737c9bb4a5021bb14eb19e9ceae30ffef3a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-12 15:08:10 +0300
+
+    xz: parse_block_list: Edit integer type casting
+    
+    (cherry picked from commit e89293a0baeb8663707c6b4a74fbb310ec698a8f)
+
+ src/xz/args.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+commit 40c8513b4ee42b8c0fae9b2a229e078ac7e0f87a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-12 14:51:37 +0300
+
+    xz: Make filter_memusages a local variable
+    
+    (cherry picked from commit 87011e40c168255cd2edea129ee68c901770603b)
+
+ src/xz/coder.c | 35 +++++++++++++++++++++--------------
+ 1 file changed, 21 insertions(+), 14 deletions(-)
+
+commit cacaf25aa71cd1110cc049d037c11e4075602c35
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-10 20:33:08 +0300
+
+    xz: Remove unused code and simplify
+    
+    opt_mode == MODE_COMPRESS isn't possible when HAVE_ENCODERS isn't
+    defined. Thus, when *encoding*, the message about *decoder* memory
+    usage is possible to show only when both encoder and decoder have
+    been built.
+    
+    Since the message is shown only at V_DEBUG, skip the memusage
+    calculation if verbosity level isn't high enough.
+    
+    Fixes: 5f0c5a04388f8334962c70bc37a8c2ff8f605e0a
+    (cherry picked from commit 347b412a9374e0456bef9da0d7d79174c0b6f1a5)
+
+ src/xz/coder.c | 16 ++++------------
+ 1 file changed, 4 insertions(+), 12 deletions(-)
+
+commit 3495a6b291f49079485854bb185a52c29d06cd2f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-10 20:22:58 +0300
+
+    xz: Fix integer type from uint64_t to uint32_t
+    
+    lzma_options_lzma.dict_size is uint32_t so use it here too.
+    
+    Fixes: 5f0c5a04388f8334962c70bc37a8c2ff8f605e0a
+    (cherry picked from commit 31358c057c9de9d6aba96bae112b2d17942de7cb)
+
+ src/xz/coder.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 2861d856deb557734f067c5c471d670f0b0c6684
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-08 21:40:07 +0300
+
+    debug/translation.bash: Remove an outdated test command
+    
+    Since 5.3.5beta, "xz --lzma2=mf=bt4,nice=2" works even though bt4 needs
+    at least nice=4. It is rounded up internally by liblzma when needed.
+    
+    Fixes: 5cd9f0df78cc4f8a7807bf6104adea13034fbb45
+    (cherry picked from commit 3f71e0f3a118e1012526f94fd640a626d30cb599)
+
+ debug/translation.bash | 1 -
+ 1 file changed, 1 deletion(-)
+
+commit 54546babc3feb2786e541b80f9e7216b8f1bd543
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-07 20:41:28 +0300
+
+    Fix the date of NEWS for 5.4.5
+    
+    (cherry picked from commit b05a516830095a0e1937aeb31c937fb0400408b6)
+
+ NEWS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit a7e58d1fdb493d58854ac599347cf64da0cecca4
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-07 16:21:15 +0300
+
+    Build: Update visibility.m4 from Gnulib
+    
+    This fixes the syntax of the "serial" line and renames
+    a temporary variable.
+    
+    (cherry picked from commit 6d336aeb97b69c496ddc626af403f6f21c753658)
+
+ m4/visibility.m4 | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)
+
+commit 07a9cda037042b262ba6c8c18fae4a5b3333d508
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-07 15:05:21 +0300
+
+    po4a/update-po: Delete the *.po.authors files
+    
+    These are temporary files that are needed only when running po4a.
+    The top-level Makefile.am puts the whole po4a directory into
+    distribution tarball (it's simpler) so deleting these temporary
+    files is needed to prevent them from getting into tarballs.
+    
+    (cherry picked from commit ab51e8ee610e2a893906859848f93d5cb0d5ba83)
+
+ po4a/update-po | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+commit 1b4e7dca243d8ef297a245b5ee3ce9cd1ca20f56
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-07 13:12:17 +0300
+
+    xz: Edit comments and coding style
+    
+    (cherry picked from commit e4780244a17420cc95d5498cd6e02ad10eac6e5f)
+
+ src/xz/coder.c | 25 ++++++++++++-------------
+ 1 file changed, 12 insertions(+), 13 deletions(-)
+
+commit 18683525a78e96ec6d7c2b4e841e94ad39be7096
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-06 23:08:22 +0300
+
+    xz: Omit an incorrect comment
+    
+    It likely was a leftover from a development version of the code.
+    
+    Fixes: 183819bfd9efac8c184d9bf123325719b7eee30f
+    (cherry picked from commit fe4d8b0c80eaeca3381be302eeb89aba871a7e7c)
+
+ src/xz/coder.c | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)
+
+commit 005f0398645b0342c9c1915d422743c77ec1d435
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-06 23:04:31 +0300
+
+    xz: Add braces to a for-statement and to an if-statement
+    
+    No functional changes.
+    
+    Fixes: 5f0c5a04388f8334962c70bc37a8c2ff8f605e0a
+    Fixes: 479fd58d60622331fcbe48fddf756927b9f80d9a
+    (cherry picked from commit 9bef5b8d17dd5e009d6a6b2becc2dc535da53937)
+
+ src/xz/coder.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+commit 34be4e6aa62376314fde250ea4f142c18274272f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-06 23:00:09 +0300
+
+    liblzma: Omit an unneeded array from the x86 filter
+    
+    Fixes: 6aa2a6deeba04808a0fe4461396e7fb70277f3d4
+    (cherry picked from commit de06b9f0c0a3f72569829ecadbc9c0a3ef099f57)
+
+ src/liblzma/simple/x86.c | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
+
+commit 79e329b771210c30ea317dd4d99e8968f3e6f9b2
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-06 22:56:31 +0300
+
+    CMake: Add test_suffix.sh to the tests
+    
+    (cherry picked from commit 7da488cb933fdf51cfc14cb5810beb0766224380)
+
+ tests/tests.cmake | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+commit 86f33bb90c6cfe6950f1d36c9e5dd7fdc9798124
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-06 22:55:54 +0300
+
+    Test: Add CMake support to test_suffix.sh
+    
+    It needs to find the xz executable from a different directory
+    and work without config.h.
+    
+    (cherry picked from commit a805594ed0b4cbf7b81aa28ff46a8ab3c83c6876)
+
+ tests/test_suffix.sh | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)
+
+commit 1e243ab378e8f78ebb3af741fb38354954cf20f9
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-06 20:45:34 +0300
+
+    Update INSTALL about MINIX 3
+    
+    The latest stable is 3.3.0 and it's from 2014.
+    Don't mention the older versions in INSTALL.
+    3.3.0 ships with Clang already.
+    
+    Testing with 3.4.0beta6 shows that tuklib_physmem
+    works too so omit comments about that from INSTALL.
+    Visibility warnigns weren't a problem either.
+    
+    Thus it's enough to mention the need for --disable-threads
+    as configure doesn't autodetect the lack of pthreads.
+    
+    (cherry picked from commit 50e19489387774bab3c4a988397d0d9c7a142a46)
+
+ INSTALL | 20 +++++++-------------
+ 1 file changed, 7 insertions(+), 13 deletions(-)
+
+commit 8595b5ab3ba766eb6daed890bfe91a16fe329c2c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-02 23:00:16 +0300
+
+    Windows: Remove the "doc/api" line from README-Windows.txt
+    
+    Fixes: 252aa1d67bc015eeba462803ab72edeb7744d864
+    (cherry picked from commit 68d18aea1422a2b86b98b71d0b019233d84e01b0)
+
+ windows/README-Windows.txt | 2 --
+ 1 file changed, 2 deletions(-)
+
+commit a3f163a4ad97189744107e964e4dea505fbcc252
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-02 22:59:04 +0300
+
+    Build: Don't copy doc/api from source tree to distribution tarball
+    
+    It was copied if it existed. This was intentional when autogen.sh
+    still built liblzma API docs with Doxygen.
+    
+    Fixes: d3a77ebc04bf1db8d52de2d9b0f07877bc4fd139
+    (cherry picked from commit 8ede961374613aa302a13571d662cfaea1cf91f7)
+
+ Makefile.am | 5 -----
+ 1 file changed, 5 deletions(-)
+
+commit cb0e847fe07099c1ef6d8076f6a46e17bc431acb
+Author: Sam James <sam@gentoo.org>
+Date:   2024-05-02 13:26:40 +0100
+
+    ci: add SPDX headers
+    
+    I've checked over each of these and they're straightforward applications
+    of the relevant Github Actions.
+    
+    (cherry picked from commit 9a6761aa35ed84d30bd2fda2333a4fdf3f46ecdc)
+
+ .github/workflows/freebsd.yml | 2 ++
+ .github/workflows/netbsd.yml  | 2 ++
+ .github/workflows/openbsd.yml | 2 ++
+ 3 files changed, 6 insertions(+)
+
+commit c3c854dc759fe0c5549aa0a730be9e259243edb6
+Author: Yaroslav Halchenko <debian@onerussian.com>
+Date:   2024-03-29 14:37:24 -0400
+
+    codespell: Ignore the THANKS file and debbugs.gnu.org URL
+    
+    This way "codespell -i 0" is silent.
+    
+    This is the first commit from
+    https://github.com/tukaani-project/xz/pull/93
+    with trivial edits by Lasse Collin.
+    
+    (cherry picked from commit 81efe6119f86e3274e512c9eca5ec22b2196c2b3)
+
+ .codespellrc | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+commit 3216301aa20fcf9d5a7485e35a295d5c451d9658
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-30 14:37:11 +0300
+
+    Add .gitattributes to clean up git-archive output
+    
+    (cherry picked from commit 905bfc74fe2670fd9c39014803017ab53d325401)
+
+ .gitattributes | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+commit f99e7c69ada9e0db0ee1ebbc38c8ce9390cd9788
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-19 12:11:09 +0300
+
+    xzdec: Support Landlock ABI version 4
+    
+    This was added to xz in 02e3505991233901575b7eabc06b2c6c62a96899
+    but I forgot to do the same in xzdec.
+    
+    The Landlock sandbox in xzdec could be stricter as now it's
+    active only for the last file being decompressed. In xz,
+    read-only sandbox is used for multi-file case. On the other hand,
+    xz doesn't go to the strictest mode when processing the last file
+    when more than one file was specified; xzdec does.
+    
+    (cherry picked from commit 3334c71d3d4294a4f6569df3ba9bcf2443dfa501)
+
+ src/xzdec/xzdec.c | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)
+
+commit bfe9be7a46cfd3b3069c15f7ba1432192bca1f5b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-30 22:22:45 +0300
+
+    liblzma: Fix incorrect function type error from sanitizer
+    
+    Clang 17 with -fsanitize=address,undefined:
+    
+        src/liblzma/common/filter_common.c:366:8: runtime error:
+            call to function encoder_find through pointer to incorrect
+            function type 'const lzma_filter_coder *(*)(unsigned long)'
+        src/liblzma/common/filter_encoder.c:187: note:
+            encoder_find defined here
+    
+    Use a wrapper function to get the correct type neatly.
+    This reduces the number of casts needed too.
+    
+    This issue could be a problem with control flow integrity (CFI)
+    methods that check the function type on indirect function calls.
+    
+    Fixes: 3b34851de1eaf358cf9268922fa0eeed8278d680
+    (cherry picked from commit 278563ef8f2b8d98d7f2c85e1a64ec1bc21d26d8)
+
+ src/liblzma/common/filter_decoder.c | 15 ++++++++++++---
+ src/liblzma/common/filter_encoder.c | 17 +++++++++++++----
+ 2 files changed, 25 insertions(+), 7 deletions(-)
+
+commit 882eadc5b820b6b1495fc91ba3573ac2aa6c1df3
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-30 21:41:11 +0300
+
+    xz: Avoid arithmetic on a null pointer
+    
+    It's undefined behavior. The result wasn't ever used as it occurred
+    in the last iteration of a loop.
+    
+    Clang 17 with -fsanitize=address,undefined:
+    
+        $ src/xz/xz --block-list=123
+        src/xz/args.c:164:12: runtime error: applying non-zero offset 1
+            to null pointer
+    
+    Fixes: 88ccf47205d7f3aa314d358c72ef214f10f68b43
+    Co-authored-by: Sam James <sam@gentoo.org>
+    (cherry picked from commit 77c8f60547decefca8f2d0c905d9c708c38ee8ff)
+
+ src/xz/args.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+commit ec5458e1c9b2beb416781e81ad4ff22b0149b99d
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-27 20:42:00 +0300
+
+    CMake: Support building liblzma API docs using Doxygen
+    
+    This is disabled by default to match the default in Autotools.
+    Use -DUSE_DOXYGEN=ON to enable Doxygen usage.
+    
+    This uses the update-doxygen script, thus this is under if(UNIX)
+    although Doxygen itself can run on Windows too.
+    
+    (cherry picked from commit 64503cc2b76a388ced4ec5f68234a07f0dcddcd5)
+
+ CMakeLists.txt | 40 +++++++++++++++++++++++++++++++---------
+ 1 file changed, 31 insertions(+), 9 deletions(-)
+
+commit 8c93ced56bcb23df723dab23b7477d580720f522
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-20 23:36:39 +0300
+
+    CMake: List API headers in LIBLZMA_API_HEADERS variable
+    
+    This way the same list will be usable in more than one location.
+    
+    (cherry picked from commit 0a7f5a80d8532a1d8cfa0a902c9d1ad7651eca37)
+
+ CMakeLists.txt | 21 ++++++++++++---------
+ 1 file changed, 12 insertions(+), 9 deletions(-)
+
+commit f7c9bab0372db357511e42c9c610a2cfe5fca9b1
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-19 15:16:42 +0300
+
+    PACKAGERS: Document the optional Doxygen usage
+    
+    Also add a note that packagers should check the licensing
+    of the Doxygen output.
+    
+    (cherry picked from commit 541406bee3f09e9813103c6406b10fc6ab2e0d30)
+
+ PACKAGERS | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)
+
+commit 28e7d130cb843e96d7e6b0358f8dd58bd1b2a275
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-27 17:47:09 +0300
+
+    Build: Add --enable-doxygen to generate and install API docs
+    
+    It requires Doxygen. This option is disabled by default.
+    
+    (cherry picked from commit e21efdf96f39378fe417479f89e97046680406f5)
+
+ INSTALL                     |  6 ++++++
+ configure.ac                | 10 +++++++++-
+ src/liblzma/api/Makefile.am | 19 +++++++++++++++++++
+ 3 files changed, 34 insertions(+), 1 deletion(-)
+
+commit cca7e6c05bc6cc51c0271c36856b7fe29f65c648
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-19 15:15:17 +0300
+
+    Doxygen: update-doxygen: Support out-of-tree builds
+    
+    Also, now $0 is used to refer to the script itself.
+    
+    (cherry picked from commit 0ece09a575d7e542bda8825808ddd6cf7de8cc4b)
+
+ doxygen/update-doxygen | 110 ++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 68 insertions(+), 42 deletions(-)
+
+commit 8090d3dc7f0eea4a3a61f4f6d46a0d0866e345fe
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-28 21:08:00 +0300
+
+    Doxygen: Simplify Doxyfile and add SPDX license identifier
+    
+    This omits all comments and a few non-default options that weren't
+    needed. Now it contains no copyrighted content from Doxygen itself.
+    
+    (cherry picked from commit 2c519f641f266fd897edf680827d9c905f411440)
+
+ doxygen/Doxyfile | 2698 +-----------------------------------------------------
+ 1 file changed, 25 insertions(+), 2673 deletions(-)
+
+commit 0721b8bfe558502669f06c97601fe59ad0d52541
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-19 15:14:02 +0300
+
+    Doxygen: Don't strip JavaScript anymore
+    
+    The stripping method worked well with Doxygen 1.8 and 1.9 but
+    it doesn't work with Doxygen 1.10 anymore. Since we won't ship
+    pre-generated liblzma API docs anymore, the extra bloat and
+    extra license info of the JavaScript files won't affect the
+    upstream source package anymore.
+    
+    (cherry picked from commit bdba39a57530d11b88440df8024002be3d09e4a1)
+
+ doxygen/update-doxygen | 21 ---------------------
+ 1 file changed, 21 deletions(-)
+
+commit 1ddb40f6fd286c3c6ef510735112db1ac1b60936
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-19 17:26:41 +0300
+
+    Build: Remove old Doxygen rules from top-level Makefile.am
+    
+    (cherry picked from commit d3a77ebc04bf1db8d52de2d9b0f07877bc4fd139)
+
+ Makefile.am | 12 ------------
+ 1 file changed, 12 deletions(-)
+
+commit 092af76234b1bc79380427456b3215aa0b80f339
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-19 15:10:06 +0300
+
+    Update COPYING to match the autogen.sh and mydist changes
+    
+    (cherry picked from commit fd7faa4c338a42a6a40e854b837d285ae2e8c609)
+
+ COPYING | 11 -----------
+ 1 file changed, 11 deletions(-)
+
+commit 77bce9a0a250cfb20333ee0dca036b3193dd4941
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-19 17:23:43 +0300
+
+    Build: Don't run update-doxygen as part of "make mydist"
+    
+    (cherry picked from commit b2bc55d8a0a9f2f59bfd4302067300e650f6baa3)
+
+ Makefile.am | 1 -
+ 1 file changed, 1 deletion(-)
+
+commit 3a2fc62f59b2e8cc45f8d8fd9988b4305efe4bff
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-19 15:09:48 +0300
+
+    autogen.sh: Don't generated Doxygen docs anymore
+    
+    (cherry picked from commit e9be74f5b129fe8a5388d588e68b1b7f5168a310)
+
+ autogen.sh | 18 +++---------------
+ 1 file changed, 3 insertions(+), 15 deletions(-)
+
+commit b04c16f9a5a8675a87783305568cadfa3f17d999
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-19 17:41:36 +0300
+
+    windows/build.bash: Omit Doxygen docs from the package
+    
+    They will be omitted from the source tarball and I don't want
+    to make Doxygen a dependency of build.bash.
+    
+    (cherry picked from commit 252aa1d67bc015eeba462803ab72edeb7744d864)
+
+ windows/build.bash | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit d4dd3c8f6169adf50cad8fe6872e0f5fcb82475c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-19 14:14:47 +0300
+
+    README: Don't mention PDF man pages anymore
+    
+    (cherry picked from commit 634095364d87444d62d8ec54c134c0cd4705f5d7)
+
+ README | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+commit be90720d6cd7fbb1b170794445815f579b444a6f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-19 14:10:39 +0300
+
+    Build: Omit PDF man pages from the package
+    
+    pdf-local rule was added to create the PDFs still with "make pdf".
+    The install rules are missing but that likely doesn't matter at all.
+    
+    (cherry picked from commit dc684bf76ea23574ee9d88382057381e04e6089a)
+
+ Makefile.am | 29 +++++++++++++++++++----------
+ 1 file changed, 19 insertions(+), 10 deletions(-)
+
+commit f724552d0c1ae2e3aa693d80d8d0da962dfac4e8
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-19 13:54:39 +0300
+
+    windows/build.bash: Don't copy PDF man pages to the package
+    
+    (cherry picked from commit e3531ab4125cbd5c01ebd3200791350960547189)
+
+ windows/README-Windows.txt | 2 +-
+ windows/build.bash         | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+commit 00e774819c6550a8eac219e9f6f083ab2b155505
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-28 01:34:50 +0300
+
+    Tests: test_index: Fix failures when features are disabled
+    
+    Fixes: cd88423e76d54eb72aea037364f3ebb21f122503
+    (cherry picked from commit 710a4573ef2cbd19c66318c3b2d1388e418e26c7)
+
+ tests/test_index.c | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)
+
+commit 51133ad71eecc19bdb3ab287a0732fd9441753f4
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-20 17:09:11 +0300
+
+    CMake: Keep the build working if the "tests" directory is missing
+    
+    This moves the tests section as is from CMakeLists.txt into
+    tests/tests.cmake. CMakeLists.txt now includes tests/tests.cmake
+    if the latter file exists.
+    
+    Now it's possible to delete the whole "tests" directory and
+    building with CMake will still work normally, just without
+    the tests. This way the tests are readily available for those
+    who want them, and those who won't run the tests anyway have
+    a straightforward way to ensure that nothing from the "tests"
+    directory can affect the build process.
+    
+    (cherry picked from commit aaff75c3486c4489ce88b0efb36b41cf138af7c3)
+
+ CMakeLists.txt    | 76 ++---------------------------------------------
+ tests/Makefile.am |  1 +
+ tests/tests.cmake | 88 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 92 insertions(+), 73 deletions(-)
+
+commit 85b5595b67f0081b2a900104ed7589de4bb75e12
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-20 13:12:50 +0300
+
+    Tests: Remove x86 and SPARC BCJ tests
+    
+    These are very old but the exact test file isn't easy to reproduce
+    as it was compiled from a short C program (bcj_test.c) long ago.
+    These tests weren't very good anyway, just a little better than nothing.
+    
+    (cherry picked from commit a5f2aa5618fe9183706c9c514c3067985f6c338b)
+
+ tests/Makefile.am                      |   7 ----
+ tests/bcj_test.c                       |  64 ---------------------------------
+ tests/compress_prepared_bcj_sparc      | Bin 1240 -> 0 bytes
+ tests/compress_prepared_bcj_x86        | Bin 1388 -> 0 bytes
+ tests/files/README                     |   8 -----
+ tests/files/good-1-sparc-lzma2.xz      | Bin 612 -> 0 bytes
+ tests/files/good-1-x86-lzma2.xz        | Bin 716 -> 0 bytes
+ tests/test_compress_prepared_bcj_sparc |   4 ---
+ tests/test_compress_prepared_bcj_x86   |   4 ---
+ 9 files changed, 87 deletions(-)
+
+commit d8228d1ea08155a17acaadd76ed95805d3b0a929
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-27 18:30:40 +0300
+
+    Tests: test_index: Edit a misleading test
+    
+    (cherry picked from commit d879686469c9c4bf2a7c0bb6420ebe4530fc8f07)
+
+ tests/test_index.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+commit 2358ef8238f166c49e66f438e7494d4d352eb113
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-27 16:46:01 +0300
+
+    Tests: test_index: Use minimal values to test integer overflow
+    
+    (cherry picked from commit 612005bbdb0dea9dc09e9e2e9cc16a15c1480acd)
+
+ tests/test_index.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit 54f4a4162aae8796580489013583d6148be5a473
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-27 15:13:39 +0300
+
+    Tests: test_index: Test lzma_index_buffer_decode() more
+    
+    (cherry picked from commit 4ad88b2544c2aaf8de8f38af54587098cbe66c1d)
+
+ tests/test_index.c | 29 ++++++++++++++++++++++++++---
+ 1 file changed, 26 insertions(+), 3 deletions(-)
+
+commit 85ab59a6b70db33f320a3ea7a854249cb693dea2
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-27 15:08:29 +0300
+
+    Tests: test_index: Test that *i = NULL is done on LZMA_PROG_ERROR
+    
+    On LZMA_DATA_ERROR from lzma_index_buffer_decode(), *i = NULL was
+    already done but this adds a test for that case too.
+    
+    (cherry picked from commit 575b11b0d291e66c5fce31ce7a72f11436d57c83)
+
+ tests/test_index.c | 31 +++++++++++++++++++++++++++----
+ 1 file changed, 27 insertions(+), 4 deletions(-)
+
+commit fb42599e44dde417305c7d92fd782147ca923079
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-27 15:01:25 +0300
+
+    Tests: test_index: Test lzma_index_buffer_encode() with empty output buf
+    
+    (cherry picked from commit 2c970debdb285823f01f75e875561d893345ac2b)
+
+ tests/test_index.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit 20cac20f63a96a39391f2d613bef0f7bd6553495
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-27 14:59:55 +0300
+
+    Tests: test_index: Replace if-statements with tuktest assertions
+    
+    (cherry picked from commit cd88423e76d54eb72aea037364f3ebb21f122503)
+
+ tests/test_index.c | 22 +++++++++-------------
+ 1 file changed, 9 insertions(+), 13 deletions(-)
+
+commit 91e3ea8735752db5d0373991e84607196070aeaa
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-27 14:56:16 +0300
+
+    Tests: test_index: Make it clear that my_alloc() has no integer overflows
+    
+    liblzma guarantees that the product of the allocation size arguments
+    will fit in size_t.
+    
+    Putting the pre-increment in the if-statement was clearly wrong
+    although in practice it didn't matter here as the function is
+    called only a couple of times.
+    
+    (cherry picked from commit 7f865577a6224fbbb5f5ca52574b62ea8ac9bf51)
+
+ tests/test_index.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+commit df1659a6c8367db69e82e2ea59ad5f959cf4e615
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-27 14:51:52 +0300
+
+    Tests: test_index: Verify also iter.block.number_in_stream
+    
+    (cherry picked from commit 12313a3b6596cdcf012e180597f84d231f8730d3)
+
+ tests/test_index.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+commit e083e95dbfda73900109cca4c82c8713d0a1da21
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-27 14:51:06 +0300
+
+    Tests: test_index: Check cases that aren't a multiple of 4 bytes
+    
+    (cherry picked from commit ad2654010d9d641ce1601beeff00630027e6bcd4)
+
+ tests/test_index.c | 33 +++++++++++++++++++++++++--------
+ 1 file changed, 25 insertions(+), 8 deletions(-)
+
+commit b0d3b86ecf1881d10e6614b64b0fcc6c16a3b08f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-27 14:40:25 +0300
+
+    Tests: test_index: Edit comments and white space
+    
+    (cherry picked from commit 2524fcf2b68b662035437cee8edbe80067c0c240)
+
+ tests/test_index.c | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)
+
+commit bae288ea6ffb976c36e2387c03d75ce84a8a1034
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-27 14:33:38 +0300
+
+    liblzma: index_decoder: Fix missing initializations on LZMA_PROG_ERROR
+    
+    If the arguments to lzma_index_decoder() or lzma_index_buffer_decode()
+    were such that LZMA_PROG_ERROR was returned, the lzma_index **i
+    argument wasn't touched even though the API docs say that *i = NULL
+    is done if an error occurs. This obviously won't be done even now
+    if i == NULL but otherwise it is best to do it due to the wording
+    in the API docs.
+    
+    In practice this matters very little: The problem can occur only
+    if the functions are called with invalid arguments, that is,
+    the calling application must already have a bug.
+    
+    (cherry picked from commit 71eed2520e2eecae89bade9dceea16e56cfa2ea0)
+
+ src/liblzma/common/index_decoder.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+commit f10cb93f335900a29e50f990b751996ef026b3a3
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-26 18:25:18 +0300
+
+    CMake: Bump maximum policy version to 3.29
+    
+    (cherry picked from commit 0478473953f50716a2bc37b619b1c7dc2682b1ad)
+
+ CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 59055d70cdd3df091264ae9da793821bfd65314d
+Author: Sam James <sam@gentoo.org>
+Date:   2024-04-13 22:30:44 +0100
+
+    ci: add NetBSD
+    
+    (cherry picked from commit a607e2b40d23f7d998dbaba76692aa30b4c3d9d3)
+
+ .github/workflows/netbsd.yml | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)
+
+commit 812c1f95f37751aaa1e020fc2360949a674842fd
+Author: Sam James <sam@gentoo.org>
+Date:   2024-04-13 23:49:26 +0100
+
+    ci: add FreeBSD
+    
+    (cherry picked from commit 72c210336de26fb87a928160d025fa10a638d23b)
+
+ .github/workflows/freebsd.yml | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)
+
+commit d2a4f963c28b864aa179464f7827cc10c6e1365d
+Author: Sam James <sam@gentoo.org>
+Date:   2024-04-13 23:16:08 +0100
+
+    ci: add OpenBSD
+    
+    (cherry picked from commit b526ec2dbfb5889845ea60548c4f5b1f97d84ab2)
+
+ .github/workflows/openbsd.yml | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)
+
+commit 493bc57c33385bda5ad32d01ab73dcfe8f5e7ced
+Author: Sam James <sam@gentoo.org>
+Date:   2024-04-15 05:53:01 +0100
+
+    liblzma: outqueue: add header guard
+    
+    Reported by github's codeql.
+    
+    (cherry picked from commit c7ef767c49351743d8d011574abb9e200bf6b24f)
+
+ src/liblzma/common/outqueue.h | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+commit cede418d4f8e1fb4c8a30839fa5d3b14743e83d4
+Author: Sam James <sam@gentoo.org>
+Date:   2024-04-15 05:53:56 +0100
+
+    liblzma: easy_preset: add header guard
+    
+    Reported by github's codeql.
+    
+    (cherry picked from commit 55dcae3056d95cb2ddb8b560c12ba7596bc79f2c)
+
+ src/liblzma/common/easy_preset.h | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+commit 6e76a25df28b47407a201bf0381fa6d3c80cb0bb
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-25 14:00:57 +0300
+
+    tuklib_integer: Rename bswapXX to byteswapXX
+    
+    The __builtin_bswapXX from GCC and Clang are preferred when
+    they are available. This can allow compilers to emit the x86 MOVBE
+    instruction instead of doing a load + byteswap as two instructions
+    (which would happen if the byteswapping is done in inline asm).
+    
+    bswap16, bswap32, and bswap64 exist in system headers on *BSDs
+    and Darwin. #defining bswap16 on NetBSD results in a warning about
+    macro redefinition. It's safest to avoid this namespace conflict
+    completely.
+    
+    No OS supported by tuklib_integer.h uses byteswapXX names and
+    a web search doesn't immediately find any obvious danger of
+    namespace conflicts. So let's try these still-pretty-short names
+    for the macros.
+    
+    Thanks to Sam James for pointing out the compiler warning on
+    NetBSD 10.0.
+    
+    (cherry picked from commit 4ffc60f32397371769b7d6b5e3ed8626292d58df)
+
+ src/common/tuklib_integer.h        | 47 ++++++++++++++++++++------------------
+ src/liblzma/check/crc32_fast.c     |  4 ++--
+ src/liblzma/check/crc32_tablegen.c |  2 +-
+ src/liblzma/check/crc64_fast.c     |  4 ++--
+ src/liblzma/check/crc64_tablegen.c |  2 +-
+ 5 files changed, 31 insertions(+), 28 deletions(-)
+
+commit 0ca14871f306b97ce81bfe44c4a39b6b2af31bb3
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-24 01:20:26 +0300
+
+    liblzma: API doc cleanups
+    
+    (cherry picked from commit 08ab0966a75b501aa7c717622223f0c13a113c75)
+
+ src/liblzma/api/lzma/container.h | 2 +-
+ src/liblzma/api/lzma/index.h     | 6 +++---
+ src/liblzma/api/lzma/vli.h       | 5 ++---
+ 3 files changed, 6 insertions(+), 7 deletions(-)
+
+commit 94a462850bc8718f5dd5b30116bce2165b2403c2
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-23 16:35:33 +0300
+
+    Tests: test_filter_str: Add a few assertions
+    
+    (cherry picked from commit 3ac8a9bb4cccbee88350696dc9c645c48d77c989)
+
+ tests/test_filter_str.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+commit 72058ca22a7f3c9c67ed58be624f8302c6337cd7
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-23 16:35:08 +0300
+
+    Tests: test_filter_str: Move one assertion and add a comment
+    
+    (cherry picked from commit 26c69be80523b05c84dea86c47c4ddd9a10945d7)
+
+ tests/test_filter_str.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+commit c59ebbe1c6dd18b78a046aae3133702dd52c352e
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-23 16:26:06 +0300
+
+    Tests: test_filter_str: Tweak comments and white space
+    
+    (cherry picked from commit 4f6af853bc99904efb8b6c28a0af7b81a8476c1b)
+
+ tests/test_filter_str.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit ceda860934b0272689d0722ceeb490cf9c559956
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-23 16:25:22 +0300
+
+    Tests: test_filter_str: Add missing RISC-V case
+    
+    Fixes: 89ea1a22f4ed3685b053b7260bc5acf6c75d1664
+    (cherry picked from commit c92663aa1bd576e0615498a4189acf0df12e84b9)
+
+ tests/test_filter_str.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit 2234b7cc472e62f3401216a71261579342fa2959
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-22 22:23:32 +0300
+
+    Tests: test_filter_str: Test *error_pos more thoroughly
+    
+    (cherry picked from commit b0366df1d7ed26268101f9303a001c91c0806dfc)
+
+ tests/test_filter_str.c | 77 ++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 76 insertions(+), 1 deletion(-)
+
+commit 3ba3ef57f929670adb1f9c5e5207a81a29374237
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-22 21:54:39 +0300
+
+    liblzma: lzma_str_to_filters: Set *error_pos on all errors
+    
+    The API docs clearly say that if error_pos isn't NULL then *error
+    is always set on any error. However, it wasn't touched if str == NULL
+    or filters == NULL or unsupported flags were specified.
+    
+    Fixes: cedeeca2ea6ada5b0411b2ae10d7a859e837f203
+    (cherry picked from commit 70d12dd069bb9bb0d6bb1c8fafc4e6f77780263d)
+
+ src/liblzma/common/string_conversion.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+commit 57ad820e15381344a812c78ce9b67a77a60b9cf3
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-22 20:31:25 +0300
+
+    liblzma: Clean up white space
+    
+    (cherry picked from commit ed8e552395701fbf046027cebc8be4a6755b263f)
+
+ src/liblzma/lz/lz_encoder.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit ba0b5bfe7cb3cdbd9a4e3c268e10c304cb834e8a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-22 18:35:19 +0300
+
+    Tests: test_filter_flags: Edit comments and style
+    
+    (cherry picked from commit 2f06920f20b1ad63b7953dc09569e1d424998849)
+
+ tests/test_filter_flags.c | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)
+
+commit d2ed6759596185ac6a9c69ea713c27cd4bd1d9ba
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-22 16:39:44 +0300
+
+    Tests: Fix C99/C11 compatibility when features are disabled
+    
+    The array could become empty and then the initializer would be
+    simply {} which is allowed only in GNU-C and C23.
+    
+    (cherry picked from commit b101e1d1dbc81577c0c9aa0cb89cf2e46a15eb82)
+
+ tests/test_filter_flags.c | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)
+
+commit 9a70e93fef3fd5943484e56f1881a7c6e3296027
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-21 20:32:16 +0300
+
+    DOS: Omit useless defines from config.h
+    
+    (cherry picked from commit f8f3a220ac8afcb8cb2812917d3b77e00c2eab0d)
+
+ dos/config.h | 12 ------------
+ 1 file changed, 12 deletions(-)
+
+commit dc4740f720e08bdd496aa2736db3b7aea6dd3d1e
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-21 20:27:50 +0300
+
+    Build: Omit useless checks for fcntl.h, limits.h, and sys/time.h
+    
+    (cherry picked from commit fc1921b04b8840caaa777c2bd5340d41b259da20)
+
+ configure.ac | 6 ------
+ 1 file changed, 6 deletions(-)
+
+commit 6e210d5766b25d36729152a13c5889bb0605a1e3
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-19 22:04:21 +0300
+
+    liblzma: Silence a warning from Coverity static analysis
+    
+    It is logical why it cannot know for sure that the value has
+    to be at most 4 if it is less than 16.
+    
+    The x86 filter is based on a very old LZMA SDK version. Newer
+    ones have quite a different implementation for the same filter.
+    
+    Thanks to Sam James.
+    
+    (cherry picked from commit 6aa2a6deeba04808a0fe4461396e7fb70277f3d4)
+
+ src/liblzma/simple/x86.c | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)
+
+commit 4019b012f29008ea6545aba6fe6c141a2d920ae2
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-19 23:18:19 +0300
+
+    Update .gitignore
+    
+    (cherry picked from commit e89d3e83b4496d0b5410870634970c0aa9721d59)
+
+ .gitignore | 21 ++++++++-------------
+ 1 file changed, 8 insertions(+), 13 deletions(-)
+
+commit 09a0311a1e8cdefbcfab9e490cdd41c97a459d24
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-19 20:53:24 +0300
+
+    Tests: test_lzip_decoder: Tweak coding style and comments
+    
+    (cherry picked from commit 86fc4ee859709da0ff9617a1490f13ddac0a109b)
+
+ tests/test_lzip_decoder.c | 58 +++++++++++++++++++++++------------------------
+ 1 file changed, 28 insertions(+), 30 deletions(-)
+
+commit 3117336a0291309ddd2a54d2966a589f9f806850
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-19 20:51:36 +0300
+
+    Tests: test_lzip_decoder: Remove redundant initializations
+    
+    (cherry picked from commit 38be573a279bd7b608ee7d8509ec10884e6fb0d5)
+
+ tests/test_lzip_decoder.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+commit f78081eb12c804ec4f5a3dc569b859646b16e9e5
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-19 20:47:24 +0300
+
+    Tests: test_lzip_decoder: Remove unneeded tuktest_malloc() calls
+    
+    (cherry picked from commit d7e4bc53eacfab9f3de95d8252bdfdc9419079c9)
+
+ tests/test_lzip_decoder.c | 12 ++----------
+ 1 file changed, 2 insertions(+), 10 deletions(-)
+
+commit 7413383e4280065b79ca70abe4d8ebc78055b35a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-15 20:35:07 +0300
+
+    xz: Fix white space error.
+    
+    Thanks to xx on #tukaani.
+    
+    (cherry picked from commit eeca8f7c5baf1ad69606bb734d5001763466d58f)
+
+ src/xz/args.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit eed2f26c0edb6e31a50d48bab4ff619778690a1e
+Author: Sam James <sam@gentoo.org>
+Date:   2024-04-11 23:01:44 +0100
+
+    xz: add missing noreturn for message_filters_help
+    
+    Fixes: a165d7df1964121eb9df715e6f836a31c865beef
+    (cherry picked from commit 462ca9409940a19f743daee6b3bcc611277d0007)
+
+ src/xz/message.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 2633d8df616405bd54fd748d7bf887ebc4505b88
+Author: Sam James <sam@gentoo.org>
+Date:   2024-04-11 19:34:04 +0100
+
+    xz: signals: suppress -Wsign-conversion on macOS
+    
+    On macOS, we get:
+    ```
+    signals.c: In function 'signals_init':
+    signals.c:76:17: error: conversion to 'sigset_t' {aka 'unsigned int'} from 'int' may change the sign of the result [-Werror=sign-conversion]
+       76 |                 sigaddset(&hooked_signals, sigs[i]);
+          |                 ^~~~~~~~~
+    signals.c:81:17: error: conversion to 'sigset_t' {aka 'unsigned int'} from 'int' may change the sign of the result [-Werror=sign-conversion]
+       81 |                 sigaddset(&hooked_signals, message_progress_sigs[i]);
+          |                 ^~~~~~~~~
+    signals.c:86:9: error: conversion to 'sigset_t' {aka 'unsigned int'} from 'int' may change the sign of the result [-Werror=sign-conversion]
+       86 |         sigaddset(&hooked_signals, SIGTSTP);
+          |         ^~~~~~~~~
+    ```
+    
+    We use `int` for `hooked_signals` but we can't just cast to whatever
+    `sigset_t` is because `sigset_t` is an opaque type. It's an unsigned int
+    on macOS. On macOS, `sigaddset` is implemented as a macro.
+    
+    Just suppress -Wsign-conversion for `signals_init` for macOS given
+    there's no real nice way of fixing this.
+    
+    (cherry picked from commit 863f13d2828b99b0539ce73f9cf85bde32358034)
+
+ src/xz/signals.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+commit 50fb269c7a9cf62a9f3fe08859e2aa4348b600a7
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-13 22:19:40 +0300
+
+    Tests: test_microlzma: Add a "FIXME?" about LZMA_FINISH handling
+    
+    (cherry picked from commit fcbd0d199933a69713cb293cbd7409a757d854cd)
+
+ tests/test_microlzma.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+commit 3e2ff2d38c54c8fc7ce15aaf91185dc105d9c92c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-13 18:05:31 +0300
+
+    Tests: test_microlzma: Tweak comments, coding style, and minor details
+    
+    A few lines were reordered, a few ARRAY_SIZE were changed to sizeof,
+    and a few uint32_t were changed to size_t. No real functional changes
+    were intended.
+    
+    (cherry picked from commit 0fe2dfa68355d2b165544b2bc8babf77dcc2039e)
+
+ tests/test_microlzma.c | 149 +++++++++++++++++++++++++++----------------------
+ 1 file changed, 83 insertions(+), 66 deletions(-)
+
+commit ebc8b8de19d641c37ab7959a224bcd0ff4c0833f
+Author: Ryan Carsten Schmidt <git@ryandesign.com>
+Date:   2024-04-12 19:31:13 -0500
+
+    CI: Use only the active CPUs on macOS
+    
+    hw.ncpu counts all CPUs including inactive ones. hw.activecpu counts
+    only the active CPUs.
+    
+    (cherry picked from commit 97f0ee0f1f903f4e7c4ea23e9b89d687025d2992)
+
+ build-aux/ci_build.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 1e63f7d53648beb6dd5acb5771850d7c4bc30477
+Author: Sam James <sam@gentoo.org>
+Date:   2024-04-10 18:33:55 +0100
+
+    ci: rename ci_build.sh -> ci_build.bash
+    
+    We discussed the name and it's less cognitive load to just call it '.bash'
+    so you don't have an immediate question about if bashisms are OK.
+    
+    (cherry picked from commit 73f629e321b74f68c9954728fa4f19261afccf46)
+
+ .github/workflows/ci.yml                 | 52 ++++++++++++++++----------------
+ .github/workflows/windows-ci.yml         | 20 ++++++------
+ build-aux/{ci_build.sh => ci_build.bash} |  0
+ 3 files changed, 36 insertions(+), 36 deletions(-)
+
+commit aea54a4724414466a20afd7493156d40d0a2741c
+Author: Sam James <sam@gentoo.org>
+Date:   2024-04-10 17:42:23 +0100
+
+    ci: build in parallel by default
+    
+    (cherry picked from commit 8709407a9ef8e7e8aec117879400e4dd3e227ada)
+
+ build-aux/ci_build.sh | 2 ++
+ 1 file changed, 2 insertions(+)
+
+commit 4381fcf00b2fabb6dcc9fd5cf35d520feb9e775a
+Author: Sam James <sam@gentoo.org>
+Date:   2024-04-10 15:41:08 +0100
+
+    ci: default to -O2
+    
+    We need this for when we're passing sanitizer flags or -gdwarf-4 for Clang
+    with Valgrind. Just always start with -O2 if CFLAGS isn't set in the
+    environment and append what was passed on the command line.
+    
+    (cherry picked from commit 65bf7e0a1ca6386f17608e8afb84ac470c18d23f)
+
+ build-aux/ci_build.sh | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+commit 752ba5ed99ec754bafbdc4d87a2876cb2566ecc4
+Author: Sam James <sam@gentoo.org>
+Date:   2024-04-10 15:17:47 +0100
+
+    ci: make automake's test runner verbose on failures
+    
+    This is a lot easier to work with than the save-logs thing the action
+    tries to do...
+    
+    (cherry picked from commit bc899f9e0700ad153bd65f4804c4de7515c8a847)
+
+ build-aux/ci_build.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit cc21af171599ffe0419fc32a30edd3ef7d479865
+Author: Sam James <sam@gentoo.org>
+Date:   2024-04-10 12:38:51 +0100
+
+    ci: make UBSAN abort on errors
+    
+    Unfortunately, UBSAN doesn't do this by default. See also the change
+    I made in Meson for this in October [0].
+    
+    [0] https://github.com/mesonbuild/meson/commit/7b7d2e060b447de9c2642848847370a58711ac1c
+    
+    (cherry picked from commit b5e3470442531717b2457b40ab412740296af1bc)
+
+ .github/workflows/ci.yml | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 2d2d5f14b392cd1aeddab7ce34fd50ba5422e5b5
+Author: Sam James <sam@gentoo.org>
+Date:   2024-04-10 11:43:10 +0100
+
+    ci: test Valgrind
+    
+    Using `--trace-children=yes` has a trade-off here, as it makes
+    `test_scripts.sh` pretty slow when calling various non-xz utilities.
+    
+    But I also feel like it's not useless to have Valgrind used there and it's
+    not easy to exclude Valgrind just for that one test...
+    
+    I did consider using AX_VALGRIND_CHECK [0][1] but I couldn't get it working
+    immediately with some conditionally-built tests and I wondered if it was
+    worth spending time on at least while we're debating xz's future build
+    system situation.
+    
+    [0] https://www.gnu.org/software/autoconf-archive/ax_valgrind_check.html
+    [1] https://tecnocode.co.uk/2014/12/23/automatically-valgrinding-code-with-ax_valgrind_check/
+    
+    (cherry picked from commit 6c095a98fbec70b790253a663173ecdb669108c4)
+
+ .github/workflows/ci.yml | 11 ++++++++++-
+ build-aux/ci_build.sh    |  8 +++++---
+ 2 files changed, 15 insertions(+), 4 deletions(-)
+
+commit 5d20a612051fac3ca6d99abe3cd7e0e3370e5b67
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-10 23:20:02 +0300
+
+    liblzma: CRC: Simplify table omission macros
+    
+    A macro is useful to prevent a single #if directive from
+    getting too ugly but only one macro is needed for all archs.
+    
+    (cherry picked from commit 6286c1900c2d2ca33d9b1b397122c7bcdb9a4d59)
+
+ src/liblzma/check/crc32_table.c | 10 ++++------
+ src/liblzma/check/crc64_table.c |  4 ++--
+ src/liblzma/check/crc_common.h  |  5 +++--
+ 3 files changed, 9 insertions(+), 10 deletions(-)
+
+commit 2a80827e23169c624560ac89714bf5084cbead43
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-10 23:09:40 +0300
+
+    liblzma: ARM64 CRC: Fix omission of CRC32 table
+    
+    The macro name had an odd typo so the table wasn't omitted
+    when it should have.
+    
+    Fixes: 1940f0ec28f08c0ac72c1413d9706fb82eabe6ad
+    (cherry picked from commit 45da936c879acf4f053a3055665bf1b10ded4462)
+
+ src/liblzma/check/crc32_table.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit a54117377151356c1e2494ba1febc245cb71b51c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-10 22:21:51 +0300
+
+    Build: If ARM64 feature detection func is found, stop looking for others
+    
+    This can speed up configure a tiny bit.
+    
+    Fixes: c5f6d79cc9515a7f22d7ea4860c6cc394b295732
+    (cherry picked from commit 308a9af85400b0e2019f0f012c8354e831d06d65)
+
+ configure.ac | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 9223ad6e78a666cc9f9aba135d1755fec184a24a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-10 22:04:27 +0300
+
+    liblzma: ARM64 CRC32: Change style of the macOS code to match FreeBSD
+    
+    I didn't test this but it shouldn't change any functionality.
+    
+    Fixes: 761f5b69a4c778c8bcb09279b845b07c28790575
+    (cherry picked from commit fc43cecd32bf9d5f8caa599206b15c9569af1eb6)
+
+ src/liblzma/check/crc32_arm64.h | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+commit 32ceb2c36a0e450037bbe906c2a1ea42607b9d21
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-10 21:59:27 +0300
+
+    liblzma: ARM64 CRC32: Add error checking to FreeBSD-specific code
+    
+    Also add parenthesis to the return statement.
+    
+    I didn't test this.
+    
+    Fixes: 761f5b69a4c778c8bcb09279b845b07c28790575
+    (cherry picked from commit 1024cd4cd966b998fedec51e385e9ee9a49b3c57)
+
+ src/liblzma/check/crc32_arm64.h | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+commit 42915101e914dba353c236925bc1d5e4826d3f7a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-10 21:56:33 +0300
+
+    liblzma: ARM64 CRC32: Use negation instead of subtracting from 8
+    
+    Subtracting from 0 is negation, this just keeps warnings away.
+    
+    Fixes: 761f5b69a4c778c8bcb09279b845b07c28790575
+    (cherry picked from commit 2337f7021c860b026e3e849e60a9ae8d09ec0ea0)
+
+ src/liblzma/check/crc32_arm64.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 42a9482b48f0171852fbaddbdc729a56f2daa547
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-10 21:55:10 +0300
+
+    liblzma: ARM64 CRC32: Tweak coding style and comments
+    
+    (cherry picked from commit d8fffd01aa1a3c18e437a222abd34699e23ff5e7)
+
+ src/liblzma/check/crc32_arm64.h | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+commit 38a3ec5a7e2ddeee3686be64b037aa1377f31fd1
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-09 17:47:01 +0300
+
+    CI: Remove ifunc support.
+    
+    (cherry picked from commit 986865ea2f9d1f8dbef4a130926df106b0f6d41a)
+
+ .github/workflows/ci.yml | 13 +++----------
+ build-aux/ci_build.sh    |  5 +----
+ 2 files changed, 4 insertions(+), 14 deletions(-)
+
+commit 34d1252f093944ff350a88a6196539f95902ad41
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-09 17:43:16 +0300
+
+    liblzma: Remove ifunc support.
+    
+    This is *NOT* done for security reasons even though the backdoor
+    relied on the ifunc code. Instead, the reason is that in this
+    project ifunc provides little benefits but it's quite a bit of
+    extra code to support it. The only case where ifunc *might* matter
+    for performance is if the CRC functions are used directly by an
+    application. In normal compression use it's completely irrelevant.
+    
+    (cherry picked from commit 689ae2427342a2ea1206eb5ca08301baf410e7e0)
+
+ CMakeLists.txt                    | 79 ---------------------------------------
+ INSTALL                           |  8 ----
+ configure.ac                      | 79 ---------------------------------------
+ src/liblzma/check/crc32_fast.c    | 48 +++---------------------
+ src/liblzma/check/crc64_fast.c    | 21 -----------
+ src/liblzma/check/crc_common.h    |  9 +----
+ src/liblzma/check/crc_x86_clmul.h | 11 +-----
+ 7 files changed, 8 insertions(+), 247 deletions(-)
+
+commit a594b39685051cd1ec866360bc4dd6c22f301bb4
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-08 22:04:41 +0300
+
+    tests/files/README: Update the main heading.
+    
+    (cherry picked from commit 6b4c859059a7eb9b0547590c081668e14ecf8af6)
+
+ tests/files/README | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit fa76e3ef597ee2e9d150461a42d270a386204042
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-08 22:02:45 +0300
+
+    tests/files/README: Explain how to recreate the ARM64 test files.
+    
+    (cherry picked from commit 2a851e06b891ce894f918faff32a6cca6fdecee6)
+
+ tests/files/README | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)
+
+commit 112fa0aba6be30968811c9131f1b995cf9e92e75
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-08 21:51:55 +0300
+
+    debug: Add generator for the ARM64 test file data.
+    
+    (cherry picked from commit 3d09b721b94e18fe1f853a04799697f5de10b291)
+
+ debug/Makefile.am         |   3 +-
+ debug/testfilegen-arm64.c | 116 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 118 insertions(+), 1 deletion(-)
+
+commit 1a1f3d0323d5991a3238566e8f517d5116358b5c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-08 21:19:38 +0300
+
+    xz man page: Use .ft CR instead of CW to silence warnings from groff.
+    
+    (cherry picked from commit 31ef676567c9d6fcc4ec9fc833c312f7a7c21c48)
+
+ src/xz/xz.1 | 32 ++++++++++++++++----------------
+ 1 file changed, 16 insertions(+), 16 deletions(-)
+
+commit 9f9203f574f895c40a86a83c45c6bb79c25bb5d2
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-08 19:28:35 +0300
+
+    Fix NEWS for 5.6.0 and 5.6.1.
+    
+    (cherry picked from commit 780cbf29d5a88db2b546e9b7b019c4c33ca72685)
+
+ NEWS | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+commit 12876b33c79e36d7e51e8ba6ab7162bd2129cb5b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-08 19:22:26 +0300
+
+    Remove the XZ logo.
+    
+    (cherry picked from commit bfd0c7c478e93a1911b845459549ff94587b6ea2)
+
+ COPYING              |   5 -
+ COPYING.CC-BY-SA-4.0 | 427 ---------------------------------------------------
+ Makefile.am          |   2 -
+ README               |   2 -
+ doc/xz-logo.png      | Bin 6771 -> 0 bytes
+ doxygen/Doxyfile     |   6 +-
+ doxygen/footer.html  |  13 --
+ 7 files changed, 3 insertions(+), 452 deletions(-)
+
+commit 879295d91f06c241fd8a8fc1ca95776dbeb45f93
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-08 18:27:39 +0300
+
+    Update maintainer and author info.
+    
+    The other maintainer suddenly disappeared.
+    
+    (cherry picked from commit 77a294d98a9d2d48f7e4ac273711518bf689f5c4)
+
+ AUTHORS                |  9 +++++++--
+ README                 | 10 +++-------
+ THANKS                 |  1 -
+ src/liblzma/api/lzma.h |  2 +-
+ 4 files changed, 11 insertions(+), 11 deletions(-)
+
+commit 859617d30d81317236e004b323fed0883f932dcf
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-08 18:05:32 +0300
+
+    Docs: Update .xz file format specification to 1.2.1.
+    
+    This only reverts the XZ URL changes.
+    
+    (cherry picked from commit 8dd03d4484ccf80022722a16d0ed9b37f2b58072)
+
+ doc/xz-file-format.txt | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)
+
+commit eeb74fba1f6ea334a519015938b4a26c6ba5d4eb
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-08 17:33:56 +0300
+
+    Update website URLs back to tukaani.org.
+    
+    The XZ projects were moved back to their original URLs.
+    
+    (cherry picked from commit 17aa2e1a796d3f758802df29afc89dcf335db567)
+
+ CMakeLists.txt             |  2 +-
+ COPYING                    |  3 +--
+ README                     |  4 ++--
+ configure.ac               |  2 +-
+ doc/faq.txt                |  2 +-
+ doc/lzma-file-format.txt   | 12 ++++++------
+ dos/config.h               |  2 +-
+ src/liblzma/api/lzma.h     |  2 +-
+ src/xz/xz.1                |  6 +++---
+ src/xzdec/xzdec.1          |  4 ++--
+ windows/README-Windows.txt |  2 +-
+ 11 files changed, 20 insertions(+), 21 deletions(-)
+
+commit a7b9cd70004bfc1abadc7e865dfce765f7b8b59d
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-08 17:07:08 +0300
+
+    xzdec: Tweak coding style and comments.
+    
+    (cherry picked from commit 2739db981023373a2ddabc7b456c7e658bb4f582)
+
+ src/xzdec/xzdec.c | 32 +++++++++++++++++++++-----------
+ 1 file changed, 21 insertions(+), 11 deletions(-)
+
+commit ebe9d6d8cb27168706078009b3f64da8fde63833
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-08 15:53:46 +0300
+
+    tests/ossfuzz: Tiny fix to a comment.
+    
+    (cherry picked from commit 408b6adb2a07d07c6535f859571cca38837caaf3)
+
+ tests/ossfuzz/fuzz_decode_stream.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 78ab47d65d916207233abbcdb0ccfd6efb946c05
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-03-30 14:36:28 +0200
+
+    CMake: Fix sabotaged Landlock sandbox check.
+    
+    It never enabled it.
+    
+    (cherry picked from commit f9cf4c05edd14dedfe63833f8ccbe41b55823b00)
+
+ CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 5f178c364c3b5c6fe87099b7624d5c76995ff8e6
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-22 14:08:33 +0300
+
+    Delete SECURITY.md from v5.6
+    
+    It's too easily out of date in the stable branches.
+    It's not included in the release packages anyway.
+
+ .github/SECURITY.md | 29 -----------------------------
+ 1 file changed, 29 deletions(-)
+
+commit b3a756188004a16de5956c368e3b0efd1a9bccb0
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-03-22 17:46:30 +0200
+
+    liblzma: memcmplen.h: Add a comment why subtraction is used.
+    
+    (cherry picked from commit 0b99783d63f27606936bb79a16c52d0d70c0b56f)
+
+ src/liblzma/common/memcmplen.h | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+commit 94939a145f362ff8b09fb37fc72901743f7f5cb2
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-03-15 17:43:39 +0200
+
+    INSTALL: Document arguments of --enable-symbol-versions.
+    
+    (cherry picked from commit 8a25ba024d55610c448c6e4f1400a00bae51b493)
+
+ INSTALL | 43 +++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 39 insertions(+), 4 deletions(-)
+
+commit fa14c8aaf0d0266b7e0c3b7c766159299c1a0f18
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-03-15 17:15:50 +0200
+
+    Build: Use only the generic symbol versioning with NVIDIA HPC Compiler.
+    
+    This does the previous commit with CMake.
+    
+    AC_EGREP_CPP uses AC_REQUIRE so the outermost if-commands must
+    be changed to AS_IF to ensure that things wont break some day.
+    See 5a5bd7f871818029d5ccbe189f087f591258c294.
+    
+    (cherry picked from commit 49324b711f9d42b3543bf2f3ae598eaa03360bd5)
+
+ configure.ac | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)
+
+commit 73baa8d99b51c7623ed95afe6411302d9ff56864
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-03-15 16:36:35 +0200
+
+    CMake: Use only the generic symbol versioning with NVIDIA HPC Compiler.
+    
+    It doesn't support the __symver__ attribute or __asm__(".symver ...").
+    The generic symbol versioning can still be used since it only needs
+    linker support.
+    
+    (cherry picked from commit c273123ed0ebaebf49994057a7fe98aae7f42c40)
+
+ CMakeLists.txt | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+commit 886633f42376f4648d931917733c8a59fb2e1f6c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-03-13 21:38:24 +0200
+
+    Update THANKS.
+    
+    (cherry picked from commit df7f487648d18a3992386a59b8a061edca862d17)
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 760f622f0d73632df2347aaca7ac7ff5761e98b6
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-03-13 21:30:18 +0200
+
+    liblzma: Minor comment edits.
+    
+    (cherry picked from commit 3217b82b3ec023bf8338249134a076bea0ea30ec)
+
+ src/liblzma/common/string_conversion.c | 4 ++--
+ src/liblzma/delta/delta_decoder.c      | 2 ++
+ 2 files changed, 4 insertions(+), 2 deletions(-)
+
+commit 403b4c78b81f67bc3787542f55f555407253316c
+Author: Sergey Kosukhin <sergey.kosukhin@mpimet.mpg.de>
+Date:   2024-03-13 13:07:13 +0100
+
+    liblzma: Fix building with NVHPC (NVIDIA HPC SDK).
+    
+    NVHPC compiler has several issues that make it impossible to
+    build liblzma:
+      - the compiler cannot handle unions that contain pointers that
+        are not the first members;
+      - the compiler cannot handle the assembler code in range_decoder.h
+        (LZMA_RANGE_DECODER_CONFIG has to be set to zero);
+      - the compiler fails to produce valid code for delta_decode if the
+        vectorization is enabled, which results in failed tests.
+    
+    This introduces NVHPC-specific workarounds that address the issues.
+    
+    (cherry picked from commit 096bc0e3f8fb4bfc4d2f3f64a7f219401ffb4c31)
+
+ src/liblzma/common/string_conversion.c | 6 ++++--
+ src/liblzma/delta/delta_decoder.c      | 3 +++
+ src/liblzma/rangecoder/range_decoder.h | 1 +
+ 3 files changed, 8 insertions(+), 2 deletions(-)
+
+commit 1888fb49f629340758e98e69d5aa328f6f73c5e1
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-03-13 21:17:10 +0200
+
+    CMake: Disable symbol versioning on non-glibc Linux.
+    
+    This better matches what configure.ac does. For example, musl has
+    only basic symbol versioning support:
+    
+    https://wiki.musl-libc.org/functional-differences-from-glibc.html#Symbol_versioning
+    
+    configure.ac tries to enable symbol versioning only with glibc
+    so now CMake does the same.
+    
+    (cherry picked from commit 2ad7fad67080e88fa7fc191f9d613d8b7add9c62)
+
+ CMakeLists.txt | 22 ++++++++++++++++++++--
+ 1 file changed, 20 insertions(+), 2 deletions(-)
+
+commit 4b3c84e8eebbcf712fc2396dbb8117cce2d72464
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-03-13 20:32:46 +0200
+
+    CMake: Make symbol versioning configurable.
+    
+    (cherry picked from commit 82f0c0d39eb2c026b1d96ee706f70ace868d4ed4)
+
+ CMakeLists.txt | 62 +++++++++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 42 insertions(+), 20 deletions(-)
+
+commit 69d1e20208eb9bd1f4f1c8ee4e49cc82d681a877
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-03-13 19:47:36 +0200
+
+    Build: Style tweaks to configure.ac.
+    
+    The AC_MSG_ERROR line is overlong anyway as are a few other
+    AC_MSG_ERROR lines already.
+    
+    (cherry picked from commit 45d33bfc45e4295b8ad743bc2ae61cc724f98076)
+
+ configure.ac | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)
+
+commit 051d6b5c85a874c78249693865fd751088f403a2
+Author: Sergey Kosukhin <sergey.kosukhin@mpimet.mpg.de>
+Date:   2024-03-12 20:03:49 +0100
+
+    Build: Let the users override the symbol versioning variant.
+    
+    There are cases when the users want to decide themselves whether
+    they want to have the generic (even on GNU/Linux) or the linux
+    (even if we do not recommend that) symbol versioning variant.
+    The former might be needed to circumvent compiler issues (i.e.
+    the compiler does not support all features that are required
+    for the linux versioning), the latter might help in overriding
+    the assumptions made in the configure script.
+    
+    (cherry picked from commit f56ed6fac6619b56b005878d3b5210e2f0d721c0)
+
+ configure.ac | 91 +++++++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 50 insertions(+), 41 deletions(-)
+
+commit 95dcea4b5df0b180af461e4584d2bcf7725e3aef
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-09 18:22:16 +0300
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 1107712e372f7593ad729764c0c2644d0e4aa675
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-04-08 15:32:58 +0300
+
+    Remove the backdoor found in 5.6.0 and 5.6.1 (CVE-2024-3094).
+    
+    While the backdoor was inactive (and thus harmless) without inserting
+    a small trigger code into the build system when the source package was
+    created, it's good to remove this anyway:
+    
+      - The executable payloads were embedded as binary blobs in
+        the test files. This was a blatant violation of the
+        Debian Free Software Guidelines.
+    
+      - On machines that see lots bots poking at the SSH port, the backdoor
+        noticeably increased CPU load, resulting in degraded user experience
+        and thus overwhelmingly negative user feedback.
+    
+      - The maintainer who added the backdoor has disappeared.
+    
+      - Backdoors are bad for security.
+    
+    This reverts the following without making any other changes:
+    
+    6e636819 Tests: Update two test files.
+    a3a29bbd Tests: Test --single-stream can decompress bad-3-corrupt_lzma2.xz.
+    0b4ccc91 Tests: Update RISC-V test files.
+    8c9b8b20 liblzma: Fix typos in crc32_fast.c and crc64_fast.c.
+    82ecc538 liblzma: Fix false Valgrind error report with GCC.
+    cf44e4b7 Tests: Add a few test files.
+    3060e107 Tests: Use smaller dictionary size in RISC-V test files.
+    e2870db5 Tests: Add two RISC-V Filter test files.
+    
+    The RISC-V test files also have real content that tests the filter
+    but the real content would fit into much smaller files. A generator
+    program would need to be available as well.
+    
+    Thanks to Andres Freund for finding and reporting it and making
+    it public quickly so others could act without a delay.
+    See: https://www.openwall.com/lists/oss-security/2024/03/29/4
+
+ src/liblzma/check/crc32_fast.c         |   7 +++++--
+ src/liblzma/check/crc64_fast.c         |   4 +++-
+ src/liblzma/check/crc_common.h         |  25 -------------------------
+ tests/files/README                     |  27 ---------------------------
+ tests/files/bad-3-corrupt_lzma2.xz     | Bin 512 -> 0 bytes
+ tests/files/bad-dict_size.lzma         | Bin 41 -> 0 bytes
+ tests/files/good-1-riscv-lzma2-1.xz    | Bin 7424 -> 0 bytes
+ tests/files/good-1-riscv-lzma2-2.xz    | Bin 7432 -> 0 bytes
+ tests/files/good-2cat.xz               | Bin 136 -> 0 bytes
+ tests/files/good-large_compressed.lzma | Bin 35421 -> 0 bytes
+ tests/files/good-small_compressed.lzma | Bin 258 -> 0 bytes
+ tests/test_files.sh                    |  11 -----------
+ 12 files changed, 8 insertions(+), 66 deletions(-)
+
+commit fd1b975b7851e081ed6e5cf63df946cd5cbdbb94
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2024-03-09 11:42:50 +0800
+
+    Bump version and soname for 5.6.1.
+
+ src/liblzma/Makefile.am        | 2 +-
+ src/liblzma/api/lzma/version.h | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+commit a2cda572498e96163fe4e2bde096d5dd7b814668
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2024-03-09 11:27:27 +0800
+
+    Add NEWS for 5.6.1
+
+ NEWS | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)
+
+commit 8583c6021124e388bce044a09f00ebabfd6165a7
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2024-03-09 10:43:20 +0800
+
+    Translations: Add missing --riscv option to man page translations.
+
+ po4a/de.po    | 702 +++++++++++++++++++++++++++++-----------------------------
+ po4a/fr.po    | 549 ++++++++++++++++++++++-----------------------
+ po4a/ko.po    | 702 +++++++++++++++++++++++++++++-----------------------------
+ po4a/pt_BR.po | 641 +++++++++++++++++++++++++++--------------------------
+ po4a/ro.po    | 702 +++++++++++++++++++++++++++++-----------------------------
+ po4a/uk.po    | 702 +++++++++++++++++++++++++++++-----------------------------
+ 6 files changed, 2024 insertions(+), 1974 deletions(-)
+
+commit 74b138d2a6529f2c07729d7c77b1725a8e8b16f1
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2024-03-09 10:18:29 +0800
+
+    Tests: Update two test files.
+    
+    The original files were generated with random local to my machine.
+    To better reproduce these files in the future, a constant seed was used
+    to recreate these files.
+
+ tests/files/bad-3-corrupt_lzma2.xz     | Bin 484 -> 512 bytes
+ tests/files/good-large_compressed.lzma | Bin 35430 -> 35421 bytes
+ 2 files changed, 0 insertions(+), 0 deletions(-)
+
+commit 3ec6dfd656bdd40ede2a5f11e6be338988e38be4
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2024-03-09 10:08:32 +0800
+
+    Tests: Test --single-stream can decompress bad-3-corrupt_lzma2.xz.
+    
+    The first stream in this file is valid, so this tests that xz properly
+    stops after decompressing it.
+
+ tests/test_files.sh | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+commit a67dcce6109c2f932a0a86abb0d7a95d3c31fb3e
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2024-03-09 10:05:32 +0800
+
+    Tests: Update RISC-V test files.
+    
+    This increases code coverage and tests for possible shifting bugs.
+
+ tests/files/good-1-riscv-lzma2-1.xz | Bin 7512 -> 7424 bytes
+ tests/files/good-1-riscv-lzma2-2.xz | Bin 7512 -> 7432 bytes
+ 2 files changed, 0 insertions(+), 0 deletions(-)
+
+commit 058337b0f1da9f166049ecc972fa5c499c1af08c
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2024-03-09 09:52:32 +0800
+
+    liblzma: Fix typos in crc32_fast.c and crc64_fast.c.
+
+ src/liblzma/check/crc32_fast.c | 4 ++--
+ src/liblzma/check/crc64_fast.c | 3 +--
+ 2 files changed, 3 insertions(+), 4 deletions(-)
+
+commit cd5de9c1bbab3dd41b34b37a89c193fb6ff51ca5
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2024-03-09 09:49:55 +0800
+
+    Tests: Replace HAVE_MICROLZMA usage in CMake and Autotools builds.
+    
+    This reverts commit adaacafde6661496ca2814b1e94a3ba5186428cb.
+
+ CMakeLists.txt         | 15 ++++++++++-----
+ configure.ac           |  9 ++-------
+ tests/Makefile.am      |  9 ++++++---
+ tests/test_microlzma.c | 12 ++++--------
+ 4 files changed, 22 insertions(+), 23 deletions(-)
+
+commit 651a1545c8b6150051a0b44857136efd419afc6f
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2024-03-09 09:20:57 +0800
+
+    liblzma: Fix false Valgrind error report with GCC.
+    
+    With GCC and a certain combination of flags, Valgrind will falsely
+    trigger an invalid write. This appears to be due to the omission of
+    instructions to properly save, set up, and restore the frame pointer.
+    
+    The IFUNC resolver is a leaf function since it only calls a function
+    that is inlined. So sometimes GCC omits the frame pointer instructions
+    in the resolver unless this optimization is explictly disabled.
+    
+    This fixes https://bugzilla.redhat.com/show_bug.cgi?id=2267598.
+
+ src/liblzma/check/crc32_fast.c |  9 +++------
+ src/liblzma/check/crc64_fast.c |  7 +++----
+ src/liblzma/check/crc_common.h | 25 +++++++++++++++++++++++++
+ 3 files changed, 31 insertions(+), 10 deletions(-)
+
+commit 6e97b299f1b22e366ec42ba5dc5b9d0746e87b84
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-03-05 23:21:26 +0200
+
+    liblzma: Fix a typo in a comment in the RISC-V filter.
+
+ src/liblzma/simple/riscv.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 4e1c97052b5f14f4d6dda99d12cbbd01e66e3712
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2024-03-05 00:34:46 +0800
+
+    liblzma: Use attribute no_profile_instrument_function with ifunc.
+    
+    Thanks to Sam James for determining this was the attribute needed to
+    workaround the GCC bug and for his version of the patch in Gentoo.
+
+ src/liblzma/check/crc32_fast.c | 5 +++++
+ src/liblzma/check/crc64_fast.c | 3 +++
+ 2 files changed, 8 insertions(+)
+
+commit ed957d39426695e948b06de0ed952a2fbbe84bd1
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2024-03-05 00:27:31 +0800
+
+    Build: Require attribute no_profile_instrument_function for ifunc usage.
+    
+    Using __attribute__((__no_profile_instrument_function__)) on the ifunc
+    resolver works around a bug in GCC -fprofile-generate:
+    it adds profiling code even to ifunc resolvers which can make
+    the ifunc resolver crash at program startup. This attribute
+    was not introduced until GCC 7 and Clang 13, so ifunc won't
+    be used with prior versions of these compilers.
+    
+    This bug was brought to our attention by:
+    
+        https://bugs.gentoo.org/925415
+    
+    And was reported to upstream GCC by:
+    
+        https://gcc.gnu.org/bugzilla/show_bug.cgi?id=11411
+
+ CMakeLists.txt | 7 +++++++
+ configure.ac   | 7 +++++++
+ 2 files changed, 14 insertions(+)
+
+commit e98ddaf85a1a8fb3cc863637f83356cc9db31e13
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-03-04 19:23:18 +0200
+
+    liblzma: Fix a comment in the RISC-V filter.
+
+ src/liblzma/simple/riscv.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit 319cec142f67fe294e0486402f1569f223d9a83d
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-02-29 16:35:52 +0200
+
+    CMake: Warn if translated man pages are missing.
+
+ CMakeLists.txt | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+commit 46c3e113d8eeb1a731a60829fa7f5d1b519f7f26
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-02-29 16:35:52 +0200
+
+    CMake: Warn if gettext tools and pre-created .gmo files are missing.
+    
+    It's only done with CMake >= 3.20 and if library support
+    for translation was already found.
+    
+    Sort of fixes: https://github.com/tukaani-project/xz/issues/82
+
+ CMakeLists.txt | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)
+
+commit 86bec8334bb1dcb6d9293a11cdccd895b17f364b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-02-28 18:26:25 +0200
+
+    xz: Add comments.
+
+ src/xz/coder.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+commit 5c91b454c24e043ca8f2cc7d2b09bd091dafe655
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2024-02-27 23:42:41 +0800
+
+    xz: Change logging level for thread reduction to highest verbosity only.
+    
+    Now that multi threaded encoding is the default, users do not need to
+    see a warning message everytime the number of threads is reduced. On
+    some machines, this could happen very often. It is not unreasonable for
+    users to need to set double verbose mode to see this kind of
+    information.
+    
+    To see these warning messages -vv or --verbose --verbose must be passed
+    to set xz into the highest possible verbosity mode.
+    
+    These warnings had caused automated testing frameworks to fail when they
+    expected no output to stderr.
+    
+    Thanks to Sebastian Andrzej Siewior for reporting this and for the
+    initial version of the patch.
+
+ src/xz/coder.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit d0e57b2f159f8fd03a9a89f2f593a768d0487898
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-02-26 23:06:13 +0200
+
+    Fix sorting in THANKS.
+
+ THANKS | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit d416be55ac02af1144fed455fb18b710147bb490
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2024-02-26 23:39:29 +0800
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit f06b33edd2aeabdb11836a2bf0b681768dad29d3
+Author: Chien Wong <m@xv97.com>
+Date:   2024-02-25 21:38:13 +0800
+
+    xz: Add missing RISC-V on the filter list in the man page
+    
+    Signed-off-by: Chien Wong <m@xv97.com>
+
+ src/xz/xz.1 | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+commit a100f9111c8cc7f5b5f0e4a5e8af3de7161c7975
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2024-02-26 23:02:06 +0800
+
+    Build: Fix Linux Landlock feature test in Autotools and CMake builds.
+    
+    The previous Linux Landlock feature test assumed that having the
+    linux/landlock.h header file was enough. The new feature tests also
+    requires that prctl() and the required Landlock system calls are
+    supported.
+
+ CMakeLists.txt    | 25 ++++++++++++++++++++++---
+ configure.ac      | 27 ++++++++++++++++++++++++++-
+ src/xz/sandbox.c  |  2 +-
+ src/xz/sandbox.h  |  2 +-
+ src/xzdec/xzdec.c |  8 ++++----
+ 5 files changed, 54 insertions(+), 10 deletions(-)
+
+commit d85efdc8911e6e8964ec920af44c8a6fe0a4c3c2
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2024-02-26 20:06:10 +0800
+
+    Tests: Add test_microlzma to .gitignore and CMakeLists.txt.
+
+ .gitignore     | 1 +
+ CMakeLists.txt | 1 +
+ 2 files changed, 2 insertions(+)
+
+commit 42ee4256739779005a7f921946c8a8e483d1f2ed
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2024-02-26 19:56:25 +0800
+
+    Tests: Correct license header in test_microlzma.c.
+
+ tests/test_microlzma.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+commit c83349dfd9cf9c495005b6d30e2fd34a9cafc18a
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2024-02-25 21:41:55 +0800
+
+    Fix typos in NEWS and CMakeLists.
+
+ CMakeLists.txt | 2 +-
+ NEWS           | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
 commit 2d7d862e3ffa8cec4fd3fdffcd84e984a17aa429
 Author: Jia Tan <jiat0218@gmail.com>
 Date:   2024-02-24 15:55:08 +0800

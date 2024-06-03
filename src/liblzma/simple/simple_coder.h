@@ -61,12 +61,12 @@ extern lzma_ret lzma_simple_armthumb_decoder_init(lzma_next_coder *next,
 
 
 extern lzma_ret lzma_simple_arm64_encoder_init(lzma_next_coder *next,
-               const lzma_allocator *allocator,
-               const lzma_filter_info *filters);
+		const lzma_allocator *allocator,
+		const lzma_filter_info *filters);
 
 extern lzma_ret lzma_simple_arm64_decoder_init(lzma_next_coder *next,
-               const lzma_allocator *allocator,
-               const lzma_filter_info *filters);
+		const lzma_allocator *allocator,
+		const lzma_filter_info *filters);
 
 
 extern lzma_ret lzma_simple_sparc_encoder_init(lzma_next_coder *next,

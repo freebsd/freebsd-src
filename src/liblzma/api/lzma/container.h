@@ -792,7 +792,7 @@ extern LZMA_API(lzma_ret) lzma_stream_decoder_mt(
  * as it doesn't support any decoder flags. It will return LZMA_STREAM_END
  * after one .lzma stream.)
  *
-  * \param       strm       Pointer to lzma_stream that is at least initialized
+ * \param       strm        Pointer to lzma_stream that is at least initialized
  *                          with LZMA_STREAM_INIT.
  * \param       memlimit    Memory usage limit as bytes. Use UINT64_MAX
  *                          to effectively disable the limiter. liblzma

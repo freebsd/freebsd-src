@@ -150,6 +150,16 @@ decoder_find(lzma_vli id)
 }
 
 
+// lzma_filter_coder begins with the same members as lzma_filter_decoder.
+// This function is a wrapper with a type that is compatible with the
+// typedef of lzma_filter_find in filter_common.h.
+static const lzma_filter_coder *
+coder_find(lzma_vli id)
+{
+	return (const lzma_filter_coder *)decoder_find(id);
+}
+
+
 extern LZMA_API(lzma_bool)
 lzma_filter_decoder_is_supported(lzma_vli id)
 {
@@ -162,7 +172,7 @@ lzma_raw_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 		const lzma_filter *options)
 {
 	return lzma_raw_coder_init(next, allocator,
-			options, (lzma_filter_find)(&decoder_find), false);
+			options, &coder_find, false);
 }
 
 
@@ -181,8 +191,7 @@ lzma_raw_decoder(lzma_stream *strm, const lzma_filter *options)
 extern LZMA_API(uint64_t)
 lzma_raw_decoder_memusage(const lzma_filter *filters)
 {
-	return lzma_raw_coder_memusage(
-			(lzma_filter_find)(&decoder_find), filters);
+	return lzma_raw_coder_memusage(&coder_find, filters);
 }
 
 

@@ -42,7 +42,7 @@ init_crc64_table(void)
 #ifdef WORDS_BIGENDIAN
 	for (size_t s = 0; s < 4; ++s)
 		for (size_t b = 0; b < 256; ++b)
-			crc64_table[s][b] = bswap64(crc64_table[s][b]);
+			crc64_table[s][b] = byteswap64(crc64_table[s][b]);
 #endif
 
 	return;

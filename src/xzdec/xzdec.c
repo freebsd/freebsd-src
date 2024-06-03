@@ -24,14 +24,19 @@
 #	include <sys/capsicum.h>
 #endif
 
-#ifdef HAVE_LINUX_LANDLOCK_H
+#ifdef HAVE_LINUX_LANDLOCK
 #	include <linux/landlock.h>
 #	include <sys/prctl.h>
 #	include <sys/syscall.h>
+#	ifdef LANDLOCK_ACCESS_NET_BIND_TCP
+#		define LANDLOCK_ABI_MAX 4
+#	else
+#		define LANDLOCK_ABI_MAX 3
+#	endif
 #endif
 
 #if defined(HAVE_CAP_RIGHTS_LIMIT) || defined(HAVE_PLEDGE) \
-		|| defined(HAVE_LINUX_LANDLOCK_H)
+		|| defined(HAVE_LINUX_LANDLOCK)
 #	define ENABLE_SANDBOX 1
 #endif
 
@@ -313,10 +318,12 @@ sandbox_enter(int src_fd)
 			STDIN_FILENO, cap_rights_clear(&rights)))
 		goto error;
 
-	if (cap_rights_limit(STDOUT_FILENO, cap_rights_init(&rights, CAP_WRITE)))
+	if (cap_rights_limit(STDOUT_FILENO, cap_rights_init(&rights,
+			CAP_WRITE)))
 		goto error;
 
-	if (cap_rights_limit(STDERR_FILENO, cap_rights_init(&rights, CAP_WRITE)))
+	if (cap_rights_limit(STDERR_FILENO, cap_rights_init(&rights,
+			CAP_WRITE)))
 		goto error;
 
 #elif defined(HAVE_PLEDGE)
@@ -325,17 +332,23 @@ sandbox_enter(int src_fd)
 		goto error;
 
 	(void)src_fd;
-#elif defined(HAVE_LINUX_LANDLOCK_H)
+
+#elif defined(HAVE_LINUX_LANDLOCK)
 	int landlock_abi = syscall(SYS_landlock_create_ruleset,
 			(void *)NULL, 0, LANDLOCK_CREATE_RULESET_VERSION);
 
 	if (landlock_abi > 0) {
-		// We support ABI versions 1-3.
-		if (landlock_abi > 3)
-			landlock_abi = 3;
+		if (landlock_abi > LANDLOCK_ABI_MAX)
+			landlock_abi = LANDLOCK_ABI_MAX;
 
 		const struct landlock_ruleset_attr attr = {
-			.handled_access_fs = (1ULL << (12 + landlock_abi)) - 1
+			.handled_access_fs = (1ULL
+				<< (12 + my_min(3, landlock_abi))) - 1,
+#	if LANDLOCK_ABI_MAX >= 4
+			.handled_access_net = landlock_abi < 4 ? 0 :
+				(LANDLOCK_ACCESS_NET_BIND_TCP
+				| LANDLOCK_ACCESS_NET_CONNECT_TCP),
+#	endif
 		};
 
 		const int ruleset_fd = syscall(SYS_landlock_create_ruleset,
@@ -351,6 +364,7 @@ sandbox_enter(int src_fd)
 	}
 
 	(void)src_fd;
+
 #else
 #	error ENABLE_SANDBOX is defined but no sandboxing method was found.
 #endif
@@ -367,6 +381,7 @@ error:
 	if (errno == ENOSYS)
 		return;
 #endif
+
 	my_errorf("Failed to enable the sandbox");
 	exit(EXIT_FAILURE);
 }
@@ -389,9 +404,15 @@ main(int argc, char **argv)
 	}
 #endif
 
-#ifdef HAVE_LINUX_LANDLOCK_H
-	// Prevent the process from gaining new privileges. The return
-	// is ignored to keep compatibility with old kernels.
+#ifdef HAVE_LINUX_LANDLOCK
+	// Prevent the process from gaining new privileges. This must be done
+	// before landlock_restrict_self(2) but since we will never need new
+	// privileges, this call can be done here already.
+	//
+	// This is supported since Linux 3.5. Ignore the return value to
+	// keep compatibility with old kernels. landlock_restrict_self(2)
+	// will fail if the no_new_privs attribute isn't set, thus if prctl()
+	// fails here the error will still be detected when it matters.
 	(void)prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 #endif
 
@@ -438,19 +459,18 @@ main(int argc, char **argv)
 				}
 			}
 #ifdef ENABLE_SANDBOX
-			// Enable the sandbox for the last file. When the
-			// strict sandbox is enabled the process can no
-			// longer open additional files. It is likely that
-			// the most common way to use xzdec is to
-			// decompress a single file, so this fully protects
-			// most use cases.
+			// Enable the strict sandbox for the last file.
+			// Then the process can no longer open additional
+			// files. The typical xzdec use case is to decompress
+			// a single file so this way the strictest sandboxing
+			// is used in most cases.
 			if (optind == argc - 1)
 				sandbox_enter(fileno(src_file));
 #endif
 			uncompress(&strm, src_file, src_name);
 
 			if (src_file != stdin)
-				fclose(src_file);
+				(void)fclose(src_file);
 		} while (++optind < argc);
 	}
 

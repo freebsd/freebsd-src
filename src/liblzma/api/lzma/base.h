@@ -257,7 +257,7 @@ typedef enum {
 		 */
 
 	/*
-	 * These eumerations may be used internally by liblzma
+	 * These enumerations may be used internally by liblzma
 	 * but they will never be returned to applications.
 	 */
 	LZMA_RET_INTERNAL1      = 101,

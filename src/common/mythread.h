@@ -200,7 +200,7 @@ mythread_join(mythread thread)
 }
 
 
-// Initiatlizes a mutex. Returns zero on success and non-zero on error.
+// Initializes a mutex. Returns zero on success and non-zero on error.
 static inline int
 mythread_mutex_init(mythread_mutex *mutex)
 {

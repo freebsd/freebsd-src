@@ -39,7 +39,7 @@ crc64_generic(const uint8_t *buf, size_t size, uint64_t crc)
 	crc = ~crc;
 
 #ifdef WORDS_BIGENDIAN
-	crc = bswap64(crc);
+	crc = byteswap64(crc);
 #endif
 
 	if (size > 4) {
@@ -73,7 +73,7 @@ crc64_generic(const uint8_t *buf, size_t size, uint64_t crc)
 		crc = lzma_crc64_table[0][*buf++ ^ A1(crc)] ^ S8(crc);
 
 #ifdef WORDS_BIGENDIAN
-	crc = bswap64(crc);
+	crc = byteswap64(crc);
 #endif
 
 	return ~crc;
@@ -93,23 +93,12 @@ crc64_generic(const uint8_t *buf, size_t size, uint64_t crc)
 typedef uint64_t (*crc64_func_type)(
 		const uint8_t *buf, size_t size, uint64_t crc);
 
-#if defined(CRC_USE_IFUNC) && defined(__clang__)
-#	pragma GCC diagnostic push
-#	pragma GCC diagnostic ignored "-Wunused-function"
-#endif
-
 static crc64_func_type
 crc64_resolve(void)
 {
 	return is_arch_extension_supported()
 			? &crc64_arch_optimized : &crc64_generic;
 }
-
-#if defined(CRC_USE_IFUNC) && defined(__clang__)
-#	pragma GCC diagnostic pop
-#endif
-
-#ifndef CRC_USE_IFUNC
 
 #ifdef HAVE_FUNC_ATTRIBUTE_CONSTRUCTOR
 #	define CRC64_SET_FUNC_ATTR __attribute__((__constructor__))
@@ -139,14 +128,8 @@ crc64_dispatch(const uint8_t *buf, size_t size, uint64_t crc)
 }
 #endif
 #endif
-#endif
 
 
-#ifdef CRC_USE_IFUNC
-extern LZMA_API(uint64_t)
-lzma_crc64(const uint8_t *buf, size_t size, uint64_t crc)
-		__attribute__((__ifunc__("crc64_resolve")));
-#else
 extern LZMA_API(uint64_t)
 lzma_crc64(const uint8_t *buf, size_t size, uint64_t crc)
 {
@@ -171,4 +154,3 @@ lzma_crc64(const uint8_t *buf, size_t size, uint64_t crc)
 	return crc64_generic(buf, size, crc);
 #endif
 }
-#endif

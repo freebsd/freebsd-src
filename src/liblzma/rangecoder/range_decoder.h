@@ -45,6 +45,7 @@
 //     and different processors. Overall 0x1F0 seems to be the best choice.
 #ifndef LZMA_RANGE_DECODER_CONFIG
 #	if defined(__x86_64__) && !defined(__ILP32__) \
+			&& !defined(__NVCOMPILER) \
 			&& (defined(__GNUC__) || defined(__clang__))
 #		define LZMA_RANGE_DECODER_CONFIG 0x1F0
 #	else

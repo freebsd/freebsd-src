@@ -30,15 +30,13 @@ enum format_type {
 };
 
 
-/// Simple struct to track Block metadata specified through the
-/// --block-list option.
+/// Array of these hold the entries specified with --block-list.
 typedef struct {
 	/// Uncompressed size of the Block
 	uint64_t size;
 
-	/// Index into the filters[] representing the filter chain to use
-	/// for this Block.
-	uint32_t filters_index;
+	/// Filter chain to use for this Block (chains[chain_num])
+	unsigned chain_num;
 } block_list_entry;
 
 
@@ -64,6 +62,19 @@ extern uint64_t opt_block_size;
 
 /// List of block size and filter chain pointer pairs.
 extern block_list_entry *opt_block_list;
+
+/// Size of the largest Block that was specified in --block-list.
+/// This is used to limit the block_size option of multithreaded encoder.
+/// It's waste of memory to specify a too large block_size and reducing
+/// it might even allow using more threads in some cases.
+///
+/// NOTE: If the last entry in --block-list is the special value of 0
+/// (which gets converted to UINT64_MAX), it counts here as UINT64_MAX too.
+/// This way the multithreaded encoder's Block size won't be reduced.
+extern uint64_t block_list_largest;
+
+/// Bitmask indicating which filter chains we specified in --block-list.
+extern uint32_t block_list_chain_mask;
 
 /// Set the integrity check type used when compressing
 extern void coder_set_check(lzma_check check);

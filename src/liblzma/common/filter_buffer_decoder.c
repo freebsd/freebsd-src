@@ -23,7 +23,7 @@ lzma_raw_buffer_decode(
 			|| out_pos == NULL || *out_pos > out_size)
 		return LZMA_PROG_ERROR;
 
-	// Initialize the decoer.
+	// Initialize the decoder.
 	lzma_next_coder next = LZMA_NEXT_CODER_INIT;
 	return_if_error(lzma_raw_decoder_init(&next, allocator, filters));
 

@@ -115,6 +115,7 @@ extern void message_help(bool long_help);
 
 /// Prints a help message specifically for using the --filters and
 /// --filtersX command line options.
+tuklib_attr_noreturn
 extern void message_filters_help(void);
 
 

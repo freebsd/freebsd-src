@@ -193,6 +193,16 @@ encoder_find(lzma_vli id)
 }
 
 
+// lzma_filter_coder begins with the same members as lzma_filter_encoder.
+// This function is a wrapper with a type that is compatible with the
+// typedef of lzma_filter_find in filter_common.h.
+static const lzma_filter_coder *
+coder_find(lzma_vli id)
+{
+	return (const lzma_filter_coder *)encoder_find(id);
+}
+
+
 extern LZMA_API(lzma_bool)
 lzma_filter_encoder_is_supported(lzma_vli id)
 {
@@ -232,7 +242,7 @@ lzma_raw_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 		const lzma_filter *filters)
 {
 	return lzma_raw_coder_init(next, allocator,
-			filters, (lzma_filter_find)(&encoder_find), true);
+			filters, &coder_find, true);
 }
 
 
@@ -240,7 +250,7 @@ extern LZMA_API(lzma_ret)
 lzma_raw_encoder(lzma_stream *strm, const lzma_filter *filters)
 {
 	lzma_next_strm_init(lzma_raw_coder_init, strm, filters,
-			(lzma_filter_find)(&encoder_find), true);
+			&coder_find, true);
 
 	strm->internal->supported_actions[LZMA_RUN] = true;
 	strm->internal->supported_actions[LZMA_SYNC_FLUSH] = true;
@@ -253,8 +263,7 @@ lzma_raw_encoder(lzma_stream *strm, const lzma_filter *filters)
 extern LZMA_API(uint64_t)
 lzma_raw_encoder_memusage(const lzma_filter *filters)
 {
-	return lzma_raw_coder_memusage(
-			(lzma_filter_find)(&encoder_find), filters);
+	return lzma_raw_coder_memusage(&coder_find, filters);
 }
 
 
