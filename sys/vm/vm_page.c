@@ -509,7 +509,7 @@ vm_page_init_page(vm_page_t m, vm_paddr_t pa, int segind)
 	m->psind = 0;
 	m->segind = segind;
 	m->order = VM_NFREEORDER;
-	m->pool = VM_NFREEPOOL;
+	m->pool = VM_FREEPOOL_DEFAULT;
 	m->valid = m->dirty = 0;
 	pmap_page_init(m);
 }
@@ -785,8 +785,7 @@ vm_page_startup(vm_offset_t vaddr)
 			m = seg->first_page + atop(startp - seg->start);
 			vmd = VM_DOMAIN(seg->domain);
 			vm_domain_free_lock(vmd);
-			vm_phys_enqueue_contig(m, VM_FREEPOOL_DEFAULT,
-			    pagecount);
+			vm_phys_enqueue_contig(m, pagecount);
 			vm_domain_free_unlock(vmd);
 			vm_domain_freecnt_inc(vmd, pagecount);
 			vm_cnt.v_page_count += (u_int)pagecount;

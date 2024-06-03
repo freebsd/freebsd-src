@@ -51,8 +51,6 @@ struct vm_freelist {
 	int lcnt;
 };
 
-typedef struct vm_freelist vm_freelist_tbl[VM_NFREEPOOL][VM_NFREEORDER_MAX];
-
 struct vm_phys_seg {
 	vm_paddr_t	start;
 	vm_paddr_t	end;
@@ -64,7 +62,7 @@ struct vm_phys_seg {
 	void		*md_first;
 #endif
 	int		domain;
-	vm_freelist_tbl *free_queues;
+	struct vm_freelist (*free_queues)[VM_NFREEPOOL][VM_NFREEORDER_MAX];
 };
 
 extern struct vm_phys_seg vm_phys_segs[];
