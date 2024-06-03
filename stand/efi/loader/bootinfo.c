@@ -447,8 +447,14 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 	module = *modulep;
 	file_addmetadata(kfp, MODINFOMD_MODULEP, sizeof(module), &module);
 #endif
-#if defined(EFI) && !defined(__i386__)
+#ifdef EFI
+#ifndef __i386__
 	file_addmetadata(kfp, MODINFOMD_FW_HANDLE, sizeof(ST), &ST);
+#endif
+#if defined(__amd64__) || defined(__i386__)
+	file_addmetadata(kfp, MODINFOMD_EFI_ARCH, sizeof(MACHINE_ARCH),
+	    MACHINE_ARCH);
+#endif
 #endif
 #ifdef LOADER_GELI_SUPPORT
 	geli_export_key_metadata(kfp);
