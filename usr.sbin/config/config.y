@@ -304,8 +304,6 @@ yyerror(const char *s)
 {
 
 	errx(1, "%s:%d: %s", yyfile, yyline + 1, s);
-	__unreachable();
-	return (0);
 }
 
 int
