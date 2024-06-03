@@ -350,7 +350,7 @@ pctrie_insert_node(void *parentp, struct pctrie_node *parent, uint64_t *val)
 	    "uint64 too wide");
 	_Static_assert(sizeof(uint64_t) * NBBY <=
 	    (1 << (sizeof(parent->pn_clev) * NBBY)), "pn_clev too narrow");
-	parent->pn_clev = rounddown(flsll(index ^ newind) - 1, PCTRIE_WIDTH);
+	parent->pn_clev = rounddown(ilog2(index ^ newind), PCTRIE_WIDTH);
 	parent->pn_owner = PCTRIE_COUNT;
 	parent->pn_owner = index & -(parent->pn_owner << parent->pn_clev);
 
@@ -546,14 +546,14 @@ pctrie_lookup_le(struct pctrie *ptree, uint64_t index)
 		KASSERT((pred->pn_popmap & ((1 << slot) - 1)) != 0,
 		    ("%s: no popmap siblings before slot %d in node %p",
 		    __func__, slot, pred));
-		slot = fls(pred->pn_popmap & ((1 << slot) - 1)) - 1;
+		slot = ilog2(pred->pn_popmap & ((1 << slot) - 1));
 		pred = pctrie_node_load(&pred->pn_child[slot], NULL,
 		    PCTRIE_LOCKED);
 	}
 	while (!pctrie_isleaf(pred)) {
 		KASSERT(pred->pn_popmap != 0,
 		    ("%s: no popmap children in node %p",  __func__, pred));
-		slot = fls(pred->pn_popmap) - 1;
+		slot = ilog2(pred->pn_popmap);
 		pred = pctrie_node_load(&pred->pn_child[slot], NULL,
 		    PCTRIE_LOCKED);
 	}
