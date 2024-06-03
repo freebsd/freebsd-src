@@ -84,7 +84,7 @@ name##_PCTRIE_INSERT(struct pctrie *ptree, struct type *ptr)		\
 	if (parentp == NULL)						\
 		return (0);						\
 	parent = allocfn(ptree);					\
-	if (parent == NULL)						\
+	if (__predict_false(parent == NULL))				\
 		return (ENOMEM);					\
 	pctrie_insert_node(parentp, parent, val);			\
 	return (0);							\
