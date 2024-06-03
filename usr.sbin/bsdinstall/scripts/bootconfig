@@ -109,32 +109,40 @@ if [ -n "$(awk '{if ($2=="/boot/efi") printf("%s\n",$1);}' $PATH_FSTAB)" ]; then
     #	    i386)	ARCHBOOTNAME=ia32 ;; # no support for this in i386 kernels, rare machines
 	    *)		die "Unsupported arch $(uname -m) for UEFI install"
 	esac
+
+	if [ `sysctl -n machdep.efi_arch` == i386 ]; then
+		ARCHBOOTNAME=ia32
+		file=loader_ia32.efi
+	else
+		file=loader.efi
+	fi
+
 	BOOTDIR="/efi/boot"
 	BOOTNAME="${BOOTDIR}/boot${ARCHBOOTNAME}.efi"
 	FREEBSD_BOOTDIR="/efi/freebsd"
-	FREEBSD_BOOTNAME="${FREEBSD_BOOTDIR}/loader.efi"
+	FREEBSD_BOOTNAME="${FREEBSD_BOOTDIR}/${file}"
 	mntpt="$BSDINSTALL_CHROOT/boot/efi"
 
-	f_dprintf "Installing loader.efi onto ESP"
+	f_dprintf "Installing ${file} onto ESP"
 	mkdir -p "${mntpt}/${FREEBSD_BOOTDIR}" "${mntpt}/${BOOTDIR}"
-	cp "$BSDINSTALL_CHROOT/boot/loader.efi" "${mntpt}/${FREEBSD_BOOTNAME}"
+	cp "$BSDINSTALL_CHROOT/boot/${file}" "${mntpt}/${FREEBSD_BOOTNAME}"
 
 	#
-	# The following shouldn't be necessary. UEFI defines a way to
-	# specifically select what to boot (which we do via
-	# efibootmgr). However, virtual environments often times lack
-	# support for the NV variables efibootmgr sets. In addition,
-	# some UEFI implementations have features that interfere with
-	# the setting of these variables. To combat that, we install the
-	# default removable media boot file as a fallback if it doesn't
-	# exist. We don't install it all the time since that can
-	# interfere with other installations on the drive (like rEFInd).
+	# UEFI defines a way to specifically select what to boot
+	# (which we do via efibootmgr). However, if we booted from an ia32
+	# UEFI environment, we wouldn't have access to efirt. In addition,
+	# virtual environments often times lack support for the NV variables
+	# efibootmgr sets, and some UEFI implementations have features that
+	# interfere with the setting of these variables. To combat that, we
+	# install the default removable media boot file if it doesn't exist.
+	# We don't install it all the time since that can interfere with other
+	# installations on the drive (like rEFInd).
 	#
 	if [ ! -f "${mntpt}/${BOOTNAME}" ]; then
-		cp "$BSDINSTALL_CHROOT/boot/loader.efi" "${mntpt}/${BOOTNAME}"
+		cp "$BSDINSTALL_CHROOT/boot/${file}" "${mntpt}/${BOOTNAME}"
 	fi
 
-	if [ "$BSDINSTALL_CONFIGCURRENT" ]; then
+	if [ "$BSDINSTALL_CONFIGCURRENT" ] && [ "$ARCHBOOTNAME" != ia32 ]; then
 		update_uefi_bootentry
 	fi
 
