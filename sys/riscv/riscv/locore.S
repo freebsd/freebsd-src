@@ -197,7 +197,11 @@ pagetables:
 
 	/* Page tables END */
 
-	/* Setup supervisor trap vector */
+	/*
+	 * Set the supervisor trap vector temporarily. Enabling virtual memory
+	 * may generate a page fault. We simply wish to continue onwards, so
+	 * have the trap deliver us to 'va'.
+	 */
 2:
 	lla	t0, va
 	sub	t0, t0, s9
@@ -221,7 +225,7 @@ va:
 	lla	gp, __global_pointer$
 .option pop
 
-	/* Setup supervisor trap vector */
+	/* Set the trap vector to the real handler. */
 	la	t0, cpu_exception_handler
 	csrw	stvec, t0
 
@@ -342,7 +346,11 @@ ENTRY(mpentry)
 	/* Get the kernel's load address */
 	jal	get_physmem
 
-	/* Setup supervisor trap vector */
+	/*
+	 * Set the supervisor trap vector temporarily. Enabling virtual memory
+	 * may generate a page fault. We simply wish to continue onwards, so
+	 * have the trap deliver us to 'mpva'.
+	 */
 	lla	t0, mpva
 	sub	t0, t0, s9
 	li	t1, KERNBASE
@@ -365,7 +373,7 @@ mpva:
 	lla	gp, __global_pointer$
 .option pop
 
-	/* Setup supervisor trap vector */
+	/* Set the trap vector to the real handler. */
 	la	t0, cpu_exception_handler
 	csrw	stvec, t0
 
