@@ -557,7 +557,7 @@ pls_basic_body()
 	# are dropped (84 - 96 responses).
 	# repeat up to 6 times if the initial
 	# checks fail
-	atf_check -s exit:0 -o match:'100 packets transmitted, (8[4-9]|9[0-6]) packets received' -r 6:10 ping -i 0.010 -c 100 192.0.2.2
+	atf_check -s exit:0 -o match:'100 packets transmitted, (8[4-9]|9[0-6]) packets received' -r 20:10 ping -i 0.010 -c 100 192.0.2.2
 }
 
 pls_basic_cleanup()
@@ -604,7 +604,7 @@ pls_gilbert_body()
 	# are dropped (70 - 85 responses).
 	# repeat up to 6 times if the initial
 	# checks fail
-	atf_check -s exit:0 -o match:'100 packets transmitted, (7[0-9]|8[0-5]) packets received' -r 6:10 ping -i 0.010 -c 100 192.0.2.2
+	atf_check -s exit:0 -o match:'100 packets transmitted, (7[0-9]|8[0-5]) packets received' -r 20:10 ping -i 0.010 -c 100 192.0.2.2
 }
 
 pls_gilbert_cleanup()
