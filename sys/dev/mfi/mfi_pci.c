@@ -112,7 +112,7 @@ SYSCTL_INT(_hw_mfi, OID_AUTO, msi, CTLFLAG_RDTUN, &mfi_msi, 0,
 
 static int	mfi_mrsas_enable;
 SYSCTL_INT(_hw_mfi, OID_AUTO, mrsas_enable, CTLFLAG_RDTUN, &mfi_mrsas_enable,
-     0, "Allow mrasas to take newer cards");
+     0, "Allow mrsas to take newer cards");
 
 struct mfi_ident {
 	uint16_t	vendor;
