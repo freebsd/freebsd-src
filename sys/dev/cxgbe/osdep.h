@@ -130,14 +130,6 @@ typedef boolean_t bool;
 #define PCI_EXP_LNKSTA_NLW	PCIEM_LINK_STA_WIDTH
 #define PCI_EXP_DEVCTL2		PCIER_DEVICE_CTL2
 
-static inline int
-ilog2(long x)
-{
-	KASSERT(x > 0 && powerof2(x), ("%s: invalid arg %ld", __func__, x));
-
-	return (flsl(x) - 1);
-}
-
 static inline char *
 strstrip(char *s)
 {

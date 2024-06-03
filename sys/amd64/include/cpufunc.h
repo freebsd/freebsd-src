@@ -65,10 +65,6 @@ breakpoint(void)
 
 #define	bsfq(mask)	__builtin_ctzl(mask)
 
-#define	bsrl(mask)	(__builtin_clz(mask) ^ 0x1f)
-
-#define	bsrq(mask)	(__builtin_clzl(mask) ^ 0x3f)
-
 static __inline void
 clflush(u_long addr)
 {
