@@ -346,7 +346,7 @@ mark_epson_time_valid(struct ds1307_softc *sc)
 	if (error) {
 		device_printf(dev, "%s cannot read Control 2 register: %d\n",
 		    __func__, error);
-		return (false);
+		return (error);
 	}
 
 	control_mask = (RX8035_CTRL_2_PON | RX8035_CTRL_2_XSTP | RX8035_CTRL_2_VDET);
@@ -356,9 +356,9 @@ mark_epson_time_valid(struct ds1307_softc *sc)
 	if (error) {
 		device_printf(dev, "%s cannot write to Control 2 register: %d\n",
 		    __func__, error);
-		return (false);
+		return (error);
 	}
-	return (true);
+	return (0);
 }
 
 static bool is_dev_time_valid(struct ds1307_softc *sc)
