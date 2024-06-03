@@ -324,7 +324,8 @@ man_check_for_so() {
 	do
 		line=$($cattool "$manpage" 2>/dev/null | grep -E -m1 -v '^\.\\"[ ]*|^[ ]*$')
 		case "$line" in
-		.so*)	trim "${line#.so}"
+               '.so /'*) break ;; # ignore absolute path
+               '.so '*) trim "${line#.so}"
 			decho "$manpage includes $tstr"
 			# Glob and check for the file.
 			if ! check_man "$1/$tstr" ""; then
