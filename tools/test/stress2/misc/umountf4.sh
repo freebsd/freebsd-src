@@ -65,13 +65,15 @@ if [ $# -eq 0 ]; then
 
 else
 	if [ $1 = find ]; then
-		for i in `jot 100`; do
+		start=`date +%s`
+		while [ $((`date +%s`- start)) -lt 300 ]; do
 			find ${mntpoint}* -type f > /dev/null 2>&1
 		done
 	else
 
 		# The test: Parallel mount and unmounts
-		for i in `jot 100`; do
+		start=`date +%s`
+		while [ $((`date +%s`- start)) -lt 300 ]; do
 			m=$1
 			opt=`[ $(( m % 2 )) -eq 0 ] && echo -f`
 			mount $opt /dev/md${m} ${mntpoint}$m

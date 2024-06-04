@@ -56,7 +56,8 @@ else
 	else
 
 		# The test: Parallel mount and unmounts
-		for i in `jot 128`; do
+		start=`date +%s`
+		while [ $((`date +%s`- start)) -lt 300 ]; do
 			m=$1
 			mount -t procfs proc ${mntpoint}$m
 			while mount | grep -qw $mntpoint$m; do
