@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: 0BSD
+
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       lzma_encoder.c
@@ -5,9 +7,6 @@
 ///
 //  Authors:    Igor Pavlov
 //              Lasse Collin
-//
-//  This file has been put into the public domain.
-//  You can do whatever you want with this file.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -49,24 +48,24 @@ literal(lzma_lzma1_encoder *coder, lzma_mf *mf, uint32_t position)
 	const uint8_t cur_byte = mf->buffer[
 			mf->read_pos - mf->read_ahead];
 	probability *subcoder = literal_subcoder(coder->literal,
-			coder->literal_context_bits, coder->literal_pos_mask,
+			coder->literal_context_bits, coder->literal_mask,
 			position, mf->buffer[mf->read_pos - mf->read_ahead - 1]);
 
 	if (is_literal_state(coder->state)) {
 		// Previous LZMA-symbol was a literal. Encode a normal
 		// literal without a match byte.
+		update_literal_normal(coder->state);
 		rc_bittree(&coder->rc, subcoder, 8, cur_byte);
 	} else {
 		// Previous LZMA-symbol was a match. Use the last byte of
 		// the match as a "match byte". That is, compare the bits
 		// of the current literal and the match byte.
+		update_literal_matched(coder->state);
 		const uint8_t match_byte = mf->buffer[
 				mf->read_pos - coder->reps[0] - 1
 				- mf->read_ahead];
 		literal_matched(&coder->rc, subcoder, match_byte, cur_byte);
 	}
-
-	update_literal(coder->state);
 }
 
 
@@ -283,7 +282,7 @@ encode_init(lzma_lzma1_encoder *coder, lzma_mf *mf)
 		mf_skip(mf, 1);
 		mf->read_ahead = 0;
 		rc_bit(&coder->rc, &coder->is_match[0][0], 0);
-		rc_bittree(&coder->rc, coder->literal[0], 8, mf->buffer[0]);
+		rc_bittree(&coder->rc, coder->literal + 0, 8, mf->buffer[0]);
 		++coder->uncomp_size;
 	}
 
@@ -535,7 +534,7 @@ lzma_lzma_encoder_reset(lzma_lzma1_encoder *coder,
 
 	coder->pos_mask = (1U << options->pb) - 1;
 	coder->literal_context_bits = options->lc;
-	coder->literal_pos_mask = (1U << options->lp) - 1;
+	coder->literal_mask = literal_mask_calc(options->lc, options->lp);
 
 	// Range coder
 	rc_reset(&coder->rc);
@@ -712,6 +711,9 @@ static lzma_ret
 lzma_encoder_init(lzma_lz_encoder *lz, const lzma_allocator *allocator,
 		lzma_vli id, const void *options, lzma_lz_options *lz_options)
 {
+        if (options == NULL)
+                return LZMA_PROG_ERROR;
+
 	lz->code = &lzma_encode;
 	lz->set_out_limit = &lzma_lzma_set_out_limit;
 	return lzma_lzma_encoder_create(

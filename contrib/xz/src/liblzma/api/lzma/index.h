@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: 0BSD */
+
 /**
  * \file        lzma/index.h
  * \brief       Handling of .xz Index and related information
@@ -6,9 +8,6 @@
 
 /*
  * Author: Lasse Collin
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
  */
 
 #ifndef LZMA_H_INTERNAL
@@ -234,7 +233,7 @@ typedef struct {
 	} block;
 
 	/**
-	 * \private     Internal struct.
+	 * \private     Internal data
 	 *
 	 * Internal data which is used to store the state of the iterator.
 	 * The exact format may vary between liblzma versions, so don't
@@ -300,6 +299,28 @@ typedef enum {
 
 } lzma_index_iter_mode;
 
+
+/**
+ * \brief       Mask for return value from lzma_index_checks() for check none
+ *
+ * \note        This and the other CHECK_MASK macros were added in 5.5.1alpha.
+ */
+#define LZMA_INDEX_CHECK_MASK_NONE (UINT32_C(1) << LZMA_CHECK_NONE)
+
+/**
+ * \brief       Mask for return value from lzma_index_checks() for check CRC32
+ */
+#define LZMA_INDEX_CHECK_MASK_CRC32 (UINT32_C(1) << LZMA_CHECK_CRC32)
+
+/**
+ * \brief       Mask for return value from lzma_index_checks() for check CRC64
+ */
+#define LZMA_INDEX_CHECK_MASK_CRC64 (UINT32_C(1) << LZMA_CHECK_CRC64)
+
+/**
+ * \brief       Mask for return value from lzma_index_checks() for check SHA256
+ */
+#define LZMA_INDEX_CHECK_MASK_SHA256 (UINT32_C(1) << LZMA_CHECK_SHA256)
 
 /**
  * \brief       Calculate memory usage of lzma_index
@@ -431,6 +452,7 @@ extern LZMA_API(lzma_ret) lzma_index_stream_flags(
  * showing the Check types to the user.
  *
  * The bitmask is 1 << check_id, e.g. CRC32 is 1 << 1 and SHA-256 is 1 << 10.
+ * These masks are defined for convenience as LZMA_INDEX_CHECK_MASK_XXX
  *
  * \param       i   Pointer to lzma_index structure
  *
@@ -651,7 +673,7 @@ extern LZMA_API(lzma_bool) lzma_index_iter_locate(
  *                        function succeeds, the memory allocated for src
  *                        is freed or moved to be part of dest, and all
  *                        iterators pointing to src will become invalid.
-* \param       allocator  lzma_allocator for custom allocator functions.
+ * \param       allocator lzma_allocator for custom allocator functions.
  *                        Set to NULL to use malloc() and free().
  *
  * \return      Possible lzma_ret values:
@@ -686,7 +708,7 @@ extern LZMA_API(lzma_index *) lzma_index_dup(
  * \param       strm        Pointer to properly prepared lzma_stream
  * \param       i           Pointer to lzma_index which should be encoded.
  *
- * The valid `action' values for lzma_code() are LZMA_RUN and LZMA_FINISH.
+ * The valid 'action' values for lzma_code() are LZMA_RUN and LZMA_FINISH.
  * It is enough to use only one of them (you can choose freely).
  *
  * \return      Possible lzma_ret values:
@@ -715,7 +737,7 @@ extern LZMA_API(lzma_ret) lzma_index_encoder(
  *                          don't allow 0 here and return LZMA_PROG_ERROR;
  *                          later versions treat 0 as if 1 had been specified.
  *
- * Valid `action' arguments to lzma_code() are LZMA_RUN and LZMA_FINISH.
+ * Valid 'action' arguments to lzma_code() are LZMA_RUN and LZMA_FINISH.
  * There is no need to use LZMA_FINISH, but it's allowed because it may
  * simplify certain types of applications.
  *
@@ -771,7 +793,7 @@ extern LZMA_API(lzma_ret) lzma_index_buffer_encode(const lzma_index *i,
  *                          lzma_index is allowed to require. The value
  *                          pointed by this pointer is modified if and only
  *                          if LZMA_MEMLIMIT_ERROR is returned.
-  * \param      allocator   lzma_allocator for custom allocator functions.
+ * \param       allocator   lzma_allocator for custom allocator functions.
  *                          Set to NULL to use malloc() and free().
  * \param       in          Beginning of the input buffer
  * \param       in_pos      The next byte will be read from in[*in_pos].
@@ -819,10 +841,10 @@ extern LZMA_API(lzma_ret) lzma_index_buffer_decode(lzma_index **i,
  * expect to see the same exact value for the same file if you change the
  * input buffer size or switch to a different liblzma version.
  *
- * Valid `action' arguments to lzma_code() are LZMA_RUN and LZMA_FINISH.
+ * Valid 'action' arguments to lzma_code() are LZMA_RUN and LZMA_FINISH.
  * You only need to use LZMA_RUN; LZMA_FINISH is only supported because it
  * might be convenient for some applications. If you use LZMA_FINISH and if
- * lzma_code() asks the application to seek, remember to reset `action' back
+ * lzma_code() asks the application to seek, remember to reset 'action' back
  * to LZMA_RUN unless you hit the end of the file again.
  *
  * Possible return values from lzma_code():
