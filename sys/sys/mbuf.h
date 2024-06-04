@@ -65,6 +65,7 @@ SDT_PROBE_DECLARE(sdt, , , m__cljget);
 SDT_PROBE_DECLARE(sdt, , , m__cljset);
 SDT_PROBE_DECLARE(sdt, , , m__free);
 SDT_PROBE_DECLARE(sdt, , , m__freem);
+SDT_PROBE_DECLARE(sdt, , , m__freemp);
 
 #endif /* _KERNEL */
 
@@ -843,6 +844,7 @@ void		 m_extadd(struct mbuf *, char *, u_int, m_ext_free_t,
 u_int		 m_fixhdr(struct mbuf *);
 struct mbuf	*m_fragment(struct mbuf *, int, int);
 void		 m_freem(struct mbuf *);
+void		 m_freemp(struct mbuf *);
 void		 m_free_raw(struct mbuf *);
 struct mbuf	*m_get2(int, int, short, int);
 struct mbuf	*m_get3(int, int, short, int);

@@ -1592,6 +1592,25 @@ m_freem(struct mbuf *mb)
 }
 
 /*
+ * Free an entire chain of mbufs and associated external buffers, following
+ * both m_next and m_nextpkt linkage.
+ * Note: doesn't support NULL argument.
+ */
+void
+m_freemp(struct mbuf *m)
+{
+	struct mbuf *n;
+
+	MBUF_PROBE1(m__freemp, m);
+	do {
+		n = m->m_nextpkt;
+		while (m != NULL)
+			m = m_free(m);
+		m = n;
+	} while (m != NULL);
+}
+
+/*
  * Temporary primitive to allow freeing without going through m_free.
  */
 void
