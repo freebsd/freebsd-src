@@ -85,6 +85,21 @@ fail:
 }
 
 static int
+vmexit_reg_emul(struct vmctx *ctx __unused, struct vcpu *vcpu __unused,
+    struct vm_run *vmrun)
+{
+	struct vm_exit *vme;
+	struct vre *vre;
+
+	vme = vmrun->vm_exit;
+	vre = &vme->u.reg_emul.vre;
+
+	EPRINTLN("Unhandled register access: pc %#lx syndrome %#x reg %d\n",
+	    vme->pc, vre->inst_syndrome, vre->reg);
+	return (VMEXIT_ABORT);
+}
+
+static int
 vmexit_suspend(struct vmctx *ctx, struct vcpu *vcpu, struct vm_run *vmrun)
 {
 	struct vm_exit *vme;
@@ -269,6 +284,7 @@ vmexit_ss(struct vmctx *ctx __unused, struct vcpu *vcpu, struct vm_run *vmrun)
 const vmexit_handler_t vmexit_handlers[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_BOGUS]  = vmexit_bogus,
 	[VM_EXITCODE_INST_EMUL] = vmexit_inst_emul,
+	[VM_EXITCODE_REG_EMUL] = vmexit_reg_emul,
 	[VM_EXITCODE_SUSPENDED] = vmexit_suspend,
 	[VM_EXITCODE_DEBUG] = vmexit_debug,
 	[VM_EXITCODE_SMCCC] = vmexit_smccc,
