@@ -543,7 +543,7 @@ vmd_map_resource(device_t dev, device_t child, struct resource *r,
 
 	args.offset = start - rman_get_start(pres);
 	args.length = length;
-	return (bus_generic_map_resource(dev, child, pres, &args, map));
+	return (bus_map_resource(dev, pres, &args, map));
 }
 
 static int
@@ -551,11 +551,12 @@ vmd_unmap_resource(device_t dev, device_t child, struct resource *r,
     struct resource_map *map)
 {
 	struct vmd_softc *sc = device_get_softc(dev);
+	struct resource *pres;
 
-	r = vmd_find_parent_resource(sc, r);
-	if (r == NULL)
+	pres = vmd_find_parent_resource(sc, r);
+	if (pres == NULL)
 		return (ENOENT);
-	return (bus_generic_unmap_resource(dev, child, r, map));
+	return (bus_unmap_resource(dev, pres, map));
 }
 
 static int

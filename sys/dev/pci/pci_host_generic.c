@@ -646,7 +646,7 @@ generic_pcie_map_resource(device_t dev, device_t child, struct resource *r,
 
 	args.offset = start - range->pci_base;
 	args.length = length;
-	return (bus_generic_map_resource(dev, child, range->res, &args, map));
+	return (bus_map_resource(dev, range->res, &args, map));
 }
 
 static int
@@ -664,16 +664,16 @@ generic_pcie_unmap_resource(device_t dev, device_t child, struct resource *r,
 #endif
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
-		range = generic_pcie_containing_range(dev, type,
-		    rman_get_start(r), rman_get_end(r));
-		if (range == NULL || range->res == NULL)
-			return (ENOENT);
-		r = range->res;
 		break;
 	default:
-		break;
+		return (bus_generic_unmap_resource(dev, child, r, argsp, map));
 	}
-	return (bus_generic_unmap_resource(dev, child, r, map));
+
+	range = generic_pcie_containing_range(dev, type, rman_get_start(r),
+	    rman_get_end(r));
+	if (range == NULL || range->res == NULL)
+		return (ENOENT);
+	return (bus_unmap_resource(dev, range->res, map));
 }
 
 static bus_dma_tag_t
