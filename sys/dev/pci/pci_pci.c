@@ -2553,7 +2553,7 @@ pcib_map_resource(device_t dev, device_t child, int type, struct resource *r,
 
 	args.offset = start - rman_get_start(pres);
 	args.length = length;
-	return (bus_generic_map_resource(dev, child, type, pres, &args, map));
+	return (bus_map_resource(dev, pres, &args, map));
 }
 
 static int
@@ -2562,14 +2562,16 @@ pcib_unmap_resource(device_t dev, device_t child, int type, struct resource *r,
 {
 	struct pcib_softc *sc = device_get_softc(dev);
 	struct pcib_window *w;
+	struct resource *pres;
 
 	w = pcib_get_resource_window(sc, r);
-	if (w != NULL) {
-		r = pcib_find_parent_resource(w, r);
-		if (r == NULL)
-			return (ENOENT);
-	}
-	return (bus_generic_unmap_resource(dev, child, type, r, map));
+	if (w == NULL)
+		return (bus_generic_unmap_resource(dev, child, type, r, map));
+
+	pres = pcib_find_parent_resource(w, r);
+	if (pres == NULL)
+		return (ENOENT);
+	return (bus_unmap_resource(dev, pres, map));
 }
 #else
 /*
