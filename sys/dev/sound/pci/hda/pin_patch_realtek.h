@@ -582,6 +582,21 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				}
 			}, { }
 		}
+	}, { /**** CODEC: HDA_CODEC_ALC287 ****/
+		.id = HDA_CODEC_ALC287,
+		.patches = (struct model_pin_patch_t[]){
+			{
+				.models = (struct pin_machine_model_t[]){
+					PIN_SUBVENDOR(LENOVO_X1CRBNG11_SUBVENDOR),
+					{ }
+				},
+				.pin_patches = (struct pin_patch_t[]){
+					PIN_PATCH_NOT_APPLICABLE(20),
+					PIN_PATCH_STRING(33, "as=1 seq=15 device=Headphones loc=Right"),
+					{ }
+				}
+			}, { }
+		}
 	}, { /**** CODEC: HDA_CODEC_ALC288 ****/
 		.id = HDA_CODEC_ALC288,
 		.patches = (struct model_pin_patch_t[]){
