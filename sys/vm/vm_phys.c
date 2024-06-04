@@ -699,14 +699,14 @@ vm_phys_enq_beg(vm_page_t m, u_int npages, struct vm_freelist *fl, int tail)
 
 	KASSERT(npages == 0 ||
 	    (VM_PAGE_TO_PHYS(m) &
-	    ((PAGE_SIZE << (fls(npages) - 1)) - 1)) == 0,
+	    ((PAGE_SIZE << ilog2(npages)) - 1)) == 0,
 	    ("%s: page %p and npages %u are misaligned",
 	    __func__, m, npages));
         while (npages > 0) {
 		KASSERT(m->order == VM_NFREEORDER,
 		    ("%s: page %p has unexpected order %d",
 		    __func__, m, m->order));
-                order = fls(npages) - 1;
+                order = ilog2(npages);
 		KASSERT(order < VM_NFREEORDER,
 		    ("%s: order %d is out of range", __func__, order));
                 vm_freelist_add(fl, m, order, tail);
@@ -735,7 +735,7 @@ vm_phys_enq_range(vm_page_t m, u_int npages, struct vm_freelist *fl, int tail)
 
 	KASSERT(npages == 0 ||
 	    ((VM_PAGE_TO_PHYS(m) + npages * PAGE_SIZE) &
-	    ((PAGE_SIZE << (fls(npages) - 1)) - 1)) == 0,
+	    ((PAGE_SIZE << ilog2(npages)) - 1)) == 0,
 	    ("vm_phys_enq_range: page %p and npages %u are misaligned",
 	    m, npages));
 	while (npages > 0) {
@@ -1193,7 +1193,7 @@ vm_phys_enqueue_contig(vm_page_t m, u_long npages)
 	lo = atop(VM_PAGE_TO_PHYS(m));
 	if (m < m_end &&
 	    (diff = lo ^ (lo + npages - 1)) != 0) {
-		order = min(flsll(diff) - 1, VM_NFREEORDER - 1);
+		order = min(ilog2(diff), VM_NFREEORDER - 1);
 		m = vm_phys_enq_range(m, roundup2(lo, 1 << order) - lo, fl, 1);
 	}
 
@@ -1225,7 +1225,7 @@ vm_phys_free_contig(vm_page_t m, u_long npages)
 	vm_domain_free_assert_locked(vm_pagequeue_domain(m));
 
 	lo = atop(VM_PAGE_TO_PHYS(m));
-	max_order = min(flsll(lo ^ (lo + npages)) - 1, VM_NFREEORDER - 1);
+	max_order = min(ilog2(lo ^ (lo + npages)), VM_NFREEORDER - 1);
 
 	m_start = m;
 	order_start = ffsll(lo) - 1;
