@@ -143,6 +143,8 @@ CFLAGS += -mgeneral-regs-only
 CFLAGS += -ffixed-x18
 # Build with BTI+PAC
 CFLAGS += -mbranch-protection=standard
+# TODO: support outline atomics
+CFLAGS += -mno-outline-atomics
 INLINE_LIMIT?=	8000
 .endif
 
