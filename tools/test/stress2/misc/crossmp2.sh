@@ -67,7 +67,8 @@ else
 	else
 
 		# The test: Parallel mount and unmounts
-		for i in `jot 128`; do
+		start=`date +%s`
+		while [ $((`date +%s`- start)) -lt 300 ]; do
 			m=$1
 			mount -t nfs -o tcp -o nfsv3 -o retrycnt=3 \
 			    -o intr,soft -o rw $nfs_export ${mntpoint}$m
