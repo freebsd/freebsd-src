@@ -67,24 +67,25 @@ XZ Utils
 
 1.1. Overall documentation
 
-    README              This file
+    README                This file
 
-    INSTALL.generic     Generic install instructions for those not familiar
-                        with packages using GNU Autotools
-    INSTALL             Installation instructions specific to XZ Utils
-    PACKAGERS           Information to packagers of XZ Utils
+    INSTALL.generic       Generic install instructions for those not
+                          familiar with packages using GNU Autotools
+    INSTALL               Installation instructions specific to XZ Utils
+    PACKAGERS             Information to packagers of XZ Utils
 
-    COPYING             XZ Utils copyright and license information
-    COPYING.GPLv2       GNU General Public License version 2
-    COPYING.GPLv3       GNU General Public License version 3
-    COPYING.LGPLv2.1    GNU Lesser General Public License version 2.1
+    COPYING               XZ Utils copyright and license information
+    COPYING.0BSD          BSD Zero Clause License
+    COPYING.GPLv2         GNU General Public License version 2
+    COPYING.GPLv3         GNU General Public License version 3
+    COPYING.LGPLv2.1      GNU Lesser General Public License version 2.1
 
-    AUTHORS             The main authors of XZ Utils
-    THANKS              Incomplete list of people who have helped making
-                        this software
-    NEWS                User-visible changes between XZ Utils releases
-    ChangeLog           Detailed list of changes (commit log)
-    TODO                Known bugs and some sort of to-do list
+    AUTHORS               The main authors of XZ Utils
+    THANKS                Incomplete list of people who have helped making
+                          this software
+    NEWS                  User-visible changes between XZ Utils releases
+    ChangeLog             Detailed list of changes (commit log)
+    TODO                  Known bugs and some sort of to-do list
 
     Note that only some of the above files are included in binary
     packages.
@@ -94,9 +95,9 @@ XZ Utils
 
     The command-line tools are documented as man pages. In source code
     releases (and possibly also in some binary packages), the man pages
-    are also provided in plain text (ASCII only) and PDF formats in the
-    directory "doc/man" to make the man pages more accessible to those
-    whose operating system doesn't provide an easy way to view man pages.
+    are also provided in plain text (ASCII only) format in the directory
+    "doc/man" to make the man pages more accessible to those whose
+    operating system doesn't provide an easy way to view man pages.
 
 
 1.3. Documentation for liblzma
@@ -297,11 +298,13 @@ XZ Utils
 6. Contact information
 ----------------------
 
-    If you have questions, bug reports, patches etc. related to XZ Utils,
-    the project maintainers Lasse Collin and Jia Tan can be reached via
-    <xz@tukaani.org>.
+    XZ Utils in general:
+      - Home page: https://tukaani.org/xz/
+      - Email to maintainer(s): xz@tukaani.org
+      - IRC: #tukaani on Libera Chat
+      - GitHub: https://github.com/tukaani-project/xz
 
-    You might find Lasse also from #tukaani on Libera Chat (IRC).
-    The nick is Larhzu. The channel tends to be pretty quiet,
-    so just ask your question and someone might wake up.
+    Lead maintainer:
+      - Email: Lasse Collin <lasse.collin@tukaani.org>
+      - IRC: Larhzu on Libera Chat
 

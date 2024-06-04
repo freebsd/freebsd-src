@@ -1,12 +1,11 @@
+// SPDX-License-Identifier: 0BSD
+
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       delta_decoder.c
 /// \brief      Delta filter decoder
 //
 //  Author:     Lasse Collin
-//
-//  This file has been put into the public domain.
-//  You can do whatever you want with this file.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -26,6 +25,11 @@ decode_buffer(lzma_delta_coder *coder, uint8_t *buffer, size_t size)
 }
 
 
+// For an unknown reason NVIDIA HPC Compiler needs this pragma
+// to produce working code.
+#ifdef __NVCOMPILER
+#	pragma routine novector
+#endif
 static lzma_ret
 delta_decode(void *coder_ptr, const lzma_allocator *allocator,
 		const uint8_t *restrict in, size_t *restrict in_pos,

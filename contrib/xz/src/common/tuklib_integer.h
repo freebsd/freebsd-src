@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: 0BSD
+
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       tuklib_integer.h
@@ -14,7 +16,7 @@
 ///
 /// Endianness-converting integer operations (these can be macros!)
 /// (XX = 16, 32, or 64; Y = b or l):
-///   - Byte swapping: bswapXX(num)
+///   - Byte swapping: byteswapXX(num)
 ///   - Byte order conversions to/from native (byteswaps if Y isn't
 ///     the native endianness): convXXYe(num)
 ///   - Unaligned reads: readXXYe(ptr)
@@ -36,9 +38,6 @@
 //
 //  Authors:    Lasse Collin
 //              Joachim Henke
-//
-//  This file has been put into the public domain.
-//  You can do whatever you want with this file.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -67,38 +66,41 @@
 
 #if defined(HAVE___BUILTIN_BSWAPXX)
 	// GCC >= 4.8 and Clang
-#	define bswap16(n) __builtin_bswap16(n)
-#	define bswap32(n) __builtin_bswap32(n)
-#	define bswap64(n) __builtin_bswap64(n)
+#	define byteswap16(num) __builtin_bswap16(num)
+#	define byteswap32(num) __builtin_bswap32(num)
+#	define byteswap64(num) __builtin_bswap64(num)
 
 #elif defined(HAVE_BYTESWAP_H)
 	// glibc, uClibc, dietlibc
 #	include <byteswap.h>
 #	ifdef HAVE_BSWAP_16
-#		define bswap16(num) bswap_16(num)
+#		define byteswap16(num) bswap_16(num)
 #	endif
 #	ifdef HAVE_BSWAP_32
-#		define bswap32(num) bswap_32(num)
+#		define byteswap32(num) bswap_32(num)
 #	endif
 #	ifdef HAVE_BSWAP_64
-#		define bswap64(num) bswap_64(num)
+#		define byteswap64(num) bswap_64(num)
 #	endif
 
 #elif defined(HAVE_SYS_ENDIAN_H)
 	// *BSDs and Darwin
 #	include <sys/endian.h>
+#	define byteswap16(num) bswap16(num)
+#	define byteswap32(num) bswap32(num)
+#	define byteswap64(num) bswap64(num)
 
 #elif defined(HAVE_SYS_BYTEORDER_H)
 	// Solaris
 #	include <sys/byteorder.h>
 #	ifdef BSWAP_16
-#		define bswap16(num) BSWAP_16(num)
+#		define byteswap16(num) BSWAP_16(num)
 #	endif
 #	ifdef BSWAP_32
-#		define bswap32(num) BSWAP_32(num)
+#		define byteswap32(num) BSWAP_32(num)
 #	endif
 #	ifdef BSWAP_64
-#		define bswap64(num) BSWAP_64(num)
+#		define byteswap64(num) BSWAP_64(num)
 #	endif
 #	ifdef BE_16
 #		define conv16be(num) BE_16(num)
@@ -120,15 +122,15 @@
 #	endif
 #endif
 
-#ifndef bswap16
-#	define bswap16(n) (uint16_t)( \
+#ifndef byteswap16
+#	define byteswap16(n) (uint16_t)( \
 		  (((n) & 0x00FFU) << 8) \
 		| (((n) & 0xFF00U) >> 8) \
 	)
 #endif
 
-#ifndef bswap32
-#	define bswap32(n) (uint32_t)( \
+#ifndef byteswap32
+#	define byteswap32(n) (uint32_t)( \
 		  (((n) & UINT32_C(0x000000FF)) << 24) \
 		| (((n) & UINT32_C(0x0000FF00)) << 8) \
 		| (((n) & UINT32_C(0x00FF0000)) >> 8) \
@@ -136,8 +138,8 @@
 	)
 #endif
 
-#ifndef bswap64
-#	define bswap64(n) (uint64_t)( \
+#ifndef byteswap64
+#	define byteswap64(n) (uint64_t)( \
 		  (((n) & UINT64_C(0x00000000000000FF)) << 56) \
 		| (((n) & UINT64_C(0x000000000000FF00)) << 40) \
 		| (((n) & UINT64_C(0x0000000000FF0000)) << 24) \
@@ -161,23 +163,23 @@
 #		define conv64be(num) ((uint64_t)(num))
 #	endif
 #	ifndef conv16le
-#		define conv16le(num) bswap16(num)
+#		define conv16le(num) byteswap16(num)
 #	endif
 #	ifndef conv32le
-#		define conv32le(num) bswap32(num)
+#		define conv32le(num) byteswap32(num)
 #	endif
 #	ifndef conv64le
-#		define conv64le(num) bswap64(num)
+#		define conv64le(num) byteswap64(num)
 #	endif
 #else
 #	ifndef conv16be
-#		define conv16be(num) bswap16(num)
+#		define conv16be(num) byteswap16(num)
 #	endif
 #	ifndef conv32be
-#		define conv32be(num) bswap32(num)
+#		define conv32be(num) byteswap32(num)
 #	endif
 #	ifndef conv64be
-#		define conv64be(num) bswap64(num)
+#		define conv64be(num) byteswap64(num)
 #	endif
 #	ifndef conv16le
 #		define conv16le(num) ((uint16_t)(num))
@@ -251,7 +253,7 @@
 // was one instruction longer.
 //
 // Conclusion: At least in case of GCC and Clang, byte-by-byte code is
-// the best choise for strict-align archs to do unaligned access.
+// the best choice for strict-align archs to do unaligned access.
 //
 // See also: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=111502
 //
@@ -625,7 +627,7 @@ write64le(uint8_t *buf, uint64_t num)
 // aligned but some compilers have language extensions to do that. With
 // such language extensions the memcpy() method gives excellent results.
 //
-// What to do on a strict-align system when no known language extentensions
+// What to do on a strict-align system when no known language extensions
 // are available? Falling back to byte-by-byte access would be safe but ruin
 // optimizations that have been made specifically with aligned access in mind.
 // As a compromise, aligned reads will fall back to non-compliant type punning
