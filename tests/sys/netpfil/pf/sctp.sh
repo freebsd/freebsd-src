@@ -504,6 +504,7 @@ pfsync_body()
 
 	sctp_init
 	pfsynct_init
+	vnet_init_bridge
 	if ! kldstat -q -m carp
 	then
 		atf_skip "This test requires carp"

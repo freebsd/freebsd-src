@@ -83,6 +83,7 @@ local_redirect_body()
 	firewall=$1
 	firewall_init $firewall
 	nat_init $firewall
+	vnet_init_bridge
 
 	bridge=$(vnet_mkbridge)
 	ifconfig ${bridge} 192.0.2.1/24 up

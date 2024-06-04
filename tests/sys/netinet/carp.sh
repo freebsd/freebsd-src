@@ -71,6 +71,7 @@ basic_v4_head()
 basic_v4_body()
 {
 	carp_init
+	vnet_init_bridge
 
 	bridge=$(vnet_mkbridge)
 	epair_one=$(vnet_mkepair)
@@ -115,6 +116,7 @@ vrrp_v4_head()
 vrrp_v4_body()
 {
 	carp_init
+	vnet_init_bridge
 
 	j=vrrp_basic_v4
 
@@ -161,6 +163,7 @@ unicast_v4_head()
 unicast_v4_body()
 {
 	carp_init
+	vnet_init_bridge
 
 	bridge=$(vnet_mkbridge)
 	epair_one=$(vnet_mkepair)
@@ -218,6 +221,7 @@ basic_v6_head()
 basic_v6_body()
 {
 	carp_init
+	vnet_init_bridge
 
 	bridge=$(vnet_mkbridge)
 	epair_one=$(vnet_mkepair)
@@ -265,6 +269,7 @@ vrrp_v6_head()
 vrrp_v6_body()
 {
 	carp_init
+	vnet_init_bridge
 
 	j=carp_basic_v6
 
@@ -314,6 +319,7 @@ unicast_v6_head()
 unicast_v6_body()
 {
 	carp_init
+	vnet_init_bridge
 
 	bridge=$(vnet_mkbridge)
 	epair_one=$(vnet_mkepair)
@@ -375,6 +381,7 @@ unicast_ll_v6_head()
 unicast_ll_v6_body()
 {
 	carp_init
+	vnet_init_bridge
 
 	j=carp_uni_ll_v6
 
@@ -485,6 +492,7 @@ nd6_ns_source_mac_head()
 nd6_ns_source_mac_body()
 {
         carp_init
+        vnet_init_bridge
 
         bridge=$(vnet_mkbridge)
         epair_one=$(vnet_mkepair)

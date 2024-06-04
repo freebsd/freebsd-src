@@ -39,6 +39,7 @@ bridge_transmit_ipv4_unicast_head()
 bridge_transmit_ipv4_unicast_body()
 {
 	vnet_init
+	vnet_init_bridge
 
 	epair_alcatraz=$(vnet_mkepair)
 	epair_singsing=$(vnet_mkepair)
@@ -76,6 +77,7 @@ stp_head()
 stp_body()
 {
 	vnet_init
+	vnet_init_bridge
 
 	epair_one=$(vnet_mkepair)
 	epair_two=$(vnet_mkepair)
@@ -142,6 +144,7 @@ stp_vlan_head()
 stp_vlan_body()
 {
 	vnet_init
+	vnet_init_bridge
 
 	epair_one=$(vnet_mkepair)
 	epair_two=$(vnet_mkepair)
@@ -216,6 +219,7 @@ static_head()
 static_body()
 {
 	vnet_init
+	vnet_init_bridge
 
 	epair=$(vnet_mkepair)
 	bridge=$(vnet_mkbridge)
@@ -273,6 +277,7 @@ span_head()
 span_body()
 {
 	vnet_init
+	vnet_init_bridge
 
 	epair=$(vnet_mkepair)
 	epair_span=$(vnet_mkepair)
@@ -326,6 +331,7 @@ delete_with_members_head()
 delete_with_members_body()
 {
 	vnet_init
+	vnet_init_bridge
 
 	bridge=$(vnet_mkbridge)
 	epair=$(vnet_mkepair)
@@ -352,6 +358,7 @@ mac_conflict_head()
 mac_conflict_body()
 {
 	vnet_init
+	vnet_init_bridge
 
 	epair=$(vnet_mkepair)
 
@@ -390,6 +397,7 @@ inherit_mac_head()
 inherit_mac_body()
 {
 	vnet_init
+	vnet_init_bridge
 
 	bridge=$(vnet_mkbridge)
 	epair=$(vnet_mkepair)
@@ -418,6 +426,7 @@ stp_validation_head()
 stp_validation_body()
 {
 	vnet_init
+	vnet_init_bridge
 
 	epair_one=$(vnet_mkepair)
 	epair_two=$(vnet_mkepair)
@@ -461,6 +470,7 @@ gif_head()
 gif_body()
 {
 	vnet_init
+	vnet_init_bridge
 
 	epair=$(vnet_mkepair)
 
@@ -545,6 +555,7 @@ check_mtu()
 mtu_body()
 {
 	vnet_init
+	vnet_init_bridge
 
 	epair=$(vnet_mkepair)
 	gif=$(ifconfig gif create)
@@ -606,6 +617,7 @@ vlan_head()
 vlan_body()
 {
 	vnet_init
+	vnet_init_bridge
 
 	vid=1
 
@@ -673,6 +685,7 @@ many_bridge_members_head()
 many_bridge_members_body()
 {
 	vnet_init
+	vnet_init_bridge
 
 	bridge=$(vnet_mkbridge)
 	ifcount=256
