@@ -602,6 +602,7 @@ multi_client_head()
 multi_client_body()
 {
 	ovpn_init
+	vnet_init_bridge
 
 	bridge=$(vnet_mkbridge)
 	srv=$(vnet_mkepair)
@@ -814,6 +815,7 @@ ra_head()
 ra_body()
 {
 	ovpn_init
+	vnet_init_bridge
 
 	bridge=$(vnet_mkbridge)
 	srv=$(vnet_mkepair)
