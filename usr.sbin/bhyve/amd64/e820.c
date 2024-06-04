@@ -210,7 +210,19 @@ e820_add_entry(const uint64_t base, const uint64_t end,
 	    (base < element->base || end > element->end))
 		return (ENOMEM);
 
-	if (base == element->base) {
+	if (base == element->base && end == element->end) {
+		/*
+		 * The new entry replaces an existing one.
+		 *
+		 * Old table:
+		 * 	[ 0x1000, 0x4000] RAM		<-- element
+		 * New table:
+		 *	[ 0x1000, 0x4000] Reserved
+		 */
+		TAILQ_INSERT_BEFORE(element, new_element, chain);
+		TAILQ_REMOVE(&e820_table, element, chain);
+		free(element);
+	} else if (base == element->base) {
 		/*
 		 * New element at system memory base boundary. Add new
 		 * element before current and adjust the base of the old
