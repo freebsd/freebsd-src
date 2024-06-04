@@ -58,6 +58,7 @@ riscv/riscv/pmap.c		standard
 riscv/riscv/ptrace_machdep.c	standard
 riscv/riscv/riscv_console.c	optional	rcons
 riscv/riscv/riscv_syscon.c	optional	syscon riscv_syscon fdt
+riscv/riscv/sigtramp.S		standard
 riscv/riscv/sbi.c		standard
 riscv/riscv/sbi_ipi.c		optional	smp
 riscv/riscv/stack_machdep.c	optional	ddb | stack
