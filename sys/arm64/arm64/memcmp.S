@@ -9,6 +9,8 @@
  * ARMv8-a, AArch64, unaligned accesses.
  */
 
+#include <sys/elf_common.h>
+
 #include <machine/asm.h>
 
 #define L(l) .L ## l
@@ -134,3 +136,4 @@ L(byte_loop):
 
 END (memcmp)
 
+GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)

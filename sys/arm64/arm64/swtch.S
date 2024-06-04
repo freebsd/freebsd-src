@@ -33,6 +33,8 @@
 #include "opt_kstack_pages.h"
 #include "opt_sched.h"
 
+#include <sys/elf_common.h>
+
 #include <machine/asm.h>
 #include <machine/armreg.h>
 .macro clear_step_flag pcbflags, tmp
@@ -277,3 +279,4 @@ ENTRY(savectx)
 	ret
 END(savectx)
 
+GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)

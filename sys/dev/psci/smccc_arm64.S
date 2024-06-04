@@ -30,7 +30,10 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/elf_common.h>
+
 #include <machine/asm.h>
+
 .macro arm_smccc_1_0	insn
 ENTRY(arm_smccc_\insn)
 	\insn	#0
@@ -84,3 +87,5 @@ END(arm_smccc_1_2_\insn)
  */
 arm_smccc_1_2	hvc
 arm_smccc_1_2	smc
+
+GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)
