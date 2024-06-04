@@ -1651,19 +1651,22 @@ acpi_map_resource(device_t bus, device_t child, struct resource *r,
 
 	args.offset = start - rman_get_start(sysres);
 	args.length = length;
-	return (bus_generic_map_resource(bus, child, sysres, &args, map));
+	return (bus_map_resource(bus, sysres, &args, map));
 }
 
 static int
 acpi_unmap_resource(device_t bus, device_t child, struct resource *r,
     struct resource_map *map)
 {
-	if (acpi_is_resource_managed(bus, r)) {
-		r = acpi_managed_resource(bus, r);
-		if (r == NULL)
-			return (ENOENT);
-	}
-	return (bus_generic_unmap_resource(bus, child, r, map));
+	struct resource *sysres;
+
+	if (!acpi_is_resource_managed(bus, r))
+		return (bus_generic_unmap_resource(bus, child, r, map));
+
+	sysres = acpi_managed_resource(bus, r);
+	if (sysres == NULL)
+		return (ENOENT);
+	return (bus_unmap_resource(bus, sysres, map));
 }
 
 /* Allocate an IO port or memory resource, given its GAS. */
