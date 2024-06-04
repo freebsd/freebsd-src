@@ -25,6 +25,8 @@
  *
  */
 
+#include <sys/elf_common.h>
+
 #include <machine/asm.h>
 #include <machine/armreg.h>
 #include "assym.inc"
@@ -324,3 +326,4 @@ exception_vectors:
 	vempty 0		/* FIQ 32-bit EL0 */
 	vector el0_serror 0	/* Error 32-bit EL0 */
 
+GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)

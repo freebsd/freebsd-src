@@ -31,6 +31,8 @@
  *
  */
 
+#include <sys/elf_common.h>
+
 #include <machine/asm.h>
 
 #define dstin		x0
@@ -195,3 +197,5 @@ ENTRY(memset)
 	b.ne	.Ltail_maybe_long
 	ret
 END(memset)
+
+GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)

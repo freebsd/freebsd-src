@@ -29,6 +29,7 @@
 
 #include <sys/cpuvar_defs.h>
 #include <sys/dtrace.h>
+#include <sys/elf_common.h>
 
 #include <machine/armreg.h>
 #include <machine/asm.h>
@@ -172,3 +173,5 @@ ENTRY(dtrace_casptr)
 2:	mov	x0, x3		/* Return the value loaded from target */
 	RET
 END(dtrace_casptr)
+
+GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)
