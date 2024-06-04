@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: 0BSD */
+
 /**
  * \file        lzma/vli.h
  * \brief       Variable-length integer handling
@@ -17,9 +19,6 @@
 
 /*
  * Author: Lasse Collin
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
  */
 
 #ifndef LZMA_H_INTERNAL
@@ -68,9 +67,8 @@ typedef uint64_t lzma_vli;
  * This is useful to test that application has given acceptable values
  * for example in the uncompressed_size and compressed_size variables.
  *
- * \return      True if the integer is representable as VLI or if it
- *              indicates unknown value. False if the integer cannot be
- *              represented as VLI.
+ * \return      True if the integer is representable as a VLI or if it
+ *              indicates an unknown value. False otherwise.
  */
 #define lzma_vli_is_valid(vli) \
 	((vli) <= LZMA_VLI_MAX || (vli) == LZMA_VLI_UNKNOWN)
