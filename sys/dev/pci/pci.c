@@ -164,10 +164,18 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
 	DEVMETHOD(bus_delete_resource,	pci_delete_resource),
 	DEVMETHOD(bus_alloc_resource,	pci_alloc_resource),
+#ifdef PCI_IOV
+	DEVMETHOD(bus_adjust_resource,	pci_adjust_resource),
+#else
 	DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
+#endif
 	DEVMETHOD(bus_release_resource,	pci_release_resource),
 	DEVMETHOD(bus_activate_resource, pci_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, pci_deactivate_resource),
+#ifdef PCI_IOV
+	DEVMETHOD(bus_map_resource,	pci_map_resource),
+	DEVMETHOD(bus_unmap_resource,	pci_unmap_resource),
+#endif
 	DEVMETHOD(bus_child_deleted,	pci_child_deleted),
 	DEVMETHOD(bus_child_detached,	pci_child_detached),
 	DEVMETHOD(bus_child_pnpinfo,	pci_child_pnpinfo_method),
@@ -5687,14 +5695,30 @@ pci_activate_resource(device_t dev, device_t child, struct resource *r)
 	struct pci_devinfo *dinfo;
 	int error, rid, type;
 
-	error = bus_generic_activate_resource(dev, child, r);
+	dinfo = device_get_ivars(child);
+#ifdef PCI_IOV
+	if (dinfo->cfg.flags & PCICFG_VF) {
+		switch (rman_get_type(r)) {
+		/* VFs can't have I/O BARs. */
+		case SYS_RES_IOPORT:
+			error = EINVAL;
+			break;
+		case SYS_RES_MEMORY:
+			error = pci_vf_activate_mem_resource(dev, child, r);
+			break;
+		default:
+			error = bus_generic_activate_resource(dev, child, r);
+			break;
+		}
+	} else
+#endif
+		error = bus_generic_activate_resource(dev, child, r);
 	if (error)
 		return (error);
 
 	/* Enable decoding in the command register when activating BARs. */
 	if (device_get_parent(child) == dev) {
 		/* Device ROMs need their decoding explicitly enabled. */
-		dinfo = device_get_ivars(child);
 		rid = rman_get_rid(r);
 		type = rman_get_type(r);
 		if (type == SYS_RES_MEMORY && PCIR_IS_BIOS(&dinfo->cfg, rid))
@@ -5716,13 +5740,29 @@ pci_deactivate_resource(device_t dev, device_t child, struct resource *r)
 	struct pci_devinfo *dinfo;
 	int error, rid, type;
 
-	error = bus_generic_deactivate_resource(dev, child, r);
+	dinfo = device_get_ivars(child);
+#ifdef PCI_IOV
+	if (dinfo->cfg.flags & PCICFG_VF) {
+		switch (rman_get_type(r)) {
+		/* VFs can't have I/O BARs. */
+		case SYS_RES_IOPORT:
+			error = EINVAL;
+			break;
+		case SYS_RES_MEMORY:
+			error = pci_vf_deactivate_mem_resource(dev, child, r);
+			break;
+		default:
+			error = bus_generic_deactivate_resource(dev, child, r);
+			break;
+		}
+	} else
+#endif
+		error = bus_generic_deactivate_resource(dev, child, r);
 	if (error)
 		return (error);
 
 	/* Disable decoding for device ROMs. */
 	if (device_get_parent(child) == dev) {
-		dinfo = device_get_ivars(child);
 		rid = rman_get_rid(r);
 		type = rman_get_type(r);
 		if (type == SYS_RES_MEMORY && PCIR_IS_BIOS(&dinfo->cfg, rid))
@@ -5731,6 +5771,76 @@ pci_deactivate_resource(device_t dev, device_t child, struct resource *r)
 	}
 	return (0);
 }
+
+#ifdef PCI_IOV
+int
+pci_adjust_resource(device_t dev, device_t child, struct resource *r,
+    rman_res_t start, rman_res_t end)
+{
+	struct pci_devinfo *dinfo;
+
+	dinfo = device_get_ivars(child);
+	if (dinfo->cfg.flags & PCICFG_VF) {
+		switch (rman_get_type(r)) {
+		/* VFs can't have I/O BARs. */
+		case SYS_RES_IOPORT:
+			return (EINVAL);
+		case SYS_RES_MEMORY:
+			return (pci_vf_adjust_mem_resource(dev, child, r,
+			    start, end));
+		}
+
+		/* Fall through for other types of resource allocations. */
+	}
+
+	return (bus_generic_adjust_resource(dev, child, r, start, end));
+}
+
+int
+pci_map_resource(device_t dev, device_t child, struct resource *r,
+    struct resource_map_request *argsp, struct resource_map *map)
+{
+	struct pci_devinfo *dinfo;
+
+	dinfo = device_get_ivars(child);
+	if (dinfo->cfg.flags & PCICFG_VF) {
+		switch (rman_get_type(r)) {
+		/* VFs can't have I/O BARs. */
+		case SYS_RES_IOPORT:
+			return (EINVAL);
+		case SYS_RES_MEMORY:
+			return (pci_vf_map_mem_resource(dev, child, r, argsp,
+			    map));
+		}
+
+		/* Fall through for other types of resource allocations. */
+	}
+
+	return (bus_generic_map_resource(dev, child, r, argsp, map));
+}
+
+int
+pci_unmap_resource(device_t dev, device_t child, struct resource *r,
+    struct resource_map *map)
+{
+	struct pci_devinfo *dinfo;
+
+	dinfo = device_get_ivars(child);
+	if (dinfo->cfg.flags & PCICFG_VF) {
+		switch (rman_get_type(r)) {
+		/* VFs can't have I/O BARs. */
+		case SYS_RES_IOPORT:
+			return (EINVAL);
+		case SYS_RES_MEMORY:
+			return (pci_vf_unmap_mem_resource(dev, child, r, map));
+		}
+
+		/* Fall through for other types of resource allocations. */
+	}
+
+	return (bus_generic_unmap_resource(dev, child, r, map));
+}
+#endif
 
 void
 pci_child_deleted(device_t dev, device_t child)
