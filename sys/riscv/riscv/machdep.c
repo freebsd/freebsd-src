@@ -568,7 +568,7 @@ initriscv(struct riscv_bootparams *rvbp)
 	physmem_init_kernel_globals();
 
 	/* Establish static device mappings */
-	devmap_bootstrap(0, NULL);
+	devmap_bootstrap();
 
 	cninit();
 

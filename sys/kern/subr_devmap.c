@@ -165,28 +165,19 @@ devmap_register_table(const struct devmap_entry *table)
 /*
  * Map all of the static regions in the devmap table, and remember the devmap
  * table so the mapdev, ptov, and vtop functions can do lookups later.
- *
- * If a non-NULL table pointer is given it is used unconditionally, otherwise
- * the previously-registered table is used.  This smooths transition from legacy
- * code that fills in a local table then calls this function passing that table,
- * and newer code that uses devmap_register_table() in platform-specific
- * code, then lets the common platform-specific init function call this function
- * with a NULL pointer.
  */
 void
-devmap_bootstrap(vm_offset_t l1pt, const struct devmap_entry *table)
+devmap_bootstrap(void)
 {
 	const struct devmap_entry *pd;
 
 	devmap_bootstrap_done = true;
 
 	/*
-	 * If given a table pointer, use it.  Otherwise, if a table was
-	 * previously registered, use it.  Otherwise, no work to do.
+	 * If a table was previously registered, use it.  Otherwise, no work to
+	 * do.
 	 */
-	if (table != NULL)
-		devmap_table = table;
-	else if (devmap_table == NULL)
+	if (devmap_table == NULL)
 		return;
 
 	for (pd = devmap_table; pd->pd_size != 0; ++pd) {
