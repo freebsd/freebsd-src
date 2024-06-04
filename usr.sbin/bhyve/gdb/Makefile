@@ -6,6 +6,9 @@ FILES+=		target.xml
 .if ${MACHINE_ARCH} == "amd64"
 XMLARCH=	i386:x86-64
 FILES+=		amd64.xml
+.elif ${MACHINE_ARCH} == "aarch64"
+XMLARCH=	aarch64
+FILES+=		aarch64-core.xml
 .endif
 
 .if !make(install*)
