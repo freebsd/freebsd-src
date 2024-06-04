@@ -39,6 +39,9 @@
 struct vgic_v3;
 struct vgic_v3_cpu;
 
+/*
+ * Per-vCPU hypervisor state.
+ */
 struct hypctx {
 	struct trapframe tf;
 
@@ -103,6 +106,12 @@ struct hypctx {
 	} exit_info;
 
 	struct vtimer_cpu 	vtimer_cpu;
+
+	uint64_t		setcaps;	/* Currently enabled capabilities. */
+
+	/* vCPU state used to handle guest debugging. */
+	uint64_t		debug_spsr;		/* Saved guest SPSR */
+	uint64_t		debug_mdscr;		/* Saved guest MDSCR */
 
 	struct vgic_v3_regs	vgic_v3_regs;
 	struct vgic_v3_cpu	*vgic_cpu;
