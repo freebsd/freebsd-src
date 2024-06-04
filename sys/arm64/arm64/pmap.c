@@ -1437,7 +1437,6 @@ pmap_bootstrap_san1(vm_offset_t va, int scale)
 	 * Rebuild physmap one more time, we may have excluded more regions from
 	 * allocation since pmap_bootstrap().
 	 */
-	bzero(physmap, sizeof(physmap));
 	physmap_idx = physmem_avail(physmap, nitems(physmap));
 	physmap_idx /= 2;
 
