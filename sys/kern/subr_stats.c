@@ -296,7 +296,7 @@ static const bool vsd_compoundtype[VSD_NUM_DTYPES] = {
 
 const struct voistatdata_numeric numeric_limits[2][VSD_DTYPE_Q_U64 + 1] = {
 	[LIM_MIN] = {
-		[VSD_DTYPE_VOISTATE] = {0},
+		[VSD_DTYPE_VOISTATE] = {},
 		[VSD_DTYPE_INT_S32] = {.int32 = {.s32 = INT32_MIN}},
 		[VSD_DTYPE_INT_U32] = {.int32 = {.u32 = 0}},
 		[VSD_DTYPE_INT_S64] = {.int64 = {.s64 = INT64_MIN}},
@@ -309,7 +309,7 @@ const struct voistatdata_numeric numeric_limits[2][VSD_DTYPE_Q_U64 + 1] = {
 		[VSD_DTYPE_Q_U64] = {.q64 = {.uq64 = 0}},
 	},
 	[LIM_MAX] = {
-		[VSD_DTYPE_VOISTATE] = {0},
+		[VSD_DTYPE_VOISTATE] = {},
 		[VSD_DTYPE_INT_S32] = {.int32 = {.s32 = INT32_MAX}},
 		[VSD_DTYPE_INT_U32] = {.int32 = {.u32 = UINT32_MAX}},
 		[VSD_DTYPE_INT_S64] = {.int64 = {.s64 = INT64_MAX}},
