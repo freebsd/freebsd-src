@@ -34,7 +34,6 @@
 
 #include "assym.inc"
 
-#include <sys/syscall.h>
 #include <machine/asm.h>
 #include <machine/param.h>
 #include <machine/trap.h>
@@ -289,30 +288,6 @@ get_physmem:
 initstack:
 	.space  (PAGE_SIZE * KSTACK_PAGES)
 initstack_end:
-
-ENTRY(sigcode)
-	mv	a0, sp
-	addi	a0, a0, SF_UC
-
-1:
-	li	t0, SYS_sigreturn
-	ecall
-
-	/* sigreturn failed, exit */
-	li	t0, SYS_exit
-	ecall
-
-	j	1b
-END(sigcode)
-	/* This may be copied to the stack, keep it 16-byte aligned */
-	.align	3
-esigcode:
-
-	.data
-	.align	3
-	.global	szsigcode
-szsigcode:
-	.quad	esigcode - sigcode
 
 	.align	12
 pagetable_l1:
