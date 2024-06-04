@@ -571,7 +571,11 @@ mkfs_msdos(const char *fname, const char *dtype, const struct msdos_options *op)
 	    if (o.align)
 		alignto = bpb.bpbSecPerClust;
 	    else
+#ifdef	PAGE_SIZE
 		alignto = PAGE_SIZE / bpb.bpbBytesPerSec;
+#else
+	        alignto = 1;
+#endif
 	    if (alignto > 1) {
 		/* align data clusters */
 		alignment = (bpb.bpbResSectors + bpb.bpbBigFATsecs * bpb.bpbFATs + rds) %
