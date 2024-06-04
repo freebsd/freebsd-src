@@ -35,7 +35,8 @@ SRCS=	linux_dummy_machdep.c \
 	bus_if.h \
 	device_if.h \
 	vnode_if.h \
-	linux_support.S
+	linux_support.S \
+	linux_vdso_inc.S
 .if ${MACHINE_CPUARCH} == "amd64"
 SRCS+=	linux_dummy_x86.c
 .endif
@@ -47,7 +48,6 @@ SRCS+=  opt_kstack_pages.h opt_nfs.h opt_hwpmc_hooks.h
 CLEANFILES=	linux_assym.h linux_genassym.o linux_locore.o \
 		genassym.o linux_vdso_gtod.o linux_vdso.so.o
 
-OBJS=	linux_vdso.so
 
 linux_assym.h: linux_genassym.o
 	sh ${SYSDIR}/kern/genassym.sh linux_genassym.o > ${.TARGET}
@@ -83,18 +83,7 @@ linux_vdso.so.o: linux_locore.o linux_vdso_gtod.o
 	-T${SRCTOP}/sys/${MACHINE}/linux/linux_vdso.lds.s \
 	-o ${.TARGET} ${.ALLSRC:M*.o}
 
-.if ${MACHINE_CPUARCH} == "aarch64"
-OBJCOPY_TARGET=--output-target elf64-littleaarch64 --binary-architecture aarch64
-.elif ${MACHINE_CPUARCH} == "amd64"
-OBJCOPY_TARGET=--output-target elf64-x86-64 --binary-architecture i386:x86-64
-.else
-.error ${MACHINE_CPUARCH} not yet supported by linux64
-.endif
-
-linux_vdso.so: linux_vdso.so.o
-	${OBJCOPY} --input-target binary ${OBJCOPY_TARGET} \
-	    linux_vdso.so.o ${.TARGET}
-	${STRIPBIN} -N _binary_linux_vdso_so_o_size ${.TARGET}
+linux_vdso_inc.o: linux_vdso.so.o
 
 linux_support.o: linux_support.S assym.inc linux_assym.h
 	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \
