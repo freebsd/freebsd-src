@@ -1,12 +1,11 @@
+// SPDX-License-Identifier: 0BSD
+
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       string_conversion.c
 /// \brief      Conversion of strings to filter chain and vice versa
 //
 //  Author:     Lasse Collin
-//
-//  This file has been put into the public domain.
-//  You can do whatever you want with this file.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -218,12 +217,14 @@ typedef struct {
 	uint16_t offset;
 
 	union {
+		// NVHPC has problems with unions that contain pointers that
+		// are not the first members, so keep "map" at the top.
+		const name_value_map *map;
+
 		struct {
 			uint32_t min;
 			uint32_t max;
 		} range;
-
-		const name_value_map *map;
 	} u;
 } option_map;
 
@@ -250,7 +251,9 @@ static const char *parse_options(const char **const str, const char *str_end,
 		|| defined(HAVE_ENCODER_IA64) \
 		|| defined(HAVE_DECODER_IA64) \
 		|| defined(HAVE_ENCODER_SPARC) \
-		|| defined(HAVE_DECODER_SPARC)
+		|| defined(HAVE_DECODER_SPARC) \
+		|| defined(HAVE_ENCODER_RISCV) \
+		|| defined(HAVE_DECODER_RISCV)
 static const option_map bcj_optmap[] = {
 	{
 		.name = "start",
@@ -506,6 +509,11 @@ static const struct {
 
 #if defined(HAVE_ENCODER_ARM64) || defined(HAVE_DECODER_ARM64)
 	{ "arm64",        sizeof(lzma_options_bcj),   LZMA_FILTER_ARM64,
+	  &parse_bcj,     bcj_optmap, 1, 1, true },
+#endif
+
+#if defined(HAVE_ENCODER_RISCV) || defined(HAVE_DECODER_RISCV)
+	{ "riscv",        sizeof(lzma_options_bcj),   LZMA_FILTER_RISCV,
 	  &parse_bcj,     bcj_optmap, 1, 1, true },
 #endif
 
@@ -994,6 +1002,12 @@ extern LZMA_API(const char *)
 lzma_str_to_filters(const char *str, int *error_pos, lzma_filter *filters,
 		uint32_t flags, const lzma_allocator *allocator)
 {
+	// If error_pos isn't NULL, *error_pos must always be set.
+	// liblzma <= 5.4.6 and <= 5.6.1 have a bug and don't do this
+	// when str == NULL or filters == NULL or flags are unsupported.
+	if (error_pos != NULL)
+		*error_pos = 0;
+
 	if (str == NULL || filters == NULL)
 		return "Unexpected NULL pointer argument(s) "
 				"to lzma_str_to_filters()";
