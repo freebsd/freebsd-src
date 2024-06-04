@@ -532,7 +532,7 @@ nlattr_get_nested_pf_rule_labels(struct nlattr *nla, struct nl_pstate *npt, cons
 	if (error != 0)
 		return (error);
 
-	memcpy(target, parsed_labels.labels, sizeof(parsed_labels));
+	memcpy(target, parsed_labels.labels, sizeof(parsed_labels.labels));
 
 	return (0);
 }
