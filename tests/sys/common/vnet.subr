@@ -26,6 +26,13 @@ vnet_mkepair()
 	echo ${ifname%a}
 }
 
+vnet_init_bridge()
+{
+	if ! kldstat -q -m if_bridge; then
+		atf_skip "This test requires if_bridge"
+	fi
+}
+
 vnet_mkbridge()
 {
 	ifname=$(ifconfig bridge create)

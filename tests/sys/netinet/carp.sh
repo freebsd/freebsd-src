@@ -71,6 +71,7 @@ basic_v4_head()
 basic_v4_body()
 {
 	carp_init
+	vnet_init_bridge
 
 	bridge=$(vnet_mkbridge)
 	epair_one=$(vnet_mkepair)
@@ -105,7 +106,6 @@ basic_v4_cleanup()
 	vnet_cleanup
 }
 
-
 atf_test_case "unicast_v4" "cleanup"
 unicast_v4_head()
 {
@@ -116,6 +116,7 @@ unicast_v4_head()
 unicast_v4_body()
 {
 	carp_init
+	vnet_init_bridge
 
 	bridge=$(vnet_mkbridge)
 	epair_one=$(vnet_mkepair)
@@ -173,6 +174,7 @@ basic_v6_head()
 basic_v6_body()
 {
 	carp_init
+	vnet_init_bridge
 
 	bridge=$(vnet_mkbridge)
 	epair_one=$(vnet_mkepair)
@@ -220,6 +222,7 @@ unicast_v6_head()
 unicast_v6_body()
 {
 	carp_init
+	vnet_init_bridge
 
 	bridge=$(vnet_mkbridge)
 	epair_one=$(vnet_mkepair)
@@ -281,6 +284,7 @@ unicast_ll_v6_head()
 unicast_ll_v6_body()
 {
 	carp_init
+	vnet_init_bridge
 
 	j=carp_uni_ll_v6
 
@@ -391,6 +395,7 @@ nd6_ns_source_mac_head()
 nd6_ns_source_mac_body()
 {
         carp_init
+        vnet_init_bridge
 
         bridge=$(vnet_mkbridge)
         epair_one=$(vnet_mkepair)
