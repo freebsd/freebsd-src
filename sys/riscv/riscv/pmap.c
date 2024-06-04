@@ -5017,7 +5017,7 @@ sysctl_kmaps(SYSCTL_HANDLER_ARGS)
 {
 	struct pmap_kernel_map_range range;
 	struct sbuf sbuf, *sb;
-	pd_entry_t l1e, *l2, l2e;
+	pd_entry_t *l1, l1e, *l2, l2e;
 	pt_entry_t *l3, l3e;
 	vm_offset_t sva;
 	vm_paddr_t pa;
@@ -5044,7 +5044,8 @@ sysctl_kmaps(SYSCTL_HANDLER_ARGS)
 		else if (i == pmap_l1_index(VM_MIN_KERNEL_ADDRESS))
 			sbuf_printf(sb, "\nKernel map:\n");
 
-		l1e = kernel_pmap->pm_top[i];
+		l1 = pmap_l1(kernel_pmap, sva);
+		l1e = pmap_load(l1);
 		if ((l1e & PTE_V) == 0) {
 			sysctl_kmaps_dump(sb, &range, sva);
 			sva += L1_SIZE;
