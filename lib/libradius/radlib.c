@@ -321,8 +321,10 @@ is_valid_request(struct rad_handle *h)
 	hctx = HMAC_CTX_new();
 	while (pos < len - 2) {
 		alen = h->in[pos + 1];
-		if (alen < 2)
+		if (alen < 2) {
+			HMAC_CTX_free(hctx);
 			return (0);
+		}
 		if (h->in[pos] == RAD_MESSAGE_AUTHENTIC) {
 			if (len - pos < MD5_DIGEST_LENGTH + 2) {
 				HMAC_CTX_free(hctx);
