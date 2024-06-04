@@ -370,6 +370,7 @@ OLD_FILES+=usr/lib/clang/17/lib/freebsd/libclang_rt.asan_static-aarch64.a
 OLD_FILES+=usr/lib/clang/17/lib/freebsd/libclang_rt.asan_static-i386.a
 OLD_FILES+=usr/lib/clang/17/lib/freebsd/libclang_rt.asan_static-powerpc64.a
 OLD_FILES+=usr/lib/clang/17/lib/freebsd/libclang_rt.asan_static-powerpc64le.a
+OLD_FILES+=usr/lib/clang/17/lib/freebsd/libclang_rt.asan_static-riscv64.a
 OLD_FILES+=usr/lib/clang/17/lib/freebsd/libclang_rt.asan_static-x86_64.a
 OLD_FILES+=usr/lib/clang/17/lib/freebsd/libclang_rt.cfi-aarch64.a
 OLD_FILES+=usr/lib/clang/17/lib/freebsd/libclang_rt.cfi-arm.a
