@@ -183,15 +183,13 @@ mem_range_AP_init(void)
 }
 
 /*
- * Round up to the next power of two, if necessary, and then
- * take log2.
- * Returns -1 if argument is zero.
+ * Compute ceil(log2(x)).  Returns -1 if x is zero.
  */
 static __inline int
 mask_width(u_int x)
 {
 
-	return (fls(x << (1 - powerof2(x))) - 1);
+	return (x == 0 ? -1 : fls(x - 1));
 }
 
 /*
