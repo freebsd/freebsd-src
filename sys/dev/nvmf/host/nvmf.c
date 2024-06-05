@@ -685,6 +685,8 @@ nvmf_reconnect_host(struct nvmf_softc *sc, struct nvmf_handoff_host *hh)
 			nvmf_reconnect_ns(sc->ns[i]);
 	}
 	nvmf_reconnect_sim(sc);
+
+	nvmf_rescan_all_ns(sc);
 out:
 	sx_xunlock(&sc->connection_lock);
 	nvmf_free_ivars(&ivars);
