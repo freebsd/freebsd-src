@@ -1230,7 +1230,7 @@ etherrule	: ETHER action dir quick interface bridge etherproto etherfromto l3fro
 			r.direction = $3;
 			r.quick = $4.quick;
 			if ($10.tag != NULL)
-				memcpy(&r.tagname, $10.tag, sizeof(r.tagname));
+				strlcpy(r.tagname, $10.tag, sizeof(r.tagname));
 			if ($10.match_tag)
 				if (strlcpy(r.match_tagname, $10.match_tag,
 				    PF_TAG_NAME_SIZE) >= PF_TAG_NAME_SIZE) {
@@ -1240,7 +1240,7 @@ etherrule	: ETHER action dir quick interface bridge etherproto etherfromto l3fro
 				}
 			r.match_tag_not = $10.match_tag_not;
 			if ($10.queues.qname != NULL)
-				memcpy(&r.qname, $10.queues.qname, sizeof(r.qname));
+				strlcpy(r.qname, $10.queues.qname, sizeof(r.qname));
 			r.dnpipe = $10.dnpipe;
 			r.dnflags = $10.free_flags;
 			if (eth_rule_label(&r, $10.label))
