@@ -766,7 +766,7 @@ thunder_pem_probe(device_t dev)
 
 	if ((pci_vendor_id == THUNDER_PEM_VENDOR_ID) &&
 	    (pci_device_id == THUNDER_PEM_DEVICE_ID)) {
-		device_set_desc_copy(dev, THUNDER_PEM_DESC);
+		device_set_desc(dev, THUNDER_PEM_DESC);
 		return (0);
 	}
 
