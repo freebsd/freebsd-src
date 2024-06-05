@@ -864,16 +864,12 @@ nm_os_pt_memdev_iounmap(struct ptnetmap_memdev *ptn_dev)
 static int
 ptn_memdev_probe(device_t dev)
 {
-	char desc[256];
-
 	if (pci_get_vendor(dev) != PTNETMAP_PCI_VENDOR_ID)
 		return (ENXIO);
 	if (pci_get_device(dev) != PTNETMAP_PCI_DEVICE_ID)
 		return (ENXIO);
 
-	snprintf(desc, sizeof(desc), "%s PCI adapter",
-			PTNETMAP_MEMDEV_NAME);
-	device_set_desc_copy(dev, desc);
+	device_set_descf(dev, "%s PCI adapter", PTNETMAP_MEMDEV_NAME);
 
 	return (BUS_PROBE_DEFAULT);
 }
