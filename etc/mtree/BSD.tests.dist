@@ -90,6 +90,8 @@
             ..
         ..
         usr.sbin
+            ctladm
+            ..
             dtrace
                 common
                     aggs
