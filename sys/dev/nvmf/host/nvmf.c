@@ -8,12 +8,14 @@
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/eventhandler.h>
 #include <sys/lock.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/memdesc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/reboot.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
@@ -31,6 +33,8 @@ SYSCTL_BOOL(_kern_nvmf, OID_AUTO, fail_on_disconnection, CTLFLAG_RWTUN,
 MALLOC_DEFINE(M_NVMF, "nvmf", "NVMe over Fabrics host");
 
 static void	nvmf_disconnect_task(void *arg, int pending);
+static void	nvmf_shutdown_pre_sync(void *arg, int howto);
+static void	nvmf_shutdown_post_sync(void *arg, int howto);
 
 void
 nvmf_complete(void *arg, const struct nvme_completion *cqe)
@@ -528,6 +532,11 @@ nvmf_attach(device_t dev)
 		goto out;
 	}
 
+	sc->shutdown_pre_sync_eh = EVENTHANDLER_REGISTER(shutdown_pre_sync,
+	    nvmf_shutdown_pre_sync, sc, SHUTDOWN_PRI_FIRST);
+	sc->shutdown_post_sync_eh = EVENTHANDLER_REGISTER(shutdown_post_sync,
+	    nvmf_shutdown_post_sync, sc, SHUTDOWN_PRI_FIRST);
+
 	return (0);
 out:
 	if (sc->ns != NULL) {
@@ -698,6 +707,62 @@ out:
 	return (error);
 }
 
+static void
+nvmf_shutdown_pre_sync(void *arg, int howto)
+{
+	struct nvmf_softc *sc = arg;
+
+	if ((howto & RB_NOSYNC) != 0 || SCHEDULER_STOPPED())
+		return;
+
+	/*
+	 * If this association is disconnected, abort any pending
+	 * requests with an error to permit filesystems to unmount
+	 * without hanging.
+	 */
+	sx_xlock(&sc->connection_lock);
+	if (sc->admin != NULL || sc->detaching) {
+		sx_xunlock(&sc->connection_lock);
+		return;
+	}
+
+	for (u_int i = 0; i < sc->cdata->nn; i++) {
+		if (sc->ns[i] != NULL)
+			nvmf_shutdown_ns(sc->ns[i]);
+	}
+	nvmf_shutdown_sim(sc);
+	sx_xunlock(&sc->connection_lock);
+}
+
+static void
+nvmf_shutdown_post_sync(void *arg, int howto)
+{
+	struct nvmf_softc *sc = arg;
+
+	if ((howto & RB_NOSYNC) != 0 || SCHEDULER_STOPPED())
+		return;
+
+	/*
+	 * If this association is connected, disconnect gracefully.
+	 */
+	sx_xlock(&sc->connection_lock);
+	if (sc->admin == NULL || sc->detaching) {
+		sx_xunlock(&sc->connection_lock);
+		return;
+	}
+
+	callout_drain(&sc->ka_tx_timer);
+	callout_drain(&sc->ka_rx_timer);
+
+	nvmf_shutdown_controller(sc);
+	for (u_int i = 0; i < sc->num_io_queues; i++) {
+		nvmf_destroy_qp(sc->io[i]);
+	}
+	nvmf_destroy_qp(sc->admin);
+	sc->admin = NULL;
+	sx_xunlock(&sc->connection_lock);
+}
+
 static int
 nvmf_detach(device_t dev)
 {
@@ -709,6 +774,9 @@ nvmf_detach(device_t dev)
 	sx_xlock(&sc->connection_lock);
 	sc->detaching = true;
 	sx_xunlock(&sc->connection_lock);
+
+	EVENTHANDLER_DEREGISTER(shutdown_pre_sync, sc->shutdown_pre_sync_eh);
+	EVENTHANDLER_DEREGISTER(shutdown_pre_sync, sc->shutdown_post_sync_eh);
 
 	nvmf_destroy_sim(sc);
 	for (i = 0; i < sc->cdata->nn; i++) {
@@ -1006,9 +1074,6 @@ static device_method_t nvmf_methods[] = {
 	DEVMETHOD(device_probe,     nvmf_probe),
 	DEVMETHOD(device_attach,    nvmf_attach),
 	DEVMETHOD(device_detach,    nvmf_detach),
-#if 0
-	DEVMETHOD(device_shutdown,  nvmf_shutdown),
-#endif
 	DEVMETHOD_END
 };
 

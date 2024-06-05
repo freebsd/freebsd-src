@@ -29,6 +29,7 @@ struct nvmf_namespace {
 	u_int	flags;
 	uint32_t lba_size;
 	bool disconnected;
+	bool shutdown;
 
 	TAILQ_HEAD(, bio) pending_bios;
 	struct mtx lock;
@@ -89,7 +90,7 @@ nvmf_ns_biodone(struct bio *bio)
 		bio->bio_driver2 = 0;
 		mtx_lock(&ns->lock);
 		if (ns->disconnected) {
-			if (nvmf_fail_disconnect) {
+			if (nvmf_fail_disconnect || ns->shutdown) {
 				mtx_unlock(&ns->lock);
 				bio->bio_error = ECONNABORTED;
 				bio->bio_flags |= BIO_ERROR;
@@ -211,7 +212,7 @@ nvmf_ns_submit_bio(struct nvmf_namespace *ns, struct bio *bio)
 
 	mtx_lock(&ns->lock);
 	if (ns->disconnected) {
-		if (nvmf_fail_disconnect) {
+		if (nvmf_fail_disconnect || ns->shutdown) {
 			error = ECONNABORTED;
 		} else {
 			TAILQ_INSERT_TAIL(&ns->pending_bios, bio, bio_queue);
@@ -426,6 +427,28 @@ nvmf_reconnect_ns(struct nvmf_namespace *ns)
 		bio = TAILQ_FIRST(&bios);
 		TAILQ_REMOVE(&bios, bio, bio_queue);
 		nvmf_ns_strategy(bio);
+	}
+}
+
+void
+nvmf_shutdown_ns(struct nvmf_namespace *ns)
+{
+	TAILQ_HEAD(, bio) bios;
+	struct bio *bio;
+
+	mtx_lock(&ns->lock);
+	ns->shutdown = true;
+	TAILQ_INIT(&bios);
+	TAILQ_CONCAT(&bios, &ns->pending_bios, bio_queue);
+	mtx_unlock(&ns->lock);
+
+	while (!TAILQ_EMPTY(&bios)) {
+		bio = TAILQ_FIRST(&bios);
+		TAILQ_REMOVE(&bios, bio, bio_queue);
+		bio->bio_error = ECONNABORTED;
+		bio->bio_flags |= BIO_ERROR;
+		bio->bio_resid = bio->bio_bcount;
+		biodone(bio);
 	}
 }
 
