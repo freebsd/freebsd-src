@@ -252,7 +252,6 @@ oce_probe(device_t dev)
 	uint16_t vendor = 0;
 	uint16_t device = 0;
 	int i = 0;
-	char str[256] = {0};
 	POCE_SOFTC sc;
 
 	sc = device_get_softc(dev);
@@ -265,9 +264,9 @@ oce_probe(device_t dev)
 	for (i = 0; i < (sizeof(supportedDevices) / sizeof(uint32_t)); i++) {
 		if (vendor == ((supportedDevices[i] >> 16) & 0xffff)) {
 			if (device == (supportedDevices[i] & 0xffff)) {
-				sprintf(str, "%s:%s", "Emulex CNA NIC function",
-					component_revision);
-				device_set_desc_copy(dev, str);
+				device_set_descf(dev,
+				    "%s:%s", "Emulex CNA NIC function",
+				    component_revision);
 
 				switch (device) {
 				case PCI_PRODUCT_BE2:
