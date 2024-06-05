@@ -4997,7 +4997,7 @@ lkpi_80211_lhw_rxq_rx_one(struct lkpi_hw *lhw, struct mbuf *m)
 
 #ifdef LINUXKPI_DEBUG_80211
 	if (linuxkpi_debug_80211 & D80211_TRACE_RX)
-		printf("TRACE %s: handled frame type %#0x\n", __func__, ok);
+		printf("TRACE-RX: %s: handled frame type %#0x\n", __func__, ok);
 #endif
 }
 
@@ -5012,8 +5012,8 @@ lkpi_80211_lhw_rxq_task(void *ctx, int pending)
 
 #ifdef LINUXKPI_DEBUG_80211
 	if (linuxkpi_debug_80211 & D80211_TRACE_RX)
-		printf("%s:%d lhw %p pending %d mbuf_qlen %d\n",
-		    __func__, __LINE__, lhw, pending, mbufq_len(&lhw->rxq));
+		printf("TRACE-RX: %s: lhw %p pending %d mbuf_qlen %d\n",
+		    __func__, lhw, pending, mbufq_len(&lhw->rxq));
 #endif
 
 	mbufq_init(&mq, IFQ_MAXLEN);
@@ -5095,7 +5095,7 @@ linuxkpi_ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 
 	/* Implement a dump_rxcb() !!! */
 	if (linuxkpi_debug_80211 & D80211_TRACE_RX)
-		printf("TRACE %s: RXCB: %ju %ju %u, %#0x, %u, %#0x, %#0x, "
+		printf("TRACE-RX: %s: RXCB: %ju %ju %u, %#0x, %u, %#0x, %#0x, "
 		    "%u band %u, %u { %d %d %d %d }, %d, %#x %#x %#x %#x %u %u %u\n",
 			__func__,
 			(uintmax_t)rx_status->boottime_ns,
@@ -5182,7 +5182,7 @@ no_trace_beacons:
 
 #ifdef LINUXKPI_DEBUG_80211
 	if (linuxkpi_debug_80211 & D80211_TRACE_RX)
-		printf("TRACE %s: sta %p lsta %p state %d ni %p vap %p%s\n",
+		printf("TRACE-RX: %s: sta %p lsta %p state %d ni %p vap %p%s\n",
 		    __func__, sta, lsta, (lsta != NULL) ? lsta->state : -1,
 		    ni, vap, is_beacon ? " beacon" : "");
 #endif
