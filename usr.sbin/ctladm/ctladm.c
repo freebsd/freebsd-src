@@ -541,7 +541,7 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 	 * we'll throw an error, since that only works on one port at a time.
 	 */
 	if ((port_type != CTL_PORT_NONE) && (targ_port != -1)) {
-		warnx("%s: can only specify one of -t or -n", __func__);
+		warnx("%s: can only specify one of -t or -p", __func__);
 		retval = 1;
 		goto bailout;
 	} else if ((targ_port == -1) && (port_type == CTL_PORT_NONE))
@@ -625,7 +625,7 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 	}
 	case CCTL_PORT_MODE_SET:
 		if (targ_port == -1) {
-			warnx("%s: -w and -W require -n", __func__);
+			warnx("%s: -w and -W require -p", __func__);
 			retval = 1;
 			goto bailout;
 		}
@@ -674,7 +674,8 @@ bailout:
 	return (retval);
 
 bailout_badarg:
-	warnx("%s: only one of -l, -o or -w/-W may be specified", __func__);
+	warnx("%s: only one of -c, -r, -l, -o or -w/-W may be specified",
+		__func__);
 	return (1);
 }
 
