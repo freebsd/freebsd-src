@@ -2443,6 +2443,46 @@ pf_ioctl_clear_status(void)
 	PF_RULES_WUNLOCK();
 }
 
+int
+pf_ioctl_set_timeout(int timeout, int seconds, int *prev_seconds)
+{
+	uint32_t old;
+
+	if (timeout < 0 || timeout >= PFTM_MAX ||
+	    seconds < 0)
+		return (EINVAL);
+
+	PF_RULES_WLOCK();
+	old = V_pf_default_rule.timeout[timeout];
+	if (timeout == PFTM_INTERVAL && seconds == 0)
+		seconds = 1;
+	V_pf_default_rule.timeout[timeout] = seconds;
+	if (timeout == PFTM_INTERVAL && seconds < old)
+		wakeup(pf_purge_thread);
+
+	if (prev_seconds != NULL)
+		*prev_seconds = old;
+
+	PF_RULES_WUNLOCK();
+
+	return (0);
+}
+
+int
+pf_ioctl_get_timeout(int timeout, int *seconds)
+{
+	PF_RULES_RLOCK_TRACKER;
+
+	if (timeout < 0 || timeout >= PFTM_MAX)
+		return (EINVAL);
+
+	PF_RULES_RLOCK();
+	*seconds = V_pf_default_rule.timeout[timeout];
+	PF_RULES_RUNLOCK();
+
+	return (0);
+}
+
 static int
 pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
@@ -3838,35 +3878,16 @@ DIOCGETSTATESV2_full:
 
 	case DIOCSETTIMEOUT: {
 		struct pfioc_tm	*pt = (struct pfioc_tm *)addr;
-		int		 old;
 
-		if (pt->timeout < 0 || pt->timeout >= PFTM_MAX ||
-		    pt->seconds < 0) {
-			error = EINVAL;
-			break;
-		}
-		PF_RULES_WLOCK();
-		old = V_pf_default_rule.timeout[pt->timeout];
-		if (pt->timeout == PFTM_INTERVAL && pt->seconds == 0)
-			pt->seconds = 1;
-		V_pf_default_rule.timeout[pt->timeout] = pt->seconds;
-		if (pt->timeout == PFTM_INTERVAL && pt->seconds < old)
-			wakeup(pf_purge_thread);
-		pt->seconds = old;
-		PF_RULES_WUNLOCK();
+		error = pf_ioctl_set_timeout(pt->timeout, pt->seconds,
+		    &pt->seconds);
 		break;
 	}
 
 	case DIOCGETTIMEOUT: {
 		struct pfioc_tm	*pt = (struct pfioc_tm *)addr;
 
-		if (pt->timeout < 0 || pt->timeout >= PFTM_MAX) {
-			error = EINVAL;
-			break;
-		}
-		PF_RULES_RLOCK();
-		pt->seconds = V_pf_default_rule.timeout[pt->timeout];
-		PF_RULES_RUNLOCK();
+		error = pf_ioctl_get_timeout(pt->timeout, &pt->seconds);
 		break;
 	}
 

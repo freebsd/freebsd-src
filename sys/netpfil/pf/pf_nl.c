@@ -1349,6 +1349,67 @@ pf_handle_set_debug(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	return (0);
 }
 
+struct pf_nl_set_timeout
+{
+	uint32_t timeout;
+	uint32_t seconds;
+};
+#define	_OUT(_field)	offsetof(struct pf_nl_set_timeout, _field)
+static const struct nlattr_parser nla_p_set_timeout[] = {
+	{ .type = PF_TO_TIMEOUT, .off = _OUT(timeout), .cb = nlattr_get_uint32 },
+	{ .type = PF_TO_SECONDS, .off = _OUT(seconds), .cb = nlattr_get_uint32 },
+};
+static const struct nlfield_parser nlf_p_set_timeout[] = {};
+#undef _OUT
+NL_DECLARE_PARSER(set_timeout_parser, struct genlmsghdr, nlf_p_set_timeout, nla_p_set_timeout);
+
+static int
+pf_handle_set_timeout(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	struct pf_nl_set_timeout attrs = {};
+	int error;
+
+	error = nl_parse_nlmsg(hdr, &set_timeout_parser, npt, &attrs);
+	if (error != 0)
+		return (error);
+
+	return (pf_ioctl_set_timeout(attrs.timeout, attrs.seconds, NULL));
+}
+
+static int
+pf_handle_get_timeout(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	struct pf_nl_set_timeout attrs = {};
+	struct nl_writer *nw = npt->nw;
+	struct genlmsghdr *ghdr_new;
+	int error;
+
+	error = nl_parse_nlmsg(hdr, &set_timeout_parser, npt, &attrs);
+	if (error != 0)
+		return (error);
+
+	error = pf_ioctl_get_timeout(attrs.timeout, &attrs.seconds);
+	if (error != 0)
+		return (error);
+
+	if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr)))
+		return (ENOMEM);
+
+	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+	ghdr_new->cmd = PFNL_CMD_GET_TIMEOUT;
+	ghdr_new->version = 0;
+	ghdr_new->reserved = 0;
+
+	nlattr_add_u32(nw, PF_TO_SECONDS, attrs.seconds);
+
+	if (!nlmsg_end(nw)) {
+		nlmsg_abort(nw);
+		return (ENOMEM);
+	}
+
+	return (0);
+}
+
 static const struct nlhdr_parser *all_parsers[] = {
 	&state_parser,
 	&addrule_parser,
@@ -1357,6 +1418,7 @@ static const struct nlhdr_parser *all_parsers[] = {
 	&set_statusif_parser,
 	&natlook_parser,
 	&set_debug_parser,
+	&set_timeout_parser,
 };
 
 static int family_id;
@@ -1458,6 +1520,20 @@ static const struct genl_cmd pf_cmds[] = {
 		.cmd_name = "SET_DEBUG",
 		.cmd_cb = pf_handle_set_debug,
 		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_SET_TIMEOUT,
+		.cmd_name = "SET_TIMEOUT",
+		.cmd_cb = pf_handle_set_timeout,
+		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_GET_TIMEOUT,
+		.cmd_name = "GET_TIMEOUT",
+		.cmd_cb = pf_handle_get_timeout,
+		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
 		.cmd_priv = PRIV_NETINET_PF,
 	},
 };
