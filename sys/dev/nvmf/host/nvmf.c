@@ -15,6 +15,7 @@
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/sx.h>
+#include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <dev/nvme/nvme.h>
 #include <dev/nvmf/nvmf.h>
@@ -22,6 +23,10 @@
 #include <dev/nvmf/host/nvmf_var.h>
 
 static struct cdevsw nvmf_cdevsw;
+
+bool nvmf_fail_disconnect = false;
+SYSCTL_BOOL(_kern_nvmf, OID_AUTO, fail_on_disconnection, CTLFLAG_RWTUN,
+    &nvmf_fail_disconnect, 0, "Fail I/O requests on connection failure");
 
 MALLOC_DEFINE(M_NVMF, "nvmf", "NVMe over Fabrics host");
 

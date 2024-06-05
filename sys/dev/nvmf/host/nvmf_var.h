@@ -140,6 +140,9 @@ extern driver_t nvme_nvmf_driver;
 MALLOC_DECLARE(M_NVMF);
 #endif
 
+/* If true, I/O requests will fail while the host is disconnected. */
+extern bool nvmf_fail_disconnect;
+
 /* nvmf.c */
 void	nvmf_complete(void *arg, const struct nvme_completion *cqe);
 void	nvmf_io_complete(void *arg, size_t xfered, int error);

@@ -3,7 +3,7 @@
 .\"
 .\" Copyright (c) 2024 Chelsio Communications, Inc.
 .\"
-.Dd May 2, 2024
+.Dd June 5, 2024
 .Dt NVMF 4
 .Os
 .Sh NAME
@@ -65,6 +65,28 @@ disk driver.
 Associations require a supported transport such as
 .Xr nvmf_tcp 4
 for associations using TCP/IP.
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va kern.nvmf.fail_on_disconnection
+Determines the behavior when an association's connection is interrupted.
+By default, input/output operations are suspended while a host is disconnected.
+This includes operations pending at the time the association's connection was
+interrupted as well as new requests submitted while the host is disconnected.
+Once a new association is established, suspended I/O requests are retried.
+When set to 1, input/output operations fail with
+.Er EIO
+while a host is disconnected and
+.Xr nda 4
+peripherals are destroyed after the first failed I/O request.
+Note that any destroyed
+.Xr nda 4
+peripherals will be recreated after a new association is established.
+.El
 .Sh SEE ALSO
 .Xr nda 4 ,
 .Xr nvme 4 ,
