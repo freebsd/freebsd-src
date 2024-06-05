@@ -185,7 +185,6 @@ static int
 amdsmn_probe(device_t dev)
 {
 	uint32_t family;
-	char buf[64];
 
 	if (resource_disabled("amdsmn", 0))
 		return (ENXIO);
@@ -202,9 +201,8 @@ amdsmn_probe(device_t dev)
 	default:
 		return (ENXIO);
 	}
-	snprintf(buf, sizeof(buf), "AMD Family %xh System Management Network",
+	device_set_descf(dev, "AMD Family %xh System Management Network",
 	    family);
-	device_set_desc_copy(dev, buf);
 
 	return (BUS_PROBE_GENERIC);
 }
