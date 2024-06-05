@@ -576,17 +576,23 @@ MAJOR_REVISION=	${_REVISION:R}
 _PKG_REVISION=	${_REVISION}
 _STRTIMENOW=	%Y%m%d%H%M%S
 _TIMENOW=	${_STRTIMENOW:gmtime}
+BRANCH_EXT=
 .if ${_BRANCH:MCURRENT*} || ${_BRANCH:MSTABLE*} || ${_BRANCH:MPRERELEASE*}
 _PKG_REVISION=	${MAJOR_REVISION}
-EXTRA_REVISION=	.snap${_TIMENOW}
+BRANCH_EXT=	snap
+EXTRA_REVISION=	.${BRANCH_EXT}${_TIMENOW}
 .elif ${_BRANCH:MALPHA*}
-EXTRA_REVISION=	.a${_BRANCH:C/ALPHA([0-9]+).*/\1/}.${_TIMENOW}
+BRANCH_EXT=	a${_BRANCH:C/ALPHA([0-9]+).*/\1/}
+EXTRA_REVISION=	.${BRANCH_EXT}.${_TIMENOW}
 .elif ${_BRANCH:MBETA*}
-EXTRA_REVISION=	.b${_BRANCH:C/BETA([0-9]+).*/\1/}.${_TIMENOW}
+BRANCH_EXT=	b${_BRANCH:C/BETA([0-9]+).*/\1/}
+EXTRA_REVISION=	.${BRANCH_EXT}.${_TIMENOW}
 .elif ${_BRANCH:MRC*}
-EXTRA_REVISION=	.rc${_BRANCH:C/RC([0-9]+).*/\1/}.${_TIMENOW}
+BRANCH_EXT=	rc${_BRANCH:C/RC([0-9]+).*/\1/}
+EXTRA_REVISION=	.${BRANCH_EXT}.${_TIMENOW}
 .elif ${_BRANCH:M*-p*}
-EXTRA_REVISION=	p${_BRANCH:C/.*-p([0-9]+$)/\1/}
+BRANCH_EXT=	p${_BRANCH:C/.*-p([0-9]+$)/\1/}
+EXTRA_REVISION=	${BRANCH_EXT}
 .endif
 PKG_VERSION:=	${_PKG_REVISION}${EXTRA_REVISION:C/[[:space:]]//g}
 .endif
@@ -2020,9 +2026,11 @@ PKG_EXT=	pkg
 .if exists(${REPODIR}/${PKG_ABI})
 PKG_VERSION_FROM!=/usr/bin/readlink ${REPODIR}/${PKG_ABI}/latest
 PKG_VERSION_FROM_DIR=	${REPODIR}/${PKG_ABI}/${PKG_VERSION_FROM}
+BRANCH_EXT_FROM=	${PKG_VERSION_FROM:C/.*([[:alpha:]][^\.]*).*/\1/}
 .else
 PKG_VERSION_FROM=
 PKG_VERSION_FROM_DIR=
+BRANCH_EXT_FROM=
 .endif
 .endif
 .endif
@@ -2060,7 +2068,7 @@ real-update-packages: stage-packages .PHONY
 	    continue; \
 	  fi ; \
 	  newsum=$$(pkg query -F ${REPODIR}/${PKG_ABI}/${PKG_VERSION}/$${newpkgname} '%X') ; \
-	  if [ "$${oldsum}" == "$${newsum}" ]; then \
+	  if [ "${BRANCH_EXT_FROM}" == "${BRANCH_EXT}" -a $${oldsum}" == "$${newsum}" ]; then \
 	   echo "==> Keeping old ${PKG_NAME_PREFIX}-$${pkgname}-${PKG_VERSION_FROM}.${PKG_EXT}" ; \
 	   rm ${REPODIR}/${PKG_ABI}/${PKG_VERSION}/$${newpkgname} ; \
 	   cp $${pkg} ${REPODIR}/${PKG_ABI}/${PKG_VERSION} ; \
