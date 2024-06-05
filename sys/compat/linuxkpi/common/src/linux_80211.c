@@ -4926,6 +4926,7 @@ no_trace_beacons:
 		goto err;
 	}
 
+	lsta = NULL;
 	if (sta != NULL) {
 		lsta = STA_TO_LSTA(sta);
 		ni = ieee80211_ref_node(lsta->ni);
