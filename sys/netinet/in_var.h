@@ -97,6 +97,11 @@ struct in_ifaddr {
 #define IN_LNAOF(in, ifa) \
 	((ntohl((in).s_addr) & ~((struct in_ifaddr *)(ifa)->ia_subnetmask))
 
+#ifdef _KERNEL
+#define IN_ARE_MASKED_ADDR_EQUAL(d, a, m)	(		\
+	((((d).s_addr ^ (a).s_addr) & (m).s_addr)) == 0 )
+#endif
+
 #define LLTABLE(ifp)	\
 	((struct in_ifinfo *)(ifp)->if_afdata[AF_INET])->ii_llt
 /*

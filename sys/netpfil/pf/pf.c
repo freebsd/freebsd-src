@@ -723,14 +723,11 @@ pf_addrcpy(struct pf_addr *dst, struct pf_addr *src, sa_family_t af)
 	switch (af) {
 #ifdef INET
 	case AF_INET:
-		dst->addr32[0] = src->addr32[0];
+		memcpy(&dst->v4, &src->v4, sizeof(dst->v4));
 		break;
 #endif /* INET */
 	case AF_INET6:
-		dst->addr32[0] = src->addr32[0];
-		dst->addr32[1] = src->addr32[1];
-		dst->addr32[2] = src->addr32[2];
-		dst->addr32[3] = src->addr32[3];
+		memcpy(&dst->v6, &src->v6, sizeof(dst->v6));
 		break;
 	}
 }
@@ -3408,21 +3405,13 @@ pf_match_addr(u_int8_t n, struct pf_addr *a, struct pf_addr *m,
 	switch (af) {
 #ifdef INET
 	case AF_INET:
-		if ((a->addr32[0] & m->addr32[0]) ==
-		    (b->addr32[0] & m->addr32[0]))
+		if (IN_ARE_MASKED_ADDR_EQUAL(a->v4, b->v4, m->v4))
 			match++;
 		break;
 #endif /* INET */
 #ifdef INET6
 	case AF_INET6:
-		if (((a->addr32[0] & m->addr32[0]) ==
-		     (b->addr32[0] & m->addr32[0])) &&
-		    ((a->addr32[1] & m->addr32[1]) ==
-		     (b->addr32[1] & m->addr32[1])) &&
-		    ((a->addr32[2] & m->addr32[2]) ==
-		     (b->addr32[2] & m->addr32[2])) &&
-		    ((a->addr32[3] & m->addr32[3]) ==
-		     (b->addr32[3] & m->addr32[3])))
+		if (IN6_ARE_MASKED_ADDR_EQUAL(&a->v6, &b->v6, &m->v6))
 			match++;
 		break;
 #endif /* INET6 */
