@@ -285,7 +285,7 @@ int	pfctl_add_pool(struct pfctl *, struct pfctl_pool *, sa_family_t);
 void	pfctl_move_pool(struct pfctl_pool *, struct pfctl_pool *);
 void	pfctl_clear_pool(struct pfctl_pool *);
 
-int	pfctl_set_timeout(struct pfctl *, const char *, int, int);
+int	pfctl_apply_timeout(struct pfctl *, const char *, int, int);
 int	pfctl_set_reassembly(struct pfctl *, int, int);
 int	pfctl_set_optimization(struct pfctl *, const char *);
 int	pfctl_set_limit(struct pfctl *, const char *, unsigned int);

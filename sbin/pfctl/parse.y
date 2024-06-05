@@ -5165,7 +5165,7 @@ timeout_spec	: STRING NUMBER
 				yyerror("only positive values permitted");
 				YYERROR;
 			}
-			if (pfctl_set_timeout(pf, $1, $2, 0) != 0) {
+			if (pfctl_apply_timeout(pf, $1, $2, 0) != 0) {
 				yyerror("unknown timeout %s", $1);
 				free($1);
 				YYERROR;
@@ -5179,7 +5179,7 @@ timeout_spec	: STRING NUMBER
 				yyerror("only positive values permitted");
 				YYERROR;
 			}
-			if (pfctl_set_timeout(pf, "interval", $2, 0) != 0)
+			if (pfctl_apply_timeout(pf, "interval", $2, 0) != 0)
 				YYERROR;
 		}
 		;

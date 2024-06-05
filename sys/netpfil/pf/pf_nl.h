@@ -50,6 +50,8 @@ enum {
 	PFNL_CMD_CLEAR_STATUS = 12,
 	PFNL_CMD_NATLOOK = 13,
 	PFNL_CMD_SET_DEBUG = 14,
+	PFNL_CMD_SET_TIMEOUT = 15,
+	PFNL_CMD_GET_TIMEOUT = 16,
 	__PFNL_CMD_MAX,
 };
 #define PFNL_CMD_MAX (__PFNL_CMD_MAX -1)
@@ -332,6 +334,12 @@ enum pf_natlook_types_t {
 enum pf_set_debug_types_t {
 	PF_SD_UNSPEC,
 	PF_SD_LEVEL		= 1, /* u32 */
+};
+
+enum pf_timeout_types_t {
+	PF_TO_UNSPEC,
+	PF_TO_TIMEOUT		= 1, /* u32 */
+	PF_TO_SECONDS		= 2, /* u32 */
 };
 
 #ifdef _KERNEL

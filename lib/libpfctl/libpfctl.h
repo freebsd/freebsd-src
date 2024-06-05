@@ -493,5 +493,7 @@ struct pfctl_natlook {
 int	pfctl_natlook(struct pfctl_handle *h,
 	    const struct pfctl_natlook_key *k, struct pfctl_natlook *r);
 int	pfctl_set_debug(struct pfctl_handle *h, uint32_t level);
+int	pfctl_set_timeout(struct pfctl_handle *h, uint32_t timeout, uint32_t seconds);
+int	pfctl_get_timeout(struct pfctl_handle *h, uint32_t timeout, uint32_t *seconds);
 
 #endif
