@@ -313,7 +313,7 @@ static struct cdevsw nvmf_ns_cdevsw = {
 
 struct nvmf_namespace *
 nvmf_init_ns(struct nvmf_softc *sc, uint32_t id,
-    struct nvme_namespace_data *data)
+    const struct nvme_namespace_data *data)
 {
 	struct make_dev_args mda;
 	struct nvmf_namespace *ns;
@@ -454,7 +454,8 @@ nvmf_destroy_ns(struct nvmf_namespace *ns)
 }
 
 bool
-nvmf_update_ns(struct nvmf_namespace *ns, struct nvme_namespace_data *data)
+nvmf_update_ns(struct nvmf_namespace *ns,
+    const struct nvme_namespace_data *data)
 {
 	uint8_t lbads, lbaf;
 
