@@ -9,6 +9,7 @@
 #define	__NVMF_VAR_H__
 
 #include <sys/_callout.h>
+#include <sys/_eventhandler.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #include <sys/_sx.h>
@@ -42,6 +43,7 @@ struct nvmf_softc {
 	struct cam_path *path;
 	struct mtx sim_mtx;
 	bool sim_disconnected;
+	bool sim_shutdown;
 
 	struct nvmf_namespace **ns;
 
@@ -82,6 +84,9 @@ struct nvmf_softc {
 
 	u_int num_aer;
 	struct nvmf_aer *aer;
+
+	eventhandler_tag shutdown_pre_sync_eh;
+	eventhandler_tag shutdown_post_sync_eh;
 };
 
 struct nvmf_request {
@@ -187,6 +192,7 @@ struct nvmf_namespace *nvmf_init_ns(struct nvmf_softc *sc, uint32_t id,
     const struct nvme_namespace_data *data);
 void	nvmf_disconnect_ns(struct nvmf_namespace *ns);
 void	nvmf_reconnect_ns(struct nvmf_namespace *ns);
+void	nvmf_shutdown_ns(struct nvmf_namespace *ns);
 void	nvmf_destroy_ns(struct nvmf_namespace *ns);
 bool	nvmf_update_ns(struct nvmf_namespace *ns,
     const struct nvme_namespace_data *data);
@@ -206,6 +212,7 @@ void	nvmf_free_request(struct nvmf_request *req);
 int	nvmf_init_sim(struct nvmf_softc *sc);
 void	nvmf_disconnect_sim(struct nvmf_softc *sc);
 void	nvmf_reconnect_sim(struct nvmf_softc *sc);
+void	nvmf_shutdown_sim(struct nvmf_softc *sc);
 void	nvmf_destroy_sim(struct nvmf_softc *sc);
 void	nvmf_sim_rescan_ns(struct nvmf_softc *sc, uint32_t id);
 
