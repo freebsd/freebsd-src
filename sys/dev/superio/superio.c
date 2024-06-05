@@ -615,12 +615,9 @@ superio_detect(device_t dev, bool claim, struct siosc *sc)
 	if (superio_table[i].descr != NULL) {
 		device_set_desc(dev, superio_table[i].descr);
 	} else if (sc->vendor == SUPERIO_VENDOR_ITE) {
-		char descr[64];
-
-		snprintf(descr, sizeof(descr),
+		device_set_descf(dev,
 		    "ITE IT%4x SuperIO (revision 0x%02x)",
 		    sc->devid, sc->revid);
-		device_set_desc_copy(dev, descr);
 	}
 	return (0);
 }
