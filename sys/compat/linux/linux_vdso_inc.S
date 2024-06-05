@@ -25,7 +25,7 @@
  * SUCH DAMAGE.
  */
 
-	.section .rodata
+	.section .data
 	.globl _binary_linux_vdso_so_o_start
 _binary_linux_vdso_so_o_start:
 	.incbin "linux_vdso.so.o"
