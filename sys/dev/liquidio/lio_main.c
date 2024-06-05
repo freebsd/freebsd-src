@@ -200,7 +200,6 @@ lio_probe(device_t dev)
 	uint16_t	device_id;
 	uint16_t	subdevice_id;
 	uint8_t		revision_id;
-	char		device_ver[256];
 
 	vendor_id = pci_get_vendor(dev);
 	if (vendor_id != PCI_VENDOR_ID_CAVIUM)
@@ -216,9 +215,8 @@ lio_probe(device_t dev)
 		    (device_id == tbl->device_id) &&
 		    (subdevice_id == tbl->subdevice_id) &&
 		    (revision_id == tbl->revision_id)) {
-			sprintf(device_ver, "%s, Version - %s",
-				lio_strings[tbl->index], LIO_VERSION);
-			device_set_desc_copy(dev, device_ver);
+			device_set_descf(dev, "%s, Version - %s",
+			    lio_strings[tbl->index], LIO_VERSION);
 			return (BUS_PROBE_DEFAULT);
 		}
 
