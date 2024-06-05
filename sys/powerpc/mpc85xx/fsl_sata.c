@@ -316,7 +316,7 @@ fsl_sata_probe(device_t dev)
 	    !ofw_bus_is_compatible(dev, "fsl,pq-sata"))
 		return (ENXIO);
 
-	device_set_desc_copy(dev, "Freescale Integrated SATA Controller");
+	device_set_desc(dev, "Freescale Integrated SATA Controller");
 	return (BUS_PROBE_DEFAULT);
 }
 
