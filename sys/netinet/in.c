@@ -1473,9 +1473,6 @@ in_lltable_new(struct in_addr addr4, u_int flags)
 	return (&lle->base);
 }
 
-#define IN_ARE_MASKED_ADDR_EQUAL(d, a, m)	(		\
-	((((d).s_addr ^ (a).s_addr) & (m).s_addr)) == 0 )
-
 static int
 in_lltable_match_prefix(const struct sockaddr *saddr,
     const struct sockaddr *smask, u_int flags, struct llentry *lle)
