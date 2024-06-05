@@ -804,6 +804,55 @@ nvmf_rescan_ns(struct nvmf_softc *sc, uint32_t nsid)
 	free(data, M_NVMF);
 }
 
+static void
+nvmf_purge_namespaces(struct nvmf_softc *sc, uint32_t first_nsid,
+    uint32_t next_valid_nsid)
+{
+	struct nvmf_namespace *ns;
+
+	for (uint32_t nsid = first_nsid; nsid < next_valid_nsid; nsid++)
+	{
+		/* XXX: Needs locking around sc->ns[]. */
+		ns = sc->ns[nsid - 1];
+		if (ns != NULL) {
+			nvmf_destroy_ns(ns);
+			sc->ns[nsid - 1] = NULL;
+
+			nvmf_sim_rescan_ns(sc, nsid);
+		}
+	}
+}
+
+static bool
+nvmf_rescan_ns_cb(struct nvmf_softc *sc, uint32_t nsid,
+    const struct nvme_namespace_data *data, void *arg)
+{
+	uint32_t *last_nsid = arg;
+
+	/* Check for any gaps prior to this namespace. */
+	nvmf_purge_namespaces(sc, *last_nsid + 1, nsid);
+	*last_nsid = nsid;
+
+	nvmf_rescan_ns_1(sc, nsid, data);
+	return (true);
+}
+
+void
+nvmf_rescan_all_ns(struct nvmf_softc *sc)
+{
+	uint32_t last_nsid;
+
+	last_nsid = 0;
+	if (!nvmf_scan_active_namespaces(sc, nvmf_rescan_ns_cb, &last_nsid))
+		return;
+
+	/*
+	 * Check for any namespace devices after the last active
+	 * namespace.
+	 */
+	nvmf_purge_namespaces(sc, last_nsid + 1, sc->cdata->nn + 1);
+}
+
 int
 nvmf_passthrough_cmd(struct nvmf_softc *sc, struct nvme_pt_command *pt,
     bool admin)
