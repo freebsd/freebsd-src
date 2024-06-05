@@ -666,7 +666,7 @@ generic_pcie_unmap_resource(device_t dev, device_t child, struct resource *r,
 	case SYS_RES_MEMORY:
 		break;
 	default:
-		return (bus_generic_unmap_resource(dev, child, r, argsp, map));
+		return (bus_generic_unmap_resource(dev, child, r, map));
 	}
 
 	range = generic_pcie_containing_range(dev, type, rman_get_start(r),
