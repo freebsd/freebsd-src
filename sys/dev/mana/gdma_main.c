@@ -1750,7 +1750,6 @@ static int
 mana_gd_probe(device_t dev)
 {
 	mana_vendor_id_t *ent;
-	char		adapter_name[60];
 	uint16_t	pci_vendor_id = 0;
 	uint16_t	pci_device_id = 0;
 
@@ -1764,8 +1763,7 @@ mana_gd_probe(device_t dev)
 			mana_dbg(NULL, "vendor=%x device=%x\n",
 			    pci_vendor_id, pci_device_id);
 
-			sprintf(adapter_name, DEVICE_DESC);
-			device_set_desc_copy(dev, adapter_name);
+			device_set_desc(dev, DEVICE_DESC);
 			return (BUS_PROBE_DEFAULT);
 		}
 
