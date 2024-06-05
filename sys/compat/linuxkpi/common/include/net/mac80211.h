@@ -2077,6 +2077,32 @@ ieee80211_cqm_rssi_notify(struct ieee80211_vif *vif,
 	TODO();
 }
 
+/* -------------------------------------------------------------------------- */
+
+static inline bool
+ieee80211_sn_less(uint16_t sn1, uint16_t sn2)
+{
+	return (IEEE80211_SEQ_BA_BEFORE(sn1, sn2));
+}
+
+static inline uint16_t
+ieee80211_sn_inc(uint16_t sn)
+{
+	return (IEEE80211_SEQ_INC(sn));
+}
+
+static inline uint16_t
+ieee80211_sn_add(uint16_t sn, uint16_t a)
+{
+	return (IEEE80211_SEQ_ADD(sn, a));
+}
+
+static inline uint16_t
+ieee80211_sn_sub(uint16_t sa, uint16_t sb)
+{
+	return (IEEE80211_SEQ_SUB(sa, sb));
+}
+
 static __inline void
 ieee80211_mark_rx_ba_filtered_frames(struct ieee80211_sta *sta, uint8_t tid,
     uint32_t ssn, uint64_t bitmap, uint16_t received_mpdu)
@@ -2084,32 +2110,34 @@ ieee80211_mark_rx_ba_filtered_frames(struct ieee80211_sta *sta, uint8_t tid,
 	TODO();
 }
 
-static __inline bool
-ieee80211_sn_less(uint16_t sn1, uint16_t sn2)
-{
-	TODO();
-	return (false);
-}
-
-static __inline uint16_t
-ieee80211_sn_inc(uint16_t sn)
-{
-	TODO();
-	return (sn + 1);
-}
-
-static __inline uint16_t
-ieee80211_sn_add(uint16_t sn, uint16_t a)
-{
-	TODO();
-	return (sn + a);
-}
-
 static __inline void
 ieee80211_stop_rx_ba_session(struct ieee80211_vif *vif, uint32_t x, uint8_t *addr)
 {
 	TODO();
 }
+
+static __inline void
+ieee80211_rx_ba_timer_expired(struct ieee80211_vif *vif, uint8_t *addr,
+    uint8_t tid)
+{
+	TODO();
+}
+
+static __inline void
+ieee80211_start_rx_ba_session_offl(struct ieee80211_vif *vif, uint8_t *addr,
+    uint8_t tid)
+{
+	TODO();
+}
+
+static __inline void
+ieee80211_stop_rx_ba_session_offl(struct ieee80211_vif *vif, uint8_t *addr,
+    uint8_t tid)
+{
+	TODO();
+}
+
+/* -------------------------------------------------------------------------- */
 
 static __inline void
 ieee80211_rate_set_vht(struct ieee80211_tx_rate *r, uint32_t f1, uint32_t f2)
@@ -2144,24 +2172,9 @@ ieee80211_unreserve_tid(struct ieee80211_sta *sta, uint8_t tid)
 }
 
 static __inline void
-ieee80211_rx_ba_timer_expired(struct ieee80211_vif *vif, uint8_t *addr,
-    uint8_t tid)
-{
-	TODO();
-}
-
-static __inline void
 ieee80211_send_eosp_nullfunc(struct ieee80211_sta *sta, uint8_t tid)
 {
 	TODO();
-}
-
-static __inline uint16_t
-ieee80211_sn_sub(uint16_t sa, uint16_t sb)
-{
-
-	return ((sa - sb) &
-	    (IEEE80211_SEQ_SEQ_MASK >> IEEE80211_SEQ_SEQ_SHIFT));
 }
 
 static __inline void
@@ -2455,20 +2468,6 @@ SET_IEEE80211_PERM_ADDR	(struct ieee80211_hw *hw, uint8_t *addr)
 
 static __inline void
 ieee80211_report_low_ack(struct ieee80211_sta *sta, int x)
-{
-	TODO();
-}
-
-static __inline void
-ieee80211_start_rx_ba_session_offl(struct ieee80211_vif *vif, uint8_t *addr,
-    uint8_t tid)
-{
-	TODO();
-}
-
-static __inline void
-ieee80211_stop_rx_ba_session_offl(struct ieee80211_vif *vif, uint8_t *addr,
-    uint8_t tid)
 {
 	TODO();
 }
