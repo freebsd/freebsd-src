@@ -671,7 +671,6 @@ bce_probe(device_t dev)
 {
 	const struct bce_type *t;
 	struct bce_softc *sc;
-	char *descbuf;
 	u16 vid = 0, did = 0, svid = 0, sdid = 0;
 
 	t = bce_devs;
@@ -695,19 +694,10 @@ bce_probe(device_t dev)
 		if ((vid == t->bce_vid) && (did == t->bce_did) &&
 		    ((svid == t->bce_svid) || (t->bce_svid == PCI_ANY_ID)) &&
 		    ((sdid == t->bce_sdid) || (t->bce_sdid == PCI_ANY_ID))) {
-			descbuf = malloc(BCE_DEVDESC_MAX, M_TEMP, M_NOWAIT);
-
-			if (descbuf == NULL)
-				return(ENOMEM);
-
-			/* Print out the device identity. */
-			snprintf(descbuf, BCE_DEVDESC_MAX, "%s (%c%d)",
+			device_set_descf(dev, "%s (%c%d)",
 			    t->bce_name, (((pci_read_config(dev,
 			    PCIR_REVID, 4) & 0xf0) >> 4) + 'A'),
 			    (pci_read_config(dev, PCIR_REVID, 4) & 0xf));
-
-			device_set_desc_copy(dev, descbuf);
-			free(descbuf, M_TEMP);
 			return(BUS_PROBE_DEFAULT);
 		}
 		t++;
