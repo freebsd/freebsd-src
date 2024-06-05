@@ -79,10 +79,6 @@
 		a2 = tmp;			\
 	} while (0)
 
-#define	SUNION2PF(su, af) (((af)==AF_INET) ?	\
-    (struct pf_addr *)&(su)->sin.sin_addr :	\
-    (struct pf_addr *)&(su)->sin6.sin6_addr)
-
 #define	AF_BITS(af)		(((af)==AF_INET)?32:128)
 #define	ADDR_NETWORK(ad)	((ad)->pfra_net < AF_BITS((ad)->pfra_af))
 #define	KENTRY_NETWORK(ke)	((ke)->pfrke_net < AF_BITS((ke)->pfrke_af))
@@ -1044,6 +1040,21 @@ pfr_copyout_astats(struct pfr_astats *as, const struct pfr_kentry *ke,
 	}
 }
 
+static void
+pfr_sockaddr_to_pf_addr(const union sockaddr_union *sa, struct pf_addr *a)
+{
+	switch (sa->sa.sa_family) {
+	case AF_INET:
+		memcpy(&a->v4, &sa->sin.sin_addr, sizeof(a->v4));
+		break;
+	case AF_INET6:
+		memcpy(&a->v6, &sa->sin6.sin6_addr, sizeof(a->v6));
+		break;
+	default:
+		panic("Unknown AF");
+	}
+}
+
 static int
 pfr_walktree(struct radix_node *rn, void *arg)
 {
@@ -1094,18 +1105,14 @@ pfr_walktree(struct radix_node *rn, void *arg)
 			if (w->pfrw_dyn->pfid_acnt4++ > 0)
 				break;
 			pfr_prepare_network(&pfr_mask, AF_INET, ke->pfrke_net);
-			w->pfrw_dyn->pfid_addr4 = *SUNION2PF(&ke->pfrke_sa,
-			    AF_INET);
-			w->pfrw_dyn->pfid_mask4 = *SUNION2PF(&pfr_mask,
-			    AF_INET);
+			pfr_sockaddr_to_pf_addr(&ke->pfrke_sa, &w->pfrw_dyn->pfid_addr4);
+			pfr_sockaddr_to_pf_addr(&pfr_mask, &w->pfrw_dyn->pfid_mask4);
 		} else if (ke->pfrke_af == AF_INET6){
 			if (w->pfrw_dyn->pfid_acnt6++ > 0)
 				break;
 			pfr_prepare_network(&pfr_mask, AF_INET6, ke->pfrke_net);
-			w->pfrw_dyn->pfid_addr6 = *SUNION2PF(&ke->pfrke_sa,
-			    AF_INET6);
-			w->pfrw_dyn->pfid_mask6 = *SUNION2PF(&pfr_mask,
-			    AF_INET6);
+			pfr_sockaddr_to_pf_addr(&ke->pfrke_sa, &w->pfrw_dyn->pfid_addr6);
+			pfr_sockaddr_to_pf_addr(&pfr_mask, &w->pfrw_dyn->pfid_mask6);
 		}
 		break;
 	    }
@@ -2235,7 +2242,7 @@ int
 pfr_pool_get(struct pfr_ktable *kt, int *pidx, struct pf_addr *counter,
     sa_family_t af)
 {
-	struct pf_addr		 *addr, *cur, *mask;
+	struct pf_addr		 addr, cur, mask, umask_addr;
 	union sockaddr_union	 uaddr, umask;
 	struct pfr_kentry	*ke, *ke2 = NULL;
 	int			 idx = -1, use_counter = 0;
@@ -2253,7 +2260,7 @@ pfr_pool_get(struct pfr_ktable *kt, int *pidx, struct pf_addr *counter,
 		uaddr.sin6.sin6_family = AF_INET6;
 		break;
 	}
-	addr = SUNION2PF(&uaddr, af);
+	pfr_sockaddr_to_pf_addr(&uaddr, &addr);
 
 	if (!(kt->pfrkt_flags & PFR_TFLAG_ACTIVE) && kt->pfrkt_root != NULL)
 		kt = kt->pfrkt_root;
@@ -2273,26 +2280,26 @@ _next_block:
 		return (1);
 	}
 	pfr_prepare_network(&umask, af, ke->pfrke_net);
-	cur = SUNION2PF(&ke->pfrke_sa, af);
-	mask = SUNION2PF(&umask, af);
+	pfr_sockaddr_to_pf_addr(&ke->pfrke_sa, &cur);
+	pfr_sockaddr_to_pf_addr(&umask, &mask);
 
 	if (use_counter) {
 		/* is supplied address within block? */
-		if (!PF_MATCHA(0, cur, mask, counter, af)) {
+		if (!PF_MATCHA(0, &cur, &mask, counter, af)) {
 			/* no, go to next block in table */
 			idx++;
 			use_counter = 0;
 			goto _next_block;
 		}
-		PF_ACPY(addr, counter, af);
+		PF_ACPY(&addr, counter, af);
 	} else {
 		/* use first address of block */
-		PF_ACPY(addr, cur, af);
+		PF_ACPY(&addr, &cur, af);
 	}
 
 	if (!KENTRY_NETWORK(ke)) {
 		/* this is a single IP address - no possible nested block */
-		PF_ACPY(counter, addr, af);
+		PF_ACPY(counter, &addr, af);
 		*pidx = idx;
 		pfr_kstate_counter_add(&kt->pfrkt_match, 1);
 		return (0);
@@ -2312,7 +2319,7 @@ _next_block:
 		/* no need to check KENTRY_RNF_ROOT() here */
 		if (ke2 == ke) {
 			/* lookup return the same block - perfect */
-			PF_ACPY(counter, addr, af);
+			PF_ACPY(counter, &addr, af);
 			*pidx = idx;
 			pfr_kstate_counter_add(&kt->pfrkt_match, 1);
 			return (0);
@@ -2320,9 +2327,10 @@ _next_block:
 
 		/* we need to increase the counter past the nested block */
 		pfr_prepare_network(&umask, AF_INET, ke2->pfrke_net);
-		PF_POOLMASK(addr, addr, SUNION2PF(&umask, af), &pfr_ffaddr, af);
-		PF_AINC(addr, af);
-		if (!PF_MATCHA(0, cur, mask, addr, af)) {
+		pfr_sockaddr_to_pf_addr(&umask, &umask_addr);
+		PF_POOLMASK(&addr, &addr, &umask_addr, &pfr_ffaddr, af);
+		PF_AINC(&addr, af);
+		if (!PF_MATCHA(0, &cur, &mask, &addr, af)) {
 			/* ok, we reached the end of our main block */
 			/* go to next block in table */
 			idx++;
