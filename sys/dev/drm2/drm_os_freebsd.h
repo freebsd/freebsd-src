@@ -297,13 +297,6 @@ get_unaligned_le32(const void *p)
 }
 #endif
 
-static inline unsigned long
-ilog2(unsigned long x)
-{
-
-	return (flsl(x) - 1);
-}
-
 int64_t		timeval_to_ns(const struct timeval *tv);
 struct timeval	ns_to_timeval(const int64_t nsec);
 
