@@ -177,6 +177,10 @@ end
 local function addsshkey(homedir, key)
 	local chownak = false
 	local chowndotssh = false
+	local root = os.getenv("NUAGE_FAKE_ROOTDIR")
+	if root then
+		homedir = root .. "/" .. homedir
+	end
 	local ak_path = homedir .. "/.ssh/authorized_keys"
 	local dotssh_path = homedir .. "/.ssh"
 	local dirattrs = lfs.attributes(ak_path)
