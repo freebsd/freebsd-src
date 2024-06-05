@@ -265,7 +265,6 @@ jedec_dimm_attach(device_t dev)
 	uint16_t vendorid;
 	bool tsod_present;
 	int rc;
-	int new_desc_len;
 	enum dram_type type;
 	struct jedec_dimm_softc *sc;
 	struct sysctl_ctx_list *ctx;
@@ -273,7 +272,6 @@ jedec_dimm_attach(device_t dev)
 	struct sysctl_oid_list *children;
 	const char *tsod_match;
 	const char *slotid_str;
-	char *new_desc;
 
 	sc = device_get_softc(dev);
 	ctx = device_get_sysctl_ctx(dev);
@@ -447,26 +445,13 @@ no_tsod:
 	 * device description.
 	 */
 	if ((tsod_match != NULL) || (sc->slotid_str != NULL)) {
-		new_desc_len = strlen(device_get_desc(dev));
-		if (tsod_match != NULL) {
-			new_desc_len += strlen(tsod_match);
-			new_desc_len += 4; /* " w/ " */
-		}
-		if (sc->slotid_str != NULL) {
-			new_desc_len += strlen(sc->slotid_str);
-			new_desc_len += 3; /* space + parens */
-		}
-		new_desc_len++; /* terminator */
-		new_desc = malloc(new_desc_len, M_TEMP, (M_WAITOK | M_ZERO));
-		(void) snprintf(new_desc, new_desc_len, "%s%s%s%s%s%s",
+		device_set_descf(dev, "%s%s%s%s%s%s",
 		    device_get_desc(dev),
 		    (tsod_match ? " w/ " : ""),
 		    (tsod_match ? tsod_match : ""),
 		    (sc->slotid_str ? " (" : ""),
 		    (sc->slotid_str ? sc->slotid_str : ""),
 		    (sc->slotid_str ? ")" : ""));
-		device_set_desc_copy(dev, new_desc);
-		free(new_desc, M_TEMP);
 	}
 
 out:
