@@ -180,12 +180,12 @@ void	nvmf_ctl_unload(void);
 
 /* nvmf_ns.c */
 struct nvmf_namespace *nvmf_init_ns(struct nvmf_softc *sc, uint32_t id,
-    struct nvme_namespace_data *data);
+    const struct nvme_namespace_data *data);
 void	nvmf_disconnect_ns(struct nvmf_namespace *ns);
 void	nvmf_reconnect_ns(struct nvmf_namespace *ns);
 void	nvmf_destroy_ns(struct nvmf_namespace *ns);
 bool	nvmf_update_ns(struct nvmf_namespace *ns,
-    struct nvme_namespace_data *data);
+    const struct nvme_namespace_data *data);
 
 /* nvmf_qpair.c */
 struct nvmf_host_qpair *nvmf_init_qp(struct nvmf_softc *sc,
