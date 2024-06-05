@@ -5238,7 +5238,6 @@ static int arcmsr_probe(device_t dev)
 {
 	u_int32_t id;
 	u_int16_t sub_device_id;
-	static char buf[256];
 	char x_type[]={"unknown"};
 	char *type;
 	int raid6 = 1;
@@ -5313,9 +5312,8 @@ static int arcmsr_probe(device_t dev)
 	}
 	if(type == x_type)
 		return(ENXIO);
-	sprintf(buf, "Areca %s Host Adapter RAID Controller %s\n%s\n",
-		type, raid6 ? "(RAID6 capable)" : "", ARCMSR_DRIVER_VERSION);
-	device_set_desc_copy(dev, buf);
+	device_set_descf(dev, "Areca %s Host Adapter RAID Controller %s\n%s\n",
+	    type, raid6 ? "(RAID6 capable)" : "", ARCMSR_DRIVER_VERSION);
 	return (BUS_PROBE_DEFAULT);
 }
 /*
