@@ -45,8 +45,9 @@ skip_if_ctld() {
 cleanup() {
 	driver=$1
 
-	if [ -e after-ports ]; then
-		diff before-ports after-ports | awk "/$driver/ {print \$2}" | xargs -n1 ctladm port -r -d ioctl -p
+	if [ -e port-create.txt ]; then
+		portnum=`awk '/port:/ {print $2}' port-create.txt`
+		ctladm port -r -d $driver -p $portnum
 	fi
 }
 
@@ -60,12 +61,13 @@ create_ioctl_body()
 {
 	skip_if_ctld
 
-	atf_check -o save:before-ports ctladm portlist -qf ioctl
-	atf_check ctladm port -c -d "ioctl"
-	atf_check -o save:after-ports ctladm portlist -qf ioctl
-	if test `wc -l before-ports | cut -w -f2` -ge `wc -l after-ports | cut -w -f2`; then
-		atf_fail "Did not create a new ioctl port"
-	fi
+	atf_check -o save:port-create.txt ctladm port -c -d "ioctl"
+	atf_check egrep -q "Port created successfully" port-create.txt
+	atf_check egrep -q "frontend: *ioctl" port-create.txt
+	atf_check egrep -q "port: *[0-9]+" port-create.txt
+	portnum=`awk '/port:/ {print $2}' port-create.txt`
+	atf_check -o save:portlist.txt ctladm portlist -qf ioctl
+	atf_check egrep -q "$portnum *YES *ioctl *ioctl" portlist.txt
 }
 create_ioctl_cleanup()
 {
@@ -82,13 +84,13 @@ create_ioctl_options_body()
 {
 	skip_if_ctld
 
-	atf_check -o save:before-ports ctladm portlist -qf ioctl
-	atf_check ctladm port -c -d "ioctl" -O pp=101 -O vp=102
-	atf_check -o save:after-ports ctladm portlist -qf ioctl
-	if test `wc -l before-ports | cut -w -f2` -ge `wc -l after-ports | cut -w -f2`; then
-		atf_fail "Did not create a new ioctl port"
-	fi
-	if ! egrep -q '101[[:space:]]+102' after-ports; then
+	atf_check -o save:port-create.txt ctladm port -c -d "ioctl" -O pp=101 -O vp=102
+	atf_check egrep -q "Port created successfully" port-create.txt
+	atf_check egrep -q "frontend: *ioctl" port-create.txt
+	atf_check egrep -q "port: *[0-9]+" port-create.txt
+	portnum=`awk '/port:/ {print $2}' port-create.txt`
+	atf_check -o save:portlist.txt ctladm portlist -qf ioctl
+	if ! egrep -q '101[[:space:]]+102' portlist.txt; then
 		ctladm portlist
 		atf_fail "Did not create the port with the specified options"
 	fi
@@ -109,13 +111,9 @@ disable_ioctl_body()
 {
 	skip_if_ctld
 
-	atf_check -o save:before-ports ctladm portlist -qf ioctl
-	atf_check ctladm port -c -d "ioctl"
-	atf_check -o save:after-ports ctladm portlist -qf ioctl
-	if test `wc -l before-ports | cut -w -f2` -ge `wc -l after-ports | cut -w -f2`; then
-		atf_fail "Did not create a new ioctl port"
-	fi
-	portnum=`diff before-ports after-ports | awk '/ioctl/ {print $2}'`;
+	atf_check -o save:port-create.txt ctladm port -c -d "ioctl"
+	portnum=`awk '/port:/ {print $2}' port-create.txt`
+	atf_check -o save:portlist.txt ctladm portlist -qf ioctl
 	atf_check -o ignore ctladm port -o off -p $portnum
 	atf_check -o match:"^$portnum *NO" ctladm portlist -qf ioctl
 }
@@ -134,13 +132,9 @@ enable_ioctl_body()
 {
 	skip_if_ctld
 
-	atf_check -o save:before-ports ctladm portlist -qf ioctl
-	atf_check ctladm port -c -d "ioctl"
-	atf_check -o save:after-ports ctladm portlist -qf ioctl
-	if test `wc -l before-ports | cut -w -f2` -ge `wc -l after-ports | cut -w -f2`; then
-		atf_fail "Did not create a new ioctl port"
-	fi
-	portnum=`diff before-ports after-ports | awk '/ioctl/ {print $2}'`;
+	atf_check -o save:port-create.txt ctladm port -c -d "ioctl"
+	portnum=`awk '/port:/ {print $2}' port-create.txt`
+	atf_check -o save:portlist.txt ctladm portlist -qf ioctl
 	atf_check -o ignore ctladm port -o off -p $portnum
 	atf_check -o ignore ctladm port -o on -p $portnum
 	atf_check -o match:"^$portnum *YES" ctladm portlist -qf ioctl
@@ -160,14 +154,18 @@ remove_ioctl_body()
 {
 	skip_if_ctld
 
-	atf_check -o save:before-ports ctladm portlist -qf ioctl
-	atf_check ctladm port -c -d "ioctl"
-	atf_check -o save:after-ports ctladm portlist -qf ioctl
-	if test `wc -l before-ports | cut -w -f2` -ge `wc -l after-ports | cut -w -f2`; then
-		atf_fail "Did not create a new ioctl port"
+	# Specify exact pp and vp to make the post-removal portlist check
+	# unambiguous
+	atf_check -o save:port-create.txt ctladm port -c -d "ioctl" -O pp=10001 -O vp=10002
+	portnum=`awk '/port:/ {print $2}' port-create.txt`
+	atf_check -o save:portlist.txt ctladm portlist -qf ioctl
+	atf_check -o inline:"Port destroyed successfully\n" ctladm port -r -d ioctl -p $portnum
+	# Check that the port was removed.  A new port may have been added with
+	# the same ID, so match against the pp and vp numbers, too.
+	if ctladm portlist -qf ioctl | egrep -q "^${portnum} .*10001 *10002"; then
+		ctladm portlist -qf ioctl
+		atf_fail "port was not removed"
 	fi
-	portnum=`diff before-ports after-ports | awk '/ioctl/ {print $2}'`;
-	atf_check ctladm port -r -d ioctl -p $portnum
 }
 
 atf_init_test_cases()
