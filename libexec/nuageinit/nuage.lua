@@ -72,7 +72,12 @@ local function adduser(pwd)
 		warnmsg("Argument should be a table")
 		return nil
 	end
-	local f = io.popen("getent passwd "..pwd.name)
+	local root = os.getenv("NUAGE_FAKE_ROOTDIR")
+	local cmd = "pw "
+	if root then
+		cmd = cmd .. "-R " .. root .. " "
+	end
+	local f = io.popen(cmd .. " usershow " ..pwd.name .. " -7 2>/dev/null")
 	local pwdstr = f:read("*a")
 	f:close()
 	if pwdstr:len() ~= 0 then
@@ -109,8 +114,7 @@ local function adduser(pwd)
 		precmd = "echo "..pwd.plain_text_passwd .. "| "
 		postcmd = " -H 0 "
 	end
-	local root = os.getenv("NUAGE_FAKE_ROOTDIR")
-	local cmd = precmd .. "pw "
+	cmd = precmd .. "pw "
 	if root then
 		cmd = cmd .. "-R " .. root .. " "
 	end
@@ -140,7 +144,12 @@ local function addgroup(grp)
 		warnmsg("Argument should be a table")
 		return false
 	end
-	local f = io.popen("getent group "..grp.name)
+	local root = os.getenv("NUAGE_FAKE_ROOTDIR")
+	local cmd = "pw "
+	if root then
+		cmd = cmd .. "-R " .. root .. " "
+	end
+	local f = io.popen(cmd .. " groupshow " ..grp.name .. " 2>/dev/null")
 	local grpstr = f:read("*a")
 	f:close()
 	if grpstr:len() ~= 0 then
@@ -151,8 +160,7 @@ local function addgroup(grp)
 		local list = splitlist(grp.members)
 		extraargs = " -M " .. table.concat(list, ',')
 	end
-	local root = os.getenv("NUAGE_FAKE_ROOTDIR")
-	local cmd = "pw "
+	cmd = "pw "
 	if root then
 		cmd = cmd .. "-R " .. root .. " "
 	end
