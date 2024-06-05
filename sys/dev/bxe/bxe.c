@@ -2489,7 +2489,6 @@ static int
 bxe_probe(device_t dev)
 {
     struct bxe_device_type *t;
-    char *descbuf;
     uint16_t did, sdid, svid, vid;
 
     /* Find our device structure */
@@ -2506,20 +2505,12 @@ bxe_probe(device_t dev)
         if ((vid == t->bxe_vid) && (did == t->bxe_did) &&
             ((svid == t->bxe_svid) || (t->bxe_svid == PCI_ANY_ID)) &&
             ((sdid == t->bxe_sdid) || (t->bxe_sdid == PCI_ANY_ID))) {
-            descbuf = malloc(BXE_DEVDESC_MAX, M_TEMP, M_NOWAIT);
-            if (descbuf == NULL)
-                return (ENOMEM);
-
-            /* Print out the device identity. */
-            snprintf(descbuf, BXE_DEVDESC_MAX,
+            device_set_descf(dev,
                      "%s (%c%d) BXE v:%s", t->bxe_name,
                      (((pci_read_config(dev, PCIR_REVID, 4) &
                         0xf0) >> 4) + 'A'),
                      (pci_read_config(dev, PCIR_REVID, 4) & 0xf),
                      BXE_DRIVER_VERSION);
-
-            device_set_desc_copy(dev, descbuf);
-            free(descbuf, M_TEMP);
             return (BUS_PROBE_DEFAULT);
         }
         t++;
