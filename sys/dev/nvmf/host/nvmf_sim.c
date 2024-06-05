@@ -40,7 +40,10 @@ nvmf_ccb_done(union ccb *ccb)
 		return;
 
 	if (nvmf_cqe_aborted(&ccb->nvmeio.cpl)) {
-		ccb->ccb_h.status = CAM_REQUEUE_REQ;
+		if (nvmf_fail_disconnect)
+			ccb->ccb_h.status = CAM_DEV_NOT_THERE;
+		else
+			ccb->ccb_h.status = CAM_REQUEUE_REQ;
 		xpt_done(ccb);
 	} else if (ccb->nvmeio.cpl.status != 0) {
 		ccb->ccb_h.status = CAM_NVME_STATUS_ERROR;
@@ -106,7 +109,10 @@ nvmf_sim_io(struct nvmf_softc *sc, union ccb *ccb)
 	mtx_lock(&sc->sim_mtx);
 	if (sc->sim_disconnected) {
 		mtx_unlock(&sc->sim_mtx);
-		nvmeio->ccb_h.status = CAM_REQUEUE_REQ;
+		if (nvmf_fail_disconnect)
+			nvmeio->ccb_h.status = CAM_DEV_NOT_THERE;
+		else
+			nvmeio->ccb_h.status = CAM_REQUEUE_REQ;
 		xpt_done(ccb);
 		return;
 	}

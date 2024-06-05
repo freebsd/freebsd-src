@@ -84,13 +84,22 @@ nvmf_ns_biodone(struct bio *bio)
 	ns = bio->bio_dev->si_drv1;
 
 	/* If a request is aborted, resubmit or queue it for resubmission. */
-	if (bio->bio_error == ECONNABORTED) {
+	if (bio->bio_error == ECONNABORTED && !nvmf_fail_disconnect) {
 		bio->bio_error = 0;
 		bio->bio_driver2 = 0;
 		mtx_lock(&ns->lock);
 		if (ns->disconnected) {
-			TAILQ_INSERT_TAIL(&ns->pending_bios, bio, bio_queue);
-			mtx_unlock(&ns->lock);
+			if (nvmf_fail_disconnect) {
+				mtx_unlock(&ns->lock);
+				bio->bio_error = ECONNABORTED;
+				bio->bio_flags |= BIO_ERROR;
+				bio->bio_resid = bio->bio_bcount;
+				biodone(bio);
+			} else {
+				TAILQ_INSERT_TAIL(&ns->pending_bios, bio,
+				    bio_queue);
+				mtx_unlock(&ns->lock);
+			}
 		} else {
 			mtx_unlock(&ns->lock);
 			nvmf_ns_strategy(bio);
@@ -163,6 +172,7 @@ nvmf_ns_submit_bio(struct nvmf_namespace *ns, struct bio *bio)
 	struct nvme_dsm_range *dsm_range;
 	struct memdesc mem;
 	uint64_t lba, lba_count;
+	int error;
 
 	dsm_range = NULL;
 	memset(&cmd, 0, sizeof(cmd));
@@ -201,10 +211,15 @@ nvmf_ns_submit_bio(struct nvmf_namespace *ns, struct bio *bio)
 
 	mtx_lock(&ns->lock);
 	if (ns->disconnected) {
-		TAILQ_INSERT_TAIL(&ns->pending_bios, bio, bio_queue);
+		if (nvmf_fail_disconnect) {
+			error = ECONNABORTED;
+		} else {
+			TAILQ_INSERT_TAIL(&ns->pending_bios, bio, bio_queue);
+			error = 0;
+		}
 		mtx_unlock(&ns->lock);
 		free(dsm_range, M_NVMF);
-		return (0);
+		return (error);
 	}
 
 	req = nvmf_allocate_request(nvmf_select_io_queue(ns->sc), &cmd,
