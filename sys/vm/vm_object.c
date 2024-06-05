@@ -1953,14 +1953,6 @@ vm_object_collapse(vm_object_t object)
 			 */
 			vm_object_collapse_scan(object);
 
-#if VM_NRESERVLEVEL > 0
-			/*
-			 * Break any reservations from backing_object.
-			 */
-			if (__predict_false(!LIST_EMPTY(&backing_object->rvq)))
-				vm_reserv_break_all(backing_object);
-#endif
-
 			/*
 			 * Move the pager from backing_object to object.
 			 *
