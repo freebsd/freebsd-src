@@ -62,7 +62,7 @@ nvmf_handle_changed_namespaces(struct nvmf_softc *sc,
 	 * probably just rescan the entire set of namespaces.
 	 */
 	if (ns_list->ns[0] == 0xffffffff) {
-		device_printf(sc->dev, "too many changed namespaces\n");
+		nvmf_rescan_all_ns(sc);
 		return;
 	}
 

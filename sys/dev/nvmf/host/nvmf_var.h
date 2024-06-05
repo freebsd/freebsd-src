@@ -148,6 +148,7 @@ int	nvmf_init_ivars(struct nvmf_ivars *ivars, struct nvmf_handoff_host *hh);
 void	nvmf_free_ivars(struct nvmf_ivars *ivars);
 void	nvmf_disconnect(struct nvmf_softc *sc);
 void	nvmf_rescan_ns(struct nvmf_softc *sc, uint32_t nsid);
+void	nvmf_rescan_all_ns(struct nvmf_softc *sc);
 int	nvmf_passthrough_cmd(struct nvmf_softc *sc, struct nvme_pt_command *pt,
     bool admin);
 
