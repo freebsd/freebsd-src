@@ -376,7 +376,6 @@ static void
 amdsbwd_probe_fch41(device_t dev, struct resource *pmres, uint32_t *addr)
 {
 	uint8_t	val;
-	char buf[36];
 
 	/*
 	 * Enable decoding of watchdog MMIO address.
@@ -414,9 +413,8 @@ amdsbwd_probe_fch41(device_t dev, struct resource *pmres, uint32_t *addr)
 	amdsbwd_verbose_printf(dev, "AMDFCH41_PM_DECODE_EN3 value = %#04x\n",
 	    val);
 #endif
-	snprintf(buf, sizeof(buf), "%s FCH Rev 41h+ Watchdog Timer",
+	device_set_descf(dev, "%s FCH Rev 41h+ Watchdog Timer",
 	    cpu_vendor_id == CPU_VENDOR_HYGON ? "Hygon" : "AMD");
-	device_set_desc_copy(dev, buf);
 }
 
 static int
