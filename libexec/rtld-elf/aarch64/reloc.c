@@ -183,7 +183,7 @@ struct tls_data {
 	Elf_Addr	tls_offs;
 };
 
-static Elf_Addr
+static struct tls_data *
 reloc_tlsdesc_alloc(int tlsindex, Elf_Addr tlsoffs)
 {
 	struct tls_data *tlsdesc;
@@ -193,17 +193,25 @@ reloc_tlsdesc_alloc(int tlsindex, Elf_Addr tlsoffs)
 	tlsdesc->tls_index = tlsindex;
 	tlsdesc->tls_offs = tlsoffs;
 
-	return ((Elf_Addr)tlsdesc);
+	return (tlsdesc);
 }
 
+struct tlsdesc_entry {
+	void	*(*func)(void *);
+	union {
+		Elf_Ssize	addend;
+		Elf_Size	offset;
+		struct tls_data	*data;
+	};
+};
+
 static void
-reloc_tlsdesc(const Obj_Entry *obj, const Elf_Rela *rela, Elf_Addr *where,
-    int flags, RtldLockState *lockstate)
+reloc_tlsdesc(const Obj_Entry *obj, const Elf_Rela *rela,
+    struct tlsdesc_entry *where, int flags, RtldLockState *lockstate)
 {
 	const Elf_Sym *def;
 	const Obj_Entry *defobj;
 	Elf_Addr offs;
-
 
 	offs = 0;
 	if (ELF_R_SYM(rela->r_info) != 0) {
@@ -215,8 +223,8 @@ reloc_tlsdesc(const Obj_Entry *obj, const Elf_Rela *rela, Elf_Addr *where,
 		obj = defobj;
 		if (def->st_shndx == SHN_UNDEF) {
 			/* Weak undefined thread variable */
-			where[0] = (Elf_Addr)_rtld_tlsdesc_undef;
-			where[1] = rela->r_addend;
+			where->func = _rtld_tlsdesc_undef;
+			where->addend = rela->r_addend;
 			return;
 		}
 	}
@@ -224,12 +232,12 @@ reloc_tlsdesc(const Obj_Entry *obj, const Elf_Rela *rela, Elf_Addr *where,
 
 	if (obj->tlsoffset != 0) {
 		/* Variable is in initialy allocated TLS segment */
-		where[0] = (Elf_Addr)_rtld_tlsdesc_static;
-		where[1] = obj->tlsoffset + offs;
+		where->func = _rtld_tlsdesc_static;
+		where->offset = obj->tlsoffset + offs;
 	} else {
 		/* TLS offest is unknown at load time, use dynamic resolving */
-		where[0] = (Elf_Addr)_rtld_tlsdesc_dynamic;
-		where[1] = reloc_tlsdesc_alloc(obj->tlsindex, offs);
+		where->func = _rtld_tlsdesc_dynamic;
+		where->data = reloc_tlsdesc_alloc(obj->tlsindex, offs);
 	}
 }
 
@@ -289,8 +297,8 @@ reloc_plt(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 			}
 			break;
 		case R_AARCH64_TLSDESC:
-			reloc_tlsdesc(obj, rela, where, SYMLOOK_IN_PLT | flags,
-			    lockstate);
+			reloc_tlsdesc(obj, rela, (struct tlsdesc_entry *)where,
+			    SYMLOOK_IN_PLT | flags, lockstate);
 			break;
 		case R_AARCH64_IRELATIVE:
 			obj->irelative = true;
@@ -549,7 +557,8 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 			}
 			break;
 		case R_AARCH64_TLSDESC:
-			reloc_tlsdesc(obj, rela, where, flags, lockstate);
+			reloc_tlsdesc(obj, rela, (struct tlsdesc_entry *)where,
+			    flags, lockstate);
 			break;
 		case R_AARCH64_TLS_TPREL64:
 			/*
