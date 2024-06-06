@@ -128,6 +128,10 @@ SDT_PROBE_DEFINE5(pf, ip, state, lookup, "struct pfi_kkif *",
     "struct pf_kstate *");
 SDT_PROBE_DEFINE4(pf, sctp, multihome, test, "struct pfi_kkif *",
     "struct pf_krule *", "struct mbuf *", "int");
+SDT_PROBE_DEFINE2(pf, sctp, multihome, add, "uint32_t",
+    "struct pf_sctp_source *");
+SDT_PROBE_DEFINE3(pf, sctp, multihome, remove, "uint32_t",
+    "struct pf_kstate *", "struct pf_sctp_source *");
 
 SDT_PROBE_DEFINE3(pf, eth, test_rule, entry, "int", "struct ifnet *",
     "struct mbuf *");
@@ -6001,11 +6005,12 @@ pf_sctp_multihome_detach_addr(const struct pf_kstate *s)
 	key.v_tag = s->dst.scrub->pfss_v_tag;
 	ep  = RB_FIND(pf_sctp_endpoints, &V_pf_sctp_endpoints, &key);
 	if (ep != NULL) {
-		/* XXX Actually remove! */
 		TAILQ_FOREACH_SAFE(i, &ep->sources, entry, tmp) {
 			if (pf_addr_cmp(&i->addr,
 			    &s->key[PF_SK_WIRE]->addr[s->direction == PF_OUT],
 			    s->key[PF_SK_WIRE]->af) == 0) {
+				SDT_PROBE3(pf, sctp, multihome, remove,
+				    key.v_tag, s, i);
 				TAILQ_REMOVE(&ep->sources, i, entry);
 				free(i, M_PFTEMP);
 				break;
@@ -6026,6 +6031,8 @@ pf_sctp_multihome_detach_addr(const struct pf_kstate *s)
 			if (pf_addr_cmp(&i->addr,
 			    &s->key[PF_SK_WIRE]->addr[s->direction == PF_IN],
 			    s->key[PF_SK_WIRE]->af) == 0) {
+				SDT_PROBE3(pf, sctp, multihome, remove,
+				    key.v_tag, s, i);
 				TAILQ_REMOVE(&ep->sources, i, entry);
 				free(i, M_PFTEMP);
 				break;
@@ -6083,6 +6090,7 @@ pf_sctp_multihome_add_addr(struct pf_pdesc *pd, struct pf_addr *a, uint32_t v_ta
 	i->af = pd->af;
 	memcpy(&i->addr, a, sizeof(*a));
 	TAILQ_INSERT_TAIL(&ep->sources, i, entry);
+	SDT_PROBE2(pf, sctp, multihome, add, v_tag, i);
 
 	PF_SCTP_ENDPOINTS_UNLOCK();
 }
