@@ -537,7 +537,7 @@ ocf_hash(const struct alg *alg, const char *buffer, size_t size, char *digest,
 	return (true);
 }
 
-static void
+static bool
 openssl_hash(const struct alg *alg, const EVP_MD *md, const void *buffer,
     size_t size, void *digest_out, unsigned *digest_sz_out)
 {
@@ -564,11 +564,12 @@ openssl_hash(const struct alg *alg, const EVP_MD *md, const void *buffer,
 		goto err_out;
 
 	EVP_MD_CTX_destroy(mdctx);
-	return;
+	return (true);
 
 err_out:
-	errx(1, "OpenSSL %s HASH failed%s: %s", alg->name, errs,
+	warnx("OpenSSL %s HASH failed%s: %s", alg->name, errs,
 	    ERR_error_string(ERR_get_error(), NULL));
+	return (false);
 }
 
 static void
@@ -590,7 +591,8 @@ run_hash_test(const struct alg *alg, size_t size)
 
 	/* OpenSSL HASH. */
 	digest_len = sizeof(control_digest);
-	openssl_hash(alg, md, buffer, size, control_digest, &digest_len);
+	if (!openssl_hash(alg, md, buffer, size, control_digest, &digest_len))
+		goto out;
 
 	/* cryptodev HASH. */
 	if (!ocf_hash(alg, buffer, size, test_digest, &crid))
@@ -671,9 +673,11 @@ run_hmac_test(const struct alg *alg, size_t size)
 	/* OpenSSL HMAC. */
 	digest_len = sizeof(control_digest);
 	if (HMAC(md, key, key_len, (u_char *)buffer, size,
-	    (u_char *)control_digest, &digest_len) == NULL)
-		errx(1, "OpenSSL %s (%zu) HMAC failed: %s", alg->name,
+	    (u_char *)control_digest, &digest_len) == NULL) {
+		warnx("OpenSSL %s (%zu) HMAC failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
+		goto out;
+	}
 
 	/* cryptodev HMAC. */
 	if (!ocf_hmac(alg, buffer, size, key, key_len, test_digest, &crid))
@@ -700,7 +704,7 @@ out:
 	free(key);
 }
 
-static void
+static bool
 openssl_cipher(const struct alg *alg, const EVP_CIPHER *cipher, const char *key,
     const char *iv, const char *input, char *output, size_t size, int enc)
 {
@@ -708,27 +712,42 @@ openssl_cipher(const struct alg *alg, const EVP_CIPHER *cipher, const char *key,
 	int outl, total;
 
 	ctx = EVP_CIPHER_CTX_new();
-	if (ctx == NULL)
-		errx(1, "OpenSSL %s (%zu) ctx new failed: %s", alg->name,
+	if (ctx == NULL) {
+		warnx("OpenSSL %s (%zu) ctx new failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
+		return (false);
+	}
 	if (EVP_CipherInit_ex(ctx, cipher, NULL, (const u_char *)key,
-	    (const u_char *)iv, enc) != 1)
-		errx(1, "OpenSSL %s (%zu) ctx init failed: %s", alg->name,
+	    (const u_char *)iv, enc) != 1) {
+		warnx("OpenSSL %s (%zu) ctx init failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
+		goto error;
+	}
 	EVP_CIPHER_CTX_set_padding(ctx, 0);
 	if (EVP_CipherUpdate(ctx, (u_char *)output, &outl,
-	    (const u_char *)input, size) != 1)
-		errx(1, "OpenSSL %s (%zu) cipher update failed: %s", alg->name,
+	    (const u_char *)input, size) != 1) {
+		warnx("OpenSSL %s (%zu) cipher update failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
+		goto error;
+	}
 	total = outl;
-	if (EVP_CipherFinal_ex(ctx, (u_char *)output + outl, &outl) != 1)
-		errx(1, "OpenSSL %s (%zu) cipher final failed: %s", alg->name,
+	if (EVP_CipherFinal_ex(ctx, (u_char *)output + outl, &outl) != 1) {
+		warnx("OpenSSL %s (%zu) cipher final failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
+		goto error;
+	}
 	total += outl;
-	if ((size_t)total != size)
-		errx(1, "OpenSSL %s (%zu) cipher size mismatch: %d", alg->name,
+	if ((size_t)total != size) {
+		warnx("OpenSSL %s (%zu) cipher size mismatch: %d", alg->name,
 		    size, total);
+		goto error;
+	}
 	EVP_CIPHER_CTX_free(ctx);
+	return (true);
+
+error:
+	EVP_CIPHER_CTX_free(ctx);
+	return (false);
 }
 
 static bool
@@ -808,22 +827,27 @@ run_cipher_test(const struct alg *alg, size_t size)
 	ciphertext = malloc(size);
 
 	/* OpenSSL cipher. */
-	openssl_cipher(alg, cipher, key, iv, cleartext, ciphertext, size, 1);
-	if (size > 0 && memcmp(cleartext, ciphertext, size) == 0)
+	if (!openssl_cipher(alg, cipher, key, iv, cleartext, ciphertext, size,
+	    1))
+		goto out_noocf;
+	if (size > 0 && memcmp(cleartext, ciphertext, size) == 0) {
 		warnx("OpenSSL %s (%zu): cipher text unchanged", alg->name,
 		    size);
-	openssl_cipher(alg, cipher, key, iv, ciphertext, buffer, size, 0);
+		goto out_noocf;
+	}
+	if (!openssl_cipher(alg, cipher, key, iv, ciphertext, buffer, size, 0))
+		goto out_noocf;
 	if (memcmp(cleartext, buffer, size) != 0) {
 		printf("OpenSSL %s (%zu): cipher mismatch:", alg->name, size);
 		printf("original:\n");
 		hexdump(cleartext, size, NULL, 0);
 		printf("decrypted:\n");
 		hexdump(buffer, size, NULL, 0);
-		exit(1);
+		goto out_noocf;
 	}
 
 	if (!ocf_init_cipher_session(alg, key, key_len, &ses))
-		goto out;
+		goto out_noocf;
 
 	/* OCF encrypt. */
 	if (!ocf_cipher(&ses, alg, iv, cleartext, buffer, size, COP_ENCRYPT))
@@ -855,6 +879,7 @@ run_cipher_test(const struct alg *alg, size_t size)
 
 out:
 	ocf_destroy_session(&ses);
+out_noocf:
 	free(ciphertext);
 	free(buffer);
 	free(cleartext);
@@ -970,21 +995,26 @@ run_eta_test(const struct alg *alg, size_t aad_len, size_t size)
 	/* OpenSSL encrypt + HMAC. */
 	if (aad_len != 0)
 		memcpy(ciphertext, cleartext, aad_len);
-	openssl_cipher(alg, cipher, cipher_key, iv, cleartext + aad_len,
-	    ciphertext + aad_len, size, 1);
+	if (!openssl_cipher(alg, cipher, cipher_key, iv, cleartext + aad_len,
+	    ciphertext + aad_len, size, 1))
+		goto out_noocf;
 	if (size > 0 && memcmp(cleartext + aad_len, ciphertext + aad_len,
-	    size) == 0)
+	    size) == 0) {
 		warnx("OpenSSL %s (%zu, %zu): cipher text unchanged",
 		    alg->name, aad_len, size);
+		goto out_noocf;
+	}
 	digest_len = sizeof(control_digest);
 	if (HMAC(md, auth_key, auth_key_len, (u_char *)ciphertext,
-	    aad_len + size, (u_char *)control_digest, &digest_len) == NULL)
-		errx(1, "OpenSSL %s (%zu, %zu) HMAC failed: %s", alg->name,
+	    aad_len + size, (u_char *)control_digest, &digest_len) == NULL) {
+		warnx("OpenSSL %s (%zu, %zu) HMAC failed: %s", alg->name,
 		    aad_len, size, ERR_error_string(ERR_get_error(), NULL));
+		goto out_noocf;
+	}
 
 	if (!ocf_init_eta_session(alg, cipher_key, cipher_key_len, auth_key,
 	    auth_key_len, &ses))
-		goto out;
+		goto out_noocf;
 
 	/* OCF encrypt + HMAC. */
 	error = ocf_eta(&ses, iv, iv_len, aad_len != 0 ? cleartext : NULL,
@@ -1060,6 +1090,7 @@ run_eta_test(const struct alg *alg, size_t aad_len, size_t size)
 
 out:
 	ocf_destroy_session(&ses);
+out_noocf:
 	free(ciphertext);
 	free(buffer);
 	free(cleartext);
@@ -1068,7 +1099,7 @@ out:
 	free(cipher_key);
 }
 
-static void
+static bool
 openssl_gmac(const struct alg *alg, const EVP_CIPHER *cipher, const char *key,
     const char *iv, const char *input, size_t size, char *tag)
 {
@@ -1076,26 +1107,41 @@ openssl_gmac(const struct alg *alg, const EVP_CIPHER *cipher, const char *key,
 	int outl;
 
 	ctx = EVP_CIPHER_CTX_new();
-	if (ctx == NULL)
-		errx(1, "OpenSSL %s (%zu) ctx new failed: %s", alg->name,
+	if (ctx == NULL) {
+		warnx("OpenSSL %s (%zu) ctx new failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
+		return (false);
+	}
 	if (EVP_EncryptInit_ex(ctx, cipher, NULL, (const u_char *)key,
-	    (const u_char *)iv) != 1)
-		errx(1, "OpenSSL %s (%zu) ctx init failed: %s", alg->name,
+	    (const u_char *)iv) != 1) {
+		warnx("OpenSSL %s (%zu) ctx init failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
+		goto error;
+	}
 	EVP_CIPHER_CTX_set_padding(ctx, 0);
 	if (EVP_EncryptUpdate(ctx, NULL, &outl, (const u_char *)input,
-		size) != 1)
-		errx(1, "OpenSSL %s (%zu) update failed: %s",
+	    size) != 1) {
+		warnx("OpenSSL %s (%zu) update failed: %s",
 		    alg->name, size, ERR_error_string(ERR_get_error(), NULL));
-	if (EVP_EncryptFinal_ex(ctx, NULL, &outl) != 1)
-		errx(1, "OpenSSL %s (%zu) final failed: %s", alg->name,
+		goto error;
+	}
+	if (EVP_EncryptFinal_ex(ctx, NULL, &outl) != 1) {
+		warnx("OpenSSL %s (%zu) final failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
+		goto error;
+	}
 	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, alg->tag_len,
-	    tag) != 1)
-		errx(1, "OpenSSL %s (%zu) get tag failed: %s", alg->name,
+	    tag) != 1) {
+		warnx("OpenSSL %s (%zu) get tag failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
+		goto error;
+	}
 	EVP_CIPHER_CTX_free(ctx);
+	return (true);
+
+error:
+	EVP_CIPHER_CTX_free(ctx);
+	return (false);
 }
 
 static bool
@@ -1154,7 +1200,8 @@ run_gmac_test(const struct alg *alg, size_t size)
 	buffer = alloc_buffer(size);
 
 	/* OpenSSL GMAC. */
-	openssl_gmac(alg, cipher, key, iv, buffer, size, control_tag);
+	if (!openssl_gmac(alg, cipher, key, iv, buffer, size, control_tag))
+		goto out;
 
 	/* OCF GMAC. */
 	if (!ocf_mac(alg, buffer, size, key, key_len, iv, test_tag, &crid))
@@ -1178,7 +1225,7 @@ out:
 	free(key);
 }
 
-static void
+static bool
 openssl_digest(const struct alg *alg, const char *key, u_int key_len,
     const char *input, size_t size, char *tag, u_int tag_len)
 {
@@ -1187,25 +1234,42 @@ openssl_digest(const struct alg *alg, const char *key, u_int key_len,
 	size_t len;
 
 	pkey = EVP_PKEY_new_raw_private_key(alg->pkey, NULL, key, key_len);
-	if (pkey == NULL)
-		errx(1, "OpenSSL %s (%zu) pkey new failed: %s", alg->name,
+	if (pkey == NULL) {
+		warnx("OpenSSL %s (%zu) pkey new failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
+		return (false);
+	}
 	mdctx = EVP_MD_CTX_new();
-	if (mdctx == NULL)
-		errx(1, "OpenSSL %s (%zu) ctx new failed: %s", alg->name,
+	if (mdctx == NULL) {
+		warnx("OpenSSL %s (%zu) ctx new failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
-	if (EVP_DigestSignInit(mdctx, NULL, NULL, NULL, pkey) != 1)
-		errx(1, "OpenSSL %s (%zu) digest sign init failed: %s",
+		EVP_PKEY_free(pkey);
+		return (false);
+	}
+	if (EVP_DigestSignInit(mdctx, NULL, NULL, NULL, pkey) != 1) {
+		warnx("OpenSSL %s (%zu) digest sign init failed: %s",
 		    alg->name, size, ERR_error_string(ERR_get_error(), NULL));
-	if (EVP_DigestSignUpdate(mdctx, input, size) != 1)
-		errx(1, "OpenSSL %s (%zu) digest update failed: %s", alg->name,
+		goto error;
+	}
+	if (EVP_DigestSignUpdate(mdctx, input, size) != 1) {
+		warnx("OpenSSL %s (%zu) digest update failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
+		goto error;
+	}
 	len = tag_len;
-	if (EVP_DigestSignFinal(mdctx, tag, &len) != 1)
-		errx(1, "OpenSSL %s (%zu) digest final failed: %s", alg->name,
+	if (EVP_DigestSignFinal(mdctx, tag, &len) != 1) {
+		warnx("OpenSSL %s (%zu) digest final failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
+		goto error;
+	}
 	EVP_MD_CTX_free(mdctx);
 	EVP_PKEY_free(pkey);
+	return (true);
+
+error:
+	EVP_MD_CTX_free(mdctx);
+	EVP_PKEY_free(pkey);
+	return (false);
 }
 
 static void
@@ -1225,8 +1289,9 @@ run_digest_test(const struct alg *alg, size_t size)
 	buffer = alloc_buffer(size);
 
 	/* OpenSSL Poly1305. */
-	openssl_digest(alg, key, key_len, buffer, size, control_tag,
-	    sizeof(control_tag));
+	if (!openssl_digest(alg, key, key_len, buffer, size, control_tag,
+	    sizeof(control_tag)))
+		goto out;
 
 	/* OCF Poly1305. */
 	if (!ocf_mac(alg, buffer, size, key, key_len, NULL, test_tag, &crid))
@@ -1249,7 +1314,7 @@ out:
 	free(key);
 }
 
-static void
+static bool
 openssl_aead_encrypt(const struct alg *alg, const EVP_CIPHER *cipher,
     const char *key, const char *iv, size_t iv_len, const char *aad,
     size_t aad_len, const char *input, char *output, size_t size, char *tag)
@@ -1258,44 +1323,68 @@ openssl_aead_encrypt(const struct alg *alg, const EVP_CIPHER *cipher,
 	int outl, total;
 
 	ctx = EVP_CIPHER_CTX_new();
-	if (ctx == NULL)
-		errx(1, "OpenSSL %s (%zu) ctx new failed: %s", alg->name,
+	if (ctx == NULL) {
+		warnx("OpenSSL %s (%zu) ctx new failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
-	if (EVP_EncryptInit_ex(ctx, cipher, NULL, NULL, NULL) != 1)
-		errx(1, "OpenSSL %s (%zu) ctx init failed: %s", alg->name,
+		return (false);
+	}
+	if (EVP_EncryptInit_ex(ctx, cipher, NULL, NULL, NULL) != 1) {
+		warnx("OpenSSL %s (%zu) ctx init failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
-	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, iv_len, NULL) != 1)
-		errx(1, "OpenSSL %s (%zu) setting iv length failed: %s", alg->name,
+		goto error;
+	}
+	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, iv_len, NULL) !=
+	    1) {
+		warnx("OpenSSL %s (%zu) setting iv length failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
+		goto error;
+	}
 	if (EVP_EncryptInit_ex(ctx, NULL, NULL, (const u_char *)key,
-	    (const u_char *)iv) != 1)
-		errx(1, "OpenSSL %s (%zu) ctx init failed: %s", alg->name,
+	    (const u_char *)iv) != 1) {
+		warnx("OpenSSL %s (%zu) ctx init failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
+		goto error;
+	}
 	EVP_CIPHER_CTX_set_padding(ctx, 0);
 	if (aad != NULL) {
 		if (EVP_EncryptUpdate(ctx, NULL, &outl, (const u_char *)aad,
-		    aad_len) != 1)
-			errx(1, "OpenSSL %s (%zu) aad update failed: %s",
+		    aad_len) != 1) {
+			warnx("OpenSSL %s (%zu) aad update failed: %s",
 			    alg->name, size,
 			    ERR_error_string(ERR_get_error(), NULL));
+			goto error;
+		}
 	}
 	if (EVP_EncryptUpdate(ctx, (u_char *)output, &outl,
-	    (const u_char *)input, size) != 1)
-		errx(1, "OpenSSL %s (%zu) encrypt update failed: %s", alg->name,
+	    (const u_char *)input, size) != 1) {
+		warnx("OpenSSL %s (%zu) encrypt update failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
+		goto error;
+	}
 	total = outl;
-	if (EVP_EncryptFinal_ex(ctx, (u_char *)output + outl, &outl) != 1)
-		errx(1, "OpenSSL %s (%zu) encrypt final failed: %s", alg->name,
+	if (EVP_EncryptFinal_ex(ctx, (u_char *)output + outl, &outl) != 1) {
+		warnx("OpenSSL %s (%zu) encrypt final failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
+		goto error;
+	}
 	total += outl;
-	if ((size_t)total != size)
-		errx(1, "OpenSSL %s (%zu) encrypt size mismatch: %d", alg->name,
+	if ((size_t)total != size) {
+		warnx("OpenSSL %s (%zu) encrypt size mismatch: %d", alg->name,
 		    size, total);
+		goto error;
+	}
 	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, alg->tag_len,
-	    tag) != 1)
-		errx(1, "OpenSSL %s (%zu) get tag failed: %s", alg->name,
+	    tag) != 1) {
+		warnx("OpenSSL %s (%zu) get tag failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
+		goto error;
+	}
 	EVP_CIPHER_CTX_free(ctx);
+	return (true);
+
+error:
+	EVP_CIPHER_CTX_free(ctx);
+	return (false);
 }
 
 #ifdef notused
@@ -1343,7 +1432,7 @@ openssl_aead_decrypt(const struct alg *alg, const EVP_CIPHER *cipher,
 }
 #endif
 
-static void
+static bool
 openssl_ccm_encrypt(const struct alg *alg, const EVP_CIPHER *cipher,
     const char *key, const char *iv, size_t iv_len, const char *aad,
     size_t aad_len, const char *input, char *output, size_t size, char *tag)
@@ -1352,63 +1441,88 @@ openssl_ccm_encrypt(const struct alg *alg, const EVP_CIPHER *cipher,
 	int outl, total;
 
 	ctx = EVP_CIPHER_CTX_new();
-	if (ctx == NULL)
-		errx(1, "OpenSSL %s/%zu (%zu, %zu) ctx new failed: %s",
+	if (ctx == NULL) {
+		warnx("OpenSSL %s/%zu (%zu, %zu) ctx new failed: %s",
 		    alg->name, iv_len, aad_len, size,
 		    ERR_error_string(ERR_get_error(), NULL));
-	if (EVP_EncryptInit_ex(ctx, cipher, NULL, NULL, NULL) != 1)
-		errx(1, "OpenSSL %s/%zu (%zu, %zu) ctx init failed: %s",
+		return (false);
+	}
+	if (EVP_EncryptInit_ex(ctx, cipher, NULL, NULL, NULL) != 1) {
+		warnx("OpenSSL %s/%zu (%zu, %zu) ctx init failed: %s",
 		    alg->name, iv_len, aad_len, size,
 		    ERR_error_string(ERR_get_error(), NULL));
-	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, iv_len, NULL) != 1)
-		errx(1,
-		    "OpenSSL %s/%zu (%zu, %zu) setting iv length failed: %s",
+		goto error;
+	}
+	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, iv_len, NULL) !=
+	    1) {
+		warnx("OpenSSL %s/%zu (%zu, %zu) setting iv length failed: %s",
 		    alg->name, iv_len, aad_len, size,
 		    ERR_error_string(ERR_get_error(), NULL));
-	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, AES_CBC_MAC_HASH_LEN, NULL) != 1)
-		errx(1,
-		    "OpenSSL %s/%zu (%zu, %zu) setting tag length failed: %s",
+		goto error;
+	}
+	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, AES_CBC_MAC_HASH_LEN,
+	    NULL) != 1) {
+		warnx("OpenSSL %s/%zu (%zu, %zu) setting tag length failed: %s",
 		    alg->name, iv_len, aad_len, size,
 		    ERR_error_string(ERR_get_error(), NULL));
+		goto error;
+	}
 	if (EVP_EncryptInit_ex(ctx, NULL, NULL, (const u_char *)key,
-	    (const u_char *)iv) != 1)
-		errx(1, "OpenSSL %s/%zu (%zu, %zu) ctx init failed: %s",
+	    (const u_char *)iv) != 1) {
+		warnx("OpenSSL %s/%zu (%zu, %zu) ctx init failed: %s",
 		    alg->name, iv_len, aad_len, size,
 		    ERR_error_string(ERR_get_error(), NULL));
-	if (EVP_EncryptUpdate(ctx, NULL, &outl, NULL, size) != 1)
-		errx(1,
-		    "OpenSSL %s/%zu (%zu, %zu) unable to set data length: %s",
+		goto error;
+	}
+	if (EVP_EncryptUpdate(ctx, NULL, &outl, NULL, size) != 1) {
+		warnx("OpenSSL %s/%zu (%zu, %zu) unable to set data length: %s",
 		    alg->name, iv_len, aad_len, size,
 		    ERR_error_string(ERR_get_error(), NULL));
+		goto error;
+	}
 
 	if (aad != NULL) {
 		if (EVP_EncryptUpdate(ctx, NULL, &outl, (const u_char *)aad,
-		    aad_len) != 1)
-			errx(1,
-			    "OpenSSL %s/%zu (%zu, %zu) aad update failed: %s",
+		    aad_len) != 1) {
+			warnx("OpenSSL %s/%zu (%zu, %zu) aad update failed: %s",
 			    alg->name, iv_len, aad_len, size,
 			    ERR_error_string(ERR_get_error(), NULL));
+			goto error;
+		}
 	}
 	if (EVP_EncryptUpdate(ctx, (u_char *)output, &outl,
-	    (const u_char *)input, size) != 1)
-		errx(1, "OpenSSL %s/%zu (%zu, %zu) encrypt update failed: %s",
+	    (const u_char *)input, size) != 1) {
+		warnx("OpenSSL %s/%zu (%zu, %zu) encrypt update failed: %s",
 		    alg->name, iv_len, aad_len, size,
 		    ERR_error_string(ERR_get_error(), NULL));
+		goto error;
+	}
 	total = outl;
-	if (EVP_EncryptFinal_ex(ctx, (u_char *)output + outl, &outl) != 1)
-		errx(1, "OpenSSL %s/%zu (%zu, %zu) encrypt final failed: %s",
+	if (EVP_EncryptFinal_ex(ctx, (u_char *)output + outl, &outl) != 1) {
+		warnx("OpenSSL %s/%zu (%zu, %zu) encrypt final failed: %s",
 		    alg->name, iv_len, aad_len, size,
 		    ERR_error_string(ERR_get_error(), NULL));
+		goto error;
+	}
 	total += outl;
-	if ((size_t)total != size)
-		errx(1, "OpenSSL %s/%zu (%zu, %zu) encrypt size mismatch: %d",
+	if ((size_t)total != size) {
+		warnx("OpenSSL %s/%zu (%zu, %zu) encrypt size mismatch: %d",
 		    alg->name, iv_len, aad_len, size, total);
+		goto error;
+	}
 	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, AES_CBC_MAC_HASH_LEN,
-	    tag) != 1)
-		errx(1, "OpenSSL %s/%zu (%zu, %zu) get tag failed: %s",
+	    tag) != 1) {
+		warnx("OpenSSL %s/%zu (%zu, %zu) get tag failed: %s",
 		    alg->name, iv_len, aad_len, size,
 		    ERR_error_string(ERR_get_error(), NULL));
+		goto error;
+	}
 	EVP_CIPHER_CTX_free(ctx);
+	return (true);
+
+error:
+	EVP_CIPHER_CTX_free(ctx);
+	return (false);
 }
 
 static bool
@@ -1490,6 +1604,7 @@ run_aead_test(const struct alg *alg, size_t aad_len, size_t size,
 	u_int key_len;
 	int error;
 	char control_tag[AEAD_MAX_TAG_LEN], test_tag[AEAD_MAX_TAG_LEN];
+	bool ok;
 
 	cipher = alg->evp_cipher();
 	if (size % EVP_CIPHER_block_size(cipher) != 0) {
@@ -1526,14 +1641,16 @@ run_aead_test(const struct alg *alg, size_t aad_len, size_t size,
 
 	/* OpenSSL encrypt */
 	if (EVP_CIPHER_mode(cipher) == EVP_CIPH_CCM_MODE)
-		openssl_ccm_encrypt(alg, cipher, key, iv, iv_len, aad,
+		ok = openssl_ccm_encrypt(alg, cipher, key, iv, iv_len, aad,
 		    aad_len, cleartext, ciphertext, size, control_tag);
 	else
-		openssl_aead_encrypt(alg, cipher, key, iv, iv_len, aad,
+		ok = openssl_aead_encrypt(alg, cipher, key, iv, iv_len, aad,
 		    aad_len, cleartext, ciphertext, size, control_tag);
+	if (!ok)
+		goto out_noocf;
 
 	if (!ocf_init_aead_session(alg, key, key_len, iv_len, &ses))
-		goto out;
+		goto out_noocf;
 
 	/* OCF encrypt */
 	error = ocf_aead(&ses, iv, iv_len, aad, aad_len, cleartext, buffer,
@@ -1602,6 +1719,7 @@ run_aead_test(const struct alg *alg, size_t aad_len, size_t size,
 
 out:
 	ocf_destroy_session(&ses);
+out_noocf:
 	free(aad);
 	free(ciphertext);
 	free(buffer);
