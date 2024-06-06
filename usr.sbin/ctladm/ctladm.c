@@ -184,7 +184,11 @@ static struct ctladm_opts option_table[] = {
 	{"modify", CTLADM_CMD_MODIFY, CTLADM_ARG_NONE, "b:l:o:s:"},
 	{"nvlist", CTLADM_CMD_NVLIST, CTLADM_ARG_NONE, "vx"},
 	{"nvterminate", CTLADM_CMD_NVTERMINATE, CTLADM_ARG_NONE, "ac:h:"},
+#if (__FreeBSD_version < 1600000)
 	{"port", CTLADM_CMD_PORT, CTLADM_ARG_NONE, "lo:O:d:crp:qt:w:W:x"},
+#else
+	{"port", CTLADM_CMD_PORT, CTLADM_ARG_NONE, "o:O:d:crp:t:w:W:"},
+#endif
 	{"portlist", CTLADM_CMD_PORTLIST, CTLADM_ARG_NONE, "f:ilp:qvx"},
 	{"prin", CTLADM_CMD_PRES_IN, CTLADM_ARG_NEED_TL, "a:"},
 	{"prout", CTLADM_CMD_PRES_OUT, CTLADM_ARG_NEED_TL, "a:k:r:s:"},
@@ -410,7 +414,9 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 	char *driver = NULL;
 	nvlist_t *option_list;
 	ctl_port_type port_type = CTL_PORT_NONE;
+#if (__FreeBSD_version < 1600000)
 	int quiet = 0, xml = 0;
+#endif
 
 	option_list = nvlist_create(0);
 	if (option_list == NULL)
@@ -418,12 +424,22 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch (c) {
+#if (__FreeBSD_version < 1600000)
 		case 'l':
+			warnx("ctladm port -l is deprecated.  "
+			    "Use ctladm portlist instead");
 			if (port_mode != CCTL_PORT_MODE_NONE)
 				goto bailout_badarg;
 
 			port_mode = CCTL_PORT_MODE_LIST;
 			break;
+		case 'q':
+			quiet = 1;
+			break;
+		case 'x':
+			xml = 1;
+			break;
+#endif
 		case 'c':
 			port_mode = CCTL_PORT_MODE_CREATE;
 			break;
@@ -483,9 +499,6 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 		case 'p':
 			targ_port = strtol(optarg, NULL, 0);
 			break;
-		case 'q':
-			quiet = 1;
-			break;
 		case 't': {
 			ctladm_optret optret;
 			ctladm_cmdargs argnum;
@@ -529,9 +542,6 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 			wwpn = strtoull(optarg, NULL, 0);
 			wwpn_set = 1;
 			break;
-		case 'x':
-			xml = 1;
-			break;
 		}
 	}
 
@@ -563,6 +573,7 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 	entry.targ_port = targ_port;
 
 	switch (port_mode) {
+#if (__FreeBSD_version < 1600000)
 	case CCTL_PORT_MODE_LIST: {
 		char opts[] = "xq";
 		char argx[] = "-x";
@@ -579,6 +590,7 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 		cctl_portlist(fd, argcx, argvx, opts);
 		break;
 	}
+#endif
 	case CCTL_PORT_MODE_REMOVE:
 		/* FALLTHROUGH */
 	case CCTL_PORT_MODE_CREATE: {
@@ -681,7 +693,7 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 		fprintf(stdout, "Front End Ports disabled\n");
 		break;
 	default:
-		warnx("%s: one of -l, -o or -w/-W must be specified", __func__);
+		warnx("%s: one of -c, -r, -o or -w/-W must be specified", __func__);
 		retval = 1;
 		goto bailout;
 		break;
@@ -4270,7 +4282,6 @@ usage(int error)
 "port options:\n"
 "-c                       : create new ioctl or iscsi frontend port\n"
 "-d                       : specify ioctl or iscsi frontend type\n"
-"-l                       : list frontend ports\n"
 "-o on|off                : turn frontend ports on or off\n"
 "-O pp|vp                 : create new frontend port using pp and/or vp\n"
 "-w wwnn                  : set WWNN for one frontend\n"
@@ -4278,8 +4289,6 @@ usage(int error)
 "-t port_type             : specify fc, scsi, ioctl, internal frontend type\n"
 "-p targ_port             : specify target port number\n"
 "-r                       : remove frontend port\n" 
-"-q                       : omit header in list output\n"
-"-x                       : output port list in XML format\n"
 "portlist options:\n"
 "-f frontend              : specify frontend type\n"
 "-i                       : report target and initiators addresses\n"
