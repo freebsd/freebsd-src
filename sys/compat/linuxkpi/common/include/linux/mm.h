@@ -178,6 +178,14 @@ get_order(unsigned long size)
 	return (order);
 }
 
+/*
+ * Resolve a page into a virtual address:
+ *
+ * NOTE: This function only works for pages allocated by the kernel.
+ */
+void *linux_page_address(struct page *);
+#define	page_address(page) linux_page_address(page)
+
 static inline void *
 lowmem_page_address(struct page *page)
 {
