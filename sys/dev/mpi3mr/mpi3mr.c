@@ -2177,6 +2177,8 @@ static int mpi3mr_issue_iocinit(struct mpi3mr_softc *sc)
 	time_in_msec = (now.tv_sec * 1000 + now.tv_usec/1000);
 	iocinit_req.TimeStamp = htole64(time_in_msec);
 
+	iocinit_req.MsgFlags |= MPI3_IOCINIT_MSGFLAGS_WRITESAMEDIVERT_SUPPORTED;
+
 	init_completion(&sc->init_cmds.completion);
 	retval = mpi3mr_submit_admin_cmd(sc, &iocinit_req,
 	    sizeof(iocinit_req));
@@ -3337,6 +3339,19 @@ void mpi3mr_update_device(struct mpi3mr_softc *sc,
 		break;
 	default:
 		tgtdev->is_hidden = 1;
+		break;
+	}
+
+	switch (flags & MPI3_DEVICE0_FLAGS_MAX_WRITE_SAME_MASK) {
+	case MPI3_DEVICE0_FLAGS_MAX_WRITE_SAME_256_LB:
+		tgtdev->ws_len = 256;
+		break;
+	case MPI3_DEVICE0_FLAGS_MAX_WRITE_SAME_2048_LB:
+		tgtdev->ws_len = 2048;
+		break;
+	case MPI3_DEVICE0_FLAGS_MAX_WRITE_SAME_NO_LIMIT:
+	default:
+		tgtdev->ws_len = 0;
 		break;
 	}
 
@@ -5649,6 +5664,7 @@ static void mpi3mr_invalidate_devhandles(struct mpi3mr_softc *sc)
 			target->io_throttle_enabled = 0;
 			target->io_divert = 0;
 			target->throttle_group = NULL;
+			target->ws_len = 0;
 		}
 	}
 	mtx_unlock_spin(&sc->target_lock);

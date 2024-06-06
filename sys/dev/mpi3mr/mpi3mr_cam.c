@@ -83,6 +83,7 @@
 #include "mpi3mr.h"
 #include <sys/time.h>			/* XXX for pcpu.h */
 #include <sys/pcpu.h>			/* XXX for PCPU_GET */
+#include <asm/unaligned.h>
 
 #define	smp_processor_id()  PCPU_GET(cpuid)
 
@@ -101,6 +102,37 @@ extern void mpi3mr_add_sg_single(void *paddr, U8 flags, U32 length,
     bus_addr_t dma_addr);
 
 static U32 event_count;
+
+static
+inline void mpi3mr_divert_ws(Mpi3SCSIIORequest_t *req,
+			     struct ccb_scsiio *csio,
+			     U16 ws_len)
+{
+	U8 unmap = 0, ndob = 0;
+	U32 num_blocks = 0;
+	U8 opcode = scsiio_cdb_ptr(csio)[0];
+	U16 service_action = ((scsiio_cdb_ptr(csio)[8] << 8) | scsiio_cdb_ptr(csio)[9]);
+
+
+	if (opcode == WRITE_SAME_16 ||
+	   (opcode == VARIABLE_LEN_CDB &&
+	    service_action == WRITE_SAME_32)) {
+
+		int unmap_ndob_index = (opcode == WRITE_SAME_16) ? 1 : 10;
+
+		unmap = scsiio_cdb_ptr(csio)[unmap_ndob_index] & 0x08;
+		ndob = scsiio_cdb_ptr(csio)[unmap_ndob_index] & 0x01;
+		num_blocks = get_unaligned_be32(scsiio_cdb_ptr(csio) +
+						((opcode == WRITE_SAME_16) ? 10 : 28));
+
+		/* Check conditions for diversion to firmware */
+		if (unmap && ndob && num_blocks > ws_len) {
+			req->MsgFlags |= MPI3_SCSIIO_MSGFLAGS_DIVERT_TO_FIRMWARE;
+			req->Flags = htole32(le32toh(req->Flags) |
+					     MPI3_SCSIIO_FLAGS_DIVERT_REASON_WRITE_SAME_TOO_LARGE);
+		}
+	}
+}
 
 static void mpi3mr_prepare_sgls(void *arg,
 	bus_dma_segment_t *segs, int nsegs, int error)
@@ -1079,6 +1111,9 @@ mpi3mr_action_scsiio(struct mpi3mr_cam_softc *cam_sc, union ccb *ccb)
 		mpi_control |= MPI3_SCSIIO_FLAGS_TASKATTRIBUTE_SIMPLEQ;
 		break;
 	}
+
+	if (targ->ws_len)
+		mpi3mr_divert_ws(req, csio, targ->ws_len);
 
 	req->Flags = htole32(mpi_control);
 

@@ -232,6 +232,8 @@ extern char fmt_os_ver[16];
 
 #define MPI3MR_PERIODIC_DELAY	1	/* 1 second heartbeat/watchdog check */
 
+#define	WRITE_SAME_32	0x0d
+
 struct completion {
 	unsigned int done;
 	struct mtx lock;
