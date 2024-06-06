@@ -85,15 +85,6 @@ struct page_frag_cache {
 };
 
 /*
- * Resolve a page into a virtual address:
- *
- * NOTE: This function only works for pages allocated by the kernel.
- */
-void *linux_page_address(struct page *);
-
-#define	page_address(page) linux_page_address(page)
-
-/*
  * Page management for unmapped pages:
  */
 struct page *linux_alloc_pages(gfp_t flags, unsigned int order);
