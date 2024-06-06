@@ -205,9 +205,9 @@ struct dmar_unit {
 	struct taskqueue *qi_taskqueue;
 };
 
-#define	DMAR_LOCK(dmar)		mtx_lock(&(dmar)->iommu.lock)
-#define	DMAR_UNLOCK(dmar)	mtx_unlock(&(dmar)->iommu.lock)
-#define	DMAR_ASSERT_LOCKED(dmar) mtx_assert(&(dmar)->iommu.lock, MA_OWNED)
+#define	DMAR_LOCK(dmar)		mtx_lock(&DMAR2IOMMU(dmar)->lock)
+#define	DMAR_UNLOCK(dmar)	mtx_unlock(&DMAR2IOMMU(dmar)->lock)
+#define	DMAR_ASSERT_LOCKED(dmar) mtx_assert(&DMAR2IOMMU(dmar)->lock, MA_OWNED)
 
 #define	DMAR_FAULT_LOCK(dmar)	mtx_lock_spin(&(dmar)->fault_lock)
 #define	DMAR_FAULT_UNLOCK(dmar)	mtx_unlock_spin(&(dmar)->fault_lock)
