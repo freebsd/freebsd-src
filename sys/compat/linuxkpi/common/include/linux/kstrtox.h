@@ -137,7 +137,7 @@ kstrtouint(const char *cp, unsigned int base, unsigned int *res)
 }
 
 static inline int
-kstrtou8(const char *cp, unsigned int base, u8 *res)
+kstrtou8(const char *cp, unsigned int base, uint8_t *res)
 {
 	char *end;
 	unsigned long temp;
@@ -149,13 +149,13 @@ kstrtou8(const char *cp, unsigned int base, u8 *res)
 		end++;
 	if (*cp == 0 || *end != 0)
 		return (-EINVAL);
-	if (temp != (u8)temp)
+	if (temp != (uint8_t)temp)
 		return (-ERANGE);
 	return (0);
 }
 
 static inline int
-kstrtou16(const char *cp, unsigned int base, u16 *res)
+kstrtou16(const char *cp, unsigned int base, uint16_t *res)
 {
 	char *end;
 	unsigned long temp;
@@ -167,20 +167,20 @@ kstrtou16(const char *cp, unsigned int base, u16 *res)
 		end++;
 	if (*cp == 0 || *end != 0)
 		return (-EINVAL);
-	if (temp != (u16)temp)
+	if (temp != (uint16_t)temp)
 		return (-ERANGE);
 	return (0);
 }
 
 static inline int
-kstrtou32(const char *cp, unsigned int base, u32 *res)
+kstrtou32(const char *cp, unsigned int base, uint32_t *res)
 {
 
 	return (kstrtouint(cp, base, res));
 }
 
 static inline int
-kstrtos64(const char *cp, unsigned int base, s64 *res)
+kstrtos64(const char *cp, unsigned int base, int64_t *res)
 {
 	char *end;
 
@@ -197,7 +197,7 @@ kstrtos64(const char *cp, unsigned int base, s64 *res)
 static inline int
 kstrtoll(const char *cp, unsigned int base, long long *res)
 {
-	return (kstrtos64(cp, base, (s64 *)res));
+	return (kstrtos64(cp, base, (int64_t *)res));
 }
 
 static inline int
@@ -218,7 +218,7 @@ kstrtou64(const char *cp, unsigned int base, u64 *res)
 static inline int
 kstrtoull(const char *cp, unsigned int base, unsigned long long *res)
 {
-	return (kstrtou64(cp, base, (u64 *)res));
+	return (kstrtou64(cp, base, (uint64_t *)res));
 }
 
 static inline int
@@ -301,7 +301,7 @@ kstrtou32_from_user(const char __user *s, size_t count, unsigned int base,
 
 static inline int
 kstrtou8_from_user(const char __user *s, size_t count, unsigned int base,
-    u8 *p)
+    uint8_t *p)
 {
 	char buf[8] = {};
 
