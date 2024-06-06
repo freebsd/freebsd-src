@@ -1,3 +1,6 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\"
 .\" Copyright (c) 1983, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
@@ -25,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 12, 2024
+.Dd June 6, 2024
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -214,11 +217,10 @@ Shortcut notation for
 Exclude members of the specified
 .Ar groupname
 from the output.
-.Ar groupname .
 .Pp
-Only one option
+Only one
 .Fl G
-should be specified as later override previous ones
+option should be specified as later ones override earlier ones.
 .Ar groupname
 may contain shell patterns in which case it should be quoted.
 .Pp
@@ -244,9 +246,9 @@ lists names of interfaces belonging to
 .Ar groupname .
 Any other flags and arguments are ignored in this case.
 .Pp
-Only one option
+Only one
 .Fl g
-should be specified as later override previous ones
+option should be specified as later ones override earlier ones.
 .Ar groupname
 may contain shell patterns in which case it should be quoted.
 .Pp
