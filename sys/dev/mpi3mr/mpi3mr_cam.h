@@ -121,6 +121,7 @@ struct mpi3mr_target {
 	struct mpi3mr_throttle_group_info *throttle_group;
 	uint64_t	q_depth;
 	enum mpi3mr_target_state state;
+	uint16_t	ws_len;
 };
 
 struct mpi3mr_cam_softc {
