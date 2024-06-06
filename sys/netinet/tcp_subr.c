@@ -516,8 +516,7 @@ tcp_switch_back_to_default(struct tcpcb *tp)
 		tfb = NULL;
 	}
 	/* Does the stack accept this connection? */
-	if (tfb != NULL && tfb->tfb_tcp_handoff_ok != NULL &&
-	    (*tfb->tfb_tcp_handoff_ok)(tp)) {
+	if (tfb != NULL && (*tfb->tfb_tcp_handoff_ok)(tp)) {
 		refcount_release(&tfb->tfb_refcnt);
 		tfb = NULL;
 	}
@@ -551,11 +550,9 @@ tcp_switch_back_to_default(struct tcpcb *tp)
 		/* there always should be a default */
 		panic("Can't refer to tcp_def_funcblk");
 	}
-	if (tfb->tfb_tcp_handoff_ok != NULL) {
-		if ((*tfb->tfb_tcp_handoff_ok) (tp)) {
-			/* The default stack cannot say no */
-			panic("Default stack rejects a new session?");
-		}
+	if ((*tfb->tfb_tcp_handoff_ok)(tp)) {
+		/* The default stack cannot say no */
+		panic("Default stack rejects a new session?");
 	}
 	if (tfb->tfb_tcp_fb_init != NULL &&
 	    (*tfb->tfb_tcp_fb_init)(tp, &ptr)) {
@@ -1186,6 +1183,7 @@ register_tcp_functions_as_names(struct tcp_function_block *blk, int wait,
 	if ((blk->tfb_tcp_output == NULL) ||
 	    (blk->tfb_tcp_do_segment == NULL) ||
 	    (blk->tfb_tcp_ctloutput == NULL) ||
+	    (blk->tfb_tcp_handoff_ok == NULL) ||
 	    (strlen(blk->tfb_tcp_block_name) == 0)) {
 		/*
 		 * These functions are required and you

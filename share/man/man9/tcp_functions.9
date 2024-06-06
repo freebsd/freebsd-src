@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 10, 2017
+.Dd June 6, 2024
 .Dt TCP_FUNCTIONS 9
 .Os
 .Sh NAME
@@ -176,9 +176,10 @@ struct tcp_function_block {
 			    uint32_t, u_int);
 	int	(*tfb_tcp_timer_active)(struct tcpcb *, uint32_t);
 	void	(*tfb_tcp_timer_stop)(struct tcpcb *, uint32_t);
-	/* Optional functions */
+	/* Optional function */
 	void	(*tfb_tcp_rexmit_tmr)(struct tcpcb *);
-	void	(*tfb_tcp_handoff_ok)(struct tcpcb *);
+	/* Mandatory function */
+	int	(*tfb_tcp_handoff_ok)(struct tcpcb *);
 	/* System use */
 	volatile uint32_t tfb_refcnt;
 	uint32_t  tfb_flags;
@@ -261,37 +262,21 @@ However, care must be taken to ensure the retransmit timer leaves the
 TCP control block in a valid state for the remainder of the retransmit
 timer logic.
 .Pp
-A user may select a new TCP stack before calling
-.Xr connect 2
-or
-.Xr listen 2 .
-Optionally, a TCP stack may also allow a user to begin using the TCP stack for
-a connection that is in a later state by setting a non-NULL function pointer in
-the
+A user may select a new TCP stack before calling at any time.
+Therefore, the function pointer
 .Va tfb_tcp_handoff_ok
-field.
-If this field is non-NULL and a user attempts to select that TCP stack after
-calling
-.Xr connect 2
-or
-.Xr listen 2
-for that socket, the kernel will call the function pointed to by the
+field must be non-NULL.
+If a user attempts to select that TCP stack, the kernel will call the function
+pointed to by the
 .Va tfb_tcp_handoff_ok
 field.
 The function should return 0 if the user is allowed to switch the socket to use
-the TCP stack.
-Otherwise, the function should return an error code, which will be returned to
-the user.
-If the
-.Va tfb_tcp_handoff_ok
-field is
-.Dv NULL
-and a user attempts to select the TCP stack after calling
-.Xr connect 2
-or
-.Xr listen 2
-for that socket, the operation will fail and the kernel will return
-.Er EINVAL .
+the TCP stack. In this case, the kernel will call the function pointed to by
+.Va tfb_tcp_fb_init
+if this function pointer is non-NULL and finally perform the stack switch.
+If the user is not allowed to switch the socket, the function should undo any
+changes it made to the connection state configuration and return an error code,
+which will be returned to the user.
 .Pp
 The
 .Va tfb_refcnt

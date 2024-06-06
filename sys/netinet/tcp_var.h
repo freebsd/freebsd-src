@@ -542,13 +542,10 @@ typedef enum {
 #define	TCP_FUNC_OUTPUT_CANDROP	0x02   	/* tfb_tcp_output may ask tcp_drop */
 
 /**
- * Adding a tfb_tcp_handoff_ok function allows the socket
- * option to change stacks to query you even if the
- * connection is in a later stage. You return 0 to
- * say you can take over and run your stack, you return
- * non-zero (an error number) to say no you can't.
- * If the function is undefined you can only change
- * in the early states (before connect or listen).
+ * tfb_tcp_handoff_ok is a mandatory function allowing
+ * to query a stack, if it can take over a tcpcb.
+ * You return 0 to say you can take over and run your stack,
+ * you return non-zero (an error number) to say no you can't.
  *
  * tfb_tcp_fb_init is used to allow the new stack to
  * setup its control block. Among the things it must
