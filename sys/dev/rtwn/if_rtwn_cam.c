@@ -113,8 +113,7 @@ rtwn_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 	struct rtwn_softc *sc = vap->iv_ic->ic_softc;
 	int i, start;
 
-	if (&vap->iv_nw_keys[0] <= k &&
-	    k < &vap->iv_nw_keys[IEEE80211_WEP_NKID]) {
+	if (ieee80211_is_key_global(vap, k)) {
 		*keyix = ieee80211_crypto_get_key_wepidx(vap, k);
 		if (sc->sc_hwcrypto != RTWN_CRYPTO_FULL)
 			k->wk_flags |= IEEE80211_KEY_SWCRYPT;
@@ -308,8 +307,7 @@ rtwn_process_key(struct ieee80211vap *vap, const struct ieee80211_key *k,
 		return (1);
 	}
 
-	if (&vap->iv_nw_keys[0] <= k &&
-	    k < &vap->iv_nw_keys[IEEE80211_WEP_NKID]) {
+	if (ieee80211_is_key_global(vap, k)) {
 		if (sc->sc_hwcrypto == RTWN_CRYPTO_FULL) {
 			struct rtwn_vap *rvp = RTWN_VAP(vap);
 

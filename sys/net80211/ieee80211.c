@@ -2679,3 +2679,34 @@ ieee80211_channel_type_char(const struct ieee80211_channel *c)
 		return 'b';
 	return 'f';
 }
+
+/*
+ * Determine whether the given key in the given VAP is a global key.
+ * (key index 0..3, shared between all stations on a VAP.)
+ *
+ * This is either a WEP key or a GROUP key.
+ *
+ * Note this will NOT return true if it is a IGTK key.
+ */
+bool
+ieee80211_is_key_global(const struct ieee80211vap *vap,
+    const struct ieee80211_key *key)
+{
+	return (&vap->iv_nw_keys[0] <= key &&
+	    key < &vap->iv_nw_keys[IEEE80211_WEP_NKID]);
+}
+
+/*
+ * Determine whether the given key in the given VAP is a unicast key.
+ */
+bool
+ieee80211_is_key_unicast(const struct ieee80211vap *vap,
+    const struct ieee80211_key *key)
+{
+	/*
+	 * This is a short-cut for now; eventually we will need
+	 * to support multiple unicast keys, IGTK, etc) so we
+	 * will absolutely need to fix the key flags.
+	 */
+	return (!ieee80211_is_key_global(vap, key));
+}
