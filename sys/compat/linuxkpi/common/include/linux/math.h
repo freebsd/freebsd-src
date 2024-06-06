@@ -5,6 +5,7 @@
  * Copyright (c) 2014-2015 François Tigeot
  * Copyright (c) 2016 Matt Macy <mmacy@FreeBSD.org>
  * Copyright (c) 2019 Johannes Lundberg <johalun@FreeBSD.org>
+ * Copyright (c) 2023 Serenity Cyber Security, LLC.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -54,6 +55,14 @@
 	__ret /= __d;					\
 	__ret;						\
 })
+
+#if defined(LINUXKPI_VERSION) && LINUXKPI_VERSION >= 60600
+#define abs_diff(x, y) ({		\
+	__typeof(x) _x = (x);		\
+	__typeof(y) _y = (y);		\
+	_x > _y ? _x - _y : _y - _x;	\
+})
+#endif
 
 static inline uintmax_t
 mult_frac(uintmax_t x, uintmax_t multiplier, uintmax_t divisor)
