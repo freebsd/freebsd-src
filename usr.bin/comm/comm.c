@@ -172,6 +172,8 @@ main(int argc, char *argv[])
 				(void)printf("%s%s\n", col2, line2);
 		}
 	}
+	if (ferror(stdout) != 0 || fflush(stdout) != 0)
+		err(1, "stdout");
 	exit(0);
 }
 
