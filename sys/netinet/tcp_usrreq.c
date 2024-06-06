@@ -1731,31 +1731,16 @@ tcp_ctloutput_set(struct inpcb *inp, struct sockopt *sopt)
 			INP_WUNLOCK(inp);
 			return (0);
 		}
-		if (tp->t_state != TCPS_CLOSED) {
-			/*
-			 * The user has advanced the state
-			 * past the initial point, we may not
-			 * be able to switch.
-			 */
-			if (blk->tfb_tcp_handoff_ok != NULL) {
-				/*
-				 * Does the stack provide a
-				 * query mechanism, if so it may
-				 * still be possible?
-				 */
-				error = (*blk->tfb_tcp_handoff_ok)(tp);
-			} else
-				error = EINVAL;
-			if (error) {
-				refcount_release(&blk->tfb_refcnt);
-				INP_WUNLOCK(inp);
-				return(error);
-			}
-		}
 		if (blk->tfb_flags & TCP_FUNC_BEING_REMOVED) {
 			refcount_release(&blk->tfb_refcnt);
 			INP_WUNLOCK(inp);
 			return (ENOENT);
+		}
+		error = (*blk->tfb_tcp_handoff_ok)(tp);
+		if (error) {
+			refcount_release(&blk->tfb_refcnt);
+			INP_WUNLOCK(inp);
+			return (error);
 		}
 		/*
 		 * Ensure the new stack takes ownership with a
