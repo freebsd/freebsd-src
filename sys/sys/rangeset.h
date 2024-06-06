@@ -75,6 +75,11 @@ int	rangeset_remove_pred(struct rangeset *rs, uint64_t start,
 void	*rangeset_lookup(struct rangeset *rs, uint64_t place);
 
 /*
+ * Finds the first range that begins at or after place.
+ */
+void	*rangeset_next(struct rangeset *rs, uint64_t place);
+
+/*
  * Copies src_rs entries into dst_rs.  dst_rs must be empty.
  * Leaves dst_rs empty on failure.
  */

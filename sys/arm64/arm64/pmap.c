@@ -9274,7 +9274,7 @@ pmap_bti_deassign_all(pmap_t pmap)
 static bool
 pmap_bti_same(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
-	struct rs_el *prev_rs, *rs;
+	struct rs_el *next_rs, *rs;
 	vm_offset_t va;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
@@ -9286,17 +9286,18 @@ pmap_bti_same(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	if (pmap->pm_bti == NULL || ADDR_IS_KERNEL(sva))
 		return (true);
 	MPASS(!ADDR_IS_KERNEL(eva));
-	for (va = sva; va < eva; prev_rs = rs) {
-		rs = rangeset_lookup(pmap->pm_bti, va);
-		if (va == sva)
-			prev_rs = rs;
-		else if ((rs == NULL) ^ (prev_rs == NULL))
+	rs = rangeset_lookup(pmap->pm_bti, sva);
+	if (rs == NULL) {
+		rs = rangeset_next(pmap->pm_bti, sva);
+		return (rs == NULL ||
+			rs->re_start >= eva);
+	}
+	while ((va = rs->re_end) < eva) {
+		next_rs = rangeset_next(pmap->pm_bti, va);
+		if (next_rs == NULL ||
+		    va != next_rs->re_start)
 			return (false);
-		if (rs == NULL) {
-			va += PAGE_SIZE;
-			continue;
-		}
-		va = rs->re_end;
+		rs = next_rs;
 	}
 	return (true);
 }

@@ -260,6 +260,14 @@ rangeset_lookup(struct rangeset *rs, uint64_t place)
 	return (r);
 }
 
+void *
+rangeset_next(struct rangeset *rs, uint64_t place)
+{
+
+	rangeset_check(rs);
+	return (RANGESET_PCTRIE_LOOKUP_GE(&rs->rs_trie, place));
+}
+
 int
 rangeset_copy(struct rangeset *dst_rs, struct rangeset *src_rs)
 {
