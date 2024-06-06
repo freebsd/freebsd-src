@@ -29,7 +29,9 @@
  */
 
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/memdesc.h>
 #include <sys/mutex.h>
 #include <sys/sf_buf.h>
@@ -40,8 +42,11 @@
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
 #include <vm/vm.h>
-#include <vm/vm_page.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_map.h>
 #include <vm/vm_object.h>
+#include <vm/vm_page.h>
 #include <dev/pci/pcireg.h>
 #include <machine/atomic.h>
 #include <machine/bus.h>
@@ -250,4 +255,231 @@ int
 iommu_unmap_ioapic_intr(u_int ioapic_id, u_int *cookie)
 {
 	return (x86_iommu->unmap_ioapic_intr(ioapic_id, cookie));
+}
+
+#define	IOMMU2X86C(iommu)	(x86_iommu->get_x86_common(iommu))
+
+static bool
+iommu_qi_seq_processed(struct iommu_unit *unit,
+    const struct iommu_qi_genseq *pseq)
+{
+	struct x86_unit_common *x86c;
+	u_int gen;
+
+	x86c = IOMMU2X86C(unit);
+	gen = x86c->inv_waitd_gen;
+	return (pseq->gen < gen ||
+	    (pseq->gen == gen && pseq->seq <= x86c->inv_waitd_seq_hw));
+}
+
+void
+iommu_qi_emit_wait_seq(struct iommu_unit *unit, struct iommu_qi_genseq *pseq,
+    bool emit_wait)
+{
+	struct x86_unit_common *x86c;
+	struct iommu_qi_genseq gsec;
+	uint32_t seq;
+
+	KASSERT(pseq != NULL, ("wait descriptor with no place for seq"));
+	IOMMU_ASSERT_LOCKED(unit);
+	x86c = IOMMU2X86C(unit);
+
+	if (x86c->inv_waitd_seq == 0xffffffff) {
+		gsec.gen = x86c->inv_waitd_gen;
+		gsec.seq = x86c->inv_waitd_seq;
+		x86_iommu->qi_ensure(unit, 1);
+		x86_iommu->qi_emit_wait_descr(unit, gsec.seq, false,
+		    true, false);
+		x86_iommu->qi_advance_tail(unit);
+		while (!iommu_qi_seq_processed(unit, &gsec))
+			cpu_spinwait();
+		x86c->inv_waitd_gen++;
+		x86c->inv_waitd_seq = 1;
+	}
+	seq = x86c->inv_waitd_seq++;
+	pseq->gen = x86c->inv_waitd_gen;
+	pseq->seq = seq;
+	if (emit_wait) {
+		x86_iommu->qi_ensure(unit, 1);
+		x86_iommu->qi_emit_wait_descr(unit, seq, true, true, false);
+	}
+}
+
+/*
+ * To avoid missed wakeups, callers must increment the unit's waiters count
+ * before advancing the tail past the wait descriptor.
+ */
+void
+iommu_qi_wait_for_seq(struct iommu_unit *unit, const struct iommu_qi_genseq *
+    gseq, bool nowait)
+{
+	struct x86_unit_common *x86c;
+
+	IOMMU_ASSERT_LOCKED(unit);
+	x86c = IOMMU2X86C(unit);
+
+	KASSERT(x86c->inv_seq_waiters > 0, ("%s: no waiters", __func__));
+	while (!iommu_qi_seq_processed(unit, gseq)) {
+		if (cold || nowait) {
+			cpu_spinwait();
+		} else {
+			msleep(&x86c->inv_seq_waiters, &unit->lock, 0,
+			    "dmarse", hz);
+		}
+	}
+	x86c->inv_seq_waiters--;
+}
+
+/*
+ * The caller must not be using the entry's dmamap_link field.
+ */
+void
+iommu_qi_invalidate_locked(struct iommu_domain *domain,
+    struct iommu_map_entry *entry, bool emit_wait)
+{
+	struct iommu_unit *unit;
+	struct x86_unit_common *x86c;
+
+	unit = domain->iommu;
+	x86c = IOMMU2X86C(unit);
+	IOMMU_ASSERT_LOCKED(unit);
+
+	x86_iommu->qi_invalidate_emit(domain, entry->start, entry->end -
+	    entry->start, &entry->gseq, emit_wait);
+
+	/*
+	 * To avoid a data race in dmar_qi_task(), the entry's gseq must be
+	 * initialized before the entry is added to the TLB flush list, and the
+	 * entry must be added to that list before the tail is advanced.  More
+	 * precisely, the tail must not be advanced past the wait descriptor
+	 * that will generate the interrupt that schedules dmar_qi_task() for
+	 * execution before the entry is added to the list.  While an earlier
+	 * call to dmar_qi_ensure() might have advanced the tail, it will not
+	 * advance it past the wait descriptor.
+	 *
+	 * See the definition of struct dmar_unit for more information on
+	 * synchronization.
+	 */
+	entry->tlb_flush_next = NULL;
+	atomic_store_rel_ptr((uintptr_t *)&x86c->tlb_flush_tail->
+	    tlb_flush_next, (uintptr_t)entry);
+	x86c->tlb_flush_tail = entry;
+
+	x86_iommu->qi_advance_tail(unit);
+}
+
+void
+iommu_qi_invalidate_sync(struct iommu_domain *domain, iommu_gaddr_t base,
+    iommu_gaddr_t size, bool cansleep)
+{
+	struct iommu_unit *unit;
+	struct iommu_qi_genseq gseq;
+
+	unit = domain->iommu;
+	IOMMU_LOCK(unit);
+	x86_iommu->qi_invalidate_emit(domain, base, size, &gseq, true);
+
+	/*
+	 * To avoid a missed wakeup in iommu_qi_task(), the unit's
+	 * waiters count must be incremented before the tail is
+	 * advanced.
+	 */
+	IOMMU2X86C(unit)->inv_seq_waiters++;
+
+	x86_iommu->qi_advance_tail(unit);
+	iommu_qi_wait_for_seq(unit, &gseq, !cansleep);
+	IOMMU_UNLOCK(unit);
+}
+
+void
+iommu_qi_drain_tlb_flush(struct iommu_unit *unit)
+{
+	struct x86_unit_common *x86c;
+	struct iommu_map_entry *entry, *head;
+
+	x86c = IOMMU2X86C(unit);
+	for (head = x86c->tlb_flush_head;; head = entry) {
+		entry = (struct iommu_map_entry *)
+		    atomic_load_acq_ptr((uintptr_t *)&head->tlb_flush_next);
+		if (entry == NULL ||
+		    !iommu_qi_seq_processed(unit, &entry->gseq))
+			break;
+		x86c->tlb_flush_head = entry;
+		iommu_gas_free_entry(head);
+		if ((entry->flags & IOMMU_MAP_ENTRY_RMRR) != 0)
+			iommu_gas_free_region(entry);
+		else
+			iommu_gas_free_space(entry);
+	}
+}
+
+void
+iommu_qi_common_init(struct iommu_unit *unit, task_fn_t qi_task)
+{
+	struct x86_unit_common *x86c;
+	u_int qi_sz;
+
+	x86c = IOMMU2X86C(unit);
+
+	x86c->tlb_flush_head = x86c->tlb_flush_tail =
+            iommu_gas_alloc_entry(NULL, 0);
+	TASK_INIT(&x86c->qi_task, 0, qi_task, unit);
+	x86c->qi_taskqueue = taskqueue_create_fast("iommuqf", M_WAITOK,
+	    taskqueue_thread_enqueue, &x86c->qi_taskqueue);
+	taskqueue_start_threads(&x86c->qi_taskqueue, 1, PI_AV,
+	    "iommu%d qi taskq", unit->unit);
+
+	x86c->inv_waitd_gen = 0;
+	x86c->inv_waitd_seq = 1;
+
+	qi_sz = 3;
+	TUNABLE_INT_FETCH("hw.iommu.qi_size", &qi_sz);
+	if (qi_sz > x86c->qi_buf_maxsz)
+		qi_sz = x86c->qi_buf_maxsz;
+	x86c->inv_queue_size = (1ULL << qi_sz) * PAGE_SIZE;
+	/* Reserve one descriptor to prevent wraparound. */
+	x86c->inv_queue_avail = x86c->inv_queue_size -
+	    x86c->qi_cmd_sz;
+
+	/*
+	 * The invalidation queue reads by DMARs/AMDIOMMUs are always
+	 * coherent.
+	 */
+	x86c->inv_queue = kmem_alloc_contig(x86c->inv_queue_size,
+	    M_WAITOK | M_ZERO, 0, iommu_high, PAGE_SIZE, 0,
+	    VM_MEMATTR_DEFAULT);
+	x86c->inv_waitd_seq_hw_phys = pmap_kextract(
+	    (vm_offset_t)&x86c->inv_waitd_seq_hw);
+}
+
+void
+iommu_qi_common_fini(struct iommu_unit *unit, void (*disable_qi)(
+    struct iommu_unit *))
+{
+	struct x86_unit_common *x86c;
+	struct iommu_qi_genseq gseq;
+
+	x86c = IOMMU2X86C(unit);
+
+	taskqueue_drain(x86c->qi_taskqueue, &x86c->qi_task);
+	taskqueue_free(x86c->qi_taskqueue);
+	x86c->qi_taskqueue = NULL;
+
+	IOMMU_LOCK(unit);
+	/* quisce */
+	x86_iommu->qi_ensure(unit, 1);
+	iommu_qi_emit_wait_seq(unit, &gseq, true);
+	/* See iommu_qi_invalidate_locked(). */
+	x86c->inv_seq_waiters++;
+	x86_iommu->qi_advance_tail(unit);
+	iommu_qi_wait_for_seq(unit, &gseq, false);
+	/* only after the quisce, disable queue */
+	disable_qi(unit);
+	KASSERT(x86c->inv_seq_waiters == 0,
+	    ("iommu%d: waiters on disabled queue", unit->unit));
+	IOMMU_UNLOCK(unit);
+
+	kmem_free(x86c->inv_queue, x86c->inv_queue_size);
+	x86c->inv_queue = NULL;
+	x86c->inv_queue_size = 0;
 }
