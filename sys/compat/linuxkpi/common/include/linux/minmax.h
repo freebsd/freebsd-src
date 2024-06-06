@@ -7,6 +7,7 @@
  * Copyright (c) 2014-2015 François Tigeot
  * Copyright (c) 2015 Hans Petter Selasky <hselasky@FreeBSD.org>
  * Copyright (c) 2016 Matt Macy <mmacy@FreeBSD.org>
+ * Copyright (c) 2023 Serenity Cyber Security, LLC.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -42,6 +43,12 @@
 
 #define	min3(a, b, c)	min(a, min(b, c))
 #define	max3(a, b, c)	max(a, max(b, c))
+
+#define min_not_zero(x, y) ({						\
+	__typeof(x) __min1 = (x);					\
+	__typeof(y) __min2 = (y);					\
+	__min1 == 0 ? __min2 : ((__min2 == 0) ? __min1 : min(__min1, __min2));\
+})
 
 #define	min_t(type, x, y) ({			\
 	type __min1 = (x);			\
