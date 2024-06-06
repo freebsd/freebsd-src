@@ -46,6 +46,7 @@
 #include <linux/compiler.h>
 #include <linux/container_of.h>
 #include <linux/limits.h>
+#include <linux/minmax.h>
 #include <linux/stringify.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -518,28 +519,8 @@ kstrtou8_from_user(const char __user *s, size_t count, unsigned int base,
 	return (kstrtou8(buf, base, p));
 }
 
-#define min(x, y)	((x) < (y) ? (x) : (y))
-#define max(x, y)	((x) > (y) ? (x) : (y))
-
-#define min3(a, b, c)	min(a, min(b,c))
-#define max3(a, b, c)	max(a, max(b,c))
-
-#define	min_t(type, x, y) ({			\
-	type __min1 = (x);			\
-	type __min2 = (y);			\
-	__min1 < __min2 ? __min1 : __min2; })
-
-#define	max_t(type, x, y) ({			\
-	type __max1 = (x);			\
-	type __max2 = (y);			\
-	__max1 > __max2 ? __max1 : __max2; })
-
 #define offsetofend(t, m)	\
         (offsetof(t, m) + sizeof((((t *)0)->m)))
-
-#define clamp_t(type, _x, min, max)	min_t(type, max_t(type, _x, min), max)
-#define clamp(x, lo, hi)		min( max(x,lo), hi)
-#define	clamp_val(val, lo, hi) clamp_t(typeof(val), val, lo, hi)
 
 /*
  * This looks more complex than it should be. But we need to
@@ -559,13 +540,6 @@ kstrtou8_from_user(const char __user *s, size_t count, unsigned int base,
 extern bool linux_cpu_has_clflush;
 #define	cpu_has_clflush		linux_cpu_has_clflush
 #endif
-
-/* Swap values of a and b */
-#define swap(a, b) do {			\
-	typeof(a) _swap_tmp = a;	\
-	a = b;				\
-	b = _swap_tmp;			\
-} while (0)
 
 #define	DIV_ROUND_CLOSEST(x, divisor)	(((x) + ((divisor) / 2)) / (divisor))
 
