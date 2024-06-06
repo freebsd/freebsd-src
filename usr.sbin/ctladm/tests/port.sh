@@ -30,10 +30,19 @@
 # * Creating umass ports
 
 # TODO
-# * Creating iscsi ports
 # * Creating nvmf ports
 # * Creating ha ports
 # * Creating fc ports
+
+# The PGTAG can be any 16-bit number.  The only constraint is that each
+# PGTAG,TARGET pair must be globally unique.
+PGTAG=30257
+
+load_cfiscsi() {
+	if ! kldstat -q -m cfiscsi; then
+		kldload cfiscsi || atf_skip "could not load cfscsi kernel mod"
+	fi
+}
 
 skip_if_ctld() {
 	if service ctld onestatus > /dev/null; then
@@ -46,8 +55,18 @@ cleanup() {
 	driver=$1
 
 	if [ -e port-create.txt ]; then
-		portnum=`awk '/port:/ {print $2}' port-create.txt`
-		ctladm port -r -d $driver -p $portnum
+		case "$driver" in
+		"ioctl")
+			PORTNUM=`awk '/port:/ {print $2}' port-create.txt`
+			ctladm port -r -d $driver -p $PORTNUM
+			;;
+		"iscsi")
+			TARGET=`awk '/target:/ {print $2}' port-create.txt`
+			# PORTNUM is ignored, but must be set
+			PORTNUM=9999
+			ctladm port -r -d $driver -p "$PORTNUM" -O cfiscsi_portal_group_tag=$PGTAG -O cfiscsi_target=$TARGET
+			;;
+		esac
 	fi
 }
 
@@ -72,6 +91,75 @@ create_ioctl_body()
 create_ioctl_cleanup()
 {
 	cleanup ioctl
+}
+
+atf_test_case create_iscsi cleanup
+create_iscsi_head()
+{
+	atf_set "descr" "ctladm can create a new iscsi port"
+	atf_set "require.user" "root"
+}
+create_iscsi_body()
+{
+	skip_if_ctld
+	load_cfiscsi
+
+	TARGET=iqn.2018-10.myhost.create_iscsi
+	atf_check -o save:port-create.txt ctladm port -c -d "iscsi" -O cfiscsi_portal_group_tag=$PGTAG -O cfiscsi_target="$TARGET"
+	echo "target: $TARGET" >> port-create.txt
+	atf_check egrep -q "Port created successfully" port-create.txt
+	atf_check egrep -q "frontend: *iscsi" port-create.txt
+	atf_check egrep -q "port: *[0-9]+" port-create.txt
+	atf_check -o save:portlist.txt ctladm portlist -qf iscsi
+	# Unlike the ioctl driver, the iscsi driver creates ports in a disabled
+	# state, so the port's lunmap may be set before enabling it.
+	atf_check egrep -q "$portnum *NO *iscsi *iscsi.*$TARGET" portlist.txt
+}
+create_iscsi_cleanup()
+{
+	cleanup iscsi
+}
+
+atf_test_case create_iscsi_alias cleanup
+create_iscsi_alias_head()
+{
+	atf_set "descr" "ctladm can create a new iscsi port with a target alias"
+	atf_set "require.user" "root"
+}
+create_iscsi_alias_body()
+{
+	skip_if_ctld
+	load_cfiscsi
+
+	TARGET=iqn.2018-10.myhost.create_iscsi_alias
+	ALIAS="foobar"
+	atf_check -o save:port-create.txt ctladm port -c -d "iscsi" -O cfiscsi_portal_group_tag=$PGTAG -O cfiscsi_target="$TARGET" -O cfiscsi_target_alias="$ALIAS"
+	echo "target: $TARGET" >> port-create.txt
+	atf_check egrep -q "Port created successfully" port-create.txt
+	atf_check egrep -q "frontend: *iscsi" port-create.txt
+	atf_check egrep -q "port: *[0-9]+" port-create.txt
+	atf_check -o save:portlist.txt ctladm portlist -qvf iscsi
+	atf_check egrep -q "cfiscsi_target_alias=$ALIAS" portlist.txt
+}
+create_iscsi_alias_cleanup()
+{
+	cleanup iscsi
+}
+
+atf_test_case create_iscsi_without_required_args
+create_iscsi_without_required_args_head()
+{
+	atf_set "descr" "ctladm will gracefully fail to create an iSCSI target if required arguments are missing"
+	atf_set "require.user" "root"
+}
+create_iscsi_without_required_args_body()
+{
+	skip_if_ctld
+	load_cfiscsi
+
+	TARGET=iqn.2018-10.myhost.create_iscsi
+	atf_check -s exit:1 -e match:"Missing required argument: cfiscsi_target" ctladm port -c -d "iscsi" -O cfiscsi_portal_group_tag=$PGTAG
+	atf_check -s exit:1 -e match:"Missing required argument: cfiscsi_portal_group_tag" ctladm port -c -d "iscsi" -O cfiscsi_target=$TARGET
 }
 
 atf_test_case create_ioctl_options cleanup
@@ -168,11 +256,63 @@ remove_ioctl_body()
 	fi
 }
 
+atf_test_case remove_iscsi
+remove_iscsi_head()
+{
+	atf_set "descr" "ctladm can remove an iscsi port"
+	atf_set "require.user" "root"
+}
+remove_iscsi_body()
+{
+	skip_if_ctld
+	load_cfiscsi
+
+	TARGET=iqn.2018-10.myhost.remove_iscsi
+	atf_check -o save:port-create.txt ctladm port -c -d "iscsi" -O cfiscsi_portal_group_tag=$PGTAG -O cfiscsi_target="$TARGET"
+	portnum=`awk '/port:/ {print $2}' port-create.txt`
+	atf_check -o save:portlist.txt ctladm portlist -qf iscsi
+	atf_check -o inline:"Port destroyed successfully\n" ctladm port -r -d iscsi -p 9999 -O cfiscsi_portal_group_tag=$PGTAG -O cfiscsi_target="$TARGET"
+	# Check that the port was removed.  A new port may have been added with
+	# the same ID, so match against the target and tag, too.
+	PGTAGHEX=0x7631	# PGTAG in hex
+	if ctladm portlist -qf iscsi | egrep -q "^${portnum} .*$PGTAG +[0-9]+ +$TARGET,t,$PGTAGHEX"; then
+		ctladm portlist -qf iscsi
+		atf_fail "port was not removed"
+	fi
+}
+
+atf_test_case remove_iscsi_without_required_args cleanup
+remove_iscsi_without_required_args_head()
+{
+	atf_set "descr" "ctladm will gracefully fail to remove an iSCSI target if required arguments are missing"
+	atf_set "require.user" "root"
+}
+remove_iscsi_without_required_args_body()
+{
+	skip_if_ctld
+	load_cfiscsi
+
+	TARGET=iqn.2018-10.myhost.remove_iscsi_without_required_args
+	atf_check -o save:port-create.txt ctladm port -c -d "iscsi" -O cfiscsi_portal_group_tag=$PGTAG -O cfiscsi_target="$TARGET"
+	echo "target: $TARGET" >> port-create.txt
+	atf_check -s exit:1 -e match:"Missing required argument: cfiscsi_portal_group_tag" ctladm port -r -d iscsi -p 9999 -O cfiscsi_target="$TARGET"
+	atf_check -s exit:1 -e match:"Missing required argument: cfiscsi_target" ctladm port -r -d iscsi -p 9999 -O cfiscsi_portal_group_tag=$PGTAG
+}
+remove_iscsi_without_required_args_cleanup()
+{
+	cleanup iscsi
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case create_ioctl
+	atf_add_test_case create_iscsi
+	atf_add_test_case create_iscsi_without_required_args
+	atf_add_test_case create_iscsi_alias
 	atf_add_test_case create_ioctl_options
 	atf_add_test_case disable_ioctl
 	atf_add_test_case enable_ioctl
 	atf_add_test_case remove_ioctl
+	atf_add_test_case remove_iscsi
+	atf_add_test_case remove_iscsi_without_required_args
 }
