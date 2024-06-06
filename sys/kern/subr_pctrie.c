@@ -260,13 +260,32 @@ pctrie_node_size(void)
 	return (sizeof(struct pctrie_node));
 }
 
+enum pctrie_insert_neighbor_mode {
+	PCTRIE_INSERT_NEIGHBOR_NONE,
+	PCTRIE_INSERT_NEIGHBOR_LT,
+	PCTRIE_INSERT_NEIGHBOR_GT,
+};
+
 /*
- * Looks for where to insert the key-value pair into the trie.  Completes the
- * insertion if it replaces a null leaf; otherwise, returns insertion location
- * to caller.  Panics if the key already exists.
+ * Look for where to insert the key-value pair into the trie.  Complete the
+ * insertion if it replaces a null leaf.  Return the insertion location if the
+ * insertion needs to be completed by the caller; otherwise return NULL.
+ *
+ * If the key is already present in the trie, populate *found_out as if by
+ * pctrie_lookup().
+ *
+ * With mode PCTRIE_INSERT_NEIGHBOR_GT or PCTRIE_INSERT_NEIGHBOR_LT, set
+ * *neighbor_out to the lowest level node we encounter during the insert lookup
+ * that is a parent of the next greater or lesser entry.  The value is not
+ * defined if the key was already present in the trie.
+ *
+ * Note that mode is expected to be a compile-time constant, and this procedure
+ * is expected to be inlined into callers with extraneous code optimized out.
  */
-void *
-pctrie_insert_lookup(struct pctrie *ptree, uint64_t *val)
+static __always_inline void *
+pctrie_insert_lookup_compound(struct pctrie *ptree, uint64_t *val,
+    uint64_t **found_out, struct pctrie_node **neighbor_out,
+    enum pctrie_insert_neighbor_mode mode)
 {
 	uint64_t index;
 	struct pctrie_node *node, *parent;
@@ -290,16 +309,42 @@ pctrie_insert_lookup(struct pctrie *ptree, uint64_t *val)
 					    pctrie_toleaf(val), PCTRIE_LOCKED);
 				return (NULL);
 			}
-			if (*pctrie_toval(node) == index)
-				panic("%s: key %jx is already present",
-				    __func__, (uintmax_t)index);
+			if (*pctrie_toval(node) == index) {
+				*found_out = pctrie_toval(node);
+				return (NULL);
+			}
 			break;
 		}
 		if (pctrie_keybarr(node, index, &slot))
 			break;
+		/*
+		 * Descend.  If we're tracking the next neighbor and this node
+		 * contains a neighboring entry in the right direction, record
+		 * it.
+		 */
+		if (mode == PCTRIE_INSERT_NEIGHBOR_LT) {
+			if ((node->pn_popmap & ((1 << slot) - 1)) != 0)
+				*neighbor_out = node;
+		} else if (mode == PCTRIE_INSERT_NEIGHBOR_GT) {
+			if ((node->pn_popmap >> slot) > 1)
+				*neighbor_out = node;
+		}
 		parent = node;
 		node = pctrie_node_load(&node->pn_child[slot], NULL,
 		    PCTRIE_LOCKED);
+	}
+
+	/*
+	 * The caller will split this node.  If we're tracking the next
+	 * neighbor, record the old node if the old entry is in the right
+	 * direction.
+	 */
+	if (mode == PCTRIE_INSERT_NEIGHBOR_LT) {
+		if (*pctrie_toval(node) < index)
+			*neighbor_out = node;
+	} else if (mode == PCTRIE_INSERT_NEIGHBOR_GT) {
+		if (*pctrie_toval(node) > index)
+			*neighbor_out = node;
 	}
 
 	/*
@@ -309,6 +354,68 @@ pctrie_insert_lookup(struct pctrie *ptree, uint64_t *val)
 	 */
 	return ((parent != NULL) ? &parent->pn_child[slot]:
 	    (smr_pctnode_t *)&ptree->pt_root);
+}
+
+/*
+ * Wrap pctrie_insert_lookup_compound to implement a strict insertion.  Panic
+ * if the key already exists, and do not look for neighboring entries.
+ */
+void *
+pctrie_insert_lookup_strict(struct pctrie *ptree, uint64_t *val)
+{
+	void *parentp;
+	uint64_t *found;
+
+	found = NULL;
+	parentp = pctrie_insert_lookup_compound(ptree, val, &found, NULL,
+	    PCTRIE_INSERT_NEIGHBOR_NONE);
+	if (__predict_false(found != NULL))
+		panic("%s: key %jx is already present", __func__,
+		    (uintmax_t)*val);
+	return (parentp);
+}
+
+/*
+ * Wrap pctrie_insert_lookup_compound to implement find-or-insert.  Do not look
+ * for neighboring entries.
+ */
+void *
+pctrie_insert_lookup(struct pctrie *ptree, uint64_t *val,
+    uint64_t **found_out)
+{
+	*found_out = NULL;
+	return (pctrie_insert_lookup_compound(ptree, val, found_out, NULL,
+	    PCTRIE_INSERT_NEIGHBOR_NONE));
+}
+
+/*
+ * Wrap pctrie_insert_lookup_compound to implement find or insert and find next
+ * greater entry.  Find a subtree that contains the next entry greater than the
+ * newly-inserted or to-be-inserted entry.
+ */
+void *
+pctrie_insert_lookup_gt(struct pctrie *ptree, uint64_t *val,
+    uint64_t **found_out, struct pctrie_node **neighbor_out)
+{
+	*found_out = NULL;
+	*neighbor_out = NULL;
+	return (pctrie_insert_lookup_compound(ptree, val, found_out,
+	    neighbor_out, PCTRIE_INSERT_NEIGHBOR_GT));
+}
+
+/*
+ * Wrap pctrie_insert_lookup_compound to implement find or insert and find next
+ * lesser entry.  Find a subtree that contains the next entry less than the
+ * newly-inserted or to-be-inserted entry.
+ */
+void *
+pctrie_insert_lookup_lt(struct pctrie *ptree, uint64_t *val,
+    uint64_t **found_out, struct pctrie_node **neighbor_out)
+{
+	*found_out = NULL;
+	*neighbor_out = NULL;
+	return (pctrie_insert_lookup_compound(ptree, val, found_out,
+	    neighbor_out, PCTRIE_INSERT_NEIGHBOR_LT));
 }
 
 /*
@@ -422,10 +529,10 @@ pctrie_lookup_unlocked(struct pctrie *ptree, uint64_t index, smr_t smr)
  *
  * Requires that access be externally synchronized by a lock.
  */
-uint64_t *
-pctrie_lookup_ge(struct pctrie *ptree, uint64_t index)
+static __inline uint64_t *
+pctrie_lookup_ge_node(struct pctrie_node *node, uint64_t index)
 {
-	struct pctrie_node *node, *succ;
+	struct pctrie_node *succ;
 	uint64_t *m;
 	int slot;
 
@@ -442,7 +549,6 @@ pctrie_lookup_ge(struct pctrie *ptree, uint64_t index)
 	 * "succ".  If "succ" is not NULL, then that lookup is guaranteed to
 	 * succeed.
 	 */
-	node = pctrie_root_load(ptree, NULL, PCTRIE_LOCKED);
 	succ = NULL;
 	for (;;) {
 		if (pctrie_isleaf(node)) {
@@ -505,23 +611,55 @@ pctrie_lookup_ge(struct pctrie *ptree, uint64_t index)
 	return (pctrie_toval(succ));
 }
 
+uint64_t *
+pctrie_lookup_ge(struct pctrie *ptree, uint64_t index)
+{
+	return (pctrie_lookup_ge_node(
+	    pctrie_root_load(ptree, NULL, PCTRIE_LOCKED), index));
+}
+
+uint64_t *
+pctrie_subtree_lookup_gt(struct pctrie_node *node, uint64_t index)
+{
+	if (node == NULL || index + 1 == 0)
+		return (NULL);
+	return (pctrie_lookup_ge_node(node, index + 1));
+}
+
+#ifdef INVARIANTS
+void
+pctrie_subtree_lookup_gt_assert(struct pctrie_node *node, uint64_t index,
+    struct pctrie *ptree, uint64_t *res)
+{
+	uint64_t *expected;
+
+	if (index + 1 == 0)
+		expected = NULL;
+	else
+		expected = pctrie_lookup_ge(ptree, index + 1);
+	KASSERT(res == expected,
+	    ("pctrie subtree lookup gt result different from root lookup: "
+	    "ptree %p, index %ju, subtree %p, found %p, expected %p", ptree,
+	    (uintmax_t)index, node, res, expected));
+}
+#endif
+
 /*
  * Returns the value with the greatest index that is less than or equal to the
  * specified index, or NULL if there are no such values.
  *
  * Requires that access be externally synchronized by a lock.
  */
-uint64_t *
-pctrie_lookup_le(struct pctrie *ptree, uint64_t index)
+static __inline uint64_t *
+pctrie_lookup_le_node(struct pctrie_node *node, uint64_t index)
 {
-	struct pctrie_node *node, *pred;
+	struct pctrie_node *pred;
 	uint64_t *m;
 	int slot;
 
 	/*
-	 * Mirror the implementation of pctrie_lookup_ge, described above.
+	 * Mirror the implementation of pctrie_lookup_ge_node, described above.
 	 */
-	node = pctrie_root_load(ptree, NULL, PCTRIE_LOCKED);
 	pred = NULL;
 	for (;;) {
 		if (pctrie_isleaf(node)) {
@@ -559,6 +697,39 @@ pctrie_lookup_le(struct pctrie *ptree, uint64_t index)
 	}
 	return (pctrie_toval(pred));
 }
+
+uint64_t *
+pctrie_lookup_le(struct pctrie *ptree, uint64_t index)
+{
+	return (pctrie_lookup_le_node(
+	    pctrie_root_load(ptree, NULL, PCTRIE_LOCKED), index));
+}
+
+uint64_t *
+pctrie_subtree_lookup_lt(struct pctrie_node *node, uint64_t index)
+{
+	if (node == NULL || index == 0)
+		return (NULL);
+	return (pctrie_lookup_le_node(node, index - 1));
+}
+
+#ifdef INVARIANTS
+void
+pctrie_subtree_lookup_lt_assert(struct pctrie_node *node, uint64_t index,
+    struct pctrie *ptree, uint64_t *res)
+{
+	uint64_t *expected;
+
+	if (index == 0)
+		expected = NULL;
+	else
+		expected = pctrie_lookup_le(ptree, index - 1);
+	KASSERT(res == expected,
+	    ("pctrie subtree lookup lt result different from root lookup: "
+	    "ptree %p, index %ju, subtree %p, found %p, expected %p", ptree,
+	    (uintmax_t)index, node, res, expected));
+}
+#endif
 
 /*
  * Remove the specified index from the tree, and return the value stored at
