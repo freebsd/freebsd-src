@@ -575,12 +575,6 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 		break;
 	}
 	case CCTL_PORT_MODE_REMOVE:
-		if (targ_port == -1) {
-			warnx("%s: -r requires -p", __func__);
-			retval = 1;
-			goto bailout;
-		}
-		/* FALLTHROUGH */
 	case CCTL_PORT_MODE_CREATE: {
 		bzero(&req, sizeof(req));
 		strlcpy(req.driver, driver, sizeof(req.driver));
@@ -589,8 +583,9 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 
 		if (port_mode == CCTL_PORT_MODE_REMOVE) {
 			req.reqtype = CTL_REQ_REMOVE;
-			nvlist_add_stringf(option_list, "port_id", "%d",
-			    targ_port);
+			if (targ_port != -1)
+				nvlist_add_stringf(option_list, "port_id", "%d",
+				    targ_port);
 		} else
 			req.reqtype = CTL_REQ_CREATE;
 

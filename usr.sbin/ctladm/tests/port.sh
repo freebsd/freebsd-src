@@ -62,9 +62,7 @@ cleanup() {
 			;;
 		"iscsi")
 			TARGET=`awk '/target:/ {print $2}' port-create.txt`
-			# PORTNUM is ignored, but must be set
-			PORTNUM=9999
-			ctladm port -r -d $driver -p "$PORTNUM" -O cfiscsi_portal_group_tag=$PGTAG -O cfiscsi_target=$TARGET
+			ctladm port -r -d $driver -O cfiscsi_portal_group_tag=$PGTAG -O cfiscsi_target=$TARGET
 			;;
 		esac
 	fi
@@ -89,6 +87,25 @@ create_ioctl_body()
 	atf_check egrep -q "$portnum *YES *ioctl *ioctl" portlist.txt
 }
 create_ioctl_cleanup()
+{
+	cleanup ioctl
+}
+
+atf_test_case remove_ioctl_without_required_args cleanup
+remove_ioctl_without_required_args_head()
+{
+	atf_set "descr" "ctladm will gracefully fail to remove an ioctl target if required arguments are missing"
+	atf_set "require.user" "root"
+}
+remove_ioctl_without_required_args_body()
+{
+	skip_if_ctld
+
+	atf_check -o save:port-create.txt ctladm port -c -d "ioctl"
+	atf_check egrep -q "Port created successfully" port-create.txt
+	atf_check -s exit:1 -e match:"Missing required argument: port_id" ctladm port -r -d "ioctl"
+}
+remove_ioctl_without_required_args_cleanup()
 {
 	cleanup ioctl
 }
@@ -271,7 +288,7 @@ remove_iscsi_body()
 	atf_check -o save:port-create.txt ctladm port -c -d "iscsi" -O cfiscsi_portal_group_tag=$PGTAG -O cfiscsi_target="$TARGET"
 	portnum=`awk '/port:/ {print $2}' port-create.txt`
 	atf_check -o save:portlist.txt ctladm portlist -qf iscsi
-	atf_check -o inline:"Port destroyed successfully\n" ctladm port -r -d iscsi -p 9999 -O cfiscsi_portal_group_tag=$PGTAG -O cfiscsi_target="$TARGET"
+	atf_check -o inline:"Port destroyed successfully\n" ctladm port -r -d iscsi -O cfiscsi_portal_group_tag=$PGTAG -O cfiscsi_target="$TARGET"
 	# Check that the port was removed.  A new port may have been added with
 	# the same ID, so match against the target and tag, too.
 	PGTAGHEX=0x7631	# PGTAG in hex
@@ -295,8 +312,8 @@ remove_iscsi_without_required_args_body()
 	TARGET=iqn.2018-10.myhost.remove_iscsi_without_required_args
 	atf_check -o save:port-create.txt ctladm port -c -d "iscsi" -O cfiscsi_portal_group_tag=$PGTAG -O cfiscsi_target="$TARGET"
 	echo "target: $TARGET" >> port-create.txt
-	atf_check -s exit:1 -e match:"Missing required argument: cfiscsi_portal_group_tag" ctladm port -r -d iscsi -p 9999 -O cfiscsi_target="$TARGET"
-	atf_check -s exit:1 -e match:"Missing required argument: cfiscsi_target" ctladm port -r -d iscsi -p 9999 -O cfiscsi_portal_group_tag=$PGTAG
+	atf_check -s exit:1 -e match:"Missing required argument: cfiscsi_portal_group_tag" ctladm port -r -d iscsi -O cfiscsi_target="$TARGET"
+	atf_check -s exit:1 -e match:"Missing required argument: cfiscsi_target" ctladm port -r -d iscsi -O cfiscsi_portal_group_tag=$PGTAG
 }
 remove_iscsi_without_required_args_cleanup()
 {
@@ -313,6 +330,7 @@ atf_init_test_cases()
 	atf_add_test_case disable_ioctl
 	atf_add_test_case enable_ioctl
 	atf_add_test_case remove_ioctl
+	atf_add_test_case remove_ioctl_without_required_args
 	atf_add_test_case remove_iscsi
 	atf_add_test_case remove_iscsi_without_required_args
 }
