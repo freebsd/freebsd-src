@@ -889,10 +889,11 @@ dmar_domain_unload_entry(struct iommu_map_entry *entry, bool free,
 	if (unit->qi_enabled) {
 		if (free) {
 			DMAR_LOCK(unit);
-			dmar_qi_invalidate_locked(domain, entry, true);
+			iommu_qi_invalidate_locked(&domain->iodom, entry,
+			    true);
 			DMAR_UNLOCK(unit);
 		} else {
-			dmar_qi_invalidate_sync(domain, entry->start,
+			iommu_qi_invalidate_sync(&domain->iodom, entry->start,
 			    entry->end - entry->start, cansleep);
 			dmar_domain_free_entry(entry, false);
 		}
@@ -945,7 +946,7 @@ dmar_domain_unload(struct iommu_domain *iodom,
 	DMAR_LOCK(unit);
 	while ((entry = TAILQ_FIRST(entries)) != NULL) {
 		TAILQ_REMOVE(entries, entry, dmamap_link);
-		dmar_qi_invalidate_locked(domain, entry,
+		iommu_qi_invalidate_locked(&domain->iodom, entry,
 		    dmar_domain_unload_emit_wait(domain, entry));
 	}
 	DMAR_UNLOCK(unit);

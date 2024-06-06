@@ -1303,19 +1303,19 @@ dmar_print_one(int idx, bool show_domains, bool show_mappings)
 			    "size 0x%jx\n"
 		    "  head 0x%x tail 0x%x avail 0x%x status 0x%x ctrl 0x%x\n"
 		    "  hw compl 0x%x@%p/phys@%jx next seq 0x%x gen 0x%x\n",
-			    (uintmax_t)unit->inv_queue,
+			    (uintmax_t)unit->x86c.inv_queue,
 			    (uintmax_t)dmar_read8(unit, DMAR_IQA_REG),
-			    (uintmax_t)unit->inv_queue_size,
+			    (uintmax_t)unit->x86c.inv_queue_size,
 			    dmar_read4(unit, DMAR_IQH_REG),
 			    dmar_read4(unit, DMAR_IQT_REG),
-			    unit->inv_queue_avail,
+			    unit->x86c.inv_queue_avail,
 			    dmar_read4(unit, DMAR_ICS_REG),
 			    dmar_read4(unit, DMAR_IECTL_REG),
-			    unit->inv_waitd_seq_hw,
-			    &unit->inv_waitd_seq_hw,
-			    (uintmax_t)unit->inv_waitd_seq_hw_phys,
-			    unit->inv_waitd_seq,
-			    unit->inv_waitd_gen);
+			    unit->x86c.inv_waitd_seq_hw,
+			    &unit->x86c.inv_waitd_seq_hw,
+			    (uintmax_t)unit->x86c.inv_waitd_seq_hw_phys,
+			    unit->x86c.inv_waitd_seq,
+			    unit->x86c.inv_waitd_gen);
 		} else {
 			db_printf("qi is disabled\n");
 		}
@@ -1368,7 +1368,17 @@ dmar_find_method(device_t dev, bool verbose)
 	return (&dmar->iommu);
 }
 
+static struct x86_unit_common *
+dmar_get_x86_common(struct iommu_unit *unit)
+{
+	struct dmar_unit *dmar;
+
+	dmar = IOMMU2DMAR(unit);
+	return (&dmar->x86c);
+}
+
 static struct x86_iommu dmar_x86_iommu = {
+	.get_x86_common = dmar_get_x86_common,
 	.domain_unload_entry = dmar_domain_unload_entry,
 	.domain_unload = dmar_domain_unload,
 	.get_ctx = dmar_get_ctx,

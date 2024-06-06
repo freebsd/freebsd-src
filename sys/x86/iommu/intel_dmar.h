@@ -123,6 +123,7 @@ struct dmar_msi_data {
 
 struct dmar_unit {
 	struct iommu_unit iommu;
+	struct x86_unit_common x86c;
 	uint16_t segment;
 	uint64_t base;
 
@@ -155,17 +156,6 @@ struct dmar_unit {
 
 	/* QI */
 	int qi_enabled;
-	char *inv_queue;
-	vm_size_t inv_queue_size;
-	uint32_t inv_queue_avail;
-	uint32_t inv_queue_tail;
-	volatile uint32_t inv_waitd_seq_hw; /* hw writes there on wait
-					       descr completion */
-	uint64_t inv_waitd_seq_hw_phys;
-	uint32_t inv_waitd_seq; /* next sequence number to use for wait descr */
-	u_int inv_waitd_gen;	/* seq number generation AKA seq overflows */
-	u_int inv_seq_waiters;	/* count of waiters for seq */
-	u_int inv_queue_full;	/* informational counter */
 
 	/* IR */
 	int ir_enabled;
@@ -173,36 +163,6 @@ struct dmar_unit {
 	dmar_irte_t *irt;
 	u_int irte_cnt;
 	vmem_t *irtids;
-
-	/*
-	 * Delayed freeing of map entries queue processing:
-	 *
-	 * tlb_flush_head and tlb_flush_tail are used to implement a FIFO
-	 * queue that supports concurrent dequeues and enqueues.  However,
-	 * there can only be a single dequeuer (accessing tlb_flush_head) and
-	 * a single enqueuer (accessing tlb_flush_tail) at a time.  Since the
-	 * unit's qi_task is the only dequeuer, it can access tlb_flush_head
-	 * without any locking.  In contrast, there may be multiple enqueuers,
-	 * so the enqueuers acquire the iommu unit lock to serialize their
-	 * accesses to tlb_flush_tail.
-	 *
-	 * In this FIFO queue implementation, the key to enabling concurrent
-	 * dequeues and enqueues is that the dequeuer never needs to access
-	 * tlb_flush_tail and the enqueuer never needs to access
-	 * tlb_flush_head.  In particular, tlb_flush_head and tlb_flush_tail
-	 * are never NULL, so neither a dequeuer nor an enqueuer ever needs to
-	 * update both.  Instead, tlb_flush_head always points to a "zombie"
-	 * struct, which previously held the last dequeued item.  Thus, the
-	 * zombie's next field actually points to the struct holding the first
-	 * item in the queue.  When an item is dequeued, the current zombie is
-	 * finally freed, and the struct that held the just dequeued item
-	 * becomes the new zombie.  When the queue is empty, tlb_flush_tail
-	 * also points to the zombie.
-	 */
-	struct iommu_map_entry *tlb_flush_head;
-	struct iommu_map_entry *tlb_flush_tail;
-	struct task qi_task;
-	struct taskqueue *qi_taskqueue;
 };
 
 #define	DMAR_LOCK(dmar)		mtx_lock(&DMAR2IOMMU(dmar)->lock)
