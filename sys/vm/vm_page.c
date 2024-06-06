@@ -1851,9 +1851,6 @@ vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
 	VM_OBJECT_ASSERT_WLOCKED(new_object);
 
 	KASSERT(m->ref_count != 0, ("vm_page_rename: page %p has no refs", m));
-	mpred = vm_radix_lookup_le(&new_object->rtree, new_pindex);
-	KASSERT(mpred == NULL || mpred->pindex != new_pindex,
-	    ("vm_page_rename: pindex already renamed"));
 
 	/*
 	 * Create a custom version of vm_page_insert() which does not depend
@@ -1862,7 +1859,7 @@ vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
 	 */
 	opidx = m->pindex;
 	m->pindex = new_pindex;
-	if (vm_radix_insert(&new_object->rtree, m)) {
+	if (vm_radix_insert_lookup_lt(&new_object->rtree, m, &mpred) != 0) {
 		m->pindex = opidx;
 		return (1);
 	}
