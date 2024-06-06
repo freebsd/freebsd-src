@@ -656,6 +656,37 @@ pfsync_cleanup()
 	pfsynct_cleanup
 }
 
+atf_test_case "timeout" "cleanup"
+timeout_head()
+{
+	atf_set descr 'Test setting and retrieving timeout values'
+	atf_set require.user root
+}
+
+timeout_body()
+{
+	sctp_init
+}
+
+timeout_cleanup()
+{
+	pft_cleanup
+
+	vnet_mkjail timeout
+
+	pft_set_rules timeout \
+		"set timeout sctp.first 13" \
+		"set timeout sctp.opening 14"
+
+	atf_check -s exit:0 -o match:"sctp.first.*13" \
+	    jexec timeout pfctl -st
+	atf_check -s exit:0 -o match:"sctp.opening.*14" \
+	    jexec timeout pfctl -st
+	# We've not changed other timeouts
+	atf_check -s exit:0 -o match:"sctp.established.*86400" \
+	    jexec timeout pfctl -st
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic_v4"
@@ -666,4 +697,5 @@ atf_init_test_cases()
 	atf_add_test_case "nat_v6"
 	atf_add_test_case "rdr_v4"
 	atf_add_test_case "pfsync"
+	atf_add_test_case "timeout"
 }
