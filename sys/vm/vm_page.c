@@ -1417,6 +1417,56 @@ vm_page_dirty_KBI(vm_page_t m)
 }
 
 /*
+ * Insert the given page into the given object at the given pindex.  mpred is
+ * used for memq linkage.  From vm_page_insert, lookup is true, mpred is
+ * initially NULL, and this procedure looks it up.  From vm_page_insert_after,
+ * lookup is false and mpred is known to the caller to be valid, and may be
+ * NULL if this will be the page with the lowest pindex.
+ *
+ * The procedure is marked __always_inline to suggest to the compiler to
+ * eliminate the lookup parameter and the associated alternate branch.
+ */
+static __always_inline int
+vm_page_insert_lookup(vm_page_t m, vm_object_t object, vm_pindex_t pindex,
+    vm_page_t mpred, bool lookup)
+{
+	int error;
+
+	VM_OBJECT_ASSERT_WLOCKED(object);
+	KASSERT(m->object == NULL,
+	    ("vm_page_insert: page %p already inserted", m));
+
+	/*
+	 * Record the object/offset pair in this page.
+	 */
+	m->object = object;
+	m->pindex = pindex;
+	m->ref_count |= VPRC_OBJREF;
+
+	/*
+	 * Add this page to the object's radix tree, and look up mpred if
+	 * needed.
+	 */
+	if (lookup)
+		error = vm_radix_insert_lookup_lt(&object->rtree, m, &mpred);
+	else
+		error = vm_radix_insert(&object->rtree, m);
+	if (__predict_false(error != 0)) {
+		m->object = NULL;
+		m->pindex = 0;
+		m->ref_count &= ~VPRC_OBJREF;
+		return (1);
+	}
+
+	/*
+	 * Now link into the object's ordered list of backed pages.
+	 */
+	vm_page_insert_radixdone(m, object, mpred);
+	vm_pager_page_inserted(object, m);
+	return (0);
+}
+
+/*
  *	vm_page_insert:		[ internal use only ]
  *
  *	Inserts the given mem entry into the object and object list.
@@ -1426,11 +1476,7 @@ vm_page_dirty_KBI(vm_page_t m)
 int
 vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 {
-	vm_page_t mpred;
-
-	VM_OBJECT_ASSERT_WLOCKED(object);
-	mpred = vm_radix_lookup_le(&object->rtree, pindex);
-	return (vm_page_insert_after(m, object, pindex, mpred));
+	return (vm_page_insert_lookup(m, object, pindex, NULL, true));
 }
 
 /*
@@ -1447,42 +1493,7 @@ static int
 vm_page_insert_after(vm_page_t m, vm_object_t object, vm_pindex_t pindex,
     vm_page_t mpred)
 {
-	vm_page_t msucc;
-
-	VM_OBJECT_ASSERT_WLOCKED(object);
-	KASSERT(m->object == NULL,
-	    ("vm_page_insert_after: page already inserted"));
-	if (mpred != NULL) {
-		KASSERT(mpred->object == object,
-		    ("vm_page_insert_after: object doesn't contain mpred"));
-		KASSERT(mpred->pindex < pindex,
-		    ("vm_page_insert_after: mpred doesn't precede pindex"));
-		msucc = TAILQ_NEXT(mpred, listq);
-	} else
-		msucc = TAILQ_FIRST(&object->memq);
-	if (msucc != NULL)
-		KASSERT(msucc->pindex > pindex,
-		    ("vm_page_insert_after: msucc doesn't succeed pindex"));
-
-	/*
-	 * Record the object/offset pair in this page.
-	 */
-	m->object = object;
-	m->pindex = pindex;
-	m->ref_count |= VPRC_OBJREF;
-
-	/*
-	 * Now link into the object's ordered list of backed pages.
-	 */
-	if (vm_radix_insert(&object->rtree, m)) {
-		m->object = NULL;
-		m->pindex = 0;
-		m->ref_count &= ~VPRC_OBJREF;
-		return (1);
-	}
-	vm_page_insert_radixdone(m, object, mpred);
-	vm_pager_page_inserted(object, m);
-	return (0);
+	return (vm_page_insert_lookup(m, object, pindex, mpred, false));
 }
 
 /*
@@ -1510,6 +1521,13 @@ vm_page_insert_radixdone(vm_page_t m, vm_object_t object, vm_page_t mpred)
 		    ("vm_page_insert_radixdone: object doesn't contain mpred"));
 		KASSERT(mpred->pindex < m->pindex,
 		    ("vm_page_insert_radixdone: mpred doesn't precede pindex"));
+		KASSERT(TAILQ_NEXT(mpred, listq) == NULL ||
+		    m->pindex < TAILQ_NEXT(mpred, listq)->pindex,
+		    ("vm_page_insert_radixdone: pindex doesn't precede msucc"));
+	} else {
+		KASSERT(TAILQ_EMPTY(&object->memq) ||
+		    m->pindex < TAILQ_FIRST(&object->memq)->pindex,
+		    ("vm_page_insert_radixdone: no mpred but not first page"));
 	}
 
 	if (mpred != NULL)
