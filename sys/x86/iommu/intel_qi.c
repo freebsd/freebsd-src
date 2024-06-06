@@ -139,15 +139,25 @@ dmar_qi_emit(struct dmar_unit *unit, uint64_t data1, uint64_t data2)
 {
 
 	DMAR_ASSERT_LOCKED(unit);
+#ifdef __LP64__
+	atomic_store_64((uint64_t *)(unit->x86c.inv_queue +
+	    unit->x86c.inv_queue_tail), data1);
+#else
 	*(volatile uint64_t *)(unit->x86c.inv_queue +
 	    unit->x86c.inv_queue_tail) = data1;
+#endif
 	unit->x86c.inv_queue_tail += DMAR_IQ_DESCR_SZ / 2;
 	KASSERT(unit->x86c.inv_queue_tail <= unit->x86c.inv_queue_size,
 	    ("tail overflow 0x%x 0x%jx", unit->x86c.inv_queue_tail,
 	    (uintmax_t)unit->x86c.inv_queue_size));
 	unit->x86c.inv_queue_tail &= unit->x86c.inv_queue_size - 1;
+#ifdef __LP64__
+	atomic_store_64((uint64_t *)(unit->x86c.inv_queue +
+	    unit->x86c.inv_queue_tail), data2);
+#else
 	*(volatile uint64_t *)(unit->x86c.inv_queue +
 	    unit->x86c.inv_queue_tail) = data2;
+#endif
 	unit->x86c.inv_queue_tail += DMAR_IQ_DESCR_SZ / 2;
 	KASSERT(unit->x86c.inv_queue_tail <= unit->x86c.inv_queue_size,
 	    ("tail overflow 0x%x 0x%jx", unit->x86c.inv_queue_tail,
