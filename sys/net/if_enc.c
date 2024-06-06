@@ -217,7 +217,7 @@ enc_bpftap(struct ifnet *ifp, struct mbuf *m, const struct secasvar *sav,
 	else if (hhook_type == HHOOK_TYPE_IPSEC_OUT &&
 	    (enc & V_bpf_mask_out) == 0)
 		return;
-	if (bpf_peers_present(ifp->if_bpf) == 0)
+	if (!bpf_peers_present(ifp->if_bpf))
 		return;
 	hdr.af = af;
 	hdr.spi = sav->spi;
