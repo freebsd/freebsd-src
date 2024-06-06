@@ -100,10 +100,12 @@
  * @x: value1
  * @y: value2
  */
+#ifndef min_not_zero
 #define min_not_zero(x, y) ({			\
 	typeof(x) __x = (x);			\
 	typeof(y) __y = (y);			\
 	__x == 0 ? __y : ((__y == 0) ? __x : min(__x, __y)); })
+#endif
 
 struct ib_mr_init_attr {
 	int		max_reg_descriptors;
