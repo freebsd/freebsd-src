@@ -7,6 +7,7 @@
  * Copyright (c) 2018 Johannes Lundberg <johalun0@gmail.com>
  * Copyright (c) 2020-2022 The FreeBSD Foundation
  * Copyright (c) 2021 Vladimir Kondratyev <wulf@FreeBSD.org>
+ * Copyright (c) 2023 Serenity Cyber Security, LLC
  *
  * Portions of this software were developed by Bjoern A. Zeeb and
  * Emmanuel Vadot under sponsorship from the FreeBSD Foundation.
@@ -191,6 +192,12 @@ kstrtos64(const char *cp, unsigned int base, s64 *res)
 	if (*cp == 0 || *end != 0)
 		return (-EINVAL);
 	return (0);
+}
+
+static inline int
+kstrtoll(const char *cp, unsigned int base, long long *res)
+{
+	return (kstrtos64(cp, base, (s64 *)res));
 }
 
 static inline int
