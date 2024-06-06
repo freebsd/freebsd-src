@@ -1840,6 +1840,7 @@ int mpi3mr_remove_device_from_os(struct mpi3mr_softc *sc, U16 handle)
 {
 	int retval = 0;
 	struct mpi3mr_target *target;
+	unsigned int target_outstanding;
 
 	mpi3mr_dprint(sc, MPI3MR_EVENT,
 		"Removing Device (dev_handle: %d)\n", handle);
@@ -1857,16 +1858,17 @@ int mpi3mr_remove_device_from_os(struct mpi3mr_softc *sc, U16 handle)
 
 	target->flags |= MPI3MRSAS_TARGET_INREMOVAL;
 
-	if (mpi3mr_atomic_read(&target->outstanding)) {
-		mpi3mr_dprint(sc, MPI3MR_ERROR, "there are [%2d] outstanding IOs on target: %d"
-			      "Poll reply queue once\n", mpi3mr_atomic_read(&target->outstanding),
-			      target->per_id);
-		mpi3mr_poll_pend_io_completions(sc);
-		if (mpi3mr_atomic_read(&target->outstanding))
-			mpi3mr_dprint(sc, MPI3MR_ERROR, "[%2d] outstanding IOs present on target: %d"
-				      "despite poll\n", mpi3mr_atomic_read(&target->outstanding),
-				      target->per_id);
-	}
+	target_outstanding = mpi3mr_atomic_read(&target->outstanding);
+	if (target_outstanding) {
+		mpi3mr_dprint(sc, MPI3MR_ERROR, "there are [%2d] outstanding IOs on target: %d "
+			      "Poll reply queue once\n", target_outstanding, target->per_id);
+ 		mpi3mr_poll_pend_io_completions(sc);
+		target_outstanding = mpi3mr_atomic_read(&target->outstanding);
+		if (target_outstanding)
+			target_outstanding = mpi3mr_atomic_read(&target->outstanding);
+			mpi3mr_dprint(sc, MPI3MR_ERROR, "[%2d] outstanding IOs present on target: %d "
+				      "despite poll\n", target_outstanding, target->per_id);
+ 	}
 
 	if (target->exposed_to_os && !sc->reset_in_progress) {
 		mpi3mr_rescan_target(sc, target);
