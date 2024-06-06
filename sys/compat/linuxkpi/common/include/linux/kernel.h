@@ -45,6 +45,7 @@
 #include <linux/compiler.h>
 #include <linux/container_of.h>
 #include <linux/limits.h>
+#include <linux/math.h>
 #include <linux/minmax.h>
 #include <linux/stringify.h>
 #include <linux/errno.h>
@@ -124,10 +125,7 @@ extern int linuxkpi_warn_dump_stack;
 #undef PTR_ALIGN
 #define	PTR_ALIGN(p, a)		((__typeof(p))ALIGN((uintptr_t)(p), (a)))
 #define	IS_ALIGNED(x, a)	(((x) & ((__typeof(x))(a) - 1)) == 0)
-#define	DIV_ROUND_UP(x, n)	howmany(x, n)
 #define	__KERNEL_DIV_ROUND_UP(x, n)	howmany(x, n)
-#define	DIV_ROUND_UP_ULL(x, n)	DIV_ROUND_UP((unsigned long long)(x), (n))
-#define	DIV_ROUND_DOWN_ULL(x, n) (((unsigned long long)(x) / (n)) * (n))
 #define	FIELD_SIZEOF(t, f)	sizeof(((t *)0)->f)
 
 #define	printk(...)		printf(__VA_ARGS__)
@@ -521,16 +519,6 @@ kstrtou8_from_user(const char __user *s, size_t count, unsigned int base,
 #define offsetofend(t, m)	\
         (offsetof(t, m) + sizeof((((t *)0)->m)))
 
-/*
- * This looks more complex than it should be. But we need to
- * get the type for the ~ right in round_down (it needs to be
- * as wide as the result!), and we want to evaluate the macro
- * arguments just once each.
- */
-#define __round_mask(x, y) ((__typeof__(x))((y)-1))
-#define round_up(x, y) ((((x)-1) | __round_mask(x, y))+1)
-#define round_down(x, y) ((x) & ~__round_mask(x, y))
-
 #define	smp_processor_id()	PCPU_GET(cpuid)
 #define	num_possible_cpus()	mp_ncpus
 #define	num_online_cpus()	mp_ncpus
@@ -539,24 +527,6 @@ kstrtou8_from_user(const char __user *s, size_t count, unsigned int base,
 extern bool linux_cpu_has_clflush;
 #define	cpu_has_clflush		linux_cpu_has_clflush
 #endif
-
-#define	DIV_ROUND_CLOSEST(x, divisor)	(((x) + ((divisor) / 2)) / (divisor))
-
-#define	DIV_ROUND_CLOSEST_ULL(x, divisor) ({		\
-	__typeof(divisor) __d = (divisor);		\
-	unsigned long long __ret = (x) + (__d) / 2;	\
-	__ret /= __d;					\
-	__ret;						\
-})
-
-static inline uintmax_t
-mult_frac(uintmax_t x, uintmax_t multiplier, uintmax_t divisor)
-{
-	uintmax_t q = (x / divisor);
-	uintmax_t r = (x % divisor);
-
-	return ((q * multiplier) + ((r * multiplier) / divisor));
-}
 
 typedef struct linux_ratelimit {
 	struct timeval lasttime;
