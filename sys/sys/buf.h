@@ -603,7 +603,7 @@ void	vfs_unbusy_pages(struct buf *);
 int	vmapbuf(struct buf *, void *, size_t, int);
 void	vunmapbuf(struct buf *);
 void	brelvp(struct buf *);
-void	bgetvp(struct vnode *, struct buf *);
+int	bgetvp(struct vnode *, struct buf *) __result_use_check;
 void	pbgetbo(struct bufobj *bo, struct buf *bp);
 void	pbgetvp(struct vnode *, struct buf *);
 void	pbrelbo(struct buf *);
