@@ -4231,35 +4231,29 @@ newbuf_unlocked:
 		}
 
 		/*
-		 * This code is used to make sure that a buffer is not
-		 * created while the getnewbuf routine is blocked.
-		 * This can be a problem whether the vnode is locked or not.
-		 * If the buffer is created out from under us, we have to
-		 * throw away the one we just created.
 		 *
-		 * Note: this must occur before we associate the buffer
-		 * with the vp especially considering limitations in
-		 * the splay tree implementation when dealing with duplicate
-		 * lblkno's.
+		 * Insert the buffer into the hash, so that it can
+		 * be found by incore.
+		 *
+		 * We don't hold the bufobj interlock while allocating the new
+		 * buffer.  Consequently, we can race on buffer creation.  This
+		 * can be a problem whether the vnode is locked or not.  If the
+		 * buffer is created out from under us, we have to throw away
+		 * the one we just created.
 		 */
-		BO_LOCK(bo);
-		if (gbincore(bo, blkno)) {
-			BO_UNLOCK(bo);
+		bp->b_lblkno = blkno;
+		bp->b_blkno = d_blkno;
+		bp->b_offset = offset;
+		error = bgetvp(vp, bp);
+		if (error != 0) {
+			KASSERT(error == EEXIST,
+			    ("getblk: unexpected error %d from bgetvp",
+			    error));
 			bp->b_flags |= B_INVAL;
 			bufspace_release(bufdomain(bp), maxsize);
 			brelse(bp);
 			goto loop;
 		}
-
-		/*
-		 * Insert the buffer into the hash, so that it can
-		 * be found by incore.
-		 */
-		bp->b_lblkno = blkno;
-		bp->b_blkno = d_blkno;
-		bp->b_offset = offset;
-		bgetvp(vp, bp);
-		BO_UNLOCK(bo);
 
 		/*
 		 * set B_VMIO bit.  allocbuf() the buffer bigger.  Since the
