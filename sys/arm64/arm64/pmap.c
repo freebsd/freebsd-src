@@ -508,7 +508,8 @@ static void pmap_update_entry(pmap_t pmap, pd_entry_t *pte, pd_entry_t newpte,
 static __inline vm_page_t pmap_remove_pt_page(pmap_t pmap, vm_offset_t va);
 
 static uma_zone_t pmap_bti_ranges_zone;
-static bool pmap_bti_same(pmap_t pmap, vm_offset_t sva, vm_offset_t eva);
+static bool pmap_bti_same(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
+    pt_entry_t *pte);
 static pt_entry_t pmap_pte_bti(pmap_t pmap, vm_offset_t va);
 static void pmap_bti_on_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva);
 static void *bti_dup_range(void *ctx, void *data);
@@ -4955,21 +4956,22 @@ set_l3:
 #endif /* VM_NRESERVLEVEL > 0 */
 
 static int
-pmap_enter_largepage(pmap_t pmap, vm_offset_t va, pt_entry_t newpte, int flags,
+pmap_enter_largepage(pmap_t pmap, vm_offset_t va, pt_entry_t pte, int flags,
     int psind)
 {
-	pd_entry_t *l0p, *l1p, *l2p, origpte;
+	pd_entry_t *l0p, *l1p, *l2p, newpte, origpte;
 	vm_page_t mp;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT(psind > 0 && psind < MAXPAGESIZES,
 	    ("psind %d unexpected", psind));
-	KASSERT((PTE_TO_PHYS(newpte) & (pagesizes[psind] - 1)) == 0,
-	    ("unaligned phys address %#lx newpte %#lx psind %d",
-	    PTE_TO_PHYS(newpte), newpte, psind));
+	KASSERT((PTE_TO_PHYS(pte) & (pagesizes[psind] - 1)) == 0,
+	    ("unaligned phys address %#lx pte %#lx psind %d",
+	    PTE_TO_PHYS(pte), pte, psind));
 
 restart:
-	if (!pmap_bti_same(pmap, va, va + pagesizes[psind]))
+	newpte = pte;
+	if (!pmap_bti_same(pmap, va, va + pagesizes[psind], &newpte))
 		return (KERN_PROTECTION_FAILURE);
 	if (psind == 2) {
 		PMAP_ASSERT_L1_BLOCKS_SUPPORTED;
@@ -5123,9 +5125,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 	lock = NULL;
 	PMAP_LOCK(pmap);
-	/* Wait until we lock the pmap to protect the bti rangeset */
-	new_l3 |= pmap_pte_bti(pmap, va);
-
 	if ((flags & PMAP_ENTER_LARGEPAGE) != 0) {
 		KASSERT((m->oflags & VPO_UNMANAGED) != 0,
 		    ("managed largepage va %#lx flags %#x", va, flags));
@@ -5197,6 +5196,7 @@ havel3:
 	orig_l3 = pmap_load(l3);
 	opa = PTE_TO_PHYS(orig_l3);
 	pv = NULL;
+	new_l3 |= pmap_pte_bti(pmap, va);
 
 	/*
 	 * Is the specified virtual address already mapped?
@@ -5405,7 +5405,6 @@ pmap_enter_l2_rx(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	new_l2 = (pd_entry_t)(VM_PAGE_TO_PTE(m) | ATTR_DEFAULT |
 	    ATTR_S1_IDX(m->md.pv_memattr) | ATTR_S1_AP(ATTR_S1_AP_RO) |
 	    L2_BLOCK);
-	new_l2 |= pmap_pte_bti(pmap, va);
 	if ((m->oflags & VPO_UNMANAGED) == 0) {
 		new_l2 |= ATTR_SW_MANAGED;
 		new_l2 &= ~ATTR_AF;
@@ -5478,7 +5477,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 	 * and let vm_fault() cope.  Check after l2 allocation, since
 	 * it could sleep.
 	 */
-	if (!pmap_bti_same(pmap, va, va + L2_SIZE)) {
+	if (!pmap_bti_same(pmap, va, va + L2_SIZE, &new_l2)) {
 		KASSERT(l2pg != NULL, ("pmap_enter_l2: missing L2 PTP"));
 		pmap_abort_ptp(pmap, va, l2pg);
 		return (KERN_PROTECTION_FAILURE);
@@ -5633,7 +5632,6 @@ pmap_enter_l3c_rx(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t *ml3p,
 	l3e = VM_PAGE_TO_PTE(m) | ATTR_DEFAULT |
 	    ATTR_S1_IDX(m->md.pv_memattr) | ATTR_S1_AP(ATTR_S1_AP_RO) |
 	    ATTR_CONTIGUOUS | L3_PAGE;
-	l3e |= pmap_pte_bti(pmap, va);
 	if ((m->oflags & VPO_UNMANAGED) == 0) {
 		l3e |= ATTR_SW_MANAGED;
 		l3e &= ~ATTR_AF;
@@ -5733,19 +5731,6 @@ retry:
 			}
 		}
 		l3p = (pt_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(*ml3p));
-
-have_l3p:
-		/*
-		 * If bti is not the same for the whole L3C range, return
-		 * failure and let vm_fault() cope.  Check after L3 allocation,
-		 * since it could sleep.
-		 */
-		if (!pmap_bti_same(pmap, va, va + L3C_SIZE)) {
-			(*ml3p)->ref_count -= L3C_ENTRIES - 1;
-			pmap_abort_ptp(pmap, va, *ml3p);
-			*ml3p = NULL;
-			return (KERN_PROTECTION_FAILURE);
-		}
 	} else {
 		*ml3p = NULL;
 
@@ -5768,7 +5753,21 @@ have_l3p:
 			    pmap_load(pde)));
 		}
 	}
+have_l3p:
 	l3p = &l3p[pmap_l3_index(va)];
+
+	/*
+	 * If bti is not the same for the whole L3C range, return failure
+	 * and let vm_fault() cope.  Check after L3 allocation, since
+	 * it could sleep.
+	 */
+	if (!pmap_bti_same(pmap, va, va + L3C_SIZE, &l3e)) {
+		KASSERT(*ml3p != NULL, ("pmap_enter_l3c: missing L3 PTP"));
+		(*ml3p)->ref_count -= L3C_ENTRIES - 1;
+		pmap_abort_ptp(pmap, va, *ml3p);
+		*ml3p = NULL;
+		return (KERN_PROTECTION_FAILURE);
+	}
 
 	/*
 	 * If there are existing mappings, either abort or remove them.
@@ -9271,8 +9270,16 @@ pmap_bti_deassign_all(pmap_t pmap)
 		rangeset_remove_all(pmap->pm_bti);
 }
 
+/*
+ * Returns true if the BTI setting is the same across the specified address
+ * range, and false otherwise.  When returning true, updates the referenced PTE
+ * to reflect the BTI setting.
+ *
+ * Only stage 1 pmaps support BTI.  The kernel pmap is always a stage 1 pmap
+ * that has the same BTI setting implicitly across its entire address range.
+ */
 static bool
-pmap_bti_same(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+pmap_bti_same(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, pt_entry_t *pte)
 {
 	struct rs_el *next_rs, *rs;
 	vm_offset_t va;
@@ -9282,10 +9289,16 @@ pmap_bti_same(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	    ("%s: Start address not in canonical form: %lx", __func__, sva));
 	KASSERT(ADDR_IS_CANONICAL(eva),
 	    ("%s: End address not in canonical form: %lx", __func__, eva));
+	KASSERT((*pte & ATTR_S1_GP) == 0,
+	    ("%s: pte %lx has ATTR_S1_GP preset", __func__, *pte));
 
-	if (pmap->pm_bti == NULL || ADDR_IS_KERNEL(sva))
+	if (pmap == kernel_pmap) {
+		*pte |= ATTR_KERN_GP;
 		return (true);
-	MPASS(!ADDR_IS_KERNEL(eva));
+	}
+	if (pmap->pm_bti == NULL)
+		return (true);
+	PMAP_ASSERT_STAGE1(pmap);
 	rs = rangeset_lookup(pmap->pm_bti, sva);
 	if (rs == NULL) {
 		rs = rangeset_next(pmap->pm_bti, sva);
@@ -9299,6 +9312,8 @@ pmap_bti_same(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			return (false);
 		rs = next_rs;
 	}
+	if (rs != NULL)
+		*pte |= ATTR_S1_GP;
 	return (true);
 }
 
