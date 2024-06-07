@@ -433,15 +433,13 @@ int	 bpf_get_bp_params(struct bpf_if *, u_int *, u_int *);
 void	 bpfilterattach(int);
 u_int	 bpf_filter(const struct bpf_insn *, u_char *, u_int, u_int);
 
-static __inline int
+static __inline bool
 bpf_peers_present(struct bpf_if *bpf)
 {
 	struct bpf_if_ext *ext;
 
 	ext = (struct bpf_if_ext *)bpf;
-	if (!CK_LIST_EMPTY(&ext->bif_dlist))
-		return (1);
-	return (0);
+	return (!CK_LIST_EMPTY(&ext->bif_dlist));
 }
 
 #define	BPF_TAP(_ifp,_pkt,_pktlen)				\
