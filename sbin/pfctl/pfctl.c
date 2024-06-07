@@ -1719,7 +1719,7 @@ pfctl_add_pool(struct pfctl *pf, struct pfctl_pool *p, sa_family_t af)
 	struct pf_pooladdr *pa;
 
 	if ((pf->opts & PF_OPT_NOACTION) == 0) {
-		if (ioctl(pf->dev, DIOCBEGINADDRS, &pf->paddr))
+		if (pfctl_begin_addrs(pf->h, &pf->paddr.ticket))
 			err(1, "DIOCBEGINADDRS");
 	}
 

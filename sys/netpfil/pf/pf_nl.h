@@ -54,6 +54,7 @@ enum {
 	PFNL_CMD_GET_TIMEOUT = 16,
 	PFNL_CMD_SET_LIMIT = 17,
 	PFNL_CMD_GET_LIMIT = 18,
+	PFNL_CMD_BEGIN_ADDRS = 19,
 	__PFNL_CMD_MAX,
 };
 #define PFNL_CMD_MAX (__PFNL_CMD_MAX -1)
@@ -348,6 +349,11 @@ enum pf_limit_types_t {
 	PF_LI_UNSPEC,
 	PF_LI_INDEX		= 1, /* u32 */
 	PF_LI_LIMIT		= 2, /* u32 */
+};
+
+enum pf_begin_addrs_types_t {
+	PF_BA_UNSPEC,
+	PF_BA_TICKET		= 1, /* u32 */
 };
 
 #ifdef _KERNEL

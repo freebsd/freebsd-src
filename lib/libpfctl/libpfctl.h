@@ -497,5 +497,6 @@ int	pfctl_set_timeout(struct pfctl_handle *h, uint32_t timeout, uint32_t seconds
 int	pfctl_get_timeout(struct pfctl_handle *h, uint32_t timeout, uint32_t *seconds);
 int	pfctl_set_limit(struct pfctl_handle *h, const int index, const uint limit);
 int	pfctl_get_limit(struct pfctl_handle *h, const int index, uint *limit);
+int	pfctl_begin_addrs(struct pfctl_handle *h, uint32_t *ticket);
 
 #endif

@@ -272,7 +272,7 @@ prepare_rule(u_int32_t id, int rs_num, struct sockaddr *src,
 		errno = EINVAL;
 		return (-1);
 	}
-	if (ioctl(pfctl_fd(pfh), DIOCBEGINADDRS, &pfp) == -1)
+	if (pfctl_begin_addrs(pfh, &pfp.ticket))
 		return (-1);
 	pfpool_ticket = pfp.ticket;
 
