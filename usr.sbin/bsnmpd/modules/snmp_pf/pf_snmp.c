@@ -318,36 +318,34 @@ pf_limits(struct snmp_context __unused *ctx, struct snmp_value *val,
 	u_int sub, u_int __unused vindex, enum snmp_op op)
 {
 	asn_subid_t		which = val->var.subs[sub - 1];
-	struct pfioc_limit	pl;
+	unsigned int		index, limit;
 
 	if (op == SNMP_OP_SET)
 		return (SNMP_ERR_NOT_WRITEABLE);
 
 	if (op == SNMP_OP_GET) {
-		bzero(&pl, sizeof(struct pfioc_limit));
-
 		switch (which) {
 			case LEAF_pfLimitsStates:
-				pl.index = PF_LIMIT_STATES;
+				index = PF_LIMIT_STATES;
 				break;
 			case LEAF_pfLimitsSrcNodes:
-				pl.index = PF_LIMIT_SRC_NODES;
+				index = PF_LIMIT_SRC_NODES;
 				break;
 			case LEAF_pfLimitsFrags:
-				pl.index = PF_LIMIT_FRAGS;
+				index = PF_LIMIT_FRAGS;
 				break;
 
 			default:
 				return (SNMP_ERR_NOSUCHNAME);
 		}
 
-		if (ioctl(pfctl_fd(pfh), DIOCGETLIMIT, &pl)) {
+		if (pfctl_get_limit(pfh, index, &limit)) {
 			syslog(LOG_ERR, "pf_limits(): ioctl(): %s",
 			    strerror(errno));
 			return (SNMP_ERR_GENERR);
 		}
 
-		val->v.uint32 = pl.limit;
+		val->v.uint32 = limit;
 
 		return (SNMP_ERR_NOERROR);
 	}

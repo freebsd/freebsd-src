@@ -1679,21 +1679,19 @@ pfctl_show_timeouts(int dev, int opts)
 int
 pfctl_show_limits(int dev, int opts)
 {
-	struct pfioc_limit pl;
+	unsigned int limit;
 	int i;
 
 	if (opts & PF_OPT_SHOWALL)
 		pfctl_print_title("LIMITS:");
-	memset(&pl, 0, sizeof(pl));
 	for (i = 0; pf_limits[i].name; i++) {
-		pl.index = pf_limits[i].index;
-		if (ioctl(dev, DIOCGETLIMIT, &pl))
+		if (pfctl_get_limit(pfh, pf_limits[i].index, &limit))
 			err(1, "DIOCGETLIMIT");
 		printf("%-13s ", pf_limits[i].name);
-		if (pl.limit == UINT_MAX)
+		if (limit == UINT_MAX)
 			printf("unlimited\n");
 		else
-			printf("hard limit %8u\n", pl.limit);
+			printf("hard limit %8u\n", limit);
 	}
 	return (0);
 }
@@ -2425,7 +2423,7 @@ pfctl_load_options(struct pfctl *pf)
 }
 
 int
-pfctl_set_limit(struct pfctl *pf, const char *opt, unsigned int limit)
+pfctl_apply_limit(struct pfctl *pf, const char *opt, unsigned int limit)
 {
 	int i;
 
@@ -2451,12 +2449,7 @@ pfctl_set_limit(struct pfctl *pf, const char *opt, unsigned int limit)
 int
 pfctl_load_limit(struct pfctl *pf, unsigned int index, unsigned int limit)
 {
-	struct pfioc_limit pl;
-
-	memset(&pl, 0, sizeof(pl));
-	pl.index = index;
-	pl.limit = limit;
-	if (ioctl(pf->dev, DIOCSETLIMIT, &pl)) {
+	if (pfctl_set_limit(pf->h, index, limit)) {
 		if (errno == EBUSY)
 			warnx("Current pool size exceeds requested hard limit");
 		else
