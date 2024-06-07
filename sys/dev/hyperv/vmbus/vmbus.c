@@ -139,6 +139,8 @@ static void			vmbus_event_proc_dummy(struct vmbus_softc *,
 				    int);
 static bus_dma_tag_t	vmbus_get_dma_tag(device_t parent, device_t child);
 static struct vmbus_softc	*vmbus_sc;
+static void free_pcpu_ptr(void);
+static void alloc_pcpu_ptr(void);
 
 SYSCTL_NODE(_hw, OID_AUTO, vmbus, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "Hyper-V vmbus");
@@ -207,6 +209,9 @@ static driver_t vmbus_driver = {
 	vmbus_methods,
 	sizeof(struct vmbus_softc)
 };
+
+uint32_t hv_max_vp_index;
+DPCPU_DEFINE(void *, hv_pcpu_mem);
 
 DRIVER_MODULE(vmbus, pcib, vmbus_driver, NULL, NULL);
 DRIVER_MODULE(vmbus, acpi_syscontainer, vmbus_driver, NULL, NULL);
@@ -739,6 +744,7 @@ vmbus_synic_setup(void *xsc)
 	int cpu = curcpu;
 	uint64_t val, orig;
 	uint32_t sint;
+	void **hv_cpu_mem;
 
 	if (hyperv_features & CPUID_HV_MSR_VP_INDEX) {
 		/* Save virtual processor id. */
@@ -748,6 +754,11 @@ vmbus_synic_setup(void *xsc)
 		VMBUS_PCPU_GET(sc, vcpuid, cpu) = 0;
 	}
 
+	if (VMBUS_PCPU_GET(sc, vcpuid, cpu) > hv_max_vp_index)
+		hv_max_vp_index = VMBUS_PCPU_GET(sc, vcpuid, cpu);
+	hv_cpu_mem = DPCPU_ID_PTR(cpu, hv_pcpu_mem);
+	*hv_cpu_mem = contigmalloc(PAGE_SIZE, M_DEVBUF, M_WAITOK | M_ZERO,
+	    0ul, ~0ul, PAGE_SIZE, 0);
 	/*
 	 * Setup the SynIC message.
 	 */
@@ -786,6 +797,16 @@ vmbus_synic_setup(void *xsc)
 	WRMSR(MSR_HV_SCONTROL, val);
 }
 
+#if defined(__x86_64__)
+void
+hyperv_vm_tlb_flush(pmap_t pmap, vm_offset_t addr1, vm_offset_t addr2,
+    smp_invl_local_cb_t curcpu_cb, enum invl_op_codes op)
+{
+	struct vmbus_softc *sc = vmbus_get_softc();
+	return hv_vm_tlb_flush(pmap, addr1, addr2, op, sc, curcpu_cb);
+}
+#endif /*__x86_64__*/
+
 static void
 vmbus_synic_teardown(void *arg)
 {
@@ -820,6 +841,7 @@ vmbus_synic_teardown(void *arg)
 	 */
 	orig = RDMSR(MSR_HV_SIEFP);
 	WRMSR(MSR_HV_SIEFP, (orig & MSR_HV_SIEFP_RSVD_MASK));
+	free_pcpu_ptr();
 }
 
 static int
@@ -1373,6 +1395,16 @@ vmbus_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
+
+static void free_pcpu_ptr(void)
+{
+	int cpu = curcpu;
+	void **hv_cpu_mem;
+	hv_cpu_mem = DPCPU_ID_PTR(cpu, hv_pcpu_mem);
+	if(*hv_cpu_mem)
+		contigfree(*hv_cpu_mem, PAGE_SIZE, M_DEVBUF);
+}
+
 /**
  * @brief Main vmbus driver initialization routine.
  *
@@ -1469,6 +1501,10 @@ vmbus_doattach(struct vmbus_softc *sc)
 		device_printf(sc->vmbus_dev, "smp_started = %d\n", smp_started);
 	smp_rendezvous(NULL, vmbus_synic_setup, NULL, sc);
 	sc->vmbus_flags |= VMBUS_FLAG_SYNIC;
+
+#if defined(__x86_64__)
+	smp_targeted_tlb_shootdown = &hyperv_vm_tlb_flush;
+#endif
 
 	/*
 	 * Initialize vmbus, e.g. connect to Hypervisor.
