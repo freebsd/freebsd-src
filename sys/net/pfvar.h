@@ -2505,6 +2505,8 @@ int			 pf_ioctl_addrule(struct pf_krule *, uint32_t,
 void			 pf_ioctl_clear_status(void);
 int			 pf_ioctl_get_timeout(int, int *);
 int			 pf_ioctl_set_timeout(int, int, int *);
+int			 pf_ioctl_get_limit(int, unsigned int *);
+int			 pf_ioctl_set_limit(int, unsigned int, unsigned int *);
 
 void			 pf_krule_free(struct pf_krule *);
 void			 pf_krule_clear_counters(struct pf_krule *);

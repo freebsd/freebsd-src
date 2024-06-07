@@ -5198,7 +5198,7 @@ limit_spec	: STRING NUMBER
 				yyerror("only positive values permitted");
 				YYERROR;
 			}
-			if (pfctl_set_limit(pf, $1, $2) != 0) {
+			if (pfctl_apply_limit(pf, $1, $2) != 0) {
 				yyerror("unable to set limit %s %u", $1, $2);
 				free($1);
 				YYERROR;

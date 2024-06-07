@@ -1410,6 +1410,67 @@ pf_handle_get_timeout(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	return (0);
 }
 
+struct pf_nl_set_limit
+{
+	uint32_t index;
+	uint32_t limit;
+};
+#define	_OUT(_field)	offsetof(struct pf_nl_set_limit, _field)
+static const struct nlattr_parser nla_p_set_limit[] = {
+	{ .type = PF_LI_INDEX, .off = _OUT(index), .cb = nlattr_get_uint32 },
+	{ .type = PF_LI_LIMIT, .off = _OUT(limit), .cb = nlattr_get_uint32 },
+};
+static const struct nlfield_parser nlf_p_set_limit[] = {};
+#undef _OUT
+NL_DECLARE_PARSER(set_limit_parser, struct genlmsghdr, nlf_p_set_limit, nla_p_set_limit);
+
+static int
+pf_handle_set_limit(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	struct pf_nl_set_limit attrs = {};
+	int error;
+
+	error = nl_parse_nlmsg(hdr, &set_limit_parser, npt, &attrs);
+	if (error != 0)
+		return (error);
+
+	return (pf_ioctl_set_limit(attrs.index, attrs.limit, NULL));
+}
+
+static int
+pf_handle_get_limit(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	struct pf_nl_set_limit attrs = {};
+	struct nl_writer *nw = npt->nw;
+	struct genlmsghdr *ghdr_new;
+	int error;
+
+	error = nl_parse_nlmsg(hdr, &set_limit_parser, npt, &attrs);
+	if (error != 0)
+		return (error);
+
+	error = pf_ioctl_get_limit(attrs.index, &attrs.limit);
+	if (error != 0)
+		return (error);
+
+	if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr)))
+		return (ENOMEM);
+
+	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+	ghdr_new->cmd = PFNL_CMD_GET_LIMIT;
+	ghdr_new->version = 0;
+	ghdr_new->reserved = 0;
+
+	nlattr_add_u32(nw, PF_LI_LIMIT, attrs.limit);
+
+	if (!nlmsg_end(nw)) {
+		nlmsg_abort(nw);
+		return (ENOMEM);
+	}
+
+	return (0);
+}
+
 static const struct nlhdr_parser *all_parsers[] = {
 	&state_parser,
 	&addrule_parser,
@@ -1419,6 +1480,7 @@ static const struct nlhdr_parser *all_parsers[] = {
 	&natlook_parser,
 	&set_debug_parser,
 	&set_timeout_parser,
+	&set_limit_parser,
 };
 
 static int family_id;
@@ -1533,6 +1595,20 @@ static const struct genl_cmd pf_cmds[] = {
 		.cmd_num = PFNL_CMD_GET_TIMEOUT,
 		.cmd_name = "GET_TIMEOUT",
 		.cmd_cb = pf_handle_get_timeout,
+		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_SET_LIMIT,
+		.cmd_name = "SET_LIMIT",
+		.cmd_cb = pf_handle_set_limit,
+		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_GET_LIMIT,
+		.cmd_name = "GET_LIMIT",
+		.cmd_cb = pf_handle_get_limit,
 		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
 		.cmd_priv = PRIV_NETINET_PF,
 	},

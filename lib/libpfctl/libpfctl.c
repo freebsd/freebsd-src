@@ -2213,7 +2213,7 @@ pfctl_clear_eth_rules(int dev, const char *anchorname)
 }
 
 static int
-pfctl_get_limit(int dev, const int index, uint *limit)
+_pfctl_get_limit(int dev, const int index, uint *limit)
 {
 	struct pfioc_limit pl;
 
@@ -2237,7 +2237,7 @@ pfctl_set_syncookies(int dev, const struct pfctl_syncookies *s)
 	uint		 state_limit;
 	uint64_t	 lim, hi, lo;
 
-	ret = pfctl_get_limit(dev, PF_LIMIT_STATES, &state_limit);
+	ret = _pfctl_get_limit(dev, PF_LIMIT_STATES, &state_limit);
 	if (ret != 0)
 		return (ret);
 
@@ -2274,7 +2274,7 @@ pfctl_get_syncookies(int dev, struct pfctl_syncookies *s)
 	uint		 state_limit;
 	bool		 enabled, adaptive;
 
-	ret = pfctl_get_limit(dev, PF_LIMIT_STATES, &state_limit);
+	ret = _pfctl_get_limit(dev, PF_LIMIT_STATES, &state_limit);
 	if (ret != 0)
 		return (ret);
 
@@ -2606,3 +2606,85 @@ pfctl_get_timeout(struct pfctl_handle *h, uint32_t timeout, uint32_t *seconds)
 	return (e.error);
 }
 
+int
+pfctl_set_limit(struct pfctl_handle *h, const int index, const uint limit)
+{
+	struct snl_writer nw;
+	struct snl_errmsg_data e = {};
+	struct nlmsghdr *hdr;
+	uint32_t seq_id;
+	int family_id;
+
+	family_id = snl_get_genl_family(&h->ss, PFNL_FAMILY_NAME);
+	if (family_id == 0)
+		return (ENOTSUP);
+
+	snl_init_writer(&h->ss, &nw);
+	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_SET_LIMIT);
+
+	snl_add_msg_attr_u32(&nw, PF_LI_INDEX, index);
+	snl_add_msg_attr_u32(&nw, PF_LI_LIMIT, limit);
+
+	if ((hdr = snl_finalize_msg(&nw)) == NULL)
+		return (ENXIO);
+
+	seq_id = hdr->nlmsg_seq;
+
+	if (! snl_send_message(&h->ss, hdr))
+		return (ENXIO);
+
+	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
+	}
+
+	return (e.error);
+}
+
+struct pfctl_nl_limit {
+	unsigned int limit;
+};
+#define	_OUT(_field)	offsetof(struct pfctl_nl_limit, _field)
+static struct snl_attr_parser ap_get_limit[] = {
+	{ .type = PF_LI_LIMIT, .off = _OUT(limit), .cb = snl_attr_get_uint32 },
+};
+static struct snl_field_parser fp_get_limit[] = {};
+#undef _OUT
+SNL_DECLARE_PARSER(get_limit_parser, struct genlmsghdr, fp_get_limit, ap_get_limit);
+
+int
+pfctl_get_limit(struct pfctl_handle *h, const int index, uint *limit)
+{
+	struct snl_writer nw;
+	struct pfctl_nl_limit li = {};
+	struct snl_errmsg_data e = {};
+	struct nlmsghdr *hdr;
+	uint32_t seq_id;
+	int family_id;
+
+	family_id = snl_get_genl_family(&h->ss, PFNL_FAMILY_NAME);
+	if (family_id == 0)
+		return (ENOTSUP);
+
+	snl_init_writer(&h->ss, &nw);
+	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_GET_LIMIT);
+	hdr->nlmsg_flags |= NLM_F_DUMP;
+
+	snl_add_msg_attr_u32(&nw, PF_LI_INDEX, index);
+
+	if ((hdr = snl_finalize_msg(&nw)) == NULL)
+		return (ENXIO);
+
+	seq_id = hdr->nlmsg_seq;
+
+	if (! snl_send_message(&h->ss, hdr))
+		return (ENXIO);
+
+	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
+		if (! snl_parse_nlmsg(&h->ss, hdr, &get_limit_parser, &li))
+			continue;
+	}
+
+	if (limit != NULL)
+		*limit = li.limit;
+
+	return (e.error);
+}

@@ -52,6 +52,8 @@ enum {
 	PFNL_CMD_SET_DEBUG = 14,
 	PFNL_CMD_SET_TIMEOUT = 15,
 	PFNL_CMD_GET_TIMEOUT = 16,
+	PFNL_CMD_SET_LIMIT = 17,
+	PFNL_CMD_GET_LIMIT = 18,
 	__PFNL_CMD_MAX,
 };
 #define PFNL_CMD_MAX (__PFNL_CMD_MAX -1)
@@ -340,6 +342,12 @@ enum pf_timeout_types_t {
 	PF_TO_UNSPEC,
 	PF_TO_TIMEOUT		= 1, /* u32 */
 	PF_TO_SECONDS		= 2, /* u32 */
+};
+
+enum pf_limit_types_t {
+	PF_LI_UNSPEC,
+	PF_LI_INDEX		= 1, /* u32 */
+	PF_LI_LIMIT		= 2, /* u32 */
 };
 
 #ifdef _KERNEL
