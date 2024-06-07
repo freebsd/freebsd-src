@@ -32,6 +32,11 @@
 #include <sys/taskqueue.h>
 #include <sys/rman.h>
 
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcib_private.h>
 
@@ -137,6 +142,40 @@ struct vmbus_softc {
 
 #define VMBUS_PCPU_GET(sc, field, cpu)	(sc)->vmbus_pcpu[(cpu)].field
 #define VMBUS_PCPU_PTR(sc, field, cpu)	&(sc)->vmbus_pcpu[(cpu)].field
+#define HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE	0x0002
+#define HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE_EX	0x0013
+#define HV_FLUSH_ALL_PROCESSORS		BIT(0)
+#define HV_FLUSH_ALL_VIRTUAL_ADDRESS_SPACES	BIT(1)
+#define HV_FLUSH_NON_GLOBAL_MAPPINGS_ONLY	BIT(2)
+#define HV_TLB_FLUSH_UNIT	(4096 * PAGE_SIZE)
+
+
+#define BIT(n)		(1ULL << (n))
+#define BITS_PER_LONG	(sizeof(long) * NBBY)
+#define BIT_MASK(nr)	(1UL << ((nr) & (BITS_PER_LONG - 1)))
+#define BIT_WORD(nr)	((nr) / BITS_PER_LONG)
+#define set_bit(i, a)			\
+	 atomic_set_long(&((volatile unsigned long *)(a))[BIT_WORD(i)], BIT_MASK(i))
+
+#define GENMASK_ULL(h, l)  (((~0ULL) >> (64 - (h) - 1)) & ((~0ULL) << (l)))
+
+#define HVCALL_FLUSH_VIRTUAL_ADDRESS_LIST	0x0003
+#define HVCALL_FLUSH_VIRTUAL_ADDRESS_LIST_EX	0x0014
+#define HYPERV_X64_EX_PROCESSOR_MASKS_RECOMMENDED	BIT(11)
+#define HV_HYPERCALL_RESULT_MASK	GENMASK_ULL(15, 0)
+#define HV_STATUS_SUCCESS	0
+#define HV_HYPERCALL_REP_COMP_MASK	GENMASK_ULL(43, 32)
+#define HV_HYPERCALL_REP_COMP_OFFSET	32
+
+#define HV_HYPERCALL_VARHEAD_OFFSET	17
+
+#define HV_HYPERCALL_REP_START_MASK	GENMASK_ULL(59, 48)
+#define HV_HYPERCALL_REP_START_OFFSET	48
+
+enum HV_GENERIC_SET_FORMAT {
+	HV_GENERIC_SET_SPARSE_4K,
+	HV_GENERIC_SET_ALL,
+};
 
 struct vmbus_channel;
 struct trapframe;
@@ -176,4 +215,19 @@ void    vmbus_synic_setup1(void *xsc);
 void    vmbus_synic_teardown1(void);
 int     vmbus_setup_intr1(struct vmbus_softc *sc);
 void    vmbus_intr_teardown1(struct vmbus_softc *sc);
+
+DPCPU_DECLARE(void *, hv_pcpu_mem);
+
+extern uint32_t hv_max_vp_index;
+
+
+#if defined(__x86_64__)
+void		hyperv_vm_tlb_flush(pmap_t, vm_offset_t,
+		    vm_offset_t, smp_invl_local_cb_t, enum invl_op_codes);
+uint64_t	hv_flush_tlb_others_ex(pmap_t, vm_offset_t, vm_offset_t,
+		    cpuset_t, enum invl_op_codes, struct vmbus_softc *);
+void		hv_vm_tlb_flush(pmap_t, vm_offset_t, vm_offset_t,
+		    enum invl_op_codes, struct vmbus_softc *,
+		    smp_invl_local_cb_t);
+#endif /* __x86_64__ */
 #endif	/* !_VMBUS_VAR_H_ */
