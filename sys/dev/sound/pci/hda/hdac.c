@@ -194,6 +194,7 @@ static const struct {
 	{ HDA_ATI_RV940,     "ATI RV940",	0, 0 },
 	{ HDA_ATI_RV970,     "ATI RV970",	0, 0 },
 	{ HDA_ATI_R1000,     "ATI R1000",	0, 0 },
+	{ HDA_ATI_OLAND,     "ATI Oland",	0, 0 },
 	{ HDA_ATI_KABINI,    "ATI Kabini",	0, 0 },
 	{ HDA_ATI_TRINITY,   "ATI Trinity",	0, 0 },
 	{ HDA_AMD_X370,      "AMD X370",	0, 0 },

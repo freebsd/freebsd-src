@@ -73,6 +73,9 @@ static const struct {
 	{0x43b61022, 0x00, "AMD X399",		0},
 	{0x43b51022, 0x00, "AMD 300 Series",	0}, /* X370 */
 	{0x43b71022, 0x00, "AMD 300 Series",	0}, /* B350 */
+	{0x43c81022, 0x00, "AMD 400 Series",	0}, /* B450 */
+	{0x43eb1022, 0x00, "AMD 500 Series",	0},
+	{0x43f61022, 0x00, "AMD 600 Series",	0}, /* X670 */
 	{0x78001022, 0x00, "AMD Hudson-2",	0},
 	{0x78011022, 0x00, "AMD Hudson-2",	0},
 	{0x78021022, 0x00, "AMD Hudson-2",	0},
