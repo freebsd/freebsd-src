@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2016 Microsoft Corp.
+ * Copyright (c) 2009-2012,2016-2024 Microsoft Corp.
+ * Copyright (c) 2012 NetApp Inc.
+ * Copyright (c) 2012 Citrix Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,27 +26,32 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _HYPERV_VAR_H_
-#define _HYPERV_VAR_H_
+#ifndef _HYPERV_MMU_H_
+#define _HYPERV_MMU_H_
 
-extern u_int	hyperv_recommends;
+#include "vmbus_var.h"
 
-struct hypercall_ctx {
-    void            *hc_addr;
-    vm_paddr_t      hc_paddr;
-};
+#define HV_VCPUS_PER_SPARSE_BANK (64)
+#define HV_MAX_SPARSE_VCPU_BANKS (64)
 
-uint64_t	hypercall_post_message(bus_addr_t msg_paddr);
-uint64_t	hypercall_signal_event(bus_addr_t monprm_paddr);
-uint64_t	hypercall_do_md(uint64_t input, uint64_t in_addr,
-		    uint64_t out_addr);
-struct hv_vpset;
-struct vmbus_softc;
 
-uint64_t
-hv_do_rep_hypercall(uint16_t code, uint16_t rep_count, uint16_t varhead_size,
-    uint64_t input, uint64_t output);
-int
-hv_cpumask_to_vpset(struct hv_vpset *vpset, const cpuset_t *cpus,
-    struct vmbus_softc *sc);
-#endif	/* !_HYPERV_VAR_H_ */
+struct hyperv_tlb_flush {
+	uint64_t address_space;
+	uint64_t flags;
+	uint64_t processor_mask;
+	uint64_t gva_list[];
+}__packed;
+
+struct hv_vpset {
+	uint64_t format;
+	uint64_t valid_bank_mask;
+	uint64_t bank_contents[];
+} __packed;
+
+struct hv_tlb_flush_ex {
+	uint64_t address_space;
+	uint64_t flags;
+	struct hv_vpset hv_vp_set;
+} __packed;
+
+#endif
