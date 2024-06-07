@@ -2688,3 +2688,52 @@ pfctl_get_limit(struct pfctl_handle *h, const int index, uint *limit)
 
 	return (e.error);
 }
+
+struct pfctl_nl_begin_addrs {
+	uint32_t ticket;
+};
+#define	_OUT(_field)	offsetof(struct pfctl_nl_begin_addrs, _field)
+static struct snl_attr_parser ap_begin_addrs[] = {
+	{ .type = PF_BA_TICKET, .off = _OUT(ticket), .cb = snl_attr_get_uint32 },
+};
+static struct snl_field_parser fp_begin_addrs[] = {};
+#undef _OUT
+SNL_DECLARE_PARSER(begin_addrs_parser, struct genlmsghdr, fp_begin_addrs, ap_begin_addrs);
+
+int
+pfctl_begin_addrs(struct pfctl_handle *h, uint32_t *ticket)
+{
+	struct snl_writer nw;
+	struct pfctl_nl_begin_addrs attrs = {};
+	struct snl_errmsg_data e = {};
+	struct nlmsghdr *hdr;
+	uint32_t seq_id;
+	int family_id;
+
+	family_id = snl_get_genl_family(&h->ss, PFNL_FAMILY_NAME);
+	if (family_id == 0)
+		return (ENOTSUP);
+
+	snl_init_writer(&h->ss, &nw);
+	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_BEGIN_ADDRS);
+	hdr->nlmsg_flags |= NLM_F_DUMP;
+
+	if ((hdr = snl_finalize_msg(&nw)) == NULL)
+		return (ENXIO);
+
+	seq_id = hdr->nlmsg_seq;
+
+	if (! snl_send_message(&h->ss, hdr))
+		return (ENXIO);
+
+	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
+		if (! snl_parse_nlmsg(&h->ss, hdr, &begin_addrs_parser, &attrs))
+			continue;
+	}
+
+	if (ticket != NULL)
+		*ticket = attrs.ticket;
+
+	return (e.error);
+}
+

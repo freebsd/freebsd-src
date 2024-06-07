@@ -1471,6 +1471,36 @@ pf_handle_get_limit(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	return (0);
 }
 
+static int
+pf_handle_begin_addrs(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	struct nl_writer *nw = npt->nw;
+	struct genlmsghdr *ghdr_new;
+	uint32_t ticket;
+	int error;
+
+	error = pf_ioctl_begin_addrs(&ticket);
+	if (error != 0)
+		return (error);
+
+	if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr)))
+		return (ENOMEM);
+
+	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+	ghdr_new->cmd = PFNL_CMD_BEGIN_ADDRS;
+	ghdr_new->version = 0;
+	ghdr_new->reserved = 0;
+
+	nlattr_add_u32(nw, PF_BA_TICKET, ticket);
+
+	if (!nlmsg_end(nw)) {
+		nlmsg_abort(nw);
+		return (ENOMEM);
+	}
+
+	return (0);
+}
+
 static const struct nlhdr_parser *all_parsers[] = {
 	&state_parser,
 	&addrule_parser,
@@ -1610,6 +1640,13 @@ static const struct genl_cmd pf_cmds[] = {
 		.cmd_name = "GET_LIMIT",
 		.cmd_cb = pf_handle_get_limit,
 		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_BEGIN_ADDRS,
+		.cmd_name = "BEGIN_ADDRS",
+		.cmd_cb = pf_handle_begin_addrs,
+		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
 		.cmd_priv = PRIV_NETINET_PF,
 	},
 };
