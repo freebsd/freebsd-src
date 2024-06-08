@@ -393,14 +393,14 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 #define	SYSCTL_CONST_STRING(parent, nbr, name, access, arg, descr)	\
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_STRING | CTLFLAG_MPSAFE | (access),\
 	    __DECONST(char *, arg), 0, sysctl_handle_string, "A", descr); \
-	CTASSERT(!(access & CTLFLAG_WR));				\
+	CTASSERT(!((access) & CTLFLAG_WR));				\
 	CTASSERT(((access) & CTLTYPE) == 0 ||				\
 	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_STRING)
 
 #define	SYSCTL_ADD_CONST_STRING(ctx, parent, nbr, name, access, arg, descr) \
 ({									\
 	char *__arg = __DECONST(char *, arg);				\
-	CTASSERT(!(access & CTLFLAG_WR));				\
+	CTASSERT(!((access) & CTLFLAG_WR));				\
 	CTASSERT(((access) & CTLTYPE) == 0 ||				\
 	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_STRING);	\
 	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_STRING | 	\
