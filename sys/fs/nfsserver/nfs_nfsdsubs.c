@@ -57,9 +57,6 @@ NFSD_VNET_DECLARE(int, nfs_rootfhset);
 NFSD_VNET_DECLARE(uid_t, nfsrv_defaultuid);
 NFSD_VNET_DECLARE(gid_t, nfsrv_defaultgid);
 
-NFSD_VNET_DEFINE(struct nfsdontlisthead, nfsrv_dontlisthead);
-
-
 char nfs_v2pubfh[NFSX_V2FH];
 struct nfsdontlisthead nfsrv_dontlisthead;
 struct nfslayouthead nfsrv_recalllisthead;
