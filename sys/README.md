@@ -55,6 +55,6 @@ Source Roadmap:
 | security | security facilities - `audit(4)` and `mac(4)` |
 | sys | kernel headers |
 | tests | kernel unit tests |
-| ufs | Unix File System - `ffs(7)` |
+| ufs | Unix File System - `ffs(4)` |
 | vm | virtual memory system |
 | x86 | code shared by AMD64 and i386 architectures |
