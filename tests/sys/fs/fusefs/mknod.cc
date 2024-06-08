@@ -283,7 +283,7 @@ TEST_F(Mknod, parent_inode)
 }
 
 /* 
- * fusefs(5) lacks VOP_WHITEOUT support.  No bugzilla entry, because that's a
+ * fusefs(4) lacks VOP_WHITEOUT support.  No bugzilla entry, because that's a
  * feature, not a bug
  */
 TEST_F(Mknod, DISABLED_whiteout)

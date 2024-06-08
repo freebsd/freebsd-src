@@ -1,5 +1,5 @@
 #
-# The following are some default rules for devfs(5) mounts.
+# The following are some default rules for devfs(4) mounts.
 # The format is very simple. Empty lines and lines beginning
 # with a hash '#' are ignored. If the hash mark occurs anywhere
 # other than the beginning of a line, it and any subsequent

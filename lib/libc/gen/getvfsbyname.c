@@ -38,7 +38,7 @@
 #include <string.h>
 
 /*
- * fusefs(5) file systems may have a "subtype" which gets appended to
+ * fusefs(4) file systems may have a "subtype" which gets appended to
  * statfs(2)'s f_fstypename field on a per-mount basis.  Allow getvfsbyname to
  * match either the full "fusefs.foobar" or the more general "fusefs".
  */
