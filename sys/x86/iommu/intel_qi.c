@@ -195,50 +195,40 @@ dmar_qi_invalidate_emit(struct iommu_domain *idomain, iommu_gaddr_t base,
 	iommu_qi_emit_wait_seq(DMAR2IOMMU(unit), pseq, emit_wait);
 }
 
-void
-dmar_qi_invalidate_ctx_glob_locked(struct dmar_unit *unit)
+static void
+dmar_qi_invalidate_glob_impl(struct dmar_unit *unit, uint64_t data1)
 {
 	struct iommu_qi_genseq gseq;
 
 	DMAR_ASSERT_LOCKED(unit);
 	dmar_qi_ensure(DMAR2IOMMU(unit), 2);
-	dmar_qi_emit(unit, DMAR_IQ_DESCR_CTX_INV | DMAR_IQ_DESCR_CTX_GLOB, 0);
+	dmar_qi_emit(unit, data1, 0);
 	iommu_qi_emit_wait_seq(DMAR2IOMMU(unit), &gseq, true);
 	/* See dmar_qi_invalidate_sync(). */
 	unit->x86c.inv_seq_waiters++;
 	dmar_qi_advance_tail(DMAR2IOMMU(unit));
 	iommu_qi_wait_for_seq(DMAR2IOMMU(unit), &gseq, false);
+}
+
+void
+dmar_qi_invalidate_ctx_glob_locked(struct dmar_unit *unit)
+{
+	dmar_qi_invalidate_glob_impl(unit, DMAR_IQ_DESCR_CTX_INV |
+	    DMAR_IQ_DESCR_CTX_GLOB);
 }
 
 void
 dmar_qi_invalidate_iotlb_glob_locked(struct dmar_unit *unit)
 {
-	struct iommu_qi_genseq gseq;
-
-	DMAR_ASSERT_LOCKED(unit);
-	dmar_qi_ensure(DMAR2IOMMU(unit), 2);
-	dmar_qi_emit(unit, DMAR_IQ_DESCR_IOTLB_INV | DMAR_IQ_DESCR_IOTLB_GLOB |
-	    DMAR_IQ_DESCR_IOTLB_DW | DMAR_IQ_DESCR_IOTLB_DR, 0);
-	iommu_qi_emit_wait_seq(DMAR2IOMMU(unit), &gseq, true);
-	/* See dmar_qi_invalidate_sync(). */
-	unit->x86c.inv_seq_waiters++;
-	dmar_qi_advance_tail(DMAR2IOMMU(unit));
-	iommu_qi_wait_for_seq(DMAR2IOMMU(unit), &gseq, false);
+	dmar_qi_invalidate_glob_impl(unit, DMAR_IQ_DESCR_IOTLB_INV |
+	    DMAR_IQ_DESCR_IOTLB_GLOB | DMAR_IQ_DESCR_IOTLB_DW |
+	    DMAR_IQ_DESCR_IOTLB_DR);
 }
 
 void
 dmar_qi_invalidate_iec_glob(struct dmar_unit *unit)
 {
-	struct iommu_qi_genseq gseq;
-
-	DMAR_ASSERT_LOCKED(unit);
-	dmar_qi_ensure(DMAR2IOMMU(unit), 2);
-	dmar_qi_emit(unit, DMAR_IQ_DESCR_IEC_INV, 0);
-	iommu_qi_emit_wait_seq(DMAR2IOMMU(unit), &gseq, true);
-	/* See dmar_qi_invalidate_sync(). */
-	unit->x86c.inv_seq_waiters++;
-	dmar_qi_advance_tail(DMAR2IOMMU(unit));
-	iommu_qi_wait_for_seq(DMAR2IOMMU(unit), &gseq, false);
+	dmar_qi_invalidate_glob_impl(unit, DMAR_IQ_DESCR_IEC_INV);
 }
 
 void
