@@ -101,8 +101,14 @@ struct x86_unit_common {
 	vm_size_t inv_queue_size;
 	uint32_t inv_queue_avail;
 	uint32_t inv_queue_tail;
-	volatile uint32_t inv_waitd_seq_hw; /* hw writes there on wait
-					       descr completion */
+
+	/*
+	 * Hw writes there on completion of wait descriptor
+	 * processing.  Intel writes 4 bytes, while AMD does the
+	 * 8-bytes write.  Due to little-endian, and use of 4-byte
+	 * sequence numbers, the difference does not matter for us.
+	 */
+	volatile uint64_t inv_waitd_seq_hw;
 
 	uint64_t inv_waitd_seq_hw_phys;
 	uint32_t inv_waitd_seq; /* next sequence number to use for wait descr */
