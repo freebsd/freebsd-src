@@ -207,9 +207,10 @@ pflog_packet(struct pfi_kkif *kif, struct mbuf *m, sa_family_t af, u_int8_t dir,
 	struct pfloghdr hdr;
 
 	if (kif == NULL || m == NULL || rm == NULL || pd == NULL)
-		return ( 1);
+		return (1);
 
-	if ((ifn = V_pflogifs[rm->logif]) == NULL || !ifn->if_bpf)
+	ifn = V_pflogifs[rm->logif];
+	if (ifn == NULL || !bpf_peers_present(ifn->if_bpf))
 		return (0);
 
 	bzero(&hdr, sizeof(hdr));
@@ -258,7 +259,7 @@ pflog_packet(struct pfi_kkif *kif, struct mbuf *m, sa_family_t af, u_int8_t dir,
 
 	if_inc_counter(ifn, IFCOUNTER_OPACKETS, 1);
 	if_inc_counter(ifn, IFCOUNTER_OBYTES, m->m_pkthdr.len);
-	BPF_MTAP2(ifn, &hdr, PFLOG_HDRLEN, m);
+	bpf_mtap2(ifn->if_bpf, &hdr, PFLOG_HDRLEN, m);
 
 	return (0);
 }
