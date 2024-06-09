@@ -1796,7 +1796,7 @@ pfsync_sendout(int schedswi, int c)
 	    ("%s: sc_len %zu", __func__, b->b_len));
 	PFSYNC_BUCKET_LOCK_ASSERT(b);
 
-	if (ifp->if_bpf == NULL && sc->sc_sync_if == NULL) {
+	if (!bpf_peers_present(ifp->if_bpf) && sc->sc_sync_if == NULL) {
 		pfsync_drop(sc);
 		return;
 	}
@@ -1925,10 +1925,10 @@ pfsync_sendout(int schedswi, int c)
 	V_pfsyncstats.pfsyncs_oacts[PFSYNC_ACT_EOF]++;
 
 	/* we're done, let's put it on the wire */
-	if (ifp->if_bpf) {
+	if (bpf_peers_present(ifp->if_bpf)) {
 		m->m_data += aflen;
 		m->m_len = m->m_pkthdr.len = len - aflen;
-		BPF_MTAP(ifp, m);
+		bpf_mtap(ifp->if_bpf, m);
 		m->m_data -= aflen;
 		m->m_len = m->m_pkthdr.len = len;
 	}
