@@ -293,7 +293,7 @@ dmar_qi_intr(void *arg)
 {
 	struct dmar_unit *unit;
 
-	unit = arg;
+	unit = IOMMU2DMAR((struct iommu_unit *)arg);
 	KASSERT(unit->qi_enabled, ("dmar%d: QI is not enabled",
 	    unit->iommu.unit));
 	taskqueue_enqueue(unit->x86c.qi_taskqueue, &unit->x86c.qi_task);
@@ -379,7 +379,7 @@ dmar_init_qi(struct dmar_unit *unit)
 		ics = DMAR_ICS_IWC;
 		dmar_write4(unit, DMAR_ICS_REG, ics);
 	}
-	dmar_enable_qi_intr(unit);
+	dmar_enable_qi_intr(DMAR2IOMMU(unit));
 	DMAR_UNLOCK(unit);
 
 	return (0);
@@ -388,7 +388,7 @@ dmar_init_qi(struct dmar_unit *unit)
 static void
 dmar_fini_qi_helper(struct iommu_unit *iommu)
 {
-	dmar_disable_qi_intr(IOMMU2DMAR(iommu));
+	dmar_disable_qi_intr(iommu);
 	dmar_disable_qi(IOMMU2DMAR(iommu));
 }
 
@@ -402,10 +402,12 @@ dmar_fini_qi(struct dmar_unit *unit)
 }
 
 void
-dmar_enable_qi_intr(struct dmar_unit *unit)
+dmar_enable_qi_intr(struct iommu_unit *iommu)
 {
+	struct dmar_unit *unit;
 	uint32_t iectl;
 
+	unit = IOMMU2DMAR(iommu);
 	DMAR_ASSERT_LOCKED(unit);
 	KASSERT(DMAR_HAS_QI(unit), ("dmar%d: QI is not supported",
 	    unit->iommu.unit));
@@ -415,10 +417,12 @@ dmar_enable_qi_intr(struct dmar_unit *unit)
 }
 
 void
-dmar_disable_qi_intr(struct dmar_unit *unit)
+dmar_disable_qi_intr(struct iommu_unit *iommu)
 {
+	struct dmar_unit *unit;
 	uint32_t iectl;
 
+	unit = IOMMU2DMAR(iommu);
 	DMAR_ASSERT_LOCKED(unit);
 	KASSERT(DMAR_HAS_QI(unit), ("dmar%d: QI is not supported",
 	    unit->iommu.unit));
