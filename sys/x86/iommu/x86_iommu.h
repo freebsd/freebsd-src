@@ -93,6 +93,24 @@ struct x86_iommu {
 void set_x86_iommu(struct x86_iommu *);
 struct x86_iommu *get_x86_iommu(void);
 
+struct iommu_msi_data {
+	int irq;
+	int irq_rid;
+	struct resource *irq_res;
+	void *intr_handle;
+	int (*handler)(void *);
+	int msi_data_reg;
+	int msi_addr_reg;
+	int msi_uaddr_reg;
+	uint64_t msi_addr;
+	uint32_t msi_data;
+	void (*enable_intr)(struct iommu_unit *);
+	void (*disable_intr)(struct iommu_unit *);
+	const char *name;
+};
+
+#define	IOMMU_MAX_MSI	3
+
 struct x86_unit_common {
 	uint32_t qi_buf_maxsz;
 	uint32_t qi_cmd_sz;
@@ -145,6 +163,8 @@ struct x86_unit_common {
 	struct iommu_map_entry *tlb_flush_tail;
 	struct task qi_task;
 	struct taskqueue *qi_taskqueue;
+
+	struct iommu_msi_data intrs[IOMMU_MAX_MSI];
 };
 
 void iommu_qi_emit_wait_seq(struct iommu_unit *unit, struct iommu_qi_genseq *
@@ -159,5 +179,8 @@ void iommu_qi_invalidate_sync(struct iommu_domain *domain, iommu_gaddr_t base,
 void iommu_qi_common_init(struct iommu_unit *unit, task_fn_t taskfunc);
 void iommu_qi_common_fini(struct iommu_unit *unit, void (*disable_qi)(
     struct iommu_unit *));
+
+int iommu_alloc_irq(struct iommu_unit *unit, int idx);
+void iommu_release_intr(struct iommu_unit *unit, int idx);
 
 #endif

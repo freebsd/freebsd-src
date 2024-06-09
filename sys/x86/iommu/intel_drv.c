@@ -231,22 +231,6 @@ dmar_probe(device_t dev)
 }
 
 static void
-dmar_release_intr(device_t dev, struct dmar_unit *unit, int idx)
-{
-	struct dmar_msi_data *dmd;
-
-	dmd = &unit->intrs[idx];
-	if (dmd->irq == -1)
-		return;
-	bus_teardown_intr(dev, dmd->irq_res, dmd->intr_handle);
-	bus_release_resource(dev, SYS_RES_IRQ, dmd->irq_rid, dmd->irq_res);
-	bus_delete_resource(dev, SYS_RES_IRQ, dmd->irq_rid);
-	PCIB_RELEASE_MSIX(device_get_parent(device_get_parent(dev)),
-	    dev, dmd->irq);
-	dmd->irq = -1;
-}
-
-static void
 dmar_release_resources(device_t dev, struct dmar_unit *unit)
 {
 	int i;
@@ -256,7 +240,7 @@ dmar_release_resources(device_t dev, struct dmar_unit *unit)
 	dmar_fini_qi(unit);
 	dmar_fini_fault_log(unit);
 	for (i = 0; i < DMAR_INTR_TOTAL; i++)
-		dmar_release_intr(dev, unit, i);
+		iommu_release_intr(DMAR2IOMMU(unit), i);
 	if (unit->regs != NULL) {
 		bus_deactivate_resource(dev, SYS_RES_MEMORY, unit->reg_rid,
 		    unit->regs);
@@ -274,84 +258,19 @@ dmar_release_resources(device_t dev, struct dmar_unit *unit)
 	}
 }
 
-static int
-dmar_alloc_irq(device_t dev, struct dmar_unit *unit, int idx)
-{
-	device_t pcib;
-	struct dmar_msi_data *dmd;
-	uint64_t msi_addr;
-	uint32_t msi_data;
-	int error;
-
-	dmd = &unit->intrs[idx];
-	pcib = device_get_parent(device_get_parent(dev)); /* Really not pcib */
-	error = PCIB_ALLOC_MSIX(pcib, dev, &dmd->irq);
-	if (error != 0) {
-		device_printf(dev, "cannot allocate %s interrupt, %d\n",
-		    dmd->name, error);
-		goto err1;
-	}
-	error = bus_set_resource(dev, SYS_RES_IRQ, dmd->irq_rid,
-	    dmd->irq, 1);
-	if (error != 0) {
-		device_printf(dev, "cannot set %s interrupt resource, %d\n",
-		    dmd->name, error);
-		goto err2;
-	}
-	dmd->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
-	    &dmd->irq_rid, RF_ACTIVE);
-	if (dmd->irq_res == NULL) {
-		device_printf(dev,
-		    "cannot allocate resource for %s interrupt\n", dmd->name);
-		error = ENXIO;
-		goto err3;
-	}
-	error = bus_setup_intr(dev, dmd->irq_res, INTR_TYPE_MISC,
-	    dmd->handler, NULL, unit, &dmd->intr_handle);
-	if (error != 0) {
-		device_printf(dev, "cannot setup %s interrupt, %d\n",
-		    dmd->name, error);
-		goto err4;
-	}
-	bus_describe_intr(dev, dmd->irq_res, dmd->intr_handle, "%s", dmd->name);
-	error = PCIB_MAP_MSI(pcib, dev, dmd->irq, &msi_addr, &msi_data);
-	if (error != 0) {
-		device_printf(dev, "cannot map %s interrupt, %d\n",
-		    dmd->name, error);
-		goto err5;
-	}
-	dmar_write4(unit, dmd->msi_data_reg, msi_data);
-	dmar_write4(unit, dmd->msi_addr_reg, msi_addr);
-	/* Only for xAPIC mode */
-	dmar_write4(unit, dmd->msi_uaddr_reg, msi_addr >> 32);
-	return (0);
-
-err5:
-	bus_teardown_intr(dev, dmd->irq_res, dmd->intr_handle);
-err4:
-	bus_release_resource(dev, SYS_RES_IRQ, dmd->irq_rid, dmd->irq_res);
-err3:
-	bus_delete_resource(dev, SYS_RES_IRQ, dmd->irq_rid);
-err2:
-	PCIB_RELEASE_MSIX(pcib, dev, dmd->irq);
-	dmd->irq = -1;
-err1:
-	return (error);
-}
-
 #ifdef DEV_APIC
 static int
 dmar_remap_intr(device_t dev, device_t child, u_int irq)
 {
 	struct dmar_unit *unit;
-	struct dmar_msi_data *dmd;
+	struct iommu_msi_data *dmd;
 	uint64_t msi_addr;
 	uint32_t msi_data;
 	int i, error;
 
 	unit = device_get_softc(dev);
 	for (i = 0; i < DMAR_INTR_TOTAL; i++) {
-		dmd = &unit->intrs[i];
+		dmd = &unit->x86c.intrs[i];
 		if (irq == dmd->irq) {
 			error = PCIB_MAP_MSI(device_get_parent(
 			    device_get_parent(dev)),
@@ -359,11 +278,14 @@ dmar_remap_intr(device_t dev, device_t child, u_int irq)
 			if (error != 0)
 				return (error);
 			DMAR_LOCK(unit);
-			(dmd->disable_intr)(unit);
-			dmar_write4(unit, dmd->msi_data_reg, msi_data);
-			dmar_write4(unit, dmd->msi_addr_reg, msi_addr);
-			dmar_write4(unit, dmd->msi_uaddr_reg, msi_addr >> 32);
-			(dmd->enable_intr)(unit);
+			dmd->msi_data = msi_data;
+			dmd->msi_addr = msi_addr;
+			(dmd->disable_intr)(DMAR2IOMMU(unit));
+			dmar_write4(unit, dmd->msi_data_reg, dmd->msi_data);
+			dmar_write4(unit, dmd->msi_addr_reg, dmd->msi_addr);
+			dmar_write4(unit, dmd->msi_uaddr_reg,
+			    dmd->msi_addr >> 32);
+			(dmd->enable_intr)(DMAR2IOMMU(unit));
 			DMAR_UNLOCK(unit);
 			return (0);
 		}
@@ -407,6 +329,7 @@ dmar_attach(device_t dev)
 {
 	struct dmar_unit *unit;
 	ACPI_DMAR_HARDWARE_UNIT *dmaru;
+	struct iommu_msi_data *dmd;
 	uint64_t timeout;
 	int disable_pmr;
 	int i, error;
@@ -439,37 +362,47 @@ dmar_attach(device_t dev)
 	dmar_update_timeout(timeout);
 
 	for (i = 0; i < DMAR_INTR_TOTAL; i++)
-		unit->intrs[i].irq = -1;
+		unit->x86c.intrs[i].irq = -1;
 
-	unit->intrs[DMAR_INTR_FAULT].name = "fault";
-	unit->intrs[DMAR_INTR_FAULT].irq_rid = DMAR_FAULT_IRQ_RID;
-	unit->intrs[DMAR_INTR_FAULT].handler = dmar_fault_intr;
-	unit->intrs[DMAR_INTR_FAULT].msi_data_reg = DMAR_FEDATA_REG;
-	unit->intrs[DMAR_INTR_FAULT].msi_addr_reg = DMAR_FEADDR_REG;
-	unit->intrs[DMAR_INTR_FAULT].msi_uaddr_reg = DMAR_FEUADDR_REG;
-	unit->intrs[DMAR_INTR_FAULT].enable_intr = dmar_enable_fault_intr;
-	unit->intrs[DMAR_INTR_FAULT].disable_intr = dmar_disable_fault_intr;
-	error = dmar_alloc_irq(dev, unit, DMAR_INTR_FAULT);
+	dmd = &unit->x86c.intrs[DMAR_INTR_FAULT];
+	dmd->name = "fault";
+	dmd->irq_rid = DMAR_FAULT_IRQ_RID;
+	dmd->handler = dmar_fault_intr;
+	dmd->msi_data_reg = DMAR_FEDATA_REG;
+	dmd->msi_addr_reg = DMAR_FEADDR_REG;
+	dmd->msi_uaddr_reg = DMAR_FEUADDR_REG;
+	dmd->enable_intr = dmar_enable_fault_intr;
+	dmd->disable_intr = dmar_disable_fault_intr;
+	error = iommu_alloc_irq(DMAR2IOMMU(unit), DMAR_INTR_FAULT);
 	if (error != 0) {
 		dmar_release_resources(dev, unit);
 		dmar_devs[unit->iommu.unit] = NULL;
 		return (error);
 	}
+	dmar_write4(unit, dmd->msi_data_reg, dmd->msi_data);
+	dmar_write4(unit, dmd->msi_addr_reg, dmd->msi_addr);
+	dmar_write4(unit, dmd->msi_uaddr_reg, dmd->msi_addr >> 32);
+
 	if (DMAR_HAS_QI(unit)) {
-		unit->intrs[DMAR_INTR_QI].name = "qi";
-		unit->intrs[DMAR_INTR_QI].irq_rid = DMAR_QI_IRQ_RID;
-		unit->intrs[DMAR_INTR_QI].handler = dmar_qi_intr;
-		unit->intrs[DMAR_INTR_QI].msi_data_reg = DMAR_IEDATA_REG;
-		unit->intrs[DMAR_INTR_QI].msi_addr_reg = DMAR_IEADDR_REG;
-		unit->intrs[DMAR_INTR_QI].msi_uaddr_reg = DMAR_IEUADDR_REG;
-		unit->intrs[DMAR_INTR_QI].enable_intr = dmar_enable_qi_intr;
-		unit->intrs[DMAR_INTR_QI].disable_intr = dmar_disable_qi_intr;
-		error = dmar_alloc_irq(dev, unit, DMAR_INTR_QI);
+		dmd = &unit->x86c.intrs[DMAR_INTR_QI];
+		dmd->name = "qi";
+		dmd->irq_rid = DMAR_QI_IRQ_RID;
+		dmd->handler = dmar_qi_intr;
+		dmd->msi_data_reg = DMAR_IEDATA_REG;
+		dmd->msi_addr_reg = DMAR_IEADDR_REG;
+		dmd->msi_uaddr_reg = DMAR_IEUADDR_REG;
+		dmd->enable_intr = dmar_enable_qi_intr;
+		dmd->disable_intr = dmar_disable_qi_intr;
+		error = iommu_alloc_irq(DMAR2IOMMU(unit), DMAR_INTR_QI);
 		if (error != 0) {
 			dmar_release_resources(dev, unit);
 			dmar_devs[unit->iommu.unit] = NULL;
 			return (error);
 		}
+
+		dmar_write4(unit, dmd->msi_data_reg, dmd->msi_data);
+		dmar_write4(unit, dmd->msi_addr_reg, dmd->msi_addr);
+		dmar_write4(unit, dmd->msi_uaddr_reg, dmd->msi_addr >> 32);
 	}
 
 	mtx_init(&unit->iommu.lock, "dmarhw", NULL, MTX_DEF);

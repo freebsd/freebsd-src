@@ -103,20 +103,6 @@ struct dmar_ctx {
 #define	CTX2DMAR(ctx)		(CTX2DOM(ctx)->dmar)
 #define	DOM2DMAR(domain)	((domain)->dmar)
 
-struct dmar_msi_data {
-	int irq;
-	int irq_rid;
-	struct resource *irq_res;
-	void *intr_handle;
-	int (*handler)(void *);
-	int msi_data_reg;
-	int msi_addr_reg;
-	int msi_uaddr_reg;
-	void (*enable_intr)(struct dmar_unit *);
-	void (*disable_intr)(struct dmar_unit *);
-	const char *name;
-};
-
 #define	DMAR_INTR_FAULT		0
 #define	DMAR_INTR_QI		1
 #define	DMAR_INTR_TOTAL		2
@@ -130,8 +116,6 @@ struct dmar_unit {
 	/* Resources */
 	int reg_rid;
 	struct resource *regs;
-
-	struct dmar_msi_data intrs[DMAR_INTR_TOTAL];
 
 	/* Hardware registers cache */
 	uint32_t hw_ver;
@@ -216,14 +200,14 @@ uint64_t dmar_get_timeout(void);
 void dmar_update_timeout(uint64_t newval);
 
 int dmar_fault_intr(void *arg);
-void dmar_enable_fault_intr(struct dmar_unit *unit);
-void dmar_disable_fault_intr(struct dmar_unit *unit);
+void dmar_enable_fault_intr(struct iommu_unit *unit);
+void dmar_disable_fault_intr(struct iommu_unit *unit);
 int dmar_init_fault_log(struct dmar_unit *unit);
 void dmar_fini_fault_log(struct dmar_unit *unit);
 
 int dmar_qi_intr(void *arg);
-void dmar_enable_qi_intr(struct dmar_unit *unit);
-void dmar_disable_qi_intr(struct dmar_unit *unit);
+void dmar_enable_qi_intr(struct iommu_unit *unit);
+void dmar_disable_qi_intr(struct iommu_unit *unit);
 int dmar_init_qi(struct dmar_unit *unit);
 void dmar_fini_qi(struct dmar_unit *unit);
 void dmar_qi_invalidate_locked(struct dmar_domain *domain,
