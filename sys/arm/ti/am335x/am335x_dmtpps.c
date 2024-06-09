@@ -434,7 +434,7 @@ dmtpps_probe(device_t dev)
 	if (dmtpps_tmr_num != tmr_num)
 		return (ENXIO);
 
-	device_set_descf("AM335x PPS-Capture DMTimer%d", tmr_num);
+	device_set_descf(dev, "AM335x PPS-Capture DMTimer%d", tmr_num);
 
 	return(BUS_PROBE_DEFAULT);
 }
