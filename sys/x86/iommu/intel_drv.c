@@ -1302,7 +1302,7 @@ dmar_print_one(int idx, bool show_domains, bool show_mappings)
 			db_printf("qi is enabled: queue @0x%jx (IQA 0x%jx) "
 			    "size 0x%jx\n"
 		    "  head 0x%x tail 0x%x avail 0x%x status 0x%x ctrl 0x%x\n"
-		    "  hw compl 0x%x@%p/phys@%jx next seq 0x%x gen 0x%x\n",
+		    "  hw compl 0x%jx@%p/phys@%jx next seq 0x%x gen 0x%x\n",
 			    (uintmax_t)unit->x86c.inv_queue,
 			    (uintmax_t)dmar_read8(unit, DMAR_IQA_REG),
 			    (uintmax_t)unit->x86c.inv_queue_size,
@@ -1311,7 +1311,7 @@ dmar_print_one(int idx, bool show_domains, bool show_mappings)
 			    unit->x86c.inv_queue_avail,
 			    dmar_read4(unit, DMAR_ICS_REG),
 			    dmar_read4(unit, DMAR_IECTL_REG),
-			    unit->x86c.inv_waitd_seq_hw,
+			    (uintmax_t)unit->x86c.inv_waitd_seq_hw,
 			    &unit->x86c.inv_waitd_seq_hw,
 			    (uintmax_t)unit->x86c.inv_waitd_seq_hw_phys,
 			    unit->x86c.inv_waitd_seq,
