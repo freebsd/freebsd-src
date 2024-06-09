@@ -392,9 +392,12 @@ sndstat_create_diinfo_nv(uint32_t min_rate, uint32_t max_rate, uint32_t formats,
 static int
 sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 {
+	struct pcm_channel *c;
+	struct pcm_feeder *f;
+	struct sbuf sb;
 	uint32_t maxrate, minrate, fmts, minchn, maxchn;
-	nvlist_t *di = NULL, *sound4di = NULL, *diinfo = NULL;
-	int err;
+	nvlist_t *di = NULL, *sound4di = NULL, *diinfo = NULL, *cdi = NULL;
+	int err, nchan;
 
 	di = nvlist_create(0);
 	if (di == NULL) {
@@ -451,8 +454,116 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 	    sound4di, SNDST_DSPS_SOUND4_BITPERFECT, d->flags & SD_F_BITPERFECT);
 	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_PVCHAN, d->pvchancount);
 	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_RVCHAN, d->rvchancount);
+
+	nchan = 0;
+	CHN_FOREACH(c, d, channels.pcm) {
+		sbuf_new(&sb, NULL, 4096, SBUF_AUTOEXTEND);
+		cdi = nvlist_create(0);
+		if (cdi == NULL) {
+			sbuf_delete(&sb);
+			PCM_RELEASE_QUICK(d);
+			err = ENOMEM;
+			goto done;
+		}
+
+		nvlist_add_string(cdi, SNDST_DSPS_SOUND4_CHAN_NAME, c->name);
+		nvlist_add_string(cdi, SNDST_DSPS_SOUND4_CHAN_PARENTCHAN,
+		    c->parentchannel != NULL ? c->parentchannel->name : "");
+		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_UNIT, nchan++);
+		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_LATENCY,
+		    c->latency);
+		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_RATE, c->speed);
+		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_FORMAT,
+		    c->format);
+		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_PID, c->pid);
+		nvlist_add_string(cdi, SNDST_DSPS_SOUND4_CHAN_COMM, c->comm);
+		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_INTR,
+		    c->interrupts);
+		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_FEEDCNT,
+		    c->feedcount);
+		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_XRUNS, c->xruns);
+		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_LEFTVOL,
+		    CHN_GETVOLUME(c, SND_VOL_C_PCM, SND_CHN_T_FL));
+		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_RIGHTVOL,
+		    CHN_GETVOLUME(c, SND_VOL_C_PCM, SND_CHN_T_FR));
+		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_FORMAT,
+		    sndbuf_getfmt(c->bufhard));
+		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_SIZE,
+		    sndbuf_getsize(c->bufhard));
+		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_BLKSZ,
+		    sndbuf_getblksz(c->bufhard));
+		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_BLKCNT,
+		    sndbuf_getblkcnt(c->bufhard));
+		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_FREE,
+		    sndbuf_getfree(c->bufhard));
+		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_READY,
+		    sndbuf_getready(c->bufhard));
+		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_SWBUF_FORMAT,
+		    sndbuf_getfmt(c->bufsoft));
+		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_SWBUF_SIZE,
+		    sndbuf_getsize(c->bufsoft));
+		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_SWBUF_BLKSZ,
+		    sndbuf_getblksz(c->bufsoft));
+		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_SWBUF_BLKCNT,
+		    sndbuf_getblkcnt(c->bufsoft));
+		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_SWBUF_FREE,
+		    sndbuf_getfree(c->bufsoft));
+		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_SWBUF_READY,
+		    sndbuf_getready(c->bufsoft));
+
+		sbuf_printf(&sb, "[%s",
+		    (c->direction == PCMDIR_REC) ? "hardware" : "userland");
+		sbuf_printf(&sb, " -> ");
+		f = c->feeder;
+		while (f->source != NULL)
+			f = f->source;
+		while (f != NULL) {
+			sbuf_printf(&sb, "%s", f->class->name);
+			if (f->desc->type == FEEDER_FORMAT) {
+				sbuf_printf(&sb, "(0x%08x -> 0x%08x)",
+				    f->desc->in, f->desc->out);
+			} else if (f->desc->type == FEEDER_MATRIX) {
+				sbuf_printf(&sb, "(%d.%d -> %d.%d)",
+				    AFMT_CHANNEL(f->desc->in) -
+				    AFMT_EXTCHANNEL(f->desc->in),
+				    AFMT_EXTCHANNEL(f->desc->in),
+				    AFMT_CHANNEL(f->desc->out) -
+				    AFMT_EXTCHANNEL(f->desc->out),
+				    AFMT_EXTCHANNEL(f->desc->out));
+			} else if (f->desc->type == FEEDER_RATE) {
+				sbuf_printf(&sb,
+				    "(0x%08x q:%d %d -> %d)",
+				    f->desc->out,
+				    FEEDER_GET(f, FEEDRATE_QUALITY),
+				    FEEDER_GET(f, FEEDRATE_SRC),
+				    FEEDER_GET(f, FEEDRATE_DST));
+			} else {
+				sbuf_printf(&sb, "(0x%08x)",
+				    f->desc->out);
+			}
+			sbuf_printf(&sb, " -> ");
+			f = f->parent;
+		}
+		sbuf_printf(&sb, "%s]",
+		    (c->direction == PCMDIR_REC) ? "userland" : "hardware");
+
+		sbuf_finish(&sb);
+		nvlist_add_string(cdi, SNDST_DSPS_SOUND4_CHAN_FEEDERCHAIN,
+		    sbuf_data(&sb));
+		sbuf_delete(&sb);
+
+		nvlist_append_nvlist_array(sound4di,
+		    SNDST_DSPS_SOUND4_CHAN_INFO, cdi);
+		nvlist_destroy(cdi);
+		err = nvlist_error(sound4di);
+		if (err) {
+			PCM_RELEASE_QUICK(d);
+			goto done;
+		}
+	}
 	nvlist_move_nvlist(di, SNDST_DSPS_PROVIDER_INFO, sound4di);
 	sound4di = NULL;
+
 	PCM_RELEASE_QUICK(d);
 	nvlist_add_string(di, SNDST_DSPS_PROVIDER, SNDST_DSPS_SOUND4_PROVIDER);
 

@@ -29,7 +29,7 @@
 .\"
 .\" Note: The date here should be updated whenever a non-trivial
 .\" change is made to the manual page.
-.Dd April 15, 2021
+.Dd June 5, 2024
 .Dt SNDSTAT 4
 .Os
 .Sh NAME
@@ -60,25 +60,55 @@ struct sndstioc_nv_arg {
 Here is an example of an nvlist object with explanations of the common fields:
 .Bd -literal -offset indent
 dsps (NVLIST ARRAY): 1
-    from_user (BOOL): FALSE
-    nameunit (STRING): [pcm0]
-    devnode (STRING): [dsp0]
-    desc (STRING): [Generic (0x8086) (Analog Line-out)]
-    pchan (NUMBER): 1 (1) (0x1)
-    rchan (NUMBER): 0 (0) (0x0)
-    info_play (NVLIST):
-        min_rate (NUMBER): 48000 (48000) (0xbb80)
-        max_rate (NUMBER): 48000 (48000) (0xbb80)
-        formats (NUMBER): 16 (16) (0x10)
-        min_chn (NUMBER): 2 (2) (0x2)
-        max_chn (NUMBER): 2 (2) (0x2)
-    provider_info (NVLIST):
-        unit (NUMBER): 0 (0) (0x0)
-        bitperfect (BOOL): FALSE
-        pvchan (NUMBER): 1 (1) (0x1)
-        rvchan (NUMBER): 0 (0) (0x0)
-    provider (STRING): [sound(4)]
-    ,
+	from_user (BOOL): FALSE
+	nameunit (STRING): [pcm0]
+	devnode (STRING): [dsp0]
+	desc (STRING): [Generic (0x8086) (Analog Line-out)]
+	pchan (NUMBER): 1
+	rchan (NUMBER): 0
+	info_play (NVLIST):
+		min_rate (NUMBER): 48000
+		max_rate (NUMBER): 48000
+		formats (NUMBER): 16
+		min_chn (NUMBER): 2
+		max_chn (NUMBER): 2
+	provider_info (NVLIST):
+		unit (NUMBER): 0
+		bitperfect (BOOL): FALSE
+		pvchan (NUMBER): 1
+		rvchan (NUMBER): 0
+		channel_info (NVLIST_ARRAY): 1
+			name (STRING): pcm0:virtual_play:dsp0.vp0
+			parentchan (STRING): pcm0:play:dsp0.p0
+			unit (NUMBER): 1
+			latency (NUMBER): 2
+			rate (NUMBER): 48000
+			format (NUMBER): 0x201000
+			pid (NUMBER): 1234
+			comm (STRING): mpv
+			interrupts (NUMBER): 0
+			feedcount (NUMBER): 0
+			xruns (NUMBER): 0
+			left_volume (NUMBER): 45
+			right_volume (NUMBER): 45
+			hwbuf_fmt (NUMBER): 0x200010
+			hwbuf_size (NUMBER): 0
+			hwbuf_blksz (NUMBER): 0
+			hwbuf_blkcnt (NUMBER): 0
+			hwbuf_free (NUMBER): 0
+			hwbuf_ready (NUMBER): 0
+			swbuf_fmt (NUMBER): 0x201000
+			swbuf_size (NUMBER): 16384
+			swbuf_blksz (NUMBER): 2048
+			swbuf_blkcnt (NUMBER): 8
+			swbuf_free (NUMBER): 16384
+			swbuf_ready (NUMBER): 0
+			feederchain (STRING):
+				[userland ->
+				feeder_root(0x00201000) ->
+				feeder_format(0x00201000 -> 0x00200010) ->
+				feeder_volume(0x00200010) -> hardware]
+	provider (STRING): [sound(4)]
 .Ed
 .Bl -tag -width ".Dv provider_info"
 .It Dv from_user
@@ -133,6 +163,76 @@ Provider-specific fields.
 This field may not exist if the PCM audio device is not provided by in-kernel
 interface.
 This field will not exist if the provider field is an empty string.
+For the
+.Xr sound 4
+provider, there are a number of name/value pairs inside this field:
+.Bl -tag -width ".Dv channel_info"
+.It Dv unit
+Sound card unit.
+.It Dv bitperfect
+Whether the sound card has bit-perfect mode enabled.
+.It Dv pvchan
+Number of playback virtual channels.
+.It Dv rvchan
+Number of recording virtual channels.
+.It Dv channel_info
+Channel information.
+There are a number of name/value pairs inside this field:
+.Bl -tag -width ".Dv hwbuf_blkcnt"
+.It Dv name
+Channel name.
+.It Dv parenchan
+Parent channel name (e.g., in the case of virtual channels).
+.It Dv unit
+Channel unit.
+.It Dv latency
+Latency.
+.It Dv rate
+Sampling rate.
+.It Dv format
+Sampling format.
+.It Dv pid
+PID of the process consuming the channel.
+.It Dv comm
+Name of the process consuming the channel.
+.It Dv interrupts
+Number of interrupts since the channel has been opened.
+.It Dv xruns
+Number of overruns/underruns, depending on channel direction.
+.It Dv feedcount
+Number of read/written bytes since the channel has been opened.
+.It Dv left_volume
+Left volume.
+.It Dv right_volume
+Right volume.
+.It Dv hwbuf_format
+Hardware buffer format.
+.It Dv hwbuf_size
+Hardware buffer size.
+.It Dv hwbuf_blksz
+Hardware buffer block size.
+.It Dv hwbuf_blkcnt
+Hardware buffer block count.
+.It Dv hwbuf_free
+Free space in hardware buffer (in bytes).
+.It Dv hwbuf_ready
+Number of bytes ready to be read/written from hardware buffer.
+.It Dv swbuf_format
+Software buffer format.
+.It Dv swbuf_size
+Software buffer size.
+.It Dv swbuf_blksz
+Software buffer block size.
+.It Dv swbuf_blkcnt
+Software buffer block count.
+.It Dv swbuf_free
+Free space in software buffer (in bytes).
+.It Dv swbuf_ready
+Number of bytes ready to be read/written from software buffer.
+.It Dv feederchain
+Channel feeder chain.
+.El
+.El
 .It Dv provider
 A string specifying the provider of the PCm audio device.
 .El
