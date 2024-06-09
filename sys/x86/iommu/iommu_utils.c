@@ -28,7 +28,15 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_acpi.h"
+#if defined(__amd64__)
+#define	DEV_APIC
+#else
+#include "opt_apic.h"
+#endif
+
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -38,6 +46,7 @@
 #include <sys/sysctl.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
+#include <sys/rman.h>
 #include <sys/rwlock.h>
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
@@ -48,6 +57,7 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 #include <machine/atomic.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
@@ -56,6 +66,12 @@
 #include <dev/iommu/iommu.h>
 #include <x86/iommu/x86_iommu.h>
 #include <x86/iommu/iommu_intrmap.h>
+#ifdef DEV_APIC
+#include "pcib_if.h"
+#include <machine/intr_machdep.h>
+#include <x86/apicreg.h>
+#include <x86/apicvar.h>
+#endif
 
 vm_page_t
 iommu_pgalloc(vm_object_t obj, vm_pindex_t idx, int flags)
@@ -482,4 +498,93 @@ iommu_qi_common_fini(struct iommu_unit *unit, void (*disable_qi)(
 	kmem_free(x86c->inv_queue, x86c->inv_queue_size);
 	x86c->inv_queue = NULL;
 	x86c->inv_queue_size = 0;
+}
+
+int
+iommu_alloc_irq(struct iommu_unit *unit, int idx)
+{
+	device_t dev, pcib;
+	struct iommu_msi_data *dmd;
+	uint64_t msi_addr;
+	uint32_t msi_data;
+	int error;
+
+	MPASS(idx >= 0 || idx < IOMMU_MAX_MSI);
+
+	dev = unit->dev;
+	dmd = &IOMMU2X86C(unit)->intrs[idx];
+	pcib = device_get_parent(device_get_parent(dev)); /* Really not pcib */
+	error = PCIB_ALLOC_MSIX(pcib, dev, &dmd->irq);
+	if (error != 0) {
+		device_printf(dev, "cannot allocate %s interrupt, %d\n",
+		    dmd->name, error);
+		goto err1;
+	}
+	error = bus_set_resource(dev, SYS_RES_IRQ, dmd->irq_rid,
+	    dmd->irq, 1);
+	if (error != 0) {
+		device_printf(dev, "cannot set %s interrupt resource, %d\n",
+		    dmd->name, error);
+		goto err2;
+	}
+	dmd->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+	    &dmd->irq_rid, RF_ACTIVE);
+	if (dmd->irq_res == NULL) {
+		device_printf(dev,
+		    "cannot allocate resource for %s interrupt\n", dmd->name);
+		error = ENXIO;
+		goto err3;
+	}
+	error = bus_setup_intr(dev, dmd->irq_res, INTR_TYPE_MISC,
+	    dmd->handler, NULL, unit, &dmd->intr_handle);
+	if (error != 0) {
+		device_printf(dev, "cannot setup %s interrupt, %d\n",
+		    dmd->name, error);
+		goto err4;
+	}
+	bus_describe_intr(dev, dmd->irq_res, dmd->intr_handle, "%s", dmd->name);
+	error = PCIB_MAP_MSI(pcib, dev, dmd->irq, &msi_addr, &msi_data);
+	if (error != 0) {
+		device_printf(dev, "cannot map %s interrupt, %d\n",
+		    dmd->name, error);
+		goto err5;
+	}
+
+	dmd->msi_data = msi_data;
+	dmd->msi_addr = msi_addr;
+
+	return (0);
+
+err5:
+	bus_teardown_intr(dev, dmd->irq_res, dmd->intr_handle);
+err4:
+	bus_release_resource(dev, SYS_RES_IRQ, dmd->irq_rid, dmd->irq_res);
+err3:
+	bus_delete_resource(dev, SYS_RES_IRQ, dmd->irq_rid);
+err2:
+	PCIB_RELEASE_MSIX(pcib, dev, dmd->irq);
+	dmd->irq = -1;
+err1:
+	return (error);
+}
+
+void
+iommu_release_intr(struct iommu_unit *unit, int idx)
+{
+	device_t dev;
+	struct iommu_msi_data *dmd;
+
+	MPASS(idx >= 0 || idx < IOMMU_MAX_MSI);
+
+	dmd = &IOMMU2X86C(unit)->intrs[idx];
+	if (dmd->handler == NULL || dmd->irq == -1)
+		return;
+	dev = unit->dev;
+
+	bus_teardown_intr(dev, dmd->irq_res, dmd->intr_handle);
+	bus_release_resource(dev, SYS_RES_IRQ, dmd->irq_rid, dmd->irq_res);
+	bus_delete_resource(dev, SYS_RES_IRQ, dmd->irq_rid);
+	PCIB_RELEASE_MSIX(device_get_parent(device_get_parent(dev)),
+	    dev, dmd->irq);
+	dmd->irq = -1;
 }
