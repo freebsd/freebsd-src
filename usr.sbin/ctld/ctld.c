@@ -98,7 +98,6 @@ conf_new(void)
 	TAILQ_INIT(&conf->conf_auth_groups);
 	TAILQ_INIT(&conf->conf_ports);
 	TAILQ_INIT(&conf->conf_portal_groups);
-	TAILQ_INIT(&conf->conf_pports);
 	TAILQ_INIT(&conf->conf_isns);
 
 	conf->conf_isns_period = 900;
@@ -117,7 +116,6 @@ conf_delete(struct conf *conf)
 	struct target *targ, *tmp;
 	struct auth_group *ag, *cagtmp;
 	struct portal_group *pg, *cpgtmp;
-	struct pport *pp, *pptmp;
 	struct isns *is, *istmp;
 
 	assert(conf->conf_pidfh == NULL);
@@ -130,8 +128,6 @@ conf_delete(struct conf *conf)
 		auth_group_delete(ag);
 	TAILQ_FOREACH_SAFE(pg, &conf->conf_portal_groups, pg_next, cpgtmp)
 		portal_group_delete(pg);
-	TAILQ_FOREACH_SAFE(pp, &conf->conf_pports, pp_next, pptmp)
-		pport_delete(pp);
 	TAILQ_FOREACH_SAFE(is, &conf->conf_isns, i_next, istmp)
 		isns_delete(is);
 	assert(TAILQ_EMPTY(&conf->conf_ports));
@@ -1177,27 +1173,27 @@ valid_iscsi_name(const char *name)
 }
 
 struct pport *
-pport_new(struct conf *conf, const char *name, uint32_t ctl_port)
+pport_new(struct kports *kports, const char *name, uint32_t ctl_port)
 {
 	struct pport *pp;
 
 	pp = calloc(1, sizeof(*pp));
 	if (pp == NULL)
 		log_err(1, "calloc");
-	pp->pp_conf = conf;
+	pp->pp_kports = kports;
 	pp->pp_name = checked_strdup(name);
 	pp->pp_ctl_port = ctl_port;
 	TAILQ_INIT(&pp->pp_ports);
-	TAILQ_INSERT_TAIL(&conf->conf_pports, pp, pp_next);
+	TAILQ_INSERT_TAIL(&kports->pports, pp, pp_next);
 	return (pp);
 }
 
 struct pport *
-pport_find(const struct conf *conf, const char *name)
+pport_find(const struct kports *kports, const char *name)
 {
 	struct pport *pp;
 
-	TAILQ_FOREACH(pp, &conf->conf_pports, pp_next) {
+	TAILQ_FOREACH(pp, &kports->pports, pp_next) {
 		if (strcasecmp(pp->pp_name, name) == 0)
 			return (pp);
 	}
@@ -1205,11 +1201,11 @@ pport_find(const struct conf *conf, const char *name)
 }
 
 struct pport *
-pport_copy(struct pport *pp, struct conf *conf)
+pport_copy(struct pport *pp, struct kports *kports)
 {
 	struct pport *ppnew;
 
-	ppnew = pport_new(conf, pp->pp_name, pp->pp_ctl_port);
+	ppnew = pport_new(kports, pp->pp_name, pp->pp_ctl_port);
 	return (ppnew);
 }
 
@@ -1220,7 +1216,7 @@ pport_delete(struct pport *pp)
 
 	TAILQ_FOREACH_SAFE(port, &pp->pp_ports, p_ts, tport)
 		port_delete(port);
-	TAILQ_REMOVE(&pp->pp_conf->conf_pports, pp, pp_next);
+	TAILQ_REMOVE(&pp->pp_kports->pports, pp, pp_next);
 	free(pp->pp_name);
 	free(pp);
 }
@@ -1255,7 +1251,8 @@ port_new(struct conf *conf, struct target *target, struct portal_group *pg)
 }
 
 struct port *
-port_new_ioctl(struct conf *conf, struct target *target, int pp, int vp)
+port_new_ioctl(struct conf *conf, struct kports *kports, struct target *target,
+    int pp, int vp)
 {
 	struct pport *pport;
 	struct port *port;
@@ -1269,7 +1266,7 @@ port_new_ioctl(struct conf *conf, struct target *target, int pp, int vp)
 		return (NULL);
 	}
 
-	pport = pport_find(conf, pname);
+	pport = pport_find(kports, pname);
 	if (pport != NULL) {
 		free(pname);
 		return (port_new_pp(conf, target, pport));
@@ -1424,6 +1421,7 @@ target_delete(struct target *targ)
 		port_delete(port);
 	TAILQ_REMOVE(&targ->t_conf->conf_targets, targ, t_next);
 
+	free(targ->t_pport);
 	free(targ->t_name);
 	free(targ->t_redirection);
 	free(targ);
@@ -2686,20 +2684,16 @@ check_perms(const char *path)
 }
 
 static struct conf *
-conf_new_from_file(const char *path, struct conf *oldconf, bool ucl)
+conf_new_from_file(const char *path, bool ucl)
 {
 	struct conf *conf;
 	struct auth_group *ag;
 	struct portal_group *pg;
-	struct pport *pp;
 	int error;
 
 	log_debugx("obtaining configuration from %s", path);
 
 	conf = conf_new();
-
-	TAILQ_FOREACH(pp, &oldconf->conf_pports, pp_next)
-		pport_copy(pp, conf);
 
 	ag = auth_group_new(conf, "default");
 	assert(ag != NULL);
@@ -2755,9 +2749,60 @@ conf_new_from_file(const char *path, struct conf *oldconf, bool ucl)
 	return (conf);
 }
 
+/*
+ * If the config file specifies physical ports for any target, associate them
+ * with the config file.  If necessary, create them.
+ */
+static int
+new_pports_from_conf(struct conf *conf, struct kports *kports)
+{
+	struct target *targ;
+	struct pport *pp;
+	struct port *tp;
+	int ret, i_pp, i_vp;
+
+	TAILQ_FOREACH(targ, &conf->conf_targets, t_next) {
+		if (!targ->t_pport)
+			continue;
+
+		ret = sscanf(targ->t_pport, "ioctl/%d/%d", &i_pp, &i_vp);
+		if (ret > 0) {
+			tp = port_new_ioctl(conf, kports, targ, i_pp, i_vp);
+			if (tp == NULL) {
+				log_warnx("can't create new ioctl port "
+				    "for target \"%s\"", targ->t_name);
+				return (1);
+			}
+
+			continue;
+		}
+
+		pp = pport_find(kports, targ->t_pport);
+		if (pp == NULL) {
+			log_warnx("unknown port \"%s\" for target \"%s\"",
+			    targ->t_pport, targ->t_name);
+			return (1);
+		}
+		if (!TAILQ_EMPTY(&pp->pp_ports)) {
+			log_warnx("can't link port \"%s\" to target \"%s\", "
+			    "port already linked to some target",
+			    targ->t_pport, targ->t_name);
+			return (1);
+		}
+		tp = port_new_pp(conf, targ, pp);
+		if (tp == NULL) {
+			log_warnx("can't link port \"%s\" to target \"%s\"",
+			    targ->t_pport, targ->t_name);
+			return (1);
+		}
+	}
+	return (0);
+}
+
 int
 main(int argc, char **argv)
 {
+	struct kports kports;
 	struct conf *oldconf, *newconf, *tmpconf;
 	struct isns *newns;
 	const char *config_path = DEFAULT_CONFIG_PATH;
@@ -2800,8 +2845,9 @@ main(int argc, char **argv)
 	log_init(debug);
 	kernel_init();
 
-	oldconf = conf_new_from_kernel();
-	newconf = conf_new_from_file(config_path, oldconf, use_ucl);
+	TAILQ_INIT(&kports.pports);
+	oldconf = conf_new_from_kernel(&kports);
+	newconf = conf_new_from_file(config_path, use_ucl);
 
 	if (newconf == NULL)
 		log_errx(1, "configuration error; exiting");
@@ -2813,6 +2859,9 @@ main(int argc, char **argv)
 		oldconf->conf_debug = debug;
 		newconf->conf_debug = debug;
 	}
+
+	if (new_pports_from_conf(newconf, &kports))
+		log_errx(1, "Error associating physical ports; exiting");
 
 	error = conf_apply(oldconf, newconf);
 	if (error != 0)
@@ -2841,17 +2890,21 @@ main(int argc, char **argv)
 		if (sighup_received) {
 			sighup_received = false;
 			log_debugx("received SIGHUP, reloading configuration");
-			tmpconf = conf_new_from_file(config_path, newconf,
-			    use_ucl);
+			tmpconf = conf_new_from_file(config_path, use_ucl);
 
 			if (tmpconf == NULL) {
 				log_warnx("configuration error, "
 				    "continuing with old configuration");
+			} else if (new_pports_from_conf(tmpconf, &kports)) {
+				log_warnx("Error associating physical ports, "
+				    "continuing with old configuration");
+				conf_delete(tmpconf);
 			} else {
 				if (debug > 0)
 					tmpconf->conf_debug = debug;
 				oldconf = newconf;
 				newconf = tmpconf;
+
 				error = conf_apply(oldconf, newconf);
 				if (error != 0)
 					log_warnx("failed to reload "
