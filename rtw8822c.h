@@ -16,6 +16,11 @@ struct rtw8822cu_efuse {
 	u8 res2[0x3d];
 };
 
+struct rtw8822cs_efuse {
+	u8 res0[0x4a];			/* 0x120 */
+	u8 mac_addr[ETH_ALEN];		/* 0x16a */
+} __packed;
+
 struct rtw8822ce_efuse {
 	u8 mac_addr[ETH_ALEN];		/* 0x120 */
 	u8 vender_id[2];
@@ -91,8 +96,9 @@ struct rtw8822c_efuse {
 	u8 res9;
 	u8 res10[0x42];
 	union {
-		struct rtw8822cu_efuse u;
 		struct rtw8822ce_efuse e;
+		struct rtw8822cu_efuse u;
+		struct rtw8822cs_efuse s;
 	};
 };
 
@@ -117,6 +123,8 @@ enum rtw8822c_dpk_one_shot_action {
 
 void rtw8822c_parse_tbl_dpk(struct rtw_dev *rtwdev,
 			    const struct rtw_table *tbl);
+
+extern const struct rtw_chip_info rtw8822c_hw_spec;
 
 #define RTW_DECL_TABLE_DPK(name)			\
 const struct rtw_table name ## _tbl = {			\
