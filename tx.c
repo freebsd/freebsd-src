@@ -34,45 +34,63 @@ void rtw_tx_stats(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 
 void rtw_tx_fill_tx_desc(struct rtw_tx_pkt_info *pkt_info, struct sk_buff *skb)
 {
-	__le32 *txdesc = (__le32 *)skb->data;
+	struct rtw_tx_desc *tx_desc = (struct rtw_tx_desc *)skb->data;
+	bool more_data = false;
 
-	SET_TX_DESC_TXPKTSIZE(txdesc,  pkt_info->tx_pkt_size);
-	SET_TX_DESC_OFFSET(txdesc, pkt_info->offset);
-	SET_TX_DESC_PKT_OFFSET(txdesc, pkt_info->pkt_offset);
-	SET_TX_DESC_QSEL(txdesc, pkt_info->qsel);
-	SET_TX_DESC_BMC(txdesc, pkt_info->bmc);
-	SET_TX_DESC_RATE_ID(txdesc, pkt_info->rate_id);
-	SET_TX_DESC_DATARATE(txdesc, pkt_info->rate);
-	SET_TX_DESC_DISDATAFB(txdesc, pkt_info->dis_rate_fallback);
-	SET_TX_DESC_USE_RATE(txdesc, pkt_info->use_rate);
-	SET_TX_DESC_SEC_TYPE(txdesc, pkt_info->sec_type);
-	SET_TX_DESC_DATA_BW(txdesc, pkt_info->bw);
-	SET_TX_DESC_SW_SEQ(txdesc, pkt_info->seq);
-	SET_TX_DESC_MAX_AGG_NUM(txdesc, pkt_info->ampdu_factor);
-	SET_TX_DESC_AMPDU_DENSITY(txdesc, pkt_info->ampdu_density);
-	SET_TX_DESC_DATA_STBC(txdesc, pkt_info->stbc);
-	SET_TX_DESC_DATA_LDPC(txdesc, pkt_info->ldpc);
-	SET_TX_DESC_AGG_EN(txdesc, pkt_info->ampdu_en);
-	SET_TX_DESC_LS(txdesc, pkt_info->ls);
-	SET_TX_DESC_DATA_SHORT(txdesc, pkt_info->short_gi);
-	SET_TX_DESC_SPE_RPT(txdesc, pkt_info->report);
-	SET_TX_DESC_SW_DEFINE(txdesc, pkt_info->sn);
-	SET_TX_DESC_USE_RTS(txdesc, pkt_info->rts);
+	if (pkt_info->qsel == TX_DESC_QSEL_HIGH)
+		more_data = true;
+
+	tx_desc->w0 = le32_encode_bits(pkt_info->tx_pkt_size, RTW_TX_DESC_W0_TXPKTSIZE) |
+		      le32_encode_bits(pkt_info->offset, RTW_TX_DESC_W0_OFFSET) |
+		      le32_encode_bits(pkt_info->bmc, RTW_TX_DESC_W0_BMC) |
+		      le32_encode_bits(pkt_info->ls, RTW_TX_DESC_W0_LS) |
+		      le32_encode_bits(pkt_info->dis_qselseq, RTW_TX_DESC_W0_DISQSELSEQ);
+
+	tx_desc->w1 = le32_encode_bits(pkt_info->qsel, RTW_TX_DESC_W1_QSEL) |
+		      le32_encode_bits(pkt_info->rate_id, RTW_TX_DESC_W1_RATE_ID) |
+		      le32_encode_bits(pkt_info->sec_type, RTW_TX_DESC_W1_SEC_TYPE) |
+		      le32_encode_bits(pkt_info->pkt_offset, RTW_TX_DESC_W1_PKT_OFFSET) |
+		      le32_encode_bits(more_data, RTW_TX_DESC_W1_MORE_DATA);
+
+	tx_desc->w2 = le32_encode_bits(pkt_info->ampdu_en, RTW_TX_DESC_W2_AGG_EN) |
+		      le32_encode_bits(pkt_info->report, RTW_TX_DESC_W2_SPE_RPT) |
+		      le32_encode_bits(pkt_info->ampdu_density, RTW_TX_DESC_W2_AMPDU_DEN) |
+		      le32_encode_bits(pkt_info->bt_null, RTW_TX_DESC_W2_BT_NULL);
+
+	tx_desc->w3 = le32_encode_bits(pkt_info->hw_ssn_sel, RTW_TX_DESC_W3_HW_SSN_SEL) |
+		      le32_encode_bits(pkt_info->use_rate, RTW_TX_DESC_W3_USE_RATE) |
+		      le32_encode_bits(pkt_info->dis_rate_fallback, RTW_TX_DESC_W3_DISDATAFB) |
+		      le32_encode_bits(pkt_info->rts, RTW_TX_DESC_W3_USE_RTS) |
+		      le32_encode_bits(pkt_info->nav_use_hdr, RTW_TX_DESC_W3_NAVUSEHDR) |
+		      le32_encode_bits(pkt_info->ampdu_factor, RTW_TX_DESC_W3_MAX_AGG_NUM);
+
+	tx_desc->w4 = le32_encode_bits(pkt_info->rate, RTW_TX_DESC_W4_DATARATE);
+
+	tx_desc->w5 = le32_encode_bits(pkt_info->short_gi, RTW_TX_DESC_W5_DATA_SHORT) |
+		      le32_encode_bits(pkt_info->bw, RTW_TX_DESC_W5_DATA_BW) |
+		      le32_encode_bits(pkt_info->ldpc, RTW_TX_DESC_W5_DATA_LDPC) |
+		      le32_encode_bits(pkt_info->stbc, RTW_TX_DESC_W5_DATA_STBC);
+
+	tx_desc->w6 = le32_encode_bits(pkt_info->sn, RTW_TX_DESC_W6_SW_DEFINE);
+
+	tx_desc->w8 = le32_encode_bits(pkt_info->en_hwseq, RTW_TX_DESC_W8_EN_HWSEQ);
+
+	tx_desc->w9 = le32_encode_bits(pkt_info->seq, RTW_TX_DESC_W9_SW_SEQ);
+
 	if (pkt_info->rts) {
-		SET_TX_DESC_RTSRATE(txdesc, DESC_RATE24M);
-		SET_TX_DESC_DATA_RTS_SHORT(txdesc, 1);
+		tx_desc->w4 |= le32_encode_bits(DESC_RATE24M, RTW_TX_DESC_W4_RTSRATE);
+		tx_desc->w5 |= le32_encode_bits(1, RTW_TX_DESC_W5_DATA_RTS_SHORT);
 	}
-	SET_TX_DESC_DISQSELSEQ(txdesc, pkt_info->dis_qselseq);
-	SET_TX_DESC_EN_HWSEQ(txdesc, pkt_info->en_hwseq);
-	SET_TX_DESC_HW_SSN_SEL(txdesc, pkt_info->hw_ssn_sel);
-	SET_TX_DESC_NAVUSEHDR(txdesc, pkt_info->nav_use_hdr);
-	SET_TX_DESC_BT_NULL(txdesc, pkt_info->bt_null);
+
+	if (pkt_info->tim_offset)
+		tx_desc->w9 |= le32_encode_bits(1, RTW_TX_DESC_W9_TIM_EN) |
+			       le32_encode_bits(pkt_info->tim_offset, RTW_TX_DESC_W9_TIM_OFFSET);
 }
 EXPORT_SYMBOL(rtw_tx_fill_tx_desc);
 
 static u8 get_tx_ampdu_factor(struct ieee80211_sta *sta)
 {
-	u8 exp = sta->ht_cap.ampdu_factor;
+	u8 exp = sta->deflink.ht_cap.ampdu_factor;
 
 	/* the least ampdu factor is 8K, and the value in the tx desc is the
 	 * max aggregation num, which represents val * 2 packets can be
@@ -83,7 +101,7 @@ static u8 get_tx_ampdu_factor(struct ieee80211_sta *sta)
 
 static u8 get_tx_ampdu_density(struct ieee80211_sta *sta)
 {
-	return sta->ht_cap.ampdu_density;
+	return sta->deflink.ht_cap.ampdu_density;
 }
 
 static u8 get_highest_ht_tx_rate(struct rtw_dev *rtwdev,
@@ -91,7 +109,7 @@ static u8 get_highest_ht_tx_rate(struct rtw_dev *rtwdev,
 {
 	u8 rate;
 
-	if (rtwdev->hal.rf_type == RF_2T2R && sta->ht_cap.mcs.rx_mask[1] != 0)
+	if (rtwdev->hal.rf_type == RF_2T2R && sta->deflink.ht_cap.mcs.rx_mask[1] != 0)
 		rate = DESC_RATEMCS15;
 	else
 		rate = DESC_RATEMCS7;
@@ -106,7 +124,7 @@ static u8 get_highest_vht_tx_rate(struct rtw_dev *rtwdev,
 	u8 rate;
 	u16 tx_mcs_map;
 
-	tx_mcs_map = le16_to_cpu(sta->vht_cap.vht_mcs.tx_mcs_map);
+	tx_mcs_map = le16_to_cpu(sta->deflink.vht_cap.vht_mcs.tx_mcs_map);
 	if (efuse->hw_cap.nss == 1) {
 		switch (tx_mcs_map & 0x3) {
 		case IEEE80211_VHT_MCS_SUPPORT_0_7:
@@ -340,11 +358,11 @@ static void rtw_tx_data_pkt_info_update(struct rtw_dev *rtwdev,
 	if (info->control.use_rts || skb->len > hw->wiphy->rts_threshold)
 		pkt_info->rts = true;
 
-	if (sta->vht_cap.vht_supported)
+	if (sta->deflink.vht_cap.vht_supported)
 		rate = get_highest_vht_tx_rate(rtwdev, sta);
-	else if (sta->ht_cap.ht_supported)
+	else if (sta->deflink.ht_cap.ht_supported)
 		rate = get_highest_ht_tx_rate(rtwdev, sta);
-	else if (sta->supp_rates[0] <= 0xf)
+	else if (sta->deflink.supp_rates[0] <= 0xf)
 		rate = DESC_RATE11M;
 	else
 		rate = DESC_RATE54M;
@@ -353,7 +371,7 @@ static void rtw_tx_data_pkt_info_update(struct rtw_dev *rtwdev,
 
 	bw = si->bw_mode;
 	rate_id = si->rate_id;
-	stbc = si->stbc_en;
+	stbc = rtwdev->hal.txrx_1ss ? false : si->stbc_en;
 	ldpc = si->ldpc_en;
 
 out:
@@ -380,7 +398,7 @@ void rtw_tx_pkt_info_update(struct rtw_dev *rtwdev,
 			    struct ieee80211_sta *sta,
 			    struct sk_buff *skb)
 {
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct rtw_sta_info *si;
@@ -420,7 +438,7 @@ void rtw_tx_rsvd_page_pkt_info_update(struct rtw_dev *rtwdev,
 				      struct sk_buff *skb,
 				      enum rtw_rsvd_packet_type type)
 {
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	bool bmc;
 
@@ -448,6 +466,19 @@ void rtw_tx_rsvd_page_pkt_info_update(struct rtw_dev *rtwdev,
 	if (type == RSVD_QOS_NULL)
 		pkt_info->bt_null = true;
 
+	if (type == RSVD_BEACON) {
+		struct rtw_rsvd_page *rsvd_pkt;
+		int hdr_len;
+
+		rsvd_pkt = list_first_entry_or_null(&rtwdev->rsvd_page_list,
+						    struct rtw_rsvd_page,
+						    build_list);
+		if (rsvd_pkt && rsvd_pkt->tim_offset != 0) {
+			hdr_len = sizeof(struct ieee80211_hdr_3addr);
+			pkt_info->tim_offset = rsvd_pkt->tim_offset - hdr_len;
+		}
+	}
+
 	rtw_tx_pkt_info_update_sec(rtwdev, pkt_info, skb);
 
 	/* TODO: need to change hw port and hw ssn sel for multiple vifs */
@@ -458,7 +489,7 @@ rtw_tx_write_data_rsvd_page_get(struct rtw_dev *rtwdev,
 				struct rtw_tx_pkt_info *pkt_info,
 				u8 *buf, u32 size)
 {
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct sk_buff *skb;
 	u32 tx_pkt_desc_sz;
 	u32 length;
@@ -484,7 +515,7 @@ rtw_tx_write_data_h2c_get(struct rtw_dev *rtwdev,
 			  struct rtw_tx_pkt_info *pkt_info,
 			  u8 *buf, u32 size)
 {
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct sk_buff *skb;
 	u32 tx_pkt_desc_sz;
 	u32 length;
@@ -575,8 +606,6 @@ static int rtw_txq_push_skb(struct rtw_dev *rtwdev,
 		rtw_err(rtwdev, "failed to write TX skb to HCI\n");
 		return ret;
 	}
-	rtwtxq->last_push = jiffies;
-
 	return 0;
 }
 
@@ -618,9 +647,8 @@ static void rtw_txq_push(struct rtw_dev *rtwdev,
 	rcu_read_unlock();
 }
 
-void rtw_tx_work(struct work_struct *w)
+void __rtw_tx_work(struct rtw_dev *rtwdev)
 {
-	struct rtw_dev *rtwdev = container_of(w, struct rtw_dev, tx_work);
 	struct rtw_txq *rtwtxq, *tmp;
 
 	spin_lock_bh(&rtwdev->txq_lock);
@@ -639,6 +667,13 @@ void rtw_tx_work(struct work_struct *w)
 	rtw_hci_tx_kick_off(rtwdev);
 
 	spin_unlock_bh(&rtwdev->txq_lock);
+}
+
+void rtw_tx_work(struct work_struct *w)
+{
+	struct rtw_dev *rtwdev = container_of(w, struct rtw_dev, tx_work);
+
+	__rtw_tx_work(rtwdev);
 }
 
 void rtw_txq_init(struct rtw_dev *rtwdev, struct ieee80211_txq *txq)
@@ -665,3 +700,44 @@ void rtw_txq_cleanup(struct rtw_dev *rtwdev, struct ieee80211_txq *txq)
 		list_del_init(&rtwtxq->list);
 	spin_unlock_bh(&rtwdev->txq_lock);
 }
+
+static const enum rtw_tx_queue_type ac_to_hwq[] = {
+	[IEEE80211_AC_VO] = RTW_TX_QUEUE_VO,
+	[IEEE80211_AC_VI] = RTW_TX_QUEUE_VI,
+	[IEEE80211_AC_BE] = RTW_TX_QUEUE_BE,
+	[IEEE80211_AC_BK] = RTW_TX_QUEUE_BK,
+};
+
+static_assert(ARRAY_SIZE(ac_to_hwq) == IEEE80211_NUM_ACS);
+
+enum rtw_tx_queue_type rtw_tx_ac_to_hwq(enum ieee80211_ac_numbers ac)
+{
+	if (WARN_ON(unlikely(ac >= IEEE80211_NUM_ACS)))
+		return RTW_TX_QUEUE_BE;
+
+	return ac_to_hwq[ac];
+}
+EXPORT_SYMBOL(rtw_tx_ac_to_hwq);
+
+enum rtw_tx_queue_type rtw_tx_queue_mapping(struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	__le16 fc = hdr->frame_control;
+	u8 q_mapping = skb_get_queue_mapping(skb);
+	enum rtw_tx_queue_type queue;
+
+	if (unlikely(ieee80211_is_beacon(fc)))
+		queue = RTW_TX_QUEUE_BCN;
+	else if (unlikely(ieee80211_is_mgmt(fc) || ieee80211_is_ctl(fc)))
+		queue = RTW_TX_QUEUE_MGMT;
+	else if (is_broadcast_ether_addr(hdr->addr1) ||
+		 is_multicast_ether_addr(hdr->addr1))
+		queue = RTW_TX_QUEUE_HI0;
+	else if (WARN_ON_ONCE(q_mapping >= ARRAY_SIZE(ac_to_hwq)))
+		queue = ac_to_hwq[IEEE80211_AC_BE];
+	else
+		queue = ac_to_hwq[q_mapping];
+
+	return queue;
+}
+EXPORT_SYMBOL(rtw_tx_queue_mapping);
