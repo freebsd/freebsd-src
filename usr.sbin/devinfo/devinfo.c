@@ -1,6 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
+ * Copyright (c) 2024 KT Ullavik
  * Copyright (c) 2000, 2001 Michael Smith
  * Copyright (c) 2000 BSDi
  * All rights reserved.
@@ -38,7 +39,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <libxo/xo.h>
 #include "devinfo.h"
+
 
 static int	rflag;
 static int	vflag;
@@ -67,10 +70,34 @@ print_resource(struct devinfo_res *res)
 
 	rman = devinfo_handle_to_rman(res->dr_rman);
 	hexmode =  (rman->dm_size > 1000) || (rman->dm_size == 0);
-	printf(hexmode ? "0x%jx" : "%ju", res->dr_start);
-	if (res->dr_size > 1)
-		printf(hexmode ? "-0x%jx" : "-%ju",
-		    res->dr_start + res->dr_size - 1);
+	// printf(hexmode ? "0x%jx" : "%ju", res->dr_start);
+
+
+	if (hexmode) {
+		// Don't use xo modifier to prepend '0x' because
+		// it gets omitted when address is zero - breaking compat
+		// with traditional text output.
+		xo_emit("0x{d:start/%llx}", res->dr_start);
+	}
+	else {
+		// xo_emit("{d:start/%#lx}", res->dr_start);
+		xo_emit("{d:start/%u}", res->dr_start);
+	}
+
+
+	if (res->dr_size > 1) {
+
+		if (hexmode) {
+			xo_emit("{D:-}0x{d:end/%llx}", res->dr_start + res->dr_size - 1);
+		}
+		else {
+			xo_emit("{D:-}{d:end/%u}", res->dr_start + res->dr_size - 1);
+		}
+
+
+		// printf(hexmode ? "-0x%jx" : "-%ju",
+		    // res->dr_start + res->dr_size - 1);
+	}
 }
 
 /*
@@ -92,9 +119,13 @@ print_device_matching_resource(struct devinfo_res *res, void *arg)
 		if (ia->indent == 0)
 			return(1);
 		for (i = 0; i < ia->indent; i++)
-			printf(" ");
+			xo_emit("{P: }");
+			// printf(" ");
+
 		print_resource(res);
-		printf("\n");
+		// printf("\n");
+		// xo_emit("{D:\n}");
+		xo_emit("\n");
 	}
 	return(0);
 }
@@ -117,8 +148,11 @@ print_device_rman_resources(struct devinfo_rman *rman, void *arg)
 
 		/* there are, print header */
 		for (i = 0; i < indent; i++)
-			printf(" ");
-		printf("%s:\n", rman->dm_desc);
+			xo_emit("{P: }");
+			// printf(" ");
+
+		// printf("%s:\n", rman->dm_desc);
+		xo_emit("{d:%s}:\n", rman->dm_desc);
 
 		/* print resources */
 		ia->indent = indent + 4;
@@ -129,37 +163,101 @@ print_device_rman_resources(struct devinfo_rman *rman, void *arg)
 	return(0);
 }
 
+/*
+ * Takes a key-value pair of the form "foo=bar"
+ * and prints it according to xo formatting.
+ */
+static void
+print_kv(char* s) {
+	char* k = strsep(&s, "=");
+	xo_emit("{ea:%s/%s} {d:%s}={d:%s}", k, s, k, s);
+}
+
+/*
+ * Takes a list of key-value pairs in the form
+ * "key1=val1 key2=val2 ..." and prints them according
+ * to xo formatting.
+ */
+static void
+print_kvlist(char* s) {
+	char *copy = strdup(s);
+	char *kv;
+	while ((kv = strsep(&copy, " ")) != NULL) {
+		print_kv(kv);
+	}
+	free(copy);
+}
+
 static void
 print_dev(struct devinfo_dev *dev)
 {
 
-	printf("%s", dev->dd_name[0] ? dev->dd_name : "unknown");
-	if (vflag && *dev->dd_pnpinfo)
-		printf(" pnpinfo %s", dev->dd_pnpinfo);
-	if (vflag && *dev->dd_location)
-		printf(" at %s", dev->dd_location);
-	if (!(dev->dd_flags & DF_ENABLED))
-		printf(" (disabled)");
-	else if (dev->dd_flags & DF_SUSPENDED)
-		printf(" (suspended)");
+	// printf("%s", dev->dd_name[0] ? dev->dd_name : "unknown");
+	if (vflag && *dev->dd_pnpinfo) {
+		// printf(" pnpinfo %s", dev->dd_pnpinfo);
+		xo_open_container("pnpinfo");
+		xo_emit("{D: pnpinfo}");
+		if ((strcmp(dev->dd_pnpinfo, "unknown") == 0)) {
+			xo_emit("{D: unknown}");
+		}
+		else {
+			print_kvlist(dev->dd_pnpinfo);
+		}
+		xo_close_container("pnpinfo");
+	}
+	if (vflag && *dev->dd_location) {
+		// printf(" at %s", dev->dd_location);
+		xo_open_container("location");
+		xo_emit("{D: at}");
+		print_kvlist(dev->dd_location);
+		xo_close_container("location");
+	}
+
+
+	if (!(dev->dd_flags & DF_ENABLED)) {
+		xo_emit("{D: (disabled)}");
+		xo_emit("{e:state/disabled}");
+	}
+	else if (dev->dd_flags & DF_SUSPENDED) {
+		xo_emit("{D: (suspended)}");
+		xo_emit("{e:state/suspended}");
+	}
+	else {
+		xo_emit("{e:state/enabled}");
+	}
+
+	// if (!(dev->dd_flags & DF_ENABLED))
+	// 	printf(" (disabled)");
+	// else if (dev->dd_flags & DF_SUSPENDED)
+	// 	printf(" (suspended)");
+
 }
 
 
-/*
- * Print information about a device.
- */
 int
 print_device(struct devinfo_dev *dev, void *arg)
 {
 	struct indent_arg	ia;
 	int			i, indent;
 
+
+	const char* devname = dev->dd_name[0] ? dev->dd_name : "unnnknown";
+	// free?
+	xo_open_container(devname);
+	// printf("%s", dev->dd_name[0] ? dev->dd_name : "unknown");
+
 	if (vflag || (dev->dd_name[0] != 0 && dev->dd_state >= DS_ATTACHED)) {
 		indent = (int)(intptr_t)arg;
 		for (i = 0; i < indent; i++)
-			printf(" ");
+			xo_emit("{P: }");
+			// printf(" ");
+
+		xo_emit("{d:%s}", devname);
+
 		print_dev(dev);
-		printf("\n");
+		// printf("\n");
+		// xo_emit("{D:\n}");
+		xo_emit("\n");
 		if (rflag) {
 			ia.indent = indent + 4;
 			ia.arg = dev;
@@ -168,8 +266,14 @@ print_device(struct devinfo_dev *dev, void *arg)
 		}
 	}
 
-	return(devinfo_foreach_device_child(dev, print_device,
+	// return(devinfo_foreach_device_child(dev, print_device,
+	    // (void *)((char *)arg + 2)));
+
+	int ret = (devinfo_foreach_device_child(dev, print_device,
 	    (void *)((char *)arg + 2)));
+
+	xo_close_container(devname);
+	return ret;
 }
 
 /*
@@ -180,15 +284,20 @@ print_rman_resource(struct devinfo_res *res, void *arg __unused)
 {
 	struct devinfo_dev	*dev;
 	
-	printf("    ");
+	// printf("    ");
+	xo_emit("{P:    }");
 	print_resource(res);
 	dev = devinfo_handle_to_device(res->dr_device);
 	if ((dev != NULL) && (dev->dd_name[0] != 0)) {
-		printf(" (%s)", dev->dd_name);
+		// printf(" (%s)", dev->dd_name);
+		xo_emit("{:device/ (%s)}", dev->dd_name);
 	} else {
-		printf(" ----");
+		// printf(" ----");
+		xo_emit("{D: ----}");
 	}
-	printf("\n");
+	// printf("\n");
+	// xo_emit("{D:\n}");
+	xo_emit("\n");
 	return(0);
 }
 
@@ -198,7 +307,9 @@ print_rman_resource(struct devinfo_res *res, void *arg __unused)
 int
 print_rman(struct devinfo_rman *rman, void *arg __unused)
 {
-	printf("%s:\n", rman->dm_desc);
+	// printf("%s:\n", rman->dm_desc);
+	xo_emit("{:description/%s}:\n", rman->dm_desc);
+
 	devinfo_foreach_rman_resource(rman, print_rman_resource, 0);
 	return(0);
 }
@@ -229,10 +340,15 @@ print_path(struct devinfo_dev *dev, void *xname)
 static void __dead2
 usage(void)
 {
-	fprintf(stderr, "%s\n%s\n%s\n",
-	    "usage: devinfo [-rv]",
-	    "       devinfo -u",
-	    "       devinfo -p dev [-v]");
+	xo_error(
+"usage: devinfo [-rv]\n"
+"       devinfo -u\n"
+"       devinfo -p dev [-v]\n");
+
+	// fprintf(stderr, "%s\n%s\n%s\n",
+	    // "usage: devinfo [-rv]",
+	    // "       devinfo -u",
+	    // "       devinfo -p dev [-v]");
 	exit(1);
 }
 
@@ -242,6 +358,12 @@ main(int argc, char *argv[])
 	struct devinfo_dev	*root;
 	int			c, uflag, rv;
 	char			*path = NULL;
+
+	argc = xo_parse_args(argc, argv);
+	if (argc < 0) {
+		exit(1);
+	}
+
 
 	uflag = 0;
 	while ((c = getopt(argc, argv, "p:ruv")) != -1) {
@@ -268,15 +390,15 @@ main(int argc, char *argv[])
 
 	if ((rv = devinfo_init()) != 0) {
 		errno = rv;
-		err(1, "devinfo_init");
+		xo_err(1, "devinfo_init");
 	}
 
 	if ((root = devinfo_handle_to_device(DEVINFO_ROOT_DEVICE)) == NULL)
-		errx(1, "can't find root device");
+		xo_errx(1, "can't find root device");
 
 	if (path) {
 		if (devinfo_foreach_device_child(root, print_path, (void *)path) == 0)
-			errx(1, "%s: Not found", path);
+			xo_errx(1, "%s: Not found", path);
 		if (!vflag)
 			printf("\n");
 	} else if (uflag) {
@@ -284,7 +406,13 @@ main(int argc, char *argv[])
 		devinfo_foreach_rman(print_rman, NULL);
 	} else {
 		/* print device hierarchy */
+		xo_open_container("device-information");
 		devinfo_foreach_device_child(root, print_device, (void *)0);
+		xo_close_container("device-information");
+	}
+
+	if (xo_finish() < 0) {
+		exit(EXIT_FAILURE);
 	}
 	return(0);
 }

@@ -3,6 +3,6 @@ PACKAGE=	devmatch
 PROG=	devinfo
 MAN=	devinfo.8
 
-LIBADD=	devinfo
+LIBADD=	xo devinfo
 
 .include <bsd.prog.mk>
