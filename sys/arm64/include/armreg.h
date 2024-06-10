@@ -1505,13 +1505,13 @@
 #define	 ID_ISAR5_VCMA_IMPL		(UL(0x1) << ID_ISAR5_VCMA_SHIFT)
 
 /* MAIR_EL1 - Memory Attribute Indirection Register */
-#define	MAIR_ATTR_MASK(idx)	(UL(0xff) << ((n)* 8))
-#define	MAIR_ATTR(attr, idx) ((attr) << ((idx) * 8))
-#define	 MAIR_DEVICE_nGnRnE	UL(0x00)
-#define	 MAIR_DEVICE_nGnRE	UL(0x04)
-#define	 MAIR_NORMAL_NC		UL(0x44)
-#define	 MAIR_NORMAL_WT		UL(0xbb)
-#define	 MAIR_NORMAL_WB		UL(0xff)
+#define	MAIR_ATTR_MASK(idx)		(UL(0xff) << ((n)* 8))
+#define	MAIR_ATTR(attr, idx)		((attr) << ((idx) * 8))
+#define	 MAIR_DEVICE_nGnRnE		UL(0x00)
+#define	 MAIR_DEVICE_nGnRE		UL(0x04)
+#define	 MAIR_NORMAL_NC			UL(0x44)
+#define	 MAIR_NORMAL_WT			UL(0xbb)
+#define	 MAIR_NORMAL_WB			UL(0xff)
 
 /* MDCCINT_EL1 */
 #define	MDCCINT_EL1			MRS_REG(MDCCINT_EL1)
