@@ -853,41 +853,10 @@ uclparse_target(const char *name, const ucl_object_t *top)
 		}
 
 		if (!strcmp(key, "port")) {
-			struct pport *pp;
-			struct port *tp;
-			const char *value = ucl_object_tostring(obj);
-			int ret, i_pp, i_vp = 0;
+			const char *value;
 
-			ret = sscanf(value, "ioctl/%d/%d", &i_pp, &i_vp);
-			if (ret > 0) {
-				tp = port_new_ioctl(conf, target, i_pp, i_vp);
-				if (tp == NULL) {
-					log_warnx("can't create new ioctl port "
-					    "for target \"%s\"", target->t_name);
-					return (1);
-				}
-
-				continue;
-			}
-
-			pp = pport_find(conf, value);
-			if (pp == NULL) {
-				log_warnx("unknown port \"%s\" for target \"%s\"",
-				    value, target->t_name);
-				return (1);
-			}
-			if (!TAILQ_EMPTY(&pp->pp_ports)) {
-				log_warnx("can't link port \"%s\" to target \"%s\", "
-				    "port already linked to some target",
-				    value, target->t_name);
-				return (1);
-			}
-			tp = port_new_pp(conf, target, pp);
-			if (tp == NULL) {
-				log_warnx("can't link port \"%s\" to target \"%s\"",
-				    value, target->t_name);
-				return (1);
-			}
+			value = ucl_object_tostring(obj);
+			target->t_pport = strdup(value);
 		}
 
 		if (!strcmp(key, "redirect")) {
