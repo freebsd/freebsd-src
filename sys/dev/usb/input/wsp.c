@@ -1263,9 +1263,7 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				dx = dy = 0;
 				if (sc->dz_count == 0)
 					dz = (sc->dz_sum / tun.z_factor) * (tun.z_invert ? -1 : 1);
-				if (sc->scr_mode == WSP_SCR_HOR || 
-				    abs(sc->pos_x[0] - sc->pos_x[1]) > tun.max_finger_area ||
-				    abs(sc->pos_y[0] - sc->pos_y[1]) > tun.max_finger_area)
+				if (sc->scr_mode == WSP_SCR_HOR || sc->distance > tun.max_double_tap_distance)
 					dz = 0;
 			}
 			if (ntouch == 3)
