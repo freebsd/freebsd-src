@@ -25,9 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)ktrace.1	8.1 (Berkeley) 6/6/93
-.\"
-.Dd August 26, 2019
+.Dd June 10, 2024
 .Dt KTRACE 1
 .Os
 .Sh NAME
@@ -50,7 +48,8 @@ The
 utility enables kernel trace logging for the specified processes.
 Kernel trace data is logged to the file
 .Pa ktrace.out .
-The kernel operations that are traced include system calls, namei
+The kernel operations that are traced include system calls,
+.Xr namei 9
 translations, signal processing, and
 .Tn I/O .
 .Pp
@@ -185,7 +184,8 @@ Disable tracing of all user-owned processes:
 .Xr kdump 1 ,
 .Xr truss 1 ,
 .Xr ktrace 2 ,
-.Xr utrace 2
+.Xr utrace 2 ,
+.Xr namei 9
 .Sh HISTORY
 The
 .Nm
