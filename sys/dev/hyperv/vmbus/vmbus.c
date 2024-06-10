@@ -140,7 +140,6 @@ static void			vmbus_event_proc_dummy(struct vmbus_softc *,
 static bus_dma_tag_t	vmbus_get_dma_tag(device_t parent, device_t child);
 static struct vmbus_softc	*vmbus_sc;
 static void free_pcpu_ptr(void);
-static void alloc_pcpu_ptr(void);
 
 SYSCTL_NODE(_hw, OID_AUTO, vmbus, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "Hyper-V vmbus");
