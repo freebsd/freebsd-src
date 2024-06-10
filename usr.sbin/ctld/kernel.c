@@ -414,7 +414,7 @@ cctl_char_handler(void *user_data, const XML_Char *str, int len)
 }
 
 struct conf *
-conf_new_from_kernel(void)
+conf_new_from_kernel(struct kports *kports)
 {
 	struct conf *conf = NULL;
 	struct target *targ;
@@ -559,13 +559,13 @@ retry_port:
 		if (port->cfiscsi_target == NULL) {
 			log_debugx("CTL port %u \"%s\" wasn't managed by ctld; ",
 			    port->port_id, name);
-			pp = pport_find(conf, name);
+			pp = pport_find(kports, name);
 			if (pp == NULL) {
 #if 0
 				log_debugx("found new kernel port %u \"%s\"",
 				    port->port_id, name);
 #endif
-				pp = pport_new(conf, name, port->port_id);
+				pp = pport_new(kports, name, port->port_id);
 				if (pp == NULL) {
 					log_warnx("pport_new failed");
 					continue;
