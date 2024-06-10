@@ -90,8 +90,6 @@
             ..
         ..
         usr.sbin
-            ctladm
-            ..
             dtrace
                 common
                     aggs
@@ -1224,6 +1222,8 @@
     ..
     usr.sbin
         chown
+        ..
+        ctladm
         ..
         daemon
         ..
