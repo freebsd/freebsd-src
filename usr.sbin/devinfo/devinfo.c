@@ -70,8 +70,6 @@ print_resource(struct devinfo_res *res)
 
 	rman = devinfo_handle_to_rman(res->dr_rman);
 	hexmode =  (rman->dm_size > 1000) || (rman->dm_size == 0);
-	// printf(hexmode ? "0x%jx" : "%ju", res->dr_start);
-
 
 	if (hexmode) {
 		// Don't use xo modifier to prepend '0x' because
@@ -80,7 +78,6 @@ print_resource(struct devinfo_res *res)
 		xo_emit("0x{d:start/%llx}", res->dr_start);
 	}
 	else {
-		// xo_emit("{d:start/%#lx}", res->dr_start);
 		xo_emit("{d:start/%u}", res->dr_start);
 	}
 
@@ -93,10 +90,6 @@ print_resource(struct devinfo_res *res)
 		else {
 			xo_emit("{D:-}{d:end/%u}", res->dr_start + res->dr_size - 1);
 		}
-
-
-		// printf(hexmode ? "-0x%jx" : "-%ju",
-		    // res->dr_start + res->dr_size - 1);
 	}
 }
 
@@ -120,11 +113,8 @@ print_device_matching_resource(struct devinfo_res *res, void *arg)
 			return(1);
 		for (i = 0; i < ia->indent; i++)
 			xo_emit("{P: }");
-			// printf(" ");
 
 		print_resource(res);
-		// printf("\n");
-		// xo_emit("{D:\n}");
 		xo_emit("\n");
 	}
 	return(0);
@@ -149,9 +139,7 @@ print_device_rman_resources(struct devinfo_rman *rman, void *arg)
 		/* there are, print header */
 		for (i = 0; i < indent; i++)
 			xo_emit("{P: }");
-			// printf(" ");
 
-		// printf("%s:\n", rman->dm_desc);
 		xo_emit("{d:%s}:\n", rman->dm_desc);
 
 		/* print resources */
@@ -192,9 +180,7 @@ static void
 print_dev(struct devinfo_dev *dev)
 {
 
-	// printf("%s", dev->dd_name[0] ? dev->dd_name : "unknown");
 	if (vflag && *dev->dd_pnpinfo) {
-		// printf(" pnpinfo %s", dev->dd_pnpinfo);
 		xo_open_container("pnpinfo");
 		xo_emit("{D: pnpinfo}");
 		if ((strcmp(dev->dd_pnpinfo, "unknown") == 0)) {
@@ -206,7 +192,6 @@ print_dev(struct devinfo_dev *dev)
 		xo_close_container("pnpinfo");
 	}
 	if (vflag && *dev->dd_location) {
-		// printf(" at %s", dev->dd_location);
 		xo_open_container("location");
 		xo_emit("{D: at}");
 		print_kvlist(dev->dd_location);
@@ -229,7 +214,6 @@ print_dev(struct devinfo_dev *dev)
 		xo_emit("{D: (suspended)}");
 }
 
-
 /*
  * Print information about a device.
  */
@@ -244,17 +228,14 @@ print_device(struct devinfo_dev *dev, void *arg)
 	int printit = (vflag || (dev->dd_name[0] != 0 && dev->dd_state >= DS_ATTACHED));
 
 	if (printit) {
-
 		indent = (int)(intptr_t)arg;
 		for (i = 0; i < indent; i++)
 			xo_emit("{P: }");
-			// printf(" ");
 
 		xo_open_container(devname);
 		xo_emit("{d:%s}", devname);
 
 		print_dev(dev);
-		// printf("\n");
 		xo_emit("\n");
 		if (rflag) {
 			ia.indent = indent + 4;
@@ -282,19 +263,14 @@ print_rman_resource(struct devinfo_res *res, void *arg __unused)
 {
 	struct devinfo_dev	*dev;
 	
-	// printf("    ");
 	xo_emit("{P:    }");
 	print_resource(res);
 	dev = devinfo_handle_to_device(res->dr_device);
 	if ((dev != NULL) && (dev->dd_name[0] != 0)) {
-		// printf(" (%s)", dev->dd_name);
 		xo_emit("{:device/ (%s)}", dev->dd_name);
 	} else {
-		// printf(" ----");
 		xo_emit("{D: ----}");
 	}
-	// printf("\n");
-	// xo_emit("{D:\n}");
 	xo_emit("\n");
 	return(0);
 }
@@ -305,9 +281,7 @@ print_rman_resource(struct devinfo_res *res, void *arg __unused)
 int
 print_rman(struct devinfo_rman *rman, void *arg __unused)
 {
-	// printf("%s:\n", rman->dm_desc);
 	xo_emit("{:description/%s}:\n", rman->dm_desc);
-
 	devinfo_foreach_rman_resource(rman, print_rman_resource, 0);
 	return(0);
 }
@@ -319,30 +293,20 @@ print_path(struct devinfo_dev *dev, void *xname)
 	int rv;
 
 	if (strcmp(dev->dd_name, name) == 0) {
-
-		// const char* devname = dev->dd_name[0] ? dev->dd_name : "unknown";
 		xo_emit("{d:%s }", name);
-
 		print_dev(dev);
 		if (vflag)
 			xo_emit("\n");
-			// printf("\n");
 		return (1);
 	}
 
 	rv = devinfo_foreach_device_child(dev, print_path, xname);
 	if (rv == 1) {
 		xo_emit("{P: }");
-		// printf(" ");
-
-		const char* devname = dev->dd_name[0] ? dev->dd_name : "unknown";
-		xo_emit("{d:%s }", devname);
-
-
+		xo_emit("{d:%s }", dev->dd_name[0] ? dev->dd_name : "unknown");
 		print_dev(dev);
 		if (vflag)
 			xo_emit("\n");
-			// printf("\n");
 	}
 	return (rv);
 }
@@ -354,11 +318,6 @@ usage(void)
 "usage: devinfo [-rv]\n"
 "       devinfo -u\n"
 "       devinfo -p dev [-v]\n");
-
-	// fprintf(stderr, "%s\n%s\n%s\n",
-	    // "usage: devinfo [-rv]",
-	    // "       devinfo -u",
-	    // "       devinfo -p dev [-v]");
 	exit(1);
 }
 
@@ -411,7 +370,6 @@ main(int argc, char *argv[])
 			xo_errx(1, "%s: Not found", path);
 		if (!vflag)
 			xo_emit("\n");
-			// printf("\n");
 	} else if (uflag) {
 		/* print resource usage? */
 		devinfo_foreach_rman(print_rman, NULL);
