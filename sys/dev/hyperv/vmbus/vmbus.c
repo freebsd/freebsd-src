@@ -147,6 +147,13 @@ SYSCTL_NODE(_hw, OID_AUTO, vmbus, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
 static int			vmbus_pin_evttask = 1;
 SYSCTL_INT(_hw_vmbus, OID_AUTO, pin_evttask, CTLFLAG_RDTUN,
     &vmbus_pin_evttask, 0, "Pin event tasks to their respective CPU");
+
+#if defined(__x86_64__)
+static int			hv_tlb_hcall = 1;
+SYSCTL_INT(_hw_vmbus, OID_AUTO, tlb_hcall , CTLFLAG_RDTUN,
+    &hv_tlb_hcall, 0, "Use Hyper_V hyercall for tlb flush");
+#endif
+
 uint32_t			vmbus_current_version;
 
 static const uint32_t		vmbus_version[] = {
@@ -756,8 +763,19 @@ vmbus_synic_setup(void *xsc)
 	if (VMBUS_PCPU_GET(sc, vcpuid, cpu) > hv_max_vp_index)
 		hv_max_vp_index = VMBUS_PCPU_GET(sc, vcpuid, cpu);
 	hv_cpu_mem = DPCPU_ID_PTR(cpu, hv_pcpu_mem);
-	*hv_cpu_mem = contigmalloc(PAGE_SIZE, M_DEVBUF, M_WAITOK | M_ZERO,
+	*hv_cpu_mem = contigmalloc(PAGE_SIZE, M_DEVBUF, M_NOWAIT | M_ZERO,
 	    0ul, ~0ul, PAGE_SIZE, 0);
+
+#if defined(__x86_64__)
+	if (*hv_cpu_mem == NULL && hv_tlb_hcall) {
+		hv_tlb_hcall = 0;
+		if (bootverbose && sc)
+			device_printf(sc->vmbus_dev,
+			    "cannot alloc contig memory for hv_pcpu_mem, "
+			    "use system provided tlb flush call.\n");
+	}
+#endif
+
 	/*
 	 * Setup the SynIC message.
 	 */
@@ -1502,7 +1520,8 @@ vmbus_doattach(struct vmbus_softc *sc)
 	sc->vmbus_flags |= VMBUS_FLAG_SYNIC;
 
 #if defined(__x86_64__)
-	smp_targeted_tlb_shootdown = &hyperv_vm_tlb_flush;
+	if (hv_tlb_hcall)
+		smp_targeted_tlb_shootdown = &hyperv_vm_tlb_flush;
 #endif
 
 	/*
