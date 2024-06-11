@@ -223,7 +223,6 @@ print_device(struct devinfo_dev *dev, void *arg)
 	struct indent_arg	ia;
 	int			i, indent;
 
-	// free?
 	const char* devname = dev->dd_name[0] ? dev->dd_name : "unknown";
 	int printit = (vflag || (dev->dd_name[0] != 0 && dev->dd_state >= DS_ATTACHED));
 
