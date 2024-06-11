@@ -103,6 +103,7 @@ int intr_isrc_deregister(struct intr_irqsrc *);
 int intr_isrc_register(struct intr_irqsrc *, device_t, u_int, const char *, ...)
     __printflike(4, 5);
 
+int intr_assign_irq(struct intr_irqsrc *isrc, int cpu, bool do_assignment);
 int intr_add_handler(struct intr_irqsrc *, const char *, driver_filter_t,
     driver_intr_t, void *, enum intr_type, void **);
 int intr_describe(struct intr_irqsrc *isrc, void *cookie, const char *descr);
