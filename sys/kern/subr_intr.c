@@ -1209,7 +1209,11 @@ intr_describe(struct intr_irqsrc *isrc, void *cookie, const char *descr)
 		return (0);
 	}
 #endif
-	error = intr_event_describe_handler(isrc->isrc_event, cookie, descr);
+	if (cookie != NULL)
+		error = intr_event_describe_handler(isrc->isrc_event, cookie,
+		    descr);
+	else
+		error = 0;
 	if (error == 0) {
 		mtx_lock(&isrc_table_lock);
 		intrcnt_updatename(isrc);
