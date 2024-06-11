@@ -1184,8 +1184,9 @@ intr_teardown_irq(device_t dev, struct resource *res, void *cookie)
 		if (isrc->isrc_handlers == 0)
 			PIC_DISABLE_INTR(isrc->isrc_dev, isrc);
 		PIC_TEARDOWN_INTR(isrc->isrc_dev, isrc, res, data);
-		intrcnt_updatename(isrc);
 		mtx_unlock(&isrc_table_lock);
+
+		intr_describe(isrc, NULL, NULL);
 	}
 	return (error);
 }
