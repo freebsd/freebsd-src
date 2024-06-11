@@ -83,15 +83,11 @@ print_resource(struct devinfo_res *res)
 		xo_emit("{d:start/%u}", res->dr_start);
 	}
 
-
 	if (res->dr_size > 1) {
-
-		if (hexmode) {
+		if (hexmode)
 			xo_emit("{D:-}0x{d:end/%llx}", res->dr_start + res->dr_size - 1);
-		}
-		else {
+		else
 			xo_emit("{D:-}{d:end/%u}", res->dr_start + res->dr_size - 1);
-		}
 	}
 }
 
@@ -154,26 +150,18 @@ print_device_rman_resources(struct devinfo_rman *rman, void *arg)
 }
 
 /*
- * Takes a key-value pair of the form "foo=bar"
- * and prints it according to xo formatting.
- */
-static void
-print_kv(char* s) {
-	char* k = strsep(&s, "=");
-	xo_emit("{ea:%s/%s} {d:%s}={d:%s}", k, s, k, s);
-}
-
-/*
  * Takes a list of key-value pairs in the form
  * "key1=val1 key2=val2 ..." and prints them according
  * to xo formatting.
  */
 static void
-print_kvlist(char* s) {
+print_kvlist(char* s)
+{
 	char *copy = strdup(s);
 	char *kv;
 	while ((kv = strsep(&copy, " ")) != NULL) {
-		print_kv(kv);
+		char* k = strsep(&kv, "=");
+		xo_emit("{ea:%s/%s} {d:%s}={d:%s}", k, kv, k, kv);
 	}
 	free(copy);
 }
@@ -181,7 +169,6 @@ print_kvlist(char* s) {
 static void
 print_device_props(struct devinfo_dev *dev)
 {
-
 	if (vflag) {
 		if (*dev->dd_pnpinfo) {
 			xo_open_container("pnpinfo");
@@ -252,7 +239,6 @@ print_device(struct devinfo_dev *dev, void *arg)
 	if (printit) {
 		xo_close_container(devname);
 	}
-
 	return ret;
 }
 
