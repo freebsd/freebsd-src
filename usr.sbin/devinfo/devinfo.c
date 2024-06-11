@@ -213,23 +213,20 @@ print_dev(struct devinfo_dev *dev)
 		xo_close_container("location");
 	}
 
+	// If verbose, then always print state for json/xml.
+	if (vflag) {
+		if (!(dev->dd_flags & DF_ENABLED))
+			xo_emit("{e:state/disabled}");
+		else if (dev->dd_flags & DF_SUSPENDED)
+			xo_emit("{e:state/suspended}");
+		else
+			xo_emit("{e:state/enabled}");
+	}
 
-	if (!(dev->dd_flags & DF_ENABLED)) {
+	if (!(dev->dd_flags & DF_ENABLED))
 		xo_emit("{D: (disabled)}");
-		xo_emit("{e:state/disabled}");
-	}
-	else if (dev->dd_flags & DF_SUSPENDED) {
+	else if (dev->dd_flags & DF_SUSPENDED)
 		xo_emit("{D: (suspended)}");
-		xo_emit("{e:state/suspended}");
-	}
-	else {
-		xo_emit("{e:state/enabled}");
-	}
-
-	// if (!(dev->dd_flags & DF_ENABLED))
-	// 	printf(" (disabled)");
-	// else if (dev->dd_flags & DF_SUSPENDED)
-	// 	printf(" (suspended)");
 
 }
 
