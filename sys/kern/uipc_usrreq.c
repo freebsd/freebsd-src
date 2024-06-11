@@ -2189,7 +2189,7 @@ unp_disconnect(struct unpcb *unp, struct unpcb *unp2)
 
 	if (m != NULL) {
 		unp_scan(m, unp_freerights);
-		m_freem(m);
+		m_freemp(m);
 	}
 }
 
@@ -3276,7 +3276,7 @@ unp_dispose(struct socket *so)
 
 	if (m != NULL) {
 		unp_scan(m, unp_freerights);
-		m_freem(m);
+		m_freemp(m);
 	}
 }
 
