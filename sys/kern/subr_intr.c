@@ -635,14 +635,10 @@ intr_isrc_post_filter(void *arg)
 	PIC_POST_FILTER(isrc->isrc_dev, isrc);
 }
 
-/*
- *  Interrupt source assign_cpu method for MI interrupt framework.
- */
-static int
-intr_isrc_assign_cpu(void *arg, int cpu)
+int
+intr_assign_irq(struct intr_irqsrc *isrc, int cpu, bool do_assignment)
 {
 #ifdef SMP
-	struct intr_irqsrc *isrc = arg;
 	int error;
 
 	mtx_lock(&isrc_table_lock);
@@ -660,7 +656,7 @@ intr_isrc_assign_cpu(void *arg, int cpu)
 	 * PIC is expected to change isrc_cpu appropriately to keep us well
 	 * informed if the call is successful.
 	 */
-	if (irq_assign_cpu) {
+	if (do_assignment) {
 		error = PIC_BIND_INTR(isrc->isrc_dev, isrc);
 		if (error) {
 			CPU_ZERO(&isrc->isrc_cpu);
@@ -673,6 +669,17 @@ intr_isrc_assign_cpu(void *arg, int cpu)
 #else
 	return (EOPNOTSUPP);
 #endif
+}
+
+/*
+ *  Interrupt source assign_cpu method for MI interrupt framework.
+ */
+static int
+intr_isrc_assign_cpu(void *arg, int cpu)
+{
+	struct intr_irqsrc *isrc = arg;
+
+	return (intr_assign_irq(isrc, cpu, irq_assign_cpu));
 }
 
 /*
