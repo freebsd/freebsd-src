@@ -195,27 +195,6 @@ virstor_label(struct gctl_req *req)
 		return;
 	}
 
-	if (md.md_chunk_size % MAXPHYS != 0) {
-		/* XXX: This is not strictly needed, but it's convenient to
-		 * impose some limitations on it, so why not MAXPHYS. */
-		size_t new_size = rounddown(md.md_chunk_size, MAXPHYS);
-		if (new_size < md.md_chunk_size)
-			new_size += MAXPHYS;
-		fprintf(stderr, "Resizing chunk size to be a multiple of "
-		    "MAXPHYS (%d kB).\n", MAXPHYS / 1024);
-		fprintf(stderr, "New chunk size: %zu kB\n", new_size / 1024);
-		md.md_chunk_size = new_size;
-	}
-
-	if (md.md_virsize % md.md_chunk_size != 0) {
-		off_t chunk_count = md.md_virsize / md.md_chunk_size;
-		md.md_virsize = chunk_count * md.md_chunk_size;
-		fprintf(stderr, "Resizing virtual size to be a multiple of "
-		    "chunk size.\n");
-		fprintf(stderr, "New virtual size: %zu MB\n",
-		    (size_t)(md.md_virsize/(1024 * 1024)));
-	}
-
 	msize = secsize = 0;
 	for (i = 1; i < (unsigned)nargs; i++) {
 		snprintf(param, sizeof(param), "arg%u", i);
@@ -240,11 +219,20 @@ virstor_label(struct gctl_req *req)
 	}
 
 	if (md.md_chunk_size % secsize != 0) {
-		fprintf(stderr, "Error: chunk size is not a multiple of sector "
-		    "size.");
-		gctl_error(req, "Chunk size (in bytes) must be multiple of %u.",
-		    (unsigned int)secsize);
-		return;
+		size_t new_size = roundup(md.md_chunk_size, secsize);
+		fprintf(stderr, "Resizing chunk size to be a multiple of "
+		    "sector size (%zu bytes).\n", secsize);
+		fprintf(stderr, "New chunk size: %zu kB\n", new_size / 1024);
+		md.md_chunk_size = new_size;
+	}
+
+	if (md.md_virsize % md.md_chunk_size != 0) {
+		off_t chunk_count = md.md_virsize / md.md_chunk_size;
+		md.md_virsize = chunk_count * md.md_chunk_size;
+		fprintf(stderr, "Resizing virtual size to be a multiple of "
+		    "chunk size.\n");
+		fprintf(stderr, "New virtual size: %zu MB\n",
+		    (size_t)(md.md_virsize / (1024 * 1024)));
 	}
 
 	total_chunks = md.md_virsize / md.md_chunk_size;
