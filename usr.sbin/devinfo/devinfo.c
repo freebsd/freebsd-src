@@ -227,10 +227,12 @@ print_dev(struct devinfo_dev *dev)
 		xo_emit("{D: (disabled)}");
 	else if (dev->dd_flags & DF_SUSPENDED)
 		xo_emit("{D: (suspended)}");
-
 }
 
 
+/*
+ * Print information about a device.
+ */
 int
 print_device(struct devinfo_dev *dev, void *arg)
 {
