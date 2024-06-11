@@ -157,8 +157,7 @@ virstor_label(struct gctl_req *req)
 	char param[32];
 	int hardcode, nargs, error;
 	struct virstor_map_entry *map;
-	size_t total_chunks;	/* We'll run out of memory if
-				   this needs to be bigger. */
+	size_t total_chunks, write_max_map_entries;
 	unsigned int map_chunks; /* Chunks needed by the map (map size). */
 	size_t map_size;	/* In bytes. */
 	ssize_t written;
@@ -325,28 +324,56 @@ virstor_label(struct gctl_req *req)
 		sprintf(param, "%s%s", _PATH_DEV, name);
 		fd = open(param, O_RDWR);
 	}
-	if (fd < 0)
+	if (fd < 0) {
 		gctl_error(req, "Cannot open provider %s to write map", name);
+		return;
+	}
 
-	/* Do it with calloc because there might be a need to set up chunk flags
-	 * in the future */
-	map = calloc(total_chunks, sizeof(*map));
+	/*
+	 * Initialize and write the map.  Don't malloc the whole map at once,
+	 * in case it's large.  Use calloc because there might be a need to set
+	 * up chunk flags in the future.
+	 */
+	write_max_map_entries = 1024 * 1024 / sizeof(*map);
+	if (write_max_map_entries > total_chunks)
+		write_max_map_entries = total_chunks;
+	map = calloc(write_max_map_entries, sizeof(*map));
 	if (map == NULL) {
 		gctl_error(req,
 		    "Out of memory (need %zu bytes for allocation map)",
-		    map_size);
-	}
-
-	written = pwrite(fd, map, map_size, 0);
-	free(map);
-	if ((size_t)written != map_size) {
-		if (verbose) {
-			fprintf(stderr, "\nTried to write %zu, written %zd (%s)\n",
-			    map_size, written, strerror(errno));
-		}
-		gctl_error(req, "Error writing out allocation map!");
+		    write_max_map_entries * sizeof(*map));
+		close(fd);
 		return;
 	}
+	for (size_t chunk = 0; chunk < total_chunks;
+	    chunk += write_max_map_entries) {
+		size_t bytes_to_write, entries_to_write;
+
+		entries_to_write = total_chunks - chunk;
+		if (entries_to_write > write_max_map_entries)
+			entries_to_write = write_max_map_entries;
+		bytes_to_write = entries_to_write * sizeof(*map);
+		for (size_t off = 0; off < bytes_to_write; off += written) {
+			written = write(fd, ((char *)map) + off,
+			    bytes_to_write - off);
+			if (written < 0) {
+				if (verbose) {
+					fprintf(stderr,
+					    "\nError writing map at offset "
+					    "%zu of %zu: %s\n",
+					    chunk * sizeof(*map) + off,
+					    map_size, strerror(errno));
+				}
+				gctl_error(req,
+				    "Error writing out allocation map!");
+				free(map);
+				close(fd);
+				return;
+			}
+		}
+	}
+	free(map);
+	map = NULL;
 	close (fd);
 
 	if (verbose)
