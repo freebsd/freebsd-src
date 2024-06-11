@@ -319,18 +319,30 @@ print_path(struct devinfo_dev *dev, void *xname)
 	int rv;
 
 	if (strcmp(dev->dd_name, name) == 0) {
+
+		// const char* devname = dev->dd_name[0] ? dev->dd_name : "unknown";
+		xo_emit("{d:%s }", name);
+
 		print_dev(dev);
 		if (vflag)
-			printf("\n");
+			xo_emit("\n");
+			// printf("\n");
 		return (1);
 	}
 
 	rv = devinfo_foreach_device_child(dev, print_path, xname);
 	if (rv == 1) {
-		printf(" ");
+		xo_emit("{P: }");
+		// printf(" ");
+
+		const char* devname = dev->dd_name[0] ? dev->dd_name : "unknown";
+		xo_emit("{d:%s }", devname);
+
+
 		print_dev(dev);
 		if (vflag)
-			printf("\n");
+			xo_emit("\n");
+			// printf("\n");
 	}
 	return (rv);
 }
@@ -398,7 +410,8 @@ main(int argc, char *argv[])
 		if (devinfo_foreach_device_child(root, print_path, (void *)path) == 0)
 			xo_errx(1, "%s: Not found", path);
 		if (!vflag)
-			printf("\n");
+			xo_emit("\n");
+			// printf("\n");
 	} else if (uflag) {
 		/* print resource usage? */
 		devinfo_foreach_rman(print_rman, NULL);
