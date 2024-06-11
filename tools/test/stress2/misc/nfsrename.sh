@@ -137,7 +137,7 @@ write_file(void)
 		unlink(path);
 	}
 
-	fprintf(fp, "blah blah blah garbage %ld\n", random());
+	fprintf(fp, "blah blah blah garbage %ld\n", (long)arc4random());
 	fclose(fp);
 	if (rename(path, filename) < 0) {
 		warn("rename");
@@ -150,7 +150,7 @@ random_sleep(int base, int slop)
 {
 	long val;
 
-	val = random() % slop;
+	val = arc4random() % slop;
 	usleep(base + val);
 }
 
