@@ -255,7 +255,6 @@ print_device(struct devinfo_dev *dev, void *arg)
 
 		print_dev(dev);
 		// printf("\n");
-		// xo_emit("{D:\n}");
 		xo_emit("\n");
 		if (rflag) {
 			ia.indent = indent + 4;
@@ -264,9 +263,6 @@ print_device(struct devinfo_dev *dev, void *arg)
 			    (void *)&ia);
 		}
 	}
-
-	// return(devinfo_foreach_device_child(dev, print_device,
-	    // (void *)((char *)arg + 2)));
 
 	int ret = (devinfo_foreach_device_child(dev, print_device,
 	    (void *)((char *)arg + 2)));
