@@ -641,7 +641,7 @@ intr_assign_irq(struct intr_irqsrc *isrc, int cpu, bool do_assignment)
 #ifdef SMP
 	int error;
 
-	mtx_lock(&isrc_table_lock);
+	mtx_lock(&pic_list_lock);
 	if (cpu == NOCPU) {
 		CPU_ZERO(&isrc->isrc_cpu);
 		isrc->isrc_flags &= ~INTR_ISRCF_BOUND;
@@ -660,11 +660,11 @@ intr_assign_irq(struct intr_irqsrc *isrc, int cpu, bool do_assignment)
 		error = PIC_BIND_INTR(isrc->isrc_dev, isrc);
 		if (error) {
 			CPU_ZERO(&isrc->isrc_cpu);
-			mtx_unlock(&isrc_table_lock);
+			mtx_unlock(&pic_list_lock);
 			return (error);
 		}
 	}
-	mtx_unlock(&isrc_table_lock);
+	mtx_unlock(&pic_list_lock);
 	return (0);
 #else
 	return (EOPNOTSUPP);
@@ -1134,14 +1134,14 @@ intr_setup_irq(device_t dev, struct resource *res, driver_filter_t filt,
 	if (error != 0)
 		return (error);
 
-	mtx_lock(&isrc_table_lock);
+	mtx_lock(&pic_list_lock);
 	error = PIC_SETUP_INTR(isrc->isrc_dev, isrc, res, data);
 	if (error == 0) {
 		isrc->isrc_handlers++;
 		if (isrc->isrc_handlers == 1)
 			PIC_ENABLE_INTR(isrc->isrc_dev, isrc);
 	}
-	mtx_unlock(&isrc_table_lock);
+	mtx_unlock(&pic_list_lock);
 	if (error != 0)
 		intr_event_remove_handler(*cookiep);
 	return (error);
@@ -1186,12 +1186,12 @@ intr_teardown_irq(device_t dev, struct resource *res, void *cookie)
 
 	error = intr_event_remove_handler(cookie);
 	if (error == 0) {
-		mtx_lock(&isrc_table_lock);
+		mtx_lock(&pic_list_lock);
 		isrc->isrc_handlers--;
 		if (isrc->isrc_handlers == 0)
 			PIC_DISABLE_INTR(isrc->isrc_dev, isrc);
 		PIC_TEARDOWN_INTR(isrc->isrc_dev, isrc, res, data);
-		mtx_unlock(&isrc_table_lock);
+		mtx_unlock(&pic_list_lock);
 
 		intr_describe(isrc, NULL, NULL);
 	}
@@ -1598,14 +1598,14 @@ intr_pic_init_secondary(void)
 	/*
 	 * QQQ: Only root PICs are aware of other CPUs ???
 	 */
-	//mtx_lock(&isrc_table_lock);
+	//mtx_lock(&pic_list_lock);
 	for (rootnum = 0; rootnum < INTR_ROOT_COUNT; rootnum++) {
 		dev = intr_irq_roots[rootnum].dev;
 		if (dev != NULL) {
 			PIC_INIT_SECONDARY(dev, rootnum);
 		}
 	}
-	//mtx_unlock(&isrc_table_lock);
+	//mtx_unlock(&pic_list_lock);
 }
 #endif
 
