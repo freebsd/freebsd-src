@@ -45,6 +45,8 @@
 
 static int	rflag;
 static int	vflag;
+static struct devinfo_dev *open_tags[256];
+static int open_tag_index;
 
 static void	print_resource(struct devinfo_res *);
 static int	print_device_matching_resource(struct devinfo_res *, void *);
@@ -286,12 +288,14 @@ print_rman(struct devinfo_rman *rman, void *arg __unused)
 }
 
 static int
-print_path(struct devinfo_dev *dev, void *xname)
+pr_path(struct devinfo_dev *dev, void *xname)
 {
 	const char *name = xname;
 	int rv;
 
 	if (strcmp(dev->dd_name, name) == 0) {
+		xo_open_container(name);
+		open_tags[open_tag_index++] = dev;
 		xo_emit("{d:%s }", name);
 		print_device_props(dev);
 		if (vflag)
@@ -299,16 +303,34 @@ print_path(struct devinfo_dev *dev, void *xname)
 		return (1);
 	}
 
-	rv = devinfo_foreach_device_child(dev, print_path, xname);
+	rv = devinfo_foreach_device_child(dev, pr_path, xname);
 	if (rv == 1) {
+		const char* devname = dev->dd_name[0] ? dev->dd_name : "unknown";
+		xo_open_container(devname);
+		open_tags[open_tag_index++] = dev;
 		xo_emit("{P: }");
-		xo_emit("{d:%s }", dev->dd_name[0] ? dev->dd_name : "unknown");
+		xo_emit("{d:%s }", devname);
 		print_device_props(dev);
 		if (vflag)
 			xo_emit("\n");
 	}
 	return (rv);
 }
+
+static void
+print_path(struct devinfo_dev *root, char *path)
+{
+	open_tag_index = 0;
+	if (devinfo_foreach_device_child(root, pr_path, (void *)path) == 0)
+		xo_errx(1, "%s: Not found", path);
+	if (!vflag)
+		xo_emit("\n");
+
+	while (open_tag_index > 0) {
+		xo_close_container(open_tags[--open_tag_index]->dd_name);
+	}
+}
+
 
 static void __dead2
 usage(void)
@@ -365,10 +387,7 @@ main(int argc, char *argv[])
 		xo_errx(1, "can't find root device");
 
 	if (path) {
-		if (devinfo_foreach_device_child(root, print_path, (void *)path) == 0)
-			xo_errx(1, "%s: Not found", path);
-		if (!vflag)
-			xo_emit("\n");
+		print_path(root, path);
 	} else if (uflag) {
 		/* print resource usage? */
 		devinfo_foreach_rman(print_rman, NULL);
