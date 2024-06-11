@@ -241,7 +241,7 @@ print_device(struct devinfo_dev *dev, void *arg)
 	int			i, indent;
 
 
-	const char* devname = dev->dd_name[0] ? dev->dd_name : "unnnknown";
+	const char* devname = dev->dd_name[0] ? dev->dd_name : "unknown";
 	// free?
 
 	if (vflag || (dev->dd_name[0] != 0 && dev->dd_state >= DS_ATTACHED)) {
