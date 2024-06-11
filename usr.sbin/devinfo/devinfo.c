@@ -177,7 +177,7 @@ print_kvlist(char* s) {
 }
 
 static void
-print_dev(struct devinfo_dev *dev)
+print_device_props(struct devinfo_dev *dev)
 {
 
 	if (vflag && *dev->dd_pnpinfo) {
@@ -234,7 +234,7 @@ print_device(struct devinfo_dev *dev, void *arg)
 		xo_open_container(devname);
 		xo_emit("{d:%s}", devname);
 
-		print_dev(dev);
+		print_device_props(dev);
 		xo_emit("\n");
 		if (rflag) {
 			ia.indent = indent + 4;
@@ -293,7 +293,7 @@ print_path(struct devinfo_dev *dev, void *xname)
 
 	if (strcmp(dev->dd_name, name) == 0) {
 		xo_emit("{d:%s }", name);
-		print_dev(dev);
+		print_device_props(dev);
 		if (vflag)
 			xo_emit("\n");
 		return (1);
@@ -303,7 +303,7 @@ print_path(struct devinfo_dev *dev, void *xname)
 	if (rv == 1) {
 		xo_emit("{P: }");
 		xo_emit("{d:%s }", dev->dd_name[0] ? dev->dd_name : "unknown");
-		print_dev(dev);
+		print_device_props(dev);
 		if (vflag)
 			xo_emit("\n");
 	}
