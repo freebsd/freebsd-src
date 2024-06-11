@@ -243,8 +243,6 @@ print_device(struct devinfo_dev *dev, void *arg)
 
 	const char* devname = dev->dd_name[0] ? dev->dd_name : "unnnknown";
 	// free?
-	xo_open_container(devname);
-	// printf("%s", dev->dd_name[0] ? dev->dd_name : "unknown");
 
 	if (vflag || (dev->dd_name[0] != 0 && dev->dd_state >= DS_ATTACHED)) {
 		indent = (int)(intptr_t)arg;
@@ -252,6 +250,7 @@ print_device(struct devinfo_dev *dev, void *arg)
 			xo_emit("{P: }");
 			// printf(" ");
 
+		xo_open_container(devname);
 		xo_emit("{d:%s}", devname);
 
 		print_dev(dev);
@@ -272,7 +271,10 @@ print_device(struct devinfo_dev *dev, void *arg)
 	int ret = (devinfo_foreach_device_child(dev, print_device,
 	    (void *)((char *)arg + 2)));
 
-	xo_close_container(devname);
+	if (vflag || (dev->dd_name[0] != 0 && dev->dd_state >= DS_ATTACHED)) {
+		xo_close_container(devname);
+	}
+
 	return ret;
 }
 
