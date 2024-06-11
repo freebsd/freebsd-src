@@ -52,7 +52,7 @@
 /**
  *  Driver version
  */
-char irdma_driver_version[] = "1.2.17-k";
+char irdma_driver_version[] = "1.2.36-k";
 
 /**
  * irdma_init_tunable - prepare tunables
@@ -245,7 +245,7 @@ irdma_log_invalid_mtu(u16 mtu, struct irdma_sc_dev *dev)
 			       mtu);
 	else if (mtu < IRDMA_MIN_MTU_IPV6)
 		irdma_dev_warn(to_ibdev(dev),
-			       "MTU setting [%d] too low for RDMA traffic. Minimum MTU is 1280 for IPv6\\n",
+			       "MTU setting [%d] too low for RDMA traffic. Minimum MTU is 1280 for IPv6\n",
 			       mtu);
 }
 

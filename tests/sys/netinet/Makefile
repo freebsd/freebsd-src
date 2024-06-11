@@ -11,7 +11,9 @@ ATF_TESTS_C=	ip_reass_test \
 		so_reuseport_lb_test \
 		socket_afinet \
 		tcp_connect_port_test \
-		tcp_md5_getsockopt
+		tcp_implied_connect \
+		tcp_md5_getsockopt \
+		udp_io
 
 ATF_TESTS_SH=	arp \
 		carp \
@@ -24,6 +26,7 @@ ATF_TESTS_SH=	arp \
 		redirect
 
 ATF_TESTS_PYTEST+=	carp.py
+ATF_TESTS_PYTEST+=	igmp.py
 
 TEST_METADATA.divert+=	required_programs="python"
 TEST_METADATA.forward+=	required_programs="python"

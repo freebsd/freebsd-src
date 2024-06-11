@@ -104,8 +104,8 @@ unmappedaddr(struct sockaddr_in6 *sin6)
 }
 
 /* Get a field from a \0 separated string */
-ssize_t
-get_field(int peer, char *buffer, ssize_t size)
+size_t
+get_field(int peer, char *buffer, size_t size)
 {
 	char *cp = buffer;
 
@@ -204,7 +204,7 @@ struct debugs debugs[] = {
 	{ DEBUG_ACCESS,		"access",	"TCPd access debugging"	},
 	{ DEBUG_NONE,		NULL,		"No debugging"		},
 };
-int	packetdroppercentage = 0;
+unsigned int packetdroppercentage = 0;
 
 int
 debug_find(char *s)

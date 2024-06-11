@@ -27,7 +27,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd November 12, 2016
+.Dd March 26, 2024
 .Dt SND_UAUDIO 4
 .Os
 .Sh NAME
@@ -51,24 +51,94 @@ snd_uaudio_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for
-.Tn USB
-audio class devices and
-.Tn USB
-MIDI class devices.
+driver provides support for USB audio class devices and USB MIDI class devices.
 .Pp
-A
-.Tn USB
-audio device consists of a number of components:
-input terminals (e.g.\& USB digital input), output terminals (e.g.\&
-speakers), and a number of units in between (e.g.\& volume control).
+A USB audio device consists of a number of components: input terminals (e.g.\&
+USB digital input), output terminals (e.g.\& speakers), and a number of units
+in between (e.g.\& volume control).
+.Pp
+If the device supports multiple configurations, and there have been no
+user-supplied values specified through the
+.Xr sysctl 8
+interface, the driver will select the best matching configuration supported by
+the device during attach.
+"Best" means the configuration with the most channels and highest quality in
+sample rate and sample size.
 .Pp
 Refer to the
 .Ql USB Audio Class Specification
 for more information.
+.Sh SYSCTL VARIABLES
+The following settings can be entered at the
+.Xr loader 8
+prompt or in
+.Xr loader.conf 5
+and can also be changed at runtime with the
+.Xr sysctl 8
+command.
+For a change to take effect during runtime, the device has to be re-attached.
+.Bl -tag -width indent
+.It Va hw.usb.uaudio.buffer_ms
+Period of audio data processed at once, in milliseconds, from 1 to 8 (default
+is 4).
+Lower values mean less latency, but this can result in audible gaps due to
+frequent CPU wakeups.
+.It Va hw.usb.uaudio.default_bits
+Preferred sample size in bits, from 0 to 32 (default is 0).
+A value of 0 sets the sample size to the maximum supported sample size.
+.Pp
+Set this to select a smaller sample size if the device supports multiple sample
+sizes.
+.It Va hw.usb.uaudio.default_channels
+Preferred number of sample channels, from 0 to 64 (default is 0).
+USB 1.1 devices are limited to 4 channels due to bandwidth constraints, unless
+a higher value is explicitly requested.
+A value of 0 sets the sample channels to the maximum supported channel number.
+.Pp
+Set this to select a smaller channel number if the device supports multiple
+channel configurations.
+.It Va hw.usb.uaudio.default_rate
+Preferred sample rate in Hz (default is 0).
+If set to 0, the device's highest supported sample rate will be used.
+.Pp
+Note that if VCHANs are enabled, the sample rate will be overridden by
+.Pa dev.pcm.%d.[play|rec].vchanrate
+(see
+.Xr sound 4 ) ,
+which can also be used to adjust the sample rate during runtime.
+.Pp
+If
+.Pa hw.usb.uaudio.default_rate
+is non-zero,
+.Pa dev.pcm.%d.[play|rec].vchanrate
+will use it as its maximum allowed value.
+.It Va hw.usb.uaudio.handle_hid
+Let
+.Nm
+handle HID volume keys, if any (default is 1).
+.Bl -tag -width 2n
+.It 0
+Disabled.
+.It 1
+Enabled.
+.El
+.El
+.Pp
+If
+.Xr usb 4
+has been compiled with
+.Va USB_DEBUG
+on, the following setting is also available:
+.Bl -tag -width indent
+.It Va hw.usb.uaudio.debug
+Debug output level (default is 0).
+.El
 .Sh SEE ALSO
 .Xr sound 4 ,
-.Xr usb 4
+.Xr usb 4 ,
+.Xr loader.conf 5 ,
+.Xr loader 8 ,
+.Xr sysctl 8
 .Rs
 .%T "USB Audio Class Specifications"
 .%U http://www.usb.org/developers/docs/devclass_docs/
@@ -86,17 +156,6 @@ and modified for
 by
 .An Hiten Pandya Aq Mt hmp@FreeBSD.org .
 .Sh BUGS
-The
-.Tn PCM
-framework in
-.Fx
-only supports synchronous device detach.
-That means all mixer and DSP character devices belonging to a given
-USB audio device must be closed when receiving an error on a DSP read,
-a DSP write or a DSP IOCTL request.
-Else the USB audio driver will wait for this to happen, preventing
-enumeration of new devices on the parenting USB controller.
-.Pp
 Some USB audio devices might refuse to work properly unless the sample
 rate is configured the same for both recording and playback, even if
 only simplex is used.
@@ -104,12 +163,9 @@ See the
 .Va dev.pcm.%d.[play|rec].vchanrate
 sysctls.
 .Pp
-The
-.Tn PCM
-framework in
+The PCM framework in
 .Fx
-currently doesn't support the full set of USB audio mixer
-controls.
+currently does not support the full set of USB audio mixer controls.
 Some mixer controls are only available as
 .Va dev.pcm.%d.mixer
 sysctls.

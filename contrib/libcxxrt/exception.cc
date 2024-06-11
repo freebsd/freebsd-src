@@ -121,7 +121,7 @@ static inline _Unwind_Reason_Code continueUnwinding(struct _Unwind_Exception *ex
 }
 
 
-extern "C" void __cxa_free_exception(void *thrown_exception);
+extern "C" void __cxa_free_exception(void *thrown_exception) throw();
 extern "C" void __cxa_free_dependent_exception(void *thrown_exception);
 extern "C" void* __dynamic_cast(const void *sub,
                                 const __class_type_info *src,
@@ -162,6 +162,7 @@ struct __cxa_thread_info
 	terminate_handler terminateHandler;
 	/** The unexpected exception handler for this thread. */
 	unexpected_handler unexpectedHandler;
+#ifndef LIBCXXRT_NO_EMERGENCY_MALLOC
 	/**
 	 * The number of emergency buffers held by this thread.  This is 0 in
 	 * normal operation - the emergency buffers are only used when malloc()
@@ -170,6 +171,7 @@ struct __cxa_thread_info
 	 * in ABI spec [3.3.1]).
 	 */
 	int emergencyBuffersHeld;
+#endif
 	/**
 	 * The exception currently running in a cleanup.
 	 */
@@ -445,6 +447,23 @@ extern "C" __cxa_eh_globals *ABI_NAMESPACE::__cxa_get_globals_fast(void)
 	return &(thread_info_fast()->globals);
 }
 
+#ifdef LIBCXXRT_NO_EMERGENCY_MALLOC
+static char *alloc_or_die(size_t size)
+{
+	char *buffer = static_cast<char*>(calloc(1, size));
+
+	if (buffer == nullptr)
+	{
+		fputs("Out of memory attempting to allocate exception\n", stderr);
+		std::terminate();
+	}
+	return buffer;
+}
+static void free_exception(char *e)
+{
+	free(e);
+}
+#else
 /**
  * An emergency allocation reserved for when malloc fails.  This is treated as
  * 16 buffers of 1KB each.
@@ -584,6 +603,7 @@ static void free_exception(char *e)
 		free(e);
 	}
 }
+#endif
 
 /**
  * Allocates an exception structure.  Returns a pointer to the space that can
@@ -591,7 +611,7 @@ static void free_exception(char *e)
  * emergency buffer if malloc() fails, and may block if there are no such
  * buffers available.
  */
-extern "C" void *__cxa_allocate_exception(size_t thrown_size)
+extern "C" void *__cxa_allocate_exception(size_t thrown_size) throw()
 {
 	size_t size = thrown_size + sizeof(__cxa_exception);
 	char *buffer = alloc_or_die(size);
@@ -613,7 +633,7 @@ extern "C" void *__cxa_allocate_dependent_exception(void)
  * In this implementation, it is also called by __cxa_end_catch() and during
  * thread cleanup.
  */
-extern "C" void __cxa_free_exception(void *thrown_exception)
+extern "C" void __cxa_free_exception(void *thrown_exception) throw()
 {
 	__cxa_exception *ex = reinterpret_cast<__cxa_exception*>(thrown_exception) - 1;
 	// Free the object that was thrown, calling its destructor
@@ -773,6 +793,21 @@ static void throw_exception(__cxa_exception *ex)
 	report_failure(err, ex);
 }
 
+extern "C" __cxa_exception *__cxa_init_primary_exception(
+		void *object, std::type_info* tinfo, void (*dest)(void *)) throw() {
+	__cxa_exception *ex = reinterpret_cast<__cxa_exception*>(object) - 1;
+
+	ex->referenceCount = 0;
+	ex->exceptionType = tinfo;
+
+	ex->exceptionDestructor = dest;
+
+	ex->unwindHeader.exception_class = exception_class;
+	ex->unwindHeader.exception_cleanup = exception_cleanup;
+
+	return ex;
+}
+
 
 /**
  * ABI function for throwing an exception.  Takes the object to be thrown (the
@@ -783,15 +818,8 @@ extern "C" void __cxa_throw(void *thrown_exception,
                             std::type_info *tinfo,
                             void(*dest)(void*))
 {
-	__cxa_exception *ex = reinterpret_cast<__cxa_exception*>(thrown_exception) - 1;
-
+	__cxa_exception *ex = __cxa_init_primary_exception(thrown_exception, tinfo, dest);
 	ex->referenceCount = 1;
-	ex->exceptionType = tinfo;
-	
-	ex->exceptionDestructor = dest;
-	
-	ex->unwindHeader.exception_class = exception_class;
-	ex->unwindHeader.exception_cleanup = exception_cleanup;
 
 	throw_exception(ex);
 }

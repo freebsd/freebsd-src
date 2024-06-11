@@ -125,7 +125,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 
 #ifdef DEV_ACPI
 	/* Check if SPCR can tell us what console to use. */
-	if (uart_cpu_acpi_spcr(devtype, di) == 0)
+	if (uart_cpu_acpi_setup(devtype, di) == 0)
 		return (0);
 #endif
 #ifdef FDT

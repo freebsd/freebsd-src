@@ -655,6 +655,59 @@ fetch_setup_verboselevel () {
 	esac
 }
 
+# Check if there are any kernel modules installed from ports.
+# In that case warn the user that a rebuild from ports (i.e. not from
+# packages) might need necessary for the modules to work in the new release.
+upgrade_check_kmod_ports() {
+	local mod_name
+	local modules
+	local pattern
+	local pkg_name
+	local port_name
+	local report
+	local w
+
+	if ! pkg -N 2>/dev/null; then
+		echo "Skipping kernel modules check. pkg(8) not present."
+		return
+	fi
+
+	# Most modules are in /boot/modules but we should actually look
+	# in every module_path passed to the kernel:
+	pattern=$(sysctl -n kern.module_path | tr ";" "|")
+
+	if [ -z "${pattern}" ]; then
+		echo "Empty kern.module_path sysctl. This should not happen."
+		echo "Aborting check of kernel modules installed from ports."
+		return
+	fi
+
+	# Check the pkg database for modules installed in those directories
+	modules=$(pkg query '%Fp' | grep -E "${pattern}")
+
+	if [ -z "${modules}" ]; then
+		return
+	fi
+
+	echo -e "\n"
+	echo "The following modules have been installed from packages."
+	echo "As a consequence they might not work when performing a major or minor upgrade."
+	echo -e "It is advised to rebuild these ports:\n"
+
+
+	report="Module Package Port\n------ ------- ----\n"
+	for module in ${modules}; do
+		w=$(pkg which "${module}")
+		mod_name=$(echo "${w}" | awk '{print $1;}')
+		pkg_name=$(echo "${w}" | awk '{print $6;}')
+		port_name=$(pkg info -o "${pkg_name}" | awk '{print $2;}')
+		report="${report}${mod_name} ${pkg_name} ${port_name}\n"
+	done
+
+	echo -e "${report}" | column -t
+	echo -e "\n"
+}
+
 # Perform sanity checks and set some final parameters
 # in preparation for fetching files.  Figure out which
 # set of updates should be downloaded: If the user is
@@ -776,7 +829,7 @@ fetch_check_params () {
 
 	if ! [ -z "${TARGETRELEASE}" ]; then
 		echo -n "`basename $0`: "
-		echo -n "-r option is meaningless with 'fetch' command.  "
+		echo -n "'-r' option is meaningless with 'fetch' command.  "
 		echo "(Did you mean 'upgrade' instead?)"
 		exit 1
 	fi
@@ -784,8 +837,8 @@ fetch_check_params () {
 	# Check that we have updates ready to install
 	if [ -f ${BDHASH}-install/kerneldone -a $FORCEFETCH -eq 0 ]; then
 		echo "You have a partially completed upgrade pending"
-		echo "Run '$0 install' first."
-		echo "Run '$0 fetch -F' to proceed anyway."
+		echo "Run '`basename $0` [options] install' first."
+		echo "Run '`basename $0` [options] fetch -F' to proceed anyway."
 		exit 1
 	fi
 }
@@ -798,7 +851,7 @@ upgrade_check_params () {
 	NKERNCONF=${KERNCONF}
 
 	# We need TARGETRELEASE set
-	_TARGETRELEASE_z="Release target must be specified via -r option."
+	_TARGETRELEASE_z="Release target must be specified via '-r' option."
 	if [ -z "${TARGETRELEASE}" ]; then
 		echo -n "`basename $0`: "
 		echo "${_TARGETRELEASE_z}"
@@ -863,7 +916,7 @@ install_check_params () {
 	if ! [ -L ${BDHASH}-install ]; then
 		echo "No updates are available to install."
 		if [ $ISFETCHED -eq 0 ]; then
-			echo "Run '$0 fetch' first."
+			echo "Run '`basename $0` [options] fetch' first."
 			exit 2
 		fi
 		exit 0
@@ -871,7 +924,7 @@ install_check_params () {
 	if ! [ -f ${BDHASH}-install/INDEX-OLD ] ||
 	    ! [ -f ${BDHASH}-install/INDEX-NEW ]; then
 		echo "Update manifest is corrupt -- this should never happen."
-		echo "Re-run '$0 fetch'."
+		echo "Re-run '`basename $0` [options] fetch'."
 		exit 1
 	fi
 
@@ -973,7 +1026,7 @@ IDS_check_params () {
 
 	_SERVERNAME_z=\
 "SERVERNAME must be given via command line or configuration file."
-	_KEYPRINT_z="Key must be given via -k option or configuration file."
+	_KEYPRINT_z="Key must be given via '-k' option or configuration file."
 	_KEYPRINT_bad="Invalid key fingerprint: "
 	_WORKDIR_bad="Directory does not exist or is not writable: "
 
@@ -1052,10 +1105,10 @@ IDS_check_params () {
 # a useful answer, use the server name specified by the user.
 # Put another way... look up _http._tcp.${SERVERNAME} and pick a server
 # from that; or if no servers are returned, use ${SERVERNAME}.
-# This allows a user to specify "portsnap.freebsd.org" (in which case
-# portsnap will select one of the mirrors) or "portsnap5.tld.freebsd.org"
-# (in which case portsnap will use that particular server, since there
-# won't be an SRV entry for that name).
+# This allows a user to specify "update.FreeBSD.org" (in which case
+# freebsd-update will select one of the mirrors) or "update1.freebsd.org"
+# (in which case freebsd-update will use that particular server, since
+# there won't be an SRV entry for that name).
 #
 # We ignore the Port field, since we are always going to use port 80.
 
@@ -2326,7 +2379,7 @@ upgrade_guess_components () {
 WARNING: This system is running a "${KCOMP}" kernel, which is not a
 kernel configuration distributed as part of FreeBSD ${RELNUM}.
 This kernel will not be updated: you MUST update the kernel manually
-before running "$0 install".
+before running '`basename $0` [options] install'.
 			EOF
 		fi
 
@@ -2770,7 +2823,7 @@ upgrade_run () {
 
 	# Remind the user that they need to run "freebsd-update install"
 	# to install the downloaded bits, in case they didn't RTFM.
-	echo "To install the downloaded upgrades, run \"$0 install\"."
+	echo "To install the downloaded upgrades, run '`basename $0` [options] install'."
 }
 
 # Make sure that all the file hashes mentioned in $@ have corresponding
@@ -2788,7 +2841,7 @@ install_verify () {
 		if ! [ -f files/${HASH}.gz ]; then
 			echo -n "Update files missing -- "
 			echo "this should never happen."
-			echo "Re-run '$0 fetch'."
+			echo "Re-run '`basename $0` [options] fetch'."
 			return 1
 		fi
 	done < filelist
@@ -2895,7 +2948,7 @@ backup_kernel () {
 	(cd ${BASEDIR}/${KERNELDIR} && find . -type f $FINDFILTER -exec \
 	    cp -pl '{}' ${BASEDIR}/${BACKUPKERNELDIR}/'{}' \;)
 
-	# Re-enable patchname expansion.
+	# Re-enable pathname expansion.
 	set +f
 }
 
@@ -3024,7 +3077,7 @@ install_files () {
 			cat <<-EOF
 
 Kernel updates have been installed.  Please reboot and run
-"$0 install" again to finish installing updates.
+'`basename $0` [options] install' again to finish installing updates.
 			EOF
 			exit 0
 		fi
@@ -3111,8 +3164,8 @@ Kernel updates have been installed.  Please reboot and run
 
 Completing this upgrade requires removing old shared object files.
 Please rebuild all installed 3rd party software (e.g., programs
-installed from the ports tree) and then run "$0 install"
-again to finish installing updates.
+installed from the ports tree) and then run
+'`basename $0` [options] install' again to finish installing updates.
 			EOF
 			rm newfiles
 			exit 0
@@ -3457,6 +3510,7 @@ cmd_cron () {
 	    [ ${VERBOSELEVEL} = "debug" ]; then
 		mail -s "`hostname` security updates" ${MAILTO} < ${TMPFILE}
 	fi
+	ISFETCHED=1
 
 	rm ${TMPFILE}
 }
@@ -3465,6 +3519,7 @@ cmd_cron () {
 cmd_upgrade () {
 	finalize_components_config ${COMPONENTS}
 	upgrade_check_params
+	upgrade_check_kmod_ports
 	upgrade_run || exit 1
 }
 
@@ -3491,7 +3546,7 @@ cmd_updatesready () {
 	fi
 
 	echo "There are updates available to install."
-	echo "Run '$0 install' to proceed."
+	echo "Run '`basename $0` [options] install' to proceed."
 }
 
 # Install downloaded updates.

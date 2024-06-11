@@ -31,7 +31,6 @@
  * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/ahc_pci.c#19 $
  */
 
-#include <sys/cdefs.h>
 #include <dev/aic7xxx/aic7xxx_osm.h>
 
 static int ahc_pci_probe(device_t dev);
@@ -139,7 +138,7 @@ ahc_pci_map_registers(struct ahc_softc *ahc)
 	struct	resource *regs;
 	int	regs_type;
 	int	regs_id;
-	int	allow_memio;
+	int	allow_memio = 1;
 
 	regs = NULL;
 	regs_type = 0;
@@ -151,14 +150,14 @@ ahc_pci_map_registers(struct ahc_softc *ahc)
 			       "allow_memio", &allow_memio) != 0) {
 		if (bootverbose)
 			device_printf(ahc->dev_softc, "Defaulting to MEMIO ");
-#ifdef AHC_ALLOW_MEMIO
-		if (bootverbose)
-			printf("on\n");
-		allow_memio = 1;
-#else
+#if defined(AHC_ALLOW_MEMIO) && (AHC_ALLOW_MEMIO == 0)
 		if (bootverbose)
 			printf("off\n");
 		allow_memio = 0;
+#else
+		if (bootverbose)
+			printf("on\n");
+		allow_memio = 1;
 #endif
 	}
 

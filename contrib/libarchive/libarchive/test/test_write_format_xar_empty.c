@@ -29,7 +29,6 @@
  */
 
 #include "test.h"
-__FBSDID("$FreeBSD$");
 
 DEFINE_TEST(test_write_format_xar_empty)
 {

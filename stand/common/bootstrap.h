@@ -54,7 +54,8 @@ bool	interp_has_builtin_cmd(const char *cmd);
 
 /* Called by interp.c for interp_*.c embedded interpreters */
 int	interp_include(const char *);	/* Execute commands from filename */
-void	interp_init(void);		/* Initialize interpreater */
+void	interp_preinit(void);		/* Initialize interpreater execution engine */
+void	interp_init(void);		/* Initialize interpreater and run main script */
 int	interp_run(const char *);	/* Run a single command */
 
 /* interp_backslash.c */
@@ -381,9 +382,5 @@ void	delay(int delay);
 int gen_setcurrdev(struct env_var *ev, int flags, const void *value);
 int mount_currdev(struct env_var *, int, const void *);
 void set_currdev(const char *devname);
-
-#ifndef CTASSERT
-#define	CTASSERT(x)	_Static_assert(x, "compile-time assertion failed")
-#endif
 
 #endif /* !_BOOTSTRAP_H_ */

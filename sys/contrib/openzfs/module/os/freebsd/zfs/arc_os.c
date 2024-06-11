@@ -89,7 +89,7 @@ arc_available_memory(void)
 	if (n < lowest) {
 		lowest = n;
 	}
-#if defined(__i386) || !defined(UMA_MD_SMALL_ALLOC)
+#if !defined(UMA_MD_SMALL_ALLOC) && !defined(UMA_USE_DMAP)
 	/*
 	 * If we're on an i386 platform, it's possible that we'll exhaust the
 	 * kernel heap space before we ever run out of available physical

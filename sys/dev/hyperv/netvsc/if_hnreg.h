@@ -58,7 +58,7 @@
 #define HN_NVS_RNDIS_MTYPE_CTRL		1
 
 /*
- * NVS message transacion status codes.
+ * NVS message transaction status codes.
  */
 #define HN_NVS_STATUS_OK		1
 #define HN_NVS_STATUS_FAILED		2

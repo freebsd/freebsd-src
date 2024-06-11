@@ -43,7 +43,6 @@
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#include <dev/sound/chip.h>
 #include <dev/sound/pcm/sound.h>
 
 #include <dev/sound/midi/midi.h>

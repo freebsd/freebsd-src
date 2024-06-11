@@ -1,3 +1,6 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2010 Maksim Yevmenkin <m_evmenkin@yahoo.com>
 .\" Copyright (c) 2013, 2016 Adrian Chadd <adrian@freebsd.org>
 .\" All rights reserved.
@@ -23,14 +26,15 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 4, 2016
+.Dd May 31, 2024
 .Dt ATH3KFW 8
 .Os
 .Sh NAME
 .Nm ath3kfw
-.Nd firmware download utility for Atheros AR3011/AR3012 chip based Bluetooth USB devices
+.Nd download firmware for Atheros AR3011/AR3012 Bluetooth USB devices
 .Sh SYNOPSIS
 .Nm
+.Op Fl DI
 .Fl d Ar device_name
 .Fl f Ar firmware_path
 .Nm
@@ -58,19 +62,19 @@ utility will query the device to determine which firmware image and board
 configuration to load in at runtime.
 .Pp
 The options are as follows:
-.Bl -tag -width indent
+.Bl -tag -width "-f firmware_path"
 .It Fl D
 Enable verbose debugging.
 .It Fl d Ar device_name
 Specify
 .Xr ugen 4
 device name.
-.It I
-Enable informational debugging.
 .It Fl f Ar firmware_path
 Specify the directory containing the firmware files to search and upload.
 .It Fl h
 Display usage message and exit.
+.It Fl I
+Enable informational debugging.
 .El
 .Sh EXIT STATUS
 .Ex -std

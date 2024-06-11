@@ -974,7 +974,7 @@ pf_state_to_nvstate(const struct pf_kstate *s)
 	    s->anchor.ptr ? s->anchor.ptr->nr : -1);
 	nvlist_add_number(nvl, "nat_rule",
 	    s->nat_rule.ptr ? s->nat_rule.ptr->nr : -1);
-	nvlist_add_number(nvl, "creation", s->creation);
+	nvlist_add_number(nvl, "creation", s->creation / 1000);
 
 	expire = pf_state_expires(s);
 	if (expire <= time_uptime)

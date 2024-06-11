@@ -42,14 +42,15 @@ alloutput=$sdir/output		# Output from current test
 allexcess=$sdir/excessive	# Tests with excessive runtime
 allelapsed=$sdir/elapsed	# Test runtime
 alllocal=$sdir/all.exclude	# Local exclude list
+exitonerror=0			# -e option
 loops=0				# Times to run the tests
 # Get kernel config + revision
 rev=`uname -a | awk '{print $7}' | sed 's/://'`
 rev="`uname -a | sed 's#.*/compile/##; s/ .*//'` $rev"
 
-args=`getopt acl:m:no "$@"`
+args=`getopt acel:m:no "$@"`
 [ $? -ne 0 ] &&
-    echo "Usage $0 [-a] [-c] [-l <val>] [-m <min.>] [-n] [-o] [<tests>]" &&
+    echo "Usage $0 [-a] [-c] [-e] [-l <val>] [-m <min.>] [-n] [-o] [<tests>]" &&
     exit 1
 set -- $args
 for i; do
@@ -60,6 +61,9 @@ for i; do
 		;;
 	-c)	rm -f $alllast	# Clear last know test
 		rm -f $alllist
+		shift
+		;;
+	-e)	exitonerror=1
 		shift
 		;;
 	-l)	loops=$2	# Number of time to run
@@ -160,6 +164,7 @@ trap intr INT
 
 [ -f all.debug.inc ] && . all.debug.inc
 s1=`date +%s`
+touch $sdir/starttime
 while true; do
 	exclude=`cat all.exclude $alllocal 2>/dev/null | sed '/^#/d' |
 	    grep "^[a-zA-Z].*\.sh" | awk '{print $1}'`
@@ -226,6 +231,7 @@ while true; do
 			[ $e -ne 0 ] &&
 			    echo "FAIL $i exit code $e"
 		) 2>&1 | tee $alloutput
+		grep -qw FAIL $alloutput && e=1 || e=0
 		ts=`date '+%Y%m%d %T'`
 		grep -qw FAIL $alloutput &&
 		    echo "$ts $rev $i" >> $allfaillog &&
@@ -247,6 +253,7 @@ while true; do
 		[ $all_debug ] && post_debug
 		[ $minutes ] && [ $((`date +%s` - s1)) -ge $minutes ] &&
 		    break 2
+		[ $exitonerror -eq 1 -a $e -ne 0 ] && break 2
 	done
 	[ $((loops -= 1)) -eq 0 ] && break
 done

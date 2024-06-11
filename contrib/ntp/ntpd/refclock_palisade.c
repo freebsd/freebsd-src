@@ -1567,5 +1567,5 @@ getsingle(
 }
 
 #else	/* REFCLOCK && CLOCK_PALISADE*/
-int refclock_palisade_c_notempty;
+NONEMPTY_TRANSLATION_UNIT
 #endif

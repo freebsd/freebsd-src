@@ -158,13 +158,14 @@ struct IncomingArgHandler : public CallLowering::IncomingValueHandler {
   }
 
   void assignValueToReg(Register ValVReg, Register PhysReg,
-                        CCValAssign VA) override {
+                        const CCValAssign &VA) override {
     markPhysRegUsed(PhysReg);
     IncomingValueHandler::assignValueToReg(ValVReg, PhysReg, VA);
   }
 
   void assignValueToAddress(Register ValVReg, Register Addr, LLT MemTy,
-                            MachinePointerInfo &MPO, CCValAssign &VA) override {
+                            const MachinePointerInfo &MPO,
+                            const CCValAssign &VA) override {
     MachineFunction &MF = MIRBuilder.getMF();
 
     LLT ValTy(VA.getValVT());
@@ -283,14 +284,15 @@ struct OutgoingArgHandler : public CallLowering::OutgoingValueHandler {
   }
 
   void assignValueToReg(Register ValVReg, Register PhysReg,
-                        CCValAssign VA) override {
+                        const CCValAssign &VA) override {
     MIB.addUse(PhysReg, RegState::Implicit);
     Register ExtReg = extendRegister(ValVReg, VA);
     MIRBuilder.buildCopy(PhysReg, ExtReg);
   }
 
   void assignValueToAddress(Register ValVReg, Register Addr, LLT MemTy,
-                            MachinePointerInfo &MPO, CCValAssign &VA) override {
+                            const MachinePointerInfo &MPO,
+                            const CCValAssign &VA) override {
     MachineFunction &MF = MIRBuilder.getMF();
     auto MMO = MF.getMachineMemOperand(MPO, MachineMemOperand::MOStore, MemTy,
                                        inferAlignFromPtrInfo(MF, MPO));
@@ -298,8 +300,9 @@ struct OutgoingArgHandler : public CallLowering::OutgoingValueHandler {
   }
 
   void assignValueToAddress(const CallLowering::ArgInfo &Arg, unsigned RegIndex,
-                            Register Addr, LLT MemTy, MachinePointerInfo &MPO,
-                            CCValAssign &VA) override {
+                            Register Addr, LLT MemTy,
+                            const MachinePointerInfo &MPO,
+                            const CCValAssign &VA) override {
     unsigned MaxSize = MemTy.getSizeInBytes() * 8;
     // For varargs, we always want to extend them to 8 bytes, in which case
     // we disable setting a max.
@@ -532,8 +535,8 @@ bool AArch64CallLowering::fallBackToDAGISel(const MachineFunction &MF) const {
   }
 
   SMEAttrs Attrs(F);
-  if (Attrs.hasNewZAInterface() ||
-      (!Attrs.hasStreamingInterface() && Attrs.hasStreamingBody()))
+  if (Attrs.hasZAState() || Attrs.hasStreamingInterfaceOrBody() ||
+      Attrs.hasStreamingCompatibleInterface())
     return true;
 
   return false;
@@ -634,7 +637,18 @@ bool AArch64CallLowering::lowerFormalArguments(
   MachineRegisterInfo &MRI = MF.getRegInfo();
   auto &DL = F.getParent()->getDataLayout();
   auto &Subtarget = MF.getSubtarget<AArch64Subtarget>();
-  // TODO: Support Arm64EC
+
+  // Arm64EC has extra requirements for varargs calls which are only implemented
+  // in SelectionDAG; bail out for now.
+  if (F.isVarArg() && Subtarget.isWindowsArm64EC())
+    return false;
+
+  // Arm64EC thunks have a special calling convention which is only implemented
+  // in SelectionDAG; bail out for now.
+  if (F.getCallingConv() == CallingConv::ARM64EC_Thunk_Native ||
+      F.getCallingConv() == CallingConv::ARM64EC_Thunk_X64)
+    return false;
+
   bool IsWin64 = Subtarget.isCallingConvWin64(F.getCallingConv()) && !Subtarget.isWindowsArm64EC();
 
   SmallVector<ArgInfo, 8> SplitArgs;
@@ -1202,7 +1216,16 @@ bool AArch64CallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
   const AArch64Subtarget &Subtarget = MF.getSubtarget<AArch64Subtarget>();
 
   // Arm64EC has extra requirements for varargs calls; bail out for now.
-  if (Info.IsVarArg && Subtarget.isWindowsArm64EC())
+  //
+  // Arm64EC has special mangling rules for calls; bail out on all calls for
+  // now.
+  if (Subtarget.isWindowsArm64EC())
+    return false;
+
+  // Arm64EC thunks have a special calling convention which is only implemented
+  // in SelectionDAG; bail out for now.
+  if (Info.CallConv == CallingConv::ARM64EC_Thunk_Native ||
+      Info.CallConv == CallingConv::ARM64EC_Thunk_X64)
     return false;
 
   SmallVector<ArgInfo, 8> OutArgs;

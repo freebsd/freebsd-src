@@ -37,6 +37,9 @@ stop_cmd=':'
 
 load_rc_config $name
 
+# doesn't make sense to run in a svcj: mounting
+tmp_svcj="NO"
+
 mount_tmpmfs()
 {
 	while read line; do

@@ -32,8 +32,6 @@
 #define LOGIN_MECLASS		"me"
 #define LOGIN_DEFSTYLE		"passwd"
 #define LOGIN_DEFSERVICE	"login"
-#define LOGIN_DEFUMASK		022
-#define LOGIN_DEFPRI		0
 #define _PATH_LOGIN_CONF	"/etc/login.conf"
 #define _FILE_LOGIN_CONF	".login_conf"
 #define _PATH_AUTHPROG		"/usr/libexec/login_"
@@ -110,6 +108,8 @@ const char **login_getcaplist(login_cap_t *, const char *, const char *);
 const char *login_getstyle(login_cap_t *, const char *, const char *);
 rlim_t login_getcaptime(login_cap_t *, const char *, rlim_t, rlim_t);
 rlim_t login_getcapnum(login_cap_t *, const char *, rlim_t, rlim_t);
+int login_getcapenum(login_cap_t *lc, const char *cap,
+    const char * const *values);
 rlim_t login_getcapsize(login_cap_t *, const char *, rlim_t, rlim_t);
 const char *login_getpath(login_cap_t *, const char *, const char *);
 int login_getcapbool(login_cap_t *, const char *, int);

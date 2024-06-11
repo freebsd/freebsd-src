@@ -1391,13 +1391,18 @@ kmsan_bus_space_barrier(bus_space_tag_t tag, bus_space_handle_t hnd,
 	bus_space_barrier(tag, hnd, offset, size, flags);
 }
 
-/* XXXMJ x86-specific */
+#if defined(__amd64__)
+#define	BUS_SPACE_IO(tag)	((tag) == X86_BUS_SPACE_IO)
+#else
+#define	BUS_SPACE_IO(tag)	(false)
+#endif
+
 #define MSAN_BUS_READ_FUNC(func, width, type)				\
 	type kmsan_bus_space_read##func##_##width(bus_space_tag_t tag,	\
 	    bus_space_handle_t hnd, bus_size_t offset)			\
 	{								\
 		type ret;						\
-		if ((tag) != X86_BUS_SPACE_IO)				\
+		if (!BUS_SPACE_IO(tag))					\
 			kmsan_shadow_fill((uintptr_t)(hnd + offset),	\
 			    KMSAN_STATE_INITED, (width));		\
 		ret = bus_space_read##func##_##width(tag, hnd, offset);	\
@@ -1438,6 +1443,13 @@ MSAN_BUS_READ_PTR_FUNC(region, 4, uint32_t)
 MSAN_BUS_READ_PTR_FUNC(region_stream, 4, uint32_t)
 
 MSAN_BUS_READ_FUNC(, 8, uint64_t)
+#ifndef __amd64__
+MSAN_BUS_READ_FUNC(_stream, 8, uint64_t)
+MSAN_BUS_READ_PTR_FUNC(multi, 8, uint64_t)
+MSAN_BUS_READ_PTR_FUNC(multi_stream, 8, uint64_t)
+MSAN_BUS_READ_PTR_FUNC(region, 8, uint64_t)
+MSAN_BUS_READ_PTR_FUNC(region_stream, 8, uint64_t)
+#endif
 
 #define	MSAN_BUS_WRITE_FUNC(func, width, type)				\
 	void kmsan_bus_space_write##func##_##width(bus_space_tag_t tag,	\
@@ -1503,6 +1515,28 @@ MSAN_BUS_SET_FUNC(multi, 4, uint32_t)
 MSAN_BUS_SET_FUNC(region, 4, uint32_t)
 MSAN_BUS_SET_FUNC(multi_stream, 4, uint32_t)
 MSAN_BUS_SET_FUNC(region_stream, 4, uint32_t)
+
+#define	MSAN_BUS_PEEK_FUNC(width, type)					\
+	int kmsan_bus_space_peek_##width(bus_space_tag_t tag,		\
+	    bus_space_handle_t hnd, bus_size_t offset, type *value)	\
+	{								\
+		return (bus_space_peek_##width(tag, hnd, offset, value)); \
+	}
+
+MSAN_BUS_PEEK_FUNC(1, uint8_t)
+MSAN_BUS_PEEK_FUNC(2, uint16_t)
+MSAN_BUS_PEEK_FUNC(4, uint32_t)
+
+#define	MSAN_BUS_POKE_FUNC(width, type)					\
+	int kmsan_bus_space_poke_##width(bus_space_tag_t tag,		\
+	    bus_space_handle_t hnd, bus_size_t offset, type value)	\
+	{								\
+		return (bus_space_poke_##width(tag, hnd, offset, value)); \
+	}
+
+MSAN_BUS_POKE_FUNC(1, uint8_t)
+MSAN_BUS_POKE_FUNC(2, uint16_t)
+MSAN_BUS_POKE_FUNC(4, uint32_t)
 
 /* -------------------------------------------------------------------------- */
 

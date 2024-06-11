@@ -68,6 +68,7 @@ class HTMLDiagnostics : public PathDiagnosticConsumer {
   bool noDir = false;
   const Preprocessor &PP;
   const bool SupportsCrossFileDiagnostics;
+  llvm::StringSet<> EmittedHashes;
 
 public:
   HTMLDiagnostics(PathDiagnosticConsumerOptions DiagOpts,
@@ -112,7 +113,7 @@ public:
   // Add HTML header/footers to file specified by FID
   void FinalizeHTML(const PathDiagnostic &D, Rewriter &R,
                     const SourceManager &SMgr, const PathPieces &path,
-                    FileID FID, const FileEntry *Entry, const char *declName);
+                    FileID FID, FileEntryRef Entry, const char *declName);
 
   // Rewrite the file specified by FID with HTML formatting.
   void RewriteFile(Rewriter &R, const PathPieces &path, FileID FID);
@@ -301,6 +302,17 @@ void HTMLDiagnostics::ReportDiag(const PathDiagnostic& D,
       }
   }
 
+  SmallString<32> IssueHash = getIssueHash(D, PP);
+  auto [It, IsNew] = EmittedHashes.insert(IssueHash);
+  if (!IsNew) {
+    // We've already emitted a duplicate issue. It'll get overwritten anyway.
+    return;
+  }
+
+  // FIXME: This causes each file to be re-parsed and syntax-highlighted
+  // and macro-expanded separately for each report. We could cache such rewrites
+  // across all reports and only re-do the part that's actually different:
+  // the warning/note bubbles.
   std::string report = GenerateHTML(D, R, SMgr, path, declName.c_str());
   if (report.empty()) {
     llvm::errs() << "warning: no diagnostics generated for main file.\n";
@@ -326,13 +338,13 @@ void HTMLDiagnostics::ReportDiag(const PathDiagnostic& D,
     FileID ReportFile =
         path.back()->getLocation().asLocation().getExpansionLoc().getFileID();
 
-    const FileEntry *Entry = SMgr.getFileEntryForID(ReportFile);
+    OptionalFileEntryRef Entry = SMgr.getFileEntryRefForID(ReportFile);
 
     FileName << llvm::sys::path::filename(Entry->getName()).str() << "-"
              << declName.c_str() << "-" << offsetDecl << "-";
   }
 
-  FileName << StringRef(getIssueHash(D, PP)).substr(0, 6).str() << ".html";
+  FileName << StringRef(IssueHash).substr(0, 6).str() << ".html";
 
   SmallString<128> ResultPath;
   llvm::sys::path::append(ResultPath, Directory, FileName.str());
@@ -396,7 +408,7 @@ std::string HTMLDiagnostics::GenerateHTML(const PathDiagnostic& D, Rewriter &R,
         os << "<div class=FileNav><a href=\"#File" << (I - 1)->getHashValue()
            << "\">&#x2190;</a></div>";
 
-      os << "<h4 class=FileName>" << SMgr.getFileEntryForID(*I)->getName()
+      os << "<h4 class=FileName>" << SMgr.getFileEntryRefForID(*I)->getName()
          << "</h4>\n";
 
       // Right nav arrow
@@ -429,8 +441,8 @@ std::string HTMLDiagnostics::GenerateHTML(const PathDiagnostic& D, Rewriter &R,
   // Add CSS, header, and footer.
   FileID FID =
       path.back()->getLocation().asLocation().getExpansionLoc().getFileID();
-  const FileEntry* Entry = SMgr.getFileEntryForID(FID);
-  FinalizeHTML(D, R, SMgr, path, FileIDs[0], Entry, declName);
+  OptionalFileEntryRef Entry = SMgr.getFileEntryRefForID(FID);
+  FinalizeHTML(D, R, SMgr, path, FileIDs[0], *Entry, declName);
 
   std::string file;
   llvm::raw_string_ostream os(file);
@@ -537,16 +549,17 @@ document.addEventListener("DOMContentLoaded", function() {
   return s;
 }
 
-void HTMLDiagnostics::FinalizeHTML(const PathDiagnostic& D, Rewriter &R,
-    const SourceManager& SMgr, const PathPieces& path, FileID FID,
-    const FileEntry *Entry, const char *declName) {
+void HTMLDiagnostics::FinalizeHTML(const PathDiagnostic &D, Rewriter &R,
+                                   const SourceManager &SMgr,
+                                   const PathPieces &path, FileID FID,
+                                   FileEntryRef Entry, const char *declName) {
   // This is a cludge; basically we want to append either the full
   // working directory if we have no directory information.  This is
   // a work in progress.
 
   llvm::SmallString<0> DirName;
 
-  if (llvm::sys::path::is_relative(Entry->getName())) {
+  if (llvm::sys::path::is_relative(Entry.getName())) {
     llvm::sys::fs::current_path(DirName);
     DirName += '/';
   }
@@ -575,7 +588,7 @@ void HTMLDiagnostics::FinalizeHTML(const PathDiagnostic& D, Rewriter &R,
        << "<h3>Bug Summary</h3>\n<table class=\"simpletable\">\n"
           "<tr><td class=\"rowname\">File:</td><td>"
        << html::EscapeText(DirName)
-       << html::EscapeText(Entry->getName())
+       << html::EscapeText(Entry.getName())
        << "</td></tr>\n<tr><td class=\"rowname\">Warning:</td><td>"
           "<a href=\"#EndPath\">line "
        << LineNumber
@@ -592,11 +605,11 @@ void HTMLDiagnostics::FinalizeHTML(const PathDiagnostic& D, Rewriter &R,
             P->getLocation().asLocation().getExpansionLineNumber();
         int ColumnNumber =
             P->getLocation().asLocation().getExpansionColumnNumber();
+        ++NumExtraPieces;
         os << "<tr><td class=\"rowname\">Note:</td><td>"
            << "<a href=\"#Note" << NumExtraPieces << "\">line "
            << LineNumber << ", column " << ColumnNumber << "</a><br />"
            << P->getString() << "</td></tr>";
-        ++NumExtraPieces;
       }
     }
 
@@ -656,9 +669,9 @@ void HTMLDiagnostics::FinalizeHTML(const PathDiagnostic& D, Rewriter &R,
     if (!BugCategory.empty())
       os << "\n<!-- BUGCATEGORY " << BugCategory << " -->\n";
 
-    os << "\n<!-- BUGFILE " << DirName << Entry->getName() << " -->\n";
+    os << "\n<!-- BUGFILE " << DirName << Entry.getName() << " -->\n";
 
-    os << "\n<!-- FILENAME " << llvm::sys::path::filename(Entry->getName()) << " -->\n";
+    os << "\n<!-- FILENAME " << llvm::sys::path::filename(Entry.getName()) << " -->\n";
 
     os  << "\n<!-- FUNCTIONNAME " <<  declName << " -->\n";
 
@@ -682,7 +695,7 @@ void HTMLDiagnostics::FinalizeHTML(const PathDiagnostic& D, Rewriter &R,
     R.InsertTextBefore(SMgr.getLocForStartOfFile(FID), os.str());
   }
 
-  html::AddHeaderFooterInternalBuiltinCSS(R, FID, Entry->getName());
+  html::AddHeaderFooterInternalBuiltinCSS(R, FID, Entry.getName());
 }
 
 StringRef HTMLDiagnostics::showHelpJavascript() {

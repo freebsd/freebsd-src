@@ -1022,7 +1022,7 @@ format1(const struct stat *st,
 		(void)strcat(lfmt, tmp);
 
 		/*
-		 * For precision of less that nine digits, trim off the
+		 * For precision of less than nine digits, trim off the
 		 * less significant figures.
 		 */
 		for (; prec < 9; prec++)

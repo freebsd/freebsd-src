@@ -130,22 +130,6 @@ all-man: ${MAN}
 ZEXT=		${MCOMPRESS_EXT}
 
 .if defined(MAN) && !empty(MAN)
-.if ${MK_STAGING_MAN} == "yes"
-STAGE_TARGETS+= stage_files
-_mansets:= ${MAN:E:O:u:M*[1-9]:@s@man$s@}
-STAGE_SETS+= ${_mansets}
-.for _page in ${MAN}
-stage_files.man${_page:T:E}: ${_page}
-STAGE_DIR.man${_page:T:E}?= ${STAGE_OBJTOP}${MANDIR}${_page:T:E}${MANSUBDIR}
-.endfor
-.if !empty(MLINKS)
-STAGE_SETS+= mlinks
-STAGE_TARGETS+= stage_links
-STAGE_LINKS.mlinks:= ${MLINKS:M*.[1-9]:@f@${f:S,^,${MANDIR}${f:E}${MANSUBDIR}/,}@}
-stage_links.mlinks: ${_mansets:@s@stage_files.$s@}
-.endif
-.endif
-
 CLEANFILES+=	${MAN:T:S/$/${MCOMPRESS_EXT}/g}
 CLEANFILES+=	${MAN:T:S/$/${CATEXT}${MCOMPRESS_EXT}/g}
 .for __page in ${MAN}
@@ -183,6 +167,27 @@ _MANLINKS+=	${CATDIR}${_osect}${MANSUBDIR}/${_oname} \
 		${CATDIR}${_dsect}${MANSUBDIR}/${_dname}
 .endif
 .endfor
+.endif
+
+.if defined(MAN) && !empty(MAN)
+.if ${MK_STAGING_MAN} == "yes"
+STAGE_TARGETS+= stage_files
+_mansets:= ${MAN:E:O:u:M*[1-9]:@s@man$s@}
+STAGE_SETS+= ${_mansets}
+.for _page in ${MAN}
+stage_files.man${_page:T:E}: ${_page}
+.if target(${_page}${MCOMPRESS_EXT})
+stage_files.man${_page:T:E}: ${_page}${MCOMPRESS_EXT}
+.endif
+STAGE_DIR.man${_page:T:E}?= ${STAGE_OBJTOP}${MANDIR}${_page:T:E}${MANSUBDIR}
+.endfor
+.if !defined(NO_MLINKS) && !empty(MLINKS)
+STAGE_SETS+= mlinks
+STAGE_TARGETS+= stage_links
+STAGE_LINKS.mlinks:= ${MLINKS:M*.[1-9]:@f@${f:S,^,${MANDIR}${f:E}${MANSUBDIR}/,}@}
+stage_links.mlinks: ${_mansets:@s@stage_files.$s@}
+.endif
+.endif
 .endif
 
 maninstall:
@@ -229,12 +234,15 @@ maninstall: ${MAN}
 .endif	# ${MK_MANCOMPRESS} == "no"
 .endif
 .for l t in ${_MANLINKS}
+# On MacOS, assume case folding FS, and don't install links from foo.x to FOO.x.
+.if ${.MAKE.OS} != "Darwin" || ${l:tu} != ${t:tu}
 .if ${MK_MANSPLITPKG} == "no"
 	rm -f ${DESTDIR}${t} ${DESTDIR}${t}${MCOMPRESS_EXT}; \
 	    ${INSTALL_MANLINK} ${TAG_ARGS} ${DESTDIR}${l}${ZEXT} ${DESTDIR}${t}${ZEXT}
 .else
 	rm -f ${DESTDIR}${t} ${DESTDIR}${t}${MCOMPRESS_EXT}; \
 	    ${INSTALL_MANLINK} ${TAG_ARGS:D${TAG_ARGS},man} ${DESTDIR}${l}${ZEXT} ${DESTDIR}${t}${ZEXT}
+.endif
 .endif
 .endfor
 

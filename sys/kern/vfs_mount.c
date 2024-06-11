@@ -473,7 +473,7 @@ sys_nmount(struct thread *td, struct nmount_args *uap)
 	}
 	error = vfs_donmount(td, flags, auio);
 
-	free(auio, M_IOV);
+	freeuio(auio);
 	return (error);
 }
 
@@ -1024,7 +1024,7 @@ bail:
 			    fsoptions->uio_iov[2 * errmsg_pos + 1].iov_base,
 			    fsoptions->uio_iov[2 * errmsg_pos + 1].iov_len);
 		} else {
-			copyout(errmsg,
+			(void)copyout(errmsg,
 			    fsoptions->uio_iov[2 * errmsg_pos + 1].iov_base,
 			    fsoptions->uio_iov[2 * errmsg_pos + 1].iov_len);
 		}
@@ -1313,7 +1313,7 @@ vfs_domount_update(
 	void *bufp;
 	struct mount *mp;
 	int error, export_error, i, len, fsid_up_len;
-	uint64_t flag;
+	uint64_t flag, mnt_union;
 	gid_t *grps;
 	fsid_t *fsid_up;
 	bool vfs_suser_failed;
@@ -1388,13 +1388,14 @@ vfs_domount_update(
 			error = EINVAL;
 			goto end;
 		}
-		if (fsidcmp(&fsid_up, &mp->mnt_stat.f_fsid) != 0) {
+		if (fsidcmp(fsid_up, &mp->mnt_stat.f_fsid) != 0) {
 			error = ENOENT;
 			goto end;
 		}
 		vfs_deleteopt(*optlist, "fsid");
 	}
 
+	mnt_union = 0;
 	MNT_ILOCK(mp);
 	if ((mp->mnt_kern_flag & MNTK_UNMOUNT) != 0) {
 		MNT_IUNLOCK(mp);
@@ -1416,6 +1417,11 @@ vfs_domount_update(
 		mp->mnt_flag |= MNT_UPDATE;
 	} else {
 		mp->mnt_flag &= ~MNT_UPDATEMASK;
+		if ((mp->mnt_flag & MNT_UNION) == 0 &&
+		    (fsflags & MNT_UNION) != 0) {
+			fsflags &= ~MNT_UNION;
+			mnt_union = MNT_UNION;
+		}
 		mp->mnt_flag |= fsflags & (MNT_RELOAD | MNT_FORCE | MNT_UPDATE |
 		    MNT_SNAPSHOT | MNT_ROOTFS | MNT_UPDATEMASK | MNT_RDONLY);
 		if ((mp->mnt_flag & MNT_ASYNC) == 0)
@@ -1517,8 +1523,9 @@ vfs_domount_update(
 
 	MNT_ILOCK(mp);
 	if (error == 0) {
-		mp->mnt_flag &=	~(MNT_UPDATE | MNT_RELOAD | MNT_FORCE |
+		mp->mnt_flag &= ~(MNT_UPDATE | MNT_RELOAD | MNT_FORCE |
 		    MNT_SNAPSHOT);
+		mp->mnt_flag |= mnt_union;
 	} else {
 		/*
 		 * If we fail, restore old mount flags. MNT_QUOTA is special,

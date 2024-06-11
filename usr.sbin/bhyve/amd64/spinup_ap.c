@@ -51,7 +51,7 @@ spinup_ap_realmode(struct vcpu *newcpu, uint64_t rip)
 
 	/*
 	 * Update the %cs and %rip of the guest so that it starts
-	 * executing real mode code at at 'vector << 12'.
+	 * executing real mode code at 'vector << 12'.
 	 */
 	error = vm_set_register(newcpu, VM_REG_GUEST_RIP, 0);
 	assert(error == 0);

@@ -326,6 +326,17 @@
 #if __GNUC_PREREQ__(3, 4)
 #define	__fastcall	__attribute__((__fastcall__))
 #define	__result_use_check	__attribute__((__warn_unused_result__))
+#ifdef __clang__
+/*
+ * clang and gcc have different semantics for __warn_unused_result__: the latter
+ * does not permit the use of a void cast to suppress the warning.  Use
+ * __result_use_or_ignore_check in places where a void cast is acceptable.
+ * This can be implemented by [[nodiscard]] from C23.
+ */
+#define	__result_use_or_ignore_check	__result_use_check
+#else
+#define	__result_use_or_ignore_check
+#endif /* !__clang__ */
 #else
 #define	__fastcall
 #define	__result_use_check
@@ -356,6 +367,17 @@
 #ifndef	__STDC_CONSTANT_MACROS
 #define	__STDC_CONSTANT_MACROS
 #endif
+#endif
+
+/*
+ * noexcept keyword added in C++11.
+ */
+#if defined(__cplusplus) && __cplusplus >= 201103L
+#define __noexcept noexcept
+#define __noexcept_if(__c) noexcept(__c)
+#else
+#define __noexcept
+#define __noexcept_if(__c)
 #endif
 
 /*
@@ -585,6 +607,16 @@
 
 #ifndef	__DEQUALIFY
 #define	__DEQUALIFY(type, var)	((type)(__uintptr_t)(const volatile void *)(var))
+#endif
+
+#if !defined(_STANDALONE) && !defined(_KERNEL)
+#if defined(__GNUC__) || defined(__PCC__)
+#define	__RENAME(x)	__asm(__STRING(x))
+#else
+#define	__RENAME(x)	no renaming support for compiler in use
+#endif /* __GNUC__ */
+#else /* _STANDALONE || _KERNEL */
+#define	__RENAME(x)	no renaming in kernel/standalone environment
 #endif
 
 /*-
@@ -870,7 +902,7 @@
 /* Provide fallback versions for other compilers (GCC/Clang < 10): */
 #if !__has_builtin(__builtin_is_aligned)
 #define __builtin_is_aligned(x, align)	\
-	(((__uintptr_t)x & ((align) - 1)) == 0)
+	(((__uintptr_t)(x) & ((align) - 1)) == 0)
 #endif
 #if !__has_builtin(__builtin_align_up)
 #define __builtin_align_up(x, align)	\

@@ -3985,9 +3985,11 @@ getblkx(struct vnode *vp, daddr_t blkno, daddr_t dblkno, int size, int slpflag,
 	    ("GB_KVAALLOC only makes sense with GB_UNMAPPED"));
 	if (vp->v_type != VCHR)
 		ASSERT_VOP_LOCKED(vp, "getblk");
-	if (size > maxbcachebuf)
-		panic("getblk: size(%d) > maxbcachebuf(%d)\n", size,
+	if (size > maxbcachebuf) {
+		printf("getblkx: size(%d) > maxbcachebuf(%d)\n", size,
 		    maxbcachebuf);
+		return (EIO);
+	}
 	if (!unmapped_buf_allowed)
 		flags &= ~(GB_UNMAPPED | GB_KVAALLOC);
 
@@ -4008,8 +4010,23 @@ getblkx(struct vnode *vp, daddr_t blkno, daddr_t dblkno, int size, int slpflag,
 
 	error = BUF_TIMELOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL, "getblku", 0,
 	    0);
-	if (error != 0)
+	if (error != 0) {
+		KASSERT(error == EBUSY,
+		    ("getblk: unexpected error %d from buf try-lock", error));
+		/*
+		 * We failed a buf try-lock.
+		 *
+		 * With GB_LOCK_NOWAIT, just return, rather than taking the
+		 * bufobj interlock and trying again, since we would probably
+		 * fail again anyway.  This is okay even if the buf's identity
+		 * changed and we contended on the wrong lock, as changing
+		 * identity itself requires the buf lock, and we could have
+		 * contended on the right lock.
+		 */
+		if ((flags & GB_LOCK_NOWAIT) != 0)
+			return (error);
 		goto loop;
+	}
 
 	/* Verify buf identify has not changed since lookup. */
 	if (bp->b_bufobj == bo && bp->b_lblkno == blkno)
@@ -4017,6 +4034,10 @@ getblkx(struct vnode *vp, daddr_t blkno, daddr_t dblkno, int size, int slpflag,
 
 	/* It changed, fallback to locked lookup. */
 	BUF_UNLOCK_RAW(bp);
+
+	/* As above, with GB_LOCK_NOWAIT, just return. */
+	if ((flags & GB_LOCK_NOWAIT) != 0)
+		return (EBUSY);
 
 loop:
 	BO_RLOCK(bo);
@@ -4161,6 +4182,12 @@ newbuf_unlocked:
 		vmio = vp->v_object != NULL;
 		if (vmio) {
 			maxsize = size + (offset & PAGE_MASK);
+			if (maxsize > maxbcachebuf) {
+				printf(
+			    "getblkx: maxsize(%d) > maxbcachebuf(%d)\n",
+				    maxsize, maxbcachebuf);
+				return (EIO);
+			}
 		} else {
 			maxsize = size;
 			/* Do not allow non-VMIO notmapped buffers. */
@@ -4204,35 +4231,29 @@ newbuf_unlocked:
 		}
 
 		/*
-		 * This code is used to make sure that a buffer is not
-		 * created while the getnewbuf routine is blocked.
-		 * This can be a problem whether the vnode is locked or not.
-		 * If the buffer is created out from under us, we have to
-		 * throw away the one we just created.
 		 *
-		 * Note: this must occur before we associate the buffer
-		 * with the vp especially considering limitations in
-		 * the splay tree implementation when dealing with duplicate
-		 * lblkno's.
+		 * Insert the buffer into the hash, so that it can
+		 * be found by incore.
+		 *
+		 * We don't hold the bufobj interlock while allocating the new
+		 * buffer.  Consequently, we can race on buffer creation.  This
+		 * can be a problem whether the vnode is locked or not.  If the
+		 * buffer is created out from under us, we have to throw away
+		 * the one we just created.
 		 */
-		BO_LOCK(bo);
-		if (gbincore(bo, blkno)) {
-			BO_UNLOCK(bo);
+		bp->b_lblkno = blkno;
+		bp->b_blkno = d_blkno;
+		bp->b_offset = offset;
+		error = bgetvp(vp, bp);
+		if (error != 0) {
+			KASSERT(error == EEXIST,
+			    ("getblk: unexpected error %d from bgetvp",
+			    error));
 			bp->b_flags |= B_INVAL;
 			bufspace_release(bufdomain(bp), maxsize);
 			brelse(bp);
 			goto loop;
 		}
-
-		/*
-		 * Insert the buffer into the hash, so that it can
-		 * be found by incore.
-		 */
-		bp->b_lblkno = blkno;
-		bp->b_blkno = d_blkno;
-		bp->b_offset = offset;
-		bgetvp(vp, bp);
-		BO_UNLOCK(bo);
 
 		/*
 		 * set B_VMIO bit.  allocbuf() the buffer bigger.  Since the
@@ -5458,16 +5479,16 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 	}
 
 	db_printf("buf at %p\n", bp);
-	db_printf("b_flags = 0x%b, b_xflags=0x%b\n",
+	db_printf("b_flags = 0x%b, b_xflags = 0x%b\n",
 	    (u_int)bp->b_flags, PRINT_BUF_FLAGS,
 	    (u_int)bp->b_xflags, PRINT_BUF_XFLAGS);
-	db_printf("b_vflags=0x%b b_ioflags0x%b\n",
+	db_printf("b_vflags = 0x%b, b_ioflags = 0x%b\n",
 	    (u_int)bp->b_vflags, PRINT_BUF_VFLAGS,
 	    (u_int)bp->b_ioflags, PRINT_BIO_FLAGS);
 	db_printf(
 	    "b_error = %d, b_bufsize = %ld, b_bcount = %ld, b_resid = %ld\n"
-	    "b_bufobj = (%p), b_data = %p\n, b_blkno = %jd, b_lblkno = %jd, "
-	    "b_vp = %p, b_dep = %p\n",
+	    "b_bufobj = %p, b_data = %p\n"
+	    "b_blkno = %jd, b_lblkno = %jd, b_vp = %p, b_dep = %p\n",
 	    bp->b_error, bp->b_bufsize, bp->b_bcount, bp->b_resid,
 	    bp->b_bufobj, bp->b_data, (intmax_t)bp->b_blkno,
 	    (intmax_t)bp->b_lblkno, bp->b_vp, bp->b_dep.lh_first);
@@ -5504,7 +5525,6 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 #elif defined(BUF_TRACKING)
 	db_printf("b_io_tracking: %s\n", bp->b_io_tracking);
 #endif
-	db_printf(" ");
 }
 
 DB_SHOW_COMMAND_FLAGS(bufqueues, bufqueues, DB_CMD_MEMSAFE)

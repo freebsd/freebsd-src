@@ -17,11 +17,11 @@
 
 #include "MCTargetDesc/WebAssemblyMCTargetDesc.h"
 #include "Utils/WebAssemblyTypeUtilities.h"
-#include "Utils/WebAssemblyUtilities.h"
 #include "WebAssembly.h"
 #include "WebAssemblyMachineFunctionInfo.h"
 #include "WebAssemblySubtarget.h"
 #include "WebAssemblyTargetMachine.h"
+#include "WebAssemblyUtilities.h"
 #include "llvm/Analysis/BranchProbabilityInfo.h"
 #include "llvm/CodeGen/FastISel.h"
 #include "llvm/CodeGen/FunctionLoweringInfo.h"
@@ -278,7 +278,7 @@ bool WebAssemblyFastISel::computeAddress(const Value *Obj, Address &Addr) {
         unsigned Idx = cast<ConstantInt>(Op)->getZExtValue();
         TmpOffset += SL->getElementOffset(Idx);
       } else {
-        uint64_t S = DL.getTypeAllocSize(GTI.getIndexedType());
+        uint64_t S = GTI.getSequentialElementStride(DL);
         for (;;) {
           if (const auto *CI = dyn_cast<ConstantInt>(Op)) {
             // Constant-offset addressing.
@@ -839,9 +839,9 @@ bool WebAssemblyFastISel::selectCall(const Instruction *I) {
 
     unsigned Reg;
 
-    if (Attrs.hasParamAttr(I, Attribute::SExt))
+    if (Call->paramHasAttr(I, Attribute::SExt))
       Reg = getRegForSignedValue(V);
-    else if (Attrs.hasParamAttr(I, Attribute::ZExt))
+    else if (Call->paramHasAttr(I, Attribute::ZExt))
       Reg = getRegForUnsignedValue(V);
     else
       Reg = getRegForValue(V);

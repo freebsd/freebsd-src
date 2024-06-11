@@ -26,22 +26,21 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bio.h>
+#include <sys/buf.h>
+#include <sys/conf.h>
 #include <sys/fcntl.h>
-#include <sys/file.h>
-#include <sys/stat.h>
-#include <sys/proc.h>
+#include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
-#include <sys/vnode.h>
-#include <sys/conf.h>
-#include <sys/filio.h>
-#include <sys/ttycom.h>
-#include <sys/bio.h>
-#include <sys/buf.h>
+#include <sys/proc.h>
 #include <sys/rwlock.h>
+#include <sys/stat.h>
+#include <sys/sysctl.h>
+#include <sys/vnode.h>
+
 #include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
@@ -53,8 +52,7 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
-#include <sys/kernel.h>
-#include <sys/sysctl.h>
+#include <vm/vnode_pager.h>
 
 static int ffs_rawread_readahead(struct vnode *vp,
 				 caddr_t udata,
@@ -135,15 +133,10 @@ ffs_rawread_sync(struct vnode *vp)
 			vn_finished_write(mp);
 			return (EIO);
 		}
-		/* Attempt to msync mmap() regions to clean dirty mmap */ 
-		if ((obj = vp->v_object) != NULL &&
-		    vm_object_mightbedirty(obj)) {
-			VI_UNLOCK(vp);
-			VM_OBJECT_WLOCK(obj);
-			vm_object_page_clean(obj, 0, 0, OBJPC_SYNC);
-			VM_OBJECT_WUNLOCK(obj);
-		} else
-			VI_UNLOCK(vp);
+		VI_UNLOCK(vp);
+
+		/* Attempt to msync mmap() regions to clean dirty mmap */
+		vnode_pager_clean_sync(vp);
 
 		/* Wait for pending writes to complete */
 		BO_LOCK(bo);

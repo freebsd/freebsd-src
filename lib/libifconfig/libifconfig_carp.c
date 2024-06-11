@@ -56,6 +56,9 @@ static struct snl_attr_parser ap_carp_get[] = {
 	{ .type = CARP_NL_KEY, .off = _OUT(carpr_key), .cb = snl_attr_copy_string, .arg_u32 = CARP_KEY_LEN },
 	{ .type = CARP_NL_ADDR, .off = _OUT(carpr_addr), .cb = snl_attr_get_in_addr },
 	{ .type = CARP_NL_ADDR6, .off = _OUT(carpr_addr6), .cb = snl_attr_get_in6_addr },
+	{ .type = CARP_NL_VERSION, .off = _OUT(carpr_version), .cb = snl_attr_get_uint8 },
+	{ .type = CARP_NL_VRRP_PRIORITY, .off = _OUT(carpr_vrrp_prio), .cb = snl_attr_get_uint8 },
+	{ .type = CARP_NL_VRRP_ADV_INTER, .off = _OUT(carpr_vrrp_adv_inter), .cb = snl_attr_get_uint16 },
 };
 #undef _OUT
 
@@ -175,6 +178,9 @@ ifconfig_carp_set_info(ifconfig_handle_t *h, const char *name,
 	snl_add_msg_attr(&nw, CARP_NL_ADDR6, sizeof(carpr->carpr_addr6),
 	    &carpr->carpr_addr6);
 	snl_add_msg_attr_string(&nw, CARP_NL_KEY, carpr->carpr_key);
+	snl_add_msg_attr_u8(&nw, CARP_NL_VERSION, carpr->carpr_version);
+	snl_add_msg_attr_u8(&nw, CARP_NL_VRRP_PRIORITY, carpr->carpr_vrrp_prio);
+	snl_add_msg_attr_u16(&nw, CARP_NL_VRRP_ADV_INTER, carpr->carpr_vrrp_adv_inter);
 
 	hdr = snl_finalize_msg(&nw);
 	if (hdr == NULL) {

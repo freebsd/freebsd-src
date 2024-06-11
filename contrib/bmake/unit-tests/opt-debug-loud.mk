@@ -1,4 +1,4 @@
-# $NetBSD: opt-debug-loud.mk,v 1.4 2020/10/05 19:27:48 rillig Exp $
+# $NetBSD: opt-debug-loud.mk,v 1.5 2023/12/19 19:33:40 rillig Exp $
 #
 # Tests for the -dl command line option, which prints the commands before
 # running them, ignoring the command line option for silent mode (-s) as
@@ -8,8 +8,8 @@
 .MAKEFLAGS: -dl -s
 .SILENT:
 
-# The -dl command line option does not affect commands that are run during
-# variable expansion, such as :!cmd! or :sh.
+# The -dl command line option does not affect commands that are run when
+# evaluating expressions and their modifiers, such as :!cmd! or :sh.
 .if ${:!echo word!} != "word"
 .  error
 .endif

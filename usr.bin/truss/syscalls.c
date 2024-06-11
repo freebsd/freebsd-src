@@ -615,6 +615,8 @@ static const struct syscall_decode decoded_syscalls[] = {
 	  .args = { { Name | IN, 0 }, { Int, 1 } } },
 	{ .name = "linux_newfstat", .ret_type = 1, .nargs = 2,
 	  .args = { { Int, 0 }, { Ptr | OUT, 1 } } },
+	{ .name = "linux_newlstat", .ret_type = 1, .nargs = 2,
+	  .args = { { Name | IN, 0 }, { Ptr | OUT, 1 } } },
 	{ .name = "linux_newstat", .ret_type = 1, .nargs = 2,
 	  .args = { { Name | IN, 0 }, { Ptr | OUT, 1 } } },
 	{ .name = "linux_open", .ret_type = 1, .nargs = 3,

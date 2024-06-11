@@ -1,6 +1,8 @@
 #!/bin/sh
 
-# $Id: mkopt.sh,v 1.15 2022/06/06 21:34:21 sjg Exp $
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# $Id: mkopt.sh,v 1.16 2024/02/17 17:26:57 sjg Exp $
 #
 #	@(#) Copyright (c) 2014-2022, Simon J. Gerraty
 #

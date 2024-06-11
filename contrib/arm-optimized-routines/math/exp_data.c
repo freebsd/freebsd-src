@@ -1,7 +1,7 @@
 /*
  * Shared data between exp, exp2 and pow.
  *
- * Copyright (c) 2018, Arm Limited.
+ * Copyright (c) 2018-2023, Arm Limited.
  * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
@@ -12,6 +12,7 @@
 const struct exp_data __exp_data = {
 // N/ln2
 .invln2N = 0x1.71547652b82fep0 * N,
+.invlog10_2N = 0x1.a934f0979a371p1 * N,
 // -ln2/N
 #if N == 64
 .negln2hiN = -0x1.62e42fefa0000p-7,
@@ -26,6 +27,8 @@ const struct exp_data __exp_data = {
 .negln2hiN = -0x1.62e42fef80000p-10,
 .negln2loN = -0x1.1cf79abc9e3b4p-45,
 #endif
+.neglog10_2hiN = -0x1.3441350ap-2 / N,
+.neglog10_2loN = 0x1.0c0219dc1da99p-39 / N,
 // Used for rounding when !TOINT_INTRINSICS
 #if EXP_USE_TOINT_NARROW
 .shift = 0x1800000000.8p0,
@@ -145,6 +148,24 @@ const struct exp_data __exp_data = {
 0x1.ebfbdff82c58bp-3,
 0x1.c6b08e46de41fp-5,
 0x1.3b2ab786ee1dap-7,
+#endif
+},
+.exp10_poly = {
+#if EXP10_POLY_WIDE
+/* Range is wider if using shift-based reduction: coeffs generated
+   using Remez in [-log10(2)/128, log10(2)/128 ].  */
+0x1.26bb1bbb55515p1,
+0x1.53524c73cd32bp1,
+0x1.0470591e1a108p1,
+0x1.2bd77b12fe9a8p0,
+0x1.14289fef24b78p-1
+#else
+/* Coeffs generated using Remez in [-log10(2)/256, log10(2)/256 ].  */
+0x1.26bb1bbb55516p1,
+0x1.53524c73ce9fep1,
+0x1.0470591ce4b26p1,
+0x1.2bd76577fe684p0,
+0x1.1446eeccd0efbp-1
 #endif
 },
 // 2^(k/N) ~= H[k]*(1 + T[k]) for int k in [0,N)

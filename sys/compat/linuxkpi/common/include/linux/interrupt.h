@@ -40,7 +40,7 @@
 
 typedef	irqreturn_t	(*irq_handler_t)(int, void *);
 
-#define	IRQF_SHARED	RF_SHAREABLE
+#define	IRQF_SHARED		0x0004	/* Historically */
 #define	IRQF_NOBALANCING	0
 
 #define	IRQ_DISABLE_UNLAZY	0
@@ -133,7 +133,7 @@ irq_set_affinity_hint(int vector, const cpumask_t *mask)
 	int error;
 
 	if (mask != NULL)
-		error = intr_setaffinity(vector, CPU_WHICH_IRQ, __DECONST(cpumask_t *, mask));
+		error = intr_setaffinity(vector, CPU_WHICH_IRQ, mask);
 	else
 		error = intr_setaffinity(vector, CPU_WHICH_IRQ, cpuset_root);
 

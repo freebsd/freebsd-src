@@ -211,9 +211,14 @@ pfil_mbuf_common(pfil_chain_t *pch, struct mbuf **m, struct ifnet *ifp,
 	CK_STAILQ_FOREACH(link, pch, link_chain) {
 		rv = link->link_mbuf_chk(m, ifp, flags, link->link_ruleset,
 		    inp);
-		if (rv == PFIL_DROPPED || rv == PFIL_CONSUMED)
+		if (rv == PFIL_DROPPED || rv == PFIL_CONSUMED) {
+			MPASS(*m == NULL);
 			break;
+		} else {
+			MPASS(*m != NULL);
+		}
 	}
+
 	return (rv);
 }
 
@@ -295,6 +300,7 @@ pfil_head_unregister(pfil_head_t ph)
 		free(link, M_PFIL);
 	}
 	PFIL_UNLOCK();
+	free(ph, M_PFIL);
 }
 
 pfil_hook_t

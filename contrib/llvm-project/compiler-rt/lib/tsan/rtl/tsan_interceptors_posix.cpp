@@ -14,6 +14,7 @@
 
 #include "sanitizer_common/sanitizer_atomic.h"
 #include "sanitizer_common/sanitizer_errno.h"
+#include "sanitizer_common/sanitizer_glibc_version.h"
 #include "sanitizer_common/sanitizer_libc.h"
 #include "sanitizer_common/sanitizer_linux.h"
 #include "sanitizer_common/sanitizer_platform_limits_netbsd.h"
@@ -81,6 +82,8 @@ struct ucontext_t {
 #define PTHREAD_ABI_BASE  "GLIBC_2.17"
 #elif SANITIZER_LOONGARCH64
 #define PTHREAD_ABI_BASE  "GLIBC_2.36"
+#elif SANITIZER_RISCV64
+#  define PTHREAD_ABI_BASE "GLIBC_2.27"
 #endif
 
 extern "C" int pthread_attr_init(void *attr);
@@ -1378,6 +1381,22 @@ TSAN_INTERCEPTOR(int, pthread_mutex_unlock, void *m) {
   return res;
 }
 
+#if SANITIZER_LINUX
+TSAN_INTERCEPTOR(int, pthread_mutex_clocklock, void *m,
+                 __sanitizer_clockid_t clock, void *abstime) {
+  SCOPED_TSAN_INTERCEPTOR(pthread_mutex_clocklock, m, clock, abstime);
+  MutexPreLock(thr, pc, (uptr)m);
+  int res = REAL(pthread_mutex_clocklock)(m, clock, abstime);
+  if (res == errno_EOWNERDEAD)
+    MutexRepair(thr, pc, (uptr)m);
+  if (res == 0 || res == errno_EOWNERDEAD)
+    MutexPostLock(thr, pc, (uptr)m);
+  if (res == errno_EINVAL)
+    MutexInvalidAccess(thr, pc, (uptr)m);
+  return res;
+}
+#endif
+
 #if SANITIZER_GLIBC
 #  if !__GLIBC_PREREQ(2, 34)
 // glibc 2.34 applies a non-default version for the two functions. They are no
@@ -1595,47 +1614,40 @@ TSAN_INTERCEPTOR(int, __fxstat, int version, int fd, void *buf) {
     FdAccess(thr, pc, fd);
   return REAL(__fxstat)(version, fd, buf);
 }
-#define TSAN_MAYBE_INTERCEPT___FXSTAT TSAN_INTERCEPT(__fxstat)
-#else
-#define TSAN_MAYBE_INTERCEPT___FXSTAT
-#endif
 
-TSAN_INTERCEPTOR(int, fstat, int fd, void *buf) {
-#if SANITIZER_GLIBC
-  SCOPED_TSAN_INTERCEPTOR(__fxstat, 0, fd, buf);
-  if (fd > 0)
-    FdAccess(thr, pc, fd);
-  return REAL(__fxstat)(0, fd, buf);
-#else
-  SCOPED_TSAN_INTERCEPTOR(fstat, fd, buf);
-  if (fd > 0)
-    FdAccess(thr, pc, fd);
-  return REAL(fstat)(fd, buf);
-#endif
-}
-
-#if SANITIZER_GLIBC
 TSAN_INTERCEPTOR(int, __fxstat64, int version, int fd, void *buf) {
   SCOPED_TSAN_INTERCEPTOR(__fxstat64, version, fd, buf);
   if (fd > 0)
     FdAccess(thr, pc, fd);
   return REAL(__fxstat64)(version, fd, buf);
 }
-#define TSAN_MAYBE_INTERCEPT___FXSTAT64 TSAN_INTERCEPT(__fxstat64)
+#define TSAN_MAYBE_INTERCEPT___FXSTAT TSAN_INTERCEPT(__fxstat); TSAN_INTERCEPT(__fxstat64)
 #else
-#define TSAN_MAYBE_INTERCEPT___FXSTAT64
+#define TSAN_MAYBE_INTERCEPT___FXSTAT
 #endif
 
-#if SANITIZER_GLIBC
-TSAN_INTERCEPTOR(int, fstat64, int fd, void *buf) {
-  SCOPED_TSAN_INTERCEPTOR(__fxstat64, 0, fd, buf);
+#if !SANITIZER_GLIBC || __GLIBC_PREREQ(2, 33)
+TSAN_INTERCEPTOR(int, fstat, int fd, void *buf) {
+  SCOPED_TSAN_INTERCEPTOR(fstat, fd, buf);
   if (fd > 0)
     FdAccess(thr, pc, fd);
-  return REAL(__fxstat64)(0, fd, buf);
+  return REAL(fstat)(fd, buf);
 }
-#define TSAN_MAYBE_INTERCEPT_FSTAT64 TSAN_INTERCEPT(fstat64)
+#  define TSAN_MAYBE_INTERCEPT_FSTAT TSAN_INTERCEPT(fstat)
 #else
-#define TSAN_MAYBE_INTERCEPT_FSTAT64
+#  define TSAN_MAYBE_INTERCEPT_FSTAT
+#endif
+
+#if __GLIBC_PREREQ(2, 33)
+TSAN_INTERCEPTOR(int, fstat64, int fd, void *buf) {
+  SCOPED_TSAN_INTERCEPTOR(fstat64, fd, buf);
+  if (fd > 0)
+    FdAccess(thr, pc, fd);
+  return REAL(fstat64)(fd, buf);
+}
+#  define TSAN_MAYBE_INTERCEPT_FSTAT64 TSAN_INTERCEPT(fstat64)
+#else
+#  define TSAN_MAYBE_INTERCEPT_FSTAT64
 #endif
 
 TSAN_INTERCEPTOR(int, open, const char *name, int oflag, ...) {
@@ -2565,7 +2577,7 @@ int sigaction_impl(int sig, const __sanitizer_sigaction *act,
     // Copy act into sigactions[sig].
     // Can't use struct copy, because compiler can emit call to memcpy.
     // Can't use internal_memcpy, because it copies byte-by-byte,
-    // and signal handler reads the handler concurrently. It it can read
+    // and signal handler reads the handler concurrently. It can read
     // some bytes from old value and some bytes from new value.
     // Use volatile to prevent insertion of memcpy.
     sigactions[sig].handler =
@@ -2900,6 +2912,9 @@ void InitializeInterceptors() {
   TSAN_INTERCEPT(pthread_mutex_trylock);
   TSAN_INTERCEPT(pthread_mutex_timedlock);
   TSAN_INTERCEPT(pthread_mutex_unlock);
+#if SANITIZER_LINUX
+  TSAN_INTERCEPT(pthread_mutex_clocklock);
+#endif
 #if SANITIZER_GLIBC
 #  if !__GLIBC_PREREQ(2, 34)
   TSAN_INTERCEPT(__pthread_mutex_lock);
@@ -2929,10 +2944,9 @@ void InitializeInterceptors() {
 
   TSAN_INTERCEPT(pthread_once);
 
-  TSAN_INTERCEPT(fstat);
   TSAN_MAYBE_INTERCEPT___FXSTAT;
+  TSAN_MAYBE_INTERCEPT_FSTAT;
   TSAN_MAYBE_INTERCEPT_FSTAT64;
-  TSAN_MAYBE_INTERCEPT___FXSTAT64;
   TSAN_INTERCEPT(open);
   TSAN_MAYBE_INTERCEPT_OPEN64;
   TSAN_INTERCEPT(creat);

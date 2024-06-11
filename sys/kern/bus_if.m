@@ -310,15 +310,11 @@ METHOD struct resource * alloc_resource {
  *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which allocated the resource
- * @param _type		the type of resource
- * @param _rid		the resource identifier
  * @param _r		the resource to activate
  */
 METHOD int activate_resource {
 	device_t	_dev;
 	device_t	_child;
-	int		_type;
-	int		_rid;
 	struct resource *_r;
 };
 
@@ -332,7 +328,6 @@ METHOD int activate_resource {
  *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which allocated the resource
- * @param _type		the type of resource
  * @param _r		the resource to map
  * @param _args		optional attributes of the mapping
  * @param _map		the mapping
@@ -340,7 +335,6 @@ METHOD int activate_resource {
 METHOD int map_resource {
 	device_t	_dev;
 	device_t	_child;
-	int		_type;
 	struct resource *_r;
 	struct resource_map_request *_args;
 	struct resource_map *_map;
@@ -356,14 +350,12 @@ METHOD int map_resource {
  *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which allocated the resource
- * @param _type		the type of resource
  * @param _r		the resource
  * @param _map		the mapping to release
  */
 METHOD int unmap_resource {
 	device_t	_dev;
 	device_t	_child;
-	int		_type;
 	struct resource *_r;
 	struct resource_map *_map;
 } DEFAULT bus_generic_unmap_resource;
@@ -377,15 +369,11 @@ METHOD int unmap_resource {
  *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which allocated the resource
- * @param _type		the type of resource
- * @param _rid		the resource identifier
  * @param _r		the resource to deactivate
  */
 METHOD int deactivate_resource {
 	device_t	_dev;
 	device_t	_child;
-	int		_type;
-	int		_rid;
 	struct resource *_r;
 };
 
@@ -399,7 +387,6 @@ METHOD int deactivate_resource {
  *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which allocated the resource
- * @param _type		the type of resource
  * @param _res		the resource to adjust
  * @param _start	the new starting address of the resource range
  * @param _end		the new ending address of the resource range
@@ -407,7 +394,6 @@ METHOD int deactivate_resource {
 METHOD int adjust_resource {
 	device_t	_dev;
 	device_t	_child;
-	int		_type;
 	struct resource *_res;
 	rman_res_t	_start;
 	rman_res_t	_end;
@@ -441,15 +427,11 @@ METHOD int translate_resource {
  *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which allocated the resource
- * @param _type		the type of resource
- * @param _rid		the resource identifier
  * @param _r		the resource to release
  */
 METHOD int release_resource {
 	device_t	_dev;
 	device_t	_child;
-	int		_type;
-	int		_rid;
 	struct resource *_res;
 };
 

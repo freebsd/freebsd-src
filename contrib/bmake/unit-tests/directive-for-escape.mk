@@ -1,4 +1,4 @@
-# $NetBSD: directive-for-escape.mk,v 1.21 2023/06/23 06:11:06 rillig Exp $
+# $NetBSD: directive-for-escape.mk,v 1.23 2023/11/19 22:32:44 rillig Exp $
 #
 # Test escaping of special characters in the iteration values of a .for loop.
 # These values get expanded later using the :U variable modifier, and this
@@ -69,7 +69,7 @@ VALUES=		$$ $${V} $${V:=-with-modifier} $$(V) $$(V:=-with-modifier)
 
 # Try to cover the code for nested '{}' in ExprLen, without success.
 #
-# The value of the variable VALUES is not meant to be a variable expression.
+# The value of the variable VALUES is not meant to be an expression.
 # Instead, it is meant to represent literal text, the only escaping mechanism
 # being that each '$' is written as '$$'.
 VALUES=		$${UNDEF:U\$$\$$ {{}} end}
@@ -128,7 +128,7 @@ ${:U\\}=	backslash
 # XXX: It is not the job of ExprLen to parse an expression, it is naive to
 # expect ExprLen to get all the details right in just a few lines of code.
 # Each variable modifier has its own inconsistent way of parsing nested
-# variable expressions, braces and parentheses.  (Compare ':M', ':S', and
+# expressions, braces and parentheses.  (Compare ':M', ':S', and
 # ':D' for details.)  The only sensible thing to do is therefore to let
 # Var_Parse do all the parsing work.
 VALUES=		begin<$${UNDEF:Ufallback:N{{{}}}}>end
@@ -147,7 +147,7 @@ VALUES=		begin<$${UNDEF:Ufallback:N{{{}}}}>end
 # expect-2: $
 
 # Before for.c 1.173 from 2023-05-08, the name of the iteration variable
-# could contain colons, which affected variable expressions having this exact
+# could contain colons, which affected expressions having this exact
 # modifier.  This possibility was neither intended nor documented.
 NUMBERS=	one two three
 # expect+1: invalid character ':' in .for loop variable name
@@ -156,7 +156,7 @@ NUMBERS=	one two three
 .endfor
 
 # Before for.c 1.173 from 2023-05-08, the name of the iteration variable
-# could contain braces, which allowed to replace sequences of variable
+# could contain braces, which allowed to replace sequences of
 # expressions.  This possibility was neither intended nor documented.
 BASENAME=	one
 EXT=		.c
@@ -203,7 +203,7 @@ i,=		comma
 .  info eight ${$}${$}${$}${$} and no cents.
 .endfor
 # Outside a .for loop, '${$}' is interpreted differently. The outer '$' starts
-# a variable expression. The inner '$' is followed by a '}' and is thus a
+# an expression. The inner '$' is followed by a '}' and is thus a
 # silent syntax error, the '$' is skipped. The variable name is thus '', and
 # since since there is never a variable named '', the whole expression '${$}'
 # evaluates to an empty string.

@@ -136,19 +136,28 @@ debugfs_fill(PFS_FILL_ARGS)
 	}
 
 	rc = -ENODEV;
-	if (uio->uio_rw == UIO_READ && d->dm_fops->read) {
-		rc = -ENOMEM;
-		buf = (char *) malloc(sb->s_size, M_DFSINT, M_ZERO | M_NOWAIT);
-		if (buf != NULL) {
-			rc = d->dm_fops->read(&lf, buf, sb->s_size, &off);
-			if (rc > 0)
-				sbuf_bcpy(sb, buf, strlen(buf));
+	switch (uio->uio_rw) {
+	case UIO_READ:
+		if (d->dm_fops->read != NULL) {
+			rc = -ENOMEM;
+			buf = malloc(sb->s_size, M_DFSINT, M_ZERO | M_NOWAIT);
+			if (buf != NULL) {
+				rc = d->dm_fops->read(&lf, buf, sb->s_size,
+				    &off);
+				if (rc > 0)
+					sbuf_bcpy(sb, buf, strlen(buf));
 
-			free(buf, M_DFSINT);
+				free(buf, M_DFSINT);
+			}
 		}
-	} else if (uio->uio_rw == UIO_WRITE && d->dm_fops->write) {
-		sbuf_finish(sb);
-		rc = d->dm_fops->write(&lf, sbuf_data(sb), sbuf_len(sb), &off);
+		break;
+	case UIO_WRITE:
+		if (d->dm_fops->write != NULL) {
+			sbuf_finish(sb);
+			rc = d->dm_fops->write(&lf, sbuf_data(sb), sbuf_len(sb),
+			    &off);
+		}
+		break;
 	}
 
 	if (d->dm_fops->release)

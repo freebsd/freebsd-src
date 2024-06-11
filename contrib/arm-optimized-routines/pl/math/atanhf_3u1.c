@@ -15,7 +15,8 @@
 #define One 0x3f800000
 #define Four 0x40800000
 #define Ln2 0x1.62e43p-1f
-#define TinyBound 0x39800000 /* 0x1p-12, below which atanhf(x) rounds to x. */
+/* asuint(0x1p-12), below which atanhf(x) rounds to x.  */
+#define TinyBound 0x39800000
 
 #define C(i) __log1pf_data.coeffs[i]
 
@@ -80,9 +81,6 @@ atanhf (float x)
 
 PL_SIG (S, F, 1, atanh, -1.0, 1.0)
 PL_TEST_ULP (atanhf, 2.59)
-PL_TEST_INTERVAL (atanhf, 0, 0x1p-12, 500)
-PL_TEST_INTERVAL (atanhf, 0x1p-12, 1, 200000)
-PL_TEST_INTERVAL (atanhf, 1, inf, 1000)
-PL_TEST_INTERVAL (atanhf, -0, -0x1p-12, 500)
-PL_TEST_INTERVAL (atanhf, -0x1p-12, -1, 200000)
-PL_TEST_INTERVAL (atanhf, -1, -inf, 1000)
+PL_TEST_SYM_INTERVAL (atanhf, 0, 0x1p-12, 500)
+PL_TEST_SYM_INTERVAL (atanhf, 0x1p-12, 1, 200000)
+PL_TEST_SYM_INTERVAL (atanhf, 1, inf, 1000)

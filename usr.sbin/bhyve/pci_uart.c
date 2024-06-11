@@ -67,7 +67,7 @@ pci_uart_write(struct pci_devinst *pi, int baridx, uint64_t offset, int size,
 	assert(baridx == 0);
 	assert(size == 1);
 
-	uart_write(pi->pi_arg, offset, value);
+	uart_ns16550_write(pi->pi_arg, offset, value);
 }
 
 static uint64_t
@@ -78,7 +78,7 @@ pci_uart_read(struct pci_devinst *pi, int baridx, uint64_t offset, int size)
 	assert(baridx == 0);
 	assert(size == 1);
 
-	val = uart_read(pi->pi_arg, offset);
+	val = uart_ns16550_read(pi->pi_arg, offset);
 	return (val);
 }
 
@@ -94,10 +94,10 @@ pci_uart_legacy_config(nvlist_t *nvl, const char *opts)
 static int
 pci_uart_init(struct pci_devinst *pi, nvlist_t *nvl)
 {
-	struct uart_softc *sc;
+	struct uart_ns16550_softc *sc;
 	const char *device;
 
-	pci_emul_alloc_bar(pi, 0, PCIBAR_IO, UART_IO_BAR_SIZE);
+	pci_emul_alloc_bar(pi, 0, PCIBAR_IO, UART_NS16550_IO_BAR_SIZE);
 	pci_lintr_request(pi);
 
 	/* initialize config space */
@@ -105,11 +105,12 @@ pci_uart_init(struct pci_devinst *pi, nvlist_t *nvl)
 	pci_set_cfgdata16(pi, PCIR_VENDOR, COM_VENDOR);
 	pci_set_cfgdata8(pi, PCIR_CLASS, PCIC_SIMPLECOMM);
 
-	sc = uart_init(pci_uart_intr_assert, pci_uart_intr_deassert, pi);
+	sc = uart_ns16550_init(pci_uart_intr_assert, pci_uart_intr_deassert,
+	    pi);
 	pi->pi_arg = sc;
 
 	device = get_config_value_node(nvl, "path");
-	if (uart_set_backend(sc, device) != 0) {
+	if (device != NULL && uart_ns16550_tty_open(sc, device) != 0) {
 		EPRINTLN("Unable to initialize backend '%s' for "
 		    "pci uart at %d:%d", device, pi->pi_slot, pi->pi_func);
 		return (-1);

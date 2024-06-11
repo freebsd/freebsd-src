@@ -1,7 +1,7 @@
 /*
  * Configuration for math routines.
  *
- * Copyright (c) 2017-2020, Arm Limited.
+ * Copyright (c) 2017-2023, Arm Limited.
  * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
@@ -91,6 +91,46 @@
 # define likely(x) (x)
 # define unlikely(x) (x)
 #endif
+
+/* Return ptr but hide its value from the compiler so accesses through it
+   cannot be optimized based on the contents.  */
+#define ptr_barrier(ptr)                                                      \
+  ({                                                                          \
+    __typeof (ptr) __ptr = (ptr);                                             \
+    __asm("" : "+r"(__ptr));                                                  \
+    __ptr;                                                                    \
+  })
+
+/* Symbol renames to avoid libc conflicts.  */
+#define __math_oflowf arm_math_oflowf
+#define __math_uflowf arm_math_uflowf
+#define __math_may_uflowf arm_math_may_uflowf
+#define __math_divzerof arm_math_divzerof
+#define __math_oflow arm_math_oflow
+#define __math_uflow arm_math_uflow
+#define __math_may_uflow arm_math_may_uflow
+#define __math_divzero arm_math_divzero
+#define __math_invalidf arm_math_invalidf
+#define __math_invalid arm_math_invalid
+#define __math_check_oflow arm_math_check_oflow
+#define __math_check_uflow arm_math_check_uflow
+#define __math_check_oflowf arm_math_check_oflowf
+#define __math_check_uflowf arm_math_check_uflowf
+
+#define __sincosf_table arm_math_sincosf_table
+#define __inv_pio4 arm_math_inv_pio4
+#define __exp2f_data arm_math_exp2f_data
+#define __logf_data arm_math_logf_data
+#define __log2f_data arm_math_log2f_data
+#define __powf_log2_data arm_math_powf_log2_data
+#define __exp_data arm_math_exp_data
+#define __log_data arm_math_log_data
+#define __log2_data arm_math_log2_data
+#define __pow_log_data arm_math_pow_log_data
+#define __erff_data arm_math_erff_data
+#define __erf_data arm_math_erf_data
+#define __v_exp_data arm_math_v_exp_data
+#define __v_log_data arm_math_v_log_data
 
 #if HAVE_FAST_ROUND
 /* When set, the roundtoint and converttoint functions are provided with
@@ -381,15 +421,22 @@ extern const struct powf_log2_data
 #define EXP_USE_TOINT_NARROW 0
 #define EXP2_POLY_ORDER 5
 #define EXP2_POLY_WIDE 0
+/* Wider exp10 polynomial necessary for good precision in non-nearest rounding
+   and !TOINT_INTRINSICS.  */
+#define EXP10_POLY_WIDE 0
 extern const struct exp_data
 {
   double invln2N;
+  double invlog10_2N;
   double shift;
   double negln2hiN;
   double negln2loN;
+  double neglog10_2hiN;
+  double neglog10_2loN;
   double poly[4]; /* Last four coefficients.  */
   double exp2_shift;
   double exp2_poly[EXP2_POLY_ORDER];
+  double exp10_poly[5];
   uint64_t tab[2*(1 << EXP_TABLE_BITS)];
 } __exp_data HIDDEN;
 
@@ -458,5 +505,17 @@ extern const struct erf_data
   double erfc_poly_E[ERFC_POLY_E_NCOEFFS];
   double erfc_poly_F[ERFC_POLY_F_NCOEFFS];
 } __erf_data HIDDEN;
+
+#define V_EXP_TABLE_BITS 7
+extern const uint64_t __v_exp_data[1 << V_EXP_TABLE_BITS] HIDDEN;
+
+#define V_LOG_TABLE_BITS 7
+extern const struct v_log_data
+{
+  struct
+  {
+    double invc, logc;
+  } table[1 << V_LOG_TABLE_BITS];
+} __v_log_data HIDDEN;
 
 #endif

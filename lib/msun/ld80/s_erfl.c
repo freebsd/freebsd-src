@@ -9,7 +9,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /*
  * See s_erf.c for complete comments.
  *

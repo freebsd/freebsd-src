@@ -64,16 +64,18 @@
 /*
  * bus interface.
  */
+static struct rman *ofw_pcib_get_rman(device_t, int, u_int);
 static struct resource * ofw_pcib_alloc_resource(device_t, device_t,
     int, int *, rman_res_t, rman_res_t, rman_res_t, u_int);
-static int ofw_pcib_release_resource(device_t, device_t, int, int,
-    struct resource *);
-static int ofw_pcib_activate_resource(device_t, device_t, int, int,
-    struct resource *);
-static int ofw_pcib_deactivate_resource(device_t, device_t, int, int,
-    struct resource *);
-static int ofw_pcib_adjust_resource(device_t, device_t, int,
+static int ofw_pcib_release_resource(device_t, device_t, struct resource *);
+static int ofw_pcib_activate_resource(device_t, device_t, struct resource *);
+static int ofw_pcib_deactivate_resource(device_t, device_t, struct resource *);
+static int ofw_pcib_adjust_resource(device_t, device_t,
     struct resource *, rman_res_t, rman_res_t);
+static int ofw_pcib_map_resource(device_t, device_t, struct resource *,
+    struct resource_map_request *, struct resource_map *);
+static int ofw_pcib_unmap_resource(device_t, device_t, struct resource *,
+    struct resource_map *);
 static int ofw_pcib_translate_resource(device_t bus, int type,
 	rman_res_t start, rman_res_t *newstart);
 
@@ -95,7 +97,6 @@ static phandle_t ofw_pcib_get_node(device_t, device_t);
  * local methods
  */
 static int ofw_pcib_fill_ranges(phandle_t, struct ofw_pci_range *);
-static struct rman *ofw_pcib_get_rman(struct ofw_pci_softc *, int, u_int);
 
 /*
  * Driver methods.
@@ -110,11 +111,14 @@ static device_method_t	ofw_pcib_methods[] = {
 	DEVMETHOD(bus_write_ivar,	ofw_pcib_write_ivar),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_get_rman,		ofw_pcib_get_rman),
 	DEVMETHOD(bus_alloc_resource,	ofw_pcib_alloc_resource),
 	DEVMETHOD(bus_release_resource,	ofw_pcib_release_resource),
 	DEVMETHOD(bus_activate_resource,	ofw_pcib_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,	ofw_pcib_deactivate_resource),
 	DEVMETHOD(bus_adjust_resource,	ofw_pcib_adjust_resource),
+	DEVMETHOD(bus_map_resource,	ofw_pcib_map_resource),
+	DEVMETHOD(bus_unmap_resource,	ofw_pcib_unmap_resource),
 	DEVMETHOD(bus_translate_resource,	ofw_pcib_translate_resource),
 #ifdef __powerpc__
 	DEVMETHOD(bus_get_bus_tag,	ofw_pcib_bus_get_bus_tag),
@@ -417,80 +421,46 @@ static struct resource *
 ofw_pcib_alloc_resource(device_t bus, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	struct ofw_pci_softc *sc;
-	struct resource *rv;
-	struct rman *rm;
-	int needactivate;
-
-	needactivate = flags & RF_ACTIVE;
-	flags &= ~RF_ACTIVE;
 
 	sc = device_get_softc(bus);
-
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
-	if (type ==  PCI_RES_BUS) {
-		  return (pci_domain_alloc_bus(sc->sc_pci_domain, child, rid,
-		      start, end, count, flags | needactivate));
-	}
 #endif
-
-	rm = ofw_pcib_get_rman(sc, type, flags);
-	if (rm == NULL)  {
+	switch (type) {
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	case PCI_RES_BUS:
+		return (pci_domain_alloc_bus(sc->sc_pci_domain, child, rid,
+		    start, end, count, flags));
+#endif
+	case SYS_RES_MEMORY:
+	case SYS_RES_IOPORT:
+		return (bus_generic_rman_alloc_resource(bus, child, type, rid,
+		    start, end, count, flags));
+	default:
 		return (bus_generic_alloc_resource(bus, child, type, rid,
-		    start, end, count, flags | needactivate));
+		    start, end, count, flags));
 	}
-
-	rv = rman_reserve_resource(rm, start, end, count, flags, child);
-	if (rv == NULL) {
-		device_printf(bus, "failed to reserve resource for %s\n",
-		    device_get_nameunit(child));
-		return (NULL);
-	}
-
-	rman_set_rid(rv, *rid);
-
-	if (needactivate) {
-		if (bus_activate_resource(child, type, *rid, rv) != 0) {
-			device_printf(bus,
-			    "failed to activate resource for %s\n",
-			    device_get_nameunit(child));
-			rman_release_resource(rv);
-			return (NULL);
-		}
-	}
-
-	return (rv);
 }
 
 static int
-ofw_pcib_release_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *res)
+ofw_pcib_release_resource(device_t bus, device_t child, struct resource *res)
 {
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	struct ofw_pci_softc *sc;
-	struct rman *rm;
-	int error;
 
 	sc = device_get_softc(bus);
-
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
-	if (type == PCI_RES_BUS)
-		return (pci_domain_release_bus(sc->sc_pci_domain, child, rid,
-		    res));
 #endif
-
-	rm = ofw_pcib_get_rman(sc, type, rman_get_flags(res));
-	if (rm == NULL) {
-		return (bus_generic_release_resource(bus, child, type, rid,
-		    res));
+	switch (rman_get_type(res)) {
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	case PCI_RES_BUS:
+		return (pci_domain_release_bus(sc->sc_pci_domain, child, res));
+#endif
+	case SYS_RES_MEMORY:
+	case SYS_RES_IOPORT:
+		return (bus_generic_rman_release_resource(bus, child, res));
+	default:
+		return (bus_generic_release_resource(bus, child, res));
 	}
-	KASSERT(rman_is_region_manager(res, rm), ("rman mismatch"));
-
-	if (rman_get_flags(res) & RF_ACTIVE) {
-		error = bus_deactivate_resource(child, type, rid, res);
-		if (error != 0)
-			return (error);
-	}
-	return (rman_release_resource(res));
 }
 
 static int
@@ -533,29 +503,57 @@ ofw_pcib_translate_resource(device_t bus, int type, rman_res_t start,
 }
 
 static int
-ofw_pcib_activate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *res)
+ofw_pcib_activate_resource(device_t bus, device_t child, struct resource *res)
 {
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	struct ofw_pci_softc *sc;
-	bus_space_handle_t handle;
-	bus_space_tag_t tag;
-	struct ofw_pci_range *rp;
-	vm_paddr_t start;
-	int space;
-	int rv;
 
 	sc = device_get_softc(bus);
+#endif
+	switch (rman_get_type(res)) {
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	case PCI_RES_BUS:
+		return (pci_domain_activate_bus(sc->sc_pci_domain, child, res));
+#endif
+	case SYS_RES_MEMORY:
+	case SYS_RES_IOPORT:
+		return (bus_generic_rman_activate_resource(bus, child, res));
+	default:
+		return (bus_generic_activate_resource(bus, child, res));
+	}
+}
 
-	if (type != SYS_RES_IOPORT && type != SYS_RES_MEMORY) {
-		return (bus_generic_activate_resource(bus, child, type, rid,
-		    res));
+static int
+ofw_pcib_map_resource(device_t dev, device_t child, struct resource *r,
+    struct resource_map_request *argsp, struct resource_map *map)
+{
+	struct resource_map_request args;
+	struct ofw_pci_softc *sc;
+	struct ofw_pci_range *rp;
+	rman_res_t length, start;
+	int error, space;
+
+	/* Resources must be active to be mapped. */
+	if (!(rman_get_flags(r) & RF_ACTIVE))
+		return (ENXIO);
+
+	switch (rman_get_type(r)) {
+	case SYS_RES_MEMORY:
+	case SYS_RES_IOPORT:
+		break;
+	default:
+		return (EINVAL);
 	}
 
-	start = (vm_paddr_t)rman_get_start(res);
+	resource_init_map_request(&args);
+	error = resource_validate_map_request(r, argsp, &args, &start, &length);
+	if (error)
+		return (error);
 
 	/*
 	 * Map this through the ranges list
 	 */
+	sc = device_get_softc(dev);
 	for (rp = sc->sc_range; rp < sc->sc_range + sc->sc_nrange &&
 	    rp->pci_hi != 0; rp++) {
 		if (start < rp->pci || start >= rp->pci + rp->size)
@@ -571,32 +569,44 @@ ofw_pcib_activate_resource(device_t bus, device_t child, int type, int rid,
 			break;
 		default:
 			space = -1;
-			}
+		}
 
-		if (type == space) {
+		if (rman_get_type(r) == space) {
 			start += (rp->host - rp->pci);
 			break;
 		}
 	}
 
 	if (bootverbose)
-		printf("ofw_pci mapdev: start %jx, len %jd\n",
-		    (rman_res_t)start, rman_get_size(res));
+		printf("ofw_pci mapdev: start %jx, len %jd\n", start, length);
 
-	tag = BUS_GET_BUS_TAG(child, child);
-	if (tag == NULL)
+	map->r_bustag = BUS_GET_BUS_TAG(child, child);
+	if (map->r_bustag == NULL)
 		return (ENOMEM);
 
-	rman_set_bustag(res, tag);
-	rv = bus_space_map(tag, start,
-	    rman_get_size(res), 0, &handle);
-	if (rv != 0)
-		return (ENOMEM);
+	error = bus_space_map(map->r_bustag, start, length, 0,
+	    &map->r_bushandle);
+	if (error != 0)
+		return (error);
 
-	rman_set_bushandle(res, handle);
-	rman_set_virtual(res, (void *)handle); /* XXX  for powerpc only ? */
+	/* XXX for powerpc only? */
+	map->r_vaddr = (void *)map->r_bushandle;
+	map->r_size = length;
+	return (0);
+}
 
-	return (rman_activate_resource(res));
+static int
+ofw_pcib_unmap_resource(device_t dev, device_t child, struct resource *r,
+    struct resource_map *map)
+{
+	switch (rman_get_type(r)) {
+	case SYS_RES_MEMORY:
+	case SYS_RES_IOPORT:
+		bus_space_unmap(map->r_bustag, map->r_bushandle, map->r_size);
+		return (0);
+	default:
+		return (EINVAL);
+	}
 }
 
 #ifdef __powerpc__
@@ -609,46 +619,50 @@ ofw_pcib_bus_get_bus_tag(device_t bus, device_t child)
 #endif
 
 static int
-ofw_pcib_deactivate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *res)
+ofw_pcib_deactivate_resource(device_t bus, device_t child, struct resource *res)
 {
-	vm_size_t psize;
-
-	if (type != SYS_RES_IOPORT && type != SYS_RES_MEMORY) {
-		return (bus_generic_deactivate_resource(bus, child, type, rid,
-		    res));
-	}
-
-	psize = rman_get_size(res);
-	pmap_unmapdev(rman_get_virtual(res), psize);
-
-	return (rman_deactivate_resource(res));
-}
-
-static int
-ofw_pcib_adjust_resource(device_t bus, device_t child, int type,
-    struct resource *res, rman_res_t start, rman_res_t end)
-{
-	struct rman *rm;
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	struct ofw_pci_softc *sc;
 
 	sc = device_get_softc(bus);
+#endif
+	switch (rman_get_type(res)) {
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
-	if (type == PCI_RES_BUS)
+	case PCI_RES_BUS:
+		return (pci_domain_deactivate_bus(sc->sc_pci_domain, child,
+		    res));
+#endif
+	case SYS_RES_MEMORY:
+	case SYS_RES_IOPORT:
+		return (bus_generic_rman_deactivate_resource(bus, child, res));
+	default:
+		return (bus_generic_deactivate_resource(bus, child, res));
+	}
+}
+
+static int
+ofw_pcib_adjust_resource(device_t bus, device_t child,
+    struct resource *res, rman_res_t start, rman_res_t end)
+{
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	struct ofw_pci_softc *sc;
+
+	sc = device_get_softc(bus);
+#endif
+	switch (rman_get_type(res)) {
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	case PCI_RES_BUS:
 		return (pci_domain_adjust_bus(sc->sc_pci_domain, child, res,
 		    start, end));
 #endif
-
-	rm = ofw_pcib_get_rman(sc, type, rman_get_flags(res));
-	if (rm == NULL) {
-		return (bus_generic_adjust_resource(bus, child, type, res,
+	case SYS_RES_MEMORY:
+	case SYS_RES_IOPORT:
+		return (bus_generic_rman_adjust_resource(bus, child, res,
 		    start, end));
+	default:
+		return (bus_generic_adjust_resource(bus, child, res, start,
+		    end));
 	}
-	KASSERT(rman_is_region_manager(res, rm), ("rman mismatch"));
-	KASSERT(!(rman_get_flags(res) & RF_ACTIVE),
-	    ("active resources cannot be adjusted"));
-
-	return (rman_adjust_resource(res, start, end));
 }
 
 static phandle_t
@@ -710,9 +724,11 @@ ofw_pcib_fill_ranges(phandle_t node, struct ofw_pci_range *ranges)
 }
 
 static struct rman *
-ofw_pcib_get_rman(struct ofw_pci_softc *sc, int type, u_int flags)
+ofw_pcib_get_rman(device_t bus, int type, u_int flags)
 {
+	struct ofw_pci_softc *sc;
 
+	sc = device_get_softc(bus);
 	switch (type) {
 	case SYS_RES_IOPORT:
 		return (&sc->sc_io_rman);

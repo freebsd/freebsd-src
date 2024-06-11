@@ -686,9 +686,10 @@ ich_setstatus(struct sc_info *sc)
 	char status[SND_STATUSLEN];
 
 	snprintf(status, SND_STATUSLEN,
-	    "at io 0x%jx, 0x%jx irq %jd bufsz %u %s",
+	    "port 0x%jx,0x%jx irq %jd on %s",
 	    rman_get_start(sc->nambar), rman_get_start(sc->nabmbar),
-	    rman_get_start(sc->irq), sc->bufsz,PCM_KLDSTRING(snd_ich));
+	    rman_get_start(sc->irq),
+	    device_get_nameunit(device_get_parent(sc->dev)));
 
 	if (bootverbose && (sc->flags & ICH_DMA_NOCACHE))
 		device_printf(sc->dev,
@@ -859,12 +860,12 @@ ich_init(struct sc_info *sc)
 static int
 ich_pci_probe(device_t dev)
 {
-	int i;
+	size_t i;
 	uint16_t devid, vendor;
 
 	vendor = pci_get_vendor(dev);
 	devid = pci_get_device(dev);
-	for (i = 0; i < sizeof(ich_devs)/sizeof(ich_devs[0]); i++) {
+	for (i = 0; i < nitems(ich_devs); i++) {
 		if (vendor == ich_devs[i].vendor &&
 				devid == ich_devs[i].devid) {
 			device_set_desc(dev, ich_devs[i].name);

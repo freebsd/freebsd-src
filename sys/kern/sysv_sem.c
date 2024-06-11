@@ -1574,6 +1574,39 @@ sysctl_sema(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
+int
+kern_get_sema(struct thread *td, struct semid_kernel **res, size_t *sz)
+{
+	struct prison *pr, *rpr;
+	struct semid_kernel *psemak;
+	int i, mi;
+
+	*sz = mi = seminfo.semmni;
+	if (res == NULL)
+		return (0);
+
+	pr = td->td_ucred->cr_prison;
+	rpr = sem_find_prison(td->td_ucred);
+	*res = malloc(sizeof(struct semid_kernel) * mi, M_TEMP, M_WAITOK);
+	for (i = 0; i < mi; i++) {
+		psemak = &(*res)[i];
+		mtx_lock(&sema_mtx[i]);
+		if ((sema[i].u.sem_perm.mode & SEM_ALLOC) == 0 ||
+		    rpr == NULL || sem_prison_cansee(rpr, &sema[i]) != 0)
+			bzero(psemak, sizeof(*psemak));
+		else {
+			*psemak = sema[i];
+			if (psemak->cred->cr_prison != pr)
+				psemak->u.sem_perm.key = IPC_PRIVATE;
+		}
+		mtx_unlock(&sema_mtx[i]);
+		psemak->u.__sem_base = NULL;
+		psemak->label = NULL;
+		psemak->cred = NULL;
+	}
+	return (0);
+}
+
 static int
 sem_prison_check(void *obj, void *data)
 {

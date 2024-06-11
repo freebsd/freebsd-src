@@ -25,7 +25,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #define __ELF_WORD_SIZE 64
 #include <sys/param.h>
 #include <sys/exec.h>

@@ -129,14 +129,16 @@ encode_type (const char *name, const Type *t, const char *tmpstr)
 	    fprintf(codefile, "}\n;");
 	} else if (t->range == NULL) {
 	    encode_primitive ("heim_integer", name);
-	} else if (t->range->min == INT_MIN && t->range->max == INT_MAX) {
+	} else if (t->range->min < INT_MIN && t->range->max <= INT64_MAX) {
+	    encode_primitive ("integer64", name);
+	} else if (t->range->min >= 0 && t->range->max > UINT_MAX) {
+	    encode_primitive ("unsigned64", name);
+	} else if (t->range->min >= INT_MIN && t->range->max <= INT_MAX) {
 	    encode_primitive ("integer", name);
-	} else if (t->range->min == 0 && t->range->max == UINT_MAX) {
-	    encode_primitive ("unsigned", name);
-	} else if (t->range->min == 0 && t->range->max == INT_MAX) {
+	} else if (t->range->min >= 0 && t->range->max <= UINT_MAX) {
 	    encode_primitive ("unsigned", name);
 	} else
-	    errx(1, "%s: unsupported range %d -> %d",
+	    errx(1, "%s: unsupported range %" PRId64 " -> %" PRId64,
 		 name, t->range->min, t->range->max);
 	constructed = 0;
 	break;

@@ -239,7 +239,7 @@ struct pfsync_bucket
 	TAILQ_HEAD(, pfsync_upd_req_item)	b_upd_req_list;
 	TAILQ_HEAD(, pfsync_deferral)		b_deferrals;
 	u_int			b_deferred;
-	void			*b_plus;
+	uint8_t			*b_plus;
 	size_t			b_pluslen;
 
 	struct  ifaltq b_snd;
@@ -474,6 +474,10 @@ pfsync_clone_destroy(struct ifnet *ifp)
 		MPASS(TAILQ_EMPTY(&b->b_deferrals));
 		PFSYNC_BUCKET_UNLOCK(b);
 
+		free(b->b_plus, M_PFSYNC);
+		b->b_plus = NULL;
+		b->b_pluslen = 0;
+
 		callout_drain(&b->b_tmo);
 	}
 
@@ -611,8 +615,8 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 
 	/* copy to state */
 	bcopy(&sp->pfs_1301.rt_addr, &st->rt_addr, sizeof(st->rt_addr));
-	st->creation = time_uptime - ntohl(sp->pfs_1301.creation);
-	st->expire = time_uptime;
+	st->creation = (time_uptime - ntohl(sp->pfs_1301.creation)) * 1000;
+	st->expire = pf_get_uptime();
 	if (sp->pfs_1301.expire) {
 		uint32_t timeout;
 
@@ -621,7 +625,7 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 			timeout = V_pf_default_rule.timeout[sp->pfs_1301.timeout];
 
 		/* sp->expire may have been adaptively scaled by export. */
-		st->expire -= timeout - ntohl(sp->pfs_1301.expire);
+		st->expire -= (timeout - ntohl(sp->pfs_1301.expire)) * 1000;
 	}
 
 	st->direction = sp->pfs_1301.direction;
@@ -1002,15 +1006,17 @@ pfsync_in_ins(struct mbuf *m, int offset, int count, int flags, int action)
 {
 	struct mbuf *mp;
 	union pfsync_state_union *sa, *sp;
-	int i, offp, len, msg_version;
+	int i, offp, total_len, msg_version, msg_len;
 
 	switch (action) {
 		case PFSYNC_ACT_INS_1301:
-			len = sizeof(struct pfsync_state_1301) * count;
+			msg_len = sizeof(struct pfsync_state_1301);
+			total_len = msg_len * count;
 			msg_version = PFSYNC_MSG_VERSION_1301;
 			break;
 		case PFSYNC_ACT_INS_1400:
-			len = sizeof(struct pfsync_state_1400) * count;
+			msg_len = sizeof(struct pfsync_state_1400);
+			total_len = msg_len * count;
 			msg_version = PFSYNC_MSG_VERSION_1400;
 			break;
 		default:
@@ -1018,7 +1024,7 @@ pfsync_in_ins(struct mbuf *m, int offset, int count, int flags, int action)
 			return (-1);
 	}
 
-	mp = m_pulldown(m, offset, len, &offp);
+	mp = m_pulldown(m, offset, total_len, &offp);
 	if (mp == NULL) {
 		V_pfsyncstats.pfsyncs_badlen++;
 		return (-1);
@@ -1026,7 +1032,7 @@ pfsync_in_ins(struct mbuf *m, int offset, int count, int flags, int action)
 	sa = (union pfsync_state_union *)(mp->m_data + offp);
 
 	for (i = 0; i < count; i++) {
-		sp = &sa[i];
+		sp = (union pfsync_state_union *)((char *)sa + msg_len * i);
 
 		/* Check for invalid values. */
 		if (sp->pfs_1301.timeout >= PFTM_MAX ||
@@ -1046,7 +1052,7 @@ pfsync_in_ins(struct mbuf *m, int offset, int count, int flags, int action)
 			break;
 	}
 
-	return (len);
+	return (total_len);
 }
 
 static int
@@ -1127,15 +1133,17 @@ pfsync_in_upd(struct mbuf *m, int offset, int count, int flags, int action)
 	union pfsync_state_union *sa, *sp;
 	struct pf_kstate *st;
 	struct mbuf *mp;
-	int sync, offp, i, len, msg_version;
+	int sync, offp, i, total_len, msg_len, msg_version;
 
 	switch (action) {
 		case PFSYNC_ACT_UPD_1301:
-			len = sizeof(struct pfsync_state_1301) * count;
+			msg_len = sizeof(struct pfsync_state_1301);
+			total_len = msg_len * count;
 			msg_version = PFSYNC_MSG_VERSION_1301;
 			break;
 		case PFSYNC_ACT_UPD_1400:
-			len = sizeof(struct pfsync_state_1400) * count;
+			msg_len = sizeof(struct pfsync_state_1400);
+			total_len = msg_len * count;
 			msg_version = PFSYNC_MSG_VERSION_1400;
 			break;
 		default:
@@ -1143,7 +1151,7 @@ pfsync_in_upd(struct mbuf *m, int offset, int count, int flags, int action)
 			return (-1);
 	}
 
-	mp = m_pulldown(m, offset, len, &offp);
+	mp = m_pulldown(m, offset, total_len, &offp);
 	if (mp == NULL) {
 		V_pfsyncstats.pfsyncs_badlen++;
 		return (-1);
@@ -1151,7 +1159,7 @@ pfsync_in_upd(struct mbuf *m, int offset, int count, int flags, int action)
 	sa = (union pfsync_state_union *)(mp->m_data + offp);
 
 	for (i = 0; i < count; i++) {
-		sp = &sa[i];
+		sp = (union pfsync_state_union *)((char *)sa + msg_len * i);
 
 		/* check for invalid values */
 		if (sp->pfs_1301.timeout >= PFTM_MAX ||
@@ -1198,7 +1206,7 @@ pfsync_in_upd(struct mbuf *m, int offset, int count, int flags, int action)
 		if (sync < 2) {
 			pfsync_alloc_scrub_memory(&sp->pfs_1301.dst, &st->dst);
 			pf_state_peer_ntoh(&sp->pfs_1301.dst, &st->dst);
-			st->expire = time_uptime;
+			st->expire = pf_get_uptime();
 			st->timeout = sp->pfs_1301.timeout;
 		}
 		st->pfsync_time = time_uptime;
@@ -1214,7 +1222,7 @@ pfsync_in_upd(struct mbuf *m, int offset, int count, int flags, int action)
 		PF_STATE_UNLOCK(st);
 	}
 
-	return (len);
+	return (total_len);
 }
 
 static int
@@ -1285,7 +1293,7 @@ pfsync_in_upd_c(struct mbuf *m, int offset, int count, int flags, int action)
 		if (sync < 2) {
 			pfsync_alloc_scrub_memory(&up->dst, &st->dst);
 			pf_state_peer_ntoh(&up->dst, &st->dst);
-			st->expire = time_uptime;
+			st->expire = pf_get_uptime();
 			st->timeout = up->timeout;
 		}
 		st->pfsync_time = time_uptime;
@@ -1762,7 +1770,9 @@ pfsync_drop(struct pfsync_softc *sc)
 		}
 
 		b->b_len = PFSYNC_MINPKT;
+		free(b->b_plus, M_PFSYNC);
 		b->b_plus = NULL;
+		b->b_pluslen = 0;
 	}
 }
 
@@ -1786,7 +1796,7 @@ pfsync_sendout(int schedswi, int c)
 	    ("%s: sc_len %zu", __func__, b->b_len));
 	PFSYNC_BUCKET_LOCK_ASSERT(b);
 
-	if (ifp->if_bpf == NULL && sc->sc_sync_if == NULL) {
+	if (!bpf_peers_present(ifp->if_bpf) && sc->sc_sync_if == NULL) {
 		pfsync_drop(sc);
 		return;
 	}
@@ -1902,7 +1912,9 @@ pfsync_sendout(int schedswi, int c)
 		bcopy(b->b_plus, m->m_data + offset, b->b_pluslen);
 		offset += b->b_pluslen;
 
+		free(b->b_plus, M_PFSYNC);
 		b->b_plus = NULL;
+		b->b_pluslen = 0;
 	}
 
 	subh = (struct pfsync_subheader *)(m->m_data + offset);
@@ -1913,10 +1925,10 @@ pfsync_sendout(int schedswi, int c)
 	V_pfsyncstats.pfsyncs_oacts[PFSYNC_ACT_EOF]++;
 
 	/* we're done, let's put it on the wire */
-	if (ifp->if_bpf) {
+	if (bpf_peers_present(ifp->if_bpf)) {
 		m->m_data += aflen;
 		m->m_len = m->m_pkthdr.len = len - aflen;
-		BPF_MTAP(ifp, m);
+		bpf_mtap(ifp->if_bpf, m);
 		m->m_data -= aflen;
 		m->m_len = m->m_pkthdr.len = len;
 	}
@@ -2556,16 +2568,32 @@ pfsync_send_plus(void *plus, size_t pluslen)
 {
 	struct pfsync_softc *sc = V_pfsyncif;
 	struct pfsync_bucket *b = &sc->sc_buckets[0];
+	uint8_t *newplus;
 
 	PFSYNC_BUCKET_LOCK(b);
 
 	if (b->b_len + pluslen > sc->sc_ifp->if_mtu)
 		pfsync_sendout(1, b->b_id);
 
-	b->b_plus = plus;
-	b->b_len += (b->b_pluslen = pluslen);
+	newplus = malloc(pluslen + b->b_pluslen, M_PFSYNC, M_NOWAIT);
+	if (newplus == NULL)
+		goto out;
+
+	if (b->b_plus != NULL) {
+		memcpy(newplus, b->b_plus, b->b_pluslen);
+		free(b->b_plus, M_PFSYNC);
+	} else {
+		MPASS(b->b_pluslen == 0);
+	}
+	memcpy(newplus + b->b_pluslen, plus, pluslen);
+
+	b->b_plus = newplus;
+	b->b_pluslen += pluslen;
+	b->b_len += pluslen;
 
 	pfsync_sendout(1, b->b_id);
+
+out:
 	PFSYNC_BUCKET_UNLOCK(b);
 }
 

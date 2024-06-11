@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2023, Intel Corporation
+/*  Copyright (c) 2024, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -108,6 +108,7 @@ ice_nvm_access_get_features(struct ice_nvm_access_cmd *cmd,
 enum ice_status
 ice_handle_nvm_access(struct ice_hw *hw, struct ice_nvm_access_cmd *cmd,
 		      union ice_nvm_access_data *data);
+
 enum ice_status
 ice_acquire_nvm(struct ice_hw *hw, enum ice_aq_res_access_type access);
 void ice_release_nvm(struct ice_hw *hw);

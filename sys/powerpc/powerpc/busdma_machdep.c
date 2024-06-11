@@ -100,11 +100,15 @@ struct bus_dmamap {
 static MALLOC_DEFINE(M_BUSDMA, "busdma", "busdma metadata");
 
 #define	dmat_alignment(dmat)	((dmat)->alignment)
+#define	dmat_bounce_flags(dmat)	(0)
+#define	dmat_boundary(dmat)	((dmat)->boundary)
 #define	dmat_flags(dmat)	((dmat)->flags)
 #define	dmat_highaddr(dmat)	((dmat)->highaddr)
 #define	dmat_lowaddr(dmat)	((dmat)->lowaddr)
 #define	dmat_lockfunc(dmat)	((dmat)->lockfunc)
 #define	dmat_lockfuncarg(dmat)	((dmat)->lockfuncarg)
+#define	dmat_maxsegsz(dmat)	((dmat)->maxsegsz)
+#define	dmat_nsegments(dmat)	((dmat)->nsegments)
 
 #include "../../kern/subr_busdma_bounce.c"
 
@@ -483,7 +487,7 @@ _bus_dmamap_count_phys(bus_dma_tag_t dmat, bus_dmamap_t map, vm_paddr_t buf,
 		 */
 		curaddr = buf;
 		while (buflen != 0) {
-			sgsize = MIN(buflen, dmat->maxsegsz);
+			sgsize = buflen;
 			if (must_bounce(dmat, curaddr)) {
 				sgsize = MIN(sgsize,
 				    PAGE_SIZE - (curaddr & PAGE_MASK));
@@ -519,7 +523,8 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 		while (vaddr < vendaddr) {
 			bus_size_t sg_len;
 
-			sg_len = PAGE_SIZE - ((vm_offset_t)vaddr & PAGE_MASK);
+			sg_len = MIN(vendaddr - vaddr,
+			    PAGE_SIZE - ((vm_offset_t)vaddr & PAGE_MASK));
 			if (pmap == kernel_pmap)
 				paddr = pmap_kextract(vaddr);
 			else
@@ -532,47 +537,6 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 		}
 		CTR1(KTR_BUSDMA, "pagesneeded= %d\n", map->pagesneeded);
 	}
-}
-
-/*
- * Add a single contiguous physical range to the segment list.
- */
-static int
-_bus_dmamap_addseg(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t curaddr,
-		   bus_size_t sgsize, bus_dma_segment_t *segs, int *segp)
-{
-	int seg;
-
-	/*
-	 * Make sure we don't cross any boundaries.
-	 */
-	if (!vm_addr_bound_ok(curaddr, sgsize, dmat->boundary))
-		sgsize = roundup2(curaddr, dmat->boundary) - curaddr;
-
-	/*
-	 * Insert chunk into a segment, coalescing with
-	 * previous segment if possible.
-	 */
-	seg = *segp;
-	if (seg == -1) {
-		seg = 0;
-		segs[seg].ds_addr = curaddr;
-		segs[seg].ds_len = sgsize;
-	} else {
-		if (curaddr == segs[seg].ds_addr + segs[seg].ds_len &&
-		    (segs[seg].ds_len + sgsize) <= dmat->maxsegsz &&
-		    vm_addr_bound_ok(segs[seg].ds_addr,
-		    segs[seg].ds_len + sgsize, dmat->boundary))
-			segs[seg].ds_len += sgsize;
-		else {
-			if (++seg >= dmat->nsegments)
-				return (0);
-			segs[seg].ds_addr = curaddr;
-			segs[seg].ds_len = sgsize;
-		}
-	}
-	*segp = seg;
-	return (sgsize);
 }
 
 /*
@@ -605,15 +569,14 @@ _bus_dmamap_load_phys(bus_dma_tag_t dmat,
 
 	while (buflen > 0) {
 		curaddr = buf;
-		sgsize = MIN(buflen, dmat->maxsegsz);
+		sgsize = buflen;
 		if (map->pagesneeded != 0 && must_bounce(dmat, curaddr)) {
 			sgsize = MIN(sgsize, PAGE_SIZE - (curaddr & PAGE_MASK));
 			curaddr = add_bounce_page(dmat, map, 0, curaddr,
 			    sgsize);
 		}
-		sgsize = _bus_dmamap_addseg(dmat, map, curaddr, sgsize, segs,
-		    segp);
-		if (sgsize == 0)
+		if (!_bus_dmamap_addsegs(dmat, map, curaddr, sgsize, segs,
+		    segp))
 			break;
 		buf += sgsize;
 		buflen -= sgsize;
@@ -668,8 +631,6 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 	vaddr = (vm_offset_t)buf;
 
 	while (buflen > 0) {
-		bus_size_t max_sgsize;
-
 		/*
 		 * Get the physical address for this segment.
 		 */
@@ -684,20 +645,15 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 		/*
 		 * Compute the segment size, and adjust counts.
 		 */
-		max_sgsize = MIN(buflen, dmat->maxsegsz);
-		sgsize = PAGE_SIZE - (curaddr & PAGE_MASK);
+		sgsize = MIN(buflen, PAGE_SIZE - (curaddr & PAGE_MASK));
 		if (map->pagesneeded != 0 && must_bounce(dmat, curaddr)) {
 			sgsize = roundup2(sgsize, dmat->alignment);
-			sgsize = MIN(sgsize, max_sgsize);
 			curaddr = add_bounce_page(dmat, map, kvaddr, curaddr,
 			    sgsize);
-		} else {
-			sgsize = MIN(sgsize, max_sgsize);
 		}
 
-		sgsize = _bus_dmamap_addseg(dmat, map, curaddr, sgsize, segs,
-		    segp);
-		if (sgsize == 0)
+		if (!_bus_dmamap_addsegs(dmat, map, curaddr, sgsize, segs,
+		    segp))
 			break;
 		vaddr += sgsize;
 		buflen -= sgsize;

@@ -34,14 +34,12 @@
  * Interface to new debugger.
  */
 
-#include <sys/cdefs.h>
 #include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/cons.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
-#include <sys/systm.h>	/* just for boothowto */
 #include <sys/exec.h>
 #ifdef KDB
 #include <sys/kdb.h>
@@ -172,7 +170,7 @@ db_validate_address(vm_offset_t addr)
 	else
 		pmap = p->p_vmspace->vm_map.pmap;
 
-	return (pmap_extract(pmap, addr) == FALSE);
+	return (pmap_extract(pmap, addr) == 0);
 }
 
 /*

@@ -170,7 +170,7 @@ enum {
 	FIXED_IFMEDIA	= (1 << 4),	/* ifmedia list doesn't change. */
 
 	/* VI flags */
-	DOOMED		= (1 << 0),
+	VI_DETACHING	= (1 << 0),
 	VI_INIT_DONE	= (1 << 1),
 	/* 1 << 2 is unused, was VI_SYSCTL_CTX */
 	TX_USES_VM_WR	= (1 << 3),
@@ -184,8 +184,9 @@ enum {
 	DF_VERBOSE_SLOWINTR	= (1 << 4),	/* Chatty slow intr handler */
 };
 
-#define IS_DOOMED(vi)	((vi)->flags & DOOMED)
-#define SET_DOOMED(vi)	do {(vi)->flags |= DOOMED;} while (0)
+#define IS_DETACHING(vi)	((vi)->flags & VI_DETACHING)
+#define SET_DETACHING(vi)	do {(vi)->flags |= VI_DETACHING;} while (0)
+#define CLR_DETACHING(vi)	do {(vi)->flags &= ~VI_DETACHING;} while (0)
 #define IS_BUSY(sc)	((sc)->flags & CXGBE_BUSY)
 #define SET_BUSY(sc)	do {(sc)->flags |= CXGBE_BUSY;} while (0)
 #define CLR_BUSY(sc)	do {(sc)->flags &= ~CXGBE_BUSY;} while (0)
@@ -319,10 +320,10 @@ struct port_info {
 	uint8_t  port_type;
 	uint8_t  mod_type;
 	uint8_t  port_id;
-	uint8_t  tx_chan;
+	uint8_t  tx_chan;	/* tx TP c-channel */
+	uint8_t  rx_chan;	/* rx TP c-channel */
 	uint8_t  mps_bg_map;	/* rx MPS buffer group bitmap */
 	uint8_t  rx_e_chan_map;	/* rx TP e-channel bitmap */
-	uint8_t  rx_c_chan;	/* rx TP c-channel */
 
 	struct link_config link_cfg;
 	struct ifmedia media;
@@ -470,6 +471,7 @@ struct sge_eq {
 	unsigned int abs_id;	/* absolute SGE id for the eq */
 	uint8_t type;		/* EQ_CTRL/EQ_ETH/EQ_OFLD */
 	uint8_t doorbells;
+	uint8_t port_id;	/* port_id of the port associated with the eq */
 	uint8_t tx_chan;	/* tx channel used by the eq */
 	struct mtx eq_lock;
 
@@ -685,8 +687,14 @@ struct sge_ofld_rxq {
 	uint64_t rx_iscsi_padding_errors;
 	uint64_t rx_iscsi_header_digest_errors;
 	uint64_t rx_iscsi_data_digest_errors;
+	uint64_t rx_aio_ddp_jobs;
+	uint64_t rx_aio_ddp_octets;
 	u_long	rx_toe_tls_records;
 	u_long	rx_toe_tls_octets;
+	u_long	rx_toe_ddp_octets;
+	counter_u64_t ddp_buffer_alloc;
+	counter_u64_t ddp_buffer_reuse;
+	counter_u64_t ddp_buffer_free;
 } __aligned(CACHE_LINE_SIZE);
 
 static inline struct sge_ofld_rxq *
@@ -751,6 +759,8 @@ struct sge_ofld_txq {
 	counter_u64_t tx_iscsi_pdus;
 	counter_u64_t tx_iscsi_octets;
 	counter_u64_t tx_iscsi_iso_wrs;
+	counter_u64_t tx_aio_jobs;
+	counter_u64_t tx_aio_octets;
 	counter_u64_t tx_toe_tls_records;
 	counter_u64_t tx_toe_tls_octets;
 } __aligned(CACHE_LINE_SIZE);
@@ -920,7 +930,7 @@ struct adapter {
 	int rawf_base;
 	int nrawf;
 
-	struct taskqueue *tq[MAX_NCHAN];	/* General purpose taskqueues */
+	struct taskqueue *tq[MAX_NPORTS];	/* General purpose taskqueues */
 	struct port_info *port[MAX_NPORTS];
 	uint8_t chan_map[MAX_NCHAN];		/* channel -> port */
 
@@ -1339,6 +1349,8 @@ extern int t4_tmr_idx;
 extern int t4_pktc_idx;
 extern unsigned int t4_qsize_rxq;
 extern unsigned int t4_qsize_txq;
+extern int t4_ddp_rcvbuf_len;
+extern unsigned int t4_ddp_rcvbuf_cache;
 extern device_method_t cxgbe_methods[];
 
 int t4_os_find_pci_capability(struct adapter *, int);
@@ -1355,8 +1367,9 @@ int t4_map_bar_2(struct adapter *);
 int t4_setup_intr_handlers(struct adapter *);
 void t4_sysctls(struct adapter *);
 int begin_synchronized_op(struct adapter *, struct vi_info *, int, char *);
-void doom_vi(struct adapter *, struct vi_info *);
 void end_synchronized_op(struct adapter *, int);
+void begin_vi_detach(struct adapter *, struct vi_info *);
+void end_vi_detach(struct adapter *, struct vi_info *);
 int update_mac_settings(if_t, int);
 int adapter_init(struct adapter *);
 int vi_init(struct vi_info *);

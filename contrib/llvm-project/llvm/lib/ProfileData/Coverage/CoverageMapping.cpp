@@ -14,8 +14,8 @@
 #include "llvm/ProfileData/Coverage/CoverageMapping.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallBitVector.h"
-#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringRef.h"
@@ -31,6 +31,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstdint>
 #include <iterator>
 #include <map>
@@ -167,43 +168,376 @@ void CounterMappingContext::dump(const Counter &C, raw_ostream &OS) const {
 }
 
 Expected<int64_t> CounterMappingContext::evaluate(const Counter &C) const {
-  switch (C.getKind()) {
-  case Counter::Zero:
-    return 0;
-  case Counter::CounterValueReference:
-    if (C.getCounterID() >= CounterValues.size())
-      return errorCodeToError(errc::argument_out_of_domain);
-    return CounterValues[C.getCounterID()];
-  case Counter::Expression: {
-    if (C.getExpressionID() >= Expressions.size())
-      return errorCodeToError(errc::argument_out_of_domain);
-    const auto &E = Expressions[C.getExpressionID()];
-    Expected<int64_t> LHS = evaluate(E.LHS);
-    if (!LHS)
-      return LHS;
-    Expected<int64_t> RHS = evaluate(E.RHS);
-    if (!RHS)
-      return RHS;
-    return E.Kind == CounterExpression::Subtract ? *LHS - *RHS : *LHS + *RHS;
+  struct StackElem {
+    Counter ICounter;
+    int64_t LHS = 0;
+    enum {
+      KNeverVisited = 0,
+      KVisitedOnce = 1,
+      KVisitedTwice = 2,
+    } VisitCount = KNeverVisited;
+  };
+
+  std::stack<StackElem> CounterStack;
+  CounterStack.push({C});
+
+  int64_t LastPoppedValue;
+
+  while (!CounterStack.empty()) {
+    StackElem &Current = CounterStack.top();
+
+    switch (Current.ICounter.getKind()) {
+    case Counter::Zero:
+      LastPoppedValue = 0;
+      CounterStack.pop();
+      break;
+    case Counter::CounterValueReference:
+      if (Current.ICounter.getCounterID() >= CounterValues.size())
+        return errorCodeToError(errc::argument_out_of_domain);
+      LastPoppedValue = CounterValues[Current.ICounter.getCounterID()];
+      CounterStack.pop();
+      break;
+    case Counter::Expression: {
+      if (Current.ICounter.getExpressionID() >= Expressions.size())
+        return errorCodeToError(errc::argument_out_of_domain);
+      const auto &E = Expressions[Current.ICounter.getExpressionID()];
+      if (Current.VisitCount == StackElem::KNeverVisited) {
+        CounterStack.push(StackElem{E.LHS});
+        Current.VisitCount = StackElem::KVisitedOnce;
+      } else if (Current.VisitCount == StackElem::KVisitedOnce) {
+        Current.LHS = LastPoppedValue;
+        CounterStack.push(StackElem{E.RHS});
+        Current.VisitCount = StackElem::KVisitedTwice;
+      } else {
+        int64_t LHS = Current.LHS;
+        int64_t RHS = LastPoppedValue;
+        LastPoppedValue =
+            E.Kind == CounterExpression::Subtract ? LHS - RHS : LHS + RHS;
+        CounterStack.pop();
+      }
+      break;
+    }
+    }
   }
+
+  return LastPoppedValue;
+}
+
+Expected<BitVector> CounterMappingContext::evaluateBitmap(
+    const CounterMappingRegion *MCDCDecision) const {
+  unsigned ID = MCDCDecision->MCDCParams.BitmapIdx;
+  unsigned NC = MCDCDecision->MCDCParams.NumConditions;
+  unsigned SizeInBits = llvm::alignTo(uint64_t(1) << NC, CHAR_BIT);
+  unsigned SizeInBytes = SizeInBits / CHAR_BIT;
+
+  assert(ID + SizeInBytes <= BitmapBytes.size() && "BitmapBytes overrun");
+  ArrayRef<uint8_t> Bytes(&BitmapBytes[ID], SizeInBytes);
+
+  // Mask each bitmap byte into the BitVector. Go in reverse so that the
+  // bitvector can just be shifted over by one byte on each iteration.
+  BitVector Result(SizeInBits, false);
+  for (auto Byte = std::rbegin(Bytes); Byte != std::rend(Bytes); ++Byte) {
+    uint32_t Data = *Byte;
+    Result <<= CHAR_BIT;
+    Result.setBitsInMask(&Data, 1);
   }
-  llvm_unreachable("Unhandled CounterKind");
+  return Result;
+}
+
+class MCDCRecordProcessor {
+  /// A bitmap representing the executed test vectors for a boolean expression.
+  /// Each index of the bitmap corresponds to a possible test vector. An index
+  /// with a bit value of '1' indicates that the corresponding Test Vector
+  /// identified by that index was executed.
+  const BitVector &ExecutedTestVectorBitmap;
+
+  /// Decision Region to which the ExecutedTestVectorBitmap applies.
+  const CounterMappingRegion &Region;
+
+  /// Array of branch regions corresponding each conditions in the boolean
+  /// expression.
+  ArrayRef<const CounterMappingRegion *> Branches;
+
+  /// Total number of conditions in the boolean expression.
+  unsigned NumConditions;
+
+  /// Mapping of a condition ID to its corresponding branch region.
+  llvm::DenseMap<unsigned, const CounterMappingRegion *> Map;
+
+  /// Vector used to track whether a condition is constant folded.
+  MCDCRecord::BoolVector Folded;
+
+  /// Mapping of calculated MC/DC Independence Pairs for each condition.
+  MCDCRecord::TVPairMap IndependencePairs;
+
+  /// Total number of possible Test Vectors for the boolean expression.
+  MCDCRecord::TestVectors TestVectors;
+
+  /// Actual executed Test Vectors for the boolean expression, based on
+  /// ExecutedTestVectorBitmap.
+  MCDCRecord::TestVectors ExecVectors;
+
+public:
+  MCDCRecordProcessor(const BitVector &Bitmap,
+                      const CounterMappingRegion &Region,
+                      ArrayRef<const CounterMappingRegion *> Branches)
+      : ExecutedTestVectorBitmap(Bitmap), Region(Region), Branches(Branches),
+        NumConditions(Region.MCDCParams.NumConditions),
+        Folded(NumConditions, false), IndependencePairs(NumConditions),
+        TestVectors((size_t)1 << NumConditions) {}
+
+private:
+  void recordTestVector(MCDCRecord::TestVector &TV,
+                        MCDCRecord::CondState Result) {
+    // Calculate an index that is used to identify the test vector in a vector
+    // of test vectors.  This index also corresponds to the index values of an
+    // MCDC Region's bitmap (see findExecutedTestVectors()).
+    unsigned Index = 0;
+    for (auto Cond = std::rbegin(TV); Cond != std::rend(TV); ++Cond) {
+      Index <<= 1;
+      Index |= (*Cond == MCDCRecord::MCDC_True) ? 0x1 : 0x0;
+    }
+
+    // Copy the completed test vector to the vector of testvectors.
+    TestVectors[Index] = TV;
+
+    // The final value (T,F) is equal to the last non-dontcare state on the
+    // path (in a short-circuiting system).
+    TestVectors[Index].push_back(Result);
+  }
+
+  void shouldCopyOffTestVectorForTruePath(MCDCRecord::TestVector &TV,
+                                          unsigned ID) {
+    // Branch regions are hashed based on an ID.
+    const CounterMappingRegion *Branch = Map[ID];
+
+    TV[ID - 1] = MCDCRecord::MCDC_True;
+    if (Branch->MCDCParams.TrueID > 0)
+      buildTestVector(TV, Branch->MCDCParams.TrueID);
+    else
+      recordTestVector(TV, MCDCRecord::MCDC_True);
+  }
+
+  void shouldCopyOffTestVectorForFalsePath(MCDCRecord::TestVector &TV,
+                                           unsigned ID) {
+    // Branch regions are hashed based on an ID.
+    const CounterMappingRegion *Branch = Map[ID];
+
+    TV[ID - 1] = MCDCRecord::MCDC_False;
+    if (Branch->MCDCParams.FalseID > 0)
+      buildTestVector(TV, Branch->MCDCParams.FalseID);
+    else
+      recordTestVector(TV, MCDCRecord::MCDC_False);
+  }
+
+  /// Starting with the base test vector, build a comprehensive list of
+  /// possible test vectors by recursively walking the branch condition IDs
+  /// provided. Once an end node is reached, record the test vector in a vector
+  /// of test vectors that can be matched against during MC/DC analysis, and
+  /// then reset the positions to 'DontCare'.
+  void buildTestVector(MCDCRecord::TestVector &TV, unsigned ID = 1) {
+    shouldCopyOffTestVectorForTruePath(TV, ID);
+    shouldCopyOffTestVectorForFalsePath(TV, ID);
+
+    // Reset back to DontCare.
+    TV[ID - 1] = MCDCRecord::MCDC_DontCare;
+  }
+
+  /// Walk the bits in the bitmap.  A bit set to '1' indicates that the test
+  /// vector at the corresponding index was executed during a test run.
+  void findExecutedTestVectors(const BitVector &ExecutedTestVectorBitmap) {
+    for (unsigned Idx = 0; Idx < ExecutedTestVectorBitmap.size(); ++Idx) {
+      if (ExecutedTestVectorBitmap[Idx] == 0)
+        continue;
+      assert(!TestVectors[Idx].empty() && "Test Vector doesn't exist.");
+      ExecVectors.push_back(TestVectors[Idx]);
+    }
+  }
+
+  /// For a given condition and two executed Test Vectors, A and B, see if the
+  /// two test vectors match forming an Independence Pair for the condition.
+  /// For two test vectors to match, the following must be satisfied:
+  /// - The condition's value in each test vector must be opposite.
+  /// - The result's value in each test vector must be opposite.
+  /// - All other conditions' values must be equal or marked as "don't care".
+  bool matchTestVectors(unsigned Aidx, unsigned Bidx, unsigned ConditionIdx) {
+    const MCDCRecord::TestVector &A = ExecVectors[Aidx];
+    const MCDCRecord::TestVector &B = ExecVectors[Bidx];
+
+    // If condition values in both A and B aren't opposites, no match.
+    // Because a value can be 0 (false), 1 (true), or -1 (DontCare), a check
+    // that "XOR != 1" will ensure that the values are opposites and that
+    // neither of them is a DontCare.
+    //  1 XOR  0 ==  1 | 0 XOR  0 ==  0 | -1 XOR  0 == -1
+    //  1 XOR  1 ==  0 | 0 XOR  1 ==  1 | -1 XOR  1 == -2
+    //  1 XOR -1 == -2 | 0 XOR -1 == -1 | -1 XOR -1 ==  0
+    if ((A[ConditionIdx] ^ B[ConditionIdx]) != 1)
+      return false;
+
+    // If the results of both A and B aren't opposites, no match.
+    if ((A[NumConditions] ^ B[NumConditions]) != 1)
+      return false;
+
+    for (unsigned Idx = 0; Idx < NumConditions; ++Idx) {
+      // Look for other conditions that don't match. Skip over the given
+      // Condition as well as any conditions marked as "don't care".
+      const auto ARecordTyForCond = A[Idx];
+      const auto BRecordTyForCond = B[Idx];
+      if (Idx == ConditionIdx ||
+          ARecordTyForCond == MCDCRecord::MCDC_DontCare ||
+          BRecordTyForCond == MCDCRecord::MCDC_DontCare)
+        continue;
+
+      // If there is a condition mismatch with any of the other conditions,
+      // there is no match for the test vectors.
+      if (ARecordTyForCond != BRecordTyForCond)
+        return false;
+    }
+
+    // Otherwise, match.
+    return true;
+  }
+
+  /// Find all possible Independence Pairs for a boolean expression given its
+  /// executed Test Vectors.  This process involves looking at each condition
+  /// and attempting to find two Test Vectors that "match", giving us a pair.
+  void findIndependencePairs() {
+    unsigned NumTVs = ExecVectors.size();
+
+    // For each condition.
+    for (unsigned C = 0; C < NumConditions; ++C) {
+      bool PairFound = false;
+
+      // For each executed test vector.
+      for (unsigned I = 0; !PairFound && I < NumTVs; ++I) {
+        // Compared to every other executed test vector.
+        for (unsigned J = 0; !PairFound && J < NumTVs; ++J) {
+          if (I == J)
+            continue;
+
+          // If a matching pair of vectors is found, record them.
+          if ((PairFound = matchTestVectors(I, J, C)))
+            IndependencePairs[C] = std::make_pair(I + 1, J + 1);
+        }
+      }
+    }
+  }
+
+public:
+  /// Process the MC/DC Record in order to produce a result for a boolean
+  /// expression. This process includes tracking the conditions that comprise
+  /// the decision region, calculating the list of all possible test vectors,
+  /// marking the executed test vectors, and then finding an Independence Pair
+  /// out of the executed test vectors for each condition in the boolean
+  /// expression. A condition is tracked to ensure that its ID can be mapped to
+  /// its ordinal position in the boolean expression. The condition's source
+  /// location is also tracked, as well as whether it is constant folded (in
+  /// which case it is excuded from the metric).
+  MCDCRecord processMCDCRecord() {
+    unsigned I = 0;
+    MCDCRecord::CondIDMap PosToID;
+    MCDCRecord::LineColPairMap CondLoc;
+
+    // Walk the Record's BranchRegions (representing Conditions) in order to:
+    // - Hash the condition based on its corresponding ID. This will be used to
+    //   calculate the test vectors.
+    // - Keep a map of the condition's ordinal position (1, 2, 3, 4) to its
+    //   actual ID.  This will be used to visualize the conditions in the
+    //   correct order.
+    // - Keep track of the condition source location. This will be used to
+    //   visualize where the condition is.
+    // - Record whether the condition is constant folded so that we exclude it
+    //   from being measured.
+    for (const auto *B : Branches) {
+      Map[B->MCDCParams.ID] = B;
+      PosToID[I] = B->MCDCParams.ID - 1;
+      CondLoc[I] = B->startLoc();
+      Folded[I++] = (B->Count.isZero() && B->FalseCount.isZero());
+    }
+
+    // Initialize a base test vector as 'DontCare'.
+    MCDCRecord::TestVector TV(NumConditions, MCDCRecord::MCDC_DontCare);
+
+    // Use the base test vector to build the list of all possible test vectors.
+    buildTestVector(TV);
+
+    // Using Profile Bitmap from runtime, mark the executed test vectors.
+    findExecutedTestVectors(ExecutedTestVectorBitmap);
+
+    // Compare executed test vectors against each other to find an independence
+    // pairs for each condition.  This processing takes the most time.
+    findIndependencePairs();
+
+    // Record Test vectors, executed vectors, and independence pairs.
+    MCDCRecord Res(Region, ExecVectors, IndependencePairs, Folded, PosToID,
+                   CondLoc);
+    return Res;
+  }
+};
+
+Expected<MCDCRecord> CounterMappingContext::evaluateMCDCRegion(
+    const CounterMappingRegion &Region,
+    const BitVector &ExecutedTestVectorBitmap,
+    ArrayRef<const CounterMappingRegion *> Branches) {
+
+  MCDCRecordProcessor MCDCProcessor(ExecutedTestVectorBitmap, Region, Branches);
+  return MCDCProcessor.processMCDCRecord();
 }
 
 unsigned CounterMappingContext::getMaxCounterID(const Counter &C) const {
-  switch (C.getKind()) {
-  case Counter::Zero:
-    return 0;
-  case Counter::CounterValueReference:
-    return C.getCounterID();
-  case Counter::Expression: {
-    if (C.getExpressionID() >= Expressions.size())
-      return 0;
-    const auto &E = Expressions[C.getExpressionID()];
-    return std::max(getMaxCounterID(E.LHS), getMaxCounterID(E.RHS));
+  struct StackElem {
+    Counter ICounter;
+    int64_t LHS = 0;
+    enum {
+      KNeverVisited = 0,
+      KVisitedOnce = 1,
+      KVisitedTwice = 2,
+    } VisitCount = KNeverVisited;
+  };
+
+  std::stack<StackElem> CounterStack;
+  CounterStack.push({C});
+
+  int64_t LastPoppedValue;
+
+  while (!CounterStack.empty()) {
+    StackElem &Current = CounterStack.top();
+
+    switch (Current.ICounter.getKind()) {
+    case Counter::Zero:
+      LastPoppedValue = 0;
+      CounterStack.pop();
+      break;
+    case Counter::CounterValueReference:
+      LastPoppedValue = Current.ICounter.getCounterID();
+      CounterStack.pop();
+      break;
+    case Counter::Expression: {
+      if (Current.ICounter.getExpressionID() >= Expressions.size()) {
+        LastPoppedValue = 0;
+        CounterStack.pop();
+      } else {
+        const auto &E = Expressions[Current.ICounter.getExpressionID()];
+        if (Current.VisitCount == StackElem::KNeverVisited) {
+          CounterStack.push(StackElem{E.LHS});
+          Current.VisitCount = StackElem::KVisitedOnce;
+        } else if (Current.VisitCount == StackElem::KVisitedOnce) {
+          Current.LHS = LastPoppedValue;
+          CounterStack.push(StackElem{E.RHS});
+          Current.VisitCount = StackElem::KVisitedTwice;
+        } else {
+          int64_t LHS = Current.LHS;
+          int64_t RHS = LastPoppedValue;
+          LastPoppedValue = std::max(LHS, RHS);
+          CounterStack.pop();
+        }
+      }
+      break;
+    }
+    }
   }
-  }
-  llvm_unreachable("Unhandled CounterKind");
+
+  return LastPoppedValue;
 }
 
 void FunctionRecordIterator::skipOtherFiles() {
@@ -232,12 +566,185 @@ static unsigned getMaxCounterID(const CounterMappingContext &Ctx,
   return MaxCounterID;
 }
 
+static unsigned getMaxBitmapSize(const CounterMappingContext &Ctx,
+                                 const CoverageMappingRecord &Record) {
+  unsigned MaxBitmapID = 0;
+  unsigned NumConditions = 0;
+  // Scan max(BitmapIdx).
+  // Note that `<=` is used insted of `<`, because `BitmapIdx == 0` is valid
+  // and `MaxBitmapID is `unsigned`. `BitmapIdx` is unique in the record.
+  for (const auto &Region : reverse(Record.MappingRegions)) {
+    if (Region.Kind == CounterMappingRegion::MCDCDecisionRegion &&
+        MaxBitmapID <= Region.MCDCParams.BitmapIdx) {
+      MaxBitmapID = Region.MCDCParams.BitmapIdx;
+      NumConditions = Region.MCDCParams.NumConditions;
+    }
+  }
+  unsigned SizeInBits = llvm::alignTo(uint64_t(1) << NumConditions, CHAR_BIT);
+  return MaxBitmapID + (SizeInBits / CHAR_BIT);
+}
+
+namespace {
+
+/// Collect Decisions, Branchs, and Expansions and associate them.
+class MCDCDecisionRecorder {
+private:
+  /// This holds the DecisionRegion and MCDCBranches under it.
+  /// Also traverses Expansion(s).
+  /// The Decision has the number of MCDCBranches and will complete
+  /// when it is filled with unique ConditionID of MCDCBranches.
+  struct DecisionRecord {
+    const CounterMappingRegion *DecisionRegion;
+
+    /// They are reflected from DecisionRegion for convenience.
+    LineColPair DecisionStartLoc;
+    LineColPair DecisionEndLoc;
+
+    /// This is passed to `MCDCRecordProcessor`, so this should be compatible
+    /// to`ArrayRef<const CounterMappingRegion *>`.
+    SmallVector<const CounterMappingRegion *> MCDCBranches;
+
+    /// IDs that are stored in MCDCBranches
+    /// Complete when all IDs (1 to NumConditions) are met.
+    DenseSet<CounterMappingRegion::MCDCConditionID> ConditionIDs;
+
+    /// Set of IDs of Expansion(s) that are relevant to DecisionRegion
+    /// and its children (via expansions).
+    /// FileID  pointed by ExpandedFileID is dedicated to the expansion, so
+    /// the location in the expansion doesn't matter.
+    DenseSet<unsigned> ExpandedFileIDs;
+
+    DecisionRecord(const CounterMappingRegion &Decision)
+        : DecisionRegion(&Decision), DecisionStartLoc(Decision.startLoc()),
+          DecisionEndLoc(Decision.endLoc()) {
+      assert(Decision.Kind == CounterMappingRegion::MCDCDecisionRegion);
+    }
+
+    /// Determine whether DecisionRecord dominates `R`.
+    bool dominates(const CounterMappingRegion &R) const {
+      // Determine whether `R` is included in `DecisionRegion`.
+      if (R.FileID == DecisionRegion->FileID &&
+          R.startLoc() >= DecisionStartLoc && R.endLoc() <= DecisionEndLoc)
+        return true;
+
+      // Determine whether `R` is pointed by any of Expansions.
+      return ExpandedFileIDs.contains(R.FileID);
+    }
+
+    enum Result {
+      NotProcessed = 0, /// Irrelevant to this Decision
+      Processed,        /// Added to this Decision
+      Completed,        /// Added and filled this Decision
+    };
+
+    /// Add Branch into the Decision
+    /// \param Branch expects MCDCBranchRegion
+    /// \returns NotProcessed/Processed/Completed
+    Result addBranch(const CounterMappingRegion &Branch) {
+      assert(Branch.Kind == CounterMappingRegion::MCDCBranchRegion);
+
+      auto ConditionID = Branch.MCDCParams.ID;
+      assert(ConditionID > 0 && "ConditionID should begin with 1");
+
+      if (ConditionIDs.contains(ConditionID) ||
+          ConditionID > DecisionRegion->MCDCParams.NumConditions)
+        return NotProcessed;
+
+      if (!this->dominates(Branch))
+        return NotProcessed;
+
+      assert(MCDCBranches.size() < DecisionRegion->MCDCParams.NumConditions);
+
+      // Put `ID=1` in front of `MCDCBranches` for convenience
+      // even if `MCDCBranches` is not topological.
+      if (ConditionID == 1)
+        MCDCBranches.insert(MCDCBranches.begin(), &Branch);
+      else
+        MCDCBranches.push_back(&Branch);
+
+      // Mark `ID` as `assigned`.
+      ConditionIDs.insert(ConditionID);
+
+      // `Completed` when `MCDCBranches` is full
+      return (MCDCBranches.size() == DecisionRegion->MCDCParams.NumConditions
+                  ? Completed
+                  : Processed);
+    }
+
+    /// Record Expansion if it is relevant to this Decision.
+    /// Each `Expansion` may nest.
+    /// \returns true if recorded.
+    bool recordExpansion(const CounterMappingRegion &Expansion) {
+      if (!this->dominates(Expansion))
+        return false;
+
+      ExpandedFileIDs.insert(Expansion.ExpandedFileID);
+      return true;
+    }
+  };
+
+private:
+  /// Decisions in progress
+  /// DecisionRecord is added for each MCDCDecisionRegion.
+  /// DecisionRecord is removed when Decision is completed.
+  SmallVector<DecisionRecord> Decisions;
+
+public:
+  ~MCDCDecisionRecorder() {
+    assert(Decisions.empty() && "All Decisions have not been resolved");
+  }
+
+  /// Register Region and start recording.
+  void registerDecision(const CounterMappingRegion &Decision) {
+    Decisions.emplace_back(Decision);
+  }
+
+  void recordExpansion(const CounterMappingRegion &Expansion) {
+    any_of(Decisions, [&Expansion](auto &Decision) {
+      return Decision.recordExpansion(Expansion);
+    });
+  }
+
+  using DecisionAndBranches =
+      std::pair<const CounterMappingRegion *,             /// Decision
+                SmallVector<const CounterMappingRegion *> /// Branches
+                >;
+
+  /// Add MCDCBranchRegion to DecisionRecord.
+  /// \param Branch to be processed
+  /// \returns DecisionsAndBranches if DecisionRecord completed.
+  ///     Or returns nullopt.
+  std::optional<DecisionAndBranches>
+  processBranch(const CounterMappingRegion &Branch) {
+    // Seek each Decision and apply Region to it.
+    for (auto DecisionIter = Decisions.begin(), DecisionEnd = Decisions.end();
+         DecisionIter != DecisionEnd; ++DecisionIter)
+      switch (DecisionIter->addBranch(Branch)) {
+      case DecisionRecord::NotProcessed:
+        continue;
+      case DecisionRecord::Processed:
+        return std::nullopt;
+      case DecisionRecord::Completed:
+        DecisionAndBranches Result =
+            std::make_pair(DecisionIter->DecisionRegion,
+                           std::move(DecisionIter->MCDCBranches));
+        Decisions.erase(DecisionIter); // No longer used.
+        return Result;
+      }
+
+    llvm_unreachable("Branch not found in Decisions");
+  }
+};
+
+} // namespace
+
 Error CoverageMapping::loadFunctionRecord(
     const CoverageMappingRecord &Record,
     IndexedInstrProfReader &ProfileReader) {
   StringRef OrigFuncName = Record.FunctionName;
   if (OrigFuncName.empty())
-    return make_error<CoverageMapError>(coveragemap_error::malformed);
+    return make_error<CoverageMapError>(coveragemap_error::malformed,
+                                        "record function name is empty");
 
   if (Record.Filenames.empty())
     OrigFuncName = getFuncNameWithoutPrefix(OrigFuncName);
@@ -254,11 +761,27 @@ Error CoverageMapping::loadFunctionRecord(
       FuncHashMismatches.emplace_back(std::string(Record.FunctionName),
                                       Record.FunctionHash);
       return Error::success();
-    } else if (IPE != instrprof_error::unknown_function)
+    }
+    if (IPE != instrprof_error::unknown_function)
       return make_error<InstrProfError>(IPE);
     Counts.assign(getMaxCounterID(Ctx, Record) + 1, 0);
   }
   Ctx.setCounts(Counts);
+
+  std::vector<uint8_t> BitmapBytes;
+  if (Error E = ProfileReader.getFunctionBitmapBytes(
+          Record.FunctionName, Record.FunctionHash, BitmapBytes)) {
+    instrprof_error IPE = std::get<0>(InstrProfError::take(std::move(E)));
+    if (IPE == instrprof_error::hash_mismatch) {
+      FuncHashMismatches.emplace_back(std::string(Record.FunctionName),
+                                      Record.FunctionHash);
+      return Error::success();
+    }
+    if (IPE != instrprof_error::unknown_function)
+      return make_error<InstrProfError>(IPE);
+    BitmapBytes.assign(getMaxBitmapSize(Ctx, Record) + 1, 0);
+  }
+  Ctx.setBitmapBytes(BitmapBytes);
 
   assert(!Record.MappingRegions.empty() && "Function has no regions");
 
@@ -271,8 +794,15 @@ Error CoverageMapping::loadFunctionRecord(
       Record.MappingRegions[0].Count.isZero() && Counts[0] > 0)
     return Error::success();
 
+  MCDCDecisionRecorder MCDCDecisions;
   FunctionRecord Function(OrigFuncName, Record.Filenames);
   for (const auto &Region : Record.MappingRegions) {
+    // MCDCDecisionRegion should be handled first since it overlaps with
+    // others inside.
+    if (Region.Kind == CounterMappingRegion::MCDCDecisionRegion) {
+      MCDCDecisions.registerDecision(Region);
+      continue;
+    }
     Expected<int64_t> ExecutionCount = Ctx.evaluate(Region.Count);
     if (auto E = ExecutionCount.takeError()) {
       consumeError(std::move(E));
@@ -284,6 +814,48 @@ Error CoverageMapping::loadFunctionRecord(
       return Error::success();
     }
     Function.pushRegion(Region, *ExecutionCount, *AltExecutionCount);
+
+    // Record ExpansionRegion.
+    if (Region.Kind == CounterMappingRegion::ExpansionRegion) {
+      MCDCDecisions.recordExpansion(Region);
+      continue;
+    }
+
+    // Do nothing unless MCDCBranchRegion.
+    if (Region.Kind != CounterMappingRegion::MCDCBranchRegion)
+      continue;
+
+    auto Result = MCDCDecisions.processBranch(Region);
+    if (!Result) // Any Decision doesn't complete.
+      continue;
+
+    auto MCDCDecision = Result->first;
+    auto &MCDCBranches = Result->second;
+
+    // Evaluating the test vector bitmap for the decision region entails
+    // calculating precisely what bits are pertinent to this region alone.
+    // This is calculated based on the recorded offset into the global
+    // profile bitmap; the length is calculated based on the recorded
+    // number of conditions.
+    Expected<BitVector> ExecutedTestVectorBitmap =
+        Ctx.evaluateBitmap(MCDCDecision);
+    if (auto E = ExecutedTestVectorBitmap.takeError()) {
+      consumeError(std::move(E));
+      return Error::success();
+    }
+
+    // Since the bitmap identifies the executed test vectors for an MC/DC
+    // DecisionRegion, all of the information is now available to process.
+    // This is where the bulk of the MC/DC progressing takes place.
+    Expected<MCDCRecord> Record = Ctx.evaluateMCDCRegion(
+        *MCDCDecision, *ExecutedTestVectorBitmap, MCDCBranches);
+    if (auto E = Record.takeError()) {
+      consumeError(std::move(E));
+      return Error::success();
+    }
+
+    // Save the MC/DC Record so that it can be visualized later.
+    Function.pushMCDCRecord(*Record);
   }
 
   // Don't create records for (filenames, function) pairs we've already seen.
@@ -342,7 +914,7 @@ static Error handleMaybeNoDataFoundError(Error E) {
       std::move(E), [](const CoverageMapError &CME) {
         if (CME.get() == coveragemap_error::no_data_found)
           return static_cast<Error>(Error::success());
-        return make_error<CoverageMapError>(CME.get());
+        return make_error<CoverageMapError>(CME.get(), CME.getMessage());
       });
 }
 
@@ -790,6 +1362,10 @@ CoverageData CoverageMapping::getCoverageForFile(StringRef Filename) const {
     for (const auto &CR : Function.CountedBranchRegions)
       if (FileIDs.test(CR.FileID) && (CR.FileID == CR.ExpandedFileID))
         FileCoverage.BranchRegions.push_back(CR);
+    // Capture MCDC records specific to the function.
+    for (const auto &MR : Function.MCDCRecords)
+      if (FileIDs.test(MR.getDecisionRegion().FileID))
+        FileCoverage.MCDCRecords.push_back(MR);
   }
 
   LLVM_DEBUG(dbgs() << "Emitting segments for file: " << Filename << "\n");
@@ -841,6 +1417,11 @@ CoverageMapping::getCoverageForFunction(const FunctionRecord &Function) const {
   for (const auto &CR : Function.CountedBranchRegions)
     if (CR.FileID == *MainFileID)
       FunctionCoverage.BranchRegions.push_back(CR);
+
+  // Capture MCDC records specific to the function.
+  for (const auto &MR : Function.MCDCRecords)
+    if (MR.getDecisionRegion().FileID == *MainFileID)
+      FunctionCoverage.MCDCRecords.push_back(MR);
 
   LLVM_DEBUG(dbgs() << "Emitting segments for function: " << Function.Name
                     << "\n");
@@ -895,8 +1476,15 @@ LineCoverageStats::LineCoverageStats(
       !StartOfSkippedRegion &&
       ((WrappedSegment && WrappedSegment->HasCount) || (MinRegionCount > 0));
 
-  if (!Mapped)
+  // if there is any starting segment at this line with a counter, it must be
+  // mapped
+  Mapped |= std::any_of(
+      LineSegments.begin(), LineSegments.end(),
+      [](const auto *Seq) { return Seq->IsRegionEntry && Seq->HasCount; });
+
+  if (!Mapped) {
     return;
+  }
 
   // Pick the max count from the non-gap, region entry segments and the
   // wrapped count.
@@ -925,26 +1513,43 @@ LineCoverageIterator &LineCoverageIterator::operator++() {
   return *this;
 }
 
-static std::string getCoverageMapErrString(coveragemap_error Err) {
+static std::string getCoverageMapErrString(coveragemap_error Err,
+                                           const std::string &ErrMsg = "") {
+  std::string Msg;
+  raw_string_ostream OS(Msg);
+
   switch (Err) {
   case coveragemap_error::success:
-    return "Success";
+    OS << "success";
+    break;
   case coveragemap_error::eof:
-    return "End of File";
+    OS << "end of File";
+    break;
   case coveragemap_error::no_data_found:
-    return "No coverage data found";
+    OS << "no coverage data found";
+    break;
   case coveragemap_error::unsupported_version:
-    return "Unsupported coverage format version";
+    OS << "unsupported coverage format version";
+    break;
   case coveragemap_error::truncated:
-    return "Truncated coverage data";
+    OS << "truncated coverage data";
+    break;
   case coveragemap_error::malformed:
-    return "Malformed coverage data";
+    OS << "malformed coverage data";
+    break;
   case coveragemap_error::decompression_failed:
-    return "Failed to decompress coverage data (zlib)";
+    OS << "failed to decompress coverage data (zlib)";
+    break;
   case coveragemap_error::invalid_or_missing_arch_specifier:
-    return "`-arch` specifier is invalid or missing for universal binary";
+    OS << "`-arch` specifier is invalid or missing for universal binary";
+    break;
   }
-  llvm_unreachable("A value of coveragemap_error has no message.");
+
+  // If optional error message is not empty, append it to the message.
+  if (!ErrMsg.empty())
+    OS << ": " << ErrMsg;
+
+  return Msg;
 }
 
 namespace {
@@ -962,7 +1567,7 @@ class CoverageMappingErrorCategoryType : public std::error_category {
 } // end anonymous namespace
 
 std::string CoverageMapError::message() const {
-  return getCoverageMapErrString(Err);
+  return getCoverageMapErrString(Err, Msg);
 }
 
 const std::error_category &llvm::coverage::coveragemap_category() {

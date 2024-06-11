@@ -25,7 +25,7 @@ SM_RCSID("@(#)$Id: rewind.c,v 1.19 2013-11-22 20:51:43 ca Exp $")
 **	Seeks the file to the beginning and clears any outstanding errors.
 **
 **	Parameters:
-**		fp -- the flie pointer for rewind
+**		fp -- the file pointer for rewind
 **		timeout -- time to complete the rewind
 **
 **	Returns:

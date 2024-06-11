@@ -28,7 +28,6 @@
  */
 
 #include "bsdtar_platform.h"
-__FBSDID("$FreeBSD$");
 
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
@@ -94,6 +93,7 @@ static const struct bsdtar_option {
 	{ "format",               1, OPTION_FORMAT },
 	{ "gid",		  1, OPTION_GID },
 	{ "gname",		  1, OPTION_GNAME },
+	{ "group",		  1, OPTION_GROUP },
 	{ "grzip",                0, OPTION_GRZIP },
 	{ "gunzip",               0, 'z' },
 	{ "gzip",                 0, 'z' },
@@ -142,6 +142,7 @@ static const struct bsdtar_option {
 	{ "older-than",		  1, OPTION_OLDER_CTIME_THAN },
 	{ "one-file-system",	  0, OPTION_ONE_FILE_SYSTEM },
 	{ "options",              1, OPTION_OPTIONS },
+	{ "owner",		  1, OPTION_OWNER },
 	{ "passphrase",		  1, OPTION_PASSPHRASE },
 	{ "posix",		  0, OPTION_POSIX },
 	{ "preserve-permissions", 0, 'p' },
@@ -217,12 +218,18 @@ bsdtar_getopt(struct bsdtar *bsdtar)
 	enum { state_start = 0, state_old_tar, state_next_word,
 	       state_short, state_long };
 
-	const struct bsdtar_option *popt, *match = NULL, *match2 = NULL;
-	const char *p, *long_prefix = "--";
+	const struct bsdtar_option *popt, *match, *match2;
+	const char *p, *long_prefix;
 	size_t optlength;
-	int opt = '?';
-	int required = 0;
+	int opt;
+	int required;
 
+again:
+	match = NULL;
+	match2 = NULL;
+	long_prefix = "--";
+	opt = '?';
+	required = 0;
 	bsdtar->argument = NULL;
 
 	/* First time through, initialize everything. */
@@ -309,7 +316,7 @@ bsdtar_getopt(struct bsdtar *bsdtar)
 		if (opt == '\0') {
 			/* End of this group; recurse to get next option. */
 			bsdtar->getopt_state = state_next_word;
-			return bsdtar_getopt(bsdtar);
+			goto again;
 		}
 
 		/* Does this option take an argument? */

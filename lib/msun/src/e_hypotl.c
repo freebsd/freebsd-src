@@ -9,7 +9,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /* long double version of hypot().  See e_hypot.c for most comments. */
 
 #include <float.h>

@@ -10,7 +10,7 @@
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
 .\"
-.Dd November 3, 2021
+.Dd May 25, 2024
 .Dt BLACKHOLE 4
 .Os
 .Sh NAME
@@ -21,7 +21,7 @@ MIB for manipulating behaviour in respect of refused SCTP, TCP, or UDP connectio
 attempts
 .Sh SYNOPSIS
 .Cd sysctl net.inet.sctp.blackhole Ns Op = Ns Brq "0 | 1 | 2"
-.Cd sysctl net.inet.tcp.blackhole Ns Op = Ns Brq "0 | 1 | 2"
+.Cd sysctl net.inet.tcp.blackhole Ns Op = Ns Brq "0 | 1 | 2 | 3"
 .Cd sysctl net.inet.tcp.blackhole_local Ns Op = Ns Brq "0 | 1"
 .Cd sysctl net.inet.udp.blackhole Ns Op = Ns Brq "0 | 1"
 .Cd sysctl net.inet.udp.blackhole_local Ns Op = Ns Brq "0 | 1"
@@ -30,7 +30,8 @@ The
 .Nm
 .Xr sysctl 8
 MIB is used to control system behaviour when connection requests
-are received on SCTP, TCP, or UDP ports where there is no socket listening.
+are received on SCTP, TCP, or UDP ports where there is no socket listening
+or unexpected packets are received on listening sockets.
 .Pp
 The blackhole behaviour is useful to slow down an attacker who is port-scanning
 a system in an attempt to detect vulnerable services.
@@ -51,7 +52,7 @@ when unexpected packets are received.
 .Ss TCP
 Normal behaviour, when a TCP SYN segment is received on a port where
 there is no socket accepting connections, is for the system to return
-a RST segment, and drop the connection.
+a RST segment, and drop the incoming SYN segment.
 The connecting system will
 see this as a
 .Dq Connection refused .
@@ -61,6 +62,9 @@ is merely dropped, and no RST is sent, making the system appear
 as a blackhole.
 By setting the MIB value to two, any segment arriving
 on a closed port is dropped without returning a RST.
+Setting the MIB value to three, any segment arriving on a closed port
+or an unexpected segment on a listening port is dropped without sending a
+RST in reply.
 This provides some degree of protection against stealth port scans.
 .Ss UDP
 Enabling blackhole behaviour turns off the sending

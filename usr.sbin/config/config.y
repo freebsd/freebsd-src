@@ -88,7 +88,7 @@ int	maxusers;
 
 #define ns(s)	strdup(s)
 int include(const char *, int);
-void yyerror(const char *s);
+int yyerror(const char *s);
 int yywrap(void);
 
 static void newdev(char *name);
@@ -299,7 +299,7 @@ NoDevice:
 
 %%
 
-void
+int
 yyerror(const char *s)
 {
 

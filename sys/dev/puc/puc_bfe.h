@@ -89,7 +89,7 @@ struct resource *puc_bus_alloc_resource(device_t, device_t, int, int *,
 int puc_bus_get_resource(device_t, device_t, int, int, rman_res_t *, rman_res_t *);
 int puc_bus_print_child(device_t, device_t);
 int puc_bus_read_ivar(device_t, device_t, int, uintptr_t *);
-int puc_bus_release_resource(device_t, device_t, int, int, struct resource *);
+int puc_bus_release_resource(device_t, device_t, struct resource *);
 int puc_bus_setup_intr(device_t, device_t, struct resource *, int,
     driver_filter_t *, driver_intr_t *, void *, void **);
 int puc_bus_teardown_intr(device_t, device_t, struct resource *, void *);

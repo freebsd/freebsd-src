@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <fenv.h>
 #include <float.h>
 #include <math.h>
@@ -268,7 +267,9 @@ fma(double x, double y, double z)
 		 */
 		fesetround(oround);
 		volatile double vzs = zs; /* XXX gcc CSE bug workaround */
-		return (xy.hi + vzs + ldexp(xy.lo, spread));
+		xs = ldexp(xy.lo, spread);
+		xy.hi += vzs;
+		return (xy.hi == 0 ? xs : xy.hi + xs);
 	}
 
 	if (oround != FE_TONEAREST) {

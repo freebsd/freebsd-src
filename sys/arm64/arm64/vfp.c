@@ -110,6 +110,7 @@ vfp_store(struct vfpstate *state)
 
 	vfp_state = state->vfp_regs;
 	__asm __volatile(
+	    ".arch_extension fp\n"
 	    "mrs	%0, fpcr		\n"
 	    "mrs	%1, fpsr		\n"
 	    "stp	q0,  q1,  [%2, #16 *  0]\n"
@@ -128,6 +129,7 @@ vfp_store(struct vfpstate *state)
 	    "stp	q26, q27, [%2, #16 * 26]\n"
 	    "stp	q28, q29, [%2, #16 * 28]\n"
 	    "stp	q30, q31, [%2, #16 * 30]\n"
+	    ".arch_extension nofp\n"
 	    : "=&r"(fpcr), "=&r"(fpsr) : "r"(vfp_state));
 
 	state->vfp_fpcr = fpcr;
@@ -145,6 +147,7 @@ vfp_restore(struct vfpstate *state)
 	fpsr = state->vfp_fpsr;
 
 	__asm __volatile(
+	    ".arch_extension fp\n"
 	    "ldp	q0,  q1,  [%2, #16 *  0]\n"
 	    "ldp	q2,  q3,  [%2, #16 *  2]\n"
 	    "ldp	q4,  q5,  [%2, #16 *  4]\n"
@@ -163,27 +166,14 @@ vfp_restore(struct vfpstate *state)
 	    "ldp	q30, q31, [%2, #16 * 30]\n"
 	    "msr	fpcr, %0		\n"
 	    "msr	fpsr, %1		\n"
+	    ".arch_extension nofp\n"
 	    : : "r"(fpcr), "r"(fpsr), "r"(vfp_state));
 }
 
-void
-vfp_save_state(struct thread *td, struct pcb *pcb)
+static void
+vfp_save_state_common(struct thread *td, struct pcb *pcb)
 {
 	uint32_t cpacr;
-
-	KASSERT(pcb != NULL, ("NULL vfp pcb"));
-	KASSERT(td == NULL || td->td_pcb == pcb, ("Invalid vfp pcb"));
-
-	/* 
-	 * savectx() will be called on panic with dumppcb as an argument,
-	 * dumppcb doesn't have pcb_fpusaved set, so set it to save
-	 * the VFP registers.
-	 */
-	if (pcb->pcb_fpusaved == NULL)
-		pcb->pcb_fpusaved = &pcb->pcb_fpustate;
-
-	if (td == NULL)
-		td = curthread;
 
 	critical_enter();
 	/*
@@ -200,6 +190,30 @@ vfp_save_state(struct thread *td, struct pcb *pcb)
 		vfp_disable();
 	}
 	critical_exit();
+}
+
+void
+vfp_save_state(struct thread *td, struct pcb *pcb)
+{
+	KASSERT(td != NULL, ("NULL vfp thread"));
+	KASSERT(pcb != NULL, ("NULL vfp pcb"));
+	KASSERT(td->td_pcb == pcb, ("Invalid vfp pcb"));
+
+	vfp_save_state_common(td, pcb);
+}
+
+void
+vfp_save_state_savectx(struct pcb *pcb)
+{
+	/*
+	 * savectx() will be called on panic with dumppcb as an argument,
+	 * dumppcb doesn't have pcb_fpusaved set, so set it to save
+	 * the VFP registers.
+	 */
+	MPASS(pcb->pcb_fpusaved == NULL);
+	pcb->pcb_fpusaved = &pcb->pcb_fpustate;
+
+	vfp_save_state_common(curthread, pcb);
 }
 
 /*

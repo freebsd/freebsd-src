@@ -75,7 +75,7 @@
 #include <arm/allwinner/if_emacreg.h>
 #include <arm/allwinner/aw_sid.h>
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
 #include "miibus_if.h"
 

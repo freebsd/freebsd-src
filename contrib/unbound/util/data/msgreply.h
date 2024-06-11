@@ -58,6 +58,7 @@ struct msg_parse;
 struct rrset_parse;
 struct local_rrset;
 struct dns_msg;
+enum comm_point_type;
 
 /** calculate the prefetch TTL as 90% of original. Calculation
  * without numerical overflow (uin32_t) */
@@ -520,10 +521,13 @@ void log_dns_msg(const char* str, struct query_info* qinfo,
  * @param cached: whether or not the reply is coming from
  *                    the cache, or an outside network.
  * @param rmsg: sldns buffer packet.
+ * @param daddr: if not NULL, the destination address and port are logged.
+ * @param tp: type of the comm point for logging destination connection type.
  */
 void log_reply_info(enum verbosity_value v, struct query_info *qinf,
 	struct sockaddr_storage *addr, socklen_t addrlen, struct timeval dur,
-	int cached, struct sldns_buffer *rmsg);
+	int cached, struct sldns_buffer *rmsg, struct sockaddr_storage* daddr,
+	enum comm_point_type tp);
 
 /**
  * Print string with neat domain name, type, class from query info.

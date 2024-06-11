@@ -12,6 +12,8 @@ name="ypxfrd"
 desc="NIS map transfer server"
 rcvar="nis_ypxfrd_enable"
 
+: ${ypxfrd_svcj_options:="net_basic"}
+
 load_rc_config $name
 
 command="/usr/sbin/rpc.${name}"

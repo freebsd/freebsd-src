@@ -111,6 +111,8 @@
 
 #define	KERNBASE		0x00100100	/* start of kernel virtual */
 
+#define UMA_MD_SMALL_ALLOC
+
 #ifdef AIM
 #ifndef __powerpc64__
 #define	VM_MIN_KERNEL_ADDRESS	((vm_offset_t)KERNEL_SR << ADDR_SR_SHFT)
@@ -122,13 +124,13 @@
  * Use the direct-mapped BAT registers for UMA small allocs. This
  * takes pressure off the small amount of available KVA.
  */
-#define UMA_MD_SMALL_ALLOC
+#define UMA_USE_DMAP
 
 #else /* Book-E */
 
 /* Use the direct map for UMA small allocs on powerpc64. */
 #ifdef __powerpc64__
-#define UMA_MD_SMALL_ALLOC
+#define UMA_USE_DMAP
 #else
 #define	VM_MIN_KERNEL_ADDRESS		0xc0000000
 #define	VM_MAX_KERNEL_ADDRESS		0xffffefff
@@ -306,11 +308,13 @@ extern	int vm_level_0_order;
  * Need a page dump array for minidump.
  */
 #define MINIDUMP_PAGE_TRACKING	1
+#define MINIDUMP_STARTUP_PAGE_TRACKING 1
 #else
 /*
  * No minidump with 32-bit powerpc.
  */
 #define MINIDUMP_PAGE_TRACKING	0
+#define MINIDUMP_STARTUP_PAGE_TRACKING 0
 #endif
 
 #define	PMAP_HAS_DMAP	(hw_direct_map)

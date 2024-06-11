@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -480,10 +480,11 @@ static void
 DtInsertLabelField (
     DT_FIELD                *Field)
 {
+    ACPI_FUNCTION_NAME (DtInsertLabelField);
 
     DbgPrint (ASL_DEBUG_OUTPUT,
-        "DtInsertLabelField: Found Label : %s at output table offset %X\n",
-        Field->Value, Field->TableOffset);
+        "%s: Found Label : %s at output table offset %X\n",
+         ACPI_GET_FUNCTION_NAME, Field->Value, Field->TableOffset);
 
     Field->NextLabel = AslGbl_LabelList;
     AslGbl_LabelList = Field;

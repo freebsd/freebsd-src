@@ -1896,17 +1896,17 @@ iscsi_ioctl_daemon_receive(struct iscsi_softc *sc,
 		return (EMSGSIZE);
 	}
 
-	copyout(ip->ip_bhs, idr->idr_bhs, sizeof(*ip->ip_bhs));
-	if (ip->ip_data_len > 0) {
+	error = copyout(ip->ip_bhs, idr->idr_bhs, sizeof(*ip->ip_bhs));
+	if (error == 0 && ip->ip_data_len > 0) {
 		data = malloc(ip->ip_data_len, M_ISCSI, M_WAITOK);
 		icl_pdu_get_data(ip, 0, data, ip->ip_data_len);
-		copyout(data, idr->idr_data_segment, ip->ip_data_len);
+		error = copyout(data, idr->idr_data_segment, ip->ip_data_len);
 		free(data, M_ISCSI);
 	}
 
 	icl_pdu_free(ip);
 
-	return (0);
+	return (error);
 }
 #endif /* ICL_KERNEL_PROXY */
 

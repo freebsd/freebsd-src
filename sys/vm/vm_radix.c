@@ -82,7 +82,7 @@ vm_radix_node_free(struct pctrie *ptree, void *node)
 	uma_zfree_smr(vm_radix_node_zone, node);
 }
 
-#ifndef UMA_MD_SMALL_ALLOC
+#ifndef UMA_USE_DMAP
 void vm_radix_reserve_kva(void);
 /*
  * Reserve the KVA necessary to satisfy the node allocation.

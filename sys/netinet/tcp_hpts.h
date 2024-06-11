@@ -115,7 +115,9 @@ void tcp_hpts_remove(struct tcpcb *);
 static inline bool
 tcp_in_hpts(struct tcpcb *tp)
 {
-	return (tp->t_in_hpts == IHPTS_ONQUEUE);
+	return ((tp->t_in_hpts == IHPTS_ONQUEUE) ||
+		((tp->t_in_hpts == IHPTS_MOVING) &&
+		 (tp->t_hpts_slot != -1)));
 }
 
 /*
@@ -153,6 +155,7 @@ void __tcp_set_hpts(struct tcpcb *tp, int32_t line);
 void tcp_set_inp_to_drop(struct inpcb *inp, uint16_t reason);
 
 void tcp_lro_hpts_init(void);
+void tcp_lro_hpts_uninit(void);
 
 extern int32_t tcp_min_hptsi_time;
 
@@ -205,6 +208,17 @@ tcp_gethptstick(struct timeval *sv)
 		sv = &tv;
 	microuptime(sv);
 	return (tcp_tv_to_hptstick(sv));
+}
+
+static __inline uint64_t
+tcp_get_u64_usecs(struct timeval *tv)
+{
+	struct timeval tvd;
+
+	if (tv == NULL)
+		tv = &tvd;
+	microuptime(tv);
+	return (tcp_tv_to_lusectick(tv));
 }
 
 static __inline uint32_t

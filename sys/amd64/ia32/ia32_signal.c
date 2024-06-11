@@ -439,7 +439,7 @@ static void
 freebsd4_ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 {
 	struct ia32_freebsd4_sigframe sf, *sfp;
-	struct siginfo32 siginfo;
+	struct __siginfo32 siginfo;
 	struct proc *p;
 	struct thread *td;
 	struct sigacts *psp;
@@ -550,7 +550,7 @@ void
 ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 {
 	struct ia32_sigframe sf, *sfp;
-	struct siginfo32 siginfo;
+	struct __siginfo32 siginfo;
 	struct proc *p;
 	struct thread *td;
 	struct sigacts *psp;

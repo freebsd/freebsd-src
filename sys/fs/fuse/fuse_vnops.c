@@ -906,6 +906,7 @@ fuse_vnop_copy_file_range(struct vop_copy_file_range_args *ap)
 	if (err)
 		goto unlock;
 
+	vnode_pager_clean_sync(invp);
 	err = fuse_inval_buf_range(outvp, outfilesize, *ap->a_outoffp,
 		*ap->a_outoffp + io.uio_resid);
 	if (err)
@@ -2247,19 +2248,15 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 					return (err2);
 				if (vap->va_uid != old_va.va_uid)
 					return err;
-				else
-					accmode |= VADMIN;
 				drop_suid = true;
-			} else
-				accmode |= VADMIN;
-		} else
-			accmode |= VADMIN;
+			}
+		}
+		accmode |= VADMIN;
 	}
 	if (vap->va_gid != (gid_t)VNOVAL) {
 		if (checkperm && priv_check_cred(cred, PRIV_VFS_CHOWN))
 			drop_suid = true;
-		if (checkperm && !groupmember(vap->va_gid, cred))
-		{
+		if (checkperm && !groupmember(vap->va_gid, cred)) {
 			/*
 			 * Non-root users may only chgrp to one of their own
 			 * groups 
@@ -2273,11 +2270,9 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 					return (err2);
 				if (vap->va_gid != old_va.va_gid)
 					return err;
-				accmode |= VADMIN;
-			} else
-				accmode |= VADMIN;
-		} else
-			accmode |= VADMIN;
+			}
+		}
+		accmode |= VADMIN;
 	}
 	if (vap->va_size != VNOVAL) {
 		switch (vp->v_type) {

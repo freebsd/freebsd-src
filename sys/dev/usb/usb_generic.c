@@ -2377,12 +2377,10 @@ ugen_ioctl_post(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 		break;
 
 	case USB_IFACE_DRIVER_ACTIVE:
-
 		n = *u.pint & 0xFF;
-
 		iface = usbd_get_iface(f->udev, n);
-
-		if (iface && iface->subdev)
+		if (iface != NULL && iface->subdev != NULL &&
+		    device_is_alive(iface->subdev))
 			error = 0;
 		else
 			error = ENXIO;

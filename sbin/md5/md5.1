@@ -1,4 +1,4 @@
-.Dd May 10, 2023
+.Dd March 12, 2024
 .Dt MD5 1
 .Os
 .Sh NAME
@@ -79,6 +79,11 @@ utility does the same, but with command-line options and an output
 format that match those of the similarly named utility that ships with
 Perl.
 .Pp
+In all cases, each file listed on the command line is processed separately.
+If no files are listed on the command line, or a file name is given as
+.Pa - ,
+input is taken from stdin instead.
+.Pp
 It is conjectured that it is computationally infeasible to
 produce two messages having the same message digest, or to produce any
 message having a given prespecified target message digest.
@@ -124,6 +129,7 @@ option, the calculated digest is printed in addition to the exit status being se
 .Pq Note that this option is not yet useful if multiple files are specified.
 .It Fl p , -passthrough
 Echo stdin to stdout and append the checksum to stdout.
+In this mode, any files specified on the command line are silently ignored.
 .It Fl q , -quiet
 Quiet mode \(em only the checksum is printed out.
 Overrides the
@@ -141,6 +147,7 @@ options.
 .It Fl s Ar string , Fl -string= Ns Ar string
 Print a checksum of the given
 .Ar string .
+In this mode, any files specified on the command line are silently ignored.
 .It Fl t , Fl -time-trial
 Run a built-in time trial.
 For the
@@ -360,7 +367,7 @@ for
 .Pa /boot/loader.conf
 in the example above.
 .Bd -literal -offset indent
-$ md5 -c digest /boot/loader.conf
+$ md5sum -c digest
 /boot/loader.conf: OK
 .Ed
 .Pp

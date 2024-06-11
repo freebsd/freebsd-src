@@ -179,8 +179,7 @@ init_toepcb(struct vi_info *vi, struct toepcb *toep)
 	toep->ctrlq = &sc->sge.ctrlq[pi->port_id];
 
 	tls_init_toep(toep);
-	if (ulp_mode(toep) == ULP_MODE_TCPDDP)
-		ddp_init_toep(toep);
+	MPASS(ulp_mode(toep) != ULP_MODE_TCPDDP);
 
 	toep->flags |= TPF_INITIALIZED;
 
@@ -323,8 +322,8 @@ release_offload_resources(struct toepcb *toep)
 	 * that a normal connection's socket's so_snd would have been purged or
 	 * drained.  Do _not_ clean up here.
 	 */
-	MPASS(mbufq_len(&toep->ulp_pduq) == 0);
-	MPASS(mbufq_len(&toep->ulp_pdu_reclaimq) == 0);
+	MPASS(mbufq_empty(&toep->ulp_pduq));
+	MPASS(mbufq_empty(&toep->ulp_pdu_reclaimq));
 #ifdef INVARIANTS
 	if (ulp_mode(toep) == ULP_MODE_TCPDDP)
 		ddp_assert_empty(toep);
@@ -839,40 +838,6 @@ t4_alloc_tls_session(struct toedev *tod, struct tcpcb *tp,
 }
 #endif
 
-/* SET_TCB_FIELD sent as a ULP command looks like this */
-#define LEN__SET_TCB_FIELD_ULP (sizeof(struct ulp_txpkt) + \
-    sizeof(struct ulptx_idata) + sizeof(struct cpl_set_tcb_field_core))
-
-static void *
-mk_set_tcb_field_ulp(struct ulp_txpkt *ulpmc, uint64_t word, uint64_t mask,
-		uint64_t val, uint32_t tid)
-{
-	struct ulptx_idata *ulpsc;
-	struct cpl_set_tcb_field_core *req;
-
-	ulpmc->cmd_dest = htonl(V_ULPTX_CMD(ULP_TX_PKT) | V_ULP_TXPKT_DEST(0));
-	ulpmc->len = htobe32(howmany(LEN__SET_TCB_FIELD_ULP, 16));
-
-	ulpsc = (struct ulptx_idata *)(ulpmc + 1);
-	ulpsc->cmd_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_IMM));
-	ulpsc->len = htobe32(sizeof(*req));
-
-	req = (struct cpl_set_tcb_field_core *)(ulpsc + 1);
-	OPCODE_TID(req) = htobe32(MK_OPCODE_TID(CPL_SET_TCB_FIELD, tid));
-	req->reply_ctrl = htobe16(V_NO_REPLY(1));
-	req->word_cookie = htobe16(V_WORD(word) | V_COOKIE(0));
-	req->mask = htobe64(mask);
-	req->val = htobe64(val);
-
-	ulpsc = (struct ulptx_idata *)(req + 1);
-	if (LEN__SET_TCB_FIELD_ULP % 16) {
-		ulpsc->cmd_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_NOOP));
-		ulpsc->len = htobe32(0);
-		return (ulpsc + 1);
-	}
-	return (ulpsc);
-}
-
 static void
 send_mss_flowc_wr(struct adapter *sc, struct toepcb *toep)
 {
@@ -959,10 +924,10 @@ t4_pmtu_update(struct toedev *tod, struct tcpcb *tp, tcp_seq seq, int mtu)
 	}
 	INIT_ULPTX_WRH(wrh, len, 1, 0);	/* atomic */
 	ulpmc = (struct ulp_txpkt *)(wrh + 1);
-	ulpmc = mk_set_tcb_field_ulp(ulpmc, W_TCB_T_MAXSEG,
-	    V_TCB_T_MAXSEG(M_TCB_T_MAXSEG), V_TCB_T_MAXSEG(idx), toep->tid);
-	ulpmc = mk_set_tcb_field_ulp(ulpmc, W_TCB_TIMESTAMP,
-	    V_TCB_TIMESTAMP(0x7FFFFULL << 11), 0, toep->tid);
+	ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid, W_TCB_T_MAXSEG,
+	    V_TCB_T_MAXSEG(M_TCB_T_MAXSEG), V_TCB_T_MAXSEG(idx));
+	ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid, W_TCB_TIMESTAMP,
+	    V_TCB_TIMESTAMP(0x7FFFFULL << 11), 0);
 	commit_wrq_wr(toep->ctrlq, wrh, &cookie);
 
 	/* Update the software toepcb and tcpcb. */
@@ -1201,12 +1166,14 @@ calc_options2(struct vi_info *vi, struct conn_params *cp)
 	MPASS(cp->ecn == 0 || cp->ecn == 1);
 	opt2 |= V_CCTRL_ECN(cp->ecn);
 
-	/* XXX: F_RX_CHANNEL for multiple rx c-chan support goes here. */
-
-	opt2 |= V_TX_QUEUE(sc->params.tp.tx_modq[pi->tx_chan]);
+	opt2 |= V_TX_QUEUE(TX_MODQ(pi->tx_chan));
 	opt2 |= V_PACE(0);
 	opt2 |= F_RSS_QUEUE_VALID;
 	opt2 |= V_RSS_QUEUE(sc->sge.ofld_rxq[cp->rxq_idx].iq.abs_id);
+	if (chip_id(sc) <= CHELSIO_T6) {
+		MPASS(pi->rx_chan == 0 || pi->rx_chan == 1);
+		opt2 |= V_RX_CHANNEL(pi->rx_chan);
+	}
 
 	MPASS(cp->cong_algo >= 0 && cp->cong_algo <= M_CONG_CNTRL);
 	opt2 |= V_CONG_CNTRL(cp->cong_algo);
@@ -1216,10 +1183,7 @@ calc_options2(struct vi_info *vi, struct conn_params *cp)
 		opt2 |= V_RX_COALESCE(M_RX_COALESCE);
 
 	opt2 |= V_RX_FC_DDP(0) | V_RX_FC_DISABLE(0);
-#ifdef USE_DDP_RX_FLOW_CONTROL
-	if (cp->ulp_mode == ULP_MODE_TCPDDP)
-		opt2 |= F_RX_FC_DDP;
-#endif
+	MPASS(cp->ulp_mode != ULP_MODE_TCPDDP);
 
 	return (htobe32(opt2));
 }
@@ -1327,11 +1291,7 @@ init_conn_params(struct vi_info *vi , struct offload_settings *s,
 		cp->tx_align = 0;
 
 	/* ULP mode. */
-	if (s->ddp > 0 ||
-	    (s->ddp < 0 && sc->tt.ddp && (so_options_get(so) & SO_NO_DDP) == 0))
-		cp->ulp_mode = ULP_MODE_TCPDDP;
-	else
-		cp->ulp_mode = ULP_MODE_NONE;
+	cp->ulp_mode = ULP_MODE_NONE;
 
 	/* Rx coalescing. */
 	if (s->rx_coalesce >= 0)
@@ -1959,6 +1919,35 @@ t4_tom_deactivate(struct adapter *sc)
 }
 
 static int
+t4_ctloutput_tom(struct socket *so, struct sockopt *sopt)
+{
+	struct tcpcb *tp = sototcpcb(so);
+	struct toepcb *toep = tp->t_toe;
+	int error, optval;
+
+	if (sopt->sopt_level == IPPROTO_TCP && sopt->sopt_name == TCP_USE_DDP) {
+		if (sopt->sopt_dir != SOPT_SET)
+			return (EOPNOTSUPP);
+
+		if (sopt->sopt_td != NULL) {
+			/* Only settable by the kernel. */
+			return (EPERM);
+		}
+
+		error = sooptcopyin(sopt, &optval, sizeof(optval),
+		    sizeof(optval));
+		if (error != 0)
+			return (error);
+
+		if (optval != 0)
+			return (t4_enable_ddp_rcv(so, toep));
+		else
+			return (EOPNOTSUPP);
+	}
+	return (tcp_ctloutput(so, sopt));
+}
+
+static int
 t4_aio_queue_tom(struct socket *so, struct kaiocb *job)
 {
 	struct tcpcb *tp = sototcpcb(so);
@@ -1972,7 +1961,8 @@ t4_aio_queue_tom(struct socket *so, struct kaiocb *job)
 	if (SOLISTENING(so))
 		return (EINVAL);
 
-	if (ulp_mode(toep) == ULP_MODE_TCPDDP) {
+	if (ulp_mode(toep) == ULP_MODE_TCPDDP ||
+	    ulp_mode(toep) == ULP_MODE_NONE) {
 		error = t4_aio_queue_ddp(so, job);
 		if (error != EOPNOTSUPP)
 			return (error);
@@ -1996,9 +1986,11 @@ t4_tom_mod_load(void)
 	t4_tls_mod_load();
 
 	bcopy(&tcp_protosw, &toe_protosw, sizeof(toe_protosw));
+	toe_protosw.pr_ctloutput = t4_ctloutput_tom;
 	toe_protosw.pr_aio_queue = t4_aio_queue_tom;
 
 	bcopy(&tcp6_protosw, &toe6_protosw, sizeof(toe6_protosw));
+	toe6_protosw.pr_ctloutput = t4_ctloutput_tom;
 	toe6_protosw.pr_aio_queue = t4_aio_queue_tom;
 
 	return (t4_register_uld(&tom_uld_info));

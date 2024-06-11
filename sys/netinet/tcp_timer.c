@@ -299,7 +299,7 @@ tcp_output_locked(struct tcpcb *tp)
 		KASSERT(tp->t_fb->tfb_flags & TCP_FUNC_OUTPUT_CANDROP,
 		    ("TCP stack %s requested tcp_drop(%p)",
 		    tp->t_fb->tfb_tcp_block_name, tp));
-		tp = tcp_drop(tp, rv);
+		tp = tcp_drop(tp, -rv);
 	}
 
 	return (tp != NULL);
@@ -559,7 +559,6 @@ tcp_timer_rexmt(struct tcpcb *tp)
 
 	TCP_PROBE2(debug__user, tp, PRU_SLOWTIMO);
 	CURVNET_SET(inp->inp_vnet);
-	tcp_free_sackholes(tp);
 	if (tp->t_fb->tfb_tcp_rexmit_tmr) {
 		/* The stack has a timer action too. */
 		(*tp->t_fb->tfb_tcp_rexmit_tmr)(tp);
@@ -619,8 +618,11 @@ tcp_timer_rexmt(struct tcpcb *tp)
 		 * the retransmitted packet's to_tsval to by tcp_output
 		 */
 		tp->t_flags |= TF_PREVVALID;
-	} else
+		tcp_resend_sackholes(tp);
+	} else {
 		tp->t_flags &= ~TF_PREVVALID;
+		tcp_free_sackholes(tp);
+	}
 	TCPSTAT_INC(tcps_rexmttimeo);
 	if ((tp->t_state == TCPS_SYN_SENT) ||
 	    (tp->t_state == TCPS_SYN_RECEIVED))
@@ -754,6 +756,16 @@ tcp_timer_rexmt(struct tcpcb *tp)
 				tp->t_flags2 |= TF2_PLPMTU_PMTUD;
 				tp->t_flags2 &= ~TF2_PLPMTU_BLACKHOLE;
 				tp->t_maxseg = tp->t_pmtud_saved_maxseg;
+				if (tp->t_maxseg < V_tcp_mssdflt) {
+					/*
+					 * The MSS is so small we should not 
+					 * process incoming SACK's since we are 
+					 * subject to attack in such a case.
+					 */
+					tp->t_flags2 |= TF2_PROC_SACK_PROHIBIT;
+				} else {
+					tp->t_flags2 &= ~TF2_PROC_SACK_PROHIBIT;
+				}
 				TCPSTAT_INC(tcps_pmtud_blackhole_failed);
 				/*
 				 * Reset the slow-start flight size as it
@@ -879,6 +891,7 @@ tcp_timer_enter(void *xtp)
 	if (tp_valid) {
 		tcp_bblog_timer(tp, which, TT_PROCESSED, 0);
 		if ((which = tcp_timer_next(tp, &precision)) != TT_N) {
+			MPASS(tp->t_state > TCPS_CLOSED);
 			callout_reset_sbt_on(&tp->t_callout,
 			    tp->t_timers[which], precision, tcp_timer_enter,
 			    tp, inp_to_cpuid(inp), C_ABSOLUTE);
@@ -905,6 +918,7 @@ tcp_timer_activate(struct tcpcb *tp, tt_which which, u_int delta)
 #endif
 
 	INP_WLOCK_ASSERT(inp);
+	MPASS(tp->t_state > TCPS_CLOSED);
 
 	if (delta > 0) {
 		what = TT_STARTING;
@@ -936,8 +950,7 @@ tcp_timer_active(struct tcpcb *tp, tt_which which)
 /*
  * Stop all timers associated with tcpcb.
  *
- * Called only on tcpcb destruction.  The tcpcb shall already be dropped from
- * the pcb lookup database and socket is not losing the last reference.
+ * Called when tcpcb moves to TCPS_CLOSED.
  *
  * XXXGL: unfortunately our callout(9) is not able to fully stop a locked
  * callout even when only two threads are involved: the callout itself and the
@@ -960,6 +973,8 @@ tcp_timer_stop(struct tcpcb *tp)
 
 		stopped = callout_stop(&tp->t_callout);
 		MPASS(stopped == 0);
+		for (tt_which i = 0; i < TT_N; i++)
+			tp->t_timers[i] = SBT_MAX;
 	} else while(__predict_false(callout_stop(&tp->t_callout) == 0)) {
 		INP_WUNLOCK(inp);
 		kern_yield(PRI_UNCHANGED);

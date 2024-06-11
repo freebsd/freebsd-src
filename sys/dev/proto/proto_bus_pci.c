@@ -32,7 +32,6 @@
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
-#include <sys/sbuf.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -62,17 +61,12 @@ static char **proto_pci_devnames;
 static int
 proto_pci_probe(device_t dev)
 {
-	struct sbuf *sb;
-
 	if ((pci_read_config(dev, PCIR_HDRTYPE, 1) & PCIM_HDRTYPE) != 0)
 		return (ENXIO);
 
-	sb = sbuf_new_auto();
-	sbuf_printf(sb, "%s%d:%d:%d:%d", proto_pci_prefix, pci_get_domain(dev),
-	    pci_get_bus(dev), pci_get_slot(dev), pci_get_function(dev));
-	sbuf_finish(sb);
-	device_set_desc_copy(dev, sbuf_data(sb));
-	sbuf_delete(sb);
+	device_set_descf(dev, "%s%d:%d:%d:%d", proto_pci_prefix,
+	    pci_get_domain(dev), pci_get_bus(dev), pci_get_slot(dev),
+	    pci_get_function(dev));
 	return (proto_probe(dev, proto_pci_prefix, &proto_pci_devnames));
 }
 

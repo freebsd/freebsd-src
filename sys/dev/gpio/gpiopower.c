@@ -34,6 +34,7 @@
 #include <sys/module.h>
 #include <sys/reboot.h>
 
+#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 
 #include <dev/gpio/gpiobusvar.h>
@@ -41,6 +42,9 @@
 struct gpiopower_softc {
 	gpio_pin_t	sc_pin;
 	int		sc_rbmask;
+	int		sc_hi_period;
+	int		sc_lo_period;
+	int		sc_timeout;
 };
 
 static void gpiopower_assert(device_t dev, int howto);
@@ -65,6 +69,7 @@ gpiopower_attach(device_t dev)
 {
 	struct gpiopower_softc *sc;
 	phandle_t node;
+	uint32_t prop;
 
 	sc = device_get_softc(dev);
 
@@ -80,9 +85,20 @@ gpiopower_attach(device_t dev)
 		sc->sc_rbmask = RB_HALT | RB_POWEROFF;
 	else
 		sc->sc_rbmask = 0;
+
+	sc->sc_hi_period = 100000;
+	sc->sc_lo_period = 100000;
+	sc->sc_timeout = 1000000;
+
+	if ((OF_getprop(node, "active-delay-ms", &prop, sizeof(prop))) > 0)
+		sc->sc_hi_period = fdt32_to_cpu(prop) * 1000;
+	if ((OF_getprop(node, "inactive-delay-ms", &prop, sizeof(prop))) > 0)
+		sc->sc_lo_period = fdt32_to_cpu(prop) * 1000;
+	if ((OF_getprop(node, "timeout-ms", &prop, sizeof(prop))) > 0)
+		sc->sc_timeout = fdt32_to_cpu(prop) * 1000;
+
 	EVENTHANDLER_REGISTER(shutdown_final, gpiopower_assert, dev,
 	    SHUTDOWN_PRI_LAST);
-	gpio_pin_setflags(sc->sc_pin, GPIO_PIN_OUTPUT);
 
 	return (0);
 }
@@ -107,10 +123,16 @@ gpiopower_assert(device_t dev, int howto)
 	else
 		return;
 
+	gpio_pin_setflags(sc->sc_pin, GPIO_PIN_OUTPUT);
 	gpio_pin_set_active(sc->sc_pin, true);
+	DELAY(sc->sc_hi_period);
+	gpio_pin_set_active(sc->sc_pin, false);
+	DELAY(sc->sc_lo_period);
+	gpio_pin_set_active(sc->sc_pin, true);
+	DELAY(sc->sc_timeout);
 
-	/* Wait a second for it to trip */
-	DELAY(10000000);
+	device_printf(dev, "%s failed\n",
+	    (howto & RB_POWEROFF) != 0 ? "power off" : "reset");
 }
 
 static device_method_t gpiopower_methods[] = {

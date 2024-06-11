@@ -24,7 +24,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
 
 #ifdef HAVE_SYS_ACL_H
 #include <sys/acl.h>
@@ -235,5 +234,89 @@ DEFINE_TEST(test_write_disk_appledouble)
 	assertChdir("..");
 
 	assertEqualFile("hfscmp/file3", "nocmp/file3");
+#endif
+}
+
+/* Test writing apple doubles to disk from zip format */
+DEFINE_TEST(test_write_disk_appledouble_zip)
+{
+#if !defined(__APPLE__) || !defined(UF_COMPRESSED) || !defined(HAVE_SYS_XATTR_H)\
+	|| !defined(HAVE_ZLIB_H)
+	skipping("MacOS-specific AppleDouble test");
+#else
+	const char *refname = "test_write_disk_appledouble_zip.zip";
+	struct archive *ad, *a;
+	struct archive_entry *ae;
+	struct stat st;
+
+	extract_reference_file(refname);
+
+	/*
+	 * Extract an archive to disk.
+	 */
+	assert((ad = archive_write_disk_new()) != NULL);
+	assertEqualIntA(ad, ARCHIVE_OK,
+	    archive_write_disk_set_standard_lookup(ad));
+	assertEqualIntA(ad, ARCHIVE_OK,
+	    archive_write_disk_set_options(ad,
+		ARCHIVE_EXTRACT_TIME |
+		ARCHIVE_EXTRACT_SECURE_SYMLINKS |
+		ARCHIVE_EXTRACT_SECURE_NODOTDOT));
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a,
+	    refname, 512 * 20));
+
+	/* Skip The top level directory */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("apple_double_dir/", archive_entry_pathname(ae));
+
+	/* Extract apple_double_test */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("apple_double_dir/apple_double_dir_test/", archive_entry_pathname(ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_extract2(a, ae, ad));
+
+	/* Extract ._apple_double_dir_test which will be merged into apple_double_dir_test as metadata. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("apple_double_dir/._apple_double_dir_test", archive_entry_pathname(ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_extract2(a, ae, ad));
+
+	/* Extract test_file */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("apple_double_dir/test_file", archive_entry_pathname(ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_extract2(a, ae, ad));
+
+	/* Extract ._test_file which will be merged into test_file as metadata. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("apple_double_dir/._test_file", archive_entry_pathname(ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_extract2(a, ae, ad));
+
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	assertEqualIntA(ad, ARCHIVE_OK, archive_write_free(ad));
+
+	/* Test test_file */
+	assertEqualInt(0, stat("apple_double_dir/test_file", &st));
+	assertFileSize("apple_double_dir/test_file", 5);
+	failure("'%s' should have Resource Fork", "test_file");
+	assertEqualInt(1, has_xattr("apple_double_dir/test_file", "com.apple.ResourceFork"));
+
+	/* Test apple_double_dir_test */
+	failure("'%s' should have quarantine xattr", "apple_double_dir_test");
+	assertEqualInt(1, has_xattr("apple_double_dir/apple_double_dir_test", "com.apple.quarantine"));
+
+	/* Test ._test_file. */
+	failure("'apple_double_dir/._test_file' should be merged and removed");
+	assertFileNotExists("apple_double_dir/._test_file");
+
+	/* Test ._apple_double_dir_test */
+	failure("'apple_double_dir/._._apple_double_dir_test' should be merged and removed");
+	assertFileNotExists("apple_double_dir/._apple_double_dir_test");
+
+	assertChdir("..");
+
 #endif
 }

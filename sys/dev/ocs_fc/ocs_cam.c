@@ -1540,15 +1540,13 @@ static int32_t ocs_scsi_initiator_io_cb(ocs_io_t *io,
 		}
 	} else if (scsi_status != OCS_SCSI_STATUS_GOOD) {
 		const char *err_desc = NULL;
-		char path_str[64];
 		char err_str[224];
 		struct sbuf sb;
 		size_t i;
 
 		sbuf_new(&sb, err_str, sizeof(err_str), 0);
 
-		xpt_path_string(ccb->ccb_h.path, path_str, sizeof(path_str));
-		sbuf_cat(&sb, path_str);
+		xpt_path_sbuf(ccb->ccb_h.path, &sb);
 
 		for (i = 0; i < (sizeof(ocs_status_desc) /
 		     sizeof(ocs_status_desc[0])); i++) {

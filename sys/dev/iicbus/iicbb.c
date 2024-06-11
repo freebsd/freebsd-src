@@ -52,6 +52,7 @@
 #include <sys/bus.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
+#include <machine/cpu.h>
 
 #ifdef FDT
 #include <dev/ofw/ofw_bus.h>
@@ -254,11 +255,12 @@ iicbb_waitforscl(device_t dev)
 	do {
 		if (I2C_GETSCL(dev))
 			return (0);
+		cpu_spinwait();
 		now = sbinuptime();
 	} while (now < fast_timeout);
 	do {
 		I2C_DEBUG(printf("."));
-		pause_sbt("iicbb-scl-low", SBT_1MS, C_PREL(8), 0);
+		pause_sbt("iicbb-scl-low", SBT_1MS, 0, C_PREL(2));
 		if (I2C_GETSCL(dev))
 			return (0);
 		now = sbinuptime();

@@ -59,12 +59,13 @@ magic.mgc: magic
 CLEANFILES+=	mkmagic
 DEPENDOBJS+=	mkmagic
 build-tools: mkmagic
+# For the non-dirdeps build, HOST_CC is CC by default
 mkmagic: apprentice.c cdf_time.c encoding.c funcs.c magic.c print.c ${INCS} ${BUILD_TOOLS_META}
-	${CC:N${CCACHE_BIN}} ${CFLAGS} -DCOMPILE_ONLY ${LDFLAGS} -o ${.TARGET} \
+	${HOST_CC:N${CCACHE_BIN}} ${CFLAGS} -DCOMPILE_ONLY ${LDFLAGS} -o ${.TARGET} \
 	    ${.ALLSRC:N*.h:O:u} ${LDADD}
 
 .endif
-.if ${MK_DIRDEPS_BUILD} == "yes"
+.if ${MK_DIRDEPS_BUILD} == "yes" && ${MACHINE} != "host"
 BTOOLSPATH= ${HOST_OBJTOP}/${RELDIR}
 .else
 magic.mgc: mkmagic

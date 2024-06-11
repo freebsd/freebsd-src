@@ -80,8 +80,14 @@ vm_install_base() {
 		echo "zfs_enable=\"YES\"" >> ${DESTDIR}/etc/rc.conf
 		echo "zpool_reguid=\"zroot\"" >> ${DESTDIR}/etc/rc.conf
 		echo "zpool_upgrade=\"zroot\"" >> ${DESTDIR}/etc/rc.conf
+		echo "kern.geom.label.disk_ident.enable=0" >> ${DESTDIR}/boot/loader.conf
+		echo "zfs_load=YES" >> ${DESTDIR}/boot/loader.conf
 	fi
 
+	return 0
+}
+
+vm_emulation_setup() {
 	if ! [ -z "${QEMUSTATIC}" ]; then
 		export EMULATOR=/qemu
 		cp ${QEMUSTATIC} ${DESTDIR}/${EMULATOR}
@@ -91,14 +97,7 @@ vm_install_base() {
 	mount -t devfs devfs ${DESTDIR}/dev
 	chroot ${DESTDIR} ${EMULATOR} /usr/bin/newaliases
 	chroot ${DESTDIR} ${EMULATOR} /bin/sh /etc/rc.d/ldconfig forcestart
-	umount_loop ${DESTDIR}/dev
-
 	cp /etc/resolv.conf ${DESTDIR}/etc/resolv.conf
-
-        if [ "${VMFS}" = zfs ]; then
-		echo "kern.geom.label.disk_ident.enable=0" >> ${DESTDIR}/boot/loader.conf
-		echo "zfs_load=YES" >> ${DESTDIR}/boot/loader.conf
-        fi
 
 	return 0
 }
@@ -133,15 +132,12 @@ vm_extra_install_packages() {
 	if [ -z "${VM_EXTRA_PACKAGES}" ]; then
 		return 0
 	fi
-	mkdir -p ${DESTDIR}/dev
-	mount -t devfs devfs ${DESTDIR}/dev
 	chroot ${DESTDIR} ${EMULATOR} env ASSUME_ALWAYS_YES=yes \
 		/usr/sbin/pkg bootstrap -y
 	for p in ${VM_EXTRA_PACKAGES}; do
 		chroot ${DESTDIR} ${EMULATOR} env ASSUME_ALWAYS_YES=yes \
 			/usr/sbin/pkg install -y ${p}
 	done
-	umount_loop ${DESTDIR}/dev
 
 	return 0
 }
@@ -156,13 +152,16 @@ vm_extra_install_ports() {
 vm_extra_pre_umount() {
 	# Prototype.  When overridden, performs additional tasks within the
 	# virtual machine environment prior to unmounting the filesystem.
-	# Note: When overriding this function, removing resolv.conf in the
-	# disk image must be included.
 
+	return 0
+}
+
+vm_emulation_cleanup() {
 	if ! [ -z "${QEMUSTATIC}" ]; then
 		rm -f ${DESTDIR}/${EMULATOR}
 	fi
 	rm -f ${DESTDIR}/etc/resolv.conf
+	umount_loop ${DESTDIR}/dev
 	return 0
 }
 
@@ -197,6 +196,7 @@ buildfs() {
 			-o fs=zroot/usr/obj \
 			-o fs=zroot/var\;mountpoint=/var\;canmount=off \
 			-o fs=zroot/var/audit\;setuid=off\;exec=off \
+			-o fs=zroot/var/crash\;setuid=off\;exec=off \
 			-o fs=zroot/var/log\;setuid=off\;exec=off \
 			-o fs=zroot/var/mail\;atime=on \
 			-o fs=zroot/var/tmp\;setuid=off \
@@ -238,6 +238,10 @@ vm_create_disk() {
 		BOOTPARTSOFFSET=":${VM_BOOTPARTSOFFSET}"
 	fi
 
+	if [ -n "${CONFIG_DRIVE}" ]; then
+		CONFIG_DRIVE="-p freebsd/config-drive::${CONFIG_DRIVE_SIZE}"
+	fi
+
 	case "${VMFS}" in
 	ufs)
 		FSPARTTYPE=freebsd-ufs
@@ -270,7 +274,7 @@ vm_create_disk() {
 			ROOTFSPART="-p ${FSPARTTYPE}/rootfs:=${VMBASE}"
 			MAKEFSARGS="$MAKEFSARGS -B little"
 			;;
-		arm64:aarch64 | riscv:riscv64*)
+		arm:armv7 | arm64:aarch64 | riscv:riscv64*)
 			ESP=yes
 			BOOTPARTS=
 			ROOTFSPART="-p ${FSPARTTYPE}/rootfs:=${VMBASE}"
@@ -296,11 +300,11 @@ vm_create_disk() {
 		# Create an ESP
 		espfilename=$(mktemp /tmp/efiboot.XXXXXX)
 		make_esp_file ${espfilename} ${fat32min} ${BOOTFILES}/efi/loader_lua/loader_lua.efi
-		BOOTPARTS="${BOOTPARTS} -p efi/efiesp:=${espfilename}"
+		BOOTPARTS="${BOOTPARTS} -p efi/efiboot0:=${espfilename}"
 
 		# Add this to fstab
 		mkdir -p ${DESTDIR}/boot/efi
-		echo "/dev/${ROOTLABEL}/efiesp	/boot/efi       msdosfs     rw      2       2" \
+		echo "/dev/${ROOTLABEL}/efiboot0	/boot/efi       msdosfs     rw      2       2" \
 			>> ${DESTDIR}/etc/fstab
 	fi
 
@@ -311,6 +315,7 @@ vm_create_disk() {
 	mkimg -s ${PARTSCHEME} -f ${VMFORMAT} \
 		${BOOTPARTS} \
 		${SWAPOPT} \
+		${CONFIG_DRIVE} \
 		${ROOTFSPART} \
 		-o ${VMIMAGE}
 

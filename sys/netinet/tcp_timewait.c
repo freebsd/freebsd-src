@@ -119,10 +119,11 @@ tcp_twstart(struct tcpcb *tp)
 	    "(inp->inp_flags & INP_DROPPED) != 0"));
 
 	tcp_state_change(tp, TCPS_TIME_WAIT);
+	tcp_free_sackholes(tp);
 	soisdisconnected(inp->inp_socket);
 
 	if (tp->t_flags & TF_ACKNOW)
-		tcp_output(tp);
+		(void) tcp_output(tp);
 
 	if (V_nolocaltimewait && (
 #ifdef INET6

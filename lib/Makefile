@@ -16,9 +16,11 @@ SUBDIR_BOOTSTRAP= \
 	libc++ \
 	libc++experimental \
 	libcxxrt \
+	libdiff \
 	libelf \
 	libssp \
 	libssp_nonshared \
+	libsys \
 	msun
 
 # The main list; please keep these sorted alphabetically.
@@ -76,6 +78,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libnetbsd \
 	libnetmap \
 	libnv \
+	libnvmf \
 	libopenbsd \
 	libpam \
 	libpathconv \
@@ -122,7 +125,7 @@ SUBDIR_DEPEND_libbsnmp= ${_libnetgraph}
 SUBDIR_DEPEND_libc++:= libcxxrt
 # libssp_nonshared doesn't need to be linked into libc on every arch, but it is
 # small enough to build that this bit of serialization is likely insignificant.
-SUBDIR_DEPEND_libc= libcompiler_rt libssp_nonshared
+SUBDIR_DEPEND_libc= libsys libcompiler_rt libssp_nonshared
 SUBDIR_DEPEND_libcam= libsbuf
 SUBDIR_DEPEND_libcasper= libnv
 SUBDIR_DEPEND_libdevstat= libkvm
@@ -137,6 +140,8 @@ SUBDIR_DEPEND_libpjdlog= libutil
 SUBDIR_DEPEND_libprocstat= libkvm libutil
 SUBDIR_DEPEND_libradius= libmd
 SUBDIR_DEPEND_libsmb= libkiconv
+# See comment above about libssp_nonshared
+SUBDIR_DEPEND_libsys= libcompiler_rt libssp_nonshared
 SUBDIR_DEPEND_libtacplus= libmd
 SUBDIR_DEPEND_libulog= libmd
 SUBDIR_DEPEND_libunbound= ${_libldns}
@@ -168,6 +173,7 @@ SUBDIR+=	clang
 SUBDIR.${MK_CUSE}+= 	libcuse
 SUBDIR.${MK_TOOLCHAIN}+=libpe
 SUBDIR.${MK_DIALOG}+=	libdpv libfigpar
+SUBDIR.${MK_FDT}+=	libfdt
 SUBDIR.${MK_FILE}+=	libmagic
 SUBDIR.${MK_GPIO}+=	libgpio
 SUBDIR.${MK_GSSAPI}+=	libgssapi librpcsec_gss
@@ -177,7 +183,7 @@ SUBDIR.${MK_LDNS}+=	libldns
 SUBDIR.${MK_STATS}+=	libstats
 
 # The libraries under libclang_rt can only be built by clang.
-.if ${COMPILER_TYPE} == "clang"
+.if ${COMPILER_TYPE} == "clang" && ${MK_CLANG} != "no"
 _libclang_rt=	libclang_rt
 .elif (${MK_ASAN} != "no" || ${MK_UBSAN} != "no") && make(all)
 .error Requested build with sanitizers but cannot build runtime libraries!
@@ -198,6 +204,9 @@ SUBDIR.${MK_PMC}+=	libopencsd
 
 .if ${MACHINE_CPUARCH} == "amd64"
 SUBDIR.${MK_PMC}+=	libipt
+.endif
+
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "aarch64"
 SUBDIR.${MK_BHYVE}+=	libvmmapi
 .endif
 

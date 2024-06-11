@@ -291,7 +291,26 @@ attach_size_rounddown_body()
 	    -x "mdconfig -r -u ${md#md} -s ${ms2}b"
 	check_diskinfo "$md" 16384 2 $ss
 }
-attach_size_rounddown()
+attach_size_rounddown_cleanup()
+{
+	cleanup_common
+}
+
+atf_test_case query_verbose cleanup
+query_verbose()
+{
+	atf_set "descr" "mdconfig -lv should print device details"
+}
+query_verbose_body()
+{
+	atf_check -s exit:0 -o save:mdconfig.out \
+	    -x 'mdconfig -a -t swap -s 1m -o reserve -o force'
+	md=$(cat mdconfig.out)
+	atf_check -s exit:0 \
+		-o match:"$md[[:space:]]+swap[[:space:]]+1024K[[:space:]]+[-][[:space:]]+[-][[:space:]]+force,reserve" \
+	-x "mdconfig -lv -u $md"
+}
+query_verbose_cleanup()
 {
 	cleanup_common
 }
@@ -307,4 +326,5 @@ atf_init_test_cases()
 	atf_add_test_case attach_swap
 	atf_add_test_case attach_with_specific_unit_number
 	atf_add_test_case attach_size_rounddown
+	atf_add_test_case query_verbose
 }

@@ -29,7 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "namespace.h"
 #include <errno.h>
 #ifdef _PTHREAD_FORCED_UNWIND

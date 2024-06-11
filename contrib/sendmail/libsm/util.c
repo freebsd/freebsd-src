@@ -132,10 +132,11 @@ str2prt(s)
 **		ibp -- a pointer to the string to translate [x]
 **		obp -- a pointer to an output buffer [i][m:A]
 **		bsp -- pointer to the length of the output buffer
+**		rpool -- rpool for allocations
 **
 **	Returns:
-**		A possibly new bp (if the buffer needed to grow); if
-**		it is different, *bsp will updated to the size of
+**		A possibly new obp (if the buffer needed to grow);
+**		if it is different, *bsp will updated to the size of
 **		the new buffer and the caller is responsible for
 **		freeing the memory.
 */
@@ -171,7 +172,12 @@ quote_internal_chars
 	int bufused, olen;
 	bool buffer_same, needs_quoting;
 
+	if (NULL == ibp)
+		return NULL;
 	buffer_same = ibp == obp;
+	SM_REQUIRE(NULL != bsp);
+	if (NULL == obp)
+		*bsp = 0;
 	needs_quoting = false;
 
 	/* determine length of output string (starts at 1 for trailing '\0') */

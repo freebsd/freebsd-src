@@ -88,7 +88,7 @@ setsockopt(s, IPPROTO_IP, IP_OPTIONS, NULL, 0);
 .Pp
 .Dv IP_TOS
 may be used to set the differential service codepoint (DSCP) and the
-explicit congestion notfication (ECN) codepoint.
+explicit congestion notification (ECN) codepoint.
 Setting the ECN codepoint - the two least significant bits - on a
 socket using a transport protocol implementing ECN has no effect.
 .Pp
@@ -227,7 +227,7 @@ The socket should be either bound to
 .Dv INADDR_ANY
 and a local port, and the address supplied with
 .Dv IP_SENDSRCADDR
-should't be
+shouldn't be
 .Dv INADDR_ANY ,
 or the socket should be bound to a local address and the address supplied with
 .Dv IP_SENDSRCADDR

@@ -1,10 +1,11 @@
 
+.include <bsd.init.mk>
 .include "../clang.pre.mk"
 
 .PATH:		${CLANG_SRCS}/lib/Headers
 
 INCSGROUPS+=	INCS
-INCSDIR=	${LIBDIR}/clang/17/include
+INCSDIR=	${LIBDIR}/clang/18/include
 INCS+=		__clang_cuda_builtin_vars.h
 INCS+=		__clang_cuda_cmath.h
 INCS+=		__clang_cuda_complex_builtins.h
@@ -20,9 +21,24 @@ INCS+=		__clang_hip_libdevice_declares.h
 INCS+=		__clang_hip_math.h
 INCS+=		__clang_hip_runtime_wrapper.h
 INCS+=		__clang_hip_stdlib.h
+INCS+=		__stdarg___gnuc_va_list.h
+INCS+=		__stdarg___va_copy.h
+INCS+=		__stdarg_va_arg.h
+INCS+=		__stdarg_va_copy.h
+INCS+=		__stdarg_va_list.h
 INCS+=		__stddef_max_align_t.h
+INCS+=		__stddef_null.h
+INCS+=		__stddef_nullptr_t.h
+INCS+=		__stddef_offsetof.h
+INCS+=		__stddef_ptrdiff_t.h
+INCS+=		__stddef_rsize_t.h
+INCS+=		__stddef_size_t.h
+INCS+=		__stddef_unreachable.h
+INCS+=		__stddef_wchar_t.h
+INCS+=		__stddef_wint_t.h
 INCS+=		__wmmintrin_aes.h
 INCS+=		__wmmintrin_pclmul.h
+INCS+=		adcintrin.h
 INCS+=		adxintrin.h
 INCS+=		altivec.h
 INCS+=		ammintrin.h
@@ -101,6 +117,8 @@ INCS+=		immintrin.h
 INCS+=		invpcidintrin.h
 INCS+=		keylockerintrin.h
 INCS+=		larchintrin.h
+INCS+=		lasxintrin.h
+INCS+=		lsxintrin.h
 INCS+=		lwpintrin.h
 INCS+=		lzcntintrin.h
 INCS+=		mm3dnow.h
@@ -123,6 +141,8 @@ INCS+=		ptwriteintrin.h
 INCS+=		raointintrin.h
 INCS+=		rdpruintrin.h
 INCS+=		rdseedintrin.h
+INCS+=		riscv_bitmanip.h
+INCS+=		riscv_crypto.h
 INCS+=		riscv_ntlh.h
 INCS+=		riscv_vector.h
 INCS+=		rtmintrin.h
@@ -135,10 +155,12 @@ INCS+=		sifive_vector.h
 INCS+=		sm3intrin.h
 INCS+=		sm4intrin.h
 INCS+=		smmintrin.h
+INCS+=		stdckdint.h
 INCS+=		tbmintrin.h
 INCS+=		tmmintrin.h
 INCS+=		tsxldtrkintrin.h
 INCS+=		uintrintrin.h
+INCS+=		usermsrintrin.h
 INCS+=		vadefs.h
 INCS+=		vaesintrin.h
 INCS+=		vecintrin.h
@@ -216,6 +238,7 @@ PPC+=		ppc_wrappers/emmintrin.h
 PPC+=		ppc_wrappers/immintrin.h
 PPC+=		ppc_wrappers/mm_malloc.h
 PPC+=		ppc_wrappers/mmintrin.h
+PPC+=		ppc_wrappers/nmmintrin.h
 PPC+=		ppc_wrappers/pmmintrin.h
 PPC+=		ppc_wrappers/smmintrin.h
 PPC+=		ppc_wrappers/tmmintrin.h
@@ -237,6 +260,12 @@ arm_sme_draft_spec_subject_to_change.h: ${CLANG_SRCS}/include/clang/Basic/arm_sm
 	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
 	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_sme.td
 GENINCS+=	arm_sme_draft_spec_subject_to_change.h
+
+arm_vector_types.h: ${CLANG_SRCS}/include/clang/Basic/arm_sme.td
+	${CLANG_TBLGEN} -gen-arm-vector-type \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_neon.td
+GENINCS+=	arm_vector_types.h
 
 .for hdr in vector/vector-header
 riscv_${hdr:H}.h: ${CLANG_SRCS}/include/clang/Basic/riscv_${hdr:H}.td

@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 24, 2016
+.Dd January 12, 2024
 .Dt BHYVELOAD 8
 .Os
 .Sh NAME
@@ -171,3 +171,43 @@ at NetApp Inc with a lot of help from
 can only load
 .Fx
 as a guest.
+.Sh SECURITY CONSIDERATIONS
+Note that in some configurations,
+.Nm
+will execute guest loader scripts in the context of the host machine.
+Note, however, that
+.Nm
+will enter a
+.Xr capsicum 4
+sandbox before it loads the
+.Ar os-loader
+or executes any loader scripts.
+On the host filesystem, the sandbox will only have access to the path specified
+by the
+.Fl h
+flag, the contents of the
+.Pa /boot
+directory if
+.Fl l
+was not specified, and the chosen console device.
+.Pp
+Note that the guest loader scripts are already subject to some limitations that
+are not relaxed simply because we are running in userland.
+For instance, any I/O on the loader's
+.Dq host
+device that can be done in loader scripts is limited to the interface that
+.Nm
+provides, which itself will restrict paths that can be touched to those within
+a specified
+.Fl h
+directory, if any.
+Access to files within
+.Pa /boot
+inside the sandbox would require arbitrary code execution in userboot, and
+userboot is usually provided by the host machine rather than anything that is
+a part of the guest image.
+All access to the
+.Fl h
+directory as well as
+.Pa /boot
+is strictly read-only in the sandbox.

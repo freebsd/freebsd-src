@@ -595,7 +595,7 @@ wtap_transmit(struct ieee80211com *ic, struct mbuf *m)
 	struct wtap_vap *avp = WTAP_VAP(vap);
 
 	if(ni == NULL){
-		printf("m->m_pkthdr.rcvif is NULL we cant radiotap_tx\n");
+		printf("m->m_pkthdr.rcvif is NULL we can't radiotap_tx\n");
 	}else{
 		if (ieee80211_radiotap_active_vap(vap))
 			ieee80211_radiotap_tx(vap, m);

@@ -408,7 +408,8 @@ gif_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	KASSERT(ifp->if_bridge == NULL,
 	    ("%s: unexpectedly called with bridge attached", __func__));
 
-	if (dst->sa_family == AF_UNSPEC)
+	/* BPF writes need to be handled specially. */
+	if (dst->sa_family == AF_UNSPEC || dst->sa_family == pseudo_AF_HDRCMPLT)
 		memcpy(&af, dst->sa_data, sizeof(af));
 	else
 		af = RO_GET_FAMILY(ro, dst);

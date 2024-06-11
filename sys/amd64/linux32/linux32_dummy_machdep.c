@@ -55,12 +55,6 @@ DUMMY(olduname);
 DUMMY(uname);
 DUMMY(bdflush);
 DUMMY(ptrace);
-DUMMY(mq_open);
-DUMMY(mq_unlink);
-DUMMY(mq_timedsend);
-DUMMY(mq_timedreceive);
-DUMMY(mq_notify);
-DUMMY(mq_getsetattr);
 /* Linux 4.11: */
 DUMMY(arch_prctl);
 /* Linux 5.0: */

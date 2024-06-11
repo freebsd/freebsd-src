@@ -517,7 +517,7 @@ qat_ocf_session_init(device_t dev,
 				  M_NOWAIT,
 				  0,
 				  ~1UL,
-				  1 << (bsrl(sessionCtxSize - 1) + 1),
+				  1 << (ilog2(sessionCtxSize - 1) + 1),
 				  0);
 	if (NULL == sessionCtx) {
 		device_printf(dev, "unable to allocate memory for session\n");

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -268,6 +268,7 @@ ACPI_GLOBAL (ACPI_TABLE_HANDLER,        AcpiGbl_TableHandler);
 ACPI_GLOBAL (void *,                    AcpiGbl_TableHandlerContext);
 ACPI_GLOBAL (ACPI_INTERFACE_HANDLER,    AcpiGbl_InterfaceHandler);
 ACPI_GLOBAL (ACPI_SCI_HANDLER_INFO *,   AcpiGbl_SciHandlerList);
+ACPI_GLOBAL (ACPI_GED_HANDLER_INFO *,   AcpiGbl_GedHandlerList);
 
 /* Owner ID support */
 

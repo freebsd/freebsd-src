@@ -1,6 +1,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=	ntp
 FILESDIR=	${SHAREDIR}/doc/ntp/scripts
 
 .if ${MK_HTML} != "no"

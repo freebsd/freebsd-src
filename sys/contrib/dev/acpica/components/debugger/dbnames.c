@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -883,6 +883,9 @@ AcpiDbDisplayObjects (
     if (!ObjTypeArg)
     {
         ObjectInfo = ACPI_ALLOCATE_ZEROED (sizeof (ACPI_OBJECT_INFO));
+
+        if (!ObjectInfo)
+                return (AE_NO_MEMORY);
 
         /* Walk the namespace from the root */
 

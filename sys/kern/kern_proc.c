@@ -3477,7 +3477,8 @@ allproc_loop:
 		LIST_REMOVE(cp, p_list);
 		LIST_INSERT_AFTER(p, cp, p_list);
 		PROC_LOCK(p);
-		if ((p->p_flag & (P_KPROC | P_SYSTEM | P_TOTAL_STOP)) != 0) {
+		if ((p->p_flag & (P_KPROC | P_SYSTEM | P_TOTAL_STOP |
+		    P_STOPPED_SIG)) != 0) {
 			PROC_UNLOCK(p);
 			continue;
 		}
@@ -3495,6 +3496,16 @@ allproc_loop:
 			 * thread running.
 			 */
 			seen_stopped = true;
+			PROC_UNLOCK(p);
+			continue;
+		}
+		if ((p->p_flag & P_TRACED) != 0) {
+			/*
+			 * thread_single() below cannot stop traced p,
+			 * so skip it.  OTOH, we cannot require
+			 * restart because debugger might be either
+			 * already stopped or traced as well.
+			 */
 			PROC_UNLOCK(p);
 			continue;
 		}

@@ -376,18 +376,19 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 }
 
 static int
-nexus_map_resource(device_t bus, device_t child, int type, struct resource *r,
+nexus_map_resource(device_t bus, device_t child, struct resource *r,
     struct resource_map_request *argsp, struct resource_map *map)
 {
 	struct resource_map_request args;
 	rman_res_t length, start;
-	int error;
+	int error, type;
 
 	/* Resources must be active to be mapped. */
 	if (!(rman_get_flags(r) & RF_ACTIVE))
 		return (ENXIO);
 
 	/* Mappings are only supported on I/O and memory resources. */
+	type = rman_get_type(r);
 	switch (type) {
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
@@ -426,14 +427,14 @@ nexus_map_resource(device_t bus, device_t child, int type, struct resource *r,
 }
 
 static int
-nexus_unmap_resource(device_t bus, device_t child, int type, struct resource *r,
+nexus_unmap_resource(device_t bus, device_t child, struct resource *r,
     struct resource_map *map)
 {
 
 	/*
 	 * If this is a memory resource, unmap it.
 	 */
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_MEMORY:
 		pmap_unmapdev(map->r_vaddr, map->r_size);
 		/* FALLTHROUGH */
@@ -457,6 +458,7 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 		 void *arg, void **cookiep)
 {
 	int		error, domain;
+	struct intsrc	*isrc;
 
 	/* somebody tried to setup an irq that failed to allocate! */
 	if (irq == NULL)
@@ -475,8 +477,11 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 	if (bus_get_domain(child, &domain) != 0)
 		domain = 0;
 
-	error = intr_add_handler(device_get_nameunit(child),
-	    rman_get_start(irq), filter, ihand, arg, flags, cookiep, domain);
+	isrc = intr_lookup_source(rman_get_start(irq));
+	if (isrc == NULL)
+		return (EINVAL);
+	error = intr_add_handler(isrc, device_get_nameunit(child),
+	    filter, ihand, arg, flags, cookiep, domain);
 	if (error == 0)
 		rman_set_irq_cookie(irq, *cookiep);
 
@@ -523,15 +528,24 @@ static int
 nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
     enum intr_polarity pol)
 {
-	return (intr_config_intr(irq, trig, pol));
+	struct intsrc *isrc;
+
+	isrc = intr_lookup_source(irq);
+	if (isrc == NULL)
+		return (EINVAL);
+	return (intr_config_intr(isrc, trig, pol));
 }
 
 static int
 nexus_describe_intr(device_t dev, device_t child, struct resource *irq,
     void *cookie, const char *descr)
 {
+	struct intsrc *isrc;
 
-	return (intr_describe(rman_get_start(irq), cookie, descr));
+	isrc = intr_lookup_source(rman_get_start(irq));
+	if (isrc == NULL)
+		return (EINVAL);
+	return (intr_describe(isrc, cookie, descr));
 }
 
 static struct resource_list *

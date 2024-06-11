@@ -37,6 +37,7 @@
 #include <login_cap.h>
 #include <paths.h>
 #include <pwd.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -379,36 +380,137 @@ setclasscontext(const char *classname, unsigned int flags)
 }
 
 
+static const char * const inherit_enum[] = {
+    "inherit",
+    NULL
+};
+
+/*
+ * Private function setting umask from the login class.
+ */
+static void
+setclassumask(login_cap_t *lc, const struct passwd *pwd)
+{
+	/*
+	 * Make it unlikely that someone would input our default sentinel
+	 * indicating no specification.
+	 */
+	const rlim_t def_val = INT64_MIN + 1, err_val = INT64_MIN;
+	rlim_t val;
+
+	/* If value is "inherit", nothing to change. */
+	if (login_getcapenum(lc, "umask", inherit_enum) == 0)
+		return;
+
+	val = login_getcapnum(lc, "umask", def_val, err_val);
+
+	if (val != def_val) {
+		if (val < 0 || val > UINT16_MAX) {
+			/* We get here also on 'err_val'. */
+			syslog(LOG_WARNING,
+			    "%s%s%sLogin class '%s': "
+			    "Invalid umask specification: '%s'",
+			    pwd ? "Login '" : "",
+			    pwd ? pwd->pw_name : "",
+			    pwd ? "': " : "",
+			    lc->lc_class,
+			    login_getcapstr(lc, "umask", "", ""));
+		} else {
+			const mode_t mode = val;
+
+			umask(mode);
+		}
+	}
+}
 
 /*
  * Private function which takes care of processing
  */
 
-static mode_t
-setlogincontext(login_cap_t *lc, const struct passwd *pwd,
-		mode_t mymask, unsigned long flags)
+static void
+setlogincontext(login_cap_t *lc, const struct passwd *pwd, unsigned long flags)
 {
-    if (lc) {
-	/* Set resources */
-	if (flags & LOGIN_SETRESOURCES)
-	    setclassresources(lc);
-	/* See if there's a umask override */
-	if (flags & LOGIN_SETUMASK)
-	    mymask = (mode_t)login_getcapnum(lc, "umask", mymask, mymask);
-	/* Set paths */
-	if (flags & LOGIN_SETPATH)
-	    setclassenvironment(lc, pwd, 1);
-	/* Set environment */
-	if (flags & LOGIN_SETENV)
-	    setclassenvironment(lc, pwd, 0);
-	/* Set cpu affinity */
-	if (flags & LOGIN_SETCPUMASK)
-	    setclasscpumask(lc);
-    }
-    return (mymask);
+	if (lc == NULL)
+		return;
+
+	/* Set resources. */
+	if ((flags & LOGIN_SETRESOURCES) != 0)
+		setclassresources(lc);
+
+	/* See if there's a umask override. */
+	if ((flags & LOGIN_SETUMASK) != 0)
+		setclassumask(lc, pwd);
+
+	/* Set paths. */
+	if ((flags & LOGIN_SETPATH) != 0)
+		setclassenvironment(lc, pwd, 1);
+
+	/* Set environment. */
+	if ((flags & LOGIN_SETENV) != 0)
+		setclassenvironment(lc, pwd, 0);
+
+	/* Set cpu affinity. */
+	if ((flags & LOGIN_SETCPUMASK) != 0)
+		setclasscpumask(lc);
 }
 
 
+/*
+ * Private function to set process priority.
+ */
+static void
+setclasspriority(login_cap_t * const lc, struct passwd const * const pwd)
+{
+	const rlim_t def_val = 0, err_val = INT64_MIN;
+	rlim_t p;
+	int rc;
+
+	/* If value is "inherit", nothing to change. */
+	if (login_getcapenum(lc, "priority", inherit_enum) == 0)
+		return;
+
+	p = login_getcapnum(lc, "priority", def_val, err_val);
+
+	if (p == err_val) {
+		/* Invariant: 'lc' != NULL. */
+		syslog(LOG_WARNING,
+		    "%s%s%sLogin class '%s': "
+		    "Invalid priority specification: '%s'",
+		    pwd ? "Login '" : "",
+		    pwd ? pwd->pw_name : "",
+		    pwd ? "': " : "",
+		    lc->lc_class,
+		    login_getcapstr(lc, "priority", "", ""));
+		/* Reset the priority, as if the capability was not present. */
+		p = def_val;
+	}
+
+	if (p > PRIO_MAX) {
+		struct rtprio rtp;
+
+		rtp.type = RTP_PRIO_IDLE;
+		p += RTP_PRIO_MIN - (PRIO_MAX + 1);
+		rtp.prio = p > RTP_PRIO_MAX ? RTP_PRIO_MAX : p;
+		rc = rtprio(RTP_SET, 0, &rtp);
+	} else if (p < PRIO_MIN) {
+		struct rtprio rtp;
+
+		rtp.type = RTP_PRIO_REALTIME;
+		p += RTP_PRIO_MAX - (PRIO_MIN - 1);
+		rtp.prio = p < RTP_PRIO_MIN ? RTP_PRIO_MIN : p;
+		rc = rtprio(RTP_SET, 0, &rtp);
+	} else
+		rc = setpriority(PRIO_PROCESS, 0, (int)p);
+
+	if (rc != 0)
+		syslog(LOG_WARNING,
+		    "%s%s%sLogin class '%s': "
+		    "Setting priority failed: %m",
+		    pwd ? "Login '" : "",
+		    pwd ? pwd->pw_name : "",
+		    pwd ? "': " : "",
+		    lc ? lc->lc_class : "<none>");
+}
 
 /*
  * setusercontext()
@@ -427,10 +529,7 @@ setlogincontext(login_cap_t *lc, const struct passwd *pwd,
 int
 setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned int flags)
 {
-    rlim_t	p;
-    mode_t	mymask;
     login_cap_t *llc = NULL;
-    struct rtprio rtp;
     int error;
 
     if (lc == NULL) {
@@ -446,32 +545,8 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
 	flags &= ~(LOGIN_SETGROUP | LOGIN_SETLOGIN | LOGIN_SETMAC);
 
     /* Set the process priority */
-    if (flags & LOGIN_SETPRIORITY) {
-	p = login_getcapnum(lc, "priority", LOGIN_DEFPRI, LOGIN_DEFPRI);
-
-	if (p > PRIO_MAX) {
-	    rtp.type = RTP_PRIO_IDLE;
-	    p += RTP_PRIO_MIN - (PRIO_MAX + 1);
-	    rtp.prio = p > RTP_PRIO_MAX ? RTP_PRIO_MAX : p;
-	    if (rtprio(RTP_SET, 0, &rtp))
-		syslog(LOG_WARNING, "rtprio '%s' (%s): %m",
-		    pwd ? pwd->pw_name : "-",
-		    lc ? lc->lc_class : LOGIN_DEFCLASS);
-	} else if (p < PRIO_MIN) {
-	    rtp.type = RTP_PRIO_REALTIME;
-	    p += RTP_PRIO_MAX - (PRIO_MIN - 1);
-	    rtp.prio = p < RTP_PRIO_MIN ? RTP_PRIO_MIN : p;
-	    if (rtprio(RTP_SET, 0, &rtp))
-		syslog(LOG_WARNING, "rtprio '%s' (%s): %m",
-		    pwd ? pwd->pw_name : "-",
-		    lc ? lc->lc_class : LOGIN_DEFCLASS);
-	} else {
-	    if (setpriority(PRIO_PROCESS, 0, (int)p) != 0)
-		syslog(LOG_WARNING, "setpriority '%s' (%s): %m",
-		    pwd ? pwd->pw_name : "-",
-		    lc ? lc->lc_class : LOGIN_DEFCLASS);
-	}
-    }
+    if (flags & LOGIN_SETPRIORITY)
+	setclasspriority(lc, pwd);
 
     /* Setup the user's group permissions */
     if (flags & LOGIN_SETGROUP) {
@@ -532,8 +607,7 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
 	}
     }
 
-    mymask = (flags & LOGIN_SETUMASK) ? umask(LOGIN_DEFUMASK) : 0;
-    mymask = setlogincontext(lc, pwd, mymask, flags);
+    setlogincontext(lc, pwd, flags);
     login_close(llc);
 
     /* This needs to be done after anything that needs root privs */
@@ -546,13 +620,11 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
      * Now, we repeat some of the above for the user's private entries
      */
     if (geteuid() == uid && (lc = login_getuserclass(pwd)) != NULL) {
-	mymask = setlogincontext(lc, pwd, mymask, flags);
+	setlogincontext(lc, pwd, flags);
+	if (flags & LOGIN_SETPRIORITY)
+	    setclasspriority(lc, pwd);
 	login_close(lc);
     }
-
-    /* Finally, set any umask we've found */
-    if (flags & LOGIN_SETUMASK)
-	umask(mymask);
 
     return (0);
 }

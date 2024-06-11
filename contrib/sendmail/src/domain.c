@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2004, 2006, 2010 Proofpoint, Inc. and its suppliers.
+ * Copyright (c) 1998-2004, 2006, 2010, 2020-2023 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1986, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,9 +13,6 @@
 
 #include <sendmail.h>
 #include "map.h"
-#if USE_EAI
-#include <unicode/uidna.h>
-#endif
 
 #if NAMED_BIND
 SM_RCSID("@(#)$Id: domain.c,v 8.205 2013-11-22 20:51:55 ca Exp $ (with name server)")
@@ -27,13 +24,17 @@ SM_RCSID("@(#)$Id: domain.c,v 8.205 2013-11-22 20:51:55 ca Exp $ (without name s
 
 #if NAMED_BIND
 # include <arpa/inet.h>
-# include <sm_resolve.h>
+# include "sm_resolve.h"
 # if DANE
 #  include <tls.h>
 #  ifndef SM_NEG_TTL
 #   define SM_NEG_TTL 60 /* "negative" TTL */
 #  endif
 # endif
+
+#if USE_EAI
+#include <unicode/uidna.h>
+#endif
 
 
 # ifndef MXHOSTBUFSIZE
@@ -53,10 +54,6 @@ static char	MXHostBuf[MXHOSTBUFSIZE];
 #  define RES_DNSRCH_VARIABLE	_res.dnsrch
 # endif
 
-# ifndef NO_DATA
-#  define NO_DATA	NO_ADDRESS
-# endif
-
 # ifndef HFIXEDSZ
 #  define HFIXEDSZ	12	/* sizeof(HEADER) */
 # endif
@@ -74,6 +71,230 @@ static int	fallbackmxrr __P((int, unsigned short *, char **));
 
 # if DANE
 
+static void tlsa_rr_print __P((const unsigned char *, unsigned int));
+
+static void
+tlsa_rr_print(rr, len)
+	const unsigned char *rr;
+	unsigned int len;
+{
+	unsigned int i, l;
+
+	if (!tTd(8, 2))
+		return;
+
+	sm_dprintf("len=%u, %02x-%02x-%02x",
+		len, (int)rr[0], (int)rr[1], (int)rr[2]);
+	l = tTd(8, 8) ? len : 4;
+	for (i = 3; i < l; i++)
+		sm_dprintf(":%02X", (int)rr[i]);
+	sm_dprintf("\n");
+}
+
+/*
+**  TLSA_RR_CMP -- Compare two TLSA RRs
+**
+**	Parameters:
+**		rr1 -- TLSA RR (entry to be added)
+**		l1 -- length of rr1
+**		rr2 -- TLSA RR
+**		l2 -- length of rr2
+**
+**	Returns:
+**		 0: rr1 == rr2
+**		 1: rr1 is unsupported
+*/
+
+static int tlsa_rr_cmp __P((unsigned char *, int, unsigned char *, int));
+
+static int
+tlsa_rr_cmp(rr1, l1, rr2, l2)
+	unsigned char *rr1;
+	int l1;
+	unsigned char *rr2;
+	int l2;
+{
+/* temporary #if while investigating the implications of the alternative */
+#if FULL_COMPARE
+	unsigned char r1, r2;
+	int cmp;
+#endif /* FULL_COMPARE */
+
+	SM_REQUIRE(NULL != rr1);
+	SM_REQUIRE(NULL != rr2);
+	SM_REQUIRE(l1 > 3);
+	SM_REQUIRE(l2 > 3);
+
+#if FULL_COMPARE
+	/*
+	**  certificate usage
+	**  3: cert/fp must match
+	**  2: cert/fp must be trust anchor
+	*/
+
+	/* preference[]: lower value: higher preference */
+	r1 = rr1[0];
+	r2 = rr2[0];
+	if (r1 != r2)
+	{
+		int preference[] = { 3, 2, 1, 0 };
+
+		SM_ASSERT(r1 <= SM_ARRAY_SIZE(preference));
+		SM_ASSERT(r2 <= SM_ARRAY_SIZE(preference));
+		return preference[r1] - preference[r2];
+	}
+
+	/*
+	**  selector:
+	**  0: full cert
+	**  1: fp
+	*/
+
+	r1 = rr1[1];
+	r2 = rr2[1];
+	if (r1 != r2)
+	{
+		int preference[] = { 1, 0 };
+
+		SM_ASSERT(r1 <= SM_ARRAY_SIZE(preference));
+		SM_ASSERT(r2 <= SM_ARRAY_SIZE(preference));
+		return preference[r1] - preference[r2];
+	}
+
+	/*
+	**  matching type:
+	**  0 -- Exact match
+	**  1 -- SHA-256 hash
+	**  2 -- SHA-512 hash
+	*/
+
+	r1 = rr1[2];
+	r2 = rr2[2];
+	if (r1 != r2)
+	{
+		int preference[] = { 2, 0, 1 };
+
+		SM_ASSERT(r1 <= SM_ARRAY_SIZE(preference));
+		SM_ASSERT(r2 <= SM_ARRAY_SIZE(preference));
+		return preference[r1] - preference[r2];
+	}
+
+	/* not the same length despite the same type? */
+	if (l1 != l2)
+		return 1;
+	cmp = memcmp(rr1, rr2, l1);
+	if (0 == cmp)
+		return 0;
+	return 1;
+#else /* FULL_COMPARE */
+	/* identical? */
+	if (l1 == l2 && 0 == memcmp(rr1, rr2, l1))
+		return 0;
+
+	/* new entry is unsupported? -> append */
+	if (TLSA_UNSUPP == dane_tlsa_chk(rr1, l1, "", false))
+		return 1;
+	/* current entry is unsupported? -> insert new one */
+	if (TLSA_UNSUPP == dane_tlsa_chk(rr2, l2, "", false))
+		return -1;
+
+	/* default: preserve order */
+	return 1;
+#endif /* FULL_COMPARE */
+}
+
+/*
+**  TLSAINSERT -- Insert a TLSA RR
+**
+**	Parameters:
+**		dane_tlsa -- dane_tlsa entry
+**		rr -- TLSA RR
+**		pn -- (point to) number of entries
+**
+**	Returns:
+**		SM_SUCCESS: rr inserted
+**		SM_NOTDONE: rr not inserted: exists
+**		SM_FULL: rr not inserted: no space left
+*/
+
+static int tlsainsert __P((dane_tlsa_P, RESOURCE_RECORD_T *, int *));
+
+static int
+tlsainsert(dane_tlsa, rr, pn)
+	dane_tlsa_P dane_tlsa;
+	RESOURCE_RECORD_T *rr;
+	int *pn;
+{
+	int i, l1, ret;
+	unsigned char *r1;
+
+	SM_ASSERT(pn != NULL);
+	SM_ASSERT(*pn <= MAX_TLSA_RR);
+	r1 = rr->rr_u.rr_data;
+	l1 = rr->rr_size;
+
+	ret = SM_SUCCESS;
+	for (i = 0; i < *pn; i++)
+	{
+		int r, j;
+
+		r = tlsa_rr_cmp(r1, l1, dane_tlsa->dane_tlsa_rr[i],
+			dane_tlsa->dane_tlsa_len[i]);
+
+		if (0 == r)
+		{
+			if (tTd(8, 80))
+				sm_dprintf("func=tlsainsert, i=%d, n=%d, status=exists\n", i, *pn);
+			ret = SM_NOTDONE;
+			goto done;
+		}
+		if (r > 0)
+			continue;
+
+		if (*pn + 1 >= MAX_TLSA_RR)
+		{
+			j = MAX_TLSA_RR - 1;
+			SM_FREE(dane_tlsa->dane_tlsa_rr[j]);
+			dane_tlsa->dane_tlsa_len[j] = 0;
+		}
+		else
+			(*pn)++;
+
+		for (j = MAX_TLSA_RR - 2; j >= i; j--)
+		{
+			dane_tlsa->dane_tlsa_rr[j + 1] = dane_tlsa->dane_tlsa_rr[j];
+			dane_tlsa->dane_tlsa_len[j + 1] = dane_tlsa->dane_tlsa_len[j];
+		}
+		SM_ASSERT(i < MAX_TLSA_RR);
+		dane_tlsa->dane_tlsa_rr[i] = r1;
+		dane_tlsa->dane_tlsa_len[i] = l1;
+		if (tTd(8, 80))
+			sm_dprintf("func=tlsainsert, i=%d, n=%d, status=inserted\n", i, *pn);
+		goto added;
+	}
+
+	if (*pn + 1 <= MAX_TLSA_RR)
+	{
+		dane_tlsa->dane_tlsa_rr[*pn] = r1;
+		dane_tlsa->dane_tlsa_len[*pn] = l1;
+		(*pn)++;
+		if (tTd(8, 80))
+			sm_dprintf("func=tlsainsert, n=%d, status=appended\n", *pn);
+	}
+	else
+	{
+		if (tTd(8, 80))
+			sm_dprintf("func=tlsainsert, n=%d, status=full\n", *pn);
+		return SM_FULL;
+	}
+
+  added:
+	/* hack: instead of copying the data, just "take it over" */
+	rr->rr_u.rr_data = NULL;
+  done:
+	return ret;
+}
+
 /*
 **  TLSAADD -- add TLSA records to dane_tlsa entry
 **
@@ -82,24 +303,27 @@ static int	fallbackmxrr __P((int, unsigned short *, char **));
 **		dr -- DNS reply
 **		dane_tlsa -- dane_tlsa entry
 **		dnsrc -- DNS lookup return code (h_errno)
-**		n -- current number of TLSA records in dane_tlsa entry
+**		nr -- current number of TLSA records in dane_tlsa entry
 **		pttl -- (pointer to) TTL (in/out)
 **		level -- recursion level (CNAMEs)
 **
 **	Returns:
 **		new number of TLSA records
+**
+**	NOTE: the array for TLSA RRs could be "full" which is not
+**		handled well (yet).
 */
 
 static int tlsaadd __P((const char *, DNS_REPLY_T *, dane_tlsa_P, int, int,
 			unsigned int *, int));
 
 static int
-tlsaadd(name, dr, dane_tlsa, dnsrc, n, pttl, level)
+tlsaadd(name, dr, dane_tlsa, dnsrc, nr, pttl, level)
 	const char *name;
 	DNS_REPLY_T *dr;
 	dane_tlsa_P dane_tlsa;
 	int dnsrc;
-	int n;
+	int nr;
 	unsigned int *pttl;
 	int level;
 {
@@ -110,7 +334,7 @@ tlsaadd(name, dr, dane_tlsa, dnsrc, n, pttl, level)
 	if (dnsrc != 0)
 	{
 		if (tTd(8, 2))
-			sm_dprintf("tlsaadd(%s), prev=%d, dnsrc=%d\n",
+			sm_dprintf("tlsaadd, name=%s, prev=%d, dnsrc=%d\n",
 				name, dane_tlsa->dane_tlsa_dnsrc, dnsrc);
 
 		/* check previous error and keep the "most important" one? */
@@ -122,61 +346,79 @@ tlsaadd(name, dr, dane_tlsa, dnsrc, n, pttl, level)
 #  endif
 		/* "else" in #if code above */
 			*pttl = SM_NEG_TTL;
-		return n;
+		return nr;
 	}
 	if (dr == NULL)
-		return n;
+		return nr;
 	if (dr->dns_r_h.ad != 1 && Dane == DANE_SECURE)	/* not secure? */
-		return n;
+		return nr;
 	ttl = *pttl;
 
 	/* first: try to find TLSA records */
-	nprev = n;
-	for (rr = dr->dns_r_head; rr != NULL && n < MAX_TLSA_RR;
-	     rr = rr->rr_next)
+	nprev = nr;
+	for (rr = dr->dns_r_head; rr != NULL; rr = rr->rr_next)
 	{
-		int tlsa_chk;
+		int tlsa_chk, r;
 
 		if (rr->rr_type != T_TLSA)
 		{
 			if (rr->rr_type != T_CNAME && tTd(8, 8))
-				sm_dprintf("tlsaadd(%s), type=%s\n", name,
+				sm_dprintf("tlsaadd: name=%s, type=%s\n", name,
 					dns_type_to_string(rr->rr_type));
 			continue;
 		}
 		tlsa_chk = dane_tlsa_chk(rr->rr_u.rr_data, rr->rr_size, name,
 					true);
+		if (TLSA_UNSUPP == tlsa_chk)
+			TLSA_SET_FL(dane_tlsa, TLSAFLUNS);
 		if (!TLSA_IS_VALID(tlsa_chk))
 			continue;
+		if (TLSA_IS_SUPPORTED(tlsa_chk))
+			TLSA_SET_FL(dane_tlsa, TLSAFLSUP);
 
 		/*
-		**  To do: the RRs should be sorted (by "complexity") --
-		**  when more than one type is supported.
+		**  Note: rr_u.rr_data might be NULL after tlsainsert()
+		**  for nice debug output: print the data into a string
+		**  and then use it after tlsainsert().
 		*/
 
-		dane_tlsa->dane_tlsa_rr[n] = rr->rr_u.rr_data;
-		dane_tlsa->dane_tlsa_len[n] = rr->rr_size;
 		if (tTd(8, 2))
 		{
-			unsigned char *p;
-
-			p = rr->rr_u.rr_data;
-			sm_dprintf("tlsaadd(%s), n=%d, %d-%d-%d:%02x\n", name,
-				n, (int)p[0], (int)p[1], (int)p[2], (int)p[3]);
+			sm_dprintf("tlsaadd: name=%s, nr=%d, ", name, nr);
+			tlsa_rr_print(rr->rr_u.rr_data, rr->rr_size);
 		}
+		r = tlsainsert(dane_tlsa, rr, &nr);
+		if (SM_FULL == r)
+			TLSA_SET_FL(dane_tlsa, TLSAFL2MANY);
+		if (tTd(8, 2))
+			sm_dprintf("tlsainsert=%d, nr=%d\n", r, nr);
 
 		/* require some minimum TTL? */
 		if (ttl > rr->rr_ttl && rr->rr_ttl > 0)
 			ttl = rr->rr_ttl;
+	}
 
-		/* hack: instead of copying the data, just "take it over" */
-		rr->rr_u.rr_data = NULL;
-		++n;
+	if (tTd(8, 2))
+	{
+		unsigned int ui;
+
+		SM_ASSERT(nr <= MAX_TLSA_RR);
+		for (ui = 0; ui < (unsigned int)nr; ui++)
+		{
+			sm_dprintf("tlsaadd: name=%s, ui=%u, ", name, ui);
+			tlsa_rr_print(dane_tlsa->dane_tlsa_rr[ui],
+				dane_tlsa->dane_tlsa_len[ui]);
+		}
+	}
+
+	if (TLSA_IS_FL(dane_tlsa, TLSAFL2MANY))
+	{
+		if (tTd(8, 20))
+			sm_dprintf("tlsaadd: name=%s, rr=%p, nr=%d, toomany=%d\n", name, rr, nr, TLSA_IS_FL(dane_tlsa, TLSAFL2MANY));
 	}
 
 	/* second: check for CNAME records, but only if no TLSA RR was added */
-	for (rr = dr->dns_r_head; rr != NULL && n < MAX_TLSA_RR && nprev == n;
-	     rr = rr->rr_next)
+	for (rr = dr->dns_r_head; rr != NULL && nprev == nr; rr = rr->rr_next)
 	{
 		DNS_REPLY_T *drc;
 		int err, herr;
@@ -186,30 +428,35 @@ tlsaadd(name, dr, dane_tlsa, dnsrc, n, pttl, level)
 		if (level > 1)
 		{
 			if (tTd(8, 2))
-				sm_dprintf("tlsaadd(%s), CNAME=%s, level=%d\n",
+				sm_dprintf("tlsaadd: name=%s, CNAME=%s, level=%d\n",
 					name, rr->rr_u.rr_txt, level);
 			continue;
 		}
 
 		drc = dns_lookup_int(rr->rr_u.rr_txt, C_IN, T_TLSA, 0, 0,
-			(Dane == DANE_SECURE &&
-			 !TLSA_IS_FL(dane_tlsa, TLSAFLNOADMX))
-			? SM_RES_DNSSEC : 0,
+			Dane == DANE_SECURE ? SM_RES_DNSSEC : 0,
 			RR_RAW, &err, &herr);
 
 		if (tTd(8, 2))
-			sm_dprintf("tlsaadd(%s), CNAME=%s, level=%d, dr=%p, ad=%d, err=%d, herr=%d\n",
+			sm_dprintf("tlsaadd: name=%s, CNAME=%s, level=%d, dr=%p, ad=%d, err=%d, herr=%d\n",
 				name, rr->rr_u.rr_txt, level,
 				(void *)drc, drc != NULL ? drc->dns_r_h.ad : -1,
 				err, herr);
-		nprev = n = tlsaadd(name, drc, dane_tlsa, herr, n, pttl,
+		nprev = nr = tlsaadd(name, drc, dane_tlsa, herr, nr, pttl,
 				level + 1);
 		dns_free_data(drc);
 		drc = NULL;
 	}
 
+	if (TLSA_IS_FL(dane_tlsa, TLSAFLUNS) &&
+	    !TLSA_IS_FL(dane_tlsa, TLSAFLSUP) && LogLevel > 9)
+	{
+		sm_syslog(LOG_NOTICE, NOQID,
+			  "TLSA=%s, records=%d%s",
+			  name, nr, ONLYUNSUPTLSARR);
+	}
 	*pttl = ttl;
-	return n;
+	return nr;
 }
 
 /*
@@ -221,7 +468,7 @@ tlsaadd(name, dr, dane_tlsa, dnsrc, n, pttl, level)
 **		pste -- (pointer to) stab entry (output)
 **		flags -- TLSAFL*
 **		mxttl -- TTL of MX (or host)
-**		port -- port
+**		port -- port number used in TLSA queries (_PORT._tcp.)
 **
 **	Returns:
 **		The number of TLSA records found.
@@ -248,7 +495,7 @@ gettlsa(host, name, pste, flags, mxttl, port)
 	time_t now;
 	unsigned int ttl;
 	int n_rrs, len, err, herr;
-	bool isrname;
+	bool isrname, expired;
 	char nbuf[MAXDNAME];
 	char key[MAXDNAME];
 
@@ -258,9 +505,26 @@ gettlsa(host, name, pste, flags, mxttl, port)
 	if ('\0' == *host)
 		return 0;
 
+	expired = false;
 	isrname = NULL == name;
 	if (isrname)
 		name = host;
+
+	/*
+	**  If host->MX lookup was not secure then do not look up TLSA RRs.
+	**  Note: this is currently a hack: TLSAFLADMX is used as input flag,
+	**  it is (SHOULD!) NOT stored in dane_tlsa->dane_tlsa_flags
+	*/
+
+	if (DANE_SECURE == Dane && 0 == (TLSAFLADMX & flags) &&
+	    0 != (TLSAFLNEW & flags))
+	{
+		if (tTd(8, 2))
+			sm_dprintf("gettlsa: host=%s, flags=%#lx, no ad but Dane=Secure\n",
+				host, flags);
+		return 0;
+	}
+
 	now = 0;
 	n_rrs = 0;
 	dr = NULL;
@@ -273,41 +537,47 @@ gettlsa(host, name, pste, flags, mxttl, port)
 	}
 	else
 		len = -1;
-	if (0 == port || tTd(66, 10))
+	if (0 == port || tTd(66, 101))
 		port = 25;
-	(void) sm_snprintf(key, sizeof(key), "_%u..%s", port, name);
+	(void) sm_snprintf(key, sizeof(key), "_%u.%s", port, name);
 	ste = stab(key, ST_TLSA_RR, ST_FIND);
 	if (tTd(8, 2))
-		sm_dprintf("gettlsa(%s, %s, ste=%p, pste=%p, flags=%lX, port=%d)\n",
+		sm_dprintf("gettlsa: host=%s, %s, ste=%p, pste=%p, flags=%#lx, port=%d\n",
 			host, isrname ? "" : name, (void *)ste, (void *)pste,
 			flags, port);
 
 	if (ste != NULL)
-	{
 		dane_tlsa = ste->s_tlsa;
-		if ((TLSAFLADMX & flags) != 0)
-			TLSA_CLR_FL(ste->s_tlsa, TLSAFLNOADMX);
-	}
 
-	/* Do not reload TLSA RRs if the MX RRs were not securely retrieved. */
-	if (pste != NULL
-	    && dane_tlsa != NULL && TLSA_IS_FL(dane_tlsa, TLSAFLNOADMX)
-	    && DANE_SECURE == Dane)
-		goto end;
-
+#if 0
+//	/* Do not reload TLSA RRs if the MX RRs were not securely retrieved. */
+//	if (pste != NULL
+//	    && dane_tlsa != NULL && TLSA_IS_FL(dane_tlsa, TLSAFLNOADMX)
+//	    && DANE_SECURE == Dane)
+//		goto end;
+#endif
 	if (ste != NULL)
 	{
 		SM_ASSERT(dane_tlsa != NULL);
 		now = curtime();
+		if (tTd(8, 20))
+			sm_dprintf("gettlsa: host=%s, found-ste=%p, ste_flags=%#lx, expired=%d\n", host, ste, ste->s_tlsa->dane_tlsa_flags, dane_tlsa->dane_tlsa_exp <= now);
 		if (dane_tlsa->dane_tlsa_exp <= now
 		    && 0 == (TLSAFLNOEXP & flags))
+		{
 			dane_tlsa_clr(dane_tlsa);
+			expired = true;
+		}
 		else
 		{
 			n_rrs = dane_tlsa->dane_tlsa_n;
 			goto end;
 		}
 	}
+
+	/* get entries if none exist yet? */
+	if ((0 == (TLSAFLNEW & flags)) && !expired)
+		goto end;
 
 	if (dane_tlsa == NULL)
 	{
@@ -330,11 +600,38 @@ gettlsa(host, name, pste, flags, mxttl, port)
 
 	(void) sm_snprintf(nbuf, sizeof(nbuf), "_%u._tcp.%s", port, host);
 	dr = dns_lookup_int(nbuf, C_IN, T_TLSA, 0, 0,
-		TLSA_IS_FL(dane_tlsa, TLSAFLNOADMX) ? 0 : SM_RES_DNSSEC,
+		(TLSAFLADMX & flags) ? SM_RES_DNSSEC : 0,
 		RR_RAW, &err, &herr);
 	if (tTd(8, 2))
-		sm_dprintf("gettlsa(%s), dr=%p, ad=%d, err=%d, herr=%d\n", host,
-			(void *)dr, dr != NULL ? dr->dns_r_h.ad : -1, err, herr);
+	{
+#if 0
+/* disabled -- what to do with these two counters? log them "somewhere"? */
+//		if (NULL != dr && tTd(8, 12))
+//		{
+//			RESOURCE_RECORD_T *rr;
+//			unsigned int ntlsarrs, usable;
+//
+//			ntlsarrs = usable = 0;
+//			for (rr = dr->dns_r_head; rr != NULL; rr = rr->rr_next)
+//			{
+//				int tlsa_chk;
+//
+//				if (rr->rr_type != T_TLSA)
+//					continue;
+//				++ntlsarrs;
+//				tlsa_chk = dane_tlsa_chk(rr->rr_u.rr_data,
+//						rr->rr_size, name, false);
+//				if (TLSA_IS_SUPPORTED(tlsa_chk))
+//					++usable;
+//
+//			}
+//			sm_dprintf("gettlsa: host=%s, ntlsarrs=%u, usable\%u\n", host, ntlsarrs, usable);
+//		}
+#endif /* 0 */
+		sm_dprintf("gettlsa: host=%s, dr=%p, ad=%d, err=%d, herr=%d\n",
+			host, (void *)dr,
+			dr != NULL ? dr->dns_r_h.ad : -1, err, herr);
+	}
 	ttl = UINT_MAX;
 	n_rrs = tlsaadd(key, dr, dane_tlsa, herr, n_rrs, &ttl, 0);
 
@@ -342,7 +639,7 @@ gettlsa(host, name, pste, flags, mxttl, port)
 	if (n_rrs == 0 && !TLSA_RR_TEMPFAIL(dane_tlsa))
 	{
 		if (tTd(8, 2))
-			sm_dprintf("gettlsa(%s), n_rrs=%d, herr=%d, status=NOT_ADDED\n",
+			sm_dprintf("gettlsa: host=%s, n_rrs=%d, herr=%d, status=NOT_ADDED\n",
 				host, n_rrs, dane_tlsa->dane_tlsa_dnsrc);
 		goto cleanup;
 	}
@@ -370,7 +667,7 @@ gettlsa(host, name, pste, flags, mxttl, port)
 
   error:
 	if (tTd(8, 2))
-		sm_dprintf("gettlsa(%s, %s), status=error\n", host, key);
+		sm_dprintf("gettlsa: host=%s, key=%s, status=error\n", host, key);
 	n_rrs = -1;
   cleanup:
 	if (NULL == ste)
@@ -426,15 +723,18 @@ getfallbackmxrr(host)
 	if (NumFallbackMXHosts > 0 && renew > curtime())
 		return NumFallbackMXHosts;
 
-	/* for DANE we need to invoke getmxrr() to get the TLSA RRs. */
-# if !DANE
-	if (host[0] == '[')
+	/*
+	**  For DANE we need to invoke getmxrr() to get the TLSA RRs.
+	**  Hack: don't do that if its not a FQHN (e.g., [localhost])
+	**  This also triggers for IPv4 addresses, but not IPv6!
+	*/
+
+	if (host[0] == '[' && (!Dane || strchr(host, '.') == NULL))
 	{
 		fbhosts[0] = host;
 		NumFallbackMXHosts = 1;
 	}
 	else
-# endif
 	{
 		/* free old data */
 		for (i = 0; i < NumFallbackMXHosts; i++)
@@ -448,10 +748,9 @@ getfallbackmxrr(host)
 
 		NumFallbackMXHosts = getmxrr(host, fbhosts, NULL,
 # if DANE
-					(DANE_SECURE == Dane) ?  ISAD :
+					(DANE_SECURE == Dane) ? ISAD :
 # endif
-					0,
-					&rcode, &ttl, 0);
+					0, &rcode, &ttl, 0, NULL);
 		renew = curtime() + ttl;
 		for (i = 0; i < NumFallbackMXHosts; i++)
 			fbhosts[i] = newstr(fbhosts[i]);
@@ -518,7 +817,7 @@ hn2alabel(hostname)
 	UIDNA *idna;
 	static char buf[MAXNAME_I];	/* XXX ??? */
 
-	if (addr_is_ascii(hostname))
+	if (str_is_print(hostname))
 		return hostname;
 	idna = uidna_openUTS46(UIDNA_NONTRANSITIONAL_TO_ASCII, &error);
 	(void) uidna_nameToASCII_UTF8(idna, hostname, strlen(hostname),
@@ -538,13 +837,15 @@ hn2alabel(hostname)
 **		mxprefs -- a pointer to a return buffer of MX preferences.
 **			If NULL, don't try to populate.
 **		flags -- flags:
-**			DROPLOCALHOSt -- If true, all MX records less preferred
+**			DROPLOCALHOST -- If true, all MX records less preferred
 **			than the local host (as determined by $=w) will
 **			be discarded.
 **			TRYFALLBACK -- add also fallback MX host?
 **			ISAD -- host lookup was secure?
 **		rcode -- a pointer to an EX_ status code.
 **		pttl -- pointer to return TTL (can be NULL).
+**		port -- port number used in TLSA queries (_PORT._tcp.)
+**		pad -- (output parameter, pointer to) AD flag (can be NULL)
 **
 **	Returns:
 **		The number of MX records found.
@@ -559,7 +860,7 @@ hn2alabel(hostname)
 */
 
 int
-getmxrr(host, mxhosts, mxprefs, flags, rcode, pttl, port)
+getmxrr(host, mxhosts, mxprefs, flags, rcode, pttl, port, pad)
 	char *host;
 	char **mxhosts;
 	unsigned short *mxprefs;
@@ -567,6 +868,7 @@ getmxrr(host, mxhosts, mxprefs, flags, rcode, pttl, port)
 	int *rcode;
 	int *pttl;
 	int port;
+	int *pad;
 {
 	register unsigned char *eom, *cp;
 	register int i, j, n;
@@ -640,7 +942,7 @@ getmxrr(host, mxhosts, mxprefs, flags, rcode, pttl, port)
 # endif /* DANE */
 
 # if USE_EAI
-	if (!addr_is_ascii(host))
+	if (!str_is_print(host))
 	{
 		/* XXX memory leak? */
 		host = sm_rpool_strdup_x(CurEnv->e_rpool, hn2alabel(host));
@@ -727,6 +1029,8 @@ getmxrr(host, mxhosts, mxprefs, flags, rcode, pttl, port)
 	ad = ad && hp->ad;
 	if (tTd(8, 2))
 		sm_dprintf("getmxrr(%s), hp=%p, ad=%d\n", host, (void*)hp, ad);
+	if (pad != NULL)
+		*pad = ad;
 
 	/* avoid problems after truncation in tcp packets */
 	if (n > sizeof(answer))
@@ -813,14 +1117,22 @@ getmxrr(host, mxhosts, mxprefs, flags, rcode, pttl, port)
 			int nrr;
 			unsigned long flags;
 
-			flags = ad ? TLSAFLADMX : TLSAFLNOADMX;
+			flags = TLSAFLNEW;
+			if (pad != NULL && *pad)
+				flags |= TLSAFLADMX;
+			if (tTd(8, 20))
+				sm_dprintf("getmxrr: 1: host=%s, mx=%s, flags=%#lx\n", host, bp, flags);
 			nrr = gettlsa(bp, NULL, NULL, flags, ttl, port);
 
 			/* Only check qname if no TLSA RRs were found */
 			if (0 == nrr && cname2mx && '\0' != qname[0] &&
 			    strcmp(qname, bp))
+			{
+				if (tTd(8, 20))
+					sm_dprintf("getmxrr: 2: host=%s, qname=%s, flags=%#lx\n", host, qname, flags);
 				gettlsa(qname, bp, NULL, flags, ttl, port);
 			/* XXX is this the right ad flag? */
+			}
 		}
 # endif
 
@@ -1009,7 +1321,7 @@ punt:
 					char *hn;
 
 					hn = MXHostBuf + 1;
-					if (!addr_is_ascii(hn))
+					if (!str_is_print(hn))
 					{
 						const char *ahn;
 
@@ -1058,8 +1370,16 @@ punt:
 				else
 					cttl = SM_DEFAULT_TTL;
 
-				flags = (ad && n == HOST_SECURE)
-					? TLSAFLADMX : TLSAFLNOADMX;
+				flags = TLSAFLNEW;
+				if (ad && HOST_SECURE == n)
+				{
+					flags |= TLSAFLADMX;
+					if (pad != NULL)
+						*pad = ad;
+				}
+				if (TTD(8, 20))
+					sm_dprintf("getmxrr: 3: host=%s, mx=%s, flags=%#lx, ad=%d\n",
+						host, mxhosts[0], flags, ad);
 				nrr = gettlsa(mxhosts[0], NULL, NULL, flags,
 						cttl, port);
 
@@ -1070,9 +1390,13 @@ punt:
 
 				if (0 == nrr && '\0' != qname[0] &&
 				    strcmp(qname, mxhosts[0]))
+				{
 					gettlsa(qname, mxhosts[0], NULL, flags,
 						cttl, port);
+					if (tTd(8, 20))
+						sm_dprintf("getmxrr: 4: host=%s, qname=%s, flags=%#lx\n", host, qname, flags);
 				/* XXX is this the right ad flag? */
+				}
 			}
 # endif
 		}
@@ -1081,7 +1405,7 @@ punt:
 	/* if we have a default lowest preference, include that */
 	if (fallbackMX != NULL && !seenlocal)
 	{
-		/* TODO: DNSsec status of fallbacks */
+		/* TODO: DNSSEC status of fallbacks */
 		nmx = fallbackmxrr(nmx, prefs, mxhosts);
 	}
     done:
@@ -1175,7 +1499,7 @@ bestmx_map_lookup(map, name, av, statp)
 # endif
 
 	_res.options &= ~(RES_DNSRCH|RES_DEFNAMES);
-	nmx = getmxrr(name, mxhosts, NULL, 0, statp, NULL, -1);
+	nmx = getmxrr(name, mxhosts, NULL, 0, statp, NULL, -1, NULL);
 	_res.options = saveopts;
 	if (nmx <= 0)
 		return NULL;

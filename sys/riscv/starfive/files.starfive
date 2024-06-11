@@ -1,0 +1,7 @@
+dev/clk/starfive/jh7110_clk.c		standard
+dev/clk/starfive/jh7110_clk_aon.c	standard
+dev/clk/starfive/jh7110_clk_pll.c	standard
+dev/clk/starfive/jh7110_clk_sys.c	standard
+dev/mmc/host/dwmmc_starfive.c		optional	dwmmc_starfive fdt
+
+riscv/starfive/starfive_syscon.c	standard

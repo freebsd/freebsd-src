@@ -1,4 +1,4 @@
-# $NetBSD: var-op-expand.mk,v 1.18 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: var-op-expand.mk,v 1.20 2024/04/20 10:18:55 rillig Exp $
 #
 # Tests for the := variable assignment operator, which expands its
 # right-hand side.
@@ -20,9 +20,9 @@ VAR:=			value
 
 # When a ':=' assignment is performed, its right-hand side is evaluated and
 # expanded as far as possible.  Contrary to other situations, '$$' and
-# variable expressions based on undefined variables are preserved though.
+# expressions based on undefined variables are preserved though.
 #
-# Whether a variable expression is undefined or not is determined at the end
+# Whether an expression is undefined or not is determined at the end
 # of evaluating the expression.  The consequence is that ${:Ufallback} expands
 # to "fallback"; initially this expression is undefined since it is based on
 # the variable named "", which is guaranteed to be never defined, but at the
@@ -270,7 +270,7 @@ later=	lowercase-value
 .undef later
 INDIRECT:=	${LATER:S,value,replaced,} OK ${LATER:value=sysv}
 indirect:=	${INDIRECT:tl}
-# expect+1: Unknown modifier "s,value,replaced,"
+# expect+1: while evaluating variable "indirect": while evaluating variable "later": Unknown modifier "s,value,replaced,"
 .if ${indirect} != " ok "
 .  error
 .else
@@ -279,7 +279,7 @@ indirect:=	${INDIRECT:tl}
 .endif
 LATER=	uppercase-value
 later=	lowercase-value
-# expect+1: Unknown modifier "s,value,replaced,"
+# expect+1: while evaluating variable "indirect": while evaluating variable "later": Unknown modifier "s,value,replaced,"
 .if ${indirect} != "uppercase-replaced ok uppercase-sysv"
 # expect+1: warning: XXX Neither branch should be taken.
 .  warning	XXX Neither branch should be taken.

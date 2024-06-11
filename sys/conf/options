@@ -145,6 +145,7 @@ GEOM_ZERO	opt_geom.h
 IFLIB		opt_iflib.h
 KDTRACE_HOOKS	opt_global.h
 KDTRACE_FRAME	opt_kdtrace.h
+KDTRACE_NO_MIB_SDT	opt_global.h
 KN_HASHSIZE	opt_kqueue.h
 KSTACK_MAX_PAGES
 KSTACK_PAGES
@@ -156,6 +157,7 @@ MAC		opt_global.h
 MAC_BIBA	opt_dontuse.h
 MAC_BSDEXTENDED	opt_dontuse.h
 MAC_DDB		opt_dontuse.h
+MAC_DEBUG	opt_mac.h
 MAC_IFOFF	opt_dontuse.h
 MAC_IPACL	opt_dontuse.h
 MAC_LOMAC	opt_dontuse.h
@@ -171,6 +173,7 @@ MAC_STUB	opt_dontuse.h
 MAC_TEST	opt_dontuse.h
 MAC_GRANTBYLABEL	opt_dontuse.h
 MAC_VERIEXEC	opt_dontuse.h
+MAC_VERIEXEC_DEBUG	opt_mac.h
 MAC_VERIEXEC_SHA1	opt_dontuse.h
 MAC_VERIEXEC_SHA256	opt_dontuse.h
 MAC_VERIEXEC_SHA384	opt_dontuse.h
@@ -205,6 +208,7 @@ SCHED_STATS	opt_sched.h
 SCHED_ULE	opt_sched.h
 SLEEPQUEUE_PROFILING
 SLHCI_DEBUG	opt_slhci.h
+SOCKET_HHOOK	opt_global.h
 STACK		opt_stack.h
 SUIDDIR
 MSGMNB		opt_sysvipc.h
@@ -238,7 +242,6 @@ TCP_RACK	opt_inet.h
 # algorithm that uses "normal" behaviour with SACK's to detect
 # a possible attack. It is strictly experimental at this point.
 #
-TCP_SAD_DETECTION opt_inet.h
 TURNSTILE_PROFILING
 UMTX_PROFILING
 UMTX_CHAINS	opt_global.h
@@ -418,13 +421,11 @@ ISP_DEFAULT_ROLES	opt_isp.h
 ISP_INTERNAL_TARGET	opt_isp.h
 ISP_FCTAPE_OFF		opt_isp.h
 
-# Options used only in dev/iscsi
-ISCSI_INITIATOR_DEBUG	opt_iscsi_initiator.h
-
 # Net stuff.
 ACCEPT_FILTER_DATA
 ACCEPT_FILTER_DNS
 ACCEPT_FILTER_HTTP
+ACCEPT_FILTER_TLS
 ALTQ			opt_global.h
 ALTQ_CBQ		opt_altq.h
 ALTQ_CDNR		opt_altq.h
@@ -816,7 +817,6 @@ ATH_TXBUF		opt_ath.h
 ATH_RXBUF		opt_ath.h
 ATH_DIAGAPI		opt_ath.h
 ATH_TX99_DIAG		opt_ath.h
-ATH_ENABLE_11N		opt_ath.h
 ATH_ENABLE_DFS		opt_ath.h
 ATH_EEPROM_FIRMWARE	opt_ath.h
 ATH_ENABLE_RADIOTAP_VENDOR_EXT	opt_ath.h

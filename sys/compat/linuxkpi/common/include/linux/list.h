@@ -144,7 +144,7 @@ list_replace_init(struct list_head *old, struct list_head *new)
 }
 
 static inline void
-linux_list_add(struct list_head *new, struct list_head *prev,
+__list_add(struct list_head *new, struct list_head *prev,
     struct list_head *next)
 {
 
@@ -238,14 +238,14 @@ static inline void
 list_add(struct list_head *new, struct list_head *head)
 {
 
-	linux_list_add(new, head, head->next);
+	__list_add(new, head, head->next);
 }
 
 static inline void
 list_add_tail(struct list_head *new, struct list_head *head)
 {
 
-	linux_list_add(new, head->prev, head);
+	__list_add(new, head->prev, head);
 }
 
 static inline void

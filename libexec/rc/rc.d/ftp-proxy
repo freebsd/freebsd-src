@@ -13,6 +13,8 @@ desc="Internet File Transfer Protocol proxy daemon"
 rcvar="ftpproxy_enable"
 command="/usr/sbin/ftp-proxy"
 
+: ${ftpproxy_svcj_options:="net_basic"}
+
 load_rc_config $name
 
 #

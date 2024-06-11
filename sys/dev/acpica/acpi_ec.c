@@ -339,7 +339,6 @@ acpi_ec_probe(device_t dev)
     ACPI_OBJECT *obj;
     ACPI_STATUS status;
     device_t	peer;
-    char	desc[64];
     int		ecdt;
     int		ret, rc;
     struct acpi_ec_params *params;
@@ -444,10 +443,9 @@ acpi_ec_probe(device_t dev)
     ret = rc;
 out:
     if (ret <= 0) {
-	snprintf(desc, sizeof(desc), "Embedded Controller: GPE %#x%s%s",
-		 params->gpe_bit, (params->glk) ? ", GLK" : "",
-		 ecdt ? ", ECDT" : "");
-	device_set_desc_copy(dev, desc);
+	device_set_descf(dev, "Embedded Controller: GPE %#x%s%s",
+			 params->gpe_bit, (params->glk) ? ", GLK" : "",
+			 ecdt ? ", ECDT" : "");
     } else
 	free(params, M_TEMP);
 

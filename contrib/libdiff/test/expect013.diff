@@ -1,0 +1,10 @@
+--- test013.left-w.txt
++++ test013.right-w.txt
+@@ -3,5 +3,5 @@
+ C
+ D
+ E
+-F
+-G
++F	x
++y G

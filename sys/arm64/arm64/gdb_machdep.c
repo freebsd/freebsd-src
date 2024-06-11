@@ -55,6 +55,10 @@ gdb_cpu_getreg(int regnum, size_t *regsz)
 		case GDB_REG_SP:   return (&kdb_frame->tf_sp);
 		case GDB_REG_PC:   return (&kdb_frame->tf_elr);
 		case GDB_REG_CSPR: return (&kdb_frame->tf_spsr);
+		default:
+			if (regnum >= GDB_REG_X0 && regnum <= GDB_REG_X29)
+				return (&kdb_frame->tf_x[regnum - GDB_REG_X0]);
+			break;
 		}
 	}
 	switch (regnum) {
@@ -106,6 +110,7 @@ gdb_cpu_signal(int type, int code __unused)
 	switch (type) {
 	case EXCP_WATCHPT_EL1:
 	case EXCP_SOFTSTP_EL1:
+	case EXCP_BRKPT_EL1:
 	case EXCP_BRK:
 		return (SIGTRAP);
 	}
@@ -116,9 +121,16 @@ void
 gdb_cpu_stop_reason(int type, int code __unused)
 {
 
-	if (type == EXCP_WATCHPT_EL1) {
+	switch (type) {
+	case EXCP_WATCHPT_EL1:
 		gdb_tx_str("watch:");
 		gdb_tx_varhex((uintmax_t)READ_SPECIALREG(far_el1));
 		gdb_tx_char(';');
+		break;
+	case EXCP_BRKPT_EL1:
+		gdb_tx_str("hwbreak:;");
+		break;
+	default:
+		break;
 	}
 }

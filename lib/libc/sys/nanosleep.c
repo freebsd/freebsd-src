@@ -39,7 +39,5 @@ __weak_reference(__sys_nanosleep, __nanosleep);
 int
 nanosleep(const struct timespec *rqtp, struct timespec *rmtp)
 {
-
-	return (((int (*)(const struct timespec *, struct timespec *))
-	    __libc_interposing[INTERPOS_nanosleep])(rqtp, rmtp));
+	return (INTERPOS_SYS(nanosleep, rqtp, rmtp));
 }

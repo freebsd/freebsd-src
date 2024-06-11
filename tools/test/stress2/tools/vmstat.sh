@@ -45,34 +45,28 @@ OIFS=$IFS
 while true; do
 	#          Type InUse MemUse
 	[ -z "$optm" ] && vmstat -m | sed 1d |
-	    sed 's/\(.* \)\([0-9][0-9]*\)  *\(.*\)K .*/\1:\2:\3/' |
-	    while IFS=: read -r p1 p2 p3; do
-		name=`echo $p1 | sed 's/^ *//;s/ *$//'`
-		memuse=$p3
+	    while read l; do
+		name=`echo $l | sed -E 's/ [0-9]+ .*//; s/^ *//'`
+		memuse=`echo $l | sed -E "s#$name##" | \
+		    awk '{print int(($2 + 1023) / 1024)}'`
 		[ "$memuse" -ne 0 ] && echo "vmstat -m $name,$memuse"
-	done
+	    done
 
 	# ITEM                   SIZE  LIMIT     USED
-	[ -z "$optz" ] && vmstat -z |
-	    grep -vE '(rl_entry):' |
-	    sed "1,2d;/^$/d;s/: /, /" |
-	    sed -E 's/[^[:print:]\r\t]/ /g' |
+	[ -z "$optz" ] && vmstat -z | sed 1d |
 	    while read l; do
-		IFS=','
-		set $l
-		[ $# -lt 8 ] &&
-		    { echo "# args must be >= 8, but is $# in $l" 1>&2;
-		        continue; }
-		size=$2
-		used=$4
+		name=`echo $l | sed 's/:.*//'`
+		l=`echo $l | sed 's/.*://'`
+		size=`echo $l | awk -F ',' '{print $1}'`
+		used=`echo $l | awk -F ',' '{print $3}'`
 		[ -z "$used" -o -z "$size" ] &&
 		    { echo "used/size not set $l" 1>&2; continue; }
 		echo $used | egrep -q '^ *[0-9]{1,10}$' ||
 		    { echo "Bad used: $used. l=$l" 1>&2; continue; }
 		tot=$((((size * used) + 1023) / 1024))
 		[ $tot -ne 0 ] &&
-		   echo "vmstat -z $1,$tot"
-	done
+		   echo "vmstat -z $name,$tot"
+	    done
 
 	r=`sysctl -n vm.stats.vm.v_wire_count`
 	[ -n "$r" ] &&
@@ -98,6 +92,7 @@ done | awk $debug -F, '
 			close(cmd);
 			printf "%s \"%s\" %'\''dK\r\n", t,
 			    name, size;
+			fflush
 			n[name] = 0;
 		}
 		s[name] = size;

@@ -41,8 +41,8 @@
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <dev/extres/clk/clk.h>
-#include <dev/extres/clk/clk_fixed.h>
+#include <dev/clk/clk.h>
+#include <dev/clk/clk_fixed.h>
 
 #include <dev/clk/xilinx/zynqmp_clk_mux.h>
 #include <dev/clk/xilinx/zynqmp_clk_pll.h>

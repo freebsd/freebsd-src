@@ -43,7 +43,7 @@
  *
  * In addition to the facilities defined in RFC7413, this implementation
  * supports a pre-shared key (PSK) mode of operation in which the TFO server
- * requires the client to be in posession of a shared secret in order for
+ * requires the client to be in possession of a shared secret in order for
  * the client to be able to successfully open TFO connections with the
  * server.  This is useful, for example, in environments where TFO servers
  * are exposed to both internal and external clients and only wish to allow

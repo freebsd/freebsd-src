@@ -620,11 +620,7 @@ vm_page_startup(vm_offset_t vaddr)
 	vm_page_dump = (void *)(uintptr_t)pmap_map(&vaddr, new_end,
 	    new_end + vm_page_dump_size, VM_PROT_READ | VM_PROT_WRITE);
 	bzero((void *)vm_page_dump, vm_page_dump_size);
-#else
-	(void)last_pa;
-#endif
-#if defined(__aarch64__) || defined(__amd64__) || \
-    defined(__riscv) || defined(__powerpc64__)
+#if MINIDUMP_STARTUP_PAGE_TRACKING
 	/*
 	 * Include the UMA bootstrap pages, witness pages and vm_page_dump
 	 * in a crash dump.  When pmap_map() uses the direct map, they are
@@ -632,6 +628,9 @@ vm_page_startup(vm_offset_t vaddr)
 	 */
 	for (pa = new_end; pa < end; pa += PAGE_SIZE)
 		dump_add_page(pa);
+#endif
+#else
+	(void)last_pa;
 #endif
 	phys_avail[biggestone + 1] = new_end;
 #ifdef __amd64__
@@ -728,8 +727,7 @@ vm_page_startup(vm_offset_t vaddr)
 	 */
 	new_end = vm_reserv_startup(&vaddr, new_end);
 #endif
-#if defined(__aarch64__) || defined(__amd64__) || \
-    defined(__riscv) || defined(__powerpc64__)
+#if MINIDUMP_PAGE_TRACKING && MINIDUMP_STARTUP_PAGE_TRACKING
 	/*
 	 * Include vm_page_array and vm_reserv_array in a crash dump.
 	 */
@@ -1419,6 +1417,56 @@ vm_page_dirty_KBI(vm_page_t m)
 }
 
 /*
+ * Insert the given page into the given object at the given pindex.  mpred is
+ * used for memq linkage.  From vm_page_insert, lookup is true, mpred is
+ * initially NULL, and this procedure looks it up.  From vm_page_insert_after,
+ * lookup is false and mpred is known to the caller to be valid, and may be
+ * NULL if this will be the page with the lowest pindex.
+ *
+ * The procedure is marked __always_inline to suggest to the compiler to
+ * eliminate the lookup parameter and the associated alternate branch.
+ */
+static __always_inline int
+vm_page_insert_lookup(vm_page_t m, vm_object_t object, vm_pindex_t pindex,
+    vm_page_t mpred, bool lookup)
+{
+	int error;
+
+	VM_OBJECT_ASSERT_WLOCKED(object);
+	KASSERT(m->object == NULL,
+	    ("vm_page_insert: page %p already inserted", m));
+
+	/*
+	 * Record the object/offset pair in this page.
+	 */
+	m->object = object;
+	m->pindex = pindex;
+	m->ref_count |= VPRC_OBJREF;
+
+	/*
+	 * Add this page to the object's radix tree, and look up mpred if
+	 * needed.
+	 */
+	if (lookup)
+		error = vm_radix_insert_lookup_lt(&object->rtree, m, &mpred);
+	else
+		error = vm_radix_insert(&object->rtree, m);
+	if (__predict_false(error != 0)) {
+		m->object = NULL;
+		m->pindex = 0;
+		m->ref_count &= ~VPRC_OBJREF;
+		return (1);
+	}
+
+	/*
+	 * Now link into the object's ordered list of backed pages.
+	 */
+	vm_page_insert_radixdone(m, object, mpred);
+	vm_pager_page_inserted(object, m);
+	return (0);
+}
+
+/*
  *	vm_page_insert:		[ internal use only ]
  *
  *	Inserts the given mem entry into the object and object list.
@@ -1428,11 +1476,7 @@ vm_page_dirty_KBI(vm_page_t m)
 int
 vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 {
-	vm_page_t mpred;
-
-	VM_OBJECT_ASSERT_WLOCKED(object);
-	mpred = vm_radix_lookup_le(&object->rtree, pindex);
-	return (vm_page_insert_after(m, object, pindex, mpred));
+	return (vm_page_insert_lookup(m, object, pindex, NULL, true));
 }
 
 /*
@@ -1449,42 +1493,7 @@ static int
 vm_page_insert_after(vm_page_t m, vm_object_t object, vm_pindex_t pindex,
     vm_page_t mpred)
 {
-	vm_page_t msucc;
-
-	VM_OBJECT_ASSERT_WLOCKED(object);
-	KASSERT(m->object == NULL,
-	    ("vm_page_insert_after: page already inserted"));
-	if (mpred != NULL) {
-		KASSERT(mpred->object == object,
-		    ("vm_page_insert_after: object doesn't contain mpred"));
-		KASSERT(mpred->pindex < pindex,
-		    ("vm_page_insert_after: mpred doesn't precede pindex"));
-		msucc = TAILQ_NEXT(mpred, listq);
-	} else
-		msucc = TAILQ_FIRST(&object->memq);
-	if (msucc != NULL)
-		KASSERT(msucc->pindex > pindex,
-		    ("vm_page_insert_after: msucc doesn't succeed pindex"));
-
-	/*
-	 * Record the object/offset pair in this page.
-	 */
-	m->object = object;
-	m->pindex = pindex;
-	m->ref_count |= VPRC_OBJREF;
-
-	/*
-	 * Now link into the object's ordered list of backed pages.
-	 */
-	if (vm_radix_insert(&object->rtree, m)) {
-		m->object = NULL;
-		m->pindex = 0;
-		m->ref_count &= ~VPRC_OBJREF;
-		return (1);
-	}
-	vm_page_insert_radixdone(m, object, mpred);
-	vm_pager_page_inserted(object, m);
-	return (0);
+	return (vm_page_insert_lookup(m, object, pindex, mpred, false));
 }
 
 /*
@@ -1512,6 +1521,13 @@ vm_page_insert_radixdone(vm_page_t m, vm_object_t object, vm_page_t mpred)
 		    ("vm_page_insert_radixdone: object doesn't contain mpred"));
 		KASSERT(mpred->pindex < m->pindex,
 		    ("vm_page_insert_radixdone: mpred doesn't precede pindex"));
+		KASSERT(TAILQ_NEXT(mpred, listq) == NULL ||
+		    m->pindex < TAILQ_NEXT(mpred, listq)->pindex,
+		    ("vm_page_insert_radixdone: pindex doesn't precede msucc"));
+	} else {
+		KASSERT(TAILQ_EMPTY(&object->memq) ||
+		    m->pindex < TAILQ_FIRST(&object->memq)->pindex,
+		    ("vm_page_insert_radixdone: no mpred but not first page"));
 	}
 
 	if (mpred != NULL)
@@ -1853,9 +1869,6 @@ vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
 	VM_OBJECT_ASSERT_WLOCKED(new_object);
 
 	KASSERT(m->ref_count != 0, ("vm_page_rename: page %p has no refs", m));
-	mpred = vm_radix_lookup_le(&new_object->rtree, new_pindex);
-	KASSERT(mpred == NULL || mpred->pindex != new_pindex,
-	    ("vm_page_rename: pindex already renamed"));
 
 	/*
 	 * Create a custom version of vm_page_insert() which does not depend
@@ -1864,7 +1877,7 @@ vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
 	 */
 	opidx = m->pindex;
 	m->pindex = new_pindex;
-	if (vm_radix_insert(&new_object->rtree, m)) {
+	if (vm_radix_insert_lookup_lt(&new_object->rtree, m, &mpred) != 0) {
 		m->pindex = opidx;
 		return (1);
 	}
@@ -2170,8 +2183,12 @@ vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
     vm_paddr_t boundary, vm_memattr_t memattr)
 {
 	struct vm_domainset_iter di;
+	vm_page_t bounds[2];
 	vm_page_t m;
 	int domain;
+	int start_segind;
+
+	start_segind = -1;
 
 	vm_domainset_iter_page_init(&di, object, pindex, &domain, &req);
 	do {
@@ -2179,6 +2196,12 @@ vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
 		    npages, low, high, alignment, boundary, memattr);
 		if (m != NULL)
 			break;
+		if (start_segind == -1)
+			start_segind = vm_phys_lookup_segind(low);
+		if (vm_phys_find_range(bounds, start_segind, domain,
+		    npages, low, high) == -1) {
+			vm_domainset_iter_ignore(&di, domain);
+		}
 	} while (vm_domainset_iter_page(&di, object, &domain) == 0);
 
 	return (m);
@@ -3004,11 +3027,13 @@ unlock:
  *
  *	Reclaim allocated, contiguous physical memory satisfying the specified
  *	conditions by relocating the virtual pages using that physical memory.
- *	Returns true if reclamation is successful and false otherwise.  Since
+ *	Returns 0 if reclamation is successful, ERANGE if the specified domain
+ *	can't possibly satisfy the reclamation request, or ENOMEM if not
+ *	currently able to reclaim the requested number of pages.  Since
  *	relocation requires the allocation of physical pages, reclamation may
- *	fail due to a shortage of free pages.  When reclamation fails, callers
- *	are expected to perform vm_wait() before retrying a failed allocation
- *	operation, e.g., vm_page_alloc_contig().
+ *	fail with ENOMEM due to a shortage of free pages.  When reclamation
+ *	fails in this manner, callers are expected to perform vm_wait() before
+ *	retrying a failed allocation operation, e.g., vm_page_alloc_contig().
  *
  *	The caller must always specify an allocation class through "req".
  *
@@ -3022,7 +3047,7 @@ unlock:
  *	"npages" must be greater than zero.  Both "alignment" and "boundary"
  *	must be a power of two.
  */
-bool
+int
 vm_page_reclaim_contig_domain_ext(int domain, int req, u_long npages,
     vm_paddr_t low, vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
     int desired_runs)
@@ -3030,14 +3055,15 @@ vm_page_reclaim_contig_domain_ext(int domain, int req, u_long npages,
 	struct vm_domain *vmd;
 	vm_page_t bounds[2], m_run, _m_runs[NRUNS], *m_runs;
 	u_long count, minalign, reclaimed;
-	int error, i, min_reclaim, nruns, options, req_class, segind;
-	bool ret;
+	int error, i, min_reclaim, nruns, options, req_class;
+	int segind, start_segind;
+	int ret;
 
 	KASSERT(npages > 0, ("npages is 0"));
 	KASSERT(powerof2(alignment), ("alignment is not a power of 2"));
 	KASSERT(powerof2(boundary), ("boundary is not a power of 2"));
 
-	ret = false;
+	ret = ENOMEM;
 
 	/*
 	 * If the caller wants to reclaim multiple runs, try to allocate
@@ -3077,6 +3103,8 @@ vm_page_reclaim_contig_domain_ext(int domain, int req, u_long npages,
 	if (curproc == pageproc && req_class != VM_ALLOC_INTERRUPT)
 		req_class = VM_ALLOC_SYSTEM;
 
+	start_segind = vm_phys_lookup_segind(low);
+
 	/*
 	 * Return if the number of free pages cannot satisfy the requested
 	 * allocation.
@@ -3093,14 +3121,17 @@ vm_page_reclaim_contig_domain_ext(int domain, int req, u_long npages,
 	 * the reclamation of reservations and superpages each time.
 	 */
 	for (options = VPSC_NORESERV;;) {
+		bool phys_range_exists = false;
+
 		/*
 		 * Find the highest runs that satisfy the given constraints
 		 * and restrictions, and record them in "m_runs".
 		 */
 		count = 0;
-		segind = vm_phys_lookup_segind(low);
+		segind = start_segind;
 		while ((segind = vm_phys_find_range(bounds, segind, domain,
 		    npages, low, high)) != -1) {
+			phys_range_exists = true;
 			while ((m_run = vm_page_scan_contig(npages, bounds[0],
 			    bounds[1], alignment, boundary, options))) {
 				bounds[0] = m_run + npages;
@@ -3108,6 +3139,11 @@ vm_page_reclaim_contig_domain_ext(int domain, int req, u_long npages,
 				count++;
 			}
 			segind++;
+		}
+
+		if (!phys_range_exists) {
+			ret = ERANGE;
+			goto done;
 		}
 
 		/*
@@ -3126,7 +3162,7 @@ vm_page_reclaim_contig_domain_ext(int domain, int req, u_long npages,
 			if (error == 0) {
 				reclaimed += npages;
 				if (reclaimed >= min_reclaim) {
-					ret = true;
+					ret = 0;
 					goto done;
 				}
 			}
@@ -3141,7 +3177,8 @@ vm_page_reclaim_contig_domain_ext(int domain, int req, u_long npages,
 		else if (options == VPSC_NOSUPER)
 			options = VPSC_ANY;
 		else if (options == VPSC_ANY) {
-			ret = reclaimed != 0;
+			if (reclaimed != 0)
+				ret = 0;
 			goto done;
 		}
 	}
@@ -3151,7 +3188,7 @@ done:
 	return (ret);
 }
 
-bool
+int
 vm_page_reclaim_contig_domain(int domain, int req, u_long npages,
     vm_paddr_t low, vm_paddr_t high, u_long alignment, vm_paddr_t boundary)
 {
@@ -3159,20 +3196,28 @@ vm_page_reclaim_contig_domain(int domain, int req, u_long npages,
 	    alignment, boundary, 1));
 }
 
-bool
+int
 vm_page_reclaim_contig(int req, u_long npages, vm_paddr_t low, vm_paddr_t high,
     u_long alignment, vm_paddr_t boundary)
 {
 	struct vm_domainset_iter di;
-	int domain;
-	bool ret;
+	int domain, ret, status;
+
+	ret = ERANGE;
 
 	vm_domainset_iter_page_init(&di, NULL, 0, &domain, &req);
 	do {
-		ret = vm_page_reclaim_contig_domain(domain, req, npages, low,
+		status = vm_page_reclaim_contig_domain(domain, req, npages, low,
 		    high, alignment, boundary);
-		if (ret)
-			break;
+		if (status == 0)
+			return (0);
+		else if (status == ERANGE)
+			vm_domainset_iter_ignore(&di, domain);
+		else {
+			KASSERT(status == ENOMEM, ("Unrecognized error %d "
+			    "from vm_page_reclaim_contig_domain()", status));
+			ret = ENOMEM;
+		}
 	} while (vm_domainset_iter_page(&di, NULL, &domain) == 0);
 
 	return (ret);

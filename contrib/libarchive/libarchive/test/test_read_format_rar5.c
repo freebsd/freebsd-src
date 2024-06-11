@@ -806,6 +806,36 @@ DEFINE_TEST(test_read_format_rar5_extract_win32)
 	EPILOGUE();
 }
 
+DEFINE_TEST(test_read_format_rar5_unicode)
+{
+#if !defined(WIN32) || defined(__CYGWIN__)
+	skipping("Skipping test on non-Windows");
+	return;
+#else
+	/* Corresponds to the names:
+	 * 👋🌎.txt
+	 * 𝒮𝓎𝓂𝒷𝑜𝓁𝒾𝒸 𝐿𝒾𝓃𝓀.txt
+	 * Ⓗⓐⓡⓓ Ⓛⓘⓝⓚ.txt */
+	const wchar_t* emoji_name = L"\U0001f44b\U0001f30e.txt";
+	const wchar_t* italic_name = L"\U0001d4ae\U0001d4ce\U0001d4c2\U0001d4b7\U0001d45c\U0001d4c1\U0001d4be\U0001d4b8 \U0001d43f\U0001d4be\U0001d4c3\U0001d4c0.txt";
+	const wchar_t* circle_name = L"\u24bd\u24d0\u24e1\u24d3 \u24c1\u24d8\u24dd\u24da.txt";
+
+	PROLOGUE("test_read_format_rar5_unicode.rar");
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualWString(emoji_name, archive_entry_pathname_w(ae));
+	assertEqualInt(archive_entry_mode(ae), AE_IFREG | 0644);
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualWString(circle_name, archive_entry_pathname_w(ae));
+	assertEqualInt(archive_entry_mode(ae), AE_IFREG | 0644);
+	assertEqualWString(emoji_name, archive_entry_hardlink_w(ae));
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualWString(italic_name, archive_entry_pathname_w(ae));
+	assertEqualInt(archive_entry_mode(ae), AE_IFLNK | 0644);
+	assertEqualWString(emoji_name, archive_entry_symlink_w(ae));
+	EPILOGUE();
+#endif
+}
+
 DEFINE_TEST(test_read_format_rar5_block_by_block)
 {
 	/* This test uses strange buffer sizes intentionally. */

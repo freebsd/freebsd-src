@@ -246,12 +246,15 @@ TEST_F(Getattr, ok)
 	EXPECT_EQ(ino, sb.st_ino);
 	EXPECT_EQ(S_IFREG | 0644, sb.st_mode);
 
-	//st_birthtim and st_flags are not supported by protocol 7.8.  They're
-	//only supported as OS-specific extensions to OSX.
-	//EXPECT_EQ(, sb.st_birthtim);
-	//EXPECT_EQ(, sb.st_flags);
-	
-	//FUSE can't set st_blksize until protocol 7.9
+	/*
+	 * st_birthtim and st_flags are not supported by the fuse protocol.
+	 * They're only supported as OS-specific extensions to OSX.  For
+	 * birthtime, the convention for "not supported" is "negative one
+	 * second".
+	 */
+	EXPECT_EQ(-1, sb.st_birthtim.tv_sec);
+	EXPECT_EQ(0, sb.st_birthtim.tv_nsec);
+	EXPECT_EQ(0u, sb.st_flags);
 }
 
 /*

@@ -50,6 +50,9 @@ PROTECT="/usr/bin/protect"
 ID="/usr/bin/id"
 IDCMD="if [ -x $ID ]; then $ID -un; fi"
 PS="/bin/ps -ww"
+SERVICE=/usr/sbin/service
+JAIL_CMD=/usr/sbin/jail
+_svcj_generic_params="path=/ mount.nodevfs host=inherit"
 JID=0
 CPUSET="/bin/cpuset"
 
@@ -65,6 +68,158 @@ rc_service="$0"
 #
 #	functions
 #	---------
+
+# is_verified file
+#	if VERIEXEC is active check that $file is verified
+#
+VERIEXEC="/sbin/veriexec"
+if test -x $VERIEXEC && $VERIEXEC -i active > /dev/null 2>&1; then
+	is_verified() { $VERIEXEC -x $1; }
+else
+	is_verified() { return 0; }
+fi
+
+# indicate that we have vdot
+_VDOT_SH=:
+
+# current state of O_VERIFY
+o_verify()
+{
+	case $(echo $(set -o)) in
+	*verify" "off*) echo off;;
+	*verify" "on*) echo on;;
+	esac
+}
+
+##
+# o_verify_set want [save]
+#
+# record current state of verify in $save
+# and set it to $want if different
+#
+o_verify_set() {
+	local x=$(o_verify)
+
+	[ -z "$x" ] && return 0
+	[ -z "$2" ] || eval $2=$x
+	[ "$x" = "$1" ] && return 0
+	case "$1" in
+	on)
+		set -o verify
+		;;
+	off)
+		set +o verify
+		;;
+	esac
+}
+
+# for unverified files
+dotted=
+dot()
+{
+	local f verify
+
+	o_verify_set off verify
+	for f in "$@"; do
+		if [ -f $f -a -s $f ]; then
+			dotted="$dotted $f"
+			. $f
+		fi
+	done
+	o_verify_set $verify
+}
+
+# try for verified, fallback to safe
+sdot()
+{
+	local f
+
+	for f in "$@"; do
+		[ -f $f -a -s $f ] || continue
+		vdot $f || safe_dot $f
+	done
+}
+
+# convenience function - skip if not verified
+vdot()
+{
+	local f rc=0 verify
+
+	o_verify_set on verify
+	for f in "$@"; do
+		[ -f $f -a -s $f ] || continue
+		if is_verified $f 2> /dev/null; then
+			dotted="$dotted $f"
+			. $f
+		else
+			rc=80	# EAUTH
+		fi
+	done
+	o_verify_set $verify
+	return $rc
+}
+
+# Exists [test] file ...
+# report the first "file" that passes "test" (default -s).
+Exists()
+{
+	local f _t=-s
+
+	while :; do
+		: 1=$1
+		case "$1" in
+		-?)
+			_t=$1
+			shift
+			;;
+		*)
+			break
+			;;
+		esac
+	done
+
+	for f in "$@"; do
+		[ $_t $f ] || continue
+		echo $f
+		return 0
+	done
+	return 1
+}
+
+# do we have $1 (could be a function)
+have()
+{
+       type "$1" > /dev/null 2>&1
+}
+
+# provide consistent means of logging progress
+rc_log()
+{
+	date "+@ %s [%Y-%m-%d %H:%M:%S %Z] $*"
+}
+
+# only rc_log if tracing enabled
+# and $level >= $RC_LEVEL
+rc_trace()
+{
+	local level=$1; shift
+	local cf=/etc/rc.conf.d/rc_trace
+
+	if [ -z "$RC_LEVEL" ]; then
+		[ -f $cf ] || return
+		if [ -s $cf ]; then
+			# don't try to set RC_LEVEL without sed
+			if [ -n "$SED" ]; then
+				RC_LEVEL=$($SED -n '/^RC_LEVEL=/ { s/.*=//p;q; }' $cf)
+				RC_LEVEL=${RC_LEVEL:-0}
+			fi
+		else
+			RC_LEVEL=0
+		fi
+	fi
+	[ ${RC_LEVEL:-0} -ge ${level:-0} ] || return
+	rc_log "$@"
+}
 
 # list_vars pattern
 #	List variables matching glob pattern.
@@ -369,6 +524,16 @@ _find_processes()
 		    $_procname|$_procnamebn|${_procnamebn}:|"(${_procnamebn})"|"[${_procnamebn}]")'
 	fi
 
+	if checkyesno ${name}_svcj && [ "${_rc_svcj}" != jailing ]; then
+		JID=$(/usr/sbin/jls -j svcj-${name} jid 2>/dev/null)
+
+		case ${JID} in
+		''|*[!0-9]*)
+			# svcj-jail doesn't exist, fallback to host-check
+			JID=0
+			;;
+		esac
+	fi
 	_proccheck="\
 		$PS 2>/dev/null -o pid= -o jid= -o command= $_psargs"' |
 		while read _npid _jid '"$_fp_args"'; do
@@ -810,11 +975,14 @@ startmsg()
 #
 #	${name}_prepend	n	Command added before ${command}.
 #
-#	${name}_setup	n	Command executed before ${command}.
+#	${name}_setup	n	Command executed during start, restart and
+#				reload before ${rc_arg}_precmd is run.
 #
 #	${name}_login_class n	Login class to use, else "daemon".
 #
 #	${name}_limits	n	limits(1) to apply to ${command}.
+#
+#	${name}_offcmd	n	If set, run if a service is not enabled.
 #
 #	${rc_arg}_cmd	n	If set, use this as the method when invoked;
 #				Otherwise, use default command (see below)
@@ -924,6 +1092,8 @@ run_rc_command()
 		err 3 'run_rc_command: $name is not set.'
 	fi
 
+	DebugOn rc:all rc:all:$rc_arg rc:$name rc:$name:$rc_arg $name:$rc_arg
+
 	# Don't repeat the first argument when passing additional command-
 	# line arguments to the command subroutines.
 	#
@@ -984,6 +1154,18 @@ run_rc_command()
 		_cpusetcmd="$CPUSET -l $_cpuset"
 	fi
 
+	# If a specific jail has a specific svcj request, honor it (YES/NO).
+	# If not (variable empty), evaluate the global svcj catch-all.
+	# A global YES can be overriden by a specific NO, and a global NO is overriden
+	# by a specific YES.
+	eval _svcj=\$${name}_svcj
+	if [ -z "$_svcj" ]; then
+		_svcj=${svcj_all_enable}
+		if [ -z "$_svcj" ]; then
+			eval ${name}_svcj=NO
+		fi
+	fi
+
 					# setup pid check command
 	if [ -n "$_procname" ]; then
 		if [ -n "$pidfile" ]; then
@@ -1020,7 +1202,7 @@ run_rc_command()
 	    _prepend=\$${name}_prepend	_login_class=\${${name}_login_class:-daemon} \
 	    _limits=\$${name}_limits	_oomprotect=\$${name}_oomprotect \
 	    _setup=\$${name}_setup	_env_file=\$${name}_env_file \
-	    _umask=\$${name}_umask
+	    _umask=\$${name}_umask	_svcj_options=\$${name}_svcj_options
 
 	if [ -n "$_env_file" ] && [ -r "${_env_file}" ]; then	# load env from file
 		set -a
@@ -1032,6 +1214,45 @@ run_rc_command()
 		if [ "$_user" = "$(eval $IDCMD)" ]; then
 			unset _user
 		fi
+	fi
+
+	if [ -n "$_svcj_options" ]; then	# translate service jail options
+		_svcj_cmd_options=""
+
+		for _svcj_option in $_svcj_options; do
+			case "$_svcj_option" in
+				mlock)
+					_svcj_cmd_options="allow.mlock ${_svcj_cmd_options}"
+					;;
+				netv4)
+					_svcj_cmd_options="ip4=inherit allow.reserved_ports ${_svcj_cmd_options}"
+					;;
+				netv6)
+					_svcj_cmd_options="ip6=inherit allow.reserved_ports ${_svcj_cmd_options}"
+					;;
+				net_basic)
+					_svcj_cmd_options="ip4=inherit ip6=inherit allow.reserved_ports ${_svcj_cmd_options}"
+					;;
+				net_raw)
+					_svcj_cmd_options="allow.raw_sockets ${_svcj_cmd_options}"
+					;;
+				net_all)
+					_svcj_cmd_options="allow.socket_af allow.raw_sockets allow.reserved_ports ip4=inherit ip6=inherit ${_svcj_cmd_options}"
+					;;
+				nfsd)
+					_svcj_cmd_options="allow.nfsd enforce_statfs=1 ${_svcj_cmd_options}"
+					;;
+				sysvipc)
+					_svcj_cmd_options="sysvmsg=inherit sysvsem=inherit sysvshm=inherit  ${_svcj_cmd_options}"
+					;;
+				vmm)
+					_svcj_cmd_options="allow.vmm ${_svcj_cmd_options}"
+					;;
+				*)
+					echo ${name}: unknown service jail option: $_svcj_option
+					;;
+			esac
+		done
 	fi
 
 	[ -z "$autoboot" ] && eval $_pidcmd	# determine the pid if necessary
@@ -1051,13 +1272,13 @@ run_rc_command()
 		    -a "$rc_arg" != "describe" -a "$rc_arg" != "status" ] ||
 		    [ -n "${rcvar}" -a "$rc_arg" = "stop" -a -z "${rc_pid}" ]; then
 			if ! checkyesno ${rcvar}; then
-				if [ -n "${rc_quiet}" ]; then
-					return 0
-				fi
+			    [ "$rc_arg" = "start" ] && _run_rc_offcmd
+			    if [ -z "${rc_quiet}" ]; then
 				echo -n "Cannot '${rc_arg}' $name. Set ${rcvar} to "
 				echo -n "YES in /etc/rc.conf or use 'one${rc_arg}' "
 				echo "instead of '${rc_arg}'."
-				return 0
+			    fi
+			    return 0
 			fi
 		fi
 
@@ -1069,20 +1290,69 @@ run_rc_command()
 			return 1
 		fi
 
-					# if there's a custom ${XXX_cmd},
-					# run that instead of the default
-					#
+		# if there's a custom ${XXX_cmd},
+		# run that instead of the default
+		#
 		eval _cmd=\$${rc_arg}_cmd \
 		     _precmd=\$${rc_arg}_precmd \
 		     _postcmd=\$${rc_arg}_postcmd
 
 		if [ -n "$_cmd" ]; then
+			rc_trace 1 "$_cmd"
 			if [ -n "$_env" ]; then
 				eval "export -- $_env"
 			fi
-			_run_rc_precmd || return 1
-			_run_rc_doit "$_cpusetcmd $_cmd $rc_extra_args" || return 1
-			_run_rc_postcmd
+
+			if [ "${_rc_svcj}" != jailing ]; then
+				# service can redefine all so
+				# check for valid setup target
+				if [ "$rc_arg" = 'start' -o \
+				    "$rc_arg" = 'restart' -o \
+				    "$rc_arg" = 'reload' ]; then
+					_run_rc_setup || \
+					    warn "failed to setup ${name}"
+				fi
+				_run_rc_precmd || return 1
+			fi
+			if ! checkyesno ${name}_svcj; then
+				_run_rc_doit "$_cpusetcmd $_cmd $rc_extra_args" || return 1
+			else
+				case "$rc_arg" in
+				start)
+					if [ "${_rc_svcj}" != jailing ]; then
+						_return=1
+						$JAIL_CMD -c $_svcj_generic_params $_svcj_cmd_options \
+						    exec.start="${SERVICE} -E _rc_svcj=jailing ${name} ${_rc_prefix}start $rc_extra_args" \
+						    exec.stop="${SERVICE} -E _rc_svcj=jailing ${name} ${_rc_prefix}stop $rc_extra_args" \
+						    exec.consolelog="/var/log/svcj_${name}_console.log" \
+						    name=svcj-${name} && _return=0
+					else
+						_run_rc_doit "$_cpusetcmd $_cmd $rc_extra_args" || _return=1
+					fi
+					;;
+				stop)
+					if [ "${_rc_svcj}" != jailing ]; then
+						$SERVICE -E _rc_svcj=jailing -j svcj-${name} ${name} ${_rc_prefix}stop $rc_extra_args || _return=1
+						$JAIL_CMD -r svcj-${name} 2>/dev/null
+					else
+						_run_rc_doit "$_cpusetcmd $_cmd $rc_extra_args" || _return=1
+					fi
+					;;
+				restart|status) ;; # no special case needed for svcj or handled somewhere else
+				*)
+					eval _rc_svcj_extra_cmd=\$${name}_${rc_arg}_svcj_enable
+					: ${_rc_svcj_extra_cmd:=NO}
+					if checkyesno _rc_svcj_extra_cmd && [ "${_rc_svcj}" != jailing ]; then
+						$SERVICE -v -E _rc_svcj=jailing -j svcj-${name} ${name} ${_rc_prefix}${rc_arg} $rc_extra_args || _return=1
+					else
+						_run_rc_doit "$_cpusetcmd $_cmd $rc_extra_args" || _return=1
+					fi
+					;;
+				esac
+			fi
+			if [ "${_rc_svcj}" != jailing ]; then
+				_run_rc_postcmd
+			fi
 			return $_return
 		fi
 
@@ -1140,13 +1410,27 @@ run_rc_command()
 				return 1
 			fi
 
-			if ! _run_rc_precmd; then
-				warn "failed precmd routine for ${name}"
-				return 1
+			if [ "${_rc_svcj}" != jailing ]; then
+				_run_rc_setup || warn "failed to setup ${name}"
+
+				if ! _run_rc_precmd; then
+					warn "failed precmd routine for ${name}"
+					return 1
+				fi
 			fi
 
-					# setup the full command to run
-					#
+			if checkyesno ${name}_svcj; then
+				if [ "${_rc_svcj}" != jailing ]; then
+					$JAIL_CMD -c $_svcj_generic_params $_svcj_cmd_options\
+					    exec.start="${SERVICE} -E _rc_svcj=jailing ${name} ${_rc_prefix}start $rc_extra_args" \
+					    exec.stop="${SERVICE} -E _rc_svcj=jailing ${name} ${_rc_prefix}stop $rc_extra_args" \
+					    exec.consolelog="/var/log/svcj_${name}_console.log" \
+					    name=svcj-${name} || return 1
+				fi
+			fi
+
+			# setup the full command to run
+			#
 			startmsg "Starting ${name}."
 			if [ -n "$_chroot" ]; then
 				_cd=
@@ -1177,25 +1461,30 @@ $_cpusetcmd $command $rc_flags $command_args"
 				fi
 			fi
 
-			if [ -n "$_setup" ]; then
-				if ! _run_rc_doit "$_setup"; then
-					warn "failed to setup ${name}"
+			# Prepend default limits
+			_doit="$_cd limits -C $_login_class $_limits $_doit"
+
+			local _really_run_it=true
+			if checkyesno ${name}_svcj; then
+				if [ "${_rc_svcj}" != jailing ]; then
+					_really_run_it=false
 				fi
 			fi
 
-					# Prepend default limits
-			_doit="$_cd limits -C $_login_class $_limits $_doit"
-
-					# run the full command
-					#
-			if ! _run_rc_doit "$_doit"; then
-				warn "failed to start ${name}"
-				return 1
+			if [ "$_really_run_it" = true ]; then
+				# run the full command
+				#
+				if ! _run_rc_doit "$_doit"; then
+					warn "failed to start ${name}"
+					return 1
+				fi
 			fi
 
-					# finally, run postcmd
-					#
-			_run_rc_postcmd
+			if [ "${_rc_svcj}" != jailing ]; then
+				# finally, run postcmd
+				#
+				_run_rc_postcmd
+			fi
 			;;
 
 		stop)
@@ -1207,15 +1496,20 @@ $_cpusetcmd $command $rc_flags $command_args"
 
 			_run_rc_precmd || return 1
 
-					# send the signal to stop
-					#
+			# send the signal to stop
+			#
 			echo "Stopping ${name}."
 			_doit=$(_run_rc_killcmd "${sig_stop:-TERM}")
 			_run_rc_doit "$_doit" || return 1
 
-					# wait for the command to exit,
-					# and run postcmd.
+			# wait for the command to exit,
+			# and run postcmd.
 			wait_for_pids $rc_pid
+
+			if checkyesno ${name}_svcj; then
+				# remove service jail
+				$JAIL_CMD -r svcj-${name} 2>/dev/null
+			fi
 
 			_run_rc_postcmd
 			;;
@@ -1226,6 +1520,8 @@ $_cpusetcmd $command $rc_flags $command_args"
 				return 1
 			fi
 
+			_run_rc_setup || warn "failed to setup ${name}"
+
 			_run_rc_precmd || return 1
 
 			_doit=$(_run_rc_killcmd "${sig_reload:-HUP}")
@@ -1235,9 +1531,11 @@ $_cpusetcmd $command $rc_flags $command_args"
 			;;
 
 		restart)
-					# prevent restart being called more
-					# than once by any given script
-					#
+			_run_rc_setup || warn "failed to setup ${name}"
+
+			# prevent restart being called more
+			# than once by any given script
+			#
 			if ${_rc_restart_done:-false}; then
 				return 0
 			fi
@@ -1347,10 +1645,26 @@ $_cpusetcmd $command $rc_flags $command_args"
 #
 #	name	       R/W
 #	------------------
+#	_offcmd		R
 #	_precmd		R
 #	_postcmd	R
 #	_return		W
+#	_setup		R
 #
+_run_rc_offcmd()
+{
+	eval _offcmd=\$${name}_offcmd
+	if [ -n "$_offcmd" ]; then
+		if [ -n "$_env" ]; then
+			eval "export -- $_env"
+		fi
+		debug "run_rc_command: ${name}_offcmd: $_offcmd $rc_extra_args"
+		eval "$_offcmd $rc_extra_args"
+		_return=$?
+	fi
+	return 0
+}
+
 _run_rc_precmd()
 {
 	check_required_before "$rc_arg" || return 1
@@ -1377,6 +1691,20 @@ _run_rc_postcmd()
 		debug "run_rc_command: ${rc_arg}_postcmd: $_postcmd $rc_extra_args"
 		eval "$_postcmd $rc_extra_args"
 		_return=$?
+	fi
+	return 0
+}
+
+_run_rc_setup()
+{
+	# prevent multiple execution on restart => stop/start split
+	if ! ${_rc_restart_done:-false} && [ -n "$_setup" ]; then
+		debug "run_rc_command: ${rc_arg}_setup: $_setup"
+		eval "$_setup"
+		_return=$?
+		if [ $_return -ne 0 ]; then
+			return 1
+		fi
 	fi
 	return 0
 }
@@ -1449,6 +1777,10 @@ run_rc_script()
 		required_vars
 	eval unset ${_arg}_cmd ${_arg}_precmd ${_arg}_postcmd
 
+	rc_trace 0 "$_file $_arg"
+	# don't use it if we don't trust it
+	is_verified $_file || return
+
 	rc_service="$_file"
 	case "$_file" in
 	/etc/rc.d/*.sh)			# no longer allowed in the base
@@ -1459,6 +1791,8 @@ run_rc_script()
 		;;
 	*)				# run in subshell
 		if [ -x $_file ]; then
+			DebugOn $_file $_file:$_arg rc:${_file##*/} rc:${_file##*/}:$_arg ${_file##*/} ${_file##*/}:$_arg
+
 			if [ -n "$rc_boottrace" ]; then
 				boottrace_fn "$_file" "$_arg"
 			elif [ -n "$rc_fast_and_loose" ]; then
@@ -1469,9 +1803,63 @@ run_rc_script()
 				  trap "echo Script $_file running >&2" 29
 				  set $_arg; . $_file )
 			fi
+			DebugOff $_file $_file:$_arg rc:${_file##*/} rc:${_file##*/}:$_arg ${_file##*/} ${_file##*/}:$_arg
 		fi
 		;;
 	esac
+}
+
+#
+# run_rc_scripts [options] file [...]
+#
+# Call `run_rc_script' for each "file" unless already listed in
+# $_rc_elem_done.
+#
+# Options:
+#
+#	--arg "arg"
+#		Pass "arg" to `run_rc_script' default is $_boot.
+#
+#	--break "marker"
+#		If any "file" matches "marker" stop processing.
+#
+_rc_elem_done=
+run_rc_scripts()
+{
+	local _arg=${_boot}
+	local _rc_elem
+	local _rc_breaks=
+
+	while :; do
+		case "$1" in
+		--arg)
+                        _arg="$2"
+                        shift 2
+                        ;;
+		--break)
+                        _rc_breaks="$_rc_breaks $2"
+                        shift 2
+                        ;;
+		*)
+                        break
+                        ;;
+		esac
+	done
+	for _rc_elem in "$@"; do
+		: _rc_elem=$_rc_elem
+		case " $_rc_elem_done " in
+		*" $_rc_elem "*)
+                        continue
+                        ;;
+		esac
+		run_rc_script ${_rc_elem} ${_arg}
+		_rc_elem_done="$_rc_elem_done $_rc_elem"
+		case " $_rc_breaks " in
+		*" ${_rc_elem##*/} "*)
+                        break
+                        ;;
+		esac
+	done
 }
 
 boottrace_fn()
@@ -1485,7 +1873,8 @@ boottrace_fn()
 		set $_arg; . $_file
 		boottrace_sysctl "$_file done"
 	else
-		$boottrace_cmd "$_file" "$_arg"
+		_boot="${_boot}" rc_fast="${rc_fast}" autoboot="${autoboot}" \
+		    $boottrace_cmd "$_file" "$_arg"
 	fi
 }
 
@@ -1502,19 +1891,42 @@ boottrace_sysctl()
 #
 load_rc_config()
 {
-	local _name _rcvar_val _var _defval _v _msg _new _d
+	local _name _rcvar_val _var _defval _v _msg _new _d _dot
 	_name=$1
+	_dot=${load_rc_config_reader:-dot}
+
+	case "$_dot" in
+	dot|[sv]dot)
+		;;
+	*)	warn "Ignoring invalid load_rc_config_reader"
+		_dot=dot
+		;;
+	esac
+	case "$1" in
+	-s|--safe)
+                _dot=sdot
+                _name=$2
+                shift
+                ;;
+	-v|--verify)
+                _dot=vdot
+                _name=$2
+                shift
+                ;;
+	esac
+
+	DebugOn rc:$_name $_name
 
 	if ${_rc_conf_loaded:-false}; then
 		:
 	else
 		if [ -r /etc/defaults/rc.conf ]; then
 			debug "Sourcing /etc/defaults/rc.conf"
-			. /etc/defaults/rc.conf
+			$_dot /etc/defaults/rc.conf
 			source_rc_confs
 		elif [ -r /etc/rc.conf ]; then
 			debug "Sourcing /etc/rc.conf (/etc/defaults/rc.conf doesn't exist)."
-			. /etc/rc.conf
+			$_dot /etc/rc.conf
 		fi
 		_rc_conf_loaded=true
 	fi
@@ -1526,13 +1938,13 @@ load_rc_config()
 			_d=${_d%/rc.d}
 			if [ -f ${_d}/rc.conf.d/"$_name" ]; then
 				debug "Sourcing ${_d}/rc.conf.d/$_name"
-				. ${_d}/rc.conf.d/"$_name"
+				$_dot ${_d}/rc.conf.d/"$_name"
 			elif [ -d ${_d}/rc.conf.d/"$_name" ] ; then
 				local _rc
 				for _rc in ${_d}/rc.conf.d/"$_name"/* ; do
 					if [ -f "$_rc" ] ; then
 						debug "Sourcing $_rc"
-						. "$_rc"
+						$_dot "$_rc"
 					fi
 				done
 			fi
@@ -2285,4 +2697,42 @@ fi
 boottrace_cmd=`command -v boottrace`
 if [ -n "$boottrace_cmd" ] && [ "`${SYSCTL_N} -q kern.boottrace.enabled`" = "1" ]; then
 	rc_boottrace=YES
+fi
+
+SED=${SED:-$(Exists -x /usr/bin/sed /rescue/sed)}
+
+# Allow for local additions and overrides.
+# Use vdot to ensure the file has not been tampered with.
+vdot /etc/local.rc.subr
+
+# Avoid noise - when we do not have /usr mounted,
+# and we cannot use safe_dot without sed.
+if ! have basename; then
+	basename()
+	{
+		local b=${1%$2}
+		echo ${b##*/}
+	}
+	tty()
+	{
+		return 0
+	}
+	# we cannot use safe_dot without sed
+	[ -z "$SED" ] && _SAFE_EVAL_SH=:
+fi
+# safe_eval.sh provides safe_dot - for untrusted files
+$_SAFE_EVAL_SH vdot /libexec/safe_eval.sh
+$_DEBUG_SH vdot /libexec/debug.sh
+
+# Ensure we can still operate if debug.sh and
+# safe_eval.sh are not found.
+if have DebugOn; then
+	# allow DEBUG_SH to be set from loader prompt
+	DEBUG_SH=${DEBUG_SH:-$(kenv -q DEBUG_SH)}
+else
+	DebugOn() { return 0; }
+	DebugOff() { return 0; }
+fi
+if ! have save_dot; then
+	safe_dot() { dot "$@"; }
 fi

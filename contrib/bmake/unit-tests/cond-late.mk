@@ -1,6 +1,6 @@
-# $NetBSD: cond-late.mk,v 1.4 2023/05/10 15:53:32 rillig Exp $
+# $NetBSD: cond-late.mk,v 1.6 2023/12/10 20:12:28 rillig Exp $
 #
-# Using the :? modifier, variable expressions can contain conditional
+# Using the :? modifier, expressions can contain conditional
 # expressions that are evaluated late, at expansion time.
 #
 # Any expressions appearing in these conditions are expanded before parsing
@@ -31,6 +31,6 @@ cond-literal:
 
 VAR=	${${UNDEF} != "no":?:}
 # expect-reset
-# expect: make: Bad conditional expression ' != "no"' in ' != "no"?:'
+# expect: make: Bad conditional expression ' != "no"' before '?:'
 .if empty(VAR:Mpattern)
 .endif

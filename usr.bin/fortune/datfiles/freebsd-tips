@@ -388,7 +388,7 @@ You can make a log of your terminal session with script(1).
 You can often get answers to your questions about FreeBSD by searching in the
 FreeBSD mailing list archives at
 
-	http://freebsd.markmail.org
+	https://lists.freebsd.org/search
 %
 You can open up a new split-screen window in (n)vi with :N or :E and then
 use ^w to switch between the two.
@@ -533,9 +533,10 @@ Run "etcupdate extract" once when your sources match your running system, then r
 Do you want to do a binary upgrade of your running FreeBSD installation? Use freebsd-update(8).
 
 To install updates and patches for the running branch use
-# freebsd-update fetch install
+# freebsd-update fetch
+# freebsd-update install
 
-To upgrade to a newer release use
+Then, to upgrade to a newer release use
 # freebsd-update upgrade -r ${name_of_release}
 
 		-- Lars Engels <lme@FreeBSD.org>
@@ -843,4 +844,15 @@ kern.tty_info_kstacks to 0 (off), 1 (on), or 2 (verbose), e.g.:
 # sysctl kern.tty_info_kstacks=2
 
 		-- Michael Gmelin <grembo@FreeBSD.org>
+%
+To determine which fonts provide a particular Unicode character, fc-list from
+the fontconfig package may be helpful.  For example, if your friend complains
+that the emoji you sent won't display, run fc-list with the hex value of the
+character to determine which font your friend should install.
+
+$ fc-list ':charset=0x1F4A1'
+/usr/local/share/fonts/noto/NotoColorEmoji.ttf: Noto Color Emoji:style=Regular
+
+$ pkg which /usr/local/share/fonts/noto/NotoColorEmoji.ttf
+/usr/local/share/fonts/noto/NotoColorEmoji.ttf was installed by package noto-emoji-2.042
 %

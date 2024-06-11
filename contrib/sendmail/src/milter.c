@@ -71,7 +71,6 @@ static void	milter_delrcpt __P((char *, ssize_t, ENVELOPE *, const char *));
 static int	milter_replbody __P((char *, ssize_t, bool, ENVELOPE *, const char *));
 static int	milter_set_macros __P((char *, char **, char *, int));
 
-
 /* milter states */
 # define SMFS_CLOSED		'C'	/* closed for all further actions */
 # define SMFS_OPEN		'O'	/* connected to remote milter filter */
@@ -1877,6 +1876,24 @@ milter_abort_filter(m, e)
 **		none
 */
 
+#if _FFR_TESTS
+# define TST_EO	\
+	do	\
+	{	\
+		if (tTd(86, 100) &&	\
+		    (SMFIC_EOH == cmd || SMFIC_BODYEOB == cmd) &&	\
+		    strncmp(macros[i], "{EO", 3) == 0)	\
+		{	\
+			if (SMFIC_EOH == cmd)	\
+				v = "at_EOH";	\
+			else if (SMFIC_BODYEOB == cmd)	\
+				v = "at_EOM";	\
+		}	\
+	} while (0)
+#else
+# define TST_EO	((void) 0)
+#endif
+
 static void
 milter_send_macros(m, macros, cmd, e)
 	struct milter *m;
@@ -1904,6 +1921,7 @@ milter_send_macros(m, macros, cmd, e)
 		if (mid == 0)
 			continue;
 		v = macvalue(mid, e);
+		TST_EO;
 		if (v == NULL)
 			continue;
 		expand(v, exp, sizeof(exp), e);
@@ -1928,6 +1946,7 @@ milter_send_macros(m, macros, cmd, e)
 		if (mid == 0)
 			continue;
 		v = macvalue(mid, e);
+		TST_EO;
 		if (v == NULL)
 			continue;
 		expand(v, exp, sizeof(exp), e);
@@ -2289,7 +2308,7 @@ milter_command(cmd, data, sz, stage, e, state, where, cmd_error)
 			/* log the time it took for the command per filter */
 			sm_syslog(LOG_INFO, e->e_id,
 				  "Milter (%s): time command (%c), %d",
-				  m->mf_name, command, (int) (tn - curtime()));
+				  m->mf_name, command, (int) (curtime() - tn));
 		}
 
 		if (*state != SMFIR_CONTINUE)
@@ -3329,9 +3348,9 @@ milter_changeheader(m, response, rlen, e)
 **  MILTER_SPLIT_RESPONSE -- Split response into fields.
 **
 **	Parameters:
-**		response -- encoded repsonse.
+**		response -- encoded response.
 **		rlen -- length of response.
-**		pargc -- number of arguments (ouput)
+**		pargc -- number of arguments (output)
 **
 **	Returns:
 **		array of pointers to the individual strings

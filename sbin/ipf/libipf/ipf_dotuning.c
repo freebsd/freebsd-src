@@ -19,7 +19,7 @@ void ipf_dotuning(int fd, char *tuneargs, ioctlfunc_t iocfn)
 
 	bzero((char *)&tu, sizeof(tu));
 	obj.ipfo_rev = IPFILTER_VERSION;
-	obj.ipfo_size = sizeof(tu);;
+	obj.ipfo_size = sizeof(tu);
 	obj.ipfo_ptr = (void *)&tu;
 	obj.ipfo_type = IPFOBJ_TUNEABLE;
 

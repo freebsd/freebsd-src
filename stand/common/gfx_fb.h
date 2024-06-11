@@ -281,6 +281,8 @@ void term_image_display(teken_gfx_t *, const teken_rect_t *);
 
 void reset_font_flags(void);
 
+void gfx_interp_ref(void);
+
 #ifdef __cplusplus
 }
 #endif

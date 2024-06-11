@@ -72,6 +72,18 @@
 #include <machine/cpu.h>
 #include <machine/clock.h>
 
+/*
+ * Check for 'options EARLY_PRINTF' that may have been used in old kernel
+ * config files. If you are hitting this error you should update your
+ * config to use 'options EARLY_PRINTF=<device name>', e.g. with the
+ * Arm pl011 use:
+ *
+ * options EARLY_PRINTF=pl011
+ */
+#if CHECK_EARLY_PRINTF(1)
+#error Update your config to use 'options EARLY_PRINTF=<device name>'
+#endif
+
 static MALLOC_DEFINE(M_TTYCONS, "tty console", "tty console handling");
 
 struct cn_device {
@@ -91,7 +103,7 @@ int	cons_avail_mask = 0;	/* Bit mask. Each registered low level console
 				 * this bit cleared.
 				 */
 
-static int cn_mute;
+int cn_mute;
 SYSCTL_INT(_kern, OID_AUTO, consmute, CTLFLAG_RW, &cn_mute, 0,
     "State of the console muting");
 
@@ -125,6 +137,18 @@ kbdinit(void)
 {
 
 }
+
+static void
+mute_console(void *data __unused)
+{
+
+	if ((boothowto & (RB_MUTEMSGS | RB_VERBOSE)) == RB_MUTEMSGS) {
+		printf("-- Muting boot messages --\n");
+		cn_mute = 1;
+	}
+}
+
+SYSINIT(mute_console, SI_SUB_COPYRIGHT, SI_ORDER_ANY, mute_console, NULL);
 
 void
 cninit(void)
@@ -713,7 +737,6 @@ sysbeep(int pitch __unused, sbintime_t duration __unused)
 /*
  * Temporary support for sc(4) to vt(4) transition.
  */
-static unsigned vty_prefer;
 static char vty_name[16];
 SYSCTL_STRING(_kern, OID_AUTO, vty, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, vty_name,
     0, "Console vty driver");
@@ -738,10 +761,6 @@ vty_enabled(unsigned vty)
 				break;
 			}
 #endif
-			if (vty_prefer != 0) {
-				vty_selected = vty_prefer;
-				break;
-			}
 #if defined(DEV_VT)
 			vty_selected = VTY_VT;
 #elif defined(DEV_SC)
@@ -755,17 +774,4 @@ vty_enabled(unsigned vty)
 			strcpy(vty_name, "sc");
 	}
 	return ((vty_selected & vty) != 0);
-}
-
-void
-vty_set_preferred(unsigned vty)
-{
-
-	vty_prefer = vty;
-#if !defined(DEV_SC)
-	vty_prefer &= ~VTY_SC;
-#endif
-#if !defined(DEV_VT)
-	vty_prefer &= ~VTY_VT;
-#endif
 }

@@ -40,5 +40,8 @@ rcvar="blacklistd_enable"
 command="/usr/sbin/${name}"
 required_files="/etc/blacklistd.conf"
 
+# no svcj options needed
+: ${blacklistd_svcj_options:=""}
+
 load_rc_config $name
 run_rc_command "$1"

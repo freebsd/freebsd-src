@@ -1,7 +1,10 @@
-# $Id: man.mk,v 1.25 2021/10/31 03:03:14 sjg Exp $
+# $Id: man.mk,v 1.29 2024/02/19 00:06:19 sjg Exp $
 
-.if !target(__${.PARSEFILE}__)
-__${.PARSEFILE}__: .NOTMAIN
+# should be set properly in sys.mk
+_this ?= ${.PARSEFILE:S,bsd.,,}
+
+.if !target(__${_this}__)
+__${_this}__: .NOTMAIN
 
 OPTIONS_DEFAULT_NO += CMT2DOC
 
@@ -16,13 +19,13 @@ OPTIONS_DEFAULT_NO += CMT2DOC
 # so we have to use sed(1).
 
 # set MANTARGET=cat for formatted pages
-MANTARGET?=	man
+MANTARGET ?=	man
 # set this to .0 for same behavior as bsd.man.mk
-MCATEXT?=
+MCATEXT ?=
 
-NROFF?=		nroff
-MANDIR?=	/usr/share/man
-MANDOC?= man
+NROFF ?=	nroff
+MANDIR ?=	/usr/share/man
+MANDOC ?= man
 
 MAN_SUFFIXES?= .1 .2 .3 .4 .5 .6 .7 .8 .9
 .SUFFIXES: ${MAN_SUFFIXES}
@@ -35,40 +38,6 @@ ${MAN_SUFFIXES:@s@$s${s:S,.,.cat,}@}:
 	@${NROFF} -${MANDOC} ${.IMPSRC} > ${.TARGET:T}.new && \
 	mv ${.TARGET:T}.new ${.TARGET:T}
 
-.if defined(MAN) && !empty(MAN)
-
-.if ${MK_CMT2DOC} == "yes"
-# use cmt2doc.py to extract manpages from source
-CMT2DOC?= cmt2doc.py
-CMT2DOC_OPTS?=  ${CMT2DOC_ORGOPT} -pmS${.TARGET:E}
-CMT2DOC_SUFFIXES+= .c .h .sh .pl .py
-
-.SUFFIXES: ${CMT2DOC_SUFFIXES}
-
-${CMT2DOC_SUFFIXES:@s@${MAN_SUFFIXES:@m@$s$m@}@}:
-	@echo "${CMT2DOC} ${.IMPSRC} > ${.TARGET:T}"
-	@${CMT2DOC} ${CMT2DOC_OPTS} ${.IMPSRC} > ${.TARGET:T}.new && \
-	mv ${.TARGET:T}.new ${.TARGET:T}
-
-.endif
-
-_mandir=${DESTDIR}${MANDIR}/${MANTARGET}`echo $$page | sed -e 's/.*\.cat/./' -e 's/.*\.//'`
-.if ${MANTARGET} == "cat"
-_mfromdir?=.
-MANALL=	${MAN:${MAN_SUFFIXES:S,.,,:@m@S/.$m/.cat$m/@:ts:}}
-.if ${MCATEXT} == ""
-_minstpage=`echo $$page | sed 's/\.cat/./'`
-.else
-_minstpage=`echo $$page | sed 's/\.cat.*//'`${MCATEXT}
-.endif
-.endif
-.if target(${MAN:[1]})
-_mfromdir?=.
-.endif
-_mfromdir?=${.CURDIR}
-MANALL?= ${MAN}
-_minstpage?=$${page}
-.endif
 
 .if !empty(MANOWN)
 MAN_INSTALL_OWN ?= -o ${MANOWN} -g ${MANGRP}
@@ -77,11 +46,93 @@ MAN_CHOWN ?= chown
 MAN_CHOWN = :
 .endif
 
-MINSTALL=	${INSTALL} ${COPY} ${MAN_INSTALL_OWN} -m ${MANMODE}
+MINSTALL = ${INSTALL} ${COPY} ${MAN_INSTALL_OWN} -m ${MANMODE}
+
+.if defined(MAN) && !empty(MAN)
+
+.if ${MANTARGET} == "cat"
+MANALL ?= ${MAN:T:@p@${p:R}.cat${p:E}@}
+.else
+MANALL ?= ${MAN}
+.endif
+
+.if ${MK_CMT2DOC} == "yes"
+# use cmt2doc.py to extract manpages from source
+CMT2DOC ?= cmt2doc.py
+# -m  produces man(7)
+# -mm produces mdoc(7)
+CMT2DOC_FLAGS ?= -pm
+CMT2DOC_OPTS ?=  ${CMT2DOC_ORGOPT} -S${.TARGET:E}
+CMT2DOC_SUFFIXES += .c .h .sh .pl .py
+
+.SUFFIXES: ${CMT2DOC_SUFFIXES}
+
+${CMT2DOC_SUFFIXES:@s@${MAN_SUFFIXES:@m@$s$m@}@}:
+	@echo "${CMT2DOC} ${.IMPSRC} > ${.TARGET:T}"
+	@${CMT2DOC} ${CMT2DOC_FLAGS} ${CMT2DOC_OPTS} ${.IMPSRC} > ${.TARGET:T}.new && \
+	mv ${.TARGET:T}.new ${.TARGET:T}
+
+.endif
+
+# none of this is relevant unless doing maninstall
+.if make(*install)
+_mandir = ${DESTDIR}${MANDIR}/${MANTARGET}`echo $$page | sed -e 's/.*\.cat/./' -e 's/.*\.//'`
+.if ${MANTARGET} == "cat"
+_mfromdir ?= .
+.if ${MCATEXT} == ""
+_minstpage = `echo $$page | sed 's/\.cat/./'`
+.else
+_minstpage = `echo $$page | sed 's/\.cat.*//'`${MCATEXT}
+.endif
+.endif
+.if target(${MAN:[1]})
+_mfromdir ?= .
+.endif
+_mfromdir ?= ${.CURDIR}
+_minstpage ?= $${page}
+.endif
+
 .if defined(MANZ)
 # chown and chmod are done afterward automatically
-MCOMPRESS=	gzip -cf
-MCOMPRESSSUFFIX= .gz
+MCOMPRESS_CMD ?= gzip -cf
+MCOMPRESS_EXT ?= .gz
+
+_MANZ_USE:	.USE
+	@${MCOMPRESS_CMD} ${.ALLSRC} > ${.TARGET}
+
+.for _page in ${MANALL}
+${_page:T}${MCOMPRESS_EXT}: ${_page} _MANZ_USE
+.endfor
+.endif
+
+.if ${MK_STAGING_MAN} == "yes"
+_mansets := ${MAN:E:O:u:M*[1-9]:@s@man$s@}
+.if ${MANTARGET} == "cat"
+STAGE_AS_SETS += ${_mansets}
+_stage_man = stage_as
+.else
+STAGE_SETS += ${_mansets}
+_stage_man = stage_files
+.endif
+STAGE_TARGETS += ${_stage_man}
+.for _page _as in ${MANALL:@x@$x ${x:T:S/.cat/./}@}
+${_stage_man}.man${_as:E}: ${_page}
+.if target(${_page:T}${MCOMPRESS_EXT:Umanz})
+${_man_stage}.man${_as:E}: ${_page:T}${MCOMPRESS_EXT}
+.endif
+STAGE_DIR.man${_as:E} ?= ${STAGE_OBJTOP}${MANDIR}/${MANTARGET}${_as:E}${MANSUBDIR}
+.if ${MANTARGET} == "cat"
+STAGE_AS_${_page} = ${_as}
+.endif
+.endfor
+.if !defined(NO_MLINKS) && !empty(MLINKS)
+STAGE_SETS += mlinks
+STAGE_TARGETS += stage_links
+STAGE_LINKS.mlinks := ${MLINKS:M*.[1-9]:@f@${f:S,^,${MANDIR}/${MANTARGET}${f:E}${MANSUBDIR}/,}@}
+stage_links.mlinks: ${_mansets:@s@stage_files.$s@}
+.endif
+.endif
+
 .endif
 
 maninstall:

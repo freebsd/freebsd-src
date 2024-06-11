@@ -87,8 +87,11 @@ static device_method_t	simplebus_methods[] = {
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
+	DEVMETHOD(bus_map_resource,	bus_generic_map_resource),
+	DEVMETHOD(bus_unmap_resource,	bus_generic_unmap_resource),
 	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
 	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
+	DEVMETHOD(bus_delete_resource,	bus_generic_rl_delete_resource),
 	DEVMETHOD(bus_child_pnpinfo,	ofw_bus_gen_child_pnpinfo),
 	DEVMETHOD(bus_get_resource_list, simplebus_get_resource_list),
 	DEVMETHOD(bus_get_property,	simplebus_get_property),
@@ -440,9 +443,6 @@ simplebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		if ((di = device_get_ivars(child)) == NULL)
 			return (NULL);
 
-		if (type == SYS_RES_IOPORT)
-			type = SYS_RES_MEMORY;
-
 		rle = resource_list_find(&di->rl, type, *rid);
 		if (rle == NULL) {
 			if (bootverbose)
@@ -454,6 +454,9 @@ simplebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		end = rle->end;
 		count = rle->count;
         }
+
+	if (type == SYS_RES_IOPORT)
+		type = SYS_RES_MEMORY;
 
 	if (type == SYS_RES_MEMORY) {
 		/* Remap through ranges property */

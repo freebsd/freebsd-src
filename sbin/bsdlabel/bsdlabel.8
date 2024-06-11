@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 5, 2016
+.Dd March 25, 2024
 .Dt BSDLABEL 8
 .Os
 .Sh NAME
@@ -59,6 +59,22 @@
 .Op Fl f
 .Ar disk | Fl f Ar file
 .Ar protofile
+.Sh DEPRECATION NOTICE
+.Nm
+is deprecated and is not available in
+.Fx 15.0
+or later.
+Use
+.Xr gpart 8
+instead
+.Po
+with the
+.Cm BSD
+partitioning scheme
+.Pc ,
+or install the
+.Pa freebsd-bsdlabel
+port or package.
 .Sh DESCRIPTION
 The
 .Nm
@@ -502,3 +518,8 @@ The
 .Nm disklabel
 utility appeared in
 .Bx 4.3 Tahoe .
+.Sh BUGS
+.\" PR276517
+The disklabel scheme supports up to 20 partitions, but
+.Nm
+supports only 8 partitions.

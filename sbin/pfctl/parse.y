@@ -172,7 +172,8 @@ enum	{ PF_STATE_OPT_MAX, PF_STATE_OPT_NOSYNC, PF_STATE_OPT_SRCTRACK,
 	    PF_STATE_OPT_MAX_SRC_STATES, PF_STATE_OPT_MAX_SRC_CONN,
 	    PF_STATE_OPT_MAX_SRC_CONN_RATE, PF_STATE_OPT_MAX_SRC_NODES,
 	    PF_STATE_OPT_OVERLOAD, PF_STATE_OPT_STATELOCK,
-	    PF_STATE_OPT_TIMEOUT, PF_STATE_OPT_SLOPPY, };
+	    PF_STATE_OPT_TIMEOUT, PF_STATE_OPT_SLOPPY,
+	    PF_STATE_OPT_PFLOW };
 
 enum	{ PF_SRCTRACK_NONE, PF_SRCTRACK, PF_SRCTRACK_GLOBAL, PF_SRCTRACK_RULE };
 
@@ -512,7 +513,7 @@ int	parseport(char *, struct range *r, int);
 %token	DNPIPE DNQUEUE RIDENTIFIER
 %token	LOAD RULESET_OPTIMIZATION PRIO
 %token	STICKYADDRESS MAXSRCSTATES MAXSRCNODES SOURCETRACK GLOBAL RULE
-%token	MAXSRCCONN MAXSRCCONNRATE OVERLOAD FLUSH SLOPPY
+%token	MAXSRCCONN MAXSRCCONNRATE OVERLOAD FLUSH SLOPPY PFLOW
 %token	TAGGED TAG IFBOUND FLOATING STATEPOLICY STATEDEFAULTS ROUTE SETTOS
 %token	DIVERTTO DIVERTREPLY BRIDGE_TO
 %token	<v.string>		STRING
@@ -762,7 +763,7 @@ option		: SET REASSEMBLE yesno optnodf		{
 				free($3);
 				YYERROR;
 			}
-			if (pfctl_set_debug(pf, $3) != 0) {
+			if (pfctl_do_set_debug(pf, $3) != 0) {
 				yyerror("error setting debuglevel %s", $3);
 				free($3);
 				YYERROR;
@@ -1229,7 +1230,7 @@ etherrule	: ETHER action dir quick interface bridge etherproto etherfromto l3fro
 			r.direction = $3;
 			r.quick = $4.quick;
 			if ($10.tag != NULL)
-				memcpy(&r.tagname, $10.tag, sizeof(r.tagname));
+				strlcpy(r.tagname, $10.tag, sizeof(r.tagname));
 			if ($10.match_tag)
 				if (strlcpy(r.match_tagname, $10.match_tag,
 				    PF_TAG_NAME_SIZE) >= PF_TAG_NAME_SIZE) {
@@ -1239,7 +1240,7 @@ etherrule	: ETHER action dir quick interface bridge etherproto etherfromto l3fro
 				}
 			r.match_tag_not = $10.match_tag_not;
 			if ($10.queues.qname != NULL)
-				memcpy(&r.qname, $10.queues.qname, sizeof(r.qname));
+				strlcpy(r.qname, $10.queues.qname, sizeof(r.qname));
 			r.dnpipe = $10.dnpipe;
 			r.dnflags = $10.free_flags;
 			if (eth_rule_label(&r, $10.label))
@@ -2614,6 +2615,14 @@ pfrule		: action dir logquick interface route af proto fromto
 						YYERROR;
 					}
 					r.rule_flag |= PFRULE_STATESLOPPY;
+					break;
+				case PF_STATE_OPT_PFLOW:
+					if (r.rule_flag & PFRULE_PFLOW) {
+						yyerror("state pflow option: "
+						    "multiple definitions");
+						YYERROR;
+					}
+					r.rule_flag |= PFRULE_PFLOW;
 					break;
 				case PF_STATE_OPT_TIMEOUT:
 					if (o->data.timeout.number ==
@@ -4368,6 +4377,14 @@ state_opt_item	: MAXIMUM NUMBER		{
 			$$->next = NULL;
 			$$->tail = $$;
 		}
+		| PFLOW {
+			$$ = calloc(1, sizeof(struct node_state_opt));
+			if ($$ == NULL)
+				err(1, "state_opt_item: calloc");
+			$$->type = PF_STATE_OPT_PFLOW;
+			$$->next = NULL;
+			$$->tail = $$;
+		}
 		| STRING NUMBER			{
 			int	i;
 
@@ -4663,6 +4680,7 @@ natrule		: nataction interface af proto fromto tag tagged rtable
 		    redirpool pool_opts
 		{
 			struct pfctl_rule	r;
+			struct node_state_opt	*o;
 
 			if (check_rulestate(PFCTL_STATE_NAT))
 				YYERROR;
@@ -4836,6 +4854,21 @@ natrule		: nataction interface af proto fromto tag tagged rtable
 					YYERROR;
 				}
 				r.rpool.mape = $10.mape;
+			}
+
+			o = keep_state_defaults;
+			while (o) {
+				switch (o->type) {
+				case PF_STATE_OPT_PFLOW:
+					if (r.rule_flag & PFRULE_PFLOW) {
+						yyerror("state pflow option: "
+						    "multiple definitions");
+						YYERROR;
+					}
+					r.rule_flag |= PFRULE_PFLOW;
+					break;
+				}
+				o = o->next;
 			}
 
 			expand_rule(&r, $2, $9 == NULL ? NULL : $9->host, $4,
@@ -5132,7 +5165,7 @@ timeout_spec	: STRING NUMBER
 				yyerror("only positive values permitted");
 				YYERROR;
 			}
-			if (pfctl_set_timeout(pf, $1, $2, 0) != 0) {
+			if (pfctl_apply_timeout(pf, $1, $2, 0) != 0) {
 				yyerror("unknown timeout %s", $1);
 				free($1);
 				YYERROR;
@@ -5146,7 +5179,7 @@ timeout_spec	: STRING NUMBER
 				yyerror("only positive values permitted");
 				YYERROR;
 			}
-			if (pfctl_set_timeout(pf, "interval", $2, 0) != 0)
+			if (pfctl_apply_timeout(pf, "interval", $2, 0) != 0)
 				YYERROR;
 		}
 		;
@@ -5165,7 +5198,7 @@ limit_spec	: STRING NUMBER
 				yyerror("only positive values permitted");
 				YYERROR;
 			}
-			if (pfctl_set_limit(pf, $1, $2) != 0) {
+			if (pfctl_apply_limit(pf, $1, $2) != 0) {
 				yyerror("unable to set limit %s %u", $1, $2);
 				free($1);
 				YYERROR;
@@ -6318,6 +6351,7 @@ lookup(char *s)
 		{ "out",		OUT},
 		{ "overload",		OVERLOAD},
 		{ "pass",		PASS},
+		{ "pflow",		PFLOW},
 		{ "port",		PORT},
 		{ "prio",		PRIO},
 		{ "priority",		PRIORITY},

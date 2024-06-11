@@ -1,4 +1,4 @@
-make: Bad conditional expression ' != "no"' in ' != "no"?:'
+make: Bad conditional expression ' != "no"' before '?:'
 yes
 no
 exit status 0

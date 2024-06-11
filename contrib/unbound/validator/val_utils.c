@@ -58,6 +58,10 @@
 #include "sldns/wire2str.h"
 #include "sldns/parseutil.h"
 
+/** Maximum allowed digest match failures per DS, for DNSKEYs with the same
+ *  properties */
+#define MAX_DS_MATCH_FAILURES 4
+
 enum val_classification 
 val_classify_response(uint16_t query_flags, struct query_info* origqinf,
 	struct query_info* qinf, struct reply_info* rep, size_t skip)
@@ -114,7 +118,30 @@ val_classify_response(uint16_t query_flags, struct query_info* origqinf,
 	 * ANY responses are validated differently. */
 	if(rcode == LDNS_RCODE_NOERROR && qinf->qtype == LDNS_RR_TYPE_ANY)
 		return VAL_CLASS_ANY;
-	
+
+	/* For the query type DNAME, the name matters. Equal name is the
+	 * answer looked for, but a subdomain redirects the query. */
+	if(qinf->qtype == LDNS_RR_TYPE_DNAME) {
+		for(i=skip; i<rep->an_numrrsets; i++) {
+			if(rcode == LDNS_RCODE_NOERROR &&
+				ntohs(rep->rrsets[i]->rk.type)
+				== LDNS_RR_TYPE_DNAME &&
+				query_dname_compare(qinf->qname,
+				rep->rrsets[i]->rk.dname) == 0) {
+				/* type is DNAME and name is equal, it is
+				 * the answer. For the query name a subdomain
+				 * of the rrset.dname it would redirect. */
+				return VAL_CLASS_POSITIVE;
+			}
+			if(ntohs(rep->rrsets[i]->rk.type)
+				== LDNS_RR_TYPE_CNAME)
+				return VAL_CLASS_CNAME;
+		}
+		log_dns_msg("validator: error. failed to classify response message: ",
+			qinf, rep);
+		return VAL_CLASS_UNKNOWN;
+	}
+
 	/* Note that DNAMEs will be ignored here, unless qtype=DNAME. Unless
 	 * qtype=CNAME, this will yield a CNAME response. */
 	for(i=skip; i<rep->an_numrrsets; i++) {
@@ -227,6 +254,21 @@ val_find_signer(enum val_classification subtype, struct query_info* qinf,
 				rep->rrsets[i]->rk.dname) == 0) {
 				val_find_rrset_signer(rep->rrsets[i], 
 					signer_name, signer_len);
+				/* If there was no signer, and the query
+				 * was for type CNAME, and this is a CNAME,
+				 * and the previous is a DNAME, then this
+				 * is the synthesized CNAME, use the signer
+				 * of the DNAME record. */
+				if(*signer_name == NULL &&
+				   qinf->qtype == LDNS_RR_TYPE_CNAME &&
+				   ntohs(rep->rrsets[i]->rk.type) ==
+				   LDNS_RR_TYPE_CNAME && i > skip &&
+				   ntohs(rep->rrsets[i-1]->rk.type) ==
+				   LDNS_RR_TYPE_DNAME &&
+				   dname_strict_subdomain_c(rep->rrsets[i]->rk.dname, rep->rrsets[i-1]->rk.dname)) {
+					val_find_rrset_signer(rep->rrsets[i-1],
+						signer_name, signer_len);
+				}
 				return;
 			}
 		}
@@ -336,7 +378,8 @@ static enum sec_status
 val_verify_rrset(struct module_env* env, struct val_env* ve,
         struct ub_packed_rrset_key* rrset, struct ub_packed_rrset_key* keys,
 	uint8_t* sigalg, char** reason, sldns_ede_code *reason_bogus,
-	sldns_pkt_section section, struct module_qstate* qstate)
+	sldns_pkt_section section, struct module_qstate* qstate,
+	int *verified)
 {
 	enum sec_status sec;
 	struct packed_rrset_data* d = (struct packed_rrset_data*)rrset->
@@ -346,6 +389,7 @@ val_verify_rrset(struct module_env* env, struct val_env* ve,
 		log_nametypeclass(VERB_ALGO, "verify rrset cached", 
 			rrset->rk.dname, ntohs(rrset->rk.type), 
 			ntohs(rrset->rk.rrset_class));
+		*verified = 0;
 		return d->security;
 	}
 	/* check in the cache if verification has already been done */
@@ -354,12 +398,13 @@ val_verify_rrset(struct module_env* env, struct val_env* ve,
 		log_nametypeclass(VERB_ALGO, "verify rrset from cache", 
 			rrset->rk.dname, ntohs(rrset->rk.type), 
 			ntohs(rrset->rk.rrset_class));
+		*verified = 0;
 		return d->security;
 	}
 	log_nametypeclass(VERB_ALGO, "verify rrset", rrset->rk.dname,
 		ntohs(rrset->rk.type), ntohs(rrset->rk.rrset_class));
 	sec = dnskeyset_verify_rrset(env, ve, rrset, keys, sigalg, reason,
-		reason_bogus, section, qstate);
+		reason_bogus, section, qstate, verified);
 	verbose(VERB_ALGO, "verify result: %s", sec_status_to_string(sec));
 	regional_free_all(env->scratch);
 
@@ -393,7 +438,8 @@ enum sec_status
 val_verify_rrset_entry(struct module_env* env, struct val_env* ve,
         struct ub_packed_rrset_key* rrset, struct key_entry_key* kkey,
 	char** reason, sldns_ede_code *reason_bogus,
-	sldns_pkt_section section, struct module_qstate* qstate)
+	sldns_pkt_section section, struct module_qstate* qstate,
+	int* verified)
 {
 	/* temporary dnskey rrset-key */
 	struct ub_packed_rrset_key dnskey;
@@ -407,7 +453,7 @@ val_verify_rrset_entry(struct module_env* env, struct val_env* ve,
 	dnskey.entry.key = &dnskey;
 	dnskey.entry.data = kd->rrset_data;
 	sec = val_verify_rrset(env, ve, rrset, &dnskey, kd->algo, reason,
-		reason_bogus, section, qstate);
+		reason_bogus, section, qstate, verified);
 	return sec;
 }
 
@@ -416,11 +462,13 @@ static enum sec_status
 verify_dnskeys_with_ds_rr(struct module_env* env, struct val_env* ve,
 	struct ub_packed_rrset_key* dnskey_rrset,
         struct ub_packed_rrset_key* ds_rrset, size_t ds_idx, char** reason,
-	sldns_ede_code *reason_bogus, struct module_qstate* qstate)
+	sldns_ede_code *reason_bogus, struct module_qstate* qstate,
+	int *nonechecked)
 {
 	enum sec_status sec = sec_status_bogus;
 	size_t i, num, numchecked = 0, numhashok = 0, numsizesupp = 0;
 	num = rrset_get_count(dnskey_rrset);
+	*nonechecked = 0;
 	for(i=0; i<num; i++) {
 		/* Skip DNSKEYs that don't match the basic criteria. */
 		if(ds_get_key_algo(ds_rrset, ds_idx) 
@@ -439,6 +487,12 @@ verify_dnskeys_with_ds_rr(struct module_env* env, struct val_env* ve,
 		if(!ds_digest_match_dnskey(env, dnskey_rrset, i, ds_rrset, 
 			ds_idx)) {
 			verbose(VERB_ALGO, "DS match attempt failed");
+			if(numchecked > numhashok + MAX_DS_MATCH_FAILURES) {
+				verbose(VERB_ALGO, "DS match attempt reached "
+					"MAX_DS_MATCH_FAILURES (%d); bogus",
+					MAX_DS_MATCH_FAILURES);
+				return sec_status_bogus;
+			}
 			continue;
 		}
 		numhashok++;
@@ -462,13 +516,15 @@ verify_dnskeys_with_ds_rr(struct module_env* env, struct val_env* ve,
 		/* there is a working DS, but that DNSKEY is not supported */
 		return sec_status_insecure;
 	}
-	if(numchecked == 0)
+	if(numchecked == 0) {
 		algo_needs_reason(env, ds_get_key_algo(ds_rrset, ds_idx),
 			reason, "no keys have a DS");
-	else if(numhashok == 0)
+		*nonechecked = 1;
+	} else if(numhashok == 0) {
 		*reason = "DS hash mismatches key";
-	else if(!*reason)
+	} else if(!*reason) {
 		*reason = "keyset not secured by DNSKEY that matches DS";
+	}
 	return sec_status_bogus;
 }
 
@@ -497,7 +553,8 @@ val_verify_DNSKEY_with_DS(struct module_env* env, struct val_env* ve,
 {
 	/* as long as this is false, we can consider this DS rrset to be
 	 * equivalent to no DS rrset. */
-	int has_useful_ds = 0, digest_algo, alg;
+	int has_useful_ds = 0, digest_algo, alg, has_algo_refusal = 0,
+		nonechecked, has_checked_ds = 0;
 	struct algo_needs needs;
 	size_t i, num;
 	enum sec_status sec;
@@ -530,9 +587,16 @@ val_verify_DNSKEY_with_DS(struct module_env* env, struct val_env* ve,
 		}
 
 		sec = verify_dnskeys_with_ds_rr(env, ve, dnskey_rrset,
-			ds_rrset, i, reason, reason_bogus, qstate);
-		if(sec == sec_status_insecure)
+			ds_rrset, i, reason, reason_bogus, qstate,
+			&nonechecked);
+		if(sec == sec_status_insecure) {
+			/* DNSKEY too large unsupported or algo refused by
+			 * crypto lib. */
+			has_algo_refusal = 1;
 			continue;
+		}
+		if(!nonechecked)
+			has_checked_ds = 1;
 
 		/* Once we see a single DS with a known digestID and 
 		 * algorithm, we cannot return INSECURE (with a 
@@ -557,6 +621,15 @@ val_verify_DNSKEY_with_DS(struct module_env* env, struct val_env* ve,
 
 	/* None of the DS's worked out. */
 
+	/* If none of the DSes have been checked, eg. that means no matches
+	 * for keytags, and the other dses are all algo_refusal, it is an
+	 * insecure delegation point, since the only matched DS records
+	 * have an algo refusal, or are unsupported. */
+	if(has_algo_refusal && !has_checked_ds) {
+		verbose(VERB_ALGO, "No supported DS records were found -- "
+			"treating as insecure.");
+		return sec_status_insecure;
+	}
 	/* If no DSs were understandable, then this is OK. */
 	if(!has_useful_ds) {
 		verbose(VERB_ALGO, "No usable DS records were found -- "
@@ -610,7 +683,8 @@ val_verify_DNSKEY_with_TA(struct module_env* env, struct val_env* ve,
 {
 	/* as long as this is false, we can consider this anchor to be
 	 * equivalent to no anchor. */
-	int has_useful_ta = 0, digest_algo = 0, alg;
+	int has_useful_ta = 0, digest_algo = 0, alg, has_algo_refusal = 0,
+		nonechecked, has_checked_ds = 0;
 	struct algo_needs needs;
 	size_t i, num;
 	enum sec_status sec;
@@ -656,9 +730,13 @@ val_verify_DNSKEY_with_TA(struct module_env* env, struct val_env* ve,
 			continue;
 
 		sec = verify_dnskeys_with_ds_rr(env, ve, dnskey_rrset,
-			ta_ds, i, reason, reason_bogus, qstate);
-		if(sec == sec_status_insecure)
+			ta_ds, i, reason, reason_bogus, qstate, &nonechecked);
+		if(sec == sec_status_insecure) {
+			has_algo_refusal = 1;
 			continue;
+		}
+		if(!nonechecked)
+			has_checked_ds = 1;
 
 		/* Once we see a single DS with a known digestID and 
 		 * algorithm, we cannot return INSECURE (with a 
@@ -714,6 +792,15 @@ val_verify_DNSKEY_with_TA(struct module_env* env, struct val_env* ve,
 	    }
 	}
 
+	/* If none of the DSes have been checked, eg. that means no matches
+	 * for keytags, and the other dses are all algo_refusal, it is an
+	 * insecure delegation point, since the only matched DS records
+	 * have an algo refusal, or are unsupported. */
+	if(has_algo_refusal && !has_checked_ds) {
+		verbose(VERB_ALGO, "No supported trust anchors were found -- "
+			"treating as insecure.");
+		return sec_status_insecure;
+	}
 	/* If no DSs were understandable, then this is OK. */
 	if(!has_useful_ta) {
 		verbose(VERB_ALGO, "No usable trust anchors were found -- "

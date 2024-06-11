@@ -108,9 +108,19 @@ case "$config" in
 	SKIP_LTESTS=sftp-chroot
 	;;
     gcc-11-Werror)
-	CC="gcc"
+	CC="gcc-11"
 	# -Wnoformat-truncation in gcc 7.3.1 20180130 fails on fmt_scaled
-	CFLAGS="-Wall -Wextra -O2 -Wno-format-truncation -Wimplicit-fallthrough=4 -Wno-unused-parameter"
+	# -Wunused-result ignores (void) so is not useful.  See
+	# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66425
+	CFLAGS="-O2 -Wno-format-truncation -Wimplicit-fallthrough=4 -Wno-unused-parameter -Wno-unused-result"
+	CONFIGFLAGS="--with-pam --with-Werror"
+	;;
+    gcc-12-Werror)
+	CC="gcc-12"
+	# -Wnoformat-truncation in gcc 7.3.1 20180130 fails on fmt_scaled
+	# -Wunused-result ignores (void) so is not useful.  See
+	# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66425
+	CFLAGS="-O2 -Wno-format-truncation -Wimplicit-fallthrough=4 -Wno-unused-parameter -Wno-unused-result"
 	CONFIGFLAGS="--with-pam --with-Werror"
 	;;
     clang*|gcc*)
@@ -153,6 +163,11 @@ case "$config" in
 	;;
     libressl-*)
 	LIBCRYPTOFLAGS="--with-ssl-dir=/opt/libressl --with-rpath=-Wl,-rpath,"
+	;;
+    putty-*)
+	CONFIGFLAGS="--with-plink=/usr/local/bin/plink --with-puttygen=/usr/local/bin/puttygen"
+	# We don't need to rerun the regular tests, just the interop ones.
+	TEST_TARGET=interop-tests
 	;;
     openssl-*)
 	LIBCRYPTOFLAGS="--with-ssl-dir=/opt/openssl --with-rpath=-Wl,-rpath,"
@@ -259,20 +274,22 @@ case "${TARGET_HOST}" in
 	;;
     minix3)
 	CONFIGFLAGS="${CONFIGFLAGS} --disable-security-key"
+	# Unix domain sockets don't work quite like we expect, so also
+	# disable FD passing (and thus multiplexing).
+	CONFIGFLAGS="${CONFIGFLAGS} --disable-fd-passing"
 	LIBCRYPTOFLAGS="--without-openssl"
+
 	# Minix does not have a loopback interface so we have to skip any
 	# test that relies on one.
 	# Also, Minix seems to be very limited in the number of select()
 	# calls that can be operating concurrently, so prune additional tests for that.
 	T="addrmatch agent-restrict brokenkeys cfgmatch cfgmatchlisten cfgparse
-	    connect connect-uri exit-status forwarding hostkey-agent
-	    key-options keyscan knownhosts-command login-timeout
+	    connect connect-uri dynamic-forward exit-status forwarding
+	    forward-control
+	    hostkey-agent key-options keyscan knownhosts-command login-timeout
 	    reconfigure reexec rekey scp scp-uri scp3 sftp sftp-badcmds
 	    sftp-batch sftp-cmds sftp-glob sftp-perm sftp-uri stderr-data
 	    transfer"
-	# Unix domain sockets don't work quite like we expect, so also skip any tests
-	# that use multiplexing.
-	T="$T connection-timeout dynamic-forward forward-control multiplex"
 	SKIP_LTESTS="$(echo $T)"
 	TEST_TARGET=t-exec
 	SUDO=""
@@ -310,6 +327,10 @@ case "$host" in
 	# modern versions don't ship with libcrypto.
 	LIBCRYPTOFLAGS="--without-openssl"
 	TEST_TARGET=t-exec
+
+	# On some OS X runners we can't write to /var/empty.
+	CONFIGFLAGS="${CONFIGFLAGS} --with-privsep-path=/usr/local/empty"
+
 	case "$host" in
 	*-darwin22.*)
 		# sudo -S nobody doesn't work on macos 13 for some reason.

@@ -16,6 +16,7 @@ account		required	pam_unix.so
 # session
 #session	required	pam_ssh.so		want_agent
 session		required	pam_lastlog.so		no_fail
+session         required        pam_xdg.so
 
 # password
 password	required	pam_deny.so

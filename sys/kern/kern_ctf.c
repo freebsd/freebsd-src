@@ -27,6 +27,10 @@
  */
 
 #include <sys/ctf.h>
+#include <sys/kdb.h>
+#include <sys/linker.h>
+
+#include <ddb/db_ctf.h>
 
 /*
  * Note this file is included by both link_elf.c and link_elf_obj.c.
@@ -86,6 +90,9 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 		return (0);
 	}
 
+	if (panicstr != NULL || kdb_active)
+		return (ENXIO);
+
 	/*
 	 * We need to try reading the CTF data. Flag no CTF data present
 	 * by default and if we actually succeed in reading it, we'll
@@ -137,9 +144,12 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 	 * .SUNW_ctf section containing the CTF data.
 	 */
 	if (hdr->e_shstrndx == 0 || shdr[hdr->e_shstrndx].sh_type != SHT_STRTAB) {
-		printf("%s(%d): module %s e_shstrndx is %d, sh_type is %d\n",
-		    __func__, __LINE__, lf->pathname, hdr->e_shstrndx,
-		    shdr[hdr->e_shstrndx].sh_type);
+		if (bootverbose) {
+			printf(
+			    "%s(%d): module %s e_shstrndx is %d, sh_type is %d\n",
+			    __func__, __LINE__, lf->pathname, hdr->e_shstrndx,
+			    shdr[hdr->e_shstrndx].sh_type);
+		}
 		error = EFTYPE;
 		goto out;
 	}
@@ -160,8 +170,10 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 
 	/* Check if the CTF section wasn't found. */
 	if (i >= hdr->e_shnum) {
-		printf("%s(%d): module %s has no .SUNW_ctf section\n",
-		    __func__, __LINE__, lf->pathname);
+		if (bootverbose) {
+			printf("%s(%d): module %s has no .SUNW_ctf section\n",
+			    __func__, __LINE__, lf->pathname);
+		}
 		error = EFTYPE;
 		goto out;
 	}
@@ -174,17 +186,21 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 
 	/* Check the CTF magic number. */
 	if (cth.cth_magic != CTF_MAGIC) {
-		printf("%s(%d): module %s has invalid format\n",
-		    __func__, __LINE__, lf->pathname);
+		if (bootverbose) {
+			printf("%s(%d): module %s has invalid format\n",
+			    __func__, __LINE__, lf->pathname);
+		}
 		error = EFTYPE;
 		goto out;
 	}
 
 	if (cth.cth_version != CTF_VERSION_2 &&
 	    cth.cth_version != CTF_VERSION_3) {
-		printf(
-		    "%s(%d): module %s CTF format has unsupported version %d\n",
-		    __func__, __LINE__, lf->pathname, cth.cth_version);
+		if (bootverbose) {
+			printf(
+			    "%s(%d): module %s CTF format has unsupported version %d\n",
+			    __func__, __LINE__, lf->pathname, cth.cth_version);
+		}
 		error = EFTYPE;
 		goto out;
 	}
@@ -243,8 +259,10 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 		ret = uncompress(ctftab + sizeof(cth), &destlen,
 		    raw + sizeof(cth), shdr[i].sh_size - sizeof(cth));
 		if (ret != Z_OK) {
-			printf("%s(%d): zlib uncompress returned %d\n",
-			    __func__, __LINE__, ret);
+			if (bootverbose) {
+				printf("%s(%d): zlib uncompress returned %d\n",
+				    __func__, __LINE__, ret);
+			}
 			error = EIO;
 			goto out;
 		}
@@ -287,4 +305,41 @@ out:
 #endif
 
 	return (error);
+}
+
+static int
+link_elf_ctf_get_ddb(linker_file_t lf, linker_ctf_t *lc)
+{
+	elf_file_t ef = (elf_file_t)lf;
+
+	/*
+	 * Check whether CTF data was loaded or if a
+	 * previous loading attempt failed (ctfcnt == -1).
+	 */
+	if (ef->ctfcnt <= 0) {
+		return (ENOENT);
+	}
+
+	lc->ctftab = ef->ctftab;
+	lc->ctfcnt = ef->ctfcnt;
+	lc->symtab = ef->ddbsymtab;
+	lc->strtab = ef->ddbstrtab;
+	lc->strcnt = ef->ddbstrcnt;
+	lc->nsym = ef->ddbsymcnt;
+
+	return (0);
+}
+
+static int
+link_elf_ctf_lookup_typename(linker_file_t lf, linker_ctf_t *lc,
+    const char *typename)
+{
+	if (link_elf_ctf_get_ddb(lf, lc))
+		return (ENOENT);
+
+#ifdef DDB
+	return (db_ctf_lookup_typename(lc, typename) ? 0 : ENOENT);
+#else
+	return (ENOENT);
+#endif
 }

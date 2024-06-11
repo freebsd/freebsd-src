@@ -89,6 +89,9 @@ static int sysctl_devctl_queue(SYSCTL_HANDLER_ARGS);
 static int devctl_queue_length = DEVCTL_DEFAULT_QUEUE_LEN;
 SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_queue, CTLTYPE_INT | CTLFLAG_RWTUN |
     CTLFLAG_MPSAFE, NULL, 0, sysctl_devctl_queue, "I", "devctl queue length");
+static bool nomatch_enabled = true;
+SYSCTL_BOOL(_hw_bus, OID_AUTO, devctl_nomatch_enabled, CTLFLAG_RWTUN,
+    &nomatch_enabled, 0, "enable nomatch events");
 
 static void devctl_attach_handler(void *arg __unused, device_t dev);
 static void devctl_detach_handler(void *arg __unused, device_t dev,
@@ -208,7 +211,8 @@ devctl_detach_handler(void *arg __unused, device_t dev, enum evhdev_detach state
 static void
 devctl_nomatch_handler(void *arg __unused, device_t dev)
 {
-	devaddq("?", "", dev);
+	if (nomatch_enabled)
+		devaddq("?", "", dev);
 }
 
 static int

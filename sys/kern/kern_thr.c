@@ -26,11 +26,12 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_posix.h"
 #include "opt_hwpmc_hooks.h"
-#include <sys/param.h>
+
+#include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/priv.h>
@@ -39,21 +40,19 @@
 #include <sys/ptrace.h>
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
+#include <sys/rtprio.h>
 #include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <sys/smp.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
-#include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/signalvar.h>
 #include <sys/sysctl.h>
-#include <sys/ucontext.h>
 #include <sys/thr.h>
-#include <sys/rtprio.h>
+#include <sys/ucontext.h>
 #include <sys/umtxvar.h>
-#include <sys/limits.h>
 #ifdef	HWPMC_HOOKS
 #include <sys/pmckern.h>
 #endif
@@ -146,6 +145,7 @@ thr_new_initthr(struct thread *td, void *thunk)
 {
 	stack_t stack;
 	struct thr_param *param;
+	int error;
 
 	/*
 	 * Here we copy out tid to two places, one for child and one
@@ -165,7 +165,9 @@ thr_new_initthr(struct thread *td, void *thunk)
 	stack.ss_sp = param->stack_base;
 	stack.ss_size = param->stack_size;
 	/* Set upcall address to user thread entry function. */
-	cpu_set_upcall(td, param->start_func, param->arg, &stack);
+	error = cpu_set_upcall(td, param->start_func, param->arg, &stack);
+	if (error != 0)
+		return (error);
 	/* Setup user TLS address and TLS pointer register. */
 	return (cpu_set_user_tls(td, param->tls_base));
 }
@@ -312,8 +314,8 @@ sys_thr_exit(struct thread *td, struct thr_exit_args *uap)
 
 	/* Signal userland that it can free the stack. */
 	if ((void *)uap->state != NULL) {
-		suword_lwpid(uap->state, 1);
-		kern_umtx_wake(td, uap->state, INT_MAX, 0);
+		(void)suword_lwpid(uap->state, 1);
+		(void)kern_umtx_wake(td, uap->state, INT_MAX, 0);
 	}
 
 	return (kern_thr_exit(td));

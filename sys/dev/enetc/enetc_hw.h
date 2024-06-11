@@ -9,7 +9,6 @@
 
 #define BIT(x)	(1UL << (x))
 #define GENMASK(h, l)	(((~0U) - (1U << (l)) + 1) & (~0U >> (32 - 1 - (h))))
-#define ilog2(x)	(flsl(x) - 1)
 
 #define PCI_VENDOR_FREESCALE	0x1957
 

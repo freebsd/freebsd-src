@@ -1266,7 +1266,8 @@ malloc_init(void *data)
 	struct malloc_type_internal *mtip;
 	struct malloc_type *mtp;
 
-	KASSERT(vm_cnt.v_page_count != 0, ("malloc_register before vm_init"));
+	KASSERT(vm_cnt.v_page_count != 0,
+	    ("malloc_init() called before vm_mem_init()"));
 
 	mtp = data;
 	if (mtp->ks_version != M_VERSION)

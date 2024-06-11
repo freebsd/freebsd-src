@@ -21,8 +21,6 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #ifndef ARCHIVE_WRITE_PRIVATE_H_INCLUDED
@@ -160,7 +158,7 @@ int	__archive_write_program_write(struct archive_write_filter *,
 	    struct archive_write_program_data *, const void *, size_t);
 
 /*
- * Get a encryption passphrase.
+ * Get an encryption passphrase.
  */
 const char * __archive_write_get_passphrase(struct archive_write *a);
 #endif

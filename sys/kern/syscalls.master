@@ -497,7 +497,7 @@
 		    int flags
 		);
 	}
-66	AUE_VFORK	STD {
+66	AUE_VFORK	STD|CAPENABLED {
 		int vfork(void);
 	}
 67	AUE_NULL	OBSOL	vread
@@ -616,7 +616,7 @@
 		int fcntl(
 		    int fd,
 		    int cmd,
-		    long arg
+		    intptr_t arg
 		);
 	}
 ; XXX should be { int fcntl(int fd, int cmd, ...); }
@@ -782,16 +782,16 @@
 	}
 119	AUE_NULL	RESERVED
 120	AUE_READV	STD|CAPENABLED {
-		int readv(
+		ssize_t readv(
 		    int fd,
-		    _Inout_updates_(iovcnt) _Contains_long_ptr_ struct iovec *iovp,
+		    _In_reads_(iovcnt) _Contains_long_ptr_ const struct iovec *iovp,
 		    u_int iovcnt
 		);
 	}
 121	AUE_WRITEV	STD|CAPENABLED {
-		int writev(
+		ssize_t writev(
 		    int fd,
-		    _In_reads_opt_(iovcnt) _Contains_long_ptr_ struct iovec *iovp,
+		    _In_reads_(iovcnt) _Contains_long_ptr_ const struct iovec *iovp,
 		    u_int iovcnt
 		);
 	}
@@ -1277,7 +1277,6 @@
 217	AUE_NULL	NODEF|NOTSTATIC	lkmnosys lkmnosys nosys_args int
 218	AUE_NULL	NODEF|NOTSTATIC	lkmnosys lkmnosys nosys_args int
 219	AUE_NULL	NODEF|NOTSTATIC	lkmnosys lkmnosys nosys_args int
-
 220	AUE_SEMCTL	COMPAT7|NOSTD {
 		int __semctl(
 		    int semid,
@@ -1456,7 +1455,7 @@
 		    int inherit
 		);
 	}
-251	AUE_RFORK	STD {
+251	AUE_RFORK	STD|CAPENABLED {
 		int rfork(
 		    int flags
 		);
@@ -1646,7 +1645,7 @@
 	}
 315	AUE_AIO_SUSPEND	STD|CAPENABLED {
 		int aio_suspend(
-		    _Inout_updates_(nent) _Contains_long_ptr_ struct aiocb * const * aiocbp,
+		    _Inout_updates_(nent) _Contains_long_ptr_ const struct aiocb * const * aiocbp,
 		    int nent,
 		    _In_opt_ _Contains_long_timet_ const struct timespec *timeout
 		);
@@ -1812,67 +1811,67 @@
 345	AUE_SIGWAIT	STD|CAPENABLED {
 		int sigtimedwait(
 		    _In_ const sigset_t *set,
-		    _Out_opt_ _Contains_long_ptr_ struct siginfo *info,
+		    _Out_opt_ _Contains_long_ptr_ struct __siginfo *info,
 		    _In_opt_ _Contains_long_timet_ const struct timespec *timeout
 		);
 	}
 346	AUE_NULL	STD|CAPENABLED {
 		int sigwaitinfo(
 		    _In_ const sigset_t *set,
-		    _Out_opt_ _Contains_long_ptr_ struct siginfo *info
+		    _Out_opt_ _Contains_long_ptr_ struct __siginfo *info
 		);
 	}
 347	AUE_ACL_GET_FILE	STD {
 		int __acl_get_file(
 		    _In_z_ const char *path,
-		    acl_type_t type,
+		    __acl_type_t type,
 		    _Out_ struct acl *aclp
 		);
 	}
 348	AUE_ACL_SET_FILE	STD {
 		int __acl_set_file(
 		    _In_z_ const char *path,
-		    acl_type_t type,
+		    __acl_type_t type,
 		    _In_ struct acl *aclp
 		);
 	}
 349	AUE_ACL_GET_FD	STD|CAPENABLED {
 		int __acl_get_fd(
 		    int filedes,
-		    acl_type_t type,
+		    __acl_type_t type,
 		    _Out_ struct acl *aclp
 		);
 	}
 350	AUE_ACL_SET_FD	STD|CAPENABLED {
 		int __acl_set_fd(
 		    int filedes,
-		    acl_type_t type,
+		    __acl_type_t type,
 		    _In_ struct acl *aclp
 		);
 	}
 351	AUE_ACL_DELETE_FILE	STD {
 		int __acl_delete_file(
 		    _In_z_ const char *path,
-		    acl_type_t type
+		    __acl_type_t type
 		);
 	}
 352	AUE_ACL_DELETE_FD	STD|CAPENABLED {
 		int __acl_delete_fd(
 		    int filedes,
-		    acl_type_t type
+		    __acl_type_t type
 		);
 	}
 353	AUE_ACL_CHECK_FILE	STD {
 		int __acl_aclcheck_file(
 		    _In_z_ const char *path,
-		    acl_type_t type,
+		    __acl_type_t type,
 		    _In_ struct acl *aclp
 		);
 	}
 354	AUE_ACL_CHECK_FD	STD|CAPENABLED {
 		int __acl_aclcheck_fd(
 		    int filedes,
-		    acl_type_t type,
+		    __acl_type_t type,
 		    _In_ struct acl *aclp
 		);
 	}
@@ -2247,27 +2246,27 @@
 425	AUE_ACL_GET_LINK	STD {
 		int __acl_get_link(
 		    _In_z_ const char *path,
-		    acl_type_t type,
+		    __acl_type_t type,
 		    _Out_ struct acl *aclp
 		);
 	}
 426	AUE_ACL_SET_LINK	STD {
 		int __acl_set_link(
 		    _In_z_ const char *path,
-		    acl_type_t type,
+		    __acl_type_t type,
 		    _In_ struct acl *aclp
 		);
 	}
 427	AUE_ACL_DELETE_LINK	STD {
 		int __acl_delete_link(
 		    _In_z_ const char *path,
-		    acl_type_t type
+		    __acl_type_t type
 		);
 	}
 428	AUE_ACL_CHECK_LINK	STD {
 		int __acl_aclcheck_link(
 		    _In_z_ const char *path,
-		    acl_type_t type,
+		    __acl_type_t type,
 		    _In_ struct acl *aclp
 		);
 	}
@@ -2300,19 +2299,16 @@
 		    int sig
 		);
 	}
-
 434	AUE_NULL	COMPAT10 {
 		int _umtx_lock(
 		    _Inout_ struct umtx *umtx
 		);
 	}
-
 435	AUE_NULL	COMPAT10 {
 		int _umtx_unlock(
 		    _Inout_ struct umtx *umtx
 		);
 	}
-
 436	AUE_JAIL_ATTACH	STD {
 		int jail_attach(
 		    int jid
@@ -2437,7 +2433,6 @@
 		    _In_ void *value
 		);
 	}
-
 457	AUE_MQ_OPEN	NOSTD {
 		int kmq_open(
 		    _In_z_ const char *path,
@@ -2948,7 +2943,7 @@
 		    _Out_opt_ int *status,
 		    int options,
 		    _Out_opt_ _Contains_long_ struct __wrusage *wrusage,
-		    _Out_opt_ _Contains_long_ptr_ struct siginfo *info
+		    _Out_opt_ _Contains_long_ptr_ struct __siginfo *info
 		);
 	}
 533	AUE_CAP_RIGHTS_LIMIT	STD|CAPENABLED {
@@ -3236,7 +3231,7 @@
 573	AUE_NULL	STD|CAPENABLED {
 		int sigfastblock(
 		    int cmd,
-		    _Inout_opt_ uint32_t *ptr
+		    _Inout_updates_bytes_opt_(4) void *ptr
 		);
 	}
 574	AUE_REALPATHAT	STD {
@@ -3329,7 +3324,17 @@
 		    _Out_opt_ _Contains_long_timet_ struct itimerspec *old_value
 		);
 	}
-588 AUE_NULL STD {
+588	AUE_NULL	STD {
+		int kcmp(
+		    pid_t pid1,
+		    pid_t pid2,
+		    int type,
+		    uintptr_t idx1,
+		    uintptr_t idx2
+		);
+	}
+
+589 AUE_NULL STD {
 		int osdb_exec(
 			_In_reads_z(querylen) const char *query,
 			int querylen,
@@ -3338,7 +3343,7 @@
 			int reslen
 		);
 	}
-589 AUE_NULL STD {
+590 AUE_NULL STD {
 		int osdb_prepare_v2(
 			_In_reads_z(nBytes) const char *zSql,
 			int nBytes,
@@ -3346,19 +3351,19 @@
 			_Out_ void** pzTail
 		);
 	}
-590 AUE_NULL STD {
+591 AUE_NULL STD {
 		int osdb_step(
 			_In_ void* sqlite3_stmt,
 			_Out_ int * status
 
 		);
 	}
-591 AUE_NULL STD {
+592 AUE_NULL STD {
 		int osdb_finalize(
 			_In_ void* sqlite3_stmt
 		);
 	}
-592 AUE_NULL STD {
+593 AUE_NULL STD {
 		int osdb_column_blob(
 			_In_ void* sqlite3_stmt,
 			int iCol,
@@ -3366,28 +3371,28 @@
 			int len
 		);
 	}
-593 AUE_NULL STD {
+594 AUE_NULL STD {
 		int osdb_column_double(
 			_In_ void* sqlite3_stmt,
 			int iCol,
 			_Out_ double * result
 		);
 	}
-594 AUE_NULL STD {
+595 AUE_NULL STD {
 		int osdb_column_int(
 			_In_ void* sqlite3_stmt,
 			int iCol,
 			_Out_ int * result
 		);
 	}
-595 AUE_NULL STD {
+596 AUE_NULL STD {
 		int osdb_column_int64(
 			_In_ void* sqlite3_stmt,
 			int iCol,
 			_Out_ long * result
 		);
 	}
-596 AUE_NULL STD {
+597 AUE_NULL STD {
 		int osdb_column_text(
 			_In_ void* sqlite3_stmt,
 			int iCol,
@@ -3395,7 +3400,7 @@
 			int len
 		);
 	}
-597 AUE_NULL STD {
+598 AUE_NULL STD {
 		int osdb_column_text16(
 			_In_ void* sqlite3_stmt,
 			int iCol,
@@ -3403,7 +3408,7 @@
 			int len
 		);
 	}
-598 AUE_NULL STD {
+599 AUE_NULL STD {
 		int osdb_column_value(
 			_In_ void* sqlite3_stmt,
 			int iCol,
@@ -3411,38 +3416,38 @@
 			_Out_ int * reslen
 		);
 	}
-599 AUE_NULL STD {
+600 AUE_NULL STD {
 		int osdb_column_bytes(
 			_In_ void* sqlite3_stmt,
 			int iCol,
 			_Out_ int * size
 		);
 	}
-600 AUE_NULL STD {
+601 AUE_NULL STD {
 		int osdb_column_bytes16(
 			_In_ void* sqlite3_stmt,
 			int iCol,
 			_Out_ int * size
 		);
 	}
-601 AUE_NULL STD {
+602 AUE_NULL STD {
 		int osdb_column_type(
 			_In_ void* sqlite3_stmt,
 			int iCol,
 			_Out_ int * datatype
 		);
 	}
-602 AUE_NULL STD {
+603 AUE_NULL STD {
 		int osdb_column_count(
 			_In_ void* sqlite3_stmt,
 			_Out_ int * count	
 		);
 	}
-603 AUE_NULL STD {
+604 AUE_NULL STD {
 		int osdb_column_name(
 			_In_ void* sqlite3_stmt,
 			int N,
 			_Out_ void *name
 		);
 	}
-:; vim: syntax=off
+; vim: syntax=off

@@ -13,9 +13,9 @@ MAN+=	boot_i386.8
 MLINKS+= boot_i386.8 boot.8
 .endif
 
-LINKS=	${BINDIR}/reboot ${BINDIR}/halt ${BINDIR}/reboot ${BINDIR}/fastboot \
-	${BINDIR}/reboot ${BINDIR}/fasthalt
-
-SCRIPTS=	nextboot.sh
+LINKS=	${BINDIR}/reboot ${BINDIR}/halt \
+	${BINDIR}/reboot ${BINDIR}/fastboot \
+	${BINDIR}/reboot ${BINDIR}/fasthalt \
+	${BINDIR}/reboot ${BINDIR}/nextboot
 
 .include <bsd.prog.mk>

@@ -1,4 +1,4 @@
-/*	$NetBSD: str.c,v 1.99 2023/06/23 05:03:04 rillig Exp $	*/
+/*	$NetBSD: str.c,v 1.103 2024/04/14 15:21:20 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -71,7 +71,7 @@
 #include "make.h"
 
 /*	"@(#)str.c	5.8 (Berkeley) 6/1/90"	*/
-MAKE_RCSID("$NetBSD: str.c,v 1.99 2023/06/23 05:03:04 rillig Exp $");
+MAKE_RCSID("$NetBSD: str.c,v 1.103 2024/04/14 15:21:20 rillig Exp $");
 
 
 static HashTable interned_strings;
@@ -106,6 +106,10 @@ str_concat3(const char *s1, const char *s2, const char *s3)
 /*
  * Fracture a string into an array of words (as delineated by tabs or spaces)
  * taking quotation marks into account.
+ *
+ * A string that is empty or only contains whitespace nevertheless results in
+ * a single word.  This is unexpected in many places, and the caller needs to
+ * correct for this edge case.
  *
  * If expand is true, quotes are removed and escape sequences such as \r, \t,
  * etc... are expanded. In this case, return NULL on parse errors.
@@ -293,26 +297,6 @@ Str_Words(const char *str, bool expand)
 }
 
 /*
- * XXX: In the extreme edge case that one of the characters is from the basic
- * execution character set and the other isn't, the result of the comparison
- * differs depending on whether plain char is signed or unsigned.
- *
- * An example is the character range from \xE4 to 'a', where \xE4 may come
- * from U+00E4 'Latin small letter A with diaeresis'.
- *
- * If char is signed, \xE4 evaluates to -28, the first half of the condition
- * becomes -28 <= '0' && '0' <= 'a', which evaluates to true.
- *
- * If char is unsigned, \xE4 evaluates to 228, the second half of the
- * condition becomes 'a' <= '0' && '0' <= 228, which evaluates to false.
- */
-static bool
-in_range(char e1, char c, char e2)
-{
-	return (e1 <= c && c <= e2) || (e2 <= c && c <= e1);
-}
-
-/*
  * Test if a string matches a pattern like "*.[ch]". The pattern matching
  * characters are '*', '?' and '[]', as in fnmatch(3).
  *
@@ -322,17 +306,13 @@ StrMatchResult
 Str_Match(const char *str, const char *pat)
 {
 	StrMatchResult res = { NULL, false };
-	const char *fixed_str, *fixed_pat;
-	bool asterisk, matched;
-
-	asterisk = false;
-	fixed_str = str;
-	fixed_pat = pat;
+	bool asterisk = false;
+	const char *fixed_str = str;
+	const char *fixed_pat = pat;
 
 match_fixed_length:
 	str = fixed_str;
 	pat = fixed_pat;
-	matched = false;
 	for (; *pat != '\0' && *pat != '*'; str++, pat++) {
 		if (*str == '\0')
 			return res;
@@ -350,7 +330,7 @@ match_fixed_length:
 			if (*pat == ']' || *pat == '\0') {
 				if (neg)
 					goto end_of_char_list;
-				goto match_done;
+				goto no_match;
 			}
 			if (*pat == *str)
 				goto end_of_char_list;
@@ -360,7 +340,11 @@ match_fixed_length:
 				return res;
 			}
 			if (pat[1] == '-') {
-				if (in_range(pat[0], *str, pat[2]))
+				unsigned char e1 = (unsigned char)pat[0];
+				unsigned char c = (unsigned char)*str;
+				unsigned char e2 = (unsigned char)pat[2];
+				if ((e1 <= c && c <= e2)
+				    || (e2 <= c && c <= e1))
 					goto end_of_char_list;
 				pat += 2;
 			}
@@ -369,7 +353,7 @@ match_fixed_length:
 
 		end_of_char_list:
 			if (neg && *pat != ']' && *pat != '\0')
-				goto match_done;
+				goto no_match;
 			while (*pat != ']' && *pat != '\0')
 				pat++;
 			if (*pat == '\0')
@@ -379,43 +363,40 @@ match_fixed_length:
 
 		if (*pat == '\\')	/* match the next character exactly */
 			pat++;
-		if (*pat != *str)
-			goto match_done;
-	}
-	matched = true;
-
-match_done:
-	if (!asterisk) {
-		if (!matched)
-			return res;
-		if (*pat == '\0') {
-			res.matched = *str == '\0';
-			return res;
-		}
-		asterisk = true;
-	} else {
-		if (!matched) {
-			fixed_str++;
-			goto match_fixed_length;
-		}
-		if (*pat == '\0') {
-			if (*str == '\0') {
-				res.matched = true;
-				return res;
+		if (*pat != *str) {
+			if (asterisk && str == fixed_str) {
+				while (*str != '\0' && *str != *pat)
+					str++;
+				fixed_str = str;
+				goto match_fixed_length;
 			}
-			fixed_str += strlen(str);
-			goto match_fixed_length;
+			goto no_match;
 		}
 	}
 
-	while (*pat == '*')
-		pat++;
-	if (*pat == '\0') {
-		res.matched = true;
-		return res;
+	if (*pat == '*') {
+		asterisk = true;
+		while (*pat == '*')
+			pat++;
+		if (*pat == '\0') {
+			res.matched = true;
+			return res;
+		}
+		fixed_str = str;
+		fixed_pat = pat;
+		goto match_fixed_length;
 	}
-	fixed_str = str;
-	fixed_pat = pat;
+	if (asterisk && *str != '\0') {
+		fixed_str += strlen(str);
+		goto match_fixed_length;
+	}
+	res.matched = *str == '\0';
+	return res;
+
+no_match:
+	if (!asterisk)
+		return res;
+	fixed_str++;
 	goto match_fixed_length;
 }
 

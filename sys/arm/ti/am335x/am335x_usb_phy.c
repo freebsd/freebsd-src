@@ -83,7 +83,7 @@ ti_usb_phy_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
-	/* FIXME: Add dev/extres/phy/ interface */
+	/* FIXME: Add dev/phy/ interface */
 
 	return (bus_generic_attach(dev));
 }

@@ -146,9 +146,9 @@ db_nextframe(db_addr_t *fp, db_addr_t *ip, struct thread *td)
 	const char *name;
 
 	rip = db_get_value(*fp + offsetof(struct amd64_frame, f_retaddr), 8,
-	    FALSE);
+	    false);
 	rbp = db_get_value(*fp + offsetof(struct amd64_frame, f_frame), 8,
-	    FALSE);
+	    false);
 
 	/*
 	 * Figure out frame type.  We look at the address just before
@@ -205,7 +205,8 @@ db_nextframe(db_addr_t *fp, db_addr_t *ip, struct thread *td)
 	 */
 	tf_addr = *fp + 16;
 
-	if (!__is_aligned(tf_addr, _Alignof(*tf)) || !INKERNEL(tf_addr)) {
+	if (!__is_aligned(tf_addr, _Alignof(struct trapframe)) ||
+	    !INKERNEL(tf_addr)) {
 		db_printf("--- invalid trapframe %p\n", (void *)tf_addr);
 		*ip = 0;
 		*fp = 0;
@@ -244,12 +245,12 @@ db_backtrace(struct thread *td, struct trapframe *tf, db_addr_t frame,
 	const char *name;
 	db_expr_t offset;
 	c_db_sym_t sym;
-	boolean_t first;
+	bool first;
 
 	if (count == -1)
 		count = 1024;
 
-	first = TRUE;
+	first = true;
 	while (count-- && !db_pager_quit) {
 		sym = db_search_symbol(pc, DB_STGY_ANY, &offset);
 		db_symbol_values(sym, &name, NULL);
@@ -267,7 +268,7 @@ db_backtrace(struct thread *td, struct trapframe *tf, db_addr_t frame,
 		 */
 		actframe = frame;
 		if (first) {
-			first = FALSE;
+			first = false;
 			if (sym == C_DB_SYM_NULL && sp != 0) {
 				/*
 				 * If a symbol couldn't be found, we've probably
@@ -275,7 +276,7 @@ db_backtrace(struct thread *td, struct trapframe *tf, db_addr_t frame,
 				 * the return address to find our caller.
 				 */
 				db_print_stack_entry(name, pc, 0);
-				pc = db_get_value(sp, 8, FALSE);
+				pc = db_get_value(sp, 8, false);
 				if (db_search_symbol(pc, DB_STGY_PROC,
 				    &offset) == C_DB_SYM_NULL)
 					break;
@@ -283,7 +284,7 @@ db_backtrace(struct thread *td, struct trapframe *tf, db_addr_t frame,
 			} else if (tf != NULL) {
 				int instr;
 
-				instr = db_get_value(pc, 4, FALSE);
+				instr = db_get_value(pc, 4, false);
 				if ((instr & 0xffffffff) == 0xe5894855) {
 					/* pushq %rbp; movq %rsp, %rbp */
 					actframe = tf->tf_rsp - 8;
@@ -317,7 +318,7 @@ db_backtrace(struct thread *td, struct trapframe *tf, db_addr_t frame,
 		if (actframe != frame) {
 			/* `frame' belongs to caller. */
 			pc = db_get_value(actframe +
-			    offsetof(struct amd64_frame, f_retaddr), 8, FALSE);
+			    offsetof(struct amd64_frame, f_retaddr), 8, false);
 			continue;
 		}
 
@@ -349,9 +350,9 @@ db_trace_self(void)
 
 	__asm __volatile("movq %%rbp,%0" : "=r" (rbp));
 	callpc = db_get_value(rbp + offsetof(struct amd64_frame, f_retaddr), 8,
-	    FALSE);
+	    false);
 	frame = db_get_value(rbp + offsetof(struct amd64_frame, f_frame), 8,
-	    FALSE);
+	    false);
 	db_backtrace(curthread, NULL, frame, callpc, 0, -1);
 }
 

@@ -48,13 +48,21 @@ void RISCVTargetStreamer::setTargetABI(RISCVABI::ABI ABI) {
   TargetABI = ABI;
 }
 
+void RISCVTargetStreamer::setFlagsFromFeatures(const MCSubtargetInfo &STI) {
+  HasRVC = STI.hasFeature(RISCV::FeatureStdExtC);
+  HasTSO = STI.hasFeature(RISCV::FeatureStdExtZtso);
+}
+
 void RISCVTargetStreamer::emitTargetAttributes(const MCSubtargetInfo &STI,
                                                bool EmitStackAlign) {
-  if (STI.hasFeature(RISCV::FeatureRVE))
-    report_fatal_error("Codegen not yet implemented for RVE");
-
-  if (EmitStackAlign)
-    emitAttribute(RISCVAttrs::STACK_ALIGN, RISCVAttrs::ALIGN_16);
+  if (EmitStackAlign) {
+    if (TargetABI == RISCVABI::ABI_ILP32E)
+      emitAttribute(RISCVAttrs::STACK_ALIGN, RISCVAttrs::ALIGN_4);
+    else if (TargetABI == RISCVABI::ABI_LP64E)
+      emitAttribute(RISCVAttrs::STACK_ALIGN, RISCVAttrs::ALIGN_8);
+    else
+      emitAttribute(RISCVAttrs::STACK_ALIGN, RISCVAttrs::ALIGN_16);
+  }
 
   auto ParseResult = RISCVFeatures::parseFeatureBits(
       STI.hasFeature(RISCV::Feature64Bit), STI.getFeatureBits());

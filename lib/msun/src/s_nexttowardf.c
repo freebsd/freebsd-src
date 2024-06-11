@@ -9,7 +9,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 #include <float.h>
 
 #include "fpmath.h"

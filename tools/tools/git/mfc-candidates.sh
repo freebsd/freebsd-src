@@ -41,7 +41,7 @@ if [ "${repo}" = "ports.git" ]; then
 	qtr=$(((month-1) / 3 + 1))
 	to_branch="freebsd/${year}Q${qtr}"
 elif [ "${repo}" = "src.git" ]; then
-	to_branch=freebsd/stable/13
+	to_branch=freebsd/stable/14
 	# If pwd is a stable or release branch tree, default to it.
 	cur_branch=$(git symbolic-ref --short HEAD 2>/dev/null)
 	case $cur_branch in
@@ -124,16 +124,14 @@ fi
 # Commits in from_branch after branch point
 commits_from()
 {
-	git rev-list --first-parent $authorarg $to_branch..$from_branch "$@" |\
-	    sort
+	git rev-list --first-parent --reverse $authorarg $to_branch..$from_branch "$@"
 }
 
 # "cherry picked from" hashes from commits in to_branch after branch point
 commits_to()
 {
 	git log $from_branch..$to_branch --grep 'cherry picked from' "$@" |\
-	    sed -E -n 's/^[[:space:]]*\(cherry picked from commit ([0-9a-f]+)\)[[:space:]]*$/\1/p' |\
-	    sort
+	    sed -E -n 's/^[[:space:]]*\(cherry picked from commit ([0-9a-f]+)\)[[:space:]]*$/\1/p'
 }
 
 # Turn a list of short hashes (and optional descriptions) into a list of full
@@ -141,6 +139,9 @@ commits_to()
 canonicalize_hashes()
 {
 	while read hash rest; do
+		case "${hash}" in
+		"#"*)	continue ;;
+		esac
 		if ! git show --pretty=%H --no-patch $hash; then
 			echo "error parsing hash list" >&2
 			exit 1
@@ -151,7 +152,6 @@ canonicalize_hashes()
 workdir=$(mktemp -d /tmp/find-mfc.XXXXXXXXXX)
 from_list=$workdir/commits-from
 to_list=$workdir/commits-to
-candidate_list=$workdir/candidates
 
 if [ -n "$exclude_file" ]; then
 	exclude_list=$workdir/commits-exclude
@@ -161,16 +161,7 @@ fi
 commits_from "$@" > $from_list
 commits_to "$@" > $to_list
 
-comm -23 $from_list $to_list > $candidate_list
-
-if [ -n "$exclude_file" ]; then
-	mv $candidate_list $candidate_list.bak
-	comm -23 $candidate_list.bak $exclude_list > $candidate_list
-fi
-
-# Sort by (but do not print) commit time
-while read hash; do
-	git show --pretty='%ct %h %s' --no-patch $hash
-done < $candidate_list | sort -n | cut -d ' ' -f 2-
+/usr/libexec/flua $(dirname $0)/candidatematch.lua \
+    $from_list $to_list $exclude_list
 
 rm -rf "$workdir"

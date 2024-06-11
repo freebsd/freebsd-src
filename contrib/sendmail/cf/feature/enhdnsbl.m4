@@ -17,7 +17,7 @@ VERSIONID(`$Id: enhdnsbl.m4,v 1.13 2013-11-22 20:51:11 ca Exp $')
 LOCAL_CONFIG
 define(`_EDNSBL_R_',`')dnl
 # map for enhanced DNS based blocklist lookups
-Kednsbl dns -R A -a. -T<TMP> -r`'ifdef(`EDNSBL_TO',`EDNSBL_TO',`5')
+Kednsbl dns -R A -T<TMP> -z  -Z32 -r`'ifdef(`EDNSBL_TO',`EDNSBL_TO',`5')
 ')
 divert(-1)
 define(`_EDNSBL_SRV_', `_ARG_')dnl
@@ -39,15 +39,15 @@ R<?>OK			$: OKSOFAR
 ifelse(len(X`'_ARG3_),`1',
 `R<?>$+<TMP>		$: TMPOK',
 `R<?>$+<TMP>		$#error $@ 4.4.3 $: _EDNSBL_MSG_TMP_')
-R<?>_EDNSBL_MATCH_	_EDNSBL_ACTION_ $: _EDNSBL_MSG_
+R<?>$* patsubst(_EDNSBL_MATCH_, `\.$', `') $*	_EDNSBL_ACTION_ $: _EDNSBL_MSG_
 ifelse(len(X`'_ARG5_),`1',`dnl',
-`R<?>_ARG5_		_EDNSBL_ACTION_ $: _EDNSBL_MSG_')
+`R<?>$* patsubst(_ARG5_, `\.$', `') $*		_EDNSBL_ACTION_ $: _EDNSBL_MSG_')
 ifelse(len(X`'_ARG6_),`1',`dnl',
-`R<?>_ARG6_		_EDNSBL_ACTION_ $: _EDNSBL_MSG_')
+`R<?>$* patsubst(_ARG6_, `\.$', `') $*		_EDNSBL_ACTION_ $: _EDNSBL_MSG_')
 ifelse(len(X`'_ARG7_),`1',`dnl',
-`R<?>_ARG7_		_EDNSBL_ACTION_ $: _EDNSBL_MSG_')
+`R<?>$* patsubst(_ARG7_, `\.$', `') $*		_EDNSBL_ACTION_ $: _EDNSBL_MSG_')
 ifelse(len(X`'_ARG8_),`1',`dnl',
-`R<?>_ARG8_		_EDNSBL_ACTION_ $: _EDNSBL_MSG_')
+`R<?>$* patsubst(_ARG8_, `\.$', `') $*		_EDNSBL_ACTION_ $: _EDNSBL_MSG_')
 ifelse(len(X`'_ARG9_),`1',`dnl',
-`R<?>_ARG9_		_EDNSBL_ACTION_ $: _EDNSBL_MSG_')
+`R<?>$* patsubst(_ARG9_, `\.$', `') $*		_EDNSBL_ACTION_ $: _EDNSBL_MSG_')
 divert(-1)

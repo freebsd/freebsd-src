@@ -27,7 +27,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd November 17, 2023
+.Dd June 6, 2024
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -419,13 +419,10 @@ and
 options) to 2000.
 Using
 .Bd -literal -offset indent
-set limit tables 1000
 set limit table-entries 100000
 .Ed
 .Pp
-sets limits on the memory pools used by tables.
-The first limits the number of tables that can exist to 1000.
-The second limits the overall number of addresses that can be stored
+sets the limit on the overall number of addresses that can be stored
 in tables to 100000.
 .Pp
 Various limits can be combined on a single line:
@@ -2429,6 +2426,10 @@ easier.
 This is intended to be used in situations where one does not see all
 packets of a connection, e.g. in asymmetric routing situations.
 Cannot be used with modulate or synproxy state.
+.It Ar pflow
+States created by this rule are exported on the
+.Xr pflow 4
+interface.
 .El
 .Pp
 Multiple options can be specified, separated by commas:
@@ -3345,7 +3346,7 @@ state-opt      = ( "max" number | "no-sync" | timeout | "sloppy" |
                  "max-src-conn" number |
                  "max-src-conn-rate" number "/" number |
                  "overload" "\*(Lt" string "\*(Gt" [ "flush" ] |
-                 "if-bound" | "floating" )
+                 "if-bound" | "floating" | "pflow" )
 
 fragmentation  = [ "fragment reassemble" ]
 
@@ -3406,6 +3407,7 @@ Service name database.
 .Xr ip 4 ,
 .Xr ip6 4 ,
 .Xr pf 4 ,
+.Xr pflow 4 ,
 .Xr pfsync 4 ,
 .Xr tcp 4 ,
 .Xr sctp 4 ,

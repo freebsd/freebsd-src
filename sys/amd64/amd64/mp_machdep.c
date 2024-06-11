@@ -102,13 +102,16 @@ void *bootpcpu;
 
 extern u_int mptramp_la57;
 extern u_int mptramp_nx;
-
+smp_targeted_tlb_shootdown_t smp_targeted_tlb_shootdown = &smp_targeted_tlb_shootdown_native;
 /*
  * Local data and functions.
  */
 
 static int start_ap(int apic_id, vm_paddr_t boot_address);
 
+void
+smp_targeted_tlb_shootdown_native(pmap_t pmap, vm_offset_t addr1, vm_offset_t addr2,
+    smp_invl_cb_t curcpu_cb, enum invl_op_codes op);
 /*
  * Initialize the IPI handlers and start up the AP's.
  */
@@ -498,24 +501,6 @@ start_ap(int apic_id, vm_paddr_t boot_address)
  */
 
 /*
- * Invalidation request.  PCPU pc_smp_tlb_op uses u_int instead of the
- * enum to avoid both namespace and ABI issues (with enums).
- */
-enum invl_op_codes {
-      INVL_OP_TLB		= 1,
-      INVL_OP_TLB_INVPCID	= 2,
-      INVL_OP_TLB_INVPCID_PTI	= 3,
-      INVL_OP_TLB_PCID		= 4,
-      INVL_OP_PGRNG		= 5,
-      INVL_OP_PGRNG_INVPCID	= 6,
-      INVL_OP_PGRNG_PCID	= 7,
-      INVL_OP_PG		= 8,
-      INVL_OP_PG_INVPCID	= 9,
-      INVL_OP_PG_PCID		= 10,
-      INVL_OP_CACHE		= 11,
-};
-
-/*
  * These variables are initialized at startup to reflect how each of
  * the different kinds of invalidations should be performed on the
  * current machine and environment.
@@ -600,8 +585,8 @@ invl_scoreboard_slot(u_int cpu)
  * Function must be called with the thread pinned, and it unpins on
  * completion.
  */
-static void
-smp_targeted_tlb_shootdown(pmap_t pmap, vm_offset_t addr1, vm_offset_t addr2,
+void
+smp_targeted_tlb_shootdown_native(pmap_t pmap, vm_offset_t addr1, vm_offset_t addr2,
     smp_invl_cb_t curcpu_cb, enum invl_op_codes op)
 {
 	cpuset_t mask;

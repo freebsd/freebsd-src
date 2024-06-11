@@ -321,7 +321,7 @@ regcomp_internal(regex_t * __restrict preg,
 		computejumps(p, g);
 		computematchjumps(p, g);
 		if(g->matchjump == NULL && g->charjump != NULL) {
-			free(g->charjump);
+			free(&g->charjump[CHAR_MIN]);
 			g->charjump = NULL;
 		}
 	}
@@ -453,7 +453,9 @@ p_ere_exp(struct parse *p, struct branchc *bc)
 	case '*':
 	case '+':
 	case '?':
+#ifndef NO_STRICT_REGEX
 	case '{':
+#endif
 		SETERROR(REG_BADRPT);
 		break;
 	case '.':
@@ -536,6 +538,11 @@ p_ere_exp(struct parse *p, struct branchc *bc)
 			break;
 		}
 		break;
+#ifdef NO_STRICT_REGEX
+	case '{':               /* okay as ordinary except if digit follows */
+	    (void)REQUIRE(!MORE() || !isdigit((uch)PEEK()), REG_BADRPT);
+	    /* FALLTHROUGH */
+#endif
 	default:
 		if (p->error != 0)
 			return (false);
@@ -549,11 +556,19 @@ p_ere_exp(struct parse *p, struct branchc *bc)
 		return (false);
 	c = PEEK();
 	/* we call { a repetition if followed by a digit */
-	if (!( c == '*' || c == '+' || c == '?' || c == '{'))
+	if (!( c == '*' || c == '+' || c == '?' ||
+#ifdef NO_STRICT_REGEX
+	       (c == '{' && MORE2() && isdigit((uch)PEEK2()))
+#else
+	       c == '{'
+#endif
+	       ))
 		return (false);		/* no repetition, we're done */
+#ifndef NO_STRICT_REGEX
 	else if (c == '{')
 		(void)REQUIRE(MORE2() && \
 		    (isdigit((uch)PEEK2()) || PEEK2() == ','), REG_BADRPT);
+#endif
 	NEXT();
 
 	(void)REQUIRE(!wascaret, REG_BADRPT);
@@ -892,6 +907,9 @@ p_simp_re(struct parse *p, struct branchc *bc)
 			(void)REQUIRE(EATTWO('\\', ')'), REG_EPAREN);
 			break;
 		case BACKSL|')':	/* should not get here -- must be user */
+#ifdef NO_STRICT_REGEX
+		case BACKSL|'}':
+#endif
 			SETERROR(REG_EPAREN);
 			break;
 		case BACKSL|'1':
@@ -1586,17 +1604,32 @@ singleton(cset *cs)
 {
 	wint_t i, s, n;
 
+	/* Exclude the complicated cases we don't want to deal with */
+	if (cs->nranges != 0 || cs->ntypes != 0 || cs->icase != 0)
+		return (OUT);
+
+	if (cs->nwides > 1)
+		return (OUT);
+
+	/* Count the number of characters present in the bitmap */
 	for (i = n = 0; i < NC; i++)
 		if (CHIN(cs, i)) {
 			n++;
 			s = i;
 		}
-	if (n == 1)
-		return (s);
-	if (cs->nwides == 1 && cs->nranges == 0 && cs->ntypes == 0 &&
-	    cs->icase == 0)
+
+	if (n > 1)
+		return (OUT);
+
+	if (n == 1) {
+		if (cs->nwides == 0)
+			return (s);
+		else
+			return (OUT);
+	}
+	if (cs->nwides == 1)
 		return (cs->wides[0]);
-	/* Don't bother handling the other cases. */
+
 	return (OUT);
 }
 

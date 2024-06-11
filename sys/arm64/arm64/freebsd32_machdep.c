@@ -49,7 +49,8 @@
 
 _Static_assert(sizeof(mcontext32_t) == 208, "mcontext32_t size incorrect");
 _Static_assert(sizeof(ucontext32_t) == 260, "ucontext32_t size incorrect");
-_Static_assert(sizeof(struct siginfo32) == 64, "struct siginfo32 size incorrect");
+_Static_assert(sizeof(struct __siginfo32) == 64,
+    "struct __siginfo32 size incorrect");
 
 extern void freebsd32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
 
@@ -94,7 +95,8 @@ freebsd32_sysarch(struct thread *td, struct freebsd32_sysarch_args *uap)
 				return (error);
 			if ((uint64_t)args.addr + (uint64_t)args.size > 0xffffffff)
 				return (EINVAL);
-			cpu_icache_sync_range_checked(args.addr, args.size);
+			cpu_icache_sync_range_checked(
+			    (void *)(uintptr_t)args.addr, args.size);
 			return 0;
 		}
 	case ARM_GET_VFPSTATE:
@@ -350,7 +352,7 @@ freebsd32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	struct trapframe *tf;
 	struct sigframe32 *fp, frame;
 	struct sigacts *psp;
-	struct siginfo32 siginfo;
+	struct __siginfo32 siginfo;
 	struct sysentvec *sysent;
 	int onstack;
 	int sig;

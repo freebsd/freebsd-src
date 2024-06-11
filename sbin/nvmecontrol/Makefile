@@ -1,17 +1,36 @@
-
 .include <src.opts.mk>
 
 PACKAGE=nvme-tools
 PROG=	nvmecontrol
-SRCS=	comnd.c nvmecontrol.c
-SRCS+=	devlist.c firmware.c format.c identify.c logpage.c ns.c nsid.c
-SRCS+=	perftest.c power.c reset.c resv.c sanitize.c
+SRCS+=	comnd.c
+SRCS+=	connect.c
+SRCS+=	devlist.c
+SRCS+=	disconnect.c
+SRCS+=	discover.c
+SRCS+=	fabrics.c
+SRCS+=	firmware.c
+SRCS+=	format.c
+SRCS+=	identify.c
+SRCS+=	identify_ext.c
+SRCS+=	logpage.c
+SRCS+=	nc_util.c
+SRCS+=	ns.c
+SRCS+=	nsid.c
+SRCS+=	nvme_util.c
+SRCS+=	nvmecontrol.c
 SRCS+=	passthru.c
-SRCS+=	identify_ext.c nvme_util.c nc_util.c
+SRCS+=	perftest.c
+SRCS+=	power.c
+SRCS+=	reconnect.c
+SRCS+=	reset.c
+SRCS+=	resv.c
+SRCS+=	sanitize.c
 SRCS+=  selftest.c
+SRCS+=	telemetry.c
+CFLAGS+= -I${SRCTOP}/lib/libnvmf
 MAN=	nvmecontrol.8
 LDFLAGS+= -rdynamic
-LIBADD+= util
+LIBADD+= nvmf util
 SUBDIR=	modules
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests

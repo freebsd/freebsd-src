@@ -42,6 +42,8 @@
 #include "local.h"
 #include "xlocale_private.h"
 
+#undef vsprintf	/* _FORTIFY_SOURCE */
+
 int
 vsprintf_l(char * __restrict str, locale_t locale,
 		const char * __restrict fmt, __va_list ap)

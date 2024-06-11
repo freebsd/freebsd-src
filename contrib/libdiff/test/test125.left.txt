@@ -1,0 +1,7 @@
+This is a test 
+of missing trailing new lines
+in context
+this line has a change
+this is the same
+this is too
+and this one

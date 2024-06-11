@@ -402,6 +402,13 @@ bool Sema::DiagnoseUnexpandedParameterPack(Expr *E,
   if (!E->containsUnexpandedParameterPack())
     return false;
 
+  // CollectUnexpandedParameterPacksVisitor does not expect to see a
+  // FunctionParmPackExpr, but diagnosing unexpected parameter packs may still
+  // see such an expression in a lambda body.
+  // We'll bail out early in this case to avoid triggering an assertion.
+  if (isa<FunctionParmPackExpr>(E) && getEnclosingLambda())
+    return false;
+
   SmallVector<UnexpandedParameterPack, 2> Unexpanded;
   CollectUnexpandedParameterPacksVisitor(Unexpanded).TraverseStmt(E);
   assert(!Unexpanded.empty() && "Unable to find unexpanded parameter packs");
@@ -1105,6 +1112,7 @@ TemplateArgumentLoc Sema::getTemplateArgumentPackExpansionPattern(
   case TemplateArgument::NullPtr:
   case TemplateArgument::Template:
   case TemplateArgument::Integral:
+  case TemplateArgument::StructuralValue:
   case TemplateArgument::Pack:
   case TemplateArgument::Null:
     return TemplateArgumentLoc();
@@ -1155,6 +1163,7 @@ std::optional<unsigned> Sema::getFullyPackExpandedSize(TemplateArgument Arg) {
   case TemplateArgument::NullPtr:
   case TemplateArgument::TemplateExpansion:
   case TemplateArgument::Integral:
+  case TemplateArgument::StructuralValue:
   case TemplateArgument::Pack:
   case TemplateArgument::Null:
     return std::nullopt;

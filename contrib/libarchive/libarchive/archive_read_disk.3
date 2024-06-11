@@ -22,8 +22,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $FreeBSD$
-.\"
 .Dd April 3, 2017
 .Dt ARCHIVE_READ_DISK 3
 .Os
@@ -290,11 +288,11 @@ calls. If matched based on calls to
 .Tn archive_match_time_excluded ,
 or
 .Tn archive_match_owner_excluded ,
-then the callback function specified by the _excluded_func parameter will execute. This function will recieve data provided to the fourth parameter, void *_client_data.
+then the callback function specified by the _excluded_func parameter will execute. This function will receive data provided to the fourth parameter, void *_client_data.
 .It Fn archive_read_disk_set_metadata_filter_callback
 Allows the caller to set a callback function during calls to
 .Xr archive_read_header 3
-to filter out metadata for each entry. The callback function recieves the
+to filter out metadata for each entry. The callback function receives the
 .Tn struct archive
 object, void* custom filter data, and the 
 .Tn struct archive_entry .

@@ -502,10 +502,12 @@ ti_copy_mem(struct ti_softc *sc, uint32_t tigon_addr, uint32_t len,
 	int segptr, segsize, cnt;
 	caddr_t ptr;
 	uint32_t origwin;
-	int resid, segresid;
+	int error, resid, segresid;
 	int first_pass;
 
 	TI_LOCK_ASSERT(sc);
+
+	error = 0;
 
 	/*
 	 * At the moment, we don't handle non-aligned cases, we just bail.
@@ -548,7 +550,7 @@ ti_copy_mem(struct ti_softc *sc, uint32_t tigon_addr, uint32_t len,
 	 */
 	origwin = CSR_READ_4(sc, TI_WINBASE);
 
-	while (cnt) {
+	while (cnt != 0 && error == 0) {
 		bus_size_t ti_offset;
 
 		if (cnt < TI_WINLEN)
@@ -573,11 +575,13 @@ ti_copy_mem(struct ti_softc *sc, uint32_t tigon_addr, uint32_t len,
 
 				TI_UNLOCK(sc);
 				if (first_pass) {
-					copyout(&sc->ti_membuf2[segresid], ptr,
+					error = copyout(
+					    &sc->ti_membuf2[segresid], ptr,
 					    segsize - segresid);
 					first_pass = 0;
 				} else
-					copyout(sc->ti_membuf2, ptr, segsize);
+					error = copyout(sc->ti_membuf2, ptr,
+					    segsize);
 				TI_LOCK(sc);
 			} else {
 				if (first_pass) {
@@ -597,7 +601,7 @@ ti_copy_mem(struct ti_softc *sc, uint32_t tigon_addr, uint32_t len,
 		} else {
 			if (useraddr) {
 				TI_UNLOCK(sc);
-				copyin(ptr, sc->ti_membuf2, segsize);
+				error = copyin(ptr, sc->ti_membuf2, segsize);
 				TI_LOCK(sc);
 				ti_bcopy_swap(sc->ti_membuf2, sc->ti_membuf,
 				    segsize, TI_SWAP_HTON);
@@ -605,8 +609,11 @@ ti_copy_mem(struct ti_softc *sc, uint32_t tigon_addr, uint32_t len,
 				ti_bcopy_swap(ptr, sc->ti_membuf, segsize,
 				    TI_SWAP_HTON);
 
-			bus_space_write_region_4(sc->ti_btag, sc->ti_bhandle,
-			    ti_offset, (uint32_t *)sc->ti_membuf, segsize >> 2);
+			if (error == 0) {
+				bus_space_write_region_4(sc->ti_btag,
+				    sc->ti_bhandle, ti_offset,
+				    (uint32_t *)sc->ti_membuf, segsize >> 2);
+			}
 		}
 		segptr += segsize;
 		ptr += segsize;
@@ -616,7 +623,7 @@ ti_copy_mem(struct ti_softc *sc, uint32_t tigon_addr, uint32_t len,
 	/*
 	 * Handle leftover, non-word-aligned bytes.
 	 */
-	if (resid != 0) {
+	if (resid != 0 && error == 0) {
 		uint32_t tmpval, tmpval2;
 		bus_size_t ti_offset;
 
@@ -649,7 +656,7 @@ ti_copy_mem(struct ti_softc *sc, uint32_t tigon_addr, uint32_t len,
 			 */
 			if (useraddr) {
 				TI_UNLOCK(sc);
-				copyout(&tmpval2, ptr, resid);
+				error = copyout(&tmpval2, ptr, resid);
 				TI_LOCK(sc);
 			} else
 				bcopy(&tmpval2, ptr, resid);
@@ -667,21 +674,22 @@ ti_copy_mem(struct ti_softc *sc, uint32_t tigon_addr, uint32_t len,
 			 */
 			if (useraddr) {
 				TI_UNLOCK(sc);
-				copyin(ptr, &tmpval2, resid);
+				error = copyin(ptr, &tmpval2, resid);
 				TI_LOCK(sc);
 			} else
 				bcopy(ptr, &tmpval2, resid);
 
-			tmpval = htonl(tmpval2);
-
-			bus_space_write_region_4(sc->ti_btag, sc->ti_bhandle,
-			    ti_offset, &tmpval, 1);
+			if (error == 0) {
+				tmpval = htonl(tmpval2);
+				bus_space_write_region_4(sc->ti_btag,
+				    sc->ti_bhandle, ti_offset, &tmpval, 1);
+			}
 		}
 	}
 
 	CSR_WRITE_4(sc, TI_WINBASE, origwin);
 
-	return (0);
+	return (error);
 }
 
 static int
@@ -689,7 +697,7 @@ ti_copy_scratch(struct ti_softc *sc, uint32_t tigon_addr, uint32_t len,
     caddr_t buf, int useraddr, int readdata, int cpu)
 {
 	uint32_t segptr;
-	int cnt;
+	int cnt, error;
 	uint32_t tmpval, tmpval2;
 	caddr_t ptr;
 
@@ -715,7 +723,7 @@ ti_copy_scratch(struct ti_softc *sc, uint32_t tigon_addr, uint32_t len,
 	cnt = len;
 	ptr = buf;
 
-	while (cnt) {
+	while (cnt && error == 0) {
 		CSR_WRITE_4(sc, CPU_REG(TI_SRAM_ADDR, cpu), segptr);
 
 		if (readdata) {
@@ -756,18 +764,20 @@ ti_copy_scratch(struct ti_softc *sc, uint32_t tigon_addr, uint32_t len,
 				    "%#x (tmpval)\n", segptr);
 
 			if (useraddr)
-				copyout(&tmpval, ptr, 4);
+				error = copyout(&tmpval, ptr, 4);
 			else
 				bcopy(&tmpval, ptr, 4);
 		} else {
 			if (useraddr)
-				copyin(ptr, &tmpval2, 4);
+				error = copyin(ptr, &tmpval2, 4);
 			else
 				bcopy(ptr, &tmpval2, 4);
 
-			tmpval = htonl(tmpval2);
-
-			CSR_WRITE_4(sc, CPU_REG(TI_SRAM_DATA, cpu), tmpval);
+			if (error == 0) {
+				tmpval = htonl(tmpval2);
+				CSR_WRITE_4(sc, CPU_REG(TI_SRAM_DATA, cpu),
+				    tmpval);
+			}
 		}
 
 		cnt -= 4;
@@ -775,7 +785,7 @@ ti_copy_scratch(struct ti_softc *sc, uint32_t tigon_addr, uint32_t len,
 		ptr += 4;
 	}
 
-	return (0);
+	return (error);
 }
 
 static int

@@ -108,7 +108,7 @@ only ever match an entry in a pool that is of the same address family.
 The address pool searches the list of addresses configured for the best
 match. The "best match" is considered to be the match that has the highest
 number of bits set in the mask. Thus if both 2.2.0.0/16 and 2.2.2.0/24 are
-present in an address pool, the addres 2.2.2.1 will match 2.2.2.0/24 and
+present in an address pool, the address 2.2.2.1 will match 2.2.2.0/24 and
 2.2.1.1 will match 2.2.0.0/16. The reason for this is to allow exceptions
 to be added through the use of negative matching. In the following example,
 the pool contains "2.2.0.0/16" and "!2.2.2.0/24", meaning that all packets

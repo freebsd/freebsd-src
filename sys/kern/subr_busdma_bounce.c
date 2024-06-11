@@ -451,6 +451,76 @@ free_bounce_pages(bus_dma_tag_t dmat, bus_dmamap_t map)
 		wakeup(&bounce_map_callbacklist);
 }
 
+/*
+ * Add a single contiguous physical range to the segment list.
+ */
+static bus_size_t
+_bus_dmamap_addseg(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t curaddr,
+    bus_size_t sgsize, bus_dma_segment_t *segs, int *segp)
+{
+	int seg;
+
+	KASSERT(curaddr <= BUS_SPACE_MAXADDR,
+	    ("ds_addr %#jx > BUS_SPACE_MAXADDR %#jx; dmat %p fl %#x low %#jx "
+	    "hi %#jx",
+	    (uintmax_t)curaddr, (uintmax_t)BUS_SPACE_MAXADDR,
+	    dmat, dmat_bounce_flags(dmat), (uintmax_t)dmat_lowaddr(dmat),
+	    (uintmax_t)dmat_highaddr(dmat)));
+
+	/*
+	 * Make sure we don't cross any boundaries.
+	 */
+	if (!vm_addr_bound_ok(curaddr, sgsize, dmat_boundary(dmat)))
+		sgsize = roundup2(curaddr, dmat_boundary(dmat)) - curaddr;
+
+	/*
+	 * Insert chunk into a segment, coalescing with
+	 * previous segment if possible.
+	 */
+	seg = *segp;
+	if (seg == -1) {
+		seg = 0;
+		segs[seg].ds_addr = curaddr;
+		segs[seg].ds_len = sgsize;
+	} else {
+		if (curaddr == segs[seg].ds_addr + segs[seg].ds_len &&
+		    (segs[seg].ds_len + sgsize) <= dmat_maxsegsz(dmat) &&
+		    vm_addr_bound_ok(segs[seg].ds_addr,
+		    segs[seg].ds_len + sgsize, dmat_boundary(dmat)))
+			segs[seg].ds_len += sgsize;
+		else {
+			if (++seg >= dmat_nsegments(dmat))
+				return (0);
+			segs[seg].ds_addr = curaddr;
+			segs[seg].ds_len = sgsize;
+		}
+	}
+	*segp = seg;
+	return (sgsize);
+}
+
+/*
+ * Add a contiguous physical range to the segment list, respecting the tag's
+ * maximum segment size and splitting it into multiple segments as necessary.
+ */
+static bool
+_bus_dmamap_addsegs(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t curaddr,
+    bus_size_t sgsize, bus_dma_segment_t *segs, int *segp)
+{
+	bus_size_t done, todo;
+
+	while (sgsize > 0) {
+		todo = MIN(sgsize, dmat_maxsegsz(dmat));
+		done = _bus_dmamap_addseg(dmat, map, curaddr, todo, segs,
+		    segp);
+		if (done == 0)
+			return (false);
+		curaddr += done;
+		sgsize -= done;
+	}
+	return (true);
+}
+
 static void
 busdma_thread(void *dummy __unused)
 {

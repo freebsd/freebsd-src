@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2020 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2024 by Delphix. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2013, 2017 Joyent, Inc. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
@@ -366,6 +366,8 @@ typedef enum {
 	VDEV_PROP_IO_N,
 	VDEV_PROP_IO_T,
 	VDEV_PROP_RAIDZ_EXPANDING,
+	VDEV_PROP_SLOW_IO_N,
+	VDEV_PROP_SLOW_IO_T,
 	VDEV_NUM_PROPS
 } vdev_prop_t;
 
@@ -1092,10 +1094,16 @@ typedef enum zio_type {
 	ZIO_TYPE_WRITE,
 	ZIO_TYPE_FREE,
 	ZIO_TYPE_CLAIM,
-	ZIO_TYPE_IOCTL,
+	ZIO_TYPE_FLUSH,
 	ZIO_TYPE_TRIM,
 	ZIO_TYPES
 } zio_type_t;
+
+/*
+ * Compatibility: _IOCTL was renamed to _FLUSH; keep the old name available to
+ * user programs.
+ */
+#define	ZIO_TYPE_IOCTL	ZIO_TYPE_FLUSH
 
 /*
  * Pool statistics.  Note: all fields should be 64-bit because this
@@ -1601,6 +1609,7 @@ typedef enum {
 	ZFS_ERR_RESUME_EXISTS,
 	ZFS_ERR_CRYPTO_NOTSUP,
 	ZFS_ERR_RAIDZ_EXPAND_IN_PROGRESS,
+	ZFS_ERR_ASHIFT_MISMATCH,
 } zfs_errno_t;
 
 /*

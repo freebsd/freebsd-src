@@ -537,7 +537,8 @@ dmu_buf_hold_array_by_dnode(dnode_t *dn, uint64_t offset, uint64_t length,
 	if (dn->dn_datablkshift) {
 		int blkshift = dn->dn_datablkshift;
 		nblks = (P2ROUNDUP(offset + length, 1ULL << blkshift) -
-		    P2ALIGN(offset, 1ULL << blkshift)) >> blkshift;
+		    P2ALIGN_TYPED(offset, 1ULL << blkshift, uint64_t))
+		    >> blkshift;
 	} else {
 		if (offset + length > dn->dn_datablksz) {
 			zfs_panic_recover("zfs: accessing past end of object "
@@ -569,8 +570,10 @@ dmu_buf_hold_array_by_dnode(dnode_t *dn, uint64_t offset, uint64_t length,
 	for (i = 0; i < nblks; i++) {
 		dmu_buf_impl_t *db = dbuf_hold(dn, blkid + i, tag);
 		if (db == NULL) {
-			if (zs)
-				dmu_zfetch_run(zs, missed, B_TRUE);
+			if (zs) {
+				dmu_zfetch_run(&dn->dn_zfetch, zs, missed,
+				    B_TRUE);
+			}
 			rw_exit(&dn->dn_struct_rwlock);
 			dmu_buf_rele_array(dbp, nblks, tag);
 			if (read)
@@ -606,7 +609,7 @@ dmu_buf_hold_array_by_dnode(dnode_t *dn, uint64_t offset, uint64_t length,
 		zfs_racct_write(length, nblks);
 
 	if (zs)
-		dmu_zfetch_run(zs, missed, B_TRUE);
+		dmu_zfetch_run(&dn->dn_zfetch, zs, missed, B_TRUE);
 	rw_exit(&dn->dn_struct_rwlock);
 
 	if (read) {
@@ -712,8 +715,6 @@ dmu_prefetch(objset_t *os, uint64_t object, int64_t level, uint64_t offset,
     uint64_t len, zio_priority_t pri)
 {
 	dnode_t *dn;
-	int64_t level2 = level;
-	uint64_t start, end, start2, end2;
 
 	if (dmu_prefetch_max == 0 || len == 0) {
 		dmu_prefetch_dnode(os, object, pri);
@@ -722,6 +723,18 @@ dmu_prefetch(objset_t *os, uint64_t object, int64_t level, uint64_t offset,
 
 	if (dnode_hold(os, object, FTAG, &dn) != 0)
 		return;
+
+	dmu_prefetch_by_dnode(dn, level, offset, len, pri);
+
+	dnode_rele(dn, FTAG);
+}
+
+void
+dmu_prefetch_by_dnode(dnode_t *dn, int64_t level, uint64_t offset,
+    uint64_t len, zio_priority_t pri)
+{
+	int64_t level2 = level;
+	uint64_t start, end, start2, end2;
 
 	/*
 	 * Depending on len we may do two prefetches: blocks [start, end) at
@@ -762,8 +775,6 @@ dmu_prefetch(objset_t *os, uint64_t object, int64_t level, uint64_t offset,
 	for (uint64_t i = start2; i < end2; i++)
 		dbuf_prefetch(dn, level2, i, pri, 0);
 	rw_exit(&dn->dn_struct_rwlock);
-
-	dnode_rele(dn, FTAG);
 }
 
 /*
@@ -844,7 +855,7 @@ get_next_chunk(dnode_t *dn, uint64_t *start, uint64_t minimum, uint64_t *l1blks)
 		}
 
 		/* set start to the beginning of this L1 indirect */
-		*start = P2ALIGN(*start, iblkrange);
+		*start = P2ALIGN_TYPED(*start, iblkrange, uint64_t);
 	}
 	if (*start < minimum)
 		*start = minimum;
@@ -1134,14 +1145,14 @@ dmu_write_impl(dmu_buf_t **dbp, int numbufs, uint64_t offset, uint64_t size,
 		ASSERT(i == 0 || i == numbufs-1 || tocpy == db->db_size);
 
 		if (tocpy == db->db_size)
-			dmu_buf_will_fill(db, tx);
+			dmu_buf_will_fill(db, tx, B_FALSE);
 		else
 			dmu_buf_will_dirty(db, tx);
 
 		(void) memcpy((char *)db->db_data + bufoff, buf, tocpy);
 
 		if (tocpy == db->db_size)
-			dmu_buf_fill_done(db, tx);
+			dmu_buf_fill_done(db, tx, B_FALSE);
 
 		offset += tocpy;
 		size -= tocpy;
@@ -1349,27 +1360,24 @@ dmu_write_uio_dnode(dnode_t *dn, zfs_uio_t *uio, uint64_t size, dmu_tx_t *tx)
 
 		ASSERT(size > 0);
 
-		bufoff = zfs_uio_offset(uio) - db->db_offset;
+		offset_t off = zfs_uio_offset(uio);
+		bufoff = off - db->db_offset;
 		tocpy = MIN(db->db_size - bufoff, size);
 
 		ASSERT(i == 0 || i == numbufs-1 || tocpy == db->db_size);
 
 		if (tocpy == db->db_size)
-			dmu_buf_will_fill(db, tx);
+			dmu_buf_will_fill(db, tx, B_TRUE);
 		else
 			dmu_buf_will_dirty(db, tx);
 
-		/*
-		 * XXX zfs_uiomove could block forever (eg.nfs-backed
-		 * pages).  There needs to be a uiolockdown() function
-		 * to lock the pages in memory, so that zfs_uiomove won't
-		 * block.
-		 */
 		err = zfs_uio_fault_move((char *)db->db_data + bufoff,
 		    tocpy, UIO_WRITE, uio);
 
-		if (tocpy == db->db_size)
-			dmu_buf_fill_done(db, tx);
+		if (tocpy == db->db_size && dmu_buf_fill_done(db, tx, err)) {
+			/* The fill was reverted.  Undo any uio progress. */
+			zfs_uio_advance(uio, off - zfs_uio_offset(uio));
+		}
 
 		if (err)
 			break;
@@ -1622,7 +1630,7 @@ dmu_sync_done(zio_t *zio, arc_buf_t *buf, void *varg)
 		 * it's an old style hole.
 		 */
 		if (BP_IS_HOLE(&dr->dt.dl.dr_overridden_by) &&
-		    dr->dt.dl.dr_overridden_by.blk_birth == 0)
+		    BP_GET_LOGICAL_BIRTH(&dr->dt.dl.dr_overridden_by) == 0)
 			BP_ZERO(&dr->dt.dl.dr_overridden_by);
 	} else {
 		dr->dt.dl.dr_override_state = DR_NOT_OVERRIDDEN;
@@ -1653,7 +1661,7 @@ dmu_sync_late_arrival_done(zio_t *zio)
 			blkptr_t *bp_orig __maybe_unused = &zio->io_bp_orig;
 			ASSERT(!(zio->io_flags & ZIO_FLAG_NOPWRITE));
 			ASSERT(BP_IS_HOLE(bp_orig) || !BP_EQUAL(bp, bp_orig));
-			ASSERT(zio->io_bp->blk_birth == zio->io_txg);
+			ASSERT(BP_GET_LOGICAL_BIRTH(zio->io_bp) == zio->io_txg);
 			ASSERT(zio->io_txg > spa_syncing_txg(zio->io_spa));
 			zio_free(zio->io_spa, zio->io_txg, zio->io_bp);
 		}
@@ -2260,11 +2268,13 @@ dmu_read_l0_bps(objset_t *os, uint64_t object, uint64_t offset, uint64_t length,
 
 		if (bp == NULL) {
 			/*
-			 * The block was created in this transaction group,
-			 * so it has no BP yet.
+			 * The file size was increased, but the block was never
+			 * written, otherwise we would either have the block
+			 * pointer or the dirty record and would not get here.
+			 * It is effectively a hole, so report it as such.
 			 */
-			error = SET_ERROR(EAGAIN);
-			goto out;
+			BP_ZERO(&bps[i]);
+			continue;
 		}
 		/*
 		 * Make sure we clone only data blocks.
@@ -2280,11 +2290,11 @@ dmu_read_l0_bps(objset_t *os, uint64_t object, uint64_t offset, uint64_t length,
 		 * operation into ZIL, or it may be impossible to replay, since
 		 * the block may appear not yet allocated at that point.
 		 */
-		if (BP_PHYSICAL_BIRTH(bp) > spa_freeze_txg(os->os_spa)) {
+		if (BP_GET_BIRTH(bp) > spa_freeze_txg(os->os_spa)) {
 			error = SET_ERROR(EINVAL);
 			goto out;
 		}
-		if (BP_PHYSICAL_BIRTH(bp) > spa_last_synced_txg(os->os_spa)) {
+		if (BP_GET_BIRTH(bp) > spa_last_synced_txg(os->os_spa)) {
 			error = SET_ERROR(EAGAIN);
 			goto out;
 		}
@@ -2356,18 +2366,17 @@ dmu_brt_clone(objset_t *os, uint64_t object, uint64_t offset, uint64_t length,
 		ASSERT3U(dr->dr_txg, ==, tx->tx_txg);
 		dl = &dr->dt.dl;
 		dl->dr_overridden_by = *bp;
-		dl->dr_brtwrite = B_TRUE;
-		dl->dr_override_state = DR_OVERRIDDEN;
-		if (BP_IS_HOLE(bp)) {
-			dl->dr_overridden_by.blk_birth = 0;
-			dl->dr_overridden_by.blk_phys_birth = 0;
-		} else {
-			dl->dr_overridden_by.blk_birth = dr->dr_txg;
+		if (!BP_IS_HOLE(bp) || BP_GET_LOGICAL_BIRTH(bp) != 0) {
 			if (!BP_IS_EMBEDDED(bp)) {
-				dl->dr_overridden_by.blk_phys_birth =
-				    BP_PHYSICAL_BIRTH(bp);
+				BP_SET_BIRTH(&dl->dr_overridden_by, dr->dr_txg,
+				    BP_GET_BIRTH(bp));
+			} else {
+				BP_SET_LOGICAL_BIRTH(&dl->dr_overridden_by,
+				    dr->dr_txg);
 			}
 		}
+		dl->dr_brtwrite = B_TRUE;
+		dl->dr_override_state = DR_OVERRIDDEN;
 
 		mutex_exit(&db->db_mtx);
 
@@ -2566,6 +2575,8 @@ EXPORT_SYMBOL(dmu_bonus_hold_by_dnode);
 EXPORT_SYMBOL(dmu_buf_hold_array_by_bonus);
 EXPORT_SYMBOL(dmu_buf_rele_array);
 EXPORT_SYMBOL(dmu_prefetch);
+EXPORT_SYMBOL(dmu_prefetch_by_dnode);
+EXPORT_SYMBOL(dmu_prefetch_dnode);
 EXPORT_SYMBOL(dmu_free_range);
 EXPORT_SYMBOL(dmu_free_long_range);
 EXPORT_SYMBOL(dmu_free_long_object);

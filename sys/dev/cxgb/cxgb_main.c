@@ -360,7 +360,7 @@ static int
 cxgb_controller_probe(device_t dev)
 {
 	const struct adapter_info *ai;
-	char *ports, buf[80];
+	const char *ports;
 	int nports;
 
 	ai = cxgb_get_adapter_info(dev);
@@ -373,8 +373,7 @@ cxgb_controller_probe(device_t dev)
 	else
 		ports = "ports";
 
-	snprintf(buf, sizeof(buf), "%s, %d %s", ai->desc, nports, ports);
-	device_set_desc_copy(dev, buf);
+	device_set_descf(dev, "%s, %d %s", ai->desc, nports, ports);
 	return (BUS_PROBE_DEFAULT);
 }
 
@@ -447,7 +446,6 @@ cxgb_controller_attach(device_t dev)
 	uint32_t vers;
 	int port_qsets = 1;
 	int msi_needed, reg;
-	char buf[80];
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -659,10 +657,9 @@ cxgb_controller_attach(device_t dev)
 	    G_FW_VERSION_MAJOR(vers), G_FW_VERSION_MINOR(vers),
 	    G_FW_VERSION_MICRO(vers));
 
-	snprintf(buf, sizeof(buf), "%s %sNIC\t E/C: %s S/N: %s",
-		 ai->desc, is_offload(sc) ? "R" : "",
-		 sc->params.vpd.ec, sc->params.vpd.sn);
-	device_set_desc_copy(dev, buf);
+	device_set_descf(dev, "%s %sNIC\t E/C: %s S/N: %s",
+	    ai->desc, is_offload(sc) ? "R" : "",
+	    sc->params.vpd.ec, sc->params.vpd.sn);
 
 	snprintf(&sc->port_types[0], sizeof(sc->port_types), "%x%x%x%x",
 		 sc->params.vpd.port_type[0], sc->params.vpd.port_type[1],
@@ -966,13 +963,11 @@ static int
 cxgb_port_probe(device_t dev)
 {
 	struct port_info *p;
-	char buf[80];
 	const char *desc;
 	
 	p = device_get_softc(dev);
 	desc = p->phy.desc;
-	snprintf(buf, sizeof(buf), "Port %d %s", p->port_id, desc);
-	device_set_desc_copy(dev, buf);
+	device_set_descf(dev, "Port %d %s", p->port_id, desc);
 	return (0);
 }
 

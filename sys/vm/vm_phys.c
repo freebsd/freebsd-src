@@ -226,7 +226,8 @@ vm_phys_fictitious_cmp(struct vm_phys_fictitious_seg *p1,
 }
 
 int
-vm_phys_domain_match(int prefer, vm_paddr_t low, vm_paddr_t high)
+vm_phys_domain_match(int prefer __numa_used, vm_paddr_t low __numa_used,
+    vm_paddr_t high __numa_used)
 {
 #ifdef NUMA
 	domainset_t mask;
@@ -330,7 +331,7 @@ sysctl_vm_phys_segs(SYSCTL_HANDLER_ARGS)
  * Return affinity, or -1 if there's no affinity information.
  */
 int
-vm_phys_mem_affinity(int f, int t)
+vm_phys_mem_affinity(int f __numa_used, int t __numa_used)
 {
 
 #ifdef NUMA
@@ -629,8 +630,8 @@ vm_phys_init(void)
  * Invoked by platform-dependent code prior to vm_phys_init().
  */
 void
-vm_phys_register_domains(int ndomains, struct mem_affinity *affinity,
-    int *locality)
+vm_phys_register_domains(int ndomains __numa_used,
+    struct mem_affinity *affinity __numa_used, int *locality __numa_used)
 {
 #ifdef NUMA
 	int i;
@@ -651,10 +652,6 @@ vm_phys_register_domains(int ndomains, struct mem_affinity *affinity,
 
 	for (i = 0; i < vm_ndomains; i++)
 		DOMAINSET_SET(i, &all_domains);
-#else
-	(void)ndomains;
-	(void)affinity;
-	(void)locality;
 #endif
 }
 
@@ -702,14 +699,14 @@ vm_phys_enq_beg(vm_page_t m, u_int npages, struct vm_freelist *fl, int tail)
 
 	KASSERT(npages == 0 ||
 	    (VM_PAGE_TO_PHYS(m) &
-	    ((PAGE_SIZE << (fls(npages) - 1)) - 1)) == 0,
+	    ((PAGE_SIZE << ilog2(npages)) - 1)) == 0,
 	    ("%s: page %p and npages %u are misaligned",
 	    __func__, m, npages));
         while (npages > 0) {
 		KASSERT(m->order == VM_NFREEORDER,
 		    ("%s: page %p has unexpected order %d",
 		    __func__, m, m->order));
-                order = fls(npages) - 1;
+                order = ilog2(npages);
 		KASSERT(order < VM_NFREEORDER,
 		    ("%s: order %d is out of range", __func__, order));
                 vm_freelist_add(fl, m, order, tail);
@@ -738,7 +735,7 @@ vm_phys_enq_range(vm_page_t m, u_int npages, struct vm_freelist *fl, int tail)
 
 	KASSERT(npages == 0 ||
 	    ((VM_PAGE_TO_PHYS(m) + npages * PAGE_SIZE) &
-	    ((PAGE_SIZE << (fls(npages) - 1)) - 1)) == 0,
+	    ((PAGE_SIZE << ilog2(npages)) - 1)) == 0,
 	    ("vm_phys_enq_range: page %p and npages %u are misaligned",
 	    m, npages));
 	while (npages > 0) {
@@ -1170,24 +1167,6 @@ vm_phys_free_pages(vm_page_t m, int order)
 }
 
 /*
- * Return the largest possible order of a set of pages starting at m.
- */
-static int
-max_order(vm_page_t m)
-{
-
-	/*
-	 * Unsigned "min" is used here so that "order" is assigned
-	 * "VM_NFREEORDER - 1" when "m"'s physical address is zero
-	 * or the low-order bits of its physical address are zero
-	 * because the size of a physical address exceeds the size of
-	 * a long.
-	 */
-	return (min(ffsll(VM_PAGE_TO_PHYS(m) >> PAGE_SHIFT) - 1,
-	    VM_NFREEORDER - 1));
-}
-
-/*
  * Free a contiguous, arbitrarily sized set of physical pages, without
  * merging across set boundaries.
  *
@@ -1211,10 +1190,10 @@ vm_phys_enqueue_contig(vm_page_t m, u_long npages)
 	fl = (*seg->free_queues)[m->pool];
 	m_end = m + npages;
 	/* Free blocks of increasing size. */
-	lo = VM_PAGE_TO_PHYS(m) >> PAGE_SHIFT;
+	lo = atop(VM_PAGE_TO_PHYS(m));
 	if (m < m_end &&
 	    (diff = lo ^ (lo + npages - 1)) != 0) {
-		order = min(flsll(diff) - 1, VM_NFREEORDER - 1);
+		order = min(ilog2(diff), VM_NFREEORDER - 1);
 		m = vm_phys_enq_range(m, roundup2(lo, 1 << order) - lo, fl, 1);
 	}
 
@@ -1239,18 +1218,22 @@ vm_phys_enqueue_contig(vm_page_t m, u_long npages)
 void
 vm_phys_free_contig(vm_page_t m, u_long npages)
 {
-	int order_start, order_end;
+	vm_paddr_t lo;
 	vm_page_t m_start, m_end;
+	unsigned max_order, order_start, order_end;
 
 	vm_domain_free_assert_locked(vm_pagequeue_domain(m));
 
+	lo = atop(VM_PAGE_TO_PHYS(m));
+	max_order = min(ilog2(lo ^ (lo + npages)), VM_NFREEORDER - 1);
+
 	m_start = m;
-	order_start = max_order(m_start);
-	if (order_start < VM_NFREEORDER - 1)
+	order_start = ffsll(lo) - 1;
+	if (order_start < max_order)
 		m_start += 1 << order_start;
 	m_end = m + npages;
-	order_end = max_order(m_end);
-	if (order_end < VM_NFREEORDER - 1)
+	order_end = ffsll(lo + npages) - 1;
+	if (order_end < max_order)
 		m_end -= 1 << order_end;
 	/*
 	 * Avoid unnecessary coalescing by freeing the pages at the start and
@@ -1258,9 +1241,9 @@ vm_phys_free_contig(vm_page_t m, u_long npages)
 	 */
 	if (m_start < m_end)
 		vm_phys_enqueue_contig(m_start, m_end - m_start);
-	if (order_start < VM_NFREEORDER - 1)
+	if (order_start < max_order)
 		vm_phys_free_pages(m, order_start);
-	if (order_end < VM_NFREEORDER - 1)
+	if (order_end < max_order)
 		vm_phys_free_pages(m_end, order_end);
 }
 

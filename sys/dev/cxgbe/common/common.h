@@ -252,7 +252,6 @@ struct tp_params {
 	unsigned int tre;            /* log2 of core clocks per TP tick */
 	unsigned int dack_re;        /* DACK timer resolution */
 	unsigned int la_mask;        /* what events are recorded by TP LA */
-	unsigned short tx_modq[MAX_NCHAN];  /* channel to modulation queue map */
 
 	uint16_t filter_mode;
 	uint16_t filter_mask;	/* Used by TOE and hashfilters */
@@ -272,6 +271,9 @@ struct tp_params {
 	int8_t matchtype_shift;
 	int8_t frag_shift;
 };
+
+/* Use same modulation queue as the tx channel. */
+#define TX_MODQ(tx_chan) (tx_chan)
 
 struct vpd_params {
 	unsigned int cclk;
@@ -313,6 +315,7 @@ struct chip_params {
 	u32 sge_fl_db;
 	u16 mps_tcam_size;
 	u16 rss_nentries;
+	u16 cim_la_size;
 };
 
 /* VF-only parameters. */
@@ -399,7 +402,9 @@ struct adapter_params {
 	unsigned int max_ordird_qp;
 	unsigned int max_ird_adapter;
 
-	uint32_t mps_bg_map;	/* rx buffer group map for all ports (upto 4) */
+	/* These values are for all ports (8b/port, upto 4 ports) */
+	uint32_t mps_bg_map;	/* MPS rx buffer group map */
+	uint32_t tp_ch_map;	/* TPCHMAP from firmware */
 
 	bool ulptx_memwrite_dsgl;	/* use of T5 DSGL allowed */
 	bool fr_nsmr_tpte_wr_support;	/* FW support for FR_NSMR_TPTE_WR */
@@ -615,7 +620,6 @@ struct fw_filter_wr;
 
 void t4_intr_enable(struct adapter *adapter);
 void t4_intr_disable(struct adapter *adapter);
-void t4_intr_clear(struct adapter *adapter);
 bool t4_slow_intr_handler(struct adapter *adapter, bool verbose);
 
 int t4_hash_mac_addr(const u8 *addr);
@@ -719,6 +723,7 @@ int t4_set_vf_mac(struct adapter *adapter, unsigned int pf, unsigned int vf,
 unsigned int t4_get_regs_len(struct adapter *adapter);
 void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size);
 
+u32 t4_port_reg(struct adapter *adap, u8 port, u32 reg);
 const char *t4_get_port_type_description(enum fw_port_type port_type);
 void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p);
 void t4_get_port_stats_offset(struct adapter *adap, int idx,
@@ -958,4 +963,46 @@ port_top_speed(const struct port_info *pi)
 	return (fwcap_to_speed(pi->link_cfg.pcaps) / 1000);
 }
 
+/* SET_TCB_FIELD sent as a ULP command looks like this */
+#define LEN__SET_TCB_FIELD_ULP (sizeof(struct ulp_txpkt) + \
+    sizeof(struct ulptx_idata) + sizeof(struct cpl_set_tcb_field_core))
+
+static inline void *
+mk_set_tcb_field_ulp(struct adapter *sc, void *cur, int tid, uint16_t word,
+    uint64_t mask, uint64_t val)
+{
+	struct ulp_txpkt *ulpmc;
+	struct ulptx_idata *ulpsc;
+	struct cpl_set_tcb_field_core *req;
+
+	MPASS(((uintptr_t)cur & 7) == 0);
+
+	ulpmc = cur;
+	ulpmc->cmd_dest = htobe32(V_ULPTX_CMD(ULP_TX_PKT) |
+	    V_ULP_TXPKT_DEST(ULP_TXPKT_DEST_TP));
+	ulpmc->len = htobe32(howmany(LEN__SET_TCB_FIELD_ULP, 16));
+
+	ulpsc = (struct ulptx_idata *)(ulpmc + 1);
+	ulpsc->cmd_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_IMM));
+	ulpsc->len = htobe32(sizeof(*req));
+
+	req = (struct cpl_set_tcb_field_core *)(ulpsc + 1);
+	OPCODE_TID(req) = htobe32(MK_OPCODE_TID(CPL_SET_TCB_FIELD, tid));
+	req->reply_ctrl = htobe16(F_NO_REPLY);
+	req->word_cookie = htobe16(V_WORD(word) | V_COOKIE(0));
+	req->mask = htobe64(mask);
+	req->val = htobe64(val);
+
+	/*
+	 * ULP_TX is an 8B processor but the firmware transfers WRs in 16B
+	 * chunks.  The master command for set_tcb_field does not end at a 16B
+	 * boundary so it needs to be padded with a no-op.
+	 */
+	MPASS((LEN__SET_TCB_FIELD_ULP & 0xf) != 0);
+	ulpsc = (struct ulptx_idata *)(req + 1);
+	ulpsc->cmd_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_NOOP));
+	ulpsc->len = htobe32(0);
+
+	return (ulpsc + 1);
+}
 #endif /* __CHELSIO_COMMON_H */

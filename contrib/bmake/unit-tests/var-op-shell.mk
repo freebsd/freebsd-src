@@ -1,4 +1,4 @@
-# $NetBSD: var-op-shell.mk,v 1.7 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: var-op-shell.mk,v 1.8 2024/01/05 23:36:45 rillig Exp $
 #
 # Tests for the != variable assignment operator, which runs its right-hand
 # side through the shell.
@@ -90,5 +90,23 @@ OUTPUT!=	echo '$$$$$$$$'
 .MAKEFLAGS: -dv
 OUTPUT!=	echo '$$$$$$$$'
 .MAKEFLAGS: -d0
+
+
+# Since main.c 1.607 from 2024-01-05, long shell commands are not run directly
+# via '$shell -c $command', they are first written to a temporary file that is
+# then fed to the shell via '$shell $tmpfile'.
+OUTPUT_SHORT!=	echo "$$0"
+OUTPUT_LONG!=	echo "$$0" || : ${:U:range=1000}
+# When running '$shell -c $command', '$0' in the shell evaluates to the name
+# of the shell.
+.if ${OUTPUT_SHORT} != ${.SHELL:T}
+.  error
+.endif
+# When running '$shell $tmpfile', '$0' in the shell evaluates to the name of
+# the temporary file.
+.if !${OUTPUT_LONG:M*/make*}
+.  error
+.endif
+
 
 all:

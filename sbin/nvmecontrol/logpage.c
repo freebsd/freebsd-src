@@ -6,6 +6,7 @@
  *
  * Copyright (C) 2012-2013 Intel Corporation
  * All rights reserved.
+ * Copyright (C) 2016-2023 Warner Losh <imp@FreeBSD.org>
  * Copyright (C) 2018-2019 Alexander Motin <mav@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -189,11 +190,11 @@ get_log_buffer(uint32_t size)
 
 void
 read_logpage(int fd, uint8_t log_page, uint32_t nsid, uint8_t lsp,
-    uint16_t lsi, uint8_t rae, void *payload, uint32_t payload_size)
+    uint16_t lsi, uint8_t rae, uint64_t lpo, uint8_t csi, uint8_t ot,
+    uint16_t uuid_index, void *payload, uint32_t payload_size)
 {
 	struct nvme_pt_command	pt;
-	struct nvme_error_information_entry	*err_entry;
-	u_int i, err_pages, numd;
+	u_int numd;
 
 	numd = payload_size / sizeof(uint32_t) - 1;
 	memset(&pt, 0, sizeof(pt));
@@ -207,58 +208,18 @@ read_logpage(int fd, uint8_t log_page, uint32_t nsid, uint8_t lsp,
 	pt.cmd.cdw11 = htole32(
 	    ((uint32_t)lsi << 16) |		/* LSI */
 	    (numd >> 16));			/* NUMDU */
-	pt.cmd.cdw12 = 0;			/* LPOL */
-	pt.cmd.cdw13 = 0;			/* LPOU */
-	pt.cmd.cdw14 = 0;			/* UUID Index */
+	pt.cmd.cdw12 = htole32(lpo & 0xffffffff); /* LPOL */
+	pt.cmd.cdw13 = htole32(lpo >> 32);	/* LPOU */
+	pt.cmd.cdw14 = htole32(
+	    (csi << 24) | 			/* CSI */
+	    (ot << 23) |			/* OT */
+	    uuid_index);			/* UUID Index */
 	pt.buf = payload;
 	pt.len = payload_size;
 	pt.is_read = 1;
 
 	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
 		err(EX_IOERR, "get log page request failed");
-
-	/* Convert data to host endian */
-	switch (log_page) {
-	case NVME_LOG_ERROR:
-		err_entry = (struct nvme_error_information_entry *)payload;
-		err_pages = payload_size / sizeof(struct nvme_error_information_entry);
-		for (i = 0; i < err_pages; i++)
-			nvme_error_information_entry_swapbytes(err_entry++);
-		break;
-	case NVME_LOG_HEALTH_INFORMATION:
-		nvme_health_information_page_swapbytes(
-		    (struct nvme_health_information_page *)payload);
-		break;
-	case NVME_LOG_FIRMWARE_SLOT:
-		nvme_firmware_page_swapbytes(
-		    (struct nvme_firmware_page *)payload);
-		break;
-	case NVME_LOG_CHANGED_NAMESPACE:
-		nvme_ns_list_swapbytes((struct nvme_ns_list *)payload);
-		break;
-	case NVME_LOG_DEVICE_SELF_TEST:
-		nvme_device_self_test_swapbytes(
-		    (struct nvme_device_self_test_page *)payload);
-		break;
-	case NVME_LOG_COMMAND_EFFECT:
-		nvme_command_effects_page_swapbytes(
-		    (struct nvme_command_effects_page *)payload);
-		break;
-	case NVME_LOG_RES_NOTIFICATION:
-		nvme_res_notification_page_swapbytes(
-		    (struct nvme_res_notification_page *)payload);
-		break;
-	case NVME_LOG_SANITIZE_STATUS:
-		nvme_sanitize_status_page_swapbytes(
-		    (struct nvme_sanitize_status_page *)payload);
-		break;
-	case INTEL_LOG_TEMP_STATS:
-		intel_log_temp_stats_swapbytes(
-		    (struct intel_log_temp_stats *)payload);
-		break;
-	default:
-		break;
-	}
 
 	if (nvme_completion_is_error(&pt.cpl))
 		errx(EX_IOERR, "get log page request returned error");
@@ -275,17 +236,17 @@ print_log_error(const struct nvme_controller_data *cdata __unused, void *buf, ui
 	printf("Error Information Log\n");
 	printf("=====================\n");
 
-	if (entry->error_count == 0) {
+	if (letoh(entry->error_count) == 0) {
 		printf("No error entries found\n");
 		return;
 	}
 
-	nentries = size/sizeof(struct nvme_error_information_entry);
+	nentries = size / sizeof(struct nvme_error_information_entry);
 	for (i = 0; i < nentries; i++, entry++) {
-		if (entry->error_count == 0)
+		if (letoh(entry->error_count) == 0)
 			break;
 
-		status = entry->status;
+		status = letoh(entry->status);
 
 		p = NVME_STATUS_GET_P(status);
 		sc = NVME_STATUS_GET_SC(status);
@@ -295,9 +256,9 @@ print_log_error(const struct nvme_controller_data *cdata __unused, void *buf, ui
 
 		printf("Entry %02d\n", i + 1);
 		printf("=========\n");
-		printf(" Error count:          %ju\n", entry->error_count);
-		printf(" Submission queue ID:  %u\n", entry->sqid);
-		printf(" Command ID:           %u\n", entry->cid);
+		printf(" Error count:          %ju\n", letoh(entry->error_count));
+		printf(" Submission queue ID:  %u\n", letoh(entry->sqid));
+		printf(" Command ID:           %u\n", letoh(entry->cid));
 		/* TODO: Export nvme_status_string structures from kernel? */
 		printf(" Status:\n");
 		printf("  Phase tag:           %d\n", p);
@@ -305,13 +266,13 @@ print_log_error(const struct nvme_controller_data *cdata __unused, void *buf, ui
 		printf("  Status code type:    %d\n", sct);
 		printf("  More:                %d\n", m);
 		printf("  DNR:                 %d\n", dnr);
-		printf(" Error location:       %u\n", entry->error_location);
-		printf(" LBA:                  %ju\n", entry->lba);
-		printf(" Namespace ID:         %u\n", entry->nsid);
-		printf(" Vendor specific info: %u\n", entry->vendor_specific);
-		printf(" Transport type:       %u\n", entry->trtype);
-		printf(" Command specific info:%ju\n", entry->csi);
-		printf(" Transport specific:   %u\n", entry->ttsi);
+		printf(" Error location:       %u\n", letoh(entry->error_location));
+		printf(" LBA:                  %ju\n", letoh(entry->lba));
+		printf(" Namespace ID:         %u\n", letoh(entry->nsid));
+		printf(" Vendor specific info: %u\n", letoh(entry->vendor_specific));
+		printf(" Transport type:       %u\n", letoh(entry->trtype));
+		printf(" Command specific info:%ju\n", letoh(entry->csi));
+		printf(" Transport specific:   %u\n", letoh(entry->ttsi));
 	}
 }
 
@@ -335,7 +296,7 @@ print_log_health(const struct nvme_controller_data *cdata __unused, void *buf, u
 	uint8_t	warning;
 	int i;
 
-	warning = health->critical_warning;
+	warning = letoh(health->critical_warning);
 
 	printf("SMART/Health Information Log\n");
 	printf("============================\n");
@@ -352,13 +313,13 @@ print_log_health(const struct nvme_controller_data *cdata __unused, void *buf, u
 	printf(" Volatile memory backup:        %d\n",
 	    !!(warning & NVME_CRIT_WARN_ST_VOLATILE_MEMORY_BACKUP));
 	printf("Temperature:                    ");
-	print_temp_K(health->temperature);
+	print_temp_K(letoh(health->temperature));
 	printf("Available spare:                %u\n",
-	    health->available_spare);
+	    letoh(health->available_spare));
 	printf("Available spare threshold:      %u\n",
-	    health->available_spare_threshold);
+	    letoh(health->available_spare_threshold));
 	printf("Percentage used:                %u\n",
-	    health->percentage_used);
+	    letoh(health->percentage_used));
 
 	printf("Data units (512,000 byte) read: %s\n",
 	    uint128_to_str(to128(health->data_units_read), cbuf, sizeof(cbuf)));
@@ -381,18 +342,18 @@ print_log_health(const struct nvme_controller_data *cdata __unused, void *buf, u
 	printf("No. error info log entries:     %s\n",
 	    uint128_to_str(to128(health->num_error_info_log_entries), cbuf, sizeof(cbuf)));
 
-	printf("Warning Temp Composite Time:    %d\n", health->warning_temp_time);
-	printf("Error Temp Composite Time:      %d\n", health->error_temp_time);
+	printf("Warning Temp Composite Time:    %d\n", letoh(health->warning_temp_time));
+	printf("Error Temp Composite Time:      %d\n", letoh(health->error_temp_time));
 	for (i = 0; i < 8; i++) {
-		if (health->temp_sensor[i] == 0)
+		if (letoh(health->temp_sensor[i]) == 0)
 			continue;
 		printf("Temperature Sensor %d:           ", i + 1);
-		print_temp_K(health->temp_sensor[i]);
+		print_temp_K(letoh(health->temp_sensor[i]));
 	}
-	printf("Temperature 1 Transition Count: %d\n", health->tmt1tc);
-	printf("Temperature 2 Transition Count: %d\n", health->tmt2tc);
-	printf("Total Time For Temperature 1:   %d\n", health->ttftmt1);
-	printf("Total Time For Temperature 2:   %d\n", health->ttftmt2);
+	printf("Temperature 1 Transition Count: %d\n", letoh(health->tmt1tc));
+	printf("Temperature 2 Transition Count: %d\n", letoh(health->tmt2tc));
+	printf("Total Time For Temperature 1:   %d\n", letoh(health->ttftmt1));
+	printf("Total Time For Temperature 2:   %d\n", letoh(health->ttftmt2));
 }
 
 static void
@@ -405,13 +366,10 @@ print_log_firmware(const struct nvme_controller_data *cdata, void *buf, uint32_t
 	uint16_t			oacs_fw;
 	uint8_t				fw_num_slots;
 
-	afi_slot = fw->afi >> NVME_FIRMWARE_PAGE_AFI_SLOT_SHIFT;
-	afi_slot &= NVME_FIRMWARE_PAGE_AFI_SLOT_MASK;
+	afi_slot = NVMEV(NVME_FIRMWARE_PAGE_AFI_SLOT, fw->afi);
 
-	oacs_fw = (cdata->oacs >> NVME_CTRLR_DATA_OACS_FIRMWARE_SHIFT) &
-		NVME_CTRLR_DATA_OACS_FIRMWARE_MASK;
-	fw_num_slots = (cdata->frmw >> NVME_CTRLR_DATA_FRMW_NUM_SLOTS_SHIFT) &
-		NVME_CTRLR_DATA_FRMW_NUM_SLOTS_MASK;
+	oacs_fw = NVMEV(NVME_CTRLR_DATA_OACS_FIRMWARE, cdata->oacs);
+	fw_num_slots = NVMEV(NVME_CTRLR_DATA_FRMW_NUM_SLOTS, cdata->frmw);
 
 	printf("Firmware Slot Log\n");
 	printf("=================\n");
@@ -428,15 +386,10 @@ print_log_firmware(const struct nvme_controller_data *cdata, void *buf, uint32_t
 		else
 			status = "Inactive";
 
-		if (fw->revision[i] == 0LLU)
+		if (fw->revision[i][0] == '\0')
 			printf("Empty\n");
 		else
-			if (isprint(*(char *)&fw->revision[i]))
-				printf("[%s] %.8s\n", status,
-				    (char *)&fw->revision[i]);
-			else
-				printf("[%s] %016jx\n", status,
-				    fw->revision[i]);
+			printf("[%s] %.8s\n", status, fw->revision[i]);
 	}
 }
 
@@ -451,8 +404,8 @@ print_log_ns(const struct nvme_controller_data *cdata __unused, void *buf,
 	printf("Changed Namespace List\n");
 	printf("======================\n");
 
-	for (i = 0; i < nitems(nsl->ns) && nsl->ns[i] != 0; i++) {
-		printf("%08x\n", nsl->ns[i]);
+	for (i = 0; i < nitems(nsl->ns) && letoh(nsl->ns[i]) != 0; i++) {
+		printf("%08x\n", letoh(nsl->ns[i]));
 	}
 }
 
@@ -470,42 +423,28 @@ print_log_command_effects(const struct nvme_controller_data *cdata __unused,
 	printf("  Command\tLBCC\tNCC\tNIC\tCCC\tCSE\tUUID\n");
 
 	for (i = 0; i < 255; i++) {
-		s = ce->acs[i];
-		if (((s >> NVME_CE_PAGE_CSUP_SHIFT) &
-		     NVME_CE_PAGE_CSUP_MASK) == 0)
+		s = letoh(ce->acs[i]);
+		if (NVMEV(NVME_CE_PAGE_CSUP, s) == 0)
 			continue;
 		printf("Admin\t%02x\t%s\t%s\t%s\t%s\t%u\t%s\n", i,
-		    ((s >> NVME_CE_PAGE_LBCC_SHIFT) &
-		     NVME_CE_PAGE_LBCC_MASK) ? "Yes" : "No",
-		    ((s >> NVME_CE_PAGE_NCC_SHIFT) &
-		     NVME_CE_PAGE_NCC_MASK) ? "Yes" : "No",
-		    ((s >> NVME_CE_PAGE_NIC_SHIFT) &
-		     NVME_CE_PAGE_NIC_MASK) ? "Yes" : "No",
-		    ((s >> NVME_CE_PAGE_CCC_SHIFT) &
-		     NVME_CE_PAGE_CCC_MASK) ? "Yes" : "No",
-		    ((s >> NVME_CE_PAGE_CSE_SHIFT) &
-		     NVME_CE_PAGE_CSE_MASK),
-		    ((s >> NVME_CE_PAGE_UUID_SHIFT) &
-		     NVME_CE_PAGE_UUID_MASK) ? "Yes" : "No");
+		    NVMEV(NVME_CE_PAGE_LBCC, s) != 0 ? "Yes" : "No",
+		    NVMEV(NVME_CE_PAGE_NCC, s) != 0 ? "Yes" : "No",
+		    NVMEV(NVME_CE_PAGE_NIC, s) != 0 ? "Yes" : "No",
+		    NVMEV(NVME_CE_PAGE_CCC, s) != 0 ? "Yes" : "No",
+		    NVMEV(NVME_CE_PAGE_CSE, s),
+		    NVMEV(NVME_CE_PAGE_UUID, s) != 0 ? "Yes" : "No");
 	}
 	for (i = 0; i < 255; i++) {
-		s = ce->iocs[i];
-		if (((s >> NVME_CE_PAGE_CSUP_SHIFT) &
-		     NVME_CE_PAGE_CSUP_MASK) == 0)
+		s = letoh(ce->iocs[i]);
+		if (NVMEV(NVME_CE_PAGE_CSUP, s) == 0)
 			continue;
 		printf("I/O\t%02x\t%s\t%s\t%s\t%s\t%u\t%s\n", i,
-		    ((s >> NVME_CE_PAGE_LBCC_SHIFT) &
-		     NVME_CE_PAGE_LBCC_MASK) ? "Yes" : "No",
-		    ((s >> NVME_CE_PAGE_NCC_SHIFT) &
-		     NVME_CE_PAGE_NCC_MASK) ? "Yes" : "No",
-		    ((s >> NVME_CE_PAGE_NIC_SHIFT) &
-		     NVME_CE_PAGE_NIC_MASK) ? "Yes" : "No",
-		    ((s >> NVME_CE_PAGE_CCC_SHIFT) &
-		     NVME_CE_PAGE_CCC_MASK) ? "Yes" : "No",
-		    ((s >> NVME_CE_PAGE_CSE_SHIFT) &
-		     NVME_CE_PAGE_CSE_MASK),
-		    ((s >> NVME_CE_PAGE_UUID_SHIFT) &
-		     NVME_CE_PAGE_UUID_MASK) ? "Yes" : "No");
+		    NVMEV(NVME_CE_PAGE_LBCC, s) != 0 ? "Yes" : "No",
+		    NVMEV(NVME_CE_PAGE_NCC, s) != 0 ? "Yes" : "No",
+		    NVMEV(NVME_CE_PAGE_NIC, s) != 0 ? "Yes" : "No",
+		    NVMEV(NVME_CE_PAGE_CCC, s) != 0 ? "Yes" : "No",
+		    NVMEV(NVME_CE_PAGE_CSE, s),
+		    NVMEV(NVME_CE_PAGE_UUID, s) != 0 ? "Yes" : "No");
 	}
 }
 
@@ -519,9 +458,10 @@ print_log_res_notification(const struct nvme_controller_data *cdata __unused,
 	printf("Reservation Notification\n");
 	printf("========================\n");
 
-	printf("Log Page Count:                %ju\n", rn->log_page_count);
+	printf("Log Page Count:                %ju\n",
+	    (uintmax_t)letoh(rn->log_page_count));
 	printf("Log Page Type:                 ");
-	switch (rn->log_page_type) {
+	switch (letoh(rn->log_page_type)) {
 	case 0:
 		printf("Empty Log Page\n");
 		break;
@@ -535,11 +475,11 @@ print_log_res_notification(const struct nvme_controller_data *cdata __unused,
 		printf("Reservation Preempted\n");
 		break;
 	default:
-		printf("Unknown %x\n", rn->log_page_type);
+		printf("Unknown %x\n", letoh(rn->log_page_type));
 		break;
 	};
-	printf("Number of Available Log Pages: %d\n", rn->available_log_pages);
-	printf("Namespace ID:                  0x%x\n", rn->nsid);
+	printf("Number of Available Log Pages: %d\n", letoh(rn->available_log_pages));
+	printf("Namespace ID:                  0x%x\n", letoh(rn->nsid));
 }
 
 static void
@@ -548,16 +488,18 @@ print_log_sanitize_status(const struct nvme_controller_data *cdata __unused,
 {
 	struct nvme_sanitize_status_page *ss;
 	u_int p;
+	uint16_t sprog, sstat;
 
 	ss = (struct nvme_sanitize_status_page *)buf;
 	printf("Sanitize Status\n");
 	printf("===============\n");
 
+	sprog = letoh(ss->sprog);
 	printf("Sanitize Progress:                   %u%% (%u/65535)\n",
-	    (ss->sprog * 100 + 32768) / 65536, ss->sprog);
+	    (sprog * 100 + 32768) / 65536, sprog);
 	printf("Sanitize Status:                     ");
-	switch ((ss->sstat >> NVME_SS_PAGE_SSTAT_STATUS_SHIFT) &
-	    NVME_SS_PAGE_SSTAT_STATUS_MASK) {
+	sstat = letoh(ss->sstat);
+	switch (NVMEV(NVME_SS_PAGE_SSTAT_STATUS, sstat)) {
 	case NVME_SS_PAGE_SSTAT_STATUS_NEVER:
 		printf("Never sanitized");
 		break;
@@ -574,24 +516,22 @@ print_log_sanitize_status(const struct nvme_controller_data *cdata __unused,
 		printf("Completed with deallocation");
 		break;
 	default:
-		printf("Unknown");
+		printf("Unknown 0x%x", sstat);
 		break;
 	}
-	p = (ss->sstat >> NVME_SS_PAGE_SSTAT_PASSES_SHIFT) &
-	    NVME_SS_PAGE_SSTAT_PASSES_MASK;
+	p = NVMEV(NVME_SS_PAGE_SSTAT_PASSES, sstat);
 	if (p > 0)
 		printf(", %d passes", p);
-	if ((ss->sstat >> NVME_SS_PAGE_SSTAT_GDE_SHIFT) &
-	    NVME_SS_PAGE_SSTAT_GDE_MASK)
+	if (NVMEV(NVME_SS_PAGE_SSTAT_GDE, sstat) != 0)
 		printf(", Global Data Erased");
 	printf("\n");
-	printf("Sanitize Command Dword 10:           0x%x\n", ss->scdw10);
-	printf("Time For Overwrite:                  %u sec\n", ss->etfo);
-	printf("Time For Block Erase:                %u sec\n", ss->etfbe);
-	printf("Time For Crypto Erase:               %u sec\n", ss->etfce);
-	printf("Time For Overwrite No-Deallocate:    %u sec\n", ss->etfownd);
-	printf("Time For Block Erase No-Deallocate:  %u sec\n", ss->etfbewnd);
-	printf("Time For Crypto Erase No-Deallocate: %u sec\n", ss->etfcewnd);
+	printf("Sanitize Command Dword 10:           0x%x\n", letoh(ss->scdw10));
+	printf("Time For Overwrite:                  %u sec\n", letoh(ss->etfo));
+	printf("Time For Block Erase:                %u sec\n", letoh(ss->etfbe));
+	printf("Time For Crypto Erase:               %u sec\n", letoh(ss->etfce));
+	printf("Time For Overwrite No-Deallocate:    %u sec\n", letoh(ss->etfownd));
+	printf("Time For Block Erase No-Deallocate:  %u sec\n", letoh(ss->etfbewnd));
+	printf("Time For Crypto Erase No-Deallocate: %u sec\n", letoh(ss->etfcewnd));
 }
 
 static const char *
@@ -615,13 +555,14 @@ print_log_self_test_status(const struct nvme_controller_data *cdata __unused,
 {
 	struct nvme_device_self_test_page *dst;
 	uint32_t r;
+	uint16_t vs;
 
 	dst = buf;
 	printf("Device Self-test Status\n");
 	printf("=======================\n");
 
 	printf("Current Operation: ");
-	switch (dst->curr_operation) {
+	switch (letoh(dst->curr_operation)) {
 	case 0x0:
 		printf("No device self-test operation in progress\n");
 		break;
@@ -635,19 +576,20 @@ print_log_self_test_status(const struct nvme_controller_data *cdata __unused,
 		printf("Vendor specific\n");
 		break;
 	default:
-		printf("Reserved (0x%x)\n", dst->curr_operation);
+		printf("Reserved (0x%x)\n", letoh(dst->curr_operation));
 	}
 
-	if (dst->curr_operation != 0)
-		printf("Current Completion: %u%%\n", dst->curr_compl & 0x7f);
+	if (letoh(dst->curr_operation) != 0)
+		printf("Current Completion: %u%%\n", letoh(dst->curr_compl) & 0x7f);
 
 	printf("Results\n");
 	for (r = 0; r < 20; r++) {
 		uint64_t failing_lba;
-		uint8_t code, res;
+		uint8_t code, res, status;
 
-		code = (dst->result[r].status >> 4) & 0xf;
-		res  = dst->result[r].status & 0xf;
+		status = letoh(dst->result[r].status);
+		code = (status >> 4) & 0xf;
+		res  = status & 0xf;
 
 		if (res == 0xf)
 			continue;
@@ -672,21 +614,24 @@ print_log_self_test_status(const struct nvme_controller_data *cdata __unused,
 			printf(" Reserved status 0x%x", res);
 
 		if (res == 7)
-			printf(" starting in segment %u", dst->result[r].segment_num);
+			printf(" starting in segment %u",
+			    letoh(dst->result[r].segment_num));
 
 #define BIT(b) (1 << (b))
-		if (dst->result[r].valid_diag_info & BIT(0))
-			printf(" NSID=0x%x", dst->result[r].nsid);
-		if (dst->result[r].valid_diag_info & BIT(1)) {
+		if (letoh(dst->result[r].valid_diag_info) & BIT(0))
+			printf(" NSID=0x%x", letoh(dst->result[r].nsid));
+		if (letoh(dst->result[r].valid_diag_info) & BIT(1)) {
 			memcpy(&failing_lba, dst->result[r].failing_lba,
 			    sizeof(failing_lba));
-			printf(" FLBA=0x%jx", failing_lba);
+			printf(" FLBA=0x%jx", (uintmax_t)letoh(failing_lba));
 		}
-		if (dst->result[r].valid_diag_info & BIT(2))
-			printf(" SCT=0x%x", dst->result[r].status_code_type);
-		if (dst->result[r].valid_diag_info & BIT(3))
-			printf(" SC=0x%x", dst->result[r].status_code);
+		if (letoh(dst->result[r].valid_diag_info) & BIT(2))
+			printf(" SCT=0x%x", letoh(dst->result[r].status_code_type));
+		if (letoh(dst->result[r].valid_diag_info) & BIT(3))
+			printf(" SC=0x%x", letoh(dst->result[r].status_code));
 #undef BIT
+		memcpy(&vs, dst->result[r].vendor_specific, sizeof(vs));
+		printf(" VENDOR_SPECIFIC=0x%x", letoh(vs));
 		printf("\n");
 	}
 }
@@ -804,8 +749,7 @@ logpage(const struct cmd *f, int argc, char *argv[])
 	if (read_controller_data(fd, &cdata))
 		errx(EX_IOERR, "Identify request failed");
 
-	ns_smart = (cdata.lpa >> NVME_CTRLR_DATA_LPA_NS_SMART_SHIFT) &
-		NVME_CTRLR_DATA_LPA_NS_SMART_MASK;
+	ns_smart = NVMEV(NVME_CTRLR_DATA_LPA_NS_SMART, cdata.lpa);
 
 	/*
 	 * The log page attributes indicate whether or not the controller
@@ -854,7 +798,8 @@ logpage(const struct cmd *f, int argc, char *argv[])
 
 	/* Read the log page */
 	buf = get_log_buffer(size);
-	read_logpage(fd, opt.page, nsid, opt.lsp, opt.lsi, opt.rae, buf, size);
+	read_logpage(fd, opt.page, nsid, opt.lsp, opt.lsi, opt.rae,
+	    0, 0, 0, 0, buf, size);
 	print_fn(&cdata, buf, size);
 
 	close(fd);

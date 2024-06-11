@@ -109,12 +109,14 @@ linux_handle_power_suspend_event(void *arg __unused)
 	 * TODO: Make acpi_sleep_event consistent
 	 */
 	linux_acpi_target_sleep_state = ACPI_STATE_S3;
+	pm_suspend_target_state = PM_SUSPEND_MEM;
 }
 
 static void
 linux_handle_power_resume_event(void *arg __unused)
 {
 	linux_acpi_target_sleep_state = ACPI_STATE_S0;
+	pm_suspend_target_state = PM_SUSPEND_ON;
 }
 
 static void
@@ -172,6 +174,79 @@ uint32_t
 acpi_target_system_state(void)
 {
 	return (linux_acpi_target_sleep_state);
+}
+
+struct acpi_dev_present_ctx {
+	const char *hid;
+	const char *uid;
+	int64_t hrv;
+};
+
+static ACPI_STATUS
+acpi_dev_present_cb(ACPI_HANDLE handle, UINT32 level, void *context,
+    void **result)
+{
+	ACPI_DEVICE_INFO *devinfo;
+	struct acpi_dev_present_ctx *match = context;
+	bool present = false;
+	UINT32 sta, hrv;
+	int i;
+
+	if (handle == NULL)
+		return (AE_OK);
+
+	if (!ACPI_FAILURE(acpi_GetInteger(handle, "_STA", &sta)) &&
+	    !ACPI_DEVICE_PRESENT(sta))
+		return (AE_OK);
+
+	if (ACPI_FAILURE(AcpiGetObjectInfo(handle, &devinfo)))
+		return (AE_OK);
+
+	if ((devinfo->Valid & ACPI_VALID_HID) != 0 &&
+	    strcmp(match->hid, devinfo->HardwareId.String) == 0) {
+		present = true;
+	} else if ((devinfo->Valid & ACPI_VALID_CID) != 0) {
+		for (i = 0; i < devinfo->CompatibleIdList.Count; i++) {
+			if (strcmp(match->hid,
+			    devinfo->CompatibleIdList.Ids[i].String) == 0) {
+				present = true;
+				break;
+			}
+		}
+	}
+	if (present && match->uid != NULL &&
+	    ((devinfo->Valid & ACPI_VALID_UID) == 0 ||
+	      strcmp(match->uid, devinfo->UniqueId.String) != 0))
+		present = false;
+
+	AcpiOsFree(devinfo);
+	if (!present)
+		return (AE_OK);
+
+	if (match->hrv != -1) {
+		if (ACPI_FAILURE(acpi_GetInteger(handle, "_HRV", &hrv)))
+			return (AE_OK);
+		if (hrv != match->hrv)
+			return (AE_OK);
+	}
+
+	return (AE_ERROR);
+}
+
+bool
+lkpi_acpi_dev_present(const char *hid, const char *uid, int64_t hrv)
+{
+	struct acpi_dev_present_ctx match;
+	int rv;
+
+	match.hid = hid;
+	match.uid = uid;
+	match.hrv = hrv;
+
+	rv = AcpiWalkNamespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
+	    ACPI_UINT32_MAX, acpi_dev_present_cb, NULL, &match, NULL);
+
+	return (rv == AE_ERROR);
 }
 
 static void
@@ -239,6 +314,12 @@ uint32_t
 acpi_target_system_state(void)
 {
 	return (ACPI_STATE_S0);
+}
+
+bool
+lkpi_acpi_dev_present(const char *hid, const char *uid, int64_t hrv)
+{
+	return (false);
 }
 
 #endif	/* !DEV_ACPI */

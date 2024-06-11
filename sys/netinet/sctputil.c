@@ -1944,7 +1944,7 @@ sctp_timeout_handler(void *t)
 		    type, inp, stcb, net));
 		SCTP_STAT_INCR(sctps_timosecret);
 		(void)SCTP_GETTIME_TIMEVAL(&tv);
-		inp->sctp_ep.time_of_secret_change = (unsigned int)tv.tv_sec;
+		inp->sctp_ep.time_of_secret_change = tv.tv_sec;
 		inp->sctp_ep.last_secret_number =
 		    inp->sctp_ep.current_secret_number;
 		inp->sctp_ep.current_secret_number++;
@@ -2289,19 +2289,19 @@ sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		} else {
 			to_ticks = net->RTO;
 		}
-		rndval = sctp_select_initial_TSN(&inp->sctp_ep);
-		jitter = rndval % to_ticks;
-		if (to_ticks > 1) {
-			to_ticks >>= 1;
-		}
-		if (jitter < (UINT32_MAX - to_ticks)) {
-			to_ticks += jitter;
-		} else {
-			to_ticks = UINT32_MAX;
-		}
 		if (!((net->dest_state & SCTP_ADDR_UNCONFIRMED) &&
 		    (net->dest_state & SCTP_ADDR_REACHABLE)) &&
 		    ((net->dest_state & SCTP_ADDR_PF) == 0)) {
+			if (to_ticks > 1) {
+				rndval = sctp_select_initial_TSN(&inp->sctp_ep);
+				jitter = rndval % to_ticks;
+				to_ticks >>= 1;
+				if (jitter < (UINT32_MAX - to_ticks)) {
+					to_ticks += jitter;
+				} else {
+					to_ticks = UINT32_MAX;
+				}
+			}
 			if (net->heart_beat_delay < (UINT32_MAX - to_ticks)) {
 				to_ticks += net->heart_beat_delay;
 			} else {
@@ -5654,7 +5654,6 @@ restart_nosblocks:
 				}
 				so->so_state &= ~(SS_ISCONNECTING |
 				    SS_ISDISCONNECTING |
-				    SS_ISCONFIRMING |
 				    SS_ISCONNECTED);
 				if (error == 0) {
 					if ((inp->sctp_flags & SCTP_PCB_FLAGS_WAS_CONNECTED) == 0) {

@@ -20,5 +20,6 @@ grep 'unknown option' foo >/dev/null || echo 'T.flags: bad unknown option'
 $awk -F  >foo 2>&1
 grep 'no field separator' foo >/dev/null || echo 'T.flags: bad missing field separator'
 
-$awk -F '' >foo 2>&1
-grep 'field separator FS is empty' foo >/dev/null || echo 'T.flags: bad empty field separator'
+### Awk is now like gawk and splits into separate characters if FS = ""
+# $awk -F '' >foo 2>&1
+# grep 'field separator FS is empty' foo >/dev/null || echo 'T.flags: bad empty field separator'

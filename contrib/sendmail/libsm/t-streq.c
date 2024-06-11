@@ -17,7 +17,6 @@ SM_IDSTR(id, "@(#)$Id: t-qic.c,v 1.10 2013-11-22 20:51:43 ca Exp $")
 #include <sm/ixlen.h>
 #include <sm/test.h>
 
-#if _FFR_8BITENVADDR
 extern bool SmTestVerbose;
 
 static int
@@ -35,6 +34,32 @@ usage(prg)
 {
 	fprintf(stderr, "usage: %s [options]\n", prg);
 	fprintf(stderr, "options:\n");
+}
+
+static void
+hack(str)
+	char *str;
+{
+	char c;
+
+	/* replace just one \x char */
+	while ((c = *str++) != '\0')
+	{
+		if (c != '\\')
+			continue;
+		c = *str;
+		switch (c)
+		{
+		  case 'n': c ='\n'; break;
+		  case 't': c ='\t'; break;
+		  case 'r': c ='\r'; break;
+		  /* case 'X': c ='\X'; break; */
+		  default: c ='\0'; break;
+		}
+		*(str - 1) = c;
+		*str = '\0';
+		break;
+	}
 }
 
 int
@@ -61,17 +86,14 @@ main(argc, argv)
 	while (fscanf(stdin, "%d:%s\n", &len, s1) == 2 &&
 		fscanf(stdin, "%d:%s\n", &o,s2) == 2)
 	{
+		int r;
+
+		hack(s1);
+		hack(s2);
 		SM_TEST(tstrncaseeq(s1, s2, len) == o);
+		if ((r = tstrncaseeq(s1, s2, len)) != o)
+			fprintf(stderr, "\"%s\"\n\"%s\"\n%d!=%d\n", s1, s2, o, r);
 	}
 
 	return sm_test_end();
 }
-#else /* _FFR_8BITENVADDR */
-int
-main(argc, argv)
-	int argc;
-	char *argv[];
-{
-	return 0;
-}
-#endif /* _FFR_8BITENVADDR */

@@ -72,7 +72,8 @@ if [ $# -eq 0 ]; then
 	exit 0
 else
 	if [ $1 = find ]; then
-		for i in `jot 128`; do
+		start=`date +%s`
+		while [ $((`date +%s`- start)) -lt 300 ]; do
 			find ${mntpoint}* -maxdepth 1 -type f > \
 			    /dev/null 2>&1
 			(lockf  -t 10 ${mntpoint}$2/$0.$$.$i sleep 1 &) > \

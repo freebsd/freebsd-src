@@ -1,17 +1,23 @@
-#
-# All library objects contain FreeBSD revision strings by default; they may be
-# excluded as a space-saving measure.  To produce a library that does
-# not contain these strings, add -DSTRIP_FBSDID (see <sys/cdefs.h>) to CFLAGS
-# below.
 
 PACKAGE=	clibs
 SHLIBDIR?= /lib
 
+LIBADD=	c sys
+.if defined(COMPAT_libcompat)
+# XXX: work around gcc -m32 + bfd ld path issue for DT_NEEDED symbols.
+# https://sourceware.org/bugzilla/show_bug.cgi?id=31395
+LDFLAGS+=	-Wl,--rpath=/usr/lib${COMPAT_libcompat}
+.endif
+
 .include <src.opts.mk>
 MK_SSP=	no
+# SSP forced off already implies FORTIFY_SOURCE=0, but we must make sure that
+# one cannot turn it back on.
+FORTIFY_SOURCE=	0
 
 LIB=thr
 SHLIB_MAJOR= 3
+
 NO_WTHREAD_SAFETY=1
 NO_WCAST_ALIGN.gcc=1    # for gcc 4.2
 CFLAGS+=-DPTHREAD_KERNEL
@@ -44,6 +50,7 @@ CFLAGS+=-D_PTHREAD_FORCED_UNWIND
 .endif
 
 LDFLAGS+=-Wl,-znodelete
+LDFLAGS+=-Wl,--auxiliary,libsys.so.7
 
 VERSION_DEF=${SRCTOP}/lib/libc/Versions.def
 SYMBOL_MAPS=${.CURDIR}/pthread.map
@@ -66,6 +73,14 @@ PRECIOUSLIB=
 .include "${.CURDIR}/sys/Makefile.inc"
 .include "${.CURDIR}/thread/Makefile.inc"
 SRCS+= rtld_malloc.c
+
+LIBSYS_SRCTOP=	${.CURDIR:H}/libsys
+.if exists(${LIBSYS_SRCTOP}/${MACHINE_CPUARCH}/_umtx_op_err.S)
+.PATH: ${LIBSYS_SRCTOP}/${MACHINE_CPUARCH}
+.else
+.PATH: ${LIBSYS_SRCTOP}
+.endif
+OBJS+=	_umtx_op_err.o
 
 .if ${MK_INSTALLLIB} != "no"
 SYMLINKS+=lib${LIB}.a ${LIBDIR}/libpthread.a

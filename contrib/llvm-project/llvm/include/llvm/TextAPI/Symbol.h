@@ -121,6 +121,14 @@ public:
     return (Flags & SymbolFlags::Text) == SymbolFlags::Text;
   }
 
+  bool hasArchitecture(Architecture Arch) const {
+    return mapToArchitectureSet(Targets).contains(Arch);
+  }
+
+  bool hasTarget(const Target &Targ) const {
+    return llvm::is_contained(Targets, Targ);
+  }
+
   using const_target_iterator = TargetList::const_iterator;
   using const_target_range = llvm::iterator_range<const_target_iterator>;
   const_target_range targets() const { return {Targets}; }
@@ -142,8 +150,7 @@ public:
   bool operator!=(const Symbol &O) const { return !(*this == O); }
 
   bool operator<(const Symbol &O) const {
-    return std::tie(Name, Kind, Targets, Flags) <
-           std::tie(O.Name, O.Kind, O.Targets, O.Flags);
+    return std::tie(Kind, Name) < std::tie(O.Kind, O.Name);
   }
 
 private:
@@ -152,6 +159,23 @@ private:
   SymbolKind Kind;
   SymbolFlags Flags;
 };
+
+/// Lightweight struct for passing around symbol information.
+struct SimpleSymbol {
+  StringRef Name;
+  SymbolKind Kind;
+
+  bool operator<(const SimpleSymbol &O) const {
+    return std::tie(Name, Kind) < std::tie(O.Name, O.Kind);
+  }
+};
+
+/// Determine SymbolKind from Flags and parsing Name.
+///
+/// \param Name The name of symbol.
+/// \param Flags The flags pre-determined for the symbol.
+SimpleSymbol parseSymbol(StringRef SymName,
+                         const SymbolFlags Flags = SymbolFlags::None);
 
 } // end namespace MachO.
 } // end namespace llvm.

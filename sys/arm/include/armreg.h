@@ -41,8 +41,6 @@
 #ifndef MACHINE_ARMREG_H
 #define MACHINE_ARMREG_H
 
-#define INSN_SIZE	4
-#define INSN_COND_MASK	0xf0000000	/* Condition mask */
 #define PSR_MODE        0x0000001f      /* mode mask */
 #define PSR_USR32_MODE  0x00000010
 #define PSR_FIQ32_MODE  0x00000011

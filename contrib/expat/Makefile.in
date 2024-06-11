@@ -22,9 +22,10 @@
 #                      \___/_/\_\ .__/ \__,_|\__|
 #                               |_| XML parser
 #
-# Copyright (c) 2017-2021 Sebastian Pipping <sebastian@pipping.org>
+# Copyright (c) 2017-2023 Sebastian Pipping <sebastian@pipping.org>
 # Copyright (c) 2018      KangLin <kl222@126.com>
 # Copyright (c) 2022      Johnny Jazeix <jazeix@gmail.com>
+# Copyright (c) 2023      Sony Corporation / Snild Dolkow <snild@sony.com>
 # Licensed under the MIT license:
 #
 # Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -136,6 +137,8 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
 	$(top_srcdir)/conftools/ax-append-compile-flags.m4 \
 	$(top_srcdir)/conftools/ax-append-link-flags.m4 \
 	$(top_srcdir)/conftools/expatcfg-compiler-supports-visibility.m4 \
+	$(top_srcdir)/conftools/ax-cxx-compile-stdcxx.m4 \
+	$(top_srcdir)/conftools/ax-cxx-compile-stdcxx-11.m4 \
 	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
@@ -339,6 +342,7 @@ FGREP = @FGREP@
 FILECMD = @FILECMD@
 FILEMAP = @FILEMAP@
 GREP = @GREP@
+HAVE_CXX11 = @HAVE_CXX11@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -358,6 +362,7 @@ LIPO = @LIPO@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
 LT_SYS_LIBRARY_PATH = @LT_SYS_LIBRARY_PATH@
+MAINT = @MAINT@
 MAKEINFO = @MAKEINFO@
 MANIFEST_TOOL = @MANIFEST_TOOL@
 MKDIR_P = @MKDIR_P@
@@ -478,7 +483,7 @@ _EXTRA_DIST_WINDOWS = \
     win32/expat.iss \
     win32/MANIFEST.txt \
     win32/README.txt \
-    win32/version.rc
+    win32/version.rc.cmake
 
 EXTRA_DIST = \
     $(_EXTRA_DIST_CMAKE) \
@@ -506,7 +511,7 @@ all: expat_config.h
 .SUFFIXES:
 am--refresh: Makefile
 	@:
-$(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
+$(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am  $(am__configure_deps)
 	@for dep in $?; do \
 	  case '$(am__configure_deps)' in \
 	    *$$dep*) \
@@ -532,9 +537,9 @@ Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 $(top_builddir)/config.status: $(top_srcdir)/configure $(CONFIG_STATUS_DEPENDENCIES)
 	$(SHELL) ./config.status --recheck
 
-$(top_srcdir)/configure:  $(am__configure_deps)
+$(top_srcdir)/configure: @MAINTAINER_MODE_TRUE@ $(am__configure_deps)
 	$(am__cd) $(srcdir) && $(AUTOCONF)
-$(ACLOCAL_M4):  $(am__aclocal_m4_deps)
+$(ACLOCAL_M4): @MAINTAINER_MODE_TRUE@ $(am__aclocal_m4_deps)
 	$(am__cd) $(srcdir) && $(ACLOCAL) $(ACLOCAL_AMFLAGS)
 $(am__aclocal_m4_deps):
 
@@ -545,7 +550,7 @@ expat_config.h: stamp-h1
 stamp-h1: $(srcdir)/expat_config.h.in $(top_builddir)/config.status
 	@rm -f stamp-h1
 	cd $(top_builddir) && $(SHELL) ./config.status expat_config.h
-$(srcdir)/expat_config.h.in:  $(am__configure_deps) 
+$(srcdir)/expat_config.h.in: @MAINTAINER_MODE_TRUE@ $(am__configure_deps) 
 	($(am__cd) $(top_srcdir) && $(AUTOHEADER))
 	rm -f stamp-h1
 	touch $@
@@ -1092,6 +1097,11 @@ buildlib:
 run-benchmark:
 	$(MAKE) -C tests/benchmark
 	./run.sh tests/benchmark/benchmark@EXEEXT@ -n $(top_srcdir)/../testdata/largefiles/recset.xml 65535 3
+	./run.sh tests/benchmark/benchmark@EXEEXT@ -n $(top_srcdir)/../testdata/largefiles/aaaaaa_attr.xml 4096 3
+	./run.sh tests/benchmark/benchmark@EXEEXT@ -n $(top_srcdir)/../testdata/largefiles/aaaaaa_cdata.xml 4096 3
+	./run.sh tests/benchmark/benchmark@EXEEXT@ -n $(top_srcdir)/../testdata/largefiles/aaaaaa_comment.xml 4096 3
+	./run.sh tests/benchmark/benchmark@EXEEXT@ -n $(top_srcdir)/../testdata/largefiles/aaaaaa_tag.xml 4096 3
+	./run.sh tests/benchmark/benchmark@EXEEXT@ -n $(top_srcdir)/../testdata/largefiles/aaaaaa_text.xml 4096 3
 
 .PHONY: download-xmlts-zip
 download-xmlts-zip:

@@ -23,7 +23,7 @@
 .\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd June 14, 2018
+.Dd June 6, 2024
 .Dt NEWFS_MSDOS 8
 .Os
 .Sh NAME
@@ -91,7 +91,11 @@ A suffix s, k, m, g (lower or upper case)
 appended to the offset specifies that the
 number is in sectors, kilobytes, megabytes or gigabytes, respectively.
 .It Fl A
-Attempt to cluster align root directory, useful for SD card.
+Attempt to cluster align the data area, useful for flash based storage.
+This option is enabled by default, unless a number of reserved sectors
+is specified using the
+.Fl r
+option.
 .It Fl B Ar boot
 Get bootstrap from file.
 .It Fl C Ar create-size
@@ -134,7 +138,7 @@ File system block size (bytes per cluster).
 This should resolve to an
 acceptable number of sectors per cluster (see below).
 .It Fl c Ar cluster-size
-Sectors per cluster.
+Sectors per cluster, also called allocation size.
 Acceptable values are powers of 2 in the range
 1 through 128.
 If the block or cluster size are not specified, the code
@@ -167,6 +171,10 @@ is 2.
 Number of hidden sectors.
 .It Fl r Ar reserved
 Number of reserved sectors.
+If the
+.Fl r
+option is not used, the number of reserved sectors is set to a value that
+aligns the start of the data area to a multiple of the cluster size.
 .It Fl s Ar total
 File system size.
 .It Fl u Ar track-size
@@ -222,6 +230,12 @@ Create a file system, using default parameters, on
 .Pa /dev/ada0s1 :
 .Bd -literal -offset indent
 newfs_msdos /dev/ada0s1
+.Ed
+.Pp
+Create a FAT32 filesystem with a 32K allocation size on
+.Pa /dev/mmcsd0s1 :
+.Bd -literal -offset indent
+newfs_msdos -F 32 -A -c 64 /dev/mmcsd0s1
 .Ed
 .Pp
 Create a standard 1.44M file system, with volume label

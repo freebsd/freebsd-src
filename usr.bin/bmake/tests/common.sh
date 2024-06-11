@@ -56,7 +56,7 @@ ensure_run()
 }
 
 #
-# Output usage messsage.
+# Output usage message.
 #
 print_usage()
 {

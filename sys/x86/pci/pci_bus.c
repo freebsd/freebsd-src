@@ -607,23 +607,39 @@ legacy_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 int
-legacy_pcib_adjust_resource(device_t dev, device_t child, int type,
+legacy_pcib_adjust_resource(device_t dev, device_t child,
     struct resource *r, rman_res_t start, rman_res_t end)
 {
 
-	if (type == PCI_RES_BUS)
+	if (rman_get_type(r) == PCI_RES_BUS)
 		return (pci_domain_adjust_bus(0, child, r, start, end));
-	return (bus_generic_adjust_resource(dev, child, type, r, start, end));
+	return (bus_generic_adjust_resource(dev, child, r, start, end));
 }
 
 int
-legacy_pcib_release_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *r)
+legacy_pcib_release_resource(device_t dev, device_t child, struct resource *r)
 {
 
-	if (type == PCI_RES_BUS)
-		return (pci_domain_release_bus(0, child, rid, r));
-	return (bus_generic_release_resource(dev, child, type, rid, r));
+	if (rman_get_type(r) == PCI_RES_BUS)
+		return (pci_domain_release_bus(0, child, r));
+	return (bus_generic_release_resource(dev, child, r));
+}
+
+int
+legacy_pcib_activate_resource(device_t dev, device_t child, struct resource *r)
+{
+	if (rman_get_type(r) == PCI_RES_BUS)
+		return (pci_domain_activate_bus(0, child, r));
+	return (bus_generic_activate_resource(dev, child, r));
+}
+
+int
+legacy_pcib_deactivate_resource(device_t dev, device_t child,
+    struct resource *r)
+{
+	if (rman_get_type(r) == PCI_RES_BUS)
+		return (pci_domain_deactivate_bus(0, child, r));
+	return (bus_generic_deactivate_resource(dev, child, r));
 }
 #endif
 
@@ -643,12 +659,14 @@ static device_method_t legacy_pcib_methods[] = {
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	DEVMETHOD(bus_adjust_resource,	legacy_pcib_adjust_resource),
 	DEVMETHOD(bus_release_resource,	legacy_pcib_release_resource),
+	DEVMETHOD(bus_activate_resource, legacy_pcib_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, legacy_pcib_deactivate_resource),
 #else
 	DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-#endif
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+#endif
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 

@@ -1,4 +1,4 @@
-/* $OpenBSD: log.c,v 1.60 2021/09/16 15:11:19 djm Exp $ */
+/* $OpenBSD: log.c,v 1.61 2023/12/06 21:06:48 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -468,6 +468,10 @@ sshlogv(const char *file, const char *func, int line, int showfunc,
 	int forced = 0;
 	const char *cp;
 	size_t i;
+
+	/* short circuit processing early if we're not going to log anything */
+	if (nlog_verbose == 0 && level > log_level)
+		return;
 
 	snprintf(tag, sizeof(tag), "%.48s:%.48s():%d (pid=%ld)",
 	    (cp = strrchr(file, '/')) == NULL ? file : cp + 1, func, line,

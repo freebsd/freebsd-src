@@ -63,20 +63,12 @@ void pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma);
  * Pmap stuff
  */
 
+struct rangeset;
+
 struct md_page {
 	TAILQ_HEAD(,pv_entry)	pv_list;
 	int			pv_gen;
 	vm_memattr_t		pv_memattr;
-};
-
-/*
- * This structure is used to hold a virtual<->physical address
- * association and is used mostly by bootstrap code
- */
-struct pv_addr {
-	SLIST_ENTRY(pv_addr) pv_list;
-	vm_offset_t	pv_va;
-	vm_paddr_t	pv_pa;
 };
 
 enum pmap_stage {
@@ -97,7 +89,8 @@ struct pmap {
 	struct asid_set		*pm_asid_set;	/* The ASID/VMID set to use */
 	enum pmap_stage		pm_stage;
 	int			pm_levels;
-	uint64_t		pm_reserved[4];
+	struct rangeset		*pm_bti;
+	uint64_t		pm_reserved[3];
 };
 typedef struct pmap *pmap_t;
 
@@ -182,19 +175,16 @@ extern void (*pmap_stage2_invalidate_range)(uint64_t, vm_offset_t, vm_offset_t,
     bool);
 extern void (*pmap_stage2_invalidate_all)(uint64_t);
 
-static inline int
-pmap_vmspace_copy(pmap_t dst_pmap __unused, pmap_t src_pmap __unused)
-{
+int pmap_vmspace_copy(pmap_t, pmap_t);
 
-	return (0);
-}
+int pmap_bti_set(pmap_t, vm_offset_t, vm_offset_t);
+int pmap_bti_clear(pmap_t, vm_offset_t, vm_offset_t);
 
 #if defined(KASAN) || defined(KMSAN)
 struct arm64_bootparams;
 
 void	pmap_bootstrap_san(void);
 void	pmap_san_enter(vm_offset_t);
-void	pmap_san_bootstrap(struct arm64_bootparams *);
 #endif
 
 #endif	/* _KERNEL */

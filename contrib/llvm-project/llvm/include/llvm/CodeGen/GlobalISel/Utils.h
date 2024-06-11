@@ -33,6 +33,7 @@ class BlockFrequencyInfo;
 class GISelKnownBits;
 class MachineFunction;
 class MachineInstr;
+class MachineIRBuilder;
 class MachineOperand;
 class MachineOptimizationRemarkEmitter;
 class MachineOptimizationRemarkMissed;
@@ -57,6 +58,8 @@ class APFloat;
   case TargetOpcode::G_VECREDUCE_FMUL:                                         \
   case TargetOpcode::G_VECREDUCE_FMAX:                                         \
   case TargetOpcode::G_VECREDUCE_FMIN:                                         \
+  case TargetOpcode::G_VECREDUCE_FMAXIMUM:                                     \
+  case TargetOpcode::G_VECREDUCE_FMINIMUM:                                     \
   case TargetOpcode::G_VECREDUCE_ADD:                                          \
   case TargetOpcode::G_VECREDUCE_MUL:                                          \
   case TargetOpcode::G_VECREDUCE_AND:                                          \
@@ -72,6 +75,8 @@ class APFloat;
   case TargetOpcode::G_VECREDUCE_FMUL:                                         \
   case TargetOpcode::G_VECREDUCE_FMAX:                                         \
   case TargetOpcode::G_VECREDUCE_FMIN:                                         \
+  case TargetOpcode::G_VECREDUCE_FMAXIMUM:                                     \
+  case TargetOpcode::G_VECREDUCE_FMINIMUM:                                     \
   case TargetOpcode::G_VECREDUCE_ADD:                                          \
   case TargetOpcode::G_VECREDUCE_MUL:                                          \
   case TargetOpcode::G_VECREDUCE_AND:                                          \
@@ -243,6 +248,24 @@ MachineInstr *getDefIgnoringCopies(Register Reg,
 /// Also walks through hints such as G_ASSERT_ZEXT.
 Register getSrcRegIgnoringCopies(Register Reg, const MachineRegisterInfo &MRI);
 
+/// Helper function to split a wide generic register into bitwise blocks with
+/// the given Type (which implies the number of blocks needed). The generic
+/// registers created are appended to Ops, starting at bit 0 of Reg.
+void extractParts(Register Reg, LLT Ty, int NumParts,
+                  SmallVectorImpl<Register> &VRegs,
+                  MachineIRBuilder &MIRBuilder, MachineRegisterInfo &MRI);
+
+/// Version which handles irregular splits.
+bool extractParts(Register Reg, LLT RegTy, LLT MainTy, LLT &LeftoverTy,
+                  SmallVectorImpl<Register> &VRegs,
+                  SmallVectorImpl<Register> &LeftoverVRegs,
+                  MachineIRBuilder &MIRBuilder, MachineRegisterInfo &MRI);
+
+/// Version which handles irregular sub-vector splits.
+void extractVectorParts(Register Reg, unsigned NumElts,
+                        SmallVectorImpl<Register> &VRegs,
+                        MachineIRBuilder &MIRBuilder, MachineRegisterInfo &MRI);
+
 // Templated variant of getOpcodeDef returning a MachineInstr derived T.
 /// See if Reg is defined by an single def instruction of type T
 /// Also try to do trivial folding if it's a COPY with
@@ -272,6 +295,10 @@ std::optional<APFloat> ConstantFoldFPBinOp(unsigned Opcode, const Register Op1,
 SmallVector<APInt> ConstantFoldVectorBinop(unsigned Opcode, const Register Op1,
                                            const Register Op2,
                                            const MachineRegisterInfo &MRI);
+
+std::optional<APInt> ConstantFoldCastOp(unsigned Opcode, LLT DstTy,
+                                        const Register Op0,
+                                        const MachineRegisterInfo &MRI);
 
 std::optional<APInt> ConstantFoldExtOp(unsigned Opcode, const Register Op1,
                                        uint64_t Imm,

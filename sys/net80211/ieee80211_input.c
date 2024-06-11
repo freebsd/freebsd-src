@@ -773,12 +773,12 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 	/* Process VHT IEs */
 	if (scan->vhtcap != NULL) {
 		IEEE80211_VERIFY_LENGTH(scan->vhtcap[1],
-		    sizeof(struct ieee80211_ie_vhtcap) - 2,
+		    sizeof(struct ieee80211_vht_cap),
 		    scan->vhtcap = NULL);
 	}
 	if (scan->vhtopmode != NULL) {
 		IEEE80211_VERIFY_LENGTH(scan->vhtopmode[1],
-		    sizeof(struct ieee80211_ie_vht_operation) - 2,
+		    sizeof(struct ieee80211_vht_operation),
 		    scan->vhtopmode = NULL);
 	}
 

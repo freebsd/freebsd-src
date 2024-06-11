@@ -486,7 +486,7 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
  * Set that machine state for performing an upcall that starts
  * the entry function with the given argument.
  */
-void
+int
 cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
     stack_t *stack)
 {
@@ -510,11 +510,14 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 	td->td_frame->tf_eip = (int)entry;
 
 	/* Return address sentinel value to stop stack unwinding. */
-	suword((void *)td->td_frame->tf_esp, 0);
+	if (suword((void *)td->td_frame->tf_esp, 0) != 0)
+		return (EFAULT);
 
 	/* Pass the argument to the entry point. */
-	suword((void *)(td->td_frame->tf_esp + sizeof(void *)),
-	    (int)arg);
+	if (suword((void *)(td->td_frame->tf_esp + sizeof(void *)),
+	    (int)arg) != 0)
+		return (EFAULT);
+	return (0);
 }
 
 int

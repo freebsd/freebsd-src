@@ -30,6 +30,17 @@ check()
 	    date -r ${TEST2} +%${format_string}
 }
 
+atf_test_case flag_r_file_test
+flag_r_file_test_body()
+{
+	local file
+
+	file="./testfile"
+	touch "$file"
+	atf_check -o "inline:$(stat -f '%9Fm' "$file")\n" \
+		date -r "$file" +%s.%N
+}
+
 format_string_test()
 {
 	local desc exp_output_1 exp_output_2 flag
@@ -98,6 +109,8 @@ iso8601_${desc}_parity_body() {
 
 atf_init_test_cases()
 {
+	atf_add_test_case flag_r_file_test
+
 	format_string_test A A Saturday Monday
 	format_string_test a a Sat Mon
 	format_string_test B B February November
@@ -118,6 +131,7 @@ atf_init_test_cases()
 	format_string_test l l " 7" " 9"
 	format_string_test M M 04 20
 	format_string_test m m 02 11
+	format_string_test N N 000000000 000000000
 	format_string_test p p AM PM
 	format_string_test R R 07:04 21:20
 	format_string_test r r "07:04:03 AM" "09:20:00 PM"
@@ -143,6 +157,5 @@ atf_init_test_cases()
 	iso8601_string_test hours hours "" "1970-02-07T07+00:00" "2001-11-12T21+00:00"
 	iso8601_string_test minutes minutes "" "1970-02-07T07:04+00:00" "2001-11-12T21:20+00:00"
 	iso8601_string_test seconds seconds "" "1970-02-07T07:04:03+00:00" "2001-11-12T21:20:00+00:00"
-	# BSD date(1) does not support fractional seconds at this time.
-	#iso8601_string_test ns ns "" "1970-02-07T07:04:03,000000000+00:00" "2001-11-12T21:20:00,000000000+00:00"
+	iso8601_string_test ns ns "" "1970-02-07T07:04:03,000000000+00:00" "2001-11-12T21:20:00,000000000+00:00"
 }

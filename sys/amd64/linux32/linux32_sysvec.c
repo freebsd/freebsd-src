@@ -994,7 +994,7 @@ static Elf32_Brandinfo linux_muslbrand = {
 			    LINUX_BI_FUTEX_REQUEUE
 };
 
-Elf32_Brandinfo *linux_brandlist[] = {
+static Elf32_Brandinfo *linux_brandlist[] = {
 	&linux_brand,
 	&linux_glibc2brand,
 	&linux_muslbrand,

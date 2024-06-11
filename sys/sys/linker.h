@@ -82,6 +82,11 @@ struct linker_file {
     size_t		size;		/* size of file */
     caddr_t		ctors_addr;	/* address of .ctors/.init_array */
     size_t		ctors_size;	/* size of .ctors/.init_array */
+    enum {
+	    LF_NONE = 0,
+	    LF_CTORS,
+	    LF_DTORS,
+    } ctors_invoked;			/* have we run ctors yet? */
     caddr_t		dtors_addr;	/* address of .dtors/.fini_array */
     size_t		dtors_size;	/* size of .dtors/.fini_array */
     int			ndeps;		/* number of dependencies */
@@ -124,6 +129,12 @@ typedef int linker_predicate_t(linker_file_t, void *);
  * The "file" for the kernel.
  */
 extern linker_file_t	linker_kernel_file;
+
+/*
+ * Special symbol which will be replaced by a reference to the linker_file_t
+ * of the module it is used in.
+ */
+extern linker_file_t __this_linker_file;
 
 /*
  * Obtain a reference to a module, loading it if required.
@@ -319,6 +330,9 @@ typedef struct linker_ctf {
 } linker_ctf_t;
 
 int	linker_ctf_get(linker_file_t, linker_ctf_t *);
+int linker_ctf_lookup_sym_ddb(const char *symname, c_linker_sym_t *sym,
+    linker_ctf_t *lc);
+int linker_ctf_lookup_typename_ddb(linker_ctf_t *lc, const char *typename);
 
 int elf_cpu_load_file(linker_file_t);
 int elf_cpu_unload_file(linker_file_t);

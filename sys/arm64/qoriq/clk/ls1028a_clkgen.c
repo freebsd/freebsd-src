@@ -39,7 +39,7 @@
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <dev/extres/clk/clk_fixed.h>
+#include <dev/clk/clk_fixed.h>
 
 #include <arm64/qoriq/clk/qoriq_clkgen.h>
 

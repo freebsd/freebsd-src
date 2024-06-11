@@ -97,6 +97,8 @@ static void unput(int);
  */
 %}
 
+%option yylineno
+
 %e 1500		/* maximum nodes */
 %p 4900		/* maximum positions */
 %n 600		/* maximum states */
@@ -405,7 +407,7 @@ if (yypcb->pcb_token != 0) {
 
 <S0>{RGX_FP}	yyerror("floating-point constants are not permitted\n");
 
-<S0>\"{RGX_STR}$ |
+<S0>\"{RGX_STR}$ xyerror(D_STR_NL, "newline encountered in string literal");
 <S3>\"{RGX_STR}$ xyerror(D_STR_NL, "newline encountered in string literal");
 
 <S0>\"{RGX_STR}\" |

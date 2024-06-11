@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 23, 2023
+.Dd January 21, 2024
 .Dt FIND 1
 .Os
 .Sh NAME
@@ -347,6 +347,22 @@ The
 .Ic -delete
 primary will fail to delete a directory if it is not empty.
 Following symlinks is incompatible with this option.
+.Pp
+.Em WARNING :
+The
+.Ic -delete
+primary will immediately attempt to delete the current path when
+evaluated.
+Be mindful of its place in the expression; as a general rule, it
+should almost always come last.
+If in doubt, try running with
+.Ic -print
+in place of
+.Ic -delete
+first.
+See
+.Sx OPERATORS
+below for additional information on the order of evaluation.
 .It Ic -depth
 Always true;
 same as the non-portable
@@ -449,6 +465,12 @@ if at least one invocation of
 returns a non-zero exit status,
 .Nm
 will return a non-zero exit status.
+.It Ic -executable
+Matches files which are executable by the current user.
+This test makes use of the
+.Xr access 2
+system call, and so can be fooled by NFS servers which do UID mapping (or root-squashing).
+This is a GNU find extension.
 .It Ic -flags Oo Cm - Ns | Ns Cm + Oc Ns Ar flags , Ns Ar notflags
 The flags are specified using symbolic names (see
 .Xr chflags 1 ) .
@@ -741,7 +763,7 @@ Slashes
 .Pq Dq Li /
 are treated as normal characters and do not have to be
 matched explicitly.
-.It Ic -perm Oo Cm - Ns | Ns Cm + Oc Ns Ar mode
+.It Ic -perm Oo Cm - Ns | Ns Cm + Ns | Ns Cm / Oc Ns Ar mode
 The
 .Ar mode
 may be either symbolic (see
@@ -770,11 +792,14 @@ are set in the file's mode bits.
 If the
 .Ar mode
 is preceded by a plus
-.Pq Dq Li + ,
+.Pq Dq Li +
 this primary evaluates to true
 if any of the bits in the
 .Ar mode
 are set in the file's mode bits.
+A slash
+.Pq Dq Li /
+is also accepted with the same meaning as plus for compatibility with GNU find.
 Otherwise, this primary evaluates to true if
 the bits in the
 .Ar mode
@@ -810,6 +835,12 @@ option was specified.
 Causes
 .Nm
 to terminate immediately.
+.It Ic -readable
+Matches files which are readable by the current user.
+This test makes use of the
+.Xr access 2
+system call, and so can be fooled by NFS servers which do UID mapping (or root-squashing).
+This is a GNU find extension.
 .It Ic -regex Ar pattern
 True if the whole path of the file matches
 .Ar pattern
@@ -906,6 +937,12 @@ is treated as a user ID.
 The same thing as
 .Ic -path ,
 for GNU find compatibility.
+.It Ic -writable
+Matches files which are writable by the current user.
+This test makes use of the
+.Xr access 2
+system call, and so can be fooled by NFS servers which do UID mapping (or root-squashing).
+This is a GNU find extension.
 .El
 .Sh OPERATORS
 The primaries may be combined using the following operators.
@@ -1100,6 +1137,16 @@ option was inspired by the equivalent
 and
 .Xr sed 1
 options.
+.Pp
+The
+.Ic -perm
+primary accepts a leading slash
+.Pq Dq Li /
+as an alias for a leading plus
+.Pq Dq Li +
+for its argument as an extension of
+.St -p1003.1-2001
+to be compatible with GNU find.
 .Sh HISTORY
 A simple
 .Nm

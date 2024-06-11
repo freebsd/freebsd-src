@@ -71,8 +71,10 @@ test() {
 
 gnop status || exit 1
 
+start=`date +%s`
 for i in 1k 2k 4k 8k; do
 	test $i
+	[ $((`date +%s` - start)) -gt 1200 ] && break
 done
 
 [ $notloaded ] && gnop unload

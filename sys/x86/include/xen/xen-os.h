@@ -52,8 +52,6 @@ extern int xen_disable_pv_disks;
 /* tunable for disabling PV nics */
 extern int xen_disable_pv_nics;
 
-extern uint32_t xen_cpuid_base;
-
 /* compatibility for accessing xen_ulong_t with atomics */
 #define	atomic_clear_xen_ulong		atomic_clear_long
 #define	atomic_set_xen_ulong		atomic_set_long
@@ -95,6 +93,9 @@ xen_pv_nics_disabled(void)
 }
 
 bool xen_has_iommu_maps(void);
+
+/* (Very) early initialization. */
+void xen_early_init(void);
 
 #endif /* !__ASSEMBLY__ */
 

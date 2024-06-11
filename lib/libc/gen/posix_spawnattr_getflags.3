@@ -32,7 +32,7 @@
 .\" the referee document.  The original Standard can be obtained online at
 .\"	http://www.opengroup.org/unix/online.html.
 .\"
-.Dd March 24, 2008
+.Dd March 4, 2024
 .Dt POSIX_SPAWNATTR_GETFLAGS 3
 .Os
 .Sh NAME
@@ -75,6 +75,7 @@ It is the bitwise-inclusive OR of zero or more of the following flags
 .It Dv POSIX_SPAWN_SETSIGMASK
 .It Dv POSIX_SPAWN_SETSCHEDPARAM
 .It Dv POSIX_SPAWN_SETSCHEDULER
+.It Dv POSIX_SPAWN_DISABLE_ASLR_NP
 .El
 .Pp
 These flags are defined in
@@ -83,9 +84,12 @@ The default value of this attribute is as if no flags were set.
 .Sh RETURN VALUES
 The
 .Fn posix_spawnattr_getflags
-and
+function returns zero.
+The
 .Fn posix_spawnattr_setflags
-functions return zero.
+function returns zero on success, and
+.Er EINVAL
+on failure due to invalid flag specified.
 .Sh SEE ALSO
 .Xr posix_spawn 3 ,
 .Xr posix_spawnattr_destroy 3 ,

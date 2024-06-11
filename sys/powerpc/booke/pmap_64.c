@@ -125,7 +125,6 @@ static pte_t ****kernel_ptbl_root;
 #define	VM_MAPDEV_PA_MAX	0x4000000000000000 /* Don't encroach on DMAP */
 
 static void tid_flush(tlbtid_t tid);
-static unsigned long ilog2(unsigned long);
 
 /**************************************************************************/
 /* Page table management */
@@ -138,7 +137,7 @@ static void ptbl_hold(pmap_t, pte_t *);
 static int ptbl_unhold(pmap_t, vm_offset_t);
 
 static vm_paddr_t pte_vatopa(pmap_t, vm_offset_t);
-static int pte_enter(pmap_t, vm_page_t, vm_offset_t, uint32_t, boolean_t);
+static int pte_enter(pmap_t, vm_page_t, vm_offset_t, uint32_t, bool);
 static int pte_remove(pmap_t, vm_offset_t, uint8_t);
 static pte_t *pte_find(pmap_t, vm_offset_t);
 static pte_t *pte_find_next(pmap_t, vm_offset_t *);
@@ -440,7 +439,7 @@ pte_remove(pmap_t pmap, vm_offset_t va, u_int8_t flags)
  */
 static int
 pte_enter(pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags,
-    boolean_t nosleep)
+    bool nosleep)
 {
 	unsigned int	ptbl_idx = PTBL_IDX(va);
 	pte_t          *ptbl, *pte, pte_tmp;
@@ -745,18 +744,6 @@ mmu_booke_quick_remove_page(vm_offset_t addr)
 /**************************************************************************/
 /* TID handling */
 /**************************************************************************/
-
-/*
- * Return the largest uint value log such that 2^log <= num.
- */
-static unsigned long
-ilog2(unsigned long num)
-{
-	long lz;
-
-	__asm ("cntlzd %0, %1" : "=r" (lz) : "r" (num));
-	return (63 - lz);
-}
 
 /*
  * Invalidate all TLB0 entries which match the given TID. Note this is

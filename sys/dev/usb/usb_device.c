@@ -2484,7 +2484,7 @@ usb_devinfo(struct usb_device *udev, char *dst_ptr, uint16_t dst_len)
 
 #ifdef USB_VERBOSE
 /*
- * Descriptions of of known vendors and devices ("products").
+ * Descriptions of known vendors and devices ("products").
  */
 struct usb_knowndev {
 	uint16_t vendor;

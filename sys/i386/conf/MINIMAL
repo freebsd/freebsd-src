@@ -41,6 +41,7 @@ makeoptions	WITH_CTF=1		# Run ctfconvert(1) for DTrace support
 
 options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
+options 	VIMAGE			# Subsystem virtualization, e.g. VNET
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	TCP_OFFLOAD		# TCP offload
@@ -53,11 +54,6 @@ options 	UFS_GJOURNAL		# Enable gjournal-based UFS journaling
 options 	QUOTA			# Enable disk quotas for UFS
 options 	MD_ROOT			# MD is a potential root device
 options 	GEOM_LABEL		# Provides labelization
-options 	COMPAT_FREEBSD4		# Compatible with FreeBSD4
-options 	COMPAT_FREEBSD5		# Compatible with FreeBSD5
-options 	COMPAT_FREEBSD6		# Compatible with FreeBSD6
-options 	COMPAT_FREEBSD7		# Compatible with FreeBSD7
-options 	COMPAT_FREEBSD9		# Compatible with FreeBSD9
 options 	COMPAT_FREEBSD10	# Compatible with FreeBSD10
 options 	COMPAT_FREEBSD11	# Compatible with FreeBSD11
 options 	COMPAT_FREEBSD12	# Compatible with FreeBSD12
@@ -85,6 +81,8 @@ options 	INCLUDE_CONFIG_FILE	# Include this file in kernel
 # Debugging support.  Always need this:
 options 	KDB			# Enable kernel debugger support.
 options 	KDB_TRACE		# Print a stack trace for a panic.
+# For full debugger support use (turn off in stable branch):
+include "std.debug"
 
 # Make an SMP-capable kernel by default
 options 	SMP			# Symmetric MultiProcessor Kernel
@@ -154,3 +152,15 @@ device		xentimer		# Xen x86 PV timer device
 options 	EVDEV_SUPPORT		# evdev support in legacy drivers
 device		evdev			# input event device support
 device		uinput			# install /dev/uinput cdev
+
+# NVM Express (NVMe) support
+device		nvme			# base NVMe driver
+
+# ATA controllers
+device		ahci			# AHCI-compatible SATA controllers
+
+# CAM
+device		scbus			# SCSI bus (required for ATA/SCSI)
+device		da			# Direct Access (disks)
+device		cd			# CD
+device		pass			# Passthrough device (direct ATA/SCSI access)

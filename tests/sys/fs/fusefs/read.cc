@@ -1216,8 +1216,7 @@ TEST_F(Read, cache_block)
 	char buf[bufsize];
 	const char *contents1 = CONTENTS0 + bufsize;
 
-	contents = (char*)calloc(1, filesize);
-	ASSERT_NE(nullptr, contents);
+	contents = new char[filesize]();
 	memmove(contents, CONTENTS0, strlen(CONTENTS0));
 
 	expect_lookup(RELPATH, ino, filesize);
@@ -1235,7 +1234,7 @@ TEST_F(Read, cache_block)
 	ASSERT_EQ(bufsize, read(fd, buf, bufsize)) << strerror(errno);
 	ASSERT_EQ(0, memcmp(buf, contents1, bufsize));
 	leak(fd);
-	free(contents);
+	delete[] contents;
 }
 
 /* Reading with sendfile should work (though it obviously won't be 0-copy) */
@@ -1332,16 +1331,15 @@ TEST_P(ReadAhead, readahead) {
 	char *rbuf, *contents;
 	off_t offs;
 
-	contents = (char*)malloc(filesize);
-	ASSERT_NE(nullptr, contents);
+	contents = new char[filesize];
 	memset(contents, 'X', filesize);
-	rbuf = (char*)calloc(1, bufsize);
+	rbuf = new char[bufsize]();
 
 	expect_lookup(RELPATH, ino, filesize);
 	expect_open(ino, 0, 1);
 	maxcontig = m_noclusterr ? m_maxbcachebuf :
 		m_maxbcachebuf + m_maxreadahead;
-	clustersize = MIN(maxcontig, m_maxphys);
+	clustersize = MIN((unsigned long )maxcontig, m_maxphys);
 	for (offs = 0; offs < bufsize; offs += clustersize) {
 		len = std::min((size_t)clustersize, (size_t)(filesize - offs));
 		expect_read(ino, offs, len, len, contents + offs);
@@ -1357,8 +1355,8 @@ TEST_P(ReadAhead, readahead) {
 	ASSERT_EQ(0, memcmp(rbuf, contents, bufsize));
 
 	leak(fd);
-	free(rbuf);
-	free(contents);
+	delete[] rbuf;
+	delete[] contents;
 }
 
 INSTANTIATE_TEST_SUITE_P(RA, ReadAhead,

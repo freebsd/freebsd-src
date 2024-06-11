@@ -345,6 +345,13 @@
 /* Ecx. */
 #define	CPUID_PERF_STAT			0x00000001
 #define	CPUID_PERF_BIAS			0x00000008
+#define	CPUID_PERF_TD_CLASSES		0x0000ff00
+
+/* Edx. */
+#define	CPUID_HF_PERFORMANCE		0x00000001
+#define	CPUID_HF_EFFICIENCY		0x00000002
+#define	CPUID_TD_CAPABLITIES		0x0000000f
+#define	CPUID_TD_TBLPAGES		0x00000f00
 
 /* 
  * CPUID instruction 0xb ebx info.
@@ -390,21 +397,31 @@
 #define	AMDFEID_CLZERO		0x00000001
 #define	AMDFEID_IRPERF		0x00000002
 #define	AMDFEID_XSAVEERPTR	0x00000004
+#define	AMDFEID_INVLPGB		0x00000008
 #define	AMDFEID_RDPRU		0x00000010
+#define	AMDFEID_BE		0x00000040
 #define	AMDFEID_MCOMMIT		0x00000100
 #define	AMDFEID_WBNOINVD	0x00000200
 #define	AMDFEID_IBPB		0x00001000
+#define	AMDFEID_INT_WBINVD	0x00002000
 #define	AMDFEID_IBRS		0x00004000
 #define	AMDFEID_STIBP		0x00008000
 /* The below are only defined if the corresponding base feature above exists. */
 #define	AMDFEID_IBRS_ALWAYSON	0x00010000
 #define	AMDFEID_STIBP_ALWAYSON	0x00020000
 #define	AMDFEID_PREFER_IBRS	0x00040000
+#define	AMDFEID_SAMEMODE_IBRS	0x00080000
+#define	AMDFEID_NO_LMSLE	0x00100000
+#define	AMDFEID_INVLPGB_NEST	0x00200000
 #define	AMDFEID_PPIN		0x00800000
 #define	AMDFEID_SSBD		0x01000000
 /* SSBD via MSRC001_011F instead of MSR 0x48: */
 #define	AMDFEID_VIRT_SSBD	0x02000000
 #define	AMDFEID_SSB_NO		0x04000000
+#define	AMDFEID_CPPC		0x08000000
+#define	AMDFEID_PSFD		0x10000000
+#define	AMDFEID_BTC_NO		0x20000000
+#define	AMDFEID_IBPB_RET	0x40000000
 
 /*
  * AMD extended function 8000_0008h ecx info
@@ -412,6 +429,13 @@
 #define	AMDID_CMP_CORES		0x000000ff
 #define	AMDID_COREID_SIZE	0x0000f000
 #define	AMDID_COREID_SIZE_SHIFT	12
+
+/*
+ * AMD extended function 8000_0008h edx info
+ */
+#define	AMDID_INVLPGB_MAXCNT	0x0000ffff
+#define	AMDID_RDPRU_SHIFT	16
+#define	AMDID_RDPRU_ID		0xffff0000
 
 /*
  * CPUID instruction 7 Structured Extended Features, leaf 0 ebx info
@@ -583,6 +607,8 @@
 #define	MSR_TURBO_RATIO_LIMIT	0x1ad
 #define	MSR_TURBO_RATIO_LIMIT1	0x1ae
 #define	MSR_IA32_ENERGY_PERF_BIAS	0x1b0
+#define	MSR_IA32_PKG_THERM_STATUS	0x1b1
+#define	MSR_IA32_PKG_THERM_INTERRUPT	0x1b2
 #define	MSR_DEBUGCTLMSR		0x1d9
 #define	MSR_LASTBRANCHFROMIP	0x1db
 #define	MSR_LASTBRANCHTOIP	0x1dc
@@ -767,6 +793,14 @@
 #define	TOPA_END	(1 << 0)
 
 /*
+ *  Intel Hardware Feedback Interface / Thread Director MSRs
+ */
+#define	MSR_IA32_HW_FEEDBACK_PTR		0x17d0
+#define	MSR_IA32_HW_FEEDBACK_CONFIG		0x17d1
+#define	MSR_IA32_THREAD_FEEDBACK_CHAR		0x17d2
+#define	MSR_IA32_HW_FEEDBACK_THREAD_CONFIG	0x17d4
+
+/*
  * Constants related to MSR's.
  */
 #define	APICBASE_RESERVED	0x000002ff
@@ -835,6 +869,19 @@
 
 /* MSR IA32_ENERGY_PERF_BIAS */
 #define	IA32_ENERGY_PERF_BIAS_POLICY_HINT_MASK		(0xfULL << 0)
+
+/* MSR IA32_HW_FEEDBACK_PTR */
+#define	IA32_HW_FEEDBACK_PTR_ENABLE			(0x1ULL << 0)
+
+/* MSR IA32_HW_FEEDBACK_CONFIG */
+#define	IA32_HW_FEEDBACK_CONFIG_EN_HFI			(0x1ULL << 0)
+#define	IA32_HW_FEEDBACK_CONFIG_EN_THDIR		(0x1ULL << 1)
+
+/* MSR IA32_PKG_THERM_STATUS */
+#define	IA32_PKG_THERM_STATUS_HFI_UPDATED		(0x1ULL << 26)
+
+/* MSR IA32_PKG_THERM_INTERRUPT */
+#define	IA32_PKG_THERM_INTERRUPT_HFI_ENABLE		(0x1ULL << 25)
 
 /*
  * PAT modes.
@@ -918,7 +965,7 @@
 
 #define	CCR4			0xe8
 #define	CCR4_IOMASK		0x07
-#define	CCR4_MEM		0x08	/* Enables momory bypassing */
+#define	CCR4_MEM		0x08	/* Enables memory bypassing */
 #define	CCR4_DTE		0x10	/* Enables directory table entry cache */
 #define	CCR4_FASTFPE	0x20	/* Fast FPU exception */
 #define	CCR4_CPUID		0x80	/* Enables CPUID instruction */
@@ -938,7 +985,7 @@
 #define	PCR0_RSTK		0x01	/* Enables return stack */
 #define	PCR0_BTB		0x02	/* Enables branch target buffer */
 #define	PCR0_LOOP		0x04	/* Enables loop */
-#define	PCR0_AIS		0x08	/* Enables all instrcutions stalled to
+#define	PCR0_AIS		0x08	/* Enables all instructions stalled to
 								   serialize pipe. */
 #define	PCR0_MLR		0x10	/* Enables reordering of misaligned loads */
 #define	PCR0_BTBRT		0x40	/* Enables BTB test register. */
@@ -1092,7 +1139,7 @@
 
 /*
  * The region control registers specify the attributes associated with
- * the ARRx addres regions.
+ * the ARRx address regions.
  */
 #define	RCR0	0xdc
 #define	RCR1	0xdd

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -606,6 +606,95 @@ AcpiDmDumpAsf (
         Offset += Subtable->Header.Length;
         Subtable = ACPI_ADD_PTR (ACPI_ASF_INFO, Subtable,
             Subtable->Header.Length);
+    }
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmDumpAspt
+ *
+ * PARAMETERS:  Table               - A ASPT table
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Format the contents of a ASPT table
+ *
+ ******************************************************************************/
+
+void
+AcpiDmDumpAspt (
+    ACPI_TABLE_HEADER       *Table)
+{
+    ACPI_STATUS             Status;
+    UINT32                  Offset = sizeof (ACPI_TABLE_ASPT);
+    UINT32                  Length = Table->Length;
+    ACPI_ASPT_HEADER        *Subtable;
+    ACPI_DMTABLE_INFO       *InfoTable;
+    UINT16                   Type;
+
+    /* Main table */
+    Status = AcpiDmDumpTable(Length, 0, Table, 0, AcpiDmTableInfoAspt);
+
+    /* Subtables */
+
+    Subtable = ACPI_ADD_PTR (ACPI_ASPT_HEADER, Table, Offset);
+    while (Offset < Table->Length)
+    {
+        AcpiOsPrintf ("\n");
+
+        /* Common subtable header */
+        Status = AcpiDmDumpTable (Table->Length, Offset, Subtable,
+            Subtable->Length, AcpiDmTableInfoAsptHdr);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+        Type = Subtable->Type;
+
+        switch (Type)
+        {
+        case ACPI_ASPT_TYPE_GLOBAL_REGS:
+
+            InfoTable = AcpiDmTableInfoAspt0;
+            break;
+
+        case ACPI_ASPT_TYPE_SEV_MBOX_REGS:
+
+            InfoTable = AcpiDmTableInfoAspt1;
+            break;
+
+        case ACPI_ASPT_TYPE_ACPI_MBOX_REGS:
+
+            InfoTable = AcpiDmTableInfoAspt2;
+            break;
+
+        default:
+
+            AcpiOsPrintf ("\n**** Unknown ASPT subtable type 0x%X\n",
+                Subtable->Type);
+            return;
+        }
+
+        Status = AcpiDmDumpTable (Table->Length, Offset, Subtable,
+            Subtable->Length, InfoTable);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+        AcpiOsPrintf ("\n");
+
+        /* Point to next subtable */
+        if (!Subtable->Length)
+        {
+            AcpiOsPrintf ("Invalid zero subtable header length\n");
+            return;
+        }
+
+        Offset += Subtable->Length;
+        Subtable = ACPI_ADD_PTR (ACPI_ASPT_HEADER, Subtable,
+            Subtable->Length);
     }
 }
 
@@ -2030,7 +2119,7 @@ AcpiDmDumpHmat (
             return;
         }
 
-        /* Dump HMAT structure additionals */
+        /* Dump HMAT structure additional */
 
         switch (HmatStruct->Type)
         {

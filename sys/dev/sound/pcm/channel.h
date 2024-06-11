@@ -104,6 +104,7 @@ struct pcm_channel {
 	void *devinfo;
 	device_t dev;
 	int unit;
+	int type;
 	char name[CHN_NAMELEN];
 	char comm[MAXCOMLEN + 1];
 	struct mtx *lock;
@@ -224,7 +225,7 @@ struct pcm_channel {
 #define CHN_INSERT_SORT(w, x, y, z)		do {			\
 	struct pcm_channel *t, *a = NULL;				\
 	CHN_FOREACH(t, x, z) {						\
-		if ((y)->unit w t->unit)				\
+		if ((y)->type w t->type)				\
 			a = t;						\
 		else							\
 			break;						\
@@ -235,12 +236,8 @@ struct pcm_channel {
 		CHN_INSERT_HEAD(x, y, z);				\
 } while (0)
 
-#define CHN_INSERT_SORT_ASCEND(x, y, z)		CHN_INSERT_SORT(>, x, y, z)
+#define CHN_INSERT_SORT_ASCEND(x, y, z)		CHN_INSERT_SORT(>=, x, y, z)
 #define CHN_INSERT_SORT_DESCEND(x, y, z)	CHN_INSERT_SORT(<, x, y, z)
-
-#define CHN_UNIT(x)	(snd_unit2u((x)->unit))
-#define CHN_DEV(x)	(snd_unit2d((x)->unit))
-#define CHN_CHAN(x)	(snd_unit2c((x)->unit))
 
 #define CHN_BUF_PARENT(x, y)						\
 	(((x) != NULL && (x)->parentchannel != NULL &&			\
@@ -262,10 +259,13 @@ int chn_sync(struct pcm_channel *c, int threshold);
 int chn_flush(struct pcm_channel *c);
 int chn_poll(struct pcm_channel *c, int ev, struct thread *td);
 
-int chn_init(struct pcm_channel *c, void *devinfo, int dir, int direction);
-int chn_kill(struct pcm_channel *c);
+struct pcm_channel *chn_init(struct snddev_info *d, struct pcm_channel *parent,
+    kobj_class_t cls, int dir, void *devinfo);
+void chn_kill(struct pcm_channel *c);
+void chn_shutdown(struct pcm_channel *c);
+int chn_release(struct pcm_channel *c);
+int chn_ref(struct pcm_channel *c, int ref);
 int chn_reset(struct pcm_channel *c, u_int32_t fmt, u_int32_t spd);
-int chn_setvolume(struct pcm_channel *c, int left, int right);
 int chn_setvolume_multi(struct pcm_channel *c, int vc, int left, int right,
     int center);
 int chn_setvolume_matrix(struct pcm_channel *c, int vc, int vt, int val);

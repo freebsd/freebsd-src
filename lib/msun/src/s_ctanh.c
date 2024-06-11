@@ -65,7 +65,6 @@
  *   precision.  I also handle large x differently.
  */
 
-#include <sys/cdefs.h>
 #include <complex.h>
 #include <math.h>
 

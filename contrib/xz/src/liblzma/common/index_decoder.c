@@ -1,12 +1,11 @@
+// SPDX-License-Identifier: 0BSD
+
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       index_decoder.c
 /// \brief      Decodes the Index field
 //
 //  Author:     Lasse Collin
-//
-//  This file has been put into the public domain.
-//  You can do whatever you want with this file.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -306,6 +305,12 @@ lzma_index_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 extern LZMA_API(lzma_ret)
 lzma_index_decoder(lzma_stream *strm, lzma_index **i, uint64_t memlimit)
 {
+	// If i isn't NULL, *i must always be initialized due to
+	// the wording in the API docs. This way it is initialized
+	// if we return LZMA_PROG_ERROR due to strm == NULL.
+	if (i != NULL)
+		*i = NULL;
+
 	lzma_next_strm_init(lzma_index_decoder_init, strm, i, memlimit);
 
 	strm->internal->supported_actions[LZMA_RUN] = true;
@@ -320,6 +325,11 @@ lzma_index_buffer_decode(lzma_index **i, uint64_t *memlimit,
 		const lzma_allocator *allocator,
 		const uint8_t *in, size_t *in_pos, size_t in_size)
 {
+	// If i isn't NULL, *i must always be initialized due to
+	// the wording in the API docs.
+	if (i != NULL)
+		*i = NULL;
+
 	// Sanity checks
 	if (i == NULL || memlimit == NULL
 			|| in == NULL || in_pos == NULL || *in_pos > in_size)

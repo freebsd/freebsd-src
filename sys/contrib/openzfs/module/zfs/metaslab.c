@@ -627,8 +627,8 @@ metaslab_class_expandable_space(metaslab_class_t *mc)
 		 * metaslabs. We report the expandable space in terms
 		 * of the metaslab size since that's the unit of expansion.
 		 */
-		space += P2ALIGN(tvd->vdev_max_asize - tvd->vdev_asize,
-		    1ULL << tvd->vdev_ms_shift);
+		space += P2ALIGN_TYPED(tvd->vdev_max_asize - tvd->vdev_asize,
+		    1ULL << tvd->vdev_ms_shift, uint64_t);
 	}
 	spa_config_exit(mc->mc_spa, SCL_VDEV, FTAG);
 	return (space);
@@ -638,8 +638,9 @@ void
 metaslab_class_evict_old(metaslab_class_t *mc, uint64_t txg)
 {
 	multilist_t *ml = &mc->mc_metaslab_txg_list;
+	hrtime_t now = gethrtime();
 	for (int i = 0; i < multilist_get_num_sublists(ml); i++) {
-		multilist_sublist_t *mls = multilist_sublist_lock(ml, i);
+		multilist_sublist_t *mls = multilist_sublist_lock_idx(ml, i);
 		metaslab_t *msp = multilist_sublist_head(mls);
 		multilist_sublist_unlock(mls);
 		while (msp != NULL) {
@@ -656,13 +657,15 @@ metaslab_class_evict_old(metaslab_class_t *mc, uint64_t txg)
 				i--;
 				break;
 			}
-			mls = multilist_sublist_lock(ml, i);
+			mls = multilist_sublist_lock_idx(ml, i);
 			metaslab_t *next_msp = multilist_sublist_next(mls, msp);
 			multilist_sublist_unlock(mls);
 			if (txg >
 			    msp->ms_selected_txg + metaslab_unload_delay &&
-			    gethrtime() > msp->ms_selected_time +
-			    (uint64_t)MSEC2NSEC(metaslab_unload_delay_ms)) {
+			    now > msp->ms_selected_time +
+			    MSEC2NSEC(metaslab_unload_delay_ms) &&
+			    (msp->ms_allocator == -1 ||
+			    !metaslab_preload_enabled)) {
 				metaslab_evict(msp, txg);
 			} else {
 				/*
@@ -2232,12 +2235,12 @@ metaslab_potentially_evict(metaslab_class_t *mc)
 		unsigned int idx = multilist_get_random_index(
 		    &mc->mc_metaslab_txg_list);
 		multilist_sublist_t *mls =
-		    multilist_sublist_lock(&mc->mc_metaslab_txg_list, idx);
+		    multilist_sublist_lock_idx(&mc->mc_metaslab_txg_list, idx);
 		metaslab_t *msp = multilist_sublist_head(mls);
 		multilist_sublist_unlock(mls);
 		while (msp != NULL && allmem * zfs_metaslab_mem_limit / 100 <
 		    inuse * size) {
-			VERIFY3P(mls, ==, multilist_sublist_lock(
+			VERIFY3P(mls, ==, multilist_sublist_lock_idx(
 			    &mc->mc_metaslab_txg_list, idx));
 			ASSERT3U(idx, ==,
 			    metaslab_idx_func(&mc->mc_metaslab_txg_list, msp));
@@ -5105,7 +5108,6 @@ metaslab_group_alloc(metaslab_group_t *mg, zio_alloc_list_t *zal,
     int allocator, boolean_t try_hard)
 {
 	uint64_t offset;
-	ASSERT(mg->mg_initialized);
 
 	offset = metaslab_group_alloc_normal(mg, zal, asize, txg, want_unique,
 	    dva, d, allocator, try_hard);
@@ -5255,8 +5257,6 @@ top:
 			    TRACE_NOT_ALLOCATABLE, allocator);
 			goto next;
 		}
-
-		ASSERT(mg->mg_initialized);
 
 		/*
 		 * Avoid writing single-copy data to an unhealthy,
@@ -5498,8 +5498,9 @@ remap_blkptr_cb(uint64_t inner_offset, vdev_t *vd, uint64_t offset,
 	vdev_t *oldvd = vdev_lookup_top(vd->vdev_spa,
 	    DVA_GET_VDEV(&bp->blk_dva[0]));
 	vdev_indirect_births_t *vib = oldvd->vdev_indirect_births;
-	bp->blk_phys_birth = vdev_indirect_births_physbirth(vib,
+	uint64_t physical_birth = vdev_indirect_births_physbirth(vib,
 	    DVA_GET_OFFSET(&bp->blk_dva[0]), DVA_GET_ASIZE(&bp->blk_dva[0]));
+	BP_SET_PHYSICAL_BIRTH(bp, physical_birth);
 
 	DVA_SET_VDEV(&bp->blk_dva[0], vd->vdev_id);
 	DVA_SET_OFFSET(&bp->blk_dva[0], offset);
@@ -5848,8 +5849,8 @@ metaslab_alloc(spa_t *spa, metaslab_class_t *mc, uint64_t psize, blkptr_t *bp,
 	dva_t *hintdva = (hintbp != NULL) ? hintbp->blk_dva : NULL;
 	int error = 0;
 
-	ASSERT(bp->blk_birth == 0);
-	ASSERT(BP_PHYSICAL_BIRTH(bp) == 0);
+	ASSERT0(BP_GET_LOGICAL_BIRTH(bp));
+	ASSERT0(BP_GET_PHYSICAL_BIRTH(bp));
 
 	spa_config_enter(spa, SCL_ALLOC, FTAG, RW_READER);
 
@@ -5903,7 +5904,7 @@ metaslab_free(spa_t *spa, const blkptr_t *bp, uint64_t txg, boolean_t now)
 	int ndvas = BP_GET_NDVAS(bp);
 
 	ASSERT(!BP_IS_HOLE(bp));
-	ASSERT(!now || bp->blk_birth >= spa_syncing_txg(spa));
+	ASSERT(!now || BP_GET_LOGICAL_BIRTH(bp) >= spa_syncing_txg(spa));
 
 	/*
 	 * If we have a checkpoint for the pool we need to make sure that
@@ -5921,7 +5922,7 @@ metaslab_free(spa_t *spa, const blkptr_t *bp, uint64_t txg, boolean_t now)
 	 * normally as they will be referenced by the checkpointed uberblock.
 	 */
 	boolean_t checkpoint = B_FALSE;
-	if (bp->blk_birth <= spa->spa_checkpoint_txg &&
+	if (BP_GET_LOGICAL_BIRTH(bp) <= spa->spa_checkpoint_txg &&
 	    spa_syncing_txg(spa) > spa->spa_checkpoint_txg) {
 		/*
 		 * At this point, if the block is part of the checkpoint

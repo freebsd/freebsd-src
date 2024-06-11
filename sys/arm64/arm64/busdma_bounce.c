@@ -40,9 +40,10 @@
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
-#include <sys/proc.h>
 #include <sys/memdesc.h>
+#include <sys/msan.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
 
@@ -104,6 +105,9 @@ struct bus_dmamap {
 #define	DMAMAP_FROM_DMAMEM	(1 << 1)
 #define	DMAMAP_MBUF		(1 << 2)
 	int			sync_count;
+#ifdef KMSAN
+	struct memdesc	       kmsan_mem;
+#endif
 	struct sync_list	slist[];
 };
 
@@ -117,12 +121,16 @@ static void _bus_dmamap_count_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
 static MALLOC_DEFINE(M_BUSDMA, "busdma", "busdma metadata");
 
 #define	dmat_alignment(dmat)	((dmat)->common.alignment)
+#define	dmat_bounce_flags(dmat)	((dmat)->bounce_flags)
+#define	dmat_boundary(dmat)	((dmat)->common.boundary)
 #define	dmat_domain(dmat)	((dmat)->common.domain)
 #define	dmat_flags(dmat)	((dmat)->common.flags)
 #define	dmat_highaddr(dmat)	((dmat)->common.highaddr)
 #define	dmat_lowaddr(dmat)	((dmat)->common.lowaddr)
 #define	dmat_lockfunc(dmat)	((dmat)->common.lockfunc)
 #define	dmat_lockfuncarg(dmat)	((dmat)->common.lockfuncarg)
+#define	dmat_maxsegsz(dmat)	((dmat)->common.maxsegsz)
+#define	dmat_nsegments(dmat)	((dmat)->common.nsegments)
 
 #include "../../kern/subr_busdma_bounce.c"
 
@@ -635,7 +643,7 @@ _bus_dmamap_pagesneeded(bus_dma_tag_t dmat, bus_dmamap_t map, vm_paddr_t buf,
 	count = 0;
 	curaddr = buf;
 	while (buflen != 0) {
-		sgsize = MIN(buflen, dmat->common.maxsegsz);
+		sgsize = buflen;
 		if (must_bounce(dmat, map, curaddr, sgsize)) {
 			sgsize = MIN(sgsize,
 			    PAGE_SIZE - (curaddr & PAGE_MASK));
@@ -688,14 +696,13 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 		vendaddr = (vm_offset_t)buf + buflen;
 
 		while (vaddr < vendaddr) {
-			sg_len = PAGE_SIZE - ((vm_offset_t)vaddr & PAGE_MASK);
+			sg_len = MIN(vendaddr - vaddr,
+			    PAGE_SIZE - ((vm_offset_t)vaddr & PAGE_MASK));
 			if (pmap == kernel_pmap)
 				paddr = pmap_kextract(vaddr);
 			else
 				paddr = pmap_extract(pmap, vaddr);
-			if (must_bounce(dmat, map, paddr,
-			    min(vendaddr - vaddr, (PAGE_SIZE - ((vm_offset_t)vaddr &
-			    PAGE_MASK)))) != 0) {
+			if (must_bounce(dmat, map, paddr, sg_len) != 0) {
 				sg_len = roundup2(sg_len,
 				    dmat->common.alignment);
 				map->pagesneeded++;
@@ -704,47 +711,6 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 		}
 		CTR1(KTR_BUSDMA, "pagesneeded= %d\n", map->pagesneeded);
 	}
-}
-
-/*
- * Add a single contiguous physical range to the segment list.
- */
-static bus_size_t
-_bus_dmamap_addseg(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t curaddr,
-    bus_size_t sgsize, bus_dma_segment_t *segs, int *segp)
-{
-	int seg;
-
-	/*
-	 * Make sure we don't cross any boundaries.
-	 */
-	if (!vm_addr_bound_ok(curaddr, sgsize, dmat->common.boundary))
-		sgsize = roundup2(curaddr, dmat->common.boundary) - curaddr;
-
-	/*
-	 * Insert chunk into a segment, coalescing with
-	 * previous segment if possible.
-	 */
-	seg = *segp;
-	if (seg == -1) {
-		seg = 0;
-		segs[seg].ds_addr = curaddr;
-		segs[seg].ds_len = sgsize;
-	} else {
-		if (curaddr == segs[seg].ds_addr + segs[seg].ds_len &&
-		    (segs[seg].ds_len + sgsize) <= dmat->common.maxsegsz &&
-		    vm_addr_bound_ok(segs[seg].ds_addr,
-		    segs[seg].ds_len + sgsize, dmat->common.boundary))
-			segs[seg].ds_len += sgsize;
-		else {
-			if (++seg >= dmat->common.nsegments)
-				return (0);
-			segs[seg].ds_addr = curaddr;
-			segs[seg].ds_len = sgsize;
-		}
-	}
-	*segp = seg;
-	return (sgsize);
 }
 
 /*
@@ -778,7 +744,7 @@ bounce_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
 
 	while (buflen > 0) {
 		curaddr = buf;
-		sgsize = MIN(buflen, dmat->common.maxsegsz);
+		sgsize = buflen;
 		if (map->pagesneeded != 0 &&
 		    must_bounce(dmat, map, curaddr, sgsize)) {
 			/*
@@ -812,9 +778,8 @@ bounce_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
 			} else
 				sl->datacount += sgsize;
 		}
-		sgsize = _bus_dmamap_addseg(dmat, map, curaddr, sgsize, segs,
-		    segp);
-		if (sgsize == 0)
+		if (!_bus_dmamap_addsegs(dmat, map, curaddr, sgsize, segs,
+		    segp))
 			break;
 		buf += sgsize;
 		buflen -= sgsize;
@@ -890,7 +855,7 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		/*
 		 * Compute the segment size, and adjust counts.
 		 */
-		sgsize = MIN(buflen, dmat->common.maxsegsz);
+		sgsize = buflen;
 		if ((map->flags & DMAMAP_FROM_DMAMEM) == 0)
 			sgsize = MIN(sgsize, PAGE_SIZE - (curaddr & PAGE_MASK));
 
@@ -929,9 +894,8 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 			} else
 				sl->datacount += sgsize;
 		}
-		sgsize = _bus_dmamap_addseg(dmat, map, curaddr, sgsize, segs,
-		    segp);
-		if (sgsize == 0)
+		if (!_bus_dmamap_addsegs(dmat, map, curaddr, sgsize, segs,
+		    segp))
 			break;
 		vaddr += sgsize;
 		buflen -= sgsize;
@@ -980,15 +944,15 @@ bounce_bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
 }
 
 static void
-dma_preread_safe(vm_offset_t va, vm_size_t size)
+dma_preread_safe(char *va, vm_size_t size)
 {
 	/*
 	 * Write back any partial cachelines immediately before and
 	 * after the DMA region.
 	 */
-	if (va & (dcache_line_size - 1))
+	if (!__is_aligned(va, dcache_line_size))
 		cpu_dcache_wb_range(va, 1);
-	if ((va + size) & (dcache_line_size - 1))
+	if (!__is_aligned(va + size, dcache_line_size))
 		cpu_dcache_wb_range(va + size, 1);
 
 	cpu_dcache_inv_range(va, size);
@@ -1025,7 +989,7 @@ dma_dcache_sync(struct sync_list *sl, bus_dmasync_op_t op)
 		switch (op) {
 		case BUS_DMASYNC_PREWRITE:
 		case BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD:
-			cpu_dcache_wb_range(va, len);
+			cpu_dcache_wb_range((void *)va, len);
 			break;
 		case BUS_DMASYNC_PREREAD:
 			/*
@@ -1038,11 +1002,11 @@ dma_dcache_sync(struct sync_list *sl, bus_dmasync_op_t op)
 			 * misalignment.  Buffers which are not mbufs bounce if
 			 * they are not aligned to a cacheline.
 			 */
-			dma_preread_safe(va, len);
+			dma_preread_safe((void *)va, len);
 			break;
 		case BUS_DMASYNC_POSTREAD:
 		case BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE:
-			cpu_dcache_inv_range(va, len);
+			cpu_dcache_inv_range((void *)va, len);
 			break;
 		default:
 			panic("unsupported combination of sync operations: "
@@ -1092,7 +1056,7 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 				if (tempvaddr != 0)
 					pmap_quick_remove_page(tempvaddr);
 				if ((map->flags & DMAMAP_COHERENT) == 0)
-					cpu_dcache_wb_range(bpage->vaddr,
+					cpu_dcache_wb_range((void *)bpage->vaddr,
 					    bpage->datacount);
 				bpage = STAILQ_NEXT(bpage, links);
 			}
@@ -1100,7 +1064,7 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 		} else if ((op & BUS_DMASYNC_PREREAD) != 0) {
 			while (bpage != NULL) {
 				if ((map->flags & DMAMAP_COHERENT) == 0)
-					cpu_dcache_wbinv_range(bpage->vaddr,
+					cpu_dcache_wbinv_range((void *)bpage->vaddr,
 					    bpage->datacount);
 				bpage = STAILQ_NEXT(bpage, links);
 			}
@@ -1109,7 +1073,7 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 		if ((op & BUS_DMASYNC_POSTREAD) != 0) {
 			while (bpage != NULL) {
 				if ((map->flags & DMAMAP_COHERENT) == 0)
-					cpu_dcache_inv_range(bpage->vaddr,
+					cpu_dcache_inv_range((void *)bpage->vaddr,
 					    bpage->datacount);
 				tempvaddr = 0;
 				datavaddr = bpage->datavaddr;
@@ -1149,7 +1113,19 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 		 */
 		dsb(sy);
 	}
+
+	kmsan_bus_dmamap_sync(&map->kmsan_mem, op);
 }
+
+#ifdef KMSAN
+static void
+bounce_bus_dmamap_load_kmsan(bus_dmamap_t map, struct memdesc *mem)
+{
+	if (map == NULL)
+		return;
+	memcpy(&map->kmsan_mem, mem, sizeof(map->kmsan_mem));
+}
+#endif
 
 struct bus_dma_impl bus_dma_bounce_impl = {
 	.tag_create = bounce_bus_dma_tag_create,
@@ -1166,5 +1142,8 @@ struct bus_dma_impl bus_dma_bounce_impl = {
 	.map_waitok = bounce_bus_dmamap_waitok,
 	.map_complete = bounce_bus_dmamap_complete,
 	.map_unload = bounce_bus_dmamap_unload,
-	.map_sync = bounce_bus_dmamap_sync
+	.map_sync = bounce_bus_dmamap_sync,
+#ifdef KMSAN
+	.load_kmsan = bounce_bus_dmamap_load_kmsan,
+#endif
 };

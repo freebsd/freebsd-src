@@ -41,9 +41,5 @@ int
 clock_nanosleep(clockid_t clock_id, int flags, const struct timespec *rqtp,
     struct timespec *rmtp)
 {
-
-	return (((int (*)(clockid_t, int, const struct timespec *,
-	    struct timespec *))
-	    __libc_interposing[INTERPOS_clock_nanosleep])(clock_id, flags,
-	    rqtp, rmtp));
+	return (INTERPOS_SYS(clock_nanosleep, clock_id, flags, rqtp, rmtp));
 }

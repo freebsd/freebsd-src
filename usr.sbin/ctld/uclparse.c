@@ -60,6 +60,7 @@ uclparse_chap(struct auth_group *auth_group, const ucl_object_t *obj)
 	const struct auth *ca;
 	const ucl_object_t *user, *secret;
 
+	assert(auth_group != NULL);
 	user = ucl_object_find_key(obj, "user");
 	if (!user || user->type != UCL_STRING) {
 		log_warnx("chap section in auth-group \"%s\" is missing "
@@ -90,6 +91,7 @@ uclparse_chap_mutual(struct auth_group *auth_group, const ucl_object_t *obj)
 	const ucl_object_t *user, *secret, *mutual_user;
 	const ucl_object_t *mutual_secret;
 
+	assert(auth_group != NULL);
 	user = ucl_object_find_key(obj, "user");
 	if (!user || user->type != UCL_STRING) {
 		log_warnx("chap-mutual section in auth-group \"%s\" is missing "
@@ -714,6 +716,8 @@ uclparse_target(const char *name, const ucl_object_t *top)
 		}
 
 		if (!strcmp(key, "auth-group")) {
+			const char *ag;
+
 			if (target->t_auth_group != NULL) {
 				if (target->t_auth_group->ag_name != NULL)
 					log_warnx("auth-group for target \"%s\" "
@@ -725,8 +729,12 @@ uclparse_target(const char *name, const ucl_object_t *top)
 					    "target \"%s\"", target->t_name);
 				return (1);
 			}
-			target->t_auth_group = auth_group_find(conf,
-			    ucl_object_tostring(obj));
+			ag = ucl_object_tostring(obj);
+			if (!ag) {
+				log_warnx("auth-group must be a string");
+				return (1);
+			}
+			target->t_auth_group = auth_group_find(conf, ag);
 			if (target->t_auth_group == NULL) {
 				log_warnx("unknown auth-group \"%s\" for target "
 				    "\"%s\"", ucl_object_tostring(obj),
@@ -759,6 +767,20 @@ uclparse_target(const char *name, const ucl_object_t *top)
 		}
 
 		if (!strcmp(key, "chap")) {
+			if (target->t_auth_group != NULL) {
+				if (target->t_auth_group->ag_name != NULL) {
+					log_warnx("cannot use both auth-group "
+					    "and chap for target \"%s\"",
+					    target->t_name);
+					return (1);
+				}
+			} else {
+				target->t_auth_group = auth_group_new(conf, NULL);
+				if (target->t_auth_group == NULL) {
+					return (1);
+				}
+				target->t_auth_group->ag_target = target;
+			}
 			if (uclparse_chap(target->t_auth_group, obj) != 0)
 				return (1);
 		}

@@ -2810,8 +2810,8 @@ ses_get_elm_desc(enc_softc_t *enc, encioc_elm_desc_t *elmd)
 	}
 	if (elmd->elm_desc_len > elmpriv->descr_len)
 		elmd->elm_desc_len = elmpriv->descr_len;
-	copyout(elmpriv->descr, elmd->elm_desc_str, elmd->elm_desc_len);
-	return (0);
+	return (copyout(elmpriv->descr, elmd->elm_desc_str,
+	    elmd->elm_desc_len));
 }
 
 /**
@@ -2827,7 +2827,7 @@ static int
 ses_get_elm_devnames(enc_softc_t *enc, encioc_elm_devnames_t *elmdn)
 {
 	struct sbuf sb;
-	int len;
+	int error, len;
 
 	len = elmdn->elm_names_size;
 	if (len < 0)
@@ -2839,10 +2839,13 @@ ses_get_elm_devnames(enc_softc_t *enc, encioc_elm_devnames_t *elmdn)
 	    ses_elmdevname_callback, &sb);
 	sbuf_finish(&sb);
 	elmdn->elm_names_len = sbuf_len(&sb);
-	copyout(sbuf_data(&sb), elmdn->elm_devnames, elmdn->elm_names_len + 1);
+	error = copyout(sbuf_data(&sb), elmdn->elm_devnames,
+	    elmdn->elm_names_len + 1);
 	sbuf_delete(&sb);
 	cam_periph_lock(enc->periph);
-	return (elmdn->elm_names_len > 0 ? 0 : ENODEV);
+	if (error == 0 && elmdn->elm_names_len == 0)
+		error = ENODEV;
+	return (error);
 }
 
 /**
@@ -2921,9 +2924,9 @@ ses_handle_string(enc_softc_t *enc, encioc_string_t *sstr, unsigned long ioc)
 		size = rsize;
 		if (size > sstr->bufsiz)
 			size = sstr->bufsiz;
-		copyout(str, sstr->buf, size);
+		ret = copyout(str, sstr->buf, size);
 		sstr->bufsiz = rsize;
-		return (size == rsize ? 0 : ENOMEM);
+		return (ret != 0 ? ret : (size == rsize ? 0 : ENOMEM));
 	case ENCIOC_GETENCID:
 		if (ses_cache->ses_nsubencs < 1)
 			return (ENODEV);
@@ -2935,9 +2938,9 @@ ses_handle_string(enc_softc_t *enc, encioc_string_t *sstr, unsigned long ioc)
 		size = rsize;
 		if (size > sstr->bufsiz)
 			size = sstr->bufsiz;
-		copyout(str, sstr->buf, size);
+		ret = copyout(str, sstr->buf, size);
 		sstr->bufsiz = rsize;
-		return (size == rsize ? 0 : ENOMEM);
+		return (ret != 0 ? ret : (size == rsize ? 0 : ENOMEM));
 	default:
 		return (EINVAL);
 	}

@@ -318,9 +318,9 @@ if (error != 0) printf("sosend=%d\n", error);
 	mreq = NULL;
 	if (error == EMSGSIZE) {
 printf("emsgsize\n");
-		SOCKBUF_LOCK(&xprt->xp_socket->so_snd);
+		SOCK_SENDBUF_LOCK(xprt->xp_socket);
 		sbwait(xprt->xp_socket, SO_SND);
-		SOCKBUF_UNLOCK(&xprt->xp_socket->so_snd);
+		SOCK_SENDBUF_UNLOCK(xprt->xp_socket);
 		sx_xunlock(&xprt->xp_lock);
 		AUTH_VALIDATE(auth, xid, NULL, NULL);
 		mtx_lock(&ct->ct_lock);

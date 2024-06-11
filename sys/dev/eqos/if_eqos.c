@@ -67,7 +67,7 @@
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 #endif
 
 #include <dev/eqos/if_eqos_reg.h>
@@ -687,7 +687,7 @@ eqos_rxintr(struct eqos_softc *sc)
 			break;
 
 		if (rdes3 & (EQOS_RDES3_OE | EQOS_RDES3_RE))
-			printf("Receive errer rdes3=%08x\n", rdes3);
+			printf("Receive error rdes3=%08x\n", rdes3);
 
 		bus_dmamap_sync(sc->rx.buf_tag,
 		    sc->rx.buf_map[sc->rx.head].map, BUS_DMASYNC_POSTREAD);

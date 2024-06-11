@@ -2054,6 +2054,9 @@ krb5_crypto_init(krb5_context context,
 	*crypto = NULL;
 	return ret;
     }
+    ret = fbsd_ossl_provider_load();
+    if (ret)
+	return ret;
     (*crypto)->key.schedule = NULL;
     (*crypto)->num_key_usage = 0;
     (*crypto)->key_usage = NULL;

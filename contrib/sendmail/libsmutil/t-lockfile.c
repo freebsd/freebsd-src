@@ -21,7 +21,20 @@ char iobuf[IOBUFSZ];
 static int noio, chk;
 static pid_t pid;
 
-int
+/*
+**  OPENFILE -- open a file
+**
+**	Parameters:
+**		owner -- create file?
+**		filename -- name of file.
+**		flags -- flags for open(2)
+**
+**	Returns:
+**		>=0 fd
+**		<0 on failure.
+*/
+
+static int
 openfile(owner, filename, flags)
 	int owner;
 	char *filename;
@@ -36,10 +49,21 @@ openfile(owner, filename, flags)
 		return fd;
 	fprintf(stderr, "%d: %ld: owner=%d, open(%s) failed\n",
 		(int) pid, (long) time(NULL), owner, filename);
-	return 1;
+	return -1;
 }
 
-int
+/*
+**  WRBUF -- write iobuf to fd
+**
+**	Parameters:
+**		fd -- file descriptor.
+**
+**	Returns:
+**		==0 write was ok
+**		!=0 on failure.
+*/
+
+static int
 wrbuf(fd)
 	int fd;
 {
@@ -55,7 +79,19 @@ wrbuf(fd)
 	return 1;
 }
 
-int
+/*
+**  RDBUF -- read from fd
+**
+**	Parameters:
+**		fd -- file descriptor.
+**		xbuf -- expected content.
+**
+**	Returns:
+**		==0 read was ok and content matches
+**		!=0 otherwise
+*/
+
+static int
 rdbuf(fd, xbuf)
 	int fd;
 	const char *xbuf;
@@ -81,7 +117,7 @@ rdbuf(fd, xbuf)
 }
 
 /*
-**  LOCKTEST -- test of file locking
+**  LOCKTESTWR -- test WR/EX file locking
 **
 **	Parameters:
 **		owner -- create file?
@@ -102,7 +138,7 @@ rdbuf(fd, xbuf)
 		fprintf(stderr, str, filename, shared ? "RD" : "EX");	\
 	} while (0)
 
-int
+static int
 locktestwr(filename, flags, delay)
 	char *filename;
 	int flags;
@@ -128,7 +164,8 @@ locktestwr(filename, flags, delay)
 	sm_strlcpy(iobuf, FIRSTLINE, sizeof(iobuf));
 	if (wrbuf(fd))
 		return 1;
-	sleep(delay);
+	if (delay > 0)
+		sleep(delay);
 	sm_strlcpy(iobuf, LASTLINE, sizeof(iobuf));
 	if (wrbuf(fd))
 		return 1;
@@ -149,7 +186,22 @@ locktestwr(filename, flags, delay)
 	return 0;
 }
 
-long
+/*
+**  CHKLCK -- check whether fd is locked (only for fcntl())
+**
+**	Parameters:
+**		owner -- create file?
+**		filename -- name of file.
+**		flags -- flags for open(2)
+**		delay -- how long to keep file locked?
+**
+**	Returns:
+**		0 if not locked
+**		>0 pid of process which holds a WR lock
+**		<0 error
+*/
+
+static long
 chklck(fd)
 	int fd;
 {
@@ -168,13 +220,27 @@ chklck(fd)
 		return (long)lfd.l_pid;
 	return 0L;
 #else /* !HASFLOCK */
-	fprintf(stderr, "%d: %ld: flock: no lock test\n",
+	fprintf(stderr, "%d: %ld: flock(): no lock test\n",
 		(int) pid, (long) time(NULL));
 	return -1L;
 #endif /* !HASFLOCK */
 }
 
-int
+/*
+**  LOCKTESTRD -- test file locking for reading
+**
+**	Parameters:
+**		filename -- name of file.
+**		flags -- flags for open(2)
+**		delay -- how long is file locked by owner?
+**		shared -- LOCK_{EX/SH}
+**
+**	Returns:
+**		0 on success
+**		!= 0 on failure.
+*/
+
+static int
 locktestrd(filename, flags, delay, shared)
 	char *filename;
 	int flags;
@@ -252,6 +318,16 @@ locktestrd(filename, flags, delay, shared)
 	return 0;
 }
 
+/*
+**  USAGE -- show usage
+**
+**	Parameters:
+**		prg -- name of program
+**
+**	Returns:
+**		nothing.
+*/
+
 static void
 usage(prg)
 	const char *prg;
@@ -264,6 +340,12 @@ usage(prg)
 		"-r		use shared locking for reader\n"
 		"-s delay	sleep delay seconds before unlocking\n"
 		"-W		only start writer process\n"
+#if !HASFLOCK
+		"uses fcntl()\n"
+#else
+		"uses flock()\n"
+#endif
+
 		, prg);
 }
 
@@ -335,7 +417,7 @@ main(argc, argv)
 	r = 0;
 	if (reader || fpid == 0)
 	{
-		/* give the parent the chance to setup data */
+		/* give the parent the chance to set up data */
 		pid = getpid();
 		sleep(1);
 		r = locktestrd(filename, flags, nb ? delay : 0, shared);

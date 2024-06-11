@@ -124,12 +124,12 @@ g_vfs_done(struct bio *bip)
 			mp = cdevp->si_mountpt;
 		if (mp != NULL) {
 			if (bp->b_iocmd == BIO_READ) {
-				if (LK_HOLDER(bp->b_lock.lk_lock) == LK_KERNPROC)
+				if (BUF_DISOWNED(bp))
 					mp->mnt_stat.f_asyncreads++;
 				else
 					mp->mnt_stat.f_syncreads++;
 			} else if (bp->b_iocmd == BIO_WRITE) {
-				if (LK_HOLDER(bp->b_lock.lk_lock) == LK_KERNPROC)
+				if (BUF_DISOWNED(bp))
 					mp->mnt_stat.f_asyncwrites++;
 				else
 					mp->mnt_stat.f_syncwrites++;
@@ -292,7 +292,16 @@ g_vfs_open(struct vnode *vp, struct g_consumer **cpp, const char *fsname, int wr
 		g_wither_geom(gp, ENXIO);
 		return (error);
 	}
-	vnode_create_vobject(vp, pp->mediasize, curthread);
+	/*
+	 * Mediasize might not be set until first access (see g_disk_access()),
+	 * That's why we check it here and not earlier.
+	 */
+	if (pp->mediasize == 0) {
+		(void)g_access(cp, -1, -wr, -wr);
+		g_wither_geom(gp, ENXIO);
+		return (ENXIO);
+	}
+	vnode_create_disk_vobject(vp, pp->mediasize, curthread);
 	*cpp = cp;
 	cp->private = vp;
 	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;

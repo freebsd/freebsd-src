@@ -1,4 +1,4 @@
-# $NetBSD: opt-debug-file.mk,v 1.9 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: opt-debug-file.mk,v 1.10 2023/11/19 21:47:52 rillig Exp $
 #
 # Tests for the -dF command line option, which redirects the debug log
 # to a file instead of writing it to stderr.
@@ -18,7 +18,7 @@ VAR=	value ${:Uexpanded}
 # Make sure that the debug logging file contains some logging.
 DEBUG_OUTPUT:=	${:!cat opt-debug-file.debuglog!}
 # Grmbl.  Because of the := operator in the above line, the variable
-# value contains ${:Uexpanded}.  This variable expression is expanded
+# value contains ${:Uexpanded}.  This expression is expanded
 # when it is used in the condition below.  Therefore, be careful when storing
 # untrusted input in variables.
 #.MAKEFLAGS: -dc -dFstderr

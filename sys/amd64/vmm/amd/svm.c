@@ -2781,6 +2781,8 @@ svm_vcpu_snapshot(void *vcpui, struct vm_snapshot_meta *meta)
 	SNAPSHOT_VAR_OR_LEAVE(vcpu->asid.gen, meta, err, done);
 	SNAPSHOT_VAR_OR_LEAVE(vcpu->asid.num, meta, err, done);
 
+	SNAPSHOT_BUF_OR_LEAVE(&vcpu->mtrr, sizeof(vcpu->mtrr), meta, err, done);
+
 	/* Set all caches dirty */
 	if (meta->op == VM_SNAPSHOT_RESTORE)
 		svm_set_dirty(vcpu, 0xffffffff);

@@ -28,7 +28,6 @@
  * src/s_cexp.c converted to long double complex by Steven G. Kargl
  */
 
-#include <sys/cdefs.h>
 #include <complex.h>
 #include <float.h>
 #ifdef __i386__

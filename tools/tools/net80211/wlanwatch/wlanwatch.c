@@ -193,9 +193,6 @@ routename(struct sockaddr *sa)
 	{
 		struct sockaddr_in6 sin6; /* use static var for safety */
 		int niflags = 0;
-#ifdef NI_WITHSCOPEID
-		niflags = NI_WITHSCOPEID;
-#endif
 
 		memset(&sin6, 0, sizeof(sin6));
 		memcpy(&sin6, sa, sa->sa_len);

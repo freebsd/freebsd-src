@@ -412,6 +412,15 @@ SYSCTL_INT(_hw_cxgbe_toe_rexmt_backoff, OID_AUTO, 14, CTLFLAG_RDTUN,
     &t4_toe_rexmt_backoff[14], 0, "");
 SYSCTL_INT(_hw_cxgbe_toe_rexmt_backoff, OID_AUTO, 15, CTLFLAG_RDTUN,
     &t4_toe_rexmt_backoff[15], 0, "");
+
+int t4_ddp_rcvbuf_len = 256 * 1024;
+SYSCTL_INT(_hw_cxgbe_toe, OID_AUTO, ddp_rcvbuf_len, CTLFLAG_RWTUN,
+    &t4_ddp_rcvbuf_len, 0, "length of each DDP RX buffer");
+
+unsigned int t4_ddp_rcvbuf_cache = 4;
+SYSCTL_UINT(_hw_cxgbe_toe, OID_AUTO, ddp_rcvbuf_cache, CTLFLAG_RWTUN,
+    &t4_ddp_rcvbuf_cache, 0,
+    "maximum number of free DDP RX buffers to cache per connection");
 #endif
 
 #ifdef DEV_NETMAP
@@ -1324,7 +1333,6 @@ t4_attach(device_t dev)
 		rc = partition_resources(sc);
 		if (rc != 0)
 			goto done; /* error message displayed already */
-		t4_intr_clear(sc);
 	}
 
 	rc = get_params__post_init(sc);
@@ -1393,13 +1401,10 @@ t4_attach(device_t dev)
 		 * depends on the link settings which will be known when the
 		 * link comes up.
 		 */
-		if (is_t6(sc)) {
+		if (is_t6(sc))
 			pi->fcs_reg = -1;
-		} else if (is_t4(sc)) {
-			pi->fcs_reg = PORT_REG(pi->tx_chan,
-			    A_MPS_PORT_STAT_RX_PORT_CRC_ERROR_L);
-		} else {
-			pi->fcs_reg = T5_PORT_REG(pi->tx_chan,
+		else {
+			pi->fcs_reg = t4_port_reg(sc, pi->tx_chan,
 			    A_MPS_PORT_STAT_RX_PORT_CRC_ERROR_L);
 		}
 		pi->fcs_base = 0;
@@ -2283,7 +2288,6 @@ t4_resume(device_t dev)
 		rc = partition_resources(sc);
 		if (rc != 0)
 			goto done; /* error message displayed already */
-		t4_intr_clear(sc);
 	}
 
 	rc = get_params__post_init(sc);
@@ -2518,11 +2522,9 @@ reset_adapter_task(void *arg, int pending)
 static int
 cxgbe_probe(device_t dev)
 {
-	char buf[128];
 	struct port_info *pi = device_get_softc(dev);
 
-	snprintf(buf, sizeof(buf), "port %d", pi->port_id);
-	device_set_desc_copy(dev, buf);
+	device_set_descf(dev, "port %d", pi->port_id);
 
 	return (BUS_PROBE_DEFAULT);
 }
@@ -2733,6 +2735,7 @@ cxgbe_vi_detach(struct vi_info *vi)
 #endif
 	cxgbe_uninit_synchronized(vi);
 	callout_drain(&vi->tick);
+	mtx_destroy(&vi->tick_mtx);
 	sysctl_ctx_free(&vi->ctx);
 	vi_full_uninit(vi);
 
@@ -2754,17 +2757,14 @@ cxgbe_detach(device_t dev)
 	device_delete_children(dev);
 
 	sysctl_ctx_free(&pi->ctx);
-	doom_vi(sc, &pi->vi[0]);
-
+	begin_vi_detach(sc, &pi->vi[0]);
 	if (pi->flags & HAS_TRACEQ) {
 		sc->traceq = -1;	/* cloner should not create ifnet */
 		t4_tracer_port_detach(sc);
 	}
-
 	cxgbe_vi_detach(&pi->vi[0]);
 	ifmedia_removeall(&pi->media);
-
-	end_synchronized_op(sc, 0);
+	end_vi_detach(sc, &pi->vi[0]);
 
 	return (0);
 }
@@ -3497,12 +3497,10 @@ done:
 static int
 vcxgbe_probe(device_t dev)
 {
-	char buf[128];
 	struct vi_info *vi = device_get_softc(dev);
 
-	snprintf(buf, sizeof(buf), "port %d vi %td", vi->pi->port_id,
+	device_set_descf(dev, "port %d vi %td", vi->pi->port_id,
 	    vi - vi->pi->vi);
-	device_set_desc_copy(dev, buf);
 
 	return (BUS_PROBE_DEFAULT);
 }
@@ -3594,12 +3592,10 @@ vcxgbe_detach(device_t dev)
 	vi = device_get_softc(dev);
 	sc = vi->adapter;
 
-	doom_vi(sc, vi);
-
+	begin_vi_detach(sc, vi);
 	cxgbe_vi_detach(vi);
 	t4_free_vi(sc, sc->mbox, sc->pf, 0, vi->viid);
-
-	end_synchronized_op(sc, 0);
+	end_vi_detach(sc, vi);
 
 	return (0);
 }
@@ -3904,6 +3900,9 @@ rw_via_memwin(struct adapter *sc, int idx, uint32_t addr, uint32_t *val,
 
 	return (0);
 }
+
+CTASSERT(M_TID_COOKIE == M_COOKIE);
+CTASSERT(MAX_ATIDS <= (M_TID_TID + 1));
 
 static void
 t4_init_atid_table(struct adapter *sc)
@@ -5314,9 +5313,13 @@ get_params__post_init(struct adapter *sc)
 	}
 
 	/*
-	 * MPSBGMAP is queried separately because only recent firmwares support
-	 * it as a parameter and we don't want the compound query above to fail
-	 * on older firmwares.
+	 * The parameters that follow may not be available on all firmwares.  We
+	 * query them individually rather than in a compound query because old
+	 * firmwares fail the entire query if an unknown parameter is queried.
+	 */
+
+	/*
+	 * MPS buffer group configuration.
 	 */
 	param[0] = FW_PARAM_DEV(MPSBGMAP);
 	val[0] = 0;
@@ -5324,11 +5327,18 @@ get_params__post_init(struct adapter *sc)
 	if (rc == 0)
 		sc->params.mps_bg_map = val[0];
 	else
-		sc->params.mps_bg_map = 0;
+		sc->params.mps_bg_map = UINT32_MAX;	/* Not a legal value. */
+
+	param[0] = FW_PARAM_DEV(TPCHMAP);
+	val[0] = 0;
+	rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, param, val);
+	if (rc == 0)
+		sc->params.tp_ch_map = val[0];
+	else
+		sc->params.tp_ch_map = UINT32_MAX;	/* Not a legal value. */
 
 	/*
 	 * Determine whether the firmware supports the filter2 work request.
-	 * This is queried separately for the same reason as MPSBGMAP above.
 	 */
 	param[0] = FW_PARAM_DEV(FILTER2_WR);
 	val[0] = 0;
@@ -5340,7 +5350,6 @@ get_params__post_init(struct adapter *sc)
 
 	/*
 	 * Find out whether we're allowed to use the ULPTX MEMWRITE DSGL.
-	 * This is queried separately for the same reason as other params above.
 	 */
 	param[0] = FW_PARAM_DEV(ULPTX_MEMWRITE_DSGL);
 	val[0] = 0;
@@ -5730,18 +5739,15 @@ set_params__post_init(struct adapter *sc)
 	}
 #endif
 
-#ifdef KERN_TLS
-	if (sc->cryptocaps & FW_CAPS_CONFIG_TLSKEYS &&
-	    sc->toecaps & FW_CAPS_CONFIG_TOE) {
-		/*
-		 * Limit TOE connections to 2 reassembly "islands".
-		 * This is required to permit migrating TOE
-		 * connections to UPL_MODE_TLS.
-		 */
-		t4_tp_wr_bits_indirect(sc, A_TP_FRAG_CONFIG,
-		    V_PASSMODE(M_PASSMODE), V_PASSMODE(2));
-	}
+	/*
+	 * Limit TOE connections to 2 reassembly "islands".  This is
+	 * required to permit migrating TOE connections to either
+	 * ULP_MODE_TCPDDP or UPL_MODE_TLS.
+	 */
+	t4_tp_wr_bits_indirect(sc, A_TP_FRAG_CONFIG, V_PASSMODE(M_PASSMODE),
+	    V_PASSMODE(2));
 
+#ifdef KERN_TLS
 	if (is_ktls(sc)) {
 		sc->tlst.inline_keys = t4_tls_inline_keys;
 		sc->tlst.combo_wrs = t4_tls_combo_wrs;
@@ -5758,12 +5764,9 @@ set_params__post_init(struct adapter *sc)
 static void
 t4_set_desc(struct adapter *sc)
 {
-	char buf[128];
 	struct adapter_params *p = &sc->params;
 
-	snprintf(buf, sizeof(buf), "Chelsio %s", p->vpd.id);
-
-	device_set_desc_copy(sc->dev, buf);
+	device_set_descf(sc->dev, "Chelsio %s", p->vpd.id);
 }
 
 static inline void
@@ -6244,7 +6247,7 @@ begin_synchronized_op(struct adapter *sc, struct vi_info *vi, int flags,
 	ADAPTER_LOCK(sc);
 	for (;;) {
 
-		if (vi && IS_DOOMED(vi)) {
+		if (vi && IS_DETACHING(vi)) {
 			rc = ENXIO;
 			goto done;
 		}
@@ -6283,14 +6286,13 @@ done:
 /*
  * Tell if_ioctl and if_init that the VI is going away.  This is
  * special variant of begin_synchronized_op and must be paired with a
- * call to end_synchronized_op.
+ * call to end_vi_detach.
  */
 void
-doom_vi(struct adapter *sc, struct vi_info *vi)
+begin_vi_detach(struct adapter *sc, struct vi_info *vi)
 {
-
 	ADAPTER_LOCK(sc);
-	SET_DOOMED(vi);
+	SET_DETACHING(vi);
 	wakeup(&sc->flags);
 	while (IS_BUSY(sc))
 		mtx_sleep(&sc->flags, &sc->sc_lock, 0, "t4detach", 0);
@@ -6300,6 +6302,17 @@ doom_vi(struct adapter *sc, struct vi_info *vi)
 	sc->last_op_thr = curthread;
 	sc->last_op_flags = 0;
 #endif
+	ADAPTER_UNLOCK(sc);
+}
+
+void
+end_vi_detach(struct adapter *sc, struct vi_info *vi)
+{
+	ADAPTER_LOCK(sc);
+	KASSERT(IS_BUSY(sc), ("%s: controller not busy.", __func__));
+	CLR_BUSY(sc);
+	CLR_DETACHING(vi);
+	wakeup(&sc->flags);
 	ADAPTER_UNLOCK(sc);
 }
 
@@ -6650,7 +6663,8 @@ adapter_full_init(struct adapter *sc)
 	if (rc != 0)
 		return (rc);
 
-	for (i = 0; i < nitems(sc->tq); i++) {
+	MPASS(sc->params.nports <= nitems(sc->tq));
+	for (i = 0; i < sc->params.nports; i++) {
 		if (sc->tq[i] != NULL)
 			continue;
 		sc->tq[i] = taskqueue_create("t4 taskq", M_NOWAIT,
@@ -6699,7 +6713,9 @@ adapter_full_uninit(struct adapter *sc)
 
 	t4_teardown_adapter_queues(sc);
 
-	for (i = 0; i < nitems(sc->tq) && sc->tq[i]; i++) {
+	for (i = 0; i < nitems(sc->tq); i++) {
+		if (sc->tq[i] == NULL)
+			continue;
 		taskqueue_free(sc->tq[i]);
 		sc->tq[i] = NULL;
 	}
@@ -7957,8 +7973,10 @@ cxgbe_sysctls(struct port_info *pi)
 	    pi->mps_bg_map, "MPS buffer group map");
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "rx_e_chan_map", CTLFLAG_RD,
 	    NULL, pi->rx_e_chan_map, "TP rx e-channel map");
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "rx_c_chan", CTLFLAG_RD, NULL,
-	    pi->rx_c_chan, "TP rx c-channel");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "tx_chan", CTLFLAG_RD, NULL,
+	    pi->tx_chan, "TP tx c-channel");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "rx_chan", CTLFLAG_RD, NULL,
+	    pi->rx_chan, "TP rx c-channel");
 
 	if (sc->flags & IS_VF)
 		return;
@@ -8008,9 +8026,8 @@ cxgbe_sysctls(struct port_info *pi)
 
 #define T4_REGSTAT(name, stat, desc) \
     SYSCTL_ADD_OID(ctx, children, OID_AUTO, #name, \
-        CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, \
-	(is_t4(sc) ? PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_##stat##_L) : \
-	T5_PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_##stat##_L)), \
+	CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, \
+	t4_port_reg(sc, pi->tx_chan, A_MPS_PORT_STAT_##stat##_L), \
         sysctl_handle_t4_reg64, "QU", desc)
 
 /* We get these from port_stats and they may be stale by up to 1s */
@@ -12020,6 +12037,8 @@ clear_stats(struct adapter *sc, u_int port_id)
 				counter_u64_zero(ofld_txq->tx_iscsi_pdus);
 				counter_u64_zero(ofld_txq->tx_iscsi_octets);
 				counter_u64_zero(ofld_txq->tx_iscsi_iso_wrs);
+				counter_u64_zero(ofld_txq->tx_aio_jobs);
+				counter_u64_zero(ofld_txq->tx_aio_octets);
 				counter_u64_zero(ofld_txq->tx_toe_tls_records);
 				counter_u64_zero(ofld_txq->tx_toe_tls_octets);
 			}
@@ -12037,8 +12056,14 @@ clear_stats(struct adapter *sc, u_int port_id)
 				ofld_rxq->rx_iscsi_ddp_octets = 0;
 				ofld_rxq->rx_iscsi_fl_pdus = 0;
 				ofld_rxq->rx_iscsi_fl_octets = 0;
+				ofld_rxq->rx_aio_ddp_jobs = 0;
+				ofld_rxq->rx_aio_ddp_octets = 0;
 				ofld_rxq->rx_toe_tls_records = 0;
 				ofld_rxq->rx_toe_tls_octets = 0;
+				ofld_rxq->rx_toe_ddp_octets = 0;
+				counter_u64_zero(ofld_rxq->ddp_buffer_alloc);
+				counter_u64_zero(ofld_rxq->ddp_buffer_reuse);
+				counter_u64_zero(ofld_rxq->ddp_buffer_free);
 			}
 #endif
 

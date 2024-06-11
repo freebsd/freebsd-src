@@ -981,15 +981,9 @@ void
 sched_lend_user_prio_cond(struct thread *td, u_char prio)
 {
 
-	if (td->td_lend_user_pri != prio)
-		goto lend;
-	if (td->td_user_pri != min(prio, td->td_base_user_pri))
-		goto lend;
-	if (td->td_priority != td->td_user_pri)
-		goto lend;
-	return;
+	if (td->td_lend_user_pri == prio)
+		return;
 
-lend:
 	thread_lock(td);
 	sched_lend_user_prio(td, prio);
 	thread_unlock(td);
@@ -1041,9 +1035,8 @@ sched_switch(struct thread *td, int flags)
 	} else {
 		if (TD_IS_RUNNING(td)) {
 			/* Put us back on the run queue. */
-			sched_add(td, preempted ?
-			    SRQ_HOLDTD|SRQ_OURSELF|SRQ_YIELDING|SRQ_PREEMPTED :
-			    SRQ_HOLDTD|SRQ_OURSELF|SRQ_YIELDING);
+			sched_add(td, SRQ_HOLDTD | SRQ_OURSELF | SRQ_YIELDING |
+			    (preempted ? SRQ_PREEMPTED : 0));
 		}
 	}
 

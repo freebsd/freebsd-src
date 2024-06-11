@@ -76,13 +76,18 @@ By default, the following macros are valid in the given contexts:
 <TR><TD>xxfi_eom</TD>    <TD>msg_id</TD></TR>
 </TABLE>
 <P>
-All macros stay in effect from the point they are received
-until the end of the connection for the first two sets,
-the end of the message for the third (xxfi_envfrom) and last (xxfi_eom),
-and just for each recipient for xxfi_envrcpt.
+All macros stay in effect from the point they are received until
+<UL>
+<LI>the end of the connection for the first two sets,
+<LI>just for each recipient for xxfi_envrcpt.
+<LI>and the end of the message for the rest.
+</UL>
 <P>
-The macro list can be changed using the confMILTER_MACROS_* options in
-sendmail.mc.
+The macro list can be changed using
+the confMILTER_MACROS_* options in sendmail.mc
+or via the
+<A HREF="smfi_setsymlist.html">smfi_setsymlist</A>
+function.
 The scopes of such macros will be determined by when they are set by sendmail.
 For descriptions of macros' values,
 please see the

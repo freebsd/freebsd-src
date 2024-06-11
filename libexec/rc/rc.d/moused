@@ -18,6 +18,11 @@ pidfile="${pidprefix}.pid"
 pidarg=
 load_rc_config $name
 
+# doesn't make sense to run in a svcj: nojail keyword
+# XXX: How does moused communiacte with the kernel?
+# XXX: Does the kernel prevent this communcation in jails?
+moused_svcj="NO"
+
 # Set the pid file and variable name. The second argument, if it exists, is
 # expected to be the mouse device.
 #

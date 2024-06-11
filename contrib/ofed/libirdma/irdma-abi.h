@@ -35,7 +35,6 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-/*$FreeBSD$*/
 
 #ifndef IRDMA_ABI_H
 #define IRDMA_ABI_H
@@ -55,6 +54,11 @@ enum irdma_memreg_type {
 
 enum {
 	IRDMA_ALLOC_UCTX_USE_RAW_ATTR = 1 << 0,
+	IRDMA_ALLOC_UCTX_MIN_HW_WQ_SIZE = 1 << 1,
+};
+
+enum {
+	IRDMA_CREATE_QP_USE_START_WQE_IDX = 1 << 0,
 };
 
 struct irdma_alloc_ucontext_req {
@@ -83,6 +87,8 @@ struct irdma_alloc_ucontext_resp {
 	__u8 hw_rev;
 	__u8 rsvd2;
 	__aligned_u64 comp_mask;
+	__u16 min_hw_wq_size;
+	__u8 rsvd3[6];
 };
 
 struct irdma_alloc_pd_resp {
@@ -102,6 +108,7 @@ struct irdma_create_cq_req {
 struct irdma_create_qp_req {
 	__aligned_u64 user_wqe_bufs;
 	__aligned_u64 user_compl_ctx;
+	__aligned_u64 comp_mask;
 };
 
 struct irdma_mem_reg_req {
@@ -131,6 +138,9 @@ struct irdma_create_qp_resp {
 	__u8 lsmm;
 	__u8 rsvd;
 	__u32 qp_caps;
+	__aligned_u64 comp_mask;
+	__u8 start_wqe_idx;
+	__u8 rsvd2[7];
 };
 
 struct irdma_modify_qp_resp {

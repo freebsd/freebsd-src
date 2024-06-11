@@ -41,14 +41,13 @@ static ihandle_t stdin;
 static ihandle_t stdout;
 
 struct console ofwconsole = {
-	"ofw",
-	"Open Firmware console",
-	0,
-	ofw_cons_probe,
-	ofw_cons_init,
-	ofw_cons_putchar,
-	ofw_cons_getchar,
-	ofw_cons_poll,
+	.c_name = "ofw",
+	.c_desc = "Open Firmware console",
+	.c_probe = ofw_cons_probe,
+	.c_init = ofw_cons_init,
+	.c_out = ofw_cons_putchar,
+	.c_in = ofw_cons_getchar,
+	.c_ready = ofw_cons_poll,
 };
 
 static void
@@ -63,7 +62,7 @@ ofw_cons_probe(struct console *cp)
 static int
 ofw_cons_init(int arg)
 {
-	return 0;
+	return (0);
 }
 
 void
@@ -83,7 +82,7 @@ ofw_cons_putchar(int c)
 static int saved_char = -1;
 
 int
-ofw_cons_getchar()
+ofw_cons_getchar(void)
 {
 	unsigned char ch = '\0';
 	int l;
@@ -91,7 +90,7 @@ ofw_cons_getchar()
 	if (saved_char != -1) {
 		l = saved_char;
 		saved_char = -1;
-		return l;
+		return (l);
 	}
 
 	/* At least since version 4.0.0, QEMU became bug-compatible
@@ -105,17 +104,17 @@ ofw_cons_getchar()
 }
 
 int
-ofw_cons_poll()
+ofw_cons_poll(void)
 {
 	unsigned char ch;
 
 	if (saved_char != -1)
-		return 1;
+		return (1);
 
 	if (OF_read(stdin, &ch, 1) > 0) {
 		saved_char = ch;
-		return 1;
+		return (1);
 	}
 
-	return 0;
+	return (0);
 }

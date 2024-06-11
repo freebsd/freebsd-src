@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: 0BSD */
+
 /*
  * Speed-optimized CRC32 using slicing-by-eight algorithm
  *
@@ -10,9 +12,6 @@
  *
  * Authors: Igor Pavlov (original version)
  *          Lasse Collin (AT&T syntax, PIC support, better portability)
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
  *
  * This code needs lzma_crc32_table, which can be created using the
  * following C code:

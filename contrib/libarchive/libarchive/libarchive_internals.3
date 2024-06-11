@@ -22,8 +22,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $FreeBSD$
-.\"
 .Dd January 26, 2011
 .Dt LIBARCHIVE_INTERNALS 3
 .Os
@@ -126,7 +124,7 @@ to read the entire file into memory at once and return the
 entire file to libarchive as a single block;
 other clients may begin asynchronous I/O operations for the
 next block on each request.
-.Ss Decompresssion Layer
+.Ss Decompression Layer
 The decompression layer not only handles decompression,
 it also buffers data so that the format handlers see a
 much nicer I/O model.

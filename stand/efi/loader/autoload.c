@@ -24,7 +24,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #if defined(LOADER_FDT_SUPPORT)
 #include <sys/param.h>
 #include <fdt_platform.h>

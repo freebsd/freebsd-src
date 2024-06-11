@@ -869,29 +869,25 @@ struct ieee80211_vht_cap {
 	struct ieee80211_vht_mcs_info	supp_mcs;
 } __packed;
 
-/* VHT capabilities element: 802.11ac-2013 8.4.2.160 */
-struct ieee80211_ie_vhtcap {
-	uint8_t ie;
-	uint8_t len;
-	uint32_t vht_cap_info;
-	struct ieee80211_vht_mcs_info supp_mcs;
-} __packed;
+/* 802.11ac-2013, Table 8-183x-VHT Operation Information subfields */
+enum ieee80211_vht_chanwidth {
+	IEEE80211_VHT_CHANWIDTH_USE_HT		= 0,	/* 20 MHz or 40 MHz */
+	IEEE80211_VHT_CHANWIDTH_80MHZ		= 1,	/* 80MHz */
+	IEEE80211_VHT_CHANWIDTH_160MHZ		= 2,	/* 160MHz */
+	IEEE80211_VHT_CHANWIDTH_80P80MHZ	= 3,	/* 80+80MHz */
+	/* 4..255 reserved. */
+};
 
-/* VHT operation mode subfields - 802.11ac-2013 Table 8.183x */
-#define	IEEE80211_VHT_CHANWIDTH_USE_HT		0	/* Use HT IE for chw */
-#define	IEEE80211_VHT_CHANWIDTH_80MHZ		1	/* 80MHz */
-#define	IEEE80211_VHT_CHANWIDTH_160MHZ		2	/* 160MHz */
-#define	IEEE80211_VHT_CHANWIDTH_80P80MHZ	3	/* 80+80MHz */
-
-/* VHT operation IE - 802.11ac-2013 8.4.2.161 */
-struct ieee80211_ie_vht_operation {
-	uint8_t ie;
-	uint8_t len;
-	uint8_t chan_width;
-	uint8_t center_freq_seg1_idx;
-	uint8_t center_freq_seg2_idx;
-	uint16_t basic_mcs_set;
+/* The name conflicts with the same structure in wpa.  Only ifconfig needs this. */
+#if defined(_KERNEL) || defined(WANT_NET80211)
+/* 802.11ac-2013 8.4.2.161 VHT Operation element */
+struct ieee80211_vht_operation {
+	uint8_t			chan_width;		/* enum ieee80211_vht_chanwidth */
+	uint8_t			center_freq_seq0_idx;	/* 20/40/80/160 - VHT chan1 */
+	uint8_t			center_freq_seq1_idx;	/* 80+80 - VHT chan2 */
+	uint16_t		basic_mcs_set;		/* Basic VHT-MCS and NSS Set */
 } __packed;
+#endif
 
 /* 802.11ac VHT Capabilities */
 #define	IEEE80211_VHTCAP_MAX_MPDU_LENGTH_3895	0x00000000
@@ -1270,7 +1266,7 @@ struct ieee80211_csa_ie {
 #define	WPA_CSE_NULL		0x00
 #define	WPA_CSE_WEP40		0x01
 #define	WPA_CSE_TKIP		0x02
-#define	WPA_CSE_CCMP		0x04
+#define	WPA_CSE_CCMP		0x04		/* CCMP 128-bit */
 #define	WPA_CSE_WEP104		0x05
 
 #define	WPA_ASE_NONE		0x00
@@ -1279,21 +1275,62 @@ struct ieee80211_csa_ie {
 
 #define	WPS_OUI_TYPE		0x04
 
+/* 802.11-2016 Table 9-131 - Cipher Suite Selectors */
 #define	RSN_OUI			0xac0f00
 #define	RSN_VERSION		1		/* current supported version */
 
-#define	RSN_CSE_NULL		0x00
-#define	RSN_CSE_WEP40		0x01
-#define	RSN_CSE_TKIP		0x02
-#define	RSN_CSE_WRAP		0x03
-#define	RSN_CSE_CCMP		0x04
-#define	RSN_CSE_WEP104		0x05
+/* RSN cipher suite element */
+#define	RSN_CSE_NULL		0
+#define	RSN_CSE_WEP40		1
+#define	RSN_CSE_TKIP		2
+#define	RSN_CSE_WRAP		3		/* Reserved in the 802.11-2016 */
+#define	RSN_CSE_CCMP		4		/* CCMP 128 bit */
+#define	RSN_CSE_WEP104		5
+#define	RSN_CSE_BIP_CMAC_128	6
+/* 7 - "Group addressed traffic not allowed" */
+#define	RSN_CSE_GCMP_128	8
+#define	RSN_CSE_GCMP_256	9
+#define	RSN_CSE_CCMP_256	10
+#define	RSN_CSE_BIP_GMAC_128	11
+#define	RSN_CSE_BIP_GMAC_256	12
+#define	RSN_CSE_BIP_CMAC_256	13
 
-#define	RSN_ASE_NONE		0x00
-#define	RSN_ASE_8021X_UNSPEC	0x01
-#define	RSN_ASE_8021X_PSK	0x02
+/* 802.11-2016 Table 9-133 - AKM suite selectors */
+/* RSN AKM suite element */
+#define	RSN_ASE_NONE		0
+#define	RSN_ASE_8021X_UNSPEC	1
+#define	RSN_ASE_8021X_PSK	2
+#define	RSN_ASE_FT_8021X	3		/* SHA-256 */
+#define	RSN_ASE_FT_PSK		4		/* SHA-256 */
+#define	RSN_ASE_8021X_UNSPEC_SHA256	5
+#define	RSN_ASE_8021X_PSK_SHA256	6
+#define	RSN_ASE_8021X_TDLS	7		/* SHA-256 */
+#define	RSN_ASE_SAE_UNSPEC	8		/* SHA-256 */
+#define	RSN_ASE_FT_SAE		9		/* SHA-256 */
+#define	RSN_ASE_AP_PEERKEY	10		/* SHA-256 */
+#define	RSN_ASE_8021X_SUITE_B_SHA256	11
+#define	RSN_ASE_8021X_SUITE_B_SHA384	12
+#define	RSN_ASE_FT_8021X_SHA384	13
 
-#define	RSN_CAP_PREAUTH		0x01
+/* 802.11-2016 Figure 9-257 - RSN Capabilities (2 byte field) */
+#define	RSN_CAP_PREAUTH		0x0001
+#define	RSN_CAP_NO_PAIRWISE	0x0002
+#define	RSN_CAP_PTKSA_REPLAY_COUNTER	0x000c	/* 2 bit field */
+#define	RSN_CAP_GTKSA_REPLAY_COUNTER	0x0030	/* 2 bit field */
+#define	RSN_CAP_MFP_REQUIRED	0x0040
+#define	RSN_CAP_MFP_CAPABLE	0x0080
+#define	RSN_CAP_JOINT_MULTIBAND_RSNA		0x0100
+#define	RSN_CAP_PEERKEY_ENABLED	0x0200
+#define	RSN_CAP_SPP_AMSDU_CAPABLE	0x0400
+#define	RSN_CAP_SPP_AMSDU_REQUIRED	0x0800
+#define	RSN_CAP_PBAC_CAPABLE	0x1000
+#define	RSN_CAP_EXT_KEYID_CAPABLE	0x0200
+
+/* 802.11-2016 Table 9-134 PTKSA/GTKSA/STKSA replay counters usage */
+#define		RSN_CAP_REPLAY_COUNTER_1_PER	0
+#define		RSN_CAP_REPLAY_COUNTER_2_PER	1
+#define		RSN_CAP_REPLAY_COUNTER_4_PER	2
+#define		RSN_CAP_REPLAY_COUNTER_16_PER	3
 
 #define	WME_OUI			0xf25000
 #define	WME_OUI_TYPE		0x02

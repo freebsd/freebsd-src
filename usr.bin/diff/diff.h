@@ -51,6 +51,14 @@
 
 #define	D_UNSET		-2
 
+/*
+ * Algorithms
+ */
+
+#define D_DIFFNONE     0
+#define D_DIFFSTONE    1       /* Stone or 'old diff' algorithm */
+#define D_DIFFMYERS    2       /* Myers diff algorithm */
+#define D_DIFFPATIENCE 3       /* Patience diff algorithm */
 
 /*
  * Output flags
@@ -72,6 +80,9 @@
 #define D_STRIPCR		0x400	/* Strip trailing cr */
 #define D_SKIPBLANKLINES	0x800	/* Skip blank lines */
 #define D_MATCHLAST		0x1000	/* Display last line matching provided regex */
+
+/* Features supported by new algorithms */
+#define D_NEWALGO_FLAGS                (D_FORCEASCII | D_PROTOTYPE | D_IGNOREBLANKS)
 
 /*
  * Status values for print_status() and diffreg() return values
@@ -98,8 +109,9 @@ struct excludes {
 };
 
 extern bool	lflag, Nflag, Pflag, rflag, sflag, Tflag, cflag;
-extern bool	ignore_file_case, suppress_common, color, noderef;
-extern int	diff_format, diff_context, status;
+extern bool    ignore_file_case, suppress_common, color, noderef, algorithm_set;
+extern int     diff_format, diff_context, diff_algorithm, status;
+extern bool	diff_algorithm_set;
 extern int	tabsize, width;
 extern char	*start, *ifdefname, *diffargs, *label[2];
 extern char	*ignore_pats, *most_recent_pat;
@@ -110,5 +122,7 @@ extern struct	excludes *excludes_list;
 extern regex_t	ignore_re, most_recent_re;
 
 int	diffreg(char *, char *, int, int);
+int	diffreg_new(char *, char *, int, int);
+bool	can_libdiff(int);
 void	diffdir(char *, char *, int);
 void	print_status(int, char *, char *, const char *);

@@ -38,7 +38,7 @@ is also available.
 
 === Releases
 
-The current release of *libfido2* is 1.13.0. Signed release tarballs are
+The current release of *libfido2* is 1.14.0. Signed release tarballs are
 available at Yubico's
 https://developers.yubico.com/libfido2/Releases[release page].
 

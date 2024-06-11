@@ -39,8 +39,8 @@
 #include <machine/bus.h>
 #include <machine/resource.h>
 
-#include <dev/extres/clk/clk.h>
-#include <dev/extres/syscon/syscon.h>
+#include <dev/clk/clk.h>
+#include <dev/syscon/syscon.h>
 #include <dev/mmc/bridge.h>
 #include <dev/mmc/mmcbrvar.h>
 #include <dev/mmc/mmc_fdt_helpers.h>
@@ -818,6 +818,7 @@ sdhci_fsl_fdt_of_parse(device_t dev)
 	/* Call mmc_fdt_parse in order to get mmc related properties. */
 	mmc_fdt_parse(dev, node, &sc->fdt_helper, &sc->slot.host);
 
+	sc->slot.quirks |= SDHCI_QUIRK_MISSING_CAPS;
 	sc->slot.caps = sdhci_fsl_fdt_read_4(dev, &sc->slot,
 	    SDHCI_CAPABILITIES) & ~(SDHCI_CAN_DO_SUSPEND);
 	sc->slot.caps2 = sdhci_fsl_fdt_read_4(dev, &sc->slot,
@@ -837,7 +838,6 @@ sdhci_fsl_fdt_of_parse(device_t dev)
 	    (vdd_mask != (sc->slot.caps & SDHCI_FSL_CAN_VDD_MASK))) {
 		sc->slot.caps &= ~(SDHCI_FSL_CAN_VDD_MASK);
 		sc->slot.caps |= vdd_mask;
-		sc->slot.quirks |= SDHCI_QUIRK_MISSING_CAPS;
 	}
 }
 

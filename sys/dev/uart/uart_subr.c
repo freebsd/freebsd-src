@@ -47,11 +47,7 @@
 #define	UART_TAG_SB	8
 #define	UART_TAG_XO	9
 #define	UART_TAG_BD	10
-
-static struct uart_class *uart_classes[] = {
-	&uart_ns8250_class,
-	&uart_z8530_class,
-};
+#define	UART_TAG_RW	11
 
 static bus_addr_t
 uart_parse_addr(const char **p)
@@ -62,13 +58,12 @@ uart_parse_addr(const char **p)
 static struct uart_class *
 uart_parse_class(struct uart_class *class, const char **p)
 {
-	struct uart_class *uc;
+	struct uart_class **puc, *uc;
 	const char *nm;
 	size_t len;
-	u_int i;
 
-	for (i = 0; i < nitems(uart_classes); i++) {
-		uc = uart_classes[i];
+	SET_FOREACH(puc, uart_class_set) {
+		uc = *puc;
 		nm = uart_getname(uc);
 		if (nm == NULL || *nm == '\0')
 			continue;
@@ -154,6 +149,10 @@ uart_parse_tag(const char **p)
 		tag = UART_TAG_RS;
 		goto out;
 	}
+	if ((*p)[0] == 'r' && (*p)[1] == 'w') {
+		tag = UART_TAG_RW;
+		goto out;
+	}
 	if ((*p)[0] == 's' && (*p)[1] == 'b') {
 		tag = UART_TAG_SB;
 		goto out;
@@ -231,6 +230,7 @@ uart_getenv(int devtype, struct uart_devinfo *di, struct uart_class *class)
 	/* Set defaults. */
 	di->bas.chan = 0;
 	di->bas.regshft = 0;
+	di->bas.regiowidth = 1;
 	di->bas.rclk = 0;
 	di->baudrate = 0;
 	di->databits = 8;
@@ -269,6 +269,9 @@ uart_getenv(int devtype, struct uart_devinfo *di, struct uart_class *class)
 			break;
 		case UART_TAG_RS:
 			di->bas.regshft = uart_parse_long(&spec);
+			break;
+		case UART_TAG_RW:
+			di->bas.regiowidth = uart_parse_long(&spec);
 			break;
 		case UART_TAG_SB:
 			di->stopbits = uart_parse_long(&spec);

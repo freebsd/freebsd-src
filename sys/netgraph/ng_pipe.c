@@ -34,7 +34,7 @@
  * This node permits simple traffic shaping by emulating bandwidth
  * and delay, as well as random packet losses.
  * The node has two hooks, upper and lower. Traffic flowing from upper to
- * lower hook is referenced as downstream, and vice versa. Parameters for 
+ * lower hook is referenced as downstream, and vice versa. Parameters for
  * both directions can be set separately, except for delay.
  */
 
@@ -44,6 +44,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/prng.h>
 #include <sys/time.h>
 
 #include <vm/uma.h>
@@ -195,8 +196,8 @@ static const struct ng_cmdlist ngp_cmds[] = {
 	{
 		.cookie =	NGM_PIPE_COOKIE,
 		.cmd =		NGM_PIPE_GET_STATS,
-		.name = 	"getstats",
-		.respType =	 &ng_pipe_stats_type
+		.name =		"getstats",
+		.respType =	&ng_pipe_stats_type
 	},
 	{
 		.cookie =	NGM_PIPE_COOKIE,
@@ -494,7 +495,7 @@ parse_cfg(struct ng_pipe_hookcfg *current, struct ng_pipe_hookcfg *new,
 
 	if (new->qin_size_limit == -1)
 		current->qin_size_limit = 0;
-	else if (new->qin_size_limit >= 5) 
+	else if (new->qin_size_limit >= 5)
 		current->qin_size_limit = new->qin_size_limit;
 
 	if (new->qout_size_limit == -1)
@@ -547,7 +548,7 @@ parse_cfg(struct ng_pipe_hookcfg *current, struct ng_pipe_hookcfg *new,
 	} else if (new->bandwidth >= 100 && new->bandwidth <= 1000000000)
 		current->bandwidth = new->bandwidth;
 
-	if (current->bandwidth | priv->delay | 
+	if (current->bandwidth | priv->delay |
 	    current->duplicate | current->ber)
 		hinfo->noqueue = 0;
 	else
@@ -640,12 +641,14 @@ ngp_rcvdata(hook_p hook, item_p item)
 	}
 
 	/* Populate the packet header */
-	ngp_h = uma_zalloc(ngp_zone, M_NOWAIT);
-	KASSERT((ngp_h != NULL), ("ngp_h zalloc failed (1)"));
 	NGI_GET_M(item, m);
-	KASSERT(m != NULL, ("NGI_GET_M failed"));
-	ngp_h->m = m;
 	NG_FREE_ITEM(item);
+	ngp_h = uma_zalloc(ngp_zone, M_NOWAIT);
+	if (ngp_h == NULL) {
+		NG_FREE_M(m);
+		return (ENOMEM);
+	}
+	ngp_h->m = m;
 
 	if (hinfo->cfg.fifo)
 		hash = 0;	/* all packets go into a single FIFO queue */
@@ -658,7 +661,11 @@ ngp_rcvdata(hook_p hook, item_p item)
 			break;
 	if (ngp_f == NULL) {
 		ngp_f = uma_zalloc(ngp_zone, M_NOWAIT);
-		KASSERT(ngp_h != NULL, ("ngp_h zalloc failed (2)"));
+		if (ngp_f == NULL) {
+			NG_FREE_M(ngp_h->m);
+			uma_zfree(ngp_zone, ngp_h);
+			return (ENOMEM);
+		}
 		TAILQ_INIT(&ngp_f->packet_head);
 		ngp_f->hash = hash;
 		ngp_f->packets = 1;
@@ -686,9 +693,9 @@ ngp_rcvdata(hook_p hook, item_p item)
 			}
 
 		/* Drop a frame from the queue head/tail, depending on cfg */
-		if (hinfo->cfg.drophead) 
+		if (hinfo->cfg.drophead)
 			ngp_h = TAILQ_FIRST(&ngp_f->packet_head);
-		else 
+		else
 			ngp_h = TAILQ_LAST(&ngp_f->packet_head, p_head);
 		TAILQ_REMOVE(&ngp_f->packet_head, ngp_h, ngp_link);
 		m1 = ngp_h->m;
@@ -732,7 +739,7 @@ pipe_dequeue(struct hookinfo *hinfo, struct timeval *now) {
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct hookinfo *dest;
 	struct ngp_fifo *ngp_f, *ngp_f1;
-	struct ngp_hdr *ngp_h;
+	struct ngp_hdr *ngp_h, *ngp_dup;
 	struct timeval *when;
 	struct mbuf *m;
 	int plen, error = 0;
@@ -767,23 +774,34 @@ pipe_dequeue(struct hookinfo *hinfo, struct timeval *now) {
 		}
 
 		/*
-		 * Either create a duplicate and pass it on, or dequeue
-		 * the original packet...
+		 * Either create a duplicate and pass it on, or
+		 * dequeue the original packet.  When any of the
+		 * memory allocations for the duplicate package fail,
+		 * simply do not duplicate it at all.
 		 */
+		ngp_dup = NULL;
 		if (hinfo->cfg.duplicate &&
-		    random() % 100 <= hinfo->cfg.duplicate) {
-			ngp_h = uma_zalloc(ngp_zone, M_NOWAIT);
-			KASSERT(ngp_h != NULL, ("ngp_h zalloc failed (3)"));
-			m = m_dup(m, M_NOWAIT);
-			KASSERT(m != NULL, ("m_dup failed"));
-			ngp_h->m = m;
+		    prng32_bounded(100) <= hinfo->cfg.duplicate) {
+			ngp_dup = uma_zalloc(ngp_zone, M_NOWAIT);
+			if (ngp_dup != NULL) {
+				ngp_dup->m = m_dup(m, M_NOWAIT);
+				if (ngp_dup->m == NULL) {
+					uma_zfree(ngp_zone, ngp_dup);
+					ngp_dup = NULL;
+				}
+			}
+		}
+
+		if (ngp_dup != NULL) {
+			ngp_h = ngp_dup;
+			m = ngp_h->m;
 		} else {
 			TAILQ_REMOVE(&ngp_f->packet_head, ngp_h, ngp_link);
 			hinfo->run.qin_frames--;
 			hinfo->run.qin_octets -= m->m_pkthdr.len;
 			ngp_f->packets--;
 		}
-		
+
 		/* Calculate the serialization delay */
 		if (hinfo->cfg.bandwidth) {
 			hinfo->qin_utime.tv_usec +=
@@ -814,7 +832,7 @@ pipe_dequeue(struct hookinfo *hinfo, struct timeval *now) {
 		/* Randomly discard the frame, according to BER setting */
 		if (hinfo->cfg.ber) {
 			oldrand = rand;
-			rand = random();
+			rand = prng32_bounded(1U << 31);
 			if (((oldrand ^ rand) << 17) >=
 			    hinfo->ber_p[priv->overhead + m->m_pkthdr.len]) {
 				hinfo->stats.out_disc_frames++;
@@ -936,6 +954,7 @@ ngp_disconnect(hook_p hook)
 	struct hookinfo *const hinfo = NG_HOOK_PRIVATE(hook);
 	struct ngp_fifo *ngp_f;
 	struct ngp_hdr *ngp_h;
+	priv_p priv;
 
 	KASSERT(hinfo != NULL, ("%s: null info", __FUNCTION__));
 	hinfo->hook = NULL;
@@ -962,6 +981,12 @@ ngp_disconnect(hook_p hook)
 	if (hinfo->ber_p)
 		free(hinfo->ber_p, M_NG_PIPE);
 
+	/* Destroy the node if all hooks are disconnected */
+	priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
+
+	if (priv->upper.hook == NULL && priv->lower.hook == NULL)
+		ng_rmnode_self(NG_HOOK_NODE(hook));
+
 	return (0);
 }
 
@@ -975,8 +1000,6 @@ ngp_modevent(module_t mod, int type, void *unused)
 		ngp_zone = uma_zcreate("ng_pipe", max(sizeof(struct ngp_hdr),
 		    sizeof (struct ngp_fifo)), NULL, NULL, NULL, NULL,
 		    UMA_ALIGN_PTR, 0);
-		if (ngp_zone == NULL)
-			panic("ng_pipe: couldn't allocate descriptor zone");
 		break;
 	case MOD_UNLOAD:
 		uma_zdestroy(ngp_zone);

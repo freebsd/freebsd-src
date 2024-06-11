@@ -59,7 +59,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 #include "namespace.h"
 #include <string.h>
 #include <stdlib.h>

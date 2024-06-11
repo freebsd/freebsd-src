@@ -43,7 +43,6 @@
 #include <sys/watchdog.h>
 
 #include <dev/sound/pcm/sound.h>
-#include <dev/sound/chip.h>
 #include <mixer_if.h>
 
 #include <dev/ofw/openfirm.h>
@@ -461,7 +460,7 @@ find_edma_controller(struct sc_info *sc)
 	sc->edma_chnum = edma_sc->channel_configure(edma_sc, edma_mux_group,
 	    edma_src_transmit);
 	if (sc->edma_chnum < 0) {
-		/* cant setup eDMA */
+		/* can't setup eDMA */
 		return (ENXIO);
 	}
 

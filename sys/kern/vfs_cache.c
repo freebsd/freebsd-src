@@ -4483,7 +4483,7 @@ cache_can_fplookup(struct cache_fpl *fpl)
 		cache_fpl_aborted_early(fpl);
 		return (false);
 	}
-	if (IN_CAPABILITY_MODE(td)) {
+	if (IN_CAPABILITY_MODE(td) || CAP_TRACING(td)) {
 		cache_fpl_aborted_early(fpl);
 		return (false);
 	}
@@ -4509,7 +4509,7 @@ cache_fplookup_dirfd(struct cache_fpl *fpl, struct vnode **vpp)
 	ndp = fpl->ndp;
 	cnp = fpl->cnp;
 
-	error = fgetvp_lookup_smr(ndp->ni_dirfd, ndp, vpp, &fsearch);
+	error = fgetvp_lookup_smr(ndp, vpp, &fsearch);
 	if (__predict_false(error != 0)) {
 		return (cache_fpl_aborted(fpl));
 	}

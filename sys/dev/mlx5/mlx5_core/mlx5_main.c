@@ -1719,7 +1719,9 @@ static int init_one(struct pci_dev *pdev,
 			pci_iov_schema_add_uint64(vf_schema, iov_port_guid_name,
 			    0, 0);
 			err = pci_iov_attach(bsddev, pf_schema, vf_schema);
-			if (err != 0) {
+			if (err == 0) {
+				dev->iov_pf = true;
+			} else {
 				device_printf(bsddev,
 			    "Failed to initialize SR-IOV support, error %d\n",
 				    err);
@@ -1753,8 +1755,11 @@ static void remove_one(struct pci_dev *pdev)
 	struct mlx5_priv *priv = &dev->priv;
 
 #ifdef PCI_IOV
-	pci_iov_detach(pdev->dev.bsddev);
-	mlx5_eswitch_disable_sriov(priv->eswitch);
+	if (dev->iov_pf) {
+		pci_iov_detach(pdev->dev.bsddev);
+		mlx5_eswitch_disable_sriov(priv->eswitch);
+		dev->iov_pf = false;
+	}
 #endif
 
 	if (mlx5_unload_one(dev, priv, true)) {

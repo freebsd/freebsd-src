@@ -87,11 +87,17 @@
 #define HAVE_AVX512VL 1
 #endif
 
+/* backtrace() is available */
+/* #undef HAVE_BACKTRACE */
+
 /* bdevname() is available */
 /* #undef HAVE_BDEVNAME */
 
 /* bdev_check_media_change() exists */
 /* #undef HAVE_BDEV_CHECK_MEDIA_CHANGE */
+
+/* bdev_file_open_by_path() exists */
+/* #undef HAVE_BDEV_FILE_OPEN_BY_PATH */
 
 /* bdev_*_io_acct() available */
 /* #undef HAVE_BDEV_IO_ACCT_63 */
@@ -107,6 +113,12 @@
 
 /* bdev_max_secure_erase_sectors() is available */
 /* #undef HAVE_BDEV_MAX_SECURE_ERASE_SECTORS */
+
+/* bdev_open_by_path() exists */
+/* #undef HAVE_BDEV_OPEN_BY_PATH */
+
+/* bdev_release() exists */
+/* #undef HAVE_BDEV_RELEASE */
 
 /* block_device_operations->submit_bio() returns void */
 /* #undef HAVE_BDEV_SUBMIT_BIO_RETURNS_VOID */
@@ -153,11 +165,23 @@
 /* blkdev_get_by_path() handles ERESTARTSYS */
 /* #undef HAVE_BLKDEV_GET_ERESTARTSYS */
 
+/* __blkdev_issue_discard(flags) is available */
+/* #undef HAVE_BLKDEV_ISSUE_DISCARD_ASYNC_FLAGS */
+
+/* __blkdev_issue_discard() is available */
+/* #undef HAVE_BLKDEV_ISSUE_DISCARD_ASYNC_NOFLAGS */
+
+/* blkdev_issue_discard(flags) is available */
+/* #undef HAVE_BLKDEV_ISSUE_DISCARD_FLAGS */
+
 /* blkdev_issue_discard() is available */
-/* #undef HAVE_BLKDEV_ISSUE_DISCARD */
+/* #undef HAVE_BLKDEV_ISSUE_DISCARD_NOFLAGS */
 
 /* blkdev_issue_secure_erase() is available */
 /* #undef HAVE_BLKDEV_ISSUE_SECURE_ERASE */
+
+/* blkdev_put() exists */
+/* #undef HAVE_BLKDEV_PUT */
 
 /* blkdev_put() accepts void* as arg 2 */
 /* #undef HAVE_BLKDEV_PUT_HOLDER */
@@ -174,6 +198,9 @@
 /* blk_alloc_disk() exists */
 /* #undef HAVE_BLK_ALLOC_DISK */
 
+/* blk_alloc_disk() exists and takes 2 args */
+/* #undef HAVE_BLK_ALLOC_DISK_2ARG */
+
 /* blk_alloc_queue() expects request function */
 /* #undef HAVE_BLK_ALLOC_QUEUE_REQUEST_FN */
 
@@ -188,6 +215,9 @@
 
 /* block multiqueue is available */
 /* #undef HAVE_BLK_MQ */
+
+/* block multiqueue hardware context is cached in struct request */
+/* #undef HAVE_BLK_MQ_RQ_HCTX */
 
 /* blk queue backing_dev_info is dynamic */
 /* #undef HAVE_BLK_QUEUE_BDI_DYNAMIC */
@@ -316,8 +346,8 @@
 /* sops->evict_inode() exists */
 /* #undef HAVE_EVICT_INODE */
 
-/* Define to 1 if you have the `execvpe' function. */
-/* #undef HAVE_EXECVPE */
+/* Define to 1 if you have the 'execvpe' function. */
+#define HAVE_EXECVPE 1
 
 /* FALLOC_FL_ZERO_RANGE is defined */
 /* #undef HAVE_FALLOC_FL_ZERO_RANGE */
@@ -391,6 +421,9 @@
 /* Define if the GNU gettext() function is already present or preinstalled. */
 /* #undef HAVE_GETTEXT */
 
+/* Define to 1 if you have the 'gettid' function. */
+/* #undef HAVE_GETTID */
+
 /* iops->get_acl() exists */
 /* #undef HAVE_GET_ACL */
 
@@ -427,14 +460,23 @@
 /* APIs for idmapped mount are present */
 /* #undef HAVE_IDMAP_MNT_API */
 
+/* mnt_idmap does not have user_namespace */
+/* #undef HAVE_IDMAP_NO_USERNS */
+
 /* Define if compiler supports -Wimplicit-fallthrough */
 /* #undef HAVE_IMPLICIT_FALLTHROUGH */
 
 /* Define if compiler supports -Winfinite-recursion */
 /* #undef HAVE_INFINITE_RECURSION */
 
+/* inode_get_atime() exists in linux/fs.h */
+/* #undef HAVE_INODE_GET_ATIME */
+
 /* inode_get_ctime() exists in linux/fs.h */
 /* #undef HAVE_INODE_GET_CTIME */
+
+/* inode_get_mtime() exists in linux/fs.h */
+/* #undef HAVE_INODE_GET_MTIME */
 
 /* yes */
 /* #undef HAVE_INODE_LOCK_SHARED */
@@ -448,6 +490,9 @@
 /* inode_owner_or_capable() takes user_ns */
 /* #undef HAVE_INODE_OWNER_OR_CAPABLE_USERNS */
 
+/* inode_set_atime_to_ts() exists in linux/fs.h */
+/* #undef HAVE_INODE_SET_ATIME_TO_TS */
+
 /* inode_set_ctime_to_ts() exists in linux/fs.h */
 /* #undef HAVE_INODE_SET_CTIME_TO_TS */
 
@@ -456,6 +501,9 @@
 
 /* inode_set_iversion() exists */
 /* #undef HAVE_INODE_SET_IVERSION */
+
+/* inode_set_mtime_to_ts() exists in linux/fs.h */
+/* #undef HAVE_INODE_SET_MTIME_TO_TS */
 
 /* inode->i_*time's are timespec64 */
 /* #undef HAVE_INODE_TIMESPEC64_TIMES */
@@ -529,7 +577,7 @@
 /* yes */
 /* #undef HAVE_IO_SCHEDULE_TIMEOUT */
 
-/* Define to 1 if you have the `issetugid' function. */
+/* Define to 1 if you have the 'issetugid' function. */
 #define HAVE_ISSETUGID 1
 
 /* iter_iov() is available */
@@ -553,6 +601,12 @@
 /* Define if compiler supports -Winfinite-recursion */
 /* #undef HAVE_KERNEL_INFINITE_RECURSION */
 
+/* kernel defines intptr_t */
+/* #undef HAVE_KERNEL_INTPTR_T */
+
+/* kernel has kernel_neon_* functions */
+/* #undef HAVE_KERNEL_NEON */
+
 /* kernel does stack verification */
 /* #undef HAVE_KERNEL_OBJTOOL */
 
@@ -561,6 +615,12 @@
 
 /* kernel_read() take loff_t pointer */
 /* #undef HAVE_KERNEL_READ_PPOS */
+
+/* strlcpy() exists */
+/* #undef HAVE_KERNEL_STRLCPY */
+
+/* strscpy() exists */
+/* #undef HAVE_KERNEL_STRSCPY */
 
 /* timer_list.function gets a timer_list */
 /* #undef HAVE_KERNEL_TIMER_FUNCTION_TIMER_LIST */
@@ -604,6 +664,12 @@
 /* Define if you have [udev] */
 /* #undef HAVE_LIBUDEV */
 
+/* Define if you have [unwind] */
+/* #undef HAVE_LIBUNWIND */
+
+/* libunwind has unw_get_elf_filename */
+/* #undef HAVE_LIBUNWIND_ELF */
+
 /* Define if you have [uuid] */
 /* #undef HAVE_LIBUUID */
 
@@ -628,8 +694,11 @@
 /* iops->mkdir() takes umode_t */
 /* #undef HAVE_MKDIR_UMODE_T */
 
-/* Define to 1 if you have the `mlockall' function. */
+/* Define to 1 if you have the 'mlockall' function. */
 #define HAVE_MLOCKALL 1
+
+/* page_size() is available */
+/* #undef HAVE_MM_PAGE_SIZE */
 
 /* lookup_bdev() wants mode arg */
 /* #undef HAVE_MODE_LOOKUP_BDEV */
@@ -772,6 +841,9 @@
 /* set_special_state() exists */
 /* #undef HAVE_SET_SPECIAL_STATE */
 
+/* shrinker_register exists */
+/* #undef HAVE_SHRINKER_REGISTER */
+
 /* struct shrink_control exists */
 /* #undef HAVE_SHRINK_CONTROL_STRUCT */
 
@@ -828,14 +900,20 @@
 /* Define to 1 if you have the <string.h> header file. */
 #define HAVE_STRING_H 1
 
-/* Define to 1 if you have the `strlcat' function. */
+/* Define to 1 if you have the 'strlcat' function. */
 #define HAVE_STRLCAT 1
 
-/* Define to 1 if you have the `strlcpy' function. */
+/* Define to 1 if you have the 'strlcpy' function. */
 #define HAVE_STRLCPY 1
 
 /* submit_bio is member of struct block_device_operations */
 /* #undef HAVE_SUBMIT_BIO_IN_BLOCK_DEVICE_OPERATIONS */
+
+/* have super_block s_shrink */
+/* #undef HAVE_SUPER_BLOCK_S_SHRINK */
+
+/* have super_block s_shrink pointer */
+/* #undef HAVE_SUPER_BLOCK_S_SHRINK_PTR */
 
 /* super_setup_bdi_name() exits */
 /* #undef HAVE_SUPER_SETUP_BDI_NAME */
@@ -873,7 +951,7 @@
 /* kernel has totalram_pages() */
 /* #undef HAVE_TOTALRAM_PAGES_FUNC */
 
-/* Define to 1 if you have the `udev_device_get_is_initialized' function. */
+/* Define to 1 if you have the 'udev_device_get_is_initialized' function. */
 /* #undef HAVE_UDEV_DEVICE_GET_IS_INITIALIZED */
 
 /* kernel has __kernel_fpu_* functions */
@@ -950,6 +1028,9 @@
 
 /* __set_page_dirty_nobuffers exists */
 /* #undef HAVE_VFS_SET_PAGE_DIRTY_NOBUFFERS */
+
+/* splice_copy_file_range() is available */
+/* #undef HAVE_VFS_SPLICE_COPY_FILE_RANGE */
 
 /* __vmalloc page flags exists */
 /* #undef HAVE_VMALLOC_PAGE_KERNEL */
@@ -1065,7 +1146,7 @@
 /* pde_data() is PDE_DATA() */
 /* #undef SPL_PDE_DATA */
 
-/* Define to 1 if all of the C90 standard headers exist (not just the ones
+/* Define to 1 if all of the C89 standard headers exist (not just the ones
    required in a freestanding environment). This macro is provided for
    backward compatibility; new code need not use it. */
 #define SYSTEM_FREEBSD 1
@@ -1113,7 +1194,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.2.99-268-FreeBSD_g86e115e21"
+#define ZFS_META_ALIAS "zfs-2.2.99-517-FreeBSD_ge2357561b"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -1122,7 +1203,7 @@
 /* #undef ZFS_META_DATA */
 
 /* Define the maximum compatible kernel version. */
-#define ZFS_META_KVER_MAX "6.6"
+#define ZFS_META_KVER_MAX "6.8"
 
 /* Define the minimum compatible kernel version. */
 #define ZFS_META_KVER_MIN "3.10"
@@ -1143,7 +1224,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "268-FreeBSD_g86e115e21"
+#define ZFS_META_RELEASE "517-FreeBSD_ge2357561b"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.2.99"

@@ -31,8 +31,8 @@
 #include "opt_witness.h"
 #include "opt_hwpmc_hooks.h"
 
-#include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/asan.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/msan.h>
@@ -798,6 +798,7 @@ thread_alloc(int pages)
 	}
 	td->td_tid = tid;
 	bzero(&td->td_sa.args, sizeof(td->td_sa.args));
+	kasan_thread_alloc(td);
 	kmsan_thread_alloc(td);
 	cpu_thread_alloc(td);
 	EVENTHANDLER_DIRECT_INVOKE(thread_ctor, td);
@@ -805,15 +806,18 @@ thread_alloc(int pages)
 }
 
 int
-thread_alloc_stack(struct thread *td, int pages)
+thread_recycle(struct thread *td, int pages)
 {
-
-	KASSERT(td->td_kstack == 0,
-	    ("thread_alloc_stack called on a thread with kstack"));
-	if (!vm_thread_new(td, pages))
-		return (0);
-	cpu_thread_alloc(td);
-	return (1);
+	if (td->td_kstack == 0 || td->td_kstack_pages != pages) {
+		if (td->td_kstack != 0)
+			vm_thread_dispose(td);
+		if (!vm_thread_new(td, pages))
+			return (ENOMEM);
+		cpu_thread_alloc(td);
+	}
+	kasan_thread_alloc(td);
+	kmsan_thread_alloc(td);
+	return (0);
 }
 
 /*
@@ -1248,6 +1252,9 @@ thread_single(struct proc *p, int mode)
 				return (1);
 			msleep(&p->p_flag, &p->p_mtx, PCATCH, "thrsgl", 0);
 		}
+		if ((p->p_flag & (P_STOPPED_SIG | P_TRACED)) != 0 ||
+		    (p->p_flag2 & P2_WEXIT) != 0)
+			return (1);
 	} else if ((p->p_flag & P_HADTHREADS) == 0)
 		return (0);
 	if (p->p_singlethread != NULL && p->p_singlethread != td)

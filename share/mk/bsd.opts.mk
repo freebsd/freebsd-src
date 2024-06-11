@@ -74,13 +74,15 @@ __DEFAULT_YES_OPTIONS = \
 __DEFAULT_NO_OPTIONS = \
     ASAN \
     BIND_NOW \
+    BRANCH_PROTECTION \
     CCACHE_BUILD \
     CTF \
     INSTALL_AS_USER \
     PROFILE \
     RETPOLINE \
     STALE_STAGED \
-    UBSAN
+    UBSAN \
+    UNDEFINED_VERSION
 
 __DEFAULT_DEPENDENT_OPTIONS = \
     MAKE_CHECK_USE_SANDBOX/TESTS \
@@ -101,6 +103,10 @@ __DEFAULT_NO_OPTIONS+= PIE
 __DEFAULT_YES_OPTIONS+=PIE
 .endif
 
+.if ${MACHINE_CPUARCH} != "aarch64"
+BROKEN_OPTIONS+=	BRANCH_PROTECTION
+.endif
+
 __SINGLE_OPTIONS = \
    INIT_ALL
 
@@ -110,26 +116,6 @@ __INIT_ALL_DEFAULT=	none
 .-include <local.opts.mk>
 
 .include <bsd.mkopt.mk>
-
-#
-# Supported NO_* options (if defined, MK_* will be forced to "no",
-# regardless of user's setting).
-#
-# These are transitional and will disappaer in the FreeBSD 12.
-#
-.for var in \
-    CTF \
-    DEBUG_FILES \
-    INSTALLLIB \
-    MAN \
-    PROFILE \
-    WARNS \
-    WERROR
-.if defined(NO_${var})
-.error NO_${var} is defined, but deprecated. Please use MK_${var}=no instead.
-MK_${var}:=no
-.endif
-.endfor
 
 .include <bsd.cpu.mk>
 

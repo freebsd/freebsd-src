@@ -1,4 +1,4 @@
-/*	$NetBSD: for.c,v 1.176 2023/06/01 09:02:14 rillig Exp $	*/
+/*	$NetBSD: for.c,v 1.179 2024/04/01 12:33:27 rillig Exp $	*/
 
 /*
  * Copyright (c) 1992, The Regents of the University of California.
@@ -45,7 +45,7 @@
  *
  * After reaching the .endfor, the values from the .for line are grouped
  * according to the number of variables.  For each such group, the unexpanded
- * body is scanned for variable expressions, and those that match the
+ * body is scanned for expressions, and those that match the
  * variable names are replaced with expressions of the form ${:U...}.  After
  * that, the body is treated like a file from an .include directive.
  *
@@ -58,7 +58,7 @@
 #include "make.h"
 
 /*	"@(#)for.c	8.1 (Berkeley) 6/6/93"	*/
-MAKE_RCSID("$NetBSD: for.c,v 1.176 2023/06/01 09:02:14 rillig Exp $");
+MAKE_RCSID("$NetBSD: for.c,v 1.179 2024/04/01 12:33:27 rillig Exp $");
 
 
 typedef struct ForLoop {
@@ -196,11 +196,7 @@ ForLoop_ParseItems(ForLoop *f, const char *p)
 	cpp_skip_whitespace(&p);
 
 	items = Var_Subst(p, SCOPE_GLOBAL, VARE_WANTRES);
-	if (items == var_Error) {
-		/* TODO: Make this part of the code reachable. */
-		Parse_Error(PARSE_FATAL, "Error in .for loop items");
-		return false;
-	}
+	/* TODO: handle errors */
 
 	f->items = Substring_Words(items, false);
 	free(items);
@@ -298,8 +294,8 @@ For_Accum(const char *line, int *forLevel)
 /*
  * When the body of a '.for i' loop is prepared for an iteration, each
  * occurrence of $i in the body is replaced with ${:U...}, inserting the
- * value of the item.  If this item contains a '$', it may be the start of a
- * variable expression.  This expression is copied verbatim, its length is
+ * value of the item.  If this item contains a '$', it may be the start of an
+ * expression.  This expression is copied verbatim, its length is
  * determined here, in a rather naive way, ignoring escape characters and
  * funny delimiters in modifiers like ':S}from}to}'.
  */
@@ -428,13 +424,13 @@ ForLoop_SubstVarLong(ForLoop *f, unsigned int firstItem, Buffer *body,
 
 /*
  * While expanding the body of a .for loop, replace single-character
- * variable expressions like $i with their ${:U...} expansion.
+ * expressions like $i with their ${:U...} expansion.
  */
 static void
 ForLoop_SubstVarShort(ForLoop *f, unsigned int firstItem, Buffer *body,
 		      const char *p, const char **inout_mark)
 {
-	const char ch = *p;
+	char ch = *p;
 	const char **vars;
 	size_t i;
 
@@ -464,7 +460,7 @@ found:
  * Compute the body for the current iteration by copying the unexpanded body,
  * replacing the expressions for the iteration variables on the way.
  *
- * Using variable expressions ensures that the .for loop can't generate
+ * Using expressions ensures that the .for loop can't generate
  * syntax, and that the later parsing will still see an expression.
  * This code assumes that the variable with the empty name is never defined,
  * see unit-tests/varname-empty.mk.
@@ -490,12 +486,11 @@ ForLoop_SubstBody(ForLoop *f, unsigned int firstItem, Buffer *body)
 			p += 2;
 			ForLoop_SubstVarLong(f, firstItem, body,
 			    &p, endc, &mark);
-		} else if (p[1] != '\0') {
+		} else {
 			ForLoop_SubstVarShort(f, firstItem, body,
 			    p + 1, &mark);
 			p += 2;
-		} else
-			break;
+		}
 	}
 
 	Buf_AddRange(body, mark, end);

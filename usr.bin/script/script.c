@@ -40,6 +40,7 @@
 #include <sys/endian.h>
 #include <dev/filemon/filemon.h>
 
+#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -76,6 +77,7 @@ static char *fmfname;
 static int fflg, qflg, ttyflg;
 static int usesleep, rawout, showexit;
 static TAILQ_HEAD(, buf_elm) obuf_list = TAILQ_HEAD_INITIALIZER(obuf_list);
+static volatile sig_atomic_t doresize;
 
 static struct termios tt;
 
@@ -93,40 +95,52 @@ static void record(FILE *, char *, size_t, int);
 static void consume(FILE *, off_t, char *, int);
 static void playback(FILE *) __dead2;
 static void usage(void) __dead2;
+static void resizeit(int);
 
 int
 main(int argc, char *argv[])
 {
 	struct termios rtt, stt;
 	struct winsize win;
-	struct timeval tv, *tvp;
+	struct timespec tv, *tvp;
 	time_t tvec, start;
 	char obuf[BUFSIZ];
 	char ibuf[BUFSIZ];
+	sigset_t *pselmask, selmask;
 	fd_set rfd, wfd;
 	struct buf_elm *be;
 	ssize_t cc;
-	int aflg, Fflg, kflg, pflg, ch, k, n, fcm;
+	int aflg, Fflg, kflg, pflg, wflg, ch, k, n, fcm;
 	int flushtime, readstdin;
 	int fm_fd, fm_log;
 
-	aflg = Fflg = kflg = pflg = 0;
+	aflg = Fflg = kflg = pflg = wflg = 0;
+	doresize = 0;
 	usesleep = 1;
 	rawout = 0;
 	flushtime = 30;
-	fm_fd = -1;	/* Shut up stupid "may be used uninitialized" GCC
-			   warning. (not needed w/clang) */
+	fm_fd = -1;
 	showexit = 0;
 
-	while ((ch = getopt(argc, argv, "adeFfkpqrT:t:")) != -1)
-		switch(ch) {
+	/*
+	 * For normal operation, we'll leave pselmask == NULL so that pselect(2)
+	 * leaves the signal mask alone.  If -w is specified, we'll restore the
+	 * process signal mask upon entry with SIGWINCH unblocked so that we can
+	 * forward resize events properly.
+	 */
+	sigemptyset(&selmask);
+	pselmask = NULL;
+
+	while ((ch = getopt(argc, argv, "adeFfkpqrT:t:w")) != -1)
+		switch (ch) {
 		case 'a':
 			aflg = 1;
 			break;
 		case 'd':
 			usesleep = 0;
 			break;
-		case 'e':	/* Default behavior, accepted for linux compat */
+		case 'e':
+			/* Default behavior, accepted for linux compat. */
 			break;
 		case 'F':
 			Fflg = 1;
@@ -155,6 +169,9 @@ main(int argc, char *argv[])
 			tflg = pflg = 1;
 			if (strchr(optarg, '%'))
 				tstamp_fmt = optarg;
+			break;
+		case 'w':
+			wflg = 1;
 			break;
 		case '?':
 		default:
@@ -239,6 +256,8 @@ main(int argc, char *argv[])
 		(void)tcsetattr(STDIN_FILENO, TCSAFLUSH, &rtt);
 	}
 
+	assert(fflg ? fm_fd >= 0 : fm_fd < 0);
+
 	child = fork();
 	if (child < 0) {
 		warn("fork");
@@ -257,6 +276,23 @@ main(int argc, char *argv[])
 	}
 	close(slave);
 
+	if (wflg) {
+		struct sigaction sa = { .sa_handler = resizeit };
+		sigset_t smask;
+
+		sigaction(SIGWINCH, &sa, NULL);
+
+		sigemptyset(&smask);
+		sigaddset(&smask, SIGWINCH);
+
+		if (sigprocmask(SIG_BLOCK, &smask, &selmask) != 0)
+			err(1, "Failed to block SIGWINCH");
+
+		/* Just in case SIGWINCH was blocked before we came in. */
+		sigdelset(&selmask, SIGWINCH);
+		pselmask = &selmask;
+	}
+
 	start = tvec = time(0);
 	readstdin = 1;
 	for (;;) {
@@ -269,19 +305,26 @@ main(int argc, char *argv[])
 			FD_SET(master, &wfd);
 		if (!readstdin && ttyflg) {
 			tv.tv_sec = 1;
-			tv.tv_usec = 0;
+			tv.tv_nsec = 0;
 			tvp = &tv;
 			readstdin = 1;
 		} else if (flushtime > 0) {
 			tv.tv_sec = flushtime - (tvec - start);
-			tv.tv_usec = 0;
+			tv.tv_nsec = 0;
 			tvp = &tv;
 		} else {
 			tvp = NULL;
 		}
-		n = select(master + 1, &rfd, &wfd, NULL, tvp);
+		n = pselect(master + 1, &rfd, &wfd, NULL, tvp, pselmask);
 		if (n < 0 && errno != EINTR)
 			break;
+
+		if (doresize) {
+			if (ioctl(STDIN_FILENO, TIOCGWINSZ, &win) != -1)
+				ioctl(master, TIOCSWINSZ, &win);
+			doresize = 0;
+		}
+
 		if (n > 0 && FD_ISSET(STDIN_FILENO, &rfd)) {
 			cc = read(STDIN_FILENO, ibuf, BUFSIZ);
 			if (cc < 0)
@@ -331,7 +374,7 @@ main(int argc, char *argv[])
 			}
 		}
 		if (n > 0 && FD_ISSET(master, &rfd)) {
-			cc = read(master, obuf, sizeof (obuf));
+			cc = read(master, obuf, sizeof(obuf));
 			if (cc <= 0)
 				break;
 			(void)write(STDOUT_FILENO, obuf, cc);
@@ -356,7 +399,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: script [-aeFfkpqr] [-t time] [file [command ...]]\n");
+	    "usage: script [-aeFfkpqrw] [-t time] [file [command ...]]\n");
 	(void)fprintf(stderr,
 	    "       script -p [-deq] [-T fmt] [file]\n");
 	exit(1);
@@ -417,7 +460,7 @@ done(int eno)
 			if (showexit)
 				(void)fprintf(fscript, "\nCommand exit status:"
 				    " %d", eno);
-			(void)fprintf(fscript,"\nScript done on %s",
+			(void)fprintf(fscript, "\nScript done on %s",
 			    ctime(&tvec));
 		}
 		(void)printf("\nScript done, output file is %s\n", fname);
@@ -459,8 +502,7 @@ consume(FILE *fp, off_t len, char *buf, int reg)
 	if (reg) {
 		if (fseeko(fp, len, SEEK_CUR) == -1)
 			err(1, NULL);
-	}
-	else {
+	} else {
 		while (len > 0) {
 			l = MIN(DEF_BUF, len);
 			if (fread(buf, sizeof(char), l, fp) != l)
@@ -602,4 +644,10 @@ playback(FILE *fp)
 	}
 	(void)fclose(fp);
 	exit(0);
+}
+
+static void
+resizeit(int signo __unused)
+{
+	doresize = 1;
 }

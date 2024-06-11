@@ -24,7 +24,6 @@
  */
 
 #include "test.h"
-__FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <stdlib.h>

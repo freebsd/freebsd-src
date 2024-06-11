@@ -34,6 +34,15 @@
 #include <string.h>
 #include <machine/stdarg.h>
 
+/*
+ * Mini stdio FILE and DIR routines. These are the minimal routines needed by
+ * the lfs module and lua's base code. We define them minimally here so we don't
+ * have to modify lua on every import. Further, since they aren't completely
+ * standard, we #define them to other names so they don't conflict with other
+ * tooling that makes assumptions about these routines that might not be, in
+ * fact, correct.
+ */
+
 typedef struct FILE
 {
 	int fd;
@@ -45,6 +54,18 @@ typedef struct DIR
 {
 	int fd;
 } DIR;
+
+#define fopen lua_loader_fopen
+#define freopen lua_loader_freopen
+#define fread lua_loader_fread
+#define fwrite lua_loader_fwrite
+#define fclose lua_loader_fclose
+#define ferror lua_loader_ferror
+#define feof lua_loader_feof
+#define getc lua_loader_getc
+#define opendir lua_loader_opendir
+#define fdopendir lua_loader_fdopendir
+#define closedir lua_loader_closedir
 
 FILE *fopen(const char *filename, const char *mode);
 FILE *freopen( const char *filename, const char *mode, FILE *stream);

@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 30, 2022
+.Dd January 14, 2024
 .Dt TCPSSO 8
 .Os
 .Sh NAME
@@ -74,16 +74,14 @@ and value
 on a TCP endpoint from the command line.
 .Pp
 TCP endpoints in the
-.Dv TIME_WAIT
-state can not be handled by
-.Nm .
-TCP endpoints in the
 .Dv SYN_RCVD
-state can only be handled if their prior state was
+state can only be handled by
+.Nm
+if their prior state was
 .Dv SYN_SENT .
 .Pp
 .Op Ar level
-can be specified as a non negative number or a symbolic name like
+can be specified as a non-negative number or a symbolic name like
 .Dv SOL_SOCKET ,
 .Dv IPPROTO_IP ,
 .Dv IPPROTO_IPV6 ,
@@ -99,7 +97,7 @@ If that is not the case,
 is used.
 .Pp
 .Ar optname
-can be specified as a non negative number or a symbolic name like
+can be specified as a non-negative number or a symbolic name like
 .Dv SO_DEBUG ,
 .Dv IP_TOS ,
 .Dv IPV6_TCLASS ,
@@ -109,7 +107,7 @@ or
 .Dv TCP_FUNCTION_BLK .
 .Pp
 .Ar optval
-can be in integer value, which will be converted to a binary value and
+can be an integer value, which will be converted to a binary value and
 passed as an int value.
 If it cannot be parsed as an integer value, it will be processed as a string.
 If the
@@ -176,7 +174,9 @@ is one of
 .Dv FIN_WAIT_1 ,
 .Dv CLOSING ,
 .Dv LAST_ACK ,
-.Dv FIN_WAIT_2 .
+.Dv FIN_WAIT_2,
+or
+.Dv TIME_WAIT .
 Using
 .Dv SYN_RCVD
 only applies to TCP endpoints in the state
@@ -191,10 +191,8 @@ and
 .Fl s Ar state
 are specified,
 .Nm
-will apply the socket option to all TCP endpoints not being in the
-state
-.Dv TIME_WAIT
-and using the congestion control algorithm
+will apply the socket option to all TCP endpoints using the congestion
+control algorithm
 .Ar cc-algo ,
 being in the state
 .Ar state ,

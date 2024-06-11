@@ -105,7 +105,7 @@ getpagesize(void)
 	return (page_size);
 }
 
-extern int __sys___sysctl(const int *name, u_int namelen, void *oldp,
+int __sys___sysctl(const int *name, u_int namelen, void *oldp,
     size_t *oldlenp, const void *newp, size_t newlen);
 
 int

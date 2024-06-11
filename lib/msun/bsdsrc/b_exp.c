@@ -29,7 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 /* EXP(X)
  * RETURN THE EXPONENTIAL OF X
  * DOUBLE PRECISION (IEEE 53 bits, VAX D FORMAT 56 BITS)

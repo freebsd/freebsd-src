@@ -11,8 +11,6 @@ cpyr	By using this file, you agree to the terms and conditions set
 cpyr	forth in the LICENSE file which can be found at the top level of
 cpyr	the sendmail distribution.
 cpyr
-cpyr	$$Id: helpfile,v 8.49 2013-11-22 20:51:55 ca Exp $$
-cpyr
 smtp	This is sendmail version $v
 smtp	Topics:
 smtp		HELO	EHLO	MAIL	RCPT	DATA
@@ -39,7 +37,6 @@ ehlo		TURN		Turn the operation around	[RFC821]
 ehlo		8BITMIME	Use 8-bit data			[RFC1652]
 ehlo		SIZE		Message size declaration	[RFC1870]
 ehlo		VERB		Verbose				[Allman]
-ehlo		CHUNKING	Chunking			[RFC1830]
 ehlo		BINARYMIME	Binary MIME			[RFC1830]
 ehlo		PIPELINING	Command Pipelining		[RFC1854]
 ehlo		DSN		Delivery Status Notification	[RFC1891]
@@ -48,6 +45,7 @@ ehlo		STARTTLS	Secure SMTP			[RFC2487]
 ehlo		AUTH		Authentication			[RFC2554]
 ehlo		ENHANCEDSTATUSCODES	Enhanced status codes	[RFC2034]
 ehlo		DELIVERBY	Deliver By			[RFC2852]
+ehlo		SMTPUTF8	Internationalized Email		[RFC6530]
 mail	MAIL From:<sender> [ <parameters> ]
 mail		Specifies the sender.  Parameters are ESMTP extensions.
 mail		See "HELP DSN" for details.
@@ -56,7 +54,7 @@ rcpt		Specifies the recipient.  Can be used any number of times.
 rcpt		Parameters are ESMTP extensions.  See "HELP DSN" for details.
 data	DATA
 data		Following text is collected as the message.
-data		End with a single dot.
+data		End with a single dot on a line by itself.
 rset	RSET
 rset		Resets the system.
 quit	QUIT

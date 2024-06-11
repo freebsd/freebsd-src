@@ -1,0 +1,24 @@
+--- test104.left-P.txt
++++ test104.right-P.txt
+@@ -1,3 +1,10 @@
++int Chunk_bounds_check(Chunk *chunk, size_t start, size_t n)
++{
++    if (chunk == NULL) return 0;
++
++    return start <= chunk->length && n <= chunk->length - start;
++}
++
+ void Chunk_copy(Chunk *src, size_t src_start, Chunk *dst, size_t dst_start, size_t n)
+ {
+     if (!Chunk_bounds_check(src, src_start, n)) return;
+@@ -5,10 +12,3 @@
+ 
+     memcpy(dst->data + dst_start, src->data + src_start, n);
+ }
+-
+-int Chunk_bounds_check(Chunk *chunk, size_t start, size_t n)
+-{
+-    if (chunk == NULL) return 0;
+-
+-    return start <= chunk->length && n <= chunk->length - start;
+-}

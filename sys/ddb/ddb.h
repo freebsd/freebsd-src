@@ -297,6 +297,14 @@ db_cmdfcn_t	db_trace_until_matching_cmd;
 db_cmdfcn_t	db_unscript_cmd;
 db_cmdfcn_t	db_watchpoint_cmd;
 db_cmdfcn_t	db_write_cmd;
+db_cmdfcn_t	db_pprint_cmd;
+
+#ifdef HAS_HW_BREAKPOINT
+void		db_md_list_breakpoints(void);
+
+db_cmdfcn_t	db_deletehbreak_cmd;
+db_cmdfcn_t	db_hbreakpoint_cmd;
+#endif
 
 /*
  * Interface between DDB and the DDB output capture facility.

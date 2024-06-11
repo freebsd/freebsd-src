@@ -99,7 +99,6 @@ FBSD_1.0 {
 	vwarnx;
 	sys_errlist;
 	sys_nerr;
-	errno;
 	exect;
 	execl;
 	execle;
@@ -159,7 +158,6 @@ FBSD_1.0 {
 	endnetgrent;
 	innetgr;
 	getosreldate;
-	getpagesize;
 	getpeereid;
 	_getprogname;
 	getprogname;
@@ -263,7 +261,6 @@ FBSD_1.0 {
 	setlogmask;
 	ttyname_r;
 	ttyname;
-	timezone;
 	times;
 	time;
 	telldir;
@@ -339,7 +336,6 @@ FBSD_1.1 {
 FBSD_1.2 {
 	cfmakesane;
 	endutxent;
-	getpagesizes;
 	getutxent;
 	getutxid;
 	getutxline;
@@ -361,6 +357,7 @@ FBSD_1.2 {
 };
 
 FBSD_1.3 {
+	cap_sandboxed;
 	clock_getcpuclockid;
 	dirfd;
 	dup3;
@@ -404,7 +401,6 @@ FBSD_1.5 {
 	devname;
 	devname_r;
 	dirname;
-	elf_aux_info;
 	fts_children;
 	fts_close;
 	fts_get_clientptr;
@@ -451,13 +447,14 @@ FBSD_1.7 {
 	 scandirat;
 	 sched_getaffinity;
 	 sched_setaffinity;
-	 sched_getcpu;
 	 versionsort;
 	 __cpuset_alloc;
 	 __cpuset_free;
 };
 
 FBSD_1.8 {
+	aio_read2;
+	aio_write2;
 	execvpe;
 };
 
@@ -567,6 +564,8 @@ FBSDprivate_1.0 {
 	__waitpid;
 	_waitpid;
 
+	__libc_interposing_slot;
+
 	_libc_sem_init_compat;
 	_libc_sem_destroy_compat;
 	_libc_sem_open_compat;
@@ -580,7 +579,6 @@ FBSDprivate_1.0 {
 
 	__libc_tcdrain;
 
-	__elf_aux_vector;
 	__pthread_distribute_static_tls;
 	__pthread_map_stacks_exec;
 	__fillcontextx;

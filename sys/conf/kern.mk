@@ -6,7 +6,7 @@ CWARNFLAGS?=	-Wall -Wstrict-prototypes \
 		-Wmissing-prototypes -Wpointer-arith -Wcast-qual \
 		-Wundef -Wno-pointer-sign ${FORMAT_EXTENSIONS} \
 		-Wmissing-include-dirs -fdiagnostics-show-option \
-		-Wno-unknown-pragmas \
+		-Wno-unknown-pragmas -Wswitch \
 		${CWARNEXTRA}
 #
 # The following flags are next up for working on:
@@ -143,6 +143,8 @@ CFLAGS += -mgeneral-regs-only
 CFLAGS += -ffixed-x18
 # Build with BTI+PAC
 CFLAGS += -mbranch-protection=standard
+# TODO: support outline atomics
+CFLAGS += -mno-outline-atomics
 INLINE_LIMIT?=	8000
 .endif
 
@@ -256,6 +258,14 @@ CFLAGS+= -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clan
 .endif
 .endif
 
+#
+# Some newer toolchains default to DWARF 5, which isn't supported by some build
+# tools yet.
+#
+.if (${CFLAGS:M-g} != "" || ${CFLAGS:M-g[0-3]} != "") && ${CFLAGS:M-gdwarf*} == ""
+CFLAGS+=	-gdwarf-4
+.endif
+
 CFLAGS+= ${CWARNFLAGS:M*} ${CWARNFLAGS.${.IMPSRC:T}}
 CFLAGS+= ${CWARNFLAGS.${COMPILER_TYPE}}
 CFLAGS+= ${CFLAGS.${COMPILER_TYPE}} ${CFLAGS.${.IMPSRC:T}}
@@ -276,14 +286,10 @@ PHONY_NOTMAIN = afterdepend afterinstall all beforedepend beforeinstall \
 
 CSTD?=		gnu99
 
-.if ${CSTD} == "k&r"
-CFLAGS+=        -traditional
-.elif ${CSTD} == "c89" || ${CSTD} == "c90"
-CFLAGS+=        -std=iso9899:1990
-.elif ${CSTD} == "c94" || ${CSTD} == "c95"
-CFLAGS+=        -std=iso9899:199409
-.elif ${CSTD} == "c99"
-CFLAGS+=        -std=iso9899:1999
+# c99/gnu99 is the minimum C standard version supported for kernel build
+.if ${CSTD} == "k&r" || ${CSTD} == "c89" || ${CSTD} == "c90" || \
+    ${CSTD} == "c94" || ${CSTD} == "c95"
+.error "Only c99/gnu99 or later is supported"
 .else # CSTD
 CFLAGS+=        -std=${CSTD}
 .endif # CSTD

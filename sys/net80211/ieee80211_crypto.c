@@ -142,6 +142,37 @@ ieee80211_crypto_attach(struct ieee80211com *ic)
 {
 	/* NB: we assume everything is pre-zero'd */
 	ciphers[IEEE80211_CIPHER_NONE] = &ieee80211_cipher_none;
+
+	/*
+	 * Default set of net80211 supported ciphers.
+	 *
+	 * These are the default set that all drivers are expected to
+	 * support, either/or in hardware and software.
+	 *
+	 * Drivers can add their own support to this and the
+	 * hardware cipher list (ic_cryptocaps.)
+	 */
+	ic->ic_sw_cryptocaps = IEEE80211_CRYPTO_WEP |
+	    IEEE80211_CRYPTO_TKIP | IEEE80211_CRYPTO_AES_CCM;
+
+	/*
+	 * Default set of key management types supported by net80211.
+	 *
+	 * These are supported by software net80211 and announced/
+	 * driven by hostapd + wpa_supplicant.
+	 *
+	 * Drivers doing full supplicant offload must not set
+	 * anything here.
+	 *
+	 * Note that IEEE80211_C_WPA1 and IEEE80211_C_WPA2 are the
+	 * "old" style way of drivers announcing key management
+	 * capabilities.  There are many, many more key management
+	 * suites in 802.11-2016 (see 9.4.2.25.3 - AKM suites.)
+	 * For now they still need to be set - these flags are checked
+	 * when assembling a beacon to reserve space for the WPA
+	 * vendor IE (WPA 1) and RSN IE (WPA 2).
+	 */
+	ic->ic_sw_keymgmtcaps = 0;
 }
 
 /*
@@ -150,6 +181,43 @@ ieee80211_crypto_attach(struct ieee80211com *ic)
 void
 ieee80211_crypto_detach(struct ieee80211com *ic)
 {
+}
+
+/*
+ * Set the supported ciphers for software encryption.
+ */
+void
+ieee80211_crypto_set_supported_software_ciphers(struct ieee80211com *ic,
+    uint32_t cipher_set)
+{
+	ic->ic_sw_cryptocaps = cipher_set;
+}
+
+/*
+ * Set the supported ciphers for hardware encryption.
+ */
+void
+ieee80211_crypto_set_supported_hardware_ciphers(struct ieee80211com *ic,
+    uint32_t cipher_set)
+{
+	ic->ic_cryptocaps = cipher_set;
+}
+
+/*
+ * Set the supported software key management by the driver.
+ *
+ * These are the key management suites that are supported via
+ * the driver via hostapd/wpa_supplicant.
+ *
+ * Key management which is completely offloaded (ie, the supplicant
+ * runs in hardware/firmware) must not be set here.
+ */
+void
+ieee80211_crypto_set_supported_driver_keymgmt(struct ieee80211com *ic,
+    uint32_t keymgmt_set)
+{
+
+	ic->ic_sw_keymgmtcaps = keymgmt_set;
 }
 
 /*
@@ -241,6 +309,13 @@ static const char *cipher_modnames[IEEE80211_CIPHER_MAX] = {
 	[IEEE80211_CIPHER_TKIPMIC] = "#4",	/* NB: reserved */
 	[IEEE80211_CIPHER_CKIP]	   = "wlan_ckip",
 	[IEEE80211_CIPHER_NONE]	   = "wlan_none",
+	[IEEE80211_CIPHER_AES_CCM_256] = "wlan_ccmp",
+	[IEEE80211_CIPHER_BIP_CMAC_128] = "wlan_bip_cmac",
+	[IEEE80211_CIPHER_BIP_CMAC_256] = "wlan_bip_cmac",
+	[IEEE80211_CIPHER_BIP_GMAC_128] = "wlan_bip_gmac",
+	[IEEE80211_CIPHER_BIP_GMAC_256] = "wlan_bip_gmac",
+	[IEEE80211_CIPHER_AES_GCM_128]  = "wlan_gcmp",
+	[IEEE80211_CIPHER_AES_GCM_256]  = "wlan_gcmp",
 };
 
 /* NB: there must be no overlap between user-supplied and device-owned flags */

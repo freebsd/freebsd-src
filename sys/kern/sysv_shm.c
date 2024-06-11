@@ -109,10 +109,6 @@ FEATURE(sysv_shm, "System V shared memory segments support");
 
 static MALLOC_DEFINE(M_SHM, "shm", "SVID compatible shared memory segments");
 
-#define	SHMSEG_FREE     	0x0200
-#define	SHMSEG_REMOVED  	0x0400
-#define	SHMSEG_ALLOCATED	0x0800
-
 static int shm_last_free, shm_nused, shmalloced;
 vm_size_t shm_committed;
 static struct shmid_kernel *shmsegs;
@@ -1091,6 +1087,42 @@ sysctl_shmsegs(SYSCTL_HANDLER_ARGS)
 	}
 	SYSVSHM_UNLOCK();
 	return (error);
+}
+
+int
+kern_get_shmsegs(struct thread *td, struct shmid_kernel **res, size_t *sz)
+{
+	struct shmid_kernel *pshmseg;
+	struct prison *pr, *rpr;
+	int i;
+
+	SYSVSHM_LOCK();
+	*sz = shmalloced;
+	if (res == NULL)
+		goto out;
+
+	pr = td->td_ucred->cr_prison;
+	rpr = shm_find_prison(td->td_ucred);
+	*res = malloc(sizeof(struct shmid_kernel) * shmalloced, M_TEMP,
+	    M_WAITOK);
+	for (i = 0; i < shmalloced; i++) {
+		pshmseg = &(*res)[i];
+		if ((shmsegs[i].u.shm_perm.mode & SHMSEG_ALLOCATED) == 0 ||
+		    rpr == NULL || shm_prison_cansee(rpr, &shmsegs[i]) != 0) {
+			bzero(pshmseg, sizeof(*pshmseg));
+			pshmseg->u.shm_perm.mode = SHMSEG_FREE;
+		} else {
+			*pshmseg = shmsegs[i];
+			if (pshmseg->cred->cr_prison != pr)
+				pshmseg->u.shm_perm.key = IPC_PRIVATE;
+		}
+		pshmseg->object = NULL;
+		pshmseg->label = NULL;
+		pshmseg->cred = NULL;
+	}
+out:
+	SYSVSHM_UNLOCK();
+	return (0);
 }
 
 static int

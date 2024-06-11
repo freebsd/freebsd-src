@@ -28,5 +28,8 @@
 SUBDIR = ispfw
 SUBDIR += isp_2400
 SUBDIR += isp_2500
+SUBDIR += isp_2600
+SUBDIR += isp_2700
+SUBDIR += isp_2800
 
 .include <bsd.subdir.mk>

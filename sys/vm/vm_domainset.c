@@ -68,6 +68,7 @@ vm_domainset_iter_init(struct vm_domainset_iter *di, struct domainset *ds,
 	di->di_domain = ds;
 	di->di_iter = iter;
 	di->di_policy = ds->ds_policy;
+	DOMAINSET_COPY(&ds->ds_mask, &di->di_valid_mask);
 	if (di->di_policy == DOMAINSET_POLICY_INTERLEAVE) {
 #if VM_NRESERVLEVEL > 0
 		if (vm_object_reserv(obj)) {
@@ -158,7 +159,7 @@ vm_domainset_iter_first(struct vm_domainset_iter *di, int *domain)
 	switch (di->di_policy) {
 	case DOMAINSET_POLICY_FIRSTTOUCH:
 		*domain = PCPU_GET(domain);
-		if (DOMAINSET_ISSET(*domain, &di->di_domain->ds_mask)) {
+		if (DOMAINSET_ISSET(*domain, &di->di_valid_mask)) {
 			/*
 			 * Add an extra iteration because we will visit the
 			 * current domain a second time in the rr iterator.
@@ -221,11 +222,14 @@ int
 vm_domainset_iter_page(struct vm_domainset_iter *di, struct vm_object *obj,
     int *domain)
 {
+	if (__predict_false(DOMAINSET_EMPTY(&di->di_valid_mask)))
+		return (ENOMEM);
 
 	/* If there are more domains to visit we run the iterator. */
 	while (--di->di_n != 0) {
 		vm_domainset_iter_next(di, domain);
-		if (!di->di_minskip || !vm_page_count_min_domain(*domain))
+		if (DOMAINSET_ISSET(*domain, &di->di_valid_mask) &&
+		    (!di->di_minskip || !vm_page_count_min_domain(*domain)))
 			return (0);
 	}
 
@@ -243,7 +247,7 @@ vm_domainset_iter_page(struct vm_domainset_iter *di, struct vm_object *obj,
 	/* Wait for one of the domains to accumulate some free pages. */
 	if (obj != NULL)
 		VM_OBJECT_WUNLOCK(obj);
-	vm_wait_doms(&di->di_domain->ds_mask, 0);
+	vm_wait_doms(&di->di_valid_mask, 0);
 	if (obj != NULL)
 		VM_OBJECT_WLOCK(obj);
 	if ((di->di_flags & VM_ALLOC_WAITFAIL) != 0)
@@ -288,11 +292,14 @@ vm_domainset_iter_policy_ref_init(struct vm_domainset_iter *di,
 int
 vm_domainset_iter_policy(struct vm_domainset_iter *di, int *domain)
 {
+	if (DOMAINSET_EMPTY(&di->di_valid_mask))
+		return (ENOMEM);
 
 	/* If there are more domains to visit we run the iterator. */
 	while (--di->di_n != 0) {
 		vm_domainset_iter_next(di, domain);
-		if (!di->di_minskip || !vm_page_count_min_domain(*domain))
+		if (DOMAINSET_ISSET(*domain, &di->di_valid_mask) &&
+		    (!di->di_minskip || !vm_page_count_min_domain(*domain)))
 			return (0);
 	}
 
@@ -308,12 +315,21 @@ vm_domainset_iter_policy(struct vm_domainset_iter *di, int *domain)
 		return (ENOMEM);
 
 	/* Wait for one of the domains to accumulate some free pages. */
-	vm_wait_doms(&di->di_domain->ds_mask, 0);
+	vm_wait_doms(&di->di_valid_mask, 0);
 
 	/* Restart the search. */
 	vm_domainset_iter_first(di, domain);
 
 	return (0);
+}
+
+void
+vm_domainset_iter_ignore(struct vm_domainset_iter *di, int domain)
+{
+	KASSERT(DOMAINSET_ISSET(domain, &di->di_valid_mask),
+	    ("%s: domain %d not present in di_valid_mask for di %p",
+	    __func__, domain, di));
+	DOMAINSET_CLR(domain, &di->di_valid_mask);
 }
 
 #else /* !NUMA */
@@ -355,6 +371,12 @@ vm_domainset_iter_policy_ref_init(struct vm_domainset_iter *di,
 {
 
 	*domain = 0;
+}
+
+void
+vm_domainset_iter_ignore(struct vm_domainset_iter *di __unused,
+    int domain __unused)
+{
 }
 
 #endif /* NUMA */

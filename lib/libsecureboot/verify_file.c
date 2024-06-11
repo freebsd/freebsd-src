@@ -82,7 +82,7 @@ static int Verbose = VE_VERBOSE_DEFAULT;
 /**
  * @brief set ve status for fd
  */
-static void
+void
 ve_status_set(int fd, int ves)
 {
 	if (fd >= 0 && fd < SOPEN_MAX) {
@@ -131,15 +131,21 @@ int
 is_verified(struct stat *stp)
 {
 	struct verify_status *vsp;
+	int rc = VE_NOT_CHECKED;
 
 	if (stp->st_ino > 0) {
 		for (vsp = verified_files; vsp != NULL; vsp = vsp->vs_next) {
 			if (stp->st_dev == vsp->vs_dev &&
-			    stp->st_ino == vsp->vs_ino)
-				return (vsp->vs_status);
+			    stp->st_ino == vsp->vs_ino) {
+				rc = vsp->vs_status;
+				break;
+			}
 		}
 	}
-	return (VE_NOT_CHECKED);
+	DEBUG_PRINTF(4, ("%s: dev=%lld,ino=%llu,status=%d\n",
+		__func__, (long long)stp->st_dev,
+		(unsigned long long)stp->st_ino, rc));
+	return (rc);
 }
 
 /* most recent first, since most likely to see repeated calls. */
@@ -156,6 +162,9 @@ add_verify_status(struct stat *stp, int status)
 		vsp->vs_status = status;
 		verified_files = vsp;
 	}
+	DEBUG_PRINTF(4, ("%s: dev=%lld,ino=%llu,status=%d\n",
+		__func__, (long long)stp->st_dev,
+		(unsigned long long)stp->st_ino, status));
 }
 
 
@@ -270,11 +279,14 @@ severity_guess(const char *filename)
 	/*
 	 * Some files like *.conf and *.hints may be unsigned,
 	 * a *.tgz is expected to have its own signed manifest.
+	 * We allow *.conf to get VE_WANT, but files we expect
+	 * to always be unverified get VE_TRY and we will not
+	 * report them.
 	 */
 	if ((cp = strrchr(filename, '.'))) {
-		if (strcmp(cp, ".conf") == 0 ||
-		    strcmp(cp, ".cookie") == 0 ||
+		if (strcmp(cp, ".cookie") == 0 ||
 		    strcmp(cp, ".hints") == 0 ||
+		    strcmp(cp, ".order") == 0 ||
 		    strcmp(cp, ".tgz") == 0)
 			return (VE_TRY);
 		if (strcmp(cp, ".4th") == 0 ||
@@ -398,6 +410,8 @@ void
 verify_report(const char *path, int severity, int status, struct stat *stp)
 {
 	if (status < 0 || status == VE_FINGERPRINT_IGNORE) {
+		if (Verbose < VE_VERBOSE_ALL && severity < VE_WANT)
+			return;
 		if (Verbose >= VE_VERBOSE_UNVERIFIED || severity > VE_TRY ||
 		    status <= VE_FINGERPRINT_WRONG) {
 			if (Verbose == VE_VERBOSE_DEBUG && stp != NULL)
@@ -462,9 +476,10 @@ verify_prep(int fd, const char *filename, off_t off, struct stat *stp,
 		caller, fd, filename, (long long)off, (long long)stp->st_dev,
 		(unsigned long long)stp->st_ino));
 	rc = is_verified(stp);
-	DEBUG_PRINTF(4,("verify_prep: is_verified()->%d\n", rc));
 	if (rc == VE_NOT_CHECKED) {
 		rc = find_manifest(filename);
+		if (rc == VE_VERIFIED)
+			rc = VE_NOT_CHECKED;
 	} else {
 		ve_status_set(fd, rc);
 	}
@@ -511,7 +526,8 @@ verify_file(int fd, const char *filename, off_t off, int severity,
 	if (check_verbose) {
 		check_verbose = 0;
 		Verbose = getenv_int("VE_VERBOSE", VE_VERBOSE_DEFAULT);
-		VerifyFlags = getenv_int("VE_VERIFY_FLAGS", VEF_VERBOSE);
+		VerifyFlags = getenv_int("VE_VERIFY_FLAGS",
+		    Verbose ? VEF_VERBOSE : 0);
 #ifndef UNIT_TEST
 		ve_debug_set(getenv_int("VE_DEBUG_LEVEL", VE_DEBUG_LEVEL));
 #endif
@@ -523,6 +539,9 @@ verify_file(int fd, const char *filename, off_t off, int severity,
 		return (0);
 
 	if (rc != VE_FINGERPRINT_WRONG && loaded_manifests) {
+		if (rc != VE_NOT_CHECKED)
+			return (rc);
+
 		if (severity <= VE_GUESS)
 			severity = severity_guess(filename);
 #ifdef VE_PCR_SUPPORT

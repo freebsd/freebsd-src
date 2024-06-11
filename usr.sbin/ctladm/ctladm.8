@@ -35,7 +35,7 @@
 .\"
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
 .\"
-.Dd March 9, 2021
+.Dd June 6, 2024
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -162,12 +162,13 @@
 .Nm
 .Ic port
 .Op Fl c
+.Op Fl d Ar driver
 .Op Fl o Ar on|off
 .Op Fl w Ar wwpn
 .Op Fl W Ar wwnn
-.Op Fl O Ar pp|vp
+.Op Fl O Ar name=value
 .Op Fl p Ar targ_port
-.Op Fl r Ar targ_port
+.Op Fl r
 .Op Fl t Ar fe_type
 .Nm
 .Ic portlist
@@ -197,6 +198,13 @@
 .Nm
 .Ic isterminate
 .Aq Fl a | Fl c Ar connection-id | Fl i Ar name | Fl p Ar portal
+.Nm
+.Ic nvlist
+.Op Fl v
+.Op Fl x
+.Nm
+.Ic nvterminate
+.Aq Fl a | Fl c Ar controller-id | Fl h Ar name
 .Nm
 .Ic help
 .Sh DESCRIPTION
@@ -591,6 +599,10 @@ The serial number is returned when the error is injected.
 Perform one of several CTL frontend port operations.
 Either get a list of frontend ports
 .Pq Fl l ,
+create a new frontend port
+.Pq Fl c ,
+destroy a frontend port
+.Pq Fl r ,
 turn one or more frontends on
 or off
 .Pq Fl o Ar on|off ,
@@ -600,6 +612,8 @@ or World Wide Port Name
 .Pq Fl W Ar wwpn
 for a given port.
 One of
+.Fl c ,
+.Fl r ,
 .Fl l ,
 .Fl o ,
 or
@@ -611,22 +625,62 @@ The WWNN and WWPN may both be specified at the same time, but cannot be
 combined with enabling/disabling or listing ports.
 .Bl -tag -width 12n
 .It Fl c
-Create new frontend port using free pp and vp=0.
+Create new frontend port.
+.It Fl d Ar driver
+Specify the name of the frontend driver used by the
+.Pq Fl c
+or
+.Pq Fl r
+subcommands.
+Valid driver names include
+.Dq ioctl ,
+.Dq iscsi ,
+and
+.Dq nvmf ,
+but more can be added by external kernel modules.
 .It Fl o Ar on|off
 Turn the specified CTL frontend ports on or off.
 If no port number or port type is specified, all ports are turned on or
 off.
 .It Fl O Ar pp|vp
 Specify generic options on the ioctl frontend port.
-At present, only pp and vp port numbers can be set.
+The list of recognized options is driver-dependent.
+The
+.Dq ioctl
+driver recognizes
+.Dq pp
+and
+.Dq vp .
+The
+.Dq iscsi
+driver recongizes
+.Dq cfiscsi_portal_group_tag ,
+.Dq cfiscsi_target ,
+and
+.Dq cfiscsi_target_alias .
+The
+.Dq nvmf
+driver recognizes
+.Dq subnqn ,
+.Dq portid ,
+.Dq max_io_qsize ,
+.Dq enable_timeout ,
+.Dq ioccsz ,
+.Dq nn ,
+and
+.Dq serial .
 .It Fl p Ar targ_port
 Specify the frontend port number.
 The port numbers can be found in the frontend port list.
 .It Fl r
-Remove port specified with
-.Pq Fl p Ar targ_port .
+Remove a port.
 .It Fl t Ar fe_type
-Specify the frontend type.
+Specify the frontend type used by the
+.Pq Fl o ,
+.Pq Fl w ,
+and
+.Pq Fl W
+subcommands.
 Currently defined port types are
 .Dq fc
 (Fibre Channel),
@@ -640,7 +694,7 @@ and
 .It Fl w Ar wwnn
 Set the World Wide Node Name for the given port.
 The
-.Fl n
+.Fl p
 argument must be specified, since this is only possible to implement on a
 single port.
 As a general rule, the WWNN should be the same across all ports on the
@@ -648,7 +702,7 @@ system.
 .It Fl W Ar wwpn
 Set the World Wide Port Name for the given port.
 The
-.Fl n
+.Fl p
 argument must be specified, since this is only possible to implement on a
 single port.
 As a general rule, the WWPN must be different for every port in the system.
@@ -860,6 +914,27 @@ Specify connection ID.
 Specify initiator name.
 .It Fl p
 Specify initiator portal (hostname or IP address).
+.El
+.It Ic nvlist
+Get a list of currently running NVMeoF associations.
+This includes host and controller names and the unique controller IDs.
+.Bl -tag -width 11n
+.It Fl v
+Verbose mode.
+.It Fl x
+Dump the raw XML.
+The sessions list information from the kernel comes in XML format, and this
+option allows the display of the raw XML data.
+.El
+.It Ic nvterminate
+Forcibly terminate NVMeoF associations matching criteria.
+.Bl -tag -width 11n
+.It Fl a
+Terminate all associations.
+.It Fl c
+Specify controller ID.
+.It Fl h
+Specify host name.
 .El
 .It Ic help
 Display

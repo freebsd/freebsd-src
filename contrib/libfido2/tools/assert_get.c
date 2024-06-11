@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2023 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  * SPDX-License-Identifier: BSD-2-Clause
@@ -99,7 +99,8 @@ prepare_assert(FILE *in_f, int flags, const struct toggle *opt)
 		errx(1, "input error");
 
 	if (flags & FLAG_DEBUG) {
-		fprintf(stderr, "client data hash:\n");
+		fprintf(stderr, "client data%s:\n",
+			flags & FLAG_CD ? "" : " hash");
 		xxd(cdh.ptr, cdh.len);
 		fprintf(stderr, "relying party id: %s\n", rpid);
 		if ((flags & FLAG_RK) == 0) {
@@ -114,9 +115,12 @@ prepare_assert(FILE *in_f, int flags, const struct toggle *opt)
 	if ((assert = fido_assert_new()) == NULL)
 		errx(1, "fido_assert_new");
 
-	if ((r = fido_assert_set_clientdata_hash(assert, cdh.ptr,
-	    cdh.len)) != FIDO_OK ||
-	    (r = fido_assert_set_rp(assert, rpid)) != FIDO_OK)
+	if (flags & FLAG_CD)
+		r = fido_assert_set_clientdata(assert, cdh.ptr, cdh.len);
+	else
+		r = fido_assert_set_clientdata_hash(assert, cdh.ptr, cdh.len);
+
+	if (r != FIDO_OK || (r = fido_assert_set_rp(assert, rpid)) != FIDO_OK)
 		errx(1, "fido_assert_set: %s", fido_strerr(r));
 	if ((r = fido_assert_set_up(assert, opt->up)) != FIDO_OK)
 		errx(1, "fido_assert_set_up: %s", fido_strerr(r));
@@ -222,7 +226,7 @@ assert_get(int argc, char **argv)
 
 	opt.up = opt.uv = opt.pin = FIDO_OPT_OMIT;
 
-	while ((ch = getopt(argc, argv, "bdhi:o:prt:uv")) != -1) {
+	while ((ch = getopt(argc, argv, "bdhi:o:prt:uvw")) != -1) {
 		switch (ch) {
 		case 'b':
 			flags |= FLAG_LARGEBLOB;
@@ -255,6 +259,9 @@ assert_get(int argc, char **argv)
 			/* -v implies both pin and uv for historical reasons */
 			opt.pin = FIDO_OPT_TRUE;
 			opt.uv = FIDO_OPT_TRUE;
+			break;
+		case 'w':
+			flags |= FLAG_CD;
 			break;
 		default:
 			usage();

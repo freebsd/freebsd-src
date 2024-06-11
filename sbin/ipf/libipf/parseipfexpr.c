@@ -75,7 +75,7 @@ parseipfexpr(char *line, char **errorptr)
 	for (ops = strtok(temp, ";"); ops != NULL; ops = strtok(NULL, ";")) {
 		arg = strchr(ops, '=');
 		if ((arg < ops + 2) || (arg == NULL)) {
-			error = "bad 'arg' vlaue";
+			error = "bad 'arg' value";
 			goto parseerror;
 		}
 

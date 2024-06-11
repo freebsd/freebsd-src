@@ -1,0 +1,78 @@
+.\"-
+.\" Copyright (c) 2024 Baptiste Daroussin <bapt@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd May 22, 2024
+.Dt MAC_DO 4
+.Os
+.Sh NAME
+.Nm mac_do
+.Nd "policy allowing user to execute program as another user"
+.Sh SYNOPSIS
+To compile the
+.Nm
+policy into your kernel, place the following lines
+in your kernel configruation file:
+.Bd -ragged -offset indent
+.Cd "options MAC"
+.Cd "options MAC_DO"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+policy grants users the ability to run processs as other users
+according to predefined rules.
+.Pp
+The exact set of kernel privileges granted are:
+.Bl -inset -compact -offset indent
+.It Dv PRIV_CRED_SETGROUPS
+.It Dv PRIV_CRED_SETUID
+.El
+.Pp
+The following
+.Xr sysctl 8
+MIBs are available:
+.Bl -tag -width indent
+.It Va security.mac.do.enabled
+Enable the
+.Nm
+policy.
+(Default: 1).
+.It Va security.mac.do.rules
+The set of rules.
+.El
+.Pp
+The rules consist of a list of elements separated by
+.So , Sc .
+Each element is of the form
+.Sm off
+.Do
+.Op Cm uid | Cm gid
+.Li =
+.Ar fid
+.Li :
+.Ar tid
+.Dc
+.Sm on .
+Where
+.Ar fid
+is the uid or gid of the user or group the rule applies to, and
+.Ar tid
+is the uid of the targetted user.
+Two special forms are accepted for
+.Ar tid :
+.Va any
+or
+.Va * ,
+which allow to target any user.
+.Sh EXAMPLES
+The following rule:
+.Pp
+.Dl security.mac.do.rules=uid=1001:80,gid=0:any
+.Pp
+means the user with the uid 1001 can execute processes as user with uid 80,
+all the users which belongs to the group gid 0 can execute processes as any user.
+.Sh SEE ALSO
+.Xr mac 4 ,
+.Xr mdo 1

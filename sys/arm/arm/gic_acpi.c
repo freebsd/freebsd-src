@@ -227,12 +227,19 @@ gic_acpi_attach(device_t dev)
 	/*
 	 * Controller is root:
 	 */
-	if (intr_pic_claim_root(dev, xref, arm_gic_intr, sc,
-	    GIC_LAST_SGI - GIC_FIRST_SGI + 1) != 0) {
+	if (intr_pic_claim_root(dev, xref, arm_gic_intr, sc) != 0) {
 		device_printf(dev, "could not set PIC as a root\n");
 		intr_pic_deregister(dev, xref);
 		goto cleanup;
 	}
+
+#ifdef SMP
+	if (intr_ipi_pic_register(dev, 0) != 0) {
+		device_printf(dev, "could not register for IPIs\n");
+		goto cleanup;
+	}
+#endif
+
 	/* If we have children probe and attach them */
 	if (arm_gic_add_children(dev)) {
 		bus_generic_probe(dev);

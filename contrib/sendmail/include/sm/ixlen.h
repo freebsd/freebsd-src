@@ -27,6 +27,7 @@ extern int xleni __P((const char *));
 
 # if USE_EAI
 extern bool	asciistr __P((const char *));
+extern bool	asciinstr __P((const char *, size_t));
 extern int	uxtext_unquote __P((const char *, char *, int));
 extern char	*sm_lowercase  __P((const char *));
 extern bool	utf8_valid  __P((const char *, size_t));

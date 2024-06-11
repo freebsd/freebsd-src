@@ -354,6 +354,12 @@ vm_batchqueue_init(struct vm_batchqueue *bq)
 	bq->bq_cnt = 0;
 }
 
+static inline bool
+vm_batchqueue_empty(const struct vm_batchqueue *bq)
+{
+	return (bq->bq_cnt == 0);
+}
+
 static inline int
 vm_batchqueue_insert(struct vm_batchqueue *bq, vm_page_t m)
 {

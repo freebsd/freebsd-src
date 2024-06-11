@@ -892,7 +892,7 @@ like any other expression that is printed.
 
 ## Stream Statement
 
-The "expressions in a **stream** statement may also be strings.
+The expressions in a **stream** statement may also be strings.
 
 If a **stream** statement is given a string, it prints the string as though the
 string had appeared as its own statement. In other words, the **stream**

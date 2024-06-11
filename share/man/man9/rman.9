@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 20, 2016
+.Dd March 13, 2024
 .Dt RMAN 9
 .Os
 .Sh NAME
@@ -40,7 +40,6 @@
 .Nm rman_last_free_region ,
 .Nm rman_release_resource ,
 .Nm rman_reserve_resource ,
-.Nm rman_reserve_resource_bound ,
 .Nm rman_make_alignment_flags ,
 .Nm rman_get_start ,
 .Nm rman_get_end ,
@@ -56,7 +55,9 @@
 .Nm rman_set_bushandle ,
 .Nm rman_get_bushandle ,
 .Nm rman_set_rid ,
-.Nm rman_get_rid
+.Nm rman_get_rid ,
+.Nm rman_set_type ,
+.Nm rman_get_type
 .Nd resource management functions
 .Sh SYNOPSIS
 .In sys/types.h
@@ -87,11 +88,6 @@
 .Fo rman_reserve_resource
 .Fa "struct rman *rm" "rman_res_t start" "rman_res_t end" "rman_res_t count"
 .Fa "u_int flags" "device_t dev"
-.Fc
-.Ft "struct resource *"
-.Fo rman_reserve_resource_bound
-.Fa "struct rman *rm" "rman_res_t start" "rman_res_t end" "rman_res_t count"
-.Fa "rman_res_t bound" "u_int flags" "device_t dev"
 .Fc
 .Ft uint32_t
 .Fn rman_make_alignment_flags "uint32_t size"
@@ -125,6 +121,10 @@
 .Fn rman_set_rid "struct resource *r" "int rid"
 .Ft int
 .Fn rman_get_rid "struct resource *r"
+.Ft void
+.Fn rman_set_type "struct resource *r" "int type"
+.Ft int
+.Fn rman_get_type "struct resource *r"
 .Sh DESCRIPTION
 The
 .Nm
@@ -260,7 +260,7 @@ and
 are set to the bounds of the free region and zero is returned.
 .Pp
 The
-.Fn rman_reserve_resource_bound
+.Fn rman_reserve_resource
 function is where the bulk of the
 .Nm
 logic is located.
@@ -273,7 +273,7 @@ The caller can specify the
 and
 .Fa end
 of an acceptable range,
-as well as a boundary restriction and required alignment,
+required alignment,
 and the code will attempt to find a free segment which fits.
 The
 .Fa start
@@ -290,29 +290,18 @@ The alignment requirement
 .Pq if any
 is specified in
 .Fa flags .
-The
-.Fa bound
-argument may be set to specify a boundary restriction such that an
-allocated region may cross an address that is a multiple of the
-boundary.
-The
-.Fa bound
-argument must be a power of two.
-It may be set to zero to specify no boundary restriction.
+Often the
+.Dv RF_ALIGNMENT_LOG2
+macro is used to specify alignment to a power-of-2 size, or
+.Fn rman_make_alignment_flags
+can be used to compute the
+.Fa flags
+value at runtime.
 A shared segment will be allocated if the
 .Dv RF_SHAREABLE
 flag is set, otherwise an exclusive segment will be allocated.
 If this shared segment already exists, the caller has its device
 added to the list of consumers.
-.Pp
-The
-.Fn rman_reserve_resource
-function is used to reserve resources within a previously established region.
-It is a simplified interface to
-.Fn rman_reserve_resource_bound
-which passes 0 for the
-.Fa bound
-argument.
 .Pp
 The
 .Fn rman_make_alignment_flags
@@ -455,6 +444,14 @@ function associates a resource identifier with a resource
 The
 .Fn rman_get_rid
 function retrieves this RID.
+.Pp
+The
+.Fn rman_set_type
+function associates a resource type with a resource
+.Fa r .
+The
+.Fn rman_get_type
+function retrieves this type.
 .Pp
 The
 .Fn rman_get_device

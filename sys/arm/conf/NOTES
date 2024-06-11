@@ -56,6 +56,14 @@ device		syscon
 # Backlight subsystem
 device		backlight
 
+# Serial (COM) ports
+device		pl011
+
+# Early printf using the pl011 uart under the Arm FVP
+options 	SOCDEV_PA=0x1c090000
+options 	SOCDEV_VA=0x1c090000
+options 	EARLY_PRINTF=pl011
+
 # Undo options from sys/conf/NOTES that we do not want...
 
 nooptions	COMPAT_FREEBSD4
@@ -66,6 +74,12 @@ nooptions	COMPAT_FREEBSD9
 nooptions	PPC_PROBE_CHIPSET
 nooptions	MAXCPU		# value is set in machine/param.h
 
+nooptions 	OFED
+nooptions 	SDP
+nooptions 	IPOIB
+nooptions 	IPOIB_CM
+
+nodevice	iser
 nodevice	sym
 
 nodevice	ccr
@@ -76,18 +90,17 @@ nodevice	snd_cmi
 nodevice	mpr
 nodevice	mps
 
+nodevice	bnxt
+
 # Build SOC-specific modules...
 
 makeoptions	MODULES_EXTRA+="allwinner"
-makeoptions	MODULES_EXTRA+="arm_ti"
 makeoptions	MODULES_EXTRA+="imx"
 
 # Build dtb files...
 
 makeoptions	MODULES_EXTRA+="dtb/allwinner"
-makeoptions	MODULES_EXTRA+="dtb/am335x"
 makeoptions	MODULES_EXTRA+="dtb/imx6"
 makeoptions	MODULES_EXTRA+="dtb/nvidia"
-makeoptions	MODULES_EXTRA+="dtb/omap4"
 makeoptions	MODULES_EXTRA+="dtb/rpi"
 makeoptions	MODULES_EXTRA+="dtb/zynq"

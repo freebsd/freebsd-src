@@ -13,6 +13,8 @@ name="yppasswdd"
 desc="Server for updating NIS passwords"
 rcvar="nis_yppasswdd_enable"
 
+: ${yppasswdd_svcj_options:="net_basic"}
+
 load_rc_config $name
 
 command="/usr/sbin/rpc.${name}"

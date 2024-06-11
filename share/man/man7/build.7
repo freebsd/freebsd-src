@@ -1,3 +1,6 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2000
 .\"	Mike W. Meyer
 .\"
@@ -22,12 +25,14 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 1, 2023
+.Dd June 4, 2024
 .Dt BUILD 7
 .Os
 .Sh NAME
 .Nm build
-.Nd General instructions on how to build the system
+.Nd general instructions on how to build the
+.Fx
+system
 .Sh DESCRIPTION
 The sources for the
 .Fx
@@ -670,7 +675,7 @@ and
 will only build the specified directory as was done historically.
 When combined with
 .Cm buildworld
-it is necesarry to override
+it is necessary to override
 .Va LOCAL_LIB_DIRS
 with any custom directories containing libraries.
 This allows building a subset of the system in the same way as
@@ -884,18 +889,14 @@ method of updating your system from the latest sources, please see the
 section in
 .Pa src/UPDATING .
 .Pp
-The following sequence of commands can be used to cross-build the
-system for the armv6 architecture on an amd64 host:
+The following sequence of commands can be used to cross-build the system for
+the arm64 (aarch64) architecture on a different host architecture, such as
+amd64:
 .Bd -literal -offset indent
 cd /usr/src
-make TARGET_ARCH=armv6 buildworld buildkernel
-make TARGET_ARCH=armv6 DESTDIR=/clients/arm installworld installkernel
+make TARGET=arm64 buildworld buildkernel
+make TARGET=arm64 DESTDIR=/clients/arm64 installworld installkernel
 .Ed
-.Sh HISTORY
-The
-.Nm
-manpage first appeared in
-.Fx 4.3 .
 .Sh SEE ALSO
 .Xr cc 1 ,
 .Xr install 1 ,
@@ -903,6 +904,7 @@ manpage first appeared in
 .Xr make.conf 5 ,
 .Xr src.conf 5 ,
 .Xr arch 7 ,
+.Xr development 7 ,
 .Xr pkg 7 ,
 .Xr ports 7 ,
 .Xr release 7 ,
@@ -911,5 +913,10 @@ manpage first appeared in
 .Xr etcupdate 8 ,
 .Xr reboot 8 ,
 .Xr shutdown 8
+.Sh HISTORY
+The
+.Nm
+manpage first appeared in
+.Fx 4.3 .
 .Sh AUTHORS
 .An Mike W. Meyer Aq Mt mwm@mired.org

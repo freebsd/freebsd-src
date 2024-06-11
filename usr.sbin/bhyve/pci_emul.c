@@ -52,15 +52,13 @@
 #include "debug.h"
 #ifdef __amd64__
 #include "amd64/inout.h"
-#include "amd64/ioapic.h"
 #endif
 #include "mem.h"
 #include "pci_emul.h"
 #ifdef __amd64__
-#include "amd64/pci_irq.h"
 #include "amd64/pci_lpc.h"
-#endif
 #include "pci_passthru.h"
+#endif
 #include "qemu_fwcfg.h"
 
 #define CONF1_ADDR_PORT	   0x0cf8
@@ -81,9 +79,8 @@ struct funcinfo {
 };
 
 struct intxinfo {
-	int	ii_count;
-	int	ii_pirq_pin;
-	int	ii_ioapic_irq;
+	int		ii_count;
+	struct pci_irq	ii_irq;
 };
 
 struct slotinfo {
@@ -129,27 +126,36 @@ struct boot_device {
 static TAILQ_HEAD(boot_list, boot_device) boot_devices = TAILQ_HEAD_INITIALIZER(
     boot_devices);
 
+#if defined(__amd64__)
 #define	PCI_EMUL_IOBASE		0x2000
 #define	PCI_EMUL_IOLIMIT	0x10000
+#define	PCI_EMUL_IOMASK		0xffff
+/*
+ * OVMF always uses 0xc0000000 as base address for 32 bit PCI MMIO. Don't
+ * change this address without changing it in OVMF.
+ */
+#define	PCI_EMUL_MEMBASE32	0xc0000000
+#elif defined(__aarch64__)
+#define	PCI_EMUL_IOBASE		0xdf000000UL
+#define	PCI_EMUL_IOLIMIT	0xe0000000UL
+#define	PCI_EMUL_MEMBASE32	0xa0000000UL
+#else
+#error Unsupported platform
+#endif
 
-#define PCI_EMUL_ROMSIZE 0x10000000
+#define	PCI_EMUL_ROMSIZE	0x10000000
 
 #define	PCI_EMUL_ECFG_BASE	0xE0000000		    /* 3.5GB */
 #define	PCI_EMUL_ECFG_SIZE	(MAXBUSES * 1024 * 1024)    /* 1MB per bus */
+#ifdef __amd64__
 SYSRES_MEM(PCI_EMUL_ECFG_BASE, PCI_EMUL_ECFG_SIZE);
+#endif
 
-/*
- * OVMF always uses 0xC0000000 as base address for 32 bit PCI MMIO. Don't
- * change this address without changing it in OVMF.
- */
-#define PCI_EMUL_MEMBASE32 0xC0000000
 #define	PCI_EMUL_MEMLIMIT32	PCI_EMUL_ECFG_BASE
 #define PCI_EMUL_MEMSIZE64	(32*GB)
 
-#ifdef __amd64__
 static void pci_lintr_route(struct pci_devinst *pi);
 static void pci_lintr_update(struct pci_devinst *pi);
-#endif
 
 static struct pci_devemu *pci_emul_finddev(const char *name);
 static void pci_cfgrw(int in, int bus, int slot, int func, int coff,
@@ -381,7 +387,11 @@ pci_config_read_reg(const struct pcisel *const host_sel, nvlist_t *nvl,
 	if (config == NULL) {
 		return def;
 	} else if (host_sel != NULL && strcmp(config, "host") == 0) {
+#ifdef __amd64__
 		return pci_host_read_config(host_sel, reg, size);
+#else
+		errx(1, "cannot fetch host PCI configuration");
+#endif
 	} else {
 		return strtol(config, NULL, 16);
 	}
@@ -1118,13 +1128,10 @@ pci_emul_init(struct vmctx *ctx, struct pci_devemu *pde, int bus, int slot,
 	pdi->pi_bus = bus;
 	pdi->pi_slot = slot;
 	pdi->pi_func = func;
-#ifdef __amd64__
 	pthread_mutex_init(&pdi->pi_lintr.lock, NULL);
 	pdi->pi_lintr.pin = 0;
 	pdi->pi_lintr.state = IDLE;
-	pdi->pi_lintr.pirq_pin = 0;
-	pdi->pi_lintr.ioapic_irq = 0;
-#endif
+	pci_irq_init_irq(&pdi->pi_lintr.irq);
 	pdi->pi_d = pde;
 	snprintf(pdi->pi_name, PI_NAMESZ, "%s@pci.%d.%d.%d", pde->pe_emu, bus,
 	    slot, func);
@@ -1262,9 +1269,7 @@ msixcap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 
 		pi->pi_msix.enabled = val & PCIM_MSIXCTRL_MSIX_ENABLE;
 		pi->pi_msix.function_mask = val & PCIM_MSIXCTRL_FUNCTION_MASK;
-#ifdef __amd64__
 		pci_lintr_update(pi);
-#endif
 	}
 
 	CFGWRITE(pi, offset, val, bytes);
@@ -1306,9 +1311,7 @@ msicap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 	} else {
 		pi->pi_msi.maxmsgnum = 0;
 	}
-#ifdef __amd64__
 	pci_lintr_update(pi);
-#endif
 }
 
 static void
@@ -1509,7 +1512,8 @@ init_pci(struct vmctx *ctx)
 	pci_emul_iobase = PCI_EMUL_IOBASE;
 	pci_emul_membase32 = PCI_EMUL_MEMBASE32;
 
-	pci_emul_membase64 = 4*GB + vm_get_highmem_size(ctx);
+	pci_emul_membase64 = vm_get_highmem_base(ctx) +
+	    vm_get_highmem_size(ctx);
 	pci_emul_membase64 = roundup2(pci_emul_membase64, PCI_EMUL_MEMSIZE64);
 	pci_emul_memlim64 = pci_emul_membase64 + PCI_EMUL_MEMSIZE64;
 
@@ -1601,7 +1605,6 @@ init_pci(struct vmctx *ctx)
 		bi->memlimit64 = pci_emul_membase64;
 	}
 
-#ifdef __amd64__
 	/*
 	 * PCI backends are initialized before routing INTx interrupts
 	 * so that LPC devices are able to reserve ISA IRQs before
@@ -1621,6 +1624,7 @@ init_pci(struct vmctx *ctx)
 			}
 		}
 	}
+#ifdef __amd64__
 	lpc_pirq_routed();
 #endif
 
@@ -1630,13 +1634,25 @@ init_pci(struct vmctx *ctx)
 	}
 
 	/*
-	 * The guest physical memory map looks like the following:
+	 * The guest physical memory map looks like the following on amd64:
 	 * [0,		    lowmem)		guest system memory
 	 * [lowmem,	    0xC0000000)		memory hole (may be absent)
 	 * [0xC0000000,     0xE0000000)		PCI hole (32-bit BAR allocation)
 	 * [0xE0000000,	    0xF0000000)		PCI extended config window
 	 * [0xF0000000,	    4GB)		LAPIC, IOAPIC, HPET, firmware
-	 * [4GB,	    4GB + highmem)
+	 * [4GB,	    4GB + highmem)	guest system memory
+	 * [roundup(4GB + highmem, 32GB), ...)	PCI 64-bit BAR allocation
+	 *
+	 * On arm64 the guest physical memory map looks like this:
+	 * [0x0DF00000,	    0x10000000)		PCI I/O memory
+	 * [0xA0000000,	    0xE0000000)		PCI 32-bit BAR allocation
+	 * [0xE0000000,	    0xF0000000)		PCI extended config window
+	 * [4GB,	    4GB + highmem)	guest system memory
+	 * [roundup(4GB + highmem, 32GB), ...)	PCI 64-bit BAR allocation
+	 *
+	 * "lowmem" is guest memory below 0xC0000000.  amd64 guests provisioned
+	 * with less than 3GB of RAM will have no memory above the 4GB boundary.
+	 * System memory for arm64 guests is all above the 4GB boundary.
 	 */
 
 	/*
@@ -1668,8 +1684,8 @@ init_pci(struct vmctx *ctx)
 
 #ifdef __amd64__
 static void
-pci_apic_prt_entry(int bus __unused, int slot, int pin, int pirq_pin __unused,
-    int ioapic_irq, void *arg __unused)
+pci_apic_prt_entry(int bus __unused, int slot, int pin, struct pci_irq *irq,
+    void *arg __unused)
 {
 
 	dsdt_line("  Package ()");
@@ -1677,17 +1693,17 @@ pci_apic_prt_entry(int bus __unused, int slot, int pin, int pirq_pin __unused,
 	dsdt_line("    0x%X,", slot << 16 | 0xffff);
 	dsdt_line("    0x%02X,", pin - 1);
 	dsdt_line("    Zero,");
-	dsdt_line("    0x%X", ioapic_irq);
+	dsdt_line("    0x%X", irq->ioapic_irq);
 	dsdt_line("  },");
 }
 
 static void
-pci_pirq_prt_entry(int bus __unused, int slot, int pin, int pirq_pin,
-    int ioapic_irq __unused, void *arg __unused)
+pci_pirq_prt_entry(int bus __unused, int slot, int pin, struct pci_irq *irq,
+    void *arg __unused)
 {
 	char *name;
 
-	name = lpc_pirq_name(pirq_pin);
+	name = lpc_pirq_name(irq->pirq_pin);
 	if (name == NULL)
 		return;
 	dsdt_line("  Package ()");
@@ -1745,6 +1761,7 @@ pci_bus_write_dsdt(int bus)
 	dsdt_line("        0x0001,             // Length");
 	dsdt_line("        ,, )");
 
+#ifdef __amd64__
 	if (bus == 0) {
 		dsdt_indent(3);
 		dsdt_fixed_ioport(0xCF8, 8);
@@ -1775,6 +1792,7 @@ pci_bus_write_dsdt(int bus)
 			goto done;
 		}
 	}
+#endif
 	assert(bi != NULL);
 
 	/* i/o window */
@@ -1850,7 +1868,9 @@ pci_bus_write_dsdt(int bus)
 		}
 	}
 	dsdt_unindent(2);
+#ifdef __amd64__
 done:
+#endif
 	dsdt_line("  }");
 }
 
@@ -1920,7 +1940,8 @@ pci_generate_msix(struct pci_devinst *pi, int index)
 	mte = &pi->pi_msix.table[index];
 	if ((mte->vector_control & PCIM_MSIX_VCTRL_MASK) == 0) {
 		/* XXX Set PBA bit if interrupt is disabled */
-		vm_lapic_msi(pi->pi_vmctx, mte->addr, mte->msg_data);
+		vm_raise_msi(pi->pi_vmctx, mte->addr, mte->msg_data,
+		    pi->pi_bus, pi->pi_slot, pi->pi_func);
 	}
 }
 
@@ -1929,12 +1950,12 @@ pci_generate_msi(struct pci_devinst *pi, int index)
 {
 
 	if (pci_msi_enabled(pi) && index < pci_msi_maxmsgnum(pi)) {
-		vm_lapic_msi(pi->pi_vmctx, pi->pi_msi.addr,
-			     pi->pi_msi.msg_data + index);
+		vm_raise_msi(pi->pi_vmctx, pi->pi_msi.addr,
+		    pi->pi_msi.msg_data + index,
+		    pi->pi_bus, pi->pi_slot, pi->pi_func);
 	}
 }
 
-#ifdef __amd64__
 static bool
 pci_lintr_permitted(struct pci_devinst *pi)
 {
@@ -1979,6 +2000,7 @@ pci_lintr_route(struct pci_devinst *pi)
 {
 	struct businfo *bi;
 	struct intxinfo *ii;
+	struct pci_irq *irq;
 
 	if (pi->pi_lintr.pin == 0)
 		return;
@@ -1986,26 +2008,10 @@ pci_lintr_route(struct pci_devinst *pi)
 	bi = pci_businfo[pi->pi_bus];
 	assert(bi != NULL);
 	ii = &bi->slotinfo[pi->pi_slot].si_intpins[pi->pi_lintr.pin - 1];
-
-	/*
-	 * Attempt to allocate an I/O APIC pin for this intpin if one
-	 * is not yet assigned.
-	 */
-	if (ii->ii_ioapic_irq == 0)
-		ii->ii_ioapic_irq = ioapic_pci_alloc_irq(pi);
-	assert(ii->ii_ioapic_irq > 0);
-
-	/*
-	 * Attempt to allocate a PIRQ pin for this intpin if one is
-	 * not yet assigned.
-	 */
-	if (ii->ii_pirq_pin == 0)
-		ii->ii_pirq_pin = pirq_alloc_pin(pi);
-	assert(ii->ii_pirq_pin > 0);
-
-	pi->pi_lintr.ioapic_irq = ii->ii_ioapic_irq;
-	pi->pi_lintr.pirq_pin = ii->ii_pirq_pin;
-	pci_set_cfgdata8(pi, PCIR_INTLINE, pirq_irq(ii->ii_pirq_pin));
+	irq = &ii->ii_irq;
+	pci_irq_route(pi, irq);
+	pi->pi_lintr.irq = *irq;
+	pci_set_cfgdata8(pi, PCIR_INTLINE, pci_irq_intline(irq));
 }
 
 void
@@ -2090,12 +2096,10 @@ pci_walk_lintr(int bus, pci_lintr_cb cb, void *arg)
 		for (pin = 0; pin < 4; pin++) {
 			ii = &si->si_intpins[pin];
 			if (ii->ii_count != 0)
-				cb(bus, slot, pin + 1, ii->ii_pirq_pin,
-				    ii->ii_ioapic_irq, arg);
+				cb(bus, slot, pin + 1, &ii->ii_irq, arg);
 		}
 	}
 }
-#endif /* __amd64__ */
 
 /*
  * Return 1 if the emulated device in 'slot' is a multi-function device.
@@ -2200,13 +2204,11 @@ pci_emul_cmd_changed(struct pci_devinst *pi, uint16_t old)
 		}
 	}
 
-#ifdef __amd64__
 	/*
 	 * If INTx has been unmasked and is pending, assert the
 	 * interrupt.
 	 */
 	pci_lintr_update(pi);
-#endif
 }
 
 static void
@@ -2254,7 +2256,7 @@ pci_cfgrw(int in, int bus, int slot, int func, int coff, int bytes,
 
 	/*
 	 * Just return if there is no device at this slot:func or if the
-	 * the guest is doing an un-aligned access.
+	 * guest is doing an un-aligned access.
 	 */
 	if (pi == NULL || (bytes != 1 && bytes != 2 && bytes != 4) ||
 	    (coff & (bytes - 1)) != 0) {
@@ -2332,7 +2334,9 @@ pci_cfgrw(int in, int bus, int slot, int func, int coff, int bytes,
 				break;
 			case PCIBAR_IO:
 				addr = *valp & mask;
-				addr &= 0xffff;
+#if defined(PCI_EMUL_IOMASK)
+				addr &= PCI_EMUL_IOMASK;
+#endif
 				bar = addr | pi->pi_bar[idx].lobits;
 				/*
 				 * Register the new BAR value for interception

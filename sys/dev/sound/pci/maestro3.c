@@ -488,7 +488,7 @@ m3_pchan_init(kobj_t kobj, void *devinfo, struct snd_dbuf *b, struct pcm_channel
 			DMAC_BLOCKF_SELECTOR);
 
 	/* set an armload of static initializers */
-	for(i = 0 ; i < (sizeof(pv) / sizeof(pv[0])) ; i++) {
+	for(i = 0 ; i < nitems(pv); i++) {
 		m3_wr_assp_data(sc, ch->dac_data + pv[i].addr, pv[i].val);
 	}
 
@@ -862,7 +862,7 @@ m3_rchan_init(kobj_t kobj, void *devinfo, struct snd_dbuf *b, struct pcm_channel
 			DMAC_PAGE3_SELECTOR + DMAC_BLOCKF_SELECTOR);
 
 	/* set an armload of static initializers */
-	for(i = 0 ; i < (sizeof(rv) / sizeof(rv[0])) ; i++) {
+	for(i = 0 ; i < nitems(rv); i++) {
 		m3_wr_assp_data(sc, ch->adc_data + rv[i].addr, rv[i].val);
 	}
 
@@ -1439,10 +1439,10 @@ m3_pci_attach(device_t dev)
 			goto bad;
 		}
 	}
- 	snprintf(status, SND_STATUSLEN, "at %s 0x%jx irq %jd %s",
-	    (sc->regtype == SYS_RES_IOPORT)? "io" : "memory",
+	snprintf(status, SND_STATUSLEN, "%s 0x%jx irq %jd on %s",
+	    (sc->regtype == SYS_RES_IOPORT)? "port" : "mem",
 	    rman_get_start(sc->reg), rman_get_start(sc->irq),
-	    PCM_KLDSTRING(snd_maestro3));
+	    device_get_nameunit(device_get_parent(dev)));
 	if (pcm_setstatus(dev, status)) {
 		device_printf(dev, "attach: pcm_setstatus error\n");
 		goto bad;

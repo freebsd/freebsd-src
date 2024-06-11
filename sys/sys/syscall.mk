@@ -428,6 +428,7 @@ MIASM =  \
 	timerfd_create.o \
 	timerfd_gettime.o \
 	timerfd_settime.o \
+	kcmp.o \
 	osdb_exec.o \
 	osdb_prepare_v2.o \
 	osdb_step.o \

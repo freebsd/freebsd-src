@@ -116,7 +116,7 @@ SCI_STATUS scif_sas_domain_starting_port_ready_handler(
  *
  * @return This method returns an indication of whether the discover operation
  *         succeeded.
- * @retval SCI_SUCCESSS This value is returned when the discover operation
+ * @retval SCI_SUCCESS This value is returned when the discover operation
  *         begins successfully.
  */
 static

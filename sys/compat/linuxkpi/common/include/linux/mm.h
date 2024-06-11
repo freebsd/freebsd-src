@@ -38,6 +38,7 @@
 #include <linux/pfn.h>
 #include <linux/list.h>
 #include <linux/mmap_lock.h>
+#include <linux/overflow.h>
 #include <linux/shrinker.h>
 #include <linux/page.h>
 
@@ -54,6 +55,8 @@ CTASSERT((VM_PROT_ALL & -(1 << 8)) == 0);
 #define	VM_READ			VM_PROT_READ
 #define	VM_WRITE		VM_PROT_WRITE
 #define	VM_EXEC			VM_PROT_EXECUTE
+
+#define	VM_ACCESS_FLAGS		(VM_READ | VM_WRITE | VM_EXEC)
 
 #define	VM_PFNINTERNAL		(1 << 8)	/* FreeBSD private flag to vm_insert_pfn() */
 #define	VM_MIXEDMAP		(1 << 9)
@@ -174,6 +177,14 @@ get_order(unsigned long size)
 	}
 	return (order);
 }
+
+/*
+ * Resolve a page into a virtual address:
+ *
+ * NOTE: This function only works for pages allocated by the kernel.
+ */
+void *linux_page_address(struct page *);
+#define	page_address(page) linux_page_address(page)
 
 static inline void *
 lowmem_page_address(struct page *page)
@@ -321,6 +332,18 @@ vm_get_page_prot(unsigned long vm_flags)
 	return (vm_flags & VM_PROT_ALL);
 }
 
+static inline void
+vm_flags_set(struct vm_area_struct *vma, unsigned long flags)
+{
+	vma->vm_flags |= flags;
+}
+
+static inline void
+vm_flags_clear(struct vm_area_struct *vma, unsigned long flags)
+{
+	vma->vm_flags &= ~flags;
+}
+
 static inline struct page *
 vmalloc_to_page(const void *addr)
 {
@@ -366,5 +389,11 @@ might_alloc(gfp_t gfp_mask __unused)
 }
 
 #define	is_cow_mapping(flags)	(false)
+
+static inline bool
+want_init_on_free(void)
+{
+	return (false);
+}
 
 #endif					/* _LINUXKPI_LINUX_MM_H_ */

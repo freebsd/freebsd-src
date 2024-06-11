@@ -13,7 +13,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /*
  * copysignf(float x, float y)
  * copysignf(x,y) returns a value with the magnitude of x and

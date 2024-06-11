@@ -35,8 +35,36 @@
  */
 #pragma once
 
+#include <sys/cdefs.h> /* FreeBSD source assumes sys/types.h includes this */
+/*
+ * MUSL doesn't define the __intXX_t that FreeBSD does, but many of our headers
+ * assume that will always be present. Define them here. We assume !defined
+ * __GLIBC__ is musl since musl doesn't have a define to key off of. Thesee
+ * typedefs look backwards, but it's not circular because MUSL never defines the
+ * __*int*_t. Also, we don't have to work in the kernel, so it's OK to include
+ * stdint.h here.
+ */
+#ifndef __GLIBC__
+#include <stdint.h>
+typedef int64_t  __int64_t;
+typedef int32_t  __int32_t;
+typedef int16_t  __int16_t;
+typedef int8_t   __int8_t;
+typedef uint64_t __uint64_t;
+typedef uint32_t __uint32_t;
+typedef uint16_t __uint16_t;
+typedef uint8_t  __uint8_t;
+#endif
+
 #include_next <sys/types.h>
 
+/*
+ * stddef.h for both gcc and clang will define __size_t when size_t has
+ * been defined (except on *BSD where it doesn't touch __size_t). So if
+ * we're building on Linux, we know that if that's not defined, we have
+ * to typedef __size_t for FreeBSD's use of __size_t in places to work
+ * during bootstrapping.
+ */
 #ifndef __size_t
 typedef __SIZE_TYPE__ __size_t;
 #endif

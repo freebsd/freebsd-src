@@ -83,7 +83,7 @@ static void check_cpu_regs(u_int cpu, struct cpu_desc *desc,
  * The default implementation of I-cache sync assumes we have an
  * aliasing cache until we know otherwise.
  */
-void (*arm64_icache_sync_range)(vm_offset_t, vm_size_t) =
+void (*arm64_icache_sync_range)(void *, vm_size_t) =
     &arm64_aliasing_icache_sync_range;
 
 static int
@@ -108,7 +108,7 @@ SYSCTL_PROC(_hw, HW_MACHINE, machine, CTLTYPE_STRING | CTLFLAG_RD |
 	 "Machine class");
 
 static char cpu_model[64];
-SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD,
+SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD | CTLFLAG_CAPRD,
 	cpu_model, sizeof(cpu_model), "Machine model");
 
 #define	MAX_CACHES	8	/* Maximum number of caches supported
@@ -138,15 +138,11 @@ struct cpu_desc {
 	uint64_t	id_aa64mmfr0;
 	uint64_t	id_aa64mmfr1;
 	uint64_t	id_aa64mmfr2;
-#ifdef NOTYET
 	uint64_t	id_aa64mmfr3;
 	uint64_t	id_aa64mmfr4;
-#endif
 	uint64_t	id_aa64pfr0;
 	uint64_t	id_aa64pfr1;
-#ifdef NOTYET
 	uint64_t	id_aa64pfr2;
-#endif
 	uint64_t	id_aa64zfr0;
 	uint64_t	ctr;
 #ifdef COMPAT_FREEBSD32
@@ -250,6 +246,23 @@ static const struct cpu_parts cpu_parts_qcom[] = {
 	CPU_PART_NONE,
 };
 
+/* Apple */
+static const struct cpu_parts cpu_parts_apple[] = {
+	{ CPU_PART_M1_ICESTORM, "M1 Icestorm" },
+	{ CPU_PART_M1_FIRESTORM, "M1 Firestorm" },
+	{ CPU_PART_M1_ICESTORM_PRO, "M1 Pro Icestorm" },
+	{ CPU_PART_M1_FIRESTORM_PRO, "M1 Pro Firestorm" },
+	{ CPU_PART_M1_ICESTORM_MAX, "M1 Max Icestorm" },
+	{ CPU_PART_M1_FIRESTORM_MAX, "M1 Max Firestorm" },
+	{ CPU_PART_M2_BLIZZARD, "M2 Blizzard" },
+	{ CPU_PART_M2_AVALANCHE, "M2 Avalanche" },
+	{ CPU_PART_M2_BLIZZARD_PRO, "M2 Pro Blizzard" },
+	{ CPU_PART_M2_AVALANCHE_PRO, "M2 Pro Avalanche" },
+	{ CPU_PART_M2_BLIZZARD_MAX, "M2 Max Blizzard" },
+	{ CPU_PART_M2_AVALANCHE_MAX, "M2 Max Avalanche" },
+	CPU_PART_NONE,
+};
+
 /* Unknown */
 static const struct cpu_parts cpu_parts_none[] = {
 	CPU_PART_NONE,
@@ -260,7 +273,7 @@ static const struct cpu_parts cpu_parts_none[] = {
  */
 const struct cpu_implementers cpu_implementers[] = {
 	{ CPU_IMPL_AMPERE,	"Ampere",	cpu_parts_none },
-	{ CPU_IMPL_APPLE,	"Apple",	cpu_parts_none },
+	{ CPU_IMPL_APPLE,	"Apple",	cpu_parts_apple },
 	{ CPU_IMPL_APM,		"APM",		cpu_parts_apm },
 	{ CPU_IMPL_ARM,		"ARM",		cpu_parts_arm },
 	{ CPU_IMPL_BROADCOM,	"Broadcom",	cpu_parts_none },
@@ -1280,7 +1293,6 @@ static const struct mrs_field id_aa64mmfr2_fields[] = {
 };
 
 
-#ifdef NOTYET
 /* ID_AA64MMFR2_EL1 */
 static const struct mrs_field_value id_aa64mmfr3_spec_fpacc[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR3, Spec_FPACC, NONE, IMPL),
@@ -1316,7 +1328,6 @@ static const struct mrs_field id_aa64mmfr3_fields[] = {
 static const struct mrs_field id_aa64mmfr4_fields[] = {
 	MRS_FIELD_END,
 };
-#endif
 
 
 /* ID_AA64PFR0_EL1 */
@@ -1530,13 +1541,10 @@ static const struct mrs_field_value id_aa64pfr1_bt[] = {
 	MRS_FIELD_VALUE_END,
 };
 
-#if 0
-/* Enable when we add BTI support */
 static const struct mrs_field_hwcap id_aa64pfr1_bt_caps[] = {
 	MRS_HWCAP(2, HWCAP2_BTI, ID_AA64PFR1_BT_IMPL),
 	MRS_HWCAP_END
 };
-#endif
 
 static const struct mrs_field id_aa64pfr1_fields[] = {
 	MRS_FIELD(ID_AA64PFR1, NMI, false, MRS_EXACT, id_aa64pfr1_nmi),
@@ -1552,17 +1560,16 @@ static const struct mrs_field id_aa64pfr1_fields[] = {
 	MRS_FIELD(ID_AA64PFR1, MTE, false, MRS_EXACT, id_aa64pfr1_mte),
 	MRS_FIELD_HWCAP(ID_AA64PFR1, SSBS, false, MRS_LOWER, id_aa64pfr1_ssbs,
 	    id_aa64pfr1_ssbs_caps),
-	MRS_FIELD(ID_AA64PFR1, BT, false, MRS_EXACT, id_aa64pfr1_bt),
+	MRS_FIELD_HWCAP_SPLIT(ID_AA64PFR1, BT, false, MRS_LOWER, MRS_EXACT,
+	    id_aa64pfr1_bt, id_aa64pfr1_bt_caps),
 	MRS_FIELD_END,
 };
 
 
-#ifdef NOTYET
 /* ID_AA64PFR2_EL1 */
 static const struct mrs_field id_aa64pfr2_fields[] = {
 	MRS_FIELD_END,
 };
-#endif
 
 
 /* ID_AA64ZFR0_EL1 */
@@ -1865,16 +1872,12 @@ static const struct mrs_user_reg user_regs[] = {
 	USER_REG(ID_AA64MMFR0_EL1, id_aa64mmfr0, true),
 	USER_REG(ID_AA64MMFR1_EL1, id_aa64mmfr1, true),
 	USER_REG(ID_AA64MMFR2_EL1, id_aa64mmfr2, true),
-#ifdef NOTYET
 	USER_REG(ID_AA64MMFR3_EL1, id_aa64mmfr3, true),
 	USER_REG(ID_AA64MMFR4_EL1, id_aa64mmfr4, true),
-#endif
 
 	USER_REG(ID_AA64PFR0_EL1, id_aa64pfr0, true),
 	USER_REG(ID_AA64PFR1_EL1, id_aa64pfr1, true),
-#ifdef NOTYET
 	USER_REG(ID_AA64PFR2_EL1, id_aa64pfr2, true),
-#endif
 
 	USER_REG(ID_AA64ZFR0_EL1, id_aa64zfr0, true),
 
@@ -2654,12 +2657,10 @@ print_cpu_features(u_int cpu, struct cpu_desc *desc,
 		print_id_register(sb, "Processor Features 1",
 		    desc->id_aa64pfr1, id_aa64pfr1_fields);
 
-#ifdef NOTYET
 	/* AArch64 Processor Feature Register 2 */
 	if (SHOULD_PRINT_REG(id_aa64pfr2))
 		print_id_register(sb, "Processor Features 2",
 		    desc->id_aa64pfr2, id_aa64pfr2_fields);
-#endif
 
 	/* AArch64 Memory Model Feature Register 0 */
 	if (SHOULD_PRINT_REG(id_aa64mmfr0))
@@ -2676,7 +2677,6 @@ print_cpu_features(u_int cpu, struct cpu_desc *desc,
 		print_id_register(sb, "Memory Model Features 2",
 		    desc->id_aa64mmfr2, id_aa64mmfr2_fields);
 
-#ifdef NOTYET
 	/* AArch64 Memory Model Feature Register 3 */
 	if (SHOULD_PRINT_REG(id_aa64mmfr3))
 		print_id_register(sb, "Memory Model Features 3",
@@ -2686,7 +2686,6 @@ print_cpu_features(u_int cpu, struct cpu_desc *desc,
 	if (SHOULD_PRINT_REG(id_aa64mmfr4))
 		print_id_register(sb, "Memory Model Features 4",
 		    desc->id_aa64mmfr4, id_aa64mmfr4_fields);
-#endif
 
 	/* AArch64 Debug Feature Register 0 */
 	if (SHOULD_PRINT_REG(id_aa64dfr0))
@@ -2794,23 +2793,19 @@ identify_cpu(u_int cpu)
 	CPU_AFFINITY(cpu) = desc->mpidr & CPU_AFF_MASK;
 
 	desc->ctr = READ_SPECIALREG(ctr_el0);
-	desc->id_aa64dfr0 = READ_SPECIALREG(id_aa64dfr0_el1);
-	desc->id_aa64dfr1 = READ_SPECIALREG(id_aa64dfr1_el1);
-	desc->id_aa64isar0 = READ_SPECIALREG(id_aa64isar0_el1);
-	desc->id_aa64isar1 = READ_SPECIALREG(id_aa64isar1_el1);
-	desc->id_aa64isar2 = READ_SPECIALREG(id_aa64isar2_el1);
-	desc->id_aa64mmfr0 = READ_SPECIALREG(id_aa64mmfr0_el1);
-	desc->id_aa64mmfr1 = READ_SPECIALREG(id_aa64mmfr1_el1);
-	desc->id_aa64mmfr2 = READ_SPECIALREG(id_aa64mmfr2_el1);
-#ifdef NOTYET
-	desc->id_aa64mmfr3 = READ_SPECIALREG(id_aa64mmfr3_el1);
-	desc->id_aa64mmfr4 = READ_SPECIALREG(id_aa64mmfr4_el1);
-#endif
-	desc->id_aa64pfr0 = READ_SPECIALREG(id_aa64pfr0_el1);
-	desc->id_aa64pfr1 = READ_SPECIALREG(id_aa64pfr1_el1);
-#ifdef NOTYET
-	desc->id_aa64pfr2 = READ_SPECIALREG(id_aa64pfr2_el1);
-#endif
+	desc->id_aa64dfr0 = READ_SPECIALREG(ID_AA64DFR0_EL1_REG);
+	desc->id_aa64dfr1 = READ_SPECIALREG(ID_AA64DFR1_EL1_REG);
+	desc->id_aa64isar0 = READ_SPECIALREG(ID_AA64ISAR0_EL1_REG);
+	desc->id_aa64isar1 = READ_SPECIALREG(ID_AA64ISAR1_EL1_REG);
+	desc->id_aa64isar2 = READ_SPECIALREG(ID_AA64ISAR2_EL1_REG);
+	desc->id_aa64mmfr0 = READ_SPECIALREG(ID_AA64MMFR0_EL1_REG);
+	desc->id_aa64mmfr1 = READ_SPECIALREG(ID_AA64MMFR1_EL1_REG);
+	desc->id_aa64mmfr2 = READ_SPECIALREG(ID_AA64MMFR2_EL1_REG);
+	desc->id_aa64mmfr3 = READ_SPECIALREG(ID_AA64MMFR3_EL1_REG);
+	desc->id_aa64mmfr4 = READ_SPECIALREG(ID_AA64MMFR4_EL1_REG);
+	desc->id_aa64pfr0 = READ_SPECIALREG(ID_AA64PFR0_EL1_REG);
+	desc->id_aa64pfr1 = READ_SPECIALREG(ID_AA64PFR1_EL1_REG);
+	desc->id_aa64pfr2 = READ_SPECIALREG(ID_AA64PFR2_EL1_REG);
 
 	/*
 	 * ID_AA64ZFR0_EL1 is only valid when at least one of:

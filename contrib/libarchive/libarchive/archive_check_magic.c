@@ -24,7 +24,6 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD$");
 
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -62,7 +61,7 @@ errmsg(const char *m)
 	}
 }
 
-static __LA_DEAD void
+static __LA_NORETURN void
 diediedie(void)
 {
 #if defined(_WIN32) && !defined(__CYGWIN__) && defined(_DEBUG)
@@ -99,13 +98,12 @@ archive_handle_type_name(unsigned m)
 	}
 }
 
-
-static char *
+static void
 write_all_states(char *buff, unsigned int states)
 {
 	unsigned int lowbit;
 
-	buff[0] = '\0';
+	*buff = '\0';
 
 	/* A trick for computing the lowest set bit. */
 	while ((lowbit = states & (1 + ~states)) != 0) {
@@ -114,7 +112,6 @@ write_all_states(char *buff, unsigned int states)
 		if (states != 0)
 			strcat(buff, "/");
 	}
-	return buff;
 }
 
 /*
@@ -160,16 +157,19 @@ __archive_check_magic(struct archive *a, unsigned int magic,
 
 	if ((a->state & state) == 0) {
 		/* If we're already FATAL, don't overwrite the error. */
-		if (a->state != ARCHIVE_STATE_FATAL)
+		if (a->state != ARCHIVE_STATE_FATAL) {
+			write_all_states(states1, a->state);
+			write_all_states(states2, state);
 			archive_set_error(a, -1,
 			    "INTERNAL ERROR: Function '%s' invoked with"
 			    " archive structure in state '%s',"
 			    " should be in state '%s'",
 			    function,
-			    write_all_states(states1, a->state),
-			    write_all_states(states2, state));
+			    states1,
+			    states2);
+		}
 		a->state = ARCHIVE_STATE_FATAL;
 		return (ARCHIVE_FATAL);
 	}
-	return ARCHIVE_OK;
+	return (ARCHIVE_OK);
 }

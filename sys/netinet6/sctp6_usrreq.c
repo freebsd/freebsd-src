@@ -1095,7 +1095,6 @@ sctp6_getpeeraddr(struct socket *so, struct sockaddr *sa)
 	.pr_close =	sctp6_close,					\
 	.pr_detach =	sctp6_close,					\
 	.pr_sopoll =	sopoll_generic,					\
-	.pr_flush =	sctp_flush,					\
 	.pr_disconnect = sctp_disconnect,				\
 	.pr_listen =	sctp_listen,					\
 	.pr_peeraddr =	sctp6_getpeeraddr,				\

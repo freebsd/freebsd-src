@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2017 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2024 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -43,6 +43,7 @@
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
 #include <sys/vdso.h>
@@ -53,9 +54,11 @@
 #include <machine/md_var.h>
 #include <machine/sbi.h>
 
+#include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
 
 struct riscv_timer_softc {
+	struct resource		*irq_res;
 	void			*ih;
 	uint32_t		clkfreq;
 	struct eventtimer	et;
@@ -116,7 +119,6 @@ riscv_timer_et_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 	if (first != 0) {
 		counts = ((uint32_t)et->et_frequency * first) >> 32;
 		set_timecmp(get_timecount() + counts);
-		csr_set(sie, SIE_STIE);
 
 		return (0);
 	}
@@ -141,7 +143,10 @@ riscv_timer_intr(void *arg)
 
 	sc = (struct riscv_timer_softc *)arg;
 
-	csr_clear(sip, SIP_STIP);
+	if (has_sstc)
+		csr_write(stimecmp, -1UL);
+	else
+		csr_clear(sip, SIP_STIP);
 
 	if (sc->et.et_active)
 		sc->et.et_event_cb(&sc->et, sc->et.et_arg);
@@ -188,7 +193,9 @@ static int
 riscv_timer_attach(device_t dev)
 {
 	struct riscv_timer_softc *sc;
-	int error;
+	int irq, rid, error;
+	phandle_t iparent;
+	pcell_t cell;
 
 	sc = device_get_softc(dev);
 	if (riscv_timer_sc != NULL)
@@ -204,11 +211,28 @@ riscv_timer_attach(device_t dev)
 
 	riscv_timer_sc = sc;
 
+	iparent = OF_xref_from_node(ofw_bus_get_node(intr_irq_root_dev));
+	cell = IRQ_TIMER_SUPERVISOR;
+	irq = ofw_bus_map_intr(dev, iparent, 1, &cell);
+	error = bus_set_resource(dev, SYS_RES_IRQ, 0, irq, 1);
+	if (error != 0) {
+		device_printf(dev, "Unable to register IRQ resource\n");
+		return (ENXIO);
+	}
+
+	rid = 0;
+	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	    RF_ACTIVE);
+	if (sc->irq_res == NULL) {
+		device_printf(dev, "Unable to alloc IRQ resource\n");
+		return (ENXIO);
+	}
+
 	/* Setup IRQs handler */
-	error = riscv_setup_intr(device_get_nameunit(dev), riscv_timer_intr,
-	    NULL, sc, IRQ_TIMER_SUPERVISOR, INTR_TYPE_CLK, &sc->ih);
-	if (error) {
-		device_printf(dev, "Unable to alloc int resource.\n");
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_CLK,
+	    riscv_timer_intr, NULL, sc, &sc->ih);
+	if (error != 0) {
+		device_printf(dev, "Unable to setup IRQ resource\n");
 		return (ENXIO);
 	}
 

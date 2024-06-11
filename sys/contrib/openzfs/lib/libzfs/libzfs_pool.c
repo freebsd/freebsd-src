@@ -22,7 +22,7 @@
 /*
  * Copyright 2015 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2020 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2024 by Delphix. All rights reserved.
  * Copyright 2016 Igor Kozhukhov <ikozhukhov@gmail.com>
  * Copyright (c) 2018 Datto Inc.
  * Copyright (c) 2017 Open-E, Inc. All Rights Reserved.
@@ -1724,7 +1724,7 @@ zpool_discard_checkpoint(zpool_handle_t *zhp)
  * necessary verification to ensure that the vdev specification is well-formed.
  */
 int
-zpool_add(zpool_handle_t *zhp, nvlist_t *nvroot)
+zpool_add(zpool_handle_t *zhp, nvlist_t *nvroot, boolean_t check_ashift)
 {
 	zfs_cmd_t zc = {"\0"};
 	int ret;
@@ -1756,6 +1756,7 @@ zpool_add(zpool_handle_t *zhp, nvlist_t *nvroot)
 
 	zcmd_write_conf_nvlist(hdl, &zc, nvroot);
 	(void) strlcpy(zc.zc_name, zhp->zpool_name, sizeof (zc.zc_name));
+	zc.zc_flags = check_ashift;
 
 	if (zfs_ioctl(hdl, ZFS_IOC_VDEV_ADD, &zc) != 0) {
 		switch (errno) {
@@ -1899,7 +1900,8 @@ zpool_rewind_exclaim(libzfs_handle_t *hdl, const char *name, boolean_t dryrun,
 	(void) nvlist_lookup_int64(nv, ZPOOL_CONFIG_REWIND_TIME, &loss);
 
 	if (localtime_r((time_t *)&rewindto, &t) != NULL &&
-	    strftime(timestr, 128, "%c", &t) != 0) {
+	    ctime_r((time_t *)&rewindto, timestr) != NULL) {
+		timestr[24] = 0;
 		if (dryrun) {
 			(void) printf(dgettext(TEXT_DOMAIN,
 			    "Would be able to return %s "
@@ -1961,7 +1963,8 @@ zpool_explain_recover(libzfs_handle_t *hdl, const char *name, int reason,
 	    "Recovery is possible, but will result in some data loss.\n"));
 
 	if (localtime_r((time_t *)&rewindto, &t) != NULL &&
-	    strftime(timestr, 128, "%c", &t) != 0) {
+	    ctime_r((time_t *)&rewindto, timestr) != NULL) {
+		timestr[24] = 0;
 		(void) printf(dgettext(TEXT_DOMAIN,
 		    "\tReturning the pool to its state as of %s\n"
 		    "\tshould correct the problem.  "),
@@ -3036,6 +3039,9 @@ zpool_vdev_is_interior(const char *name)
 	return (B_FALSE);
 }
 
+/*
+ * Lookup the nvlist for a given vdev.
+ */
 nvlist_t *
 zpool_find_vdev(zpool_handle_t *zhp, const char *path, boolean_t *avail_spare,
     boolean_t *l2cache, boolean_t *log)
@@ -3043,6 +3049,7 @@ zpool_find_vdev(zpool_handle_t *zhp, const char *path, boolean_t *avail_spare,
 	char *end;
 	nvlist_t *nvroot, *search, *ret;
 	uint64_t guid;
+	boolean_t __avail_spare, __l2cache, __log;
 
 	search = fnvlist_alloc();
 
@@ -3057,6 +3064,18 @@ zpool_find_vdev(zpool_handle_t *zhp, const char *path, boolean_t *avail_spare,
 
 	nvroot = fnvlist_lookup_nvlist(zhp->zpool_config,
 	    ZPOOL_CONFIG_VDEV_TREE);
+
+	/*
+	 * User can pass NULL for avail_spare, l2cache, and log, but
+	 * we still need to provide variables to vdev_to_nvlist_iter(), so
+	 * just point them to junk variables here.
+	 */
+	if (!avail_spare)
+		avail_spare = &__avail_spare;
+	if (!l2cache)
+		l2cache = &__l2cache;
+	if (!log)
+		log = &__log;
 
 	*avail_spare = B_FALSE;
 	*l2cache = B_FALSE;
@@ -3313,27 +3332,50 @@ zpool_vdev_fault(zpool_handle_t *zhp, uint64_t guid, vdev_aux_t aux)
 }
 
 /*
- * Mark the given vdev degraded.
+ * Generic set vdev state function
  */
-int
-zpool_vdev_degrade(zpool_handle_t *zhp, uint64_t guid, vdev_aux_t aux)
+static int
+zpool_vdev_set_state(zpool_handle_t *zhp, uint64_t guid, vdev_aux_t aux,
+    vdev_state_t state)
 {
 	zfs_cmd_t zc = {"\0"};
 	char errbuf[ERRBUFLEN];
 	libzfs_handle_t *hdl = zhp->zpool_hdl;
 
 	(void) snprintf(errbuf, sizeof (errbuf),
-	    dgettext(TEXT_DOMAIN, "cannot degrade %llu"), (u_longlong_t)guid);
+	    dgettext(TEXT_DOMAIN, "cannot set %s %llu"),
+	    zpool_state_to_name(state, aux), (u_longlong_t)guid);
 
 	(void) strlcpy(zc.zc_name, zhp->zpool_name, sizeof (zc.zc_name));
 	zc.zc_guid = guid;
-	zc.zc_cookie = VDEV_STATE_DEGRADED;
+	zc.zc_cookie = state;
 	zc.zc_obj = aux;
 
 	if (zfs_ioctl(hdl, ZFS_IOC_VDEV_SET_STATE, &zc) == 0)
 		return (0);
 
 	return (zpool_standard_error(hdl, errno, errbuf));
+}
+
+/*
+ * Mark the given vdev degraded.
+ */
+int
+zpool_vdev_degrade(zpool_handle_t *zhp, uint64_t guid, vdev_aux_t aux)
+{
+	return (zpool_vdev_set_state(zhp, guid, aux, VDEV_STATE_DEGRADED));
+}
+
+/*
+ * Mark the given vdev as in a removed state (as if the device does not exist).
+ *
+ * This is different than zpool_vdev_remove() which does a removal of a device
+ * from the pool (but the device does exist).
+ */
+int
+zpool_vdev_set_removed_state(zpool_handle_t *zhp, uint64_t guid, vdev_aux_t aux)
+{
+	return (zpool_vdev_set_state(zhp, guid, aux, VDEV_STATE_REMOVED));
 }
 
 /*
@@ -5225,6 +5267,8 @@ zpool_get_vdev_prop_value(nvlist_t *nvprop, vdev_prop_t prop, char *prop_name,
 		case VDEV_PROP_CHECKSUM_T:
 		case VDEV_PROP_IO_N:
 		case VDEV_PROP_IO_T:
+		case VDEV_PROP_SLOW_IO_N:
+		case VDEV_PROP_SLOW_IO_T:
 			if (intval == UINT64_MAX) {
 				(void) strlcpy(buf, "-", len);
 			} else {

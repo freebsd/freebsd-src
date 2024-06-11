@@ -130,7 +130,7 @@ public:
 	nvlist_t		*Config()	const;
 	Vdev			 Parent();
 	Vdev			 RootVdev();
-	std::string		 Name(zpool_handle_t *, bool verbose)	const;
+	virtual std::string	 Name(zpool_handle_t *, bool verbose)	const;
 	bool			 IsSpare();
 	bool			 IsAvailableSpare()	const;
 	bool			 IsActiveSpare()	const;

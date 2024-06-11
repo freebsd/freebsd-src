@@ -38,7 +38,7 @@
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <dev/extres/regulator/regulator.h>
+#include <dev/regulator/regulator.h>
 
 #include <dev/mmc/mmc_helpers.h>
 
@@ -66,7 +66,7 @@ mmc_fdt_parse(device_t dev, phandle_t node, struct mmc_helper *helper,
 			device_printf(dev, "vmmc-supply regulator found\n");
 	}
 	if (regulator_get_by_ofw_property(dev, 0, "vqmmc-supply",
-	    &helper->vqmmc_supply) == 0 && bootverbose) {
+	    &helper->vqmmc_supply) == 0) {
 		if (bootverbose)
 			device_printf(dev, "vqmmc-supply regulator found\n");
 	}

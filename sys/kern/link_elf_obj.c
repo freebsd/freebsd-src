@@ -27,7 +27,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_ddb.h"
 
 #include <sys/param.h>
@@ -132,6 +131,8 @@ static int	link_elf_lookup_symbol(linker_file_t, const char *,
 		    c_linker_sym_t *);
 static int	link_elf_lookup_debug_symbol(linker_file_t, const char *,
 		    c_linker_sym_t *);
+static int	link_elf_lookup_debug_symbol_ctf(linker_file_t lf,
+		    const char *name, c_linker_sym_t *sym, linker_ctf_t *lc);
 static int	link_elf_symbol_values(linker_file_t, c_linker_sym_t,
 		    linker_symval_t *);
 static int	link_elf_debug_symbol_values(linker_file_t, c_linker_sym_t,
@@ -160,6 +161,7 @@ static int	elf_obj_lookup(linker_file_t lf, Elf_Size symidx, int deps,
 static kobj_method_t link_elf_methods[] = {
 	KOBJMETHOD(linker_lookup_symbol,	link_elf_lookup_symbol),
 	KOBJMETHOD(linker_lookup_debug_symbol,	link_elf_lookup_debug_symbol),
+	KOBJMETHOD(linker_lookup_debug_symbol_ctf, link_elf_lookup_debug_symbol_ctf),
 	KOBJMETHOD(linker_symbol_values,	link_elf_symbol_values),
 	KOBJMETHOD(linker_debug_symbol_values,	link_elf_debug_symbol_values),
 	KOBJMETHOD(linker_search_symbol,	link_elf_search_symbol),
@@ -171,6 +173,7 @@ static kobj_method_t link_elf_methods[] = {
 	KOBJMETHOD(linker_each_function_name,	link_elf_each_function_name),
 	KOBJMETHOD(linker_each_function_nameval, link_elf_each_function_nameval),
 	KOBJMETHOD(linker_ctf_get,		link_elf_ctf_get),
+	KOBJMETHOD(linker_ctf_lookup_typename,  link_elf_ctf_lookup_typename),
 	KOBJMETHOD(linker_symtab_get, 		link_elf_symtab_get),
 	KOBJMETHOD(linker_strtab_get, 		link_elf_strtab_get),
 #ifdef VIMAGE
@@ -655,6 +658,30 @@ link_elf_invoke_cbs(caddr_t addr, size_t size)
 	}
 }
 
+static void
+link_elf_invoke_ctors(linker_file_t lf)
+{
+	KASSERT(lf->ctors_invoked == LF_NONE,
+	    ("%s: file %s ctor state %d",
+	    __func__, lf->filename, lf->ctors_invoked));
+
+	link_elf_invoke_cbs(lf->ctors_addr, lf->ctors_size);
+	lf->ctors_invoked = LF_CTORS;
+}
+
+static void
+link_elf_invoke_dtors(linker_file_t lf)
+{
+	KASSERT(lf->ctors_invoked != LF_DTORS,
+	    ("%s: file %s ctor state %d",
+	    __func__, lf->filename, lf->ctors_invoked));
+
+	if (lf->ctors_invoked == LF_CTORS) {
+		link_elf_invoke_cbs(lf->dtors_addr, lf->dtors_size);
+		lf->ctors_invoked = LF_DTORS;
+	}
+}
+
 static int
 link_elf_link_preload_finish(linker_file_t lf)
 {
@@ -681,7 +708,7 @@ link_elf_link_preload_finish(linker_file_t lf)
 	/* Apply protections now that relocation processing is complete. */
 	link_elf_protect(ef);
 
-	link_elf_invoke_cbs(lf->ctors_addr, lf->ctors_size);
+	link_elf_invoke_ctors(lf);
 	return (0);
 }
 
@@ -1236,7 +1263,7 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 #endif
 
 	link_elf_protect(ef);
-	link_elf_invoke_cbs(lf->ctors_addr, lf->ctors_size);
+	link_elf_invoke_ctors(lf);
 	*result = lf;
 
 out:
@@ -1256,7 +1283,7 @@ link_elf_unload_file(linker_file_t file)
 	elf_file_t ef = (elf_file_t) file;
 	u_int i;
 
-	link_elf_invoke_cbs(file->dtors_addr, file->dtors_size);
+	link_elf_invoke_dtors(file);
 
 	/* Notify MD code that a module is being unloaded. */
 	elf_cpu_unload_file(file);
@@ -1474,6 +1501,16 @@ link_elf_lookup_debug_symbol(linker_file_t lf, const char *name,
     c_linker_sym_t *sym)
 {
 	return (link_elf_lookup_symbol1(lf, name, sym, true));
+}
+
+static int
+link_elf_lookup_debug_symbol_ctf(linker_file_t lf, const char *name,
+    c_linker_sym_t *sym, linker_ctf_t *lc)
+{
+	if (link_elf_lookup_debug_symbol(lf, name, sym))
+		return (ENOENT);
+
+	return (link_elf_ctf_get_ddb(lf, lc));
 }
 
 static int

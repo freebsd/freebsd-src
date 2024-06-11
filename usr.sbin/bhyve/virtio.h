@@ -97,7 +97,7 @@
  * begin with a 16-bit <flags> field and 16-bit index <idx>, then
  * have <N> 16-bit <ring> values, followed by one final 16-bit
  * field <used_event>.  The <N> <ring> entries are simply indices
- * indices into the descriptor ring (and thus must meet the same
+ * into the descriptor ring (and thus must meet the same
  * constraints as each <next> value).  However, <idx> is counted
  * up from 0 (initially) and simply wraps around after 65535; it
  * is taken mod <N> to find the next available entry.
@@ -358,9 +358,7 @@ vi_interrupt(struct virtio_softc *vs, uint8_t isr, uint16_t msix_idx)
 		VS_LOCK(vs);
 		vs->vs_isr |= isr;
 		pci_generate_msi(vs->vs_pi, 0);
-#ifdef __amd64__
 		pci_lintr_assert(vs->vs_pi);
-#endif
 		VS_UNLOCK(vs);
 	}
 }

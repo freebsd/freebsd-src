@@ -73,9 +73,7 @@ device_set_usb_desc(device_t dev)
 {
 	struct usb_attach_arg *uaa;
 	struct usb_device *udev;
-	struct usb_interface *iface;
 	char *temp_p;
-	usb_error_t err;
 	uint8_t do_unlock;
 
 	if (dev == NULL) {
@@ -88,33 +86,11 @@ device_set_usb_desc(device_t dev)
 		return;
 	}
 	udev = uaa->device;
-	iface = uaa->iface;
-
-	if ((iface == NULL) ||
-	    (iface->idesc == NULL) ||
-	    (iface->idesc->iInterface == 0)) {
-		err = USB_ERR_INVAL;
-	} else {
-		err = 0;
-	}
 
 	/* Protect scratch area */
 	do_unlock = usbd_ctrl_lock(udev);
-
 	temp_p = (char *)udev->scratch.data;
-
-	if (err == 0) {
-		/* try to get the interface string ! */
-		err = usbd_req_get_string_any(udev, NULL, temp_p,
-		    sizeof(udev->scratch.data),
-		    iface->idesc->iInterface);
-	}
-	if (err != 0) {
-		/* use default description */
-		usb_devinfo(udev, temp_p,
-		    sizeof(udev->scratch.data));
-	}
-
+	usb_devinfo(udev, temp_p, sizeof(udev->scratch.data));
 	if (do_unlock)
 		usbd_ctrl_unlock(udev);
 

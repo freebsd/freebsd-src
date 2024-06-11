@@ -599,5 +599,5 @@ wwvb_control(
 #endif	/* HAVE_PPSAPI */
 
 #else
-int refclock_wwvb_bs;
+NONEMPTY_TRANSLATION_UNIT
 #endif /* REFCLOCK */

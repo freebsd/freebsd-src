@@ -68,6 +68,7 @@ tpm20_read(struct cdev *dev, struct uio *uio, int flags)
 {
 	struct tpm_sc *sc;
 	size_t bytes_to_transfer;
+	size_t offset;
 	int result = 0;
 
 	sc = (struct tpm_sc *)dev->si_drv1;
@@ -80,10 +81,10 @@ tpm20_read(struct cdev *dev, struct uio *uio, int flags)
 	}
 
 	bytes_to_transfer = MIN(sc->pending_data_length, uio->uio_resid);
+	offset = sc->total_length - sc->pending_data_length;
 	if (bytes_to_transfer > 0) {
-		result = uiomove((caddr_t) sc->buf, bytes_to_transfer, uio);
-		memset(sc->buf, 0, TPM_BUFSIZE);
-		sc->pending_data_length = 0;
+		result = uiomove((caddr_t) sc->buf + offset, bytes_to_transfer, uio);
+		sc->pending_data_length -= bytes_to_transfer;
 		cv_signal(&sc->buf_cv);
 	} else {
 		result = ETIMEDOUT;
@@ -127,7 +128,7 @@ tpm20_write(struct cdev *dev, struct uio *uio, int flags)
 		return (result);
 	}
 
-	result = sc->transmit(sc, byte_count);
+	result = TPM_TRANSMIT(sc->dev, byte_count);
 
 	if (result == 0) {
 		callout_reset(&sc->discard_buffer_callout,
@@ -152,6 +153,7 @@ tpm20_discard_buffer(void *arg)
 
 	memset(sc->buf, 0, TPM_BUFSIZE);
 	sc->pending_data_length = 0;
+	sc->total_length = 0;
 
 	cv_signal(&sc->buf_cv);
 	sx_xunlock(&sc->dev_lock);
@@ -191,6 +193,7 @@ tpm20_init(struct tpm_sc *sc)
 	cv_init(&sc->buf_cv, "TPM buffer cv");
 	callout_init(&sc->discard_buffer_callout, 1);
 	sc->pending_data_length = 0;
+	sc->total_length = 0;
 
 	make_dev_args_init(&args);
 	args.mda_devsw = &tpm20_cdevsw;
@@ -267,7 +270,7 @@ tpm20_harvest(void *arg, int unused)
 		cv_wait(&sc->buf_cv, &sc->dev_lock);
 
 	memcpy(sc->buf, cmd, sizeof(cmd));
-	result = sc->transmit(sc, sizeof(cmd));
+	result = TPM_TRANSMIT(sc->dev, sizeof(cmd));
 	if (result != 0) {
 		sx_xunlock(&sc->dev_lock);
 		return;
@@ -275,6 +278,7 @@ tpm20_harvest(void *arg, int unused)
 
 	/* Ignore response size */
 	sc->pending_data_length = 0;
+	sc->total_length = 0;
 
 	/* The number of random bytes we got is placed right after the header */
 	entropy_size = (uint16_t) sc->buf[TPM_HEADER_SIZE + 1];
@@ -319,7 +323,7 @@ tpm20_save_state(device_t dev, bool suspend)
 	sx_xlock(&sc->dev_lock);
 
 	memcpy(sc->buf, save_cmd, sizeof(save_cmd));
-	sc->transmit(sc, sizeof(save_cmd));
+	TPM_TRANSMIT(sc->dev, sizeof(save_cmd));
 
 	sx_xunlock(&sc->dev_lock);
 

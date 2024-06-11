@@ -456,7 +456,7 @@ default_symver(__ibv_init_wq, ibv_init_wq);
 
 void __ibv_cleanup_wq(struct ibv_wq *wq)
 {
-	pthread_cond_destroy(&wq->mutex);
+	pthread_cond_destroy(&wq->cond);
 	pthread_mutex_destroy(&wq->mutex);
 }
 default_symver(__ibv_cleanup_wq, ibv_cleanup_wq);

@@ -263,19 +263,18 @@ dpaa2_rc_alloc_resource(device_t rcdev, device_t child, int type, int *rid,
 }
 
 static int
-dpaa2_rc_release_resource(device_t rcdev, device_t child, int type, int rid,
-    struct resource *r)
+dpaa2_rc_release_resource(device_t rcdev, device_t child, struct resource *r)
 {
 	struct resource_list *rl;
 	struct dpaa2_devinfo *dinfo;
 
 	if (device_get_parent(child) != rcdev)
 		return (BUS_RELEASE_RESOURCE(device_get_parent(rcdev), child,
-		    type, rid, r));
+		    r));
 
 	dinfo = device_get_ivars(child);
 	rl = &dinfo->resources;
-	return (resource_list_release(rl, rcdev, child, type, rid, r));
+	return (resource_list_release(rl, rcdev, child, r));
 }
 
 static void

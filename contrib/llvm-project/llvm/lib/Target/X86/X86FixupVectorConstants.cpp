@@ -9,7 +9,7 @@
 // This file examines all full size vector constant pool loads and attempts to
 // replace them with smaller constant pool entries, including:
 // * Converting AVX512 memory-fold instructions to their broadcast-fold form
-// * TODO: Broadcasting of full width loads.
+// * Broadcasting of full width loads.
 // * TODO: Sign/Zero extension of full width loads.
 //
 //===----------------------------------------------------------------------===//
@@ -61,23 +61,6 @@ INITIALIZE_PASS(X86FixupVectorConstantsPass, DEBUG_TYPE, DEBUG_TYPE, false, fals
 
 FunctionPass *llvm::createX86FixupVectorConstants() {
   return new X86FixupVectorConstantsPass();
-}
-
-static const Constant *getConstantFromPool(const MachineInstr &MI,
-                                           const MachineOperand &Op) {
-  if (!Op.isCPI() || Op.getOffset() != 0)
-    return nullptr;
-
-  ArrayRef<MachineConstantPoolEntry> Constants =
-      MI.getParent()->getParent()->getConstantPool()->getConstants();
-  const MachineConstantPoolEntry &ConstantEntry = Constants[Op.getIndex()];
-
-  // Bail if this is a machine constant pool entry, we won't be able to dig out
-  // anything useful.
-  if (ConstantEntry.isMachineConstantPoolEntry())
-    return nullptr;
-
-  return ConstantEntry.Val.ConstVal;
 }
 
 // Attempt to extract the full width of bits data from the constant.
@@ -175,9 +158,49 @@ static std::optional<APInt> getSplatableConstant(const Constant *C,
   return std::nullopt;
 }
 
+// Split raw bits into a constant vector of elements of a specific bit width.
+// NOTE: We don't always bother converting to scalars if the vector length is 1.
+static Constant *rebuildConstant(LLVMContext &Ctx, Type *SclTy,
+                                 const APInt &Bits, unsigned NumSclBits) {
+  unsigned BitWidth = Bits.getBitWidth();
+
+  if (NumSclBits == 8) {
+    SmallVector<uint8_t> RawBits;
+    for (unsigned I = 0; I != BitWidth; I += 8)
+      RawBits.push_back(Bits.extractBits(8, I).getZExtValue());
+    return ConstantDataVector::get(Ctx, RawBits);
+  }
+
+  if (NumSclBits == 16) {
+    SmallVector<uint16_t> RawBits;
+    for (unsigned I = 0; I != BitWidth; I += 16)
+      RawBits.push_back(Bits.extractBits(16, I).getZExtValue());
+    if (SclTy->is16bitFPTy())
+      return ConstantDataVector::getFP(SclTy, RawBits);
+    return ConstantDataVector::get(Ctx, RawBits);
+  }
+
+  if (NumSclBits == 32) {
+    SmallVector<uint32_t> RawBits;
+    for (unsigned I = 0; I != BitWidth; I += 32)
+      RawBits.push_back(Bits.extractBits(32, I).getZExtValue());
+    if (SclTy->isFloatTy())
+      return ConstantDataVector::getFP(SclTy, RawBits);
+    return ConstantDataVector::get(Ctx, RawBits);
+  }
+
+  assert(NumSclBits == 64 && "Unhandled vector element width");
+
+  SmallVector<uint64_t> RawBits;
+  for (unsigned I = 0; I != BitWidth; I += 64)
+    RawBits.push_back(Bits.extractBits(64, I).getZExtValue());
+  if (SclTy->isDoubleTy())
+    return ConstantDataVector::getFP(SclTy, RawBits);
+  return ConstantDataVector::get(Ctx, RawBits);
+}
+
 // Attempt to rebuild a normalized splat vector constant of the requested splat
 // width, built up of potentially smaller scalar values.
-// NOTE: We don't always bother converting to scalars if the vector length is 1.
 static Constant *rebuildSplatableConstant(const Constant *C,
                                           unsigned SplatBitWidth) {
   std::optional<APInt> Splat = getSplatableConstant(C, SplatBitWidth);
@@ -191,38 +214,13 @@ static Constant *rebuildSplatableConstant(const Constant *C,
   unsigned NumSclBits = SclTy->getPrimitiveSizeInBits();
   NumSclBits = std::min<unsigned>(NumSclBits, SplatBitWidth);
 
-  if (NumSclBits == 8) {
-    SmallVector<uint8_t> RawBits;
-    for (unsigned I = 0; I != SplatBitWidth; I += 8)
-      RawBits.push_back(Splat->extractBits(8, I).getZExtValue());
-    return ConstantDataVector::get(OriginalType->getContext(), RawBits);
-  }
-
-  if (NumSclBits == 16) {
-    SmallVector<uint16_t> RawBits;
-    for (unsigned I = 0; I != SplatBitWidth; I += 16)
-      RawBits.push_back(Splat->extractBits(16, I).getZExtValue());
-    if (SclTy->is16bitFPTy())
-      return ConstantDataVector::getFP(SclTy, RawBits);
-    return ConstantDataVector::get(OriginalType->getContext(), RawBits);
-  }
-
-  if (NumSclBits == 32) {
-    SmallVector<uint32_t> RawBits;
-    for (unsigned I = 0; I != SplatBitWidth; I += 32)
-      RawBits.push_back(Splat->extractBits(32, I).getZExtValue());
-    if (SclTy->isFloatTy())
-      return ConstantDataVector::getFP(SclTy, RawBits);
-    return ConstantDataVector::get(OriginalType->getContext(), RawBits);
-  }
-
   // Fallback to i64 / double.
-  SmallVector<uint64_t> RawBits;
-  for (unsigned I = 0; I != SplatBitWidth; I += 64)
-    RawBits.push_back(Splat->extractBits(64, I).getZExtValue());
-  if (SclTy->isDoubleTy())
-    return ConstantDataVector::getFP(SclTy, RawBits);
-  return ConstantDataVector::get(OriginalType->getContext(), RawBits);
+  NumSclBits = (NumSclBits == 8 || NumSclBits == 16 || NumSclBits == 32)
+                   ? NumSclBits
+                   : 64;
+
+  // Extract per-element bits.
+  return rebuildConstant(OriginalType->getContext(), SclTy, *Splat, NumSclBits);
 }
 
 bool X86FixupVectorConstantsPass::processInstruction(MachineFunction &MF,
@@ -230,8 +228,10 @@ bool X86FixupVectorConstantsPass::processInstruction(MachineFunction &MF,
                                                      MachineInstr &MI) {
   unsigned Opc = MI.getOpcode();
   MachineConstantPool *CP = MI.getParent()->getParent()->getConstantPool();
+  bool HasAVX2 = ST->hasAVX2();
   bool HasDQI = ST->hasDQI();
   bool HasBWI = ST->hasBWI();
+  bool HasVLX = ST->hasVLX();
 
   auto ConvertToBroadcast = [&](unsigned OpBcst256, unsigned OpBcst128,
                                 unsigned OpBcst64, unsigned OpBcst32,
@@ -240,8 +240,7 @@ bool X86FixupVectorConstantsPass::processInstruction(MachineFunction &MF,
     assert(MI.getNumOperands() >= (OperandNo + X86::AddrNumOperands) &&
            "Unexpected number of operands!");
 
-    MachineOperand &CstOp = MI.getOperand(OperandNo + X86::AddrDisp);
-    if (auto *C = getConstantFromPool(MI, CstOp)) {
+    if (auto *C = X86::getConstantFromPool(MI, OperandNo)) {
       // Attempt to detect a suitable splat from increasing splat widths.
       std::pair<unsigned, unsigned> Broadcasts[] = {
           {8, OpBcst8},   {16, OpBcst16},   {32, OpBcst32},
@@ -255,7 +254,7 @@ bool X86FixupVectorConstantsPass::processInstruction(MachineFunction &MF,
             unsigned NewCPI =
                 CP->getConstantPoolIndex(NewCst, Align(BitWidth / 8));
             MI.setDesc(TII->get(OpBcst));
-            CstOp.setIndex(NewCPI);
+            MI.getOperand(OperandNo + X86::AddrDisp).setIndex(NewCPI);
             return true;
           }
         }
@@ -283,7 +282,7 @@ bool X86FixupVectorConstantsPass::processInstruction(MachineFunction &MF,
   case X86::VMOVAPSYrm:
   case X86::VMOVUPDYrm:
   case X86::VMOVUPSYrm:
-    return ConvertToBroadcast(0, X86::VBROADCASTF128, X86::VBROADCASTSDYrm,
+    return ConvertToBroadcast(0, X86::VBROADCASTF128rm, X86::VBROADCASTSDYrm,
                               X86::VBROADCASTSSYrm, 0, 0, 1);
   case X86::VMOVAPDZ128rm:
   case X86::VMOVAPSZ128rm:
@@ -295,33 +294,32 @@ bool X86FixupVectorConstantsPass::processInstruction(MachineFunction &MF,
   case X86::VMOVAPSZ256rm:
   case X86::VMOVUPDZ256rm:
   case X86::VMOVUPSZ256rm:
-    return ConvertToBroadcast(
-        0, HasDQI ? X86::VBROADCASTF64X2Z128rm : X86::VBROADCASTF32X4Z256rm,
-        X86::VBROADCASTSDZ256rm, X86::VBROADCASTSSZ256rm, 0, 0, 1);
+    return ConvertToBroadcast(0, X86::VBROADCASTF32X4Z256rm,
+                              X86::VBROADCASTSDZ256rm, X86::VBROADCASTSSZ256rm,
+                              0, 0, 1);
   case X86::VMOVAPDZrm:
   case X86::VMOVAPSZrm:
   case X86::VMOVUPDZrm:
   case X86::VMOVUPSZrm:
-    return ConvertToBroadcast(
-        HasDQI ? X86::VBROADCASTF32X8rm : X86::VBROADCASTF64X4rm,
-        HasDQI ? X86::VBROADCASTF64X2rm : X86::VBROADCASTF32X4rm,
-        X86::VBROADCASTSDZrm, X86::VBROADCASTSSZrm, 0, 0, 1);
+    return ConvertToBroadcast(X86::VBROADCASTF64X4rm, X86::VBROADCASTF32X4rm,
+                              X86::VBROADCASTSDZrm, X86::VBROADCASTSSZrm, 0, 0,
+                              1);
     /* Integer Loads */
   case X86::VMOVDQArm:
   case X86::VMOVDQUrm:
-    if (ST->hasAVX2())
-      return ConvertToBroadcast(0, 0, X86::VPBROADCASTQrm, X86::VPBROADCASTDrm,
-                                X86::VPBROADCASTWrm, X86::VPBROADCASTBrm, 1);
-    return ConvertToBroadcast(0, 0, X86::VMOVDDUPrm, X86::VBROADCASTSSrm, 0, 0,
-                              1);
+    return ConvertToBroadcast(
+        0, 0, HasAVX2 ? X86::VPBROADCASTQrm : X86::VMOVDDUPrm,
+        HasAVX2 ? X86::VPBROADCASTDrm : X86::VBROADCASTSSrm,
+        HasAVX2 ? X86::VPBROADCASTWrm : 0, HasAVX2 ? X86::VPBROADCASTBrm : 0,
+        1);
   case X86::VMOVDQAYrm:
   case X86::VMOVDQUYrm:
-    if (ST->hasAVX2())
-      return ConvertToBroadcast(0, X86::VBROADCASTI128, X86::VPBROADCASTQYrm,
-                                X86::VPBROADCASTDYrm, X86::VPBROADCASTWYrm,
-                                X86::VPBROADCASTBYrm, 1);
-    return ConvertToBroadcast(0, X86::VBROADCASTF128, X86::VBROADCASTSDYrm,
-                              X86::VBROADCASTSSYrm, 0, 0, 1);
+    return ConvertToBroadcast(
+        0, HasAVX2 ? X86::VBROADCASTI128rm : X86::VBROADCASTF128rm,
+        HasAVX2 ? X86::VPBROADCASTQYrm : X86::VBROADCASTSDYrm,
+        HasAVX2 ? X86::VPBROADCASTDYrm : X86::VBROADCASTSSYrm,
+        HasAVX2 ? X86::VPBROADCASTWYrm : 0, HasAVX2 ? X86::VPBROADCASTBYrm : 0,
+        1);
   case X86::VMOVDQA32Z128rm:
   case X86::VMOVDQA64Z128rm:
   case X86::VMOVDQU32Z128rm:
@@ -334,37 +332,36 @@ bool X86FixupVectorConstantsPass::processInstruction(MachineFunction &MF,
   case X86::VMOVDQA64Z256rm:
   case X86::VMOVDQU32Z256rm:
   case X86::VMOVDQU64Z256rm:
-    return ConvertToBroadcast(
-        0, HasDQI ? X86::VBROADCASTI64X2Z128rm : X86::VBROADCASTI32X4Z256rm,
-        X86::VPBROADCASTQZ256rm, X86::VPBROADCASTDZ256rm,
-        HasBWI ? X86::VPBROADCASTWZ256rm : 0,
-        HasBWI ? X86::VPBROADCASTBZ256rm : 0, 1);
+    return ConvertToBroadcast(0, X86::VBROADCASTI32X4Z256rm,
+                              X86::VPBROADCASTQZ256rm, X86::VPBROADCASTDZ256rm,
+                              HasBWI ? X86::VPBROADCASTWZ256rm : 0,
+                              HasBWI ? X86::VPBROADCASTBZ256rm : 0, 1);
   case X86::VMOVDQA32Zrm:
   case X86::VMOVDQA64Zrm:
   case X86::VMOVDQU32Zrm:
   case X86::VMOVDQU64Zrm:
-    return ConvertToBroadcast(
-        HasDQI ? X86::VBROADCASTI32X8rm : X86::VBROADCASTI64X4rm,
-        HasDQI ? X86::VBROADCASTI64X2rm : X86::VBROADCASTI32X4rm,
-        X86::VPBROADCASTQZrm, X86::VPBROADCASTDZrm,
-        HasBWI ? X86::VPBROADCASTWZrm : 0, HasBWI ? X86::VPBROADCASTBZrm : 0,
-        1);
+    return ConvertToBroadcast(X86::VBROADCASTI64X4rm, X86::VBROADCASTI32X4rm,
+                              X86::VPBROADCASTQZrm, X86::VPBROADCASTDZrm,
+                              HasBWI ? X86::VPBROADCASTWZrm : 0,
+                              HasBWI ? X86::VPBROADCASTBZrm : 0, 1);
   }
 
-  // Attempt to find a AVX512 mapping from a full width memory-fold instruction
-  // to a broadcast-fold instruction variant.
-  if ((MI.getDesc().TSFlags & X86II::EncodingMask) == X86II::EVEX) {
+  auto ConvertToBroadcastAVX512 = [&](unsigned OpSrc32, unsigned OpSrc64) {
     unsigned OpBcst32 = 0, OpBcst64 = 0;
     unsigned OpNoBcst32 = 0, OpNoBcst64 = 0;
-    if (const X86MemoryFoldTableEntry *Mem2Bcst =
-            llvm::lookupBroadcastFoldTable(Opc, 32)) {
-      OpBcst32 = Mem2Bcst->DstOp;
-      OpNoBcst32 = Mem2Bcst->Flags & TB_INDEX_MASK;
+    if (OpSrc32) {
+      if (const X86FoldTableEntry *Mem2Bcst =
+              llvm::lookupBroadcastFoldTable(OpSrc32, 32)) {
+        OpBcst32 = Mem2Bcst->DstOp;
+        OpNoBcst32 = Mem2Bcst->Flags & TB_INDEX_MASK;
+      }
     }
-    if (const X86MemoryFoldTableEntry *Mem2Bcst =
-            llvm::lookupBroadcastFoldTable(Opc, 64)) {
-      OpBcst64 = Mem2Bcst->DstOp;
-      OpNoBcst64 = Mem2Bcst->Flags & TB_INDEX_MASK;
+    if (OpSrc64) {
+      if (const X86FoldTableEntry *Mem2Bcst =
+              llvm::lookupBroadcastFoldTable(OpSrc64, 64)) {
+        OpBcst64 = Mem2Bcst->DstOp;
+        OpNoBcst64 = Mem2Bcst->Flags & TB_INDEX_MASK;
+      }
     }
     assert(((OpBcst32 == 0) || (OpBcst64 == 0) || (OpNoBcst32 == OpNoBcst64)) &&
            "OperandNo mismatch");
@@ -373,6 +370,70 @@ bool X86FixupVectorConstantsPass::processInstruction(MachineFunction &MF,
       unsigned OpNo = OpBcst32 == 0 ? OpNoBcst64 : OpNoBcst32;
       return ConvertToBroadcast(0, 0, OpBcst64, OpBcst32, 0, 0, OpNo);
     }
+    return false;
+  };
+
+  // Attempt to find a AVX512 mapping from a full width memory-fold instruction
+  // to a broadcast-fold instruction variant.
+  if ((MI.getDesc().TSFlags & X86II::EncodingMask) == X86II::EVEX)
+    return ConvertToBroadcastAVX512(Opc, Opc);
+
+  // Reverse the X86InstrInfo::setExecutionDomainCustom EVEX->VEX logic
+  // conversion to see if we can convert to a broadcasted (integer) logic op.
+  if (HasVLX && !HasDQI) {
+    unsigned OpSrc32 = 0, OpSrc64 = 0;
+    switch (Opc) {
+    case X86::VANDPDrm:
+    case X86::VANDPSrm:
+    case X86::VPANDrm:
+      OpSrc32 = X86 ::VPANDDZ128rm;
+      OpSrc64 = X86 ::VPANDQZ128rm;
+      break;
+    case X86::VANDPDYrm:
+    case X86::VANDPSYrm:
+    case X86::VPANDYrm:
+      OpSrc32 = X86 ::VPANDDZ256rm;
+      OpSrc64 = X86 ::VPANDQZ256rm;
+      break;
+    case X86::VANDNPDrm:
+    case X86::VANDNPSrm:
+    case X86::VPANDNrm:
+      OpSrc32 = X86 ::VPANDNDZ128rm;
+      OpSrc64 = X86 ::VPANDNQZ128rm;
+      break;
+    case X86::VANDNPDYrm:
+    case X86::VANDNPSYrm:
+    case X86::VPANDNYrm:
+      OpSrc32 = X86 ::VPANDNDZ256rm;
+      OpSrc64 = X86 ::VPANDNQZ256rm;
+      break;
+    case X86::VORPDrm:
+    case X86::VORPSrm:
+    case X86::VPORrm:
+      OpSrc32 = X86 ::VPORDZ128rm;
+      OpSrc64 = X86 ::VPORQZ128rm;
+      break;
+    case X86::VORPDYrm:
+    case X86::VORPSYrm:
+    case X86::VPORYrm:
+      OpSrc32 = X86 ::VPORDZ256rm;
+      OpSrc64 = X86 ::VPORQZ256rm;
+      break;
+    case X86::VXORPDrm:
+    case X86::VXORPSrm:
+    case X86::VPXORrm:
+      OpSrc32 = X86 ::VPXORDZ128rm;
+      OpSrc64 = X86 ::VPXORQZ128rm;
+      break;
+    case X86::VXORPDYrm:
+    case X86::VXORPSYrm:
+    case X86::VPXORYrm:
+      OpSrc32 = X86 ::VPXORDZ256rm;
+      OpSrc64 = X86 ::VPXORQZ256rm;
+      break;
+    }
+    if (OpSrc32 || OpSrc64)
+      return ConvertToBroadcastAVX512(OpSrc32, OpSrc64);
   }
 
   return false;

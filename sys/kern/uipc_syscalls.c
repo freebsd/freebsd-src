@@ -199,8 +199,12 @@ kern_bindat(struct thread *td, int dirfd, int fd, struct sockaddr *sa)
 	int error;
 
 #ifdef CAPABILITY_MODE
-	if (IN_CAPABILITY_MODE(td) && (dirfd == AT_FDCWD))
-		return (ECAPMODE);
+	if (dirfd == AT_FDCWD) {
+		if (CAP_TRACING(td))
+			ktrcapfail(CAPFAIL_NAMEI, "AT_FDCWD");
+		if (IN_CAPABILITY_MODE(td))
+			return (ECAPMODE);
+	}
 #endif
 
 	AUDIT_ARG_FD(fd);
@@ -468,8 +472,12 @@ kern_connectat(struct thread *td, int dirfd, int fd, struct sockaddr *sa)
 	int error;
 
 #ifdef CAPABILITY_MODE
-	if (IN_CAPABILITY_MODE(td) && (dirfd == AT_FDCWD))
-		return (ECAPMODE);
+	if (dirfd == AT_FDCWD) {
+		if (CAP_TRACING(td))
+			ktrcapfail(CAPFAIL_NAMEI, "AT_FDCWD");
+		if (IN_CAPABILITY_MODE(td))
+			return (ECAPMODE);
+	}
 #endif
 
 	AUDIT_ARG_FD(fd);
@@ -646,11 +654,6 @@ sendit(struct thread *td, int s, struct msghdr *mp, int flags)
 	struct sockaddr *to;
 	int error;
 
-#ifdef CAPABILITY_MODE
-	if (IN_CAPABILITY_MODE(td) && (mp->msg_name != NULL))
-		return (ECAPMODE);
-#endif
-
 	if (mp->msg_name != NULL) {
 		error = getsockaddr(&to, mp->msg_name, mp->msg_namelen);
 		if (error != 0) {
@@ -658,6 +661,14 @@ sendit(struct thread *td, int s, struct msghdr *mp, int flags)
 			goto bad;
 		}
 		mp->msg_name = to;
+#ifdef CAPABILITY_MODE
+		if (CAP_TRACING(td))
+			ktrcapfail(CAPFAIL_SOCKADDR, mp->msg_name);
+		if (IN_CAPABILITY_MODE(td)) {
+			error = ECAPMODE;
+			goto bad;
+		}
+#endif
 	} else {
 		to = NULL;
 	}
@@ -772,7 +783,8 @@ kern_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
 		td->td_retval[0] = len - auio.uio_resid;
 #ifdef KTRACE
 	if (ktruio != NULL) {
-		ktruio->uio_resid = td->td_retval[0];
+		if (error == 0)
+			ktruio->uio_resid = td->td_retval[0];
 		ktrgenio(s, UIO_WRITE, ktruio, error);
 	}
 #endif
@@ -1172,6 +1184,9 @@ kern_shutdown(struct thread *td, int s, int how)
 	struct file *fp;
 	int error;
 
+	if (__predict_false(how < SHUT_RD || how > SHUT_RDWR))
+		return (EINVAL);
+
 	AUDIT_ARG_FD(s);
 	error = getsock(td, s, &cap_shutdown_rights, &fp);
 	if (error == 0) {
@@ -1409,7 +1424,7 @@ kern_getpeername(struct thread *td, int fd, struct sockaddr *sa)
 	if (error != 0)
 		return (error);
 	so = fp->f_data;
-	if ((so->so_state & (SS_ISCONNECTED|SS_ISCONFIRMING)) == 0) {
+	if ((so->so_state & SS_ISCONNECTED) == 0) {
 		error = ENOTCONN;
 		goto done;
 	}

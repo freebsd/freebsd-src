@@ -1,4 +1,3 @@
-
 OUTPUT_FORMAT("elf32-powerpc-freebsd", "elf32-powerpc-freebsd",
 	      "elf32-powerpc-freebsd")
 OUTPUT_ARCH(powerpc)
@@ -86,7 +85,7 @@ SECTIONS
      get relocated with -mrelocatable. Also put in the .fixup pointers.
      The current compiler no longer needs this, but keep it around for 2.7.2  */
                 PROVIDE (_GOT2_START_ = .);
-  .got2           :  { *(.got2) }
+  .got2           :  { *(.got2) } :kernel
                 PROVIDE (__CTOR_LIST__ = .);
   .ctors          : { *(.ctors) }
                 PROVIDE (__CTOR_END__ = .);
@@ -100,7 +99,7 @@ SECTIONS
   /* We want the small data sections together, so single-instruction offsets
      can access them all, and initialized data all before uninitialized, so
      we can shorten the on-disk segment size.  */
-  .sdata     : { *(.sdata) } :kernel
+  .sdata     : { *(.sdata) }
   _edata  =  .;
   PROVIDE (edata = .);
   .sbss      :
@@ -149,6 +148,7 @@ SECTIONS
   .debug_funcnames 0 : { *(.debug_funcnames) }
   .debug_typenames 0 : { *(.debug_typenames) }
   .debug_varnames  0 : { *(.debug_varnames) }
-  /* These must appear regardless of  .  */
-}
 
+  .gnu.attributes 0 : { KEEP (*(.gnu.attributes)) }
+  /DISCARD/ : { *(.note.GNU-stack) }
+}

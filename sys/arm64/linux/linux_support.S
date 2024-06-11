@@ -26,6 +26,8 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/elf_common.h>
+
 #include <machine/asm.h>
 #include <machine/param.h>
 #include <machine/vmparam.h>
@@ -172,3 +174,5 @@ ENTRY(futex_xorl)
 	str w4, [x2]
 	ret
 END(futex_xorl)
+
+GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)

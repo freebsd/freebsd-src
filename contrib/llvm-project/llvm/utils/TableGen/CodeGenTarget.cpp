@@ -43,7 +43,7 @@ static cl::opt<unsigned>
 
 /// getValueType - Return the MVT::SimpleValueType that the specified TableGen
 /// record corresponds to.
-MVT::SimpleValueType llvm::getValueType(Record *Rec) {
+MVT::SimpleValueType llvm::getValueType(const Record *Rec) {
   return (MVT::SimpleValueType)Rec->getValueAsInt("Value");
 }
 
@@ -291,6 +291,7 @@ CodeGenTarget::CodeGenTarget(RecordKeeper &records)
   if (Targets.size() != 1)
     PrintFatalError("Multiple subclasses of Target defined!");
   TargetRec = Targets[0];
+  MacroFusions = Records.getAllDerivedDefinitions("Fusion");
 }
 
 CodeGenTarget::~CodeGenTarget() {

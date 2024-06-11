@@ -372,8 +372,6 @@ struct igc_adapter {
 
         u32		txd_cmd;
 
-        u32             tx_process_limit;
-        u32             rx_process_limit;
 	u32		rx_mbuf_sz;
 
 	/* Management and WOL features */

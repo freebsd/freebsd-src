@@ -510,9 +510,9 @@ struct ieee80211_key_conf {
 	uint8_t				hw_key_idx;	/* Set by drv. */
 	uint8_t				keyidx;
 	uint16_t			flags;
-	uint8_t				keylen;
-	uint8_t				key[0];
 	int8_t				link_id;	/* signed! */
+	uint8_t				keylen;
+	uint8_t				key[0];		/* Must stay last! */
 };
 
 struct ieee80211_key_seq {
@@ -528,6 +528,9 @@ struct ieee80211_key_seq {
 		struct {
 			uint8_t		pn[IEEE80211_CCMP_PN_LEN];
 		} aes_cmac;
+		struct {
+			uint8_t		pn[IEEE80211_CCMP_PN_LEN];
+		} aes_gmac;
 		struct {
 			uint32_t	iv32;
 			uint16_t	iv16;
@@ -1117,6 +1120,8 @@ void linuxkpi_ieee80211_txq_schedule_start(struct ieee80211_hw *, uint8_t);
 struct ieee80211_txq *linuxkpi_ieee80211_next_txq(struct ieee80211_hw *, uint8_t);
 void linuxkpi_ieee80211_schedule_txq(struct ieee80211_hw *,
     struct ieee80211_txq *, bool);
+void linuxkpi_ieee80211_handle_wake_tx_queue(struct ieee80211_hw *,
+	struct ieee80211_txq *);
 
 /* -------------------------------------------------------------------------- */
 
@@ -1248,7 +1253,7 @@ ieee80211_hw_restart_disconnect(struct ieee80211_vif *vif)
 	    (_link = rcu_dereference((_vif)->link_conf[_linkid])) )
 
 #define	for_each_sta_active_link(_vif, _sta, _linksta, _linkid)		\
-    for (_linkid = 0; _linkid < nitems((_vif)->link_conf); _linkid++)	\
+    for (_linkid = 0; _linkid < nitems((_sta)->link); _linkid++)	\
 	if ( ((_vif)->active_links == 0 /* no MLO */ ||			\
 	    ((_vif)->active_links & BIT(_linkid)) != 0) &&		\
 	    (_linksta = link_sta_dereference_protected((_sta), (_linkid))) )
@@ -1681,7 +1686,7 @@ static inline void
 ieee80211_return_txq(struct ieee80211_hw *hw, struct ieee80211_txq *txq,
     bool withoutpkts)
 {
-	linuxkpi_ieee80211_schedule_txq(hw, txq, true);
+	linuxkpi_ieee80211_schedule_txq(hw, txq, withoutpkts);
 }
 
 static inline void
@@ -1706,7 +1711,7 @@ static inline void
 ieee80211_handle_wake_tx_queue(struct ieee80211_hw *hw,
     struct ieee80211_txq *txq)
 {
-	TODO();
+	linuxkpi_ieee80211_handle_wake_tx_queue(hw, txq);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2197,11 +2202,23 @@ ieee80211_tkip_add_iv(u8 *crypto_hdr, struct ieee80211_key_conf *keyconf,
 	TODO();
 }
 
-static __inline struct sk_buff *
+static inline struct sk_buff *
 ieee80211_tx_dequeue(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
 {
 
 	return (linuxkpi_ieee80211_tx_dequeue(hw, txq));
+}
+
+static inline struct sk_buff *
+ieee80211_tx_dequeue_ni(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
+{
+	struct sk_buff *skb;
+
+	local_bh_disable();
+	skb = linuxkpi_ieee80211_tx_dequeue(hw, txq);
+	local_bh_enable();
+
+	return (skb);
 }
 
 static __inline void
@@ -2454,13 +2471,6 @@ ieee80211_stop_rx_ba_session_offl(struct ieee80211_vif *vif, uint8_t *addr,
     uint8_t tid)
 {
 	TODO();
-}
-
-static __inline struct sk_buff *
-ieee80211_tx_dequeue_ni(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
-{
-	TODO();
-	return (NULL);
 }
 
 static __inline void

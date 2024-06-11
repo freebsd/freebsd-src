@@ -161,7 +161,7 @@ tpm_ppi_deinit(void *sc)
 	ppi = sc;
 
 	error = unregister_mem(&ppi_mmio);
-	assert(error = 0);
+	assert(error == 0);
 
 	free(ppi);
 }

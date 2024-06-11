@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 2, 2020
+.Dd May 16, 2024
 .Dt CAPSICUM_HELPERS 3
 .Os
 .Sh NAME
@@ -150,6 +150,31 @@ NLS data is used for localized error printing by
 and
 .Xr err 3 ,
 among others.
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn caph_enter ,
+.Fn caph_enter_casper ,
+.Fn caph_rights_limit ,
+.Fn caph_ioctls_limit ,
+.Fn caph_fcntls_limit ,
+.Fn caph_limit_stream ,
+.Fn caph_limit_stdin ,
+.Fn caph_limit_stderr ,
+.Fn caph_limit_stdout ,
+and
+.Fn caph_limit_stdio
+return a value
+of 0.
+Otherwise, a value of -1 is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Pp
+Functions
+.Fn caph_stream_rights ,
+.Fn caph_cache_tzdata ,
+and
+.Fn caph_cache_catpages
+can not fail.
 .Ed
 .Sh SEE ALSO
 .Xr cap_enter 2 ,

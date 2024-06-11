@@ -197,11 +197,15 @@ bsd_${alg}_vec${i}_body() {
 	printf '%s' \"\$inp_${i}\" >in
 	atf_check -o inline:\"\$out_${i}_${alg}\n\" ${alg} <in
 	atf_check -o inline:\"\$name_bsd_${alg} (in) = \$out_${i}_${alg}\n\" ${alg} in
+	atf_check -o inline:\"\$name_bsd_${alg} (-) = \$out_${i}_${alg}\n\" ${alg} - <in
 	atf_check -o inline:\"\$out_${i}_${alg} in\n\" ${alg} -r in
+	atf_check -o inline:\"\$out_${i}_${alg} -\n\" ${alg} -r - <in
 	# -q overrides -r regardless of order
 	for opt in -q -qr -rq ; do
 		atf_check -o inline:\"\$out_${i}_${alg}\n\" ${alg} \${opt} in
 	done
+	atf_check -o inline:\"\$inp_${i}\$out_${i}_${alg}\n\" ${alg} -p <in
+	atf_check -o inline:\"\$out_${i}_${alg}\n\" ${alg} -s \"\$inp_${i}\"
 }
 "
 		eval "
@@ -215,9 +219,13 @@ gnu_${alg}_vec${i}_body() {
 	atf_check -o inline:\"\$out_${i}_${alg}  -\n\" ${alg}sum <in
 	atf_check -o inline:\"\$out_${i}_${alg} *-\n\" ${alg}sum -b <in
 	atf_check -o inline:\"\$out_${i}_${alg}  in\n\" ${alg}sum in
+	atf_check -o inline:\"\$out_${i}_${alg}  -\n\" ${alg}sum - <in
 	atf_check -o inline:\"\$out_${i}_${alg} *in\n\" ${alg}sum -b in
+	atf_check -o inline:\"\$out_${i}_${alg} *-\n\" ${alg}sum -b - <in
 	atf_check -o inline:\"\$name_bsd_${alg} (in) = \$out_${i}_${alg}\n\" ${alg}sum --tag in
+	atf_check -o inline:\"\$name_bsd_${alg} (-) = \$out_${i}_${alg}\n\" ${alg}sum --tag - <in
 	atf_check -o inline:\"\$out_${i}_${alg}  in\0\" ${alg}sum -z in
+	atf_check -o inline:\"\$out_${i}_${alg}  -\0\" ${alg}sum -z - <in
 }
 "
 		eval "
@@ -233,9 +241,13 @@ perl_${alg}_vec${i}_body() {
 	atf_check -o inline:\"\$out_${i}_${alg} *-\n\" shasum \$alg_perl_${alg} -b <in
 	atf_check -o inline:\"\$out_${i}_${alg} U-\n\" shasum \$alg_perl_${alg} -U <in
 	atf_check -o inline:\"\$out_${i}_${alg}  in\n\" shasum \$alg_perl_${alg} in
+	atf_check -o inline:\"\$out_${i}_${alg}  -\n\" shasum \$alg_perl_${alg} - <in
 	atf_check -o inline:\"\$out_${i}_${alg} *in\n\" shasum \$alg_perl_${alg} -b in
+	atf_check -o inline:\"\$out_${i}_${alg} *-\n\" shasum \$alg_perl_${alg} -b - <in
 	atf_check -o inline:\"\$out_${i}_${alg} Uin\n\" shasum \$alg_perl_${alg} -U in
+	atf_check -o inline:\"\$out_${i}_${alg} U-\n\" shasum \$alg_perl_${alg} -U - <in
 	atf_check -o inline:\"\$name_perl_${alg} (in) = \$out_${i}_${alg}\n\" shasum \$alg_perl_${alg} --tag in
+	atf_check -o inline:\"\$name_perl_${alg} (-) = \$out_${i}_${alg}\n\" shasum \$alg_perl_${alg} --tag - <in
 }
 "
 	done
@@ -357,6 +369,28 @@ gnu_cflag_body()
 
 }
 
+atf_test_case gnu_cflag_mode
+gnu_cflag_mode_head()
+{
+	atf_set descr "Verify handling of input modes in GNU check mode"
+	atf_set require.progs "sha1sum"
+}
+gnu_cflag_mode_body()
+{
+	printf "The Magic Words are 01010011 01001111\r\n" >input
+	# The first line is malformed per GNU coreutils but matches
+	# what we produce when mode == mode_bsd && output_mode ==
+	# output_reverse (i.e. `sha1 -r`) so we want to support it.
+	cat >digests <<EOF
+53d88300dfb2be42f0ef25e3d9de798e31bb7e69 input
+53d88300dfb2be42f0ef25e3d9de798e31bb7e69 *input
+53d88300dfb2be42f0ef25e3d9de798e31bb7e69  input
+2290cf6ba4ac5387e520088de760b71a523871b0 ^input
+c1065e0d2bbc1c67dcecee0187d61316fb9c5582 Uinput
+EOF
+	atf_check sha1sum --quiet --check digests
+}
+
 atf_init_test_cases()
 {
 	for alg in $algorithms ; do
@@ -371,4 +405,5 @@ atf_init_test_cases()
 	done
 	atf_add_test_case gnu_bflag
 	atf_add_test_case gnu_cflag
+	atf_add_test_case gnu_cflag_mode
 }

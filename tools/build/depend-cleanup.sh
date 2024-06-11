@@ -218,3 +218,20 @@ clean_dep   lib/libc        fstatfs       c
 clean_dep   lib/libc        getdirentries c
 clean_dep   lib/libc        getfsstat     c
 clean_dep   lib/libc        statfs        c
+
+# 20240308  e6ffc7669a56    Remove pointless MD syscall(2)
+# 20240308  0ee0ae237324    Remove pointless MD syscall(2)
+# 20240308  7b3836c28188    Remove pointless MD syscall(2)
+if [ ${MACHINE} != i386 -a -f "$OBJTOP"/lib/libsys/.depend.syscall.o ] && \
+    grep -q -e 'libsys/[^ /]*/syscall.S' "$OBJTOP"/lib/libsys/.depend.syscall.*; then
+	echo "Removing stale <arch>/syscall.S depends"
+	clean_dep   lib/libsys  syscall S
+	clean_dep   lib/libc    syscall S
+fi
+
+# 20240416  2fda3ab0ac19    WITH_NVME: Remove from broken
+if [ -f "$OBJTOP"/rescue/rescue/rescue.mk ] && \
+    grep -q -v 'nvme_util.o' "$OBJTOP"/rescue/rescue/rescue.mk; then
+	echo "removing rescue.mk without nvme_util.o"
+	rm -f "$OBJTOP"/rescue/rescue/rescue.mk
+fi

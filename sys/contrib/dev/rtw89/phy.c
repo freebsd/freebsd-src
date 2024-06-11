@@ -1439,7 +1439,11 @@ static void rtw89_phy_init_rf_nctl(struct rtw89_dev *rtwdev)
 	ret = read_poll_timeout(rtw89_phy_nctl_poll, val, val == 0x4, 10,
 				1000, false, rtwdev);
 	if (ret)
+#if defined(__linux__)
 		rtw89_err(rtwdev, "failed to poll nctl block\n");
+#elif defined(__FreeBSD__)
+		rtw89_err(rtwdev, "failed to poll nctl block: ret %d val %#06x\n", ret, val);
+#endif
 
 	nctl_table = elm_info->rf_nctl ? elm_info->rf_nctl : chip->nctl_table;
 	rtw89_phy_init_reg(rtwdev, nctl_table, rtw89_phy_config_bb_reg, NULL);

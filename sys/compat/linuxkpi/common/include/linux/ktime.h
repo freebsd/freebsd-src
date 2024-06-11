@@ -69,6 +69,12 @@ ktime_to_ms(ktime_t kt)
 	return (ktime_divns(kt, NSEC_PER_MSEC));
 }
 
+static inline ktime_t
+ms_to_ktime(uint64_t ms)
+{
+	return (ms * NSEC_PER_MSEC);
+}
+
 static inline struct timeval
 ktime_to_timeval(ktime_t kt)
 {
@@ -259,6 +265,15 @@ ktime_get_raw_ns(void)
 	struct timespec ts;
 
 	nanouptime(&ts);
+	return (ktime_to_ns(timespec_to_ktime(ts)));
+}
+
+static inline uint64_t
+ktime_get_raw_fast_ns(void)
+{
+	struct timespec ts;
+
+	getnanouptime(&ts);
 	return (ktime_to_ns(timespec_to_ktime(ts)));
 }
 

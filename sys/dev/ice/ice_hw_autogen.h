@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2023, Intel Corporation
+/*  Copyright (c) 2024, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -5476,6 +5476,7 @@
 #define GL_MNG_FW_RAM_STAT_MNG_MEM_ECC_ERR_S	1
 #define GL_MNG_FW_RAM_STAT_MNG_MEM_ECC_ERR_M	BIT(1)
 #define GL_MNG_FWSM				0x000B6134 /* Reset Source: POR */
+#define GL_MNG_FWSM_FW_LOADING_M		BIT(30)
 #define GL_MNG_FWSM_FW_MODES_S			0
 #define GL_MNG_FWSM_FW_MODES_M			MAKEMASK(0x7, 0)
 #define GL_MNG_FWSM_RSV0_S			3

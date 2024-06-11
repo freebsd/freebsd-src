@@ -1,3 +1,6 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\"
 .\" Copyright (c) 1983, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
@@ -25,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 08, 2023
+.Dd June 6, 2024
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -135,7 +138,7 @@ and their associated
 .Ar format
 strings are:
 .Pp
-.Bl -tag -width ether
+.Bl -tag -width default
 .It Cm addr
 Adjust the display of inet and inet6 addresses:
 .Pp
@@ -200,15 +203,24 @@ Integer format, for example:
 .Ql prefixlen 64
 .El
 .El
+.Pp
+In addition, the following shortcuts are accepted:
+.Bl -tag -width default
+.It Cm default
+Resets all formats to their default values.
+.It Cm cidr
+Shortcut notation for
+.Cm inet:cidr,inet6:cidr .
+.El
+.Pp
 .It Fl G Ar groupname
 Exclude members of the specified
 .Ar groupname
 from the output.
-.Ar groupname .
 .Pp
-Only one option
+Only one
 .Fl G
-should be specified as later override previous ones
+option should be specified as later ones override earlier ones.
 .Ar groupname
 may contain shell patterns in which case it should be quoted.
 .Pp
@@ -234,9 +246,9 @@ lists names of interfaces belonging to
 .Ar groupname .
 Any other flags and arguments are ignored in this case.
 .Pp
-Only one option
+Only one
 .Fl g
-should be specified as later override previous ones
+option should be specified as later ones override earlier ones.
 .Ar groupname
 may contain shell patterns in which case it should be quoted.
 .Pp
@@ -462,13 +474,17 @@ sending out requests and listening for replies.
 .It Cm stickyarp
 Enable the so-called sticky ARP mode for the interface.
 If this option is enabled on the given interface, any resolved address is
-marked as a static one and never expires. This may be used to increase
+marked as a static one and never expires.
+This may be used to increase
 security of the network by preventing ARP spoofing or to reduce latency for
 high-performance Ethernet networks where the time needed for ARP resolution is
-too high. Please note that a similar feature is also provided for bridges. See
+too high.
+Please note that a similar feature is also provided for bridges.
+See
 the sticky option in the
 .Sx Bridge Interface Parameters
-section. Enabling this
+section.
+Enabling this
 option may impact techniques which rely on ARP expiration/overwriting feature
 such as load-balancers or high-availabity solutions such as
 .Xr carp 4 .
@@ -549,9 +565,10 @@ A FIB
 .Ar fib_number
 is assigned to all packets encapsulated by tunnel interface, e.g.,
 .Xr gif 4 ,
-.Xr gre 4
+.Xr gre 4 ,
+.Xr vxlan 4 ,
 and
-.Xr vxlan 4 .
+.Xr wg 4 .
 .It Cm maclabel Ar label
 If Mandatory Access Control support is enabled in the kernel,
 set the MAC label to
@@ -711,7 +728,7 @@ buffers, enable them on the interface.
 .It Fl mextpg
 If the driver supports extended multi-page
 .Xr mbuf 9
-biffers, disable them on the interface.
+buffers, disable them on the interface.
 .It Cm wol , wol_ucast , wol_mcast , wol_magic
 Enable Wake On Lan (WOL) support, if available.
 WOL is a facility whereby a machine in a low power state may be woken
@@ -1068,7 +1085,7 @@ Legacy
 .Cm wds
 devices have a fixed peer relationship and do not, for example, roam
 if their peer stops communicating.
-For completeness a Dynamic WDS (DWDS) interface may marked as
+For completeness a Dynamic WDS (DWDS) interface may be marked as
 .Fl wdslegacy .
 .It Cm bssid
 Request a unique local mac address for the cloned device.
@@ -1225,8 +1242,8 @@ Set the interval at which beacon frames are sent when operating in
 ad-hoc or ap mode.
 The
 .Ar interval
-parameter is specified in TU's (1024 usecs).
-By default beacon frames are transmitted every 100 TU's.
+parameter is specified in TUs (1024 usecs).
+By default beacon frames are transmitted every 100 TUs.
 .It Cm bmissthreshold Ar count
 Set the number of consecutive missed beacons at which the station
 will attempt to roam (i.e., search for a new access point).
@@ -1883,8 +1900,8 @@ Use
 .Fl powersave
 to disable powersave operation when operating as a client.
 .It Cm powersavesleep Ar sleep
-Set the desired max powersave sleep time in TU's (1024 usecs).
-By default the max powersave sleep time is 100 TU's.
+Set the desired max powersave sleep time in TUs (1024 usecs).
+By default the max powersave sleep time is 100 TUs.
 .It Cm protmode Ar technique
 For interfaces operating in 802.11g, use the specified
 .Ar technique
@@ -3150,6 +3167,20 @@ announcements to.
 Restore the default destination address for (IPv4)
 .Xr carp 4
 announcements, which is ff02::12.
+.It Cm carpver
+Set the protocol version.
+Valid choices are 2 (for
+.Xr carp 4)
+and 3 (for VRRPv3).
+This can only be set when
+.Xr carp 4
+is initiated.
+.It Cm vrrpprio
+Set the VRRPv3 priority.
+Valid values are 1-255.
+.It Cm vrrpinterval
+Set the VRRPv3 Master Advertisement Interval.
+Values are in centiseconds.
 .El
 .Sh ENVIRONMENT
 The following environment variables affect the execution of

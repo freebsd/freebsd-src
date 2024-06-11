@@ -72,12 +72,12 @@
 #endif
 
 /*
- * We provide a machine specific single page allocator through the use
- * of the direct mapped segment.  This uses 2MB pages for reduced
+ * We provide a single page allocator through the use of the
+ * direct mapped segment.  This uses 2MB pages for reduced
  * TLB pressure.
  */
 #if !defined(KASAN) && !defined(KMSAN)
-#define	UMA_MD_SMALL_ALLOC
+#define UMA_USE_DMAP
 #endif
 
 /*
@@ -294,7 +294,8 @@
 /*
  * Need a page dump array for minidump.
  */
-#define MINIDUMP_PAGE_TRACKING	1
+#define MINIDUMP_PAGE_TRACKING	       1
+#define MINIDUMP_STARTUP_PAGE_TRACKING 1
 
 #endif /* _MACHINE_VMPARAM_H_ */
 

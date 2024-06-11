@@ -18,7 +18,7 @@ ifelse(len(X`'_ARG1_), `1', `define(`_LDAP_ROUTING_WARN_', `yes')')
 ifelse(len(X`'_ARG2_), `1', `define(`_LDAP_ROUTING_WARN_', `yes')')
 ifelse(len(X`'_ARG5_), `1', `', `define(`_LDAP_ROUTE_NODOMAIN_', `yes')')
 
-# Check for third argument to indicate how to deal with non-existant
+# Check for third argument to indicate how to deal with non-existent
 # LDAP records
 ifelse(len(X`'_ARG3_), `1', `define(`_LDAP_ROUTING_', `_PASS_THROUGH_')',
        _ARG3_, `passthru', `define(`_LDAP_ROUTING_', `_PASS_THROUGH_')',

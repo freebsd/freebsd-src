@@ -2590,7 +2590,7 @@ envy24_pci_attach(device_t dev)
 
 	/* set status iformation */
 	snprintf(status, SND_STATUSLEN,
-	    "at io 0x%jx:%jd,0x%jx:%jd,0x%jx:%jd,0x%jx:%jd irq %jd",
+	    "port 0x%jx:%jd,0x%jx:%jd,0x%jx:%jd,0x%jx:%jd irq %jd on %s",
 	    rman_get_start(sc->cs),
 	    rman_get_end(sc->cs) - rman_get_start(sc->cs) + 1,
 	    rman_get_start(sc->ddma),
@@ -2599,7 +2599,8 @@ envy24_pci_attach(device_t dev)
 	    rman_get_end(sc->ds) - rman_get_start(sc->ds) + 1,
 	    rman_get_start(sc->mt),
 	    rman_get_end(sc->mt) - rman_get_start(sc->mt) + 1,
-	    rman_get_start(sc->irq));
+	    rman_get_start(sc->irq),
+	    device_get_nameunit(device_get_parent(dev)));
 	pcm_setstatus(dev, status);
 
 	return 0;

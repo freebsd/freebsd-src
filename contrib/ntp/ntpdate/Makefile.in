@@ -94,6 +94,7 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 EXTRA_PROGRAMS = ntpdate$(EXEEXT)
+@LIBNTP_SUBMAKES_TRUE@am__append_1 = check-libntp
 subdir = ntpdate
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/sntp/libopts/m4/libopts.m4 \
@@ -390,6 +391,7 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_NET_SNMP_CONFIG = @PATH_NET_SNMP_CONFIG@
+PATH_OPENSSL = @PATH_OPENSSL@
 PATH_PERL = @PATH_PERL@
 PATH_RUBY = @PATH_RUBY@
 PATH_SEPARATOR = @PATH_SEPARATOR@
@@ -489,7 +491,7 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 NULL = 
-BUILT_SOURCES = check-libntp .deps-ver
+BUILT_SOURCES = $(am__append_1) .deps-ver
 DISTCLEANFILES = $(DEPDIR)/deps-ver
 bin_PROGRAMS = $(NTPDATE_DB)
 libexec_PROGRAMS = $(NTPDATE_DL)
@@ -502,7 +504,7 @@ AM_LDFLAGS = $(LDFLAGS_NTP) $(NTP_HARD_LDFLAGS)
 LDADD = ../libntp/libntp.a
 ntpdate_LDADD = $(LDADD) $(LDADD_LIBNTP) $(PTHREAD_LIBS) \
 	$(LIBOPTS_LDADD) $(LIBM) $(LDADD_NTP)
-CLEANFILES = .version version.c check-libntp .deps-ver
+CLEANFILES = .version version.c .deps-ver
 noinst_HEADERS = ntpdate.h
 ntpdate_SOURCES = ntpdate.c
 nodist_ntpdate_SOURCES = version.c
@@ -985,18 +987,16 @@ install-exec-hook:
 
 #
 
-check-libntp: $(top_builddir)/libntp/libntp.a
-	@: avoid default SCCS get by some make implementations
+.PHONY: check-libntp
 
-$(top_builddir)/libntp/libntp.a:
-	cd $(top_builddir)/libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
+@LIBNTP_SUBMAKES_TRUE@check-libntp:
+@LIBNTP_SUBMAKES_TRUE@	cd $(top_builddir)/libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
 $(top_srcdir)/sntp/scm-rev: FRC.scm-rev
 	$(AM_V_GEN)cd $(top_builddir)/sntp && $(MAKE) $(AM_MAKEFLAGS) check-scm-rev
 
+.PHONY: FRC.scm-rev
 FRC.scm-rev:
-	@: FRC.scm-rev "force" depends on nothing and is not a file, so is	\
-	   always out-of-date causing targets which depend on it to also		\
-	   be outdated so their rules to fire each time they are built.
+	@: FRC.scm-rev is always out of date, triggering the check every make invocation.
 $(DEPDIR)/deps-ver: $(top_srcdir)/deps-ver
 	@[ -f $@ ] ||							\
 		cp $(top_srcdir)/deps-ver $@

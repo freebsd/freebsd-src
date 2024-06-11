@@ -330,14 +330,16 @@ get_rr_nameclass(const char* str, uint8_t** nm, uint16_t* dclass,
 static struct local_rrset*
 local_data_find_type(struct local_data* data, uint16_t type, int alias_ok)
 {
-	struct local_rrset* p;
+	struct local_rrset* p, *cname = NULL;
 	type = htons(type);
 	for(p = data->rrsets; p; p = p->next) {
 		if(p->rrset->rk.type == type)
 			return p;
 		if(alias_ok && p->rrset->rk.type == htons(LDNS_RR_TYPE_CNAME))
-			return p;
+			cname = p;
 	}
+	if(alias_ok)
+		return cname;
 	return NULL;
 }
 
@@ -1532,7 +1534,7 @@ local_data_answer(struct local_zone* z, struct module_env* env,
 			return 0; /* invalid cname */
 		if(dname_is_wild(ctarget)) {
 			/* synthesize cname target */
-			struct packed_rrset_data* d;
+			struct packed_rrset_data* d, *lr_d;
 			/* -3 for wildcard label and root label from qname */
 			size_t newtargetlen = qinfo->qname_len + ctargetlen - 3;
 
@@ -1560,8 +1562,10 @@ local_data_answer(struct local_zone* z, struct module_env* env,
 				+ newtargetlen);
 			if(!d)
 				return 0; /* out of memory */
+			lr_d = (struct packed_rrset_data*)lr->rrset->entry.data;
 			qinfo->local_alias->rrset->entry.data = d;
-			d->ttl = 0; /* 0 for synthesized CNAME TTL */
+			d->ttl = lr_d->rr_ttl[0]; /* RFC6672-like behavior:
+					    synth CNAME TTL uses original TTL*/
 			d->count = 1;
 			d->rrsig_count = 0;
 			d->trust = rrset_trust_ans_noAA;

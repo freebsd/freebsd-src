@@ -34,6 +34,7 @@ The programs are:
 
 b-strcmp.c	tests strcasecmp().
 
+
 +----------------------+
 | CONFIGURATION MACROS |
 +----------------------+
@@ -105,9 +106,6 @@ SM_CONF_SEM
 
 SM_CONF_BROKEN_STRTOD
 	Set to 1 if your strtod() does not work properly.
-
-SM_CONF_GETOPT
-	Set to 1 if your operating system does not include getopt(3).
 
 SM_CONF_LDAP_INITIALIZE
 	Set to 1 if your LDAP client libraries include ldap_initialize(3).

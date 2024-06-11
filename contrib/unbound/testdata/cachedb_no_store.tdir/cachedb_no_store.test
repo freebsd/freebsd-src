@@ -13,7 +13,7 @@ get_ldns_testns
 # query for a text record that is stored by unbound's cache and cachedb
 # in the testframe cache.
 echo "> dig txt1.example.com."
-dig @localhost -p $UNBOUND_PORT txt1.example.com. TXT | tee outfile
+dig @127.0.0.1 -p $UNBOUND_PORT txt1.example.com. TXT | tee outfile
 if grep "example text message" outfile; then
 	echo "OK"
 else
@@ -31,7 +31,7 @@ echo "FWD_PID=$FWD_PID" >> .tpkg.var.test
 wait_ldns_testns_up fwd2.log
 
 echo "> dig txt1.example.com. from unbound cache"
-dig @localhost -p $UNBOUND_PORT txt1.example.com. TXT | tee outfile
+dig @127.0.0.1 -p $UNBOUND_PORT txt1.example.com. TXT | tee outfile
 if grep "example text message" outfile; then
 	echo "OK"
 else
@@ -50,7 +50,7 @@ else
 fi
 
 echo "> dig txt1.example.com. from cachedb"
-dig @localhost -p $UNBOUND_PORT txt1.example.com. TXT | tee outfile
+dig @127.0.0.1 -p $UNBOUND_PORT txt1.example.com. TXT | tee outfile
 if grep "example text message" outfile; then
 	echo "OK"
 else
@@ -69,7 +69,7 @@ wait_ldns_testns_up fwd3.log
 
 # stop unbound to flush the cachedb cache
 echo "> stop unbound"
-kill_pid `cat unbound.pid`
+kill_from_pidfile "unbound.pid"
 
 echo ""
 echo "> config unbound with cachedb-no-store: yes"
@@ -84,7 +84,7 @@ wait_unbound_up unbound2.log
 
 echo ""
 echo "> dig txt1.example.com."
-dig @localhost -p $UNBOUND_PORT txt1.example.com. TXT | tee outfile
+dig @127.0.0.1 -p $UNBOUND_PORT txt1.example.com. TXT | tee outfile
 if grep "example text message" outfile; then
 	echo "OK"
 else
@@ -102,7 +102,7 @@ echo "FWD_PID=$FWD_PID" >> .tpkg.var.test
 wait_ldns_testns_up fwd4.log
 
 echo "> dig txt1.example.com. from unbound cache"
-dig @localhost -p $UNBOUND_PORT txt1.example.com. TXT | tee outfile
+dig @127.0.0.1 -p $UNBOUND_PORT txt1.example.com. TXT | tee outfile
 if grep "example text message" outfile; then
 	echo "OK"
 else
@@ -121,7 +121,7 @@ else
 fi
 
 echo "> dig txt1.example.com. from cachedb, but that has no message stored"
-dig @localhost -p $UNBOUND_PORT txt1.example.com. TXT | tee outfile
+dig @127.0.0.1 -p $UNBOUND_PORT txt1.example.com. TXT | tee outfile
 if grep "SERVFAIL" outfile; then
 	echo "OK"
 else

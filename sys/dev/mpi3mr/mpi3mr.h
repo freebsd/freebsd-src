@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2020-2023, Broadcom Inc. All rights reserved.
+ * Copyright (c) 2020-2024, Broadcom Inc. All rights reserved.
  * Support: <fbsd-storage-driver.pdl@broadcom.com>
  *
  * Authors: Sumit Saxena <sumit.saxena@broadcom.com>
@@ -87,8 +87,8 @@
 #include <sys/kthread.h>
 #include "mpi/mpi30_api.h"
 
-#define MPI3MR_DRIVER_VERSION	"8.6.0.2.0"
-#define MPI3MR_DRIVER_RELDATE	"17th May 2023"
+#define MPI3MR_DRIVER_VERSION	"8.10.0.1.0"
+#define MPI3MR_DRIVER_RELDATE	"19th Mar 2024"
 
 #define MPI3MR_DRIVER_NAME	"mpi3mr"
 
@@ -123,6 +123,8 @@
 #define MPI3MR_OP_REP_Q_QD		1024
 #define MPI3MR_OP_REP_Q_QD_A0		4096
 
+#define MPI3MR_THRESHOLD_REPLY_COUNT	100
+
 #define MPI3MR_CHAINSGE_SIZE	MPI3MR_4K_PGSZ
 
 #define MPI3MR_SGEFLAGS_SYSTEM_SIMPLE_END_OF_LIST	\
@@ -139,6 +141,9 @@
 #define MAX_MGMT_ADAPTERS 8
 #define MPI3MR_WAIT_BEFORE_CTRL_RESET 5
 
+#define MPI3MR_RESET_REASON_OSTYPE_FREEBSD        0x4
+#define MPI3MR_RESET_REASON_OSTYPE_SHIFT	  28
+#define MPI3MR_RESET_REASON_IOCNUM_SHIFT          20
 
 struct mpi3mr_mgmt_info {
 	uint16_t count;
@@ -225,6 +230,8 @@ extern char fmt_os_ver[16];
 #define MPI3MR_PELCMDS_RETRYCOUNT 3
 
 #define MPI3MR_PERIODIC_DELAY	1	/* 1 second heartbeat/watchdog check */
+
+#define	WRITE_SAME_32	0x0d
 
 struct completion {
 	unsigned int done;
@@ -446,8 +453,7 @@ enum mpi3mr_cmd_state {
 
 enum mpi3mr_target_state {
 	MPI3MR_DEV_CREATED = 1,
-	MPI3MR_DEV_REMOVE_HS_STARTED = 2,
-	MPI3MR_DEV_DELETED = 3,
+	MPI3MR_DEV_REMOVE_HS_COMPLETED = 2,
 };
 
 struct mpi3mr_cmd {
@@ -960,7 +966,7 @@ void mpi3mr_cleanup_event_taskq(struct mpi3mr_softc *sc);
 void
 mpi3mr_hexdump(void *buf, int sz, int format);
 int mpi3mr_soft_reset_handler(struct mpi3mr_softc *sc,
-	U32 reset_reason, bool snapdump);
+	U16 reset_reason, bool snapdump);
 void
 mpi3mrsas_release_simq_reinit(struct mpi3mr_cam_softc *cam_sc);
 void
@@ -982,6 +988,6 @@ void mpi3mr_set_io_divert_for_all_vd_in_tg(struct mpi3mr_softc *sc,
 enum mpi3mr_iocstate mpi3mr_get_iocstate(struct mpi3mr_softc *sc);
 void mpi3mr_poll_pend_io_completions(struct mpi3mr_softc *sc);
 void int_to_lun(unsigned int lun, U8 *req_lun);
-void trigger_reset_from_watchdog(struct mpi3mr_softc *sc, U8 reset_type, U32 reset_reason);
+void trigger_reset_from_watchdog(struct mpi3mr_softc *sc, U8 reset_type, U16 reset_reason);
 void mpi3mr_alloc_ioctl_dma_memory(struct mpi3mr_softc *sc);
 #endif /*MPI3MR_H_INCLUDED*/

@@ -73,7 +73,7 @@
  * cannot include sys/param.h and should only be updated here.
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 1500007
+#define __FreeBSD_version 1500019
 
 /*
  * __FreeBSD_kernel__ indicates that this system uses the kernel of FreeBSD,
@@ -161,6 +161,7 @@
 #include <machine/param.h>
 #ifndef _KERNEL
 #include <sys/limits.h>
+#include <sys/_maxphys.h>
 #endif
 
 #ifndef DEV_BSHIFT
@@ -173,13 +174,6 @@
 #endif
 #ifndef DFLTPHYS
 #define DFLTPHYS	(64 * 1024)	/* default max raw I/O transfer size */
-#endif
-#ifndef MAXPHYS				/* max raw I/O transfer size */
-#ifdef __ILP32__
-#define MAXPHYS		(128 * 1024)
-#else
-#define MAXPHYS		(1024 * 1024)
-#endif
 #endif
 #ifndef MAXDUMPPGS
 #define MAXDUMPPGS	(DFLTPHYS/PAGE_SIZE)

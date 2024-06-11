@@ -292,20 +292,16 @@ will
 continue to exist in this form in future releases of this code.
 .SH FILES
 .ta \w'/usr/share/zoneinfo/posixrules\0\0'u
-/usr/share/zoneinfo	timezone information directory
+/etc/localtime	local timezone file
 .br
-/usr/share/zoneinfo/localtime	local timezone file
+/usr/share/zoneinfo	timezone directory
 .br
-/usr/share/zoneinfo/posixrules	default DST rules (obsolete,
-	and can cause bugs if present)
+/usr/share/zoneinfo/posixrules	default DST rules (obsolete)
 .br
 /usr/share/zoneinfo/GMT	for UTC leap seconds
-.sp
-If
-.B /usr/share/zoneinfo/GMT
-is absent,
-UTC leap seconds are loaded from
-.BR /usr/share/zoneinfo/posixrules .
+.PP
+If /usr/share/zoneinfo/GMT is absent,
+UTC leap seconds are loaded from /usr/share/zoneinfo/GMT0 if present.
 .SH SEE ALSO
 getenv(3),
 newstrftime(3),

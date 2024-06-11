@@ -1,5 +1,6 @@
+.include <bsd.compiler.mk>
 
-CRTARCH=	${MACHINE_CPUARCH:C/amd64/x86_64/}
+CRTARCH=	${MACHINE_CPUARCH:C/amd64/x86_64/:C/powerpc/ppc/}
 
 CRTSRC=		${SRCTOP}/contrib/llvm-project/compiler-rt/lib/builtins
 
@@ -35,9 +36,7 @@ SRCF+=		divmodsi4
 SRCF+=		divmodti4
 SRCF+=		divsc3
 SRCF+=		divsi3
-SRCF+=		divtc3
 SRCF+=		divti3
-SRCF+=		divxc3
 SRCF+=		enable_execute_stack
 SRCF+=		extendhfsf2
 SRCF+=		ffsdi2
@@ -53,21 +52,12 @@ SRCF+=		fixunsdfti
 SRCF+=		fixunssfdi
 SRCF+=		fixunssfsi
 SRCF+=		fixunssfti
-SRCF+=		fixunsxfdi
-SRCF+=		fixunsxfsi
-SRCF+=		fixunsxfti
-SRCF+=		fixxfdi
-SRCF+=		fixxfti
-SRCF+=		floatditf
 SRCF+=		floattidf
 SRCF+=		floattisf
-SRCF+=		floattixf
-SRCF+=		floatunditf
 SRCF+=		floatunsidf
 SRCF+=		floatunsisf
 SRCF+=		floatuntidf
 SRCF+=		floatuntisf
-SRCF+=		floatuntixf
 SRCF+=		int_util
 SRCF+=		lshrdi3
 SRCF+=		lshrti3
@@ -80,12 +70,10 @@ SRCF+=		mulodi4
 SRCF+=		mulosi4
 SRCF+=		muloti4
 SRCF+=		mulsc3
-SRCF+=		multc3
 SRCF+=		multi3
 SRCF+=		mulvdi3
 SRCF+=		mulvsi3
 SRCF+=		mulvti3
-SRCF+=		mulxc3
 SRCF+=		negdf2
 SRCF+=		negdi2
 SRCF+=		negsf2
@@ -101,8 +89,6 @@ SRCF+=		popcountsi2
 SRCF+=		popcountti2
 SRCF+=		powidf2
 SRCF+=		powisf2
-SRCF+=		powitf2
-SRCF+=		powixf2
 SRCF+=		subvdi3
 SRCF+=		subvsi3
 SRCF+=		subvti3
@@ -132,23 +118,51 @@ SRCF+=		atomic
 .if ${MACHINE_CPUARCH} == "i386" && empty(MACHINE_CPU:Msse2)
 SRCS+=		floatdidf.c
 SRCS+=		floatdisf.c
-SRCS+=		floatdixf.c
 SRCS+=		floatundidf.c
 SRCS+=		floatundisf.c
-SRCS+=		floatundixf.c
 .else
 SRCF+=		floatdidf
 SRCF+=		floatdisf
-SRCF+=		floatdixf
 SRCF+=		floatundidf
 SRCF+=		floatundisf
+.endif
+
+#
+# 80-bit long double functions, only used on x86.
+#
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+SRCF+=		divxc3
+SRCF+=		fixxfdi
+SRCF+=		fixxfti
+SRCF+=		fixunsxfdi
+SRCF+=		fixunsxfsi
+SRCF+=		fixunsxfti
+SRCF+=		floattixf
+SRCF+=		floatuntixf
+SRCF+=		mulxc3
+SRCF+=		powixf2
+
+# Avoid using SSE2 instructions on i386, if unsupported.
+.if ${MACHINE_CPUARCH} == "i386" && empty(MACHINE_CPU:Msse2)
+SRCS+=		floatdixf.c
+SRCS+=		floatundixf.c
+.else
+SRCF+=		floatdixf
 SRCF+=		floatundixf
+.endif
+.endif
+
+# 128-bit float is an amd64 feature
+.if ${MACHINE_CPUARCH} == "amd64"
+SRCF+=		extendxftf2
+SRCF+=		trunctfxf2
 .endif
 
 # __cpu_model support, only used on aarch64 and x86
-.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
-    ${MACHINE_CPUARCH} == "i386"
-SRCF+=		cpu_model
+.if ${MACHINE_CPUARCH} == "aarch64"
+SRCS+=		cpu_model/aarch64.c
+.elif ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+SRCS+=		cpu_model/x86.c
 .endif
 
 # The fp_mode implementation for amd64 and i386 is shared, while other
@@ -163,9 +177,11 @@ SRCF+=		fp_mode
 # 128-bit quad precision long double support,
 # only used on some architectures.
 #
-.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "riscv"
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
+    ${MACHINE_CPUARCH} == "riscv"
 SRCF+=		addtf3
 SRCF+=		comparetf2
+SRCF+=		divtc3
 SRCF+=		divtf3
 SRCF+=		extenddftf2
 SRCF+=		extendhftf2
@@ -176,11 +192,15 @@ SRCF+=		fixtfti
 SRCF+=		fixunstfdi
 SRCF+=		fixunstfsi
 SRCF+=		fixunstfti
+SRCF+=		floatditf
 SRCF+=		floatsitf
 SRCF+=		floattitf
+SRCF+=		floatunditf
 SRCF+=		floatunsitf
 SRCF+=		floatuntitf
+SRCF+=		multc3
 SRCF+=		multf3
+SRCF+=		powitf2
 SRCF+=		subtf3
 SRCF+=		trunctfdf2
 SRCF+=		trunctfhf2
@@ -208,6 +228,40 @@ SRCF+=		truncdfsf2
 .if ${MACHINE_CPUARCH} != "arm"
 SRCF+=		comparedf2
 SRCF+=		comparesf2
+.endif
+
+# Helper to reduce complexity of _Float16 and __bf16 statements below.
+.if ${MACHINE_CPUARCH} == "aarch64" || \
+    ${MACHINE_CPUARCH} == "amd64" || \
+    (${MACHINE_CPUARCH} == "i386" && !empty(MACHINE_CPU:Msse2))
+CRT_COMMON_F16_ARCH=t
+.endif
+
+#
+# _Float16 support, only on some architectures, and with certain compiler
+# versions.
+#
+.if ((${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 150000) && \
+     (defined(CRT_COMMON_F16_ARCH) || \
+      ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "riscv")) || \
+    ((${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 120000) && \
+     (defined(CRT_COMMON_F16_ARCH)))
+CFLAGS+=	-DCOMPILER_RT_HAS_FLOAT16
+.endif
+
+#
+# __bf16 support, only on some architectures, and with certain compiler
+# versions.
+#
+.if ((${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 150000) && \
+     (defined(CRT_COMMON_F16_ARCH))) || \
+    ((${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 180000) && \
+     ${MACHINE_CPUARCH} == "riscv") || \
+    ((${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 130000) && \
+     (defined(CRT_COMMON_F16_ARCH)))
+CFLAGS+=	-DCOMPILER_RT_HAS_BFLOAT16
+SRCF+=		truncdfbf2
+SRCF+=		truncsfbf2
 .endif
 
 # FreeBSD-specific atomic intrinsics.

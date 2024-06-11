@@ -70,7 +70,7 @@ runtest()
     err.*.ksh|tst.*.ksh)
         expr "$TFILE" : 'err.*' >/dev/null && exstatus=1
 
-        tst=$TFILE ksh "$TFILE" /usr/sbin/dtrace >$STDOUT 2>$STDERR
+        tst=$TFILE ksh -p "$TFILE" /usr/sbin/dtrace >$STDOUT 2>$STDERR
         status=$?
 
         if [ $status -ne $exstatus ]; then
@@ -86,7 +86,7 @@ runtest()
 
     if [ $retval -eq 0 ] && \
         head -n 1 $STDOUT | grep -q -E '^#!/.*ksh$'; then
-        ksh $STDOUT
+        ksh -p $STDOUT
         retval=$?
     fi
 
@@ -100,7 +100,7 @@ readonly STDOUT=$(mktemp)
 readonly TFILE=$(basename $1)
 readonly EXOUT=${TFILE}.out
 
-kldstat -q -m dtrace_test || kldload dtrace_test
+kldload -n dtrace_test
 cd $(dirname $1)
 runtest
 RESULT=$?
@@ -118,6 +118,10 @@ if [ $RESULT -ne 0 ]; then
 test stdout:
 --
 $(cat $STDOUT)
+--
+test stdout diff:
+--
+$(diff -u $EXOUT $STDOUT)
 --
 __EOF__
     fi

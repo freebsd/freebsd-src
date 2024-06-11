@@ -67,6 +67,7 @@
 #if defined(__i386__) || defined(__amd64__)
 #include <machine/intr_machdep.h>
 #include <x86/apicreg.h>
+#include <x86/apicvar.h>
 #endif
 #if defined(__aarch64__)
 #include <contrib/dev/acpica/include/acpi.h>
@@ -1712,19 +1713,52 @@ vmbus_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 }
 
 static int
-vmbus_pcib_release_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *r)
+vmbus_pcib_adjust_resource(device_t dev, device_t child,
+    struct resource *r, rman_res_t start, rman_res_t end)
 {
 	struct vmbus_pcib_softc *sc = device_get_softc(dev);
 
-	if (type == PCI_RES_BUS)
-		return (pci_domain_release_bus(sc->hbus->pci_domain, child,
-		    rid, r));
+	if (rman_get_type(r) == PCI_RES_BUS)
+		return (pci_domain_adjust_bus(sc->hbus->pci_domain, child, r,
+		    start, end));
+	return (bus_generic_adjust_resource(dev, child, r, start, end));
+}
 
-	if (type == SYS_RES_IOPORT)
+static int
+vmbus_pcib_release_resource(device_t dev, device_t child, struct resource *r)
+{
+	struct vmbus_pcib_softc *sc = device_get_softc(dev);
+
+	switch (rman_get_type(r)) {
+	case PCI_RES_BUS:
+		return (pci_domain_release_bus(sc->hbus->pci_domain, child, r));
+	case SYS_RES_IOPORT:
 		return (EINVAL);
+	default:
+		return (bus_generic_release_resource(dev, child, r));
+	}
+}
 
-	return (bus_generic_release_resource(dev, child, type, rid, r));
+static int
+vmbus_pcib_activate_resource(device_t dev, device_t child, struct resource *r)
+{
+	struct vmbus_pcib_softc *sc = device_get_softc(dev);
+
+	if (rman_get_type(r) == PCI_RES_BUS)
+		return (pci_domain_activate_bus(sc->hbus->pci_domain, child,
+		    r));
+	return (bus_generic_activate_resource(dev, child, r));
+}
+
+static int
+vmbus_pcib_deactivate_resource(device_t dev, device_t child, struct resource *r)
+{
+	struct vmbus_pcib_softc *sc = device_get_softc(dev);
+
+	if (rman_get_type(r) == PCI_RES_BUS)
+		return (pci_domain_deactivate_bus(sc->hbus->pci_domain, child,
+		    r));
+	return (bus_generic_deactivate_resource(dev, child, r));
 }
 
 static int
@@ -1891,10 +1925,20 @@ vmbus_pcib_map_msi(device_t pcib, device_t child, int irq,
 	vcpu_id = VMBUS_GET_VCPU_ID(device_get_parent(pcib), pcib, cpu);
 	vector = v_data;
 #else
-	cpu = (v_addr & MSI_INTEL_ADDR_DEST) >> 12;
+	cpu = apic_cpuid((v_addr & MSI_INTEL_ADDR_DEST) >> 12);
 	vcpu_id = VMBUS_GET_VCPU_ID(device_get_parent(pcib), pcib, cpu);
 	vector = v_data & MSI_INTEL_DATA_INTVEC;
 #endif
+
+	if (hpdev->hbus->protocol_version < PCI_PROTOCOL_VERSION_1_4 &&
+	    vcpu_id > 63) {
+		/* We only support vcpu_id < 64 before vPCI version 1.4 */
+		device_printf(pcib,
+		    "Error: "
+		    "vcpu_id %u overflowed on PCI VMBus version 0x%x\n",
+		    vcpu_id, hpdev->hbus->protocol_version);
+		return (ENODEV);
+	}
 
 	init_completion(&comp.comp_pkt.host_event);
 
@@ -1970,9 +2014,10 @@ static device_method_t vmbus_pcib_methods[] = {
 	DEVMETHOD(bus_read_ivar,		vmbus_pcib_read_ivar),
 	DEVMETHOD(bus_write_ivar,		vmbus_pcib_write_ivar),
 	DEVMETHOD(bus_alloc_resource,		vmbus_pcib_alloc_resource),
+	DEVMETHOD(bus_adjust_resource,		vmbus_pcib_adjust_resource),
 	DEVMETHOD(bus_release_resource,		vmbus_pcib_release_resource),
-	DEVMETHOD(bus_activate_resource,   bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_activate_resource,   	vmbus_pcib_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, 	vmbus_pcib_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	   bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	   bus_generic_teardown_intr),
 	DEVMETHOD(bus_get_cpus,			vmbus_pcib_get_cpus),

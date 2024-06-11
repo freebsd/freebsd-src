@@ -716,7 +716,7 @@ set_pmode(char *fnm, mode_t mode)
  *	block boundaries significantly reduces the overhead when copying files
  *	that are NOT very sparse. This overhead (when compared to a write) is
  *	almost below the measurement resolution on many systems. Without it,
- *	files with holes cannot be safely copied. It does has a side effect as
+ *	files with holes cannot be safely copied. It does have a side effect as
  *	it can put holes into files that did not have them before, but that is
  *	not a problem since the file contents are unchanged (in fact it saves
  *	file space). (Except on paging files for diskless clients. But since we

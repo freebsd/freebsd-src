@@ -443,10 +443,10 @@ void	pmap_activate_boot(pmap_t pmap);
 void	pmap_activate_sw(struct thread *);
 void	pmap_allow_2m_x_ept_recalculate(void);
 void	pmap_bootstrap(vm_paddr_t *);
-int	pmap_cache_bits(pmap_t pmap, int mode, boolean_t is_pde);
+int	pmap_cache_bits(pmap_t pmap, int mode, bool is_pde);
 int	pmap_change_attr(vm_offset_t, vm_size_t, int);
 int	pmap_change_prot(vm_offset_t, vm_size_t, vm_prot_t);
-void	pmap_demote_DMAP(vm_paddr_t base, vm_size_t len, boolean_t invalidate);
+void	pmap_demote_DMAP(vm_paddr_t base, vm_size_t len, bool invalidate);
 void	pmap_flush_cache_range(vm_offset_t, vm_offset_t);
 void	pmap_flush_cache_phys_range(vm_paddr_t, vm_paddr_t, vm_memattr_t);
 void	pmap_init_pat(void);
@@ -462,7 +462,7 @@ void	*pmap_mapdev(vm_paddr_t, vm_size_t);
 void	*pmap_mapdev_attr(vm_paddr_t, vm_size_t, int);
 void	*pmap_mapdev_pciecfg(vm_paddr_t pa, vm_size_t size);
 bool	pmap_not_in_di(void);
-boolean_t pmap_page_is_mapped(vm_page_t m);
+bool	pmap_page_is_mapped(vm_page_t m);
 void	pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma);
 void	pmap_page_set_memattr_noflush(vm_page_t m, vm_memattr_t ma);
 void	pmap_pinit_pml4(vm_page_t);
@@ -495,7 +495,6 @@ void	pmap_page_array_startup(long count);
 vm_page_t pmap_page_alloc_below_4g(bool zeroed);
 
 #if defined(KASAN) || defined(KMSAN)
-void	pmap_san_bootstrap(void);
 void	pmap_san_enter(vm_offset_t);
 #endif
 
@@ -542,6 +541,33 @@ pmap_get_pcid(pmap_t pmap)
 	return (pcidp->pm_pcid);
 }
 #endif /* sys/pcpu.h */
+
+/*
+ * Invalidation request.  PCPU pc_smp_tlb_op uses u_int instead of the
+ * enum to avoid both namespace and ABI issues (with enums).
+ */
+enum invl_op_codes {
+	INVL_OP_TLB               = 1,
+	INVL_OP_TLB_INVPCID       = 2,
+	INVL_OP_TLB_INVPCID_PTI   = 3,
+	INVL_OP_TLB_PCID          = 4,
+	INVL_OP_PGRNG             = 5,
+	INVL_OP_PGRNG_INVPCID     = 6,
+	INVL_OP_PGRNG_PCID        = 7,
+	INVL_OP_PG                = 8,
+	INVL_OP_PG_INVPCID        = 9,
+	INVL_OP_PG_PCID           = 10,
+	INVL_OP_CACHE             = 11,
+};
+
+typedef void (*smp_invl_local_cb_t)(struct pmap *, vm_offset_t addr1,
+    vm_offset_t addr2);
+typedef void (*smp_targeted_tlb_shootdown_t)(pmap_t, vm_offset_t, vm_offset_t,
+    smp_invl_local_cb_t, enum invl_op_codes);
+
+void smp_targeted_tlb_shootdown_native(pmap_t, vm_offset_t, vm_offset_t,
+    smp_invl_local_cb_t, enum invl_op_codes);
+extern smp_targeted_tlb_shootdown_t smp_targeted_tlb_shootdown;
 
 #endif /* _KERNEL */
 

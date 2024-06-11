@@ -154,7 +154,6 @@ struct shmstat {
 	uint16_t	mode;
 };
 struct sockstat {
-	uint64_t	inp_ppcb;
 	uint64_t	so_addr;
 	uint64_t	so_pcb;
 	uint64_t	unp_conn;

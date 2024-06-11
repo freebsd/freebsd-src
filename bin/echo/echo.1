@@ -89,6 +89,24 @@ Consult the
 manual page.
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+Special treatment of options and backslashes:
+.Bd -literal -offset indent
+$ /bin/echo "-hello\\tworld"
+-hello\tworld
+.Ed
+.Pp
+Avoid new line character:
+.Bd -literal -offset indent
+$ /bin/echo -n hello;/bin/echo world
+helloworld
+.Ed
+.Pp
+Or to achieve the same result:
+.Bd -literal -offset indent
+$ /bin/echo "hello\\c";/bin/echo world
+helloworld
+.Ed
 .Sh SEE ALSO
 .Xr builtin 1 ,
 .Xr csh 1 ,
@@ -105,3 +123,14 @@ The
 .Nm
 command appeared in
 .At v2 .
+.Sh CAVEATS
+The
+.Nm
+command behaves differently with regards to the built-in
+.Nm
+shell command in a number of ways including escaped characters handling.
+It also differs in behavior between different systems hence complicating writing
+portable scripts.
+It is advised to use the
+.Xr printf 1
+command to avoid these shortcomings.

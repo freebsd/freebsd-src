@@ -15,7 +15,7 @@ BEGIN {
 END  { printline() }
 
 function addword(w) {
-    ## print "adding [", w, "] ", length(w), length(line), maxlen
+    print "adding [", w, "] ", length(w), length(line), maxlen
     if (length(line) + length(w) > maxlen)
         printline()
     if (length(w) > 2 && ( w ~ /[\.!]["?)]?$/ || w ~ /[?!]"?$/) &&

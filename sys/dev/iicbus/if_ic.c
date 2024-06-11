@@ -363,8 +363,8 @@ icoutput(if_t ifp, struct mbuf *m, const struct sockaddr *dst,
 	u_char *cp;
 	u_int32_t hdr;
 
-	/* BPF writes need to be handled specially. */ 
-	if (dst->sa_family == AF_UNSPEC)
+	/* BPF writes need to be handled specially. */
+	if (dst->sa_family == AF_UNSPEC || dst->sa_family == pseudo_AF_HDRCMPLT)
 		bcopy(dst->sa_data, &hdr, sizeof(hdr));
 	else 
 		hdr = RO_GET_FAMILY(ro, dst);

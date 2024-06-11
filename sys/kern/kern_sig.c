@@ -34,7 +34,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_capsicum.h"
 #include "opt_ktrace.h"
 
@@ -1906,8 +1905,12 @@ kern_kill(struct thread *td, pid_t pid, int signum)
 	 * The main rationale behind this is that abort(3) is implemented as
 	 * kill(getpid(), SIGABRT).
 	 */
-	if (IN_CAPABILITY_MODE(td) && pid != td->td_proc->p_pid)
-		return (ECAPMODE);
+	if (pid != td->td_proc->p_pid) {
+		if (CAP_TRACING(td))
+			ktrcapfail(CAPFAIL_SIGNAL, &signum);
+		if (IN_CAPABILITY_MODE(td))
+			return (ECAPMODE);
+	}
 
 	AUDIT_ARG_SIGNUM(signum);
 	AUDIT_ARG_PID(pid);
@@ -2009,13 +2012,16 @@ sys_sigqueue(struct thread *td, struct sigqueue_args *uap)
 }
 
 int
-kern_sigqueue(struct thread *td, pid_t pid, int signum, union sigval *value)
+kern_sigqueue(struct thread *td, pid_t pid, int signumf, union sigval *value)
 {
 	ksiginfo_t ksi;
 	struct proc *p;
+	struct thread *td2;
+	u_int signum;
 	int error;
 
-	if ((u_int)signum > _SIG_MAXSIG)
+	signum = signumf & ~__SIGQUEUE_TID;
+	if (signum > _SIG_MAXSIG)
 		return (EINVAL);
 
 	/*
@@ -2025,8 +2031,17 @@ kern_sigqueue(struct thread *td, pid_t pid, int signum, union sigval *value)
 	if (pid <= 0)
 		return (EINVAL);
 
-	if ((p = pfind_any(pid)) == NULL)
-		return (ESRCH);
+	if ((signumf & __SIGQUEUE_TID) == 0) {
+		if ((p = pfind_any(pid)) == NULL)
+			return (ESRCH);
+		td2 = NULL;
+	} else {
+		p = td->td_proc;
+		td2 = tdfind((lwpid_t)pid, p->p_pid);
+		if (td2 == NULL)
+			return (ESRCH);
+	}
+
 	error = p_cansignal(td, p, signum);
 	if (error == 0 && signum != 0) {
 		ksiginfo_init(&ksi);
@@ -2036,7 +2051,7 @@ kern_sigqueue(struct thread *td, pid_t pid, int signum, union sigval *value)
 		ksi.ksi_pid = td->td_proc->p_pid;
 		ksi.ksi_uid = td->td_ucred->cr_ruid;
 		ksi.ksi_value = *value;
-		error = pksignal(p, ksi.ksi_signo, &ksi);
+		error = tdsendsignal(p, td2, ksi.ksi_signo, &ksi);
 	}
 	PROC_UNLOCK(p);
 	return (error);
@@ -2677,10 +2692,16 @@ ptrace_syscallreq(struct thread *td, struct proc *p,
 	    &td->td_proc->p_cowgen)))
 		thread_cow_update(td);
 
+	td->td_sa = tsr->ts_sa;
+
 #ifdef CAPABILITY_MODE
-	if (IN_CAPABILITY_MODE(td) && (se->sy_flags & SYF_CAPENABLED) == 0) {
-		tsr->ts_ret.sr_error = ECAPMODE;
-		return;
+	if ((se->sy_flags & SYF_CAPENABLED) == 0) {
+		if (CAP_TRACING(td))
+			ktrcapfail(CAPFAIL_SYSCALL, NULL);
+		if (IN_CAPABILITY_MODE(td)) {
+			tsr->ts_ret.sr_error = ECAPMODE;
+			return;
+		}
 	}
 #endif
 

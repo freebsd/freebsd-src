@@ -1,8 +1,9 @@
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # RCSid:
-#	$Id: autodep.mk,v 1.40 2021/12/08 05:56:50 sjg Exp $
+#	$Id: autodep.mk,v 1.43 2024/02/17 17:26:57 sjg Exp $
 #
-#	@(#) Copyright (c) 1999-2010, Simon J. Gerraty
+#	@(#) Copyright (c) 1999-2024, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
@@ -32,59 +33,58 @@ DEPENDFILE?= .depend
 .endif
 .endfor
 
+# should have been set by sys.mk
+CXX_SUFFIXES ?= .cc .ccm .cpp .cxx .C
+
 # it does nothing if SRCS is not defined or is empty
 .if defined(SRCS) && !empty(SRCS)
-DEPSRCS?=${SRCS}
-__depsrcs=${DEPSRCS:M*.c}
-__depsrcs+=${DEPSRCS:M*.y}
-__depsrcs+=${DEPSRCS:M*.l}
-__depsrcs+=${DEPSRCS:M*.s}
-__depsrcs+=${DEPSRCS:M*.S}
-__depsrcs+=${DEPSRCS:M*.cc}
-__depsrcs+=${DEPSRCS:M*.cpp}
-__depsrcs+=${DEPSRCS:M*.C}
-__depsrcs+=${DEPSRCS:M*.cxx}
-__depsrcs+=${DEPSRCS:M*.pc}
+DEPSRCS ?= ${SRCS}
+__depsrcs = ${DEPSRCS:M*.c}
+__depsrcs += ${DEPSRCS:M*.y}
+__depsrcs += ${DEPSRCS:M*.l}
+__depsrcs += ${DEPSRCS:M*.s}
+__depsrcs += ${DEPSRCS:M*.S}
+__depsrcs += ${DEPSRCS:M*.pc}
+.for s in ${CXX_SUFFIXES}
+__depsrcs += ${DEPSRCS:M*$s}
+.endfor
 
 .for s in ${__depsrcs}
 ${s:T:R}.d:	$s
 .endfor
 
-__depsrcs:=${__depsrcs:T:R:S/$/.d/g}
+__depsrcs := ${__depsrcs:T:R:S/$/.d/g}
 # we also need to handle makefiles where the .d's from __depsrcs
 # don't  match those from OBJS
 # we avoid using := here, since the modifier applied to OBJS
 # can cause trouble if there are any undefined vars in OBJS.
-__dependsrcsx?= ${__depsrcs} ${OBJS:S/.o/.d/}
-__dependsrcs= ${__dependsrcsx:O:u}
+__dependsrcsx ?= ${__depsrcs} ${OBJS:S/.o/.d/}
+__dependsrcs = ${__dependsrcsx:O:u}
 
 # clean up any .c files we may have generated
-#__gensrcs:= ${DEPSRCS:M*.y} ${DEPSRCS:M*.l}
-#CLEANFILES+= ${__gensrcs:T:R:S/$/.c/g}
+#__gensrcs := ${DEPSRCS:M*.y} ${DEPSRCS:M*.l}
+#CLEANFILES += ${__gensrcs:T:R:S/$/.c/g}
 
 # set this to -MMD to ignore /usr/include
 # actually it ignores <> so may not be a great idea
-CFLAGS_MD?=-MD
+CFLAGS_MD ?= -MD
 # -MF etc not available on all gcc versions.
 # we "fix" the .o later
 .if ${COMPILER_TYPE:Ugcc} == "gcc" && ${COMPILER_VERSION:U0} < 30000
-CFLAGS_MF=
+CFLAGS_MF =
 .endif
-CFLAGS_MF?=-MF ${.TARGET:T:R}.d -MT ${.TARGET:T:R}.o
-CFLAGS+= ${CFLAGS_MD} ${CFLAGS_MF}
+CFLAGS_MF ?= -MF ${.TARGET:T:R}.d -MT ${.TARGET:T:R}.o
+CFLAGS += ${CFLAGS_MD} ${CFLAGS_MF}
 RM?= rm
-MAKE_SHELL?= sh
+MAKE_SHELL ?= sh
 
 # watch out for people who don't use CPPFLAGS
-CPPFLAGS_MD=${CFLAGS:M-[IUD]*} ${CPPFLAGS}
-CXXFLAGS_MD=${CXXFLAGS:M-[IUD]*} ${CPPFLAGS}
+CPPFLAGS_MD = ${CFLAGS:M-[IUD]*} ${CPPFLAGS}
+CXXFLAGS_MD = ${CXXFLAGS:M-[IUD]*} ${CPPFLAGS}
 
 # just in case these need to be different
-CC_MD?=${CC}
-CXX_MD?=${CXX}
-
-# should have been set by sys.mk
-CXX_SUFFIXES?= .cc .cpp .cxx .C
+CC_MD ?= ${CC}
+CXX_MD ?= ${CXX}
 
 # so we can do an explicit make depend, but not otherwise
 .if make(depend)
@@ -114,7 +114,9 @@ CXX_SUFFIXES?= .cc .cpp .cxx .C
 ${CXX_SUFFIXES:%=%.d}:
 	@echo updating dependencies for $<
 	@${MAKE_SHELL} -ec "${CXX_MD} -M ${CXXFLAGS_MD} $< | sed '/:/s/^/$@ /' > $@" || { ${RM} -f $@; false; }
+
 .else
+
 .y.d:
 	${YACC} ${YFLAGS} $<
 	${CC_MD} ${CFLAGS_MD:S/D//} ${CPPFLAGS_MD} y.tab.c > $@ || { ${RM} -f y.tab.c $@; false; }
@@ -133,6 +135,7 @@ ${CXX_SUFFIXES:%=%.d}:
 
 ${CXX_SUFFIXES:%=%.d}:
 	${CXX_MD} ${CFLAGS_MD:S/D//} ${CXXFLAGS_MD} $< > $@ || { ${RM} -f $@; false; }
+
 .endif
 
 .if !target(depend)
@@ -152,47 +155,47 @@ ${PROG} ${_LIBS}:	${DEPENDFILE}
 .ORDER:	beforedepend ${DEPENDFILE} afterdepend
 
 .if ${.OBJDIR} != ${.CURDIR}
-__depfiles= *.d
+__depfiles = *.d
 .else
-__depfiles= ${__dependsrcs}
+__depfiles = ${__dependsrcs}
 .endif
 
-DEPCLEANFILES= ${DEPENDFILE} ${__depfiles} y.tab.d *.tmp.d
+DEPCLEANFILES = ${DEPENDFILE} ${__depfiles} y.tab.d *.tmp.d
 
 cleandir: cleanautodepend
 cleanautodepend:
 	${RM} -f ${DEPCLEANFILES}
 
-CLEANFILES+= ${DEPCLEANFILES}
+CLEANFILES += ${DEPCLEANFILES}
 
 .if defined(__dependsrcs) && !empty(__dependsrcs)
 .if make(depend) || !(make(clean*) || make(destroy*) || make(obj) || make(*install) || make(install-*))
 # this ensures we do the right thing if only building a shared or
 # profiled lib
-OBJ_EXTENSIONS?=.o .po .so .So
-MDLIB_SED= -e '/:/s,^\([^\.:]*\)\.[psS]*o,${OBJ_EXTENSIONS:S,^,\1,},'
+OBJ_SUFFIXES ?= .o .po .so .So
+MDLIB_SED = -e '/:/s,^\([^\.:]*\)\.[psS]*o,${OBJ_SUFFIXES:S,^,\1,},'
 .ifdef NOMD_SED
 .ifdef LIB
-MD_SED=sed ${MDLIB_SED}
+MD_SED = sed ${MDLIB_SED}
 .else
-MD_SED=cat
+MD_SED = cat
 .endif
 .else
 # arrange to put some variable names into ${DEPENDFILE}
 .ifdef LIB
-MD_SED=sed ${MDLIB_SED}
+MD_SED = sed ${MDLIB_SED}
 .else
-MD_SED=sed
+MD_SED = sed
 .endif
-SUBST_DEPVARS+= SB TOP BACKING SRC SRCDIR BASE BASEDIR
+SUBST_DEPVARS += SB TOP BACKING SRC SRCDIR BASE BASEDIR
 .for v in ${SUBST_DEPVARS}
 .if defined(${v}) && !empty(${v})
-MD_SED+= -e 's,${$v},$${$v},'
+MD_SED += -e 's,${$v},$${$v},'
 .endif
 .endfor
 .endif
 .if (${MD_SED} == "sed")
-MD_SED=cat
+MD_SED = cat
 .endif
 
 # this will be done whenever make finishes successfully
@@ -218,5 +221,7 @@ beforedepend:
 .if !target(afterdepend)
 afterdepend:
 .endif
+
+.-include <ccm.dep.mk>
 
 .endif

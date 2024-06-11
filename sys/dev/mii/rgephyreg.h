@@ -38,6 +38,7 @@
 #define	RGEPHY_8211B		2
 #define	RGEPHY_8211C		3
 #define	RGEPHY_8211F		6
+#define	RGEPHY_8211FVD		8
 
 /*
  * RealTek 8169S/8110S gigE PHY registers

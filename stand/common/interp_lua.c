@@ -25,7 +25,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <stand.h>
 #include "bootstrap.h"
 
@@ -97,15 +96,20 @@ static const luaL_Reg loadedlibs[] = {
   {NULL, NULL}
 };
 
+static bool preinit_done = false;
+
 void
-interp_init(void)
+interp_preinit(void)
 {
 	lua_State *luap;
 	struct interp_lua_softc	*softc = &lua_softc;
-	const char *filename;
 	const luaL_Reg *lib;
+	lua_init_md_t **fnpp;
 
 	TSENTER();
+
+	if (preinit_done)
+		return;
 
 	setenv("script.lang", "lua", 1);
 	LDBG("creating context");
@@ -123,7 +127,27 @@ interp_init(void)
 		lua_pop(luap, 1);  /* remove lib */
 	}
 
-	filename = LOADER_LUA;
+	LUA_FOREACH_SET(fnpp)
+	    (*fnpp)(luap);
+
+	preinit_done = true;
+
+	TSEXIT();
+}
+
+void
+interp_init(void)
+{
+	lua_State *luap;
+	struct interp_lua_softc	*softc = &lua_softc;
+	const char *filename;
+
+	TSENTER();
+
+	luap = softc->luap;
+	filename = getenv("loader_lua");
+	if (filename == NULL)
+		filename = LOADER_LUA;
 	if (interp_include(filename) != 0) {
 		const char *errstr = lua_tostring(luap, -1);
 		errstr = errstr == NULL ? "unknown" : errstr;

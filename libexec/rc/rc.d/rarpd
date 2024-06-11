@@ -15,6 +15,8 @@ rcvar="rarpd_enable"
 command="/usr/sbin/${name}"
 required_files="/etc/ethers"
 
+: ${rarpd_svcj_options:="net_basic"}
+
 load_rc_config $name
 pidfile="${rarpd_pidfile:-/var/run/${name}.pid}"
 

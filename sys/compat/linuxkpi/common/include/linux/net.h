@@ -56,7 +56,7 @@ sock_getname(struct socket *so, struct sockaddr *sa, int *sockaddr_len,
 	 * length.  Such notion doesn't even exist in Linux KPI.
 	 */
 	if (peer) {
-		if ((so->so_state & (SS_ISCONNECTED|SS_ISCONFIRMING)) == 0)
+		if ((so->so_state & SS_ISCONNECTED) == 0)
 			return (-ENOTCONN);
 
 		error = so->so_proto->pr_peeraddr(so, sa);

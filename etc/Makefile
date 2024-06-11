@@ -20,7 +20,7 @@ SUBDIR+=sendmail
 
 ETCMAIL=aliases
 .if ${MK_SENDMAIL} != "no"
-ETCMAIL+=Makefile README access.sample virtusertable.sample \
+ETCMAIL_SENDMAIL+=Makefile README access.sample virtusertable.sample \
 	mailertable.sample
 .endif
 
@@ -39,8 +39,9 @@ distribute:
 	# Avoid installing tests here; "make distribution" will do this and
 	# correctly place them in the right location.
 	${_+_}cd ${.CURDIR} ; ${MAKE} MK_TESTS=no install \
-	    DESTDIR=${DISTDIR}/${DISTRIBUTION}
-	${_+_}cd ${.CURDIR} ; ${MAKE} distribution DESTDIR=${DISTDIR}/${DISTRIBUTION}
+	    DISTBASE=/${DISTRIBUTION} DESTDIR=${DISTDIR}/${DISTRIBUTION}
+	${_+_}cd ${.CURDIR} ; ${MAKE} distribution \
+	    DISTBASE=/${DISTRIBUTION} DESTDIR=${DISTDIR}/${DISTRIBUTION}
 
 .include <bsd.endian.mk>
 
@@ -77,16 +78,16 @@ distribution:
 
 .if ${MK_MAIL} != "no"
 	cd ${.CURDIR}/mail; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-	    -T "package=sendmail" ${ETCMAIL} ${DESTDIR}/etc/mail
+	    -T "package=runtime,config" ${ETCMAIL} ${DESTDIR}/etc/mail
 	if [ -d ${DESTDIR}/etc/mail -a -f ${DESTDIR}/etc/mail/aliases -a \
 	      ! -f ${DESTDIR}/etc/aliases ]; then \
-		${INSTALL_SYMLINK} -T "package=sendmail" \
+		${INSTALL_SYMLINK} -T "package=runtime" \
 		mail/aliases ${DESTDIR}/etc/aliases; \
 	fi
 .endif
-.if ${MK_LOCATE} != "no"
-	${INSTALL} -o nobody -g ${BINGRP} -m 644 -T "package=runtime"\
-	    /dev/null ${DESTDIR}/var/db/locate.database
+.if ${MK_SENDMAIL} != "no"
+	cd ${.CURDIR}/mail; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
+		-T "package=sendmail" ${ETCMAIL_SENDMAIL} ${DESTDIR}/etc/mail
 .endif
 	cd ${.CURDIR}/..; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 		-T "package=runtime" ${FREEBSD} ${DESTDIR}/
@@ -125,6 +126,7 @@ MTREES+=	../${mtree}			/
 # scenario.
 DISTRIB_CLEANUP_FILES+=	${INCLUDEDIR}/c++/v1/__string
 DISTRIB_CLEANUP_FILES+=	${INCLUDEDIR}/c++/v1/__tuple
+DISTRIB_CLEANUP_FILES+=	${LIBEXECDIR}/kgdb
 distrib-cleanup: .PHONY
 	for file in ${DISTRIB_CLEANUP_FILES}; do \
 		if [ -f ${DESTDIR}/$${file} ]; then \

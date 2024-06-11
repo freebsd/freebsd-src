@@ -86,8 +86,7 @@ const uint32_t fman_firmware[] = FMAN_UC_IMG;
 const uint32_t fman_firmware_size = sizeof(fman_firmware);
 
 int
-fman_activate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *res)
+fman_activate_resource(device_t bus, device_t child, struct resource *res)
 {
 	struct fman_softc *sc;
 	bus_space_tag_t bt;
@@ -95,7 +94,7 @@ fman_activate_resource(device_t bus, device_t child, int type, int rid,
 	int i, rv;
 
 	sc = device_get_softc(bus);
-	if (type != SYS_RES_IRQ) {
+	if (rman_get_type(res) != SYS_RES_IRQ) {
 		for (i = 0; i < sc->sc_base.nranges; i++) {
 			if (rman_is_region_manager(res, &sc->rman) != 0) {
 				bt = rman_get_bustag(sc->mem_res);
@@ -113,12 +112,11 @@ fman_activate_resource(device_t bus, device_t child, int type, int rid,
 		}
 		return (EINVAL);
 	}
-	return (bus_generic_activate_resource(bus, child, type, rid, res));
+	return (bus_generic_activate_resource(bus, child, res));
 }
 
 int
-fman_release_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *res)
+fman_release_resource(device_t bus, device_t child, struct resource *res)
 {
 	struct resource_list *rl;
 	struct resource_list_entry *rle;
@@ -126,9 +124,9 @@ fman_release_resource(device_t bus, device_t child, int type, int rid,
 
 	passthrough = (device_get_parent(child) != bus);
 	rl = BUS_GET_RESOURCE_LIST(bus, child);
-	if (type != SYS_RES_IRQ) {
+	if (rman_get_type(res) != SYS_RES_IRQ) {
 		if ((rman_get_flags(res) & RF_ACTIVE) != 0 ){
-			rv = bus_deactivate_resource(child, type, rid, res);
+			rv = bus_deactivate_resource(child, res);
 			if (rv != 0)
 				return (rv);
 		}
@@ -136,7 +134,8 @@ fman_release_resource(device_t bus, device_t child, int type, int rid,
 		if (rv != 0)
 			return (rv);
 		if (!passthrough) {
-			rle = resource_list_find(rl, type, rid);
+			rle = resource_list_find(rl, rman_get_type(res),
+			    rman_get_rid(res));
 			KASSERT(rle != NULL,
 			    ("%s: resource entry not found!", __func__));
 			KASSERT(rle->res != NULL,
@@ -145,7 +144,7 @@ fman_release_resource(device_t bus, device_t child, int type, int rid,
 		}
 		return (0);
 	}
-	return (resource_list_release(rl, bus, child, type, rid, res));
+	return (resource_list_release(rl, bus, child, res));
 }
 
 struct resource *
@@ -191,6 +190,7 @@ fman_alloc_resource(device_t bus, device_t child, int type, int *rid,
 				if (res == NULL)
 					return (NULL);
 				rman_set_rid(res, *rid);
+				rman_set_type(res, type);
 				if ((flags & RF_ACTIVE) != 0 && bus_activate_resource(
 				    child, type, *rid, res) != 0) {
 					rman_release_resource(res);

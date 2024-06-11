@@ -250,4 +250,119 @@
 #define XEON_GEN3_REG_PPD_ONE_MSIX_F(X)		M8_F(X, 5, 1)
 #define XEON_GEN3_REG_PPD_BAR45_SPL_F(X)	M8_F(X, 6, 1)
 
+/* Xeon ICX/SPR NTB register definitions */
+
+/* CFG Space */
+#define XEON_GEN4_CFG_REG_BAR0BASE     0x0010
+#define XEON_GEN4_CFG_REG_BAR1BASE     0x0018
+#define XEON_GEN4_CFG_REG_BAR2BASE     0x0020
+#define XEON_GEN4_CFG_REG_IMBAR1SZ     0x00c4
+#define XEON_GEN4_CFG_REG_IMBAR2SZ     0x00c5
+#define XEON_GEN4_CFG_REG_EMBAR1SZ     0x00c6
+#define XEON_GEN4_CFG_REG_EMBAR2SZ     0x00c7
+#define XEON_GEN4_CFG_REG_DEVCTRL      0x0048
+#define XEON_GEN4_CFG_REG_DEVSTS       0x004a
+#define XEON_GEN4_CFG_REG_UNCERRSTS    0x0104
+#define XEON_GEN4_CFG_REG_CORERRSTS    0x0110
+
+/* BAR0 MMIO */
+#define XEON_GEN4_REG_IMNTB_CTL        0x0000
+#define XEON_GEN4_REG_IMBAR1XBASE      0x0010
+#define XEON_GEN4_REG_IMBAR1XLIMIT     0x0018
+#define XEON_GEN4_REG_IMBAR2XBASE      0x0020
+#define XEON_GEN4_REG_IMBAR2XLIMIT     0x0028
+#define XEON_GEN4_REG_IMINT_STATUS     0x0040
+#define XEON_GEN4_REG_IMINT_DISABLE    0x0048
+#define XEON_GEN4_REG_INTVEC           0x0050  /* 0-32 vecs */
+#define XEON_GEN4_REG_IMSPAD           0x0080  /* 0-15 SPADs */
+#define XEON_GEN4_REG_IMDOORBELL       0x0100  /* 0-31 doorbells */
+
+/*
+ * External EndPoint Configuration Registers
+ * These are located within BAR0 of the internal endpoint.
+ */
+#define XEON_GEN4_REG_EXT_BAR1BASE     0x3018
+#define XEON_GEN4_REG_EXT_BAR2BASE     0x3020
+#define XEON_GEN4_REG_EXT_LTR_SWSEL    0x30ec
+#define XEON_GEN4_REG_EXT_LTR_ACTIVE   0x30f0
+#define XEON_GEN4_REG_EXT_LTR_IDLE     0x30f4
+
+#define XEON_GEN4_REG_EMSPAD           0x8080 /* 32K + SPAD_offset */
+
+/* note, link status is now in MMIO and not config space for NTB */
+#define XEON_GEN4_REG_LINK_CTRL        0xb050
+#define XEON_GEN4_REG_LINK_STATUS      0xb052
+#define XEON_GEN4_REG_SLOTSTS          0xb05a
+#define XEON_GEN4_REG_PPD0             0xb0d4
+#define XEON_GEN4_REG_PPD1             0xb4c0
+#define XEON_GEN4_REG_LTSSMSTATEJMP    0xf040
+
+/* Supported PCI device revision range for ICX */
+#define PCI_DEV_REV_ICX_MIN            0x2
+#define PCI_DEV_REV_ICX_MAX            0xF
+
+#define XEON_GEN4_DB_COUNT             32
+#define XEON_GEN4_DB_LINK              32
+#define XEON_GEN4_DB_LINK_BIT          (1ULL << XEON_GEN4_DB_LINK)
+#define XEON_GEN4_DB_MSIX_VECTOR_COUNT 33
+#define XEON_GEN4_DB_MSIX_VECTOR_SHIFT 1
+#define XEON_GEN4_DB_TOTAL_SHIFT       33
+#define XEON_GEN4_SPAD_COUNT           16
+
+/* NTBCTL field */
+#define NTB_CTL_E2I_BAR23_SNOOP        0x000004
+#define NTB_CTL_E2I_BAR23_NOSNOOP      0x000008
+#define NTB_CTL_I2E_BAR23_SNOOP        0x000010
+#define NTB_CTL_I2E_BAR23_NOSNOOP      0x000020
+#define NTB_CTL_E2I_BAR45_SNOOP        0x000040
+#define NTB_CTL_E2I_BAR45_NOSNOO       0x000080
+#define NTB_CTL_I2E_BAR45_SNOOP        0x000100
+#define NTB_CTL_I2E_BAR45_NOSNOOP      0x000200
+#define NTB_CTL_BUSNO_DIS_INC          0x000400
+#define NTB_CTL_LINK_DOWN              0x010000
+
+#define NTB_SJC_FORCEDETECT            0x000004
+
+/* PPD field */
+#define GEN4_PPD_CLEAR_TRN             0x0001
+#define GEN4_PPD_LINKTRN               0x0008
+#define GEN4_PPD_CONN_MASK             0x0300
+#define SPR_PPD_CONN_MASK              0x0700
+#define GEN4_PPD_CONN_B2B              0x0200
+#define GEN4_PPD_DEV_MASK              0x1000
+#define GEN4_PPD_DEV_DSD               0x1000
+#define GEN4_PPD_DEV_USD               0x0000
+#define SPR_PPD_DEV_MASK               0x4000
+#define SPR_PPD_DEV_DSD                0x4000
+#define SPR_PPD_DEV_USD                0x0000
+
+#define GEN4_LINK_CTRL_LINK_DISABLE    0x0010
+#define GEN4_SLOTSTS_DLLSCS            0x100
+
+#define GEN4_PPD_TOPO_MASK             \
+    (GEN4_PPD_CONN_MASK | GEN4_PPD_DEV_MASK)
+#define GEN4_PPD_TOPO_B2B_USD          \
+    (GEN4_PPD_CONN_B2B | GEN4_PPD_DEV_USD)
+#define GEN4_PPD_TOPO_B2B_DSD          \
+    (GEN4_PPD_CONN_B2B | GEN4_PPD_DEV_DSD)
+
+#define SPR_PPD_TOPO_MASK              \
+    (SPR_PPD_CONN_MASK | SPR_PPD_DEV_MASK)
+#define SPR_PPD_TOPO_B2B_USD           \
+    (GEN4_PPD_CONN_B2B | SPR_PPD_DEV_USD)
+#define SPR_PPD_TOPO_B2B_DSD           \
+    (GEN4_PPD_CONN_B2B | SPR_PPD_DEV_DSD)
+
+/* LTR field */
+#define NTB_LTR_SWSEL_ACTIVE           0x0
+#define NTB_LTR_SWSEL_IDLE             0x1
+
+#define NTB_LTR_NS_SHIFT               16
+#define NTB_LTR_ACTIVE_VAL             0x0000  /* 0 us */
+#define NTB_LTR_ACTIVE_LATSCALE        0x0800  /* 1us scale */
+#define NTB_LTR_ACTIVE_REQMNT          0x8000  /* snoop req enable */
+
+#define NTB_LTR_IDLE_VAL               0x0258  /* 600 us */
+#define NTB_LTR_IDLE_LATSCALE          0x0800  /* 1us scale */
+#define NTB_LTR_IDLE_REQMNT            0x8000  /* snoop req enable */
 #endif /* _NTB_REGS_H_ */

@@ -165,7 +165,7 @@ multiboot_exec(struct preloaded_file *fp)
 	int				 error, mod_num;
 	struct xen_header		 header;
 
-	CTASSERT(sizeof(header) <= PAGE_SIZE);
+	_Static_assert(sizeof(header) <= PAGE_SIZE, "header too large for page");
 
 	/*
 	 * Don't pass the memory size found by the bootloader, the memory

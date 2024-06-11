@@ -1,7 +1,10 @@
-# $Id: doc.mk,v 1.8 2021/12/08 05:56:50 sjg Exp $
+# $Id: doc.mk,v 1.9 2024/02/19 00:06:19 sjg Exp $
 
-.if !target(__${.PARSEFILE}__)
-__${.PARSEFILE}__: .NOTMAIN
+# should be set properly in sys.mk
+_this ?= ${.PARSEFILE:S,bsd.,,}
+
+.if !target(__${_this}__)
+__${_this}__: .NOTMAIN
 
 .include <init.mk>
 

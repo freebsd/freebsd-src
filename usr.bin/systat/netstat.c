@@ -168,12 +168,11 @@ fetchnetstat(void)
 static void
 fetchnetstat_kvm(void)
 {
-	struct inpcb *next;
 	struct netinfo *p;
 	struct inpcbhead head;
-	struct inpcb inpcb;
 	struct socket sockb;
 	struct tcpcb tcpcb;
+	struct inpcb *inpcb;
 	void *off;
 	int istcp;
 
@@ -195,32 +194,31 @@ fetchnetstat_kvm(void)
 	}
 again:
 	KREAD(off, &head, sizeof (struct inpcbhead));
-	LIST_FOREACH(next, &head, inp_list) {
-		KREAD(next, &inpcb, sizeof (inpcb));
-		next = &inpcb;
+	LIST_FOREACH(inpcb, &head, inp_list) {
+		KREAD(inpcb, &tcpcb, istcp ? sizeof(tcpcb) : sizeof(inpcb));
+		inpcb = (struct inpcb *)&tcpcb;
 		if (!aflag) {
-			if (inpcb.inp_vflag & INP_IPV4) {
-				if (inpcb.inp_laddr.s_addr == INADDR_ANY)
+			if (inpcb->inp_vflag & INP_IPV4) {
+				if (inpcb->inp_laddr.s_addr == INADDR_ANY)
 					continue;
 			}
 #ifdef INET6
-			else if (inpcb.inp_vflag & INP_IPV6) {
-				if (memcmp(&inpcb.in6p_laddr,
+			else if (inpcb->inp_vflag & INP_IPV6) {
+				if (memcmp(&inpcb->in6p_laddr,
 				    &in6addr_any, sizeof(in6addr_any)) == 0)
 					continue;
 			}
 #endif
 		}
-		if (nhosts && !checkhost(&inpcb.inp_inc))
+		if (nhosts && !checkhost(&inpcb->inp_inc))
 			continue;
-		if (nports && !checkport(&inpcb.inp_inc))
+		if (nports && !checkport(&inpcb->inp_inc))
 			continue;
 		if (istcp) {
-			KREAD(inpcb.inp_socket, &sockb, sizeof (sockb));
-			KREAD(inpcb.inp_ppcb, &tcpcb, sizeof (tcpcb));
-			enter_kvm(&inpcb, &sockb, tcpcb.t_state, "tcp");
+			KREAD(inpcb->inp_socket, &sockb, sizeof (sockb));
+			enter_kvm(inpcb, &sockb, tcpcb.t_state, "tcp");
 		} else
-			enter_kvm(&inpcb, &sockb, 0, "udp");
+			enter_kvm(inpcb, &sockb, 0, "udp");
 	}
 	if (istcp && (protos&UDP)) {
 		istcp = 0;

@@ -8,8 +8,6 @@
  * ====================================================
  */
 
-/* INDENT OFF */
-#include <sys/cdefs.h>
 /* __kernel_tan( x, y, k )
  * kernel tan function on ~[-pi/4, pi/4] (except on -0), pi/4 ~ 0.7854
  * Input x is assumed to be bounded by ~pi/4 in magnitude.

@@ -23,9 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $FreeBSD$
-.\"
-.Dd December 1, 2022
+.Dd April 23, 2024
 .Dt TAR 1
 .Os
 .Sh NAME
@@ -274,6 +272,15 @@ will be used instead.
 On create, this sets the group name that will be stored
 in the archive;
 the name will not be verified against the system group database.
+.It Fl Fl group Ar name Ns Op : Ns Ar gid
+Use the provided group, if
+.Ar gid
+is not provided,
+.Ar name
+can be either a group name or numeric id.
+See the
+.Fl Fl gname
+option for details.
 .It Fl H
 (c and r modes only)
 Symbolic links named on the command line will be followed; the
@@ -403,6 +410,8 @@ This is the reverse of
 and the default behavior in c, r, and u modes or if
 .Nm
 is run in x mode as root.
+Currently supported only for pax formats
+(including "pax restricted", the default tar format for bsdtar.)
 .It Fl n , Fl Fl norecurse , Fl Fl no-recursion
 Do not operate recursively on the content of directories.
 .It Fl Fl newer Ar date
@@ -635,27 +644,66 @@ A decimal integer from 4 to 7 specifying the lz4 compression block size
 .It Cm lz4:block-dependence
 Use the previous block of the block being compressed for
 a compression dictionary to improve compression ratio.
-.It Cm zstd:compression-level
-A decimal integer specifying the zstd compression level. Supported values depend
+.It Cm zstd:compression-level Ns = Ns Ar N
+A decimal integer specifying the zstd compression level.
+Supported values depend
 on the library version, common values are from 1 to 22.
-.It Cm zstd:threads
-Specify the number of worker threads to use.
-Setting threads to a special value 0 makes
-.Xr zstd 1
-use as many threads as there are CPU cores on the system.
+.It Cm zstd:threads Ns = Ns Ar N
+Specify the number of worker threads to use, or 0 to use as many
+threads as there are CPU cores in the system.
 .It Cm zstd:frame-per-file
 Start a new compression frame at the beginning of each file in the
 archive.
-.It Cm zstd:min-frame-size Ns = Ns Ar N
+.It Cm zstd:min-frame-in Ns = Ns Ar N
 In combination with
 .Cm zstd:frame-per-file ,
-do not start a new compression frame unless the current frame is at least
+do not start a new compression frame unless the uncompressed size of
+the current frame is at least
 .Ar N
 bytes.
-.It Cm zstd:max-frame-size Ns = Ns Ar N
-Start a new compression frame as soon as the current frame exceeds
+The number may be followed by
+.Li k / Li kB ,
+.Li M / Li MB ,
+or
+.Li G / Li GB
+to indicate kilobytes, megabytes or gigabytes respectively.
+.It Cm zstd:min-frame-out Ns = Ns Ar N , Cm zstd:min-frame-size Ns = Ns Ar N
+In combination with
+.Cm zstd:frame-per-file ,
+do not start a new compression frame unless the compressed size of the
+current frame is at least
 .Ar N
 bytes.
+The number may be followed by
+.Li k / Li kB ,
+.Li M / Li MB ,
+or
+.Li G / Li GB
+to indicate kilobytes, megabytes or gigabytes respectively.
+.It Cm zstd:max-frame-in Ns = Ns Ar N , Cm zstd:max-frame-size Ns = Ns Ar N
+Start a new compression frame as soon as possible after the
+uncompressed size of the current frame exceeds
+.Ar N
+bytes.
+The number may be followed by
+.Li k / Li kB ,
+.Li M / Li MB ,
+or
+.Li G / Li GB
+to indicate kilobytes, megabytes or gigabytes respectively.
+Values less than 1,024 will be rejected.
+.It Cm zstd:max-frame-out Ns = Ns Ar N
+Start a new compression frame as soon as possible after the compressed
+size of the current frame exceeds
+.Ar N
+bytes.
+The number may be followed by
+.Li k / Li kB ,
+.Li M / Li MB ,
+or
+.Li G / Li GB
+to indicate kilobytes, megabytes or gigabytes respectively.
+Values less than 1,024 will be rejected.
 .It Cm lzop:compression-level
 A decimal integer from 1 to 9 specifying the lzop compression level.
 .It Cm xz:compression-level
@@ -774,7 +822,7 @@ This works similar to the conv=sparse option of dd.
 Modify file or archive member names according to
 .Pa pattern .
 The pattern has the format
-.Ar /old/new/ Ns Op ghHprRsS
+.Ar /old/new/ Ns Op bghHprRsS
 where
 .Ar old
 is a basic regular expression,
@@ -796,6 +844,9 @@ of symbolic links.
 The optional trailing p specifies that after a successful substitution
 the original path name and the new path name should be printed to
 standard error.
+The optional trailing b specifies that the substitution should be
+matched from the beginning of the string rather than from right after the
+position at which the previous matching substitution ended.
 Optional trailing H, R, or S characters suppress substitutions
 for hardlink targets, regular filenames, or symlink targets,
 respectively.
@@ -901,6 +952,15 @@ the name is not verified against the system user database.
 Pipe the input (in x or t mode) or the output (in c mode) through
 .Pa program
 instead of using the builtin compression support.
+.It Fl Fl owner Ar name Ns Op : Ns Ar uid
+Use the provided user, if
+.Ar uid
+is not provided,
+.Ar name
+can be either an username or numeric id.
+See the
+.Fl Fl uname
+option for details.
 .It Fl v , Fl Fl verbose
 Produce verbose output.
 In create and extract modes,

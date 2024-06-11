@@ -37,6 +37,7 @@
 #include <sys/param.h>
 #include <sys/file.h>
 #include <sys/mtio.h>
+#include <sys/queue.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/extattr.h>

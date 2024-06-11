@@ -42,6 +42,8 @@
 
 struct Struct_Obj_Entry;
 
+#define	MD_OBJ_ENTRY
+
 uint64_t set_gp(struct Struct_Obj_Entry *obj);
 
 /* Return the address of the .dynamic section in the dynamic linker. */
@@ -51,6 +53,12 @@ uint64_t set_gp(struct Struct_Obj_Entry *obj);
 	__asm __volatile("lla       %0, _DYNAMIC" : "=r"(_dynamic_addr));   \
 	(const Elf_Dyn *)_dynamic_addr;                                 \
 })
+
+/* No arch-specific dynamic tags */
+#define	arch_digest_dynamic(obj, dynp)	false
+
+/* No architecture specific notes */
+#define	arch_digest_note(obj, note)	false
 
 Elf_Addr reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
     const struct Struct_Obj_Entry *defobj, const struct Struct_Obj_Entry *obj,

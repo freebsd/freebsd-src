@@ -270,7 +270,8 @@ intpr(int clientOnly, int serverOnly)
 			xo_emit("{T:Client Info:\n");
 
 		xo_open_container("operations");
-		xo_emit("{T:Rpc Counts:}\n");
+		if (printtitle)
+			xo_emit("{T:Rpc Counts:}\n");
 
 		xo_emit("{T:Getattr/%13.13s}{T:Setattr/%13.13s}"
 		    "{T:Lookup/%13.13s}{T:Readlink/%13.13s}"
@@ -321,7 +322,8 @@ intpr(int clientOnly, int serverOnly)
 		xo_close_container("operations");
 
 		xo_open_container("rpcs");
-		xo_emit("{T:Rpc Info:}\n");
+		if (printtitle)
+			xo_emit("{T:Rpc Info:}\n");
 
 		xo_emit("{T:TimedOut/%13.13s}{T:Invalid/%13.13s}"
 		    "{T:X Replies/%13.13s}{T:Retries/%13.13s}"
@@ -337,7 +339,8 @@ intpr(int clientOnly, int serverOnly)
 		xo_close_container("rpcs");
 
 		xo_open_container("cache");
-		xo_emit("{T:Cache Info:}\n");
+		if (printtitle)
+			xo_emit("{T:Cache Info:}\n");
 
 		xo_emit("{T:Attr Hits/%13.13s}{T:Attr Misses/%13.13s}"
 		    "{T:Lkup Hits/%13.13s}{T:Lkup Misses/%13.13s}"
@@ -384,7 +387,8 @@ intpr(int clientOnly, int serverOnly)
 	if (serverOnly) {
 		xo_open_container("serverstats");
 
-		xo_emit("{T:Server Info:}\n");
+		if (printtitle)
+			xo_emit("{T:Server Info:}\n");
 		xo_open_container("operations");
 
 		xo_emit("{T:Getattr/%13.13s}{T:Setattr/%13.13s}"
@@ -437,7 +441,8 @@ intpr(int clientOnly, int serverOnly)
 
 		xo_open_container("server");
 
-		xo_emit("{T:Server Write Gathering:/%13.13s}\n");
+		if (printtitle)
+			xo_emit("{T:Server Write Gathering:/%13.13s}\n");
 
 		xo_emit("{T:WriteOps/%13.13s}{T:WriteRPC/%13.13s}"
 		    "{T:Opsaved/%13.13s}\n");
@@ -453,7 +458,8 @@ intpr(int clientOnly, int serverOnly)
 		xo_close_container("server");
 
 		xo_open_container("cache");
-		xo_emit("{T:Server Cache Stats:/%13.13s}\n");
+		if (printtitle)
+			xo_emit("{T:Server Cache Stats:/%13.13s}\n");
 		xo_emit("{T:Inprog/%13.13s}"
 		    "{T:Non-Idem/%13.13s}{T:Misses/%13.13s}\n");
 		xo_emit("{:inprog/%13ju}{:nonidem/%13ju}{:misses/%13ju}\n",
@@ -500,7 +506,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: nfsstat [-cdemszW] [-w wait]\n");
+	    "usage: nfsstat [-cdEemqszW] [-w wait]\n");
 	exit(1);
 }
 

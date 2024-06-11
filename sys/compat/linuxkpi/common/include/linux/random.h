@@ -87,6 +87,21 @@ get_random_long(void)
 	return (val);
 }
 
+static inline uint64_t
+get_random_u64(void)
+{
+	uint64_t val;
+
+	get_random_bytes(&val, sizeof(val));
+	return (val);
+}
+
+static inline uint32_t
+get_random_u32_below(uint32_t max)
+{
+	return (arc4random_uniform(max));
+}
+
 static __inline uint32_t
 prandom_u32(void)
 {

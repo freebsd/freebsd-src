@@ -58,6 +58,26 @@
 #include <sys/zfs_vfsops.h>
 #include <sys/zfs_znode.h>
 
+/*
+ * Enable the experimental block cloning feature.  If this setting is 0, then
+ * even if feature@block_cloning is enabled, attempts to clone blocks will act
+ * as though the feature is disabled.
+ */
+int zfs_bclone_enabled = 1;
+
+/*
+ * When set zfs_clone_range() waits for dirty data to be written to disk.
+ * This allows the clone operation to reliably succeed when a file is modified
+ * and then immediately cloned. For small files this may be slower than making
+ * a copy of the file and is therefore not the default.  However, in certain
+ * scenarios this behavior may be desirable so a tunable is provided.
+ */
+static int zfs_bclone_wait_dirty = 0;
+
+/*
+ * Maximum bytes to read per chunk in zfs_read().
+ */
+static uint64_t zfs_vnops_read_chunk_size = 1024 * 1024;
 
 int
 zfs_fsync(znode_t *zp, int syncflag, cred_t *cr)
@@ -103,7 +123,7 @@ zfs_holey_common(znode_t *zp, ulong_t cmd, loff_t *off)
 
 	/* Flush any mmap()'d data to disk */
 	if (zn_has_cached_data(zp, 0, file_sz - 1))
-		zn_flush_cached_data(zp, B_FALSE);
+		zn_flush_cached_data(zp, B_TRUE);
 
 	lr = zfs_rangelock_enter(&zp->z_rangelock, 0, UINT64_MAX, RL_READER);
 	error = dmu_offset_next(ZTOZSB(zp)->z_os, zp->z_id, hole, &noff);
@@ -181,8 +201,6 @@ zfs_access(znode_t *zp, int mode, int flag, cred_t *cr)
 	zfs_exit(zfsvfs, FTAG);
 	return (error);
 }
-
-static uint64_t zfs_vnops_read_chunk_size = 1024 * 1024; /* Tunable */
 
 /*
  * Read bytes from specified file into supplied buffer.
@@ -795,11 +813,11 @@ zfs_setsecattr(znode_t *zp, vsecattr_t *vsecp, int flag, cred_t *cr)
 	zfsvfs_t *zfsvfs = ZTOZSB(zp);
 	int error;
 	boolean_t skipaclchk = (flag & ATTR_NOACLCHECK) ? B_TRUE : B_FALSE;
-	zilog_t	*zilog = zfsvfs->z_log;
+	zilog_t	*zilog;
 
 	if ((error = zfs_enter_verify_zp(zfsvfs, zp, FTAG)) != 0)
 		return (error);
-
+	zilog = zfsvfs->z_log;
 	error = zfs_setacl(zp, vsecp, skipaclchk, cr);
 
 	if (zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
@@ -1049,6 +1067,7 @@ zfs_clone_range(znode_t *inzp, uint64_t *inoffp, znode_t *outzp,
 	size_t		maxblocks, nbps;
 	uint_t		inblksz;
 	uint64_t	clear_setid_bits_txg = 0;
+	uint64_t	last_synced_txg = 0;
 
 	inoff = *inoffp;
 	outoff = *outoffp;
@@ -1168,6 +1187,10 @@ zfs_clone_range(znode_t *inzp, uint64_t *inoffp, znode_t *outzp,
 		}
 	}
 
+	/* Flush any mmap()'d data to disk */
+	if (zn_has_cached_data(inzp, inoff, inoff + len - 1))
+		zn_flush_cached_data(inzp, B_TRUE);
+
 	/*
 	 * Maintain predictable lock order.
 	 */
@@ -1186,11 +1209,18 @@ zfs_clone_range(znode_t *inzp, uint64_t *inoffp, znode_t *outzp,
 	inblksz = inzp->z_blksz;
 
 	/*
-	 * We cannot clone into files with different block size if we can't
-	 * grow it (block size is already bigger or more than one block).
+	 * We cannot clone into a file with different block size if we can't
+	 * grow it (block size is already bigger, has more than one block, or
+	 * not locked for growth).  There are other possible reasons for the
+	 * grow to fail, but we cover what we can before opening transaction
+	 * and the rest detect after we try to do it.
 	 */
+	if (inblksz < outzp->z_blksz) {
+		error = SET_ERROR(EINVAL);
+		goto unlock;
+	}
 	if (inblksz != outzp->z_blksz && (outzp->z_size > outzp->z_blksz ||
-	    outzp->z_size > inblksz)) {
+	    outlr->lr_length != UINT64_MAX)) {
 		error = SET_ERROR(EINVAL);
 		goto unlock;
 	}
@@ -1280,15 +1310,23 @@ zfs_clone_range(znode_t *inzp, uint64_t *inoffp, znode_t *outzp,
 		}
 
 		nbps = maxblocks;
+		last_synced_txg = spa_last_synced_txg(dmu_objset_spa(inos));
 		error = dmu_read_l0_bps(inos, inzp->z_id, inoff, size, bps,
 		    &nbps);
 		if (error != 0) {
 			/*
 			 * If we are trying to clone a block that was created
-			 * in the current transaction group, error will be
-			 * EAGAIN here, which we can just return to the caller
-			 * so it can fallback if it likes.
+			 * in the current transaction group, the error will be
+			 * EAGAIN here.  Based on zfs_bclone_wait_dirty either
+			 * return a shortened range to the caller so it can
+			 * fallback, or wait for the next TXG and check again.
 			 */
+			if (error == EAGAIN && zfs_bclone_wait_dirty) {
+				txg_wait_synced(dmu_objset_pool(inos),
+				    last_synced_txg + 1);
+				continue;
+			}
+
 			break;
 		}
 
@@ -1309,12 +1347,24 @@ zfs_clone_range(znode_t *inzp, uint64_t *inoffp, znode_t *outzp,
 		}
 
 		/*
-		 * Copy source znode's block size. This only happens on the
-		 * first iteration since zfs_rangelock_reduce() will shrink down
-		 * lr_len to the appropriate size.
+		 * Copy source znode's block size. This is done only if the
+		 * whole znode is locked (see zfs_rangelock_cb()) and only
+		 * on the first iteration since zfs_rangelock_reduce() will
+		 * shrink down lr_length to the appropriate size.
 		 */
 		if (outlr->lr_length == UINT64_MAX) {
 			zfs_grow_blocksize(outzp, inblksz, tx);
+
+			/*
+			 * Block growth may fail for many reasons we can not
+			 * predict here.  If it happen the cloning is doomed.
+			 */
+			if (inblksz != outzp->z_blksz) {
+				error = SET_ERROR(EINVAL);
+				dmu_tx_abort(tx);
+				break;
+			}
+
 			/*
 			 * Round range lock up to the block boundary, so we
 			 * prevent appends until we are done.
@@ -1328,6 +1378,10 @@ zfs_clone_range(znode_t *inzp, uint64_t *inoffp, znode_t *outzp,
 		if (error != 0) {
 			dmu_tx_commit(tx);
 			break;
+		}
+
+		if (zn_has_cached_data(outzp, outoff, outoff + size - 1)) {
+			update_pages(outzp, outoff, size, outos);
 		}
 
 		zfs_clear_setid_bits_if_necessary(outzfsvfs, outzp, cr,
@@ -1358,6 +1412,11 @@ zfs_clone_range(znode_t *inzp, uint64_t *inoffp, znode_t *outzp,
 		outoff += size;
 		len -= size;
 		done += size;
+
+		if (issig()) {
+			error = SET_ERROR(EINTR);
+			break;
+		}
 	}
 
 	vmem_free(bps, sizeof (bps[0]) * maxblocks);
@@ -1494,3 +1553,9 @@ EXPORT_SYMBOL(zfs_clone_range_replay);
 
 ZFS_MODULE_PARAM(zfs_vnops, zfs_vnops_, read_chunk_size, U64, ZMOD_RW,
 	"Bytes to read per chunk");
+
+ZFS_MODULE_PARAM(zfs, zfs_, bclone_enabled, INT, ZMOD_RW,
+	"Enable block cloning");
+
+ZFS_MODULE_PARAM(zfs, zfs_, bclone_wait_dirty, INT, ZMOD_RW,
+	"Wait for dirty blocks when cloning");

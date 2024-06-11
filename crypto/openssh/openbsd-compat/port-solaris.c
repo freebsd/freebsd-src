@@ -292,13 +292,35 @@ solaris_drop_privs_pinfo_net_fork_exec(void)
 	    priv_delset(npset, PRIV_PROC_SESSION) != 0)
 		fatal("priv_delset: %s", strerror(errno));
 
+#ifdef PRIV_XPOLICY
+	/*
+	 * It is possible that the user has an extended policy
+	 * in place; the LIMIT set restricts the extended policy
+	 * and so should not be restricted.
+	 * PRIV_XPOLICY is newly defined in Solaris 11 though the extended
+	 * policy was not implemented until Solaris 11.1.
+	 */
+	if (getpflags(PRIV_XPOLICY) == 1) {
+		if (getppriv(PRIV_LIMIT, pset) != 0)
+			fatal("getppriv: %s", strerror(errno));
+		priv_intersect(pset, npset);
+		if (setppriv(PRIV_SET, PRIV_LIMIT, npset) != 0)
+			fatal("setppriv: %s", strerror(errno));
+	} else
+#endif
+	{
+		/* Cannot exec, so we can kill the limit set. */
+		priv_emptyset(pset);
+		if (setppriv(PRIV_SET, PRIV_LIMIT, pset) != 0)
+			fatal("setppriv: %s", strerror(errno));
+	}
+
 	if (getppriv(PRIV_PERMITTED, pset) != 0)
 		fatal("getppriv: %s", strerror(errno));
 
 	priv_intersect(pset, npset);
 
 	if (setppriv(PRIV_SET, PRIV_PERMITTED, npset) != 0 ||
-	    setppriv(PRIV_SET, PRIV_LIMIT, npset) != 0 ||
 	    setppriv(PRIV_SET, PRIV_INHERITABLE, npset) != 0)
 		fatal("setppriv: %s", strerror(errno));
 

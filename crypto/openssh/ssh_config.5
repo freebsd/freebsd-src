@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.387 2023/10/04 04:03:50 djm Exp $
-.Dd $Mdocdate: October 4 2023 $
+.\" $OpenBSD: ssh_config.5,v 1.394 2024/02/21 06:01:13 djm Exp $
+.Dd $Mdocdate: February 21 2024 $
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -144,7 +144,7 @@ The available criteria keywords are:
 .Cm localnetwork ,
 .Cm host ,
 .Cm originalhost ,
-.Cm Tag ,
+.Cm tagged ,
 .Cm user ,
 and
 .Cm localuser .
@@ -455,6 +455,83 @@ Multiple
 .Cm CertificateFile
 directives will add to the list of certificates used for
 authentication.
+.It Cm ChannelTimeout
+Specifies whether and how quickly
+.Xr ssh 1
+should close inactive channels.
+Timeouts are specified as one or more
+.Dq type=interval
+pairs separated by whitespace, where the
+.Dq type
+must be the special keyword
+.Dq global
+or a channel type name from the list below, optionally containing
+wildcard characters.
+.Pp
+The timeout value
+.Dq interval
+is specified in seconds or may use any of the units documented in the
+.Sx TIME FORMATS
+section.
+For example,
+.Dq session=5m
+would cause interactive sessions to terminate after five minutes of
+inactivity.
+Specifying a zero value disables the inactivity timeout.
+.Pp
+The special timeout
+.Dq global
+applies to all active channels, taken together.
+Traffic on any active channel will reset the timeout, but when the timeout
+expires then all open channels will be closed.
+Note that this global timeout is not matched by wildcards and must be
+specified explicitly.
+.Pp
+The available channel type names include:
+.Bl -tag -width Ds
+.It Cm agent-connection
+Open connections to
+.Xr ssh-agent 1 .
+.It Cm direct-tcpip , Cm direct-streamlocal@openssh.com
+Open TCP or Unix socket (respectively) connections that have
+been established from a
+.Xr ssh 1
+local forwarding, i.e.\&
+.Cm LocalForward
+or
+.Cm DynamicForward .
+.It Cm forwarded-tcpip , Cm forwarded-streamlocal@openssh.com
+Open TCP or Unix socket (respectively) connections that have been
+established to a
+.Xr sshd 8
+listening on behalf of a
+.Xr ssh 1
+remote forwarding, i.e.\&
+.Cm RemoteForward .
+.It Cm session
+The interactive main session, including shell session, command execution,
+.Xr scp 1 ,
+.Xr sftp 1 ,
+etc.
+.It Cm tun-connection
+Open
+.Cm TunnelForward
+connections.
+.It Cm x11-connection
+Open X11 forwarding sessions.
+.El
+.Pp
+Note that in all the above cases, terminating an inactive session does not
+guarantee to remove all resources associated with the session, e.g. shell
+processes or X11 clients relating to the session may continue to execute.
+.Pp
+Moreover, terminating an inactive channel or session does not necessarily
+close the SSH connection, nor does it prevent a client from
+requesting another channel of the same type.
+In particular, expiring an inactive forwarding session does not prevent
+another identical forwarding from being subsequently created.
+.Pp
+The default is not to expire channels of any type for inactivity.
 .It Cm CheckHostIP
 If set to
 .Cm yes ,
@@ -1072,6 +1149,9 @@ may use the tilde syntax to refer to a user's home directory
 or the tokens described in the
 .Sx TOKENS
 section.
+Alternately an argument of
+.Cm none
+may be used to indicate no identity files should be loaded.
 .Pp
 It is possible to have
 multiple identity files specified in configuration files; all these
@@ -2124,7 +2204,7 @@ which are expanded at runtime:
 A literal
 .Sq % .
 .It \&%C
-Hash of %l%h%p%r.
+Hash of %l%h%p%r%j.
 .It %d
 Local user's home directory.
 .It %f
@@ -2150,6 +2230,9 @@ when preparing the host key algorithm preference list to use for the
 destination host.
 .It %i
 The local user ID.
+.It %j
+The contents of the ProxyJump option, or the empty string if this
+option is unset.
 .It %K
 The base64 encoded host key.
 .It %k
@@ -2193,7 +2276,7 @@ The local username.
 .Cm RevokedHostKeys ,
 and
 .Cm UserKnownHostsFile
-accept the tokens %%, %C, %d, %h, %i, %k, %L, %l, %n, %p, %r, and %u.
+accept the tokens %%, %C, %d, %h, %i, %j, %k, %L, %l, %n, %p, %r, and %u.
 .Pp
 .Cm KnownHostsCommand
 additionally accepts the tokens %f, %H, %I, %K and %t.
@@ -2213,7 +2296,7 @@ Note that some of these directives build commands for execution via the shell.
 Because
 .Xr ssh 1
 performs no filtering or escaping of characters that have special meaning in
-shell commands (e.g. quotes), it is the user's reposibility to ensure that
+shell commands (e.g. quotes), it is the user's responsibility to ensure that
 the arguments passed to
 .Xr ssh 1
 do not contain such characters and that tokens are appropriately quoted

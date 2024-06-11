@@ -490,7 +490,7 @@ dsl_bookmark_create_sync_impl_snap(const char *bookmark, const char *snapshot,
 			dmu_buf_t *db;
 			VERIFY0(dmu_spill_hold_by_bonus(local_rl->rl_bonus,
 			    DB_RF_MUST_SUCCEED, FTAG, &db));
-			dmu_buf_will_fill(db, tx);
+			dmu_buf_will_fill(db, tx, B_FALSE);
 			VERIFY0(dbuf_spill_set_blksz(db, P2ROUNDUP(bonuslen,
 			    SPA_MINBLOCKSIZE), tx));
 			local_rl->rl_phys = db->db_data;
@@ -1520,7 +1520,8 @@ dsl_bookmark_block_killed(dsl_dataset_t *ds, const blkptr_t *bp, dmu_tx_t *tx)
 		 * If the block was live (referenced) at the time of this
 		 * bookmark, add its space to the bookmark's FBN.
 		 */
-		if (bp->blk_birth <= dbn->dbn_phys.zbm_creation_txg &&
+		if (BP_GET_LOGICAL_BIRTH(bp) <=
+		    dbn->dbn_phys.zbm_creation_txg &&
 		    (dbn->dbn_phys.zbm_flags & ZBM_FLAG_HAS_FBN)) {
 			mutex_enter(&dbn->dbn_lock);
 			dbn->dbn_phys.zbm_referenced_freed_before_next_snap +=

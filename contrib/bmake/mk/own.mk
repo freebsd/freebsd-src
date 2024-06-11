@@ -1,7 +1,10 @@
-# $Id: own.mk,v 1.44 2021/12/08 05:56:50 sjg Exp $
+# $Id: own.mk,v 1.48 2024/04/09 21:52:52 sjg Exp $
 
-.if !target(__${.PARSEFILE}__)
-__${.PARSEFILE}__: .NOTMAIN
+# should be set properly in sys.mk
+_this ?= ${.PARSEFILE:S,bsd.,,}
+
+.if !target(__${_this}__)
+__${_this}__: .NOTMAIN
 
 .if !target(__init.mk__)
 .include "init.mk"
@@ -37,27 +40,6 @@ libprefix?=	/usr
 # FreeBSD at least does not set this
 MACHINE_ARCH?=	${MACHINE}
 # we need to make sure these are defined too in case sys.mk fails to.
-COMPILE.s?=	${CC} ${AFLAGS} -c
-LINK.s?=	${CC} ${AFLAGS} ${LDFLAGS}
-COMPILE.S?=	${CC} ${AFLAGS} ${CPPFLAGS} -c -traditional-cpp
-LINK.S?=	${CC} ${AFLAGS} ${CPPFLAGS} ${LDFLAGS}
-COMPILE.c?=	${CC} ${CFLAGS} ${CPPFLAGS} -c
-LINK.c?=	${CC} ${CFLAGS} ${CPPFLAGS} ${LDFLAGS}
-CXXFLAGS?=	${CFLAGS}
-COMPILE.cc?=	${CXX} ${CXXFLAGS} ${CPPFLAGS} -c
-LINK.cc?=	${CXX} ${CXXFLAGS} ${CPPFLAGS} ${LDFLAGS}
-COMPILE.m?=	${OBJC} ${OBJCFLAGS} ${CPPFLAGS} -c
-LINK.m?=	${OBJC} ${OBJCFLAGS} ${CPPFLAGS} ${LDFLAGS}
-COMPILE.f?=	${FC} ${FFLAGS} -c
-LINK.f?=	${FC} ${FFLAGS} ${LDFLAGS}
-COMPILE.F?=	${FC} ${FFLAGS} ${CPPFLAGS} -c
-LINK.F?=	${FC} ${FFLAGS} ${CPPFLAGS} ${LDFLAGS}
-COMPILE.r?=	${FC} ${FFLAGS} ${RFLAGS} -c
-LINK.r?=	${FC} ${FFLAGS} ${RFLAGS} ${LDFLAGS}
-LEX.l?=		${LEX} ${LFLAGS}
-COMPILE.p?=	${PC} ${PFLAGS} ${CPPFLAGS} -c
-LINK.p?=	${PC} ${PFLAGS} ${CPPFLAGS} ${LDFLAGS}
-YACC.y?=	${YACC} ${YFLAGS}
 
 # for suffix rules
 IMPFLAGS?=	${COPTS.${.IMPSRC:T}} ${CPUFLAGS.${.IMPSRC:T}} ${CPPFLAGS.${.IMPSRC:T}}
@@ -119,6 +101,7 @@ OPTIONS_DEFAULT_DEPENDENT+= \
 	PICINSTALL/LINKLIB \
 	PICLIB/PIC \
 	PROFILE/LINKLIB \
+	STAGING_MAN/STAGING \
 	STAGING_PROG/STAGING \
 
 .include <options.mk>
@@ -153,8 +136,7 @@ INCDIR?=	${INCLUDEDIR}
 # Define MANZ to have the man pages compressed (gzip)
 #MANZ=		1
 
-MANTARGET?= cat
-MANDIR?=	${prefix}/share/man/${MANTARGET}
+MANDIR?=	${prefix}/share/man
 MANGRP?=	${BINGRP}
 MANOWN?=	${BINOWN}
 MANMODE?=	${NONBINMODE}

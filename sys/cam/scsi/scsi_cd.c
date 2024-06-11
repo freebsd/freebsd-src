@@ -262,10 +262,7 @@ static	union cd_pages	*cdgetpage(struct cd_mode_params *mode_params);
 static	int		cdgetpagesize(int page_num);
 static	void		cdprevent(struct cam_periph *periph, int action);
 static	void		cdmediaprobedone(struct cam_periph *periph);
-static	int		cdcheckmedia(struct cam_periph *periph, int do_wait);
-#if 0
-static	int		cdsize(struct cam_periph *periph, uint32_t *size);
-#endif
+static	int		cdcheckmedia(struct cam_periph *periph, bool do_wait);
 static	int		cd6byteworkaround(union ccb *ccb);
 static	int		cderror(union ccb *ccb, uint32_t cam_flags,
 				uint32_t sense_flags);
@@ -773,7 +770,7 @@ cdopen(struct disk *dp)
 	 * if we don't have media, but then we don't allow anything but the
 	 * CDIOCEJECT/CDIOCCLOSE ioctls if there is no media.
 	 */
-	cdcheckmedia(periph, /*do_wait*/ 1);
+	cdcheckmedia(periph, /*do_wait*/ true);
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("leaving cdopen\n"));
 	cam_periph_unhold(periph);
@@ -879,7 +876,7 @@ cdstrategy(struct bio *bp)
 	 * check first.  The I/O will get executed after the media check.
 	 */
 	if ((softc->flags & CD_FLAG_VALID_MEDIA) == 0)
-		cdcheckmedia(periph, /*do_wait*/ 0);
+		cdcheckmedia(periph, /*do_wait*/ false);
 	else
 		xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 
@@ -1781,7 +1778,7 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 	 && ((cmd != CDIOCCLOSE)
 	  && (cmd != CDIOCEJECT))
 	 && (IOCGROUP(cmd) == 'c')) {
-		error = cdcheckmedia(periph, /*do_wait*/ 1);
+		error = cdcheckmedia(periph, /*do_wait*/ true);
 		if (error != 0) {
 			cam_periph_unhold(periph);
 			cam_periph_unlock(periph);
@@ -2674,6 +2671,7 @@ cdmediaprobedone(struct cam_periph *periph)
 		softc->flags &= ~CD_FLAG_MEDIA_WAIT;
 		wakeup(&softc->toc);
 	}
+	cam_periph_release_locked(periph);
 }
 
 /*
@@ -2682,7 +2680,7 @@ cdmediaprobedone(struct cam_periph *periph)
  */
 
 static int
-cdcheckmedia(struct cam_periph *periph, int do_wait)
+cdcheckmedia(struct cam_periph *periph, bool do_wait)
 {
 	struct cd_softc *softc;
 	int error;
@@ -2691,232 +2689,32 @@ cdcheckmedia(struct cam_periph *periph, int do_wait)
 	softc = (struct cd_softc *)periph->softc;
 	error = 0;
 
-	if ((do_wait != 0)
-	 && ((softc->flags & CD_FLAG_MEDIA_WAIT) == 0)) {
+	/* Released by cdmediaprobedone(). */
+	error = cam_periph_acquire(periph);
+	if (error != 0)
+		return (error);
+
+	if (do_wait)
 		softc->flags |= CD_FLAG_MEDIA_WAIT;
-	}
 	if ((softc->flags & CD_FLAG_MEDIA_SCAN_ACT) == 0) {
 		softc->state = CD_STATE_MEDIA_PREVENT;
 		softc->flags |= CD_FLAG_MEDIA_SCAN_ACT;
 		xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 	}
-
-	if (do_wait == 0)
-		goto bailout;
+	if (!do_wait)
+		return (0);
 
 	error = msleep(&softc->toc, cam_periph_mtx(periph), PRIBIO,"cdmedia",0);
-
-	if (error != 0)
-		goto bailout;
 
 	/*
 	 * Check to see whether we have a valid size from the media.  We
 	 * may or may not have a valid TOC.
 	 */
-	if ((softc->flags & CD_FLAG_VALID_MEDIA) == 0)
+	if (error == 0 && (softc->flags & CD_FLAG_VALID_MEDIA) == 0)
 		error = EINVAL;
-bailout:
 
 	return (error);
 }
-
-#if 0
-static int
-cdcheckmedia(struct cam_periph *periph)
-{
-	struct cd_softc *softc;
-	struct ioc_toc_header *toch;
-	struct cd_toc_single leadout;
-	uint32_t size, toclen;
-	int error, num_entries, cdindex;
-
-	softc = (struct cd_softc *)periph->softc;
-
-	cdprevent(periph, PR_PREVENT);
-	softc->disk->d_sectorsize = 2048;
-	softc->disk->d_mediasize = 0;
-
-	/*
-	 * Get the disc size and block size.  If we can't get it, we don't
-	 * have media, most likely.
-	 */
-	if ((error = cdsize(periph, &size)) != 0) {
-		softc->flags &= ~(CD_FLAG_VALID_MEDIA|CD_FLAG_VALID_TOC);
-		cdprevent(periph, PR_ALLOW);
-		return (error);
-	} else {
-		softc->flags |= CD_FLAG_SAW_MEDIA | CD_FLAG_VALID_MEDIA;
-		softc->disk->d_sectorsize = softc->params.blksize;
-		softc->disk->d_mediasize =
-		    (off_t)softc->params.blksize * softc->params.disksize;
-	}
-
-	/*
-	 * Now we check the table of contents.  This (currently) is only
-	 * used for the CDIOCPLAYTRACKS ioctl.  It may be used later to do
-	 * things like present a separate entry in /dev for each track,
-	 * like that acd(4) driver does.
-	 */
-	bzero(&softc->toc, sizeof(softc->toc));
-	toch = &softc->toc.header;
-	/*
-	 * We will get errors here for media that doesn't have a table of
-	 * contents.  According to the MMC-3 spec: "When a Read TOC/PMA/ATIP
-	 * command is presented for a DDCD/CD-R/RW media, where the first TOC
-	 * has not been recorded (no complete session) and the Format codes
-	 * 0000b, 0001b, or 0010b are specified, this command shall be rejected
-	 * with an INVALID FIELD IN CDB.  Devices that are not capable of
-	 * reading an incomplete session on DDC/CD-R/RW media shall report
-	 * CANNOT READ MEDIUM - INCOMPATIBLE FORMAT."
-	 *
-	 * So this isn't fatal if we can't read the table of contents, it
-	 * just means that the user won't be able to issue the play tracks
-	 * ioctl, and likely lots of other stuff won't work either.  They
-	 * need to burn the CD before we can do a whole lot with it.  So
-	 * we don't print anything here if we get an error back.
-	 */
-	error = cdreadtoc(periph, 0, 0, (uint8_t *)toch, sizeof(*toch),
-			  SF_NO_PRINT);
-	/*
-	 * Errors in reading the table of contents aren't fatal, we just
-	 * won't have a valid table of contents cached.
-	 */
-	if (error != 0) {
-		error = 0;
-		bzero(&softc->toc, sizeof(softc->toc));
-		goto bailout;
-	}
-
-	if (softc->quirks & CD_Q_BCD_TRACKS) {
-		toch->starting_track = bcd2bin(toch->starting_track);
-		toch->ending_track = bcd2bin(toch->ending_track);
-	}
-
-	/* Number of TOC entries, plus leadout */
-	num_entries = (toch->ending_track - toch->starting_track) + 2;
-
-	if (num_entries <= 0)
-		goto bailout;
-
-	toclen = num_entries * sizeof(struct cd_toc_entry);
-
-	error = cdreadtoc(periph, CD_MSF_FORMAT, toch->starting_track,
-			  (uint8_t *)&softc->toc, toclen + sizeof(*toch),
-			  SF_NO_PRINT);
-	if (error != 0) {
-		error = 0;
-		bzero(&softc->toc, sizeof(softc->toc));
-		goto bailout;
-	}
-
-	if (softc->quirks & CD_Q_BCD_TRACKS) {
-		toch->starting_track = bcd2bin(toch->starting_track);
-		toch->ending_track = bcd2bin(toch->ending_track);
-	}
-	/*
-	 * XXX KDM is this necessary?  Probably only if the drive doesn't
-	 * return leadout information with the table of contents.
-	 */
-	cdindex = toch->starting_track + num_entries -1;
-	if (cdindex == toch->ending_track + 1) {
-		error = cdreadtoc(periph, CD_MSF_FORMAT, LEADOUT,
-				  (uint8_t *)&leadout, sizeof(leadout),
-				  SF_NO_PRINT);
-		if (error != 0) {
-			error = 0;
-			goto bailout;
-		}
-		softc->toc.entries[cdindex - toch->starting_track] =
-			leadout.entry;
-	}
-	if (softc->quirks & CD_Q_BCD_TRACKS) {
-		for (cdindex = 0; cdindex < num_entries - 1; cdindex++) {
-			softc->toc.entries[cdindex].track =
-				bcd2bin(softc->toc.entries[cdindex].track);
-		}
-	}
-
-	softc->flags |= CD_FLAG_VALID_TOC;
-
-	/* If the first track is audio, correct sector size. */
-	if ((softc->toc.entries[0].control & 4) == 0) {
-		softc->disk->d_sectorsize = softc->params.blksize = 2352;
-		softc->disk->d_mediasize =
-		    (off_t)softc->params.blksize * softc->params.disksize;
-	}
-
-bailout:
-
-	/*
-	 * We unconditionally (re)set the blocksize each time the
-	 * CD device is opened.  This is because the CD can change,
-	 * and therefore the blocksize might change.
-	 * XXX problems here if some slice or partition is still
-	 * open with the old size?
-	 */
-	if ((softc->disk->d_devstat->flags & DEVSTAT_BS_UNAVAILABLE) != 0)
-		softc->disk->d_devstat->flags &= ~DEVSTAT_BS_UNAVAILABLE;
-	softc->disk->d_devstat->block_size = softc->params.blksize;
-
-	return (error);
-}
-
-static int
-cdsize(struct cam_periph *periph, uint32_t *size)
-{
-	struct cd_softc *softc;
-	union ccb *ccb;
-	struct scsi_read_capacity_data *rcap_buf;
-	int error;
-
-	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("entering cdsize\n"));
-
-	softc = (struct cd_softc *)periph->softc;
-
-	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
-
-	/* XXX Should be M_WAITOK */
-	rcap_buf = malloc(sizeof(struct scsi_read_capacity_data),
-			  M_SCSICD, M_NOWAIT | M_ZERO);
-	if (rcap_buf == NULL)
-		return (ENOMEM);
-
-	scsi_read_capacity(&ccb->csio,
-			   /*retries*/ cd_retry_count,
-			   /*cbfcnp*/NULL,
-			   MSG_SIMPLE_Q_TAG,
-			   rcap_buf,
-			   SSD_FULL_SIZE,
-			   /* timeout */20000);
-
-	error = cdrunccb(ccb, cderror, /*cam_flags*/CAM_RETRY_SELTO,
-			 /*sense_flags*/SF_RETRY_UA|SF_NO_PRINT);
-
-	xpt_release_ccb(ccb);
-
-	softc->params.disksize = scsi_4btoul(rcap_buf->addr) + 1;
-	softc->params.blksize  = scsi_4btoul(rcap_buf->length);
-	/* Make sure we got at least some block size. */
-	if (error == 0 && softc->params.blksize == 0)
-		error = EIO;
-	/*
-	 * SCSI-3 mandates that the reported blocksize shall be 2048.
-	 * Older drives sometimes report funny values, trim it down to
-	 * 2048, or other parts of the kernel will get confused.
-	 *
-	 * XXX we leave drives alone that might report 512 bytes, as
-	 * well as drives reporting more weird sizes like perhaps 4K.
-	 */
-	if (softc->params.blksize > 2048 && softc->params.blksize <= 2352)
-		softc->params.blksize = 2048;
-
-	free(rcap_buf, M_SCSICD);
-	*size = softc->params.disksize;
-
-	return (error);
-
-}
-#endif
 
 static int
 cd6byteworkaround(union ccb *ccb)

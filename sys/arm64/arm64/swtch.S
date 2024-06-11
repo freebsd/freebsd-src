@@ -33,6 +33,8 @@
 #include "opt_kstack_pages.h"
 #include "opt_sched.h"
 
+#include <sys/elf_common.h>
+
 #include <machine/asm.h>
 #include <machine/armreg.h>
 .macro clear_step_flag pcbflags, tmp
@@ -270,12 +272,11 @@ ENTRY(savectx)
 	/* Store the VFP registers */
 #ifdef VFP
 	mov	x28, lr
-	mov	x1, x0			/* move pcb to the correct register */
-	mov	x0, xzr			/* td = NULL */
-	bl	vfp_save_state
+	bl	vfp_save_state_savectx
 	mov	lr, x28
 #endif
 
 	ret
 END(savectx)
 
+GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)

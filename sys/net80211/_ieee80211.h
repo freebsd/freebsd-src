@@ -537,6 +537,27 @@ struct ieee80211_mimo_info {
 	"\34TXAMSDUAMPDU"
 
 /*
+ * AKM (key management) suite capability list.
+ *
+ * These represent what's in 802.11-2016 - Table 9-133 - AKM Suite Selectors.
+ * Note that they do not match what the table values are, in case other key
+ * management suites want to be added with different OUIs.
+ */
+#define	IEEE80211_KEYMGMT_RSN_UNSPEC_802_1X		0x00000001 /* RSN suite 1 */
+#define	IEEE80211_KEYMGMT_RSN_PSK_OVER_802_1X		0x00000002 /* RSN suite 2 */
+#define	IEEE80211_KEYMGMT_RSN_FT_OVER_802_1X		0x00000004 /* RSN suite 3 */
+#define	IEEE80211_KEYMGMT_RSN_FT_PSK			0x00000008 /* RSN suite 4 */
+#define	IEEE80211_KEYMGMT_RSN_802_1X_SHA256		0x00000010 /* RSN suite 5 */
+#define	IEEE80211_KEYMGMT_RSN_PSK_SHA256		0x00000020 /* RSN suite 6 */
+#define	IEEE80211_KEYMGMT_RSN_TPK_HANDSHAKE		0x00000040 /* RSN suite 7 */
+#define	IEEE80211_KEYMGMT_RSN_SAE			0x00000080 /* RSN suite 8 */
+#define	IEEE80211_KEYMGMT_RSN_FT_SAE			0x00000100 /* RSN suite 9 */
+#define	IEEE80211_KEYMGMT_RSN_APPEERKEY_SHA256		0x00000200 /* RSN suite 10 */
+#define	IEEE80211_KEYMGMT_RSN_802_1X_SUITE_B		0x00000400 /* RSN suite 11 */
+#define	IEEE80211_KEYMGMT_RSN_802_1X_SUITE_B_192	0x00000800 /* RSN suite 12 */
+#define	IEEE80211_KEYMGMT_RSN_FT_802_1X_SHA384		0x00001000 /* RSN suite 13 */
+
+/*
  * RX status notification - which fields are valid.
  */
 #define	IEEE80211_R_NF		0x00000001	/* global NF value valid */

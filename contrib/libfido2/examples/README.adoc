@@ -48,7 +48,7 @@ The following examples are provided:
 	the device's PIN is changed from [oldpin] to <pin>.
 
 - cred [-t es256|es384|rs256|eddsa] [-k pubkey] [-ei cred_id] [-P pin]
-       [-T seconds] [-b blobkey] [-hruv] <device>
+       [-T seconds] [-b blobkey] [-hruv] [-c cred_protect] <device>
 
 	Creates a new credential on <device> and verify that the credential
 	was signed by the authenticator. The device's attestation certificate
@@ -63,7 +63,8 @@ The following examples are provided:
 	is generated using U2F (CTAP1) instead of FIDO2 (CTAP2) commands.
 	The -T option may be used to enforce a timeout of <seconds>. If the
 	option -b is specified, the credential's "largeBlob" key is stored in
-	<blobkey>.
+	<blobkey>. If the option -c is specified the the generated credential
+	will be bound by the specified protection policy.
 
 - assert [-t es256|es384|rs256|eddsa] [-a cred_id] [-h hmac_secret] [-P pin]
          [-s hmac_salt] [-T seconds] [-b blobkey] [-puv] <pubkey> <device>

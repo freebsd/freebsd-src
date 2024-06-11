@@ -20,8 +20,9 @@ t_dropgid.c	test how to drop saved-gid for a set-group-ID program
 t_exclopen.c	test for security-defeating semantics that an open with
 		O_CREAT|O_EXCL set will successfully open a file named
 		by a symbolic link that to a non-existent file
-t_seteuid.c	test whether seteuid works
-t_setgid.c	test whether setgid works
-t_setreuid.c	test whether setreuid works
-t_setuid.c	test whether setuid works
+t_pathconf.c	test whether pathconf(2) works
+t_seteuid.c	test whether seteuid(2) works
+t_setgid.c	test whether setgid(2) works
+t_setreuid.c	test whether setreuid(2) works
+t_setuid.c	test whether setuid(2) works
 

@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2019 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2019-2024 Ruslan Bukin <br@bsdpad.com>
  *
  * This software was developed by SRI International and the University of
  * Cambridge Computer Laboratory (Department of Computer Science and
@@ -32,6 +32,9 @@
 
 /*
  * Intel Stratix 10 FPGA Manager.
+ *
+ * FPGA Programming Example:
+ *  dd if=cheri.core.rbf of=/dev/fpga_partial0 bs=512k
  */
 
 #include <sys/param.h>
@@ -57,7 +60,7 @@
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
-#define	SVC_BUF_SIZE	(2 * 1024 * 1024)
+#define	SVC_BUF_SIZE	(512 * 1024)
 
 struct fpgamgr_s10_softc {
 	struct cdev		*mgr_cdev;
@@ -110,11 +113,44 @@ fpga_open(struct cdev *dev, int flags __unused,
 }
 
 static int
+fpga_submit(struct cdev *dev)
+{
+	struct fpgamgr_s10_softc *sc;
+	struct s10_svc_msg msg;
+	int ret;
+
+	sc = dev->si_drv1;
+
+	bzero(&msg, sizeof(struct s10_svc_msg));
+	msg.command = COMMAND_RECONFIG_DATA_SUBMIT;
+	msg.payload = (void *)sc->mem.paddr;
+	msg.payload_length = sc->mem.fill;
+	ret = s10_svc_send(sc->s10_svc_dev, &msg);
+	if (ret != 0) {
+		device_printf(sc->dev, "Failed to submit data\n");
+		s10_svc_free_memory(sc->s10_svc_dev, &sc->mem);
+		sc->opened = 0;
+		return (ENXIO);
+	}
+
+	/* Claim memory buffer back. */
+	bzero(&msg, sizeof(struct s10_svc_msg));
+	msg.command = COMMAND_RECONFIG_DATA_CLAIM;
+	ret = s10_svc_send(sc->s10_svc_dev, &msg);
+	if (ret)
+		device_printf(sc->dev, "Can't claim buffer back.\n");
+
+	return (ret);
+}
+
+static int
 fpga_write(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct fpgamgr_s10_softc *sc;
 	vm_offset_t addr;
+	int error;
 	int amnt;
+	int ret;
 
 	sc = dev->si_drv1;
 
@@ -127,11 +163,22 @@ fpga_write(struct cdev *dev, struct uio *uio, int ioflag)
 
 	while (uio->uio_resid > 0) {
 		addr = sc->mem.vaddr + sc->mem.fill;
-		if (sc->mem.fill >= SVC_BUF_SIZE)
-			return (ENOMEM);
 		amnt = MIN(uio->uio_resid, (SVC_BUF_SIZE - sc->mem.fill));
-		uiomove((void *)addr, amnt, uio);
+		error = uiomove((void *)addr, amnt, uio);
+		if (error) {
+			device_printf(sc->dev, "uiomove returned error %d\n",
+			    error);
+			break;
+		}
 		sc->mem.fill += amnt;
+		if (sc->mem.fill == SVC_BUF_SIZE) {
+			ret = fpga_submit(dev);
+			if (ret) {
+				sx_xunlock(&sc->sx);
+				return (ret);
+			}
+			sc->mem.fill = 0;
+		}
 	}
 
 	sx_xunlock(&sc->sx);
@@ -144,7 +191,6 @@ fpga_close(struct cdev *dev, int flags __unused,
     int fmt __unused, struct thread *td __unused)
 {
 	struct fpgamgr_s10_softc *sc;
-	struct s10_svc_msg msg;
 	int ret;
 
 	sc = dev->si_drv1;
@@ -156,24 +202,14 @@ fpga_close(struct cdev *dev, int flags __unused,
 		return (ENXIO);
 	}
 
-	/* Submit bitstream */
-	bzero(&msg, sizeof(struct s10_svc_msg));
-	msg.command = COMMAND_RECONFIG_DATA_SUBMIT;
-	msg.payload = (void *)sc->mem.paddr;
-	msg.payload_length = sc->mem.fill;
-	ret = s10_svc_send(sc->s10_svc_dev, &msg);
-	if (ret != 0) {
-		device_printf(sc->dev, "Failed to submit data\n");
-		s10_svc_free_memory(sc->s10_svc_dev, &sc->mem);
-		sc->opened = 0;
-		sx_xunlock(&sc->sx);
-		return (0);
+	if (sc->mem.fill > 0) {
+		ret = fpga_submit(dev);
+		if (ret) {
+			sx_xunlock(&sc->sx);
+			return (ret);
+		}
+		sc->mem.fill = 0;
 	}
-
-	/* Claim memory buffer back */
-	bzero(&msg, sizeof(struct s10_svc_msg));
-	msg.command = COMMAND_RECONFIG_DATA_CLAIM;
-	s10_svc_send(sc->s10_svc_dev, &msg);
 
 	s10_svc_free_memory(sc->s10_svc_dev, &sc->mem);
 	sc->opened = 0;

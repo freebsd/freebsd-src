@@ -171,12 +171,14 @@ static struct timecounter arm_tmr_timecount = {
 #define	set_el0(x, val)	cp15_## x ##_set(val)
 #define	set_el1(x, val)	cp15_## x ##_set(val)
 #define	HAS_PHYS	true
+#define	IN_VHE		false
 #else /* __aarch64__ */
 #define	get_el0(x)	READ_SPECIALREG(x ##_el0)
 #define	get_el1(x)	READ_SPECIALREG(x ##_el1)
 #define	set_el0(x, val)	WRITE_SPECIALREG(x ##_el0, val)
 #define	set_el1(x, val)	WRITE_SPECIALREG(x ##_el1, val)
 #define	HAS_PHYS	has_hyp()
+#define	IN_VHE		in_vhe()
 #endif
 
 static int
@@ -564,6 +566,8 @@ arm_tmr_acpi_identify(driver_t *driver, device_t parent)
 	    gtdt->NonSecureEl1Interrupt);
 	arm_tmr_acpi_add_irq(parent, dev, GT_VIRT,
 	    gtdt->VirtualTimerInterrupt);
+	arm_tmr_acpi_add_irq(parent, dev, GT_HYP_PHYS,
+	    gtdt->NonSecureEl2Interrupt);
 
 out:
 	acpi_unmap_table(gtdt);
@@ -676,13 +680,22 @@ arm_tmr_attach(device_t dev)
 #endif
 
 #ifdef __aarch64__
-	/*
-	 * Use the virtual timer when we can't use the hypervisor.
-	 * A hypervisor guest may change the virtual timer registers while
-	 * executing so any use of the virtual timer interrupt needs to be
-	 * coordinated with the virtual machine manager.
-	 */
-	if (!HAS_PHYS) {
+	if (IN_VHE) {
+		/*
+		 * The kernel is running at EL2. The EL0 timer registers are
+		 * re-mapped to the EL2 version. Because of this we need to
+		 * use the EL2 interrupt.
+		 */
+		sc->physical_sys = true;
+		first_timer = GT_HYP_PHYS;
+		last_timer = GT_HYP_PHYS;
+	} else if (!HAS_PHYS) {
+		/*
+		 * Use the virtual timer when we can't use the hypervisor.
+		 * A hypervisor guest may change the virtual timer registers
+		 * while executing so any use of the virtual timer interrupt
+		 * needs to be coordinated with the virtual machine manager.
+		 */
 		sc->physical_sys = false;
 		first_timer = GT_VIRT;
 		last_timer = GT_VIRT;

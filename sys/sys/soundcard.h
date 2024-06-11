@@ -1878,7 +1878,7 @@ typedef struct oss_audioinfo
 	int	card_number;
 	int	port_number;
 	int	mixer_dev;
-	int	real_device;	/* Obsolete field. Replaced by devnode */
+	int	legacy_device;	/* Obsolete field. Replaced by devnode */
 	int	enabled;	/* 1=enabled, 0=device not ready at this
 				   moment */
 	int	flags;		/* For internal use only - no practical
@@ -1925,7 +1925,9 @@ typedef struct oss_mixerinfo
    * as the default mixer.
    */
   int priority;
-  int filler[254];		/* Reserved */
+  oss_devnode_t devnode;
+  int legacy_device;
+  int filler[245];		/* Reserved */
 } oss_mixerinfo;
 
 typedef struct oss_midi_info

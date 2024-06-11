@@ -62,14 +62,10 @@ power_list_one(int i, struct nvme_power_state *nps)
 	int mpower, apower, ipower;
 	uint8_t mps, nops, aps, apw;
 
-	mps = (nps->mps_nops >> NVME_PWR_ST_MPS_SHIFT) &
-		NVME_PWR_ST_MPS_MASK;
-	nops = (nps->mps_nops >> NVME_PWR_ST_NOPS_SHIFT) &
-		NVME_PWR_ST_NOPS_MASK;
-	apw = (nps->apw_aps >> NVME_PWR_ST_APW_SHIFT) &
-		NVME_PWR_ST_APW_MASK;
-	aps = (nps->apw_aps >> NVME_PWR_ST_APS_SHIFT) &
-		NVME_PWR_ST_APS_MASK;
+	mps = NVMEV(NVME_PWR_ST_MPS, nps->mps_nops);
+	nops = NVMEV(NVME_PWR_ST_NOPS, nps->mps_nops);
+	apw = NVMEV(NVME_PWR_ST_APW, nps->apw_aps);
+	aps = NVMEV(NVME_PWR_ST_APS, nps->apw_aps);
 
 	mpower = nps->mp;
 	if (mps == 0)

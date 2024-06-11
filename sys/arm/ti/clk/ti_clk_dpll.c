@@ -33,7 +33,7 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
 #include <arm/ti/clk/ti_clk_dpll.h>
 

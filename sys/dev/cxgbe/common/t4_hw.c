@@ -243,18 +243,21 @@ struct port_tx_state {
 	uint64_t tx_frames;
 };
 
+u32
+t4_port_reg(struct adapter *adap, u8 port, u32 reg)
+{
+	if (chip_id(adap) > CHELSIO_T4)
+		return T5_PORT_REG(port, reg);
+	return PORT_REG(port, reg);
+}
+
 static void
 read_tx_state_one(struct adapter *sc, int i, struct port_tx_state *tx_state)
 {
 	uint32_t rx_pause_reg, tx_frames_reg;
 
-	if (is_t4(sc)) {
-		tx_frames_reg = PORT_REG(i, A_MPS_PORT_STAT_TX_PORT_FRAMES_L);
-		rx_pause_reg = PORT_REG(i, A_MPS_PORT_STAT_RX_PORT_PAUSE_L);
-	} else {
-		tx_frames_reg = T5_PORT_REG(i, A_MPS_PORT_STAT_TX_PORT_FRAMES_L);
-		rx_pause_reg = T5_PORT_REG(i, A_MPS_PORT_STAT_RX_PORT_PAUSE_L);
-	}
+	rx_pause_reg = t4_port_reg(sc, i, A_MPS_PORT_STAT_RX_PORT_PAUSE_L);
+	tx_frames_reg = t4_port_reg(sc, i, A_MPS_PORT_STAT_TX_PORT_FRAMES_L);
 
 	tx_state->rx_pause = t4_read_reg64(sc, rx_pause_reg);
 	tx_state->tx_frames = t4_read_reg64(sc, tx_frames_reg);
@@ -281,10 +284,7 @@ check_tx_state(struct adapter *sc, struct port_tx_state *tx_state)
 		tx_frames = tx_state[i].tx_frames;
 		read_tx_state_one(sc, i, &tx_state[i]);	/* update */
 
-		if (is_t4(sc))
-			port_ctl_reg = PORT_REG(i, A_MPS_PORT_CTL);
-		else
-			port_ctl_reg = T5_PORT_REG(i, A_MPS_PORT_CTL);
+		port_ctl_reg = t4_port_reg(sc, i, A_MPS_PORT_CTL);
 		if (t4_read_reg(sc, port_ctl_reg) & F_PORTTXEN &&
 		    rx_pause != tx_state[i].rx_pause &&
 		    tx_frames == tx_state[i].tx_frames) {
@@ -5455,99 +5455,6 @@ void t4_intr_disable(struct adapter *adap)
 }
 
 /**
- *	t4_intr_clear - clear all interrupts
- *	@adap: the adapter whose interrupts should be cleared
- *
- *	Clears all interrupts.  The caller must be a PCI function managing
- *	global interrupts.
- */
-void t4_intr_clear(struct adapter *adap)
-{
-	static const u32 cause_reg[] = {
-		A_CIM_HOST_INT_CAUSE,
-		A_CIM_HOST_UPACC_INT_CAUSE,
-		MYPF_REG(A_CIM_PF_HOST_INT_CAUSE),
-		A_CPL_INTR_CAUSE,
-		EDC_REG(A_EDC_INT_CAUSE, 0), EDC_REG(A_EDC_INT_CAUSE, 1),
-		A_LE_DB_INT_CAUSE,
-		A_MA_INT_WRAP_STATUS,
-		A_MA_PARITY_ERROR_STATUS1,
-		A_MA_INT_CAUSE,
-		A_MPS_CLS_INT_CAUSE,
-		A_MPS_RX_PERR_INT_CAUSE,
-		A_MPS_STAT_PERR_INT_CAUSE_RX_FIFO,
-		A_MPS_STAT_PERR_INT_CAUSE_SRAM,
-		A_MPS_TRC_INT_CAUSE,
-		A_MPS_TX_INT_CAUSE,
-		A_MPS_STAT_PERR_INT_CAUSE_TX_FIFO,
-		A_NCSI_INT_CAUSE,
-		A_PCIE_INT_CAUSE,
-		A_PCIE_NONFAT_ERR,
-		A_PL_PL_INT_CAUSE,
-		A_PM_RX_INT_CAUSE,
-		A_PM_TX_INT_CAUSE,
-		A_SGE_INT_CAUSE1,
-		A_SGE_INT_CAUSE2,
-		A_SGE_INT_CAUSE3,
-		A_SGE_INT_CAUSE4,
-		A_SMB_INT_CAUSE,
-		A_TP_INT_CAUSE,
-		A_ULP_RX_INT_CAUSE,
-		A_ULP_RX_INT_CAUSE_2,
-		A_ULP_TX_INT_CAUSE,
-		A_ULP_TX_INT_CAUSE_2,
-
-		MYPF_REG(A_PL_PF_INT_CAUSE),
-	};
-	int i;
-	const int nchan = adap->chip_params->nchan;
-
-	for (i = 0; i < ARRAY_SIZE(cause_reg); i++)
-		t4_write_reg(adap, cause_reg[i], 0xffffffff);
-
-	if (is_t4(adap)) {
-		t4_write_reg(adap, A_PCIE_CORE_UTL_SYSTEM_BUS_AGENT_STATUS,
-		    0xffffffff);
-		t4_write_reg(adap, A_PCIE_CORE_UTL_PCI_EXPRESS_PORT_STATUS,
-		    0xffffffff);
-		t4_write_reg(adap, A_MC_INT_CAUSE, 0xffffffff);
-		for (i = 0; i < nchan; i++) {
-			t4_write_reg(adap, PORT_REG(i, A_XGMAC_PORT_INT_CAUSE),
-			    0xffffffff);
-		}
-	}
-	if (chip_id(adap) >= CHELSIO_T5) {
-		t4_write_reg(adap, A_MA_PARITY_ERROR_STATUS2, 0xffffffff);
-		t4_write_reg(adap, A_MPS_STAT_PERR_INT_CAUSE_SRAM1, 0xffffffff);
-		t4_write_reg(adap, A_SGE_INT_CAUSE5, 0xffffffff);
-		t4_write_reg(adap, A_MC_P_INT_CAUSE, 0xffffffff);
-		if (is_t5(adap)) {
-			t4_write_reg(adap, MC_REG(A_MC_P_INT_CAUSE, 1),
-			    0xffffffff);
-		}
-		for (i = 0; i < nchan; i++) {
-			t4_write_reg(adap, T5_PORT_REG(i,
-			    A_MAC_PORT_PERR_INT_CAUSE), 0xffffffff);
-			if (chip_id(adap) > CHELSIO_T5) {
-				t4_write_reg(adap, T5_PORT_REG(i,
-				    A_MAC_PORT_PERR_INT_CAUSE_100G),
-				    0xffffffff);
-			}
-			t4_write_reg(adap, T5_PORT_REG(i, A_MAC_PORT_INT_CAUSE),
-			    0xffffffff);
-		}
-	}
-	if (chip_id(adap) >= CHELSIO_T6) {
-		t4_write_reg(adap, A_SGE_INT_CAUSE6, 0xffffffff);
-	}
-
-	t4_write_reg(adap, A_MPS_INT_CAUSE, is_t4(adap) ? 0 : 0xffffffff);
-	t4_write_reg(adap, A_PL_PERR_CAUSE, 0xffffffff);
-	t4_write_reg(adap, A_PL_INT_CAUSE, 0xffffffff);
-	(void) t4_read_reg(adap, A_PL_INT_CAUSE);          /* flush */
-}
-
-/**
  *	hash_mac_addr - return the hash value of a MAC address
  *	@addr: the 48-bit Ethernet MAC address
  *
@@ -6835,13 +6742,14 @@ static unsigned int t4_get_mps_bg_map(struct adapter *adap, int idx)
 {
 	u32 n;
 
-	if (adap->params.mps_bg_map)
+	if (adap->params.mps_bg_map != UINT32_MAX)
 		return ((adap->params.mps_bg_map >> (idx << 3)) & 0xff);
 
-	n = G_NUMPORTS(t4_read_reg(adap, A_MPS_CMN_CTL));
-	if (n == 0)
+	n = adap->params.nports;
+	MPASS(n > 0 && n <= MAX_NPORTS);
+	if (n == 1)
 		return idx == 0 ? 0xf : 0;
-	if (n == 1 && chip_id(adap) <= CHELSIO_T5)
+	if (n == 2 && chip_id(adap) <= CHELSIO_T5)
 		return idx < 2 ? (3 << (2 * idx)) : 0;
 	return 1 << idx;
 }
@@ -6851,12 +6759,12 @@ static unsigned int t4_get_mps_bg_map(struct adapter *adap, int idx)
  */
 static unsigned int t4_get_rx_e_chan_map(struct adapter *adap, int idx)
 {
-	u32 n = G_NUMPORTS(t4_read_reg(adap, A_MPS_CMN_CTL));
+	const u32 n = adap->params.nports;
 	const u32 all_chan = (1 << adap->chip_params->nchan) - 1;
 
-	if (n == 0)
+	if (n == 1)
 		return idx == 0 ? all_chan : 0;
-	if (n == 1 && chip_id(adap) <= CHELSIO_T5)
+	if (n == 2 && chip_id(adap) <= CHELSIO_T5)
 		return idx < 2 ? (3 << (2 * idx)) : 0;
 	return 1 << idx;
 }
@@ -6866,16 +6774,17 @@ static unsigned int t4_get_rx_e_chan_map(struct adapter *adap, int idx)
  */
 static unsigned int t4_get_rx_c_chan(struct adapter *adap, int idx)
 {
-	u32 param, val;
-	int ret;
-
-	param = (V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
-	    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_TPCHMAP));
-	ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 1, &param, &val);
-	if (!ret)
-		return (val >> (8 * idx)) & 0xff;
-
+	if (adap->params.tp_ch_map != UINT32_MAX)
+		return (adap->params.tp_ch_map >> (8 * idx)) & 0xff;
         return 0;
+}
+
+/*
+ * TP TX c-channel associated with the port.
+ */
+static unsigned int t4_get_tx_c_chan(struct adapter *adap, int idx)
+{
+	return idx;
 }
 
 /**
@@ -6907,6 +6816,7 @@ const char *t4_get_port_type_description(enum fw_port_type port_type)
 		"CR2_QSFP",
 		"SFP28",
 		"KR_SFP28",
+		"KR_XLAUI",
 	};
 
 	if (port_type < ARRAY_SIZE(port_type_description))
@@ -6952,8 +6862,7 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 
 #define GET_STAT(name) \
 	t4_read_reg64(adap, \
-	(is_t4(adap) ? PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_##name##_L) : \
-	T5_PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_##name##_L)))
+	    t4_port_reg(adap, pi->tx_chan, A_MPS_PORT_STAT_##name##_L));
 #define GET_STAT_COM(name) t4_read_reg64(adap, A_MPS_STAT_##name##_L)
 
 	p->tx_pause		= GET_STAT(TX_PORT_PAUSE);
@@ -7054,9 +6963,7 @@ void t4_get_lb_stats(struct adapter *adap, int idx, struct lb_port_stats *p)
 
 #define GET_STAT(name) \
 	t4_read_reg64(adap, \
-	(is_t4(adap) ? \
-	PORT_REG(idx, A_MPS_PORT_STAT_LB_PORT_##name##_L) : \
-	T5_PORT_REG(idx, A_MPS_PORT_STAT_LB_PORT_##name##_L)))
+	    t4_port_reg(adap, idx, A_MPS_PORT_STAT_LB_PORT_##name##_L))
 #define GET_STAT_COM(name) t4_read_reg64(adap, A_MPS_STAT_##name##_L)
 
 	p->octets	= GET_STAT(BYTES);
@@ -7835,9 +7742,18 @@ int t4_query_params_rw(struct adapter *adap, unsigned int mbox, unsigned int pf,
 	}
 
 	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
-	if (ret == 0)
-		for (i = 0, p = &c.param[0].val; i < nparams; i++, p += 2)
-			*val++ = be32_to_cpu(*p);
+
+	/*
+	 * We always copy back the results, even if there's an error.  We'll
+	 * get an error if any of the parameters was unknown to the Firmware,
+	 * but there will be results for the others ...  (Older Firmware
+	 * stopped at the first unknown parameter; newer Firmware processes
+	 * them all and flags the unknown parameters with a return value of
+	 * ~0UL.)
+	 */
+	for (i = 0, p = &c.param[0].val; i < nparams; i++, p += 2)
+		*val++ = be32_to_cpu(*p);
+
 	return ret;
 }
 
@@ -9303,6 +9219,7 @@ const struct chip_params *t4_get_chip_params(int chipid)
 			.sge_fl_db = F_DBPRIO,
 			.mps_tcam_size = NUM_MPS_CLS_SRAM_L_INSTANCES,
 			.rss_nentries = RSS_NENTRIES,
+			.cim_la_size = CIMLA_SIZE,
 		},
 		{
 			/* T5 */
@@ -9317,6 +9234,7 @@ const struct chip_params *t4_get_chip_params(int chipid)
 			.sge_fl_db = F_DBPRIO | F_DBTYPE,
 			.mps_tcam_size = NUM_MPS_T5_CLS_SRAM_L_INSTANCES,
 			.rss_nentries = RSS_NENTRIES,
+			.cim_la_size = CIMLA_SIZE,
 		},
 		{
 			/* T6 */
@@ -9331,6 +9249,7 @@ const struct chip_params *t4_get_chip_params(int chipid)
 			.sge_fl_db = 0,
 			.mps_tcam_size = NUM_MPS_T5_CLS_SRAM_L_INSTANCES,
 			.rss_nentries = T6_RSS_NENTRIES,
+			.cim_la_size = CIMLA_SIZE_T6,
 		},
 	};
 
@@ -9386,11 +9305,11 @@ int t4_prep_adapter(struct adapter *adapter, u32 *buf)
 	/* Cards with real ASICs have the chipid in the PCIe device id */
 	t4_os_pci_read_cfg2(adapter, PCI_DEVICE_ID, &device_id);
 	if (device_id >> 12 == chip_id(adapter))
-		adapter->params.cim_la_size = CIMLA_SIZE;
+		adapter->params.cim_la_size = adapter->chip_params->cim_la_size;
 	else {
 		/* FPGA */
 		adapter->params.fpga = 1;
-		adapter->params.cim_la_size = 2 * CIMLA_SIZE;
+		adapter->params.cim_la_size = 2 * adapter->chip_params->cim_la_size;
 	}
 
 	ret = get_vpd_params(adapter, &adapter->params.vpd, device_id, buf);
@@ -9433,16 +9352,16 @@ int t4_shutdown_adapter(struct adapter *adapter)
 		t4_write_reg(adapter, A_DBG_GPIO_EN, 0xffff0000);
 	for_each_port(adapter, port) {
 		u32 a_port_cfg = is_t4(adapter) ?
-				 PORT_REG(port, A_XGMAC_PORT_CFG) :
-				 T5_PORT_REG(port, A_MAC_PORT_CFG);
+		    t4_port_reg(adapter, port, A_XGMAC_PORT_CFG) :
+		    t4_port_reg(adapter, port, A_MAC_PORT_CFG);
 
 		t4_write_reg(adapter, a_port_cfg,
 			     t4_read_reg(adapter, a_port_cfg)
 			     & ~V_SIGNAL_DET(1));
 		if (!bt) {
 			u32 hss_cfg0 = is_t4(adapter) ?
-					 PORT_REG(port, A_XGMAC_PORT_HSS_CFG0) :
-					 T5_PORT_REG(port, A_MAC_PORT_HSS_CFG0);
+			    t4_port_reg(adapter, port, A_XGMAC_PORT_HSS_CFG0) :
+			    t4_port_reg(adapter, port, A_MAC_PORT_HSS_CFG0);
 			t4_set_reg_field(adapter, hss_cfg0, F_HSSPDWNPLLB |
 			    F_HSSPDWNPLLA | F_HSSPLLBYPB | F_HSSPLLBYPA,
 			    F_HSSPDWNPLLB | F_HSSPDWNPLLA | F_HSSPLLBYPB |
@@ -9797,17 +9716,12 @@ read_filter_mode_and_ingress_config(struct adapter *adap)
  */
 int t4_init_tp_params(struct adapter *adap)
 {
-	int chan;
 	u32 tx_len, rx_len, r, v;
 	struct tp_params *tpp = &adap->params.tp;
 
 	v = t4_read_reg(adap, A_TP_TIMER_RESOLUTION);
 	tpp->tre = G_TIMERRESOLUTION(v);
 	tpp->dack_re = G_DELAYEDACKRESOLUTION(v);
-
-	/* MODQ_REQ_MAP defaults to setting queues 0-3 to chan 0-3 */
-	for (chan = 0; chan < MAX_NCHAN; chan++)
-		tpp->tx_modq[chan] = chan;
 
 	read_filter_mode_and_ingress_config(adap);
 
@@ -9904,10 +9818,10 @@ int t4_port_init(struct adapter *adap, int mbox, int pf, int vf, int port_id)
 		} while ((adap->params.portvec & (1 << j)) == 0);
 	}
 
-	p->tx_chan = j;
+	p->tx_chan = t4_get_tx_c_chan(adap, j);
+	p->rx_chan = t4_get_rx_c_chan(adap, j);
 	p->mps_bg_map = t4_get_mps_bg_map(adap, j);
 	p->rx_e_chan_map = t4_get_rx_e_chan_map(adap, j);
-	p->rx_c_chan = t4_get_rx_c_chan(adap, j);
 	p->lport = j;
 
 	if (!(adap->flags & IS_VF) ||

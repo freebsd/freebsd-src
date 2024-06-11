@@ -108,14 +108,35 @@ static void _bus_dmamap_count_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
 static MALLOC_DEFINE(M_BUSDMA, "busdma", "busdma metadata");
 
 #define	dmat_alignment(dmat)	((dmat)->common.alignment)
+#define	dmat_bounce_flags(dmat)	((dmat)->bounce_flags)
+#define	dmat_boundary(dmat)	((dmat)->common.boundary)
 #define	dmat_domain(dmat)	((dmat)->common.domain)
 #define	dmat_flags(dmat)	((dmat)->common.flags)
 #define	dmat_highaddr(dmat)	((dmat)->common.highaddr)
 #define	dmat_lowaddr(dmat)	((dmat)->common.lowaddr)
 #define	dmat_lockfunc(dmat)	((dmat)->common.lockfunc)
 #define	dmat_lockfuncarg(dmat)	((dmat)->common.lockfuncarg)
+#define	dmat_maxsegsz(dmat)	((dmat)->common.maxsegsz)
+#define	dmat_nsegments(dmat)	((dmat)->common.nsegments)
 
 #include "../../kern/subr_busdma_bounce.c"
+
+/*
+ * On i386 kernels without 'options PAE' we need to also bounce any
+ * physical addresses above 4G.
+ *
+ * NB: vm_paddr_t is required here since bus_addr_t is only 32 bits in
+ * i386 kernels without 'options PAE'.
+ */
+static __inline bool
+must_bounce(bus_dma_tag_t dmat, vm_paddr_t paddr)
+{
+#if defined(__i386__) && !defined(PAE)
+	if (paddr > BUS_SPACE_MAXADDR)
+		return (true);
+#endif
+	return (addr_needs_bounce(dmat, paddr));
+}
 
 static int
 bounce_bus_dma_zone_setup(bus_dma_tag_t dmat)
@@ -490,8 +511,8 @@ _bus_dmamap_pagesneeded(bus_dma_tag_t dmat, vm_paddr_t buf, bus_size_t buflen,
 	count = 0;
 	curaddr = buf;
 	while (buflen != 0) {
-		sgsize = MIN(buflen, dmat->common.maxsegsz);
-		if (addr_needs_bounce(dmat, curaddr)) {
+		sgsize = buflen;
+		if (must_bounce(dmat, curaddr)) {
 			sgsize = MIN(sgsize,
 			    PAGE_SIZE - (curaddr & PAGE_MASK));
 			if (pagesneeded == NULL)
@@ -542,12 +563,13 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 		vendaddr = (vm_offset_t)buf + buflen;
 
 		while (vaddr < vendaddr) {
-			sg_len = PAGE_SIZE - ((vm_offset_t)vaddr & PAGE_MASK);
+			sg_len = MIN(vendaddr - vaddr,
+			    PAGE_SIZE - ((vm_offset_t)vaddr & PAGE_MASK));
 			if (pmap == kernel_pmap)
 				paddr = pmap_kextract(vaddr);
 			else
 				paddr = pmap_extract(pmap, vaddr);
-			if (addr_needs_bounce(dmat, paddr)) {
+			if (must_bounce(dmat, paddr)) {
 				sg_len = roundup2(sg_len,
 				    dmat->common.alignment);
 				map->pagesneeded++;
@@ -562,7 +584,7 @@ static void
 _bus_dmamap_count_ma(bus_dma_tag_t dmat, bus_dmamap_t map, struct vm_page **ma,
     int ma_offs, bus_size_t buflen, int flags)
 {
-	bus_size_t sg_len, max_sgsize;
+	bus_size_t sg_len;
 	int page_index;
 	vm_paddr_t paddr;
 
@@ -582,12 +604,10 @@ _bus_dmamap_count_ma(bus_dma_tag_t dmat, bus_dmamap_t map, struct vm_page **ma,
 		while (buflen > 0) {
 			paddr = VM_PAGE_TO_PHYS(ma[page_index]) + ma_offs;
 			sg_len = PAGE_SIZE - ma_offs;
-			max_sgsize = MIN(buflen, dmat->common.maxsegsz);
-			sg_len = MIN(sg_len, max_sgsize);
-			if (addr_needs_bounce(dmat, paddr)) {
+			sg_len = MIN(sg_len, buflen);
+			if (must_bounce(dmat, paddr)) {
 				sg_len = roundup2(sg_len,
 				    dmat->common.alignment);
-				sg_len = MIN(sg_len, max_sgsize);
 				KASSERT(vm_addr_align_ok(sg_len,
 				    dmat->common.alignment),
 				    ("Segment size is not aligned"));
@@ -602,54 +622,6 @@ _bus_dmamap_count_ma(bus_dma_tag_t dmat, bus_dmamap_t map, struct vm_page **ma,
 		}
 		CTR1(KTR_BUSDMA, "pagesneeded= %d\n", map->pagesneeded);
 	}
-}
-
-/*
- * Add a single contiguous physical range to the segment list.
- */
-static bus_size_t
-_bus_dmamap_addseg(bus_dma_tag_t dmat, bus_dmamap_t map, vm_paddr_t curaddr,
-    bus_size_t sgsize, bus_dma_segment_t *segs, int *segp)
-{
-	int seg;
-
-	KASSERT(curaddr <= BUS_SPACE_MAXADDR,
-	    ("ds_addr %#jx > BUS_SPACE_MAXADDR %#jx; dmat %p fl %#x low %#jx "
-	    "hi %#jx",
-	    (uintmax_t)curaddr, (uintmax_t)BUS_SPACE_MAXADDR,
-	    dmat, dmat->bounce_flags, (uintmax_t)dmat->common.lowaddr,
-	    (uintmax_t)dmat->common.highaddr));
-
-	/*
-	 * Make sure we don't cross any boundaries.
-	 */
-	if (!vm_addr_bound_ok(curaddr, sgsize, dmat->common.boundary))
-		sgsize = roundup2(curaddr, dmat->common.boundary) - curaddr;
-
-	/*
-	 * Insert chunk into a segment, coalescing with
-	 * previous segment if possible.
-	 */
-	seg = *segp;
-	if (seg == -1) {
-		seg = 0;
-		segs[seg].ds_addr = curaddr;
-		segs[seg].ds_len = sgsize;
-	} else {
-		if (curaddr == segs[seg].ds_addr + segs[seg].ds_len &&
-		    (segs[seg].ds_len + sgsize) <= dmat->common.maxsegsz &&
-		    vm_addr_bound_ok(segs[seg].ds_addr,
-		    segs[seg].ds_len + sgsize, dmat->common.boundary))
-			segs[seg].ds_len += sgsize;
-		else {
-			if (++seg >= dmat->common.nsegments)
-				return (0);
-			segs[seg].ds_addr = curaddr;
-			segs[seg].ds_len = sgsize;
-		}
-	}
-	*segp = seg;
-	return (sgsize);
 }
 
 /*
@@ -682,17 +654,17 @@ bounce_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
 
 	while (buflen > 0) {
 		curaddr = buf;
-		sgsize = MIN(buflen, dmat->common.maxsegsz);
+		sgsize = buflen;
 		if ((dmat->bounce_flags & BUS_DMA_COULD_BOUNCE) != 0 &&
 		    map->pagesneeded != 0 &&
-		    addr_needs_bounce(dmat, curaddr)) {
+		    must_bounce(dmat, curaddr)) {
 			sgsize = MIN(sgsize, PAGE_SIZE - (curaddr & PAGE_MASK));
 			curaddr = add_bounce_page(dmat, map, 0, curaddr, 0,
 			    sgsize);
 		}
-		sgsize = _bus_dmamap_addseg(dmat, map, curaddr, sgsize, segs,
-		    segp);
-		if (sgsize == 0)
+
+		if (!_bus_dmamap_addsegs(dmat, map, curaddr, sgsize, segs,
+		    segp))
 			break;
 		buf += sgsize;
 		buflen -= sgsize;
@@ -713,7 +685,7 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
     bus_size_t buflen, pmap_t pmap, int flags, bus_dma_segment_t *segs,
     int *segp)
 {
-	bus_size_t sgsize, max_sgsize;
+	bus_size_t sgsize;
 	vm_paddr_t curaddr;
 	vm_offset_t kvaddr, vaddr;
 	int error;
@@ -749,21 +721,16 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		/*
 		 * Compute the segment size, and adjust counts.
 		 */
-		max_sgsize = MIN(buflen, dmat->common.maxsegsz);
-		sgsize = PAGE_SIZE - (curaddr & PAGE_MASK);
+		sgsize = MIN(buflen, PAGE_SIZE - (curaddr & PAGE_MASK));
 		if ((dmat->bounce_flags & BUS_DMA_COULD_BOUNCE) != 0 &&
 		    map->pagesneeded != 0 &&
-		    addr_needs_bounce(dmat, curaddr)) {
+		    must_bounce(dmat, curaddr)) {
 			sgsize = roundup2(sgsize, dmat->common.alignment);
-			sgsize = MIN(sgsize, max_sgsize);
 			curaddr = add_bounce_page(dmat, map, kvaddr, curaddr, 0,
 			    sgsize);
-		} else {
-			sgsize = MIN(sgsize, max_sgsize);
 		}
-		sgsize = _bus_dmamap_addseg(dmat, map, curaddr, sgsize, segs,
-		    segp);
-		if (sgsize == 0)
+		if (!_bus_dmamap_addsegs(dmat, map, curaddr, sgsize, segs,
+		    segp))
 			break;
 		vaddr += sgsize;
 		buflen -= sgsize;
@@ -782,7 +749,7 @@ bounce_bus_dmamap_load_ma(bus_dma_tag_t dmat, bus_dmamap_t map,
 {
 	vm_paddr_t paddr, next_paddr;
 	int error, page_index;
-	bus_size_t sgsize, max_sgsize;
+	bus_size_t sgsize;
 
 	if (dmat->common.flags & BUS_DMA_KEEP_PG_OFFSET) {
 		/*
@@ -816,13 +783,11 @@ bounce_bus_dmamap_load_ma(bus_dma_tag_t dmat, bus_dmamap_t map,
 		 * Compute the segment size, and adjust counts.
 		 */
 		paddr = VM_PAGE_TO_PHYS(ma[page_index]) + ma_offs;
-		max_sgsize = MIN(buflen, dmat->common.maxsegsz);
-		sgsize = PAGE_SIZE - ma_offs;
+		sgsize = MIN(buflen, PAGE_SIZE - ma_offs);
 		if ((dmat->bounce_flags & BUS_DMA_COULD_BOUNCE) != 0 &&
 		    map->pagesneeded != 0 &&
-		    addr_needs_bounce(dmat, paddr)) {
+		    must_bounce(dmat, paddr)) {
 			sgsize = roundup2(sgsize, dmat->common.alignment);
-			sgsize = MIN(sgsize, max_sgsize);
 			KASSERT(vm_addr_align_ok(sgsize,
 			    dmat->common.alignment),
 			    ("Segment size is not aligned"));
@@ -837,12 +802,9 @@ bounce_bus_dmamap_load_ma(bus_dma_tag_t dmat, bus_dmamap_t map,
 				next_paddr = 0;
 			paddr = add_bounce_page(dmat, map, 0, paddr,
 			    next_paddr, sgsize);
-		} else {
-			sgsize = MIN(sgsize, max_sgsize);
 		}
-		sgsize = _bus_dmamap_addseg(dmat, map, paddr, sgsize, segs,
-		    segp);
-		if (sgsize == 0)
+		if (!_bus_dmamap_addsegs(dmat, map, paddr, sgsize, segs,
+		    segp))
 			break;
 		KASSERT(buflen >= sgsize,
 		    ("Segment length overruns original buffer"));

@@ -46,7 +46,7 @@ ExecutorAddr getJITSymbolPtrForSymbol(Symbol &Sym, const Triple &TT) {
   case Triple::armeb:
   case Triple::thumb:
   case Triple::thumbeb:
-    if (Sym.hasTargetFlags(aarch32::ThumbSymbol)) {
+    if (hasTargetFlags(Sym, aarch32::ThumbSymbol)) {
       // Set LSB to indicate thumb target
       assert(Sym.isCallable() && "Only callable symbols can have thumb flag");
       assert((Sym.getAddress().getValue() & 0x01) == 0 && "LSB is clear");
@@ -93,15 +93,20 @@ private:
 
     Interface LGI;
 
-    for (auto *Sym : G.defined_symbols()) {
+    auto AddSymbol = [&](Symbol *Sym) {
       // Skip local symbols.
       if (Sym->getScope() == Scope::Local)
-        continue;
+        return;
       assert(Sym->hasName() && "Anonymous non-local symbol?");
 
       LGI.SymbolFlags[ES.intern(Sym->getName())] =
           getJITSymbolFlagsForSymbol(*Sym);
-    }
+    };
+
+    for (auto *Sym : G.defined_symbols())
+      AddSymbol(Sym);
+    for (auto *Sym : G.absolute_symbols())
+      AddSymbol(Sym);
 
     if (hasInitializerSection(G))
       LGI.InitSymbol = makeInitSymbol(ES, G);
@@ -704,6 +709,9 @@ Error ObjectLinkingLayer::notifyEmitted(MaterializationResponsibility &MR,
 
   if (Err)
     return Err;
+
+  if (!FA)
+    return Error::success();
 
   return MR.withResourceKeyDo(
       [&](ResourceKey K) { Allocs[K].push_back(std::move(FA)); });

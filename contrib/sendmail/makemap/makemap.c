@@ -53,12 +53,17 @@ bool	DontInitGroups = false;
 uid_t	TrustedUid = 0;
 BITMAP256 DontBlameSendmail;
 
+static bool verbose = false;
+static int exitstat;
+
 #define BUFSIZE		1024
 #define ISASCII(c)	isascii((unsigned char)(c))
+#define ISSPACE(c)	(ISASCII(c) && isspace(c))
 #define ISSEP(c) (sep == '\0' ? ISASCII(c) && isspace(c) : (c) == sep)
 
 static void usage __P((const char *));
 static char *readcf __P((const char *, char *, bool));
+static void db_put __P((SMDB_DATABASE *, SMDB_DBENT, SMDB_DBENT, int, const char *, int, const char *));
 
 static void
 usage(progname)
@@ -68,7 +73,7 @@ usage(progname)
 		      "Usage: %s [-C cffile] [-N] [-c cachesize] [-D commentchar]\n",
 		      progname);
 	sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
-		      "       %*s [-d] [-e] [-f] [-l] [-o] [-r] [-s] [-t delimiter]\n",
+		      "       %*s [-d] [-e] [-f] [-i type] [-l] [-o] [-r] [-s] [-t delimiter]\n",
 		      (int) strlen(progname), "");
 #if _FFR_TESTS
 	sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
@@ -79,6 +84,69 @@ usage(progname)
 		      "       %*s [-u] [-v] type mapname\n",
 		      (int) strlen(progname), "");
 	exit(EX_USAGE);
+}
+
+/*
+**  DB_PUT -- do the DB insert
+**
+**	Parameters:
+**		database -- DB to use
+**		db_key -- key
+**		db_val -- value
+**		putflags -- flags for smdb_put()
+**		mapname -- name of map (for error reporting)
+**		lineno -- line number (for error reporting)
+**		progname -- name of program (for error reporting)
+**
+**	Returns:
+**		none.
+**
+**	Side effects:
+**		Sets exitstat so makemap exits with error if put fails
+*/
+
+static void
+db_put(database, db_key, db_val, putflags, mapname, lineno, progname)
+	SMDB_DATABASE *database;
+	SMDB_DBENT db_key, db_val;
+	int putflags;
+	const char *mapname;
+	int lineno;
+	const char *progname;
+{
+	int errcode;
+
+	if (verbose)
+	{
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "key=`%s', val=`%s'\n",
+				     (char *) db_key.data,
+				     (char *) db_val.data);
+	}
+
+	errcode = database->smdb_put(database, &db_key, &db_val, putflags);
+	if (0 == errcode)
+		return;
+
+	(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT, "%s: %s: ",
+			     progname, mapname);
+	if (lineno >= 0)
+		(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT, "line %u: ",
+				     lineno);
+	(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT, "key %s: ",
+			     (char *) db_key.data);
+	if (SMDBE_KEY_EXIST == errcode)
+	{
+		(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+				     "duplicate key\n");
+		exitstat = EX_DATAERR;
+	}
+	else
+	{
+		(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+				     "put error: %s\n", sm_errstring(errcode));
+		exitstat = EX_IOERR;
+	}
 }
 
 /*
@@ -106,7 +174,7 @@ readcf(cfile, mapfile, fullpath)
 	SM_FILE_T *cfp;
 	char buf[MAXLINE];
 	static char classbuf[MAXLINE];
-	char *classname;
+	char *classname, *mapname;
 	char *p;
 
 	if ((cfp = sm_io_open(SmFtStdio, SM_TIME_DEFAULT, cfile,
@@ -120,13 +188,21 @@ readcf(cfile, mapfile, fullpath)
 	classname = NULL;
 	classbuf[0] = '\0';
 
+	mapname = mapfile;
 	if (!fullpath && mapfile != NULL)
 	{
 		p = strrchr(mapfile, '/');
 		if (p != NULL)
 			mapfile = ++p;
-		p = strrchr(mapfile, '.');
-		if (p != NULL)
+		mapname = strdup(mapfile);
+		if (NULL == mapname)
+		{
+			sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+			      "makemap: strdup(%s) failed: %s\n",
+			      mapfile, sm_errstring(errno));
+			exit(EX_OSERR);
+		}
+		if ((p = strchr(mapname, '.')) != NULL)
 			*p = '\0';
 	}
 
@@ -184,18 +260,19 @@ readcf(cfile, mapfile, fullpath)
 		  case 'K':		/* Keyfile (map) */
 			if (classname != NULL)	/* found it already */
 				continue;
-			if (mapfile == NULL || *mapfile == '\0')
+			if (mapname == NULL || *mapname == '\0')
 				continue;
 
 			/* cut off trailing spaces */
-			for (p = buf + strlen(buf) - 1; ISASCII(*p) && isspace(*p) && p > buf; p--)
+			for (p = buf + strlen(buf) - 1;
+			     ISASCII(*p) && isspace(*p) && p > buf; p--)
 				*p = '\0';
 
 			/* find the last argument */
 			p = strrchr(buf, ' ');
 			if (p == NULL)
 				continue;
-			b = strstr(p, mapfile);
+			b = strstr(p, mapname);
 			if (b == NULL)
 				continue;
 			if (b <= buf)
@@ -208,7 +285,7 @@ readcf(cfile, mapfile, fullpath)
 			}
 
 			/* allow trailing white space? */
-			if (strcmp(mapfile, b) != 0)
+			if (strcmp(mapname, b) != 0)
 				continue;
 			/* SM_ASSERT(b > buf); */
 			--b;
@@ -253,6 +330,12 @@ readcf(cfile, mapfile, fullpath)
 	}
 	(void) sm_io_close(cfp, SM_TIME_DEFAULT);
 
+	/* not really needed because it is just a "one time leak" */
+	if (mapname != mapfile && mapname != NULL)
+	{
+		free(mapname);
+		mapname = NULL;
+	}
 	return classbuf;
 }
 
@@ -267,19 +350,24 @@ main(argc, argv)
 	bool notrunc = false;
 	bool allowreplace = false;
 	bool allowempty = false;
-	bool verbose = false;
 	bool foldcase = true;
 	bool unmake = false;
+#if _FFR_MM_ALIASES
+	/*
+	**  NOTE: this does not work properly:
+	**  sendmail does address rewriting which is not done here.
+	*/
+
+	bool aliases = false;
+#endif
 	bool didreadcf = false;
 	char sep = '\0';
 	char comment = '#';
-	int exitstat;
 	int opt;
 	char *typename = NULL;
 	char *fallback = NULL;
 	char *mapname = NULL;
 	unsigned int lineno;
-	int st;
 	int mode;
 	int smode;
 	int putflags = 0;
@@ -327,12 +415,17 @@ main(argc, argv)
 		       SMDB_MAX_USER_NAME_LEN);
 
 #define OPTIONS		"C:D:Nc:defi:Llorst:uvx"
+#if _FFR_MM_ALIASES
+# define A_OPTIONS		"a"
+#else
+# define A_OPTIONS
+#endif
 #if _FFR_TESTS
 # define X_OPTIONS		"S:"
 #else
 # define X_OPTIONS
 #endif
-	while ((opt = getopt(argc, argv, OPTIONS X_OPTIONS)) != -1)
+	while ((opt = getopt(argc, argv, A_OPTIONS OPTIONS X_OPTIONS)) != -1)
 	{
 		switch (opt)
 		{
@@ -343,6 +436,14 @@ main(argc, argv)
 		  case 'N':
 			inclnull = true;
 			break;
+
+#if _FFR_MM_ALIASES
+		  case 'a':
+			/* Note: this doesn't verify e-mail addresses */
+			sep = ':';
+			aliases = true;
+			break;
+#endif
 
 		  case 'c':
 			params.smdbp_cache_size = atol(optarg);
@@ -669,6 +770,10 @@ main(argc, argv)
 				*p++ = '\0';
 			while (*p != '\0' && ISSEP(*p))
 				p++;
+#if _FFR_MM_ALIASES
+			while (aliases && *p != '\0' && ISSPACE(*p))
+				p++;
+#endif
 			if (!allowempty && *p == '\0')
 			{
 				(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
@@ -688,50 +793,22 @@ main(argc, argv)
 			**  Do the database insert.
 			*/
 
-			if (verbose)
-			{
-				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
-						     "key=`%s', val=`%s'\n",
-						     (char *) db_key.data,
-						     (char *) db_val.data);
-			}
-
-			errno = database->smdb_put(database, &db_key, &db_val,
-						   putflags);
-			switch (errno)
-			{
-			  case SMDBE_KEY_EXIST:
-				st = 1;
-				break;
-
-			  case 0:
-				st = 0;
-				break;
-
-			  default:
-				st = -1;
-				break;
-			}
-
-			if (st < 0)
-			{
-				(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
-						     "%s: %s: line %u: key %s: put error: %s\n",
-						     progname, mapname, lineno,
-						     (char *) db_key.data,
-						     sm_errstring(errno));
-				exitstat = EX_IOERR;
-			}
-			else if (st > 0)
-			{
-				(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
-						     "%s: %s: line %u: key %s: duplicate key\n",
-						     progname, mapname,
-						     lineno,
-						     (char *) db_key.data);
-				exitstat = EX_DATAERR;
-			}
+			db_put(database, db_key, db_val, putflags, mapname,
+				lineno, progname);
 		}
+#if _FFR_MM_ALIASES
+		if (aliases)
+		{
+			char magic[2] = "@";
+
+			db_key.data = magic;
+			db_val.data = magic;
+			db_key.size = 1;
+			db_val.size = 1;
+			db_put(database, db_key, db_val, putflags, mapname, -1,
+				progname);
+		}
+#endif /* _FFR_MM_ALIASES */
 	}
 
 #if _FFR_TESTS

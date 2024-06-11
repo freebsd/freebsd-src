@@ -1,15 +1,9 @@
 FBSD_1.0 {
-	_fpgetmask;
 	fpgetmask;
-	_fpgetround;
 	fpgetround;
-	_fpgetsticky;
 	fpgetsticky;
-	_fpsetmask;
 	fpsetmask;
-	_fpsetround;
 	fpsetround;
-	_fpsetsticky;
 	fpsetsticky;
 };
 

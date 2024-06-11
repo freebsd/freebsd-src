@@ -47,6 +47,10 @@ BEGIN {
 	}
 
 	gHdrType = hdrtype
+	for (i = 0; i < 16; i++) {
+		hex[sprintf("%x", i)] = i;
+		hex[sprintf("%X", i)] = i;
+	}
 }
 
 function addr_to_offset(addr) {
@@ -56,11 +60,13 @@ function addr_to_offset(addr) {
 
 function hexstr_to_num(str) {
 
-	# Prepend a 0x onto the string, then coerce it to a number by doing
-	# arithmetic with it, which makes awk run it through strtod(),
-	# which handles hex numbers that have a 0x prefix.
+	sum = 0;
+	len = length(str);
+	for (i = 1; i <= len; i++) {
+		sum = sum * 16 + hex[substr(str, i, 1)];
+	}
 
-	return 0 + ("0x" str)
+	return sum;
 }
 
 function write_le32(num) {

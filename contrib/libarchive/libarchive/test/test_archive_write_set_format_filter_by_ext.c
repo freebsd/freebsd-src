@@ -24,9 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 #include "test.h"
-__FBSDID("$FreeBSD$");
 
 static void
 test_format_filter_by_ext(const char *output_file, 

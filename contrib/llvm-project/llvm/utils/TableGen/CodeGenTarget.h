@@ -43,7 +43,7 @@ class CodeGenSubRegIndex;
 
 /// getValueType - Return the MVT::SimpleValueType that the specified TableGen
 /// record corresponds to.
-MVT::SimpleValueType getValueType(Record *Rec);
+MVT::SimpleValueType getValueType(const Record *Rec);
 
 StringRef getName(MVT::SimpleValueType T);
 StringRef getEnumName(MVT::SimpleValueType T);
@@ -64,6 +64,8 @@ class CodeGenTarget {
   mutable std::vector<Record*> RegAltNameIndices;
   mutable SmallVector<ValueTypeByHwMode, 8> LegalValueTypes;
   CodeGenHwModes CGH;
+  std::vector<Record *> MacroFusions;
+
   void ReadRegAltNameIndices() const;
   void ReadInstructions() const;
   void ReadLegalValueTypes() const;
@@ -148,6 +150,10 @@ public:
   CodeGenSchedModels &getSchedModels() const;
 
   const CodeGenHwModes &getHwModes() const { return CGH; }
+
+  bool hasMacroFusion() const { return !MacroFusions.empty(); }
+
+  const std::vector<Record *> getMacroFusions() const { return MacroFusions; }
 
 private:
   DenseMap<const Record*, std::unique_ptr<CodeGenInstruction>> &

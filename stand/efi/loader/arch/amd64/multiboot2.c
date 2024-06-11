@@ -34,8 +34,6 @@
  * https://www.gnu.org/software/grub/manual/multiboot2/multiboot.html
  */
 
-#include <sys/cdefs.h>
-
 #include <sys/param.h>
 #include <sys/exec.h>
 #include <sys/linker.h>
@@ -334,7 +332,7 @@ exec(struct preloaded_file *fp)
 	struct mb2hdr			*hdr;
 
 
-	CTASSERT(sizeof(header) <= PAGE_SIZE);
+	_Static_assert(sizeof(header) <= PAGE_SIZE, "header too big");
 
 	if ((md = file_findmetadata(fp,
 	    MODINFOMD_NOCOPY | MODINFOMD_MB2HDR)) == NULL) {

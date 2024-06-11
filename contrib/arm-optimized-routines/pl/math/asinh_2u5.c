@@ -4,7 +4,7 @@
  * Copyright (c) 2022-2023, Arm Limited.
  * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
-#include "estrin.h"
+#include "poly_scalar_f64.h"
 #include "math_config.h"
 #include "pl_sig.h"
 #include "pl_test.h"
@@ -60,8 +60,7 @@ asinh (double x)
       double z2 = x2 * x2;
       double z4 = z2 * z2;
       double z8 = z4 * z4;
-#define C(i) __asinh_data.poly[i]
-      double p = ESTRIN_17 (x2, z2, z4, z8, z8 * z8, C);
+      double p = estrin_17_f64 (x2, z2, z4, z8, z8 * z8, __asinh_data.poly);
       double y = fma (p, x2 * ax, ax);
       return asdouble (asuint64 (y) | sign);
     }

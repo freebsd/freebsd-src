@@ -204,8 +204,8 @@ parse_args(int argc, char *argv[])
 	int ch;
 	const char *arg;
 
-	while ((ch = getopt_long(argc, argv, "AaBb:C:cdDe:EFfhk:L:l:NnOo:pTt:v",
-		    lopts, NULL)) != -1) {
+	while ((ch = getopt_long(argc, argv,
+	    "AaBb:C:cdDe:EFfhk:L:l:NnOo:pTt:u:v", lopts, NULL)) != -1) {
 		switch (ch) {
 		case 'A':
 			opts.set_inactive = true;
@@ -561,7 +561,7 @@ static char *
 make_next_boot_var_name(void)
 {
 	struct entry *v;
-	uint16_t *vals, next_free = 0;
+	uint16_t *vals;
 	char *name;
 	int cnt = 0;
 	int i;
@@ -579,21 +579,14 @@ make_next_boot_var_name(void)
 		vals[i++] = v->idx;
 	}
 	qsort(vals, cnt, sizeof(uint16_t), compare);
-	/* if the hole is at the beginning, just return zero */
-	if (vals[0] > 0) {
-		next_free = 0;
-	} else {
-		/* now just run the list looking for the first hole */
-		for (i = 0; i < cnt - 1 && next_free == 0; i++)
-			if (vals[i] + 1 != vals[i + 1])
-				next_free = vals[i] + 1;
-		if (next_free == 0)
-			next_free = vals[cnt - 1] + 1;
-		/* In theory we could have used all 65k slots -- what to do? */
-	}
+	/* Find the first hole (could be at start or end) */
+	for (i = 0; i < cnt; ++i)
+		if (vals[i] != i)
+			break;
 	free(vals);
+	/* In theory we could have used all 65k slots -- what to do? */
 
-	asprintf(&name, "%s%04X", "Boot", next_free);
+	asprintf(&name, "%s%04X", "Boot", i);
 	if (name == NULL)
 		err(1, "asprintf");
 	return name;
@@ -790,6 +783,8 @@ print_loadopt_str(uint8_t *data, size_t datalen)
 	 */
 	indent = 1;
 	while (dp < edp) {
+		if (efidp_size(dp) == 0)
+			break;
 		efidp_format_device_path(buf, sizeof(buf), dp,
 		    (intptr_t)(void *)edp - (intptr_t)(void *)dp);
 		printf("%*s%s\n", indent, "", buf);
@@ -1052,7 +1047,7 @@ report_esp_device(bool do_dp, bool do_unix)
 		abspath[strlen(abspath) - strlen(relpath) - 1] = '\0';
 		printf("%s\n", abspath);
 	} else {
-		printf("%s\n", dev);
+		printf("/dev/%s\n", dev);
 	}
 	free(dev);
 	free(relpath);

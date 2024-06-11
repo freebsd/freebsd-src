@@ -25,7 +25,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <bootstrap.h>
 #include <sys/endian.h>
 #include <sys/param.h>
@@ -76,6 +75,11 @@ static struct named_resolution {
 		.name = "1080p",
 		.width = 1920,
 		.height = 1080,
+	},
+	{
+		.name = "1440p",
+		.width = 2560,
+		.height = 1440,
 	},
 	{
 		.name = "2160p",

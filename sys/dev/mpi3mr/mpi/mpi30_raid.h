@@ -1,7 +1,7 @@
 /*
- * SPDX-License-Identifier: BSD-2-Clause
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2016-2023, Broadcom Inc. All rights reserved.
+ * Copyright (c) 2016-2024, Broadcom Inc. All rights reserved.
  * Support: <fbsd-storage-driver.pdl@broadcom.com>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,6 @@
  * Broadcom Inc. (Broadcom) MPI3MR Adapter FreeBSD
  *
  */
-
 #ifndef MPI30_RAID_H
 #define MPI30_RAID_H     1
 

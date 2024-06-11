@@ -40,8 +40,8 @@
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <dev/extres/clk/clk.h>
-#include <dev/extres/syscon/syscon.h>
+#include <dev/clk/clk.h>
+#include <dev/syscon/syscon.h>
 
 #include "syscon_if.h"
 
@@ -434,11 +434,9 @@ rkcodec_mixer_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned rig
 	RKCODEC_LOCK(sc);
 	switch(dev) {
 	case SOUND_MIXER_VOLUME:
-		printf("[%s] %s:%d\n", __func__, __FILE__, __LINE__);
 		break;
 
 	case SOUND_MIXER_MIC:
-		printf("[%s] %s:%d\n", __func__, __FILE__, __LINE__);
 		break;
 	default:
 		break;
@@ -546,27 +544,15 @@ rkcodec_dai_trigger(device_t dev, int go, int pcm_dir)
 {
 	// struct rkcodec_softc 	*sc = device_get_softc(dev);
 
-	if ((pcm_dir != PCMDIR_PLAY) && (pcm_dir != PCMDIR_REC))
+	if (pcm_dir != PCMDIR_PLAY && pcm_dir != PCMDIR_REC)
 		return (EINVAL);
 
 	switch (go) {
 	case PCMTRIG_START:
-		if (pcm_dir == PCMDIR_PLAY) {
-			printf("[%s] %s:%d\n", __func__, __FILE__, __LINE__);
-		}
-		else if (pcm_dir == PCMDIR_REC) {
-			printf("[%s] %s:%d\n", __func__, __FILE__, __LINE__);
-		}
 		break;
 
 	case PCMTRIG_STOP:
 	case PCMTRIG_ABORT:
-		if (pcm_dir == PCMDIR_PLAY) {
-			printf("[%s] %s:%d\n", __func__, __FILE__, __LINE__);
-		}
-		else if (pcm_dir == PCMDIR_REC) {
-			printf("[%s] %s:%d\n", __func__, __FILE__, __LINE__);
-		}
 		break;
 	}
 

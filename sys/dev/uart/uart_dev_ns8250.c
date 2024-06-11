@@ -81,9 +81,12 @@ SYSCTL_INT(_hw, OID_AUTO, broken_txfifo, CTLFLAG_RWTUN,
  * To use early printf on x86, add the following to your kernel config:
  *
  * options UART_NS8250_EARLY_PORT=0x3f8
- * options EARLY_PRINTF
+ * options EARLY_PRINTF=ns8250
 */
-#if defined(EARLY_PRINTF) && (defined(__amd64__) || defined(__i386__))
+#if CHECK_EARLY_PRINTF(ns8250)
+#if !(defined(__amd64__) || defined(__i386__))
+#error ns8250 early putc is x86 specific as it uses inb/outb
+#endif
 static void
 uart_ns8250_early_putc(int c)
 {
@@ -433,9 +436,10 @@ static kobj_method_t ns8250_methods[] = {
 	KOBJMETHOD(uart_receive,	ns8250_bus_receive),
 	KOBJMETHOD(uart_setsig,		ns8250_bus_setsig),
 	KOBJMETHOD(uart_transmit,	ns8250_bus_transmit),
+	KOBJMETHOD(uart_txbusy,		ns8250_bus_txbusy),
 	KOBJMETHOD(uart_grab,		ns8250_bus_grab),
 	KOBJMETHOD(uart_ungrab,		ns8250_bus_ungrab),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 
 struct uart_class uart_ns8250_class = {
@@ -447,6 +451,7 @@ struct uart_class uart_ns8250_class = {
 	.uc_rclk = DEFAULT_RCLK,
 	.uc_rshift = 0
 };
+UART_CLASS(uart_ns8250_class);
 
 /*
  * XXX -- refactor out ACPI and FDT ifdefs
@@ -1068,6 +1073,17 @@ ns8250_bus_transmit(struct uart_softc *sc)
 	if (broken_txfifo)
 		uart_sched_softih(sc, SER_INT_TXIDLE);
 	return (0);
+}
+
+bool
+ns8250_bus_txbusy(struct uart_softc *sc)
+{
+	struct uart_bas *bas = &sc->sc_bas;
+
+	if ((uart_getreg(bas, REG_LSR) & (LSR_TEMT | LSR_THRE)) !=
+	    (LSR_TEMT | LSR_THRE))
+		return (true);
+	return (false);
 }
 
 void

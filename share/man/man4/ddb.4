@@ -289,6 +289,32 @@ eax = xxxxxx
 ecx = yyyyyy
 .Ed
 .Pp
+.It Ic pprint Ns Oo Li / Ns Cm d depth Oc Oo Ar name Oc
+Pretty-print symbol specified by
+.Ar name
+using CTF debugging data. Works for all symbols exported by the kernel and loaded kernel modules.
+.Pp
+If the
+.Cm d
+modifier has been specified, contents of structs nested up to
+.Ar depth
+levels deep will also be included in the output.
+.Ed
+.Pp
+.It Ic pprint struct Ns Oo Li / Ns Cm d depth Ic Oc Oo Ar name Oc Ns Op Ns Ar addr
+Print memory at
+.Ar addr
+as struct
+.Ar name Ns .
+Works for all structs defined by the kernel and loaded kernel modules.
+.Pp
+If the
+.Cm d
+modifier has been specified, contents of structs nested up to
+.Ar depth
+levels deep will also be included in the output.
+.Ed
+.Pp
 .It Xo
 .Ic write Ns Op Li / Ns Cm bhl
 .Ar addr expr1 Op Ar expr2 ...

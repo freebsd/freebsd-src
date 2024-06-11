@@ -1,3 +1,6 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2013, 2016 Adrian Chadd <adrian@freebsd.org>
 .\" Copyright (c) 2019 Vladimir Kondratyev <wulf@FreeBSD.org>
 .\" Copyright (c) 2021 Philippe Michaud-Boudreault <pitwuu@gmail.com>
@@ -23,15 +26,15 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 3, 2021
+.Dd May 31, 2024
 .Dt IWMBTFW 8
 .Os
 .Sh NAME
 .Nm iwmbtfw
-.Nd firmware download utility for Intel Wireless 7260/8260/8265 chip based Bluetooth
-USB devices
+.Nd download firmware for Intel Wireless AC Bluetooth USB devices
 .Sh SYNOPSIS
 .Nm
+.Op Fl DI
 .Fl d Ar device_name
 .Fl f Ar firmware_path
 .Nm
@@ -45,8 +48,8 @@ device.
 .Pp
 This utility will
 .Em only
-work with Intel Wireless 7260/8260/8265 chip based Bluetooth USB devices and some of
-their successors.
+work with Intel Wireless 7260/8260/8265 chip based Bluetooth USB devices
+and some of their successors.
 The identification is currently based on USB vendor ID/product ID pair.
 The vendor ID should be 0x8087
 .Pq Dv USB_VENDOR_INTEL2
@@ -62,19 +65,19 @@ utility will query the device to determine which firmware image and board
 configuration to load in at runtime.
 .Pp
 The options are as follows:
-.Bl -tag -width indent
+.Bl -tag -width "-f firmware_path"
 .It Fl D
 Enable verbose debugging.
 .It Fl d Ar device_name
 Specify
 .Xr ugen 4
 device name.
-.It Fl I
-Enable informational debugging.
 .It Fl f Ar firmware_path
 Specify the directory containing the firmware files to search and upload.
 .It Fl h
 Display usage message and exit.
+.It Fl I
+Enable informational debugging.
 .El
 .Sh EXIT STATUS
 .Ex -std

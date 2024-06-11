@@ -573,7 +573,7 @@ ip6_input(struct mbuf *m)
 			int ifindex = ifp->if_index;
 			if (ifindex >= IP6S_M2MMAX)
 				ifindex = 0;
-			IP6STAT_INC(ip6s_m2m[ifindex]);
+			IP6STAT_INC2(ip6s_m2m, ifindex);
 		} else
 			IP6STAT_INC(ip6s_m1);
 	}
@@ -617,7 +617,7 @@ ip6_input(struct mbuf *m)
 		goto bad;
 	}
 
-	IP6STAT_INC(ip6s_nxthist[ip6->ip6_nxt]);
+	IP6STAT_INC2(ip6s_nxthist, ip6->ip6_nxt);
 	IP_PROBE(receive, NULL, NULL, ip6, rcvif, NULL, ip6);
 
 	/*
@@ -893,8 +893,6 @@ passin:
 	if (PFIL_HOOKED_OUT(V_inet6_local_pfil_head)) {
 		if (pfil_mbuf_out(V_inet6_local_pfil_head, &m, V_loif, NULL) !=
 		    PFIL_PASS)
-			return;
-		if (m == NULL)			/* consumed by filter */
 			return;
 		ip6 = mtod(m, struct ip6_hdr *);
 	}

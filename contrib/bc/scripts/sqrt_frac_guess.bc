@@ -1,0 +1,126 @@
+#! /usr/bin/bc
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# Copyright (c) 2018-2023 Gavin D. Howard and contributors.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+
+scale = 20
+
+# Adjust this number to try ranges below different powers of 10.
+shift = 4
+
+# Adjust this to try extra digits. For example, a value of one means that one
+# digit is checked (such as 0.09 through 0.01), a value of two means that two
+# digits are checked (0.090 through 0.010), etc.
+max = shift + 2
+
+n = (9 >> shift)
+inc = (1 >> max)
+stop = (1 >> shift)
+
+# Uncomment this to test the high part of the ranges.
+#n += (1 - (1 >> max + 5)) >> shift
+
+for (i = n; i >= stop; i -= inc)
+{
+	# This is the lower limit.
+	t1 = sqrt(1/(3*i))
+
+	# Start with the inverse.
+	t2 = (1/i)
+
+	# And take half its length of course.
+	l = length(t2$)/2
+
+	temp = i
+	odd = 0
+
+	# We go by powers of 10 below, but there is a degenerate case: an exact
+	# power of 10, for which length() will return one digit more. So we check
+	# for that and fix it.
+	while (temp < 1)
+	{
+		temp <<= 1
+		odd = !odd
+	}
+
+	if (temp == 1)
+	{
+		odd = !odd
+	}
+
+	print "i:  ", i, "\n"
+	print "t2: ", t2, "\n"
+	#print "l:  ", l, "\n"
+	print "odd: ", odd, "\n"
+
+	if (odd)
+	{
+		# Limit between 6 and 7.5.
+		limit1 = 6.7 >> (l$ * 2 + 1)
+
+		# Limit between 1.5 and 1.83-ish.
+		limit2 = 1.7 >> (l$ * 2 + 1)
+		print "limit1: ", limit1, "\n"
+		print "limit2: ", limit2, "\n"
+
+		if (i >= limit1)
+		{
+			t2 = (t2 >> l$)
+		}
+		else if (i >= limit2)
+		{
+			t2 = (t2 >> l$) / 2
+		}
+		else
+		{
+			t2 = (t2 >> l$) / 4
+		}
+	}
+	else
+	{
+		# Limit between 2.4 and 3.
+		limit = 2.7 >> (l$ * 2)
+		print "limit: ", limit, "\n"
+
+		if (i >= limit)
+		{
+			t2 = (t2 >> l$) * 2
+		}
+		else
+		{
+			t2 = (t2 >> l$)
+		}
+	}
+	#t2 = 1
+	t3 = sqrt(5/(3*i))
+	good = (t1 < t2 && t2 < t3)
+
+	print t1, " < ", t2, " < ", t3, ": ", good, "\n\n"
+	if (!good) sqrt(-1)
+}
+
+halt

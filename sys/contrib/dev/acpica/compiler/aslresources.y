@@ -11,7 +11,7 @@ NoEcho('
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -214,6 +214,7 @@ ResourceMacroTerm
     | Memory32Term                  {}
     | PinConfigTerm                 {}
     | PinFunctionTerm               {}
+    | ClockInputTerm                {}
     | PinGroupTerm                  {}
     | PinGroupConfigTerm            {}
     | PinGroupFunctionTerm          {}
@@ -662,6 +663,21 @@ PinFunctionTerm
             DWordList '}'           {$$ = TrLinkOpChildren ($<n>3,9,
                                         $4,$6,$8,$10,$11,$12,$13,$14,$17);}
     | PARSEOP_PINFUNCTION
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
+    ;
+
+ClockInputTerm
+    : PARSEOP_CLOCKINPUT
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_CLOCKINPUT);}
+        DWordConstExpr              /* 04: FrequencyNumerator */
+        ',' WordConstExpr           /* 06: FrequencyDivisor */
+        ',' ClockScaleKeyword       /* 08: Scale */
+        ',' ClockModeKeyword        /* 10: Mode*/
+        OptionalStringData          /* 11: ResourceSource */
+        OptionalByteConstExpr       /* 12: ResourceSourceIndex */
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,6,$4,$6,$8,$10,$11,$12);}
+    | PARSEOP_CLOCKINPUT
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;

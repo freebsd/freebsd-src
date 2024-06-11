@@ -80,6 +80,8 @@ void fido_init(int);
 void fido_set_log_handler(fido_log_handler_t *);
 
 const unsigned char *fido_assert_authdata_ptr(const fido_assert_t *, size_t);
+const unsigned char *fido_assert_authdata_raw_ptr(const fido_assert_t *,
+    size_t);
 const unsigned char *fido_assert_clientdata_hash_ptr(const fido_assert_t *);
 const unsigned char *fido_assert_hmac_secret_ptr(const fido_assert_t *, size_t);
 const unsigned char *fido_assert_id_ptr(const fido_assert_t *, size_t);
@@ -142,6 +144,7 @@ int fido_assert_set_rp(fido_assert_t *, const char *);
 int fido_assert_set_up(fido_assert_t *, fido_opt_t);
 int fido_assert_set_uv(fido_assert_t *, fido_opt_t);
 int fido_assert_set_sig(fido_assert_t *, size_t, const unsigned char *, size_t);
+int fido_assert_set_winhello_appid(fido_assert_t *, const char *);
 int fido_assert_verify(const fido_assert_t *, size_t, int, const void *);
 int fido_cbor_info_algorithm_cose(const fido_cbor_info_t *, size_t);
 int fido_cred_empty_exclude_list(fido_cred_t *);
@@ -194,6 +197,7 @@ int fido_dev_set_transport_functions(fido_dev_t *, const fido_dev_transport_t *)
 int fido_dev_set_timeout(fido_dev_t *, int);
 
 size_t fido_assert_authdata_len(const fido_assert_t *, size_t);
+size_t fido_assert_authdata_raw_len(const fido_assert_t *, size_t);
 size_t fido_assert_clientdata_hash_len(const fido_assert_t *);
 size_t fido_assert_count(const fido_assert_t *);
 size_t fido_assert_hmac_secret_len(const fido_assert_t *, size_t);

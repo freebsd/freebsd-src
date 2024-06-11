@@ -350,7 +350,7 @@ sx_try_xlock_int(struct sx *sx LOCK_FILE_LINE_ARG_DEF)
 
 	td = curthread;
 	tid = (uintptr_t)td;
-	if (SCHEDULER_STOPPED_TD(td))
+	if (SCHEDULER_STOPPED())
 		return (1);
 
 	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(td),

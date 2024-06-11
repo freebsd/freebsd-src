@@ -1347,6 +1347,8 @@ lha_read_file_extended_header(struct archive_read *a, struct lha *lha,
 				lha->compsize = archive_le64dec(extdheader);
 				extdheader += sizeof(uint64_t);
 				lha->origsize = archive_le64dec(extdheader);
+				if (lha->compsize < 0 || lha->origsize < 0)
+					goto invalid;
 			}
 			break;
 		case EXT_CODEPAGE:
@@ -1693,7 +1695,7 @@ archive_read_format_lha_cleanup(struct archive_read *a)
  * example.
  *   1. a symbolic-name is 'aaa/bb/cc'
  *   2. a filename is 'xxx/bbb'
- *  then a archived pathname is 'xxx/bbb|aaa/bb/cc'
+ *  then an archived pathname is 'xxx/bbb|aaa/bb/cc'
  */
 static int
 lha_parse_linkname(struct archive_wstring *linkname,
@@ -2385,7 +2387,7 @@ lzh_decode_blocks(struct lzh_stream *strm, int last)
 					return (100);
 				}
 
-				/* lzh_br_read_ahead() always try to fill the
+				/* lzh_br_read_ahead() always tries to fill the
 				 * cache buffer up. In specific situation we
 				 * are close to the end of the data, the cache
 				 * buffer will not be full and thus we have to

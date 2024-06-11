@@ -28,4 +28,8 @@ automount_stop()
 }
 
 load_rc_config $name
+
+# mounting shall not be performed in a svcj
+automount_svcj="NO"
+
 run_rc_command "$1"

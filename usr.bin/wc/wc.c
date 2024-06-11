@@ -117,8 +117,6 @@ main(int argc, char *argv[])
 	argv += optind;
 	argc -= optind;
 
-	(void)signal(SIGINFO, siginfo_handler);
-
 	fa = fileargs_init(argc, argv, O_RDONLY, 0,
 	    cap_rights_init(&rights, CAP_READ, CAP_FSTAT), FA_OPEN);
 	if (fa == NULL)
@@ -137,6 +135,7 @@ main(int argc, char *argv[])
 	xo_open_container("wc");
 	xo_open_list("file");
 
+	(void)signal(SIGINFO, siginfo_handler);
 	errors = 0;
 	total = 0;
 	if (argc == 0) {
@@ -230,7 +229,8 @@ cnt(const char *file)
 			(void)close(fd);
 			return (1);
 		}
-		if (S_ISREG(sb.st_mode)) {
+		/* pseudo-filesystems advertize a zero size */
+		if (S_ISREG(sb.st_mode) && sb.st_size > 0) {
 			reset_siginfo();
 			charct = sb.st_size;
 			show_cnt(file, linect, wordct, charct, llct);

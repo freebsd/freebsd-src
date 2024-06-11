@@ -110,7 +110,7 @@ riscv_putc(int c)
 	sbi_console_putchar(c);
 }
 
-#ifdef EARLY_PRINTF
+#if CHECK_EARLY_PRINTF(sbi)
 early_putc_t *early_putc = riscv_putc;
 #endif
 
@@ -242,8 +242,6 @@ rcons_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
-
-	csr_set(sie, SIE_SSIE);
 
 	bus_generic_attach(sc->dev);
 

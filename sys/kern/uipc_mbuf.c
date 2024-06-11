@@ -111,6 +111,9 @@ SDT_PROBE_DEFINE1_XLATE(sdt, , , m__free,
 SDT_PROBE_DEFINE1_XLATE(sdt, , , m__freem,
     "struct mbuf *", "mbufinfo_t *");
 
+SDT_PROBE_DEFINE1_XLATE(sdt, , , m__freemp,
+    "struct mbuf *", "mbufinfo_t *");
+
 #include <security/mac/mac_framework.h>
 
 /*
@@ -236,10 +239,10 @@ mb_dupcl(struct mbuf *n, struct mbuf *m)
 {
 	volatile u_int *refcnt;
 
-	KASSERT(m->m_flags & (M_EXT|M_EXTPG),
-	    ("%s: M_EXT|M_EXTPG not set on %p", __func__, m));
-	KASSERT(!(n->m_flags & (M_EXT|M_EXTPG)),
-	    ("%s: M_EXT|M_EXTPG set on %p", __func__, n));
+	KASSERT(m->m_flags & (M_EXT | M_EXTPG),
+	    ("%s: M_EXT | M_EXTPG not set on %p", __func__, m));
+	KASSERT(!(n->m_flags & (M_EXT | M_EXTPG)),
+	    ("%s: M_EXT | M_EXTPG set on %p", __func__, n));
 
 	/*
 	 * Cache access optimization.
@@ -569,7 +572,7 @@ m_copym(struct mbuf *m, int off0, int len, int wait)
 			copyhdr = 0;
 		}
 		n->m_len = min(len, m->m_len - off);
-		if (m->m_flags & (M_EXT|M_EXTPG)) {
+		if (m->m_flags & (M_EXT | M_EXTPG)) {
 			n->m_data = m->m_data + off;
 			mb_dupcl(n, m);
 		} else
@@ -611,7 +614,7 @@ m_copypacket(struct mbuf *m, int how)
 	if (!m_dup_pkthdr(n, m, how))
 		goto nospace;
 	n->m_len = m->m_len;
-	if (m->m_flags & (M_EXT|M_EXTPG)) {
+	if (m->m_flags & (M_EXT | M_EXTPG)) {
 		n->m_data = m->m_data;
 		mb_dupcl(n, m);
 	} else {
@@ -629,7 +632,7 @@ m_copypacket(struct mbuf *m, int how)
 		n = n->m_next;
 
 		n->m_len = m->m_len;
-		if (m->m_flags & (M_EXT|M_EXTPG)) {
+		if (m->m_flags & (M_EXT | M_EXTPG)) {
 			n->m_data = m->m_data;
 			mb_dupcl(n, m);
 		} else {
@@ -1070,7 +1073,7 @@ m_split(struct mbuf *m0, int len0, int wait)
 			n->m_pkthdr.rcvif = m0->m_pkthdr.rcvif;
 		n->m_pkthdr.len = m0->m_pkthdr.len - len0;
 		m0->m_pkthdr.len = len0;
-		if (m->m_flags & (M_EXT|M_EXTPG))
+		if (m->m_flags & (M_EXT | M_EXTPG))
 			goto extpacket;
 		if (remain > MHLEN) {
 			/* m can't be the lead packet */
@@ -1096,7 +1099,7 @@ m_split(struct mbuf *m0, int len0, int wait)
 		M_ALIGN(n, remain);
 	}
 extpacket:
-	if (m->m_flags & (M_EXT|M_EXTPG)) {
+	if (m->m_flags & (M_EXT | M_EXTPG)) {
 		n->m_data = m->m_data + len;
 		mb_dupcl(n, m);
 	} else {
@@ -1108,6 +1111,72 @@ extpacket:
 	m->m_next = NULL;
 	return (n);
 }
+
+/*
+ * Partition mchain in two pieces, keeping len0 bytes in head and transferring
+ * remainder to tail.  In case of failure, both chains to be left untouched.
+ * M_EOR is observed correctly.
+ * Resulting mbufs might be read-only.
+ */
+int
+mc_split(struct mchain *head, struct mchain *tail, u_int len0, int wait)
+{
+	struct mbuf *m, *n;
+	u_int len, mlen, remain;
+
+	MPASS(!(mc_first(head)->m_flags & M_PKTHDR));
+	MBUF_CHECKSLEEP(wait);
+
+	mlen = 0;
+	len = len0;
+	STAILQ_FOREACH(m, &head->mc_q, m_stailq) {
+		mlen += MSIZE;
+		if (m->m_flags & M_EXT)
+			mlen += m->m_ext.ext_size;
+		if (len > m->m_len)
+			len -= m->m_len;
+		else
+			break;
+	}
+	if (__predict_false(m == NULL)) {
+		*tail = MCHAIN_INITIALIZER(tail);
+		return (0);
+	}
+	remain = m->m_len - len;
+	if (remain > 0) {
+		if (__predict_false((n = m_get(wait, m->m_type)) == NULL))
+			return (ENOMEM);
+		m_align(n, remain);
+		if (m->m_flags & M_EXT) {
+			n->m_data = m->m_data + len;
+			mb_dupcl(n, m);
+		} else
+			bcopy(mtod(m, char *) + len, mtod(n, char *), remain);
+	}
+
+	/* XXXGL: need STAILQ_SPLIT */
+	STAILQ_FIRST(&tail->mc_q) = STAILQ_NEXT(m, m_stailq);
+	tail->mc_q.stqh_last = head->mc_q.stqh_last;
+	tail->mc_len = head->mc_len - len0;
+	tail->mc_mlen = head->mc_mlen - mlen;
+	if (remain > 0) {
+		MPASS(n->m_len == 0);
+		mc_prepend(tail, n);
+		n->m_len = remain;
+		m->m_len -= remain;
+		if (m->m_flags & M_EOR) {
+			m->m_flags &= ~M_EOR;
+			n->m_flags |= M_EOR;
+		}
+	}
+	head->mc_q.stqh_last = &STAILQ_NEXT(m, m_stailq);
+	STAILQ_NEXT(m, m_stailq) = NULL;
+	head->mc_len = len0;
+	head->mc_mlen = mlen;
+
+	return (0);
+}
+
 /*
  * Routine to copy from device local memory into mbufs.
  * Note that `off' argument is offset into first mbuf of target chain from
@@ -1872,65 +1941,103 @@ failed:
 
 /*
  * Copy the contents of uio into a properly sized mbuf chain.
+ * A compat KPI.  Users are recommended to use direct calls to backing
+ * functions.
  */
 struct mbuf *
-m_uiotombuf(struct uio *uio, int how, int len, int align, int flags)
+m_uiotombuf(struct uio *uio, int how, int len, int lspace, int flags)
 {
-	struct mbuf *m, *mb;
-	int error, length;
-	ssize_t total;
-	int progress = 0;
 
-	if (flags & M_EXTPG)
-		return (m_uiotombuf_nomap(uio, how, len, align, flags));
+	if (flags & M_EXTPG) {
+		/* XXX: 'lspace' magically becomes maxseg! */
+		return (m_uiotombuf_nomap(uio, how, len, lspace, flags));
+	} else if (__predict_false(uio->uio_resid == 0)) {
+		struct mbuf *m;
 
-	/*
-	 * len can be zero or an arbitrary large value bound by
-	 * the total data supplied by the uio.
-	 */
-	if (len > 0)
-		total = (uio->uio_resid < len) ? uio->uio_resid : len;
+		/*
+		 * m_uiotombuf() is known to return zero length buffer, keep
+		 * this compatibility. mc_uiotomc() won't do that.
+		 */
+		if (flags & M_PKTHDR) {
+			m = m_gethdr(how, MT_DATA);
+			m->m_pkthdr.memlen = MSIZE;
+		} else
+			m = m_get(how, MT_DATA);
+		if (m != NULL)
+			m->m_data += lspace;
+		return (m);
+	} else {
+		struct mchain mc;
+		int error;
+
+		error = mc_uiotomc(&mc, uio, len, lspace, how, flags);
+		if (__predict_true(error == 0)) {
+			if (flags & M_PKTHDR) {
+				mc_first(&mc)->m_pkthdr.len = mc.mc_len;
+				mc_first(&mc)->m_pkthdr.memlen = mc.mc_mlen;
+			}
+			return (mc_first(&mc));
+		} else
+			return (NULL);
+	}
+}
+
+/*
+ * Copy the contents of uio into a properly sized mbuf chain.
+ * In case of failure state of mchain is inconsistent.
+ * @param length Limit copyout length.  If 0 entire uio_resid is copied.
+ * @param lspace Provide leading space in the first mbuf in the chain.
+ */
+int
+mc_uiotomc(struct mchain *mc, struct uio *uio, u_int length, u_int lspace,
+    int how, int flags)
+{
+	struct mbuf *mb;
+	u_int total;
+	int error;
+
+	MPASS(lspace < MHLEN);
+	MPASS(UINT_MAX - lspace >= length);
+	MPASS(uio->uio_rw == UIO_WRITE);
+	MPASS(uio->uio_resid >= 0);
+
+	if (length > 0) {
+		if (uio->uio_resid > length) {
+			total = length;
+			flags &= ~M_EOR;
+		} else
+			total = uio->uio_resid;
+	} else if (__predict_false(uio->uio_resid + lspace > UINT_MAX))
+		return (EOVERFLOW);
 	else
 		total = uio->uio_resid;
 
-	/*
-	 * The smallest unit returned by m_getm2() is a single mbuf
-	 * with pkthdr.  We can't align past it.
-	 */
-	if (align >= MHLEN)
-		return (NULL);
+	if (__predict_false(total + lspace == 0)) {
+		*mc = MCHAIN_INITIALIZER(mc);
+		return (0);
+	}
 
-	/*
-	 * Give us the full allocation or nothing.
-	 * If len is zero return the smallest empty mbuf.
-	 */
-	m = m_getm2(NULL, max(total + align, 1), how, MT_DATA, flags);
-	if (m == NULL)
-		return (NULL);
-	m->m_data += align;
+	error = mc_get(mc, total + lspace, how, MT_DATA, flags);
+	if (__predict_false(error))
+		return (error);
+	mc_first(mc)->m_data += lspace;
 
 	/* Fill all mbufs with uio data and update header information. */
-	for (mb = m; mb != NULL; mb = mb->m_next) {
-		length = min(M_TRAILINGSPACE(mb), total - progress);
+	STAILQ_FOREACH(mb, &mc->mc_q, m_stailq) {
+		u_int mlen;
 
-		error = uiomove(mtod(mb, void *), length, uio);
-		if (error) {
-			m_freem(m);
-			return (NULL);
+		mlen = min(M_TRAILINGSPACE(mb), total - mc->mc_len);
+		error = uiomove(mtod(mb, void *), mlen, uio);
+		if (__predict_false(error)) {
+			mc_freem(mc);
+			return (error);
 		}
-
-		mb->m_len = length;
-		progress += length;
-		if (flags & M_PKTHDR) {
-			m->m_pkthdr.len += length;
-			m->m_pkthdr.memlen += MSIZE;
-			if (mb->m_flags & M_EXT)
-				m->m_pkthdr.memlen += mb->m_ext.ext_size;
-		}
+		mb->m_len = mlen;
+		mc->mc_len += mlen;
 	}
-	KASSERT(progress == total, ("%s: progress != total", __func__));
+	MPASS(mc->mc_len == total);
 
-	return (m);
+	return (0);
 }
 
 /*

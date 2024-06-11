@@ -27,9 +27,11 @@
  *
  */
 
-#include <machine/asm.h>
+#include <sys/elf_common.h>
 #include <sys/errno.h>
 
+#include <machine/asm.h>
+#include <machine/param.h>
 #include <machine/vmparam.h>
 
 #include "assym.inc"
@@ -219,3 +221,5 @@ ending:
 	mov	x0, xzr		/* return 0 */
 	ret
 	.size	copycommon, . - copycommon
+
+GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)

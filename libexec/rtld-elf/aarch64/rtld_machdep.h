@@ -37,6 +37,9 @@
 
 struct Struct_Obj_Entry;
 
+#define	MD_OBJ_ENTRY	\
+    bool variant_pcs : 1;	/* Object has a variant pcs function */
+
 /* Return the address of the .dynamic section in the dynamic linker. */
 #define	rtld_dynamic(obj)						\
 ({									\
@@ -44,6 +47,10 @@ struct Struct_Obj_Entry;
 	asm volatile("adr	%0, _DYNAMIC" : "=&r"(_dynamic_addr));	\
 	(const Elf_Dyn *)_dynamic_addr;					\
 })
+
+bool arch_digest_dynamic(struct Struct_Obj_Entry *obj, const Elf_Dyn *dynp);
+
+bool arch_digest_note(struct Struct_Obj_Entry *obj, const Elf_Note *note);
 
 Elf_Addr reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
     const struct Struct_Obj_Entry *defobj, const struct Struct_Obj_Entry *obj,

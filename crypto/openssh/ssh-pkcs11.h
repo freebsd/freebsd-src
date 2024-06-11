@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-pkcs11.h,v 1.6 2020/01/25 00:03:36 djm Exp $ */
+/* $OpenBSD: ssh-pkcs11.h,v 1.7 2023/12/18 14:46:56 djm Exp $ */
 /*
  * Copyright (c) 2010 Markus Friedl.  All rights reserved.
  *
@@ -35,6 +35,9 @@ struct sshkey *
 	    u_int32_t *);
 #endif
 
+/* Only available in ssh-pkcs11-client.c so far */
+int pkcs11_make_cert(const struct sshkey *,
+    const struct sshkey *, struct sshkey **);
 #if !defined(WITH_OPENSSL) && defined(ENABLE_PKCS11)
 #undef ENABLE_PKCS11
 #endif

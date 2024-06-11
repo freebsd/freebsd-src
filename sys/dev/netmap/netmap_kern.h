@@ -102,6 +102,7 @@
 #define MBUF_TXQ(m)	((m)->m_pkthdr.flowid)
 #define MBUF_TRANSMIT(na, ifp, m)	((na)->if_transmit(ifp, m))
 #define	GEN_TX_MBUF_IFP(m)	((m)->m_pkthdr.rcvif)
+#define	GEN_TX_MBUF_NA(m)	((struct netmap_adapter *)(m)->m_ext.ext_arg1)
 
 #define NM_ATOMIC_T	volatile int /* required by atomic/bitops.h */
 /* atomic operations */
@@ -2395,9 +2396,10 @@ nm_generic_mbuf_dtor(struct mbuf *m)
 	uma_zfree(zone_clust, m->m_ext.ext_buf);
 }
 
-#define SET_MBUF_DESTRUCTOR(m, fn)	do {		\
+#define SET_MBUF_DESTRUCTOR(m, fn, na)	do {		\
 	(m)->m_ext.ext_free = (fn != NULL) ?		\
 	    (void *)fn : (void *)nm_generic_mbuf_dtor;	\
+	(m)->m_ext.ext_arg1 = na;			\
 } while (0)
 
 static inline struct mbuf *
@@ -2450,8 +2452,19 @@ void netmap_uninit_bridges(void);
 #define CSB_READ(csb, field, r) (get_user(r, &csb->field))
 #define CSB_WRITE(csb, field, v) (put_user(v, &csb->field))
 #else  /* ! linux */
-#define CSB_READ(csb, field, r) (r = fuword32(&csb->field))
-#define CSB_WRITE(csb, field, v) (suword32(&csb->field, v))
+#define CSB_READ(csb, field, r) do {				\
+	int32_t v __diagused;					\
+								\
+	v = fuword32(&csb->field);				\
+	KASSERT(v != -1, ("%s: fuword32 failed", __func__));	\
+	r = v;							\
+} while (0)
+#define CSB_WRITE(csb, field, v) do {				\
+	int error __diagused;					\
+								\
+	error = suword32(&csb->field, v);			\
+	KASSERT(error == 0, ("%s: suword32 failed", __func__));	\
+} while (0)
 #endif /* ! linux */
 
 /* some macros that may not be defined */

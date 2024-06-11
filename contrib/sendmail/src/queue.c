@@ -21,6 +21,9 @@ SM_RCSID("@(#)$Id: queue.c,v 8.1000 2013-11-22 20:51:56 ca Exp $")
 #if _FFR_DMTRIGGER
 # include <sm/notify.h>
 #endif
+#if USE_EAI
+# include <sm/ixlen.h>
+#endif
 
 #define RELEASE_QUEUE	(void) 0
 #define ST_INODE(st)	(st).st_ino
@@ -294,7 +297,6 @@ hash_q(p, h)
 #define FILE_SYS_AVAIL(i)	FILE_SYS(i).fs_avail
 #define FILE_SYS_BLKSIZE(i)	FILE_SYS(i).fs_blksize
 #define FILE_SYS_DEV(i)	FILE_SYS(i).fs_dev
-
 
 /*
 **  Current qf file field assignments:
@@ -744,6 +746,8 @@ queueup(e, flags)
 			(void) sm_io_putc(tfp, SM_TIME_DEFAULT, 'D');
 		if (bitset(QINTBCC, q->q_flags))
 			(void) sm_io_putc(tfp, SM_TIME_DEFAULT, 'B');
+		if (bitset(QMXSECURE, q->q_flags))
+			(void) sm_io_putc(tfp, SM_TIME_DEFAULT, 'X');
 		if (q->q_alias != NULL &&
 		    bitset(QALIAS, q->q_alias->q_flags))
 			(void) sm_io_putc(tfp, SM_TIME_DEFAULT, 'A');
@@ -1637,7 +1641,6 @@ runqueue(forkflag, verbose, persistent, runall)
 		}
 	}
 
-
 #if SM_HEAP_CHECK
 	if (sm_debug_active(&DebugLeakQ, 1))
 		sm_heap_setgroup(oldgroup);
@@ -1698,7 +1701,7 @@ skip_domains(skip)
 /*
 **  RUNNER_WORK -- have a queue runner do its work
 **
-**  Have a queue runner do its work a list of entries.
+**  Have a queue runner do its work on a list of entries (WorkQ).
 **  When work isn't directly being done then this process can take a signal
 **  and terminate immediately (in a clean fashion of course).
 **  When work is directly being done, it's not to be interrupted
@@ -2525,7 +2528,7 @@ runqueueevent(ignore)
 **		full -- (optional) to be set 'true' if WorkList is full
 **		more -- (optional) to be set 'true' if there are still more
 **			messages in this queue not added to WorkList
-**		pnentries -- (optional) total nuber of entries in queue
+**		pnentries -- (optional) total number of entries in queue
 **
 **	Returns:
 **		The number of request in the queue (not necessarily
@@ -3708,6 +3711,7 @@ dowork(qgrp, qdir, id, forkflag, requeueflag, e)
 	else
 	{
 		pid = 0;
+		maps_reset_chged("dowork");
 	}
 
 	if (pid == 0)
@@ -3947,6 +3951,7 @@ doworklist(el, forkflag, requeueflag)
 			 ei->e_quarmsg != NULL)
 			continue;
 
+		maps_reset_chged("doworklist");
 		rpool = sm_rpool_new_x(NULL);
 		clearenvelope(&e, true, rpool);
 		e.e_flags |= EF_QUEUERUN|EF_GLOBALERRS;
@@ -4509,6 +4514,10 @@ readqf(e, openonly)
 						qflags |= QINTBCC;
 						break;
 
+					  case 'X':
+						qflags |= QMXSECURE;
+						break;
+
 					  case QDYNMAILFLG:
 						qflags |= QDYNMAILER;
 						break;
@@ -4887,6 +4896,28 @@ printqueue()
 **		Prints a listing of the mail queue on the standard output.
 */
 
+#if USE_EAI
+# define PRINTADDR(addr, len)	\
+	do	\
+	{	\
+		if (smtputf8)	\
+		{	\
+			char xbuf[MAXNAME];	\
+			(void) dequote_internal_chars(addr, xbuf, sizeof(xbuf));\
+			if (utf8_valid(xbuf, strlen(xbuf)))	\
+			{	\
+				(void) sm_io_fprintf(smioout,	\
+					SM_TIME_DEFAULT,	\
+					"%.*s ", len, xbuf);	\
+				break;	\
+			}	\
+		}	\
+		prtstr(addr, len);	\
+	} while (0)
+#else
+# define PRINTADDR(addr, len)	prtstr(addr, len)
+#endif /* USE_EAI */
+
 int
 print_single_queue(qgrp, qdir)
 	int qgrp;
@@ -4998,6 +5029,9 @@ print_single_queue(qgrp, qdir)
 		char statmsg[MAXLINE];
 		char bodytype[MAXNAME + 1];	/* EAI:ok */
 		char qf[MAXPATHLEN];
+#if USE_EAI
+		bool smtputf8 = false;
+#endif
 
 		if (StopRequest)
 			stop_sendmail();
@@ -5114,7 +5148,7 @@ print_single_queue(qgrp, qdir)
 						bitset(EF_WARNING, flags)
 							? '+' : ' ',
 						ctime(&submittime) + 4);
-					prtstr(&buf[1], 78);
+					PRINTADDR(buf+1, 78);
 				}
 				else
 				{
@@ -5123,7 +5157,7 @@ print_single_queue(qgrp, qdir)
 						"%8ld %.16s ",
 						dfsize,
 						ctime(&submittime));
-					prtstr(&buf[1], 39);
+					PRINTADDR(buf+1, 39);
 				}
 
 				if (quarmsg[0] != '\0')
@@ -5174,14 +5208,14 @@ print_single_queue(qgrp, qdir)
 					(void) sm_io_fprintf(smioout,
 							SM_TIME_DEFAULT,
 							"\n\t\t\t\t\t\t");
-					prtstr(p, 71);
+					PRINTADDR(p, 71);
 				}
 				else
 				{
 					(void) sm_io_fprintf(smioout,
 							SM_TIME_DEFAULT,
 							"\n\t\t\t\t\t ");
-					prtstr(p, 38);
+					PRINTADDR(p, 38);
 				}
 				if (Verbose && statmsg[0] != '\0')
 				{
@@ -5202,6 +5236,11 @@ print_single_queue(qgrp, qdir)
 				{
 					switch (*p)
 					{
+#if USE_EAI
+					  case 'e':
+						smtputf8 = true;
+						break;
+#endif /* USE_EAI */
 					  case 'w':
 						flags |= EF_WARNING;
 						break;
@@ -5593,7 +5632,6 @@ unlockqueue(e)
 		sm_dprintf("unlockqueue(%s)\n",
 			e->e_id == NULL ? "NOQUEUE" : e->e_id);
 
-
 	/* if there is a lock file in the envelope, close it */
 	SM_CLOSE_FP(e->e_lockfp);
 
@@ -5840,7 +5878,7 @@ qid_printqueue(qgrp, qdir)
 **		fsize -- file size in bytes
 **		e -- envelope, or NULL
 **
-**	Result:
+**	Returns:
 **		NOQDIR if no queue directory in qg has enough free space to
 **		hold a file of size 'fsize', otherwise the index of
 **		a randomly selected queue directory which resides on a
@@ -6350,7 +6388,6 @@ multiqueue_cache(basedir, blen, qg, qn, phash)
 	if (chkqdir(subdir, sff))	\
 		qg->qg_qpaths[qg->qg_numqueues].qp_subdirs |= flag;	\
 	else
-
 
 			CHKRSUBDIR("qf", QP_SUBQF);
 			CHKRSUBDIR("df", QP_SUBDF);
@@ -7233,7 +7270,6 @@ init_shm(qn, owner, hash)
 }
 #endif /* SM_CONF_SHM */
 
-
 /*
 **  SETUP_QUEUES -- set up all queue groups
 **
@@ -7332,7 +7368,6 @@ setup_queues(owner)
 	now = curtime();
 	for (i = 0; i < NumQueue && Queue[i] != NULL; i++)
 		Queue[i]->qg_nextrun = now;
-
 
 	if (UseMSP && OpMode != MD_TEST)
 	{
@@ -8017,7 +8052,7 @@ makeworkgroups()
 **		old -- old envelope.
 **		new -- new envelope.
 **
-**	Results:
+**	Returns:
 **		Returns true on success, false on failure.
 **
 **	Side Effects:
@@ -8119,7 +8154,7 @@ dup_df(old, new)
 **		qgrp -- index of queue group.
 **		qdir -- queue directory.
 **
-**	Results:
+**	Returns:
 **		new envelope.
 **
 */
@@ -8190,7 +8225,7 @@ split_env(e, sendqueue, qgrp, qdir)
 **	Parameters:
 **		e -- envelope.
 **
-**	Results:
+**	Returns:
 **		SM_SPLIT_FAIL on failure
 **		SM_SPLIT_NONE if no splitting occurred,
 **		or 1 + the number of additional envelopes created.
@@ -8413,7 +8448,7 @@ split_across_queue_groups(e)
 **	Parameters:
 **		e -- envelope.
 **
-**	Results:
+**	Returns:
 **		SM_SPLIT_FAIL on failure
 **		SM_SPLIT_NONE if no splitting occurred,
 **		or 1 + the number of additional envelopes created.
@@ -8605,7 +8640,7 @@ split_within_queue(e)
 **	Parameters:
 **		e -- envelope.
 **
-**	Results:
+**	Returns:
 **		Returns true on success, false on failure.
 **
 **	Side Effects:
@@ -8703,7 +8738,7 @@ split_by_recipient(e)
 **		e -- envelope information for the item
 **		reason -- quarantine reason, NULL means unquarantine.
 **
-**	Results:
+**	Returns:
 **		true if item changed, false otherwise
 **
 **	Side Effects:
@@ -8936,7 +8971,6 @@ quarantine_queue_item(qgrp, qdir, e, reason)
 		failing = true;
 	}
 
-
 	/* Figure out the new filename */
 	newtype = (reason == NULL ? NORMQF_LETTER : QUARQF_LETTER);
 	if (oldtype == newtype)
@@ -9062,7 +9096,7 @@ quarantine_queue_item(qgrp, qdir, e, reason)
 **		reason -- quarantine reason, "." means unquarantine.
 **		qgrplimit -- limit to single queue group unless NOQGRP
 **
-**	Results:
+**	Returns:
 **		none.
 **
 **	Side Effects:
@@ -9169,141 +9203,3 @@ quarantine_queue(reason, qgrplimit)
 					     changed == 1 ? "" : "s");
 	}
 }
-
-#if _FFR_DMTRIGGER
-/*
-**  QM -- queue "manager"
-**
-**	Parameters:
-**		none.
-**
-**	Results:
-**		false on error
-**
-**	Side Effects:
-**		fork()s and runs as process to deliver queue entries
-*/
-
-bool
-qm()
-{
-	int r;
-	pid_t pid;
-	long tmo;
-
-	sm_syslog(LOG_DEBUG, NOQID, "queue manager: start");
-
-	(void) sm_blocksignal(SIGCHLD);
-	(void) sm_signal(SIGCHLD, reapchild);
-
-	pid = dofork();
-	if (pid == -1)
-	{
-		const char *msg = "queue manager -- fork() failed";
-		const char *err = sm_errstring(errno);
-
-		if (LogLevel > 8)
-			sm_syslog(LOG_INFO, NOQID, "%s: %s",
-				  msg, err);
-		(void) sm_releasesignal(SIGCHLD);
-		return false;
-	}
-	if (pid != 0)
-	{
-		/* parent -- pick up intermediate zombie */
-		(void) sm_releasesignal(SIGCHLD);
-		return true;
-	}
-
-/* XXX put this into a macro/function because it is used several times? */
-	/* child -- clean up signals */
-
-	/* Reset global flags */
-	RestartRequest = NULL;
-	RestartWorkGroup = false;
-	ShutdownRequest = NULL;
-	PendingSignal = 0;
-	CurrentPid = getpid();
-	close_sendmail_pid();
-
-	/*
-	**  Initialize exception stack and default exception
-	**  handler for child process.
-	*/
-
-	sm_exc_newthread(fatal_error);
-	clrcontrol();
-	proc_list_clear();
-
-	/* Add parent process as first child item */
-	proc_list_add(CurrentPid, "Queue manager", PROC_QM, 0, -1, NULL);
-	(void) sm_releasesignal(SIGCHLD);
-	(void) sm_signal(SIGCHLD, SIG_DFL);
-	(void) sm_signal(SIGHUP, SIG_DFL);
-	(void) sm_signal(SIGTERM, intsig);
-
-	/* drop privileges */
-	if (geteuid() == (uid_t) 0)
-		(void) drop_privileges(false);
-	disconnect(1, NULL);
-	QuickAbort = false;
-
-	r = sm_notify_start(true, 0);
-	if (r != 0)
-		syserr("sm_notify_start() failed=%d", r);
-
-	/*
-	**  Initially wait indefinitely, then only wait
-	**  until something needs to get done (not yet implemented).
-	*/
-
-	tmo = -1;
-	while (true)
-	{
-		char buf[64];
-		ENVELOPE *e;
-		SM_RPOOL_T *rpool;
-
-/*
-**  TODO: This should try to receive multiple ids:
-**  after it got one, check for more with a very short timeout
-**  and collect them in a list.
-**  but them some other code should be used to run all of them.
-*/
-
-		sm_syslog(LOG_DEBUG, NOQID, "queue manager: rcv=start");
-		r = sm_notify_rcv(buf, sizeof(buf), tmo);
-		if (-ETIMEDOUT == r)
-		{
-			sm_syslog(LOG_DEBUG, NOQID, "queue manager: rcv=timed_out");
-			continue;
-		}
-		if (r < 0)
-		{
-			sm_syslog(LOG_DEBUG, NOQID, "queue manager: rcv=%d", r);
-			goto end;
-		}
-		if (r > 0 && r < sizeof(buf))
-			buf[r] = '\0';
-		buf[sizeof(buf) - 1] = '\0';
-		sm_syslog(LOG_DEBUG, NOQID, "queue manager: got=%s", buf);
-		CurEnv = &QueueEnvelope;
-		rpool = sm_rpool_new_x(NULL);
-		e = newenvelope(&QueueEnvelope, CurEnv, rpool);
-		e->e_flags = BlankEnvelope.e_flags;
-		e->e_parent = NULL;
-		r = sm_io_sscanf(buf, "N:%d:%d:%s", &e->e_qgrp, &e->e_qdir, e->e_id);
-		if (r != 3)
-		{
-			sm_syslog(LOG_DEBUG, NOQID, "queue manager: buf=%s, scan=%d", buf, r);
-			goto end;
-		}
-		dowork(e->e_qgrp, e->e_qdir, e->e_id, true, false, e);
-	}
-
-  end:
-	sm_syslog(LOG_DEBUG, NOQID, "queue manager: stop");
-	finis(false, false, EX_OK);
-	return false;
-}
-#endif /* _FFR_DMTRIGGER */

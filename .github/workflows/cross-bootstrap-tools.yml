@@ -2,9 +2,10 @@ name: Cross-build Kernel
 
 on:
   push:
-    branches: [ main, 'stable/13' ]
+    branches: [ main, 'stable/14', 'stable/13' ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -30,14 +31,14 @@ jobs:
             pkgs: bmake libarchive-dev clang-14 lld-14
           - os: macos-latest
             compiler: clang-13
-            cross-bindir: /usr/local/opt/llvm@13/bin
+            cross-bindir: /opt/homebrew/opt/llvm@13/bin
             pkgs: bmake libarchive llvm@13
           - target_arch: amd64
             target: amd64
           - target_arch: aarch64
             target: arm64
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: install packages (Ubuntu)
         if: runner.os == 'Linux'
         run: |

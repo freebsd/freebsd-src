@@ -58,6 +58,7 @@
 #include <x86/include/busdma_impl.h>
 #include <dev/iommu/busdma_iommu.h>
 #include <x86/iommu/intel_reg.h>
+#include <x86/iommu/x86_iommu.h>
 #include <x86/iommu/intel_dmar.h>
 
 typedef void (*dmar_quirk_cpu_fun)(struct dmar_unit *);
@@ -107,7 +108,7 @@ dmar_match_quirks(struct dmar_unit *dmar,
 				    (nb_quirk->rev_no == rev_no ||
 				    nb_quirk->rev_no == QUIRK_NB_ALL_REV)) {
 					if (bootverbose) {
-						device_printf(dmar->dev,
+						device_printf(dmar->iommu.dev,
 						    "NB IOMMU quirk %s\n",
 						    nb_quirk->descr);
 					}
@@ -115,7 +116,8 @@ dmar_match_quirks(struct dmar_unit *dmar,
 				}
 			}
 		} else {
-			device_printf(dmar->dev, "cannot find northbridge\n");
+			device_printf(dmar->iommu.dev,
+			    "cannot find northbridge\n");
 		}
 	}
 	if (cpu_quirks != NULL) {
@@ -134,7 +136,7 @@ dmar_match_quirks(struct dmar_unit *dmar,
 			    (cpu_quirk->stepping == -1 ||
 			    cpu_quirk->stepping == stepping)) {
 				if (bootverbose) {
-					device_printf(dmar->dev,
+					device_printf(dmar->iommu.dev,
 					    "CPU IOMMU quirk %s\n",
 					    cpu_quirk->descr);
 				}

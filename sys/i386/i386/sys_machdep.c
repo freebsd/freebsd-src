@@ -152,26 +152,24 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 	 * explicitly indicate whether or not the operation is safe to
 	 * perform in capability mode.
 	 */
-	if (IN_CAPABILITY_MODE(td)) {
-		switch (uap->op) {
-		case I386_GET_LDT:
-		case I386_SET_LDT:
-		case I386_GET_IOPERM:
-		case I386_GET_FSBASE:
-		case I386_SET_FSBASE:
-		case I386_GET_GSBASE:
-		case I386_SET_GSBASE:
-		case I386_GET_XFPUSTATE:
-			break;
+	switch (uap->op) {
+	case I386_GET_LDT:
+	case I386_SET_LDT:
+	case I386_GET_IOPERM:
+	case I386_GET_FSBASE:
+	case I386_SET_FSBASE:
+	case I386_GET_GSBASE:
+	case I386_SET_GSBASE:
+	case I386_GET_XFPUSTATE:
+		break;
 
-		case I386_SET_IOPERM:
-		default:
-#ifdef KTRACE
-			if (KTRPOINT(td, KTR_CAPFAIL))
-				ktrcapfail(CAPFAIL_SYSCALL, NULL, NULL);
-#endif
+	case I386_SET_IOPERM:
+	default:
+		if (CAP_TRACING(td))
+			ktrcapfail(CAPFAIL_SYSCALL, &uap->op);
+		if (IN_CAPABILITY_MODE(td))
 			return (ECAPMODE);
-		}
+		break;
 	}
 #endif
 

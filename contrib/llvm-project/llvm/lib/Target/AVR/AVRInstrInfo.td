@@ -1398,7 +1398,7 @@ let mayLoad = 1, hasSideEffects = 0,
 
 // Load indirect with displacement operations.
 let canFoldAsLoad = 1, isReMaterializable = 1 in {
-  let Constraints = "@earlyclobber $reg" in def LDDRdPtrQ
+  def LDDRdPtrQ
       : FSTDLDD<0,
                 (outs GPR8
                  : $reg),
@@ -1468,9 +1468,7 @@ class AtomicStore<PatFrag Op, RegisterClass DRC, RegisterClass PTRRC>
              (ins PTRRC
               : $rd, DRC
               : $rr),
-             "atomic_op", [(Op i16
-                            : $rd, DRC
-                            : $rr)]>;
+             "atomic_op", [(Op DRC:$rr, i16:$rd)]>;
 
 class AtomicLoadOp<PatFrag Op, RegisterClass DRC, RegisterClass PTRRC>
     : Pseudo<(outs DRC:$rd),

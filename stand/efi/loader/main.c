@@ -27,7 +27,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <stand.h>
 
 #include <sys/disk.h>
@@ -262,8 +261,9 @@ probe_zfs_currdev(uint64_t guid)
 	currdev.dd.d_unit = 0;
 	currdev.pool_guid = guid;
 	currdev.root_guid = 0;
-	set_currdev_devdesc((struct devdesc *)&currdev);
 	devname = devformat(&currdev.dd);
+	set_currdev(devname);
+	printf("Setting currdev to %s\n", devname);
 	init_zfs_boot_options(devname);
 
 	if (zfs_get_bootonce(&currdev, OS_BOOTONCE, buf, sizeof(buf)) == 0) {
@@ -278,10 +278,11 @@ probe_zfs_currdev(uint64_t guid)
 #endif
 
 #ifdef MD_IMAGE_SIZE
+extern struct devsw md_dev;
+
 static bool
 probe_md_currdev(void)
 {
-	extern struct devsw md_dev;
 	bool rv;
 
 	set_currdev_devsw(&md_dev, 0);
@@ -722,7 +723,10 @@ setenv_int(const char *key, int val)
  * Parse ConOut (the list of consoles active) and see if we can find a
  * serial port and/or a video port. It would be nice to also walk the
  * ACPI name space to map the UID for the serial port to a port. The
- * latter is especially hard.
+ * latter is especially hard. Also check for ConIn as well. This will
+ * be enough to determine if we have serial, and if we don't, we default
+ * to video. If there's a dual-console situation with ConIn, this will
+ * currently fail.
  */
 int
 parse_uefi_con_out(void)
@@ -741,6 +745,8 @@ parse_uefi_con_out(void)
 	rv = efi_global_getenv("ConOut", buf, &sz);
 	if (rv != EFI_SUCCESS)
 		rv = efi_global_getenv("ConOutDev", buf, &sz);
+	if (rv != EFI_SUCCESS)
+		rv = efi_global_getenv("ConIn", buf, &sz);
 	if (rv != EFI_SUCCESS) {
 		/*
 		 * If we don't have any ConOut default to both. If we have GOP

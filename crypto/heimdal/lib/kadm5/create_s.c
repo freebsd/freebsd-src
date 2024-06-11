@@ -169,6 +169,10 @@ kadm5_s_create_principal(void *server_handle,
     ent.entry.keys.len = 0;
     ent.entry.keys.val = NULL;
 
+    ret = fbsd_ossl_provider_load();
+    if (ret)
+	goto out;
+
     ret = _kadm5_set_keys(context, &ent.entry, password);
     if (ret)
 	goto out;

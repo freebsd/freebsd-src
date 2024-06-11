@@ -59,7 +59,7 @@ namespace llvm {
 /// createHexagonISelDag - This pass converts a legalized DAG into a
 /// Hexagon-specific DAG, ready for instruction scheduling.
 FunctionPass *createHexagonISelDag(HexagonTargetMachine &TM,
-                                   CodeGenOpt::Level OptLevel) {
+                                   CodeGenOptLevel OptLevel) {
   return new HexagonDAGToDAGISel(TM, OptLevel);
 }
 }
@@ -192,7 +192,7 @@ MachineSDNode *HexagonDAGToDAGISel::LoadInstrForLoadIntrinsic(SDNode *IntN) {
     return nullptr;
 
   SDLoc dl(IntN);
-  unsigned IntNo = cast<ConstantSDNode>(IntN->getOperand(1))->getZExtValue();
+  unsigned IntNo = IntN->getConstantOperandVal(1);
 
   static std::map<unsigned,unsigned> LoadPciMap = {
     { Intrinsic::hexagon_circ_ldb,  Hexagon::L2_loadrb_pci  },
@@ -284,18 +284,18 @@ bool HexagonDAGToDAGISel::tryLoadOfLoadIntrinsic(LoadSDNode *N) {
   // can provide an address of an unsigned variable to store the result of
   // a sign-extending intrinsic into (or the other way around).
   ISD::LoadExtType IntExt;
-  switch (cast<ConstantSDNode>(C->getOperand(1))->getZExtValue()) {
-    case Intrinsic::hexagon_circ_ldub:
-    case Intrinsic::hexagon_circ_lduh:
-      IntExt = ISD::ZEXTLOAD;
-      break;
-    case Intrinsic::hexagon_circ_ldw:
-    case Intrinsic::hexagon_circ_ldd:
-      IntExt = ISD::NON_EXTLOAD;
-      break;
-    default:
-      IntExt = ISD::SEXTLOAD;
-      break;
+  switch (C->getConstantOperandVal(1)) {
+  case Intrinsic::hexagon_circ_ldub:
+  case Intrinsic::hexagon_circ_lduh:
+    IntExt = ISD::ZEXTLOAD;
+    break;
+  case Intrinsic::hexagon_circ_ldw:
+  case Intrinsic::hexagon_circ_ldd:
+    IntExt = ISD::NON_EXTLOAD;
+    break;
+  default:
+    IntExt = ISD::SEXTLOAD;
+    break;
   }
   if (N->getExtensionType() != IntExt)
     return false;
@@ -325,7 +325,7 @@ bool HexagonDAGToDAGISel::SelectBrevLdIntrinsic(SDNode *IntN) {
     return false;
 
   const SDLoc &dl(IntN);
-  unsigned IntNo = cast<ConstantSDNode>(IntN->getOperand(1))->getZExtValue();
+  unsigned IntNo = IntN->getConstantOperandVal(1);
 
   static const std::map<unsigned, unsigned> LoadBrevMap = {
     { Intrinsic::hexagon_L2_loadrb_pbr, Hexagon::L2_loadrb_pbr },
@@ -366,7 +366,7 @@ bool HexagonDAGToDAGISel::SelectNewCircIntrinsic(SDNode *IntN) {
     return false;
 
   SDLoc DL(IntN);
-  unsigned IntNo = cast<ConstantSDNode>(IntN->getOperand(1))->getZExtValue();
+  unsigned IntNo = IntN->getConstantOperandVal(1);
   SmallVector<SDValue, 7> Ops;
 
   static std::map<unsigned,unsigned> LoadNPcMap = {
@@ -641,7 +641,7 @@ void HexagonDAGToDAGISel::SelectIntrinsicWChain(SDNode *N) {
   if (SelectNewCircIntrinsic(N))
     return;
 
-  unsigned IntNo = cast<ConstantSDNode>(N->getOperand(1))->getZExtValue();
+  unsigned IntNo = N->getConstantOperandVal(1);
   if (IntNo == Intrinsic::hexagon_V6_vgathermw ||
       IntNo == Intrinsic::hexagon_V6_vgathermw_128B ||
       IntNo == Intrinsic::hexagon_V6_vgathermh ||
@@ -665,7 +665,7 @@ void HexagonDAGToDAGISel::SelectIntrinsicWChain(SDNode *N) {
 }
 
 void HexagonDAGToDAGISel::SelectIntrinsicWOChain(SDNode *N) {
-  unsigned IID = cast<ConstantSDNode>(N->getOperand(0))->getZExtValue();
+  unsigned IID = N->getConstantOperandVal(0);
   unsigned Bits;
   switch (IID) {
   case Intrinsic::hexagon_S2_vsplatrb:
@@ -701,8 +701,7 @@ void HexagonDAGToDAGISel::SelectIntrinsicWOChain(SDNode *N) {
 void HexagonDAGToDAGISel::SelectExtractSubvector(SDNode *N) {
   SDValue Inp = N->getOperand(0);
   MVT ResTy = N->getValueType(0).getSimpleVT();
-  auto IdxN = cast<ConstantSDNode>(N->getOperand(1));
-  unsigned Idx = IdxN->getZExtValue();
+  unsigned Idx = N->getConstantOperandVal(1);
 
   [[maybe_unused]] MVT InpTy = Inp.getValueType().getSimpleVT();
   [[maybe_unused]] unsigned ResLen = ResTy.getVectorNumElements();
@@ -743,7 +742,7 @@ void HexagonDAGToDAGISel::SelectConstantFP(SDNode *N) {
 //
 void HexagonDAGToDAGISel::SelectConstant(SDNode *N) {
   if (N->getValueType(0) == MVT::i1) {
-    assert(!(cast<ConstantSDNode>(N)->getZExtValue() >> 1));
+    assert(!(N->getAsZExtVal() >> 1));
     unsigned Opc = (cast<ConstantSDNode>(N)->getSExtValue() != 0)
                       ? Hexagon::PS_true
                       : Hexagon::PS_false;
@@ -955,17 +954,17 @@ void HexagonDAGToDAGISel::Select(SDNode *N) {
   SelectCode(N);
 }
 
-bool HexagonDAGToDAGISel::
-SelectInlineAsmMemoryOperand(const SDValue &Op, unsigned ConstraintID,
-                             std::vector<SDValue> &OutOps) {
+bool HexagonDAGToDAGISel::SelectInlineAsmMemoryOperand(
+    const SDValue &Op, InlineAsm::ConstraintCode ConstraintID,
+    std::vector<SDValue> &OutOps) {
   SDValue Inp = Op, Res;
 
   switch (ConstraintID) {
   default:
     return true;
-  case InlineAsm::Constraint_o: // Offsetable.
-  case InlineAsm::Constraint_v: // Not offsetable.
-  case InlineAsm::Constraint_m: // Memory.
+  case InlineAsm::ConstraintCode::o: // Offsetable.
+  case InlineAsm::ConstraintCode::v: // Not offsetable.
+  case InlineAsm::ConstraintCode::m: // Memory.
     if (SelectAddrFI(Inp, Res))
       OutOps.push_back(Res);
     else
@@ -976,7 +975,6 @@ SelectInlineAsmMemoryOperand(const SDValue &Op, unsigned ConstraintID,
   OutOps.push_back(CurDAG->getTargetConstant(0, SDLoc(Op), MVT::i32));
   return false;
 }
-
 
 static bool isMemOPCandidate(SDNode *I, SDNode *U) {
   // I is an operand of U. Check if U is an arithmetic (binary) operation
@@ -1028,15 +1026,11 @@ void HexagonDAGToDAGISel::ppSimplifyOrSelect0(std::vector<SDNode*> &&Nodes) {
     if (I->getOpcode() != ISD::OR)
       continue;
 
-    auto IsZero = [] (const SDValue &V) -> bool {
-      if (ConstantSDNode *SC = dyn_cast<ConstantSDNode>(V.getNode()))
-        return SC->isZero();
-      return false;
-    };
-    auto IsSelect0 = [IsZero] (const SDValue &Op) -> bool {
+    auto IsSelect0 = [](const SDValue &Op) -> bool {
       if (Op.getOpcode() != ISD::SELECT)
         return false;
-      return IsZero(Op.getOperand(1)) || IsZero(Op.getOperand(2));
+      return isNullConstant(Op.getOperand(1)) ||
+             isNullConstant(Op.getOperand(2));
     };
 
     SDValue N0 = I->getOperand(0), N1 = I->getOperand(1);
@@ -1050,11 +1044,11 @@ void HexagonDAGToDAGISel::ppSimplifyOrSelect0(std::vector<SDNode*> &&Nodes) {
       SDValue SX = SOp.getOperand(1);
       SDValue SY = SOp.getOperand(2);
       SDLoc DLS = SOp;
-      if (IsZero(SY)) {
+      if (isNullConstant(SY)) {
         SDValue NewOr = DAG.getNode(ISD::OR, DLS, VT, SX, VOp);
         SDValue NewSel = DAG.getNode(ISD::SELECT, DLS, VT, SC, NewOr, VOp);
         DAG.ReplaceAllUsesWith(I, NewSel.getNode());
-      } else if (IsZero(SX)) {
+      } else if (isNullConstant(SX)) {
         SDValue NewOr = DAG.getNode(ISD::OR, DLS, VT, SY, VOp);
         SDValue NewSel = DAG.getNode(ISD::SELECT, DLS, VT, SC, VOp, NewOr);
         DAG.ReplaceAllUsesWith(I, NewSel.getNode());

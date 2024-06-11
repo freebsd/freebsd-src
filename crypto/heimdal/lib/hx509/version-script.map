@@ -21,7 +21,6 @@ HEIMDAL_X509_1.2 {
 		_hx509_request_add_email;
 		_hx509_request_parse;
 		_hx509_request_print;
-		_hx509_request_set_email;
 		_hx509_request_to_pkcs10;
 		_hx509_unmap_file_os;
 		_hx509_write_file;
@@ -51,8 +50,6 @@ HEIMDAL_X509_1.2 {
 		hx509_ca_tbs_set_unique;
 		hx509_ca_tbs_subject_expand;
 		hx509_ca_tbs_template_units;
-		hx509_cert;
-		hx509_cert_attribute;
 		hx509_cert_binary;
 		hx509_cert_check_eku;
 		hx509_cert_cmp;
@@ -85,7 +82,6 @@ HEIMDAL_X509_1.2 {
 		hx509_certs_free;
 		hx509_certs_info;
 		hx509_certs_init;
-		hx509_certs_iter;
 		hx509_certs_iter_f;
 		hx509_certs_merge;
 		hx509_certs_next_cert;
@@ -133,7 +129,6 @@ HEIMDAL_X509_1.2 {
 		hx509_env_find;
 		hx509_env_find_binding;
 		hx509_env_free;
-		hx509_env_init;
 		hx509_env_lfind;
 		hx509_err;
 		hx509_free_error_string;

@@ -204,6 +204,12 @@ stab(name, type, op)
 		break;
 #endif
 
+#if _FFR_DYN_CLASS
+	  case ST_DYNMAP:
+		len = sizeof(s->s_dynclass);
+		break;
+#endif
+
 	  default:
 		/*
 		**  Each mailer has its own MCI stab entry:

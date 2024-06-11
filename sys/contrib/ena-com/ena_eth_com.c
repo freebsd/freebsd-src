@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
- * Copyright (c) 2015-2021 Amazon.com, Inc. or its affiliates.
+ * Copyright (c) 2015-2023 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -260,30 +260,43 @@ static struct ena_eth_io_rx_cdesc_base *
 		idx * io_cq->cdesc_entry_size_in_bytes);
 }
 
-static u16 ena_com_cdesc_rx_pkt_get(struct ena_com_io_cq *io_cq,
-					   u16 *first_cdesc_idx)
+static int ena_com_cdesc_rx_pkt_get(struct ena_com_io_cq *io_cq,
+				    u16 *first_cdesc_idx,
+				    u16 *num_descs)
 {
+	u16 count = io_cq->cur_rx_pkt_cdesc_count, head_masked;
 	struct ena_eth_io_rx_cdesc_base *cdesc;
-	u16 count = 0, head_masked;
 	u32 last = 0;
 
 	do {
+		u32 status;
+
 		cdesc = ena_com_get_next_rx_cdesc(io_cq);
 		if (!cdesc)
 			break;
+		status = READ_ONCE32(cdesc->status);
 
 		ena_com_cq_inc_head(io_cq);
+		if (unlikely((status & ENA_ETH_IO_RX_CDESC_BASE_FIRST_MASK) >>
+		    ENA_ETH_IO_RX_CDESC_BASE_FIRST_SHIFT && count != 0)) {
+			struct ena_com_dev *dev = ena_com_io_cq_to_ena_dev(io_cq);
+
+			ena_trc_err(dev,
+				    "First bit is on in descriptor #%d on q_id: %d, req_id: %u\n",
+				    count, io_cq->qid, cdesc->req_id);
+			return ENA_COM_FAULT;
+		}
 		count++;
-		last = (READ_ONCE32(cdesc->status) & ENA_ETH_IO_RX_CDESC_BASE_LAST_MASK) >>
+		last = (status & ENA_ETH_IO_RX_CDESC_BASE_LAST_MASK) >>
 			ENA_ETH_IO_RX_CDESC_BASE_LAST_SHIFT;
 	} while (!last);
 
 	if (last) {
 		*first_cdesc_idx = io_cq->cur_rx_pkt_cdesc_start_idx;
-		count += io_cq->cur_rx_pkt_cdesc_count;
 
 		head_masked = io_cq->head & (io_cq->q_depth - 1);
 
+		*num_descs = count;
 		io_cq->cur_rx_pkt_cdesc_count = 0;
 		io_cq->cur_rx_pkt_cdesc_start_idx = head_masked;
 
@@ -291,11 +304,11 @@ static u16 ena_com_cdesc_rx_pkt_get(struct ena_com_io_cq *io_cq,
 			    "ENA q_id: %d packets were completed. first desc idx %u descs# %d\n",
 			    io_cq->qid, *first_cdesc_idx, count);
 	} else {
-		io_cq->cur_rx_pkt_cdesc_count += count;
-		count = 0;
+		io_cq->cur_rx_pkt_cdesc_count = count;
+		*num_descs = 0;
 	}
 
-	return count;
+	return ENA_COM_OK;
 }
 
 static int ena_com_create_meta(struct ena_com_io_sq *io_sq,
@@ -354,9 +367,6 @@ static int ena_com_create_and_store_tx_meta_desc(struct ena_com_io_sq *io_sq,
 	 * compare it to the stored version, just create the meta
 	 */
 	if (io_sq->disable_meta_caching) {
-		if (unlikely(!ena_tx_ctx->meta_valid))
-			return ENA_COM_INVAL;
-
 		*have_meta = true;
 		return ena_com_create_meta(io_sq, ena_meta);
 	}
@@ -445,7 +455,7 @@ int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
 	if (unlikely(io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV
 		     && !buffer_to_push)) {
 		ena_trc_err(ena_com_io_sq_to_ena_dev(io_sq),
-			    "Push header wasn't provided on LLQ mode\n");
+			    "Push header wasn't provided in LLQ mode\n");
 		return ENA_COM_INVAL;
 	}
 
@@ -565,9 +575,6 @@ int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
 	}
 
 	rc = ena_com_close_bounce_buffer(io_sq);
-	if (rc)
-		ena_trc_err(ena_com_io_sq_to_ena_dev(io_sq),
-			    "Failed when closing bounce buffer\n");
 
 	*nb_hw_desc = io_sq->tail - start_tail;
 	return rc;
@@ -583,11 +590,15 @@ int ena_com_rx_pkt(struct ena_com_io_cq *io_cq,
 	u16 cdesc_idx = 0;
 	u16 nb_hw_desc;
 	u16 i = 0;
+	int rc;
 
 	ENA_WARN(io_cq->direction != ENA_COM_IO_QUEUE_DIRECTION_RX,
 		 ena_com_io_cq_to_ena_dev(io_cq), "wrong Q type");
 
-	nb_hw_desc = ena_com_cdesc_rx_pkt_get(io_cq, &cdesc_idx);
+	rc = ena_com_cdesc_rx_pkt_get(io_cq, &cdesc_idx, &nb_hw_desc);
+	if (unlikely(rc != ENA_COM_OK))
+		return ENA_COM_FAULT;
+
 	if (nb_hw_desc == 0) {
 		ena_rx_ctx->descs = nb_hw_desc;
 		return 0;

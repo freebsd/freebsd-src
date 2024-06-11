@@ -1,3 +1,3 @@
 
 arm/allwinner/a20/a20_padconf.c		standard
-arm/allwinner/clkng/ccu_a10.c		standard
+dev/clk/allwinner/ccu_a10.c		standard

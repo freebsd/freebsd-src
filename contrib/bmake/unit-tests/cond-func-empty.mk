@@ -1,9 +1,9 @@
-# $NetBSD: cond-func-empty.mk,v 1.22 2023/08/11 05:01:12 rillig Exp $
+# $NetBSD: cond-func-empty.mk,v 1.24 2023/12/19 19:33:40 rillig Exp $
 #
-# Tests for the empty() function in .if conditions, which tests a variable
+# Tests for the empty() function in .if conditions, which tests an
 # expression for emptiness.
 #
-# Note that the argument in the parentheses is a variable name, not a variable
+# Note that the argument in the parentheses is a variable name, not an
 # expression.  That name may be followed by ':...' modifiers.
 #
 
@@ -120,7 +120,7 @@ ${:U }=	space
 .  error
 .endif
 
-# The :L modifier creates a variable expression that has the same value as
+# The :L modifier creates an expression that has the same value as
 # its name, which both are "VAR" in this case.  The value is therefore not
 # empty.
 .if empty(VAR:L)
@@ -138,7 +138,7 @@ ${:U }=	space
 .  error
 .endif
 
-# Ensure that variable expressions that appear as part of the function call
+# Ensure that expressions that appear as part of the function call
 # argument are properly parsed.  Typical use cases for this are .for loops,
 # which are expanded to exactly these ${:U} expressions.
 #
@@ -188,20 +188,20 @@ ${:U WORD }=	variable name with spaces
 # side containing the '!empty' was evaluated though, as it had always been.
 #
 # When evaluating the !empty condition, the variable name was parsed as
-# "VARNAME${:U2}", but without expanding any nested variable expression, in
+# "VARNAME${:U2}", but without expanding any nested expression, in
 # this case the ${:U2}.  The expression '${:U2}' was replaced with an empty
 # string, the resulting variable name was thus "VARNAME".  This conceptually
 # wrong variable name should have been discarded quickly after parsing it, to
 # prevent it from doing any harm.
 #
-# The variable expression was expanded though, and this was wrong.  The
+# The expression was expanded, and this was wrong.  The
 # expansion was done without VARE_WANTRES (called VARF_WANTRES back then)
 # though.  This had the effect that the ${:U1} from the value of VARNAME
 # expanded to an empty string.  This in turn created the seemingly recursive
 # definition VARNAME=${VARNAME}, and that definition was never meant to be
 # expanded.
 #
-# This was fixed by expanding nested variable expressions in the variable name
+# This was fixed by expanding nested expressions in the variable name
 # only if the flag VARE_WANTRES is given.
 VARNAME=	${VARNAME${:U1}}
 .if defined(VARNAME${:U2}) && !empty(VARNAME${:U2})

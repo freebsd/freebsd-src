@@ -14,19 +14,18 @@ SRCS+=	progress.c
 SRCS+=	timestamp.c
 SRCS+=	util.c
 SRCS+=	zone.c
-.if ${MK_NVME} != "no"
 .PATH:	${SRCTOP}/sbin/nvmecontrol
-CFLAGS+= -I${SRCTOP}/sbin/nvmecontrol -DWITH_NVME
+CFLAGS+= -I${SRCTOP}/sbin/nvmecontrol
 SRCS+=	identify_ext.c
 SRCS+=	nc_util.c
 .PATH:	${SRCTOP}/sys/dev/nvme
 SRCS+=	nvme_util.c
-.endif
 # This is verboten
 .if ${MACHINE_CPUARCH} == "arm"
 WARNS?= 3
 .endif
-LIBADD=	cam sbuf util
+CFLAGS+= -I${SRCTOP}/lib/libnvmf
+LIBADD=	cam nvmf sbuf util
 MAN=	camcontrol.8
 
 .include <bsd.prog.mk>

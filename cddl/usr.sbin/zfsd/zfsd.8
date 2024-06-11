@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 18, 2020
+.Dd February 20, 2024
 .Dt ZFSD 8
 .Os
 .Sh NAME
@@ -55,7 +55,7 @@ directly.
 Instead, they control its behavior indirectly through zpool configuration.
 There are two ways to influence
 .Nm :
-assigning hotspares and setting pool properties.
+assigning hot spares and setting pool properties.
 Currently, only the
 .Em autoreplace
 property has any effect.
@@ -69,7 +69,7 @@ will attempt to resolve the following types of fault:
 .It device removal
 When a leaf vdev disappears,
 .Nm
-will activate any available hotspare.
+will activate any available hot spare.
 .It device arrival
 When a new GEOM device appears,
 .Nm
@@ -77,40 +77,71 @@ will attempt to read its ZFS label, if any.
 If it matches a previously removed vdev on an active pool,
 .Nm
 will online it.
-Once resilvering completes, any active hotspare will detach automatically.
+Once resilvering completes, any active hot spare will detach automatically.
 .Pp
 If the new device has no ZFS label but its physical path matches the
 physical path of a previously removed vdev on an active pool, and that
 pool has the autoreplace property set, then
 .Nm
 will replace the missing vdev with the newly arrived device.
-Once resilvering completes, any active hotspare will detach automatically.
+Once resilvering completes, any active hot spare will detach automatically.
 .It vdev degrade or fault events
 If a vdev becomes degraded or faulted,
 .Nm
-will activate any available hotspare.
+will activate any available hot spare.
 .It I/O errors
-If a leaf vdev generates more than 50 I/O errors in a 60 second period, then
+By default, if a leaf vdev generates more than 50 I/O errors in a 60 second
+period, then
 .Nm
 will mark that vdev as
 .Em FAULTED .
 ZFS will no longer issue any I/Os to it.
 .Nm
-will activate a hotspare if one is available.
+will activate a hot spare if one is available. The defaults can be changed by
+setting the
+.Em io_n
+and/or
+.Em io_t
+vdev properties. See
+.Xr vdevprops 7
+for details.
+.It I/O delays
+By default, if a leaf vdev generates more than delayed 8 I/O events in a 60
+second period, then
+.Nm
+will mark that vdev as
+.Em FAULTED .
+ZFS will no longer issue any I/Os to it.
+.Nm
+will activate a hot spare if one is available. The defaults can be changed by
+setting the
+.Em slow_io_n
+and/or
+.Em slow_io_t
+vdev properties. See
+.Xr vdevprops 7
+for details.
 .It Checksum errors
-If a leaf vdev generates more than 50 checksum errors in a 60 second
-period, then
+By default, if a leaf vdev generates more than 50 checksum errors in a 60
+second period, then
 .Nm
 will mark that vdev as
 .Em DEGRADED .
-ZFS will still use it, but zfsd will activate a spare anyway.
+ZFS will still use it, but zfsd will also activate a hot spare if one is
+available. The defaults can be changed by setting the
+.Em checksum_n
+and/or
+.Em checksum_t
+vdev properties. See
+.Xr vdevprops 7
+for details.
 .It Spare addition
-If the system administrator adds a hotspare to a pool that is already degraded,
+If the system administrator adds a hot spare to a pool that is already degraded,
 .Nm
 will activate the spare.
 .It Resilver complete
 .Nm
-will detach any hotspare once a permanent replacement finishes resilvering.
+will detach any hot spare once a permanent replacement finishes resilvering.
 .It Physical path change
 If the physical path of an existing disk changes,
 .Nm
@@ -134,6 +165,7 @@ then reads them back in when next it starts up.
 .El
 .Sh SEE ALSO
 .Xr devctl 4 ,
+.Xr vdevprops 7 ,
 .Xr zpool 8
 .Sh HISTORY
 .Nm

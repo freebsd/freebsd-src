@@ -1,4 +1,6 @@
-# $Id: sys.dirdeps.mk,v 1.12 2023/05/14 16:16:03 sjg Exp $
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# $Id: sys.dirdeps.mk,v 1.15 2024/04/18 17:18:31 sjg Exp $
 #
 #	@(#) Copyright (c) 2012-2023, Simon J. Gerraty
 #
@@ -31,9 +33,10 @@ _PARSEDIR ?= ${.PARSEDIR:tA}
 
 .if ${.MAKE.LEVEL} == 0
 # make sure dirdeps target exists and do it first
+# init.mk will set .MAIN to 'dirdeps' if appropriate
+# as will dirdeps-targets.mk for top-level builds.
+# This allows a Makefile to have more control.
 dirdeps:
-# first .MAIN is what counts
-.MAIN: dirdeps
 .NOPATH: dirdeps
 all: dirdeps .WAIT
 .endif
@@ -193,11 +196,10 @@ RELSRCTOP?= ${RELTOP}
 # just in case
 .MAKE.DEPENDFILE ?= Makefile.depend
 
-.if ${.MAKE.LEVEL} > 0
-# Makefile.depend* also get read at level 1+
-# and often refer to DEP_MACHINE etc,
-# so ensure DEP_* (for TARGET_SPEC_VARS anyway) are set
-.for V in ${TARGET_SPEC_VARS}
-DEP_$V = ${$V}
+# Makefile.depend* often refer to DEP_MACHINE etc,
+# we need defaults for both first include in a leaf dir
+# and when level > 0
+# so ensure DEP_* for TARGET_SPEC_VARS and RELDIR are set
+.for V in ${TARGET_SPEC_VARS} RELDIR
+DEP_$V ?= ${$V}
 .endfor
-.endif

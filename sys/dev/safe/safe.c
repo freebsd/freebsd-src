@@ -1777,7 +1777,7 @@ safe_dmamap_aligned(const struct safe_operand *op)
  * of an operation.  The hardware requires that each ``particle''
  * but the last in an operation result have the same size.  We
  * fix that size at SAFE_MAX_DSIZE bytes.  This routine returns
- * 0 if some segment is not a multiple of of this size, 1 if all
+ * 0 if some segment is not a multiple of this size, 1 if all
  * segments are exactly this size, or 2 if segments are at worst
  * a multiple of this size.
  */

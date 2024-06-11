@@ -10,12 +10,10 @@ CXXABI_1.3 {
     __cxa_bad_cast;
     __cxa_bad_typeid;
     __cxa_begin_catch;
-    __cxa_begin_cleanup;
     __cxa_call_unexpected;
     __cxa_current_exception_type;
     __cxa_demangle;
     __cxa_end_catch;
-    __cxa_end_cleanup;
     __cxa_free_exception;
     __cxa_get_globals;
     __cxa_get_globals_fast;
@@ -26,42 +24,20 @@ CXXABI_1.3 {
     __cxa_rethrow;
     __cxa_throw;
     __cxa_throw_bad_array_new_length;
-    __cxa_type_match;
-    __cxa_vec_cctor;
-    __cxa_vec_cleanup;
-    __cxa_vec_ctor;
-    __cxa_vec_delete2;
-    __cxa_vec_delete3;
-    __cxa_vec_delete;
-    __cxa_vec_dtor;
-    __cxa_vec_new2;
-    __cxa_vec_new3;
-    __cxa_vec_new;
     __dynamic_cast;
-    __gxx_personality_sj0;
     __gxx_personality_v0;
 
     extern "C++" {
         # Type info classes and their destructors
-        "__cxxabiv1::__array_type_info";
         "__cxxabiv1::__array_type_info::~__array_type_info()";
-        "__cxxabiv1::__class_type_info";
         "__cxxabiv1::__class_type_info::~__class_type_info()";
-        "__cxxabiv1::__enum_type_info";
         "__cxxabiv1::__enum_type_info::~__enum_type_info()";
-        "__cxxabiv1::__function_type_info::";
         "__cxxabiv1::__function_type_info::~__function_type_info()";
-        "__cxxabiv1::__fundamental_type_info";
         "__cxxabiv1::__fundamental_type_info::~__fundamental_type_info()";
-        "__cxxabiv1::__pbase_type_info";
         "__cxxabiv1::__pbase_type_info::~__pbase_type_info()";
-        "__cxxabiv1::__pointer_to_member_type_info";
         "__cxxabiv1::__pointer_to_member_type_info::~__pointer_to_member_type_info()";
-        "__cxxabiv1::__pointer_type_info";
         "__cxxabiv1::__pointer_type_info::~__pointer_type_info()";
-        "__cxxabiv1::__si_class_type_info";
         "__cxxabiv1::__si_class_type_info::~__si_class_type_info()";
-        "__cxxabiv1::__vmi_class_type_info";
         "__cxxabiv1::__vmi_class_type_info::~__vmi_class_type_info()";
 
         # vtables typeinfo classes.
@@ -224,10 +200,6 @@ CXXABI_1.3 {
     _ZTIDi;_ZTIPDi;_ZTIPKDi;
     # char32_t
     _ZTIDs;_ZTIPDs;_ZTIPKDs;
-    # IEEE 754r decimal floating point
-    _ZTIDd;_ZTIPDd;_ZTIPKDd;
-    _ZTIDe;_ZTIPDe;_ZTIPKDe;
-    _ZTIDf;_ZTIPDf;_ZTIPKDf;
     # IEEE 754r half-precision floating point
     _ZTIDh;_ZTIPDh;_ZTIPKDh;
 
@@ -238,10 +210,6 @@ CXXABI_1.3 {
     _ZTSDi;_ZTSPDi;_ZTSPKDi;
     # char32_t
     _ZTSDs;_ZTSPDs;_ZTSPKDs;
-    # IEEE 754r decimal floating point
-    _ZTSDd;_ZTSPDd;_ZTSPKDd;
-    _ZTSDe;_ZTSPDe;_ZTSPKDe;
-    _ZTSDf;_ZTSPDf;_ZTSPKDf;
     # IEEE 754r half-precision floating point
     _ZTSDh;_ZTSPDh;_ZTSPKDh;
 
@@ -276,12 +244,14 @@ CXXABI_1.3.9 {
         "typeinfo name for unsigned __int128 const*";
         "typeinfo name for unsigned __int128";
         "typeinfo name for unsigned __int128*";
-        "operator delete[](void*, unsigned int)";
-        "operator delete(void*, unsigned int)";
-        "operator delete[](void*, unsigned long)";
-        "operator delete(void*, unsigned long)";
+        "operator delete[](void*, unsigned %%NEW_DELETE_TYPE%%)";
+        "operator delete(void*, unsigned %%NEW_DELETE_TYPE%%)";
     };
 } CXXABI_1.3.6;
+
+CXXABI_1.3.11 {
+    __cxa_init_primary_exception;
+} CXXABI_1.3.9;
 
 CXXRT_1.0 {
 
@@ -321,12 +291,9 @@ GLIBCXX_3.4 {
     extern "C++" {
         "operator delete[](void*)";
         "operator delete(void*)";
-        "operator new[](unsigned int)";
-        "operator new(unsigned int)";
-        "operator new(unsigned int, std::nothrow_t const&)";
-        "operator new[](unsigned long)";
-        "operator new(unsigned long)";
-        "operator new(unsigned long, std::nothrow_t const&)";
+        "operator new[](unsigned %%NEW_DELETE_TYPE%%)";
+        "operator new(unsigned %%NEW_DELETE_TYPE%%)";
+        "operator new(unsigned %%NEW_DELETE_TYPE%%, std::nothrow_t const&)";
 
         "std::unexpected()";
         "std::get_terminate()";

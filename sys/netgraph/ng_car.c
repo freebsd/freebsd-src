@@ -51,6 +51,12 @@
 
 #include "qos.h"
 
+#ifdef NG_SEPARATE_MALLOC
+static MALLOC_DEFINE(M_NETGRAPH_CAR, "netgraph_car", "netgraph car node");
+#else
+#define M_NETGRAPH_CAR M_NETGRAPH
+#endif
+
 #define NG_CAR_QUEUE_SIZE	100	/* Maximum queue size for SHAPE mode */
 #define NG_CAR_QUEUE_MIN_TH	8	/* Minimum RED threshold for SHAPE mode */
 
@@ -189,7 +195,7 @@ ng_car_constructor(node_p node)
 	priv_p priv;
 
 	/* Initialize private descriptor. */
-	priv = malloc(sizeof(*priv), M_NETGRAPH, M_WAITOK | M_ZERO);
+	priv = malloc(sizeof(*priv), M_NETGRAPH_CAR, M_WAITOK | M_ZERO);
 
 	NG_NODE_SET_PRIVATE(node, priv);
 	priv->node = node;
@@ -571,7 +577,7 @@ ng_car_shutdown(node_p node)
 	mtx_destroy(&priv->upper.q_mtx);
 	mtx_destroy(&priv->lower.q_mtx);
 	NG_NODE_UNREF(priv->node);
-	free(priv, M_NETGRAPH);
+	free(priv, M_NETGRAPH_CAR);
 	return (0);
 }
 

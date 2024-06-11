@@ -100,6 +100,7 @@ struct elf_file {
 	int ef_fd;
 };
 
+#define	elf_machine(ef)		((ef)->ef_hdr.e_machine)
 #define	elf_class(ef)		((ef)->ef_hdr.e_ident[EI_CLASS])
 #define	elf_encoding(ef)	((ef)->ef_hdr.e_ident[EI_DATA])
 
@@ -187,6 +188,10 @@ int	elf_read_raw_data(struct elf_file *efile, off_t offset, void *dst,
  */
 int	elf_read_raw_data_alloc(struct elf_file *efile, off_t offset,
     size_t len, void **out);
+
+/* Reads a single string at the given offset from an ELF file. */
+int	elf_read_raw_string(struct elf_file *efile, off_t offset, char *dst,
+    size_t len);
 
 /*
  * Read relocated data from an ELF file and return it in a

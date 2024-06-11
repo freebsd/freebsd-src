@@ -251,9 +251,6 @@ struct wg_softc {
 
 #define MAX_LOOPS	8
 #define MTAG_WGLOOP	0x77676c70 /* wglp */
-#ifndef ENOKEY
-#define	ENOKEY	ENOTCAPABLE
-#endif
 
 #define	GROUPTASK_DRAIN(gtask)			\
 	gtaskqueue_drain((gtask)->gt_taskqueue, &(gtask)->gt_task)
@@ -1463,8 +1460,12 @@ calculate_padding(struct wg_packet *pkt)
 {
 	unsigned int padded_size, last_unit = pkt->p_mbuf->m_pkthdr.len;
 
-	if (__predict_false(!pkt->p_mtu))
-		return (last_unit + (WG_PKT_PADDING - 1)) & ~(WG_PKT_PADDING - 1);
+	/* Keepalive packets don't set p_mtu, but also have a length of zero. */
+	if (__predict_false(pkt->p_mtu == 0)) {
+		padded_size = (last_unit + (WG_PKT_PADDING - 1)) &
+		    ~(WG_PKT_PADDING - 1);
+		return (padded_size - last_unit);
+	}
 
 	if (__predict_false(last_unit > pkt->p_mtu))
 		last_unit %= pkt->p_mtu;
@@ -1472,7 +1473,7 @@ calculate_padding(struct wg_packet *pkt)
 	padded_size = (last_unit + (WG_PKT_PADDING - 1)) & ~(WG_PKT_PADDING - 1);
 	if (pkt->p_mtu < padded_size)
 		padded_size = pkt->p_mtu;
-	return padded_size - last_unit;
+	return (padded_size - last_unit);
 }
 
 static void
@@ -1513,8 +1514,7 @@ wg_encrypt(struct wg_softc *sc, struct wg_packet *pkt)
 	state = WG_PACKET_CRYPTED;
 out:
 	pkt->p_mbuf = m;
-	wmb();
-	pkt->p_state = state;
+	atomic_store_rel_int(&pkt->p_state, state);
 	GROUPTASK_ENQUEUE(&peer->p_send);
 	noise_remote_put(remote);
 }
@@ -1586,8 +1586,7 @@ wg_decrypt(struct wg_softc *sc, struct wg_packet *pkt)
 	state = WG_PACKET_CRYPTED;
 out:
 	pkt->p_mbuf = m;
-	wmb();
-	pkt->p_state = state;
+	atomic_store_rel_int(&pkt->p_state, state);
 	GROUPTASK_ENQUEUE(&peer->p_recv);
 	noise_remote_put(remote);
 }
@@ -1643,7 +1642,7 @@ wg_deliver_out(struct wg_peer *peer)
 	wg_peer_get_endpoint(peer, &endpoint);
 
 	while ((pkt = wg_queue_dequeue_serial(&peer->p_encrypt_serial)) != NULL) {
-		if (pkt->p_state != WG_PACKET_CRYPTED)
+		if (atomic_load_acq_int(&pkt->p_state) != WG_PACKET_CRYPTED)
 			goto error;
 
 		m = pkt->p_mbuf;
@@ -1675,6 +1674,31 @@ error:
 	}
 }
 
+#ifdef DEV_NETMAP
+/*
+ * Hand a packet to the netmap RX ring, via netmap's
+ * freebsd_generic_rx_handler().
+ */
+static void
+wg_deliver_netmap(if_t ifp, struct mbuf *m, int af)
+{
+	struct ether_header *eh;
+
+	M_PREPEND(m, ETHER_HDR_LEN, M_NOWAIT);
+	if (__predict_false(m == NULL)) {
+		if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
+		return;
+	}
+
+	eh = mtod(m, struct ether_header *);
+	eh->ether_type = af == AF_INET ?
+	    htons(ETHERTYPE_IP) : htons(ETHERTYPE_IPV6);
+	memcpy(eh->ether_shost, "\x02\x02\x02\x02\x02\x02", ETHER_ADDR_LEN);
+	memcpy(eh->ether_dhost, "\xff\xff\xff\xff\xff\xff", ETHER_ADDR_LEN);
+	if_input(ifp, m);
+}
+#endif
+
 static void
 wg_deliver_in(struct wg_peer *peer)
 {
@@ -1683,9 +1707,10 @@ wg_deliver_in(struct wg_peer *peer)
 	struct wg_packet	*pkt;
 	struct mbuf		*m;
 	struct epoch_tracker	 et;
+	int			 af;
 
 	while ((pkt = wg_queue_dequeue_serial(&peer->p_decrypt_serial)) != NULL) {
-		if (pkt->p_state != WG_PACKET_CRYPTED)
+		if (atomic_load_acq_int(&pkt->p_state) != WG_PACKET_CRYPTED)
 			goto error;
 
 		m = pkt->p_mbuf;
@@ -1708,19 +1733,25 @@ wg_deliver_in(struct wg_peer *peer)
 		if (m->m_pkthdr.len == 0)
 			goto done;
 
-		MPASS(pkt->p_af == AF_INET || pkt->p_af == AF_INET6);
+		af = pkt->p_af;
+		MPASS(af == AF_INET || af == AF_INET6);
 		pkt->p_mbuf = NULL;
 
 		m->m_pkthdr.rcvif = ifp;
 
 		NET_EPOCH_ENTER(et);
-		BPF_MTAP2_AF(ifp, m, pkt->p_af);
+		BPF_MTAP2_AF(ifp, m, af);
 
 		CURVNET_SET(if_getvnet(ifp));
 		M_SETFIB(m, if_getfib(ifp));
-		if (pkt->p_af == AF_INET)
+#ifdef DEV_NETMAP
+		if ((if_getcapenable(ifp) & IFCAP_NETMAP) != 0)
+			wg_deliver_netmap(ifp, m, af);
+		else
+#endif
+		if (af == AF_INET)
 			netisr_dispatch(NETISR_IP, m);
-		if (pkt->p_af == AF_INET6)
+		else if (af == AF_INET6)
 			netisr_dispatch(NETISR_IPV6, m);
 		CURVNET_RESTORE();
 		NET_EPOCH_EXIT(et);
@@ -2113,7 +2144,7 @@ wg_xmit(if_t ifp, struct mbuf *m, sa_family_t af, uint32_t mtu)
 	BPF_MTAP2_AF(ifp, m, pkt->p_af);
 
 	if (__predict_false(peer == NULL)) {
-		rc = ENOKEY;
+		rc = ENETUNREACH;
 		goto err_xmit;
 	}
 
@@ -2165,12 +2196,35 @@ determine_af_and_pullup(struct mbuf **m, sa_family_t *af)
 	return (0);
 }
 
+#ifdef DEV_NETMAP
+static int
+determine_ethertype_and_pullup(struct mbuf **m, int *etp)
+{
+	struct ether_header *eh;
+
+	*m = m_pullup(*m, sizeof(struct ether_header));
+	if (__predict_false(*m == NULL))
+		return (ENOBUFS);
+	eh = mtod(*m, struct ether_header *);
+	*etp = ntohs(eh->ether_type);
+	if (*etp != ETHERTYPE_IP && *etp != ETHERTYPE_IPV6)
+		return (EAFNOSUPPORT);
+	return (0);
+}
+
+/*
+ * This should only be invoked by netmap, via nm_os_generic_xmit_frame(), to
+ * transmit packets from the netmap TX ring.
+ */
 static int
 wg_transmit(if_t ifp, struct mbuf *m)
 {
 	sa_family_t af;
-	int ret;
+	int et, ret;
 	struct mbuf *defragged;
+
+	KASSERT((if_getcapenable(ifp) & IFCAP_NETMAP) != 0,
+	    ("%s: ifp %p is not in netmap mode", __func__, ifp));
 
 	defragged = m_defrag(m, M_NOWAIT);
 	if (defragged)
@@ -2181,13 +2235,93 @@ wg_transmit(if_t ifp, struct mbuf *m)
 		return (ENOBUFS);
 	}
 
+	ret = determine_ethertype_and_pullup(&m, &et);
+	if (ret) {
+		xmit_err(ifp, m, NULL, AF_UNSPEC);
+		return (ret);
+	}
+	m_adj(m, sizeof(struct ether_header));
+
 	ret = determine_af_and_pullup(&m, &af);
 	if (ret) {
 		xmit_err(ifp, m, NULL, AF_UNSPEC);
 		return (ret);
 	}
-	return (wg_xmit(ifp, m, af, if_getmtu(ifp)));
+
+	/*
+	 * netmap only gets to see transient errors, since it handles errors by
+	 * refusing to advance the transmit ring and retrying later.
+	 */
+	ret = wg_xmit(ifp, m, af, if_getmtu(ifp));
+	if (ret == ENOBUFS)
+		return (ret);
+	return (0);
 }
+
+/*
+ * This should only be invoked by netmap, via nm_os_send_up(), to process
+ * packets from the host TX ring.
+ */
+static void
+wg_if_input(if_t ifp, struct mbuf *m)
+{
+	int et;
+
+	KASSERT((if_getcapenable(ifp) & IFCAP_NETMAP) != 0,
+	    ("%s: ifp %p is not in netmap mode", __func__, ifp));
+
+	if (determine_ethertype_and_pullup(&m, &et) != 0) {
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+		m_freem(m);
+		return;
+	}
+	CURVNET_SET(if_getvnet(ifp));
+	switch (et) {
+	case ETHERTYPE_IP:
+		m_adj(m, sizeof(struct ether_header));
+		netisr_dispatch(NETISR_IP, m);
+		break;
+	case ETHERTYPE_IPV6:
+		m_adj(m, sizeof(struct ether_header));
+		netisr_dispatch(NETISR_IPV6, m);
+		break;
+	default:
+		__assert_unreachable();
+	}
+	CURVNET_RESTORE();
+}
+
+/*
+ * Deliver a packet to the host RX ring.  Because the interface is in netmap
+ * mode, the if_transmit() call should pass the packet to netmap_transmit().
+ */
+static int
+wg_xmit_netmap(if_t ifp, struct mbuf *m, int af)
+{
+	struct ether_header *eh;
+
+	if (__predict_false(if_tunnel_check_nesting(ifp, m, MTAG_WGLOOP,
+	    MAX_LOOPS))) {
+		printf("%s:%d\n", __func__, __LINE__);
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+		m_freem(m);
+		return (ELOOP);
+	}
+
+	M_PREPEND(m, ETHER_HDR_LEN, M_NOWAIT);
+	if (__predict_false(m == NULL)) {
+		if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
+		return (ENOBUFS);
+	}
+
+	eh = mtod(m, struct ether_header *);
+	eh->ether_type = af == AF_INET ?
+	    htons(ETHERTYPE_IP) : htons(ETHERTYPE_IPV6);
+	memcpy(eh->ether_shost, "\x06\x06\x06\x06\x06\x06", ETHER_ADDR_LEN);
+	memcpy(eh->ether_dhost, "\xff\xff\xff\xff\xff\xff", ETHER_ADDR_LEN);
+	return (if_transmit(ifp, m));
+}
+#endif /* DEV_NETMAP */
 
 static int
 wg_output(if_t ifp, struct mbuf *m, const struct sockaddr *dst, struct route *ro)
@@ -2197,7 +2331,8 @@ wg_output(if_t ifp, struct mbuf *m, const struct sockaddr *dst, struct route *ro
 	int ret;
 	struct mbuf *defragged;
 
-	if (dst->sa_family == AF_UNSPEC)
+	/* BPF writes need to be handled specially. */
+	if (dst->sa_family == AF_UNSPEC || dst->sa_family == pseudo_AF_HDRCMPLT)
 		memcpy(&af, dst->sa_data, sizeof(af));
 	else
 		af = dst->sa_family;
@@ -2205,6 +2340,11 @@ wg_output(if_t ifp, struct mbuf *m, const struct sockaddr *dst, struct route *ro
 		xmit_err(ifp, m, NULL, af);
 		return (EAFNOSUPPORT);
 	}
+
+#ifdef DEV_NETMAP
+	if ((if_getcapenable(ifp) & IFCAP_NETMAP) != 0)
+		return (wg_xmit_netmap(ifp, m, af));
+#endif
 
 	defragged = m_defrag(m, M_NOWAIT);
 	if (defragged)
@@ -2781,7 +2921,10 @@ wg_clone_create(struct if_clone *ifc, char *name, size_t len,
 	if_setinitfn(ifp, wg_init);
 	if_setreassignfn(ifp, wg_reassign);
 	if_setqflushfn(ifp, wg_qflush);
+#ifdef DEV_NETMAP
 	if_settransmitfn(ifp, wg_transmit);
+	if_setinputfn(ifp, wg_if_input);
+#endif
 	if_setoutputfn(ifp, wg_output);
 	if_setioctlfn(ifp, wg_ioctl);
 	if_attach(ifp);
@@ -2872,6 +3015,7 @@ wg_clone_destroy(struct if_clone *ifc, if_t ifp, uint32_t flags)
 
 	if (cred != NULL)
 		crfree(cred);
+	bpfdetach(sc->sc_ifp);
 	if_detach(sc->sc_ifp);
 	if_free(sc->sc_ifp);
 
@@ -2991,9 +3135,9 @@ wg_module_init(void)
 		[PR_METHOD_REMOVE] = wg_prison_remove,
 	};
 
-	if ((wg_packet_zone = uma_zcreate("wg packet", sizeof(struct wg_packet),
-	     NULL, NULL, NULL, NULL, 0, 0)) == NULL)
-		return (ENOMEM);
+	wg_packet_zone = uma_zcreate("wg packet", sizeof(struct wg_packet),
+	     NULL, NULL, NULL, NULL, 0, 0);
+
 	ret = crypto_init();
 	if (ret != 0)
 		return (ret);

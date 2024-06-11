@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <stand.h>
 #include "bootstrap.h"
 #include "glue.h"
@@ -38,14 +37,13 @@ static int uboot_cons_getchar(void);
 static int uboot_cons_poll(void);
 
 struct console uboot_console = {
-	"uboot",
-	"U-Boot console",
-	0,
-	uboot_cons_probe,
-	uboot_cons_init,
-	uboot_cons_putchar,
-	uboot_cons_getchar,
-	uboot_cons_poll,
+	.c_name = "uboot",
+	.c_desc = "U-Boot console",
+	.c_probe = uboot_cons_probe,
+	.c_init = uboot_cons_init,
+	.c_out = uboot_cons_putchar,
+	.c_in = uboot_cons_getchar,
+	.c_ready = uboot_cons_poll,
 };
 
 static void
@@ -73,14 +71,14 @@ uboot_cons_putchar(int c)
 }
 
 static int
-uboot_cons_getchar()
+uboot_cons_getchar(void)
 {
 
 	return (ub_getc());
 }
 
 static int
-uboot_cons_poll()
+uboot_cons_poll(void)
 {
 
 	return (ub_tstc());

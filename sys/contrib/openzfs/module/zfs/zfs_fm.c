@@ -222,6 +222,12 @@ vdev_prop_get_inherited(vdev_t *vd, vdev_prop_t prop)
 		case VDEV_PROP_IO_T:
 			propval = vd->vdev_io_t;
 			break;
+		case VDEV_PROP_SLOW_IO_N:
+			propval = vd->vdev_slow_io_n;
+			break;
+		case VDEV_PROP_SLOW_IO_T:
+			propval = vd->vdev_slow_io_t;
+			break;
 		default:
 			propval = propdef;
 			break;
@@ -741,6 +747,26 @@ zfs_ereport_start(nvlist_t **ereport_out, nvlist_t **detector_out,
 			    NULL);
 	}
 
+	if (vd != NULL && strcmp(subclass, FM_EREPORT_ZFS_DELAY) == 0) {
+		uint64_t slow_io_n, slow_io_t;
+
+		slow_io_n = vdev_prop_get_inherited(vd, VDEV_PROP_SLOW_IO_N);
+		if (slow_io_n != vdev_prop_default_numeric(VDEV_PROP_SLOW_IO_N))
+			fm_payload_set(ereport,
+			    FM_EREPORT_PAYLOAD_ZFS_VDEV_SLOW_IO_N,
+			    DATA_TYPE_UINT64,
+			    slow_io_n,
+			    NULL);
+
+		slow_io_t = vdev_prop_get_inherited(vd, VDEV_PROP_SLOW_IO_T);
+		if (slow_io_t != vdev_prop_default_numeric(VDEV_PROP_SLOW_IO_T))
+			fm_payload_set(ereport,
+			    FM_EREPORT_PAYLOAD_ZFS_VDEV_SLOW_IO_T,
+			    DATA_TYPE_UINT64,
+			    slow_io_t,
+			    NULL);
+	}
+
 	mutex_exit(&spa->spa_errlist_lock);
 
 	*ereport_out = ereport;
@@ -1070,10 +1096,7 @@ zfs_ereport_is_valid(const char *subclass, spa_t *spa, vdev_t *vd, zio_t *zio)
 		return (B_FALSE);
 
 	if (zio != NULL) {
-		/*
-		 * If this is not a read or write zio, ignore the error.  This
-		 * can occur if the DKIOCFLUSHWRITECACHE ioctl fails.
-		 */
+		/* If this is not a read or write zio, ignore the error */
 		if (zio->io_type != ZIO_TYPE_READ &&
 		    zio->io_type != ZIO_TYPE_WRITE)
 			return (B_FALSE);

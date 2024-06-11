@@ -1,0 +1,63 @@
+.\"
+.\" Copyright (c) 2024 Netflix, Inc.
+.\"
+.\" SPDX-License-Expression: BSD-2-Clause
+.\"
+.Dd May 6, 2024
+.Dt SG 4
+.Os
+.Sh NAME
+.Nm sg
+.Nd Linux ioctl-compatible SCSI passthru device
+.Sh SYNOPSIS
+.Cd device sg
+.Cd device scbus
+.Sh DESCRIPTION
+The
+.Nm
+driver provides a Linux compatible scsi passthru device.
+This driver attaches to all
+.Xr cam 4
+peripheral devices.
+It is similar to the
+.Xr pass 4
+device, but uses the Linux interfaces, rather than the FreeBSD CAM interfaces.
+.Sh IOCTL
+The following subset of the Linux sg ioctl interfaces are implemented:
+.Bl -tag -width 12
+.It Va SG_SET_TIMEOUT
+.Fa u_int to
+Set the timeout in milliseconds.
+.It Va SG_GET_TIMEOUT
+Get the timeout in milliseconds
+.It Va SG_GET_RESERVED_SIZE
+.Fa u_int
+Returns the size of the I/O one can do this device.
+.It Va SG_GET_SCSI_ID
+.Fa struct sg_scsi_id
+Returns the bus number, channel, scsi bus ID number, lun and other information
+about the SCSI device.
+.It Va SG_GET_SG_TABLESIZE
+.Fa u_int
+Returns the table size, though hard wired to 0.
+.It Va SG_GET_VERSION_NUM
+.Fa u_int
+Return the version number that is implemented.
+.It Va SG_IO
+.Fa struct sg_io_hdr
+.El
+All other ioctl interfaces return
+.Va ENODEV .
+.Sh FILES
+.Bl -tag -width ".Pa /dev/sg*" -compact
+.It Pa /dev/sg*
+Passthru devices.
+.El
+.Sh SEE ALSO
+.Xr cam 4 ,
+.Xr pass 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 7.0 .

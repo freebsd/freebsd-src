@@ -66,6 +66,8 @@
 #include "services/authzone.h"
 #include "services/listen_dnsport.h"
 #include "sldns/sbuffer.h"
+#include "iterator/iter_fwd.h"
+#include "iterator/iter_hints.h"
 #ifdef HAVE_PTHREAD
 #include <signal.h>
 #endif
@@ -171,6 +173,7 @@ static struct ub_ctx* ub_ctx_create_nopipe(void)
 	ctx->env->worker = NULL;
 	ctx->env->need_to_validate = 0;
 	modstack_init(&ctx->mods);
+	ctx->env->modstack = &ctx->mods;
 	rbtree_init(&ctx->queries, &context_query_cmp);
 	return ctx;
 }
@@ -379,6 +382,8 @@ ub_ctx_delete(struct ub_ctx* ctx)
 		config_delete(ctx->env->cfg);
 		edns_known_options_delete(ctx->env);
 		edns_strings_delete(ctx->env->edns_strings);
+		forwards_delete(ctx->env->fwds);
+		hints_delete(ctx->env->hints);
 		auth_zones_delete(ctx->env->auth_zones);
 		free(ctx->env);
 	}

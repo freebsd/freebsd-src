@@ -97,6 +97,12 @@ LDFLAGS+= -Wl,-zretpolineplt
 .endif
 # LLD sensibly defaults to -znoexecstack, so do the same for BFD
 LDFLAGS.bfd+= -Wl,-znoexecstack
+.if ${MK_BRANCH_PROTECTION} != "no"
+CFLAGS+=  -mbranch-protection=standard
+.if ${MACHINE_ARCH} == "aarch64" && defined(BTI_REPORT_ERROR)
+LDFLAGS+= -Wl,-zbti-report=error
+.endif
+.endif
 
 # Initialize stack variables on function entry
 .if ${OPT_INIT_ALL} != "none"
@@ -260,10 +266,12 @@ SHLIB_NAME_FULL=${SHLIB_NAME}
 ${SHLIB_NAME_FULL}:	${VERSION_MAP}
 LDFLAGS+=	-Wl,--version-script=${VERSION_MAP}
 
-# lld >= 16 turned on --no-undefined-version by default, but we have several
-# symbols in our version maps that may or may not exist, depending on
-# compile-time defines.
-.if ${LINKER_TYPE} == "lld" && ${LINKER_VERSION} >= 160000
+# Ideally we'd always enable --no-undefined-version (default for lld >= 16),
+# but we have several symbols in our version maps that may or may not exist,
+# depending on compile-time defines and that needs to be handled first.
+.if ${MK_UNDEFINED_VERSION} == "no"
+LDFLAGS+=	-Wl,--no-undefined-version
+.else
 LDFLAGS+=	-Wl,--undefined-version
 .endif
 .endif

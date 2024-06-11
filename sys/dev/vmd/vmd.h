@@ -53,8 +53,6 @@ struct vmd_softc {
 #define VMD_MAX_BAR		3
 	int				vmd_regs_rid[VMD_MAX_BAR];
 	struct resource			*vmd_regs_res[VMD_MAX_BAR];
-	bus_space_handle_t		vmd_bhandle;
-	bus_space_tag_t			vmd_btag;
 	struct vmd_irq			*vmd_irq;
 	LIST_HEAD(,vmd_irq_user)	vmd_users;
 	int				vmd_fist_vector;

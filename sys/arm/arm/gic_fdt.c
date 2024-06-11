@@ -153,12 +153,18 @@ gic_fdt_attach(device_t dev)
 	 */
 	pxref = ofw_bus_find_iparent(ofw_bus_get_node(dev));
 	if (pxref == 0 || xref == pxref) {
-		if (intr_pic_claim_root(dev, xref, arm_gic_intr, sc,
-		    GIC_LAST_SGI - GIC_FIRST_SGI + 1) != 0) {
+		if (intr_pic_claim_root(dev, xref, arm_gic_intr, sc) != 0) {
 			device_printf(dev, "could not set PIC as a root\n");
 			intr_pic_deregister(dev, xref);
 			goto cleanup;
 		}
+
+#ifdef SMP
+		if (intr_ipi_pic_register(dev, 0) != 0) {
+			device_printf(dev, "could not register for IPIs\n");
+			goto cleanup;
+		}
+#endif
 	} else {
 		if (sc->base.gic_res[2] == NULL) {
 			device_printf(dev,

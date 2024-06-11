@@ -73,10 +73,10 @@
 #include <netinet/cc/cc_cubic.h>
 #include <netinet/cc/cc_module.h>
 
-static void	cubic_ack_received(struct cc_var *ccv, uint16_t type);
+static void	cubic_ack_received(struct cc_var *ccv, ccsignal_t type);
 static void	cubic_cb_destroy(struct cc_var *ccv);
 static int	cubic_cb_init(struct cc_var *ccv, void *ptr);
-static void	cubic_cong_signal(struct cc_var *ccv, uint32_t type);
+static void	cubic_cong_signal(struct cc_var *ccv, ccsignal_t type);
 static void	cubic_conn_init(struct cc_var *ccv);
 static int	cubic_mod_init(void);
 static void	cubic_post_recovery(struct cc_var *ccv);
@@ -233,7 +233,7 @@ cubic_does_slow_start(struct cc_var *ccv, struct cubic *cubicd)
 }
 
 static void
-cubic_ack_received(struct cc_var *ccv, uint16_t type)
+cubic_ack_received(struct cc_var *ccv, ccsignal_t type)
 {
 	struct cubic *cubic_data;
 	unsigned long W_est, W_cubic;
@@ -270,6 +270,7 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 				cubic_data->flags &= ~(CUBICFLAG_RTO_EVENT |
 						       CUBICFLAG_IN_SLOWSTART);
 				cubic_data->W_max = CCV(ccv, snd_cwnd);
+				cubic_data->t_epoch = ticks;
 				cubic_data->K = 0;
 			} else if (cubic_data->flags & (CUBICFLAG_IN_SLOWSTART |
 						 CUBICFLAG_IN_APPLIMIT)) {
@@ -417,13 +418,13 @@ cubic_cb_init(struct cc_var *ccv, void *ptr)
  * Perform any necessary tasks before we enter congestion recovery.
  */
 static void
-cubic_cong_signal(struct cc_var *ccv, uint32_t type)
+cubic_cong_signal(struct cc_var *ccv, ccsignal_t type)
 {
 	struct cubic *cubic_data;
-	u_int mss;
+	uint32_t mss, pipe;
 
 	cubic_data = ccv->cc_data;
-	mss = tcp_maxseg(ccv->ccvc.tcp);
+	mss = tcp_fixed_maxseg(ccv->ccvc.tcp);
 
 	switch (type) {
 	case CC_NDUPACK:
@@ -476,12 +477,20 @@ cubic_cong_signal(struct cc_var *ccv, uint32_t type)
 			cubic_data->undo_cwnd_prior = cubic_data->cwnd_prior;
 			cubic_data->undo_W_max = cubic_data->W_max;
 			cubic_data->undo_K = cubic_data->K;
+			if (V_tcp_do_newsack) {
+				pipe = tcp_compute_pipe(ccv->ccvc.tcp);
+			} else {
+				pipe = CCV(ccv, snd_max) -
+					CCV(ccv, snd_fack) +
+					CCV(ccv, sackhint.sack_bytes_rexmit);
+			}
+			CCV(ccv, snd_ssthresh) = max(2,
+				(((uint64_t)min(CCV(ccv, snd_wnd), pipe) *
+				CUBIC_BETA) >> CUBIC_SHIFT) / mss) * mss;
 		}
 		cubic_data->flags |= CUBICFLAG_CONG_EVENT | CUBICFLAG_RTO_EVENT;
 		cubic_data->undo_W_max = cubic_data->W_max;
 		cubic_data->num_cong_events++;
-			CCV(ccv, snd_ssthresh) = ((uint64_t)CCV(ccv, snd_cwnd) *
-					  CUBIC_BETA) >> CUBIC_SHIFT;
 		CCV(ccv, snd_cwnd) = mss;
 		break;
 
@@ -494,6 +503,8 @@ cubic_cong_signal(struct cc_var *ccv, uint32_t type)
 		cubic_data->W_est = cubic_data->undo_W_est;
 		cubic_data->cwnd_epoch = cubic_data->undo_cwnd_epoch;
 		cubic_data->t_epoch = cubic_data->undo_t_epoch;
+		break;
+	default:
 		break;
 	}
 }

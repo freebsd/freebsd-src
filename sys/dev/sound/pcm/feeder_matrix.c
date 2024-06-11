@@ -230,7 +230,7 @@ feed_matrix_reset(struct feed_matrix_info *info)
 {
 	uint32_t i, j;
 
-	for (i = 0; i < (sizeof(info->matrix) / sizeof(info->matrix[0])); i++) {
+	for (i = 0; i < nitems(info->matrix); i++) {
 		for (j = 0;
 		    j < (sizeof(info->matrix[i].chn) /
 		    sizeof(info->matrix[i].chn[0])); j++) {
@@ -679,7 +679,7 @@ feeder_matrix_compare(struct pcmchan_matrix *m_in, struct pcmchan_matrix *m_out)
 	    m_in->mask != m_out->mask)
 		return (1);
 
-	for (i = 0; i < (sizeof(m_in->map) / sizeof(m_in->map[0])); i++) {
+	for (i = 0; i < nitems(m_in->map); i++) {
 		if (m_in->map[i].type != m_out->map[i].type)
 			return (1);
 		if (m_in->map[i].type == SND_CHN_T_MAX)

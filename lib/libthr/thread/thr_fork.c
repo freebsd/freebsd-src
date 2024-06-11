@@ -57,7 +57,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 #include <sys/syscall.h>
 #include "namespace.h"
 #include <errno.h>

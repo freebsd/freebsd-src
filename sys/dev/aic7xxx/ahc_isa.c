@@ -37,7 +37,6 @@
  * $Id$
  */
 
-#include <sys/cdefs.h>
 #include <dev/aic7xxx/aic7xxx_osm.h>
 
 #include <sys/limits.h>		/* For CHAR_BIT*/

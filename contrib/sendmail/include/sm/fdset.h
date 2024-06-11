@@ -17,6 +17,7 @@
 **	before.
 */
 
+#define SM_FD_CLR(fd, pfdset)	FD_CLR(fd, pfdset)
 #define SM_FD_SET(fd, pfdset)	FD_SET(fd, pfdset)
 #define SM_FD_ISSET(fd, pfdset)	FD_ISSET(fd, pfdset)
 #define SM_FD_SETSIZE		FD_SETSIZE

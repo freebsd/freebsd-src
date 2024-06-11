@@ -54,7 +54,7 @@ int
 grabh(struct header *hp, int gflags)
 {
 	struct termios ttybuf;
-	sig_t saveint;
+	volatile sig_t saveint;
 	sig_t savetstp;
 	sig_t savettou;
 	sig_t savettin;

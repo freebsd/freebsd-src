@@ -2993,7 +2993,7 @@ mld_v2_dispatch_general_query(struct mld_ifsoftc *mli)
 	 * many packets, we should finish sending them before starting of
 	 * queuing the new reply.
 	 */
-	if (mbufq_len(&mli->mli_gq) != 0)
+	if (!mbufq_empty(&mli->mli_gq))
 		goto send;
 
 	ifp = mli->mli_ifp;
@@ -3133,7 +3133,7 @@ mld_dispatch_packet(struct mbuf *m)
 		CTR3(KTR_MLD, "%s: ip6_output(%p) = %d", __func__, m0, error);
 		goto out;
 	}
-	ICMP6STAT_INC(icp6s_outhist[type]);
+	ICMP6STAT_INC2(icp6s_outhist, type);
 	if (oifp != NULL) {
 		icmp6_ifstat_inc(oifp, ifs6_out_msg);
 		switch (type) {

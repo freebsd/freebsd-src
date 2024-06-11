@@ -136,10 +136,10 @@
 	(((diff) / hz) * (((diff) << HTCP_ALPHA_INC_SHIFT) / (4 * hz))) \
 ) >> HTCP_ALPHA_INC_SHIFT)
 
-static void	htcp_ack_received(struct cc_var *ccv, uint16_t type);
+static void	htcp_ack_received(struct cc_var *ccv, ccsignal_t type);
 static void	htcp_cb_destroy(struct cc_var *ccv);
 static int	htcp_cb_init(struct cc_var *ccv, void *ptr);
-static void	htcp_cong_signal(struct cc_var *ccv, uint32_t type);
+static void	htcp_cong_signal(struct cc_var *ccv, ccsignal_t type);
 static int	htcp_mod_init(void);
 static void	htcp_post_recovery(struct cc_var *ccv);
 static void	htcp_recalc_alpha(struct cc_var *ccv);
@@ -190,7 +190,7 @@ struct cc_algo htcp_cc_algo = {
 };
 
 static void
-htcp_ack_received(struct cc_var *ccv, uint16_t type)
+htcp_ack_received(struct cc_var *ccv, ccsignal_t type)
 {
 	struct htcp *htcp_data;
 
@@ -229,9 +229,9 @@ htcp_ack_received(struct cc_var *ccv, uint16_t type)
 				 * per RTT.
 				 */
 				CCV(ccv, snd_cwnd) += (((htcp_data->alpha <<
-				    HTCP_SHIFT) / (CCV(ccv, snd_cwnd) /
-				    CCV(ccv, t_maxseg))) * CCV(ccv, t_maxseg))
-				    >> HTCP_SHIFT;
+				    HTCP_SHIFT) / (max(1,
+				    CCV(ccv, snd_cwnd) / CCV(ccv, t_maxseg)))) *
+				    CCV(ccv, t_maxseg))  >> HTCP_SHIFT;
 		}
 	}
 }
@@ -278,13 +278,13 @@ htcp_cb_init(struct cc_var *ccv, void *ptr)
  * Perform any necessary tasks before we enter congestion recovery.
  */
 static void
-htcp_cong_signal(struct cc_var *ccv, uint32_t type)
+htcp_cong_signal(struct cc_var *ccv, ccsignal_t type)
 {
 	struct htcp *htcp_data;
-	u_int mss;
+	uint32_t mss, pipe;
 
 	htcp_data = ccv->cc_data;
-	mss = tcp_maxseg(ccv->ccvc.tcp);
+	mss = tcp_fixed_maxseg(ccv->ccvc.tcp);
 
 	switch (type) {
 	case CC_NDUPACK:
@@ -323,9 +323,17 @@ htcp_cong_signal(struct cc_var *ccv, uint32_t type)
 		break;
 
 	case CC_RTO:
-		CCV(ccv, snd_ssthresh) = max(min(CCV(ccv, snd_wnd),
-						 CCV(ccv, snd_cwnd)) / 2 / mss,
-					     2) * mss;
+		if (CCV(ccv, t_rxtshift) == 1) {
+			if (V_tcp_do_newsack) {
+				pipe = tcp_compute_pipe(ccv->ccvc.tcp);
+			} else {
+				pipe = CCV(ccv, snd_max) -
+					CCV(ccv, snd_fack) +
+					CCV(ccv, sackhint.sack_bytes_rexmit);
+			}
+			CCV(ccv, snd_ssthresh) = max(2,
+				min(CCV(ccv, snd_wnd), pipe) / 2 / mss) * mss;
+		}
 		CCV(ccv, snd_cwnd) = mss;
 		/*
 		 * Grab the current time and record it so we know when the
@@ -336,6 +344,8 @@ htcp_cong_signal(struct cc_var *ccv, uint32_t type)
 		 */
 		if (CCV(ccv, t_rxtshift) >= 2)
 			htcp_data->t_last_cong = ticks;
+		break;
+	default:
 		break;
 	}
 }

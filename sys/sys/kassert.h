@@ -35,8 +35,7 @@
 
 #ifdef _KERNEL
 extern const char *panicstr;	/* panic message */
-extern bool panicked;
-#define	KERNEL_PANICKED()	__predict_false(panicked)
+#define	KERNEL_PANICKED()	__predict_false(panicstr != NULL)
 
 /*
  * Trap accesses going through a pointer. Moreover if kasan is available trap
@@ -143,6 +142,9 @@ void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
 #  endif /* defined(WITNESS) || defined(INVARIANT_SUPPORT) */
 #endif /* _STANDALONE */
 
+/*
+ * Kernel assertion; see KASSERT(9) for details.
+ */
 #if (defined(_KERNEL) && defined(INVARIANTS)) || defined(_STANDALONE)
 #define	KASSERT(exp,msg) do {						\
 	if (__predict_false(!(exp)))					\
@@ -155,8 +157,11 @@ void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
 
 #ifdef _KERNEL
 /*
- * Helpful macros for quickly coming up with assertions with informative
- * panic messages.
+ * Macros for generating panic messages based on the exact condition text.
+ *
+ * NOTE: Use these with care, as the resulting message might omit key
+ * information required to understand the assertion failure. Consult the
+ * MPASS(9) man page for guidance.
  */
 #define MPASS(ex)		MPASS4(ex, #ex, __FILE__, __LINE__)
 #define MPASS2(ex, what)	MPASS4(ex, what, __FILE__, __LINE__)
@@ -180,17 +185,6 @@ void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
 #define	CRITICAL_ASSERT(td)						\
 	KASSERT((td)->td_critnest >= 1, ("Not in critical section"))
 
-/*
- * If we have already panic'd and this is the thread that called
- * panic(), then don't block on any mutexes but silently succeed.
- * Otherwise, the kernel will deadlock since the scheduler isn't
- * going to run the thread that holds any lock we need.
- */
-#define	SCHEDULER_STOPPED_TD(td)  ({					\
-	MPASS((td) == curthread);					\
-	__predict_false((td)->td_stopsched);				\
-})
-#define	SCHEDULER_STOPPED() SCHEDULER_STOPPED_TD(curthread)
 #endif /* _KERNEL */
 
 #endif	/* _SYS_KASSERT_H_ */

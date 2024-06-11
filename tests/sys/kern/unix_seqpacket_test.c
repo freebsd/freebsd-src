@@ -1,5 +1,8 @@
 /*-
+ *
+ * Copyright (c) 2024 Gleb Smirnoff <glebius@FreeBSD.org>
  * Copyright (c) 2014 Spectra Logic Corporation. All rights reserved.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -27,7 +30,9 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stdlib.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 #include <sys/un.h>
 
 #include <stdio.h>
@@ -68,32 +73,50 @@ do_socketpair_nonblocking(int *sv)
 }
 
 /*
- * Returns a pair of sockets made the hard way: bind, listen, connect & accept
+ * Returns a bound and listening socket.
  * @return	const char* The path to the socket
  */
-static const char*
-mk_pair_of_sockets(int *sv)
+static const struct sockaddr_un *
+mk_listening_socket(int *sv)
 {
-	struct sockaddr_un sun;
 	/* ATF's isolation mechanisms will guarantee uniqueness of this file */
-	const char *path = "sock";
-	int s, err, s2, s1;
+	static const struct sockaddr_un sun = {
+		.sun_family = AF_LOCAL,
+		.sun_len = sizeof(sun),
+		.sun_path = "sock",
+	};
+	int s, r, l;
 
 	s = socket(PF_LOCAL, SOCK_SEQPACKET, 0);
 	ATF_REQUIRE(s >= 0);
 
-	bzero(&sun, sizeof(sun));
-	sun.sun_family = AF_LOCAL;
-	sun.sun_len = sizeof(sun);
-	strlcpy(sun.sun_path, path, sizeof(sun.sun_path));
-	err = bind(s, (struct sockaddr *)&sun, sizeof(sun));
-	err = listen(s, -1);
-	ATF_CHECK_EQ(0, err);
+	r = bind(s, (struct sockaddr *)&sun, sizeof(sun));
+	l = listen(s, -1);
+	ATF_CHECK_EQ(0, r);
+	ATF_CHECK_EQ(0, l);
+
+	if (sv != NULL)
+		*sv = s;
+
+	return (&sun);
+}
+
+/*
+ * Returns a pair of sockets made the hard way: bind, listen, connect & accept
+ * @return	const char* The path to the socket
+ */
+static const struct sockaddr_un *
+mk_pair_of_sockets(int *sv)
+{
+	const struct sockaddr_un *sun;
+	int s, s2, err, s1;
+
+	sun = mk_listening_socket(&s);
 
 	/* Create the other socket */
 	s2 = socket(PF_LOCAL, SOCK_SEQPACKET, 0);
 	ATF_REQUIRE(s2 >= 0);
-	err = connect(s2, (struct sockaddr*)&sun, sizeof(sun));
+	err = connect(s2, (struct sockaddr *)sun, sizeof(*sun));
 	if (err != 0) {
 		perror("connect");
 		atf_tc_fail("connect(2) failed");
@@ -111,7 +134,7 @@ mk_pair_of_sockets(int *sv)
 
 	close(s);
 
-	return (path);
+	return (sun);
 }
 
 static volatile sig_atomic_t got_sigpipe = 0;
@@ -237,12 +260,7 @@ test_pipe_simulator(int sndbufsize, int rcvbufsize)
 			memset(sndbuf, num_sent, pktsize);
 			ssize = send(sv[0], sndbuf, pktsize, MSG_EOR);
 			if (ssize < 0) {
-				/*
-				 * XXX: This is bug-compatible with the kernel.
-				 * The kernel returns EMSGSIZE when it should
-				 * return EAGAIN
-				 */
-				if (errno == EAGAIN || errno == EMSGSIZE)
+				if (errno == EAGAIN)
 					currently_sending = false;
 				else {
 					perror("send");
@@ -454,22 +472,9 @@ ATF_TC_BODY(bind, tc)
 ATF_TC_WITHOUT_HEAD(listen_bound);
 ATF_TC_BODY(listen_bound, tc)
 {
-	struct sockaddr_un sun;
-	/* ATF's isolation mechanisms will guarantee uniqueness of this file */
-	const char *path = "sock";
-	int s, r, l;
+	int s;
 
-	s = socket(PF_LOCAL, SOCK_SEQPACKET, 0);
-	ATF_REQUIRE(s >= 0);
-
-	bzero(&sun, sizeof(sun));
-	sun.sun_family = AF_LOCAL;
-	sun.sun_len = sizeof(sun);
-	strlcpy(sun.sun_path, path, sizeof(sun.sun_path));
-	r = bind(s, (struct sockaddr *)&sun, sizeof(sun));
-	l = listen(s, -1);
-	ATF_CHECK_EQ(0, r);
-	ATF_CHECK_EQ(0, l);
+	(void)mk_listening_socket(&s);
 	close(s);
 }
 
@@ -477,33 +482,111 @@ ATF_TC_BODY(listen_bound, tc)
 ATF_TC_WITHOUT_HEAD(connect);
 ATF_TC_BODY(connect, tc)
 {
-	struct sockaddr_un sun;
-	/* ATF's isolation mechanisms will guarantee uniqueness of this file */
-	const char *path = "sock";
-	int s, r, err, l, s2;
+	const struct sockaddr_un *sun;
+	int s, err, s2;
 
-	s = socket(PF_LOCAL, SOCK_SEQPACKET, 0);
-	ATF_REQUIRE(s >= 0);
-
-	bzero(&sun, sizeof(sun));
-	sun.sun_family = AF_LOCAL;
-	sun.sun_len = sizeof(sun);
-	strlcpy(sun.sun_path, path, sizeof(sun.sun_path));
-	r = bind(s, (struct sockaddr *)&sun, sizeof(sun));
-	l = listen(s, -1);
-	ATF_CHECK_EQ(0, r);
-	ATF_CHECK_EQ(0, l);
+	sun = mk_listening_socket(&s);
 
 	/* Create the other socket */
 	s2 = socket(PF_LOCAL, SOCK_SEQPACKET, 0);
 	ATF_REQUIRE(s2 >= 0);
-	err = connect(s2, (struct sockaddr*)&sun, sizeof(sun));
+	err = connect(s2, (struct sockaddr *)sun, sizeof(*sun));
 	if (err != 0) {
 		perror("connect");
 		atf_tc_fail("connect(2) failed");
 	}
 	close(s);
 	close(s2);
+}
+
+/*
+ * An undocumented feature that we probably want to preserve: sending to
+ * a socket that isn't yet accepted lands data on the socket.  It can be
+ * read after accept(2).
+ */
+ATF_TC_WITHOUT_HEAD(send_before_accept);
+ATF_TC_BODY(send_before_accept, tc)
+{
+	const char buf[] = "hello";
+	char repl[sizeof(buf)];
+	const struct sockaddr_un *sun;
+	int l, s, a;
+
+	sun = mk_listening_socket(&l);
+
+	ATF_REQUIRE((s = socket(PF_LOCAL, SOCK_SEQPACKET, 0)) > 0);
+	ATF_REQUIRE(connect(s, (struct sockaddr *)sun, sizeof(*sun)) == 0);
+	ATF_REQUIRE(send(s, &buf, sizeof(buf), 0) == sizeof(buf));
+	ATF_REQUIRE((a = accept(l, NULL, NULL)) != 1);
+	ATF_REQUIRE(recv(a, &repl, sizeof(repl), 0) == sizeof(buf));
+	ATF_REQUIRE(strcmp(buf, repl) == 0);
+	close(l);
+	close(s);
+	close(a);
+}
+
+/*
+ * Test that close(2) of the peer ends in EPIPE when we try to send(2).
+ * Test both normal case as well as a peer that was not accept(2)-ed.
+ */
+static bool sigpipe_received = false;
+static void
+sigpipe_handler(int signo __unused)
+{
+	sigpipe_received = true;
+}
+
+ATF_TC_WITHOUT_HEAD(send_to_closed);
+ATF_TC_BODY(send_to_closed, tc)
+{
+	struct sigaction sa = {
+		.sa_handler = sigpipe_handler,
+	};
+	const struct sockaddr_un *sun;
+	int l, s, a;
+
+	ATF_REQUIRE(sigemptyset(&sa.sa_mask) == 0);
+	ATF_REQUIRE(sigaction(SIGPIPE, &sa, NULL) == 0);
+
+	sun = mk_listening_socket(&l);
+
+	ATF_REQUIRE((s = socket(PF_LOCAL, SOCK_SEQPACKET, 0)) > 0);
+	ATF_REQUIRE(connect(s, (struct sockaddr *)sun, sizeof(*sun)) == 0);
+	ATF_REQUIRE((a = accept(l, NULL, NULL)) != 1);
+	close(a);
+	ATF_REQUIRE(send(s, &s, sizeof(s), 0) == -1);
+	ATF_REQUIRE(errno == EPIPE);
+	ATF_REQUIRE(sigpipe_received == true);
+	close(s);
+
+	ATF_REQUIRE((s = socket(PF_LOCAL, SOCK_SEQPACKET, 0)) > 0);
+	ATF_REQUIRE(connect(s, (struct sockaddr *)sun, sizeof(*sun)) == 0);
+	close(l);
+	sigpipe_received = false;
+	ATF_REQUIRE(send(s, &s, sizeof(s), 0) == -1);
+	ATF_REQUIRE(errno == EPIPE);
+	ATF_REQUIRE(sigpipe_received == true);
+	close(s);
+
+	sa.sa_handler = SIG_DFL;
+	ATF_REQUIRE(sigaction(SIGPIPE, &sa, NULL) == 0);
+}
+
+/* Implied connect is unix/dgram only feature. Fails on stream or seqpacket. */
+ATF_TC_WITHOUT_HEAD(implied_connect);
+ATF_TC_BODY(implied_connect, tc)
+{
+	const struct sockaddr_un *sun;
+	int l, s;
+
+	sun = mk_listening_socket(&l);
+
+	ATF_REQUIRE((s = socket(PF_LOCAL, SOCK_SEQPACKET, 0)) > 0);
+	ATF_REQUIRE(sendto(s, &s, sizeof(s), 0, (struct sockaddr *)sun,
+	    sizeof(*sun)) == -1);
+	ATF_REQUIRE(errno == ENOTCONN);
+	close(l);
+	close(s);
 }
 
 /* accept(2) can receive a connection */
@@ -670,7 +753,7 @@ ATF_TC_WITHOUT_HEAD(sendto_recvfrom);
 ATF_TC_BODY(sendto_recvfrom, tc)
 {
 #ifdef TEST_SEQ_PACKET_SOURCE_ADDRESS
-	const char* path;
+	const sockaddr_un *sun;
 #endif
 	struct sockaddr_storage from;
 	int sv[2];
@@ -683,7 +766,7 @@ ATF_TC_BODY(sendto_recvfrom, tc)
 
 	/* setup the socket pair */
 #ifdef TEST_SEQ_PACKET_SOURCE_ADDRESS
-	path =
+	sun =
 #endif
 		mk_pair_of_sockets(sv);
 
@@ -714,7 +797,7 @@ ATF_TC_BODY(sendto_recvfrom, tc)
 	 * these checks may be reenabled
 	 */
 	ATF_CHECK_EQ(PF_LOCAL, from.ss_family);
-	ATF_CHECK_STREQ(path, ((struct sockaddr_un*)&from)->sun_path);
+	ATF_CHECK_STREQ(sun->sun_path, ((struct sockaddr_un*)&from)->sun_path);
 #endif
 	close(sv[0]);
 	close(sv[1]);
@@ -756,28 +839,17 @@ ATF_TC_BODY(send_recv_with_connect, tc)
 ATF_TC_WITHOUT_HEAD(shutdown_send);
 ATF_TC_BODY(shutdown_send, tc)
 {
-	struct sockaddr_un sun;
-	/* ATF's isolation mechanisms will guarantee uniqueness of this file */
-	const char *path = "sock";
+	const struct sockaddr_un *sun;
 	const char *data = "data";
 	ssize_t datalen, ssize;
 	int s, err, s2;
 
-	s = socket(PF_LOCAL, SOCK_SEQPACKET, 0);
-	ATF_REQUIRE(s >= 0);
-
-	bzero(&sun, sizeof(sun));
-	sun.sun_family = AF_LOCAL;
-	sun.sun_len = sizeof(sun);
-	strlcpy(sun.sun_path, path, sizeof(sun.sun_path));
-	err = bind(s, (struct sockaddr *)&sun, sizeof(sun));
-	err = listen(s, -1);
-	ATF_CHECK_EQ(0, err);
+	sun = mk_listening_socket(&s);
 
 	/* Create the other socket */
 	s2 = socket(PF_LOCAL, SOCK_SEQPACKET, 0);
 	ATF_REQUIRE(s2 >= 0);
-	err = connect(s2, (struct sockaddr*)&sun, sizeof(sun));
+	err = connect(s2, (struct sockaddr *)sun, sizeof(*sun));
 	if (err != 0) {
 		perror("connect");
 		atf_tc_fail("connect(2) failed");
@@ -797,28 +869,17 @@ ATF_TC_BODY(shutdown_send, tc)
 ATF_TC_WITHOUT_HEAD(shutdown_send_sigpipe);
 ATF_TC_BODY(shutdown_send_sigpipe, tc)
 {
-	struct sockaddr_un sun;
-	/* ATF's isolation mechanisms will guarantee uniqueness of this file */
-	const char *path = "sock";
+	const struct sockaddr_un *sun;
 	const char *data = "data";
 	ssize_t datalen;
 	int s, err, s2;
 
-	s = socket(PF_LOCAL, SOCK_SEQPACKET, 0);
-	ATF_REQUIRE(s >= 0);
-
-	bzero(&sun, sizeof(sun));
-	sun.sun_family = AF_LOCAL;
-	sun.sun_len = sizeof(sun);
-	strlcpy(sun.sun_path, path, sizeof(sun.sun_path));
-	err = bind(s, (struct sockaddr *)&sun, sizeof(sun));
-	err = listen(s, -1);
-	ATF_CHECK_EQ(0, err);
+	sun = mk_listening_socket(&s);
 
 	/* Create the other socket */
 	s2 = socket(PF_LOCAL, SOCK_SEQPACKET, 0);
 	ATF_REQUIRE(s2 >= 0);
-	err = connect(s2, (struct sockaddr*)&sun, sizeof(sun));
+	err = connect(s2, (struct sockaddr *)sun, sizeof(*sun));
 	if (err != 0) {
 		perror("connect");
 		atf_tc_fail("connect(2) failed");
@@ -867,65 +928,6 @@ ATF_TC_BODY(send_recv_nonblocking, tc)
 	close(sv[0]);
 	close(sv[1]);
 }
-
-/*
- * We should get EMSGSIZE if we try to send a message larger than the socket
- * buffer, with blocking sockets
- */
-ATF_TC_WITHOUT_HEAD(emsgsize);
-ATF_TC_BODY(emsgsize, tc)
-{
-	int sv[2];
-	const int sndbufsize = 8192;
-	const int rcvbufsize = 8192;
-	const size_t pktsize = (sndbufsize + rcvbufsize) * 2;
-	char sndbuf[pktsize];
-	ssize_t ssize;
-
-	/* setup the socket pair */
-	do_socketpair(sv);
-	/* Setup the buffers */
-	ATF_REQUIRE_EQ(0, setsockopt(sv[0], SOL_SOCKET, SO_SNDBUF, &sndbufsize,
-	    sizeof(sndbufsize)));
-	ATF_REQUIRE_EQ(0, setsockopt(sv[1], SOL_SOCKET, SO_RCVBUF, &rcvbufsize,
-	    sizeof(rcvbufsize)));
-
-	ssize = send(sv[0], sndbuf, pktsize, MSG_EOR);
-	ATF_CHECK_EQ(EMSGSIZE, errno);
-	ATF_CHECK_EQ(-1, ssize);
-	close(sv[0]);
-	close(sv[1]);
-}
-
-/*
- * We should get EMSGSIZE if we try to send a message larger than the socket
- * buffer, with nonblocking sockets
- */
-ATF_TC_WITHOUT_HEAD(emsgsize_nonblocking);
-ATF_TC_BODY(emsgsize_nonblocking, tc)
-{
-	int sv[2];
-	const int sndbufsize = 8192;
-	const int rcvbufsize = 8192;
-	const size_t pktsize = (sndbufsize + rcvbufsize) * 2;
-	char sndbuf[pktsize];
-	ssize_t ssize;
-
-	/* setup the socket pair */
-	do_socketpair_nonblocking(sv);
-	/* Setup the buffers */
-	ATF_REQUIRE_EQ(0, setsockopt(sv[0], SOL_SOCKET, SO_SNDBUF, &sndbufsize,
-	    sizeof(sndbufsize)));
-	ATF_REQUIRE_EQ(0, setsockopt(sv[1], SOL_SOCKET, SO_RCVBUF, &rcvbufsize,
-	    sizeof(rcvbufsize)));
-
-	ssize = send(sv[0], sndbuf, pktsize, MSG_EOR);
-	ATF_CHECK_EQ(EMSGSIZE, errno);
-	ATF_CHECK_EQ(-1, ssize);
-	close(sv[0]);
-	close(sv[1]);
-}
-
 
 /*
  * We should get EAGAIN if we try to send a message larger than the socket
@@ -1134,6 +1136,151 @@ ATF_TC_BODY(sendrecv_128k_nonblocking, tc)
 	test_sendrecv_symmetric_buffers(128 * 1024, false);
 }
 
+ATF_TC(random_eor_and_waitall);
+ATF_TC_HEAD(random_eor_and_waitall, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test random sized send/recv with "
+	    "randomly placed MSG_EOR and randomly applied MSG_WAITALL on "
+	    "PF_UNIX/SOCK_SEQPACKET");
+}
+
+struct random_eor_params {
+	u_long recvspace;
+	char *sendbuf;
+	size_t *records;
+	u_int nrecords;
+	int sock;
+	u_short seed[6];
+};
+
+#define	RANDOM_TESTSIZE	((size_t)100 * 1024 * 1024)
+/* Below defines are factor of recvspace. */
+#define	RANDOM_MAXRECORD	10
+#define	RANDOM_SENDSIZE	2
+#define	RANDOM_RECVSIZE	4
+
+static void *
+sending_thread(void *arg)
+{
+	struct random_eor_params *params = arg;
+	size_t off = 0;
+	int eor = 0;
+
+	while (off < RANDOM_TESTSIZE) {
+		ssize_t len;
+		int flags;
+
+		len = nrand48(&params->seed[3]) %
+		    (RANDOM_SENDSIZE * params->recvspace);
+		if (off + len >= params->records[eor]) {
+			len = params->records[eor] - off;
+			flags = MSG_EOR;
+			eor++;
+		} else
+			flags = 0;
+		ATF_REQUIRE(send(params->sock, &params->sendbuf[off], len,
+		    flags) == len);
+		off += len;
+#ifdef DEBUG
+		printf("send %zd%s\n", off, flags ? " EOR" : "");
+#endif
+	}
+
+	return (NULL);
+}
+
+ATF_TC_BODY(random_eor_and_waitall, tc)
+{
+	struct random_eor_params params;
+	void *recvbuf;
+	pthread_t t;
+	size_t off;
+	int fd[2], eor;
+
+	arc4random_buf(params.seed, sizeof(params.seed));
+	printf("Using seed:");
+	for (u_int i = 0; i < (u_int)sizeof(params.seed)/sizeof(u_short); i++)
+		printf(" 0x%.4x,", params.seed[i]);
+	printf("\n");
+
+	ATF_REQUIRE((params.sendbuf = malloc(RANDOM_TESTSIZE)) != NULL);
+	for (u_int i = 0; i < RANDOM_TESTSIZE / (u_int )sizeof(long); i++)
+		((long *)params.sendbuf)[i] = nrand48(&params.seed[0]);
+
+	ATF_REQUIRE(sysctlbyname("net.local.stream.recvspace",
+	    &params.recvspace, &(size_t){sizeof(u_long)}, NULL, 0) != -1);
+	ATF_REQUIRE((recvbuf =
+	    malloc(RANDOM_RECVSIZE * params.recvspace)) != NULL);
+
+	params.nrecords = 2 * RANDOM_TESTSIZE /
+	    (RANDOM_MAXRECORD * params.recvspace);
+
+	ATF_REQUIRE((params.records =
+	    malloc(params.nrecords * sizeof(size_t *))) != NULL);
+	off = 0;
+	for (u_int i = 0; i < params.nrecords; i++) {
+		off += 1 + nrand48(&params.seed[0]) %
+		    (RANDOM_MAXRECORD * params.recvspace);
+		if (off > RANDOM_TESTSIZE) {
+			params.nrecords = i;
+			break;
+		}
+		params.records[i] = off;
+	}
+	params.records[params.nrecords - 1] = RANDOM_TESTSIZE;
+
+	ATF_REQUIRE(socketpair(PF_LOCAL, SOCK_SEQPACKET, 0, fd) == 0);
+	params.sock = fd[0];
+	ATF_REQUIRE(pthread_create(&t, NULL, sending_thread, &params) == 0);
+
+	off = 0;
+	eor = 0;
+	while (off < RANDOM_TESTSIZE) {
+		struct iovec iov = {
+			.iov_base = recvbuf,
+			.iov_len = nrand48(&params.seed[0]) %
+			    (RANDOM_RECVSIZE * params.recvspace)
+		};
+		struct msghdr hdr = {
+			.msg_iov = &iov,
+			.msg_iovlen = 1,
+		};
+		size_t len;
+		int waitall = iov.iov_len & 0x1 ? MSG_WAITALL : 0;
+
+		len = recvmsg(fd[1], &hdr, waitall);
+		if (waitall && !(hdr.msg_flags & MSG_EOR))
+			ATF_CHECK_EQ_MSG(len, iov.iov_len,
+			    "recvmsg(MSG_WAITALL): %zd, expected %zd",
+			    len, iov.iov_len);
+		if (off + len == params.records[eor]) {
+			ATF_REQUIRE_MSG(hdr.msg_flags & MSG_EOR,
+			    "recvmsg(): expected EOR @ %zd", off + len);
+			eor++;
+		} else {
+			ATF_REQUIRE_MSG(off + len < params.records[eor],
+			    "recvmsg() past EOR: %zd, expected %zd",
+			    off + len, params.records[eor]);
+			ATF_REQUIRE_MSG(!(hdr.msg_flags & MSG_EOR),
+			    "recvmsg() spurious EOR at %zd, expected %zd",
+			    off + len, params.records[eor]);
+		}
+		ATF_REQUIRE_MSG(0 == memcmp(params.sendbuf + off, recvbuf, len),
+		    "data corruption past %zd", off);
+		off += len;
+#ifdef DEBUG
+		printf("recv %zd%s %zd/%zd%s\n", off,
+		    (hdr.msg_flags & MSG_EOR) ?  " EOR" : "",
+		    len, iov.iov_len,
+		    waitall ? " WAITALL" : "");
+#endif
+	}
+
+	ATF_REQUIRE(pthread_join(t, NULL) == 0);
+	free(params.sendbuf);
+	free(recvbuf);
+	free(params.records);
+}
 
 /*
  * Main.
@@ -1158,10 +1305,11 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, send_recv_nonblocking);
 	ATF_TP_ADD_TC(tp, send_recv_with_connect);
 	ATF_TP_ADD_TC(tp, sendto_recvfrom);
+	ATF_TP_ADD_TC(tp, send_before_accept);
+	ATF_TP_ADD_TC(tp, send_to_closed);
+	ATF_TP_ADD_TC(tp, implied_connect);
 	ATF_TP_ADD_TC(tp, shutdown_send);
 	ATF_TP_ADD_TC(tp, shutdown_send_sigpipe);
-	ATF_TP_ADD_TC(tp, emsgsize);
-	ATF_TP_ADD_TC(tp, emsgsize_nonblocking);
 	ATF_TP_ADD_TC(tp, eagain_8k_8k);
 	ATF_TP_ADD_TC(tp, eagain_8k_128k);
 	ATF_TP_ADD_TC(tp, eagain_128k_8k);
@@ -1187,6 +1335,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, pipe_8k_128k);
 	ATF_TP_ADD_TC(tp, pipe_128k_8k);
 	ATF_TP_ADD_TC(tp, pipe_128k_128k);
+	ATF_TP_ADD_TC(tp, random_eor_and_waitall);
 
 	return atf_no_error();
 }

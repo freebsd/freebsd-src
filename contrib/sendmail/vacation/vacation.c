@@ -22,7 +22,6 @@ SM_IDSTR(copyright,
 
 SM_IDSTR(id, "@(#)$Id: vacation.c,v 8.148 2013-11-22 20:52:02 ca Exp $")
 
-
 #include <ctype.h>
 #include <stdlib.h>
 #include <syslog.h>
@@ -86,6 +85,7 @@ ALIAS *Names = NULL;
 SMDB_DATABASE *Db;
 
 char From[MAXLINE];
+char Subject[MAXLINE];
 bool CloseMBDB = false;
 
 #if defined(__hpux) || defined(__osf__)
@@ -185,7 +185,7 @@ main(argc, argv)
 	exclude = false;
 	interval = INTERVAL_UNDEF;
 	*From = '\0';
-
+	*Subject = '\0';
 
 #define OPTIONS	"a:C:df:Iijlm:R:r:s:t:Uxz"
 
@@ -281,7 +281,7 @@ main(argc, argv)
 	if (mfail != 0)
 	{
 		msglog(LOG_NOTICE,
-		       "vacation: can't allocate memory for alias.\n");
+		       "vacation: can't allocate memory for alias");
 		EXITM(EX_TEMPFAIL);
 	}
 	if (ufail != 0)
@@ -294,7 +294,7 @@ main(argc, argv)
 		if ((pw = getpwuid(getuid())) == NULL)
 		{
 			msglog(LOG_ERR,
-			       "vacation: no such user uid %u.\n", getuid());
+			       "vacation: no such user uid %u", getuid());
 			EXITM(EX_NOUSER);
 		}
 		name = strdup(pw->pw_name);
@@ -305,7 +305,7 @@ main(argc, argv)
 		if (chdir(pw->pw_dir) != 0)
 		{
 			msglog(LOG_NOTICE,
-			       "vacation: no such directory %s.\n",
+			       "vacation: no such directory %s",
 			       pw->pw_dir);
 			EXITM(EX_NOINPUT);
 		}
@@ -316,7 +316,7 @@ main(argc, argv)
 		if (dbfilename == NULL || msgfilename == NULL)
 		{
 			msglog(LOG_NOTICE,
-			       "vacation: -U requires setting both -f and -m\n");
+			       "vacation: -U requires setting both -f and -m");
 			EXITM(EX_NOINPUT);
 		}
 		user_info.smdbu_id = pw->pw_uid;
@@ -338,7 +338,7 @@ main(argc, argv)
 		if (err != EX_OK)
 		{
 			msglog(LOG_ERR,
-			       "vacation: can't open mailbox database: %s.\n",
+			       "vacation: can't open mailbox database: %s",
 			       sm_strexit(err));
 			EXITM(err);
 		}
@@ -346,13 +346,13 @@ main(argc, argv)
 		err = sm_mbdb_lookup(*argv, &user);
 		if (err == EX_NOUSER)
 		{
-			msglog(LOG_ERR, "vacation: no such user %s.\n", *argv);
+			msglog(LOG_ERR, "vacation: no such user %s", *argv);
 			EXITM(EX_NOUSER);
 		}
 		if (err != EX_OK)
 		{
 			msglog(LOG_ERR,
-			       "vacation: can't read mailbox database: %s.\n",
+			       "vacation: can't read mailbox database: %s",
 			       sm_strexit(err));
 			EXITM(err);
 		}
@@ -360,7 +360,7 @@ main(argc, argv)
 		if (chdir(user.mbdb_homedir) != 0)
 		{
 			msglog(LOG_NOTICE,
-			       "vacation: no such directory %s.\n",
+			       "vacation: no such directory %s",
 			       user.mbdb_homedir);
 			EXITM(EX_NOINPUT);
 		}
@@ -372,7 +372,7 @@ main(argc, argv)
 	if (name == NULL)
 	{
 		msglog(LOG_ERR,
-		       "vacation: can't allocate memory for username.\n");
+		       "vacation: can't allocate memory for username");
 		EXITM(EX_OSERR);
 	}
 
@@ -397,14 +397,13 @@ main(argc, argv)
 		sff |= SFF_NOSLINK|SFF_NOHLINK|SFF_REGONLY;
 	}
 
-
 	result = smdb_open_database(&Db, dbfilename,
 				    O_CREAT|O_RDWR | (initdb ? O_TRUNC : 0),
 				    S_IRUSR|S_IWUSR, sff,
 				    SMDB_TYPE_DEFAULT, &user_info, NULL);
 	if (result != SMDBE_OK)
 	{
-		msglog(LOG_NOTICE, "vacation: %s: %s\n", dbfilename,
+		msglog(LOG_NOTICE, "vacation: %s: %s", dbfilename,
 		       sm_errstring(result));
 		EXITM(EX_DATAERR);
 	}
@@ -435,7 +434,7 @@ main(argc, argv)
 	if ((cur = (ALIAS *) malloc((unsigned int) sizeof(ALIAS))) == NULL)
 	{
 		msglog(LOG_NOTICE,
-		       "vacation: can't allocate memory for username.\n");
+		       "vacation: can't allocate memory for username");
 		(void) Db->smdb_close(Db);
 		EXITM(EX_OSERR);
 	}
@@ -461,14 +460,13 @@ main(argc, argv)
 }
 
 /*
-** EATMSG -- read stdin till EOF
+**  EATMSG -- read stdin till EOF
 **
 **	Parameters:
 **		none.
 **
 **	Returns:
 **		nothing.
-**
 */
 
 static void
@@ -483,7 +481,7 @@ eatmsg()
 }
 
 /*
-** READHEADERS -- read mail headers
+**  READHEADERS -- read mail headers
 **
 **	Parameters:
 **		alwaysrespond -- respond regardless of whether msg is to me
@@ -493,15 +491,49 @@ eatmsg()
 **
 **	Side Effects:
 **		may exit().
-**
 */
+
+#define CLEANADDR(addr, type)					\
+{								\
+	bool quoted = false;					\
+								\
+	while (*addr != '\0')					\
+	{							\
+		/* escaped character */				\
+		if (*addr == '\\')				\
+		{						\
+			addr++;					\
+			if (*addr == '\0')			\
+			{					\
+				msglog(LOG_NOTICE,		\
+				       "vacation: badly formatted \"%s\" line",\
+					type);	\
+				EXITIT(EX_DATAERR);		\
+			}					\
+		}						\
+		else if (*addr == '"')				\
+			quoted = !quoted;			\
+		else if (*addr == '\r' || *addr == '\n')	\
+			break;					\
+		else if (*addr == ' ' && !quoted)		\
+			break;					\
+		addr++;						\
+	}							\
+	if (quoted)						\
+	{							\
+		msglog(LOG_NOTICE,				\
+		       "vacation: badly formatted \"%s\" line", type);	\
+		EXITIT(EX_DATAERR);				\
+	}							\
+	*addr = '\0';						\
+}
 
 static int
 readheaders(alwaysrespond)
 	bool alwaysrespond;
 {
 	bool tome, cont;
-	register char *p;
+	register char *p, *s;
 	register ALIAS *cur;
 	char buf[MAXLINE];
 
@@ -512,41 +544,33 @@ readheaders(alwaysrespond)
 	{
 		switch(*buf)
 		{
+		  case 'A':		/* "Auto-Submitted:" */
+		  case 'a':
+			cont = false;
+			if (strlen(buf) <= 14 ||
+			    strncasecmp(buf, "Auto-Submitted", 14) != 0 ||
+			    (buf[14] != ':' && buf[14] != ' ' &&
+			     buf[14] != '\t'))
+				break;
+			if ((p = strchr(buf, ':')) == NULL)
+				break;
+			while (*++p != '\0' && isascii(*p) && isspace(*p))
+				continue;
+			if (*p == '\0')
+				break;
+			if ((s = strpbrk(p, " \t\r\n")) != NULL)
+				*s = '\0';
+			/* Obey RFC3834: no auto-reply for auto-submitted mail */
+			if (strcasecmp(p, "no") != 0)
+				EXITIT(EX_NOUSER);
+			break;
+
 		  case 'F':		/* "From " */
 			cont = false;
 			if (strncmp(buf, "From ", 5) == 0)
 			{
-				bool quoted = false;
-
 				p = buf + 5;
-				while (*p != '\0')
-				{
-					/* escaped character */
-					if (*p == '\\')
-					{
-						p++;
-						if (*p == '\0')
-						{
-							msglog(LOG_NOTICE,
-							       "vacation: badly formatted \"From \" line.\n");
-							EXITIT(EX_DATAERR);
-						}
-					}
-					else if (*p == '"')
-						quoted = !quoted;
-					else if (*p == '\r' || *p == '\n')
-						break;
-					else if (*p == ' ' && !quoted)
-						break;
-					p++;
-				}
-				if (quoted)
-				{
-					msglog(LOG_NOTICE,
-					       "vacation: badly formatted \"From \" line.\n");
-					EXITIT(EX_DATAERR);
-				}
-				*p = '\0';
+				CLEANADDR(p, "From ");
 
 				/* ok since both strings have MAXLINE length */
 				if (*From == '\0')
@@ -559,6 +583,23 @@ readheaders(alwaysrespond)
 			}
 			break;
 
+		  case 'L':		/* "List-Id:" */
+		  case 'l':
+			cont = false;
+			if (strlen(buf) <= 7 ||
+			    strncasecmp(buf, "List-Id", 7) != 0 ||
+			    (buf[7] != ':' && buf[7] != ' ' &&
+			     buf[7] != '\t'))
+				break;
+			if ((p = strchr(buf, ':')) == NULL)
+				break;
+
+			/* If we found a List-Id: header, don't send a reply */
+			EXITIT(EX_NOUSER);
+
+			/* NOTREACHED */
+			break;
+
 		  case 'P':		/* "Precedence:" */
 		  case 'p':
 			cont = false;
@@ -569,13 +610,54 @@ readheaders(alwaysrespond)
 				break;
 			if ((p = strchr(buf, ':')) == NULL)
 				break;
-			while (*++p != '\0' && isascii(*p) && isspace(*p));
+			while (*++p != '\0' && isascii(*p) && isspace(*p))
+				continue;
 			if (*p == '\0')
 				break;
 			if (strncasecmp(p, "junk", 4) == 0 ||
 			    strncasecmp(p, "bulk", 4) == 0 ||
 			    strncasecmp(p, "list", 4) == 0)
 				EXITIT(EX_NOUSER);
+			break;
+
+		  case 'R':		/* Return-Path */
+		  case 'r':
+			cont = false;
+			if (strlen(buf) <= 11 ||
+			    strncasecmp(buf, "Return-Path", 11) != 0 ||
+			    (buf[11] != ':' && buf[11] != ' ' &&
+			     buf[11] != '\t'))
+				break;
+			if ((p = strchr(buf, ':')) == NULL)
+				break;
+			while (*++p != '\0' && isascii(*p) && isspace(*p))
+				continue;
+			if (*p == '\0')
+				break;
+			(void) sm_strlcpy(From, p, sizeof From);
+			p = From;
+			CLEANADDR(p, "Return-Path:");
+			if (junkmail(From))
+				EXITIT(EX_NOUSER);
+			break;
+
+		  case 'S':		/* Subject */
+		  case 's':
+			cont = false;
+			if (strlen(buf) <= 7 ||
+			    strncasecmp(buf, "Subject", 7) != 0 ||
+			    (buf[7] != ':' && buf[7] != ' ' &&
+			     buf[7] != '\t'))
+				break;
+			if ((p = strchr(buf, ':')) == NULL)
+				break;
+			while (*++p != '\0' && isascii(*p) && isspace(*p))
+				continue;
+			if (*p == '\0')
+				break;
+			(void) sm_strlcpy(Subject, p, sizeof Subject);
+			if ((s = strpbrk(Subject, "\r\n")) != NULL)
+				*s = '\0';
 			break;
 
 		  case 'C':		/* "Cc:" */
@@ -609,15 +691,14 @@ findme:
 		EXITIT(EX_NOUSER);
 	if (*From == '\0')
 	{
-		msglog(LOG_NOTICE, "vacation: no initial \"From \" line.\n");
+		msglog(LOG_NOTICE, "vacation: no initial \"From \" line");
 		EXITIT(EX_DATAERR);
 	}
 	EXITIT(EX_OK);
 }
 
 /*
-** NSEARCH --
-**	do a nice, slow, search of a string for a substring.
+**  NSEARCH -- do a nice, slow, search of a string for a substring.
 **
 **	Parameters:
 **		name -- name to search.
@@ -625,7 +706,6 @@ findme:
 **
 **	Returns:
 **		is name a substring of str?
-**
 */
 
 static bool
@@ -657,15 +737,13 @@ nsearch(name, str)
 }
 
 /*
-** JUNKMAIL --
-**	read the header and return if automagic/junk/bulk/list mail
+**  JUNKMAIL -- read the header and return if automagic/junk/bulk/list mail
 **
 **	Parameters:
 **		from -- sender address.
 **
 **	Returns:
 **		is this some automated/junk/bulk/list mail?
-**
 */
 
 struct ignore
@@ -808,15 +886,13 @@ junkmail(from)
 #define	VIT	"__VACATION__INTERVAL__TIMER__"
 
 /*
-** RECENT --
-**	find out if user has gotten a vacation message recently.
+**  RECENT -- find out if user has gotten a vacation message recently.
 **
 **	Parameters:
 **		none.
 **
 **	Returns:
 **		true iff user has gotten a vacation message recently.
-**
 */
 
 static bool
@@ -868,8 +944,7 @@ recent()
 }
 
 /*
-** SETINTERVAL --
-**	store the reply interval
+**  SETINTERVAL -- store the reply interval
 **
 **	Parameters:
 **		interval -- time interval for replies.
@@ -898,8 +973,7 @@ setinterval(interval)
 }
 
 /*
-** SETREPLY --
-**	store that this user knows about the vacation.
+**  SETREPLY -- store that this user knows about the vacation.
 **
 **	Parameters:
 **		from -- sender address.
@@ -930,8 +1004,7 @@ setreply(from, when)
 }
 
 /*
-** XCLUDE --
-**	add users to vacation db so they don't get a reply.
+**  XCLUDE -- add users to vacation db so they don't get a reply.
 **
 **	Parameters:
 **		f -- file pointer with list of address to exclude
@@ -960,8 +1033,7 @@ xclude(f)
 }
 
 /*
-** SENDMESSAGE --
-**	exec sendmail to send the vacation file to sender
+**  SENDMESSAGE -- exec sendmail to send the vacation file to sender
 **
 **	Parameters:
 **		myname -- user name.
@@ -984,6 +1056,7 @@ sendmessage(myname, msgfn, sender)
 	SM_FILE_T *mfp, *sfp;
 	int i;
 	int pvect[2];
+	char *s;
 	char *pv[8];
 	char buf[MAXLINE];
 
@@ -991,9 +1064,9 @@ sendmessage(myname, msgfn, sender)
 	if (mfp == NULL)
 	{
 		if (msgfn[0] == '/')
-			msglog(LOG_NOTICE, "vacation: no %s file.\n", msgfn);
+			msglog(LOG_NOTICE, "vacation: no %s file", msgfn);
 		else
-			msglog(LOG_NOTICE, "vacation: no ~%s/%s file.\n",
+			msglog(LOG_NOTICE, "vacation: no ~%s/%s file",
 			       myname, msgfn);
 		exit(EX_NOINPUT);
 	}
@@ -1047,7 +1120,17 @@ sendmessage(myname, msgfn, sender)
 		(void) sm_io_fprintf(sfp, SM_TIME_DEFAULT,
 				     "Auto-Submitted: auto-replied\n");
 		while (sm_io_fgets(mfp, SM_TIME_DEFAULT, buf, sizeof buf) >= 0)
-			(void) sm_io_fputs(sfp, SM_TIME_DEFAULT, buf);
+		{
+			if ((s = strstr(buf, "$SUBJECT")) != NULL)
+			{
+				*s = '\0';
+				(void) sm_io_fputs(sfp, SM_TIME_DEFAULT, buf);
+				(void) sm_io_fputs(sfp, SM_TIME_DEFAULT, Subject);
+				(void) sm_io_fputs(sfp, SM_TIME_DEFAULT, s + 8);
+			}
+			else
+				(void) sm_io_fputs(sfp, SM_TIME_DEFAULT, buf);
+		}
 		(void) sm_io_close(mfp, SM_TIME_DEFAULT);
 		(void) sm_io_close(sfp, SM_TIME_DEFAULT);
 #if _FFR_VAC_WAIT4SM
@@ -1066,13 +1149,13 @@ static void
 usage()
 {
 	msglog(LOG_NOTICE,
-	       "uid %u: usage: vacation [-a alias] [-C cfpath] [-d] [-f db] [-i] [-j] [-l] [-m msg] [-R returnaddr] [-r interval] [-s sender] [-t time] [-U] [-x] [-z] login\n",
+	       "uid %u: usage: vacation [-a alias] [-C cfpath] [-d] [-f db] [-i] [-j] [-l] [-m msg] [-R returnaddr] [-r interval] [-s sender] [-t time] [-U] [-x] [-z] login",
 	       getuid());
 	exit(EX_USAGE);
 }
 
 /*
-** LISTDB -- list the contents of the vacation database
+**  LISTDB -- list the contents of the vacation database
 **
 **	Parameters:
 **		none.
@@ -1160,7 +1243,7 @@ listdb()
 }
 
 /*
-** DEBUGLOG -- write message to standard error
+**  DEBUGLOG -- write message to standard error
 **
 **	Append a message to the standard error for the convenience of
 **	end-users debugging without access to the syslog messages.
@@ -1190,5 +1273,6 @@ debuglog(i, fmt, va_alist)
 	SM_VA_START(ap, fmt);
 	sm_io_vfprintf(smioerr, SM_TIME_DEFAULT, fmt, ap);
 	SM_VA_END(ap);
+	sm_io_fprintf(smioerr, SM_TIME_DEFAULT, "\n");
 	SYSLOG_RET;
 }

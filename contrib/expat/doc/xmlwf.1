@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH XMLWF 1 "October 25, 2022" "" ""
+.TH XMLWF 1 "February 6, 2024" "" ""
 .SH NAME
 xmlwf \- Determines if an XML document is well-formed
 .SH SYNOPSIS
@@ -25,7 +25,7 @@ xmlwf \- Determines if an XML document is well-formed
 \fBxmlwf\fR \kx
 .if (\nx>(\n(.l/2)) .nr x (\n(.l/5)
 'in \n(.iu+\nxu
-\fB-h\fR 
+\fB-h\fR | \fB--help\fR 
 'in \n(.iu-\nxu
 .ad b
 'hy
@@ -35,7 +35,7 @@ xmlwf \- Determines if an XML document is well-formed
 \fBxmlwf\fR \kx
 .if (\nx>(\n(.l/2)) .nr x (\n(.l/5)
 'in \n(.iu+\nxu
-\fB-v\fR 
+\fB-v\fR | \fB--version\fR 
 'in \n(.iu-\nxu
 .ad b
 'hy
@@ -158,6 +158,16 @@ supports four built-in encodings:
 \*(T<ISO\-8859\-1\*(T>.
 Also see the \*(T<\fB\-w\fR\*(T> option.
 .TP 
+\*(T<\fB\-g\fR\*(T> \fIbytes\fR
+Sets the buffer size to request per call pair to
+\*(T<\fBXML_GetBuffer\fR\*(T> and \*(T<\fBread\fR\*(T>
+(default: 8 KiB).
+.TP 
+\*(T<\fB\-h\fR\*(T>, \*(T<\fB\-\-help\fR\*(T>
+Prints short usage information on command \fBxmlwf\fR,
+and then exits.
+Similar to this man page but more concise.
+.TP 
 \*(T<\fB\-k\fR\*(T>
 When processing multiple files, \fBxmlwf\fR
 by default halts after the the first file with an error.
@@ -189,6 +199,10 @@ Normally \fBxmlwf\fR never parses parameter
 entities. \*(T<\fB\-p\fR\*(T> tells it to always parse them.
 \*(T<\fB\-p\fR\*(T> implies \*(T<\fB\-x\fR\*(T>.
 .TP 
+\*(T<\fB\-q\fR\*(T>
+Disable reparse deferral, and allow quadratic parse runtime
+on large tokens (default: reparse deferral enabled).
+.TP 
 \*(T<\fB\-r\fR\*(T>
 Normally \fBxmlwf\fR memory-maps the XML file
 before parsing; this can result in faster parsing on many
@@ -217,7 +231,7 @@ without client overhead.
 \*(T<\fB\-t\fR\*(T> turns off most of the output options
 (\*(T<\fB\-d\fR\*(T>, \*(T<\fB\-m\fR\*(T>, \*(T<\fB\-c\fR\*(T>, ...).
 .TP 
-\*(T<\fB\-v\fR\*(T>
+\*(T<\fB\-v\fR\*(T>, \*(T<\fB\-\-version\fR\*(T>
 Prints the version of the Expat library being used, including some
 information on the compile-time configuration of the library, and
 then exits.
@@ -281,7 +295,7 @@ halts upon encountering a well-formedness or output-file error.
 If \*(T<\fB\-k\fR\*(T> is provided, \fBxmlwf\fR continues
 processing the remaining input files, describing problems found with any of them.
 .SH "EXIT STATUS"
-For option \*(T<\fB\-v\fR\*(T> or \*(T<\fB\-h\fR\*(T>, \fBxmlwf\fR always exits with status code 0. For other cases, the following exit status codes are returned:
+For options \*(T<\fB\-v\fR\*(T>|\*(T<\fB\-\-version\fR\*(T> or \*(T<\fB\-h\fR\*(T>|\*(T<\fB\-\-help\fR\*(T>, \fBxmlwf\fR always exits with status code 0. For other cases, the following exit status codes are returned:
 .TP 
 \*(T<\fB0\fR\*(T>
 The input files are well-formed and the output (if requested) was written successfully.

@@ -68,4 +68,8 @@ read_devfs_conf()
 }
 
 load_rc_config $name
+
+# doesn't make sense to run in a svcj: may need more permissions
+devfs_svcj="NO"
+
 run_rc_command "$1"

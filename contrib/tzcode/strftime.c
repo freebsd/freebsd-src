@@ -327,11 +327,12 @@ label:
 					tm.tm_mday = t->tm_mday;
 					tm.tm_mon = t->tm_mon;
 					tm.tm_year = t->tm_year;
+#ifdef TM_GMTOFF
+					mkt = timeoff(&tm, t->TM_GMTOFF);
+#else
 					tm.tm_isdst = t->tm_isdst;
-#if defined TM_GMTOFF && ! UNINIT_TRAP
-					tm.TM_GMTOFF = t->TM_GMTOFF;
-#endif
 					mkt = mktime(&tm);
+#endif
 					/* If mktime fails, %s expands to the
 					   value of (time_t) -1 as a failure
 					   marker; this is better in practice

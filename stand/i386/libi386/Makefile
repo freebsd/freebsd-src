@@ -1,14 +1,36 @@
 
 .include <bsd.init.mk>
 
-LIB=			i386
+LIB=	i386
 
-SRCS=	bio.c biosacpi.c biosdisk.c biosmem.c biospnp.c \
-	biospci.c biossmap.c bootinfo.c bootinfo32.c bootinfo64.c \
-	comconsole.c devicename.c elf32_freebsd.c \
-	elf64_freebsd.c multiboot.c multiboot_tramp.S relocater_tramp.S \
-	i386_copy.c i386_module.c nullconsole.c pxe.c pxetramp.S \
-	time.c vidconsole.c vbe.c amd64_tramp.S spinconsole.c
+SRCS+=	amd64_tramp.S
+SRCS+=	bio.c
+SRCS+=	biosacpi.c
+SRCS+=	biosdisk.c
+SRCS+=	biosmem.c
+SRCS+=	biospci.c
+SRCS+=	biospnp.c
+SRCS+=	biossmap.c
+SRCS+=	bootinfo.c
+SRCS+=	bootinfo32.c
+SRCS+=	bootinfo64.c
+SRCS+=	comconsole.c
+SRCS+=	devicename.c
+SRCS+=	elf32_freebsd.c
+SRCS+=	elf64_freebsd.c
+SRCS+=	i386_copy.c
+SRCS+=	i386_module.c
+SRCS+=	multiboot.c
+SRCS+=	multiboot_tramp.S
+SRCS+=	nullconsole.c
+SRCS+=	pxe.c
+SRCS+=	pxetramp.S
+SRCS+=	relocater_tramp.S
+SRCS+=	spinconsole.c
+SRCS+=	time.c
+SRCS+=	textvidc.c
+SRCS+=	vbe.c
+SRCS+=	vidconsole.c
 
 .PATH:	${SYSDIR}/teken
 SRCS+=	teken.c
@@ -23,7 +45,7 @@ CFLAGS+=	-DCOMSPEED=${BOOT_COMCONSOLE_SPEED}
 
 .ifdef(BOOT_BIOSDISK_DEBUG)
 # Make the disk code more talkative
-CFLAGS+= -DDISK_DEBUG
+CFLAGS.biosdisk.c+= -DDISK_DEBUG
 .endif
 
 # terminal emulation
@@ -35,11 +57,9 @@ CFLAGS.teken.c+= -I${SRCTOP}/sys/teken
 CFLAGS.bootinfo.c+= -I${SRCTOP}/sys/teken -I${SRCTOP}/contrib/pnglite
 CFLAGS.vbe.c+= -I${SRCTOP}/sys/teken -I${SRCTOP}/contrib/pnglite
 
-# XXX: make alloca() useable
-CFLAGS+= -Dalloca=__builtin_alloca
+CFLAGS.textvidc.c+= -DTERM_EMU
 
-CFLAGS+=	-I${BOOTSRC}/ficl -I${BOOTSRC}/ficl/i386 \
-		-I${LDRSRC} -I${BOOTSRC}/i386/common \
+CFLAGS+=	-I${LDRSRC} -I${BOOTSRC}/i386/common \
 		-I${SYSDIR}/contrib/dev/acpica/include
 
 # Handle FreeBSD specific %b and %D printf format specifiers

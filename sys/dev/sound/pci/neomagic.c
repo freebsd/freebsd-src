@@ -702,9 +702,10 @@ nm_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	snprintf(status, SND_STATUSLEN, "at memory 0x%jx, 0x%jx irq %jd %s",
+	snprintf(status, SND_STATUSLEN, "mem 0x%jx,0x%jx irq %jd on %s",
 		 rman_get_start(sc->buf), rman_get_start(sc->reg),
-		 rman_get_start(sc->irq),PCM_KLDSTRING(snd_neomagic));
+		 rman_get_start(sc->irq),
+		 device_get_nameunit(device_get_parent(dev)));
 
 	if (pcm_register(dev, sc, 1, 1)) goto bad;
 	pcm_addchan(dev, PCMDIR_REC, &nmchan_class, sc);

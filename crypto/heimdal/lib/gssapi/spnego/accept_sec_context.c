@@ -605,7 +605,7 @@ acceptor_start
      * If opportunistic token failed, lets try the other mechs.
      */
 
-    if (!first_ok && ni->mechToken != NULL) {
+    if (!first_ok) {
 	size_t j;
 
 	preferred_mech_type = GSS_C_NO_OID;

@@ -313,14 +313,21 @@ main(int argc, char *argv[])
 		case 'A':
 			f_listdot = 1;
 			break;
-		/* The -t and -S options override each other. */
+		/* The -S, -t and -v options override each other. */
 		case 'S':
 			f_sizesort = 1;
 			f_timesort = 0;
+			f_verssort = 0;
 			break;
 		case 't':
 			f_timesort = 1;
 			f_sizesort = 0;
+			f_verssort = 0;
+			break;
+		case 'v':
+			f_verssort = 1;
+			f_sizesort = 0;
+			f_timesort = 0;
 			break;
 		/* Other flags.  Please keep alphabetic. */
 		case ',':
@@ -433,9 +440,6 @@ main(int argc, char *argv[])
 			break;
 		case 's':
 			f_size = 1;
-			break;
-		case 'v':
-			f_verssort = 1;
 			break;
 		case 'w':
 			f_nonprint = 0;
@@ -562,6 +566,7 @@ main(int argc, char *argv[])
 			blocksize /= 512;
 		}
 	}
+
 	/* Select a sort function. */
 	if (f_reversesort) {
 		if (f_sizesort)

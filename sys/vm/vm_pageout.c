@@ -1451,7 +1451,21 @@ vm_pageout_scan_inactive(struct vm_domain *vmd, int page_shortage)
 	pq = &vmd->vmd_pagequeues[PQ_INACTIVE];
 	vm_pagequeue_lock(pq);
 	vm_pageout_init_scan(&ss, pq, marker, NULL, pq->pq_cnt);
-	while (page_shortage > 0 && (m = vm_pageout_next(&ss, true)) != NULL) {
+	while (page_shortage > 0) {
+		/*
+		 * If we need to refill the scan batch queue, release any
+		 * optimistically held object lock.  This gives someone else a
+		 * chance to grab the lock, and also avoids holding it while we
+		 * do unrelated work.
+		 */
+		if (object != NULL && vm_batchqueue_empty(&ss.bq)) {
+			VM_OBJECT_WUNLOCK(object);
+			object = NULL;
+		}
+
+		m = vm_pageout_next(&ss, true);
+		if (m == NULL)
+			break;
 		KASSERT((m->flags & PG_MARKER) == 0,
 		    ("marker page %p was dequeued", m));
 

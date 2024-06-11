@@ -26,7 +26,6 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD$");
 
 #if !defined(_WIN32) || defined(__CYGWIN__)
 
@@ -4428,7 +4427,8 @@ fixup_appledouble(struct archive_write_disk *a, const char *pathname)
 #else
 		la_stat(datafork.s, &st) == -1 ||
 #endif
-	    (st.st_mode & AE_IFMT) != AE_IFREG)
+	    (((st.st_mode & AE_IFMT) != AE_IFREG) &&
+		((st.st_mode & AE_IFMT) != AE_IFDIR)))
 		goto skip_appledouble;
 
 	/*

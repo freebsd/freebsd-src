@@ -1,6 +1,6 @@
-# $NetBSD: varparse-mod.mk,v 1.1 2020/10/02 20:34:59 rillig Exp $
+# $NetBSD: varparse-mod.mk,v 1.2 2023/11/19 21:47:52 rillig Exp $
 
-# Tests for parsing variable expressions with modifiers.
+# Tests for parsing expressions with modifiers.
 
 # As of 2020-10-02, the below condition does not result in a parse error.
 # The condition contains two separate mistakes.  The first mistake is that
@@ -8,7 +8,7 @@
 # there is a stray '}' at the end of the whole condition.
 #
 # As of 2020-10-02, the actual parse result of this condition is a single
-# variable expression with 2 modifiers. The first modifier is
+# expression with 2 modifiers. The first modifier is
 # ":!echo "\$VAR"} !".  Afterwards, the parser optionally skips a ':' (at the
 # bottom of ApplyModifiers) and continues with the next modifier, in this case
 # "= "value"", which is interpreted as a SysV substitution modifier with an

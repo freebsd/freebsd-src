@@ -177,6 +177,26 @@ devfs_set_cdevpriv(void *priv, d_priv_dtor_t *priv_dtr)
 	return (error);
 }
 
+int
+devfs_foreach_cdevpriv(struct cdev *dev, int (*cb)(void *data, void *arg),
+    void *arg)
+{
+	struct cdev_priv *cdp;
+	struct cdev_privdata *p;
+	int error;
+
+	cdp = cdev2priv(dev);
+	error = 0;
+	mtx_lock(&cdevpriv_mtx);
+	LIST_FOREACH(p, &cdp->cdp_fdpriv, cdpd_list) {
+		error = cb(p->cdpd_data, arg);
+		if (error != 0)
+			break;
+	}
+	mtx_unlock(&cdevpriv_mtx);
+	return (error);
+}
+
 void
 devfs_destroy_cdevpriv(struct cdev_privdata *p)
 {
@@ -535,8 +555,7 @@ loop:
 		if (devfs_allocv_drop_refs(0, dmp, de)) {
 			vput(vp);
 			return (ENOENT);
-		}
-		else if (VN_IS_DOOMED(vp)) {
+		} else if (VN_IS_DOOMED(vp)) {
 			mtx_lock(&devfs_de_interlock);
 			if (de->de_vnode == vp) {
 				de->de_vnode = NULL;
@@ -2010,6 +2029,14 @@ dev2udev(struct cdev *x)
 	return (cdev2priv(x)->cdp_inode);
 }
 
+static int
+devfs_cmp_f(struct file *fp1, struct file *fp2, struct thread *td)
+{
+	if (fp2->f_type != DTYPE_VNODE || fp2->f_ops != &devfs_ops_f)
+		return (3);
+	return (kcmp_cmp((uintptr_t)fp1->f_data, (uintptr_t)fp2->f_data));
+}
+
 static struct fileops devfs_ops_f = {
 	.fo_read =	devfs_read_f,
 	.fo_write =	devfs_write_f,
@@ -2025,6 +2052,7 @@ static struct fileops devfs_ops_f = {
 	.fo_seek =	vn_seek,
 	.fo_fill_kinfo = vn_fill_kinfo,
 	.fo_mmap =	devfs_mmap_f,
+	.fo_cmp =	devfs_cmp_f,
 	.fo_flags =	DFLAG_PASSABLE | DFLAG_SEEKABLE
 };
 

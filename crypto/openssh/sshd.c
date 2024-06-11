@@ -1,4 +1,4 @@
-/* $OpenBSD: sshd.c,v 1.600 2023/03/08 04:43:12 guenther Exp $ */
+/* $OpenBSD: sshd.c,v 1.602 2024/01/08 00:34:34 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -2505,7 +2505,9 @@ do_ssh2_kex(struct ssh *ssh)
 	/* start key exchange */
 	if ((r = kex_setup(ssh, myproposal)) != 0)
 		fatal_r(r, "kex_setup");
+	kex_set_server_sig_algs(ssh, options.pubkey_accepted_algos);
 	kex = ssh->kex;
+
 #ifdef WITH_OPENSSL
 	kex->kex[KEX_DH_GRP1_SHA1] = kex_gen_server;
 	kex->kex[KEX_DH_GRP14_SHA1] = kex_gen_server;
@@ -2526,6 +2528,7 @@ do_ssh2_kex(struct ssh *ssh)
 	kex->sign = sshd_hostkey_sign;
 
 	ssh_dispatch_run_fatal(ssh, DISPATCH_BLOCK, &kex->done);
+	kex_proposal_free_entries(myproposal);
 
 #ifdef DEBUG_KEXDH
 	/* send 1st encrypted/maced/compressed message */
@@ -2535,7 +2538,6 @@ do_ssh2_kex(struct ssh *ssh)
 	    (r = ssh_packet_write_wait(ssh)) != 0)
 		fatal_fr(r, "send test");
 #endif
-	kex_proposal_free_entries(myproposal);
 	debug("KEX done");
 }
 

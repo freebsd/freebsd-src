@@ -125,7 +125,7 @@ main(int argc, const char **argv)
 	while (prompt != NULL) {
 		bsddialog_clear(0);
 		if (!sade_mode)
-			bsddialog_backtitle(&conf, "FreeBSD Installer");
+			bsddialog_backtitle(&conf, OSNAME " Installer");
 
 		error = geom_gettree(&mesh);
 		if (error == 0)
@@ -137,7 +137,7 @@ main(int argc, const char **argv)
 			    "installation menu.", 0, 0);
 			break;
 		}
-			
+
 		get_mount_points(items, nitems);
 
 		if (i >= nitems)

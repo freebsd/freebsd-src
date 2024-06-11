@@ -1,0 +1,47 @@
+.\"	$OpenBSD$
+.\"
+.\" Copyright (c) 2018 Martin Pieuchot
+.\" Copyright (c) 2020 Neels Hofmeyr <neels@hofmeyr.de>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 28 2017 $
+.Dt DIFF 1
+.Os
+.Sh NAME
+.Nm diff
+.Nd compare files
+.Sh SYNOPSIS
+.Nm diff
+.Ar file1 file2
+.Sh DESCRIPTION
+The
+.Nm
+utility compares the contents of
+.Ar file1
+and
+.Ar file2
+line by line.
+.Sh EXIT STATUS
+The
+.Nm
+utility exits with one of the following values:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It 0
+No differences were found.
+.It 1
+Differences were found.
+.It >1
+An error occurred.
+.El

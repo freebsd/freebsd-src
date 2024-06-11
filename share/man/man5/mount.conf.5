@@ -50,7 +50,7 @@ The logic for this is in
 .Fn vfs_mountroot_conf0 .
 .It
 The kernel will first mount
-.Xr devfs 5
+.Xr devfs 4
 as the root file system.
 .It
 Next, the kernel will parse the in-memory config file created in step 1
@@ -60,7 +60,7 @@ See
 for the format of the config file.
 .It
 When the actual root file system is mounted,
-.Xr devfs 5
+.Xr devfs 4
 will be re-mounted on the
 .Pa /dev
 directory.
@@ -221,7 +221,7 @@ For each root file system which is mounted, a
 directory
 .Em must
 exist so that the root mount logic can properly re-mount
-.Xr devfs 5 .
+.Xr devfs 4 .
 If this directory does not exist, the system
 may hang during the bootup process.
 .Sh SEE ALSO

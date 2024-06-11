@@ -48,9 +48,28 @@ der_get_unsigned (const unsigned char *p, size_t len,
     unsigned val = 0;
     size_t oldlen = len;
 
-    if (len == sizeof(unsigned) + 1 && p[0] == 0)
+    if (len == sizeof(val) + 1 && p[0] == 0)
 	;
-    else if (len > sizeof(unsigned))
+    else if (len > sizeof(val))
+	return ASN1_OVERRUN;
+
+    while (len--)
+	val = val * 256 + *p++;
+    *ret = val;
+    if(size) *size = oldlen;
+    return 0;
+}
+
+int
+der_get_unsigned64 (const unsigned char *p, size_t len,
+		    uint64_t *ret, size_t *size)
+{
+    uint64_t val = 0;
+    size_t oldlen = len;
+
+    if (len == sizeof(val) + 1 && p[0] == 0)
+	;
+    else if (len > sizeof(val))
 	return ASN1_OVERRUN;
 
     while (len--)
@@ -67,7 +86,27 @@ der_get_integer (const unsigned char *p, size_t len,
     int val = 0;
     size_t oldlen = len;
 
-    if (len > sizeof(int))
+    if (len > sizeof(val))
+	return ASN1_OVERRUN;
+
+    if (len > 0) {
+	val = (signed char)*p++;
+	while (--len)
+	    val = val * 256 + *p++;
+    }
+    *ret = val;
+    if(size) *size = oldlen;
+    return 0;
+}
+
+int
+der_get_integer64 (const unsigned char *p, size_t len,
+		   int64_t *ret, size_t *size)
+{
+    int64_t val = 0;
+    size_t oldlen = len;
+
+    if (len > sizeof(val))
 	return ASN1_OVERRUN;
 
     if (len > 0) {

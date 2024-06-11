@@ -24,16 +24,11 @@
 using namespace llvm;
 
 namespace {
-/// Represents the major and version number components of a RISC-V extension
-struct RISCVExtensionVersion {
-  unsigned Major;
-  unsigned Minor;
-};
 
 struct RISCVSupportedExtension {
   const char *Name;
   /// Supported version.
-  RISCVExtensionVersion Version;
+  RISCVISAInfo::ExtensionVersion Version;
 
   bool operator<(const RISCVSupportedExtension &RHS) const {
     return StringRef(Name) < StringRef(RHS.Name);
@@ -50,146 +45,168 @@ static const char *RISCVGImplications[] = {
 
 // NOTE: This table should be sorted alphabetically by extension name.
 static const RISCVSupportedExtension SupportedExtensions[] = {
-    {"a", RISCVExtensionVersion{2, 1}},
-    {"c", RISCVExtensionVersion{2, 0}},
-    {"d", RISCVExtensionVersion{2, 2}},
-    {"e", RISCVExtensionVersion{2, 0}},
-    {"f", RISCVExtensionVersion{2, 2}},
-    {"h", RISCVExtensionVersion{1, 0}},
-    {"i", RISCVExtensionVersion{2, 1}},
-    {"m", RISCVExtensionVersion{2, 0}},
+    {"a", {2, 1}},
+    {"c", {2, 0}},
+    {"d", {2, 2}},
+    {"e", {2, 0}},
+    {"f", {2, 2}},
+    {"h", {1, 0}},
+    {"i", {2, 1}},
+    {"m", {2, 0}},
 
-    {"svinval", RISCVExtensionVersion{1, 0}},
-    {"svnapot", RISCVExtensionVersion{1, 0}},
-    {"svpbmt", RISCVExtensionVersion{1, 0}},
+    {"smaia", {1, 0}},
+    {"smepmp", {1, 0}},
+    {"ssaia", {1, 0}},
+    {"svinval", {1, 0}},
+    {"svnapot", {1, 0}},
+    {"svpbmt", {1, 0}},
 
-    {"v", RISCVExtensionVersion{1, 0}},
+    {"v", {1, 0}},
 
     // vendor-defined ('X') extensions
-    {"xcvbitmanip", RISCVExtensionVersion{1, 0}},
-    {"xcvmac", RISCVExtensionVersion{1, 0}},
-    {"xsfcie", RISCVExtensionVersion{1, 0}},
-    {"xsfvcp", RISCVExtensionVersion{1, 0}},
-    {"xtheadba", RISCVExtensionVersion{1, 0}},
-    {"xtheadbb", RISCVExtensionVersion{1, 0}},
-    {"xtheadbs", RISCVExtensionVersion{1, 0}},
-    {"xtheadcmo", RISCVExtensionVersion{1, 0}},
-    {"xtheadcondmov", RISCVExtensionVersion{1, 0}},
-    {"xtheadfmemidx", RISCVExtensionVersion{1, 0}},
-    {"xtheadmac", RISCVExtensionVersion{1, 0}},
-    {"xtheadmemidx", RISCVExtensionVersion{1, 0}},
-    {"xtheadmempair", RISCVExtensionVersion{1, 0}},
-    {"xtheadsync", RISCVExtensionVersion{1, 0}},
-    {"xtheadvdot", RISCVExtensionVersion{1, 0}},
-    {"xventanacondops", RISCVExtensionVersion{1, 0}},
+    {"xcvalu", {1, 0}},
+    {"xcvbi", {1, 0}},
+    {"xcvbitmanip", {1, 0}},
+    {"xcvelw", {1, 0}},
+    {"xcvmac", {1, 0}},
+    {"xcvmem", {1, 0}},
+    {"xcvsimd", {1, 0}},
+    {"xsfvcp", {1, 0}},
+    {"xsfvfnrclipxfqf", {1, 0}},
+    {"xsfvfwmaccqqq", {1, 0}},
+    {"xsfvqmaccdod", {1, 0}},
+    {"xsfvqmaccqoq", {1, 0}},
+    {"xtheadba", {1, 0}},
+    {"xtheadbb", {1, 0}},
+    {"xtheadbs", {1, 0}},
+    {"xtheadcmo", {1, 0}},
+    {"xtheadcondmov", {1, 0}},
+    {"xtheadfmemidx", {1, 0}},
+    {"xtheadmac", {1, 0}},
+    {"xtheadmemidx", {1, 0}},
+    {"xtheadmempair", {1, 0}},
+    {"xtheadsync", {1, 0}},
+    {"xtheadvdot", {1, 0}},
+    {"xventanacondops", {1, 0}},
 
-    {"zawrs", RISCVExtensionVersion{1, 0}},
+    {"za128rs", {1, 0}},
+    {"za64rs", {1, 0}},
+    {"zawrs", {1, 0}},
 
-    {"zba", RISCVExtensionVersion{1, 0}},
-    {"zbb", RISCVExtensionVersion{1, 0}},
-    {"zbc", RISCVExtensionVersion{1, 0}},
-    {"zbkb", RISCVExtensionVersion{1, 0}},
-    {"zbkc", RISCVExtensionVersion{1, 0}},
-    {"zbkx", RISCVExtensionVersion{1, 0}},
-    {"zbs", RISCVExtensionVersion{1, 0}},
+    {"zba", {1, 0}},
+    {"zbb", {1, 0}},
+    {"zbc", {1, 0}},
+    {"zbkb", {1, 0}},
+    {"zbkc", {1, 0}},
+    {"zbkx", {1, 0}},
+    {"zbs", {1, 0}},
 
-    {"zca", RISCVExtensionVersion{1, 0}},
-    {"zcb", RISCVExtensionVersion{1, 0}},
-    {"zcd", RISCVExtensionVersion{1, 0}},
-    {"zce", RISCVExtensionVersion{1, 0}},
-    {"zcf", RISCVExtensionVersion{1, 0}},
-    {"zcmp", RISCVExtensionVersion{1, 0}},
-    {"zcmt", RISCVExtensionVersion{1, 0}},
+    {"zca", {1, 0}},
+    {"zcb", {1, 0}},
+    {"zcd", {1, 0}},
+    {"zce", {1, 0}},
+    {"zcf", {1, 0}},
+    {"zcmp", {1, 0}},
+    {"zcmt", {1, 0}},
 
-    {"zdinx", RISCVExtensionVersion{1, 0}},
+    {"zdinx", {1, 0}},
 
-    {"zfh", RISCVExtensionVersion{1, 0}},
-    {"zfhmin", RISCVExtensionVersion{1, 0}},
-    {"zfinx", RISCVExtensionVersion{1, 0}},
+    {"zfa", {1, 0}},
+    {"zfh", {1, 0}},
+    {"zfhmin", {1, 0}},
+    {"zfinx", {1, 0}},
 
-    {"zhinx", RISCVExtensionVersion{1, 0}},
-    {"zhinxmin", RISCVExtensionVersion{1, 0}},
+    {"zhinx", {1, 0}},
+    {"zhinxmin", {1, 0}},
 
-    {"zicbom", RISCVExtensionVersion{1, 0}},
-    {"zicbop", RISCVExtensionVersion{1, 0}},
-    {"zicboz", RISCVExtensionVersion{1, 0}},
-    {"zicntr", RISCVExtensionVersion{1, 0}},
-    {"zicsr", RISCVExtensionVersion{2, 0}},
-    {"zifencei", RISCVExtensionVersion{2, 0}},
-    {"zihintpause", RISCVExtensionVersion{2, 0}},
-    {"zihpm", RISCVExtensionVersion{1, 0}},
+    {"zic64b", {1, 0}},
+    {"zicbom", {1, 0}},
+    {"zicbop", {1, 0}},
+    {"zicboz", {1, 0}},
+    {"ziccamoa", {1, 0}},
+    {"ziccif", {1, 0}},
+    {"zicclsm", {1, 0}},
+    {"ziccrse", {1, 0}},
+    {"zicntr", {2, 0}},
+    {"zicond", {1, 0}},
+    {"zicsr", {2, 0}},
+    {"zifencei", {2, 0}},
+    {"zihintntl", {1, 0}},
+    {"zihintpause", {2, 0}},
+    {"zihpm", {2, 0}},
 
-    {"zk", RISCVExtensionVersion{1, 0}},
-    {"zkn", RISCVExtensionVersion{1, 0}},
-    {"zknd", RISCVExtensionVersion{1, 0}},
-    {"zkne", RISCVExtensionVersion{1, 0}},
-    {"zknh", RISCVExtensionVersion{1, 0}},
-    {"zkr", RISCVExtensionVersion{1, 0}},
-    {"zks", RISCVExtensionVersion{1, 0}},
-    {"zksed", RISCVExtensionVersion{1, 0}},
-    {"zksh", RISCVExtensionVersion{1, 0}},
-    {"zkt", RISCVExtensionVersion{1, 0}},
+    {"zk", {1, 0}},
+    {"zkn", {1, 0}},
+    {"zknd", {1, 0}},
+    {"zkne", {1, 0}},
+    {"zknh", {1, 0}},
+    {"zkr", {1, 0}},
+    {"zks", {1, 0}},
+    {"zksed", {1, 0}},
+    {"zksh", {1, 0}},
+    {"zkt", {1, 0}},
 
-    {"zmmul", RISCVExtensionVersion{1, 0}},
+    {"zmmul", {1, 0}},
 
-    {"zve32f", RISCVExtensionVersion{1, 0}},
-    {"zve32x", RISCVExtensionVersion{1, 0}},
-    {"zve64d", RISCVExtensionVersion{1, 0}},
-    {"zve64f", RISCVExtensionVersion{1, 0}},
-    {"zve64x", RISCVExtensionVersion{1, 0}},
+    {"zvbb", {1, 0}},
+    {"zvbc", {1, 0}},
 
-    {"zvfh", RISCVExtensionVersion{1, 0}},
+    {"zve32f", {1, 0}},
+    {"zve32x", {1, 0}},
+    {"zve64d", {1, 0}},
+    {"zve64f", {1, 0}},
+    {"zve64x", {1, 0}},
 
-    {"zvl1024b", RISCVExtensionVersion{1, 0}},
-    {"zvl128b", RISCVExtensionVersion{1, 0}},
-    {"zvl16384b", RISCVExtensionVersion{1, 0}},
-    {"zvl2048b", RISCVExtensionVersion{1, 0}},
-    {"zvl256b", RISCVExtensionVersion{1, 0}},
-    {"zvl32768b", RISCVExtensionVersion{1, 0}},
-    {"zvl32b", RISCVExtensionVersion{1, 0}},
-    {"zvl4096b", RISCVExtensionVersion{1, 0}},
-    {"zvl512b", RISCVExtensionVersion{1, 0}},
-    {"zvl64b", RISCVExtensionVersion{1, 0}},
-    {"zvl65536b", RISCVExtensionVersion{1, 0}},
-    {"zvl8192b", RISCVExtensionVersion{1, 0}},
+    {"zvfh", {1, 0}},
+    {"zvfhmin", {1, 0}},
+
+    // vector crypto
+    {"zvkb", {1, 0}},
+    {"zvkg", {1, 0}},
+    {"zvkn", {1, 0}},
+    {"zvknc", {1, 0}},
+    {"zvkned", {1, 0}},
+    {"zvkng", {1, 0}},
+    {"zvknha", {1, 0}},
+    {"zvknhb", {1, 0}},
+    {"zvks", {1, 0}},
+    {"zvksc", {1, 0}},
+    {"zvksed", {1, 0}},
+    {"zvksg", {1, 0}},
+    {"zvksh", {1, 0}},
+    {"zvkt", {1, 0}},
+
+    {"zvl1024b", {1, 0}},
+    {"zvl128b", {1, 0}},
+    {"zvl16384b", {1, 0}},
+    {"zvl2048b", {1, 0}},
+    {"zvl256b", {1, 0}},
+    {"zvl32768b", {1, 0}},
+    {"zvl32b", {1, 0}},
+    {"zvl4096b", {1, 0}},
+    {"zvl512b", {1, 0}},
+    {"zvl64b", {1, 0}},
+    {"zvl65536b", {1, 0}},
+    {"zvl8192b", {1, 0}},
 };
 
 // NOTE: This table should be sorted alphabetically by extension name.
 static const RISCVSupportedExtension SupportedExperimentalExtensions[] = {
-    {"smaia", RISCVExtensionVersion{1, 0}},
-    {"ssaia", RISCVExtensionVersion{1, 0}},
+    {"zacas", {1, 0}},
 
-    {"zacas", RISCVExtensionVersion{1, 0}},
+    {"zcmop", {0, 2}},
 
-    {"zfa", RISCVExtensionVersion{0, 2}},
-    {"zfbfmin", RISCVExtensionVersion{0, 6}},
+    {"zfbfmin", {1, 0}},
 
-    {"zicond", RISCVExtensionVersion{1, 0}},
+    {"zicfilp", {0, 4}},
+    {"zicfiss", {0, 4}},
 
-    {"zihintntl", RISCVExtensionVersion{0, 2}},
+    {"zimop", {0, 1}},
 
-    {"ztso", RISCVExtensionVersion{0, 1}},
+    {"ztso", {0, 1}},
 
-    {"zvbb", RISCVExtensionVersion{1, 0}},
-    {"zvbc", RISCVExtensionVersion{1, 0}},
-
-    {"zvfbfmin", RISCVExtensionVersion{0, 6}},
-    {"zvfbfwma", RISCVExtensionVersion{0, 6}},
-
-    // vector crypto
-    {"zvkg", RISCVExtensionVersion{1, 0}},
-    {"zvkn", RISCVExtensionVersion{1, 0}},
-    {"zvknc", RISCVExtensionVersion{1, 0}},
-    {"zvkned", RISCVExtensionVersion{1, 0}},
-    {"zvkng", RISCVExtensionVersion{1, 0}},
-    {"zvknha", RISCVExtensionVersion{1, 0}},
-    {"zvknhb", RISCVExtensionVersion{1, 0}},
-    {"zvks", RISCVExtensionVersion{1, 0}},
-    {"zvksc", RISCVExtensionVersion{1, 0}},
-    {"zvksed", RISCVExtensionVersion{1, 0}},
-    {"zvksg", RISCVExtensionVersion{1, 0}},
-    {"zvksh", RISCVExtensionVersion{1, 0}},
-    {"zvkt", RISCVExtensionVersion{1, 0}},
+    {"zvfbfmin", {1, 0}},
+    {"zvfbfwma", {1, 0}},
 };
 
 static void verifyTables() {
@@ -203,6 +220,42 @@ static void verifyTables() {
     TableChecked.store(true, std::memory_order_relaxed);
   }
 #endif
+}
+
+static void PrintExtension(StringRef Name, StringRef Version,
+                           StringRef Description) {
+  outs().indent(4);
+  unsigned VersionWidth = Description.empty() ? 0 : 10;
+  outs() << left_justify(Name, 20) << left_justify(Version, VersionWidth)
+         << Description << "\n";
+}
+
+void llvm::riscvExtensionsHelp(StringMap<StringRef> DescMap) {
+
+  outs() << "All available -march extensions for RISC-V\n\n";
+  PrintExtension("Name", "Version", (DescMap.empty() ? "" : "Description"));
+
+  RISCVISAInfo::OrderedExtensionMap ExtMap;
+  for (const auto &E : SupportedExtensions)
+    ExtMap[E.Name] = {E.Version.Major, E.Version.Minor};
+  for (const auto &E : ExtMap) {
+    std::string Version =
+        std::to_string(E.second.Major) + "." + std::to_string(E.second.Minor);
+    PrintExtension(E.first, Version, DescMap[E.first]);
+  }
+
+  outs() << "\nExperimental extensions\n";
+  ExtMap.clear();
+  for (const auto &E : SupportedExperimentalExtensions)
+    ExtMap[E.Name] = {E.Version.Major, E.Version.Minor};
+  for (const auto &E : ExtMap) {
+    std::string Version =
+        std::to_string(E.second.Major) + "." + std::to_string(E.second.Minor);
+    PrintExtension(E.first, Version, DescMap["experimental-" + E.first]);
+  }
+
+  outs() << "\nUse -march to specify the target's extension.\n"
+            "For example, clang -march=rv32i_v1p0\n";
 }
 
 static bool stripExperimentalPrefix(StringRef &Ext) {
@@ -242,7 +295,7 @@ struct LessExtName {
 };
 } // namespace
 
-static std::optional<RISCVExtensionVersion>
+static std::optional<RISCVISAInfo::ExtensionVersion>
 findDefaultVersion(StringRef ExtName) {
   // Find default version of an extension.
   // TODO: We might set default version based on profile or ISA spec.
@@ -258,35 +311,32 @@ findDefaultVersion(StringRef ExtName) {
   return std::nullopt;
 }
 
-void RISCVISAInfo::addExtension(StringRef ExtName, unsigned MajorVersion,
-                                unsigned MinorVersion) {
-  RISCVExtensionInfo Ext;
-  Ext.MajorVersion = MajorVersion;
-  Ext.MinorVersion = MinorVersion;
-  Exts[ExtName.str()] = Ext;
+void RISCVISAInfo::addExtension(StringRef ExtName,
+                                RISCVISAInfo::ExtensionVersion Version) {
+  Exts[ExtName.str()] = Version;
 }
 
 static StringRef getExtensionTypeDesc(StringRef Ext) {
-  if (Ext.startswith("s"))
+  if (Ext.starts_with("s"))
     return "standard supervisor-level extension";
-  if (Ext.startswith("x"))
+  if (Ext.starts_with("x"))
     return "non-standard user-level extension";
-  if (Ext.startswith("z"))
+  if (Ext.starts_with("z"))
     return "standard user-level extension";
   return StringRef();
 }
 
 static StringRef getExtensionType(StringRef Ext) {
-  if (Ext.startswith("s"))
+  if (Ext.starts_with("s"))
     return "s";
-  if (Ext.startswith("x"))
+  if (Ext.starts_with("x"))
     return "x";
-  if (Ext.startswith("z"))
+  if (Ext.starts_with("z"))
     return "z";
   return StringRef();
 }
 
-static std::optional<RISCVExtensionVersion>
+static std::optional<RISCVISAInfo::ExtensionVersion>
 isExperimentalExtension(StringRef Ext) {
   auto I =
       llvm::lower_bound(SupportedExperimentalExtensions, Ext, LessExtName());
@@ -415,35 +465,38 @@ bool RISCVISAInfo::compareExtension(const std::string &LHS,
   return LHS < RHS;
 }
 
-void RISCVISAInfo::toFeatures(
-    std::vector<StringRef> &Features,
-    llvm::function_ref<StringRef(const Twine &)> StrAlloc,
-    bool AddAllExtensions) const {
-  for (auto const &Ext : Exts) {
-    StringRef ExtName = Ext.first;
-
+std::vector<std::string> RISCVISAInfo::toFeatures(bool AddAllExtensions,
+                                                  bool IgnoreUnknown) const {
+  std::vector<std::string> Features;
+  for (const auto &[ExtName, _] : Exts) {
+    // i is a base instruction set, not an extension (see
+    // https://github.com/riscv/riscv-isa-manual/blob/main/src/naming.adoc#base-integer-isa)
+    // and is not recognized in clang -cc1
     if (ExtName == "i")
+      continue;
+    if (IgnoreUnknown && !isSupportedExtension(ExtName))
       continue;
 
     if (isExperimentalExtension(ExtName)) {
-      Features.push_back(StrAlloc("+experimental-" + ExtName));
+      Features.push_back((llvm::Twine("+experimental-") + ExtName).str());
     } else {
-      Features.push_back(StrAlloc("+" + ExtName));
+      Features.push_back((llvm::Twine("+") + ExtName).str());
     }
   }
   if (AddAllExtensions) {
     for (const RISCVSupportedExtension &Ext : SupportedExtensions) {
       if (Exts.count(Ext.Name))
         continue;
-      Features.push_back(StrAlloc(Twine("-") + Ext.Name));
+      Features.push_back((llvm::Twine("-") + Ext.Name).str());
     }
 
     for (const RISCVSupportedExtension &Ext : SupportedExperimentalExtensions) {
       if (Exts.count(Ext.Name))
         continue;
-      Features.push_back(StrAlloc(Twine("-experimental-") + Ext.Name));
+      Features.push_back((llvm::Twine("-experimental-") + Ext.Name).str());
     }
   }
+  return Features;
 }
 
 // Extensions may have a version number, and may be separated by
@@ -498,7 +551,7 @@ static Error getExtensionVersion(StringRef Ext, StringRef In, unsigned &Major,
     return createStringError(errc::invalid_argument, Error);
   }
 
-  // If experimental extension, require use of current version number number
+  // If experimental extension, require use of current version number
   if (auto ExperimentalExtension = isExperimentalExtension(Ext)) {
     if (!EnableExperimentalExtension) {
       std::string Error = "requires '-menable-experimental-extensions' for "
@@ -580,8 +633,7 @@ RISCVISAInfo::parseFeatures(unsigned XLen,
       continue;
 
     if (Add)
-      ISAInfo->addExtension(ExtName, ExtensionInfoIterator->Version.Major,
-                            ExtensionInfoIterator->Version.Minor);
+      ISAInfo->addExtension(ExtName, ExtensionInfoIterator->Version);
     else
       ISAInfo->Exts.erase(ExtName.str());
   }
@@ -597,9 +649,9 @@ RISCVISAInfo::parseNormalizedArchString(StringRef Arch) {
   }
   // Must start with a valid base ISA name.
   unsigned XLen;
-  if (Arch.startswith("rv32i") || Arch.startswith("rv32e"))
+  if (Arch.starts_with("rv32i") || Arch.starts_with("rv32e"))
     XLen = 32;
-  else if (Arch.startswith("rv64i") || Arch.startswith("rv64e"))
+  else if (Arch.starts_with("rv64i") || Arch.starts_with("rv64e"))
     XLen = 64;
   else
     return createStringError(errc::invalid_argument,
@@ -642,7 +694,7 @@ RISCVISAInfo::parseNormalizedArchString(StringRef Arch) {
     if (MajorVersionStr.getAsInteger(10, MajorVersion))
       return createStringError(errc::invalid_argument,
                                "failed to parse major version number");
-    ISAInfo->addExtension(ExtName, MajorVersion, MinorVersion);
+    ISAInfo->addExtension(ExtName, {MajorVersion, MinorVersion});
   }
   ISAInfo->updateFLen();
   ISAInfo->updateMinVLen();
@@ -660,9 +712,9 @@ RISCVISAInfo::parseArchString(StringRef Arch, bool EnableExperimentalExtension,
                              "string must be lowercase");
   }
 
-  bool HasRV64 = Arch.startswith("rv64");
+  bool HasRV64 = Arch.starts_with("rv64");
   // ISA string must begin with rv32 or rv64.
-  if (!(Arch.startswith("rv32") || HasRV64) || (Arch.size() < 5)) {
+  if (!(Arch.starts_with("rv32") || HasRV64) || (Arch.size() < 5)) {
     return createStringError(
         errc::invalid_argument,
         "string must begin with rv32{i,e,g} or rv64{i,e,g}");
@@ -721,7 +773,7 @@ RISCVISAInfo::parseArchString(StringRef Arch, bool EnableExperimentalExtension,
     // ISA spec.
     for (const auto *Ext : RISCVGImplications) {
       if (auto Version = findDefaultVersion(Ext))
-        ISAInfo->addExtension(Ext, Version->Major, Version->Minor);
+        ISAInfo->addExtension(Ext, *Version);
       else
         llvm_unreachable("Default extension version not found?");
     }
@@ -740,7 +792,7 @@ RISCVISAInfo::parseArchString(StringRef Arch, bool EnableExperimentalExtension,
       Minor = Version->Minor;
     }
 
-    ISAInfo->addExtension(StringRef(&Baseline, 1), Major, Minor);
+    ISAInfo->addExtension(StringRef(&Baseline, 1), {Major, Minor});
   }
 
   // Consume the base ISA version number and any '_' between rvxxx and the
@@ -806,7 +858,7 @@ RISCVISAInfo::parseArchString(StringRef Arch, bool EnableExperimentalExtension,
                                "unsupported standard user-level extension '%c'",
                                C);
     }
-    ISAInfo->addExtension(StringRef(&C, 1), Major, Minor);
+    ISAInfo->addExtension(StringRef(&C, 1), {Major, Minor});
 
     // Consume full extension name and version, including any optional '_'
     // between this extension and the next
@@ -874,7 +926,7 @@ RISCVISAInfo::parseArchString(StringRef Arch, bool EnableExperimentalExtension,
       if (IgnoreUnknown && !isSupportedExtension(Name))
         continue;
 
-      ISAInfo->addExtension(Name, Major, Minor);
+      ISAInfo->addExtension(Name, {Major, Minor});
       // Extension format is correct, keep parsing the extensions.
       // TODO: Save Type, Name, Major, Minor to avoid parsing them later.
       AllExts.push_back(Name);
@@ -943,10 +995,6 @@ Error RISCVISAInfo::checkDependency() {
     return createStringError(errc::invalid_argument,
                              "'zcf' is only supported for 'rv32'");
 
-  // Additional dependency checks.
-  // TODO: The 'q' extension requires rv64.
-  // TODO: It is illegal to specify 'e' extensions with 'f' and 'd'.
-
   return Error::success();
 }
 
@@ -954,41 +1002,49 @@ static const char *ImpliedExtsD[] = {"f"};
 static const char *ImpliedExtsF[] = {"zicsr"};
 static const char *ImpliedExtsV[] = {"zvl128b", "zve64d"};
 static const char *ImpliedExtsXTHeadVdot[] = {"v"};
-static const char *ImpliedExtsXsfvcp[] = {"zve32x"};
+static const char *ImpliedExtsXSfvcp[] = {"zve32x"};
+static const char *ImpliedExtsXSfvfnrclipxfqf[] = {"zve32f"};
+static const char *ImpliedExtsXSfvfwmaccqqq[] = {"zvfbfmin"};
+static const char *ImpliedExtsXSfvqmaccdod[] = {"zve32x"};
+static const char *ImpliedExtsXSfvqmaccqoq[] = {"zve32x"};
 static const char *ImpliedExtsZacas[] = {"a"};
 static const char *ImpliedExtsZcb[] = {"zca"};
-static const char *ImpliedExtsZcd[] = {"zca"};
+static const char *ImpliedExtsZcd[] = {"d", "zca"};
 static const char *ImpliedExtsZce[] = {"zcb", "zcmp", "zcmt"};
-static const char *ImpliedExtsZcf[] = {"zca"};
+static const char *ImpliedExtsZcf[] = {"f", "zca"};
+static const char *ImpliedExtsZcmop[] = {"zca"};
 static const char *ImpliedExtsZcmp[] = {"zca"};
-static const char *ImpliedExtsZcmt[] = {"zca"};
+static const char *ImpliedExtsZcmt[] = {"zca", "zicsr"};
 static const char *ImpliedExtsZdinx[] = {"zfinx"};
 static const char *ImpliedExtsZfa[] = {"f"};
 static const char *ImpliedExtsZfbfmin[] = {"f"};
-static const char *ImpliedExtsZfh[] = {"f"};
+static const char *ImpliedExtsZfh[] = {"zfhmin"};
 static const char *ImpliedExtsZfhmin[] = {"f"};
 static const char *ImpliedExtsZfinx[] = {"zicsr"};
-static const char *ImpliedExtsZhinx[] = {"zfinx"};
+static const char *ImpliedExtsZhinx[] = {"zhinxmin"};
 static const char *ImpliedExtsZhinxmin[] = {"zfinx"};
 static const char *ImpliedExtsZicntr[] = {"zicsr"};
+static const char *ImpliedExtsZicfiss[] = {"zicsr", "zimop"};
 static const char *ImpliedExtsZihpm[] = {"zicsr"};
 static const char *ImpliedExtsZk[] = {"zkn", "zkt", "zkr"};
 static const char *ImpliedExtsZkn[] = {"zbkb", "zbkc", "zbkx",
                                        "zkne", "zknd", "zknh"};
 static const char *ImpliedExtsZks[] = {"zbkb", "zbkc", "zbkx", "zksed", "zksh"};
+static const char *ImpliedExtsZvbb[] = {"zvkb"};
 static const char *ImpliedExtsZve32f[] = {"zve32x", "f"};
 static const char *ImpliedExtsZve32x[] = {"zvl32b", "zicsr"};
 static const char *ImpliedExtsZve64d[] = {"zve64f", "d"};
 static const char *ImpliedExtsZve64f[] = {"zve64x", "zve32f"};
 static const char *ImpliedExtsZve64x[] = {"zve32x", "zvl64b"};
 static const char *ImpliedExtsZvfbfmin[] = {"zve32f"};
-static const char *ImpliedExtsZvfbfwma[] = {"zve32f"};
-static const char *ImpliedExtsZvfh[] = {"zve32f", "zfhmin"};
-static const char *ImpliedExtsZvkn[] = {"zvbb", "zvkned", "zvknhb", "zvkt"};
+static const char *ImpliedExtsZvfbfwma[] = {"zvfbfmin", "zfbfmin"};
+static const char *ImpliedExtsZvfh[] = {"zvfhmin", "zfhmin"};
+static const char *ImpliedExtsZvfhmin[] = {"zve32f"};
+static const char *ImpliedExtsZvkn[] = {"zvkb", "zvkned", "zvknhb", "zvkt"};
 static const char *ImpliedExtsZvknc[] = {"zvbc", "zvkn"};
 static const char *ImpliedExtsZvkng[] = {"zvkg", "zvkn"};
-static const char *ImpliedExtsZvknhb[] = {"zvknha"};
-static const char *ImpliedExtsZvks[] = {"zvbb", "zvksed", "zvksh", "zvkt"};
+static const char *ImpliedExtsZvknhb[] = {"zve64x"};
+static const char *ImpliedExtsZvks[] = {"zvkb", "zvksed", "zvksh", "zvkt"};
 static const char *ImpliedExtsZvksc[] = {"zvbc", "zvks"};
 static const char *ImpliedExtsZvksg[] = {"zvkg", "zvks"};
 static const char *ImpliedExtsZvl1024b[] = {"zvl512b"};
@@ -1019,13 +1075,18 @@ static constexpr ImpliedExtsEntry ImpliedExts[] = {
     {{"d"}, {ImpliedExtsD}},
     {{"f"}, {ImpliedExtsF}},
     {{"v"}, {ImpliedExtsV}},
-    {{"xsfvcp"}, {ImpliedExtsXsfvcp}},
+    {{"xsfvcp"}, {ImpliedExtsXSfvcp}},
+    {{"xsfvfnrclipxfqf"}, {ImpliedExtsXSfvfnrclipxfqf}},
+    {{"xsfvfwmaccqqq"}, {ImpliedExtsXSfvfwmaccqqq}},
+    {{"xsfvqmaccdod"}, {ImpliedExtsXSfvqmaccdod}},
+    {{"xsfvqmaccqoq"}, {ImpliedExtsXSfvqmaccqoq}},
     {{"xtheadvdot"}, {ImpliedExtsXTHeadVdot}},
     {{"zacas"}, {ImpliedExtsZacas}},
     {{"zcb"}, {ImpliedExtsZcb}},
     {{"zcd"}, {ImpliedExtsZcd}},
     {{"zce"}, {ImpliedExtsZce}},
     {{"zcf"}, {ImpliedExtsZcf}},
+    {{"zcmop"}, {ImpliedExtsZcmop}},
     {{"zcmp"}, {ImpliedExtsZcmp}},
     {{"zcmt"}, {ImpliedExtsZcmt}},
     {{"zdinx"}, {ImpliedExtsZdinx}},
@@ -1036,11 +1097,13 @@ static constexpr ImpliedExtsEntry ImpliedExts[] = {
     {{"zfinx"}, {ImpliedExtsZfinx}},
     {{"zhinx"}, {ImpliedExtsZhinx}},
     {{"zhinxmin"}, {ImpliedExtsZhinxmin}},
+    {{"zicfiss"}, {ImpliedExtsZicfiss}},
     {{"zicntr"}, {ImpliedExtsZicntr}},
     {{"zihpm"}, {ImpliedExtsZihpm}},
     {{"zk"}, {ImpliedExtsZk}},
     {{"zkn"}, {ImpliedExtsZkn}},
     {{"zks"}, {ImpliedExtsZks}},
+    {{"zvbb"}, {ImpliedExtsZvbb}},
     {{"zve32f"}, {ImpliedExtsZve32f}},
     {{"zve32x"}, {ImpliedExtsZve32x}},
     {{"zve64d"}, {ImpliedExtsZve64d}},
@@ -1049,6 +1112,7 @@ static constexpr ImpliedExtsEntry ImpliedExts[] = {
     {{"zvfbfmin"}, {ImpliedExtsZvfbfmin}},
     {{"zvfbfwma"}, {ImpliedExtsZvfbfwma}},
     {{"zvfh"}, {ImpliedExtsZvfh}},
+    {{"zvfhmin"}, {ImpliedExtsZvfhmin}},
     {{"zvkn"}, {ImpliedExtsZvkn}},
     {{"zvknc"}, {ImpliedExtsZvknc}},
     {{"zvkng"}, {ImpliedExtsZvkng}},
@@ -1077,7 +1141,7 @@ void RISCVISAInfo::updateImplication() {
   // implied
   if (!HasE && !HasI) {
     auto Version = findDefaultVersion("i");
-    addExtension("i", Version->Major, Version->Minor);
+    addExtension("i", Version.value());
   }
 
   assert(llvm::is_sorted(ImpliedExts) && "Table not sorted by Name");
@@ -1098,7 +1162,7 @@ void RISCVISAInfo::updateImplication() {
         if (Exts.count(ImpliedExt))
           continue;
         auto Version = findDefaultVersion(ImpliedExt);
-        addExtension(ImpliedExt, Version->Major, Version->Minor);
+        addExtension(ImpliedExt, Version.value());
         WorkList.insert(ImpliedExt);
       }
     }
@@ -1108,7 +1172,7 @@ void RISCVISAInfo::updateImplication() {
   if (XLen == 32 && Exts.count("zce") && Exts.count("f") &&
       !Exts.count("zcf")) {
     auto Version = findDefaultVersion("zcf");
-    addExtension("zcf", Version->Major, Version->Minor);
+    addExtension("zcf", Version.value());
   }
 }
 
@@ -1143,7 +1207,7 @@ void RISCVISAInfo::updateCombination() {
         IsAllRequiredFeatureExist &= hasExtension(Ext);
       if (IsAllRequiredFeatureExist) {
         auto Version = findDefaultVersion(CombineExt);
-        addExtension(CombineExt, Version->Major, Version->Minor);
+        addExtension(CombineExt, Version.value());
         IsNewCombine = true;
       }
     }
@@ -1200,26 +1264,10 @@ std::string RISCVISAInfo::toString() const {
     StringRef ExtName = Ext.first;
     auto ExtInfo = Ext.second;
     Arch << LS << ExtName;
-    Arch << ExtInfo.MajorVersion << "p" << ExtInfo.MinorVersion;
+    Arch << ExtInfo.Major << "p" << ExtInfo.Minor;
   }
 
   return Arch.str();
-}
-
-std::vector<std::string> RISCVISAInfo::toFeatureVector() const {
-  std::vector<std::string> FeatureVector;
-  for (auto const &Ext : Exts) {
-    std::string ExtName = Ext.first;
-    if (ExtName == "i") // i is not recognized in clang -cc1
-      continue;
-    if (!isSupportedExtension(ExtName))
-      continue;
-    std::string Feature = isExperimentalExtension(ExtName)
-                              ? "+experimental-" + ExtName
-                              : "+" + ExtName;
-    FeatureVector.push_back(Feature);
-  }
-  return FeatureVector;
 }
 
 llvm::Expected<std::unique_ptr<RISCVISAInfo>>
@@ -1237,17 +1285,58 @@ RISCVISAInfo::postProcessAndChecking(std::unique_ptr<RISCVISAInfo> &&ISAInfo) {
 
 StringRef RISCVISAInfo::computeDefaultABI() const {
   if (XLen == 32) {
-    if (hasExtension("d"))
-      return "ilp32d";
     if (hasExtension("e"))
       return "ilp32e";
+    if (hasExtension("d"))
+      return "ilp32d";
+    if (hasExtension("f"))
+      return "ilp32f";
     return "ilp32";
   } else if (XLen == 64) {
-    if (hasExtension("d"))
-      return "lp64d";
     if (hasExtension("e"))
       return "lp64e";
+    if (hasExtension("d"))
+      return "lp64d";
+    if (hasExtension("f"))
+      return "lp64f";
     return "lp64";
   }
   llvm_unreachable("Invalid XLEN");
+}
+
+bool RISCVISAInfo::isSupportedExtensionWithVersion(StringRef Ext) {
+  if (Ext.empty())
+    return false;
+
+  auto Pos = findLastNonVersionCharacter(Ext) + 1;
+  StringRef Name = Ext.substr(0, Pos);
+  StringRef Vers = Ext.substr(Pos);
+  if (Vers.empty())
+    return false;
+
+  unsigned Major, Minor, ConsumeLength;
+  if (auto E = getExtensionVersion(Name, Vers, Major, Minor, ConsumeLength,
+                                   true, true)) {
+    consumeError(std::move(E));
+    return false;
+  }
+
+  return true;
+}
+
+std::string RISCVISAInfo::getTargetFeatureForExtension(StringRef Ext) {
+  if (Ext.empty())
+    return std::string();
+
+  auto Pos = findLastNonVersionCharacter(Ext) + 1;
+  StringRef Name = Ext.substr(0, Pos);
+
+  if (Pos != Ext.size() && !isSupportedExtensionWithVersion(Ext))
+    return std::string();
+
+  if (!isSupportedExtension(Name))
+    return std::string();
+
+  return isExperimentalExtension(Name) ? "experimental-" + Name.str()
+                                       : Name.str();
 }

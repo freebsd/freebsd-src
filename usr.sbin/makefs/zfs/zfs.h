@@ -159,6 +159,7 @@ void vdev_fini(zfs_opt_t *zfs);
 zfs_zap_t *zap_alloc(zfs_objset_t *, dnode_phys_t *);
 void zap_add(zfs_zap_t *, const char *, size_t, size_t, const uint8_t *);
 void zap_add_uint64(zfs_zap_t *, const char *, uint64_t);
+void zap_add_uint64_self(zfs_zap_t *, uint64_t);
 void zap_add_string(zfs_zap_t *, const char *, const char *);
 bool zap_entry_exists(zfs_zap_t *, const char *);
 void zap_write(zfs_opt_t *, zfs_zap_t *);

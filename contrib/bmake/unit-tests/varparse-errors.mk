@@ -1,6 +1,6 @@
-# $NetBSD: varparse-errors.mk,v 1.9 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: varparse-errors.mk,v 1.12 2024/04/20 10:18:56 rillig Exp $
 
-# Tests for parsing and evaluating all kinds of variable expressions.
+# Tests for parsing and evaluating all kinds of expressions.
 #
 # This is the basis for redesigning the error handling in Var_Parse and
 # Var_Subst, collecting typical and not so typical use cases.
@@ -17,13 +17,13 @@ INDIRECT=	An ${:Uindirect} value.
 
 REF_UNDEF=	A reference to an ${UNDEF}undefined variable.
 
-ERR_UNCLOSED=	An ${UNCLOSED variable expression.
+ERR_UNCLOSED=	An ${UNCLOSED expression.
 
 ERR_BAD_MOD=	An ${:Uindirect:Z} expression with an unknown modifier.
 
 ERR_EVAL=	An evaluation error ${:Uvalue:C,.,\3,}.
 
-# In a conditional, a variable expression that is not enclosed in quotes is
+# In a conditional, an expression that is not enclosed in quotes is
 # expanded using the mode VARE_UNDEFERR.
 # The variable itself must be defined.
 # It may refer to undefined variables though.
@@ -34,7 +34,7 @@ ERR_EVAL=	An evaluation error ${:Uvalue:C,.,\3,}.
 # As of 2020-12-01, errors in the variable name are silently ignored.
 # Since var.c 1.754 from 2020-12-20, unknown modifiers at parse time result
 # in an error message and a non-zero exit status.
-# expect+1: Unknown modifier "Z"
+# expect+1: while evaluating "${:U:Z}": Unknown modifier "Z"
 VAR.${:U:Z}=	unknown modifier in the variable name
 .if ${VAR.} != "unknown modifier in the variable name"
 .  error
@@ -43,7 +43,7 @@ VAR.${:U:Z}=	unknown modifier in the variable name
 # As of 2020-12-01, errors in the variable name are silently ignored.
 # Since var.c 1.754 from 2020-12-20, unknown modifiers at parse time result
 # in an error message and a non-zero exit status.
-# expect+1: Unknown modifier "Z"
+# expect+1: while evaluating "${:U:Z}post": Unknown modifier "Z"
 VAR.${:U:Z}post=	unknown modifier with text in the variable name
 .if ${VAR.post} != "unknown modifier with text in the variable name"
 .  error

@@ -247,7 +247,9 @@ DM`'MASQUERADE_NAME')
 # my name for error messages
 ifdef(`confMAILER_NAME', `Dn`'confMAILER_NAME', `#DnMAILER-DAEMON')
 
+ifdef(`confOPENSSL_CNF',, `define(`confOPENSSL_CNF', `/etc/mail/sendmail.ossl')')
 undivert(6)dnl LOCAL_CONFIG
+ifelse(defn(`confOPENSSL_CNF'), `', `', `EOPENSSL_CONF=confOPENSSL_CNF')
 include(_CF_DIR_`m4/version.m4')
 
 ###############
@@ -938,7 +940,7 @@ ifdef(`_CANONIFY_HOSTS_', `dnl
 dnl this should only apply to unqualified hostnames
 dnl but if a valid character inside an unqualified hostname is an OperatorChar
 dnl then $- does not work.
-# lookup unqualified hostnames
+# look up unqualified hostnames
 R$* $| $* < @ $* > $*		$: $2 < @ $[ $3 $] > $4', `dnl')', `dnl
 dnl _NO_CANONIFY_ is not set: canonify unless:
 dnl {daemon_flags} contains CC (do not canonify)
@@ -1234,7 +1236,7 @@ R$+ . USENET		$#usenet $@ usenet $: $1',
 
 ifdef(`_LOCAL_RULES_',
 `# figure out what should stay in our local mail system
-undivert(1)', `dnl')
+undivert(1)dnl LOCAL_NET_CONFIG', `dnl')
 
 # pass names that still have a host to a smarthost (if defined)
 R$* < @ $* > $*		$: $>MailerToTriple < $S > $1 < @ $2 > $3	glue on smarthost name
@@ -1436,11 +1438,12 @@ dnl if generics should be applied add a @ as mark
 R$+ < @ *LOCAL* >	$: < $1@$j > $1 < @ *LOCAL* > @	mark
 dnl workspace: either user<@domain> or <user@domain> user <@domain> @
 dnl ignore the first case for now
-dnl if it has the mark lookup full address
+dnl if it has the mark look up full address
 dnl broken: %1 is full address not just detail
 R< $+ > $+ < $* > @	$: < $(generics $1 $: @ $1 $) > $2 < $3 >
 dnl workspace: ... or <match|@user@domain> user <@domain>
-dnl no match, try user+detail@domain
+dnl no match, try user+detail@domain:
+dnl look up user+*@domain and user@domain
 R<@$+ + $* @ $+> $+ < @ $+ >
 		$: < $(generics $1+*@$3 $@ $2 $:@$1 + $2@$3 $) >  $4 < @ $5 >
 R<@$+ + $* @ $+> $+ < @ $+ >
@@ -1527,7 +1530,7 @@ R$={SMTPOpModes} $| TMPF <e r> $| $+	$#error $@ 4.3.0 $: _TMPFMSG_(`OPM')')
 # ... return original address for MTA to queue up
 R$* $| TMPF <$*> $| $+			$@ $3
 
-# if mailRoutingAddress and local or non-existant mailHost,
+# if mailRoutingAddress and local or non-existent mailHost,
 # return the new mailRoutingAddress
 ifelse(_LDAP_ROUTE_DETAIL_, `_PRESERVE_', `dnl
 R<$+@$+> <$=w> <$+> <$+> <$*>	$@ $>Parse0 $>canonify $1 $6 @ $2
@@ -1610,14 +1613,14 @@ dnl			<result> <passthru>
 
 SD
 dnl workspace <key> <default> <passthru> <mark>
-dnl lookup with tag (in front, no delimiter here)
+dnl look up with tag (in front, no delimiter here)
 dnl    2    3  4    5
 R<$*> <$+> <$- $-> <$*>		$: < $(access $4`'_TAG_DELIM_`'$1 $: ? $) > <$1> <$2> <$3 $4> <$5>
 dnl workspace <result-of-lookup|?> <key> <default> <passthru> <mark>
-dnl lookup without tag?
+dnl look up without tag?
 dnl   1    2      3    4
 R<?> <$+> <$+> <+ $-> <$*>	$: < $(access $1 $: ? $) > <$1> <$2> <+ $3> <$4>
-ifdef(`_LOOKUPDOTDOMAIN_', `dnl omit first component: lookup .rest
+ifdef(`_LOOKUPDOTDOMAIN_', `dnl omit first component: look up .rest
 dnl XXX apply this also to IP addresses?
 dnl currently it works the wrong way round for [1.2.3.4]
 dnl   1  2    3    4  5    6
@@ -1640,7 +1643,7 @@ R<?> <[$+:$-]> <$+> <$- $-> <$*>	$: $>D <[$1]> <$3> <$4 $5> <$6>')
 dnl not found, but subdomain: try again
 dnl   1  2    3    4  5    6
 R<?> <$+.$+> <$+> <$- $-> <$*>	$@ $>D <$2> <$3> <$4 $5> <$6>
-ifdef(`_FFR_LOOKUPTAG_', `dnl lookup Tag:
+ifdef(`_FFR_LOOKUPTAG_', `dnl look up Tag:
 dnl   1    2      3    4
 R<?> <$+> <$+> <! $-> <$*>	$: < $(access $3`'_TAG_DELIM_ $: ? $) > <$1> <$2> <! $3> <$4>', `dnl')
 dnl not found, no subdomain: return <default> and <passthru>
@@ -1669,10 +1672,10 @@ dnl			<result> <passthru>
 ######################################################################
 
 SA
-dnl lookup with tag
+dnl look up with tag
 dnl    2    3  4    5
 R<$+> <$+> <$- $-> <$*>		$: < $(access $4`'_TAG_DELIM_`'$1 $: ? $) > <$1> <$2> <$3 $4> <$5>
-dnl lookup without tag
+dnl look up without tag
 dnl   1    2      3    4
 R<?> <$+> <$+> <+ $-> <$*>	$: < $(access $1 $: ? $) > <$1> <$2> <+ $3> <$4>
 dnl workspace <result-of-lookup|?> <key> <default> <mark> <passthru>
@@ -2402,7 +2405,7 @@ dnl otherwise call tls_client; see above
 R$+ $| $#$*		$@ $>"Delay_TLS_Clt" $2
 R$+ $| $*		$: <?> $>FullAddr $>CanonAddr $1
 ifdef(`_SPAM_FH_',
-`dnl lookup user@ and user@address
+`dnl look up user@ and user@address
 ifdef(`_ACCESS_TABLE_', `',
 `errprint(`*** ERROR: FEATURE(`delay_checks', `argument') requires FEATURE(`access_db')
 ')')dnl
@@ -2412,7 +2415,7 @@ dnl and simplified by omitting some < >.
 R<?> $+ < @ $=w >	$: <> $1 < @ $2 > $| <F: $1@$2 > <D: $2 > <U: $1@>
 R<?> $+ < @ $* >	$: <> $1 < @ $2 > $| <F: $1@$2 > <D: $2 >
 dnl R<?>		$@ something_is_very_wrong_here
-# lookup the addresses only with Spam tag
+# look up the addresses only with Spam tag
 R<> $* $| <$+>		$: <@> $1 $| $>SearchList <! Spam> $| <$2> <>
 R<@> $* $| $*		$: $2 $1		reverse result
 dnl', `dnl')
@@ -2608,16 +2611,16 @@ R<$+> <$*> <$- $-> <$*>		$@ <$1> <$5>
 ###	Parameters:
 ###		<exact tag> $| <mark:address> <mark:address> ... <>
 dnl	maybe we should have a @ (again) in front of the mark to
-dnl	avoid errorneous matches (with error messages?)
+dnl	avoid erroneous matches (with error messages?)
 dnl	if we can make sure that tag is always a single token
 dnl	then we can omit the delimiter $|, otherwise we need it
-dnl	to avoid errorneous matchs (first rule: D: if there
+dnl	to avoid erroneous matches (first rule: D: if there
 dnl	is that mark somewhere in the list, it will be taken).
 dnl	moreover, we can do some tricks to enforce lookup with
 dnl	the tag only, e.g.:
 ###	where "exact" is either "+" or "!":
-###	<+ TAG>	lookup with and w/o tag
-###	<! TAG>	lookup with tag
+###	<+ TAG>	look up with and w/o tag
+###	<! TAG>	look up with tag
 dnl	Warning: + and ! should be in OperatorChars (otherwise there must be
 dnl		a blank between them and the tag.
 ###	possible values for "mark" are:
@@ -2706,8 +2709,9 @@ R$*			$: $1 $| $>"Local_clt_features" $1
 R$* $| $#$*		$#$2
 R$* $| $*		$: $1', `dnl')
 ifdef(`_ACCESS_TABLE_', `dnl
-R$*		$: $>D <$&{client_name}> <?> <! CLT_FEAT_TAG> <>
-R<?>$*		$: $>A <$&{client_addr}> <?> <! CLT_FEAT_TAG> <>
+dnl the servername can have a trailing dot from canonification
+R$* .		$1
+R$+		$: $>D <$1> <?> <! CLT_FEAT_TAG> <>
 R<?>$*		$: <$(access CLT_FEAT_TAG`'_TAG_DELIM_ $: ? $)>
 R<?>$*		$@ OK
 ifdef(`_ATMPF_', `dnl tempfail?
@@ -2802,6 +2806,18 @@ R:$* $| $-.$+	$: $(macro {TLS_Name} $@ .$3 $) $>TLS_NameInList :$1
 R$* ok		$@ $>STS_SAN
 R:$*:		$#error $@ 4.7.0 $: 450 $&{server_name} not found in " "$1', `dnl')
 
+ifdef(`TLS_PERM_ERR', `dnl
+define(`TLS_DSNCODE', `5.7.0')dnl
+define(`TLS_ERRCODE', `554')',`dnl
+define(`TLS_DSNCODE', `4.7.0')dnl
+define(`TLS_ERRCODE', `454')')dnl
+define(`SW_MSG', `TLS handshake failed.')dnl
+define(`DANE_MSG', `DANE check failed.')dnl
+define(`DANE_TEMP_MSG', `DANE check failed temporarily.')dnl
+define(`DANE_NOTLS_MSG', `DANE: missing STARTTLS.')dnl
+define(`PROT_MSG', `STARTTLS failed.')dnl
+define(`CNF_MSG', `STARTTLS temporarily not possible.')dnl
+
 ######################################################################
 ###  tls_rcpt: is connection with server "good" enough?
 ###	(done in client, per recipient)
@@ -2833,12 +2849,22 @@ R<?> $+			$: $1 $| <U:$1@> <E:>
 dnl look it up
 dnl also look up a default value via E:
 R$* $| $+	$: $1 $| $>SearchList <! TLS_RCPT_TAG> $| $2 <>
+dnl no applicable requirements; trigger an error on DANE_FAIL
+dnl note: this allows to disable DANE per RCPT.
+R$* $| <?>	$: $1 $| $&{verify} $| <?>
+R$* $| DANE_FAIL $| <?>	$#error $@ TLS_DSNCODE $: "TLS_ERRCODE DANE_MSG"
+R$* $| DANE_NOTLS $| <?>	$#error $@ TLS_DSNCODE $: "TLS_ERRCODE DANE_NOTLS_MSG"
+R$* $| DANE_TEMP $| <?>	$#error $@ TLS_DSNCODE $: "TLS_ERRCODE DANE_TEMP_MSG"
 dnl found nothing: stop here
 R$* $| <?>	$@ OK
 ifdef(`_ATMPF_', `dnl tempfail?
 R$* $| <$* _ATMPF_>	$#error $@ 4.3.0 $: _TMPFMSG_(`TR')', `dnl')
 dnl use the generic routine (for now)
-R$* $| <$+>	$@ $>"TLS_connection" $&{verify} $| <$2>')
+R$* $| <$+>		$@ $>"TLS_connection" $&{verify} $| <$2>', `dnl
+R$*			$: $1 $| $&{verify}
+R$* $| DANE_NOTLS	$#error $@ TLS_DSNCODE $: "TLS_ERRCODE DANE_NOTLS_MSG"
+R$* $| DANE_TEMP	$#error $@ TLS_DSNCODE $: "TLS_ERRCODE DANE_TEMP_MSG"
+R$* $| DANE_FAIL	$#error $@ TLS_DSNCODE $: "TLS_ERRCODE DANE_MSG"')
 
 ######################################################################
 ###  tls_client: is connection with client "good" enough?
@@ -2915,22 +2941,14 @@ dnl	[(PERM|TEMP)+] (VERIFY[:bits]|ENCR:bits) [+extensions]
 dnl	extensions: could be a list of further requirements
 dnl		for now: CN:string	{cn_subject} == string
 ######################################################################
-ifdef(`TLS_PERM_ERR', `dnl
-define(`TLS_DSNCODE', `5.7.0')dnl
-define(`TLS_ERRCODE', `554')',`dnl
-define(`TLS_DSNCODE', `4.7.0')dnl
-define(`TLS_ERRCODE', `454')')dnl
-define(`SW_MSG', `TLS handshake failed.')dnl
-define(`DANE_MSG', `DANE check failed.')dnl
-define(`PROT_MSG', `STARTTLS failed.')dnl
-define(`CNF_MSG', `STARTTLS temporarily not possible.')dnl
 STLS_connection
 ifdef(`_FULL_TLS_CONNECTION_CHECK_', `dnl', `dnl use default error
 dnl deal with TLS handshake failures: abort
 RSOFTWARE	$#error $@ TLS_DSNCODE $: "TLS_ERRCODE SW_MSG"
-RDANE_FAIL	$#error $@ TLS_DSNCODE $: "TLS_ERRCODE DANE_MSG"
+dnl RDANE_FAIL	$#error $@ TLS_DSNCODE $: "TLS_ERRCODE DANE_MSG"
 RPROTOCOL	$#error $@ TLS_DSNCODE $: "TLS_ERRCODE PROT_MSG"
 RCONFIG		$#error $@ TLS_DSNCODE $: "TLS_ERRCODE CNF_MSG"
+dnl RDANE_TEMP	$#error $@ 4.7.0 $: "454 DANE_TEMP_MSG"
 divert(-1)')
 dnl common ruleset for tls_{client|server}
 dnl input: ${verify} $| <ResultOfLookup> [<>]
@@ -2953,10 +2971,12 @@ R`'$1 $| $`'*		$`'#error $`'@ TLS_DSNCODE $: "TLS_ERRCODE $2"')dnl
 TLS_ERRORS(SOFTWARE,SW_MSG)
 # deal with TLS protocol errors: abort
 TLS_ERRORS(PROTOCOL,PROT_MSG)
-# deal with DANE errors: abort
-TLS_ERRORS(DANE_FAIL,DANE_MSG)
+dnl # deal with DANE errors: abort
+dnl TLS_ERRORS(DANE_FAIL,DANE_MSG)
 # deal with CONFIG (tls_clt_features) errors: abort
 TLS_ERRORS(CONFIG,CNF_MSG)
+dnl # deal with DANE tempfail: abort
+dnl TLS_ERRORS(DANE_TEMP,DANE_TEMP_MSG)
 R$* $| <$*> <VERIFY>		$: <$2> <VERIFY> <> $1
 dnl separate optional requirements
 R$* $| <$*> <VERIFY + $+>	$: <$2> <VERIFY> <$3> $1

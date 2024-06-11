@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -336,7 +336,7 @@ typedef struct asl_file_desc
 typedef struct asl_cache_info
 {
     void                    *Next;
-    char                    Buffer[1];
+    char                    Buffer[];
 
 } ASL_CACHE_INFO;
 

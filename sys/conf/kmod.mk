@@ -71,6 +71,8 @@ KMODLOAD?=	/sbin/kldload
 KMODUNLOAD?=	/sbin/kldunload
 KMODISLOADED?=	/sbin/kldstat -q -n
 OBJCOPY?=	objcopy
+XARGS?=		xargs
+XARGS_J?=	-J
 
 .include "kmod.opts.mk"
 .include <bsd.sysdir.mk>
@@ -275,12 +277,12 @@ ${FULLPROG}: ${OBJS} ${BLOB_OBJS}
 	grep -v '^#' < ${EXPORT_SYMS} > export_syms
 .endif
 	${AWK} -f ${SYSDIR}/conf/kmod_syms.awk ${.TARGET} \
-	    export_syms | xargs -J% ${OBJCOPY} % ${.TARGET}
+	    export_syms | ${XARGS} ${XARGS_J} % ${OBJCOPY} % ${.TARGET}
 .endif
 .endif # defined(EXPORT_SYMS)
 .if defined(PREFIX_SYMS)
 	${AWK} -v prefix=${PREFIX_SYMS} -f ${SYSDIR}/conf/kmod_syms_prefix.awk \
-	    ${.TARGET} /dev/null | xargs -J% ${OBJCOPY} % ${.TARGET}
+	    ${.TARGET} /dev/null | ${XARGS} ${XARGS_J} % ${OBJCOPY} % ${.TARGET}
 .endif
 .if !defined(DEBUG_FLAGS) && ${__KLD_SHARED} == no
 	${OBJCOPY} --strip-debug ${.TARGET}
@@ -524,13 +526,13 @@ assym.inc: ${SYSDIR}/kern/genassym.sh
 	sh ${SYSDIR}/kern/genassym.sh genassym.o > ${.TARGET}
 genassym.o: ${SYSDIR}/${MACHINE}/${MACHINE}/genassym.c offset.inc
 genassym.o: ${SRCS:Mopt_*.h}
-	${CC} -c ${CFLAGS:N-flto:N-fno-common} -fcommon \
+	${CC} -c ${CFLAGS:N-flto*:N-fno-common:N-fsanitize*:N-fno-sanitize*} -fcommon \
 	    ${SYSDIR}/${MACHINE}/${MACHINE}/genassym.c
 offset.inc: ${SYSDIR}/kern/genoffset.sh genoffset.o
 	sh ${SYSDIR}/kern/genoffset.sh genoffset.o > ${.TARGET}
 genoffset.o: ${SYSDIR}/kern/genoffset.c
 genoffset.o: ${SRCS:Mopt_*.h}
-	${CC} -c ${CFLAGS:N-flto:N-fno-common} -fcommon \
+	${CC} -c ${CFLAGS:N-flto*:N-fno-common:N-fsanitize*:N-fno-sanitize*} -fcommon \
 	    ${SYSDIR}/kern/genoffset.c
 
 CLEANDEPENDFILES+=	${_ILINKS}

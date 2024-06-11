@@ -1,7 +1,7 @@
 /*
  *  EDIT THIS FILE WITH CAUTION  (sntp-opts.c)
  *
- *  It has been AutoGen-ed  June  6, 2023 at 04:35:52 AM by AutoGen 5.18.16
+ *  It has been AutoGen-ed  May 25, 2024 at 12:02:07 AM by AutoGen 5.18.16
  *  From the definitions    sntp-opts.def
  *  and the template file   options
  *
@@ -18,7 +18,7 @@
  * The sntp program is copyrighted and licensed
  * under the following terms:
  *
- *  Copyright (C) 1992-2023 The University of Delaware and Network Time Foundation, all rights reserved.
+ *  Copyright (C) 1992-2024 The University of Delaware and Network Time Foundation, all rights reserved.
  *  This is free software. It is licensed for use, modification and
  *  redistribution under the terms of the NTP License, copies of which
  *  can be seen at:
@@ -74,8 +74,8 @@ extern FILE * option_usage_fp;
  *  static const strings for sntp options
  */
 static char const sntp_opt_strs[2567] =
-/*     0 */ "sntp 4.2.8p17\n"
-            "Copyright (C) 1992-2023 The University of Delaware and Network Time Foundation, all rights reserved.\n"
+/*     0 */ "sntp 4.2.8p18\n"
+            "Copyright (C) 1992-2024 The University of Delaware and Network Time Foundation, all rights reserved.\n"
             "This is free software. It is licensed for use, modification and\n"
             "redistribution under the terms of the NTP License, copies of which\n"
             "can be seen at:\n"
@@ -160,7 +160,7 @@ static char const sntp_opt_strs[2567] =
 /*  2313 */ "LOAD_OPTS\0"
 /*  2323 */ "no-load-opts\0"
 /*  2336 */ "SNTP\0"
-/*  2341 */ "sntp - standard Simple Network Time Protocol client program - Ver. 4.2.8p17\n"
+/*  2341 */ "sntp - standard Simple Network Time Protocol client program - Ver. 4.2.8p18\n"
             "Usage:  %s [ -<flag> [<val>] | --<name>[{=| }<val>] ]... \\\n"
             "\t\t[ hostname-or-IP ...]\n\0"
 /*  2501 */ "$HOME\0"
@@ -168,7 +168,7 @@ static char const sntp_opt_strs[2567] =
 /*  2509 */ ".ntprc\0"
 /*  2516 */ "https://bugs.ntp.org, bugs@ntp.org\0"
 /*  2551 */ "\n\0"
-/*  2553 */ "sntp 4.2.8p17";
+/*  2553 */ "sntp 4.2.8p18";
 
 /**
  *  ipv4 option description with
@@ -1180,8 +1180,8 @@ static void bogus_function(void) {
      translate option names.
    */
   /* referenced via sntpOptions.pzCopyright */
-  puts(_("sntp 4.2.8p17\n\
-Copyright (C) 1992-2023 The University of Delaware and Network Time Foundation, all rights reserved.\n\
+  puts(_("sntp 4.2.8p18\n\
+Copyright (C) 1992-2024 The University of Delaware and Network Time Foundation, all rights reserved.\n\
 This is free software. It is licensed for use, modification and\n\
 redistribution under the terms of the NTP License, copies of which\n\
 can be seen at:\n"));
@@ -1270,7 +1270,7 @@ implied warranty.\n"));
   puts(_("load options from a config file"));
 
   /* referenced via sntpOptions.pzUsageTitle */
-  puts(_("sntp - standard Simple Network Time Protocol client program - Ver. 4.2.8p17\n\
+  puts(_("sntp - standard Simple Network Time Protocol client program - Ver. 4.2.8p18\n\
 Usage:  %s [ -<flag> [<val>] | --<name>[{=| }<val>] ]... \\\n\
 \t\t[ hostname-or-IP ...]\n"));
 
@@ -1278,7 +1278,7 @@ Usage:  %s [ -<flag> [<val>] | --<name>[{=| }<val>] ]... \\\n\
   puts(_("\n"));
 
   /* referenced via sntpOptions.pzFullVersion */
-  puts(_("sntp 4.2.8p17"));
+  puts(_("sntp 4.2.8p18"));
 
   /* referenced via sntpOptions.pzFullUsage */
   puts(_("<<<NOT-FOUND>>>"));

@@ -124,14 +124,20 @@ db_read_bytes(vm_offset_t addr, size_t size, char *data)
 
 	if (ret == 0) {
 		src = (const char *)addr;
+
+		/*
+		 * Perform a native-sized memory access, if possible. This
+		 * enables reading from MMIO devices that don't support single
+		 * byte access.
+		 */
 		if (size == 8 && (addr & 7) == 0) {
-			tmp64 = *((const int *)src);
+			tmp64 = *((const uint64_t *)src);
 			src = (const char *)&tmp64;
 		} else if (size == 4 && (addr & 3) == 0) {
-			tmp32 = *((const int *)src);
+			tmp32 = *((const uint32_t *)src);
 			src = (const char *)&tmp32;
 		} else if (size == 2 && (addr & 1) == 0) {
-			tmp16 = *((const short *)src);
+			tmp16 = *((const uint16_t *)src);
 			src = (const char *)&tmp16;
 		}
 		while (size-- > 0)
@@ -149,7 +155,7 @@ int
 db_write_bytes(vm_offset_t addr, size_t size, char *data)
 {
 	jmp_buf jb;
-	void *prev_jb;
+	void *prev_jb, *kaddr;
 	char *dst;
 	size_t i;
 	int ret;
@@ -157,7 +163,7 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 	prev_jb = kdb_jmpbuf(jb);
 	ret = setjmp(jb);
 	if (ret == 0) {
-		if (!arm64_get_writable_addr(addr, &addr)) {
+		if (!arm64_get_writable_addr((void *)addr, &kaddr)) {
 			ret = 1;
 		} else {
 			dst = (char *)addr;
@@ -169,7 +175,7 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 			 * Ensure the I & D cache are in sync if we wrote
 			 * to executable memory.
 			 */
-			cpu_icache_sync_range(addr, (vm_size_t)size);
+			cpu_icache_sync_range(kaddr, size);
 		}
 	}
 	(void)kdb_jmpbuf(prev_jb);

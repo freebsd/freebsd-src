@@ -406,7 +406,7 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 	op_err = sctp_arethere_unrecognized_parameters(m,
 	    (offset + sizeof(struct sctp_init_chunk)),
 	    &abort_flag, (struct sctp_chunkhdr *)cp,
-	    &nat_friendly, &cookie_found);
+	    &nat_friendly, &cookie_found, NULL);
 	if (abort_flag) {
 		/* Send an abort and notify peer */
 		sctp_abort_association(stcb->sctp_ep, stcb, m, iphlen,
@@ -2329,7 +2329,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	}
 	ep = &(*inp_p)->sctp_ep;
 	/* which cookie is it? */
-	if ((cookie->time_entered.tv_sec < (long)ep->time_of_secret_change) &&
+	if ((cookie->time_entered.tv_sec < ep->time_of_secret_change) &&
 	    (ep->current_secret_number != ep->last_secret_number)) {
 		/* it's the old cookie */
 		(void)sctp_hmac_m(SCTP_HMAC,
@@ -2352,7 +2352,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	/* compare the received digest with the computed digest */
 	if (timingsafe_bcmp(calc_sig, sig, SCTP_SIGNATURE_SIZE) != 0) {
 		/* try the old cookie? */
-		if ((cookie->time_entered.tv_sec == (long)ep->time_of_secret_change) &&
+		if ((cookie->time_entered.tv_sec == ep->time_of_secret_change) &&
 		    (ep->current_secret_number != ep->last_secret_number)) {
 			/* compute digest with old */
 			(void)sctp_hmac_m(SCTP_HMAC,
@@ -4231,6 +4231,8 @@ sctp_handle_packet_dropped(struct sctp_pktdrop_chunk *cp,
 				SCTP_STAT_INCR(sctps_pdrpmbda);
 			}
 		} else {
+			desc.tsn_ifany = htonl(0);
+			memset(desc.data_bytes, 0, SCTP_NUM_DB_TO_VERIFY);
 			if (pktdrp_flags & SCTP_FROM_MIDDLE_BOX) {
 				SCTP_STAT_INCR(sctps_pdrpmbct);
 			}

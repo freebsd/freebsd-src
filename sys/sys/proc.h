@@ -270,7 +270,7 @@ struct thread {
 	const char	*td_wmesg;	/* (t) Reason for sleep. */
 	volatile u_char td_owepreempt;  /* (k*) Preempt on last critical_exit */
 	u_char		td_tsqueue;	/* (t) Turnstile queue blocked on. */
-	u_char		td_stopsched;	/* (k) Scheduler stopped. */
+	u_char		_td_pad0[2];	/* Available. */
 	int		td_locks;	/* (k) Debug: count of non-spin locks */
 	int		td_rw_rlocks;	/* (k) Count of rwlock read locks. */
 	int		td_sx_slocks;	/* (k) Count of sx shared locks. */
@@ -366,7 +366,8 @@ struct thread {
 	struct callout	td_slpcallout;	/* (h) Callout for sleep. */
 	struct trapframe *td_frame;	/* (k) */
 	vm_offset_t	td_kstack;	/* (a) Kernel VA of kstack. */
-	int		td_kstack_pages; /* (a) Size of the kstack. */
+	u_short td_kstack_pages;	/* (a) Size of the kstack. */
+	u_short td_kstack_domain;		/* (a) Domain backing kstack KVA. */
 	volatile u_int	td_critnest;	/* (k*) Critical section nest level. */
 	struct mdthread td_md;		/* (k) Any machine-dependent fields. */
 	struct kaudit_record	*td_ar;	/* (k) Active audit record, if any. */
@@ -429,7 +430,7 @@ do {									\
 
 #define	TD_LOCKS_INC(td)	((td)->td_locks++)
 #define	TD_LOCKS_DEC(td) do {						\
-	KASSERT(SCHEDULER_STOPPED_TD(td) || (td)->td_locks > 0,		\
+	KASSERT(SCHEDULER_STOPPED() || (td)->td_locks > 0,		\
 	    ("Thread %p owns no locks", (td)));				\
 	(td)->td_locks--;						\
 } while (0)
@@ -937,12 +938,6 @@ struct proc {
 #define	SINGLE_BOUNDARY	2
 #define	SINGLE_ALLPROC	3
 
-#ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_PARGS);
-MALLOC_DECLARE(M_SESSION);
-MALLOC_DECLARE(M_SUBPROC);
-#endif
-
 #define	FOREACH_PROC_IN_SYSTEM(p)					\
 	LIST_FOREACH((p), &allproc, p_list)
 #define	FOREACH_THREAD_IN_PROC(p, td)					\
@@ -955,7 +950,7 @@ MALLOC_DECLARE(M_SUBPROC);
  * in a pid_t, as it is used to represent "no process group".
  */
 #define	PID_MAX		99999
-#define	NO_PID		100000
+#define	NO_PID		(PID_MAX + 1)
 #define	THREAD0_TID	NO_PID
 extern pid_t pid_max;
 
@@ -1257,7 +1252,7 @@ void	cpu_fork_kthread_handler(struct thread *, void (*)(void *), void *);
 int	cpu_procctl(struct thread *td, int idtype, id_t id, int com,
 	    void *data);
 void	cpu_set_syscall_retval(struct thread *, int);
-void	cpu_set_upcall(struct thread *, void (*)(void *), void *,
+int	cpu_set_upcall(struct thread *, void (*)(void *), void *,
 	    stack_t *);
 int	cpu_set_user_tls(struct thread *, void *tls_base);
 void	cpu_thread_alloc(struct thread *);
@@ -1267,7 +1262,6 @@ void	cpu_thread_free(struct thread *);
 void	cpu_thread_swapin(struct thread *);
 void	cpu_thread_swapout(struct thread *);
 struct	thread *thread_alloc(int pages);
-int	thread_alloc_stack(struct thread *, int pages);
 int	thread_check_susp(struct thread *td, bool sleep);
 void	thread_cow_get_proc(struct thread *newtd, struct proc *p);
 void	thread_cow_get(struct thread *newtd, struct thread *td);
@@ -1280,6 +1274,7 @@ void	thread_exit(void) __dead2;
 void	thread_free(struct thread *td);
 void	thread_link(struct thread *td, struct proc *p);
 void	thread_reap_barrier(void);
+int	thread_recycle(struct thread *, int pages);
 int	thread_single(struct proc *p, int how);
 void	thread_single_end(struct proc *p, int how);
 void	thread_stash(struct thread *td);

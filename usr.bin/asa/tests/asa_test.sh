@@ -38,8 +38,8 @@ one_head() {
 	atf_set descr "First character on line is '1'"
 }
 one_body() {
-	printf " %s\n1%s\n" "$a" "$b" >infile
-	printf "%s\f%s\n" "$a" "$b" >outfile
+	printf "1%s\n1%s\n" "$a" "$b" >infile
+	printf "\f%s\n\f%s\n" "$a" "$b" >outfile
 	atf_check_asa infile outfile
 }
 
@@ -87,6 +87,16 @@ dashdash_body() {
 	atf_check -o inline:"$a $b\n" asa -- -infile
 }
 
+atf_test_case unterminated
+unterminated_head() {
+	atf_set descr "Unterminated input"
+}
+unterminated_body() {
+	printf " %s\n %s" "$a" "$b" >infile
+	printf "%s\n%s" "$a" "$b" >outfile
+	atf_check_asa infile outfile
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case space
@@ -96,4 +106,5 @@ atf_init_test_cases()
 	atf_add_test_case plus_top
 	atf_add_test_case stdout
 	atf_add_test_case dashdash
+	atf_add_test_case unterminated
 }

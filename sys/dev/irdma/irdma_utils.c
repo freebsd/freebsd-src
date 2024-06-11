@@ -164,6 +164,7 @@ static const struct ae_desc ae_desc_list[] = {
 	"Connection error: Doubt reachability (usually occurs after the max number of retries has been reached)"},
 	{IRDMA_AE_LLP_CONNECTION_ESTABLISHED,
 	"iWARP event: Connection established"},
+	{IRDMA_AE_LLP_TOO_MANY_RNRS, "RoCEv2: Too many RNR NACKs"},
 	{IRDMA_AE_RESOURCE_EXHAUSTION,
 	"QP error: Resource exhaustion"},
 	{IRDMA_AE_RESET_SENT,
@@ -437,11 +438,11 @@ static void
 irdma_free_pending_cqp_request(struct irdma_cqp *cqp,
 			       struct irdma_cqp_request *cqp_request)
 {
-	if (cqp_request->waiting) {
-		cqp_request->compl_info.error = true;
-		WRITE_ONCE(cqp_request->request_done, true);
+	cqp_request->compl_info.error = true;
+	WRITE_ONCE(cqp_request->request_done, true);
+
+	if (cqp_request->waiting)
 		wake_up(&cqp_request->waitq);
-	}
 	wait_event_timeout(cqp->remove_wq,
 			   atomic_read(&cqp_request->refcnt) == 1, 1000);
 	irdma_put_cqp_request(cqp, cqp_request);
@@ -558,8 +559,6 @@ static const char *const irdma_cqp_cmd_names[IRDMA_MAX_CQP_OPS] = {
 	[IRDMA_OP_MANAGE_HMC_PM_FUNC_TABLE] = "Manage HMC PM Function Table Cmd",
 	[IRDMA_OP_SUSPEND] = "Suspend QP Cmd",
 	[IRDMA_OP_RESUME] = "Resume QP Cmd",
-	[IRDMA_OP_MANAGE_VCHNL_REQ_PBLE_BP] =
-	"Manage Virtual Channel Requester Function PBLE Backing Pages Cmd",
 	[IRDMA_OP_QUERY_FPM_VAL] = "Query FPM Values Cmd",
 	[IRDMA_OP_COMMIT_FPM_VAL] = "Commit FPM Values Cmd",
 	[IRDMA_OP_AH_CREATE] = "Create Address Handle Cmd",
@@ -591,7 +590,7 @@ static const struct irdma_cqp_err_info irdma_noncrit_err_list[] = {
 	{0xffff, 0x8007, "Modify QP Bad Close"},
 	{0xffff, 0x8009, "LLP Closed"},
 	{0xffff, 0x800a, "Reset Not Sent"},
-	{0xffff, 0x200, "Failover Pending"}
+	{0xffff, 0x0200, "Failover Pending"},
 };
 
 /**
@@ -1055,15 +1054,16 @@ irdma_cqp_qp_create_cmd(struct irdma_sc_dev *dev, struct irdma_sc_qp *qp)
 /**
  * irdma_dealloc_push_page - free a push page for qp
  * @rf: RDMA PCI function
- * @qp: hardware control qp
+ * @iwqp: QP pointer
  */
 void
 irdma_dealloc_push_page(struct irdma_pci_f *rf,
-			struct irdma_sc_qp *qp)
+			struct irdma_qp *iwqp)
 {
 	struct irdma_cqp_request *cqp_request;
 	struct cqp_cmds_info *cqp_info;
 	int status;
+	struct irdma_sc_qp *qp = &iwqp->sc_qp;
 
 	if (qp->push_idx == IRDMA_INVALID_PUSH_PAGE_INDEX)
 		return;
@@ -1565,16 +1565,6 @@ irdma_hw_stats_stop_timer(struct irdma_sc_vsi *vsi)
 }
 
 /**
- * irdma_process_stats - Checking for wrap and update stats
- * @pestat: stats structure pointer
- */
-static inline void
-irdma_process_stats(struct irdma_vsi_pestat *pestat)
-{
-	sc_vsi_update_stats(pestat->vsi);
-}
-
-/**
  * irdma_process_cqp_stats - Checking for wrap and update stats
  * @cqp_request: cqp_request structure pointer
  */
@@ -1583,7 +1573,7 @@ irdma_process_cqp_stats(struct irdma_cqp_request *cqp_request)
 {
 	struct irdma_vsi_pestat *pestat = cqp_request->param;
 
-	irdma_process_stats(pestat);
+	sc_vsi_update_stats(pestat->vsi);
 }
 
 /**
@@ -1619,7 +1609,7 @@ irdma_cqp_gather_stats_cmd(struct irdma_sc_dev *dev,
 		cqp_request->callback_fcn = irdma_process_cqp_stats;
 	status = irdma_handle_cqp_op(rf, cqp_request);
 	if (wait)
-		irdma_process_stats(pestat);
+		sc_vsi_update_stats(pestat->vsi);
 	irdma_put_cqp_request(&rf->cqp, cqp_request);
 
 	return status;
@@ -1814,6 +1804,10 @@ irdma_ah_cqp_op(struct irdma_pci_f *rf, struct irdma_sc_ah *sc_ah, u8 cmd,
 	cqp_info->cqp_cmd = cmd;
 	cqp_info->post_sq = 1;
 	if (cmd == IRDMA_OP_AH_CREATE) {
+		if (!wait)
+			irdma_get_cqp_request(cqp_request);
+		sc_ah->ah_info.cqp_request = cqp_request;
+
 		cqp_info->in.u.ah_create.info = sc_ah->ah_info;
 		cqp_info->in.u.ah_create.scratch = (uintptr_t)cqp_request;
 		cqp_info->in.u.ah_create.cqp = &rf->cqp.sc_cqp;
@@ -1949,21 +1943,6 @@ irdma_puda_free_ah(struct irdma_sc_dev *dev, struct irdma_sc_ah *ah)
 }
 
 /**
- * irdma_gsi_ud_qp_ah_cb - callback after creation of AH for GSI/ID QP
- * @cqp_request: pointer to cqp_request of create AH
- */
-void
-irdma_gsi_ud_qp_ah_cb(struct irdma_cqp_request *cqp_request)
-{
-	struct irdma_sc_ah *sc_ah = cqp_request->param;
-
-	if (!cqp_request->compl_info.op_ret_val)
-		sc_ah->ah_info.ah_valid = true;
-	else
-		sc_ah->ah_info.ah_valid = false;
-}
-
-/**
  * irdma_prm_add_pble_mem - add moemory to pble resources
  * @pprm: pble resource manager
  * @pchunk: chunk of memory to add
@@ -2010,6 +1989,7 @@ irdma_prm_get_pbles(struct irdma_pble_prm *pprm,
 	struct list_head *chunk_entry = (&pprm->clist)->next;
 	u32 offset;
 	unsigned long flags;
+
 	*vaddr = NULL;
 	*fpm_addr = 0;
 

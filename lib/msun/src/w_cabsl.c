@@ -7,7 +7,6 @@
  * Modified by Steven G. Kargl for the long double type.
  */
 
-#include <sys/cdefs.h>
 #include <complex.h>
 #include <math.h>
 

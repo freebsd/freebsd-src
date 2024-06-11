@@ -27,7 +27,6 @@
  * The parts of kern_tc.c and other timekeeping bits of the kernel.
  */
 
-#include <sys/cdefs.h>
 #include <sys/time.h>
 
 volatile time_t time_second = 1;

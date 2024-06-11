@@ -28,6 +28,7 @@ SRCS+=		sanitizer_common/sanitizer_procmaps_bsd.cpp
 SRCS+=		sanitizer_common/sanitizer_procmaps_common.cpp
 SRCS+=		sanitizer_common/sanitizer_suppressions.cpp
 SRCS+=		sanitizer_common/sanitizer_termination.cpp
+SRCS+=		sanitizer_common/sanitizer_thread_arg_retval.cpp
 SRCS+=		sanitizer_common/sanitizer_thread_registry.cpp
 SRCS+=		sanitizer_common/sanitizer_tls_get_addr.cpp
 SRCS+=		sanitizer_common/sanitizer_type_traits.cpp

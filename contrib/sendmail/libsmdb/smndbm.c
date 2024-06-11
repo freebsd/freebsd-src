@@ -17,7 +17,7 @@ SM_RCSID("@(#)$Id: smndbm.c,v 8.55 2013-11-22 20:51:49 ca Exp $")
 #include <sendmail/sendmail.h>
 #include <libsmdb/smdb.h>
 
-#ifdef NDBM
+#if NDBM
 
 # define SMNDB_PAG_FILE_EXTENSION "pag"
 
@@ -465,7 +465,7 @@ smdbm_cursor(database, cursor, flags)
 **	Parameters:
 **		database -- An unallocated database pointer to a pointer.
 **		db_name -- The name of the database without extension.
-**		mode -- File permisions on a created database.
+**		mode -- File permissions on a created database.
 **		mode_mask -- Mode bits that much match on an opened database.
 **		sff -- Flags to safefile.
 **		type -- The type of database to open.

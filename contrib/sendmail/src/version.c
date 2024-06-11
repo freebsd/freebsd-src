@@ -15,4 +15,4 @@
 
 SM_RCSID("@(#)$Id: version.c,v 8.250 2014-01-27 12:55:16 ca Exp $")
 
-char	Version[] = "8.17.1";
+char	Version[] = "8.18.1";

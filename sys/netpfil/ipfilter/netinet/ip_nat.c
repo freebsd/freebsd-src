@@ -180,7 +180,7 @@ static ipftuneable_t ipf_nat_tuneables[] = {
 /*                                                                          */
 /* Inside (interface y) NAT       Outside (interface x)                     */
 /* -------------------- -+- -------------------------------------           */
-/* Packet going          |   out, processsed by ipf_nat_checkout() for x    */
+/* Packet going          |   out, processed by ipf_nat_checkout() for x     */
 /* ------------>         |   ------------>                                  */
 /* src=10.1.1.1          |   src=192.1.1.1                                  */
 /*                       |                                                  */

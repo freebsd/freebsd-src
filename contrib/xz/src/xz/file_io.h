@@ -1,12 +1,11 @@
+// SPDX-License-Identifier: 0BSD
+
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       file_io.h
 /// \brief      I/O types and functions
 //
 //  Author:     Lasse Collin
-//
-//  This file has been put into the public domain.
-//  You can do whatever you want with this file.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -16,6 +15,16 @@
 #	define IO_BUFFER_SIZE 8192
 #else
 #	define IO_BUFFER_SIZE (BUFSIZ & ~7U)
+#endif
+
+#ifdef _MSC_VER
+	// The first one renames both "struct stat" -> "struct _stat64"
+	// and stat() -> _stat64(). The documentation mentions only
+	// "struct __stat64", not "struct _stat64", but the latter
+	// works too.
+#	define stat _stat64
+#	define fstat _fstat64
+#	define off_t __int64
 #endif
 
 
@@ -88,12 +97,6 @@ extern void io_write_to_user_abort_pipe(void);
 
 /// \brief      Disable creation of sparse files when decompressing
 extern void io_no_sparse(void);
-
-
-#ifdef ENABLE_SANDBOX
-/// \brief      main() calls this if conditions for sandboxing have been met.
-extern void io_allow_sandbox(void);
-#endif
 
 
 /// \brief      Open the source file

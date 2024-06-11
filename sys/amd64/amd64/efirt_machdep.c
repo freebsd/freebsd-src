@@ -235,7 +235,7 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 				    "attributes unsupported\n", i);
 			mode = VM_MEMATTR_UNCACHEABLE;
 		}
-		bits = pmap_cache_bits(kernel_pmap, mode, FALSE) | X86_PG_RW |
+		bits = pmap_cache_bits(kernel_pmap, mode, false) | X86_PG_RW |
 		    X86_PG_V;
 		VM_OBJECT_WLOCK(obj_1t1_pt);
 		for (va = p->md_phys, idx = 0; idx < p->md_pages; idx++,

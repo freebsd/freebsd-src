@@ -2,12 +2,12 @@
 # compat-43 sources
 .PATH: ${LIBC_SRCTOP}/${LIBC_ARCH}/compat-43 ${LIBC_SRCTOP}/compat-43
 
-SRCS+=	creat.c gethostid.c getwd.c killpg.c sethostid.c setpgrp.c \
+SRCS+=	gethostid.c getwd.c killpg.c sethostid.c setpgrp.c \
 	setrgid.c setruid.c sigcompat.c
 
 SYM_MAPS+=${LIBC_SRCTOP}/compat-43/Symbol.map
 
-MAN+=	creat.2 killpg.2 sigpause.2 sigsetmask.2 sigvec.2
+MAN+=	killpg.2 sigpause.2 sigsetmask.2 sigvec.2
 MAN+=	gethostid.3 setruid.3
 
 MLINKS+=gethostid.3 sethostid.3

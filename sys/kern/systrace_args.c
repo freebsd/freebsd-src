@@ -524,7 +524,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct fcntl_args *p = params;
 		iarg[a++] = p->fd; /* int */
 		iarg[a++] = p->cmd; /* int */
-		iarg[a++] = p->arg; /* long */
+		uarg[a++] = (intptr_t)p->arg; /* intptr_t */
 		*n_args = 3;
 		break;
 	}
@@ -640,7 +640,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 120: {
 		struct readv_args *p = params;
 		iarg[a++] = p->fd; /* int */
-		uarg[a++] = (intptr_t)p->iovp; /* struct iovec * */
+		uarg[a++] = (intptr_t)p->iovp; /* const struct iovec * */
 		uarg[a++] = p->iovcnt; /* u_int */
 		*n_args = 3;
 		break;
@@ -649,7 +649,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 121: {
 		struct writev_args *p = params;
 		iarg[a++] = p->fd; /* int */
-		uarg[a++] = (intptr_t)p->iovp; /* struct iovec * */
+		uarg[a++] = (intptr_t)p->iovp; /* const struct iovec * */
 		uarg[a++] = p->iovcnt; /* u_int */
 		*n_args = 3;
 		break;
@@ -1457,7 +1457,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* aio_suspend */
 	case 315: {
 		struct aio_suspend_args *p = params;
-		uarg[a++] = (intptr_t)p->aiocbp; /* struct aiocb * const * */
+		uarg[a++] = (intptr_t)p->aiocbp; /* const struct aiocb * const * */
 		iarg[a++] = p->nent; /* int */
 		uarg[a++] = (intptr_t)p->timeout; /* const struct timespec * */
 		*n_args = 3;
@@ -1624,7 +1624,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 345: {
 		struct sigtimedwait_args *p = params;
 		uarg[a++] = (intptr_t)p->set; /* const sigset_t * */
-		uarg[a++] = (intptr_t)p->info; /* struct siginfo * */
+		uarg[a++] = (intptr_t)p->info; /* struct __siginfo * */
 		uarg[a++] = (intptr_t)p->timeout; /* const struct timespec * */
 		*n_args = 3;
 		break;
@@ -1633,7 +1633,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 346: {
 		struct sigwaitinfo_args *p = params;
 		uarg[a++] = (intptr_t)p->set; /* const sigset_t * */
-		uarg[a++] = (intptr_t)p->info; /* struct siginfo * */
+		uarg[a++] = (intptr_t)p->info; /* struct __siginfo * */
 		*n_args = 2;
 		break;
 	}
@@ -1641,7 +1641,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 347: {
 		struct __acl_get_file_args *p = params;
 		uarg[a++] = (intptr_t)p->path; /* const char * */
-		iarg[a++] = p->type; /* acl_type_t */
+		iarg[a++] = p->type; /* __acl_type_t */
 		uarg[a++] = (intptr_t)p->aclp; /* struct acl * */
 		*n_args = 3;
 		break;
@@ -1650,7 +1650,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 348: {
 		struct __acl_set_file_args *p = params;
 		uarg[a++] = (intptr_t)p->path; /* const char * */
-		iarg[a++] = p->type; /* acl_type_t */
+		iarg[a++] = p->type; /* __acl_type_t */
 		uarg[a++] = (intptr_t)p->aclp; /* struct acl * */
 		*n_args = 3;
 		break;
@@ -1659,7 +1659,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 349: {
 		struct __acl_get_fd_args *p = params;
 		iarg[a++] = p->filedes; /* int */
-		iarg[a++] = p->type; /* acl_type_t */
+		iarg[a++] = p->type; /* __acl_type_t */
 		uarg[a++] = (intptr_t)p->aclp; /* struct acl * */
 		*n_args = 3;
 		break;
@@ -1668,7 +1668,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 350: {
 		struct __acl_set_fd_args *p = params;
 		iarg[a++] = p->filedes; /* int */
-		iarg[a++] = p->type; /* acl_type_t */
+		iarg[a++] = p->type; /* __acl_type_t */
 		uarg[a++] = (intptr_t)p->aclp; /* struct acl * */
 		*n_args = 3;
 		break;
@@ -1677,7 +1677,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 351: {
 		struct __acl_delete_file_args *p = params;
 		uarg[a++] = (intptr_t)p->path; /* const char * */
-		iarg[a++] = p->type; /* acl_type_t */
+		iarg[a++] = p->type; /* __acl_type_t */
 		*n_args = 2;
 		break;
 	}
@@ -1685,7 +1685,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 352: {
 		struct __acl_delete_fd_args *p = params;
 		iarg[a++] = p->filedes; /* int */
-		iarg[a++] = p->type; /* acl_type_t */
+		iarg[a++] = p->type; /* __acl_type_t */
 		*n_args = 2;
 		break;
 	}
@@ -1693,7 +1693,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 353: {
 		struct __acl_aclcheck_file_args *p = params;
 		uarg[a++] = (intptr_t)p->path; /* const char * */
-		iarg[a++] = p->type; /* acl_type_t */
+		iarg[a++] = p->type; /* __acl_type_t */
 		uarg[a++] = (intptr_t)p->aclp; /* struct acl * */
 		*n_args = 3;
 		break;
@@ -1702,7 +1702,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 354: {
 		struct __acl_aclcheck_fd_args *p = params;
 		iarg[a++] = p->filedes; /* int */
-		iarg[a++] = p->type; /* acl_type_t */
+		iarg[a++] = p->type; /* __acl_type_t */
 		uarg[a++] = (intptr_t)p->aclp; /* struct acl * */
 		*n_args = 3;
 		break;
@@ -2118,7 +2118,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 425: {
 		struct __acl_get_link_args *p = params;
 		uarg[a++] = (intptr_t)p->path; /* const char * */
-		iarg[a++] = p->type; /* acl_type_t */
+		iarg[a++] = p->type; /* __acl_type_t */
 		uarg[a++] = (intptr_t)p->aclp; /* struct acl * */
 		*n_args = 3;
 		break;
@@ -2127,7 +2127,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 426: {
 		struct __acl_set_link_args *p = params;
 		uarg[a++] = (intptr_t)p->path; /* const char * */
-		iarg[a++] = p->type; /* acl_type_t */
+		iarg[a++] = p->type; /* __acl_type_t */
 		uarg[a++] = (intptr_t)p->aclp; /* struct acl * */
 		*n_args = 3;
 		break;
@@ -2136,7 +2136,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 427: {
 		struct __acl_delete_link_args *p = params;
 		uarg[a++] = (intptr_t)p->path; /* const char * */
-		iarg[a++] = p->type; /* acl_type_t */
+		iarg[a++] = p->type; /* __acl_type_t */
 		*n_args = 2;
 		break;
 	}
@@ -2144,7 +2144,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 428: {
 		struct __acl_aclcheck_link_args *p = params;
 		uarg[a++] = (intptr_t)p->path; /* const char * */
-		iarg[a++] = p->type; /* acl_type_t */
+		iarg[a++] = p->type; /* __acl_type_t */
 		uarg[a++] = (intptr_t)p->aclp; /* struct acl * */
 		*n_args = 3;
 		break;
@@ -2959,7 +2959,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[a++] = (intptr_t)p->status; /* int * */
 		iarg[a++] = p->options; /* int */
 		uarg[a++] = (intptr_t)p->wrusage; /* struct __wrusage * */
-		uarg[a++] = (intptr_t)p->info; /* struct siginfo * */
+		uarg[a++] = (intptr_t)p->info; /* struct __siginfo * */
 		*n_args = 6;
 		break;
 	}
@@ -3323,7 +3323,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 573: {
 		struct sigfastblock_args *p = params;
 		iarg[a++] = p->cmd; /* int */
-		uarg[a++] = (intptr_t)p->ptr; /* uint32_t * */
+		uarg[a++] = (intptr_t)p->ptr; /* void * */
 		*n_args = 2;
 		break;
 	}
@@ -3444,8 +3444,19 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 4;
 		break;
 	}
-	/* osdb_exec */
+	/* kcmp */
 	case 588: {
+		struct kcmp_args *p = params;
+		iarg[a++] = p->pid1; /* pid_t */
+		iarg[a++] = p->pid2; /* pid_t */
+		iarg[a++] = p->type; /* int */
+		uarg[a++] = (intptr_t)p->idx1; /* uintptr_t */
+		uarg[a++] = (intptr_t)p->idx2; /* uintptr_t */
+		*n_args = 5;
+		break;
+	}
+	/* osdb_exec */
+	case 589: {
 		struct osdb_exec_args *p = params;
 		uarg[a++] = (intptr_t)p->query; /* const char * */
 		iarg[a++] = p->querylen; /* int */
@@ -3456,7 +3467,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		break;
 	}
 	/* osdb_prepare_v2 */
-	case 589: {
+	case 590: {
 		struct osdb_prepare_v2_args *p = params;
 		uarg[a++] = (intptr_t)p->zSql; /* const char * */
 		iarg[a++] = p->nBytes; /* int */
@@ -3466,7 +3477,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		break;
 	}
 	/* osdb_step */
-	case 590: {
+	case 591: {
 		struct osdb_step_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		uarg[a++] = (intptr_t)p->status; /* int * */
@@ -3474,14 +3485,14 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		break;
 	}
 	/* osdb_finalize */
-	case 591: {
+	case 592: {
 		struct osdb_finalize_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		*n_args = 1;
 		break;
 	}
 	/* osdb_column_blob */
-	case 592: {
+	case 593: {
 		struct osdb_column_blob_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
@@ -3491,7 +3502,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		break;
 	}
 	/* osdb_column_double */
-	case 593: {
+	case 594: {
 		struct osdb_column_double_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
@@ -3500,7 +3511,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		break;
 	}
 	/* osdb_column_int */
-	case 594: {
+	case 595: {
 		struct osdb_column_int_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
@@ -3509,7 +3520,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		break;
 	}
 	/* osdb_column_int64 */
-	case 595: {
+	case 596: {
 		struct osdb_column_int64_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
@@ -3518,7 +3529,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		break;
 	}
 	/* osdb_column_text */
-	case 596: {
+	case 597: {
 		struct osdb_column_text_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
@@ -3528,7 +3539,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		break;
 	}
 	/* osdb_column_text16 */
-	case 597: {
+	case 598: {
 		struct osdb_column_text16_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
@@ -3538,7 +3549,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		break;
 	}
 	/* osdb_column_value */
-	case 598: {
+	case 599: {
 		struct osdb_column_value_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
@@ -3548,7 +3559,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		break;
 	}
 	/* osdb_column_bytes */
-	case 599: {
+	case 600: {
 		struct osdb_column_bytes_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
@@ -3557,7 +3568,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		break;
 	}
 	/* osdb_column_bytes16 */
-	case 600: {
+	case 601: {
 		struct osdb_column_bytes16_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
@@ -3566,7 +3577,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		break;
 	}
 	/* osdb_column_type */
-	case 601: {
+	case 602: {
 		struct osdb_column_type_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
@@ -3575,7 +3586,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		break;
 	}
 	/* osdb_column_count */
-	case 602: {
+	case 603: {
 		struct osdb_column_count_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		uarg[a++] = (intptr_t)p->count; /* int * */
@@ -3583,7 +3594,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		break;
 	}
 	/* osdb_column_name */
-	case 603: {
+	case 604: {
 		struct osdb_column_name_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->N; /* int */
@@ -4397,7 +4408,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "long";
+			p = "intptr_t";
 			break;
 		default:
 			break;
@@ -4602,7 +4613,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "userland struct iovec *";
+			p = "userland const struct iovec *";
 			break;
 		case 2:
 			p = "u_int";
@@ -4618,7 +4629,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "userland struct iovec *";
+			p = "userland const struct iovec *";
 			break;
 		case 2:
 			p = "u_int";
@@ -5896,7 +5907,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 315:
 		switch (ndx) {
 		case 0:
-			p = "userland struct aiocb * const *";
+			p = "userland const struct aiocb * const *";
 			break;
 		case 1:
 			p = "int";
@@ -6152,7 +6163,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland const sigset_t *";
 			break;
 		case 1:
-			p = "userland struct siginfo *";
+			p = "userland struct __siginfo *";
 			break;
 		case 2:
 			p = "userland const struct timespec *";
@@ -6168,7 +6179,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland const sigset_t *";
 			break;
 		case 1:
-			p = "userland struct siginfo *";
+			p = "userland struct __siginfo *";
 			break;
 		default:
 			break;
@@ -6181,7 +6192,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland const char *";
 			break;
 		case 1:
-			p = "acl_type_t";
+			p = "__acl_type_t";
 			break;
 		case 2:
 			p = "userland struct acl *";
@@ -6197,7 +6208,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland const char *";
 			break;
 		case 1:
-			p = "acl_type_t";
+			p = "__acl_type_t";
 			break;
 		case 2:
 			p = "userland struct acl *";
@@ -6213,7 +6224,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "acl_type_t";
+			p = "__acl_type_t";
 			break;
 		case 2:
 			p = "userland struct acl *";
@@ -6229,7 +6240,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "acl_type_t";
+			p = "__acl_type_t";
 			break;
 		case 2:
 			p = "userland struct acl *";
@@ -6245,7 +6256,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland const char *";
 			break;
 		case 1:
-			p = "acl_type_t";
+			p = "__acl_type_t";
 			break;
 		default:
 			break;
@@ -6258,7 +6269,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "acl_type_t";
+			p = "__acl_type_t";
 			break;
 		default:
 			break;
@@ -6271,7 +6282,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland const char *";
 			break;
 		case 1:
-			p = "acl_type_t";
+			p = "__acl_type_t";
 			break;
 		case 2:
 			p = "userland struct acl *";
@@ -6287,7 +6298,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "acl_type_t";
+			p = "__acl_type_t";
 			break;
 		case 2:
 			p = "userland struct acl *";
@@ -7006,7 +7017,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland const char *";
 			break;
 		case 1:
-			p = "acl_type_t";
+			p = "__acl_type_t";
 			break;
 		case 2:
 			p = "userland struct acl *";
@@ -7022,7 +7033,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland const char *";
 			break;
 		case 1:
-			p = "acl_type_t";
+			p = "__acl_type_t";
 			break;
 		case 2:
 			p = "userland struct acl *";
@@ -7038,7 +7049,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland const char *";
 			break;
 		case 1:
-			p = "acl_type_t";
+			p = "__acl_type_t";
 			break;
 		default:
 			break;
@@ -7051,7 +7062,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland const char *";
 			break;
 		case 1:
-			p = "acl_type_t";
+			p = "__acl_type_t";
 			break;
 		case 2:
 			p = "userland struct acl *";
@@ -8494,7 +8505,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland struct __wrusage *";
 			break;
 		case 5:
-			p = "userland struct siginfo *";
+			p = "userland struct __siginfo *";
 			break;
 		default:
 			break;
@@ -9157,7 +9168,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "userland uint32_t *";
+			p = "userland void *";
 			break;
 		default:
 			break;
@@ -9359,8 +9370,30 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* osdb_exec */
+	/* kcmp */
 	case 588:
+		switch (ndx) {
+		case 0:
+			p = "pid_t";
+			break;
+		case 1:
+			p = "pid_t";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "uintptr_t";
+			break;
+		case 4:
+			p = "uintptr_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* osdb_exec */
+	case 589:
 		switch (ndx) {
 		case 0:
 			p = "userland const char *";
@@ -9382,7 +9415,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		};
 		break;
 	/* osdb_prepare_v2 */
-	case 589:
+	case 590:
 		switch (ndx) {
 		case 0:
 			p = "userland const char *";
@@ -9401,7 +9434,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		};
 		break;
 	/* osdb_step */
-	case 590:
+	case 591:
 		switch (ndx) {
 		case 0:
 			p = "userland void*";
@@ -9414,7 +9447,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		};
 		break;
 	/* osdb_finalize */
-	case 591:
+	case 592:
 		switch (ndx) {
 		case 0:
 			p = "userland void*";
@@ -9424,7 +9457,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		};
 		break;
 	/* osdb_column_blob */
-	case 592:
+	case 593:
 		switch (ndx) {
 		case 0:
 			p = "userland void*";
@@ -9443,7 +9476,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		};
 		break;
 	/* osdb_column_double */
-	case 593:
+	case 594:
 		switch (ndx) {
 		case 0:
 			p = "userland void*";
@@ -9459,7 +9492,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		};
 		break;
 	/* osdb_column_int */
-	case 594:
+	case 595:
 		switch (ndx) {
 		case 0:
 			p = "userland void*";
@@ -9475,7 +9508,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		};
 		break;
 	/* osdb_column_int64 */
-	case 595:
+	case 596:
 		switch (ndx) {
 		case 0:
 			p = "userland void*";
@@ -9491,25 +9524,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		};
 		break;
 	/* osdb_column_text */
-	case 596:
-		switch (ndx) {
-		case 0:
-			p = "userland void*";
-			break;
-		case 1:
-			p = "int";
-			break;
-		case 2:
-			p = "userland char *";
-			break;
-		case 3:
-			p = "int";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* osdb_column_text16 */
 	case 597:
 		switch (ndx) {
 		case 0:
@@ -9528,8 +9542,27 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* osdb_column_value */
+	/* osdb_column_text16 */
 	case 598:
+		switch (ndx) {
+		case 0:
+			p = "userland void*";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "userland char *";
+			break;
+		case 3:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* osdb_column_value */
+	case 599:
 		switch (ndx) {
 		case 0:
 			p = "userland void*";
@@ -9548,22 +9581,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		};
 		break;
 	/* osdb_column_bytes */
-	case 599:
-		switch (ndx) {
-		case 0:
-			p = "userland void*";
-			break;
-		case 1:
-			p = "int";
-			break;
-		case 2:
-			p = "userland int *";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* osdb_column_bytes16 */
 	case 600:
 		switch (ndx) {
 		case 0:
@@ -9579,7 +9596,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* osdb_column_type */
+	/* osdb_column_bytes16 */
 	case 601:
 		switch (ndx) {
 		case 0:
@@ -9595,8 +9612,24 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* osdb_column_count */
+	/* osdb_column_type */
 	case 602:
+		switch (ndx) {
+		case 0:
+			p = "userland void*";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "userland int *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* osdb_column_count */
+	case 603:
 		switch (ndx) {
 		case 0:
 			p = "userland void*";
@@ -9609,7 +9642,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		};
 		break;
 	/* osdb_column_name */
-	case 603:
+	case 604:
 		switch (ndx) {
 		case 0:
 			p = "userland void*";
@@ -9997,12 +10030,12 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* readv */
 	case 120:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "ssize_t";
 		break;
 	/* writev */
 	case 121:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "ssize_t";
 		break;
 	/* settimeofday */
 	case 122:
@@ -11592,83 +11625,88 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_exec */
+	/* kcmp */
 	case 588:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_prepare_v2 */
+	/* osdb_exec */
 	case 589:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_step */
+	/* osdb_prepare_v2 */
 	case 590:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_finalize */
+	/* osdb_step */
 	case 591:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_blob */
+	/* osdb_finalize */
 	case 592:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_double */
+	/* osdb_column_blob */
 	case 593:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_int */
+	/* osdb_column_double */
 	case 594:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_int64 */
+	/* osdb_column_int */
 	case 595:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_text */
+	/* osdb_column_int64 */
 	case 596:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_text16 */
+	/* osdb_column_text */
 	case 597:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_value */
+	/* osdb_column_text16 */
 	case 598:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_bytes */
+	/* osdb_column_value */
 	case 599:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_bytes16 */
+	/* osdb_column_bytes */
 	case 600:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_type */
+	/* osdb_column_bytes16 */
 	case 601:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_count */
+	/* osdb_column_type */
 	case 602:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_name */
+	/* osdb_column_count */
 	case 603:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* osdb_column_name */
+	case 604:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;

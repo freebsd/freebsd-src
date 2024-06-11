@@ -39,6 +39,9 @@ stop_cmd=':'
 
 load_rc_config $name
 
+# doesn't make sense to run in a svcj: mounting
+var_svcj="NO"
+
 populate_var()
 {
 	/usr/sbin/mtree -deiU -f /etc/mtree/BSD.var.dist -p /var > /dev/null

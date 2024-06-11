@@ -964,7 +964,8 @@ mr_spanset_get_phy_params(struct mrsas_softc *sc, u_int32_t ld, u_int64_t stripR
 			raid->regTypeReqOnRead != REGION_TYPE_UNUSED)))
 			pRAID_Context->regLockFlags = REGION_TYPE_EXCLUSIVE;
 		else if (raid->level == 1) {
-			pd = MR_ArPdGet(arRef, physArm + 1, map);
+			physArm++;
+			pd = MR_ArPdGet(arRef, physArm, map);
 			if (pd != MR_PD_INVALID) {
 				*pDevHandle = MR_PdDevHandleGet(pd, map);
 				*pPdInterface = MR_PdInterfaceTypeGet(pd, map);
@@ -1711,7 +1712,8 @@ MR_GetPhyParams(struct mrsas_softc *sc, u_int32_t ld,
 			pRAID_Context->regLockFlags = REGION_TYPE_EXCLUSIVE;
 		else if (raid->level == 1) {
 			/* Get Alternate Pd. */
-			pd = MR_ArPdGet(arRef, physArm + 1, map);
+			physArm++;
+			pd = MR_ArPdGet(arRef, physArm, map);
 			if (pd != MR_PD_INVALID) {
 				/* Get dev handle from Pd. */
 				*pDevHandle = MR_PdDevHandleGet(pd, map);

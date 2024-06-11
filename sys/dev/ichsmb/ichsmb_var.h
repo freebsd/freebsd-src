@@ -58,8 +58,9 @@ struct ichsmb_softc {
 	int			smb_error;	/* result of smb command */
 	int			block_count;	/* count for block read/write */
 	int			block_index;	/* index for block read/write */
-	u_char			block_write;	/* 0=read, 1=write */
-	u_char			block_data[32];	/* block read/write data */
+	bool			block_write;	/* block write or block read */
+	uint8_t			block_data[32];	/* block read/write data */
+	bool			killed;		/* killed current transfer */
 	struct mtx		mutex;		/* device mutex */
 };
 typedef struct ichsmb_softc *sc_p;

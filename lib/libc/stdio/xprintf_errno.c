@@ -27,6 +27,7 @@
  */
 
 #include <namespace.h>
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -38,7 +39,8 @@
 #include "printf.h"
 
 int
-__printf_arginfo_errno(const struct printf_info *pi __unused, size_t n, int *argt)
+__printf_arginfo_errno(const struct printf_info *pi __unused, size_t n,
+    int *argt)
 {
 
 	assert(n >= 1);
@@ -47,17 +49,18 @@ __printf_arginfo_errno(const struct printf_info *pi __unused, size_t n, int *arg
 }
 
 int
-__printf_render_errno(struct __printf_io *io, const struct printf_info *pi __unused, const void *const *arg)
+__printf_render_errno(struct __printf_io *io, const struct printf_info *pi
+    __unused, const void *const *arg)
 {
 	int ret, error;
 	char buf[64];
-	const char *p;
+	char errnomsg[NL_TEXTMAX];
 
 	ret = 0;
 	error = *((const int *)arg[0]);
 	if (error >= 0 && error < __hidden_sys_nerr) {
-		p = strerror(error);
-		return (__printf_out(io, pi, p, strlen(p)));
+		strerror_r(error, errnomsg, sizeof(errnomsg));
+		return (__printf_out(io, pi, errnomsg, strlen(errnomsg)));
 	}
 	sprintf(buf, "errno=%d/0x%x", error, error);
 	ret += __printf_out(io, pi, buf, strlen(buf));

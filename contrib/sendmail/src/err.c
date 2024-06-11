@@ -114,10 +114,6 @@ fatal_error(exc)
 char		MsgBuf[BUFSIZ*2];	/* text of most recent message */
 static char	HeldMessageBuf[sizeof(MsgBuf)];	/* for held messages */
 
-#if NAMED_BIND && !defined(NO_DATA)
-# define NO_DATA	NO_ADDRESS
-#endif
-
 void
 /*VARARGS1*/
 #ifdef __STDC__

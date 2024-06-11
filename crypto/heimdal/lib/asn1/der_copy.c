@@ -55,7 +55,21 @@ der_copy_integer (const int *from, int *to)
 }
 
 int
+der_copy_integer64 (const int64_t *from, int64_t *to)
+{
+    *to = *from;
+    return 0;
+}
+
+int
 der_copy_unsigned (const unsigned *from, unsigned *to)
+{
+    *to = *from;
+    return 0;
+}
+
+int
+der_copy_unsigned64 (const uint64_t *from, uint64_t *to)
 {
     *to = *from;
     return 0;

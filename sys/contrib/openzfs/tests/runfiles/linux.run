@@ -35,16 +35,9 @@ tests = ['atime_003_pos', 'root_relatime_on']
 tags = ['functional', 'atime']
 
 [tests/functional/block_cloning:Linux]
-tests = ['block_cloning_copyfilerange', 'block_cloning_copyfilerange_partial',
-    'block_cloning_copyfilerange_fallback',
-    'block_cloning_ficlone', 'block_cloning_ficlonerange',
-    'block_cloning_ficlonerange_partial',
-    'block_cloning_disabled_copyfilerange', 'block_cloning_disabled_ficlone',
-    'block_cloning_disabled_ficlonerange',
-    'block_cloning_copyfilerange_cross_dataset',
-    'block_cloning_cross_enc_dataset',
-    'block_cloning_copyfilerange_fallback_same_txg',
-    'block_cloning_replay', 'block_cloning_replay_encrypted']
+tests = ['block_cloning_ficlone', 'block_cloning_ficlonerange',
+    'block_cloning_ficlonerange_partial', 'block_cloning_disabled_ficlone',
+    'block_cloning_disabled_ficlonerange']
 tags = ['functional', 'block_cloning']
 
 [tests/functional/chattr:Linux]
@@ -111,7 +104,8 @@ tags = ['functional', 'devices']
 
 [tests/functional/events:Linux]
 tests = ['events_001_pos', 'events_002_pos', 'zed_rc_filter', 'zed_fd_spill',
-    'zed_cksum_reported', 'zed_cksum_config', 'zed_io_config']
+    'zed_cksum_reported', 'zed_cksum_config', 'zed_io_config',
+    'zed_slow_io', 'zed_slow_io_many_vdevs']
 tags = ['functional', 'events']
 
 [tests/functional/fadvise:Linux]
@@ -152,7 +146,7 @@ tags = ['functional', 'mmap']
 tests = ['mmp_on_thread', 'mmp_on_uberblocks', 'mmp_on_off', 'mmp_interval',
     'mmp_active_import', 'mmp_inactive_import', 'mmp_exported_import',
     'mmp_write_uberblocks', 'mmp_reset_interval', 'multihost_history',
-    'mmp_on_zdb', 'mmp_write_distribution', 'mmp_hostid']
+    'mmp_on_zdb', 'mmp_write_distribution', 'mmp_hostid', 'mmp_write_slow_disk']
 tags = ['functional', 'mmp']
 
 [tests/functional/mount:Linux]

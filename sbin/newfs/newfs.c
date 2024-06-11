@@ -383,6 +383,9 @@ main(int argc, char *argv[])
 		fprintf(stderr, "because minfree is less than %d%%\n", MINFREE);
 		opt = FS_OPTSPACE;
 	}
+	/* Use soft updates by default for UFS2 and above */
+	if (Oflag > 1)
+		Uflag = 1;
 	realsectorsize = sectorsize;
 	if (sectorsize != DEV_BSIZE) {		/* XXX */
 		int secperblk = sectorsize / DEV_BSIZE;

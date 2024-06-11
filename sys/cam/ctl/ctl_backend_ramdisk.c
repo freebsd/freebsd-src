@@ -365,11 +365,10 @@ ctl_backend_ramdisk_cmp(union ctl_io *io)
 	struct ctl_be_lun *cbe_lun = CTL_BACKEND_LUN(io);
 	struct ctl_be_ramdisk_lun *be_lun = (struct ctl_be_ramdisk_lun *)cbe_lun;
 	uint8_t *page;
-	uint8_t info[8];
 	uint64_t lba;
 	u_int lbaoff, lbas, res, off;
 
-	lbas = io->scsiio.kern_data_len / cbe_lun->blocksize;
+	lbas = ctl_kern_data_len(io) / cbe_lun->blocksize;
 	lba = ARGS(io)->lba + PRIV(io)->len - lbas;
 	off = 0;
 	for (; lbas > 0; lbas--, lba++) {
@@ -377,7 +376,7 @@ ctl_backend_ramdisk_cmp(union ctl_io *io)
 		    lba >> cbe_lun->pblockexp, GP_READ);
 		lbaoff = lba & ~(UINT_MAX << cbe_lun->pblockexp);
 		page += lbaoff * cbe_lun->blocksize;
-		res = cmp(io->scsiio.kern_data_ptr + off, page,
+		res = cmp(ctl_kern_data_ptr(io) + off, page,
 		    cbe_lun->blocksize);
 		off += res;
 		if (res < cbe_lun->blocksize)
@@ -385,14 +384,8 @@ ctl_backend_ramdisk_cmp(union ctl_io *io)
 	}
 	free(io->scsiio.kern_data_ptr, M_RAMDISK);
 	if (lbas > 0) {
-		off += io->scsiio.kern_rel_offset - io->scsiio.kern_data_len;
-		scsi_u64to8b(off, info);
-		ctl_set_sense(&io->scsiio, /*current_error*/ 1,
-		    /*sense_key*/ SSD_KEY_MISCOMPARE,
-		    /*asc*/ 0x1D, /*ascq*/ 0x00,
-		    /*type*/ SSD_ELEM_INFO,
-		    /*size*/ sizeof(info), /*data*/ &info,
-		    /*type*/ SSD_ELEM_NONE);
+		off += ctl_kern_rel_offset(io) - ctl_kern_data_len(io);
+		ctl_io_set_compare_failure(io, off);
 		return (1);
 	}
 	return (0);
@@ -405,9 +398,9 @@ ctl_backend_ramdisk_move_done(union ctl_io *io, bool samethr)
 	    (struct ctl_be_ramdisk_lun *)CTL_BACKEND_LUN(io);
 
 	CTL_DEBUG_PRINT(("ctl_backend_ramdisk_move_done\n"));
-	if (io->scsiio.kern_sg_entries > 0)
-		free(io->scsiio.kern_data_ptr, M_RAMDISK);
-	io->scsiio.kern_rel_offset += io->scsiio.kern_data_len;
+	if (ctl_kern_sg_entries(io) > 0)
+		free(ctl_kern_data_ptr(io), M_RAMDISK);
+	ctl_add_kern_rel_offset(io, ctl_kern_data_len(io));
 	if ((io->io_hdr.flags & CTL_FLAG_ABORT) == 0 &&
 	    (io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE) {
 		if (ARGS(io)->flags & CTL_LLF_COMPARE) {
@@ -424,7 +417,7 @@ ctl_backend_ramdisk_move_done(union ctl_io *io, bool samethr)
 			    &be_lun->io_task);
 			return (0);
 		}
-		ctl_set_success(&io->scsiio);
+		ctl_io_set_success(io);
 	}
 done:
 	ctl_data_submit_done(io);
@@ -441,10 +434,10 @@ ctl_backend_ramdisk_compare(union ctl_io *io)
 	lbas = MIN(lbas, 131072 / cbe_lun->blocksize);
 	len = lbas * cbe_lun->blocksize;
 
-	io->scsiio.be_move_done = ctl_backend_ramdisk_move_done;
-	io->scsiio.kern_data_ptr = malloc(len, M_RAMDISK, M_WAITOK);
-	io->scsiio.kern_data_len = len;
-	io->scsiio.kern_sg_entries = 0;
+	ctl_set_be_move_done(io, ctl_backend_ramdisk_move_done);
+	ctl_set_kern_data_ptr(io, malloc(len, M_RAMDISK, M_WAITOK));
+	ctl_set_kern_data_len(io, len);
+	ctl_set_kern_sg_entries(io, 0);
 	io->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	PRIV(io)->len += lbas;
 	ctl_datamove(io);
@@ -469,17 +462,17 @@ ctl_backend_ramdisk_rw(union ctl_io *io)
 	off = lbaoff * cbe_lun->blocksize;
 	op = (ARGS(io)->flags & CTL_LLF_WRITE) ? GP_WRITE : GP_READ;
 	if (sgs > 1) {
-		io->scsiio.kern_data_ptr = malloc(sizeof(struct ctl_sg_entry) *
-		    sgs, M_RAMDISK, M_WAITOK);
-		sg_entries = (struct ctl_sg_entry *)io->scsiio.kern_data_ptr;
+		sg_entries = malloc(sizeof(struct ctl_sg_entry) * sgs,
+		    M_RAMDISK, M_WAITOK);
+		ctl_set_kern_data_ptr(io, sg_entries);
 		len = lbas * cbe_lun->blocksize;
 		for (i = 0; i < sgs; i++) {
 			page = ctl_backend_ramdisk_getpage(be_lun,
 			    (lba >> cbe_lun->pblockexp) + i, op);
 			if (page == P_UNMAPPED || page == P_ANCHORED) {
-				free(io->scsiio.kern_data_ptr, M_RAMDISK);
+				free(sg_entries, M_RAMDISK);
 nospc:
-				ctl_set_space_alloc_fail(&io->scsiio);
+				ctl_io_set_space_alloc_fail(io);
 				ctl_data_submit_done(io);
 				return;
 			}
@@ -494,17 +487,17 @@ nospc:
 		if (page == P_UNMAPPED || page == P_ANCHORED)
 			goto nospc;
 		sgs = 0;
-		io->scsiio.kern_data_ptr = page + off;
+		ctl_set_kern_data_ptr(io, page + off);
 	}
 
-	io->scsiio.be_move_done = ctl_backend_ramdisk_move_done;
-	io->scsiio.kern_data_len = lbas * cbe_lun->blocksize;
-	io->scsiio.kern_sg_entries = sgs;
+	ctl_set_be_move_done(io, ctl_backend_ramdisk_move_done);
+	ctl_set_kern_data_len(io, lbas * cbe_lun->blocksize);
+	ctl_set_kern_sg_entries(io, sgs);
 	io->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	PRIV(io)->len += lbas;
 	if ((ARGS(io)->flags & CTL_LLF_READ) &&
 	    ARGS(io)->len <= PRIV(io)->len) {
-		ctl_set_success(&io->scsiio);
+		ctl_io_set_success(io);
 		if (cbe_lun->serseq >= CTL_LUN_SERSEQ_SOFT)
 			ctl_serseq_done(io);
 	}
@@ -517,7 +510,7 @@ ctl_backend_ramdisk_submit(union ctl_io *io)
 	struct ctl_lba_len_flags *lbalen = ARGS(io);
 
 	if (lbalen->flags & CTL_LLF_VERIFY) {
-		ctl_set_success(&io->scsiio);
+		ctl_io_set_success(io);
 		ctl_data_submit_done(io);
 		return (CTL_RETVAL_COMPLETE);
 	}
@@ -585,7 +578,7 @@ ctl_backend_ramdisk_gls(union ctl_io *io)
 }
 
 static int
-ctl_backend_ramdisk_config_read(union ctl_io *io)
+ctl_backend_ramdisk_scsi_config_read(union ctl_io *io)
 {
 	int retval = 0;
 
@@ -611,6 +604,89 @@ ctl_backend_ramdisk_config_read(union ctl_io *io)
 		break;
 	}
 	return (retval);
+}
+
+static int
+ramdisk_namespace_data(union ctl_io *io)
+{
+	struct ctl_be_lun *cbe_lun = CTL_BACKEND_LUN(io);
+	struct ctl_be_ramdisk_lun *be_lun = (struct ctl_be_ramdisk_lun *)cbe_lun;
+	struct nvme_namespace_data *nsdata;
+
+	if (io->nvmeio.kern_data_len != sizeof(struct nvme_namespace_data) ||
+	    io->nvmeio.kern_sg_entries != 0)
+		return (CTL_RETVAL_ERROR);
+
+	nsdata = (struct nvme_namespace_data *)io->nvmeio.kern_data_ptr;
+	memset(nsdata, 0, sizeof(*nsdata));
+	nsdata->nsze = htole64(be_lun->size_blocks);
+	nsdata->ncap = htole64(be_lun->cap_bytes / cbe_lun->blocksize);
+	nsdata->nuse = htole64(be_lun->cap_used / cbe_lun->blocksize);
+	nsdata->nsfeat = NVMEM(NVME_NS_DATA_NSFEAT_THIN_PROV) |
+	    NVMEM(NVME_NS_DATA_NSFEAT_DEALLOC);
+	nsdata->nlbaf = 1 - 1;
+	nsdata->dlfeat = NVMEM(NVME_NS_DATA_DLFEAT_DWZ) |
+	    NVMEF(NVME_NS_DATA_DLFEAT_READ, NVME_NS_DATA_DLFEAT_READ_00);
+	nsdata->flbas = NVMEF(NVME_NS_DATA_FLBAS_FORMAT, 0);
+	nsdata->lbaf[0] = NVMEF(NVME_NS_DATA_LBAF_LBADS,
+	    ffs(cbe_lun->blocksize) - 1);
+
+	ctl_lun_nsdata_ids(cbe_lun, nsdata);
+	ctl_config_read_done(io);
+	return (CTL_RETVAL_COMPLETE);
+}
+
+static int
+ramdisk_nvme_ids(union ctl_io *io)
+{
+	struct ctl_be_lun *cbe_lun = CTL_BACKEND_LUN(io);
+
+	if (io->nvmeio.kern_data_len != 4096 || io->nvmeio.kern_sg_entries != 0)
+		return (CTL_RETVAL_ERROR);
+
+	ctl_lun_nvme_ids(cbe_lun, io->nvmeio.kern_data_ptr);
+	ctl_config_read_done(io);
+	return (CTL_RETVAL_COMPLETE);
+}
+
+static int
+ctl_backend_ramdisk_nvme_config_read(union ctl_io *io)
+{
+	switch (io->nvmeio.cmd.opc) {
+	case NVME_OPC_IDENTIFY:
+	{
+		uint8_t cns;
+
+		cns = le32toh(io->nvmeio.cmd.cdw10) & 0xff;
+		switch (cns) {
+		case 0:
+			return (ramdisk_namespace_data(io));
+		case 3:
+			return (ramdisk_nvme_ids(io));
+		default:
+			ctl_nvme_set_invalid_field(&io->nvmeio);
+			ctl_config_read_done(io);
+			return (CTL_RETVAL_COMPLETE);
+		}
+	}
+	default:
+		ctl_nvme_set_invalid_opcode(&io->nvmeio);
+		ctl_config_read_done(io);
+		return (CTL_RETVAL_COMPLETE);
+	}
+}
+
+static int
+ctl_backend_ramdisk_config_read(union ctl_io *io)
+{
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		return (ctl_backend_ramdisk_scsi_config_read(io));
+	case CTL_IO_NVME_ADMIN:
+		return (ctl_backend_ramdisk_nvme_config_read(io));
+	default:
+		__assert_unreachable();
+	}
 }
 
 static void
@@ -665,6 +741,8 @@ ctl_backend_ramdisk_ws(union ctl_io *io)
 	uint64_t lba;
 	u_int lbaoff, lbas;
 
+	CTL_IO_ASSERT(io, SCSI);
+
 	if (lbalen->flags & ~(SWS_LBDATA | SWS_UNMAP | SWS_ANCHOR | SWS_NDOB)) {
 		ctl_set_invalid_field(&io->scsiio,
 				      /*sks_valid*/ 1,
@@ -713,6 +791,8 @@ ctl_backend_ramdisk_unmap(union ctl_io *io)
 	struct ctl_ptr_len_flags *ptrlen = (struct ctl_ptr_len_flags *)ARGS(io);
 	struct scsi_unmap_desc *buf, *end;
 
+	CTL_IO_ASSERT(io, SCSI);
+
 	if ((ptrlen->flags & ~SU_ANCHOR) != 0) {
 		ctl_set_invalid_field(&io->scsiio,
 				      /*sks_valid*/ 0,
@@ -737,7 +817,7 @@ ctl_backend_ramdisk_unmap(union ctl_io *io)
 }
 
 static int
-ctl_backend_ramdisk_config_write(union ctl_io *io)
+ctl_backend_ramdisk_scsi_config_write(union ctl_io *io)
 {
 	struct ctl_be_lun *cbe_lun = CTL_BACKEND_LUN(io);
 	int retval = 0;
@@ -790,6 +870,122 @@ ctl_backend_ramdisk_config_write(union ctl_io *io)
 	}
 
 	return (retval);
+}
+
+static void
+ctl_backend_ramdisk_wu(union ctl_io *io)
+{
+	struct ctl_be_lun *cbe_lun = CTL_BACKEND_LUN(io);
+	struct ctl_lba_len_flags *lbalen = ARGS(io);
+
+	CTL_IO_ASSERT(io, NVME);
+
+	/*
+	 * XXX: Not quite right as reads will return zeroes rather
+	 * than failing.
+	 */
+	ctl_backend_ramdisk_delete(cbe_lun, lbalen->lba, lbalen->len, 1);
+	ctl_nvme_set_success(&io->nvmeio);
+	ctl_config_write_done(io);
+}
+
+static void
+ctl_backend_ramdisk_wz(union ctl_io *io)
+{
+	struct ctl_be_lun *cbe_lun = CTL_BACKEND_LUN(io);
+	struct ctl_be_ramdisk_lun *be_lun = (struct ctl_be_ramdisk_lun *)cbe_lun;
+	struct ctl_lba_len_flags *lbalen = ARGS(io);
+	uint8_t *page;
+	uint64_t lba;
+	u_int lbaoff, lbas;
+
+	CTL_IO_ASSERT(io, NVME);
+
+	if ((le32toh(io->nvmeio.cmd.cdw12) & (1U << 25)) != 0) {
+		ctl_backend_ramdisk_delete(cbe_lun, lbalen->lba, lbalen->len,
+		    0);
+		ctl_nvme_set_success(&io->nvmeio);
+		ctl_config_write_done(io);
+		return;
+	}
+
+	for (lba = lbalen->lba, lbas = lbalen->len; lbas > 0; lba++, lbas--) {
+		page = ctl_backend_ramdisk_getpage(be_lun,
+		    lba >> cbe_lun->pblockexp, GP_WRITE);
+		if (page == P_UNMAPPED || page == P_ANCHORED) {
+			ctl_nvme_set_space_alloc_fail(&io->nvmeio);
+			ctl_data_submit_done(io);
+			return;
+		}
+		lbaoff = lba & ~(UINT_MAX << cbe_lun->pblockexp);
+		page += lbaoff * cbe_lun->blocksize;
+		memset(page, 0, cbe_lun->blocksize);
+	}
+	ctl_nvme_set_success(&io->nvmeio);
+	ctl_config_write_done(io);
+}
+
+static void
+ctl_backend_ramdisk_dsm(union ctl_io *io)
+{
+	struct ctl_be_lun *cbe_lun = CTL_BACKEND_LUN(io);
+	struct nvme_dsm_range *r;
+	uint64_t lba;
+	uint32_t num_blocks;
+	u_int i, ranges;
+
+	CTL_IO_ASSERT(io, NVME);
+
+	ranges = le32toh(io->nvmeio.cmd.cdw10) & 0xff;
+	r = (struct nvme_dsm_range *)io->nvmeio.kern_data_ptr;
+	for (i = 0; i < ranges; i++) {
+		lba = le64toh(r[i].starting_lba);
+		num_blocks = le32toh(r[i].length);
+		if ((le32toh(r[i].attributes) & (1U << 2)) != 0)
+			ctl_backend_ramdisk_delete(cbe_lun, lba, num_blocks, 0);
+	}
+
+	ctl_nvme_set_success(&io->nvmeio);
+	ctl_config_write_done(io);
+}
+
+static int
+ctl_backend_ramdisk_nvme_config_write(union ctl_io *io)
+{
+	switch (io->nvmeio.cmd.opc) {
+	case NVME_OPC_FLUSH:
+		/* We have no cache to flush. */
+		ctl_nvme_set_success(&io->nvmeio);
+		ctl_config_write_done(io);
+		break;
+	case NVME_OPC_WRITE_UNCORRECTABLE:
+		ctl_backend_ramdisk_wu(io);
+		break;
+	case NVME_OPC_WRITE_ZEROES:
+		ctl_backend_ramdisk_wz(io);
+		break;
+	case NVME_OPC_DATASET_MANAGEMENT:
+		ctl_backend_ramdisk_dsm(io);
+		break;
+	default:
+		ctl_nvme_set_invalid_opcode(&io->nvmeio);
+		ctl_config_write_done(io);
+		break;
+	}
+	return (CTL_RETVAL_COMPLETE);
+}
+
+static int
+ctl_backend_ramdisk_config_write(union ctl_io *io)
+{
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		return (ctl_backend_ramdisk_scsi_config_write(io));
+	case CTL_IO_NVME:
+		return (ctl_backend_ramdisk_nvme_config_write(io));
+	default:
+		__assert_unreachable();
+	}
 }
 
 static uint64_t

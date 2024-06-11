@@ -248,8 +248,17 @@ ef_parse_dynamic(elf_file_t ef, const GElf_Phdr *phdyn)
 	dynamic_idx = -1;
 	for (i = 0; i < nshdr; i++) {
 		if (shdr[i].sh_type == SHT_DYNAMIC) {
+			/*
+			 * PowerPC kernels contain additional sections
+			 * beyond .dynamic in PT_DYNAMIC due to a linker
+			 * script bug.  Permit a section with a smaller
+			 * size as a workaround.
+			 */
 			if (shdr[i].sh_offset != phdyn->p_offset ||
-			    shdr[i].sh_size != phdyn->p_filesz) {
+			    ((elf_machine(ef->ef_efile) == EM_PPC ||
+			    elf_machine(ef->ef_efile) == EM_PPC64) ?
+			    shdr[i].sh_size > phdyn->p_filesz :
+			    shdr[i].sh_size != phdyn->p_filesz)) {
 				warnx(".dynamic section doesn't match phdr");
 				error = EFTYPE;
 				goto out;
@@ -361,6 +370,7 @@ ef_parse_dynamic(elf_file_t ef, const GElf_Phdr *phdyn)
 		goto out;
 	}
 
+	nsym = 0;
 	for (i = 0; i < nshdr; i++) {
 		switch (shdr[i].sh_type) {
 		case SHT_HASH:
@@ -512,8 +522,8 @@ ef_seg_read_rel(elf_file_t ef, GElf_Addr address, size_t len, void *dest)
 	ofs = ef_get_offset(ef, address);
 	if (ofs == 0) {
 		if (ef->ef_verbose)
-			warnx("ef_seg_read_rel(%s): zero offset (%jx:%ju)",
-			    ef->ef_name, (uintmax_t)address, (uintmax_t)ofs);
+			warnx("ef_seg_read_rel(%s): bad address (%jx)",
+			    ef->ef_name, (uintmax_t)address);
 		return (EFAULT);
 	}
 	error = elf_read_raw_data(ef->ef_efile, ofs, dest, len);
@@ -539,23 +549,16 @@ static int
 ef_seg_read_string(elf_file_t ef, GElf_Addr address, size_t len, char *dest)
 {
 	GElf_Off ofs;
-	int error;
 
 	ofs = ef_get_offset(ef, address);
-	if (ofs == 0 || ofs == (GElf_Off)-1) {
+	if (ofs == 0) {
 		if (ef->ef_verbose)
 			warnx("ef_seg_read_string(%s): bad offset (%jx:%ju)",
 			    ef->ef_name, (uintmax_t)address, (uintmax_t)ofs);
 		return (EFAULT);
 	}
 
-	error = elf_read_raw_data(ef->ef_efile, ofs, dest, len);
-	if (error != 0)
-		return (error);
-	if (strnlen(dest, len) == len)
-		return (EFAULT);
-
-	return (0);
+	return (elf_read_raw_string(ef->ef_efile, ofs, dest, len));
 }
 
 int

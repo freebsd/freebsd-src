@@ -249,6 +249,20 @@ uart_pl011_term(struct uart_bas *bas)
 {
 }
 
+#if CHECK_EARLY_PRINTF(pl011)
+static void
+uart_pl011_early_putc(int c)
+{
+	volatile uint32_t *fr = (uint32_t *)(socdev_va + UART_FR * 4);
+	volatile uint32_t *dr = (uint32_t *)(socdev_va + UART_DR * 4);
+
+	while ((*fr & FR_TXFF) != 0)
+		;
+	*dr = c & 0xff;
+}
+early_putc_t *early_putc = uart_pl011_early_putc;
+#endif /* CHECK_EARLY_PRINTF */
+
 static void
 uart_pl011_putc(struct uart_bas *bas, int c)
 {
@@ -318,7 +332,7 @@ static kobj_method_t uart_pl011_methods[] = {
 };
 
 static struct uart_class uart_pl011_class = {
-	"uart_pl011",
+	"pl011",
 	uart_pl011_methods,
 	sizeof(struct uart_pl011_softc),
 	.uc_ops = &uart_pl011_ops,
@@ -326,6 +340,7 @@ static struct uart_class uart_pl011_class = {
 	.uc_rclk = 0,
 	.uc_rshift = 2
 };
+UART_CLASS(uart_pl011_class);
 
 #ifdef FDT
 static struct ofw_compat_data fdt_compat_data[] = {

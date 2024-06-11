@@ -1,0 +1,24 @@
+--- test006.left.txt
++++ test006.right.txt
+@@ -3,7 +3,7 @@
+ 
+ It is important to specify the year of the copyright.  Additional years
+ should be separated by a comma, e.g.
+-    Copyright (c) 2003, 2004
++    Copyright (c) 2003, 2004, 2005
+ 
+ If you add extra text to the body of the license, be careful not to
+ add further restrictions.
+@@ -11,7 +11,6 @@
+ /*
+  * Copyright (c) CCYY YOUR NAME HERE <user@your.dom.ain>
+  *
+- * Permission to use, copy, modify, and distribute this software for any
+  * purpose with or without fee is hereby granted, provided that the above
+  * copyright notice and this permission notice appear in all copies.
+  *
+@@ -23,3 +22,4 @@
+  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+  */
++An extra line

@@ -283,7 +283,8 @@ synth_cname_rrset(uint8_t** sname, size_t* snamelen, uint8_t* alias,
 		sizeof(uint32_t)+sizeof(uint16_t)+aliaslen);
 	if(!cn->rr_first->ttl_data)
 		return NULL;
-	sldns_write_uint32(cn->rr_first->ttl_data, 0); /* TTL = 0 */
+	memmove(cn->rr_first->ttl_data, rrset->rr_first->ttl_data,
+		sizeof(uint32_t)); /* RFC6672: synth CNAME TTL == DNAME TTL */
 	sldns_write_uint16(cn->rr_first->ttl_data+4, aliaslen);
 	memmove(cn->rr_first->ttl_data+6, alias, aliaslen);
 	cn->rr_first->size = sizeof(uint16_t)+aliaslen;

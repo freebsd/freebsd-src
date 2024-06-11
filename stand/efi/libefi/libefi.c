@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <efi.h>
 #include <eficonsctl.h>
 #include <efilib.h>

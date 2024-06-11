@@ -88,6 +88,7 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+#include <vm/vnode_pager.h>
 
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
@@ -122,6 +123,7 @@ struct 	fileops vnops = {
 	.fo_mmap = vn_mmap,
 	.fo_fallocate = vn_fallocate,
 	.fo_fspacectl = vn_fspacectl,
+	.fo_cmp = vn_cmp,
 	.fo_flags = DFLAG_PASSABLE | DFLAG_SEEKABLE
 };
 
@@ -1257,12 +1259,15 @@ vn_io_fault_doio(struct vn_io_fault_args *args, struct uio *uio,
 		    uio, args->cred, args->flags, td);
 		break;
 	case VN_IO_FAULT_VOP:
-		if (uio->uio_rw == UIO_READ) {
+		switch (uio->uio_rw) {
+		case UIO_READ:
 			error = VOP_READ(args->args.vop_args.vp, uio,
 			    args->flags, args->cred);
-		} else if (uio->uio_rw == UIO_WRITE) {
+			break;
+		case UIO_WRITE:
 			error = VOP_WRITE(args->args.vop_args.vp, uio,
 			    args->flags, args->cred);
+			break;
 		}
 		break;
 	default:
@@ -1440,7 +1445,7 @@ vn_io_fault1(struct vnode *vp, struct uio *uio, struct vn_io_fault_args *args,
 	td->td_ma_cnt = prev_td_ma_cnt;
 	curthread_pflags_restore(saveheld);
 out:
-	free(uio_clone, M_IOV);
+	freeuio(uio_clone);
 	return (error);
 }
 
@@ -2575,7 +2580,6 @@ int
 vn_bmap_seekhole_locked(struct vnode *vp, u_long cmd, off_t *off,
     struct ucred *cred)
 {
-	vm_object_t obj;
 	off_t size;
 	daddr_t bn, bnp;
 	uint64_t bsize;
@@ -2600,12 +2604,7 @@ vn_bmap_seekhole_locked(struct vnode *vp, u_long cmd, off_t *off,
 	}
 
 	/* See the comment in ufs_bmap_seekdata(). */
-	obj = vp->v_object;
-	if (obj != NULL) {
-		VM_OBJECT_WLOCK(obj);
-		vm_object_page_clean(obj, 0, 0, OBJPC_SYNC);
-		VM_OBJECT_WUNLOCK(obj);
-	}
+	vnode_pager_clean_sync(vp);
 
 	bsize = vp->v_mount->mnt_stat.f_iosize;
 	for (bn = noff / bsize; noff < size; bn++, noff += bsize -
@@ -3338,14 +3337,15 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
     struct vnode *outvp, off_t *outoffp, size_t *lenp, unsigned int flags,
     struct ucred *incred, struct ucred *outcred, struct thread *fsize_td)
 {
+	struct vattr inva;
 	struct mount *mp;
 	off_t startoff, endoff, xfer, xfer2;
 	u_long blksize;
 	int error, interrupted;
-	bool cantseek, readzeros, eof, lastblock, holetoeof;
+	bool cantseek, readzeros, eof, first, lastblock, holetoeof, sparse;
 	ssize_t aresid, r = 0;
 	size_t copylen, len, savlen;
-	off_t insize, outsize;
+	off_t outsize;
 	char *dat;
 	long holein, holeout;
 	struct timespec curts, endts;
@@ -3361,11 +3361,25 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 		goto out;
 	if (VOP_PATHCONF(invp, _PC_MIN_HOLE_SIZE, &holein) != 0)
 		holein = 0;
-	if (holein > 0)
-		error = vn_getsize_locked(invp, &insize, incred);
+	error = VOP_GETATTR(invp, &inva, incred);
+	if (error == 0 && inva.va_size > OFF_MAX)
+		error = EFBIG;
 	VOP_UNLOCK(invp);
 	if (error != 0)
 		goto out;
+
+	/*
+	 * Use va_bytes >= va_size as a hint that the file does not have
+	 * sufficient holes to justify the overhead of doing FIOSEEKHOLE.
+	 * This hint does not work well for file systems doing compression
+	 * and may fail when allocations for extended attributes increases
+	 * the value of va_bytes to >= va_size.
+	 */
+	sparse = true;
+	if (holein != 0 && inva.va_bytes >= inva.va_size) {
+		holein = 0;
+		sparse = false;
+	}
 
 	mp = NULL;
 	error = vn_start_write(outvp, &mp, V_WAIT);
@@ -3398,7 +3412,11 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 		 */
 		if (error == 0)
 			error = vn_getsize_locked(outvp, &outsize, outcred);
-		if (error == 0 && outsize > *outoffp && outsize <= *outoffp + len) {
+		if (error == 0 && outsize > *outoffp &&
+		    *outoffp <= OFF_MAX - len && outsize <= *outoffp + len &&
+		    *inoffp < inva.va_size &&
+		    *outoffp <= OFF_MAX - (inva.va_size - *inoffp) &&
+		    outsize <= *outoffp + (inva.va_size - *inoffp)) {
 #ifdef MAC
 			error = mac_vnode_check_write(curthread->td_ucred,
 			    outcred, outvp);
@@ -3416,7 +3434,7 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 	if (error != 0)
 		goto out;
 
-	if (holein == 0 && holeout > 0) {
+	if (sparse && holein == 0 && holeout > 0) {
 		/*
 		 * For this special case, the input data will be scanned
 		 * for blocks of all 0 bytes.  For these blocks, the
@@ -3465,6 +3483,7 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 		endts.tv_sec++;
 	} else
 		timespecclear(&endts);
+	first = true;
 	holetoeof = eof = false;
 	while (len > 0 && error == 0 && !eof && interrupted == 0) {
 		endoff = 0;			/* To shut up compilers. */
@@ -3487,7 +3506,7 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 			error = VOP_IOCTL(invp, FIOSEEKDATA, &startoff, 0,
 			    incred, curthread);
 			if (error == ENXIO) {
-				startoff = endoff = insize;
+				startoff = endoff = inva.va_size;
 				eof = holetoeof = true;
 				error = 0;
 			}
@@ -3550,6 +3569,8 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 			cantseek = false;
 		} else {
 			cantseek = true;
+			if (!sparse)
+				cantseek = false;
 			startoff = *inoffp;
 			copylen = len;
 			error = 0;
@@ -3564,10 +3585,17 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 			 */
 			xfer -= (*inoffp % blksize);
 		}
-		/* Loop copying the data block. */
-		while (copylen > 0 && error == 0 && !eof && interrupted == 0) {
+
+		/*
+		 * Loop copying the data block.  If this was our first attempt
+		 * to copy anything, allow a zero-length block so that the VOPs
+		 * get a chance to update metadata, specifically the atime.
+		 */
+		while (error == 0 && ((copylen > 0 && !eof) || first) &&
+		    interrupted == 0) {
 			if (copylen < xfer)
 				xfer = copylen;
+			first = false;
 			error = vn_lock(invp, LK_SHARED);
 			if (error != 0)
 				goto out;
@@ -3577,7 +3605,7 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 			    curthread);
 			VOP_UNLOCK(invp);
 			lastblock = false;
-			if (error == 0 && aresid > 0) {
+			if (error == 0 && (xfer == 0 || aresid > 0)) {
 				/* Stop the copy at EOF on the input file. */
 				xfer -= aresid;
 				eof = true;
@@ -4102,9 +4130,11 @@ vn_lock_pair(struct vnode *vp1, bool vp1_locked, int lkflags1,
 {
 	int error, locked1;
 
-	MPASS(((lkflags1 & LK_SHARED) != 0) ^ ((lkflags1 & LK_EXCLUSIVE) != 0));
+	MPASS((((lkflags1 & LK_SHARED) != 0) ^ ((lkflags1 & LK_EXCLUSIVE) != 0)) ||
+	    (vp1 == NULL && lkflags1 == 0));
 	MPASS((lkflags1 & ~(LK_SHARED | LK_EXCLUSIVE | LK_NODDLKTREAT)) == 0);
-	MPASS(((lkflags2 & LK_SHARED) != 0) ^ ((lkflags2 & LK_EXCLUSIVE) != 0));
+	MPASS((((lkflags2 & LK_SHARED) != 0) ^ ((lkflags2 & LK_EXCLUSIVE) != 0)) ||
+	    (vp2 == NULL && lkflags2 == 0));
 	MPASS((lkflags2 & ~(LK_SHARED | LK_EXCLUSIVE | LK_NODDLKTREAT)) == 0);
 
 	if (vp1 == NULL && vp2 == NULL)
@@ -4229,4 +4259,12 @@ vn_lktype_write(struct mount *mp, struct vnode *vp)
 	    (mp == NULL && MNT_SHARED_WRITES(vp->v_mount)))
 		return (LK_SHARED);
 	return (LK_EXCLUSIVE);
+}
+
+int
+vn_cmp(struct file *fp1, struct file *fp2, struct thread *td)
+{
+	if (fp2->f_type != DTYPE_VNODE)
+		return (3);
+	return (kcmp_cmp((uintptr_t)fp1->f_vnode, (uintptr_t)fp2->f_vnode));
 }

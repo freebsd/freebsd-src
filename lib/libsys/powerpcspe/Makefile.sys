@@ -1,0 +1,5 @@
+CFLAGS+= -I${LIBC_SRCTOP}/powerpc
+CFLAGS+= -I${LIBSYS_SRCTOP}/powerpc
+
+.PATH: ${LIBSYS_SRCTOP}/powerpc
+.include "${LIBSYS_SRCTOP}/powerpc/Makefile.sys"

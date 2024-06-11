@@ -33,7 +33,18 @@ struct hypercall_ctx {
     void            *hc_addr;
     vm_paddr_t      hc_paddr;
 };
+
 uint64_t	hypercall_post_message(bus_addr_t msg_paddr);
 uint64_t	hypercall_signal_event(bus_addr_t monprm_paddr);
+uint64_t	hypercall_do_md(uint64_t input, uint64_t in_addr,
+		    uint64_t out_addr);
+struct hv_vpset;
+struct vmbus_softc;
 
+uint64_t
+hv_do_rep_hypercall(uint16_t code, uint16_t rep_count, uint16_t varhead_size,
+    uint64_t input, uint64_t output);
+int
+hv_cpumask_to_vpset(struct hv_vpset *vpset, const cpuset_t *cpus,
+    struct vmbus_softc *sc);
 #endif	/* !_HYPERV_VAR_H_ */

@@ -30,7 +30,10 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/elf_common.h>
+
 #include <machine/asm.h>
+
 .macro arm_smccc_1_0	insn
 ENTRY(arm_smccc_\insn)
 	\insn	#0
@@ -77,10 +80,12 @@ ENTRY(arm_smccc_1_2_\insn)
 	stp	x16, x17, [x19, #16 * 8]
 1:	ldp	xzr, x19, [sp], #16
 	ret
-END(arm_smccc_1_2\insn)
+END(arm_smccc_1_2_\insn)
 .endm
 /* int arm_smccc_1_2_*(const struct arm_smccc_1_2_regs *args,
  *     struct arm_smccc_1_2_regs *res)
  */
 arm_smccc_1_2	hvc
 arm_smccc_1_2	smc
+
+GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)

@@ -41,6 +41,7 @@
 #include "opt_maxusers.h"
 
 #include <sys/param.h>
+#include <sys/_maxphys.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/kernel.h>
@@ -157,7 +158,7 @@ static const char *const vm_guest_sysctl_names[] = {
 	[VM_GUEST_VBOX] = "vbox",
 	[VM_GUEST_PARALLELS] = "parallels",
 };
-_Static_assert(nitems(vm_guest_sysctl_names) == VM_LAST,
+_Static_assert(nitems(vm_guest_sysctl_names) == VM_GUEST_LAST,
     "new vm guest type not added to vm_guest_sysctl_names");
 
 /*

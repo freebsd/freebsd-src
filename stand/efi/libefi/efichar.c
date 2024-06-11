@@ -25,14 +25,21 @@
  */
 
 #include <sys/types.h>
+#ifndef _KERNEL
 #include <errno.h>
+#endif
 #ifdef _STANDALONE
 #include <stand.h>
+#else
+#ifdef _KERNEL
+#include <sys/malloc.h>
+#include <sys/systm.h>
 #else
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#endif
 #include <sys/efi.h>
 #include <machine/efi.h>
 #endif
@@ -87,7 +94,7 @@ ucs2_to_utf8(const efi_char *nm, char **name)
 	if (*name != NULL)
 		cp = *name;
 	else
-		cp = *name = malloc(sz);
+		cp = *name = EFICHAR_MALLOC(sz);
 	if (*name == NULL)
 		return (ENOMEM);
 
@@ -114,7 +121,7 @@ ucs2_to_utf8(const efi_char *nm, char **name)
 	if (len >= sz) {
 		/* Absent bugs, we'll never return EOVERFLOW */
 		if (freeit) {
-			free(*name);
+			EFICHAR_FREE(*name);
 			*name = NULL;
 		}
 		return (EOVERFLOW);
@@ -135,7 +142,7 @@ utf8_to_ucs2(const char *name, efi_char **nmp, size_t *len)
 
 	sz = strlen(name) * 2 + 2;
 	if (*nmp == NULL)
-		*nmp = malloc(sz);
+		*nmp = EFICHAR_MALLOC(sz);
 	if (*nmp == NULL)
 		return (ENOMEM);
 	nm = *nmp;
@@ -183,7 +190,7 @@ utf8_to_ucs2(const char *name, efi_char **nmp, size_t *len)
 	}
 	if (sz < 2) {
 		if (freeit) {
-			free(nm);
+			EFICHAR_FREE(nm);
 			*nmp = NULL;
 		}
 		return (EDOOFUS);
@@ -194,7 +201,7 @@ utf8_to_ucs2(const char *name, efi_char **nmp, size_t *len)
 	return (0);
 ilseq:
 	if (freeit) {
-		free(nm);
+		EFICHAR_FREE(nm);
 		*nmp = NULL;
 	}
 	return (EILSEQ);

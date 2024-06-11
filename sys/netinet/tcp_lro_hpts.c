@@ -47,13 +47,16 @@
 #include <net/if_types.h>
 #include <net/infiniband.h>
 #include <net/if_lagg.h>
+#include <net/pfil.h>
 
 #include <netinet/in.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet/ip6.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/in_pcb.h>
 #include <netinet6/in6_pcb.h>
+#include <netinet6/ip6_var.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_lro.h>
 #include <netinet/tcp_var.h>
@@ -74,15 +77,15 @@ build_ack_entry(struct tcp_ackent *ae, struct tcphdr *th, struct mbuf *m,
 		ae->flags |= TSTMP_LRO;
 	else if (m->m_flags & M_TSTMP)
 		ae->flags |= TSTMP_HDWR;
-	ae->seq = ntohl(th->th_seq);
-	ae->ack = ntohl(th->th_ack);
+	ae->seq = th->th_seq;
+	ae->ack = th->th_ack;
 	ae->flags |= tcp_get_flags(th);
 	if (ts_ptr != NULL) {
 		ae->ts_value = ntohl(ts_ptr[1]);
 		ae->ts_echo = ntohl(ts_ptr[2]);
 		ae->flags |= HAS_TSTMP;
 	}
-	ae->win = ntohs(th->th_win);
+	ae->win = th->th_win;
 	ae->codepoint = iptos;
 }
 
@@ -279,22 +282,64 @@ do_bpf_strip_and_compress(struct tcpcb *tp, struct lro_ctrl *lc,
 		case LRO_TYPE_IPV4_TCP:
 			tcp_hdr_offset -= sizeof(*le->outer.ip4);
 			m->m_pkthdr.lro_etype = ETHERTYPE_IP;
+			IP_PROBE(receive, NULL, NULL, le->outer.ip4, lc->ifp,
+			    le->outer.ip4, NULL);
 			break;
 		case LRO_TYPE_IPV6_TCP:
 			tcp_hdr_offset -= sizeof(*le->outer.ip6);
 			m->m_pkthdr.lro_etype = ETHERTYPE_IPV6;
+			IP_PROBE(receive, NULL, NULL, le->outer.ip6, lc->ifp,
+			    NULL, le->outer.ip6);
 			break;
 		default:
 			goto compressed;
 		}
 		break;
 	case LRO_TYPE_IPV4_TCP:
+		switch (le->outer.data.lro_type) {
+		case LRO_TYPE_IPV4_UDP:
+			IP_PROBE(receive, NULL, NULL, le->outer.ip4, lc->ifp,
+			    le->outer.ip4, NULL);
+			UDP_PROBE(receive, NULL, NULL, le->outer.ip4, NULL,
+			    le->outer.udp);
+			break;
+		case LRO_TYPE_IPV6_UDP:
+			IP_PROBE(receive, NULL, NULL, le->outer.ip6, lc->ifp,
+			    NULL, le->outer.ip6);
+			UDP_PROBE(receive, NULL, NULL, le->outer.ip6, NULL,
+			    le->outer.udp);
+			break;
+		default:
+			__assert_unreachable();
+			break;
+		}
 		tcp_hdr_offset -= sizeof(*le->outer.ip4);
 		m->m_pkthdr.lro_etype = ETHERTYPE_IP;
+		IP_PROBE(receive, NULL, NULL, le->inner.ip4, NULL,
+		    le->inner.ip4, NULL);
 		break;
 	case LRO_TYPE_IPV6_TCP:
+		switch (le->outer.data.lro_type) {
+		case LRO_TYPE_IPV4_UDP:
+			IP_PROBE(receive, NULL, NULL, le->outer.ip4, lc->ifp,
+			    le->outer.ip4, NULL);
+			UDP_PROBE(receive, NULL, NULL, le->outer.ip4, NULL,
+			    le->outer.udp);
+			break;
+		case LRO_TYPE_IPV6_UDP:
+			IP_PROBE(receive, NULL, NULL, le->outer.ip6, lc->ifp,
+			    NULL, le->outer.ip6);
+			UDP_PROBE(receive, NULL, NULL, le->outer.ip6, NULL,
+			    le->outer.udp);
+			break;
+		default:
+			__assert_unreachable();
+			break;
+		}
 		tcp_hdr_offset -= sizeof(*le->outer.ip6);
 		m->m_pkthdr.lro_etype = ETHERTYPE_IPV6;
+		IP_PROBE(receive, NULL, NULL, le->inner.ip6, NULL, NULL,
+		    le->inner.ip6);
 		break;
 	default:
 		goto compressed;
@@ -310,6 +355,8 @@ do_bpf_strip_and_compress(struct tcpcb *tp, struct lro_ctrl *lc,
 	th = tcp_lro_get_th(m);
 
 	th->th_sum = 0;		/* TCP checksum is valid. */
+	tcp_fields_to_host(th);
+	TCP_PROBE5(receive, NULL, tp, m, tp, th);
 
 	/* Check if ACK can be compressed */
 	can_compress = tcp_lro_ack_valid(m, th, &ts_ptr, &other_opts);
@@ -423,7 +470,7 @@ tcp_lro_lookup(struct ifnet *ifp, struct lro_parser *pa)
 {
 	struct inpcb *inp;
 
-	CURVNET_SET(ifp->if_vnet);
+	CURVNET_ASSERT_SET();
 	switch (pa->data.lro_type) {
 #ifdef INET6
 	case LRO_TYPE_IPV6_TCP:
@@ -448,10 +495,8 @@ tcp_lro_lookup(struct ifnet *ifp, struct lro_parser *pa)
 		break;
 #endif
 	default:
-		CURVNET_RESTORE();
 		return (NULL);
 	}
-	CURVNET_RESTORE();
 
 	return (intotcpcb(inp));
 }
@@ -487,9 +532,28 @@ _tcp_lro_flush_tcphpts(struct lro_ctrl *lc, struct lro_entry *le)
 	    IN6_IS_ADDR_UNSPECIFIED(&le->inner.data.s_addr.v6)))
 		return (TCP_LRO_CANNOT);
 #endif
+
+	CURVNET_SET(lc->ifp->if_vnet);
+	/*
+	 * Ensure that there are no packet filter hooks which would normally
+	 * being triggered in ether_demux(), ip_input(), or ip6_input().
+	 */
+	if (
+#ifdef INET
+	    PFIL_HOOKED_IN(V_inet_pfil_head) ||
+#endif
+#ifdef INET6
+	    PFIL_HOOKED_IN(V_inet6_pfil_head) ||
+#endif
+	    PFIL_HOOKED_IN(V_link_pfil_head)) {
+		CURVNET_RESTORE();
+		return (TCP_LRO_CANNOT);
+	}
+
 	/* Lookup inp, if any.  Returns locked TCP inpcb. */
 	tp = tcp_lro_lookup(lc->ifp,
 	    (le->inner.data.lro_type == LRO_TYPE_NONE) ? &le->outer : &le->inner);
+	CURVNET_RESTORE();
 	if (tp == NULL)
 		return (TCP_LRO_CANNOT);
 
@@ -583,4 +647,10 @@ void
 tcp_lro_hpts_init(void)
 {
 	tcp_lro_flush_tcphpts = _tcp_lro_flush_tcphpts;
+}
+
+void
+tcp_lro_hpts_uninit(void)
+{
+	atomic_store_ptr(&tcp_lro_flush_tcphpts, NULL);
 }

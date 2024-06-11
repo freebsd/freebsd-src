@@ -29,6 +29,8 @@
 #ifndef _DEV_UART_H_
 #define _DEV_UART_H_
 
+#include <sys/linker_set.h>
+
 /*
  * Bus access structure. This structure holds the minimum information needed
  * to access the UART. The rclk field, although not important to actually
@@ -54,6 +56,11 @@ uart_getreg(struct uart_bas *bas, int reg)
 	uint32_t ret;
 
 	switch (uart_regiowidth(bas)) {
+#if !defined(__i386__)
+	case 8:
+		ret = bus_space_read_8(bas->bst, bas->bsh, uart_regofs(bas, reg));
+		break;
+#endif
 	case 4:
 		ret = bus_space_read_4(bas->bst, bas->bsh, uart_regofs(bas, reg));
 		break;
@@ -69,10 +76,15 @@ uart_getreg(struct uart_bas *bas, int reg)
 }
 
 static inline void
-uart_setreg(struct uart_bas *bas, int reg, int value)
+uart_setreg(struct uart_bas *bas, int reg, uint32_t value)
 {
 
 	switch (uart_regiowidth(bas)) {
+#if !defined(__i386__)
+	case 8:
+		bus_space_write_8(bas->bst, bas->bsh, uart_regofs(bas, reg), value);
+		break;
+#endif
 	case 4:
 		bus_space_write_4(bas->bst, bas->bsh, uart_regofs(bas, reg), value);
 		break;
@@ -98,6 +110,8 @@ uart_setreg(struct uart_bas *bas, int reg, int value)
  * UART device classes.
  */
 struct uart_class;
+
+SET_DECLARE(uart_class_set, struct uart_class);
 
 extern struct uart_class uart_ns8250_class __attribute__((weak));
 extern struct uart_class uart_quicc_class __attribute__((weak));

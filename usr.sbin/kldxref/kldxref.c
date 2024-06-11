@@ -230,7 +230,7 @@ typedef TAILQ_HEAD(pnp_head, pnp_elt) pnp_list;
 
 /*
  * this function finds the data from the pnp table, as described by the
- * the description and creates a new output (new_desc). This output table
+ * description and creates a new output (new_desc). This output table
  * is a form that's easier for the agent that's automatically loading the
  * modules.
  *
@@ -717,12 +717,9 @@ read_kld(char *filename, char *kldname)
 static FILE *
 maketempfile(char *dest, const char *root)
 {
-	char *p;
-	int n, fd;
+	int fd;
 
-	p = strrchr(root, '/');
-	n = p != NULL ? p - root + 1 : 0;
-	if (snprintf(dest, MAXPATHLEN, "%.*slhint.XXXXXX", n, root) >=
+	if (snprintf(dest, MAXPATHLEN, "%s/lhint.XXXXXX", root) >=
 	    MAXPATHLEN) {
 		errno = ENAMETOOLONG;
 		return (NULL);
@@ -748,7 +745,11 @@ usage(void)
 }
 
 static int
+#if defined(__linux__) || defined(__APPLE__)
+compare(const FTSENT **a, const FTSENT **b)
+#else
 compare(const FTSENT *const *a, const FTSENT *const *b)
+#endif
 {
 
 	if ((*a)->fts_info == FTS_D && (*b)->fts_info != FTS_D)
@@ -838,10 +839,11 @@ main(int argc, char *argv[])
 			continue;
 		/*
 		 * Skip files that generate errors like .debug, .symbol and .pkgsave
-		 * by generally skipping all files with 2 dots.
+		 * by generally skipping all files not ending with ".ko" or that have
+		 * no dots in the name (like kernel).
 		 */
-		dot = strchr(p->fts_name, '.');
-		if (dot && strchr(dot + 1, '.') != NULL)
+		dot = strrchr(p->fts_name, '.');
+		if (dot != NULL && strcmp(dot, ".ko") != 0)
 			continue;
 		read_kld(p->fts_path, p->fts_name);
 	}

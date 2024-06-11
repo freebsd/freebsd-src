@@ -48,33 +48,23 @@
 #define from_tasklet(var, callback_tasklet, tasklet_fieldname) \
 	container_of(callback_tasklet, typeof(*var), tasklet_fieldname)
 #endif
-
-#if __FreeBSD_version >= 1400000
 #define IRDMA_SET_RDMA_OBJ_SIZE(ib_struct, drv_struct, member)    \
 	(sizeof(struct drv_struct) +                              \
 	 BUILD_BUG_ON_ZERO(offsetof(struct drv_struct, member)) + \
 	 BUILD_BUG_ON_ZERO(                                       \
 		!__same_type(((struct drv_struct *)NULL)->member, \
                                       struct ib_struct)))
-#endif /* __FreeBSD_version > 1400000 */
 
 #define set_ibdev_dma_device(ibdev, dev) \
 	ibdev.dma_device = (dev)
 #define set_max_sge(props, rf)  \
 	((props)->max_sge = (rf)->sc_dev.hw_attrs.uk_attrs.max_hw_wq_frags)
-#define rdma_query_gid(ibdev, port, index, gid) \
-	ib_get_cached_gid(ibdev, port, index, gid, NULL)
 #define kmap(pg) page_address(pg)
 #define kmap_local_page(pg) page_address(pg)
 #define kunmap(pg)
 #define kunmap_local(pg)
 
 #define IB_UVERBS_CQ_FLAGS_TIMESTAMP_COMPLETION IB_CQ_FLAGS_TIMESTAMP_COMPLETION
-#if __FreeBSD_version < 1400026
-#define kc_irdma_destroy_qp(ibqp, udata) irdma_destroy_qp(ibqp)
-#else
-#define kc_irdma_destroy_qp(ibqp, udata) irdma_destroy_qp(ibqp, udata)
-#endif
 #ifndef IB_QP_ATTR_STANDARD_BITS
 #define IB_QP_ATTR_STANDARD_BITS GENMASK(20, 0)
 #endif
@@ -135,53 +125,23 @@ irdma_cmid_to_vnet(struct iw_cm_id *cm_id)
 	return rdma_id->route.addr.dev_addr.net;
 }
 
-#if __FreeBSD_version < 1400026
-struct ib_cq *irdma_create_cq(struct ib_device *ibdev,
-			      const struct ib_cq_init_attr *attr,
-			      struct ib_ucontext *context,
-			      struct ib_udata *udata);
-#else
 int irdma_create_cq(struct ib_cq *ibcq,
 		    const struct ib_cq_init_attr *attr,
 		    struct ib_udata *udata);
-#endif
 struct ib_qp *irdma_create_qp(struct ib_pd *ibpd,
 			      struct ib_qp_init_attr *init_attr,
 			      struct ib_udata *udata);
-#if __FreeBSD_version >= 1400026
 int irdma_create_ah(struct ib_ah *ib_ah,
 		    struct ib_ah_attr *attr, u32 flags,
 		    struct ib_udata *udata);
 int irdma_create_ah_stub(struct ib_ah *ib_ah,
 			 struct ib_ah_attr *attr, u32 flags,
 			 struct ib_udata *udata);
-#else
-struct ib_ah *irdma_create_ah(struct ib_pd *ibpd,
-			      struct ib_ah_attr *attr,
-			      struct ib_udata *udata);
-struct ib_ah *irdma_create_ah_stub(struct ib_pd *ibpd,
-				   struct ib_ah_attr *attr,
-				   struct ib_udata *udata);
-#endif
 void irdma_ether_copy(u8 *dmac, struct ib_ah_attr *attr);
-
-#if __FreeBSD_version >= 1400026
 void irdma_destroy_ah(struct ib_ah *ibah, u32 flags);
 void irdma_destroy_ah_stub(struct ib_ah *ibah, u32 flags);
-#else
-int irdma_destroy_ah(struct ib_ah *ibah);
-int irdma_destroy_ah_stub(struct ib_ah *ibah);
-#endif
-#if __FreeBSD_version < 1400026
-int irdma_destroy_qp(struct ib_qp *ibqp);
-#else
 int irdma_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata);
-#endif
-#if __FreeBSD_version < 1400026
-int irdma_dereg_mr(struct ib_mr *ib_mr);
-#else
 int irdma_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata);
-#endif
 int ib_get_eth_speed(struct ib_device *dev, u32 port_num, u8 *speed, u8 *width);
 enum rdma_link_layer irdma_get_link_layer(struct ib_device *ibdev,
 					  u8 port_num);
@@ -208,10 +168,6 @@ int irdma_register_qset(struct irdma_sc_vsi *vsi,
 void irdma_unregister_qset(struct irdma_sc_vsi *vsi,
 			   struct irdma_ws_node *tc_node);
 void ib_unregister_device(struct ib_device *ibdev);
-#if __FreeBSD_version < 1400026
-int rdma_user_mmap_io(struct ib_ucontext *ucontext, struct vm_area_struct *vma,
-		      unsigned long pfn, unsigned long size, pgprot_t prot);
-#endif
 void irdma_disassociate_ucontext(struct ib_ucontext *context);
 int kc_irdma_set_roce_cm_info(struct irdma_qp *iwqp,
 			      struct ib_qp_attr *attr,
@@ -245,13 +201,8 @@ int irdma_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start, u64 len,
 struct irdma_mr;
 struct irdma_cq;
 struct irdma_cq_buf;
-#if __FreeBSD_version < 1400026
-struct ib_mr *irdma_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
-			     u32 max_num_sg);
-#else
 struct ib_mr *irdma_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 			     u32 max_num_sg, struct ib_udata *udata);
-#endif
 int irdma_hwreg_mr(struct irdma_device *iwdev, struct irdma_mr *iwmr,
 		   u16 access);
 struct ib_mr *irdma_rereg_mr_trans(struct irdma_mr *iwmr, u64 start, u64 len,
@@ -264,8 +215,8 @@ void irdma_cq_free_rsrc(struct irdma_pci_f *rf, struct irdma_cq *iwcq);
 int irdma_validate_qp_attrs(struct ib_qp_init_attr *init_attr,
 			    struct irdma_device *iwdev);
 void irdma_setup_virt_qp(struct irdma_device *iwdev,
-                         struct irdma_qp *iwqp,
-                         struct irdma_qp_init_info *init_info);
+			 struct irdma_qp *iwqp,
+			 struct irdma_qp_init_info *init_info);
 int irdma_setup_kmode_qp(struct irdma_device *iwdev,
 			 struct irdma_qp *iwqp,
 			 struct irdma_qp_init_info *info,
@@ -281,35 +232,14 @@ void irdma_iw_fill_and_set_qpctx_info(struct irdma_qp *iwqp,
 				      struct irdma_qp_host_ctx_info *ctx_info);
 int irdma_cqp_create_qp_cmd(struct irdma_qp *iwqp);
 void irdma_dealloc_push_page(struct irdma_pci_f *rf,
-			     struct irdma_sc_qp *qp);
+			     struct irdma_qp *iwqp);
 int irdma_process_resize_list(struct irdma_cq *iwcq, struct irdma_device *iwdev,
 			      struct irdma_cq_buf *lcqe_buf);
-#if __FreeBSD_version < 1400026
-int irdma_destroy_cq(struct ib_cq *ib_cq);
-#else
 void irdma_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata);
-#endif
-#if __FreeBSD_version < 1400026
-struct ib_ucontext *irdma_alloc_ucontext(struct ib_device *, struct ib_udata *);
-#else
 int irdma_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata);
-#endif
-#if __FreeBSD_version < 1400026
-int irdma_dealloc_ucontext(struct ib_ucontext *);
-#else
 void irdma_dealloc_ucontext(struct ib_ucontext *context);
-#endif
-#if __FreeBSD_version < 1400026
-struct ib_pd *irdma_alloc_pd(struct ib_device *, struct ib_ucontext *,
-			     struct ib_udata *);
-#else
 int irdma_alloc_pd(struct ib_pd *pd, struct ib_udata *udata);
-#endif
-#if __FreeBSD_version < 1400026
-int irdma_dealloc_pd(struct ib_pd *);
-#else
 void irdma_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata);
-#endif
 int irdma_add_gid(struct ib_device *, u8, unsigned int, const union ib_gid *,
 		  const struct ib_gid_attr *, void **);
 int irdma_del_gid(struct ib_device *, u8, unsigned int, void **);

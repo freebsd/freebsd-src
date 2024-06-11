@@ -60,7 +60,6 @@ int
 ata_pci_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    char buffer[64];
 
     /* is this a storage class device ? */
     if (pci_get_class(dev) != PCIC_STORAGE)
@@ -70,8 +69,7 @@ ata_pci_probe(device_t dev)
     if (pci_get_subclass(dev) != PCIS_STORAGE_IDE)
 	return (ENXIO);
     
-    sprintf(buffer, "%s ATA controller", ata_pcivendor2str(dev));
-    device_set_desc_copy(dev, buffer);
+    device_set_descf(dev, "%s ATA controller", ata_pcivendor2str(dev));
     ctlr->chipinit = ata_generic_chipinit;
 
     /* we are a low priority handler */
@@ -273,24 +271,20 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 }
 
 int
-ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
-			 struct resource *r)
+ata_pci_release_resource(device_t dev, device_t child, struct resource *r)
 {
+	int rid = rman_get_rid(r);
+	int type = rman_get_type(r);
 
 	if (device_get_devclass(child) == ata_devclass) {
 		struct ata_pci_controller *controller = device_get_softc(dev);
-		int unit = ((struct ata_channel *)device_get_softc(child))->unit;
 
 	        if (type == SYS_RES_IOPORT) {
 	    		switch (rid) {
 			case ATA_IOADDR_RID:
-		    	    return BUS_RELEASE_RESOURCE(device_get_parent(dev), dev,
-				SYS_RES_IOPORT,
-				PCIR_BAR(0) + (unit << 3), r);
 			case ATA_CTLADDR_RID:
 			    return BUS_RELEASE_RESOURCE(device_get_parent(dev), dev,
-				SYS_RES_IOPORT,
-				PCIR_BAR(1) + (unit << 3), r);
+				r);
 			default:
 			    return ENOENT;
 			}
@@ -300,7 +294,7 @@ ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
 				return ENOENT;
 			if (controller->legacy) {
 				return BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
-				    SYS_RES_IRQ, rid, r);
+				    r);
 			} else  
 				return 0;
 		}
@@ -311,7 +305,7 @@ ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
 			return (0);
 		} else {
 			return (BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
-			    type, rid, r));
+			    r));
 		}
 	}
 	return (EINVAL);
@@ -835,12 +829,10 @@ void
 ata_set_desc(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    char buffer[128];
 
-    sprintf(buffer, "%s %s %s controller",
+    device_set_descf(dev, "%s %s %s controller",
             ata_pcivendor2str(dev), ctlr->chip->text, 
             ata_mode2str(ctlr->chip->max_dma));
-    device_set_desc_copy(dev, buffer);
 }
 
 const struct ata_chip_id *

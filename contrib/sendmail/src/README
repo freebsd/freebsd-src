@@ -232,8 +232,8 @@ HASFLOCK	Set this if you prefer to use the flock(2) system call
 		rather than using fcntl-based locking.  Fcntl locking
 		has some semantic gotchas, but many vendor systems
 		also interface it to lockd(8) to do NFS-style locking.
-		Unfortunately, may vendors implementations of fcntl locking
-		is just plain broken (e.g., locks are never released,
+		Unfortunately, many vendor implementations of fcntl locking
+		are just plain broken (e.g., locks are never released,
 		causing your sendmail to deadlock; when the kernel runs
 		out of locks your system crashes).  For this reason, I
 		recommend always defining this unless you are absolutely
@@ -309,9 +309,9 @@ HASSTRERROR	Define this if you have the libc strerror(3) function (which
 HASCLOSEFROM	Define this if your system has closefrom(3).
 HASFDWALK	Define this if your system has fdwalk(3).
 SM_CONF_GETOPT	Define this as 0 if you need a reimplementation of getopt(3).
-		On some systems, getopt does very odd things if called
+		On some systems, getopt() does very odd things if called
 		to scan the arguments twice.  This flag will ask sendmail
-		to compile in a local version of getopt that works
+		to compile in a local version of getopt() that works
 		properly.  You may also need this if you build with
 		another library that introduces a non-standard getopt(3).
 NEEDSTRTOL	Define this if your standard C library does not define
@@ -625,7 +625,7 @@ SHARE_V1	Support for the fair share scheduler, version 1.  Setting to
 		resource limitations.  So far as I know, this is only
 		supported on ConvexOS.
 SASL		Enables SMTP AUTH (RFC 2554).  This requires the Cyrus SASL
-		library (ftp://ftp.andrew.cmu.edu/pub/cyrus-mail/).  Please
+		library (https://github.com/cyrusimap/cyrus-sasl).  Please
 		install at least version 1.5.13.  See below for further
 		information: SASL COMPILATION AND CONFIGURATION.  If your
 		SASL library is older than 1.5.10, you have to set this
@@ -640,7 +640,9 @@ EGD		Define this if your system has EGD installed, see
 		http://egd.sourceforge.net/ .  It should be used to
 		seed the PRNG for STARTTLS if HASURANDOMDEV is not defined.
 STARTTLS	Enables SMTP STARTTLS (RFC 2487).  This requires OpenSSL
-		(http://www.OpenSSL.org/); use OpenSSL 0.9.8zc or later.
+		(http://www.OpenSSL.org/); use an OpenSSL version
+		which is supported by sendmail and preferably your
+		OS distribution or OpenSSL.
 		See STARTTLS COMPILATION AND CONFIGURATION for further
 		information.
 TLS_EC		Enable use of elliptic curve cryptography in STARTTLS.
@@ -765,6 +767,10 @@ From: Garrett Wollman <wollman@lcs.mit.edu>
     certificate authentication -- even some of those which already support
     SSL/TLS for confidentiality.
 
+OpenSSL 3 deprecated a lot of functionality which sendmail uses by
+default. However, the code can be disabled via compile time options
+if needed:
+-DNO_DH: related to DH and DSA.
 
 +------------------------------------+
 | SASL COMPILATION AND CONFIGURATION |
@@ -1804,6 +1810,7 @@ conf.h		Configuration that must be known everywhere.
 control.c	Routines to implement control socket.
 convtime.c	A routine to sanely process times.
 daemon.c	Routines to implement daemon mode.
+daemon.h	Header file for daemon.c.
 deliver.c	Routines to deliver mail.
 domain.c	Routines that interface with DNS (the Domain Name
 		System).
@@ -1818,17 +1825,21 @@ main.c		The main routine to sendmail.  This file also
 		contains some miscellaneous routines.
 makesendmail	A convenience for calling ./Build.
 map.c		Support for database maps.
+map.h		Header file for map.c.
 mci.c		Routines that handle mail connection information caching.
 milter.c	MTA portions of the mail filter API.
 mime.c		MIME conversion routines.
 newaliases.1	Man page for the newaliases command.
 parseaddr.c	The routines which do address parsing.
 queue.c		Routines to implement message queueing.
+ratectrl.c	Routines for rate/connnection control.
+ratectrl.h	Header file for rate/connnection control.
 readcf.c	The routine that reads the configuration file and
 		translates it to internal form.
 recipient.c	Routines that manipulate the recipient list.
 sasl.c		Routines to interact with Cyrys-SASL.
 savemail.c	Routines which save the letter on processing errors.
+sched.c		Routines for scheduling queue management.
 sendmail.8	Man page for the sendmail command.
 sendmail.h	Main header file for sendmail.
 sfsasl.c	I/O interface between SASL/TLS and the MTA.
@@ -1846,6 +1857,8 @@ sysexits.h	List of error codes for systems that lack their own.
 timers.c	Routines to provide microtimers.
 timers.h	Data structure and function declarations for timers.h.
 tls.c		Routines for TLS.
+tls.h		Header file for tls*.c
+tlsh.c		Helper routines for TLS, mostly DANE.
 trace.c		The trace package.  These routines allow setting and
 		testing of trace flags with a high granularity.
 udb.c		The user database interface module.

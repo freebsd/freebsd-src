@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 .\" DAMAGE.
 .\"
-.Dd November 17, 2017
+.Dd May 18, 2024
 .Dt LOCK 9
 .Os
 .Sh NAME
@@ -108,10 +108,6 @@ should log messages about duplicate locks being acquired.
 Disable
 .Xr ktr 4
 logging for this lock.
-.It Dv LK_TIMELOCK
-Use
-.Fa timo
-during a sleep; otherwise, 0 is used.
 .El
 .El
 .Pp
@@ -182,6 +178,10 @@ Fail if operation has slept.
 .It Dv LK_NOWAIT
 Do not allow the call to sleep.
 This can be used to test the lock.
+.It Dv LK_TIMELOCK
+Use
+.Fa timo
+during a sleep; otherwise, 0 is used.
 .It Dv LK_NOWITNESS
 Skip the
 .Xr witness 4

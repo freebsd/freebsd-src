@@ -52,6 +52,7 @@ daichi [label="Daichi Goto\ndaichi@FreeBSD.org\n2002/10/17\n2018/06/01"]
 dhn [label="Dennis Herrmann\ndhn@FreeBSD.org\n2009/03/03\n2015/06/11"]
 dryice [label="Dryice Dong Liu\ndryice@FreeBSD.org\n2006/12/25\n2018/11/06"]
 dteske [label="Devin Teske\ndteske@FreeBSD.org\n2018/03/01\n2019/11/05"]
+dutra [label="Gabriel M. Dutra\ndutra@FreeBSD.org\n2024/01/12"]
 edwin [label="Edwin Groothuis\nedwin@FreeBSD.org\n2002/10/22\n2016/11/16"]
 eik [label="Oliver Eikemeier\neik@FreeBSD.org\n2003/11/12\n2006/12/14"]
 erwin [label="Erwin Lansing\nerwin@FreeBSD.org\n2003/06/04\n2016/10/12"]
@@ -129,6 +130,7 @@ tabthorpe [label="Thomas Abthorpe\ntabthorpe@FreeBSD.org\n2007/08/20\n2018/02/23
 tj [label="Tom Judge\ntj@FreeBSD.org\n2012/05/28\n2018/11/06"]
 tmclaugh [label="Tom McLaughlin\ntmclaugh@FreeBSD.org\n2005/09/15\n2011/04/16"]
 trasz [label="Edward Tomasz Napierala\ntrasz@FreeBSD.org\n2007/04/12\n2022/06/06"]
+uzsolt [label="Zsolt Udvari\nuzsolt@FreeBSD.org\n2024/01/12"]
 vg [label="Veniamin Gvozdikov\nvg@FreeBSD.org\n2013/06/11\n2018/02/23"]
 wg [label="William Grzybowski\nwg@FreeBSD.org\n2013/04/01\n2022/06/06"]
 will [label="Will Andrews\nwill@FreeBSD.org\n2000/03/20\n2006/09/01"]
@@ -388,6 +390,8 @@ beech -> mva
 billf -> sobomax
 billf -> will
 
+bofh -> uzsolt
+
 brooks -> kmoore
 
 clement -> tdb
@@ -414,6 +418,7 @@ culot -> wg
 db -> tj
 db -> shurd
 
+dbaio -> dutra
 dbaio -> eduardo
 
 decke -> sperber
@@ -423,6 +428,8 @@ delphij -> nemoliu
 delphij -> rafan
 
 demon -> mat
+
+diizzy -> uzsolt
 
 eadler -> ak
 eadler -> antoine
@@ -491,6 +498,7 @@ gabor -> scheidell
 garga -> acm
 garga -> alepulver
 garga -> dbaio
+garga -> dutra
 garga -> eduardo
 garga -> mandree
 garga -> mm

@@ -32,7 +32,7 @@
  */
 /*
  * Additional Copyright (c) 1997, by Matthew Jacob, for NASA/Ames Research Ctr.
- * Addidional Copyright (c) 2000, by C. Stephen Gunn, Waterspout Communications
+ * Additional Copyright (c) 2000, by C. Stephen Gunn, Waterspout Communications
  */
 
 #include <sys/param.h>

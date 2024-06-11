@@ -65,7 +65,6 @@ struct sockaddr_un {
 #define	LOCAL_PEERCRED		1	/* retrieve peer credentials */
 #define	LOCAL_CREDS		2	/* pass credentials to receiver */
 #define	LOCAL_CREDS_PERSISTENT	3	/* pass credentials to receiver */
-#define	LOCAL_CONNWAIT		4	/* connects block until accepted */
 
 /* Start of reserved space for third-party socket options. */
 #define	LOCAL_VENDOR		SO_VENDOR

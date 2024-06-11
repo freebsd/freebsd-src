@@ -57,8 +57,6 @@
 #ifndef	STAND_H
 #define	STAND_H
 
-#include <sys/cdefs.h>
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/dirent.h>

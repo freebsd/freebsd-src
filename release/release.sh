@@ -89,9 +89,11 @@ env_setup() {
 	SRC_CONF="/dev/null"
 
 	# The number of make(1) jobs, defaults to the number of CPUs available
-	# for buildworld, and half of number of CPUs available for buildkernel.
+	# for buildworld, and half of number of CPUs available for buildkernel
+	# and 'make release'.
 	WORLD_FLAGS="-j$(sysctl -n hw.ncpu)"
 	KERNEL_FLAGS="-j$(( $(( $(sysctl -n hw.ncpu) + 1 )) / 2))"
+	RELEASE_FLAGS="-j$(( $(( $(sysctl -n hw.ncpu) + 1 )) / 2))"
 
 	MAKE_FLAGS="-s"
 
@@ -190,7 +192,7 @@ env_check() {
 		${CONF_FILES}"
 	RELEASE_KMAKEFLAGS="${MAKE_FLAGS} ${KERNEL_FLAGS} \
 		KERNCONF=\"${KERNEL}\" ${ARCH_FLAGS} ${CONF_FILES}"
-	RELEASE_RMAKEFLAGS="${ARCH_FLAGS} \
+	RELEASE_RMAKEFLAGS="${ARCH_FLAGS} ${RELEASE_FLAGS} \
 		KERNCONF=\"${KERNEL}\" ${CONF_FILES} ${SRCPORTS} \
 		WITH_DVD=${WITH_DVD} WITH_VMIMAGES=${WITH_VMIMAGES} \
 		WITH_CLOUDWARE=${WITH_CLOUDWARE} XZ_THREADS=${XZ_THREADS}"
@@ -252,11 +254,11 @@ extra_chroot_setup() {
 		cp ${SRC_CONF} ${CHROOTDIR}/${SRC_CONF}
 	fi
 
-	if [ -z "${NOGIT}" ]; then
-		# Install git from ports or packages if the ports tree is
-		# available and VCSCMD is unset.
-		_gitcmd="$(which git)"
-		if [ -d ${CHROOTDIR}/usr/ports -a -z "${_gitcmd}" ]; then
+	_gitcmd="$(which git)"
+	if [ -z "${NOGIT}" -a -z "${_gitcmd}" ]; then
+		# Install git from ports if the ports tree is available;
+		# otherwise install the pkg.
+		if [ -d ${CHROOTDIR}/usr/ports ]; then
 			# Trick the ports 'run-autotools-fixup' target to do the right
 			# thing.
 			_OSVERSION=$(chroot ${CHROOTDIR} /usr/bin/uname -U)

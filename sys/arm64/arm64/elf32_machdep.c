@@ -76,8 +76,8 @@ static void freebsd32_setregs(struct thread *td, struct image_params *imgp,
     u_long stack);
 static void freebsd32_set_syscall_retval(struct thread *, int);
 
-static bool elf32_arm_abi_supported(struct image_params *, int32_t *,
-    uint32_t *);
+static bool elf32_arm_abi_supported(const struct image_params *,
+    const int32_t *, const uint32_t *);
 static void elf32_fixlimit(struct rlimit *rl, int which);
 
 extern void freebsd32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
@@ -167,8 +167,8 @@ register_elf32_brand(void *arg)
 SYSINIT(elf32, SI_SUB_EXEC, SI_ORDER_FIRST, register_elf32_brand, NULL);
 
 static bool
-elf32_arm_abi_supported(struct image_params *imgp, int32_t *osrel __unused,
-    uint32_t *fctl0 __unused)
+elf32_arm_abi_supported(const struct image_params *imgp,
+    const int32_t *osrel __unused, const uint32_t *fctl0 __unused)
 {
 	const Elf32_Ehdr *hdr;
 

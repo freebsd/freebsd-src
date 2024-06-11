@@ -60,13 +60,6 @@ device		al_udma			# Universal DMA
 # Qualcomm Snapdragon drivers
 device		qcom_gcc		# Global Clock Controller
 
-# VirtIO support
-device		virtio
-device		virtio_pci
-device		virtio_mmio
-device		virtio_blk
-device		vtnet
-
 # Google Virtual NIC
 device		gve		# Google Virtual NIC (gVNIC) driver
 
@@ -93,6 +86,7 @@ device		neta		# Marvell Armada 370/38x/XP/3700 NIC
 device  	smc		# SMSC LAN91C111
 device		vnic		# Cavium ThunderX NIC
 device		al_eth		# Annapurna Alpine Ethernet NIC
+device  	dwc		# Synopsys Designware GMAC Ethernet
 device		dwc_rk		# Rockchip Designware
 device		dwc_socfpga	# Altera SOCFPGA Ethernet MAC
 device		ice		# Intel 800 Series Physical Function
@@ -100,11 +94,6 @@ device		ice_ddp		# Intel 800 Series DDP Package
 
 # Etherswitch devices
 device		e6000sw		# Marvell mv88e6085 based switches
-
-# NVM Express (NVMe) support
-device		nvme		# base NVMe driver
-options 	NVME_USE_NVD=0	# prefer the cam(4) based nda(4) driver
-device		nvd		# expose NVMe namespaces as disks, depends on nvme
 
 # MMC/SD/SDIO Card slot support
 device		sdhci_xenon		# Marvell Xenon SD/MMC controller
@@ -120,6 +109,10 @@ device		uart_mvebu	# Armada 3700 UART driver
 device		uart_ns8250	# ns8250-type UART driver
 device		uart_snps
 device		pl011
+
+# Early printf using the pl011 uart under the Arm FVP
+options 	SOCDEV_PA=0x1c090000
+options 	EARLY_PRINTF=pl011
 
 # USB support
 device		aw_usbphy		# Allwinner USB PHY
@@ -192,8 +185,9 @@ options 	EVDEV_SUPPORT		# evdev support in legacy drivers
 device		aw_cir
 
 # Pseudo devices.
-options 	EFIRT		# EFI Runtime Services
 device		clk
+device		efidev		# EFI pseudo-device
+device		efirtc		# EFI RTC
 device		phy
 device		hwreset
 device		nvmem
@@ -211,6 +205,7 @@ device		xdma		# xDMA framework for SoC on-chip dma controllers
 # Chip-specific errata
 options 	THUNDERX_PASS_1_1_ERRATA
 
+options 	EFIRT		# EFI Runtime Services
 options 	FDT
 device		acpi
 
@@ -244,6 +239,8 @@ nooptions 	COMPAT_FREEBSD10
 
 # arm64 supports 32-bit FreeBSD/arm binaries (armv[67] ABIs)
 options 	COMPAT_FREEBSD32	# Compatible with FreeBSD/arm
+
+options		IOMMU # ARM64 SMMU/IOMMU
 
 #####################################################################
 # ZFS support

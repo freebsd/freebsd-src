@@ -2570,7 +2570,7 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 
 	/* Setup the initial secret */
 	(void)SCTP_GETTIME_TIMEVAL(&time);
-	m->time_of_secret_change = (unsigned int)time.tv_sec;
+	m->time_of_secret_change = time.tv_sec;
 
 	for (i = 0; i < SCTP_NUMBER_OF_SECRETS; i++) {
 		m->secret_key[0][i] = sctp_select_initial_TSN(m);
@@ -4541,7 +4541,7 @@ sctp_del_remote_addr(struct sctp_tcb *stcb, struct sockaddr *remaddr)
 }
 
 static bool
-sctp_is_in_timewait(uint32_t tag, uint16_t lport, uint16_t rport, uint32_t now)
+sctp_is_in_timewait(uint32_t tag, uint16_t lport, uint16_t rport, time_t now)
 {
 	struct sctpvtaghead *chain;
 	struct sctp_tagblock *twait_block;
@@ -4563,7 +4563,7 @@ sctp_is_in_timewait(uint32_t tag, uint16_t lport, uint16_t rport, uint32_t now)
 }
 
 static void
-sctp_set_vtag_block(struct sctp_timewait *vtag_block, uint32_t time,
+sctp_set_vtag_block(struct sctp_timewait *vtag_block, time_t time,
     uint32_t tag, uint16_t lport, uint16_t rport)
 {
 	vtag_block->tv_sec_at_expire = time;
@@ -4578,13 +4578,13 @@ sctp_add_vtag_to_timewait(uint32_t tag, uint16_t lport, uint16_t rport)
 	struct sctpvtaghead *chain;
 	struct sctp_tagblock *twait_block;
 	struct timeval now;
-	uint32_t time;
+	time_t time;
 	int i;
 	bool set;
 
 	SCTP_INP_INFO_WLOCK_ASSERT();
 	(void)SCTP_GETTIME_TIMEVAL(&now);
-	time = (uint32_t)now.tv_sec + SCTP_BASE_SYSCTL(sctp_vtag_time_wait);
+	time = now.tv_sec + SCTP_BASE_SYSCTL(sctp_vtag_time_wait);
 	chain = &SCTP_BASE_INFO(vtag_timewait)[(tag % SCTP_STACK_VTAG_HASH_SIZE)];
 	set = false;
 	LIST_FOREACH(twait_block, chain, sctp_nxt_tagblock) {
@@ -4596,7 +4596,7 @@ sctp_add_vtag_to_timewait(uint32_t tag, uint16_t lport, uint16_t rport)
 				continue;
 			}
 			if ((twait_block->vtag_block[i].v_tag != 0) &&
-			    (twait_block->vtag_block[i].tv_sec_at_expire < (uint32_t)now.tv_sec)) {
+			    (twait_block->vtag_block[i].tv_sec_at_expire < now.tv_sec)) {
 				if (set) {
 					/* Audit expires this guy */
 					sctp_set_vtag_block(twait_block->vtag_block + i, 0, 0, 0, 0);
@@ -4851,7 +4851,6 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 				SOCKBUF_LOCK(&so->so_rcv);
 				so->so_state &= ~(SS_ISCONNECTING |
 				    SS_ISDISCONNECTING |
-				    SS_ISCONFIRMING |
 				    SS_ISCONNECTED);
 				so->so_state |= SS_ISDISCONNECTED;
 				socantrcvmore_locked(so);
@@ -6746,7 +6745,7 @@ sctp_is_vtag_good(uint32_t tag, uint16_t lport, uint16_t rport, struct timeval *
 			return (false);
 		}
 	}
-	return (!sctp_is_in_timewait(tag, lport, rport, (uint32_t)now->tv_sec));
+	return (!sctp_is_in_timewait(tag, lport, rport, now->tv_sec));
 }
 
 static void

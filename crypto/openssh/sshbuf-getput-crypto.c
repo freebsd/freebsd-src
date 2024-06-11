@@ -1,4 +1,4 @@
-/*	$OpenBSD: sshbuf-getput-crypto.c,v 1.10 2022/05/25 06:03:44 djm Exp $	*/
+/*	$OpenBSD: sshbuf-getput-crypto.c,v 1.11 2024/02/01 02:37:33 djm Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -123,7 +123,7 @@ sshbuf_get_eckey(struct sshbuf *buf, EC_KEY *v)
 		SSHBUF_ABORT();
 		return SSH_ERR_INTERNAL_ERROR;
 	}
-	return 0;	
+	return 0;
 }
 #endif /* OPENSSL_HAS_ECC */
 

@@ -38,7 +38,7 @@
 
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
 #include <dev/mmc/host/dwmmc_var.h>
 

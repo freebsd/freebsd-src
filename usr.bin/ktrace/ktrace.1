@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 26, 2019
+.Dd June 10, 2024
 .Dt KTRACE 1
 .Os
 .Sh NAME
@@ -48,7 +48,8 @@ The
 utility enables kernel trace logging for the specified processes.
 Kernel trace data is logged to the file
 .Pa ktrace.out .
-The kernel operations that are traced include system calls, namei
+The kernel operations that are traced include system calls,
+.Xr namei 9
 translations, signal processing, and
 .Tn I/O .
 .Pp
@@ -137,7 +138,7 @@ trace
 requests
 .It Cm +
 trace the default set of trace points -
-.Cm c , i , n , p , s , t , u , y
+.Cm c , i , n , s , t , u , y
 .El
 .It Ar command
 Execute
@@ -151,6 +152,21 @@ The
 and
 .Ar command
 options are mutually exclusive.
+.Sh CAPABILITY VIOLATION TRACING
+When the
+.Cm p
+trace point is specified,
+.Nm
+will record
+.Xr capsicum 4
+capability mode violations made by the traced process.
+Violations will be logged regardless of whether the process has actually
+entered capability mode.
+.Pp
+For developers that are interested in Capsicumizing their programs, the
+.Cm c , n , p
+trace points can help quickly identify any system calls and path lookups that
+are triggering violations.
 .Sh EXAMPLES
 Run "make", then trace it and any child processes:
 .Dl $ ktrace -i make
@@ -183,7 +199,9 @@ Disable tracing of all user-owned processes:
 .Xr kdump 1 ,
 .Xr truss 1 ,
 .Xr ktrace 2 ,
-.Xr utrace 2
+.Xr utrace 2 ,
+.Xr capsicum 4 ,
+.Xr namei 9
 .Sh HISTORY
 The
 .Nm

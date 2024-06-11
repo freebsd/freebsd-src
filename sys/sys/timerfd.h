@@ -58,13 +58,6 @@ __END_DECLS
 
 #else /* _KERNEL */
 
-struct thread;
-
-int kern_timerfd_create(struct thread *td, int clockid, int flags);
-int kern_timerfd_gettime(struct thread *td, int fd,
-    struct itimerspec *curr_value);
-int kern_timerfd_settime(struct thread *td, int fd, int flags,
-    const struct itimerspec *new_value, struct itimerspec *old_value);
 void timerfd_jumped(void);
 
 #endif /* !_KERNEL */

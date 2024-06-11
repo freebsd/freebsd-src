@@ -154,7 +154,7 @@ struct ia32_freebsd4_sigframe {
 	uint32_t		sf_addr;	/* undocumented 4th arg */
 	uint32_t		sf_ah;		/* action/handler pointer */
 	struct ia32_freebsd4_ucontext	sf_uc;		/* = *sf_ucontext */
-	struct siginfo32	sf_si;		/* = *sf_siginfo (SA_SIGINFO case) */
+	struct __siginfo32	sf_si;		/* = *sf_siginfo (SA_SIGINFO case) */
 };
 
 struct ia32_sigframe {
@@ -165,7 +165,7 @@ struct ia32_sigframe {
 	uint32_t		sf_ah;		/* action/handler pointer */
 	/* Beware, hole due to ucontext being 16 byte aligned! */
 	struct ia32_ucontext	sf_uc;		/* = *sf_ucontext */
-	struct siginfo32	sf_si;		/* = *sf_siginfo (SA_SIGINFO case) */
+	struct __siginfo32	sf_si;		/* = *sf_siginfo (SA_SIGINFO case) */
 };
 
 struct ia32_osiginfo {

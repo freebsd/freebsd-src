@@ -34,14 +34,12 @@
 #include <sys/rwlock.h>
 #include <sys/libkern.h>
 
-typedef struct {
-	struct rwlock rw;
-} rwlock_t;
+typedef struct rwlock rwlock_t;
 
-#define	read_lock(_l)		rw_rlock(&(_l)->rw)
-#define	write_lock(_l)		rw_wlock(&(_l)->rw)
-#define	read_unlock(_l)		rw_runlock(&(_l)->rw)
-#define	write_unlock(_l)	rw_wunlock(&(_l)->rw)
+#define	read_lock(_l)		rw_rlock(_l)
+#define	write_lock(_l)		rw_wlock(_l)
+#define	read_unlock(_l)		rw_runlock(_l)
+#define	write_unlock(_l)	rw_wunlock(_l)
 #define	read_lock_irq(lock)	read_lock((lock))
 #define	read_unlock_irq(lock)	read_unlock((lock))
 #define	write_lock_irq(lock)	write_lock((lock))
@@ -54,13 +52,6 @@ typedef struct {
     do { read_unlock(lock); } while (0)
 #define	write_unlock_irqrestore(lock, flags)				\
     do { write_unlock(lock); } while (0)
-
-static inline void
-rwlock_init(rwlock_t *lock)
-{
-
-	memset(&lock->rw, 0, sizeof(lock->rw));
-	rw_init_flags(&lock->rw, "lnxrw", RW_NOWITNESS);
-}
+#define	rwlock_init(_l)	rw_init_flags(_l, "lnxrw", RW_NOWITNESS | RW_NEW)
 
 #endif	/* _LINUXKPI_LINUX_RWLOCK_H_ */

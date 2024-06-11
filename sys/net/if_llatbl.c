@@ -706,7 +706,7 @@ lltable_free(struct lltable *llt)
 		llentry_free(lle);
 	}
 
-	KASSERT(llt->llt_entries == 0, ("%s: lltable %p (%s) entires not 0: %d",
+	KASSERT(llt->llt_entries == 0, ("%s: lltable %p (%s) entries not 0: %d",
 	    __func__, llt, llt->llt_ifp->if_xname, llt->llt_entries));
 
 	llt->llt_free_tbl(llt);

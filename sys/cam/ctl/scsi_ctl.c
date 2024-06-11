@@ -1908,8 +1908,7 @@ ctlfe_datamove(union ctl_io *io)
 	struct cam_periph *periph;
 	struct ctlfe_lun_softc *softc;
 
-	KASSERT(io->io_hdr.io_type == CTL_IO_SCSI,
-	    ("%s: unexpected I/O type %x", __func__, io->io_hdr.io_type));
+	CTL_IO_ASSERT(io, SCSI);
 
 	io->scsiio.ext_data_filled = 0;
 	ccb = PRIV_CCB(io);

@@ -13,7 +13,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /*
  * fmodf(x,y)
  * Return x mod y in exact arithmetic

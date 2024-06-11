@@ -174,6 +174,7 @@ struct m_snd_tag;
 struct mbuf;
 struct sockbuf;
 struct socket;
+struct sockopt;
 
 struct ktls_session {
 	struct ktls_ocf_session *ocf_session;
@@ -213,27 +214,29 @@ typedef enum {
 } ktls_mbuf_crypto_st_t;
 
 void ktls_check_rx(struct sockbuf *sb);
-ktls_mbuf_crypto_st_t ktls_mbuf_crypto_state(struct mbuf *mb, int offset, int len);
+void ktls_cleanup_tls_enable(struct tls_enable *tls);
+int ktls_copyin_tls_enable(struct sockopt *sopt, struct tls_enable *tls);
 void ktls_disable_ifnet(void *arg);
 int ktls_enable_rx(struct socket *so, struct tls_enable *en);
 int ktls_enable_tx(struct socket *so, struct tls_enable *en);
+void ktls_enqueue(struct mbuf *m, struct socket *so, int page_count);
+void ktls_enqueue_to_free(struct mbuf *m);
 void ktls_destroy(struct ktls_session *tls);
 void ktls_frame(struct mbuf *m, struct ktls_session *tls, int *enqueue_cnt,
     uint8_t record_type);
-bool ktls_permit_empty_frames(struct ktls_session *tls);
-void ktls_seq(struct sockbuf *sb, struct mbuf *m);
-void ktls_enqueue(struct mbuf *m, struct socket *so, int page_count);
-void ktls_enqueue_to_free(struct mbuf *m);
 int ktls_get_rx_mode(struct socket *so, int *modep);
-int ktls_set_tx_mode(struct socket *so, int mode);
 int ktls_get_tx_mode(struct socket *so, int *modep);
 int ktls_get_rx_sequence(struct inpcb *inp, uint32_t *tcpseq, uint64_t *tlsseq);
 void ktls_input_ifp_mismatch(struct sockbuf *sb, struct ifnet *ifp);
-int ktls_output_eagain(struct inpcb *inp, struct ktls_session *tls);
+ktls_mbuf_crypto_st_t ktls_mbuf_crypto_state(struct mbuf *mb, int offset, int len);
 #ifdef RATELIMIT
 int ktls_modify_txrtlmt(struct ktls_session *tls, uint64_t max_pacing_rate);
 #endif
+int ktls_output_eagain(struct inpcb *inp, struct ktls_session *tls);
 bool ktls_pending_rx_info(struct sockbuf *sb, uint64_t *seqnop, size_t *residp);
+bool ktls_permit_empty_frames(struct ktls_session *tls);
+void ktls_seq(struct sockbuf *sb, struct mbuf *m);
+int ktls_set_tx_mode(struct socket *so, int mode);
 
 static inline struct ktls_session *
 ktls_hold(struct ktls_session *tls)

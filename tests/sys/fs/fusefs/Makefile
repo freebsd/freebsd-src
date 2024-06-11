@@ -83,6 +83,10 @@ CXXWARNFLAGS+=	-Wno-class-memaccess
 CXXWARNFLAGS.gcc+= -Wno-unused-but-set-variable
 # Suppress warnings about deprecated implicit copy constructors in gtest.
 CXXWARNFLAGS+=  -Wno-deprecated-copy
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 180000
+# clang 18.0.0 introduces a new warning about variable length arrays in C++.
+CXXWARNFLAGS+=	-Wno-vla-cxx-extension
+.endif
 CXXFLAGS+=	-I${SRCTOP}/tests
 CXXFLAGS+=	-I${FUSEFS}
 CXXFLAGS+=	-I${MOUNT}

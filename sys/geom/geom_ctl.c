@@ -616,8 +616,10 @@ g_ctl_ioctl_ctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct th
 		}
 	}
 	if (sbuf_done(req->serror)) {
-		copyout(sbuf_data(req->serror), req->error,
+		nerror = copyout(sbuf_data(req->serror), req->error,
 		    imin(req->lerror, sbuf_len(req->serror) + 1));
+		if (nerror != 0 && req->nerror == 0)
+			req->nerror = nerror;
 	}
 
 	nerror = req->nerror;

@@ -408,7 +408,7 @@ audio_soc_init(void *arg)
 	pcm_addchan(sc->dev, PCMDIR_PLAY, &audio_soc_chan_class, &sc->play_channel);
 	pcm_addchan(sc->dev, PCMDIR_REC, &audio_soc_chan_class, &sc->rec_channel);
 
-	pcm_setstatus(sc->dev, "at EXPERIMENT");
+	pcm_setstatus(sc->dev, "at simplebus");
 
 	AUDIO_DAI_SETUP_INTR(sc->cpu_dev, audio_soc_intr, sc);
 	AUDIO_DAI_SETUP_MIXER(sc->codec_dev, sc->dev);

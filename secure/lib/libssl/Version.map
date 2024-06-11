@@ -264,7 +264,6 @@ OPENSSL_1_1_0 {
         SSL_get_info_callback;
         SSL_get_options;
         SSL_get_peer_cert_chain;
-        SSL_get_peer_certificate;
         SSL_get_peer_finished;
         SSL_get_privatekey;
         SSL_get_psk_identity;
@@ -387,9 +386,6 @@ OPENSSL_1_1_0 {
         SSL_waiting_for_async;
         SSL_want;
         SSL_write;
-        SSLv3_client_method;
-        SSLv3_method;
-        SSLv3_server_method;
         TLS_client_method;
         TLS_method;
         TLS_server_method;

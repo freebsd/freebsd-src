@@ -93,7 +93,7 @@
 #endif
 
 /* Define the POSIX.1 version we target for compliance. */
-#define	_POSIX_VERSION		200112L
+#define	_POSIX_VERSION		200809L
 
 /* access function */
 #define	F_OK		0	/* test for existence of file */
@@ -194,6 +194,13 @@
     RFTHREAD | RFSIGSHARE | RFLINUXTHPN | RFSTOPPED | RFHIGHPID | RFTSIGZMB | \
     RFPROCDESC | RFSPAWN | RFPPWAIT)
 #define	RFKERNELONLY	(RFSTOPPED | RFHIGHPID | RFPROCDESC)
+
+/* kcmp() options. */
+#define	KCMP_FILE	100
+#define	KCMP_FILEOBJ	101
+#define	KCMP_FILES	102
+#define	KCMP_SIGHAND	103
+#define	KCMP_VM		104
 
 #define	SWAPOFF_FORCE	0x00000001
 

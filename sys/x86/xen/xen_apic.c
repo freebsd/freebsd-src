@@ -343,8 +343,8 @@ xen_setup_cpus(void)
 	 * that's faster than using event channels because it avoids the VM
 	 * exit.
 	 */
-	KASSERT(xen_cpuid_base != 0, ("Invalid base Xen CPUID leaf"));
-	cpuid_count(xen_cpuid_base + 4, 0, regs);
+	KASSERT(hv_base != 0, ("Invalid base Xen CPUID leaf"));
+	cpuid_count(hv_base + 4, 0, regs);
 	if ((x2apic_mode && (regs[0] & XEN_HVM_CPUID_X2APIC_VIRT)) ||
 	    (!x2apic_mode && (regs[0] & XEN_HVM_CPUID_APIC_ACCESS_VIRT)))
 		return;

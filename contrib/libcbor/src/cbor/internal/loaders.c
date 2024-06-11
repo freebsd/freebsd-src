@@ -49,7 +49,7 @@ uint64_t _cbor_load_uint64(const unsigned char *source) {
 #endif
 }
 
-/* As per http://tools.ietf.org/html/rfc7049#appendix-D */
+/* As per https://www.rfc-editor.org/rfc/rfc8949.html#name-half-precision */
 float _cbor_decode_half(unsigned char *halfp) {
   int half = (halfp[0] << 8) + halfp[1];
   int exp = (half >> 10) & 0x1f;

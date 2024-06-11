@@ -1,0 +1,25 @@
+// tables and constants for approximating erf(x).
+//
+// Copyright (c) 2023, Arm Limited.
+// SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
+
+display = hexadecimal;
+prec=128;
+
+// Tables
+print("{ i, r, erf(r), 2/sqrt(pi) * exp(-r^2)}");
+for i from 0 to 768 do {
+  r = i / 128;
+  t0 = double(erf(r));
+  t1 = double(2/sqrt(pi) * exp(-r * r));
+  print("{ " @ i @ ",\t" @ r @ ",\t" @ t0 @ ",\t" @ t1 @ " },");
+};
+
+// Constants
+double(1/3);
+double(1/10);
+double(2/15);
+double(2/9);
+double(2/45);
+double(2/sqrt(pi));
+

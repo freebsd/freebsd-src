@@ -687,12 +687,6 @@ typedef	struct	tcpiphdr	tcpiphdr_t;
 #ifndef	IP_HL_A
 # define	IP_HL_A(x,y)	(x)->ip_hl = ((y) & 0xf)
 #endif
-#ifndef	TCP_X2
-# define	TCP_X2(x)	(x)->th_x2
-#endif
-#ifndef	TCP_X2_A
-# define	TCP_X2_A(x,y)	(x)->th_x2 = (y)
-#endif
 #ifndef	TCP_OFF
 # define	TCP_OFF(x)	(x)->th_off
 #endif

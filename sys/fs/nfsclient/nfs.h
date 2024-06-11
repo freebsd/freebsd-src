@@ -90,7 +90,6 @@ enum nfsiod_state {
  * Function prototypes.
  */
 int ncl_meta_setsize(struct vnode *, struct thread *, u_quad_t);
-void ncl_doio_directwrite(struct buf *);
 int ncl_bioread(struct vnode *, struct uio *, int, struct ucred *);
 int ncl_biowrite(struct vnode *, struct uio *, int, struct ucred *);
 int ncl_vinvalbuf(struct vnode *, int, struct thread *, int);
@@ -111,7 +110,6 @@ int ncl_readdirrpc(struct vnode *, struct uio *, struct ucred *,
     struct thread *);
 int ncl_readdirplusrpc(struct vnode *, struct uio *, struct ucred *,
     struct thread *);
-int ncl_writebp(struct buf *, int, struct thread *);
 int ncl_commit(struct vnode *, u_quad_t, int, struct ucred *, struct thread *);
 void ncl_clearcommit(struct mount *);
 int ncl_fsinfo(struct nfsmount *, struct vnode *, struct ucred *,

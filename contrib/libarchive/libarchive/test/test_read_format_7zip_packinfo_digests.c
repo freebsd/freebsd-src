@@ -23,7 +23,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD");
 
 /* Read archive with digests in PackInfo */
 DEFINE_TEST(test_read_format_7zip_packinfo_digests)
@@ -49,7 +48,7 @@ DEFINE_TEST(test_read_format_7zip_packinfo_digests)
 		/* Verify regular file1. */
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_read_next_header(a, &ae));
-		assertEqualInt((AE_IFREG | 0666), archive_entry_mode(ae));
+		assertEqualInt((AE_IFREG | 0644), archive_entry_mode(ae));
 		assertEqualString("a.txt", archive_entry_pathname(ae));
 		assertEqualInt(1576808819, archive_entry_mtime(ae));
 		assertEqualInt(4, archive_entry_size(ae));
@@ -61,7 +60,7 @@ DEFINE_TEST(test_read_format_7zip_packinfo_digests)
 		/* Verify regular file2. */
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_read_next_header(a, &ae));
-		assertEqualInt((AE_IFREG | 0666), archive_entry_mode(ae));
+		assertEqualInt((AE_IFREG | 0644), archive_entry_mode(ae));
 		assertEqualString("b.txt", archive_entry_pathname(ae));
 		assertEqualInt(1576808819, archive_entry_mtime(ae));
 		assertEqualInt(4, archive_entry_size(ae));

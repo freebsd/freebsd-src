@@ -82,7 +82,7 @@ int newnfs_nfsv3_procid[NFS_V3NPROCS] = {
 
 SYSCTL_DECL(_vfs_nfsd);
 
-NFSD_VNET_DEFINE_STATIC(int, nfs_privport) = 0;
+NFSD_VNET_DEFINE_STATIC(int, nfs_privport) = 1;
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, nfs_privport, CTLFLAG_NFSD_VNET | CTLFLAG_RWTUN,
     &NFSD_VNET_NAME(nfs_privport), 0,
     "Only allow clients using a privileged port for NFSv2, 3 and 4");
@@ -191,6 +191,12 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 		port = ntohs(sin->sin_port);
 		if (port >= IPPORT_RESERVED &&
 		    nd.nd_procnum != NFSPROC_NULL) {
+			static struct timeval privport_ratecheck = {
+				.tv_sec = 0, .tv_usec = 0
+			};
+			static const struct timeval privport_ratecheck_int = {
+				.tv_sec = 1, .tv_usec = 0
+			};
 #ifdef INET6
 			char buf[INET6_ADDRSTRLEN];
 #else
@@ -208,15 +214,19 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 			    (buf))
 #endif
 #endif
-			printf("NFS request from unprivileged port (%s:%d)\n",
+			if (ratecheck(&privport_ratecheck,
+			    &privport_ratecheck_int)) {
+				printf(
+			    "NFS request from unprivileged port (%s:%d)\n",
 #ifdef INET6
-			    sin->sin_family == AF_INET6 ?
-			    ip6_sprintf(buf, &satosin6(sin)->sin6_addr) :
+				    sin->sin_family == AF_INET6 ?
+				    ip6_sprintf(buf, &satosin6(sin)->sin6_addr) :
 #if defined(KLD_MODULE)
 #undef ip6_sprintf
 #endif
 #endif
-			    inet_ntoa_r(sin->sin_addr, buf), port);
+				    inet_ntoa_r(sin->sin_addr, buf), port);
+			}
 			svcerr_weakauth(rqst);
 			svc_freereq(rqst);
 			m_freem(nd.nd_mrep);

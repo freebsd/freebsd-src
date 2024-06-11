@@ -13,9 +13,12 @@ PIC=		${PIC_CMD} -C
 EQNASCII=	${EQN_CMD} -C -Tascii
 EQNPS=		${EQN_CMD} -C -Tps
 ROFFASCII=	${ROFF_CMD} -Tascii ${MACROS}
+ROFFNOSGR=	GROFF_NO_SGR=1 ${ROFFASCII}
 ROFFPS=		${ROFF_CMD} -Tps -mps ${MACROS}
 ULASCII=	${UL_CMD} -t dumb
 PS2PDF=		${PS2PDF_CMD}
+OPTXT_CMD=	${PIC} ${SRCS} | ${EQNASCII} | ${ROFFASCII} | ${ULASCII} 2>/dev/null
+OPTXTNS_CMD=	${PIC} ${SRCS} | ${EQNASCII} | ${ROFFNOSGR} | ${ULASCII}
 
 all: ${OBJS}
 
@@ -26,8 +29,7 @@ op.ps: ${SRCS}
 
 op.txt: ${SRCS}
 	rm -f $@
-	@echo "Note: see README file in case of errors."
-	${PIC} ${SRCS} | ${EQNASCII} | ${ROFFASCII} | ${ULASCII} > $@
+	${OPTXT_CMD} > $@ || ${OPTXTNS_CMD} > $@
 
 op.pdf: op.ps
 	rm -f $@

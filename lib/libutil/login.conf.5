@@ -181,9 +181,15 @@ are considered infinite values.
 The usual convention to interpolate capability entries using the special
 .Em tc=value
 notation may be used.
+.Pp
+Default values are specified in the
+.Ql Default
+column.
+If there is no default, the value is inherited from the process setting up the
+login environment.
 .Sh RESOURCE LIMITS
 .Bl -column pseudoterminals indent indent
-.It Sy "Name	Type	Notes	Description"
+.It Sy "Name	Type	Default	Description"
 .It "coredumpsize	size		Maximum coredump size limit."
 .It "cputime	time		CPU usage limit."
 .It "datasize	size		Maximum data size limit."
@@ -209,7 +215,7 @@ The maximum and current limits may be specified individually by appending a
 -max or -cur to the capability name.
 .Sh ENVIRONMENT
 .Bl -column ignorenologin indent xbinxxusrxbin
-.It Sy "Name	Type	Notes	Description"
+.It Sy "Name	Type	Default	Description"
 .It "charset	string		Set $MM_CHARSET environment variable to the specified"
 value.
 .It "cpumask	string		List of cpus to bind the user to."
@@ -241,7 +247,24 @@ for details.
 .It "nologin	file		If the file exists it will be displayed and"
 the login session will be terminated.
 .It "path	path	/bin /usr/bin	Default search path."
-.It "priority	number		Initial priority (nice) level."
+.It "priority	number	0	Initial priority level."
+A value in the nice range
+.Pq -20 to 20 included ,
+extended below with the 32 real-time class priorities
+.Po
+so -52 maps to priority 0 in the real-time class, -51 to 1, and so on until -21
+which maps to 31; see
+.Xr rtprio 1
+.Pc
+and above with the 32 idle class priorities
+.Po
+so 21 maps to priority 0 in the idle class, 22 to 1, and so on until 52 which
+maps to 31; see
+.Xr idprio 1
+.Pc .
+Special value
+.Ql inherit
+prevents resetting the priority.
 .It "requirehome 	bool	false	Require a valid home directory to login."
 .It "setenv	list		A comma-separated list of environment variables and"
 values to which they are to be set.
@@ -253,13 +276,16 @@ contain the shell specified in the password file.
 .It "term	string		Default terminal type if not able to determine"
 from other means.
 .It "timezone	string		Default value of $TZ environment variable."
-.It "umask	number	022	Initial umask. Should always have a leading 0 to"
+.It "umask	number		Initial umask. Should always have a leading 0 to"
 ensure octal interpretation.
+Special value
+.Ql inherit
+explicitly indicates not to change the umask.
 .It "welcome	file	/etc/motd	File containing welcome message."
 .El
 .Sh AUTHENTICATION
 .Bl -column passwd_prompt indent indent
-.It Sy "Name	Type	Notes	Description"
+.It Sy "Name	Type	Default	Description"
 .\" .It "approve	program 	Program to approve login.
 .It "copyright	file		File containing additional copyright information"
 .It "host.allow	list		List of remote host wildcards from which users in"
@@ -403,7 +429,7 @@ The following capabilities are reserved for the purposes indicated and
 may be supported by third-party software.
 They are not implemented in the base system.
 .Bl -column host.accounted indent indent
-.It Sy "Name	Type	Notes	Description"
+.It Sy "Name	Type	Default	Description"
 .It "accounted	bool	false	Enable session time accounting for all users"
 in this class.
 .It "auth	list	passwd	Allowed authentication styles."

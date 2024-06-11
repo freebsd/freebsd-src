@@ -1,0 +1,2 @@
+Generate full debug information for LLVM libraries and tools, which uses
+more disk space and build resources, but allows for easier debugging.

@@ -69,8 +69,6 @@ u_int32_t mix_getchild(struct snd_mixer *m, u_int32_t dev);
 void *mix_getdevinfo(struct snd_mixer *m);
 struct mtx *mixer_get_lock(struct snd_mixer *m);
 
-extern int mixer_count;
-
 #define MIXER_CMD_DIRECT	0	/* send command within driver   */
 #define MIXER_CMD_CDEV		1	/* send command from cdev/ioctl */
 

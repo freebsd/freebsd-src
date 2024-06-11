@@ -1,4 +1,6 @@
-# $Id: obj.mk,v 1.17 2021/12/08 05:56:50 sjg Exp $
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# $Id: obj.mk,v 1.19 2024/02/19 00:06:19 sjg Exp $
 #
 #	@(#) Copyright (c) 1999-2010, Simon J. Gerraty
 #
@@ -13,8 +15,11 @@
 #	sjg@crufty.net
 #
 
-.if !target(__${.PARSEFILE:S,bsd.,,}__)
-__${.PARSEFILE:S,bsd.,,}__: .NOTMAIN
+# should be set properly in sys.mk
+_this ?= ${.PARSEFILE:S,bsd.,,}
+
+.if !target(__${_this}__)
+__${_this}__: .NOTMAIN
 
 .include <init.mk>
 

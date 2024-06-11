@@ -183,15 +183,13 @@ mem_range_AP_init(void)
 }
 
 /*
- * Round up to the next power of two, if necessary, and then
- * take log2.
- * Returns -1 if argument is zero.
+ * Compute ceil(log2(x)).  Returns -1 if x is zero.
  */
 static __inline int
 mask_width(u_int x)
 {
 
-	return (fls(x << (1 - powerof2(x))) - 1);
+	return (x == 0 ? -1 : fls(x - 1));
 }
 
 /*
@@ -1594,6 +1592,24 @@ cpususpend_handler(void)
 	mtx_assert(&smp_ipi_mtx, MA_NOTOWNED);
 
 	cpu = PCPU_GET(cpuid);
+
+#ifdef XENHVM
+	/*
+	 * Some Xen guest types (PVH) expose a very minimal set of ACPI tables,
+	 * and for example have no support for SCI.  That leads to the suspend
+	 * stacks not being allocated, and hence when attempting to perform a
+	 * Xen triggered suspension FreeBSD will hit a #PF.  Avoid saving the
+	 * CPU and FPU contexts if the stacks are not allocated, as the
+	 * hypervisor will already take care of this.  Note that we could even
+	 * do this for Xen triggered suspensions on guests that have full ACPI
+	 * support, but doing so would introduce extra complexity.
+	 */
+	if (susppcbs == NULL) {
+		KASSERT(vm_guest == VM_GUEST_XEN, ("Missing suspend stack"));
+		CPU_SET_ATOMIC(cpu, &suspended_cpus);
+		CPU_SET_ATOMIC(cpu, &resuming_cpus);
+	} else
+#endif
 	if (savectx(&susppcbs[cpu]->sp_pcb)) {
 #ifdef __amd64__
 		fpususpend(susppcbs[cpu]->sp_fpususpend);

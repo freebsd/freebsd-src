@@ -66,7 +66,7 @@ startwizard:
 	if (error != 0)
 		return (1);
 
-	bsddialog_backtitle(&conf, "FreeBSD Installer");
+	bsddialog_backtitle(&conf, OSNAME " Installer");
 	disk = boot_disk_select(&mesh);
 	if (disk == NULL) {
 		geom_deletetree(&mesh);
@@ -74,7 +74,7 @@ startwizard:
 	}
 
 	bsddialog_clear(0);
-	bsddialog_backtitle(&conf, "FreeBSD Installer");
+	bsddialog_backtitle(&conf, OSNAME " Installer");
 	schemeroot = wizard_partition(&mesh, disk);
 	free(disk);
 	geom_deletetree(&mesh);
@@ -82,7 +82,7 @@ startwizard:
 		return (1);
 
 	bsddialog_clear(0);
-	bsddialog_backtitle(&conf, "FreeBSD Installer");
+	bsddialog_backtitle(&conf, OSNAME " Installer");
 	error = geom_gettree(&mesh);
 	if (error != 0) {
 		free(schemeroot);

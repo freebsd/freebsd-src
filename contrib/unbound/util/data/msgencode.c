@@ -886,6 +886,9 @@ ede_trim_text(struct edns_option** list)
 				curr->opt_len = 2;
 				prev = curr;
 				curr = curr->next;
+			} else {
+				prev = curr;
+				curr = curr->next;
 			}
 		} else {
 			/* continue */

@@ -8,9 +8,6 @@ AC_DEFUN([ZFS_AC_KERNEL_SRC_SUPER_BLOCK_S_SHRINK], [
 	ZFS_LINUX_TEST_SRC([super_block_s_shrink], [
 		#include <linux/fs.h>
 
-		int shrink(struct shrinker *s, struct shrink_control *sc)
-		    { return 0; }
-
 		static const struct super_block
 		    sb __attribute__ ((unused)) = {
 			.s_shrink.seeks = DEFAULT_SEEKS,
@@ -19,12 +16,44 @@ AC_DEFUN([ZFS_AC_KERNEL_SRC_SUPER_BLOCK_S_SHRINK], [
 	],[])
 ])
 
+dnl #
+dnl # 6.7 API change
+dnl # s_shrink is now a pointer.
+dnl #
+AC_DEFUN([ZFS_AC_KERNEL_SRC_SUPER_BLOCK_S_SHRINK_PTR], [
+	ZFS_LINUX_TEST_SRC([super_block_s_shrink_ptr], [
+		#include <linux/fs.h>
+		static unsigned long shrinker_cb(struct shrinker *shrink,
+		    struct shrink_control *sc) { return 0; }
+		static struct shrinker shrinker = {
+			.count_objects = shrinker_cb,
+			.scan_objects = shrinker_cb,
+			.seeks = DEFAULT_SEEKS,
+		};
+		static const struct super_block
+		    sb __attribute__ ((unused)) = {
+			.s_shrink = &shrinker,
+		};
+	],[])
+])
+
 AC_DEFUN([ZFS_AC_KERNEL_SUPER_BLOCK_S_SHRINK], [
 	AC_MSG_CHECKING([whether super_block has s_shrink])
 	ZFS_LINUX_TEST_RESULT([super_block_s_shrink], [
 		AC_MSG_RESULT(yes)
+		AC_DEFINE(HAVE_SUPER_BLOCK_S_SHRINK, 1,
+			[have super_block s_shrink])
 	],[
-		ZFS_LINUX_TEST_ERROR([sb->s_shrink()])
+		AC_MSG_RESULT(no)
+		AC_MSG_CHECKING([whether super_block has s_shrink pointer])
+		ZFS_LINUX_TEST_RESULT([super_block_s_shrink_ptr], [
+			AC_MSG_RESULT(yes)
+			AC_DEFINE(HAVE_SUPER_BLOCK_S_SHRINK_PTR, 1,
+				[have super_block s_shrink pointer])
+		],[
+			AC_MSG_RESULT(no)
+			ZFS_LINUX_TEST_ERROR([sb->s_shrink()])
+		])
 	])
 ])
 
@@ -57,7 +86,7 @@ AC_DEFUN([ZFS_AC_KERNEL_SHRINK_CONTROL_HAS_NID], [
 AC_DEFUN([ZFS_AC_KERNEL_SRC_REGISTER_SHRINKER_VARARG], [
 	ZFS_LINUX_TEST_SRC([register_shrinker_vararg], [
 		#include <linux/mm.h>
-		unsigned long shrinker_cb(struct shrinker *shrink,
+		static unsigned long shrinker_cb(struct shrinker *shrink,
 		    struct shrink_control *sc) { return 0; }
 	],[
 		struct shrinker cache_shrinker = {
@@ -72,7 +101,7 @@ AC_DEFUN([ZFS_AC_KERNEL_SRC_REGISTER_SHRINKER_VARARG], [
 AC_DEFUN([ZFS_AC_KERNEL_SRC_SHRINKER_CALLBACK], [
 	ZFS_LINUX_TEST_SRC([shrinker_cb_shrink_control], [
 		#include <linux/mm.h>
-		int shrinker_cb(struct shrinker *shrink,
+		static int shrinker_cb(struct shrinker *shrink,
 		    struct shrink_control *sc) { return 0; }
 	],[
 		struct shrinker cache_shrinker = {
@@ -84,7 +113,7 @@ AC_DEFUN([ZFS_AC_KERNEL_SRC_SHRINKER_CALLBACK], [
 
 	ZFS_LINUX_TEST_SRC([shrinker_cb_shrink_control_split], [
 		#include <linux/mm.h>
-		unsigned long shrinker_cb(struct shrinker *shrink,
+		static unsigned long shrinker_cb(struct shrinker *shrink,
 		    struct shrink_control *sc) { return 0; }
 	],[
 		struct shrinker cache_shrinker = {
@@ -93,6 +122,25 @@ AC_DEFUN([ZFS_AC_KERNEL_SRC_SHRINKER_CALLBACK], [
 			.seeks = DEFAULT_SEEKS,
 		};
 		register_shrinker(&cache_shrinker);
+	])
+])
+
+dnl #
+dnl # 6.7 API change
+dnl # register_shrinker has been replaced by shrinker_register.
+dnl #
+AC_DEFUN([ZFS_AC_KERNEL_SRC_SHRINKER_REGISTER], [
+	ZFS_LINUX_TEST_SRC([shrinker_register], [
+		#include <linux/shrinker.h>
+		static unsigned long shrinker_cb(struct shrinker *shrink,
+		    struct shrink_control *sc) { return 0; }
+	],[
+		struct shrinker cache_shrinker = {
+			.count_objects = shrinker_cb,
+			.scan_objects = shrinker_cb,
+			.seeks = DEFAULT_SEEKS,
+		};
+		shrinker_register(&cache_shrinker);
 	])
 ])
 
@@ -133,14 +181,36 @@ AC_DEFUN([ZFS_AC_KERNEL_SHRINKER_CALLBACK],[
 			dnl # cs->shrink() is logically split in to
 			dnl # cs->count_objects() and cs->scan_objects()
 			dnl #
-			AC_MSG_CHECKING([if cs->count_objects callback exists])
+			AC_MSG_CHECKING(
+			    [whether cs->count_objects callback exists])
 			ZFS_LINUX_TEST_RESULT(
-				[shrinker_cb_shrink_control_split],[
-					AC_MSG_RESULT(yes)
-					AC_DEFINE(HAVE_SPLIT_SHRINKER_CALLBACK, 1,
-						[cs->count_objects exists])
+			    [shrinker_cb_shrink_control_split],[
+				AC_MSG_RESULT(yes)
+				AC_DEFINE(HAVE_SPLIT_SHRINKER_CALLBACK, 1,
+				    [cs->count_objects exists])
 			],[
+				AC_MSG_RESULT(no)
+
+				AC_MSG_CHECKING(
+				    [whether shrinker_register exists])
+				ZFS_LINUX_TEST_RESULT([shrinker_register], [
+					AC_MSG_RESULT(yes)
+					AC_DEFINE(HAVE_SHRINKER_REGISTER, 1,
+					    [shrinker_register exists])
+
+					dnl # We assume that the split shrinker
+					dnl # callback exists if
+					dnl # shrinker_register() exists,
+					dnl # because the latter is a much more
+					dnl # recent addition, and the macro
+					dnl # test for shrinker_register() only
+					dnl # works if the callback is split
+					AC_DEFINE(HAVE_SPLIT_SHRINKER_CALLBACK,
+					    1, [cs->count_objects exists])
+				],[
+					AC_MSG_RESULT(no)
 					ZFS_LINUX_TEST_ERROR([shrinker])
+				])
 			])
 		])
 	])
@@ -174,10 +244,12 @@ AC_DEFUN([ZFS_AC_KERNEL_SHRINK_CONTROL_STRUCT], [
 
 AC_DEFUN([ZFS_AC_KERNEL_SRC_SHRINKER], [
 	ZFS_AC_KERNEL_SRC_SUPER_BLOCK_S_SHRINK
+	ZFS_AC_KERNEL_SRC_SUPER_BLOCK_S_SHRINK_PTR
 	ZFS_AC_KERNEL_SRC_SHRINK_CONTROL_HAS_NID
 	ZFS_AC_KERNEL_SRC_SHRINKER_CALLBACK
 	ZFS_AC_KERNEL_SRC_SHRINK_CONTROL_STRUCT
 	ZFS_AC_KERNEL_SRC_REGISTER_SHRINKER_VARARG
+	ZFS_AC_KERNEL_SRC_SHRINKER_REGISTER
 ])
 
 AC_DEFUN([ZFS_AC_KERNEL_SHRINKER], [

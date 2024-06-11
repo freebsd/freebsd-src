@@ -94,6 +94,7 @@
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
 #include <vm/vm_kern.h>
+#include <vm/vnode_pager.h>
 #include <vm/uma.h>
 
 #if defined(DEBUG_VFS_LOCKS) && (!defined(INVARIANTS) || !defined(WITNESS))
@@ -2549,9 +2550,12 @@ restart_unlocked:
 		;
 
 	if (length > 0) {
+		/*
+		 * Write out vnode metadata, e.g. indirect blocks.
+		 */
 restartsync:
 		TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_bobufs, nbp) {
-			if (bp->b_lblkno > 0)
+			if (bp->b_lblkno >= 0)
 				continue;
 			/*
 			 * Since we hold the vnode lock this should only
@@ -2693,12 +2697,12 @@ buf_vlist_remove(struct buf *bp)
 }
 
 /*
- * Add the buffer to the sorted clean or dirty block list.
- *
- * NOTE: xflags is passed as a constant, optimizing this inline function!
+ * Add the buffer to the sorted clean or dirty block list.  Return zero on
+ * success, EEXIST if a buffer with this identity already exists, or another
+ * error on allocation failure.
  */
-static void
-buf_vlist_add(struct buf *bp, struct bufobj *bo, b_xflags_t xflags)
+static inline int
+buf_vlist_find_or_add(struct buf *bp, struct bufobj *bo, b_xflags_t xflags)
 {
 	struct bufv *bv;
 	struct buf *n;
@@ -2709,30 +2713,69 @@ buf_vlist_add(struct buf *bp, struct bufobj *bo, b_xflags_t xflags)
 	    ("buf_vlist_add: bo %p does not allow bufs", bo));
 	KASSERT((xflags & BX_VNDIRTY) == 0 || (bo->bo_flag & BO_DEAD) == 0,
 	    ("dead bo %p", bo));
-	KASSERT((bp->b_xflags & (BX_VNDIRTY|BX_VNCLEAN)) == 0,
-	    ("buf_vlist_add: Buf %p has existing xflags %d", bp, bp->b_xflags));
-	bp->b_xflags |= xflags;
+	KASSERT((bp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN)) == xflags,
+	    ("buf_vlist_add: b_xflags %#x not set on bp %p", xflags, bp));
+
 	if (xflags & BX_VNDIRTY)
 		bv = &bo->bo_dirty;
 	else
 		bv = &bo->bo_clean;
 
-	/*
-	 * Keep the list ordered.  Optimize empty list insertion.  Assume
-	 * we tend to grow at the tail so lookup_le should usually be cheaper
-	 * than _ge. 
-	 */
-	if (bv->bv_cnt == 0 ||
-	    bp->b_lblkno > TAILQ_LAST(&bv->bv_hd, buflists)->b_lblkno)
-		TAILQ_INSERT_TAIL(&bv->bv_hd, bp, b_bobufs);
-	else if ((n = BUF_PCTRIE_LOOKUP_LE(&bv->bv_root, bp->b_lblkno)) == NULL)
+	error = BUF_PCTRIE_INSERT_LOOKUP_LE(&bv->bv_root, bp, &n);
+	if (n == NULL) {
+		KASSERT(error != EEXIST,
+		    ("buf_vlist_add: EEXIST but no existing buf found: bp %p",
+		    bp));
+	} else {
+		KASSERT((uint64_t)n->b_lblkno <= (uint64_t)bp->b_lblkno,
+		    ("buf_vlist_add: out of order insert/lookup: bp %p n %p",
+		    bp, n));
+		KASSERT((n->b_lblkno == bp->b_lblkno) == (error == EEXIST),
+		    ("buf_vlist_add: inconsistent result for existing buf: "
+		    "error %d bp %p n %p", error, bp, n));
+	}
+	if (error != 0)
+		return (error);
+
+	/* Keep the list ordered. */
+	if (n == NULL) {
+		KASSERT(TAILQ_EMPTY(&bv->bv_hd) ||
+		    (uint64_t)bp->b_lblkno <
+		    (uint64_t)TAILQ_FIRST(&bv->bv_hd)->b_lblkno,
+		    ("buf_vlist_add: queue order: "
+		    "%p should be before first %p",
+		    bp, TAILQ_FIRST(&bv->bv_hd)));
 		TAILQ_INSERT_HEAD(&bv->bv_hd, bp, b_bobufs);
-	else
+	} else {
+		KASSERT(TAILQ_NEXT(n, b_bobufs) == NULL ||
+		    (uint64_t)bp->b_lblkno <
+		    (uint64_t)TAILQ_NEXT(n, b_bobufs)->b_lblkno,
+		    ("buf_vlist_add: queue order: "
+		    "%p should be before next %p",
+		    bp, TAILQ_NEXT(n, b_bobufs)));
 		TAILQ_INSERT_AFTER(&bv->bv_hd, n, bp, b_bobufs);
-	error = BUF_PCTRIE_INSERT(&bv->bv_root, bp);
-	if (error)
-		panic("buf_vlist_add:  Preallocated nodes insufficient.");
+	}
+
 	bv->bv_cnt++;
+	return (0);
+}
+
+/*
+ * Add the buffer to the sorted clean or dirty block list.
+ *
+ * NOTE: xflags is passed as a constant, optimizing this inline function!
+ */
+static void
+buf_vlist_add(struct buf *bp, struct bufobj *bo, b_xflags_t xflags)
+{
+	int error;
+
+	KASSERT((bp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN)) == 0,
+	    ("buf_vlist_add: Buf %p has existing xflags %d", bp, bp->b_xflags));
+	bp->b_xflags |= xflags;
+	error = buf_vlist_find_or_add(bp, bo, xflags);
+	if (error)
+		panic("buf_vlist_add: error=%d", error);
 }
 
 /*
@@ -2771,26 +2814,42 @@ gbincore_unlocked(struct bufobj *bo, daddr_t lblkno)
 /*
  * Associate a buffer with a vnode.
  */
-void
+int
 bgetvp(struct vnode *vp, struct buf *bp)
 {
 	struct bufobj *bo;
+	int error;
 
 	bo = &vp->v_bufobj;
-	ASSERT_BO_WLOCKED(bo);
+	ASSERT_BO_UNLOCKED(bo);
 	VNASSERT(bp->b_vp == NULL, bp->b_vp, ("bgetvp: not free"));
 
 	CTR3(KTR_BUF, "bgetvp(%p) vp %p flags %X", bp, vp, bp->b_flags);
 	VNASSERT((bp->b_xflags & (BX_VNDIRTY|BX_VNCLEAN)) == 0, vp,
 	    ("bgetvp: bp already attached! %p", bp));
 
-	vhold(vp);
+	/*
+	 * Add the buf to the vnode's clean list unless we lost a race and find
+	 * an existing buf in either dirty or clean.
+	 */
 	bp->b_vp = vp;
 	bp->b_bufobj = bo;
-	/*
-	 * Insert onto list for new vnode.
-	 */
-	buf_vlist_add(bp, bo, BX_VNCLEAN);
+	bp->b_xflags |= BX_VNCLEAN;
+	error = EEXIST;
+	BO_LOCK(bo);
+	if (BUF_PCTRIE_LOOKUP(&bo->bo_dirty.bv_root, bp->b_lblkno) == NULL)
+		error = buf_vlist_find_or_add(bp, bo, BX_VNCLEAN);
+	BO_UNLOCK(bo);
+	if (__predict_true(error == 0)) {
+		vhold(vp);
+		return (0);
+	}
+	if (error != EEXIST)
+		panic("bgetvp: buf_vlist_add error: %d", error);
+	bp->b_vp = NULL;
+	bp->b_bufobj = NULL;
+	bp->b_xflags &= ~BX_VNCLEAN;
+	return (error);
 }
 
 /*
@@ -3345,14 +3404,11 @@ vref(struct vnode *vp)
 void
 vrefact(struct vnode *vp)
 {
+	int old __diagused;
 
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
-#ifdef INVARIANTS
-	int old = atomic_fetchadd_int(&vp->v_usecount, 1);
+	old = refcount_acquire(&vp->v_usecount);
 	VNASSERT(old > 0, vp, ("%s: wrong use count %d", __func__, old));
-#else
-	refcount_acquire(&vp->v_usecount);
-#endif
 }
 
 void
@@ -3989,7 +4045,6 @@ vdrop_recycle(struct vnode *vp)
 static int
 vinactivef(struct vnode *vp)
 {
-	struct vm_object *obj;
 	int error;
 
 	ASSERT_VOP_ELOCKED(vp, "vinactive");
@@ -3999,6 +4054,7 @@ vinactivef(struct vnode *vp)
 	vp->v_iflag |= VI_DOINGINACT;
 	vp->v_iflag &= ~VI_OWEINACT;
 	VI_UNLOCK(vp);
+
 	/*
 	 * Before moving off the active list, we must be sure that any
 	 * modified pages are converted into the vnode's dirty
@@ -4009,12 +4065,9 @@ vinactivef(struct vnode *vp)
 	 * point that VOP_INACTIVE() is called, there could still be
 	 * pending I/O and dirty pages in the object.
 	 */
-	if ((obj = vp->v_object) != NULL && (vp->v_vflag & VV_NOSYNC) == 0 &&
-	    vm_object_mightbedirty(obj)) {
-		VM_OBJECT_WLOCK(obj);
-		vm_object_page_clean(obj, 0, 0, 0);
-		VM_OBJECT_WUNLOCK(obj);
-	}
+	if ((vp->v_vflag & VV_NOSYNC) == 0)
+		vnode_pager_clean_async(vp);
+
 	error = VOP_INACTIVE(vp);
 	VI_LOCK(vp);
 	VNPASS(vp->v_iflag & VI_DOINGINACT, vp);
@@ -4112,11 +4165,7 @@ loop:
 		 * vnodes open for writing.
 		 */
 		if (flags & WRITECLOSE) {
-			if (vp->v_object != NULL) {
-				VM_OBJECT_WLOCK(vp->v_object);
-				vm_object_page_clean(vp->v_object, 0, 0, 0);
-				VM_OBJECT_WUNLOCK(vp->v_object);
-			}
+			vnode_pager_clean_async(vp);
 			do {
 				error = VOP_FSYNC(vp, MNT_WAIT, td);
 			} while (error == ERELOOKUP);
@@ -5094,17 +5143,12 @@ static void __noinline
 vfs_periodic_msync_inactive(struct mount *mp, int flags)
 {
 	struct vnode *vp, *mvp;
-	struct vm_object *obj;
-	int lkflags, objflags;
+	int lkflags;
 	bool seen_defer;
 
 	lkflags = LK_EXCLUSIVE | LK_INTERLOCK;
-	if (flags != MNT_WAIT) {
+	if (flags != MNT_WAIT)
 		lkflags |= LK_NOWAIT;
-		objflags = OBJPC_NOSYNC;
-	} else {
-		objflags = OBJPC_SYNC;
-	}
 
 	MNT_VNODE_FOREACH_LAZY(vp, mp, mvp, vfs_periodic_msync_inactive_filter, NULL) {
 		seen_defer = false;
@@ -5120,11 +5164,11 @@ vfs_periodic_msync_inactive(struct mount *mp, int flags)
 			continue;
 		}
 		if (vget(vp, lkflags) == 0) {
-			obj = vp->v_object;
-			if (obj != NULL && (vp->v_vflag & VV_NOSYNC) == 0) {
-				VM_OBJECT_WLOCK(obj);
-				vm_object_page_clean(obj, 0, 0, objflags);
-				VM_OBJECT_WUNLOCK(obj);
+			if ((vp->v_vflag & VV_NOSYNC) == 0) {
+				if (flags == MNT_WAIT)
+					vnode_pager_clean_sync(vp);
+				else
+					vnode_pager_clean_async(vp);
 			}
 			vput(vp);
 			if (seen_defer)
@@ -5841,7 +5885,22 @@ vop_fsync_debugprepost(struct vnode *vp, const char *name)
 {
 	if (vp->v_type == VCHR)
 		;
-	else if (MNT_EXTENDED_SHARED(vp->v_mount))
+	/*
+	 * The shared vs. exclusive locking policy for fsync()
+	 * is actually determined by vp's write mount as indicated
+	 * by VOP_GETWRITEMOUNT(), which for stacked filesystems
+	 * may not be the same as vp->v_mount.  However, if the
+	 * underlying filesystem which really handles the fsync()
+	 * supports shared locking, the stacked filesystem must also
+	 * be prepared for its VOP_FSYNC() operation to be called
+	 * with only a shared lock.  On the other hand, if the
+	 * stacked filesystem claims support for shared write
+	 * locking but the underlying filesystem does not, and the
+	 * caller incorrectly uses a shared lock, this condition
+	 * should still be caught when the stacked filesystem
+	 * invokes VOP_FSYNC() on the underlying filesystem.
+	 */
+	else if (MNT_SHARED_WRITES(vp->v_mount))
 		ASSERT_VOP_LOCKED(vp, name);
 	else
 		ASSERT_VOP_ELOCKED(vp, name);

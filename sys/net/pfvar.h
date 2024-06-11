@@ -1061,18 +1061,20 @@ struct pf_kstate {
 	struct pf_ksrc_node	*nat_src_node;
 	u_int64_t		 packets[2];
 	u_int64_t		 bytes[2];
-	u_int32_t		 creation;
-	u_int32_t	 	 expire;
+	u_int64_t		 creation;
+	u_int64_t	 	 expire;
 	u_int32_t		 pfsync_time;
 	struct pf_rule_actions	 act;
 	u_int16_t		 tag;
 	u_int8_t		 rt;
+	u_int16_t		 if_index_in;
+	u_int16_t		 if_index_out;
 };
 
 /*
  * Size <= fits 11 objects per page on LP64. Try to not grow the struct beyond that.
  */
-_Static_assert(sizeof(struct pf_kstate) <= 368, "pf_kstate size crosses 368 bytes");
+_Static_assert(sizeof(struct pf_kstate) <= 372, "pf_kstate size crosses 372 bytes");
 #endif
 
 /*
@@ -1184,6 +1186,7 @@ typedef	void		pfsync_delete_state_t(struct pf_kstate *);
 typedef void		pfsync_clear_states_t(u_int32_t, const char *);
 typedef int		pfsync_defer_t(struct pf_kstate *, struct mbuf *);
 typedef void		pfsync_detach_ifnet_t(struct ifnet *);
+typedef void		pflow_export_state_t(const struct pf_kstate *);
 
 VNET_DECLARE(pfsync_state_import_t *, pfsync_state_import_ptr);
 #define V_pfsync_state_import_ptr	VNET(pfsync_state_import_ptr)
@@ -1197,6 +1200,8 @@ VNET_DECLARE(pfsync_clear_states_t *, pfsync_clear_states_ptr);
 #define V_pfsync_clear_states_ptr	VNET(pfsync_clear_states_ptr)
 VNET_DECLARE(pfsync_defer_t *, pfsync_defer_ptr);
 #define V_pfsync_defer_ptr		VNET(pfsync_defer_ptr)
+VNET_DECLARE(pflow_export_state_t *,	pflow_export_state_ptr);
+#define V_pflow_export_state_ptr	VNET(pflow_export_state_ptr)
 extern pfsync_detach_ifnet_t	*pfsync_detach_ifnet_ptr;
 
 void			pfsync_state_export(union pfsync_state_union *,
@@ -1208,7 +1213,7 @@ void			pf_state_export(struct pf_state_export *,
 struct pf_kruleset;
 struct pf_pdesc;
 typedef int pflog_packet_t(struct pfi_kkif *, struct mbuf *, sa_family_t,
-    u_int8_t, struct pf_krule *, struct pf_krule *, struct pf_kruleset *,
+    uint8_t, u_int8_t, struct pf_krule *, struct pf_krule *, struct pf_kruleset *,
     struct pf_pdesc *, int);
 extern pflog_packet_t		*pflog_packet_ptr;
 
@@ -2203,6 +2208,9 @@ extern int			 pf_state_insert(struct pfi_kkif *,
 				    struct pf_kstate *);
 extern struct pf_kstate		*pf_alloc_state(int);
 extern void			 pf_free_state(struct pf_kstate *);
+extern void			 pf_killstates(struct pf_kstate_kill *,
+				    unsigned int *);
+extern unsigned int		 pf_clear_states(const struct pf_kstate_kill *);
 
 static __inline void
 pf_ref_state(struct pf_kstate *s)
@@ -2231,6 +2239,22 @@ pf_release_staten(struct pf_kstate *s, u_int n)
 		return (1);
 	} else
 		return (0);
+}
+
+static __inline uint64_t
+pf_get_uptime(void)
+{
+	struct timeval t;
+	microuptime(&t);
+	return ((t.tv_sec * 1000) + (t.tv_usec / 1000));
+}
+
+static __inline uint64_t
+pf_get_time(void)
+{
+	struct timeval t;
+	microtime(&t);
+	return ((t.tv_sec * 1000) + (t.tv_usec / 1000));
 }
 
 extern struct pf_kstate		*pf_find_state_byid(uint64_t, uint32_t);
@@ -2276,6 +2300,7 @@ int	pf_normalize_ip6(struct mbuf **, struct pfi_kkif *, u_short *,
 void	pf_poolmask(struct pf_addr *, struct pf_addr*,
 	    struct pf_addr *, struct pf_addr *, sa_family_t);
 void	pf_addr_inc(struct pf_addr *, sa_family_t);
+int	pf_max_frag_size(struct mbuf *);
 int	pf_refragment6(struct ifnet *, struct mbuf **, struct m_tag *, bool);
 #endif /* INET6 */
 
@@ -2448,10 +2473,10 @@ void			 pf_init_kruleset(struct pf_kruleset *);
 void			 pf_init_keth(struct pf_keth_ruleset *);
 int			 pf_kanchor_setup(struct pf_krule *,
 			    const struct pf_kruleset *, const char *);
+int			 pf_kanchor_copyout(const struct pf_kruleset *,
+			    const struct pf_krule *, char *, size_t);
 int			 pf_kanchor_nvcopyout(const struct pf_kruleset *,
 			    const struct pf_krule *, nvlist_t *);
-int			 pf_kanchor_copyout(const struct pf_kruleset *,
-			    const struct pf_krule *, struct pfioc_rule *);
 void			 pf_kanchor_remove(struct pf_krule *);
 void			 pf_remove_if_empty_kruleset(struct pf_kruleset *);
 struct pf_kruleset	*pf_find_kruleset(const char *);
@@ -2477,8 +2502,15 @@ int			 pf_ioctl_getrules(struct pfioc_rule *);
 int			 pf_ioctl_addrule(struct pf_krule *, uint32_t,
 			    uint32_t, const char *, const char *, uid_t uid,
 			    pid_t);
+void			 pf_ioctl_clear_status(void);
+int			 pf_ioctl_get_timeout(int, int *);
+int			 pf_ioctl_set_timeout(int, int, int *);
+int			 pf_ioctl_get_limit(int, unsigned int *);
+int			 pf_ioctl_set_limit(int, unsigned int, unsigned int *);
+int			 pf_ioctl_begin_addrs(uint32_t *);
 
 void			 pf_krule_free(struct pf_krule *);
+void			 pf_krule_clear_counters(struct pf_krule *);
 #endif
 
 /* The fingerprint functions can be linked into userland programs (tcpdump) */

@@ -701,7 +701,7 @@ bge_ape_read_fw_ver(struct bge_softc *sc)
 
 	sc->bge_mfw_flags |= BGE_MFW_ON_APE;
 
-	/* Fetch the APE firwmare type and version. */
+	/* Fetch the APE firmware type and version. */
 	apedata = APE_READ_4(sc, BGE_APE_FW_VERSION);
 	features = APE_READ_4(sc, BGE_APE_FW_FEATURES);
 	if ((features & BGE_APE_FW_FEATURE_NCSI) != 0) {
@@ -2159,7 +2159,7 @@ bge_blockinit(struct bge_softc *sc)
 	 * The BD ring replenish thresholds control how often the
 	 * hardware fetches new BD's from the producer rings in host
 	 * memory.  Setting the value too low on a busy system can
-	 * starve the hardware and recue the throughpout.
+	 * starve the hardware and reduce the throughput.
 	 *
 	 * Set the BD ring replentish thresholds. The recommended
 	 * values are 1/8th the number of descriptors allocated to
@@ -2295,7 +2295,7 @@ bge_blockinit(struct bge_softc *sc)
 	 */
 	CSR_WRITE_4(sc, BGE_RXLP_CFG, 0x181);
 
-	/* Inialize RX list placement stats mask. */
+	/* Initialize RX list placement stats mask. */
 	CSR_WRITE_4(sc, BGE_RXLP_STATS_ENABLE_MASK, 0x007FFFFF);
 	CSR_WRITE_4(sc, BGE_RXLP_STATS_CTL, 0x1);
 
@@ -3536,7 +3536,7 @@ bge_attach(device_t dev)
 	 * known bug which can't handle TSO if Ethernet header + IP/TCP
 	 * header is greater than 80 bytes. A workaround for the TSO
 	 * bug exist but it seems it's too expensive than not using
-	 * TSO at all. Some hardwares also have the TSO bug so limit
+	 * TSO at all. Some hardware also have the TSO bug so limit
 	 * the TSO to the controllers that are not affected TSO issues
 	 * (e.g. 5755 or higher).
 	 */

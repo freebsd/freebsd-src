@@ -53,8 +53,10 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 #
 
+# SPDX-License-Identifier: BSD-2-Clause
+#
 # RCSid:
-#	$Id: install-sh,v 1.25 2023/07/15 05:33:38 sjg Exp $
+#	$Id: install-sh,v 1.26 2024/02/17 17:26:57 sjg Exp $
 #
 #	@(#) Copyright (c) 1993-2023 Simon J. Gerraty
 #

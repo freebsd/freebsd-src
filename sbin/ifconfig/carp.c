@@ -68,6 +68,9 @@ static int carpr_state = -1;
 static struct in_addr carp_addr;
 static struct in6_addr carp_addr6;
 static unsigned char const *carpr_key;
+static carp_version_t carpr_version;
+static uint8_t carpr_vrrp_prio;
+static uint16_t carpr_vrrp_adv_inter;
 
 static void
 carp_status(if_ctx *ctx)
@@ -79,19 +82,28 @@ carp_status(if_ctx *ctx)
 		return;
 
 	for (size_t i = 0; i < carpr[0].carpr_count; i++) {
-		printf("\tcarp: %s vhid %d advbase %d advskew %d",
-		    carp_states[carpr[i].carpr_state], carpr[i].carpr_vhid,
-		    carpr[i].carpr_advbase, carpr[i].carpr_advskew);
-		if (ctx->args->printkeys && carpr[i].carpr_key[0] != '\0')
-			printf(" key \"%s\"\n", carpr[i].carpr_key);
-		else
-			printf("\n");
+		switch (carpr[i].carpr_version) {
+		case CARP_VERSION_CARP:
+			printf("\tcarp: %s vhid %d advbase %d advskew %d",
+			    carp_states[carpr[i].carpr_state], carpr[i].carpr_vhid,
+			    carpr[i].carpr_advbase, carpr[i].carpr_advskew);
+			if (ctx->args->printkeys && carpr[i].carpr_key[0] != '\0')
+				printf(" key \"%s\"\n", carpr[i].carpr_key);
+			else
+				printf("\n");
 
-		inet_ntop(AF_INET6, &carpr[i].carpr_addr6, addr_buf,
-		    sizeof(addr_buf));
+			inet_ntop(AF_INET6, &carpr[i].carpr_addr6, addr_buf,
+			    sizeof(addr_buf));
 
-		printf("\t      peer %s peer6 %s\n",
-		    inet_ntoa(carpr[i].carpr_addr), addr_buf);
+			printf("\t      peer %s peer6 %s\n",
+			    inet_ntoa(carpr[i].carpr_addr), addr_buf);
+			break;
+		case CARP_VERSION_VRRPv3:
+			printf("\tvrrp: %s vrid %d prio %d interval %d\n",
+			    carp_states[carpr[i].carpr_state], carpr[i].carpr_vhid,
+			    carpr[i].carpr_vrrp_prio, carpr[i].carpr_vrrp_adv_inter);
+			break;
+		}
 	}
 }
 
@@ -137,6 +149,12 @@ setcarp_callback(if_ctx *ctx, void *arg __unused)
 	if (! IN6_IS_ADDR_UNSPECIFIED(&carp_addr6))
 		memcpy(&carpr.carpr_addr6, &carp_addr6,
 		    sizeof(carp_addr6));
+	if (carpr_version != 0)
+		carpr.carpr_version = carpr_version;
+	if (carpr_vrrp_prio != 0)
+		carpr.carpr_vrrp_prio = carpr_vrrp_prio;
+	if (carpr_vrrp_adv_inter != 0)
+		carpr.carpr_vrrp_adv_inter = carpr_vrrp_adv_inter;
 
 	if (ifconfig_carp_set_info(lifh, ctx->ifname, &carpr))
 		err(1, "SIOCSVH");
@@ -226,6 +244,31 @@ setcarp_mcast6(if_ctx *ctx __unused, const char *val __unused, int dummy __unuse
 	carp_addr6.s6_addr[15] = 0x12;
 }
 
+static void
+setcarp_version(if_ctx *ctx __unused, const char *val, int dummy __unused)
+{
+	carpr_version = atoi(val);
+
+	if (carpr_version != CARP_VERSION_CARP && carpr_version != CARP_VERSION_VRRPv3)
+		errx(1, "version must be %d or %d", CARP_VERSION_CARP,
+		    CARP_VERSION_VRRPv3);
+}
+
+static void
+setvrrp_prio(if_ctx *ctx __unused, const char *val, int dummy __unused)
+{
+	carpr_vrrp_prio = atoi(val);
+}
+
+static void
+setvrrp_interval(if_ctx *ctx __unused, const char *val, int dummy __unused)
+{
+	carpr_vrrp_adv_inter = atoi(val);
+
+	if (carpr_vrrp_adv_inter == 0 || carpr_vrrp_adv_inter > VRRP_MAX_INTERVAL)
+		errx(1, "vrrpinterval must be greater than 0 and less than %d", VRRP_MAX_INTERVAL);
+}
+
 static struct cmd carp_cmds[] = {
 	DEF_CMD_ARG("advbase",	setcarp_advbase),
 	DEF_CMD_ARG("advskew",	setcarp_advskew),
@@ -236,6 +279,9 @@ static struct cmd carp_cmds[] = {
 	DEF_CMD("mcast",	0,	setcarp_mcast),
 	DEF_CMD_ARG("peer6",	setcarp_peer6),
 	DEF_CMD("mcast6", 	0,	setcarp_mcast6),
+	DEF_CMD_ARG("carpver",	setcarp_version),
+	DEF_CMD_ARG("vrrpprio",	setvrrp_prio),
+	DEF_CMD_ARG("vrrpinterval",	setvrrp_interval),
 };
 static struct afswtch af_carp = {
 	.af_name	= "af_carp",

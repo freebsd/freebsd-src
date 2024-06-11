@@ -88,8 +88,6 @@ struct snd_mixer;
 #include <dev/sound/pcm/feeder.h>
 #include <dev/sound/pcm/mixer.h>
 #include <dev/sound/pcm/dsp.h>
-#include <dev/sound/clone.h>
-#include <dev/sound/unit.h>
 
 #define	PCM_SOFTC_SIZE	(sizeof(struct snddev_info))
 
@@ -100,26 +98,6 @@ struct snd_mixer;
 #define SOUND_MINVER	SOUND_MODVER
 #define SOUND_PREFVER	SOUND_MODVER
 #define SOUND_MAXVER	SOUND_MODVER
-
-/*
- * We're abusing the fact that MAXMINOR still have enough room
- * for our bit twiddling and nobody ever need 512 unique soundcards,
- * 32 unique device types and 1024 unique cloneable devices for the
- * next 100 years...
- */
-
-#define PCMMAXUNIT		(snd_max_u())
-#define PCMMAXDEV		(snd_max_d())
-#define PCMMAXCHAN		(snd_max_c())
-
-#define PCMMAXCLONE		PCMMAXCHAN
-
-#define PCMUNIT(x)		(snd_unit2u(dev2unit(x)))
-#define PCMDEV(x)		(snd_unit2d(dev2unit(x)))
-#define PCMCHAN(x)		(snd_unit2c(dev2unit(x)))
-
-/* XXX unit2minor compat */
-#define PCMMINOR(x)	(x)
 
 /*
  * By design, limit possible channels for each direction.
@@ -177,6 +155,9 @@ struct snd_mixer;
 				 ((x)->flags & SD_F_REGISTERED))
 
 #define	PCM_DETACHING(x)	((x)->flags & SD_F_DETACHING)
+
+#define	PCM_CHANCOUNT(d)	\
+	(d->playcount + d->pvchancount + d->reccount + d->rvchancount)
 
 /* many variables should be reduced to a range. Here define a macro */
 #define RANGE(var, low, high) (var) = \
@@ -247,48 +228,17 @@ struct snd_mixer;
 #define AFMT_NE		(AFMT_SIGNED_NE | AFMT_U8_NE | AFMT_U16_NE |	\
 			 AFMT_U24_NE | AFMT_U32_NE)
 
-/*
- * Minor numbers for the sound driver.
- *
- * Unfortunately Creative called the codec chip of SB as a DSP. For this
- * reason the /dev/dsp is reserved for digitized audio use. There is a
- * device for true DSP processors but it will be called something else.
- * In v3.0 it's /dev/sndproc but this could be a temporary solution.
- */
-
-#define SND_DEV_CTL	0	/* Control port /dev/mixer */
-#define SND_DEV_SEQ	1	/* Sequencer /dev/sequencer */
-#define SND_DEV_MIDIN	2	/* Raw midi access */
-#define SND_DEV_DSP	3	/* Digitized voice /dev/dsp */
-#define SND_DEV_AUDIO	4	/* Sparc compatible /dev/audio */
-#define SND_DEV_DSP16	5	/* Like /dev/dsp but 16 bits/sample */
-#define SND_DEV_STATUS	6	/* /dev/sndstat */
-				/* #7 not in use now. */
-#define SND_DEV_SEQ2	8	/* /dev/sequencer, level 2 interface */
-#define SND_DEV_SNDPROC 9	/* /dev/sndproc for programmable devices */
-#define SND_DEV_PSS	SND_DEV_SNDPROC /* ? */
-#define SND_DEV_NORESET	10
-
-#define SND_DEV_DSPHW_PLAY	11	/* specific playback channel */
-#define SND_DEV_DSPHW_VPLAY	12	/* specific virtual playback channel */
-#define SND_DEV_DSPHW_REC	13	/* specific record channel */
-#define SND_DEV_DSPHW_VREC	14	/* specific virtual record channel */
-
-#define SND_DEV_DSPHW_CD	15	/* s16le/stereo 44100Hz CD */
-
-/* 
- * OSSv4 compatible device. For now, it serve no purpose and
- * the cloning itself will forward the request to ordinary /dev/dsp
- * instead.
- */
-#define SND_DEV_DSP_MMAP	16	/* /dev/dsp_mmap     */
-#define SND_DEV_DSP_AC3		17	/* /dev/dsp_ac3      */
-#define SND_DEV_DSP_MULTICH	18	/* /dev/dsp_multich  */
-#define SND_DEV_DSP_SPDIFOUT	19	/* /dev/dsp_spdifout */
-#define SND_DEV_DSP_SPDIFIN	20	/* /dev/dsp_spdifin  */
-
-#define SND_DEV_LAST		SND_DEV_DSP_SPDIFIN
-#define SND_DEV_MAX		PCMMAXDEV
+enum {
+	SND_DEV_CTL = 0,	/* Control port /dev/mixer */
+	SND_DEV_SEQ,		/* Sequencer /dev/sequencer */
+	SND_DEV_MIDIN,		/* Raw midi access */
+	SND_DEV_DSP,		/* Digitized voice /dev/dsp */
+	SND_DEV_STATUS,		/* /dev/sndstat */
+	SND_DEV_DSPHW_PLAY,	/* specific playback channel */
+	SND_DEV_DSPHW_VPLAY,	/* specific virtual playback channel */
+	SND_DEV_DSPHW_REC,	/* specific record channel */
+	SND_DEV_DSPHW_VREC,	/* specific virtual record channel */
+};
 
 #define DSP_DEFAULT_SPEED	8000
 
@@ -297,7 +247,6 @@ struct snd_mixer;
 
 extern int pcm_veto_load;
 extern int snd_unit;
-extern int snd_maxautovchans;
 extern int snd_verbose;
 extern devclass_t pcm_devclass;
 extern struct unrhdr *pcmsg_unrhdr;
@@ -315,16 +264,10 @@ extern struct unrhdr *pcmsg_unrhdr;
 
 SYSCTL_DECL(_hw_snd);
 
-int pcm_setvchans(struct snddev_info *d, int direction, int newcnt, int num);
 int pcm_chnalloc(struct snddev_info *d, struct pcm_channel **ch, int direction,
-    pid_t pid, char *comm, int devunit);
-int pcm_chnrelease(struct pcm_channel *c);
-int pcm_chnref(struct pcm_channel *c, int ref);
-int pcm_inprog(struct snddev_info *d, int delta);
+    pid_t pid, char *comm);
 
-struct pcm_channel *pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls, int dir, int num, void *devinfo);
-int pcm_chn_destroy(struct pcm_channel *ch);
-int pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch);
+void pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch);
 int pcm_chn_remove(struct snddev_info *d, struct pcm_channel *ch);
 
 int pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo);
@@ -345,17 +288,24 @@ void snd_mtxassert(void *m);
 #define	snd_mtxlock(m) mtx_lock(m)
 #define	snd_mtxunlock(m) mtx_unlock(m)
 
-typedef int (*sndstat_handler)(struct sbuf *s, device_t dev, int verbose);
-int sndstat_register(device_t dev, char *str, sndstat_handler handler);
+int sndstat_register(device_t dev, char *str);
 int sndstat_unregister(device_t dev);
 
-/* usage of flags in device config entry (config file) */
-#define DV_F_DRQ_MASK	0x00000007	/* mask for secondary drq */
-#define	DV_F_DUAL_DMA	0x00000010	/* set to use secondary dma channel */
+/* These are the function codes assigned to the children of sound cards. */
+enum {
+	SCF_PCM,
+	SCF_MIDI,
+	SCF_SYNTH,
+};
 
-/* ought to be made obsolete but still used by mss */
-#define	DV_F_DEV_MASK	0x0000ff00	/* force device type/class */
-#define	DV_F_DEV_SHIFT	8		/* force device type/class */
+/*
+ * This is the device information struct, used by a bridge device to pass the
+ * device function code to the children.
+ */
+struct sndcard_func {
+	int func;	/* The function code. */
+	void *varinfo;	/* Bridge-specific information. */
+};
 
 /*
  * this is rather kludgey- we need to duplicate these struct def'ns from sound.c
@@ -375,17 +325,15 @@ struct snddev_info {
 			} opened;
 		} pcm;
 	} channels;
-	TAILQ_HEAD(dsp_cdevinfo_linkhead, dsp_cdevinfo) dsp_cdevinfo_pool;
-	struct snd_clone *clones;
-	unsigned devcount, playcount, reccount, pvchancount, rvchancount ;
+	unsigned playcount, reccount, pvchancount, rvchancount;
 	unsigned flags;
-	int inprog;
 	unsigned int bufsz;
 	void *devinfo;
 	device_t dev;
 	char status[SND_STATUSLEN];
 	struct mtx *lock;
 	struct cdev *mixer_dev;
+	struct cdev *dsp_dev;
 	uint32_t pvchanrate, pvchanformat;
 	uint32_t rvchanrate, rvchanformat;
 	int32_t eqpreamp;
@@ -521,7 +469,7 @@ int	sound_oss_card_info(oss_card_info *);
 		mtx_unlock(&Giant);					\
 	}								\
 } while (0)
-#else /* SND_DIAGNOSTIC */
+#else /* !SND_DIAGNOSTIC */
 #define PCM_WAIT(x)		do {					\
 	PCM_LOCKASSERT(x);						\
 	while ((x)->flags & SD_F_BUSY)					\
@@ -592,17 +540,11 @@ int	sound_oss_card_info(oss_card_info *);
 		mtx_unlock(&Giant);					\
 	}								\
 } while (0)
-#endif /* !SND_DIAGNOSTIC */
+#endif /* SND_DIAGNOSTIC */
 
 #define PCM_GIANT_LEAVE(x)						\
 	PCM_GIANT_EXIT(x);						\
 } while (0)
-
-#ifdef KLD_MODULE
-#define PCM_KLDSTRING(a) ("kld " # a)
-#else
-#define PCM_KLDSTRING(a) ""
-#endif
 
 #endif /* _KERNEL */
 

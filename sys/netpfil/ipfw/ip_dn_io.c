@@ -497,8 +497,28 @@ dn_enqueue(struct dn_queue *q, struct mbuf* m, int drop)
 	ni->tot_pkts++;
 	if (drop)
 		goto drop;
-	if (f->plr && random() < f->plr)
-		goto drop;
+	if (f->plr[0] || f->plr[1]) {
+		if (__predict_true(f->plr[1] == 0)) {
+			if (random() < f->plr[0])
+				goto drop;
+		} else {
+			switch (f->pl_state) {
+			case PLR_STATE_B:
+				if (random() < f->plr[3])
+					f->pl_state = PLR_STATE_G;
+				if (random() < f->plr[2])
+					goto drop;
+				break;
+			case PLR_STATE_G: /* FALLTHROUGH */
+			default:
+				if (random() < f->plr[1])
+					f->pl_state = PLR_STATE_B;
+				if (random() < f->plr[0])
+					goto drop;
+				break;
+			}
+		}
+	}
 	if (m->m_pkthdr.rcvif != NULL)
 		m_rcvif_serialize(m);
 #ifdef NEW_AQM

@@ -225,7 +225,7 @@ ar9300_eeprom_restore_something(struct ath_hal *ah, ar9300_eeprom_t *mptr,
 HAL_BOOL
 ar9300_eeprom_read_word(struct ath_hal *ah, u_int off, u_int16_t *data)
 {
-    if (AR_SREV_OSPREY(ah) || AR_SREV_POSEIDON(ah))
+    if (AR_SREV_OSPREY(ah) || AR_SREV_POSEIDON(ah) || AR_SREV_JUPITER(ah))
     {
         (void) OS_REG_READ(ah, AR9300_EEPROM_OFFSET + (off << AR9300_EEPROM_S));
         if (!ath_hal_wait(ah,
@@ -4319,7 +4319,7 @@ ar9300_eeprom_restore_internal(struct ath_hal *ah, ar9300_eeprom_t *mptr,
     }
 #endif
     if (nptr < 0) {
-        ath_hal_printf(ah, "%s[%d] No vaid CAL, calling default template\n",
+        ath_hal_printf(ah, "%s[%d] No valid CAL, calling default template\n",
             __func__, __LINE__);
         nptr = ar9300_eeprom_restore_something(ah, mptr, mdata_size);
     }

@@ -89,4 +89,8 @@ typedef unsigned int SM_ATOMIC_UINT_T;
 # define _FFR_8BITENVADDR 1
 #endif
 
+#if _FFR_HAPROXY && !defined(_FFR_XCNCT)
+# define _FFR_XCNCT 1
+#endif
+
 #endif /* SM_GEN_H */

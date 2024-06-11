@@ -1429,7 +1429,8 @@ vmxnet3_isc_txd_credits_update(void *vsc, uint16_t txqid, bool clear)
 			return (1);
 		vmxnet3_barrier(sc, VMXNET3_BARRIER_RD);
 
-		if (++txc->vxcr_next == txc->vxcr_ndesc) {
+		MPASS(txc->vxcr_next < txc->vxcr_ndesc);
+		if (++txc->vxcr_next >= txc->vxcr_ndesc) {
 			txc->vxcr_next = 0;
 			txc->vxcr_gen ^= 1;
 		}

@@ -28,7 +28,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #define	RB_AUGMENT_CHECK(entry) iommu_gas_augment_entry(entry)
 
 #include <sys/param.h>
@@ -119,16 +118,19 @@ static int
 iommu_gas_cmp_entries(struct iommu_map_entry *a, struct iommu_map_entry *b)
 {
 
-	/* Last entry have zero size, so <= */
+	/* First and last entries have zero size, so <= */
 	KASSERT(a->start <= a->end, ("inverted entry %p (%jx, %jx)",
 	    a, (uintmax_t)a->start, (uintmax_t)a->end));
 	KASSERT(b->start <= b->end, ("inverted entry %p (%jx, %jx)",
 	    b, (uintmax_t)b->start, (uintmax_t)b->end));
-	KASSERT(a->end <= b->start || b->end <= a->start ||
+	KASSERT(((a->flags | b->flags) & IOMMU_MAP_ENTRY_FAKE) != 0 ||
+	    a->end <= b->start || b->end <= a->start ||
 	    a->end == a->start || b->end == b->start,
-	    ("overlapping entries %p (%jx, %jx) %p (%jx, %jx)",
-	    a, (uintmax_t)a->start, (uintmax_t)a->end,
-	    b, (uintmax_t)b->start, (uintmax_t)b->end));
+	    ("overlapping entries %p (%jx, %jx) f %#x %p (%jx, %jx) f %#x"
+	    " domain %p %p",
+	    a, (uintmax_t)a->start, (uintmax_t)a->end, a->flags,
+	    b, (uintmax_t)b->start, (uintmax_t)b->end, b->flags,
+	    a->domain, b->domain));
 
 	if (a->end < b->end)
 		return (-1);
@@ -242,25 +244,17 @@ iommu_gas_init_domain(struct iommu_domain *domain)
 	KASSERT(RB_EMPTY(&domain->rb_root),
 	    ("non-empty entries %p", domain));
 
-	/*
-	 * The end entry must be inserted first because it has a zero-length gap
-	 * between start and end.  Initially, all augmentation data for a new
-	 * entry is zero.  Function iommu_gas_augment_entry will compute no
-	 * change in the value of (start-end) and no change in the value of
-	 * free_down, so it will return false to suggest that nothing changed in
-	 * the entry.  Thus, inserting the end entry second prevents
-	 * augmentation information to be propogated to the begin entry at the
-	 * tree root.  So it is inserted first.
-	 */
 	end->start = domain->end;
 	end->end = domain->end;
 	end->flags = IOMMU_MAP_ENTRY_PLACE | IOMMU_MAP_ENTRY_UNMAPPED;
 	RB_INSERT(iommu_gas_entries_tree, &domain->rb_root, end);
 
 	begin->start = 0;
-	begin->end = IOMMU_PAGE_SIZE;
+	begin->end = 0;
 	begin->flags = IOMMU_MAP_ENTRY_PLACE | IOMMU_MAP_ENTRY_UNMAPPED;
 	RB_INSERT_PREV(iommu_gas_entries_tree, &domain->rb_root, end, begin);
+	iommu_gas_augment_entry(end);
+	iommu_gas_augment_entry(begin);
 
 	domain->start_gap = begin;
 	domain->first_place = begin;
@@ -329,6 +323,8 @@ iommu_gas_match_one(struct iommu_gas_match_args *a, iommu_gaddr_t beg,
 	beg = MAX(beg + IOMMU_PAGE_SIZE, lbound);
 	start = roundup2(beg, a->common->alignment);
 	if (start < beg)
+		return (false);
+	if (end < IOMMU_PAGE_SIZE + 1)
 		return (false);
 	end = MIN(end - IOMMU_PAGE_SIZE - 1, ubound);
 	offset = a->offset;
@@ -533,11 +529,13 @@ iommu_gas_alloc_region(struct iommu_domain *domain, struct iommu_map_entry *entr
 	if (entry->end >= domain->end)
 		return (EINVAL);
 
+	entry->flags |= IOMMU_MAP_ENTRY_FAKE;
 	next = RB_NFIND(iommu_gas_entries_tree, &domain->rb_root, entry);
 	KASSERT(next != NULL, ("next must be non-null %p %jx", domain,
 	    (uintmax_t)entry->start));
 	prev = RB_PREV(iommu_gas_entries_tree, &domain->rb_root, next);
 	/* prev could be NULL */
+	entry->flags &= ~IOMMU_MAP_ENTRY_FAKE;
 
 	/*
 	 * Adapt to broken BIOSes which specify overlapping RMRR
@@ -652,8 +650,10 @@ iommu_gas_remove_clip_left(struct iommu_domain *domain, iommu_gaddr_t start,
 	 * asserted that start is below domain end, entry should
 	 * exist.  Then clip it if needed.
 	 */
+	bzero(&fentry, sizeof(fentry));
 	fentry.start = start + 1;
 	fentry.end = start + 1;
+	fentry.flags = IOMMU_MAP_ENTRY_FAKE;
 	entry = RB_NFIND(iommu_gas_entries_tree, &domain->rb_root, &fentry);
 
 	if (entry->start >= start ||
@@ -693,11 +693,78 @@ iommu_gas_remove_unmap(struct iommu_domain *domain,
 	IOMMU_DOMAIN_ASSERT_LOCKED(domain);
 
 	if ((entry->flags & (IOMMU_MAP_ENTRY_UNMAPPED |
+	    IOMMU_MAP_ENTRY_RMRR |
 	    IOMMU_MAP_ENTRY_REMOVING)) != 0)
 		return;
 	MPASS((entry->flags & IOMMU_MAP_ENTRY_PLACE) == 0);
 	entry->flags |= IOMMU_MAP_ENTRY_REMOVING;
 	TAILQ_INSERT_TAIL(gcp, entry, dmamap_link);
+}
+
+static void
+iommu_gas_remove_locked(struct iommu_domain *domain,
+    iommu_gaddr_t start, iommu_gaddr_t size,
+    struct iommu_map_entries_tailq *gc,
+    struct iommu_map_entry **r1, struct iommu_map_entry **r2)
+{
+	struct iommu_map_entry *entry, *nentry;
+	iommu_gaddr_t end;
+
+	IOMMU_DOMAIN_ASSERT_LOCKED(domain);
+
+	end = start + size;
+
+	nentry = iommu_gas_remove_clip_left(domain, start, end, r1);
+	RB_FOREACH_FROM(entry, iommu_gas_entries_tree, nentry) {
+		if (entry->start >= end)
+			break;
+		KASSERT(start <= entry->start,
+		    ("iommu_gas_remove entry (%#jx, %#jx) start %#jx",
+		    entry->start, entry->end, start));
+		iommu_gas_remove_unmap(domain, entry, gc);
+	}
+	if (iommu_gas_remove_clip_right(domain, end, entry, *r2)) {
+		iommu_gas_remove_unmap(domain, *r2, gc);
+		*r2 = NULL;
+	}
+
+#ifdef INVARIANTS
+	RB_FOREACH(entry, iommu_gas_entries_tree, &domain->rb_root) {
+		if ((entry->flags & (IOMMU_MAP_ENTRY_RMRR |
+		    IOMMU_MAP_ENTRY_PLACE)) != 0)
+			continue;
+		KASSERT(entry->end <= start || entry->start >= end,
+		    ("iommu_gas_remove leftover entry (%#jx, %#jx) range "
+		    "(%#jx, %#jx)",
+		    entry->start, entry->end, start, end));
+	}
+#endif
+}
+
+static void
+iommu_gas_remove_init(struct iommu_domain *domain,
+    struct iommu_map_entries_tailq *gc, struct iommu_map_entry **r1,
+    struct iommu_map_entry **r2)
+{
+	TAILQ_INIT(gc);
+	*r1 = iommu_gas_alloc_entry(domain, IOMMU_PGF_WAITOK);
+	*r2 = iommu_gas_alloc_entry(domain, IOMMU_PGF_WAITOK);
+}
+
+static void
+iommu_gas_remove_cleanup(struct iommu_domain *domain,
+    struct iommu_map_entries_tailq *gc, struct iommu_map_entry **r1,
+    struct iommu_map_entry **r2)
+{
+	if (*r1 != NULL) {
+		iommu_gas_free_entry(*r1);
+		*r1 = NULL;
+	}
+	if (*r2 != NULL) {
+		iommu_gas_free_entry(*r2);
+		*r2 = NULL;
+	}
+	iommu_domain_unload(domain, gc, true);
 }
 
 /*
@@ -710,50 +777,14 @@ void
 iommu_gas_remove(struct iommu_domain *domain, iommu_gaddr_t start,
     iommu_gaddr_t size)
 {
-	struct iommu_map_entry *entry, *nentry, *r1, *r2;
+	struct iommu_map_entry *r1, *r2;
 	struct iommu_map_entries_tailq gc;
-	iommu_gaddr_t end;
 
-	end = start + size;
-	r1 = iommu_gas_alloc_entry(domain, IOMMU_PGF_WAITOK);
-	r2 = iommu_gas_alloc_entry(domain, IOMMU_PGF_WAITOK);
-	TAILQ_INIT(&gc);
-
+	iommu_gas_remove_init(domain, &gc, &r1, &r2);
 	IOMMU_DOMAIN_LOCK(domain);
-
-	nentry = iommu_gas_remove_clip_left(domain, start, end, &r1);
-	RB_FOREACH_FROM(entry, iommu_gas_entries_tree, nentry) {
-		if (entry->start >= end)
-			break;
-		KASSERT(start <= entry->start,
-		    ("iommu_gas_remove entry (%#jx, %#jx) start %#jx",
-		    entry->start, entry->end, start));
-		if ((entry->flags & IOMMU_MAP_ENTRY_RMRR) != 0)
-			continue;
-		iommu_gas_remove_unmap(domain, entry, &gc);
-	}
-	if (iommu_gas_remove_clip_right(domain, end, entry, r2)) {
-		iommu_gas_remove_unmap(domain, r2, &gc);
-		r2 = NULL;
-	}
-
-#ifdef INVARIANTS
-	RB_FOREACH(entry, iommu_gas_entries_tree, &domain->rb_root) {
-		if ((entry->flags & IOMMU_MAP_ENTRY_RMRR) != 0)
-			continue;
-		KASSERT(entry->end <= start || entry->start >= end,
-		    ("iommu_gas_remove leftover entry (%#jx, %#jx) range "
-		    "(%#jx, %#jx)",
-		    entry->start, entry->end, start, end));
-	}
-#endif
-
+	iommu_gas_remove_locked(domain, start, size, &gc, &r1, &r2);
 	IOMMU_DOMAIN_UNLOCK(domain);
-	if (r1 != NULL)
-		iommu_gas_free_entry(r1);
-	if (r2 != NULL)
-		iommu_gas_free_entry(r2);
-	iommu_domain_unload(domain, &gc, true);
+	iommu_gas_remove_cleanup(domain, &gc, &r1, &r2);
 }
 
 int
@@ -1029,4 +1060,49 @@ SYSCTL_NODE(_hw, OID_AUTO, iommu, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, "");
 SYSCTL_INT(_hw_iommu, OID_AUTO, check_free, CTLFLAG_RWTUN,
     &iommu_check_free, 0,
     "Check the GPA RBtree for free_down and free_after validity");
+#endif
+
+#include "opt_ddb.h"
+#ifdef DDB
+
+#include <ddb/ddb.h>
+
+static void
+iommu_debug_dump_gas(struct iommu_domain *domain)
+{
+	struct iommu_map_entry *entry;
+
+	db_printf("iommu_domain %p tree %p iommu %p fl %#x\n", domain,
+	    &domain->rb_root, domain->iommu, domain->flags);
+	db_printf("iommu_domain %p tree %p\n", domain, &domain->rb_root);
+	RB_FOREACH(entry, iommu_gas_entries_tree, &domain->rb_root) {
+		db_printf(
+	    "  e %p [%#jx %#jx] fl %#x first %#jx last %#jx free_down %#jx",
+		    entry, (uintmax_t)entry->start, (uintmax_t)entry->end,
+		    entry->flags,
+		    (uintmax_t)entry->first, (uintmax_t)entry->last,
+		    (uintmax_t)entry->free_down);
+		if (entry == domain->start_gap)
+			db_printf(" start_gap");
+		if (entry == domain->first_place)
+			db_printf(" first_place");
+		if (entry == domain->last_place)
+			db_printf(" last_place");
+		db_printf("\n");
+	}
+}
+
+DB_SHOW_COMMAND(iommu_domain, iommu_domain_show)
+{
+	struct iommu_domain *domain;
+
+	if (!have_addr) {
+		db_printf("show iommu_domain addr\n");
+		return;
+	}
+
+	domain = (void *)addr;
+	iommu_debug_dump_gas(domain);
+}
+
 #endif

@@ -1,0 +1,182 @@
+.\" Copyright (c) 1994-2021 Simon J. Gerraty
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" This file is provided in the hope that it will
+.\" be of use.  There is absolutely NO WARRANTY.
+.\" Permission to copy, redistribute or otherwise
+.\" use this file is hereby granted provided that
+.\" the above copyright notice and this notice are
+.\" left intact.
+.\"
+.\" Please send copies of changes and bug-fixes to:
+.\" sjg@crufty.net
+.\"
+.Dd January 31, 2024
+.Dt DEBUG.SH 8
+.Os
+.Sh NAME
+.Nm debug.sh
+.Nd selectively debug scripts
+.Sh SYNOPSIS
+.Bl -item -compact
+.It
+.Ic $_DEBUG_SH .\& Pa debug.sh
+.Pp
+.It
+.Ic DebugOn Oo Fl eo Oc Ar tag ...
+.It
+.Ic DebugOff Oo Fl eo Oc Oo Cm rc= Ns Ar rc Oc Ar tag ...
+.It
+.Ic Debugging
+.It
+.Ic DebugEcho Op Ar message
+.It
+.Ic DebugLog Op Ar message
+.It
+.Ic DebugShell Ar tag ...
+.It
+.Ic DebugTrace Ar message
+.It
+.Ic Debug Ar tag ...
+.El
+.Sh DESCRIPTION
+.Nm
+provides the following functions to facilitate flexible
+run-time tracing of complicated shell scripts.
+.Bl -tag -width 4n
+.It Ic DebugOn Oo Fl eo Oc Ar tag ...
+turns tracing on if any
+.Ar tag
+is found in
+.Va DEBUG_SH
+(a comma separated list of tags).
+.Pp
+It turns tracing off if
+.Ar !tag
+is found in
+.Va DEBUG_SH .
+.Pp
+It sets
+.Va DEBUG_ON
+to the
+.Ar tag
+that caused tracing to be enabled, or
+.Va DEBUG_OFF
+if we matched
+.Ar !tag .
+.Pp
+If
+.Fl e
+option is present, returns 1 if no
+.Ar tag
+matched.
+.Pp
+If
+.Fl o
+option is present, tracing is turned off unless there
+was a matched
+.Ar tag ,
+useful for functions too noisy to tace.
+.It Ic DebugOff Oo Fl eo Oc Oo Cm rc= Ns Ar rc Oc Ar tag ...
+turns tracing on if any
+.Ar tag
+matches
+.Va DEBUG_OFF
+or off if any
+.Ar tag
+matches
+.Va DEBUG_ON .
+This allows nested functions to not interfere with each other.
+.Pp
+The flags
+.Fl e
+and
+.Fl o
+are ignored, they just allow for symmetry with calls to
+.Fn DebugOn .
+.Pp
+The optional
+.Ar rc
+value will be returned rather than the default of 0.
+Thus if 
+.Fn DebugOff
+is the last operation in a function,
+.Ar rc
+will be the return code of the function.
+.It Ic Debugging
+returns true if tracing is enabled.
+It is useful for bounding complex debug actions, rather than
+using lots of
+.Ic $DEBUG_DO
+lines.
+.It Ic DebugEcho
+is just shorthand for:
+.Bd -literal -offset indent
+$DEBUG_DO echo "$@"
+.Ed
+.It Ic DebugLog Op Ar message
+If debugging is enabled, output
+.Ar message
+prefixed with a time-stamp.
+.It Ic DebugShell Ar tag ...
+runs an interactive shell if any
+.Ar tag
+is found in
+.Va DEBUG_INTERACTIVE ,
+and there is a tty available.
+The shell used is defined by
+.Va DEBUG_SHELL
+or
+.Va SHELL
+and defaults to
+.Pa /bin/sh .
+.It Ic DebugTrace Ar message
+Debug output can be very noisy, and it can be tricky
+to align with the script.
+This function outputs a very noticable banner indicating the value of
+.Va DEBUG_ON ,
+and
+.Ar message
+is passed to
+.Fn DebugLog ,
+finally the banner is repeated.
+.It Ic Debug Ar tag ...
+For backwards compatibility, calls
+.Fn DebugOn
+and if that does not turn tracing on,
+it calls
+.Fn DebugOff
+to turn it off.
+.El
+.Pp
+The variables
+.Va DEBUG_SKIP
+and
+.Va DEBUG_DO
+are set so as to enable/disable code that should be
+skipped/run when debugging is turned on.
+.Va DEBUGGING
+is the same as
+.Va DEBUG_SKIP
+for backwards compatability and is only set by
+.Fn Debug .
+.Pp
+The use of
+.Ic $_DEBUG_SH
+is to prevent multiple inclusion,
+though it does no harm in this case.
+.Sh BUGS
+Does not work with some versions of
+.Xr ksh 1 .
+If a function turns tracing on, ksh turns it off when the
+function returns - useless.
+.Pp
+PD ksh works ok ;-)
+.Sh AUTHOR
+.An -nosplit
+.Nm
+was written by
+.An Simon J Gerraty Aq Mt sjg@crufty.net .
+
+

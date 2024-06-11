@@ -67,7 +67,7 @@ struct ispmdvec {
 	int		(*dv_send_cmd) (ispsoftc_t *, void *, void *, uint32_t);
 	int		(*dv_irqsetup) (ispsoftc_t *);
 	void		(*dv_dregs) (ispsoftc_t *, const char *);
-	const void *	dv_ispfw;	/* ptr to f/w */
+	const void *	dv_ispfw;	/* ptr to f/w of ispfw(4)*/
 };
 
 /*
@@ -369,30 +369,39 @@ typedef struct {
 	int			isp_use_gff_id;		/* Use GFF_ID */
 
 	uint32_t		flash_data_addr;
+	uint32_t		fw_flashrev[4]; /* Flash F/W revision */
+	uint32_t		fw_ispfwrev[4]; /* ispfw(4) F/W revision */
+	char			fw_version_flash[12];
+	char			fw_version_ispfw[12];
+	char			fw_version_run[12];
+	uint32_t		fw_ability_mask;
+	uint16_t		max_supported_speed;
+
 	/*
 	 * FLT
 	 */
 	uint16_t		flt_length;
 	uint32_t		flt_region_entries;
-	uint32_t		flt_region_aux_img_status_pri;
-	uint32_t		flt_region_aux_img_status_sec;
-	uint32_t		flt_region_boot;
-	uint32_t		flt_region_fcp_prio;
-	uint32_t		flt_region_fdt;
 	uint32_t		flt_region_flt;
-	uint32_t		flt_region_fw;
-	uint32_t		flt_region_gold_fw;
-	uint32_t		flt_region_img_status_pri;
-	uint32_t		flt_region_img_status_sec;
-	uint32_t		flt_region_fw_sec;
+	uint32_t		flt_region_fdt;
+	uint32_t		flt_region_boot;
 	uint32_t		flt_region_boot_sec;
-	uint32_t		flt_region_npiv_conf;
-	uint32_t		flt_region_nvram;
-	uint32_t		flt_region_nvram_sec;
-	uint32_t		flt_region_vpd;
+	uint32_t		flt_region_fw;
+	uint32_t		flt_region_fw_sec;
 	uint32_t		flt_region_vpd_nvram;
 	uint32_t		flt_region_vpd_nvram_sec;
+	uint32_t		flt_region_vpd;
 	uint32_t		flt_region_vpd_sec;
+	uint32_t		flt_region_nvram;
+	uint32_t		flt_region_nvram_sec;
+	uint32_t		flt_region_npiv_conf;
+	uint32_t		flt_region_gold_fw;
+	uint32_t		flt_region_fcp_prio;
+	uint32_t		flt_region_bootload;
+	uint32_t		flt_region_img_status_pri;
+	uint32_t		flt_region_img_status_sec;
+	uint32_t		flt_region_aux_img_status_pri;
+	uint32_t		flt_region_aux_img_status_sec;
 
 	/*
 	 * Current active WWNN/WWPN
@@ -419,6 +428,41 @@ typedef struct {
 
 	uint8_t			isp_scanscratch[ISP_FC_SCRLEN];
 } fcparam;
+
+/*
+ * Image status
+ */
+struct isp_image_status{
+	uint8_t		image_status_mask;
+	uint16_t	generation;
+	uint8_t		ver_major;
+	uint8_t		ver_minor;
+	uint8_t		bitmap;		/* 28xx only */
+	uint8_t		reserved[2];
+	uint32_t	checksum;
+	uint32_t	signature;
+} __packed;
+
+/* 28xx aux image status bitmap values */
+#define ISP28XX_AUX_IMG_BOARD_CONFIG		0x1
+#define ISP28XX_AUX_IMG_VPD_NVRAM		0x2
+#define ISP28XX_AUX_IMG_NPIV_CONFIG_0_1		0x4
+#define ISP28XX_AUX_IMG_NPIV_CONFIG_2_3		0x8
+#define ISP28XX_AUX_IMG_NVME_PARAMS		0x10
+
+/*
+ * Active regions
+ */
+struct active_regions {
+	uint8_t global;
+	struct {
+		uint8_t	board_config;
+		uint8_t	vpd_nvram;
+		uint8_t	npiv_config_0_1;
+		uint8_t	npiv_config_2_3;
+		uint8_t	nvme_params;
+	} aux;
+};
 
 #define	FW_CONFIG_WAIT		0
 #define	FW_WAIT_LINK		1
@@ -473,11 +517,14 @@ struct ispsoftc {
 	 */
 
 	fcparam			*isp_param;	/* Per-channel storage. */
-	uint64_t		isp_fwattr;	/* firmware attributes */
+	uint16_t		isp_fwattr;	/* firmware attributes */
+	uint16_t		isp_fwattr_h;	/* firmware attributes */
+	uint16_t		isp_fwattr_ext[2]; /* firmware attributes */
 	uint16_t		isp_fwrev[3];	/* Loaded F/W revision */
 	uint16_t		isp_maxcmds;	/* max possible I/O cmds */
 	uint16_t		isp_nchan;	/* number of channels */
 	uint16_t		isp_dblev;	/* debug log mask */
+	uint32_t		isp_did;	/* DID */
 	uint8_t			isp_type;	/* HBA Chip Type */
 	uint8_t			isp_revision;	/* HBA Chip H/W Revision */
 	uint8_t			isp_nirq;	/* number of IRQs */
@@ -554,8 +601,8 @@ struct ispsoftc {
 #define	ISP_CFG_NPORT		0x08	/* prefer {N/F}-Port connection */
 #define	ISP_CFG_1GB		0x10	/* force 1Gb connection (23XX only) */
 #define	ISP_CFG_2GB		0x20	/* force 2Gb connection (23XX only) */
-#define	ISP_CFG_NORELOAD	0x80	/* don't download f/w */
 #define	ISP_CFG_NONVRAM		0x40	/* ignore NVRAM */
+#define	ISP_CFG_NORELOAD	0x80	/* don't download f/w */
 #define	ISP_CFG_NOFCTAPE	0x100	/* disable FC-Tape */
 #define	ISP_CFG_FCTAPE		0x200	/* enable FC-Tape */
 #define	ISP_CFG_OWNFSZ		0x400	/* override NVRAM frame size */
@@ -613,18 +660,22 @@ struct ispsoftc {
 #define	ISP_CODE_ORG			0x1000	/* default f/w code start */
 #define	ISP_CODE_ORG_2300		0x0800	/* ..except for 2300s */
 #define	ISP_CODE_ORG_2400		0x100000 /* ..and 2400s */
-#define	ISP_FW_REV(maj, min, mic)	((maj << 24) | (min << 16) | mic)
-#define	ISP_FW_MAJOR(code)		((code >> 24) & 0xff)
-#define	ISP_FW_MINOR(code)		((code >> 16) & 0xff)
-#define	ISP_FW_MICRO(code)		((code >>  8) & 0xff)
-#define	ISP_FW_REVX(xp)			((xp[0]<<24) | (xp[1] << 16) | xp[2])
+#define	ISP_FW_REV(maj, min, mic)	(((maj) << 16) | ((min) << 8) | (mic))
+#define	ISP_FW_MAJOR(code)		(((code) >> 16) & 0xff)
+#define	ISP_FW_MINOR(code)		(((code) >> 8) & 0xff)
+#define	ISP_FW_MICRO(code)		((code) & 0xff)
+#define	ISP_FW_REVX(xp)			(((xp)[0] << 16) | ((xp)[1] << 8) | (xp)[2])
 #define	ISP_FW_MAJORX(xp)		(xp[0])
 #define	ISP_FW_MINORX(xp)		(xp[1])
 #define	ISP_FW_MICROX(xp)		(xp[2])
 #define	ISP_FW_NEWER_THAN(i, major, minor, micro)		\
- (ISP_FW_REVX((i)->isp_fwrev) > ISP_FW_REV(major, minor, micro))
+	(ISP_FW_REVX(i) > ISP_FW_REV(major, minor, micro))
 #define	ISP_FW_OLDER_THAN(i, major, minor, micro)		\
- (ISP_FW_REVX((i)->isp_fwrev) < ISP_FW_REV(major, minor, micro))
+	(ISP_FW_REVX(i) < ISP_FW_REV(major, minor, micro))
+#define	ISP_FW_NEWER_THANX(i, j)		\
+	(ISP_FW_REVX(i) > ISP_FW_REVX(j))
+#define	ISP_FW_OLDER_THANX(i, j)		\
+	(ISP_FW_REVX(i) < ISP_FW_REVX(j))
 
 /*
  * Chip Types
@@ -650,6 +701,36 @@ struct ispsoftc {
 
 #define	DMA_LO32(x)	((uint32_t) (x))
 #define	DMA_HI32(x)	((uint32_t)(((uint64_t)x) >> 32))
+
+/*
+ * function return status codes
+ */
+#define MBS_MASK		0x3fff
+
+#define ISP_SUCCESS		(MBOX_COMMAND_COMPLETE & MBS_MASK)
+#define ISP_INVALID_COMMAND	(MBOX_INVALID_COMMAND & MBS_MASK)
+#define ISP_INTERFACE_ERROR	(MBOX_HOST_INTERFACE_ERROR & MBS_MASK)
+#define ISP_TEST_FAILED		(MBOX_TEST_FAILED & MBS_MASK)
+#define ISP_COMMAND_ERROR	(MBOX_COMMAND_ERROR & MBS_MASK)
+#define ISP_PARAMETER_ERROR	(MBOX_COMMAND_PARAMETER_ERROR & MBS_MASK)
+#define ISP_PORT_ID_USED	(MBOX_PORT_ID_USED & MBS_MASK)
+#define ISP_LOOP_ID_USED	(MBOX_LOOP_ID_USED & MBS_MASK)
+#define ISP_ALL_IDS_IN_USE	(MBOX_ALL_IDS_IN_USE & MBS_MASK)
+#define ISP_NOT_LOGGED_IN	(MBOX_NOT_LOGGED_IN & MBS_MASK)
+
+#define ISP_FUNCTION_TIMEOUT		0x100
+#define ISP_FUNCTION_PARAMETER_ERROR	0x101
+#define ISP_FUNCTION_FAILED		0x102
+#define ISP_MEMORY_ALLOC_FAILED		0x103
+#define ISP_LOCK_TIMEOUT		0x104
+#define ISP_ABORTED			0x105
+#define ISP_SUSPENDED			0x106
+#define ISP_BUSY			0x107
+#define ISP_ALREADY_REGISTERED		0x109
+#define ISP_OS_TIMER_EXPIRED		0x10a
+#define ISP_ERR_NO_QPAIR		0x10b
+#define ISP_ERR_NOT_FOUND		0x10c
+#define ISP_ERR_FROM_FW			0x10d
 
 /*
  * Core System Function Prototypes

@@ -38,9 +38,7 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/CaptureTracking.h"
-#include "llvm/Analysis/CodeMetrics.h"
 #include "llvm/Analysis/GlobalsModRef.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
@@ -205,16 +203,17 @@ static bool isShortenableAtTheBeginning(Instruction *I) {
   return isa<AnyMemSetInst>(I);
 }
 
-static uint64_t getPointerSize(const Value *V, const DataLayout &DL,
-                               const TargetLibraryInfo &TLI,
-                               const Function *F) {
+static std::optional<TypeSize> getPointerSize(const Value *V,
+                                              const DataLayout &DL,
+                                              const TargetLibraryInfo &TLI,
+                                              const Function *F) {
   uint64_t Size;
   ObjectSizeOpts Opts;
   Opts.NullIsUnknownSize = NullPointerIsDefined(F);
 
   if (getObjectSize(V, Size, DL, &TLI, Opts))
-    return Size;
-  return MemoryLocation::UnknownSize;
+    return TypeSize::getFixed(Size);
+  return std::nullopt;
 }
 
 namespace {
@@ -489,27 +488,27 @@ static void shortenAssignment(Instruction *Inst, Value *OriginalDest,
   uint64_t DeadSliceSizeInBits = OldSizeInBits - NewSizeInBits;
   uint64_t DeadSliceOffsetInBits =
       OldOffsetInBits + (IsOverwriteEnd ? NewSizeInBits : 0);
-  auto SetDeadFragExpr = [](DbgAssignIntrinsic *DAI,
+  auto SetDeadFragExpr = [](auto *Assign,
                             DIExpression::FragmentInfo DeadFragment) {
     // createFragmentExpression expects an offset relative to the existing
     // fragment offset if there is one.
     uint64_t RelativeOffset = DeadFragment.OffsetInBits -
-                              DAI->getExpression()
+                              Assign->getExpression()
                                   ->getFragmentInfo()
                                   .value_or(DIExpression::FragmentInfo(0, 0))
                                   .OffsetInBits;
     if (auto NewExpr = DIExpression::createFragmentExpression(
-            DAI->getExpression(), RelativeOffset, DeadFragment.SizeInBits)) {
-      DAI->setExpression(*NewExpr);
+            Assign->getExpression(), RelativeOffset, DeadFragment.SizeInBits)) {
+      Assign->setExpression(*NewExpr);
       return;
     }
     // Failed to create a fragment expression for this so discard the value,
     // making this a kill location.
     auto *Expr = *DIExpression::createFragmentExpression(
-        DIExpression::get(DAI->getContext(), std::nullopt),
+        DIExpression::get(Assign->getContext(), std::nullopt),
         DeadFragment.OffsetInBits, DeadFragment.SizeInBits);
-    DAI->setExpression(Expr);
-    DAI->setKillLocation();
+    Assign->setExpression(Expr);
+    Assign->setKillLocation();
   };
 
   // A DIAssignID to use so that the inserted dbg.assign intrinsics do not
@@ -527,32 +526,35 @@ static void shortenAssignment(Instruction *Inst, Value *OriginalDest,
   // returned by getAssignmentMarkers so save a copy of the markers to iterate
   // over.
   auto LinkedRange = at::getAssignmentMarkers(Inst);
+  SmallVector<DPValue *> LinkedDPVAssigns = at::getDPVAssignmentMarkers(Inst);
   SmallVector<DbgAssignIntrinsic *> Linked(LinkedRange.begin(),
                                            LinkedRange.end());
-  for (auto *DAI : Linked) {
+  auto InsertAssignForOverlap = [&](auto *Assign) {
     std::optional<DIExpression::FragmentInfo> NewFragment;
     if (!at::calculateFragmentIntersect(DL, OriginalDest, DeadSliceOffsetInBits,
-                                        DeadSliceSizeInBits, DAI,
+                                        DeadSliceSizeInBits, Assign,
                                         NewFragment) ||
         !NewFragment) {
       // We couldn't calculate the intersecting fragment for some reason. Be
       // cautious and unlink the whole assignment from the store.
-      DAI->setKillAddress();
-      DAI->setAssignId(GetDeadLink());
-      continue;
+      Assign->setKillAddress();
+      Assign->setAssignId(GetDeadLink());
+      return;
     }
     // No intersect.
     if (NewFragment->SizeInBits == 0)
-      continue;
+      return;
 
     // Fragments overlap: insert a new dbg.assign for this dead part.
-    auto *NewAssign = cast<DbgAssignIntrinsic>(DAI->clone());
-    NewAssign->insertAfter(DAI);
+    auto *NewAssign = static_cast<decltype(Assign)>(Assign->clone());
+    NewAssign->insertAfter(Assign);
     NewAssign->setAssignId(GetDeadLink());
     if (NewFragment)
       SetDeadFragExpr(NewAssign, *NewFragment);
     NewAssign->setKillAddress();
-  }
+  };
+  for_each(Linked, InsertAssignForOverlap);
+  for_each(LinkedDPVAssigns, InsertAssignForOverlap);
 }
 
 static bool tryToShorten(Instruction *DeadI, int64_t &DeadStart,
@@ -629,20 +631,11 @@ static bool tryToShorten(Instruction *DeadI, int64_t &DeadStart,
 
   Value *OrigDest = DeadIntrinsic->getRawDest();
   if (!IsOverwriteEnd) {
-    Type *Int8PtrTy =
-        Type::getInt8PtrTy(DeadIntrinsic->getContext(),
-                           OrigDest->getType()->getPointerAddressSpace());
-    Value *Dest = OrigDest;
-    if (OrigDest->getType() != Int8PtrTy)
-      Dest = CastInst::CreatePointerCast(OrigDest, Int8PtrTy, "", DeadI);
     Value *Indices[1] = {
         ConstantInt::get(DeadWriteLength->getType(), ToRemoveSize)};
     Instruction *NewDestGEP = GetElementPtrInst::CreateInBounds(
-        Type::getInt8Ty(DeadIntrinsic->getContext()), Dest, Indices, "", DeadI);
+        Type::getInt8Ty(DeadIntrinsic->getContext()), OrigDest, Indices, "", DeadI);
     NewDestGEP->setDebugLoc(DeadIntrinsic->getDebugLoc());
-    if (NewDestGEP->getType() != OrigDest->getType())
-      NewDestGEP = CastInst::CreatePointerCast(NewDestGEP, OrigDest->getType(),
-                                               "", DeadI);
     DeadIntrinsic->setDest(NewDestGEP);
   }
 
@@ -850,9 +843,6 @@ struct DSEState {
   // Post-order numbers for each basic block. Used to figure out if memory
   // accesses are executed before another access.
   DenseMap<BasicBlock *, unsigned> PostOrderNumbers;
-  // Values that are only used with assumes. Used to refine pointer escape
-  // analysis.
-  SmallPtrSet<const Value *, 32> EphValues;
 
   /// Keep track of instructions (partly) overlapping with killing MemoryDefs per
   /// basic block.
@@ -867,15 +857,18 @@ struct DSEState {
   // no longer be captured.
   bool ShouldIterateEndOfFunctionDSE;
 
+  /// Dead instructions to be removed at the end of DSE.
+  SmallVector<Instruction *> ToRemove;
+
   // Class contains self-reference, make sure it's not copied/moved.
   DSEState(const DSEState &) = delete;
   DSEState &operator=(const DSEState &) = delete;
 
   DSEState(Function &F, AliasAnalysis &AA, MemorySSA &MSSA, DominatorTree &DT,
-           PostDominatorTree &PDT, AssumptionCache &AC,
-           const TargetLibraryInfo &TLI, const LoopInfo &LI)
-      : F(F), AA(AA), EI(DT, LI, EphValues), BatchAA(AA, &EI), MSSA(MSSA),
-        DT(DT), PDT(PDT), TLI(TLI), DL(F.getParent()->getDataLayout()), LI(LI) {
+           PostDominatorTree &PDT, const TargetLibraryInfo &TLI,
+           const LoopInfo &LI)
+      : F(F), AA(AA), EI(DT, &LI), BatchAA(AA, &EI), MSSA(MSSA), DT(DT),
+        PDT(PDT), TLI(TLI), DL(F.getParent()->getDataLayout()), LI(LI) {
     // Collect blocks with throwing instructions not modeled in MemorySSA and
     // alloc-like objects.
     unsigned PO = 0;
@@ -905,8 +898,6 @@ struct DSEState {
     AnyUnreachableExit = any_of(PDT.roots(), [](const BasicBlock *E) {
       return isa<UnreachableInst>(E->getTerminator());
     });
-
-    CodeMetrics::collectEphemeralValues(&F, &AC, EphValues);
   }
 
   LocationSize strengthenLocationSize(const Instruction *I,
@@ -958,10 +949,11 @@ struct DSEState {
 
     // Check whether the killing store overwrites the whole object, in which
     // case the size/offset of the dead store does not matter.
-    if (DeadUndObj == KillingUndObj && KillingLocSize.isPrecise()) {
-      uint64_t KillingUndObjSize = getPointerSize(KillingUndObj, DL, TLI, &F);
-      if (KillingUndObjSize != MemoryLocation::UnknownSize &&
-          KillingUndObjSize == KillingLocSize.getValue())
+    if (DeadUndObj == KillingUndObj && KillingLocSize.isPrecise() &&
+        isIdentifiedObject(KillingUndObj)) {
+      std::optional<TypeSize> KillingUndObjSize =
+          getPointerSize(KillingUndObj, DL, TLI, &F);
+      if (KillingUndObjSize && *KillingUndObjSize == KillingLocSize.getValue())
         return OW_Complete;
     }
 
@@ -984,9 +976,15 @@ struct DSEState {
       return isMaskedStoreOverwrite(KillingI, DeadI, BatchAA);
     }
 
-    const uint64_t KillingSize = KillingLocSize.getValue();
-    const uint64_t DeadSize = DeadLoc.Size.getValue();
+    const TypeSize KillingSize = KillingLocSize.getValue();
+    const TypeSize DeadSize = DeadLoc.Size.getValue();
+    // Bail on doing Size comparison which depends on AA for now
+    // TODO: Remove AnyScalable once Alias Analysis deal with scalable vectors
+    const bool AnyScalable =
+        DeadSize.isScalable() || KillingLocSize.isScalable();
 
+    if (AnyScalable)
+      return OW_Unknown;
     // Query the alias information
     AliasResult AAR = BatchAA.alias(KillingLoc, DeadLoc);
 
@@ -1076,7 +1074,7 @@ struct DSEState {
       if (!isInvisibleToCallerOnUnwind(V)) {
         I.first->second = false;
       } else if (isNoAliasCall(V)) {
-        I.first->second = !PointerMayBeCaptured(V, true, false, EphValues);
+        I.first->second = !PointerMayBeCaptured(V, true, false);
       }
     }
     return I.first->second;
@@ -1095,7 +1093,7 @@ struct DSEState {
       // with the killing MemoryDef. But we refrain from doing so for now to
       // limit compile-time and this does not cause any changes to the number
       // of stores removed on a large test set in practice.
-      I.first->second = PointerMayBeCaptured(V, false, true, EphValues);
+      I.first->second = PointerMayBeCaptured(V, false, true);
     return !I.first->second;
   }
 
@@ -1697,7 +1695,8 @@ struct DSEState {
     return {MaybeDeadAccess};
   }
 
-  // Delete dead memory defs
+  /// Delete dead memory defs and recursively add their operands to ToRemove if
+  /// they became dead.
   void deleteDeadInstruction(Instruction *SI) {
     MemorySSAUpdater Updater(&MSSA);
     SmallVector<Instruction *, 32> NowDeadInsts;
@@ -1713,8 +1712,11 @@ struct DSEState {
       salvageKnowledge(DeadInst);
 
       // Remove the Instruction from MSSA.
-      if (MemoryAccess *MA = MSSA.getMemoryAccess(DeadInst)) {
-        if (MemoryDef *MD = dyn_cast<MemoryDef>(MA)) {
+      MemoryAccess *MA = MSSA.getMemoryAccess(DeadInst);
+      bool IsMemDef = MA && isa<MemoryDef>(MA);
+      if (MA) {
+        if (IsMemDef) {
+          auto *MD = cast<MemoryDef>(MA);
           SkipStores.insert(MD);
           if (auto *SI = dyn_cast<StoreInst>(MD->getMemoryInst())) {
             if (SI->getValueOperand()->getType()->isPointerTy()) {
@@ -1735,13 +1737,21 @@ struct DSEState {
       // Remove its operands
       for (Use &O : DeadInst->operands())
         if (Instruction *OpI = dyn_cast<Instruction>(O)) {
-          O = nullptr;
+          O.set(PoisonValue::get(O->getType()));
           if (isInstructionTriviallyDead(OpI, &TLI))
             NowDeadInsts.push_back(OpI);
         }
 
       EI.removeInstruction(DeadInst);
-      DeadInst->eraseFromParent();
+      // Remove memory defs directly if they don't produce results, but only
+      // queue other dead instructions for later removal. They may have been
+      // used as memory locations that have been cached by BatchAA. Removing
+      // them here may lead to newly created instructions to be allocated at the
+      // same address, yielding stale cache entries.
+      if (IsMemDef && DeadInst->getType()->isVoidTy())
+        DeadInst->eraseFromParent();
+      else
+        ToRemove.push_back(DeadInst);
     }
   }
 
@@ -1861,6 +1871,10 @@ struct DSEState {
     if (!TLI.getLibFunc(*InnerCallee, Func) || !TLI.has(Func) ||
         Func != LibFunc_malloc)
       return false;
+    // Gracefully handle malloc with unexpected memory attributes.
+    auto *MallocDef = dyn_cast_or_null<MemoryDef>(MSSA.getMemoryAccess(Malloc));
+    if (!MallocDef)
+      return false;
 
     auto shouldCreateCalloc = [](CallInst *Malloc, CallInst *Memset) {
       // Check for br(icmp ptr, null), truebb, falsebb) pattern at the end
@@ -1893,17 +1907,15 @@ struct DSEState {
                               Malloc->getArgOperand(0), IRB, TLI);
     if (!Calloc)
       return false;
+
     MemorySSAUpdater Updater(&MSSA);
-    auto *LastDef =
-      cast<MemoryDef>(Updater.getMemorySSA()->getMemoryAccess(Malloc));
     auto *NewAccess =
-      Updater.createMemoryAccessAfter(cast<Instruction>(Calloc), LastDef,
-                                      LastDef);
+      Updater.createMemoryAccessAfter(cast<Instruction>(Calloc), nullptr,
+                                      MallocDef);
     auto *NewAccessMD = cast<MemoryDef>(NewAccess);
     Updater.insertDef(NewAccessMD, /*RenameUses=*/true);
-    Updater.removeMemoryAccess(Malloc);
     Malloc->replaceAllUsesWith(Calloc);
-    Malloc->eraseFromParent();
+    deleteDeadInstruction(Malloc);
     return true;
   }
 
@@ -2064,12 +2076,11 @@ struct DSEState {
 
 static bool eliminateDeadStores(Function &F, AliasAnalysis &AA, MemorySSA &MSSA,
                                 DominatorTree &DT, PostDominatorTree &PDT,
-                                AssumptionCache &AC,
                                 const TargetLibraryInfo &TLI,
                                 const LoopInfo &LI) {
   bool MadeChange = false;
 
-  DSEState State(F, AA, MSSA, DT, PDT, AC, TLI, LI);
+  DSEState State(F, AA, MSSA, DT, PDT, TLI, LI);
   // For each store:
   for (unsigned I = 0; I < State.MemDefs.size(); I++) {
     MemoryDef *KillingDef = State.MemDefs[I];
@@ -2177,7 +2188,7 @@ static bool eliminateDeadStores(Function &F, AliasAnalysis &AA, MemorySSA &MSSA,
           auto *DeadSI = dyn_cast<StoreInst>(DeadI);
           auto *KillingSI = dyn_cast<StoreInst>(KillingI);
           // We are re-using tryToMergePartialOverlappingStores, which requires
-          // DeadSI to dominate DeadSI.
+          // DeadSI to dominate KillingSI.
           // TODO: implement tryToMergeParialOverlappingStores using MemorySSA.
           if (DeadSI && KillingSI && DT.dominates(DeadSI, KillingSI)) {
             if (Constant *Merged = tryToMergePartialOverlappingStores(
@@ -2237,6 +2248,12 @@ static bool eliminateDeadStores(Function &F, AliasAnalysis &AA, MemorySSA &MSSA,
 
   MadeChange |= State.eliminateRedundantStoresOfExistingValues();
   MadeChange |= State.eliminateDeadWritesAtEndOfFunction();
+
+  while (!State.ToRemove.empty()) {
+    Instruction *DeadInst = State.ToRemove.pop_back_val();
+    DeadInst->eraseFromParent();
+  }
+
   return MadeChange;
 }
 } // end anonymous namespace
@@ -2250,10 +2267,9 @@ PreservedAnalyses DSEPass::run(Function &F, FunctionAnalysisManager &AM) {
   DominatorTree &DT = AM.getResult<DominatorTreeAnalysis>(F);
   MemorySSA &MSSA = AM.getResult<MemorySSAAnalysis>(F).getMSSA();
   PostDominatorTree &PDT = AM.getResult<PostDominatorTreeAnalysis>(F);
-  AssumptionCache &AC = AM.getResult<AssumptionAnalysis>(F);
   LoopInfo &LI = AM.getResult<LoopAnalysis>(F);
 
-  bool Changed = eliminateDeadStores(F, AA, MSSA, DT, PDT, AC, TLI, LI);
+  bool Changed = eliminateDeadStores(F, AA, MSSA, DT, PDT, TLI, LI);
 
 #ifdef LLVM_ENABLE_STATS
   if (AreStatisticsEnabled())

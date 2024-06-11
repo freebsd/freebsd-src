@@ -27,8 +27,8 @@
  *
  */
 
+#include <sys/param.h>
 #include <sys/queue.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
@@ -527,7 +527,7 @@ cm_getprop(struct ctrl_msg_pl *cp)
 		return (1);
 
 	for (i = 0;
-	     i < sizeof(getprop_dtable) / sizeof(getprop_dtable[0]);
+	     i < nitems(getprop_dtable);
 	     i++) {
 		if (strcmp(cp->cp_key, getprop_dtable[i].dt_comm) == 0)
 			return (getprop_dtable[i].dt_act(cp));

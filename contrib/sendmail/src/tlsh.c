@@ -105,12 +105,12 @@ tls_data_md(buf, len, md)
 }
 
 /*
-**  PUBKEY_FP -- get public key fingerprint
+**  PUBKEY_FP -- generate public key fingerprint
 **
 **	Parameters:
 **		cert -- TLS cert
 **		mdalg -- name of digest algorithm
-**		fp -- (pointer to) fingerprint buffer
+**		fp -- (pointer to) fingerprint buffer (output)
 **
 **	Returns:
 **		<=0: cert fp calculation failed
@@ -121,10 +121,10 @@ int
 pubkey_fp(cert, mdalg, fp)
 	X509 *cert;
 	const char *mdalg;
-	char **fp;
+	unsigned char **fp;
 {
 	int len, r;
-	unsigned char *buf, *end;
+	unsigned char *end;
 	const EVP_MD *md;
 
 	SM_ASSERT(cert != NULL);
@@ -138,8 +138,8 @@ pubkey_fp(cert, mdalg, fp)
 		return -EINVAL;
 	if (len < EVP_MAX_MD_SIZE)
 		len = EVP_MAX_MD_SIZE;
-	end = buf = sm_malloc(len);
-	if (NULL == buf)
+	*fp = end = sm_malloc(len);
+	if (NULL == end)
 		return -ENOMEM;
 
 	if ('\0' == mdalg[0])
@@ -147,22 +147,19 @@ pubkey_fp(cert, mdalg, fp)
 		r = i2d_X509_PUBKEY(X509_get_X509_PUBKEY(cert), &end);
 		if (r <= 0 || r != len)
 			return -EINVAL;
-		*fp = (char *)buf;
 		return len;
 	}
 
 	md = EVP_get_digestbyname(mdalg);
 	if (NULL == md)
 	{
-		SM_FREE(buf);
+		SM_FREE(*fp);
 		return DANE_VRFY_FAIL;
 	}
 	len = i2d_X509_PUBKEY(X509_get_X509_PUBKEY(cert), &end);
-	r = tls_data_md(buf, len, md);
+	r = tls_data_md(*fp, len, md);
 	if (r < 0)
-		sm_free(buf);
-	else
-		*fp = (char *)buf;
+		sm_free(*fp);
 	return r;
 }
 
@@ -176,17 +173,21 @@ pubkey_fp(cert, mdalg, fp)
 **		log -- whether to log problems
 **
 **	Returns:
-**		TLSA_*, see tls.h
+**		>=0: "alg" aka "matching type"
+**		<0: TLSA_*, see tls.h
 */
 
 int
 dane_tlsa_chk(rr, len, host, log)
-	const char *rr;
+	const unsigned char *rr;
 	int len;
 	const char *host;
 	bool log;
 {
 	int alg;
+# if HAVE_SSL_CTX_dane_enable
+	int sel, usg;
+# endif
 
 	if (len < 4)
 	{
@@ -199,8 +200,16 @@ dane_tlsa_chk(rr, len, host, log)
 	SM_ASSERT(rr != NULL);
 
 	alg = (int)rr[2];
+# if HAVE_SSL_CTX_dane_enable
+	usg = (int)rr[0];
+	sel = (int)rr[1];
+	if (usg >= 2 && usg <= 3 && sel >= 0 && sel <= 1 &&
+	    alg >= 0 && alg <= 2)
+		return alg;
+# else
 	if ((int)rr[0] == 3 && (int)rr[1] == 1 && (alg >= 0 && alg <= 2))
 		return alg;
+# endif
 	if (log && LogLevel > 9)
 		sm_syslog(LOG_NOTICE, NOQID,
 			  "TLSA=%s, type=%d-%d-%d:%02x, status=unsupported",

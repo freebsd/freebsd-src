@@ -28,7 +28,7 @@
 #ifndef _IMX_CLK_SSCG_PLL_H_
 #define _IMX_CLK_SSCG_PLL_H_
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
 struct imx_clk_sscg_pll_def {
 	struct clknode_init_def clkdef;

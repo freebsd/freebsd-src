@@ -151,7 +151,7 @@ pr_ready_notsupp(struct socket *so, struct mbuf *m, int count)
 }
 
 static int
-pr_shutdown_notsupp(struct socket *so)
+pr_shutdown_notsupp(struct socket *so, enum shutdown_how how)
 {
 	return (EOPNOTSUPP);
 }
@@ -223,7 +223,7 @@ pr_init(struct domain *dom, struct protosw *pr)
 
 /*
  * Add a new protocol domain to the list of supported domains
- * Note: you cant unload it again because a socket may be using it.
+ * Note: you can't unload it again because a socket may be using it.
  * XXX can't fail at this time.
  */
 void

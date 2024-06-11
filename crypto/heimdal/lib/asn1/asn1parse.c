@@ -304,7 +304,7 @@ struct string_list {
 typedef union YYSTYPE
 #line 71 "asn1parse.y"
 {
-    int constant;
+    int64_t constant;
     struct value *value;
     struct range *range;
     char *name;
@@ -1874,7 +1874,7 @@ yyreduce:
 			lex_error_message("Non-integer in first part of range");
 		    (yyval.range) = ecalloc(1, sizeof(*(yyval.range)));
 		    (yyval.range)->min = (yyvsp[(2) - (5)].value)->u.integervalue;
-		    (yyval.range)->max = (yyvsp[(2) - (5)].value)->u.integervalue - 1;
+		    (yyval.range)->max = INT_MAX;
 		}
     break;
 
@@ -1884,7 +1884,7 @@ yyreduce:
 		    if((yyvsp[(4) - (5)].value)->type != integervalue)
 			lex_error_message("Non-integer in second part of range");
 		    (yyval.range) = ecalloc(1, sizeof(*(yyval.range)));
-		    (yyval.range)->min = (yyvsp[(4) - (5)].value)->u.integervalue + 2;
+		    (yyval.range)->min = INT_MIN;
 		    (yyval.range)->max = (yyvsp[(4) - (5)].value)->u.integervalue;
 		}
     break;

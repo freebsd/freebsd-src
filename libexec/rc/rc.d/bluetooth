@@ -317,5 +317,8 @@ bluetooth_stop()
 load_rc_config $name
 hccontrol="${bluetooth_hccontrol:-/usr/sbin/hccontrol}"
 
+# doesn't make sense to run in a svcj: nojail keyword
+bluetooth_svcj="NO"
+
 run_rc_command $*
 

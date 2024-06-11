@@ -27,7 +27,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "namespace.h"
 #include <pthread.h>
 #include <pthread_np.h>

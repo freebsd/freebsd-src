@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -873,8 +873,7 @@ typedef UINT32                          ACPI_EVENT_TYPE;
 #define ACPI_EVENT_POWER_BUTTON         2
 #define ACPI_EVENT_SLEEP_BUTTON         3
 #define ACPI_EVENT_RTC                  4
-#define ACPI_EVENT_PCIE_WAKE            5
-#define ACPI_EVENT_MAX                  5
+#define ACPI_EVENT_MAX                  4
 #define ACPI_NUM_FIXED_EVENTS           ACPI_EVENT_MAX + 1
 
 /*
@@ -1481,7 +1480,7 @@ typedef struct acpi_mem_space_context
 
 } ACPI_MEM_SPACE_CONTEXT;
 
-typedef struct acpi_data_table_space_context
+typedef struct acpi_data_table_mapping
 {
     void                            *Pointer;
 
@@ -1572,6 +1571,10 @@ typedef enum
 
 #ifndef ACPI_FALLTHROUGH
 #define ACPI_FALLTHROUGH do {} while(0)
+#endif
+
+#ifndef ACPI_FLEX_ARRAY
+#define ACPI_FLEX_ARRAY(TYPE, NAME)     TYPE NAME[0]
 #endif
 
 #endif /* __ACTYPES_H__ */

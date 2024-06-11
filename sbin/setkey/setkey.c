@@ -502,7 +502,7 @@ static const char *ipproto[] = {
 };
 
 #define STR_OR_ID(x, tab) \
-	(((x) < sizeof(tab)/sizeof(tab[0]) && tab[(x)])	? tab[(x)] : numstr(x))
+	(((x) < nitems(tab) && tab[(x)]) ? tab[(x)] : numstr(x))
 
 const char *
 numstr(int x)

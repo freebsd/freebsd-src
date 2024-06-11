@@ -67,6 +67,7 @@
 #define JF_TIMEOUT	0x0200	/* A command (or process kill) timed out */
 #define JF_SLEEPQ	0x0400	/* Waiting on a command and/or timeout */
 #define JF_FROM_RUNQ	0x0800	/* Has already been on the run queue */
+#define JF_CLEANUP	0x1000	/* -C Run post-removal commands */
 
 #define JF_OP_MASK		(JF_START | JF_SET | JF_STOP)
 #define JF_RESTART		(JF_START | JF_STOP)
@@ -107,6 +108,7 @@ enum intparam {
 	IP_MOUNT_FSTAB,		/* A standard fstab(5) file */
 	IP_STOP_TIMEOUT,	/* Time to wait after sending SIGTERM */
 	IP_VNET_INTERFACE,	/* Assign interface(s) to vnet jail */
+	IP_ZFS_DATASET,		/* Jail ZFS datasets */
 #ifdef INET
 	IP__IP4_IFADDR,		/* Copy of ip4.addr with interface/netmask */
 #endif

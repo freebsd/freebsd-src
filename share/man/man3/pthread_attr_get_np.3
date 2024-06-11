@@ -1,5 +1,10 @@
 .\" Copyright (c) 2002,2003 Alexey Zelkin <phantom@FreeBSD.org>
 .\" All rights reserved.
+.\" Copyright (c) 2024 The FreeBSD Foundation
+.\"
+.\" Portions of this documentation were written by Olivier Certner
+.\" <olce@FreeBSD.org> at Kumacom SARL under sponsorship from the
+.\" FreeBSD Foundation.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,12 +27,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 12, 2021
+.Dd January 5, 2024
 .Dt PTHREAD_ATTR_GET_NP 3
 .Os
 .Sh NAME
 .Nm pthread_attr_get_np
-.Nd get attributes of existent thread
+.Nd get attributes of an existing thread
 .Sh LIBRARY
 .Lb libpthread
 .Sh SYNOPSIS
@@ -37,51 +42,54 @@
 .Sh DESCRIPTION
 The
 .Fn pthread_attr_get_np
-function is used to get existent thread's attributes.
-Most fields of
-.Vt pthread_attr_t
-structure are exact values of attributes provided at thread creation
-time (as parameter to
-.Xr pthread_create 3
-function), except for the stack address.
-.Pp
-Value returned as
-.Fa dst
-is supposed to be used in conjunction with
-.Fn pthread_attr_get*
-functions to retrieve individual values from
+function is used to retrieve the attributes of the specified thread into an
+existing
 .Vt pthread_attr_t
 structure.
-Parameter
-.Fa dst
-should point to allocated memory area big enough to fit this structure.
+The attributes' values are the current ones for the target thread, except for
+the stack top address if not properly aligned for the architecture, since in
+this case its value has been adjusted internally before use.
 .Pp
-It is HIGHLY RECOMMENDED to use
+Argument
+.Fa dst
+must be a pointer to a valid attributes object
+.Po
+it was initialized at some point by
 .Xr pthread_attr_init 3
-function to allocate attribute storage.
-.Sh IMPLEMENTATION NOTES
-The
-.Fn pthread_attr_get_np
-function will always return a pointer to the thread's real stack address,
-regardless of its value in the original attributes structure.
+and was not destroyed since then
+.Pc .
+After a successful call to
+.Fn pthread_attr_get_np ,
+the individual attributes' values can be retrieved as usual via the
+corresponding accessor functions as documented in
+.Xr pthread_attr 3 .
+After a failed call to
+.Fn pthread_attr_get_np ,
+the object pointed to by
+.Fa dst
+is left unmodified, and can continue to be used as if the failed call never
+happened.
 .Sh RETURN VALUES
 If successful,
 .Fn pthread_attr_get_np
 function returns 0.
 Otherwise, an error number is returned to indicate the error.
 .Sh EXAMPLES
+This function retrieves the stack size of the thread specified by the
+.Fa pid
+argument:
 .Bd -literal
 size_t
-my_thread_stack_size(pthread_t pid)
+my_thread_stack_size(pthread_t tid)
 {
-    pthread_attr_t attr;
-    size_t size;
+	pthread_attr_t attr;
+	size_t size;
 
-    pthread_attr_init(&attr);
-    pthread_attr_get_np(pid, &attr);
-    pthread_attr_getstacksize(&attr, &size);
-    pthread_attr_destroy(&attr);
-    return(size);
+	pthread_attr_init(&attr);
+	pthread_attr_get_np(tid, &attr);
+	pthread_attr_getstacksize(&attr, &size);
+	pthread_attr_destroy(&attr);
+	return (size);
 }
 .Ed
 .Sh ERRORS
@@ -90,12 +98,16 @@ The
 function will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
-Invalid value for one of given parameters.
+One of the arguments has an invalid value.
 .It Bq Er ESRCH
 No thread could be found corresponding to that specified by the given
 thread ID.
+.It Bq Er ENOMEM
+There was not enough memory to allocate additional storage needed by the attributes
+object's implementation.
 .El
 .Sh SEE ALSO
+.Xr pthread_attr 3 ,
 .Xr pthread_attr_destroy 3 ,
 .Xr pthread_attr_getdetachstate 3 ,
 .Xr pthread_attr_getinheritsched 3 ,
@@ -111,4 +123,6 @@ thread ID.
 The
 .Fn pthread_attr_get_np
 function and this manual page were written by
-.An Alexey Zelkin Aq Mt phantom@FreeBSD.org .
+.An Alexey Zelkin Aq Mt phantom@FreeBSD.org ,
+and the latter was revised by
+.An Olivier Certner Aq Mt olce@FreeBSD.org .

@@ -216,7 +216,7 @@ while :; do
 		f_dialog_title "Network Selection"
 		prompt="Select a wireless network to connect to."
 		f_dialog_menu_size height width rows "$DIALOG_TITLE" \
-			"$DIALOG_BACKTITLE" "$prompt" "" $menu_list
+			"$DIALOG_BACKTITLE" "$prompt" "" $NETWORKS
 		NETWORK=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \

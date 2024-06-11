@@ -83,8 +83,8 @@ void kmem_init(vm_offset_t, vm_offset_t);
 void kmem_init_zero_region(void);
 void kmeminit(void);
 
-int kernacc(void *, int, int);
-int useracc(void *, int, int);
+bool kernacc(void *, int, int);
+bool useracc(void *, int, int);
 int vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
     int fault_flags, vm_page_t *m_hold);
 void vm_fault_copy_entry(vm_map_t, vm_map_t, vm_map_entry_t, vm_map_entry_t,
@@ -127,8 +127,10 @@ struct sf_buf *vm_imgact_map_page(vm_object_t object, vm_ooffset_t offset);
 void vm_imgact_unmap_page(struct sf_buf *sf);
 void vm_thread_dispose(struct thread *td);
 int vm_thread_new(struct thread *td, int pages);
-void vm_thread_stack_back(struct domainset *ds, vm_offset_t kaddr,
-    vm_page_t ma[], int npages, int req_class);
+vm_pindex_t vm_kstack_pindex(vm_offset_t ks, int npages);
+vm_object_t vm_thread_kstack_size_to_obj(int npages);
+int vm_thread_stack_back(vm_offset_t kaddr, vm_page_t ma[], int npages,
+    int req_class, int domain);
 u_int vm_active_count(void);
 u_int vm_inactive_count(void);
 u_int vm_laundry_count(void);

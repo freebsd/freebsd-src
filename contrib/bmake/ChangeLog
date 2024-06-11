@@ -1,3 +1,256 @@
+2024-05-20  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION):
+	Merge with NetBSD make, pick up
+	o dir.c: in FindFile restore last search of .CURDIR even for
+	includes, as a number of existing makefiles are broken otherwise.
+
+2024-05-19  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240519
+	Merge with NetBSD make, pick up
+	o dir.c: Add Dir_FindInclude, FindFile without looking in .CURDIR.
+	Also fix Dir_SetSYSPATH to use defSysIncPath if sysIncPath is empty.
+	o main.c: no need to set .DOTLAST in sysIncPath
+
+2024-05-07  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240508
+	Merge with NetBSD make, pick up
+	o make: ensure variables set on command line get added to
+	.MAKEOVERRIDES (even if they start with '.') so they are passed to
+	sub-makes.
+
+2024-04-30  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240430
+	Merge with NetBSD make, pick up
+	o main.c: ensure '.include <makefile>' respects MAKESYSPATH.
+	Dir_FindFile will search .CURDIR first unless ".DOTLAST" is seen.
+
+2024-04-28  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240428
+	Merge with NetBSD make, pick up
+	o simplify freeing of lists
+	o arch.c: trim pointless comments
+	o var.c: delay variable assignments until actually needed
+	don't reallocate memory after evaluating an expression, result is
+	almost always short-lived.
+
+2024-04-26  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240426
+	Merge with NetBSD make, pick up
+	o job.c: in debug output, print the directory in which a job
+	failed at same time as failed target so it is more easily found in
+	build log.
+
+2024-04-24  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240424
+	Merge with NetBSD make, pick up
+	o clean up comments, code and tests
+
+2024-04-23  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240422
+	Merge with NetBSD make, pick up
+	o var.c: avoid LazyBuf for :*time modifiers.
+	LazyBuf's are not nul terminated so not suitable for passing to
+	functions that expect that. These modifiers are used sparingly so
+	an extra allocation is not a problem.
+
+2024-04-20  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240420
+	Merge with NetBSD make, pick up
+	o provide more context information for parse/evaluate errors
+
+2024-04-14  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240414
+	Merge with NetBSD make, pick up
+	o parse.c: print -dp debug info earlier so we see which
+	.if or .for line is being parsed.
+
+2024-04-04  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240404
+	Merge with NetBSD make, pick up
+	o fix some unit tests for Cygwin
+	o parse.c: exit immediately after reading a null byte from a makefile
+
+	* fix generation of bmake.cat1
+
+2024-03-19  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240314
+	Add/Improve support for Cygwin
+	o uname -s output isn't useful so allow configure to
+	set FORCE_MAKE_OS - to force the value of .MAKE.OS
+	and use Cygwin which matches uname -o
+	o fix some unit-tests for Cygwin
+
+2024-03-10  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* boot-strap: tests can take a long time; use a cookie to
+	skip them if bmake has not been updated since tests last
+	ran successfully.
+
+	* Makefile: Cygwin handles MANTARGET man
+
+	* unit-tests/Makefile: set BROKEN_TESTS for Cygwin
+
+2024-03-09  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240309
+	Merge with NetBSD make, pick up
+	o set .ERROR_EXIT to the exit status of .ERROR_TARGET
+	this allows a .ERROR target to ignore the case of
+	.ERROR_EXIT==6 which just means that the build actually
+	failed somewhere else.
+
+2024-03-04  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240303
+
+	* var.c: on IRIX we need both inttypes.h and stdint.h
+
+2024-03-01  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240301
+	Merge with NetBSD make, pick up
+	o export variables with value from target scope
+	when appropriate.
+
+2024-02-12  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240212
+	Merge with NetBSD make, pick up
+	o remove unneeded conditional-compilation toggles
+	INCLUDES, LIBRARIES, POSIX, SYSVINCLUDE, SYSVVARSUB,
+	GMAKEEXPORT NO_REGEX and SUNSHCMD
+
+	* configure.in: add check for regex.h
+
+	* var.c: replace use of NO_REGEX with HAVE_REGEX_H
+
+2024-02-04  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240204
+	Merge with NetBSD make, pick up
+	o var.c: fix some lint (-dL) mode parsing issues
+
+2024-02-02  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION: (_MAKE_VERSION): 20240202
+	Merge with NetBSD make, pick up
+	o make.1: note that arg to :D and :U can be empty
+	o var.c: $$ is not a parse error when .MAKE.SAVE_DOLLARS=no
+
+2024-01-08  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240108
+	Merge with NetBSD make, pick up
+	o miscellaneous cleanups
+
+2024-01-06  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240106
+	Merge with NetBSD make, pick up
+	o fix duplicate progname when reporting an unknown target
+	o unit tests for Cmd_Exec using temp file
+
+2024-01-05  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240105
+	Merge with NetBSD make, pick up
+	o main.c: Cmd_Exec write cmd to a file if too big
+	avoid blowing commandline/env limits
+
+2024-01-02  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240101
+	o util.c: flesh out more of strftime
+	* configure.in: add --with-bmake-strftime
+	it is not a full implementation but enough to pass all
+	the unit-tests.
+	* parse.c: LoadFile do not append \n to empty buffer.
+
+2023-12-30  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20231230
+	Merge with NetBSD make, pick up
+	o simplify memory allocation for string buffers
+	o fix declared types of list nodes
+	o suff.c: clean up freeing of suffixes
+	o var.c: simplify debug message for the ':@var@...@' modifier
+	clean up variable handling
+
+2023-12-26  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20231226
+	Merge with NetBSD make, pick up
+	o compat.c: ensure make's output is correctly ordered with that of
+	the target when not going to a tty
+	o main.c: check for shellPath whether to call Shell_Init()
+
+2023-12-24  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20231224
+	Merge with NetBSD make, pick up
+	o compat.c: check for shellPath whether to call Shell_Init()
+	tweak the unit test to detect the bug thus fixed.
+	o make.1: do not claim .SHELL is only used by jobs mode.
+
+2023-12-22  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20231220
+	Merge with NetBSD make, pick up
+	o str.c: speed up pattern matching in the ':M' modifier
+	o var.c: fix confusing debug logging when deleting a variable
+	use consistent debug messages style when ignoring variables
+
+2023-12-10  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20231210
+	Merge with NetBSD make, pick up
+	o var.c: avoid segfault on empty :C match expression
+	explain in debug log why variable assignment is ignored.
+
+2023-12-08  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20231208
+	Merge with NetBSD make, pick up
+	o var.c: ensure fromCmd is set correctly for variables set on
+	command line.
+
+2023-11-26  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* configure.in: disable generation of 'makefile' for
+	Darwin by default.
+
+	* boot-strap: docuement --without-makefile
+
+2023-11-24  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20231124
+	Merge with NetBSD make, pick up
+	o main.c: cleanup processing of -j
+	fix lint warning about strchr
+	o var.c: more accurate error message for invalid ':mtime' argument
+	cleanup :[...] modifier
+	avoid reading beyond substring when comparing
+	o unit-tests cover all cases of :mtime, test and explain exporting
+	of variables
+	o cleanup comments
+
+2023-09-17  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* bsd.after-import.mk (ECHO_TAG): FreeBSD no longer uses
+	$FreeBSD$ tag, so avoid adding it.
+
 2023-09-09  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* VERSION (_MAKE_VERSION): 20230909
@@ -2016,10 +2269,10 @@
 
 	* VERSION (_MAKE_VERSION): 20200418
 
-	* configure.in: use_makefile=no for cygwin et al.
+	* configure.in: use_makefile=no for Cygwin et al.
 	case insensitive filesystems just don't work if both
 	makefile and Makefile exist.
-	NOTE: bmake does not support cygwin and likely never will,
+	NOTE: bmake does not support Cygwin and likely never will,
 	but if brave souls want to try it - help them out.
 
 2020-04-02  Simon J Gerraty  <sjg@beast.crufty.net>

@@ -530,22 +530,24 @@ vm_thread_swapout(struct thread *td)
 	vm_offset_t kaddr;
 	vm_pindex_t pindex;
 	int i, pages;
+	vm_object_t obj;
 
 	cpu_thread_swapout(td);
 	kaddr = td->td_kstack;
 	pages = td->td_kstack_pages;
-	pindex = atop(kaddr - VM_MIN_KERNEL_ADDRESS);
+	obj = vm_thread_kstack_size_to_obj(pages);
+	pindex = vm_kstack_pindex(kaddr, pages);
 	pmap_qremove(kaddr, pages);
-	VM_OBJECT_WLOCK(kstack_object);
+	VM_OBJECT_WLOCK(obj);
 	for (i = 0; i < pages; i++) {
-		m = vm_page_lookup(kstack_object, pindex + i);
+		m = vm_page_lookup(obj, pindex + i);
 		if (m == NULL)
 			panic("vm_thread_swapout: kstack already missing?");
 		vm_page_dirty(m);
 		vm_page_xunbusy_unchecked(m);
 		vm_page_unwire(m, PQ_LAUNDRY);
 	}
-	VM_OBJECT_WUNLOCK(kstack_object);
+	VM_OBJECT_WUNLOCK(obj);
 }
 
 /*
@@ -556,31 +558,34 @@ vm_thread_swapin(struct thread *td, int oom_alloc)
 {
 	vm_page_t ma[KSTACK_MAX_PAGES];
 	vm_offset_t kaddr;
+	vm_object_t obj;
 	int a, count, i, j, pages, rv __diagused;
 
 	kaddr = td->td_kstack;
 	pages = td->td_kstack_pages;
-	vm_thread_stack_back(td->td_domain.dr_policy, kaddr, ma, pages,
-	    oom_alloc);
+	obj = vm_thread_kstack_size_to_obj(pages);
+	while (vm_thread_stack_back(kaddr, ma, pages, oom_alloc,
+	    td->td_kstack_domain) == ENOMEM)
+		    ;
 	for (i = 0; i < pages;) {
 		vm_page_assert_xbusied(ma[i]);
 		if (vm_page_all_valid(ma[i])) {
 			i++;
 			continue;
 		}
-		vm_object_pip_add(kstack_object, 1);
+		vm_object_pip_add(obj, 1);
 		for (j = i + 1; j < pages; j++)
 			if (vm_page_all_valid(ma[j]))
 				break;
-		VM_OBJECT_WLOCK(kstack_object);
-		rv = vm_pager_has_page(kstack_object, ma[i]->pindex, NULL, &a);
-		VM_OBJECT_WUNLOCK(kstack_object);
+		VM_OBJECT_WLOCK(obj);
+		rv = vm_pager_has_page(obj, ma[i]->pindex, NULL, &a);
+		VM_OBJECT_WUNLOCK(obj);
 		KASSERT(rv == 1, ("%s: missing page %p", __func__, ma[i]));
 		count = min(a + 1, j - i);
-		rv = vm_pager_get_pages(kstack_object, ma + i, count, NULL, NULL);
+		rv = vm_pager_get_pages(obj, ma + i, count, NULL, NULL);
 		KASSERT(rv == VM_PAGER_OK, ("%s: cannot get kstack for proc %d",
 		    __func__, td->td_proc->p_pid));
-		vm_object_pip_wakeup(kstack_object);
+		vm_object_pip_wakeup(obj);
 		i += count;
 	}
 	pmap_qenter(kaddr, ma, pages);

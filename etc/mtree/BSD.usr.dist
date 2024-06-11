@@ -36,7 +36,7 @@
     ..
     lib
         clang
-            17
+            18
                 include
                     cuda_wrappers
                         bits
@@ -85,8 +85,6 @@
         ..
     ..
     libdata
-        gcc
-        ..
         ldscripts
         ..
         pkgconfig
@@ -161,6 +159,8 @@
         ..
         hyperv
         ..
+        kgdb
+        ..
         lpr
             ru
             ..
@@ -182,6 +182,8 @@
         atf             tags=package=tests
         ..
         bhyve
+            gdb
+            ..
             kbdlayout
             ..
         ..

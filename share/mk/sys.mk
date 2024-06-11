@@ -43,9 +43,6 @@ __ENV_ONLY_OPTIONS:= \
 
 # early include for customization
 # see local.sys.mk below
-# Not included when building in fmake compatibility mode (still needed
-# for older system support)
-.if defined(.PARSEDIR)
 .sinclude <local.sys.env.mk>
 
 .include <bsd.mkopt.mk>
@@ -108,9 +105,6 @@ NO_META_IGNORE_HOST_HEADERS=	1
 .sinclude <auto.obj.mk>
 .endif
 .endif	# ${MK_AUTO_OBJ} == "yes"
-.else # bmake
-.include <bsd.mkopt.mk>
-.endif
 
 # If the special target .POSIX appears (without prerequisites or
 # commands) before the first noncomment line in the makefile, make shall
@@ -158,6 +152,8 @@ CFLAGS		+=	-fno-strict-aliasing
 .endif
 IR_CFLAGS	?=	${STATIC_CFLAGS:N-O*} ${CFLAGS:N-O*}
 PO_CFLAGS	?=	${CFLAGS}
+
+HOST_CC		?=	${CC}
 
 # cp(1) is used to copy source files to ${.OBJDIR}, make sure it can handle
 # read-only files as non-root by passing -f.

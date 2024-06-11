@@ -34,7 +34,7 @@
 
 #include <machine/bus.h>
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
 #include <arm64/freescale/imx/clk/imx_clk_mux.h>
 

@@ -127,7 +127,7 @@ struct sysent freebsd32_sysent[] = {
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 63 = obsolete ogetkerninfo */
 	{ compat(0,getpagesize), .sy_auevent = AUE_NULL, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 64 = old getpagesize */
 	{ .sy_narg = AS(msync_args), .sy_call = (sy_call_t *)sys_msync, .sy_auevent = AUE_MSYNC, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 65 = msync */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)sys_vfork, .sy_auevent = AUE_VFORK, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 66 = vfork */
+	{ .sy_narg = 0, .sy_call = (sy_call_t *)sys_vfork, .sy_auevent = AUE_VFORK, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 66 = vfork */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 67 = obsolete vread */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 68 = obsolete vwrite */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 69 = obsolete sbrk */
@@ -312,7 +312,7 @@ struct sysent freebsd32_sysent[] = {
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 248 = ntp_gettime */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 249 = reserved for local use */
 	{ .sy_narg = AS(minherit_args), .sy_call = (sy_call_t *)sys_minherit, .sy_auevent = AUE_MINHERIT, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 250 = minherit */
-	{ .sy_narg = AS(rfork_args), .sy_call = (sy_call_t *)sys_rfork, .sy_auevent = AUE_RFORK, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 251 = rfork */
+	{ .sy_narg = AS(rfork_args), .sy_call = (sy_call_t *)sys_rfork, .sy_auevent = AUE_RFORK, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 251 = rfork */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 252 = obsolete openbsd_poll */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)sys_issetugid, .sy_auevent = AUE_ISSETUGID, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 253 = issetugid */
 	{ .sy_narg = AS(lchown_args), .sy_call = (sy_call_t *)sys_lchown, .sy_auevent = AUE_LCHOWN, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 254 = lchown */
@@ -649,20 +649,21 @@ struct sysent freebsd32_sysent[] = {
 	{ .sy_narg = AS(timerfd_create_args), .sy_call = (sy_call_t *)sys_timerfd_create, .sy_auevent = AUE_TIMERFD, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 585 = timerfd_create */
 	{ .sy_narg = AS(freebsd32_timerfd_gettime_args), .sy_call = (sy_call_t *)freebsd32_timerfd_gettime, .sy_auevent = AUE_TIMERFD, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 586 = freebsd32_timerfd_gettime */
 	{ .sy_narg = AS(freebsd32_timerfd_settime_args), .sy_call = (sy_call_t *)freebsd32_timerfd_settime, .sy_auevent = AUE_TIMERFD, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 587 = freebsd32_timerfd_settime */
-	{ .sy_narg = AS(osdb_exec_args), .sy_call = (sy_call_t *)sys_osdb_exec, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 588 = osdb_exec */
-	{ .sy_narg = AS(freebsd32_osdb_prepare_v2_args), .sy_call = (sy_call_t *)freebsd32_osdb_prepare_v2, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 589 = freebsd32_osdb_prepare_v2 */
-	{ .sy_narg = AS(osdb_step_args), .sy_call = (sy_call_t *)sys_osdb_step, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 590 = osdb_step */
-	{ .sy_narg = AS(osdb_finalize_args), .sy_call = (sy_call_t *)sys_osdb_finalize, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 591 = osdb_finalize */
-	{ .sy_narg = AS(osdb_column_blob_args), .sy_call = (sy_call_t *)sys_osdb_column_blob, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 592 = osdb_column_blob */
-	{ .sy_narg = AS(osdb_column_double_args), .sy_call = (sy_call_t *)sys_osdb_column_double, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 593 = osdb_column_double */
-	{ .sy_narg = AS(osdb_column_int_args), .sy_call = (sy_call_t *)sys_osdb_column_int, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 594 = osdb_column_int */
-	{ .sy_narg = AS(freebsd32_osdb_column_int64_args), .sy_call = (sy_call_t *)freebsd32_osdb_column_int64, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 595 = freebsd32_osdb_column_int64 */
-	{ .sy_narg = AS(osdb_column_text_args), .sy_call = (sy_call_t *)sys_osdb_column_text, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 596 = osdb_column_text */
-	{ .sy_narg = AS(osdb_column_text16_args), .sy_call = (sy_call_t *)sys_osdb_column_text16, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 597 = osdb_column_text16 */
-	{ .sy_narg = AS(osdb_column_value_args), .sy_call = (sy_call_t *)sys_osdb_column_value, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 598 = osdb_column_value */
-	{ .sy_narg = AS(osdb_column_bytes_args), .sy_call = (sy_call_t *)sys_osdb_column_bytes, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 599 = osdb_column_bytes */
-	{ .sy_narg = AS(osdb_column_bytes16_args), .sy_call = (sy_call_t *)sys_osdb_column_bytes16, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 600 = osdb_column_bytes16 */
-	{ .sy_narg = AS(osdb_column_type_args), .sy_call = (sy_call_t *)sys_osdb_column_type, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 601 = osdb_column_type */
-	{ .sy_narg = AS(osdb_column_count_args), .sy_call = (sy_call_t *)sys_osdb_column_count, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 602 = osdb_column_count */
-	{ .sy_narg = AS(osdb_column_name_args), .sy_call = (sy_call_t *)sys_osdb_column_name, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 603 = osdb_column_name */
+	{ .sy_narg = AS(kcmp_args), .sy_call = (sy_call_t *)sys_kcmp, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 588 = kcmp */
+	{ .sy_narg = AS(osdb_exec_args), .sy_call = (sy_call_t *)sys_osdb_exec, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 589 = osdb_exec */
+	{ .sy_narg = AS(freebsd32_osdb_prepare_v2_args), .sy_call = (sy_call_t *)freebsd32_osdb_prepare_v2, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 590 = freebsd32_osdb_prepare_v2 */
+	{ .sy_narg = AS(osdb_step_args), .sy_call = (sy_call_t *)sys_osdb_step, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 591 = osdb_step */
+	{ .sy_narg = AS(osdb_finalize_args), .sy_call = (sy_call_t *)sys_osdb_finalize, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 592 = osdb_finalize */
+	{ .sy_narg = AS(osdb_column_blob_args), .sy_call = (sy_call_t *)sys_osdb_column_blob, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 593 = osdb_column_blob */
+	{ .sy_narg = AS(osdb_column_double_args), .sy_call = (sy_call_t *)sys_osdb_column_double, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 594 = osdb_column_double */
+	{ .sy_narg = AS(osdb_column_int_args), .sy_call = (sy_call_t *)sys_osdb_column_int, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 595 = osdb_column_int */
+	{ .sy_narg = AS(freebsd32_osdb_column_int64_args), .sy_call = (sy_call_t *)freebsd32_osdb_column_int64, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 596 = freebsd32_osdb_column_int64 */
+	{ .sy_narg = AS(osdb_column_text_args), .sy_call = (sy_call_t *)sys_osdb_column_text, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 597 = osdb_column_text */
+	{ .sy_narg = AS(osdb_column_text16_args), .sy_call = (sy_call_t *)sys_osdb_column_text16, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 598 = osdb_column_text16 */
+	{ .sy_narg = AS(osdb_column_value_args), .sy_call = (sy_call_t *)sys_osdb_column_value, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 599 = osdb_column_value */
+	{ .sy_narg = AS(osdb_column_bytes_args), .sy_call = (sy_call_t *)sys_osdb_column_bytes, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 600 = osdb_column_bytes */
+	{ .sy_narg = AS(osdb_column_bytes16_args), .sy_call = (sy_call_t *)sys_osdb_column_bytes16, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 601 = osdb_column_bytes16 */
+	{ .sy_narg = AS(osdb_column_type_args), .sy_call = (sy_call_t *)sys_osdb_column_type, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 602 = osdb_column_type */
+	{ .sy_narg = AS(osdb_column_count_args), .sy_call = (sy_call_t *)sys_osdb_column_count, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 603 = osdb_column_count */
+	{ .sy_narg = AS(osdb_column_name_args), .sy_call = (sy_call_t *)sys_osdb_column_name, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 604 = osdb_column_name */
 };

@@ -29,20 +29,33 @@
 #ifndef _UART_EMUL_H_
 #define	_UART_EMUL_H_
 
-#define	UART_IO_BAR_SIZE	8
+#define	UART_NS16550_IO_BAR_SIZE	8
 
-struct uart_softc;
+struct uart_ns16550_softc;
+struct uart_pl011_softc;
 struct vm_snapshot_meta;
 
 typedef void (*uart_intr_func_t)(void *arg);
-struct uart_softc *uart_init(uart_intr_func_t intr_assert,
-		uart_intr_func_t intr_deassert, void *arg);
 
 int	uart_legacy_alloc(int unit, int *ioaddr, int *irq);
-uint8_t	uart_read(struct uart_softc *sc, int offset);
-void	uart_write(struct uart_softc *sc, int offset, uint8_t value);
-int	uart_set_backend(struct uart_softc *sc, const char *device);
+
+struct uart_ns16550_softc *uart_ns16550_init(uart_intr_func_t intr_assert,
+	    uart_intr_func_t intr_deassert, void *arg);
+uint8_t	uart_ns16550_read(struct uart_ns16550_softc *sc, int offset);
+void	uart_ns16550_write(struct uart_ns16550_softc *sc, int offset,
+	    uint8_t value);
+int	uart_ns16550_tty_open(struct uart_ns16550_softc *sc,
+	    const char *device);
 #ifdef BHYVE_SNAPSHOT
-int	uart_snapshot(struct uart_softc *sc, struct vm_snapshot_meta *meta);
+int	uart_ns16550_snapshot(struct uart_ns16550_softc *sc,
+	    struct vm_snapshot_meta *meta);
 #endif
-#endif
+
+uint32_t uart_pl011_read(struct uart_pl011_softc *sc, int offset);
+void	uart_pl011_write(struct uart_pl011_softc *sc, int offset,
+	    uint32_t value);
+struct uart_pl011_softc *uart_pl011_init(uart_intr_func_t intr_assert,
+	    uart_intr_func_t intr_deassert, void *arg);
+int	uart_pl011_tty_open(struct uart_pl011_softc *sc, const char *device);
+
+#endif /* _UART_EMUL_H_ */

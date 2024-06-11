@@ -19,8 +19,7 @@
 .\" OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 .\" THE SOFTWARE.
 .\"
-
-.Dd January 19, 2023
+.Dd May 22, 2024
 .Dt MIXER 3
 .Os
 .Sh NAME
@@ -40,6 +39,7 @@
 .Nm mixer_set_dunit ,
 .Nm mixer_get_mode ,
 .Nm mixer_get_nmixers ,
+.Nm mixer_get_path ,
 .Nm MIX_ISDEV ,
 .Nm MIX_ISMUTE ,
 .Nm MIX_ISREC ,
@@ -85,6 +85,8 @@ Mixer library (libmixer, -lmixer)
 .Fn mixer_get_mode "int unit"
 .Ft int
 .Fn mixer_get_nmixers "void"
+.Ft int
+.Fn mixer_get_path "char * buf" "size_t size" "int unit"
 .Ft int
 .Fn MIX_ISDEV "struct mixer *m" "int devno"
 .Ft int
@@ -165,13 +167,15 @@ is always equal to the number of that pcmX device.
 For example, if the audio device's number is 0 (i.e pcm0), then
 .Ar unit
 is 0 as well.
-This number is useful when checking if the mixer's audio card is the default one.
+This number is useful when checking if the mixer's audio card is the default
+one.
 .It Fa ndev
 Number of devices in
 .Ar devs .
 .It Fa devmask
 Bit mask containing all supported devices for the mixer.
-For example, if device 10 is supported, then the 10th bit in the mask will be set.
+For example, if device 10 is supported, then the 10th bit in the mask will be
+set.
 By default,
 .Fn mixer_open
 stores only the supported devices in devs, so it is very unlikely this mask will
@@ -315,23 +319,27 @@ opens the default mixer (hw.snd.default_unit).
 The
 .Fn mixer_close
 function frees resources and closes the mixer device.
-It is a good practice to always call it when the application is done using the mixer.
+It is a good practice to always call it when the application is done using the
+mixer.
 .Ss Manipulating the mixer
 The
 .Fn mixer_get_dev
 and
 .Fn mixer_get_dev_byname
-functions select a mixer device, either by its number or by its name respectively.
-The mixer structure keeps a list of all the devices, but only \
-one can be manipulated at a time.
-Each time a new device is to be manipulated, one of the two functions has to be called.
+functions select a mixer device, either by its number or by its name
+respectively.
+The mixer structure keeps a list of all the devices, but only one can be
+manipulated at a time.
+Each time a new device is to be manipulated, one of the two functions has to be
+called.
 .Pp
 The
 .Fn mixer_set_vol
 function changes the volume of the selected mixer device.
 The
 .Ar vol
-parameter is a structure that stores the left and right volumes of a given device.
+parameter is a structure that stores the left and right volumes of a given
+device.
 The allowed volume values are between MIX_VOLMIN (0.0) and MIX_VOLMAX (1.0).
 .Pp
 The
@@ -352,7 +360,8 @@ Toggle the device's mute (e.g mute if unmuted and unmute if muted).
 The
 .Fn mixer_mod_recsrc
 function modifies a recording device.
-The selected device has to be a recording device, otherwise the function will fail.
+The selected device has to be a recording device, otherwise the function will
+fail.
 The
 .Ar opt
 parameter has to be one of the following options:
@@ -395,7 +404,24 @@ Playback and recording.
 .Pp
 The
 .Fn mixer_get_nmixers
-function returns the total number of mixer devices in the system.
+function returns the maximum mixer unit number.
+Although this might sound as incorrect behavior, given that one would expect
+"nmixers" to refer to the total number of active mixers, it is more intuitive
+for applications that want to loop through all mixer devices (see the
+.Sx EXAMPLES
+section).
+.Pp
+The
+.Fn mixer_get_path
+function writes the path of the mixer device specified in the
+.Ar unit
+argument to the buffer specified in
+.Ar buf .
+.Ar unit
+can be either -1, in which case
+.Fn mixer_get_path
+will fetch the path of the default mixer, or between 0 and the maximum mixer
+unit.
 .Pp
 The
 .Fn MIX_ISDEV
@@ -467,9 +493,10 @@ The
 .Fn mixer_set_mute ,
 .Fn mixer_mod_recsrc ,
 .Fn mixer_get_dunut ,
-.Fn mixer_set_dunit
+.Fn mixer_set_dunit ,
+.Fn mixer_get_nmixers ,
 and
-.Fn mixer_get_nmixers
+.Fn mixer_get_path
 functions return 0 or positive values on success and -1 on failure.
 .Pp
 The
@@ -538,6 +565,22 @@ TAILQ_FOREACH(dp, &m->devs, devs) {
 }
 
 (void)mixer_close(m);
+.Ed
+.Ss Loop through all mixer devices in the system
+.Bd -literal
+struct mixer *m;
+char buf[NAME_MAX];
+int n;
+
+if ((n = mixer_get_nmixers()) < 0)
+	errx(1, "no mixers present in the system");
+for (i = 0; i < n; i++) {
+	(void)mixer_get_path(buf, sizeof(buf), i);
+	if ((m = mixer_open(buf)) == NULL)
+		continue;
+	...
+	(void)mixer_close(m);
+}
 .Ed
 .Sh SEE ALSO
 .Xr queue 3 ,

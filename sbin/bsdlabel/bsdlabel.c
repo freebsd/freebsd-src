@@ -50,7 +50,7 @@
 #include <sys/disk.h>
 #define DKTYPENAMES
 #define FSTYPENAMES
-#define MAXPARTITIONS	20
+#define MAXPARTITIONS	8 /* XXX should be 20, but see PR276517 */
 #include <sys/disklabel.h>
 
 #include <unistd.h>
@@ -134,6 +134,10 @@ main(int argc, char *argv[])
 
 	error = 0;
 	name = NULL;
+
+	fprintf(stderr,
+	    "WARNING: bsdlabel is deprecated and is not available in FreeBSD 15 or later.\n"
+	    "Please use gpart instead.\n\n");
 
 	while ((ch = getopt(argc, argv, "ABb:efm:nRrw")) != -1)
 		switch (ch) {

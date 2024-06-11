@@ -51,6 +51,8 @@
 #include <sys/sysctl.h>
 #include <nlm/nlm_prot.h>
 #include <nlm/nlm.h>
+#include <vm/vm_param.h>
+#include <vm/vnode_pager.h>
 
 FEATURE(nfsd, "NFSv4 server");
 
@@ -1653,8 +1655,8 @@ out1:
  * Link vnode op.
  */
 int
-nfsvno_link(struct nameidata *ndp, struct vnode *vp, struct ucred *cred,
-    struct thread *p, struct nfsexstuff *exp)
+nfsvno_link(struct nameidata *ndp, struct vnode *vp, nfsquad_t clientid,
+    struct ucred *cred, struct thread *p, struct nfsexstuff *exp)
 {
 	struct vnode *xp;
 	int error = 0;
@@ -1669,9 +1671,11 @@ nfsvno_link(struct nameidata *ndp, struct vnode *vp, struct ucred *cred,
 	}
 	if (!error) {
 		NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY);
-		if (!VN_IS_DOOMED(vp))
-			error = VOP_LINK(ndp->ni_dvp, vp, &ndp->ni_cnd);
-		else
+		if (!VN_IS_DOOMED(vp)) {
+			error = nfsrv_checkremove(vp, 0, NULL, clientid, p);
+			if (error == 0)
+				error = VOP_LINK(ndp->ni_dvp, vp, &ndp->ni_cnd);
+		} else
 			error = EPERM;
 		if (ndp->ni_dvp == vp) {
 			vrele(ndp->ni_dvp);
@@ -1715,11 +1719,7 @@ nfsvno_fsync(struct vnode *vp, u_int64_t off, int cnt, struct ucred *cred,
 		/*
 		 * Give up and do the whole thing
 		 */
-		if (vp->v_object && vm_object_mightbedirty(vp->v_object)) {
-			VM_OBJECT_WLOCK(vp->v_object);
-			vm_object_page_clean(vp->v_object, 0, 0, OBJPC_SYNC);
-			VM_OBJECT_WUNLOCK(vp->v_object);
-		}
+		vnode_pager_clean_sync(vp);
 		error = VOP_FSYNC(vp, MNT_WAIT, td);
 	} else {
 		/*

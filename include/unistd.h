@@ -37,6 +37,10 @@
 #include <sys/_null.h>
 #include <sys/_types.h>
 
+#if !defined(_STANDALONE) && defined(_FORTIFY_SOURCE) && _FORTIFY_SOURCE > 0
+#include <ssp/unistd.h>
+#endif
+
 #ifndef _GID_T_DECLARED
 typedef	__gid_t		gid_t;
 #define	_GID_T_DECLARED
@@ -519,6 +523,7 @@ int	 iruserok(unsigned long, int, const char *, const char *);
 int	 iruserok_sa(const void *, int, int, const char *, const char *);
 int	 issetugid(void);
 void	__FreeBSD_libc_enter_restricted_mode(void);
+int	 kcmp(pid_t pid1, pid_t pid2, int type, uintptr_t idx1, uintptr_t idx2);
 long	 lpathconf(const char *, int);
 #ifndef _MKDTEMP_DECLARED
 char	*mkdtemp(char *);

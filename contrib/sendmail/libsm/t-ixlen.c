@@ -19,6 +19,7 @@ SM_IDSTR(id, "@(#)$Id: t-qic.c,v 1.10 2013-11-22 20:51:43 ca Exp $")
 
 #if _FFR_8BITENVADDR
 extern bool SmTestVerbose;
+static int Verbose = 0;
 
 static void
 chkilenx(str, len)
@@ -30,8 +31,39 @@ chkilenx(str, len)
 	xlen = ilenx(str);
 	SM_TEST(len == xlen);
 	if (len != xlen)
-		fprintf(stderr, "str=\"%s\", len=%d, excpected=%d\n",
+		fprintf(stderr, "str=\"%s\", len=%d, expected=%d\n",
 			str, xlen, len);
+}
+
+static void
+chkilen(str)
+	char *str;
+{
+	char *obp;
+	int outlen, leni, lenx, ilen;
+	char line_in[1024];
+	XLENDECL
+
+	lenx = strlen(str);
+	sm_strlcpy(line_in, str, sizeof(line_in));
+	obp = quote_internal_chars(str, NULL, &outlen, NULL);
+	leni = strlen(obp);
+
+	for (ilen = 0; *obp != '\0'; obp++, ilen++)
+	{
+		XLEN(*obp);
+	}
+	if (Verbose)
+		fprintf(stderr, "str=\"%s\", ilen=%d, xlen=%d\n",
+			str, ilen, xlen);
+	SM_TEST(ilen == leni);
+	if (ilen != leni)
+		fprintf(stderr, "str=\"%s\", ilen=%d, leni=%d\n",
+			str, ilen, leni);
+	SM_TEST(xlen == lenx);
+	if (xlen != lenx)
+		fprintf(stderr, "str=\"%s\", xlen=%d, lenx=%d\n",
+			str, xlen, lenx);
 }
 
 static void
@@ -44,7 +76,7 @@ chkxleni(str, len)
 	ilen = xleni(str);
 	SM_TEST(len == ilen);
 	if (len != ilen)
-		fprintf(stderr, "str=\"%s\", len=%d, excpected=%d\n",
+		fprintf(stderr, "str=\"%s\", len=%d, expected=%d\n",
 			str, ilen, len);
 }
 
@@ -64,16 +96,24 @@ main(argc, argv)
 	char *argv[];
 {
 	int o, len;
-	bool x;
+	bool x, both;
 	char line[1024];
 
-	x = false;
-	while ((o = getopt(argc, argv, "x")) != -1)
+	x = both = false;
+	while ((o = getopt(argc, argv, "bxV")) != -1)
 	{
 		switch ((char) o)
 		{
+		  case 'b':
+			both = true;
+			break;
+
 		  case 'x':
 			x = true;
+			break;
+
+		  case 'V':
+			Verbose++;
 			break;
 
 		  default:
@@ -84,6 +124,12 @@ main(argc, argv)
 
 	sm_test_begin(argc, argv, "test ilenx");
 
+	if (both)
+	{
+		while (fscanf(stdin, "%s\n", line) == 1)
+			chkilen(line);
+		return sm_test_end();
+	}
 	while (fscanf(stdin, "%d:%s\n", &len, line) == 2)
 	{
 		if (x)

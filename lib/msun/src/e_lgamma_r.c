@@ -9,7 +9,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /* lgamma_r(x, signgamp)
  * Reentrant version of the logarithm of the Gamma function
  * with user provide pointer for the sign of Gamma(x).

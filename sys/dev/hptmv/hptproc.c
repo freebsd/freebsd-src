@@ -338,13 +338,13 @@ hpt_set_info(int length)
 			
 			if (err==0) {
 				if (piop->nOutBufferSize)
-					copyout(ke_area + piop->nInBufferSize, (void*)(ULONG_PTR)piop->lpOutBuffer, piop->nOutBufferSize);
+					err = -copyout(ke_area + piop->nInBufferSize, (void*)(ULONG_PTR)piop->lpOutBuffer, piop->nOutBufferSize);
 				
-				if (piop->lpBytesReturned)
-					copyout(&dwRet, (void*)(ULONG_PTR)piop->lpBytesReturned, sizeof(DWORD));
+				if (err == 0 && piop->lpBytesReturned)
+					err = -copyout(&dwRet, (void*)(ULONG_PTR)piop->lpBytesReturned, sizeof(DWORD));
 			
 				free(ke_area, M_DEVBUF);
-				return length;
+				return err == 0 ? length : err;
 			}
 			else  KdPrintW(("Kernel_ioctl(): return %d\n", err));
 

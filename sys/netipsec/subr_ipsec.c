@@ -328,6 +328,15 @@ static struct ipsec_support ipv4_ipsec = {
 	.methods = NULL
 };
 struct ipsec_support * const ipv4_ipsec_support = &ipv4_ipsec;
+#endif
+
+#ifdef INET6
+static struct ipsec_support ipv6_ipsec = {
+	.enabled = 0,
+	.methods = NULL
+};
+struct ipsec_support * const ipv6_ipsec_support = &ipv6_ipsec;
+#endif
 
 IPSEC_KMOD_METHOD(int, ipsec_kmod_udp_input, sc,
     udp_input, METHOD_DECL(struct ipsec_support * const sc, struct mbuf *m,
@@ -338,15 +347,6 @@ IPSEC_KMOD_METHOD(int, ipsec_kmod_udp_pcbctl, sc,
     udp_pcbctl, METHOD_DECL(struct ipsec_support * const sc, struct inpcb *inp,
 	struct sockopt *sopt), METHOD_ARGS(inp, sopt)
 )
-#endif
-
-#ifdef INET6
-static struct ipsec_support ipv6_ipsec = {
-	.enabled = 0,
-	.methods = NULL
-};
-struct ipsec_support * const ipv6_ipsec_support = &ipv6_ipsec;
-#endif
 
 IPSEC_KMOD_METHOD(int, ipsec_kmod_input, sc,
     input, METHOD_DECL(struct ipsec_support * const sc, struct mbuf *m,

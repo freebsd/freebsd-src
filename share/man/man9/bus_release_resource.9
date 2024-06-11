@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd May 18, 2000
+.Dd March 13, 2024
 .Dt BUS_RELEASE_RESOURCE 9
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@
 .In sys/rman.h
 .In machine/resource.h
 .Ft int
-.Fn bus_release_resource "device_t dev" "int type" "int rid" "struct resource *r"
+.Fn bus_release_resource "device_t dev" "struct resource *r"
 .Sh DESCRIPTION
 Free a resource allocated by
 .Xr bus_alloc_resource 9 .
@@ -52,20 +52,6 @@ for IRQs).
 .It
 .Fa dev
 is the device that owns the resource.
-.It
-.Fa type
-is the type of resource that is released.
-It must be of the same type you allocated it as before.
-See
-.Xr bus_alloc_resource 9
-for valid types.
-.It
-.Fa rid
-is the resource ID of the resource.
-The
-.Fa rid
-value must be the same as the one returned by
-.Xr bus_alloc_resource 9 .
 .It
 .Fa r
 is the pointer to
@@ -88,12 +74,10 @@ The kernel will panic, if it cannot release the resource.
 	bus_teardown_intr(dev, foosoftc->irqres, foosoftc->irqid);
 
 	/* release IRQ resource */
-	bus_release_resource(dev, SYS_RES_IRQ, foosoftc->irqid,
-		foosoftc->irqres);
+	bus_release_resource(dev, foosoftc->irqres);
 
 	/* release I/O port resource */
-	bus_release_resource(dev, SYS_RES_IOPORT, foosoftc->portid,
-		foosoftc->portres);
+	bus_release_resource(dev, foosoftc->portres);
 .Ed
 .Sh SEE ALSO
 .Xr bus_alloc_resource 9 ,

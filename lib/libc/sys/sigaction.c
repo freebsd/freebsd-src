@@ -40,7 +40,5 @@ __weak_reference(sigaction, __libc_sigaction);
 int
 sigaction(int sig, const struct sigaction *act, struct sigaction *oact)
 {
-
-	return (((int (*)(int, const struct sigaction *, struct sigaction *))
-	    __libc_interposing[INTERPOS_sigaction])(sig, act, oact));
+	return (INTERPOS_SYS(sigaction, sig, act, oact));
 }

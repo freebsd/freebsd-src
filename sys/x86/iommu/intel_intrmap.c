@@ -54,6 +54,7 @@
 #include <x86/include/busdma_impl.h>
 #include <dev/iommu/busdma_iommu.h>
 #include <x86/iommu/intel_reg.h>
+#include <x86/iommu/x86_iommu.h>
 #include <x86/iommu/intel_dmar.h>
 #include <x86/iommu/iommu_intrmap.h>
 
@@ -270,7 +271,7 @@ dmar_ir_program_irte(struct dmar_unit *unit, u_int idx, uint64_t low,
 	high = DMAR_IRTE2_SVT_RID | DMAR_IRTE2_SQ_RID |
 	    DMAR_IRTE2_SID_RID(rid);
 	if (bootverbose) {
-		device_printf(unit->dev,
+		device_printf(unit->iommu.dev,
 		    "programming irte[%d] rid %#x high %#jx low %#jx\n",
 		    idx, rid, (uintmax_t)high, (uintmax_t)low);
 	}
@@ -334,13 +335,13 @@ dmar_init_irt(struct dmar_unit *unit)
 	if (!unit->qi_enabled) {
 		unit->ir_enabled = 0;
 		if (bootverbose)
-			device_printf(unit->dev,
+			device_printf(unit->iommu.dev,
 	     "QI disabled, disabling interrupt remapping\n");
 		return (0);
 	}
 	unit->irte_cnt = clp2(num_io_irqs);
 	unit->irt = kmem_alloc_contig(unit->irte_cnt * sizeof(dmar_irte_t),
-	    M_ZERO | M_WAITOK, 0, dmar_high, PAGE_SIZE, 0,
+	    M_ZERO | M_WAITOK, 0, iommu_high, PAGE_SIZE, 0,
 	    DMAR_IS_COHERENT(unit) ?
 	    VM_MEMATTR_DEFAULT : VM_MEMATTR_UNCACHEABLE);
 	if (unit->irt == NULL)

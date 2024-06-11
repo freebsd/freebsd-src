@@ -190,7 +190,7 @@ new_wtap(struct wtap_hal *hal, int32_t id)
 	    MTX_DEF | MTX_RECURSE);
 
 	if(wtap_attach(hal->hal_devs[id], macaddr)){
-		printf("%s, cant alloc new wtap\n", __func__);
+		printf("%s, can't alloc new wtap\n", __func__);
 		return -1;
 	}
 
@@ -208,7 +208,7 @@ free_wtap(struct wtap_hal *hal, int32_t id)
 	}
 
 	if(wtap_detach(hal->hal_devs[id]))
-		printf("%s, cant alloc new wtap\n", __func__);
+		printf("%s, can't alloc new wtap\n", __func__);
 	mtx_destroy(&hal->hal_devs[id]->sc_mtx);
 	free(hal->hal_devs[id], M_WTAP);
 	hal->hal_devs[id] = NULL;

@@ -43,7 +43,6 @@
 #include "opt_snd.h"
 #endif
 
-#include <dev/sound/chip.h>
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
 
@@ -1298,7 +1297,6 @@ emu_pcm_probe(device_t dev)
 {
 	uintptr_t func, route;
 	const char *rt;
-	char buffer[255];
 
 	BUS_READ_IVAR(device_get_parent(dev), dev, EMU_VAR_FUNC, &func);
 
@@ -1328,8 +1326,7 @@ emu_pcm_probe(device_t dev)
 		break;
 	}
 
-	snprintf(buffer, 255, "EMU10Kx DSP %s PCM interface", rt);
-	device_set_desc_copy(dev, buffer);
+	device_set_descf(dev, "EMU10Kx DSP %s PCM interface", rt);
 	return (0);
 }
 
@@ -1477,7 +1474,8 @@ emu_pcm_attach(device_t dev)
 	if (route == RT_MCHRECORD)
 		pcm_addchan(dev, PCMDIR_REC, &emufxrchan_class, sc);
 
-	snprintf(status, SND_STATUSLEN, "on %s", device_get_nameunit(device_get_parent(dev)));
+	snprintf(status, SND_STATUSLEN, "on %s",
+	    device_get_nameunit(device_get_parent(dev)));
 	pcm_setstatus(dev, status);
 
 	return (0);

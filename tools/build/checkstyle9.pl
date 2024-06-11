@@ -25,6 +25,7 @@ my $chk_patch = undef;
 my $chk_branch = undef;
 my $tst_only;
 my $emacs = 0;
+my $github = 0;
 my $terse = 0;
 my $file = undef;
 my $color = "auto";
@@ -91,6 +92,7 @@ GetOptions(
 	'patch!'	=> \$chk_patch,
 	'branch!'	=> \$chk_branch,
 	'emacs!'	=> \$emacs,
+	'github!'	=> \$github,
 	'terse!'	=> \$terse,
 	'f|file!'	=> \$file,
 	'strict!'	=> \$no_warnings,
@@ -170,8 +172,6 @@ if ($color =~ /^always$/i) {
 
 my $dbg_values = 0;
 my $dbg_possible = 0;
-my $dbg_type = 0;
-my $dbg_attr = 0;
 my $dbg_adv_dcs = 0;
 my $dbg_adv_checking = 0;
 my $dbg_adv_apw = 0;
@@ -202,6 +202,7 @@ our $Sparse	= qr{
 # Notes to $Attribute:
 our $Attribute	= qr{
 			const|
+			_*restrict|
 			volatile|
 			QEMU_NORETURN|
 			QEMU_WARN_UNUSED_RESULT|
@@ -1175,13 +1176,17 @@ sub report {
 	}
 
 	my $output = '';
-	$output .= BOLD if $color;
+	my $do_color = $color && !$github;
+	$output .= BOLD if $do_color;
+	$output .= "::error " if $github && $level eq 'ERROR';
+	$output .= "::warning " if $github && $level eq 'WARNING';
 	$output .= $prefix;
-	$output .= RED if $color && $level eq 'ERROR';
-	$output .= MAGENTA if $color && $level eq 'WARNING';
-	$output .= $level . ':';
-	$output .= RESET if $color;
-	$output .= ' ' . $msg . "\n";
+	$output .= RED if $do_color && $level eq 'ERROR';
+	$output .= MAGENTA if $do_color && $level eq 'WARNING';
+	$output .= $level . ':' if !$github;
+	$output .= RESET if $do_color;
+	$output .= ' ' if (!$github);
+	$output .= $msg . "\n";
 
 	$output = (split('\n', $output))[0] . "\n" if ($terse);
 
@@ -1248,6 +1253,7 @@ sub process {
 
 	my $in_header_lines = $file ? 0 : 1;
 	my $in_commit_log = 0;		#Scanning lines before patch
+	my $has_sob = 0;
 	my $non_utf8_charset = 0;
 
 	our @report = ();
@@ -1397,6 +1403,8 @@ sub process {
 #make up the handle for any error we report on this line
 		$prefix = "$filename:$realline: " if ($emacs && $file);
 		$prefix = "$filename:$linenr: " if ($emacs && !$file);
+		$prefix = "file=$filename,line=$realline:\:" if ($github && $file);
+		$prefix = "file=$realfile,line=$realline:\:" if ($github && !$file);
 
 		$here = "#$linenr: " if (!$file);
 		$here = "#$realline: " if ($file);
@@ -1412,7 +1420,7 @@ sub process {
 	                checkfilename($realfile, \$acpi_testexpected, \$acpi_nontestexpected);
 
 			$p1_prefix = $1;
-			if (!$file && $tree && $p1_prefix ne '' &&
+			if (!$file && $tree && $p1_prefix ne '' && defined $root &&
 			    -e "$root/$p1_prefix") {
 				WARN("patch prefix '$p1_prefix' exists, appears to be a -p0 patch\n");
 			}
@@ -1436,17 +1444,12 @@ sub process {
 			}
 		}
 
-# Only allow Python 3 interpreter
-		if ($realline == 1 &&
-			$line =~ /^\+#!\ *\/usr\/bin\/(?:env )?python$/) {
-			ERROR("please use python3 interpreter\n" . $herecurr);
-		}
-
 # Accept git diff extended headers as valid patches
 		if ($line =~ /^(?:rename|copy) (?:from|to) [\w\/\.\-]+\s*$/) {
 			$is_patch = 1;
 		}
 
+# Filter out bad email addresses.
 		if ($line =~ /^(Author|From): .*noreply.*/) {
 		    ERROR("Real email adress is needed\n" . $herecurr);
 		}
@@ -1455,14 +1458,17 @@ sub process {
 		if ($line =~ /^\s*signed-off-by:/i) {
 			# This is a signoff, if ugly, so do not double report.
 			$in_commit_log = 0;
+			$has_sob = 1;
 
 			if (!($line =~ /^\s*Signed-off-by:/)) {
 				ERROR("The correct form is \"Signed-off-by\"\n" .
 					$herecurr);
+				$has_sob = 0;
 			}
 			if ($line =~ /^\s*signed-off-by:\S/i) {
 				ERROR("space required after Signed-off-by:\n" .
 					$herecurr);
+				$has_sob = 0;
 			}
 		}
 
@@ -1512,9 +1518,6 @@ sub process {
 # ignore non-hunk lines and lines being removed
 		next if (!$hunk_line || $line =~ /^-/);
 
-# ignore files that are being periodically imported from Linux
-		next if ($realfile =~ /^(linux-headers|include\/standard-headers)\//);
-
 #trailing whitespace
 		if ($line =~ /^\+.*\015/) {
 			my $herevet = "$here\n" . cat_vet($rawline) . "\n";
@@ -1534,26 +1537,6 @@ sub process {
 			my $herevet = "$here\n" . cat_vet($rawline) . "\n";
 			ERROR("trailing whitespace\n" . $herevet);
 			$rpt_cleaners = 1;
-		}
-
-# checks for trace-events files
-		if ($realfile =~ /trace-events$/ && $line =~ /^\+/) {
-			if ($rawline =~ /%[-+ 0]*#/) {
-				ERROR("Don't use '#' flag of printf format ('%#') in " .
-				      "trace-events, use '0x' prefix instead\n" . $herecurr);
-			} else {
-				my $hex =
-					qr/%[-+ *.0-9]*([hljztL]|ll|hh)?(x|X|"\s*PRI[xX][^"]*"?)/;
-
-				# don't consider groups splitted by [.:/ ], like 2A.20:12ab
-				my $tmpline = $rawline;
-				$tmpline =~ s/($hex[.:\/ ])+$hex//g;
-
-				if ($tmpline =~ /(?<!0x)$hex/) {
-					ERROR("Hex numbers must be prefixed with '0x'\n" .
-					      $herecurr);
-				}
-			}
 		}
 
 # check we are in a valid source file if not then ignore this hunk
@@ -1584,7 +1567,7 @@ sub process {
 		}
 
 # check for RCS/CVS revision markers
-		if ($rawline =~ /^\+.*\$(Revision|Log|Id)(?:\$|\b)/) {
+		if ($rawline =~ /^\+.*\$(FreeBSD|Revision|Log|Id)(?:\$|\b)/) {
 			ERROR("CVS style keyword markers, these will _not_ be updated\n". $herecurr);
 		}
 
@@ -1886,25 +1869,6 @@ sub process {
 #ignore lines not being added
 		if ($line=~/^[^\+]/) {next;}
 
-# TEST: allow direct testing of the type matcher.
-		if ($dbg_type) {
-			if ($line =~ /^.\s*$Declare\s*$/) {
-				ERROR("TEST: is type\n" . $herecurr);
-			} elsif ($dbg_type > 1 && $line =~ /^.+($Declare)/) {
-				ERROR("TEST: is not type ($1 is)\n". $herecurr);
-			}
-			next;
-		}
-# TEST: allow direct testing of the attribute matcher.
-		if ($dbg_attr) {
-			if ($line =~ /^.\s*$Modifier\s*$/) {
-				ERROR("TEST: is attr\n" . $herecurr);
-			} elsif ($dbg_attr > 1 && $line =~ /^.+($Modifier)/) {
-				ERROR("TEST: is not attr ($1 is)\n". $herecurr);
-			}
-			next;
-		}
-
 # check for initialisation to aggregates open brace on the next line
 		if ($line =~ /^.\s*\{/ &&
 		    $prevline =~ /(?:^|[^=])=\s*$/) {
@@ -1927,17 +1891,6 @@ sub process {
 # Remove C99 comments.
 		$line =~ s@//.*@@;
 		$opline =~ s@//.*@@;
-
-# check for global initialisers.
-#		if ($line =~ /^.$Type\s*$Ident\s*(?:\s+$Modifier)*\s*=\s*(0|NULL|false)\s*;/) {
-#			ERROR("do not initialise globals to 0 or NULL\n" .
-#				$herecurr);
-#		}
-# check for static initialisers.
-#		if ($line =~ /\bstatic\s.*=\s*(0|NULL|false)\s*;/) {
-#			ERROR("do not initialise statics to 0 or NULL\n" .
-#				$herecurr);
-#		}
 
 # * goes on variable not on type
 		# (char*[ const])
@@ -2606,7 +2559,7 @@ sub process {
 					$herectx .= raw_line($linenr, $n) . "\n";;
 				}
 
-				ERROR("braces {} are necessary even for single statement blocks\n" . $herectx);
+				WARN("braces {} are encouraged even for single statement blocks\n" . $herectx);
 			}
 		}
 
@@ -2699,6 +2652,10 @@ sub process {
 		}
 	}
 
+	}
+
+	if ($has_sob == 0) {
+	    WARN("Missing Signed-off-by: line");
 	}
 
 	# If we have no input at all, then there is nothing to report on

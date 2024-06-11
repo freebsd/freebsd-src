@@ -1,6 +1,3 @@
-#
-# $FreeBSD$
-#
 0x00000000:no:invalid class
 0x00000001:fr:file read
 0x00000002:fw:file write

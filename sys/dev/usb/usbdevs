@@ -779,6 +779,7 @@ vendor TRIPPLITE	0x2478	Tripp-Lite
 vendor NORELSYS	0x2537	NOREL Systems Ltd.
 vendor TENDA2		0x2604	Tenda
 vendor HIROSE		0x2631	Hirose Electric
+vendor XIAOMI		0x2717	Xiaomi
 vendor NHJ		0x2770	NHJ
 vendor THINGM		0x27b8	ThingM
 vendor PERASO		0x2932	Peraso Technologies, Inc.
@@ -1047,7 +1048,6 @@ product ALCATEL OT535		0x02df	One Touch 535/735
 /* Alcor Micro, Inc. products */
 product ALCOR2 KBD_HUB		0x2802	Kbd Hub
 
-product ALCOR DUMMY		0x0000	Dummy product
 product ALCOR SDCR_6335		0x6335	SD/MMC Card Reader
 product ALCOR SDCR_6362		0x6362	SD/MMC Card Reader
 product ALCOR SDCR_6366		0x6366	SD/MMC Card Reader
@@ -1064,6 +1064,7 @@ product ALCOR AU6390	0x6390	AU6390 USB-IDE converter
 product ALINK DWM652U5		0xce16	DWM-652
 product ALINK 3G		0x9000	3G modem
 product ALINK SIM7600E		0x9001	LTE modem
+product ALINK SIM7600G		0x9011	LTE modem
 product ALINK 3GU		0x9200	3G modem
 
 /* Altec Lansing products */
@@ -1137,7 +1138,6 @@ product ANYDATA ADU_500A	0x6502	CDMA 2000 EV-DO USB Modem
 product AOX USB101		0x0008	Ethernet
 
 /* Apple Computer products */
-product APPLE DUMMY		0x0000	Dummy product
 product APPLE IMAC_KBD		0x0201	USB iMac Keyboard
 product APPLE KBD		0x0202	USB Keyboard M2452
 product APPLE EXT_KBD		0x020c	Apple Extended USB Keyboard
@@ -1862,7 +1862,6 @@ product EGALAX TPANEL2		0x0002	Touch Panel
 product EGALAX2 TPANEL		0x0001	Touch Panel
 
 /* EGO Products */
-product EGO DUMMY		0x0000	Dummy Product
 product EGO M4U			0x1020	ESI M4U
 
 /* Eicon Networks */
@@ -1986,7 +1985,6 @@ product FALCOM TWIST		0x0001	USB GSM/GPRS Modem
 product FALCOM SAMBA		0x0005	FTDI compatible adapter
 
 /* FEIYA products */
-product FEIYA DUMMY		0x0000	Dummy product
 product FEIYA 5IN1		0x1132	5-in-1 Card Reader
 product FEIYA ELANGO		0x6200	MicroSDHC Card Reader
 product FEIYA AC110		0x6300	AC-110 Card Reader
@@ -2601,7 +2599,6 @@ product IDTECH IDT1221U		0x0300	FTDI compatible adapter
 product IMAGINATION DBX1	0x2107	DBX1 DSP core
 
 /* Initio Corporation products */
-product INITIO DUMMY		0x0000	Dummy product
 product INITIO INIC_1610P	0x1e40	USB to SATA Bridge
 
 /* Inside Out Networks products */
@@ -2874,7 +2871,6 @@ product LINKSYS4 RT3070		0x0078	RT3070
 product LINKSYS4 WUSB600NV2	0x0079	WUSB600N v2
 
 /* Logilink products */
-product LOGILINK DUMMY		0x0000	Dummy product
 product LOGILINK U2M		0x0101	LogiLink USB MIDI Cable
 
 /* Logitech products */
@@ -4042,6 +4038,7 @@ product RALINK RT3573		0x3573	RT3573
 product RALINK RT5370		0x5370	RT5370
 product RALINK RT5372		0x5372	RT5372
 product RALINK RT5572		0x5572	RT5572
+product RALINK RT7601		0x7601	RT7601
 product RALINK RT8070		0x8070	RT8070
 product RALINK RT2570_3		0x9020	RT2500USB Wireless Adapter
 product RALINK RT2573_2		0x9021	RT2501USB Wireless Adapter
@@ -4052,7 +4049,6 @@ product RATOC REXUSB60F		0xb020	USB serial adapter REX-USB60F
 
 /* Realtek products */
 /* Green House and CompUSA OEM this part */
-product REALTEK DUMMY		0x0000	Dummy product
 product REALTEK USB20CRW	0x0158	USB20CRW Card Reader
 product REALTEK RTL8188ETV	0x0179	RTL8188ETV
 product REALTEK RTL8188CTV      0x018a  RTL8188CTV
@@ -4097,7 +4093,6 @@ product REALTEK RTL8192SU	0xc512	RTL8192SU
 product REALTEK RTW8821CU	0xc811	RTW8821CU
 
 /* RedOctane products */
-product REDOCTANE DUMMY		0x0000	Dummy product
 product REDOCTANE GHMIDI	0x474b	GH MIDI INTERFACE
 
 /* Renesas products */
@@ -4667,7 +4662,6 @@ product TECLAST TLC300		0x3203	USB Media Player
 product TESTO USB_INTERFACE	0x0001	FTDI compatible adapter
 
 /* TexTech products */
-product TEXTECH DUMMY		0x0000	Dummy product
 product TEXTECH U2M_1		0x0101	Textech USB MIDI cable
 product TEXTECH U2M_2		0x1806	Textech USB MIDI cable
 
@@ -4908,7 +4902,6 @@ product WAVESENSE JAZZ		0xaaaa	Jazz blood glucose meter
 
 /* WCH products */
 product WCH CH341SER		0x5523	CH341/CH340 USB-Serial Bridge
-product WCH2 DUMMY		0x0000	Dummy product
 product WCH2 CH341SER_2		0x5523	CH341/CH340 USB-Serial Bridge
 product WCH2 CH341SER_3		0x7522	CH341/CH340 USB-Serial Bridge
 product WCH2 CH341SER		0x7523	CH341/CH340 USB-Serial Bridge
@@ -4974,6 +4967,9 @@ product WISTRONNEWEB AR5523_2_NF	0x0829	AR5523 (no firmware)
 
 /* Xerox products */
 product XEROX WCM15		0xffef	WorkCenter M15
+
+/* Xiaomi products */
+product XIAOMI MT7601U		0x4106	MT7601U
 
 /* Xirlink products */
 product XIRLINK PCCAM		0x8080	IBM PC Camera

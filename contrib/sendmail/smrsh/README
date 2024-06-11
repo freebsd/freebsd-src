@@ -51,7 +51,7 @@ the bin directory used by smrsh.
 							path.
 -DSMRSH_CMDDIR=\"dir\"	\"/usr/adm/sm.bin\"		The default smrsh
 							program directory
- 
+
 These can be added to the devtools/Site/site.config.m4 file using the
 global M4 macro confENVDEF or the smrsh specific M4 macro
 conf_smrsh_ENVDEF.

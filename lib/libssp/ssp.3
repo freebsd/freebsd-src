@@ -1,0 +1,128 @@
+.\"	$NetBSD: ssp.3,v 1.9 2015/12/03 13:11:45 christos Exp $
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2007 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Christos Zoulas.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"
+.Dd December 3, 2015
+.Dt SSP 3
+.Os
+.Sh NAME
+.Nm ssp
+.Nd bounds checked libc functions
+.Sh LIBRARY
+.Lb libssp
+.Sh SYNOPSIS
+.In ssp/stdio.h
+.Ft int
+.Fn sprintf "char *str" "const char *fmt" "..."
+.Ft int
+.Fn vsprintf "char *str" "const char *fmt" "va_list ap"
+.Ft int
+.Fn snprintf "char *str" "size_t len" "const char *fmt" "..."
+.Ft int
+.Fn vsnprintf "char *str" "size_t len" "const char *fmt" "va_list ap"
+.Ft char *
+.Fn fgets "char *str" "int len" "FILE *fp"
+.In ssp/string.h
+.Ft void *
+.Fn memcpy "void *str" "const void *ptr" "size_t len"
+.Ft void *
+.Fn memmove "void *str" "const void *ptr" "size_t len"
+.Ft void *
+.Fn memset "void *str" "int val" "size_t len"
+.Ft char *
+.Fn stpcpy "char *str" "const char *ptr"
+.Ft char *
+.Fn strcpy "char *str" "const char *ptr"
+.Ft char *
+.Fn strcat "char *str" "const char *ptr"
+.Ft char *
+.Fn strncpy "char *str" "const char *ptr" "size_t len"
+.Ft char *
+.Fn strncat "char *str" "const char *ptr" "size_t len"
+.In ssp/strings.h
+.Ft void *
+.Fn bcopy "const void *ptr" "void *str" "size_t len"
+.Ft void *
+.Fn bzero "void *str" "size_t len"
+.In ssp/unistd.h
+.Ft ssize_t
+.Fn read "int fd" "void *str" "size_t len"
+.Ft int
+.Fn readlink "const char * restrict path" "char * restrict str" "size_t len"
+.Ft int
+.Fn getcwd "char *str" "size_t len"
+.Sh DESCRIPTION
+When
+.Dv _FORTIFY_SOURCE
+bounds checking is enabled as described below, the above functions get
+overwritten to use the
+.Xr __builtin_object_size 3
+function to compute the size of
+.Fa str ,
+if known at compile time,
+and perform bounds check on it in order
+to avoid data buffer or stack buffer overflows.
+If an overflow is detected, the routines will call
+.Xr abort 3 .
+.Pp
+To enable these function overrides the following should be added to the
+.Xr clang 1
+or
+.Xr gcc 1
+command line:
+.Dq \-D_FORTIFY_SOURCE=1
+or
+.Dq \-D_FORTIFY_SOURCE=2 .
+.Pp
+If
+.Dv _FORTIFY_SOURCE is set to
+.Dv 1
+the code will compute the maximum possible buffer size for
+.Fa str ,
+and if set to
+.Dv 2
+it will compute the minimum buffer size.
+.Sh SEE ALSO
+.Xr clang 1 ,
+.Xr gcc 1 ,
+.Xr __builtin_object_size 3 ,
+.Xr stdio 3 ,
+.Xr string 3 ,
+.Xr security 7
+.Sh HISTORY
+The
+.Nm
+library appeared in
+.Nx 4.0 .
+This version of the
+.Nm
+library replaced the GNU library of the same name in
+.Fx 12.2 .

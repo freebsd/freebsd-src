@@ -94,25 +94,7 @@ options 	RCTL			# Resource limits
 options 	KDB			# Enable kernel debugger support.
 options 	KDB_TRACE		# Print a stack trace for a panic.
 # For full debugger support use (turn off in stable branch):
-options 	BUF_TRACKING		# Track buffer history
-options 	DDB			# Support DDB.
-options 	FULL_BUF_TRACKING	# Track more buffer history
-options 	GDB			# Support remote GDB.
-options 	DEADLKRES		# Enable the deadlock resolver
-options 	INVARIANTS		# Enable calls of extra sanity checking
-options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
-options 	QUEUE_MACRO_DEBUG_TRASH	# Trash queue(2) internal pointers on invalidation
-options 	WITNESS			# Enable checks to detect deadlocks and cycles
-options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
-options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
-options 	VERBOSE_SYSINIT=0	# Support debug.verbose_sysinit, off by default
-
-# Kernel Sanitizers
-#options 	COVERAGE		# Generic kernel coverage. Used by KCOV
-#options 	KCOV			# Kernel Coverage Sanitizer
-# Warning: KUBSAN can result in a kernel too large for loader to load
-#options 	KUBSAN			# Kernel Undefined Behavior Sanitizer
-#options 	KCSAN			# Kernel Concurrency Sanitizer
+include "std.debug"
 
 # Kernel dump features.
 options 	EKCD			# Support for encrypted kernel dumps
@@ -305,7 +287,6 @@ device		wlan_amrr		# AMRR transmit rate control algorithm
 device		ath			# Atheros CardBus/PCI NICs
 device		ath_hal			# Atheros CardBus/PCI chip support
 options 	AH_AR5416_INTERRUPT_MITIGATION # AR5416 interrupt mitigation
-options 	ATH_ENABLE_11N		# Enable 802.11n support for AR5416 and later
 device		ath_rate_sample		# SampleRate tx rate control for ath
 #device		bwi			# Broadcom BCM430x/BCM431x wireless NICs.
 #device		bwn			# Broadcom BCM43xx wireless NICs.
@@ -395,3 +376,7 @@ device		uinput			# install /dev/uinput cdev
 options 	HID_DEBUG		# enable debug msgs
 device		hid			# Generic HID support
 options 	IICHID_SAMPLING		# Workaround missing GPIO INTR support
+
+# EFI devices
+device		efidev			# EFI pseudo-device
+device		efirtc			# EFI RTC

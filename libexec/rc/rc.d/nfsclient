@@ -46,4 +46,8 @@ unmount_all()
 	fi
 }
 load_rc_config $name
+
+# no unmounting in svcj
+nfsclient_svcj="NO"
+
 run_rc_command "$1"

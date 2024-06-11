@@ -100,7 +100,13 @@ struct in6_addr {
 };
 
 #define s6_addr   __u6_addr.__u6_addr8
-#if defined(_KERNEL) || defined(_STANDALONE) /* XXX nonstandard */
+#if __BSD_VISIBLE
+/*
+ * s6_addr is the only in6_addr element specified in RFCs 2553 and 3493,
+ * also in POSIX 1003.1-2017.  The following three definitions were not
+ * exposed to user programs in FreeBSD before 14.1, or in other BSDs,
+ * and are thus less portable than s6_addr.
+ */
 #define s6_addr8  __u6_addr.__u6_addr8
 #define s6_addr16 __u6_addr.__u6_addr16
 #define s6_addr32 __u6_addr.__u6_addr32

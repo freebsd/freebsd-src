@@ -242,7 +242,7 @@ size_t SmHeapMaxTotal = 0;
 */
 
 SM_DEBUG_T SmHeapLimit = SM_DEBUG_INITIALIZER("sm_heap_limit",
-    "@(#)$Debug: sm_heap_limit - max # of bytes permitted in heap $");
+	"@(#)$Debug: sm_heap_limit - max # of bytes permitted in heap $");
 
 /*
 **  This is the data structure that keeps track of all currently

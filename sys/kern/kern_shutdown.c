@@ -224,11 +224,12 @@ SYSCTL_INT(_kern, OID_AUTO, kerneldump_gzlevel, CTLFLAG_RWTUN,
  * Variable panicstr contains argument to first call to panic; used as flag
  * to indicate that the kernel has already called panic.
  */
-const char *panicstr;
-bool __read_frequently panicked;
+const char *panicstr __read_mostly;
+bool scheduler_stopped __read_frequently;
 
-int __read_mostly dumping;		/* system is dumping */
-int rebooting;				/* system is rebooting */
+int dumping __read_mostly;		/* system is dumping */
+int rebooting __read_mostly;		/* system is rebooting */
+bool dumped_core __read_mostly;		/* system successfully dumped core */
 /*
  * Used to serialize between sysctl kern.shutdown.dumpdevname and list
  * modifications via ioctl.
@@ -262,10 +263,10 @@ shutdown_conf(void *unused)
 
 	EVENTHANDLER_REGISTER(shutdown_final, poweroff_wait, NULL,
 	    SHUTDOWN_PRI_FIRST);
-	EVENTHANDLER_REGISTER(shutdown_final, shutdown_halt, NULL,
-	    SHUTDOWN_PRI_LAST + 100);
 	EVENTHANDLER_REGISTER(shutdown_final, shutdown_panic, NULL,
 	    SHUTDOWN_PRI_LAST + 100);
+	EVENTHANDLER_REGISTER(shutdown_final, shutdown_halt, NULL,
+	    SHUTDOWN_PRI_LAST + 200);
 }
 
 SYSINIT(shutdown_conf, SI_SUB_INTRINSIC, SI_ORDER_ANY, shutdown_conf, NULL);
@@ -415,8 +416,10 @@ doadump(boolean_t textdump)
 
 		TAILQ_FOREACH(di, &dumper_configs, di_next) {
 			error = dumpsys(di);
-			if (error == 0)
+			if (error == 0) {
+				dumped_core = true;
 				break;
+			}
 		}
 	}
 
@@ -899,6 +902,15 @@ vpanic(const char *fmt, va_list ap)
 	int bootopt, newpanic;
 	static char buf[256];
 
+	/*
+	 * 'fmt' must not be NULL as it is put into 'panicstr' which is then
+	 * used as a flag to detect if the kernel has panicked.  Also, although
+	 * vsnprintf() supports a NULL 'fmt' argument, use a more informative
+	 * message.
+	 */
+	if (fmt == NULL)
+		fmt = "<no panic string!>";
+
 	spinlock_enter();
 
 #ifdef SMP
@@ -907,7 +919,7 @@ vpanic(const char *fmt, va_list ap)
 	 * concurrently entering panic.  Only the winner will proceed
 	 * further.
 	 */
-	if (panicstr == NULL && !kdb_active) {
+	if (!KERNEL_PANICKED() && !kdb_active) {
 		other_cpus = all_cpus;
 		CPU_CLR(PCPU_GET(cpuid), &other_cpus);
 		stop_cpus_hard(other_cpus);
@@ -918,7 +930,7 @@ vpanic(const char *fmt, va_list ap)
 	 * Ensure that the scheduler is stopped while panicking, even if panic
 	 * has been entered from kdb.
 	 */
-	td->td_stopsched = 1;
+	scheduler_stopped = true;
 
 	bootopt = RB_AUTOBOOT;
 	newpanic = 0;
@@ -927,9 +939,11 @@ vpanic(const char *fmt, va_list ap)
 	else {
 		bootopt |= RB_DUMP;
 		panicstr = fmt;
-		panicked = true;
 		newpanic = 1;
 	}
+
+	/* Unmute when panic */
+	cn_mute = 0;
 
 	if (newpanic) {
 		(void)vsnprintf(buf, sizeof(buf), fmt, ap);

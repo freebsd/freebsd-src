@@ -860,7 +860,6 @@ rip_detach(struct socket *so)
 		ip_rsvp_force_done(so);
 	if (so == V_ip_rsvpd)
 		ip_rsvp_done();
-	in_pcbdetach(inp);
 	in_pcbfree(inp);
 }
 
@@ -983,16 +982,27 @@ rip_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 }
 
 static int
-rip_shutdown(struct socket *so)
+rip_shutdown(struct socket *so, enum shutdown_how how)
 {
-	struct inpcb *inp;
 
-	inp = sotoinpcb(so);
-	KASSERT(inp != NULL, ("rip_shutdown: inp == NULL"));
+	SOCK_LOCK(so);
+	if (!(so->so_state & SS_ISCONNECTED)) {
+		SOCK_UNLOCK(so);
+		return (ENOTCONN);
+	}
+	SOCK_UNLOCK(so);
 
-	INP_WLOCK(inp);
-	socantsendmore(so);
-	INP_WUNLOCK(inp);
+	switch (how) {
+	case SHUT_RD:
+		sorflush(so);
+		break;
+	case SHUT_RDWR:
+		sorflush(so);
+		/* FALLTHROUGH */
+	case SHUT_WR:
+		socantsendmore(so);
+	}
+
 	return (0);
 }
 #endif /* INET */

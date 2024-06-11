@@ -136,15 +136,19 @@ struct	ipstat {
 
 #include <sys/counter.h>
 #include <net/vnet.h>
+#include <netinet/in_kdtrace.h>
 
 VNET_PCPUSTAT_DECLARE(struct ipstat, ipstat);
 /*
  * In-kernel consumers can use these accessor macros directly to update
  * stats.
  */
-#define	IPSTAT_ADD(name, val)	\
-    VNET_PCPUSTAT_ADD(struct ipstat, ipstat, name, (val))
-#define	IPSTAT_SUB(name, val)	IPSTAT_ADD(name, -(val))
+#define IPSTAT_ADD(name, val)                                          \
+	do {                                                           \
+		MIB_SDT_PROBE1(ip, count, name, (val));                \
+		VNET_PCPUSTAT_ADD(struct ipstat, ipstat, name, (val)); \
+	} while (0)
+#define IPSTAT_SUB(name, val) IPSTAT_ADD(name, -(val))
 #define	IPSTAT_INC(name)	IPSTAT_ADD(name, 1)
 #define	IPSTAT_DEC(name)	IPSTAT_SUB(name, 1)
 
@@ -152,11 +156,19 @@ VNET_PCPUSTAT_DECLARE(struct ipstat, ipstat);
  * Kernel module consumers must use this accessor macro.
  */
 void	kmod_ipstat_inc(int statnum);
-#define	KMOD_IPSTAT_INC(name)	\
-    kmod_ipstat_inc(offsetof(struct ipstat, name) / sizeof(uint64_t))
-void	kmod_ipstat_dec(int statnum);
-#define	KMOD_IPSTAT_DEC(name)	\
-    kmod_ipstat_dec(offsetof(struct ipstat, name) / sizeof(uint64_t))
+#define KMOD_IPSTAT_INC(name)                                          \
+	do {                                                           \
+		MIB_SDT_PROBE1(ip, count, name, 1);                    \
+		kmod_ipstat_inc(                                       \
+		    offsetof(struct ipstat, name) / sizeof(uint64_t)); \
+	} while (0)
+void kmod_ipstat_dec(int statnum);
+#define KMOD_IPSTAT_DEC(name)                                          \
+	do {                                                           \
+		MIB_SDT_PROBE1(ip, count, name, -1);                   \
+		kmod_ipstat_dec(                                       \
+		    offsetof(struct ipstat, name) / sizeof(uint64_t)); \
+	} while (0)
 
 /* flags passed to ip_output as last parameter */
 #define	IP_FORWARDING		0x1		/* most of ip header exists */

@@ -375,7 +375,7 @@ fwd_ip6_gu_icmp_gw_gu_slow_success_body() {
 	jexec ${jname} sysctl net.inet6.ip6.forwarding=1
 	# Do not turn off route redirects to ensure slow path is on
 
-	# atf_check -s exit:0
+	atf_check -s exit:0 \
 		$(atf_get_srcdir)/${script_name} \
 		--test_name fwd_ip6_icmp \
 		--smac ${our_mac} --dmac ${jail_mac} \

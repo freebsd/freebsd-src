@@ -81,7 +81,7 @@ CFLAGS+=	-DEFI_STAGING_SIZE=${EFI_STAGING_SIZE}
 CFLAGS+= -DEFI_SECUREBOOT
 .endif
 
-NEWVERSWHAT=	"EFI loader" ${MACHINE}
+NEWVERSWHAT?=	"EFI loader" ${MACHINE}
 VERSION_FILE=	${.CURDIR}/../loader/version
 HELP_FILENAME=	loader.help.efi
 
@@ -100,7 +100,7 @@ FILESMODE_${LOADER}.efi=	${BINMODE}
 LINKS+=		${BINDIR}/${LOADER}.efi ${BINDIR}/loader.efi
 .endif
 
-LDSCRIPT=	${.CURDIR}/../loader/arch/${MACHINE}/ldscript.${MACHINE}
+LDSCRIPT=	${.CURDIR}/../loader/arch/${MACHINE}/${MACHINE}.ldscript
 LDFLAGS+=	-Wl,-T${LDSCRIPT},-Bsymbolic,-znotext -pie
 .if ${LINKER_TYPE} == "bfd" && ${LINKER_VERSION} >= 23400
 LDFLAGS+=	-Wl,--no-dynamic-linker
@@ -117,7 +117,7 @@ ${LOADER}.efi: ${PROG}
 	${OBJCOPY} -j .peheader -j .text -j .sdata -j .data \
 		-j .dynamic -j .dynsym -j .rel.dyn \
 		-j .rela.dyn -j .reloc -j .eh_frame -j set_Xcommand_set \
-		-j set_Xficl_compile_set \
+		-j set_X${LOADER_INTERP}_compile_set \
 		--output-target=${EFI_TARGET} ${.ALLSRC} ${.TARGET}
 
 LIBEFI=		${BOOTOBJ}/efi/libefi/libefi.a

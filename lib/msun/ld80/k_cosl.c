@@ -10,7 +10,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /*
  * ld80 version of k_cos.c.  See ../src/k_cos.c for most comments.
  */

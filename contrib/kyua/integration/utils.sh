@@ -42,7 +42,7 @@
 # script that automatically does this.
 # CHECK_STYLE_DISABLE
 utils_strip_times='sed -E \
-    -e "s,( |\[|\")[0-9][0-9]*.[0-9][0-9][0-9](s]|s|\"),\1S.UUU\2,g" \
+    -e "s,( |\[|\")[0-9][0-9]*\.[0-9][0-9][0-9](s]|s|\"),\1S.UUU\2,g" \
     -e "s,[0-9]{8}-[0-9]{6}-[0-9]{6},YYYYMMDD-HHMMSS-ssssss,g" \
     -e "s,[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}Z,YYYY-MM-DDTHH:MM:SS.ssssssZ,g"'
 # CHECK_STYLE_ENABLE
@@ -55,7 +55,7 @@ utils_strip_times='sed -E \
 # replaced by the fixed string YYYY-MM-DDTHH:MM:SS.ssssssZ.
 # CHECK_STYLE_DISABLE
 utils_strip_times_but_not_ids='sed -E \
-    -e "s,( |\[|\")[0-9][0-9]*.[0-9][0-9][0-9](s]|s|\"),\1S.UUU\2,g" \
+    -e "s,( |\[|\")[0-9][0-9]*\.[0-9][0-9][0-9](s]|s|\"),\1S.UUU\2,g" \
     -e "s,[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}Z,YYYY-MM-DDTHH:MM:SS.ssssssZ,g"'
 # CHECK_STYLE_ENABLE
 

@@ -9,74 +9,72 @@
 #include "pl_sig.h"
 #include "pl_test.h"
 
-#if SV_SUPPORTED
-
-#define NegPio2_1 (sv_f32 (-0x1.921fb6p+0f))
-#define NegPio2_2 (sv_f32 (0x1.777a5cp-25f))
-#define NegPio2_3 (sv_f32 (0x1.ee59dap-50f))
-#define RangeVal (sv_f32 (0x1p20f))
-#define InvPio2 (sv_f32 (0x1.45f306p-1f))
-/* Original shift used in Neon cosf,
-   plus a contribution to set the bit #0 of q
-   as expected by trigonometric instructions.  */
-#define Shift (sv_f32 (0x1.800002p+23f))
-#define AbsMask (0x7fffffff)
-
-static NOINLINE sv_f32_t
-__sv_cosf_specialcase (sv_f32_t x, sv_f32_t y, svbool_t cmp)
+static const struct data
 {
-  return sv_call_f32 (cosf, x, y, cmp);
+  float neg_pio2_1, neg_pio2_2, neg_pio2_3, inv_pio2, shift;
+} data = {
+  /* Polynomial coefficients are hard-wired in FTMAD instructions.  */
+  .neg_pio2_1 = -0x1.921fb6p+0f,
+  .neg_pio2_2 = 0x1.777a5cp-25f,
+  .neg_pio2_3 = 0x1.ee59dap-50f,
+  .inv_pio2 = 0x1.45f306p-1f,
+  /* Original shift used in AdvSIMD cosf,
+     plus a contribution to set the bit #0 of q
+     as expected by trigonometric instructions.  */
+  .shift = 0x1.800002p+23f
+};
+
+#define RangeVal 0x49800000 /* asuint32(0x1p20f).  */
+
+static svfloat32_t NOINLINE
+special_case (svfloat32_t x, svfloat32_t y, svbool_t oob)
+{
+  return sv_call_f32 (cosf, x, y, oob);
 }
 
 /* A fast SVE implementation of cosf based on trigonometric
    instructions (FTMAD, FTSSEL, FTSMUL).
    Maximum measured error: 2.06 ULPs.
-   __sv_cosf(0x1.dea2f2p+19) got 0x1.fffe7ap-6
-			    want 0x1.fffe76p-6.  */
-sv_f32_t
-__sv_cosf_x (sv_f32_t x, const svbool_t pg)
+   SV_NAME_F1 (cos)(0x1.dea2f2p+19) got 0x1.fffe7ap-6
+				   want 0x1.fffe76p-6.  */
+svfloat32_t SV_NAME_F1 (cos) (svfloat32_t x, const svbool_t pg)
 {
-  sv_f32_t n, r, r2, y;
-  svbool_t cmp;
+  const struct data *d = ptr_barrier (&data);
 
-  r = sv_as_f32_u32 (svand_n_u32_x (pg, sv_as_u32_f32 (x), AbsMask));
-  cmp = svcmpge_u32 (pg, sv_as_u32_f32 (r), sv_as_u32_f32 (RangeVal));
+  svfloat32_t r = svabs_x (pg, x);
+  svbool_t oob = svcmpge (pg, svreinterpret_u32 (r), RangeVal);
+
+  /* Load some constants in quad-word chunks to minimise memory access.  */
+  svfloat32_t negpio2_and_invpio2 = svld1rq (svptrue_b32 (), &d->neg_pio2_1);
 
   /* n = rint(|x|/(pi/2)).  */
-  sv_f32_t q = sv_fma_f32_x (pg, InvPio2, r, Shift);
-  n = svsub_f32_x (pg, q, Shift);
+  svfloat32_t q = svmla_lane (sv_f32 (d->shift), r, negpio2_and_invpio2, 3);
+  svfloat32_t n = svsub_x (pg, q, d->shift);
 
   /* r = |x| - n*(pi/2)  (range reduction into -pi/4 .. pi/4).  */
-  r = sv_fma_f32_x (pg, NegPio2_1, n, r);
-  r = sv_fma_f32_x (pg, NegPio2_2, n, r);
-  r = sv_fma_f32_x (pg, NegPio2_3, n, r);
+  r = svmla_lane (r, n, negpio2_and_invpio2, 0);
+  r = svmla_lane (r, n, negpio2_and_invpio2, 1);
+  r = svmla_lane (r, n, negpio2_and_invpio2, 2);
 
   /* Final multiplicative factor: 1.0 or x depending on bit #0 of q.  */
-  sv_f32_t f = svtssel_f32 (r, sv_as_u32_f32 (q));
+  svfloat32_t f = svtssel (r, svreinterpret_u32 (q));
 
   /* cos(r) poly approx.  */
-  r2 = svtsmul_f32 (r, sv_as_u32_f32 (q));
-  y = sv_f32 (0.0f);
-  y = svtmad_f32 (y, r2, 4);
-  y = svtmad_f32 (y, r2, 3);
-  y = svtmad_f32 (y, r2, 2);
-  y = svtmad_f32 (y, r2, 1);
-  y = svtmad_f32 (y, r2, 0);
+  svfloat32_t r2 = svtsmul (r, svreinterpret_u32 (q));
+  svfloat32_t y = sv_f32 (0.0f);
+  y = svtmad (y, r2, 4);
+  y = svtmad (y, r2, 3);
+  y = svtmad (y, r2, 2);
+  y = svtmad (y, r2, 1);
+  y = svtmad (y, r2, 0);
 
+  if (unlikely (svptest_any (pg, oob)))
+    return special_case (x, svmul_x (svnot_z (pg, oob), f, y), oob);
   /* Apply factor.  */
-  y = svmul_f32_x (pg, f, y);
-
-  /* No need to pass pg to specialcase here since cmp is a strict subset,
-     guaranteed by the cmpge above.  */
-  if (unlikely (svptest_any (pg, cmp)))
-    return __sv_cosf_specialcase (x, y, cmp);
-  return y;
+  return svmul_x (pg, f, y);
 }
 
-PL_ALIAS (__sv_cosf_x, _ZGVsMxv_cosf)
-
 PL_SIG (SV, F, 1, cos, -3.1, 3.1)
-PL_TEST_ULP (__sv_cosf, 1.57)
-PL_TEST_INTERVAL (__sv_cosf, 0, 0xffff0000, 10000)
-PL_TEST_INTERVAL (__sv_cosf, 0x1p-4, 0x1p4, 500000)
-#endif
+PL_TEST_ULP (SV_NAME_F1 (cos), 1.57)
+PL_TEST_INTERVAL (SV_NAME_F1 (cos), 0, 0xffff0000, 10000)
+PL_TEST_INTERVAL (SV_NAME_F1 (cos), 0x1p-4, 0x1p4, 500000)

@@ -313,14 +313,10 @@ cmpifaddrs(struct ifaddrs *a, struct ifaddrs *b, struct ifa_queue *q)
 static void freeformat(void)
 {
 
-	if (f_inet != NULL)
-		free(f_inet);
-	if (f_inet6 != NULL)
-		free(f_inet6);
-	if (f_ether != NULL)
-		free(f_ether);
-	if (f_addr != NULL)
-		free(f_addr);
+	free(f_inet);
+	free(f_inet6);
+	free(f_ether);
+	free(f_addr);
 }
 
 static void setformat(char *input)
@@ -330,9 +326,18 @@ static void setformat(char *input)
 	formatstr = strdup(input);
 	while ((category = strsep(&formatstr, ",")) != NULL) {
 		modifier = strchr(category, ':');
-		if (modifier == NULL || modifier[1] == '\0') {
-			warnx("Skipping invalid format specification: %s\n",
-			    category);
+		if (modifier == NULL) {
+			if (strcmp(category, "default") == 0) {
+				freeformat();
+			} else if (strcmp(category, "cidr") == 0) {
+				free(f_inet);
+				f_inet = strdup(category);
+				free(f_inet6);
+				f_inet6 = strdup(category);
+			} else {
+				warnx("Skipping invalid format: %s\n",
+				    category);
+			}
 			continue;
 		}
 
@@ -340,14 +345,19 @@ static void setformat(char *input)
 		modifier[0] = '\0';
 		modifier++;
 
-		if (strcmp(category, "addr") == 0)
+		if (strcmp(category, "addr") == 0) {
+			free(f_addr);
 			f_addr = strdup(modifier);
-		else if (strcmp(category, "ether") == 0)
+		} else if (strcmp(category, "ether") == 0) {
+			free(f_ether);
 			f_ether = strdup(modifier);
-		else if (strcmp(category, "inet") == 0)
+		} else if (strcmp(category, "inet") == 0) {
+			free(f_inet);
 			f_inet = strdup(modifier);
-		else if (strcmp(category, "inet6") == 0)
+		} else if (strcmp(category, "inet6") == 0) {
+			free(f_inet6);
 			f_inet6 = strdup(modifier);
+		}
 	}
 	free(formatstr);
 }
@@ -611,8 +621,6 @@ main(int ac, char *av[])
 		.args = args,
 		.io_s = -1,
 	};
-
-	f_inet = f_inet6 = f_ether = f_addr = NULL;
 
 	lifh = ifconfig_open();
 	if (lifh == NULL)
@@ -1609,17 +1617,60 @@ unsetifdescr(if_ctx *ctx, const char *val __unused, int value __unused)
 
 #ifdef WITHOUT_NETLINK
 
-#define	IFFBITS \
-"\020\1UP\2BROADCAST\3DEBUG\4LOOPBACK\5POINTOPOINT\7RUNNING" \
-"\10NOARP\11PROMISC\12ALLMULTI\13OACTIVE\14SIMPLEX\15LINK0\16LINK1\17LINK2" \
-"\20MULTICAST\22PPROMISC\23MONITOR\24STATICARP\25STICKYARP"
+static const char *IFFBITS[] = {
+	[0]  = "UP",
+	[1]  = "BROADCAST",
+	[2]  = "DEBUG",
+	[3]  = "LOOPBACK",
+	[4]  = "POINTOPOINT",
+	[6]  = "RUNNING",
+	[7]  = "NOARP",
+	[8]  = "PROMISC",
+	[9]  = "ALLMULTI",
+	[10] = "OACTIVE",
+	[11] = "SIMPLEX",
+	[12] = "LINK0",
+	[13] = "LINK1",
+	[14] = "LINK2",
+	[15] = "MULTICAST",
+	[17] = "PPROMISC",
+	[18] = "MONITOR",
+	[19] = "STATICARP",
+	[20] = "STICKYARP",
+};
 
-#define	IFCAPBITS \
-"\020\1RXCSUM\2TXCSUM\3NETCONS\4VLAN_MTU\5VLAN_HWTAGGING\6JUMBO_MTU\7POLLING" \
-"\10VLAN_HWCSUM\11TSO4\12TSO6\13LRO\14WOL_UCAST\15WOL_MCAST\16WOL_MAGIC" \
-"\17TOE4\20TOE6\21VLAN_HWFILTER\23VLAN_HWTSO\24LINKSTATE\25NETMAP" \
-"\26RXCSUM_IPV6\27TXCSUM_IPV6\31TXRTLMT\32HWRXTSTMP\33NOMAP\34TXTLS4\35TXTLS6" \
-"\36VXLAN_HWCSUM\37VXLAN_HWTSO\40TXTLS_RTLMT"
+static const char *IFCAPBITS[] = {
+	[0]  = "RXCSUM",
+	[1]  = "TXCSUM",
+	[2]  = "NETCONS",
+	[3]  = "VLAN_MTU",
+	[4]  = "VLAN_HWTAGGING",
+	[5]  = "JUMBO_MTU",
+	[6]  = "POLLING",
+	[7]  = "VLAN_HWCSUM",
+	[8]  = "TSO4",
+	[9]  = "TSO6",
+	[10] = "LRO",
+	[11] = "WOL_UCAST",
+	[12] = "WOL_MCAST",
+	[13] = "WOL_MAGIC",
+	[14] = "TOE4",
+	[15] = "TOE6",
+	[16] = "VLAN_HWFILTER",
+	[18] = "VLAN_HWTSO",
+	[19] = "LINKSTATE",
+	[20] = "NETMAP",
+	[21] = "RXCSUM_IPV6",
+	[22] = "TXCSUM_IPV6",
+	[24] = "TXRTLMT",
+	[25] = "HWRXTSTMP",
+	[26] = "NOMAP",
+	[27] = "TXTLS4",
+	[28] = "TXTLS6",
+	[29] = "VXLAN_HWCSUM",
+	[30] = "VXLAN_HWTSO",
+	[31] = "TXTLS_RTLMT",
+};
 
 static void
 print_ifcap_nv(if_ctx *ctx)
@@ -1691,10 +1742,12 @@ print_ifcap(if_ctx *ctx)
 	if ((ifr.ifr_curcap & IFCAP_NV) != 0)
 		print_ifcap_nv(ctx);
 	else {
-		printb("\toptions", ifr.ifr_curcap, IFCAPBITS);
+		printf("\toptions=%x", ifr.ifr_curcap);
+		print_bits("options", &ifr.ifr_curcap, 1, IFCAPBITS, nitems(IFCAPBITS));
 		putchar('\n');
 		if (ctx->args->supmedia && ifr.ifr_reqcap != 0) {
-			printb("\tcapabilities", ifr.ifr_reqcap, IFCAPBITS);
+			printf("\tcapabilities=%x", ifr.ifr_reqcap);
+			print_bits("capabilities", &ifr.ifr_reqcap, 1, IFCAPBITS, nitems(IFCAPBITS));
 			putchar('\n');
 		}
 	}
@@ -1782,8 +1835,8 @@ status(if_ctx *ctx, const struct sockaddr_dl *sdl __unused, struct ifaddrs *ifa)
 	old_s = ctx->io_s;
 	ctx->io_s = s;
 
-	printf("%s: ", ctx->ifname);
-	printb("flags", ifa->ifa_flags, IFFBITS);
+	printf("%s: flags=%x", ctx->ifname, ifa->ifa_flags);
+	print_bits("flags", &ifa->ifa_flags, 1, IFFBITS, nitems(IFFBITS));
 	print_metric(ctx);
 	print_mtu(ctx);
 	putchar('\n');
@@ -1867,6 +1920,29 @@ void
 Perror(const char *cmd)
 {
 	Perrorc(cmd, errno);
+}
+
+void
+print_bits(const char *btype, uint32_t *v, const int v_count,
+    const char **names, const int n_count)
+{
+	int num = 0;
+
+	for (int i = 0; i < v_count * 32; i++) {
+		bool is_set = v[i / 32] & (1U << (i % 32));
+		if (is_set) {
+			if (num++ == 0)
+				printf("<");
+			if (num != 1)
+				printf(",");
+			if (i < n_count)
+				printf("%s", names[i]);
+			else
+				printf("%s_%d", btype, i);
+		}
+	}
+	if (num > 0)
+		printf(">");
 }
 
 /*

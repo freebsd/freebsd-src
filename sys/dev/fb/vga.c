@@ -2854,6 +2854,7 @@ get_palette(video_adapter_t *adp, int base, int count,
     u_char *r;
     u_char *g;
     u_char *b;
+    int error;
 
     if (count < 0 || base < 0 || count > 256 || base > 256 ||
 	base + count > 256)
@@ -2863,19 +2864,26 @@ get_palette(video_adapter_t *adp, int base, int count,
     g = r + count;
     b = g + count;
     if (vga_save_palette2(adp, base, count, r, g, b)) {
-	free(r, M_DEVBUF);
-	return ENODEV;
+	error = ENODEV;
+	goto out;
     }
-    copyout(r, red, count);
-    copyout(g, green, count);
-    copyout(b, blue, count);
+    error = copyout(r, red, count);
+    if (error != 0)
+	goto out;
+    error = copyout(g, green, count);
+    if (error != 0)
+	goto out;
+    error = copyout(b, blue, count);
+    if (error != 0)
+	goto out;
     if (trans != NULL) {
 	bzero(r, count);
-	copyout(r, trans, count);
+	error = copyout(r, trans, count);
     }
+out:
     free(r, M_DEVBUF);
 
-    return 0;
+    return error;
 }
 
 static int

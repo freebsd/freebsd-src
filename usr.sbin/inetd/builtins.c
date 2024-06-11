@@ -313,8 +313,8 @@ echo_stream(int s, struct servtab *sep)
 
 /* RFC 1413 says the following are the only errors you can return. */
 #define ID_INVALID	"INVALID-PORT"	/* Port number improperly specified. */
-#define ID_NOUSER	"NO-USER"	/* Port not in use/not identifable. */
-#define ID_HIDDEN	"HIDDEN-USER"	/* Hiden at user's request. */
+#define ID_NOUSER	"NO-USER"	/* Port not in use/not identifiable. */
+#define ID_HIDDEN	"HIDDEN-USER"	/* Hidden at user's request. */
 #define ID_UNKNOWN	"UNKNOWN-ERROR"	/* Everything else. */
 
 /* Generic ident_stream error-sending func */
@@ -405,7 +405,7 @@ ident_stream(int s, struct servtab *sep)
 				 * random number only when necessary.
 				 *
 				 * 32 bits from arc4random corresponds to
-				 * about 6 base-36 digits, so we reseed evey 6.
+				 * about 6 base-36 digits, so we reseed every 6.
 				 */
 				for (i = 0; i < sizeof(idbuf) - 1; i++) {
 					static const char *const base36 =

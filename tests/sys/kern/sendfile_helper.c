@@ -42,29 +42,73 @@
 #include <string.h>
 #include <unistd.h>
 
-static int ls;
 static char buf[1024*1024];
-static volatile bool accept_done = false;
+ssize_t readlen;
 static volatile bool read_done = false;
 
-static void *
-server(void *arg)
+static int
+tcp_socketpair(int *sv)
 {
-	struct sockaddr_in sin;
-	ssize_t rv;
-	socklen_t slen;
-	int ss;
-	ssize_t readlen = (uintptr_t)arg;
+	struct sockaddr_in sin = {
+		.sin_len = sizeof(struct sockaddr_in),
+		.sin_family = AF_INET,
+		.sin_addr.s_addr = htonl(INADDR_LOOPBACK),
+	};
+	int flags;
+	int ls;
 
-	slen = sizeof(sin);
-	ss = accept(ls, (void *)&sin, &slen);
-	if (ss < 0)
+	ls = socket(PF_INET, SOCK_STREAM, 0);
+	if (ls < 0)
+		err(1, "socket ls");
+
+	if (setsockopt(ls, SOL_SOCKET, SO_REUSEADDR, &(socklen_t){1},
+	    sizeof(int)) < 0)
+		err(1, "SO_REUSEADDR");
+
+	if (bind(ls, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+		err(1, "bind ls");
+
+	if (getsockname(ls, (struct sockaddr *)&sin,
+	    &(socklen_t){ sizeof(sin) }) < 0)
+		err(1, "getsockname");
+
+	if (listen(ls, 5) < 0)
+		err(1, "listen ls");
+
+	sv[0] = socket(PF_INET, SOCK_STREAM, 0);
+	if (sv[0] < 0)
+		err(1, "socket cs");
+
+	flags = fcntl(sv[0], F_GETFL);
+	flags |= O_NONBLOCK;
+	if (fcntl(sv[0], F_SETFL, flags) == -1)
+		err(1, "fcntl +O_NONBLOCK");
+
+	if (connect(sv[0], (void *)&sin, sizeof(sin)) != -1 ||
+	    errno != EINPROGRESS)
+		err(1, "connect cs");
+
+	sv[1] = accept(ls, NULL, 0);
+	if (sv[1] < 0)
 		err(1, "accept ls");
 
-	accept_done = true;
+	flags &= ~O_NONBLOCK;
+	if (fcntl(sv[0], F_SETFL, flags) == -1)
+		err(1, "fcntl -O_NONBLOCK");
+
+	close(ls);
+
+	return (0);
+}
+
+static void *
+receiver(void *arg)
+{
+	int s = *(int *)arg;
+	ssize_t rv;
 
 	do {
-		rv = read(ss, buf, sizeof(buf));
+		rv = read(s, buf, sizeof(buf));
 		if (rv == -1)
 			err(2, "read receiver");
 		if (rv == 0)
@@ -77,65 +121,53 @@ server(void *arg)
 	return NULL;
 }
 
+static void
+usage(void)
+{
+	errx(1, "usage: %s [-u] <file> <start> <len> <flags>", getprogname());
+}
+
 int
 main(int argc, char **argv)
 {
 	pthread_t pt;
-	struct sockaddr_in sin;
-	off_t start, len;
-	socklen_t slen;
-	int fd, cs, on, flags, error;
+	off_t start;
+	int ch, fd, ss[2], flags, error;
+	bool pf_unix = false;
 
-	if (argc != 5)
-		errx(1, "usage: %s <file> <start> <len> <flags>",
-		    getprogname());
+	while ((ch = getopt(argc, argv, "u")) != -1)
+		switch (ch) {
+		case 'u':
+			pf_unix = true;
+			break;
+		default:
+			usage();
+		}
+	argc -= optind;
+	argv += optind;
 
-	start = strtoull(argv[2], NULL, 0);
-	len = strtoull(argv[3], NULL, 0);
-	flags = strtoul(argv[4], NULL, 0);
+	if (argc != 4)
+		usage();
 
-	fd = open(argv[1], O_RDONLY);
+	start = strtoull(argv[1], NULL, 0);
+	readlen = strtoull(argv[2], NULL, 0);
+	flags = strtoul(argv[3], NULL, 0);
+
+	fd = open(argv[0], O_RDONLY);
 	if (fd < 0)
-		err(1, "open");		
+		err(1, "open");
 
-	ls = socket(PF_INET, SOCK_STREAM, 0);
-	if (ls < 0)
-		err(1, "socket ls");
+	if (pf_unix) {
+		if (socketpair(PF_LOCAL, SOCK_STREAM, 0, ss) != 0)
+			err(1, "socketpair");
+	} else
+		tcp_socketpair(ss);
 
-	on = 1;
-	if (setsockopt(ls, SOL_SOCKET, SO_REUSEADDR, (void *)&on,
-	    (socklen_t)sizeof(on)) < 0)
-		err(1, "SO_REUSEADDR");
-
-	sin.sin_len = sizeof(sin);
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	sin.sin_port = 0;
-	if (bind(ls, (void *)&sin, sizeof(sin)) < 0)
-		err(1, "bind ls");
-
-	slen = sizeof(sin);
-	if (getsockname(ls, (void *)&sin, &slen) < 0)
-		err(1, "getsockname");
-
-	if (listen(ls, 5) < 0)
-		err(1, "listen ls");
-
-	error = pthread_create(&pt, NULL, server, (void *)(uintptr_t)len);
+	error = pthread_create(&pt, NULL, receiver, &ss[1]);
 	if (error)
 		errc(1, error, "pthread_create");
 
-	cs = socket(PF_INET, SOCK_STREAM, 0);
-	if (cs < 0)
-		err(1, "socket cs");
-
-	if (connect(cs, (void *)&sin, sizeof(sin)) < 0)
-		err(1, "connect cs");
-
-	while (!accept_done)
-		usleep(1000);
-
-	if (sendfile(fd, cs, start, len, NULL, NULL, flags) < 0)
+	if (sendfile(fd, ss[0], start, readlen, NULL, NULL, flags) < 0)
 		err(3, "sendfile");
 
 	while (!read_done)

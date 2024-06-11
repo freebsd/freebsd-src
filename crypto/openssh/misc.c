@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.c,v 1.187 2023/08/28 03:31:16 djm Exp $ */
+/* $OpenBSD: misc.c,v 1.190 2024/03/04 02:16:11 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2005-2020 Damien Miller.  All rights reserved.
@@ -1249,7 +1249,7 @@ static char *
 vdollar_percent_expand(int *parseerror, int dollar, int percent,
     const char *string, va_list ap)
 {
-#define EXPAND_MAX_KEYS	16
+#define EXPAND_MAX_KEYS	64
 	u_int num_keys = 0, i;
 	struct {
 		const char *key;
@@ -2493,6 +2493,43 @@ format_absolute_time(uint64_t t, char *buf, size_t len)
 	strftime(buf, len, "%Y-%m-%dT%H:%M:%S", &tm);
 }
 
+/*
+ * Parse a "pattern=interval" clause (e.g. a ChannelTimeout).
+ * Returns 0 on success or non-zero on failure.
+ * Caller must free *typep.
+ */
+int
+parse_pattern_interval(const char *s, char **typep, int *secsp)
+{
+	char *cp, *sdup;
+	int secs;
+
+	if (typep != NULL)
+		*typep = NULL;
+	if (secsp != NULL)
+		*secsp = 0;
+	if (s == NULL)
+		return -1;
+	sdup = xstrdup(s);
+
+	if ((cp = strchr(sdup, '=')) == NULL || cp == sdup) {
+		free(sdup);
+		return -1;
+	}
+	*cp++ = '\0';
+	if ((secs = convtime(cp)) < 0) {
+		free(sdup);
+		return -1;
+	}
+	/* success */
+	if (typep != NULL)
+		*typep = xstrdup(sdup);
+	if (secsp != NULL)
+		*secsp = secs;
+	free(sdup);
+	return 0;
+}
+
 /* check if path is absolute */
 int
 path_absolute(const char *path)
@@ -2605,6 +2642,19 @@ opt_array_append(const char *file, const int line, const char *directive,
     char ***array, u_int *lp, const char *s)
 {
 	opt_array_append2(file, line, directive, array, NULL, lp, s, 0);
+}
+
+void
+opt_array_free2(char **array, int **iarray, u_int l)
+{
+	u_int i;
+
+	if (array == NULL || l == 0)
+		return;
+	for (i = 0; i < l; i++)
+		free(array[i]);
+	free(array);
+	free(iarray);
 }
 
 sshsig_t

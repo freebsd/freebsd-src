@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 24, 2022
+.Dd February 1, 2022
 .Dt UNIX 4
 .Os
 .Sh NAME
@@ -332,14 +332,6 @@ The
 and
 .Dv LOCAL_CREDS_PERSISTENT
 options are mutually exclusive.
-.It Dv LOCAL_CONNWAIT
-Used with
-.Dv SOCK_STREAM
-sockets, this option causes the
-.Xr connect 2
-function to block until
-.Xr accept 2
-has been called on the listening socket.
 .It Dv LOCAL_PEERCRED
 Requested via
 .Xr getsockopt 2

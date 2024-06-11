@@ -940,6 +940,21 @@ fail:
 
 #ifdef INET6
 int
+pf_max_frag_size(struct mbuf *m)
+{
+	struct m_tag *tag;
+	struct pf_fragment_tag *ftag;
+
+	tag = m_tag_find(m, PACKET_TAG_PF_REASSEMBLED, NULL);
+	if (tag == NULL)
+		return (m->m_pkthdr.len);
+
+	ftag = (struct pf_fragment_tag *)(tag + 1);
+
+	return (ftag->ft_maxlen);
+}
+
+int
 pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag,
     bool forward)
 {
@@ -1184,7 +1199,7 @@ pf_normalize_ip(struct mbuf **m0, struct pfi_kkif *kif, u_short *reason,
 	REASON_SET(reason, PFRES_FRAG);
  drop:
 	if (r != NULL && r->log)
-		PFLOG_PACKET(kif, m, AF_INET, *reason, r, NULL, NULL, pd, 1);
+		PFLOG_PACKET(kif, m, AF_INET, PF_DROP, *reason, r, NULL, NULL, pd, 1);
 
 	return (PF_DROP);
 }
@@ -1357,13 +1372,13 @@ again:
  shortpkt:
 	REASON_SET(reason, PFRES_SHORT);
 	if (r != NULL && r->log)
-		PFLOG_PACKET(kif, m, AF_INET6, *reason, r, NULL, NULL, pd, 1);
+		PFLOG_PACKET(kif, m, AF_INET6, PF_DROP, *reason, r, NULL, NULL, pd, 1);
 	return (PF_DROP);
 
  drop:
 	REASON_SET(reason, PFRES_NORM);
 	if (r != NULL && r->log)
-		PFLOG_PACKET(kif, m, AF_INET6, *reason, r, NULL, NULL, pd, 1);
+		PFLOG_PACKET(kif, m, AF_INET6, PF_DROP, *reason, r, NULL, NULL, pd, 1);
 	return (PF_DROP);
 }
 #endif /* INET6 */
@@ -1376,7 +1391,7 @@ pf_normalize_tcp(struct pfi_kkif *kif, struct mbuf *m, int ipoff,
 	struct tcphdr	*th = &pd->hdr.tcp;
 	int		 rewrite = 0;
 	u_short		 reason;
-	u_int8_t	 flags;
+	u_int16_t	 flags;
 	sa_family_t	 af = pd->af;
 	int		 srs;
 
@@ -1434,7 +1449,7 @@ pf_normalize_tcp(struct pfi_kkif *kif, struct mbuf *m, int ipoff,
 	if (rm && rm->rule_flag & PFRULE_REASSEMBLE_TCP)
 		pd->flags |= PFDESC_TCP_NORM;
 
-	flags = th->th_flags;
+	flags = tcp_get_flags(th);
 	if (flags & TH_SYN) {
 		/* Illegal packet */
 		if (flags & TH_RST)
@@ -1459,12 +1474,13 @@ pf_normalize_tcp(struct pfi_kkif *kif, struct mbuf *m, int ipoff,
 		goto tcp_drop;
 
 	/* If flags changed, or reserved data set, then adjust */
-	if (flags != th->th_flags || th->th_x2 != 0) {
+	if (flags != tcp_get_flags(th) ||
+	    (tcp_get_flags(th) & (TH_RES1|TH_RES2|TH_RES2)) != 0) {
 		u_int16_t	ov, nv;
 
 		ov = *(u_int16_t *)(&th->th_ack + 1);
-		th->th_flags = flags;
-		th->th_x2 = 0;
+		flags &= ~(TH_RES1 | TH_RES2 | TH_RES3);
+		tcp_set_flags(th, flags);
 		nv = *(u_int16_t *)(&th->th_ack + 1);
 
 		th->th_sum = pf_proto_cksum_fixup(m, th->th_sum, ov, nv, 0);
@@ -1488,7 +1504,7 @@ pf_normalize_tcp(struct pfi_kkif *kif, struct mbuf *m, int ipoff,
  tcp_drop:
 	REASON_SET(&reason, PFRES_NORM);
 	if (rm != NULL && r->log)
-		PFLOG_PACKET(kif, m, AF_INET, reason, r, NULL, NULL, pd, 1);
+		PFLOG_PACKET(kif, m, AF_INET, PF_DROP, reason, r, NULL, NULL, pd, 1);
 	return (PF_DROP);
 }
 
@@ -1744,7 +1760,7 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 	getmicrouptime(&uptime);
 	if (src->scrub && (src->scrub->pfss_flags & PFSS_PAWS) &&
 	    (uptime.tv_sec - src->scrub->pfss_last.tv_sec > TS_MAX_IDLE ||
-	    time_uptime - state->creation > TS_MAX_CONN))  {
+	    time_uptime - (state->creation / 1000) > TS_MAX_CONN))  {
 		if (V_pf_status.debug >= PF_DEBUG_MISC) {
 			DPFPRINTF(("src idled out of PAWS\n"));
 			pf_print_state(state);
@@ -2250,7 +2266,7 @@ pf_normalize_sctp(int dir, struct pfi_kkif *kif, struct mbuf *m, int ipoff,
 sctp_drop:
 	REASON_SET(&reason, PFRES_NORM);
 	if (rm != NULL && r->log)
-		PFLOG_PACKET(kif, m, AF_INET, reason, r, NULL, NULL, pd,
+		PFLOG_PACKET(kif, m, AF_INET, PF_DROP, reason, r, NULL, NULL, pd,
 		    1);
 
 	return (PF_DROP);

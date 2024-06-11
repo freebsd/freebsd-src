@@ -26,13 +26,21 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 5, 2023
+.Dd June 1, 2024
 .Dt SECURITY 7
 .Os
 .Sh NAME
 .Nm security
 .Nd introduction to security under FreeBSD
 .Sh DESCRIPTION
+See
+.Xr mitigations 7
+for a description of vulnerability mitigations in
+.Fx .
+This man page documents other
+.Fx
+security related topics.
+.Pp
 Security is a function that begins and ends with the system administrator.
 While all
 .Bx
@@ -1050,7 +1058,7 @@ Controls mitigation of Special Register Buffer Data Sampling versus
 optimization of the MCU access.
 When set to zero, the mitigation is disabled, and the RDSEED and RDRAND
 instructions do not incur serialization overhead for shared buffer accesses,
-and do not serialize off-core memory accessses.
+and do not serialize off-core memory accesses.
 .It Dv kern.elf32.aslr.enable
 Controls system-global Address Space Layout Randomization (ASLR) for
 normal non-PIE (Position Independent Executable) 32-bit ELF binaries.

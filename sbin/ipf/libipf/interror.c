@@ -144,7 +144,7 @@ static ipf_error_entry_t ipf_errors[IPF_NUM_ERRORS] = {
 	{	116,	"error copying in match array" },
 	{	117,	"match array type is not IPFOBJ_IPFEXPR" },
 	{	118,	"bad size for match array" },
-	{	119,	"cannot allocate memory for match aray" },
+	{	119,	"cannot allocate memory for match array" },
 	{	120,	"error copying in match array" },
 	{	121,	"error verifying contents of match array" },
 	{	122,	"need write permissions to set ipf lock status" },
@@ -527,7 +527,7 @@ find_error(int errnum)
 	ipf_error_entry_t *ie;
 
 	int l = -1, r = IPF_NUM_ERRORS + 1, step;
-	step = (r - l) / 2;;
+	step = (r - l) / 2;
 
 	while (step != 0) {
 		ie = ipf_errors + l + step;
@@ -538,7 +538,7 @@ find_error(int errnum)
 			r = step;
 		else
 			l = step;
-		step = (r - l) / 2;;
+		step = (r - l) / 2;
 	}
 
 	return (NULL);

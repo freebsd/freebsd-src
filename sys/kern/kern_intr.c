@@ -276,7 +276,7 @@ intr_event_update(struct intr_event *ie)
 }
 
 int
-intr_event_create(struct intr_event **event, void *source, int flags, int irq,
+intr_event_create(struct intr_event **event, void *source, int flags, u_int irq,
     void (*pre_ithread)(void *), void (*post_ithread)(void *),
     void (*post_filter)(void *), int (*assign_cpu)(void *, int),
     const char *fmt, ...)
@@ -443,10 +443,10 @@ intr_lookup(int irq)
 }
 
 int
-intr_setaffinity(int irq, int mode, void *m)
+intr_setaffinity(int irq, int mode, const void *m)
 {
 	struct intr_event *ie;
-	cpuset_t *mask;
+	const cpuset_t *mask;
 	int cpu, n;
 
 	mask = m;
@@ -1346,8 +1346,11 @@ ithread_loop(void *arg)
  *
  * Input:
  * o ie:                        the event connected to this interrupt.
- * o frame:                     some archs (i.e. i386) pass a frame to some.
- *                              handlers as their main argument.
+--------------------------------------------------------------------------------
+ * o frame:                     the current trap frame. If the client interrupt
+ *				handler needs this frame, they should get it
+ *				via curthread->td_intr_frame.
+ *
  * Return value:
  * o 0:                         everything ok.
  * o EINVAL:                    stray interrupt.
@@ -1374,9 +1377,6 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 
 	/*
 	 * Execute fast interrupt handlers directly.
-	 * To support clock handlers, if a handler registers
-	 * with a NULL argument, then we pass it a pointer to
-	 * a trapframe as its argument.
 	 */
 	td->td_intr_nesting_level++;
 	filter = false;
@@ -1405,12 +1405,8 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 			continue;
 		}
 		CTR4(KTR_INTR, "%s: exec %p(%p) for %s", __func__,
-		    ih->ih_filter, ih->ih_argument == NULL ? frame :
-		    ih->ih_argument, ih->ih_name);
-		if (ih->ih_argument == NULL)
-			ret = ih->ih_filter(frame);
-		else
-			ret = ih->ih_filter(ih->ih_argument);
+		    ih->ih_filter, ih->ih_argument, ih->ih_name);
+		ret = ih->ih_filter(ih->ih_argument);
 #ifdef HWPMC_HOOKS
 		PMC_SOFT_CALL_TF( , , intr, all, frame);
 #endif

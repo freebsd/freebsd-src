@@ -2,5 +2,5 @@
 : XY=undef_
 : AF=undef_
 : %D=undef_ %F=undef_
-: @D=._ @F=all_
+: @D=global-value_ @F=all_
 exit status 0

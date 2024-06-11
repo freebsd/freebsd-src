@@ -10,6 +10,104 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+8aac90f18aef:
+	new MAC/do policy and mdo(1) utility which enables a user to
+	become another user without the requirement of setuid root.
+
+7398d1ece5cf:
+	hw.snd.version is removed.
+
+a15f7c96a276,a8089ea5aee5:
+	NVMe over Fabrics controller.  The nvmft(4) kernel module adds
+	a new frontend to the CAM target layer which exports ctl(4)
+	LUNs as NVMe namespaces to remote hosts.  The nvmfd(8) daemon
+	is responsible for accepting incoming connection requests and
+	handing off connected queue pairs to nvmft(4).
+
+a1eda74167b5,1058c12197ab:
+	NVMe over Fabrics host.  New commands added to nvmecontrol(8)
+	to establish connections to remote controllers.  Once
+	connections are established they are handed off to the nvmf(4)
+	kernel module which creates nvmeX devices and exports remote
+	namespaces as nda(4) disks.
+
+25723d66369f:
+	As a side-effect of retiring the unit.* code in sound(4), the
+	hw.snd.maxunit loader(8) tunable is also retired.
+
+eeb04a736cb9:
+	date(1) now supports nanoseconds. For example:
+	`date -Ins` prints "2024-04-22T12:20:28,763742224+02:00" and
+	`date +%N` prints "415050400".
+
+6d5ce2bb6344:
+	The default value of the nfs_reserved_port_only rc.conf(5) setting has
+	changed.  The FreeBSD NFS server now requires the source port of
+	requests to be in the privileged port range (i.e., <= 1023), which
+	generally requires the client to have elevated privileges on their local
+	system.  The previous behavior can be restored by setting
+	nfs_reserved_port_only=NO in rc.conf.
+
+aea973501b19:
+	ktrace(2) will now record detailed information about capability mode
+	violations. The kdump(1) utility has been updated to display such
+	information.
+
+f32a6403d346:
+	One True Awk updated to 2nd Edition. See https://awk.dev for details
+	on the additions. Unicode and CSVs (Comma Separated Values) are now
+	supported.
+
+fe86d923f83f:
+	usbconfig(8) now reads the descriptions of the usb vendor and products
+	from usb.ids when available, similarly to what pciconf(8) does.
+
+4347ef60501f:
+	The powerd(8) utility is now enabled in /etc/rc.conf by default on
+	images for the arm64 Raspberry Pi's (arm64-aarch64-RPI img files).
+	This prevents the CPU clock from running slow all the time.
+
+0b49e504a32d:
+	rc.d/jail now supports the legacy variable jail_${jailname}_zfs_dataset
+	to allow unmaintained jail managers like ezjail to make use of this
+	feature (simply rename jail_${jailname}_zfs_datasets in the ezjail
+	config to jail_${jailname}_zfs_dataset.
+
+e0dfe185cbca:
+	jail(8) now support zfs.dataset to add a list of ZFS datasets to a
+        jail.
+
+61174ad88e33:
+	newsyslog(8) now supports specifying a global compression method directly
+	at the beginning of the newsyslog.conf file, which will make newsyslog(8)
+	to behave like the corresponding option was passed to the newly added
+	'-c' option. For example:
+
+	<compress> none
+
+906748d208d3:
+	newsyslog(8) now accepts a new option, '-c' which overrides all historical
+	compression flags by treating their meaning as "treat the file as compressible"
+	rather than "compress the file with that specific method."
+
+	The following choices are available:
+	 * none: Do not compress, regardless of flag.
+	 * legacy: Historical behavior (J=bzip2, X=xz, Y=zstd, Z=gzip).
+	 * bzip2, xz, zstd, gzip: apply the specified compression method.
+
+	We plan to change the default to 'none' in FreeBSD 15.0.
+
+1a878807006c:
+	This commit added some statistics collection to the NFS-over-TLS
+	code in the NFS server so that sysadmins can moditor usage.
+	The statistics are available via the kern.rpc.tls.* sysctls.
+
+7c5146da1286:
+	Mountd has been modified to use strunvis(3) to decode directory
+	names in exports(5) file(s).  This allows special characters,
+	such as blanks, to be embedded in the directory name(s).
+	"vis -M" may be used to encode such directory name(s).
+
 c5359e2af5ab:
 	bhyve(8) has a new network backend, "slirp", which makes use of the
 	libslirp package to provide a userspace network stack.  This backend

@@ -44,10 +44,10 @@
 #include <machine/resource.h>
 
 #include <dev/ahci/ahci.h>
-#include <dev/extres/clk/clk.h>
-#include <dev/extres/hwreset/hwreset.h>
-#include <dev/extres/phy/phy.h>
-#include <dev/extres/regulator/regulator.h>
+#include <dev/clk/clk.h>
+#include <dev/hwreset/hwreset.h>
+#include <dev/phy/phy.h>
+#include <dev/regulator/regulator.h>
 #include <dev/fdt/fdt_pinctrl.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -651,7 +651,7 @@ tegra_ahci_probe(device_t dev)
 	if (!ofw_bus_search_compatible(dev, compat_data)->ocd_data)
 		return (ENXIO);
 
-	device_set_desc_copy(dev, "AHCI SATA controller");
+	device_set_desc(dev, "AHCI SATA controller");
 	return (BUS_PROBE_DEFAULT);
 }
 

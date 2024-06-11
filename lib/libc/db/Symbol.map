@@ -16,7 +16,6 @@ FBSD_1.0 {
 	mpool_put;
 	mpool_close;
 	mpool_sync;
-	mpool_stat;
 };
 
 FBSD_1.1 {

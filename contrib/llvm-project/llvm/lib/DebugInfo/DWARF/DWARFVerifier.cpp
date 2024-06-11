@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 #include "llvm/DebugInfo/DWARF/DWARFVerifier.h"
 #include "llvm/ADT/IntervalMap.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/BinaryFormat/Dwarf.h"
 #include "llvm/DebugInfo/DWARF/DWARFAbbreviationDeclaration.h"
@@ -940,8 +941,13 @@ void DWARFVerifier::verifyDebugLineRows() {
         OS << '\n';
       }
 
-      // Verify file index.
-      if (!LineTable->hasFileAtIndex(Row.File)) {
+      // If the prologue contains no file names and the line table has only one
+      // row, do not verify the file index, this is a line table of an empty
+      // file with an end_sequence, but the DWARF standard sets the file number
+      // to 1 by default, otherwise verify file index.
+      if ((LineTable->Prologue.FileNames.size() ||
+           LineTable->Rows.size() != 1) &&
+          !LineTable->hasFileAtIndex(Row.File)) {
         ++NumDebugLineErrors;
         error() << ".debug_line["
                 << format("0x%08" PRIx64,
@@ -1267,6 +1273,20 @@ unsigned DWARFVerifier::verifyNameIndexAttribute(
           NI.getUnitOffset(), Abbr.Code, AttrEnc.Form, dwarf::DW_FORM_data8);
       return 1;
     }
+    return 0;
+  }
+
+  if (AttrEnc.Index == dwarf::DW_IDX_parent) {
+    constexpr static auto AllowedForms = {dwarf::Form::DW_FORM_flag_present,
+                                          dwarf::Form::DW_FORM_ref4};
+    if (!is_contained(AllowedForms, AttrEnc.Form)) {
+      error() << formatv("NameIndex @ {0:x}: Abbreviation {1:x}: DW_IDX_parent "
+                         "uses an unexpected form {2} (should be "
+                         "DW_FORM_ref4 or DW_FORM_flag_present).\n",
+                         NI.getUnitOffset(), Abbr.Code, AttrEnc.Form);
+      return 1;
+    }
+    return 0;
   }
 
   // A list of known index attributes and their expected form classes.
@@ -1281,7 +1301,6 @@ unsigned DWARFVerifier::verifyNameIndexAttribute(
       {dwarf::DW_IDX_compile_unit, DWARFFormValue::FC_Constant, {"constant"}},
       {dwarf::DW_IDX_type_unit, DWARFFormValue::FC_Constant, {"constant"}},
       {dwarf::DW_IDX_die_offset, DWARFFormValue::FC_Reference, {"reference"}},
-      {dwarf::DW_IDX_parent, DWARFFormValue::FC_Constant, {"constant"}},
   };
 
   ArrayRef<FormClassTable> TableRef(Table);
@@ -1351,12 +1370,34 @@ DWARFVerifier::verifyNameIndexAbbrevs(const DWARFDebugNames::NameIndex &NI) {
   return NumErrors;
 }
 
-static SmallVector<StringRef, 2> getNames(const DWARFDie &DIE,
-                                          bool IncludeLinkageName = true) {
-  SmallVector<StringRef, 2> Result;
-  if (const char *Str = DIE.getShortName())
-    Result.emplace_back(Str);
-  else if (DIE.getTag() == dwarf::DW_TAG_namespace)
+static SmallVector<std::string, 3> getNames(const DWARFDie &DIE,
+                                            bool IncludeStrippedTemplateNames,
+                                            bool IncludeObjCNames = true,
+                                            bool IncludeLinkageName = true) {
+  SmallVector<std::string, 3> Result;
+  if (const char *Str = DIE.getShortName()) {
+    StringRef Name(Str);
+    Result.emplace_back(Name);
+    if (IncludeStrippedTemplateNames) {
+      if (std::optional<StringRef> StrippedName =
+              StripTemplateParameters(Result.back()))
+        // Convert to std::string and push; emplacing the StringRef may trigger
+        // a vector resize which may destroy the StringRef memory.
+        Result.push_back(StrippedName->str());
+    }
+
+    if (IncludeObjCNames) {
+      if (std::optional<ObjCSelectorNames> ObjCNames =
+              getObjCNamesIfSelector(Name)) {
+        Result.emplace_back(ObjCNames->ClassName);
+        Result.emplace_back(ObjCNames->Selector);
+        if (ObjCNames->ClassNameNoCategory)
+          Result.emplace_back(*ObjCNames->ClassNameNoCategory);
+        if (ObjCNames->MethodNameNoCategory)
+          Result.push_back(std::move(*ObjCNames->MethodNameNoCategory));
+      }
+    }
+  } else if (DIE.getTag() == dwarf::DW_TAG_namespace)
     Result.emplace_back("(anonymous namespace)");
 
   if (IncludeLinkageName) {
@@ -1423,7 +1464,12 @@ unsigned DWARFVerifier::verifyNameIndexEntries(
       ++NumErrors;
     }
 
-    auto EntryNames = getNames(DIE);
+    // We allow an extra name for functions: their name without any template
+    // parameters.
+    auto IncludeStrippedTemplateNames =
+        DIE.getTag() == DW_TAG_subprogram ||
+        DIE.getTag() == DW_TAG_inlined_subroutine;
+    auto EntryNames = getNames(DIE, IncludeStrippedTemplateNames);
     if (!is_contained(EntryNames, Str)) {
       error() << formatv("Name Index @ {0:x}: Entry @ {1:x}: mismatched Name "
                          "of DIE @ {2:x}: index - {3}; debug_info - {4}.\n",
@@ -1496,7 +1542,12 @@ unsigned DWARFVerifier::verifyNameIndexCompleteness(
   // the linkage name."
   auto IncludeLinkageName = Die.getTag() == DW_TAG_subprogram ||
                             Die.getTag() == DW_TAG_inlined_subroutine;
-  auto EntryNames = getNames(Die, IncludeLinkageName);
+  // We *allow* stripped template names / ObjectiveC names as extra entries into
+  // the table, but we don't *require* them to pass the completeness test.
+  auto IncludeStrippedTemplateNames = false;
+  auto IncludeObjCNames = false;
+  auto EntryNames = getNames(Die, IncludeStrippedTemplateNames,
+                             IncludeObjCNames, IncludeLinkageName);
   if (EntryNames.empty())
     return 0;
 

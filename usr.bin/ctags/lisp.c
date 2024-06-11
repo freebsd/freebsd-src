@@ -44,7 +44,7 @@
 void
 l_entries(void)
 {
-	int	special;
+	bool	special;
 	char	*cp;
 	char	savedc;
 	char	tok[MAXTOKEN];
@@ -57,15 +57,15 @@ l_entries(void)
 		lbp = lbuf;
 		if (!cicmp("(def"))
 			continue;
-		special = NO;
+		special = false;
 		switch(*lbp | ' ') {
 		case 'm':
 			if (cicmp("method"))
-				special = YES;
+				special = true;
 			break;
 		case 'w':
 			if (cicmp("wrapper") || cicmp("whopper"))
-				special = YES;
+				special = true;
 		}
 		for (; !isspace(*lbp); ++lbp)
 			continue;

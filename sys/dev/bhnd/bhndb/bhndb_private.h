@@ -73,7 +73,7 @@ int				 bhndb_add_resource_region(
 				     const struct bhndb_regwin *static_regwin);
 
 int				 bhndb_find_resource_limits(
-				     struct bhndb_resources *br, int type,
+				     struct bhndb_resources *br,
 				     struct resource *r, rman_res_t *start,
 				     rman_res_t *end);
 

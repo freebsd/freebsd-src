@@ -12,6 +12,8 @@ name="ypserv"
 desc="NIS database server"
 rcvar="nis_server_enable"
 
+: ${ypserv_svcj_options:="net_basic"}
+
 load_rc_config $name
 
 command="/usr/sbin/${name}"

@@ -79,11 +79,11 @@ struct dctcp {
 	uint32_t num_cong_events; /* # of congestion events */
 };
 
-static void	dctcp_ack_received(struct cc_var *ccv, uint16_t type);
+static void	dctcp_ack_received(struct cc_var *ccv, ccsignal_t type);
 static void	dctcp_after_idle(struct cc_var *ccv);
 static void	dctcp_cb_destroy(struct cc_var *ccv);
 static int	dctcp_cb_init(struct cc_var *ccv, void *ptr);
-static void	dctcp_cong_signal(struct cc_var *ccv, uint32_t type);
+static void	dctcp_cong_signal(struct cc_var *ccv, ccsignal_t type);
 static void	dctcp_conn_init(struct cc_var *ccv);
 static void	dctcp_post_recovery(struct cc_var *ccv);
 static void	dctcp_ecnpkt_handler(struct cc_var *ccv);
@@ -104,7 +104,7 @@ struct cc_algo dctcp_cc_algo = {
 };
 
 static void
-dctcp_ack_received(struct cc_var *ccv, uint16_t type)
+dctcp_ack_received(struct cc_var *ccv, ccsignal_t type)
 {
 	struct dctcp *dctcp_data;
 	int bytes_acked = 0;
@@ -237,15 +237,15 @@ dctcp_cb_init(struct cc_var *ccv, void *ptr)
  * Perform any necessary tasks before we enter congestion recovery.
  */
 static void
-dctcp_cong_signal(struct cc_var *ccv, uint32_t type)
+dctcp_cong_signal(struct cc_var *ccv, ccsignal_t type)
 {
 	struct dctcp *dctcp_data;
-	u_int cwin, mss;
+	uint32_t cwin, mss, pipe;
 
 	if (CCV(ccv, t_flags2) & TF2_ECN_PERMIT) {
 		dctcp_data = ccv->cc_data;
 		cwin = CCV(ccv, snd_cwnd);
-		mss = tcp_maxseg(ccv->ccvc.tcp);
+		mss = tcp_fixed_maxseg(ccv->ccvc.tcp);
 
 		switch (type) {
 		case CC_NDUPACK:
@@ -292,13 +292,23 @@ dctcp_cong_signal(struct cc_var *ccv, uint32_t type)
 			dctcp_data->ece_curr = 1;
 			break;
 		case CC_RTO:
-			CCV(ccv, snd_ssthresh) = max(min(CCV(ccv, snd_wnd),
-							 CCV(ccv, snd_cwnd)) / 2 / mss,
-						     2) * mss;
+			if (CCV(ccv, t_rxtshift) == 1) {
+				if (V_tcp_do_newsack) {
+					pipe = tcp_compute_pipe(ccv->ccvc.tcp);
+				} else {
+					pipe = CCV(ccv, snd_max) -
+						CCV(ccv, snd_fack) +
+						CCV(ccv, sackhint.sack_bytes_rexmit);
+				}
+				CCV(ccv, snd_ssthresh) = max(2,
+					min(CCV(ccv, snd_wnd), pipe) / 2 / mss) * mss;
+			}
 			CCV(ccv, snd_cwnd) = mss;
 			dctcp_update_alpha(ccv);
 			dctcp_data->save_sndnxt += CCV(ccv, t_maxseg);
 			dctcp_data->num_cong_events++;
+			break;
+		default:
 			break;
 		}
 	} else

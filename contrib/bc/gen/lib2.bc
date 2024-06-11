@@ -34,10 +34,34 @@
  */
 
 define p(x,y){
-	auto a
+	auto a,i,s,z
+	if(y==0)return 1@scale
+	if(x==0){
+		if(y>0)return 0
+		return 1/0
+	}
 	a=y$
 	if(y==a)return(x^a)@scale
-	return e(y*l(x))
+	z=0
+	if(x<1){
+		y=-y
+		a=-a
+		z=x
+		x=1/x
+	}
+	if(y<0){
+		return e(y*l(x))
+	}
+	i=x^a
+	s=scale
+	scale+=length(i)+5
+	if(z){
+		x=1/z
+		i=x^a
+	}
+	i*=e((y-a)*l(x))
+	scale=s
+	return i@scale
 }
 define r(x,p){
 	auto t,n
@@ -65,6 +89,14 @@ define f(n){
 	n=abs(n)$
 	for(r=1;n>1;--n)r*=n
 	return r
+}
+define max(a,b){
+	if(a>b)return a
+	return b
+}
+define min(a,b){
+	if(a<b)return a
+	return b
 }
 define perm(n,k){
 	auto f,g,s
@@ -242,6 +274,15 @@ define frand(p){
 	return irand(A^p)>>p
 }
 define ifrand(i,p){return irand(abs(i)$)+frand(p)}
+define i2rand(a,b){
+	auto n,x
+	a=a$
+	b=b$
+	if(a==b)return a
+	n=min(a,b)
+	x=max(a,b)
+	return irand(x-n+1)+n
+}
 define srand(x){
 	if(irand(2))return -x
 	return x

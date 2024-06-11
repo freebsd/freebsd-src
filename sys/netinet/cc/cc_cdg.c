@@ -57,6 +57,7 @@
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/queue.h>
+#include <sys/prng.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
@@ -221,8 +222,8 @@ static int cdg_mod_destroy(void);
 static void cdg_conn_init(struct cc_var *ccv);
 static int cdg_cb_init(struct cc_var *ccv, void *ptr);
 static void cdg_cb_destroy(struct cc_var *ccv);
-static void cdg_cong_signal(struct cc_var *ccv, uint32_t signal_type);
-static void cdg_ack_received(struct cc_var *ccv, uint16_t ack_type);
+static void cdg_cong_signal(struct cc_var *ccv, ccsignal_t signal_type);
+static void cdg_ack_received(struct cc_var *ccv, ccsignal_t ack_type);
 static size_t cdg_data_sz(void);
 
 struct cc_algo cdg_cc_algo = {
@@ -450,11 +451,11 @@ cdg_window_increase(struct cc_var *ccv, int new_measurement)
 }
 
 static void
-cdg_cong_signal(struct cc_var *ccv, uint32_t signal_type)
+cdg_cong_signal(struct cc_var *ccv, ccsignal_t signal_type)
 {
 	struct cdg *cdg_data = ccv->cc_data;
 
-	switch(signal_type) {
+	switch((int)signal_type) {
 	case CC_CDG_DELAY:
 		CCV(ccv, snd_ssthresh) = cdg_window_decrease(ccv,
 		    CCV(ccv, snd_cwnd), V_cdg_beta_delay);
@@ -507,7 +508,8 @@ cdg_cong_signal(struct cc_var *ccv, uint32_t signal_type)
 static inline int
 prob_backoff(long qtrend)
 {
-	int backoff, idx, p;
+	int backoff, idx;
+	uint32_t p;
 
 	backoff = (qtrend > ((MAXGRAD * V_cdg_exp_backoff_scale) << D_P_E));
 
@@ -519,8 +521,8 @@ prob_backoff(long qtrend)
 			idx = qtrend;
 
 		/* Backoff probability proportional to rate of queue growth. */
-		p = (INT_MAX / (1 << EXP_PREC)) * probexp[idx];
-		backoff = (random() < p);
+		p = (UINT32_MAX / (1 << EXP_PREC)) * probexp[idx];
+		backoff = (prng32() < p);
 	}
 
 	return (backoff);
@@ -571,7 +573,7 @@ calc_moving_average(struct cdg *cdg_data, long qdiff_max, long qdiff_min)
 }
 
 static void
-cdg_ack_received(struct cc_var *ccv, uint16_t ack_type)
+cdg_ack_received(struct cc_var *ccv, ccsignal_t ack_type)
 {
 	struct cdg *cdg_data;
 	struct ertt *e_t;

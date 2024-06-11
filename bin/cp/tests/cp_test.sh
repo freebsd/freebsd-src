@@ -363,6 +363,35 @@ symlink_exists_force_body()
 	atf_check -o inline:"foo\n" readlink bar
 }
 
+atf_test_case directory_to_symlink
+directory_to_symlink_body()
+{
+	mkdir -p foo
+	ln -s .. foo/bar
+	mkdir bar
+	touch bar/baz
+	atf_check -s not-exit:0 -e match:"Not a directory" \
+	    cp -R bar foo
+	atf_check -s not-exit:0 -e match:"Not a directory" \
+	    cp -r bar foo
+}
+
+atf_test_case overwrite_directory
+overwrite_directory_body()
+{
+	mkdir -p foo/bar/baz
+	touch bar
+	atf_check -s not-exit:0 -e match:"Is a directory" \
+	    cp bar foo
+	rm bar
+	mkdir bar
+	touch bar/baz
+	atf_check -s not-exit:0 -e match:"Is a directory" \
+	    cp -R bar foo
+	atf_check -s not-exit:0 -e match:"Is a directory" \
+	    cp -r bar foo
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case basic
@@ -388,4 +417,6 @@ atf_init_test_cases()
 	atf_add_test_case symlink
 	atf_add_test_case symlink_exists
 	atf_add_test_case symlink_exists_force
+	atf_add_test_case directory_to_symlink
+	atf_add_test_case overwrite_directory
 }

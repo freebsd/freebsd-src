@@ -17,10 +17,8 @@ stop_cmd="_var_run_stop"
 
 load_rc_config $name
 
-# Set defaults
-: ${var_run_enable:="NO"}
-: ${var_run_mtree:="/var/db/mtree/BSD.var-run.mtree"}
-: ${var_run_autosave:="YES"}
+# doesn't make sense to run in a svcj: config setting
+var_run_svcj="NO"
 
 _var_run_load() {
 	test -f ${var_run_mtree} &&

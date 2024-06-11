@@ -212,6 +212,15 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 	    "use_gff_id", CTLFLAG_RWTUN, &fcp->isp_use_gff_id, 0,
 	    "Use GFF_ID during fabric scan");
+	SYSCTL_ADD_STRING(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	    "fw_version_flash", CTLFLAG_RD, fcp->fw_version_flash, 0,
+	    "Firmware version in (active) flash region");
+	SYSCTL_ADD_STRING(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	    "fw_version_ispfw", CTLFLAG_RD, fcp->fw_version_ispfw, 0,
+	    "Firmware version loaded from ispfw(4)");
+	SYSCTL_ADD_STRING(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	    "fw_version_run", CTLFLAG_RD, fcp->fw_version_run, 0,
+	    "Firmware version currently running");
 	return (0);
 }
 
@@ -1500,7 +1509,7 @@ isp_handle_srr_start(ispsoftc_t *isp, atio_private_data_t *atp)
 		 */
 		isp_prt(isp, ISP_LOGWARN, "Got an FCP DATA IN SRR- dropping");
 		goto fail;
-		
+
 	default:
 		isp_prt(isp, ISP_LOGWARN, "Got an unknown information (%x) SRR- dropping", inot->in_srr_iu);
 		goto fail;
@@ -2847,9 +2856,9 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 
 		lipp = ISP_READ(isp, OUTMAILBOX1);
 		fcp = FCPARAM(isp, bus);
-		
+
 		isp_prt(isp, ISP_LOGINFO, "Chan %d LOOP Reset, LIP primitive %x", bus, lipp);
-		/* 
+		/*
 		 * Per FCP-4, a Reset LIP should result in a CRN reset. Other
 		 * LIPs and loop up/down events should never reset the CRN. For
 		 * an as of yet unknown reason, 24xx series cards (and
@@ -2910,7 +2919,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		}
 		break;
 	case ISPASYNC_DEV_CHANGED:
-	case ISPASYNC_DEV_STAYED:		
+	case ISPASYNC_DEV_STAYED:
 	{
 		int crn_reset_done;
 
@@ -2925,7 +2934,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		if (cmd == ISPASYNC_DEV_CHANGED)
 			isp_prt(isp, ISP_LOGCONFIG, prom, bus, tgt, lp->port_wwn, lp->new_portid, lp->handle, buf, "changed");
 		else
-			isp_prt(isp, ISP_LOGCONFIG, prom, bus, tgt, lp->port_wwn, lp->portid, lp->handle, buf, "stayed");			
+			isp_prt(isp, ISP_LOGCONFIG, prom, bus, tgt, lp->port_wwn, lp->portid, lp->handle, buf, "stayed");
 
 		if (lp->is_target !=
 		    ((FCPARAM(isp, bus)->role & ISP_ROLE_INITIATOR) &&
@@ -3221,7 +3230,7 @@ isp_prt(ispsoftc_t *isp, int level, const char *fmt, ...)
 	snprintf(lbuf, sizeof (lbuf), "%s: ", device_get_nameunit(isp->isp_dev));
 	loc = strlen(lbuf);
 	va_start(ap, fmt);
-	vsnprintf(&lbuf[loc], sizeof (lbuf) - loc - 1, fmt, ap); 
+	vsnprintf(&lbuf[loc], sizeof (lbuf) - loc - 1, fmt, ap);
 	va_end(ap);
 	printf("%s\n", lbuf);
 }

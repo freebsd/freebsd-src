@@ -21,6 +21,7 @@
  */
 /*
  * Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2023 Domagoj Stolfa. All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -127,6 +128,11 @@ extern int dt_print_ustack(dtrace_hdl_t *, FILE *,
     const char *, caddr_t, uint64_t);
 extern int dt_print_mod(dtrace_hdl_t *, FILE *, const char *, caddr_t);
 extern int dt_print_umod(dtrace_hdl_t *, FILE *, const char *, caddr_t);
+
+extern int dt_format_stack(dtrace_hdl_t *, caddr_t, int, int);
+extern int dt_format_ustack(dtrace_hdl_t *, caddr_t, uint64_t);
+extern int dt_format_mod(dtrace_hdl_t *, caddr_t);
+extern int dt_format_umod(dtrace_hdl_t *, caddr_t);
 
 #ifdef	__cplusplus
 }

@@ -818,6 +818,7 @@ int	vn_vget_ino_gen(struct vnode *vp, vn_get_ino_t alloc,
 	    void *alloc_arg, int lkflags, struct vnode **rvp);
 int	vn_utimes_perm(struct vnode *vp, struct vattr *vap,
 	    struct ucred *cred, struct thread *td);
+int	vn_cmp(struct file *, struct file *, struct thread *td);
 
 int	vn_io_fault_uiomove(char *data, int xfersize, struct uio *uio);
 int	vn_io_fault_pgmove(vm_page_t ma[], vm_offset_t offset, int xfersize,
@@ -1080,7 +1081,14 @@ vrefcnt(struct vnode *vp)
 	vref(vp);							\
 } while (0)
 
+/*
+ * The caller doesn't know the file size and vnode_create_vobject() should
+ * determine the size on its own.
+ */
+#define	VNODE_NO_SIZE	((off_t)-1)
+
 int vnode_create_vobject(struct vnode *vp, off_t size, struct thread *td);
+int vnode_create_disk_vobject(struct vnode *vp, off_t size, struct thread *td);
 void vnode_destroy_vobject(struct vnode *vp);
 
 extern struct vop_vector fifo_specops;

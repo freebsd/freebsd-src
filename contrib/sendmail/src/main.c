@@ -326,9 +326,7 @@ main(argc, argv, envp)
 	V6LoopbackAddrFound = false;
 # endif
 #endif
-#if XDEBUG
 	checkfd012("after openlog");
-#endif
 
 	tTsetup(tTdvect, sizeof(tTdvect), "0-99.1,*_trace_*.1");
 
@@ -672,6 +670,11 @@ main(argc, argv, envp)
 		sm_dprintf("       OpenSSL: linked   0x%08x\n",
 			   (uint) TLS_version_num());
 	}
+#  if defined(LIBRESSL_VERSION_NUMBER)
+	if (tTd(0, 15))
+		sm_dprintf("       LibreSSL: compiled 0x%08x\n",
+			   (uint) LIBRESSL_VERSION_NUMBER);
+#  endif
 #endif /* STARTTLS */
 
 	/* clear sendmail's environment */
@@ -1276,9 +1279,7 @@ main(argc, argv, envp)
 	**	Extract special fields for local use.
 	*/
 
-#if XDEBUG
 	checkfd012("before readcf");
-#endif
 	vendor_pre_defaults(&BlankEnvelope);
 
 	readcf(getcfname(OpMode, SubmitMode, cftype, conffile),
@@ -1377,7 +1378,7 @@ main(argc, argv, envp)
 		makeworkgroups();
 
 #if USE_EAI
-	if (!SMTPUTF8 && MainEnvelope.e_smtputf8)
+	if (!SMTP_UTF8 && MainEnvelope.e_smtputf8)
 	{
 		usrerr("-U requires SMTPUTF8");
 		finis(false, true, EX_USAGE);
@@ -1507,8 +1508,8 @@ main(argc, argv, envp)
 		usrerr("Illegal body type %s", BlankEnvelope.e_bodytype);
 		BlankEnvelope.e_bodytype = NULL;
 	}
-	else if (i != BODYTYPE_NONE)
-		SevenBitInput = (i == BODYTYPE_7BIT);
+	else if (BODYTYPE_7BIT == i)
+		BlankEnvelope.e_flags |= EF_7BITBODY;
 
 	/* tweak default DSN notifications */
 	if (DefaultNotify == 0)
@@ -2014,9 +2015,7 @@ main(argc, argv, envp)
 	sm_sasl_init();
 #endif
 
-#if XDEBUG
 	checkfd012("before main() initmaps");
-#endif
 
 	/*
 	**  Do operation-mode-dependent initialization.
@@ -2625,7 +2624,6 @@ main(argc, argv, envp)
 		/* init TLS for server, ignore result for now */
 		(void) initsrvtls(tls_ok);
 #endif
-
 	nextreq:
 		p_flags = getrequests(&MainEnvelope);
 
@@ -2663,8 +2661,8 @@ main(argc, argv, envp)
 			authinfo = buf;
 			if (tTd(75, 9))
 				sm_syslog(LOG_INFO, NOQID,
-					"main: where=not_calling_getauthinfo, RealHostAddr=%s",
-					anynet_ntoa(&RealHostAddr));
+					"main: where=not_calling_getauthinfo, RealHostAddr=%s, RealHostName=%s",
+					anynet_ntoa(&RealHostAddr), RealHostName);
 		}
 		else
 		/* WARNING: "non-braced" else */
@@ -2818,7 +2816,7 @@ main(argc, argv, envp)
 			(MainEnvelope.e_smtputf8 = !asciistr(fromaddr))))
 	{
 		/* not very efficient: asciistr() may be called above already */
-		if (!SMTPUTF8 && !asciistr(fromaddr))
+		if (!SMTP_UTF8 && !asciistr(fromaddr))
 		{
 			usrerr("non-ASCII sender address %s requires SMTPUTF8",
 				fromaddr);
@@ -2879,7 +2877,8 @@ main(argc, argv, envp)
 
 		/* collect body for UUCP return */
 		if (OpMode != MD_VERIFY)
-			collect(InChannel, false, NULL, &MainEnvelope, true);
+			collect(InChannel, SMTPMODE_NO, NULL, &MainEnvelope,
+				true);
 		finis(true, true, EX_USAGE);
 		/* NOTREACHED */
 	}
@@ -2922,24 +2921,13 @@ main(argc, argv, envp)
 		int savederrors;
 		unsigned long savedflags;
 
-		/*
-		**  workaround for compiler warning on Irix:
-		**  do not initialize variable in the definition, but
-		**  later on:
-		**  warning(1548): transfer of control bypasses
-		**  initialization of:
-		**  variable "savederrors" (declared at line 2570)
-		**  variable "savedflags" (declared at line 2571)
-		**  goto giveup;
-		*/
-
 		savederrors = Errors;
 		savedflags = MainEnvelope.e_flags & EF_FATALERRS;
 		MainEnvelope.e_flags |= EF_GLOBALERRS;
 		MainEnvelope.e_flags &= ~EF_FATALERRS;
 		Errors = 0;
 		buffer_errors();
-		collect(InChannel, false, NULL, &MainEnvelope, true);
+		collect(InChannel, SMTPMODE_NO, NULL, &MainEnvelope, true);
 
 		/* header checks failed */
 		if (Errors > 0)
@@ -3285,6 +3273,10 @@ sigterm(sig)
 	FIX_SYSV_SIGNAL(sig, sigterm);
 	ShutdownRequest = "signal";
 	errno = save_errno;
+#if _FFR_DMTRIGGER
+	/* temporary? */
+	proc_list_signal(PROC_QM, sig);
+#endif
 	return SIGFUNC_RETURN;
 }
 /*
@@ -3427,7 +3419,7 @@ intsig(sig)
 **		none
 **
 **	Side Effects:
-**		Trys to insure that we are immune to vagaries of
+**		Try to insure that we are immune to vagaries of
 **		the controlling tty.
 */
 
@@ -3530,9 +3522,7 @@ disconnect(droplev, e)
 		errno = 0;
 	}
 
-#if XDEBUG
 	checkfd012("disconnect");
-#endif
 
 	if (LogLevel > 71)
 		sm_syslog(LOG_DEBUG, LOGID(e), "in background, pid=%d",
@@ -4219,6 +4209,10 @@ testmodeline(line, e)
 #if _FFR_8BITENVADDR
 	int len = sizeof(exbuf);
 #endif
+#if _FFR_TESTS
+	extern void t_hostsig __P((ADDRESS *, char *, MAILER *));
+	extern void t_parsehostsig __P((char *, MAILER *));
+#endif
 
 	/* skip leading spaces */
 	while (*line == ' ')
@@ -4226,6 +4220,7 @@ testmodeline(line, e)
 
 	lbp = NULL;
 	eightbit = false;
+	maps_reset_chged("testmodeline");
 	switch (line[0])
 	{
 	  case '#':
@@ -4376,7 +4371,36 @@ testmodeline(line, e)
 	  case '$':
 		if (line[1] == '=')
 		{
+#if _FFR_DYN_CLASS
+			MAP *dynmap;
+			STAB *st;
+#endif
+
 			mid = macid(&line[2]);
+#if _FFR_DYN_CLASS
+			if (mid != 0 &&
+			    (st = stab(macname(mid), ST_DYNMAP, ST_FIND)) != NULL)
+			{
+				dynmap = &st->s_dynclass;
+				q = dynmap->map_class->map_cname;
+				if (SM_IS_EMPTY(q))
+					q = "implicit";
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					"$=%s not possible for a dynamic class, use\n",
+					line + 2);
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					"makemap -u %s %s",
+					q, dynmap->map_file);
+				if (!SM_IS_EMPTY(dynmap->map_tag))
+				{
+					(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					" | grep -i '^%s:'",
+					dynmap->map_tag);
+				}
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "\n");
+				return;
+			}
+#endif
 			if (mid != 0)
 				stabapply(dump_class, mid);
 			return;
@@ -4435,7 +4459,7 @@ testmodeline(line, e)
 				return;
 			}
 			nmx = getmxrr(p, mxhosts, NULL, TRYFALLBACK, &rcode,
-				      NULL, -1);
+				      NULL, -1, NULL);
 			if (nmx == NULLMX)
 				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 						     "getmxrr(%s) returns null MX (See RFC7505)\n",
@@ -4626,7 +4650,11 @@ testmodeline(line, e)
 			macdefine(&e->e_macro, A_TEMP,
 				macid("{addr_type}"), exbuf);
 		}
-		else if (SM_STRCASEEQ(&line[1], "parse"))
+		else if (SM_STRCASEEQ(&line[1], "parse")
+#if _FFR_TESTS
+			 || SM_STRCASEEQ(&line[1], "hostsig")
+#endif
+			)
 		{
 			if (*p == '\0')
 			{
@@ -4653,11 +4681,20 @@ testmodeline(line, e)
 				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 						     "Cannot parse\n");
 			else if (a.q_host != NULL && a.q_host[0] != '\0')
-				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+			{
+#if _FFR_TESTS
+				if (SM_STRCASEEQ(&line[1], "hostsig"))
+					t_hostsig(&a, NULL, NULL);
+				else
+#endif /* _FFR_TESTS */
+				{
+					(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 						     "mailer %s, host %s, user %s\n",
 						     a.q_mailer->m_name,
 						     a.q_host,
 						     a.q_user);
+				}
+			}
 			else
 				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 						     "mailer %s, user %s\n",
@@ -4743,6 +4780,31 @@ testmodeline(line, e)
 				r = NULL;
 			}
 		}
+# if _FFR_TESTS
+		else if (SM_STRCASEEQ(&line[1], "hostsignature"))
+		{
+			STAB *st;
+			MAILER *m;
+
+			st = stab("esmtp", ST_MAILER, ST_FIND);
+			if (NULL == st)
+			{
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "Unknown mailer esmtp\n");
+				return;
+			}
+			m = st->s_mailer;
+			if (NULL == m)
+			{
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "Unknown mailer esmtp\n");
+				return;
+			}
+			t_hostsig(NULL, p, m);
+		}
+		else if (SM_STRCASEEQ(&line[1], "parsesig"))
+			t_parsehostsig(p, NULL);
+# endif /* _FFR_TESTS */
 #endif /* DANE */
 		else
 		{

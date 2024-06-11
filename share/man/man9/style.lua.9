@@ -44,14 +44,13 @@ is silent on an issue.
 The copyright header should be a series of single-line comments.
 Use the single-line comment style for every line in a multi-line comment.
 .Pp
-After any copyright header, there is a blank line, and the
-.Li $\&FreeBSD$
-comment for non-C/C++ source files.
+After any copyright header there is a blank line.
 .Pp
 The preferred method of including other files and modules is with
 .Fn require name ,
 such as:
 .Bd -literal
+-- License block
 
 config = require("config");
 menu = require("menu");

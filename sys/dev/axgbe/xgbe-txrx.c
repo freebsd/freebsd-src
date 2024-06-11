@@ -702,7 +702,7 @@ axgbe_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 	struct xgbe_packet_data *packet = &ring->packet_data;
 	struct xgbe_ring_data	*rdata;
 	unsigned int last, context_next, context;
-	unsigned int buf1_len, buf2_len, max_len, len = 0, prev_cur;
+	unsigned int buf1_len, buf2_len, len = 0, prev_cur;
 	int i = 0;
 
 	axgbe_printf(2, "%s: rxq %d cidx %d cur %d dirty %d\n", __func__,
@@ -767,11 +767,9 @@ read_again:
 		axgbe_printf(2, "%s: csum flags 0x%x\n", __func__, ri->iri_csum_flags);
 	}
 
-	max_len = if_getmtu(pdata->netdev) + ETH_HLEN;
 	if (XGMAC_GET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES, VLAN_CTAG)) {
 		ri->iri_flags |= M_VLANTAG;
 		ri->iri_vtag = packet->vlan_ctag;
-		max_len += VLAN_HLEN;
 		axgbe_printf(2, "%s: iri_flags 0x%x vtag 0x%x\n", __func__,
 		    ri->iri_flags, ri->iri_vtag);
 	}
@@ -787,9 +785,6 @@ read_again:
 
 	if (__predict_false(len == 0))
 		axgbe_printf(1, "%s: Discarding Zero len packet\n", __func__);
-
-	if (__predict_false(len > max_len))
-		axgbe_error("%s: Big packet %d/%d\n", __func__, len, max_len);
 
 	if (__predict_false(packet->errors))
 		axgbe_printf(1, "<-- %s: rxq: %d len: %d frags: %d cidx %d cur: %d "

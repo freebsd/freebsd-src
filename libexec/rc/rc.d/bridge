@@ -26,7 +26,7 @@
 
 # PROVIDE: bridge
 # REQUIRE: netif ppp stf
-# KEYWORD: nojail
+# KEYWORD: nojailvnet
 
 . /etc/rc.subr
 . /etc/network.subr
@@ -90,4 +90,8 @@ bridge_stop()
 iflist=$2
 
 load_rc_config $name
+
+# doesn't make sense to run in a svcj: config setting
+bridge_svcj="NO"
+
 run_rc_command "$1"

@@ -98,8 +98,6 @@ void vm_snapshot_buf_err(const char *bufname, const enum vm_snapshot_op op);
 int vm_snapshot_buf(void *data, size_t data_size,
     struct vm_snapshot_meta *meta);
 size_t vm_get_snapshot_size(struct vm_snapshot_meta *meta);
-int vm_snapshot_buf_cmp(void *data, size_t data_size,
-    struct vm_snapshot_meta *meta);
 
 #define	SNAPSHOT_BUF_OR_LEAVE(DATA, LEN, META, RES, LABEL)			\
 do {										\
@@ -112,6 +110,10 @@ do {										\
 
 #define	SNAPSHOT_VAR_OR_LEAVE(DATA, META, RES, LABEL)				\
 	SNAPSHOT_BUF_OR_LEAVE(&(DATA), sizeof(DATA), (META), (RES), LABEL)
+
+#ifndef _KERNEL
+int vm_snapshot_buf_cmp(void *data, size_t data_size,
+    struct vm_snapshot_meta *meta);
 
 /* compare the value in the meta buffer with the data */
 #define	SNAPSHOT_BUF_CMP_OR_LEAVE(DATA, LEN, META, RES, LABEL)			\
@@ -126,4 +128,5 @@ do {										\
 #define	SNAPSHOT_VAR_CMP_OR_LEAVE(DATA, META, RES, LABEL)			\
 	SNAPSHOT_BUF_CMP_OR_LEAVE(&(DATA), sizeof(DATA), (META), (RES), LABEL)
 
+#endif	/* _KERNEL */
 #endif

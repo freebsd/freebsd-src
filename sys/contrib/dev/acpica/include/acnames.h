@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -164,6 +164,7 @@
 #define METHOD_NAME__DDN        "_DDN"
 #define METHOD_NAME__DIS        "_DIS"
 #define METHOD_NAME__DMA        "_DMA"
+#define METHOD_NAME__EVT        "_EVT"
 #define METHOD_NAME__HID        "_HID"
 #define METHOD_NAME__INI        "_INI"
 #define METHOD_NAME__PLD        "_PLD"

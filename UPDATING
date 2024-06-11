@@ -27,6 +27,56 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20240428:
+	OpenBSM auditing runtime (auditd, etc.) has been moved into the new
+	package FreeBSD-audit.  If you use OpenBSM auditing and pkgbase, you
+	should install FreeBSD-audit.
+
+20240424:
+	cron, lpr, and ntpd have been moved from FreeBSD-utilities into their
+	own packages.  If you use pkgbase, you should install the relevant
+	packages: FreeBSD-cron, FreeBSD-lp, or FreeBSD-ntp.
+
+20240205:
+	For dynamically linked programs, system calls are now made from
+	libsys rather than libc.  No change in linkage is required as
+	libsys is an auxiliary filter for libc.  People building custom
+	images must ensure that libsys.so.7 is included.
+
+20240202:
+	Loader now also read configuration files listed in local_loader_conf_files.
+	Files listed here are the last ones read. And /boot/loader.conf.local was
+	moved from loader_conf_files to local_loader_conf_files leaving only
+	loader.conf and device.hints in loader_conf_files by default.
+
+	The following sequencing is applied:
+
+	1. Bootstrap:
+	    /boot/defaults/loader.conf
+
+	2. Read loader_conf_files files:
+	    /boot/device.hints
+	    /boot/loader.conf
+
+	3. Read loader_conf_dirs files:
+	    /boot/loader.conf.d/*.conf
+
+	4. And finally, rread local_loader_conf_files files:
+	    /boot/loader.conf.local
+
+20240201:
+	sendmail 8.18.1 has been imported and merged.  This version enforces
+	stricter RFC compliance by default, especially with respect to line
+	endings.  This may cause issues with receiving messages from
+	non-compliant MTAs; please see the first 8.18.1 release note in
+	contrib/sendmail/RELEASE_NOTES for mitigations.
+
+20240111:
+	Commit cc760de2183f changed the internal interface between
+	the nfscommon and nfscl modules.  As such, both need to be
+	rebuilt from sources.  Therefore, __FreeBSD_version was
+	bumped to 1500010.
+
 20231120:
 	If you have an arm64 system that uses ACPI, you will need to update your
 	loader.efi in the ESP when you update past this point.  Detection of ACPI

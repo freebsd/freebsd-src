@@ -407,12 +407,7 @@ local function loadModule(mod, silent)
 			end
 
 			if cli_execute_unparsed(str) ~= 0 then
-				-- XXX Temporary shim: don't break the boot if
-				-- loader hadn't been recompiled with this
-				-- function exposed.
-				if loader.command_error then
-					print(loader.command_error())
-				end
+				print(loader.command_error())
 				if not silent then
 					print("failed!")
 				end
@@ -630,8 +625,7 @@ function config.readConf(file, loaded_files)
 		return
 	end
 
-	-- We'll process loader_conf_dirs at the top-level readConf
-	local load_conf_dirs = next(loaded_files) == nil
+	local top_level = next(loaded_files) == nil -- Are we the top-level readConf?
 	print("Loading " .. file)
 
 	-- The final value of loader_conf_files is not important, so just
@@ -656,14 +650,40 @@ function config.readConf(file, loaded_files)
 		end
 	end
 
-	if load_conf_dirs then
+	if top_level then
 		local loader_conf_dirs = getEnv("loader_conf_dirs")
+
+		-- If product_vars is set, it must be a list of environment variable names
+		-- to walk through to guess product information. The order matters as
+		-- reading a config files override the previously defined values.
+		--
+		-- If product information can be guessed, for each product information
+		-- found, also read config files found in /boot/loader.conf.d/PRODUCT/.
+		local product_vars = getEnv("product_vars")
+		if product_vars then
+			local product_conf_dirs = ""
+			for var in product_vars:gmatch("%S+") do
+				local product = getEnv(var)
+				if product then
+					product_conf_dirs = product_conf_dirs .. " /boot/loader.conf.d/" .. product
+				end
+			end
+
+			if loader_conf_dirs then
+				loader_conf_dirs = loader_conf_dirs .. product_conf_dirs
+			else
+				loader_conf_dirs = product_conf_dirs
+			end
+		end
+
+		-- Process "loader_conf_dirs" extra-directories
 		if loader_conf_dirs ~= nil then
 			for name in loader_conf_dirs:gmatch("[%w%p]+") do
 				if lfs.attributes(name, "mode") ~= "directory" then
 					print(MSG_FAILDIR:format(name))
 					goto nextdir
 				end
+
 				for cfile in lfs.dir(name) do
 					if cfile:match(".conf$") then
 						local fpath = name .. "/" .. cfile
@@ -673,6 +693,15 @@ function config.readConf(file, loaded_files)
 					end
 				end
 				::nextdir::
+			end
+		end
+
+		-- Always allow overriding with local config files, e.g.,
+		-- /boot/loader.conf.local.
+		local local_loader_conf_files = getEnv("local_loader_conf_files")
+		if local_loader_conf_files then
+			for name in local_loader_conf_files:gmatch("[%w%p]+") do
+				config.readConf(name, loaded_files)
 			end
 		end
 	end

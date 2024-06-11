@@ -75,6 +75,7 @@ struct pfr_buffer;	/* forward definition */
 
 struct pfctl {
 	int dev;
+	struct pfctl_handle *h;
 	int opts;
 	int optimize;
 	int loadopt;
@@ -284,13 +285,13 @@ int	pfctl_add_pool(struct pfctl *, struct pfctl_pool *, sa_family_t);
 void	pfctl_move_pool(struct pfctl_pool *, struct pfctl_pool *);
 void	pfctl_clear_pool(struct pfctl_pool *);
 
-int	pfctl_set_timeout(struct pfctl *, const char *, int, int);
+int	pfctl_apply_timeout(struct pfctl *, const char *, int, int);
 int	pfctl_set_reassembly(struct pfctl *, int, int);
 int	pfctl_set_optimization(struct pfctl *, const char *);
-int	pfctl_set_limit(struct pfctl *, const char *, unsigned int);
+int	pfctl_apply_limit(struct pfctl *, const char *, unsigned int);
 int	pfctl_set_logif(struct pfctl *, char *);
 int	pfctl_set_hostid(struct pfctl *, u_int32_t);
-int	pfctl_set_debug(struct pfctl *, char *);
+int	pfctl_do_set_debug(struct pfctl *, char *);
 int	pfctl_set_interface_flags(struct pfctl *, char *, int, int);
 int	pfctl_cfg_syncookies(struct pfctl *, uint8_t, struct pfctl_watermarks *);
 

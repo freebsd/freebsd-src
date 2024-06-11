@@ -471,7 +471,7 @@ oce_read_mac_addr(POCE_SOFTC sc, uint32_t if_id,
 		goto error;
 	}
 
-	/* copy the mac addres in the output parameter */
+	/* copy the mac address in the output parameter */
 	mac->size_of_struct = fwcmd->params.rsp.mac.size_of_struct;
 	bcopy(&fwcmd->params.rsp.mac.mac_addr[0], &mac->mac_addr[0],
 		mac->size_of_struct);

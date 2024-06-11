@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
-#include "hornerf.h"
+#include "poly_scalar_f32.h"
 #include "math_config.h"
 #include "pl_sig.h"
 #include "pl_test.h"
@@ -19,8 +19,6 @@
   (0x1.644716p6) /* Smallest value of x for which expm1(x) overflows.  */
 #define NegLimit                                                               \
   (-0x1.9bbabcp+6) /* Largest value of x for which expm1(x) rounds to 1.  */
-
-#define C(i) __expm1f_poly[i]
 
 /* Approximation for exp(x) - 1 using polynomial on a reduced interval.
    The maximum error is 1.51 ULP:
@@ -62,7 +60,7 @@ expm1f (float x)
 	 x + ax^2 + bx^3 + cx^4 ....
      So we calculate the polynomial P(f) = a + bf + cf^2 + ...
      and assemble the approximation expm1(f) ~= f + f^2 * P(f).  */
-  float p = fmaf (f * f, HORNER_4 (f, C), f);
+  float p = fmaf (f * f, horner_4_f32 (f, __expm1f_poly), f);
   /* Assemble the result, using a slight rearrangement to achieve acceptable
      accuracy.
      expm1(x) ~= 2^i * (p + 1) - 1
@@ -74,7 +72,8 @@ expm1f (float x)
 
 PL_SIG (S, F, 1, expm1, -9.9, 9.9)
 PL_TEST_ULP (expm1f, 1.02)
-PL_TEST_INTERVAL (expm1f, 0, 0x1p-23, 1000)
-PL_TEST_INTERVAL (expm1f, -0, -0x1p-23, 1000)
+PL_TEST_SYM_INTERVAL (expm1f, 0, 0x1p-23, 1000)
 PL_TEST_INTERVAL (expm1f, 0x1p-23, 0x1.644716p6, 100000)
+PL_TEST_INTERVAL (expm1f, 0x1.644716p6, inf, 1000)
 PL_TEST_INTERVAL (expm1f, -0x1p-23, -0x1.9bbabcp+6, 100000)
+PL_TEST_INTERVAL (expm1f, -0x1.9bbabcp+6, -inf, 1000)

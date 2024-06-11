@@ -49,10 +49,8 @@
 #	The output, is a set of absolute paths with "SB" like:
 #.nf
 #
-#	$SB/obj-i386/bsd/gnu/lib/csu
-#	$SB/obj-i386/bsd/gnu/lib/libgcc
 #	$SB/obj-i386/bsd/include
-#	$SB/obj-i386/bsd/lib/csu/i386-elf
+#	$SB/obj-i386/bsd/lib/csu/i386
 #	$SB/obj-i386/bsd/lib/libc
 #	$SB/src/bsd/include
 #	$SB/src/bsd/sys/i386/include
@@ -77,8 +75,10 @@
 
 
 # RCSid:
-#	$Id: meta2deps.sh,v 1.20 2023/01/18 01:35:24 sjg Exp $
+#	$Id: meta2deps.sh,v 1.21 2024/02/17 17:26:57 sjg Exp $
 
+# SPDX-License-Identifier: BSD-2-Clause
+#
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
 #

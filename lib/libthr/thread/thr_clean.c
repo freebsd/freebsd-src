@@ -30,7 +30,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "namespace.h"
 #include <signal.h>
 #include <errno.h>

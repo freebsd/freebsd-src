@@ -170,8 +170,7 @@ ofwbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 }
 
 static int
-ofwbus_release_resource(device_t bus, device_t child, int type,
-    int rid, struct resource *r)
+ofwbus_release_resource(device_t bus, device_t child, struct resource *r)
 {
 	struct resource_list_entry *rle;
 	bool passthrough;
@@ -180,11 +179,11 @@ ofwbus_release_resource(device_t bus, device_t child, int type,
 	if (!passthrough) {
 		/* Clean resource list entry */
 		rle = resource_list_find(BUS_GET_RESOURCE_LIST(bus, child),
-		    type, rid);
+		    rman_get_type(r), rman_get_rid(r));
 		if (rle != NULL)
 			rle->res = NULL;
 	}
 
 	/* Let nexus handle the release. */
-	return (bus_generic_release_resource(bus, child, type, rid, r));
+	return (bus_generic_release_resource(bus, child, r));
 }

@@ -269,10 +269,10 @@ fuse_internal_cache_attrs(struct vnode *vp, struct fuse_attr *attr,
 
 	if (vnode_isreg(vp) &&
 	    fvdat->cached_attrs.va_size != VNOVAL &&
+	    fvdat->flag & FN_SIZECHANGE &&
 	    attr->size != fvdat->cached_attrs.va_size)
 	{
-		if ( data->cache_mode == FUSE_CACHE_WB &&
-		    fvdat->flag & FN_SIZECHANGE)
+		if (data->cache_mode == FUSE_CACHE_WB)
 		{
 			const char *msg;
 
@@ -325,7 +325,6 @@ fuse_internal_cache_attrs(struct vnode *vp, struct fuse_attr *attr,
 	else
 		return;
 
-	vattr_null(vp_cache_at);
 	vp_cache_at->va_fsid = mp->mnt_stat.f_fsid.val[0];
 	vp_cache_at->va_fileid = attr->ino;
 	vp_cache_at->va_mode = attr->mode & ~S_IFMT;
@@ -996,7 +995,7 @@ fuse_internal_init_callback(struct fuse_ticket *tick, struct uio *uio)
 		 * But there would be little payoff.
 		 */
 		SDT_PROBE2(fusefs, , internal, trace, 1,
-			"userpace version too low");
+			"userspace version too low");
 		err = EPROTONOSUPPORT;
 		goto out;
 	}

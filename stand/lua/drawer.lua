@@ -47,6 +47,19 @@ local frame_size
 local default_shift
 local shift
 
+-- Make this code compatible with older loader binaries. We moved the term_*
+-- functions from loader to the gfx. if we're running on an older loader that
+-- has these functions, create aliases for them in gfx. The loader binary might
+-- be so old as to not have them, but in that case, we want to copy the nil
+-- values. The new loader will provide loader.* versions of all the gfx.*
+-- functions for backwards compatibility, so we only define the functions we use
+-- here.
+if gfx == nil then
+	gfx = {}
+	gfx.term_drawrect = loader.term_drawrect
+	gfx.term_putimage = loader.term_putimage
+end
+
 local function menuEntryName(drawing_menu, entry)
 	local name_handler = menu_name_handlers[entry.entry_type]
 
@@ -225,8 +238,8 @@ local function drawframe()
 	x = x + shift.x
 	y = y + shift.y
 
-	if core.isFramebufferConsole() and loader.term_drawrect ~= nil then
-		loader.term_drawrect(x, y, x + w, y + h)
+	if core.isFramebufferConsole() and gfx.term_drawrect ~= nil then
+		gfx.term_drawrect(x, y, x + w, y + h)
 		return true
 	end
 
@@ -312,9 +325,9 @@ local function drawbrand()
 	end
 
 	if core.isFramebufferConsole() and
-	    loader.term_putimage ~= nil and
+	    gfx.term_putimage ~= nil and
 	    branddef.image ~= nil then
-		if loader.term_putimage(branddef.image, 1, 1, 0, 7, 0)
+		if gfx.term_putimage(branddef.image, 1, 1, 0, 7, 0)
 		then
 			return true
 		end
@@ -363,14 +376,14 @@ local function drawlogo()
 	end
 
 	if core.isFramebufferConsole() and
-	    loader.term_putimage ~= nil and
+	    gfx.term_putimage ~= nil and
 	    logodef.image ~= nil then
 		local y1 = 15
 
 		if logodef.image_rl ~= nil then
 			y1 = logodef.image_rl
 		end
-		if loader.term_putimage(logodef.image, x, y, 0, y + y1, 0)
+		if gfx.term_putimage(logodef.image, x, y, 0, y + y1, 0)
 		then
 			return true
 		end

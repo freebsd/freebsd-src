@@ -148,7 +148,7 @@ typedef struct _CpaDcBatchOpData  {
  *
  * @pre
  *      pSessionHandle has been setup using cpaDcInitSession()
- *      Session must be setup as a stateless sesssion.
+ *      Session must be setup as a stateless session.
  * @note
  *     This function passes control to the compression service for processing
  *

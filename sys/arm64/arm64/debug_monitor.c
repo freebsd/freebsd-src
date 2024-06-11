@@ -40,11 +40,14 @@
 #include <machine/armreg.h>
 #include <machine/cpu.h>
 #include <machine/debug_monitor.h>
+#include <machine/machdep.h>
 #include <machine/kdb.h>
 #include <machine/pcb.h>
 
 #ifdef DDB
+#include <vm/vm.h>
 #include <ddb/ddb.h>
+#include <ddb/db_break.h>
 #include <ddb/db_sym.h>
 #endif
 
@@ -59,6 +62,10 @@ static struct debug_monitor_state kernel_monitor = {
 	.dbg_flags = DBGMON_KERNEL
 };
 
+static int dbg_setup_breakpoint(struct debug_monitor_state *monitor,
+    vm_offset_t addr);
+static int dbg_remove_breakpoint(struct debug_monitor_state *monitor,
+    vm_offset_t addr);
 static int dbg_setup_watchpoint(struct debug_monitor_state *, vm_offset_t,
     vm_size_t, enum dbg_access_t);
 static int dbg_remove_watchpoint(struct debug_monitor_state *, vm_offset_t,
@@ -80,6 +87,7 @@ void dbg_monitor_exit(struct thread *, struct trapframe *);
 #define DBG_WATCH_CTRL_ACCESS_MASK(x)	((x) & (0x3 << 3))
 
 /* Common for breakpoint and watchpoint */
+#define DBG_WB_CTRL_HMC		(0x1 << 13)
 #define DBG_WB_CTRL_EL1		(0x1 << 1)
 #define DBG_WB_CTRL_EL0		(0x2 << 1)
 #define DBG_WB_CTRL_ELX_MASK(x)	((x) & (0x3 << 1))
@@ -185,6 +193,18 @@ dbg_wb_write_reg(int reg, int n, uint64_t val)
 }
 
 #if defined(DDB) || defined(GDB)
+int
+kdb_cpu_set_breakpoint(vm_offset_t addr)
+{
+	return (dbg_setup_breakpoint(NULL, addr));
+}
+
+int
+kdb_cpu_clr_breakpoint(vm_offset_t addr)
+{
+	return (dbg_remove_breakpoint(NULL, addr));
+}
+
 void
 kdb_cpu_set_singlestep(void)
 {
@@ -193,6 +213,15 @@ kdb_cpu_set_singlestep(void)
 	    ("%s: debug exceptions are not masked", __func__));
 
 	kdb_frame->tf_spsr |= PSR_SS;
+
+	/*
+	 * TODO: Handle single stepping over instructions that access
+	 * the DAIF values. On a read the value will be incorrect.
+	 */
+	kernel_monitor.dbg_flags &= ~PSR_DAIF;
+	kernel_monitor.dbg_flags |= kdb_frame->tf_spsr & PSR_DAIF;
+	kdb_frame->tf_spsr |= (PSR_A | PSR_I | PSR_F);
+
 	WRITE_SPECIALREG(mdscr_el1, READ_SPECIALREG(mdscr_el1) |
 	    MDSCR_SS | MDSCR_KDE);
 
@@ -213,6 +242,9 @@ kdb_cpu_clear_singlestep(void)
 
 	KASSERT((READ_SPECIALREG(daif) & PSR_D) == PSR_D,
 	    ("%s: debug exceptions are not masked", __func__));
+
+	kdb_frame->tf_spsr &= ~PSR_DAIF;
+	kdb_frame->tf_spsr |= kernel_monitor.dbg_flags & PSR_DAIF;
 
 	WRITE_SPECIALREG(mdscr_el1, READ_SPECIALREG(mdscr_el1) &
 	    ~(MDSCR_SS | MDSCR_KDE));
@@ -260,6 +292,33 @@ kdb_cpu_clr_watchpoint(vm_offset_t addr, vm_size_t size)
 #endif /* DDB || GDB */
 
 #ifdef DDB
+void
+dbg_show_breakpoint(void)
+{
+	db_breakpoint_t bkpt;
+	uint32_t bcr;
+	uint64_t addr;
+	int i;
+
+	db_printf("\nhardware breakpoints:\n");
+	db_printf("  break    status  count             address              symbol\n");
+	db_printf("  -----  --------  -----  ------------------  ------------------\n");
+	for (i = 0; i < dbg_breakpoint_num; i++) {
+		bcr = dbg_wb_read_reg(DBG_REG_BASE_BCR, i);
+		if ((bcr & DBG_WB_CTRL_E) != 0) {
+			addr = dbg_wb_read_reg(DBG_REG_BASE_BVR, i);
+			bkpt = db_find_breakpoint_here(addr);
+			db_printf("  %-5d  %-8s  %-5d  0x%16lx  ",
+			    i, "enabled", bkpt == NULL ? -1 : bkpt->count,
+			    addr);
+			db_printsym((db_addr_t)addr, DB_STGY_ANY);
+			db_printf("\n");
+		} else {
+			db_printf("  %-5d  disabled\n", i);
+		}
+	}
+}
+
 static const char *
 dbg_watchtype_str(uint32_t type)
 {
@@ -383,6 +442,62 @@ dbg_find_slot(struct debug_monitor_state *monitor, enum dbg_t type,
 }
 
 static int
+dbg_setup_breakpoint(struct debug_monitor_state *monitor, vm_offset_t addr)
+{
+	uint64_t bcr_priv;
+	u_int i;
+
+	if (monitor == NULL)
+		monitor = &kernel_monitor;
+
+	i = dbg_find_free_slot(monitor, DBG_TYPE_BREAKPOINT);
+	if (i == -1) {
+		printf("Can not find slot for breakpoint, max %d"
+		    " breakpoints supported\n", dbg_breakpoint_num);
+		return (EBUSY);
+	}
+
+	if ((monitor->dbg_flags & DBGMON_KERNEL) == 0)
+		bcr_priv = DBG_WB_CTRL_EL0;
+	else if (in_vhe())
+		bcr_priv = DBG_WB_CTRL_EL1 | DBG_WB_CTRL_HMC;
+	else
+		bcr_priv = DBG_WB_CTRL_EL1;
+
+	monitor->dbg_bvr[i] = addr;
+	monitor->dbg_bcr[i] = (0xf << 5) | bcr_priv | DBG_WB_CTRL_E;
+	monitor->dbg_enable_count++;
+	monitor->dbg_flags |= DBGMON_ENABLED;
+	dbg_register_sync(monitor);
+
+	return (0);
+}
+
+static int
+dbg_remove_breakpoint(struct debug_monitor_state *monitor, vm_offset_t addr)
+{
+	u_int i;
+
+	if (monitor == NULL)
+		monitor = &kernel_monitor;
+
+	i = dbg_find_slot(monitor, DBG_TYPE_BREAKPOINT, addr);
+	if (i == -1) {
+		printf("Can not find breakpoint for address 0%lx\n", addr);
+		return (i);
+	}
+
+	monitor->dbg_bvr[i] = 0;
+	monitor->dbg_bcr[i] = 0;
+	monitor->dbg_enable_count--;
+	if (monitor->dbg_enable_count == 0)
+		monitor->dbg_flags &= ~DBGMON_ENABLED;
+	dbg_register_sync(monitor);
+
+	return (0);
+}
+
+static int
 dbg_setup_watchpoint(struct debug_monitor_state *monitor, vm_offset_t addr,
     vm_size_t size, enum dbg_access_t access)
 {
@@ -419,6 +534,8 @@ dbg_setup_watchpoint(struct debug_monitor_state *monitor, vm_offset_t addr,
 
 	if ((monitor->dbg_flags & DBGMON_KERNEL) == 0)
 		wcr_priv = DBG_WB_CTRL_EL0;
+	else if (in_vhe())
+		wcr_priv = DBG_WB_CTRL_EL1 | DBG_WB_CTRL_HMC;
 	else
 		wcr_priv = DBG_WB_CTRL_EL1;
 
@@ -483,23 +600,24 @@ dbg_register_sync(struct debug_monitor_state *monitor)
 	if (monitor == NULL)
 		monitor = &kernel_monitor;
 
+	for (i = 0; i < dbg_breakpoint_num; i++) {
+		dbg_wb_write_reg(DBG_REG_BASE_BCR, i,
+		    monitor->dbg_bcr[i]);
+		dbg_wb_write_reg(DBG_REG_BASE_BVR, i,
+		    monitor->dbg_bvr[i]);
+	}
+
+	for (i = 0; i < dbg_watchpoint_num; i++) {
+		dbg_wb_write_reg(DBG_REG_BASE_WCR, i,
+		    monitor->dbg_wcr[i]);
+		dbg_wb_write_reg(DBG_REG_BASE_WVR, i,
+		    monitor->dbg_wvr[i]);
+	}
+
 	mdscr = READ_SPECIALREG(mdscr_el1);
 	if ((monitor->dbg_flags & DBGMON_ENABLED) == 0) {
 		mdscr &= ~(MDSCR_MDE | MDSCR_KDE);
 	} else {
-		for (i = 0; i < dbg_breakpoint_num; i++) {
-			dbg_wb_write_reg(DBG_REG_BASE_BCR, i,
-			    monitor->dbg_bcr[i]);
-			dbg_wb_write_reg(DBG_REG_BASE_BVR, i,
-			    monitor->dbg_bvr[i]);
-		}
-
-		for (i = 0; i < dbg_watchpoint_num; i++) {
-			dbg_wb_write_reg(DBG_REG_BASE_WCR, i,
-			    monitor->dbg_wcr[i]);
-			dbg_wb_write_reg(DBG_REG_BASE_WVR, i,
-			    monitor->dbg_wvr[i]);
-		}
 		mdscr |= MDSCR_MDE;
 		if ((monitor->dbg_flags & DBGMON_KERNEL) == DBGMON_KERNEL)
 			mdscr |= MDSCR_KDE;

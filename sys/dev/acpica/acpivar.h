@@ -55,7 +55,6 @@ struct acpi_softc {
     int			acpi_enabled;
     int			acpi_sstate;
     int			acpi_sleep_disabled;
-    int			acpi_resources_reserved;
 
     struct sysctl_ctx_list acpi_sysctl_ctx;
     struct sysctl_oid	*acpi_sysctl_tree;
@@ -79,6 +78,9 @@ struct acpi_softc {
     struct apm_clone_data *acpi_clone;		/* Pseudo-dev for devd(8). */
     STAILQ_HEAD(,apm_clone_data) apm_cdevs;	/* All apm/apmctl/acpi cdevs. */
     struct callout	susp_force_to;		/* Force suspend if no acks. */
+
+    /* System Resources */
+    struct resource_list sysres_rl;
 };
 
 struct acpi_device {
@@ -439,9 +441,6 @@ ACPI_STATUS	acpi_lookup_irq_resource(device_t dev, int rid,
 		    struct resource *res, ACPI_RESOURCE *acpi_res);
 ACPI_STATUS	acpi_parse_resources(device_t dev, ACPI_HANDLE handle,
 		    struct acpi_parse_resource_set *set, void *arg);
-struct resource *acpi_alloc_sysres(device_t child, int type, int *rid,
-		    rman_res_t start, rman_res_t end, rman_res_t count,
-		    u_int flags);
 
 /* ACPI event handling */
 UINT32		acpi_event_power_button_sleep(void *context);
@@ -463,8 +462,7 @@ EVENTHANDLER_DECLARE(acpi_video_event, acpi_event_handler_t);
 /* Device power control. */
 ACPI_STATUS	acpi_pwr_wake_enable(ACPI_HANDLE consumer, int enable);
 ACPI_STATUS	acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state);
-int		acpi_device_pwr_for_sleep(device_t bus, device_t dev,
-		    int *dstate);
+acpi_pwr_for_sleep_t	acpi_device_pwr_for_sleep;
 int		acpi_set_powerstate(device_t child, int state);
 
 /* APM emulation */
@@ -579,9 +577,8 @@ int		acpi_pxm_get_cpu_locality(int apic_id);
  * Returns the VM domain ID if found, or -1 if not found / invalid.
  */
 int		acpi_map_pxm_to_vm_domainid(int pxm);
-int		acpi_get_cpus(device_t dev, device_t child, enum cpu_sets op,
-		    size_t setsize, cpuset_t *cpuset);
-int		acpi_get_domain(device_t dev, device_t child, int *domain);
+bus_get_cpus_t		acpi_get_cpus;
+bus_get_domain_t	acpi_get_domain;
 
 #ifdef __aarch64__
 /*

@@ -495,13 +495,21 @@ kproc_kthread_add(void (*func)(void *), void *arg,
 	struct thread *td;
 
 	if (*procptr == NULL) {
+		/*
+		 * Use RFSTOPPED to ensure that *tdptr is initialized before the
+		 * thread starts running.
+		 */
 		error = kproc_create(func, arg,
-		    procptr, flags, pages, "%s", procname);
+		    procptr, flags | RFSTOPPED, pages, "%s", procname);
 		if (error)
 			return (error);
 		td = FIRST_THREAD_IN_PROC(*procptr);
 		if (tdptr)
 			*tdptr = td;
+		if ((flags & RFSTOPPED) == 0) {
+			thread_lock(td);
+			sched_add(td, SRQ_BORING);
+		}
 		va_start(ap, fmt);
 		vsnprintf(td->td_name, sizeof(td->td_name), fmt, ap);
 		va_end(ap);

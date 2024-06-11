@@ -306,7 +306,7 @@ start_state(const char *target, int docf, unsigned state, int running)
 	int jid;
 	char namebuf[MAXHOSTNAMELEN];
 
-	if (!target || (!docf && state != JF_STOP) ||
+	if (!target || (!docf && (state & JF_OP_MASK) != JF_STOP) ||
 	    (!running && !strcmp(target, "*"))) {
 		/*
 		 * For a global wildcard (including no target specified),
@@ -365,7 +365,7 @@ start_state(const char *target, int docf, unsigned state, int running)
 		}
 	} else {
 		j = find_jail(target);
-		if (j == NULL && state == JF_STOP) {
+		if (j == NULL && (state & JF_OP_MASK) == JF_STOP) {
 			/* Allow -[rR] to specify a currently running jail. */
 			j = running_jail(target, JAIL_DYING);
 		}

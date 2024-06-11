@@ -55,4 +55,6 @@
 
 /* #undef LLDB_GLOBAL_INIT_DIRECTORY */
 
+#define LLDB_BUG_REPORT_URL "https://bugs.freebsd.org/submit/"
+
 #endif // #ifndef LLDB_HOST_CONFIG_H

@@ -7,6 +7,9 @@
 #include <linux/etherdevice.h>
 #include <linux/ip.h>
 #include <linux/fs.h>
+#if defined(__FreeBSD__)
+#include <linux/string.h>
+#endif
 #include <net/cfg80211.h>
 #include <net/ipv6.h>
 #include <net/tcp.h>

@@ -1,3 +1,6 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2003 Maksim Yevmenkin <m_evmenkin@yahoo.com>
 .\" All rights reserved.
 .\"
@@ -22,14 +25,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: bcmfw.8,v 1.7 2003/05/21 00:33:40 max Exp $
-.\"
-.Dd March 31, 2003
+.Dd May 31, 2024
 .Dt BCMFW 8
 .Os
 .Sh NAME
 .Nm bcmfw
-.Nd firmware download utility for Broadcom BCM2033 chip based Bluetooth USB devices
+.Nd download firmware for Broadcom BCM2033 Bluetooth USB devices
 .Sh SYNOPSIS
 .Nm
 .Op Fl h
@@ -64,7 +65,7 @@ I am using the following files from the bluez-firmware-1.0 package:
 .Dl "MD5 (BCM2033-FW.bin) = b4e142b3272cfe5a84b32fda6b4b032f"
 .Pp
 The options are as follows:
-.Bl -tag -width indent
+.Bl -tag -width "-m mini-driver_file_name"
 .It Fl f Ar firmware_file_name
 Specify firmware file name for download.
 .It Fl h
@@ -75,7 +76,7 @@ Specify mini-driver file name for download.
 Specify device name.
 .El
 .Sh FILES
-.Bl -tag -width ".Pa /dev/ubtbcmfw Ns Ar N Ns Pa \&. Ns Ar EE" -compact
+.Bl -tag -width "-m mini-driver_file_name" -compact
 .It Pa BCM2033-MD.hex
 Mini-driver image.
 .It Pa BCM2033-FW.bin

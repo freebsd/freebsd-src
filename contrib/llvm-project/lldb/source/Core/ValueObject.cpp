@@ -17,6 +17,7 @@
 #include "lldb/Core/ValueObjectDynamicValue.h"
 #include "lldb/Core/ValueObjectMemory.h"
 #include "lldb/Core/ValueObjectSyntheticFilter.h"
+#include "lldb/Core/ValueObjectVTable.h"
 #include "lldb/DataFormatters/DataVisualization.h"
 #include "lldb/DataFormatters/DumpValueObjectOptions.h"
 #include "lldb/DataFormatters/FormatManager.h"
@@ -218,10 +219,8 @@ bool ValueObject::UpdateFormatsIfNeeded() {
     SetValueFormat(DataVisualization::GetFormat(*this, eNoDynamicValues));
     SetSummaryFormat(
         DataVisualization::GetSummaryFormat(*this, GetDynamicValueType()));
-#if LLDB_ENABLE_PYTHON
     SetSyntheticChildren(
         DataVisualization::GetSyntheticChildren(*this, GetDynamicValueType()));
-#endif
   }
 
   return any_change;
@@ -336,7 +335,7 @@ bool ValueObject::ResolveValue(Scalar &scalar) {
   {
     ExecutionContext exe_ctx(GetExecutionContextRef());
     Value tmp_value(m_value);
-    scalar = tmp_value.ResolveValue(&exe_ctx);
+    scalar = tmp_value.ResolveValue(&exe_ctx, GetModule().get());
     if (scalar.IsValid()) {
       const uint32_t bitfield_bit_size = GetBitfieldBitSize();
       if (bitfield_bit_size)
@@ -394,39 +393,6 @@ ValueObjectSP ValueObject::GetChildAtIndex(size_t idx, bool can_create) {
 }
 
 lldb::ValueObjectSP
-ValueObject::GetChildAtIndexPath(llvm::ArrayRef<size_t> idxs,
-                                 size_t *index_of_error) {
-  if (idxs.size() == 0)
-    return GetSP();
-  ValueObjectSP root(GetSP());
-  for (size_t idx : idxs) {
-    root = root->GetChildAtIndex(idx);
-    if (!root) {
-      if (index_of_error)
-        *index_of_error = idx;
-      return root;
-    }
-  }
-  return root;
-}
-
-lldb::ValueObjectSP ValueObject::GetChildAtIndexPath(
-  llvm::ArrayRef<std::pair<size_t, bool>> idxs, size_t *index_of_error) {
-  if (idxs.size() == 0)
-    return GetSP();
-  ValueObjectSP root(GetSP());
-  for (std::pair<size_t, bool> idx : idxs) {
-    root = root->GetChildAtIndex(idx.first, idx.second);
-    if (!root) {
-      if (index_of_error)
-        *index_of_error = idx.first;
-      return root;
-    }
-  }
-  return root;
-}
-
-lldb::ValueObjectSP
 ValueObject::GetChildAtNamePath(llvm::ArrayRef<llvm::StringRef> names) {
   if (names.size() == 0)
     return GetSP();
@@ -434,23 +400,6 @@ ValueObject::GetChildAtNamePath(llvm::ArrayRef<llvm::StringRef> names) {
   for (llvm::StringRef name : names) {
     root = root->GetChildMemberWithName(name);
     if (!root) {
-      return root;
-    }
-  }
-  return root;
-}
-
-lldb::ValueObjectSP ValueObject::GetChildAtNamePath(
-    llvm::ArrayRef<std::pair<ConstString, bool>> names,
-    ConstString *name_of_error) {
-  if (names.size() == 0)
-    return GetSP();
-  ValueObjectSP root(GetSP());
-  for (std::pair<ConstString, bool> name : names) {
-    root = root->GetChildMemberWithName(name.first, name.second);
-    if (!root) {
-      if (name_of_error)
-        *name_of_error = name.first;
       return root;
     }
   }
@@ -864,8 +813,7 @@ static bool CopyStringDataToBufferSP(const StreamString &source,
 
 std::pair<size_t, bool>
 ValueObject::ReadPointedString(lldb::WritableDataBufferSP &buffer_sp,
-                               Status &error, uint32_t max_length,
-                               bool honor_array, Format item_format) {
+                               Status &error, bool honor_array) {
   bool was_capped = false;
   StreamString s;
   ExecutionContext exe_ctx(GetExecutionContextRef());
@@ -878,8 +826,7 @@ ValueObject::ReadPointedString(lldb::WritableDataBufferSP &buffer_sp,
     return {0, was_capped};
   }
 
-  if (max_length == 0)
-    max_length = target->GetMaximumSizeOfStringSummary();
+  const auto max_length = target->GetMaximumSizeOfStringSummary();
 
   size_t bytes_read = 0;
   size_t total_bytes_read = 0;
@@ -1170,7 +1117,7 @@ bool ValueObject::DumpPrintableRepresentation(
     Stream &s, ValueObjectRepresentationStyle val_obj_display,
     Format custom_format, PrintableRepresentationSpecialCases special,
     bool do_dump_error) {
-    
+
   // If the ValueObject has an error, we might end up dumping the type, which
   // is useful, but if we don't even have a type, then don't examine the object
   // further as that's not meaningful, only the error is.
@@ -1200,9 +1147,10 @@ bool ValueObject::DumpPrintableRepresentation(
       {
         Status error;
         lldb::WritableDataBufferSP buffer_sp;
-        std::pair<size_t, bool> read_string = ReadPointedString(
-            buffer_sp, error, 0, (custom_format == eFormatVectorOfChar) ||
-                                     (custom_format == eFormatCharArray));
+        std::pair<size_t, bool> read_string =
+            ReadPointedString(buffer_sp, error,
+                              (custom_format == eFormatVectorOfChar) ||
+                                  (custom_format == eFormatCharArray));
         lldb_private::formatters::StringPrinter::
             ReadBufferAndDumpToStreamOptions options(*this);
         options.SetData(DataExtractor(
@@ -1634,62 +1582,64 @@ bool ValueObject::IsUninitializedReference() {
 
 ValueObjectSP ValueObject::GetSyntheticArrayMember(size_t index,
                                                    bool can_create) {
-  ValueObjectSP synthetic_child_sp;
-  if (IsPointerType() || IsArrayType()) {
-    std::string index_str = llvm::formatv("[{0}]", index);
-    ConstString index_const_str(index_str);
-    // Check if we have already created a synthetic array member in this valid
-    // object. If we have we will re-use it.
-    synthetic_child_sp = GetSyntheticChild(index_const_str);
-    if (!synthetic_child_sp) {
-      ValueObject *synthetic_child;
-      // We haven't made a synthetic array member for INDEX yet, so lets make
-      // one and cache it for any future reference.
-      synthetic_child = CreateChildAtIndex(0, true, index);
+  if (!IsPointerType() && !IsArrayType())
+    return ValueObjectSP();
 
-      // Cache the value if we got one back...
-      if (synthetic_child) {
-        AddSyntheticChild(index_const_str, synthetic_child);
-        synthetic_child_sp = synthetic_child->GetSP();
-        synthetic_child_sp->SetName(ConstString(index_str));
-        synthetic_child_sp->m_flags.m_is_array_item_for_pointer = true;
-      }
-    }
-  }
+  std::string index_str = llvm::formatv("[{0}]", index);
+  ConstString index_const_str(index_str);
+  // Check if we have already created a synthetic array member in this valid
+  // object. If we have we will re-use it.
+  if (auto existing_synthetic_child = GetSyntheticChild(index_const_str))
+    return existing_synthetic_child;
+
+  // We haven't made a synthetic array member for INDEX yet, so lets make
+  // one and cache it for any future reference.
+  ValueObject *synthetic_child = CreateChildAtIndex(0, true, index);
+
+  if (!synthetic_child)
+    return ValueObjectSP();
+
+  // Cache the synthetic child's value because it's valid.
+  AddSyntheticChild(index_const_str, synthetic_child);
+  auto synthetic_child_sp = synthetic_child->GetSP();
+  synthetic_child_sp->SetName(ConstString(index_str));
+  synthetic_child_sp->m_flags.m_is_array_item_for_pointer = true;
   return synthetic_child_sp;
 }
 
 ValueObjectSP ValueObject::GetSyntheticBitFieldChild(uint32_t from, uint32_t to,
                                                      bool can_create) {
-  ValueObjectSP synthetic_child_sp;
-  if (IsScalarType()) {
-    std::string index_str = llvm::formatv("[{0}-{1}]", from, to);
-    ConstString index_const_str(index_str);
-    // Check if we have already created a synthetic array member in this valid
-    // object. If we have we will re-use it.
-    synthetic_child_sp = GetSyntheticChild(index_const_str);
-    if (!synthetic_child_sp) {
-      uint32_t bit_field_size = to - from + 1;
-      uint32_t bit_field_offset = from;
-      if (GetDataExtractor().GetByteOrder() == eByteOrderBig)
-        bit_field_offset =
-            GetByteSize().value_or(0) * 8 - bit_field_size - bit_field_offset;
-      // We haven't made a synthetic array member for INDEX yet, so lets make
-      // one and cache it for any future reference.
-      ValueObjectChild *synthetic_child = new ValueObjectChild(
-          *this, GetCompilerType(), index_const_str, GetByteSize().value_or(0),
-          0, bit_field_size, bit_field_offset, false, false,
-          eAddressTypeInvalid, 0);
+  if (!IsScalarType())
+    return ValueObjectSP();
 
-      // Cache the value if we got one back...
-      if (synthetic_child) {
-        AddSyntheticChild(index_const_str, synthetic_child);
-        synthetic_child_sp = synthetic_child->GetSP();
-        synthetic_child_sp->SetName(ConstString(index_str));
-        synthetic_child_sp->m_flags.m_is_bitfield_for_scalar = true;
-      }
-    }
-  }
+  std::string index_str = llvm::formatv("[{0}-{1}]", from, to);
+  ConstString index_const_str(index_str);
+
+  // Check if we have already created a synthetic array member in this valid
+  // object. If we have we will re-use it.
+  if (auto existing_synthetic_child = GetSyntheticChild(index_const_str))
+    return existing_synthetic_child;
+
+  uint32_t bit_field_size = to - from + 1;
+  uint32_t bit_field_offset = from;
+  if (GetDataExtractor().GetByteOrder() == eByteOrderBig)
+    bit_field_offset =
+        GetByteSize().value_or(0) * 8 - bit_field_size - bit_field_offset;
+
+  // We haven't made a synthetic array member for INDEX yet, so lets make
+  // one and cache it for any future reference.
+  ValueObjectChild *synthetic_child = new ValueObjectChild(
+      *this, GetCompilerType(), index_const_str, GetByteSize().value_or(0), 0,
+      bit_field_size, bit_field_offset, false, false, eAddressTypeInvalid, 0);
+
+  if (!synthetic_child)
+    return ValueObjectSP();
+
+  // Cache the synthetic child's value because it's valid.
+  AddSyntheticChild(index_const_str, synthetic_child);
+  auto synthetic_child_sp = synthetic_child->GetSP();
+  synthetic_child_sp->SetName(ConstString(index_str));
+  synthetic_child_sp->m_flags.m_is_bitfield_for_scalar = true;
   return synthetic_child_sp;
 }
 
@@ -1699,9 +1649,8 @@ ValueObjectSP ValueObject::GetSyntheticChildAtOffset(
 
   ValueObjectSP synthetic_child_sp;
 
-  if (name_const_str.IsEmpty()) {
+  if (name_const_str.IsEmpty())
     name_const_str.SetString("@" + std::to_string(offset));
-  }
 
   // Check if we have already created a synthetic array member in this valid
   // object. If we have we will re-use it.
@@ -1711,13 +1660,13 @@ ValueObjectSP ValueObject::GetSyntheticChildAtOffset(
     return synthetic_child_sp;
 
   if (!can_create)
-    return {};
+    return ValueObjectSP();
 
   ExecutionContext exe_ctx(GetExecutionContextRef());
   std::optional<uint64_t> size =
       type.GetByteSize(exe_ctx.GetBestExecutionContextScope());
   if (!size)
-    return {};
+    return ValueObjectSP();
   ValueObjectChild *synthetic_child =
       new ValueObjectChild(*this, type, name_const_str, *size, offset, 0, 0,
                            false, false, eAddressTypeInvalid, 0);
@@ -1751,7 +1700,7 @@ ValueObjectSP ValueObject::GetSyntheticBase(uint32_t offset,
     return synthetic_child_sp;
 
   if (!can_create)
-    return {};
+    return ValueObjectSP();
 
   const bool is_base_class = true;
 
@@ -1759,7 +1708,7 @@ ValueObjectSP ValueObject::GetSyntheticBase(uint32_t offset,
   std::optional<uint64_t> size =
       type.GetByteSize(exe_ctx.GetBestExecutionContextScope());
   if (!size)
-    return {};
+    return ValueObjectSP();
   ValueObjectChild *synthetic_child =
       new ValueObjectChild(*this, type, name_const_str, *size, offset, 0, 0,
                            is_base_class, false, eAddressTypeInvalid, 0);
@@ -1788,30 +1737,30 @@ static const char *SkipLeadingExpressionPathSeparators(const char *expression) {
 ValueObjectSP
 ValueObject::GetSyntheticExpressionPathChild(const char *expression,
                                              bool can_create) {
-  ValueObjectSP synthetic_child_sp;
   ConstString name_const_string(expression);
   // Check if we have already created a synthetic array member in this valid
   // object. If we have we will re-use it.
-  synthetic_child_sp = GetSyntheticChild(name_const_string);
-  if (!synthetic_child_sp) {
-    // We haven't made a synthetic array member for expression yet, so lets
-    // make one and cache it for any future reference.
-    synthetic_child_sp = GetValueForExpressionPath(
-        expression, nullptr, nullptr,
-        GetValueForExpressionPathOptions().SetSyntheticChildrenTraversal(
-            GetValueForExpressionPathOptions::SyntheticChildrenTraversal::
-                None));
+  if (auto existing_synthetic_child = GetSyntheticChild(name_const_string))
+    return existing_synthetic_child;
 
-    // Cache the value if we got one back...
-    if (synthetic_child_sp.get()) {
-      // FIXME: this causes a "real" child to end up with its name changed to
-      // the contents of expression
-      AddSyntheticChild(name_const_string, synthetic_child_sp.get());
-      synthetic_child_sp->SetName(
-          ConstString(SkipLeadingExpressionPathSeparators(expression)));
-    }
-  }
-  return synthetic_child_sp;
+  // We haven't made a synthetic array member for expression yet, so lets
+  // make one and cache it for any future reference.
+  auto path_options = GetValueForExpressionPathOptions();
+  path_options.SetSyntheticChildrenTraversal(
+      GetValueForExpressionPathOptions::SyntheticChildrenTraversal::None);
+  auto synthetic_child =
+      GetValueForExpressionPath(expression, nullptr, nullptr, path_options);
+
+  if (!synthetic_child)
+    return ValueObjectSP();
+
+  // Cache the synthetic child's value because it's valid.
+  // FIXME: this causes a "real" child to end up with its name changed to
+  // the contents of expression
+  AddSyntheticChild(name_const_string, synthetic_child.get());
+  synthetic_child->SetName(
+      ConstString(SkipLeadingExpressionPathSeparators(expression)));
+  return synthetic_child;
 }
 
 void ValueObject::CalculateSyntheticValue() {
@@ -2008,66 +1957,55 @@ ValueObjectSP ValueObject::GetValueForExpressionPath(
     const GetValueForExpressionPathOptions &options,
     ExpressionPathAftermath *final_task_on_target) {
 
-  ExpressionPathScanEndReason dummy_reason_to_stop =
-      ValueObject::eExpressionPathScanEndReasonUnknown;
-  ExpressionPathEndResultType dummy_final_value_type =
-      ValueObject::eExpressionPathEndResultTypeInvalid;
-  ExpressionPathAftermath dummy_final_task_on_target =
-      ValueObject::eExpressionPathAftermathNothing;
+  auto dummy_stop_reason = eExpressionPathScanEndReasonUnknown;
+  auto dummy_value_type = eExpressionPathEndResultTypeInvalid;
+  auto dummy_final_task = eExpressionPathAftermathNothing;
 
-  ValueObjectSP ret_val = GetValueForExpressionPath_Impl(
-      expression, reason_to_stop ? reason_to_stop : &dummy_reason_to_stop,
-      final_value_type ? final_value_type : &dummy_final_value_type, options,
-      final_task_on_target ? final_task_on_target
-                           : &dummy_final_task_on_target);
+  auto proxy_stop_reason = reason_to_stop ? reason_to_stop : &dummy_stop_reason;
+  auto proxy_value_type =
+      final_value_type ? final_value_type : &dummy_value_type;
+  auto proxy_final_task =
+      final_task_on_target ? final_task_on_target : &dummy_final_task;
 
-  if (!final_task_on_target ||
-      *final_task_on_target == ValueObject::eExpressionPathAftermathNothing)
-    return ret_val;
+  auto ret_value = GetValueForExpressionPath_Impl(expression, proxy_stop_reason,
+                                                  proxy_value_type, options,
+                                                  proxy_final_task);
 
-  if (ret_val.get() &&
-      ((final_value_type ? *final_value_type : dummy_final_value_type) ==
-       eExpressionPathEndResultTypePlain)) // I can only deref and takeaddress
-                                           // of plain objects
-  {
-    if ((final_task_on_target ? *final_task_on_target
-                              : dummy_final_task_on_target) ==
-        ValueObject::eExpressionPathAftermathDereference) {
-      Status error;
-      ValueObjectSP final_value = ret_val->Dereference(error);
-      if (error.Fail() || !final_value.get()) {
-        if (reason_to_stop)
-          *reason_to_stop =
-              ValueObject::eExpressionPathScanEndReasonDereferencingFailed;
-        if (final_value_type)
-          *final_value_type = ValueObject::eExpressionPathEndResultTypeInvalid;
-        return ValueObjectSP();
-      } else {
-        if (final_task_on_target)
-          *final_task_on_target = ValueObject::eExpressionPathAftermathNothing;
-        return final_value;
-      }
-    }
-    if (*final_task_on_target ==
-        ValueObject::eExpressionPathAftermathTakeAddress) {
-      Status error;
-      ValueObjectSP final_value = ret_val->AddressOf(error);
-      if (error.Fail() || !final_value.get()) {
-        if (reason_to_stop)
-          *reason_to_stop =
-              ValueObject::eExpressionPathScanEndReasonTakingAddressFailed;
-        if (final_value_type)
-          *final_value_type = ValueObject::eExpressionPathEndResultTypeInvalid;
-        return ValueObjectSP();
-      } else {
-        if (final_task_on_target)
-          *final_task_on_target = ValueObject::eExpressionPathAftermathNothing;
-        return final_value;
-      }
-    }
+  // The caller knows nothing happened if `final_task_on_target` doesn't change.
+  if (!ret_value || (*proxy_value_type) != eExpressionPathEndResultTypePlain ||
+      !final_task_on_target)
+    return ValueObjectSP();
+
+  ExpressionPathAftermath &final_task_on_target_ref = (*final_task_on_target);
+  ExpressionPathScanEndReason stop_reason_for_error;
+  Status error;
+  // The method can only dereference and take the address of plain objects.
+  switch (final_task_on_target_ref) {
+  case eExpressionPathAftermathNothing:
+    return ret_value;
+
+  case eExpressionPathAftermathDereference:
+    ret_value = ret_value->Dereference(error);
+    stop_reason_for_error = eExpressionPathScanEndReasonDereferencingFailed;
+    break;
+
+  case eExpressionPathAftermathTakeAddress:
+    ret_value = ret_value->AddressOf(error);
+    stop_reason_for_error = eExpressionPathScanEndReasonTakingAddressFailed;
+    break;
   }
-  return ret_val; // final_task_on_target will still have its original value, so
-                  // you know I did not do it
+
+  if (ret_value && error.Success()) {
+    final_task_on_target_ref = eExpressionPathAftermathNothing;
+    return ret_value;
+  }
+
+  if (reason_to_stop)
+    *reason_to_stop = stop_reason_for_error;
+
+  if (final_value_type)
+    *final_value_type = eExpressionPathEndResultTypeInvalid;
+  return ValueObjectSP();
 }
 
 ValueObjectSP ValueObject::GetValueForExpressionPath_Impl(
@@ -2123,7 +2061,7 @@ ValueObjectSP ValueObject::GetValueForExpressionPath_Impl(
         *final_result = ValueObject::eExpressionPathEndResultTypeInvalid;
         return ValueObjectSP();
       }
-      if (!temp_expression.startswith(">")) {
+      if (!temp_expression.starts_with(">")) {
         *reason_to_stop =
             ValueObject::eExpressionPathScanEndReasonUnexpectedSymbol;
         *final_result = ValueObject::eExpressionPathEndResultTypeInvalid;
@@ -2148,11 +2086,10 @@ ValueObjectSP ValueObject::GetValueForExpressionPath_Impl(
       temp_expression = temp_expression.drop_front(); // skip . or >
 
       size_t next_sep_pos = temp_expression.find_first_of("-.[", 1);
-      ConstString child_name;
       if (next_sep_pos == llvm::StringRef::npos) // if no other separator just
                                                  // expand this last layer
       {
-        child_name.SetString(temp_expression);
+        llvm::StringRef child_name = temp_expression;
         ValueObjectSP child_valobj_sp =
             root->GetChildMemberWithName(child_name);
 
@@ -2220,8 +2157,7 @@ ValueObjectSP ValueObject::GetValueForExpressionPath_Impl(
       } else // other layers do expand
       {
         llvm::StringRef next_separator = temp_expression.substr(next_sep_pos);
-
-        child_name.SetString(temp_expression.slice(0, next_sep_pos));
+        llvm::StringRef child_name = temp_expression.slice(0, next_sep_pos);
 
         ValueObjectSP child_valobj_sp =
             root->GetChildMemberWithName(child_name);
@@ -2614,34 +2550,30 @@ ValueObjectSP ValueObject::CreateConstantValue(ConstString name) {
 
 ValueObjectSP ValueObject::GetQualifiedRepresentationIfAvailable(
     lldb::DynamicValueType dynValue, bool synthValue) {
-  ValueObjectSP result_sp(GetSP());
-
+  ValueObjectSP result_sp;
   switch (dynValue) {
   case lldb::eDynamicCanRunTarget:
   case lldb::eDynamicDontRunTarget: {
-    if (!result_sp->IsDynamic()) {
-      if (result_sp->GetDynamicValue(dynValue))
-        result_sp = result_sp->GetDynamicValue(dynValue);
-    }
+    if (!IsDynamic())
+      result_sp = GetDynamicValue(dynValue);
   } break;
   case lldb::eNoDynamicValues: {
-    if (result_sp->IsDynamic()) {
-      if (result_sp->GetStaticValue())
-        result_sp = result_sp->GetStaticValue();
-    }
+    if (IsDynamic())
+      result_sp = GetStaticValue();
   } break;
   }
+  if (!result_sp)
+    result_sp = GetSP();
+  assert(result_sp);
 
-  if (synthValue) {
-    if (!result_sp->IsSynthetic()) {
-      if (result_sp->GetSyntheticValue())
-        result_sp = result_sp->GetSyntheticValue();
-    }
-  } else {
-    if (result_sp->IsSynthetic()) {
-      if (result_sp->GetNonSyntheticValue())
-        result_sp = result_sp->GetNonSyntheticValue();
-    }
+  bool is_synthetic = result_sp->IsSynthetic();
+  if (synthValue && !is_synthetic) {
+    if (auto synth_sp = result_sp->GetSyntheticValue())
+      return synth_sp;
+  }
+  if (!synthValue && is_synthetic) {
+    if (auto non_synth_sp = result_sp->GetNonSyntheticValue())
+      return non_synth_sp;
   }
 
   return result_sp;
@@ -2744,39 +2676,47 @@ ValueObjectSP ValueObject::AddressOf(Status &error) {
   const bool scalar_is_load_address = false;
   addr_t addr = GetAddressOf(scalar_is_load_address, &address_type);
   error.Clear();
-  if (addr != LLDB_INVALID_ADDRESS && address_type != eAddressTypeHost) {
-    switch (address_type) {
-    case eAddressTypeInvalid: {
-      StreamString expr_path_strm;
-      GetExpressionPath(expr_path_strm);
-      error.SetErrorStringWithFormat("'%s' is not in memory",
-                                     expr_path_strm.GetData());
-    } break;
 
-    case eAddressTypeFile:
-    case eAddressTypeLoad: {
-      CompilerType compiler_type = GetCompilerType();
-      if (compiler_type) {
-        std::string name(1, '&');
-        name.append(m_name.AsCString(""));
-        ExecutionContext exe_ctx(GetExecutionContextRef());
-        m_addr_of_valobj_sp = ValueObjectConstResult::Create(
-            exe_ctx.GetBestExecutionContextScope(),
-            compiler_type.GetPointerType(), ConstString(name.c_str()), addr,
-            eAddressTypeInvalid, m_data.GetAddressByteSize());
-      }
-    } break;
-    default:
-      break;
-    }
-  } else {
-    StreamString expr_path_strm;
-    GetExpressionPath(expr_path_strm);
+  StreamString expr_path_strm;
+  GetExpressionPath(expr_path_strm);
+  const char *expr_path_str = expr_path_strm.GetData();
+
+  ExecutionContext exe_ctx(GetExecutionContextRef());
+  auto scope = exe_ctx.GetBestExecutionContextScope();
+
+  if (addr == LLDB_INVALID_ADDRESS) {
     error.SetErrorStringWithFormat("'%s' doesn't have a valid address",
-                                   expr_path_strm.GetData());
+                                   expr_path_str);
+    return ValueObjectSP();
   }
 
-  return m_addr_of_valobj_sp;
+  switch (address_type) {
+  case eAddressTypeInvalid:
+    error.SetErrorStringWithFormat("'%s' is not in memory", expr_path_str);
+    return ValueObjectSP();
+
+  case eAddressTypeHost:
+    error.SetErrorStringWithFormat("'%s' is in host process (LLDB) memory",
+                                   expr_path_str);
+    return ValueObjectSP();
+
+  case eAddressTypeFile:
+  case eAddressTypeLoad: {
+    CompilerType compiler_type = GetCompilerType();
+    if (!compiler_type) {
+      error.SetErrorStringWithFormat("'%s' doesn't have a compiler type",
+                                     expr_path_str);
+      return ValueObjectSP();
+    }
+
+    std::string name(1, '&');
+    name.append(m_name.AsCString(""));
+    m_addr_of_valobj_sp = ValueObjectConstResult::Create(
+        scope, compiler_type.GetPointerType(), ConstString(name.c_str()), addr,
+        eAddressTypeInvalid, m_data.GetAddressByteSize());
+    return m_addr_of_valobj_sp;
+  }
+  }
 }
 
 ValueObjectSP ValueObject::DoCast(const CompilerType &compiler_type) {
@@ -2785,15 +2725,15 @@ ValueObjectSP ValueObject::DoCast(const CompilerType &compiler_type) {
 
 ValueObjectSP ValueObject::Cast(const CompilerType &compiler_type) {
   // Only allow casts if the original type is equal or larger than the cast
-  // type.  We don't know how to fetch more data for all the ConstResult types, 
+  // type.  We don't know how to fetch more data for all the ConstResult types,
   // so we can't guarantee this will work:
   Status error;
   CompilerType my_type = GetCompilerType();
 
-  ExecutionContextScope *exe_scope 
+  ExecutionContextScope *exe_scope
       = ExecutionContext(GetExecutionContextRef())
           .GetBestExecutionContextScope();
-  if (compiler_type.GetByteSize(exe_scope) 
+  if (compiler_type.GetByteSize(exe_scope)
       <= GetCompilerType().GetByteSize(exe_scope)) {
         return DoCast(compiler_type);
   }
@@ -3175,4 +3115,8 @@ ValueObjectSP ValueObject::Persist() {
   persistent_var_sp->m_flags |= ExpressionVariable::EVIsProgramReference;
 
   return persistent_var_sp->GetValueObject();
+}
+
+lldb::ValueObjectSP ValueObject::GetVTable() {
+  return ValueObjectVTable::Create(*this);
 }

@@ -1,6 +1,6 @@
 # Example config.mk
 #
-# Copyright (c) 2018-2022, Arm Limited.
+# Copyright (c) 2018-2023, Arm Limited.
 # SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
 
 # Subprojects to build
@@ -59,13 +59,14 @@ math-cflags += -ffp-contract=fast -fno-math-errno
 # Use with clang.
 #math-cflags += -ffp-contract=fast
 
-# Disable vector math code
-#math-cflags += -DWANT_VMATH=0
-
-# Disable/enable SVE vector math code and tests
+# Disable/enable SVE vector math code and tests.
+# If WANT_SVE_MATH is enabled, math-sve-cflags is added for SVE
+# routines only so that SVE code does not leak into scalar
+# routines. It is also necessary to add it for tools (e.g. ulp,
+# mathbench)
 WANT_SVE_MATH = 0
 ifeq ($(WANT_SVE_MATH), 1)
-  math-cflags += -march=armv8.2-a+sve
+  math-sve-cflags = -march=armv8-a+sve
 endif
 math-cflags += -DWANT_SVE_MATH=$(WANT_SVE_MATH)
 

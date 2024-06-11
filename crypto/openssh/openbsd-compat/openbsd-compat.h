@@ -48,6 +48,14 @@
 #include "blf.h"
 #include "fnmatch.h"
 
+#ifndef __THROW
+# if defined __cplusplus
+#  define __THROW throw()
+# else
+#  define __THROW
+# endif
+#endif
+
 #if defined(HAVE_LOGIN_CAP) && !defined(HAVE_LOGIN_GETPWCLASS)
 # include <login_cap.h>
 # define login_getpwclass(pw) login_getclass(pw->pw_class)
@@ -187,7 +195,7 @@ int getgrouplist(const char *, gid_t, gid_t *, int *);
 #endif
 
 #if !defined(HAVE_GETOPT) || !defined(HAVE_GETOPT_OPTRESET)
-int BSDgetopt(int argc, char * const *argv, const char *opts);
+int BSDgetopt(int argc, char * const *argv, const char *opts) __THROW;
 #include "openbsd-compat/getopt.h"
 #endif
 

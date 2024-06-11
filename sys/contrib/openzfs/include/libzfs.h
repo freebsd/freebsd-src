@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2022 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2024 by Delphix. All rights reserved.
  * Copyright Joyent, Inc.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
  * Copyright (c) 2016, Intel Corporation.
@@ -158,6 +158,7 @@ typedef enum zfs_error {
 	EZFS_RESUME_EXISTS,	/* Resume on existing dataset without force */
 	EZFS_SHAREFAILED,	/* filesystem share failed */
 	EZFS_RAIDZ_EXPAND_IN_PROGRESS,	/* a raidz is currently expanding */
+	EZFS_ASHIFT_MISMATCH,   /* can't add vdevs with different ashifts */
 	EZFS_UNKNOWN
 } zfs_error_t;
 
@@ -261,7 +262,7 @@ _LIBZFS_H boolean_t zpool_skip_pool(const char *);
 _LIBZFS_H int zpool_create(libzfs_handle_t *, const char *, nvlist_t *,
     nvlist_t *, nvlist_t *);
 _LIBZFS_H int zpool_destroy(zpool_handle_t *, const char *);
-_LIBZFS_H int zpool_add(zpool_handle_t *, nvlist_t *);
+_LIBZFS_H int zpool_add(zpool_handle_t *, nvlist_t *, boolean_t check_ashift);
 
 typedef struct splitflags {
 	/* do not split, but return the config that would be split off */
@@ -319,6 +320,9 @@ _LIBZFS_H int zpool_vdev_remove_wanted(zpool_handle_t *, const char *);
 
 _LIBZFS_H int zpool_vdev_fault(zpool_handle_t *, uint64_t, vdev_aux_t);
 _LIBZFS_H int zpool_vdev_degrade(zpool_handle_t *, uint64_t, vdev_aux_t);
+_LIBZFS_H int zpool_vdev_set_removed_state(zpool_handle_t *, uint64_t,
+    vdev_aux_t);
+
 _LIBZFS_H int zpool_vdev_clear(zpool_handle_t *, uint64_t);
 
 _LIBZFS_H nvlist_t *zpool_find_vdev(zpool_handle_t *, const char *, boolean_t *,
@@ -712,7 +716,7 @@ typedef struct get_all_cb {
 } get_all_cb_t;
 
 _LIBZFS_H void zfs_foreach_mountpoint(libzfs_handle_t *, zfs_handle_t **,
-    size_t, zfs_iter_f, void *, boolean_t);
+    size_t, zfs_iter_f, void *, uint_t);
 _LIBZFS_H void libzfs_add_handle(get_all_cb_t *, zfs_handle_t *);
 
 /*
@@ -1000,7 +1004,8 @@ _LIBZFS_H int zfs_smb_acl_rename(libzfs_handle_t *, char *, char *, char *,
  * Enable and disable datasets within a pool by mounting/unmounting and
  * sharing/unsharing them.
  */
-_LIBZFS_H int zpool_enable_datasets(zpool_handle_t *, const char *, int);
+_LIBZFS_H int zpool_enable_datasets(zpool_handle_t *, const char *, int,
+    uint_t);
 _LIBZFS_H int zpool_disable_datasets(zpool_handle_t *, boolean_t);
 _LIBZFS_H void zpool_disable_datasets_os(zpool_handle_t *, boolean_t);
 _LIBZFS_H void zpool_disable_volume_os(const char *);

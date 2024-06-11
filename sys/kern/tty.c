@@ -44,6 +44,7 @@
 #ifdef COMPAT_43TTY
 #include <sys/ioctl_compat.h>
 #endif /* COMPAT_43TTY */
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
@@ -253,9 +254,6 @@ ttydev_leave(struct tty *tp)
 	ttyoutq_free(&tp->t_outq);
 	tp->t_outlow = 0;
 
-	knlist_clear(&tp->t_inpoll.si_note, 1);
-	knlist_clear(&tp->t_outpoll.si_note, 1);
-
 	if (!tty_gone(tp))
 		ttydevsw_close(tp);
 
@@ -369,7 +367,7 @@ done:	tp->t_flags &= ~TF_OPENCLOSE;
 
 static int
 ttydev_close(struct cdev *dev, int fflag, int devtype __unused,
-    struct thread *td __unused)
+    struct thread *td)
 {
 	struct tty *tp = dev->si_drv1;
 
@@ -392,8 +390,11 @@ ttydev_close(struct cdev *dev, int fflag, int devtype __unused,
 	}
 
 	/* If revoking, flush output now to avoid draining it later. */
-	if (fflag & FREVOKE)
+	if ((fflag & FREVOKE) != 0) {
 		tty_flush(tp, FWRITE);
+		knlist_delete(&tp->t_inpoll.si_note, td, 1);
+		knlist_delete(&tp->t_outpoll.si_note, td, 1);
+	}
 
 	tp->t_flags &= ~TF_EXCLUDE;
 
@@ -1120,6 +1121,8 @@ tty_dealloc(void *arg)
 	ttyoutq_free(&tp->t_outq);
 	seldrain(&tp->t_inpoll);
 	seldrain(&tp->t_outpoll);
+	knlist_clear(&tp->t_inpoll.si_note, 0);
+	knlist_clear(&tp->t_outpoll.si_note, 0);
 	knlist_destroy(&tp->t_inpoll.si_note);
 	knlist_destroy(&tp->t_outpoll.si_note);
 
@@ -1308,9 +1311,12 @@ static int
 sysctl_kern_ttys(SYSCTL_HANDLER_ARGS)
 {
 	unsigned long lsize;
+	struct thread *td = curthread;
 	struct xtty *xtlist, *xt;
 	struct tty *tp;
+	struct proc *p;
 	int error;
+	bool cansee;
 
 	sx_slock(&tty_list_sx);
 	lsize = tty_list_count * sizeof(struct xtty);
@@ -1323,13 +1329,28 @@ sysctl_kern_ttys(SYSCTL_HANDLER_ARGS)
 
 	TAILQ_FOREACH(tp, &tty_list, t_list) {
 		tty_lock(tp);
-		tty_to_xtty(tp, xt);
+		if (tp->t_session != NULL &&
+		    (p = atomic_load_ptr(&tp->t_session->s_leader)) != NULL) {
+			PROC_LOCK(p);
+			cansee = (p_cansee(td, p) == 0);
+			PROC_UNLOCK(p);
+		} else {
+			cansee = !jailed(td->td_ucred);
+		}
+		if (cansee) {
+			tty_to_xtty(tp, xt);
+			xt++;
+		}
 		tty_unlock(tp);
-		xt++;
 	}
 	sx_sunlock(&tty_list_sx);
 
-	error = SYSCTL_OUT(req, xtlist, lsize);
+	lsize = (xt - xtlist) * sizeof(struct xtty);
+	if (lsize > 0) {
+		error = SYSCTL_OUT(req, xtlist, lsize);
+	} else {
+		error = 0;
+	}
 	free(xtlist, M_TTY);
 	return (error);
 }
@@ -1671,7 +1692,7 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 		/* This device supports non-blocking operation. */
 		return (0);
 	case FIONREAD:
-		*(int *)data = ttyinq_bytescanonicalized(&tp->t_inq);
+		*(int *)data = ttydisc_bytesavail(tp);
 		return (0);
 	case FIONWRITE:
 	case TIOCOUTQ:
@@ -1703,6 +1724,7 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 	case TIOCSETAW:
 	case TIOCSETAF: {
 		struct termios *t = data;
+		bool canonicalize = false;
 
 		/*
 		 * Who makes up these funny rules? According to POSIX,
@@ -1752,6 +1774,19 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 				return (error);
 		}
 
+		/*
+		 * We'll canonicalize any partial input if we're transitioning
+		 * ICANON one way or the other.  If we're going from -ICANON ->
+		 * ICANON, then in the worst case scenario we're in the middle
+		 * of a line but both ttydisc_read() and FIONREAD will search
+		 * for one of our line terminals.
+		 */
+		if ((t->c_lflag & ICANON) != (tp->t_termios.c_lflag & ICANON))
+			canonicalize = true;
+		else if (tp->t_termios.c_cc[VEOF] != t->c_cc[VEOF] ||
+		    tp->t_termios.c_cc[VEOL] != t->c_cc[VEOL])
+			canonicalize = true;
+
 		/* Copy new non-device driver parameters. */
 		tp->t_termios.c_iflag = t->c_iflag;
 		tp->t_termios.c_oflag = t->c_oflag;
@@ -1760,13 +1795,15 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 
 		ttydisc_optimize(tp);
 
+		if (canonicalize)
+			ttydisc_canonicalize(tp);
 		if ((t->c_lflag & ICANON) == 0) {
 			/*
 			 * When in non-canonical mode, wake up all
-			 * readers. Canonicalize any partial input. VMIN
-			 * and VTIME could also be adjusted.
+			 * readers. Any partial input has already been
+			 * canonicalized above if we were in canonical mode.
+			 * VMIN and VTIME could also be adjusted.
 			 */
-			ttyinq_canonicalize(&tp->t_inq);
 			tty_wakeup(tp, FREAD);
 		}
 

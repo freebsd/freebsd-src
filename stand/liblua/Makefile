@@ -23,9 +23,12 @@ SRCS+=	lauxlib.c lbaselib.c lstrlib.c loadlib.c
 
 # Our utilities.
 SRCS+=	lerrno.c lpager.c lstd.c lutils.c
+SRCS+=	gfx_utils.c
 
 .PATH:	${FLUASRC}/modules
 SRCS+=	lfs.c
+.PATH:	${FLUALIB}/libhash
+SRCS+=	lhash.c
 
 WARNS?=	3
 
@@ -34,7 +37,8 @@ CFLAGS+= -ffreestanding -nostdlib -DLUA_USE_POSIX
 CFLAGS+= -fno-stack-protector -D__BSD_VISIBLE
 CFLAGS+= -I${BOOTSRC}/include -I${LIBLUASRC} -I${LUASRC} -I${LDRSRC}
 
-CFLAGS.lutils.c+= -I${SRCTOP}/sys/teken -I${SRCTOP}/contrib/pnglite
+CFLAGS.gfx_utils.c+= -I${SRCTOP}/sys/teken -I${SRCTOP}/contrib/pnglite
+CFLAGS.lhash.c+= -I${FLUALIB}/libhash -I${SRCTOP}/sys/crypto/sha2
 
 .if ${MACHINE_CPUARCH} == "amd64" && ${DO32:U0} == 0
 CFLAGS+=	-fPIC

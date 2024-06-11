@@ -45,3 +45,9 @@ FIRMW_START(FIRMW_SYMBOL):
 	.type	FIRMW_END(FIRMW_SYMBOL), %object
 FIRMW_END(FIRMW_SYMBOL):
 	.size	FIRMW_END(FIRMW_SYMBOL), . - FIRMW_END(FIRMW_SYMBOL)
+
+#if defined(__aarch64__)
+#include <machine/asm.h>
+#include <sys/elf_common.h>
+GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)
+#endif

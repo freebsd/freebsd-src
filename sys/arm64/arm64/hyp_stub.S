@@ -24,6 +24,8 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/elf_common.h>
+
 #include <machine/asm.h>
 
 .macro vempty
@@ -63,3 +65,5 @@ hyp_stub_vectors:
 	vempty			/* IRQ 32-bit EL1 */
 	vempty			/* FIQ 32-bit EL1 */
 	vempty			/* SError 32-bit EL1 */
+
+GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)

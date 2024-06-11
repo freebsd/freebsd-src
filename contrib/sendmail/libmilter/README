@@ -15,6 +15,7 @@ the milter API.
 Note: if you want to write a milter in Java, then see
 http://sendmail-jilter.sourceforge.net/
 
+
 +----------------+
 | SECURITY HINTS |
 +----------------+
@@ -26,6 +27,7 @@ if really necessary.  A milter should probably check first whether
 it runs as root and refuse to start in that case.  libmilter will
 not unlink a socket when running as root.
 
+
 +----------------------+
 | CONFIGURATION MACROS |
 +----------------------+
@@ -35,6 +37,7 @@ features of the C compiler and standard C libraries.
 
 SM_CONF_POLL
 	Set to 1 if poll(2) should be used instead of select(2).
+
 
 +-------------------+
 | BUILDING A FILTER |

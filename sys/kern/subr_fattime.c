@@ -63,11 +63,6 @@
  * FAT timestamps have 7 bits for the year and starts at 1980, so
  * they can represent up to 2107 which means that the non-leap-year
  * 2100 must be handled.
- *
- * XXX: As long as time_t is 32 bits this is not relevant or easily
- * XXX: testable.  Revisit when time_t grows bigger.
- * XXX: grepfodder: 64 bit time_t, y2100, y2.1k, 2100, leap year
- *
  */
 
 #include <sys/param.h>
@@ -75,10 +70,16 @@
 #include <sys/time.h>
 #include <sys/clock.h>
 
+#ifdef TEST_DRIVER
+/* stub for testing */
+#define utc_offset() 0
+#endif
+
 #define DAY	(24 * 60 * 60)	/* Length of day in seconds */
 #define YEAR	365		/* Length of normal year */
 #define LYC	(4 * YEAR + 1)	/* Length of 4 year leap-year cycle */
 #define T1980	(10 * 365 + 2)	/* Days from 1970 to 1980 */
+#define T2108	(138 * 365 + 33) /* Days from 1970 to 2108 */
 
 /* End of month is N days from start of (normal) year */
 #define JAN	31
@@ -159,10 +160,7 @@ timespec2fattime(const struct timespec *tsp, int utc, uint16_t *ddp,
 		} else {
 			t2 -= T1980;
 
-			/*
-			 * 2100 is not a leap year.
-			 * XXX: a 32 bit time_t can not get us here.
-			 */
+			/* 2100 is not a leap year */
 			if (t2 >= ((2100 - 1980) / 4 * LYC + FEB))
 				t2++;
 
@@ -236,17 +234,14 @@ fattime2timespec(unsigned dd, unsigned dt, unsigned dh, int utc,
 	/* Month offset from leap-year cycle */
 	day += daytab[(dd >> 5) & 0x3f];
 
-	/*
-	 * 2100 is not a leap year.
-	 * XXX: a 32 bit time_t can not get us here.
-	 */
+	/* 2100 is not a leap year */
 	if (day >= ((2100 - 1980) / 4 * LYC + FEB))
 		day--;
 
 	/* Align with time_t epoch */
 	day += T1980;
 
-	tsp->tv_sec += DAY * day;
+	tsp->tv_sec += (time_t) DAY * day;
 	if (!utc)
 		tsp->tv_sec += utc_offset();
 }
@@ -270,11 +265,17 @@ main(int argc __unused, char **argv __unused)
 
 	for (i = 0; i < 10000; i++) {
 		do {
-			ts.tv_sec = random();
-		} while (ts.tv_sec < T1980 * 86400);
+			/*
+			 * 32-bits gets us to 2106-02-07 06:28:15, but we
+			 * need to get to the end of 2107.  So, we generate
+			 * a 36-bit second count to get us way past 2106.
+			 */
+			ts.tv_sec = ((time_t) arc4random() << 4) ^ arc4random();
+		} while ((ts.tv_sec < T1980 * 86400) || (ts.tv_sec >= T2108 * 86400ull));
+
 		ts.tv_nsec = random() % 1000000000;
 
-		printf("%10d.%03ld -- ", ts.tv_sec, ts.tv_nsec / 1000000);
+		printf("%10jd.%03ld -- ", (intmax_t) ts.tv_sec, ts.tv_nsec / 1000000);
 
 		gmtime_r(&ts.tv_sec, &tm);
 		strftime(buf, sizeof buf, "%Y %m %d %H %M %S", &tm);
@@ -282,7 +283,7 @@ main(int argc __unused, char **argv __unused)
 
 		a = ts.tv_sec + ts.tv_nsec * 1e-9;
 		d = t = p = 0;
-		timet2fattime(&ts, &d, &t, &p);
+		timespec2fattime(&ts, 1, &d, &t, &p);
 		printf("%04x %04x %02x -- ", d, t, p);
 		printf("%3d %02d %02d %02d %02d %02d -- ",
 		    ((d >> 9)  & 0x7f) + 1980,
@@ -293,8 +294,8 @@ main(int argc __unused, char **argv __unused)
 		    ((t >> 0)  & 0x1f) * 2);
 
 		ts.tv_sec = ts.tv_nsec = 0;
-		fattime2timet(d, t, p, &ts);
-		printf("%10d.%03ld == ", ts.tv_sec, ts.tv_nsec / 1000000);
+		fattime2timespec(d, t, p, 1, &ts);
+		printf("%10jd.%03ld == ", (intmax_t) ts.tv_sec, ts.tv_nsec / 1000000);
 		gmtime_r(&ts.tv_sec, &tm);
 		strftime(buf, sizeof buf, "%Y %m %d %H %M %S", &tm);
 		printf("%s -- ", buf);

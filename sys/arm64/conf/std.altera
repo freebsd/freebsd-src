@@ -12,6 +12,7 @@ device		dwgpio			# Synopsys DesignWare APB GPIO Controller
 device		uart_snps
 
 # Ethernet NICs
+device		dwc			# Synopsys DesignWare GMAC controller
 device		dwc_socfpga		# Altera SOCFPGA Ethernet MAC
 
 # MMC/SD/SDIO Card slot support

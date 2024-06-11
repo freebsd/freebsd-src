@@ -133,6 +133,8 @@ ipf_check_wrapper(struct mbuf **mp, struct ifnet *ifp, int flags,
 	rv = ipf_check(&V_ipfmain, ip, ip->ip_hl << 2, ifp,
 	    !!(flags & PFIL_OUT), mp);
 	CURVNET_RESTORE();
+	if (rv == 0 && *mp == NULL)
+		return (PFIL_CONSUMED);
 	return (rv == 0 ? PFIL_PASS : PFIL_DROPPED);
 }
 
@@ -147,6 +149,8 @@ ipf_check_wrapper6(struct mbuf **mp, struct ifnet *ifp, int flags,
 	rv = ipf_check(&V_ipfmain, mtod(*mp, struct ip *),
 	    sizeof(struct ip6_hdr), ifp, !!(flags & PFIL_OUT), mp);
 	CURVNET_RESTORE();
+	if (rv == 0 && *mp == NULL)
+		return (PFIL_CONSUMED);
 
 	return (rv == 0 ? PFIL_PASS : PFIL_DROPPED);
 }
@@ -379,18 +383,17 @@ ipf_send_reset(fr_info_t *fin)
 	tcp2->th_sport = tcp->th_dport;
 	tcp2->th_dport = tcp->th_sport;
 
-	if (tcp->th_flags & TH_ACK) {
+	if (tcp_get_flags(tcp) & TH_ACK) {
 		tcp2->th_seq = tcp->th_ack;
-		tcp2->th_flags = TH_RST;
+		tcp_set_flags(tcp2, TH_RST);
 		tcp2->th_ack = 0;
 	} else {
 		tcp2->th_seq = 0;
 		tcp2->th_ack = ntohl(tcp->th_seq);
 		tcp2->th_ack += tlen;
 		tcp2->th_ack = htonl(tcp2->th_ack);
-		tcp2->th_flags = TH_RST|TH_ACK;
+		tcp_set_flags(tcp2, TH_RST|TH_ACK);
 	}
-	TCP_X2_A(tcp2, 0);
 	TCP_OFF_A(tcp2, sizeof(*tcp2) >> 2);
 	tcp2->th_win = tcp->th_win;
 	tcp2->th_sum = 0;

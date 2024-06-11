@@ -169,7 +169,7 @@
 #define	MCS7840_DEV_SPx_LOOP_PIPES	0x01	/* Loop Bulk-Out FIFO to the
 						 * Bulk-In FIFO, default = 0 */
 #define	MCS7840_DEV_SPx_SKIP_ERR_DATA	0x02	/* Drop data bytes from UART,
-						 * which were recevied with
+						 * which were received with
 						 * errors, default = 0 */
 #define	MCS7840_DEV_SPx_RESET_OUT_FIFO	0x04	/* Reset Bulk-Out FIFO */
 #define	MCS7840_DEV_SPx_RESET_IN_FIFO	0x08	/* Reset Bulk-In FIFO */

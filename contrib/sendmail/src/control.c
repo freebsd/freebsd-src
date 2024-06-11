@@ -41,8 +41,6 @@ static struct cmd	CmdTab[] =
 	{ NULL,		CMDERROR	}
 };
 
-
-
 static void	controltimeout __P((int));
 int ControlSocket = -1;
 

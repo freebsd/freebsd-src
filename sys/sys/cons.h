@@ -94,6 +94,8 @@ struct consdev {
 
 #ifdef _KERNEL
 
+extern	int cn_mute;
+
 extern	struct msgbuf consmsgbuf; /* Message buffer for constty. */
 extern	struct tty *constty;	/* Temporary virtual console. */
 
@@ -143,7 +145,6 @@ int	constty_clear(struct tty *tp);
 #define	VTY_SC 0x01
 #define	VTY_VT 0x02
 int	vty_enabled(unsigned int);
-void	vty_set_preferred(unsigned int);
 
 #endif /* _KERNEL */
 

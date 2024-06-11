@@ -30,7 +30,6 @@
  * Missing tests: fmod, fmodf.
  */
 
-#include <sys/cdefs.h>
 #include <float.h>
 #include <math.h>
 #include <stdio.h>

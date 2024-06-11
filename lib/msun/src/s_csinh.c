@@ -38,7 +38,6 @@
  * must satisfy both sinh(conj(z)) == conj(sinh(z)) and sinh(-z) == -sinh(z).
  */
 
-#include <sys/cdefs.h>
 #include <complex.h>
 #include <math.h>
 

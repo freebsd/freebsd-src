@@ -1961,7 +1961,9 @@ AttributeMask AttributeFuncs::typeIncompatible(Type *Ty,
           .addAttribute(Attribute::ReadNone)
           .addAttribute(Attribute::ReadOnly)
           .addAttribute(Attribute::Dereferenceable)
-          .addAttribute(Attribute::DereferenceableOrNull);
+          .addAttribute(Attribute::DereferenceableOrNull)
+          .addAttribute(Attribute::Writable)
+          .addAttribute(Attribute::DeadOnUnwind);
     if (ASK & ASK_UNSAFE_TO_DROP)
       Incompatible.addAttribute(Attribute::Nest)
           .addAttribute(Attribute::SwiftError)
@@ -2041,6 +2043,11 @@ template<typename AttrClass>
 static bool isEqual(const Function &Caller, const Function &Callee) {
   return Caller.getFnAttribute(AttrClass::getKind()) ==
          Callee.getFnAttribute(AttrClass::getKind());
+}
+
+static bool isEqual(const Function &Caller, const Function &Callee,
+                    const StringRef &AttrName) {
+  return Caller.getFnAttribute(AttrName) == Callee.getFnAttribute(AttrName);
 }
 
 /// Compute the logical AND of the attributes of the caller and the

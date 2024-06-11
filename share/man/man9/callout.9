@@ -27,13 +27,12 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd September 1, 2021
+.Dd January 22, 2024
 .Dt CALLOUT 9
 .Os
 .Sh NAME
 .Nm callout_active ,
 .Nm callout_deactivate ,
-.Nm callout_async_drain ,
 .Nm callout_drain ,
 .Nm callout_init ,
 .Nm callout_init_mtx ,
@@ -65,8 +64,6 @@ typedef void callout_func_t (void *);
 .Fn callout_active "struct callout *c"
 .Ft void
 .Fn callout_deactivate "struct callout *c"
-.Ft int
-.Fn callout_async_drain "struct callout *c" "callout_func_t *drain"
 .Ft int
 .Fn callout_drain "struct callout *c"
 .Ft void
@@ -291,30 +288,6 @@ same time a next invocation of the same callout is also scheduled, then
 unschedules the next run and returns zero.
 If the callout has an associated lock,
 then that lock must be held when this function is called.
-.Pp
-The function
-.Fn callout_async_drain
-is identical to
-.Fn callout_stop
-with one difference.
-When
-.Fn callout_async_drain
-returns zero it will arrange for the function
-.Fa drain
-to be called using the same argument given to the
-.Fn callout_reset
-function.
-.Fn callout_async_drain
-If the callout has an associated lock,
-then that lock must be held when this function is called.
-Note that when stopping multiple callouts that use the same lock it is possible
-to get multiple return's of zero and multiple calls to the
-.Fa drain
-function, depending upon which CPU's the callouts are running.
-The
-.Fa drain
-function itself is called from the context of the completing callout
-i.e. softclock or hardclock, just like a callout itself.
 .Pp
 The function
 .Fn callout_drain

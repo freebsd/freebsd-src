@@ -25,6 +25,12 @@ extra_commands="configtest keygen reload"
 : ${sshd_ecdsa_enable:="yes"}
 : ${sshd_ed25519_enable:="yes"}
 
+# sshd in a jail would not see other jails. As such exclude it from
+# svcj_all_enable="YES" by setting sshd_svcj to NO. This allows to
+# enable it in rc.conf.
+: ${sshd_svcj:="NO"}
+: ${sshd_svcj_options:="net_basic"}
+
 sshd_keygen_alg()
 {
 	local alg=$1

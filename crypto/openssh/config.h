@@ -519,6 +519,12 @@
 /* Define to 1 if you have the `EVP_MD_CTX_init' function. */
 /* #undef HAVE_EVP_MD_CTX_INIT */
 
+/* Define to 1 if you have the `EVP_PKEY_get_raw_private_key' function. */
+#define HAVE_EVP_PKEY_GET_RAW_PRIVATE_KEY 1
+
+/* Define to 1 if you have the `EVP_PKEY_get_raw_public_key' function. */
+#define HAVE_EVP_PKEY_GET_RAW_PUBLIC_KEY 1
+
 /* Define to 1 if you have the `EVP_sha256' function. */
 #define HAVE_EVP_SHA256 1
 
@@ -1747,6 +1753,9 @@
 /* OpenSSL has ECC */
 #define OPENSSL_HAS_ECC 1
 
+/* libcrypto has ed25519 support */
+/* #undef OPENSSL_HAS_ED25519 */
+
 /* libcrypto has NID_X9_62_prime256v1 */
 #define OPENSSL_HAS_NISTP256 1
 
@@ -1967,6 +1976,9 @@
 
 /* Define if you want to enable AIX4's authenticate function */
 /* #undef WITH_AIXAUTHENTICATE */
+
+/* Define if to enable DSA keys. */
+#define WITH_DSA 1
 
 /* Define if you have/want arrays (cluster-wide session management, not C
    arrays) */

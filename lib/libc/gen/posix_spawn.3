@@ -32,7 +32,7 @@
 .\" the referee document.  The original Standard can be obtained online at
 .\"	http://www.opengroup.org/unix/online.html.
 .\"
-.Dd November 28, 2021
+.Dd March 4, 2024
 .Dt POSIX_SPAWN 3
 .Os
 .Sh NAME
@@ -297,6 +297,15 @@ and the signals being indicated in the spawn-sigdefault attribute
 of the object referenced by
 .Fa attrp .
 .Pp
+The Address Space Layout Randomization for the newly spawned process
+can be disabled by specifying the
+.Dv POSIX_SPAWN_DISABLE_ASLR_NP
+flag in the spawn-flags attribute.
+This setting is inherited by future children of the child as well.
+See
+.Xr procctl 2
+for more details.
+.Pp
 If the value of the
 .Fa attrp
 pointer is NULL, then the default values are used.
@@ -432,6 +441,7 @@ action.
 .Xr execve 2 ,
 .Xr fcntl 2 ,
 .Xr open 2 ,
+.Xr procctl 2 ,
 .Xr sched_setparam 2 ,
 .Xr sched_setscheduler 2 ,
 .Xr setpgid 2 ,

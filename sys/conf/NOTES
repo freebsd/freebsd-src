@@ -771,6 +771,19 @@ options 	SCTP_PACKET_LOGGING
 options 	SCTP_LTRACE_CHUNKS
 options 	SCTP_LTRACE_ERRORS
 
+# OpenFabrics Enterprise Distribution (Infiniband).
+options 	OFED
+options 	OFED_DEBUG_INIT
+
+# Sockets Direct Protocol
+options 	SDP
+options 	SDP_DEBUG
+
+# IP over Infiniband
+options 	IPOIB
+options 	IPOIB_DEBUG
+options 	IPOIB_CM
+
 # altq(9). Enable the base part of the hooks with the ALTQ option.
 # Individual disciplines must be built into the base system and can not be
 # loaded as modules at this point. ALTQ requires a stable TSC so if yours is
@@ -873,6 +886,7 @@ device		vxlan
 #  and ath drivers and will eventually be required by all 802.11 drivers.
 device		wlan
 options 	IEEE80211_DEBUG		#enable debugging msgs
+options 	IEEE80211_DEBUG_REFCNT
 options 	IEEE80211_SUPPORT_MESH	#enable 802.11s D3.0 support
 options 	IEEE80211_SUPPORT_TDMA	#enable TDMA support
 
@@ -1015,6 +1029,7 @@ device		wg
 # TCP_BLACKBOX enables enhanced TCP event logging.
 #
 # TCP_HHOOK enables the hhook(9) framework hooks for the TCP stack.
+# SOCKET_HHOOK enables the hhook(9) framework hooks for socket operations.
 #
 # ROUTE_MPATH provides support for multipath routing.
 #
@@ -1036,6 +1051,7 @@ options 	PF_DEFAULT_TO_DROP	#drop everything by default
 options 	TCPPCAP
 options 	TCP_BLACKBOX
 options 	TCP_HHOOK
+options		SOCKET_HHOOK
 options 	ROUTE_MPATH
 
 # The MBUF_STRESS_TEST option enables options which create
@@ -1052,6 +1068,7 @@ options 	MBUF_PROFILING
 options 	ACCEPT_FILTER_DATA
 options 	ACCEPT_FILTER_DNS
 options 	ACCEPT_FILTER_HTTP
+options		ACCEPT_FILTER_TLS
 
 # TCP_SIGNATURE adds support for RFC 2385 (TCP-MD5) digests. These are
 # carried in TCP option 19. This option is commonly used to protect
@@ -1448,6 +1465,15 @@ options 	SCSI_PT_DEFAULT_TIMEOUT=60
 # a topology with the SES device that's on the box these drives are in....
 options 	SES_ENABLE_PASSTHROUGH
 
+# iSCSI
+#
+# iSCSI permits access to SCSI peripherals over a network connection
+# (e.g. via a TCP/IP socket)
+
+device		cfiscsi		# CAM Target Layer iSCSI target frontend
+device		iscsi		# iSCSI initiator
+device		iser		# iSCSI Extensions for RDMA (iSER) initiator
+
 
 #####################################################################
 # MISCELLANEOUS DEVICES AND OPTIONS
@@ -1607,10 +1633,6 @@ options 	AHD_REG_PRETTY_PRINT
 # Bitmap of units to enable targetmode operations.
 options 	AHD_TMODE_ENABLE
 
-# Options used in dev/iscsi (Software iSCSI stack)
-#
-options 	ISCSI_INITIATOR_DEBUG=9
-
 # Options used in dev/isp/ (Qlogic SCSI/FC driver).
 #
 #	ISP_TARGET_MODE		-	enable target mode operation
@@ -1653,6 +1675,23 @@ device		mfip		# LSI MegaRAID SAS passthrough, requires CAM
 options 	MFI_DEBUG
 device		mrsas		# LSI/Avago MegaRAID SAS/SATA, 6Gb/s and 12Gb/s
 
+# NVM Express
+#
+# nvme:	PCI-express NVM Express host controllers
+# nvmf:	NVM Express over Fabrics host
+# nvmft: NVM Express over Fabrics CAM Target Layer frontend
+# nvmf_tcp: TCP transport for NVM Express over Fabrics
+# nda:	CAM NVMe disk driver
+# nvd:	non-CAM NVMe disk driver
+
+device		nvme		# PCI-express NVMe host driver
+options 	NVME_USE_NVD=1	# Use nvd(4) instead of the CAM nda(4) driver
+device		nvmf		# NVMeoF host driver
+device		nvmft		# NVMeoF ctl(4) frontend
+device		nvmf_tcp	# NVMeoF TCP transport
+device		nda		# NVMe direct access devices (aka disks)
+device		nvd		# expose NVMe namespaces as disks, depends on nvme
+
 #
 # Serial ATA host controllers:
 #
@@ -1663,9 +1702,10 @@ device		mrsas		# LSI/Avago MegaRAID SAS/SATA, 6Gb/s and 12Gb/s
 # These drivers are part of cam(4) subsystem. They supersede less featured
 # ata(4) subsystem drivers, supporting same hardware.
 
-device		ahci
-device		mvs
-device		siis
+device		ahci		# AHCI-compatible SATA controllers
+device		mvs		# Marvell 88SX50XX/88SX60XX/88SX70XX/SoC SATA
+device		siis		# SiliconImage SiI3124/SiI3132/SiI3531 SATA
+device		ada		# ATA/SATA direct access devices (aka disks)
 
 #
 # The 'ATA' driver supports all legacy ATA/ATAPI controllers, including
@@ -1675,7 +1715,7 @@ device		siis
 # the 'atacore' driver then selecting the drivers on a per vendor basis.
 # For example to build a system which only supports a VIA chipset,
 # omit 'ata' and include the 'atacore', 'atapci' and 'atavia' drivers.
-device		ata
+device		ata		# Legacy ATA/SATA controllers
 
 # Modular ATA
 #device		atacore		# Core ATA functionality
@@ -2053,6 +2093,7 @@ device		sound
 # snd_fm801:		Forte Media FM801 PCI.
 # snd_hda:		Intel High Definition Audio (Controller) and
 #			compatible.
+# snd_hdsp:		RME HDSP 9632 and HDSP 9652
 # snd_hdspe:		RME HDSPe AIO and RayDAT.
 # snd_ich:		Intel ICH AC'97 and some more audio controllers
 #			embedded in a chipset, for example nVidia
@@ -2080,6 +2121,7 @@ device		snd_envy24ht
 device		snd_es137x
 device		snd_fm801
 device		snd_hda
+device		snd_hdsp
 device		snd_hdspe
 device		snd_ich
 device		snd_maestro3
@@ -2189,6 +2231,7 @@ device		rtsx
 device		smbus		# Bus support, required for smb below.
 
 device		intpm
+options 	ENABLE_ALART	# Control alarm on Intel intpm driver
 device		alpm
 device		ichsmb
 device		viapm
@@ -2373,6 +2416,26 @@ options 	NSFBUFS=1024
 # modules should be recompiled as this option modifies KBI.
 #
 options 	DEBUG_LOCKS
+
+#
+# VirtIO support
+#
+# The virtio entry provides a generic bus for use by the device drivers.
+# It must be combined with an interface that communicates with the host.
+# Multiple such interfaces are defined by the VirtIO specification
+# including PCI and MMIO.
+#
+device		virtio		# Generic VirtIO bus (required)
+device		virtio_mmio	# VirtIO MMIO Interface
+device		virtio_pci	# VirtIO PCI Interface
+device		vtnet		# VirtIO Ethernet device
+device		virtio_balloon	# VirtIO Memory Balloon device
+device		virtio_blk	# VirtIO Block device
+device		virtio_console	# VirtIO Console device
+device		virtio_gpu	# VirtIO GPU device
+device		virtio_random	# VirtIO Entropy device
+device		virtio_scmi	# VirtIO SCSI device
+device		virtio_scsi	# VirtIO SCMI device
 
 #####################################################################
 # HID support
@@ -2600,6 +2663,10 @@ device		hifn		# Hifn 7951, 7781, etc.
 options 	HIFN_DEBUG	# enable debugging support: hw.hifn.debug
 options 	HIFN_RNDTEST	# enable rndtest support
 
+device		safe		# SafeNet 1141
+options 	SAFE_DEBUG	# enable debugging support: hw.safe.debug
+options 	SAFE_RNDTEST	# enable rndtest support
+
 #####################################################################
 
 
@@ -2747,7 +2814,7 @@ options 	MAXFILES=999
 options 	RANDOM_ENABLE_UMA	# slab allocator
 
 # Select this to allow high-rate but potentially expensive
-# harvesting of of the m_next pointer in the mbuf. Note that
+# harvesting of the m_next pointer in the mbuf. Note that
 # the m_next pointer is NULL except when receiving > 4K
 # jumbo frames or sustained bursts by way of LRO. Thus in
 # the common case it is stirring zero in to the entropy

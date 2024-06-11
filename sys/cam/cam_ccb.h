@@ -297,9 +297,10 @@ typedef enum {
 	XPORT_SRP,	/* SCSI RDMA Protocol */
 	XPORT_NVME,	/* NVMe over PCIe */
 	XPORT_MMCSD,	/* MMC, SD, SDIO card */
+	XPORT_NVMF,	/* NVMe over Fabrics */
 } cam_xport;
 
-#define XPORT_IS_NVME(t)	((t) == XPORT_NVME)
+#define XPORT_IS_NVME(t)	((t) == XPORT_NVME || (t) == XPORT_NVMF)
 #define XPORT_IS_ATA(t)		((t) == XPORT_ATA || (t) == XPORT_SATA)
 #define XPORT_IS_SCSI(t)	((t) != XPORT_UNKNOWN && \
 				 (t) != XPORT_UNSPECIFIED && \
@@ -653,6 +654,12 @@ struct ccb_pathinq_settings_nvme {
 _Static_assert(sizeof(struct ccb_pathinq_settings_nvme) == 64,
     "ccb_pathinq_settings_nvme too big");
 
+struct ccb_pathinq_settings_nvmf {
+	uint32_t nsid;		/* Namespace ID for this path */
+	uint8_t  trtype;
+	char	 dev_name[NVME_DEV_NAME_LEN]; /* nvme controller dev name for this device */
+};
+
 #define	PATHINQ_SETTINGS_SIZE	128
 
 struct ccb_pathinq {
@@ -684,6 +691,7 @@ struct ccb_pathinq {
 		struct ccb_pathinq_settings_fc fc;
 		struct ccb_pathinq_settings_sas sas;
 		struct ccb_pathinq_settings_nvme nvme;
+		struct ccb_pathinq_settings_nvmf nvmf;
 		char ccb_pathinq_settings_opaque[PATHINQ_SETTINGS_SIZE];
 	} xport_specific;
 	u_int		maxio;		/* Max supported I/O size, in bytes. */
@@ -1050,6 +1058,13 @@ struct ccb_trans_settings_nvme
 	uint8_t		max_speed;	/* PCIe generation for each lane */
 };
 
+struct ccb_trans_settings_nvmf
+{
+	u_int     	valid;		/* Which fields to honor */
+#define CTS_NVMF_VALID_TRTYPE	0x01
+	uint8_t		trtype;
+};
+
 #include <cam/mmc/mmc_bus.h>
 struct ccb_trans_settings_mmc {
 	struct mmc_ios ios;
@@ -1122,6 +1137,7 @@ struct ccb_trans_settings {
 		struct ccb_trans_settings_pata ata;
 		struct ccb_trans_settings_sata sata;
 		struct ccb_trans_settings_nvme nvme;
+		struct ccb_trans_settings_nvmf nvmf;
 	} xport_specific;
 };
 

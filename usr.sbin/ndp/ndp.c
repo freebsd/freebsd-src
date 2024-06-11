@@ -652,6 +652,12 @@ again:;
 	if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0)
 		xo_err(1, "sysctl(PF_ROUTE estimate)");
 	if (needed > 0) {
+		/*
+		 * Add ~2% additional space in case some records
+		 * will appear between sysctl() calls.
+		 * Round it up so it can fit 4 additional messages at least.
+		 */
+		needed += ((needed >> 6) | (sizeof(m_rtmsg) * 4));
 		if ((buf = malloc(needed)) == NULL)
 			xo_err(1, "malloc");
 		if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0)
@@ -1165,7 +1171,7 @@ rtrlist(void)
 	size_t l;
 	struct timeval now;
 
-	if (sysctl(mib, sizeof(mib) / sizeof(mib[0]), NULL, &l, NULL, 0) < 0) {
+	if (sysctl(mib, nitems(mib), NULL, &l, NULL, 0) < 0) {
 		xo_err(1, "sysctl(ICMPV6CTL_ND6_DRLIST)");
 		/*NOTREACHED*/
 	}
@@ -1176,7 +1182,7 @@ rtrlist(void)
 		xo_err(1, "malloc");
 		/*NOTREACHED*/
 	}
-	if (sysctl(mib, sizeof(mib) / sizeof(mib[0]), buf, &l, NULL, 0) < 0) {
+	if (sysctl(mib, nitems(mib), buf, &l, NULL, 0) < 0) {
 		xo_err(1, "sysctl(ICMPV6CTL_ND6_DRLIST)");
 		/*NOTREACHED*/
 	}
@@ -1251,7 +1257,7 @@ plist(void)
 	int ninflags = opts.nflag ? NI_NUMERICHOST : 0;
 	char namebuf[NI_MAXHOST];
 
-	if (sysctl(mib, sizeof(mib) / sizeof(mib[0]), NULL, &l, NULL, 0) < 0) {
+	if (sysctl(mib, nitems(mib), NULL, &l, NULL, 0) < 0) {
 		xo_err(1, "sysctl(ICMPV6CTL_ND6_PRLIST)");
 		/*NOTREACHED*/
 	}
@@ -1260,7 +1266,7 @@ plist(void)
 		xo_err(1, "malloc");
 		/*NOTREACHED*/
 	}
-	if (sysctl(mib, sizeof(mib) / sizeof(mib[0]), buf, &l, NULL, 0) < 0) {
+	if (sysctl(mib, nitems(mib), buf, &l, NULL, 0) < 0) {
 		xo_err(1, "sysctl(ICMPV6CTL_ND6_PRLIST)");
 		/*NOTREACHED*/
 	}

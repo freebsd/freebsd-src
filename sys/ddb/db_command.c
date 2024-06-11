@@ -126,6 +126,10 @@ static struct db_command db_cmds[] = {
 	DB_CMD("delete",	db_delete_cmd,		0),
 	DB_CMD("d",		db_delete_cmd,		0),
 	DB_CMD("dump",		db_dump,		DB_CMD_MEMSAFE),
+#ifdef HAS_HW_BREAKPOINT
+	DB_CMD("dhbreak",	db_deletehbreak_cmd,	0),
+	DB_CMD("hbreak",	db_hbreakpoint_cmd,	0),
+#endif
 	DB_CMD("break",		db_breakpoint_cmd,	0),
 	DB_CMD("b",		db_breakpoint_cmd,	0),
 	DB_CMD("dwatch",	db_deletewatch_cmd,	0),
@@ -163,6 +167,7 @@ static struct db_command db_cmds[] = {
 	DB_CMD("capture",	db_capture_cmd,		CS_OWN|DB_CMD_MEMSAFE),
 	DB_CMD("textdump",	db_textdump_cmd,	CS_OWN|DB_CMD_MEMSAFE),
 	DB_CMD("findstack",	db_findstack_cmd,	0),
+	DB_CMD("pprint",	db_pprint_cmd,		CS_OWN),
 };
 struct db_command_table db_cmd_table = LIST_HEAD_INITIALIZER(db_cmd_table);
 

@@ -47,7 +47,7 @@
  *
  * tcp_hpts_insert(tp, HPTS_USEC_TO_SLOTS(550));
  *
- * The above would schedule tcp_ouput() to be called in 550 useconds.
+ * The above would schedule tcp_output() to be called in 550 useconds.
  * Note that if using this mechanism the stack will want to add near
  * its top a check to prevent unwanted calls (from user land or the
  * arrival of incoming ack's). So it would add something like:
@@ -193,7 +193,8 @@ struct tcp_hpts_entry {
 	uint8_t p_direct_wake :1, /* boolean */
 		p_on_min_sleep:1, /* boolean */
 		p_hpts_wake_scheduled:1, /* boolean */
-		p_avail:5;
+		hit_callout_thresh:1,
+		p_avail:4;
 	uint8_t p_fill[3];	  /* Fill to 32 bits */
 	/* Cache line 0x40 */
 	struct hptsh {
@@ -229,19 +230,17 @@ static struct tcp_hptsi {
 	uint32_t rp_num_hptss;	/* Number of hpts threads */
 } tcp_pace;
 
-MALLOC_DEFINE(M_TCPHPTS, "tcp_hpts", "TCP hpts");
+static MALLOC_DEFINE(M_TCPHPTS, "tcp_hpts", "TCP hpts");
 #ifdef RSS
 static int tcp_bind_threads = 1;
 #else
 static int tcp_bind_threads = 2;
 #endif
 static int tcp_use_irq_cpu = 0;
-static uint32_t *cts_last_ran;
 static int hpts_does_tp_logging = 0;
 
 static int32_t tcp_hptsi(struct tcp_hpts_entry *hpts, int from_callout);
 static void tcp_hpts_thread(void *ctx);
-static void tcp_init_hptsi(void *st);
 
 int32_t tcp_min_hptsi_time = DEFAULT_MIN_SLEEP;
 static int conn_cnt_thresh = DEFAULT_CONNECTION_THESHOLD;
@@ -760,7 +759,8 @@ max_slots_available(struct tcp_hpts_entry *hpts, uint32_t wheel_slot, uint32_t *
 		 * "0".
 		 */
 		counter_u64_add(combined_wheel_wrap, 1);
-		*target_slot = hpts->p_nxt_slot;
+		if (target_slot)
+			*target_slot = hpts->p_nxt_slot;
 		return (0);
 	} else {
 		/*
@@ -822,7 +822,7 @@ tcp_hpts_insert_diag(struct tcpcb *tp, uint32_t slot, int32_t line, struct hpts_
 
 	INP_WLOCK_ASSERT(tptoinpcb(tp));
 	MPASS(!(tptoinpcb(tp)->inp_flags & INP_DROPPED));
-	MPASS(!tcp_in_hpts(tp));
+	MPASS(!(tp->t_in_hpts == IHPTS_ONQUEUE));
 
 	/*
 	 * We now return the next-slot the hpts will be on, beyond its
@@ -1098,7 +1098,7 @@ tcp_hptsi(struct tcp_hpts_entry *hpts, int from_callout)
 
 	hpts->p_lasttick = hpts->p_curtick;
 	hpts->p_curtick = tcp_gethptstick(&tv);
-	cts_last_ran[hpts->p_num] = tcp_tv_to_usectick(&tv);
+	tcp_pace.cts_last_ran[hpts->p_num] = tcp_tv_to_usectick(&tv);
 	orig_exit_slot = hpts->p_cur_slot = tick_to_wheel(hpts->p_curtick);
 	if ((hpts->p_on_queue_cnt == 0) ||
 	    (hpts->p_lasttick == hpts->p_curtick)) {
@@ -1366,18 +1366,23 @@ again:
 			 * We also only call tfb_do_queued_segments() <or>
 			 * tcp_output().  It is expected that if segments are
 			 * queued and come in that the final input mbuf will
-			 * cause a call to output if it is needed.
+			 * cause a call to output if it is needed so we do
+			 * not need a second call to tcp_output(). So we do
+			 * one or the other but not both.
 			 */
 			tp->t_flags2 |= TF2_HPTS_CALLS;
 			if ((tp->t_flags2 & TF2_SUPPORTS_MBUFQ) &&
 			    !STAILQ_EMPTY(&tp->t_inqueue)) {
 				error = (*tp->t_fb->tfb_do_queued_segments)(tp, 0);
-				if (error) {
-					/* The input killed the connection */
+				/*
+				 * A non-zero return for input queue processing
+				 * is the lock is released and most likely the
+				 * inp is gone.
+				 */
+				if (error)
 					goto skip_pacing;
-				}
-			}
-			error = tcp_output(tp);
+			} else
+				error = tcp_output(tp);
 			if (error < 0)
 				goto skip_pacing;
 			INP_WUNLOCK(inp);
@@ -1441,7 +1446,7 @@ no_one:
 		goto again;
 	}
 no_run:
-	cts_last_ran[hpts->p_num] = tcp_tv_to_usectick(&tv);
+	tcp_pace.cts_last_ran[hpts->p_num] = tcp_tv_to_usectick(&tv);
 	/*
 	 * Set flag to tell that we are done for
 	 * any slot input that happens during
@@ -1523,8 +1528,8 @@ tcp_choose_hpts_to_run(void)
 	}
 	oldest_idx = -1;
 	for (i = start; i < end; i++) {
-		if (TSTMP_GT(cts, cts_last_ran[i]))
-			calc = cts - cts_last_ran[i];
+		if (TSTMP_GT(cts, tcp_pace.cts_last_ran[i]))
+			calc = cts - tcp_pace.cts_last_ran[i];
 		else
 			calc = 0;
 		if (calc > time_since_ran) {
@@ -1646,6 +1651,7 @@ tcp_hpts_thread(void *ctx)
 		 * enough activity in the system that we don't need to
 		 * run as often (if we were not directly woken).
 		 */
+		tv.tv_sec = 0;
 		if (hpts->p_direct_wake == 0) {
 			counter_u64_add(hpts_back_tosleep, 1);
 			if (hpts->p_on_queue_cnt >= conn_cnt_thresh) {
@@ -1670,7 +1676,6 @@ tcp_hpts_thread(void *ctx)
 			 * Directly woken most likely to reset the
 			 * callout time.
 			 */
-			tv.tv_sec = 0;
 			tv.tv_usec = hpts->p_mysleep.tv_usec;
 		}
 		goto back_to_sleep;
@@ -1680,6 +1685,13 @@ tcp_hpts_thread(void *ctx)
 	ticks_ran = tcp_hptsi(hpts, 1);
 	tv.tv_sec = 0;
 	tv.tv_usec = hpts->p_hpts_sleep_time * HPTS_TICKS_PER_SLOT;
+	if ((hpts->p_on_queue_cnt > conn_cnt_thresh) && (hpts->hit_callout_thresh == 0)) {
+		hpts->hit_callout_thresh = 1;
+		atomic_add_int(&hpts_that_need_softclock, 1);
+	} else if ((hpts->p_on_queue_cnt <= conn_cnt_thresh) && (hpts->hit_callout_thresh == 1)) {
+		hpts->hit_callout_thresh = 0;
+		atomic_subtract_int(&hpts_that_need_softclock, 1);
+	}
 	if (hpts->p_on_queue_cnt >= conn_cnt_thresh) {
 		if(hpts->p_direct_wake == 0) {
 			/*
@@ -1795,7 +1807,7 @@ hpts_gather_grps(struct cpu_group **grps, int32_t *at, int32_t max, struct cpu_g
 }
 
 static void
-tcp_init_hptsi(void *st)
+tcp_hpts_mod_load(void)
 {
 	struct cpu_group *cpu_top;
 	int32_t error __diagused;
@@ -1830,7 +1842,7 @@ tcp_init_hptsi(void *st)
 	sz = (tcp_pace.rp_num_hptss * sizeof(struct tcp_hpts_entry *));
 	tcp_pace.rp_ent = malloc(sz, M_TCPHPTS, M_WAITOK | M_ZERO);
 	sz = (sizeof(uint32_t) * tcp_pace.rp_num_hptss);
-	cts_last_ran = malloc(sz, M_TCPHPTS, M_WAITOK);
+	tcp_pace.cts_last_ran = malloc(sz, M_TCPHPTS, M_WAITOK);
 	tcp_pace.grp_cnt = 0;
 	if (cpu_top == NULL) {
 		tcp_pace.grp_cnt = 1;
@@ -1916,7 +1928,7 @@ tcp_init_hptsi(void *st)
 		SYSCTL_ADD_UINT(&hpts->hpts_ctx,
 		    SYSCTL_CHILDREN(hpts->hpts_root),
 		    OID_AUTO, "lastran", CTLFLAG_RD,
-		    &cts_last_ran[i], 0,
+		    &tcp_pace.cts_last_ran[i], 0,
 		    "The last usec tick that this hpts ran");
 		SYSCTL_ADD_LONG(&hpts->hpts_ctx,
 		    SYSCTL_CHILDREN(hpts->hpts_root),
@@ -1937,7 +1949,7 @@ tcp_init_hptsi(void *st)
 		hpts->p_hpts_sleep_time = hpts_sleep_max;
 		hpts->p_num = i;
 		hpts->p_curtick = tcp_gethptstick(&tv);
-		cts_last_ran[i] = tcp_tv_to_usectick(&tv);
+		tcp_pace.cts_last_ran[i] = tcp_tv_to_usectick(&tv);
 		hpts->p_prev_slot = hpts->p_cur_slot = tick_to_wheel(hpts->p_curtick);
 		hpts->p_cpu = 0xffff;
 		hpts->p_nxt_slot = hpts_slot(hpts->p_cur_slot, 1);
@@ -2006,10 +2018,81 @@ tcp_init_hptsi(void *st)
 	printf("TCP Hpts created %d swi interrupt threads and bound %d to %s\n",
 	    created, bound,
 	    tcp_bind_threads == 2 ? "NUMA domains" : "cpus");
-#ifdef INVARIANTS
-	printf("HPTS is in INVARIANT mode!!\n");
-#endif
 }
 
-SYSINIT(tcphptsi, SI_SUB_SOFTINTR, SI_ORDER_ANY, tcp_init_hptsi, NULL);
+static void
+tcp_hpts_mod_unload(void)
+{
+	int rv __diagused;
+
+	tcp_lro_hpts_uninit();
+	atomic_store_ptr(&tcp_hpts_softclock, NULL);
+
+	for (int i = 0; i < tcp_pace.rp_num_hptss; i++) {
+		struct tcp_hpts_entry *hpts = tcp_pace.rp_ent[i];
+
+		rv = callout_drain(&hpts->co);
+		MPASS(rv != 0);
+
+		rv = swi_remove(hpts->ie_cookie);
+		MPASS(rv == 0);
+
+		rv = sysctl_ctx_free(&hpts->hpts_ctx);
+		MPASS(rv == 0);
+
+		mtx_destroy(&hpts->p_mtx);
+		free(hpts->p_hptss, M_TCPHPTS);
+		free(hpts, M_TCPHPTS);
+	}
+
+	free(tcp_pace.rp_ent, M_TCPHPTS);
+	free(tcp_pace.cts_last_ran, M_TCPHPTS);
+#ifdef SMP
+	free(tcp_pace.grps, M_TCPHPTS);
+#endif
+
+	counter_u64_free(hpts_hopelessly_behind);
+	counter_u64_free(hpts_loops);
+	counter_u64_free(back_tosleep);
+	counter_u64_free(combined_wheel_wrap);
+	counter_u64_free(wheel_wrap);
+	counter_u64_free(hpts_wake_timeout);
+	counter_u64_free(hpts_direct_awakening);
+	counter_u64_free(hpts_back_tosleep);
+	counter_u64_free(hpts_direct_call);
+	counter_u64_free(cpu_uses_flowid);
+	counter_u64_free(cpu_uses_random);
+}
+
+static int
+tcp_hpts_modevent(module_t mod, int what, void *arg)
+{
+
+	switch (what) {
+	case MOD_LOAD:
+		tcp_hpts_mod_load();
+		return (0);
+	case MOD_QUIESCE:
+		/*
+		 * Since we are a dependency of TCP stack modules, they should
+		 * already be unloaded, and the HPTS ring is empty.  However,
+		 * function pointer manipulations aren't 100% safe.  Although,
+		 * tcp_hpts_mod_unload() use atomic(9) the userret() doesn't.
+		 * Thus, allow only forced unload of HPTS.
+		 */
+		return (EBUSY);
+	case MOD_UNLOAD:
+		tcp_hpts_mod_unload();
+		return (0);
+	default:
+		return (EINVAL);
+	};
+}
+
+static moduledata_t tcp_hpts_module = {
+	.name = "tcphpts",
+	.evhand = tcp_hpts_modevent,
+};
+
+DECLARE_MODULE(tcphpts, tcp_hpts_module, SI_SUB_SOFTINTR, SI_ORDER_ANY);
 MODULE_VERSION(tcphpts, 1);

@@ -1,9 +1,9 @@
 # This is a generated file, do NOT edit!
 # See contrib/bmake/bsd.after-import.mk
 #
-# $Id: Makefile,v 1.207 2023/09/09 16:44:03 sjg Exp $
+# $Id: Makefile,v 1.216 2024/04/30 16:42:50 sjg Exp $
 #
-# $NetBSD: Makefile,v 1.341 2023/09/09 16:41:04 sjg Exp $
+# $NetBSD: Makefile,v 1.344 2024/04/30 16:41:32 sjg Exp $
 #
 # Unit tests for make(1)
 #
@@ -220,7 +220,7 @@ TESTS+=		hanoi-include
 TESTS+=		impsrc
 TESTS+=		include-main
 TESTS+=		job-flags
-#TESTS+=		job-output-long-lines
+TESTS+=		job-output-long-lines
 TESTS+=		job-output-null
 TESTS+=		jobs-empty-commands
 TESTS+=		jobs-empty-commands-error
@@ -252,7 +252,7 @@ TESTS+=		opt-debug-graph1
 TESTS+=		opt-debug-graph2
 TESTS+=		opt-debug-graph3
 TESTS+=		opt-debug-hash
-#TESTS+=		opt-debug-jobs
+TESTS+=		opt-debug-jobs
 TESTS+=		opt-debug-lint
 TESTS+=		opt-debug-loud
 TESTS+=		opt-debug-meta
@@ -481,7 +481,7 @@ BROKEN_TESTS+= varmod-localtime
 BROKEN_TESTS+= shell-ksh
 .endif
 
-.if ${.MAKE.OS:MIRIX*} != ""
+.if ${.MAKE.OS:NIRIX*} == ""
 BROKEN_TESTS+= \
 	cmd-interrupt \
 	deptgt-interrupt \
@@ -567,6 +567,9 @@ SED_CMDS.directive-include-guard= \
 	-e '/^ParseDependency/d' \
 	-e '/^ParseEOF:/d'
 SED_CMDS.export=	-e '/^[^=_A-Za-z0-9]*=/d'
+.if ${.MAKE.OS:NCygwin} == ""
+SED_CMDS.export+=	-e '/^WINDIR=/d' -e '/^SYSTEMROOT=/d'
+.endif
 SED_CMDS.export-all=	${SED_CMDS.export}
 SED_CMDS.export-env=	${SED_CMDS.export}
 SED_CMDS.cmdline=	-e 's,uid${.MAKE.UID}/,,'
@@ -619,7 +622,7 @@ SED_CMDS.var-op-shell+=		${STD_SED_CMDS.shell}
 SED_CMDS.var-op-shell+=		-e '/command/s,No such.*,not found,'
 SED_CMDS.var-op-shell+=		${STD_SED_CMDS.white-space}
 SED_CMDS.vardebug+=		-e 's,${.SHELL},</path/to/shell>,'
-SED_CMDS.varmod-mtime+=		-e "s,': .*,': <ENOENT>,"
+SED_CMDS.varmod-mtime+=		-e "s,\(.*\)': .*,\1': <ENOENT>,"
 SED_CMDS.varmod-subst-regex+=	${STD_SED_CMDS.regex}
 SED_CMDS.varparse-errors+=	${STD_SED_CMDS.timestamp}
 SED_CMDS.varname-dot-make-meta-ignore_filter+= ${SED_CMDS.meta-ignore}
@@ -649,8 +652,9 @@ unexport-env.rawout: export.mk
 
 # In tests that use the debugging option -dd, ignore debugging output that is
 # only logged in -DCLEANUP mode.
-STD_SED_CMDS.dd=		-e '/^OpenDirs_Done:/d'
-STD_SED_CMDS.dd+=		-e '/^CachedDir /d'
+STD_SED_CMDS.dd=	-e '/^OpenDirs_Done:/d'
+STD_SED_CMDS.dd+=	-e '/^CachedDir /d'
+STD_SED_CMDS.dd+=	-e 's,  ${DEFSYSPATH:U/usr/share/mk} ,  <defsyspath> ,'
 
 # Omit details such as process IDs from the output of the -dg1 option.
 STD_SED_CMDS.dg1=	-e '/\#.* \.$$/d'
@@ -756,12 +760,10 @@ TOOL_TR?=	tr
 TOOL_DIFF?=	diff
 DIFF_FLAGS?=	-u
 
-.if defined(.PARSEDIR)
 # ensure consistent results from sort(1)
 LC_ALL=		C
 LANG=		C
 .export LANG LC_ALL
-.endif
 
 .if ${.MAKE.MODE:Unormal:Mmeta} != ""
 # we don't need the noise
@@ -824,6 +826,7 @@ _SED_CMDS+=	-e 's,${.OBJDIR},<curdir>,g' -e 's,${.OBJDIR:tA},<curdir>,g'
 _SED_CMDS+=	-e 's,^${TEST_MAKE:T:S,.,\\.,g}[][0-9]*:,make:,'
 _SED_CMDS+=	-e 's,${TEST_MAKE:S,.,\\.,g},make,'
 _SED_CMDS+=	-e 's,^usage: ${TEST_MAKE:T:S,.,\\.,g} ,usage: make ,'
+_SED_CMDS+=	-e 's,${TEST_MAKE:T:S,.,\\.,g}\(\[[1-9][0-9]*\]:\),make\1,'
 _SED_CMDS+=	-e 's,<curdir>/,,g'
 _SED_CMDS+=	-e 's,${UNIT_TESTS:S,.,\\.,g}/,,g'
 _SED_CMDS+=	-e '/MAKE_VERSION/d'

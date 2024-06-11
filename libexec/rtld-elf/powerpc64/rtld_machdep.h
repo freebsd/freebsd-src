@@ -35,8 +35,16 @@
 
 struct Struct_Obj_Entry;
 
+#define	MD_OBJ_ENTRY	\
+    Elf_Addr glink;		/* GLINK PLT call stub section */
+
 /* Return the address of the .dynamic section in the dynamic linker. */
 #define rtld_dynamic(obj)    (&_DYNAMIC)
+
+bool arch_digest_dynamic(struct Struct_Obj_Entry *, const Elf_Dyn *);
+
+/* No architecture specific notes */
+#define	arch_digest_note(obj, note)	false
 
 Elf_Addr reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
     const struct Struct_Obj_Entry *defobj, const struct Struct_Obj_Entry *obj,

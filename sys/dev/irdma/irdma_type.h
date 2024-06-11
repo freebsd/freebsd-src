@@ -42,6 +42,8 @@
 #include "irdma_hmc.h"
 #include "irdma_uda.h"
 #include "irdma_ws.h"
+#include "irdma_pble.h"
+
 enum irdma_debug_flag {
 	IRDMA_DEBUG_NONE	= 0x00000000,
 	IRDMA_DEBUG_ERR		= 0x00000001,
@@ -69,6 +71,8 @@ enum irdma_debug_flag {
 	IRDMA_DEBUG_STATS	= 0x04000000,
 	IRDMA_DEBUG_ALL		= 0xFFFFFFFF,
 };
+
+#define RSVD_OFFSET 0xFFFFFFFF
 
 enum irdma_page_size {
 	IRDMA_PAGE_SIZE_4K = 0,
@@ -472,7 +476,7 @@ struct irdma_sc_cq {
 	bool virtual_map:1;
 	bool check_overflow:1;
 	bool ceq_id_valid:1;
-	bool tph_en;
+	bool tph_en:1;
 };
 
 struct irdma_sc_qp {
@@ -520,9 +524,9 @@ struct irdma_sc_qp {
 };
 
 struct irdma_stats_inst_info {
-	bool use_hmc_fcn_index;
 	u16 hmc_fn_id;
 	u16 stats_idx;
+	bool use_hmc_fcn_index:1;
 };
 
 struct irdma_up_info {
@@ -570,7 +574,7 @@ struct irdma_qos {
 	u8 traffic_class;
 	u8 rel_bw;
 	u8 prio_type;
-	bool valid;
+	bool valid:1;
 };
 
 struct irdma_config_check {
@@ -623,7 +627,6 @@ struct irdma_sc_dev {
 	__le64 *fpm_query_buf;
 	__le64 *fpm_commit_buf;
 	struct irdma_hw *hw;
-	u8 IOMEM *db_addr;
 	u32 IOMEM *wqe_alloc_db;
 	u32 IOMEM *cq_arm_db;
 	u32 IOMEM *aeq_alloc_db;
@@ -649,8 +652,6 @@ struct irdma_sc_dev {
 	u32 debug_mask;
 	u16 num_vfs;
 	u16 hmc_fn_id;
-	u8 vf_id;
-	bool vchnl_up:1;
 	bool ceq_valid:1;
 	u8 pci_rev;
 	int (*ws_add)(struct irdma_sc_vsi *vsi, u8 user_pri);
@@ -666,7 +667,7 @@ struct irdma_modify_cq_info {
 	u8 pbl_chunk_size;
 	u32 first_pm_pbl_idx;
 	bool virtual_map:1;
-	bool check_overflow;
+	bool check_overflow:1;
 	bool cq_resize:1;
 };
 
@@ -676,7 +677,7 @@ struct irdma_create_qp_info {
 	bool cq_num_valid:1;
 	bool arp_cache_idx_valid:1;
 	bool mac_valid:1;
-	bool force_lpb;
+	bool force_lpb:1;
 	u8 next_iwarp_state;
 };
 
@@ -709,7 +710,7 @@ struct irdma_ccq_cqe_info {
 	u16 maj_err_code;
 	u16 min_err_code;
 	u8 op_code;
-	bool error;
+	bool error:1;
 };
 
 struct irdma_qos_tc_info {
@@ -751,7 +752,7 @@ struct irdma_vsi_init_info {
 struct irdma_vsi_stats_info {
 	struct irdma_vsi_pestat *pestat;
 	u8 fcn_id;
-	bool alloc_stats_inst;
+	bool alloc_stats_inst:1;
 };
 
 struct irdma_device_init_info {
@@ -789,7 +790,7 @@ struct irdma_aeq_init_info {
 	u32 *aeqe_base;
 	void *pbl_list;
 	u32 elem_cnt;
-	bool virtual_map;
+	bool virtual_map:1;
 	u8 pbl_chunk_size;
 	u32 first_pm_pbl_idx;
 	u32 msix_idx;
@@ -856,7 +857,6 @@ struct irdma_roce_offload_info {
 	bool dcqcn_en:1;
 	bool rcv_no_icrc:1;
 	bool wr_rdresp_en:1;
-	bool bind_en:1;
 	bool fast_reg_en:1;
 	bool priv_mode_en:1;
 	bool rd_en:1;
@@ -888,7 +888,6 @@ struct irdma_iwarp_offload_info {
 	bool snd_mark_en:1;
 	bool rcv_mark_en:1;
 	bool wr_rdresp_en:1;
-	bool bind_en:1;
 	bool fast_reg_en:1;
 	bool priv_mode_en:1;
 	bool rd_en:1;
@@ -1134,12 +1133,12 @@ struct irdma_add_arp_cache_entry_info {
 	u8 mac_addr[ETHER_ADDR_LEN];
 	u32 reach_max;
 	u16 arp_index;
-	bool permanent;
+	bool permanent:1;
 };
 
 struct irdma_apbvt_info {
 	u16 port;
-	bool add;
+	bool add:1;
 };
 
 struct irdma_qhash_table_info {

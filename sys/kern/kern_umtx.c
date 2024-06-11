@@ -67,6 +67,7 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
+#include <vm/uma.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 
@@ -2520,7 +2521,8 @@ do_lock_pp(struct thread *td, struct umutex *m, uint32_t flags,
 	struct umtx_pi *pi;
 	uint32_t ceiling;
 	uint32_t owner, id;
-	int error, pri, old_inherited_pri, su, rv;
+	int error, pri, old_inherited_pri, new_pri, rv;
+	bool su;
 
 	id = td->td_tid;
 	uq = td->td_umtxq;
@@ -2549,21 +2551,23 @@ do_lock_pp(struct thread *td, struct umutex *m, uint32_t flags,
 			error = EINVAL;
 			goto out;
 		}
+		new_pri = PRI_MIN_REALTIME + ceiling;
 
-		mtx_lock(&umtx_lock);
-		if (UPRI(td) < PRI_MIN_REALTIME + ceiling) {
-			mtx_unlock(&umtx_lock);
+		if (td->td_base_user_pri < new_pri) {
 			error = EINVAL;
 			goto out;
 		}
-		if (su && PRI_MIN_REALTIME + ceiling < uq->uq_inherited_pri) {
-			uq->uq_inherited_pri = PRI_MIN_REALTIME + ceiling;
-			thread_lock(td);
-			if (uq->uq_inherited_pri < UPRI(td))
-				sched_lend_user_prio(td, uq->uq_inherited_pri);
-			thread_unlock(td);
+		if (su) {
+			mtx_lock(&umtx_lock);
+			if (new_pri < uq->uq_inherited_pri) {
+				uq->uq_inherited_pri = new_pri;
+				thread_lock(td);
+				if (new_pri < UPRI(td))
+					sched_lend_user_prio(td, new_pri);
+				thread_unlock(td);
+			}
+			mtx_unlock(&umtx_lock);
 		}
-		mtx_unlock(&umtx_lock);
 
 		rv = casueword32(&m->m_owner, UMUTEX_CONTESTED, &owner,
 		    id | UMUTEX_CONTESTED);
@@ -2684,7 +2688,8 @@ do_unlock_pp(struct thread *td, struct umutex *m, uint32_t flags, bool rb)
 	struct umtx_q *uq, *uq2;
 	struct umtx_pi *pi;
 	uint32_t id, owner, rceiling;
-	int error, pri, new_inherited_pri, su;
+	int error, pri, new_inherited_pri;
+	bool su;
 
 	id = td->td_tid;
 	uq = td->td_umtxq;
@@ -2739,7 +2744,7 @@ do_unlock_pp(struct thread *td, struct umutex *m, uint32_t flags, bool rb)
 		error = EFAULT;
 	else {
 		mtx_lock(&umtx_lock);
-		if (su != 0)
+		if (su || new_inherited_pri == PRI_MAX)
 			uq->uq_inherited_pri = new_inherited_pri;
 		pri = PRI_MAX;
 		TAILQ_FOREACH(pi, &uq->uq_pi_contested, pi_link) {
@@ -2960,7 +2965,14 @@ do_cv_wait(struct thread *td, struct ucond *cv, struct umutex *m,
 	 */
 	error = fueword32(&cv->c_has_waiters, &hasw);
 	if (error == 0 && hasw == 0)
-		suword32(&cv->c_has_waiters, 1);
+		error = suword32(&cv->c_has_waiters, 1);
+	if (error != 0) {
+		umtxq_lock(&uq->uq_key);
+		umtxq_remove(uq);
+		umtxq_unbusy(&uq->uq_key);
+		error = EFAULT;
+		goto out;
+	}
 
 	umtxq_unbusy_unlocked(&uq->uq_key);
 
@@ -2990,7 +3002,9 @@ do_cv_wait(struct thread *td, struct ucond *cv, struct umutex *m,
 			umtxq_remove(uq);
 			if (oldlen == 1) {
 				umtxq_unlock(&uq->uq_key);
-				suword32(&cv->c_has_waiters, 0);
+				if (suword32(&cv->c_has_waiters, 0) != 0 &&
+				    error == 0)
+					error = EFAULT;
 				umtxq_lock(&uq->uq_key);
 			}
 		}
@@ -2998,7 +3012,7 @@ do_cv_wait(struct thread *td, struct ucond *cv, struct umutex *m,
 		if (error == ERESTART)
 			error = EINTR;
 	}
-
+out:
 	umtxq_unlock(&uq->uq_key);
 	umtx_key_release(&uq->uq_key);
 	return (error);
@@ -3176,12 +3190,14 @@ sleep:
 		 */
 		rv = fueword32(&rwlock->rw_blocked_readers,
 		    &blocked_readers);
+		if (rv == 0)
+			rv = suword32(&rwlock->rw_blocked_readers,
+			    blocked_readers + 1);
 		if (rv == -1) {
 			umtxq_unbusy_unlocked(&uq->uq_key);
 			error = EFAULT;
 			break;
 		}
-		suword32(&rwlock->rw_blocked_readers, blocked_readers+1);
 
 		while (state & wrflags) {
 			umtxq_lock(&uq->uq_key);
@@ -3206,12 +3222,14 @@ sleep:
 		/* decrease read waiter count, and may clear read contention bit */
 		rv = fueword32(&rwlock->rw_blocked_readers,
 		    &blocked_readers);
+		if (rv == 0)
+			rv = suword32(&rwlock->rw_blocked_readers,
+			    blocked_readers - 1);
 		if (rv == -1) {
 			umtxq_unbusy_unlocked(&uq->uq_key);
 			error = EFAULT;
 			break;
 		}
-		suword32(&rwlock->rw_blocked_readers, blocked_readers-1);
 		if (blocked_readers == 1) {
 			rv = fueword32(&rwlock->rw_state, &state);
 			if (rv == -1) {
@@ -3360,12 +3378,14 @@ do_rw_wrlock(struct thread *td, struct urwlock *rwlock, struct _umtx_time *timeo
 sleep:
 		rv = fueword32(&rwlock->rw_blocked_writers,
 		    &blocked_writers);
+		if (rv == 0)
+			rv = suword32(&rwlock->rw_blocked_writers,
+			    blocked_writers + 1);
 		if (rv == -1) {
 			umtxq_unbusy_unlocked(&uq->uq_key);
 			error = EFAULT;
 			break;
 		}
-		suword32(&rwlock->rw_blocked_writers, blocked_writers + 1);
 
 		while ((state & URWLOCK_WRITE_OWNER) ||
 		    URWLOCK_READER_COUNT(state) != 0) {
@@ -3390,12 +3410,14 @@ sleep:
 
 		rv = fueword32(&rwlock->rw_blocked_writers,
 		    &blocked_writers);
+		if (rv == 0)
+			rv = suword32(&rwlock->rw_blocked_writers,
+			    blocked_writers - 1);
 		if (rv == -1) {
 			umtxq_unbusy_unlocked(&uq->uq_key);
 			error = EFAULT;
 			break;
 		}
-		suword32(&rwlock->rw_blocked_writers, blocked_writers-1);
 		if (blocked_writers == 1) {
 			rv = fueword32(&rwlock->rw_state, &state);
 			if (rv == -1) {
@@ -3574,7 +3596,7 @@ again:
 		rv1 = fueword32(&sem->_count, &count);
 	if (rv == -1 || rv1 == -1 || count != 0 || (rv == 1 && count1 == 0)) {
 		if (rv == 0)
-			suword32(&sem->_has_waiters, 0);
+			rv = suword32(&sem->_has_waiters, 0);
 		umtxq_lock(&uq->uq_key);
 		umtxq_unbusy(&uq->uq_key);
 		umtxq_remove(uq);

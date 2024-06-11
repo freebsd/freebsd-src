@@ -183,13 +183,6 @@ typedef struct Struct_Obj_Entry {
     const Elf_Sym *symtab;	/* Symbol table */
     const char *strtab;		/* String table */
     unsigned long strsize;	/* Size in bytes of string table */
-#ifdef __powerpc__
-#ifdef __powerpc64__
-    Elf_Addr glink;		/* GLINK PLT call stub section */
-#else
-    Elf_Addr *gotptr;		/* GOT pointer (secure-plt only) */
-#endif
-#endif
 
     const Elf_Verneed *verneed; /* Required versions. */
     Elf_Word verneednum;	/* Number of entries in verneed table */
@@ -263,6 +256,7 @@ typedef struct Struct_Obj_Entry {
     bool on_fini_list: 1;	/* Object is already on fini list. */
     bool dag_inited : 1;	/* Object has its DAG initialized. */
     bool filtees_loaded : 1;	/* Filtees loaded */
+    bool filtees_loading : 1;	/* In process of filtees loading */
     bool irelative : 1;		/* Object has R_MACHDEP_IRELATIVE relocs */
     bool irelative_nonplt : 1;	/* Object has R_MACHDEP_IRELATIVE non-plt relocs */
     bool gnu_ifunc : 1;		/* Object has references to STT_GNU_IFUNC */
@@ -275,6 +269,8 @@ typedef struct Struct_Obj_Entry {
     bool marker : 1;		/* marker on the global obj list */
     bool unholdfree : 1;	/* unmap upon last unhold */
     bool doomed : 1;		/* Object cannot be referenced */
+
+    MD_OBJ_ENTRY;
 
     struct link_map linkmap;	/* For GDB and dlinfo() */
     Objlist dldags;		/* Object belongs to these dlopened DAGs (%) */

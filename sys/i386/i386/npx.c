@@ -315,9 +315,13 @@ fpusave_fnsave(union savefpu *addr)
 
 DEFINE_IFUNC(, void, fpusave, (union savefpu *))
 {
-	if (use_xsave)
-		return ((cpu_stdext_feature & CPUID_EXTSTATE_XSAVEOPT) != 0 ?
+	u_int cp[4];
+
+	if (use_xsave) {
+		cpuid_count(0xd, 0x1, cp);
+		return ((cp[0] & CPUID_EXTSTATE_XSAVEOPT) != 0 ?
 		    fpusave_xsaveopt : fpusave_xsave);
+	}
 	if (cpu_fxsr)
 		return (fpusave_fxsave);
 	return (fpusave_fnsave);
@@ -971,8 +975,11 @@ npxgetregs(struct thread *td)
 	struct pcb *pcb;
 	uint64_t *xstate_bv, bit;
 	char *sa;
+	union savefpu *s;
+	uint32_t mxcsr, mxcsr_mask;
 	int max_ext_n, i;
 	int owned;
+	bool do_mxcsr;
 
 	if (!hw_float)
 		return (_MC_FPOWNED_NONE);
@@ -1015,10 +1022,28 @@ npxgetregs(struct thread *td)
 			bit = 1ULL << i;
 			if ((xsave_mask & bit) == 0 || (*xstate_bv & bit) != 0)
 				continue;
+			do_mxcsr = false;
+			if (i == 0 && (*xstate_bv & (XFEATURE_ENABLED_SSE |
+			    XFEATURE_ENABLED_AVX)) != 0) {
+				/*
+				 * x87 area was not saved by XSAVEOPT,
+				 * but one of XMM or AVX was.  Then we need
+				 * to preserve MXCSR from being overwritten
+				 * with the default value.
+				 */
+				s = (union savefpu *)sa;
+				mxcsr = s->sv_xmm.sv_env.en_mxcsr;
+				mxcsr_mask = s->sv_xmm.sv_env.en_mxcsr_mask;
+				do_mxcsr = true;
+			}
 			bcopy((char *)npx_initialstate +
 			    xsave_area_desc[i].offset,
 			    sa + xsave_area_desc[i].offset,
 			    xsave_area_desc[i].size);
+			if (do_mxcsr) {
+				s->sv_xmm.sv_env.en_mxcsr = mxcsr;
+				s->sv_xmm.sv_env.en_mxcsr_mask = mxcsr_mask;
+			}
 			*xstate_bv |= bit;
 		}
 	}

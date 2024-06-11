@@ -49,7 +49,9 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <dev/ic/isp_netbsd.h>
 #endif
 #ifdef	__FreeBSD__
+#include <sys/param.h>
 #include <sys/cdefs.h>
+#include <sys/firmware.h>
 #include <dev/isp/isp_freebsd.h>
 #endif
 #ifdef	__OpenBSD__
@@ -116,15 +118,30 @@ static uint16_t isp_next_handle(ispsoftc_t *, uint16_t *);
 static int isp_fw_state(ispsoftc_t *, int);
 static void isp_mboxcmd(ispsoftc_t *, mbreg_t *);
 
+static void isp_get_flash_addrs(ispsoftc_t *);
 static void isp_setdfltfcparm(ispsoftc_t *, int);
-static int isp_read_nvram(ispsoftc_t *, int);
+static int isp_read_flash_dword(ispsoftc_t *, uint32_t, uint32_t *);
+static int isp_read_flash_data(ispsoftc_t *, uint32_t *, uint32_t, uint32_t);
 static void isp_rd_2xxx_flash(ispsoftc_t *, uint32_t, uint32_t *);
 static int isp_read_flthdr_2xxx(ispsoftc_t *);
 static void isp_parse_flthdr_2xxx(ispsoftc_t *, uint8_t *);
 static int isp_read_flt_2xxx(ispsoftc_t *);
 static int isp_parse_flt_2xxx(ispsoftc_t *, uint8_t *);
-static int isp_read_nvram_2400(ispsoftc_t *);
+static int isp_read_nvram(ispsoftc_t *);
 static void isp_parse_nvram_2400(ispsoftc_t *, uint8_t *);
+
+static void isp_print_image(ispsoftc_t *, char *, struct isp_image_status *);
+static bool isp_check_aux_image_status_signature(struct isp_image_status *);
+static bool isp_check_image_status_signature(struct isp_image_status *);
+static unsigned long isp_image_status_checksum(struct isp_image_status *);
+static void isp_component_status(struct active_regions *, struct isp_image_status *);
+static int isp_compare_image_generation(ispsoftc_t *, struct isp_image_status *, struct isp_image_status *);
+static void isp_get_aux_images(ispsoftc_t *, struct active_regions *);
+static void isp_get_active_image(ispsoftc_t *, struct active_regions *);
+static bool isp_risc_firmware_invalid(ispsoftc_t *, uint32_t *);
+static int isp_load_ram(ispsoftc_t *, uint32_t *, uint32_t, uint32_t);
+static int isp_load_risc_flash(ispsoftc_t *, uint32_t *, uint32_t);
+static int isp_load_risc(ispsoftc_t *, uint32_t *);
 
 static void
 isp_change_fw_state(ispsoftc_t *isp, int chan, int state)
@@ -137,6 +154,45 @@ isp_change_fw_state(ispsoftc_t *isp, int chan, int state)
 	    "Chan %d Firmware state <%s->%s>", chan,
 	    isp_fc_fw_statename(fcp->isp_fwstate), isp_fc_fw_statename(state));
 	fcp->isp_fwstate = state;
+}
+
+static void
+isp_get_flash_addrs(ispsoftc_t *isp)
+{
+	fcparam *fcp = FCPARAM(isp, 0);
+	int r = 0;
+
+	if (IS_28XX(isp)) {
+		fcp->flash_data_addr = ISP28XX_BASE_ADDR;
+		fcp->flt_region_flt = ISP28XX_FLT_ADDR;
+	} else if (IS_26XX(isp)) {	/* 26xx and 27xx are identical */
+		fcp->flash_data_addr = ISP27XX_BASE_ADDR;
+		fcp->flt_region_flt = ISP27XX_FLT_ADDR;
+	} else if (IS_25XX(isp)) {
+		fcp->flash_data_addr = ISP25XX_BASE_ADDR;
+		fcp->flt_region_flt = ISP25XX_FLT_ADDR;
+	} else {
+		fcp->flash_data_addr = ISP24XX_BASE_ADDR;
+		fcp->flt_region_flt = ISP24XX_FLT_ADDR;
+	}
+	fcp->flt_length = 0;
+	r = isp_read_flthdr_2xxx(isp);
+	if (r == 0) {
+		isp_read_flt_2xxx(isp);
+	} else { /* fallback to hardcoded NVRAM address */
+		if (IS_28XX(isp)) {
+			fcp->flt_region_nvram = 0x300000;
+		} else if (IS_26XX(isp)) {
+			fcp->flash_data_addr = 0x7fe7c000;
+			fcp->flt_region_nvram = 0;
+		} else if (IS_25XX(isp)) {
+			fcp->flt_region_nvram = 0x48000;
+		} else {
+			fcp->flash_data_addr = 0x7ffe0000;
+			fcp->flt_region_nvram = 0;
+		}
+		fcp->flt_region_nvram += ISP2400_NVRAM_PORT_ADDR(isp->isp_port);
+	}
 }
 
 /*
@@ -152,7 +208,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 {
 	mbreg_t mbs;
 	char *buf;
-	uint64_t fwt;
+	uint16_t fwt;
 	uint32_t code_org, val;
 	int loaded_fw, loops, i, dodnld = 1;
 	const char *btype = "????";
@@ -321,41 +377,119 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	}
 
 	/*
-	 * Download new Firmware, unless requested not to do so.
-	 * This is made slightly trickier in some cases where the
-	 * firmware of the ROM revision is newer than the revision
-	 * compiled into the driver. So, where we used to compare
-	 * versions of our f/w and the ROM f/w, now we just see
-	 * whether we have f/w at all and whether a config flag
-	 * has disabled our download.
+	 * Early setup DMA for the request and response queues.
+	 * We do this now so we can use the request queue
+	 * for dma to load firmware from.
 	 */
-	if ((isp->isp_mdvec->dv_ispfw == NULL) || (isp->isp_confopts & ISP_CFG_NORELOAD)) {
-		dodnld = 0;
-	} else {
 
-		/*
-		 * Set up DMA for the request and response queues.
-		 * We do this now so we can use the request queue
-		 * for dma to load firmware from.
-		 */
-		if (ISP_MBOXDMASETUP(isp) != 0) {
-			isp_prt(isp, ISP_LOGERR, "Cannot setup DMA");
-			return;
+	if (ISP_MBOXDMASETUP(isp) != 0) {
+		isp_prt(isp, ISP_LOGERR, "Cannot setup DMA");
+		return;
+	}
+
+	/*
+	 * FW load priority
+	 * For 27xx and newer:
+	 * Load ispfw(4) firmware unless requested not to do so.
+	 * Request (active) flash firmware information. Compare
+	 * version numbers of ispfw(4) and flash firmware. Load
+	 * the highest version into RAM of the adapter.
+	 * If loading ispfw(4) is disabled or loading it failed
+	 * (eg. no firmware available) we just load firmware from
+	 * flash. If this fails for whatever reason we fallback
+	 * to let the adapter MBOX_LOAD_FLASH_FIRMWARE by itself
+	 * followed by MBOX_EXEC_FIRMWARE and hope the best to
+	 * get it up and running.
+	 *
+	 * For 26xx and older:
+	 * Load ispfw(4) firmware unless requested not to do so
+	 * and load it into RAM of the adapter. If loading
+	 * ispfw(4) is disabled or loading it failed (eg. no
+	 * firmware available) we just let the adapter
+	 * MBOX_EXEC_FIRMWARE to start the flash firmware.
+	 * For the 26xx a preceding MBOX_LOAD_FLASH_FIRMWARE
+	 * is required.
+	 */
+
+	fcparam *fcp = FCPARAM(isp, 0);
+
+	/* read FLT to get flash region addresses */
+	isp_get_flash_addrs(isp);
+
+	/* set informational sysctl(8) to sane value */
+	snprintf(fcp->fw_version_ispfw, sizeof(fcp->fw_version_ispfw),
+	    "not loaded");
+	snprintf(fcp->fw_version_flash, sizeof(fcp->fw_version_flash),
+	    "not loaded");
+	snprintf(fcp->fw_version_run, sizeof(fcp->fw_version_run),
+	    "not loaded");
+
+
+	/* Try to load ispfw(4) first */
+	if (!(isp->isp_confopts & ISP_CFG_NORELOAD)) {
+		char fwname[32];
+		snprintf(fwname, sizeof(fwname), "isp_%04x", isp->isp_did);
+		isp->isp_osinfo.ispfw = firmware_get(fwname);
+		if (isp->isp_osinfo.ispfw != NULL) {
+			isp->isp_mdvec->dv_ispfw = isp->isp_osinfo.ispfw->data;
+			const uint32_t *ispfwptr = isp->isp_mdvec->dv_ispfw;
+			for (i = 0; i < 4; i++)
+				fcp->fw_ispfwrev[i] = ispfwptr[4 + i];
+			isp_prt(isp, ISP_LOGCONFIG,
+			    "Loaded ispfw(4) firmware %s", fwname);
+			snprintf(fcp->fw_version_ispfw,
+			    sizeof(fcp->fw_version_ispfw),
+			    "%u.%u.%u", fcp->fw_ispfwrev[0],
+			    fcp->fw_ispfwrev[1], fcp->fw_ispfwrev[2]);
+			isp_prt(isp, ISP_LOGCONFIG,
+			    "Firmware revision (ispfw) %u.%u.%u (%x).",
+			    fcp->fw_ispfwrev[0], fcp->fw_ispfwrev[1],
+			    fcp->fw_ispfwrev[2], fcp->fw_ispfwrev[3]);
+		} else {
+			isp_prt(isp, ISP_LOGDEBUG0,
+			    "Unable to load ispfw(4) firmware %s", fwname);
 		}
 	}
 
-	code_org = ISP_CODE_ORG_2400;
 	loaded_fw = 0;
+	dodnld = 0;
+
+	if (IS_27XX(isp)) {
+		switch (isp_load_risc(isp, 0)) {
+		case ISP_ABORTED:
+			/* download ispfw(4) as it's newer than flash */
+			dodnld = 1;
+			break;
+		case ISP_SUCCESS:
+			/* We've loaded flash firmware */
+			loaded_fw = 1;
+			break;
+		default:
+			/*
+			 * Fall through to use ispfw(4) if available or
+			 * just fall back to use MBOX_LOAD_FLASH_FIRMWARE
+			 */
+			if (isp->isp_osinfo.ispfw != NULL)
+				dodnld = 1;
+			break;
+		}
+	} else {
+		/* Fall through to load ispfw(4) or simply MBOX_EXEC_FIRMWARE */
+		if (isp->isp_osinfo.ispfw != NULL)
+			dodnld = 1;
+	}
+
+	code_org = ISP_CODE_ORG_2400;
 	if (dodnld) {
 		const uint32_t *ptr = isp->isp_mdvec->dv_ispfw;
 		uint32_t la, wi, wl;
 
-		/*
-		 * Keep loading until we run out of f/w.
-		 */
+		/* Keep loading until we run out of f/w. */
 		code_org = ptr[2];	/* 1st load address is our start addr */
 		for (;;) {
-			isp_prt(isp, ISP_LOGDEBUG0, "load 0x%x words of code at load address 0x%x", ptr[3], ptr[2]);
+			isp_prt(isp, ISP_LOGDEBUG2,
+			    "Load 0x%x words of code at load address 0x%x",
+			    ptr[3], ptr[2]);
 
 			wi = 0;
 			la = ptr[2];
@@ -368,20 +502,9 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 				cp = isp->isp_rquest;
 				for (i = 0; i < nw; i++)
 					ISP_IOXPUT_32(isp, ptr[wi + i], &cp[i]);
-				MEMORYBARRIER(isp, SYNC_REQUEST, 0, ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp)), -1);
-				MBSINIT(&mbs, MBOX_LOAD_RISC_RAM, MBLOGALL, 0);
-				mbs.param[1] = la;
-				mbs.param[2] = DMA_WD1(isp->isp_rquest_dma);
-				mbs.param[3] = DMA_WD0(isp->isp_rquest_dma);
-				mbs.param[4] = nw >> 16;
-				mbs.param[5] = nw;
-				mbs.param[6] = DMA_WD3(isp->isp_rquest_dma);
-				mbs.param[7] = DMA_WD2(isp->isp_rquest_dma);
-				mbs.param[8] = la >> 16;
-				isp_prt(isp, ISP_LOGDEBUG0, "LOAD RISC RAM %u words at load address 0x%x", nw, la);
-				isp_mboxcmd(isp, &mbs);
-				if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-					isp_prt(isp, ISP_LOGERR, "F/W download failed");
+				if (isp_load_ram(isp, cp, la, nw) != 0) {
+					isp_prt(isp, ISP_LOGERR,
+					    "Failed to load firmware fragment.");
 					return;
 				}
 				la += nw;
@@ -395,30 +518,32 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 			ptr += ptr[3];
 		}
 		loaded_fw = 1;
-	} else if (IS_26XX(isp)) {
-		isp_prt(isp, ISP_LOGDEBUG1, "loading firmware from flash");
-		MBSINIT(&mbs, MBOX_LOAD_FLASH_FIRMWARE, MBLOGALL, 5000000);
-		mbs.ibitm = 0x01;
-		mbs.obitm = 0x07;
-		isp_mboxcmd(isp, &mbs);
-		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-			isp_prt(isp, ISP_LOGERR, "Flash F/W load failed");
-			return;
-		}
+		/* Drop reference to ispfw(4) firmware */
+		if (isp->isp_osinfo.ispfw != NULL)
+			firmware_put(isp->isp_osinfo.ispfw, FIRMWARE_UNLOAD);
 	} else {
-		isp_prt(isp, ISP_LOGDEBUG2, "skipping f/w download");
+		isp_prt(isp, ISP_LOGCONFIG,
+		    "Skipping ispfw(4) firmware download");
 	}
 
-	/*
-	 * If we loaded firmware, verify its checksum
-	 */
+	/* If we loaded firmware, verify its checksum. */
 	if (loaded_fw) {
 		MBSINIT(&mbs, MBOX_VERIFY_CHECKSUM, MBLOGNONE, 0);
 		mbs.param[1] = code_org >> 16;
 		mbs.param[2] = code_org;
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-			isp_prt(isp, ISP_LOGERR, dcrc);
+			isp_prt(isp, ISP_LOGERR, "%s: 0x%x", dcrc,
+			    (mbs.param[2] << 16 | mbs.param[1]));
+			return;
+		}
+	} else if (IS_26XX(isp)) {
+		isp_prt(isp, ISP_LOGCONFIG,
+		    "Instruct RISC to load firmware from flash by itself");
+		MBSINIT(&mbs, MBOX_LOAD_FLASH_FIRMWARE, MBLOGALL, 5000000);
+		isp_mboxcmd(isp, &mbs);
+		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+			isp_prt(isp, ISP_LOGERR, "Flash F/W load failed");
 			return;
 		}
 	}
@@ -434,9 +559,27 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	mbs.param[2] = code_org;
 	if (!IS_26XX(isp))
 		mbs.param[3] = loaded_fw ? 0 : 1;
+	mbs.param[4] = 0;
+	if (IS_27XX(isp))
+		mbs.param[4] |= 0x08;	/* NVME_ENABLE_FLAG */
+	mbs.param[11] = 0;
 	isp_mboxcmd(isp, &mbs);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE)
 		return;
+	fcp->fw_ability_mask = (mbs.param[3] << 16) | mbs.param[2];
+	isp_prt(isp, ISP_LOGDEBUG0, "Firmware ability mask: 0x%x",
+	    fcp->fw_ability_mask);
+	if (IS_26XX(isp)) {
+		fcp->max_supported_speed = mbs.param[2] & (0x1 | 0x2);
+		isp_prt(isp, ISP_LOGINFO, "Maximum supported speed: %s",
+		    fcp->max_supported_speed == 0 ? "16Gbit/s" :
+		    fcp->max_supported_speed == 1 ? "32Gbit/s" :
+		    fcp->max_supported_speed == 2 ? "64Gbit/s" : "unknown");
+	}
+	if (IS_28XX(isp) && (mbs.param[5] & 0x400)) {
+		isp_prt(isp, ISP_LOGINFO,
+		    "HW supports EDIF (Encryption of data in flight)");
+	}
 
 	/*
 	 * Ask the chip for the current firmware version.
@@ -452,103 +595,160 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	isp->isp_fwrev[1] = mbs.param[2];
 	isp->isp_fwrev[2] = mbs.param[3];
 	isp->isp_fwattr = mbs.param[6];
-	isp->isp_fwattr |= ((uint64_t) mbs.param[15]) << 16;
-	if (isp->isp_fwattr & ISP2400_FW_ATTR_EXTNDED) {
-		isp->isp_fwattr |=
-		    (((uint64_t) mbs.param[16]) << 32) |
-		    (((uint64_t) mbs.param[17]) << 48);
+	isp->isp_fwattr_h = mbs.param[15];
+	if (isp->isp_fwattr & ISP_FW_ATTR_EXTNDED) {
+		isp->isp_fwattr_ext[0] = mbs.param[16];
+		isp->isp_fwattr_ext[1] = mbs.param[17];
 	}
 
 	isp_prt(isp, ISP_LOGCONFIG, "Board Type %s, Chip Revision 0x%x, %s F/W Revision %d.%d.%d",
-	    btype, isp->isp_revision, dodnld? "loaded" : "resident", isp->isp_fwrev[0], isp->isp_fwrev[1], isp->isp_fwrev[2]);
+	    btype, isp->isp_revision, dodnld ? "loaded" : "resident",
+	    isp->isp_fwrev[0], isp->isp_fwrev[1], isp->isp_fwrev[2]);
+	snprintf(fcp->fw_version_run, sizeof(fcp->fw_version_run),
+	    "%u.%u.%u", isp->isp_fwrev[0], isp->isp_fwrev[1],
+	    isp->isp_fwrev[2]);
+	if (!dodnld && !IS_26XX(isp))
+		snprintf(fcp->fw_version_flash, sizeof(fcp->fw_version_flash),
+		    "%s", fcp->fw_version_run);
 
 	fwt = isp->isp_fwattr;
 	buf = FCPARAM(isp, 0)->isp_scanscratch;
-	ISP_SNPRINTF(buf, ISP_FC_SCRLEN, "Attributes:");
-	if (fwt & ISP2400_FW_ATTR_CLASS2) {
-		fwt ^=ISP2400_FW_ATTR_CLASS2;
+	ISP_SNPRINTF(buf, ISP_FC_SCRLEN, "FW Attributes Lower:");
+	if (fwt & ISP_FW_ATTR_CLASS2) {
+		fwt ^= ISP_FW_ATTR_CLASS2;
 		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s Class2", buf);
 	}
-	if (fwt & ISP2400_FW_ATTR_IP) {
-		fwt ^=ISP2400_FW_ATTR_IP;
+	if (fwt & ISP_FW_ATTR_IP) {
+		fwt ^= ISP_FW_ATTR_IP;
 		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s IP", buf);
 	}
-	if (fwt & ISP2400_FW_ATTR_MULTIID) {
-		fwt ^=ISP2400_FW_ATTR_MULTIID;
+	if (fwt & ISP_FW_ATTR_MULTIID) {
+		fwt ^= ISP_FW_ATTR_MULTIID;
 		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s MultiID", buf);
 	}
-	if (fwt & ISP2400_FW_ATTR_SB2) {
-		fwt ^=ISP2400_FW_ATTR_SB2;
+	if (fwt & ISP_FW_ATTR_SB2) {
+		fwt ^= ISP_FW_ATTR_SB2;
 		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s SB2", buf);
 	}
-	if (fwt & ISP2400_FW_ATTR_T10CRC) {
-		fwt ^=ISP2400_FW_ATTR_T10CRC;
+	if (fwt & ISP_FW_ATTR_T10CRC) {
+		fwt ^= ISP_FW_ATTR_T10CRC;
 		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s T10CRC", buf);
 	}
-	if (fwt & ISP2400_FW_ATTR_VI) {
-		fwt ^=ISP2400_FW_ATTR_VI;
+	if (fwt & ISP_FW_ATTR_VI) {
+		fwt ^= ISP_FW_ATTR_VI;
 		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s VI", buf);
 	}
-	if (fwt & ISP2400_FW_ATTR_MQ) {
-		fwt ^=ISP2400_FW_ATTR_MQ;
+	if (fwt & ISP_FW_ATTR_MQ) {
+		fwt ^= ISP_FW_ATTR_MQ;
 		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s MQ", buf);
 	}
-	if (fwt & ISP2400_FW_ATTR_MSIX) {
-		fwt ^=ISP2400_FW_ATTR_MSIX;
+	if (fwt & ISP_FW_ATTR_MSIX) {
+		fwt ^= ISP_FW_ATTR_MSIX;
 		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s MSIX", buf);
 	}
-	if (fwt & ISP2400_FW_ATTR_FCOE) {
-		fwt ^=ISP2400_FW_ATTR_FCOE;
+	if (fwt & ISP_FW_ATTR_FCOE) {
+		fwt ^= ISP_FW_ATTR_FCOE;
 		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s FCOE", buf);
 	}
-	if (fwt & ISP2400_FW_ATTR_VP0) {
-		fwt ^= ISP2400_FW_ATTR_VP0;
+	if (fwt & ISP_FW_ATTR_VP0) {
+		fwt ^= ISP_FW_ATTR_VP0;
 		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s VP0_Decoupling", buf);
 	}
-	if (fwt & ISP2400_FW_ATTR_EXPFW) {
-		fwt ^= ISP2400_FW_ATTR_EXPFW;
+	if (fwt & ISP_FW_ATTR_EXPFW) {
+		fwt ^= ISP_FW_ATTR_EXPFW;
 		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s (Experimental)", buf);
 	}
-	if (fwt & ISP2400_FW_ATTR_HOTFW) {
-		fwt ^= ISP2400_FW_ATTR_HOTFW;
+	if (fwt & ISP_FW_ATTR_HOTFW) {
+		fwt ^= ISP_FW_ATTR_HOTFW;
 		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s HotFW", buf);
 	}
-	fwt &= ~ISP2400_FW_ATTR_EXTNDED;
-	if (fwt & ISP2400_FW_ATTR_EXTVP) {
-		fwt ^= ISP2400_FW_ATTR_EXTVP;
+	fwt &= ~ISP_FW_ATTR_EXTNDED;
+	if (fwt) {
+		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf),
+		    "%s (unknown 0x%04x)", buf, fwt);
+	}
+	isp_prt(isp, ISP_LOGCONFIG, "%s", buf);
+
+	fwt = isp->isp_fwattr_h;
+	buf = FCPARAM(isp, 0)->isp_scanscratch;
+	ISP_SNPRINTF(buf, ISP_FC_SCRLEN, "FW Attributes Upper:");
+	if (fwt & ISP_FW_ATTR_H_EXTVP) {
+		fwt ^= ISP_FW_ATTR_H_EXTVP;
 		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s ExtVP", buf);
 	}
-	if (fwt & ISP2400_FW_ATTR_VN2VN) {
-		fwt ^= ISP2400_FW_ATTR_VN2VN;
+	if (fwt & ISP_FW_ATTR_H_VN2VN) {
+		fwt ^= ISP_FW_ATTR_H_VN2VN;
 		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s VN2VN", buf);
 	}
-	if (fwt & ISP2400_FW_ATTR_EXMOFF) {
-		fwt ^= ISP2400_FW_ATTR_EXMOFF;
+	if (fwt & ISP_FW_ATTR_H_EXMOFF) {
+		fwt ^= ISP_FW_ATTR_H_EXMOFF;
 		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s EXMOFF", buf);
 	}
-	if (fwt & ISP2400_FW_ATTR_NPMOFF) {
-		fwt ^= ISP2400_FW_ATTR_NPMOFF;
+	if (fwt & ISP_FW_ATTR_H_NPMOFF) {
+		fwt ^= ISP_FW_ATTR_H_NPMOFF;
 		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s NPMOFF", buf);
 	}
-	if (fwt & ISP2400_FW_ATTR_DIFCHOP) {
-		fwt ^= ISP2400_FW_ATTR_DIFCHOP;
+	if (fwt & ISP_FW_ATTR_H_DIFCHOP) {
+		fwt ^= ISP_FW_ATTR_H_DIFCHOP;
 		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s DIFCHOP", buf);
 	}
-	if (fwt & ISP2400_FW_ATTR_SRIOV) {
-		fwt ^= ISP2400_FW_ATTR_SRIOV;
+	if (fwt & ISP_FW_ATTR_H_SRIOV) {
+		fwt ^= ISP_FW_ATTR_H_SRIOV;
 		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s SRIOV", buf);
 	}
-	if (fwt & ISP2400_FW_ATTR_ASICTMP) {
-		fwt ^= ISP2400_FW_ATTR_ASICTMP;
-		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s ASICTMP", buf);
+	if (fwt & ISP_FW_ATTR_H_NVME) {
+		fwt ^= ISP_FW_ATTR_H_NVME;
+		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s NVMe", buf);
 	}
-	if (fwt & ISP2400_FW_ATTR_ATIOMQ) {
-		fwt ^= ISP2400_FW_ATTR_ATIOMQ;
-		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s ATIOMQ", buf);
+	if (fwt & ISP_FW_ATTR_H_NVME_UP) {
+		fwt ^= ISP_FW_ATTR_H_NVME_UP;
+		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s NVMe(updated)", buf);
+	}
+	if (fwt & (ISP_FW_ATTR_H_NVME_FB)) {
+		fwt ^= (ISP_FW_ATTR_H_NVME_FB);
+		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s NVMe(first burst)", buf);
 	}
 	if (fwt) {
-		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s (unknown 0x%08x%08x)", buf,
-		    (uint32_t) (fwt >> 32), (uint32_t) fwt);
+		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf),
+		    "%s (unknown 0x%04x)", buf, fwt);
+	}
+	isp_prt(isp, ISP_LOGCONFIG, "%s", buf);
+
+	fwt = isp->isp_fwattr_ext[0];
+	buf = FCPARAM(isp, 0)->isp_scanscratch;
+	ISP_SNPRINTF(buf, ISP_FC_SCRLEN, "FW Ext. Attributes Lower:");
+	if (fwt & ISP_FW_ATTR_E0_ASICTMP) {
+		fwt ^= ISP_FW_ATTR_E0_ASICTMP;
+		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s ASICTMP", buf);
+	}
+	if (fwt & ISP_FW_ATTR_E0_ATIOMQ) {
+		fwt ^= ISP_FW_ATTR_E0_ATIOMQ;
+		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s ATIOMQ", buf);
+	}
+	if (fwt & ISP_FW_ATTR_E0_EDIF) {
+		fwt ^= ISP_FW_ATTR_E0_EDIF;
+		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s EDIF", buf);
+	}
+	if (fwt & ISP_FW_ATTR_E0_SCM) {
+		fwt ^= ISP_FW_ATTR_E0_SCM;
+		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s SCM", buf);
+	}
+	if (fwt & ISP_FW_ATTR_E0_NVME2) {
+		fwt ^= ISP_FW_ATTR_E0_NVME2;
+		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s NVMe-2", buf);
+	}
+	if (fwt) {
+		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf),
+		    "%s (unknown 0x%04x)", buf, fwt);
+	}
+	isp_prt(isp, ISP_LOGCONFIG, "%s", buf);
+
+	fwt = isp->isp_fwattr_ext[1];
+	buf = FCPARAM(isp, 0)->isp_scanscratch;
+	ISP_SNPRINTF(buf, ISP_FC_SCRLEN, "FW Ext. Attributes Upper:");
+	if (fwt) {
+		ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf),
+		    "%s (unknown 0x%04x)", buf, fwt);
 	}
 	isp_prt(isp, ISP_LOGCONFIG, "%s", buf);
 
@@ -3801,14 +4001,14 @@ static const uint32_t mbpfc[] = {
 	ISP_FC_OPMAP(0x01, 0x01),	/* 0x00: MBOX_NO_OP */
 	ISP_FC_OPMAP(0x1f, 0x01),	/* 0x01: MBOX_LOAD_RAM */
 	ISP_FC_OPMAP_HALF(0x07, 0xff, 0x00, 0x1f),	/* 0x02: MBOX_EXEC_FIRMWARE */
-	ISP_FC_OPMAP(0xdf, 0x01),	/* 0x03: MBOX_DUMP_RAM */
+	ISP_FC_OPMAP(0x01, 0x07),	/* 0x03: MBOX_LOAD_FLASH_FIRMWARE */
 	ISP_FC_OPMAP(0x07, 0x07),	/* 0x04: MBOX_WRITE_RAM_WORD */
 	ISP_FC_OPMAP(0x03, 0x07),	/* 0x05: MBOX_READ_RAM_WORD */
 	ISP_FC_OPMAP_FULL(0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff),	/* 0x06: MBOX_MAILBOX_REG_TEST */
 	ISP_FC_OPMAP(0x07, 0x07),	/* 0x07: MBOX_VERIFY_CHECKSUM	*/
 	ISP_FC_OPMAP_FULL(0x0, 0x0, 0x0, 0x01, 0x0, 0x3, 0x80, 0x7f),	/* 0x08: MBOX_ABOUT_FIRMWARE */
 	ISP_FC_OPMAP(0xdf, 0x01),	/* 0x09: MBOX_LOAD_RISC_RAM_2100 */
-	ISP_FC_OPMAP(0xdf, 0x01),	/* 0x0a: DUMP RAM */
+	ISP_FC_OPMAP(0xdf, 0x01),	/* 0x0a: MBOX_DUMP_RISC_RAM_2100 */
 	ISP_FC_OPMAP_HALF(0x1, 0xff, 0x0, 0x01),	/* 0x0b: MBOX_LOAD_RISC_RAM */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x0c: */
 	ISP_FC_OPMAP_HALF(0x1, 0x0f, 0x0, 0x01),	/* 0x0d: MBOX_WRITE_RAM_WORD_EXTENDED */
@@ -3940,14 +4140,14 @@ static const char *fc_mbcmd_names[] = {
 	"NO-OP",			/* 00h */
 	"LOAD RAM",
 	"EXEC FIRMWARE",
-	"DUMP RAM",
+	"LOAD FLASH FIRMWARE",
 	"WRITE RAM WORD",
 	"READ RAM WORD",
 	"MAILBOX REG TEST",
 	"VERIFY CHECKSUM",
 	"ABOUT FIRMWARE",
 	"LOAD RAM (2100)",
-	"DUMP RAM",
+	"DUMP RAM (2100)",
 	"LOAD RISC RAM",
 	"DUMP RISC RAM",
 	"WRITE RAM WORD EXTENDED",
@@ -4084,7 +4284,7 @@ isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp)
 	obits = ISP_FC_OBITS(opcode);
 	if (cname == NULL) {
 		cname = tname;
-		ISP_SNPRINTF(tname, sizeof tname, "opcode %x", opcode);
+		ISP_SNPRINTF(tname, sizeof(tname), "opcode %x", opcode);
 	}
 	isp_prt(isp, ISP_LOGDEBUG3, "Mailbox Command '%s'", cname);
 
@@ -4219,7 +4419,7 @@ out:
 		xname = "TIMEOUT";
 		break;
 	default:
-		ISP_SNPRINTF(mname, sizeof mname, "error 0x%x", mbp->param[0]);
+		ISP_SNPRINTF(mname, sizeof(mname), "error 0x%x", mbp->param[0]);
 		xname = mname;
 		break;
 	}
@@ -4279,7 +4479,7 @@ isp_setdfltfcparm(ispsoftc_t *isp, int chan)
 		 * Give a couple of tries at reading NVRAM.
 		 */
 		for (i = 0; i < 2; i++) {
-			j = isp_read_nvram(isp, chan);
+			j = isp_read_nvram(isp);
 			if (j == 0) {
 				break;
 			}
@@ -4336,50 +4536,49 @@ cleanup:
 /*
  * NVRAM Routines
  */
-static int
-isp_read_nvram(ispsoftc_t *isp, int bus)
+static inline uint32_t
+flash_data_addr(ispsoftc_t *isp, uint32_t faddr)
 {
 	fcparam *fcp = FCPARAM(isp, 0);
-	int r = 0;
 
-	if (isp->isp_type != ISP_HA_FC_2600) {
-		if (IS_28XX(isp)) {
-			fcp->flash_data_addr = ISP28XX_BASE_ADDR;
-			fcp->flt_region_flt = ISP28XX_FLT_ADDR;
-		} else if (IS_27XX(isp)) {
-			fcp->flash_data_addr = ISP27XX_BASE_ADDR;
-			fcp->flt_region_flt = ISP27XX_FLT_ADDR;
-		} else if (IS_25XX(isp)) {
-			fcp->flash_data_addr = ISP25XX_BASE_ADDR;
-			fcp->flt_region_flt = ISP25XX_FLT_ADDR;
-		} else {
-			fcp->flash_data_addr = ISP24XX_BASE_ADDR;
-			fcp->flt_region_flt = ISP24XX_FLT_ADDR;
+	return (fcp->flash_data_addr + faddr);
+}
+
+static int
+isp_read_flash_dword(ispsoftc_t *isp, uint32_t addr, uint32_t *data)
+{
+	int loops = 0;
+
+	ISP_WRITE(isp, BIU2400_FLASH_ADDR, addr & ~0x80000000);
+	for (loops = 0; loops < 30000; loops++) {
+		if (ISP_READ(isp, BIU2400_FLASH_ADDR & 0x80000000)) {
+			*data = ISP_READ(isp, BIU2400_FLASH_DATA);
+			return (ISP_SUCCESS);
 		}
-		fcp->flt_length = 0;
-		r = isp_read_flthdr_2xxx(isp);
-		if (r == 0) {
-			isp_read_flt_2xxx(isp);
-		} else { /* fallback to hardcoded NVRAM address */
-			if (IS_28XX(isp)) {
-				fcp->flt_region_nvram = 0x300000;
-			} else if (IS_27XX(isp)) {
-				fcp->flash_data_addr = 0x7fe7c000;
-				fcp->flt_region_nvram = 0;
-			} else if (IS_25XX(isp)) {
-				fcp->flt_region_nvram = 0x48000;
-			} else {
-				fcp->flash_data_addr = 0x7ffe0000;
-				fcp->flt_region_nvram = 0;
-			}
-			fcp->flt_region_nvram += ISP2400_NVRAM_PORT_ADDR(isp->isp_port);
-		}
-	} else {
-		fcp->flash_data_addr = 0x7fe7c000;
-		fcp->flt_region_nvram = 0;
-		fcp->flt_region_nvram += ISP2400_NVRAM_PORT_ADDR(isp->isp_port);
+		ISP_DELAY(10);
 	}
-	return (isp_read_nvram_2400(isp));
+	isp_prt(isp, ISP_LOGERR,
+	    "Flash read dword at 0x%x timeout.", addr);
+	*data = 0xffffffff;
+	return (ISP_FUNCTION_TIMEOUT);
+}
+
+static int
+isp_read_flash_data(ispsoftc_t *isp, uint32_t *dwptr, uint32_t faddr, uint32_t dwords)
+{
+	int loops = 0;
+	int rval = ISP_SUCCESS;
+
+	/* Dword reads to flash. */
+	faddr =  flash_data_addr(isp, faddr);
+	for (loops = 0; loops < dwords; loops++, faddr++, dwptr++) {
+		rval = isp_read_flash_dword(isp, faddr, dwptr);
+		if (rval != ISP_SUCCESS)
+			break;
+		*dwptr = htole32(*dwptr);
+	}
+
+	return (rval);
 }
 
 static void
@@ -4388,22 +4587,19 @@ isp_rd_2xxx_flash(ispsoftc_t *isp, uint32_t addr, uint32_t *rp)
 	fcparam *fcp = FCPARAM(isp, 0);
 	int loops = 0;
 	uint32_t base = fcp->flash_data_addr;
-	uint32_t tmp = 0;
 
-	ISP_WRITE(isp, BIU2400_FLASH_ADDR, base + addr);
-	for (loops = 0; loops < 5000; loops++) {
+	ISP_WRITE(isp, BIU2400_FLASH_ADDR, (base + addr) & ~0x80000000);
+	for (loops = 0; loops < 30000; loops++) {
 		ISP_DELAY(10);
-		tmp = ISP_READ(isp, BIU2400_FLASH_ADDR);
-		if ((tmp & (1U << 31)) != 0) {
-			break;
+		if (ISP_READ(isp, BIU2400_FLASH_ADDR & 0x80000000)) {
+			*rp = ISP_READ(isp, BIU2400_FLASH_DATA);
+			ISP_SWIZZLE_NVRAM_LONG(isp, rp);
+			return;
 		}
 	}
-	if (tmp & (1U << 31)) {
-		*rp = ISP_READ(isp, BIU2400_FLASH_DATA);
-		ISP_SWIZZLE_NVRAM_LONG(isp, rp);
-	} else {
-		*rp = 0xffffffff;
-	}
+	isp_prt(isp, ISP_LOGERR,
+	    "Flash read dword at 0x%x timeout.", (base + addr));
+	*rp = 0xffffffff;
 }
 
 static int
@@ -4418,8 +4614,7 @@ isp_read_flthdr_2xxx(ispsoftc_t *isp)
 	addr = fcp->flt_region_flt;
 	dptr = (uint32_t *) flthdr_data;
 
-	isp_prt(isp, ISP_LOGDEBUG0,
-	    "FLTL[DEF]: 0x%x", addr);
+	isp_prt(isp, ISP_LOGDEBUG0, "FLTL[DEF]: 0x%x", addr);
 	for (lwrds = 0; lwrds < FLT_HEADER_SIZE >> 2; lwrds++) {
 		isp_rd_2xxx_flash(isp, addr++, dptr++);
 	}
@@ -4651,8 +4846,8 @@ isp_parse_flt_2xxx(ispsoftc_t *isp, uint8_t *flt_data)
 			break;
 		}
 	}
-	isp_prt(isp, ISP_LOGDEBUG0,
-	    "FLT[FLT]: boot=0x%x fw=0x%x vpd_nvram=0x%x vpd=0x%x nvram 0x%x "
+	isp_prt(isp, ISP_LOGCONFIG,
+	    "FLT[FLT]: boot=0x%x fw=0x%x vpd_nvram=0x%x vpd=0x%x nvram=0x%x "
 	    "fdt=0x%x flt=0x%x npiv=0x%x fcp_prif_cfg=0x%x",
 	    fcp->flt_region_boot, fcp->flt_region_fw, fcp->flt_region_vpd_nvram,
 	    fcp->flt_region_vpd, fcp->flt_region_nvram, fcp->flt_region_fdt,
@@ -4662,15 +4857,465 @@ isp_parse_flt_2xxx(ispsoftc_t *isp, uint8_t *flt_data)
 	return (0);
 }
 
+static void
+isp_print_image(ispsoftc_t *isp, char *name, struct isp_image_status *image_status)
+{
+	isp_prt(isp, ISP_LOGDEBUG0,
+	    "%s %s: mask=0x%02x gen=0x%04x ver=%u.%u map=0x%01x sum=0x%08x sig=0x%08x",
+	    name, "status",
+	    image_status->image_status_mask,
+	    le16toh(image_status->generation),
+	    image_status->ver_major,
+	    image_status->ver_minor,
+	    image_status->bitmap,
+	    le32toh(image_status->checksum),
+	    le32toh(image_status->signature));
+}
+
+static bool
+isp_check_aux_image_status_signature(struct isp_image_status *image_status)
+{
+	unsigned long signature = le32toh(image_status->signature);
+
+	return (signature != ISP28XX_AUX_IMG_STATUS_SIGN);
+}
+
+static bool
+isp_check_image_status_signature(struct isp_image_status *image_status)
+{
+	unsigned long signature = le32toh(image_status->signature);
+
+	return ((signature != ISP27XX_IMG_STATUS_SIGN) &&
+	    (signature != ISP28XX_IMG_STATUS_SIGN));
+}
+
+static unsigned long
+isp_image_status_checksum(struct isp_image_status *image_status)
+{
+	uint32_t *p = (uint32_t *)image_status;
+	unsigned int n = sizeof(*image_status) / sizeof(*p);
+	uint32_t sum = 0;
+
+	for ( ; n--; p++)
+		sum += le32toh(*((uint32_t *)(p)));
+
+	return (sum);
+}
+
+static inline unsigned int
+isp_component_bitmask(struct isp_image_status *aux, unsigned int bitmask)
+{
+	return (aux->bitmap & bitmask ?
+	    ISP27XX_SECONDARY_IMAGE : ISP27XX_PRIMARY_IMAGE);
+}
+
+static void
+isp_component_status(struct active_regions *active_regions, struct isp_image_status *aux)
+{
+	active_regions->aux.board_config =
+	    isp_component_bitmask(aux, ISP28XX_AUX_IMG_BOARD_CONFIG);
+
+	active_regions->aux.vpd_nvram =
+	    isp_component_bitmask(aux, ISP28XX_AUX_IMG_VPD_NVRAM);
+
+	active_regions->aux.npiv_config_0_1 =
+	    isp_component_bitmask(aux, ISP28XX_AUX_IMG_NPIV_CONFIG_0_1);
+
+	active_regions->aux.npiv_config_2_3 =
+	    isp_component_bitmask(aux, ISP28XX_AUX_IMG_NPIV_CONFIG_2_3);
+
+	active_regions->aux.nvme_params =
+	    isp_component_bitmask(aux, ISP28XX_AUX_IMG_NVME_PARAMS);
+}
+
 static int
-isp_read_nvram_2400(ispsoftc_t *isp)
+isp_compare_image_generation(ispsoftc_t *isp,
+    struct isp_image_status *pri_image_status,
+    struct isp_image_status *sec_image_status)
+{
+	/* calculate generation delta as uint16 (this accounts for wrap) */
+	int16_t delta =
+	    le16toh(pri_image_status->generation) -
+	    le16toh(sec_image_status->generation);
+
+	isp_prt(isp, ISP_LOGDEBUG0, "generation delta = %d", delta);
+
+	return (delta);
+}
+
+static void
+isp_get_aux_images(ispsoftc_t *isp, struct active_regions *active_regions)
+{
+	fcparam *fcp = FCPARAM(isp, 0);
+	struct isp_image_status pri_aux_image_status, sec_aux_image_status;
+	bool valid_pri_image = false, valid_sec_image = false;
+	bool active_pri_image = false, active_sec_image = false;
+
+	if (!fcp->flt_region_aux_img_status_pri) {
+		isp_prt(isp, ISP_LOGWARN,
+		    "Primary aux image not addressed");
+		goto check_sec_image;
+	}
+
+	isp_read_flash_data(isp, (uint32_t *)&pri_aux_image_status,
+	    fcp->flt_region_aux_img_status_pri,
+	    sizeof(pri_aux_image_status) >> 2);
+	isp_print_image(isp, "Primary aux image", &pri_aux_image_status);
+
+	if (isp_check_aux_image_status_signature(&pri_aux_image_status)) {
+		isp_prt(isp, ISP_LOGERR,
+		    "Primary aux image signature (0x%x) not valid",
+		    le32toh(pri_aux_image_status.signature));
+		goto check_sec_image;
+	}
+
+	if (isp_image_status_checksum(&pri_aux_image_status)) {
+		isp_prt(isp, ISP_LOGERR,
+		    "Primary aux image checksum failed");
+		goto check_sec_image;
+	}
+
+	valid_pri_image = true;
+
+	if (pri_aux_image_status.image_status_mask & 1) {
+		isp_prt(isp, ISP_LOGCONFIG,
+		    "Primary aux image is active");
+		active_pri_image = true;
+	}
+
+check_sec_image:
+	if (!fcp->flt_region_aux_img_status_sec) {
+		isp_prt(isp, ISP_LOGWARN,
+		    "Secondary aux image not addressed");
+		goto check_valid_image;
+	}
+
+	isp_read_flash_data(isp, (uint32_t *)&sec_aux_image_status,
+	    fcp->flt_region_aux_img_status_sec,
+	    sizeof(sec_aux_image_status) >> 2);
+	isp_print_image(isp, "Secondary aux image", &sec_aux_image_status);
+
+	if (isp_check_aux_image_status_signature(&sec_aux_image_status)) {
+		isp_prt(isp, ISP_LOGERR,
+		    "Secondary aux image signature (0x%x) not valid",
+		    le32toh(sec_aux_image_status.signature));
+		goto check_valid_image;
+	}
+
+	if (isp_image_status_checksum(&sec_aux_image_status)) {
+		isp_prt(isp, ISP_LOGERR,
+		    "Secondary aux image checksum failed");
+		goto check_valid_image;
+	}
+
+	valid_sec_image = true;
+
+	if (sec_aux_image_status.image_status_mask & 1) {
+		isp_prt(isp, ISP_LOGCONFIG,
+		    "Secondary aux image is active");
+		active_sec_image = true;
+	}
+
+check_valid_image:
+	if (valid_pri_image && active_pri_image &&
+	    valid_sec_image && active_sec_image) {
+		if (isp_compare_image_generation(isp, &pri_aux_image_status,
+		    &sec_aux_image_status) >= 0) {
+			isp_component_status(active_regions,
+			    &pri_aux_image_status);
+		} else {
+			isp_component_status(active_regions,
+			    &sec_aux_image_status);
+		}
+	} else if (valid_pri_image && active_pri_image) {
+		isp_component_status(active_regions, &pri_aux_image_status);
+	} else if (valid_sec_image && active_sec_image) {
+		isp_component_status(active_regions, &sec_aux_image_status);
+	}
+
+	isp_prt(isp, ISP_LOGDEBUG0,
+	    "aux images active: BCFG=%u VPD/NVR=%u NPIV0/1=%u NPIV2/3=%u, NVME=%u",
+	    active_regions->aux.board_config,
+	    active_regions->aux.vpd_nvram,
+	    active_regions->aux.npiv_config_0_1,
+	    active_regions->aux.npiv_config_2_3,
+	    active_regions->aux.nvme_params);
+}
+
+static void
+isp_get_active_image(ispsoftc_t *isp, struct active_regions * active_regions)
+{
+	fcparam *fcp = FCPARAM(isp, 0);
+	struct isp_image_status pri_image_status, sec_image_status;
+	bool valid_pri_image = false, valid_sec_image = false;
+	bool active_pri_image = false, active_sec_image = false;
+
+	if (!fcp->flt_region_img_status_pri) {
+		isp_prt(isp, ISP_LOGWARN,
+		    "Primary image not addressed");
+		goto check_sec_image;
+	}
+
+	if (isp_read_flash_data(isp, (uint32_t *) &pri_image_status,
+	    fcp->flt_region_img_status_pri, sizeof(pri_image_status) >> 2) !=
+	    ISP_SUCCESS)
+		goto check_sec_image;
+
+	isp_print_image(isp, "Primary image", &pri_image_status);
+
+	if (isp_check_image_status_signature(&pri_image_status)) {
+		isp_prt(isp, ISP_LOGERR,
+		    "Primary image signature (0x%x) not valid",
+		    le32toh(pri_image_status.signature));
+		goto check_sec_image;
+	}
+
+	if (isp_image_status_checksum(&pri_image_status)) {
+		isp_prt(isp, ISP_LOGERR,
+		    "Primary image checksum failed");
+		goto check_sec_image;
+	}
+
+	valid_pri_image = true;
+
+	if (pri_image_status.image_status_mask & 1) {
+		isp_prt(isp, ISP_LOGCONFIG,
+		    "Primary image is active");
+		active_pri_image = true;
+	}
+
+check_sec_image:
+	if (!fcp->flt_region_img_status_sec) {
+		isp_prt(isp, ISP_LOGWARN,
+		    "Secondary image not addressed");
+		return;
+	}
+
+	if (isp_read_flash_data(isp, (uint32_t *) &sec_image_status,
+	    fcp->flt_region_img_status_sec, sizeof(sec_image_status) >> 2) !=
+	    ISP_SUCCESS)
+		return;
+
+	isp_print_image(isp, "Secondary image", &sec_image_status);
+
+	if (isp_check_image_status_signature(&sec_image_status)) {
+		isp_prt(isp, ISP_LOGERR,
+		    "Secondary image signature (0x%x) not valid",
+		    le32toh(sec_image_status.signature));
+	}
+
+	if (isp_image_status_checksum(&sec_image_status)) {
+		isp_prt(isp, ISP_LOGERR,
+		    "Secondary image checksum failed");
+		goto check_valid_image;
+	}
+
+	valid_sec_image = true;
+
+	if (sec_image_status.image_status_mask & 1) {
+		isp_prt(isp, ISP_LOGCONFIG,
+		    "Secondary image is active");
+		active_sec_image = true;
+	}
+
+check_valid_image:
+	if (valid_pri_image && active_pri_image)
+		active_regions->global = ISP27XX_PRIMARY_IMAGE;
+
+	if (valid_sec_image && active_sec_image) {
+		if (!active_regions->global ||
+		    isp_compare_image_generation(isp,
+			&pri_image_status, &sec_image_status) < 0) {
+			active_regions->global = ISP27XX_SECONDARY_IMAGE;
+		}
+	}
+
+	isp_prt(isp, ISP_LOGDEBUG0, "active image %s (%u)",
+	    active_regions->global == ISP27XX_DEFAULT_IMAGE ?
+		"default (boot/fw)" :
+	    active_regions->global == ISP27XX_PRIMARY_IMAGE ?
+		"primary" :
+	    active_regions->global == ISP27XX_SECONDARY_IMAGE ?
+		"secondary" : "invalid",
+	    active_regions->global);
+}
+
+static bool isp_risc_firmware_invalid(ispsoftc_t *isp, uint32_t *dword)
+{
+	return ((dword[4] | dword[5] | dword[6] | dword[7]) == 0 ||
+	    (~dword[4] | ~dword[5] | ~dword[6] | ~dword[7]) == 0);
+}
+
+static int
+isp_load_ram(ispsoftc_t *isp, uint32_t *data, uint32_t risc_addr,
+    uint32_t risc_code_size)
+{
+	mbreg_t mbs;
+	int rval = ISP_SUCCESS;
+
+	MEMORYBARRIER(isp, SYNC_REQUEST, 0, ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp)), -1);
+	MBSINIT(&mbs, MBOX_LOAD_RISC_RAM, MBLOGALL, 0);
+	mbs.param[1] = risc_addr;
+	mbs.param[2] = DMA_WD1(isp->isp_rquest_dma);
+	mbs.param[3] = DMA_WD0(isp->isp_rquest_dma);
+	mbs.param[4] = risc_code_size >> 16;
+	mbs.param[5] = risc_code_size;
+	mbs.param[6] = DMA_WD3(isp->isp_rquest_dma);
+	mbs.param[7] = DMA_WD2(isp->isp_rquest_dma);
+	mbs.param[8] = risc_addr >> 16;
+	isp_prt(isp, ISP_LOGDEBUG0,
+	    "LOAD RISC RAM %u (0x%x) words at load address 0x%x",
+	    risc_code_size, risc_code_size, risc_addr);
+	isp_mboxcmd(isp, &mbs);
+	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+		isp_prt(isp, ISP_LOGERR, "F/W download failed");
+		rval = ISP_FUNCTION_FAILED;
+	}
+
+	return (rval);
+}
+
+static int
+isp_load_risc_flash(ispsoftc_t *isp, uint32_t *srisc_addr, uint32_t faddr)
+{
+	fcparam *fcp = FCPARAM(isp, 0);
+	int rval = ISP_SUCCESS;
+	unsigned int segments, fragment;
+	unsigned long i;
+	unsigned int j;
+	unsigned long dlen;
+	uint32_t *dcode;
+	uint32_t risc_addr, risc_size = 0;
+
+	isp_prt(isp, ISP_LOGDEBUG0,
+	    "Accessing flash firmware at 0x%x.", faddr);
+
+	dcode = isp->isp_rquest;
+	isp_read_flash_data(isp, dcode, faddr, 8);
+	if (isp_risc_firmware_invalid(isp, dcode)) {
+		snprintf(fcp->fw_version_flash, sizeof(fcp->fw_version_flash),
+		    "invalid");
+		isp_prt(isp, ISP_LOGERR,
+		    "Unable to verify the integrity of flash firmware image.");
+		isp_prt(isp, ISP_LOGERR,
+		    "Firmware data: 0x%08x 0x%08x 0x%08x 0x%08x.",
+		    dcode[0], dcode[1], dcode[2], dcode[3]);
+		return (ISP_FUNCTION_FAILED);
+	} else {
+		for (i = 0; i < 4; i++)
+			fcp->fw_flashrev[i] = be32toh(dcode[4 + i]);
+		snprintf(fcp->fw_version_flash, sizeof(fcp->fw_version_flash),
+		    "%u.%u.%u", fcp->fw_flashrev[0], fcp->fw_flashrev[1],
+		    fcp->fw_flashrev[2]);
+		isp_prt(isp, ISP_LOGCONFIG,
+		    "Firmware revision (flash) %u.%u.%u (%x).",
+		    fcp->fw_flashrev[0], fcp->fw_flashrev[1],
+		    fcp->fw_flashrev[2], fcp->fw_flashrev[3]);
+
+		/* If ispfw(4) is loaded compare versions and use the newest */
+		if (isp->isp_osinfo.ispfw != NULL) {
+			if (ISP_FW_NEWER_THANX(fcp->fw_ispfwrev, fcp->fw_flashrev)) {
+				isp_prt(isp, ISP_LOGCONFIG,
+				    "Loading RISC with newer ispfw(4) firmware");
+				return (ISP_ABORTED);
+			}
+			isp_prt(isp, ISP_LOGCONFIG,
+			    "Loading RISC with newer flash firmware");
+		}
+	}
+
+	dcode = isp->isp_rquest;
+	segments = ISP_RISC_CODE_SEGMENTS;
+	for (j = 0; j < segments; j++) {
+		isp_prt(isp, ISP_LOGDEBUG0, "Loading segment %u", j);
+		isp_read_flash_data(isp, dcode, faddr, 10);
+		risc_addr = be32toh(dcode[2]);
+		risc_size = be32toh(dcode[3]);
+
+		dlen = min(risc_size, ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp)) / 4);
+		for (fragment = 0; risc_size; fragment++) {
+			if (dlen > risc_size)
+				dlen = risc_size;
+
+			isp_prt(isp, ISP_LOGDEBUG0,
+			    "Loading fragment %u: 0x%x <- 0x%x (0x%lx dwords)",
+			    fragment, risc_addr, faddr, dlen);
+			isp_read_flash_data(isp, dcode, faddr, dlen);
+			for (i = 0; i < dlen; i++) {
+				dcode[i] = bswap32(dcode[i]);
+			}
+
+			rval = isp_load_ram(isp, dcode, risc_addr, dlen);
+			if (rval) {
+				isp_prt(isp, ISP_LOGERR,
+				    "Failed to load firmware fragment %u.",
+				    fragment);
+				return (ISP_FUNCTION_FAILED);
+			}
+
+			faddr += dlen;
+			risc_addr += dlen;
+			risc_size -= dlen;
+		}
+	}
+
+	return (rval);
+}
+
+static int
+isp_load_risc(ispsoftc_t *isp, uint32_t *srisc_addr)
+{
+	fcparam *fcp = FCPARAM(isp, 0);
+	int rval = ISP_SUCCESS;
+	struct active_regions active_regions = { };
+
+	/*
+	 * Starting with 27xx there is a primary and secondary firmware region
+	 * in flash. All older controllers just have one firmware region.
+	 */
+	if (!IS_27XX(isp))
+		goto try_primary_fw;
+
+	isp_get_active_image(isp, &active_regions);
+
+	if (active_regions.global != ISP27XX_SECONDARY_IMAGE)
+		goto try_primary_fw;
+
+	isp_prt(isp, ISP_LOGCONFIG,
+	    "Loading secondary firmware image.");
+	rval = isp_load_risc_flash(isp, srisc_addr, fcp->flt_region_fw_sec);
+	return (rval);
+
+try_primary_fw:
+	isp_prt(isp, ISP_LOGCONFIG,
+	    "Loading primary firmware image.");
+	rval = isp_load_risc_flash(isp, srisc_addr, fcp->flt_region_fw);
+	return (rval);
+}
+
+static int
+isp_read_nvram(ispsoftc_t *isp)
 {
 	fcparam *fcp = FCPARAM(isp, 0);
 	int retval = 0;
 	uint32_t addr, csum, lwrds, *dptr;
 	uint8_t nvram_data[ISP2400_NVRAM_SIZE];
+	struct active_regions active_regions = { };
+
+	if (IS_27XX(isp))
+		isp_get_aux_images(isp, &active_regions);
 
 	addr = fcp->flt_region_nvram;
+
+	if (IS_28XX(isp)) {
+		if (active_regions.aux.vpd_nvram == ISP27XX_SECONDARY_IMAGE)
+			addr = fcp->flt_region_nvram_sec;
+
+		isp_prt(isp, ISP_LOGCONFIG, "Loading %s NVRAM image",
+		    active_regions.aux.vpd_nvram == ISP27XX_PRIMARY_IMAGE ?
+		    "primary" : "secondary");
+	}
+
 	dptr = (uint32_t *) nvram_data;
 	for (lwrds = 0; lwrds < ISP2400_NVRAM_SIZE >> 2; lwrds++) {
 		isp_rd_2xxx_flash(isp, addr++, dptr++);

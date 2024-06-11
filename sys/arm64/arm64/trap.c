@@ -33,6 +33,7 @@
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
+#include <sys/msan.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
@@ -478,6 +479,8 @@ do_el1h_sync(struct thread *td, struct trapframe *frame)
 	int dfsc;
 
 	kasan_mark(frame, sizeof(*frame), sizeof(*frame), 0);
+	kmsan_mark(frame, sizeof(*frame), KMSAN_STATE_INITED);
+
 	far = frame->tf_far;
 	/* Read the esr register to get the exception details */
 	esr = frame->tf_esr;
@@ -495,9 +498,16 @@ do_el1h_sync(struct thread *td, struct trapframe *frame)
 	 * Enable debug exceptions if we aren't already handling one. They will
 	 * be masked again in the exception handler's epilogue.
 	 */
-	if (exception != EXCP_BRK && exception != EXCP_WATCHPT_EL1 &&
-	    exception != EXCP_SOFTSTP_EL1)
+	switch (exception) {
+	case EXCP_BRK:
+	case EXCP_BRKPT_EL1:
+	case EXCP_WATCHPT_EL1:
+	case EXCP_SOFTSTP_EL1:
+		break;
+	default:
 		dbg_enable();
+		break;
+	}
 
 	switch (exception) {
 	case EXCP_FP_SIMD:
@@ -542,6 +552,7 @@ do_el1h_sync(struct thread *td, struct trapframe *frame)
 		panic("No debugger in kernel.");
 #endif
 		break;
+	case EXCP_BRKPT_EL1:
 	case EXCP_WATCHPT_EL1:
 	case EXCP_SOFTSTP_EL1:
 #ifdef KDB
@@ -591,6 +602,8 @@ do_el0_sync(struct thread *td, struct trapframe *frame)
 	     get_pcpu(), READ_SPECIALREG(tpidr_el1)));
 
 	kasan_mark(frame, sizeof(*frame), sizeof(*frame), 0);
+	kmsan_mark(frame, sizeof(*frame), KMSAN_STATE_INITED);
+
 	far = frame->tf_far;
 	esr = frame->tf_esr;
 	exception = ESR_ELx_EXCEPTION(esr);
@@ -737,6 +750,8 @@ do_serror(struct trapframe *frame)
 	uint64_t esr, far;
 
 	kasan_mark(frame, sizeof(*frame), sizeof(*frame), 0);
+	kmsan_mark(frame, sizeof(*frame), KMSAN_STATE_INITED);
+
 	far = frame->tf_far;
 	esr = frame->tf_esr;
 
@@ -752,6 +767,8 @@ unhandled_exception(struct trapframe *frame)
 	uint64_t esr, far;
 
 	kasan_mark(frame, sizeof(*frame), sizeof(*frame), 0);
+	kmsan_mark(frame, sizeof(*frame), KMSAN_STATE_INITED);
+
 	far = frame->tf_far;
 	esr = frame->tf_esr;
 

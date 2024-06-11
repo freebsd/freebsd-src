@@ -1,4 +1,6 @@
-# $Id: rst2htm.mk,v 1.13 2023/09/13 18:55:42 sjg Exp $
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# $Id: rst2htm.mk,v 1.15 2024/02/17 17:26:57 sjg Exp $
 #
 #	@(#) Copyright (c) 2009, Simon J. Gerraty
 #
@@ -44,6 +46,7 @@ RST_SUFFIXES ?= .rst .txt
 CLEANFILES += ${HTMFILES} ${PDFFILES}
 
 html:	${HTMFILES}
+pdf:	${PDFFILES}
 
 .SUFFIXES: ${RST_SUFFIXES} .htm .pdf
 

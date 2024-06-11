@@ -45,6 +45,7 @@
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
+#include <sys/ktrace.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -60,7 +61,6 @@
 #include <sys/vmmeter.h>
 #ifdef KTRACE
 #include <sys/uio.h>
-#include <sys/ktrace.h>
 #endif
 #ifdef EPOCH_TRACE
 #include <sys/epoch.h>
@@ -131,7 +131,7 @@ int
 _sleep(const void *ident, struct lock_object *lock, int priority,
     const char *wmesg, sbintime_t sbt, sbintime_t pr, int flags)
 {
-	struct thread *td;
+	struct thread *td __ktrace_used;
 	struct lock_class *class;
 	uintptr_t lock_state;
 	int catch, pri, rval, sleepq_flags;
@@ -158,7 +158,7 @@ _sleep(const void *ident, struct lock_object *lock, int priority,
 	else
 		class = NULL;
 
-	if (SCHEDULER_STOPPED_TD(td)) {
+	if (SCHEDULER_STOPPED()) {
 		if (lock != NULL && priority & PDROP)
 			class->lc_unlock(lock);
 		return (0);
@@ -238,7 +238,7 @@ int
 msleep_spin_sbt(const void *ident, struct mtx *mtx, const char *wmesg,
     sbintime_t sbt, sbintime_t pr, int flags)
 {
-	struct thread *td;
+	struct thread *td __ktrace_used;
 	int rval;
 	WITNESS_SAVE_DECL(mtx);
 
@@ -247,7 +247,7 @@ msleep_spin_sbt(const void *ident, struct mtx *mtx, const char *wmesg,
 	KASSERT(ident != NULL, ("msleep_spin_sbt: NULL ident"));
 	KASSERT(TD_IS_RUNNING(td), ("msleep_spin_sbt: curthread not running"));
 
-	if (SCHEDULER_STOPPED_TD(td))
+	if (SCHEDULER_STOPPED())
 		return (0);
 
 	sleepq_lock(ident);
@@ -511,7 +511,7 @@ mi_switch(int flags)
 	 */
 	if (kdb_active)
 		kdb_switch();
-	if (SCHEDULER_STOPPED_TD(td))
+	if (SCHEDULER_STOPPED())
 		return;
 	if (flags & SW_VOL) {
 		td->td_ru.ru_nvcsw++;

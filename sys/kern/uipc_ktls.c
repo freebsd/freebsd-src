@@ -297,10 +297,109 @@ SYSCTL_COUNTER_U64(_kern_ipc_tls_toe, OID_AUTO, chacha20, CTLFLAG_RD,
 
 static MALLOC_DEFINE(M_KTLS, "ktls", "Kernel TLS");
 
+static void ktls_reclaim_thread(void *ctx);
 static void ktls_reset_receive_tag(void *context, int pending);
 static void ktls_reset_send_tag(void *context, int pending);
 static void ktls_work_thread(void *ctx);
-static void ktls_reclaim_thread(void *ctx);
+
+int
+ktls_copyin_tls_enable(struct sockopt *sopt, struct tls_enable *tls)
+{
+	struct tls_enable_v0 tls_v0;
+	int error;
+	uint8_t *cipher_key = NULL, *iv = NULL, *auth_key = NULL;
+
+	if (sopt->sopt_valsize == sizeof(tls_v0)) {
+		error = sooptcopyin(sopt, &tls_v0, sizeof(tls_v0), sizeof(tls_v0));
+		if (error != 0)
+			goto done;
+		memset(tls, 0, sizeof(*tls));
+		tls->cipher_key = tls_v0.cipher_key;
+		tls->iv = tls_v0.iv;
+		tls->auth_key = tls_v0.auth_key;
+		tls->cipher_algorithm = tls_v0.cipher_algorithm;
+		tls->cipher_key_len = tls_v0.cipher_key_len;
+		tls->iv_len = tls_v0.iv_len;
+		tls->auth_algorithm = tls_v0.auth_algorithm;
+		tls->auth_key_len = tls_v0.auth_key_len;
+		tls->flags = tls_v0.flags;
+		tls->tls_vmajor = tls_v0.tls_vmajor;
+		tls->tls_vminor = tls_v0.tls_vminor;
+	} else
+		error = sooptcopyin(sopt, tls, sizeof(*tls), sizeof(*tls));
+
+	if (error != 0)
+		return (error);
+
+	if (tls->cipher_key_len < 0 || tls->cipher_key_len > TLS_MAX_PARAM_SIZE)
+		return (EINVAL);
+	if (tls->iv_len < 0 || tls->iv_len > sizeof(((struct ktls_session *)NULL)->params.iv))
+		return (EINVAL);
+	if (tls->auth_key_len < 0 || tls->auth_key_len > TLS_MAX_PARAM_SIZE)
+		return (EINVAL);
+
+	/* All supported algorithms require a cipher key. */
+	if (tls->cipher_key_len == 0)
+		return (EINVAL);
+
+	/*
+	 * Now do a deep copy of the variable-length arrays in the struct, so that
+	 * subsequent consumers of it can reliably assume kernel memory. This
+	 * requires doing our own allocations, which we will free in the
+	 * error paths so that our caller need only worry about outstanding
+	 * allocations existing on successful return.
+	 */
+	if (tls->cipher_key_len != 0) {
+		cipher_key = malloc(tls->cipher_key_len, M_KTLS, M_WAITOK);
+		if (sopt->sopt_td != NULL) {
+			error = copyin(tls->cipher_key, cipher_key, tls->cipher_key_len);
+			if (error != 0)
+				goto done;
+		} else {
+			bcopy(tls->cipher_key, cipher_key, tls->cipher_key_len);
+		}
+	}
+	if (tls->iv_len != 0) {
+		iv = malloc(tls->iv_len, M_KTLS, M_WAITOK);
+		if (sopt->sopt_td != NULL) {
+			error = copyin(tls->iv, iv, tls->iv_len);
+			if (error != 0)
+				goto done;
+		} else {
+			bcopy(tls->iv, iv, tls->iv_len);
+		}
+	}
+	if (tls->auth_key_len != 0) {
+		auth_key = malloc(tls->auth_key_len, M_KTLS, M_WAITOK);
+		if (sopt->sopt_td != NULL) {
+			error = copyin(tls->auth_key, auth_key, tls->auth_key_len);
+			if (error != 0)
+				goto done;
+		} else {
+			bcopy(tls->auth_key, auth_key, tls->auth_key_len);
+		}
+	}
+	tls->cipher_key = cipher_key;
+	tls->iv = iv;
+	tls->auth_key = auth_key;
+
+done:
+	if (error != 0) {
+		zfree(cipher_key, M_KTLS);
+		zfree(iv, M_KTLS);
+		zfree(auth_key, M_KTLS);
+	}
+
+	return (error);
+}
+
+void
+ktls_cleanup_tls_enable(struct tls_enable *tls)
+{
+	zfree(__DECONST(void *, tls->cipher_key), M_KTLS);
+	zfree(__DECONST(void *, tls->iv), M_KTLS);
+	zfree(__DECONST(void *, tls->auth_key), M_KTLS);
+}
 
 static u_int
 ktls_get_cpu(struct socket *so)
@@ -510,16 +609,6 @@ ktls_create_session(struct socket *so, struct tls_enable *en,
 	    en->tls_vminor > TLS_MINOR_VER_THREE)
 		return (EINVAL);
 
-	if (en->auth_key_len < 0 || en->auth_key_len > TLS_MAX_PARAM_SIZE)
-		return (EINVAL);
-	if (en->cipher_key_len < 0 || en->cipher_key_len > TLS_MAX_PARAM_SIZE)
-		return (EINVAL);
-	if (en->iv_len < 0 || en->iv_len > sizeof(tls->params.iv))
-		return (EINVAL);
-
-	/* All supported algorithms require a cipher key. */
-	if (en->cipher_key_len == 0)
-		return (EINVAL);
 
 	/* No flags are currently supported. */
 	if (en->flags != 0)
@@ -702,18 +791,12 @@ ktls_create_session(struct socket *so, struct tls_enable *en,
 		tls->params.auth_key_len = en->auth_key_len;
 		tls->params.auth_key = malloc(en->auth_key_len, M_KTLS,
 		    M_WAITOK);
-		error = copyin(en->auth_key, tls->params.auth_key,
-		    en->auth_key_len);
-		if (error)
-			goto out;
+		bcopy(en->auth_key, tls->params.auth_key, en->auth_key_len);
 	}
 
 	tls->params.cipher_key_len = en->cipher_key_len;
 	tls->params.cipher_key = malloc(en->cipher_key_len, M_KTLS, M_WAITOK);
-	error = copyin(en->cipher_key, tls->params.cipher_key,
-	    en->cipher_key_len);
-	if (error)
-		goto out;
+	bcopy(en->cipher_key, tls->params.cipher_key, en->cipher_key_len);
 
 	/*
 	 * This holds the implicit portion of the nonce for AEAD
@@ -722,9 +805,7 @@ ktls_create_session(struct socket *so, struct tls_enable *en,
 	 */
 	if (en->iv_len != 0) {
 		tls->params.iv_len = en->iv_len;
-		error = copyin(en->iv, tls->params.iv, en->iv_len);
-		if (error)
-			goto out;
+		bcopy(en->iv, tls->params.iv, en->iv_len);
 
 		/*
 		 * For TLS 1.2 with GCM, generate an 8-byte nonce as a
@@ -740,10 +821,6 @@ ktls_create_session(struct socket *so, struct tls_enable *en,
 
 	*tlsp = tls;
 	return (0);
-
-out:
-	ktls_free(tls);
-	return (error);
 }
 
 static struct ktls_session *
@@ -1644,7 +1721,9 @@ out:
 
 	if (ifp != NULL)
 		if_rele(ifp);
+	CURVNET_SET(so->so_vnet);
 	sorele(so);
+	CURVNET_RESTORE();
 	ktls_free(tls);
 }
 
@@ -3160,8 +3239,9 @@ ktls_reclaim_thread(void *ctx)
 		 * backlogs of buffers to be encrypted, leading to
 		 * surges of traffic and potential NIC output drops.
 		 */
-		if (!vm_page_reclaim_contig_domain_ext(domain, VM_ALLOC_NORMAL,
-		    atop(ktls_maxlen), 0, ~0ul, PAGE_SIZE, 0, ktls_max_reclaim)) {
+		if (vm_page_reclaim_contig_domain_ext(domain, VM_ALLOC_NORMAL,
+		    atop(ktls_maxlen), 0, ~0ul, PAGE_SIZE, 0,
+		    ktls_max_reclaim) != 0) {
 			vm_wait_domain(domain);
 		} else {
 			sc->reclaims += ktls_max_reclaim;

@@ -729,6 +729,22 @@ static struct ada_quirk_entry ada_quirk_table[] =
 	},
 	{
 		/*
+		 * Samsung 860 SSDs
+		 * 4k optimised, NCQ TRIM broken (normal TRIM fine)
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Samsung SSD 860*", "*" },
+		/*quirks*/ADA_Q_4K | ADA_Q_NCQ_TRIM_BROKEN
+	},
+	{
+		/*
+		 * Samsung 870 SSDs
+		 * 4k optimised, NCQ TRIM broken (normal TRIM fine)
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Samsung SSD 870*", "*" },
+		/*quirks*/ADA_Q_4K | ADA_Q_NCQ_TRIM_BROKEN
+	},
+	{
+		/*
 		 * Samsung SM863 Series SSDs (MZ7KM*)
 		 * 4k optimised, NCQ believed to be working
 		 */
@@ -811,6 +827,11 @@ static struct ada_quirk_entry ada_quirk_table[] =
 	{
 		/* WD Green SSD */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "WDC WDS?????G0*", "*" },
+		/*quirks*/ADA_Q_4K | ADA_Q_NCQ_TRIM_BROKEN
+	},
+	{
+		/* Seagate IronWolf 110 SATA SSD NCQ Trim is unstable */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ZA*NM*", "*" },
 		/*quirks*/ADA_Q_4K | ADA_Q_NCQ_TRIM_BROKEN
 	},
 	{
@@ -2497,7 +2518,16 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 			error = ada_zone_cmd(periph, start_ccb, bp, &queue_ccb);
 			if ((error != 0)
 			 || (queue_ccb == 0)) {
+				/*
+				 * g_io_deliver will recurisvely call start
+				 * routine for ENOMEM, so drop the periph
+				 * lock to allow that recursion.
+				 */
+				if (error == ENOMEM)
+					cam_periph_unlock(periph);
 				biofinish(bp, NULL, error);
+				if (error == ENOMEM)
+					cam_periph_lock(periph);
 				xpt_release_ccb(start_ccb);
 				return;
 			}

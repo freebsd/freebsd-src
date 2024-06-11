@@ -29,7 +29,7 @@
 .\"
 .\" Copyright (c) 1991 Sun Microsystems, Inc.
 .\"
-.Dd May 14, 2020
+.Dd May 7, 2024
 .Dt DLOPEN 3
 .Os
 .Sh NAME
@@ -199,6 +199,10 @@ The
 function can be used by the code that needs to perform
 additional checks on the loaded objects, to prevent races with
 symlinking or renames.
+Applications sandboxed using
+.Xr capsicum 4
+can also make beneficial use of
+.Fn fdlopen .
 .Pp
 The
 .Fn dlsym

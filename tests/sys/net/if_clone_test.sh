@@ -284,7 +284,6 @@ tap_ipv6_up_stress_head()
 }
 tap_ipv6_up_stress_body()
 {
-	atf_skip "Quickly panics: if_delmulti_locked: inconsistent ifp 0xfffff80150e44000"
 	do_up_stress "tap" "6" ""
 }
 tap_ipv6_up_stress_cleanup()

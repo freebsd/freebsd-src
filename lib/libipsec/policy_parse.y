@@ -77,16 +77,16 @@ static struct sockaddr *p_src = NULL;
 static struct sockaddr *p_dst = NULL;
 
 struct _val;
-extern void yyerror(char *msg);
-static struct sockaddr *parse_sockaddr(struct _val *buf);
+extern void yyerror(const char *msg);
+static struct sockaddr *parse_sockaddr(const struct _val *buf);
 static int rule_check(void);
 static int init_x_policy(void);
 static int set_x_request(struct sockaddr *src, struct sockaddr *dst);
-static int set_sockaddr(struct sockaddr *addr);
+static int set_sockaddr(const struct sockaddr *addr);
 static void policy_parse_request_init(void);
-static caddr_t policy_parse(char *msg, int msglen);
+static caddr_t policy_parse(const char *msg, int msglen);
 
-extern void __policy__strbuffer__init__(char *msg);
+extern void __policy__strbuffer__init__(const char *msg);
 extern void __policy__strbuffer__free__(void);
 extern int yylex(void);
 
@@ -211,7 +211,7 @@ addresses
 %%
 
 void
-yyerror(char *msg)
+yyerror(const char *msg)
 {
 	fprintf(stderr, "libipsec: %s while parsing \"%s\"\n",
 		msg, __libipsecyytext);
@@ -220,7 +220,7 @@ yyerror(char *msg)
 }
 
 static struct sockaddr *
-parse_sockaddr(struct _val *buf)
+parse_sockaddr(const struct _val *buf)
 {
 	struct addrinfo hints, *res;
 	char *serv = NULL;
@@ -346,7 +346,7 @@ set_x_request(struct sockaddr *src, struct sockaddr *dst)
 }
 
 static int
-set_sockaddr(struct sockaddr *addr)
+set_sockaddr(const struct sockaddr *addr)
 {
 	if (addr == NULL) {
 		__ipsec_errcode = EIPSEC_NO_ERROR;
@@ -383,7 +383,7 @@ policy_parse_request_init(void)
 }
 
 static caddr_t
-policy_parse(char *msg, int msglen)
+policy_parse(const char *msg, int msglen)
 {
 	int error;
 	pbuf = NULL;
@@ -413,7 +413,7 @@ policy_parse(char *msg, int msglen)
 }
 
 caddr_t
-ipsec_set_policy(char *msg, int msglen)
+ipsec_set_policy(const char *msg, int msglen)
 {
 	caddr_t policy;
 

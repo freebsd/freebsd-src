@@ -132,11 +132,11 @@ namespace {
     llvm::StringRef GroupName;
     std::vector<const Record*> DiagsInGroup;
     std::vector<std::string> SubGroups;
-    unsigned IDNo;
+    unsigned IDNo = 0;
 
     llvm::SmallVector<const Record *, 1> Defs;
 
-    GroupInfo() : IDNo(0) {}
+    GroupInfo() = default;
   };
 } // end anonymous namespace.
 
@@ -1343,7 +1343,7 @@ static std::string getDiagCategoryEnum(llvm::StringRef name) {
   SmallString<256> enumName = llvm::StringRef("DiagCat_");
   for (llvm::StringRef::iterator I = name.begin(), E = name.end(); I != E; ++I)
     enumName += isalnum(*I) ? *I : '_';
-  return std::string(enumName.str());
+  return std::string(enumName);
 }
 
 /// Emit the array of diagnostic subgroups.

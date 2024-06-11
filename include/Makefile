@@ -4,7 +4,7 @@
 
 PACKAGE=clibs
 CLEANFILES= osreldate.h version
-SUBDIR= arpa protocols rpcsvc rpc xlocale
+SUBDIR= arpa protocols rpcsvc rpc ssp xlocale
 .if ${MACHINE_CPUARCH} == "amd64"
 SUBDIR+=		i386
 INCLUDE_SUBDIRS+=	i386
@@ -96,10 +96,10 @@ BSM=		audit.h \
 BSMPACKAGE=	libbsm
 BSMDIR=		${INCLUDEDIR}/bsm
 
-.PATH: ${SRCTOP}/sys/security/audit
-SECAUDIT=	audit.h \
-		audit_ioctl.h \
-		audit_private.h
+.PATH: ${SRCTOP}/sys/security
+SECAUDIT=	audit/audit.h \
+		audit/audit_ioctl.h \
+		audit/audit_private.h
 SECAUDITPACKAGE=	libbsm
 SECAUDITDIR=	${INCLUDEDIR}/security/audit
 
@@ -182,6 +182,11 @@ OPENCRYPTODIR=	${INCLUDEDIR}/crypto
 NVME=		nvme.h
 NVMEDIR=	${INCLUDEDIR}/dev/nvme
 
+.PATH: ${SRCTOP}/sys/dev/nvmf
+NVMF=		nvmf.h \
+		nvmf_proto.h
+NVMFDIR=	${INCLUDEDIR}/dev/nvmf
+
 .PATH: ${SRCTOP}/sys/dev/pci
 PCI=		pcireg.h
 PCIDIR=		${INCLUDEDIR}/dev/pci
@@ -255,6 +260,7 @@ INCSGROUPS=	INCS \
 		HYPERV \
 		OPENCRYPTO \
 		NVME \
+		NVMF \
 		PCI \
 		RPC \
 		SECAUDIT \
@@ -347,7 +353,7 @@ _MARCHS+=	x86
 
 META_TARGETS+=	compat
 stage_includes: ${SHARED}
-SDESTDIR=	${SYSROOT:U${DESTDIR}}
+SDESTDIR?=	${SYSROOT:U${DESTDIR}}
 
 # Take care of stale directory-level symlinks.
 # Note: The "|| true" after find is needed in case one of the directories does

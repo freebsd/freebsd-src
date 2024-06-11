@@ -208,9 +208,9 @@ handle_remount() { # $1 = mount point
 # $1 is size in 512-byte sectors, $2 is the mount point.
 mount_md() {
     if [ ${o_verbose} -gt 0 ] ; then
-        /sbin/mdmfs -XL -s $1 auto $2
+        /sbin/mdmfs -XL -S -s $1 auto $2
     else
-        /sbin/mdmfs -s $1 auto $2
+        /sbin/mdmfs -S -s $1 auto $2
     fi
 }
 
@@ -362,7 +362,7 @@ done
 # so if the cpio archive is present, it prevents the files from dir/
 # from being copied.
 
-+PATH=${PATH}:/rescue
+PATH=${PATH}:/rescue
 
 for i in ${templates} ; do
     for j in /conf/$i/* ; do

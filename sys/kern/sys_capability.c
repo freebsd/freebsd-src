@@ -85,7 +85,7 @@
 
 bool __read_frequently trap_enotcap;
 SYSCTL_BOOL(_kern, OID_AUTO, trap_enotcap, CTLFLAG_RWTUN, &trap_enotcap, 0,
-    "Deliver SIGTRAP on ENOTCAPABLE");
+    "Deliver SIGTRAP on ECAPMODE and ENOTCAPABLE");
 
 #ifdef CAPABILITY_MODE
 
@@ -154,14 +154,13 @@ MALLOC_DECLARE(M_FILECAPS);
 
 static inline int
 _cap_check(const cap_rights_t *havep, const cap_rights_t *needp,
-    enum ktr_cap_fail_type type)
+    enum ktr_cap_violation type)
 {
+	const cap_rights_t rights[] = { *needp, *havep };
 
 	if (!cap_rights_contains(havep, needp)) {
-#ifdef KTRACE
-		if (KTRPOINT(curthread, KTR_CAPFAIL))
-			ktrcapfail(type, needp, havep);
-#endif
+		if (CAP_TRACING(curthread))
+			ktrcapfail(type, rights);
 		return (ENOTCAPABLE);
 	}
 	return (0);
@@ -180,11 +179,10 @@ cap_check(const cap_rights_t *havep, const cap_rights_t *needp)
 int
 cap_check_failed_notcapable(const cap_rights_t *havep, const cap_rights_t *needp)
 {
+	const cap_rights_t rights[] = { *needp, *havep };
 
-#ifdef KTRACE
-	if (KTRPOINT(curthread, KTR_CAPFAIL))
-		ktrcapfail(CAPFAIL_NOTCAPABLE, needp, havep);
-#endif
+	if (CAP_TRACING(curthread))
+		ktrcapfail(CAPFAIL_NOTCAPABLE, rights);
 	return (ENOTCAPABLE);
 }
 

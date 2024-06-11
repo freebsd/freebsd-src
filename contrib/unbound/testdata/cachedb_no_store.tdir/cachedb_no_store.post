@@ -16,5 +16,5 @@ if test -f fwd4.log; then cat fwd4.log; else echo "no fwd4.log"; fi
 cat unbound.log
 if test -f unbound2.log; then cat unbound2.log; else echo "no unbound2.log"; fi
 kill_pid $FWD_PID
-kill_pid `cat unbound.pid`
+kill_from_pidfile "unbound.pid"
 rm -f $CONTROL_PATH/controlpipe.$CONTROL_PID

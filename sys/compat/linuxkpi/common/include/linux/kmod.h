@@ -39,9 +39,8 @@
 #define	request_module(...) \
 ({\
 	char modname[128]; \
-	int fileid; \
 	snprintf(modname, sizeof(modname), __VA_ARGS__); \
-	kern_kldload(curthread, modname, &fileid); \
+	kern_kldload(curthread, modname, NULL); \
 })
 
 #define request_module_nowait request_module

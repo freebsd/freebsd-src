@@ -40,6 +40,8 @@
 #include "local.h"
 #include "libc_private.h"
 
+#undef fgets	/* _FORTIFY_SOURCE */
+
 /*
  * Read at most n-1 characters from the given file.
  * Stop when a newline has been read, or the count runs out.

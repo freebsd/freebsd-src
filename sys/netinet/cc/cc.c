@@ -440,7 +440,7 @@ newreno_cc_after_idle(struct cc_var *ccv)
 	 * maximum of the former ssthresh or 3/4 of the old cwnd, to
 	 * not exit slow-start prematurely.
 	 */
-	rw = tcp_compute_initwnd(tcp_maxseg(ccv->ccvc.tcp));
+	rw = tcp_compute_initwnd(tcp_fixed_maxseg(ccv->ccvc.tcp));
 
 	CCV(ccv, snd_ssthresh) = max(CCV(ccv, snd_ssthresh),
 	    CCV(ccv, snd_cwnd)-(CCV(ccv, snd_cwnd)>>2));
@@ -452,10 +452,9 @@ newreno_cc_after_idle(struct cc_var *ccv)
  * Perform any necessary tasks before we enter congestion recovery.
  */
 void
-newreno_cc_cong_signal(struct cc_var *ccv, uint32_t type)
+newreno_cc_cong_signal(struct cc_var *ccv, ccsignal_t type)
 {
-	uint32_t cwin, factor;
-	u_int mss;
+	uint32_t cwin, factor, mss, pipe;
 
 	cwin = CCV(ccv, snd_cwnd);
 	mss = tcp_fixed_maxseg(ccv->ccvc.tcp);
@@ -489,16 +488,26 @@ newreno_cc_cong_signal(struct cc_var *ccv, uint32_t type)
 		}
 		break;
 	case CC_RTO:
-		CCV(ccv, snd_ssthresh) = max(min(CCV(ccv, snd_wnd),
-						 CCV(ccv, snd_cwnd)) / 2 / mss,
-					     2) * mss;
+		if (CCV(ccv, t_rxtshift) == 1) {
+			if (V_tcp_do_newsack) {
+				pipe = tcp_compute_pipe(ccv->ccvc.tcp);
+			} else {
+				pipe = CCV(ccv, snd_max) -
+					CCV(ccv, snd_fack) +
+					CCV(ccv, sackhint.sack_bytes_rexmit);
+			}
+			CCV(ccv, snd_ssthresh) = max(2,
+				min(CCV(ccv, snd_wnd), pipe) / 2 / mss) * mss;
+		}
 		CCV(ccv, snd_cwnd) = mss;
+		break;
+	default:
 		break;
 	}
 }
 
 void
-newreno_cc_ack_received(struct cc_var *ccv, uint16_t type)
+newreno_cc_ack_received(struct cc_var *ccv, ccsignal_t type)
 {
 	if (type == CC_ACK && !IN_RECOVERY(CCV(ccv, t_flags)) &&
 	    (ccv->flags & CCF_CWND_LIMITED)) {

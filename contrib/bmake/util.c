@@ -3,7 +3,7 @@
 /*
  * Missing stuff from OS's
  *
- *	$Id: util.c,v 1.50 2021/12/21 18:47:24 sjg Exp $
+ *	$Id: util.c,v 1.52 2024/01/04 00:27:30 sjg Exp $
  */
 
 #include <sys/param.h>
@@ -431,18 +431,28 @@ snprintf(char *s, size_t n, const char *fmt, ...)
 }
 #endif
 		
-#if !defined(HAVE_STRFTIME)
+#if !defined(HAVE_STRFTIME) || defined(FORCE_BMAKE_STRFTIME)
+/* we only implement enough to pass our unit-tests */
 size_t
 strftime(char *buf, size_t len, const char *fmt, const struct tm *tm)
 {
-	static char months[][4] = {
-		"Jan", "Feb", "Mar", "Apr", "May", "Jun",
-		"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+	static const char *months[] = {
+		"January", "February", "March", 
+		"April", "May", "June", 
+		"July", "August", "September",
+		"October", "November", "December"
 	};
-
+	static const char *days[] = {
+		"Sunday", "Monday", "Tuesday", "Wednesday",
+		"Thursday", "Friday", "Saturday"
+	};
+	int i;
 	size_t s;
 	char *b = buf;
+	char *cp;
 
+	if (fmt == NULL || *fmt == '\0')
+		fmt = "%c";
 	while (*fmt) {
 		if (len == 0)
 			return buf - b;
@@ -451,6 +461,7 @@ strftime(char *buf, size_t len, const char *fmt, const struct tm *tm)
 			len--;
 			continue;
 		}
+		fmt++;
 		switch (*fmt++) {
 		case '%':
 			*buf++ = '%';
@@ -461,25 +472,86 @@ strftime(char *buf, size_t len, const char *fmt, const struct tm *tm)
 			*buf = '%';
 			s = 1;
 			break;
+		case 'A':
+			s = snprintf(buf, len, "%s", days[tm->tm_wday]);
+			break;
+		case 'a':
+			s = snprintf(buf, len, "%.3s", days[tm->tm_wday]);
+			break;
+		case 'B':
+			if (tm->tm_mon >= 12)
+				return buf - b;
+			s = snprintf(buf, len, "%s", months[tm->tm_mon]);
+			break;
+		case 'b':
+			if (tm->tm_mon >= 12)
+				return buf - b;
+			s = snprintf(buf, len, "%.3s", months[tm->tm_mon]);
+			break;
+		case 'c':
+			s = strftime(buf, len, "%a %b %e %H:%M:%S %Y", tm);
+			break;
+		case 'd':
+			s = snprintf(buf, len, "%02d", tm->tm_mday);
+			break;
+		case 'e':
+			s = snprintf(buf, len, "%2d", tm->tm_mday);
+			break;
+		case 'F':
+			s = strftime(buf, len, "%y-%m-%d", tm);
+			break;
+		case 'H':
+			s = snprintf(buf, len, "%02d", tm->tm_hour);
+			break;
+		case 'I':
+			if ((i = tm->tm_hour) == 0)
+				i = 24;
+			s = snprintf(buf, len, "%02d", (i > 12) ? (i - 12) : i);
+			break;
+		case 'j':
+			s = snprintf(buf, len, "%03d", tm->tm_yday + 1);
+			break;
 		case 'k':
 			s = snprintf(buf, len, "%d", tm->tm_hour);
 			break;
 		case 'M':
 			s = snprintf(buf, len, "%02d", tm->tm_min);
 			break;
+		case 'm':
+			s = snprintf(buf, len, "%02d", 1 + tm->tm_mon);
+			break;
 		case 'S':
 			s = snprintf(buf, len, "%02d", tm->tm_sec);
 			break;
-		case 'b':
-			if (tm->tm_mon >= 12)
-				return buf - b;
-			s = snprintf(buf, len, "%s", months[tm->tm_mon]);
+		case 's':
+			s = snprintf(buf, len, "%ld", (long)time(NULL));
 			break;
-		case 'd':
-			s = snprintf(buf, len, "%02d", tm->tm_mday);
+		case 'T':
+			s = strftime(buf, len, "%H:%M:%S", tm);
+			break;
+		case 'w':
+			s = snprintf(buf, len, "%02d", tm->tm_wday);
 			break;
 		case 'Y':
 			s = snprintf(buf, len, "%d", 1900 + tm->tm_year);
+			break;
+		case 'y':
+			s = snprintf(buf, len, "%02d", tm->tm_year % 100);
+			break;
+		case 'Z':
+			if ((cp = getenv("TZ")) != NULL) {
+				char tz[20];
+
+				i = snprintf(tz, sizeof(tz), "%s", cp);
+				if (i > 5) {
+					cp = &tz[i - 3];
+					tz[3] = '\0';
+				} else
+					cp = tz;
+				s = snprintf(buf, len, "%s",
+				    tm->tm_isdst ? cp : tz);
+			} else
+				s = 0;
 			break;
 		default:
 			s = snprintf(buf, len, "Unsupported format %c",

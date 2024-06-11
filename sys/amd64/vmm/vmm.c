@@ -1037,54 +1037,79 @@ vmm_sysmem_maxaddr(struct vm *vm)
 }
 
 static void
-vm_iommu_modify(struct vm *vm, bool map)
+vm_iommu_map(struct vm *vm)
 {
-	int i, sz;
 	vm_paddr_t gpa, hpa;
 	struct mem_map *mm;
-	void *vp, *cookie, *host_domain;
+	int i;
 
-	sz = PAGE_SIZE;
-	host_domain = iommu_host_domain();
+	sx_assert(&vm->mem_segs_lock, SX_LOCKED);
 
 	for (i = 0; i < VM_MAX_MEMMAPS; i++) {
 		mm = &vm->mem_maps[i];
 		if (!sysmem_mapping(vm, mm))
 			continue;
 
-		if (map) {
-			KASSERT((mm->flags & VM_MEMMAP_F_IOMMU) == 0,
-			    ("iommu map found invalid memmap %#lx/%#lx/%#x",
-			    mm->gpa, mm->len, mm->flags));
-			if ((mm->flags & VM_MEMMAP_F_WIRED) == 0)
-				continue;
-			mm->flags |= VM_MEMMAP_F_IOMMU;
-		} else {
-			if ((mm->flags & VM_MEMMAP_F_IOMMU) == 0)
-				continue;
-			mm->flags &= ~VM_MEMMAP_F_IOMMU;
-			KASSERT((mm->flags & VM_MEMMAP_F_WIRED) != 0,
-			    ("iommu unmap found invalid memmap %#lx/%#lx/%#x",
-			    mm->gpa, mm->len, mm->flags));
+		KASSERT((mm->flags & VM_MEMMAP_F_IOMMU) == 0,
+		    ("iommu map found invalid memmap %#lx/%#lx/%#x",
+		    mm->gpa, mm->len, mm->flags));
+		if ((mm->flags & VM_MEMMAP_F_WIRED) == 0)
+			continue;
+		mm->flags |= VM_MEMMAP_F_IOMMU;
+
+		for (gpa = mm->gpa; gpa < mm->gpa + mm->len; gpa += PAGE_SIZE) {
+			hpa = pmap_extract(vmspace_pmap(vm->vmspace), gpa);
+
+			/*
+			 * All mappings in the vmm vmspace must be
+			 * present since they are managed by vmm in this way.
+			 * Because we are in pass-through mode, the
+			 * mappings must also be wired.  This implies
+			 * that all pages must be mapped and wired,
+			 * allowing to use pmap_extract() and avoiding the
+			 * need to use vm_gpa_hold_global().
+			 *
+			 * This could change if/when we start
+			 * supporting page faults on IOMMU maps.
+			 */
+			KASSERT(vm_page_wired(PHYS_TO_VM_PAGE(hpa)),
+			    ("vm_iommu_map: vm %p gpa %jx hpa %jx not wired",
+			    vm, (uintmax_t)gpa, (uintmax_t)hpa));
+
+			iommu_create_mapping(vm->iommu, gpa, hpa, PAGE_SIZE);
 		}
+	}
 
-		gpa = mm->gpa;
-		while (gpa < mm->gpa + mm->len) {
-			vp = vm_gpa_hold_global(vm, gpa, PAGE_SIZE,
-			    VM_PROT_WRITE, &cookie);
-			KASSERT(vp != NULL, ("vm(%s) could not map gpa %#lx",
-			    vm_name(vm), gpa));
+	iommu_invalidate_tlb(iommu_host_domain());
+}
 
-			vm_gpa_release(cookie);
+static void
+vm_iommu_unmap(struct vm *vm)
+{
+	vm_paddr_t gpa;
+	struct mem_map *mm;
+	int i;
 
-			hpa = DMAP_TO_PHYS((uintptr_t)vp);
-			if (map) {
-				iommu_create_mapping(vm->iommu, gpa, hpa, sz);
-			} else {
-				iommu_remove_mapping(vm->iommu, gpa, sz);
-			}
+	sx_assert(&vm->mem_segs_lock, SX_LOCKED);
 
-			gpa += PAGE_SIZE;
+	for (i = 0; i < VM_MAX_MEMMAPS; i++) {
+		mm = &vm->mem_maps[i];
+		if (!sysmem_mapping(vm, mm))
+			continue;
+
+		if ((mm->flags & VM_MEMMAP_F_IOMMU) == 0)
+			continue;
+		mm->flags &= ~VM_MEMMAP_F_IOMMU;
+		KASSERT((mm->flags & VM_MEMMAP_F_WIRED) != 0,
+		    ("iommu unmap found invalid memmap %#lx/%#lx/%#x",
+		    mm->gpa, mm->len, mm->flags));
+
+		for (gpa = mm->gpa; gpa < mm->gpa + mm->len; gpa += PAGE_SIZE) {
+			KASSERT(vm_page_wired(PHYS_TO_VM_PAGE(pmap_extract(
+			    vmspace_pmap(vm->vmspace), gpa))),
+			    ("vm_iommu_unmap: vm %p gpa %jx not wired",
+			    vm, (uintmax_t)gpa));
+			iommu_remove_mapping(vm->iommu, gpa, PAGE_SIZE);
 		}
 	}
 
@@ -1092,14 +1117,8 @@ vm_iommu_modify(struct vm *vm, bool map)
 	 * Invalidate the cached translations associated with the domain
 	 * from which pages were removed.
 	 */
-	if (map)
-		iommu_invalidate_tlb(host_domain);
-	else
-		iommu_invalidate_tlb(vm->iommu);
+	iommu_invalidate_tlb(vm->iommu);
 }
-
-#define	vm_iommu_unmap(vm)	vm_iommu_modify((vm), false)
-#define	vm_iommu_map(vm)	vm_iommu_modify((vm), true)
 
 int
 vm_unassign_pptdev(struct vm *vm, int bus, int slot, int func)

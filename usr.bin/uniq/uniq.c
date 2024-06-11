@@ -42,6 +42,7 @@
 #include <limits.h>
 #include <locale.h>
 #include <nl_types.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,14 +52,9 @@
 #include <wchar.h>
 #include <wctype.h>
 
-static int Dflag, cflag, dflag, uflag, iflag;
-static int numchars, numfields, repeats;
-
-/* Dflag values */
-#define	DF_NONE		0
-#define	DF_NOSEP	1
-#define	DF_PRESEP	2
-#define	DF_POSTSEP	3
+static enum { DF_NONE, DF_NOSEP, DF_PRESEP, DF_POSTSEP } Dflag;
+static bool cflag, dflag, uflag, iflag;
+static long long numchars, numfields, repeats;
 
 static const struct option long_opts[] =
 {
@@ -88,7 +84,7 @@ main (int argc, char *argv[])
 	int ch, comp;
 	size_t prevbuflen, thisbuflen, b1;
 	char *prevline, *thisline, *p;
-	const char *ifn, *errstr;;
+	const char *errstr, *ifn, *ofn;
 	cap_rights_t rights;
 
 	(void) setlocale(LC_ALL, "");
@@ -108,13 +104,13 @@ main (int argc, char *argv[])
 				usage();
 			break;
 		case 'c':
-			cflag = 1;
+			cflag = true;
 			break;
 		case 'd':
-			dflag = 1;
+			dflag = true;
 			break;
 		case 'i':
-			iflag = 1;
+			iflag = true;
 			break;
 		case 'f':
 			numfields = strtonum(optarg, 0, INT_MAX, &errstr);
@@ -127,7 +123,7 @@ main (int argc, char *argv[])
 				errx(1, "character skip value is %s: %s", errstr, optarg);
 			break;
 		case 'u':
-			uflag = 1;
+			uflag = true;
 			break;
 		case '?':
 		default:
@@ -140,9 +136,13 @@ main (int argc, char *argv[])
 	if (argc > 2)
 		usage();
 
+	if (Dflag && dflag)
+		dflag = false;
+
 	ifp = stdin;
 	ifn = "stdin";
 	ofp = stdout;
+	ofn = "stdout";
 	if (argc > 0 && strcmp(argv[0], "-") != 0)
 		ifp = file(ifn = argv[0], "r");
 	cap_rights_init(&rights, CAP_FSTAT, CAP_READ);
@@ -150,7 +150,7 @@ main (int argc, char *argv[])
 		err(1, "unable to limit rights for %s", ifn);
 	cap_rights_init(&rights, CAP_FSTAT, CAP_WRITE);
 	if (argc > 1)
-		ofp = file(argv[1], "w");
+		ofp = file(ofn = argv[1], "w");
 	else
 		cap_rights_set(&rights, CAP_IOCTL);
 	if (caph_rights_limit(fileno(ofp), &rights) < 0) {
@@ -180,6 +180,8 @@ main (int argc, char *argv[])
 			err(1, "%s", ifn);
 		exit(0);
 	}
+	if (!cflag && !Dflag && !dflag && !uflag)
+		show(ofp, prevline);
 	tprev = convert(prevline);
 
 	tthis = NULL;
@@ -199,7 +201,11 @@ main (int argc, char *argv[])
 			/* If different, print; set previous to new value. */
 			if (Dflag == DF_POSTSEP && repeats > 0)
 				fputc('\n', ofp);
-			if (!Dflag)
+			if (!cflag && !Dflag && !dflag && !uflag)
+				show(ofp, thisline);
+			else if (!Dflag &&
+			    (!dflag || (cflag && repeats > 0)) &&
+			    (!uflag || repeats == 0))
 				show(ofp, prevline);
 			p = prevline;
 			b1 = prevbuflen;
@@ -220,14 +226,23 @@ main (int argc, char *argv[])
 					show(ofp, prevline);
 				}
 				show(ofp, thisline);
+			} else if (dflag && !cflag) {
+				if (repeats == 0)
+					show(ofp, prevline);
 			}
 			++repeats;
 		}
 	}
 	if (ferror(ifp))
 		err(1, "%s", ifn);
-	if (!Dflag)
+	if (!cflag && !Dflag && !dflag && !uflag)
+		/* already printed */ ;
+	else if (!Dflag &&
+	    (!dflag || (cflag && repeats > 0)) &&
+	    (!uflag || repeats == 0))
 		show(ofp, prevline);
+	if (fflush(ofp) != 0)
+		err(1, "%s", ofn);
 	exit(0);
 }
 
@@ -291,11 +306,8 @@ inlcmp(const char *s1, const char *s2)
 static void
 show(FILE *ofp, const char *str)
 {
-
-	if ((!Dflag && dflag && repeats == 0) || (uflag && repeats > 0))
-		return;
 	if (cflag)
-		(void)fprintf(ofp, "%4d %s", repeats + 1, str);
+		(void)fprintf(ofp, "%4lld %s", repeats + 1, str);
 	else
 		(void)fprintf(ofp, "%s", str);
 }
@@ -303,7 +315,7 @@ show(FILE *ofp, const char *str)
 static wchar_t *
 skip(wchar_t *str)
 {
-	int nchars, nfields;
+	long long nchars, nfields;
 
 	for (nfields = 0; *str != L'\0' && nfields++ != numfields; ) {
 		while (iswblank(*str))
@@ -329,29 +341,25 @@ file(const char *name, const char *mode)
 static void
 obsolete(char *argv[])
 {
-	int len;
-	char *ap, *p, *start;
+	char *ap, *p;
 
 	while ((ap = *++argv)) {
 		/* Return if "--" or not an option of any form. */
 		if (ap[0] != '-') {
 			if (ap[0] != '+')
 				return;
-		} else if (ap[1] == '-')
+		} else if (ap[1] == '-') {
 			return;
+		}
 		if (!isdigit((unsigned char)ap[1]))
 			continue;
 		/*
 		 * Digit signifies an old-style option.  Malloc space for dash,
 		 * new option and argument.
 		 */
-		len = strlen(ap);
-		if ((start = p = malloc(len + 3)) == NULL)
+		if (asprintf(&p, "-%c%s", ap[0] == '+' ? 's' : 'f', ap + 1) < 0)
 			err(1, "malloc");
-		*p++ = '-';
-		*p++ = ap[0] == '+' ? 's' : 'f';
-		(void)strcpy(p, ap + 1);
-		*argv = start;
+		*argv = p;
 	}
 }
 

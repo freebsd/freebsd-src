@@ -48,7 +48,7 @@
 
 #include <dev/fdt/fdt_pinctrl.h>
 
-#include <dev/extres/syscon/syscon.h>
+#include <dev/syscon/syscon.h>
 
 #include "gpio_if.h"
 #include "syscon_if.h"

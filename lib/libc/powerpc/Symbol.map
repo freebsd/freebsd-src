@@ -6,12 +6,12 @@
 FBSD_1.0 {
 	_mcount;
 	__flt_rounds;
+	brk;
 	fpgetmask;
 	fpgetround;
 	fpgetsticky;
 	fpsetmask;
 	fpsetround;
-	brk;
 	sbrk;
 };
 
@@ -20,10 +20,6 @@ FBSD_1.3 {
 };
 
 FBSDprivate_1.0 {
-	/* PSEUDO syscalls */
-	_getlogin;
-
-	_fpgetsticky;
 	__longjmp;
 	signalcontext;
 	__signalcontext;

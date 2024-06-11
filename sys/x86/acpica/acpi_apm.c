@@ -141,18 +141,18 @@ acpi_capm_get_info(apm_info_t aip)
 	aip->ai_capabilities= 0xff00;	/* unknown */
 
 	if (acpi_acad_get_acline(&acline))
-		aip->ai_acline = APM_UNKNOWN;	/* unknown */
+		aip->ai_acline = 1;		/* no info -- on-line best guess */
 	else
 		aip->ai_acline = acline;	/* on/off */
 
 	if (acpi_battery_get_battinfo(NULL, &batt) != 0) {
-		aip->ai_batt_stat = APM_UNKNOWN;
-		aip->ai_batt_life = APM_UNKNOWN;
-		aip->ai_batt_time = -1;		 /* unknown */
-		aip->ai_batteries = ~0U;	 /* unknown */
+		aip->ai_batt_stat = 0;		/* "high" old I/F has no unknown state */
+		aip->ai_batt_life = 255;	/* N/A, not -1 */
+		aip->ai_batt_time = -1;		/* unknown */
+		aip->ai_batteries = ~0U;	/* unknown */
 	} else {
 		aip->ai_batt_stat = acpi_capm_convert_battstate(&batt);
-		aip->ai_batt_life = batt.cap;
+		aip->ai_batt_life = (batt.cap == -1) ? 255 : batt.cap;
 		aip->ai_batt_time = (batt.min == -1) ? -1 : batt.min * 60;
 		aip->ai_batteries = acpi_battery_get_units();
 	}
@@ -186,11 +186,11 @@ acpi_capm_get_pwstatus(apm_pwstatus_t app)
 
 	app->ap_batt_stat = acpi_capm_convert_battstate(&batt);
 	app->ap_batt_flag = acpi_capm_convert_battflags(&batt);
-	app->ap_batt_life = batt.cap;
+	app->ap_batt_life = (batt.cap == -1) ? 255 : batt.cap;
 	app->ap_batt_time = (batt.min == -1) ? -1 : batt.min * 60;
 
 	if (acpi_acad_get_acline(&acline))
-		app->ap_acline = APM_UNKNOWN;
+		app->ap_acline = 1;		/* no info -- on-line best guess */
 	else
 		app->ap_acline = acline;	/* on/off */
 

@@ -57,7 +57,7 @@ static FILE		*dbg_log = NULL;
 static unsigned int	indent = 0;
 
 /*
- * prototypes not done here, as they come with debug.h
+ * prototypes are not done here, as they come with debug.h
  */
 
 /*

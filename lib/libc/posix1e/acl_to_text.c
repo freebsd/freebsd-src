@@ -30,8 +30,8 @@
  * in it.
  */
 
-#include <sys/types.h>
 #include "namespace.h"
+#include <sys/param.h>
 #include <sys/acl.h>
 #include "un-namespace.h"
 #include <sys/errno.h>

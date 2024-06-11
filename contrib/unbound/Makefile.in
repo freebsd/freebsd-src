@@ -1278,7 +1278,8 @@ daemon.lo daemon.o: $(srcdir)/daemon/daemon.c config.h $(srcdir)/daemon/daemon.h
  $(srcdir)/util/edns.h $(srcdir)/services/listen_dnsport.h $(srcdir)/services/cache/rrset.h \
  $(srcdir)/services/cache/infra.h $(srcdir)/util/rtt.h $(srcdir)/services/localzone.h \
  $(srcdir)/services/authzone.h $(srcdir)/services/mesh.h $(srcdir)/services/rpz.h $(srcdir)/respip/respip.h \
- $(srcdir)/util/random.h $(srcdir)/util/tube.h $(srcdir)/util/net_help.h $(srcdir)/sldns/keyraw.h
+ $(srcdir)/util/random.h $(srcdir)/util/tube.h $(srcdir)/util/net_help.h $(srcdir)/sldns/keyraw.h \
+ $(srcdir)/iterator/iter_fwd.h $(srcdir)/iterator/iter_hints.h
 remote.lo remote.o: $(srcdir)/daemon/remote.c config.h $(srcdir)/daemon/remote.h $(srcdir)/daemon/worker.h \
  $(srcdir)/libunbound/worker.h $(srcdir)/sldns/sbuffer.h $(srcdir)/util/data/packed_rrset.h \
  $(srcdir)/util/storage/lruhash.h $(srcdir)/util/locks.h $(srcdir)/util/log.h $(srcdir)/util/netevent.h \
@@ -1355,7 +1356,7 @@ testbound.lo testbound.o: $(srcdir)/testcode/testbound.c config.h $(srcdir)/test
  $(srcdir)/util/data/msgparse.h $(srcdir)/sldns/pkthdr.h $(srcdir)/sldns/rrdef.h $(srcdir)/util/tube.h \
  $(srcdir)/services/mesh.h $(srcdir)/services/rpz.h $(srcdir)/services/localzone.h $(srcdir)/services/view.h \
  $(srcdir)/services/authzone.h $(srcdir)/daemon/stats.h $(srcdir)/util/timehist.h $(srcdir)/libunbound/unbound.h \
- $(srcdir)/respip/respip.h $(srcdir)/util/net_help.h $(srcdir)/util/ub_event.h
+ $(srcdir)/respip/respip.h $(srcdir)/util/net_help.h $(srcdir)/util/ub_event.h $(srcdir)/daemon/worker.h
 testpkts.lo testpkts.o: $(srcdir)/testcode/testpkts.c config.h $(srcdir)/testcode/testpkts.h \
  $(srcdir)/util/net_help.h $(srcdir)/util/log.h $(srcdir)/sldns/sbuffer.h $(srcdir)/sldns/rrdef.h $(srcdir)/sldns/pkthdr.h \
  $(srcdir)/sldns/str2wire.h $(srcdir)/sldns/wire2str.h
@@ -1428,7 +1429,7 @@ fake_event.lo fake_event.o: $(srcdir)/testcode/fake_event.c config.h $(srcdir)/t
  $(srcdir)/util/tube.h $(srcdir)/services/mesh.h $(srcdir)/services/modstack.h $(srcdir)/services/rpz.h \
  $(srcdir)/services/localzone.h $(srcdir)/services/view.h $(srcdir)/sldns/sbuffer.h $(srcdir)/services/authzone.h \
  $(srcdir)/daemon/stats.h $(srcdir)/util/timehist.h $(srcdir)/libunbound/unbound.h $(srcdir)/respip/respip.h \
- $(srcdir)/sldns/wire2str.h $(srcdir)/sldns/str2wire.h $(srcdir)/daemon/remote.h
+ $(srcdir)/sldns/wire2str.h $(srcdir)/sldns/str2wire.h $(srcdir)/daemon/remote.h $(srcdir)/util/storage/slabhash.h $(srcdir)/daemon/daemon.h
 lock_verify.lo lock_verify.o: $(srcdir)/testcode/lock_verify.c config.h $(srcdir)/util/log.h $(srcdir)/util/rbtree.h \
  $(srcdir)/util/locks.h $(srcdir)/util/fptr_wlist.h $(srcdir)/util/netevent.h $(srcdir)/dnscrypt/dnscrypt.h \
   $(srcdir)/util/storage/lruhash.h $(srcdir)/util/module.h \
@@ -1484,7 +1485,8 @@ context.lo context.o: $(srcdir)/libunbound/context.c config.h $(srcdir)/libunbou
  $(srcdir)/util/storage/slabhash.h $(srcdir)/services/cache/infra.h $(srcdir)/util/rtt.h \
  $(srcdir)/util/netevent.h $(srcdir)/dnscrypt/dnscrypt.h  \
  $(srcdir)/services/authzone.h $(srcdir)/services/mesh.h $(srcdir)/services/rpz.h $(srcdir)/daemon/stats.h \
- $(srcdir)/util/timehist.h $(srcdir)/respip/respip.h $(srcdir)/util/edns.h
+ $(srcdir)/util/timehist.h $(srcdir)/respip/respip.h $(srcdir)/util/edns.h \
+ $(srcdir)/iterator/iter_fwd.h $(srcdir)/iterator/iter_hints.h
 libunbound.lo libunbound.o: $(srcdir)/libunbound/libunbound.c $(srcdir)/libunbound/unbound.h \
  $(srcdir)/libunbound/unbound-event.h config.h $(srcdir)/libunbound/context.h $(srcdir)/util/locks.h \
  $(srcdir)/util/log.h $(srcdir)/util/alloc.h $(srcdir)/util/rbtree.h $(srcdir)/services/modstack.h \
@@ -1496,7 +1498,8 @@ libunbound.lo libunbound.o: $(srcdir)/libunbound/libunbound.c $(srcdir)/libunbou
  $(srcdir)/sldns/sbuffer.h $(srcdir)/services/cache/infra.h $(srcdir)/util/rtt.h $(srcdir)/util/netevent.h \
  $(srcdir)/dnscrypt/dnscrypt.h  $(srcdir)/services/cache/rrset.h \
  $(srcdir)/util/storage/slabhash.h $(srcdir)/services/authzone.h $(srcdir)/services/mesh.h \
- $(srcdir)/services/rpz.h $(srcdir)/daemon/stats.h $(srcdir)/util/timehist.h $(srcdir)/respip/respip.h
+ $(srcdir)/services/rpz.h $(srcdir)/daemon/stats.h $(srcdir)/util/timehist.h $(srcdir)/respip/respip.h \
+ $(srcdir)/iterator/iter_fwd.h $(srcdir)/iterator/iter_hints.h
 libworker.lo libworker.o: $(srcdir)/libunbound/libworker.c config.h $(srcdir)/libunbound/libworker.h \
  $(srcdir)/util/data/packed_rrset.h $(srcdir)/util/storage/lruhash.h $(srcdir)/util/locks.h $(srcdir)/util/log.h \
  $(srcdir)/libunbound/context.h $(srcdir)/util/alloc.h $(srcdir)/util/rbtree.h $(srcdir)/services/modstack.h \
@@ -1510,8 +1513,7 @@ libworker.lo libworker.o: $(srcdir)/libunbound/libworker.c config.h $(srcdir)/li
  $(srcdir)/services/cache/rrset.h $(srcdir)/util/storage/slabhash.h $(srcdir)/services/outbound_list.h \
  $(srcdir)/util/fptr_wlist.h $(srcdir)/util/tube.h $(srcdir)/util/regional.h $(srcdir)/util/random.h \
  $(srcdir)/util/storage/lookup3.h $(srcdir)/util/net_help.h $(srcdir)/util/data/dname.h \
- $(srcdir)/util/data/msgencode.h $(srcdir)/iterator/iter_fwd.h $(srcdir)/iterator/iter_hints.h \
- $(srcdir)/sldns/str2wire.h
+ $(srcdir)/util/data/msgencode.h $(srcdir)/sldns/str2wire.h
 unbound-host.lo unbound-host.o: $(srcdir)/smallapp/unbound-host.c config.h $(srcdir)/libunbound/unbound.h \
  $(srcdir)/sldns/rrdef.h $(srcdir)/sldns/wire2str.h
 asynclook.lo asynclook.o: $(srcdir)/testcode/asynclook.c config.h $(srcdir)/libunbound/unbound.h \

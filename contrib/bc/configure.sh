@@ -461,7 +461,7 @@ find_src_files() {
 
 	fi
 
-	_find_src_files_files=$(find "$scriptdir/src/" -depth -name "*.c" -print | LC_ALL=C sort)
+	_find_src_files_files=$(find "$scriptdir/src" -depth -name "*.c" -print | LC_ALL=C sort)
 
 	_find_src_files_result=""
 
@@ -772,7 +772,7 @@ predefined_build() {
 			dc_default_digit_clamp=0;;
 
 		GDH)
-			CFLAGS="-flto -Weverything -Wno-padded -Wno-unsafe-buffer-usage -Werror -pedantic -std=c11"
+			CFLAGS="-flto -Weverything -Wno-padded -Wno-unsafe-buffer-usage -Wno-poison-system-directories -Werror -pedantic -std=c11"
 			bc_only=0
 			dc_only=0
 			coverage=0
@@ -806,7 +806,7 @@ predefined_build() {
 			dc_default_digit_clamp=1;;
 
 		DBG)
-			CFLAGS="-Weverything -Wno-padded -Wno-unsafe-buffer-usage -Werror -pedantic -std=c11"
+			CFLAGS="-Weverything -Wno-padded -Wno-unsafe-buffer-usage -Wno-poison-system-directories -Werror -pedantic -std=c11"
 			bc_only=0
 			dc_only=0
 			coverage=0
@@ -1364,21 +1364,10 @@ if [ "$debug" -eq 1 ]; then
 		CFLAGS="-O0"
 	fi
 
-	ccbase=$(basename "$CC")
-
-	if [ "$ccbase" = "clang" ]; then
-		CFLAGS="-gdwarf-4 $CFLAGS"
-	else
-		CFLAGS="-g $CFLAGS"
-	fi
+	CFLAGS="-g $CFLAGS"
 
 else
-
 	CPPFLAGS="-DNDEBUG $CPPFLAGS"
-
-	if [ "$strip_bin" -ne 0 ]; then
-		LDFLAGS="-s $LDFLAGS"
-	fi
 fi
 
 # Set optimization CFLAGS.
@@ -1700,6 +1689,11 @@ else
 	apple=""
 fi
 
+# We can't use the linker's strip flag on Mac OSX.
+if [ "$debug" -eq 0 ] && [ "$apple" == "" ] && [ "$strip_bin" -ne 0 ]; then
+	LDFLAGS="-s $LDFLAGS"
+fi
+
 # Test OpenBSD. This is not in an if statement because regardless of whatever
 # the user says, we need to know if we are on OpenBSD to activate _BSD_SOURCE.
 # No, I cannot `#define _BSD_SOURCE` in a header because OpenBSD's patched GCC
@@ -1871,6 +1865,8 @@ bc_err_tests=$(gen_err_test_targets bc)
 dc_tests=$(gen_std_test_targets dc)
 dc_script_tests=$(gen_script_test_targets dc)
 dc_err_tests=$(gen_err_test_targets dc)
+
+printf 'unneeded: %s\n' "$unneeded"
 
 # Print out the values; this is for debugging.
 printf 'Version: %s\n' "$version"

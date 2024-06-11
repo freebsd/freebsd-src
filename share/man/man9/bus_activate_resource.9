@@ -22,7 +22,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd May 20, 2016
+.Dd March 13, 2024
 .Dt BUS_ACTIVATE_RESOURCE 9
 .Os
 .Sh NAME
@@ -37,11 +37,11 @@
 .In machine/resource.h
 .Ft int
 .Fo bus_activate_resource
-.Fa "device_t dev" "int type" "int rid" "struct resource *r"
+.Fa "device_t dev" "struct resource *r"
 .Fc
 .Ft int
 .Fo bus_deactivate_resource
-.Fa "device_t dev" "int type" "int rid" "struct resource *r"
+.Fa "device_t dev" "struct resource *r"
 .Fc
 .Sh DESCRIPTION
 These functions activate or deactivate a previously allocated resource.
@@ -58,24 +58,6 @@ The arguments are as follows:
 .It Fa dev
 The device that requests ownership of the resource.
 Before allocation, the resource is owned by the parent bus.
-.It Fa type
-The type of resource you want to allocate.
-It is one of:
-.Pp
-.Bl -tag -width ".Dv SYS_RES_MEMORY" -compact
-.It Dv PCI_RES_BUS
-for PCI bus numbers
-.It Dv SYS_RES_IRQ
-for IRQs
-.It Dv SYS_RES_DRQ
-for ISA DMA lines
-.It Dv SYS_RES_IOPORT
-for I/O ports
-.It Dv SYS_RES_MEMORY
-for I/O memory
-.El
-.It Fa rid
-A pointer to a bus specific handle that identifies the resource being allocated.
 .It Fa r
 A pointer to the
 .Vt "struct resource"

@@ -33,10 +33,9 @@
  * ATA Extended Power Conditions (EPC) support
  */
 
-#include <sys/cdefs.h>
+#include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/stdint.h>
-#include <sys/types.h>
 #include <sys/endian.h>
 #include <sys/sbuf.h>
 #include <sys/queue.h>
@@ -151,7 +150,7 @@ epc_print_pcl_desc(struct ata_power_cond_log_desc *desc, const char *prefix)
 	max_chars = 75;
 
 	num_printed = printf("%sFlags: ", prefix);
-	for (i = 0; i < (sizeof(epc_flags) / sizeof(epc_flags[0])); i++) {
+	for (i = 0; i < nitems(epc_flags); i++) {
 		if ((desc->flags & epc_flags[i].value) == 0)
 			continue;
 		if (first == 0) {
@@ -466,7 +465,7 @@ check_power_mode:
 	}
 
 	mode_name = scsi_nv_to_str(epc_power_cond_map,
-	    sizeof(epc_power_cond_map) / sizeof(epc_power_cond_map[0]), count);
+	    nitems(epc_power_cond_map), count);
 	printf("Current power state: ");
 	/* Note: ident can be null in power_only mode */
 	if ((ident == NULL)
@@ -638,7 +637,7 @@ epc(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			int entry_num;
 
 			status = scsi_get_nv(epc_cmd_map,
-			    (sizeof(epc_cmd_map) / sizeof(epc_cmd_map[0])),
+			    nitems(epc_cmd_map),
 			    optarg, &entry_num, SCSI_NV_FLAG_IG_CASE);
 			if (status == SCSI_NV_FOUND)
 				action = epc_cmd_map[entry_num].value;
@@ -715,7 +714,7 @@ epc(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			int entry_num;
 			
 			status = scsi_get_nv(epc_ps_map,
-			    (sizeof(epc_ps_map) / sizeof(epc_ps_map[0])),
+			    nitems(epc_ps_map),
 			    optarg, &entry_num, SCSI_NV_FLAG_IG_CASE);
 			if (status == SCSI_NV_FOUND)
 				power_src = epc_ps_map[entry_num].value;

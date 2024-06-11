@@ -60,7 +60,7 @@
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
 #include <dev/mmc/host/dwmmc_reg.h>
 #include <dev/mmc/host/dwmmc_var.h>
@@ -878,7 +878,7 @@ dwmmc_update_ios(device_t brdev, device_t reqdev)
 	sc = device_get_softc(brdev);
 	ios = &sc->host.ios;
 
-	dprintf("Setting up clk %u bus_width %d, timming: %d\n",
+	dprintf("Setting up clk %u bus_width %d, timing: %d\n",
 		ios->clock, ios->bus_width, ios->timing);
 
 	switch (ios->power_mode) {

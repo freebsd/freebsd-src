@@ -3522,7 +3522,7 @@ ipfw_delete(char *av[])
 				if (g_co.do_quiet)
 					continue;
 				if (rt.start_rule != rt.end_rule)
-					warnx("no rules rules in %u-%u range",
+					warnx("no rules in %u-%u range",
 					    rt.start_rule, rt.end_rule);
 				else
 					warnx("rule %u not found",
@@ -4035,8 +4035,8 @@ compile_rule(char *av[], uint32_t *rbuf, int *rbufsize, struct tidx *tstate)
 
 	rblen = *rbufsize / sizeof(uint32_t);
 	rblen -= sizeof(struct ip_fw_rule) / sizeof(uint32_t);
-	ablen = sizeof(actbuf) / sizeof(actbuf[0]);
-	cblen = sizeof(cmdbuf) / sizeof(cmdbuf[0]);
+	ablen = nitems(actbuf);
+	cblen = nitems(cmdbuf);
 	cblen -= F_INSN_SIZE(ipfw_insn_u32) + 1;
 
 #define	CHECK_RBUFLEN(len)	{ CHECK_LENGTH(rblen, len); rblen -= len; }

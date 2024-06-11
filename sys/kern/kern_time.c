@@ -58,6 +58,7 @@
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
+#include <vm/uma.h>
 
 #define MAX_CLOCKS 	(CLOCK_MONOTONIC+1)
 #define CPUCLOCK_BIT		0x80000000

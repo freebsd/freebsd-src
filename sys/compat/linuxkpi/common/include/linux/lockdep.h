@@ -50,8 +50,8 @@ struct pin_cookie {
 #define	lockdep_unregister_key(key) do { } while(0)
 
 #ifdef INVARIANTS
-#define	lockdep_assert(cond) do { WARN_ON(!cond); } while (0)
-#define	lockdep_assert_once(cond) do { WARN_ON_ONCE(!cond); } while (0)
+#define	lockdep_assert(cond) do { WARN_ON(!(cond)); } while (0)
+#define	lockdep_assert_once(cond) do { WARN_ON_ONCE(!(cond)); } while (0)
 
 #define	lockdep_assert_not_held(m) do {					\
 	struct lock_object *__lock = (struct lock_object *)(m);		\

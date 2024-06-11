@@ -33,6 +33,14 @@
 #ifndef _GETOPT_H_
 #define _GETOPT_H_
 
+#ifndef __THROW
+# if defined __cplusplus
+#  define __THROW throw()
+# else
+#  define __THROW
+# endif
+#endif
+
 /*
  * GNU-like getopt_long() and 4.4BSD getsubopt()/optreset extensions
  */
@@ -63,8 +71,8 @@ int	 getopt_long_only(int, char * const *, const char *,
 
 #ifndef _GETOPT_DEFINED_
 #define _GETOPT_DEFINED_
-int	 getopt(int, char * const *, const char *);
-int	 getsubopt(char **, char * const *, char **);
+int	 getopt(int, char * const *, const char *) __THROW;
+int	 getsubopt(char **, char * const *, char **) __THROW;
 
 extern   char *optarg;                  /* getopt(3) external variables */
 extern   int opterr;

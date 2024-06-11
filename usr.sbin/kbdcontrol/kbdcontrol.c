@@ -1117,7 +1117,7 @@ get_kbd_type_name(int type)
 	};
 	unsigned int i;
 
-	for (i = 0; i < sizeof(name_table)/sizeof(name_table[0]); ++i) {
+	for (i = 0; i < nitems(name_table); ++i) {
 		if (type == name_table[i].type)
 			return name_table[i].name;
 	}

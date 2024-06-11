@@ -8,8 +8,6 @@
 ///
 /// This file describes the RISC-V instructions from the 'Zc*' compressed
 /// instruction extensions, version 1.0.3.
-/// This version is still experimental as the 'Zc*' extensions haven't been
-/// ratified yet.
 ///
 //===----------------------------------------------------------------------===//
 
@@ -17,13 +15,12 @@
 // Operand and SDNode transformation definitions.
 //===----------------------------------------------------------------------===//
 
-def uimm2_lsb0 : Operand<XLenVT>,
+def uimm2_lsb0 : RISCVOp,
                  ImmLeaf<XLenVT, [{return isShiftedUInt<1, 1>(Imm);}]> {
   let ParserMatchClass = UImmAsmOperand<2, "Lsb0">;
   let EncoderMethod = "getImmOpValue";
   let DecoderMethod = "decodeUImmOperand<2>";
   let OperandType = "OPERAND_UIMM2_LSB0";
-  let OperandNamespace = "RISCVOp";
   let MCOperandPredicate = [{
     int64_t Imm;
     if (!MCOp.evaluateAsConstantImm(Imm))
@@ -32,11 +29,10 @@ def uimm2_lsb0 : Operand<XLenVT>,
   }];
 }
 
-def uimm8ge32 : Operand<XLenVT> {
+def uimm8ge32 : RISCVOp {
   let ParserMatchClass = UImmAsmOperand<8, "GE32">;
   let DecoderMethod = "decodeUImmOperand<8>";
   let OperandType = "OPERAND_UIMM8_GE32";
-  let OperandNamespace = "RISCVOp";
 }
 
 def RlistAsmOperand : AsmOperandClass {
@@ -60,9 +56,8 @@ def rlist : Operand<OtherVT> {
     int64_t Imm;
     if (!MCOp.evaluateAsConstantImm(Imm))
       return false;
-    if (!isUInt<4>(Imm)) return false;
     // 0~3 Reserved for EABI
-    return (Imm >= 4) && (Imm <= 15);
+    return isUInt<4>(Imm) && Imm >= 4;
   }];
  }
 
@@ -74,7 +69,7 @@ def spimm : Operand<OtherVT> {
     int64_t Imm;
     if (!MCOp.evaluateAsConstantImm(Imm))
       return false;
-    return isShiftedUInt<5, 4>(Imm);
+    return isShiftedUInt<2, 4>(Imm);
   }];
 }
 
@@ -131,7 +126,7 @@ class RVZcArith_r<bits<5> funct5, string OpcodeStr> :
 
 class RVInstZcCPPP<bits<5> funct5, string opcodestr>
     : RVInst16<(outs), (ins rlist:$rlist, spimm:$spimm),
-               opcodestr, "{$rlist}, $spimm", [], InstFormatOther> {
+               opcodestr, "$rlist, $spimm", [], InstFormatOther> {
   bits<4> rlist;
   bits<16> spimm;
 
@@ -285,9 +280,9 @@ def : CompressPat<(SH GPRC:$rs2, GPRCMem:$rs1, uimm2_lsb0:$imm),
 //===----------------------------------------------------------------------===//
 
 let Predicates = [HasStdExtZcb] in {
-def : InstAlias<"c.lbu $rd, (${rs1})",(C_LBU GPRC:$rd, GPRC:$rs1, 0)>;
-def : InstAlias<"c.lhu $rd, (${rs1})",(C_LHU GPRC:$rd, GPRC:$rs1, 0)>;
-def : InstAlias<"c.lh $rd, (${rs1})", (C_LH GPRC:$rd, GPRC:$rs1, 0)>;
-def : InstAlias<"c.sb $rd, (${rs1})", (C_SB GPRC:$rd, GPRC:$rs1, 0)>;
-def : InstAlias<"c.sh $rd, (${rs1})", (C_SH GPRC:$rd, GPRC:$rs1, 0)>;
+def : InstAlias<"c.lbu $rd, (${rs1})",(C_LBU GPRC:$rd, GPRC:$rs1, 0), 0>;
+def : InstAlias<"c.lhu $rd, (${rs1})",(C_LHU GPRC:$rd, GPRC:$rs1, 0), 0>;
+def : InstAlias<"c.lh $rd, (${rs1})", (C_LH GPRC:$rd, GPRC:$rs1, 0), 0>;
+def : InstAlias<"c.sb $rd, (${rs1})", (C_SB GPRC:$rd, GPRC:$rs1, 0), 0>;
+def : InstAlias<"c.sh $rd, (${rs1})", (C_SH GPRC:$rd, GPRC:$rs1, 0), 0>;
 }

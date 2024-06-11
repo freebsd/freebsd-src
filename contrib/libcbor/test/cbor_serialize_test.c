@@ -218,6 +218,34 @@ static void test_serialize_definite_string(void **_CBOR_UNUSED(_state)) {
   cbor_decref(&item);
 }
 
+static void test_serialize_definite_string_4b_header(
+    void **_CBOR_UNUSED(_state)) {
+#if SIZE_MAX > UINT16_MAX
+  cbor_item_t *item = cbor_new_definite_string();
+  const size_t size = (size_t)UINT16_MAX + 1;
+  unsigned char *data = malloc(size);
+  memset(data, 0, size);
+  cbor_string_set_handle(item, data, size);
+  assert_size_equal(cbor_serialized_size(item), 1 + 4 + size);
+  cbor_decref(&item);
+#endif
+}
+
+static void test_serialize_definite_string_8b_header(
+    void **_CBOR_UNUSED(_state)) {
+#if SIZE_MAX > UINT32_MAX
+  cbor_item_t *item = cbor_new_definite_string();
+  const size_t size = (size_t)UINT32_MAX + 1;
+  unsigned char *data = malloc(1);
+  data[0] = '\0';
+  cbor_string_set_handle(item, data, 1);
+  // Pretend that we have a big item to avoid the huge malloc
+  item->metadata.string_metadata.length = size;
+  assert_size_equal(cbor_serialized_size(item), 1 + 8 + size);
+  cbor_decref(&item);
+#endif
+}
+
 static void test_serialize_indefinite_string(void **_CBOR_UNUSED(_state)) {
   cbor_item_t *item = cbor_new_indefinite_string();
   cbor_item_t *chunk = cbor_new_definite_string();
@@ -242,6 +270,7 @@ static void test_serialize_indefinite_string(void **_CBOR_UNUSED(_state)) {
 static void test_serialize_string_no_space(void **_CBOR_UNUSED(_state)) {
   cbor_item_t *item = cbor_new_definite_string();
   unsigned char *data = malloc(12);
+  memset(data, 0, 12);
   cbor_string_set_handle(item, data, 12);
 
   assert_size_equal(cbor_serialize(item, buffer, 1), 0);
@@ -254,6 +283,7 @@ static void test_serialize_indefinite_string_no_space(
   cbor_item_t *item = cbor_new_indefinite_string();
   cbor_item_t *chunk = cbor_new_definite_string();
   unsigned char *data = malloc(256);
+  memset(data, 0, 256);
   cbor_string_set_handle(chunk, data, 256);
   assert_true(cbor_string_add_chunk(item, cbor_move(chunk)));
 
@@ -638,6 +668,8 @@ int main(void) {
       cmocka_unit_test(test_serialize_bytestring_no_space),
       cmocka_unit_test(test_serialize_indefinite_bytestring_no_space),
       cmocka_unit_test(test_serialize_definite_string),
+      cmocka_unit_test(test_serialize_definite_string_4b_header),
+      cmocka_unit_test(test_serialize_definite_string_8b_header),
       cmocka_unit_test(test_serialize_indefinite_string),
       cmocka_unit_test(test_serialize_string_no_space),
       cmocka_unit_test(test_serialize_indefinite_string_no_space),

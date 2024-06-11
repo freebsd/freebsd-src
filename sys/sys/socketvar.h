@@ -211,7 +211,7 @@ struct socket {
 #define	SS_ISDISCONNECTING	0x0008	/* in process of disconnecting */
 #define	SS_NBIO			0x0100	/* non-blocking ops */
 #define	SS_ASYNC		0x0200	/* async i/o notify */
-#define	SS_ISCONFIRMING		0x0400	/* deciding to accept connection req */
+/* was	SS_ISCONFIRMING		0x0400	*/
 #define	SS_ISDISCONNECTED	0x2000	/* socket disconnected from peer */
 
 #ifdef _KERNEL
@@ -414,7 +414,8 @@ MALLOC_DECLARE(M_SONAME);
 #define HHOOK_FILT_SOREAD		4
 #define HHOOK_FILT_SOWRITE		5
 #define HHOOK_SOCKET_CLOSE		6
-#define HHOOK_SOCKET_LAST		HHOOK_SOCKET_CLOSE
+#define HHOOK_SOCKET_NEWCONN		7
+#define HHOOK_SOCKET_LAST		HHOOK_SOCKET_NEWCONN
 
 struct socket_hhook_data {
 	struct socket	*so;
@@ -434,6 +435,7 @@ struct mbuf;
 struct sockaddr;
 struct ucred;
 struct uio;
+enum shutdown_how;
 
 /* Return values for socket upcalls. */
 #define	SU_OK		0
@@ -512,7 +514,7 @@ int	sosend_dgram(struct socket *so, struct sockaddr *addr,
 int	sosend_generic(struct socket *so, struct sockaddr *addr,
 	    struct uio *uio, struct mbuf *top, struct mbuf *control,
 	    int flags, struct thread *td);
-int	soshutdown(struct socket *so, int how);
+int	soshutdown(struct socket *so, enum shutdown_how);
 void	soupcall_clear(struct socket *, sb_which);
 void	soupcall_set(struct socket *, sb_which, so_upcall_t, void *);
 void	solisten_upcall_set(struct socket *, so_upcall_t, void *);

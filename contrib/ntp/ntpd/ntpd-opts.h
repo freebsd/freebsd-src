@@ -1,7 +1,7 @@
 /*
  *  EDIT THIS FILE WITH CAUTION  (ntpd-opts.h)
  *
- *  It has been AutoGen-ed  June  6, 2023 at 04:36:50 AM by AutoGen 5.18.16
+ *  It has been AutoGen-ed  May 25, 2024 at 12:03:08 AM by AutoGen 5.18.16
  *  From the definitions    ntpd-opts.def
  *  and the template file   options
  *
@@ -18,7 +18,7 @@
  * The ntpd program is copyrighted and licensed
  * under the following terms:
  *
- *  Copyright (C) 1992-2023 The University of Delaware and Network Time Foundation, all rights reserved.
+ *  Copyright (C) 1992-2024 The University of Delaware and Network Time Foundation, all rights reserved.
  *  This is free software. It is licensed for use, modification and
  *  redistribution under the terms of the NTP License, copies of which
  *  can be seen at:
@@ -114,9 +114,9 @@ typedef enum {
 /** count of all options for ntpd */
 #define OPTION_CT    38
 /** ntpd version */
-#define NTPD_VERSION       "4.2.8p17"
+#define NTPD_VERSION       "4.2.8p18"
 /** Full ntpd version text */
-#define NTPD_FULL_VERSION  "ntpd 4.2.8p17"
+#define NTPD_FULL_VERSION  "ntpd 4.2.8p18"
 
 /**
  *  Interface defines for all options.  Replace "n" with the UPPER_CASED

@@ -12,7 +12,7 @@ SRCS+=	base64.c ether_addr.c eui64.c \
 	if_indextoname.c if_nameindex.c if_nametoindex.c \
 	ip6opt.c linkaddr.c map_v4v6.c name6.c ntoh.c \
 	nsdispatch.c nslexer.l nsparser.y nss_compat.c \
-	rcmd.c rcmdsh.c recv.c rthdr.c sctp_sys_calls.c send.c \
+	rcmd.c rcmdsh.c rthdr.c sctp_sys_calls.c \
         sockatmark.c sourcefilter.c vars.c
 
 .if ${MK_NS_CACHING} != "no"
@@ -110,10 +110,12 @@ MLINKS+=inet.3 addr.3 \
 	inet.3 inet_pton.3 \
 	inet.3 network.3 \
 	inet.3 ntoa.3
-MLINKS+= sctp_send.3 sctp_sendx.3
-MLINKS+= sctp_sendmsg.3 sctp_sendmsgx.3
-MLINKS+= sctp_freepaddrs.3 sctp_freeladdrs.3
-MLINKS+= sctp_getpaddrs.3 sctp_getladdrs.3
+MLINKS+=sctp_freepaddrs.3 sctp_freeladdrs.3
+MLINKS+=sctp_getpaddrs.3 sctp_getladdrs.3
+MLINKS+=sctp_recvmsg.3 sctp_recvv.3
+MLINKS+=sctp_sendmsg.3 sctp_sendmsgx.3
+MLINKS+=sctp_send.3 sctp_sendx.3 \
+	sctp_send.3 sctp_sendv.3
 MLINKS+=inet_net.3 inet_net_ntop.3 \
 	inet_net.3 inet_net_pton.3
 MLINKS+=inet6_opt_init.3 inet6_opt_append.3 \
@@ -166,6 +168,7 @@ MLINKS+=sourcefilter.3 setipv4sourcefilter.3 \
 
 .if ${MK_HESIOD} != "no"
 SRCS+=	hesiod.c
+SYM_MAPS+=${LIBC_SRCTOP}/net/Symbol.hesiod.map
 MAN+=	hesiod.3
 MLINKS+=hesiod.3 hesiod_init.3 \
 	hesiod.3 hesiod_resolve.3 \

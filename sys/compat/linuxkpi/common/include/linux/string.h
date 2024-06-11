@@ -37,6 +37,7 @@
 #include <linux/uaccess.h>
 #include <linux/err.h>
 #include <linux/bitops.h> /* for BITS_PER_LONG */
+#include <linux/overflow.h>
 #include <linux/stdarg.h>
 
 #include <sys/libkern.h>
@@ -92,6 +93,18 @@ kmemdup(const void *src, size_t len, gfp_t gfp)
 	void *dst;
 
 	dst = kmalloc(len, gfp);
+	if (dst != NULL)
+		memcpy(dst, src, len);
+	return (dst);
+}
+
+/* See slab.h for kvmalloc/kvfree(). */
+static inline void *
+kvmemdup(const void *src, size_t len, gfp_t gfp)
+{
+	void *dst;
+
+	dst = kvmalloc(len, gfp);
 	if (dst != NULL)
 		memcpy(dst, src, len);
 	return (dst);
@@ -214,6 +227,21 @@ strscpy_pad(char* dst, const char* src, size_t len)
 	return (strscpy(dst, src, len));
 }
 
+static inline char *
+strnchr(const char *cp, size_t n, int ch)
+{
+	char *p;
+
+	for (p = __DECONST(char *, cp); n--; ++p) {
+		if (*p == ch)
+			return (p);
+		if (*p == '\0')
+			break;
+	}
+
+	return (NULL);
+}
+
 static inline void *
 memset32(uint32_t *b, uint32_t c, size_t len)
 {
@@ -264,5 +292,20 @@ memcpy_and_pad(void *dst, size_t dstlen, const void *src, size_t len, int ch)
 	size_t _o = offsetof(typeof(*(ptr)), smember);			\
 	memset(_ptr + _o, _c, sizeof(*(ptr)) - _o);			\
 })
+
+#define	memset_after(ptr, bytepat, smember)				\
+({									\
+	uint8_t *_ptr = (uint8_t *)(ptr);				\
+	int _c = (int)(bytepat);					\
+	size_t _o = offsetofend(typeof(*(ptr)), smember);		\
+	memset(_ptr + _o, _c, sizeof(*(ptr)) - _o);			\
+})
+
+static inline void
+memzero_explicit(void *p, size_t s)
+{
+	memset(p, 0, s);
+	__asm__ __volatile__("": :"r"(p) :"memory");
+}
 
 #endif	/* _LINUXKPI_LINUX_STRING_H_ */

@@ -117,7 +117,7 @@ typedef int (*db_get_func) __P((SMDB_DATABASE *db,
 **		key -- The key to use.
 **		data -- The data to store.
 **		flags -- put options:
-**			SMDBF_NO_OVERWRITE - Return an error if key alread
+**			SMDBF_NO_OVERWRITE - Return an error if key already
 **					     exists.
 **
 **	Returns:

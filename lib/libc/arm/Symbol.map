@@ -25,18 +25,13 @@ FBSD_1.6 {
 };
 
 FBSDprivate_1.0 {
-	/* PSEUDO syscalls */
-	_getlogin;
-
+	_brk;
 	__aeabi_read_tp;
 	___longjmp;
 	__longjmp;
 	signalcontext;
-	_signalcontext;
+	__signalcontext;
 	__siglongjmp;
-	_vfork;
-	_brk;
-	_sbrk;
 
 	_libc_arm_fpu_present;
 };

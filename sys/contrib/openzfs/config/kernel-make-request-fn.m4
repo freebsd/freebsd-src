@@ -4,7 +4,7 @@ dnl #
 AC_DEFUN([ZFS_AC_KERNEL_SRC_MAKE_REQUEST_FN], [
 	ZFS_LINUX_TEST_SRC([make_request_fn_void], [
 		#include <linux/blkdev.h>
-		void make_request(struct request_queue *q,
+		static void make_request(struct request_queue *q,
 		    struct bio *bio) { return; }
 	],[
 		blk_queue_make_request(NULL, &make_request);
@@ -12,7 +12,7 @@ AC_DEFUN([ZFS_AC_KERNEL_SRC_MAKE_REQUEST_FN], [
 
 	ZFS_LINUX_TEST_SRC([make_request_fn_blk_qc_t], [
 		#include <linux/blkdev.h>
-		blk_qc_t make_request(struct request_queue *q,
+		static blk_qc_t make_request(struct request_queue *q,
 		    struct bio *bio) { return (BLK_QC_T_NONE); }
 	],[
 		blk_queue_make_request(NULL, &make_request);
@@ -20,7 +20,7 @@ AC_DEFUN([ZFS_AC_KERNEL_SRC_MAKE_REQUEST_FN], [
 
 	ZFS_LINUX_TEST_SRC([blk_alloc_queue_request_fn], [
 		#include <linux/blkdev.h>
-		blk_qc_t make_request(struct request_queue *q,
+		static blk_qc_t make_request(struct request_queue *q,
 		    struct bio *bio) { return (BLK_QC_T_NONE); }
 	],[
 		struct request_queue *q __attribute__ ((unused));
@@ -29,7 +29,7 @@ AC_DEFUN([ZFS_AC_KERNEL_SRC_MAKE_REQUEST_FN], [
 
 	ZFS_LINUX_TEST_SRC([blk_alloc_queue_request_fn_rh], [
 		#include <linux/blkdev.h>
-		blk_qc_t make_request(struct request_queue *q,
+		static blk_qc_t make_request(struct request_queue *q,
 		    struct bio *bio) { return (BLK_QC_T_NONE); }
 	],[
 		struct request_queue *q __attribute__ ((unused));
@@ -48,6 +48,14 @@ AC_DEFUN([ZFS_AC_KERNEL_SRC_MAKE_REQUEST_FN], [
 	],[
 		struct gendisk *disk  __attribute__ ((unused));
 		disk = blk_alloc_disk(NUMA_NO_NODE);
+	])
+
+	ZFS_LINUX_TEST_SRC([blk_alloc_disk_2arg], [
+		#include <linux/blkdev.h>
+	],[
+		struct queue_limits *lim = NULL;
+		struct gendisk *disk  __attribute__ ((unused));
+		disk = blk_alloc_disk(lim, NUMA_NO_NODE);
 	])
 
 	ZFS_LINUX_TEST_SRC([blk_cleanup_disk], [
@@ -80,6 +88,31 @@ AC_DEFUN([ZFS_AC_KERNEL_MAKE_REQUEST_FN], [
 		ZFS_LINUX_TEST_RESULT([blk_alloc_disk], [
 			AC_MSG_RESULT(yes)
 			AC_DEFINE([HAVE_BLK_ALLOC_DISK], 1, [blk_alloc_disk() exists])
+
+			dnl #
+			dnl # 5.20 API change,
+			dnl # Removed blk_cleanup_disk(), put_disk() should be used.
+			dnl #
+			AC_MSG_CHECKING([whether blk_cleanup_disk() exists])
+			ZFS_LINUX_TEST_RESULT([blk_cleanup_disk], [
+				AC_MSG_RESULT(yes)
+				AC_DEFINE([HAVE_BLK_CLEANUP_DISK], 1,
+				    [blk_cleanup_disk() exists])
+			], [
+				AC_MSG_RESULT(no)
+			])
+		], [
+			AC_MSG_RESULT(no)
+		])
+
+		dnl #
+		dnl # Linux 6.9 API Change:
+		dnl # blk_alloc_queue() takes a nullable queue_limits arg.
+		dnl #
+		AC_MSG_CHECKING([whether blk_alloc_disk() exists and takes 2 args])
+		ZFS_LINUX_TEST_RESULT([blk_alloc_disk_2arg], [
+			AC_MSG_RESULT(yes)
+			AC_DEFINE([HAVE_BLK_ALLOC_DISK_2ARG], 1, [blk_alloc_disk() exists and takes 2 args])
 
 			dnl #
 			dnl # 5.20 API change,

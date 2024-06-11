@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.325 2023/09/10 11:52:29 rillig Exp $	*/
+/*	$NetBSD: make.h,v 1.333 2024/05/07 18:26:22 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -139,6 +139,12 @@
 #define MAKE_ATTR_USE		__attribute__((__warn_unused_result__))
 #else
 #define MAKE_ATTR_USE		/* delete */
+#endif
+
+#if MAKE_GNUC_PREREQ(8, 0)
+#define MAKE_ATTR_NOINLINE		__attribute__((__noinline__))
+#else
+#define MAKE_ATTR_NOINLINE		/* delete */
 #endif
 
 #if __STDC_VERSION__ >= 199901L || defined(lint)
@@ -422,7 +428,7 @@ typedef struct SearchPath {
 
 /*
  * A graph node represents a target that can possibly be made, including its
- * relation to other targets and a lot of other details.
+ * relation to other targets.
  */
 typedef struct GNode {
 	/* The target's name, such as "clean" or "make.c" */
@@ -527,6 +533,7 @@ typedef struct GNode {
 	const char *fname;
 	/* Line number where the GNode got defined, 1-based */
 	unsigned lineno;
+	int exit_status;
 } GNode;
 
 /*
@@ -603,8 +610,8 @@ extern GNode *SCOPE_GLOBAL;
 extern GNode *SCOPE_CMDLINE;
 
 /*
- * Value returned by Var_Parse when an error is encountered. It actually
- * points to an empty string, so naive callers needn't worry about it.
+ * Value returned by Var_Parse when an error is encountered. It points to an
+ * empty string, so naive callers needn't worry about it.
  */
 extern char var_Error[];
 
@@ -700,11 +707,11 @@ typedef enum PrintVarsMode {
 
 /* Command line options */
 typedef struct CmdOpts {
-	/* -B: whether we are make compatible */
+	/* -B: whether to be compatible to traditional make */
 	bool compatMake;
 
 	/*
-	 * -d: debug control: There is one bit per module.  It is up to the
+	 * -d: debug control: There is one flag per module.  It is up to the
 	 * module what debug information to print.
 	 */
 	DebugFlags debug;
@@ -882,7 +889,6 @@ void PrintLocation(FILE *, bool, const GNode *);
 void PrintStackTrace(bool);
 void Parse_Error(ParseErrorLevel, const char *, ...) MAKE_ATTR_PRINTFLIKE(2, 3);
 bool Parse_VarAssign(const char *, bool, GNode *) MAKE_ATTR_USE;
-void Parse_AddIncludeDir(const char *);
 void Parse_File(const char *, int);
 void Parse_PushInput(const char *, unsigned, unsigned, Buffer,
 		     struct ForLoop *);
@@ -1007,7 +1013,8 @@ typedef enum VarSetFlags {
 	 * except for another call to Var_Set with the same flag. See the
 	 * special targets '.NOREADONLY' and '.READONLY'.
 	 */
-	VAR_SET_READONLY	= 1 << 1
+	VAR_SET_READONLY	= 1 << 1,
+	VAR_SET_INTERNAL	= 1 << 2
 } VarSetFlags;
 
 typedef enum VarExportMode {
@@ -1035,7 +1042,7 @@ char *Var_Subst(const char *, GNode *, VarEvalMode);
 void Var_Expand(FStr *, GNode *, VarEvalMode);
 void Var_Stats(void);
 void Var_Dump(GNode *);
-void Var_ReexportVars(void);
+void Var_ReexportVars(GNode *);
 void Var_Export(VarExportMode, const char *);
 void Var_ExportVars(const char *);
 void Var_UnExport(bool, const char *);
@@ -1045,6 +1052,10 @@ void Global_Set(const char *, const char *);
 void Global_Append(const char *, const char *);
 void Global_Delete(const char *);
 void Global_Set_ReadOnly(const char *, const char *);
+
+void EvalStack_Push(const char *, const char *, const char *);
+void EvalStack_Pop(void);
+const char *EvalStack_Details(void);
 
 /* util.c */
 typedef void (*SignalProc)(int);
@@ -1064,7 +1075,7 @@ void PrintOnError(GNode *, const char *);
 void Main_ExportMAKEFLAGS(bool);
 bool Main_SetObjdir(bool, const char *, ...) MAKE_ATTR_PRINTFLIKE(2, 3);
 int mkTempFile(const char *, char *, size_t) MAKE_ATTR_USE;
-int str2Lst_Append(StringList *, char *);
+void AppendWords(StringList *, char *);
 void GNode_FprintDetails(FILE *, const char *, const GNode *, const char *);
 bool GNode_ShouldExecute(GNode *gn) MAKE_ATTR_USE;
 

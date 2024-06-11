@@ -1,7 +1,7 @@
 /*
  * Public API.
  *
- * Copyright (c) 2019-2022, Arm Limited.
+ * Copyright (c) 2019-2023, Arm Limited.
  * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
@@ -51,6 +51,11 @@ char *__stpcpy_aarch64_sve (char *__restrict, const char *__restrict);
 size_t __strlen_aarch64_sve (const char *);
 size_t __strnlen_aarch64_sve (const char *, size_t);
 int __strncmp_aarch64_sve (const char *, const char *, size_t);
+# endif
+# if WANT_MOPS
+void *__memcpy_aarch64_mops (void *__restrict, const void *__restrict, size_t);
+void *__memmove_aarch64_mops (void *__restrict, const void *__restrict, size_t);
+void *__memset_aarch64_mops (void *, int, size_t);
 # endif
 # if __ARM_FEATURE_MEMORY_TAGGING
 void *__mtag_tag_region (void *, size_t);

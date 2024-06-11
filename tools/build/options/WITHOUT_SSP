@@ -1,1 +1,4 @@
 Do not build world with stack smashing protection.
+See
+.Xr security 7
+for more information.

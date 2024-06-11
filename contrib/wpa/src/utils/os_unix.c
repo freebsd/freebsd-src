@@ -72,7 +72,6 @@ int os_get_time(struct os_time *t)
 	return res;
 }
 
-
 int os_get_reltime(struct os_reltime *t)
 {
 #ifndef __MACH__
@@ -103,9 +102,15 @@ int os_get_reltime(struct os_reltime *t)
 			break;
 #endif
 #ifdef CLOCK_MONOTONIC
+/*
+ * FreeBSD has both BOOTTIME and MONOTONIC defined to the same value, since they
+ * mean the same thing. FreeBSD 14.1 and ealier don't, so need this case.
+ */
+#if !(defined(CLOCK_BOOTTIME) && CLOCK_BOOTTIME == CLOCK_MONOTONIC)
 		case CLOCK_MONOTONIC:
 			clock_id = CLOCK_REALTIME;
 			break;
+#endif
 #endif
 		case CLOCK_REALTIME:
 			return -1;

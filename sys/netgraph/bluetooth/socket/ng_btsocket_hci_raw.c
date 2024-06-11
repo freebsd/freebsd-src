@@ -1598,6 +1598,17 @@ ng_btsocket_hci_raw_send(struct socket *so, int flags, struct mbuf *m,
 		goto drop;
 	}
 
+	if (sa != NULL) {
+		if (sa->sa_family != AF_BLUETOOTH) {
+			error = EAFNOSUPPORT;
+			goto drop;
+		}
+		if (sa->sa_len != sizeof(struct sockaddr_hci)) {
+			error = EINVAL;
+			goto drop;
+		}
+	}
+
 	mtx_lock(&pcb->pcb_mtx);
 
 	error = ng_btsocket_hci_raw_filter(pcb, m, 0);

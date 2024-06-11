@@ -324,8 +324,8 @@ nexus_get_bus_tag(device_t bus __unused, device_t child __unused)
 }
 
 static int
-nexus_activate_resource_flags(device_t bus, device_t child, int type, int rid,
-    struct resource *r, int flags)
+nexus_activate_resource_flags(device_t bus, device_t child, struct resource *r,
+    int flags)
 {
 	struct resource_map_request args;
 	struct resource_map map;
@@ -337,7 +337,7 @@ nexus_activate_resource_flags(device_t bus, device_t child, int type, int rid,
 	/*
 	 * If this is a memory resource, map it into the kernel.
 	 */
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
 		if ((rman_get_flags(r) & RF_UNMAPPED) == 0) {
@@ -350,8 +350,7 @@ nexus_activate_resource_flags(device_t bus, device_t child, int type, int rid,
 				    &use_np);
 			if (use_np)
 				args.memattr = VM_MEMATTR_DEVICE_NP;
-			err = nexus_map_resource(bus, child, type, r, &args,
-			    &map);
+			err = nexus_map_resource(bus, child, r, &args, &map);
 			if (err != 0) {
 				rman_deactivate_resource(r);
 				return (err);
@@ -371,10 +370,9 @@ nexus_activate_resource_flags(device_t bus, device_t child, int type, int rid,
 }
 
 static int
-nexus_activate_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *r)
+nexus_activate_resource(device_t dev, device_t child, struct resource *r)
 {
-	return (nexus_activate_resource_flags(dev, child, type, rid, r, 0));
+	return (nexus_activate_resource_flags(dev, child, r, 0));
 }
 
 static struct resource_list *
@@ -386,16 +384,14 @@ nexus_get_reslist(device_t dev, device_t child)
 }
 
 static int
-nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
+nexus_deactivate_resource(device_t bus, device_t child, struct resource *r)
 {
 	int error;
 
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_MEMORY:
 	case SYS_RES_IOPORT:
-		return (bus_generic_rman_deactivate_resource(bus, child, type,
-		    rid, r));
+		return (bus_generic_rman_deactivate_resource(bus, child, r));
 	case SYS_RES_IRQ:
 		error = rman_deactivate_resource(r);
 		if (error)
@@ -408,7 +404,7 @@ nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 }
 
 static int
-nexus_map_resource(device_t bus, device_t child, int type, struct resource *r,
+nexus_map_resource(device_t bus, device_t child, struct resource *r,
     struct resource_map_request *argsp, struct resource_map *map)
 {
 	struct resource_map_request args;
@@ -420,7 +416,7 @@ nexus_map_resource(device_t bus, device_t child, int type, struct resource *r,
 		return (ENXIO);
 
 	/* Mappings are only supported on I/O and memory resources. */
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
 		break;
@@ -445,11 +441,11 @@ nexus_map_resource(device_t bus, device_t child, int type, struct resource *r,
 }
 
 static int
-nexus_unmap_resource(device_t bus, device_t child, int type, struct resource *r,
+nexus_unmap_resource(device_t bus, device_t child, struct resource *r,
     struct resource_map *map)
 {
 
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_MEMORY:
 	case SYS_RES_IOPORT:
 		pmap_unmapdev(map->r_vaddr, map->r_size);
@@ -501,14 +497,13 @@ nexus_fdt_attach(device_t dev)
 }
 
 static int
-nexus_fdt_activate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
+nexus_fdt_activate_resource(device_t bus, device_t child, struct resource *r)
 {
 	phandle_t node, parent;
 	int flags;
 
 	flags = 0;
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_MEMORY:
 	case SYS_RES_IOPORT:
 		/*
@@ -530,7 +525,7 @@ nexus_fdt_activate_resource(device_t bus, device_t child, int type, int rid,
 		break;
 	}
 
-	return (nexus_activate_resource_flags(bus, child, type, rid, r, flags));
+	return (nexus_activate_resource_flags(bus, child, r, flags));
 }
 
 static int

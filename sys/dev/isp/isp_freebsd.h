@@ -244,7 +244,7 @@ struct isposinfo {
 	/*
 	 * Firmware pointer
 	 */
-	const struct firmware *	fw;
+	const struct firmware *	ispfw;
 
 	/*
 	 * DMA related stuff

@@ -9,7 +9,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /*
  * copysign(double x, double y)
  * copysign(x,y) returns a value with the magnitude of x and

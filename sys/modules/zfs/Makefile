@@ -238,6 +238,7 @@ SRCS+=	abd.c \
 	bqueue.c \
 	dataset_kstats.c \
 	ddt.c \
+	ddt_stats.c \
 	ddt_zap.c \
 	dmu.c \
 	dmu_diff.c \
@@ -389,6 +390,7 @@ CFLAGS.gcc+= -Wno-pointer-to-int-cast
 
 CFLAGS.abd.c= -Wno-cast-qual
 CFLAGS.ddt.c= -Wno-cast-qual
+CFLAGS.ddt_zap.c= -Wno-cast-qual
 CFLAGS.dmu.c= -Wno-cast-qual
 CFLAGS.dmu_traverse.c= -Wno-cast-qual
 CFLAGS.dnode.c= ${NO_WUNUSED_BUT_SET_VARIABLE}

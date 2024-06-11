@@ -23,7 +23,6 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 /*
  * Disk I/O routines using Open Firmware
  */
@@ -174,7 +173,7 @@ ofwd_ioctl(struct open_file *f, u_long cmd, void *data)
 	case DIOCGMEDIASIZE:
 		block_size = OF_block_size(dev->d_handle);
 		n = OF_blocks(dev->d_handle);
-		*(uint64_t *)data = (uint64_t)(n * block_size);
+		*(uint64_t *)data = ((uint64_t)n * block_size);
 		break;
 	default:
 		return (ENOTTY);

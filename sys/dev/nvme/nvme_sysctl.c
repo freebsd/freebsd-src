@@ -30,6 +30,7 @@
 #include "opt_nvme.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/sysctl.h>
 
@@ -419,4 +420,8 @@ nvme_sysctl_initialize_ctrlr(struct nvme_controller *ctrlr)
 		nvme_sysctl_initialize_queue(&ctrlr->ioq[i], ctrlr_ctx,
 		    que_tree);
 	}
+
+	SYSCTL_ADD_COUNTER_U64(ctrlr_ctx, ctrlr_list, OID_AUTO, "alignment_splits",
+	    CTLFLAG_RD, &ctrlr->alignment_splits,
+	    "Number of times we split the I/O alignment for drives with preferred alignment");
 }

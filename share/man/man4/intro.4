@@ -77,7 +77,7 @@ are accessed through
 sometimes also called
 .Em special files .
 They are located within instances of the
-.Xr devfs 5
+.Xr devfs 4
 filesystem, which is conventionally mounted on the directory
 .Pa /dev
 in the file system hierarchy
@@ -85,7 +85,7 @@ in the file system hierarchy
 .Xr hier 7 ) .
 .Pp
 The
-.Xr devfs 5
+.Xr devfs 4
 filesystem creates or removes device nodes automatically according to
 the physical hardware recognized as present at any given time.
 For pseudo-devices, device nodes may be created and removed dynamically
@@ -104,7 +104,7 @@ or set using the
 command.
 In the latter case, different rules may be used to make different sets
 of devices visible within different instances of the
-.Xr devfs 5
+.Xr devfs 4
 filesystem, which may be used, for example, to prevent jailed
 subsystems from accessing unsafe devices.
 Manual changes to device
@@ -200,7 +200,7 @@ device.
 .Xr select 2 ,
 .Xr socket 2 ,
 .Xr write 2 ,
-.Xr devfs 5 ,
+.Xr devfs 4 ,
 .Xr hier 7 ,
 .Xr config 8
 .Sh HISTORY

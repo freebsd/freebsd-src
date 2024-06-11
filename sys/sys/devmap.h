@@ -71,11 +71,10 @@ void devmap_register_table(const struct devmap_entry * _table);
  * Establish mappings for all the entries in the table.  This is called
  * automatically from the common platform-specific init function in
  * <ARCH>/machdep.c, and also from the custom platform-specific init routines
- * in older code.  If the table pointer is NULL, this will use the table
- * installed previously by devmap_register_table().
+ * in older code.  This function only has an effect when a table was installed
+ * previously by devmap_register_table().
  */
-void devmap_bootstrap(vm_offset_t _l1pt,
-    const struct devmap_entry *_table);
+void devmap_bootstrap(void);
 
 /*
  * Translate between virtual and physical addresses within a region that is

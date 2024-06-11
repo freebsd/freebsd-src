@@ -4,35 +4,51 @@
  * Copyright (c) 2022-2023, Arm Limited.
  * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception.
  */
+
+#define V_NAME_F1(fun) _ZGVnN4v_##fun##f
+#define V_NAME_D1(fun) _ZGVnN2v_##fun
+#define V_NAME_F2(fun) _ZGVnN4vv_##fun##f
+#define V_NAME_D2(fun) _ZGVnN2vv_##fun
+
+#define SV_NAME_F1(fun) _ZGVsMxv_##fun##f
+#define SV_NAME_D1(fun) _ZGVsMxv_##fun
+#define SV_NAME_F2(fun) _ZGVsMxvv_##fun##f
+#define SV_NAME_D2(fun) _ZGVsMxvv_##fun
+
 #define PL_DECL_SF1(fun) float fun##f (float);
 #define PL_DECL_SF2(fun) float fun##f (float, float);
 #define PL_DECL_SD1(fun) double fun (double);
 #define PL_DECL_SD2(fun) double fun (double, double);
 
-#if V_SUPPORTED
-#define PL_DECL_VF1(fun) VPCS_ATTR v_f32_t V_NAME (fun##f) (v_f32_t);
-#define PL_DECL_VF2(fun) VPCS_ATTR v_f32_t V_NAME (fun##f) (v_f32_t, v_f32_t);
-#define PL_DECL_VD1(fun) VPCS_ATTR v_f64_t V_NAME (fun) (v_f64_t);
-#define PL_DECL_VD2(fun) VPCS_ATTR v_f64_t V_NAME (fun) (v_f64_t, v_f64_t);
+#if WANT_VMATH
+# define PL_DECL_VF1(fun)                                                    \
+    VPCS_ATTR float32x4_t V_NAME_F1 (fun##f) (float32x4_t);
+# define PL_DECL_VF2(fun)                                                    \
+    VPCS_ATTR float32x4_t V_NAME_F2 (fun##f) (float32x4_t, float32x4_t);
+# define PL_DECL_VD1(fun) VPCS_ATTR float64x2_t V_NAME_D1 (fun) (float64x2_t);
+# define PL_DECL_VD2(fun)                                                    \
+    VPCS_ATTR float64x2_t V_NAME_D2 (fun) (float64x2_t, float64x2_t);
 #else
-#define PL_DECL_VF1(fun)
-#define PL_DECL_VF2(fun)
-#define PL_DECL_VD1(fun)
-#define PL_DECL_VD2(fun)
+# define PL_DECL_VF1(fun)
+# define PL_DECL_VF2(fun)
+# define PL_DECL_VD1(fun)
+# define PL_DECL_VD2(fun)
 #endif
 
-#if SV_SUPPORTED
-#define PL_DECL_SVF1(fun) sv_f32_t __sv_##fun##f_x (sv_f32_t, svbool_t);
-#define PL_DECL_SVF2(fun)                                                      \
-  sv_f32_t __sv_##fun##f_x (sv_f32_t, sv_f32_t, svbool_t);
-#define PL_DECL_SVD1(fun) sv_f64_t __sv_##fun##_x (sv_f64_t, svbool_t);
-#define PL_DECL_SVD2(fun)                                                      \
-  sv_f64_t __sv_##fun##_x (sv_f64_t, sv_f64_t, svbool_t);
+#if WANT_SVE_MATH
+# define PL_DECL_SVF1(fun)                                                   \
+    svfloat32_t SV_NAME_F1 (fun) (svfloat32_t, svbool_t);
+# define PL_DECL_SVF2(fun)                                                   \
+    svfloat32_t SV_NAME_F2 (fun) (svfloat32_t, svfloat32_t, svbool_t);
+# define PL_DECL_SVD1(fun)                                                   \
+    svfloat64_t SV_NAME_D1 (fun) (svfloat64_t, svbool_t);
+# define PL_DECL_SVD2(fun)                                                   \
+    svfloat64_t SV_NAME_D2 (fun) (svfloat64_t, svfloat64_t, svbool_t);
 #else
-#define PL_DECL_SVF1(fun)
-#define PL_DECL_SVF2(fun)
-#define PL_DECL_SVD1(fun)
-#define PL_DECL_SVD2(fun)
+# define PL_DECL_SVF1(fun)
+# define PL_DECL_SVF2(fun)
+# define PL_DECL_SVD1(fun)
+# define PL_DECL_SVD2(fun)
 #endif
 
 /* For building the routines, emit function prototype from PL_SIG. This

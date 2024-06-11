@@ -14,6 +14,7 @@
 
 #include "version.h"
 #include "private.h"
+#include "tzdir.h"
 #include "tzfile.h"
 
 #include <fcntl.h>
@@ -33,6 +34,9 @@ static zic_t const
 #ifndef ZIC_MAX_ABBR_LEN_WO_WARN
 # define ZIC_MAX_ABBR_LEN_WO_WARN 6
 #endif /* !defined ZIC_MAX_ABBR_LEN_WO_WARN */
+
+/* Minimum and maximum years, assuming signed 32-bit time_t.  */
+enum { YEAR_32BIT_MIN = 1901, YEAR_32BIT_MAX = 2038 };
 
 /* An upper bound on how much a format might grow due to concatenation.  */
 enum { FORMAT_LEN_GROWTH_BOUND = 5 };
@@ -92,7 +96,6 @@ struct rule {
 
 	zic_t		r_loyear;	/* for example, 1986 */
 	zic_t		r_hiyear;	/* for example, 1986 */
-	bool		r_lowasnum;
 	bool		r_hiwasnum;
 
 	int		r_month;	/* 0..11 */
@@ -164,13 +167,8 @@ symlink(char const *target, char const *linkname)
 }
 #endif
 #ifndef AT_SYMLINK_FOLLOW
-# if HAVE_LINK
-#  define linkat(targetdir, target, linknamedir, linkname, flag) \
-     (itssymlink(target) ? (errno = ENOTSUP, -1) : link(target, linkname))
-# else
 #  define linkat(targetdir, target, linknamedir, linkname, flag) \
      (errno = ENOTSUP, -1)
-# endif
 #endif
 
 static void	addtt(zic_t starttime, int type);
@@ -190,7 +188,7 @@ static void	inrule(char ** fields, int nfields);
 static bool	inzcont(char ** fields, int nfields);
 static bool	inzone(char ** fields, int nfields);
 static bool	inzsub(char **, int, bool);
-static bool	itssymlink(char const *);
+static int	itssymlink(char const *, int *);
 static bool	is_alpha(char a);
 static char	lowerit(char);
 static void	mkdirs(char const *, bool);
@@ -334,7 +332,7 @@ enum {
 */
 
 enum {
-  YR_MINIMUM,
+  YR_MINIMUM, /* "minimum" is for backward compatibility only */
   YR_MAXIMUM,
   YR_ONLY
 };
@@ -418,12 +416,10 @@ static struct lookup const	lasts[] = {
 
 static struct lookup const	begin_years[] = {
 	{ "minimum",	YR_MINIMUM },
-	{ "maximum",	YR_MAXIMUM },
 	{ NULL,		0 }
 };
 
 static struct lookup const	end_years[] = {
-	{ "minimum",	YR_MINIMUM },
 	{ "maximum",	YR_MAXIMUM },
 	{ "only",	YR_ONLY },
 	{ NULL,		0 }
@@ -903,7 +899,8 @@ static zic_t const max_time = MAXVAL(zic_t, TIME_T_BITS_IN_FILE);
 static zic_t lo_time = MINVAL(zic_t, TIME_T_BITS_IN_FILE);
 static zic_t hi_time = MAXVAL(zic_t, TIME_T_BITS_IN_FILE);
 
-/* The time specified by the -R option, defaulting to MIN_TIME.  */
+/* The time specified by the -R option, defaulting to MIN_TIME;
+   or lo_time, whichever is greater.  */
 static zic_t redundant_time = MINVAL(zic_t, TIME_T_BITS_IN_FILE);
 
 /* The time specified by an Expires line, or negative if no such line.  */
@@ -1036,7 +1033,8 @@ main(int argc, char **argv)
 					directory = optarg;
 				else {
 					fprintf(stderr,
-_("%s: More than one -d option specified\n"),
+						_("%s: More than one -d option"
+						  " specified\n"),
 						progname);
 					return EXIT_FAILURE;
 				}
@@ -1049,7 +1047,8 @@ _("%s: More than one -d option specified\n"),
 					lcltime = optarg;
 				else {
 					fprintf(stderr,
-_("%s: More than one -l option specified\n"),
+						_("%s: More than one -l option"
+						  " specified\n"),
 						progname);
 					return EXIT_FAILURE;
 				}
@@ -1071,7 +1070,8 @@ _("invalid file mode"));
 					psxrules = optarg;
 				else {
 					fprintf(stderr,
-_("%s: More than one -p option specified\n"),
+						_("%s: More than one -p option"
+						  " specified\n"),
 						progname);
 					return EXIT_FAILURE;
 				}
@@ -1097,7 +1097,8 @@ _("%s: More than one -p option specified\n"),
 					leapsec = optarg;
 				else {
 					fprintf(stderr,
-_("%s: More than one -L option specified\n"),
+						_("%s: More than one -L option"
+						  " specified\n"),
 						progname);
 					return EXIT_FAILURE;
 				}
@@ -1108,13 +1109,14 @@ _("%s: More than one -L option specified\n"),
 			case 'r':
 				if (timerange_given) {
 				  fprintf(stderr,
-_("%s: More than one -r option specified\n"),
+					  _("%s: More than one -r option"
+					    " specified\n"),
 					  progname);
 				  return EXIT_FAILURE;
 				}
 				if (! timerange_option(optarg)) {
 				  fprintf(stderr,
-_("%s: invalid time range: %s\n"),
+					  _("%s: invalid time range: %s\n"),
 					  progname, optarg);
 				  return EXIT_FAILURE;
 				}
@@ -1137,6 +1139,8 @@ _("%s: invalid time range: %s\n"),
 	  fprintf(stderr, _("%s: -R time exceeds -r cutoff\n"), progname);
 	  return EXIT_FAILURE;
 	}
+	if (redundant_time < lo_time)
+	  redundant_time = lo_time;
 	if (bloat == 0) {
 	  static char const bloat_default[] = ZIC_BLOAT_DEFAULT;
 	  if (strcmp(bloat_default, "slim") == 0)
@@ -1429,9 +1433,9 @@ rename_dest(char *tempname, char const *name)
   }
 }
 
-/* Create symlink contents suitable for symlinking FROM to TO, as a
-   freshly allocated string.  FROM should be a relative file name, and
-   is relative to the global variable DIRECTORY.  TO can be either
+/* Create symlink contents suitable for symlinking TARGET to LINKNAME, as a
+   freshly allocated string.  TARGET should be a relative file name, and
+   is relative to the global variable DIRECTORY.  LINKNAME can be either
    relative or absolute.  */
 static char *
 relname(char const *target, char const *linkname)
@@ -1468,6 +1472,18 @@ relname(char const *target, char const *linkname)
   return result;
 }
 
+/* Return true if A and B must have the same parent dir if A and B exist.
+   Return false if this is not necessarily true (though it might be true).
+   Keep it simple, and do not inspect the file system.  */
+static bool
+same_parent_dirs(char const *a, char const *b)
+{
+  for (; *a == *b; a++, b++)
+    if (!*a)
+      return true;
+  return ! (strchr(a, '/') || strchr(b, '/'));
+}
+
 static void
 dolink(char const *target, char const *linkname, bool staysymlink)
 {
@@ -1475,6 +1491,7 @@ dolink(char const *target, char const *linkname, bool staysymlink)
 	int link_errno;
 	char *tempname = NULL;
 	char const *outname = linkname;
+	int targetissym = -2, linknameissym = -2;
 
 	check_for_signal();
 
@@ -1496,13 +1513,32 @@ dolink(char const *target, char const *linkname, bool staysymlink)
 	    break;
 	  }
 	  link_errno = errno;
+	  /* Linux 2.6.16 and 2.6.17 mishandle AT_SYMLINK_FOLLOW.  */
+	  if (link_errno == EINVAL)
+	    link_errno = ENOTSUP;
+#if HAVE_LINK
+	  /* If linkat is not supported, fall back on link(A, B).
+	     However, skip this if A is a relative symlink
+	     and A and B might not have the same parent directory.
+	     On some platforms link(A, B) does not follow a symlink A,
+	     and if A is relative it might misbehave elsewhere.  */
+	  if (link_errno == ENOTSUP
+	      && (same_parent_dirs(target, outname)
+		  || 0 <= itssymlink(target, &targetissym))) {
+	    if (link(target, outname) == 0) {
+	      link_errno = 0;
+	      break;
+	    }
+	    link_errno = errno;
+	  }
+#endif
 	  if (link_errno == EXDEV || link_errno == ENOTSUP)
 	    break;
 
 	  if (link_errno == EEXIST) {
 	    staysymlink &= !tempname;
 	    random_dirent(&outname, &tempname);
-	    if (staysymlink && itssymlink(linkname))
+	    if (staysymlink && itssymlink(linkname, &linknameissym))
 	      break;
 	  } else if (link_errno == ENOENT && !linkdirs_made) {
 	    mkdirs(linkname, true);
@@ -1565,12 +1601,17 @@ dolink(char const *target, char const *linkname, bool staysymlink)
 	rename_dest(tempname, linkname);
 }
 
-/* Return true if NAME is a symbolic link.  */
-static bool
-itssymlink(char const *name)
+/* Return 1 if NAME is an absolute symbolic link, -1 if it is relative,
+   0 if it is not a symbolic link.  If *CACHE is not -2, it is the
+   cached result of a previous call to this function with the same NAME.  */
+static int
+itssymlink(char const *name, int *cache)
 {
-  char c;
-  return 0 <= readlink(name, &c, 1);
+  if (*cache == -2) {
+    char c = '\0';
+    *cache = readlink(name, &c, 1) < 0 ? 0 : c == '/' ? 1 : -1;
+  }
+  return *cache;
 }
 
 /*
@@ -1883,16 +1924,14 @@ inzone(char **fields, int nfields)
 		return false;
 	}
 	if (lcltime != NULL && strcmp(fields[ZF_NAME], tzdefault) == 0) {
-		error(
-_("\"Zone %s\" line and -l option are mutually exclusive"),
-			tzdefault);
-		return false;
+	  error(_("\"Zone %s\" line and -l option are mutually exclusive"),
+		tzdefault);
+	  return false;
 	}
 	if (strcmp(fields[ZF_NAME], TZDEFRULES) == 0 && psxrules != NULL) {
-		error(
-_("\"Zone %s\" line and -p option are mutually exclusive"),
-			TZDEFRULES);
-		return false;
+	  error(_("\"Zone %s\" line and -p option are mutually exclusive"),
+		TZDEFRULES);
+	  return false;
 	}
 	for (i = 0; i < nzones; ++i)
 		if (zones[i].z_name != NULL &&
@@ -1984,10 +2023,9 @@ inzsub(char **fields, int nfields, bool iscont)
 			zones[nzones - 1].z_untiltime > min_time &&
 			zones[nzones - 1].z_untiltime < max_time &&
 			zones[nzones - 1].z_untiltime >= z.z_untiltime) {
-				error(_(
-"Zone continuation line end time is not after end time of previous line"
-					));
-				return false;
+		  error(_("Zone continuation line end time is"
+			  " not after end time of previous line"));
+		  return false;
 		}
 	}
 	z.z_name = iscont ? NULL : estrdup(fields[ZF_NAME]);
@@ -2189,13 +2227,12 @@ rulesub(struct rule *rp, const char *loyearp, const char *hiyearp,
 	*/
 	cp = loyearp;
 	lp = byword(cp, begin_years);
-	rp->r_lowasnum = lp == NULL;
-	if (!rp->r_lowasnum) switch (lp->l_value) {
+	if (lp) switch (lp->l_value) {
 		case YR_MINIMUM:
-			rp->r_loyear = ZIC_MIN;
-			break;
-		case YR_MAXIMUM:
-			rp->r_loyear = ZIC_MAX;
+			warning(_("FROM year \"%s\" is obsolete;"
+				  " treated as %d"),
+				cp, YEAR_32BIT_MIN - 1);
+			rp->r_loyear = YEAR_32BIT_MIN - 1;
 			break;
 		default: unreachable();
 	} else if (sscanf(cp, "%"SCNdZIC"%c", &rp->r_loyear, &xs) != 1) {
@@ -2206,9 +2243,6 @@ rulesub(struct rule *rp, const char *loyearp, const char *hiyearp,
 	lp = byword(cp, end_years);
 	rp->r_hiwasnum = lp == NULL;
 	if (!rp->r_hiwasnum) switch (lp->l_value) {
-		case YR_MINIMUM:
-			rp->r_hiyear = ZIC_MIN;
-			break;
 		case YR_MAXIMUM:
 			rp->r_hiyear = ZIC_MAX;
 			break;
@@ -3000,6 +3034,10 @@ rule_cmp(struct rule const *a, struct rule const *b)
 	return a->r_dayofmonth - b->r_dayofmonth;
 }
 
+/* Store into RESULT a POSIX.1-2017 TZ string that represent the future
+   predictions for the zone ZPFIRST with ZONECOUNT entries.  Return a
+   compatibility indicator (a TZDB release year) if successful, a
+   negative integer if no such TZ string exissts.  */
 static int
 stringzone(char *result, struct zone const *zpfirst, ptrdiff_t zonecount)
 {
@@ -3135,11 +3173,11 @@ outzone(const struct zone *zpfirst, ptrdiff_t zonecount)
 	register char *			envvar;
 	register int			max_abbr_len;
 	register int			max_envvar_len;
-	register bool			prodstic; /* all rules are min to max */
 	register int			compat;
 	register bool			do_extend;
 	register char			version;
-	ptrdiff_t lastatmax = -1;
+	zic_t nonTZlimtime = ZIC_MIN;
+	int nonTZlimtype = -1;
 	zic_t max_year0;
 	int defaulttype = -1;
 
@@ -3160,7 +3198,6 @@ outzone(const struct zone *zpfirst, ptrdiff_t zonecount)
 	timecnt = 0;
 	typecnt = 0;
 	charcnt = 0;
-	prodstic = zonecount == 1;
 	/*
 	** Thanks to Earl Chew
 	** for noting the need to unconditionally initialize startttisstd.
@@ -3178,12 +3215,9 @@ outzone(const struct zone *zpfirst, ptrdiff_t zonecount)
 			updateminmax(zp->z_untilrule.r_loyear);
 		for (j = 0; j < zp->z_nrules; ++j) {
 			struct rule *rp = &zp->z_rules[j];
-			if (rp->r_lowasnum)
-				updateminmax(rp->r_loyear);
+			updateminmax(rp->r_loyear);
 			if (rp->r_hiwasnum)
 				updateminmax(rp->r_hiyear);
-			if (rp->r_lowasnum || rp->r_hiwasnum)
-				prodstic = false;
 		}
 	}
 	/*
@@ -3195,7 +3229,8 @@ outzone(const struct zone *zpfirst, ptrdiff_t zonecount)
 	if (noise) {
 		if (!*envvar)
 			warning("%s %s",
-				_("no POSIX environment variable for zone"),
+				_("no POSIX.1-2017 environment variable"
+				  " for zone"),
 				zpfirst->z_name);
 		else if (compat != 0) {
 			/* Circa-COMPAT clients, and earlier clients, might
@@ -3207,37 +3242,12 @@ outzone(const struct zone *zpfirst, ptrdiff_t zonecount)
 		}
 	}
 	if (do_extend) {
-		/*
-		** Search through a couple of extra years past the obvious
-		** 400, to avoid edge cases.  For example, suppose a non-POSIX
-		** rule applies from 2012 onwards and has transitions in March
-		** and September, plus some one-off transitions in November
-		** 2013.  If zic looked only at the last 400 years, it would
-		** set max_year=2413, with the intent that the 400 years 2014
-		** through 2413 will be repeated.  The last transition listed
-		** in the tzfile would be in 2413-09, less than 400 years
-		** after the last one-off transition in 2013-11.  Two years
-		** might be overkill, but with the kind of edge cases
-		** available we're not sure that one year would suffice.
-		*/
-		enum { years_of_observations = YEARSPERREPEAT + 2 };
-
 		if (min_year >= ZIC_MIN + years_of_observations)
 			min_year -= years_of_observations;
 		else	min_year = ZIC_MIN;
 		if (max_year <= ZIC_MAX - years_of_observations)
 			max_year += years_of_observations;
 		else	max_year = ZIC_MAX;
-		/*
-		** Regardless of any of the above,
-		** for a "proDSTic" zone which specifies that its rules
-		** always have and always will be in effect,
-		** we only need one cycle to define the zone.
-		*/
-		if (prodstic) {
-			min_year = 1900;
-			max_year = min_year + years_of_observations;
-		}
 	}
 	max_year = max(max_year, (redundant_time / (SECSPERDAY * DAYSPERNYEAR)
 				  + EPOCH_YEAR + 1));
@@ -3245,17 +3255,16 @@ outzone(const struct zone *zpfirst, ptrdiff_t zonecount)
 	if (want_bloat()) {
 	  /* For the benefit of older systems,
 	     generate data from 1900 through 2038.  */
-	  if (min_year > 1900)
-		min_year = 1900;
-	  if (max_year < 2038)
-		max_year = 2038;
+	  if (min_year > YEAR_32BIT_MIN - 1)
+		min_year = YEAR_32BIT_MIN - 1;
+	  if (max_year < YEAR_32BIT_MAX)
+		max_year = YEAR_32BIT_MAX;
 	}
 
 	if (min_time < lo_time || hi_time < max_time)
 	  unspecifiedtype = addtype(0, "-00", false, false, false);
 
 	for (i = 0; i < zonecount; ++i) {
-		struct rule *prevrp = NULL;
 		/*
 		** A guess that may well be corrected later.
 		*/
@@ -3265,8 +3274,6 @@ outzone(const struct zone *zpfirst, ptrdiff_t zonecount)
 		bool useuntil = i < (zonecount - 1);
 		zic_t stdoff = zp->z_stdoff;
 		zic_t startoff = stdoff;
-		zic_t prevktime;
-		INITIALIZE(prevktime);
 		if (useuntil && zp->z_untiltime <= min_time)
 			continue;
 		eat(zp->z_filenum, zp->z_linenum);
@@ -3280,6 +3287,10 @@ outzone(const struct zone *zpfirst, ptrdiff_t zonecount)
 				startttisut);
 			if (usestart) {
 				addtt(starttime, type);
+				if (useuntil && nonTZlimtime < starttime) {
+				  nonTZlimtime = starttime;
+				  nonTZlimtype = type;
+				}
 				usestart = false;
 			} else
 				defaulttype = type;
@@ -3407,23 +3418,16 @@ outzone(const struct zone *zpfirst, ptrdiff_t zonecount)
 				doabbr(ab, zp, rp->r_abbrvar,
 				       rp->r_isdst, rp->r_save, false);
 				offset = oadd(zp->z_stdoff, rp->r_save);
-				if (!want_bloat() && !useuntil && !do_extend
-				    && prevrp && lo_time <= prevktime
-				    && redundant_time <= ktime
-				    && rp->r_hiyear == ZIC_MAX
-				    && prevrp->r_hiyear == ZIC_MAX)
-				  break;
 				type = addtype(offset, ab, rp->r_isdst,
 					rp->r_todisstd, rp->r_todisut);
 				if (defaulttype < 0 && !rp->r_isdst)
 				  defaulttype = type;
-				if (rp->r_hiyear == ZIC_MAX
-				    && ! (0 <= lastatmax
-					  && ktime < attypes[lastatmax].at))
-				  lastatmax = timecnt;
 				addtt(ktime, type);
-				prevrp = rp;
-				prevktime = ktime;
+				if (nonTZlimtime < ktime
+				    && (useuntil || rp->r_hiyear != ZIC_MAX)) {
+				  nonTZlimtime = ktime;
+				  nonTZlimtype = type;
+				}
 			}
 		  }
 		}
@@ -3434,7 +3438,8 @@ outzone(const struct zone *zpfirst, ptrdiff_t zonecount)
 				 isdst, save, false);
 			eat(zp->z_filenum, zp->z_linenum);
 			if (*startbuf == '\0')
-error(_("can't determine time zone abbreviation to use just after until time"));
+			  error(_("can't determine time zone abbreviation"
+				  " to use just after until time"));
 			else {
 			  int type = addtype(startoff, startbuf, isdst,
 					     startttisstd, startttisut);
@@ -3458,12 +3463,38 @@ error(_("can't determine time zone abbreviation to use just after until time"));
 	}
 	if (defaulttype < 0)
 	  defaulttype = 0;
-	if (0 <= lastatmax)
-	  attypes[lastatmax].dontmerge = true;
+	if (!do_extend && !want_bloat()) {
+	  /* Keep trailing transitions that are no greater than this.  */
+	  zic_t keep_at_max;
+
+	  /* The earliest transition into a time governed by the TZ string.  */
+	  zic_t TZstarttime = ZIC_MAX;
+	  for (i = 0; i < timecnt; i++) {
+	    zic_t at = attypes[i].at;
+	    if (nonTZlimtime < at && at < TZstarttime)
+	      TZstarttime = at;
+	  }
+	  if (TZstarttime == ZIC_MAX)
+	    TZstarttime = nonTZlimtime;
+
+	  /* Omit trailing transitions deducible from the TZ string,
+	     and not needed for -r or -R.  */
+	  keep_at_max = max(TZstarttime, redundant_time);
+	  for (i = j = 0; i < timecnt; i++)
+	    if (attypes[i].at <= keep_at_max) {
+	      attypes[j].at = attypes[i].at;
+	      attypes[j].dontmerge = (attypes[i].at == TZstarttime
+				      && (nonTZlimtype != attypes[i].type
+					  || strchr(envvar, ',')));
+	      attypes[j].type = attypes[i].type;
+	      j++;
+	    }
+	  timecnt = j;
+	}
 	if (do_extend) {
 		/*
-		** If we're extending the explicitly listed observations
-		** for 400 years because we can't fill the POSIX-TZ field,
+		** If we're extending the explicitly listed observations for
+		** 400 years because we can't fill the POSIX.1-2017 TZ field,
 		** check whether we actually ended up explicitly listing
 		** observations through that period.  If there aren't any
 		** near the end of the 400-year period, add a redundant

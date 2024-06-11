@@ -1686,7 +1686,7 @@ ifremove(int ifindex)
 
 /*
  * Receive and process routing messages.
- * Update interface information as necesssary.
+ * Update interface information as necessary.
  */
 static void
 rtrecv(void)

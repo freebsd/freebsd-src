@@ -5134,6 +5134,16 @@ bbr_timeout_rxt(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 				tp->t_flags2 |= TF2_PLPMTU_PMTUD;
 				tp->t_flags2 &= ~TF2_PLPMTU_BLACKHOLE;
 				tp->t_maxseg = tp->t_pmtud_saved_maxseg;
+				if (tp->t_maxseg < V_tcp_mssdflt) {
+					/*
+					 * The MSS is so small we should not 
+					 * process incoming SACK's since we are 
+					 * subject to attack in such a case.
+					 */
+					tp->t_flags2 |= TF2_PROC_SACK_PROHIBIT;
+				} else {
+					tp->t_flags2 &= ~TF2_PROC_SACK_PROHIBIT;
+				}
 				KMOD_TCPSTAT_INC(tcps_pmtud_blackhole_failed);
 			}
 		}
@@ -6845,7 +6855,7 @@ bbr_update_rtt(struct tcpcb *tp, struct tcp_bbr *bbr,
 	 * Ok its a SACK block that we retransmitted. or a windows
 	 * machine without timestamps. We can tell nothing from the
 	 * time-stamp since its not there or the time the peer last
-	 * recieved a segment that moved forward its cum-ack point.
+	 * received a segment that moved forward its cum-ack point.
 	 *
 	 * Lets look at the last retransmit and see what we can tell
 	 * (with BBR for space we only keep 2 note we have to keep
@@ -7556,7 +7566,7 @@ proc_sack:
 	 * Sort the SACK blocks so we can update the rack scoreboard with
 	 * just one pass.
 	 */
-	new_sb = sack_filter_blks(&bbr->r_ctl.bbr_sf, sack_blocks,
+	new_sb = sack_filter_blks(tp, &bbr->r_ctl.bbr_sf, sack_blocks,
 				  num_sack_blks, th->th_ack);
 	ctf_log_sack_filter(bbr->rc_tp, new_sb, sack_blocks);
 	BBR_STAT_ADD(bbr_sack_blocks, num_sack_blks);
@@ -8188,7 +8198,7 @@ bbr_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * then we just ignore the text.
 	 */
 	tfo_syn = ((tp->t_state == TCPS_SYN_RECEIVED) &&
-		   IS_FASTOPEN(tp->t_flags));
+	    (tp->t_flags & TF_FASTOPEN));
 	if ((tlen || (thflags & TH_FIN) || (tfo_syn && tlen > 0)) &&
 	    TCPS_HAVERCVDFIN(tp->t_state) == 0) {
 		tcp_seq save_start = th->th_seq;
@@ -8773,7 +8783,7 @@ bbr_do_syn_sent(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		 * If not all the data that was sent in the TFO SYN
 		 * has been acked, resend the remainder right away.
 		 */
-		if (IS_FASTOPEN(tp->t_flags) &&
+		if ((tp->t_flags & TF_FASTOPEN) &&
 		    (tp->snd_una != tp->snd_max)) {
 			tp->snd_nxt = th->th_ack;
 			tfo_partial = 1;
@@ -8939,7 +8949,7 @@ bbr_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		ctf_do_dropwithreset(m, tp, th, BANDLIM_RST_OPENPORT, tlen);
 		return (1);
 	}
-	if (IS_FASTOPEN(tp->t_flags)) {
+	if (tp->t_flags & TF_FASTOPEN) {
 		/*
 		 * When a TFO connection is in SYN_RECEIVED, the only valid
 		 * packets are the initial SYN, a retransmit/copy of the
@@ -9015,7 +9025,7 @@ bbr_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * processing; else drop segment and return.
 	 */
 	if ((thflags & TH_ACK) == 0) {
-		if (IS_FASTOPEN(tp->t_flags)) {
+		if (tp->t_flags & TF_FASTOPEN) {
 			cc_conn_init(tp);
 		}
 		return (bbr_process_data(m, th, so, tp, drop_hdrlen, tlen,
@@ -9052,7 +9062,7 @@ bbr_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	/* Drop off any SYN in the send map (probably not there)  */
 	if (thflags & TH_ACK)
 		bbr_log_syn(tp, to);
-	if (IS_FASTOPEN(tp->t_flags) && tp->t_tfo_pending) {
+	if ((tp->t_flags & TF_FASTOPEN) && tp->t_tfo_pending) {
 		tcp_fastopen_decrement_counter(tp->t_tfo_pending);
 		tp->t_tfo_pending = NULL;
 	}
@@ -9074,7 +9084,7 @@ bbr_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		 * is not harmless as it would undo the snd_cwnd reduction
 		 * that occurs when a TFO SYN|ACK is retransmitted.
 		 */
-		if (!IS_FASTOPEN(tp->t_flags))
+		if (!(tp->t_flags & TF_FASTOPEN))
 			cc_conn_init(tp);
 	}
 	/*
@@ -9556,15 +9566,6 @@ bbr_do_closing(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		return (ret_val);
 	}
 	/*
-	 * If new data are received on a connection after the user processes
-	 * are gone, then RST the other end.
-	 * We call a new function now so we might continue and setup
-	 * to reset at all data being ack'd.
-	 */
-	if ((tp->t_flags & TF_CLOSED) && tlen &&
-	    bbr_check_data_after_close(m, bbr, tp, &tlen, th, so))
-		return (1);
-	/*
 	 * If last ACK falls within this segment's sequence numbers, record
 	 * its timestamp. NOTE: 1) That the test incorporates suggestions
 	 * from the latest proposal of the tcplw@cray.com list (Braden
@@ -9666,15 +9667,6 @@ bbr_do_lastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if (ctf_drop_checks(to, m, th, tp, &tlen, &thflags, &drop_hdrlen, &ret_val)) {
 		return (ret_val);
 	}
-	/*
-	 * If new data are received on a connection after the user processes
-	 * are gone, then RST the other end.
-	 * We call a new function now so we might continue and setup
-	 * to reset at all data being ack'd.
-	 */
-	if ((tp->t_flags & TF_CLOSED) && tlen &&
-	    bbr_check_data_after_close(m, bbr, tp, &tlen, th, so))
-		return (1);
 	/*
 	 * If last ACK falls within this segment's sequence numbers, record
 	 * its timestamp. NOTE: 1) That the test incorporates suggestions
@@ -11341,7 +11333,14 @@ bbr_do_segment_nounlock(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 	tcp_dooptions(&to, (u_char *)(th + 1),
 	    (th->th_off << 2) - sizeof(struct tcphdr),
 	    (thflags & TH_SYN) ? TO_SYN : 0);
-
+	if (tp->t_flags2 & TF2_PROC_SACK_PROHIBIT) {
+		/*
+		 * We don't look at sack's from the
+		 * peer because the MSS is too small which
+		 * can subject us to an attack.
+		 */
+		to.to_flags &= ~TOF_SACK;
+	}
 	/*
 	 * If timestamps were negotiated during SYN/ACK and a
 	 * segment without a timestamp is received, silently drop
@@ -11408,7 +11407,7 @@ bbr_do_segment_nounlock(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 			if ((tp->t_flags & TF_SACK_PERMIT) &&
 			    (to.to_flags & TOF_SACKPERM) == 0)
 				tp->t_flags &= ~TF_SACK_PERMIT;
-			if (IS_FASTOPEN(tp->t_flags)) {
+			if (tp->t_flags & TF_FASTOPEN) {
 				if (to.to_flags & TOF_FASTOPEN) {
 					uint16_t mss;
 
@@ -11529,7 +11528,9 @@ bbr_do_segment_nounlock(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 			bbr_set_pktepoch(bbr, cts, __LINE__);
 		bbr_check_bbr_for_state(bbr, cts, __LINE__, (bbr->r_ctl.rc_lost - lost));
 		if (nxt_pkt == 0) {
-			if (bbr->r_wanted_output != 0) {
+			if ((bbr->r_wanted_output != 0) ||
+			    (tp->t_flags & TF_ACKNOW)) { 
+
 				bbr->rc_output_starts_timer = 0;
 				did_out = 1;
 				if (tcp_output(tp) < 0)
@@ -11805,7 +11806,7 @@ bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 	uint32_t recwin, sendwin;
 	int32_t sb_offset;
 	int32_t flags, abandon, error = 0;
-	struct tcp_log_buffer *lgb = NULL;
+	struct tcp_log_buffer *lgb;
 	struct mbuf *m;
 	struct mbuf *mb;
 	uint32_t if_hw_tsomaxsegcount = 0;
@@ -12060,7 +12061,7 @@ bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 	 * For TFO connections in SYN_RECEIVED, only allow the initial
 	 * SYN|ACK and those sent by the retransmit timer.
 	 */
-	if (IS_FASTOPEN(tp->t_flags) &&
+	if ((tp->t_flags & TF_FASTOPEN) &&
 	    ((tp->t_state == TCPS_SYN_RECEIVED) ||
 	     (tp->t_state == TCPS_SYN_SENT)) &&
 	    SEQ_GT(tp->snd_max, tp->snd_una) &&	/* initial SYN or SYN|ACK sent */
@@ -12379,7 +12380,7 @@ recheck_resend:
 		 * When sending additional segments following a TFO SYN|ACK,
 		 * do not include the SYN bit.
 		 */
-		if (IS_FASTOPEN(tp->t_flags) &&
+		if ((tp->t_flags & TF_FASTOPEN) &&
 		    (tp->t_state == TCPS_SYN_RECEIVED))
 			flags &= ~TH_SYN;
 		sb_offset--, len++;
@@ -12410,7 +12411,7 @@ recheck_resend:
 	 *    actively created socket
 	 *  - When the socket is in the CLOSED state (RST is being sent)
 	 */
-	if (IS_FASTOPEN(tp->t_flags) &&
+	if ((tp->t_flags & TF_FASTOPEN) &&
 	    (((flags & TH_SYN) && (tp->t_rxtshift > 0)) ||
 	     ((tp->t_state == TCPS_SYN_SENT) &&
 	      (tp->t_tfo_client_cookie_len == 0)) ||
@@ -12420,7 +12421,7 @@ recheck_resend:
 		rsm = NULL;
 	}
 	/* Without fast-open there should never be data sent on a SYN */
-	if ((flags & TH_SYN) && (!IS_FASTOPEN(tp->t_flags)))
+	if ((flags & TH_SYN) && !(tp->t_flags & TF_FASTOPEN))
 		len = 0;
 	if (len <= 0) {
 		/*
@@ -12844,7 +12845,7 @@ send:
 			 * have caused the original SYN or SYN|ACK to have
 			 * been dropped by a middlebox.
 			 */
-			if (IS_FASTOPEN(tp->t_flags) &&
+			if ((tp->t_flags & TF_FASTOPEN) &&
 			    (tp->t_rxtshift == 0)) {
 				if (tp->t_state == TCPS_SYN_RECEIVED) {
 					to.to_tfo_len = TCP_FASTOPEN_COOKIE_LEN;
@@ -12900,7 +12901,7 @@ send:
 		 * If we wanted a TFO option to be added, but it was unable
 		 * to fit, ensure no data is sent.
 		 */
-		if (IS_FASTOPEN(tp->t_flags) && wanted_cookie &&
+		if ((tp->t_flags & TF_FASTOPEN) && wanted_cookie &&
 		    !(to.to_flags & TOF_FASTOPEN))
 			len = 0;
 	}
@@ -13588,12 +13589,12 @@ send:
 			mtu = inp->inp_route.ro_nh->nh_mtu;
 	}
 #endif				/* INET */
-out:
-
 	if (lgb) {
 		lgb->tlb_errno = error;
 		lgb = NULL;
 	}
+
+out:
 	/*
 	 * In transmit state, time the transmission and arrange for the
 	 * retransmit.  In persist state, just set snd_max.
@@ -13789,6 +13790,16 @@ nomore:
 				if (old_maxseg <= tp->t_maxseg) {
 					/* Huh it did not shrink? */
 					tp->t_maxseg = old_maxseg - 40;
+					if (tp->t_maxseg < V_tcp_mssdflt) {
+						/*
+						 * The MSS is so small we should not 
+						 * process incoming SACK's since we are 
+						 * subject to attack in such a case.
+						 */
+						tp->t_flags2 |= TF2_PROC_SACK_PROHIBIT;
+					} else {
+						tp->t_flags2 &= ~TF2_PROC_SACK_PROHIBIT;
+					}
 					bbr_log_msgsize_fail(bbr, tp, len, maxseg, mtu, 0, tso, cts);
 				}
 				/*
@@ -13809,6 +13820,7 @@ nomore:
 				return (error);
 			}
 		case EPERM:
+		case EACCES:
 			tp->t_softerror = error;
 			/* FALLTHROUGH */
 		case EHOSTDOWN:

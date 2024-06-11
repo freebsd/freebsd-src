@@ -407,10 +407,14 @@ int iter_dp_cangodown(struct query_info* qinfo, struct delegpt* dp);
  * 	Used for NXDOMAIN checks, above that it is an nxdomain from a
  * 	different server and zone. You can pass NULL to not get it.
  * @param retdpnamelen: returns the length of the dpname.
+ * @param dpname_storage: this is where the dpname buf is stored, if any.
+ * 	So that caller can manage the buffer.
+ * @param dpname_storage_len: size of dpname_storage buffer.
  * @return true if no_cache is set in stub or fwd.
  */
 int iter_stub_fwd_no_cache(struct module_qstate *qstate,
-	struct query_info *qinf, uint8_t** retdpname, size_t* retdpnamelen);
+	struct query_info *qinf, uint8_t** retdpname, size_t* retdpnamelen,
+	uint8_t* dpname_storage, size_t dpname_storage_len);
 
 /**
  * Set support for IP4 and IP6 depending on outgoing interfaces

@@ -1,3 +1,168 @@
+2024-05-04  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20240504
+
+	* dirdeps.mk: allow BUILD_DIRDEPS_OVERRIDES to pass overrides to
+	sub-make building DIRDEPS_CACHE.
+
+2024-04-24  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* meta.autodep.mk: do not override start_utc
+
+2024-04-18  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* sys.dirdeps.mk: set defaults for DEP_* at level 0 too.
+	These help when first include of Makefile.depend happens in a leaf
+	dir.
+
+	* install-mk (MK_VERSION): 20240414
+
+2024-04-09  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20240408
+
+	* init.mk: allow for _ as well as . to join V
+	and Q from QUALIFIED_VAR_LIST and VAR_QUALIFIER_LIST.
+
+	* progs.mk: avoid overlap between PROG_VARS and
+	init.mk's QUALIFIED_VAR_LIST since PROG would also
+	match its VAR_QUALIFIER_LIST,
+	libs.mk does not have the same issue.
+
+	* subdir.mk: _SUBDIRUSE for realinstall should run install
+	remove include of ${.CURDIR}/Makefile.inc that can be done via
+	local.subdir.mk where needed
+
+	* own.mk: do not conflict with man.mk
+
+2024-03-19  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20240314
+
+	* add sys/Cygwin.mk from Christian Franke
+
+2024-03-09  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20240309
+	
+	* meta.sys.mk: _metaError: if .ERROR_EXIT == 6, we do not
+	want to save the .ERROR_META_FILE
+
+2024-02-20  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20240220
+
+	* sys.dirdeps.mk, dirdeps-targets.mk, init.mk:
+	do not set .MAIN: dirdeps in sys.dirdeps.mk
+	dirdeps-targets.mk will do that for top-level builds
+	and init.mk will do it for others.
+	This allows a Makefile which has no need of 'dirdeps' to
+	set .MAIN for itself and "just work".
+
+2024-02-18  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* bsd.*.mk: for makefiles that get a bsd. symlink,
+	use _this in  multiple inclusion tags since .PARSEFILE will not
+	DTRT when such a makefile is included directly by Makefile and
+	automatically (without bsd. prefix).
+	Since we cannot guarantee that our sys.mk will be used, we provide
+	a default _this in each makefile that gets a bsd. prefix such that
+	the value is the same regardless of bsd. prefix.
+
+	* subdir.mk: drop the !target guard on $SUBDIR_TARGETS
+
+2024-02-12  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20240212
+
+	* SPDX-License-Identifier: BSD-2-Clause
+	Add SPDX-License-Identifier to inidicate that I consider
+	my copyright on any of these makefiles equivalent to BSD-2-Clause
+
+	* autoconf.mk: allow for configure.ac as currently recommended
+
+	* subdir.mk: support @auto
+	which is replaced with each subdir that
+	has a [Mm]akefile.
+
+	* subdir.mk: include local.subdir.mk if it exists.
+
+	* subdir.mk: rework to handle .WAIT 
+
+2024-02-11  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* subdir.mk: _SUBDIRUSE report the target we are entering subdirs for.
+
+2024-02-10  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* prog.mk: treat empty SRCS the same as undefined
+
+2024-02-02  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* Avoid undefined errors in lint (-dL) mode
+
+	* man.mk (CMT2DOC_FLAGS): note that -mm does mdoc(7)
+
+2024-01-28  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20240128
+
+	* FILES: add ccm.dep.mk for C++ modules
+	add suffixes.mk for common location for generic SUFFIX rules.
+
+	* auto.dep.mk autodep.mk meta.autodep.mk: include ccm.dep.mk
+	replace OBJ_EXTENSIONS with OBJ_SUFFIXES
+
+	* autodep.mk: leverage CXX_SUFFIXES for __depsrcs
+	and update style (spaces around = etc)
+
+	* init.mk: add OBJS_SRCS_FILTER to filter SRCS when
+	setting OBJS
+
+	* meta2deps.py: handle multiple ./ embedded in path better.
+
+2024-01-05  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20240105
+	* dirdeps.mk: for MAKE_VERSION 20240105 we do not have the same
+	limits on command line length, so skip export of lists to env.
+
+2023-12-24  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* man.mk: add logic for staging man pages
+
+2023-11-28  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* jobs.mk: avoid C suffix in JOB_MAX_C if factor is floating
+	point.  This keeps JOB_MAX numeric incase another makefile does
+	comparisons.
+
+2023-11-04  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* dpadd.mk: add support for DPLIBS_QUALIFIER_LIST
+
+	* gendirdeps.mk: if META_XTRAS is passed to us, add to META_FILES
+
+2023-10-03  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* compiler.mk (COMPILER_VERSION): clang at least is into
+	double digit major versions.
+
+2023-10-02  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20231001
+
+	* set _CCLINK in init.mk so lib.mk can use it for default SHLIB_LD
+
+	* lib.mk (cleanlib): use LD_solink so we remove all the right files.
+	Use -Wl for -soname since we now default to linking with CC
+	We should not need SHLIB_LDSTARTFILE or SHLIB_LDENDFILE when linking
+	with CC.
+
+2023-09-24  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* init.mk (QUALIFIED_VAR_LIST): Add SRCS
+
 2023-09-09  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* jobs.mk (JOB_MAX): use -jC if we can

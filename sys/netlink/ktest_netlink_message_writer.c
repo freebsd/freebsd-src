@@ -29,9 +29,9 @@
 #include <sys/cdefs.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
-#include <sys/mbuf.h>
 #include <netlink/netlink.h>
 #include <netlink/netlink_ctl.h>
+#include <netlink/netlink_var.h>
 #include <netlink/netlink_message_writer.h>
 
 #define KTEST_CALLER
@@ -39,53 +39,46 @@
 
 #ifdef INVARIANTS
 
-struct test_mbuf_attrs {
+struct test_nlbuf_attrs {
 	uint32_t	size;
 	uint32_t	expected_avail;
-	uint32_t	expected_count;
-	uint32_t	wtype;
 	int		waitok;
 };
 
-#define	_OUT(_field)	offsetof(struct test_mbuf_attrs, _field)
-static const struct nlattr_parser nla_p_mbuf_w[] = {
+#define	_OUT(_field)	offsetof(struct test_nlbuf_attrs, _field)
+static const struct nlattr_parser nla_p_nlbuf_w[] = {
 	{ .type = 1, .off = _OUT(size), .cb = nlattr_get_uint32 },
 	{ .type = 2, .off = _OUT(expected_avail), .cb = nlattr_get_uint32 },
-	{ .type = 3, .off = _OUT(expected_count), .cb = nlattr_get_uint32 },
-	{ .type = 4, .off = _OUT(wtype), .cb = nlattr_get_uint32 },
-	{ .type = 5, .off = _OUT(waitok), .cb = nlattr_get_uint32 },
+	{ .type = 3, .off = _OUT(waitok), .cb = nlattr_get_uint32 },
 };
 #undef _OUT
-NL_DECLARE_ATTR_PARSER(mbuf_w_parser, nla_p_mbuf_w);
+NL_DECLARE_ATTR_PARSER(nlbuf_w_parser, nla_p_nlbuf_w);
 
 static int
-test_mbuf_parser(struct ktest_test_context *ctx, struct nlattr *nla)
+test_nlbuf_parser(struct ktest_test_context *ctx, struct nlattr *nla)
 {
-	struct test_mbuf_attrs *attrs = npt_alloc(ctx->npt, sizeof(*attrs));
+	struct test_nlbuf_attrs *attrs = npt_alloc(ctx->npt, sizeof(*attrs));
 
 	ctx->arg = attrs;
 	if (attrs != NULL)
-		return (nl_parse_nested(nla, &mbuf_w_parser, ctx->npt, attrs));
+		return (nl_parse_nested(nla, &nlbuf_w_parser, ctx->npt, attrs));
 	return (ENOMEM);
 }
 
 static int
-test_mbuf_writer_allocation(struct ktest_test_context *ctx)
+test_nlbuf_writer_allocation(struct ktest_test_context *ctx)
 {
-	struct test_mbuf_attrs *attrs = ctx->arg;
-	bool ret;
+	struct test_nlbuf_attrs *attrs = ctx->arg;
 	struct nl_writer nw = {};
+	u_int alloc_len;
+	bool ret;
 
-	ret = nlmsg_get_buf_type_wrapper(&nw, attrs->size, attrs->wtype, attrs->waitok);
+	ret = nlmsg_get_buf_wrapper(&nw, attrs->size, attrs->waitok);
 	if (!ret)
 		return (EINVAL);
 
-	int alloc_len = nw.alloc_len;
+	alloc_len = nw.buf->buflen;
 	KTEST_LOG(ctx, "requested %u, allocated %d", attrs->size, alloc_len);
-
-	/* Set cleanup callback */
-	nw.writer_target = NS_WRITER_TARGET_SOCKET;
-	nlmsg_set_callback_wrapper(&nw);
 
 	/* Mark enomem to avoid reallocation */
 	nw.enomem = true;
@@ -95,52 +88,11 @@ test_mbuf_writer_allocation(struct ktest_test_context *ctx)
 		return (EINVAL);
 	}
 
-	/* Mark as empty to free the storage */
-	nw.offset = 0;
-	nlmsg_flush(&nw);
+	nl_buf_free(nw.buf);
 
 	if (alloc_len < attrs->expected_avail) {
 		KTEST_LOG(ctx, "alloc_len %d, expected %u",
 		    alloc_len, attrs->expected_avail);
-		return (EINVAL);
-	}
-
-	return (0);
-}
-
-static int
-test_mbuf_chain_allocation(struct ktest_test_context *ctx)
-{
-	struct test_mbuf_attrs *attrs = ctx->arg;
-	int mflags = attrs->waitok ? M_WAITOK : M_NOWAIT;
-	struct mbuf *chain = nl_get_mbuf_chain_wrapper(attrs->size, mflags);
-
-	if (chain == NULL) {
-		KTEST_LOG(ctx, "nl_get_mbuf_chain(%u) returned NULL", attrs->size);
-		return (EINVAL);
-	}
-
-	/* Iterate and check number of mbufs and space */
-	uint32_t allocated_count = 0, allocated_size = 0;
-	for (struct mbuf *m = chain; m != NULL; m = m->m_next) {
-		allocated_count++;
-		allocated_size += M_SIZE(m);
-	}
-	m_freem(chain);
-
-	if (attrs->expected_avail > allocated_size) {
-		KTEST_LOG(ctx, "expected/allocated avail(bytes) %u/%u"
-				" expected/allocated count %u/%u",
-		    attrs->expected_avail, allocated_size,
-		    attrs->expected_count, allocated_count);
-		return (EINVAL);
-	}
-
-	if (attrs->expected_count > 0 && (attrs->expected_count != allocated_count)) {
-		KTEST_LOG(ctx, "expected/allocated avail(bytes) %u/%u"
-				" expected/allocated count %u/%u",
-		    attrs->expected_avail, allocated_size,
-		    attrs->expected_count, allocated_count);
 		return (EINVAL);
 	}
 
@@ -151,16 +103,10 @@ test_mbuf_chain_allocation(struct ktest_test_context *ctx)
 static const struct ktest_test_info tests[] = {
 #ifdef INVARIANTS
 	{
-		.name = "test_mbuf_writer_allocation",
-		.desc = "test different mbuf sizes in the mbuf writer",
-		.func = &test_mbuf_writer_allocation,
-		.parse = &test_mbuf_parser,
-	},
-	{
-		.name = "test_mbuf_chain_allocation",
-		.desc = "verify allocation different chain sizes",
-		.func = &test_mbuf_chain_allocation,
-		.parse = &test_mbuf_parser,
+		.name = "test_nlbuf_writer_allocation",
+		.desc = "test different buffer sizes in the netlink writer",
+		.func = &test_nlbuf_writer_allocation,
+		.parse = &test_nlbuf_parser,
 	},
 #endif
 };

@@ -51,7 +51,7 @@
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <dev/extres/phy/phy.h>
+#include <dev/phy/phy.h>
 
 #include "generic_xhci.h"
 

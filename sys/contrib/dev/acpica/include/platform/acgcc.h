@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -152,7 +152,6 @@
 #ifndef __ACGCC_H__
 #define __ACGCC_H__
 
-#ifndef _KERNEL
 /*
  * Use compiler specific <stdarg.h> is a good practice for even when
  * -nostdinc is specified (i.e., ACPI_USE_STANDARD_HEADERS undefined.
@@ -165,6 +164,7 @@ typedef __builtin_va_list       va_list;
 #define va_arg(v, l)            __builtin_va_arg(v, l)
 #define va_copy(d, s)           __builtin_va_copy(d, s)
 #else
+#if !defined(__FreeBSD__) || !defined(_KERNEL)
 #include <stdarg.h>
 #endif
 #endif
@@ -212,5 +212,16 @@ typedef __builtin_va_list       va_list;
 #if __has_attribute(__fallthrough__)
 #define ACPI_FALLTHROUGH __attribute__((__fallthrough__))
 #endif
+
+/*
+ * Flexible array members are not allowed to be part of a union under
+ * C99, but this is not for any technical reason. Work around the
+ * limitation.
+ */
+#define ACPI_FLEX_ARRAY(TYPE, NAME)             \
+        struct {                                \
+                struct { } __Empty_ ## NAME;    \
+                TYPE NAME[];                    \
+        }
 
 #endif /* __ACGCC_H__ */

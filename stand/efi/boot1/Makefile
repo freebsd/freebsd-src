@@ -29,7 +29,7 @@ CWARNFLAGS.zfs_module.c += -Wno-unused-parameter
 CWARNFLAGS.zfs_module.c += -Wno-unused-function
 
 # architecture-specific loader code
-SRCS+=	boot1.c proto.c self_reloc.c start.S ufs_module.c devpath.c
+SRCS+=	boot1.c proto.c self_reloc.c start.S ufs_module.c
 .if ${MK_LOADER_ZFS} != "no"
 SRCS+=		zfs_module.c
 CFLAGS.zfs_module.c+=	-I${ZFSSRC}
@@ -58,13 +58,12 @@ CFLAGS+=	-DEFI_DEBUG
 .PATH:		${EFISRC}/loader/arch/${MACHINE}
 .PATH:		${EFISRC}/loader
 .PATH:		${LDRSRC}
-.PATH:		${EFISRC}/libefi
 CFLAGS+=	-I${LDRSRC}
 
 FILES=	${BOOT1}.efi
 FILESMODE_${BOOT1}.efi=	${BINMODE}
 
-LDSCRIPT=	${EFISRC}/loader/arch/${MACHINE}/ldscript.${MACHINE}
+LDSCRIPT=	${EFISRC}/loader/arch/${MACHINE}/${MACHINE}.ldscript
 LDFLAGS+=	-Wl,-T${LDSCRIPT},-Bsymbolic,-znotext -pie
 .if ${LINKER_TYPE} == "bfd" && ${LINKER_VERSION} >= 23400
 LDFLAGS+=	-Wl,--no-dynamic-linker

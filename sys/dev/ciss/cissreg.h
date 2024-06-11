@@ -684,14 +684,14 @@ struct ciss_bmic_id_table {
     u_int8_t	percent_write_cache;     /* Percent of memory allocated to write cache */
     u_int16_t	daughterboard_size_mb;   /* Total size (MB) of cache board      */
     u_int8_t	cache_batter_count;      /* Number of cache batteries           */
-    u_int16_t	total_controller_mem_mb; /* Total size (MB) of atttached memory */
+    u_int16_t	total_controller_mem_mb; /* Total size (MB) of attached memory  */
     u_int8_t	more_controller_flags;   /* Additional controller flags byte    */
     u_int8_t	x_board_host_i2c_rev;    /* 2nd byte of 3 byte autorev field    */
     u_int8_t	battery_pic_rev;         /* BBWC PIC revision                   */
 /*
  * Below here I have no documentation on the rest of this data structure.  It is
  * inferred from the opensource cciss_vol_status application.  I assume that this 
- * data strucutre is 512 bytes in total size, do not exceed it.
+ * data structure is 512 bytes in total size, do not exceed it.
  */
     u_int8_t	bDdffVersion[4];         /* DDFF update engine version          */
     u_int16_t	usMaxLogicalUnits;       /* Maximum logical units supported */

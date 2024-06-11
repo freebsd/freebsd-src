@@ -166,6 +166,13 @@ int slabhash_is_size(struct slabhash* sl, size_t size, size_t slabs)
 	return 0;
 }
 
+void slabhash_update_space_used(struct slabhash* sl, hashvalue_type hash,
+	void* cb_arg, int diff_size)
+{
+	lruhash_update_space_used(sl->array[slab_idx(sl, hash)], cb_arg,
+		diff_size);
+}
+
 size_t slabhash_get_mem(struct slabhash* sl)
 {	
 	size_t i, total = sizeof(*sl);

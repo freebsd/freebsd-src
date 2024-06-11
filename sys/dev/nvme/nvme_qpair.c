@@ -414,9 +414,11 @@ static void
 nvme_qpair_complete_tracker(struct nvme_tracker *tr,
     struct nvme_completion *cpl, error_print_t print_on_error)
 {
-	struct nvme_qpair * qpair = tr->qpair;
+	struct nvme_qpair	*qpair = tr->qpair;
 	struct nvme_request	*req;
 	bool			retry, error, retriable;
+
+	mtx_assert(&qpair->lock, MA_NOTOWNED);
 
 	req = tr->req;
 	error = nvme_completion_is_error(cpl);
@@ -486,16 +488,17 @@ nvme_qpair_manual_complete_tracker(
     error_print_t print_on_error)
 {
 	struct nvme_completion	cpl;
+	struct nvme_qpair * qpair = tr->qpair;
+
+	mtx_assert(&qpair->lock, MA_NOTOWNED);
 
 	memset(&cpl, 0, sizeof(cpl));
 
-	struct nvme_qpair * qpair = tr->qpair;
-
 	cpl.sqid = qpair->id;
 	cpl.cid = tr->cid;
-	cpl.status |= (sct & NVME_STATUS_SCT_MASK) << NVME_STATUS_SCT_SHIFT;
-	cpl.status |= (sc & NVME_STATUS_SC_MASK) << NVME_STATUS_SC_SHIFT;
-	cpl.status |= (dnr & NVME_STATUS_DNR_MASK) << NVME_STATUS_DNR_SHIFT;
+	cpl.status |= NVMEF(NVME_STATUS_SCT, sct);
+	cpl.status |= NVMEF(NVME_STATUS_SC, sc);
+	cpl.status |= NVMEF(NVME_STATUS_DNR, dnr);
 	/* M=0 : this is artificial so no data in error log page */
 	/* CRD=0 : this is artificial and no delayed retry support anyway */
 	/* P=0 : phase not checked */
@@ -511,8 +514,8 @@ nvme_qpair_manual_complete_request(struct nvme_qpair *qpair,
 
 	memset(&cpl, 0, sizeof(cpl));
 	cpl.sqid = qpair->id;
-	cpl.status |= (sct & NVME_STATUS_SCT_MASK) << NVME_STATUS_SCT_SHIFT;
-	cpl.status |= (sc & NVME_STATUS_SC_MASK) << NVME_STATUS_SC_SHIFT;
+	cpl.status |= NVMEF(NVME_STATUS_SCT, sct);
+	cpl.status |= NVMEF(NVME_STATUS_SC, sc);
 
 	error = nvme_completion_is_error(&cpl);
 
@@ -950,27 +953,26 @@ nvme_admin_qpair_abort_aers(struct nvme_qpair *qpair)
 	/*
 	 * nvme_complete_tracker must be called without the qpair lock held. It
 	 * takes the lock to adjust outstanding_tr list, so make sure we don't
-	 * have it yet (since this is a general purpose routine). We take the
-	 * lock to make the list traverse safe, but have to drop the lock to
-	 * complete any AER. We restart the list scan when we do this to make
-	 * this safe. There's interlock with the ISR so we know this tracker
-	 * won't be completed twice.
+	 * have it yet. We need the lock to make the list traverse safe, but
+	 * have to drop the lock to complete any AER. We restart the list scan
+	 * when we do this to make this safe. There's interlock with the ISR so
+	 * we know this tracker won't be completed twice.
 	 */
 	mtx_assert(&qpair->lock, MA_NOTOWNED);
 
 	mtx_lock(&qpair->lock);
 	tr = TAILQ_FIRST(&qpair->outstanding_tr);
 	while (tr != NULL) {
-		if (tr->req->cmd.opc == NVME_OPC_ASYNC_EVENT_REQUEST) {
-			mtx_unlock(&qpair->lock);
-			nvme_qpair_manual_complete_tracker(tr,
-			    NVME_SCT_GENERIC, NVME_SC_ABORTED_SQ_DELETION, 0,
-			    ERROR_PRINT_NONE);
-			mtx_lock(&qpair->lock);
-			tr = TAILQ_FIRST(&qpair->outstanding_tr);
-		} else {
+		if (tr->req->cmd.opc != NVME_OPC_ASYNC_EVENT_REQUEST) {
 			tr = TAILQ_NEXT(tr, tailq);
+			continue;
 		}
+		mtx_unlock(&qpair->lock);
+		nvme_qpair_manual_complete_tracker(tr,
+		    NVME_SCT_GENERIC, NVME_SC_ABORTED_SQ_DELETION, 0,
+		    ERROR_PRINT_NONE);
+		mtx_lock(&qpair->lock);
+		tr = TAILQ_FIRST(&qpair->outstanding_tr);
 	}
 	mtx_unlock(&qpair->lock);
 }
@@ -1068,7 +1070,7 @@ nvme_qpair_timeout(void *arg)
 		 * usually doesn't).
 		 */
 		csts = nvme_mmio_read_4(ctrlr, csts);
-		cfs = (csts >> NVME_CSTS_REG_CFS_SHIFT) & NVME_CSTS_REG_CFS_MASK;
+		cfs = NVMEV(NVME_CSTS_REG_CFS, csts);
 		if (csts == NVME_GONE || cfs == 1)
 			goto do_reset;
 
@@ -1201,7 +1203,7 @@ nvme_qpair_submit_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr)
 
 	bus_dmamap_sync(qpair->dma_tag, qpair->queuemem_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-	bus_space_write_4(qpair->ctrlr->bus_tag, qpair->ctrlr->bus_handle,
+	bus_space_write_4(ctrlr->bus_tag, ctrlr->bus_handle,
 	    qpair->sq_tdbl_off, qpair->sq_tail);
 	qpair->num_cmds++;
 }
@@ -1313,6 +1315,11 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 		return;
 	}
 
+	/*
+	 * tr->deadline updating when nvme_payload_map calls
+	 * nvme_qpair_submit_tracker (we call it above directly
+	 * when there's no map to load).
+	 */
 	err = bus_dmamap_load_mem(tr->qpair->dma_tag_payload,
 	    tr->payload_dma_map, &req->payload, nvme_payload_map, tr, 0);
 	if (err != 0) {

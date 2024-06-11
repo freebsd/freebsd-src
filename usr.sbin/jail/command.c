@@ -291,9 +291,9 @@ run_command(struct cfjail *j)
 	login_cap_t *lcap;
 	const char **argv;
 	char *acs, *cs, *comcs, *devpath;
-	const char *jidstr, *conslog, *path, *ruleset, *term, *username;
+	const char *jidstr, *conslog, *fmt, *path, *ruleset, *term, *username;
 	enum intparam comparam;
-	size_t comlen;
+	size_t comlen, ret;
 	pid_t pid;
 	cpusetid_t setid;
 	int argc, bg, clean, consfd, down, fib, i, injail, sjuser, timeout;
@@ -588,6 +588,31 @@ run_command(struct cfjail *j)
 			argv[4] = devpath;
 			argv[5] = NULL;
 		}
+		break;
+
+	case IP_ZFS_DATASET:
+		argv = alloca(4 * sizeof(char *));
+		jidstr = string_param(j->intparams[KP_JID]) ?
+		    string_param(j->intparams[KP_JID]) :
+		    string_param(j->intparams[KP_NAME]);
+		fmt = "if [ $(/sbin/zfs get -H -o value jailed %s) = on ]; then /sbin/zfs jail %s %s || echo error, attaching %s to jail %s failed; else echo error, you need to set jailed=on for dataset %s; fi";
+		comlen = strlen(fmt)
+		    + 2 * strlen(jidstr)
+		    + 4 * comstring->len
+		    - 6 * 2	/* 6 * "%s" */
+		    + 1;
+		comcs = alloca(comlen);
+		ret = snprintf(comcs, comlen, fmt, comstring->s,
+		    jidstr, comstring->s, comstring->s, jidstr,
+		    comstring->s);
+		if (ret >= comlen) {
+			jail_warnx(j, "internal error in ZFS dataset handling");
+			exit(1);
+		}
+		argv[0] = _PATH_BSHELL;
+		argv[1] = "-c";
+		argv[2] = comcs;
+		argv[3] = NULL;
 		break;
 
 	case IP_COMMAND:

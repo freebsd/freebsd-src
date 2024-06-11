@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -197,6 +197,7 @@ ACPI_RSCONVERT_INFO         *AcpiGbl_SetResourceDispatch[] =
     AcpiRsConvertPinGroup,          /* 0x16, ACPI_RESOURCE_TYPE_PIN_GROUP */
     AcpiRsConvertPinGroupFunction,  /* 0x17, ACPI_RESOURCE_TYPE_PIN_GROUP_FUNCTION */
     AcpiRsConvertPinGroupConfig,    /* 0x18, ACPI_RESOURCE_TYPE_PIN_GROUP_CONFIG */
+    AcpiRsConvertClockInput,        /* 0x19, ACPI_RESOURCE_TYPE_CLOCK_INPUT */
 };
 
 /* Dispatch tables for AML-to-resource (Get Resource) conversion functions */
@@ -243,6 +244,7 @@ ACPI_RSCONVERT_INFO         *AcpiGbl_GetResourceDispatch[] =
     AcpiRsConvertPinGroup,          /* 0x10, ACPI_RESOURCE_NAME_PIN_GROUP */
     AcpiRsConvertPinGroupFunction,  /* 0x11, ACPI_RESOURCE_NAME_PIN_GROUP_FUNCTION */
     AcpiRsConvertPinGroupConfig,    /* 0x12, ACPI_RESOURCE_NAME_PIN_GROUP_CONFIG */
+    AcpiRsConvertClockInput,        /* 0x13, ACPI_RESOURCE_NAME_CLOCK_INPUT */
 };
 
 /* Subtype table for SerialBus -- I2C, SPI, UART, and CSI2 */
@@ -288,6 +290,7 @@ ACPI_RSDUMP_INFO            *AcpiGbl_DumpResourceDispatch[] =
     AcpiRsDumpPinGroup,             /* ACPI_RESOURCE_TYPE_PIN_GROUP */
     AcpiRsDumpPinGroupFunction,     /* ACPI_RESOURCE_TYPE_PIN_GROUP_FUNCTION */
     AcpiRsDumpPinGroupConfig,       /* ACPI_RESOURCE_TYPE_PIN_GROUP_CONFIG */
+    AcpiRsDumpClockInput,           /* ACPI_RESOURCE_TYPE_CLOCK_INPUT */
 };
 
 ACPI_RSDUMP_INFO            *AcpiGbl_DumpSerialBusDispatch[] =
@@ -333,6 +336,7 @@ const UINT8                 AcpiGbl_AmlResourceSizes[] =
     sizeof (AML_RESOURCE_PIN_GROUP),        /* ACPI_RESOURCE_TYPE_PIN_GROUP */
     sizeof (AML_RESOURCE_PIN_GROUP_FUNCTION), /* ACPI_RESOURCE_TYPE_PIN_GROUP_FUNCTION */
     sizeof (AML_RESOURCE_PIN_GROUP_CONFIG), /* ACPI_RESOURCE_TYPE_PIN_GROUP_CONFIG */
+    sizeof (AML_RESOURCE_CLOCK_INPUT),      /* ACPI_RESOURCE_TYPE_CLOCK_INPUT */
 };
 
 
@@ -378,6 +382,7 @@ const UINT8                 AcpiGbl_ResourceStructSizes[] =
     ACPI_RS_SIZE (ACPI_RESOURCE_PIN_GROUP),
     ACPI_RS_SIZE (ACPI_RESOURCE_PIN_GROUP_FUNCTION),
     ACPI_RS_SIZE (ACPI_RESOURCE_PIN_GROUP_CONFIG),
+    ACPI_RS_SIZE (ACPI_RESOURCE_CLOCK_INPUT),
 };
 
 const UINT8                 AcpiGbl_AmlResourceSerialBusSizes[] =

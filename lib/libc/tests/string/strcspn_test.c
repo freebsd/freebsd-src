@@ -150,7 +150,7 @@ ATF_TC_BODY(set_alignments, tc)
 #ifndef STRSPN
 /* test all positions in which set could match buf */
 static void
-test_match_positions(char *buf,  char *set, size_t buflen, size_t setlen)
+test_match_positions(char *buf, char *set, size_t buflen, size_t setlen)
 {
 	size_t i, j, outcome;
 
@@ -206,6 +206,54 @@ ATF_TC_BODY(match_positions, tc)
 	test_match_positions(buf, set, 16, 8);
 	test_match_positions(buf, set, 8, 8);
 }
+
+/* if there are two matches, check that the earlier match is taken */
+static void
+test_match_order(char *buf, char *set, size_t buflen, size_t setlen)
+{
+	size_t i, j, k, l, outcome;
+
+	memset(buf, '-', buflen);
+
+	for (i = 0; i < setlen; i++)
+		set[i] = 'A' + i;
+
+	buf[buflen] = '\0';
+	set[setlen] = '\0';
+
+	for (i = 0; i < setlen; i++)
+		for (j = 0; j < setlen; j++)
+			for (k = 0; k + 1 < buflen; k++)
+				for (l = k + 1; l < buflen; l++) {
+					buf[k] = set[i];
+					buf[l] = set[j];
+					outcome = strcspn(buf, set);
+					ATF_CHECK_EQ_MSG(k, outcome,
+					    "strcspn(\"%s\", \"%s\") = %zu != %zu",
+					    buf, set, outcome, k);
+					buf[k] = '-';
+					buf[l] = '-';
+				}
+}
+
+ATF_TC_WITHOUT_HEAD(match_order);
+ATF_TC_BODY(match_order, tc)
+{
+	char buf[33], set[65];
+
+	test_match_order(buf, set, 32, 64);
+	test_match_order(buf, set, 16, 64);
+	test_match_order(buf, set, 8, 64);
+	test_match_order(buf, set, 32, 32);
+	test_match_order(buf, set, 16, 32);
+	test_match_order(buf, set, 8, 32);
+	test_match_order(buf, set, 32, 16);
+	test_match_order(buf, set, 16, 16);
+	test_match_order(buf, set, 8, 16);
+	test_match_order(buf, set, 32, 8);
+	test_match_order(buf, set, 16, 8);
+	test_match_order(buf, set, 8, 8);
+}
 #endif /* !defined(STRSPN) */
 
 ATF_TP_ADD_TCS(tp)
@@ -214,6 +262,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, set_alignments);
 #ifndef STRSPN
 	ATF_TP_ADD_TC(tp, match_positions);
+	ATF_TP_ADD_TC(tp, match_order);
 #endif
 
 	return (atf_no_error());

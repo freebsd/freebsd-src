@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -565,13 +565,6 @@ AcpiNsRepair_CID (
 
             (*ElementPtr)->Common.ReferenceCount =
                 OriginalRefCount;
-
-            /*
-             * The OriginalElement holds a reference from the package object
-             * that represents _HID. Since a new element was created by _HID,
-             * remove the reference from the _CID package.
-             */
-            AcpiUtRemoveReference (OriginalElement);
         }
 
         ElementPtr++;
@@ -702,7 +695,7 @@ AcpiNsRepair_HID (
     char                    *Dest;
 
 
-    ACPI_FUNCTION_NAME (NsRepair_HID);
+    ACPI_FUNCTION_TRACE (NsRepair_HID);
 
 
     /* We only care about string _HID objects (not integers) */

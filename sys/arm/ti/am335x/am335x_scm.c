@@ -37,7 +37,7 @@
 #include <arm/ti/ti_cpuid.h>
 #include <arm/ti/ti_scm.h>
 
-#include <dev/extres/syscon/syscon.h>
+#include <dev/syscon/syscon.h>
 #include "syscon_if.h"
 
 #define	TZ_ZEROC	2731

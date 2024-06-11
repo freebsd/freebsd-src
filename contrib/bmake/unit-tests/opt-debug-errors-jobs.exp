@@ -2,6 +2,7 @@ echo '3   spaces'; false
 3   spaces
 
 *** Failed target: fail-spaces
+*** In directory: <curdir>
 *** Failed commands:
 	echo '3   spaces'; false
 *** [fail-spaces] Error code 1
@@ -11,6 +12,7 @@ echo \  indented; false
   indented
 
 *** Failed target: fail-escaped-space
+*** In directory: <curdir>
 *** Failed commands:
 	echo \  indented; false
 *** [fail-escaped-space] Error code 1
@@ -22,6 +24,7 @@ line1
 line2
 
 *** Failed target: fail-newline
+*** In directory: <curdir>
 *** Failed commands:
 	echo 'line1${.newline}line2'; false
 	=> echo 'line1
@@ -33,6 +36,7 @@ echo 'line1 line2'; false
 line1 line2
 
 *** Failed target: fail-multiline
+*** In directory: <curdir>
 *** Failed commands:
 	echo 'line1 line2'; false
 *** [fail-multiline] Error code 1
@@ -42,6 +46,7 @@ echo	'word1'							 'word2'; false
 word1 word2
 
 *** Failed target: fail-multiline-intention
+*** In directory: <curdir>
 *** Failed commands:
 	echo	'word1'							 'word2'; false
 *** [fail-multiline-intention] Error code 1
@@ -49,6 +54,7 @@ word1 word2
 make: stopped in unit-tests
 
 *** Failed target: fail-vars
+*** In directory: <curdir>
 *** Failed commands:
 	@${COMPILE_C} ${COMPILE_C_FLAGS}
 	=> @false c-compiler flag1 -macro="several words"

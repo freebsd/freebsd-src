@@ -22,7 +22,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2020 Joyent, Inc. All rights reserved.
- * Copyright (c) 2011, 2020 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2024 by Delphix. All rights reserved.
  * Copyright 2016 Igor Kozhukhov <ikozhukhov@gmail.com>
  * Copyright (c) 2017 Datto Inc.
  * Copyright (c) 2020 The FreeBSD Foundation
@@ -319,6 +319,9 @@ libzfs_error_description(libzfs_handle_t *hdl)
 		    "dataset without force"));
 	case EZFS_RAIDZ_EXPAND_IN_PROGRESS:
 		return (dgettext(TEXT_DOMAIN, "raidz expansion in progress"));
+	case EZFS_ASHIFT_MISMATCH:
+		return (dgettext(TEXT_DOMAIN, "adding devices with "
+		    "different physical sector sizes is not allowed"));
 	case EZFS_UNKNOWN:
 		return (dgettext(TEXT_DOMAIN, "unknown error"));
 	default:
@@ -513,7 +516,7 @@ zfs_standard_error_fmt(libzfs_handle_t *hdl, int error, const char *fmt, ...)
 		zfs_verror(hdl, EZFS_NOT_USER_NAMESPACE, fmt, ap);
 		break;
 	default:
-		zfs_error_aux(hdl, "%s", strerror(error));
+		zfs_error_aux(hdl, "%s", zfs_strerror(error));
 		zfs_verror(hdl, EZFS_UNKNOWN, fmt, ap);
 		break;
 	}
@@ -768,8 +771,11 @@ zpool_standard_error_fmt(libzfs_handle_t *hdl, int error, const char *fmt, ...)
 	case ZFS_ERR_RAIDZ_EXPAND_IN_PROGRESS:
 		zfs_verror(hdl, EZFS_RAIDZ_EXPAND_IN_PROGRESS, fmt, ap);
 		break;
+	case ZFS_ERR_ASHIFT_MISMATCH:
+		zfs_verror(hdl, EZFS_ASHIFT_MISMATCH, fmt, ap);
+		break;
 	default:
-		zfs_error_aux(hdl, "%s", strerror(error));
+		zfs_error_aux(hdl, "%s", zfs_strerror(error));
 		zfs_verror(hdl, EZFS_UNKNOWN, fmt, ap);
 	}
 
@@ -1704,7 +1710,9 @@ zprop_parse_value(libzfs_handle_t *hdl, nvpair_t *elem, int prop,
 		    (prop == VDEV_PROP_CHECKSUM_N ||
 		    prop == VDEV_PROP_CHECKSUM_T ||
 		    prop == VDEV_PROP_IO_N ||
-		    prop == VDEV_PROP_IO_T)) {
+		    prop == VDEV_PROP_IO_T ||
+		    prop == VDEV_PROP_SLOW_IO_N ||
+		    prop == VDEV_PROP_SLOW_IO_T)) {
 			*ivalp = UINT64_MAX;
 		}
 
@@ -1968,7 +1976,7 @@ zfs_version_print(void)
 	char *kver = zfs_version_kernel();
 	if (kver == NULL) {
 		fprintf(stderr, "zfs_version_kernel() failed: %s\n",
-		    strerror(errno));
+		    zfs_strerror(errno));
 		return (-1);
 	}
 

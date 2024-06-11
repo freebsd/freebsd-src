@@ -81,11 +81,10 @@ snprintf_func(int ch, struct snprintf_arg *const info)
 		}
 		break;
 	case PRINT_METHOD_WRITE:
-		if (info->remain > 0) {
-			*info->str++ = ch;
-			info->remain--;
-		} else
+		if (info->remain == 0)
 			printf_out(info);
+		*info->str++ = ch;
+		info->remain--;
 		break;
 	}
 }

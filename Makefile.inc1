@@ -172,6 +172,32 @@ LIBCOMPAT_INCLUDE_DIRS+= i386
 LIBCOMPAT_INCLUDE_DIRS+= arm
 .endif
 
+.if !defined(_MKSHOWCONFIG)
+.if ((defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == "gcc") || \
+     (!defined(X_COMPILER_TYPE) && ${COMPILER_TYPE} == "gcc"))
+.if ${TARGET} == "arm"
+_GCC_BROKEN="https://reviews.freebsd.org/D36754"
+.endif
+.if ${TARGET_ARCH} == "powerpc"
+_GCC_BROKEN=Missing atomic builtins in libc++.
+.endif
+.if ${TARGET_ARCH:Mpowerpc64*}
+_GCC_BROKEN=libsys.so.7.full has a LOAD segment with RWX permissions.
+.endif
+.if ${TARGET} == "riscv"
+_GCC_BROKEN=boot code linker script issues.
+.endif
+.if defined(_GCC_BROKEN)
+.warning Target ${TARGET} is broken with GCC: ${_GCC_BROKEN}
+.if defined(TRY_GCC_BROKEN)
+.warning Trying build anyway.
+.else
+.error Avoiding broken build.  Define TRY_GCC_BROKEN to try anyway.
+.endif
+.endif
+.endif
+.endif
+
 .if ${.MAKE.OS} != "FreeBSD"
 CROSSBUILD_HOST=${.MAKE.OS}
 .if ${.MAKE.OS} != "Linux" && ${.MAKE.OS} != "Darwin"
@@ -1048,7 +1074,7 @@ _cleanworldtmp: .PHONY
 # Note: for delete-old we need to set $PATH to also include the host $PATH
 # since otherwise a partial build with missing symlinks in ${WORLDTMP}/legacy/
 # will fail to run due to missing binaries. $WMAKE sets PATH to only ${TMPPATH}
-# so we remove that assingnment from $WMAKE and prepend the new $PATH
+# so we remove that assignment from $WMAKE and prepend the new $PATH
 	${_+_}@if [ -e "${WORLDTMP}" ]; then \
 		echo ">>> Deleting stale files in build tree..."; \
 		cd ${.CURDIR}; env PATH=${TMPPATH:Q}:${PATH:Q} ${WMAKE:NPATH=*} \
@@ -1059,8 +1085,8 @@ _cleanworldtmp: .PHONY
 .if ${USING_SYSTEM_COMPILER} == "yes"
 .for cc in cc c++
 	if [ -x ${WORLDTMP}/usr/bin/${cc} ]; then \
-		inum=$$(stat -f %i ${WORLDTMP}/usr/bin/${cc}); \
-		find ${WORLDTMP}/usr/bin -inum $${inum} -delete; \
+		inum=$$(ls -i ${WORLDTMP}/usr/bin/${cc}); \
+		find ${WORLDTMP}/usr/bin -inum $${inum%% *} -delete; \
 	fi
 .endfor
 .endif	# ${USING_SYSTEM_COMPILER} == "yes"
@@ -2078,6 +2104,10 @@ create-packages-kernel:	_pkgbootstrap _repodir .PHONY
 			SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
 			create-kernel-packages
 
+create-packages-kernel-repo: .PHONY create-packages-kernel sign-packages
+
+create-packages-world-repo: .PHONY create-packages-world sign-packages
+
 create-packages-source:	_pkgbootstrap _repodir .PHONY
 	${_+_}@cd ${.CURDIR}; \
 		${MAKE} -f Makefile.inc1 \
@@ -2097,22 +2127,28 @@ create-source-packages: _pkgbootstrap .PHONY
 		( echo "@override_prefix /usr/src" ; \
 		${GIT_CMD} ls-files --recurse-submodules "sys/" ) \
 		> ${SSTAGEDIR}/src-sys.plist
-	sed -e "s/%VERSION%/${PKG_VERSION}/" \
-		-e "s/%DESC%/FreeBSD sources/" \
-		-e "s/ %VCS_REVISION%/${VCS_REVISION}/" \
-		-e "s/%PKG_NAME_PREFIX%/${PKG_NAME_PREFIX}/" \
-		-e "s/%PKG_MAINTAINER%/${PKG_MAINTAINER}/" \
-		-e "s|%PKG_WWW%|${PKG_WWW}|" \
-		${SRCDIR}/release/packages/src.ucl \
-		> ${SSTAGEDIR}/src.ucl
-	sed -e "s/%VERSION%/${PKG_VERSION}/" \
-		-e "s/%DESC%/FreeBSD Kernel sources/" \
-		-e "s/ %VCS_REVISION%/${VCS_REVISION}/" \
-		-e "s/%PKG_NAME_PREFIX%/${PKG_NAME_PREFIX}/" \
-		-e "s/%PKG_MAINTAINER%/${PKG_MAINTAINER}/" \
-		-e "s|%PKG_WWW%|${PKG_WWW}|" \
-		${SRCDIR}/release/packages/src-sys.ucl \
-		> ${SSTAGEDIR}/src-sys.ucl
+	${SRCDIR}/release/packages/generate-ucl.lua \
+		PKGNAME "src" \
+		PKGGENNAME "src" \
+		VERSION "${PKG_VERSION}" \
+		DESC "FreeBSD Kernel Sources" \
+		COMMENT "FreeBSD Userland Sources" \
+		PKG_NAME_PREFIX "${PKG_NAME_PREFIX}" \
+		PKG_MAINTAINER "${PKG_MAINTAINER}" \
+		PKG_WWW "${PKG_WWW}" \
+		${SRCDIR}/release/packages/template.ucl \
+		${SSTAGEDIR}/src.ucl
+	${SRCDIR}/release/packages/generate-ucl.lua \
+		PKGNAME "src-sys" \
+		PKGGENNAME "src" \
+		VERSION "${PKG_VERSION}" \
+		DESC "FreeBSD Kernel Sources" \
+		COMMENT "FreeBSD Kernel Sources" \
+		PKG_NAME_PREFIX "${PKG_NAME_PREFIX}" \
+		PKG_MAINTAINER "${PKG_MAINTAINER}" \
+		PKG_WWW "${PKG_WWW}" \
+		${SRCDIR}/release/packages/template.ucl \
+		${SSTAGEDIR}/src-sys.ucl
 	${PKG_CMD} -o ABI=${PKG_ABI} \
 		-o OSVERSION="${SRCRELDATE}" \
 		create -f ${PKG_FORMAT} \
@@ -2174,25 +2210,51 @@ _default_flavor=	-default
 . if ${MK_DEBUG_FILES} != "no"
 _debug=-dbg
 . endif
+
+create-dtb-package:
+	@if [ -f ${KSTAGEDIR}/${DISTDIR}/dtb.plist ]; then \
+	${SRCDIR}/release/packages/generate-ucl.lua \
+		PKGNAME "dtb" \
+		VERSION "${PKG_VERSION}" \
+		COMMENT "FreeBSD Devicetree Blobs" \
+		DESC "FreeBSD Devicetree Blobs" \
+		PKG_NAME_PREFIX "${PKG_NAME_PREFIX}" \
+		PKG_MAINTAINER "${PKG_MAINTAINER}" \
+		PKG_WWW "${PKG_WWW}" \
+		${SRCDIR}/release/packages/template.ucl \
+		${KSTAGEDIR}/${DISTDIR}/dtb.ucl ; \
+	awk -F\" ' \
+		/name/ { printf("===> Creating %s-", $$2); next } \
+		/version/ {print $$2; next } ' \
+		${KSTAGEDIR}/${DISTDIR}/dtb.ucl ; \
+	${PKG_CMD} -o ABI=${PKG_ABI} -o ALLOW_BASE_SHLIBS=yes \
+		-o OSVERSION="${SRCRELDATE}" \
+		create -f ${PKG_FORMAT} \
+		-M ${KSTAGEDIR}/${DISTDIR}/dtb.ucl \
+		-p ${KSTAGEDIR}/${DISTDIR}/dtb.plist \
+		-r ${KSTAGEDIR}/${DISTDIR} \
+		-o ${REPODIR}/${PKG_ABI}/${PKG_OUTPUT_DIR} ; \
+	fi
+
 create-kernel-packages:	.PHONY
 . for flavor in "" ${_debug}
-create-kernel-packages: create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}
+create-kernel-packages: create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},} create-dtb-package
 create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap .PHONY
 	@cd ${KSTAGEDIR}/${DISTDIR} ; \
 	${METALOG_SORT_CMD} ${KSTAGEDIR}/kernel.meta | \
 	awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
 		-v kernel=yes -v _kernconf=${INSTALLKERNEL} ; \
-	sed -e "s/%VERSION%/${PKG_VERSION}/" \
-		-e "s/%PKGNAME%/kernel-${INSTALLKERNEL:tl}${flavor}/" \
-		-e "s/%KERNELDIR%/kernel/" \
-		-e "s/%COMMENT%/FreeBSD ${INSTALLKERNEL} kernel ${flavor}/" \
-		-e "s/%DESC%/FreeBSD ${INSTALLKERNEL} kernel ${flavor}/" \
-		-e "s/ %VCS_REVISION%/${VCS_REVISION}/" \
-		-e "s/%PKG_NAME_PREFIX%/${PKG_NAME_PREFIX}/" \
-		-e "s/%PKG_MAINTAINER%/${PKG_MAINTAINER}/" \
-		-e "s|%PKG_WWW%|${PKG_WWW}|" \
-		${SRCDIR}/release/packages/kernel.ucl \
-		> ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl ; \
+	${SRCDIR}/release/packages/generate-ucl.lua \
+		PKGNAME "kernel-${INSTALLKERNEL:tl}${flavor}" \
+		VERSION "${PKG_VERSION}" \
+		KERNELDIR "kernel" \
+		COMMENT "FreeBSD ${INSTALLKERNEL} kernel ${flavor}" \
+		DESC "FreeBSD ${INSTALLKERNEL} kernel ${flavor}" \
+		PKG_NAME_PREFIX "${PKG_NAME_PREFIX}" \
+		PKG_MAINTAINER "${PKG_MAINTAINER}" \
+		PKG_WWW "${PKG_WWW}" \
+		${SRCDIR}/release/packages/template.ucl \
+		 ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl ; \
 	awk -F\" ' \
 		/name/ { printf("===> Creating %s-", $$2); next } \
 		/version/ {print $$2; next } ' \
@@ -2219,17 +2281,20 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 	${METALOG_SORT_CMD} ${KSTAGEDIR}/kernel.${_kernel}.meta | \
 	awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
 		-v kernel=yes -v _kernconf=${_kernel} ; \
-	sed -e "s/%VERSION%/${PKG_VERSION}/" \
-		-e "s/%PKGNAME%/kernel-${_kernel:tl}${flavor}/" \
-		-e "s/%KERNELDIR%/kernel.${_kernel}/" \
-		-e "s/%COMMENT%/FreeBSD ${_kernel} kernel ${flavor}/" \
-		-e "s/%DESC%/FreeBSD ${_kernel} kernel ${flavor}/" \
-		-e "s/ %VCS_REVISION%/${VCS_REVISION}/" \
-		-e "s/%PKG_NAME_PREFIX%/${PKG_NAME_PREFIX}/" \
-		-e "s/%PKG_MAINTAINER%/${PKG_MAINTAINER}/" \
-		-e "s|%PKG_WWW%|${PKG_WWW}|" \
-		${SRCDIR}/release/packages/kernel.ucl \
-		> ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl ; \
+	${SRCDIR}/release/packages/generate-ucl.lua \
+		PKGNAME "kernel-${_kernel:tl}${flavor}" \
+		PKGGENNAME "kernel" \
+		FORCEINCLUDE "kernel${flavor}" \
+		UCLFILES "${SRCDIR}/release/packages/" \
+		VERSION "${PKG_VERSION}" \
+		KERNELDIR "kernel.${_kernel}" \
+		DESC "FreeBSD ${_kernel} kernel ${flavor}" \
+		COMMENT "FreeBSD ${_kernel} kernel ${flavor}" \
+		PKG_NAME_PREFIX "${PKG_NAME_PREFIX}" \
+		PKG_MAINTAINER "${PKG_MAINTAINER}" \
+		PKG_WWW "${PKG_WWW}" \
+		${SRCDIR}/release/packages/template.ucl \
+		${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl ; \
 	awk -F\" ' \
 		/name/ { printf("===> Creating %s-", $$2); next } \
 		/version/ {print $$2; next } ' \
@@ -3095,10 +3160,12 @@ _startup_libs=	lib/csu
 _startup_libs+=	lib/libc
 _startup_libs+=	lib/libc_nonshared
 _startup_libs+=	lib/libcxxrt
+_startup_libs+=	lib/libsys
 
 _prereq_libs+=	lib/libgcc_eh lib/libgcc_s
 _startup_libs+=	lib/libgcc_eh lib/libgcc_s
 
+lib/libc__L: lib/libsys__L
 lib/libgcc_s__L: lib/libc__L
 lib/libgcc_s__L: lib/libc_nonshared__L
 lib/libcxxrt__L: lib/libgcc_s__L
@@ -3139,6 +3206,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_cddl_lib_libctf} ${_cddl_lib_libzfsbootenv} \
 		lib/libufs \
 		lib/libutil lib/libpjdlog ${_lib_libypclnt} lib/libz lib/msun \
+		lib/libxo \
 		${_secure_lib_libcrypto} ${_secure_lib_libssl} \
 		${_lib_libldns} ${_secure_lib_libssh}
 
@@ -3194,6 +3262,7 @@ _generic_libs+= ${_DIR}
 .endfor
 
 lib/libtacplus__L: lib/libmd__L lib/libpam/libpam__L
+lib/libxo__L: lib/libutil__L
 
 .if ${MK_CDDL} != "no"
 _cddl_lib_libumem= cddl/lib/libumem
@@ -3234,6 +3303,7 @@ lib/libbe__L: cddl/lib/libzfs__L cddl/lib/libzfsbootenv__L
 _cddl_lib_libctf= cddl/lib/libctf
 _cddl_lib= cddl/lib
 cddl/lib/libctf__L: lib/libz__L cddl/lib/libspl__L
+cddl/lib/libdtrace__L: lib/libxo__L
 .endif
 # cddl/lib/libdtrace requires lib/libproc and lib/librtld_db
 _prebuild_libs+=	lib/libprocstat lib/libproc lib/librtld_db
@@ -3554,7 +3624,8 @@ check-old: check-old-files check-old-libs check-old-dirs .PHONY
 #
 showconfig: .PHONY
 	@(${MAKE} -n -f ${.CURDIR}/sys/conf/kern.opts.mk -V dummy -dg1 UPDATE_DEPENDFILE=no NO_OBJ=yes MACHINE=${TARGET} MACHINE_ARCH=${TARGET_ARCH}; \
-	  ${MAKE} -n -f ${.CURDIR}/share/mk/src.opts.mk -V dummy -dg1 UPDATE_DEPENDFILE=no NO_OBJ=yes) 2>&1 | grep -E '^(MK|OPT)_[A-Z]' | sort -u
+	  ${MAKE} -n -f ${.CURDIR}/share/mk/src.opts.mk -V dummy -dg1 UPDATE_DEPENDFILE=no NO_OBJ=yes MACHINE=${TARGET} MACHINE_ARCH=${TARGET_ARCH}) 2>&1 | \
+	 grep -E '^(MK|OPT)_[A-Z]' | sort -u
 
 .if !empty(KRNLOBJDIR) && !empty(KERNCONF)
 DTBOUTPUTPATH= ${KRNLOBJDIR}/${KERNCONF}/

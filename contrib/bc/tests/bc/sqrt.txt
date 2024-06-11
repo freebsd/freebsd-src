@@ -1,5 +1,7 @@
 scale = 20
 sqrt(0)
+sqrt(1)
+sqrt(1.00000000000)
 sqrt(2)
 sqrt(4)
 sqrt(9)

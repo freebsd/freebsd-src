@@ -83,11 +83,11 @@ SUBDIR=	alias \
 	logins \
 	logname \
 	look \
-	lorder \
 	lsvfs \
 	lzmainfo \
 	m4 \
 	mandoc \
+	mdo \
 	mesg \
 	ministat \
 	mkdep \
@@ -110,6 +110,7 @@ SUBDIR=	alias \
 	patch \
 	pathchk \
 	perror \
+	posixmqcontrol \
 	posixshmcontrol \
 	pr \
 	printenv \
@@ -267,6 +268,7 @@ SUBDIR.${MK_TOOLCHAIN}+=	file2c
 SUBDIR.${MK_TOOLCHAIN}+=	gprof
 SUBDIR.${MK_TOOLCHAIN}+=	indent
 SUBDIR.${MK_TOOLCHAIN}+=	lex
+SUBDIR.${MK_TOOLCHAIN}+=	lorder
 SUBDIR.${MK_TOOLCHAIN}+=	mkstr
 SUBDIR.${MK_TOOLCHAIN}+=	rpcgen
 SUBDIR.${MK_TOOLCHAIN}+=	unifdef

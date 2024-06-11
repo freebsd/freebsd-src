@@ -1,4 +1,4 @@
-.\" Copyright (c) 2018 Yubico AB. All rights reserved.
+.\" Copyright (c) 2018-2023 Yubico AB. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions are
@@ -25,7 +25,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd $Mdocdate: November 5 2019 $
+.Dd $Mdocdate: July 3 2023 $
 .Dt FIDO2-ASSERT 1
 .Os
 .Sh NAME
@@ -34,7 +34,7 @@
 .Sh SYNOPSIS
 .Nm
 .Fl G
-.Op Fl bdhpruv
+.Op Fl bdhpruvw
 .Op Fl t Ar option
 .Op Fl i Ar input_file
 .Op Fl o Ar output_file
@@ -175,6 +175,13 @@ If obtaining an assertion, prompt the user for a PIN and request
 user verification from the authenticator.
 If verifying an assertion, check whether the user verification bit
 was signed by the authenticator.
+.It Fl w
+Tells
+.Nm
+that the first line of input when obtaining an assertion shall be
+interpreted as unhashed client data.
+This is required by Windows Hello, which calculates the client data hash
+internally.
 .El
 .Pp
 If a

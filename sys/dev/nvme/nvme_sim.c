@@ -203,7 +203,7 @@ nvme_sim_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->xport_specific.nvme.slot = pci_get_slot(dev);
 		cpi->xport_specific.nvme.function = pci_get_function(dev);
 		cpi->xport_specific.nvme.extra = 0;
-		strncpy(cpi->xport_specific.nvme.dev_name, device_get_nameunit(dev),
+		strlcpy(cpi->xport_specific.nvme.dev_name, device_get_nameunit(dev),
 		    sizeof(cpi->xport_specific.nvme.dev_name));
 		cpi->hba_vendor = pci_get_vendor(dev);
 		cpi->hba_device = pci_get_device(dev);
@@ -270,6 +270,10 @@ nvme_sim_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_NVME_IO:		/* Execute the requested I/O operation */
 	case XPT_NVME_ADMIN:		/* or Admin operation */
 		if (ctrlr->is_failed) {
+			/*
+			 * I/O came in while we were failing the drive, so drop
+			 * it. Once falure is complete, we'll be destroyed.
+			 */
 			ccb->ccb_h.status = CAM_DEV_NOT_THERE;
 			break;
 		}

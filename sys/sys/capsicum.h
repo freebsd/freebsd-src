@@ -418,6 +418,13 @@ __END_DECLS
 #ifdef _KERNEL
 
 #include <sys/systm.h>
+#include <sys/ktrace.h>
+
+#ifdef KTRACE
+#define CAP_TRACING(td) KTRPOINT((td), KTR_CAPFAIL)
+#else
+#define CAP_TRACING(td) 0
+#endif
 
 #define IN_CAPABILITY_MODE(td) (((td)->td_ucred->cr_flags & CRED_FLAG_CAPMODE) != 0)
 

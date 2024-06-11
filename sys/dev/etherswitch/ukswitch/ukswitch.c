@@ -106,7 +106,7 @@ ukswitch_probe(device_t dev)
 	sc = device_get_softc(dev);
 	bzero(sc, sizeof(*sc));
 
-	device_set_desc_copy(dev, "Generic MDIO switch driver");
+	device_set_desc(dev, "Generic MDIO switch driver");
 	return (BUS_PROBE_DEFAULT);
 }
 
@@ -514,7 +514,7 @@ ukswitch_writephy(device_t dev, int phy, int reg, int data)
 static int
 ukswitch_readreg(device_t dev, int addr)
 {
-	struct ukswitch_softc *sc;
+	struct ukswitch_softc *sc __diagused;
 
 	sc = device_get_softc(dev);
 	UKSWITCH_LOCK_ASSERT(sc, MA_OWNED);
@@ -526,7 +526,7 @@ ukswitch_readreg(device_t dev, int addr)
 static int
 ukswitch_writereg(device_t dev, int addr, int value)
 {
-	struct ukswitch_softc *sc;
+	struct ukswitch_softc *sc __diagused;
 
 	sc = device_get_softc(dev);
 	UKSWITCH_LOCK_ASSERT(sc, MA_OWNED);

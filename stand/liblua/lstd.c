@@ -25,7 +25,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 #include "lstd.h"
 #include "math.h"
 

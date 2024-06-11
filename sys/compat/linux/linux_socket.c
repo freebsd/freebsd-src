@@ -501,6 +501,11 @@ linux_to_bsd_ip6_sockopt(int opt)
 		    "unsupported IPv6 socket option IPV6_RECVFRAGSIZE (%d)",
 		    opt);
 		return (-2);
+	case LINUX_IPV6_RECVERR:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv6 socket option IPV6_RECVERR (%d), you can not get extended reliability info in linux programs",
+		    opt);
+		return (-2);
 
 	/* unknown sockopts */
 	default:
@@ -870,7 +875,8 @@ static const char *linux_netlink_names[] = {
 int
 linux_socket(struct thread *td, struct linux_socket_args *args)
 {
-	int domain, retval_socket, type;
+	int retval_socket, type;
+	sa_family_t domain;
 
 	type = args->type & LINUX_SOCK_TYPE_MASK;
 	if (type < 0 || type > LINUX_SOCK_MAX)
@@ -880,7 +886,7 @@ linux_socket(struct thread *td, struct linux_socket_args *args)
 	if (retval_socket != 0)
 		return (retval_socket);
 	domain = linux_to_bsd_domain(args->domain);
-	if (domain == -1) {
+	if (domain == AF_UNKNOWN) {
 		/* Mask off SOCK_NONBLOCK / CLOEXEC for error messages. */
 		type = args->type & LINUX_SOCK_TYPE_MASK;
 		if (args->domain == LINUX_AF_NETLINK &&
@@ -2111,13 +2117,20 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 		name = linux_to_bsd_ip_sockopt(args->optname);
 		break;
 	case IPPROTO_IPV6:
+		if (args->optname == LINUX_IPV6_RECVERR &&
+		    linux_ignore_ip_recverr) {
+			/*
+			 * XXX: This is a hack to unbreak DNS resolution
+			 *	with glibc 2.30 and above.
+			 */
+			return (0);
+		}
 		name = linux_to_bsd_ip6_sockopt(args->optname);
 		break;
 	case IPPROTO_TCP:
 		name = linux_to_bsd_tcp_sockopt(args->optname);
 		break;
 	case SOL_NETLINK:
-		level = SOL_SOCKET;
 		name = args->optname;
 		break;
 	default:
@@ -2310,8 +2323,8 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 			    name, &newval, UIO_SYSSPACE, &len);
 			if (error != 0)
 				return (error);
-			newval = bsd_to_linux_domain(newval);
-			if (newval == -1)
+			newval = bsd_to_linux_domain((sa_family_t)newval);
+			if (newval == AF_UNKNOWN)
 				return (ENOPROTOOPT);
 			return (linux_sockopt_copyout(td, &newval,
 			    len, args));
@@ -2455,7 +2468,7 @@ sendfile_fallback(struct thread *td, struct file *fp, l_int out,
 		out_offset = 0;
 
 	flags = FOF_OFFSET | FOF_NOUPDATE;
-	bufsz = min(count, MAXPHYS);
+	bufsz = min(count, maxphys);
 	buf = malloc(bufsz, M_LINUX, M_WAITOK);
 	bytes_sent = 0;
 	while (bytes_sent < count) {

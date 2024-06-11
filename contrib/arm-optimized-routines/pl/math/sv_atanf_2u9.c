@@ -8,52 +8,69 @@
 #include "sv_math.h"
 #include "pl_sig.h"
 #include "pl_test.h"
+#include "poly_sve_f32.h"
 
-#if SV_SUPPORTED
+static const struct data
+{
+  float32_t poly[8];
+  float32_t pi_over_2;
+} data = {
+  /* Coefficients of polynomial P such that atan(x)~x+x*P(x^2) on
+    [2**-128, 1.0].  */
+  .poly = { -0x1.55555p-2f, 0x1.99935ep-3f, -0x1.24051ep-3f, 0x1.bd7368p-4f,
+	    -0x1.491f0ep-4f, 0x1.93a2c0p-5f, -0x1.4c3c60p-6f, 0x1.01fd88p-8f },
+  .pi_over_2 = 0x1.921fb6p+0f,
+};
 
-#include "sv_atanf_common.h"
-
-#define PiOver2 sv_f32 (0x1.921fb6p+0f)
-#define AbsMask (0x7fffffff)
+#define SignMask (0x80000000)
 
 /* Fast implementation of SVE atanf based on
    atan(x) ~ shift + z + z^3 * P(z^2) with reduction to [0,1] using
    z=-1/x and shift = pi/2.
    Largest observed error is 2.9 ULP, close to +/-1.0:
-   __sv_atanf(0x1.0468f6p+0) got -0x1.967f06p-1
-			    want -0x1.967fp-1.  */
-sv_f32_t
-__sv_atanf_x (sv_f32_t x, const svbool_t pg)
+   _ZGVsMxv_atanf (0x1.0468f6p+0) got -0x1.967f06p-1
+				 want -0x1.967fp-1.  */
+svfloat32_t SV_NAME_F1 (atan) (svfloat32_t x, const svbool_t pg)
 {
+  const struct data *d = ptr_barrier (&data);
+
   /* No need to trigger special case. Small cases, infs and nans
      are supported by our approximation technique.  */
-  sv_u32_t ix = sv_as_u32_f32 (x);
-  sv_u32_t sign = svand_n_u32_x (pg, ix, ~AbsMask);
+  svuint32_t ix = svreinterpret_u32 (x);
+  svuint32_t sign = svand_x (pg, ix, SignMask);
 
   /* Argument reduction:
      y := arctan(x) for x < 1
      y := pi/2 + arctan(-1/x) for x > 1
      Hence, use z=-1/a if x>=1, otherwise z=a.  */
-  svbool_t red = svacgt_n_f32 (pg, x, 1.0f);
+  svbool_t red = svacgt (pg, x, 1.0f);
   /* Avoid dependency in abs(x) in division (and comparison).  */
-  sv_f32_t z = svsel_f32 (red, svdiv_f32_x (pg, sv_f32 (-1.0f), x), x);
+  svfloat32_t z = svsel (red, svdiv_x (pg, sv_f32 (1.0f), x), x);
   /* Use absolute value only when needed (odd powers of z).  */
-  sv_f32_t az = svabs_f32_x (pg, z);
-  az = svneg_f32_m (az, red, az);
+  svfloat32_t az = svabs_x (pg, z);
+  az = svneg_m (az, red, az);
 
-  sv_f32_t y = __sv_atanf_common (pg, red, z, az, PiOver2);
+  /* Use split Estrin scheme for P(z^2) with deg(P)=7.  */
+  svfloat32_t z2 = svmul_x (pg, z, z);
+  svfloat32_t z4 = svmul_x (pg, z2, z2);
+  svfloat32_t z8 = svmul_x (pg, z4, z4);
+
+  svfloat32_t y = sv_estrin_7_f32_x (pg, z2, z4, z8, d->poly);
+
+  /* y = shift + z + z^3 * P(z^2).  */
+  svfloat32_t z3 = svmul_x (pg, z2, az);
+  y = svmla_x (pg, az, z3, y);
+
+  /* Apply shift as indicated by 'red' predicate.  */
+  y = svadd_m (red, y, sv_f32 (d->pi_over_2));
 
   /* y = atan(x) if x>0, -atan(-x) otherwise.  */
-  return sv_as_f32_u32 (sveor_u32_x (pg, sv_as_u32_f32 (y), sign));
+  return svreinterpret_f32 (sveor_x (pg, svreinterpret_u32 (y), sign));
 }
 
-PL_ALIAS (__sv_atanf_x, _ZGVsMxv_atanf)
-
 PL_SIG (SV, F, 1, atan, -3.1, 3.1)
-PL_TEST_ULP (__sv_atanf, 2.9)
-PL_TEST_INTERVAL (__sv_atanf, -10.0, 10.0, 50000)
-PL_TEST_INTERVAL (__sv_atanf, -1.0, 1.0, 40000)
-PL_TEST_INTERVAL (__sv_atanf, 0.0, 1.0, 40000)
-PL_TEST_INTERVAL (__sv_atanf, 1.0, 100.0, 40000)
-PL_TEST_INTERVAL (__sv_atanf, 1e6, 1e32, 40000)
-#endif
+PL_TEST_ULP (SV_NAME_F1 (atan), 2.9)
+PL_TEST_INTERVAL (SV_NAME_F1 (atan), 0.0, 1.0, 40000)
+PL_TEST_INTERVAL (SV_NAME_F1 (atan), 1.0, 100.0, 40000)
+PL_TEST_INTERVAL (SV_NAME_F1 (atan), 100, inf, 40000)
+PL_TEST_INTERVAL (SV_NAME_F1 (atan), -0, -inf, 40000)

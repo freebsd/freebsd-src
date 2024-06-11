@@ -368,7 +368,7 @@ tcp_pcap_add(struct tcphdr *th, struct mbuf *m, struct mbufq *queue)
 	 * In cases where that isn't possible, settle for what we can
 	 * get.
 	 */
-	if ((m->m_flags & (M_EXT|M_EXTPG)) &&
+	if ((m->m_flags & (M_EXT | M_EXTPG)) &&
 	    tcp_pcap_take_cluster_reference()) {
 		n->m_data = m->m_data;
 		n->m_len = m->m_len;

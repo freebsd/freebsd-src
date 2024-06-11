@@ -367,7 +367,7 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 	}
 
 	/* BPF writes need to be handled specially. */
-	if (dst->sa_family == AF_UNSPEC)
+	if (dst->sa_family == AF_UNSPEC || dst->sa_family == pseudo_AF_HDRCMPLT)
 		bcopy(dst->sa_data, &af, sizeof(af));
 	else
 		af = RO_GET_FAMILY(ro, dst);

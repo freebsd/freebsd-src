@@ -554,7 +554,7 @@ clean_config: clean clean_benchmarks
 clean_coverage:
 	@printf 'Cleaning coverage files...\n'
 	@$(RM) -f *.gcov
-	@$(RM) -f *.html
+	@$(RM) -f *.html *.css
 	@$(RM) -f *.gcda *.gcno
 	@$(RM) -f *.profraw
 	@$(RM) -f $(GCDA) $(GCNO)

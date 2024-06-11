@@ -167,7 +167,15 @@ void CoverageMappingWriter::write(raw_ostream &OS) {
       return LHS.FileID < RHS.FileID;
     if (LHS.startLoc() != RHS.startLoc())
       return LHS.startLoc() < RHS.startLoc();
-    return LHS.Kind < RHS.Kind;
+
+    // Put `Decision` before `Expansion`.
+    auto getKindKey = [](CounterMappingRegion::RegionKind Kind) {
+      return (Kind == CounterMappingRegion::MCDCDecisionRegion
+                  ? 2 * CounterMappingRegion::ExpansionRegion - 1
+                  : 2 * Kind);
+    };
+
+    return getKindKey(LHS.Kind) < getKindKey(RHS.Kind);
   });
 
   // Write out the fileid -> filename mapping.
@@ -237,6 +245,23 @@ void CoverageMappingWriter::write(raw_ostream &OS) {
       writeCounter(MinExpressions, Count, OS);
       writeCounter(MinExpressions, FalseCount, OS);
       break;
+    case CounterMappingRegion::MCDCBranchRegion:
+      encodeULEB128(unsigned(I->Kind)
+                        << Counter::EncodingCounterTagAndExpansionRegionTagBits,
+                    OS);
+      writeCounter(MinExpressions, Count, OS);
+      writeCounter(MinExpressions, FalseCount, OS);
+      encodeULEB128(unsigned(I->MCDCParams.ID), OS);
+      encodeULEB128(unsigned(I->MCDCParams.TrueID), OS);
+      encodeULEB128(unsigned(I->MCDCParams.FalseID), OS);
+      break;
+    case CounterMappingRegion::MCDCDecisionRegion:
+      encodeULEB128(unsigned(I->Kind)
+                        << Counter::EncodingCounterTagAndExpansionRegionTagBits,
+                    OS);
+      encodeULEB128(unsigned(I->MCDCParams.BitmapIdx), OS);
+      encodeULEB128(unsigned(I->MCDCParams.NumConditions), OS);
+      break;
     }
     assert(I->LineStart >= PrevLineStart);
     encodeULEB128(I->LineStart - PrevLineStart, OS);
@@ -248,4 +273,38 @@ void CoverageMappingWriter::write(raw_ostream &OS) {
   }
   // Ensure that all file ids have at least one mapping region.
   assert(CurrentFileID == (VirtualFileMapping.size() - 1));
+}
+
+void TestingFormatWriter::write(raw_ostream &OS, TestingFormatVersion Version) {
+  auto ByteSwap = [](uint64_t N) {
+    return support::endian::byte_swap<uint64_t, llvm::endianness::little>(N);
+  };
+
+  // Output a 64bit magic number.
+  auto Magic = ByteSwap(TestingFormatMagic);
+  OS.write(reinterpret_cast<char *>(&Magic), sizeof(Magic));
+
+  // Output a 64bit version field.
+  auto VersionLittle = ByteSwap(uint64_t(Version));
+  OS.write(reinterpret_cast<char *>(&VersionLittle), sizeof(VersionLittle));
+
+  // Output the ProfileNames data.
+  encodeULEB128(ProfileNamesData.size(), OS);
+  encodeULEB128(ProfileNamesAddr, OS);
+  OS << ProfileNamesData;
+
+  // Version2 adds an extra field to indicate the size of the
+  // CoverageMappingData.
+  if (Version == TestingFormatVersion::Version2)
+    encodeULEB128(CoverageMappingData.size(), OS);
+
+  // Coverage mapping data is expected to have an alignment of 8.
+  for (unsigned Pad = offsetToAlignment(OS.tell(), Align(8)); Pad; --Pad)
+    OS.write(uint8_t(0));
+  OS << CoverageMappingData;
+
+  // Coverage records data is expected to have an alignment of 8.
+  for (unsigned Pad = offsetToAlignment(OS.tell(), Align(8)); Pad; --Pad)
+    OS.write(uint8_t(0));
+  OS << CoverageRecordsData;
 }

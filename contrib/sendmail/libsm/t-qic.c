@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Proofpoint, Inc. and its suppliers.
+ * Copyright (c) 2006, 2023 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -18,7 +18,6 @@ SM_IDSTR(id, "@(#)$Id: t-qic.c,v 1.10 2013-11-22 20:51:43 ca Exp $")
 #include <sm/test.h>
 
 extern bool SmTestVerbose;
-
 
 void
 show_diff(s1, s2)
@@ -107,6 +106,8 @@ main(argc, argv)
 	int i, los, cmp, mode;
 	sm_qic_T inout[] = {
 		  { "", "",	0 }
+		, { "\t", "\t",	0 }
+		, { "\tuser", "\tuser",	0 }
 		, { "abcdef", "abcdef",	0 }
 		, { "01234567890123456789", "01234567890123456789",	0 }
 		, { "\\", "\\",	0 }
@@ -241,6 +242,17 @@ main(argc, argv)
 			show_diff(inout[i].qic_in, inout[i].qic_out);
 		}
 	}
+
+	los = -1;
+	obp = quote_internal_chars(NULL, NULL, &los, NULL);
+	SM_TEST(NULL == obp);
+	SM_TEST(-1 == los);
+
+	sm_strlcpy(line_in, "nothing", sizeof(line_in));
+	los = -123;
+	obp = quote_internal_chars(line_in, NULL, &los, NULL);
+	SM_TEST(NULL != obp);
+	SM_TEST(los > 0);
 
 	return sm_test_end();
 }

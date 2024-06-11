@@ -68,7 +68,7 @@ EOF
 sleeper()
 {
 	while true; do
-		/usr/bin/sleep 1
+		sleep 1
 	done
 }
 

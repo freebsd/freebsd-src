@@ -139,18 +139,17 @@ mptable_hostb_alloc_resource(device_t dev, device_t child, int type, int *rid,
 }
 
 static int
-mptable_hostb_adjust_resource(device_t dev, device_t child, int type,
+mptable_hostb_adjust_resource(device_t dev, device_t child,
     struct resource *r, rman_res_t start, rman_res_t end)
 {
 	struct mptable_hostb_softc *sc;
 
 #ifdef PCI_RES_BUS
-	if (type == PCI_RES_BUS)
+	if (rman_get_type(r) == PCI_RES_BUS)
 		return (pci_domain_adjust_bus(0, child, r, start, end));
 #endif
 	sc = device_get_softc(dev);
-	return (pcib_host_res_adjust(&sc->sc_host_res, child, type, r, start,
-	    end));
+	return (pcib_host_res_adjust(&sc->sc_host_res, child, r, start, end));
 }
 #endif
 
@@ -174,11 +173,13 @@ static device_method_t mptable_hostb_methods[] = {
 #endif
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	DEVMETHOD(bus_release_resource,	legacy_pcib_release_resource),
+	DEVMETHOD(bus_activate_resource, legacy_pcib_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, legacy_pcib_deactivate_resource),
 #else
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-#endif
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+#endif
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 

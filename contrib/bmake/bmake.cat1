@@ -1,75 +1,76 @@
 BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
 
-[1mNAME[0m
-     [1mbmake [22m-- maintain program dependencies
+NNAAMMEE
+     bbmmaakkee - maintain program dependencies
 
-[1mSYNOPSIS[0m
-     [1mbmake [22m[[1m-BeikNnqrSstWwX[22m] [[1m-C [4m[22mdirectory[24m] [[1m-D [4m[22mvariable[24m] [[1m-d [4m[22mflags[24m]
-           [[1m-f [4m[22mmakefile[24m] [[1m-I [4m[22mdirectory[24m] [[1m-J [4m[22mprivate[24m] [[1m-j [4m[22mmax_jobs[24m]
-           [[1m-m [4m[22mdirectory[24m] [[1m-T [4m[22mfile[24m] [[1m-V [4m[22mvariable[24m] [[1m-v [4m[22mvariable[24m]
-           [[4mvariable[24m[1m=[4m[22mvalue[24m] [[4mtarget[24m ...]
+SSYYNNOOPPSSIISS
+     bbmmaakkee [--BBeeiikkNNnnqqrrSSssttWWwwXX] [--CC _d_i_r_e_c_t_o_r_y] [--DD _v_a_r_i_a_b_l_e] [--dd _f_l_a_g_s]
+           [--ff _m_a_k_e_f_i_l_e] [--II _d_i_r_e_c_t_o_r_y] [--JJ _p_r_i_v_a_t_e] [--jj _m_a_x___j_o_b_s]
+           [--mm _d_i_r_e_c_t_o_r_y] [--TT _f_i_l_e] [--VV _v_a_r_i_a_b_l_e] [--vv _v_a_r_i_a_b_l_e]
+           [_v_a_r_i_a_b_l_e==_v_a_l_u_e] [_t_a_r_g_e_t ...]
 
-[1mDESCRIPTION[0m
-     [1mbmake [22mis a program designed to simplify the maintenance of other pro-
-     grams.  Its input is a list of specifications as to the files upon which
-     programs and other files depend.  If no [1m-f [4m[22mmakefile[24m option is given,
-     [1mbmake [22mtries to open `[4mmakefile[24m' then `[4mMakefile[24m' in order to find the spec-
-     ifications.  If the file `[4m.depend[24m' exists, it is read, see mkdep(1).
+DDEESSCCRRIIPPTTIIOONN
+     bbmmaakkee is a program designed to simplify the maintenance of other
+     programs.  Its input is a list of specifications as to the files upon
+     which programs and other files depend.  If no --ff _m_a_k_e_f_i_l_e option is
+     given, bbmmaakkee tries to open `_m_a_k_e_f_i_l_e' then `_M_a_k_e_f_i_l_e' in order to find
+     the specifications.  If the file `_._d_e_p_e_n_d' exists, it is read, see
+     mkdep(1).
 
      This manual page is intended as a reference document only.  For a more
-     thorough description of [1mbmake [22mand makefiles, please refer to [4mPMake[24m [4m-[24m [4mA[0m
-     [4mTutorial[24m (from 1993).
+     thorough description of bbmmaakkee and makefiles, please refer to _P_M_a_k_e _- _A
+     _T_u_t_o_r_i_a_l (from 1993).
 
-     [1mbmake [22mprepends the contents of the MAKEFLAGS environment variable to the
+     bbmmaakkee prepends the contents of the MAKEFLAGS environment variable to the
      command line arguments before parsing them.
 
      The options are as follows:
 
-     [1m-B      [22mTry to be backwards compatible by executing a single shell per
-             command and by making the sources of a dependency line in se-
-             quence.
+     --BB      Try to be backwards compatible by executing a single shell per
+             command and by making the sources of a dependency line in
+             sequence.
 
-     [1m-C [4m[22mdirectory[0m
-             Change to [4mdirectory[24m before reading the makefiles or doing any-
-             thing else.  If multiple [1m-C [22moptions are specified, each is inter-
-             preted relative to the previous one: [1m-C [4m[22m/[24m [1m-C [4m[22metc[24m is equivalent to
-             [1m-C [4m[22m/etc[24m.
+     --CC _d_i_r_e_c_t_o_r_y
+             Change to _d_i_r_e_c_t_o_r_y before reading the makefiles or doing
+             anything else.  If multiple --CC options are specified, each is
+             interpreted relative to the previous one: --CC _/ --CC _e_t_c is
+             equivalent to --CC _/_e_t_c.
 
-     [1m-D [4m[22mvariable[0m
-             Define [4mvariable[24m to be 1, in the global scope.
+     --DD _v_a_r_i_a_b_l_e
+             Define _v_a_r_i_a_b_l_e to be 1, in the global scope.
 
-     [1m-d [22m[[1m-[22m][4mflags[0m
-             Turn on debugging, and specify which portions of [1mbmake [22mare to
+     --dd [--]_f_l_a_g_s
+             Turn on debugging, and specify which portions of bbmmaakkee are to
              print debugging information.  Unless the flags are preceded by
              `-', they are added to the MAKEFLAGS environment variable and are
-             passed on to any child make processes.  By default, debugging in-
-             formation is printed to standard error, but this can be changed
-             using the [1mF [22mdebugging flag.  The debugging output is always un-
-             buffered; in addition, if debugging is enabled but debugging out-
-             put is not directed to standard output, the standard output is
-             line buffered.  The available [4mflags[24m are:
+             passed on to any child make processes.  By default, debugging
+             information is printed to standard error, but this can be changed
+             using the FF debugging flag.  The debugging output is always
+             unbuffered; in addition, if debugging is enabled but debugging
+             output is not directed to standard output, the standard output is
+             line buffered.  The available _f_l_a_g_s are:
 
-             [1mA       [22mPrint all possible debugging information; equivalent to
+             AA       Print all possible debugging information; equivalent to
                      specifying all of the debugging flags.
 
-             [1ma       [22mPrint debugging information about archive searching and
+             aa       Print debugging information about archive searching and
                      caching.
 
-             [1mC       [22mPrint debugging information about the current working di-
-                     rectory.
+             CC       Print debugging information about the current working
+                     directory.
 
-             [1mc       [22mPrint debugging information about conditional evaluation.
+             cc       Print debugging information about conditional evaluation.
 
-             [1md       [22mPrint debugging information about directory searching and
+             dd       Print debugging information about directory searching and
                      caching.
 
-             [1me       [22mPrint debugging information about failed commands and
+             ee       Print debugging information about failed commands and
                      targets.
 
-             [1mF[22m[[1m+[22m][4mfilename[0m
+             FF[++]_f_i_l_e_n_a_m_e
                      Specify where debugging output is written.  This must be
                      the last flag, because it consumes the remainder of the
-                     argument.  If the character immediately after the [1mF [22mflag
+                     argument.  If the character immediately after the FF flag
                      is `+', the file is opened in append mode; otherwise the
                      file is overwritten.  If the file name is `stdout' or
                      `stderr', debugging output is written to the standard
@@ -78,196 +79,199 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
                      to the named file.  If the file name ends with `.%d', the
                      `%d' is replaced by the pid.
 
-             [1mf       [22mPrint debugging information about loop evaluation.
+             ff       Print debugging information about loop evaluation.
 
-             [1mg1      [22mPrint the input graph before making anything.
+             gg11      Print the input graph before making anything.
 
-             [1mg2      [22mPrint the input graph after making everything, or before
+             gg22      Print the input graph after making everything, or before
                      exiting on error.
 
-             [1mg3      [22mPrint the input graph before exiting on error.
+             gg33      Print the input graph before exiting on error.
 
-             [1mh       [22mPrint debugging information about hash table operations.
+             hh       Print debugging information about hash table operations.
 
-             [1mj       [22mPrint debugging information about running multiple
+             jj       Print debugging information about running multiple
                      shells.
 
-             [1mL       [22mTurn on lint checks.  This throws errors for variable as-
-                     signments that do not parse correctly, at the time of as-
-                     signment, so the file and line number are available.
+             LL       Turn on lint checks.  This throws errors for variable
+                     assignments that do not parse correctly, at the time of
+                     assignment, so the file and line number are available.
 
-             [1ml       [22mPrint commands in Makefiles regardless of whether or not
+             ll       Print commands in Makefiles regardless of whether or not
                      they are prefixed by `@' or other "quiet" flags.  Also
                      known as "loud" behavior.
 
-             [1mM       [22mPrint debugging information about "meta" mode decisions
+             MM       Print debugging information about "meta" mode decisions
                      about targets.
 
-             [1mm       [22mPrint debugging information about making targets, includ-
-                     ing modification dates.
+             mm       Print debugging information about making targets,
+                     including modification dates.
 
-             [1mn       [22mDon't delete the temporary command scripts created when
+             nn       Don't delete the temporary command scripts created when
                      running commands.  These temporary scripts are created in
-                     the directory referred to by the TMPDIR environment vari-
-                     able, or in [4m/tmp[24m if TMPDIR is unset or set to the empty
-                     string.  The temporary scripts are created by mkstemp(3),
-                     and have names of the form [4mmakeXXXXXX[24m.  [4mNOTE[24m: This can
-                     create many files in TMPDIR or [4m/tmp[24m, so use with care.
+                     the directory referred to by the TMPDIR environment
+                     variable, or in _/_t_m_p if TMPDIR is unset or set to the
+                     empty string.  The temporary scripts are created by
+                     mkstemp(3), and have names of the form _m_a_k_e_X_X_X_X_X_X.  _N_O_T_E:
+                     This can create many files in TMPDIR or _/_t_m_p, so use with
+                     care.
 
-             [1mp       [22mPrint debugging information about makefile parsing.
+             pp       Print debugging information about makefile parsing.
 
-             [1ms       [22mPrint debugging information about suffix-transformation
+             ss       Print debugging information about suffix-transformation
                      rules.
 
-             [1mt       [22mPrint debugging information about target list mainte-
-                     nance.
+             tt       Print debugging information about target list
+                     maintenance.
 
-             [1mV       [22mForce the [1m-V [22moption to print raw values of variables,
+             VV       Force the --VV option to print raw values of variables,
                      overriding the default behavior set via
-                     [4m.MAKE.EXPAND_VARIABLES[24m.
+                     _._M_A_K_E_._E_X_P_A_N_D___V_A_R_I_A_B_L_E_S.
 
-             [1mv       [22mPrint debugging information about variable assignment and
+             vv       Print debugging information about variable assignment and
                      expansion.
 
-             [1mx       [22mRun shell commands with [1m-x [22mso the actual commands are
+             xx       Run shell commands with --xx so the actual commands are
                      printed as they are executed.
 
-     [1m-e      [22mLet environment variables override global variables within make-
-             files.
+     --ee      Let environment variables override global variables within
+             makefiles.
 
-     [1m-f [4m[22mmakefile[0m
-             Specify a makefile to read instead of the default [4mmakefile[24m or
-             [4mMakefile[24m.  If [4mmakefile[24m is `-', standard input is read.  Multiple
+     --ff _m_a_k_e_f_i_l_e
+             Specify a makefile to read instead of the default _m_a_k_e_f_i_l_e or
+             _M_a_k_e_f_i_l_e.  If _m_a_k_e_f_i_l_e is `-', standard input is read.  Multiple
              makefiles may be specified, and are read in the order specified.
 
-     [1m-I [4m[22mdirectory[0m
+     --II _d_i_r_e_c_t_o_r_y
              Specify a directory in which to search for makefiles and included
              makefiles.  The system makefile directory (or directories, see
-             the [1m-m [22moption) is automatically included as part of this list.
+             the --mm option) is automatically included as part of this list.
 
-     [1m-i      [22mIgnore non-zero exit of shell commands in the makefile.  Equiva-
-             lent to specifying `-' before each command line in the makefile.
+     --ii      Ignore non-zero exit of shell commands in the makefile.
+             Equivalent to specifying `-' before each command line in the
+             makefile.
 
-     [1m-J [4m[22mprivate[0m
-             This option should [4mnot[24m be specified by the user.
+     --JJ _p_r_i_v_a_t_e
+             This option should _n_o_t be specified by the user.
 
-             When the [1m-j [22moption is in use in a recursive build, this option is
+             When the --jj option is in use in a recursive build, this option is
              passed by a make to child makes to allow all the make processes
              in the build to cooperate to avoid overloading the system.
 
-     [1m-j [4m[22mmax_jobs[0m
-             Specify the maximum number of jobs that [1mbmake [22mmay have running at
-             any one time.  If [4mmax_jobs[24m is a floating point number, or ends
-             with `C', then the value is multiplied by the number of CPUs re-
-             ported online by sysconf(3).  The value of [4mmax_jobs[24m is saved in
-             [4m.MAKE.JOBS[24m.  Turns compatibility mode off, unless the [1m-B [22moption
+     --jj _m_a_x___j_o_b_s
+             Specify the maximum number of jobs that bbmmaakkee may have running at
+             any one time.  If _m_a_x___j_o_b_s is a floating point number, or ends
+             with `C', then the value is multiplied by the number of CPUs
+             reported online by sysconf(3).  The value of _m_a_x___j_o_b_s is saved in
+             _._M_A_K_E_._J_O_B_S.  Turns compatibility mode off, unless the --BB option
              is also specified.  When compatibility mode is off, all commands
-             associated with a target are executed in a single shell invoca-
-             tion as opposed to the traditional one shell invocation per line.
-             This can break traditional scripts which change directories on
-             each command invocation and then expect to start with a fresh en-
-             vironment on the next line.  It is more efficient to correct the
-             scripts rather than turn backwards compatibility on.
+             associated with a target are executed in a single shell
+             invocation as opposed to the traditional one shell invocation per
+             line.  This can break traditional scripts which change
+             directories on each command invocation and then expect to start
+             with a fresh environment on the next line.  It is more efficient
+             to correct the scripts rather than turn backwards compatibility
+             on.
 
-             A job token pool with [4mmax_jobs[24m tokens is used to control the to-
-             tal number of jobs running.  Each instance of [1mbmake [22mwill wait for
-             a token from the pool before running a new job.
+             A job token pool with _m_a_x___j_o_b_s tokens is used to control the
+             total number of jobs running.  Each instance of bbmmaakkee will wait
+             for a token from the pool before running a new job.
 
-     [1m-k      [22mContinue processing after errors are encountered, but only on
+     --kk      Continue processing after errors are encountered, but only on
              those targets that do not depend on the target whose creation
              caused the error.
 
-     [1m-m [4m[22mdirectory[0m
-             Specify a directory in which to search for [4msys.mk[24m and makefiles
-             included via the <[4mfile[24m>-style include statement.  The [1m-m [22moption
+     --mm _d_i_r_e_c_t_o_r_y
+             Specify a directory in which to search for _s_y_s_._m_k and makefiles
+             included via the <_f_i_l_e>-style include statement.  The --mm option
              can be used multiple times to form a search path.  This path
-             overrides the default system include path [4m/usr/share/mk[24m.  Fur-
-             thermore, the system include path is appended to the search path
-             used for "[4mfile[24m"-style include statements (see the [1m-I [22moption).
-             The system include path can be referenced via the read-only vari-
-             able [4m.SYSPATH[24m.
+             overrides the default system include path _/_u_s_r_/_s_h_a_r_e_/_m_k.
+             Furthermore, the system include path is appended to the search
+             path used for "_f_i_l_e"-style include statements (see the --II
+             option).  The system include path can be referenced via the read-
+             only variable _._S_Y_S_P_A_T_H.
 
-             If a directory name in the [1m-m [22margument (or the MAKESYSPATH envi-
-             ronment variable) starts with the string `.../', [1mbmake [22msearches
-             for the specified file or directory named in the remaining part
-             of the argument string.  The search starts with the current di-
-             rectory and then works upward towards the root of the file sys-
-             tem.  If the search is successful, the resulting directory re-
-             places the `.../' specification in the [1m-m [22margument.  This feature
-             allows [1mbmake [22mto easily search in the current source tree for cus-
-             tomized [4msys.mk[24m files (e.g., by using `.../mk/sys.mk' as an argu-
-             ment).
+             If a directory name in the --mm argument (or the MAKESYSPATH
+             environment variable) starts with the string `.../', bbmmaakkee
+             searches for the specified file or directory named in the
+             remaining part of the argument string.  The search starts with
+             the current directory and then works upward towards the root of
+             the file system.  If the search is successful, the resulting
+             directory replaces the `.../' specification in the --mm argument.
+             This feature allows bbmmaakkee to easily search in the current source
+             tree for customized _s_y_s_._m_k files (e.g., by using `.../mk/sys.mk'
+             as an argument).
 
-     [1m-n      [22mDisplay the commands that would have been executed, but do not
-             actually execute them unless the target depends on the [4m.MAKE[24m spe-
-             cial source (see below) or the command is prefixed with `[1m+[22m'.
+     --nn      Display the commands that would have been executed, but do not
+             actually execute them unless the target depends on the _._M_A_K_E
+             special source (see below) or the command is prefixed with `++'.
 
-     [1m-N      [22mDisplay the commands that would have been executed, but do not
+     --NN      Display the commands that would have been executed, but do not
              actually execute any of them; useful for debugging top-level
              makefiles without descending into subdirectories.
 
-     [1m-q      [22mDo not execute any commands, instead exit 0 if the specified tar-
-             gets are up to date, and 1 otherwise.
+     --qq      Do not execute any commands, instead exit 0 if the specified
+             targets are up to date, and 1 otherwise.
 
-     [1m-r      [22mDo not use the built-in rules specified in the system makefile.
+     --rr      Do not use the built-in rules specified in the system makefile.
 
-     [1m-S      [22mStop processing if an error is encountered.  This is the default
-             behavior and the opposite of [1m-k[22m.
+     --SS      Stop processing if an error is encountered.  This is the default
+             behavior and the opposite of --kk.
 
-     [1m-s      [22mDo not echo any commands as they are executed.  Equivalent to
-             specifying `[1m@[22m' before each command line in the makefile.
+     --ss      Do not echo any commands as they are executed.  Equivalent to
+             specifying `@@' before each command line in the makefile.
 
-     [1m-T [4m[22mtracefile[0m
-             When used with the [1m-j [22mflag, append a trace record to [4mtracefile[0m
+     --TT _t_r_a_c_e_f_i_l_e
+             When used with the --jj flag, append a trace record to _t_r_a_c_e_f_i_l_e
              for each job started and completed.
 
-     [1m-t      [22mRather than re-building a target as specified in the makefile,
+     --tt      Rather than re-building a target as specified in the makefile,
              create it or update its modification time to make it appear up-
              to-date.
 
-     [1m-V [4m[22mvariable[0m
-             Print the value of [4mvariable[24m.  Do not build any targets.  Multiple
+     --VV _v_a_r_i_a_b_l_e
+             Print the value of _v_a_r_i_a_b_l_e.  Do not build any targets.  Multiple
              instances of this option may be specified; the variables are
-             printed one per line, with a blank line for each null or unde-
-             fined variable.  The value printed is extracted from the global
-             scope after all makefiles have been read.
+             printed one per line, with a blank line for each null or
+             undefined variable.  The value printed is extracted from the
+             global scope after all makefiles have been read.
 
-             By default, the raw variable contents (which may include addi-
-             tional unexpanded variable references) are shown.  If [4mvariable[0m
-             contains a `$', it is not interpreted as a variable name but
-             rather as an expression.  Its value is expanded before printing.
-             The value is also expanded before printing if
-             [4m.MAKE.EXPAND_VARIABLES[24m is set to true and the [1m-dV [22moption has not
+             By default, the raw variable contents (which may include
+             additional unexpanded variable references) are shown.  If
+             _v_a_r_i_a_b_l_e contains a `$', it is not interpreted as a variable name
+             but rather as an expression.  Its value is expanded before
+             printing.  The value is also expanded before printing if
+             _._M_A_K_E_._E_X_P_A_N_D___V_A_R_I_A_B_L_E_S is set to true and the --ddVV option has not
              been used to override it.
 
-             Note that loop-local and target-local variables, as well as val-
-             ues taken temporarily by global variables during makefile pro-
-             cessing, are not accessible via this option.  The [1m-dv [22mdebug mode
-             can be used to see these at the cost of generating substantial
-             extraneous output.
+             Note that loop-local and target-local variables, as well as
+             values taken temporarily by global variables during makefile
+             processing, are not accessible via this option.  The --ddvv debug
+             mode can be used to see these at the cost of generating
+             substantial extraneous output.
 
-     [1m-v [4m[22mvariable[0m
-             Like [1m-V[22m, but all printed variables are always expanded to their
-             complete value.  The last occurrence of [1m-V [22mor [1m-v [22mdecides whether
+     --vv _v_a_r_i_a_b_l_e
+             Like --VV, but all printed variables are always expanded to their
+             complete value.  The last occurrence of --VV or --vv decides whether
              all variables are expanded or not.
 
-     [1m-W      [22mTreat any warnings during makefile parsing as errors.
+     --WW      Treat any warnings during makefile parsing as errors.
 
-     [1m-w      [22mPrint entering and leaving directory messages, pre and post pro-
-             cessing.
+     --ww      Print entering and leaving directory messages, pre and post
+             processing.
 
-     [1m-X      [22mDon't export variables passed on the command line to the environ-
-             ment individually.  Variables passed on the command line are
-             still exported via the MAKEFLAGS environment variable.  This op-
-             tion may be useful on systems which have a small limit on the
+     --XX      Don't export variables passed on the command line to the
+             environment individually.  Variables passed on the command line
+             are still exported via the MAKEFLAGS environment variable.  This
+             option may be useful on systems which have a small limit on the
              size of command arguments.
 
-     [4mvariable[24m[1m=[4m[22mvalue[0m
-             Set the value of the variable [4mvariable[24m to [4mvalue[24m.  Normally, all
+     _v_a_r_i_a_b_l_e==_v_a_l_u_e
+             Set the value of the variable _v_a_r_i_a_b_l_e to _v_a_l_u_e.  Normally, all
              values passed on the command line are also exported to sub-makes
-             in the environment.  The [1m-X [22mflag disables this behavior.  Vari-
-             able assignments should follow options for POSIX compatibility
-             but no ordering is enforced.
+             in the environment.  The --XX flag disables this behavior.
+             Variable assignments should follow options for POSIX
+             compatibility but no ordering is enforced.
 
      There are several different types of lines in a makefile: dependency
      specifications, shell commands, variable assignments, include statements,
@@ -277,35 +281,35 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
      backslash (`\').  The trailing newline character and initial whitespace
      on the following line are compressed into a single space.
 
-[1mFILE DEPENDENCY SPECIFICATIONS[0m
+FFIILLEE DDEEPPEENNDDEENNCCYY SSPPEECCIIFFIICCAATTIIOONNSS
      Dependency lines consist of one or more targets, an operator, and zero or
      more sources.  This creates a relationship where the targets "depend" on
-     the sources and are customarily created from them.  A target is consid-
-     ered out of date if it does not exist, or if its modification time is
-     less than that of any of its sources.  An out-of-date target is re-cre-
-     ated, but not until all sources have been examined and themselves re-cre-
-     ated as needed.  Three operators may be used:
+     the sources and are customarily created from them.  A target is
+     considered out of date if it does not exist, or if its modification time
+     is less than that of any of its sources.  An out-of-date target is re-
+     created, but not until all sources have been examined and themselves re-
+     created as needed.  Three operators may be used:
 
-     [1m:     [22mMany dependency lines may name this target but only one may have
+     ::     Many dependency lines may name this target but only one may have
            attached shell commands.  All sources named in all dependency lines
            are considered together, and if needed the attached shell commands
-           are run to create or re-create the target.  If [1mbmake [22mis inter-
-           rupted, the target is removed.
+           are run to create or re-create the target.  If bbmmaakkee is
+           interrupted, the target is removed.
 
-     [1m!     [22mThe same, but the target is always re-created whether or not it is
+     !!     The same, but the target is always re-created whether or not it is
            out of date.
 
-     [1m::    [22mAny dependency line may have attached shell commands, but each one
-           is handled independently: its sources are considered and the at-
-           tached shell commands are run if the target is out of date with re-
-           spect to (only) those sources.  Thus, different groups of the at-
-           tached shell commands may be run depending on the circumstances.
-           Furthermore, unlike [1m:[22m, for dependency lines with no sources, the
-           attached shell commands are always run.  Also unlike [1m:[22m, the target
-           is not removed if [1mbmake [22mis interrupted.
+     ::::    Any dependency line may have attached shell commands, but each one
+           is handled independently: its sources are considered and the
+           attached shell commands are run if the target is out of date with
+           respect to (only) those sources.  Thus, different groups of the
+           attached shell commands may be run depending on the circumstances.
+           Furthermore, unlike ::, for dependency lines with no sources, the
+           attached shell commands are always run.  Also unlike ::, the target
+           is not removed if bbmmaakkee is interrupted.
 
-     All dependency lines mentioning a particular target must use the same op-
-     erator.
+     All dependency lines mentioning a particular target must use the same
+     operator.
 
      Targets and sources may contain the shell wildcard values `?', `*', `[]',
      and `{}'.  The values `?', `*', and `[]' may only be used as part of the
@@ -313,41 +317,41 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
      The value `{}' need not necessarily be used to describe existing files.
      Expansion is in directory order, not alphabetically as done in the shell.
 
-[1mSHELL COMMANDS[0m
-     Each target may have associated with it one or more lines of shell com-
-     mands, normally used to create the target.  Each of the lines in this
-     script [4mmust[24m be preceded by a tab.  (For historical reasons, spaces are
-     not accepted.)  While targets can occur in many dependency lines if de-
-     sired, by default only one of these rules may be followed by a creation
-     script.  If the `[1m::[22m' operator is used, however, all rules may include
+SSHHEELLLL CCOOMMMMAANNDDSS
+     Each target may have associated with it one or more lines of shell
+     commands, normally used to create the target.  Each of the lines in this
+     script _m_u_s_t be preceded by a tab.  (For historical reasons, spaces are
+     not accepted.)  While targets can occur in many dependency lines if
+     desired, by default only one of these rules may be followed by a creation
+     script.  If the `::::' operator is used, however, all rules may include
      scripts, and the respective scripts are executed in the order found.
 
      Each line is treated as a separate shell command, unless the end of line
      is escaped with a backslash `\', in which case that line and the next are
      combined.  If the first characters of the command are any combination of
-     `[1m@[22m', `[1m+[22m', or `[1m-[22m', the command is treated specially.
+     `@@', `++', or `--', the command is treated specially.
 
-           [1m@       [22mcauses the command not to be echoed before it is executed.
+           @@       causes the command not to be echoed before it is executed.
 
-           [1m+       [22mcauses the command to be executed even when [1m-n [22mis given.
-                   This is similar to the effect of the [4m.MAKE[24m special source,
+           ++       causes the command to be executed even when --nn is given.
+                   This is similar to the effect of the _._M_A_K_E special source,
                    except that the effect can be limited to a single line of a
                    script.
 
-           [1m-       [22min compatibility mode causes any non-zero exit status of
+           --       in compatibility mode causes any non-zero exit status of
                    the command line to be ignored.
 
-     When [1mbmake [22mis run in jobs mode with [1m-j [4m[22mmax_jobs[24m, the entire script for
+     When bbmmaakkee is run in jobs mode with --jj _m_a_x___j_o_b_s, the entire script for
      the target is fed to a single instance of the shell.  In compatibility
-     (non-jobs) mode, each command is run in a separate process.  If the com-
-     mand contains any shell meta characters (`#=|^(){};&<>*?[]:$`\\n'), it is
-     passed to the shell; otherwise [1mbmake [22mattempts direct execution.  If a
-     line starts with `[1m-[22m' and the shell has ErrCtl enabled, failure of the
-     command line is ignored as in compatibility mode.  Otherwise `[1m-[22m' affects
+     (non-jobs) mode, each command is run in a separate process.  If the
+     command contains any shell meta characters (`#=|^(){};&<>*?[]:$`\\n'), it
+     is passed to the shell; otherwise bbmmaakkee attempts direct execution.  If a
+     line starts with `--' and the shell has ErrCtl enabled, failure of the
+     command line is ignored as in compatibility mode.  Otherwise `--' affects
      the entire job; the script stops at the first command line that fails,
      but the target is not deemed to have failed.
 
-     Makefiles should be written so that the mode of [1mbmake [22moperation does not
+     Makefiles should be written so that the mode of bbmmaakkee operation does not
      change their behavior.  For example, any command which uses "cd" or
      "chdir" without the intention of changing the directory for subsequent
      commands should be put in parentheses so it executes in a subshell.  To
@@ -364,60 +368,60 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
                    (cd ${.CURDIR} && ${MAKE} $@); \
                    echo "Back in $$(pwd)"
 
-     Since [1mbmake [22mchanges the current working directory to `[4m.OBJDIR[24m' before ex-
-     ecuting any targets, each child process starts with that as its current
+     Since bbmmaakkee changes the current working directory to `_._O_B_J_D_I_R' before
+     executing any targets, each child process starts with that as its current
      working directory.
 
-[1mVARIABLE ASSIGNMENTS[0m
+VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
      Variables in make behave much like macros in the C preprocessor.
 
-     Variable assignments have the form `[4mNAME[24m [4mop[24m [4mvalue[24m', where:
+     Variable assignments have the form `_N_A_M_E _o_p _v_a_l_u_e', where:
 
-           [4mNAME[24m    is a single-word variable name, consisting, by tradition,
+           _N_A_M_E    is a single-word variable name, consisting, by tradition,
                    of all upper-case letters,
 
-           [4mop[24m      is one of the variable assignment operators described be-
-                   low, and
+           _o_p      is one of the variable assignment operators described
+                   below, and
 
-           [4mvalue[24m   is interpreted according to the variable assignment opera-
-                   tor.
+           _v_a_l_u_e   is interpreted according to the variable assignment
+                   operator.
 
-     Whitespace around [4mNAME[24m, [4mop[24m and [4mvalue[24m is discarded.
+     Whitespace around _N_A_M_E, _o_p and _v_a_l_u_e is discarded.
 
-   [1mVariable assignment operators[0m
+   VVaarriiaabbllee aassssiiggnnmmeenntt ooppeerraattoorrss
      The five operators that assign values to variables are:
 
-     [1m=       [22mAssign the value to the variable.  Any previous value is over-
-             written.
+     ==       Assign the value to the variable.  Any previous value is
+             overwritten.
 
-     [1m+=      [22mAppend the value to the current value of the variable, separating
+     ++==      Append the value to the current value of the variable, separating
              them by a single space.
 
-     [1m?=      [22mAssign the value to the variable if it is not already defined.
+     ??==      Assign the value to the variable if it is not already defined.
 
-     [1m:=      [22mExpand the value, then assign it to the variable.
+     ::==      Expand the value, then assign it to the variable.
 
-             [4mNOTE[24m: References to undefined variables are [4mnot[24m expanded.  This
+             _N_O_T_E: References to undefined variables are _n_o_t expanded.  This
              can cause problems when variable modifiers are used.
 
-     [1m!=      [22mExpand the value and pass it to the shell for execution, then as-
-             sign the output from the child's standard output to the variable.
-             Any newlines in the result are replaced with spaces.
+     !!==      Expand the value and pass it to the shell for execution, then
+             assign the output from the child's standard output to the
+             variable.  Any newlines in the result are replaced with spaces.
 
-   [1mExpansion of variables[0m
+   EExxppaannssiioonn ooff vvaarriiaabblleess
      In most contexts where variables are expanded, `$$' expands to a single
      dollar sign.  In other contexts (most variable modifiers, string literals
      in conditions), `\$' expands to a single dollar sign.
 
-     References to variables have the form [1m${[4m[22mname[24m[[1m:[4m[22mmodifiers[24m][1m} [22mor
-     [1m$([4m[22mname[24m[[1m:[4m[22mmodifiers[24m][1m)[22m.  If the variable name consists of only a single
+     References to variables have the form $${{_n_a_m_e[::_m_o_d_i_f_i_e_r_s]}} or
+     $$((_n_a_m_e[::_m_o_d_i_f_i_e_r_s])).  If the variable name consists of only a single
      character and the expression contains no modifiers, the surrounding curly
-     braces or parentheses are not required.  This shorter form is not recom-
-     mended.
+     braces or parentheses are not required.  This shorter form is not
+     recommended.
 
      If the variable name contains a dollar, the name itself is expanded
-     first.  This allows almost arbitrary variable names, however names con-
-     taining dollar, braces, parentheses or whitespace are really best
+     first.  This allows almost arbitrary variable names, however names
+     containing dollar, braces, parentheses or whitespace are really best
      avoided.
 
      If the result of expanding a nested variable expression contains a dollar
@@ -434,7 +438,7 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
      3.   Variables in shell commands are expanded when the shell command is
           executed.
 
-     4.   [1m.for [22mloop index variables are expanded on each loop iteration.  Note
+     4.   ..ffoorr loop index variables are expanded on each loop iteration.  Note
           that other variables are not expanded when composing the body of a
           loop, so the following example code:
 
@@ -455,20 +459,20 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
 
           After the loop is executed:
 
-                [4ma[24m       contains `${:U1} ${:U2} ${:U3}', which expands to `1 2
+                _a       contains `${:U1} ${:U2} ${:U3}', which expands to `1 2
                         3'.
 
-                [4mj[24m       contains `${:U3}', which expands to `3'.
+                _j       contains `${:U3}', which expands to `3'.
 
-                [4mb[24m       contains `${j} ${j} ${j}', which expands to `${:U3}
+                _b       contains `${j} ${j} ${j}', which expands to `${:U3}
                         ${:U3} ${:U3}' and further to `3 3 3'.
 
-   [1mVariable classes[0m
-     The four different classes of variables (in order of increasing prece-
-     dence) are:
+   VVaarriiaabbllee ccllaasssseess
+     The four different classes of variables (in order of increasing
+     precedence) are:
 
      Environment variables
-             Variables defined as part of [1mbmake[22m's environment.
+             Variables defined as part of bbmmaakkee's environment.
 
      Global variables
              Variables defined in the makefile or in included makefiles.
@@ -480,7 +484,7 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
              Variables that are defined specific to a certain target.
 
      Local variables can be set on a dependency line, unless
-     [4m.MAKE.TARGET_LOCAL_VARIABLES[24m is set to `false'.  The rest of the line
+     _._M_A_K_E_._T_A_R_G_E_T___L_O_C_A_L___V_A_R_I_A_B_L_E_S is set to `false'.  The rest of the line
      (which already has had global variables expanded) is the variable value.
      For example:
 
@@ -489,42 +493,42 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
            ${OBJS}: .MAKE.META.CMP_FILTER=${COMPILER_WRAPPERS:S,^,N,}
 
      Only the targets `${OBJS}' are impacted by that filter (in "meta" mode)
-     and simply enabling/disabling any of the compiler wrappers does not ren-
-     der all of those targets out-of-date.
+     and simply enabling/disabling any of the compiler wrappers does not
+     render all of those targets out-of-date.
 
-     [4mNOTE[24m: target-local variable assignments behave differently in that;
+     _N_O_T_E: target-local variable assignments behave differently in that;
 
-           [1m+=      [22mOnly appends to a previous local assignment for the same
+           ++==      Only appends to a previous local assignment for the same
                    target and variable.
 
-           [1m:=      [22mIs redundant with respect to global variables, which have
+           ::==      Is redundant with respect to global variables, which have
                    already been expanded.
 
      The seven built-in local variables are:
 
-           [4m.ALLSRC[24m   The list of all sources for this target; also known as
-                     `[4m>[24m'.
+           _._A_L_L_S_R_C       The list of all sources for this target; also known
+                         as `_>'.
 
-           [4m.ARCHIVE[24m  The name of the archive file; also known as `[4m![24m'.
+           _._A_R_C_H_I_V_E      The name of the archive file; also known as `_!'.
 
-           [4m.IMPSRC[24m   In suffix-transformation rules, the name/path of the
-                     source from which the target is to be transformed (the
-                     "implied" source); also known as `[4m<[24m'.  It is not defined
-                     in explicit rules.
+           _._I_M_P_S_R_C       In suffix-transformation rules, the name/path of the
+                         source from which the target is to be transformed
+                         (the "implied" source); also known as `_<'.  It is not
+                         defined in explicit rules.
 
-           [4m.MEMBER[24m   The name of the archive member; also known as `[4m%[24m'.
+           _._M_E_M_B_E_R       The name of the archive member; also known as `_%'.
 
-           [4m.OODATE[24m   The list of sources for this target that were deemed out-
-                     of-date; also known as `[4m?[24m'.
+           _._O_O_D_A_T_E       The list of sources for this target that were deemed
+                         out-of-date; also known as `_?'.
 
-           [4m.PREFIX[24m   The name of the target with suffix (if declared in
-                     [1m.SUFFIXES[22m) removed; also known as `[4m*[24m'.
+           _._P_R_E_F_I_X       The name of the target with suffix (if declared in
+                         ..SSUUFFFFIIXXEESS) removed; also known as `_*'.
 
-           [4m.TARGET[24m   The name of the target; also known as `[4m@[24m'.  For compati-
-                     bility with other makes this is an alias for [4m.ARCHIVE[24m in
-                     archive member rules.
+           _._T_A_R_G_E_T       The name of the target; also known as `_@'.  For
+                         compatibility with other makes this is an alias for
+                         _._A_R_C_H_I_V_E in archive member rules.
 
-     The shorter forms (`[4m>[24m', `[4m![24m', `[4m<[24m', `[4m%[24m', `[4m?[24m', `[4m*[24m', and `[4m@[24m') are permitted
+     The shorter forms (`_>', `_!', `_<', `_%', `_?', `_*', and `_@') are permitted
      for backward compatibility with historical makefiles and legacy POSIX
      make and are not recommended.
 
@@ -535,377 +539,381 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
 
      Four of the local variables may be used in sources on dependency lines
      because they expand to the proper value for each target on the line.
-     These variables are `[4m.TARGET[24m', `[4m.PREFIX[24m', `[4m.ARCHIVE[24m', and `[4m.MEMBER[24m'.
+     These variables are `_._T_A_R_G_E_T', `_._P_R_E_F_I_X', `_._A_R_C_H_I_V_E', and `_._M_E_M_B_E_R'.
 
-   [1mAdditional built-in variables[0m
-     In addition, [1mbmake [22msets or knows about the following variables:
+   AAddddiittiioonnaall bbuuiilltt--iinn vvaarriiaabblleess
+     In addition, bbmmaakkee sets or knows about the following variables:
 
-     [4m.ALLTARGETS[0m
-             The list of all targets encountered in the makefiles.  If evalu-
-             ated during makefile parsing, lists only those targets encoun-
-             tered thus far.
+     _._A_L_L_T_A_R_G_E_T_S
+             The list of all targets encountered in the makefiles.  If
+             evaluated during makefile parsing, lists only those targets
+             encountered thus far.
 
-     [4m.CURDIR[0m
-             A path to the directory where [1mbmake [22mwas executed.  Refer to the
-             description of `[4mPWD[24m' for more details.
+     _._C_U_R_D_I_R
+             A path to the directory where bbmmaakkee was executed.  Refer to the
+             description of `_P_W_D' for more details.
 
-     [4m.ERROR_CMD[0m
-             Is used in error handling, see [4mMAKE_PRINT_VAR_ON_ERROR[24m.
+     _._E_R_R_O_R___C_M_D
+             Is used in error handling, see _M_A_K_E___P_R_I_N_T___V_A_R___O_N___E_R_R_O_R.
 
-     [4m.ERROR_CWD[0m
-             Is used in error handling, see [4mMAKE_PRINT_VAR_ON_ERROR[24m.
+     _._E_R_R_O_R___C_W_D
+             Is used in error handling, see _M_A_K_E___P_R_I_N_T___V_A_R___O_N___E_R_R_O_R.
 
-     [4m.ERROR_META_FILE[0m
+     _._E_R_R_O_R___E_X_I_T
+             Is used in error handling, see _M_A_K_E___P_R_I_N_T___V_A_R___O_N___E_R_R_O_R.
+
+     _._E_R_R_O_R___M_E_T_A___F_I_L_E
              Is used in error handling in "meta" mode, see
-             [4mMAKE_PRINT_VAR_ON_ERROR[24m.
+             _M_A_K_E___P_R_I_N_T___V_A_R___O_N___E_R_R_O_R.
 
-     [4m.ERROR_TARGET[0m
-             Is used in error handling, see [4mMAKE_PRINT_VAR_ON_ERROR[24m.
+     _._E_R_R_O_R___T_A_R_G_E_T
+             Is used in error handling, see _M_A_K_E___P_R_I_N_T___V_A_R___O_N___E_R_R_O_R.
 
-     [4m.INCLUDEDFROMDIR[0m
+     _._I_N_C_L_U_D_E_D_F_R_O_M_D_I_R
              The directory of the file this makefile was included from.
 
-     [4m.INCLUDEDFROMFILE[0m
+     _._I_N_C_L_U_D_E_D_F_R_O_M_F_I_L_E
              The filename of the file this makefile was included from.
 
-     [4mMACHINE[0m
+     _M_A_C_H_I_N_E
              The machine hardware name, see uname(1).
 
-     [4mMACHINE_ARCH[0m
+     _M_A_C_H_I_N_E___A_R_C_H
              The machine processor architecture name, see uname(1).
 
-     [4mMAKE[24m    The name that [1mbmake [22mwas executed with ([4margv[0][24m).
+     _M_A_K_E    The name that bbmmaakkee was executed with (_a_r_g_v_[_0_]).
 
-     [4m.MAKE[24m   The same as [4mMAKE[24m, for compatibility.  The preferred variable to
-             use is the environment variable MAKE because it is more compati-
-             ble with other make variants and cannot be confused with the spe-
-             cial target with the same name.
+     _._M_A_K_E   The same as _M_A_K_E, for compatibility.  The preferred variable to
+             use is the environment variable MAKE because it is more
+             compatible with other make variants and cannot be confused with
+             the special target with the same name.
 
-     [4m.MAKE.DEPENDFILE[0m
-             Names the makefile (default `[4m.depend[24m') from which generated de-
-             pendencies are read.
+     _._M_A_K_E_._D_E_P_E_N_D_F_I_L_E
+             Names the makefile (default `_._d_e_p_e_n_d') from which generated
+             dependencies are read.
 
-     [4m.MAKE.DIE_QUIETLY[0m
+     _._M_A_K_E_._D_I_E___Q_U_I_E_T_L_Y
              If set to `true', do not print error information at the end.
 
-     [4m.MAKE.EXPAND_VARIABLES[0m
-             A boolean that controls the default behavior of the [1m-V [22moption.
-             If true, variable values printed with [1m-V [22mare fully expanded; if
+     _._M_A_K_E_._E_X_P_A_N_D___V_A_R_I_A_B_L_E_S
+             A boolean that controls the default behavior of the --VV option.
+             If true, variable values printed with --VV are fully expanded; if
              false, the raw variable contents (which may include additional
              unexpanded variable references) are shown.
 
-     [4m.MAKE.EXPORTED[0m
-             The list of variables exported by [1mbmake[22m.
+     _._M_A_K_E_._E_X_P_O_R_T_E_D
+             The list of variables exported by bbmmaakkee.
 
-     [4mMAKEFILE[0m
+     _M_A_K_E_F_I_L_E
              The top-level makefile that is currently read, as given in the
              command line.
 
-     [4m.MAKEFLAGS[0m
+     _._M_A_K_E_F_L_A_G_S
              The environment variable `MAKEFLAGS' may contain anything that
-             may be specified on [1mbmake[22m's command line.  Anything specified on
-             [1mbmake[22m's command line is appended to the [4m.MAKEFLAGS[24m variable,
+             may be specified on bbmmaakkee's command line.  Anything specified on
+             bbmmaakkee's command line is appended to the _._M_A_K_E_F_L_A_G_S variable,
              which is then added to the environment for all programs that
-             [1mbmake [22mexecutes.
+             bbmmaakkee executes.
 
-     [4m.MAKE.GID[0m
-             The numeric group ID of the user running [1mbmake[22m.  It is read-only.
+     _._M_A_K_E_._G_I_D
+             The numeric group ID of the user running bbmmaakkee.  It is read-only.
 
-     [4m.MAKE.JOB.PREFIX[0m
-             If [1mbmake [22mis run with [1m-j[22m, the output for each target is prefixed
+     _._M_A_K_E_._J_O_B_._P_R_E_F_I_X
+             If bbmmaakkee is run with --jj, the output for each target is prefixed
              with a token
-                   --- [4mtarget[24m ---
-             the first part of which can be controlled via [4m.MAKE.JOB.PREFIX[24m.
-             If [4m.MAKE.JOB.PREFIX[24m is empty, no token is printed.  For example,
-             setting [4m.MAKE.JOB.PREFIX[24m to
+                   --- _t_a_r_g_e_t ---
+             the first part of which can be controlled via _._M_A_K_E_._J_O_B_._P_R_E_F_I_X.
+             If _._M_A_K_E_._J_O_B_._P_R_E_F_I_X is empty, no token is printed.  For example,
+             setting _._M_A_K_E_._J_O_B_._P_R_E_F_I_X to
              `${.newline}---${.MAKE:T}[${.MAKE.PID}]' would produce tokens
              like
-                   ---make[1234] [4mtarget[24m ---
+                   ---make[1234] _t_a_r_g_e_t ---
              making it easier to track the degree of parallelism being
              achieved.
 
-     [4m.MAKE.JOBS[0m
-             The argument to the [1m-j [22moption.
+     _._M_A_K_E_._J_O_B_S
+             The argument to the --jj option.
 
-     [4m.MAKE.JOBS.C[0m
-             A read-only boolean that indicates whether the [1m-j [22moption supports
+     _._M_A_K_E_._J_O_B_S_._C
+             A read-only boolean that indicates whether the --jj option supports
              use of `C'.
 
-     [4m.MAKE.LEVEL[0m
-             The recursion depth of [1mbmake[22m.  The top-level instance of [1mbmake[0m
+     _._M_A_K_E_._L_E_V_E_L
+             The recursion depth of bbmmaakkee.  The top-level instance of bbmmaakkee
              has level 0, and each child make has its parent level plus 1.
              This allows tests like: .if ${.MAKE.LEVEL} == 0 to protect things
              which should only be evaluated in the top-level instance of
-             [1mbmake[22m.
+             bbmmaakkee.
 
-     [4m.MAKE.LEVEL.ENV[0m
+     _._M_A_K_E_._L_E_V_E_L_._E_N_V
              The name of the environment variable that stores the level of
-             nested calls to [1mbmake[22m.
+             nested calls to bbmmaakkee.
 
-     [4m.MAKE.MAKEFILE_PREFERENCE[0m
-             The ordered list of makefile names (default `[4mmakefile[24m',
-             `[4mMakefile[24m') that [1mbmake [22mlooks for.
+     _._M_A_K_E_._M_A_K_E_F_I_L_E___P_R_E_F_E_R_E_N_C_E
+             The ordered list of makefile names (default `_m_a_k_e_f_i_l_e',
+             `_M_a_k_e_f_i_l_e') that bbmmaakkee looks for.
 
-     [4m.MAKE.MAKEFILES[0m
-             The list of makefiles read by [1mbmake[22m, which is useful for tracking
+     _._M_A_K_E_._M_A_K_E_F_I_L_E_S
+             The list of makefiles read by bbmmaakkee, which is useful for tracking
              dependencies.  Each makefile is recorded only once, regardless of
              the number of times read.
 
-     [4m.MAKE.META.BAILIWICK[0m
-             In "meta" mode, provides a list of prefixes which match the di-
-             rectories controlled by [1mbmake[22m.  If a file that was generated out-
-             side of [4m.OBJDIR[24m but within said bailiwick is missing, the current
-             target is considered out-of-date.
+     _._M_A_K_E_._M_E_T_A_._B_A_I_L_I_W_I_C_K
+             In "meta" mode, provides a list of prefixes which match the
+             directories controlled by bbmmaakkee.  If a file that was generated
+             outside of _._O_B_J_D_I_R but within said bailiwick is missing, the
+             current target is considered out-of-date.
 
-     [4m.MAKE.META.CMP_FILTER[0m
+     _._M_A_K_E_._M_E_T_A_._C_M_P___F_I_L_T_E_R
              In "meta" mode, it can (very rarely!) be useful to filter command
              lines before comparison.  This variable can be set to a set of
-             modifiers that are applied to each line of the old and new com-
-             mand that differ, if the filtered commands still differ, the tar-
-             get is considered out-of-date.
+             modifiers that are applied to each line of the old and new
+             command that differ, if the filtered commands still differ, the
+             target is considered out-of-date.
 
-     [4m.MAKE.META.CREATED[0m
+     _._M_A_K_E_._M_E_T_A_._C_R_E_A_T_E_D
              In "meta" mode, this variable contains a list of all the meta
-             files updated.  If not empty, it can be used to trigger process-
-             ing of [4m.MAKE.META.FILES[24m.
+             files updated.  If not empty, it can be used to trigger
+             processing of _._M_A_K_E_._M_E_T_A_._F_I_L_E_S.
 
-     [4m.MAKE.META.FILES[0m
+     _._M_A_K_E_._M_E_T_A_._F_I_L_E_S
              In "meta" mode, this variable contains a list of all the meta
              files used (updated or not).  This list can be used to process
              the meta files to extract dependency information.
 
-     [4m.MAKE.META.IGNORE_FILTER[0m
+     _._M_A_K_E_._M_E_T_A_._I_G_N_O_R_E___F_I_L_T_E_R
              Provides a list of variable modifiers to apply to each pathname.
              Ignore if the expansion is an empty string.
 
-     [4m.MAKE.META.IGNORE_PATHS[0m
+     _._M_A_K_E_._M_E_T_A_._I_G_N_O_R_E___P_A_T_H_S
              Provides a list of path prefixes that should be ignored; because
              the contents are expected to change over time.  The default list
-             includes: `[4m/dev[24m [4m/etc[24m [4m/proc[24m [4m/tmp[24m [4m/var/run[24m [4m/var/tmp[24m'
+             includes: `_/_d_e_v _/_e_t_c _/_p_r_o_c _/_t_m_p _/_v_a_r_/_r_u_n _/_v_a_r_/_t_m_p'
 
-     [4m.MAKE.META.IGNORE_PATTERNS[0m
+     _._M_A_K_E_._M_E_T_A_._I_G_N_O_R_E___P_A_T_T_E_R_N_S
              Provides a list of patterns to match against pathnames.  Ignore
              any that match.
 
-     [4m.MAKE.META.PREFIX[0m
+     _._M_A_K_E_._M_E_T_A_._P_R_E_F_I_X
              Defines the message printed for each meta file updated in "meta
              verbose" mode.  The default value is:
                    Building ${.TARGET:H:tA}/${.TARGET:T}
 
-     [4m.MAKE.MODE[0m
+     _._M_A_K_E_._M_O_D_E
              Processed after reading all makefiles.  Affects the mode that
-             [1mbmake [22mruns in.  It can contain these keywords:
+             bbmmaakkee runs in.  It can contain these keywords:
 
-             [1mcompat  [22mLike [1m-B[22m, puts [1mbmake [22minto "compat" mode.
+             ccoommppaatt  Like --BB, puts bbmmaakkee into "compat" mode.
 
-             [1mmeta    [22mPuts [1mbmake [22minto "meta" mode, where meta files are created
+             mmeettaa    Puts bbmmaakkee into "meta" mode, where meta files are created
                      for each target to capture the command run, the output
                      generated, and if filemon(4) is available, the system
-                     calls which are of interest to [1mbmake[22m.  The captured out-
-                     put can be useful when diagnosing errors.
+                     calls which are of interest to bbmmaakkee.  The captured
+                     output can be useful when diagnosing errors.
 
-             [1mcurdirOk=[4m[22mbf[0m
-                     By default, [1mbmake [22mdoes not create [4m.meta[24m files in
-                     `[4m.CURDIR[24m'.  This can be overridden by setting [4mbf[24m to a
+             ccuurrddiirrOOkk==_b_f
+                     By default, bbmmaakkee does not create _._m_e_t_a files in
+                     `_._C_U_R_D_I_R'.  This can be overridden by setting _b_f to a
                      value which represents true.
 
-             [1mmissing-meta=[4m[22mbf[0m
-                     If [4mbf[24m is true, a missing [4m.meta[24m file makes the target out-
+             mmiissssiinngg--mmeettaa==_b_f
+                     If _b_f is true, a missing _._m_e_t_a file makes the target out-
                      of-date.
 
-             [1mmissing-filemon=[4m[22mbf[0m
-                     If [4mbf[24m is true, missing filemon data makes the target out-
+             mmiissssiinngg--ffiilleemmoonn==_b_f
+                     If _b_f is true, missing filemon data makes the target out-
                      of-date.
 
-             [1mnofilemon[0m
+             nnooffiilleemmoonn
                      Do not use filemon(4).
 
-             [1menv     [22mFor debugging, it can be useful to include the environ-
-                     ment in the [4m.meta[24m file.
+             eennvv     For debugging, it can be useful to include the
+                     environment in the _._m_e_t_a file.
 
-             [1mverbose[0m
+             vveerrbboossee
                      If in "meta" mode, print a clue about the target being
                      built.  This is useful if the build is otherwise running
                      silently.  The message printed is the expanded value of
-                     [4m.MAKE.META.PREFIX[24m.
+                     _._M_A_K_E_._M_E_T_A_._P_R_E_F_I_X.
 
-             [1mignore-cmd[0m
+             iiggnnoorree--ccmmdd
                      Some makefiles have commands which are simply not stable.
                      This keyword causes them to be ignored for determining
                      whether a target is out of date in "meta" mode.  See also
-                     [1m.NOMETA_CMP[22m.
+                     ..NNOOMMEETTAA__CCMMPP.
 
-             [1msilent=[4m[22mbf[0m
-                     If [4mbf[24m is true, when a .meta file is created, mark the
-                     target [1m.SILENT[22m.
+             ssiilleenntt==_b_f
+                     If _b_f is true, when a .meta file is created, mark the
+                     target ..SSIILLEENNTT.
 
-             [1mrandomize-targets[0m
+             rraannddoommiizzee--ttaarrggeettss
                      In both compat and parallel mode, do not make the targets
                      in the usual order, but instead randomize their order.
                      This mode can be used to detect undeclared dependencies
                      between files.
 
-     [4mMAKEOBJDIR[0m
-             Used to create files in a separate directory, see [4m.OBJDIR[24m.
+     _M_A_K_E_O_B_J_D_I_R
+             Used to create files in a separate directory, see _._O_B_J_D_I_R.
 
-     [4mMAKE_OBJDIR_CHECK_WRITABLE[0m
+     _M_A_K_E___O_B_J_D_I_R___C_H_E_C_K___W_R_I_T_A_B_L_E
              Used to force a separate directory for the created files, even if
-             that directory is not writable, see [4m.OBJDIR[24m.
+             that directory is not writable, see _._O_B_J_D_I_R.
 
-     [4mMAKEOBJDIRPREFIX[0m
-             Used to create files in a separate directory, see [4m.OBJDIR[24m.
+     _M_A_K_E_O_B_J_D_I_R_P_R_E_F_I_X
+             Used to create files in a separate directory, see _._O_B_J_D_I_R.
 
-     [4m.MAKE.OS[0m
+     _._M_A_K_E_._O_S
              The name of the operating system, see uname(1).  It is read-only.
 
-     [4m.MAKEOVERRIDES[0m
+     _._M_A_K_E_O_V_E_R_R_I_D_E_S
              This variable is used to record the names of variables assigned
              to on the command line, so that they may be exported as part of
              `MAKEFLAGS'.  This behavior can be disabled by assigning an empty
-             value to `[4m.MAKEOVERRIDES[24m' within a makefile.  Extra variables can
+             value to `_._M_A_K_E_O_V_E_R_R_I_D_E_S' within a makefile.  Extra variables can
              be exported from a makefile by appending their names to
-             `[4m.MAKEOVERRIDES[24m'.  `MAKEFLAGS' is re-exported whenever
-             `[4m.MAKEOVERRIDES[24m' is modified.
+             `_._M_A_K_E_O_V_E_R_R_I_D_E_S'.  `MAKEFLAGS' is re-exported whenever
+             `_._M_A_K_E_O_V_E_R_R_I_D_E_S' is modified.
 
-     [4m.MAKE.PATH_FILEMON[0m
-             If [1mbmake [22mwas built with filemon(4) support, this is set to the
+     _._M_A_K_E_._P_A_T_H___F_I_L_E_M_O_N
+             If bbmmaakkee was built with filemon(4) support, this is set to the
              path of the device node.  This allows makefiles to test for this
              support.
 
-     [4m.MAKE.PID[0m
-             The process ID of [1mbmake[22m.  It is read-only.
+     _._M_A_K_E_._P_I_D
+             The process ID of bbmmaakkee.  It is read-only.
 
-     [4m.MAKE.PPID[0m
-             The parent process ID of [1mbmake[22m.  It is read-only.
+     _._M_A_K_E_._P_P_I_D
+             The parent process ID of bbmmaakkee.  It is read-only.
 
-     [4mMAKE_PRINT_VAR_ON_ERROR[0m
-             When [1mbmake [22mstops due to an error, it sets `[4m.ERROR_TARGET[24m' to the
-             name of the target that failed, `[4m.ERROR_CMD[24m' to the commands of
-             the failed target, and in "meta" mode, it also sets `[4m.ERROR_CWD[24m'
-             to the getcwd(3), and `[4m.ERROR_META_FILE[24m' to the path of the meta
-             file (if any) describing the failed target.  It then prints its
-             name and the value of `[4m.CURDIR[24m' as well as the value of any vari-
-             ables named in `[4mMAKE_PRINT_VAR_ON_ERROR[24m'.
+     _M_A_K_E___P_R_I_N_T___V_A_R___O_N___E_R_R_O_R
+             When bbmmaakkee stops due to an error, it sets `_._E_R_R_O_R___T_A_R_G_E_T' to the
+             name of the target that failed, `_._E_R_R_O_R___E_X_I_T' to the exit status
+             of the failed target, `_._E_R_R_O_R___C_M_D' to the commands of the failed
+             target, and in "meta" mode, it also sets `_._E_R_R_O_R___C_W_D' to the
+             getcwd(3), and `_._E_R_R_O_R___M_E_T_A___F_I_L_E' to the path of the meta file
+             (if any) describing the failed target.  It then prints its name
+             and the value of `_._C_U_R_D_I_R' as well as the value of any variables
+             named in `_M_A_K_E___P_R_I_N_T___V_A_R___O_N___E_R_R_O_R'.
 
-     [4m.MAKE.SAVE_DOLLARS[0m
-             If true, `$$' are preserved when doing `:=' assignments.  The de-
-             fault is false, for backwards compatibility.  Set to true for
+     _._M_A_K_E_._S_A_V_E___D_O_L_L_A_R_S
+             If true, `$$' are preserved when doing `:=' assignments.  The
+             default is false, for backwards compatibility.  Set to true for
              compatability with other makes.  If set to false, `$$' becomes
              `$' per normal evaluation rules.
 
-     [4m.MAKE.TARGET_LOCAL_VARIABLES[0m
+     _._M_A_K_E_._T_A_R_G_E_T___L_O_C_A_L___V_A_R_I_A_B_L_E_S
              If set to `false', apparent variable assignments in dependency
              lines are treated as normal sources.
 
-     [4m.MAKE.UID[0m
-             The numeric ID of the user running [1mbmake[22m.  It is read-only.
+     _._M_A_K_E_._U_I_D
+             The numeric ID of the user running bbmmaakkee.  It is read-only.
 
-     [4m.newline[0m
+     _._n_e_w_l_i_n_e
              This variable is simply assigned a newline character as its
-             value.  It is read-only.  This allows expansions using the [1m:@[0m
+             value.  It is read-only.  This allows expansions using the ::@@
              modifier to put a newline between iterations of the loop rather
-             than a space.  For example, in case of an error, [1mbmake [22mprints the
+             than a space.  For example, in case of an error, bbmmaakkee prints the
              variable names and their values using:
                    ${MAKE_PRINT_VAR_ON_ERROR:@v@$v='${$v}'${.newline}@}
 
-     [4m.OBJDIR[0m
+     _._O_B_J_D_I_R
              A path to the directory where the targets are built.  Its value
              is determined by trying to chdir(2) to the following directories
              in order and using the first match:
 
-             1.   [1m${MAKEOBJDIRPREFIX}${.CURDIR}[0m
+             1.   $${{MMAAKKEEOOBBJJDDIIRRPPRREEFFIIXX}}$${{..CCUURRDDIIRR}}
 
                   (Only if `MAKEOBJDIRPREFIX' is set in the environment or on
                   the command line.)
 
-             2.   [1m${MAKEOBJDIR}[0m
+             2.   $${{MMAAKKEEOOBBJJDDIIRR}}
 
                   (Only if `MAKEOBJDIR' is set in the environment or on the
                   command line.)
 
-             3.   [1m${.CURDIR}[4m[22m/obj.[24m[1m${MACHINE}[0m
+             3.   $${{..CCUURRDDIIRR}}_/_o_b_j_.$${{MMAACCHHIINNEE}}
 
-             4.   [1m${.CURDIR}[4m[22m/obj[0m
+             4.   $${{..CCUURRDDIIRR}}_/_o_b_j
 
-             5.   [4m/usr/obj/[24m[1m${.CURDIR}[0m
+             5.   _/_u_s_r_/_o_b_j_/$${{..CCUURRDDIIRR}}
 
-             6.   [1m${.CURDIR}[0m
+             6.   $${{..CCUURRDDIIRR}}
 
              Variable expansion is performed on the value before it is used,
-             so expressions such as [1m${.CURDIR:S,^/usr/src,/var/obj,} [22mmay be
+             so expressions such as $${{..CCUURRDDIIRR::SS,,^^//uussrr//ssrrcc,,//vvaarr//oobbjj,,}} may be
              used.  This is especially useful with `MAKEOBJDIR'.
 
-             `[4m.OBJDIR[24m' may be modified in the makefile via the special target
-             `[1m.OBJDIR[22m'.  In all cases, [1mbmake [22mchanges to the specified direc-
-             tory if it exists, and sets `[4m.OBJDIR[24m' and `[4mPWD[24m' to that directory
-             before executing any targets.
+             `_._O_B_J_D_I_R' may be modified in the makefile via the special target
+             `..OOBBJJDDIIRR'.  In all cases, bbmmaakkee changes to the specified
+             directory if it exists, and sets `_._O_B_J_D_I_R' and `_P_W_D' to that
+             directory before executing any targets.
 
-             Except in the case of an explicit `[1m.OBJDIR[22m' target, [1mbmake [22mchecks
+             Except in the case of an explicit `..OOBBJJDDIIRR' target, bbmmaakkee checks
              that the specified directory is writable and ignores it if not.
              This check can be skipped by setting the environment variable
              `MAKE_OBJDIR_CHECK_WRITABLE' to "no".
 
-     [4m.PARSEDIR[0m
+     _._P_A_R_S_E_D_I_R
              The directory name of the current makefile being parsed.
 
-     [4m.PARSEFILE[0m
+     _._P_A_R_S_E_F_I_L_E
              The basename of the current makefile being parsed.  This variable
-             and `[4m.PARSEDIR[24m' are both set only while the makefiles are being
-             parsed.  To retain their current values, assign them to a vari-
-             able using assignment with expansion `[1m:=[22m'.
+             and `_._P_A_R_S_E_D_I_R' are both set only while the makefiles are being
+             parsed.  To retain their current values, assign them to a
+             variable using assignment with expansion `::=='.
 
-     [4m.PATH[24m   The space-separated list of directories that [1mbmake [22msearches for
+     _._P_A_T_H   The space-separated list of directories that bbmmaakkee searches for
              files.  To update this search list, use the special target
-             `[1m.PATH[22m' rather than modifying the variable directly.
+             `..PPAATTHH' rather than modifying the variable directly.
 
-     [4m%POSIX[24m  Is set in POSIX mode, see the special `[4m.POSIX[24m' target.
+     _%_P_O_S_I_X  Is set in POSIX mode, see the special `_._P_O_S_I_X' target.
 
-     [4mPWD[24m     Alternate path to the current directory.  [1mbmake [22mnormally sets
-             `[4m.CURDIR[24m' to the canonical path given by getcwd(3).  However, if
+     _P_W_D     Alternate path to the current directory.  bbmmaakkee normally sets
+             `_._C_U_R_D_I_R' to the canonical path given by getcwd(3).  However, if
              the environment variable `PWD' is set and gives a path to the
-             current directory, [1mbmake [22msets `[4m.CURDIR[24m' to the value of `PWD' in-
-             stead.  This behavior is disabled if `MAKEOBJDIRPREFIX' is set or
-             `MAKEOBJDIR' contains a variable transform.  `[4mPWD[24m' is set to the
-             value of `[4m.OBJDIR[24m' for all programs which [1mbmake [22mexecutes.
+             current directory, bbmmaakkee sets `_._C_U_R_D_I_R' to the value of `PWD'
+             instead.  This behavior is disabled if `MAKEOBJDIRPREFIX' is set
+             or `MAKEOBJDIR' contains a variable transform.  `_P_W_D' is set to
+             the value of `_._O_B_J_D_I_R' for all programs which bbmmaakkee executes.
 
-     [4m.SHELL[24m  The pathname of the shell used to run target scripts.  It is
+     _._S_H_E_L_L  The pathname of the shell used to run target scripts.  It is
              read-only.
 
-     [4m.SUFFIXES[0m
+     _._S_U_F_F_I_X_E_S
              The list of known suffixes.  It is read-only.
 
-     [4m.SYSPATH[0m
-             The space-separated list of directories that [1mbmake [22msearches for
+     _._S_Y_S_P_A_T_H
+             The space-separated list of directories that bbmmaakkee searches for
              makefiles, referred to as the system include path.  To update
-             this search list, use the special target `[1m.SYSPATH[22m' rather than
+             this search list, use the special target `..SSYYSSPPAATTHH' rather than
              modifying the variable which is read-only.
 
-     [4m.TARGETS[0m
+     _._T_A_R_G_E_T_S
              The list of targets explicitly specified on the command line, if
              any.
 
-     [4mVPATH[24m   The colon-separated (":") list of directories that [1mbmake [22msearches
+     _V_P_A_T_H   The colon-separated (":") list of directories that bbmmaakkee searches
              for files.  This variable is supported for compatibility with old
-             make programs only, use `[4m.PATH[24m' instead.
+             make programs only, use `_._P_A_T_H' instead.
 
-   [1mVariable modifiers[0m
+   VVaarriiaabbllee mmooddiiffiieerrss
      The general format of a variable expansion is:
 
-           [1m${[4m[22mvariable[24m[[1m:[4m[22mmodifier[24m[[1m:[22m...]][1m}[0m
+           $${{_v_a_r_i_a_b_l_e[::_m_o_d_i_f_i_e_r[::...]]}}
 
      Each modifier begins with a colon.  To escape a colon, precede it with a
      backslash `\'.
 
      A list of indirect modifiers can be specified via a variable, as follows:
 
-           [4mmodifier_variable[24m = [4mmodifier[24m[[1m:[22m...]
+           _m_o_d_i_f_i_e_r___v_a_r_i_a_b_l_e = _m_o_d_i_f_i_e_r[::...]
 
-           [1m${[4m[22mvariable[24m[1m:${[4m[22mmodifier_variable[24m[1m}[22m[[1m:[22m...][1m}[0m
+           $${{_v_a_r_i_a_b_l_e::$${{_m_o_d_i_f_i_e_r___v_a_r_i_a_b_l_e}}[::...]}}
 
-     In this case, the first modifier in the [4mmodifier_variable[24m does not start
-     with a colon, since that colon already occurs in the referencing vari-
-     able.  If any of the modifiers in the [4mmodifier_variable[24m contains a dollar
-     sign (`$'), these must be doubled to avoid early expansion.
+     In this case, the first modifier in the _m_o_d_i_f_i_e_r___v_a_r_i_a_b_l_e does not start
+     with a colon, since that colon already occurs in the referencing
+     variable.  If any of the modifiers in the _m_o_d_i_f_i_e_r___v_a_r_i_a_b_l_e contains a
+     dollar sign (`$'), these must be doubled to avoid early expansion.
 
      Some modifiers interpret the expression value as a single string, others
      treat the expression value as a whitespace-separated list of words.  When
@@ -915,37 +923,37 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
 
      The supported modifiers are:
 
-     [1m:E   [22mReplaces each word with its suffix.
+     ::EE   Replaces each word with its suffix.
 
-     [1m:H   [22mReplaces each word with its dirname.
+     ::HH   Replaces each word with its dirname.
 
-     [1m:M[4m[22mpattern[0m
-          Selects only those words that match [4mpattern[24m.  The standard shell
+     ::MM_p_a_t_t_e_r_n
+          Selects only those words that match _p_a_t_t_e_r_n.  The standard shell
           wildcard characters (`*', `?', and `[]') may be used.  The wildcard
           characters may be escaped with a backslash (`\').  As a consequence
           of the way values are split into words, matched, and then joined,
-          the construct `${VAR:M*}' removes all leading and trailing white-
-          space and normalizes the inter-word spacing to a single space.
+          the construct `${VAR:M*}' removes all leading and trailing
+          whitespace and normalizes the inter-word spacing to a single space.
 
-     [1m:N[4m[22mpattern[0m
-          This is the opposite of `[1m:M[22m', selecting all words which do [4mnot[24m match
-          [4mpattern[24m.
+     ::NN_p_a_t_t_e_r_n
+          This is the opposite of `::MM', selecting all words which do _n_o_t match
+          _p_a_t_t_e_r_n.
 
-     [1m:O   [22mOrders the words lexicographically.
+     ::OO   Orders the words lexicographically.
 
-     [1m:On  [22mOrders the words numerically.  A number followed by one of `k', `M'
+     ::OOnn  Orders the words numerically.  A number followed by one of `k', `M'
           or `G' is multiplied by the appropriate factor, which is 1024 for
           `k', 1048576 for `M', or 1073741824 for `G'.  Both upper- and lower-
           case letters are accepted.
 
-     [1m:Or  [22mOrders the words in reverse lexicographical order.
+     ::OOrr  Orders the words in reverse lexicographical order.
 
-     [1m:Orn[0m
+     ::OOrrnn
           Orders the words in reverse numerical order.
 
-     [1m:Ox  [22mShuffles the words.  The results are different each time you are re-
-          ferring to the modified variable; use the assignment with expansion
-          `[1m:=[22m' to prevent such behavior.  For example,
+     ::OOxx  Shuffles the words.  The results are different each time you are
+          referring to the modified variable; use the assignment with
+          expansion `::==' to prevent such behavior.  For example,
 
                 LIST=                   uno due tre quattro
                 RANDOM_LIST=            ${LIST:Ox}
@@ -963,141 +971,143 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
                 due uno quattro tre
                 due uno quattro tre
 
-     [1m:Q   [22mQuotes every shell meta-character in the value, so that it can be
+     ::QQ   Quotes every shell meta-character in the value, so that it can be
           passed safely to the shell.
 
-     [1m:q   [22mQuotes every shell meta-character in the value, and also doubles `$'
-          characters so that it can be passed safely through recursive invoca-
-          tions of [1mbmake[22m.  This is equivalent to `[1m:S/\$/&&/g:Q[22m'.
+     ::qq   Quotes every shell meta-character in the value, and also doubles `$'
+          characters so that it can be passed safely through recursive
+          invocations of bbmmaakkee.  This is equivalent to `::SS//\\$$//&&&&//gg::QQ'.
 
-     [1m:R   [22mReplaces each word with everything but its suffix.
+     ::RR   Replaces each word with everything but its suffix.
 
-     [1m:range[22m[[1m=[4m[22mcount[24m]
-          The value is an integer sequence representing the words of the orig-
-          inal value, or the supplied [4mcount[24m.
+     ::rraannggee[==_c_o_u_n_t]
+          The value is an integer sequence representing the words of the
+          original value, or the supplied _c_o_u_n_t.
 
-     [1m:gmtime[22m[[1m=[4m[22mtimestamp[24m]
+     ::ggmmttiimmee[==_t_i_m_e_s_t_a_m_p]
           The value is interpreted as a format string for strftime(3), using
           gmtime(3), producing the formatted timestamp.  Note: the `%s' format
-          should only be used with `[1m:localtime[22m'.  If a [4mtimestamp[24m value is not
+          should only be used with `::llooccaallttiimmee'.  If a _t_i_m_e_s_t_a_m_p value is not
           provided or is 0, the current time is used.
 
-     [1m:hash[0m
+     ::hhaasshh
           Computes a 32-bit hash of the value and encodes it as 8 hex digits.
 
-     [1m:localtime[22m[[1m=[4m[22mtimestamp[24m]
+     ::llooccaallttiimmee[==_t_i_m_e_s_t_a_m_p]
           The value is interpreted as a format string for strftime(3), using
-          localtime(3), producing the formatted timestamp.  If a [4mtimestamp[0m
+          localtime(3), producing the formatted timestamp.  If a _t_i_m_e_s_t_a_m_p
           value is not provided or is 0, the current time is used.
 
-     [1m:mtime[22m[[1m=[4m[22mtimestamp[24m]
+     ::mmttiimmee[==_t_i_m_e_s_t_a_m_p]
           Call stat(2) with each word as pathname; use `st_mtime' as the new
-          value.  If stat(2) fails; use [4mtimestamp[24m or current time.  If
-          [4mtimestamp[24m is set to `error', then stat(2) failure will cause an er-
-          ror.
+          value.  If stat(2) fails; use _t_i_m_e_s_t_a_m_p or current time.  If
+          _t_i_m_e_s_t_a_m_p is set to `error', then stat(2) failure will cause an
+          error.
 
-     [1m:tA  [22mAttempts to convert the value to an absolute path using realpath(3).
+     ::ttAA  Attempts to convert the value to an absolute path using realpath(3).
           If that fails, the value is unchanged.
 
-     [1m:tl  [22mConverts the value to lower-case letters.
+     ::ttll  Converts the value to lower-case letters.
 
-     [1m:ts[4m[22mc[0m
+     ::ttss_c
           When joining the words after a modifier that treats the value as
           words, the words are normally separated by a space.  This modifier
-          changes the separator to the character [4mc[24m.  If [4mc[24m is omitted, no sepa-
-          rator is used.  The common escapes (including octal numeric codes)
-          work as expected.
+          changes the separator to the character _c.  If _c is omitted, no
+          separator is used.  The common escapes (including octal numeric
+          codes) work as expected.
 
-     [1m:tu  [22mConverts the value to upper-case letters.
+     ::ttuu  Converts the value to upper-case letters.
 
-     [1m:tW  [22mCauses subsequent modifiers to treat the value as a single word
-          (possibly containing embedded whitespace).  See also `[1m:[*][22m'.
+     ::ttWW  Causes subsequent modifiers to treat the value as a single word
+          (possibly containing embedded whitespace).  See also `::[[**]]'.
 
-     [1m:tw  [22mCauses the value to be treated as a list of words.  See also `[1m:[@][22m'.
+     ::ttww  Causes the value to be treated as a list of words.  See also `::[[@@]]'.
 
-     [1m:S[22m/[4mold_string[24m/[4mnew_string[24m/[[1m1gW[22m]
-          Modifies the first occurrence of [4mold_string[24m in each word of the
-          value, replacing it with [4mnew_string[24m.  If a `g' is appended to the
-          last delimiter of the pattern, all occurrences in each word are re-
-          placed.  If a `1' is appended to the last delimiter of the pattern,
-          only the first occurrence is affected.  If a `W' is appended to the
-          last delimiter of the pattern, the value is treated as a single
-          word.  If [4mold_string[24m begins with a caret (`^'), [4mold_string[24m is an-
-          chored at the beginning of each word.  If [4mold_string[24m ends with a
-          dollar sign (`$'), it is anchored at the end of each word.  Inside
-          [4mnew_string[24m, an ampersand (`&') is replaced by [4mold_string[24m (without
-          the anchoring `^' or `$').  Any character may be used as the delim-
-          iter for the parts of the modifier string.  The anchoring, ampersand
-          and delimiter characters can be escaped with a backslash (`\').
+     ::SS/_o_l_d___s_t_r_i_n_g/_n_e_w___s_t_r_i_n_g/[11ggWW]
+          Modifies the first occurrence of _o_l_d___s_t_r_i_n_g in each word of the
+          value, replacing it with _n_e_w___s_t_r_i_n_g.  If a `g' is appended to the
+          last delimiter of the pattern, all occurrences in each word are
+          replaced.  If a `1' is appended to the last delimiter of the
+          pattern, only the first occurrence is affected.  If a `W' is
+          appended to the last delimiter of the pattern, the value is treated
+          as a single word.  If _o_l_d___s_t_r_i_n_g begins with a caret (`^'),
+          _o_l_d___s_t_r_i_n_g is anchored at the beginning of each word.  If _o_l_d___s_t_r_i_n_g
+          ends with a dollar sign (`$'), it is anchored at the end of each
+          word.  Inside _n_e_w___s_t_r_i_n_g, an ampersand (`&') is replaced by
+          _o_l_d___s_t_r_i_n_g (without the anchoring `^' or `$').  Any character may be
+          used as the delimiter for the parts of the modifier string.  The
+          anchoring, ampersand and delimiter characters can be escaped with a
+          backslash (`\').
 
-          Both [4mold_string[24m and [4mnew_string[24m may contain nested expressions.  To
+          Both _o_l_d___s_t_r_i_n_g and _n_e_w___s_t_r_i_n_g may contain nested expressions.  To
           prevent a dollar sign from starting a nested expression, escape it
           with a backslash.
 
-     [1m:C[22m/[4mpattern[24m/[4mreplacement[24m/[[1m1gW[22m]
-          The [1m:C [22mmodifier works like the [1m:S [22mmodifier except that the old and
-          new strings, instead of being simple strings, are an extended regu-
-          lar expression [4mpattern[24m (see regex(3)) and an ed(1)-style
-          [4mreplacement[24m.  Normally, the first occurrence of the pattern [4mpattern[0m
-          in each word of the value is substituted with [4mreplacement[24m.  The `1'
+     ::CC/_p_a_t_t_e_r_n/_r_e_p_l_a_c_e_m_e_n_t/[11ggWW]
+          The ::CC modifier works like the ::SS modifier except that the old and
+          new strings, instead of being simple strings, are an extended
+          regular expression _p_a_t_t_e_r_n (see regex(3)) and an ed(1)-style
+          _r_e_p_l_a_c_e_m_e_n_t.  Normally, the first occurrence of the pattern _p_a_t_t_e_r_n
+          in each word of the value is substituted with _r_e_p_l_a_c_e_m_e_n_t.  The `1'
           modifier causes the substitution to apply to at most one word; the
           `g' modifier causes the substitution to apply to as many instances
-          of the search pattern [4mpattern[24m as occur in the word or words it is
-          found in; the `W' modifier causes the value to be treated as a sin-
-          gle word (possibly containing embedded whitespace).
+          of the search pattern _p_a_t_t_e_r_n as occur in the word or words it is
+          found in; the `W' modifier causes the value to be treated as a
+          single word (possibly containing embedded whitespace).
 
-          As for the [1m:S [22mmodifier, the [4mpattern[24m and [4mreplacement[24m are subjected to
+          As for the ::SS modifier, the _p_a_t_t_e_r_n and _r_e_p_l_a_c_e_m_e_n_t are subjected to
           variable expansion before being parsed as regular expressions.
 
-     [1m:T   [22mReplaces each word with its last path component (basename).
+     ::TT   Replaces each word with its last path component (basename).
 
-     [1m:u   [22mRemoves adjacent duplicate words (like uniq(1)).
+     ::uu   Removes adjacent duplicate words (like uniq(1)).
 
-     [1m:?[4m[22mtrue_string[24m[1m:[4m[22mfalse_string[0m
-          If the variable name (not its value), when parsed as a [1m.if [22mcondi-
-          tional expression, evaluates to true, return as its value the
-          [4mtrue_string[24m, otherwise return the [4mfalse_string[24m.  Since the variable
+     ::??_t_r_u_e___s_t_r_i_n_g::_f_a_l_s_e___s_t_r_i_n_g
+          If the variable name (not its value), when parsed as a ..iiff
+          conditional expression, evaluates to true, return as its value the
+          _t_r_u_e___s_t_r_i_n_g, otherwise return the _f_a_l_s_e___s_t_r_i_n_g.  Since the variable
           name is used as the expression, :? must be the first modifier after
-          the variable name itself--which, of course, usually contains vari-
-          able expansions.  A common error is trying to use expressions like
+          the variable name itself--which, of course, usually contains
+          variable expansions.  A common error is trying to use expressions
+          like
                 ${NUMBERS:M42:?match:no}
           which actually tests defined(NUMBERS).  To determine if any words
           match "42", you need to use something like:
                 ${"${NUMBERS:M42}" != "":?match:no}.
 
-     [1m:[4m[22mold_string[24m[1m=[4m[22mnew_string[0m
+     ::_o_l_d___s_t_r_i_n_g==_n_e_w___s_t_r_i_n_g
           This is the AT&T System V UNIX style substitution.  It can only be
-          the last modifier specified, as a `:' in either [4mold_string[24m or
-          [4mnew_string[24m is treated as a regular character, not as the end of the
+          the last modifier specified, as a `:' in either _o_l_d___s_t_r_i_n_g or
+          _n_e_w___s_t_r_i_n_g is treated as a regular character, not as the end of the
           modifier.
 
-          If [4mold_string[24m does not contain the pattern matching character `%',
-          and the word ends with [4mold_string[24m or equals it, that suffix is re-
-          placed with [4mnew_string[24m.
+          If _o_l_d___s_t_r_i_n_g does not contain the pattern matching character `%',
+          and the word ends with _o_l_d___s_t_r_i_n_g or equals it, that suffix is
+          replaced with _n_e_w___s_t_r_i_n_g.
 
-          Otherwise, the first `%' in [4mold_string[24m matches a possibly empty sub-
-          string of arbitrary characters, and if the whole pattern is found in
-          the word, the matching part is replaced with [4mnew_string[24m, and the
-          first occurrence of `%' in [4mnew_string[24m (if any) is replaced with the
+          Otherwise, the first `%' in _o_l_d___s_t_r_i_n_g matches a possibly empty
+          substring of arbitrary characters, and if the whole pattern is found
+          in the word, the matching part is replaced with _n_e_w___s_t_r_i_n_g, and the
+          first occurrence of `%' in _n_e_w___s_t_r_i_n_g (if any) is replaced with the
           substring matched by the `%'.
 
-          Both [4mold_string[24m and [4mnew_string[24m may contain nested expressions.  To
+          Both _o_l_d___s_t_r_i_n_g and _n_e_w___s_t_r_i_n_g may contain nested expressions.  To
           prevent a dollar sign from starting a nested expression, escape it
           with a backslash.
 
-     [1m:@[4m[22mvarname[24m[1m@[4m[22mstring[24m[1m@[0m
-          This is the loop expansion mechanism from the OSF Development Envi-
-          ronment (ODE) make.  Unlike [1m.for [22mloops, expansion occurs at the time
-          of reference.  For each word in the value, assign the word to the
-          variable named [4mvarname[24m and evaluate [4mstring[24m.  The ODE convention is
-          that [4mvarname[24m should start and end with a period, for example:
+     ::@@_v_a_r_n_a_m_e@@_s_t_r_i_n_g@@
+          This is the loop expansion mechanism from the OSF Development
+          Environment (ODE) make.  Unlike ..ffoorr loops, expansion occurs at the
+          time of reference.  For each word in the value, assign the word to
+          the variable named _v_a_r_n_a_m_e and evaluate _s_t_r_i_n_g.  The ODE convention
+          is that _v_a_r_n_a_m_e should start and end with a period, for example:
                 ${LINKS:@.LINK.@${LN} ${TARGET} ${.LINK.}@}
 
           However, a single-letter variable is often more readable:
                 ${MAKE_PRINT_VAR_ON_ERROR:@v@$v='${$v}'${.newline}@}
 
-     [1m:_[22m[[1m=[4m[22mvar[24m]
-          Saves the current variable value in `$_' or the named [4mvar[24m for later
+     ::__[==_v_a_r]
+          Saves the current variable value in `$_' or the named _v_a_r for later
           reference.  Example usage:
 
                 M_cmpv.units = 1 1000 1000000
@@ -1109,146 +1119,150 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
           Here `$_' is used to save the result of the `:S' modifier which is
           later referenced using the index values from `:range'.
 
-     [1m:U[4m[22mnewval[0m
-          If the variable is undefined, [4mnewval[24m is the value.  If the variable
-          is defined, the existing value is returned.  This is another ODE
-          make feature.  It is handy for setting per-target CFLAGS for in-
-          stance:
+     ::UU_n_e_w_v_a_l
+          If the variable is undefined, the optional _n_e_w_v_a_l (which may be
+          empty) is the value.  If the variable is defined, the existing value
+          is returned.  This is another ODE make feature.  It is handy for
+          setting per-target CFLAGS for instance:
                 ${_${.TARGET:T}_CFLAGS:U${DEF_CFLAGS}}
           If a value is only required if the variable is undefined, use:
                 ${VAR:D:Unewval}
 
-     [1m:D[4m[22mnewval[0m
-          If the variable is defined, [4mnewval[24m is the value.
+     ::DD_n_e_w_v_a_l
+          If the variable is defined, _n_e_w_v_a_l (which may be empty) is the
+          value.
 
-     [1m:L   [22mThe name of the variable is the value.
+     ::LL   The name of the variable is the value.
 
-     [1m:P   [22mThe path of the node which has the same name as the variable is the
+     ::PP   The path of the node which has the same name as the variable is the
           value.  If no such node exists or its path is null, the name of the
           variable is used.  In order for this modifier to work, the name
-          (node) must at least have appeared on the right-hand side of a de-
-          pendency.
+          (node) must at least have appeared on the right-hand side of a
+          dependency.
 
-     [1m:![4m[22mcmd[24m[1m![0m
-          The output of running [4mcmd[24m is the value.
+     ::!!_c_m_d!!
+          The output of running _c_m_d is the value.
 
-     [1m:sh  [22mThe value is run as a command, and the output becomes the new value.
+     ::sshh  The value is run as a command, and the output becomes the new value.
 
-     [1m::=[4m[22mstr[0m
-          The variable is assigned the value [4mstr[24m after substitution.  This
+     ::::==_s_t_r
+          The variable is assigned the value _s_t_r after substitution.  This
           modifier and its variations are useful in obscure situations such as
           wanting to set a variable at a point where a target's shell commands
-          are being parsed.  These assignment modifiers always expand to noth-
-          ing.
+          are being parsed.  These assignment modifiers always expand to
+          nothing.
 
-          The `[1m::[22m' helps avoid false matches with the AT&T System V UNIX style
+          The `::::' helps avoid false matches with the AT&T System V UNIX style
           `:=' modifier and since substitution always occurs, the `::=' form
           is vaguely appropriate.
 
-     [1m::?=[4m[22mstr[0m
-          As for [1m::= [22mbut only if the variable does not already have a value.
+     ::::??==_s_t_r
+          As for ::::== but only if the variable does not already have a value.
 
-     [1m::+=[4m[22mstr[0m
-          Append [4mstr[24m to the variable.
+     ::::++==_s_t_r
+          Append _s_t_r to the variable.
 
-     [1m::!=[4m[22mcmd[0m
-          Assign the output of [4mcmd[24m to the variable.
+     ::::!!==_c_m_d
+          Assign the output of _c_m_d to the variable.
 
-     [1m:[[4m[22mrange[24m[1m][0m
-          Selects one or more words from the value, or performs other opera-
-          tions related to the way in which the value is split into words.
+     ::[[_r_a_n_g_e]]
+          Selects one or more words from the value, or performs other
+          operations related to the way in which the value is split into
+          words.
 
           An empty value, or a value that consists entirely of white-space, is
-          treated as a single word.  For the purposes of the `[1m:[][22m' modifier,
+          treated as a single word.  For the purposes of the `::[[]]' modifier,
           the words are indexed both forwards using positive integers (where
-          index 1 represents the first word), and backwards using negative in-
-          tegers (where index -1 represents the last word).
+          index 1 represents the first word), and backwards using negative
+          integers (where index -1 represents the last word).
 
-          The [4mrange[24m is subjected to variable expansion, and the expanded re-
-          sult is then interpreted as follows:
+          The _r_a_n_g_e is subjected to variable expansion, and the expanded
+          result is then interpreted as follows:
 
-          [4mindex[24m  Selects a single word from the value.
+          _i_n_d_e_x  Selects a single word from the value.
 
-          [4mstart[24m[1m..[4m[22mend[0m
-                 Selects all words from [4mstart[24m to [4mend[24m, inclusive.  For example,
-                 `[1m:[2..-1][22m' selects all words from the second word to the last
-                 word.  If [4mstart[24m is greater than [4mend[24m, the words are output in
-                 reverse order.  For example, `[1m:[-1..1][22m' selects all the words
-                 from last to first.  If the list is already ordered, this ef-
-                 fectively reverses the list, but it is more efficient to use
-                 `[1m:Or[22m' instead of `[1m:O:[-1..1][22m'.
+          _s_t_a_r_t...._e_n_d
+                 Selects all words from _s_t_a_r_t to _e_n_d, inclusive.  For example,
+                 `::[[22....--11]]' selects all words from the second word to the last
+                 word.  If _s_t_a_r_t is greater than _e_n_d, the words are output in
+                 reverse order.  For example, `::[[--11....11]]' selects all the words
+                 from last to first.  If the list is already ordered, this
+                 effectively reverses the list, but it is more efficient to
+                 use `::OOrr' instead of `::OO::[[--11....11]]'.
 
-          [1m*      [22mCauses subsequent modifiers to treat the value as a single
+          **      Causes subsequent modifiers to treat the value as a single
                  word (possibly containing embedded whitespace).  Analogous to
                  the effect of $* in Bourne shell.
 
-          0      Means the same as `[1m:[*][22m'.
+          0      Means the same as `::[[**]]'.
 
-          [1m@      [22mCauses subsequent modifiers to treat the value as a sequence
+          @@      Causes subsequent modifiers to treat the value as a sequence
                  of words delimited by whitespace.  Analogous to the effect of
                  $@ in Bourne shell.
 
-          [1m#      [22mReturns the number of words in the value.
+          ##      Returns the number of words in the value.
 
-[1mDIRECTIVES[0m
-     [1mbmake [22moffers directives for including makefiles, conditionals and for
+DDIIRREECCTTIIVVEESS
+     bbmmaakkee offers directives for including makefiles, conditionals and for
      loops.  All these directives are identified by a line beginning with a
      single dot (`.') character, followed by the keyword of the directive,
-     such as [1minclude [22mor [1mif[22m.
+     such as iinncclluuddee or iiff.
 
-   [1mFile inclusion[0m
-     Files are included with either [1m.include <[4m[22mfile[24m[1m> [22mor [1m.include "[4m[22mfile[24m[1m"[22m.  Vari-
-     ables between the angle brackets or double quotes are expanded to form
-     the file name.  If angle brackets are used, the included makefile is ex-
-     pected to be in the system makefile directory.  If double quotes are
+   FFiillee iinncclluussiioonn
+     Files are included with either ..iinncclluuddee <<_f_i_l_e>> or ..iinncclluuddee ""_f_i_l_e"".
+     Variables between the angle brackets or double quotes are expanded to
+     form the file name.  If angle brackets are used, the included makefile is
+     expected to be in the system makefile directory.  If double quotes are
      used, the including makefile's directory and any directories specified
-     using the [1m-I [22moption are searched before the system makefile directory.
+     using the --II option are searched before the system makefile directory.
 
-     For compatibility with other make variants, `[1minclude [4m[22mfile[24m ...' (without
+     For compatibility with other make variants, `iinncclluuddee _f_i_l_e ...' (without
      leading dot) is also accepted.
 
-     If the include statement is written as [1m.-include [22mor as [1m.sinclude[22m, errors
+     If the include statement is written as ..--iinncclluuddee or as ..ssiinncclluuddee, errors
      locating and/or opening include files are ignored.
 
-     If the include statement is written as [1m.dinclude[22m, not only are errors lo-
-     cating and/or opening include files ignored, but stale dependencies
-     within the included file are ignored just like in [4m.MAKE.DEPENDFILE[24m.
+     If the include statement is written as ..ddiinncclluuddee, not only are errors
+     locating and/or opening include files ignored, but stale dependencies
+     within the included file are ignored just like in _._M_A_K_E_._D_E_P_E_N_D_F_I_L_E.
 
-   [1mExporting variables[0m
+   EExxppoorrttiinngg vvaarriiaabblleess
      The directives for exporting and unexporting variables are:
 
-     [1m.export [4m[22mvariable[24m ...
+     ..eexxppoorrtt _v_a_r_i_a_b_l_e ...
              Export the specified global variable.  If no variable list is
              provided, all globals are exported except for internal variables
-             (those that start with `.').  This is not affected by the [1m-X[0m
+             (those that start with `.').  This is not affected by the --XX
              flag, so should be used with caution.  For compatibility with
-             other make programs, [1mexport [4m[22mvariable[24m[1m=[4m[22mvalue[24m (without leading dot)
+             other make programs, eexxppoorrtt _v_a_r_i_a_b_l_e==_v_a_l_u_e (without leading dot)
              is also accepted.
 
-             Appending a variable name to [4m.MAKE.EXPORTED[24m is equivalent to ex-
-             porting a variable.
+             Appending a variable name to _._M_A_K_E_._E_X_P_O_R_T_E_D is equivalent to
+             exporting a variable.
 
-     [1m.export-env [4m[22mvariable[24m ...
+     ..eexxppoorrtt--eennvv _v_a_r_i_a_b_l_e ...
              The same as `.export', except that the variable is not appended
-             to [4m.MAKE.EXPORTED[24m.  This allows exporting a value to the environ-
-             ment which is different from that used by [1mbmake [22minternally.
+             to _._M_A_K_E_._E_X_P_O_R_T_E_D.  This allows exporting a value to the
+             environment which is different from that used by bbmmaakkee
+             internally.
 
-     [1m.export-literal [4m[22mvariable[24m ...
+     ..eexxppoorrtt--lliitteerraall _v_a_r_i_a_b_l_e ...
              The same as `.export-env', except that variables in the value are
              not expanded.
 
-     [1m.unexport [4m[22mvariable[24m ...
-             The opposite of `.export'.  The specified global [4mvariable[24m is re-
-             moved from [4m.MAKE.EXPORTED[24m.  If no variable list is provided, all
-             globals are unexported, and [4m.MAKE.EXPORTED[24m deleted.
+     ..uunneexxppoorrtt _v_a_r_i_a_b_l_e ...
+             The opposite of `.export'.  The specified global _v_a_r_i_a_b_l_e is
+             removed from _._M_A_K_E_._E_X_P_O_R_T_E_D.  If no variable list is provided,
+             all globals are unexported, and _._M_A_K_E_._E_X_P_O_R_T_E_D deleted.
 
-     [1m.unexport-env[0m
-             Unexport all globals previously exported and clear the environ-
-             ment inherited from the parent.  This operation causes a memory
-             leak of the original environment, so should be used sparingly.
-             Testing for [4m.MAKE.LEVEL[24m being 0 would make sense.  Also note that
-             any variables which originated in the parent environment should
-             be explicitly preserved if desired.  For example:
+     ..uunneexxppoorrtt--eennvv
+             Unexport all globals previously exported and clear the
+             environment inherited from the parent.  This operation causes a
+             memory leak of the original environment, so should be used
+             sparingly.  Testing for _._M_A_K_E_._L_E_V_E_L being 0 would make sense.
+             Also note that any variables which originated in the parent
+             environment should be explicitly preserved if desired.  For
+             example:
 
                    .if ${.MAKE.LEVEL} == 0
                    PATH := ${PATH}
@@ -1257,180 +1271,180 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
                    .endif
 
              Would result in an environment containing only `PATH', which is
-             the minimal useful environment.  Actually `[4m.MAKE.LEVEL[24m' is also
+             the minimal useful environment.  Actually `_._M_A_K_E_._L_E_V_E_L' is also
              pushed into the new environment.
 
-   [1mMessages[0m
+   MMeessssaaggeess
      The directives for printing messages to the output are:
 
-     [1m.info [4m[22mmessage[0m
+     ..iinnffoo _m_e_s_s_a_g_e
              The message is printed along with the name of the makefile and
              line number.
 
-     [1m.warning [4m[22mmessage[0m
+     ..wwaarrnniinngg _m_e_s_s_a_g_e
              The message prefixed by `warning:' is printed along with the name
              of the makefile and line number.
 
-     [1m.error [4m[22mmessage[0m
+     ..eerrrroorr _m_e_s_s_a_g_e
              The message is printed along with the name of the makefile and
-             line number, [1mbmake [22mexits immediately.
+             line number, bbmmaakkee exits immediately.
 
-   [1mConditionals[0m
+   CCoonnddiittiioonnaallss
      The directives for conditionals are:
 
-     [1m.if [22m[[1m![22m][4mexpression[24m [[4moperator[24m [4mexpression[24m ...]
+     ..iiff [!!]_e_x_p_r_e_s_s_i_o_n [_o_p_e_r_a_t_o_r _e_x_p_r_e_s_s_i_o_n ...]
              Test the value of an expression.
 
-     [1m.ifdef [22m[[1m![22m][4mvariable[24m [[4moperator[24m [4mvariable[24m ...]
+     ..iiffddeeff [!!]_v_a_r_i_a_b_l_e [_o_p_e_r_a_t_o_r _v_a_r_i_a_b_l_e ...]
              Test whether a variable is defined.
 
-     [1m.ifndef [22m[[1m![22m][4mvariable[24m [[4moperator[24m [4mvariable[24m ...]
+     ..iiffnnddeeff [!!]_v_a_r_i_a_b_l_e [_o_p_e_r_a_t_o_r _v_a_r_i_a_b_l_e ...]
              Test whether a variable is not defined.
 
-     [1m.ifmake [22m[[1m![22m][4mtarget[24m [[4moperator[24m [4mtarget[24m ...]
+     ..iiffmmaakkee [!!]_t_a_r_g_e_t [_o_p_e_r_a_t_o_r _t_a_r_g_e_t ...]
              Test the target being requested.
 
-     [1m.ifnmake [22m[[1m![22m][4mtarget[24m [[4moperator[24m [4mtarget[24m ...]
+     ..iiffnnmmaakkee [!!]_t_a_r_g_e_t [_o_p_e_r_a_t_o_r _t_a_r_g_e_t ...]
              Test the target being requested.
 
-     [1m.else   [22mReverse the sense of the last conditional.
+     ..eellssee   Reverse the sense of the last conditional.
 
-     [1m.elif [22m[[1m![22m][4mexpression[24m [[4moperator[24m [4mexpression[24m ...]
-             A combination of `[1m.else[22m' followed by `[1m.if[22m'.
+     ..eelliiff [!!]_e_x_p_r_e_s_s_i_o_n [_o_p_e_r_a_t_o_r _e_x_p_r_e_s_s_i_o_n ...]
+             A combination of `..eellssee' followed by `..iiff'.
 
-     [1m.elifdef [22m[[1m![22m][4mvariable[24m [[4moperator[24m [4mvariable[24m ...]
-             A combination of `[1m.else[22m' followed by `[1m.ifdef[22m'.
+     ..eelliiffddeeff [!!]_v_a_r_i_a_b_l_e [_o_p_e_r_a_t_o_r _v_a_r_i_a_b_l_e ...]
+             A combination of `..eellssee' followed by `..iiffddeeff'.
 
-     [1m.elifndef [22m[[1m![22m][4mvariable[24m [[4moperator[24m [4mvariable[24m ...]
-             A combination of `[1m.else[22m' followed by `[1m.ifndef[22m'.
+     ..eelliiffnnddeeff [!!]_v_a_r_i_a_b_l_e [_o_p_e_r_a_t_o_r _v_a_r_i_a_b_l_e ...]
+             A combination of `..eellssee' followed by `..iiffnnddeeff'.
 
-     [1m.elifmake [22m[[1m![22m][4mtarget[24m [[4moperator[24m [4mtarget[24m ...]
-             A combination of `[1m.else[22m' followed by `[1m.ifmake[22m'.
+     ..eelliiffmmaakkee [!!]_t_a_r_g_e_t [_o_p_e_r_a_t_o_r _t_a_r_g_e_t ...]
+             A combination of `..eellssee' followed by `..iiffmmaakkee'.
 
-     [1m.elifnmake [22m[[1m![22m][4mtarget[24m [[4moperator[24m [4mtarget[24m ...]
-             A combination of `[1m.else[22m' followed by `[1m.ifnmake[22m'.
+     ..eelliiffnnmmaakkee [!!]_t_a_r_g_e_t [_o_p_e_r_a_t_o_r _t_a_r_g_e_t ...]
+             A combination of `..eellssee' followed by `..iiffnnmmaakkee'.
 
-     [1m.endif  [22mEnd the body of the conditional.
+     ..eennddiiff  End the body of the conditional.
 
-     The [4moperator[24m may be any one of the following:
+     The _o_p_e_r_a_t_o_r may be any one of the following:
 
-     [1m||      [22mLogical OR.
+     ||||      Logical OR.
 
-     [1m&&      [22mLogical AND; of higher precedence than `[1m||[22m'.
+     &&&&      Logical AND; of higher precedence than `||||'.
 
-     [1mbmake [22monly evaluates a conditional as far as is necessary to determine
+     bbmmaakkee only evaluates a conditional as far as is necessary to determine
      its value.  Parentheses can be used to override the operator precedence.
-     The boolean operator `[1m![22m' may be used to logically negate an expression,
-     typically a function call.  It is of higher precedence than `[1m&&[22m'.
+     The boolean operator `!!' may be used to logically negate an expression,
+     typically a function call.  It is of higher precedence than `&&&&'.
 
-     The value of [4mexpression[24m may be any of the following function call expres-
-     sions:
+     The value of _e_x_p_r_e_s_s_i_o_n may be any of the following function call
+     expressions:
 
-     [1mdefined[22m([4mvarname[24m)
-             Evaluates to true if the variable [4mvarname[24m has been defined.
+     ddeeffiinneedd(_v_a_r_n_a_m_e)
+             Evaluates to true if the variable _v_a_r_n_a_m_e has been defined.
 
-     [1mmake[22m([4mtarget[24m)
-             Evaluates to true if the target was specified as part of [1mbmake[22m's
-             command line or was declared the default target (either implic-
-             itly or explicitly, see [4m.MAIN[24m) before the line containing the
-             conditional.
+     mmaakkee(_t_a_r_g_e_t)
+             Evaluates to true if the target was specified as part of bbmmaakkee's
+             command line or was declared the default target (either
+             implicitly or explicitly, see _._M_A_I_N) before the line containing
+             the conditional.
 
-     [1mempty[22m([4mvarname[24m[:[4mmodifiers[24m])
-             Evaluates to true if the expansion of the variable, after apply-
-             ing the modifiers, results in an empty string.
+     eemmppttyy(_v_a_r_n_a_m_e[:_m_o_d_i_f_i_e_r_s])
+             Evaluates to true if the expansion of the variable, after
+             applying the modifiers, results in an empty string.
 
-     [1mexists[22m([4mpathname[24m)
+     eexxiissttss(_p_a_t_h_n_a_m_e)
              Evaluates to true if the given pathname exists.  If relative, the
-             pathname is searched for on the system search path (see [4m.PATH[24m).
+             pathname is searched for on the system search path (see _._P_A_T_H).
 
-     [1mtarget[22m([4mtarget[24m)
+     ttaarrggeett(_t_a_r_g_e_t)
              Evaluates to true if the target has been defined.
 
-     [1mcommands[22m([4mtarget[24m)
+     ccoommmmaannddss(_t_a_r_g_e_t)
              Evaluates to true if the target has been defined and has commands
              associated with it.
 
-     [4mExpression[24m may also be an arithmetic or string comparison.  Variable ex-
-     pansion is performed on both sides of the comparison.  If both sides are
-     numeric and neither is enclosed in quotes, the comparison is done numeri-
-     cally, otherwise lexicographically.  A string is interpreted as a hexa-
-     decimal integer if it is preceded by 0x, otherwise it is interpreted as a
-     decimal floating-point number; octal numbers are not supported.
+     _E_x_p_r_e_s_s_i_o_n may also be an arithmetic or string comparison.  Variable
+     expansion is performed on both sides of the comparison.  If both sides
+     are numeric and neither is enclosed in quotes, the comparison is done
+     numerically, otherwise lexicographically.  A string is interpreted as a
+     hexadecimal integer if it is preceded by 0x, otherwise it is interpreted
+     as a decimal floating-point number; octal numbers are not supported.
 
-     All comparisons may use the operators `[1m==[22m' and `[1m!=[22m'.  Numeric comparisons
-     may also use the operators `[1m<[22m', `[1m<=[22m', `[1m>[22m' and `[1m>=[22m'.
+     All comparisons may use the operators `====' and `!!=='.  Numeric comparisons
+     may also use the operators `<<', `<<==', `>>' and `>>=='.
 
      If the comparison has neither a comparison operator nor a right side, the
      expression evaluates to true if it is nonempty and its numeric value (if
      any) is not zero.
 
-     When [1mbmake [22mis evaluating one of these conditional expressions, and it en-
-     counters a (whitespace-separated) word it doesn't recognize, either the
+     When bbmmaakkee is evaluating one of these conditional expressions, and it
+     encounters a (whitespace-separated) word it doesn't recognize, either the
      "make" or "defined" function is applied to it, depending on the form of
-     the conditional.  If the form is `[1m.ifdef[22m', `[1m.ifndef[22m' or `[1m.if[22m', the
-     "defined" function is applied.  Similarly, if the form is `[1m.ifmake[22m' or
-     `[1m.ifnmake[22m', the "make" function is applied.
+     the conditional.  If the form is `..iiffddeeff', `..iiffnnddeeff' or `..iiff', the
+     "defined" function is applied.  Similarly, if the form is `..iiffmmaakkee' or
+     `..iiffnnmmaakkee', the "make" function is applied.
 
      If the conditional evaluates to true, parsing of the makefile continues
-     as before.  If it evaluates to false, the following lines until the cor-
-     responding `[1m.elif[22m' variant, `[1m.else[22m' or `[1m.endif[22m' are skipped.
+     as before.  If it evaluates to false, the following lines until the
+     corresponding `..eelliiff' variant, `..eellssee' or `..eennddiiff' are skipped.
 
-   [1mFor loops[0m
+   FFoorr llooooppss
      For loops are typically used to apply a set of rules to a list of files.
      The syntax of a for loop is:
 
-     [1m.for [4m[22mvariable[24m [[4mvariable[24m ...] [1min [4m[22mexpression[0m
-     <[4mmake-lines[24m>
-     [1m.endfor[0m
+     ..ffoorr _v_a_r_i_a_b_l_e [_v_a_r_i_a_b_l_e ...] iinn _e_x_p_r_e_s_s_i_o_n
+     <_m_a_k_e_-_l_i_n_e_s>
+     ..eennddffoorr
 
-     The [4mexpression[24m is expanded and then split into words.  On each iteration
-     of the loop, one word is taken and assigned to each [4mvariable[24m, in order,
-     and these [4mvariables[24m are substituted into the [4mmake-lines[24m inside the body
+     The _e_x_p_r_e_s_s_i_o_n is expanded and then split into words.  On each iteration
+     of the loop, one word is taken and assigned to each _v_a_r_i_a_b_l_e, in order,
+     and these _v_a_r_i_a_b_l_e_s are substituted into the _m_a_k_e_-_l_i_n_e_s inside the body
      of the for loop.  The number of words must come out even; that is, if
      there are three iteration variables, the number of words provided must be
      a multiple of three.
 
-     If `[1m.break[22m' is encountered within a [1m.for [22mloop, it causes early termina-
-     tion of the loop, otherwise a parse error.
+     If `..bbrreeaakk' is encountered within a ..ffoorr loop, it causes early
+     termination of the loop, otherwise a parse error.
 
-   [1mOther directives[0m
-     [1m.undef [4m[22mvariable[24m ...
+   OOtthheerr ddiirreeccttiivveess
+     ..uunnddeeff _v_a_r_i_a_b_l_e ...
              Un-define the specified global variables.  Only global variables
              can be un-defined.
 
-[1mCOMMENTS[0m
-     Comments begin with a hash (`#') character, anywhere but in a shell com-
-     mand line, and continue to the end of an unescaped new line.
+CCOOMMMMEENNTTSS
+     Comments begin with a hash (`#') character, anywhere but in a shell
+     command line, and continue to the end of an unescaped new line.
 
-[1mSPECIAL SOURCES (ATTRIBUTES)[0m
-     [1m.EXEC     [22mTarget is never out of date, but always execute commands any-
-               way.
+SSPPEECCIIAALL SSOOUURRCCEESS ((AATTTTRRIIBBUUTTEESS))
+     ..EEXXEECC     Target is never out of date, but always execute commands
+               anyway.
 
-     [1m.IGNORE   [22mIgnore any errors from the commands associated with this tar-
-               get, exactly as if they all were preceded by a dash (`-').
+     ..IIGGNNOORREE   Ignore any errors from the commands associated with this
+               target, exactly as if they all were preceded by a dash (`-').
 
-     [1m.MADE     [22mMark all sources of this target as being up to date.
+     ..MMAADDEE     Mark all sources of this target as being up to date.
 
-     [1m.MAKE     [22mExecute the commands associated with this target even if the [1m-n[0m
-               or [1m-t [22moptions were specified.  Normally used to mark recursive
-               [1mbmake[22ms.
+     ..MMAAKKEE     Execute the commands associated with this target even if the --nn
+               or --tt options were specified.  Normally used to mark recursive
+               bbmmaakkees.
 
-     [1m.META     [22mCreate a meta file for the target, even if it is flagged as
-               [1m.PHONY[22m, [1m.MAKE[22m, or [1m.SPECIAL[22m.  Usage in conjunction with [1m.MAKE [22mis
+     ..MMEETTAA     Create a meta file for the target, even if it is flagged as
+               ..PPHHOONNYY, ..MMAAKKEE, or ..SSPPEECCIIAALL.  Usage in conjunction with ..MMAAKKEE is
                the most likely case.  In "meta" mode, the target is out-of-
                date if the meta file is missing.
 
-     [1m.NOMETA   [22mDo not create a meta file for the target.  Meta files are also
-               not created for [1m.PHONY[22m, [1m.MAKE[22m, or [1m.SPECIAL [22mtargets.
+     ..NNOOMMEETTAA   Do not create a meta file for the target.  Meta files are also
+               not created for ..PPHHOONNYY, ..MMAAKKEE, or ..SSPPEECCIIAALL targets.
 
-     [1m.NOMETA_CMP[0m
+     ..NNOOMMEETTAA__CCMMPP
                Ignore differences in commands when deciding if target is out
                of date.  This is useful if the command contains a value which
                always changes.  If the number of commands change, though, the
-               target is still considered out of date.  The same effect ap-
-               plies to any command line that uses the variable [4m.OODATE[24m, which
-               can be used for that purpose even when not otherwise needed or
-               desired:
+               target is still considered out of date.  The same effect
+               applies to any command line that uses the variable _._O_O_D_A_T_E,
+               which can be used for that purpose even when not otherwise
+               needed or desired:
 
 
                      skip-compare-for-some:
@@ -1438,53 +1452,53 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
                              @echo this is not ${.OODATE:M.NOMETA_CMP}
                              @echo this is also compared
 
-               The [1m:M [22mpattern suppresses any expansion of the unwanted vari-
-               able.
+               The ::MM pattern suppresses any expansion of the unwanted
+               variable.
 
-     [1m.NOPATH   [22mDo not search for the target in the directories specified by
-               [4m.PATH[24m.
+     ..NNOOPPAATTHH   Do not search for the target in the directories specified by
+               _._P_A_T_H.
 
-     [1m.NOTMAIN  [22mNormally [1mbmake [22mselects the first target it encounters as the
+     ..NNOOTTMMAAIINN  Normally bbmmaakkee selects the first target it encounters as the
                default target to be built if no target was specified.  This
                source prevents this target from being selected.
 
-     [1m.OPTIONAL[0m
-               If a target is marked with this attribute and [1mbmake [22mcan't fig-
-               ure out how to create it, it ignores this fact and assumes the
-               file isn't needed or already exists.
+     ..OOPPTTIIOONNAALL
+               If a target is marked with this attribute and bbmmaakkee can't
+               figure out how to create it, it ignores this fact and assumes
+               the file isn't needed or already exists.
 
-     [1m.PHONY    [22mThe target does not correspond to an actual file; it is always
-               considered to be out of date, and is not created with the [1m-t[0m
-               option.  Suffix-transformation rules are not applied to [1m.PHONY[0m
+     ..PPHHOONNYY    The target does not correspond to an actual file; it is always
+               considered to be out of date, and is not created with the --tt
+               option.  Suffix-transformation rules are not applied to ..PPHHOONNYY
                targets.
 
-     [1m.PRECIOUS[0m
-               When [1mbmake [22mis interrupted, it normally removes any partially
-               made targets.  This source prevents the target from being re-
-               moved.
+     ..PPRREECCIIOOUUSS
+               When bbmmaakkee is interrupted, it normally removes any partially
+               made targets.  This source prevents the target from being
+               removed.
 
-     [1m.RECURSIVE[0m
-               Synonym for [1m.MAKE[22m.
+     ..RREECCUURRSSIIVVEE
+               Synonym for ..MMAAKKEE.
 
-     [1m.SILENT   [22mDo not echo any of the commands associated with this target,
+     ..SSIILLEENNTT   Do not echo any of the commands associated with this target,
                exactly as if they all were preceded by an at sign (`@').
 
-     [1m.USE      [22mTurn the target into [1mbmake[22m's version of a macro.  When the tar-
-               get is used as a source for another target, the other target
+     ..UUSSEE      Turn the target into bbmmaakkee's version of a macro.  When the
+               target is used as a source for another target, the other target
                acquires the commands, sources, and attributes (except for
-               [1m.USE[22m) of the source.  If the target already has commands, the
-               [1m.USE [22mtarget's commands are appended to them.
+               ..UUSSEE) of the source.  If the target already has commands, the
+               ..UUSSEE target's commands are appended to them.
 
-     [1m.USEBEFORE[0m
-               Like [1m.USE[22m, but instead of appending, prepend the [1m.USEBEFORE[0m
+     ..UUSSEEBBEEFFOORREE
+               Like ..UUSSEE, but instead of appending, prepend the ..UUSSEEBBEEFFOORREE
                target commands to the target.
 
-     [1m.WAIT     [22mIf [1m.WAIT [22mappears in a dependency line, the sources that precede
+     ..WWAAIITT     If ..WWAAIITT appears in a dependency line, the sources that precede
                it are made before the sources that succeed it in the line.
-               Since the dependents of files are not made until the file it-
-               self could be made, this also stops the dependents being built
-               unless they are needed for another branch of the dependency
-               tree.  So given:
+               Since the dependents of files are not made until the file
+               itself could be made, this also stops the dependents being
+               built unless they are needed for another branch of the
+               dependency tree.  So given:
 
                x: a .WAIT b
                        echo x
@@ -1497,138 +1511,143 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
 
                the output is always `a', `b1', `b', `x'.
 
-               The ordering imposed by [1m.WAIT [22mis only relevant for parallel
+               The ordering imposed by ..WWAAIITT is only relevant for parallel
                makes.
 
-[1mSPECIAL TARGETS[0m
+SSPPEECCIIAALL TTAARRGGEETTSS
      Special targets may not be included with other targets, i.e. they must be
      the only target specified.
 
-     [1m.BEGIN   [22mAny command lines attached to this target are executed before
+     ..BBEEGGIINN   Any command lines attached to this target are executed before
               anything else is done.
 
-     [1m.DEFAULT[0m
-              This is sort of a [1m.USE [22mrule for any target (that was used only
-              as a source) that [1mbmake [22mcan't figure out any other way to cre-
-              ate.  Only the shell script is used.  The [4m.IMPSRC[24m variable of a
-              target that inherits [1m.DEFAULT[22m's commands is set to the target's
-              own name.
+     ..DDEEFFAAUULLTT
+              This is sort of a ..UUSSEE rule for any target (that was used only
+              as a source) that bbmmaakkee can't figure out any other way to
+              create.  Only the shell script is used.  The _._I_M_P_S_R_C variable of
+              a target that inherits ..DDEEFFAAUULLTT's commands is set to the
+              target's own name.
 
-     [1m.DELETE_ON_ERROR[0m
+     ..DDEELLEETTEE__OONN__EERRRROORR
               If this target is present in the makefile, it globally causes
               make to delete targets whose commands fail.  (By default, only
               targets whose commands are interrupted during execution are
               deleted.  This is the historical behavior.)  This setting can be
-              used to help prevent half-finished or malformed targets from be-
-              ing left around and corrupting future rebuilds.
+              used to help prevent half-finished or malformed targets from
+              being left around and corrupting future rebuilds.
 
-     [1m.END     [22mAny command lines attached to this target are executed after ev-
-              erything else is done successfully.
+     ..EENNDD     Any command lines attached to this target are executed after
+              everything else is done successfully.
 
-     [1m.ERROR   [22mAny command lines attached to this target are executed when an-
-              other target fails.  The [4m.ERROR_TARGET[24m variable is set to the
-              target that failed.  See also [4mMAKE_PRINT_VAR_ON_ERROR[24m.
+     ..EERRRROORR   Any command lines attached to this target are executed when
+              another target fails.  See _M_A_K_E___P_R_I_N_T___V_A_R___O_N___E_R_R_O_R for the
+              variables that will be set.
 
-     [1m.IGNORE  [22mMark each of the sources with the [1m.IGNORE [22mattribute.  If no
+     ..IIGGNNOORREE  Mark each of the sources with the ..IIGGNNOORREE attribute.  If no
               sources are specified, this is the equivalent of specifying the
-              [1m-i [22moption.
+              --ii option.
 
-     [1m.INTERRUPT[0m
-              If [1mbmake [22mis interrupted, the commands for this target are exe-
-              cuted.
+     ..IINNTTEERRRRUUPPTT
+              If bbmmaakkee is interrupted, the commands for this target are
+              executed.
 
-     [1m.MAIN    [22mIf no target is specified when [1mbmake [22mis invoked, this target is
+     ..MMAAIINN    If no target is specified when bbmmaakkee is invoked, this target is
               built.
 
-     [1m.MAKEFLAGS[0m
-              This target provides a way to specify flags for [1mbmake [22mat the
+     ..MMAAKKEEFFLLAAGGSS
+              This target provides a way to specify flags for bbmmaakkee at the
               time when the makefiles are read.  The flags are as if typed to
-              the shell, though the [1m-f [22moption has no effect.
+              the shell, though the --ff option has no effect.
 
-     [1m.NOPATH  [22mApply the [1m.NOPATH [22mattribute to any specified sources.
+     ..NNOOPPAATTHH  Apply the ..NNOOPPAATTHH attribute to any specified sources.
 
-     [1m.NOTPARALLEL[0m
+     ..NNOOTTPPAARRAALLLLEELL
               Disable parallel mode.
 
-     [1m.NO_PARALLEL[0m
-              Synonym for [1m.NOTPARALLEL[22m, for compatibility with other pmake
+     ..NNOO__PPAARRAALLLLEELL
+              Synonym for ..NNOOTTPPAARRAALLLLEELL, for compatibility with other pmake
               variants.
 
-     [1m.NOREADONLY[0m
-              clear the read-only attribute from the global variables speci-
-              fied as sources.
+     ..NNOORREEAADDOONNLLYY
+              clear the read-only attribute from the global variables
+              specified as sources.
 
-     [1m.OBJDIR  [22mThe source is a new value for `[4m.OBJDIR[24m'.  If it exists, [1mbmake[0m
+     ..OOBBJJDDIIRR  The source is a new value for `_._O_B_J_D_I_R'.  If it exists, bbmmaakkee
               changes the current working directory to it and updates the
-              value of `[4m.OBJDIR[24m'.
+              value of `_._O_B_J_D_I_R'.
 
-     [1m.ORDER   [22mIn parallel mode, the named targets are made in sequence.  This
+     ..OORRDDEERR   In parallel mode, the named targets are made in sequence.  This
               ordering does not add targets to the list of targets to be made.
 
-              Since the dependents of a target do not get built until the tar-
-              get itself could be built, unless `a' is built by another part
-              of the dependency graph, the following is a dependency loop:
+              Since the dependents of a target do not get built until the
+              target itself could be built, unless `a' is built by another
+              part of the dependency graph, the following is a dependency
+              loop:
 
               .ORDER: b a
               b: a
 
-     [1m.PATH    [22mThe sources are directories which are to be searched for files
-              not found in the current directory.  If no sources are speci-
-              fied, any previously specified directories are removed from the
-              search path.  If the source is the special [1m.DOTLAST [22mtarget, the
-              current working directory is searched last.
+     ..PPAATTHH    The sources are directories which are to be searched for files
+              not found in the current directory.  If no sources are
+              specified, any previously specified directories are removed from
+              the search path.  If the source is the special ..DDOOTTLLAASSTT target,
+              the current working directory is searched last.
 
-     [1m.PATH.[4m[22msuffix[0m
-              Like [1m.PATH [22mbut applies only to files with a particular suffix.
-              The suffix must have been previously declared with [1m.SUFFIXES[22m.
+     ..PPAATTHH.._s_u_f_f_i_x
+              Like ..PPAATTHH but applies only to files with a particular suffix.
+              The suffix must have been previously declared with ..SSUUFFFFIIXXEESS.
 
-     [1m.PHONY   [22mApply the [1m.PHONY [22mattribute to any specified sources.
+     ..PPHHOONNYY   Apply the ..PPHHOONNYY attribute to any specified sources.
 
-     [1m.POSIX   [22mIf this is the first non-comment line in the main makefile, the
-              variable [4m%POSIX[24m is set to the value `1003.2' and the makefile
-              `<posix.mk>' is included if it exists, to provide POSIX-compati-
-              ble default rules.  If [1mbmake [22mis run with the [1m-r [22mflag, only
-              `posix.mk' contributes to the default rules.
+     ..PPOOSSIIXX   If this is the first non-comment line in the main makefile, the
+              variable _%_P_O_S_I_X is set to the value `1003.2' and the makefile
+              `<posix.mk>' is included if it exists, to provide POSIX-
+              compatible default rules.  If bbmmaakkee is run with the --rr flag,
+              only `posix.mk' contributes to the default rules.
 
-     [1m.PRECIOUS[0m
-              Apply the [1m.PRECIOUS [22mattribute to any specified sources.  If no
-              sources are specified, the [1m.PRECIOUS [22mattribute is applied to ev-
-              ery target in the file.
+     ..PPRREECCIIOOUUSS
+              Apply the ..PPRREECCIIOOUUSS attribute to any specified sources.  If no
+              sources are specified, the ..PPRREECCIIOOUUSS attribute is applied to
+              every target in the file.
 
-     [1m.READONLY[0m
+     ..RREEAADDOONNLLYY
               set the read-only attribute on the global variables specified as
               sources.
 
-     [1m.SHELL   [22mSets the shell that [1mbmake [22muses to execute commands in jobs mode.
-              The sources are a set of [4mfield[24m[1m=[4m[22mvalue[24m pairs.
+     ..SSHHEELLLL   Sets the shell that bbmmaakkee uses to execute commands.  The sources
+              are a set of _f_i_e_l_d==_v_a_l_u_e pairs.
 
-              name        This is the minimal specification, used to select
-                          one of the built-in shell specs; sh, ksh, and csh.
+              name            This is the minimal specification, used to
+                              select one of the built-in shell specs; sh, ksh,
+                              and csh.
 
-              path        Specifies the absolute path to the shell.
+              path            Specifies the absolute path to the shell.
 
-              hasErrCtl   Indicates whether the shell supports exit on error.
+              hasErrCtl       Indicates whether the shell supports exit on
+                              error.
 
-              check       The command to turn on error checking.
+              check           The command to turn on error checking.
 
-              ignore      The command to disable error checking.
+              ignore          The command to disable error checking.
 
-              echo        The command to turn on echoing of commands executed.
+              echo            The command to turn on echoing of commands
+                              executed.
 
-              quiet       The command to turn off echoing of commands exe-
-                          cuted.
+              quiet           The command to turn off echoing of commands
+                              executed.
 
-              filter      The output to filter after issuing the quiet com-
-                          mand.  It is typically identical to quiet.
+              filter          The output to filter after issuing the quiet
+                              command.  It is typically identical to quiet.
 
-              errFlag     The flag to pass the shell to enable error checking.
+              errFlag         The flag to pass the shell to enable error
+                              checking.
 
-              echoFlag    The flag to pass the shell to enable command echo-
-                          ing.
+              echoFlag        The flag to pass the shell to enable command
+                              echoing.
 
-              newline     The string literal to pass the shell that results in
-                          a single newline character when used outside of any
-                          quoting characters.
+              newline         The string literal to pass the shell that
+                              results in a single newline character when used
+                              outside of any quoting characters.
               Example:
 
               .SHELL: name=ksh path=/bin/ksh hasErrCtl=true \
@@ -1636,15 +1655,15 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
                       echo="set -v" quiet="set +v" filter="set +v" \
                       echoFlag=v errFlag=e newline="'\n'"
 
-     [1m.SILENT  [22mApply the [1m.SILENT [22mattribute to any specified sources.  If no
-              sources are specified, the [1m.SILENT [22mattribute is applied to every
+     ..SSIILLEENNTT  Apply the ..SSIILLEENNTT attribute to any specified sources.  If no
+              sources are specified, the ..SSIILLEENNTT attribute is applied to every
               command in the file.
 
-     [1m.STALE   [22mThis target gets run when a dependency file contains stale en-
-              tries, having [4m.ALLSRC[24m set to the name of that dependency file.
+     ..SSTTAALLEE   This target gets run when a dependency file contains stale
+              entries, having _._A_L_L_S_R_C set to the name of that dependency file.
 
-     [1m.SUFFIXES[0m
-              Each source specifies a suffix to [1mbmake[22m.  If no sources are
+     ..SSUUFFFFIIXXEESS
+              Each source specifies a suffix to bbmmaakkee.  If no sources are
               specified, any previously specified suffixes are deleted.  It
               allows the creation of suffix-transformation rules.
 
@@ -1654,22 +1673,22 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
               .c.o:
                       cc -o ${.TARGET} -c ${.IMPSRC}
 
-     [1m.SYSPATH[0m
+     ..SSYYSSPPAATTHH
               The sources are directories which are to be added to the system
-              include path which [1mbmake [22msearches for makefiles.  If no sources
+              include path which bbmmaakkee searches for makefiles.  If no sources
               are specified, any previously specified directories are removed
               from the system include path.
 
-[1mENVIRONMENT[0m
-     [1mbmake [22muses the following environment variables, if they exist: MACHINE,
+EENNVVIIRROONNMMEENNTT
+     bbmmaakkee uses the following environment variables, if they exist: MACHINE,
      MACHINE_ARCH, MAKE, MAKEFLAGS, MAKEOBJDIR, MAKEOBJDIRPREFIX, MAKESYSPATH,
      PWD, and TMPDIR.
 
      MAKEOBJDIRPREFIX and MAKEOBJDIR may only be set in the environment or on
-     the command line to [1mbmake [22mand not as makefile variables; see the descrip-
-     tion of `[4m.OBJDIR[24m' for more details.
+     the command line to bbmmaakkee and not as makefile variables; see the
+     description of `_._O_B_J_D_I_R' for more details.
 
-[1mFILES[0m
+FFIILLEESS
      .depend        list of dependencies
      makefile       first default makefile if no makefile is specified on the
                     command line
@@ -1678,62 +1697,64 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
      sys.mk         system makefile
      /usr/share/mk  system makefile directory
 
-[1mCOMPATIBILITY[0m
-     The basic make syntax is compatible between different make variants; how-
-     ever the special variables, variable modifiers and conditionals are not.
+CCOOMMPPAATTIIBBIILLIITTYY
+     The basic make syntax is compatible between different make variants;
+     however the special variables, variable modifiers and conditionals are
+     not.
 
-   [1mOlder versions[0m
-     An incomplete list of changes in older versions of [1mbmake[22m:
+   OOllddeerr vveerrssiioonnss
+     An incomplete list of changes in older versions of bbmmaakkee:
 
      The way that .for loop variables are substituted changed after NetBSD 5.0
      so that they still appear to be variable expansions.  In particular this
-     stops them being treated as syntax, and removes some obscure problems us-
-     ing them in .if statements.
+     stops them being treated as syntax, and removes some obscure problems
+     using them in .if statements.
 
      The way that parallel makes are scheduled changed in NetBSD 4.0 so that
-     .ORDER and .WAIT apply recursively to the dependent nodes.  The algo-
-     rithms used may change again in the future.
+     .ORDER and .WAIT apply recursively to the dependent nodes.  The
+     algorithms used may change again in the future.
 
-   [1mOther make dialects[0m
-     Other make dialects (GNU make, SVR4 make, POSIX make, etc.) do not sup-
-     port most of the features of [1mbmake [22mas described in this manual.  Most no-
-     tably:
+   OOtthheerr mmaakkee ddiiaalleeccttss
+     Other make dialects (GNU make, SVR4 make, POSIX make, etc.) do not
+     support most of the features of bbmmaakkee as described in this manual.  Most
+     notably:
 
-           [1m+o   [22mThe [1m.WAIT [22mand [1m.ORDER [22mdeclarations and most functionality per-
-               taining to parallelization.  (GNU make supports parallelization
-               but lacks the features needed to control it effectively.)
+           ++oo   The ..WWAAIITT and ..OORRDDEERR declarations and most functionality
+               pertaining to parallelization.  (GNU make supports
+               parallelization but lacks the features needed to control it
+               effectively.)
 
-           [1m+o   [22mDirectives, including for loops and conditionals and most of
+           ++oo   Directives, including for loops and conditionals and most of
                the forms of include files.  (GNU make has its own incompatible
                and less powerful syntax for conditionals.)
 
-           [1m+o   [22mAll built-in variables that begin with a dot.
+           ++oo   All built-in variables that begin with a dot.
 
-           [1m+o   [22mMost of the special sources and targets that begin with a dot,
-               with the notable exception of [1m.PHONY[22m, [1m.PRECIOUS[22m, and [1m.SUFFIXES[22m.
+           ++oo   Most of the special sources and targets that begin with a dot,
+               with the notable exception of ..PPHHOONNYY, ..PPRREECCIIOOUUSS, and ..SSUUFFFFIIXXEESS.
 
-           [1m+o   [22mVariable modifiers, except for the `:old=new' string substitu-
-               tion, which does not portably support globbing with `%' and
-               historically only works on declared suffixes.
+           ++oo   Variable modifiers, except for the `:old=new' string
+               substitution, which does not portably support globbing with `%'
+               and historically only works on declared suffixes.
 
-           [1m+o   [22mThe [1m$> [22mvariable even in its short form; most makes support this
+           ++oo   The $$>> variable even in its short form; most makes support this
                functionality but its name varies.
 
-     Some features are somewhat more portable, such as assignment with [1m+=[22m, [1m?=[22m,
-     and [1m!=[22m.  The [4m.PATH[24m functionality is based on an older feature [1mVPATH [22mfound
-     in GNU make and many versions of SVR4 make; however, historically its be-
-     havior is too ill-defined (and too buggy) to rely upon.
+     Some features are somewhat more portable, such as assignment with ++==, ??==,
+     and !!==.  The _._P_A_T_H functionality is based on an older feature VVPPAATTHH found
+     in GNU make and many versions of SVR4 make; however, historically its
+     behavior is too ill-defined (and too buggy) to rely upon.
 
-     The [1m$@ [22mand [1m$< [22mvariables are more or less universally portable, as is the
-     [1m$(MAKE) [22mvariable.  Basic use of suffix rules (for files only in the cur-
-     rent directory, not trying to chain transformations together, etc.) is
+     The $$@@ and $$<< variables are more or less universally portable, as is the
+     $$((MMAAKKEE)) variable.  Basic use of suffix rules (for files only in the
+     current directory, not trying to chain transformations together, etc.) is
      also reasonably portable.
 
-[1mSEE ALSO[0m
+SSEEEE AALLSSOO
      mkdep(1)
 
-[1mHISTORY[0m
-     [1mbmake [22mis derived from NetBSD make(1).  It uses autoconf to facilitate
+HHIISSTTOORRYY
+     bbmmaakkee is derived from NetBSD make(1).  It uses autoconf to facilitate
      portability to other platforms.
 
      A make command appeared in Version 7 AT&T UNIX.  This make implementation
@@ -1741,11 +1762,11 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
      Berkeley.  It was designed to be a parallel distributed make running jobs
      on different machines using a daemon called "customs".
 
-     Historically the target/dependency [1mFRC [22mhas been used to FoRCe rebuilding
+     Historically the target/dependency FFRRCC has been used to FoRCe rebuilding
      (since the target/dependency does not exist ... unless someone creates an
-     [4mFRC[24m file).
+     _F_R_C file).
 
-[1mBUGS[0m
+BBUUGGSS
      The make syntax is difficult to parse.  For instance, finding the end of
      a variable's use should involve scanning each of the modifiers, using the
      correct terminator for each field.  In many places make just counts {}
@@ -1759,4 +1780,4 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
      attempt to suppress a cascade of unnecessary errors, can result in a
      seemingly unexplained `*** Error code 6'
 
-FreeBSD 13.0                   September 9, 2023                  FreeBSD 13.0
+FreeBSD 13.2-RELEASE-p10         March 9, 2024        FreeBSD 13.2-RELEASE-p10

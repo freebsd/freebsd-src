@@ -864,7 +864,7 @@ get_sa_plen(const struct sockaddr *sa)
 #ifdef INET
         case AF_INET:
                 paddr = &(((const struct sockaddr_in *)sa)->sin_addr);
-                return bitcount32(paddr->s_addr);;
+                return bitcount32(paddr->s_addr);
 #endif
 #ifdef INET6
         case AF_INET6:
@@ -1204,7 +1204,7 @@ handle_deladdr_inet(struct nlmsghdr *hdr, struct nl_parsed_ifa *attrs,
 		return (EINVAL);
 	}
 
-	struct in_aliasreq req = { .ifra_addr = *addr };
+	struct ifreq req = { .ifr_addr = *(struct sockaddr *)addr };
 
 	return (in_control_ioctl(SIOCDIFADDR, &req, ifp, nlp_get_cred(nlp)));
 }
@@ -1288,7 +1288,7 @@ handle_deladdr_inet6(struct nlmsghdr *hdr, struct nl_parsed_ifa *attrs,
 		return (EINVAL);
 	}
 
-	struct in6_aliasreq req = { .ifra_addr = *addr };
+	struct in6_ifreq req = { .ifr_addr = *addr };
 
 	return (in6_control_ioctl(SIOCDIFADDR_IN6, &req, ifp, nlp_get_cred(nlp)));
 }

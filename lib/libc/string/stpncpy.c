@@ -28,6 +28,8 @@
 
 #include <string.h>
 
+#undef stpncpy	/* _FORTIFY_SOURCE */
+
 char *
 stpncpy(char * __restrict dst, const char * __restrict src, size_t n)
 {

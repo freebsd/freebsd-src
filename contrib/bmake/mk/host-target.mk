@@ -1,5 +1,19 @@
+# SPDX-License-Identifier: BSD-2-Clause
+#
 # RCSid:
-#	$Id: host-target.mk,v 1.18 2023/05/22 23:08:31 sjg Exp $
+#	$Id: host-target.mk,v 1.20 2024/02/17 17:26:57 sjg Exp $
+#
+#	@(#) Copyright (c) 2007-2023 Simon J. Gerraty
+#
+#	This file is provided in the hope that it will
+#	be of use.  There is absolutely NO WARRANTY.
+#	Permission to copy, redistribute or otherwise
+#	use this file is hereby granted provided that
+#	the above copyright notice and this notice are
+#	left intact.
+#
+#	Please send copies of changes and bug-fixes to:
+#	sjg@crufty.net
 
 # Host platform information; may be overridden
 .if !target(__${.PARSEFILE}__)
@@ -48,8 +62,13 @@ HOST_TARGET  := ${host_os:S,/,,g}${HOST_OSMAJOR}-${_HOST_ARCH}
 # sometimes we want HOST_TARGET32
 MACHINE32.amd64 = i386
 MACHINE32.x86_64 = i386
+.if !defined(_HOST_ARCH32)
 _HOST_ARCH32 := ${MACHINE32.${_HOST_ARCH}:U${_HOST_ARCH:S,64$,,}}
+.export _HOST_ARCH32
+.endif
 HOST_TARGET32 := ${host_os:S,/,,g}${HOST_OSMAJOR}-${_HOST_ARCH32}
+
+.export HOST_TARGET HOST_TARGET32
 
 # tr is insanely non-portable, accommodate the lowest common denominator
 TR ?= tr

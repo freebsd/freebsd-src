@@ -1,4 +1,4 @@
-# $NetBSD: var-scope-cmdline.mk,v 1.3 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: var-scope-cmdline.mk,v 1.4 2023/11/19 21:47:52 rillig Exp $
 #
 # Tests for variables specified on the command line.
 #
@@ -55,7 +55,7 @@
 # temporary loop variable after finishing the loop.  It was probably not
 # intended back then that a side effect of this seemingly simple change was
 # that both global and cmdline variables could now be undefined at will as a
-# side effect of evaluating a variable expression.  As of 2021-02-23, this is
+# side effect of evaluating an expression.  As of 2021-02-23, this is
 # still possible.
 #
 # Most cmdline variables are set at the very beginning, when parsing the

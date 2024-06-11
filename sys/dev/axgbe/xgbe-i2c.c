@@ -327,8 +327,6 @@ out:
 	if (state->ret || XI2C_GET_BITS(isr, IC_RAW_INTR_STAT, STOP_DET))
 		pdata->i2c_complete = true;
 
-	return;
-
 reissue_check:
 	/* Reissue interrupt if status is not clear */
 	if (pdata->vdata->irq_reissue_support)
@@ -438,11 +436,10 @@ xgbe_i2c_xfer(struct xgbe_prv_data *pdata, struct xgbe_i2c_op *op)
 	}
 
 	ret = state->ret;
-	axgbe_printf(3, "%s: i2c xfer ret %d abrt_source 0x%x \n", __func__,
+	axgbe_printf(3, "%s: i2c xfer ret %d abrt_source 0x%x\n", __func__,
 	    ret, state->tx_abort_source);
 	if (ret) {
-
-		axgbe_error("%s: i2c xfer ret %d abrt_source 0x%x \n", __func__,
+		axgbe_printf(1, "%s: i2c xfer ret %d abrt_source 0x%x\n", __func__,
 		    ret, state->tx_abort_source);
 		if (state->tx_abort_source & IC_TX_ABRT_7B_ADDR_NOACK)
 			ret = -ENOTCONN;

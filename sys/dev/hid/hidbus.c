@@ -604,7 +604,7 @@ hidbus_set_intr(device_t child, hid_intr_t *handler, void *context)
 static int
 hidbus_intr_start(device_t bus, device_t child)
 {
-	MPASS(bus = device_get_parent(child));
+	MPASS(bus == device_get_parent(child));
 	struct hidbus_softc *sc = device_get_softc(bus);
 	struct hidbus_ivars *ivar = device_get_ivars(child);
 	struct hidbus_ivars *tlc;
@@ -630,7 +630,7 @@ hidbus_intr_start(device_t bus, device_t child)
 static int
 hidbus_intr_stop(device_t bus, device_t child)
 {
-	MPASS(bus = device_get_parent(child));
+	MPASS(bus == device_get_parent(child));
 	struct hidbus_softc *sc = device_get_softc(bus);
 	struct hidbus_ivars *ivar = device_get_ivars(child);
 	struct hidbus_ivars *tlc;

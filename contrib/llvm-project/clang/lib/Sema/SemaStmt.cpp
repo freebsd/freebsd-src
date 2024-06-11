@@ -689,7 +689,7 @@ bool Sema::checkMustTailAttr(const Stmt *St, const Attr &MTA) {
     if (CMD->isStatic())
       Type.MemberType = FuncType::ft_static_member;
     else {
-      Type.This = CMD->getThisType()->getPointeeType();
+      Type.This = CMD->getFunctionObjectParameterType();
       Type.MemberType = FuncType::ft_non_static_member;
     }
     Type.Func = CMD->getType()->castAs<FunctionProtoType>();
@@ -783,6 +783,12 @@ bool Sema::checkMustTailAttr(const Stmt *St, const Attr &MTA) {
 
   if (CalleeType.Func->isVariadic() || CallerType.Func->isVariadic()) {
     Diag(St->getBeginLoc(), diag::err_musttail_no_variadic) << &MTA;
+    return false;
+  }
+
+  const auto *CalleeDecl = CE->getCalleeDecl();
+  if (CalleeDecl && CalleeDecl->hasAttr<CXX11NoReturnAttr>()) {
+    Diag(St->getBeginLoc(), diag::err_musttail_no_return) << &MTA;
     return false;
   }
 
@@ -1271,6 +1277,9 @@ Sema::ActOnFinishSwitchStmt(SourceLocation SwitchLoc, Stmt *Switch,
 
   bool CaseListIsErroneous = false;
 
+  // FIXME: We'd better diagnose missing or duplicate default labels even
+  // in the dependent case. Because default labels themselves are never
+  // dependent.
   for (SwitchCase *SC = SS->getSwitchCaseList(); SC && !HasDependentValue;
        SC = SC->getNextSwitchCase()) {
 
@@ -1341,6 +1350,7 @@ Sema::ActOnFinishSwitchStmt(SourceLocation SwitchLoc, Stmt *Switch,
       assert(!HasConstantCond ||
              (ConstantCondValue.getBitWidth() == CondWidth &&
               ConstantCondValue.isSigned() == CondIsSigned));
+      Diag(SwitchLoc, diag::warn_switch_default);
     }
     bool ShouldCheckConstantCond = HasConstantCond;
 
@@ -3196,7 +3206,7 @@ static void DiagnoseForRangeConstVariableCopies(Sema &SemaRef,
   // (The function `getTypeSize` returns the size in bits.)
   ASTContext &Ctx = SemaRef.Context;
   if (Ctx.getTypeSize(VariableType) <= 64 * 8 &&
-      (VariableType.isTriviallyCopyableType(Ctx) ||
+      (VariableType.isTriviallyCopyConstructibleType(Ctx) ||
        hasTrivialABIAttr(VariableType)))
     return;
 
@@ -3577,6 +3587,8 @@ StmtResult Sema::ActOnCapScopeReturnStmt(SourceLocation ReturnLoc,
   CapturingScopeInfo *CurCap = cast<CapturingScopeInfo>(getCurFunction());
   QualType FnRetType = CurCap->ReturnType;
   LambdaScopeInfo *CurLambda = dyn_cast<LambdaScopeInfo>(CurCap);
+  if (CurLambda && CurLambda->CallOperator->getType().isNull())
+    return StmtError();
   bool HasDeducedReturnType =
       CurLambda && hasDeducedReturnType(CurLambda->CallOperator);
 
@@ -4471,12 +4483,21 @@ public:
 /// handlers and creates a try statement from them.
 StmtResult Sema::ActOnCXXTryBlock(SourceLocation TryLoc, Stmt *TryBlock,
                                   ArrayRef<Stmt *> Handlers) {
-  // Don't report an error if 'try' is used in system headers.
-  if (!getLangOpts().CXXExceptions &&
+  const llvm::Triple &T = Context.getTargetInfo().getTriple();
+  const bool IsOpenMPGPUTarget =
+      getLangOpts().OpenMPIsTargetDevice && (T.isNVPTX() || T.isAMDGCN());
+  // Don't report an error if 'try' is used in system headers or in an OpenMP
+  // target region compiled for a GPU architecture.
+  if (!IsOpenMPGPUTarget && !getLangOpts().CXXExceptions &&
       !getSourceManager().isInSystemHeader(TryLoc) && !getLangOpts().CUDA) {
     // Delay error emission for the OpenMP device code.
     targetDiag(TryLoc, diag::err_exceptions_disabled) << "try";
   }
+
+  // In OpenMP target regions, we assume that catch is never reached on GPU
+  // targets.
+  if (IsOpenMPGPUTarget)
+    targetDiag(TryLoc, diag::warn_try_not_valid_on_target) << T.str();
 
   // Exceptions aren't allowed in CUDA device code.
   if (getLangOpts().CUDA)
@@ -4681,10 +4702,11 @@ Sema::CreateCapturedStmtRecordDecl(CapturedDecl *&CD, SourceLocation Loc,
 
   RecordDecl *RD = nullptr;
   if (getLangOpts().CPlusPlus)
-    RD = CXXRecordDecl::Create(Context, TTK_Struct, DC, Loc, Loc,
+    RD = CXXRecordDecl::Create(Context, TagTypeKind::Struct, DC, Loc, Loc,
                                /*Id=*/nullptr);
   else
-    RD = RecordDecl::Create(Context, TTK_Struct, DC, Loc, Loc, /*Id=*/nullptr);
+    RD = RecordDecl::Create(Context, TagTypeKind::Struct, DC, Loc, Loc,
+                            /*Id=*/nullptr);
 
   RD->setCapturedRecord();
   DC->addDecl(RD);
@@ -4751,7 +4773,7 @@ void Sema::ActOnCapturedRegionStart(SourceLocation Loc, Scope *CurScope,
   QualType ParamType = Context.getPointerType(Context.getTagDeclType(RD));
   auto *Param =
       ImplicitParamDecl::Create(Context, DC, Loc, ParamName, ParamType,
-                                ImplicitParamDecl::CapturedContext);
+                                ImplicitParamKind::CapturedContext);
   DC->addDecl(Param);
 
   CD->setContextParam(0, Param);
@@ -4792,7 +4814,7 @@ void Sema::ActOnCapturedRegionStart(SourceLocation Loc, Scope *CurScope,
                                .withRestrict();
       auto *Param =
           ImplicitParamDecl::Create(Context, DC, Loc, ParamName, ParamType,
-                                    ImplicitParamDecl::CapturedContext);
+                                    ImplicitParamKind::CapturedContext);
       DC->addDecl(Param);
       CD->setContextParam(ParamNum, Param);
       ContextIsFound = true;
@@ -4800,7 +4822,7 @@ void Sema::ActOnCapturedRegionStart(SourceLocation Loc, Scope *CurScope,
       IdentifierInfo *ParamName = &Context.Idents.get(I->first);
       auto *Param =
           ImplicitParamDecl::Create(Context, DC, Loc, ParamName, I->second,
-                                    ImplicitParamDecl::CapturedContext);
+                                    ImplicitParamKind::CapturedContext);
       DC->addDecl(Param);
       CD->setParam(ParamNum, Param);
     }
@@ -4812,7 +4834,7 @@ void Sema::ActOnCapturedRegionStart(SourceLocation Loc, Scope *CurScope,
     QualType ParamType = Context.getPointerType(Context.getTagDeclType(RD));
     auto *Param =
         ImplicitParamDecl::Create(Context, DC, Loc, ParamName, ParamType,
-                                  ImplicitParamDecl::CapturedContext);
+                                  ImplicitParamKind::CapturedContext);
     DC->addDecl(Param);
     CD->setContextParam(ParamNum, Param);
   }

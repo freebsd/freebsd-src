@@ -49,10 +49,10 @@
 #include <dev/pci/pcib_private.h>
 #include <dev/pci/pci_dw.h>
 
-#include <dev/extres/clk/clk.h>
-#include <dev/extres/phy/phy.h>
-#include <dev/extres/regulator/regulator.h>
-#include <dev/extres/hwreset/hwreset.h>
+#include <dev/clk/clk.h>
+#include <dev/phy/phy.h>
+#include <dev/regulator/regulator.h>
+#include <dev/hwreset/hwreset.h>
 
 #include <machine/bus.h>
 #include <machine/intr.h>

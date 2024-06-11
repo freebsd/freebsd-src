@@ -39,10 +39,12 @@ extern "C" {
 #include <signal.h>
 }
 
+#include <forward_list>
 #include <fstream>
 #include <map>
 #include <memory>
 #include <stdexcept>
+#include <utility>
 
 #include "utils/datetime.hpp"
 #include "utils/format/macros.hpp"
@@ -123,7 +125,7 @@ utils::process::executor::detail::setup_child(
 }
 
 
-/// Internal implementation for the exit_handle class.
+/// Internal implementation for the exec_handle class.
 struct utils::process::executor::exec_handle::impl : utils::noncopyable {
     /// PID of the process being run.
     int pid;
@@ -547,6 +549,9 @@ struct utils::process::executor::executor_handle::impl : utils::noncopyable {
     /// Mapping of PIDs to the data required at run time.
     exec_handles_map all_exec_handles;
 
+    /// Former members of all_exec_handles removed due to PID reuse.
+    std::forward_list<exec_handle> stale_exec_handles;
+
     /// Whether the executor state has been cleaned yet or not.
     ///
     /// Used to keep track of explicit calls to the public cleanup().
@@ -558,6 +563,8 @@ struct utils::process::executor::executor_handle::impl : utils::noncopyable {
         interrupts_handler(new signals::interrupts_handler()),
         root_work_directory(new fs::auto_directory(
             fs::auto_directory::mkdtemp_public(work_directory_template))),
+        all_exec_handles(),
+        stale_exec_handles(),
         cleaned(false)
     {
     }
@@ -603,6 +610,17 @@ struct utils::process::executor::executor_handle::impl : utils::noncopyable {
         }
         all_exec_handles.clear();
 
+        for (auto iter : stale_exec_handles) {
+            // The process already exited, so no need to kill and wait.
+            try {
+                fs::rm_r(iter.control_directory());
+            } catch (const fs::error& e) {
+                LE(F("Failed to clean up stale subprocess work directory "
+                    "%s: %s") % iter.control_directory() % e.what());
+            }
+        }
+        stale_exec_handles.clear();
+
         try {
             // The following only causes the work directory to be deleted, not
             // any of its contents, so we expect this to always succeed.  This
@@ -611,9 +629,9 @@ struct utils::process::executor::executor_handle::impl : utils::noncopyable {
             // subprocesses.
             root_work_directory->cleanup();
         } catch (const fs::error& e) {
-            LE(F("Failed to clean up executor work directory %s: %s; this is "
-                 "an internal error") % root_work_directory->directory()
-               % e.what());
+            LE(F("Failed to clean up executor work directory %s: %s; "
+                "this could be an internal error or a buggy test") %
+                root_work_directory->directory() % e.what());
         }
         root_work_directory.reset(NULL);
 
@@ -773,12 +791,16 @@ executor::executor_handle::spawn_post(
             timeout,
             unprivileged_user,
             detail::refcnt_t(new detail::refcnt_t::element_type(0)))));
-    INV_MSG(_pimpl->all_exec_handles.find(handle.pid()) ==
-            _pimpl->all_exec_handles.end(),
-            F("PID %s already in all_exec_handles; not properly cleaned "
-              "up or reused too fast") % handle.pid());;
-    _pimpl->all_exec_handles.insert(exec_handles_map::value_type(
-        handle.pid(), handle));
+    const auto value = exec_handles_map::value_type(handle.pid(), handle);
+    auto insert_pair = _pimpl->all_exec_handles.insert(value);
+    if (!insert_pair.second) {
+        LI(F("PID %s already in all_exec_handles") % handle.pid());
+        _pimpl->stale_exec_handles.push_front(insert_pair.first->second);
+        _pimpl->all_exec_handles.erase(insert_pair.first);
+        insert_pair = _pimpl->all_exec_handles.insert(value);
+        INV_MSG(insert_pair.second, F("PID %s still in all_exec_handles") %
+            handle.pid());
+    }
     LI(F("Spawned subprocess with exec_handle %s") % handle.pid());
     return handle;
 }
@@ -816,12 +838,16 @@ executor::executor_handle::spawn_followup_post(
             timeout,
             base.unprivileged_user(),
             base.state_owners())));
-    INV_MSG(_pimpl->all_exec_handles.find(handle.pid()) ==
-            _pimpl->all_exec_handles.end(),
-            F("PID %s already in all_exec_handles; not properly cleaned "
-              "up or reused too fast") % handle.pid());;
-    _pimpl->all_exec_handles.insert(exec_handles_map::value_type(
-        handle.pid(), handle));
+    const auto value = exec_handles_map::value_type(handle.pid(), handle);
+    auto insert_pair = _pimpl->all_exec_handles.insert(value);
+    if (!insert_pair.second) {
+        LI(F("PID %s already in all_exec_handles") % handle.pid());
+        _pimpl->stale_exec_handles.push_front(insert_pair.first->second);
+        _pimpl->all_exec_handles.erase(insert_pair.first);
+        insert_pair = _pimpl->all_exec_handles.insert(value);
+        INV_MSG(insert_pair.second, F("PID %s still in all_exec_handles") %
+            handle.pid());
+    }
     LI(F("Spawned subprocess with exec_handle %s") % handle.pid());
     return handle;
 }

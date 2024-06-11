@@ -309,6 +309,7 @@ struct uart_class uart_z8530_class = {
 	.uc_rclk = DEFAULT_RCLK,
 	.uc_rshift = 0
 };
+UART_CLASS(uart_z8530_class);
 
 #define	SIGCHG(c, i, s, d)				\
 	if (c) {					\
@@ -508,7 +509,6 @@ z8530_bus_param(struct uart_softc *sc, int baudrate, int databits,
 static int
 z8530_bus_probe(struct uart_softc *sc)
 {
-	char buf[80];
 	int error;
 	char ch;
 
@@ -521,8 +521,7 @@ z8530_bus_probe(struct uart_softc *sc)
 
 	ch = sc->sc_bas.chan - 1 + 'A';
 
-	snprintf(buf, sizeof(buf), "z8530, channel %c", ch);
-	device_set_desc_copy(sc->sc_dev, buf);
+	device_set_descf(sc->sc_dev, "z8530, channel %c", ch);
 	return (0);
 }
 

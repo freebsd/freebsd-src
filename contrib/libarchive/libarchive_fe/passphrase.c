@@ -50,8 +50,6 @@
 
 
 #include "lafe_platform.h"
-__FBSDID("$FreeBSD$");
-
 #include <errno.h>
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
@@ -78,6 +76,7 @@ __FBSDID("$FreeBSD$");
 
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
+#include <string.h>
 #include <windows.h>
 
 static char *
@@ -115,8 +114,7 @@ readpassphrase(const char *prompt, char *buf, size_t bufsiz, int flags)
 	WriteFile(hStdout, "\r\n", 2, NULL, NULL);
 	buf[rbytes] = '\0';
 	/* Remove trailing carriage return(s). */
-	if (rbytes > 2 && buf[rbytes - 2] == '\r' && buf[rbytes - 1] == '\n')
-		buf[rbytes - 2] = '\0';
+	buf[strcspn(buf, "\r\n")] = '\0';
 
 	return (buf);
 }
@@ -331,7 +329,7 @@ lafe_readpassphrase(const char *prompt, char *buf, size_t bufsiz)
 			break;
 		default:
 			lafe_errc(1, errno, "Couldn't read passphrase");
-			break;
+			/* NOTREACHED */
 		}
 	}
 	return (p);

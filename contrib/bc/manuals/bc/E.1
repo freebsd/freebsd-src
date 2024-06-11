@@ -25,14 +25,12 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.TH "BC" "1" "February 2023" "Gavin D. Howard" "General Commands Manual"
+.TH "BC" "1" "November 2023" "Gavin D. Howard" "General Commands Manual"
 .nh
 .ad l
 .SH NAME
-.PP
 bc - arbitrary-precision decimal arithmetic language and calculator
 .SH SYNOPSIS
-.PP
 \f[B]bc\f[R] [\f[B]-cCghilPqRsvVw\f[R]] [\f[B]--digit-clamp\f[R]]
 [\f[B]--no-digit-clamp\f[R]] [\f[B]--global-stacks\f[R]]
 [\f[B]--help\f[R]] [\f[B]--interactive\f[R]] [\f[B]--mathlib\f[R]]
@@ -44,7 +42,6 @@ bc - arbitrary-precision decimal arithmetic language and calculator
 [\f[B]--file\f[R]=\f[I]file\f[R]\&...]
 [\f[I]file\f[R]\&...]
 .SH DESCRIPTION
-.PP
 bc(1) is an interactive processor for a language first standardized in
 1991 by POSIX.
 (See the \f[B]STANDARDS\f[R] section.)
@@ -73,7 +70,6 @@ If parsing scripts meant for other bc(1) implementations still does not
 work, that is a bug and should be reported.
 See the \f[B]BUGS\f[R] section.
 .SH OPTIONS
-.PP
 The following are the options that bc(1) accepts.
 .TP
 \f[B]-C\f[R], \f[B]--no-digit-clamp\f[R]
@@ -174,19 +170,16 @@ without worrying that the change will affect other functions.
 Thus, a hypothetical function named \f[B]output(x,b)\f[R] that simply
 printed \f[B]x\f[R] in base \f[B]b\f[R] could be written like this:
 .IP
-.nf
-\f[C]
+.EX
 define void output(x, b) {
     obase=b
     x
 }
-\f[R]
-.fi
+.EE
 .PP
 instead of like this:
 .IP
-.nf
-\f[C]
+.EX
 define void output(x, b) {
     auto c
     c=obase
@@ -194,8 +187,7 @@ define void output(x, b) {
     x
     obase=c
 }
-\f[R]
-.fi
+.EE
 .PP
 This makes writing functions much easier.
 .PP
@@ -209,12 +201,10 @@ converter, it is possible to replace that capability with various shell
 aliases.
 Examples:
 .IP
-.nf
-\f[C]
+.EX
 alias d2o=\[dq]bc -e ibase=A -e obase=8\[dq]
 alias h2b=\[dq]bc -e ibase=G -e obase=2\[dq]
-\f[R]
-.fi
+.EE
 .PP
 Second, if the purpose of a function is to set \f[B]ibase\f[R],
 \f[B]obase\f[R], or \f[B]scale\f[R] globally for any other purpose, it
@@ -441,7 +431,6 @@ This is a \f[B]non-portable extension\f[R].
 .PP
 All long options are \f[B]non-portable extensions\f[R].
 .SH STDIN
-.PP
 If no files or expressions are given by the \f[B]-f\f[R],
 \f[B]--file\f[R], \f[B]-e\f[R], or \f[B]--expression\f[R] options, then
 bc(1) reads from \f[B]stdin\f[R].
@@ -458,7 +447,6 @@ Second, after an \f[B]if\f[R] statement, bc(1) doesn\[cq]t know if an
 \f[B]else\f[R] statement will follow, so it will not execute until it
 knows there will not be an \f[B]else\f[R] statement.
 .SH STDOUT
-.PP
 Any non-error output is written to \f[B]stdout\f[R].
 In addition, if history (see the \f[B]HISTORY\f[R] section) and the
 prompt (see the \f[B]TTY MODE\f[R] section) are enabled, both are output
@@ -467,7 +455,7 @@ to \f[B]stdout\f[R].
 \f[B]Note\f[R]: Unlike other bc(1) implementations, this bc(1) will
 issue a fatal error (see the \f[B]EXIT STATUS\f[R] section) if it cannot
 write to \f[B]stdout\f[R], so if \f[B]stdout\f[R] is closed, as in
-\f[B]bc >&-\f[R], it will quit with an error.
+\f[B]bc  >&-\f[R], it will quit with an error.
 This is done so that bc(1) can report problems when \f[B]stdout\f[R] is
 redirected to a file.
 .PP
@@ -475,13 +463,12 @@ If there are scripts that depend on the behavior of other bc(1)
 implementations, it is recommended that those scripts be changed to
 redirect \f[B]stdout\f[R] to \f[B]/dev/null\f[R].
 .SH STDERR
-.PP
 Any error output is written to \f[B]stderr\f[R].
 .PP
 \f[B]Note\f[R]: Unlike other bc(1) implementations, this bc(1) will
 issue a fatal error (see the \f[B]EXIT STATUS\f[R] section) if it cannot
 write to \f[B]stderr\f[R], so if \f[B]stderr\f[R] is closed, as in
-\f[B]bc 2>&-\f[R], it will quit with an error.
+\f[B]bc  2>&-\f[R], it will quit with an error.
 This is done so that bc(1) can exit with an error code when
 \f[B]stderr\f[R] is redirected to a file.
 .PP
@@ -489,7 +476,6 @@ If there are scripts that depend on the behavior of other bc(1)
 implementations, it is recommended that those scripts be changed to
 redirect \f[B]stderr\f[R] to \f[B]/dev/null\f[R].
 .SH SYNTAX
-.PP
 The syntax for bc(1) programs is mostly C-like, with some differences.
 This bc(1) follows the POSIX standard (see the \f[B]STANDARDS\f[R]
 section), which is a much more thorough resource for the language this
@@ -568,7 +554,6 @@ These are \f[B]non-portable extensions\f[R].
 .PP
 Either semicolons or newlines may separate statements.
 .SS Comments
-.PP
 There are two kinds of comments:
 .IP "1." 3
 Block comments are enclosed in \f[B]/*\f[R] and \f[B]*/\f[R].
@@ -577,7 +562,6 @@ Line comments go from \f[B]#\f[R] until, and not including, the next
 newline.
 This is a \f[B]non-portable extension\f[R].
 .SS Named Expressions
-.PP
 The following are named expressions in bc(1):
 .IP "1." 3
 Variables: \f[B]I\f[R]
@@ -606,7 +590,6 @@ Named expressions are required as the operand of
 of \f[B]assignment\f[R] operators (see the \f[I]Operators\f[R]
 subsection).
 .SS Operands
-.PP
 The following are valid operands in bc(1):
 .IP " 1." 4
 Numbers (see the \f[I]Numbers\f[R] subsection below).
@@ -710,7 +693,6 @@ otherwise.
 See the \f[B]OPTIONS\f[R] section.
 This is a \f[B]non-portable extension\f[R].
 .SS Numbers
-.PP
 Numbers are strings made up of digits, uppercase letters, and at most
 \f[B]1\f[R] period for a radix.
 Numbers can have up to \f[B]BC_NUM_MAX\f[R] digits.
@@ -758,7 +740,6 @@ and is meant to provide an easy way to set the current \f[B]ibase\f[R]
 If clamping is on, and the clamped value of a character is needed, use a
 leading zero, i.e., for \f[B]A\f[R], use \f[B]0A\f[R].
 .SS Operators
-.PP
 The following arithmetic and logical operators can be used.
 They are listed in order of decreasing precedence.
 Operators in the same group have the same precedence.
@@ -848,9 +829,9 @@ The operators will be described in more detail below.
 .TP
 \f[B]++\f[R] \f[B]--\f[R]
 The prefix and postfix \f[B]increment\f[R] and \f[B]decrement\f[R]
-operators behave exactly like they would in C.
-They require a named expression (see the \f[I]Named Expressions\f[R]
-subsection) as an operand.
+operators behave exactly like they would in C. They require a named
+expression (see the \f[I]Named Expressions\f[R] subsection) as an
+operand.
 .RS
 .PP
 The prefix versions of these operators are more efficient; use them
@@ -971,7 +952,6 @@ This is \f[I]not\f[R] a short-circuit operator.
 This is a \f[B]non-portable extension\f[R].
 .RE
 .SS Statements
-.PP
 The following items are statements:
 .IP " 1." 4
 \f[B]E\f[R]
@@ -1049,11 +1029,9 @@ occur before the \f[B]quit\f[R] statement before exiting.
 .PP
 In other words, for the bc(1) code below:
 .IP
-.nf
-\f[C]
+.EX
 for (i = 0; i < 3; ++i) i; quit
-\f[R]
-.fi
+.EE
 .PP
 Other bc(1) implementations will print nothing, and this bc(1) will
 print \f[B]0\f[R], \f[B]1\f[R], and \f[B]2\f[R] on successive lines
@@ -1070,7 +1048,6 @@ command.
 .PP
 An expression by itself is evaluated and printed, followed by a newline.
 .SS Strings
-.PP
 If strings appear as a statement by themselves, they are printed without
 a trailing newline.
 .PP
@@ -1089,7 +1066,6 @@ resets (see the \f[B]RESET\f[R] section).
 Assigning strings to variables and array elements and passing them to
 functions are \f[B]non-portable extensions\f[R].
 .SS Print Statement
-.PP
 The \[lq]expressions\[rq] in a \f[B]print\f[R] statement may also be
 strings.
 If they are, there are backslash escape sequences that are interpreted
@@ -1121,9 +1097,7 @@ character to be printed as-is.
 Any non-string expression in a print statement shall be assigned to
 \f[B]last\f[R], like any other expression that is printed.
 .SS Stream Statement
-.PP
-The \[lq]expressions in a \f[B]stream\f[R] statement may also be
-strings.
+The expressions in a \f[B]stream\f[R] statement may also be strings.
 .PP
 If a \f[B]stream\f[R] statement is given a string, it prints the string
 as though the string had appeared as its own statement.
@@ -1136,17 +1110,14 @@ The result is then printed as though \f[B]obase\f[R] is \f[B]256\f[R]
 and each digit is interpreted as an 8-bit ASCII character, making it a
 byte stream.
 .SS Order of Evaluation
-.PP
 All expressions in a statment are evaluated left to right, except as
 necessary to maintain order of operations.
 This means, for example, assuming that \f[B]i\f[R] is equal to
 \f[B]0\f[R], in the expression
 .IP
-.nf
-\f[C]
+.EX
 a[i++] = i++
-\f[R]
-.fi
+.EE
 .PP
 the first (or 0th) element of \f[B]a\f[R] is set to \f[B]1\f[R], and
 \f[B]i\f[R] is equal to \f[B]2\f[R] at the end of the expression.
@@ -1155,28 +1126,23 @@ This includes function arguments.
 Thus, assuming \f[B]i\f[R] is equal to \f[B]0\f[R], this means that in
 the expression
 .IP
-.nf
-\f[C]
+.EX
 x(i++, i++)
-\f[R]
-.fi
+.EE
 .PP
 the first argument passed to \f[B]x()\f[R] is \f[B]0\f[R], and the
 second argument is \f[B]1\f[R], while \f[B]i\f[R] is equal to
 \f[B]2\f[R] before the function starts executing.
 .SH FUNCTIONS
-.PP
 Function definitions are as follows:
 .IP
-.nf
-\f[C]
+.EX
 define I(I,...,I){
     auto I,...,I
     S;...;S
     return(E)
 }
-\f[R]
-.fi
+.EE
 .PP
 Any \f[B]I\f[R] in the parameter list or \f[B]auto\f[R] list may be
 replaced with \f[B]I[]\f[R] to make a parameter or \f[B]auto\f[R] var an
@@ -1204,18 +1170,15 @@ equivalent to \f[B]return (0)\f[R], unless the function is a
 \f[B]void\f[R] function (see the \f[I]Void Functions\f[R] subsection
 below).
 .SS Void Functions
-.PP
 Functions can also be \f[B]void\f[R] functions, defined as follows:
 .IP
-.nf
-\f[C]
+.EX
 define void I(I,...,I){
     auto I,...,I
     S;...;S
     return
 }
-\f[R]
-.fi
+.EE
 .PP
 They can only be used as standalone expressions, where such an
 expression would be printed alone, except in a print statement.
@@ -1231,15 +1194,12 @@ The word \[lq]void\[rq] is only treated specially right after the
 .PP
 This is a \f[B]non-portable extension\f[R].
 .SS Array References
-.PP
 For any array in the parameter list, if the array is declared in the
 form
 .IP
-.nf
-\f[C]
+.EX
 *I[]
-\f[R]
-.fi
+.EE
 .PP
 it is a \f[B]reference\f[R].
 Any changes to the array in the function are reflected, when the
@@ -1249,11 +1209,9 @@ Other than this, all function arguments are passed by value.
 .PP
 This is a \f[B]non-portable extension\f[R].
 .SH LIBRARY
-.PP
 All of the functions below are available when the \f[B]-l\f[R] or
 \f[B]--mathlib\f[R] command-line flags are given.
 .SS Standard Library
-.PP
 The standard (see the \f[B]STANDARDS\f[R] section) defines the following
 functions for the math library:
 .TP
@@ -1306,7 +1264,6 @@ This is a transcendental function (see the \f[I]Transcendental
 Functions\f[R] subsection below).
 .RE
 .SS Transcendental Functions
-.PP
 All transcendental functions can return slightly inaccurate results, up
 to 1 ULP (https://en.wikipedia.org/wiki/Unit_in_the_last_place).
 This is unavoidable, and the article at
@@ -1334,7 +1291,6 @@ The transcendental functions in the standard math library are:
 .IP \[bu] 2
 \f[B]j(x, n)\f[R]
 .SH RESET
-.PP
 When bc(1) encounters an error or a signal that it has a non-default
 handler for, it resets.
 This means that several things happen.
@@ -1355,7 +1311,6 @@ Note that this reset behavior is different from the GNU bc(1), which
 attempts to start executing the statement right after the one that
 caused an error.
 .SH PERFORMANCE
-.PP
 Most bc(1) implementations use \f[B]char\f[R] types to calculate the
 value of \f[B]1\f[R] decimal digit at a time, but that can be slow.
 This bc(1) does something different.
@@ -1378,7 +1333,6 @@ checking.
 This integer type depends on the value of \f[B]BC_LONG_BIT\f[R], but is
 always at least twice as large as the integer type used to store digits.
 .SH LIMITS
-.PP
 The following are the limits on bc(1):
 .TP
 \f[B]BC_LONG_BIT\f[R]
@@ -1442,7 +1396,6 @@ large (at least on 64-bit machines) that there should not be any point
 at which they become a problem.
 In fact, memory should be exhausted before these limits should be hit.
 .SH ENVIRONMENT VARIABLES
-.PP
 As \f[B]non-portable extensions\f[R], bc(1) recognizes the following
 environment variables:
 .TP
@@ -1581,7 +1534,6 @@ This environment variable overrides the default, which can be queried
 with the \f[B]-h\f[R] or \f[B]--help\f[R] options.
 .RE
 .SH EXIT STATUS
-.PP
 bc(1) returns the following exit statuses:
 .TP
 \f[B]0\f[R]
@@ -1658,7 +1610,6 @@ These exit statuses allow bc(1) to be used in shell scripting with error
 checking, and its normal behavior can be forced by using the
 \f[B]-i\f[R] flag or \f[B]--interactive\f[R] option.
 .SH INTERACTIVE MODE
-.PP
 Per the standard (see the \f[B]STANDARDS\f[R] section), bc(1) has an
 interactive mode and a non-interactive mode.
 Interactive mode is turned on automatically when both \f[B]stdin\f[R]
@@ -1672,7 +1623,6 @@ bc(1) may also reset on \f[B]SIGINT\f[R] instead of exit, depending on
 the contents of, or default for, the \f[B]BC_SIGINT_RESET\f[R]
 environment variable (see the \f[B]ENVIRONMENT VARIABLES\f[R] section).
 .SH TTY MODE
-.PP
 If \f[B]stdin\f[R], \f[B]stdout\f[R], and \f[B]stderr\f[R] are all
 connected to a TTY, then \[lq]TTY mode\[rq] is considered to be
 available, and thus, bc(1) can turn on TTY mode, subject to some
@@ -1696,7 +1646,6 @@ required in the bc(1) standard (see the \f[B]STANDARDS\f[R] section),
 and interactive mode requires only \f[B]stdin\f[R] and \f[B]stdout\f[R]
 to be connected to a terminal.
 .SS Command-Line History
-.PP
 Command-line history is only enabled if TTY mode is, i.e., that
 \f[B]stdin\f[R], \f[B]stdout\f[R], and \f[B]stderr\f[R] are connected to
 a TTY and the \f[B]BC_TTY_MODE\f[R] environment variable (see the
@@ -1704,7 +1653,6 @@ a TTY and the \f[B]BC_TTY_MODE\f[R] environment variable (see the
 TTY mode.
 See the \f[B]COMMAND LINE HISTORY\f[R] section for more information.
 .SS Prompt
-.PP
 If TTY mode is available, then a prompt can be enabled.
 Like TTY mode itself, it can be turned on or off with an environment
 variable: \f[B]BC_PROMPT\f[R] (see the \f[B]ENVIRONMENT VARIABLES\f[R]
@@ -1725,7 +1673,6 @@ and \f[B]--no-read-prompt\f[R] options.
 See the \f[B]ENVIRONMENT VARIABLES\f[R] and \f[B]OPTIONS\f[R] sections
 for more details.
 .SH SIGNAL HANDLING
-.PP
 Sending a \f[B]SIGINT\f[R] will cause bc(1) to do one of two things.
 .PP
 If bc(1) is not in interactive mode (see the \f[B]INTERACTIVE MODE\f[R]
@@ -1760,7 +1707,6 @@ The one exception is \f[B]SIGHUP\f[R]; in that case, and only when bc(1)
 is in TTY mode (see the \f[B]TTY MODE\f[R] section), a \f[B]SIGHUP\f[R]
 will cause bc(1) to clean up and exit.
 .SH COMMAND LINE HISTORY
-.PP
 bc(1) supports interactive command-line editing.
 .PP
 If bc(1) can be in TTY mode (see the \f[B]TTY MODE\f[R] section),
@@ -1778,14 +1724,11 @@ the arrow keys.
 .PP
 \f[B]Note\f[R]: tabs are converted to 8 spaces.
 .SH LOCALES
-.PP
 This bc(1) ships with support for adding error messages for different
 locales and thus, supports \f[B]LC_MESSAGES\f[R].
 .SH SEE ALSO
-.PP
 dc(1)
 .SH STANDARDS
-.PP
 bc(1) is compliant with the IEEE Std 1003.1-2017
 (\[lq]POSIX.1-2017\[rq]) specification at
 https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html .
@@ -1805,13 +1748,13 @@ the value of \f[B]LC_NUMERIC\f[R].
 This bc(1) supports error messages for different locales, and thus, it
 supports \f[B]LC_MESSAGES\f[R].
 .SH BUGS
-.PP
 Before version \f[B]6.1.0\f[R], this bc(1) had incorrect behavior for
 the \f[B]quit\f[R] statement.
 .PP
 No other bugs are known.
 Report bugs at https://git.gavinhoward.com/gavin/bc .
 .SH AUTHORS
-.PP
-Gavin D.
-Howard <gavin@gavinhoward.com> and contributors.
+Gavin D. Howard \c
+.MT gavin@gavinhoward.com
+.ME \c
+\ and contributors.
