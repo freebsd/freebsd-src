@@ -180,26 +180,26 @@ static void
 print_device_props(struct devinfo_dev *dev)
 {
 
-	if (vflag && *dev->dd_pnpinfo) {
-		xo_open_container("pnpinfo");
-		xo_emit("{D: pnpinfo}");
-		if ((strcmp(dev->dd_pnpinfo, "unknown") == 0)) {
-			xo_emit("{D: unknown}");
-		}
-		else {
-			print_kvlist(dev->dd_pnpinfo);
-		}
-		xo_close_container("pnpinfo");
-	}
-	if (vflag && *dev->dd_location) {
-		xo_open_container("location");
-		xo_emit("{D: at}");
-		print_kvlist(dev->dd_location);
-		xo_close_container("location");
-	}
-
-	// If verbose, then always print state for json/xml.
 	if (vflag) {
+		if (*dev->dd_pnpinfo) {
+			xo_open_container("pnpinfo");
+			xo_emit("{D: pnpinfo}");
+
+			if ((strcmp(dev->dd_pnpinfo, "unknown") == 0))
+				xo_emit("{D: unknown}");
+			else
+				print_kvlist(dev->dd_pnpinfo);
+
+			xo_close_container("pnpinfo");
+		}
+		if (*dev->dd_location) {
+			xo_open_container("location");
+			xo_emit("{D: at}");
+			print_kvlist(dev->dd_location);
+			xo_close_container("location");
+		}
+
+		// If verbose, then always print state for json/xml.
 		if (!(dev->dd_flags & DF_ENABLED))
 			xo_emit("{e:state/disabled}");
 		else if (dev->dd_flags & DF_SUSPENDED)
