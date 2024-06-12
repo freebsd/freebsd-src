@@ -948,6 +948,7 @@ int t4vf_get_vfres(struct adapter *adapter);
 int t4vf_prep_adapter(struct adapter *adapter);
 int t4vf_get_vf_mac(struct adapter *adapter, unsigned int port,
 		    unsigned int *naddr, u8 *addr);
+int t4vf_get_vf_vlan(struct adapter *adapter);
 int t4_bar2_sge_qregs(struct adapter *adapter, unsigned int qid,
 		enum t4_bar2_qtype qtype, int user, u64 *pbar2_qoffset,
 		unsigned int *pbar2_qid);

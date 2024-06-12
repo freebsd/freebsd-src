@@ -429,3 +429,30 @@ int t4vf_get_vf_mac(struct adapter *adapter, unsigned int port,
 
 	return ret;
 }
+
+/*
+ *	t4vf_get_vf_vlan - Get the VLAN ID to be set to the VI of this VF.
+ *	@adapter: The adapter
+ *
+ *	Find the VLAN ID to be set to the VF's VI. The requested VLAN ID
+ *	is from the host OS via callback in the PF driver.
+ */
+int t4vf_get_vf_vlan(struct adapter *adapter)
+{
+	struct fw_acl_vlan_cmd cmd = {0};
+	int vlan = 0;
+	int ret = 0;
+
+	cmd.op_to_vfn = htonl(V_FW_CMD_OP(FW_ACL_VLAN_CMD) |
+			      F_FW_CMD_REQUEST | F_FW_CMD_READ);
+
+	/* Note: Do not enable the ACL */
+	cmd.en_to_len16 = htonl((unsigned int)FW_LEN16(cmd));
+
+	ret = t4vf_wr_mbox(adapter, &cmd, sizeof(cmd), &cmd);
+
+	if (!ret)
+		vlan = be16_to_cpu(cmd.vlanid[0]);
+
+	return vlan;
+}
