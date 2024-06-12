@@ -389,13 +389,24 @@ nfsrpc_open(vnode_t vp, int amode, struct ucred *cred, NFSPROC_T *p)
 		mode |= NFSV4OPEN_ACCESSREAD;
 	if (amode & FWRITE)
 		mode |= NFSV4OPEN_ACCESSWRITE;
+	if (NFSHASNFSV4N(nmp)) {
+		if (!NFSHASPNFS(nmp) && nfscl_enablecallb != 0 &&
+		    nfs_numnfscbd > 0) {
+			if ((mode & NFSV4OPEN_ACCESSWRITE) != 0)
+				mode |= NFSV4OPEN_WANTWRITEDELEG;
+			else
+				mode |= NFSV4OPEN_WANTANYDELEG;
+		} else
+			mode |= NFSV4OPEN_WANTNODELEG;
+	}
 	nfhp = np->n_fhp;
 
 	retrycnt = 0;
 	do {
 	    dp = NULL;
-	    error = nfscl_open(vp, nfhp->nfh_fh, nfhp->nfh_len, mode, 1,
-		cred, p, NULL, &op, &newone, &ret, 1, true);
+	    error = nfscl_open(vp, nfhp->nfh_fh, nfhp->nfh_len,
+		(mode & NFSV4OPEN_ACCESSBOTH), 1, cred, p, NULL,
+		&op, &newone, &ret, 1, true);
 	    if (error) {
 		return (error);
 	    }
@@ -547,7 +558,8 @@ nfsrpc_openrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp, int fhlen,
 	    cred);
 	NFSM_BUILD(tl, u_int32_t *, 5 * NFSX_UNSIGNED);
 	*tl++ = txdr_unsigned(op->nfso_own->nfsow_seqid);
-	*tl++ = txdr_unsigned(mode & NFSV4OPEN_ACCESSBOTH);
+	*tl++ = txdr_unsigned(mode & (NFSV4OPEN_ACCESSBOTH |
+	    NFSV4OPEN_WANTDELEGMASK));
 	*tl++ = txdr_unsigned((mode >> NFSLCK_SHIFT) & NFSV4OPEN_DENYBOTH);
 	tsep = nfsmnt_mdssession(nmp);
 	*tl++ = tsep->nfsess_clientid.lval[0];
@@ -664,6 +676,13 @@ nfsrpc_openrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp, int fhlen,
 			    &ret, &acesize, p);
 			if (error)
 				goto nfsmout;
+		} else if (deleg == NFSV4OPEN_DELEGATENONEEXT &&
+		    NFSHASNFSV4N(nmp)) {
+			NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+			deleg = fxdr_unsigned(uint32_t, *tl);
+			if (deleg == NFSV4OPEN_CONTENTION ||
+			    deleg == NFSV4OPEN_RESOURCE)
+				NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
 		} else if (deleg != NFSV4OPEN_DELEGATENONE) {
 			error = NFSERR_BADXDR;
 			goto nfsmout;
@@ -1546,7 +1565,7 @@ nfsrpc_lookup(vnode_t dvp, char *name, int len, struct ucred *cred,
 			NFSM_BUILD(tl, uint32_t *, 6 * NFSX_UNSIGNED);
 			*tl++ = txdr_unsigned(NFSV4OP_OPEN);
 			*tl++ = 0;		/* seqid, ignored. */
-			*tl++ = txdr_unsigned(openmode);
+			*tl++ = txdr_unsigned(openmode | NFSV4OPEN_WANTNODELEG);
 			*tl++ = txdr_unsigned(NFSV4OPEN_DENYNONE);
 			*tl++ = 0;		/* ClientID, ignored. */
 			*tl = 0;
@@ -1668,6 +1687,13 @@ nfsrpc_lookup(vnode_t dvp, char *name, int len, struct ucred *cred,
 			ndp->nfsdl_stateid.other[0] = *tl++;
 			ndp->nfsdl_stateid.other[1] = *tl++;
 			ndp->nfsdl_stateid.other[2] = *tl++;
+		} else if (deleg == NFSV4OPEN_DELEGATENONEEXT &&
+		    NFSHASNFSV4N(nmp)) {
+			NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+			deleg = fxdr_unsigned(uint32_t, *tl);
+			if (deleg == NFSV4OPEN_CONTENTION ||
+			    deleg == NFSV4OPEN_RESOURCE)
+				NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
 		} else if (deleg != NFSV4OPEN_DELEGATENONE) {
 			error = NFSERR_BADXDR;
 			goto nfsmout;
@@ -2595,8 +2621,17 @@ nfsrpc_createv4(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 	 */
 	NFSM_BUILD(tl, u_int32_t *, 5 * NFSX_UNSIGNED);
 	*tl++ = txdr_unsigned(owp->nfsow_seqid);
-	*tl++ = txdr_unsigned(NFSV4OPEN_ACCESSWRITE |
-	    NFSV4OPEN_ACCESSREAD);
+	if (NFSHASNFSV4N(nmp)) {
+		if (!NFSHASPNFS(nmp) && nfscl_enablecallb != 0 &&
+		    nfs_numnfscbd > 0)
+			*tl++ = txdr_unsigned(NFSV4OPEN_ACCESSWRITE |
+			    NFSV4OPEN_ACCESSREAD | NFSV4OPEN_WANTWRITEDELEG);
+		else
+			*tl++ = txdr_unsigned(NFSV4OPEN_ACCESSWRITE |
+			    NFSV4OPEN_ACCESSREAD | NFSV4OPEN_WANTNODELEG);
+	} else
+		*tl++ = txdr_unsigned(NFSV4OPEN_ACCESSWRITE |
+		    NFSV4OPEN_ACCESSREAD);
 	*tl++ = txdr_unsigned(NFSV4OPEN_DENYNONE);
 	tsep = nfsmnt_mdssession(nmp);
 	*tl++ = tsep->nfsess_clientid.lval[0];
@@ -2714,6 +2749,13 @@ nfsrpc_createv4(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 			    &ret, &acesize, p);
 			if (error)
 				goto nfsmout;
+		} else if (deleg == NFSV4OPEN_DELEGATENONEEXT &&
+		    NFSHASNFSV4N(nmp)) {
+			NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+			deleg = fxdr_unsigned(uint32_t, *tl);
+			if (deleg == NFSV4OPEN_CONTENTION ||
+			    deleg == NFSV4OPEN_RESOURCE)
+				NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
 		} else if (deleg != NFSV4OPEN_DELEGATENONE) {
 			error = NFSERR_BADXDR;
 			goto nfsmout;
@@ -8109,7 +8151,8 @@ nfsrpc_openlayoutrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp,
 	    0, 0, cred);
 	NFSM_BUILD(tl, uint32_t *, 5 * NFSX_UNSIGNED);
 	*tl++ = txdr_unsigned(op->nfso_own->nfsow_seqid);
-	*tl++ = txdr_unsigned(mode & NFSV4OPEN_ACCESSBOTH);
+	*tl++ = txdr_unsigned(mode & (NFSV4OPEN_ACCESSBOTH |
+	    NFSV4OPEN_WANTDELEGMASK));
 	*tl++ = txdr_unsigned((mode >> NFSLCK_SHIFT) & NFSV4OPEN_DENYBOTH);
 	tsep = nfsmnt_mdssession(nmp);
 	*tl++ = tsep->nfsess_clientid.lval[0];
@@ -8210,6 +8253,13 @@ nfsrpc_openlayoutrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp,
 			    &ret, &acesize, p);
 			if (error != 0)
 				goto nfsmout;
+		} else if (deleg == NFSV4OPEN_DELEGATENONEEXT &&
+		    NFSHASNFSV4N(nmp)) {
+			NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+			deleg = fxdr_unsigned(uint32_t, *tl);
+			if (deleg == NFSV4OPEN_CONTENTION ||
+			    deleg == NFSV4OPEN_RESOURCE)
+				NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
 		} else if (deleg != NFSV4OPEN_DELEGATENONE) {
 			error = NFSERR_BADXDR;
 			goto nfsmout;
@@ -8301,8 +8351,17 @@ nfsrpc_createlayout(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 	 */
 	NFSM_BUILD(tl, u_int32_t *, 5 * NFSX_UNSIGNED);
 	*tl++ = txdr_unsigned(owp->nfsow_seqid);
-	*tl++ = txdr_unsigned(NFSV4OPEN_ACCESSWRITE |
-	    NFSV4OPEN_ACCESSREAD);
+	if (NFSHASNFSV4N(nmp)) {
+		if (!NFSHASPNFS(nmp) && nfscl_enablecallb != 0 &&
+		    nfs_numnfscbd > 0)
+			*tl++ = txdr_unsigned(NFSV4OPEN_ACCESSWRITE |
+			    NFSV4OPEN_ACCESSREAD | NFSV4OPEN_WANTWRITEDELEG);
+		else
+			*tl++ = txdr_unsigned(NFSV4OPEN_ACCESSWRITE |
+			    NFSV4OPEN_ACCESSREAD | NFSV4OPEN_WANTNODELEG);
+	} else
+		*tl++ = txdr_unsigned(NFSV4OPEN_ACCESSWRITE |
+		    NFSV4OPEN_ACCESSREAD);
 	*tl++ = txdr_unsigned(NFSV4OPEN_DENYNONE);
 	tsep = nfsmnt_mdssession(nmp);
 	*tl++ = tsep->nfsess_clientid.lval[0];
