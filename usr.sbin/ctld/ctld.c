@@ -1251,7 +1251,8 @@ port_new(struct conf *conf, struct target *target, struct portal_group *pg)
 }
 
 struct port *
-port_new_ioctl(struct conf *conf, struct kports *kports, struct target *target, int pp, int vp)
+port_new_ioctl(struct conf *conf, struct kports *kports, struct target *target,
+    int pp, int vp)
 {
 	struct pport *pport;
 	struct port *port;

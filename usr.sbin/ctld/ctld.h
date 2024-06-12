@@ -314,13 +314,16 @@ void			isns_deregister(struct isns *isns);
 
 struct pport		*pport_new(struct kports *kports, const char *name,
 			    uint32_t ctl_port);
-struct pport		*pport_find(const struct kports *kports, const char *name);
+struct pport		*pport_find(const struct kports *kports,
+			    const char *name);
 struct pport		*pport_copy(struct pport *pp, struct kports *kports);
 void			pport_delete(struct pport *pport);
 
 struct port		*port_new(struct conf *conf, struct target *target,
 			    struct portal_group *pg);
-struct port		*port_new_ioctl(struct conf *conf, struct kports *kports, struct target *target, int pp, int vp);
+struct port		*port_new_ioctl(struct conf *conf,
+			    struct kports *kports, struct target *target,
+			    int pp, int vp);
 			    //int pp, int vp);
 struct port		*port_new_pp(struct conf *conf, struct target *target,
 			    struct pport *pp);
