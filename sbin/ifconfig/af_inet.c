@@ -440,7 +440,7 @@ in_exec_nl(if_ctx *ctx, unsigned long action, void *data)
 static void
 in_setdefaultmask_nl(void)
 {
-        struct in_px *px = sintab_nl[ADDR];
+	struct in_px *px = sintab_nl[ADDR];
 
 	in_addr_t i = ntohl(px->addr.s_addr);
 
@@ -451,11 +451,11 @@ in_setdefaultmask_nl(void)
 	 * we should return an error rather than warning.
 	 */
 	if (IN_CLASSA(i))
-		px->plen = IN_CLASSA_NSHIFT;
+		px->plen = 32 - IN_CLASSA_NSHIFT;
 	else if (IN_CLASSB(i))
-		px->plen = IN_CLASSB_NSHIFT;
+		px->plen = 32 - IN_CLASSB_NSHIFT;
 	else
-		px->plen = IN_CLASSC_NSHIFT;
+		px->plen = 32 - IN_CLASSC_NSHIFT;
 	px->maskset = true;
 }
 #endif
