@@ -5315,8 +5315,9 @@ pf_tcp_track_full(struct pf_kstate **state, struct pfi_kkif *kif,
 					dws = dst->wscale & PF_WSCALE_MASK;
 				} else {
 					/* fixup other window */
-					dst->max_win <<= dst->wscale &
-					    PF_WSCALE_MASK;
+					dst->max_win = MIN(TCP_MAXWIN,
+					    (u_int32_t)dst->max_win <<
+					    (dst->wscale & PF_WSCALE_MASK));
 					/* in case of a retrans SYN|ACK */
 					dst->wscale = 0;
 				}
