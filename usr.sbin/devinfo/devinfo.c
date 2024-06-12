@@ -90,8 +90,7 @@ print_resource(struct devinfo_res *res)
 
 	if (hexmode) {
 		// Don't use xo modifier to prepend '0x' because
-		// it gets omitted when address is zero - breaking compat
-		// with traditional text output.
+		// it gets omitted when address is zero.
 		xo_emit("0x{d:start/%llx}", res->dr_start);
 	}
 	else {
