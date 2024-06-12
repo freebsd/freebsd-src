@@ -225,7 +225,7 @@ fmal(long double x, long double y, long double z)
 		zs = copysignl(LDBL_MIN, zs);
 
 	fesetround(FE_TONEAREST);
-	/* work around clang bug 8100 */
+	/* work around clang issue #8472 */
 	volatile long double vxs = xs;
 
 	/*
@@ -257,7 +257,7 @@ fmal(long double x, long double y, long double z)
 		 * rounding modes.
 		 */
 		fesetround(oround);
-		/* work around clang bug 8100 */
+		/* work around clang issue #8472 */
 		volatile long double vrlo = r.lo;
 		adj = vrlo + xy.lo;
 		return (ldexpl(r.hi + adj, spread));
