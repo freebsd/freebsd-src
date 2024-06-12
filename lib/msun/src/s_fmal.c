@@ -248,9 +248,7 @@ fmal(long double x, long double y, long double z)
 		 */
 		fesetround(oround);
 		volatile long double vzs = zs; /* XXX gcc CSE bug workaround */
-		xs = ldexpl(xy.lo, spread);
-		xy.hi += vzs;
-		return (xy.hi == 0 ? xs : xy.hi + xs);
+		return (xy.hi + vzs + ldexpl(xy.lo, spread));
 	}
 
 	if (oround != FE_TONEAREST) {

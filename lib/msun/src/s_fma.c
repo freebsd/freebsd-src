@@ -267,9 +267,7 @@ fma(double x, double y, double z)
 		 */
 		fesetround(oround);
 		volatile double vzs = zs; /* XXX gcc CSE bug workaround */
-		xs = ldexp(xy.lo, spread);
-		xy.hi += vzs;
-		return (xy.hi == 0 ? xs : xy.hi + xs);
+		return (xy.hi + vzs + ldexp(xy.lo, spread));
 	}
 
 	if (oround != FE_TONEAREST) {
