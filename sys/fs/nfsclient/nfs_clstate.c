@@ -93,9 +93,8 @@ NFSREQSPINLOCK;
 NFSCLSTATEMUTEX;
 int nfscl_inited = 0;
 struct nfsclhead nfsclhead;	/* Head of clientid list */
-int nfscl_deleghighwater = NFSCLDELEGHIGHWATER;
-int nfscl_layouthighwater = NFSCLLAYOUTHIGHWATER;
 
+static int nfscl_deleghighwater = NFSCLDELEGHIGHWATER;
 static int nfscl_delegcnt = 0;
 static int nfscl_layoutcnt = 0;
 static int nfscl_getopen(struct nfsclownerhead *, struct nfsclopenhash *,
@@ -4653,7 +4652,7 @@ nfscl_mustflush(vnode_t vp)
 
 	np = VTONFS(vp);
 	nmp = VFSTONFS(vp->v_mount);
-	if (!NFSHASNFSV4(nmp))
+	if (!NFSHASNFSV4(nmp) || vp->v_type != VREG)
 		return (1);
 	NFSLOCKMNT(nmp);
 	if ((nmp->nm_privflag & NFSMNTP_DELEGISSUED) == 0) {
@@ -4693,7 +4692,7 @@ nfscl_nodeleg(vnode_t vp, int writedeleg)
 
 	np = VTONFS(vp);
 	nmp = VFSTONFS(vp->v_mount);
-	if (!NFSHASNFSV4(nmp))
+	if (!NFSHASNFSV4(nmp) || vp->v_type != VREG)
 		return (1);
 	NFSLOCKMNT(nmp);
 	if ((nmp->nm_privflag & NFSMNTP_DELEGISSUED) == 0) {
