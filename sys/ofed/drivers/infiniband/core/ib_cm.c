@@ -4057,7 +4057,7 @@ static void cm_add_one(struct ib_device *ib_device)
 	struct ib_port_modify port_modify = {
 		.set_port_cap_mask = IB_PORT_CM_SUP
 	};
-	unsigned long flags;
+	unsigned long flags __writeonly;
 	int ret;
 	int count = 0;
 	u8 i;
@@ -4150,7 +4150,7 @@ static void cm_remove_one(struct ib_device *ib_device, void *client_data)
 	struct ib_port_modify port_modify = {
 		.clr_port_cap_mask = IB_PORT_CM_SUP
 	};
-	unsigned long flags;
+	unsigned long flags __writeonly;
 	int i;
 
 	if (!cm_dev)
