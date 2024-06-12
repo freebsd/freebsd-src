@@ -4220,9 +4220,7 @@ qsize_to_fthresh(int qsize)
 {
 	u_int fthresh;
 
-	while (!powerof2(qsize))
-		qsize++;
-	fthresh = ilog2(qsize);
+	fthresh = qsize == 0 ? 0 : fls(qsize - 1);
 	if (fthresh > X_CIDXFLUSHTHRESH_128)
 		fthresh = X_CIDXFLUSHTHRESH_128;
 
