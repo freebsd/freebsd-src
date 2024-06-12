@@ -34,8 +34,7 @@ SRCS+=	vgic.c \
 	vgic_v3.c \
 	vtimer.c
 
-SRCS+=	vmm_hyp_exception.S vmm_hyp.c
-
+CLEANFILES+=	vmm_hyp_exception.o vmm_hyp.o
 CLEANFILES+=	vmm_hyp_blob.elf.full
 CLEANFILES+=	vmm_hyp_blob.elf vmm_hyp_blob.bin
 

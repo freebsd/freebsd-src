@@ -244,7 +244,7 @@ fma(double x, double y, double z)
 		zs = copysign(DBL_MIN, zs);
 
 	fesetround(FE_TONEAREST);
-	/* work around clang bug 8100 */
+	/* work around clang issue #8472 */
 	volatile double vxs = xs;
 
 	/*
@@ -267,9 +267,7 @@ fma(double x, double y, double z)
 		 */
 		fesetround(oround);
 		volatile double vzs = zs; /* XXX gcc CSE bug workaround */
-		xs = ldexp(xy.lo, spread);
-		xy.hi += vzs;
-		return (xy.hi == 0 ? xs : xy.hi + xs);
+		return (xy.hi + vzs + ldexp(xy.lo, spread));
 	}
 
 	if (oround != FE_TONEAREST) {
@@ -278,7 +276,7 @@ fma(double x, double y, double z)
 		 * rounding modes.
 		 */
 		fesetround(oround);
-		/* work around clang bug 8100 */
+		/* work around clang issue #8472 */
 		volatile double vrlo = r.lo;
 		adj = vrlo + xy.lo;
 		return (ldexp(r.hi + adj, spread));

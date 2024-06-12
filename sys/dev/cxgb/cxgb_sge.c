@@ -553,9 +553,7 @@ t3_sge_prep(adapter_t *adap, struct sge_params *p)
 	nqsets *= adap->params.nports;
 
 	fl_q_size = min(nmbclusters/(3*nqsets), FL_Q_SIZE);
-
-	while (!powerof2(fl_q_size))
-		fl_q_size--;
+	fl_q_size = 1 << ilog2(fl_q_size);
 
 	use_16k = cxgb_use_16k_clusters != -1 ? cxgb_use_16k_clusters :
 	    is_offload(adap);
@@ -567,8 +565,7 @@ t3_sge_prep(adapter_t *adap, struct sge_params *p)
 		jumbo_q_size = min(nmbjumbo9/(3*nqsets), JUMBO_Q_SIZE);
 		jumbo_buf_size = MJUM9BYTES;
 	}
-	while (!powerof2(jumbo_q_size))
-		jumbo_q_size--;
+	jumbo_q_size = 1 << ilog2(jumbo_q_size);
 
 	if (fl_q_size < (FL_Q_SIZE / 4) || jumbo_q_size < (JUMBO_Q_SIZE / 2))
 		device_printf(adap->dev,

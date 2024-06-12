@@ -35,7 +35,7 @@
 .\"
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
 .\"
-.Dd June 5, 2024
+.Dd June 6, 2024
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -166,7 +166,7 @@
 .Op Fl o Ar on|off
 .Op Fl w Ar wwpn
 .Op Fl W Ar wwnn
-.Op Fl O Ar pp|vp
+.Op Fl O Ar name=value
 .Op Fl p Ar targ_port
 .Op Fl r
 .Op Fl t Ar fe_type
@@ -625,7 +625,7 @@ The WWNN and WWPN may both be specified at the same time, but cannot be
 combined with enabling/disabling or listing ports.
 .Bl -tag -width 12n
 .It Fl c
-Create new frontend port using free pp and vp=0.
+Create new frontend port.
 .It Fl d Ar driver
 Specify the name of the frontend driver used by the
 .Pq Fl c
@@ -644,13 +644,36 @@ If no port number or port type is specified, all ports are turned on or
 off.
 .It Fl O Ar pp|vp
 Specify generic options on the ioctl frontend port.
-At present, only pp and vp port numbers can be set.
+The list of recognized options is driver-dependent.
+The
+.Dq ioctl
+driver recognizes
+.Dq pp
+and
+.Dq vp .
+The
+.Dq iscsi
+driver recongizes
+.Dq cfiscsi_portal_group_tag ,
+.Dq cfiscsi_target ,
+and
+.Dq cfiscsi_target_alias .
+The
+.Dq nvmf
+driver recognizes
+.Dq subnqn ,
+.Dq portid ,
+.Dq max_io_qsize ,
+.Dq enable_timeout ,
+.Dq ioccsz ,
+.Dq nn ,
+and
+.Dq serial .
 .It Fl p Ar targ_port
 Specify the frontend port number.
 The port numbers can be found in the frontend port list.
 .It Fl r
-Remove port specified with
-.Pq Fl p Ar targ_port .
+Remove a port.
 .It Fl t Ar fe_type
 Specify the frontend type used by the
 .Pq Fl o ,

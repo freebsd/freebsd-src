@@ -4909,7 +4909,7 @@ irdma_cfg_fpm_val(struct irdma_sc_dev *dev, u32 qp_count)
 	struct irdma_virt_mem virt_mem;
 	u32 i, mem_size;
 	u32 qpwanted, mrwanted, pblewanted;
-	u32 powerof2, hte;
+	u32 hte;
 	u32 sd_needed;
 	u32 sd_diff;
 	u32 loop_count = 0;
@@ -4938,12 +4938,8 @@ irdma_cfg_fpm_val(struct irdma_sc_dev *dev, u32 qp_count)
 		    hmc_info->sd_table.sd_cnt, max_sds);
 
 	qpwanted = min(qp_count, hmc_info->hmc_obj[IRDMA_HMC_IW_QP].max_cnt);
-
-	powerof2 = 1;
-	while (powerof2 <= qpwanted)
-		powerof2 *= 2;
-	powerof2 /= 2;
-	qpwanted = powerof2;
+	if (qpwanted != 0)
+		qpwanted = 1 << ilog2(qpwanted);
 
 	mrwanted = hmc_info->hmc_obj[IRDMA_HMC_IW_MR].max_cnt;
 	pblewanted = hmc_info->hmc_obj[IRDMA_HMC_IW_PBLE].max_cnt;
@@ -4986,11 +4982,9 @@ irdma_cfg_fpm_val(struct irdma_sc_dev *dev, u32 qp_count)
 		hmc_info->hmc_obj[IRDMA_HMC_IW_MR].cnt = mrwanted;
 
 		hte = round_up(qpwanted + hmc_info->hmc_obj[IRDMA_HMC_IW_FSIMC].cnt, 512);
-		powerof2 = 1;
-		while (powerof2 < hte)
-			powerof2 *= 2;
+		hte = hte == 0 ? 1 : 1 << fls(hte - 1);
 		hmc_info->hmc_obj[IRDMA_HMC_IW_HTE].cnt =
-		    powerof2 * hmc_fpm_misc->ht_multiplier;
+		    hte * hmc_fpm_misc->ht_multiplier;
 		if (dev->hw_attrs.uk_attrs.hw_rev == IRDMA_GEN_1)
 			cfg_fpm_value_gen_1(dev, hmc_info, qpwanted);
 		else

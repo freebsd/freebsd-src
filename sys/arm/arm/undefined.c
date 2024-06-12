@@ -226,8 +226,6 @@ undefinedinstruction(struct trapframe *frame)
 	/* Enable interrupts if they were enabled before the exception. */
 	if (__predict_true(frame->tf_spsr & PSR_I) == 0)
 		enable_interrupts(PSR_I);
-	if (__predict_true(frame->tf_spsr & PSR_F) == 0)
-		enable_interrupts(PSR_F);
 
 	VM_CNT_INC(v_trap);
 
