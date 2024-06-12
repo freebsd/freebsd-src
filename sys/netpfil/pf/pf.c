@@ -5246,7 +5246,7 @@ pf_tcp_track_full(struct pf_kstate **state, struct pfi_kkif *kif,
 	struct tcphdr		*th = &pd->hdr.tcp;
 	struct pf_state_peer	*src, *dst;
 	u_int16_t		 win = ntohs(th->th_win);
-	u_int32_t		 ack, end, seq, orig_seq;
+	u_int32_t		 ack, end, data_end, seq, orig_seq;
 	u_int8_t		 sws, dws, psrc, pdst;
 	int			 ackskew;
 
@@ -5323,6 +5323,7 @@ pf_tcp_track_full(struct pf_kstate **state, struct pfi_kkif *kif,
 				}
 			}
 		}
+		data_end = end;
 		if (th->th_flags & TH_FIN)
 			end++;
 
@@ -5353,6 +5354,7 @@ pf_tcp_track_full(struct pf_kstate **state, struct pfi_kkif *kif,
 		end = seq + pd->p_len;
 		if (th->th_flags & TH_SYN)
 			end++;
+		data_end = end;
 		if (th->th_flags & TH_FIN)
 			end++;
 	}
@@ -5374,7 +5376,7 @@ pf_tcp_track_full(struct pf_kstate **state, struct pfi_kkif *kif,
 	if (seq == end) {
 		/* Ease sequencing restrictions on no data packets */
 		seq = src->seqlo;
-		end = seq;
+		data_end = end = seq;
 	}
 
 	ackskew = dst->seqlo - ack;
@@ -5397,7 +5399,7 @@ pf_tcp_track_full(struct pf_kstate **state, struct pfi_kkif *kif,
 	}
 
 #define	MAXACKWINDOW (0xffff + 1500)	/* 1500 is an arbitrary fudge factor */
-	if (SEQ_GEQ(src->seqhi, end) &&
+	if (SEQ_GEQ(src->seqhi, data_end) &&
 	    /* Last octet inside other's window space */
 	    SEQ_GEQ(seq, src->seqlo - (dst->max_win << dws)) &&
 	    /* Retrans: not more than one window back */
@@ -5471,7 +5473,7 @@ pf_tcp_track_full(struct pf_kstate **state, struct pfi_kkif *kif,
 	} else if ((dst->state < TCPS_SYN_SENT ||
 		dst->state >= TCPS_FIN_WAIT_2 ||
 		src->state >= TCPS_FIN_WAIT_2) &&
-	    SEQ_GEQ(src->seqhi + MAXACKWINDOW, end) &&
+	    SEQ_GEQ(src->seqhi + MAXACKWINDOW, data_end) &&
 	    /* Within a window forward of the originating packet */
 	    SEQ_GEQ(seq, src->seqlo - MAXACKWINDOW)) {
 	    /* Within a window backward of the originating packet */
@@ -5564,12 +5566,12 @@ pf_tcp_track_full(struct pf_kstate **state, struct pfi_kkif *kif,
 			    pd->dir == PF_IN ? "in" : "out",
 			    pd->dir == (*state)->direction ? "fwd" : "rev");
 			printf("pf: State failure on: %c %c %c %c | %c %c\n",
-			    SEQ_GEQ(src->seqhi, end) ? ' ' : '1',
+			    SEQ_GEQ(src->seqhi, data_end) ? ' ' : '1',
 			    SEQ_GEQ(seq, src->seqlo - (dst->max_win << dws)) ?
 			    ' ': '2',
 			    (ackskew >= -MAXACKWINDOW) ? ' ' : '3',
 			    (ackskew <= (MAXACKWINDOW << sws)) ? ' ' : '4',
-			    SEQ_GEQ(src->seqhi + MAXACKWINDOW, end) ?' ' :'5',
+			    SEQ_GEQ(src->seqhi + MAXACKWINDOW, data_end) ?' ' :'5',
 			    SEQ_GEQ(seq, src->seqlo - MAXACKWINDOW) ?' ' :'6');
 		}
 		REASON_SET(reason, PFRES_BADSTATE);
