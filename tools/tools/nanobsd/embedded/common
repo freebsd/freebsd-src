@@ -51,7 +51,6 @@
 # o documentation for how to run the qemu images
 # o msdos mtools fallback
 # o special boot for !x86 !arm platforms
-# o qemu image for arm
 # o qemu image for aarch64
 # o qemu image for armv6/armv7
 # o easy support for different image / vm formats
@@ -501,9 +500,6 @@ std_aarch64 ( ) {
 
 std_amd64 ( ) {
 	std_i386
-}
-
-std_arm ( ) {
 }
 
 std_armv6 ( ) {
