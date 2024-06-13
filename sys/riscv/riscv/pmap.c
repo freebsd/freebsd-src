@@ -3138,6 +3138,28 @@ out:
 }
 
 /*
+ * Release a page table page reference after a failed attempt to create a
+ * mapping.
+ */
+static void
+pmap_abort_ptp(pmap_t pmap, vm_offset_t va, vm_page_t l2pg)
+{
+	struct spglist free;
+
+	SLIST_INIT(&free);
+	if (pmap_unwire_ptp(pmap, va, l2pg, &free)) {
+		/*
+		 * Although "va" is not mapped, paging-structure
+		 * caches could nonetheless have entries that
+		 * refer to the freed page table pages.
+		 * Invalidate those entries.
+		 */
+		pmap_invalidate_page(pmap, va);
+		vm_page_free_pages_toq(&free, true);
+	}
+}
+
+/*
  * Tries to create a read- and/or execute-only 2MB page mapping.  Returns
  * KERN_SUCCESS if the mapping was created.  Otherwise, returns an error
  * value.  See pmap_enter_l2() for the possible error values when "no sleep",
@@ -3285,17 +3307,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 		 * Abort this mapping if its PV entry could not be created.
 		 */
 		if (!pmap_pv_insert_l2(pmap, va, new_l2, flags, lockp)) {
-			SLIST_INIT(&free);
-			if (pmap_unwire_ptp(pmap, va, l2pg, &free)) {
-				/*
-				 * Although "va" is not mapped, paging-structure
-				 * caches could nonetheless have entries that
-				 * refer to the freed page table pages.
-				 * Invalidate those entries.
-				 */
-				pmap_invalidate_page(pmap, va);
-				vm_page_free_pages_toq(&free, true);
-			}
+			pmap_abort_ptp(pmap, va, l2pg);
 			if (uwptpg != NULL) {
 				mt = pmap_remove_pt_page(pmap, va);
 				KASSERT(mt == uwptpg,
