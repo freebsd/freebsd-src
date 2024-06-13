@@ -436,36 +436,13 @@ in_exec_nl(if_ctx *ctx, unsigned long action, void *data)
 
 	return (e.error);
 }
-
-static void
-in_setdefaultmask_nl(void)
-{
-	struct in_px *px = sintab_nl[ADDR];
-
-	in_addr_t i = ntohl(px->addr.s_addr);
-
-	/*
-	 * If netmask isn't supplied, use historical default.
-	 * This is deprecated for interfaces other than loopback
-	 * or point-to-point; warn in other cases.  In the future
-	 * we should return an error rather than warning.
-	 */
-	if (IN_CLASSA(i))
-		px->plen = 32 - IN_CLASSA_NSHIFT;
-	else if (IN_CLASSB(i))
-		px->plen = 32 - IN_CLASSB_NSHIFT;
-	else
-		px->plen = 32 - IN_CLASSC_NSHIFT;
-	px->maskset = true;
-}
 #endif
 
 static void
-warn_nomask(int ifflags)
+err_nomask(int ifflags)
 {
     if ((ifflags & (IFF_POINTOPOINT | IFF_LOOPBACK)) == 0) {
-	warnx("WARNING: setting interface address without mask "
-	    "is deprecated,\ndefault mask may not be correct.");
+	errx(1, "ERROR: setting interface address without mask is no longer supported.");
     }
 }
 
@@ -474,12 +451,11 @@ in_postproc(if_ctx *ctx __unused, int newaddr, int ifflags)
 {
 #ifdef WITHOUT_NETLINK
 	if (sintab[ADDR]->sin_len != 0 && sintab[MASK]->sin_len == 0 && newaddr) {
-		warn_nomask(ifflags);
+		err_nomask(ifflags);
 	}
 #else
 	if (sintab_nl[ADDR]->addrset && !sintab_nl[ADDR]->maskset && newaddr) {
-		warn_nomask(ifflags);
-	    in_setdefaultmask_nl();
+		err_nomask(ifflags);
 	}
 #endif
 }
