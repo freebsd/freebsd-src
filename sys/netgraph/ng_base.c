@@ -73,6 +73,8 @@
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_parse.h>
 
+#include <sys/epoch.h> // Include the epoch header
+
 MODULE_VERSION(netgraph, NG_ABI_VERSION);
 
 /* Mutex to protect topology events. */
@@ -217,7 +219,10 @@ static struct rwlock	ng_namehash_lock;
 #define	NAMEHASH_RLOCK()	rw_rlock(&ng_namehash_lock)
 #define	NAMEHASH_RUNLOCK()	rw_runlock(&ng_namehash_lock)
 #define	NAMEHASH_WLOCK()	rw_wlock(&ng_namehash_lock)
-#define	NAMEHASH_WUNLOCK()	rw_wunlock(&ng_namehash_lock)
+#define NAMEHASH_WUNLOCK()	rw_wunlock(&ng_namehash_lock)
+
+/* Allocate an epoch for Netgraph operations */
+epoch_t ng_epoch = epoch_alloc("netgraph", EPOCH_PREEMPT);
 
 /* Internal functions */
 static int	ng_add_hook(node_p node, const char *name, hook_p * hookp);
@@ -670,7 +675,8 @@ ng_make_node_common(struct ng_type *type, node_p *nodepp)
 	LIST_INIT(&node->nd_hooks);
 
 	/* Get an ID and put us in the hash chain. */
-	IDHASH_WLOCK();
+	// IDHASH_WLOCK();
+	epoch_enter(ng_epoch); // Enter the epoch section for safe concurrent modification
 	for (;;) { /* wrap protection, even if silly */
 		node_p node2 = NULL;
 		node->nd_ID = V_nextID++; /* 137/sec for 1 year before wrap */
@@ -686,7 +692,8 @@ ng_make_node_common(struct ng_type *type, node_p *nodepp)
 		ng_ID_rehash();
 	LIST_INSERT_HEAD(&V_ng_ID_hash[NG_IDHASH_FN(node->nd_ID)], node,
 	    nd_idnodes);
-	IDHASH_WUNLOCK();
+	// IDHASH_WUNLOCK();
+	epoch_exit(ng_epoch); // Exit the epoch section after modification
 
 	/* Done */
 	*nodepp = node;
