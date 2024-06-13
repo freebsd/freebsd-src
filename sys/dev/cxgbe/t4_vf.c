@@ -589,6 +589,10 @@ t4vf_attach(device_t dev)
 	if (rc != 0)
 		goto done; /* error message displayed already */
 
+	rc = t4_adj_doorbells(sc);
+	if (rc != 0)
+		goto done; /* error message displayed already */
+
 	rc = t4_create_dma_tag(sc);
 	if (rc != 0)
 		goto done; /* error message displayed already */
