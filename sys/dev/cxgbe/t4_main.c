@@ -6084,25 +6084,27 @@ apply_link_config(struct port_info *pi)
 	if (lc->requested_fec & FEC_BASER_RS)
 		MPASS(lc->pcaps & FW_PORT_CAP32_FEC_BASER_RS);
 #endif
-	rc = -t4_link_l1cfg(sc, sc->mbox, pi->tx_chan, lc);
-	if (rc != 0) {
-		/* Don't complain if the VF driver gets back an EPERM. */
-		if (!(sc->flags & IS_VF) || rc != FW_EPERM)
+	if (!(sc->flags & IS_VF)) {
+		rc = -t4_link_l1cfg(sc, sc->mbox, pi->tx_chan, lc);
+		if (rc != 0) {
 			device_printf(pi->dev, "l1cfg failed: %d\n", rc);
-	} else {
-		/*
-		 * An L1_CFG will almost always result in a link-change event if
-		 * the link is up, and the driver will refresh the actual
-		 * fec/fc/etc. when the notification is processed.  If the link
-		 * is down then the actual settings are meaningless.
-		 *
-		 * This takes care of the case where a change in the L1 settings
-		 * may not result in a notification.
-		 */
-		if (lc->link_ok && !(lc->requested_fc & PAUSE_AUTONEG))
-			lc->fc = lc->requested_fc & (PAUSE_TX | PAUSE_RX);
+			return (rc);
+		}
 	}
-	return (rc);
+
+	/*
+	 * An L1_CFG will almost always result in a link-change event if the
+	 * link is up, and the driver will refresh the actual fec/fc/etc. when
+	 * the notification is processed.  If the link is down then the actual
+	 * settings are meaningless.
+	 *
+	 * This takes care of the case where a change in the L1 settings may not
+	 * result in a notification.
+	 */
+	if (lc->link_ok && !(lc->requested_fc & PAUSE_AUTONEG))
+		lc->fc = lc->requested_fc & (PAUSE_TX | PAUSE_RX);
+
+	return (0);
 }
 
 #define FW_MAC_EXACT_CHUNK	7
