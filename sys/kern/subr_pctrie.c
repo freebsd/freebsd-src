@@ -802,7 +802,7 @@ pctrie_remove_lookup(struct pctrie *ptree, uint64_t index,
  * Walk the subtrie rooted at *pnode in order, invoking callback on leaves and
  * using the leftmost child pointer for path reversal, until an interior node
  * is stripped of all children, and returned for deallocation, with *pnode left
- * pointing the parent of that node.
+ * pointing to the parent of that node.
  */
 static __always_inline struct pctrie_node *
 pctrie_reclaim_prune(struct pctrie_node **pnode, struct pctrie_node *parent,
