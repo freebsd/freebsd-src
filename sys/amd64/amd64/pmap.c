@@ -7595,10 +7595,13 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, pd_entry_t newpde, u_int flags,
 	if ((newpde & PG_W) != 0 && pmap != kernel_pmap) {
 		uwptpg = pmap_alloc_pt_page(pmap, pmap_pde_pindex(va),
 		    VM_ALLOC_WIRED);
-		if (uwptpg == NULL)
+		if (uwptpg == NULL) {
+			pmap_abort_ptp(pmap, va, pdpg);
 			return (KERN_RESOURCE_SHORTAGE);
+		}
 		if (pmap_insert_pt_page(pmap, uwptpg, true, false)) {
 			pmap_free_pt_page(pmap, uwptpg, false);
+			pmap_abort_ptp(pmap, va, pdpg);
 			return (KERN_RESOURCE_SHORTAGE);
 		}
 
