@@ -3268,12 +3268,15 @@ pmap_enter_l3e(pmap_t pmap, vm_offset_t va, pml3_entry_t newpde, u_int flags,
 	uwptpg = NULL;
 	if ((newpde & PG_W) != 0 && pmap != kernel_pmap) {
 		uwptpg = vm_page_alloc_noobj(VM_ALLOC_WIRED);
-		if (uwptpg == NULL)
+		if (uwptpg == NULL) {
+			pmap_abort_ptp(pmap, va, pdpg);
 			return (KERN_RESOURCE_SHORTAGE);
+		}
 		uwptpg->pindex = pmap_l3e_pindex(va);
 		if (pmap_insert_pt_page(pmap, uwptpg)) {
 			vm_page_unwire_noq(uwptpg);
 			vm_page_free(uwptpg);
+			pmap_abort_ptp(pmap, va, pdpg);
 			return (KERN_RESOURCE_SHORTAGE);
 		}
 		pmap_resident_count_inc(pmap, 1);
