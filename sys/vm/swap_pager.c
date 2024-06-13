@@ -2220,8 +2220,11 @@ swp_pager_meta_free(vm_object_t object, vm_pindex_t pindex, vm_pindex_t count,
 }
 
 static void
-swp_pager_meta_free_block(struct swblk *sb, struct page_range *range)
+swp_pager_meta_free_block(void *sbv, void *rangev)
 {
+	struct swblk *sb = sbv;
+	struct page_range *range = rangev;
+
 	for (int i = 0; i < SWAP_META_PAGES; i++) {
 		if (sb->d[i] != SWAPBLK_NONE)
 			swp_pager_update_freerange(range, sb->d[i]);
@@ -2238,19 +2241,13 @@ swp_pager_meta_free_block(struct swblk *sb, struct page_range *range)
 static void
 swp_pager_meta_free_all(vm_object_t object)
 {
-	struct swblk *sb;
 	struct page_range range;
-	vm_pindex_t pindex;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 
 	swp_pager_init_freerange(&range);
-	for (pindex = 0; (sb = SWAP_PCTRIE_LOOKUP_GE(
-	    &object->un_pager.swp.swp_blks, pindex)) != NULL;) {
-		pindex = sb->p + SWAP_META_PAGES;
-		SWAP_PCTRIE_REMOVE(&object->un_pager.swp.swp_blks, sb->p);
-		swp_pager_meta_free_block(sb, &range);
-	}
+	SWAP_PCTRIE_RECLAIM_CALLBACK(&object->un_pager.swp.swp_blks,
+	    swp_pager_meta_free_block, &range);
 	swp_pager_freeswapspace(&range);
 }
 
