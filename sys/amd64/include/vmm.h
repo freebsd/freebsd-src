@@ -144,6 +144,8 @@ enum x2apic_state {
     (SPECNAMELEN - VM_MAX_PREFIXLEN - VM_MAX_SUFFIXLEN - 1)
 
 #ifdef _KERNEL
+#include <sys/kassert.h>
+
 CTASSERT(VM_MAX_NAMELEN >= VM_MIN_NAMELEN);
 
 struct vm;
