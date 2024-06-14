@@ -549,10 +549,6 @@ initriscv(struct riscv_bootparams *rvbp)
 
 	cache_setup();
 
-	/* Bootstrap enough of pmap to enter the kernel proper */
-	kernlen = (lastaddr - KERNBASE);
-	pmap_bootstrap(rvbp->kern_l1pt, rvbp->kern_phys, kernlen);
-
 #ifdef FDT
 	/*
 	 * XXX: Unconditionally exclude the lowest 2MB of physical memory, as
@@ -565,6 +561,11 @@ initriscv(struct riscv_bootparams *rvbp)
 	physmem_exclude_region(mem_regions[0].mr_start, L2_SIZE,
 	    EXFLAG_NODUMP | EXFLAG_NOALLOC);
 #endif
+
+	/* Bootstrap enough of pmap to enter the kernel proper */
+	kernlen = (lastaddr - KERNBASE);
+	pmap_bootstrap(rvbp->kern_l1pt, rvbp->kern_phys, kernlen);
+
 	physmem_init_kernel_globals();
 
 	/* Establish static device mappings */
