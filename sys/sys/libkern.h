@@ -36,6 +36,7 @@
 #ifdef _KERNEL
 #include <sys/systm.h>
 #endif
+#include <sys/kassert.h>
 
 #ifndef	LIBKERN_INLINE
 #define	LIBKERN_INLINE  static __inline
