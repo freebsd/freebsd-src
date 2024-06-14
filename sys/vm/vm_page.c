@@ -782,7 +782,7 @@ vm_page_startup(vm_offset_t vaddr)
 			if (pagecount == 0)
 				continue;
 
-			m = seg->first_page + atop(startp - seg->start);
+			m = vm_phys_seg_paddr_to_vm_page(seg, startp);
 			vmd = VM_DOMAIN(seg->domain);
 			vm_domain_free_lock(vmd);
 			vm_phys_enqueue_contig(m, pagecount);
