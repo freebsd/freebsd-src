@@ -578,6 +578,29 @@ unionfs_noderem(struct vnode *vp)
 }
 
 /*
+ * Find the unionfs node status object for the vnode corresponding to unp,
+ * for the process that owns td.  Return NULL if no such object exists.
+ */
+struct unionfs_node_status *
+unionfs_find_node_status(struct unionfs_node *unp, struct thread *td)
+{
+	struct unionfs_node_status *unsp;
+	pid_t pid;
+
+	pid = td->td_proc->p_pid;
+
+	ASSERT_VOP_ELOCKED(UNIONFSTOV(unp), __func__);
+
+	LIST_FOREACH(unsp, &(unp->un_unshead), uns_list) {
+		if (unsp->uns_pid == pid) {
+			return (unsp);
+		}
+	}
+
+	return (NULL);
+}
+
+/*
  * Get the unionfs node status object for the vnode corresponding to unp,
  * for the process that owns td.  Allocate a new status object if one
  * does not already exist.
@@ -592,21 +615,15 @@ unionfs_get_node_status(struct unionfs_node *unp, struct thread *td,
 	pid = td->td_proc->p_pid;
 
 	KASSERT(NULL != unspp, ("%s: NULL status", __func__));
-	ASSERT_VOP_ELOCKED(UNIONFSTOV(unp), __func__);
+	unsp = unionfs_find_node_status(unp, td);
+	if (unsp == NULL) {
+		/* create a new unionfs node status */
+		unsp = malloc(sizeof(struct unionfs_node_status),
+		    M_TEMP, M_WAITOK | M_ZERO);
 
-	LIST_FOREACH(unsp, &(unp->un_unshead), uns_list) {
-		if (unsp->uns_pid == pid) {
-			*unspp = unsp;
-			return;
-		}
+		unsp->uns_pid = pid;
+		LIST_INSERT_HEAD(&(unp->un_unshead), unsp, uns_list);
 	}
-
-	/* create a new unionfs node status */
-	unsp = malloc(sizeof(struct unionfs_node_status),
-	    M_TEMP, M_WAITOK | M_ZERO);
-
-	unsp->uns_pid = pid;
-	LIST_INSERT_HEAD(&(unp->un_unshead), unsp, uns_list);
 
 	*unspp = unsp;
 }

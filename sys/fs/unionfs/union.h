@@ -133,6 +133,8 @@ int	unionfs_uninit(struct vfsconf *);
 int	unionfs_nodeget(struct mount *, struct vnode *, struct vnode *,
 	    struct vnode *, struct vnode **, struct componentname *);
 void	unionfs_noderem(struct vnode *);
+struct unionfs_node_status *	unionfs_find_node_status(struct unionfs_node *,
+	    struct thread *td);
 void	unionfs_get_node_status(struct unionfs_node *, struct thread *,
 	    struct unionfs_node_status **);
 void	unionfs_tryrem_node_status(struct unionfs_node *,
