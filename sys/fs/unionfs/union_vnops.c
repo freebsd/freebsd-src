@@ -793,9 +793,14 @@ unionfs_close(struct vop_close_args *ap)
 	unp = VTOUNIONFS(vp);
 	lvp = unp->un_lowervp;
 	uvp = unp->un_uppervp;
-	unionfs_get_node_status(unp, td, &unsp);
+	unsp = unionfs_find_node_status(unp, td);
 
-	if (unsp->uns_lower_opencnt <= 0 && unsp->uns_upper_opencnt <= 0) {
+	if (unsp == NULL ||
+	    (unsp->uns_lower_opencnt <= 0 && unsp->uns_upper_opencnt <= 0)) {
+#ifdef DIAGNOSTIC
+		if (unsp != NULL)
+			printf("unionfs_close: warning: open count is 0\n");
+#endif
 		if (uvp != NULLVP)
 			ovp = uvp;
 		else
