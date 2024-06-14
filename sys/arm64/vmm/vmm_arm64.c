@@ -239,7 +239,7 @@ vmmops_modinit(int ipinum)
 	int cpu, i;
 	bool rv __diagused;
 
-	if (!virt_enabled()) {
+	if (!has_hyp()) {
 		printf(
 		    "vmm: Processor doesn't have support for virtualization\n");
 		return (ENXIO);
