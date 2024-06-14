@@ -141,6 +141,7 @@ struct vm {
 	volatile cpuset_t active_cpus;		/* (i) active vcpus */
 	volatile cpuset_t debug_cpus;		/* (i) vcpus stopped for debug */
 	int		suspend;		/* (i) stop VM execution */
+	bool		dying;			/* (o) is dying */
 	volatile cpuset_t suspended_cpus; 	/* (i) suspended vcpus */
 	volatile cpuset_t halted_cpus;		/* (x) cpus in a hard halt */
 	struct mem_map	mem_maps[VM_MAX_MEMMAPS]; /* (i) guest address space */
@@ -405,6 +406,14 @@ vm_init(struct vm *vm, bool create)
 	}
 }
 
+void
+vm_disable_vcpu_creation(struct vm *vm)
+{
+	sx_xlock(&vm->vcpus_init_lock);
+	vm->dying = true;
+	sx_xunlock(&vm->vcpus_init_lock);
+}
+
 struct vcpu *
 vm_alloc_vcpu(struct vm *vm, int vcpuid)
 {
@@ -423,7 +432,7 @@ vm_alloc_vcpu(struct vm *vm, int vcpuid)
 
 	sx_xlock(&vm->vcpus_init_lock);
 	vcpu = vm->vcpu[vcpuid];
-	if (vcpu == NULL/* && !vm->dying*/) {
+	if (vcpu == NULL && !vm->dying) {
 		vcpu = vcpu_alloc(vm, vcpuid);
 		vcpu_init(vcpu);
 
