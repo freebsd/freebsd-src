@@ -226,9 +226,10 @@ name##_PCTRIE_RECLAIM(struct pctrie *ptree)				\
  */									\
 static __inline __unused void						\
 name##_PCTRIE_RECLAIM_CALLBACK(struct pctrie *ptree,			\
-    pctrie_cb_t callback, void *arg)					\
+    void (*typed_cb)(struct type *, void *), void *arg)			\
 {									\
 	struct pctrie_node *freenode, *node;				\
+	pctrie_cb_t callback = (pctrie_cb_t)typed_cb;			\
 									\
 	for (freenode = pctrie_reclaim_begin_cb(&node, ptree,		\
 	    callback, __offsetof(struct type, field), arg);		\
