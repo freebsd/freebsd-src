@@ -127,6 +127,7 @@ struct vm_eventinfo {
 
 int vm_create(const char *name, struct vm **retvm);
 struct vcpu *vm_alloc_vcpu(struct vm *vm, int vcpuid);
+void vm_disable_vcpu_creation(struct vm *vm);
 void vm_slock_vcpus(struct vm *vm);
 void vm_unlock_vcpus(struct vm *vm);
 void vm_destroy(struct vm *vm);
@@ -199,13 +200,6 @@ void vm_exit_astpending(struct vcpu *vcpu, uint64_t pc);
 cpuset_t vm_active_cpus(struct vm *vm);
 cpuset_t vm_debug_cpus(struct vm *vm);
 cpuset_t vm_suspended_cpus(struct vm *vm);
-
-static __inline bool
-virt_enabled(void)
-{
-
-	return (has_hyp());
-}
 
 static __inline int
 vcpu_rendezvous_pending(struct vm_eventinfo *info)
