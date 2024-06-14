@@ -43,6 +43,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/ctype.h>
+#include <sys/epoch.h>
 #include <sys/hash.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
@@ -53,7 +54,6 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/proc.h>
-#include <sys/epoch.h>
 #include <sys/queue.h>
 #include <sys/refcount.h>
 #include <sys/rwlock.h>
@@ -61,33 +61,31 @@
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/unistd.h>
-#include <machine/cpu.h>
+
 #include <vm/uma.h>
 
+#include <machine/cpu.h>
 #include <machine/stack.h>
 
 #include <net/netisr.h>
 #include <net/vnet.h>
-
-#include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
+#include <netgraph/ng_message.h>
 #include <netgraph/ng_parse.h>
-
-#include <sys/epoch.h> 
 
 MODULE_VERSION(netgraph, NG_ABI_VERSION);
 
 /* Mutex to protect topology events. */
-static struct rwlock	ng_topo_lock;
-#define	TOPOLOGY_RLOCK()	rw_rlock(&ng_topo_lock)
-#define	TOPOLOGY_RUNLOCK()	rw_runlock(&ng_topo_lock)
-#define	TOPOLOGY_WLOCK()	rw_wlock(&ng_topo_lock)
-#define	TOPOLOGY_WUNLOCK()	rw_wunlock(&ng_topo_lock)
-#define	TOPOLOGY_NOTOWNED()	rw_assert(&ng_topo_lock, RA_UNLOCKED)
+static struct rwlock ng_topo_lock;
+#define TOPOLOGY_RLOCK()    rw_rlock(&ng_topo_lock)
+#define TOPOLOGY_RUNLOCK()  rw_runlock(&ng_topo_lock)
+#define TOPOLOGY_WLOCK()    rw_wlock(&ng_topo_lock)
+#define TOPOLOGY_WUNLOCK()  rw_wunlock(&ng_topo_lock)
+#define TOPOLOGY_NOTOWNED() rw_assert(&ng_topo_lock, RA_UNLOCKED)
 
-#ifdef	NETGRAPH_DEBUG
-static struct mtx	ng_nodelist_mtx; /* protects global node/hook lists */
-static struct mtx	ngq_mtx;	/* protects the queue item list */
+#ifdef NETGRAPH_DEBUG
+static struct mtx ng_nodelist_mtx; /* protects global node/hook lists */
+static struct mtx ngq_mtx;	   /* protects the queue item list */
 
 static SLIST_HEAD(, ng_node) ng_allnodes;
 static LIST_HEAD(, ng_node) ng_freenodes; /* in debug, we never free() them */
@@ -98,7 +96,7 @@ static void ng_dumpitems(void);
 static void ng_dumpnodes(void);
 static void ng_dumphooks(void);
 
-#endif	/* NETGRAPH_DEBUG */
+#endif /* NETGRAPH_DEBUG */
 /*
  * DEAD versions of the structures.
  * In order to avoid races, it is sometimes necessary to point
@@ -106,79 +104,67 @@ static void ng_dumphooks(void);
  * INVALID. Use these to avoid these races.
  */
 struct ng_type ng_deadtype = {
-	NG_ABI_VERSION,
-	"dead",
-	NULL,	/* modevent */
-	NULL,	/* constructor */
-	NULL,	/* rcvmsg */
-	NULL,	/* shutdown */
-	NULL,	/* newhook */
-	NULL,	/* findhook */
-	NULL,	/* connect */
-	NULL,	/* rcvdata */
-	NULL,	/* disconnect */
-	NULL, 	/* cmdlist */
+	NG_ABI_VERSION, "dead", NULL, /* modevent */
+	NULL,			      /* constructor */
+	NULL,			      /* rcvmsg */
+	NULL,			      /* shutdown */
+	NULL,			      /* newhook */
+	NULL,			      /* findhook */
+	NULL,			      /* connect */
+	NULL,			      /* rcvdata */
+	NULL,			      /* disconnect */
+	NULL,			      /* cmdlist */
 };
 
-struct ng_node ng_deadnode = {
-	"dead",
-	&ng_deadtype,	
-	NGF_INVALID,
-	0,	/* numhooks */
-	NULL,	/* private */
-	0,	/* ID */
+struct ng_node ng_deadnode = { "dead", &ng_deadtype, NGF_INVALID,
+	0,    /* numhooks */
+	NULL, /* private */
+	0,    /* ID */
 	LIST_HEAD_INITIALIZER(ng_deadnode.nd_hooks),
-	{},	/* all_nodes list entry */
-	{},	/* id hashtable list entry */
-	{	0,
-		0,
-		{}, /* should never use! (should hang) */
-		{}, /* workqueue entry */
-		STAILQ_HEAD_INITIALIZER(ng_deadnode.nd_input_queue.queue),
+	{}, /* all_nodes list entry */
+	{}, /* id hashtable list entry */
+	{
+	    0,
+	    0,
+	    {}, /* should never use! (should hang) */
+	    {}, /* workqueue entry */
+	    STAILQ_HEAD_INITIALIZER(ng_deadnode.nd_input_queue.queue),
 	},
-	1,	/* refs */
-	NULL,	/* vnet */
-#ifdef	NETGRAPH_DEBUG
-	ND_MAGIC,
-	__FILE__,
-	__LINE__,
-	{NULL}
-#endif	/* NETGRAPH_DEBUG */
+	1,    /* refs */
+	NULL, /* vnet */
+#ifdef NETGRAPH_DEBUG
+	ND_MAGIC, __FILE__, __LINE__, { NULL }
+#endif /* NETGRAPH_DEBUG */
 };
 
-struct ng_hook ng_deadhook = {
-	"dead",
-	NULL,		/* private */
-	HK_INVALID | HK_DEAD,
-	0,		/* undefined data link type */
-	&ng_deadhook,	/* Peer is self */
-	&ng_deadnode,	/* attached to deadnode */
-	{},		/* hooks list */
-	NULL,		/* override rcvmsg() */
-	NULL,		/* override rcvdata() */
-	1,		/* refs always >= 1 */
-#ifdef	NETGRAPH_DEBUG
-	HK_MAGIC,
-	__FILE__,
-	__LINE__,
-	{NULL}
-#endif	/* NETGRAPH_DEBUG */
+struct ng_hook ng_deadhook = { "dead", NULL, /* private */
+	HK_INVALID | HK_DEAD, 0,	     /* undefined data link type */
+	&ng_deadhook,			     /* Peer is self */
+	&ng_deadnode,			     /* attached to deadnode */
+	{},				     /* hooks list */
+	NULL,				     /* override rcvmsg() */
+	NULL,				     /* override rcvdata() */
+	1,				     /* refs always >= 1 */
+#ifdef NETGRAPH_DEBUG
+	HK_MAGIC, __FILE__, __LINE__, { NULL }
+#endif /* NETGRAPH_DEBUG */
 };
 
 /*
  * END DEAD STRUCTURES
  */
 /* List nodes with unallocated work */
-static STAILQ_HEAD(, ng_node) ng_worklist = STAILQ_HEAD_INITIALIZER(ng_worklist);
-static struct mtx	ng_worklist_mtx;   /* MUST LOCK NODE FIRST */
+static STAILQ_HEAD(, ng_node) ng_worklist = STAILQ_HEAD_INITIALIZER(
+    ng_worklist);
+static struct mtx ng_worklist_mtx; /* MUST LOCK NODE FIRST */
 
 /* List of installed types */
 static LIST_HEAD(, ng_type) ng_typelist;
-static struct rwlock	ng_typelist_lock;
-#define	TYPELIST_RLOCK()	rw_rlock(&ng_typelist_lock)
-#define	TYPELIST_RUNLOCK()	rw_runlock(&ng_typelist_lock)
-#define	TYPELIST_WLOCK()	rw_wlock(&ng_typelist_lock)
-#define	TYPELIST_WUNLOCK()	rw_wunlock(&ng_typelist_lock)
+static struct rwlock ng_typelist_lock;
+#define TYPELIST_RLOCK()   rw_rlock(&ng_typelist_lock)
+#define TYPELIST_RUNLOCK() rw_runlock(&ng_typelist_lock)
+#define TYPELIST_WLOCK()   rw_wlock(&ng_typelist_lock)
+#define TYPELIST_WUNLOCK() rw_wunlock(&ng_typelist_lock)
 
 /* Hash related definitions. */
 LIST_HEAD(nodehash, ng_node);
@@ -188,69 +174,69 @@ VNET_DEFINE_STATIC(u_long, ng_nodes);
 VNET_DEFINE_STATIC(struct nodehash *, ng_name_hash);
 VNET_DEFINE_STATIC(u_long, ng_name_hmask);
 VNET_DEFINE_STATIC(u_long, ng_named_nodes);
-#define	V_ng_ID_hash		VNET(ng_ID_hash)
-#define	V_ng_ID_hmask		VNET(ng_ID_hmask)
-#define	V_ng_nodes		VNET(ng_nodes)
-#define	V_ng_name_hash		VNET(ng_name_hash)
-#define	V_ng_name_hmask		VNET(ng_name_hmask)
-#define	V_ng_named_nodes	VNET(ng_named_nodes)
+#define V_ng_ID_hash	 VNET(ng_ID_hash)
+#define V_ng_ID_hmask	 VNET(ng_ID_hmask)
+#define V_ng_nodes	 VNET(ng_nodes)
+#define V_ng_name_hash	 VNET(ng_name_hash)
+#define V_ng_name_hmask	 VNET(ng_name_hmask)
+#define V_ng_named_nodes VNET(ng_named_nodes)
 
-static struct rwlock	ng_idhash_lock;
-#define	IDHASH_RLOCK()		rw_rlock(&ng_idhash_lock)
-#define	IDHASH_RUNLOCK()	rw_runlock(&ng_idhash_lock)
-#define	IDHASH_WLOCK()		rw_wlock(&ng_idhash_lock)
-#define	IDHASH_WUNLOCK()	rw_wunlock(&ng_idhash_lock)
+static struct rwlock ng_idhash_lock;
+#define IDHASH_RLOCK()	 rw_rlock(&ng_idhash_lock)
+#define IDHASH_RUNLOCK() rw_runlock(&ng_idhash_lock)
+#define IDHASH_WLOCK()	 rw_wlock(&ng_idhash_lock)
+#define IDHASH_WUNLOCK() rw_wunlock(&ng_idhash_lock)
 
 /* Method to find a node.. used twice so do it here */
 #define NG_IDHASH_FN(ID) ((ID) % (V_ng_ID_hmask + 1))
-#define NG_IDHASH_FIND(ID, node)					\
-	do { 								\
-		rw_assert(&ng_idhash_lock, RA_LOCKED);			\
-		LIST_FOREACH(node, &V_ng_ID_hash[NG_IDHASH_FN(ID)],	\
-						nd_idnodes) {		\
-			if (NG_NODE_IS_VALID(node)			\
-			&& (NG_NODE_ID(node) == ID)) {			\
-				break;					\
-			}						\
-		}							\
+#define NG_IDHASH_FIND(ID, node)                                    \
+	do {                                                        \
+		rw_assert(&ng_idhash_lock, RA_LOCKED);              \
+		LIST_FOREACH(node, &V_ng_ID_hash[NG_IDHASH_FN(ID)], \
+		    nd_idnodes) {                                   \
+			if (NG_NODE_IS_VALID(node) &&               \
+			    (NG_NODE_ID(node) == ID)) {             \
+				break;                              \
+			}                                           \
+		}                                                   \
 	} while (0)
 
-static struct rwlock	ng_namehash_lock;
-#define	NAMEHASH_RLOCK()	rw_rlock(&ng_namehash_lock)
-#define	NAMEHASH_RUNLOCK()	rw_runlock(&ng_namehash_lock)
-#define	NAMEHASH_WLOCK()	rw_wlock(&ng_namehash_lock)
-#define NAMEHASH_WUNLOCK()	rw_wunlock(&ng_namehash_lock)
+static struct rwlock ng_namehash_lock;
+#define NAMEHASH_RLOCK()   rw_rlock(&ng_namehash_lock)
+#define NAMEHASH_RUNLOCK() rw_runlock(&ng_namehash_lock)
+#define NAMEHASH_WLOCK()   rw_wlock(&ng_namehash_lock)
+#define NAMEHASH_WUNLOCK() rw_wunlock(&ng_namehash_lock)
 
 /* Allocate an epoch for Netgraph operations */
 epoch_t ng_epoch = epoch_alloc("netgraph", EPOCH_PREEMPT);
 
 /* Internal functions */
-static int	ng_add_hook(node_p node, const char *name, hook_p * hookp);
-static int	ng_generic_msg(node_p here, item_p item, hook_p lasthook);
-static ng_ID_t	ng_decodeidname(const char *name);
-static int	ngb_mod_event(module_t mod, int event, void *data);
-static void	ng_worklist_add(node_p node);
-static void	ngthread(void *);
-static int	ng_apply_item(node_p node, item_p item, int rw);
-static void	ng_flush_input_queue(node_p node);
-static node_p	ng_ID2noderef(ng_ID_t ID);
-static int	ng_con_nodes(item_p item, node_p node, const char *name,
-		    node_p node2, const char *name2);
-static int	ng_con_part2(node_p node, item_p item, hook_p hook);
-static int	ng_con_part3(node_p node, item_p item, hook_p hook);
-static int	ng_mkpeer(node_p node, const char *name, const char *name2,
-		    char *type);
-static void	ng_name_rehash(void);
-static void	ng_ID_rehash(void);
+static int ng_add_hook(node_p node, const char *name, hook_p *hookp);
+static int ng_generic_msg(node_p here, item_p item, hook_p lasthook);
+static ng_ID_t ng_decodeidname(const char *name);
+static int ngb_mod_event(module_t mod, int event, void *data);
+static void ng_worklist_add(node_p node);
+static void ngthread(void *);
+static int ng_apply_item(node_p node, item_p item, int rw);
+static void ng_flush_input_queue(node_p node);
+static node_p ng_ID2noderef(ng_ID_t ID);
+static int ng_con_nodes(item_p item, node_p node, const char *name,
+    node_p node2, const char *name2);
+static int ng_con_part2(node_p node, item_p item, hook_p hook);
+static int ng_con_part3(node_p node, item_p item, hook_p hook);
+static int ng_mkpeer(node_p node, const char *name, const char *name2,
+    char *type);
+static void ng_name_rehash(void);
+static void ng_ID_rehash(void);
 
 /* Imported, these used to be externally visible, some may go back. */
-void	ng_destroy_hook(hook_p hook);
-int	ng_path2noderef(node_p here, const char *path,
-	node_p *dest, hook_p *lasthook);
-int	ng_make_node(const char *type, node_p *nodepp);
-int	ng_path_parse(char *addr, char **node, char **path, char **hook);
-void	ng_rmnode(node_p node, hook_p dummy1, void *dummy2, int dummy3);
-void	ng_unname(node_p node);
+void ng_destroy_hook(hook_p hook);
+int ng_path2noderef(node_p here, const char *path, node_p *dest,
+    hook_p *lasthook);
+int ng_make_node(const char *type, node_p *nodepp);
+int ng_path_parse(char *addr, char **node, char **path, char **hook);
+void ng_rmnode(node_p node, hook_p dummy1, void *dummy2, int dummy3);
+void ng_unname(node_p node);
 
 /* Our own netgraph malloc type */
 MALLOC_DEFINE(M_NETGRAPH, "netgraph", "netgraph structures and ctrl messages");
@@ -269,22 +255,16 @@ static MALLOC_DEFINE(M_NETGRAPH_ITEM, "netgraph_item",
 #define _NG_ALLOC_NODE(node) \
 	node = malloc(sizeof(*node), M_NETGRAPH_NODE, M_NOWAIT | M_ZERO)
 
-#define	NG_QUEUE_LOCK_INIT(n)			\
-	mtx_init(&(n)->q_mtx, "ng_node", NULL, MTX_DEF)
-#define	NG_QUEUE_LOCK(n)			\
-	mtx_lock(&(n)->q_mtx)
-#define	NG_QUEUE_UNLOCK(n)			\
-	mtx_unlock(&(n)->q_mtx)
-#define	NG_WORKLIST_LOCK_INIT()			\
+#define NG_QUEUE_LOCK_INIT(n) mtx_init(&(n)->q_mtx, "ng_node", NULL, MTX_DEF)
+#define NG_QUEUE_LOCK(n)      mtx_lock(&(n)->q_mtx)
+#define NG_QUEUE_UNLOCK(n)    mtx_unlock(&(n)->q_mtx)
+#define NG_WORKLIST_LOCK_INIT() \
 	mtx_init(&ng_worklist_mtx, "ng_worklist", NULL, MTX_DEF)
-#define	NG_WORKLIST_LOCK()			\
-	mtx_lock(&ng_worklist_mtx)
-#define	NG_WORKLIST_UNLOCK()			\
-	mtx_unlock(&ng_worklist_mtx)
-#define	NG_WORKLIST_SLEEP()			\
+#define NG_WORKLIST_LOCK()   mtx_lock(&ng_worklist_mtx)
+#define NG_WORKLIST_UNLOCK() mtx_unlock(&ng_worklist_mtx)
+#define NG_WORKLIST_SLEEP() \
 	mtx_sleep(&ng_worklist, &ng_worklist_mtx, PI_NET, "sleep", 0)
-#define	NG_WORKLIST_WAKEUP()			\
-	wakeup_one(&ng_worklist)
+#define NG_WORKLIST_WAKEUP() wakeup_one(&ng_worklist)
 
 #ifdef NETGRAPH_DEBUG /*----------------------------------------------*/
 /*
@@ -349,23 +329,29 @@ ng_alloc_node(void)
 	return (node);
 }
 
-#define NG_ALLOC_HOOK(hook) do { (hook) = ng_alloc_hook(); } while (0)
-#define NG_ALLOC_NODE(node) do { (node) = ng_alloc_node(); } while (0)
-
-#define NG_FREE_HOOK(hook)						\
-	do {								\
-		mtx_lock(&ng_nodelist_mtx);				\
-		LIST_INSERT_HEAD(&ng_freehooks, hook, hk_hooks);	\
-		hook->hk_magic = 0;					\
-		mtx_unlock(&ng_nodelist_mtx);				\
+#define NG_ALLOC_HOOK(hook)               \
+	do {                              \
+		(hook) = ng_alloc_hook(); \
+	} while (0)
+#define NG_ALLOC_NODE(node)               \
+	do {                              \
+		(node) = ng_alloc_node(); \
 	} while (0)
 
-#define NG_FREE_NODE(node)						\
-	do {								\
-		mtx_lock(&ng_nodelist_mtx);				\
-		LIST_INSERT_HEAD(&ng_freenodes, node, nd_nodes);	\
-		node->nd_magic = 0;					\
-		mtx_unlock(&ng_nodelist_mtx);				\
+#define NG_FREE_HOOK(hook)                                       \
+	do {                                                     \
+		mtx_lock(&ng_nodelist_mtx);                      \
+		LIST_INSERT_HEAD(&ng_freehooks, hook, hk_hooks); \
+		hook->hk_magic = 0;                              \
+		mtx_unlock(&ng_nodelist_mtx);                    \
+	} while (0)
+
+#define NG_FREE_NODE(node)                                       \
+	do {                                                     \
+		mtx_lock(&ng_nodelist_mtx);                      \
+		LIST_INSERT_HEAD(&ng_freenodes, node, nd_nodes); \
+		node->nd_magic = 0;                              \
+		mtx_unlock(&ng_nodelist_mtx);                    \
 	} while (0)
 
 #else /* NETGRAPH_DEBUG */ /*----------------------------------------------*/
@@ -373,8 +359,14 @@ ng_alloc_node(void)
 #define NG_ALLOC_HOOK(hook) _NG_ALLOC_HOOK(hook)
 #define NG_ALLOC_NODE(node) _NG_ALLOC_NODE(node)
 
-#define NG_FREE_HOOK(hook) do { free((hook), M_NETGRAPH_HOOK); } while (0)
-#define NG_FREE_NODE(node) do { free((node), M_NETGRAPH_NODE); } while (0)
+#define NG_FREE_HOOK(hook)                     \
+	do {                                   \
+		free((hook), M_NETGRAPH_HOOK); \
+	} while (0)
+#define NG_FREE_NODE(node)                     \
+	do {                                   \
+		free((node), M_NETGRAPH_NODE); \
+	} while (0)
 
 #endif /* NETGRAPH_DEBUG */ /*----------------------------------------------*/
 
@@ -384,43 +376,47 @@ ng_alloc_node(void)
 #endif
 
 VNET_DEFINE_STATIC(ng_ID_t, nextID) = 1;
-#define	V_nextID			VNET(nextID)
+#define V_nextID VNET(nextID)
 
 #ifdef INVARIANTS
-#define CHECK_DATA_MBUF(m)	do {					\
-		struct mbuf *n;						\
-		int total;						\
-									\
-		M_ASSERTPKTHDR(m);					\
-		for (total = 0, n = (m); n != NULL; n = n->m_next) {	\
-			total += n->m_len;				\
-			if (n->m_nextpkt != NULL)			\
-				panic("%s: m_nextpkt", __func__);	\
-		}							\
-									\
-		if ((m)->m_pkthdr.len != total) {			\
-			panic("%s: %d != %d",				\
-			    __func__, (m)->m_pkthdr.len, total);	\
-		}							\
+#define CHECK_DATA_MBUF(m)                                                 \
+	do {                                                               \
+		struct mbuf *n;                                            \
+		int total;                                                 \
+                                                                           \
+		M_ASSERTPKTHDR(m);                                         \
+		for (total = 0, n = (m); n != NULL; n = n->m_next) {       \
+			total += n->m_len;                                 \
+			if (n->m_nextpkt != NULL)                          \
+				panic("%s: m_nextpkt", __func__);          \
+		}                                                          \
+                                                                           \
+		if ((m)->m_pkthdr.len != total) {                          \
+			panic("%s: %d != %d", __func__, (m)->m_pkthdr.len, \
+			    total);                                        \
+		}                                                          \
 	} while (0)
 #else
 #define CHECK_DATA_MBUF(m)
 #endif
 
-#define ERROUT(x)	do { error = (x); goto done; } while (0)
+#define ERROUT(x)            \
+	do {                 \
+		error = (x); \
+		goto done;   \
+	} while (0)
 
 /************************************************************************
 	Parse type definitions for generic messages
 ************************************************************************/
 
 /* Handy structure parse type defining macro */
-#define DEFINE_PARSE_STRUCT_TYPE(lo, up, args)				\
-static const struct ng_parse_struct_field				\
-	ng_ ## lo ## _type_fields[] = NG_GENERIC_ ## up ## _INFO args;	\
-static const struct ng_parse_type ng_generic_ ## lo ## _type = {	\
-	&ng_parse_struct_type,						\
-	&ng_ ## lo ## _type_fields					\
-}
+#define DEFINE_PARSE_STRUCT_TYPE(lo, up, args)                              \
+	static const struct ng_parse_struct_field ng_##lo##_type_fields[] = \
+	    NG_GENERIC_##up##_INFO args;                                    \
+	static const struct ng_parse_type ng_generic_##lo##_type = {        \
+		&ng_parse_struct_type, &ng_##lo##_type_fields               \
+	}
 
 DEFINE_PARSE_STRUCT_TYPE(mkpeer, MKPEER, ());
 DEFINE_PARSE_STRUCT_TYPE(connect, CONNECT, ());
@@ -434,8 +430,8 @@ DEFINE_PARSE_STRUCT_TYPE(linkinfo, LINKINFO, (&ng_generic_nodeinfo_type));
    value immediately preceding the array -- as with struct namelist
    and struct typelist. */
 static int
-ng_generic_list_getLength(const struct ng_parse_type *type,
-	const u_char *start, const u_char *buf)
+ng_generic_list_getLength(const struct ng_parse_type *type, const u_char *start,
+    const u_char *buf)
 {
 	return *((const u_int32_t *)(buf - 4));
 }
@@ -443,7 +439,7 @@ ng_generic_list_getLength(const struct ng_parse_type *type,
 /* Get length of the array of struct linkinfo inside a struct hooklist */
 static int
 ng_generic_linkinfo_getLength(const struct ng_parse_type *type,
-	const u_char *start, const u_char *buf)
+    const u_char *start, const u_char *buf)
 {
 	const struct hooklist *hl = (const struct hooklist *)start;
 
@@ -452,140 +448,64 @@ ng_generic_linkinfo_getLength(const struct ng_parse_type *type,
 
 /* Array type for a variable length array of struct namelist */
 static const struct ng_parse_array_info ng_nodeinfoarray_type_info = {
-	&ng_generic_nodeinfo_type,
-	&ng_generic_list_getLength
+	&ng_generic_nodeinfo_type, &ng_generic_list_getLength
 };
 static const struct ng_parse_type ng_generic_nodeinfoarray_type = {
-	&ng_parse_array_type,
-	&ng_nodeinfoarray_type_info
+	&ng_parse_array_type, &ng_nodeinfoarray_type_info
 };
 
 /* Array type for a variable length array of struct typelist */
 static const struct ng_parse_array_info ng_typeinfoarray_type_info = {
-	&ng_generic_typeinfo_type,
-	&ng_generic_list_getLength
+	&ng_generic_typeinfo_type, &ng_generic_list_getLength
 };
 static const struct ng_parse_type ng_generic_typeinfoarray_type = {
-	&ng_parse_array_type,
-	&ng_typeinfoarray_type_info
+	&ng_parse_array_type, &ng_typeinfoarray_type_info
 };
 
 /* Array type for array of struct linkinfo in struct hooklist */
 static const struct ng_parse_array_info ng_generic_linkinfo_array_type_info = {
-	&ng_generic_linkinfo_type,
-	&ng_generic_linkinfo_getLength
+	&ng_generic_linkinfo_type, &ng_generic_linkinfo_getLength
 };
 static const struct ng_parse_type ng_generic_linkinfo_array_type = {
-	&ng_parse_array_type,
-	&ng_generic_linkinfo_array_type_info
+	&ng_parse_array_type, &ng_generic_linkinfo_array_type_info
 };
 
 DEFINE_PARSE_STRUCT_TYPE(typelist, TYPELIST, (&ng_generic_typeinfoarray_type));
 DEFINE_PARSE_STRUCT_TYPE(hooklist, HOOKLIST,
-	(&ng_generic_nodeinfo_type, &ng_generic_linkinfo_array_type));
+    (&ng_generic_nodeinfo_type, &ng_generic_linkinfo_array_type));
 DEFINE_PARSE_STRUCT_TYPE(listnodes, LISTNODES,
-	(&ng_generic_nodeinfoarray_type));
+    (&ng_generic_nodeinfoarray_type));
 
 /* List of commands and how to convert arguments to/from ASCII */
 static const struct ng_cmdlist ng_generic_cmds[] = {
+	{ NGM_GENERIC_COOKIE, NGM_SHUTDOWN, "shutdown", NULL, NULL },
+	{ NGM_GENERIC_COOKIE, NGM_MKPEER, "mkpeer", &ng_generic_mkpeer_type,
+	    NULL },
+	{ NGM_GENERIC_COOKIE, NGM_CONNECT, "connect", &ng_generic_connect_type,
+	    NULL },
+	{ NGM_GENERIC_COOKIE, NGM_NAME, "name", &ng_generic_name_type, NULL },
+	{ NGM_GENERIC_COOKIE, NGM_RMHOOK, "rmhook", &ng_generic_rmhook_type,
+	    NULL },
+	{ NGM_GENERIC_COOKIE, NGM_NODEINFO, "nodeinfo", NULL,
+	    &ng_generic_nodeinfo_type },
+	{ NGM_GENERIC_COOKIE, NGM_LISTHOOKS, "listhooks", NULL,
+	    &ng_generic_hooklist_type },
 	{
-	  NGM_GENERIC_COOKIE,
-	  NGM_SHUTDOWN,
-	  "shutdown",
-	  NULL,
-	  NULL
+	    NGM_GENERIC_COOKIE, NGM_LISTNAMES, "listnames", NULL,
+	    &ng_generic_listnodes_type /* same as NGM_LISTNODES */
 	},
-	{
-	  NGM_GENERIC_COOKIE,
-	  NGM_MKPEER,
-	  "mkpeer",
-	  &ng_generic_mkpeer_type,
-	  NULL
-	},
-	{
-	  NGM_GENERIC_COOKIE,
-	  NGM_CONNECT,
-	  "connect",
-	  &ng_generic_connect_type,
-	  NULL
-	},
-	{
-	  NGM_GENERIC_COOKIE,
-	  NGM_NAME,
-	  "name",
-	  &ng_generic_name_type,
-	  NULL
-	},
-	{
-	  NGM_GENERIC_COOKIE,
-	  NGM_RMHOOK,
-	  "rmhook",
-	  &ng_generic_rmhook_type,
-	  NULL
-	},
-	{
-	  NGM_GENERIC_COOKIE,
-	  NGM_NODEINFO,
-	  "nodeinfo",
-	  NULL,
-	  &ng_generic_nodeinfo_type
-	},
-	{
-	  NGM_GENERIC_COOKIE,
-	  NGM_LISTHOOKS,
-	  "listhooks",
-	  NULL,
-	  &ng_generic_hooklist_type
-	},
-	{
-	  NGM_GENERIC_COOKIE,
-	  NGM_LISTNAMES,
-	  "listnames",
-	  NULL,
-	  &ng_generic_listnodes_type	/* same as NGM_LISTNODES */
-	},
-	{
-	  NGM_GENERIC_COOKIE,
-	  NGM_LISTNODES,
-	  "listnodes",
-	  NULL,
-	  &ng_generic_listnodes_type
-	},
-	{
-	  NGM_GENERIC_COOKIE,
-	  NGM_LISTTYPES,
-	  "listtypes",
-	  NULL,
-	  &ng_generic_typelist_type
-	},
-	{
-	  NGM_GENERIC_COOKIE,
-	  NGM_TEXT_CONFIG,
-	  "textconfig",
-	  NULL,
-	  &ng_parse_string_type
-	},
-	{
-	  NGM_GENERIC_COOKIE,
-	  NGM_TEXT_STATUS,
-	  "textstatus",
-	  NULL,
-	  &ng_parse_string_type
-	},
-	{
-	  NGM_GENERIC_COOKIE,
-	  NGM_ASCII2BINARY,
-	  "ascii2binary",
-	  &ng_parse_ng_mesg_type,
-	  &ng_parse_ng_mesg_type
-	},
-	{
-	  NGM_GENERIC_COOKIE,
-	  NGM_BINARY2ASCII,
-	  "binary2ascii",
-	  &ng_parse_ng_mesg_type,
-	  &ng_parse_ng_mesg_type
-	},
+	{ NGM_GENERIC_COOKIE, NGM_LISTNODES, "listnodes", NULL,
+	    &ng_generic_listnodes_type },
+	{ NGM_GENERIC_COOKIE, NGM_LISTTYPES, "listtypes", NULL,
+	    &ng_generic_typelist_type },
+	{ NGM_GENERIC_COOKIE, NGM_TEXT_CONFIG, "textconfig", NULL,
+	    &ng_parse_string_type },
+	{ NGM_GENERIC_COOKIE, NGM_TEXT_STATUS, "textstatus", NULL,
+	    &ng_parse_string_type },
+	{ NGM_GENERIC_COOKIE, NGM_ASCII2BINARY, "ascii2binary",
+	    &ng_parse_ng_mesg_type, &ng_parse_ng_mesg_type },
+	{ NGM_GENERIC_COOKIE, NGM_BINARY2ASCII, "binary2ascii",
+	    &ng_parse_ng_mesg_type, &ng_parse_ng_mesg_type },
 	{ 0 }
 };
 
@@ -600,7 +520,7 @@ int
 ng_make_node(const char *typename, node_p *nodepp)
 {
 	struct ng_type *type;
-	int	error;
+	int error;
 
 	/* Check that the type makes sense */
 	if (typename == NULL) {
@@ -664,7 +584,7 @@ ng_make_node_common(struct ng_type *type, node_p *nodepp)
 #ifdef VIMAGE
 	node->nd_vnet = curvnet;
 #endif
-	NG_NODE_REF(node);				/* note reference */
+	NG_NODE_REF(node); /* note reference */
 	type->refs++;
 
 	NG_QUEUE_LOCK_INIT(&node->nd_input_queue);
@@ -676,8 +596,9 @@ ng_make_node_common(struct ng_type *type, node_p *nodepp)
 
 	/* Get an ID and put us in the hash chain. */
 	// IDHASH_WLOCK();
-	epoch_enter(ng_epoch); // Enter the epoch section for safe concurrent modification
-	for (;;) { /* wrap protection, even if silly */
+	epoch_enter(ng_epoch); // Enter the epoch section for safe concurrent
+			       // modification
+	for (;;) {	       /* wrap protection, even if silly */
 		node_p node2 = NULL;
 		node->nd_ID = V_nextID++; /* 137/sec for 1 year before wrap */
 
@@ -728,7 +649,7 @@ ng_rmnode(node_p node, hook_p dummy1, void *dummy2, int dummy3)
 		return;
 
 	if (node == &ng_deadnode) {
-		printf ("shutdown called on deadnode\n");
+		printf("shutdown called on deadnode\n");
 		return;
 	}
 
@@ -741,7 +662,7 @@ ng_rmnode(node_p node, hook_p dummy1, void *dummy2, int dummy3)
 	 * note that NGF_INVALID does not do this as it's also set during
 	 * creation
 	 */
-	node->nd_flags |= NGF_INVALID|NGF_CLOSING;
+	node->nd_flags |= NGF_INVALID | NGF_CLOSING;
 
 	/* If node has its pre-shutdown method, then call it first*/
 	if (node->nd_type && node->nd_type->close)
@@ -772,11 +693,11 @@ ng_rmnode(node_p node, hook_p dummy1, void *dummy2, int dummy3)
 			 *  e.g. hardware going away,
 			 * Our caller should set NGF_REALLY_DIE in nd_flags.
 			 */
-			node->nd_flags &= ~(NGF_INVALID|NGF_CLOSING);
+			node->nd_flags &= ~(NGF_INVALID | NGF_CLOSING);
 			NG_NODE_UNREF(node); /* Assume they still have theirs */
 			return;
 		}
-	} else {				/* do the default thing */
+	} else { /* do the default thing */
 		NG_NODE_UNREF(node);
 	}
 
@@ -789,7 +710,8 @@ ng_rmnode(node_p node, hook_p dummy1, void *dummy2, int dummy3)
 	 * have cancelled them. Possibly hardware dependencies may
 	 * force a driver to 'linger' with a reference.
 	 */
-	epoch_enter(ng_epoch); // Enter the epoch section for safe concurrent modification
+	epoch_enter(ng_epoch); // Enter the epoch section for safe concurrent
+			       // modification
 	NG_NODE_UNREF(node);
 	epoch_exit(ng_epoch); // Exit the epoch section after modification
 }
@@ -801,7 +723,6 @@ ng_rmnode(node_p node, hook_p dummy1, void *dummy2, int dummy3)
 void
 ng_unref_node(node_p node)
 {
-
 	if (node == &ng_deadnode)
 		return;
 
@@ -841,7 +762,7 @@ ng_ID2noderef(ng_ID_t ID)
 	if (node)
 		NG_NODE_REF(node);
 	IDHASH_RUNLOCK();
-	return(node);
+	return (node);
 }
 
 ng_ID_t
@@ -923,12 +844,12 @@ ng_name2noderef(node_p here, const char *name)
 {
 	node_p node;
 	ng_ID_t temp;
-	int	hash;
+	int hash;
 
 	/* "." means "this node" */
 	if (strcmp(name, ".") == 0) {
 		NG_NODE_REF(here);
-		return(here);
+		return (here);
 	}
 
 	/* Check for name-by-ID */
@@ -1058,7 +979,6 @@ ng_ID_rehash(void)
 void
 ng_unref_hook(hook_p hook)
 {
-
 	if (hook == &ng_deadhook)
 		return;
 
@@ -1095,11 +1015,11 @@ ng_add_hook(node_p node, const char *name, hook_p *hookp)
 		TRAP_ERROR();
 		return (ENOMEM);
 	}
-	hook->hk_refs = 1;		/* add a reference for us to return */
+	hook->hk_refs = 1; /* add a reference for us to return */
 	hook->hk_flags = HK_INVALID;
-	hook->hk_peer = &ng_deadhook;	/* start off this way */
+	hook->hk_peer = &ng_deadhook; /* start off this way */
 	hook->hk_node = node;
-	NG_NODE_REF(node);		/* each hook counts as a reference */
+	NG_NODE_REF(node); /* each hook counts as a reference */
 
 	/* Set hook name */
 	strlcpy(NG_HOOK_NAME(hook), name, NG_HOOKSIZ);
@@ -1110,7 +1030,7 @@ ng_add_hook(node_p node, const char *name, hook_p *hookp)
 	 */
 	if (node->nd_type->newhook != NULL) {
 		if ((error = (*node->nd_type->newhook)(node, hook, name))) {
-			NG_HOOK_UNREF(hook);	/* this frees the hook */
+			NG_HOOK_UNREF(hook); /* this frees the hook */
 			return (error);
 		}
 	}
@@ -1120,7 +1040,7 @@ ng_add_hook(node_p node, const char *name, hook_p *hookp)
 	 */
 	LIST_INSERT_HEAD(&node->nd_hooks, hook, hk_hooks);
 	node->nd_numhooks++;
-	NG_HOOK_REF(hook);	/* one for the node */
+	NG_HOOK_REF(hook); /* one for the node */
 
 	if (hookp)
 		*hookp = hook;
@@ -1173,7 +1093,7 @@ ng_destroy_hook(hook_p hook)
 	hook_p peer;
 	node_p node;
 
-	if (hook == &ng_deadhook) {	/* better safe than sorry */
+	if (hook == &ng_deadhook) { /* better safe than sorry */
 		printf("ng_destroy_hook called on deadhook\n");
 		return;
 	}
@@ -1183,8 +1103,9 @@ ng_destroy_hook(hook_p hook)
 	 * simultaneous disconnect.
 	 */
 	// TOPOLOGY_WLOCK();
-	
-    epoch_enter(ng_epoch); // Enter the epoch section for safe concurrent modification
+
+	epoch_enter(ng_epoch); // Enter the epoch section for safe concurrent
+			       // modification
 
 	hook->hk_flags |= HK_INVALID;
 
@@ -1197,8 +1118,8 @@ ng_destroy_hook(hook_p hook)
 		 * from this moment on we are effectively independent it.
 		 * send it an rmhook message of its own.
 		 */
-		peer->hk_peer = &ng_deadhook;	/* They no longer know us */
-		hook->hk_peer = &ng_deadhook;	/* Nor us, them */
+		peer->hk_peer = &ng_deadhook; /* They no longer know us */
+		hook->hk_peer = &ng_deadhook; /* Nor us, them */
 		if (NG_HOOK_NODE(peer) == &ng_deadnode) {
 			/*
 			 * If it's already divorced from a node,
@@ -1207,10 +1128,10 @@ ng_destroy_hook(hook_p hook)
 			TOPOLOGY_WUNLOCK();
 		} else {
 			TOPOLOGY_WUNLOCK();
-			ng_rmhook_self(peer); 	/* Send it a surprise */
+			ng_rmhook_self(peer); /* Send it a surprise */
 		}
-		NG_HOOK_UNREF(peer);		/* account for peer link */
-		NG_HOOK_UNREF(hook);		/* account for peer link */
+		NG_HOOK_UNREF(peer); /* account for peer link */
+		NG_HOOK_UNREF(hook); /* account for peer link */
 	} else
 		// TOPOLOGY_WUNLOCK();
 		epoch_exit(ng_epoch); // Exit the epoch section
@@ -1233,7 +1154,7 @@ ng_destroy_hook(hook_p hook)
 		 * that we still hold a reference on it. (which we
 		 * inherrited from the hook we are destroying)
 		 */
-		(*node->nd_type->disconnect) (hook);
+		(*node->nd_type->disconnect)(hook);
 	}
 
 	/*
@@ -1241,8 +1162,8 @@ ng_destroy_hook(hook_p hook)
 	 * is not decremented automatically so we do that manually.
 	 */
 	_NG_HOOK_NODE(hook) = &ng_deadnode;
-	NG_NODE_UNREF(node);	/* We no longer point to it so adjust count */
-	NG_HOOK_UNREF(hook);	/* Account for linkage (in list) to node */
+	NG_NODE_UNREF(node); /* We no longer point to it so adjust count */
+	NG_HOOK_UNREF(hook); /* Account for linkage (in list) to node */
 }
 
 /*
@@ -1291,7 +1212,7 @@ ng_newtype(struct ng_type *tp)
 		TRAP_ERROR();
 		if (tp->version != NG_ABI_VERSION) {
 			printf("Netgraph: Node type rejected. ABI mismatch. "
-			    "Suggest recompile\n");
+			       "Suggest recompile\n");
 		}
 		return (EINVAL);
 	}
@@ -1305,7 +1226,7 @@ ng_newtype(struct ng_type *tp)
 	/* Link in new type */
 	TYPELIST_WLOCK();
 	LIST_INSERT_HEAD(&ng_typelist, tp, types);
-	tp->refs = 1;	/* first ref is linked list */
+	tp->refs = 1; /* first ref is linked list */
 	TYPELIST_WUNLOCK();
 	return (0);
 }
@@ -1356,7 +1277,7 @@ ng_findtype(const char *typename)
 static int
 ng_con_part3(node_p node, item_p item, hook_p hook)
 {
-	int	error = 0;
+	int error = 0;
 
 	/*
 	 * When we run, we know that the node 'node' is locked for us.
@@ -1379,8 +1300,8 @@ ng_con_part3(node_p node, item_p item, hook_p hook)
 		ERROUT(ENOENT);
 	}
 	if (hook->hk_node->nd_type->connect) {
-		if ((error = (*hook->hk_node->nd_type->connect) (hook))) {
-			ng_destroy_hook(hook);	/* also zaps peer */
+		if ((error = (*hook->hk_node->nd_type->connect)(hook))) {
+			ng_destroy_hook(hook); /* also zaps peer */
 			printf("failed in ng_con_part3()\n");
 			ERROUT(error);
 		}
@@ -1399,8 +1320,8 @@ done:
 static int
 ng_con_part2(node_p node, item_p item, hook_p hook)
 {
-	hook_p	peer;
-	int	error = 0;
+	hook_p peer;
+	int error = 0;
 
 	/*
 	 * When we run, we know that the node 'node' is locked for us.
@@ -1426,7 +1347,7 @@ ng_con_part2(node_p node, item_p item, hook_p hook)
 	 */
 	if (node->nd_type->newhook != NULL) {
 		if ((error = (*node->nd_type->newhook)(node, hook,
-		    hook->hk_name))) {
+			 hook->hk_name))) {
 			ng_destroy_hook(hook); /* should destroy peer too */
 			printf("failed in ng_con_part2()\n");
 			ERROUT(error);
@@ -1437,11 +1358,11 @@ ng_con_part2(node_p node, item_p item, hook_p hook)
 	 * The 'type' agrees so far, so go ahead and link it in.
 	 * We'll ask again later when we actually connect the hooks.
 	 */
-	hook->hk_node = node;		/* just overwrite ng_deadnode */
-	NG_NODE_REF(node);		/* each hook counts as a reference */
+	hook->hk_node = node; /* just overwrite ng_deadnode */
+	NG_NODE_REF(node);    /* each hook counts as a reference */
 	LIST_INSERT_HEAD(&node->nd_hooks, hook, hk_hooks);
 	node->nd_numhooks++;
-	NG_HOOK_REF(hook);	/* one for the node */
+	NG_HOOK_REF(hook); /* one for the node */
 
 	/*
 	 * We now have a symmetrical situation, where both hooks have been
@@ -1453,8 +1374,8 @@ ng_con_part2(node_p node, item_p item, hook_p hook)
 	 * node locked, but we need to queue the remote one.
 	 */
 	if (hook->hk_node->nd_type->connect) {
-		if ((error = (*hook->hk_node->nd_type->connect) (hook))) {
-			ng_destroy_hook(hook);	/* also zaps peer */
+		if ((error = (*hook->hk_node->nd_type->connect)(hook))) {
+			ng_destroy_hook(hook); /* also zaps peer */
 			printf("failed in ng_con_part2(A)\n");
 			ERROUT(error);
 		}
@@ -1473,14 +1394,14 @@ ng_con_part2(node_p node, item_p item, hook_p hook)
 	}
 	TOPOLOGY_RUNLOCK();
 
-	if ((error = ng_send_fn2(peer->hk_node, peer, item, &ng_con_part3,
-	    NULL, 0, NG_REUSE_ITEM))) {
+	if ((error = ng_send_fn2(peer->hk_node, peer, item, &ng_con_part3, NULL,
+		 0, NG_REUSE_ITEM))) {
 		printf("failed in ng_con_part2(C)\n");
-		ng_destroy_hook(hook);	/* also zaps peer */
-		return (error);		/* item was consumed. */
+		ng_destroy_hook(hook); /* also zaps peer */
+		return (error);	       /* item was consumed. */
 	}
 	hook->hk_flags &= ~HK_INVALID; /* need both to be able to work */
-	return (0);			/* item was consumed. */
+	return (0);		       /* item was consumed. */
 done:
 	NG_FREE_ITEM(item);
 	return (error);
@@ -1491,31 +1412,31 @@ done:
  * currently locked, as we are only called from an NGM_CONNECT message.
  */
 static int
-ng_con_nodes(item_p item, node_p node, const char *name,
-    node_p node2, const char *name2)
+ng_con_nodes(item_p item, node_p node, const char *name, node_p node2,
+    const char *name2)
 {
-	int	error;
-	hook_p	hook;
-	hook_p	hook2;
+	int error;
+	hook_p hook;
+	hook_p hook2;
 
 	if (ng_findhook(node2, name2) != NULL) {
-		return(EEXIST);
+		return (EEXIST);
 	}
-	if ((error = ng_add_hook(node, name, &hook)))  /* gives us a ref */
+	if ((error = ng_add_hook(node, name, &hook))) /* gives us a ref */
 		return (error);
 	/* Allocate the other hook and link it up */
 	NG_ALLOC_HOOK(hook2);
 	if (hook2 == NULL) {
 		TRAP_ERROR();
-		ng_destroy_hook(hook);	/* XXX check ref counts so far */
-		NG_HOOK_UNREF(hook);	/* including our ref */
+		ng_destroy_hook(hook); /* XXX check ref counts so far */
+		NG_HOOK_UNREF(hook);   /* including our ref */
 		return (ENOMEM);
 	}
-	hook2->hk_refs = 1;		/* start with a reference for us. */
+	hook2->hk_refs = 1; /* start with a reference for us. */
 	hook2->hk_flags = HK_INVALID;
-	hook2->hk_peer = hook;		/* Link the two together */
-	hook->hk_peer = hook2;	
-	NG_HOOK_REF(hook);		/* Add a ref for the peer to each*/
+	hook2->hk_peer = hook; /* Link the two together */
+	hook->hk_peer = hook2;
+	NG_HOOK_REF(hook); /* Add a ref for the peer to each*/
 	NG_HOOK_REF(hook2);
 	hook2->hk_node = &ng_deadnode;
 	strlcpy(NG_HOOK_NAME(hook2), name2, NG_HOOKSIZ);
@@ -1525,15 +1446,16 @@ ng_con_nodes(item_p item, node_p node, const char *name,
 	 * Procesing continues in that function in the lock context of
 	 * the other node.
 	 */
-	epoch_enter(ng_epoch); // Enter the epoch section for safe concurrent modification
+	epoch_enter(ng_epoch); // Enter the epoch section for safe concurrent
+			       // modification
 	if ((error = ng_send_fn2(node2, hook2, item, &ng_con_part2, NULL, 0,
-	    NG_NOFLAGS))) {
+		 NG_NOFLAGS))) {
 		printf("failed in ng_con_nodes(): %d\n", error);
-		ng_destroy_hook(hook);	/* also zaps peer */
+		ng_destroy_hook(hook); /* also zaps peer */
 	}
 	epoch_exit(ng_epoch); // Exit the epoch section after modification
 
-	NG_HOOK_UNREF(hook);		/* Let each hook go if it wants to */
+	NG_HOOK_UNREF(hook); /* Let each hook go if it wants to */
 	NG_HOOK_UNREF(hook2);
 	return (error);
 }
@@ -1558,9 +1480,9 @@ ng_con_nodes(item_p item, node_p node, const char *name,
 static int
 ng_mkpeer(node_p node, const char *name, const char *name2, char *type)
 {
-	node_p	node2;
-	hook_p	hook1, hook2;
-	int	error;
+	node_p node2;
+	hook_p hook1, hook2;
+	int error;
 
 	if ((error = ng_make_node(type, &node2))) {
 		return (error);
@@ -1590,18 +1512,18 @@ ng_mkpeer(node_p node, const char *name, const char *name2, char *type)
 
 	/* Give each node the opportunity to veto the pending connection */
 	if (hook1->hk_node->nd_type->connect) {
-		error = (*hook1->hk_node->nd_type->connect) (hook1);
+		error = (*hook1->hk_node->nd_type->connect)(hook1);
 	}
 
 	if ((error == 0) && hook2->hk_node->nd_type->connect) {
-		error = (*hook2->hk_node->nd_type->connect) (hook2);
+		error = (*hook2->hk_node->nd_type->connect)(hook2);
 	}
 
 	/*
 	 * drop the references we were holding on the two hooks.
 	 */
 	if (error) {
-		ng_destroy_hook(hook2);	/* also zaps hook1 */
+		ng_destroy_hook(hook2); /* also zaps hook1 */
 		ng_rmnode(node2, NULL, NULL, 0);
 	} else {
 		/* As a last act, allow the hooks to be used */
@@ -1622,7 +1544,7 @@ ng_mkpeer(node_p node, const char *name, const char *name2, char *type)
 int
 ng_rmnode_self(node_p node)
 {
-	int		error;
+	int error;
 
 	if (node == &ng_deadnode)
 		return (0);
@@ -1638,13 +1560,13 @@ static void
 ng_rmhook_part2(node_p node, hook_p hook, void *arg1, int arg2)
 {
 	ng_destroy_hook(hook);
-	return ;
+	return;
 }
 
 int
 ng_rmhook_self(hook_p hook)
 {
-	int		error;
+	int error;
 	node_p node = NG_HOOK_NODE(hook);
 
 	if (node == &ng_deadnode)
@@ -1672,16 +1594,17 @@ ng_rmhook_self(hook_p hook)
 int
 ng_path_parse(char *addr, char **nodep, char **pathp, char **hookp)
 {
-	char	*node, *path, *hook;
-	int	k;
+	char *node, *path, *hook;
+	int k;
 
 	/*
 	 * Extract absolute NODE, if any
 	 */
-	for (path = addr; *path && *path != ':'; path++);
+	for (path = addr; *path && *path != ':'; path++)
+		;
 	if (*path) {
 		node = addr;	/* Here's the NODE */
-		*path++ = '\0';	/* Here's the PATH */
+		*path++ = '\0'; /* Here's the PATH */
 
 		/* Node name must not be empty */
 		if (!*node)
@@ -1694,8 +1617,8 @@ ng_path_parse(char *addr, char **nodep, char **pathp, char **hookp)
 					return -1;
 		}
 	} else {
-		node = NULL;	/* No absolute NODE */
-		path = addr;	/* Here's the PATH */
+		node = NULL; /* No absolute NODE */
+		path = addr; /* Here's the PATH */
 	}
 
 	/* Snoop for illegal characters in PATH */
@@ -1742,9 +1665,9 @@ int
 ng_path2noderef(node_p here, const char *address, node_p *destp,
     hook_p *lasthook)
 {
-	char    fullpath[NG_PATHSIZ];
-	char   *nodename, *path;
-	node_p  node, oldnode;
+	char fullpath[NG_PATHSIZ];
+	char *nodename, *path;
+	node_p node, oldnode;
 
 	/* Initialize */
 	if (destp == NULL) {
@@ -1837,10 +1760,10 @@ ng_path2noderef(node_p here, const char *address, node_p *destp,
 		 */
 		oldnode = node;
 		if ((node = NG_PEER_NODE(hook)))
-			NG_NODE_REF(node);	/* XXX RACE */
-		NG_NODE_UNREF(oldnode);	/* XXX another race */
+			NG_NODE_REF(node); /* XXX RACE */
+		NG_NODE_UNREF(oldnode);	   /* XXX another race */
 		if (NG_NODE_NOT_VALID(node)) {
-			NG_NODE_UNREF(node);	/* XXX more races */
+			NG_NODE_UNREF(node); /* XXX more races */
 			TOPOLOGY_WUNLOCK();
 			TRAP_ERROR();
 			return (ENXIO);
@@ -1871,12 +1794,12 @@ ng_path2noderef(node_p here, const char *address, node_p *destp,
 * read-write queue locking inline functions			*
 \***************************************************************/
 
-static __inline void	ng_queue_rw(node_p node, item_p  item, int rw);
-static __inline item_p	ng_dequeue(node_p node, int *rw);
-static __inline item_p	ng_acquire_read(node_p node, item_p  item);
-static __inline item_p	ng_acquire_write(node_p node, item_p  item);
-static __inline void	ng_leave_read(node_p node);
-static __inline void	ng_leave_write(node_p node);
+static __inline void ng_queue_rw(node_p node, item_p item, int rw);
+static __inline item_p ng_dequeue(node_p node, int *rw);
+static __inline item_p ng_acquire_read(node_p node, item_p item);
+static __inline item_p ng_acquire_write(node_p node, item_p item);
+static __inline void ng_leave_read(node_p node);
+static __inline void ng_leave_write(node_p node);
 
 /*
  * Definition of the bits fields in the ng_queue flag word.
@@ -1887,20 +1810,20 @@ static __inline void	ng_leave_write(node_p node);
  */
 /*-
  Safety Barrier--------+ (adjustable to suit taste) (not used yet)
-                       |
-                       V
+		       |
+		       V
 +-------+-------+-------+-------+-------+-------+-------+-------+
   | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |
   | |A|c|t|i|v|e| |R|e|a|d|e|r| |C|o|u|n|t| | | | | | | | | |P|A|
   | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |O|W|
 +-------+-------+-------+-------+-------+-------+-------+-------+
   \___________________________ ____________________________/ | |
-                            V                                | |
-                  [active reader count]                      | |
-                                                             | |
-            Operation Pending -------------------------------+ |
-                                                               |
-          Active Writer ---------------------------------------+
+			    V                                | |
+		  [active reader count]                      | |
+							     | |
+	    Operation Pending -------------------------------+ |
+							       |
+	  Active Writer ---------------------------------------+
 
 Node queue has such semantics:
 - All flags modifications are atomic.
@@ -1915,41 +1838,42 @@ Node queue has such semantics:
   processing. When queue is empty pending flag is removed.
 */
 
-#define WRITER_ACTIVE	0x00000001
-#define OP_PENDING	0x00000002
+#define WRITER_ACTIVE	 0x00000001
+#define OP_PENDING	 0x00000002
 #define READER_INCREMENT 0x00000004
-#define READER_MASK	0xfffffffc	/* Not valid if WRITER_ACTIVE is set */
-#define SAFETY_BARRIER	0x00100000	/* 128K items queued should be enough */
+#define READER_MASK	 0xfffffffc /* Not valid if WRITER_ACTIVE is set */
+#define SAFETY_BARRIER	 0x00100000 /* 128K items queued should be enough */
 
 /* Defines of more elaborate states on the queue */
 /* Mask of bits a new read cares about */
-#define NGQ_RMASK	(WRITER_ACTIVE|OP_PENDING)
+#define NGQ_RMASK (WRITER_ACTIVE | OP_PENDING)
 
 /* Mask of bits a new write cares about */
-#define NGQ_WMASK	(NGQ_RMASK|READER_MASK)
+#define NGQ_WMASK (NGQ_RMASK | READER_MASK)
 
 /* Test to decide if there is something on the queue. */
 #define QUEUE_ACTIVE(QP) ((QP)->q_flags & OP_PENDING)
 
 /* How to decide what the next queued item is. */
-#define HEAD_IS_READER(QP)  NGI_QUEUED_READER(STAILQ_FIRST(&(QP)->queue))
-#define HEAD_IS_WRITER(QP)  NGI_QUEUED_WRITER(STAILQ_FIRST(&(QP)->queue)) /* notused */
+#define HEAD_IS_READER(QP) NGI_QUEUED_READER(STAILQ_FIRST(&(QP)->queue))
+#define HEAD_IS_WRITER(QP) \
+	NGI_QUEUED_WRITER(STAILQ_FIRST(&(QP)->queue)) /* notused */
 
 /* Read the status to decide if the next item on the queue can now run. */
-#define QUEUED_READER_CAN_PROCEED(QP)			\
-		(((QP)->q_flags & (NGQ_RMASK & ~OP_PENDING)) == 0)
-#define QUEUED_WRITER_CAN_PROCEED(QP)			\
-		(((QP)->q_flags & (NGQ_WMASK & ~OP_PENDING)) == 0)
+#define QUEUED_READER_CAN_PROCEED(QP) \
+	(((QP)->q_flags & (NGQ_RMASK & ~OP_PENDING)) == 0)
+#define QUEUED_WRITER_CAN_PROCEED(QP) \
+	(((QP)->q_flags & (NGQ_WMASK & ~OP_PENDING)) == 0)
 
 /* Is there a chance of getting ANY work off the queue? */
-#define NEXT_QUEUED_ITEM_CAN_PROCEED(QP)				\
-	((HEAD_IS_READER(QP)) ? QUEUED_READER_CAN_PROCEED(QP) :		\
+#define NEXT_QUEUED_ITEM_CAN_PROCEED(QP)                        \
+	((HEAD_IS_READER(QP)) ? QUEUED_READER_CAN_PROCEED(QP) : \
 				QUEUED_WRITER_CAN_PROCEED(QP))
 
-#define NGQRW_R 0
-#define NGQRW_W 1
+#define NGQRW_R	   0
+#define NGQRW_W	   1
 
-#define NGQ2_WORKQ	0x00000001
+#define NGQ2_WORKQ 0x00000001
 
 /*
  * Taking into account the current state of the queue and node, possibly take
@@ -1969,9 +1893,10 @@ ng_dequeue(node_p node, int *rw)
 
 	/* If there is nothing queued, then just return. */
 	if (!QUEUE_ACTIVE(ngq)) {
-		CTR4(KTR_NET, "%20s: node [%x] (%p) queue empty; "
-		    "queue flags 0x%lx", __func__,
-		    node->nd_ID, node, ngq->q_flags);
+		CTR4(KTR_NET,
+		    "%20s: node [%x] (%p) queue empty; "
+		    "queue flags 0x%lx",
+		    __func__, node->nd_ID, node, ngq->q_flags);
 		return (NULL);
 	}
 
@@ -1985,27 +1910,29 @@ ng_dequeue(node_p node, int *rw)
 			long t = ngq->q_flags;
 			if (t & WRITER_ACTIVE) {
 				/* There is writer, reader can't proceed. */
-				CTR4(KTR_NET, "%20s: node [%x] (%p) queued "
+				CTR4(KTR_NET,
+				    "%20s: node [%x] (%p) queued "
 				    "reader can't proceed; queue flags 0x%lx",
 				    __func__, node->nd_ID, node, t);
 				return (NULL);
 			}
 			if (atomic_cmpset_acq_int(&ngq->q_flags, t,
-			    t + READER_INCREMENT))
+				t + READER_INCREMENT))
 				break;
 			cpu_spinwait();
 		}
 		/* We have got reader lock for the node. */
 		*rw = NGQRW_R;
 	} else if (atomic_cmpset_acq_int(&ngq->q_flags, OP_PENDING,
-	    OP_PENDING + WRITER_ACTIVE)) {
+		       OP_PENDING + WRITER_ACTIVE)) {
 		/* We have got writer lock for the node. */
 		*rw = NGQRW_W;
 	} else {
 		/* There is somebody other, writer can't proceed. */
-		CTR4(KTR_NET, "%20s: node [%x] (%p) queued writer can't "
-		    "proceed; queue flags 0x%lx", __func__, node->nd_ID, node,
-		    ngq->q_flags);
+		CTR4(KTR_NET,
+		    "%20s: node [%x] (%p) queued writer can't "
+		    "proceed; queue flags 0x%lx",
+		    __func__, node->nd_ID, node, ngq->q_flags);
 		return (NULL);
 	}
 
@@ -2017,9 +1944,11 @@ ng_dequeue(node_p node, int *rw)
 	STAILQ_REMOVE_HEAD(&ngq->queue, el_next);
 	if (STAILQ_EMPTY(&ngq->queue))
 		atomic_clear_int(&ngq->q_flags, OP_PENDING);
-	CTR6(KTR_NET, "%20s: node [%x] (%p) returning item %p as %s; queue "
-	    "flags 0x%lx", __func__, node->nd_ID, node, item, *rw ? "WRITER" :
-	    "READER", ngq->q_flags);
+	CTR6(KTR_NET,
+	    "%20s: node [%x] (%p) returning item %p as %s; queue "
+	    "flags 0x%lx",
+	    __func__, node->nd_ID, node, item, *rw ? "WRITER" : "READER",
+	    ngq->q_flags);
 	return (item);
 }
 
@@ -2028,7 +1957,7 @@ ng_dequeue(node_p node, int *rw)
  * If the queue could be run now, add node to the queue handler's worklist.
  */
 static __inline void
-ng_queue_rw(node_p node, item_p  item, int rw)
+ng_queue_rw(node_p node, item_p item, int rw)
 {
 	struct ng_queue *ngq = &node->nd_input_queue;
 	if (rw == NGQRW_W)
@@ -2043,7 +1972,7 @@ ng_queue_rw(node_p node, item_p  item, int rw)
 	STAILQ_INSERT_TAIL(&ngq->queue, item, el_next);
 
 	CTR5(KTR_NET, "%20s: node [%x] (%p) queued item %p as %s", __func__,
-	    node->nd_ID, node, item, rw ? "WRITER" : "READER" );
+	    node->nd_ID, node, item, rw ? "WRITER" : "READER");
 
 	/*
 	 * We can take the worklist lock with the node locked
@@ -2058,17 +1987,18 @@ ng_queue_rw(node_p node, item_p  item, int rw)
 static __inline item_p
 ng_acquire_read(node_p node, item_p item)
 {
-	KASSERT(node != &ng_deadnode,
-	    ("%s: working on deadnode", __func__));
+	KASSERT(node != &ng_deadnode, ("%s: working on deadnode", __func__));
 
+	/* Enter the epoch section for safe concurrent modification */
+	epoch_enter(ng_epoch);
 	/* Reader needs node without writer and pending items. */
 	for (;;) {
 		long t = node->nd_input_queue.q_flags;
 		if (t & NGQ_RMASK)
 			break; /* Node is not ready for reader. */
 		if (atomic_cmpset_acq_int(&node->nd_input_queue.q_flags, t,
-		    t + READER_INCREMENT)) {
-	    		/* Successfully grabbed node */
+			t + READER_INCREMENT)) {
+			/* Successfully grabbed node */
 			CTR4(KTR_NET, "%20s: node [%x] (%p) acquired item %p",
 			    __func__, node->nd_ID, node, item);
 			return (item);
@@ -2079,6 +2009,8 @@ ng_acquire_read(node_p node, item_p item)
 	/* Queue the request for later. */
 	ng_queue_rw(node, item, NGQRW_R);
 
+	epoch_exit(ng_epoch); // Exit the epoch section after modification
+
 	return (NULL);
 }
 
@@ -2086,20 +2018,24 @@ ng_acquire_read(node_p node, item_p item)
 static __inline item_p
 ng_acquire_write(node_p node, item_p item)
 {
-	KASSERT(node != &ng_deadnode,
-	    ("%s: working on deadnode", __func__));
+	KASSERT(node != &ng_deadnode, ("%s: working on deadnode", __func__));
+
+	/* Enter the epoch section for safe concurrent modification */
+	epoch_enter(ng_epoch);
 
 	/* Writer needs completely idle node. */
 	if (atomic_cmpset_acq_int(&node->nd_input_queue.q_flags, 0,
-	    WRITER_ACTIVE)) {
-	    	/* Successfully grabbed node */
-		CTR4(KTR_NET, "%20s: node [%x] (%p) acquired item %p",
-		    __func__, node->nd_ID, node, item);
+		WRITER_ACTIVE)) {
+		/* Successfully grabbed node */
+		CTR4(KTR_NET, "%20s: node [%x] (%p) acquired item %p", __func__,
+		    node->nd_ID, node, item);
 		return (item);
 	}
 
 	/* Queue the request for later. */
 	ng_queue_rw(node, item, NGQRW_W);
+
+	epoch_exit(ng_epoch); // Exit the epoch section after modification
 
 	return (NULL);
 }
@@ -2175,7 +2111,8 @@ ng_upgrade_write(node_p node, item_p item)
 static __inline void
 ng_leave_read(node_p node)
 {
-	atomic_subtract_rel_int(&node->nd_input_queue.q_flags, READER_INCREMENT);
+	atomic_subtract_rel_int(&node->nd_input_queue.q_flags,
+	    READER_INCREMENT);
 }
 
 /* Release writer lock. */
@@ -2215,8 +2152,8 @@ ng_flush_input_queue(node_p node)
 }
 
 /***********************************************************************
-* Externally visible method for sending or queueing messages or data.
-***********************************************************************/
+ * Externally visible method for sending or queueing messages or data.
+ ***********************************************************************/
 
 /*
  * The module code should have filled out the item correctly by this stage:
@@ -2249,7 +2186,7 @@ ng_snd_item(item_p item, int flags)
 	/* We are sending item, so it must be present! */
 	KASSERT(item != NULL, ("ng_snd_item: item is NULL"));
 
-#ifdef	NETGRAPH_DEBUG
+#ifdef NETGRAPH_DEBUG
 	_ngi_check(item, __FILE__, __LINE__);
 #endif
 
@@ -2303,12 +2240,13 @@ ng_snd_item(item_p item, int flags)
 		 * HI_STACK. For them 50% of stack will be guaranteed then.
 		 * XXX: Values 25% and 50% are completely empirical.
 		 */
-		size_t	st, su, sl;
+		size_t st, su, sl;
 		GET_STACK_USAGE(st, su);
 		sl = st - su;
-		if ((sl * 4 < st) || ((sl * 2 < st) &&
-		    ((node->nd_flags & NGF_HI_STACK) || (hook &&
-		    (hook->hk_flags & HK_HI_STACK)))))
+		if ((sl * 4 < st) ||
+		    ((sl * 2 < st) &&
+			((node->nd_flags & NGF_HI_STACK) ||
+			    (hook && (hook->hk_flags & HK_HI_STACK)))))
 			queue = 1;
 	}
 
@@ -2322,7 +2260,7 @@ ng_snd_item(item_p item, int flags)
 	 * We already decided how we will be queueud or treated.
 	 * Try get the appropriate operating permission.
 	 */
- 	if (rw == NGQRW_R)
+	if (rw == NGQRW_R)
 		item = ng_acquire_read(node, item);
 	else
 		item = ng_acquire_write(node, item);
@@ -2377,18 +2315,18 @@ done:
 static int
 ng_apply_item(node_p node, item_p item, int rw)
 {
-	hook_p  hook;
+	hook_p hook;
 	ng_rcvdata_t *rcvdata;
 	ng_rcvmsg_t *rcvmsg;
 	struct ng_apply_info *apply;
-	int	error = 0, depth;
+	int error = 0, depth;
 
 	/* Node and item are never optional. */
 	KASSERT(node != NULL, ("ng_apply_item: node is NULL"));
 	KASSERT(item != NULL, ("ng_apply_item: item is NULL"));
 
 	NGI_GET_HOOK(item, hook); /* clears stored hook */
-#ifdef	NETGRAPH_DEBUG
+#ifdef NETGRAPH_DEBUG
 	_ngi_check(item, __FILE__, __LINE__);
 #endif
 
@@ -2396,7 +2334,7 @@ ng_apply_item(node_p node, item_p item, int rw)
 	depth = item->depth;
 
 	/* Enter the epoch section for safe concurrent modification */
-    epoch_enter(ng_epoch);
+	epoch_enter(ng_epoch);
 
 	switch (item->el_flags & NGQF_TYPE) {
 	case NGQF_DATA:
@@ -2404,8 +2342,7 @@ ng_apply_item(node_p node, item_p item, int rw)
 		 * Check things are still ok as when we were queued.
 		 */
 		KASSERT(hook != NULL, ("ng_apply_item: hook for data is NULL"));
-		if (NG_HOOK_NOT_VALID(hook) ||
-		    NG_NODE_NOT_VALID(node)) {
+		if (NG_HOOK_NOT_VALID(hook) || NG_NODE_NOT_VALID(node)) {
 			error = EIO;
 			NG_FREE_ITEM(item);
 			break;
@@ -2472,8 +2409,7 @@ ng_apply_item(node_p node, item_p item, int rw)
 		 * In the case of the shutdown message we allow it to hit
 		 * even if the node is invalid.
 		 */
-		if (NG_NODE_NOT_VALID(node) &&
-		    NGI_FN(item) != &ng_rmnode) {
+		if (NG_NODE_NOT_VALID(node) && NGI_FN(item) != &ng_rmnode) {
 			TRAP_ERROR();
 			error = EINVAL;
 			NG_FREE_ITEM(item);
@@ -2489,18 +2425,18 @@ ng_apply_item(node_p node, item_p item, int rw)
 			NG_FREE_ITEM(item);
 			break;
 		}
-		
+
 		if ((item->el_flags & NGQF_TYPE) == NGQF_FN) {
 			(*NGI_FN(item))(node, hook, NGI_ARG1(item),
 			    NGI_ARG2(item));
 			NG_FREE_ITEM(item);
-		} else	/* it is NGQF_FN2 */
+		} else /* it is NGQF_FN2 */
 			error = (*NGI_FN2(item))(node, item, hook);
 		break;
 	}
 
 	/* Exit the epoch section after modification */
-    epoch_exit(ng_epoch);
+	epoch_exit(ng_epoch);
 
 	/*
 	 * We held references on some of the resources
@@ -2510,7 +2446,7 @@ ng_apply_item(node_p node, item_p item, int rw)
 	if (hook)
 		NG_HOOK_UNREF(hook);
 
- 	if (rw == NGQRW_R)
+	if (rw == NGQRW_R)
 		ng_leave_read(node);
 	else
 		ng_leave_write(node);
@@ -2546,9 +2482,8 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 	case NGM_SHUTDOWN:
 		ng_rmnode(here, NULL, NULL, 0);
 		break;
-	case NGM_MKPEER:
-	    {
-		struct ngm_mkpeer *const mkp = (struct ngm_mkpeer *) msg->data;
+	case NGM_MKPEER: {
+		struct ngm_mkpeer *const mkp = (struct ngm_mkpeer *)msg->data;
 
 		if (msg->header.arglen != sizeof(*mkp)) {
 			TRAP_ERROR();
@@ -2560,11 +2495,9 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 		mkp->peerhook[sizeof(mkp->peerhook) - 1] = '\0';
 		error = ng_mkpeer(here, mkp->ourhook, mkp->peerhook, mkp->type);
 		break;
-	    }
-	case NGM_CONNECT:
-	    {
-		struct ngm_connect *const con =
-			(struct ngm_connect *) msg->data;
+	}
+	case NGM_CONNECT: {
+		struct ngm_connect *const con = (struct ngm_connect *)msg->data;
 		node_p node2;
 
 		if (msg->header.arglen != sizeof(*con)) {
@@ -2579,14 +2512,13 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 		error = ng_path2noderef(here, con->path, &node2, NULL);
 		if (error)
 			break;
-		error = ng_con_nodes(item, here, con->ourhook,
-		    node2, con->peerhook);
+		error = ng_con_nodes(item, here, con->ourhook, node2,
+		    con->peerhook);
 		NG_NODE_UNREF(node2);
 		break;
-	    }
-	case NGM_NAME:
-	    {
-		struct ngm_name *const nam = (struct ngm_name *) msg->data;
+	}
+	case NGM_NAME: {
+		struct ngm_name *const nam = (struct ngm_name *)msg->data;
 
 		if (msg->header.arglen != sizeof(*nam)) {
 			TRAP_ERROR();
@@ -2596,10 +2528,9 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 		nam->name[sizeof(nam->name) - 1] = '\0';
 		error = ng_name_node(here, nam->name);
 		break;
-	    }
-	case NGM_RMHOOK:
-	    {
-		struct ngm_rmhook *const rmh = (struct ngm_rmhook *) msg->data;
+	}
+	case NGM_RMHOOK: {
+		struct ngm_rmhook *const rmh = (struct ngm_rmhook *)msg->data;
 		hook_p hook;
 
 		if (msg->header.arglen != sizeof(*rmh)) {
@@ -2611,9 +2542,8 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 		if ((hook = ng_findhook(here, rmh->ourhook)) != NULL)
 			ng_destroy_hook(hook);
 		break;
-	    }
-	case NGM_NODEINFO:
-	    {
+	}
+	case NGM_NODEINFO: {
 		struct nodeinfo *ni;
 
 		NG_MKRESPONSE(resp, msg, sizeof(*ni), M_NOWAIT);
@@ -2623,29 +2553,28 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 		}
 
 		/* Fill in node info */
-		ni = (struct nodeinfo *) resp->data;
+		ni = (struct nodeinfo *)resp->data;
 		if (NG_NODE_HAS_NAME(here))
 			strcpy(ni->name, NG_NODE_NAME(here));
 		strcpy(ni->type, here->nd_type->name);
 		ni->id = ng_node2ID(here);
 		ni->hooks = here->nd_numhooks;
 		break;
-	    }
-	case NGM_LISTHOOKS:
-	    {
+	}
+	case NGM_LISTHOOKS: {
 		const int nhooks = here->nd_numhooks;
 		struct hooklist *hl;
 		struct nodeinfo *ni;
 		hook_p hook;
 
 		/* Get response struct */
-		NG_MKRESPONSE(resp, msg, sizeof(*hl) +
-		    (nhooks * sizeof(struct linkinfo)), M_NOWAIT);
+		NG_MKRESPONSE(resp, msg,
+		    sizeof(*hl) + (nhooks * sizeof(struct linkinfo)), M_NOWAIT);
 		if (resp == NULL) {
 			error = ENOMEM;
 			break;
 		}
-		hl = (struct hooklist *) resp->data;
+		hl = (struct hooklist *)resp->data;
 		ni = &hl->nodeinfo;
 
 		/* Fill in node info */
@@ -2672,30 +2601,30 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 				strcpy(link->nodeinfo.name,
 				    NG_PEER_NODE_NAME(hook));
 			strcpy(link->nodeinfo.type,
-			   NG_PEER_NODE(hook)->nd_type->name);
+			    NG_PEER_NODE(hook)->nd_type->name);
 			link->nodeinfo.id = ng_node2ID(NG_PEER_NODE(hook));
 			link->nodeinfo.hooks = NG_PEER_NODE(hook)->nd_numhooks;
 			ni->hooks++;
 		}
 		break;
-	    }
+	}
 
-	case NGM_LISTNODES:
-	    {
+	case NGM_LISTNODES: {
 		struct namelist *nl;
 		node_p node;
 		int i;
 
 		IDHASH_RLOCK();
 		/* Get response struct. */
-		NG_MKRESPONSE(resp, msg, sizeof(*nl) +
-		    (V_ng_nodes * sizeof(struct nodeinfo)), M_NOWAIT);
+		NG_MKRESPONSE(resp, msg,
+		    sizeof(*nl) + (V_ng_nodes * sizeof(struct nodeinfo)),
+		    M_NOWAIT);
 		if (resp == NULL) {
 			IDHASH_RUNLOCK();
 			error = ENOMEM;
 			break;
 		}
-		nl = (struct namelist *) resp->data;
+		nl = (struct namelist *)resp->data;
 
 		/* Cycle through the lists of nodes. */
 		nl->numnames = 0;
@@ -2718,23 +2647,23 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 		}
 		IDHASH_RUNLOCK();
 		break;
-	    }
-	case NGM_LISTNAMES:
-	    {
+	}
+	case NGM_LISTNAMES: {
 		struct namelist *nl;
 		node_p node;
 		int i;
 
 		NAMEHASH_RLOCK();
 		/* Get response struct. */
-		NG_MKRESPONSE(resp, msg, sizeof(*nl) +
-		    (V_ng_named_nodes * sizeof(struct nodeinfo)), M_NOWAIT);
+		NG_MKRESPONSE(resp, msg,
+		    sizeof(*nl) + (V_ng_named_nodes * sizeof(struct nodeinfo)),
+		    M_NOWAIT);
 		if (resp == NULL) {
 			NAMEHASH_RUNLOCK();
 			error = ENOMEM;
 			break;
 		}
-		nl = (struct namelist *) resp->data;
+		nl = (struct namelist *)resp->data;
 
 		/* Cycle through the lists of nodes. */
 		nl->numnames = 0;
@@ -2756,10 +2685,9 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 		}
 		NAMEHASH_RUNLOCK();
 		break;
-	    }
+	}
 
-	case NGM_LISTTYPES:
-	    {
+	case NGM_LISTTYPES: {
 		struct typelist *tl;
 		struct ng_type *type;
 		int num = 0;
@@ -2770,14 +2698,14 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 			num++;
 
 		/* Get response struct */
-		NG_MKRESPONSE(resp, msg, sizeof(*tl) +
-		    (num * sizeof(struct typeinfo)), M_NOWAIT);
+		NG_MKRESPONSE(resp, msg,
+		    sizeof(*tl) + (num * sizeof(struct typeinfo)), M_NOWAIT);
 		if (resp == NULL) {
 			TYPELIST_RUNLOCK();
 			error = ENOMEM;
 			break;
 		}
-		tl = (struct typelist *) resp->data;
+		tl = (struct typelist *)resp->data;
 
 		/* Cycle through the linked list of types */
 		tl->numtypes = 0;
@@ -2791,10 +2719,9 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 		}
 		TYPELIST_RUNLOCK();
 		break;
-	    }
+	}
 
-	case NGM_BINARY2ASCII:
-	    {
+	case NGM_BINARY2ASCII: {
 		int bufSize = 1024;
 		const struct ng_parse_type *argstype;
 		const struct ng_cmdlist *c;
@@ -2804,12 +2731,12 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 		binary = (struct ng_mesg *)msg->data;
 		if (msg->header.arglen < sizeof(struct ng_mesg) ||
 		    (msg->header.arglen - sizeof(struct ng_mesg) <
-		    binary->header.arglen)) {
+			binary->header.arglen)) {
 			TRAP_ERROR();
 			error = EINVAL;
 			break;
 		}
-retry_b2a:
+	retry_b2a:
 		/* Get a response message with lots of room */
 		NG_MKRESPONSE(resp, msg, sizeof(*ascii) + bufSize, M_NOWAIT);
 		if (resp == NULL) {
@@ -2823,7 +2750,7 @@ retry_b2a:
 
 		/* Find command by matching typecookie and command number */
 		for (c = here->nd_type->cmdlist; c != NULL && c->name != NULL;
-		    c++) {
+		     c++) {
 			if (binary->header.typecookie == c->cookie &&
 			    binary->header.cmd == c->cmd)
 				break;
@@ -2846,8 +2773,8 @@ retry_b2a:
 		    "%s", c->name);
 
 		/* Convert command arguments to ASCII */
-		argstype = (binary->header.flags & NGF_RESP) ?
-		    c->respType : c->mesgType;
+		argstype = (binary->header.flags & NGF_RESP) ? c->respType :
+							       c->mesgType;
 		if (argstype == NULL) {
 			*ascii->data = '\0';
 		} else {
@@ -2868,11 +2795,10 @@ retry_b2a:
 		ascii->header.arglen = bufSize;
 		resp->header.arglen = sizeof(*ascii) + bufSize;
 		break;
-	    }
+	}
 
-	case NGM_ASCII2BINARY:
-	    {
-		int bufSize = 20 * 1024;	/* XXX hard coded constant */
+	case NGM_ASCII2BINARY: {
+		int bufSize = 20 * 1024; /* XXX hard coded constant */
 		const struct ng_cmdlist *c;
 		const struct ng_parse_type *argstype;
 		struct ng_mesg *ascii, *binary;
@@ -2882,8 +2808,8 @@ retry_b2a:
 		ascii = (struct ng_mesg *)msg->data;
 		if ((msg->header.arglen < sizeof(*ascii) + 1) ||
 		    (ascii->header.arglen < 1) ||
-		    (msg->header.arglen < sizeof(*ascii) +
-		    ascii->header.arglen)) {
+		    (msg->header.arglen <
+			sizeof(*ascii) + ascii->header.arglen)) {
 			TRAP_ERROR();
 			error = EINVAL;
 			break;
@@ -2902,8 +2828,8 @@ retry_b2a:
 		bcopy(ascii, binary, sizeof(*ascii));
 
 		/* Find command by matching ASCII command string */
-		for (c = here->nd_type->cmdlist;
-		    c != NULL && c->name != NULL; c++) {
+		for (c = here->nd_type->cmdlist; c != NULL && c->name != NULL;
+		     c++) {
 			if (strcmp(ascii->header.cmdstr, c->name) == 0)
 				break;
 		}
@@ -2924,13 +2850,13 @@ retry_b2a:
 		binary->header.typecookie = c->cookie;
 
 		/* Convert command arguments to binary */
-		argstype = (binary->header.flags & NGF_RESP) ?
-		    c->respType : c->mesgType;
+		argstype = (binary->header.flags & NGF_RESP) ? c->respType :
+							       c->mesgType;
 		if (argstype == NULL) {
 			bufSize = 0;
 		} else {
 			if ((error = ng_parse(argstype, ascii->data, &off,
-			    (u_char *)binary->data, &bufSize)) != 0) {
+				 (u_char *)binary->data, &bufSize)) != 0) {
 				NG_FREE_MSG(resp);
 				break;
 			}
@@ -2940,7 +2866,7 @@ retry_b2a:
 		binary->header.arglen = bufSize;
 		resp->header.arglen = sizeof(*binary) + bufSize;
 		break;
-	    }
+	}
 
 	case NGM_TEXT_CONFIG:
 	case NGM_TEXT_STATUS:
@@ -2952,7 +2878,7 @@ retry_b2a:
 		 */
 		if (here->nd_type->rcvmsg != NULL) {
 			NGI_MSG(item) = msg; /* put it back as we found it */
-			return((*here->nd_type->rcvmsg)(here, item, lasthook));
+			return ((*here->nd_type->rcvmsg)(here, item, lasthook));
 		}
 		/* Fall through if rcvmsg not supported */
 	default:
@@ -2977,22 +2903,22 @@ out:
 			Queue element get/free routines
 ************************************************************************/
 
-uma_zone_t			ng_qzone;
-uma_zone_t			ng_qdzone;
-static int			numthreads = 0; /* number of queue threads */
-static int			maxalloc = 4096;/* limit the damage of a leak */
-static int			maxdata = 4096;	/* limit the damage of a DoS */
+uma_zone_t ng_qzone;
+uma_zone_t ng_qdzone;
+static int numthreads = 0;  /* number of queue threads */
+static int maxalloc = 4096; /* limit the damage of a leak */
+static int maxdata = 4096;  /* limit the damage of a DoS */
 
-SYSCTL_INT(_net_graph, OID_AUTO, threads, CTLFLAG_RDTUN, &numthreads,
-    0, "Number of queue processing threads");
-SYSCTL_INT(_net_graph, OID_AUTO, maxalloc, CTLFLAG_RDTUN, &maxalloc,
-    0, "Maximum number of non-data queue items to allocate");
-SYSCTL_INT(_net_graph, OID_AUTO, maxdata, CTLFLAG_RDTUN, &maxdata,
-    0, "Maximum number of data queue items to allocate");
+SYSCTL_INT(_net_graph, OID_AUTO, threads, CTLFLAG_RDTUN, &numthreads, 0,
+    "Number of queue processing threads");
+SYSCTL_INT(_net_graph, OID_AUTO, maxalloc, CTLFLAG_RDTUN, &maxalloc, 0,
+    "Maximum number of non-data queue items to allocate");
+SYSCTL_INT(_net_graph, OID_AUTO, maxdata, CTLFLAG_RDTUN, &maxdata, 0,
+    "Maximum number of data queue items to allocate");
 
-#ifdef	NETGRAPH_DEBUG
+#ifdef NETGRAPH_DEBUG
 static TAILQ_HEAD(, ng_item) ng_itemlist = TAILQ_HEAD_INITIALIZER(ng_itemlist);
-static int allocated;	/* number of items malloc'd */
+static int allocated; /* number of items malloc'd */
 #endif
 
 /*
@@ -3015,7 +2941,7 @@ ng_alloc_item(int type, int flags)
 
 	if (item) {
 		item->el_flags = type;
-#ifdef	NETGRAPH_DEBUG
+#ifdef NETGRAPH_DEBUG
 		mtx_lock(&ngq_mtx);
 		TAILQ_INSERT_TAIL(&ng_itemlist, item, all);
 		allocated++;
@@ -3060,14 +2986,15 @@ ng_free_item(item_p item)
 	_NGI_CLR_NODE(item);
 	_NGI_CLR_HOOK(item);
 
-#ifdef	NETGRAPH_DEBUG
+#ifdef NETGRAPH_DEBUG
 	mtx_lock(&ngq_mtx);
 	TAILQ_REMOVE(&ng_itemlist, item, all);
 	allocated--;
 	mtx_unlock(&ngq_mtx);
 #endif
-	uma_zfree(((item->el_flags & NGQF_TYPE) == NGQF_DATA) ?
-	    ng_qdzone : ng_qzone, item);
+	uma_zfree(((item->el_flags & NGQF_TYPE) == NGQF_DATA) ? ng_qdzone :
+								ng_qzone,
+	    item);
 }
 
 /*
@@ -3125,21 +3052,21 @@ ng_mod_event(module_t mod, int event, void *data)
 		if (type->mod_event != NULL)
 			if ((error = (*type->mod_event)(mod, event, data))) {
 				TYPELIST_WLOCK();
-				type->refs--;	/* undo it */
+				type->refs--; /* undo it */
 				LIST_REMOVE(type, types);
 				TYPELIST_WUNLOCK();
 			}
 		break;
 
 	case MOD_UNLOAD:
-		if (type->refs > 1) {		/* make sure no nodes exist! */
+		if (type->refs > 1) { /* make sure no nodes exist! */
 			error = EBUSY;
 		} else {
 			if (type->refs == 0) /* failed load, nothing to undo */
 				break;
-			if (type->mod_event != NULL) {	/* check with type */
+			if (type->mod_event != NULL) { /* check with type */
 				error = (*type->mod_event)(mod, event, data);
-				if (error != 0)	/* type refuses.. */
+				if (error != 0) /* type refuses.. */
 					break;
 			}
 			TYPELIST_WLOCK();
@@ -3152,7 +3079,7 @@ ng_mod_event(module_t mod, int event, void *data)
 		if (type->mod_event != NULL)
 			error = (*type->mod_event)(mod, event, data);
 		else
-			error = EOPNOTSUPP;		/* XXX ? */
+			error = EOPNOTSUPP; /* XXX ? */
 		break;
 	}
 	return (error);
@@ -3161,7 +3088,6 @@ ng_mod_event(module_t mod, int event, void *data)
 static void
 vnet_netgraph_init(const void *unused __unused)
 {
-
 	/* We start with small hashes, but they can grow. */
 	V_ng_ID_hash = hashinit(16, M_NETGRAPH_NODE, &V_ng_ID_hmask);
 	V_ng_name_hash = hashinit(16, M_NETGRAPH_NODE, &V_ng_name_hmask);
@@ -3232,11 +3158,10 @@ ngb_mod_event(module_t mod, int event, void *data)
 		rw_init(&ng_idhash_lock, "netgraph idhash");
 		rw_init(&ng_namehash_lock, "netgraph namehash");
 		rw_init(&ng_topo_lock, "netgraph topology mutex");
-#ifdef	NETGRAPH_DEBUG
+#ifdef NETGRAPH_DEBUG
 		mtx_init(&ng_nodelist_mtx, "netgraph nodelist mutex", NULL,
 		    MTX_DEF);
-		mtx_init(&ngq_mtx, "netgraph item list mutex", NULL,
-		    MTX_DEF);
+		mtx_init(&ngq_mtx, "netgraph item list mutex", NULL, MTX_DEF);
 #endif
 		ng_qzone = uma_zcreate("NetGraph items", sizeof(struct ng_item),
 		    NULL, NULL, NULL, NULL, UMA_ALIGN_CACHE, 0);
@@ -3249,10 +3174,10 @@ ngb_mod_event(module_t mod, int event, void *data)
 		if (numthreads <= 0)
 			numthreads = mp_ncpus;
 		/* Create threads. */
-    		p = NULL; /* start with no process */
+		p = NULL; /* start with no process */
 		for (i = 0; i < numthreads; i++) {
 			if (kproc_kthread_add(ngthread, NULL, &p, &td,
-			    RFHIGHPID, 0, "ng_queue", "ng_queue%d", i)) {
+				RFHIGHPID, 0, "ng_queue", "ng_queue%d", i)) {
 				numthreads = i;
 				break;
 			}
@@ -3269,25 +3194,23 @@ ngb_mod_event(module_t mod, int event, void *data)
 	return (error);
 }
 
-static moduledata_t netgraph_mod = {
-	"netgraph",
-	ngb_mod_event,
-	(NULL)
-};
+static moduledata_t netgraph_mod = { "netgraph", ngb_mod_event, (NULL) };
 DECLARE_MODULE(netgraph, netgraph_mod, SI_SUB_NETGRAPH, SI_ORDER_FIRST);
 SYSCTL_NODE(_net, OID_AUTO, graph, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "netgraph Family");
-SYSCTL_INT(_net_graph, OID_AUTO, abi_version, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, NG_ABI_VERSION,"");
-SYSCTL_INT(_net_graph, OID_AUTO, msg_version, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, NG_VERSION, "");
+SYSCTL_INT(_net_graph, OID_AUTO, abi_version, CTLFLAG_RD, SYSCTL_NULL_INT_PTR,
+    NG_ABI_VERSION, "");
+SYSCTL_INT(_net_graph, OID_AUTO, msg_version, CTLFLAG_RD, SYSCTL_NULL_INT_PTR,
+    NG_VERSION, "");
 
-#ifdef	NETGRAPH_DEBUG
+#ifdef NETGRAPH_DEBUG
 void
-dumphook (hook_p hook, char *file, int line)
+dumphook(hook_p hook, char *file, int line)
 {
-	printf("hook: name %s, %d refs, Last touched:\n",
-		_NG_HOOK_NAME(hook), hook->hk_refs);
-	printf("	Last active @ %s, line %d\n",
-		hook->lastfile, hook->lastline);
+	printf("hook: name %s, %d refs, Last touched:\n", _NG_HOOK_NAME(hook),
+	    hook->hk_refs);
+	printf("	Last active @ %s, line %d\n", hook->lastfile,
+	    hook->lastline);
 	if (line) {
 		printf(" problem discovered at file %s, line %d\n", file, line);
 #ifdef KDB
@@ -3300,11 +3223,10 @@ void
 dumpnode(node_p node, char *file, int line)
 {
 	printf("node: ID [%x]: type '%s', %d hooks, flags 0x%x, %d refs, %s:\n",
-		_NG_NODE_ID(node), node->nd_type->name,
-		node->nd_numhooks, node->nd_flags,
-		node->nd_refs, node->nd_name);
-	printf("	Last active @ %s, line %d\n",
-		node->lastfile, node->lastline);
+	    _NG_NODE_ID(node), node->nd_type->name, node->nd_numhooks,
+	    node->nd_flags, node->nd_refs, node->nd_name);
+	printf("	Last active @ %s, line %d\n", node->lastfile,
+	    node->lastline);
 	if (line) {
 		printf(" problem discovered at file %s, line %d\n", file, line);
 #ifdef KDB
@@ -3316,9 +3238,9 @@ dumpnode(node_p node, char *file, int line)
 void
 dumpitem(item_p item, char *file, int line)
 {
-	printf(" ACTIVE item, last used at %s, line %d",
-		item->lastfile, item->lastline);
-	switch(item->el_flags & NGQF_TYPE) {
+	printf(" ACTIVE item, last used at %s, line %d", item->lastfile,
+	    item->lastline);
+	switch (item->el_flags & NGQF_TYPE) {
 	case NGQF_DATA:
 		printf(" - [data]\n");
 		break;
@@ -3326,29 +3248,21 @@ dumpitem(item_p item, char *file, int line)
 		printf(" - retaddr[%d]:\n", _NGI_RETADDR(item));
 		break;
 	case NGQF_FN:
-		printf(" - fn@%p (%p, %p, %p, %d (%x))\n",
-			_NGI_FN(item),
-			_NGI_NODE(item),
-			_NGI_HOOK(item),
-			item->body.fn.fn_arg1,
-			item->body.fn.fn_arg2,
-			item->body.fn.fn_arg2);
+		printf(" - fn@%p (%p, %p, %p, %d (%x))\n", _NGI_FN(item),
+		    _NGI_NODE(item), _NGI_HOOK(item), item->body.fn.fn_arg1,
+		    item->body.fn.fn_arg2, item->body.fn.fn_arg2);
 		break;
 	case NGQF_FN2:
-		printf(" - fn2@%p (%p, %p, %p, %d (%x))\n",
-			_NGI_FN2(item),
-			_NGI_NODE(item),
-			_NGI_HOOK(item),
-			item->body.fn.fn_arg1,
-			item->body.fn.fn_arg2,
-			item->body.fn.fn_arg2);
+		printf(" - fn2@%p (%p, %p, %p, %d (%x))\n", _NGI_FN2(item),
+		    _NGI_NODE(item), _NGI_HOOK(item), item->body.fn.fn_arg1,
+		    item->body.fn.fn_arg2, item->body.fn.fn_arg2);
 		break;
 	}
 	if (line) {
 		printf(" problem discovered at file %s, line %d\n", file, line);
 		if (_NGI_NODE(item)) {
-			printf("node %p ([%x])\n",
-				_NGI_NODE(item), ng_node2ID(_NGI_NODE(item)));
+			printf("node %p ([%x])\n", _NGI_NODE(item),
+			    ng_node2ID(_NGI_NODE(item)));
 		}
 	}
 }
@@ -3410,13 +3324,12 @@ sysctl_debug_ng_dump_items(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_debug, OID_AUTO, ng_dump_items,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, sizeof(int),
-    sysctl_debug_ng_dump_items, "I",
-    "Number of allocated items");
-#endif	/* NETGRAPH_DEBUG */
+    sysctl_debug_ng_dump_items, "I", "Number of allocated items");
+#endif /* NETGRAPH_DEBUG */
 
 /***********************************************************************
-* Worklist routines
-**********************************************************************/
+ * Worklist routines
+ **********************************************************************/
 /*
  * Pick a node off the list of nodes with work,
  * try get an item to process off it. Remove the node from the list.
@@ -3426,7 +3339,7 @@ ngthread(void *arg)
 {
 	for (;;) {
 		struct epoch_tracker et;
-		node_p  node;
+		node_p node;
 
 		/* Get node from the worklist. */
 		NG_WORKLIST_LOCK();
@@ -3463,8 +3376,9 @@ ngthread(void *arg)
 
 				if ((item->el_flags & NGQF_TYPE) == NGQF_MESG) {
 					/*
-					 * NGQF_MESG items should never be processed in
-					 * NET_EPOCH context. So, temporary exit from EPOCH.
+					 * NGQF_MESG items should never be
+					 * processed in NET_EPOCH context. So,
+					 * temporary exit from EPOCH.
 					 */
 					NET_EPOCH_EXIT(et);
 					ng_apply_item(node, item, rw);
@@ -3490,7 +3404,6 @@ ngthread(void *arg)
 static void
 ng_worklist_add(node_p node)
 {
-
 	mtx_assert(&node->nd_input_queue.q_mtx, MA_OWNED);
 
 	if ((node->nd_input_queue.q_flags2 & NGQ2_WORKQ) == 0) {
@@ -3513,22 +3426,22 @@ ng_worklist_add(node_p node)
 }
 
 /***********************************************************************
-* Externally useable functions to set up a queue item ready for sending
-***********************************************************************/
+ * Externally useable functions to set up a queue item ready for sending
+ ***********************************************************************/
 
-#ifdef	NETGRAPH_DEBUG
-#define	ITEM_DEBUG_CHECKS						\
-	do {								\
-		if (NGI_NODE(item) ) {					\
-			printf("item already has node");		\
-			kdb_enter(KDB_WHY_NETGRAPH, "has node");	\
-			NGI_CLR_NODE(item);				\
-		}							\
-		if (NGI_HOOK(item) ) {					\
-			printf("item already has hook");		\
-			kdb_enter(KDB_WHY_NETGRAPH, "has hook");	\
-			NGI_CLR_HOOK(item);				\
-		}							\
+#ifdef NETGRAPH_DEBUG
+#define ITEM_DEBUG_CHECKS                                        \
+	do {                                                     \
+		if (NGI_NODE(item)) {                            \
+			printf("item already has node");         \
+			kdb_enter(KDB_WHY_NETGRAPH, "has node"); \
+			NGI_CLR_NODE(item);                      \
+		}                                                \
+		if (NGI_HOOK(item)) {                            \
+			printf("item already has hook");         \
+			kdb_enter(KDB_WHY_NETGRAPH, "has hook"); \
+			NGI_CLR_HOOK(item);                      \
+		}                                                \
 	} while (0)
 #else
 #define ITEM_DEBUG_CHECKS
@@ -3592,23 +3505,22 @@ ng_package_msg(struct ng_mesg *msg, int flags)
 	return (item);
 }
 
-#define SET_RETADDR(item, here, retaddr)				\
-	do {	/* Data or fn items don't have retaddrs */		\
-		if ((item->el_flags & NGQF_TYPE) == NGQF_MESG) {	\
-			if (retaddr) {					\
-				NGI_RETADDR(item) = retaddr;		\
-			} else {					\
-				/*					\
-				 * The old return address should be ok.	\
-				 * If there isn't one, use the address	\
-				 * here.				\
-				 */					\
-				if (NGI_RETADDR(item) == 0) {		\
-					NGI_RETADDR(item)		\
-						= ng_node2ID(here);	\
-				}					\
-			}						\
-		}							\
+#define SET_RETADDR(item, here, retaddr)                                      \
+	do { /* Data or fn items don't have retaddrs */                       \
+		if ((item->el_flags & NGQF_TYPE) == NGQF_MESG) {              \
+			if (retaddr) {                                        \
+				NGI_RETADDR(item) = retaddr;                  \
+			} else {                                              \
+				/*                                            \
+				 * The old return address should be ok.       \
+				 * If there isn't one, use the address        \
+				 * here.                                      \
+				 */                                           \
+				if (NGI_RETADDR(item) == 0) {                 \
+					NGI_RETADDR(item) = ng_node2ID(here); \
+				}                                             \
+			}                                                     \
+		}                                                             \
 	} while (0)
 
 int
@@ -3650,11 +3562,15 @@ ng_address_hook(node_p here, item_p item, hook_p hook, ng_ID_t retaddr)
 int
 ng_address_path(node_p here, item_p item, const char *address, ng_ID_t retaddr)
 {
-	node_p	dest = NULL;
-	hook_p	hook = NULL;
-	int	error;
+	node_p dest = NULL;
+	hook_p hook = NULL;
+	int error;
 
 	ITEM_DEBUG_CHECKS;
+
+	/* Enter the epoch section for safe concurrent modification */
+	epoch_enter(ng_epoch);
+
 	/*
 	 * Note that ng_path2noderef increments the reference count
 	 * on the node for us if it finds one. So we don't have to.
@@ -3669,6 +3585,10 @@ ng_address_path(node_p here, item_p item, const char *address, ng_ID_t retaddr)
 		NGI_SET_HOOK(item, hook);
 
 	SET_RETADDR(item, here, retaddr);
+
+	/* Exit the epoch section after modification */
+	epoch_exit(ng_epoch);
+
 	return (0);
 }
 
@@ -3685,7 +3605,7 @@ ng_address_ID(node_p here, item_p item, ng_ID_t ID, ng_ID_t retaddr)
 	if (dest == NULL) {
 		NG_FREE_ITEM(item);
 		TRAP_ERROR();
-		return(EINVAL);
+		return (EINVAL);
 	}
 	/* Fill out the contents */
 	NGI_SET_NODE(item, dest);
@@ -3732,15 +3652,14 @@ ng_package_msg_self(node_p here, hook_p hook, struct ng_mesg *msg)
  */
 
 int
-ng_send_fn(node_p node, hook_p hook, ng_item_fn *fn, void * arg1, int arg2)
+ng_send_fn(node_p node, hook_p hook, ng_item_fn *fn, void *arg1, int arg2)
 {
-
 	return ng_send_fn1(node, hook, fn, arg1, arg2, NG_NOFLAGS);
 }
 
 int
-ng_send_fn1(node_p node, hook_p hook, ng_item_fn *fn, void * arg1, int arg2,
-	int flags)
+ng_send_fn1(node_p node, hook_p hook, ng_item_fn *fn, void *arg1, int arg2,
+    int flags)
 {
 	item_p item;
 
@@ -3757,7 +3676,7 @@ ng_send_fn1(node_p node, hook_p hook, ng_item_fn *fn, void * arg1, int arg2,
 	NGI_FN(item) = fn;
 	NGI_ARG1(item) = arg1;
 	NGI_ARG2(item) = arg2;
-	return(ng_snd_item(item, flags));
+	return (ng_snd_item(item, flags));
 }
 
 /*
@@ -3770,7 +3689,7 @@ ng_send_fn1(node_p node, hook_p hook, ng_item_fn *fn, void * arg1, int arg2,
  */
 int
 ng_send_fn2(node_p node, hook_p hook, item_p pitem, ng_item_fn2 *fn, void *arg1,
-	int arg2, int flags)
+    int arg2, int flags)
 {
 	item_p item;
 
@@ -3801,7 +3720,7 @@ ng_send_fn2(node_p node, hook_p hook, item_p pitem, ng_item_fn2 *fn, void *arg1,
 	NGI_FN2(item) = fn;
 	NGI_ARG1(item) = arg1;
 	NGI_ARG2(item) = arg2;
-	return(ng_snd_item(item, flags));
+	return (ng_snd_item(item, flags));
 }
 
 /*
@@ -3822,7 +3741,7 @@ ng_callout_trampoline(void *arg)
 
 int
 ng_callout(struct callout *c, node_p node, hook_p hook, int ticks,
-    ng_item_fn *fn, void * arg1, int arg2)
+    ng_item_fn *fn, void *arg1, int arg2)
 {
 	item_p item, oitem;
 
@@ -3830,7 +3749,7 @@ ng_callout(struct callout *c, node_p node, hook_p hook, int ticks,
 		return (ENOMEM);
 
 	item->el_flags |= NGQF_WRITER;
-	NG_NODE_REF(node);		/* and one for the item */
+	NG_NODE_REF(node); /* and one for the item */
 	NGI_SET_NODE(item, node);
 	if (hook) {
 		NG_HOOK_REF(hook);
@@ -3857,8 +3776,8 @@ ng_uncallout_internal(struct callout *c, node_p node)
 	item_p item;
 
 	item = c->c_arg;
-	if ((c->c_func == &ng_callout_trampoline) &&
-	    (item != NULL) && (NGI_NODE(item) == node)) {
+	if ((c->c_func == &ng_callout_trampoline) && (item != NULL) &&
+	    (NGI_NODE(item) == node)) {
 		/*
 		 * We successfully removed it from the queue before it ran
 		 * So now we need to unreference everything that was
@@ -3868,7 +3787,6 @@ ng_uncallout_internal(struct callout *c, node_p node)
 	}
 	c->c_arg = NULL;
 }
-
 
 /* A special modified version of callout_stop() */
 int
