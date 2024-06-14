@@ -1219,6 +1219,7 @@ run_rc_command()
 	if [ -n "$_svcj_options" ]; then	# translate service jail options
 		_svcj_cmd_options=""
 
+		_svcj_sysvipc_x=0
 		for _svcj_option in $_svcj_options; do
 			case "$_svcj_option" in
 				mlock)
@@ -1243,7 +1244,12 @@ run_rc_command()
 					_svcj_cmd_options="allow.nfsd enforce_statfs=1 ${_svcj_cmd_options}"
 					;;
 				sysvipc)
+					_svcj_sysvipc_x=$((${_svcj_sysvipc_x} + 1))
 					_svcj_cmd_options="sysvmsg=inherit sysvsem=inherit sysvshm=inherit  ${_svcj_cmd_options}"
+					;;
+				sysvipcnew)
+					_svcj_sysvipc_x=$((${_svcj_sysvipc_x} + 1))
+					_svcj_cmd_options="sysvmsg=new sysvsem=new sysvshm=new ${_svcj_cmd_options}"
 					;;
 				vmm)
 					_svcj_cmd_options="allow.vmm ${_svcj_cmd_options}"
@@ -1253,6 +1259,11 @@ run_rc_command()
 					;;
 			esac
 		done
+		if [ ${_svcj_sysvipc_x} -gt 1 ]; then
+			echo -n "ERROR: more than one sysvipc option is "
+			echo "specified in ${name}_svcj_options: $_svcj_options"
+			return 1
+		fi
 	fi
 
 	[ -z "$autoboot" ] && eval $_pidcmd	# determine the pid if necessary
