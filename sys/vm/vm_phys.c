@@ -933,6 +933,19 @@ vm_phys_alloc_freelist_pages(int domain, int freelist, int pool, int order)
 }
 
 /*
+ * Find the vm_page corresponding to the given physical address, which must lie
+ * within the given physical memory segment.
+ */
+vm_page_t
+vm_phys_seg_paddr_to_vm_page(struct vm_phys_seg *seg, vm_paddr_t pa)
+{
+	KASSERT(pa >= seg->start && pa < seg->end,
+	    ("%s: pa %#jx is out of range", __func__, (uintmax_t)pa));
+
+	return (&seg->first_page[atop(pa - seg->start)]);
+}
+
+/*
  * Find the vm_page corresponding to the given physical address.
  */
 vm_page_t
@@ -941,7 +954,7 @@ vm_phys_paddr_to_vm_page(vm_paddr_t pa)
 	struct vm_phys_seg *seg;
 
 	if ((seg = vm_phys_paddr_to_seg(pa)) != NULL)
-		return (&seg->first_page[atop(pa - seg->start)]);
+		return (vm_phys_seg_paddr_to_vm_page(seg, pa));
 	return (NULL);
 }
 
@@ -1157,7 +1170,7 @@ vm_phys_free_pages(vm_page_t m, int order)
 			pa ^= ((vm_paddr_t)1 << (PAGE_SHIFT + order));
 			if (pa < seg->start || pa >= seg->end)
 				break;
-			m_buddy = &seg->first_page[atop(pa - seg->start)];
+			m_buddy = vm_phys_seg_paddr_to_vm_page(seg, pa);
 			if (m_buddy->order != order)
 				break;
 			fl = (*seg->free_queues)[m_buddy->pool];
@@ -1166,7 +1179,7 @@ vm_phys_free_pages(vm_page_t m, int order)
 				vm_phys_set_pool(m->pool, m_buddy, order);
 			order++;
 			pa &= ~(((vm_paddr_t)1 << (PAGE_SHIFT + order)) - 1);
-			m = &seg->first_page[atop(pa - seg->start)];
+			m = vm_phys_seg_paddr_to_vm_page(seg, pa);
 		} while (order < VM_NFREEORDER - 1);
 	}
 	fl = (*seg->free_queues)[m->pool];
@@ -1278,8 +1291,8 @@ vm_phys_find_range(vm_page_t bounds[], int segind, int domain,
 		pa_end = MIN(high, seg->end);
 		if (pa_end - pa_start < ptoa(npages))
 			continue;
-		bounds[0] = &seg->first_page[atop(pa_start - seg->start)];
-		bounds[1] = &seg->first_page[atop(pa_end - seg->start)];
+		bounds[0] = vm_phys_seg_paddr_to_vm_page(seg, pa_start);
+		bounds[1] = vm_phys_seg_paddr_to_vm_page(seg, pa_end);
 		return (seg - vm_phys_segs);
 	}
 	return (-1);
@@ -1313,7 +1326,7 @@ vm_phys_unfree_page(vm_page_t m)
 		order++;
 		pa = m->phys_addr & (~(vm_paddr_t)0 << (PAGE_SHIFT + order));
 		if (pa >= seg->start)
-			m_set = &seg->first_page[atop(pa - seg->start)];
+			m_set = vm_phys_seg_paddr_to_vm_page(seg, pa);
 		else
 			return (false);
 	}
@@ -1338,10 +1351,10 @@ vm_phys_unfree_page(vm_page_t m)
 		order--;
 		pa_half = m_set->phys_addr ^ (1 << (PAGE_SHIFT + order));
 		if (m->phys_addr < pa_half)
-			m_tmp = &seg->first_page[atop(pa_half - seg->start)];
+			m_tmp = vm_phys_seg_paddr_to_vm_page(seg, pa_half);
 		else {
 			m_tmp = m_set;
-			m_set = &seg->first_page[atop(pa_half - seg->start)];
+			m_set = vm_phys_seg_paddr_to_vm_page(seg, pa_half);
 		}
 		vm_freelist_add(fl, m_tmp, order, 0);
 	}
