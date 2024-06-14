@@ -617,7 +617,6 @@ retry_port:
 	while ((port = STAILQ_FIRST(&devlist.port_list))) {
 		struct cctl_lun_nv *nv;
 
-		port = STAILQ_FIRST(&devlist.port_list);
 		STAILQ_REMOVE_HEAD(&devlist.port_list, links);
 		free(port->port_frontend);
 		free(port->port_name);
@@ -684,7 +683,6 @@ retry_port:
 	while ((lun = STAILQ_FIRST(&devlist.lun_list))) {
 		struct cctl_lun_nv *nv;
 
-		lun = STAILQ_FIRST(&devlist.lun_list);
 		STAILQ_REMOVE_HEAD(&devlist.lun_list, links);
 		while ((nv = STAILQ_FIRST(&lun->attr_list))) {
 			STAILQ_REMOVE_HEAD(&lun->attr_list, links);
