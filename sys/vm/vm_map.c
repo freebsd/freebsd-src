@@ -2247,8 +2247,15 @@ again:
 		rv = vm_map_insert(map, object, offset, *addr, *addr + length,
 		    prot, max, cow);
 	}
-	if (rv == KERN_SUCCESS && update_anon)
-		map->anon_loc = *addr + length;
+
+	/*
+	 * Update the starting address for clustered anonymous memory mappings
+	 * if a starting address was not previously defined or an ASLR restart
+	 * placed an anonymous memory mapping at a lower address.
+	 */
+	if (update_anon && rv == KERN_SUCCESS && (map->anon_loc == 0 ||
+	    *addr < map->anon_loc))
+		map->anon_loc = *addr;
 done:
 	vm_map_unlock(map);
 	return (rv);
@@ -4040,9 +4047,6 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 		if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) != 0 ||
 		    entry->object.vm_object != NULL)
 			pmap_map_delete(map->pmap, entry->start, entry->end);
-
-		if (entry->end == map->anon_loc)
-			map->anon_loc = entry->start;
 
 		/*
 		 * Delete the entry only after removing all pmap
