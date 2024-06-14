@@ -1450,7 +1450,7 @@ vm_phys_find_range(vm_page_t bounds[], int segind, int domain,
 		vm_phys_lazy_init_domain(domain, false);
 #endif
 		bounds[0] = vm_phys_seg_paddr_to_vm_page(seg, pa_start);
-		bounds[1] = vm_phys_seg_paddr_to_vm_page(seg, pa_end);
+		bounds[1] = &seg->first_page[atop(pa_end - seg->start)];
 		return (seg - vm_phys_segs);
 	}
 	return (-1);

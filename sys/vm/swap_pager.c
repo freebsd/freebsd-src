@@ -2220,9 +2220,8 @@ swp_pager_meta_free(vm_object_t object, vm_pindex_t pindex, vm_pindex_t count,
 }
 
 static void
-swp_pager_meta_free_block(void *sbv, void *rangev)
+swp_pager_meta_free_block(struct swblk *sb, void *rangev)
 {
-	struct swblk *sb = sbv;
 	struct page_range *range = rangev;
 
 	for (int i = 0; i < SWAP_META_PAGES; i++) {

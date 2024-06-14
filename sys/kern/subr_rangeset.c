@@ -233,9 +233,8 @@ rangeset_remove(struct rangeset *rs, uint64_t start, uint64_t end)
 }
 
 static void
-rangeset_remove_leaf(void *rv, void *rsv)
+rangeset_remove_leaf(struct rs_el *r, void *rsv)
 {
-	struct rs_el *r = rv;
 	struct rangeset *rs = rsv;
 
 	rs->rs_free_data(rs->rs_data_ctx, r);
