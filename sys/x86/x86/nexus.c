@@ -51,6 +51,7 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
+#include <sys/intrtab.h>
 #include <sys/kernel.h>
 #include <sys/linker.h>
 #include <sys/malloc.h>

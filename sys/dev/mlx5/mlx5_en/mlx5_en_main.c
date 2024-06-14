@@ -33,9 +33,9 @@
 #include <dev/mlx5/mlx5_accel/ipsec.h>
 
 #include <sys/eventhandler.h>
+#include <sys/intrtab.h>
 #include <sys/sockio.h>
 #include <machine/atomic.h>
-#include <machine/machintr.h>
 
 #include <net/debugnet.h>
 #include <netinet/tcp_ratelimit.h>

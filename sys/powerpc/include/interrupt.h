@@ -35,8 +35,6 @@ typedef struct powerpc_intr interrupt_t;
 extern struct intr_event *_intr2event(interrupt_t *intr);
 #define	intr2event(intr)	((intr) != NULL ? _intr2event(intr) : NULL)
 
-#include <sys/intrtab.h>
-
 /* FreeBSD standard interrupt controller interface */
 
 #define	INTR_VECTORS	256

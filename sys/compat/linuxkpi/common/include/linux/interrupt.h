@@ -37,8 +37,7 @@
 
 #include <sys/param.h>
 #include <sys/interrupt.h>
-
-#include <machine/machintr.h>
+#include <sys/intrtab.h>
 
 typedef	irqreturn_t	(*irq_handler_t)(int, void *);
 
