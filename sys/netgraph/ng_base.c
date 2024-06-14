@@ -73,7 +73,7 @@
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_parse.h>
 
-#include <sys/epoch.h> // Include the epoch header
+#include <sys/epoch.h> 
 
 MODULE_VERSION(netgraph, NG_ABI_VERSION);
 
@@ -789,7 +789,9 @@ ng_rmnode(node_p node, hook_p dummy1, void *dummy2, int dummy3)
 	 * have cancelled them. Possibly hardware dependencies may
 	 * force a driver to 'linger' with a reference.
 	 */
+	epoch_enter(ng_epoch); // Enter the epoch section for safe concurrent modification
 	NG_NODE_UNREF(node);
+	epoch_exit(ng_epoch); // Exit the epoch section after modification
 }
 
 /*
@@ -1180,7 +1182,9 @@ ng_destroy_hook(hook_p hook)
 	 * Protect divorce process with mutex, to avoid races on
 	 * simultaneous disconnect.
 	 */
-	TOPOLOGY_WLOCK();
+	// TOPOLOGY_WLOCK();
+	
+    epoch_enter(ng_epoch); // Enter the epoch section for safe concurrent modification
 
 	hook->hk_flags |= HK_INVALID;
 
@@ -1208,9 +1212,10 @@ ng_destroy_hook(hook_p hook)
 		NG_HOOK_UNREF(peer);		/* account for peer link */
 		NG_HOOK_UNREF(hook);		/* account for peer link */
 	} else
-		TOPOLOGY_WUNLOCK();
+		// TOPOLOGY_WUNLOCK();
+		epoch_exit(ng_epoch); // Exit the epoch section
 
-	TOPOLOGY_NOTOWNED();
+	// TOPOLOGY_NOTOWNED();
 
 	/*
 	 * Remove the hook from the node's list to avoid possible recursion
@@ -1520,11 +1525,13 @@ ng_con_nodes(item_p item, node_p node, const char *name,
 	 * Procesing continues in that function in the lock context of
 	 * the other node.
 	 */
+	epoch_enter(ng_epoch); // Enter the epoch section for safe concurrent modification
 	if ((error = ng_send_fn2(node2, hook2, item, &ng_con_part2, NULL, 0,
 	    NG_NOFLAGS))) {
 		printf("failed in ng_con_nodes(): %d\n", error);
 		ng_destroy_hook(hook);	/* also zaps peer */
 	}
+	epoch_exit(ng_epoch); // Exit the epoch section after modification
 
 	NG_HOOK_UNREF(hook);		/* Let each hook go if it wants to */
 	NG_HOOK_UNREF(hook2);
@@ -2388,6 +2395,9 @@ ng_apply_item(node_p node, item_p item, int rw)
 	apply = item->apply;
 	depth = item->depth;
 
+	/* Enter the epoch section for safe concurrent modification */
+    epoch_enter(ng_epoch);
+
 	switch (item->el_flags & NGQF_TYPE) {
 	case NGQF_DATA:
 		/*
@@ -2488,6 +2498,10 @@ ng_apply_item(node_p node, item_p item, int rw)
 			error = (*NGI_FN2(item))(node, item, hook);
 		break;
 	}
+
+	/* Exit the epoch section after modification */
+    epoch_exit(ng_epoch);
+
 	/*
 	 * We held references on some of the resources
 	 * that we took from the item. Now that we have
