@@ -1902,6 +1902,7 @@ struct thread;
 struct nvme_namespace;
 struct nvme_controller;
 struct nvme_consumer;
+struct nvme_passthru_cmd;
 
 typedef void (*nvme_cb_fn_t)(void *, const struct nvme_completion *);
 
@@ -1920,6 +1921,11 @@ int	nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 				   struct nvme_pt_command *pt,
 				   uint32_t nsid, int is_user_buffer,
 				   int is_admin_cmd);
+
+int	nvme_ctrlr_linux_passthru_cmd(struct nvme_controller *ctrlr,
+				      struct nvme_passthru_cmd *npc,
+				      uint32_t nsid, bool is_user,
+				      bool is_admin);
 
 /* Admin functions */
 void	nvme_ctrlr_cmd_set_feature(struct nvme_controller *ctrlr,
