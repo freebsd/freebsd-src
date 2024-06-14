@@ -73,14 +73,16 @@
 #define	VM_PHYSSEG_MAX		64
 
 /*
- * Create two free page pools: VM_FREEPOOL_DEFAULT is the default pool
- * from which physical pages are allocated and VM_FREEPOOL_DIRECT is
- * the pool from which physical pages for small UMA objects are
- * allocated.
+ * Create three free page pools: VM_FREEPOOL_DEFAULT is the default pool from
+ * which physical pages are allocated and VM_FREEPOOL_DIRECT is the pool from
+ * which physical pages for page tables and small UMA objects are allocated.
+ * VM_FREEPOOL_LAZINIT is a special-purpose pool that is populated only during
+ * boot and is used to implement deferred initialization of page structures.
  */
-#define	VM_NFREEPOOL		2
-#define	VM_FREEPOOL_DEFAULT	0
-#define	VM_FREEPOOL_DIRECT	1
+#define	VM_NFREEPOOL		3
+#define	VM_FREEPOOL_LAZYINIT	0
+#define	VM_FREEPOOL_DEFAULT	1
+#define	VM_FREEPOOL_DIRECT	2
 
 /*
  * Create two free page lists: VM_FREELIST_DMA32 is for physical pages that have

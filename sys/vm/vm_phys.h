@@ -80,7 +80,7 @@ vm_page_t vm_phys_paddr_to_vm_page(vm_paddr_t pa);
 vm_page_t vm_phys_seg_paddr_to_vm_page(struct vm_phys_seg *seg, vm_paddr_t pa);
 void vm_phys_register_domains(int ndomains, struct mem_affinity *affinity,
     int *locality);
-bool vm_phys_unfree_page(vm_page_t m);
+bool vm_phys_unfree_page(vm_paddr_t pa);
 int vm_phys_mem_affinity(int f, int t);
 void vm_phys_early_add_seg(vm_paddr_t start, vm_paddr_t end);
 vm_paddr_t vm_phys_early_alloc(int domain, size_t alloc_size);

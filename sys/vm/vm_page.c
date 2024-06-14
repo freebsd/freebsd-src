@@ -333,9 +333,9 @@ vm_page_blacklist_add(vm_paddr_t pa, bool verbose)
 	if (m == NULL)
 		return (true); /* page does not exist, no failure */
 
-	vmd = vm_pagequeue_domain(m);
+	vmd = VM_DOMAIN(vm_phys_domain(pa));
 	vm_domain_free_lock(vmd);
-	found = vm_phys_unfree_page(m);
+	found = vm_phys_unfree_page(pa);
 	vm_domain_free_unlock(vmd);
 	if (found) {
 		vm_domain_freecnt_inc(vmd, -1);
@@ -568,6 +568,9 @@ vm_page_startup(vm_offset_t vaddr)
 #if defined(__i386__) && defined(VM_PHYSSEG_DENSE)
 	long ii;
 #endif
+#ifdef VM_FREEPOOL_LAZYINIT
+	int lazyinit;
+#endif
 
 	vaddr = round_page(vaddr);
 
@@ -748,6 +751,11 @@ vm_page_startup(vm_offset_t vaddr)
 	 */
 	vm_phys_init();
 
+#ifdef VM_FREEPOOL_LAZYINIT
+	lazyinit = 1;
+	TUNABLE_INT_FETCH("debug.vm.lazy_page_init", &lazyinit);
+#endif
+
 	/*
 	 * Initialize the page structures and add every available page to the
 	 * physical memory allocator's free lists.
@@ -763,9 +771,50 @@ vm_page_startup(vm_offset_t vaddr)
 	vm_cnt.v_page_count = 0;
 	for (segind = 0; segind < vm_phys_nsegs; segind++) {
 		seg = &vm_phys_segs[segind];
-		for (m = seg->first_page, pa = seg->start; pa < seg->end;
-		    m++, pa += PAGE_SIZE)
-			vm_page_init_page(m, pa, segind, VM_FREEPOOL_DEFAULT);
+
+		/*
+		 * If lazy vm_page initialization is not enabled, simply
+		 * initialize all of the pages in the segment.  Otherwise, we
+		 * only initialize:
+		 * 1. Pages not covered by phys_avail[], since they might be
+		 *    freed to the allocator at some future point, e.g., by
+		 *    kmem_bootstrap_free().
+		 * 2. The first page of each run of free pages handed to the
+		 *    vm_phys allocator, which in turn defers initialization
+		 *    of pages until they are needed.
+		 * This avoids blocking the boot process for long periods, which
+		 * may be relevant for VMs (which ought to boot as quickly as
+		 * possible) and/or systems with large amounts of physical
+		 * memory.
+		 */
+#ifdef VM_FREEPOOL_LAZYINIT
+		if (lazyinit) {
+			startp = seg->start;
+			for (i = 0; phys_avail[i + 1] != 0; i += 2) {
+				if (startp >= seg->end)
+					break;
+
+				if (phys_avail[i + 1] < startp)
+					continue;
+				if (phys_avail[i] <= startp) {
+					startp = phys_avail[i + 1];
+					continue;
+				}
+
+				m = vm_phys_seg_paddr_to_vm_page(seg, startp);
+				for (endp = MIN(phys_avail[i], seg->end);
+				    startp < endp; startp += PAGE_SIZE, m++) {
+					vm_page_init_page(m, startp, segind,
+					    VM_FREEPOOL_DEFAULT);
+				}
+			}
+		} else
+#endif
+			for (m = seg->first_page, pa = seg->start;
+			    pa < seg->end; m++, pa += PAGE_SIZE) {
+				vm_page_init_page(m, pa, segind,
+				    VM_FREEPOOL_DEFAULT);
+			}
 
 		/*
 		 * Add the segment's pages that are covered by one of
@@ -783,6 +832,12 @@ vm_page_startup(vm_offset_t vaddr)
 				continue;
 
 			m = vm_phys_seg_paddr_to_vm_page(seg, startp);
+#ifdef VM_FREEPOOL_LAZYINIT
+			if (lazyinit) {
+				vm_page_init_page(m, startp, segind,
+				    VM_FREEPOOL_LAZYINIT);
+			}
+#endif
 			vmd = VM_DOMAIN(seg->domain);
 			vm_domain_free_lock(vmd);
 			vm_phys_enqueue_contig(m, pagecount);
