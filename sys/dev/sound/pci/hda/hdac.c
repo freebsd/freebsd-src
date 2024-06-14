@@ -109,6 +109,7 @@ static const struct {
 	{ HDA_INTEL_CMLKLP,  "Intel Comet Lake-LP",	0, 0 },
 	{ HDA_INTEL_CMLKH,   "Intel Comet Lake-H",	0, 0 },
 	{ HDA_INTEL_TGLK,    "Intel Tiger Lake",	0, 0 },
+	{ HDA_INTEL_TGLKH,   "Intel Tiger Lake-H",	0, 0 },
 	{ HDA_INTEL_GMLK,    "Intel Gemini Lake",	0, 0 },
 	{ HDA_INTEL_ALLK,    "Intel Alder Lake",	0, 0 },
 	{ HDA_INTEL_ALLKM,   "Intel Alder Lake-M",	0, 0 },
