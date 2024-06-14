@@ -50,6 +50,7 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/lock.h>
+#include <sys/intrtab.h>
 #include <sys/kdb.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -64,7 +65,6 @@
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
-#include <machine/machintr.h>
 #include <x86/apicvar.h>
 #include <x86/init.h>
 #include <x86/ppireg.h>

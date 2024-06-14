@@ -40,6 +40,7 @@
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
+#include <sys/intrtab.h>
 #include <sys/ktr.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -56,7 +57,6 @@
 #include <sys/taskqueue.h>
 #include <sys/vmmeter.h>
 #include <machine/clock.h>
-#include <machine/machintr.h>
 #include <machine/smp.h>
 #ifdef DDB
 #include <ddb/ddb.h>

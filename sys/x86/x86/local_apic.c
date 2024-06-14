@@ -43,6 +43,7 @@
 #include <sys/systm.h>
 #include <sys/asan.h>
 #include <sys/bus.h>
+#include <sys/intrtab.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -65,7 +66,6 @@
 #include <machine/cputypes.h>
 #include <machine/fpu.h>
 #include <machine/frame.h>
-#include <machine/machintr.h>
 #include <x86/apicvar.h>
 #include <x86/mca.h>
 #include <machine/md_var.h>

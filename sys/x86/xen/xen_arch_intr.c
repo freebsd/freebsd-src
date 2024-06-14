@@ -38,6 +38,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/interrupt.h>
+#include <sys/intrtab.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/smp.h>

@@ -38,6 +38,7 @@
 #include <sys/asan.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
+#include <sys/intrtab.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
@@ -45,7 +46,6 @@
 
 #include <machine/cpufunc.h>
 #include <machine/frame.h>
-#include <machine/machintr.h>
 #include <machine/md_var.h>
 #include <machine/resource.h>
 #include <machine/segments.h>

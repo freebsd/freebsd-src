@@ -36,6 +36,7 @@
 #include <sys/systm.h>
 #include <sys/bitstring.h>
 #include <sys/bus.h>
+#include <sys/intrtab.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/malloc.h>

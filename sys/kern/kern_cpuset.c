@@ -60,6 +60,7 @@
 #include <sys/limits.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
+#include <sys/intrtab.h>
 #include <sys/vmmeter.h>
 #include <sys/ktrace.h>
 
@@ -72,8 +73,6 @@
 #include <vm/vm_param.h>
 #include <vm/vm_phys.h>
 #include <vm/vm_pagequeue.h>
-
-#include <machine/machintr.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>

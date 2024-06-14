@@ -35,8 +35,7 @@
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
-
-#include <machine/machintr.h>
+#include <sys/intrtab.h>
 
 #define	synchronize_irq(irq)	_intr_drain(intr2event(intrtab_lookup((irq))))
 
