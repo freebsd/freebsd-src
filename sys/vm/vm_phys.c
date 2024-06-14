@@ -680,6 +680,15 @@ vm_phys_split_pages(vm_page_t m, int oind, struct vm_freelist *fl, int order,
         }
 }
 
+static void
+vm_phys_enq_chunk(struct vm_freelist *fl, vm_page_t m, int order, int tail)
+{
+	KASSERT(order >= 0 && order < VM_NFREEORDER,
+	    ("%s: invalid order %d", __func__, order));
+
+	vm_freelist_add(fl, m, order, tail);
+}
+
 /*
  * Add the physical pages [m, m + npages) at the beginning of a power-of-two
  * aligned and sized set to the specified free list.
@@ -706,13 +715,13 @@ vm_phys_enq_beg(vm_page_t m, u_int npages, struct vm_freelist *fl, int tail)
 		KASSERT(m->order == VM_NFREEORDER,
 		    ("%s: page %p has unexpected order %d",
 		    __func__, m, m->order));
-                order = ilog2(npages);
+		order = ilog2(npages);
 		KASSERT(order < VM_NFREEORDER,
 		    ("%s: order %d is out of range", __func__, order));
-                vm_freelist_add(fl, m, order, tail);
+		vm_phys_enq_chunk(fl, m, order, tail);
 		m += 1 << order;
-                npages -= 1 << order;
-        }
+		npages -= 1 << order;
+	}
 }
 
 /*
@@ -743,9 +752,7 @@ vm_phys_enq_range(vm_page_t m, u_int npages, struct vm_freelist *fl, int tail)
 		    ("vm_phys_enq_range: page %p has unexpected order %d",
 		    m, m->order));
 		order = ffs(npages) - 1;
-		KASSERT(order < VM_NFREEORDER,
-		    ("vm_phys_enq_range: order %d is out of range", order));
-		vm_freelist_add(fl, m, order, tail);
+		vm_phys_enq_chunk(fl, m, order, tail);
 		m += 1 << order;
 		npages -= 1 << order;
 	}
@@ -1203,7 +1210,7 @@ vm_phys_enqueue_contig(vm_page_t m, u_long npages)
 		KASSERT(seg == &vm_phys_segs[m->segind],
 		    ("%s: page range [%p,%p) spans multiple segments",
 		    __func__, m_end - npages, m));
-		vm_freelist_add(fl, m, order, 1);
+		vm_phys_enq_chunk(fl, m, order, 1);
 		m += 1 << order;
 	}
 	/* Free blocks of diminishing size. */
