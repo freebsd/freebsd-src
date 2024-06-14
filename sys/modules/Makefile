@@ -442,8 +442,7 @@ SUBDIR+=	dtrace
 SUBDIR+=	opensolaris
 .endif
 
-.if ${MACHINE_ARCH} != "i386" && ${MACHINE_CPUARCH} != "arm" && \
-    ${MACHINE_ARCH} != "powerpc" && ${MACHINE_ARCH} != "powerpcspe"
+.if !${MACHINE_ABI:Mlong32}
 _bnxt=		bnxt
 .endif
 
