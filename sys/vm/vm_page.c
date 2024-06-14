@@ -497,9 +497,8 @@ vm_page_domain_init(int domain)
  * lists.
  */
 void
-vm_page_init_page(vm_page_t m, vm_paddr_t pa, int segind)
+vm_page_init_page(vm_page_t m, vm_paddr_t pa, int segind, int pool)
 {
-
 	m->object = NULL;
 	m->ref_count = 0;
 	m->busy_lock = VPB_FREED;
@@ -509,7 +508,7 @@ vm_page_init_page(vm_page_t m, vm_paddr_t pa, int segind)
 	m->psind = 0;
 	m->segind = segind;
 	m->order = VM_NFREEORDER;
-	m->pool = VM_FREEPOOL_DEFAULT;
+	m->pool = pool;
 	m->valid = m->dirty = 0;
 	pmap_page_init(m);
 }
@@ -756,7 +755,8 @@ vm_page_startup(vm_offset_t vaddr)
 #if defined(__i386__) && defined(VM_PHYSSEG_DENSE)
 	for (ii = 0; ii < vm_page_array_size; ii++) {
 		m = &vm_page_array[ii];
-		vm_page_init_page(m, (first_page + ii) << PAGE_SHIFT, 0);
+		vm_page_init_page(m, (first_page + ii) << PAGE_SHIFT, 0,
+		    VM_FREEPOOL_DEFAULT);
 		m->flags = PG_FICTITIOUS;
 	}
 #endif
@@ -765,7 +765,7 @@ vm_page_startup(vm_offset_t vaddr)
 		seg = &vm_phys_segs[segind];
 		for (m = seg->first_page, pa = seg->start; pa < seg->end;
 		    m++, pa += PAGE_SIZE)
-			vm_page_init_page(m, pa, segind);
+			vm_page_init_page(m, pa, segind, VM_FREEPOOL_DEFAULT);
 
 		/*
 		 * Add the segment's pages that are covered by one of
