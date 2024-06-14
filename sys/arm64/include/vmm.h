@@ -201,13 +201,6 @@ cpuset_t vm_active_cpus(struct vm *vm);
 cpuset_t vm_debug_cpus(struct vm *vm);
 cpuset_t vm_suspended_cpus(struct vm *vm);
 
-static __inline bool
-virt_enabled(void)
-{
-
-	return (has_hyp());
-}
-
 static __inline int
 vcpu_rendezvous_pending(struct vm_eventinfo *info)
 {
