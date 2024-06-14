@@ -620,8 +620,9 @@ void
 nvme_ns_destruct(struct nvme_namespace *ns)
 {
 
-	if (ns->cdev->si_drv2 != NULL)
-		destroy_dev(ns->cdev->si_drv2);
-	if (ns->cdev != NULL)
+	if (ns->cdev != NULL) {
+		if (ns->cdev->si_drv2 != NULL)
+			destroy_dev(ns->cdev->si_drv2);
 		destroy_dev(ns->cdev);
+	}
 }
