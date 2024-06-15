@@ -1,4 +1,4 @@
-/*	$NetBSD: fparseln.c,v 1.10 2000/07/05 11:46:40 ad Exp $	*/
+/*	$NetBSD: fparseln.c,v 1.7 2007/03/08 19:57:53 drochner Exp $	*/
 
 /*-
  * SPDX-License-Identifier: BSD-4-Clause
