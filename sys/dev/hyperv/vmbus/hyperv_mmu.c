@@ -144,7 +144,7 @@ hv_vm_tlb_flush(pmap_t pmap, vm_offset_t addr1, vm_offset_t addr2,
 		return smp_targeted_tlb_shootdown_native(pmap, addr1, addr2,
 		    curcpu_cb, op);
 
-	flush = *DPCPU_PTR(hv_pcpu_mem);
+	flush = *VMBUS_PCPU_PTR(sc, cpu_mem, curcpu);
 	if (flush == NULL)
 		return smp_targeted_tlb_shootdown_native(pmap, addr1, addr2,
 		    curcpu_cb, op);
@@ -253,9 +253,9 @@ hv_flush_tlb_others_ex(pmap_t pmap, vm_offset_t addr1, vm_offset_t addr2,
 {
 	int nr_bank = 0, max_gvas, gva_n;
 	struct hv_tlb_flush_ex *flush;
-	if(*DPCPU_PTR(hv_pcpu_mem) == NULL)
+	if(*VMBUS_PCPU_PTR(sc, cpu_mem, curcpu) == NULL)
 		return EINVAL;
-	flush = *DPCPU_PTR(hv_pcpu_mem);
+	flush = *VMBUS_PCPU_PTR(sc, cpu_mem, curcpu);
 	uint64_t status = 0;
 	uint64_t cr3;
 
