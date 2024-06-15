@@ -139,7 +139,10 @@ static void			vmbus_event_proc_dummy(struct vmbus_softc *,
 				    int);
 static bus_dma_tag_t	vmbus_get_dma_tag(device_t parent, device_t child);
 static struct vmbus_softc	*vmbus_sc;
-static void free_pcpu_ptr(void);
+#if defined(__x86_64__)
+static int vmbus_alloc_cpu_mem(struct vmbus_softc *sc);
+static void vmbus_free_cpu_mem(struct vmbus_softc *sc);
+#endif
 
 SYSCTL_NODE(_hw, OID_AUTO, vmbus, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "Hyper-V vmbus");
@@ -217,7 +220,6 @@ static driver_t vmbus_driver = {
 };
 
 uint32_t hv_max_vp_index;
-DPCPU_DEFINE(void *, hv_pcpu_mem);
 
 DRIVER_MODULE(vmbus, pcib, vmbus_driver, NULL, NULL);
 DRIVER_MODULE(vmbus, acpi_syscontainer, vmbus_driver, NULL, NULL);
@@ -750,7 +752,6 @@ vmbus_synic_setup(void *xsc)
 	int cpu = curcpu;
 	uint64_t val, orig;
 	uint32_t sint;
-	void **hv_cpu_mem;
 
 	if (hyperv_features & CPUID_HV_MSR_VP_INDEX) {
 		/* Save virtual processor id. */
@@ -762,19 +763,6 @@ vmbus_synic_setup(void *xsc)
 
 	if (VMBUS_PCPU_GET(sc, vcpuid, cpu) > hv_max_vp_index)
 		hv_max_vp_index = VMBUS_PCPU_GET(sc, vcpuid, cpu);
-	hv_cpu_mem = DPCPU_ID_PTR(cpu, hv_pcpu_mem);
-	*hv_cpu_mem = contigmalloc(PAGE_SIZE, M_DEVBUF, M_NOWAIT | M_ZERO,
-	    0ul, ~0ul, PAGE_SIZE, 0);
-
-#if defined(__x86_64__)
-	if (*hv_cpu_mem == NULL && hv_tlb_hcall) {
-		hv_tlb_hcall = 0;
-		if (bootverbose && sc)
-			device_printf(sc->vmbus_dev,
-			    "cannot alloc contig memory for hv_pcpu_mem, "
-			    "use system provided tlb flush call.\n");
-	}
-#endif
 
 	/*
 	 * Setup the SynIC message.
@@ -858,7 +846,6 @@ vmbus_synic_teardown(void *arg)
 	 */
 	orig = RDMSR(MSR_HV_SIEFP);
 	WRMSR(MSR_HV_SIEFP, (orig & MSR_HV_SIEFP_RSVD_MASK));
-	free_pcpu_ptr();
 }
 
 static int
@@ -1412,15 +1399,41 @@ vmbus_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
-
-static void free_pcpu_ptr(void)
+#if defined(__x86_64__)
+static int
+vmbus_alloc_cpu_mem(struct vmbus_softc *sc)
 {
-	int cpu = curcpu;
-	void **hv_cpu_mem;
-	hv_cpu_mem = DPCPU_ID_PTR(cpu, hv_pcpu_mem);
-	if(*hv_cpu_mem)
-		contigfree(*hv_cpu_mem, PAGE_SIZE, M_DEVBUF);
+	int cpu;
+
+	CPU_FOREACH(cpu) {
+		void **hv_cpu_mem;
+
+		hv_cpu_mem = VMBUS_PCPU_PTR(sc, cpu_mem, cpu);
+		*hv_cpu_mem = contigmalloc(PAGE_SIZE, M_DEVBUF,
+		    M_NOWAIT | M_ZERO, 0ul, ~0ul, PAGE_SIZE, 0);
+
+		if (*hv_cpu_mem == NULL)
+			return ENOMEM;
+	}
+
+	return 0;
 }
+
+static void
+vmbus_free_cpu_mem(struct vmbus_softc *sc)
+{
+	int cpu;
+
+	CPU_FOREACH(cpu) {
+		void **hv_cpu_mem;
+		hv_cpu_mem = VMBUS_PCPU_PTR(sc, cpu_mem, cpu);
+		if(*hv_cpu_mem != NULL) {
+			contigfree(*hv_cpu_mem, PAGE_SIZE, M_DEVBUF);
+			*hv_cpu_mem = NULL;
+		}
+	}
+}
+#endif
 
 /**
  * @brief Main vmbus driver initialization routine.
@@ -1510,6 +1523,25 @@ vmbus_doattach(struct vmbus_softc *sc)
 	ret = vmbus_intr_setup(sc);
 	if (ret != 0)
 		goto cleanup;
+
+#if defined(__x86_64__)
+	/*
+	 * Alloc per cpu memory for tlb flush hypercall
+	 */
+	if (hv_tlb_hcall) {
+		ret = vmbus_alloc_cpu_mem(sc);
+		if (ret != 0) {
+			hv_tlb_hcall = 0;
+			if (bootverbose)
+				device_printf(sc->vmbus_dev,
+				    "cannot alloc contig memory for "
+				    "cpu_mem, use system provided "
+				    "tlb flush call.\n");
+
+			vmbus_free_cpu_mem(sc);
+		}
+	}
+#endif
 
 	/*
 	 * Setup SynIC.
@@ -1626,6 +1658,16 @@ vmbus_detach(device_t dev)
 		sc->vmbus_flags &= ~VMBUS_FLAG_SYNIC;
 		smp_rendezvous(NULL, vmbus_synic_teardown, NULL, NULL);
 	}
+
+#if defined(__x86_64__)
+	/*
+	 * Restore the tlb flush to native call
+	 */
+	if (hv_tlb_hcall) {
+		smp_targeted_tlb_shootdown = &smp_targeted_tlb_shootdown_native;
+		vmbus_free_cpu_mem(sc);
+	}
+#endif
 
 	vmbus_intr_teardown(sc);
 	vmbus_dma_free(sc);
