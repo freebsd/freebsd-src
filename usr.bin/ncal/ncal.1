@@ -31,7 +31,7 @@
 .Nd displays a calendar and the date of Easter
 .Sh SYNOPSIS
 .Nm
-.Op Fl 3hjy
+.Op Fl 3hjyM
 .Op Fl A Ar number
 .Op Fl B Ar number
 .Oo
@@ -39,7 +39,7 @@
 .Ar year
 .Oc
 .Nm
-.Op Fl 3hj
+.Op Fl 3hjM
 .Op Fl A Ar number
 .Op Fl B Ar number
 .Fl m Ar month
@@ -145,6 +145,10 @@ as the current date (for debugging of date selection).
 Use
 .Ar yyyy-mm-dd
 as the current date (for debugging of highlighting).
+.It Fl M
+Display Monday as the first day of the week in
+.Nm cal
+mode.
 .El
 .Pp
 A single parameter specifies the year (1\(en9999) to be displayed;
@@ -186,7 +190,7 @@ X/Open System Interfaces option of the
 specification.
 .Pp
 The flags
-.Op Fl 3hyJeopw ,
+.Op Fl 3hyJeopwM ,
 as well as the ability to specify a month name as a single argument,
 are extensions to that specification.
 .Pp
@@ -216,5 +220,3 @@ codes is historically naive for many countries.
 Not all options are compatible and using them in different orders
 will give varying results.
 .Pp
-It is not possible to display Monday as the first day of the week with
-.Nm cal .
