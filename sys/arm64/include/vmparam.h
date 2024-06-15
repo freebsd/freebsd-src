@@ -76,7 +76,7 @@
  * Create three free page pools: VM_FREEPOOL_DEFAULT is the default pool from
  * which physical pages are allocated and VM_FREEPOOL_DIRECT is the pool from
  * which physical pages for page tables and small UMA objects are allocated.
- * VM_FREEPOOL_LAZINIT is a special-purpose pool that is populated only during
+ * VM_FREEPOOL_LAZYINIT is a special-purpose pool that is populated only during
  * boot and is used to implement deferred initialization of page structures.
  */
 #define	VM_NFREEPOOL		3
