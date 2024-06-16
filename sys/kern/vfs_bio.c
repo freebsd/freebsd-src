@@ -4002,9 +4002,15 @@ getblkx(struct vnode *vp, daddr_t blkno, daddr_t dblkno, int size, int slpflag,
 		/*
 		 * With GB_NOCREAT we must be sure about not finding the buffer
 		 * as it may have been reassigned during unlocked lookup.
+		 * If BO_NONSTERILE is still unset, no reassign has occurred.
 		 */
-		if ((flags & GB_NOCREAT) != 0)
+		if ((flags & GB_NOCREAT) != 0) {
+			/* Ensure bo_flag is loaded after gbincore_unlocked. */
+			atomic_thread_fence_acq();
+			if ((bo->bo_flag & BO_NONSTERILE) == 0)
+				return (EEXIST);
 			goto loop;
+		}
 		goto newbuf_unlocked;
 	}
 

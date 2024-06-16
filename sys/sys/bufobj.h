@@ -116,6 +116,7 @@ struct bufobj {
 #define	BO_WWAIT	(1 << 1)	/* Wait for output to complete */
 #define	BO_DEAD		(1 << 2)	/* Dead; only with INVARIANTS */
 #define	BO_NOBUFS	(1 << 3)	/* No bufs allowed */
+#define	BO_NONSTERILE	(1 << 4)	/* Ever called reassignbuf() */
 
 #define	BO_LOCKPTR(bo)		(&(bo)->bo_lock)
 #define	BO_LOCK(bo)		rw_wlock(BO_LOCKPTR((bo)))
