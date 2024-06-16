@@ -3512,6 +3512,25 @@ delete-old-files: .PHONY
 			rm ${RM_I} $${catpage} <&3; \
 	        fi; \
 	done
+# Remove compressed copies of uncompressed manpages
+.if ${MK_MANCOMPRESS} != "yes"
+	@exec 3<&0; \
+	find ${DESTDIR}/usr/share/man ${DESTDIR}/usr/share/openssl/man ! -type d ! -name \*.gz 2>/dev/null | \
+	while read manpage; do \
+		if [ -e "$${manpage}.gz" ]; then \
+			rm ${RM_I} $${manpage}.gz <&3; \
+		fi; \
+	done
+# Remove uncompressed copies of compressed manpages
+.else
+	@exec 3<&0; \
+	find ${DESTDIR}/usr/share/man ${DESTDIR}/usr/share/openssl/man ! -type d ! -name \*.gz 2>/dev/null | \
+	while read manpage; do \
+		if [ -e "$${manpage}.gz" ]; then \
+			rm ${RM_I} $${manpage} <&3; \
+		fi; \
+	done
+.endif
 	@echo ">>> Old files removed"
 
 check-old-files: .PHONY
@@ -3537,6 +3556,23 @@ check-old-files: .PHONY
 			echo $${catpage}; \
 	        fi; \
 	done | sort
+# Check for compressed copies of uncompressed manpages
+.if ${MK_MANCOMPRESS} != "yes"
+	@find ${DESTDIR}/usr/share/man ${DESTDIR}/usr/share/openssl/man ! -type d ! -name \*.gz 2>/dev/null | \
+	while read manpage; do \
+		if [ -e "$${manpage}.gz" ]; then \
+			echo $${manpage}.gz; \
+		fi; \
+	done | sort
+# Check for uncompressed copies of compressed manpages
+.else
+	@find ${DESTDIR}/usr/share/man ${DESTDIR}/usr/share/openssl/man ! -type d ! -name \*.gz 2>/dev/null | \
+	while read manpage; do \
+		if [ -e "$${manpage}.gz" ]; then \
+			echo $${manpage}; \
+		fi; \
+	done | sort
+.endif
 
 list-old-libs: .PHONY
 	@cd ${.CURDIR}; \
