@@ -260,14 +260,14 @@ fma(double x, double y, double z)
 
 	spread = ex + ey;
 
-	if (r.hi == 0.0) {
+	if (r.hi == 0.0 && xy.lo == 0) {
 		/*
 		 * When the addends cancel to 0, ensure that the result has
 		 * the correct sign.
 		 */
 		fesetround(oround);
 		volatile double vzs = zs; /* XXX gcc CSE bug workaround */
-		return (xy.hi + vzs + ldexp(xy.lo, spread));
+		return (xy.hi + vzs);
 	}
 
 	if (oround != FE_TONEAREST) {
