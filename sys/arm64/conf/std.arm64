@@ -12,6 +12,7 @@ options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	CC_CUBIC		# include CUBIC congestion control
 options 	IPSEC_SUPPORT		# Allow kldload of ipsec and tcpmd5
+options 	IPSEC_OFFLOAD		# Inline ipsec offload infra
 options 	ROUTE_MPATH		# Multipath routing support
 options 	FIB_ALGO		# Modular fib lookups
 options 	TCP_OFFLOAD		# TCP offload
