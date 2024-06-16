@@ -139,7 +139,10 @@ int t4vf_get_sge_params(struct adapter *adapter)
 	 * This is based on the PF from which we're instantiated.
 	 */
 	whoami = t4_read_reg(adapter, VF_PL_REG(A_PL_VF_WHOAMI));
-	pf = G_SOURCEPF(whoami);
+	if (chip_id(adapter) <= CHELSIO_T5)
+		pf = G_SOURCEPF(whoami);
+	else
+		pf = G_T6_SOURCEPF(whoami);
 
 	s_hps = (S_HOSTPAGESIZEPF0 +
 	    (S_HOSTPAGESIZEPF1 - S_HOSTPAGESIZEPF0) * pf);
