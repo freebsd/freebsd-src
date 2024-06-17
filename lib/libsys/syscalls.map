@@ -833,4 +833,8 @@ FBSDprivate_1.0 {
 	__sys_osdb_column_count;
 	_osdb_column_name;
 	__sys_osdb_column_name;
+	_osdb_sample;
+	__sys_osdb_sample;
+	_osdb_snapshot_clear;
+	__sys_osdb_snapshot_clear;
 };

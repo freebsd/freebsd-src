@@ -3450,4 +3450,13 @@
 			_Out_ void *name
 		);
 	}
+605 AUE_NULL STD {
+		void osdb_sample(
+			int delay,
+			int max
+		);
+	}
+606 AUE_NULL STD {
+		void osdb_snapshot_clear(void);
+	}
 ; vim: syntax=off

@@ -24,6 +24,8 @@ int sys_osdb_column_bytes16(struct thread *td, struct osdb_column_bytes16_args *
 int sys_osdb_column_type(struct thread *td, struct osdb_column_type_args *args) { return 1; }
 int sys_osdb_column_count(struct thread *td, struct osdb_column_count_args *args) { return 1; }
 int sys_osdb_column_name(struct thread *td, struct osdb_column_name_args *args) { return 1; }
+int sys_osdb_sample(struct thread *td, struct osdb_sample_args *args) { return 1; }
+int sys_osdb_snapshot_clear(struct thread *td, struct osdb_snapshot_clear_args *args) { return 1; }
 
 int freebsd32_osdb_prepare_v2(struct thread *td, struct freebsd32_osdb_prepare_v2_args *args) { return 1; }
 //int freebsd32_osdb_step(struct thread *td, struct freebsd32_osdb_step_args *args) { return 1; }

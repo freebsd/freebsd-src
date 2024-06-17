@@ -610,4 +610,6 @@ const char *syscallnames[] = {
 	"osdb_column_type",			/* 602 = osdb_column_type */
 	"osdb_column_count",			/* 603 = osdb_column_count */
 	"osdb_column_name",			/* 604 = osdb_column_name */
+	"osdb_sample",			/* 605 = osdb_sample */
+	"osdb_snapshot_clear",			/* 606 = osdb_snapshot_clear */
 };

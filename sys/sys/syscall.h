@@ -541,4 +541,6 @@
 #define	SYS_osdb_column_type	602
 #define	SYS_osdb_column_count	603
 #define	SYS_osdb_column_name	604
-#define	SYS_MAXSYSCALL	605
+#define	SYS_osdb_sample	605
+#define	SYS_osdb_snapshot_clear	606
+#define	SYS_MAXSYSCALL	607

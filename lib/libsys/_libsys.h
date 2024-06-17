@@ -477,6 +477,8 @@ typedef int (__sys_osdb_column_bytes16_t)(void*, int, int *);
 typedef int (__sys_osdb_column_type_t)(void*, int, int *);
 typedef int (__sys_osdb_column_count_t)(void*, int *);
 typedef int (__sys_osdb_column_name_t)(void*, int, void *);
+typedef void (__sys_osdb_sample_t)(int, int);
+typedef void (__sys_osdb_snapshot_clear_t)(void);
 
 void __sys_exit(int rval);
 int __sys_fork(void);
@@ -892,6 +894,8 @@ int __sys_osdb_column_bytes16(void* sqlite3_stmt, int iCol, int * size);
 int __sys_osdb_column_type(void* sqlite3_stmt, int iCol, int * datatype);
 int __sys_osdb_column_count(void* sqlite3_stmt, int * count);
 int __sys_osdb_column_name(void* sqlite3_stmt, int N, void * name);
+void __sys_osdb_sample(int delay, int max);
+void __sys_osdb_snapshot_clear(void);
 __END_DECLS
 
 #endif /* __LIBSYS_H_ */

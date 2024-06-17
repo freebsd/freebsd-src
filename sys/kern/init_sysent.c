@@ -665,4 +665,6 @@ struct sysent sysent[] = {
 	{ .sy_narg = AS(osdb_column_type_args), .sy_call = (sy_call_t *)sys_osdb_column_type, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 602 = osdb_column_type */
 	{ .sy_narg = AS(osdb_column_count_args), .sy_call = (sy_call_t *)sys_osdb_column_count, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 603 = osdb_column_count */
 	{ .sy_narg = AS(osdb_column_name_args), .sy_call = (sy_call_t *)sys_osdb_column_name, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 604 = osdb_column_name */
+	{ .sy_narg = AS(osdb_sample_args), .sy_call = (sy_call_t *)sys_osdb_sample, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 605 = osdb_sample */
+	{ .sy_narg = 0, .sy_call = (sy_call_t *)sys_osdb_snapshot_clear, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 606 = osdb_snapshot_clear */
 };
