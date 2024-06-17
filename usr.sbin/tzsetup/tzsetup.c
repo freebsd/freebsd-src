@@ -826,27 +826,22 @@ main(int argc, char **argv)
 	char		prompt[128];
 	int		fd;
 #endif
-	int		c, rv;
-	bool		skiputc;
-	char		*dztpath;
-#if defined(__i386__) || defined(__amd64__)
+	int		c, rv, skiputc;
 	char		vm_guest[16] = "";
 	size_t		len = sizeof(vm_guest);
+	char		*dztpath;
 
-	skiputc = false;
-
-	/* Default skiputc to true for VM guests */
-	if (sysctlbyname("kern.vm_guest", vm_guest, &len, NULL, 0) == 0 &&
-	    strcmp(vm_guest, "none") != 0)
-		skiputc = true;
-#else
-	skiputc = true;
-#endif
 	dztpath = NULL;
+	skiputc = 0;
 
 #ifdef HAVE_BSDDIALOG
 	setlocale(LC_ALL, "");
 #endif
+
+	/* Default skiputc to 1 for VM guests */
+	if (sysctlbyname("kern.vm_guest", vm_guest, &len, NULL, 0) == 0 &&
+	    strcmp(vm_guest, "none") != 0)
+		skiputc = 1;
 
 	while ((c = getopt(argc, argv, "C:d:nrs")) != -1) {
 		switch (c) {
@@ -866,7 +861,7 @@ main(int argc, char **argv)
 #endif
 			break;
 		case 's':
-			skiputc = true;
+			skiputc = 1;
 			break;
 		default:
 			usage();
@@ -956,7 +951,7 @@ main(int argc, char **argv)
 	if (bsddialog_init() == BSDDIALOG_ERROR)
 		errx(1, "Error bsddialog: %s\n", bsddialog_geterror());
 
-	if (!skiputc) {
+	if (skiputc == 0) {
 		snprintf(prompt, sizeof(prompt),
 		    "Is this machine's CMOS clock set to UTC?  "
 		    "If it is set to local time,\n"
