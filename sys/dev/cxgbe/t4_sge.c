@@ -2086,9 +2086,17 @@ have_mbuf:
 	}
 
 	if (cpl->vlan_ex) {
-		m0->m_pkthdr.ether_vtag = be16toh(cpl->vlan);
-		m0->m_flags |= M_VLANTAG;
-		rxq->vlan_extraction++;
+		if (sc->flags & IS_VF && sc->vlan_id) {
+			/*
+			 * HW is not setup correctly if extracted vlan_id does
+			 * not match the VF's setting.
+			 */
+			MPASS(be16toh(cpl->vlan) == sc->vlan_id);
+		} else {
+			m0->m_pkthdr.ether_vtag = be16toh(cpl->vlan);
+			m0->m_flags |= M_VLANTAG;
+			rxq->vlan_extraction++;
+		}
 	}
 
 	if (rxq->iq.flags & IQ_RX_TIMESTAMP) {
@@ -5476,7 +5484,8 @@ write_txpkt_vm_wr(struct adapter *sc, struct sge_txq *txq, struct mbuf *m0)
 		ctrl1 |= F_TXPKT_VLAN_VLD |
 		    V_TXPKT_VLAN(m0->m_pkthdr.ether_vtag);
 		txq->vlan_insertion++;
-	}
+	} else if (sc->vlan_id)
+		ctrl1 |= F_TXPKT_VLAN_VLD | V_TXPKT_VLAN(sc->vlan_id);
 
 	/* CPL header */
 	cpl->ctrl0 = txq->cpl_ctrl0;
@@ -5977,7 +5986,8 @@ write_txpkts_vm_wr(struct adapter *sc, struct sge_txq *txq)
 			ctrl1 |= F_TXPKT_VLAN_VLD |
 			    V_TXPKT_VLAN(m->m_pkthdr.ether_vtag);
 			txq->vlan_insertion++;
-		}
+		} else if (sc->vlan_id)
+			ctrl1 |= F_TXPKT_VLAN_VLD | V_TXPKT_VLAN(sc->vlan_id);
 
 		/* CPL header */
 		cpl->ctrl0 = txq->cpl_ctrl0;
