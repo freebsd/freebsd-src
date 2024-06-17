@@ -1,3 +1,6 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 1997 Wolfgang Helbig
 .\" All rights reserved.
 .\"
@@ -31,7 +34,7 @@
 .Nd displays a calendar and the date of Easter
 .Sh SYNOPSIS
 .Nm
-.Op Fl 3hjy
+.Op Fl 3hjMy
 .Op Fl A Ar number
 .Op Fl B Ar number
 .Oo
@@ -39,7 +42,7 @@
 .Ar year
 .Oc
 .Nm
-.Op Fl 3hj
+.Op Fl 3hjM
 .Op Fl A Ar number
 .Op Fl B Ar number
 .Fl m Ar month
@@ -85,6 +88,10 @@ option, display date of Easter according to the Julian Calendar.
 Display date of Easter (for western churches).
 .It Fl j
 Display Julian days (days one-based, numbered from January 1).
+.It Fl M
+Display Monday as the first day of the week in
+.Nm cal
+mode.
 .It Fl m Ar month
 Display the specified
 .Ar month .
@@ -186,7 +193,7 @@ X/Open System Interfaces option of the
 specification.
 .Pp
 The flags
-.Op Fl 3hyJeopw ,
+.Op Fl 3ehJMopwy ,
 as well as the ability to specify a month name as a single argument,
 are extensions to that specification.
 .Pp
@@ -215,6 +222,3 @@ codes is historically naive for many countries.
 .Pp
 Not all options are compatible and using them in different orders
 will give varying results.
-.Pp
-It is not possible to display Monday as the first day of the week with
-.Nm cal .
