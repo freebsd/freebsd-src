@@ -137,20 +137,20 @@ _Static_assert(sizeof(struct thread) + sizeof(struct td_sched) <=
  * and end of the MIN to MAX timeshare range are only reachable with negative
  * or positive nice respectively.
  *
- * PRI_RANGE:	Priority range for utilization dependent priorities.
- * PRI_NRESV:	Number of nice values.
+ * PRI_NRESV:	Number of priority levels reserved to account for nice values.
+ *              5/4 is to preserve historical nice effect on computation ratios.
+ * PRI_RANGE:	Length of range for priorities computed from CPU use.
  * PRI_TICKS:	Compute a priority in PRI_RANGE from the ticks count and total.
  * PRI_NICE:	Determines the part of the priority inherited from nice.
  */
-#define	SCHED_PRI_NRESV		(PRIO_MAX - PRIO_MIN)
-#define	SCHED_PRI_NHALF		(SCHED_PRI_NRESV / 2)
-#define	SCHED_PRI_MIN		(PRI_MIN_BATCH + SCHED_PRI_NHALF)
-#define	SCHED_PRI_MAX		(PRI_MAX_BATCH - SCHED_PRI_NHALF)
+#define	SCHED_PRI_NRESV		((PRIO_MAX - PRIO_MIN) * 5 / 4)
+#define	SCHED_PRI_MIN		(PRI_MIN_BATCH + (SCHED_PRI_NRESV / 2))
+#define	SCHED_PRI_MAX		(PRI_MAX_BATCH - (SCHED_PRI_NRESV / 2))
 #define	SCHED_PRI_RANGE		(SCHED_PRI_MAX - SCHED_PRI_MIN + 1)
 #define	SCHED_PRI_TICKS(ts)						\
     (SCHED_TICK_HZ((ts)) /						\
     (roundup(SCHED_TICK_TOTAL((ts)), SCHED_PRI_RANGE) / SCHED_PRI_RANGE))
-#define	SCHED_PRI_NICE(nice)	(nice)
+#define	SCHED_PRI_NICE(nice)	((nice) * 5 / 4)
 
 /*
  * Runqueue indices for the implemented scheduling policies' priority bounds.
@@ -279,6 +279,11 @@ struct tdq {
 	u_char		tdq_owepreempt;	/* (f) Remote preemption pending. */
 	u_char		tdq_ts_off;	/* (t) TS insertion offset. */
 	u_char		tdq_ts_deq_off;	/* (t) TS dequeue offset. */
+	/*
+	 * (t) Number of (stathz) ticks since last offset incrementation
+	 * correction.
+	 */
+	u_char		tdq_ts_ticks;
 	int		tdq_id;		/* (c) cpuid. */
 	struct runq	tdq_runq;	/* (t) Run queue. */
 	char		tdq_name[TDQ_NAME_LEN];
@@ -362,6 +367,7 @@ static void tdq_setup(struct tdq *, int i);
 static void tdq_load_add(struct tdq *, struct thread *);
 static void tdq_load_rem(struct tdq *, struct thread *);
 static inline void tdq_runq_add(struct tdq *, struct thread *, int);
+static inline void tdq_advance_ts_deq_off(struct tdq *, bool);
 static inline void tdq_runq_rem(struct tdq *, struct thread *);
 static inline int sched_shouldpreempt(int, int, int);
 static void tdq_print(int cpu);
@@ -558,6 +564,33 @@ tdq_runq_add(struct tdq *tdq, struct thread *td, int flags)
 }
 
 /*
+ * Advance the timesharing dequeue offset to the next non-empty queue or the
+ * insertion offset, whichever is closer.
+ *
+ * If 'deq_queue_known_empty' is true, then the queue where timesharing threads
+ * are currently removed for execution (pointed to by 'tdq_ts_deq_off') is
+ * assumed empty.  Otherwise, this condition is checked for.
+ */
+static inline void
+tdq_advance_ts_deq_off(struct tdq *tdq, bool deq_queue_known_empty)
+{
+	/*
+	 * We chose a simple iterative algorithm since the difference between
+	 * offsets is small in practice (see sched_clock()).
+	 */
+	while (tdq->tdq_ts_deq_off != tdq->tdq_ts_off) {
+		if (deq_queue_known_empty)
+			deq_queue_known_empty = false;
+		else if (!runq_is_queue_empty(&tdq->tdq_runq,
+		    tdq->tdq_ts_deq_off + RQ_TS_POL_MIN))
+			break;
+
+		tdq->tdq_ts_deq_off = (tdq->tdq_ts_deq_off + 1) %
+		    RQ_TS_POL_MODULO;
+	}
+}
+
+/*
  * Remove a thread from a run-queue.  This typically happens when a thread
  * is selected to run.  Running threads are not on the queue and the
  * transferable count does not reflect them.
@@ -579,14 +612,13 @@ tdq_runq_rem(struct tdq *tdq, struct thread *td)
 	/*
 	 * If thread has a batch priority and the queue from which it was
 	 * removed is now empty, advance the batch's queue removal index if it
-	 * lags with respect to the batch's queue insertion index.
+	 * lags with respect to the batch's queue insertion index, so that we
+	 * may eventually be able to advance the latter in sched_clock().
 	 */
-	if (queue_empty && PRI_MIN_BATCH <= td->td_priority &&
-	    td->td_priority <= PRI_MAX_BATCH &&
-	    tdq->tdq_ts_off != tdq->tdq_ts_deq_off &&
+	if (PRI_MIN_BATCH <= td->td_priority &&
+	    td->td_priority <= PRI_MAX_BATCH && queue_empty &&
 	    tdq->tdq_ts_deq_off + RQ_TS_POL_MIN == td->td_rqindex)
-		tdq->tdq_ts_deq_off = (tdq->tdq_ts_deq_off + 1) %
-		    RQ_TS_POL_MODULO;
+		tdq_advance_ts_deq_off(tdq, true);
 }
 
 /*
@@ -2667,13 +2699,21 @@ sched_clock(struct thread *td, int cnt)
 
 	/*
 	 * Advance the insert offset once for each tick to ensure that all
-	 * threads get a chance to run.
+	 * threads get a chance to run.  In order not to change too much ULE's
+	 * anti-starvation and "nice" behaviors after the switch to a single
+	 * 256-queue runqueue, since the queue insert offset is incremented by
+	 * 1 at every tick (provided the system is not too loaded) and there are
+	 * now 109 distinct levels for the timesharing selection policy instead
+	 * of 64 before (separate runqueue), we apply a factor 7/4 when
+	 * increasing the insert offset, by incrementing it by 2 instead of
+	 * 1 except for one in four ticks.
 	 */
 	if (tdq->tdq_ts_off == tdq->tdq_ts_deq_off) {
-		tdq->tdq_ts_off = (tdq->tdq_ts_off + 1) % RQ_TS_POL_MODULO;
-		if (runq_is_queue_empty(&tdq->tdq_runq,
-		    tdq->tdq_ts_deq_off + RQ_TS_POL_MIN))
-			tdq->tdq_ts_deq_off = tdq->tdq_ts_off;
+		tdq->tdq_ts_ticks += cnt;
+		tdq->tdq_ts_off = (tdq->tdq_ts_off + 2 * cnt -
+		    tdq-> tdq_ts_ticks / 4) % RQ_TS_POL_MODULO;
+		tdq->tdq_ts_ticks %= 4;
+		tdq_advance_ts_deq_off(tdq, false);
 	}
 	ts = td_get_sched(td);
 	sched_pctcpu_update(ts, 1);
