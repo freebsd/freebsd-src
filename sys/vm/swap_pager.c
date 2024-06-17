@@ -2298,17 +2298,22 @@ swap_pager_find_least(vm_object_t object, vm_pindex_t pindex)
 	VM_OBJECT_ASSERT_LOCKED(object);
 	MPASS((object->flags & OBJ_SWAP) != 0);
 
+	if (pctrie_is_empty(&object->un_pager.swp.swp_blks))
+		return (object->size);
 	sb = SWAP_PCTRIE_LOOKUP_GE(&object->un_pager.swp.swp_blks,
 	    rounddown(pindex, SWAP_META_PAGES));
 	if (sb == NULL)
 		return (object->size);
-	for (i = pindex - sb->p; i < SWAP_META_PAGES; i++) {
-		if (sb->d[i] != SWAPBLK_NONE)
-			return (sb->p + i);
+	if (sb->p < pindex) {
+		for (i = pindex % SWAP_META_PAGES; i < SWAP_META_PAGES; i++) {
+			if (sb->d[i] != SWAPBLK_NONE)
+				return (sb->p + i);
+		}
+		sb = SWAP_PCTRIE_LOOKUP_GE(&object->un_pager.swp.swp_blks,
+		    roundup(pindex, SWAP_META_PAGES));
+		if (sb == NULL)
+			return (object->size);
 	}
-	sb = SWAP_PCTRIE_LOOKUP_GE(&object->un_pager.swp.swp_blks, pindex);
-	if (sb == NULL)
-		return (object->size);
 	for (i = 0; i < SWAP_META_PAGES; i++) {
 		if (sb->d[i] != SWAPBLK_NONE)
 			return (sb->p + i);
@@ -2318,7 +2323,7 @@ swap_pager_find_least(vm_object_t object, vm_pindex_t pindex)
 	 * We get here if a swblk is present in the trie but it
 	 * doesn't map any blocks.
 	 */
-	__unreachable();
+	MPASS(0);
 	return (object->size);
 }
 

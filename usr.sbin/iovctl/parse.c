@@ -160,6 +160,29 @@ add_unicast_mac_config(const char *key, const ucl_object_t *obj, nvlist_t *confi
 	nvlist_add_binary(config, key, mac, ETHER_ADDR_LEN);
 }
 
+static void
+add_vlan_config(const char *key, const ucl_object_t *obj, nvlist_t *config)
+{
+	int64_t val;
+	const char *strVal = "";
+
+	if(ucl_object_tostring_safe(obj, &strVal)) {
+		if (strcasecmp(strVal, "trunk") == 0) {
+			nvlist_add_number(config, key, VF_VLAN_TRUNK);
+			return;
+		}
+		report_config_error(key, obj, "vlan");
+	}
+
+	if (!ucl_object_toint_safe(obj, &val))
+		report_config_error(key, obj, "vlan");
+
+	if (val < 0 || val > 4095)
+		report_config_error(key, obj, "vlan");
+
+	nvlist_add_number(config, key, val);
+}
+
 /*
  * Validates that the given configuration value has the right type as specified
  * in the schema, and then adds the value to the configuration node.
@@ -186,6 +209,8 @@ add_config(const char *key, const ucl_object_t *obj, nvlist_t *config,
 		add_uint_config(key, obj, config, type, UINT64_MAX);
 	else if (strcasecmp(type, "unicast-mac") == 0)
 		add_unicast_mac_config(key, obj, config);
+	else if (strcasecmp(type, "vlan") == 0)
+		add_vlan_config(key, obj, config);
 	else
 		errx(1, "Unexpected type '%s' in schema", type);
 }

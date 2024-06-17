@@ -7595,10 +7595,13 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, pd_entry_t newpde, u_int flags,
 	if ((newpde & PG_W) != 0 && pmap != kernel_pmap) {
 		uwptpg = pmap_alloc_pt_page(pmap, pmap_pde_pindex(va),
 		    VM_ALLOC_WIRED);
-		if (uwptpg == NULL)
+		if (uwptpg == NULL) {
+			pmap_abort_ptp(pmap, va, pdpg);
 			return (KERN_RESOURCE_SHORTAGE);
+		}
 		if (pmap_insert_pt_page(pmap, uwptpg, true, false)) {
 			pmap_free_pt_page(pmap, uwptpg, false);
+			pmap_abort_ptp(pmap, va, pdpg);
 			return (KERN_RESOURCE_SHORTAGE);
 		}
 
@@ -11668,15 +11671,16 @@ pmap_pkru_clear(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
  * Reserve enough memory to:
  * 1) allocate PDP pages for the shadow map(s),
  * 2) shadow the boot stack of KSTACK_PAGES pages,
- * so we need one PD page, one or two PT pages, and KSTACK_PAGES shadow pages
- * per shadow map.
+ * 3) assuming that the kernel stack does not cross a 1GB boundary,
+ * so we need one or two PD pages, one or two PT pages, and KSTACK_PAGES shadow
+ * pages per shadow map.
  */
 #ifdef KASAN
 #define	SAN_EARLY_PAGES	\
-	(NKASANPML4E + 1 + 2 + howmany(KSTACK_PAGES, KASAN_SHADOW_SCALE))
+	(NKASANPML4E + 2 + 2 + howmany(KSTACK_PAGES, KASAN_SHADOW_SCALE))
 #else
 #define	SAN_EARLY_PAGES	\
-	(NKMSANSHADPML4E + NKMSANORIGPML4E + 2 * (1 + 2 + KSTACK_PAGES))
+	(NKMSANSHADPML4E + NKMSANORIGPML4E + 2 * (2 + 2 + KSTACK_PAGES))
 #endif
 
 static uint64_t __nosanitizeaddress __nosanitizememory

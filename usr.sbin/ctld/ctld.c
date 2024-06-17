@@ -2873,6 +2873,7 @@ main(int argc, char **argv)
 			error = conf_apply(oldconf, newconf);
 			if (error != 0)
 				log_warnx("failed to apply configuration");
+			conf_delete(newconf);
 			conf_delete(oldconf);
 			oldconf = NULL;
 

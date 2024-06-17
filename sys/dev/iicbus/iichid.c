@@ -1037,7 +1037,6 @@ iichid_probe(device_t dev)
 {
 	struct iichid_softc *sc;
 	ACPI_HANDLE handle;
-	char buf[80];
 	uint16_t config_reg;
 	int error, reg;
 
@@ -1097,10 +1096,8 @@ iichid_probe(device_t dev)
 
 	sc->probe_result = BUS_PROBE_DEFAULT;
 done:
-	if (sc->probe_result <= BUS_PROBE_SPECIFIC) {
-		snprintf(buf, sizeof(buf), "%s I2C HID device", sc->hw.name);
-		device_set_desc_copy(dev, buf);
-	}
+	if (sc->probe_result <= BUS_PROBE_SPECIFIC)
+		device_set_descf(dev, "%s I2C HID device", sc->hw.name);
 	return (sc->probe_result);
 }
 

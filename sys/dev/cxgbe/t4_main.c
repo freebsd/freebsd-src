@@ -604,6 +604,11 @@ static int t5_write_combine = 0;
 SYSCTL_INT(_hw_cxl, OID_AUTO, write_combine, CTLFLAG_RDTUN, &t5_write_combine,
     0, "Use WC instead of UC for BAR2");
 
+/* From t4_sysctls: doorbells = {"\20\1UDB\2WCWR\3UDBWC\4KDB"} */
+static int t4_doorbells_allowed = 0xf;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, doorbells_allowed, CTLFLAG_RDTUN,
+	   &t4_doorbells_allowed, 0, "Limit tx queues to these doorbells");
+
 static int t4_num_vis = 1;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, num_vis, CTLFLAG_RDTUN, &t4_num_vis, 0,
     "Number of VIs per port");
@@ -1344,6 +1349,10 @@ t4_attach(device_t dev)
 		goto done; /* error message displayed already */
 
 	rc = t4_map_bar_2(sc);
+	if (rc != 0)
+		goto done; /* error message displayed already */
+
+	rc = t4_adj_doorbells(sc);
 	if (rc != 0)
 		goto done; /* error message displayed already */
 
@@ -3760,6 +3769,18 @@ t4_map_bar_2(struct adapter *sc)
 	return (0);
 }
 
+int
+t4_adj_doorbells(struct adapter *sc)
+{
+	if ((sc->doorbells & t4_doorbells_allowed) != 0) {
+		sc->doorbells &= t4_doorbells_allowed;
+		return (0);
+	}
+	CH_ERR(sc, "No usable doorbell (available = 0x%x, allowed = 0x%x).\n",
+	       sc->doorbells, t4_doorbells_allowed);
+	return (EINVAL);
+}
+
 struct memwin_init {
 	uint32_t base;
 	uint32_t aperture;
@@ -6023,25 +6044,27 @@ apply_link_config(struct port_info *pi)
 	if (lc->requested_fec & FEC_BASER_RS)
 		MPASS(lc->pcaps & FW_PORT_CAP32_FEC_BASER_RS);
 #endif
-	rc = -t4_link_l1cfg(sc, sc->mbox, pi->tx_chan, lc);
-	if (rc != 0) {
-		/* Don't complain if the VF driver gets back an EPERM. */
-		if (!(sc->flags & IS_VF) || rc != FW_EPERM)
+	if (!(sc->flags & IS_VF)) {
+		rc = -t4_link_l1cfg(sc, sc->mbox, pi->tx_chan, lc);
+		if (rc != 0) {
 			device_printf(pi->dev, "l1cfg failed: %d\n", rc);
-	} else {
-		/*
-		 * An L1_CFG will almost always result in a link-change event if
-		 * the link is up, and the driver will refresh the actual
-		 * fec/fc/etc. when the notification is processed.  If the link
-		 * is down then the actual settings are meaningless.
-		 *
-		 * This takes care of the case where a change in the L1 settings
-		 * may not result in a notification.
-		 */
-		if (lc->link_ok && !(lc->requested_fc & PAUSE_AUTONEG))
-			lc->fc = lc->requested_fc & (PAUSE_TX | PAUSE_RX);
+			return (rc);
+		}
 	}
-	return (rc);
+
+	/*
+	 * An L1_CFG will almost always result in a link-change event if the
+	 * link is up, and the driver will refresh the actual fec/fc/etc. when
+	 * the notification is processed.  If the link is down then the actual
+	 * settings are meaningless.
+	 *
+	 * This takes care of the case where a change in the L1 settings may not
+	 * result in a notification.
+	 */
+	if (lc->link_ok && !(lc->requested_fc & PAUSE_AUTONEG))
+		lc->fc = lc->requested_fc & (PAUSE_TX | PAUSE_RX);
+
+	return (0);
 }
 
 #define FW_MAC_EXACT_CHUNK	7
