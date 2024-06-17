@@ -444,4 +444,6 @@ MIASM =  \
 	osdb_column_bytes16.o \
 	osdb_column_type.o \
 	osdb_column_count.o \
-	osdb_column_name.o
+	osdb_column_name.o \
+	osdb_sample.o \
+	osdb_snapshot_clear.o

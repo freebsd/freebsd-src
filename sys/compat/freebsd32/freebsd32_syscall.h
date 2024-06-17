@@ -523,4 +523,6 @@
 #define	FREEBSD32_SYS_osdb_column_type	602
 #define	FREEBSD32_SYS_osdb_column_count	603
 #define	FREEBSD32_SYS_osdb_column_name	604
-#define	FREEBSD32_SYS_MAXSYSCALL	605
+#define	FREEBSD32_SYS_osdb_sample	605
+#define	FREEBSD32_SYS_osdb_snapshot_clear	606
+#define	FREEBSD32_SYS_MAXSYSCALL	607

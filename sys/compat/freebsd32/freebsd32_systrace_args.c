@@ -3515,6 +3515,19 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 3;
 		break;
 	}
+	/* osdb_sample */
+	case 605: {
+		struct osdb_sample_args *p = params;
+		iarg[a++] = p->delay; /* int */
+		iarg[a++] = p->max; /* int */
+		*n_args = 2;
+		break;
+	}
+	/* osdb_snapshot_clear */
+	case 606: {
+		*n_args = 0;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -9512,6 +9525,22 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* osdb_sample */
+	case 605:
+		switch (ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* osdb_snapshot_clear */
+	case 606:
+		break;
 	default:
 		break;
 	};
@@ -11475,6 +11504,13 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
+	/* osdb_sample */
+	case 605:
+		if (ndx == 0 || ndx == 1)
+			p = "void";
+		break;
+	/* osdb_snapshot_clear */
+	case 606:
 	default:
 		break;
 	};
