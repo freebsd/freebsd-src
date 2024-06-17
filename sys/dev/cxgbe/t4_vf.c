@@ -660,6 +660,8 @@ t4vf_attach(device_t dev)
 			t4_os_set_hw_addr(pi, mac);
 		pmask &= ~(1 << p);
 
+		sc->vlan_id = t4vf_get_vf_vlan(sc);
+
 		/* No t4_link_start. */
 
 		snprintf(pi->lockname, sizeof(pi->lockname), "%sp%d",

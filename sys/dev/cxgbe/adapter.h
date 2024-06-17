@@ -928,6 +928,7 @@ struct adapter {
 	u_int vxlan_refcount;
 	int rawf_base;
 	int nrawf;
+	u_int vlan_id;
 
 	struct taskqueue *tq[MAX_NCHAN];	/* General purpose taskqueues */
 	struct port_info *port[MAX_NPORTS];
