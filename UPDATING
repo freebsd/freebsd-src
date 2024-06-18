@@ -12,6 +12,14 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20240619:
+	13.3-RELEASE-p3 EN-24:11.ldns
+			EN-24:12.killpg
+
+	Fix LDNS uses nameserver commented out in resolv.conf [EN-24:11.ldns]
+
+	Fix lock order reversal in killpg causing livelock [EN-24:12.killpg]
+
 20240424:
 	13.3-RELEASE-p2 EN-24:09.zfs
 
