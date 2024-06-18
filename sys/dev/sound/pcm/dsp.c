@@ -2134,8 +2134,8 @@ dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai, bool ex)
 	strlcpy(ai->name, device_get_desc(d->dev), sizeof(ai->name));
 	ai->pid = -1;
 	strlcpy(ai->cmd, CHN_COMM_UNKNOWN, sizeof(ai->cmd));
-	ai->card_number = -1;
-	ai->port_number = -1;
+	ai->card_number = unit;
+	ai->port_number = unit;
 	ai->mixer_dev = (d->mixer_dev != NULL) ? unit : -1;
 	ai->legacy_device = unit;
 	snprintf(ai->devnode, sizeof(ai->devnode), "/dev/dsp%d", unit);
@@ -2371,20 +2371,20 @@ dsp_oss_engineinfo(struct cdev *i_dev, oss_audioinfo *ai)
 			 *    should normally not use this field for any
 			 *    purpose."
 			 */
-			ai->card_number = -1;
+			ai->card_number = unit;
 			/**
 			 * @todo @c song_name - depends first on
 			 *          SNDCTL_[GS]ETSONG @todo @c label - depends
 			 *          on SNDCTL_[GS]ETLABEL
 			 * @todo @c port_number - routing information?
 			 */
-			ai->port_number = -1;
+			ai->port_number = unit;
 			ai->mixer_dev = (d->mixer_dev != NULL) ? unit : -1;
 			/**
 			 * @note
 			 * @c legacy_device - OSSv4 docs:  "Obsolete."
 			 */
-			ai->legacy_device = -1;
+			ai->legacy_device = unit;
 			snprintf(ai->devnode, sizeof(ai->devnode), "/dev/dsp%d", unit);
 			ai->enabled = device_is_attached(d->dev) ? 1 : 0;
 			/**
