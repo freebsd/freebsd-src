@@ -12,6 +12,14 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20240619:
+	14.1-RELEASE-p1 EN-24:10.zfs
+			EN-24:13.libc++
+
+	Fix kernel memory leak in ZFS [EN-24:10.zfs]
+
+	Fix incorrect size passed to heap allocated std::string delete [EN-24:13.libc++]
+
 20240604:
 	14.1-RELEASE.
 
