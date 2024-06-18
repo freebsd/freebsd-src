@@ -2337,13 +2337,7 @@ dsp_oss_engineinfo(struct cdev *i_dev, oss_audioinfo *ai)
 
 			/*
 			 * Collect formats supported @b natively by the
-			 * device.  Also determine min/max channels.  (I.e.,
-			 * mono, stereo, or both?)
-			 *
-			 * If any channel is stereo, maxch = 2;
-			 * if all channels are stereo, minch = 2, too;
-			 * if any channel is mono, minch = 1;
-			 * and if all channels are mono, maxch = 1.
+			 * device.  Also determine min/max channels.
 			 */
 			minch = INT_MAX;
 			maxch = 0;
