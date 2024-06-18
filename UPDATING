@@ -12,6 +12,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20240619:
+	14.0-RELEASE-p7 EN-24:11.ldns
+
+	Fix LDNS uses nameserver commented out in resolv.conf [EN-24:11.ldns]
+
 20240327:
 	14.0-RELEASE-p6 SA-24:03.unbound
 			EN-24:05.tty
