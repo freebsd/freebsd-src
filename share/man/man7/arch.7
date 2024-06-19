@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 2, 2023
+.Dd June 19, 2024
 .Dt ARCH 7
 .Os
 .Sh NAME
@@ -87,7 +87,6 @@ release to support each architecture.
 .It Sy Architecture Ta Sy Initial Release
 .It aarch64     Ta 11.0
 .It amd64       Ta 5.1
-.It armv6       Ta 10.0
 .It armv7       Ta 12.0
 .It i386        Ta 1.0
 .It powerpc     Ta 6.0
@@ -103,6 +102,7 @@ Discontinued architectures are shown in the following table.
 .It alpha       Ta 3.2   Ta 6.4
 .It arm         Ta 6.0   Ta 12.4
 .It armeb       Ta 8.0   Ta 11.4
+.It armv6       Ta 10.0  Ta 14.x
 .It ia64        Ta 5.0   Ta 10.4
 .It mips        Ta 8.0   Ta 13.x
 .It mipsel      Ta 9.0   Ta 13.x
@@ -156,7 +156,7 @@ Examples are:
 .It Sy LP64        Ta Sy ILP32 counterpart
 .It Dv amd64       Ta Dv i386
 .It Dv powerpc64   Ta Dv powerpc
-.It Dv aarch64     Ta Dv armv6/armv7
+.It Dv aarch64     Ta Dv armv7
 .El
 .Pp
 .Dv aarch64
@@ -166,11 +166,7 @@ or
 .Dv armv7
 binaries if the CPU implements
 .Dv AArch32
-execution state, however older
-.Dv armv4
-and
-.Dv armv5
-binaries aren't supported.
+execution state, however older arm binaries aren't supported.
 .Pp
 On all supported architectures:
 .Bl -column -offset -indent "long long" "Size"
@@ -195,7 +191,6 @@ Machine-dependent type sizes:
 .It Sy Architecture Ta Sy void * Ta Sy long double Ta Sy time_t
 .It aarch64     Ta 8 Ta 16 Ta 8
 .It amd64       Ta 8 Ta 16 Ta 8
-.It armv6       Ta 4 Ta  8 Ta 8
 .It armv7       Ta 4 Ta  8 Ta 8
 .It i386        Ta 4 Ta 12 Ta 4
 .It powerpc     Ta 4 Ta  8 Ta 8
@@ -212,7 +207,6 @@ is 8 bytes on all supported architectures except i386.
 .It Sy Architecture Ta Sy Endianness Ta Sy char Signedness
 .It aarch64     Ta little Ta unsigned
 .It amd64       Ta little Ta   signed
-.It armv6       Ta little Ta unsigned
 .It armv7       Ta little Ta unsigned
 .It i386        Ta little Ta   signed
 .It powerpc     Ta big    Ta unsigned
@@ -226,7 +220,6 @@ is 8 bytes on all supported architectures except i386.
 .It Sy Architecture Ta Sy Page Sizes
 .It aarch64     Ta 4K, 2M, 1G
 .It amd64       Ta 4K, 2M, 1G
-.It armv6       Ta 4K, 1M
 .It armv7       Ta 4K, 1M
 .It i386        Ta 4K, 2M (PAE), 4M
 .It powerpc     Ta 4K
@@ -240,7 +233,6 @@ is 8 bytes on all supported architectures except i386.
 .It Sy Architecture Ta Sy float, double Ta Sy long double
 .It aarch64     Ta hard Ta soft, quad precision
 .It amd64       Ta hard Ta hard, 80 bit
-.It armv6       Ta hard Ta hard, double precision
 .It armv7       Ta hard Ta hard, double precision
 .It i386        Ta hard Ta hard, 80 bit
 .It powerpc     Ta hard Ta hard, double precision
@@ -276,7 +268,7 @@ or similar things like boot sequences.
 .It Dv MACHINE Ta Dv MACHINE_CPUARCH Ta Dv MACHINE_ARCH
 .It arm64 Ta aarch64 Ta aarch64
 .It amd64 Ta amd64 Ta amd64
-.It arm Ta arm Ta armv6, armv7
+.It arm Ta arm Ta armv7
 .It i386 Ta i386 Ta i386
 .It powerpc Ta powerpc Ta powerpc, powerpcspe, powerpc64, powerpc64le
 .It riscv Ta riscv Ta riscv64
@@ -308,7 +300,6 @@ Architecture-specific macros:
 .It Sy Architecture Ta Sy Predefined macros
 .It aarch64     Ta Dv __aarch64__
 .It amd64       Ta Dv __amd64__ , Dv __x86_64__
-.It armv6       Ta Dv __arm__ , Dv __ARM_ARCH >= 6
 .It armv7       Ta Dv __arm__ , Dv __ARM_ARCH >= 7
 .It i386        Ta Dv __i386__
 .It powerpc     Ta Dv __powerpc__
