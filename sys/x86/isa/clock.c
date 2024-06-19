@@ -76,6 +76,8 @@
 #include <isa/isavar.h>
 #endif
 
+#include "pic_if.h"
+
 int	clkintr_pending;
 #ifndef TIMER_FREQ
 #define TIMER_FREQ   1193182
@@ -572,7 +574,7 @@ attimer_attach(device_t dev)
 		device_printf(dev,"Warning: Couldn't map I/O.\n");
 	i8254_intsrc = intr_lookup_source(0);
 	if (i8254_intsrc != NULL)
-		i8254_pending = i8254_intsrc->is_pic->pic_source_pending;
+		i8254_pending = KOBJOPLOOKUP((kobj_t)(i8254_intsrc->is_pic), pic_source_pending);
 	resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "timecounter", &i8254_timecounter);
 	set_i8254_freq(MODE_STOP, 0);
