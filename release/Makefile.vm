@@ -223,6 +223,48 @@ vm-install:
 		${DESTDIR}/vmimages/CHECKSUM.SHA256
 .endif
 
+cloud-install-BASIC-CI:
+	mkdir -p ${DESTDIR}/ciimages
+.for _FS in ${BASIC-CI_FSLIST}
+. for _FMT in ${BASIC-CI_FORMAT}
+	cp -p ${.OBJDIR}/${BASIC-CI${_FS:tu}${_FMT:tu}IMAGE} \
+		${DESTDIR}/ciimages/${OSRELEASE}-BASIC-CI-${_FS}.${_FMT}
+	${XZ_CMD} ${DESTDIR}/ciimages/${OSRELEASE}-BASIC-CI-${_FS}.${_FMT}
+. endfor
+.endfor
+.for _FMT in ${BASIC-CI_FORMAT}
+	ln -f ${DESTDIR}/ciimages/${OSRELEASE}-BASIC-CI-${VMFS}.${_FMT}.xz \
+		${DESTDIR}/ciimages/${OSRELEASE}-BASIC-CI.${_FMT}.xz
+.endfor
+	cd ${DESTDIR}/ciimages && sha512 ${OSRELEASE}* > \
+		${DESTDIR}/ciimages/CHECKSUM.SHA512
+	cd ${DESTDIR}/ciimages && sha256 ${OSRELEASE}* > \
+		${DESTDIR}/ciimages/CHECKSUM.SHA256
+
+cloud-install-BASIC-CLOUDINIT:
+	mkdir -p ${DESTDIR}/vmimages
+.for _FS in ${BASIC-CLOUDINIT_FSLIST}
+. for _FMT in ${BASIC-CLOUDINIT_FORMAT}
+	cp -p ${.OBJDIR}/${BASIC-CLOUDINIT${_FS:tu}${_FMT:tu}IMAGE} \
+		${DESTDIR}/vmimages/${OSRELEASE}-BASIC-CLOUDINIT.${_FS}.${_FMT}
+	${XZ_CMD} ${DESTDIR}/vmimages/${OSRELEASE}-BASIC-CLOUDINIT.${_FS}.${_FMT}
+. endfor
+.endfor
+	cd ${DESTDIR}/vmimages && sha512 ${OSRELEASE}* > \
+		${DESTDIR}/vmimages/CHECKSUM.SHA512
+	cd ${DESTDIR}/vmimages && sha256 ${OSRELEASE}* > \
+		${DESTDIR}/vmimages/CHECKSUM.SHA256
+
+CLOUD_INSTALL_TGTS=
+.if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE)
+. for _CW in ${CLOUDWARE}
+.  if target(cloud-install-${_CW})
+CLOUD_INSTALL_TGTS+=	cloud-install-${_CW}
+.  endif
+. endfor
+.endif
+cloud-install:	${CLOUD_INSTALL_TGTS}
+
 .if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
 vm-release:	${VMTARGETS}
 .else
