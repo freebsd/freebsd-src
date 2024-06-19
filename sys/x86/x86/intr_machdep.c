@@ -74,6 +74,8 @@
 
 #include <vm/vm.h>
 
+#include "pic_if.h"
+
 static int intrcnt_index;
 static struct intsrc **interrupt_sources;
 #ifdef SMP
