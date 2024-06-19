@@ -1762,7 +1762,7 @@ p9fs_readdir(struct vop_readdir_args *ap)
 	count = 0;
 	clnt = np->p9fs_ses->clnt;
 
-	P9_DEBUG(VOPS, "%s: vp %p, offset %ld, resid %zd\n", __func__, vp, uio->uio_offset, uio->uio_resid);
+	P9_DEBUG(VOPS, "%s: vp %p, offset %jd, resid %zd\n", __func__, vp, (intmax_t) uio->uio_offset, uio->uio_resid);
 
 	if (ap->a_uio->uio_iov->iov_len <= 0)
 		return (EINVAL);
