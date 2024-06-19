@@ -3531,6 +3531,13 @@ delete-old-files: .PHONY
 		fi; \
 	done
 .endif
+.if !empty(MAN_ARCH) && ${MAN_ARCH} != "all"
+	@exec 3<&0; \
+	find -E /usr/share/man/man4/ -mindepth 1 -type d ! -regex '.*/(${MAN_ARCH:C/[[:space:]]+/|/gW})' | \
+	while read dir; do \
+		find $$dir ! -type d -exec rm ${RM_I} {} + <&3; \
+	done
+.endif
 	@echo ">>> Old files removed"
 
 check-old-files: .PHONY
@@ -3571,6 +3578,12 @@ check-old-files: .PHONY
 		if [ -e "$${manpage}.gz" ]; then \
 			echo $${manpage}; \
 		fi; \
+	done | sort
+.endif
+.if !empty(MAN_ARCH) && ${MAN_ARCH} != "all"
+	@find -E /usr/share/man/man4/ -mindepth 1 -type d ! -regex '.*/(${MAN_ARCH:C/[[:space:]]+/|/gW})' | \
+	while read dir; do \
+		find $$dir ! -type d; \
 	done | sort
 .endif
 
