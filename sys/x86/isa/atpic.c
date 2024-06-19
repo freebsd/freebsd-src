@@ -55,6 +55,8 @@
 #include <isa/isareg.h>
 #include <isa/isavar.h>
 
+#include "pic_if.h"
+
 #define	X86PIC_TYPE atpic
 
 #ifdef __amd64__
@@ -95,7 +97,6 @@ inthand_t
 #define	IRQ(ap, ai)	((ap)->at_irqbase + (ai)->at_irq)
 
 #define	ATPIC(io, base) {						\
-		.at_pic = atpic_funcs,					\
 		.at_ioaddr = (io),					\
 		.at_irqbase = (base),					\
 		.at_intbase = IDT_IO_INTS + (base),			\
@@ -104,7 +105,6 @@ inthand_t
 
 #define	INTSRC(irq)							\
 	{								\
-		.at_intsrc = { &atpics[(irq) / 8].at_pic },		\
 		.at_intr = IDTVEC(atpic_intr ## irq ),			\
 		.at_intr_pti = IDTVEC(atpic_intr ## irq ## _pti),	\
 		.at_irq = (irq) % 8,					\
@@ -120,8 +120,6 @@ struct atpic {
 };
 _Static_assert(offsetof(struct atpic, pic_base_softc) == 0,
     ".pic_base_softc misaligned from structure!");
-_Static_assert(offsetof(struct atpic, at_pic) == 0,
-    ".at_pic misaligned from structure!");
 
 struct atpic_intsrc {
 	struct intsrc at_intsrc;
@@ -151,17 +149,13 @@ static int atpic_probe(device_t dev);
 static int atpic_attach(device_t dev);
 #endif /* DEV_ISA */
 
-#ifdef DEV_ISA
 static const device_method_t atpic_methods[] = {
+#ifdef DEV_ISA
 	/* Device interface */
 	DEVMETHOD(device_probe,		atpic_probe),
 	DEVMETHOD(device_attach,	atpic_attach),
-
-	DEVMETHOD_END
-};
 #endif /* DEV_ISA */
 
-const x86pic_func_t atpic_funcs = {
 	/* Interrupt controller interface */
 	X86PIC_FUNC(pic_register_sources,	atpic_register_sources),
 	X86PIC_FUNC(pic_enable_source,		atpic_enable_source),
@@ -177,9 +171,7 @@ const x86pic_func_t atpic_funcs = {
 	X86PIC_END
 };
 
-#ifdef DEV_ISA
 PRIVATE_DEFINE_CLASSN(atpic, atpic_driver, atpic_methods, 0, pic_base_class);
-#endif /* DEV_ISA */
 
 static struct atpic atpics[] = {
 	ATPIC(IO_ICU1, 0),
@@ -266,6 +258,7 @@ atpic_register_sources(x86pic_t pic)
 
 	/* Loop through all interrupt sources and add them. */
 	for (i = 0, ai = atintrs; i < NUM_ISA_IRQS; i++, ai++) {
+		ai->at_intsrc.is_pic = atpics[i / 8].at_pic;
 		if (i == ICU_SLAVEID)
 			continue;
 		intr_register_source(i, &ai->at_intsrc);
@@ -545,6 +538,8 @@ atpic_init(void *dummy __unused)
 	 */
 	for (i = 0; i < nitems(atpics); ++i) {
 		struct atpic *ap = atpics + i;
+		ap->at_pic = intr_create_pic("atpic", i, &atpic_driver);
+		device_set_softc(ap->at_pic, ap);
 		intr_register_pic(X86PICP(ap->at_pic));
 	}
 
