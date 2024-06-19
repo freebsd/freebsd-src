@@ -53,6 +53,11 @@ STAGE_TARGETS+=		vm-images-stage
 VM_DIR=			${TLD}/VM-IMAGES/${REVISION}-${BRANCH}/${TARGET_ARCH}
 .endif
 
+.if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE)
+STAGE_TARGETS+=		ci-images-stage
+CI_DIR=			${TLD}/CI-IMAGES/${REVISION}-${BRANCH}/${TARGET_ARCH}
+.endif
+
 CLEANFILES+=		${STAGE_TARGETS}
 CHECKSUM_FILES?=	SHA512 SHA256
 SNAP_SUFFIX!=		echo ${_SNAP_SUFFIX:S,^-,,1} | tr -d ' '
@@ -216,6 +221,53 @@ vm-images-stage:
 . for CHECKSUM in ${CHECKSUM_FILES}
 	cp -p ${RELEASEDIR}/vmimages/CHECKSUM.${CHECKSUM} \
 		${VM_DIR}/Latest/CHECKSUM.${CHECKSUM}
+. endfor
+.endif
+
+ci-images-stage:
+	mkdir -p ${CI_DIR}
+.if defined(SNAPSHOT) && !empty(SNAPSHOT)
+. if exists(${CI_DIR}/Latest)
+	rm -rf ${CI_DIR}/Latest
+. endif
+	mkdir -p ${CI_DIR}/Latest
+	mkdir -p ${CI_DIR}/${BUILDDATE}
+. for CW in ${CLOUDWARE}
+.  if ${CW} == BASIC-CI
+	cd ${RELEASEDIR}/ciimages && \
+		mv ${OSRELEASE}-${CW}.raw.xz \
+		${OSRELEASE}-${CW}-${SNAP_SUFFIX}.raw.xz
+	cp -p ${RELEASEDIR}/ciimages/${OSRELEASE}-${CW}-${SNAP_SUFFIX}.raw.xz \
+		${CI_DIR}/${BUILDDATE}/${OSRELEASE}-${CW}-${SNAP_SUFFIX}.raw.xz
+	cd ${CI_DIR}/Latest && \
+		ln -s ../${BUILDDATE}/${OSRELEASE}-${CW}-${SNAP_SUFFIX}.raw.xz \
+		${OSRELEASE}-${CW}.raw.xz
+.  endif
+. endfor
+	cd ${RELEASEDIR}/ciimages && rm -f CHECKSUM.*
+. for CHECKSUM in ${CHECKSUM_FILES}
+	cd ${RELEASEDIR}/ciimages && \
+		${CHECKSUM:tl} ${OSRELEASE}* > CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX}
+	cp -p ${RELEASEDIR}/ciimages/CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX} \
+		${CI_DIR}/${BUILDDATE}/CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX}
+	cd ${CI_DIR}/Latest && \
+		ln -s ../${BUILDDATE}/CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX} \
+		CHECKSUM.${CHECKSUM}
+. endfor
+.else # not snapshot
+. if exists(${CI_DIR}/Latest)
+	rm -rf ${CI_DIR}/Latest
+. endif
+	mkdir -p ${CI_DIR}/Latest
+. for CW in ${CLOUDWARE}
+.  if ${CW} == BASIC-CI
+	cp -p ${RELEASEDIR}/ciimages/${OSRELEASE}-${CW}.raw.xz \
+		${CI_DIR}/Latest/${OSRELEASE}-${CW}.raw.xz
+.  endif
+. endfor
+. for CHECKSUM in ${CHECKSUM_FILES}
+	cp -p ${RELEASEDIR}/ciimages/CHECKSUM.${CHECKSUM} \
+		${CI_DIR}/Latest/CHECKSUM.${CHECKSUM}
 . endfor
 .endif
 

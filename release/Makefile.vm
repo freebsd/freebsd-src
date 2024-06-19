@@ -174,6 +174,26 @@ vm-install:
 		${DESTDIR}/vmimages/CHECKSUM.SHA256
 .endif
 
+cloud-install-BASIC-CI:
+	mkdir -p ${DESTDIR}/ciimages
+	cp -p ${.OBJDIR}/${BASIC-CIIMAGE} \
+		${DESTDIR}/ciimages/${OSRELEASE}-BASIC-CI.raw
+	${XZ_CMD} ${DESTDIR}/ciimages/${OSRELEASE}-BASIC-CI.raw
+	cd ${DESTDIR}/ciimages && sha512 ${OSRELEASE}* > \
+		${DESTDIR}/ciimages/CHECKSUM.SHA512
+	cd ${DESTDIR}/ciimages && sha256 ${OSRELEASE}* > \
+		${DESTDIR}/ciimages/CHECKSUM.SHA256
+
+CLOUD_INSTALL_TGTS=
+.if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE)
+. for _CW in ${CLOUDWARE}
+.  if target(cloud-install-${_CW})
+CLOUD_INSTALL_TGTS+=	cloud-install-${_CW}
+.  endif
+. endfor
+.endif
+cloud-install:	${CLOUD_INSTALL_TGTS}
+
 vm-release:
 .if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${VMTARGETS}
