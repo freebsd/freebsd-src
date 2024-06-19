@@ -55,6 +55,8 @@
 #include <machine/segments.h>
 #include <x86/iommu/iommu_intrmap.h>
 
+#include "pic_if.h"
+
 #define	X86PIC_TYPE ioapic
 
 #define IOAPIC_ISA_INTS		16
@@ -111,8 +113,6 @@ struct ioapic {
 };
 _Static_assert(offsetof(struct ioapic, pic_base_softc) == 0,
     ".pic_base_softc misaligned from struct ioapic!");
-_Static_assert(offsetof(struct ioapic, io_pic) == 0,
-    ".io_pic misaligned from struct ioapic!");
 
 static u_int	ioapic_read(volatile ioapic_t *apic, int reg);
 static void	ioapic_write(volatile ioapic_t *apic, int reg, u_int val);
@@ -150,6 +150,9 @@ x86pic_func_t ioapic_template = {
 
 	X86PIC_END
 };
+
+PRIVATE_DEFINE_CLASSN(io_apic, io_apic_class, ioapic_template, 0,
+    pic_base_class);
 
 static u_int next_ioapic_base;
 static u_int next_id;
@@ -629,7 +632,7 @@ ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
 	numintr = ((value & IOART_VER_MAXREDIR) >> MAXREDIRSHIFT) + 1;
 	io = malloc(sizeof(struct ioapic) +
 	    numintr * sizeof(struct ioapic_intsrc), M_IOAPIC, M_WAITOK);
-	io->io_pic = ioapic_template;
+
 	io->pci_dev = NULL;
 	io->pci_wnd = NULL;
 	mtx_lock_spin(&icu_lock);
@@ -655,6 +658,9 @@ ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
 	io->io_addr = apic;
 	io->io_paddr = addr;
 
+	io->io_pic = intr_create_pic("ioapic", io->io_id, &io_apic_class);
+	device_set_softc(io->io_pic, io);
+
 	if (bootverbose) {
 		printf("ioapic%u: ver 0x%02x maxredir 0x%02x\n", io->io_id,
 		    (value & IOART_VER_VERSION), (value & IOART_VER_MAXREDIR)
@@ -679,7 +685,7 @@ ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
 	bzero(io->io_pins, sizeof(struct ioapic_intsrc) * numintr);
 	mtx_lock_spin(&icu_lock);
 	for (i = 0, intpin = io->io_pins; i < numintr; i++, intpin++) {
-		intpin->io_intsrc.is_pic = (struct pic *)io;
+		intpin->io_intsrc.is_pic = io->io_pic;
 		intpin->io_intpin = i;
 		intpin->io_irq = intbase + i;
 
@@ -909,9 +915,9 @@ ioapic_register(ioapic_drv_t io)
 	 * Reprogram pins to handle special case pins (such as NMI and
 	 * SMI) and disable normal pins until a handler is registered.
 	 */
-	intr_register_pic(&io->io_pic);
+	intr_register_pic(io->io_pic);
 	for (i = 0, pin = io->io_pins; i < io->io_numintr; i++, pin++)
-		ioapic_reprogram_intpin(&io->io_pic, &pin->io_intsrc);
+		ioapic_reprogram_intpin(io->io_pic, &pin->io_intsrc);
 }
 
 /*
@@ -1033,7 +1039,8 @@ static device_method_t ioapic_pci_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_0(ioapic, ioapic_pci_driver, ioapic_pci_methods, 0);
+PRIVATE_DEFINE_CLASSN(ioapic, ioapic_pci_driver, ioapic_pci_methods, 0,
+    io_apic_class);
 
 DRIVER_MODULE(ioapic, pci, ioapic_pci_driver, 0, 0);
 
@@ -1140,7 +1147,7 @@ static device_method_t apic_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_0(apic, apic_driver, apic_methods, 0);
+PRIVATE_DEFINE_CLASSN(apic, apic_driver, apic_methods, 0, io_apic_class);
 
 DRIVER_MODULE(apic, nexus, apic_driver, 0, 0);
 
