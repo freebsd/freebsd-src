@@ -115,7 +115,11 @@ extern void		free_ccb(union ccb *ccb);
 static __inline u_int	min(u_int a, u_int b) { return (a < b ? a : b); }
 
 /* Global Data */
-extern int notaio;
+extern int	notaio;
+extern int	debug;
+extern off_t	volume_size;
+extern u_int	sector_size;
+extern size_t	buf_size;
 
 /*
  * Compat Defines
