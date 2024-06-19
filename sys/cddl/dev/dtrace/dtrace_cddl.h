@@ -25,8 +25,6 @@
 
 #include <sys/proc.h>
 
-#define LOCK_LEVEL	10
-
 /*
  * Kernel DTrace extension to 'struct proc' for FreeBSD.
  */
