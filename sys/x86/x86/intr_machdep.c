@@ -74,6 +74,8 @@
 
 #include <vm/vm.h>
 
+#include "pic_if.h"
+
 static int intrcnt_index;
 static struct intsrc **interrupt_sources;
 #ifdef SMP
@@ -248,6 +250,12 @@ intr_register_source(unsigned int vector, struct intsrc *isrc)
 	int error;
 
 	KASSERT(intr_pic_registered(isrc->is_pic), ("unregistered PIC"));
+	MPASS(KOBJ_LOOKUP_METHOD((kobj_t)(isrc->is_pic), pic_enable_intr) != NULL);
+	MPASS(KOBJ_LOOKUP_METHOD((kobj_t)(isrc->is_pic), pic_disable_intr) != NULL);
+	MPASS(KOBJ_LOOKUP_METHOD((kobj_t)(isrc->is_pic), pic_assign_cpu) != NULL);
+	MPASS(KOBJ_LOOKUP_METHOD((kobj_t)(isrc->is_pic), pic_enable_source) != NULL);
+	MPASS(KOBJ_LOOKUP_METHOD((kobj_t)(isrc->is_pic), pic_disable_source) != NULL);
+	MPASS(KOBJ_LOOKUP_METHOD((kobj_t)(isrc->is_pic), pic_eoi_source) != NULL);
 	KASSERT(vector < num_io_irqs, ("IRQ %d too large (%u irqs)", vector,
 	    num_io_irqs));
 	if (interrupt_sources[vector] != NULL)
@@ -477,7 +485,36 @@ intr_assign_cpu(void *arg, int cpu)
 #endif
 }
 
+static void
+pic_null_generic(device_t pic)
+{
+}
+
+static void
+pic_null_resume(device_t pic, bool suspend_cancelled)
+{
+}
+
+static int
+pic_nodev_config_intr(device_t pic, struct intsrc *isrc,
+    enum intr_trigger trigger, enum intr_polarity polarity)
+{
+	return (ENODEV);
+}
+
+static void
+pic_null_reprogram_pin(device_t pic, struct intsrc *isrc)
+{
+}
+
 static device_method_t pic_base_methods[] = {
+	/* Interrupt controller interface (default implementations) */
+	DEVMETHOD(pic_register_sources,		pic_null_generic),
+	DEVMETHOD(pic_suspend,			pic_null_generic),
+	DEVMETHOD(pic_resume,			pic_null_resume),
+	DEVMETHOD(pic_config_intr,		pic_nodev_config_intr),
+	DEVMETHOD(pic_reprogram_pin,		pic_null_reprogram_pin),
+
 	DEVMETHOD_END
 };
 
