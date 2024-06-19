@@ -72,6 +72,8 @@
 
 #include <vm/vm.h>
 
+#include "pic_if.h"
+
 static int intrcnt_index;
 static struct intsrc **interrupt_sources;
 #ifdef SMP
@@ -246,6 +248,12 @@ intr_register_source(unsigned int vector, struct intsrc *isrc)
 	int error;
 
 	KASSERT(intr_pic_registered(isrc->is_pic), ("unregistered PIC"));
+	MPASS(KOBJ_LOOKUP_METHOD((kobj_t)(isrc->is_pic), pic_enable_intr) != NULL);
+	MPASS(KOBJ_LOOKUP_METHOD((kobj_t)(isrc->is_pic), pic_disable_intr) != NULL);
+	MPASS(KOBJ_LOOKUP_METHOD((kobj_t)(isrc->is_pic), pic_assign_cpu) != NULL);
+	MPASS(KOBJ_LOOKUP_METHOD((kobj_t)(isrc->is_pic), pic_enable_source) != NULL);
+	MPASS(KOBJ_LOOKUP_METHOD((kobj_t)(isrc->is_pic), pic_disable_source) != NULL);
+	MPASS(KOBJ_LOOKUP_METHOD((kobj_t)(isrc->is_pic), pic_eoi_source) != NULL);
 	KASSERT(vector < num_io_irqs, ("IRQ %d too large (%u irqs)", vector,
 	    num_io_irqs));
 	if (interrupt_sources[vector] != NULL)
