@@ -49,6 +49,8 @@
 
 #include <x86/apicvar.h>
 
+#include "pic_if.h"
+
 /************************ Xen x86 interrupt interface ************************/
 
 /*
@@ -241,7 +243,7 @@ xen_intr_pic_assign_cpu(x86pic_t pic, struct intsrc *isrc, u_int apic_id)
 /**
  * PIC interface for all event channel port types except physical IRQs.
  */
-static struct pic xen_intr_pic = {
+static const device_method_t xen_intr_methods[] = {
 	/* Interrupt controller interface */
 	X86PIC_FUNC(pic_enable_source,		xen_intr_pic_enable_source),
 	X86PIC_FUNC(pic_disable_source,		xen_intr_pic_disable_source),
@@ -256,6 +258,11 @@ static struct pic xen_intr_pic = {
 	X86PIC_END
 };
 
+PRIVATE_DEFINE_CLASSN(xen_intr, xen_arch_intr_class, xen_intr_methods,
+    sizeof(pic_base_softc_t), pic_base_class);
+
+static device_t xen_intr_pic;
+
 /******************************* ARCH wrappers *******************************/
 
 void
@@ -264,6 +271,7 @@ xen_arch_intr_init(void)
 
 	mtx_init(&xen_intr_x86_lock, "xen-x86-table-lock", NULL, MTX_DEF);
 
+	xen_intr_pic = intr_create_pic("xen_intr", 0, &xen_arch_intr_class);
 	intr_register_pic(X86PIC_PTR(xen_intr_pic));
 }
 
