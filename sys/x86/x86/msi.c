@@ -60,6 +60,8 @@
 #include <machine/specialreg.h>
 #include <dev/pci/pcivar.h>
 
+#include "pic_if.h"
+
 /* Fields in address for Intel MSI messages. */
 #define	MSI_INTEL_ADDR_DEST		0x000ff000
 #define	MSI_INTEL_ADDR_RH		0x00000008
@@ -135,7 +137,7 @@ static int	msi_source_pending(x86pic_t pic, struct intsrc *isrc);
 static int	msi_assign_cpu(x86pic_t pic, struct intsrc *isrc,
 		    u_int apic_id);
 
-struct pic msi_pic = {
+static const device_method_t msi_methods[] = {
 	/* Interrupt controller interface */
 	X86PIC_FUNC(pic_enable_source,		msi_enable_source),
 	X86PIC_FUNC(pic_disable_source,		msi_disable_source),
@@ -147,6 +149,11 @@ struct pic msi_pic = {
 
 	X86PIC_END
 };
+
+PRIVATE_DEFINE_CLASSN(msi, msi_class, msi_methods, sizeof(pic_base_softc_t),
+    pic_base_class);
+
+static device_t msi_pic;
 
 u_int first_msi_irq;
 SYSCTL_UINT(_machdep, OID_AUTO, first_msi_irq, CTLFLAG_RD, &first_msi_irq, 0,
@@ -358,6 +365,7 @@ msi_init(void)
 	num_io_irqs = first_msi_irq + num_msi_irqs;
 
 	msi_enabled = 1;
+	msi_pic = intr_create_pic("msi", 0, &msi_class);
 	intr_register_pic(X86PIC_PTR(msi_pic));
 	mtx_init(&msi_lock, "msi", NULL, MTX_DEF);
 }
