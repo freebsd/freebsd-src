@@ -336,6 +336,7 @@ powerpc/powerpc/platform.c	standard
 powerpc/powerpc/platform_if.m	standard
 powerpc/powerpc/ptrace_machdep.c	standard
 powerpc/powerpc/sc_machdep.c	optional	sc
+powerpc/powerpc/sdt_machdep.c	optional	powerpc64 kdtrace_hooks
 powerpc/powerpc/setjmp.S	standard
 powerpc/powerpc/sigcode32.S	optional	powerpc | powerpcspe | compat_freebsd32
 powerpc/powerpc/sigcode64.S	optional	powerpc64 | powerpc64le
