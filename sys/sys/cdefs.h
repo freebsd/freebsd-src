@@ -160,18 +160,6 @@
  * a feature that we cannot live without.
  */
 #define	__weak_symbol	__attribute__((__weak__))
-#if !__GNUC_PREREQ__(2, 5)
-#define	__dead2
-#define	__pure2
-#define	__unused
-#endif
-#if __GNUC__ == 2 && __GNUC_MINOR__ >= 5 && __GNUC_MINOR__ < 7
-#define	__dead2		__attribute__((__noreturn__))
-#define	__pure2		__attribute__((__const__))
-#define	__unused
-/* XXX Find out what to do for __packed, __aligned and __section */
-#endif
-#if __GNUC_PREREQ__(2, 7)
 #define	__dead2		__attribute__((__noreturn__))
 #define	__pure2		__attribute__((__const__))
 #define	__unused	__attribute__((__unused__))
@@ -179,7 +167,6 @@
 #define	__packed	__attribute__((__packed__))
 #define	__aligned(x)	__attribute__((__aligned__(x)))
 #define	__section(x)	__attribute__((__section__(x)))
-#endif
 #define	__writeonly	__unused
 #if __GNUC_PREREQ__(4, 3) || __has_attribute(__alloc_size__)
 #define	__alloc_size(x)	__attribute__((__alloc_size__(x)))
@@ -192,10 +179,6 @@
 #define	__alloc_align(x)	__attribute__((__alloc_align__(x)))
 #else
 #define	__alloc_align(x)
-#endif
-
-#if !__GNUC_PREREQ__(2, 95)
-#define	__alignof(x)	__offsetof(struct { char __a; x __b; }, __b)
 #endif
 
 /*
@@ -304,13 +287,8 @@
 #define __min_size(x)	(x)
 #endif
 
-#if __GNUC_PREREQ__(2, 96)
 #define	__malloc_like	__attribute__((__malloc__))
 #define	__pure		__attribute__((__pure__))
-#else
-#define	__malloc_like
-#define	__pure
-#endif
 
 #if __GNUC_PREREQ__(3, 1)
 #define	__always_inline	__attribute__((__always_inline__))
@@ -355,7 +333,7 @@
 #define	__unreachable()	((void)0)
 #endif
 
-#if (defined(__GNUC__) && __GNUC__ >= 2) && !defined(__STRICT_ANSI__) || __STDC_VERSION__ >= 199901
+#if !defined(__STRICT_ANSI__) || __STDC_VERSION__ >= 199901
 #define	__LONG_LONG_SUPPORTED
 #endif
 
@@ -389,45 +367,10 @@
  */
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901
 #define	__restrict	restrict
-#elif !__GNUC_PREREQ__(2, 95)
-#define	__restrict
 #endif
 
-/*
- * GNU C version 2.96 adds explicit branch prediction so that
- * the CPU back-end can hint the processor and also so that
- * code blocks can be reordered such that the predicted path
- * sees a more linear flow, thus improving cache behavior, etc.
- *
- * The following two macros provide us with a way to utilize this
- * compiler feature.  Use __predict_true() if you expect the expression
- * to evaluate to true, and __predict_false() if you expect the
- * expression to evaluate to false.
- *
- * A few notes about usage:
- *
- *	* Generally, __predict_false() error condition checks (unless
- *	  you have some _strong_ reason to do otherwise, in which case
- *	  document it), and/or __predict_true() `no-error' condition
- *	  checks, assuming you want to optimize for the no-error case.
- *
- *	* Other than that, if you don't know the likelihood of a test
- *	  succeeding from empirical or other `hard' evidence, don't
- *	  make predictions.
- *
- *	* These are meant to be used in places that are run `a lot'.
- *	  It is wasteful to make predictions in code that is run
- *	  seldomly (e.g. at subsystem initialization time) as the
- *	  basic block reordering that this affects can often generate
- *	  larger code.
- */
-#if __GNUC_PREREQ__(2, 96)
 #define	__predict_true(exp)     __builtin_expect((exp), 1)
 #define	__predict_false(exp)    __builtin_expect((exp), 0)
-#else
-#define	__predict_true(exp)     (exp)
-#define	__predict_false(exp)    (exp)
-#endif
 
 #if __GNUC_PREREQ__(4, 0)
 #define	__null_sentinel	__attribute__((__sentinel__))
@@ -481,13 +424,6 @@
  * that are known to support the features properly (old versions of gcc-2
  * didn't permit keeping the keywords out of the application namespace).
  */
-#if !__GNUC_PREREQ__(2, 7)
-#define	__printflike(fmtarg, firstvararg)
-#define	__scanflike(fmtarg, firstvararg)
-#define	__format_arg(fmtarg)
-#define	__strfmonlike(fmtarg, firstvararg)
-#define	__strftimelike(fmtarg, firstvararg)
-#else
 #define	__printflike(fmtarg, firstvararg) \
 	    __attribute__((__format__ (__printf__, fmtarg, firstvararg)))
 #define	__scanflike(fmtarg, firstvararg) \
@@ -497,7 +433,6 @@
 	    __attribute__((__format__ (__strfmon__, fmtarg, firstvararg)))
 #define	__strftimelike(fmtarg, firstvararg) \
 	    __attribute__((__format__ (__strftime__, fmtarg, firstvararg)))
-#endif
 
 /* Compiler-dependent macros that rely on FreeBSD-specific extensions. */
 #if defined(__FreeBSD_cc_version) && __FreeBSD_cc_version >= 300001 && \
@@ -508,7 +443,6 @@
 #define	__printf0like(fmtarg, firstvararg)
 #endif
 
-#if defined(__GNUC__)
 #define	__strong_reference(sym,aliassym)	\
 	extern __typeof (sym) aliassym __attribute__ ((__alias__ (#sym)))
 #ifdef __STDC__
@@ -536,22 +470,11 @@
 #define	__sym_default(impl,sym,verid)	\
 	__asm__(".symver impl, sym@@@verid")
 #endif	/* __STDC__ */
-#endif	/* __GNUC__ */
 
 #define	__GLOBL(sym)	__asm__(".globl " __XSTRING(sym))
 #define	__WEAK(sym)	__asm__(".weak " __XSTRING(sym))
 
-#if defined(__GNUC__)
 #define	__IDSTRING(name,string)	__asm__(".ident\t\"" string "\"")
-#else
-/*
- * The following definition might not work well if used in header files,
- * but it should be better than nothing.  If you want a "do nothing"
- * version, then it should generate some harmless declaration, such as:
- *    #define	__IDSTRING(name,string)	struct __hack
- */
-#define	__IDSTRING(name,string)	static const char name[] __unused = string
-#endif
 
 /*
  * Embed the rcs id of a source file in the resulting library.  Note that in
