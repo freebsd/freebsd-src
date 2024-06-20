@@ -244,12 +244,9 @@ CTASSERT((DMAP_MAX_ADDRESS  & ~L1_OFFSET) == DMAP_MAX_ADDRESS);
 
 /*
  * This code assumes that the early DEVMAP is L2_SIZE aligned and is fully
- * contained within a single L2 entry. The early DTB is mapped immediately
- * before the devmap L2 entry.
+ * contained within a single L2 entry.
  */
 CTASSERT((PMAP_MAPDEV_EARLY_SIZE & L2_OFFSET) == 0);
-CTASSERT((VM_EARLY_DTB_ADDRESS & L2_OFFSET) == 0);
-CTASSERT(VM_EARLY_DTB_ADDRESS < (VM_MAX_KERNEL_ADDRESS - PMAP_MAPDEV_EARLY_SIZE));
 
 static struct rwlock_padalign pvh_global_lock;
 static struct mtx_padalign allpmaps_lock;
@@ -623,7 +620,6 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	vm_offset_t dpcpu, freemempos, l0pv, msgbufpv;
 	vm_paddr_t l0pa, l1pa, max_pa, min_pa, pa;
 	pd_entry_t *l0p;
-	pt_entry_t *l2p;
 	u_int l1_slot, l2_slot;
 	u_int physmap_idx;
 	int i, mode;
@@ -686,15 +682,6 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	/* Create the l3 tables for the early devmap */
 	freemempos = pmap_bootstrap_l3(l1pt,
 	    VM_MAX_KERNEL_ADDRESS - PMAP_MAPDEV_EARLY_SIZE, freemempos);
-
-	/*
-	 * Invalidate the mapping we created for the DTB. At this point a copy
-	 * has been created, and we no longer need it. We want to avoid the
-	 * possibility of an aliased mapping in the future.
-	 */
-	l2p = pmap_l2(kernel_pmap, VM_EARLY_DTB_ADDRESS);
-	if ((pmap_load(l2p) & PTE_V) != 0)
-		pmap_clear(l2p);
 
 	sfence_vma();
 

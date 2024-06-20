@@ -209,8 +209,6 @@
 #define	PS_STRINGS_SV39		(USRSTACK_SV39 - sizeof(struct ps_strings))
 #define	PS_STRINGS_SV48		(USRSTACK_SV48 - sizeof(struct ps_strings))
 
-#define	VM_EARLY_DTB_ADDRESS	(VM_MAX_KERNEL_ADDRESS - (2 * L2_SIZE))
-
 /*
  * How many physical pages per kmem arena virtual page.
  */
