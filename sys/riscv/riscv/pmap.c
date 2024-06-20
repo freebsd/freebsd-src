@@ -797,7 +797,7 @@ pmap_create_pagetables(vm_paddr_t kernstart, vm_size_t kernlen,
  *	Bootstrap the system enough to run with virtual memory.
  */
 void
-pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
+pmap_bootstrap(vm_paddr_t kernstart, vm_size_t kernlen)
 {
 	vm_paddr_t freemempos, pa;
 	vm_paddr_t root_pt_phys;
@@ -806,7 +806,7 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	pt_entry_t *pte;
 	int i;
 
-	printf("pmap_bootstrap %lx %lx %lx\n", l1pt, kernstart, kernlen);
+	printf("pmap_bootstrap %lx %lx\n", kernstart, kernlen);
 
 	PMAP_LOCK_INIT(kernel_pmap);
 	TAILQ_INIT(&kernel_pmap->pm_pvchunk);
