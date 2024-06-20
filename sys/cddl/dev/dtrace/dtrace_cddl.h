@@ -79,7 +79,7 @@ typedef struct kdtrace_thread {
 #ifdef __amd64__
 	uintptr_t	td_dtrace_regv;
 #endif
-	uint64_t	td_hrtime;	/* Last time on cpu. */
+	uintptr_t	td_dtrace_sdt_arg[1];	/* Space for extra SDT args */
 	void		*td_dtrace_sscr; /* Saved scratch space location. */
 	void		*td_systrace_args; /* syscall probe arguments. */
 	uint64_t	td_fasttrap_tp_gen; /* Tracepoint hash table gen. */
@@ -110,6 +110,7 @@ typedef struct kdtrace_thread {
 #define	t_dtrace_scrpc	td_dtrace->td_dtrace_scrpc
 #define	t_dtrace_astpc	td_dtrace->td_dtrace_astpc
 #define	t_dtrace_regv	td_dtrace->td_dtrace_regv
+#define	t_dtrace_sdt_arg	td_dtrace->td_dtrace_sdt_arg
 #define	t_dtrace_sscr	td_dtrace->td_dtrace_sscr
 #define	t_dtrace_systrace_args	td_dtrace->td_systrace_args
 #define	t_fasttrap_tp_gen	td_dtrace->td_fasttrap_tp_gen
