@@ -108,16 +108,11 @@ _CPUCFLAGS = -mfloat-abi=softfp
 _CPUCFLAGS = -march=armv7 -mfpu=vfp
 .  elif ${CPUTYPE:Marmv[67]*} != ""
 # Handle all the armvX types that FreeBSD runs:
-#	armv6, armv6t2, armv7, armv7-a, armv7ve
+#	armv7, armv7-a, armv7ve
 # they require -march=. All the others require -mcpu=.
 _CPUCFLAGS = -march=${CPUTYPE}
 .  else
 # Common values for FreeBSD
-# arm: (any arm v4 or v5 processor you are targeting)
-#	arm920t, arm926ej-s, marvell-pj4, fa526, fa626,
-#	fa606te, fa626te, fa726te
-# armv6:
-# 	arm1176jzf-s
 # armv7: generic-armv7-a, cortex-a5, cortex-a7, cortex-a8, cortex-a9,
 #       cortex-a12, cortex-a15, cortex-a17
 #       cortex-a53, cortex-a57, cortex-a72,
