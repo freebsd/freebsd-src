@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2022,2023 Thomas E. Dickey                                *
  * Copyright 2003-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: demo_menus.c,v 1.71 2020/02/02 23:34:34 tom Exp $
+ * $Id: demo_menus.c,v 1.80 2023/05/27 20:13:10 tom Exp $
  *
  * Demonstrate a variety of functions from the menu library.
  * Thomas Dickey - 2005/4/9
@@ -113,7 +113,7 @@ static bool loaded_file = FALSE;
 static char empty[1];
 
 #ifdef TRACE
-static void failed(const char *s) GCC_NORETURN;
+static GCC_NORETURN void failed(const char *s);
 
 static void
 failed(const char *s)
@@ -308,7 +308,7 @@ menu_create(ITEM ** items, int count, int ncols, MenuNo number)
 }
 
 static void
-menu_destroy(MENU * m)
+menu_destroy(MENU * m, int itemsToo)
 {
     Trace(("menu_destroy %p", (void *) m));
     if (m != 0) {
@@ -331,18 +331,18 @@ menu_destroy(MENU * m)
 		Trace(("freeing blob %p", blob));
 		free((void *) blob);
 	    }
-	    free(items);
-	    items = 0;
 	}
-#ifdef TRACE
-	if ((count > 0) && (m == mpTrace)) {
-	    ITEM **ip = items;
-	    if (ip != 0) {
-		while (*ip)
-		    free(*ip++);
+	if (count > 0 && itemsToo) {
+	    if (itemsToo & 1) {
+		ITEM **ip = items;
+		if (ip != 0) {
+		    while (*ip)
+			free_item(*ip++);
+		}
 	    }
+	    if (itemsToo & 2)
+		free(items);
 	}
-#endif
     }
 }
 
@@ -565,7 +565,7 @@ tracetrace(unsigned tlevel)
     }
     _nc_SPRINTF(buf, _nc_SLIMIT(need) "0x%02x = {", tlevel);
     if (tlevel == 0) {
-	_nc_STRCAT(buf, t_tbl[0].name, need);
+	_nc_STRCAT(buf, t_tbl[0].name ? t_tbl[0].name : "", need);
 	_nc_STRCAT(buf, ", ", need);
     } else {
 	for (n = 1; t_tbl[n].name != 0; n++)
@@ -925,19 +925,18 @@ perform_menus(void)
 	}
 	if (code == E_REQUEST_DENIED)
 	    beep();
-	continue;
     }
 }
 
 static void
 destroy_menus(void)
 {
-    menu_destroy(mpFile);
-    menu_destroy(mpSelect);
+    menu_destroy(mpFile, 1);
+    menu_destroy(mpSelect, 3);
 #ifdef TRACE
-    menu_destroy(mpTrace);
+    menu_destroy(mpTrace, 1);
 #endif
-    menu_destroy(mpBanner);
+    menu_destroy(mpBanner, 1);
 }
 
 #if HAVE_RIPOFFLINE
@@ -977,41 +976,46 @@ call_files(int code)
 }
 
 static void
-usage(void)
+usage(int ok)
 {
     static const char *const tbl[] =
     {
 	"Usage: demo_menus [options] [menu-file]"
 	,""
+	,USAGE_COMMON
 	,"Options:"
 #if HAVE_RIPOFFLINE
-	,"  -f       rip-off footer line (can repeat)"
-	,"  -h       rip-off header line (can repeat)"
+	," -F       rip-off footer line (can repeat)"
+	," -H       rip-off header line (can repeat)"
 #endif
 #ifdef TRACE
-	,"  -t mask  specify default trace-level (may toggle with ^T)"
+	," -t mask  specify default trace-level (may toggle with ^T)"
 #endif
     };
     size_t n;
     for (n = 0; n < SIZEOF(tbl); n++)
 	fprintf(stderr, "%s\n", tbl[n]);
-    ExitProgram(EXIT_FAILURE);
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
 }
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
 
 int
 main(int argc, char *argv[])
 {
-    int c;
+    int ch;
 
     setlocale(LC_ALL, "");
+    START_TRACE();
 
-    while ((c = getopt(argc, argv, "fht:")) != -1) {
-	switch (c) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "FHt:")) != -1) {
+	switch (ch) {
 #if HAVE_RIPOFFLINE
-	case 'f':
+	case 'F':
 	    ripoffline(-1, rip_footer);
 	    break;
-	case 'h':
+	case 'H':
 	    ripoffline(1, rip_header);
 	    break;
 #endif /* HAVE_RIPOFFLINE */
@@ -1020,8 +1024,12 @@ main(int argc, char *argv[])
 	    curses_trace((unsigned) strtoul(optarg, 0, 0));
 	    break;
 #endif
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage();
+	    usage(ch == OPTS_USAGE);
+	    /* NOTREACHED */
 	}
     }
 

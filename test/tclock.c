@@ -1,9 +1,9 @@
-/* $Id: tclock.c,v 1.42 2020/12/26 17:56:36 tom Exp $ */
+/* $Id: tclock.c,v 1.48 2023/02/25 16:42:22 tom Exp $ */
 
 #define NEED_TIME_H
 #include <test.priv.h>
 
-#if HAVE_MATH_H
+#if HAVE_MATH_H && HAVE_MATH_FUNCS
 
 #include <math.h>
 
@@ -107,12 +107,13 @@ dline(int pair, int from_x, int from_y, int x2, int y2, int ch)
 }
 
 static void
-usage(void)
+usage(int ok)
 {
     static const char *msg[] =
     {
 	"Usage: tclock [options]"
 	,""
+	,USAGE_COMMON
 	,"Options:"
 #if HAVE_USE_DEFAULT_COLORS
 	," -d       invoke use_default_colors"
@@ -123,12 +124,17 @@ usage(void)
     for (n = 0; n < SIZEOF(msg); n++)
 	fprintf(stderr, "%s\n", msg[n]);
 
-    ExitProgram(EXIT_FAILURE);
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
 }
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
 
 int
 main(int argc, char *argv[])
 {
+    static TimeType initial;
+
     int i, cx, cy;
     double cr, mradius, hradius, mangle, hangle;
     double sangle, sradius, hours;
@@ -143,28 +149,28 @@ main(int argc, char *argv[])
     char szChar[20];
     char *text;
     short my_bg = COLOR_BLACK;
-#if HAVE_GETTIMEOFDAY
-    struct timeval current;
-#endif
-    double fraction = 0.0;
+    TimeType current;
 #if HAVE_USE_DEFAULT_COLORS
     bool d_option = FALSE;
 #endif
 
-    while ((ch = getopt(argc, argv, "d")) != -1) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "d")) != -1) {
 	switch (ch) {
 #if HAVE_USE_DEFAULT_COLORS
 	case 'd':
 	    d_option = TRUE;
 	    break;
 #endif
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage();
+	    usage(ch == OPTS_USAGE);
 	    /* NOTREACHED */
 	}
     }
     if (optind < argc)
-	usage();
+	usage(FALSE);
 
     setlocale(LC_ALL, "");
 
@@ -229,11 +235,9 @@ main(int argc, char *argv[])
 	hdx = A2X(hangle, hradius);
 	hdy = A2Y(hangle, hradius);
 
-#if HAVE_GETTIMEOFDAY
-	gettimeofday(&current, 0);
-	fraction = ((double) current.tv_usec / 1.0e6);
-#endif
-	sangle = ((t->tm_sec + fraction) * (2.0 * PI) / 60.0);
+	GetClockTime(&current);
+
+	sangle = (ElapsedSeconds(&initial, &current) * (2.0 * PI) / 60.0);
 	sdx = A2X(sangle, sradius);
 	sdy = A2Y(sangle, sradius);
 
@@ -287,9 +291,9 @@ main(int argc, char *argv[])
 }
 #else
 int
-main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
+main(void)
 {
-    printf("This program requires the development header math.h\n");
+    printf("This program requires the header math.h and trignometric functions\n");
     ExitProgram(EXIT_FAILURE);
 }
 #endif

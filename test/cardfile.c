@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2021,2022 Thomas E. Dickey                                *
  * Copyright 1999-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -30,7 +30,7 @@
 /*
  * Author: Thomas E. Dickey
  *
- * $Id: cardfile.c,v 1.47 2020/02/02 23:34:34 tom Exp $
+ * $Id: cardfile.c,v 1.51 2022/12/04 00:40:11 tom Exp $
  *
  * File format: text beginning in column 1 is a title; other text is content.
  */
@@ -296,7 +296,7 @@ prev_card(CARD * now)
 static CARD *
 first_card(CARD * now)
 {
-    if (!isVisible(now))
+    if (now != NULL && !isVisible(now))
 	now = next_card(now);
     return now;
 }
@@ -550,37 +550,45 @@ cardfile(char *fname)
 }
 
 static void
-usage(void)
+usage(int ok)
 {
     static const char *msg[] =
     {
 	"Usage: cardfile [options] file"
 	,""
+	,USAGE_COMMON
 	,"Options:"
 	," -c       use color if terminal supports it"
     };
     size_t n;
     for (n = 0; n < SIZEOF(msg); n++)
 	fprintf(stderr, "%s\n", msg[n]);
-    ExitProgram(EXIT_FAILURE);
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
 }
 
 /*******************************************************************************/
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
 
 int
 main(int argc, char *argv[])
 {
-    int n;
+    int ch;
 
     setlocale(LC_ALL, "");
 
-    while ((n = getopt(argc, argv, "c")) != -1) {
-	switch (n) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "c")) != -1) {
+	switch (ch) {
 	case 'c':
 	    try_color = TRUE;
 	    break;
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage();
+	    usage(ch == OPTS_USAGE);
+	    /* NOTREACHED */
 	}
     }
 
@@ -600,6 +608,7 @@ main(int argc, char *argv[])
     }
 
     if (optind + 1 == argc) {
+	int n;
 	for (n = 1; n < argc; n++)
 	    read_data(argv[n]);
 	if (count_cards() == 0)

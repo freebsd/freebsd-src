@@ -2,7 +2,7 @@ Source: ncurses-examples
 Maintainer: Thomas E. Dickey <dickey@invisible-island.net>
 Section: misc
 Priority: optional
-Standards-Version: 3.8.4
+Standards-Version: 4.6.1.0
 Build-Depends: debhelper (>= 5)
 Homepage: https://invisible-island.net/ncurses/ncurses-examples.html
 

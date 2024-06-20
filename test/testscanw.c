@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2020,2022 Thomas E. Dickey                                *
  * Copyright 1998-2002,2006 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -30,15 +30,49 @@
  * Date:  1997/03/17
  * From:  bayern@morpheus.cis.yale.edu
  *
- * $Id: testscanw.c,v 1.13 2020/02/02 23:34:34 tom Exp $
+ * $Id: testscanw.c,v 1.15 2022/12/11 00:10:29 tom Exp $
  */
 #include <test.priv.h>
+
+static void
+usage(int ok)
+{
+    static const char *msg[] =
+    {
+	"Usage: testscanw [options] tokens"
+	,""
+	,"Tokens are integers (starting line-number) or k+, k- to turn keypad on/off."
+	,""
+	,USAGE_COMMON
+    };
+    size_t n;
+
+    for (n = 0; n < SIZEOF(msg); n++)
+	fprintf(stderr, "%s\n", msg[n]);
+
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
+}
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
 
 int
 main(int argc, char *argv[])
 {
     long badanswer = 1;
     long *response = &badanswer;
+    int ch;
+
+    while ((ch = getopt(argc, argv, OPTS_COMMON)) != -1) {
+	switch (ch) {
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
+	default:
+	    usage(ch == OPTS_USAGE);
+	    /* NOTREACHED */
+	}
+    }
 
     setlocale(LC_ALL, "");
 
@@ -50,12 +84,14 @@ main(int argc, char *argv[])
 #if 0
     curses_trace(TRACE_UPDATE | TRACE_CALLS);
 #endif
-    while (argc > 1) {
-	if (isdigit(UChar(*argv[1])))
-	    move(atoi(argv[1]), 0);
-	else if (!strcmp(argv[1], "-k"))
+    while (optind < argc) {
+	char *token = argv[optind++];
+	if (isdigit(UChar(*token)))
+	    move(atoi(token), 0);
+	else if (!strcmp(token, "k+"))
 	    keypad(stdscr, TRUE);
-	argc--, argv++;
+	else if (!strcmp(token, "k-"))
+	    keypad(stdscr, FALSE);
     }
 
     while (badanswer) {

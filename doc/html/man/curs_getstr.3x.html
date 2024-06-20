@@ -1,6 +1,6 @@
-<!-- 
+<!--
   ****************************************************************************
-  * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
   * Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,31 +27,28 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_getstr.3x,v 1.31 2020/10/18 00:27:44 tom Exp @
-  * X/Open says also until EOf
-  * X/Open says then an EOS is added to the result
-  * X/Open doesn't mention n&lt;0
+  * @Id: curs_getstr.3x,v 1.58 2024/04/20 19:18:18 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_getstr 3x</TITLE>
+<TITLE>curs_getstr 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_getstr 3x</H1>
+<H1 class="no-header">curs_getstr 3x 2024-04-20 ncurses 6.5 Library calls</H1>
 <PRE>
-<STRONG><A HREF="curs_getstr.3x.html">curs_getstr(3x)</A></STRONG>                                                <STRONG><A HREF="curs_getstr.3x.html">curs_getstr(3x)</A></STRONG>
+<STRONG><A HREF="curs_getstr.3x.html">curs_getstr(3x)</A></STRONG>                  Library calls                 <STRONG><A HREF="curs_getstr.3x.html">curs_getstr(3x)</A></STRONG>
 
 
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
-       <STRONG>getstr</STRONG>, <STRONG>getnstr</STRONG>, <STRONG>wgetstr</STRONG>, <STRONG>wgetnstr</STRONG>, <STRONG>mvgetstr</STRONG>, <STRONG>mvgetnstr</STRONG>, <STRONG>mvwgetstr</STRONG>,
-       <STRONG>mvwgetnstr</STRONG> - accept character strings from <STRONG>curses</STRONG> terminal keyboard
+       <STRONG>getstr</STRONG>,  <STRONG>getnstr</STRONG>,  <STRONG>wgetstr</STRONG>,  <STRONG>wgetnstr</STRONG>,  <STRONG>mvgetstr</STRONG>, <STRONG>mvgetnstr</STRONG>, <STRONG>mvwgetstr</STRONG>,
+       <STRONG>mvwgetnstr</STRONG> - accept character strings from <EM>curses</EM> terminal keyboard
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
@@ -69,77 +66,109 @@
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       The function <STRONG>getstr</STRONG> is equivalent to a series of calls to <STRONG>getch</STRONG>,  until
-       a  newline or carriage return is received (the terminating character is
-       not included in the returned string).  The resulting value is placed in
-       the area pointed to by the character pointer <EM>str</EM>, followed by a NUL.
+       The function <STRONG>wgetnstr</STRONG> is equivalent to a series of calls to <STRONG><A HREF="curs_getch.3x.html">wgetch(3x)</A></STRONG>,
+       until a newline or carriage return terminates the series:
 
-       <STRONG>wgetnstr</STRONG>  reads  at most <EM>n</EM> characters, thus preventing a possible over-
-       flow of the input buffer.  Any attempt to enter more characters  (other
-       than  the terminating newline or carriage return) causes a beep.  Func-
-       tion keys also cause a beep and  are  ignored.   The  <STRONG>getnstr</STRONG>  function
-       reads from the <EM>stdscr</EM> default window.
+       <STRONG>o</STRONG>   The terminating character is not included in the returned string.
 
-       The  user's  erase and kill characters are interpreted.  If keypad mode
-       is on for the window, <STRONG>KEY_LEFT</STRONG> and <STRONG>KEY_BACKSPACE</STRONG>  are  both  considered
-       equivalent to the user's kill character.
+       <STRONG>o</STRONG>   In all instances, the end of the string is terminated by a NUL.
+
+       <STRONG>o</STRONG>   The  function  stores  the result in the area pointed to by the <EM>str</EM>
+           parameter.
+
+       <STRONG>o</STRONG>   The function reads at most <EM>n</EM> characters, thus preventing a possible
+           overflow of the input buffer.
+
+           Any  attempt  to  enter more characters (other than the terminating
+           newline or carriage return) causes a beep.
+
+           Function keys also cause a beep and are ignored.
+
+       The user's <EM>erase</EM> and <EM>kill</EM> characters are interpreted:
+
+       <STRONG>o</STRONG>   The <EM>erase</EM> character (e.g., <STRONG>^H</STRONG>) erases the character at the  end  of
+           the buffer, moving the cursor to the left.
+
+           If <EM>keypad</EM> mode is on for the window, <STRONG>KEY_LEFT</STRONG> and <STRONG>KEY_BACKSPACE</STRONG> are
+           both considered equivalent to the user's <EM>erase</EM> character.
+
+       <STRONG>o</STRONG>   The <EM>kill</EM> character (e.g., <STRONG>^U</STRONG>) erases the entire buffer, leaving the
+           cursor at the beginning of the buffer.
 
        Characters  input  are  echoed  only  if <STRONG>echo</STRONG> is currently on.  In that
-       case, backspace is echoed as deletion of the previous character  (typi-
-       cally a left motion).
+       case, backspace  is  echoed  as  deletion  of  the  previous  character
+       (typically a left motion).
+
+       The   <STRONG>getnstr</STRONG>,   <STRONG>mvgetnstr</STRONG>,  <STRONG>mvwgetnstr</STRONG>,  and  <STRONG>wgetnstr</STRONG>  functions  are
+       identical to the <STRONG>getstr</STRONG>, <STRONG>mvgetstr</STRONG>, <STRONG>mvwgetstr</STRONG>,  and  <STRONG>wgetstr</STRONG>  functions,
+       respectively,  except  that the <STRONG>*n*</STRONG> versions read at most <EM>n</EM> characters,
+       letting the application prevent overflow of the input buffer.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       All routines return the integer <STRONG>ERR</STRONG> upon failure and an <STRONG>OK</STRONG> (SVr4 speci-
-       fies only "an integer value other than <STRONG>ERR</STRONG>")  upon  successful  comple-
-       tion.
+       All  of  these  functions  return  the  integer  <STRONG>OK</STRONG>   upon   successful
+       completion.  (SVr4 specifies only "an integer value other than <STRONG>ERR</STRONG>") If
+       unsuccessful, they return <STRONG>ERR</STRONG>.
 
        X/Open defines no error conditions.
 
-       In  this  implementation, these functions return an error if the window
-       pointer is null, or if its timeout expires without having any data.
+       In this implementation, these functions return an error
 
-       This implementation provides an extension as well.  If a  <STRONG>SIGWINCH</STRONG>  in-
-       terrupts the function, it will return <STRONG>KEY_RESIZE</STRONG> rather than <STRONG>OK</STRONG> or <STRONG>ERR</STRONG>.
+       <STRONG>o</STRONG>   if the window pointer is null,
 
-       Functions  with  a  "mv"  prefix  first perform a cursor movement using
-       <STRONG>wmove</STRONG>, and return an error if the position is outside the window, or if
-       the window pointer is null.
+       <STRONG>o</STRONG>   if its timeout expires without having any data, or
+
+       <STRONG>o</STRONG>   if the associated call to <STRONG>wgetch</STRONG> failed.
+
+       This implementation provides an  extension  as  well.   If  a  <STRONG>SIGWINCH</STRONG>
+       interrupts  the  function,  it will return <STRONG>KEY_RESIZE</STRONG> rather than <STRONG>OK</STRONG> or
+       <STRONG>ERR</STRONG>.
+
+       Functions prefixed with "mv" first perform cursor movement and fail  if
+       the position (<EM>y</EM>, <EM>x</EM>) is outside the window boundaries.
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       Note that <STRONG>getstr</STRONG>, <STRONG>mvgetstr</STRONG>, and <STRONG>mvwgetstr</STRONG> may be macros.
+       Any of these functions other than <STRONG>wgetnstr</STRONG> may be macros.
+
+       Using  <STRONG>getstr</STRONG>,  <STRONG>mvgetstr</STRONG>,  <STRONG>mvwgetstr</STRONG>,  or  <STRONG>wgetstr</STRONG>  to read a line that
+       overflows the array pointed to by <STRONG>str</STRONG> causes  undefined  results.   The
+       use  of  <STRONG>getnstr</STRONG>,  <STRONG>mvgetnstr</STRONG>, <STRONG>mvwgetnstr</STRONG>, or <STRONG>wgetnstr</STRONG>, respectively, is
+       recommended.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These  functions  are  described  in  the XSI Curses standard, Issue 4.
-       They read single-byte characters only.  The standard  does  not  define
-       any  error  conditions.   This implementation returns <STRONG>ERR</STRONG> if the window
-       pointer is null, or if the lower-level <STRONG><A HREF="curs_getch.3x.html">wgetch(3x)</A></STRONG> call returns an <STRONG>ERR</STRONG>.
+       These functions are described in The Single Unix Specification, Version
+       2.  No error conditions are defined.
+
+       This  implementation  returns  <STRONG>ERR</STRONG> if the window pointer is null, or if
+       the lower-level <STRONG><A HREF="curs_getch.3x.html">wgetch(3x)</A></STRONG> call returns an <STRONG>ERR</STRONG>.
 
        SVr3 and early SVr4 curses  implementations  did  not  reject  function
        keys;  the  SVr4.0  documentation  claimed that "special keys" (such as
-       function keys, "home" key, "clear" key, <EM>etc</EM>.) are "interpreted",  with-
-       out  giving details.  It lied.  In fact, the "character" value appended
-       to the string by those implementations was predictable but  not  useful
-       (being, in fact, the low-order eight bits of the key's KEY_ value).
+       function keys,  "home"  key,  "clear"  key,  <EM>etc</EM>.)  are  "interpreted",
+       without  giving  details.   It  lied.   In  fact, the "character" value
+       appended to the string by those implementations was predictable but not
+       useful  (being,  in  fact,  the  low-order eight bits of the key's KEY_
+       value).
 
-       The  functions  <STRONG>getnstr</STRONG>, <STRONG>mvgetnstr</STRONG>, and <STRONG>mvwgetnstr</STRONG> were present but not
+       The functions <STRONG>getnstr</STRONG>, <STRONG>mvgetnstr</STRONG>, and <STRONG>mvwgetnstr</STRONG> were present  but  not
        documented in SVr4.
 
        X/Open Curses, Issue 5 (2007) stated that these functions "read at most
-       <EM>n</EM>  bytes"  but  did not state whether the terminating NUL is counted in
-       that limit.  X/Open Curses, Issue 7 (2009) changed  that  to  say  they
+       <EM>n</EM> bytes" but did not state whether the terminating NUL  is  counted  in
+       that  limit.   X/Open  Curses,  Issue 7 (2009) changed that to say they
        "read at most <EM>n</EM>-1 bytes" to allow for the terminating NUL.  As of 2018,
-       some implementations do, some do not count it:
+       some implementations count it, some do not:
 
-       <STRONG>o</STRONG>   ncurses 6.1 and PDCurses do not count the NUL in the  given  limit,
+       <STRONG>o</STRONG>   <EM>ncurses</EM>  6.1  and PDCurses do not count the NUL in the given limit,
            while
 
        <STRONG>o</STRONG>   Solaris SVr4 and NetBSD curses count the NUL as part of the limit.
 
-       <STRONG>o</STRONG>   Solaris  xcurses  provides  both:  its wide-character <STRONG>wget_nstr</STRONG> re-
-           serves a NUL, but its <STRONG>wgetnstr</STRONG> does not count the NUL consistently.
+       <STRONG>o</STRONG>   Solaris  xcurses  provides  both:  its   wide-character   <STRONG>wget_nstr</STRONG>
+           reserves   a   NUL,  but  its  <STRONG>wgetnstr</STRONG>  does  not  count  the  NUL
+           consistently.
 
        In SVr4 curses, a negative value of <EM>n</EM> tells <STRONG>wgetnstr</STRONG> to assume that the
        caller's  buffer  is large enough to hold the result, i.e., to act like
@@ -159,23 +188,61 @@
            A  comment in NetBSD's source code states that this is specified in
            SUSv2.
 
-       <STRONG>o</STRONG>   ncurses (before 6.2) assumes no particular  limit  for  the  result
+       <STRONG>o</STRONG>   <EM>ncurses</EM> (before 6.2) assumes no particular  limit  for  the  result
            from  <STRONG>wgetstr</STRONG>,  and  treats  the  <EM>n</EM> parameter of <STRONG>wgetnstr</STRONG> like SVr4
            curses.
 
-       <STRONG>o</STRONG>   ncurses 6.2 uses <STRONG>LINE_MAX</STRONG>, or  a  larger  (system-dependent)  value
+       <STRONG>o</STRONG>   <EM>ncurses</EM> 6.2 uses <STRONG>LINE_MAX</STRONG>, or  a  larger  (system-dependent)  value
            which  the  <STRONG>sysconf</STRONG>  function  may provide.  If neither <STRONG>LINE_MAX</STRONG> or
-           <STRONG>sysconf</STRONG> is available, ncurses uses the POSIX value for <STRONG>LINE_MAX</STRONG>  (a
-           2048  byte limit).  In either case, it reserves a byte for the ter-
-           minating NUL.
+           <STRONG>sysconf</STRONG> is available, <EM>ncurses</EM> uses the POSIX value for <STRONG>LINE_MAX</STRONG>  (a
+           2048  byte  limit).   In  either  case,  it reserves a byte for the
+           terminating NUL.
+
+       Although <STRONG>getnstr</STRONG> is equivalent to a series of calls to <STRONG>getch</STRONG>,  it  also
+       makes  changes to the curses modes to allow simple editing of the input
+       buffer:
+
+       <STRONG>o</STRONG>   <STRONG>getnstr</STRONG> saves the current value of the <STRONG>nl</STRONG>,  <STRONG>echo</STRONG>,  <STRONG>raw</STRONG>  and  <STRONG>cbreak</STRONG>
+           modes, and sets <STRONG>nl</STRONG>, <STRONG>noecho</STRONG>, <STRONG>noraw</STRONG>, and <STRONG>cbreak</STRONG>.
+
+           <STRONG>getnstr</STRONG>  handles  the echoing of characters, rather than relying on
+           the caller to set an appropriate mode.
+
+       <STRONG>o</STRONG>   It also obtains the <EM>erase</EM> and <EM>kill</EM> characters  from  <STRONG>erasechar</STRONG>  and
+           <STRONG>killchar</STRONG>, respectively.
+
+       <STRONG>o</STRONG>   On return, <STRONG>getnstr</STRONG> restores the modes to their previous values.
+
+       Other implementations differ in their treatment of special characters:
+
+       <STRONG>o</STRONG>   While  they  may  set  the  <EM>echo</EM> mode, other implementations do not
+           modify the <EM>raw</EM> mode, They may take  the  <EM>cbreak</EM>  mode  set  by  the
+           caller  into account when deciding whether to handle echoing within
+           <STRONG>getnstr</STRONG> or as a side-effect of the <STRONG>getch</STRONG> calls.
+
+       <STRONG>o</STRONG>   The original <EM>ncurses</EM> (as <EM>pcurses</EM> in 1986) set <STRONG>noraw</STRONG> and <STRONG>cbreak</STRONG> when
+           accepting  input  for  <STRONG>getnstr</STRONG>.   That  may  have been done to make
+           function- and cursor-keys work; it is not necessary with <EM>ncurses</EM>.
+
+           Since 1995, <EM>ncurses</EM> has provided signal handlers for INTR and  QUIT
+           (e.g.,  <STRONG>^C</STRONG>  or  <STRONG>^\</STRONG>).  With the <STRONG>noraw</STRONG> and <STRONG>cbreak</STRONG> settings, those may
+           catch a signal and stop the program,  where  other  implementations
+           allow one to enter those characters in the buffer.
+
+       <STRONG>o</STRONG>   Starting in 2021 (<EM>ncurses</EM> 6.3), <STRONG>getnstr</STRONG> sets <STRONG>raw</STRONG>, rather than <STRONG>noraw</STRONG>
+           and  <STRONG>cbreak</STRONG>  for  better  compatibility  with  SVr4-curses,   e.g.,
+           allowing one to enter a <STRONG>^C</STRONG> into the buffer.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_getch.3x.html">curs_getch(3x)</A></STRONG>, <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>.
+       <STRONG><A HREF="curs_get_wstr.3x.html">curs_get_wstr(3x)</A></STRONG> describes comparable functions of the <EM>ncurses</EM> library
+       in its wide-character configuration (<EM>ncursesw</EM>).
+
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_getch.3x.html">curs_getch(3x)</A></STRONG>, <STRONG><A HREF="curs_termattrs.3x.html">curs_termattrs(3x)</A></STRONG>, <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>
 
 
 
-                                                               <STRONG><A HREF="curs_getstr.3x.html">curs_getstr(3x)</A></STRONG>
+ncurses 6.5                       2024-04-20                   <STRONG><A HREF="curs_getstr.3x.html">curs_getstr(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>

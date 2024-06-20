@@ -1,6 +1,6 @@
-<!-- 
+<!--
   ****************************************************************************
-  * Copyright 2019,2020 Thomas E. Dickey                                     *
+  * Copyright 2019-2023,2024 Thomas E. Dickey                                *
   * Copyright 2002-2011,2012 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,73 +27,73 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_border_set.3x,v 1.13 2020/02/02 23:34:34 tom Exp @
+  * @Id: curs_border_set.3x,v 1.36 2024/04/20 21:20:07 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_border_set 3x</TITLE>
+<TITLE>curs_border_set 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_border_set 3x</H1>
+<H1 class="no-header">curs_border_set 3x 2024-04-20 ncurses 6.5 Library calls</H1>
 <PRE>
-<STRONG><A HREF="curs_border_set.3x.html">curs_border_set(3x)</A></STRONG>                                        <STRONG><A HREF="curs_border_set.3x.html">curs_border_set(3x)</A></STRONG>
+<STRONG><A HREF="curs_border_set.3x.html">curs_border_set(3x)</A></STRONG>              Library calls             <STRONG><A HREF="curs_border_set.3x.html">curs_border_set(3x)</A></STRONG>
 
 
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
-       <STRONG>border_set</STRONG>, <STRONG>wborder_set</STRONG>, <STRONG>box_set</STRONG>, <STRONG>hline_set</STRONG>, <STRONG>whline_set</STRONG>, <STRONG>mvhline_set</STRONG>,
-       <STRONG>mvwhline_set</STRONG>, <STRONG>vline_set</STRONG>, <STRONG>wvline_set</STRONG>, <STRONG>mvvline_set</STRONG>, <STRONG>mvwvline_set</STRONG> - create
-       <STRONG>curses</STRONG> borders or lines using complex characters and renditions
+       <STRONG>border_set</STRONG>,  <STRONG>wborder_set</STRONG>,  <STRONG>box_set</STRONG>, <STRONG>hline_set</STRONG>, <STRONG>whline_set</STRONG>, <STRONG>mvhline_set</STRONG>,
+       <STRONG>mvwhline_set</STRONG>, <STRONG>vline_set</STRONG>, <STRONG>wvline_set</STRONG>, <STRONG>mvvline_set</STRONG>, <STRONG>mvwvline_set</STRONG>  -  draw
+       borders and lines in a <EM>curses</EM> window of wide characters
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
        <STRONG>int</STRONG> <STRONG>border_set(</STRONG>
-          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>ls</EM>, <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>rs</EM>,
-          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>ts</EM>, <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>bs</EM>,
-          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>tl</EM>, <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>tr</EM>,
-          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>bl</EM>, <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>br</EM> <STRONG>);</STRONG>
+          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>ls</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>rs</EM><STRONG>,</STRONG>
+          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>ts</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>bs</EM><STRONG>,</STRONG>
+          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>tl</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>tr</EM><STRONG>,</STRONG>
+          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>bl</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>br</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>wborder_set(</STRONG>
-          <STRONG>WINDOW</STRONG> <STRONG>*win</STRONG>,
-          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>ls</EM>, <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>rs</EM>,
-          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>ts</EM>, <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>bs</EM>,
-          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>tl</EM>, <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>tr</EM>,
-          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>bl</EM>, <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>br</EM><STRONG>);</STRONG>
+          <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG>
+          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>ls</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>rs</EM><STRONG>,</STRONG>
+          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>ts</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>bs</EM><STRONG>,</STRONG>
+          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>tl</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>tr</EM><STRONG>,</STRONG>
+          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>bl</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>br</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>box_set(</STRONG>
-          <STRONG>WINDOW</STRONG> <STRONG>*win</STRONG>,
-          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>verch</EM>,
+          <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG>
+          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>verch</EM><STRONG>,</STRONG>
           <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>horch</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>hline_set(</STRONG>
-          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM>, <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>whline_set(</STRONG>
-          <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM>,
-          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM>, <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+          <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG>
+          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>mvhline_set(</STRONG>
-          <STRONG>int</STRONG> <EM>y</EM>, <STRONG>int</STRONG> <EM>x</EM>,
-          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM>, <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+          <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG>
+          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>mvwhline_set(</STRONG>
-          <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM>,
-          <STRONG>int</STRONG> <EM>y</EM>, <STRONG>int</STRONG> <EM>x</EM>,
-          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM>, <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+          <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG>
+          <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG>
+          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>vline_set(</STRONG>
-          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM>, <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>wvline_set(</STRONG>
-          <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM>,
-          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM>, <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+          <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG>
+          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>mvvline_set(</STRONG>
-          <STRONG>int</STRONG> <EM>y</EM>, <STRONG>int</STRONG> <EM>x</EM>,
-          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM>, <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+          <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG>
+          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>mvwvline_set(</STRONG>
-          <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM>,
-          <STRONG>int</STRONG> <EM>y</EM>, <STRONG>int</STRONG> <EM>x</EM>,
-          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM>, <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+          <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG>
+          <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG>
+          <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
@@ -101,8 +101,8 @@
        of the current or specified window.  These functions do not change  the
        cursor position, and do not wrap.
 
-       Other  than  the  window, each argument is a complex character with at-
-       tributes:
+       Other  than  the  window,  each  argument  is  a complex character with
+       attributes:
               <EM>ls</EM> - left side,
               <EM>rs</EM> - right side,
               <EM>ts</EM> - top side,
@@ -112,8 +112,8 @@
               <EM>bl</EM> - bottom left-hand corner, and
               <EM>br</EM> - bottom right-hand corner.
 
-       If any of these arguments is zero, then the corresponding default  val-
-       ues (defined in <STRONG>curses.h</STRONG>) are used instead:
+       If any of these arguments  is  zero,  then  the  corresponding  default
+       values (defined in <STRONG>curses.h</STRONG>) are used instead:
               <STRONG>WACS_VLINE</STRONG>,
               <STRONG>WACS_VLINE</STRONG>,
               <STRONG>WACS_HLINE</STRONG>,
@@ -140,36 +140,40 @@
        a line proceeding toward the last line of the window.
 
 
-</PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       Note  that  <STRONG>border_set</STRONG>,  <STRONG>hline_set</STRONG>,  <STRONG>mvhline_set</STRONG>,  <STRONG>mvvline_set</STRONG>,   <STRONG>mvwh-</STRONG>
-       <STRONG>line_set</STRONG>, <STRONG>mvwvline_set</STRONG>, and <STRONG>vline_set</STRONG> may be macros.
-
-
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
        Upon successful completion, these functions return <STRONG>OK</STRONG>.  Otherwise, they
        return <STRONG>ERR</STRONG>.
 
        Functions using a window parameter return an error if it is null.
 
-       Functions with a "mv" prefix first  perform  a  cursor  movement  using
-       <STRONG>wmove</STRONG>, and return an error if the position is outside the window, or if
-       the window pointer is null.
+       Functions  prefixed with "mv" first perform cursor movement and fail if
+       the position (<EM>y</EM>, <EM>x</EM>) is outside the window boundaries.
+
+
+</PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
+       Note   that   <STRONG>border_set</STRONG>,    <STRONG>hline_set</STRONG>,    <STRONG>mvhline_set</STRONG>,    <STRONG>mvvline_set</STRONG>,
+       <STRONG>mvwhline_set</STRONG>, <STRONG>mvwvline_set</STRONG>, and <STRONG>vline_set</STRONG> may be macros.
+
+
+</PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
+       These functions are described in X/Open Curses, Issue 4.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG>, <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>, <STRONG><A HREF="curs_border.3x.html">curs_border(3x)</A></STRONG>, <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>, <STRONG><A HREF="curs_border.3x.html">curs_border(3x)</A></STRONG>, <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>
 
 
 
-                                                           <STRONG><A HREF="curs_border_set.3x.html">curs_border_set(3x)</A></STRONG>
+ncurses 6.5                       2024-04-20               <STRONG><A HREF="curs_border_set.3x.html">curs_border_set(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
 <li><a href="#h2-NAME">NAME</a></li>
 <li><a href="#h2-SYNOPSIS">SYNOPSIS</a></li>
 <li><a href="#h2-DESCRIPTION">DESCRIPTION</a></li>
-<li><a href="#h2-NOTES">NOTES</a></li>
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
+<li><a href="#h2-NOTES">NOTES</a></li>
+<li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 </ul>
 </div>

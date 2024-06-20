@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2022 Thomas E. Dickey                                     *
  * Copyright 2014 Free Software Foundation, Inc.                            *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -35,7 +35,7 @@
 
 #define WRAP(type, name)        \
   type                          \
-  name ## _as_function ()       \
+  name ## _as_function (void)   \
   {                             \
     return name;                \
   }

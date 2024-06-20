@@ -1,5 +1,5 @@
 ##############################################################################
-# Copyright 2019-2020,2021 Thomas E. Dickey                                  #
+# Copyright 2019-2022,2024 Thomas E. Dickey                                  #
 # Copyright 1998-2015,2018 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -30,7 +30,7 @@
 #  Author:  Juergen Pfeifer, 1996
 #     and:  Thomas E. Dickey, 1997
 #
-#  $Id: Makefile.in,v 1.96 2021/01/23 20:42:08 tom Exp $
+#  $Id: Makefile.in,v 1.103 2024/01/19 16:51:56 tom Exp $
 #
 .SUFFIXES:
 
@@ -103,8 +103,7 @@ PROG_GENERATE	= ./generate$x
 GENERATE	= $(PROG_GENERATE) '@USE_ARG_SUFFIX@'
 DEL_ADAMODE	= sed -e '/^\-\-\ \ \-\*\-\ ada\ \-\*\-.*/d'
 
-GNATHTML	= `type -p gnathtml || type -p gnathtml.pl 2>/dev/null`
-GNATHP          = www.gnat.com
+GNATHTML	= `command -v gnathtml || command -v gnathtml.pl`
 
 ################################################################################
 ALIB            = @cf_ada_package@
@@ -143,6 +142,19 @@ GEN_SRC		= $(srcdir)/$(ABASE).ads.m4				\
 	          $(srcdir)/$(ABASE)-forms-field_user_data.ads.m4	\
 	          $(srcdir)/$(ABASE)-panels-user_data.ads.m4
 
+################################################################################
+
+@MAKE_PHONY@.PHONY :	all
+@MAKE_PHONY@.PHONY :	clean
+@MAKE_PHONY@.PHONY :	distclean
+@MAKE_PHONY@.PHONY :	install
+@MAKE_PHONY@.PHONY :	install.libs
+@MAKE_PHONY@.PHONY :	libs
+@MAKE_PHONY@.PHONY :	mostlyclean
+@MAKE_PHONY@.PHONY :	realclean
+@MAKE_PHONY@.PHONY :	sources
+@MAKE_PHONY@.PHONY :	uninstall
+@MAKE_PHONY@.PHONY :	uninstall.libs
 
 all \
 libs :	$(GEN_TARGETS)
@@ -171,7 +183,8 @@ $(ADA_SRCDIR)/$(ABASE)_constants.ads: $(PROG_GENERATE)
 	$(WRAPPER) "$(GENERATE) $@"
 ################################################################################
 $(ADA_SRCDIR)/$(ABASE).ads: 	$(srcdir)/$(ABASE).ads.m4 \
-				$(srcdir)/normal.m4
+				$(srcdir)/normal.m4 \
+				options.m4
 	$(M4) $(M4FLAGS) -DM4MACRO=$(srcdir)/normal.m4 \
 	$(srcdir)/$(ABASE).ads.m4 |\
 	$(DEL_ADAMODE) >$@
@@ -272,6 +285,7 @@ mostlyclean ::
 	-rm -f a.out core $(PROG_GENERATE) *.o
 
 clean :: mostlyclean
+	-rm -f options.m4
 	-rm -f $(GEN_TARGETS) instab.tmp *.ad[bs] *.html *.ali *.tmp
 
 distclean :: clean
@@ -282,29 +296,39 @@ realclean :: distclean
 
 HTML_DIR = @ADAHTML_DIR@
 
+options.m4 :
+	$(SHELL) -c "if [ @cf_cv_enable_sigwinch@ = 0 ]; \
+		then \
+			dashes='   --'; \
+		else \
+			dashes='';\
+		fi; \
+		echo \"define(OPT_KEY_RESIZE,\\\`\$$dashes')dnl\" > $@"
+
 instab.tmp : table.m4 $(GEN_SRC)
 	@rm -f $@
 	@for f in $(GEN_SRC) ; do \
 	  $(M4) $(M4FLAGS) -DM4MACRO=table.m4 $$f | $(DEL_ADAMODE) >> $@ ;\
 	done;
 
+TABLE_TITLE=Correspondence between ncurses C and Ada functions
+
 $(HTML_DIR)/table.html : instab.tmp
 	@-touch $@
 	@-chmod +w $@
-	@echo '<!DOCTYPE HTML'  > $@
-	@echo 'PUBLIC "-//IETF//DTD HTML 3.0//EN">' >> $@
-	@echo '<HTML>' >> $@
-	@echo '<HEAD>' >> $@
-	@echo '<TITLE>Correspondence between ncurses C and Ada functions</TITLE>' >>$@
-	@echo '</HEAD>' >> $@
-	@echo '<BODY>' >> $@
-	@echo '<H1>Correspondence between ncurses C and Ada functions</H1>' >>$@
-	@echo '<H2>Sorted by C function name</H2>' >>$@
-	@echo '<TABLE ALIGN=CENTER BORDER>' >>$@
-	@echo '<TR ALIGN=LEFT>' >>$@
-	@echo '<TH>C name</TH><TH>Ada name</TH><TH>man page</TH></TR>' >>$@
+	@echo '<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">' > $@
+	@echo '<html>' >> $@
+	@echo '<head>' >> $@
+	@echo '<title>$(TABLE_TITLE)</title>' >>$@
+	@echo '</head>' >> $@
+	@echo '<body>' >> $@
+	@echo '<h1>$(TABLE_TITLE)</h1>' >>$@
+	@echo '<h2>Sorted by C function name</h2>' >>$@
+	@echo '<table align="center" border summary="$(TABLE_TITLE)">' >>$@
+	@echo '<tr align="left">' >>$@
+	@echo '<th>C name</th><th>Ada name</th><th>man page</th></tr>' >>$@
 	@sort < instab.tmp >> $@
-	@echo '</TABLE></BODY></HTML>' >>$@
+	@echo '</table></body></html>' >>$@
 	@rm -f instab.tmp
 
 adahtml:
@@ -328,7 +352,7 @@ adahtml:
 	for f in html/$(ALIB)*.htm*; do \
 	   a=`basename $$f` ; \
 	   sed -e 's/You may also.*body.*//' <$$f |\
-	   sed -e 's%GNAT%<A HREF="http://$(GNATHP)">GNAT</A>%g' |\
+	   sed -e 's%\<GNAT\>%<strong>GNAT</strong>%g' |\
 	   sed -e 's%&lt;A HREF%<A HREF%g' |\
 	   sed -e 's%"&gt;%">%g' |\
 	   sed -e 's%#1A\([[:space:]]*NAME="[^"]*"\)#2%<A\1>%' |\

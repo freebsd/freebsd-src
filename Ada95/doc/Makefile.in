@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.8 2021/01/23 20:42:08 tom Exp $
+# $Id: Makefile.in,v 1.9 2021/07/03 15:45:33 tom Exp $
 ##############################################################################
 # Copyright 2019-2020,2021 Thomas E. Dickey                                  #
 # Copyright 2011-2015,2018 Free Software Foundation, Inc.                    #
@@ -52,9 +52,26 @@ THIS		= @ADA_LIBNAME@
 DOCDIR		= $(DESTDIR)$(datadir)/doc/$(THIS)
 MANDIR		= $(DESTDIR)$(mandir)/man1
 
+################################################################################
+
+@MAKE_PHONY@.PHONY :	all
+@MAKE_PHONY@.PHONY :	check
+@MAKE_PHONY@.PHONY :	clean
+@MAKE_PHONY@.PHONY :	distclean
+@MAKE_PHONY@.PHONY :	install
+@MAKE_PHONY@.PHONY :	install.html
+@MAKE_PHONY@.PHONY :	install.man
+@MAKE_PHONY@.PHONY :	libs
+@MAKE_PHONY@.PHONY :	lint
+@MAKE_PHONY@.PHONY :	mostlyclean
+@MAKE_PHONY@.PHONY :	realclean
+@MAKE_PHONY@.PHONY :	sources
+@MAKE_PHONY@.PHONY :	uninstall
+@MAKE_PHONY@.PHONY :	uninstall.html
+@MAKE_PHONY@.PHONY :	uninstall.man
+
 all \
 sources \
-depend \
 tags :
 
 $(DOCDIR) \

@@ -1,0 +1,127 @@
+<!--
+  ****************************************************************************
+  * Copyright 2020-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2010 Free Software Foundation, Inc.                            *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: MKncu_config.in,v 1.24 2024/04/20 21:13:38 tom Exp @
+-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<HTML>
+<HEAD>
+<meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+<meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+<TITLE>ncursesw6-config 1 2024-04-20 ncurses 6.5 User commands</TITLE>
+<link rel="author" href="mailto:bug-ncurses@gnu.org">
+
+</HEAD>
+<BODY>
+<H1 class="no-header">ncursesw6-config 1 2024-04-20 ncurses 6.5 User commands</H1>
+<PRE>
+<STRONG><A HREF="ncursesw6-config.1.html">ncursesw6-config(1)</A></STRONG>              User commands             <STRONG><A HREF="ncursesw6-config.1.html">ncursesw6-config(1)</A></STRONG>
+
+
+
+
+</PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
+       <STRONG>ncursesw6-config</STRONG> - configuration helper for <EM>ncurses</EM> libraries
+
+
+</PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
+       <STRONG>ncursesw6-config</STRONG> <EM>option</EM> ...
+
+       <STRONG>ncursesw6-config</STRONG> <STRONG>--version</STRONG>
+
+       <STRONG>ncursesw6-config</STRONG> <STRONG>--help</STRONG>
+
+
+</PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
+       This  program  development  aid  simplifies  the process of configuring
+       applications against a particular set of <EM>ncurses</EM> libraries.
+
+
+</PRE><H2><a name="h2-OPTIONS">OPTIONS</a></H2><PRE>
+       <STRONG>--prefix</STRONG>          reports the package prefix of <EM>ncurses</EM>.
+
+       <STRONG>--exec-prefix</STRONG>     reports the executable prefix of <EM>ncurses</EM>.
+
+       <STRONG>--cflags</STRONG>          reports the C compiler flags needed to  compile  with
+                         <EM>ncurses</EM>.
+
+       <STRONG>--libs</STRONG>            reports the libraries needed to link with <EM>ncurses</EM>.
+
+       <STRONG>--abi-version</STRONG>     reports the ABI version of <EM>ncurses</EM>.
+
+       <STRONG>--mouse-version</STRONG>   reports the mouse-interface version of <EM>ncurses</EM>.
+
+       <STRONG>--bindir</STRONG>          reports the directory containing <EM>ncurses</EM> programs.
+
+       <STRONG>--datadir</STRONG>         reports the directory containing <EM>ncurses</EM> data.
+
+       <STRONG>--includedir</STRONG>      reports   the  directory  containing  <EM>ncurses</EM>  header
+                         files.
+
+       <STRONG>--libdir</STRONG>          reports the directory containing <EM>ncurses</EM> libraries.
+
+       <STRONG>--mandir</STRONG>          reports the directory containing <EM>ncurses</EM> man pages.
+
+       <STRONG>--terminfo</STRONG>        reports the  <EM>TERMINFO</EM>  <EM>terminfo</EM>  database  path,  for
+                         example <EM>/usr/share/terminfo</EM>.
+
+       <STRONG>--terminfo-dirs</STRONG>   reports  the  <EM>TERMINFO</EM><STRONG>_</STRONG><EM>DIRS</EM>  supplemental search path
+                         for    the    <EM>terminfo</EM>    database,    for    example
+                         <EM>/usr/share/terminfo</EM>.
+
+       <STRONG>--termpath</STRONG>        reports the <EM>TERMPATH</EM> supplemental search path for the
+                         <EM>termcap</EM>  database,  if   support   for   <EM>termcap</EM>   is
+                         configured.
+
+       The following options cause all others to be ignored.
+
+       <STRONG>--help</STRONG>     issues a usage message and exits successfully.
+
+       <STRONG>--version</STRONG>  issues the release and patch date information of <EM>ncurses</EM> and
+                  exits successfully.
+
+
+</PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>
+
+
+
+ncurses 6.5                       2024-04-20               <STRONG><A HREF="ncursesw6-config.1.html">ncursesw6-config(1)</A></STRONG>
+</PRE>
+<div class="nav">
+<ul>
+<li><a href="#h2-NAME">NAME</a></li>
+<li><a href="#h2-SYNOPSIS">SYNOPSIS</a></li>
+<li><a href="#h2-DESCRIPTION">DESCRIPTION</a></li>
+<li><a href="#h2-OPTIONS">OPTIONS</a></li>
+<li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
+</ul>
+</div>
+</BODY>
+</HTML>

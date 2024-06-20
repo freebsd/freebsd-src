@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2018-2020,2023 Thomas E. Dickey                                *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: dump_window.c,v 1.4 2020/02/02 23:34:34 tom Exp $
+ * $Id: dump_window.c,v 1.5 2023/11/11 00:30:50 tom Exp $
  */
 #include <dump_window.h>
 
@@ -97,7 +97,7 @@ dump_window(WINDOW *w)
 			char aa;
 			char pp;
 
-			temp = ((data & A_ATTRIBUTES) & (~A_COLOR));
+			temp = ((data & A_ATTRIBUTES) & (chtype) (~A_COLOR));
 			if (temp) {
 			    if (temp & A_ALTCHARSET) {
 				aa = (temp & A_BOLD) ? 'A' : 'a';

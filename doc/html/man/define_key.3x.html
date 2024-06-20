@@ -1,6 +1,6 @@
-<!-- 
+<!--
   ****************************************************************************
-  * Copyright 2018,2020 Thomas E. Dickey                                     *
+  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
   * Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,27 +28,27 @@
   * authorization.                                                           *
   ****************************************************************************
   * Author: Thomas E. Dickey 1997
-  * @Id: define_key.3x,v 1.18 2020/10/24 09:52:54 tom Exp @
+  * @Id: define_key.3x,v 1.42 2024/03/16 15:35:01 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>define_key 3x</TITLE>
+<TITLE>define_key 3x 2024-03-16 ncurses 6.5 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+
 </HEAD>
 <BODY>
-<H1 class="no-header">define_key 3x</H1>
+<H1 class="no-header">define_key 3x 2024-03-16 ncurses 6.5 Library calls</H1>
 <PRE>
-<STRONG><A HREF="define_key.3x.html">define_key(3x)</A></STRONG>                                                  <STRONG><A HREF="define_key.3x.html">define_key(3x)</A></STRONG>
+<STRONG><A HREF="define_key.3x.html">define_key(3x)</A></STRONG>                   Library calls                  <STRONG><A HREF="define_key.3x.html">define_key(3x)</A></STRONG>
 
 
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
-       <STRONG>define_key</STRONG> - define a keycode
+       <STRONG>define_key</STRONG> - define a <EM>curses</EM> keycode
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
@@ -58,39 +58,39 @@
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       This  is an extension to the curses library.  It permits an application
+       This  is an extension to the <EM>curses</EM> library.  It permits an application
        to define keycodes with their corresponding control  strings,  so  that
-       the ncurses library will interpret them just as it would the predefined
+       the <EM>ncurses</EM> library will interpret them just as it would the predefined
        codes in the terminfo database.
 
-       If the given string is null, any existing definition for the keycode is
-       removed.   Similarly,  if  the  given  keycode is negative or zero, any
-       existing string for the given definition is removed.
+       If <EM>definition</EM> is <STRONG>NULL</STRONG>, any existing one for  the  keycode  is  removed.
+       Similarly,  if  the  given  keycode  is  negative or zero, any existing
+       string for the given definition is removed.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       The keycode must  be  greater  than  zero,  and  the  string  non-null,
-       otherwise  <STRONG>ERR</STRONG>  is  returned.   <STRONG>ERR</STRONG>  may  also  be returned if there is
+       Either <EM>keycode</EM> must be greater than zero, or <EM>definition</EM>  must  be  non-
+       <STRONG>NULL</STRONG>,  otherwise <STRONG>ERR</STRONG> is returned.  <STRONG>ERR</STRONG> may also be returned if there is
        insufficient memory to allocate the data to store the  definition.   If
        no error is detected, <STRONG>OK</STRONG> is returned.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These  routines  are  specific  to ncurses.  They were not supported on
+       These  routines  are  specific  to <EM>ncurses</EM>.  They were not supported on
        Version 7, BSD or System V implementations.  It is recommended that any
-       code depending on them be conditioned using NCURSES_VERSION.
+       code depending on them be conditioned using <STRONG>NCURSES_VERSION</STRONG>.
+
+
+</PRE><H2><a name="h2-AUTHORS">AUTHORS</a></H2><PRE>
+       Thomas Dickey
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="keyok.3x.html">keyok(3x)</A></STRONG>, <STRONG><A HREF="key_defined.3x.html">key_defined(3x)</A></STRONG>.
-
-
-</PRE><H2><a name="h2-AUTHOR">AUTHOR</a></H2><PRE>
-       Thomas Dickey.
+       <STRONG><A HREF="keyok.3x.html">keyok(3x)</A></STRONG>, <STRONG><A HREF="key_defined.3x.html">key_defined(3x)</A></STRONG>
 
 
 
-                                                                <STRONG><A HREF="define_key.3x.html">define_key(3x)</A></STRONG>
+ncurses 6.5                       2024-03-16                    <STRONG><A HREF="define_key.3x.html">define_key(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -99,8 +99,8 @@
 <li><a href="#h2-DESCRIPTION">DESCRIPTION</a></li>
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
+<li><a href="#h2-AUTHORS">AUTHORS</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
-<li><a href="#h2-AUTHOR">AUTHOR</a></li>
 </ul>
 </div>
 </BODY>

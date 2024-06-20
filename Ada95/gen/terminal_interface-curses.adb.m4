@@ -9,7 +9,7 @@ include(M4MACRO)----------------------------------------------------------------
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright 2018,2020 Thomas E. Dickey                                     --
+-- Copyright 2018-2020,2024 Thomas E. Dickey                                --
 -- Copyright 2007-2011,2014 Free Software Foundation, Inc.                  --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
@@ -38,8 +38,8 @@ include(M4MACRO)----------------------------------------------------------------
 ------------------------------------------------------------------------------
 --  Author: Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.16 $
---  $Date: 2020/02/02 23:34:34 $
+--  $Revision: 1.17 $
+--  $Date: 2024/03/30 13:24:07 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with System;
@@ -564,7 +564,7 @@ package body Terminal_Interface.Curses is
       L : constant Special_Key_Code  := Special_Key_Code (Natural (Key_F0) +
         Natural (Function_Key_Number'Last));
    begin
-      if (Key >= Key_F0) and then (Key <= L) then
+      if Key >= Key_F0 and then Key <= L then
          return True;
       else
          return False;

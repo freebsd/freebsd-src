@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020-2021,2022 Thomas E. Dickey                                *
  * Copyright 2007-2008,2009 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: test_opaque.c,v 1.10 2020/02/02 23:34:34 tom Exp $
+ * $Id: test_opaque.c,v 1.15 2022/12/11 00:03:10 tom Exp $
  *
  * Author: Thomas E Dickey
  *
@@ -45,6 +45,9 @@
        bool is_scrollok(const WINDOW *win);
        bool is_syncok(const WINDOW *win);
        int wgetscrreg (const WINDOW *, int *, int *);
+       bool is_pad(const WINDOW *win);
+       bool is_subwin(const WINDOW *win);
+       int wgetdelay(const WINDOW *win);
  */
 
 #include <test.priv.h>
@@ -52,7 +55,7 @@
 #define BASE_Y 6
 #define MAX_COLS 1024
 
-#if defined(NCURSES_VERSION_PATCH) && (NCURSES_VERSION_PATCH >= 20080119) && NCURSES_EXT_FUNCS
+#if defined(NCURSES_VERSION_PATCH) && (NCURSES_VERSION_PATCH >= 20090906) && NCURSES_EXT_FUNCS && NCURSES_OPAQUE
 
 static bool
 Quit(int ch)
@@ -209,6 +212,8 @@ static struct {
 };
 /* *INDENT-ON* */
 
+#define bool2c(c) ((c) ? 'T' : 'F')
+
 /*
  * Display and/or allow update for the properties accessed in the opaque
  * window.  Some may change state after refreshing the window, so we
@@ -227,18 +232,35 @@ show_opaque(WINDOW *stswin, WINDOW *txtwin, bool before, int active)
 	show_keyword(stswin, n, active, bool_funcs[n].name);
 
 	to_result(stswin, n, before);
-	wprintw(stswin, "%c", bool_funcs[n].func(txtwin, -1) ? 'T' : 'F');
+	wprintw(stswin, "%c", bool2c(bool_funcs[n].func(txtwin, -1)));
     }
 
+    show_keyword(stswin, n, active, "is_pad");
+    to_result(stswin, n, TRUE);
+    wprintw(stswin, "%c", bool2c(is_pad(txtwin)));
+
+    ++n;
+    show_keyword(stswin, n, active, "is_subwin");
+    to_result(stswin, n, TRUE);
+    wprintw(stswin, "%c", bool2c(is_subwin(txtwin)));
+
+    ++n;
     show_keyword(stswin, n, active, "wgetparent");
     to_result(stswin, n, TRUE);
     wprintw(stswin, "%p", (void *) wgetparent(txtwin));
+
+    ++n;
+    show_keyword(stswin, n, active, "wgetdelay");
+    to_result(stswin, n, TRUE);
+    wprintw(stswin, "%d", wgetdelay(txtwin));
 
     ++n;
     show_keyword(stswin, n, active, "wgetscrreg");
     to_result(stswin, n, TRUE);
     if (wgetscrreg(txtwin, &top, &bottom) == OK)
 	wprintw(stswin, "%d,%d", top, bottom);
+    else
+	wprintw(stswin, "none");
 
     wnoutrefresh(stswin);
     return active;
@@ -432,18 +454,48 @@ test_set_tabsize(void)
     set_tabsize(save_tabsize);
 }
 
+static void
+usage(int ok)
+{
+    static const char *msg[] =
+    {
+	"Usage: test_opaque [options] file1 [file2 [...]]"
+	,""
+	,USAGE_COMMON
+    };
+    size_t n;
+
+    for (n = 0; n < SIZEOF(msg); n++)
+	fprintf(stderr, "%s\n", msg[n]);
+
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
+}
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
+
 int
 main(int argc, char *argv[])
 {
     WINDOW *stsbox;
     WINDOW *stswin;
+    int ch;
+
+    while ((ch = getopt(argc, argv, OPTS_COMMON)) != -1) {
+	switch (ch) {
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
+	default:
+	    usage(ch == OPTS_USAGE);
+	    /* NOTREACHED */
+	}
+    }
 
     setlocale(LC_ALL, "");
 
-    if (argc < 2) {
-	fprintf(stderr, "usage: %s file\n", argv[0]);
-	return EXIT_FAILURE;
-    }
+    if (optind + 1 > argc)
+	usage(FALSE);
 
     initscr();
 
@@ -457,7 +509,7 @@ main(int argc, char *argv[])
     stswin = derwin(stsbox, BASE_Y - 2, COLS - 2, 1, 1);
     keypad(stswin, TRUE);
 
-    test_opaque(1, argv, stswin);
+    test_opaque(optind, argv, stswin);
 
     endwin();
     ExitProgram(EXIT_SUCCESS);

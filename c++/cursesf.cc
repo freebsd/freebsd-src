@@ -1,6 +1,6 @@
 // * this is for making emacs happy: -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2020,2021 Thomas E. Dickey                                *
  * Copyright 1998-2005,2011 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -36,7 +36,7 @@
 #include "cursesf.h"
 #include "cursesapp.h"
 
-MODULE_ID("$Id: cursesf.cc,v 1.25 2020/07/18 19:57:11 anonymous.maarten Exp $")
+MODULE_ID("$Id: cursesf.cc,v 1.26 2021/04/17 18:11:08 tom Exp $")
 
 NCursesFormField::~NCursesFormField () THROWS(NCursesException)
 {
@@ -285,15 +285,15 @@ NCursesFormField*
 NCursesForm::operator()(void)
 {
   int drvCmnd;
-  int err;
   int c;
 
   post();
   show();
   refresh();
 
-  while (((drvCmnd = virtualize((c=getKey()))) != CMD_QUIT)) {
-    switch((err=driver(drvCmnd))) {
+  while (((drvCmnd = virtualize((c = getKey()))) != CMD_QUIT)) {
+    int err;
+    switch((err = driver(drvCmnd))) {
     case E_REQUEST_DENIED:
       On_Request_Denied(c);
       break;

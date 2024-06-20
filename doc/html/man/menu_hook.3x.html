@@ -1,7 +1,6 @@
-<!-- 
-  * t
+<!--
   ****************************************************************************
-  * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
   * Copyright 1998-2007,2010 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,21 +27,21 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: menu_hook.3x,v 1.15 2020/10/17 23:44:57 tom Exp @
+  * @Id: menu_hook.3x,v 1.32 2024/03/16 15:35:01 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>menu_hook 3x</TITLE>
+<TITLE>menu_hook 3x 2024-03-16 ncurses 6.5 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+
 </HEAD>
 <BODY>
-<H1 class="no-header">menu_hook 3x</H1>
+<H1 class="no-header">menu_hook 3x 2024-03-16 ncurses 6.5 Library calls</H1>
 <PRE>
-<STRONG><A HREF="menu_hook.3x.html">menu_hook(3x)</A></STRONG>                                                    <STRONG><A HREF="menu_hook.3x.html">menu_hook(3x)</A></STRONG>
+<STRONG><A HREF="menu_hook.3x.html">menu_hook(3x)</A></STRONG>                    Library calls                   <STRONG><A HREF="menu_hook.3x.html">menu_hook(3x)</A></STRONG>
 
 
 
@@ -54,17 +53,17 @@
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;menu.h&gt;</STRONG>
 
-       <STRONG>int</STRONG> <STRONG>set_item_init(MENU</STRONG> <STRONG>*</STRONG><EM>menu</EM><STRONG>,</STRONG> <STRONG>Menu_Hook</STRONG> <EM>func);</EM>
-       <STRONG>Menu_Hook</STRONG> <STRONG>item_init(const</STRONG> <STRONG>MENU</STRONG> <STRONG>*</STRONG><EM>menu);</EM>
+       <STRONG>int</STRONG> <STRONG>set_item_init(MENU</STRONG> <STRONG>*</STRONG><EM>menu</EM><STRONG>,</STRONG> <STRONG>Menu_Hook</STRONG> <EM>func</EM><STRONG>);</STRONG>
+       <STRONG>Menu_Hook</STRONG> <STRONG>item_init(const</STRONG> <STRONG>MENU</STRONG> <STRONG>*</STRONG><EM>menu</EM><STRONG>);</STRONG>
 
-       <STRONG>int</STRONG> <STRONG>set_item_term(MENU</STRONG> <STRONG>*</STRONG><EM>menu</EM><STRONG>,</STRONG> <STRONG>Menu_Hook</STRONG> <EM>func);</EM>
-       <STRONG>Menu_Hook</STRONG> <STRONG>item_term(const</STRONG> <STRONG>MENU</STRONG> <STRONG>*</STRONG><EM>menu);</EM>
+       <STRONG>int</STRONG> <STRONG>set_item_term(MENU</STRONG> <STRONG>*</STRONG><EM>menu</EM><STRONG>,</STRONG> <STRONG>Menu_Hook</STRONG> <EM>func</EM><STRONG>);</STRONG>
+       <STRONG>Menu_Hook</STRONG> <STRONG>item_term(const</STRONG> <STRONG>MENU</STRONG> <STRONG>*</STRONG><EM>menu</EM><STRONG>);</STRONG>
 
-       <STRONG>int</STRONG> <STRONG>set_menu_init(MENU</STRONG> <STRONG>*</STRONG><EM>menu</EM><STRONG>,</STRONG> <STRONG>Menu_Hook</STRONG> <EM>func);</EM>
-       <STRONG>Menu_Hook</STRONG> <STRONG>menu_init(const</STRONG> <STRONG>MENU</STRONG> <STRONG>*</STRONG><EM>menu);</EM>
+       <STRONG>int</STRONG> <STRONG>set_menu_init(MENU</STRONG> <STRONG>*</STRONG><EM>menu</EM><STRONG>,</STRONG> <STRONG>Menu_Hook</STRONG> <EM>func</EM><STRONG>);</STRONG>
+       <STRONG>Menu_Hook</STRONG> <STRONG>menu_init(const</STRONG> <STRONG>MENU</STRONG> <STRONG>*</STRONG><EM>menu</EM><STRONG>);</STRONG>
 
-       <STRONG>int</STRONG> <STRONG>set_menu_term(MENU</STRONG> <STRONG>*</STRONG><EM>menu</EM><STRONG>,</STRONG> <STRONG>Menu_Hook</STRONG> <EM>func);</EM>
-       <STRONG>Menu_Hook</STRONG> <STRONG>menu_term(const</STRONG> <STRONG>MENU</STRONG> <STRONG>*</STRONG><EM>menu);</EM>
+       <STRONG>int</STRONG> <STRONG>set_menu_term(MENU</STRONG> <STRONG>*</STRONG><EM>menu</EM><STRONG>,</STRONG> <STRONG>Menu_Hook</STRONG> <EM>func</EM><STRONG>);</STRONG>
+       <STRONG>Menu_Hook</STRONG> <STRONG>menu_term(const</STRONG> <STRONG>MENU</STRONG> <STRONG>*</STRONG><EM>menu</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
@@ -103,17 +102,8 @@
             System error occurred (see <STRONG>errno(3)</STRONG>).
 
 
-</PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="menu.3x.html">menu(3x)</A></STRONG>.
-
-
-</PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       The  header  file  <STRONG>&lt;menu.h&gt;</STRONG>  automatically  includes  the  header  file
-       <STRONG>&lt;curses.h&gt;</STRONG>.
-
-
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These  routines  emulate  the  System  V  menu  library.  They were not
+       These routines emulate the  System  V  menu  library.   They  were  not
        supported on Version 7 or BSD versions.
 
 
@@ -122,8 +112,12 @@
        Raymond.
 
 
+</PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="menu.3x.html">menu(3x)</A></STRONG>
 
-                                                                 <STRONG><A HREF="menu_hook.3x.html">menu_hook(3x)</A></STRONG>
+
+
+ncurses 6.5                       2024-03-16                     <STRONG><A HREF="menu_hook.3x.html">menu_hook(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -131,10 +125,9 @@
 <li><a href="#h2-SYNOPSIS">SYNOPSIS</a></li>
 <li><a href="#h2-DESCRIPTION">DESCRIPTION</a></li>
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
-<li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
-<li><a href="#h2-NOTES">NOTES</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
 <li><a href="#h2-AUTHORS">AUTHORS</a></li>
+<li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 </ul>
 </div>
 </BODY>

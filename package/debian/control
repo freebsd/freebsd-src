@@ -3,8 +3,8 @@ Section: libdevel
 Priority: optional
 Maintainer: Thomas E. Dickey <dickey@invisible-island.net>
 Homepage: https://invisible-island.net/ncurses/
-Build-Depends: debhelper (>= 7)
-Standards-Version: 3.8.2
+Build-Depends: debhelper (>= 8.1.3)
+Standards-Version: 4.6.1.0
 
 Package: ncurses6
 Architecture: any

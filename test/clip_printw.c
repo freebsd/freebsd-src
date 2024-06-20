@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2022,2023 Thomas E. Dickey                                *
  * Copyright 2008-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,9 +27,9 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: clip_printw.c,v 1.19 2020/05/10 00:40:23 tom Exp $
+ * $Id: clip_printw.c,v 1.23 2023/09/30 19:57:44 tom Exp $
  *
- * demonstrate how to use printw without wrapping.
+ * demonstrate how to use printw with/without wrapping.
  */
 
 #include <test.priv.h>
@@ -40,9 +40,15 @@
 #define SHOW(n) ((n) == ERR ? "ERR" : "OK")
 #define COLOR_DEFAULT (-1)
 
+#define X_BASE 0
+#define Y_BASE 1
+#define MARGIN 1
+#define Y_TOP  (Y_BASE + MARGIN)
+
 typedef struct {
     unsigned c;
     unsigned v;
+    bool single;
     int status;
     int pair;
     attr_t attr;
@@ -57,21 +63,29 @@ typedef struct {
 } STATUS;
 
 static int
-clip_wprintw(WINDOW *win, NCURSES_CONST char *fmt, ...)
+clip_wprintw(WINDOW *win, bool single, NCURSES_CONST char *fmt, ...)
 {
     int y0, x0, y1, x1, width;
     WINDOW *sub;
     va_list ap;
     int rc;
 
-    /*
-     * Allocate a single-line derived window extending from the current
-     * cursor position to the end of the current line in the given window.
-     * Disable scrolling in the derived window.
-     */
     getyx(win, y0, x0);
     width = getmaxx(win) - x0;
-    sub = derwin(win, 1, width, y0, x0);
+    if (single) {
+	/*
+	 * Allocate a single-line derived window extending from the current
+	 * cursor position to the end of the current line in the given window.
+	 * Disable scrolling in the derived window.
+	 */
+	sub = derwin(win, 1, width, y0, x0);
+    } else {
+	/*
+	 * Allow printw to wrap through the entire window.
+	 */
+	sub = derwin(win, getmaxy(win), getmaxx(win), 0, 0);
+	wmove(sub, y0, x0);
+    }
     scrollok(sub, FALSE);
 
     /*
@@ -84,7 +98,11 @@ clip_wprintw(WINDOW *win, NCURSES_CONST char *fmt, ...)
     getyx(sub, y1, x1);
     delwin(sub);
 
-    wmove(win, y1 + y0, x1 + x0);
+    if (single) {
+	wmove(win, y1 + y0, x1 + x0);
+    } else {
+	wmove(win, y1, x1);
+    }
 
     return rc;
 }
@@ -156,11 +174,12 @@ video_params(unsigned state, attr_t *attr)
 static void
 fill_window(WINDOW *win)
 {
+    int y_top = (win == stdscr) ? Y_BASE : MARGIN;
     int y, x;
     int y0 = -1, x0 = -1;
 
     getyx(win, y, x);
-    wmove(win, 0, 0);
+    wmove(win, y_top, 0);
     while (waddstr(win, "0123456789 abcdefghijklmnopqrstuvwxyz ") != ERR) {
 	int y1, x1;
 	getyx(win, y1, x1);
@@ -178,25 +197,34 @@ show_status(WINDOW *win, STATUS * sp)
     int y, x;
 
     getyx(win, y, x);
+    wattron(win, A_REVERSE);
     wmove(win, 0, 0);
-    wprintw(win, "Count %d", sp->count);
+    wprintw(win, "Clip %s", sp->single ? "line" : "window");
+    wprintw(win, " Count %d", sp->count);
     if (sp->v_msg != 0)
 	wprintw(win, " Video %s", sp->v_msg);
     if (sp->c_msg != 0)
 	wprintw(win, " Color %s", sp->c_msg);
     wprintw(win, " (%d)", sp->status);
     wclrtoeol(win);
+    wattroff(win, A_REVERSE);
     wmove(win, y, x);
 }
 
 static void
 do_subwindow(WINDOW *win, STATUS * sp, void func(WINDOW *))
 {
-    WINDOW *win1 = newwin(sp->y_max - 2, sp->x_max - 2,
-			  sp->y_beg + 1, sp->x_beg + 1);
+    WINDOW *win1 = newwin(sp->y_max - (2 * MARGIN),
+			  sp->x_max - (2 * MARGIN),
+			  sp->y_beg + MARGIN,
+			  sp->x_beg + MARGIN);
 
     if (win1 != 0 && sp->y_max > 4 && sp->x_max > 4) {
-	WINDOW *win2 = derwin(win1, sp->y_max - 4, sp->x_max - 4, 1, 1);
+	WINDOW *win2 = derwin(win1,
+			      sp->y_max - (2 * MARGIN) - 2,
+			      sp->x_max - (2 * MARGIN) - 2,
+			      (win == stdscr) ? Y_BASE : Y_BASE,
+			      MARGIN);
 
 	if (win2 != 0) {
 	    box(win1, 0, 0);
@@ -216,10 +244,14 @@ do_subwindow(WINDOW *win, STATUS * sp, void func(WINDOW *))
     }
 }
 
+/*
+ * The status line is within the same window as the test-data.
+ */
 static void
 init_status(WINDOW *win, STATUS * sp)
 {
     memset(sp, 0, sizeof(*sp));
+    sp->single = TRUE;
     sp->c = 99;
     sp->v = 99;
     sp->ch = ' ';
@@ -229,6 +261,8 @@ init_status(WINDOW *win, STATUS * sp)
 
     getbegyx(win, sp->y_beg, sp->x_beg);
     getmaxyx(win, sp->y_max, sp->x_max);
+
+    wmove(win, sp->y_val = Y_BASE, sp->x_val = 0);
 }
 
 static void
@@ -242,7 +276,10 @@ show_help(WINDOW *win)
 	,""
 	,"Other commands:"
 	,"space toggles through the set of video attributes and colors."
+	,"q     exit subwindow, quit if last window."
+	,"s     toggles single-line updates versus entire windows."
 	,"t     touches (forces repaint) of the current line."
+	,"w     create subwindow."
 	,".     calls vw_printw at the current position with the given count."
 	,"=     resets count to zero."
 	,"?     shows this help-window"
@@ -255,6 +292,8 @@ show_help(WINDOW *win)
 static void
 update_status(WINDOW *win, STATUS * sp)
 {
+    int margin = 0;
+
     switch (sp->ch) {
     case ' ':			/* next test-iteration */
 	if (has_colors()) {
@@ -272,24 +311,40 @@ update_status(WINDOW *win, STATUS * sp)
 	sp->count = 0;
 	show_status(win, sp);
 	break;
+    case KEY_HOME:
+    case '^':
+	wmove(win, sp->y_val, sp->x_val = margin);
+	break;
+    case KEY_END:
+    case '$':
+	wmove(win, sp->y_val, sp->x_val = (sp->x_max - margin - 1));
+	break;
+    case KEY_PPAGE:
+    case CTRL('B'):
+	wmove(win, sp->y_val = Y_BASE, sp->x_val);
+	break;
+    case KEY_NPAGE:
+    case CTRL('F'):
+	wmove(win, sp->y_val = (sp->y_max - margin - 1), sp->x_val);
+	break;
     case KEY_LEFT:
     case 'h':
-	if (sp->x_val > 0)
+	if (sp->x_val > margin)
 	    wmove(win, sp->y_val, --(sp->x_val));
 	break;
     case KEY_DOWN:
     case 'j':
-	if (sp->y_val < sp->y_max)
+	if (sp->y_val < (sp->y_max - margin))
 	    wmove(win, ++(sp->y_val), sp->x_val);
 	break;
     case KEY_UP:
     case 'k':
-	if (sp->y_val > 0)
+	if (sp->y_val > Y_BASE)
 	    wmove(win, --(sp->y_val), sp->x_val);
 	break;
     case KEY_RIGHT:
     case 'l':
-	if (sp->x_val < sp->x_max)
+	if (sp->x_val < (sp->x_max - margin))
 	    wmove(win, sp->y_val, ++(sp->x_val));
 	break;
     case 't':
@@ -297,6 +352,10 @@ update_status(WINDOW *win, STATUS * sp)
 	break;
     case '=':
 	sp->count = 0;
+	show_status(win, sp);
+	break;
+    case 's':
+	sp->single = !sp->single;
 	show_status(win, sp);
 	break;
     case HELP_KEY_1:
@@ -342,7 +401,7 @@ test_clipping(WINDOW *win)
 		    buffer[j] = (char) ('A' + (j % 26));
 		}
 		buffer[need - 1] = '\0';
-		st.status = clip_wprintw(win, fmt, '[', buffer, ']');
+		st.status = clip_wprintw(win, st.single, fmt, '[', buffer, ']');
 		free(buffer);
 	    }
 	    break;
@@ -358,9 +417,45 @@ test_clipping(WINDOW *win)
     } while ((st.ch = wgetch(win)) != ERR);
 }
 
-int
-main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
+static void
+usage(int ok)
 {
+    static const char *msg[] =
+    {
+	"Usage: clip_printw [options]"
+	,""
+	,USAGE_COMMON
+    };
+    size_t n;
+
+    for (n = 0; n < SIZEOF(msg); n++)
+	fprintf(stderr, "%s\n", msg[n]);
+
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
+}
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
+
+int
+main(int argc, char *argv[])
+{
+    int ch;
+
+    while ((ch = getopt(argc, argv, OPTS_COMMON)) != -1) {
+	switch (ch) {
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
+	default:
+	    usage(ch == OPTS_USAGE);
+	    /* NOTREACHED */
+	}
+    }
+    if (optind < argc)
+	usage(FALSE);
+
+    setlocale(LC_ALL, "");
     initscr();
     cbreak();
     noecho();

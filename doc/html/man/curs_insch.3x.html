@@ -1,6 +1,6 @@
-<!-- 
+<!--
   ****************************************************************************
-  * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
   * Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,28 +27,28 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_insch.3x,v 1.19 2020/10/18 00:21:39 tom Exp @
+  * @Id: curs_insch.3x,v 1.40 2024/04/20 19:03:47 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_insch 3x</TITLE>
+<TITLE>curs_insch 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_insch 3x</H1>
+<H1 class="no-header">curs_insch 3x 2024-04-20 ncurses 6.5 Library calls</H1>
 <PRE>
-<STRONG><A HREF="curs_insch.3x.html">curs_insch(3x)</A></STRONG>                                                  <STRONG><A HREF="curs_insch.3x.html">curs_insch(3x)</A></STRONG>
+<STRONG><A HREF="curs_insch.3x.html">curs_insch(3x)</A></STRONG>                   Library calls                  <STRONG><A HREF="curs_insch.3x.html">curs_insch(3x)</A></STRONG>
 
 
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
-       <STRONG>insch</STRONG>,  <STRONG>winsch</STRONG>, <STRONG>mvinsch</STRONG>, <STRONG>mvwinsch</STRONG> - insert a character before cursor in
-       a <STRONG>curses</STRONG> window
+       <STRONG>insch</STRONG>,  <STRONG>winsch</STRONG>,  <STRONG>mvinsch</STRONG>,  <STRONG>mvwinsch</STRONG>  -  insert  a <EM>curses</EM> character in a
+       window
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
@@ -56,50 +56,49 @@
 
        <STRONG>int</STRONG> <STRONG>insch(chtype</STRONG> <EM>ch</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>winsch(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>ch</EM><STRONG>);</STRONG>
-
        <STRONG>int</STRONG> <STRONG>mvinsch(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>ch</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>mvwinsch(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>ch</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       These routines insert the character <EM>ch</EM> before the character  under  the
-       cursor.   All characters to the right of the cursor are moved one space
-       to the right, with the possibility of the rightmost  character  on  the
-       line  being  lost.   The insertion operation does not change the cursor
-       position.
+       These functions insert the <EM>curses</EM> character <EM>ch</EM> at  the  cursor  in  the
+       specified  window  <EM>win</EM>  (or  <STRONG>stdscr</STRONG>).   The character previously at the
+       cursor and any to its right move one cell to the right;  the  rightmost
+       character on the line is discarded.  The cursor does not advance.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       All routines that return an integer return  <STRONG>ERR</STRONG>  upon  failure  and  <STRONG>OK</STRONG>
-       (SVr4 specifies only "an integer value other than <STRONG>ERR</STRONG>") upon successful
-       completion,  unless  otherwise   noted   in   the   preceding   routine
-       descriptions.
+       These functions return <STRONG>OK</STRONG> on success and <STRONG>ERR</STRONG> on failure.
 
-       Functions  with  a  "mv"  prefix  first perform a cursor movement using
-       <STRONG>wmove</STRONG>, and return an error if the position is outside the window, or if
-       the window pointer is null.
+       Functions taking a <EM>WINDOW</EM> pointer argument fail if the pointer is <STRONG>NULL</STRONG>.
+
+       Functions  prefixed with "mv" first perform cursor movement and fail if
+       the position (<EM>y</EM>, <EM>x</EM>) is outside the window boundaries.
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       These  routines  do  not  necessarily  imply  use  of a hardware insert
-       character feature.
+       <STRONG>insch</STRONG>, <STRONG>mvinsch</STRONG>, and <STRONG>mvwinsch</STRONG> may be implemented as macros.
 
-       Note that <STRONG>insch</STRONG>, <STRONG>mvinsch</STRONG>, and <STRONG>mvwinsch</STRONG> may be macros.
+       A terminal's <STRONG>insert_character</STRONG>  (<STRONG>ich1</STRONG>)  capability  is  not  necessarily
+       employed.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These functions are described in the XSI Curses standard, Issue 4.
+       X/Open Curses, Issue 4 describes these functions.
+
+       SVr4  <EM>curses</EM>  describes  a  successful return value only as "an integer
+       value other than <STRONG>ERR</STRONG>".
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>.
+       <STRONG><A HREF="curs_ins_wch.3x.html">curs_ins_wch(3x)</A></STRONG> describes comparable functions in  the  wide-character
+       <EM>curses</EM> configuration.
 
-       Comparable functions  in  the  wide-character  (ncursesw)  library  are
-       described in <STRONG><A HREF="curs_ins_wch.3x.html">curs_ins_wch(3x)</A></STRONG>.
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>
 
 
 
-                                                                <STRONG><A HREF="curs_insch.3x.html">curs_insch(3x)</A></STRONG>
+ncurses 6.5                       2024-04-20                    <STRONG><A HREF="curs_insch.3x.html">curs_insch(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>

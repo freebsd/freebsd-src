@@ -1,6 +1,6 @@
-<!-- 
+<!--
   ****************************************************************************
-  * Copyright 2018,2020 Thomas E. Dickey                                     *
+  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
   * Copyright 2003-2006,2010 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,27 +28,27 @@
   * authorization.                                                           *
   ****************************************************************************
   * Author: Thomas E. Dickey 2003
-  * @Id: key_defined.3x,v 1.10 2020/10/17 23:39:03 tom Exp @
+  * @Id: key_defined.3x,v 1.34 2024/03/16 15:35:01 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>key_defined 3x</TITLE>
+<TITLE>key_defined 3x 2024-03-16 ncurses 6.5 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+
 </HEAD>
 <BODY>
-<H1 class="no-header">key_defined 3x</H1>
+<H1 class="no-header">key_defined 3x 2024-03-16 ncurses 6.5 Library calls</H1>
 <PRE>
-<STRONG><A HREF="key_defined.3x.html">key_defined(3x)</A></STRONG>                                                <STRONG><A HREF="key_defined.3x.html">key_defined(3x)</A></STRONG>
+<STRONG><A HREF="key_defined.3x.html">key_defined(3x)</A></STRONG>                  Library calls                 <STRONG><A HREF="key_defined.3x.html">key_defined(3x)</A></STRONG>
 
 
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
-       <STRONG>key_defined</STRONG> - check if a keycode is defined
+       <STRONG>key_defined</STRONG> - test whether a <EM>curses</EM> keycode is defined
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
@@ -58,7 +58,7 @@
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       This  is an extension to the curses library.  It permits an application
+       This  is an extension to the <EM>curses</EM> library.  It permits an application
        to determine if a string is currently bound to any keycode.
 
 
@@ -69,21 +69,21 @@
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These routines are specific to ncurses.  They  were  not  supported  on
-       Version 7, BSD or System V implementations.  It is recommended that any
-       code depending on them be conditioned using NCURSES_VERSION.
+       This routine is specific to <EM>ncurses</EM>.  It was not supported  on  Version
+       7,  BSD  or  System V implementations.  It is recommended that any code
+       depending on them be conditioned using <STRONG>NCURSES_VERSION</STRONG>.
+
+
+</PRE><H2><a name="h2-AUTHORS">AUTHORS</a></H2><PRE>
+       Thomas Dickey
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="define_key.3x.html">define_key(3x)</A></STRONG>.
-
-
-</PRE><H2><a name="h2-AUTHOR">AUTHOR</a></H2><PRE>
-       Thomas Dickey.
+       <STRONG><A HREF="define_key.3x.html">define_key(3x)</A></STRONG>
 
 
 
-                                                               <STRONG><A HREF="key_defined.3x.html">key_defined(3x)</A></STRONG>
+ncurses 6.5                       2024-03-16                   <STRONG><A HREF="key_defined.3x.html">key_defined(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -92,8 +92,8 @@
 <li><a href="#h2-DESCRIPTION">DESCRIPTION</a></li>
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
+<li><a href="#h2-AUTHORS">AUTHORS</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
-<li><a href="#h2-AUTHOR">AUTHOR</a></li>
 </ul>
 </div>
 </BODY>

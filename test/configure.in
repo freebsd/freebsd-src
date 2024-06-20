@@ -1,5 +1,5 @@
 dnl***************************************************************************
-dnl Copyright 2018-2019,2020 Thomas E. Dickey                                *
+dnl Copyright 2018-2023,2024 Thomas E. Dickey                                *
 dnl Copyright 1998-2017,2018 Free Software Foundation, Inc.                  *
 dnl                                                                          *
 dnl Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -29,7 +29,7 @@ dnl***************************************************************************
 dnl
 dnl Author: Thomas E. Dickey 1996-on
 dnl
-dnl $Id: configure.in,v 1.162 2020/08/29 13:23:50 tom Exp $
+dnl $Id: configure.in,v 1.174 2024/03/30 14:31:11 tom Exp $
 dnl This is a simple configuration-script for the ncurses test programs that
 dnl allows the test-directory to be separately configured against a reference
 dnl system (i.e., sysvr4 curses)
@@ -42,7 +42,7 @@ dnl		https://invisible-island.net/autoconf/
 dnl		https://invisible-island.net/autoconf/my-autoconf.html
 dnl		https://invisible-island.net/ncurses/ncurses-examples.html
 dnl ---------------------------------------------------------------------------
-AC_PREREQ(2.52.20200111)
+AC_PREREQ(2.52.20210509)
 AC_INIT(ncurses.c)
 AC_CONFIG_HEADER(ncurses_cfg.h:ncurses_tst.hin)
 
@@ -62,6 +62,7 @@ AC_PROG_AWK
 CF_PROG_INSTALL
 CF_INSTALL_OPTS
 CF_PROG_LINT
+CF_MAKE_PHONY
 CF_MAKE_TAGS
 
 CF_MATH_LIB(MATH_LIB,pow(sin(x),x))
@@ -107,6 +108,7 @@ AC_OBJEXT
 CF_GCC_ATTRIBUTES
 CF_ENABLE_STRING_HACKS
 CF_XOPEN_SOURCE(600)
+AC_CHECK_DECL(exit)
 CF_SIG_ATOMIC_T
 
 # Work around breakage on OS X
@@ -236,14 +238,12 @@ fi
 # look for curses-related headers
 AC_CHECK_HEADERS( $cf_curses_headers )
 
-AC_STDC_HEADERS
 AC_HEADER_TIME
 AC_CHECK_HEADERS( \
 getopt.h \
 locale.h \
 math.h \
 stdarg.h \
-stdint.h \
 sys/ioctl.h \
 sys/select.h \
 sys/time.h \
@@ -252,10 +252,10 @@ unistd.h \
 )
 
 CF_GETOPT_HEADER
+CF_FUNC_GETTIME
 
 AC_CHECK_FUNCS( \
 getopt \
-gettimeofday \
 snprintf \
 strdup \
 strstr \
@@ -316,12 +316,15 @@ wcstombs \
 fi
 
 CF_CURSES_FUNCS( \
+_nc_tparm_analyze \
+_tracef \
 alloc_pair \
 assume_default_colors \
 chgat \
 color_content \
 color_set \
 copywin \
+curses_trace \
 delscreen \
 dupwin \
 exit_curses \
@@ -356,8 +359,12 @@ termname \
 tgetent \
 tigetnum \
 tigetstr \
+tiparm \
+tiparm_s \
+tiscan_s \
 tputs_sp \
 typeahead \
+unget_wch \
 use_default_colors \
 use_env \
 use_extended_names \
@@ -372,7 +379,6 @@ winsdelln \
 winsstr \
 wresize \
 wsyncdown \
-_tracef \
 )
 
 CF_TPUTS_PROTO

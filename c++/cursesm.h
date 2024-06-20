@@ -1,6 +1,6 @@
 // * This makes emacs happy -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2020,2022 Thomas E. Dickey                                *
  * Copyright 1998-2012,2014 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -32,7 +32,7 @@
  *   Author: Juergen Pfeifer, 1997                                          *
  ****************************************************************************/
 
-// $Id: cursesm.h,v 1.34 2020/05/24 01:40:20 anonymous.maarten Exp $
+// $Id: cursesm.h,v 1.35 2022/08/20 20:52:15 tom Exp $
 
 #ifndef NCURSES_CURSESM_H_incl
 #define NCURSES_CURSESM_H_incl 1
@@ -182,7 +182,7 @@ public:
 
   virtual ~NCursesMenuCallbackItem() THROWS(NCursesException);
 
-  bool action();
+  bool action() NCURSES_OVERRIDE;
 };
 
   // This are the built-in hook functions in this C++ binding. In C++ we use
@@ -512,21 +512,21 @@ public:
   }
 
   // Decorations
-  inline void frame(const char *title=NULL, const char* btitle=NULL) {
+  inline void frame(const char *title=NULL, const char* btitle=NULL) NCURSES_OVERRIDE {
     if (b_framed)
       NCursesPanel::frame(title,btitle);
     else
       OnError(E_SYSTEM_ERROR);
   }
 
-  inline void boldframe(const char *title=NULL, const char* btitle=NULL) {
+  inline void boldframe(const char *title=NULL, const char* btitle=NULL) NCURSES_OVERRIDE {
     if (b_framed)
       NCursesPanel::boldframe(title,btitle);
     else
       OnError(E_SYSTEM_ERROR);
   }
 
-  inline void label(const char *topLabel, const char *bottomLabel) {
+  inline void label(const char *topLabel, const char *bottomLabel) NCURSES_OVERRIDE {
     if (b_framed)
       NCursesPanel::label(topLabel,bottomLabel);
     else

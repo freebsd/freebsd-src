@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2018-2022,2023 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -41,23 +41,23 @@ AUTHOR
    Author: Eric S. Raymond <esr@snark.thyrsus.com> 1993
            Thomas E. Dickey (beginning revision 1.27 in 1996).
 
-$Id: ncurses.c,v 1.523 2020/08/29 16:22:03 juergen Exp $
+$Id: ncurses.c,v 1.538 2023/11/11 01:23:59 tom Exp $
 
 ***************************************************************************/
 
+#define NEED_TIME_H 1
 #include <test.priv.h>
 
 #ifdef __hpux
 #undef mvwdelch			/* HPUX 11.23 macro will not compile */
 #endif
 
-#if HAVE_GETTIMEOFDAY
 #if HAVE_SYS_TIME_H && HAVE_SYS_TIME_SELECT
 #include <sys/time.h>
 #endif
+
 #if HAVE_SYS_SELECT_H
 #include <sys/select.h>
-#endif
 #endif
 
 #if USE_LIBPANEL
@@ -166,7 +166,7 @@ static RGB_DATA *all_colors;
 #endif
 
 static void main_menu(bool);
-static void failed(const char *s) GCC_NORETURN;
+static GCC_NORETURN void failed(const char *s);
 
 static void
 failed(const char *s)
@@ -770,7 +770,7 @@ slk_repaint(void)
  * Resize both and paint the box in the parent.
  */
 static void
-resize_boxes(unsigned level, WINDOW *win)
+resize_boxes(unsigned level, const WINDOW *const win)
 {
     unsigned n;
     int base = 5;
@@ -855,7 +855,7 @@ wgetch_test(unsigned level, WINDOW *win, int delay)
 	    setup_getch(win, flags);
 	    wgetch_help(win, flags);
 	} else if (c == 'g') {
-	    waddstr(win, "getstr test: ");
+	    waddstr(win, "wgetnstr test: ");
 	    echo();
 	    c = wgetnstr(win, buf, sizeof(buf) - 1);
 	    noecho();
@@ -1012,7 +1012,7 @@ getch_test(bool recur GCC_UNUSED)
  */
 #if defined(KEY_RESIZE) && HAVE_WRESIZE
 static void
-resize_wide_boxes(unsigned level, WINDOW *win)
+resize_wide_boxes(unsigned level, const WINDOW *const win)
 {
     unsigned n;
     int base = 5;
@@ -1113,7 +1113,7 @@ wget_wch_test(unsigned level, WINDOW *win, int delay)
 	    setup_getch(win, flags);
 	    wgetch_help(win, flags);
 	} else if (c == 'g') {
-	    waddstr(win, "getstr test: ");
+	    waddstr(win, "wgetn_str test: ");
 	    echo();
 	    code = wgetn_wstr(win, wint_buf, BUFSIZ - 1);
 	    noecho();
@@ -2885,6 +2885,10 @@ init_all_colors(bool xterm_colors, char *palette_file)
 	    while (fgets(buffer, sizeof(buffer), fp) != 0) {
 		if (sscanf(buffer, "scale:%d", &c) == 1) {
 		    scale = c;
+		    if (scale < 100)
+			scale = 100;
+		    if (scale > 1000)
+			scale = 1000;
 		} else if (sscanf(buffer, "%d:%d %d %d",
 				  &c,
 				  &red,
@@ -3153,7 +3157,7 @@ color_edit(bool recur GCC_UNUSED)
  *
  ****************************************************************************/
 static bool
-cycle_attr(int ch, unsigned *at_code, chtype *attr, ATTR_TBL * list, unsigned limit)
+cycle_attr(int ch, unsigned *at_code, attr_t *attr, ATTR_TBL * list, unsigned limit)
 {
     bool result = TRUE;
 
@@ -3314,7 +3318,7 @@ slk_test(bool recur GCC_UNUSED)
     int c, fmt = 1;
     char buf[9];
     char *s;
-    chtype attr = A_NORMAL;
+    attr_t attr = A_NORMAL;
     unsigned at_code = 0;
 #if HAVE_SLK_COLOR
     int fg = COLOR_BLACK;
@@ -3404,7 +3408,7 @@ slk_test(bool recur GCC_UNUSED)
 
 	default:
 	    if (cycle_attr(c, &at_code, &attr, my_list, my_size)) {
-		slk_attrset(attr);
+		slk_attrset((chtype) attr);
 		slk_touch();
 		slk_noutrefresh();
 		break;
@@ -3820,7 +3824,7 @@ acs_test(bool recur GCC_UNUSED)
     const char *pch_kludge = ((term != 0 && strstr(term, "linux"))
 			      ? "p=PC, "
 			      : "");
-    chtype attr = A_NORMAL;
+    attr_t attr = A_NORMAL;
     int digit = 0;
     int repeat = 1;
     int fg = COLOR_BLACK;
@@ -4413,7 +4417,7 @@ x_acs_test(bool recur GCC_UNUSED)
 	    if (pending_code) {
 		_nc_SPRINTF(at_page, _nc_SLIMIT(sizeof(at_page)) "%02x", digit);
 	    } else if (at_page[0] != '\0') {
-		_nc_SPRINTF(at_page, _nc_SLIMIT(sizeof(at_page)) "%x", digit);
+		sscanf(at_page, "%x", &digit);
 	    }
 	    break;
 	default:
@@ -5531,7 +5535,7 @@ panner_legend(int line)
 	"Number repeats.  Toggle legend:? filler:a timer:t scrollmark:s."
     };
     int n = ((int) SIZEOF(legend) - (LINES - line));
-    if (n >= 0) {
+    if (n >= 0 && n < (int) SIZEOF(legend)) {
 	if (move(line, 0) != ERR) {
 	    if (show_panner_legend)
 		printw("%s", legend[n]);
@@ -5596,10 +5600,8 @@ panner(WINDOW *pad,
        int (*pgetc) (WINDOW *),
        bool colored)
 {
-#if HAVE_GETTIMEOFDAY
-    struct timeval before, after;
+    TimeType before, after;
     bool timing = TRUE;
-#endif
     bool pan_lines = FALSE;
     bool scrollers = TRUE;
     int basex = 0;
@@ -5645,13 +5647,11 @@ panner(WINDOW *pad,
 	    pending_pan = FALSE;
 	    break;
 
-#if HAVE_GETTIMEOFDAY
 	case 't':
 	    timing = !timing;
 	    if (!timing)
 		panner_legend(LINES - 1);
 	    break;
-#endif
 	case 's':
 	    scrollers = !scrollers;
 	    break;
@@ -5824,9 +5824,7 @@ panner(WINDOW *pad,
 	MvAddCh(porty - 1, portx - 1, ACS_LRCORNER);
 
 	if (!pending_pan) {
-#if HAVE_GETTIMEOFDAY
-	    gettimeofday(&before, 0);
-#endif
+	    GetClockTime(&before);
 	    wnoutrefresh(stdscr);
 
 	    pnoutrefresh(pad,
@@ -5836,17 +5834,12 @@ panner(WINDOW *pad,
 			 portx - (pymax > porty) - 1);
 
 	    doupdate();
-#if HAVE_GETTIMEOFDAY
-#define TIMEVAL2S(data) ((double) data.tv_sec + ((double) data.tv_usec / 1.0e6))
 	    if (timing) {
-		double elapsed;
-		gettimeofday(&after, 0);
-		elapsed = (TIMEVAL2S(after) - TIMEVAL2S(before));
+		GetClockTime(&after);
 		move(LINES - 1, COLS - 12);
-		printw("Secs: %2.03f", elapsed);
+		printw("Secs: %6.03f", ElapsedSeconds(&before, &after));
 		refresh();
 	    }
-#endif
 	}
 
     } while
@@ -6168,7 +6161,6 @@ menu_test(bool recur GCC_UNUSED)
 	    break;
 	if (c == E_REQUEST_DENIED)
 	    beep();
-	continue;
     }
 
     MvPrintw(LINES - 2, 0,
@@ -6232,7 +6224,7 @@ tracetrace(unsigned tlevel)
     }
     _nc_SPRINTF(buf, _nc_SLIMIT(need) "0x%02x = {", tlevel);
     if (tlevel == 0) {
-	_nc_STRCAT(buf, t_tbl[0].name, need);
+	_nc_STRCAT(buf, t_tbl[0].name ? t_tbl[0].name : "", need);
 	_nc_STRCAT(buf, ", ", need);
     } else {
 	for (n = 1; t_tbl[n].name != 0; n++)
@@ -6336,8 +6328,9 @@ trace_set(bool recur GCC_UNUSED)
 	    set_item_value(*ip, TRUE);
     }
 
-    while (run_trace_menu(m))
-	continue;
+    while (run_trace_menu(m)) {
+	/* EMPTY */ ;
+    }
 
     newtrace = 0;
     for (ip = menu_items(m); *ip; ip++)
@@ -6376,7 +6369,7 @@ make_label(int frow, int fcol, NCURSES_CONST char *label)
 
     if (f) {
 	set_field_buffer(f, 0, label);
-	set_field_opts(f, (int) ((unsigned) field_opts(f) & ~O_ACTIVE));
+	set_field_opts(f, (int) ((unsigned) field_opts(f) & (unsigned) ~O_ACTIVE));
     }
     return (f);
 }
@@ -7236,11 +7229,11 @@ overlap_test(bool recur GCC_UNUSED)
 	    overlap_test_0(win2, win1);
 	    break;
 
-	case 'c':		/* fill window A so it's visible */
+	case 'c':		/* fill window A so it is visible */
 	    overlap_test_1(flavor[otBASE_fill], 0, win1, 'A');
 	    break;
 
-	case 'd':		/* fill window B so it's visible */
+	case 'd':		/* fill window B so it is visible */
 	    overlap_test_1(flavor[otBASE_fill], 1, win2, 'B');
 	    break;
 
@@ -7436,11 +7429,11 @@ x_overlap_test(bool recur GCC_UNUSED)
 	    overlap_test_0(win2, win1);
 	    break;
 
-	case 'c':		/* fill window A so it's visible */
+	case 'c':		/* fill window A so it is visible */
 	    x_overlap_test_1(flavor[otBASE_fill], 0, win1, WIDE_A);
 	    break;
 
-	case 'd':		/* fill window B so it's visible */
+	case 'd':		/* fill window B so it is visible */
 	    x_overlap_test_1(flavor[otBASE_fill], 1, win2, WIDE_B);
 	    break;
 
@@ -7618,8 +7611,10 @@ settings_test(bool recur GCC_UNUSED)
 #if HAVE_COLOR_CONTENT
     show_boolean_setting("can_change_color", can_change_color());
 #endif
-    show_setting_name("LINES"); printw("%d\n", LINES);
-    show_setting_name("COLS");  printw("%d\n", COLS);
+    show_setting_name("LINES");
+    printw("%d\n", LINES);
+    show_setting_name("COLS");
+    printw("%d\n", COLS);
     Pause();
     erase();
     stop_curses();
@@ -7633,48 +7628,49 @@ settings_test(bool recur GCC_UNUSED)
  ****************************************************************************/
 
 static void
-usage(void)
+usage(int ok)
 {
     static const char *const tbl[] =
     {
 	"Usage: ncurses [options]"
 	,""
+	,USAGE_COMMON
 	,"Options:"
 #ifdef NCURSES_VERSION
-	,"  -a f,b   set default-colors (assumed white-on-black)"
-	,"  -d       use default-colors if terminal supports them"
+	," -a f,b   set default-colors (assumed white-on-black)"
+	," -d       use default-colors if terminal supports them"
 #endif
 #if HAVE_USE_ENV
-	,"  -E       call use_env(FALSE) to ignore $LINES and $COLUMNS"
+	," -E       call use_env(FALSE) to ignore $LINES and $COLUMNS"
 #endif
 #if USE_SOFTKEYS
-	,"  -e fmt   specify format for soft-keys test (e)"
+	," -e fmt   specify format for soft-keys test (e)"
 #endif
 #if HAVE_RIPOFFLINE
-	,"  -f       rip-off footer line (can repeat)"
-	,"  -h       rip-off header line (can repeat)"
+	," -F       rip-off footer line (can repeat)"
+	," -H       rip-off header line (can repeat)"
 #endif
-	,"  -m       do not use colors"
+	," -m       do not use colors"
 #if HAVE_COLOR_CONTENT
-	,"  -p file  rgb values to use in 'd' rather than ncurses's builtin"
+	," -p file  rgb values to use in 'd' rather than ncurses's builtin"
 #endif
 #if USE_LIBPANEL
-	,"  -s msec  specify nominal time for panel-demo (default: 1, to hold)"
+	," -s msec  specify nominal time for panel-demo (default: 1, to hold)"
 #endif
 #if defined(NCURSES_VERSION_PATCH) && (NCURSES_VERSION_PATCH >= 20120714) && !defined(_NC_WINDOWS)
-	,"  -T       call use_tioctl(TRUE) to allow SIGWINCH to override environment"
+	," -T       call use_tioctl(TRUE) to allow SIGWINCH to override environment"
 #endif
 #ifdef TRACE
-	,"  -t mask  specify default trace-level (may toggle with ^T)"
+	," -t mask  specify default trace-level (may toggle with ^T)"
 #endif
 #if HAVE_COLOR_CONTENT
-	,"  -x       use xterm-compatible control for reading color palette"
+	," -x       use xterm-compatible control for reading color palette"
 #endif
     };
     size_t n;
     for (n = 0; n < SIZEOF(tbl); n++)
 	fprintf(stderr, "%s\n", tbl[n]);
-    ExitProgram(EXIT_FAILURE);
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
 }
 
 static void
@@ -7787,7 +7783,7 @@ main_menu(bool top)
 
     int (*doit) (bool);
     char command;
-    unsigned n;    
+    unsigned n;
     do {
 	printf("This is the ncurses main menu (uppercase for wide-characters)\n");
 	for (n = 0; n < SIZEOF(cmds); ++n) {
@@ -7853,7 +7849,7 @@ main_menu(bool top)
 
 	if (doit != NULL && doit(FALSE) == OK) {
 	    /*
-	     * This may be overkill; it's intended to reset everything back
+	     * This may be overkill; it is intended to reset everything back
 	     * to the initial terminal modes so that tests don't get in
 	     * each other's way.
 	     */
@@ -7881,11 +7877,14 @@ main_menu(bool top)
 /*+-------------------------------------------------------------------------
 	main(argc,argv)
 --------------------------------------------------------------------------*/
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
 
 int
 main(int argc, char *argv[])
 {
-    int c;
+    int ch;
     int my_e_param = 1;
 #ifdef NCURSES_VERSION_PATCH
 #if HAVE_USE_DEFAULT_COLORS
@@ -7905,8 +7904,8 @@ main(int argc, char *argv[])
 
     setlocale(LC_ALL, "");
 
-    while ((c = getopt(argc, argv, "a:dEe:fhmp:s:Tt:x")) != -1) {
-	switch (c) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "a:dEe:FHmp:s:Tt:x")) != -1) {
+	switch (ch) {
 #ifdef NCURSES_VERSION_PATCH
 #if HAVE_USE_DEFAULT_COLORS
 #if HAVE_ASSUME_DEFAULT_COLORS
@@ -7936,17 +7935,17 @@ main(int argc, char *argv[])
 	    my_e_param = atoi(optarg);
 #ifdef NCURSES_VERSION
 	    if (my_e_param > 3)	/* allow extended layouts */
-		usage();
+		usage(FALSE);
 #else
 	    if (my_e_param > 1)
-		usage();
+		usage(FALSE);
 #endif
 	    break;
 #if HAVE_RIPOFFLINE
-	case 'f':
+	case 'F':
 	    ripoffline(-1, rip_footer);
 	    break;
-	case 'h':
+	case 'H':
 	    ripoffline(1, rip_header);
 	    break;
 #endif /* HAVE_RIPOFFLINE */
@@ -7978,8 +7977,12 @@ main(int argc, char *argv[])
 	    xterm_colors = TRUE;
 	    break;
 #endif
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage();
+	    usage(ch == OPTS_USAGE);
+	    /* NOTREACHED */
 	}
     }
 

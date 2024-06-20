@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2012,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -38,7 +38,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_driver.c,v 1.36 2020/12/12 00:38:02 tom Exp $")
+MODULE_ID("$Id: m_driver.c,v 1.37 2021/03/27 23:46:29 tom Exp $")
 
 /* Macros */
 
@@ -220,7 +220,7 @@ menu_driver(MENU *menu, int c)
 
   int result = E_OK;
   ITEM *item;
-  int my_top_row, rdiff;
+  int my_top_row;
 
   T((T_CALLED("menu_driver(%p,%d)"), (void *)menu, c));
 
@@ -239,6 +239,8 @@ menu_driver(MENU *menu, int c)
 
   if ((c > KEY_MAX) && (c <= MAX_MENU_COMMAND))
     {
+      int rdiff;
+
       if (!((c == REQ_BACK_PATTERN)
 	    || (c == REQ_NEXT_MATCH) || (c == REQ_PREV_MATCH)))
 	{
@@ -489,16 +491,20 @@ menu_driver(MENU *menu, int c)
 		    }
 		  else if (wenclose(sub, event.y, event.x))
 		    {		/* Inside the area we try to find the hit item */
-		      int i, x, y, err;
+		      int x, y;
 
 		      ry = event.y;
 		      rx = event.x;
 		      if (wmouse_trafo(sub, &ry, &rx, FALSE))
 			{
+			  int i;
+
 			  for (i = 0; i < menu->nitems; i++)
 			    {
-			      err = _nc_menu_cursor_pos(menu, menu->items[i],
-							&y, &x);
+			      int err = _nc_menu_cursor_pos(menu,
+							    menu->items[i],
+							    &y, &x);
+
 			      if (E_OK == err)
 				{
 				  if ((ry == y) &&

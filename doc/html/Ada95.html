@@ -1,7 +1,7 @@
 <!--
-  $Id: Ada95.html,v 1.16 2020/02/02 23:34:34 tom Exp $
+  $Id: Ada95.html,v 1.18 2022/03/05 16:09:29 tom Exp $
   ****************************************************************************
-  * Copyright 2019,2020 Thomas E. Dickey                                     *
+  * Copyright 2019-2021,2022 Thomas E. Dickey                                *
   * Copyright 2000-2010,2013 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -57,13 +57,13 @@
     ncurses package, a clone of the SVr4 curses model.<br>
     I did the development on an Intel box running the latest stable
     release of <a href="http://www.linux.org">Linux</a>, ncurses
-    and the most recent released <a href="http://www.gnat.com">GNU
+    and the most recent released <a href="https://ftp.gnu.org/gnu/gcc/">GNU 
     Ada Translator</a> gnat versions. For any older versions of
     ncurses and gnat it is not guaranteed to work.</li>
 
     <li>You must have the m4 macroprocessor to build this package.
     If you don't have this program, you can get the FSF version
-    <a href="ftp://ftp.gnu.org/pub/gnu/">here</a>.</li>
+    <a href="https://ftp.gnu.org/pub/gnu/">here</a>.</li>
 
     <li>Ada programs are supposed to be readable. One of my
     favorite methods to make code readable is to use expressive
@@ -73,14 +73,14 @@
 
     <li>This is not a typical one-to-one interface mapping. It is
     close to one-to-one on the functional level. Each (n)curses
-    function has it's counterpart with a more or less similar
+    function has its counterpart with a more or less similar
     formal parameter list in the binding. It is not one-to-one with
     respect to the datatypes. I tried to make records out of the
     flat chtype and similar structures, so you don't have to do bit
     operations to mark an attributed character as bold. Just make
     the boolean member <strong>bold</strong> of the record true.
     The binding also hides the structures like WINDOW, PANEL, MENU,
-    FORM etc. ! It's a pure functional API.</li>
+    FORM etc. ! It is a pure functional API.</li>
 
     <li>I try to do as much error checking as possible and feasible
     in the binding. I will raise an Ada exception when something
@@ -107,7 +107,7 @@
 
     <li>Although Ada95 is an OO Language, this binding doesn't
     provide an OO abstraction of the (n)curses functionality. As
-    mentioned above it's a thin binding for the (n)curses
+    mentioned above it is a thin binding for the (n)curses
     functions. But without any doubt it would be nice to build on
     top of this an OO abstraction of (n)curses functionality.<br>
     The only exception is the method how fieldtypes are represented

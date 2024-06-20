@@ -1,6 +1,6 @@
-<!-- 
+<!--
   ****************************************************************************
-  * Copyright 2018,2020 Thomas E. Dickey                                     *
+  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
   * Copyright 1998-2010,2015 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,28 +27,28 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_termattrs.3x,v 1.15 2020/02/02 23:34:34 tom Exp @
+  * @Id: curs_termattrs.3x,v 1.41 2024/04/20 21:20:07 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_termattrs 3x</TITLE>
+<TITLE>curs_termattrs 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_termattrs 3x</H1>
+<H1 class="no-header">curs_termattrs 3x 2024-04-20 ncurses 6.5 Library calls</H1>
 <PRE>
-<STRONG><A HREF="curs_termattrs.3x.html">curs_termattrs(3x)</A></STRONG>                                          <STRONG><A HREF="curs_termattrs.3x.html">curs_termattrs(3x)</A></STRONG>
+<STRONG><A HREF="curs_termattrs.3x.html">curs_termattrs(3x)</A></STRONG>               Library calls              <STRONG><A HREF="curs_termattrs.3x.html">curs_termattrs(3x)</A></STRONG>
 
 
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
        <STRONG>baudrate</STRONG>,  <STRONG>erasechar</STRONG>,  <STRONG>erasewchar</STRONG>, <STRONG>has_ic</STRONG>, <STRONG>has_il</STRONG>, <STRONG>killchar</STRONG>, <STRONG>killwchar</STRONG>,
-       <STRONG>longname</STRONG>, <STRONG>term_attrs</STRONG>, <STRONG>termattrs</STRONG>, <STRONG>termname</STRONG> -  <STRONG>curses</STRONG>  environment  query
+       <STRONG>longname</STRONG>, <STRONG>term_attrs</STRONG>, <STRONG>termattrs</STRONG>, <STRONG>termname</STRONG> -  <EM>curses</EM>  environment  query
        routines
 
 
@@ -57,11 +57,11 @@
 
        <STRONG>int</STRONG> <STRONG>baudrate(void);</STRONG>
        <STRONG>char</STRONG> <STRONG>erasechar(void);</STRONG>
-       <STRONG>int</STRONG> <STRONG>erasewchar(wchar_t</STRONG> <STRONG>*</STRONG><EM>ch</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>erasewchar(wchar_t</STRONG> <STRONG>*</STRONG><EM>wc</EM><STRONG>);</STRONG>
        <STRONG>bool</STRONG> <STRONG>has_ic(void);</STRONG>
        <STRONG>bool</STRONG> <STRONG>has_il(void);</STRONG>
        <STRONG>char</STRONG> <STRONG>killchar(void);</STRONG>
-       <STRONG>int</STRONG> <STRONG>killwchar(wchar_t</STRONG> <STRONG>*</STRONG><EM>ch</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>killwchar(wchar_t</STRONG> <STRONG>*</STRONG><EM>wc</EM><STRONG>);</STRONG>
        <STRONG>char</STRONG> <STRONG>*longname(void);</STRONG>
        <STRONG>attr_t</STRONG> <STRONG>term_attrs(void);</STRONG>
        <STRONG>chtype</STRONG> <STRONG>termattrs(void);</STRONG>
@@ -76,30 +76,30 @@
        integer.
 
 
-</PRE><H3><a name="h3-erasechar_-erasewchar">erasechar, erasewchar</a></H3><PRE>
+</PRE><H3><a name="h3-erasechar_erasewchar">erasechar, erasewchar</a></H3><PRE>
        The <STRONG>erasechar</STRONG> routine returns the user's current erase character.
 
        The  <STRONG>erasewchar</STRONG>  routine  stores  the  current  erase  character in the
-       location referenced by <EM>ch</EM>.  If no erase character has been defined, the
-       routine fails and the location referenced by <EM>ch</EM> is not changed.
+       location referenced by <EM>wc</EM>.  If no erase character has been defined, the
+       routine fails and the location referenced by <EM>wc</EM> is not changed.
 
 
-</PRE><H3><a name="h3-has_is_-has_il">has_is, has_il</a></H3><PRE>
+</PRE><H3><a name="h3-has_ic_has_il">has_ic, has_il</a></H3><PRE>
        The  <STRONG>has_ic</STRONG>  routine  is  true  if the terminal has insert- and delete-
        character capabilities.
 
        The <STRONG>has_il</STRONG> routine is true if the terminal has insert- and  delete-line
        capabilities, or can simulate them using scrolling regions.  This might
        be used to determine if it would be appropriate  to  turn  on  physical
-       scrolling using <STRONG>scrollok</STRONG>.
+       scrolling using <STRONG><A HREF="scrollok.3x.html">scrollok(3x)</A></STRONG>.
 
 
-</PRE><H3><a name="h3-killchar_-killwchar">killchar, killwchar</a></H3><PRE>
+</PRE><H3><a name="h3-killchar_killwchar">killchar, killwchar</a></H3><PRE>
        The <STRONG>killchar</STRONG> routine returns the user's current line kill character.
 
        The  <STRONG>killwchar</STRONG>  routine  stores  the current line-kill character in the
-       location referenced by <EM>ch</EM>.  If no line-kill character has been defined,
-       the routine fails and the location referenced by <EM>ch</EM> is not changed.
+       location referenced by <EM>wc</EM>.  If no line-kill character has been defined,
+       the routine fails and the location referenced by <EM>wc</EM> is not changed.
 
 
 </PRE><H3><a name="h3-longname">longname</a></H3><PRE>
@@ -112,12 +112,12 @@
        terminals.
 
 
-</PRE><H3><a name="h3-termattrs_-term_attrs">termattrs, term_attrs</a></H3><PRE>
+</PRE><H3><a name="h3-termattrs_term_attrs">termattrs, term_attrs</a></H3><PRE>
        If  a  given  terminal  does  not  support  a  video  attribute that an
        application program is trying to use, <STRONG>curses</STRONG> may substitute a different
        video  attribute for it.  The <STRONG>termattrs</STRONG> and <STRONG>term_attrs</STRONG> functions return
-       a logical <STRONG>OR</STRONG> of all video attributes supported by the terminal using <EM>A</EM><STRONG>_</STRONG>
-       and  <EM>WA</EM><STRONG>_</STRONG>  constants  respectively.   This  information is useful when a
+       a logical <STRONG>OR</STRONG> of all video attributes supported by the terminal using <STRONG>A_</STRONG>
+       and  <STRONG>WA_</STRONG>  constants  respectively.   This  information is useful when a
        <STRONG>curses</STRONG> program needs  complete  control  over  the  appearance  of  the
        screen.
 
@@ -139,8 +139,8 @@
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       The XSI Curses standard, Issue 4 describes these functions.  It changes
-       the return type of <STRONG>termattrs</STRONG> to the new type <STRONG>attr_t</STRONG>.  Most versions  of
+       X/Open  Curses,  Issue  4  describes  these  functions.  It changes the
+       return type of <STRONG>termattrs</STRONG> to the new  type  <STRONG>attr_t</STRONG>.   Most  versions  of
        curses truncate the result returned by <STRONG>termname</STRONG> to 14 characters.
 
 
@@ -149,7 +149,7 @@
 
 
 
-                                                            <STRONG><A HREF="curs_termattrs.3x.html">curs_termattrs(3x)</A></STRONG>
+ncurses 6.5                       2024-04-20                <STRONG><A HREF="curs_termattrs.3x.html">curs_termattrs(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -158,11 +158,11 @@
 <li><a href="#h2-DESCRIPTION">DESCRIPTION</a>
 <ul>
 <li><a href="#h3-baudrate">baudrate</a></li>
-<li><a href="#h3-erasechar_-erasewchar">erasechar, erasewchar</a></li>
-<li><a href="#h3-has_is_-has_il">has_is, has_il</a></li>
-<li><a href="#h3-killchar_-killwchar">killchar, killwchar</a></li>
+<li><a href="#h3-erasechar_erasewchar">erasechar, erasewchar</a></li>
+<li><a href="#h3-has_ic_has_il">has_ic, has_il</a></li>
+<li><a href="#h3-killchar_killwchar">killchar, killwchar</a></li>
 <li><a href="#h3-longname">longname</a></li>
-<li><a href="#h3-termattrs_-term_attrs">termattrs, term_attrs</a></li>
+<li><a href="#h3-termattrs_term_attrs">termattrs, term_attrs</a></li>
 <li><a href="#h3-termname">termname</a></li>
 </ul>
 </li>

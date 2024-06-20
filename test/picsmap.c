@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2018-2022,2023 Thomas E. Dickey                                *
  * Copyright 2017,2018 Free Software Foundation, Inc.                       *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: picsmap.c,v 1.135 2020/12/26 18:04:03 tom Exp $
+ * $Id: picsmap.c,v 1.149 2023/04/23 23:20:37 tom Exp $
  *
  * Author: Thomas E. Dickey
  *
@@ -52,13 +52,6 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-
-#if HAVE_STDINT_H
-#include <stdint.h>
-#define my_intptr_t	intptr_t
-#else
-#define my_intptr_t	long
-#endif
 
 #if HAVE_TSEARCH
 #include <search.h>
@@ -109,7 +102,7 @@ typedef struct {
 #define debugmsg if (debugging) logmsg
 #define debugmsg2 if (debugging) logmsg2
 
-static void cleanup(int) GCC_NORETURN;
+static GCC_NORETURN void cleanup(int);
 static void giveup(const char *fmt, ...) GCC_PRINTFLIKE(1, 2);
 static void logmsg(const char *fmt, ...) GCC_PRINTFLIKE(1, 2);
 static void logmsg2(const char *fmt, ...) GCC_PRINTFLIKE(1, 2);
@@ -487,27 +480,28 @@ read_file(const char *filename)
 }
 
 static void
-usage(void)
+usage(int ok)
 {
     static const char *msg[] =
     {
 	"Usage: picsmap [options] [imagefile [...]]"
 	,"Read/display one or more xbm/xpm files (possibly use \"convert\")"
 	,""
+	,USAGE_COMMON
 	,"Options:"
-	,"  -a ratio     aspect-ratio correction for ImageMagick"
+	," -a ratio aspect-ratio correction for ImageMagick"
 #if HAVE_USE_DEFAULT_COLORS
-	,"  -d           invoke use_default_colors"
+	," -d       invoke use_default_colors"
 #endif
-	,"  -L           add debugging information to logfile"
-	,"  -l logfile   write informational messages to logfile"
-	,"  -p palette   color-palette file (default \"$TERM.dat\")"
-	,"  -q           less verbose"
-	,"  -r rgb-path  xpm uses X rgb color-names (default \"" RGB_PATH "\")"
-	,"  -s SECS      pause for SECS seconds after display vs getch"
+	," -L       add debugging information to logfile"
+	," -l FILE  write informational messages to FILE"
+	," -p FILE  color-palette file (default \"$TERM.dat\")"
+	," -q       less verbose"
+	," -r FILE  xpm uses X rgb color-names in FILE (default \"" RGB_PATH "\")"
+	," -s SECS  pause for SECS seconds after display vs getch"
 #if USE_EXTENDED_COLORS
-	,"  -x [pc]      use extension (p=extended-pairs, c=extended-colors)"
-	,"               Either/both extension may be given"
+	," -x [pc]  use extension (p=extended-pairs, c=extended-colors)"
+	,"          Either/both extension may be given"
 #endif
     };
     size_t n;
@@ -517,7 +511,7 @@ usage(void)
     fflush(stdout);
     for (n = 0; n < SIZEOF(msg); n++)
 	fprintf(stderr, "%s\n", msg[n]);
-    cleanup(EXIT_FAILURE);
+    cleanup(ok ? EXIT_SUCCESS : EXIT_FAILURE);
 }
 
 static void
@@ -541,7 +535,7 @@ giveup(const char *fmt, ...)
 	fflush(logfp);
     }
 
-    usage();
+    usage(FALSE);
 }
 
 /*
@@ -604,7 +598,6 @@ read_palette(const char *filename)
 		    continue;
 		}
 	    }
-	    s += strlen(s);
 
 	    if (tries & 2) {
 		int len = (int) strlen(filename);
@@ -798,6 +791,7 @@ match_c(const char *source, const char *pattern, ...)
     int ch;
     int *ip;
     char *cp;
+    float *fp;
     long lv;
 
     va_start(ap, pattern);
@@ -811,10 +805,13 @@ match_c(const char *source, const char *pattern, ...)
 	    continue;
 	}
 	/* %c, %d, %s are like sscanf except for special treatment of blanks */
-	if (ch == '%' && *pattern != '\0' && strchr("cdnsx", *pattern)) {
+	if (ch == '%' && *pattern != '\0' && strchr("%cdnfsx", *pattern)) {
 	    bool found = FALSE;
 	    ch = *pattern++;
 	    switch (ch) {
+	    case '%':
+		source++;
+		break;
 	    case 'c':
 		cp = va_arg(ap, char *);
 		do {
@@ -831,6 +828,29 @@ match_c(const char *source, const char *pattern, ...)
 		    source = cp;
 		} else {
 		    goto finish;
+		}
+		break;
+	    case 'f':
+		/* floating point for pixels... */
+		fp = va_arg(ap, float *);
+		lv = strtol(source, &cp, 10);
+		if (cp == 0 || cp == source)
+		    goto finish;
+		*fp = (float) lv;
+		source = cp;
+		if (*source == '.') {
+		    lv = strtol(++source, &cp, 10);
+		    if (cp == 0 || cp == source)
+			goto finish;
+		    {
+			float scale = 1.0f;
+			int digits = (int) (cp - source);
+			while (digits-- > 0) {
+			    scale *= 10.0f;
+			}
+			*fp += (float) lv / scale;
+		    }
+		    source = cp;
 		}
 		break;
 	    case 'n':
@@ -990,7 +1010,7 @@ parse_xbm(char **data)
 {
     int n;
     int state = 0;
-    char buf[BUFSIZ];
+    char buf[2048];
     int num;
     char ch;
     char *s;
@@ -1015,7 +1035,7 @@ parse_xbm(char **data)
 	case 0:
 	case 1:
 	case 2:
-	    if (sscanf(s, "#define %s %d%c", buf, &num, &ch) >= 2) {
+	    if (sscanf(s, "#define %1024s %d%c", buf, &num, &ch) >= 2) {
 		if ((t = strstr(buf, "_width")) != 0) {
 		    state |= 1;
 		    result->wide = (short) bytes_of(num);
@@ -1036,7 +1056,7 @@ parse_xbm(char **data)
 	    }
 	    break;
 	case 3:
-	    if (sscanf(s, "static char %[^_ ]_bits[]%c", buf, &ch) >= 1) {
+	    if (sscanf(s, "static char %1024[^_ ]_bits[]%c", buf, &ch) >= 1) {
 		if (strcmp(result->name, buf)) {
 		    goto finish;
 		}
@@ -1347,11 +1367,16 @@ parse_img(const char *filename)
 		    break;
 		}
 	    } else {
-		/* subsequent lines begin "col,row: (r,g,b,a) #RGB" */
+		/*
+		 * subsequent lines begin "col,row: (r,g,b,a) #RGB".
+		 * Those r/g/b could be integers (0..255) or float-percentages.
+		 */
 		int r, g, b, nocolor;
+		float rf, gf, bf;
 		unsigned check;
 		char *t;
 		char *s = t = strchr(buffer, '#');
+		bool matched = FALSE;
 
 		if (s != 0) {
 		    /* after the "#RGB", there are differences - just ignore */
@@ -1359,19 +1384,44 @@ parse_img(const char *filename)
 			++s;
 		    *++s = '\0';
 		}
+
 		if (match_c(buffer,
 			    "%d,%d: (%d,%d,%d,%d) #%x ",
 			    &col, &row,
 			    &r, &g, &b, &nocolor,
 			    &check)) {
-		    int which, c;
+		    matched = TRUE;
+		} else if (match_c(buffer,
+				   "%d,%d: (%f%%,%f%%,%f%%,%d) #%x ",
+				   &col, &row,
+				   &rf, &gf, &bf, &nocolor,
+				   &check) ||
+			   match_c(buffer,
+				   "%d,%d: (%f%%,%f%%,%f%%) #%x ",
+				   &col, &row,
+				   &rf, &gf, &bf,
+				   &check)) {
+		    matched = TRUE;
 
-		    if ((s - t) > 8)	/* 6 hex digits vs 8 */
-			check /= 256;
-		    if (r > MaxRGB ||
-			g > MaxRGB ||
-			b > MaxRGB ||
-			check != (unsigned) ((r << 16) | (g << 8) | b)) {
+#define fp_fix(n) (int) (MaxRGB * (((n) > 100.0 ? 100.0 : (n)) / 100.0))
+
+		    r = fp_fix(rf);
+		    g = fp_fix(gf);
+		    b = fp_fix(bf);
+		}
+		if ((s - t) > 8)	/* 6 hex digits vs 8 */
+		    check /= 256;
+		if (matched) {
+		    int which, c;
+		    int want_r = (check >> 16) & 0xff;
+		    int want_g = (check >> 8) & 0xff;
+		    int want_b = (check >> 0) & 0xff;
+
+#define fp_err(tst,ref) ((tst > MaxRGB) || ((tst - ref)*(tst - ref)) > 4)
+
+		    if (fp_err(r, want_r) ||
+			fp_err(g, want_g) ||
+			fp_err(b, want_b)) {
 			okay = FALSE;
 			break;
 		    }
@@ -1471,6 +1521,7 @@ init_display(const char *palette_path, int opt_d)
     (void) opt_d;
     if (isatty(fileno(stdout))) {
 	in_curses = TRUE;
+	setlocale(LC_ALL, "");
 	initscr();
 	cbreak();
 	noecho();
@@ -1666,24 +1717,27 @@ report_colors(PICS_HEAD * pics)
 	}
     }
 }
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
 
 int
 main(int argc, char *argv[])
 {
-    int n;
+    int ch;
     int opt_d = FALSE;
     char ignore_ch;
     const char *palette_path = 0;
     const char *rgb_path = RGB_PATH;
 
-    while ((n = getopt(argc, argv, "a:dLl:p:qr:s:x:")) != -1) {
-	switch (n) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "a:dLl:p:qr:s:x:")) != -1) {
+	switch (ch) {
 	case 'a':
 	    if (sscanf(optarg, "%lf%c", &aspect_ratio, &ignore_ch) != 1
 		|| aspect_ratio < 0.1
 		|| aspect_ratio > 10.) {
 		fprintf(stderr, "Expected a number in [0.1 to 10.]: %s\n", optarg);
-		usage();
+		usage(FALSE);
 	    }
 	    break;
 #if HAVE_USE_DEFAULT_COLORS
@@ -1723,21 +1777,25 @@ main(int argc, char *argv[])
 			use_extended_colors = TRUE;
 			break;
 		    default:
-			usage();
+			usage(FALSE);
 			break;
 		    }
 		}
 	    }
 	    break;
 #endif
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage();
-	    break;
+	    usage(ch == OPTS_USAGE);
+	    /* NOTREACHED */
 	}
     }
 
     if (optind < argc) {
 	char **rgb_data = read_file(rgb_path);
+	int n;
 
 	if (rgb_data)
 	    rgb_table = parse_rgb(rgb_data);
@@ -1770,7 +1828,7 @@ main(int argc, char *argv[])
 	free(rgb_table);
 	free(all_colors);
     } else {
-	usage();
+	usage(FALSE);
     }
 
     cleanup(EXIT_SUCCESS);

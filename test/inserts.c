@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2022 Thomas E. Dickey                                     *
  * Copyright 2002-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: inserts.c,v 1.30 2020/02/02 23:34:34 tom Exp $
+ * $Id: inserts.c,v 1.34 2022/12/10 22:28:50 tom Exp $
  *
  * Demonstrate the winsstr() and winsch functions.
  * Thomas Dickey - 2002/10/19
@@ -384,32 +384,36 @@ test_inserts(int level)
 }
 
 static void
-usage(void)
+usage(int ok)
 {
     static const char *tbl[] =
     {
 	"Usage: inserts [options]"
 	,""
+	,USAGE_COMMON
 	,"Options:"
-	,"  -f FILE read data from given file"
-	,"  -n NUM  limit string-inserts to NUM bytes on ^N replay"
-	,"  -m      perform wmove/move separately from insert-functions"
-	,"  -w      use window-parameter even when stdscr would be implied"
+	," -f FILE  read data from given file"
+	," -n NUM   limit string-inserts to NUM bytes on ^N replay"
+	," -m       perform wmove/move separately from insert-functions"
+	," -w       use window-parameter even when stdscr would be implied"
     };
     unsigned n;
     for (n = 0; n < SIZEOF(tbl); ++n)
 	fprintf(stderr, "%s\n", tbl[n]);
-    ExitProgram(EXIT_FAILURE);
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
 }
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
 
 int
-main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
+main(int argc, char *argv[])
 {
     int ch;
 
     setlocale(LC_ALL, "");
 
-    while ((ch = getopt(argc, argv, "f:mn:w")) != -1) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "f:mn:w")) != -1) {
 	switch (ch) {
 	case 'f':
 	    init_linedata(optarg);
@@ -425,13 +429,16 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 	case 'w':
 	    w_opt = TRUE;
 	    break;
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage();
-	    break;
+	    usage(ch == OPTS_USAGE);
+	    /* NOTREACHED */
 	}
     }
     if (optind < argc)
-	usage();
+	usage(FALSE);
 
     test_inserts(0);
     endwin();

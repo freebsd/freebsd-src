@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2018-2020,2022 Thomas E. Dickey                                *
  * Copyright 2003-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: demo_panels.c,v 1.45 2020/02/02 23:34:34 tom Exp $
+ * $Id: demo_panels.c,v 1.48 2022/12/04 00:40:11 tom Exp $
  *
  * Demonstrate a variety of functions from the panel library.
  */
@@ -741,39 +741,43 @@ demo_panels(InitPanel myInit, FillPanel myFill)
 }
 
 static void
-usage(void)
+usage(int ok)
 {
     static const char *const tbl[] =
     {
 	"Usage: demo_panels [options]"
 	,""
+	,USAGE_COMMON
 	,"Options:"
-	,"  -i file  read commands from file"
-	,"  -o file  record commands in file"
-	,"  -m       do not use colors"
+	," -i file  read commands from file"
+	," -o file  record commands in file"
+	," -m       do not use colors"
 #if USE_WIDEC_SUPPORT
-	,"  -w       use wide-characters in panels and background"
+	," -w       use wide-characters in panels and background"
 #endif
-	,"  -x       do not enclose panels in boxes"
+	," -x       do not enclose panels in boxes"
     };
     size_t n;
     for (n = 0; n < SIZEOF(tbl); n++)
 	fprintf(stderr, "%s\n", tbl[n]);
-    ExitProgram(EXIT_FAILURE);
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
 }
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
 
 int
 main(int argc, char *argv[])
 {
-    int c;
+    int ch;
     bool monochrome = FALSE;
     InitPanel myInit = init_panel;
     FillPanel myFill = fill_panel;
 
     setlocale(LC_ALL, "");
 
-    while ((c = getopt(argc, argv, "i:o:mwx")) != -1) {
-	switch (c) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "i:o:mwx")) != -1) {
+	switch (ch) {
 	case 'i':
 	    log_in = fopen(optarg, "r");
 	    break;
@@ -792,8 +796,12 @@ main(int argc, char *argv[])
 	case 'x':
 	    unboxed = TRUE;
 	    break;
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage();
+	    usage(ch == OPTS_USAGE);
+	    /* NOTREACHED */
 	}
     }
     if (unboxed)

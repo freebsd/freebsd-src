@@ -3,15 +3,14 @@ Summary: example/test programs from ncurses
 %global AltProgram ncursest-examples
 %global AppVersion MAJOR.MINOR
 %global AppRelease YYYYMMDD
-# $Id: ncurses-examples.spec,v 1.16 2019/11/23 21:11:34 tom Exp $
+# $Id: ncurses-examples.spec,v 1.22 2023/02/25 23:10:49 tom Exp $
 Name: %{AppProgram}
 Version: %{AppVersion}
 Release: %{AppRelease}
 License: MIT
 Group: Applications/Development
-URL: ftp://ftp.invisible-island.net/%{AppProgram}
-Source0: %{AppProgram}-%{AppRelease}.tgz
-Packager: Thomas Dickey <dickey@invisible-island.net>
+URL: https://invisible-island.net/ncurses/%{AppProgram}.html
+Source: https://invisible-island.net/archives/%{AppProgram}/%{AppProgram}-%{release}.tgz
 
 %description
 These are the example/test programs from the ncurses MAJOR.MINOR distribution,
@@ -50,8 +49,7 @@ CONFIGURE_TOP=%{my_srcdir} \
 %configure \
 	--target %{_target_platform} \
 	--prefix=%{_prefix} \
-	--bindir=%{_bindir}/%{AppProgram} \
-	--datadir=%{_datadir}/%{AppProgram} \
+	--datadir=%{_datarootdir}/%{AppProgram} \
 	--with-screen=ncursesw6dev \
 	--disable-rpath-hack
 
@@ -66,8 +64,7 @@ CONFIGURE_TOP=%{my_srcdir} \
 %configure \
 	--target %{_target_platform} \
 	--prefix=%{_prefix} \
-	--bindir=%{_bindir}/%{AltProgram} \
-	--datadir=%{_datadir}/%{AltProgram} \
+	--datadir=%{_datarootdir}/%{AltProgram} \
 	--with-screen=ncursestw6dev \
 	--disable-rpath-hack
 
@@ -78,33 +75,33 @@ popd
 [ "$RPM_BUILD_ROOT" != "/" ] && rm -rf $RPM_BUILD_ROOT
 
 pushd BUILD-%{AppProgram}
-make install DESTDIR=$RPM_BUILD_ROOT
+make install PACKAGE=%{AppProgram} DESTDIR=$RPM_BUILD_ROOT
 popd
 
 pushd BUILD-%{AltProgram}
-make install DESTDIR=$RPM_BUILD_ROOT
+make install PACKAGE=%{AltProgram} DESTDIR=$RPM_BUILD_ROOT
 popd
-
-%clean
-if rm -rf $RPM_BUILD_ROOT; then
-  echo OK
-else
-  find $RPM_BUILD_ROOT -type f | grep -F -v /.nfs && exit 1
-fi
-exit 0
 
 %files -n %{AppProgram}
 %defattr(-,root,root)
-%{_bindir}/%{AppProgram}/*
-%{_datadir}/%{AppProgram}/*
+%{_bindir}/%{AppProgram}
+%{_libexecdir}/%{AppProgram}/*
+%{_datarootdir}/%{AppProgram}/*
 
 %files -n %{AltProgram}
 %defattr(-,root,root)
-%{_bindir}/%{AltProgram}/*
-%{_datadir}/%{AltProgram}/*
+%{_bindir}/%{AltProgram}
+%{_libexecdir}/%{AltProgram}/*
+%{_datarootdir}/%{AltProgram}/*
 
 %changelog
 # each patch should add its ChangeLog entries here
+
+* Sat Feb 25 2023 Thomas Dickey
+- amend URLs per rpmlint
+
+* Sat Dec 18 2021 Thomas Dickey
+- use libexecdir for programs rather than subdir of bindir
 
 * Sat Nov 16 2019 Thomas Dickey
 - modify clean-rule to work around Fedora NFS bugs.

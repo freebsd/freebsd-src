@@ -29,7 +29,7 @@
 #
 #  Author:  Juergen Pfeifer, 1996
 #
-#  $Id: Makefile.in,v 1.62 2021/01/23 20:42:08 tom Exp $
+#  $Id: Makefile.in,v 1.64 2021/07/03 15:45:33 tom Exp $
 #
 .SUFFIXES:
 
@@ -107,7 +107,23 @@ THISLIB		= sample
 CARGS		= -cargs $(ADAFLAGS)
 LARGS		= -largs -L../lib -l@ADA_LIBNAME@ @TEST_ARG2@ $(LD_FLAGS) @TEST_LIBS2@
 
-PROGS		= tour$x ncurses$x @USE_GNAT_SIGINT@ rain$x 
+PROGS		= tour$x ncurses$x @USE_GNAT_SIGINT@ rain$x
+
+################################################################################
+
+@MAKE_PHONY@.PHONY :	all
+@MAKE_PHONY@.PHONY :	clean
+@MAKE_PHONY@.PHONY :	distclean
+@MAKE_PHONY@.PHONY :	install
+@MAKE_PHONY@.PHONY :	install.examples
+@MAKE_PHONY@.PHONY :	install.libs
+@MAKE_PHONY@.PHONY :	libs
+@MAKE_PHONY@.PHONY :	mostlyclean
+@MAKE_PHONY@.PHONY :	realclean
+@MAKE_PHONY@.PHONY :	sources
+@MAKE_PHONY@.PHONY :	uninstall
+@MAKE_PHONY@.PHONY :	uninstall.examples
+@MAKE_PHONY@.PHONY :	uninstall.libs
 
 all ::  $(PROGS)
 	@echo made $@

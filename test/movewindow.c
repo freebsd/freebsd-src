@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2018-2022,2023 Thomas E. Dickey                                *
  * Copyright 2006-2013,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: movewindow.c,v 1.51 2020/02/02 23:34:34 tom Exp $
+ * $Id: movewindow.c,v 1.54 2023/05/27 20:13:10 tom Exp $
  *
  * Demonstrate move functions for windows and derived windows from the curses
  * library.
@@ -53,14 +53,6 @@ TODO:
 
 #ifdef HAVE_XCURSES
 #undef derwin
-#endif
-
-#if defined(NCURSES_CONST)
-#define CONST_FMT NCURSES_CONST
-#elif defined(PDCURSES)
-#define CONST_FMT const
-#else
-#define CONST_FMT		/* nothing */
 #endif
 
 #undef LINE_MAX
@@ -332,6 +324,7 @@ add_window(WINDOW *parent, WINDOW *child)
 	all_windows = typeRealloc(FRAME, need, all_windows);
 	if (!all_windows)
 	    failed("add_window");
+	have = need;
     }
     all_windows[num_windows].parent = parent;
     all_windows[num_windows].child = child;
@@ -339,7 +332,7 @@ add_window(WINDOW *parent, WINDOW *child)
 }
 
 static int
-window2num(WINDOW *win)
+window2num(const WINDOW *const win)
 {
     int n;
     int result = -1;
@@ -415,7 +408,7 @@ prev_window(WINDOW *win)
 }
 
 static void
-recur_move_window(WINDOW *parent, int dy, int dx)
+recur_move_window(const WINDOW *const parent, int dy, int dx)
 {
     unsigned n;
 
@@ -679,12 +672,45 @@ show_help(WINDOW *current)
     free(msgs);
 }
 
+static void
+usage(int ok)
+{
+    static const char *msg[] =
+    {
+	"Usage: movewindow [options]"
+	,""
+	,USAGE_COMMON
+    };
+    size_t n;
+
+    for (n = 0; n < SIZEOF(msg); n++)
+	fprintf(stderr, "%s\n", msg[n]);
+
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
+}
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
+
 int
-main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
+main(int argc, char *argv[])
 {
     WINDOW *current_win;
     int ch;
     bool done = FALSE;
+
+    while ((ch = getopt(argc, argv, OPTS_COMMON)) != -1) {
+	switch (ch) {
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
+	default:
+	    usage(ch == OPTS_USAGE);
+	    /* NOTREACHED */
+	}
+    }
+    if (optind < argc)
+	usage(FALSE);
 
     initscr();
     cbreak();

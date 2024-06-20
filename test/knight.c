@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2018-2021,2022 Thomas E. Dickey                                *
  * Copyright 1998-2013,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -34,7 +34,7 @@
  * Eric S. Raymond <esr@snark.thyrsus.com> July 22 1995.  Mouse support
  * added September 20th 1995.
  *
- * $Id: knight.c,v 1.47 2020/02/02 23:34:34 tom Exp $
+ * $Id: knight.c,v 1.52 2022/12/04 00:40:11 tom Exp $
  */
 
 #include <test.priv.h>
@@ -595,8 +595,8 @@ play(void)
 {
     bool keyhelp;		/* TRUE if keystroke help is up */
     int i, j, count;
-    int lastcol = 0;		/* last location visited */
-    int lastrow = 0;
+    int lastcol;		/* last location visited */
+    int lastrow;
     int ny = 0, nx = 0;
     int review = 0;		/* review history */
     int test_size;
@@ -621,10 +621,10 @@ play(void)
 
 	for (i = 0; i < ylimit; i++) {
 	    for (j = 0; j < xlimit; j++) {
-		squares[i][j] = FALSE;
 		unmarkcell(i, j);
 	    }
 	}
+	memset(squares, 0, sizeof(squares));
 	memset(history, 0, sizeof(history));
 	history[0].y = history[0].x = -1;
 	history[1].y = history[1].x = -1;
@@ -899,12 +899,13 @@ play(void)
 }
 
 static void
-usage(void)
+usage(int ok)
 {
     static const char *msg[] =
     {
 	"Usage: knight [options]"
 	,""
+	,USAGE_COMMON
 	,"Options:"
 #if HAVE_USE_DEFAULT_COLORS
 	," -d       invoke use_default_colors"
@@ -916,15 +917,18 @@ usage(void)
     for (n = 0; n < SIZEOF(msg); n++)
 	fprintf(stderr, "%s\n", msg[n]);
 
-    ExitProgram(EXIT_FAILURE);
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
 }
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
 
 int
 main(int argc, char *argv[])
 {
     int ch;
 
-    while ((ch = getopt(argc, argv, "dn:")) != -1) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "dn:")) != -1) {
 	switch (ch) {
 #if HAVE_USE_DEFAULT_COLORS
 	case 'd':
@@ -935,17 +939,20 @@ main(int argc, char *argv[])
 	    ch = atoi(optarg);
 	    if (ch < 3 || ch > 8) {
 		fprintf(stderr, "board size %d is outside [3..8]\n", ch);
-		usage();
+		usage(FALSE);
 	    }
 	    xlimit = ylimit = ch;
 	    break;
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage();
+	    usage(ch == OPTS_USAGE);
 	    /* NOTREACHED */
 	}
     }
     if (optind < argc)
-	usage();
+	usage(FALSE);
 
     init_program();
 

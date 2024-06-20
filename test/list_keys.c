@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2018-2022,2023 Thomas E. Dickey                                *
  * Copyright 2016,2017 Free Software Foundation, Inc.                       *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: list_keys.c,v 1.26 2020/02/02 23:34:34 tom Exp $
+ * $Id: list_keys.c,v 1.33 2023/11/11 00:35:05 tom Exp $
  *
  * Author: Thomas E Dickey
  *
@@ -52,7 +52,10 @@
 static bool f_opt = FALSE;
 static bool m_opt = FALSE;
 static bool t_opt = FALSE;
+
+#if NCURSES_XNAMES || HAVE_USE_EXTENDED_NAMES
 static bool x_opt = FALSE;
+#endif
 
 typedef enum {
     ktCursor
@@ -70,6 +73,13 @@ typedef struct {
 
 #define Type(n) list[n].type
 #define Name(n) list[n].name
+
+static void
+failed(const char *msg)
+{
+    perror(msg);
+    ExitProgram(EXIT_FAILURE);
+}
 
 static const char *
 full_name(const char *name)
@@ -240,7 +250,7 @@ modified_key(const char *name)
 	map |= (bit1 << 1) | (bit2 >> 1);
 	_nc_SPRINTF(result, _nc_SLIMIT(sizeof(result))
 		    "%sF%d", modifiers[map][(unsigned) f_opt], 1 + key);
-    } else if (sscanf(name, "k%[A-Z]%d%c", buffer, &value, &chr) == 2 &&
+    } else if (sscanf(name, "k%80[A-Z]%d%c", buffer, &value, &chr) == 2 &&
 	       (value > 1 &&
 		value <= 8) &&
 	       (!strcmp(buffer, "UP") ||
@@ -255,7 +265,7 @@ modified_key(const char *name)
 		!strcmp(buffer, "PRV"))) {
 	_nc_SPRINTF(result, _nc_SLIMIT(sizeof(result))
 		    "%sk%s", modifiers[value - 1][(unsigned) f_opt], buffer);
-    } else if (sscanf(name, "k%[A-Z]%c", buffer, &chr) == 1 &&
+    } else if (sscanf(name, "k%80[A-Z]%c", buffer, &chr) == 1 &&
 	       (!strcmp(buffer, "UP") ||
 		!strcmp(buffer, "DN"))) {
 	_nc_SPRINTF(result, _nc_SLIMIT(sizeof(result))
@@ -338,8 +348,11 @@ list_keys(TERMINAL **terms, int count)
 	widths1 = (int) strlen(modifier);
 
     for (k = 0; k < count; ++k) {
+	char *value;
 	set_curterm(terms[k]);
-	check = (int) strlen(termname());
+	if ((value = termname()) == NULL)
+	    failed("termname");
+	check = (int) strlen(value);
 	if (widths2 < check)
 	    widths2 = check;
     }
@@ -417,37 +430,41 @@ list_keys(TERMINAL **terms, int count)
 }
 
 static void
-usage(void)
+usage(int ok)
 {
     static const char *msg[] =
     {
-	"Usage: list_keys [options] [terminal [terminal2 [...]]]",
-	"",
-	"Print capabilities for terminal special keys.",
-	"",
-	"Options:",
-	" -f       print full names",
-	" -m       print modifier-column for shift/control keys",
-	" -t       print result as CSV table",
+	"Usage: list_keys [options] [terminal [terminal2 [...]]]"
+	,""
+	,"Print capabilities for terminal special keys."
+	,""
+	,USAGE_COMMON
+	,"Options:"
+	," -f       print full names"
+	," -m       print modifier-column for shift/control keys"
+	," -t       print result as CSV table"
 #ifdef NCURSES_VERSION
-	" -x       print extended capabilities",
+	," -x       print extended capabilities"
 #endif
     };
     unsigned n;
     for (n = 0; n < SIZEOF(msg); ++n) {
 	fprintf(stderr, "%s\n", msg[n]);
     }
-    ExitProgram(EXIT_FAILURE);
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
 }
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
 
 int
 main(int argc, char *argv[])
 {
-    int n;
+    int ch;
     TERMINAL **terms = typeCalloc(TERMINAL *, argc + 1);
 
-    while ((n = getopt(argc, argv, "fmtx")) != -1) {
-	switch (n) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "fmtx")) != -1) {
+	switch (ch) {
 	case 'f':
 	    f_opt = TRUE;
 	    break;
@@ -457,14 +474,17 @@ main(int argc, char *argv[])
 	case 't':
 	    t_opt = TRUE;
 	    break;
-#ifdef NCURSES_VERSION
+#if NCURSES_XNAMES || HAVE_USE_EXTENDED_NAMES
 	case 'x':
 	    x_opt = TRUE;
 	    break;
 #endif
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage();
-	    break;
+	    usage(ch == OPTS_USAGE);
+	    /* NOTREACHED */
 	}
     }
 
@@ -475,6 +495,7 @@ main(int argc, char *argv[])
     if (optind < argc) {
 	int found = 0;
 	int status;
+	int n;
 	for (n = optind; n < argc; ++n) {
 	    setupterm((NCURSES_CONST char *) argv[n], 1, &status);
 	    if (status > 0 && cur_term != 0) {
@@ -496,7 +517,7 @@ main(int argc, char *argv[])
 
 #else
 int
-main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
+main(void)
 {
     printf("This program requires the terminfo arrays\n");
     ExitProgram(EXIT_FAILURE);
@@ -504,7 +525,7 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 #endif
 #else /* !HAVE_TIGETSTR */
 int
-main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
+main(void)
 {
     printf("This program requires the terminfo functions such as tigetstr\n");
     ExitProgram(EXIT_FAILURE);

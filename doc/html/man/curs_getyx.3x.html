@@ -1,6 +1,6 @@
-<!-- 
+<!--
   ****************************************************************************
-  * Copyright 2020 Thomas E. Dickey                                          *
+  * Copyright 2020-2023,2024 Thomas E. Dickey                                *
   * Copyright 1998-2007,2010 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,27 +27,27 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_getyx.3x,v 1.20 2020/10/24 09:38:43 tom Exp @
+  * @Id: curs_getyx.3x,v 1.44 2024/04/20 21:20:07 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_getyx 3x</TITLE>
+<TITLE>curs_getyx 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_getyx 3x</H1>
+<H1 class="no-header">curs_getyx 3x 2024-04-20 ncurses 6.5 Library calls</H1>
 <PRE>
-<STRONG><A HREF="curs_getyx.3x.html">curs_getyx(3x)</A></STRONG>                                                  <STRONG><A HREF="curs_getyx.3x.html">curs_getyx(3x)</A></STRONG>
+<STRONG><A HREF="curs_getyx.3x.html">curs_getyx(3x)</A></STRONG>                   Library calls                  <STRONG><A HREF="curs_getyx.3x.html">curs_getyx(3x)</A></STRONG>
 
 
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
-       <STRONG>getyx</STRONG>,  <STRONG>getparyx</STRONG>,  <STRONG>getbegyx</STRONG>,  <STRONG>getmaxyx</STRONG>  -  get <STRONG>curses</STRONG> cursor and window
+       <STRONG>getyx</STRONG>,  <STRONG>getparyx</STRONG>,  <STRONG>getbegyx</STRONG>,  <STRONG>getmaxyx</STRONG>  -  get <EM>curses</EM> cursor and window
        coordinates
 
 
@@ -78,27 +78,27 @@
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       All  of these interfaces are macros.  A "<STRONG>&amp;</STRONG>" is not necessary before the
+       All  of these interfaces are macros.  A "&amp;" is not necessary before the
        variables <EM>y</EM> and <EM>x</EM>.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       The <STRONG>getyx</STRONG>, <STRONG>getparyx</STRONG>, <STRONG>getbegyx</STRONG> and <STRONG>getmaxyx</STRONG> macros are described in  the
-       XSI Curses standard, Issue 4.
+       The <STRONG>getyx</STRONG>, <STRONG>getparyx</STRONG>, <STRONG>getbegyx</STRONG> and  <STRONG>getmaxyx</STRONG>  macros  are  described  in
+       X/Open Curses, Issue 4.
 
        This  implementation also provides functions <STRONG>getbegx</STRONG>, <STRONG>getbegy</STRONG>, <STRONG>getcurx</STRONG>,
        <STRONG>getcury</STRONG>, <STRONG>getmaxx</STRONG>, <STRONG>getmaxy</STRONG>, <STRONG>getparx</STRONG> and <STRONG>getpary</STRONG> for  compatibility  with
-       older versions of curses.
+       older versions of <EM>curses</EM>; see <STRONG><A HREF="curs_legacy.3x.html">curs_legacy(3x)</A></STRONG>.
 
        Although  X/Open  Curses  does  not  address this, many implementations
-       provide members of the WINDOW structure containing values corresponding
+       provide members of the <STRONG>WINDOW</STRONG> structure containing values corresponding
        to  these  macros.  For best portability, do not rely on using the data
-       in WINDOW, since some implementations make WINDOW opaque (do not  allow
+       in <STRONG>WINDOW</STRONG>, since some implementations make <STRONG>WINDOW</STRONG> opaque (do not  allow
        direct use of its members).
 
        Besides the problem of opaque structures, the data stored in like-named
        members may not have like-values  in  different  implementations.   For
-       example,  the  WINDOW._maxx and WINDOW._maxy values in ncurses have (at
+       example,  the  <STRONG>WINDOW._maxx</STRONG> and <STRONG>WINDOW._maxy</STRONG> values in <EM>ncurses</EM> have (at
        least  since  release  1.8.1)  differed  by   one   from   some   other
        implementations.   The  difference  is  hidden  by  means  of the macro
        <STRONG>getmaxyx</STRONG>.
@@ -109,7 +109,7 @@
 
 
 
-                                                                <STRONG><A HREF="curs_getyx.3x.html">curs_getyx(3x)</A></STRONG>
+ncurses 6.5                       2024-04-20                    <STRONG><A HREF="curs_getyx.3x.html">curs_getyx(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>

@@ -1,6 +1,6 @@
 #!/bin/sh
 ##############################################################################
-# Copyright 2020 Thomas E. Dickey                                            #
+# Copyright 2020-2021,2022 Thomas E. Dickey                                  #
 # Copyright 2003-2006,2010 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -27,14 +27,16 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: listused.sh,v 1.9 2020/02/02 23:34:34 tom Exp $
+# $Id: listused.sh,v 1.12 2022/07/16 16:33:38 tom Exp $
 # A very simple script to list all entrypoints that are used by either a test
 # program, or within the libraries.  This relies on the output format of 'nm',
 # and assumes that the libraries are configured with TRACE defined, and using
 # these options:
 #	--disable-macros
+#	--enable-opaque-curses
 #	--enable-sp-funcs
 #	--enable-widec
+#	--without-gpm
 # Static libraries are used, to provide some filtering based on internal usage
 # of the different symbols.
 
@@ -65,7 +67,7 @@ do
 		;;
 	*)
 		NAME=../objects/${name}.o
-		if test -f $NAME
+		if test -f "$NAME"
 		then
 			PROGS="$PROGS $NAME"
 		fi
@@ -76,19 +78,19 @@ done
 # For each library -
 for lib in ../lib/*.a
 do
-	LIB=`basename $lib .a`
+	LIB=`basename "$lib" .a`
 	case $LIB in
 	*_*|*+*)
 		continue
 		;;
 	esac
 
-	tmp=`echo $LIB|sed -e 's/w$//'`
+	tmp=`echo "$LIB"|sed -e 's/w$//'`
 	echo
 	echo "${tmp}:"
-	echo $tmp |sed -e 's/./-/g'
+	echo "$tmp" |sed -e 's/./-/g'
 	# Construct a list of public externals provided by the library.
-	WANT=`nm $NM_OPTS $lib |\
+	WANT=`nm $NM_OPTS "$lib" |\
 		sed	-e 's/^[^ ]*//' \
 			-e 's/^ *//' \
 			-e '/^[ a-z] /d' \
@@ -111,7 +113,7 @@ do
 				tags=$prog
 				;;
 			*)
-				TEST=`nm $NM_OPTS $prog |\
+				TEST=`nm $NM_OPTS "$prog" |\
 					sed	-e 's/^[^ ]*//' \
 						-e 's/^ *//' \
 						-e '/^[ a-z] /d' \
@@ -123,7 +125,7 @@ do
 						-e '/^[^_]/d'`
 				if test -n "$TEST"
 				then
-					have=`basename $prog .o`
+					have=`basename "$prog" .o`
 					if test -n "$HAVE"
 					then
 						if test "$last" = "$tags"
@@ -145,13 +147,13 @@ do
 		if test -z "$HAVE"
 		then
 			for tmp in ../lib/*.a
-			do 
+			do
 				case $tmp in
 				*_*|*+*)
 					continue
 					;;
 				esac
-				TEST=`nm $NM_OPTS $tmp |\
+				TEST=`nm $NM_OPTS "$tmp" |\
 					sed	-e 's/^[^ ]*//' \
 						-e 's/^ *//' \
 						-e '/^[ a-z] /d' \
@@ -164,20 +166,20 @@ do
 						-e '/^[^_]/d'`
 				if test -n "$TEST"
 				then
-					tmp=`basename $tmp .a |sed -e 's/w$//'`
-					HAVE=`echo $tmp | sed -e 's/lib/lib: /'`
+					tmp=`basename "$tmp" .a |sed -e 's/w$//'`
+					HAVE=`echo "$tmp" | sed -e 's/lib/lib: /'`
 					break
 				fi
 			done
 		fi
 		test -z "$HAVE" && HAVE="-"
-		lenn=`expr 39 - length $name`
-		lenn=`expr $lenn / 8`
+		lenn=`expr 39 - length "$name"`
+		lenn=`expr "$lenn" / 8`
 		tabs=
-		while test $lenn != 0
+		while test "$lenn" != 0
 		do
 			tabs="${tabs}	"
-			lenn=`expr $lenn - 1`
+			lenn=`expr "$lenn" - 1`
 		done
 		echo "${name}${tabs}${HAVE}"
 	done

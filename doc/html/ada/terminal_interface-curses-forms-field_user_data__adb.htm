@@ -1,7 +1,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
-<HTML>
-<HEAD>
-<TITLE>terminal_interface-curses-forms-field_user_data.adb</TITLE>
+<html>
+<head>
+<title>terminal_interface-curses-forms-field_user_data.adb</title>
 <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 <style type="text/css">
 *.comment {
@@ -11,89 +11,89 @@
 	color: red;
 }
 </style>
-</HEAD>
-<BODY>
-<HR><DIV style="text-align:center"><H1> File : terminal_interface-curses-forms-field_user_data.adb </H1></DIV><HR>
-<PRE>
-<span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>--                           <A HREF="http://www.gnat.com">GNAT</A> ncurses Binding                           --</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>--               Terminal_Interface.Curses.Forms.Field_User_Data            --</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>--                                 B O D Y                                  --</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<span class="comment"><EM>-- Copyright 2018,2020 Thomas E. Dickey                                     --</EM></span>
-<span class="comment"><EM>-- Copyright 1999-2009,2014 Free Software Foundation, Inc.                  --</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></span>
-<span class="comment"><EM>-- copy of this software and associated documentation files (the            --</EM></span>
-<span class="comment"><EM>-- "Software"), to deal in the Software without restriction, including      --</EM></span>
-<span class="comment"><EM>-- without limitation the rights to use, copy, modify, merge, publish,      --</EM></span>
-<span class="comment"><EM>-- distribute, distribute with modifications, sublicense, and/or sell       --</EM></span>
-<span class="comment"><EM>-- copies of the Software, and to permit persons to whom the Software is    --</EM></span>
-<span class="comment"><EM>-- furnished to do so, subject to the following conditions:                 --</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>-- The above copyright notice and this permission notice shall be included  --</EM></span>
-<span class="comment"><EM>-- in all copies or substantial portions of the Software.                   --</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  --</EM></span>
-<span class="comment"><EM>-- OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               --</EM></span>
-<span class="comment"><EM>-- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   --</EM></span>
-<span class="comment"><EM>-- IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   --</EM></span>
-<span class="comment"><EM>-- DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    --</EM></span>
-<span class="comment"><EM>-- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    --</EM></span>
-<span class="comment"><EM>-- THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               --</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>-- Except as contained in this notice, the name(s) of the above copyright   --</EM></span>
-<span class="comment"><EM>-- holders shall not be used in advertising or otherwise to promote the     --</EM></span>
-<span class="comment"><EM>-- sale, use or other dealings in this Software without prior written       --</EM></span>
-<span class="comment"><EM>-- authorization.                                                           --</EM></span>
-<span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<span class="comment"><EM>--  Author:  Juergen Pfeifer, 1996</EM></span>
-<span class="comment"><EM>--  Version Control:</EM></span>
-<span class="comment"><EM>--  @Revision: 1.17 @</EM></span>
-<span class="comment"><EM>--  Binding Version 01.00</EM></span>
-<span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<b>with</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_46_35">Aux</A>; <b>use</b>  <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_46_35">Aux</A>;
+</head>
+<body>
+<hr><div style="text-align:center"><h1> File : terminal_interface-curses-forms-field_user_data.adb </h1></div><hr>
+<pre>
+<span class="comment"><em>------------------------------------------------------------------------------</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>--                           <strong>GNAT</strong> ncurses Binding                           --</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>--               Terminal_Interface.Curses.Forms.Field_User_Data            --</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>--                                 B O D Y                                  --</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>------------------------------------------------------------------------------</em></span>
+<span class="comment"><em>-- Copyright 2018,2020 Thomas E. Dickey                                     --</em></span>
+<span class="comment"><em>-- Copyright 1999-2009,2014 Free Software Foundation, Inc.                  --</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>-- Permission is hereby granted, free of charge, to any person obtaining a  --</em></span>
+<span class="comment"><em>-- copy of this software and associated documentation files (the            --</em></span>
+<span class="comment"><em>-- "Software"), to deal in the Software without restriction, including      --</em></span>
+<span class="comment"><em>-- without limitation the rights to use, copy, modify, merge, publish,      --</em></span>
+<span class="comment"><em>-- distribute, distribute with modifications, sublicense, and/or sell       --</em></span>
+<span class="comment"><em>-- copies of the Software, and to permit persons to whom the Software is    --</em></span>
+<span class="comment"><em>-- furnished to do so, subject to the following conditions:                 --</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>-- The above copyright notice and this permission notice shall be included  --</em></span>
+<span class="comment"><em>-- in all copies or substantial portions of the Software.                   --</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  --</em></span>
+<span class="comment"><em>-- OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               --</em></span>
+<span class="comment"><em>-- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   --</em></span>
+<span class="comment"><em>-- IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   --</em></span>
+<span class="comment"><em>-- DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    --</em></span>
+<span class="comment"><em>-- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    --</em></span>
+<span class="comment"><em>-- THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               --</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>-- Except as contained in this notice, the name(s) of the above copyright   --</em></span>
+<span class="comment"><em>-- holders shall not be used in advertising or otherwise to promote the     --</em></span>
+<span class="comment"><em>-- sale, use or other dealings in this Software without prior written       --</em></span>
+<span class="comment"><em>-- authorization.                                                           --</em></span>
+<span class="comment"><em>------------------------------------------------------------------------------</em></span>
+<span class="comment"><em>--  Author:  Juergen Pfeifer, 1996</em></span>
+<span class="comment"><em>--  Version Control:</em></span>
+<span class="comment"><em>--  @Revision: 1.17 @</em></span>
+<span class="comment"><em>--  Binding Version 01.00</em></span>
+<span class="comment"><em>------------------------------------------------------------------------------</em></span>
+<b>with</b> <a href="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</a>.<a href="terminal_interface-curses__ads.htm#ref_48_28">Curses</a>.<a href="terminal_interface-curses-aux__ads.htm#ref_46_35">Aux</a>; <b>use</b>  <a href="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</a>.<a href="terminal_interface-curses__ads.htm#ref_48_28">Curses</a>.<a href="terminal_interface-curses-aux__ads.htm#ref_46_35">Aux</a>;
 
-<span class="comment"><EM>--  |</EM></span>
-<span class="comment"><EM>--  |=====================================================================</EM></span>
-<span class="comment"><EM>--  | man page form_field_userptr.3x</EM></span>
-<span class="comment"><EM>--  |=====================================================================</EM></span>
-<span class="comment"><EM>--  |</EM></span>
-<b>package</b> <b>body</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_46_35">Forms</A>.<span class="symbol"><A NAME="ref_49_46" HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_46_41">Field_User_Data</A></span> <b>is</b>
-   <span class="comment"><EM>--  |</EM></span>
-   <span class="comment"><EM>--  |</EM></span>
-   <span class="comment"><EM>--  |</EM></span>
-   <b>procedure</b> <span class="symbol"><A NAME="ref_53_14" HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_54_14">Set_User_Data</A></span> (<span class="symbol"><A NAME="ref_53_29" HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_54_29">Fld</A></span>  : <A HREF="terminal_interface-curses-forms__ads.htm#ref_52_9">Field</A>;
-                            <span class="symbol"><A NAME="ref_54_29" HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_55_29">Data</A></span> : <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_45_9">User_Access</A>)
+<span class="comment"><em>--  |</em></span>
+<span class="comment"><em>--  |=====================================================================</em></span>
+<span class="comment"><em>--  | man page form_field_userptr.3x</em></span>
+<span class="comment"><em>--  |=====================================================================</em></span>
+<span class="comment"><em>--  |</em></span>
+<b>package</b> <b>body</b> <a href="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</a>.<a href="terminal_interface-curses__ads.htm#ref_48_28">Curses</a>.<a href="terminal_interface-curses-forms__ads.htm#ref_46_35">Forms</a>.<span class="symbol"><a name="ref_49_46" href="terminal_interface-curses-forms-field_user_data__ads.htm#ref_46_41">Field_User_Data</a></span> <b>is</b>
+   <span class="comment"><em>--  |</em></span>
+   <span class="comment"><em>--  |</em></span>
+   <span class="comment"><em>--  |</em></span>
+   <b>procedure</b> <span class="symbol"><a name="ref_53_14" href="terminal_interface-curses-forms-field_user_data__ads.htm#ref_54_14">Set_User_Data</a></span> (<span class="symbol"><a name="ref_53_29" href="terminal_interface-curses-forms-field_user_data__ads.htm#ref_54_29">Fld</a></span>  : <a href="terminal_interface-curses-forms__ads.htm#ref_52_9">Field</a>;
+                            <span class="symbol"><a name="ref_54_29" href="terminal_interface-curses-forms-field_user_data__ads.htm#ref_55_29">Data</a></span> : <a href="terminal_interface-curses-forms-field_user_data__ads.htm#ref_45_9">User_Access</a>)
    <b>is</b>
-      <b>function</b> <span class="symbol"><A NAME="ref_56_16">Set_Field_Userptr</A></span> (<span class="symbol"><A NAME="ref_56_35" HREF="terminal_interface-curses-forms-field_user_data__adb.htm#ref_56_16">Fld</A></span> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_52_9">Field</A>;
-                                  <span class="symbol"><A NAME="ref_57_35" HREF="terminal_interface-curses-forms-field_user_data__adb.htm#ref_56_16">Usr</A></span> : <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_45_9">User_Access</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_70_9">Eti_Error</A>;
+      <b>function</b> <span class="symbol"><a name="ref_56_16">Set_Field_Userptr</a></span> (<span class="symbol"><a name="ref_56_35">Fld</a></span> : <a href="terminal_interface-curses-forms__ads.htm#ref_52_9">Field</a>;
+                                  <span class="symbol"><a name="ref_57_35">Usr</a></span> : <a href="terminal_interface-curses-forms-field_user_data__ads.htm#ref_45_9">User_Access</a>) <b>return</b> <a href="terminal_interface-curses-aux__ads.htm#ref_70_9">Eti_Error</a>;
       <b>pragma</b> Import (C, Set_Field_Userptr, "set_field_userptr");
 
    <b>begin</b>
-      <A HREF="terminal_interface-curses-aux__ads.htm#ref_87_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-forms-field_user_data__adb.htm#ref_56_16">Set_Field_Userptr</A> (<A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_54_29">Fld</A>, <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_55_29">Data</A>));
-   <b>end</b> <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_54_14">Set_User_Data</A>;
-   <span class="comment"><EM>--  |</EM></span>
-   <span class="comment"><EM>--  |</EM></span>
-   <span class="comment"><EM>--  |</EM></span>
-   <b>function</b> <span class="symbol"><A NAME="ref_66_13" HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_65_13">Get_User_Data</A></span> (<span class="symbol"><A NAME="ref_66_28" HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_65_28">Fld</A></span>  : <A HREF="terminal_interface-curses-forms__ads.htm#ref_52_9">Field</A>) <b>return</b> <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_45_9">User_Access</A>
+      <a href="terminal_interface-curses-aux__ads.htm#ref_87_14">Eti_Exception</a> (<a href="terminal_interface-curses-forms-field_user_data__adb.htm#ref_56_16">Set_Field_Userptr</a> (<a href="terminal_interface-curses-forms-field_user_data__ads.htm#ref_54_29">Fld</a>, <a href="terminal_interface-curses-forms-field_user_data__ads.htm#ref_55_29">Data</a>));
+   <b>end</b> <a href="terminal_interface-curses-forms-field_user_data__ads.htm#ref_54_14">Set_User_Data</a>;
+   <span class="comment"><em>--  |</em></span>
+   <span class="comment"><em>--  |</em></span>
+   <span class="comment"><em>--  |</em></span>
+   <b>function</b> <span class="symbol"><a name="ref_66_13" href="terminal_interface-curses-forms-field_user_data__ads.htm#ref_65_13">Get_User_Data</a></span> (<span class="symbol"><a name="ref_66_28" href="terminal_interface-curses-forms-field_user_data__ads.htm#ref_65_28">Fld</a></span>  : <a href="terminal_interface-curses-forms__ads.htm#ref_52_9">Field</a>) <b>return</b> <a href="terminal_interface-curses-forms-field_user_data__ads.htm#ref_45_9">User_Access</a>
    <b>is</b>
-      <b>function</b> <span class="symbol"><A NAME="ref_68_16">Field_Userptr</A></span> (<span class="symbol"><A NAME="ref_68_31" HREF="terminal_interface-curses-forms-field_user_data__adb.htm#ref_68_16">Fld</A></span> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_52_9">Field</A>) <b>return</b> <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_45_9">User_Access</A>;
+      <b>function</b> <span class="symbol"><a name="ref_68_16">Field_Userptr</a></span> (<span class="symbol"><a name="ref_68_31">Fld</a></span> : <a href="terminal_interface-curses-forms__ads.htm#ref_52_9">Field</a>) <b>return</b> <a href="terminal_interface-curses-forms-field_user_data__ads.htm#ref_45_9">User_Access</a>;
       <b>pragma</b> Import (C, Field_Userptr, "field_userptr");
    <b>begin</b>
-      <b>return</b> <A HREF="terminal_interface-curses-forms-field_user_data__adb.htm#ref_68_16">Field_Userptr</A> (<A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_65_28">Fld</A>);
-   <b>end</b> <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_65_13">Get_User_Data</A>;
+      <b>return</b> <a href="terminal_interface-curses-forms-field_user_data__adb.htm#ref_68_16">Field_Userptr</a> (<a href="terminal_interface-curses-forms-field_user_data__ads.htm#ref_65_28">Fld</a>);
+   <b>end</b> <a href="terminal_interface-curses-forms-field_user_data__ads.htm#ref_65_13">Get_User_Data</a>;
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_74_14" HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_60_14">Get_User_Data</A></span> (<span class="symbol"><A NAME="ref_74_29" HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_60_29">Fld</A></span>  : <A HREF="terminal_interface-curses-forms__ads.htm#ref_52_9">Field</A>;
-                            <span class="symbol"><A NAME="ref_75_29" HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_61_29">Data</A></span> : <b>out</b> <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_45_9">User_Access</A>)
+   <b>procedure</b> <span class="symbol"><a name="ref_74_14" href="terminal_interface-curses-forms-field_user_data__ads.htm#ref_60_14">Get_User_Data</a></span> (<span class="symbol"><a name="ref_74_29" href="terminal_interface-curses-forms-field_user_data__ads.htm#ref_60_29">Fld</a></span>  : <a href="terminal_interface-curses-forms__ads.htm#ref_52_9">Field</a>;
+                            <span class="symbol"><a name="ref_75_29" href="terminal_interface-curses-forms-field_user_data__ads.htm#ref_61_29">Data</a></span> : <b>out</b> <a href="terminal_interface-curses-forms-field_user_data__ads.htm#ref_45_9">User_Access</a>)
    <b>is</b>
    <b>begin</b>
-      <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_61_29">Data</A> := <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_65_13">Get_User_Data</A> (<A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_60_29">Fld</A>);
-   <b>end</b> <A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_60_14">Get_User_Data</A>;
+      <a href="terminal_interface-curses-forms-field_user_data__ads.htm#ref_61_29">Data</a> := <a href="terminal_interface-curses-forms-field_user_data__ads.htm#ref_65_13">Get_User_Data</a> (<a href="terminal_interface-curses-forms-field_user_data__ads.htm#ref_60_29">Fld</a>);
+   <b>end</b> <a href="terminal_interface-curses-forms-field_user_data__ads.htm#ref_60_14">Get_User_Data</a>;
 
-<b>end</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_46_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_user_data__ads.htm#ref_46_41">Field_User_Data</A>;
-</PRE></BODY></HTML>
+<b>end</b> <a href="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</a>.<a href="terminal_interface-curses__ads.htm#ref_48_28">Curses</a>.<a href="terminal_interface-curses-forms__ads.htm#ref_46_35">Forms</a>.<a href="terminal_interface-curses-forms-field_user_data__ads.htm#ref_46_41">Field_User_Data</a>;
+</pre></body></html>

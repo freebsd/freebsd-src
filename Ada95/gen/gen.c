@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020-2021,2024 Thomas E. Dickey                                *
  * Copyright 1998-2014,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -35,7 +35,7 @@
 
 /*
     Version Control
-    $Id: gen.c,v 1.77 2020/08/16 18:05:05 tom Exp $
+    $Id: gen.c,v 1.79 2024/01/19 13:41:45 tom Exp $
   --------------------------------------------------------------------------*/
 /*
   This program prints on its standard output the source for the
@@ -95,7 +95,7 @@ print_size_of(FILE * fp,
 	      const char *name,
 	      size_t value)
 {
-  fprintf(fp, "   %-28s : constant := %lu;\n", name, value);
+  fprintf(fp, "   %-28s : constant := %lu;\n", name, (unsigned long)value);
 }
 
 #define PRINT_NAMED_CONSTANT(name) \
@@ -424,7 +424,9 @@ main(int argc, const char *argv[])
   PRINT_NAMED_CONSTANT(KEY_SUSPEND);
   PRINT_NAMED_CONSTANT(KEY_UNDO);
   PRINT_NAMED_CONSTANT(KEY_MOUSE);
+#ifdef KEY_RESIZE
   PRINT_NAMED_CONSTANT(KEY_RESIZE);
+#endif
 
   print_comment(fp, "alternate character codes (ACS) from addch(3NCURSES)");
 #define PRINT_ACS(name) print_size_of (fp, #name, (size_t)(&name - &acs_map[0]))
@@ -490,6 +492,7 @@ main(int argc, const char *argv[])
   print_comment(fp, "Field_Options from opts(3FORM)");
   PRINT_NAMED_BITMASK(Field_Options, O_NL_OVERLOAD);
   PRINT_NAMED_BITMASK(Field_Options, O_BS_OVERLOAD);
+
   /*  Field_Options_Size is defined below */
 
   print_comment(fp, "MEVENT structure from mouse(3NCURSES)");

@@ -1,6 +1,6 @@
-<!-- 
+<!--
   ****************************************************************************
-  * Copyright 2020 Thomas E. Dickey                                          *
+  * Copyright 2020-2023,2024 Thomas E. Dickey                                *
   * Copyright 2007-2014,2015 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,29 +27,29 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_opaque.3x,v 1.15 2020/10/24 09:41:22 tom Exp @
+  * @Id: curs_opaque.3x,v 1.43 2024/03/16 15:35:01 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_opaque 3x</TITLE>
+<TITLE>curs_opaque 3x 2024-03-16 ncurses 6.5 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_opaque 3x</H1>
+<H1 class="no-header">curs_opaque 3x 2024-03-16 ncurses 6.5 Library calls</H1>
 <PRE>
-<STRONG><A HREF="curs_opaque.3x.html">curs_opaque(3x)</A></STRONG>                                                <STRONG><A HREF="curs_opaque.3x.html">curs_opaque(3x)</A></STRONG>
+<STRONG><A HREF="curs_opaque.3x.html">curs_opaque(3x)</A></STRONG>                  Library calls                 <STRONG><A HREF="curs_opaque.3x.html">curs_opaque(3x)</A></STRONG>
 
 
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
-       <STRONG>is_cleared</STRONG>, <STRONG>is_idlok</STRONG>, <STRONG>is_idcok</STRONG>, <STRONG>is_immedok</STRONG>, <STRONG>is_keypad</STRONG>, <STRONG>is_leaveok</STRONG>,
-       <STRONG>is_nodelay</STRONG>, <STRONG>is_notimeout</STRONG>, <STRONG>is_pad</STRONG>, <STRONG>is_scrollok</STRONG>, <STRONG>is_subwin</STRONG>, <STRONG>is_syncok</STRONG>,
-       <STRONG>wgetdelay</STRONG>, <STRONG>wgetparent</STRONG>, <STRONG>wgetscrreg</STRONG> - <STRONG>curses</STRONG> window properties
+       <STRONG>is_cleared</STRONG>,  <STRONG>is_idlok</STRONG>,  <STRONG>is_idcok</STRONG>,  <STRONG>is_immedok</STRONG>,  <STRONG>is_keypad</STRONG>,  <STRONG>is_leaveok</STRONG>,
+       <STRONG>is_nodelay</STRONG>, <STRONG>is_notimeout</STRONG>, <STRONG>is_pad</STRONG>,  <STRONG>is_scrollok</STRONG>,  <STRONG>is_subwin</STRONG>,  <STRONG>is_syncok</STRONG>,
+       <STRONG>wgetdelay</STRONG>, <STRONG>wgetparent</STRONG>, <STRONG>wgetscrreg</STRONG> - obtain <EM>curses</EM> window properties
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
@@ -67,86 +67,95 @@
        <STRONG>bool</STRONG> <STRONG>is_scrollok(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
        <STRONG>bool</STRONG> <STRONG>is_subwin(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
        <STRONG>bool</STRONG> <STRONG>is_syncok(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
+
        <STRONG>WINDOW</STRONG> <STRONG>*</STRONG> <STRONG>wgetparent(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>wgetdelay(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>wgetscrreg(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <STRONG>*</STRONG><EM>top</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <STRONG>*</STRONG><EM>bottom</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       This  implementation  provides functions which return properties set in
-       the WINDOW structure, allowing it to be "opaque" if the  symbol  <STRONG>NCURS-</STRONG>
-       <STRONG>ES_OPAQUE</STRONG> is defined:
+       <EM>ncurses</EM>  provides functions returning properties of a <EM>WINDOW</EM> structure,
+       allowing  it  to  be  "opaque"   if   the   application   defines   the
+       <STRONG>NCURSES_OPAQUE</STRONG>  preprocessor  symbol.  <EM>Opacity</EM> in this sense means that
+       the members of <EM>struct</EM> data  types  are  not  directly  accessible  (for
+       instance,  through  "." or "-&gt;" operators), but instead must be queried
+       and/or set  via  library  functions.   Advantages  of  opacity  include
+       greater  abstraction  and improved management of concurrent accesses to
+       data structures, keeping object states coherent.
 
        <STRONG>is_cleared</STRONG>
-            returns the value set in <STRONG>clearok</STRONG>
+              returns the value set by <STRONG><A HREF="curs_outopts.3x.html">clearok(3x)</A></STRONG>.
 
        <STRONG>is_idcok</STRONG>
-            returns the value set in <STRONG>idcok</STRONG>
+              returns the value set by <STRONG><A HREF="idcok.3x.html">idcok(3x)</A></STRONG>.
 
        <STRONG>is_idlok</STRONG>
-            returns the value set in <STRONG>idlok</STRONG>
+              returns the value set by <STRONG><A HREF="idlok.3x.html">idlok(3x)</A></STRONG>.
 
        <STRONG>is_immedok</STRONG>
-            returns the value set in <STRONG>immedok</STRONG>
+              returns the value set by <STRONG><A HREF="curs_outopts.3x.html">immedok(3x)</A></STRONG>.
 
        <STRONG>is_keypad</STRONG>
-            returns the value set in <STRONG>keypad</STRONG>
+              returns the value set by <STRONG><A HREF="curs_inopts.3x.html">keypad(3x)</A></STRONG>.
 
        <STRONG>is_leaveok</STRONG>
-            returns the value set in <STRONG>leaveok</STRONG>
+              returns the value set by <STRONG><A HREF="leaveok.3x.html">leaveok(3x)</A></STRONG>.
 
        <STRONG>is_nodelay</STRONG>
-            returns the value set in <STRONG>nodelay</STRONG>
+              returns the value set by <STRONG><A HREF="nodelay.3x.html">nodelay(3x)</A></STRONG>.
 
        <STRONG>is_notimeout</STRONG>
-            returns the value set in <STRONG>notimeout</STRONG>
+              returns the value set by <STRONG><A HREF="notimeout.3x.html">notimeout(3x)</A></STRONG>.
 
-       <STRONG>is_pad</STRONG>
-            returns <STRONG>TRUE</STRONG> if the window is a pad i.e., created by <STRONG>newpad</STRONG>
+       <STRONG>is_pad</STRONG> returns <STRONG>TRUE</STRONG> if the window is a pad; that is, it was created  by
+              <STRONG><A HREF="newpad.3x.html">newpad(3x)</A></STRONG>.
 
        <STRONG>is_scrollok</STRONG>
-            returns the value set in <STRONG>scrollok</STRONG>
+              returns the value set by <STRONG><A HREF="scrollok.3x.html">scrollok(3x)</A></STRONG>.
 
        <STRONG>is_subwin</STRONG>
-            returns <STRONG>TRUE</STRONG> if the window is a subwindow, i.e., created by <STRONG>subwin</STRONG>
-            or <STRONG>derwin</STRONG>
+              returns  <STRONG>TRUE</STRONG>  if  the  window  is  a subwindow, that is, it was
+              created by <STRONG><A HREF="subwin.3x.html">subwin(3x)</A></STRONG> or <STRONG><A HREF="derwin.3x.html">derwin(3x)</A></STRONG>.
 
        <STRONG>is_syncok</STRONG>
-            returns the value set in <STRONG>syncok</STRONG>
+              returns the value set by <STRONG><A HREF="syncok.3x.html">syncok(3x)</A></STRONG>.
 
        <STRONG>wgetdelay</STRONG>
-            returns the delay timeout as set in <STRONG>wtimeout</STRONG>.
+              returns the delay timeout set by <STRONG><A HREF="wtimeout.3x.html">wtimeout(3x)</A></STRONG>.
 
        <STRONG>wgetparent</STRONG>
-            returns the parent WINDOW pointer for subwindows, or NULL for win-
-            dows having no parent.
+              returns the parent <EM>WINDOW</EM> pointer for subwindows,  or  <STRONG>NULL</STRONG>  for
+              windows having no parent.
 
        <STRONG>wgetscrreg</STRONG>
-            returns the top and bottom rows for the scrolling margin as set in
-            <STRONG>wsetscrreg</STRONG>.
+              stores  the the top and bottom rows for the scrolling margin set
+              by <STRONG><A HREF="curs_outopts.3x.html">wsetscrreg(3x)</A></STRONG> in the corresponding arguments, returning  <STRONG>ERR</STRONG>
+              upon failure and <STRONG>OK</STRONG> upon successful completion.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       These functions all return <STRONG>TRUE</STRONG> or <STRONG>FALSE</STRONG>, except as noted.
+       These functions return <STRONG>TRUE</STRONG> or <STRONG>FALSE</STRONG> except as noted.
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       Both a macro and a function are provided for each name.
+       <EM>ncurses</EM>  provides  both  a C function and a preprocessor macro for each
+       function documented in this page.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These routines are specific to ncurses.  They  were  not  supported  on
+       These routines are specific to <EM>ncurses</EM>.  They  were  not  supported  on
        Version 7, BSD or System V implementations.  It is recommended that any
-       code depending on ncurses extensions be conditioned using  NCURSES_VER-
-       SION.
+       code   depending   on   <EM>ncurses</EM>   extensions   be   conditioned   using
+       <STRONG>NCURSES_VERSION</STRONG>.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_inopts.3x.html">curs_inopts(3x)</A></STRONG>, <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>, <STRONG><A HREF="curs_window.3x.html">curs_window(3x)</A></STRONG>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,    <STRONG><A HREF="curs_inopts.3x.html">curs_inopts(3x)</A></STRONG>,   <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>,   <STRONG><A HREF="curs_threads.3x.html">curs_threads(3x)</A></STRONG>,
+       <STRONG><A HREF="curs_window.3x.html">curs_window(3x)</A></STRONG>
 
 
 
-                                                               <STRONG><A HREF="curs_opaque.3x.html">curs_opaque(3x)</A></STRONG>
+ncurses 6.5                       2024-03-16                   <STRONG><A HREF="curs_opaque.3x.html">curs_opaque(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>

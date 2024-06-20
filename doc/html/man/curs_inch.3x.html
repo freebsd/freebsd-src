@@ -1,7 +1,7 @@
-<!-- 
+<!--
   * t
   ****************************************************************************
-  * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
   * Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,28 +28,27 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_inch.3x,v 1.25 2020/10/18 00:25:23 tom Exp @
+  * @Id: curs_inch.3x,v 1.51 2024/04/20 21:20:07 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_inch 3x</TITLE>
+<TITLE>curs_inch 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_inch 3x</H1>
+<H1 class="no-header">curs_inch 3x 2024-04-20 ncurses 6.5 Library calls</H1>
 <PRE>
-<STRONG><A HREF="curs_inch.3x.html">curs_inch(3x)</A></STRONG>                                                    <STRONG><A HREF="curs_inch.3x.html">curs_inch(3x)</A></STRONG>
+<STRONG><A HREF="curs_inch.3x.html">curs_inch(3x)</A></STRONG>                    Library calls                   <STRONG><A HREF="curs_inch.3x.html">curs_inch(3x)</A></STRONG>
 
 
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
-       <STRONG>inch</STRONG>,  <STRONG>winch</STRONG>,  <STRONG>mvinch</STRONG>,  <STRONG>mvwinch</STRONG> - get a character and attributes from a
-       <STRONG>curses</STRONG> window
+       <STRONG>inch</STRONG>, <STRONG>winch</STRONG>, <STRONG>mvinch</STRONG>, <STRONG>mvwinch</STRONG> - get a <EM>curses</EM> character from a window
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
@@ -63,26 +62,27 @@
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       These routines return the character, of type  <STRONG>chtype</STRONG>,  at  the  current
-       position  in  the  named  window.   If  any attributes are set for that
-       position, their values are OR'ed into the  value  returned.   Constants
-       defined  in <STRONG>&lt;curses.h&gt;</STRONG> can be used with the <STRONG>&amp;</STRONG> (logical AND) operator to
+       These  routines  return  the  character, of type <STRONG>chtype</STRONG>, at the current
+       position in the named window.  If  any  attributes  are  set  for  that
+       position,  their  values  are OR'ed into the value returned.  Constants
+       defined in <STRONG>&lt;curses.h&gt;</STRONG> can be used with the <STRONG>&amp;</STRONG> (logical AND) operator  to
        extract the character or attributes alone.
 
 
 </PRE><H3><a name="h3-Attributes">Attributes</a></H3><PRE>
-       The following bit-masks may  be  AND-ed  with  characters  returned  by
+       The  following  bit  masks  may  be  AND-ed with characters returned by
        <STRONG>winch</STRONG>.
 
-       <STRONG>A_CHARTEXT</STRONG>     Bit-mask to extract character
-       <STRONG>A_ATTRIBUTES</STRONG>   Bit-mask to extract attributes
-       <STRONG>A_COLOR</STRONG>        Bit-mask to extract color-pair field information
+       <STRONG>Name</STRONG>           <STRONG>Description</STRONG>
+       ------------------------------------------------------------------------
+       <STRONG>A_CHARTEXT</STRONG>     Extract character
+       <STRONG>A_ATTRIBUTES</STRONG>   Extract attributes
+       <STRONG>A_COLOR</STRONG>        Extract color pair information
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       Functions  with  a  "mv"  prefix  first perform a cursor movement using
-       <STRONG>wmove</STRONG>, and return an error if the position is outside the window, or if
-       the window pointer is null.
+       Functions prefixed with "mv" first perform cursor movement and fail  if
+       the position (<EM>y</EM>, <EM>x</EM>) is outside the window boundaries.
 
        The  <STRONG>winch</STRONG>  function  does  not  return an error if the window contains
        characters larger than 8-bits (255).  Only the low-order 8 bits of  the
@@ -94,7 +94,7 @@
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These functions are described in the XSI Curses standard, Issue 4.
+       These functions are described in X/Open Curses, Issue 4.
 
        Very  old systems (before standardization) provide a different function
        with the same name:
@@ -120,20 +120,14 @@
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>
-            gives an overview of the WINDOW and <STRONG>chtype</STRONG> data types.
+       <STRONG><A HREF="curs_in_wch.3x.html">curs_in_wch(3x)</A></STRONG>  describes  comparable functions of the <EM>ncurses</EM> library
+       in its wide-character configuration (<EM>ncursesw</EM>).
 
-       <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG>
-            goes  into  more  detail,  pointing  out  portability problems and
-            constraints on the use of <STRONG>chtype</STRONG> for returning window information.
-
-       <STRONG><A HREF="curs_in_wch.3x.html">curs_in_wch(3x)</A></STRONG>
-            describes comparable functions for the  wide-character  (ncursesw)
-            library.
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_instr.3x.html">curs_instr(3x)</A></STRONG>
 
 
 
-                                                                 <STRONG><A HREF="curs_inch.3x.html">curs_inch(3x)</A></STRONG>
+ncurses 6.5                       2024-04-20                     <STRONG><A HREF="curs_inch.3x.html">curs_inch(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>

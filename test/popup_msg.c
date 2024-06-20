@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2018-2020,2021 Thomas E. Dickey                                *
  * Copyright 2017 Free Software Foundation, Inc.                            *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: popup_msg.c,v 1.10 2020/02/02 23:34:34 tom Exp $
+ * $Id: popup_msg.c,v 1.11 2021/12/18 21:19:19 tom Exp $
  *
  * Show a multi-line message in a window which may extend beyond the screen.
  *
@@ -87,7 +87,7 @@ popup_msg(WINDOW *parent, const char *const *msg)
 
     if ((help = newwin(high, wide, y0, x0)) == 0)
 	return;
-    if ((data = newpad(length + 1, width)) == 0) {
+    if ((data = newpad(length + 1, width + 1)) == 0) {
 	delwin(help);
 	return;
     }

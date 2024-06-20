@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
--- Copyright 2020 Thomas E. Dickey                                           --
+-- Copyright 2020,2021 Thomas E. Dickey                                      --
 -- Copyright 1998-1999,2006 Free Software Foundation, Inc.                   --
 --                                                                           --
 -- Permission is hereby granted, free of charge, to any person obtaining a   --
@@ -26,7 +26,7 @@
 -- sale, use or other dealings in this Software without prior written        --
 -- authorization.                                                            --
 -------------------------------------------------------------------------------
--- $Id: NEWS,v 1.5 2020/02/02 23:34:34 tom Exp $
+-- $Id: NEWS,v 1.6 2021/06/17 21:20:30 tom Exp $
 -------------------------------------------------------------------------------
 This is a log of changes that the ncurses C++ binding has gone
 through starting with the integration of menu and forms integration
@@ -37,19 +37,19 @@ into the binding.
           to view the pad.
 
 970908	+ Improve NCursesWindow class: added additional methods to
-	  cover more ncurses functionality. Make refresh() and 
+	  cover more ncurses functionality. Make refresh() and
 	  noutrefresh() virtual members to allow different implementation
 	  in the NCursesPanel class.
 	+ CAUTION: changed order of parameters in vline() and hline() of
 	  NCursesWindow class.
 	+ Make refresh() in NCursesPanel non-static, it is now a
-	  reimplementation  of refresh() in the base class. Added 
+	  reimplementation  of refresh() in the base class. Added
 	  noutrefresh() to NCursesPanel.
 	+ Added NCursesForm and related classes to support libform
 	  functionality.
 	+ Moved most of configuration related stuff from cursesw.h to
 	  etip.h
-	+ Added NCursesApplication class to support easy configuration 
+	+ Added NCursesApplication class to support easy configuration
 	  of menu and forms related attributes as well as ripped of
 	  title lines and Soft-Label-Keys for an application.
 	+ Support of Auto-Cleanup for a menus fieldlist.
@@ -63,10 +63,10 @@ into the binding.
 	+ Added the NCursesMenu class to support libmenu functionality.
 	+ The inheritace relation between NCursesWindow and NCursesColorWindow
 	  was kind of brain damage. Monochrome is a special case of colored, so
-	  the relation should be just the opposite. This would allow all 
-	  derived classes like NCursesPanel, NCursesMenu or NCursesForm to 
+	  the relation should be just the opposite. This would allow all
+	  derived classes like NCursesPanel, NCursesMenu or NCursesForm to
 	  have colors.
-	  To resolve that design flaw I put the color functionality into the 
+	  To resolve that design flaw I put the color functionality into the
 	  NCursesWindow class and it can be switched on by the static member
 	  useColors(). NCursesColorWindow is still there for compatibility
 	  reasons.

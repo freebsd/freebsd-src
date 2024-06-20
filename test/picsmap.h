@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 2017 Free Software Foundation, Inc.                            *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -30,7 +30,7 @@
 /****************************************************************************
  *  Author: Thomas E. Dickey                                                *
  ****************************************************************************/
-/* $Id: picsmap.h,v 1.4 2020/02/02 23:34:34 tom Exp $ */
+/* $Id: picsmap.h,v 1.5 2021/04/24 23:25:17 tom Exp $ */
 
 #ifndef PICSMAP_H_INCL
 #define PICSMAP_H_INCL 1
@@ -67,9 +67,5 @@ typedef struct {
     short green;
     short blue;
 } RGB_DATA;
-
-static void init_display(const char *, int);
-
-static void show_picture(PICS_HEAD * pics);
 
 #endif /* PICSMAP_H_INCL */

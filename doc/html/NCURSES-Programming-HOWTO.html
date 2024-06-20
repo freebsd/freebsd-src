@@ -1,16 +1,13 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN"
 "http://www.w3.org/TR/html4/strict.dtd">
-
 <html>
 <head>
   <meta name="generator" content=
-  "HTML Tidy for Linux (vers 25 March 2009), see www.w3.org">
-
+  "HTML Tidy for HTML5 for Linux version 5.6.0">
   <title>NCURSES Programming HOWTO</title>
   <meta name="GENERATOR" content=
   "Modular DocBook HTML Stylesheet Version 1.79">
 </head>
-
 <body class="ARTICLE" bgcolor="#FFFFFF" text="#000000" link=
 "#0000FF" vlink="#840084" alink="#0000FF">
   <div class="ARTICLE">
@@ -24,7 +21,8 @@
       <div class="AFFILIATION">
         <div class="ADDRESS">
           <p class="ADDRESS"><code class="EMAIL">&lt;<a href=
-          "mailto:ppadala@gmail.com">ppadala@gmail.com</a>&gt;</code></p>
+          "mailto:ppadala@gmail.com">ppadala@gmail.com</a>&gt;</code>
+          </p>
         </div>
       </div>
 
@@ -34,14 +32,24 @@
         <table width="100%" border="0" summary="revisions">
           <tr>
             <th align="left" valign="top" colspan="3"><b>Revision
-            History</b></th>
+            History</b>
+            </th>
+          </tr>
+
+          <tr>
+            <td align="left">Revision 2.0</td>
+            <td align="left">2022-12-03</td>
+            <td align="left">Revised by: dickey</td>
+          </tr>
+
+          <tr>
+            <td align="left" colspan="3">Fixes for the sample
+            programs, Correct documentation errata.</td>
           </tr>
 
           <tr>
             <td align="left">Revision 1.9</td>
-
             <td align="left">2005-06-20</td>
-
             <td align="left">Revised by: ppadala</td>
           </tr>
 
@@ -53,9 +61,7 @@
 
           <tr>
             <td align="left">Revision 1.8</td>
-
             <td align="left">2005-06-17</td>
-
             <td align="left">Revised by: ppadala</td>
           </tr>
 
@@ -68,9 +74,7 @@
 
           <tr>
             <td align="left">Revision 1.7.1</td>
-
             <td align="left">2002-06-25</td>
-
             <td align="left">Revised by: ppadala</td>
           </tr>
 
@@ -82,9 +86,7 @@
 
           <tr>
             <td align="left">Revision 1.7</td>
-
             <td align="left">2002-06-25</td>
-
             <td align="left">Revised by: ppadala</td>
           </tr>
 
@@ -96,9 +98,7 @@
 
           <tr>
             <td align="left">Revision 1.6.1</td>
-
             <td align="left">2002-02-24</td>
-
             <td align="left">Revised by: ppadala</td>
           </tr>
 
@@ -109,9 +109,7 @@
 
           <tr>
             <td align="left">Revision 1.6</td>
-
             <td align="left">2002-02-16</td>
-
             <td align="left">Revised by: ppadala</td>
           </tr>
 
@@ -122,9 +120,7 @@
 
           <tr>
             <td align="left">Revision 1.5</td>
-
             <td align="left">2002-01-05</td>
-
             <td align="left">Revised by: ppadala</td>
           </tr>
 
@@ -135,9 +131,7 @@
 
           <tr>
             <td align="left">Revision 1.3.1</td>
-
             <td align="left">2001-07-26</td>
-
             <td align="left">Revised by: ppadala</td>
           </tr>
 
@@ -148,9 +142,7 @@
 
           <tr>
             <td align="left">Revision 1.3</td>
-
             <td align="left">2001-07-24</td>
-
             <td align="left">Revised by: ppadala</td>
           </tr>
 
@@ -162,9 +154,7 @@
 
           <tr>
             <td align="left">Revision 1.2</td>
-
             <td align="left">2001-06-05</td>
-
             <td align="left">Revised by: ppadala</td>
           </tr>
 
@@ -176,9 +166,7 @@
 
           <tr>
             <td align="left">Revision 1.1</td>
-
             <td align="left">2001-05-22</td>
-
             <td align="left">Revised by: ppadala</td>
           </tr>
 
@@ -191,8 +179,7 @@
 
       <div>
         <div class="ABSTRACT">
-          <a name="AEN67" id="AEN67"></a>
-
+          <a name="AEN72" id="AEN72"></a>
           <p><span class="emphasis"><i class="EMPHASIS">This
           document is intended to be an "All in One" guide for
           programming with ncurses and its sister libraries. We
@@ -200,15 +187,18 @@
           complex form manipulation. No prior experience in ncurses
           is assumed. Send comments to <a href=
           "mailto:ppadala@gmail.com" target="_top">this
-          address</a></i></span></p>
+          address</a></i></span>
+          </p>
         </div>
       </div>
+
       <hr>
     </div>
 
     <div class="TOC">
       <dl>
-        <dt><b>Table of Contents</b></dt>
+        <dt><b>Table of Contents</b>
+        </dt>
 
         <dt>1. <a href="#INTRO">Introduction</a></dt>
 
@@ -309,7 +299,7 @@
             <dt>6.1. <a href="#ADDCHCLASS">addch() class of
             functions</a></dt>
 
-            <dt>6.2. <a href="#AEN298">mvaddch(), waddch() and
+            <dt>6.2. <a href="#AEN303">mvaddch(), waddch() and
             mvwaddch()</a></dt>
 
             <dt>6.3. <a href="#PRINTWCLASS">printw() class of
@@ -667,7 +657,7 @@
       cables. The terminals could be configured by sending a series
       of bytes. All the capabilities (such as moving the cursor to
       a new location, erasing part of the screen, scrolling the
-      screen, changing modes etc.) of terminals could be accessed
+      screen, changing modes, etc.) of terminals could be accessed
       through these series of bytes. These control seeuqnces are
       usually called escape sequences, because they start with an
       escape(0x1B) character. Even today, with proper emulation, we
@@ -676,20 +666,16 @@
 
       <p>Suppose you wanted to print a line in color. Try typing
       this on your console.</p>
-      <pre class="PROGRAMLISTING">
-echo "^[[0;31;40mIn Color"
-</pre>
 
+      <pre class="PROGRAMLISTING">echo "^[[0;31;40mIn Color"</pre>
       <p>The first character is an escape character, which looks
       like two characters ^ and [. To be able to print it, you have
       to press CTRL+V and then the ESC key. All the others are
       normal printable characters. You should be able to see the
       string "In Color" in red. It stays that way and to revert
       back to the original mode type this.</p>
-      <pre class="PROGRAMLISTING">
-echo "^[[0;37;40m"
-</pre>
 
+      <pre class="PROGRAMLISTING">echo "^[[0;37;40m"</pre>
       <p>Now, what do these magic characters mean? Difficult to
       comprehend? They might even be different for different
       terminals. So the designers of UNIX invented a mechanism
@@ -711,14 +697,14 @@ echo "^[[0;37;40m"
         <p>You might be wondering, what the import of all this
         technical gibberish is. In the above scenario, every
         application program is supposed to query the terminfo and
-        perform the necessary stuff (sending control characters
+        perform the necessary stuff (sending control characters,
         etc.). It soon became difficult to manage this complexity
         and this gave birth to 'CURSES'. Curses is a pun on the
         name "cursor optimization". The Curses library forms a
         wrapper over working with raw terminal codes, and provides
         highly flexible and efficient API (Application Programming
         Interface). It provides functions to move the cursor,
-        create windows, produce colors, play with mouse etc. The
+        create windows, produce colors, play with mouse, etc. The
         application programs need not worry about the underlying
         terminal capabilities.</p>
 
@@ -732,9 +718,9 @@ echo "^[[0;37;40m"
 
         <p>A detailed history of NCURSES can be found in the NEWS
         file from the source distribution. The current package is
-        maintained by <a href="mailto:dickey@his.com" target=
-        "_top">Thomas Dickey</a>. You can contact the maintainers
-        at <a href="mailto:bug-ncurses@gnu.org" target=
+        maintained by <a href="mailto:dickey@invisible-island.net"
+        target="_top">Thomas Dickey</a>. You can contact the
+        maintainers at <a href="mailto:bug-ncurses@gnu.org" target=
         "_top">bug-ncurses@gnu.org</a>.</p>
       </div>
 
@@ -747,7 +733,7 @@ echo "^[[0;37;40m"
         <p>NCURSES not only creates a wrapper over terminal
         capabilities, but also gives a robust framework to create
         nice looking UI (User Interface)s in text mode. It provides
-        functions to create windows etc. Its sister libraries
+        functions to create windows, etc. Its sister libraries
         panel, menu and form provide an extension to the basic
         curses library. These libraries usually come along with
         curses. One can create applications that contain multiple
@@ -778,38 +764,39 @@ echo "^[[0;37;40m"
         on.</p>
 
         <p><span class="emphasis"><i class="EMPHASIS">Compiling the
-        package</i></span></p>
+        package</i></span>
+        </p>
 
         <p>NCURSES can be obtained from <a href=
         "ftp://ftp.gnu.org/pub/gnu/ncurses/ncurses.tar.gz" target=
         "_top">ftp://ftp.gnu.org/pub/gnu/ncurses/ncurses.tar.gz</a>
         or any of the ftp sites mentioned in <a href=
-        "http://www.gnu.org/order/ftp.html" target=
-        "_top">http://www.gnu.org/order/ftp.html</a>.</p>
+        "https://www.gnu.org/order/ftp.html" target=
+        "_top">https://www.gnu.org/order/ftp.html</a>.</p>
 
         <p>Read the README and INSTALL files for details on to how
         to install it. It usually involves the following
         operations.</p>
-        <pre class="PROGRAMLISTING">
-    tar zxvf ncurses&lt;version&gt;.tar.gz  # unzip and untar the archive
+
+        <pre class=
+        "PROGRAMLISTING">    tar zxvf ncurses&lt;version&gt;.tar.gz  # unzip and untar the archive
     cd ncurses&lt;version&gt;               # cd to the directory
     ./configure                             # configure the build according to your 
                                             # environment
     make                                    # make it
     su root                                 # become root
-    make install                            # install it
-</pre>
-
+    make install                            # install it</pre>
         <p><span class="emphasis"><i class="EMPHASIS">Using the
-        RPM</i></span></p>
+        RPM</i></span>
+        </p>
 
         <p>NCURSES RPM can be found and downloaded from <a href=
-        "http://rpmfind.net" target="_top">http://rpmfind.net</a> .
-        The RPM can be installed with the following command after
+        "https://rpmfind.net" target="_top">https://rpmfind.net</a>
+        . The RPM can be installed with the following command after
         becoming root.</p>
-        <pre class="PROGRAMLISTING">
-    rpm -i &lt;downloaded rpm&gt;
-</pre>
+
+        <pre class=
+        "PROGRAMLISTING">    rpm -i &lt;downloaded rpm&gt;</pre>
       </div>
 
       <div class="SECT2">
@@ -834,11 +821,11 @@ echo "^[[0;37;40m"
 
         <p>All the programs in the document are available in zipped
         form <a href=
-        "http://www.tldp.org/HOWTO/NCURSES-Programming-HOWTO/ncurses_programs.tar.gz"
+        "https://www.tldp.org/HOWTO/NCURSES-Programming-HOWTO/ncurses_programs.tar.gz"
         target="_top">here</a>. Unzip and untar it. The directory
         structure looks like this.</p>
-        <pre class="PROGRAMLISTING">
-ncurses
+
+        <pre class="PROGRAMLISTING">ncurses
    |
    |----&gt; JustForFun     -- just for fun programs
    |----&gt; basics         -- basic programs
@@ -852,13 +839,12 @@ ncurses
    |                            by Anuradha Ratnaweera)
    |----&gt; Makefile       -- the top level Makefile
    |----&gt; README         -- the top level README file. contains instructions
-   |----&gt; COPYING        -- copyright notice
-</pre>
-
+   |----&gt; COPYING        -- copyright notice</pre>
         <p>The individual directories contain the following
         files.</p>
-        <pre class="PROGRAMLISTING">
-Description of files in each directory
+
+        <pre class=
+        "PROGRAMLISTING">Description of files in each directory
 --------------------------------------
 JustForFun
     |
@@ -899,7 +885,7 @@ JustForFun
   menus 
     |
     |----&gt; menu_attrib.c     -- Usage of menu attributes
-    |----&gt; menu_item_data.c  -- Usage of item_name() etc.. functions
+    |----&gt; menu_item_data.c  -- Usage of item_name(), etc. functions
     |----&gt; menu_multi_column.c    -- Creates multi columnar menus
     |----&gt; menu_scroll.c     -- Demonstrates scrolling capability of menus
     |----&gt; menu_simple.c     -- A simple menu accessed by arrow keys
@@ -917,9 +903,7 @@ JustForFun
     |----&gt; panel_simple.c    -- A simple panel example
 
   perl
-    |----&gt; 01-10.pl          -- Perl equivalents of first ten example programs
-</pre>
-
+    |----&gt; 01-10.pl          -- Perl equivalents of first ten example programs</pre>
         <p>There is a top level Makefile included in the main
         directory. It builds all the files and puts the
         ready-to-use exes in demo/exe directory. You can also do
@@ -932,9 +916,9 @@ JustForFun
 
         <p>If you prefer browsing individual programs, point your
         browser to <a href=
-        "http://tldp.org/HOWTO/NCURSES-Programming-HOWTO/ncurses_programs/"
+        "https://tldp.org/HOWTO/NCURSES-Programming-HOWTO/ncurses_programs/"
         target=
-        "_top">http://tldp.org/HOWTO/NCURSES-Programming-HOWTO/ncurses_programs/</a></p>
+        "_top">https://tldp.org/HOWTO/NCURSES-Programming-HOWTO/ncurses_programs/</a></p>
 
         <p>All the programs are released under the same license
         that is used by ncurses (MIT-style). This gives you the
@@ -949,7 +933,7 @@ JustForFun
         <h3 class="SECT2"><a name="OTHERFORMATS" id=
         "OTHERFORMATS">1.6. Other Formats of the document</a></h3>
 
-        <p>This howto is also availabe in various other formats on
+        <p>This howto is also available in various other formats on
         the tldp.org site. Here are the links to other formats of
         this document.</p>
 
@@ -963,25 +947,25 @@ JustForFun
           <ul>
             <li>
               <p><a href=
-              "http://www.ibiblio.org/pub/Linux/docs/HOWTO/other-formats/pdf/NCURSES-Programming-HOWTO.pdf"
+              "https://www.ibiblio.org/pub/Linux/docs/HOWTO/other-formats/pdf/NCURSES-Programming-HOWTO.pdf"
               target="_top">Acrobat PDF Format</a></p>
             </li>
 
             <li>
               <p><a href=
-              "http://www.ibiblio.org/pub/Linux/docs/HOWTO/other-formats/ps/NCURSES-Programming-HOWTO.ps.gz"
+              "https://www.ibiblio.org/pub/Linux/docs/HOWTO/other-formats/ps/NCURSES-Programming-HOWTO.ps.gz"
               target="_top">PostScript Format</a></p>
             </li>
 
             <li>
               <p><a href=
-              "http://www.ibiblio.org/pub/Linux/docs/HOWTO/other-formats/html/NCURSES-Programming-HOWTO-html.tar.gz"
+              "https://www.ibiblio.org/pub/Linux/docs/HOWTO/other-formats/html/NCURSES-Programming-HOWTO-html.tar.gz"
               target="_top">In Multiple HTML pages</a></p>
             </li>
 
             <li>
               <p><a href=
-              "http://www.ibiblio.org/pub/Linux/docs/HOWTO/other-formats/html_single/NCURSES-Programming-HOWTO.html"
+              "https://www.ibiblio.org/pub/Linux/docs/HOWTO/other-formats/html_single/NCURSES-Programming-HOWTO.html"
               target="_top">In One big HTML format</a></p>
             </li>
           </ul>
@@ -995,8 +979,9 @@ JustForFun
 
           <p>If above links are broken or if you want to experiment
           with sgml read on.</p>
-          <pre class="PROGRAMLISTING">
-&#13;    Get both the source and the tar,gzipped programs, available at
+
+          <pre class=
+          "PROGRAMLISTING">&#13;    Get both the source and the tar,gzipped programs, available at
         http://cvsview.tldp.org/index.cgi/LDP/howto/docbook/
         NCURSES-HOWTO/NCURSES-Programming-HOWTO.sgml
         http://cvsview.tldp.org/index.cgi/LDP/howto/docbook/
@@ -1017,13 +1002,11 @@ JustForFun
         NCURSES-ONE-BIG-FILE.html
     for ps, you would use
         htmldoc --size universal -t ps --firstpage p1 -f &lt;output file name.ps&gt;
-        NCURSES-ONE-BIG-FILE.html
-</pre>
-
+        NCURSES-ONE-BIG-FILE.html</pre>
           <p>See <a href=
-          "http://www.tldp.org/LDP/LDP-Author-Guide/" target=
+          "https://www.tldp.org/LDP/LDP-Author-Guide/" target=
           "_top">LDP Author guide</a> for more details. If all else
-          failes, mail me at <a href="ppadala@gmail.com" target=
+          fails, mail me at <a href="ppadala@gmail.com" target=
           "_top">ppadala@gmail.com</a></p>
         </div>
       </div>
@@ -1147,27 +1130,25 @@ JustForFun
         <hr>
 
         <h3 class="SECT2"><a name="COMPILECURSES" id=
-        "COMPILECURSES">2.1. Compiling With the NCURSES
-        Library</a></h3>
+        "COMPILECURSES">2.1. Compiling With the NCURSES Library</a></h3>
 
         <p>To use ncurses library functions, you have to include
         ncurses.h in your programs. To link the program with
         ncurses the flag -lncurses should be added.</p>
-        <pre class="PROGRAMLISTING">
-    #include &lt;ncurses.h&gt;
+
+        <pre class="PROGRAMLISTING">    #include &lt;ncurses.h&gt;
     .
     .
     .
 
-    compile and link: gcc &lt;program file&gt; -lncurses
-</pre>
-
+    compile and link: gcc &lt;program file&gt; -lncurses</pre>
         <div class="EXAMPLE">
           <a name="BHW" id="BHW"></a>
+          <p><b>Example 1. The Hello World !!! Program</b>
+          </p>
 
-          <p><b>Example 1. The Hello World !!! Program</b></p>
-          <pre class="PROGRAMLISTING">
-<span class="INLINEMEDIAOBJECT">#include &lt;ncurses.h&gt;
+          <pre class="PROGRAMLISTING"><span class=
+          "INLINEMEDIAOBJECT">#include &lt;curses.h&gt;
 
 int main()
 {       
@@ -1178,8 +1159,7 @@ int main()
         endwin();                       /* End curses mode                */
 
         return 0;
-}</span>
-</pre>
+}</span></pre>
         </div>
       </div>
 
@@ -1291,7 +1271,7 @@ int main()
       initscr() has to be called. There are functions which can be
       called after this initialization to customize our curses
       session. We may ask the curses system to set the terminal in
-      raw mode or initialize color or initialize the mouse etc..
+      raw mode or initialize color or initialize the mouse, etc.
       Let's discuss some of the functions that are normally called
       immediately after initscr();</p>
 
@@ -1335,7 +1315,7 @@ int main()
         "LITERAL">noecho()</tt> switches off echoing. The reason
         you might want to do this is to gain more control over
         echoing or to suppress unnecessary echoing while taking
-        input from the user through the getch() etc. functions.
+        input from the user through the getch(), etc. functions.
         Most of the interactive programs call <tt class=
         "LITERAL">noecho()</tt> at initialization and do the
         echoing of characters in a controlled manner. It gives the
@@ -1351,7 +1331,7 @@ int main()
         keypad()</a></h3>
 
         <p>This is my favorite initialization function. It enables
-        the reading of function keys like F1, F2, arrow keys etc.
+        the reading of function keys like F1, F2, arrow keys, etc.
         Almost every interactive program enables this, as arrow
         keys are a major part of any User Interface. Do <tt class=
         "LITERAL">keypad(stdscr, TRUE)</tt> to enable this feature
@@ -1401,11 +1381,12 @@ int main()
 
         <div class="EXAMPLE">
           <a name="BINFU" id="BINFU"></a>
-
           <p><b>Example 2. Initialization Function Usage
-          example</b></p>
-          <pre class="PROGRAMLISTING">
-<span class="INLINEMEDIAOBJECT">#include &lt;ncurses.h&gt;
+          example</b>
+          </p>
+
+          <pre class="PROGRAMLISTING"><span class=
+          "INLINEMEDIAOBJECT">#include &lt;curses.h&gt;
 
 int main()
 {       int ch;
@@ -1422,7 +1403,7 @@ int main()
         if(ch == KEY_F(1))              /* Without keypad enabled this will */
                 printw("F1 Key pressed");/*  not get to us either       */
                                         /* Without noecho() some ugly escape
-                                         * charachters might have been printed
+                                         * characters might have been printed
                                          * on screen                    */
         else
         {       printw("The pressed key is ");
@@ -1435,8 +1416,7 @@ int main()
         endwin();                       /* End curses mode                */
 
         return 0;
-}</span>
-</pre>
+}</span></pre>
         </div>
 
         <p>This program is self-explanatory. But I used functions
@@ -1470,17 +1450,15 @@ int main()
       creates a default window named <tt class=
       "LITERAL">stdscr</tt> which represents your 80x25 (or the
       size of window in which you are running) screen. If you are
-      doing simple tasks like printing few strings, reading input
+      doing simple tasks like printing few strings, reading input,
       etc., you can safely use this single window for all of your
       purposes. You can also create windows and call functions
       which explicitly work on the specified window.</p>
 
       <p>For example, if you call</p>
-      <pre class="PROGRAMLISTING">
-    printw("Hi There !!!");
-    refresh();
-</pre>
 
+      <pre class="PROGRAMLISTING">    printw("Hi There !!!");
+    refresh();</pre>
       <p>It prints the string on stdscr at the present cursor
       position. Similarly the call to refresh(), works on stdscr
       only.</p>
@@ -1488,23 +1466,20 @@ int main()
       <p>Say you have created <a href="#WINDOWS">windows</a> then
       you have to call a function with a 'w' added to the usual
       function.</p>
-      <pre class="PROGRAMLISTING">
-    wprintw(win, "Hi There !!!");
-    wrefresh(win);
-</pre>
 
+      <pre class="PROGRAMLISTING">    wprintw(win, "Hi There !!!");
+    wrefresh(win);</pre>
       <p>As you will see in the rest of the document, naming of
       functions follow the same convention. For each function there
       usually are three more functions.</p>
-      <pre class="PROGRAMLISTING">
-    printw(string);        /* Print on stdscr at present cursor position */
+
+      <pre class=
+      "PROGRAMLISTING">    printw(string);        /* Print on stdscr at present cursor position */
     mvprintw(y, x, string);/* Move to (y, x) then print string     */
     wprintw(win, string);  /* Print on window win at present cursor position */
                            /* in the window */
     mvwprintw(win, y, x, string);   /* Move to (y, x) relative to window */
-                                    /* co-ordinates and then print         */
-</pre>
-
+                                    /* co-ordinates and then print         */</pre>
       <p>Usually the w-less functions are macros which expand to
       corresponding w-function with stdscr as the window
       parameter.</p>
@@ -1539,7 +1514,7 @@ int main()
         </li>
       </ol>
 
-      <p>These functions can be used interchangeably and it's a
+      <p>These functions can be used interchangeably and it is a
       matter of style as to which class is used. Let's see each one
       in detail.</p>
 
@@ -1570,9 +1545,9 @@ int main()
             For example, you want to print a character ch(of type
             char) bold and underlined, you would call addch() as
             below.</p>
-            <pre class="PROGRAMLISTING">
-    addch(ch | A_BOLD | A_UNDERLINE);
-</pre>
+
+            <pre class=
+            "PROGRAMLISTING">    addch(ch | A_BOLD | A_UNDERLINE);</pre>
           </li>
 
           <li>
@@ -1590,7 +1565,7 @@ int main()
         <p>Additionally, <tt class="LITERAL">curses</tt> provides
         some special characters for character-based graphics. You
         can draw tables, horizontal or vertical lines, etc. You can
-        find all avaliable characters in the header file <tt class=
+        find all available characters in the header file <tt class=
         "LITERAL">ncurses.h</tt>. Try looking for macros beginning
         with <tt class="LITERAL">ACS_</tt> in this file.</p>
       </div>
@@ -1598,22 +1573,18 @@ int main()
       <div class="SECT2">
         <hr>
 
-        <h3 class="SECT2"><a name="AEN298" id="AEN298">6.2.
+        <h3 class="SECT2"><a name="AEN303" id="AEN303">6.2.
         mvaddch(), waddch() and mvwaddch()</a></h3>
 
         <p><tt class="LITERAL">mvaddch()</tt> is used to move the
         cursor to a given point, and then print. Thus, the
         calls:</p>
-        <pre class="PROGRAMLISTING">
-    move(row,col);    /* moves the cursor to row<span class=
-"emphasis"><i class=
-"EMPHASIS">th</i></span> row and col<span class="emphasis"><i class="EMPHASIS">th</i></span> column */
-    addch(ch);
-</pre>can be replaced by
-        <pre class="PROGRAMLISTING">
-    mvaddch(row,col,ch);
-</pre>
 
+        <pre class=
+        "PROGRAMLISTING">    move(row,col);    /* moves the cursor to row<span class="emphasis"><i class="EMPHASIS">th</i></span> row and col<span class="emphasis"><i class="EMPHASIS">th</i></span> column */
+    addch(ch);</pre>can be replaced by
+
+        <pre class="PROGRAMLISTING">    mvaddch(row,col,ch);</pre>
         <p><tt class="LITERAL">waddch()</tt> is similar to
         <tt class="LITERAL">addch()</tt>, except that it adds a
         character into the given window. (Note that <tt class=
@@ -1667,8 +1638,7 @@ int main()
           <hr>
 
           <h4 class="SECT3"><a name="WPRINTWMVWPRINTW" id=
-          "WPRINTWMVWPRINTW">6.3.2. wprintw() and
-          mvwprintw</a></h4>
+          "WPRINTWMVWPRINTW">6.3.2. wprintw() and mvwprintw</a></h4>
 
           <p>These two functions are similar to above two except
           that they print in the corresponding window given as
@@ -1694,18 +1664,18 @@ int main()
 
           <div class="EXAMPLE">
             <a name="BPREX" id="BPREX"></a>
+            <p><b>Example 3. A Simple printw example</b>
+            </p>
 
-            <p><b>Example 3. A Simple printw example</b></p>
-            <pre class="PROGRAMLISTING">
-<span class=
-"INLINEMEDIAOBJECT">#include &lt;ncurses.h&gt;                   /* ncurses.h includes stdio.h */  
+            <pre class="PROGRAMLISTING"><span class=
+            "INLINEMEDIAOBJECT">#include &lt;curses.h&gt;
 #include &lt;string.h&gt; 
  
 int main()
 {
  char mesg[]="Just a string";           /* message to be appeared on the screen */
  int row,col;                           /* to store the number of rows and *
-                                         * the number of colums of the screen */
+                                         * the number of columns of the screen */
  initscr();                             /* start the curses mode */
  getmaxyx(stdscr,row,col);              /* get the number of rows and columns */
  mvprintw(row/2,(col-strlen(mesg))/2,"%s",mesg);
@@ -1717,8 +1687,7 @@ int main()
  endwin();
 
  return 0;
-}</span>
-</pre>
+}</span></pre>
           </div>
 
           <p>Above program demonstrates how easy it is to use
@@ -1891,11 +1860,11 @@ int main()
 
         <div class="EXAMPLE">
           <a name="BSCEX" id="BSCEX"></a>
+          <p><b>Example 4. A Simple scanw example</b>
+          </p>
 
-          <p><b>Example 4. A Simple scanw example</b></p>
-          <pre class="PROGRAMLISTING">
-<span class=
-"INLINEMEDIAOBJECT">#include &lt;ncurses.h&gt;                   /* ncurses.h includes stdio.h */  
+          <pre class="PROGRAMLISTING"><span class=
+          "INLINEMEDIAOBJECT">#include &lt;curses.h&gt;
 #include &lt;string.h&gt; 
  
 int main()
@@ -1903,7 +1872,7 @@ int main()
  char mesg[]="Enter a string: ";                /* message to be appeared on the screen */
  char str[80];
  int row,col;                           /* to store the number of rows and *
-                                         * the number of colums of the screen */
+                                         * the number of columns of the screen */
  initscr();                             /* start the curses mode */
  getmaxyx(stdscr,row,col);              /* get the number of rows and columns */
  mvprintw(row/2,(col-strlen(mesg))/2,"%s",mesg);
@@ -1914,8 +1883,7 @@ int main()
  endwin();
 
  return 0;
-}</span>
-</pre>
+}</span></pre>
         </div>
       </div>
     </div>
@@ -1935,12 +1903,12 @@ int main()
 
       <div class="EXAMPLE">
         <a name="BSIAT" id="BSIAT"></a>
+        <p><b>Example 5. A Simple Attributes example</b>
+        </p>
 
-        <p><b>Example 5. A Simple Attributes example</b></p>
-        <pre class="PROGRAMLISTING">
-<span class=
-"INLINEMEDIAOBJECT">/* pager functionality by Joseph Spainhour" &lt;spainhou@bellsouth.net&gt; */
-#include &lt;ncurses.h&gt;
+        <pre class="PROGRAMLISTING"><span class=
+        "INLINEMEDIAOBJECT">/* pager functionality by Joseph Spainhour" &lt;spainhou@bellsouth.net&gt; */
+#include &lt;curses.h&gt;
 #include &lt;stdlib.h&gt;
 
 int main(int argc, char *argv[])
@@ -1965,7 +1933,7 @@ int main(int argc, char *argv[])
   getmaxyx(stdscr, row, col);           /* find the boundaries of the screeen */
   while((ch = fgetc(fp)) != EOF)        /* read the file till we reach the end */
   {
-    getyx(stdscr, y, x);                /* get the current curser position */
+    getyx(stdscr, y, x);                /* get the current cursor position */
     if(y == (row - 1))                  /* are we are at the end of the screen */
     {
       printw("&lt;-Press Any Key-&gt;");      /* tell the user to press a key */
@@ -1977,7 +1945,7 @@ int main(int argc, char *argv[])
                                          * switch bold on */    
     {
       attron(A_BOLD);                   /* cut bold on */
-      getyx(stdscr, y, x);              /* get the current curser position */
+      getyx(stdscr, y, x);              /* get the current cursor position */
       move(y, x - 1);                   /* back up one space */
       printw("%c%c", '/', ch);          /* The actual printing is done here */
     }
@@ -1992,8 +1960,7 @@ int main(int argc, char *argv[])
   endwin();                             /* End curses mode */
   fclose(fp);
   return 0;
-}</span>
-</pre>
+}</span></pre>
       </div>
 
       <p>Don't worry about all those initialization and other crap.
@@ -2026,7 +1993,7 @@ int main(int argc, char *argv[])
         <p>Let's get into more details of attributes. The functions
         <tt class="LITERAL">attron(), attroff(), attrset()</tt> ,
         and their sister functions <tt class=
-        "LITERAL">attr_get()</tt> etc.. can be used to switch
+        "LITERAL">attr_get()</tt>, etc. can be used to switch
         attributes on/off , get attributes and produce a colorful
         display.</p>
 
@@ -2034,8 +2001,8 @@ int main(int argc, char *argv[])
         attributes and switch them on or off, respectively. The
         following video attributes, which are defined in
         &lt;curses.h&gt; can be passed to these functions.</p>
-        <pre class="PROGRAMLISTING">
-    
+
+        <pre class="PROGRAMLISTING">    
     A_NORMAL        Normal display (no highlight)
     A_STANDOUT      Best highlighting mode of the terminal.
     A_UNDERLINE     Underlining
@@ -2048,9 +2015,7 @@ int main(int argc, char *argv[])
     A_ALTCHARSET    Alternate character set
     A_CHARTEXT      Bit-mask to extract a character
     COLOR_PAIR(n)   Color-pair number n 
-    
-</pre>
-
+    </pre>
         <p>The last one is the most colorful one :-) Colors are
         explained in the <a href="#color" target="_top">next
         sections</a>.</p>
@@ -2058,9 +2023,9 @@ int main(int argc, char *argv[])
         <p>We can OR(|) any number of above attributes to get a
         combined effect. If you wanted reverse video with blinking
         characters you can use</p>
-        <pre class="PROGRAMLISTING">
-    attron(A_REVERSE | A_BLINK);
-</pre>
+
+        <pre class=
+        "PROGRAMLISTING">    attron(A_REVERSE | A_BLINK);</pre>
       </div>
 
       <div class="SECT2">
@@ -2108,8 +2073,8 @@ int main(int argc, char *argv[])
         <h3 class="SECT2"><a name="ATTRFUNCS" id="ATTRFUNCS">8.4.
         attr_ functions</a></h3>
 
-        <p>There are series of functions like attr_set(), attr_on
-        etc.. These are similar to above functions except that they
+        <p>There are series of functions like attr_set(), attr_on,
+        etc. These are similar to above functions except that they
         take parameters of type <tt class=
         "LITERAL">attr_t</tt>.</p>
       </div>
@@ -2141,10 +2106,9 @@ int main(int argc, char *argv[])
         <p>We can give -1 as the character count to update till end
         of line. If you want to change attributes of characters
         from current position to end of line, just use this.</p>
-        <pre class="PROGRAMLISTING">
-    chgat(-1, A_REVERSE, 0, NULL);
-</pre>
 
+        <pre class=
+        "PROGRAMLISTING">    chgat(-1, A_REVERSE, 0, NULL);</pre>
         <p>This function is useful when changing attributes for
         characters that are already on the screen. Move to the
         character from which you want to change and change the
@@ -2159,10 +2123,11 @@ int main(int argc, char *argv[])
 
         <div class="EXAMPLE">
           <a name="BWICH" id="BWICH"></a>
+          <p><b>Example 6. Chgat() Usage example</b>
+          </p>
 
-          <p><b>Example 6. Chgat() Usage example</b></p>
-          <pre class="PROGRAMLISTING">
-<span class="INLINEMEDIAOBJECT">#include &lt;ncurses.h&gt;
+          <pre class="PROGRAMLISTING"><span class=
+          "INLINEMEDIAOBJECT">#include &lt;curses.h&gt;
 
 int main(int argc, char *argv[])
 {       initscr();                      /* Start curses mode            */
@@ -2176,7 +2141,7 @@ int main(int argc, char *argv[])
          * Third parameter number of characters to update. -1 means till 
          * end of line
          * Forth parameter is the normal attribute you wanted to give 
-         * to the charcter
+         * to the character
          * Fifth is the color index. It is the index given during init_pair()
          * use 0 if you didn't want color
          * Sixth one is always NULL 
@@ -2185,8 +2150,7 @@ int main(int argc, char *argv[])
         getch();
         endwin();                       /* End curses mode                */
         return 0;
-}</span>
-</pre>
+}</span></pre>
         </div>
 
         <p>This example also introduces us to the color world of
@@ -2224,13 +2188,13 @@ int main(int argc, char *argv[])
         <tt class="LITERAL">newwin()</tt>. It doesn't create any
         thing on the screen actually. It allocates memory for a
         structure to manipulate the window and updates the
-        structure with data regarding the window like it's size,
-        beginy, beginx etc.. Hence in curses, a window is just an
+        structure with data regarding the window such as its size,
+        beginy, beginx, etc. Hence in curses, a window is just an
         abstraction of an imaginary window, which can be
         manipulated independent of other parts of screen. The
         function newwin() returns a pointer to structure WINDOW,
-        which can be passed to window related functions like
-        wprintw() etc.. Finally the window can be destroyed with
+        which can be passed to window related functions such as
+        wprintw(), etc. Finally the window can be destroyed with
         delwin(). It will deallocate the memory associated with the
         window structure.</p>
       </div>
@@ -2249,11 +2213,11 @@ int main(int argc, char *argv[])
 
         <div class="EXAMPLE">
           <a name="BWIBO" id="BWIBO"></a>
+          <p><b>Example 7. Window Border example</b>
+          </p>
 
-          <p><b>Example 7. Window Border example</b></p>
-          <pre class="PROGRAMLISTING">
-<span class="INLINEMEDIAOBJECT">#include &lt;ncurses.h&gt;
-
+          <pre class="PROGRAMLISTING"><span class=
+          "INLINEMEDIAOBJECT">#include &lt;curses.h&gt;
 
 WINDOW *create_newwin(int height, int width, int starty, int startx);
 void destroy_win(WINDOW *local_win);
@@ -2316,7 +2280,7 @@ WINDOW *create_newwin(int height, int width, int starty, int startx)
 void destroy_win(WINDOW *local_win)
 {       
         /* box(local_win, ' ', ' '); : This won't produce the desired
-         * result of erasing the window. It will leave it's four corners 
+         * result of erasing the window. It will leave its four corners 
          * and so an ugly remnant of window. 
          */
         wborder(local_win, ' ', ' ', ' ',' ',' ',' ',' ',' ');
@@ -2333,8 +2297,7 @@ void destroy_win(WINDOW *local_win)
          */
         wrefresh(local_win);
         delwin(local_win);
-}</span>
-</pre>
+}</span></pre>
         </div>
       </div>
 
@@ -2344,7 +2307,7 @@ void destroy_win(WINDOW *local_win)
         <h3 class="SECT2"><a name="BORDEREXEXPL" id=
         "BORDEREXEXPL">9.3. Explanation</a></h3>
 
-        <p>Don't scream. I know it's a big example. But I have to
+        <p>Don't scream. I know it is a big example. But I have to
         explain some important things here :-). This program
         creates a rectangular window that can be moved with left,
         right, up, down arrow keys. It repeatedly creates and
@@ -2369,21 +2332,19 @@ void destroy_win(WINDOW *local_win)
         border around the window with the characters given to it as
         the 4 corner points and the 4 lines. To put it clearly, if
         you have called wborder as below:</p>
-        <pre class="PROGRAMLISTING">
-    wborder(win, '|', '|', '-', '-', '+', '+', '+', '+');
-</pre>
 
-        <p>it produces some thing like</p>
-        <pre class="PROGRAMLISTING">
-    +------------+
+        <pre class=
+        "PROGRAMLISTING">    wborder(win, '|', '|', '-', '-', '+', '+', '+', '+');</pre>
+        <p>it produces something like</p>
+
+        <pre class="PROGRAMLISTING">    +------------+
     |            |
     |            |
     |            |
     |            |
     |            |
     |            |
-    +------------+
-</pre>
+    +------------+</pre>
       </div>
 
       <div class="SECT2">
@@ -2423,10 +2384,11 @@ void destroy_win(WINDOW *local_win)
 
         <div class="EXAMPLE">
           <a name="BOTBO" id="BOTBO"></a>
+          <p><b>Example 8. More border functions</b>
+          </p>
 
-          <p><b>Example 8. More border functions</b></p>
-          <pre class="PROGRAMLISTING">
-<span class="INLINEMEDIAOBJECT">#include &lt;ncurses.h&gt;
+          <pre class="PROGRAMLISTING"><span class=
+          "INLINEMEDIAOBJECT">#include &lt;curses.h&gt;
 
 typedef struct _win_border_struct {
         chtype  ls, rs, ts, bs, 
@@ -2545,8 +2507,7 @@ void create_box(WIN *p_win, bool flag)
                                 
         refresh();
 
-}</span>
-</pre>
+}</span></pre>
         </div>
       </div>
     </div>
@@ -2554,8 +2515,7 @@ void create_box(WIN *p_win, bool flag)
     <div class="SECT1">
       <hr>
 
-      <h2 class="SECT1"><a name="COLOR" id="COLOR">10.
-      Colors</a></h2>
+      <h2 class="SECT1"><a name="COLOR" id="COLOR">10. Colors</a></h2>
 
       <div class="SECT2">
         <h3 class="SECT2"><a name="COLORBASICS" id=
@@ -2567,10 +2527,13 @@ void create_box(WIN *p_win, bool flag)
 
         <div class="EXAMPLE">
           <a name="BSICO" id="BSICO"></a>
+          <p><b>Example 9. A Simple Color example</b>
+          </p>
 
-          <p><b>Example 9. A Simple Color example</b></p>
-          <pre class="PROGRAMLISTING">
-<span class="INLINEMEDIAOBJECT">#include &lt;ncurses.h&gt;
+          <pre class="PROGRAMLISTING"><span class=
+          "INLINEMEDIAOBJECT">#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;curses.h&gt;
 
 void print_in_middle(WINDOW *win, int starty, int startx, int width, char *string);
 int main(int argc, char *argv[])
@@ -2609,8 +2572,7 @@ void print_in_middle(WINDOW *win, int starty, int startx, int width, char *strin
         mvwprintw(win, y, x, "%s", string);
         refresh();
 }
-</span>
-</pre>
+</span></pre>
         </div>
 
         <p>As you can see, to start using color, you should first
@@ -2624,36 +2586,35 @@ void print_in_middle(WINDOW *win, int starty, int startx, int width, char *strin
         <p>Curses initializes all the colors supported by terminal
         when start_color() is called. These can be accessed by the
         define constants like <tt class="LITERAL">COLOR_BLACK</tt>
-        etc. Now to actually start using colors, you have to define
-        pairs. Colors are always used in pairs. That means you have
-        to use the function <tt class="LITERAL">init_pair()</tt> to
-        define the foreground and background for the pair number
-        you give. After that that pair number can be used as a
-        normal attribute with <tt class=
-        "LITERAL">COLOR_PAIR()</tt>function. This may seem to be
-        cumbersome at first. But this elegant solution allows us to
-        manage color pairs very easily. To appreciate it, you have
-        to look into the the source code of "dialog", a utility for
-        displaying dialog boxes from shell scripts. The developers
-        have defined foreground and background combinations for all
-        the colors they might need and initialized at the
-        beginning. This makes it very easy to set attributes just
-        by accessing a pair which we already have defined as a
-        constant.</p>
+        , etc. Now to actually start using colors, you have to
+        define pairs. Colors are always used in pairs. That means
+        you have to use the function <tt class=
+        "LITERAL">init_pair()</tt> to define the foreground and
+        background for the pair number you give. After that that
+        pair number can be used as a normal attribute with
+        <tt class="LITERAL">COLOR_PAIR()</tt>function. This may
+        seem to be cumbersome at first. But this elegant solution
+        allows us to manage color pairs very easily. To appreciate
+        it, you have to look into the the source code of "dialog",
+        a utility for displaying dialog boxes from shell scripts.
+        The developers have defined foreground and background
+        combinations for all the colors they might need and
+        initialized at the beginning. This makes it very easy to
+        set attributes just by accessing a pair which we already
+        have defined as a constant.</p>
 
         <p>The following colors are defined in <tt class=
         "LITERAL">curses.h</tt>. You can use these as parameters
         for various color functions.</p>
-        <pre class="PROGRAMLISTING">
-        COLOR_BLACK   0
+
+        <pre class="PROGRAMLISTING">        COLOR_BLACK   0
         COLOR_RED     1
         COLOR_GREEN   2
         COLOR_YELLOW  3
         COLOR_BLUE    4
         COLOR_MAGENTA 5
         COLOR_CYAN    6
-        COLOR_WHITE   7
-</pre>
+        COLOR_WHITE   7</pre>
       </div>
 
       <div class="SECT2">
@@ -2667,12 +2628,11 @@ void print_in_middle(WINDOW *win, int starty, int startx, int width, char *strin
         curses initially. Say you wanted to lighten the intensity
         of red color by a minuscule. Then you can use this function
         as</p>
-        <pre class="PROGRAMLISTING">
-    init_color(COLOR_RED, 700, 0, 0);
-    /* param 1     : color name
-     * param 2, 3, 4 : rgb content min = 0, max = 1000 */
-</pre>
 
+        <pre class=
+        "PROGRAMLISTING">    init_color(COLOR_RED, 700, 0, 0);
+    /* param 1     : color name
+     * param 2, 3, 4 : rgb content min = 0, max = 1000 */</pre>
         <p>If your terminal cannot change the color definitions,
         the function returns ERR. The function <tt class=
         "LITERAL">can_change_color()</tt> can be used to find out
@@ -2710,14 +2670,14 @@ void print_in_middle(WINDOW *win, int starty, int startx, int width, char *strin
         sensitive to key presses or the mouse actions done by the
         user. Let's deal with the keys first.</p>
 
-        <p>As you have seen in almost all of the above examples,
-        it's very easy to get key input from the user. A simple way
+        <p>As you have seen in almost all of the above examples, it
+        is very easy to get key input from the user. A simple way
         of getting key presses is to use <tt class=
         "LITERAL">getch()</tt> function. The cbreak mode should be
         enabled to read keys when you are interested in reading
         individual key hits rather than complete lines of text
         (which usually end with a carriage return). keypad should
-        be enabled to get the Functions keys, arrow keys etc. See
+        be enabled to get the Functions keys, arrow keys, etc. See
         the initialization section for details.</p>
 
         <p><tt class="LITERAL">getch()</tt> returns an integer
@@ -2731,12 +2691,10 @@ void print_in_middle(WINDOW *win, int starty, int startx, int width, char *strin
         keys portable and easy to manage.</p>
 
         <p>For example, if you call getch() like this</p>
-        <pre class="PROGRAMLISTING">
-    int ch;
 
-    ch = getch();
-</pre>
+        <pre class="PROGRAMLISTING">    int ch;
 
+    ch = getch();</pre>
         <p>getch() will wait for the user to press a key, (unless
         you specified a timeout) and when user presses a key, the
         corresponding integer is returned. Then you can check the
@@ -2744,11 +2702,9 @@ void print_in_middle(WINDOW *win, int starty, int startx, int width, char *strin
         match against the keys you want.</p>
 
         <p>The following code piece will do that job.</p>
-        <pre class="PROGRAMLISTING">
-    if(ch == KEY_LEFT)
-        printw("Left arrow is pressed\n");
-</pre>
 
+        <pre class="PROGRAMLISTING">    if(ch == KEY_LEFT)
+        printw("Left arrow is pressed\n");</pre>
         <p>Let's write a small program which creates a menu which
         can be navigated by up and down arrows.</p>
       </div>
@@ -2761,11 +2717,11 @@ void print_in_middle(WINDOW *win, int starty, int startx, int width, char *strin
 
         <div class="EXAMPLE">
           <a name="BSIKE" id="BSIKE"></a>
+          <p><b>Example 10. A Simple Key Usage example</b>
+          </p>
 
-          <p><b>Example 10. A Simple Key Usage example</b></p>
-          <pre class="PROGRAMLISTING">
-<span class="INLINEMEDIAOBJECT">#include &lt;stdio.h&gt;
-#include &lt;ncurses.h&gt;
+          <pre class="PROGRAMLISTING"><span class=
+          "INLINEMEDIAOBJECT">#include &lt;curses.h&gt;
 
 #define WIDTH 30
 #define HEIGHT 10 
@@ -2820,7 +2776,7 @@ int main()
                                 choice = highlight;
                                 break;
                         default:
-                                mvprintw(24, 0, "Charcter pressed is = %3d Hopefully it can be printed as '%c'", c, c);
+                                mvprintw(24, 0, "Character pressed is = %3d Hopefully it can be printed as '%c'", c, c);
                                 refresh();
                                 break;
                 }
@@ -2834,7 +2790,6 @@ int main()
         endwin();
         return 0;
 }
-
 
 void print_menu(WINDOW *menu_win, int highlight)
 {
@@ -2855,8 +2810,7 @@ void print_menu(WINDOW *menu_win, int highlight)
         }
         wrefresh(menu_win);
 }
-</span>
-</pre>
+</span></pre>
         </div>
       </div>
     </div>
@@ -2880,11 +2834,10 @@ void print_menu(WINDOW *menu_win, int highlight)
         <p>Before you do any thing else, the events you want to
         receive have to be enabled with <tt class=
         "LITERAL">mousemask()</tt>.</p>
-        <pre class="PROGRAMLISTING">
-    mousemask(  mmask_t newmask,    /* The events you want to listen to */
-                mmask_t *oldmask)    /* The old events mask                */
-</pre>
 
+        <pre class=
+        "PROGRAMLISTING">    mousemask(  mmask_t newmask,    /* The events you want to listen to */
+                mmask_t *oldmask)    /* The old events mask                */</pre>
         <p>The first parameter to above function is a bit mask of
         events you would like to listen. By default, all the events
         are turned off. The bit mask <tt class=
@@ -2892,8 +2845,8 @@ void print_menu(WINDOW *menu_win, int highlight)
         events.</p>
 
         <p>The following are all the event masks:</p>
-        <pre class="PROGRAMLISTING">
-    Name            Description
+
+        <pre class="PROGRAMLISTING">    Name            Description
        ---------------------------------------------------------------------
        BUTTON1_PRESSED          mouse button 1 down
        BUTTON1_RELEASED         mouse button 1 up
@@ -2919,8 +2872,7 @@ void print_menu(WINDOW *menu_win, int highlight)
        BUTTON_CTRL              control was down during button state change
        BUTTON_ALT               alt was down during button state change
        ALL_MOUSE_EVENTS         report all button state changes
-       REPORT_MOUSE_POSITION    report mouse movement
-</pre>
+       REPORT_MOUSE_POSITION    report mouse movement</pre>
       </div>
 
       <div class="SECT2">
@@ -2935,38 +2887,34 @@ void print_menu(WINDOW *menu_win, int highlight)
         <tt class="LITERAL">getmouse()</tt>.</p>
 
         <p>The code approximately looks like this:</p>
-        <pre class="PROGRAMLISTING">
-    MEVENT event;
+
+        <pre class="PROGRAMLISTING">    MEVENT event;
 
     ch = getch();
     if(ch == KEY_MOUSE)
         if(getmouse(&amp;event) == OK)
             .    /* Do some thing with the event */
             .
-            .
-</pre>
-
+            .</pre>
         <p>getmouse() returns the event into the pointer given to
-        it. It's a structure which contains</p>
-        <pre class="PROGRAMLISTING">
-    typedef struct
+        it. It is a structure which contains</p>
+
+        <pre class="PROGRAMLISTING">    typedef struct
     {
         short id;         /* ID to distinguish multiple devices */
         int x, y, z;      /* event coordinates */
         mmask_t bstate;   /* button state bits */
-    }    
-</pre>
-
+    }    </pre>
         <p>The <tt class="LITERAL">bstate</tt> is the main variable
         we are interested in. It tells the button state of the
         mouse.</p>
 
         <p>Then with a code snippet like the following, we can find
         out what happened.</p>
-        <pre class="PROGRAMLISTING">
-    if(event.bstate &amp; BUTTON1_PRESSED)
-        printw("Left Button Pressed");
-</pre>
+
+        <pre class=
+        "PROGRAMLISTING">    if(event.bstate &amp; BUTTON1_PRESSED)
+        printw("Left Button Pressed");</pre>
       </div>
 
       <div class="SECT2">
@@ -2981,13 +2929,15 @@ void print_menu(WINDOW *menu_win, int highlight)
 
         <div class="EXAMPLE">
           <a name="BMOME" id="BMOME"></a>
+          <p><b>Example 11. Access the menu with mouse !!!</b>
+          </p>
 
-          <p><b>Example 11. Access the menu with mouse !!!</b></p>
-          <pre class="PROGRAMLISTING">
-<span class="INLINEMEDIAOBJECT">#include &lt;ncurses.h&gt;
+          <pre class="PROGRAMLISTING"><span class=
+          "INLINEMEDIAOBJECT">#include &lt;string.h&gt;
+#include &lt;curses.h&gt;
 
 #define WIDTH 30
-#define HEIGHT 10 
+#define HEIGHT 10
 
 int startx = 0;
 int starty = 0;
@@ -3018,7 +2968,7 @@ int main()
         /* Try to put the window in the middle of screen */
         startx = (80 - WIDTH) / 2;
         starty = (24 - HEIGHT) / 2;
-        
+
         attron(A_REVERSE);
         mvprintw(23, 1, "Click on Exit to quit (Works best in a virtual console)");
         refresh();
@@ -3026,10 +2976,11 @@ int main()
 
         /* Print the menu for the first time */
         menu_win = newwin(HEIGHT, WIDTH, starty, startx);
+        keypad(menu_win, TRUE);
         print_menu(menu_win, 1);
         /* Get all the mouse events */
         mousemask(ALL_MOUSE_EVENTS, NULL);
-        
+
         while(1)
         {       c = wgetch(menu_win);
                 switch(c)
@@ -3041,29 +2992,28 @@ int main()
                                         if(choice == -1) //Exit chosen
                                                 goto end;
                                         mvprintw(22, 1, "Choice made is : %d String Chosen is \"%10s\"", choice, choices[choice - 1]);
-                                        refresh(); 
+                                        refresh();
                                 }
                         }
                         print_menu(menu_win, choice);
                         break;
                 }
-        }               
+        }
 end:
         endwin();
         return 0;
 }
 
-
 void print_menu(WINDOW *menu_win, int highlight)
 {
-        int x, y, i;    
+        int x, y, i;
 
         x = 2;
         y = 2;
         box(menu_win, 0, 0);
         for(i = 0; i &lt; n_choices; ++i)
         {       if(highlight == i + 1)
-                {       wattron(menu_win, A_REVERSE); 
+                {       wattron(menu_win, A_REVERSE);
                         mvwprintw(menu_win, y, x, "%s", choices[i]);
                         wattroff(menu_win, A_REVERSE);
                 }
@@ -3080,17 +3030,16 @@ void report_choice(int mouse_x, int mouse_y, int *p_choice)
 
         i = startx + 2;
         j = starty + 3;
-        
+
         for(choice = 0; choice &lt; n_choices; ++choice)
                 if(mouse_y == j + choice &amp;&amp; mouse_x &gt;= i &amp;&amp; mouse_x &lt;= i + strlen(choices[choice]))
                 {       if(choice == n_choices - 1)
-                                *p_choice = -1;         
+                                *p_choice = -1;
                         else
-                                *p_choice = choice + 1; 
+                                *p_choice = choice + 1;
                         break;
                 }
-}</span>
-</pre>
+}</span></pre>
         </div>
       </div>
 
@@ -3134,18 +3083,16 @@ void report_choice(int mouse_x, int mouse_y, int *p_choice)
         fill the values of x and y co-ordinates in the arguments
         given to it. Since getyx() is a macro you don't have to
         pass the address of the variables. It can be called as</p>
-        <pre class="PROGRAMLISTING">
-    getyx(win, y, x);
+
+        <pre class="PROGRAMLISTING">    getyx(win, y, x);
     /* win: window pointer
      *   y, x: y, x co-ordinates will be put into this variables 
-     */
-</pre>
-
+     */</pre>
         <p>The function getparyx() gets the beginning co-ordinates
         of the sub window relative to the main window. This is some
         times useful to update a sub window. When designing fancy
         stuff like writing multiple menus, it becomes difficult to
-        store the menu positions, their first option co-ordinates
+        store the menu positions, their first option co-ordinates,
         etc. A simple solution to this problem, is to create menus
         in sub windows and later find the starting co-ordinates of
         the menus by using getparyx().</p>
@@ -3188,7 +3135,7 @@ void report_choice(int mouse_x, int mouse_y, int *p_choice)
         used to copy a window completely onto another window. It
         takes the source and destination windows as parameters and
         according to the rectangle specified, it copies the
-        rectangular region from source to destination window. It's
+        rectangular region from source to destination window. Its
         last parameter specifies whether to overwrite or just
         overlay the contents on to the destination window. If this
         argument is true, then the copying is non-destructive.</p>
@@ -3214,11 +3161,10 @@ void report_choice(int mouse_x, int mouse_y, int *p_choice)
 
         <p>This function can be used to make the cursor invisible.
         The parameter to this function should be</p>
-        <pre class="PROGRAMLISTING">
-    0 : invisible      or
+
+        <pre class="PROGRAMLISTING">    0 : invisible      or
     1 : normal    or
-    2 : very visible.
-</pre>
+    2 : very visible.</pre>
       </div>
 
       <div class="SECT2">
@@ -3242,10 +3188,12 @@ void report_choice(int mouse_x, int mouse_y, int *p_choice)
 
         <div class="EXAMPLE">
           <a name="BTELE" id="BTELE"></a>
+          <p><b>Example 12. Temporarily Leaving Curses Mode</b>
+          </p>
 
-          <p><b>Example 12. Temporarily Leaving Curses Mode</b></p>
-          <pre class="PROGRAMLISTING">
-<span class="INLINEMEDIAOBJECT">#include &lt;ncurses.h&gt;
+          <pre class="PROGRAMLISTING"><span class=
+          "INLINEMEDIAOBJECT">#include &lt;stdlib.h&gt;
+#include &lt;curses.h&gt;
 
 int main()
 {       
@@ -3264,8 +3212,7 @@ int main()
         endwin();                       /* End curses mode                */
 
         return 0;
-}</span>
-</pre>
+}</span></pre>
         </div>
       </div>
 
@@ -3281,15 +3228,16 @@ int main()
         <tt class="LITERAL">box()</tt> use these characters. All
         these variables start with ACS meaning alternative
         character set. You might have noticed me using these
-        characters in some of the programs above. Here's an example
-        showing all the characters.</p>
+        characters in some of the programs above. Here is an
+        example showing all the characters.</p>
 
         <div class="EXAMPLE">
           <a name="BACSVARS" id="BACSVARS"></a>
+          <p><b>Example 13. ACS Variables Example</b>
+          </p>
 
-          <p><b>Example 13. ACS Variables Example</b></p>
-          <pre class="PROGRAMLISTING">
-<span class="INLINEMEDIAOBJECT">#include &lt;ncurses.h&gt;
+          <pre class="PROGRAMLISTING"><span class=
+          "INLINEMEDIAOBJECT">#include &lt;curses.h&gt;
 
 int main()
 {
@@ -3332,8 +3280,7 @@ int main()
         endwin();
 
         return 0;
-}</span>
-</pre>
+}</span></pre>
         </div>
       </div>
     </div>
@@ -3365,14 +3312,15 @@ int main()
       create blotches, whenever you forget to refresh the windows
       in the proper order.</p>
 
-      <p>Don't despair. There's an elegant solution provided in
+      <p>Don't despair. There is an elegant solution provided in
       panels library. In the words of developers of ncurses</p>
 
       <p><span class="emphasis"><i class="EMPHASIS">When your
       interface design is such that windows may dive deeper into
       the visibility stack or pop to the top at runtime, the
       resulting book-keeping can be tedious and difficult to get
-      right. Hence the panels library.</i></span></p>
+      right. Hence the panels library.</i></span>
+      </p>
 
       <p>If you have lot of overlapping windows, then panels
       library is the way to go. It obviates the need of doing
@@ -3397,7 +3345,7 @@ int main()
         to display them correctly. There is a function similar to
         refresh() which, when called , displays panels in the
         correct order. Functions are provided to hide or show
-        panels, move panels, change its size etc.. The overlapping
+        panels, move panels, change its size, etc. The overlapping
         problem is managed by the panels library during all the
         calls to these functions.</p>
 
@@ -3423,7 +3371,7 @@ int main()
 
           <li>
             <p>Mainpulate the panels with show_panel(),
-            hide_panel(), move_panel() etc. Make use of helper
+            hide_panel(), move_panel(), etc. Make use of helper
             functions like panel_hidden() and panel_window(). Make
             use of user pointer to store custom data for a panel.
             Use the functions set_panel_userptr() and
@@ -3446,28 +3394,26 @@ int main()
         <hr>
 
         <h3 class="SECT2"><a name="COMPILEPANELS" id=
-        "COMPILEPANELS">16.2. Compiling With the Panels
-        Library</a></h3>
+        "COMPILEPANELS">16.2. Compiling With the Panels Library</a></h3>
 
         <p>To use panels library functions, you have to include
         panel.h and to link the program with panels library the
         flag -lpanel should be added along with -lncurses in that
         order.</p>
-        <pre class="PROGRAMLISTING">
-    #include &lt;panel.h&gt;
+
+        <pre class="PROGRAMLISTING">    #include &lt;panel.h&gt;
     .
     .
     .
 
-    compile and link: gcc &lt;program file&gt; -lpanel -lncurses
-</pre>
-
+    compile and link: gcc &lt;program file&gt; -lpanel -lncurses</pre>
         <div class="EXAMPLE">
           <a name="PPASI" id="PPASI"></a>
+          <p><b>Example 14. Panel basics</b>
+          </p>
 
-          <p><b>Example 14. Panel basics</b></p>
-          <pre class="PROGRAMLISTING">
-<span class="INLINEMEDIAOBJECT">#include &lt;panel.h&gt;
+          <pre class="PROGRAMLISTING"><span class=
+          "INLINEMEDIAOBJECT">#include &lt;panel.h&gt;
 
 int main()
 {       WINDOW *my_wins[3];
@@ -3504,8 +3450,7 @@ int main()
         getch();
         endwin();
 }
-</span>
-</pre>
+</span></pre>
         </div>
 
         <p>As you can see, above program follows a simple flow as
@@ -3528,10 +3473,12 @@ int main()
 
         <div class="EXAMPLE">
           <a name="PPABR" id="PPABR"></a>
+          <p><b>Example 15. Panel Window Browsing Example</b>
+          </p>
 
-          <p><b>Example 15. Panel Window Browsing Example</b></p>
-          <pre class="PROGRAMLISTING">
-<span class="INLINEMEDIAOBJECT">#include &lt;panel.h&gt;
+          <pre class="PROGRAMLISTING"><span class=
+          "INLINEMEDIAOBJECT">#include &lt;string.h&gt;
+#include &lt;panel.h&gt;
 
 #define NLINES 10
 #define NCOLS 40
@@ -3647,8 +3594,7 @@ void print_in_middle(WINDOW *win, int starty, int startx, int width, char *strin
         mvwprintw(win, y, x, "%s", string);
         wattroff(win, color);
         refresh();
-}</span>
-</pre>
+}</span></pre>
         </div>
       </div>
 
@@ -3668,7 +3614,7 @@ void print_in_middle(WINDOW *win, int starty, int startx, int width, char *strin
         can be accessed using the function <tt class=
         "LITERAL">panel_userptr()</tt> which will return the user
         pointer for the panel given as argument. After finding the
-        next panel in the cycle It's brought to the top by the
+        next panel in the cycle, it is brought to the top by the
         function top_panel(). This function brings the panel given
         as argument to the top of the panel stack.</p>
       </div>
@@ -3705,11 +3651,13 @@ void print_in_middle(WINDOW *win, int starty, int startx, int width, char *strin
 
         <div class="EXAMPLE">
           <a name="PPARE" id="PPARE"></a>
+          <p><b>Example 16. Panel Moving and Resizing example</b>
+          </p>
 
-          <p><b>Example 16. Panel Moving and Resizing
-          example</b></p>
-          <pre class="PROGRAMLISTING">
-<span class="INLINEMEDIAOBJECT">#include &lt;panel.h&gt;
+          <pre class="PROGRAMLISTING"><span class=
+          "INLINEMEDIAOBJECT">#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;panel.h&gt;
 
 typedef struct _PANEL_DATA {
         int x, y, w, h;
@@ -3942,8 +3890,7 @@ void print_in_middle(WINDOW *win, int starty, int startx, int width, char *strin
         mvwprintw(win, y, x, "%s", string);
         wattroff(win, color);
         refresh();
-}</span>
-</pre>
+}</span></pre>
         </div>
 
         <p>Concentrate on the main while loop. Once it finds out
@@ -3953,7 +3900,7 @@ void print_in_middle(WINDOW *win, int starty, int startx, int width, char *strin
         the user presses &lt;ENTER&gt; present selection ends and
         panel is resized by using the concept explained. While in
         resizing mode the program doesn't show how the window is
-        getting resized. It's left as an exercise to the reader to
+        getting resized. It is left as an exercise to the reader to
         print a dotted border while it gets resized to a new
         position.</p>
 
@@ -3997,11 +3944,12 @@ void print_in_middle(WINDOW *win, int starty, int startx, int width, char *strin
 
         <div class="EXAMPLE">
           <a name="PPAHI" id="PPAHI"></a>
+          <p><b>Example 17. Panel Hiding and Showing example</b>
+          </p>
 
-          <p><b>Example 17. Panel Hiding and Showing
-          example</b></p>
-          <pre class="PROGRAMLISTING">
-<span class="INLINEMEDIAOBJECT">#include &lt;panel.h&gt;
+          <pre class="PROGRAMLISTING"><span class=
+          "INLINEMEDIAOBJECT">#include &lt;string.h&gt;
+#include &lt;panel.h&gt;
 
 typedef struct _PANEL_DATA {
         int hide;       /* TRUE if panel is hidden */
@@ -4041,7 +3989,7 @@ int main()
         my_panels[1] = new_panel(my_wins[1]);   /* Push 1, order: stdscr-0-1 */
         my_panels[2] = new_panel(my_wins[2]);   /* Push 2, order: stdscr-0-1-2 */
 
-        /* Initialize panel datas saying that nothing is hidden */
+        /* Initialize panel data saying that nothing is hidden */
         panel_datas[0].hide = FALSE;
         panel_datas[1].hide = FALSE;
         panel_datas[2].hide = FALSE;
@@ -4156,8 +4104,7 @@ void print_in_middle(WINDOW *win, int starty, int startx, int width, char *strin
         mvwprintw(win, y, x, "%s", string);
         wattroff(win, color);
         refresh();
-}</span>
-</pre>
+}</span></pre>
         </div>
       </div>
 
@@ -4185,7 +4132,7 @@ void print_in_middle(WINDOW *win, int starty, int startx, int width, char *strin
       <p>The menus library provides a nice extension to basic
       curses, through which you can create menus. It provides a set
       of functions to create menus. But they have to be customized
-      to give a nicer look, with colors etc. Let's get into the
+      to give a nicer look, with colors, etc. Let's get into the
       details.</p>
 
       <p>A menu is a screen display that assists the user to choose
@@ -4262,28 +4209,27 @@ void print_in_middle(WINDOW *win, int starty, int startx, int width, char *strin
         <hr>
 
         <h3 class="SECT2"><a name="COMPILEMENUS" id=
-        "COMPILEMENUS">17.2. Compiling With the Menu
-        Library</a></h3>
+        "COMPILEMENUS">17.2. Compiling With the Menu Library</a></h3>
 
         <p>To use menu library functions, you have to include
         menu.h and to link the program with menu library the flag
         -lmenu should be added along with -lncurses in that
         order.</p>
-        <pre class="PROGRAMLISTING">
-    #include &lt;menu.h&gt;
+
+        <pre class="PROGRAMLISTING">    #include &lt;menu.h&gt;
     .
     .
     .
 
-    compile and link: gcc &lt;program file&gt; -lmenu -lncurses
-</pre>
-
+    compile and link: gcc &lt;program file&gt; -lmenu -lncurses</pre>
         <div class="EXAMPLE">
           <a name="MMESI" id="MMESI"></a>
+          <p><b>Example 18. Menu Basics</b>
+          </p>
 
-          <p><b>Example 18. Menu Basics</b></p>
-          <pre class="PROGRAMLISTING">
-<span class="INLINEMEDIAOBJECT">#include &lt;curses.h&gt;
+          <pre class="PROGRAMLISTING"><span class=
+          "INLINEMEDIAOBJECT">#include &lt;stdlib.h&gt;
+#include &lt;curses.h&gt;
 #include &lt;menu.h&gt;
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
@@ -4338,8 +4284,7 @@ int main()
         free_menu(my_menu);
         endwin();
 }
-        </span>
-</pre>
+        </span></pre>
         </div>
 
         <p>This program demonstrates the basic concepts involved in
@@ -4357,8 +4302,9 @@ int main()
 
         <p>The menu_driver accepts following navigational
         requests.</p>
-        <pre class="PROGRAMLISTING">
-&#13;     REQ_LEFT_ITEM         Move left to an item.
+
+        <pre class=
+        "PROGRAMLISTING">&#13;     REQ_LEFT_ITEM         Move left to an item.
      REQ_RIGHT_ITEM      Move right to an item.
      REQ_UP_ITEM         Move up to an item.
      REQ_DOWN_ITEM       Move down to an item.
@@ -4374,9 +4320,7 @@ int main()
      REQ_CLEAR_PATTERN     Clear the menu pattern buffer.
      REQ_BACK_PATTERN      Delete the previous character from the pattern buffer.
      REQ_NEXT_MATCH     Move to the next item matching the pattern match.
-     REQ_PREV_MATCH     Move to the previous item matching the pattern match.&#13;
-</pre>
-
+     REQ_PREV_MATCH     Move to the previous item matching the pattern match.&#13;</pre>
         <p>Don't get overwhelmed by the number of options. We will
         see them slowly one after another. The options of interest
         in this example are REQ_UP_ITEM and REQ_DOWN_ITEM. These
@@ -4402,8 +4346,8 @@ int main()
         <ul>
           <li>
             <p><span class="emphasis"><i class=
-            "EMPHASIS">REQ_LEFT_ITEM and
-            REQ_RIGHT_ITEM</i></span></p>
+            "EMPHASIS">REQ_LEFT_ITEM and REQ_RIGHT_ITEM</i></span>
+            </p>
 
             <p>A Menu can be displayed with multiple columns for
             more than one item. This can be done by using the
@@ -4415,7 +4359,8 @@ int main()
 
           <li>
             <p><span class="emphasis"><i class=
-            "EMPHASIS">REQ_UP_ITEM and REQ_DOWN_ITEM</i></span></p>
+            "EMPHASIS">REQ_UP_ITEM and REQ_DOWN_ITEM</i></span>
+            </p>
 
             <p>These two options you have seen in the above
             example. These options when given, makes the
@@ -4425,7 +4370,8 @@ int main()
 
           <li>
             <p><span class="emphasis"><i class="EMPHASIS">REQ_SCR_*
-            options</i></span></p>
+            options</i></span>
+            </p>
 
             <p>The four options REQ_SCR_ULINE, REQ_SCR_DLINE,
             REQ_SCR_DPAGE, REQ_SCR_UPAGE are related to scrolling.
@@ -4439,14 +4385,16 @@ int main()
           <li>
             <p><span class="emphasis"><i class=
             "EMPHASIS">REQ_FIRST_ITEM, REQ_LAST_ITEM, REQ_NEXT_ITEM
-            and REQ_PREV_ITEM</i></span></p>
+            and REQ_PREV_ITEM</i></span>
+            </p>
 
             <p>These requests are self explanatory.</p>
           </li>
 
           <li>
             <p><span class="emphasis"><i class=
-            "EMPHASIS">REQ_TOGGLE_ITEM</i></span></p>
+            "EMPHASIS">REQ_TOGGLE_ITEM</i></span>
+            </p>
 
             <p>This request when given, toggles the present
             selection. This option is to be used only in a multi
@@ -4457,7 +4405,8 @@ int main()
 
           <li>
             <p><span class="emphasis"><i class="EMPHASIS">Pattern
-            Requests</i></span></p>
+            Requests</i></span>
+            </p>
 
             <p>Every menu has an associated pattern buffer, which
             is used to find the nearest match to the ascii
@@ -4476,14 +4425,16 @@ int main()
 
           <li>
             <p><span class="emphasis"><i class="EMPHASIS">Mouse
-            Requests</i></span></p>
+            Requests</i></span>
+            </p>
 
             <p>In case of KEY_MOUSE requests, according to the
             mouse position an action is taken accordingly. The
             action to be taken is explained in the man page as,</p>
-            <pre class="PROGRAMLISTING">
-<span class="emphasis"><i class=
-"EMPHASIS">       If  the  second argument is the KEY_MOUSE special key, the
+
+            <pre class="PROGRAMLISTING"><span class=
+            "emphasis"><i class=
+            "EMPHASIS">       If  the  second argument is the KEY_MOUSE special key, the
        associated mouse event is translated into one of the above
        pre-defined  requests.   Currently only clicks in the user
        window (e.g. inside the menu display area or  the  decora&shy;
@@ -4495,8 +4446,7 @@ int main()
        generated, if you doubleclick a REQ_SCR_DPAGE is generated
        and  if  you  tripleclick a REQ_LAST_ITEM is generated. If
        you click at an item inside the display area of the  menu,
-       the menu cursor is positioned to that item.</i></span>
-</pre>
+       the menu cursor is positioned to that item.</i></span></pre>
           </li>
         </ul>
 
@@ -4524,10 +4474,13 @@ int main()
 
         <div class="EXAMPLE">
           <a name="MMEWI" id="MMEWI"></a>
+          <p><b>Example 19. Menu Windows Usage example</b>
+          </p>
 
-          <p><b>Example 19. Menu Windows Usage example</b></p>
-          <pre class="PROGRAMLISTING">
-<span class="INLINEMEDIAOBJECT">#include &lt;menu.h&gt;
+          <pre class="PROGRAMLISTING"><span class=
+          "INLINEMEDIAOBJECT">#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;menu.h&gt;
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 #define CTRLD   4
@@ -4563,7 +4516,7 @@ int main()
         for(i = 0; i &lt; n_choices; ++i)
                 my_items[i] = new_item(choices[i], choices[i]);
 
-        /* Crate menu */
+        /* Create menu */
         my_menu = new_menu((ITEM **)my_items);
 
         /* Create the window to be associated with the menu */
@@ -4631,8 +4584,7 @@ void print_in_middle(WINDOW *win, int starty, int startx, int width, char *strin
         mvwprintw(win, y, x, "%s", string);
         wattroff(win, color);
         refresh();
-}</span>
-</pre>
+}</span></pre>
         </div>
 
         <p>This example creates a menu with a title, border, a
@@ -4660,10 +4612,13 @@ void print_in_middle(WINDOW *win, int starty, int startx, int width, char *strin
 
         <div class="EXAMPLE">
           <a name="MMESC" id="MMESC"></a>
+          <p><b>Example 20. Scrolling Menus example</b>
+          </p>
 
-          <p><b>Example 20. Scrolling Menus example</b></p>
-          <pre class="PROGRAMLISTING">
-<span class="INLINEMEDIAOBJECT">#include &lt;curses.h&gt;
+          <pre class="PROGRAMLISTING"><span class=
+          "INLINEMEDIAOBJECT">#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;curses.h&gt;
 #include &lt;menu.h&gt;
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
@@ -4707,7 +4662,7 @@ int main()
         for(i = 0; i &lt; n_choices; ++i)
                 my_items[i] = new_item(choices[i], choices[i]);
 
-        /* Crate menu */
+        /* Create menu */
         my_menu = new_menu((ITEM **)my_items);
 
         /* Create the window to be associated with the menu */
@@ -4734,7 +4689,7 @@ int main()
         wrefresh(my_menu_win);
         
         attron(COLOR_PAIR(2));
-        mvprintw(LINES - 2, 0, "Use PageUp and PageDown to scoll down or up a page of items");
+        mvprintw(LINES - 2, 0, "Use PageUp and PageDown to scroll down or up a page of items");
         mvprintw(LINES - 1, 0, "Arrow Keys to navigate (F1 to Exit)");
         attroff(COLOR_PAIR(2));
         refresh();
@@ -4786,8 +4741,7 @@ void print_in_middle(WINDOW *win, int starty, int startx, int width, char *strin
         mvwprintw(win, y, x, "%s", string);
         wattroff(win, color);
         refresh();
-}</span>
-</pre>
+}</span></pre>
         </div>
 
         <p>This program is self-explanatory. In this example the
@@ -4820,10 +4774,12 @@ void print_in_middle(WINDOW *win, int starty, int startx, int width, char *strin
 
         <div class="EXAMPLE">
           <a name="MMEMUCO" id="MMEMUCO"></a>
+          <p><b>Example 21. Milt Columnar Menus Example</b>
+          </p>
 
-          <p><b>Example 21. Milt Columnar Menus Example</b></p>
-          <pre class="PROGRAMLISTING">
-<span class="INLINEMEDIAOBJECT">#include &lt;curses.h&gt;
+          <pre class="PROGRAMLISTING"><span class=
+          "INLINEMEDIAOBJECT">#include &lt;stdlib.h&gt;
+#include &lt;curses.h&gt;
 #include &lt;menu.h&gt;
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
@@ -4860,7 +4816,7 @@ int main()
         for(i = 0; i &lt; n_choices; ++i)
                 my_items[i] = new_item(choices[i], choices[i]);
 
-        /* Crate menu */
+        /* Create menu */
         my_menu = new_menu((ITEM **)my_items);
 
         /* Set menu option not to show the description */
@@ -4919,8 +4875,7 @@ int main()
         for(i = 0; i &lt; n_choices; ++i)
                 free_item(my_items[i]);
         endwin();
-}</span>
-</pre>
+}</span></pre>
         </div>
 
         <p>Watch the function call to set_menu_format(). It
@@ -4930,8 +4885,8 @@ int main()
         couple of functions set_menu_opts(), menu_opts_on() and
         menu_opts() which can be used to manipulate menu options.
         The following menu options can be specified.</p>
-        <pre class="PROGRAMLISTING">
-       O_ONEVALUE
+
+        <pre class="PROGRAMLISTING">       O_ONEVALUE
             Only one item can be selected for this menu.
 
        O_SHOWDESC
@@ -4950,9 +4905,7 @@ int main()
 
        O_NONCYCLIC
             Don't   wrap   around  next-item  and  previous-item,
-            requests to the other end of the menu.
-</pre>
-
+            requests to the other end of the menu.</pre>
         <p>All options are on by default. You can switch specific
         attributes on or off with menu_opts_on() and
         menu_opts_off() functions. You can also use set_menu_opts()
@@ -4975,10 +4928,13 @@ int main()
 
         <div class="EXAMPLE">
           <a name="MMETO" id="MMETO"></a>
+          <p><b>Example 22. Multi Valued Menus example</b>
+          </p>
 
-          <p><b>Example 22. Multi Valued Menus example</b></p>
-          <pre class="PROGRAMLISTING">
-<span class="INLINEMEDIAOBJECT">#include &lt;curses.h&gt;
+          <pre class="PROGRAMLISTING"><span class=
+          "INLINEMEDIAOBJECT">#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;curses.h&gt;
 #include &lt;menu.h&gt;
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
@@ -5061,8 +5017,7 @@ int main()
         free_menu(my_menu);
         endwin();
 }
-        </span>
-</pre>
+        </span></pre>
         </div>
 
         <p>Whew, A lot of new functions. Let's take them one after
@@ -5106,16 +5061,18 @@ int main()
         This brings us to the interesting option for an item the
         one and only O_SELECTABLE. We can turn it off by the
         function item_opts_off() and after that that item is not
-        selectable. It's like a grayed item in those fancy windows
+        selectable. It is like a grayed item in those fancy windows
         menus. Let's put these concepts in practice with this
         example</p>
 
         <div class="EXAMPLE">
           <a name="MMEAT" id="MMEAT"></a>
+          <p><b>Example 23. Menu Options example</b>
+          </p>
 
-          <p><b>Example 23. Menu Options example</b></p>
-          <pre class="PROGRAMLISTING">
-<span class="INLINEMEDIAOBJECT">#include &lt;menu.h&gt;
+          <pre class="PROGRAMLISTING"><span class=
+          "INLINEMEDIAOBJECT">#include &lt;stdlib.h&gt;
+#include &lt;menu.h&gt;
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 #define CTRLD   4
@@ -5167,7 +5124,7 @@ int main()
 
         /* Post the menu */
         mvprintw(LINES - 3, 0, "Press &lt;ENTER&gt; to see the option selected");
-        mvprintw(LINES - 2, 0, "Up and Down arrow keys to naviage (F1 to Exit)");
+        mvprintw(LINES - 2, 0, "Up and Down arrow keys to navigate (F1 to Exit)");
         post_menu(my_menu);
         refresh();
 
@@ -5194,8 +5151,7 @@ int main()
         free_menu(my_menu);
         endwin();
 }
-        </span>
-</pre>
+        </span></pre>
         </div>
       </div>
 
@@ -5206,18 +5162,20 @@ int main()
         "MENUUSERPTR">17.9. The useful User Pointer</a></h3>
 
         <p>We can associate a user pointer with each item in the
-        menu. It works the same way as user pointer in panels. It's
-        not touched by menu system. You can store any thing you
+        menu. It works the same way as user pointer in panels. It
+        is not touched by menu system. You can store any thing you
         like in that. I usually use it to store the function to be
-        executed when the menu option is chosen (It's selected and
+        executed when the menu option is chosen (It is selected and
         may be the user pressed &lt;ENTER&gt;);</p>
 
         <div class="EXAMPLE">
           <a name="MMEUS" id="MMEUS"></a>
+          <p><b>Example 24. Menu User Pointer Usage</b>
+          </p>
 
-          <p><b>Example 24. Menu User Pointer Usage</b></p>
-          <pre class="PROGRAMLISTING">
-<span class="INLINEMEDIAOBJECT">#include &lt;curses.h&gt;
+          <pre class="PROGRAMLISTING"><span class=
+          "INLINEMEDIAOBJECT">#include &lt;stdlib.h&gt;
+#include &lt;curses.h&gt;
 #include &lt;menu.h&gt;
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
@@ -5267,7 +5225,7 @@ int main()
 
         /* Post the menu */
         mvprintw(LINES - 3, 0, "Press &lt;ENTER&gt; to see the option selected");
-        mvprintw(LINES - 2, 0, "Up and Down arrow keys to naviage (F1 to Exit)");
+        mvprintw(LINES - 2, 0, "Up and Down arrow keys to navigate (F1 to Exit)");
         post_menu(my_menu);
         refresh();
 
@@ -5303,8 +5261,7 @@ void func(char *name)
 {       move(20, 0);
         clrtoeol();
         mvprintw(20, 0, "Item selected is : %s", name);
-}       </span>
-</pre>
+}       </span></pre>
         </div>
       </div>
     </div>
@@ -5318,11 +5275,11 @@ void func(char *name)
       <p>Well. If you have seen those forms on web pages which take
       input from users and do various kinds of things, you might be
       wondering how would any one create such forms in text mode
-      display. It's quite difficult to write those nifty forms in
+      display. It is quite difficult to write those nifty forms in
       plain ncurses. Forms library tries to provide a basic frame
       work to build and maintain forms with ease. It has lot of
       features(functions) which manage validation, dynamic
-      expansion of fields etc.. Let's see it in full flow.</p>
+      expansion of fields, etc. Let's see it in full flow.</p>
 
       <p>A form is a collection of fields; each field can be either
       a label(static text) or a data-entry location. The forms also
@@ -5339,13 +5296,13 @@ void func(char *name)
         the fields related to the form are created with
         new_field(). You can set options for the fields, so that
         they can be displayed with some fancy attributes, validated
-        before the field looses focus etc.. Then the fields are
+        before the field looses focus, etc. Then the fields are
         attached to form. After this, the form can be posted to
         display and is ready to receive inputs. On the similar
         lines to menu_driver(), the form is manipulated with
         form_driver(). We can send requests to form_driver to move
         focus to a certain field, move cursor to end of the field
-        etc.. After the user enters values in the fields and
+        etc. After the user enters values in the fields and
         validation done, form can be unposted and memory allocated
         can be freed.</p>
 
@@ -5406,28 +5363,26 @@ void func(char *name)
         <hr>
 
         <h3 class="SECT2"><a name="COMPILEFORMS" id=
-        "COMPILEFORMS">18.2. Compiling With the Forms
-        Library</a></h3>
+        "COMPILEFORMS">18.2. Compiling With the Forms Library</a></h3>
 
         <p>To use forms library functions, you have to include
         form.h and to link the program with forms library the flag
         -lform should be added along with -lncurses in that
         order.</p>
-        <pre class="PROGRAMLISTING">
-    #include &lt;form.h&gt;
+
+        <pre class="PROGRAMLISTING">    #include &lt;form.h&gt;
     .
     .
     .
 
-    compile and link: gcc &lt;program file&gt; -lform -lncurses
-</pre>
-
+    compile and link: gcc &lt;program file&gt; -lform -lncurses</pre>
         <div class="EXAMPLE">
           <a name="FFOSI" id="FFOSI"></a>
+          <p><b>Example 25. Forms Basics</b>
+          </p>
 
-          <p><b>Example 25. Forms Basics</b></p>
-          <pre class="PROGRAMLISTING">
-<span class="INLINEMEDIAOBJECT">#include &lt;form.h&gt;
+          <pre class="PROGRAMLISTING"><span class=
+          "INLINEMEDIAOBJECT">#include &lt;form.h&gt;
 
 int main()
 {       FIELD *field[3];
@@ -5492,8 +5447,7 @@ int main()
 
         endwin();
         return 0;
-}</span>
-</pre>
+}</span></pre>
         </div>
 
         <p>Above example is pretty straight forward. It creates two
@@ -5545,13 +5499,13 @@ int main()
           height, width, starty, startx, number of offscreen rows,
           and number of additional buffers into the parameters
           given to it. It is a sort of inverse of new_field().</p>
-          <pre class="PROGRAMLISTING">
-int field_info(     FIELD *field,              /* field from which to fetch */
+
+          <pre class=
+          "PROGRAMLISTING">int field_info(     FIELD *field,              /* field from which to fetch */
                     int *height, *int width,   /* field size */ 
                     int *top, int *left,       /* upper left corner */
                     int *offscreen,            /* number of offscreen rows */
-                    int *nbuf);                /* number of working buffers */
-</pre>
+                    int *nbuf);                /* number of working buffers */</pre>
         </div>
 
         <div class="SECT3">
@@ -5562,11 +5516,10 @@ int field_info(     FIELD *field,              /* field from which to fetch */
 
           <p>The location of the field can be moved to a different
           position with move_field().</p>
-          <pre class="PROGRAMLISTING">
-int move_field(    FIELD *field,              /* field to alter */
-                   int top, int left);        /* new upper-left corner */
-</pre>
 
+          <pre class=
+          "PROGRAMLISTING">int move_field(    FIELD *field,              /* field to alter */
+                   int top, int left);        /* new upper-left corner */</pre>
           <p>As usual, the changed position can be queried with
           field_infor().</p>
         </div>
@@ -5579,12 +5532,11 @@ int move_field(    FIELD *field,              /* field to alter */
 
           <p>The justification to be done for the field can be
           fixed using the function set_field_just().</p>
-          <pre class="PROGRAMLISTING">
-    int set_field_just(FIELD *field,          /* field to alter */
-               int justmode);         /* mode to set */
-    int field_just(FIELD *field);          /* fetch justify mode of field */
-</pre>
 
+          <pre class=
+          "PROGRAMLISTING">    int set_field_just(FIELD *field,          /* field to alter */
+               int justmode);         /* mode to set */
+    int field_just(FIELD *field);          /* fetch justify mode of field */</pre>
           <p>The justification mode valued accepted and returned by
           these functions are NO_JUSTIFICATION, JUSTIFY_RIGHT,
           JUSTIFY_LEFT, or JUSTIFY_CENTER.</p>
@@ -5594,8 +5546,7 @@ int move_field(    FIELD *field,              /* field to alter */
           <hr>
 
           <h4 class="SECT3"><a name="FIELDDISPATTRIB" id=
-          "FIELDDISPATTRIB">18.3.4. Field Display
-          Attributes</a></h4>
+          "FIELDDISPATTRIB">18.3.4. Field Display Attributes</a></h4>
 
           <p>As you have seen, in the above example, display
           attribute for the fields can be set with set_field_fore()
@@ -5608,8 +5559,9 @@ int move_field(    FIELD *field,              /* field to alter */
           be used to query the present foreground, background
           attributes and pad character for the field. The following
           list gives the usage of functions.</p>
-          <pre class="PROGRAMLISTING">
-&#13;int set_field_fore(FIELD *field,        /* field to alter */
+
+          <pre class=
+          "PROGRAMLISTING">&#13;int set_field_fore(FIELD *field,        /* field to alter */
                    chtype attr);        /* attribute to set */ 
 
 chtype field_fore(FIELD *field);        /* field to query */
@@ -5625,9 +5577,7 @@ int set_field_pad(FIELD *field,         /* field to alter */
                   int pad);             /* pad character to set */ 
 
 chtype field_pad(FIELD *field);         /* field to query */  
-                                        /* returns present pad character */&#13;
-</pre>
-
+                                        /* returns present pad character */&#13;</pre>
           <p>Though above functions seem quite simple, using colors
           with set_field_fore() may be frustrating in the
           beginning. Let me first explain about foreground and
@@ -5643,10 +5593,11 @@ chtype field_pad(FIELD *field);         /* field to query */
 
           <div class="EXAMPLE">
             <a name="FFOAT" id="FFOAT"></a>
+            <p><b>Example 26. Form Attributes example</b>
+            </p>
 
-            <p><b>Example 26. Form Attributes example</b></p>
-            <pre class="PROGRAMLISTING">
-<span class="INLINEMEDIAOBJECT">#include &lt;form.h&gt;
+            <pre class="PROGRAMLISTING"><span class=
+            "INLINEMEDIAOBJECT">#include &lt;form.h&gt;
 
 int main()
 {       FIELD *field[3];
@@ -5720,8 +5671,7 @@ int main()
 
         endwin();
         return 0;
-}</span>
-</pre>
+}</span></pre>
           </div>
 
           <p>Play with the color pairs and try to understand the
@@ -5741,8 +5691,9 @@ int main()
           you can set to control various aspects of forms
           processing. You can manipulate them with these
           functions:</p>
-          <pre class="PROGRAMLISTING">
-int set_field_opts(FIELD *field,          /* field to alter */
+
+          <pre class=
+          "PROGRAMLISTING">int set_field_opts(FIELD *field,          /* field to alter */
                    int attr);             /* attribute to set */ 
 
 int field_opts_on(FIELD *field,           /* field to alter */
@@ -5751,9 +5702,7 @@ int field_opts_on(FIELD *field,           /* field to alter */
 int field_opts_off(FIELD *field,          /* field to alter */
                   int attr);              /* attributes to turn off */ 
 
-int field_opts(FIELD *field);             /* field to query */ 
-</pre>
-
+int field_opts(FIELD *field);             /* field to query */ </pre>
           <p>The function set_field_opts() can be used to directly
           set attributes of a field or you can choose to switch a
           few attributes on and off with field_opts_on() and
@@ -5881,10 +5830,11 @@ int field_opts(FIELD *field);             /* field to query */
 
           <div class="EXAMPLE">
             <a name="FFOOP" id="FFOOP"></a>
+            <p><b>Example 27. Field Options Usage example</b>
+            </p>
 
-            <p><b>Example 27. Field Options Usage example</b></p>
-            <pre class="PROGRAMLISTING">
-<span class="INLINEMEDIAOBJECT">#include &lt;form.h&gt;
+            <pre class="PROGRAMLISTING"><span class=
+            "INLINEMEDIAOBJECT">#include &lt;form.h&gt;
 
 #define STARTX 15
 #define STARTY 4
@@ -5959,8 +5909,7 @@ int main()
 
         endwin();
         return 0;
-}</span>
-</pre>
+}</span></pre>
           </div>
 
           <p>This example, though useless, shows the usage of
@@ -5982,14 +5931,13 @@ int main()
           becomes TRUE. So a field's status can be queried to find
           out whether it has been modified or not. The following
           functions can assist in those operations.</p>
-          <pre class="PROGRAMLISTING">
-int set_field_status(FIELD *field,      /* field to alter */
+
+          <pre class=
+          "PROGRAMLISTING">int set_field_status(FIELD *field,      /* field to alter */
                    int status);         /* status to set */
 
-int field_status(FIELD *field);         /* fetch status of field */
-</pre>
-
-          <p>It's better to check the field's status only after
+int field_status(FIELD *field);         /* fetch status of field */</pre>
+          <p>It is better to check the field's status only after
           after leaving the field, as data buffer might not have
           been updated yet as the validation is still due. To
           guarantee that right status is returned, call
@@ -6011,21 +5959,20 @@ int field_status(FIELD *field);         /* fetch status of field */
           by forms library and can be used for any purpose by the
           user. The following functions set and fetch user
           pointer.</p>
-          <pre class="PROGRAMLISTING">
-int set_field_userptr(FIELD *field,   
+
+          <pre class=
+          "PROGRAMLISTING">int set_field_userptr(FIELD *field,   
            char *userptr);      /* the user pointer you wish to associate */
                                 /* with the field    */
 
-char *field_userptr(FIELD *field);      /* fetch user pointer of the field */
-</pre>
+char *field_userptr(FIELD *field);      /* fetch user pointer of the field */</pre>
         </div>
 
         <div class="SECT3">
           <hr>
 
           <h4 class="SECT3"><a name="VARIABLESIZEFIELDS" id=
-          "VARIABLESIZEFIELDS">18.3.8. Variable-Sized
-          Fields</a></h4>
+          "VARIABLESIZEFIELDS">18.3.8. Variable-Sized Fields</a></h4>
 
           <p>If you want a dynamically changing field with variable
           width, this is the feature you want to put to full use.
@@ -6038,30 +5985,27 @@ char *field_userptr(FIELD *field);      /* fetch user pointer of the field */
           <p>To make a field dynamically growable, the option
           O_STATIC should be turned off. This can be done with
           a</p>
-          <pre class="PROGRAMLISTING">
-    field_opts_off(field_pointer, O_STATIC);
-</pre>
 
-          <p>But it's usually not advisable to allow a field to
+          <pre class=
+          "PROGRAMLISTING">    field_opts_off(field_pointer, O_STATIC);</pre>
+          <p>But it is usually not advisable to allow a field to
           grow infinitely. You can set a maximum limit to the
           growth of the field with</p>
-          <pre class="PROGRAMLISTING">
-int set_max_field(FIELD *field,    /* Field on which to operate */
-                  int max_growth); /* maximum growth allowed for the field */
-</pre>
 
+          <pre class=
+          "PROGRAMLISTING">int set_max_field(FIELD *field,    /* Field on which to operate */
+                  int max_growth); /* maximum growth allowed for the field */</pre>
           <p>The field info for a dynamically growable field can be
           retrieved by</p>
-          <pre class="PROGRAMLISTING">
-int dynamic_field_info( FIELD *field,     /* Field on which to operate */
+
+          <pre class=
+          "PROGRAMLISTING">int dynamic_field_info( FIELD *field,     /* Field on which to operate */
             int   *prows,     /* number of rows will be filled in this */
             int   *pcols,     /* number of columns will be filled in this*/
             int   *pmax)      /* maximum allowable growth will be filled */
-                              /* in this */
-</pre>Though field_info work as usual, it is advisable to use this
-function to get the proper attributes of a dynamically growable
-field.
-
+                              /* in this */</pre>Though field_info
+work as usual, it is advisable to use this function to get the
+proper attributes of a dynamically growable field.
           <p>Recall the library routine new_field; a new field
           created with height set to one will be defined to be a
           one line field. A new field created with height greater
@@ -6181,10 +6125,12 @@ field.
 
         <div class="EXAMPLE">
           <a name="FFOWI" id="FFOWI"></a>
+          <p><b>Example 28. Form Windows Example</b>
+          </p>
 
-          <p><b>Example 28. Form Windows Example</b></p>
-          <pre class="PROGRAMLISTING">
-<span class="INLINEMEDIAOBJECT">#include &lt;form.h&gt;
+          <pre class="PROGRAMLISTING"><span class=
+          "INLINEMEDIAOBJECT">#include &lt;string.h&gt;
+#include &lt;form.h&gt;
 
 void print_in_middle(WINDOW *win, int starty, int startx, int width, char *string, chtype color);
 
@@ -6295,8 +6241,7 @@ void print_in_middle(WINDOW *win, int starty, int startx, int width, char *strin
         mvwprintw(win, y, x, "%s", string);
         wattroff(win, color);
         refresh();
-}</span>
-</pre>
+}</span></pre>
         </div>
       </div>
 
@@ -6316,15 +6261,15 @@ void print_in_middle(WINDOW *win, int starty, int startx, int width, char *strin
 
         <p>Validation can be attached to a field with the following
         function.</p>
-        <pre class="PROGRAMLISTING">
-int set_field_type(FIELD *field,          /* field to alter */
-                   FIELDTYPE *ftype,      /* type to associate */
-                   ...);                  /* additional arguments*/
-</pre>Once set, the validation type for a field can be queried with
-        <pre class="PROGRAMLISTING">
-FIELDTYPE *field_type(FIELD *field);      /* field to query */
-</pre>
 
+        <pre class=
+        "PROGRAMLISTING">int set_field_type(FIELD *field,          /* field to alter */
+                   FIELDTYPE *ftype,      /* type to associate */
+                   ...);                  /* additional arguments*/</pre>Once
+set, the validation type for a field can be queried with
+
+        <pre class=
+        "PROGRAMLISTING">FIELDTYPE *field_type(FIELD *field);      /* field to query */</pre>
         <p>The form driver validates the data in a field only when
         data is entered by the end-user. Validation does not occur
         when</p>
@@ -6342,61 +6287,58 @@ FIELDTYPE *field_type(FIELD *field);      /* field to query */
         </ul>
 
         <p>The following are the pre-defined validation types. You
-        can also specify custom validation, though it's a bit
+        can also specify custom validation, though it is a bit
         tricky and cumbersome.</p>
 
-        <h1 class="BRIDGEHEAD"><a name="AEN1069" id=
-        "AEN1069"></a>TYPE_ALPHA</h1>
+        <h1 class="BRIDGEHEAD"><a name="AEN1074" id=
+        "AEN1074"></a>TYPE_ALPHA</h1>
 
         <p>This field type accepts alphabetic data; no blanks, no
         digits, no special characters (this is checked at
         character-entry time). It is set up with:</p>
-        <pre class="PROGRAMLISTING">
-int set_field_type(FIELD *field,          /* field to alter */
-                   TYPE_ALPHA,            /* type to associate */
-                   int width);            /* minimum width of field */
-</pre>
 
+        <pre class=
+        "PROGRAMLISTING">int set_field_type(FIELD *field,          /* field to alter */
+                   TYPE_ALPHA,            /* type to associate */
+                   int width);            /* minimum width of field */</pre>
         <p>The width argument sets a minimum width of data. The
         user has to enter at-least width number of characters
         before he can leave the field. Typically you'll want to set
-        this to the field width; if it's greater than the field
+        this to the field width; if it is greater than the field
         width, the validation check will always fail. A minimum
         width of zero makes field completion optional.</p>
 
-        <h1 class="BRIDGEHEAD"><a name="AEN1073" id=
-        "AEN1073"></a>TYPE_ALNUM</h1>
+        <h1 class="BRIDGEHEAD"><a name="AEN1078" id=
+        "AEN1078"></a>TYPE_ALNUM</h1>
 
         <p>This field type accepts alphabetic data and digits; no
         blanks, no special characters (this is checked at
         character-entry time). It is set up with:</p>
-        <pre class="PROGRAMLISTING">
-int set_field_type(FIELD *field,          /* field to alter */
-                   TYPE_ALNUM,            /* type to associate */
-                   int width);            /* minimum width of field */
-</pre>
 
+        <pre class=
+        "PROGRAMLISTING">int set_field_type(FIELD *field,          /* field to alter */
+                   TYPE_ALNUM,            /* type to associate */
+                   int width);            /* minimum width of field */</pre>
         <p>The width argument sets a minimum width of data. As with
         TYPE_ALPHA, typically you'll want to set this to the field
-        width; if it's greater than the field width, the validation
-        check will always fail. A minimum width of zero makes field
-        completion optional.</p>
+        width; if it is greater than the field width, the
+        validation check will always fail. A minimum width of zero
+        makes field completion optional.</p>
 
-        <h1 class="BRIDGEHEAD"><a name="AEN1077" id=
-        "AEN1077"></a>TYPE_ENUM</h1>
+        <h1 class="BRIDGEHEAD"><a name="AEN1082" id=
+        "AEN1082"></a>TYPE_ENUM</h1>
 
         <p>This type allows you to restrict a field's values to be
         among a specified set of string values (for example, the
         two-letter postal codes for U.S. states). It is set up
         with:</p>
-        <pre class="PROGRAMLISTING">
-int set_field_type(FIELD *field,          /* field to alter */
+
+        <pre class=
+        "PROGRAMLISTING">int set_field_type(FIELD *field,          /* field to alter */
                    TYPE_ENUM,             /* type to associate */
                    char **valuelist;      /* list of possible values */
                    int checkcase;         /* case-sensitive? */
-                   int checkunique);      /* must specify uniquely? */
-</pre>
-
+                   int checkunique);      /* must specify uniquely? */</pre>
         <p>The valuelist parameter must point at a NULL-terminated
         list of valid strings. The checkcase argument, if true,
         makes comparison with the string case-sensitive.</p>
@@ -6416,18 +6358,17 @@ int set_field_type(FIELD *field,          /* field to alter */
         <p>The REQ_NEXT_CHOICE and REQ_PREV_CHOICE input requests
         can be particularly useful with these fields.</p>
 
-        <h1 class="BRIDGEHEAD"><a name="AEN1084" id=
-        "AEN1084"></a>TYPE_INTEGER</h1>
+        <h1 class="BRIDGEHEAD"><a name="AEN1089" id=
+        "AEN1089"></a>TYPE_INTEGER</h1>
 
         <p>This field type accepts an integer. It is set up as
         follows:</p>
-        <pre class="PROGRAMLISTING">
-int set_field_type(FIELD *field,          /* field to alter */
+
+        <pre class=
+        "PROGRAMLISTING">int set_field_type(FIELD *field,          /* field to alter */
                    TYPE_INTEGER,          /* type to associate */
                    int padding,           /* # places to zero-pad to */
-                   int vmin, int vmax);   /* valid range */
-</pre>
-
+                   int vmin, int vmax);   /* valid range */</pre>
         <p>Valid characters consist of an optional leading minus
         and digits. The range check is performed on exit. If the
         range maximum is less than or equal to the minimum, the
@@ -6440,18 +6381,17 @@ int set_field_type(FIELD *field,          /* field to alter */
         <p>A TYPE_INTEGER value buffer can conveniently be
         interpreted with the C library function atoi(3).</p>
 
-        <h1 class="BRIDGEHEAD"><a name="AEN1090" id=
-        "AEN1090"></a>TYPE_NUMERIC</h1>
+        <h1 class="BRIDGEHEAD"><a name="AEN1095" id=
+        "AEN1095"></a>TYPE_NUMERIC</h1>
 
         <p>This field type accepts a decimal number. It is set up
         as follows:</p>
-        <pre class="PROGRAMLISTING">
-int set_field_type(FIELD *field,          /* field to alter */
+
+        <pre class=
+        "PROGRAMLISTING">int set_field_type(FIELD *field,          /* field to alter */
                    TYPE_NUMERIC,          /* type to associate */
                    int padding,           /* # places of precision */
-                   int vmin, int vmax);   /* valid range */
-</pre>
-
+                   int vmin, int vmax);   /* valid range */</pre>
         <p>Valid characters consist of an optional leading minus
         and digits. possibly including a decimal point. The range
         check is performed on exit. If the range maximum is less
@@ -6464,17 +6404,16 @@ int set_field_type(FIELD *field,          /* field to alter */
         <p>A TYPE_NUMERIC value buffer can conveniently be
         interpreted with the C library function atof(3).</p>
 
-        <h1 class="BRIDGEHEAD"><a name="AEN1096" id=
-        "AEN1096"></a>TYPE_REGEXP</h1>
+        <h1 class="BRIDGEHEAD"><a name="AEN1101" id=
+        "AEN1101"></a>TYPE_REGEXP</h1>
 
         <p>This field type accepts data matching a regular
         expression. It is set up as follows:</p>
-        <pre class="PROGRAMLISTING">
-int set_field_type(FIELD *field,          /* field to alter */
-                   TYPE_REGEXP,           /* type to associate */
-                   char *regexp);         /* expression to match */
-</pre>
 
+        <pre class=
+        "PROGRAMLISTING">int set_field_type(FIELD *field,          /* field to alter */
+                   TYPE_REGEXP,           /* type to associate */
+                   char *regexp);         /* expression to match */</pre>
         <p>The syntax for regular expressions is that of
         regcomp(3). The check for regular-expression match is
         performed on exit.</p>
@@ -6490,14 +6429,13 @@ int set_field_type(FIELD *field,          /* field to alter */
         <p>As in the menu system, form_driver() plays a very
         important role in forms system. All types of requests to
         forms system should be funneled through form_driver().</p>
-        <pre class="PROGRAMLISTING">
-int form_driver(FORM *form,     /* form on which to operate     */
-                int request)    /* form request code         */
-</pre>
 
+        <pre class=
+        "PROGRAMLISTING">int form_driver(FORM *form,     /* form on which to operate     */
+                int request)    /* form request code         */</pre>
         <p>As you have seen some of the examples above, you have to
         be in a loop looking for user input and then decide whether
-        it's a field data or a form request. The form requests are
+        it is a field data or a form request. The form requests are
         then passed to form_driver() to do the work.</p>
 
         <p>The requests roughly can be divided into following
@@ -6516,11 +6454,10 @@ int form_driver(FORM *form,     /* form on which to operate     */
           lot of fields and logical sections, then you can divide
           the form into pages. The function set_new_page() to set a
           new page at the field specified.</p>
-          <pre class="PROGRAMLISTING">
-int set_new_page(FIELD *field,/* Field at which page break to be set or unset */
-         bool new_page_flag); /* should be TRUE to put a break */
-</pre>
 
+          <pre class=
+          "PROGRAMLISTING">int set_new_page(FIELD *field,/* Field at which page break to be set or unset */
+         bool new_page_flag); /* should be TRUE to put a break */</pre>
           <p>The following requests allow you to move to different
           pages</p>
 
@@ -7070,13 +7007,14 @@ int set_new_page(FIELD *field,/* Field at which page break to be set or unset */
         <p><span class="emphasis"><i class="EMPHASIS">CDK stands
         for 'Curses Development Kit' and it currently contains 21
         ready to use widgets which facilitate the speedy
-        development of full screen curses programs.</i></span></p>
+        development of full screen curses programs.</i></span>
+        </p>
 
         <p>The kit provides some useful widgets, which can be used
-        in your programs directly. It's pretty well written and the
-        documentation is very good. The examples in the examples
-        directory can be a good place to start for beginners. The
-        CDK can be downloaded from <a href=
+        in your programs directly. It is pretty well written and
+        the documentation is very good. The examples in the
+        examples directory can be a good place to start for
+        beginners. The CDK can be downloaded from <a href=
         "https://invisible-island.net/cdk/" target=
         "_top">https://invisible-island.net/cdk/</a> . Follow the
         instructions in README file to install it.</p>
@@ -7089,8 +7027,9 @@ int set_new_page(FIELD *field,/* Field at which page break to be set or unset */
 
           <p>The following is the list of widgets provided with cdk
           and their description.</p>
-          <pre class="PROGRAMLISTING">
-Widget Type           Quick Description
+
+          <pre class=
+          "PROGRAMLISTING">Widget Type           Quick Description
 ===========================================================================
 Alphalist             Allows a user to select from a list of words, with
                       the ability to narrow the search list by typing in a
@@ -7133,9 +7072,7 @@ Template              Creates a entry field with character sensitive
                       dates and phone numbers.
 Viewer                This is a file/information viewer. Very useful
                       when you need to display loads of information.
-===========================================================================
-</pre>
-
+===========================================================================</pre>
           <p>A few of the widgets are modified by Thomas Dickey in
           recent versions.</p>
         </div>
@@ -7153,15 +7090,14 @@ Viewer                This is a file/information viewer. Very useful
           which are passed to CDK functions. For Example</p>
 
           <p>If the string</p>
-          <pre class="PROGRAMLISTING">
-"&lt;/B/1&gt;This line should have a yellow foreground and a blue
-background.&lt;!1&gt;"
-</pre>
 
+          <pre class=
+          "PROGRAMLISTING">"&lt;/B/1&gt;This line should have a yellow foreground and a blue
+background.&lt;!1&gt;"</pre>
           <p>given as a parameter to newCDKLabel(), it prints the
           line with yellow foreground and blue background. There
           are other tags available for justifying string, embedding
-          special drawing characters etc.. Please refer to the man
+          special drawing characters, etc. Please refer to the man
           page cdk_display(3X) for details. The man page explains
           the usage with nice examples.</p>
         </div>
@@ -7198,20 +7134,22 @@ background.&lt;!1&gt;"
         professional-looking dialog boxes from within shell
         scripts. This article presents a tutorial introduction to
         the dialog utility, and shows examples of how and where it
-        can be used</i></span></p>
+        can be used</i></span>
+        </p>
 
         <p>As he explains, dialog is a real gem in making
         professional-looking dialog boxes with ease. It creates a
-        variety of dialog boxes, menus, check lists etc.. It is
+        variety of dialog boxes, menus, check lists, etc. It is
         usually installed by default. If not, you can download it
         from <a href="https://invisible-island.net/dialog/" target=
         "_top">Thomas Dickey</a>'s site.</p>
 
         <p>The above-mentioned article gives a very good overview
-        of its uses and capabilites. The man page has more details.
-        It can be used in variety of situations. One good example
-        is building of linux kernel in text mode. Linux kernel uses
-        a modified version of dialog tailored for its needs.</p>
+        of its uses and capabilities. The man page has more
+        details. It can be used in variety of situations. One good
+        example is building of linux kernel in text mode. Linux
+        kernel uses a modified version of dialog tailored for its
+        needs.</p>
 
         <p>dialog was initially designed to be used with shell
         scripts. If you want to use its functionality in a c
@@ -7278,27 +7216,26 @@ background.&lt;!1&gt;"
         <p>Game of life is a wonder of math. In <a href=
         "http://www.math.com/students/wonders/life/life.html"
         target="_top">Paul Callahan</a>'s words</p>
-        <pre class="PROGRAMLISTING">
-<span class="emphasis"><i class=
-"EMPHASIS">The Game of Life (or simply Life) is not a game in the conventional sense. There
+
+        <pre class="PROGRAMLISTING"><span class="emphasis"><i class=
+        "EMPHASIS">The Game of Life (or simply Life) is not a game in the conventional sense. There
 are no players, and no winning or losing. Once the "pieces" are placed in the
 starting position, the rules determine everything that happens later.
 Nevertheless, Life is full of surprises! In most cases, it is impossible to look
 at a starting position (or pattern) and see what will happen in the future. The
-only way to find out is to follow the rules of the game.</i></span>
-</pre>
-
+only way to find out is to follow the rules of the game.</i></span></pre>
         <p>This program starts with a simple inverted U pattern and
         shows how wonderful life works. There is a lot of room for
         improvement in the program. You can let the user enter
         pattern of his choice or even take input from a file. You
         can also change rules and play with a lot of variations.
-        Search on <a href="http://www.google.com" target=
+        Search on <a href="https://www.google.com" target=
         "_top">google</a> for interesting information on game of
         life.</p>
 
         <p><span class="emphasis"><i class="EMPHASIS">File Path:
-        JustForFun/life.c</i></span></p>
+        JustForFun/life.c</i></span>
+        </p>
       </div>
 
       <div class="SECT2">
@@ -7310,14 +7247,15 @@ only way to find out is to follow the rules of the game.</i></span>
         <p>Magic Square, another wonder of math, is very simple to
         understand but very difficult to make. In a magic square
         sum of the numbers in each row, each column is equal. Even
-        diagnol sum can be equal. There are many variations which
+        diagonal sum can be equal. There are many variations which
         have special properties.</p>
 
         <p>This program creates a simple magic square of odd
         order.</p>
 
         <p><span class="emphasis"><i class="EMPHASIS">File Path:
-        JustForFun/magic.c</i></span></p>
+        JustForFun/magic.c</i></span>
+        </p>
       </div>
 
       <div class="SECT2">
@@ -7332,7 +7270,8 @@ only way to find out is to follow the rules of the game.</i></span>
         larger disk over a small disk at any time.</p>
 
         <p><span class="emphasis"><i class="EMPHASIS">File Path:
-        JustForFun/hanoi.c</i></span></p>
+        JustForFun/hanoi.c</i></span>
+        </p>
       </div>
 
       <div class="SECT2">
@@ -7349,7 +7288,8 @@ only way to find out is to follow the rules of the game.</i></span>
         technique.</p>
 
         <p><span class="emphasis"><i class="EMPHASIS">File Path:
-        JustForFun/queens.c</i></span></p>
+        JustForFun/queens.c</i></span>
+        </p>
       </div>
 
       <div class="SECT2">
@@ -7361,7 +7301,8 @@ only way to find out is to follow the rules of the game.</i></span>
         <p>A fun game, if you have time to kill.</p>
 
         <p><span class="emphasis"><i class="EMPHASIS">File Path:
-        JustForFun/shuffle.c</i></span></p>
+        JustForFun/shuffle.c</i></span>
+        </p>
       </div>
 
       <div class="SECT2">
@@ -7376,15 +7317,15 @@ only way to find out is to follow the rules of the game.</i></span>
         helpful.</p>
 
         <p><span class="emphasis"><i class="EMPHASIS">File Path:
-        JustForFun/tt.c</i></span></p>
+        JustForFun/tt.c</i></span>
+        </p>
       </div>
     </div>
 
     <div class="SECT1">
       <hr>
 
-      <h2 class="SECT1"><a name="REF" id="REF">21.
-      References</a></h2>
+      <h2 class="SECT1"><a name="REF" id="REF">21. References</a></h2>
 
       <ul>
         <li>

@@ -29,7 +29,7 @@
 #
 #  Author:  Juergen Pfeifer, 1996
 #
-#  $Id: Makefile.in,v 1.95 2021/01/23 20:42:08 tom Exp $
+#  $Id: Makefile.in,v 1.96 2021/07/03 15:45:33 tom Exp $
 #
 .SUFFIXES:
 
@@ -173,6 +173,20 @@ GENOBJS=$(ABASE)-menus-menu_user_data.o			\
 	$(ABASE)-text_io-enumeration_io.o		\
 	$(ABASE)-text_io-modular_io.o			\
 	$(ABASE)-text_io-complex_io.o
+
+################################################################################
+
+@MAKE_PHONY@.PHONY :	all
+@MAKE_PHONY@.PHONY :	clean
+@MAKE_PHONY@.PHONY :	distclean
+@MAKE_PHONY@.PHONY :	install
+@MAKE_PHONY@.PHONY :	install.libs
+@MAKE_PHONY@.PHONY :	libs
+@MAKE_PHONY@.PHONY :	mostlyclean
+@MAKE_PHONY@.PHONY :	realclean
+@MAKE_PHONY@.PHONY :	sources
+@MAKE_PHONY@.PHONY :	uninstall
+@MAKE_PHONY@.PHONY :	uninstall.libs
 
 all ::  $(BUILD_DIR_LIB)/$(STATIC_LIBNAME)
 	@echo done

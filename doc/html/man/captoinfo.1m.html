@@ -1,7 +1,7 @@
-<!-- 
+<!--
   * t
   ****************************************************************************
-  * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
   * Copyright 1998-2010,2016 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,21 +28,21 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: captoinfo.1m,v 1.30 2020/02/02 23:34:34 tom Exp @
+  * @Id: captoinfo.1m,v 1.63 2024/03/23 20:37:25 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>captoinfo 1m</TITLE>
+<TITLE>captoinfo 1m 2024-03-23 ncurses 6.5 User commands</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+
 </HEAD>
 <BODY>
-<H1 class="no-header">captoinfo 1m</H1>
+<H1 class="no-header">captoinfo 1m 2024-03-23 ncurses 6.5 User commands</H1>
 <PRE>
-<STRONG><A HREF="captoinfo.1m.html">captoinfo(1m)</A></STRONG>                                                    <STRONG><A HREF="captoinfo.1m.html">captoinfo(1m)</A></STRONG>
+<STRONG><A HREF="captoinfo.1m.html">captoinfo(1m)</A></STRONG>                    User commands                   <STRONG><A HREF="captoinfo.1m.html">captoinfo(1m)</A></STRONG>
 
 
 
@@ -52,175 +52,163 @@
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
-       <STRONG>captoinfo</STRONG> [<STRONG>-v</STRONG><EM>n</EM> <EM>width</EM>]  [<STRONG>-V</STRONG>] [<STRONG>-1</STRONG>] [<STRONG>-w</STRONG> <EM>width</EM>] <EM>file</EM> ...
+       <STRONG>captoinfo</STRONG> [<EM>tic-option</EM>] [<EM>file</EM> ...]
+
+       <STRONG>captoinfo</STRONG> <STRONG>-V</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       <STRONG>captoinfo</STRONG>  looks in each given text <EM>file</EM> for <STRONG>termcap</STRONG> descriptions.  For
-       each one found,  an  equivalent  <STRONG>terminfo</STRONG>  description  is  written  to
-       standard  output.   Termcap  <STRONG>tc</STRONG> capabilities are translated directly to
-       terminfo <STRONG>use</STRONG> capabilities.
+       <STRONG>captoinfo</STRONG>  translates  terminal  descriptions.   It looks in each given
+       text <EM>file</EM> for <EM>termcap</EM> entries  and,  for  each  one  found,  writes  an
+       equivalent <EM>terminfo</EM> description to the standard output stream.  <EM>termcap</EM>
+       <STRONG>tc</STRONG> capabilities translate to <EM>terminfo</EM> "<STRONG>use</STRONG>" capabilities.
 
-       If no <EM>file</EM> is given, then the environment variable <STRONG>TERMCAP</STRONG> is used  for
-       the  filename  or entry.  If <STRONG>TERMCAP</STRONG> is a full pathname to a file, only
-       the terminal whose name is specified in the environment  variable  <STRONG>TERM</STRONG>
-       is  extracted  from  that file.  If the environment variable <STRONG>TERMCAP</STRONG> is
-       not set, then the file <STRONG>/usr/share/terminfo</STRONG> is read.
+       If no <EM>file</EM>s are specified, <STRONG>captoinfo</STRONG>  interprets  the  content  of  the
+       environment  variable  <EM>TERMCAP</EM>  as  a  file name, and extracts only the
+       entry for the terminal named in the environment variable <EM>TERM</EM> from  it.
+       If  the  environment  variable  <EM>TERMCAP</EM>  is  not  set,  <STRONG>captoinfo</STRONG> reads
+       <EM>/etc/termcap</EM>.
 
-       <STRONG>-v</STRONG>   print out tracing information on standard  error  as  the  program
-            runs.
+       This utility is implemented as a link to <STRONG><A HREF="tic.1m.html">tic(1m)</A></STRONG>, with the latter's  <STRONG>-I</STRONG>
+       option  implied.  You can use other <STRONG>tic</STRONG> options such as <STRONG>-1</STRONG>, <STRONG>-f</STRONG>, <STRONG>-v</STRONG>, <STRONG>-w</STRONG>,
+       and <STRONG>-x</STRONG>.  The <STRONG>-V</STRONG> option reports the version of <EM>ncurses</EM>  associated  with
+       this program and exits with a successful status.
 
-       <STRONG>-V</STRONG>   print  out the version of the program in use on standard error and
-            exit.
 
-       <STRONG>-1</STRONG>   cause the fields to print out  one  to  a  line.   Otherwise,  the
-            fields  will be printed several to a line to a maximum width of 60
-            characters.
+</PRE><H3><a name="h3-Translations-from-Nonstandard-Capabilities">Translations from Nonstandard Capabilities</a></H3><PRE>
+       <STRONG>captoinfo</STRONG>  translates  some  obsolete,  nonstandard  capabilities  into
+       standard  (SVr4/XSI  Curses)  <EM>terminfo</EM>  capabilities.   It   issues   a
+       diagnostic  to the standard error stream for each, inviting the user to
+       check that it has not mistakenly  translated  an  unknown  or  mistyped
+       capability name.
 
-       <STRONG>-w</STRONG>   change the output to <EM>width</EM> characters.
+                     <STRONG>Name</STRONG>
+              <STRONG>Obsolete</STRONG>   <STRONG>Standard</STRONG>    <STRONG>Origin</STRONG>      <STRONG><EM>terminfo</EM></STRONG> <STRONG>capability</STRONG>
+              ---------------------------------------------------------
+                 <STRONG>BO</STRONG>         <STRONG>mr</STRONG>        AT&amp;T      <STRONG>enter_reverse_mode</STRONG>
+                 <STRONG>CI</STRONG>         <STRONG>vi</STRONG>        AT&amp;T      <STRONG>cursor_invisible</STRONG>
+                 <STRONG>CV</STRONG>         <STRONG>ve</STRONG>        AT&amp;T      <STRONG>cursor_normal</STRONG>
+                 <STRONG>DS</STRONG>         <STRONG>mh</STRONG>        AT&amp;T      <STRONG>enter_dim_mode</STRONG>
+                 <STRONG>EE</STRONG>         <STRONG>me</STRONG>        AT&amp;T      <STRONG>exit_attribute_mode</STRONG>
+                 <STRONG>FE</STRONG>         <STRONG>LF</STRONG>        AT&amp;T      <STRONG>label_on</STRONG>
+                 <STRONG>FL</STRONG>         <STRONG>LO</STRONG>        AT&amp;T      <STRONG>label_off</STRONG>
+                 <STRONG>XS</STRONG>         <STRONG>mk</STRONG>        AT&amp;T      <STRONG>enter_secure_mode</STRONG>
+                 <STRONG>EN</STRONG>         <STRONG>@7</STRONG>        XENIX     <STRONG>key_end</STRONG>
+                 <STRONG>GE</STRONG>         <STRONG>ae</STRONG>        XENIX     <STRONG>exit_alt_charset_mode</STRONG>
+                 <STRONG>GS</STRONG>         <STRONG>as</STRONG>        XENIX     <STRONG>enter_alt_charset_mode</STRONG>
+                 <STRONG>HM</STRONG>         <STRONG>kh</STRONG>        XENIX     <STRONG>key_home</STRONG>
+                 <STRONG>LD</STRONG>         <STRONG>kL</STRONG>        XENIX     <STRONG>key_dl</STRONG>
+                 <STRONG>PD</STRONG>         <STRONG>kN</STRONG>        XENIX     <STRONG>key_npage</STRONG>
+                 <STRONG>PN</STRONG>         <STRONG>po</STRONG>        XENIX     <STRONG>prtr_off</STRONG>
+                 <STRONG>PS</STRONG>         <STRONG>pf</STRONG>        XENIX     <STRONG>prtr_on</STRONG>
+                 <STRONG>PU</STRONG>         <STRONG>kP</STRONG>        XENIX     <STRONG>key_ppage</STRONG>
+                 <STRONG>RT</STRONG>         <STRONG>@8</STRONG>        XENIX     <STRONG>kent</STRONG>
+                 <STRONG>UP</STRONG>         <STRONG>ku</STRONG>        XENIX     <STRONG>kcuu1</STRONG>
+                 <STRONG>KA</STRONG>         <STRONG>k;</STRONG>      Tektronix   <STRONG>key_f10</STRONG>
+                 <STRONG>KB</STRONG>         <STRONG>F1</STRONG>      Tektronix   <STRONG>key_f11</STRONG>
+                 <STRONG>KC</STRONG>         <STRONG>F2</STRONG>      Tektronix   <STRONG>key_f12</STRONG>
+                 <STRONG>KD</STRONG>         <STRONG>F3</STRONG>      Tektronix   <STRONG>key_f13</STRONG>
+                 <STRONG>KE</STRONG>         <STRONG>F4</STRONG>      Tektronix   <STRONG>key_f14</STRONG>
+                 <STRONG>KF</STRONG>         <STRONG>F5</STRONG>      Tektronix   <STRONG>key_f15</STRONG>
+                 <STRONG>BC</STRONG>         <STRONG>Sb</STRONG>      Tektronix   <STRONG>set_background</STRONG>
+
+                 <STRONG>FC</STRONG>         <STRONG>Sf</STRONG>      Tektronix   <STRONG>set_foreground</STRONG>
+                 <STRONG>HS</STRONG>         <STRONG>mh</STRONG>        IRIX      <STRONG>enter_dim_mode</STRONG>
+
+       XENIX <EM>termcap</EM> had a set of extension capabilities, corresponding to box
+       drawing characters of CCSID ("code page") 437, as follows.
+
+                      <STRONG><EM>termcap</EM></STRONG> <STRONG>Name</STRONG>            <STRONG>Graphic</STRONG>
+                      -----------------------------------------
+                           <STRONG>G2</STRONG>        upper left corner
+                           <STRONG>G3</STRONG>        lower left corner
+                           <STRONG>G1</STRONG>        upper right corner
+                           <STRONG>G4</STRONG>        lower right corner
+                           <STRONG>GR</STRONG>        tee pointing right
+                           <STRONG>GL</STRONG>        tee pointing left
+                           <STRONG>GU</STRONG>        tee pointing up
+                           <STRONG>GD</STRONG>        tee pointing down
+                           <STRONG>GH</STRONG>        horizontal line
+                           <STRONG>GV</STRONG>        vertical line
+                           <STRONG>GC</STRONG>        intersection
+                           <STRONG>G6</STRONG>        double upper left corner
+                           <STRONG>G7</STRONG>        double lower left corner
+                           <STRONG>G5</STRONG>        double upper right corner
+                           <STRONG>G8</STRONG>        double lower right corner
+                           <STRONG>Gr</STRONG>        double tee pointing right
+                           <STRONG>Gr</STRONG>        double tee pointing left
+                           <STRONG>Gu</STRONG>        double tee pointing up
+                           <STRONG>Gd</STRONG>        double tee pointing down
+                           <STRONG>Gh</STRONG>        double horizontal line
+                           <STRONG>Gv</STRONG>        double vertical line
+                           <STRONG>Gc</STRONG>        double intersection
+                           <STRONG>GG</STRONG>        ACS magic cookie count
+
+       <STRONG>captoinfo</STRONG> composes single-line capabilities into an  <STRONG>acsc</STRONG>  string,  and
+       discards <STRONG>GG</STRONG> and double-line capabilities with a warning diagnostic.
+
+       IBM's  AIX  has  a  <EM>terminfo</EM> facility descended from SVr1 <EM>terminfo</EM>, but
+       which is incompatible with the SVr4 format.  <STRONG>captoinfo</STRONG>  translates  the
+       following AIX extensions.
+
+                                     <STRONG>IBM</STRONG>    <STRONG>XSI</STRONG>
+                                    -------------
+                                    ksel    kslt
+                                    kbtab   kcbt
+                                    font0   s0ds
+                                    font1   s1ds
+                                    font2   s2ds
+                                    font3   s3ds
+
+       Additionally,  this  program  translates  the AIX <STRONG>box1</STRONG> capability to an
+       <STRONG>acsc</STRONG> string.
+
+       The  HP-UX  <EM>terminfo</EM>  library   supports   two   nonstandard   <EM>terminfo</EM>
+       capabilities,  <STRONG>meml</STRONG>  (memory lock) and <STRONG>memu</STRONG> (memory unlock).  <STRONG>captoinfo</STRONG>
+       discards these with a warning message.
 
 
 </PRE><H2><a name="h2-FILES">FILES</a></H2><PRE>
-       /usr/share/terminfo Compiled terminal description database.
-
-
-</PRE><H2><a name="h2-TRANSLATIONS-FROM-NONSTANDARD-CAPABILITIES">TRANSLATIONS FROM NONSTANDARD CAPABILITIES</a></H2><PRE>
-       Some obsolete nonstandard capabilities will automatically be translated
-       into  standard  (SVr4/XSI  Curses)  terminfo capabilities by <STRONG>captoinfo</STRONG>.
-       Whenever one of these automatic translations is done, the program  will
-       issue an notification to stderr, inviting the user to check that it has
-       not mistakenly translated a completely unknown  and  random  capability
-       and/or syntax error.
-
-       Nonstd   Std    From           Terminfo
-        name    name                 capability
-       -----------------------------------------------
-       BO       mr     AT&amp;T    enter_reverse_mode
-       CI       vi     AT&amp;T    cursor_invisible
-       CV       ve     AT&amp;T    cursor_normal
-       DS       mh     AT&amp;T    enter_dim_mode
-       EE       me     AT&amp;T    exit_attribute_mode
-       FE       LF     AT&amp;T    label_on
-       FL       LO     AT&amp;T    label_off
-       XS       mk     AT&amp;T    enter_secure_mode
-       EN       @7     XENIX   key_end
-       GE       ae     XENIX   exit_alt_charset_mode
-       GS       as     XENIX   enter_alt_charset_mode
-       HM       kh     XENIX   key_home
-       LD       kL     XENIX   key_dl
-       PD       kN     XENIX   key_npage
-       PN       po     XENIX   prtr_off
-       PS       pf     XENIX   prtr_on
-       PU       kP     XENIX   key_ppage
-
-       RT       @8     XENIX   kent
-       UP       ku     XENIX   kcuu1
-       KA       k;     Tek     key_f10
-       KB       F1     Tek     key_f11
-       KC       F2     Tek     key_f12
-       KD       F3     Tek     key_f13
-       KE       F4     Tek     key_f14
-       KF       F5     Tek     key_f15
-       BC       Sb     Tek     set_background
-       FC       Sf     Tek     set_foreground
-       HS       mh     Iris    enter_dim_mode
-
-       XENIX  termcap  also  used  to have a set of extension capabilities for
-       forms drawing, designed to take  advantage  of  the  IBM  PC  high-half
-       graphics.  They were as follows:
-
-       Cap          Graphic
-       -----------------------------
-       G2    upper left
-       G3    lower left
-       G1    upper right
-       G4    lower right
-       GR    pointing right
-       GL    pointing left
-       GU    pointing up
-       GD    pointing down
-       GH    horizontal line
-       GV    vertical line
-       GC    intersection
-       G6    upper left
-       G7    lower left
-       G5    upper right
-       G8    lower right
-       Gr    tee pointing right
-       Gr    tee pointing left
-       Gu    tee pointing up
-       Gd    tee pointing down
-       Gh    horizontal line
-       Gv    vertical line
-       Gc    intersection
-       GG    acs magic cookie count
-
-       If   the   single-line  capabilities  occur  in  an  entry,  they  will
-       automatically  be  composed  into  an  <STRONG>acsc</STRONG>  string.   The  double-line
-       capabilities and <STRONG>GG</STRONG> are discarded with a warning message.
-
-       IBM's  AIX  has  a  terminfo  facility descended from SVr1 terminfo but
-       incompatible with the SVr4 format.  The following  AIX  extensions  are
-       automatically translated:
-
-        IBM    XSI
-       -------------
-       ksel    kslt
-       kbtab   kcbt
-       font0   s0ds
-       font1   s1ds
-       font2   s2ds
-       font3   s3ds
-
-       Additionally,  the AIX <EM>box1</EM> capability will be automatically translated
-       to an <STRONG>acsc</STRONG> string.
-
-       Hewlett-Packard's terminfo library supports  two  nonstandard  terminfo
-       capabilities  <STRONG>meml</STRONG>  (memory lock) and <STRONG>memu</STRONG> (memory unlock).  These will
-       be discarded with a warning message.
-
-
-</PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       This utility is actually a link to <STRONG><A HREF="tic.1m.html">tic(1m)</A></STRONG>, running in  <EM>-I</EM>  mode.   You
-       can use other <STRONG>tic</STRONG> options such as <STRONG>-f</STRONG> and  <STRONG>-x</STRONG>.
-
-       The  verbose option is not identical to SVr4's.  Under SVr4, instead of
-       following the <STRONG>-v</STRONG> with a trace level n, you repeat it n times.
+       <EM>/etc/termcap</EM>
+              default <EM>termcap</EM> terminal capability database
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
        X/Open Curses, Issue 7 (2009) describes <STRONG>tic</STRONG>  briefly,  but  omits  this
-       program.  SVr4 systems provide <STRONG>captoinfo</STRONG> as a separate application from
-       <STRONG>tic</STRONG>.
+       program.
+
+       SVr4 systems provide <STRONG>captoinfo</STRONG> as a separate application from <STRONG>tic</STRONG>.  Its
+       <STRONG>-v</STRONG> option does not accept a trace level argument <EM>n</EM>; repeat <STRONG>-v</STRONG>  <EM>n</EM>  times
+       instead.
 
        NetBSD does not provide this application.
 
 
-</PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="infocmp.1m.html">infocmp(1m)</A></STRONG>, <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>
-
-       This describes <STRONG>ncurses</STRONG> version 6.2 (patch 20210109).
-
-
-</PRE><H2><a name="h2-AUTHOR">AUTHOR</a></H2><PRE>
+</PRE><H2><a name="h2-AUTHORS">AUTHORS</a></H2><PRE>
        Eric S. Raymond &lt;esr@snark.thyrsus.com&gt; and
        Thomas E. Dickey &lt;dickey@invisible-island.net&gt;
 
 
+</PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
+       <STRONG><A HREF="infocmp.1m.html">infocmp(1m)</A></STRONG>, <STRONG><A HREF="tic.1m.html">tic(1m)</A></STRONG>, <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>
 
-                                                                 <STRONG><A HREF="captoinfo.1m.html">captoinfo(1m)</A></STRONG>
+
+
+ncurses 6.5                       2024-03-23                     <STRONG><A HREF="captoinfo.1m.html">captoinfo(1m)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
 <li><a href="#h2-NAME">NAME</a></li>
 <li><a href="#h2-SYNOPSIS">SYNOPSIS</a></li>
-<li><a href="#h2-DESCRIPTION">DESCRIPTION</a></li>
+<li><a href="#h2-DESCRIPTION">DESCRIPTION</a>
+<ul>
+<li><a href="#h3-Translations-from-Nonstandard-Capabilities">Translations from Nonstandard Capabilities</a></li>
+</ul>
+</li>
 <li><a href="#h2-FILES">FILES</a></li>
-<li><a href="#h2-TRANSLATIONS-FROM-NONSTANDARD-CAPABILITIES">TRANSLATIONS FROM NONSTANDARD CAPABILITIES</a></li>
-<li><a href="#h2-NOTES">NOTES</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
+<li><a href="#h2-AUTHORS">AUTHORS</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
-<li><a href="#h2-AUTHOR">AUTHOR</a></li>
 </ul>
 </div>
 </BODY>

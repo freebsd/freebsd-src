@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2022,2023 Thomas E. Dickey                                *
  * Copyright 2005-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -30,7 +30,7 @@
 /*
  * Author: Thomas E. Dickey
  *
- * $Id: demo_termcap.c,v 1.59 2020/02/02 23:34:34 tom Exp $
+ * $Id: demo_termcap.c,v 1.65 2023/05/27 20:13:10 tom Exp $
  *
  * A simple demo of the termcap interface.
  */
@@ -55,7 +55,7 @@
 #endif
 #endif
 
-static void failed(const char *) GCC_NORETURN;
+static GCC_NORETURN void failed(const char *);
 
 static void
 failed(const char *msg)
@@ -105,7 +105,7 @@ static long total_s_values;
 #define EachCapName(n) n = 33; n < 127; ++n
 
 static char *
-make_dbitem(char *p, char *q)
+make_dbitem(const char *const p, const char *const q)
 {
     size_t need = strlen(e_opt) + 2 + (size_t) (p - q);
     char *result = malloc(need);
@@ -404,7 +404,8 @@ typedef enum {
 static void
 parse_description(const char *input_name)
 {
-    static char empty[1];
+    static char empty[1] =
+    {0};
 
     FILE *fp;
     struct stat sb;
@@ -437,11 +438,13 @@ parse_description(const char *input_name)
 	failed("cannot allocate memory for input-file");
     }
 
-    if ((fp = fopen(input_name, "r")) == 0)
+    if ((fp = fopen(input_name, "r")) == 0) {
 	failed("cannot open input-file");
-    len = fread(my_blob, sizeof(char), (size_t) sb.st_size, fp);
-    my_blob[sb.st_size] = '\0';
-    fclose(fp);
+    } else {
+	len = fread(my_blob, sizeof(char), (size_t) sb.st_size, fp);
+	my_blob[sb.st_size] = '\0';
+	fclose(fp);
+    }
 
     /*
      * First, get rid of comments and escaped newlines, as well as repeated
@@ -738,40 +741,45 @@ free_code_list(char **list)
 #endif /* USE_CODE_LISTS */
 
 static void
-usage(void)
+usage(int ok)
 {
     static const char *msg[] =
     {
-	"Usage: demo_termcap [options] [terminal]",
-	"",
-	"If no options are given, print all (boolean, numeric, string)",
-	"capabilities for the given terminal, using short names.",
-	"",
-	"Options:",
-	" -a       try all names, print capabilities found",
-	" -b       print boolean-capabilities",
-	" -d LIST  colon-separated list of databases to use",
-	" -e NAME  environment variable to set with -d option",
-	" -i NAME  terminal description to use as names for \"-a\" option, etc.",
-	" -n       print numeric-capabilities",
-	" -q       quiet (prints only counts)",
-	" -r COUNT repeat for given count",
-	" -s       print string-capabilities",
-	" -v       print termcap-variables",
+	"Usage: demo_termcap [options] [terminal]"
+	,""
+	,"If no options are given, print all (boolean, numeric, string)"
+	,"capabilities for the given terminal, using short names."
+	,""
+	,USAGE_COMMON
+	,"Options:"
+	," -a       try all names, print capabilities found"
+	," -b       print boolean-capabilities"
+	," -d LIST  colon-separated list of databases to use"
+	," -e NAME  environment variable to set with -d option"
+	," -i NAME  terminal description to use as names for \"-a\" option, etc."
+	," -n       print numeric-capabilities"
+	," -q       quiet (prints only counts)"
+	," -r COUNT repeat for given count"
+	," -s       print string-capabilities"
+	," -v       print termcap-variables"
 #ifdef NCURSES_VERSION
-	" -x       print extended capabilities",
+	," -x       print extended capabilities"
 #endif
     };
     unsigned n;
     for (n = 0; n < SIZEOF(msg); ++n) {
 	fprintf(stderr, "%s\n", msg[n]);
     }
-    ExitProgram(EXIT_FAILURE);
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
 }
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
 
 int
 main(int argc, char *argv[])
 {
+    int ch;
     int n;
     char *name;
     bool a_opt = FALSE;
@@ -783,8 +791,8 @@ main(int argc, char *argv[])
     int repeat;
     int r_opt = 1;
 
-    while ((n = getopt(argc, argv, "abd:e:i:nqr:svxy")) != -1) {
-	switch (n) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "abd:e:i:nqr:svxy")) != -1) {
+	switch (ch) {
 	case 'a':
 	    a_opt = TRUE;
 	    break;
@@ -808,7 +816,7 @@ main(int argc, char *argv[])
 	    break;
 	case 'r':
 	    if ((r_opt = atoi(optarg)) <= 0)
-		usage();
+		usage(FALSE);
 	    break;
 	case 's':
 	    s_opt = TRUE;
@@ -829,9 +837,12 @@ main(int argc, char *argv[])
 	    break;
 #endif
 #endif
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage();
-	    break;
+	    usage(ch == OPTS_USAGE);
+	    /* NOTREACHED */
 	}
     }
 
@@ -915,8 +926,7 @@ main(int argc, char *argv[])
 
 #else
 int
-main(int argc GCC_UNUSED,
-     char *argv[]GCC_UNUSED)
+main(void)
 {
     failed("This program requires termcap");
 }

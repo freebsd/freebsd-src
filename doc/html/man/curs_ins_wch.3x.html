@@ -1,6 +1,6 @@
-<!-- 
+<!--
   ****************************************************************************
-  * Copyright 2019,2020 Thomas E. Dickey                                     *
+  * Copyright 2019-2023,2024 Thomas E. Dickey                                *
   * Copyright 2002-2010,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,66 +27,84 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_ins_wch.3x,v 1.10 2020/10/18 00:22:21 tom Exp @
+  * @Id: curs_ins_wch.3x,v 1.30 2024/04/20 19:18:18 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_ins_wch 3x</TITLE>
+<TITLE>curs_ins_wch 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_ins_wch 3x</H1>
+<H1 class="no-header">curs_ins_wch 3x 2024-04-20 ncurses 6.5 Library calls</H1>
 <PRE>
-<STRONG><A HREF="curs_ins_wch.3x.html">curs_ins_wch(3x)</A></STRONG>                                              <STRONG><A HREF="curs_ins_wch.3x.html">curs_ins_wch(3x)</A></STRONG>
+<STRONG><A HREF="curs_ins_wch.3x.html">curs_ins_wch(3x)</A></STRONG>                 Library calls                <STRONG><A HREF="curs_ins_wch.3x.html">curs_ins_wch(3x)</A></STRONG>
 
 
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
-       <STRONG>ins_wch</STRONG>,  <STRONG>mvins_wch</STRONG>,  <STRONG>mvwins_wch</STRONG>, <STRONG>wins_wch</STRONG> - insert a complex character
-       and rendition into a window
+       <STRONG>ins_wch</STRONG>,  <STRONG>mvins_wch</STRONG>,  <STRONG>mvwins_wch</STRONG>,  <STRONG>wins_wch</STRONG>  -  insert a <EM>curses</EM> complex
+       character in a window
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
-       #include &lt;curses.h&gt;
+       <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
        <STRONG>int</STRONG> <STRONG>ins_wch(const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>wins_wch(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM><STRONG>);</STRONG>
-
        <STRONG>int</STRONG> <STRONG>mvins_wch(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>mvwins_wch(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       These routines, insert the complex character <EM>wch</EM> with rendition  before
-       the  character  under  the  cursor.  All characters to the right of the
-       cursor are moved one space to the right, with the  possibility  of  the
-       rightmost  character  on  the line being lost.  The insertion operation
-       does not change the cursor position.
+       These functions insert the <EM>curses</EM> complex character <EM>wch</EM> at  the  cursor
+       in  the  specified window <EM>win</EM> (or <STRONG>stdscr</STRONG>).  The character previously at
+       the cursor and any to its  right  move  one  cell  to  the  right;  the
+       rightmost  character  on  the  line  is discarded.  The cursor does not
+       advance.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       If successful, these functions return <STRONG>OK</STRONG>.  If not, they return <STRONG>ERR</STRONG>.
+       These functions return <STRONG>OK</STRONG> on success and <STRONG>ERR</STRONG> on failure.
 
-       Functions with a "mv" prefix first  perform  a  cursor  movement  using
-       <STRONG>wmove</STRONG>, and return an error if the position is outside the window, or if
-       the window pointer is null.
+       Functions taking a <EM>WINDOW</EM> pointer argument fail if the pointer is <STRONG>NULL</STRONG>.
+
+       Functions prefixed with "mv" first perform cursor movement and fail  if
+       the position (<EM>y</EM>, <EM>x</EM>) is outside the window boundaries.
 
 
-</PRE><H2><a name="h2-ERRORS">ERRORS</a></H2><PRE>
-       No errors are defined.
+</PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
+       A  terminal's  <STRONG>insert_character</STRONG>  (<STRONG>ich1</STRONG>)  capability  is not necessarily
+       employed.
+
+       <STRONG>ins_wch</STRONG>, <STRONG>mvins_wch</STRONG>, and <STRONG>mvwins_wch</STRONG> may be implemented as macros.
+
+
+</PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
+       X/Open Curses, Issue 4 describes these functions.
+
+       SVr4 describes successful return values only as "an integer value other
+       than <STRONG>ERR</STRONG>".
+
+
+</PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
+       SVr4  (1989)  implemented  these  functions  under  the  names  <STRONG>inswch</STRONG>,
+       <STRONG>winswch</STRONG>, <STRONG>mvinswch</STRONG>, and <STRONG>mvwinswch</STRONG>.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_insch.3x.html">curs_insch(3x)</A></STRONG>.
+       <STRONG><A HREF="curs_insch.3x.html">curs_insch(3x)</A></STRONG> describes comparable functions in the non-wide-character
+       <EM>curses</EM> configuration.
+
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>
 
 
 
-                                                              <STRONG><A HREF="curs_ins_wch.3x.html">curs_ins_wch(3x)</A></STRONG>
+ncurses 6.5                       2024-04-20                  <STRONG><A HREF="curs_ins_wch.3x.html">curs_ins_wch(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -94,7 +112,9 @@
 <li><a href="#h2-SYNOPSIS">SYNOPSIS</a></li>
 <li><a href="#h2-DESCRIPTION">DESCRIPTION</a></li>
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
-<li><a href="#h2-ERRORS">ERRORS</a></li>
+<li><a href="#h2-NOTES">NOTES</a></li>
+<li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
+<li><a href="#h2-HISTORY">HISTORY</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 </ul>
 </div>

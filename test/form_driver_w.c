@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2022 Thomas E. Dickey                                     *
  * Copyright 2013-2014,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -32,7 +32,7 @@
  ****************************************************************************/
 
 /*
- * $Id: form_driver_w.c,v 1.16 2020/02/02 23:34:34 tom Exp $
+ * $Id: form_driver_w.c,v 1.17 2022/12/10 23:31:31 tom Exp $
  *
  * Test form_driver_w (int, int, wchar_t), a wide char aware
  * replacement of form_driver.
@@ -45,8 +45,28 @@
 
 #include <form.h>
 
+static void
+usage(int ok)
+{
+    static const char *msg[] =
+    {
+	"Usage: form_driver_w [options]"
+	,""
+	,USAGE_COMMON
+    };
+    size_t n;
+
+    for (n = 0; n < SIZEOF(msg); n++)
+	fprintf(stderr, "%s\n", msg[n]);
+
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
+}
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
+
 int
-main(void)
+main(int argc, char *argv[])
 {
     static const char *help[] =
     {
@@ -64,6 +84,20 @@ main(void)
     FORM *my_form;
     bool done = FALSE;
     int n;
+    int ch;
+
+    while ((ch = getopt(argc, argv, OPTS_COMMON)) != -1) {
+	switch (ch) {
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
+	default:
+	    usage(ch == OPTS_USAGE);
+	    /* NOTREACHED */
+	}
+    }
+    if (optind < argc)
+	usage(FALSE);
 
     setlocale(LC_ALL, "");
 
@@ -94,14 +128,14 @@ main(void)
 
     /* Loop through to get user requests */
     while (!done) {
-	wint_t ch;
-	int ret = get_wch(&ch);
+	wint_t c2;
+	int ret = get_wch(&c2);
 
 	mvprintw(MyRow(NUM_FIELDS),
 		 MyCol(NUM_FIELDS),
 		 "Got %d (%#x), type: %s",
-		 (int) ch,
-		 (int) ch,
+		 (int) c2,
+		 (int) c2,
 		 (ret == KEY_CODE_YES)
 		 ? "KEY_CODE_YES"
 		 : ((ret == OK)
@@ -113,7 +147,7 @@ main(void)
 
 	switch (ret) {
 	case KEY_CODE_YES:
-	    switch (ch) {
+	    switch (c2) {
 	    case KEY_DOWN:
 		/* Go to next field */
 		form_driver_w(my_form, KEY_CODE_YES, REQ_NEXT_FIELD);
@@ -132,7 +166,7 @@ main(void)
 	    }
 	    break;
 	case OK:
-	    switch (ch) {
+	    switch (c2) {
 	    case CTRL('D'):
 	    case QUIT:
 	    case ESCAPE:
@@ -146,7 +180,7 @@ main(void)
 		popup_msg(form_win(my_form), help);
 		break;
 	    default:
-		form_driver_w(my_form, OK, (wchar_t) ch);
+		form_driver_w(my_form, OK, (wchar_t) c2);
 		break;
 	    }
 	    break;

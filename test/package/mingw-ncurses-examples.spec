@@ -4,14 +4,14 @@ Summary: ncurses-examples - example/test programs from ncurses
 %global AppProgram ncurses-examples
 %global AppVersion MAJOR.MINOR
 %global AppRelease YYYYMMDD
-# $Id: mingw-ncurses-examples.spec,v 1.9 2019/11/23 21:13:52 tom Exp $
+# $Id: mingw-ncurses-examples.spec,v 1.11 2023/02/25 23:10:34 tom Exp $
 Name: mingw32-ncurses6-examples
 Version: %{AppVersion}
 Release: %{AppRelease}
 License: X11
 Group: Development/Libraries
-Source: ncurses-examples-%{release}.tgz
-# URL: https://invisible-island.net/ncurses/
+URL: https://invisible-island.net/ncurses/%{AppProgram}.html
+Source: https://invisible-island.net/archives/%{AppProgram}/%{AppProgram}-%{release}.tgz
 
 BuildRequires:  mingw32-ncurses6
 
@@ -50,11 +50,14 @@ This package is used for testing ABI 6 with cross-compiles to MinGW.
 %prep
 
 # override location of bindir, e.g., to avoid conflict with pdcurses
-%global mingw32_bindir %{mingw32_exec_prefix}/bin/%{AppProgram} 
-%global mingw64_bindir %{mingw64_exec_prefix}/bin/%{AppProgram} 
+%global mingw32_bindir %{mingw32_exec_prefix}/bin/%{AppProgram}
+%global mingw64_bindir %{mingw64_exec_prefix}/bin/%{AppProgram}
 
-%global mingw32_datadir %{mingw32_datadir}/%{AppProgram} 
-%global mingw64_datadir %{mingw64_datadir}/%{AppProgram} 
+%global mingw32_datadir %{mingw32_datadir}/%{AppProgram}
+%global mingw64_datadir %{mingw64_datadir}/%{AppProgram}
+
+%global mingw32_libexec %{mingw32_libexecdir}/%{AppProgram}
+%global mingw64_libexec %{mingw64_libexecdir}/%{AppProgram}
 
 %define CFG_OPTS \\\
         --enable-echo \\\
@@ -96,25 +99,23 @@ pushd BUILD-W64
 %{mingw64_make} install DESTDIR=$RPM_BUILD_ROOT
 popd
 
-%clean
-if rm -rf $RPM_BUILD_ROOT; then
-  echo OK
-else
-  find $RPM_BUILD_ROOT -type f | grep -F -v /.nfs && exit 1
-fi
-exit 0
-
-%defattr(-,root,root,-)
-
 %files -n mingw32-ncurses6-examples
+%defattr(-,root,root,-)
 %{mingw32_bindir}/*
 %{mingw32_datadir}/*
+%{mingw32_libexec}/*
 
 %files -n mingw64-ncurses6-examples
+%defattr(-,root,root,-)
 %{mingw64_bindir}/*
 %{mingw64_datadir}/*
+%{mingw64_libexec}/*
 
 %changelog
+
+* Sat Feb 25 2023 Thomas Dickey
+- use libexecdir for programs rather than subdir of bindir
+- amend URLs per rpmlint
 
 * Sat Nov 16 2019 Thomas Dickey
 - modify clean-rule to work around Fedora NFS bugs.

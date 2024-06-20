@@ -1,6 +1,6 @@
-<!-- 
+<!--
   ****************************************************************************
-  * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
   * Copyright 1998-2006,2010 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,28 +27,28 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_delch.3x,v 1.15 2020/10/24 09:36:43 tom Exp @
+  * @Id: curs_delch.3x,v 1.34 2024/04/20 19:24:14 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_delch 3x</TITLE>
+<TITLE>curs_delch 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_delch 3x</H1>
+<H1 class="no-header">curs_delch 3x 2024-04-20 ncurses 6.5 Library calls</H1>
 <PRE>
-<STRONG><A HREF="curs_delch.3x.html">curs_delch(3x)</A></STRONG>                                                  <STRONG><A HREF="curs_delch.3x.html">curs_delch(3x)</A></STRONG>
+<STRONG><A HREF="curs_delch.3x.html">curs_delch(3x)</A></STRONG>                   Library calls                  <STRONG><A HREF="curs_delch.3x.html">curs_delch(3x)</A></STRONG>
 
 
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
-       <STRONG>delch</STRONG>, <STRONG>wdelch</STRONG>, <STRONG>mvdelch</STRONG>, <STRONG>mvwdelch</STRONG> - delete character under the cursor in
-       a <STRONG>curses</STRONG> window
+       <STRONG>delch</STRONG>,  <STRONG>wdelch</STRONG>,  <STRONG>mvdelch</STRONG>,  <STRONG>mvwdelch</STRONG>  - delete a character from a <EM>curses</EM>
+       window
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
@@ -61,32 +61,37 @@
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       These routines delete the character under the cursor; all characters to
-       the  right  of  the  cursor  on the same line are moved to the left one
-       position and the last character on the line is  filled  with  a  blank.
-       The  cursor  position  does  not  change  (after  moving  to  <EM>y</EM>,  <EM>x</EM>, if
-       specified).  (This does not imply use of the hardware delete  character
-       feature.)
+       <STRONG>wdelch</STRONG>  deletes  the  character  at  the  cursor   position   in   <EM>win</EM>.
+       <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG> describes the variants of this function.
+
+       <STRONG>wdelch</STRONG> moves all characters to the right of the cursor on the same line
+       to the left one position and replaces the  contents  of  the  rightmost
+       position  on  the  line with the window's blank character; see <STRONG><A HREF="curs_bkgd.3x.html">bkgd(3x)</A></STRONG>
+       (wide-character API users may consult <STRONG><A HREF="curs_bkgrnd.3x.html">bkgrnd(3x)</A></STRONG> instead).  The  cursor
+       position does not change (after moving to (<EM>y</EM>, <EM>x</EM>), if specified).
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       All  routines  return  the  integer  <STRONG>ERR</STRONG>  upon  failure and an <STRONG>OK</STRONG> (SVr4
-       specifies only "an integer  value  other  than  <STRONG>ERR</STRONG>")  upon  successful
-       completion.
+       These functions return <STRONG>OK</STRONG> on success and <STRONG>ERR</STRONG> on failure.
 
-       Functions  with  a  "mv"  prefix  first perform a cursor movement using
-       <STRONG>wmove</STRONG>, and return an error if the position is outside the window, or if
-       the window pointer is null.
+       Functions taking a <EM>WINDOW</EM> pointer argument fail if the pointer is <STRONG>NULL</STRONG>.
+
+       Functions  prefixed with "mv" first perform cursor movement and fail if
+       the position (<EM>y</EM>, <EM>x</EM>) is outside the window boundaries.
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       Note that <STRONG>delch</STRONG>, <STRONG>mvdelch</STRONG>, and <STRONG>mvwdelch</STRONG> may be macros.
+       <STRONG>delch</STRONG>, <STRONG>mvdelch</STRONG>, and <STRONG>mvwdelch</STRONG> may be implemented as macros.
+
+       A terminal's <STRONG>delete_character</STRONG>  (<STRONG>dch1</STRONG>)  capability  is  not  necessarily
+       employed.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These functions are described in the XSI Curses standard, Issue 4.  The
-       standard specifies that they return <STRONG>ERR</STRONG> on failure,  but  specifies  no
-       error conditions.
+       X/Open Curses, Issue 4 describes these functions.
+
+       SVr4  <EM>curses</EM>  describes  a  successful return value only as "an integer
+       value other than <STRONG>ERR</STRONG>".
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
@@ -94,7 +99,7 @@
 
 
 
-                                                                <STRONG><A HREF="curs_delch.3x.html">curs_delch(3x)</A></STRONG>
+ncurses 6.5                       2024-04-20                    <STRONG><A HREF="curs_delch.3x.html">curs_delch(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>

@@ -1,6 +1,6 @@
-<!-- 
+<!--
   ****************************************************************************
-  * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
   * Copyright 1998-2011,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,21 +27,21 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: term.7,v 1.28 2020/02/02 23:34:34 tom Exp @
+  * @Id: term.7,v 1.48 2024/03/16 15:35:01 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>term 7</TITLE>
+<TITLE>term 7 2024-03-16 ncurses 6.5 Miscellaneous</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+
 </HEAD>
 <BODY>
-<H1 class="no-header">term 7</H1>
+<H1 class="no-header">term 7 2024-03-16 ncurses 6.5 Miscellaneous</H1>
 <PRE>
-<STRONG><A HREF="term.7.html">term(7)</A></STRONG>                Miscellaneous Information Manual                <STRONG><A HREF="term.7.html">term(7)</A></STRONG>
+<STRONG><A HREF="term.7.html">term(7)</A></STRONG>                          Miscellaneous                         <STRONG><A HREF="term.7.html">term(7)</A></STRONG>
 
 
 
@@ -51,35 +51,35 @@
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       The  environment variable <STRONG>TERM</STRONG> should normally contain the type name of
+       The  environment variable <EM>TERM</EM> should normally contain the type name of
        the terminal, console or  display-device  type  you  are  using.   This
        information  is  critical  for  all screen-oriented programs, including
        your editor and mailer.
 
-       A default <STRONG>TERM</STRONG> value  will  be  set  on  a  per-line  basis  by  either
-       <STRONG>/etc/inittab</STRONG>  (e.g.,  System-V-like  UNIXes) or <STRONG>/etc/ttys</STRONG> (BSD UNIXes).
+       A default <EM>TERM</EM> value  will  be  set  on  a  per-line  basis  by  either
+       <STRONG>/etc/inittab</STRONG>  (e.g.,  System-V-like  Unices) or <STRONG>/etc/ttys</STRONG> (BSD Unices).
        This will nearly  always  suffice  for  workstation  and  microcomputer
        consoles.
 
        If  you  use a dialup line, the type of device attached to it may vary.
-       Older UNIX systems pre-set a very dumb terminal  type  like  "dumb"  or
+       Older Unix systems pre-set a very dumb terminal  type  like  "dumb"  or
        "dialup"  on  dialup lines.  Newer ones may pre-set "vt100", reflecting
        the prevalence of DEC VT100-compatible terminals and  personal-computer
        emulators.
 
-       Modern  telnets pass your <STRONG>TERM</STRONG> environment variable from the local side
+       Modern  telnets pass your <EM>TERM</EM> environment variable from the local side
        to the remote one.  There can be problems if  the  remote  terminfo  or
        termcap  entry  for  your  type  is not compatible with yours, but this
        situation is rare and  can  almost  always  be  avoided  by  explicitly
        exporting  "vt100"  (assuming  you  are  in fact using a VT100-superset
-       console, terminal, or terminal emulator.)
+       console, terminal, or terminal emulator).
 
-       In any case, you are free to override the system <STRONG>TERM</STRONG> setting  to  your
+       In any case, you are free to override the system <EM>TERM</EM> setting  to  your
        taste in your shell profile.  The <STRONG><A HREF="tset.1.html">tset(1)</A></STRONG> utility may be of assistance;
        you can give it a set of rules for deducing or  requesting  a  terminal
        type based on the tty device and baud rate.
 
-       Setting  your  own  <STRONG>TERM</STRONG> value may also be useful if you have created a
+       Setting  your  own  <EM>TERM</EM> value may also be useful if you have created a
        custom entry incorporating options (such as  visual  bell  or  reverse-
        video)  which  you  wish  to  override the system default type for your
        line.
@@ -88,14 +88,14 @@
        underneath /usr/share/terminfo.  To browse a list of all terminal names
        recognized by the system, do
 
-            toe | more
+               toe | more
 
        from your shell.   These  capability  files  are  in  a  binary  format
        optimized for retrieval speed (unlike the old text-based <STRONG>termcap</STRONG> format
        they replace); to examine  an  entry,  you  must  use  the  <STRONG><A HREF="infocmp.1m.html">infocmp(1m)</A></STRONG>
        command.  Invoke it as follows:
 
-            infocmp <EM>entry</EM><STRONG>_</STRONG><EM>name</EM>
+               infocmp <EM>entry</EM><STRONG>_</STRONG><EM>name</EM>
 
        where  <EM>entry</EM><STRONG>_</STRONG><EM>name</EM>  is the name of the type you wish to examine (and the
        name of its capability file  the  subdirectory  of  /usr/share/terminfo
@@ -105,7 +105,7 @@
        The first line of a <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG> description gives the  names  by  which
        terminfo  knows a terminal, separated by "|" (pipe-bar) characters with
        the last name field terminated by a comma.  The first name field is the
-       type's <EM>primary</EM> <EM>name</EM>, and is the one to use when setting <STRONG>TERM</STRONG>.  The last
+       type's <EM>primary</EM> <EM>name</EM>, and is the one to use when setting <EM>TERM</EM>.  The last
        name field (if distinct from the first) is actually  a  description  of
        the  terminal  type  (it  may contain blanks; the others must be single
        words).  Name fields between  the  first  and  last  (if  present)  are
@@ -191,39 +191,39 @@
 
        Commands which use a terminal type to control display often accept a -T
        option that accepts a terminal name  argument.   Such  programs  should
-       fall  back  on  the  <STRONG>TERM</STRONG>  environment  variable  when  no -T option is
+       fall  back  on  the  <EM>TERM</EM>  environment  variable  when  no -T option is
        specified.
 
 
+</PRE><H2><a name="h2-FILES">FILES</a></H2><PRE>
+       <EM>/usr/share/terminfo</EM>
+              compiled terminal description database
+
+       <EM>/etc/inittab</EM>
+              tty line initialization (AT&amp;T-like Unices)
+
+       <EM>/etc/ttys</EM>
+              tty line initialization (BSD-like Unices)
+
+
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       For maximum compatibility with older System V UNIXes, names and aliases
+       For maximum compatibility with older System V Unices, names and aliases
        should be unique within the first 14 characters.
 
 
-</PRE><H2><a name="h2-FILES">FILES</a></H2><PRE>
-       /usr/share/terminfo/?/*
-            compiled terminal capability data base
-
-       /etc/inittab
-            tty line initialization (AT&amp;T-like UNIXes)
-
-       /etc/ttys
-            tty line initialization (BSD-like UNIXes)
-
-
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>, <STRONG><A HREF="term.5.html">term(5)</A></STRONG>.
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="term.5.html">term(5)</A></STRONG>, <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>
 
 
 
-                                                                       <STRONG><A HREF="term.7.html">term(7)</A></STRONG>
+ncurses 6.5                       2024-03-16                           <STRONG><A HREF="term.7.html">term(7)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
 <li><a href="#h2-NAME">NAME</a></li>
 <li><a href="#h2-DESCRIPTION">DESCRIPTION</a></li>
-<li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
 <li><a href="#h2-FILES">FILES</a></li>
+<li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 </ul>
 </div>

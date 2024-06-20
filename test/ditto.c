@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2018-2022,2023 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -30,7 +30,7 @@
 /*
  * Author: Thomas E. Dickey (1998-on)
  *
- * $Id: ditto.c,v 1.49 2020/02/02 23:34:34 tom Exp $
+ * $Id: ditto.c,v 1.59 2023/09/23 17:08:43 tom Exp $
  *
  * The program illustrates how to set up multiple screens from a single
  * program.
@@ -92,6 +92,15 @@ typedef struct {
 #endif
 } DITTO;
 
+#ifdef USE_PTHREADS
+#define LockIt()                pthread_mutex_lock(&pending_mutex)
+#define UnlockIt()              pthread_mutex_unlock(&pending_mutex)
+pthread_mutex_t pending_mutex;
+#else
+#define LockIt()		/* nothing */
+#define UnlockIt()		/* nothing */
+#endif
+
 /*
  * Structure used to pass multiple parameters via the use_screen()
  * single-parameter interface.
@@ -102,20 +111,10 @@ typedef struct {
     DITTO *ditto;		/* data for all screens */
 } DDATA;
 
-static void failed(const char *) GCC_NORETURN;
-static void usage(void) GCC_NORETURN;
-
 static void
 failed(const char *s)
 {
     perror(s);
-    ExitProgram(EXIT_FAILURE);
-}
-
-static void
-usage(void)
-{
-    fprintf(stderr, "Usage: ditto [terminal1 ...]\n");
     ExitProgram(EXIT_FAILURE);
 }
 
@@ -182,7 +181,7 @@ open_tty(char *path)
 #else
     struct stat sb;
 
-    if (stat(path, &sb) < 0)
+    if (stat(path, &sb) == -1)
 	failed(path);
     if ((sb.st_mode & S_IFMT) != S_IFCHR) {
 	errno = ENOTTY;
@@ -238,6 +237,14 @@ init_screen(
     }
     doupdate();
     return TRUE;
+}
+
+static void
+free_screen(DITTO * target)
+{
+    free(target->parents);
+    free(target->windows);
+    free(target->peeks);
 }
 
 static void
@@ -353,7 +360,6 @@ static void *
 handle_screen(void *arg)
 {
     DDATA ddata;
-    int ch;
 
     memset(&ddata, 0, sizeof(ddata));
     ddata.ditto = (DITTO *) arg;
@@ -361,7 +367,7 @@ handle_screen(void *arg)
     ddata.ditto -= ddata.source;	/* -> base of array */
 
     for (;;) {
-	ch = read_screen(ddata.ditto->screen, &ddata);
+	int ch = read_screen(ddata.ditto->screen, &ddata);
 	if (ch == CTRL('D')) {
 	    int later = (ddata.source ? ddata.source : -1);
 	    int j;
@@ -382,17 +388,46 @@ handle_screen(void *arg)
 }
 #endif
 
+static void
+usage(int ok)
+{
+    static const char *msg[] =
+    {
+	"Usage: ditto [terminal [terminal2 ...]]"
+	,""
+	,USAGE_COMMON
+    };
+    size_t n;
+
+    for (n = 0; n < SIZEOF(msg); n++)
+	fprintf(stderr, "%s\n", msg[n]);
+
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
+}
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
+
 int
 main(int argc, char *argv[])
 {
     int j;
+    int ch;
     DITTO *data;
 #ifndef USE_PTHREADS
     int count;
 #endif
 
-    if (argc <= 1)
-	usage();
+    while ((ch = getopt(argc, argv, OPTS_COMMON)) != -1) {
+	switch (ch) {
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
+	default:
+	    usage(ch == OPTS_USAGE);
+	    /* NOTREACHED */
+	}
+    }
 
     if ((data = typeCalloc(DITTO, (size_t) argc)) == 0)
 	failed("calloc data");
@@ -404,13 +439,15 @@ main(int argc, char *argv[])
     }
 
 #ifdef USE_PTHREADS
+    pthread_mutex_init(&pending_mutex, NULL);
     /*
      * For multi-threaded operation, set up a reader for each of the screens.
      * That uses blocking I/O rather than polling for input, so no calls to
      * napms() are needed.
      */
     for (j = 0; j < argc; j++) {
-	(void) pthread_create(&(data[j].thread), NULL, handle_screen, &data[j]);
+	(void) pthread_create(&(data[j].thread), NULL, handle_screen,
+			      &data[j]);
     }
     pthread_join(data[1].thread, NULL);
 #else
@@ -420,7 +457,6 @@ main(int argc, char *argv[])
      */
     for (count = 0;; ++count) {
 	DDATA ddata;
-	int ch;
 	int which = (count % argc);
 
 	napms(20);
@@ -441,6 +477,7 @@ main(int argc, char *argv[])
      * Cleanup and exit
      */
     for (j = argc - 1; j >= 0; j--) {
+	LockIt();
 	USING_SCREEN(data[j].screen, close_screen, 0);
 	fprintf(data[j].output, "**Closed\r\n");
 
@@ -451,7 +488,10 @@ main(int argc, char *argv[])
 	fflush(data[j].output);
 	fclose(data[j].output);
 	delscreen(data[j].screen);
+	free_screen(&data[j]);
+	UnlockIt();
     }
+    free(data);
     ExitProgram(EXIT_SUCCESS);
 }
 #else

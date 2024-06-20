@@ -1,6 +1,6 @@
 #!/bin/sh
 ##############################################################################
-# Copyright 2020 Thomas E. Dickey                                            #
+# Copyright 2020,2022 Thomas E. Dickey                                       #
 # Copyright 2007-2009,2018 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -27,17 +27,18 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: savescreen.sh,v 1.6 2020/02/02 23:34:34 tom Exp $
+# $Id: savescreen.sh,v 1.8 2022/07/16 16:34:34 tom Exp $
 #
 # Use this script to exercise "savescreen".
 # It starts by generating a series of temporary-filenames, which are passed
 # to the test-program.  Loop as long as the first file named exists.
 
-: ${TMPDIR:=/tmp}
+: "${TMPDIR:=/tmp}"
 
 # "mktemp -d" would be preferable, but is not standard.
 MY_DIR=$TMPDIR/savescreen$$
-trap "rm -rf $MY_DIR" EXIT INT QUIT HUP
+trap "rm -rf $MY_DIR; exit 1" 1 2 3
+trap "rm -rf $MY_DIR" 0
 umask 077
 mkdir $MY_DIR || exit 1
 
@@ -58,7 +59,7 @@ if test -f $BEGINS
 then
 	while test -f $BEGINS
 	do
-		${0%.sh} -r $PARAMS
+		"${0%.sh}" -r $PARAMS
 		test $? != 0 && break
 	done
 else

@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright 2020 Thomas E. Dickey                                          --
+-- Copyright 2020-2021,2024 Thomas E. Dickey                                --
 -- Copyright 2000-2014,2015 Free Software Foundation, Inc.                  --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
@@ -36,8 +36,8 @@
 ------------------------------------------------------------------------------
 --  Author: Eugene V. Melaragno <aldomel@ix.netcom.com> 2000
 --  Version Control
---  $Revision: 1.8 $
---  $Date: 2020/02/02 23:34:34 $
+--  $Revision: 1.10 $
+--  $Date: 2024/03/30 13:21:15 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with ncurses2.util; use ncurses2.util;
@@ -73,8 +73,8 @@ procedure ncurses2.overlap_test is
       Get_Size (win, y1, x1);
       for y in 0 .. y1 - 1 loop
          for x in 0 .. x1 - 1 loop
-            if ((x > (x1 - 1) / 3) and (x <= (2 * (x1 - 1)) / 3)) or
-               (((y > (y1 - 1) / 3) and (y <= (2 * (y1 - 1)) / 3)))
+            if (x > (x1 - 1) / 3 and x <= (2 * (x1 - 1)) / 3) or
+               (y > (y1 - 1) / 3 and y <= (2 * (y1 - 1)) / 3)
             then
                Move_Cursor (win, y, x);
                Add (win, Ch => ch);
@@ -130,9 +130,9 @@ begin
             Refresh_Without_Update (win2);
             Refresh_Without_Update (win1);
             Update_Screen;
-         when 'c' => --  fill window A so it's visible
+         when 'c' => --  fill window A so it is visible
             fillwin (win1, 'A');
-         when 'd' => --  fill window B so it's visible
+         when 'd' => --  fill window B so it is visible
             fillwin (win2, 'B');
          when 'e' => --  cross test pattern in window A
             crosswin (win1, 'A');

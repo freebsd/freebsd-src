@@ -92,7 +92,7 @@
 /******************************************************************************/
 
 /*
- * $Id: xmas.c,v 1.34 2019/12/14 23:25:29 tom Exp $
+ * $Id: xmas.c,v 1.39 2022/12/04 00:40:11 tom Exp $
  */
 #include <test.priv.h>
 
@@ -133,7 +133,7 @@ static WINDOW *w_holiday;
 static WINDOW *w_del_msg;
 static bool *my_pairs;
 
-static void done(int sig) GCC_NORETURN;
+static GCC_NORETURN void done(int sig);
 
 static void
 set_color(WINDOW *win, chtype color)
@@ -500,9 +500,6 @@ reindeer(void)
     y_pos = 0;
 
     for (x_pos = 70; x_pos > 62; x_pos--) {
-	if (x_pos < 62) {
-	    y_pos = 1;
-	}
 	for (looper = 0; looper < 4; looper++) {
 	    MvWAddCh(dotdeer0, y_pos, x_pos, (chtype) '.');
 	    wrefresh(dotdeer0);
@@ -649,12 +646,13 @@ done(int sig GCC_UNUSED)
 }
 
 static void
-usage(void)
+usage(int ok)
 {
     static const char *msg[] =
     {
 	"Usage: xmas [options]"
 	,""
+	,USAGE_COMMON
 	,"Options:"
 #if HAVE_USE_DEFAULT_COLORS
 	," -d       invoke use_default_colors"
@@ -666,8 +664,11 @@ usage(void)
     for (n = 0; n < SIZEOF(msg); n++)
 	fprintf(stderr, "%s\n", msg[n]);
 
-    ExitProgram(EXIT_FAILURE);
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
 }
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
 
 int
 main(int argc, char *argv[])
@@ -679,7 +680,7 @@ main(int argc, char *argv[])
 #endif
     bool opt_q = FALSE;
 
-    while ((ch = getopt(argc, argv, "dq")) != -1) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "dq")) != -1) {
 	switch (ch) {
 #if HAVE_USE_DEFAULT_COLORS
 	case 'd':
@@ -689,8 +690,11 @@ main(int argc, char *argv[])
 	case 'q':
 	    opt_q = TRUE;
 	    break;
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage();
+	    usage(ch == OPTS_USAGE);
 	    /* NOTREACHED */
 	}
     }

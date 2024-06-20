@@ -74,8 +74,7 @@ config-$(NCURSES_PKG)-stamp:
 	mkdir -p t/ncurses6
 
 	cd t/ncurses6; $(configure) \
-		--bindir=\$${prefix}/bin/$(NCURSES_PKG) \
-		--datadir=\$${prefix}/share/$(NCURSES_PKG) \
+		--datadir=\$${datarootdir}/$(NCURSES_PKG) \
 		--with-screen=ncursesw6
 
 	touch $@
@@ -87,8 +86,7 @@ config-$(NCURSEST_PKG)-stamp:
 	mkdir -p t/ncursest6
 
 	cd t/ncursest6; $(configure) \
-		--bindir=\$${prefix}/bin/$(NCURSEST_PKG) \
-		--datadir=\$${prefix}/share/$(NCURSEST_PKG) \
+		--datadir=\$${datarootdir}/$(NCURSEST_PKG) \
 		--with-screen=ncursestw6
 
 	touch $@
@@ -113,7 +111,9 @@ install-$(NCURSES_PKG)-stamp: build-$(NCURSES_PKG)-stamp
 	dh_installdirs $(verbose)
 	dh_prep        $(verbose) -p$(NCURSES_PKG)
 
-	$(MAKE) -C t/ncurses6 install DESTDIR=$(CURDIR)/debian/$(NCURSES_PKG)
+	$(MAKE) -C t/ncurses6 install \
+		PACKAGE=$(NCURSES_PKG) \
+		DESTDIR=$(CURDIR)/debian/$(NCURSES_PKG)
 
 	touch $@
 
@@ -123,7 +123,9 @@ install-$(NCURSEST_PKG)-stamp: build-$(NCURSEST_PKG)-stamp
 	dh_installdirs $(verbose)
 	dh_prep        $(verbose) -p$(NCURSEST_PKG)
 
-	$(MAKE) -C t/ncursest6 install DESTDIR=$(CURDIR)/debian/$(NCURSEST_PKG)
+	$(MAKE) -C t/ncursest6 install \
+		PACKAGE=$(NCURSEST_PKG) \
+		DESTDIR=$(CURDIR)/debian/$(NCURSEST_PKG)
 
 	touch $@
 
@@ -151,6 +153,7 @@ ifneq ($(PACKAGES.arch),)
 	rm -f $(PACKAGES.arch:%=install-%-stamp)
 	dh_testdir
 	dh_testroot
+	dh_installdocs       $(verbose) $(PACKAGES.arch:%=-p%)
 	dh_installchangelogs $(verbose) $(PACKAGES.arch:%=-p%)  NEWS
 	dh_strip             $(verbose) $(PACKAGES.arch:%=-p%)
 	dh_compress          $(verbose) $(PACKAGES.arch:%=-p%)

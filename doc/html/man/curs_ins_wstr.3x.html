@@ -1,6 +1,6 @@
-<!-- 
+<!--
   ****************************************************************************
-  * Copyright 2019,2020 Thomas E. Dickey                                     *
+  * Copyright 2019-2023,2024 Thomas E. Dickey                                *
   * Copyright 2002-2012,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,35 +27,35 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_ins_wstr.3x,v 1.11 2020/10/17 23:21:25 tom Exp @
+  * @Id: curs_ins_wstr.3x,v 1.38 2024/04/20 21:23:08 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_ins_wstr 3x</TITLE>
+<TITLE>curs_ins_wstr 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_ins_wstr 3x</H1>
+<H1 class="no-header">curs_ins_wstr 3x 2024-04-20 ncurses 6.5 Library calls</H1>
 <PRE>
-<STRONG><A HREF="curs_ins_wstr.3x.html">curs_ins_wstr(3x)</A></STRONG>                                            <STRONG><A HREF="curs_ins_wstr.3x.html">curs_ins_wstr(3x)</A></STRONG>
+<STRONG><A HREF="curs_ins_wstr.3x.html">curs_ins_wstr(3x)</A></STRONG>                Library calls               <STRONG><A HREF="curs_ins_wstr.3x.html">curs_ins_wstr(3x)</A></STRONG>
 
 
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
-       <STRONG>ins_wstr</STRONG>, <STRONG>ins_nwstr</STRONG>, <STRONG>wins_wstr</STRONG>, <STRONG>wins_nwstr</STRONG>, <STRONG>mvins_wstr</STRONG>, <STRONG>mvins_nwstr</STRONG>,
-       <STRONG>mvwins_wstr</STRONG>, <STRONG>mvwins_nwstr</STRONG> - insert a wide-character string into a
-       curses window
+       <STRONG>ins_wstr</STRONG>,  <STRONG>ins_nwstr</STRONG>,  <STRONG>wins_wstr</STRONG>,  <STRONG>wins_nwstr</STRONG>, <STRONG>mvins_wstr</STRONG>, <STRONG>mvins_nwstr</STRONG>,
+       <STRONG>mvwins_wstr</STRONG>, <STRONG>mvwins_nwstr</STRONG> - insert a wide-character string in a  <EM>curses</EM>
+       window
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
-       <STRONG>int</STRONG> <STRONG>ins_wstr(const</STRONG> <STRONG>wchar_t</STRONG> <STRONG>*</STRONG><EM>wstr);</EM>
+       <STRONG>int</STRONG> <STRONG>ins_wstr(const</STRONG> <STRONG>wchar_t</STRONG> <STRONG>*</STRONG><EM>wstr</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>ins_nwstr(const</STRONG> <STRONG>wchar_t</STRONG> <STRONG>*</STRONG><EM>wstr</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>wins_wstr(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>wchar_t</STRONG> <STRONG>*</STRONG><EM>wstr</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>wins_nwstr(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>wchar_t</STRONG> <STRONG>*</STRONG><EM>wstr</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
@@ -68,55 +68,72 @@
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
        These routines insert a <STRONG>wchar_t</STRONG> character string (as many characters as
-       will fit on the line) before the character under the cursor.  All char-
-       acters to the right of the cursor are shifted right, with the possibil-
-       ity of the rightmost characters on the line being lost.  No wrapping is
-       performed.   The cursor position does not change (after moving to <EM>y</EM>, <EM>x</EM>,
-       if specified).  The four routines with <EM>n</EM> as the last argument insert  a
-       leading  substring  of at most <EM>n</EM> <STRONG>wchar_t</STRONG> characters.  If <EM>n</EM> is less than
-       1, the entire string is inserted.
+       will fit on the line) before the character  under  the  cursor,  as  if
+       calling  <STRONG><A HREF="curs_ins_wch.3x.html">wins_wch(3x)</A></STRONG>.   All  characters to the right of the cursor are
+       shifted right, with the possibility of the rightmost characters on  the
+       line being lost.  No wrapping is performed.
 
-       If a character in <EM>wstr</EM> is a tab, newline, carriage return or backspace,
-       the  cursor  is  moved appropriately within the window.  A newline also
-       does a <STRONG>clrtoeol</STRONG> before moving.  Tabs are  considered  to  be  at  every
-       eighth column.  If a character in <EM>wstr</EM> is another control character, it
-       is drawn in the <STRONG>^</STRONG><EM>X</EM> notation.  Calling <STRONG>win_wch</STRONG> after  adding  a  control
-       character  (and moving to it, if necessary) does not return the control
-       character, but instead returns a character in the  ^-representation  of
-       the control character.
+       The  cursor  position  does  not  change  (after  moving  to  <EM>y</EM>,  <EM>x</EM>, if
+       specified).
 
+       The functions with <EM>n</EM> as the last argument insert a leading substring of
+       at  most  <EM>n</EM>  <STRONG>wchar_t</STRONG>  characters.   If  <EM>n</EM> is less than zero, the entire
+       string is inserted (stopping on a L'\0' character).
 
-</PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       Note that all but wins_nwstr may be macros.
-
-       If  the  first character in the string is a nonspacing character, these
-       functions will fail.  XSI does not define what will happen  if  a  non-
-       spacing character follows a control character.
+       Special characters are handled as in <STRONG><A HREF="curs_add_wch.3x.html">wadd_wch(3x)</A></STRONG>.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       Upon successful completion, these functions return <STRONG>OK</STRONG>.  Otherwise, they
-       return <STRONG>ERR</STRONG>.
+       All functions return the integer <STRONG>ERR</STRONG> upon failure and <STRONG>OK</STRONG> on success.
 
-       Functions with a "mv" prefix first  perform  a  cursor  movement  using
-       <STRONG>wmove</STRONG>, and return an error if the position is outside the window, or if
-       the window pointer is null.
+       X/Open  Curses  does  not   specify   any   error   conditions.    This
+       implementation returns an error
+
+       <STRONG>o</STRONG>   if the <EM>win</EM> parameter is null or
+
+       <STRONG>o</STRONG>   if the <EM>wstr</EM> parameter is null or
+
+       <STRONG>o</STRONG>   if the <STRONG>wins_wch</STRONG> function returns an error.
+
+       Functions  prefixed with "mv" first perform cursor movement and fail if
+       the position (<EM>y</EM>, <EM>x</EM>) is outside the window boundaries.
+
+
+</PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
+       All but <STRONG>wins_nwstr</STRONG> may be macros.
+
+       If the first character in the string is a non-spacing character,  these
+       functions will fail.  X/Open Curses does not define what will happen if
+       a non-spacing character follows a control character.
+
+
+</PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
+       These functions are described in X/Open Curses,  Issue  4,  which  adds
+       <EM>const</EM> qualifiers to the arguments.
+
+       X/Open  states  that the entire string is inserted if <EM>n</EM> is less than 1.
+       This is probably an  error,  because  it  is  inconsistent  with  other
+       functions, and differs from the X/Open implementation on Solaris.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_insstr.3x.html">curs_insstr(3x)</A></STRONG>, <STRONG><A HREF="curs_in_wch.3x.html">curs_in_wch(3x)</A></STRONG>, <STRONG><A HREF="curs_ins_wch.3x.html">curs_ins_wch(3x)</A></STRONG>.
+       <STRONG><A HREF="curs_insstr.3x.html">curs_insstr(3x)</A></STRONG>  describes  comparable functions of the <EM>ncurses</EM> library
+       in its non-wide-character configuration.
+
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_ins_wch.3x.html">curs_ins_wch(3x)</A></STRONG>, <STRONG><A HREF="curs_in_wch.3x.html">curs_in_wch(3x)</A></STRONG>
 
 
 
-                                                             <STRONG><A HREF="curs_ins_wstr.3x.html">curs_ins_wstr(3x)</A></STRONG>
+ncurses 6.5                       2024-04-20                 <STRONG><A HREF="curs_ins_wstr.3x.html">curs_ins_wstr(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
 <li><a href="#h2-NAME">NAME</a></li>
 <li><a href="#h2-SYNOPSIS">SYNOPSIS</a></li>
 <li><a href="#h2-DESCRIPTION">DESCRIPTION</a></li>
-<li><a href="#h2-NOTES">NOTES</a></li>
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
+<li><a href="#h2-NOTES">NOTES</a></li>
+<li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 </ul>
 </div>

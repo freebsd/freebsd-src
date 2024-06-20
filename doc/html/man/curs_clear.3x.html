@@ -1,6 +1,6 @@
-<!-- 
+<!--
   ****************************************************************************
-  * Copyright 2018,2020 Thomas E. Dickey                                     *
+  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
   * Copyright 1998-2010,2016 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,28 +27,28 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_clear.3x,v 1.20 2020/10/24 09:19:37 tom Exp @
+  * @Id: curs_clear.3x,v 1.48 2024/04/20 21:20:07 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_clear 3x</TITLE>
+<TITLE>curs_clear 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_clear 3x</H1>
+<H1 class="no-header">curs_clear 3x 2024-04-20 ncurses 6.5 Library calls</H1>
 <PRE>
-<STRONG><A HREF="curs_clear.3x.html">curs_clear(3x)</A></STRONG>                                                  <STRONG><A HREF="curs_clear.3x.html">curs_clear(3x)</A></STRONG>
+<STRONG><A HREF="curs_clear.3x.html">curs_clear(3x)</A></STRONG>                   Library calls                  <STRONG><A HREF="curs_clear.3x.html">curs_clear(3x)</A></STRONG>
 
 
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
-       <STRONG>erase</STRONG>, <STRONG>werase</STRONG>, <STRONG>clear</STRONG>, <STRONG>wclear</STRONG>, <STRONG>clrtobot</STRONG>, <STRONG>wclrtobot</STRONG>, <STRONG>clrtoeol</STRONG>, <STRONG>wclrtoeol</STRONG>
-       - clear all or part of a <STRONG>curses</STRONG> window
+       <STRONG>erase</STRONG>,  <STRONG>werase</STRONG>, <STRONG>clear</STRONG>, <STRONG>wclear</STRONG>, <STRONG>clrtobot</STRONG>, <STRONG>wclrtobot</STRONG>, <STRONG>clrtoeol</STRONG>, <STRONG>wclrtoeol</STRONG>
+       - clear all or part of a <EM>curses</EM> window
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
@@ -68,23 +68,31 @@
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       The <STRONG>erase</STRONG> and <STRONG>werase</STRONG> routines copy blanks to every position in the win-
-       dow, clearing the screen.
 
-       The  <STRONG>clear</STRONG> and <STRONG>wclear</STRONG> routines are like <STRONG>erase</STRONG> and <STRONG>werase</STRONG>, but they also
-       call <STRONG>clearok</STRONG>, so that the screen is cleared completely on the next call
-       to <STRONG>wrefresh</STRONG> for that window and repainted from scratch.
-
-       The <STRONG>clrtobot</STRONG> and <STRONG>wclrtobot</STRONG> routines erase from the cursor to the end of
-       screen.  That is, they erase all lines below the cursor in the  window.
-       Also,  the  current  line  to  the  right  of the cursor, inclusive, is
-       erased.
-
-       The <STRONG>clrtoeol</STRONG> and <STRONG>wclrtoeol</STRONG> routines erase the current line to the right
-       of the cursor, inclusive, to the end of the current line.
+</PRE><H3><a name="h3-erase_werase">erase, werase</a></H3><PRE>
+       The <STRONG>erase</STRONG> and <STRONG>werase</STRONG> routines copy blanks  to  every  position  in  the
+       window, clearing the screen.
 
        Blanks created by erasure have the current background rendition (as set
-       by <STRONG>wbkgdset</STRONG>) merged into them.
+       by <STRONG><A HREF="curs_bkgd.3x.html">wbkgdset(3x)</A></STRONG>) merged into them.
+
+
+</PRE><H3><a name="h3-clear_wclear">clear, wclear</a></H3><PRE>
+       The <STRONG>clear</STRONG> and <STRONG>wclear</STRONG> routines are like <STRONG>erase</STRONG> and <STRONG>werase</STRONG>, but they  also
+       call  <STRONG><A HREF="curs_outopts.3x.html">clearok(3x)</A></STRONG>, so that the screen is cleared completely on the next
+       call to <STRONG>wrefresh</STRONG> for that window and repainted from scratch.
+
+
+</PRE><H3><a name="h3-clrtobot_wclrtobot">clrtobot, wclrtobot</a></H3><PRE>
+       The <STRONG>clrtobot</STRONG> and <STRONG>wclrtobot</STRONG> routines erase from the cursor to the end of
+       screen.   That is, they erase all lines below the cursor in the window.
+       Also, the current line to  the  right  of  the  cursor,  inclusive,  is
+       erased.
+
+
+</PRE><H3><a name="h3-clrtoeol_wclrtoeol">clrtoeol, wclrtoeol</a></H3><PRE>
+       The <STRONG>clrtoeol</STRONG> and <STRONG>wclrtoeol</STRONG> routines erase the current line to the right
+       of the cursor, inclusive, to the end of the current line.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
@@ -104,23 +112,21 @@
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These functions are described in the XSI Curses standard, Issue 4.  The
-       standard  specifies  that  they return <STRONG>ERR</STRONG> on failure, but specifies no
-       error conditions.
+       These functions are described in X/Open Curses, Issue 4.
 
-       The SVr4.0 manual says that these functions could return  "a  non-nega-
-       tive  integer if <STRONG>immedok</STRONG> is set", referring to the return-value of <STRONG>wre-</STRONG>
-       <STRONG>fresh</STRONG>.  In that implementation, <STRONG>wrefresh</STRONG> would return a  count  of  the
+       The SVr4.0 manual says that these functions could  return  "or  a  non-
+       negative  integer  if <STRONG>immedok</STRONG> is set", referring to the return-value of
+       <STRONG>wrefresh</STRONG>.  In that implementation, <STRONG>wrefresh</STRONG> would return a count of the
        number of characters written to the terminal.
 
        Some  historic  curses implementations had, as an undocumented feature,
-       the ability to do the equivalent of <STRONG>clearok(...,</STRONG> <STRONG>1)</STRONG>  by  saying  <STRONG>touch-</STRONG>
-       <STRONG>win(stdscr)</STRONG> or <STRONG>clear(stdscr)</STRONG>.  This will not work under ncurses.
+       the  ability  to  do  the  equivalent  of  <STRONG>clearok(...,</STRONG>  <STRONG>1)</STRONG>  by  saying
+       <STRONG>touchwin(stdscr)</STRONG> or <STRONG>clear(stdscr)</STRONG>.  This will not work under <EM>ncurses</EM>.
 
-       This implementation, and others such as Solaris, sets the current posi-
-       tion to 0,0 after erasing via <STRONG>werase</STRONG> and <STRONG>wclear</STRONG>.  That fact is not doc-
-       umented  in  other  implementations, and may not be true of implementa-
-       tions which were not derived from SVr4 source.
+       This  implementation,  and  others  such  as  Solaris, sets the current
+       position to 0,0 after erasing via <STRONG>werase</STRONG> and <STRONG>wclear</STRONG>.  That fact is  not
+       documented   in   other   implementations,  and  may  not  be  true  of
+       implementations which were not derived from SVr4 source.
 
        Not obvious from the description, most implementations clear the screen
        after  <STRONG>wclear</STRONG>  even  for  a subwindow or derived window.  If you do not
@@ -132,13 +138,20 @@
 
 
 
-                                                                <STRONG><A HREF="curs_clear.3x.html">curs_clear(3x)</A></STRONG>
+ncurses 6.5                       2024-04-20                    <STRONG><A HREF="curs_clear.3x.html">curs_clear(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
 <li><a href="#h2-NAME">NAME</a></li>
 <li><a href="#h2-SYNOPSIS">SYNOPSIS</a></li>
-<li><a href="#h2-DESCRIPTION">DESCRIPTION</a></li>
+<li><a href="#h2-DESCRIPTION">DESCRIPTION</a>
+<ul>
+<li><a href="#h3-erase_werase">erase, werase</a></li>
+<li><a href="#h3-clear_wclear">clear, wclear</a></li>
+<li><a href="#h3-clrtobot_wclrtobot">clrtobot, wclrtobot</a></li>
+<li><a href="#h3-clrtoeol_wclrtoeol">clrtoeol, wclrtoeol</a></li>
+</ul>
+</li>
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
 <li><a href="#h2-NOTES">NOTES</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>

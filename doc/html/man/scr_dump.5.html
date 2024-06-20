@@ -1,6 +1,6 @@
-<!-- 
+<!--
   ****************************************************************************
-  * Copyright 2018,2020 Thomas E. Dickey                                     *
+  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
   * Copyright 2017 Free Software Foundation, Inc.                            *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,31 +27,27 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: scr_dump.5,v 1.16 2020/02/02 23:34:34 tom Exp @
+  * @Id: scr_dump.5,v 1.46 2024/03/23 20:42:29 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>scr_dump 5</TITLE>
+<TITLE>scr_dump 5 2024-03-23 ncurses 6.5 File formats</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+
 </HEAD>
 <BODY>
-<H1 class="no-header">scr_dump 5</H1>
+<H1 class="no-header">scr_dump 5 2024-03-23 ncurses 6.5 File formats</H1>
 <PRE>
-<STRONG><A HREF="scr_dump.5.html">scr_dump(5)</A></STRONG>                   File Formats Manual                  <STRONG><A HREF="scr_dump.5.html">scr_dump(5)</A></STRONG>
+<STRONG><A HREF="scr_dump.5.html">scr_dump(5)</A></STRONG>                      File formats                      <STRONG><A HREF="scr_dump.5.html">scr_dump(5)</A></STRONG>
 
 
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
-       scr_dump - format of curses screen-dumps.
-
-
-</PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
-       <STRONG>scr_dump</STRONG>
+       scr_dump - <EM>curses</EM> screen dump
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
@@ -110,67 +106,53 @@
        <STRONG>o</STRONG>   The ncurses6 <STRONG>getwin</STRONG> reads the legacy screen dumps from ncurses5.
 
 
-</PRE><H3><a name="h3-ncurses5-_legacy_">ncurses5 (legacy)</a></H3><PRE>
-       The screen-dump feature was added to ncurses in June 1995.  While there
+</PRE><H3><a name="h3-ncurses5-_Legacy_">ncurses5 (Legacy)</a></H3><PRE>
+       The screen-dump feature was added to <EM>ncurses</EM> in June 1995.  While there
        were fixes and improvements in succeeding years, the basic  scheme  was
        unchanged:
 
-       <STRONG>o</STRONG>   The <STRONG>WINDOW</STRONG> structure was written in binary form.
+       <STRONG>o</STRONG>   The <EM>WINDOW</EM> structure was written in binary form.
 
-       <STRONG>o</STRONG>   The <STRONG>WINDOW</STRONG> structure refers to lines of data, which were written as
-           an array of binary data following the <STRONG>WINDOW</STRONG>.
+       <STRONG>o</STRONG>   The <EM>WINDOW</EM> structure refers to lines of data, which were written as
+           an array of binary data following the <EM>WINDOW</EM>.
 
        <STRONG>o</STRONG>   When <STRONG>getwin</STRONG> restored the window, it would  keep  track  of  offsets
-           into  the  array of line-data and adjust the <STRONG>WINDOW</STRONG> structure which
+           into  the  array of line-data and adjust the <EM>WINDOW</EM> structure which
            was read back into memory.
 
-       This is similar to Unix SystemV, but does not write a "magic number" to
-       identify the file format.
+       This is similar to Unix System V, but does not write a  "magic  number"
+       to identify the file format.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       There  is  no  standard  format for <STRONG>putwin</STRONG>.  This section gives a brief
-       description of the existing formats.
+       There is no standard format for <EM>curses</EM> screen dumps.  A brief survey of
+       the existing implementations follows.
 
 
 </PRE><H3><a name="h3-X_Open-Curses">X/Open Curses</a></H3><PRE>
-       Refer to <EM>X/Open</EM> <EM>Curses,</EM> <EM>Issue</EM> <EM>7</EM> (2009).
+       X/Open Curses, Issue 7 specifies little.  It  says  (boldface  emphasis
+       added)
 
-       X/Open's documentation for <EM>enhanced</EM> <EM>curses</EM> says only:
-
-          The <EM>getwin(</EM> <EM>)</EM> function reads window-related data stored in the  file
-          by  <EM>putwin(</EM> <EM>)</EM>.   The  function  then  creates  and initializes a new
+          "[t]he  <EM>getwin()</EM>  function  reads  window-related data stored in the
+          file by <EM>putwin()</EM>.  The function then creates and initializes  a  new
           window using that data.
 
-          The <EM>putwin(</EM> <EM>)</EM> function writes all data associated with <EM>win</EM> into  the
-          <EM>stdio</EM>  stream  to  which  <EM>filep</EM> points, using an <STRONG>unspecified</STRONG> <STRONG>format</STRONG>.
-          This information can be retrieved later using <EM>getwin(</EM> <EM>)</EM>.
+          The  <EM>putwin()</EM>  function writes all data associated with <EM>win</EM> into the
+          <EM>stdio</EM> stream to which <EM>filep</EM> points,  using  an  <STRONG>unspecified</STRONG>  <STRONG>format</STRONG>.
+          This information can be retrieved later using <EM>getwin()</EM>."
 
-       In the mid-1990s when the X/Open Curses  document  was  written,  there
-       were  still  systems  using older, less capable curses libraries (aside
-       from the BSD curses library which was not relevant to X/Open because it
-       did not meet the criteria for <EM>base</EM> <EM>curses</EM>).  The document explained the
-       term "enhanced" as follows:
-
-          <STRONG>o</STRONG>   Shading is used to identify  <EM>X/Open</EM>  <EM>Enhanced</EM>  <EM>Curses</EM>  material,
-              relating to interfaces included to provide enhanced capabilities
-              for applications originally written to be  compiled  on  systems
-              based  on  the  UNIX  operating system.  Therefore, the features
-              described may not be present on systems that conform to <STRONG>XPG4</STRONG>  <STRONG>or</STRONG>
-              <STRONG>to</STRONG>  <STRONG>earlier</STRONG>  <STRONG>XPG</STRONG>  <STRONG>releases</STRONG>.   The  relevant  reference pages may
-              provide additional or more specific portability  warnings  about
-              use of the material.
-
-       In  the foregoing, emphasis was added to <STRONG>unspecified</STRONG> <STRONG>format</STRONG> and to <STRONG>XPG4</STRONG>
-       <STRONG>or</STRONG> <STRONG>to</STRONG> <STRONG>earlier</STRONG> <STRONG>XPG</STRONG> <STRONG>releases</STRONG>, for clarity.
+       In  the  mid-1990s  when  the X/Open Curses document was written, there
+       were still System V systems using older, less capable <EM>curses</EM> libraries.
+       BSD  <EM>curses</EM>  was  not  relevant  to  X/Open because it did not meet the
+       criteria for base-level conformance; see <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG>.
 
 
-</PRE><H3><a name="h3-Unix-SystemV">Unix SystemV</a></H3><PRE>
-       Unix SystemV curses identified the file  format  by  writing  a  "magic
-       number" at the beginning of the dump.  The <STRONG>WINDOW</STRONG> data and the lines of
-       text follow, all in binary form.
+</PRE><H3><a name="h3-System-V">System V</a></H3><PRE>
+       System V <EM>curses</EM> identified the file format by writing a "magic  number"
+       at  the  beginning  of the dump.  The <EM>WINDOW</EM> data and the lines of text
+       follow, all in binary form.
 
-       The Solaris curses source has these definitions:
+       Solaris <EM>curses</EM> has the following definitions.
 
            /* terminfo magic number */
            #define MAGNUM  0432
@@ -180,86 +162,87 @@
            #define SVR3_DUMP_MAGIC_NUMBER  0434
 
        That is, the feature was likely introduced in SVr2 (1984), and improved
-       in SVr3 (1987).  The Solaris curses source has no magic number for SVr4
-       (1989).  Other operating systems (AIX and  HPUX)  use  a  magic  number
-       which would correspond to this definition:
+       in  SVr3  (1987).   Solaris <EM>curses</EM> has no magic number for SVr4 (1989).
+       Other System V operating systems (AIX and HP-UX)  use  a  magic  number
+       that would correspond to the following.
 
            /* curses screen dump magic number */
            #define SVR4_DUMP_MAGIC_NUMBER  0435
 
-       That  octal number in bytes is 001, 035.  Because most Unix vendors use
-       big-endian hardware, the magic number is written  with  the  high-order
-       byte first, e.g.,
+       That  octal  number in bytes is 001, 035.  Because most Unix vendors at
+       the time used big-endian hardware, the magic number is written with the
+       high-order byte first.
 
-            01 35
+           \001\035
 
-       After  the magic number, the <STRONG>WINDOW</STRONG> structure and line-data are written
-       in binary format.  While the magic number used by the Unix systems  can
-       be seen using <STRONG>od(1)</STRONG>, none of the Unix systems documents the format used
-       for screen-dumps.
+       After  the magic number, the <EM>WINDOW</EM> structure and line data are written
+       in binary format.  While the magic number used by these systems can  be
+       observed  with <STRONG>od(1)</STRONG>, none of them documents the format used for screen
+       dumps.
 
-       The Unix systems  do  not  use  identical  formats.   While  collecting
-       information  for  for  this  manual  page,  the <EM>savescreen</EM> test-program
-       produced dumps of different size (all  on  64-bit  hardware,  on  40x80
-       screens):
+       Nor do they use an identical format, even  with  the  System V  family.
+       The <EM>ncurses</EM> <EM>savescreen</EM> test program was used to collect information for
+       this manual page.  It produced dumps of different size (all  on  64-bit
+       hardware, on 40x80 screens):
 
        <STRONG>o</STRONG>   AIX (51817 bytes)
 
-       <STRONG>o</STRONG>   HPUX (90093 bytes)
+       <STRONG>o</STRONG>   HP-UX (90093 bytes)
 
        <STRONG>o</STRONG>   Solaris 10 (13273 bytes)
 
-       <STRONG>o</STRONG>   ncurses5 (12888 bytes)
+       <STRONG>o</STRONG>   <EM>ncurses</EM>5 (12888 bytes)
 
 
 </PRE><H3><a name="h3-Solaris">Solaris</a></H3><PRE>
-       As  noted  above,  Solaris  curses has no magic number corresponding to
-       SVr4 curses.  This is odd since Solaris was the first operating  system
-       to pass the SVr4 guidelines.  Solaris has two versions of curses:
+       As  noted  above,  Solaris  <EM>curses</EM> has no magic number corresponding to
+       SVr4 <EM>curses</EM>.  This is odd, since Solaris was the first operating system
+       to meet the SVr4 guidelines.  Solaris furthermore supplies two versions
+       of <EM>curses</EM>.
 
-       <STRONG>o</STRONG>   The default curses library uses the SVr3 magic number.
+       <STRONG>o</STRONG>   The default <EM>curses</EM> library uses the SVr3 magic number.
 
-       <STRONG>o</STRONG>   There  is  an  alternate  curses library in <STRONG>/usr/xpg4</STRONG>.  This uses a
-           textual format with no magic number.
+       <STRONG>o</STRONG>   An alternate <EM>curses</EM> library (which we term <EM>xcurses),</EM>  available  in
+           <EM>/usr/xpg4</EM>, uses a textual format with no magic number.
 
-           According to the copyright notice, the <EM>xpg4</EM> Solaris curses  library
-           was developed by MKS (Mortice Kern Systems) from 1990 to 1995.
+           According  to  its  copyright  notice,  this  <EM>xcurses</EM>  library  was
+           developed by MKS (Mortice Kern Systems) from 1990 to 1995.
 
-           Like  ncurses6,  there  is  a  file-header with parameters.  Unlike
-           ncurses6, the contents of the window are  written  piecemeal,  with
-           coordinates  and  attributes  for  each  chunk  of text rather than
+           Like ncurses6,  it  includes  a  header  with  parameters.   Unlike
+           ncurses6,  the  contents  of the window are written piecemeal, with
+           coordinates and attributes for  each  chunk  of  text  rather  than
            writing the whole window from top to bottom.
 
 
 </PRE><H3><a name="h3-PDCurses">PDCurses</a></H3><PRE>
-       PDCurses added support for screen dumps in version  2.7  (2005).   Like
-       Unix  SystemV  and  ncurses5, it writes the <STRONG>WINDOW</STRONG> structure in binary,
-       but begins the file with its three-byte identifier "PDC", followed by a
-       one-byte version, e.g.,
+       <EM>PDCurses</EM>  added  support  for screen dumps in version 2.7 (2005).  Like
+       System V and ncurses5, it writes the <EM>WINDOW</EM> structure  in  binary,  but
+       begins  the  file  with  its three-byte identifier "PDC", followed by a
+       single-byte version number.
 
                 "PDC\001"
 
 
 </PRE><H3><a name="h3-NetBSD">NetBSD</a></H3><PRE>
-       As  of  April  2017,  NetBSD  curses  does  not  support  <STRONG>scr_dump</STRONG>  and
+       As  of  April  2017,  NetBSD  <EM>curses</EM>  does  not  support  <STRONG>scr_dump</STRONG>  and
        <STRONG>scr_restore</STRONG> (or <STRONG>scr_init</STRONG>, <STRONG>scr_set</STRONG>), although it has <STRONG>putwin</STRONG> and <STRONG>getwin</STRONG>.
 
-       Like ncurses5, NetBSD <STRONG>putwin</STRONG> does not identify its dumps with a  useful
+       Like  ncurses5, NetBSD <STRONG>putwin</STRONG> does not identify its dumps with a useful
        magic number.  It writes
 
-       <STRONG>o</STRONG>   the curses shared library major and minor versions as the first two
-           bytes (e.g., 7 and 1),
+       <STRONG>o</STRONG>   the <EM>curses</EM> shared library major and minor versions as the first two
+           bytes (for example, 7 and 1),
 
-       <STRONG>o</STRONG>   followed by a binary dump of the <STRONG>WINDOW</STRONG>,
+       <STRONG>o</STRONG>   followed by a binary dump of the <EM>WINDOW</EM>,
 
-       <STRONG>o</STRONG>   some data for wide-characters referenced by the  <STRONG>WINDOW</STRONG>  structure,
+       <STRONG>o</STRONG>   some  data  for wide characters referenced by the <EM>WINDOW</EM> structure,
            and
 
        <STRONG>o</STRONG>   finally, lines as done by other implementations.
 
 
-</PRE><H2><a name="h2-EXAMPLE">EXAMPLE</a></H2><PRE>
-       Given  a  simple  program  which writes text to the screen (and for the
+</PRE><H2><a name="h2-EXAMPLES">EXAMPLES</a></H2><PRE>
+       Given a simple program which writes text to the  screen  (and  for  the
        sake of example, limiting the screen-size to 10x20):
 
            #include &lt;curses.h&gt;
@@ -317,13 +300,13 @@
 
        <STRONG>o</STRONG>   The actual color pair values are not written to the file.
 
-       <STRONG>o</STRONG>   All  characters  are  shown  in  printable form; spaces are "\s" to
+       <STRONG>o</STRONG>   All characters are shown in printable  form;  spaces  are  "\s"  to
            ensure they are not overlooked.
 
-       <STRONG>o</STRONG>   Attributes are written in escaped curly  braces,  e.g.,  "\{BOLD}",
-           and may include a color-pair (C1 or C2 in this example).
+       <STRONG>o</STRONG>   Attributes  are  written  in escaped curly braces, e.g., "\{BOLD}",
+           and may include a color pair (C1 or C2 in this example).
 
-       <STRONG>o</STRONG>   The  parameters  in  the  header  are  written out only if they are
+       <STRONG>o</STRONG>   The parameters in the header are  written  out  only  if  they  are
            nonzero.  When reading back, order does not matter.
 
        Running the same program with Solaris <EM>xpg4</EM> curses gives this dump:
@@ -362,12 +345,12 @@
            9,19,0,0,
            CUR=11,5
 
-       Solaris <STRONG>getwin</STRONG> requires that all parameters are  present,  and  in  the
-       same  order.  The <EM>xpg4</EM> curses library does not know about the <STRONG>bce</STRONG> (back
+       Solaris  <STRONG>getwin</STRONG>  requires  that  all parameters are present, and in the
+       same order.  The <EM>xpg4</EM> curses library does not know about the <STRONG>bce</STRONG>  (back
        color erase) capability, and does not color the window background.
 
-       On the other  hand,  the  SVr4  curses  library  does  know  about  the
-       background  color.   However,  its screen dumps are in binary.  Here is
+       On  the  other  hand,  the  SVr4  curses  library  does  know about the
+       background color.  However, its screen dumps are in  binary.   Here  is
        the corresponding dump (using "od -t x1"):
 
            0000000 1c 01 c3 d6 f3 58 05 00 0b 00 0a 00 14 00 00 00
@@ -394,43 +377,42 @@
            0002371
 
 
-</PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="curs_scr_dump.3x.html">curs_scr_dump(3x)</A></STRONG>, <STRONG><A HREF="curs_util.3x.html">curs_util(3x)</A></STRONG>.
-
-
 </PRE><H2><a name="h2-AUTHORS">AUTHORS</a></H2><PRE>
        Thomas E. Dickey
-       extended screen-dump format for ncurses 6.0 (2015)
+       extended screen-dump format for <EM>ncurses</EM> 6.0 (2015)
 
        Eric S. Raymond
-       screen dump feature in ncurses 1.9.2d (1995)
+       screen dump feature in <EM>ncurses</EM> 1.9.2d (1995)
+
+
+</PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
+       <STRONG><A HREF="curs_scr_dump.3x.html">curs_scr_dump(3x)</A></STRONG>, <STRONG><A HREF="curs_util.3x.html">curs_util(3x)</A></STRONG>
 
 
 
-                                                                   <STRONG><A HREF="scr_dump.5.html">scr_dump(5)</A></STRONG>
+ncurses 6.5                       2024-03-23                       <STRONG><A HREF="scr_dump.5.html">scr_dump(5)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
 <li><a href="#h2-NAME">NAME</a></li>
-<li><a href="#h2-SYNOPSIS">SYNOPSIS</a></li>
 <li><a href="#h2-DESCRIPTION">DESCRIPTION</a>
 <ul>
 <li><a href="#h3-ncurses6">ncurses6</a></li>
-<li><a href="#h3-ncurses5-_legacy_">ncurses5 (legacy)</a></li>
+<li><a href="#h3-ncurses5-_Legacy_">ncurses5 (Legacy)</a></li>
 </ul>
 </li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a>
 <ul>
 <li><a href="#h3-X_Open-Curses">X/Open Curses</a></li>
-<li><a href="#h3-Unix-SystemV">Unix SystemV</a></li>
+<li><a href="#h3-System-V">System V</a></li>
 <li><a href="#h3-Solaris">Solaris</a></li>
 <li><a href="#h3-PDCurses">PDCurses</a></li>
 <li><a href="#h3-NetBSD">NetBSD</a></li>
 </ul>
 </li>
-<li><a href="#h2-EXAMPLE">EXAMPLE</a></li>
-<li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
+<li><a href="#h2-EXAMPLES">EXAMPLES</a></li>
 <li><a href="#h2-AUTHORS">AUTHORS</a></li>
+<li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 </ul>
 </div>
 </BODY>

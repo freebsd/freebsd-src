@@ -1,6 +1,6 @@
 --  -*- ada -*-
 define(`HTMLNAME',`terminal_interface-curses__ads.htm')dnl
-include(M4MACRO)------------------------------------------------------------------------------
+include(M4MACRO)include(options.m4)------------------------------------------------------------------------------
 --                                                                          --
 --                           GNAT ncurses Binding                           --
 --                                                                          --
@@ -9,7 +9,7 @@ include(M4MACRO)----------------------------------------------------------------
 --                                 S P E C                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright 2020 Thomas E. Dickey                                          --
+-- Copyright 2020,2024 Thomas E. Dickey                                     --
 -- Copyright 1998-2011,2014 Free Software Foundation, Inc.                  --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
@@ -38,8 +38,8 @@ include(M4MACRO)----------------------------------------------------------------
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.48 $
---  $Date: 2020/02/02 23:34:34 $
+--  $Revision: 1.49 $
+--  $Date: 2024/01/19 16:51:30 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with System.Storage_Elements;
@@ -377,8 +377,8 @@ package Terminal_Interface.Curses is
      := Curses_Constants.KEY_UNDO;
    Key_Mouse                   : constant Special_Key_Code
      := Curses_Constants.KEY_MOUSE;
-   Key_Resize                  : constant Special_Key_Code
-     := Curses_Constants.KEY_RESIZE;
+OPT_KEY_RESIZE   Key_Resize                  : constant Special_Key_Code
+OPT_KEY_RESIZE     := Curses_Constants.KEY_RESIZE;
    Key_Max                     : constant Special_Key_Code
      := Special_Key_Code'Last;
 

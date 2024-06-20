@@ -1,6 +1,6 @@
-<!-- 
+<!--
   ****************************************************************************
-  * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
   * Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,28 +27,28 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_scr_dump.3x,v 1.16 2020/10/24 09:44:43 tom Exp @
+  * @Id: curs_scr_dump.3x,v 1.43 2024/04/20 18:54:36 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_scr_dump 3x</TITLE>
+<TITLE>curs_scr_dump 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_scr_dump 3x</H1>
+<H1 class="no-header">curs_scr_dump 3x 2024-04-20 ncurses 6.5 Library calls</H1>
 <PRE>
-<STRONG><A HREF="curs_scr_dump.3x.html">curs_scr_dump(3x)</A></STRONG>                                            <STRONG><A HREF="curs_scr_dump.3x.html">curs_scr_dump(3x)</A></STRONG>
+<STRONG><A HREF="curs_scr_dump.3x.html">curs_scr_dump(3x)</A></STRONG>                Library calls               <STRONG><A HREF="curs_scr_dump.3x.html">curs_scr_dump(3x)</A></STRONG>
 
 
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
-       <STRONG>scr_dump</STRONG>, <STRONG>scr_restore</STRONG>, <STRONG>scr_init</STRONG>, <STRONG>scr_set</STRONG> - read (write) a <STRONG>curses</STRONG> screen
-       from (to) a file
+       <STRONG>scr_dump</STRONG>,  <STRONG>scr_restore</STRONG>,  <STRONG>scr_init</STRONG>, <STRONG>scr_set</STRONG> - read/write a <EM>curses</EM> screen
+       from/to a file
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
@@ -61,70 +61,90 @@
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       The <STRONG>scr_dump</STRONG> routine dumps the current contents of the  <EM>virtual</EM>  <EM>screen</EM>
-       to the file <EM>filename</EM>.
+       <EM>curses</EM> provides applications the ability to write the contents  of  the
+       screen  to  a  file and read them back.  To read/write a window (rather
+       than the whole screen) from/to a file, use <STRONG><A HREF="curs_util.3x.html">getwin(3x)</A></STRONG>  and  <STRONG><A HREF="curs_util.3x.html">putwin(3x)</A></STRONG>,
+       respectively.
 
-       The  <STRONG>scr_restore</STRONG>  routine  sets  the  <EM>virtual</EM> <EM>screen</EM> to the contents of
-       <EM>filename</EM>, which must have been written using <STRONG>scr_dump</STRONG>.  The  next  call
-       to  <STRONG>doupdate</STRONG>  restores  the <EM>physical</EM> <EM>screen</EM> to the way it looked in the
-       dump file.
 
-       The <STRONG>scr_init</STRONG> routine reads in the contents of <EM>filename</EM> and uses them to
-       initialize the <STRONG>curses</STRONG> data structures about what the terminal currently
-       has on its screen.  If the data is determined to be valid, <STRONG>curses</STRONG> bases
-       its  next update of the screen on this information rather than clearing
-       the screen and starting from scratch.  <STRONG>scr_init</STRONG> is used  after  <STRONG>initscr</STRONG>
-       or  a  <STRONG>system</STRONG>  call  to share the screen with another process which has
-       done a <STRONG>scr_dump</STRONG> after its <STRONG><A HREF="curs_initscr.3x.html">endwin(3x)</A></STRONG> call.  The data  is  declared  in-
-       valid
+</PRE><H3><a name="h3-scr_dump">scr_dump</a></H3><PRE>
+       <STRONG>scr_dump</STRONG>  writes  to  <EM>filename</EM>  the contents of the virtual screen; see
+       <STRONG><A HREF="curs_variables.3x.html">curscr(3x)</A></STRONG>.
 
-       <STRONG>o</STRONG>   if the terminfo capabilities <STRONG>rmcup</STRONG> and <STRONG>nrrmc</STRONG> exist, also
 
-       <STRONG>o</STRONG>   if  the  terminal  has been written to since the preceding <STRONG>scr_dump</STRONG>
-           call.
+</PRE><H3><a name="h3-scr_restore">scr_restore</a></H3><PRE>
+       <STRONG>scr_restore</STRONG> updates the virtual  screen  to  contain  the  contents  of
+       <EM>filename</EM>  (if  it  was  validly  written with <STRONG>scr_dump</STRONG>).  No refresh is
+       performed;  after  performing  any  further   desired   updates,   call
+       <STRONG><A HREF="curs_refresh.3x.html">doupdate(3x)</A></STRONG> or similar.
 
-       The <STRONG>scr_set</STRONG> routine is a combination of <STRONG>scr_restore</STRONG> and  <STRONG>scr_init</STRONG>.   It
+
+</PRE><H3><a name="h3-scr_init">scr_init</a></H3><PRE>
+       <STRONG>scr_init</STRONG>  reads <EM>filename</EM>, using it to initialize <EM>curses</EM> data structures
+       describing the state of the terminal screen.  If these data are  valid,
+       <EM>curses</EM>  bases  its next update of the screen on this information rather
+       than clearing it and starting from scratch.
+
+       The data fail the validity check
+
+       <STRONG>o</STRONG>   if the terminal employs <EM>terminfo</EM> capabilities <STRONG>exit_ca_mode</STRONG>  (<STRONG>rmcup</STRONG>)
+           or <STRONG>non_rev_rmcup</STRONG> (<STRONG>nrrmc</STRONG>) are defined, or
+
+       <STRONG>o</STRONG>   if  <EM>curses</EM>  knows  that  the terminal has been written to since the
+           preceding <STRONG>scr_dump</STRONG> call.
+
+       <STRONG>scr_init</STRONG> could be used after <STRONG><A HREF="curs_initscr.3x.html">initscr(3x)</A></STRONG>  or  <STRONG>system(3)</STRONG>  to  share  the
+       screen with another process that has done a <STRONG>scr_dump</STRONG> after <STRONG><A HREF="curs_initscr.3x.html">endwin(3x)</A></STRONG>.
+
+
+</PRE><H3><a name="h3-scr_set">scr_set</a></H3><PRE>
+       The  <STRONG>scr_set</STRONG>  routine is a combination of <STRONG>scr_restore</STRONG> and <STRONG>scr_init</STRONG>.  It
        tells the program that the information in <EM>filename</EM> is what is currently
        on the screen, and also what the program wants on the screen.  This can
        be thought of as a screen inheritance function.
 
-       To  read  (write)  a window from (to) a file, use the <STRONG>getwin</STRONG> and <STRONG>putwin</STRONG>
-       routines [see <STRONG><A HREF="curs_util.3x.html">curs_util(3x)</A></STRONG>].
-
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       All routines return the integer <STRONG>ERR</STRONG> upon failure and <STRONG>OK</STRONG> upon success.
+       These functions return <STRONG>OK</STRONG> on success and <STRONG>ERR</STRONG> on failure.
 
-       X/Open defines no error conditions.  In this implementation, each  will
-       return an error if the file cannot be opened.
+       X/Open defines no failure conditions.   In  this  implementation,  each
+       function fails if it cannot open <EM>filename</EM>.
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       Note that <STRONG>scr_init</STRONG>, <STRONG>scr_set</STRONG>, and <STRONG>scr_restore</STRONG> may be macros.
+       <STRONG>scr_init</STRONG>, <STRONG>scr_set</STRONG>, and <STRONG>scr_restore</STRONG> may be macros.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       The XSI Curses standard, Issue 4, describes these functions (adding the
-       const qualifiers).
+       X/Open Curses, Issue 4 describes these functions.
 
-       The SVr4 docs merely say under <STRONG>scr_init</STRONG> that the dump data is also con-
-       sidered invalid "if the time-stamp of the tty is old" but do not define
-       "old".
+       SVr4 omitted the <EM>const</EM> qualifiers.
+
+       SVr4  documentation  describes <STRONG>scr_init</STRONG> such that the dump data is also
+       considered invalid "if the time-stamp of the tty is old" but  does  not
+       define "old".
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,    <STRONG><A HREF="curs_initscr.3x.html">curs_initscr(3x)</A></STRONG>,    <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>,    <STRONG><A HREF="curs_util.3x.html">curs_util(3x)</A></STRONG>,
-       <STRONG><A HREF="scr_dump.5.html">scr_dump(5)</A></STRONG>, <STRONG>system(3)</STRONG>
+       <STRONG>system(3)</STRONG>, <STRONG><A HREF="scr_dump.5.html">scr_dump(5)</A></STRONG>
 
 
 
-                                                             <STRONG><A HREF="curs_scr_dump.3x.html">curs_scr_dump(3x)</A></STRONG>
+ncurses 6.5                       2024-04-20                 <STRONG><A HREF="curs_scr_dump.3x.html">curs_scr_dump(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
 <li><a href="#h2-NAME">NAME</a></li>
 <li><a href="#h2-SYNOPSIS">SYNOPSIS</a></li>
-<li><a href="#h2-DESCRIPTION">DESCRIPTION</a></li>
+<li><a href="#h2-DESCRIPTION">DESCRIPTION</a>
+<ul>
+<li><a href="#h3-scr_dump">scr_dump</a></li>
+<li><a href="#h3-scr_restore">scr_restore</a></li>
+<li><a href="#h3-scr_init">scr_init</a></li>
+<li><a href="#h3-scr_set">scr_set</a></li>
+</ul>
+</li>
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
 <li><a href="#h2-NOTES">NOTES</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>

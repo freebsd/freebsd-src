@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2018-2020,2022 Thomas E. Dickey                                *
  * Copyright 2017 Free Software Foundation, Inc.                            *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: extended_color.c,v 1.15 2020/02/02 23:34:34 tom Exp $
+ * $Id: extended_color.c,v 1.20 2022/12/10 22:28:50 tom Exp $
  */
 
 #include <test.priv.h>
@@ -139,42 +139,50 @@ show_rgb(SCREEN *sp)
 }
 
 static void
-usage(void)
+usage(int ok)
 {
     static const char *tbl[] =
     {
-	"Usage: extended_color",
-	"",
-	"Options:",
-	" -s   use sp-funcs",
-	NULL
+	"Usage: extended_color"
+	,""
+	,USAGE_COMMON
+	,"Options:"
+	," -s       use sp-funcs"
     };
     size_t n;
     for (n = 0; n < SIZEOF(tbl); ++n) {
 	fprintf(stderr, "%s\n", tbl[n]);
     }
-    ExitProgram(EXIT_FAILURE);
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
 }
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
 
 int
-main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
+main(int argc, char *argv[])
 {
+    int ch;
     int i;
     SCREEN *sp;
 
-    while ((i = getopt(argc, argv, "s")) != -1) {
-	switch (i) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "s")) != -1) {
+	switch (ch) {
 #if USE_SP_FUNCS
 	case 's':
 	    opt_s = TRUE;
 	    break;
 #endif
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage();
+	    usage(ch == OPTS_USAGE);
 	    /* NOTREACHED */
 	}
     }
 
+    setlocale(LC_ALL, "");
     slk_init(1);
     sp = newterm(NULL, stdout, stdin);
     cbreak();

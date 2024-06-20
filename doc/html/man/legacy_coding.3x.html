@@ -1,6 +1,6 @@
-<!-- 
+<!--
   ****************************************************************************
-  * Copyright 2020 Thomas E. Dickey                                          *
+  * Copyright 2020-2023,2024 Thomas E. Dickey                                *
   * Copyright 2005-2016,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,27 +28,27 @@
   * authorization.                                                           *
   ****************************************************************************
   * Author: Thomas E. Dickey
-  * @Id: legacy_coding.3x,v 1.8 2020/10/17 23:40:23 tom Exp @
+  * @Id: legacy_coding.3x,v 1.28 2024/04/20 19:13:50 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>legacy_coding 3x</TITLE>
+<TITLE>legacy_coding 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+
 </HEAD>
 <BODY>
-<H1 class="no-header">legacy_coding 3x</H1>
+<H1 class="no-header">legacy_coding 3x 2024-04-20 ncurses 6.5 Library calls</H1>
 <PRE>
-<STRONG><A HREF="legacy_coding.3x.html">legacy_coding(3x)</A></STRONG>                                            <STRONG><A HREF="legacy_coding.3x.html">legacy_coding(3x)</A></STRONG>
+<STRONG><A HREF="legacy_coding.3x.html">legacy_coding(3x)</A></STRONG>                Library calls               <STRONG><A HREF="legacy_coding.3x.html">legacy_coding(3x)</A></STRONG>
 
 
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
-       <STRONG>use_legacy_coding</STRONG> - override locale-encoding checks
+       <STRONG>use_legacy_coding</STRONG> - override <EM>curses</EM> locale encoding checks
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
@@ -58,47 +58,47 @@
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       The  <STRONG>use_legacy_coding</STRONG>  function is an extension to the curses library.
-       It allows the caller to change  the  result  of  <STRONG>unctrl</STRONG>,  and  suppress
-       related checks within the library that would normally cause nonprinting
-       characters to be rendered in visible form.   This  affects  only  8-bit
-       characters.
+       <STRONG>use_legacy_coding</STRONG> is an extension to the <EM>curses</EM> library.  It allows the
+       caller to change the result of <STRONG><A HREF="unctrl.3x.html">unctrl(3x)</A></STRONG>, suppressing <STRONG>isprint(3)</STRONG>-based
+       checks  within  the  library  that  would  normally  cause  nonprinting
+       characters to be rendered in visible form.  The alteration affects only
+       eight-bit characters.
 
-       The <EM>level</EM> parameter controls the result:
+       The <EM>level</EM> parameter controls the result.
 
-              0    the   library  functions  normally,  rendering  nonprinting
-                   characters as described in <STRONG>unctrl</STRONG>.
+              <STRONG>0</STRONG>    The   library  functions  normally,  rendering  nonprinting
+                   characters as described in <STRONG><A HREF="unctrl.3x.html">unctrl(3x)</A></STRONG>,
 
-              1    the  library  ignores  <STRONG>isprintf</STRONG>  for  codes  in  the  range
-                   160-255.
+              <STRONG>1</STRONG>    the library ignores <EM>isprint</EM> for codes in the range 160-255.
 
-              2    the  library  ignores  <STRONG>isprintf</STRONG>  for  codes  in  the  range
-                   128-255.  It also modifies the output  of  <STRONG>unctrl</STRONG>,  showing
-                   codes in the range 128-159 as is.
+              <STRONG>2</STRONG>    the library ignores <EM>isprint</EM> for codes in the range 128-255.
+                   It also modifies the output of <STRONG><A HREF="unctrl.3x.html">unctrl(3x)</A></STRONG>, showing codes in
+                   the range 128-159 as is.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       If  the  screen has not been initialized, or the <EM>level</EM> parameter is out
-       of range, the function returns <STRONG>ERR</STRONG>.  Otherwise, it returns the previous
-       level: <STRONG>0</STRONG>, <STRONG>1</STRONG> or <STRONG>2</STRONG>.
+       If the screen has not been initialized, or the <EM>level</EM> parameter  is  out
+       of  range,  <STRONG>use_legacy_coding</STRONG>  returns  <STRONG>ERR</STRONG>.  Otherwise, it returns the
+       previous level: <STRONG>0</STRONG>, <STRONG>1</STRONG>, or <STRONG>2</STRONG>.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       This  routine  is specific to ncurses.  It was not supported on Version
-       7, BSD or System V implementations.  It is recommended  that  any  code
-       depending on ncurses extensions be conditioned using NCURSES_VERSION.
+       <STRONG>use_legacy_coding</STRONG> is specific to <EM>ncurses</EM>.   It  was  not  supported  on
+       Version  7,  BSD  or  System V implementations.  Applications employing
+       <EM>ncurses</EM> extensions should condition their use on the visibility of  the
+       <STRONG>NCURSES_VERSION</STRONG> preprocessor macro.
+
+
+</PRE><H2><a name="h2-AUTHORS">AUTHORS</a></H2><PRE>
+       Thomas Dickey (to support <STRONG>lynx(1)</STRONG>'s font-switching feature).
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG>unctrl</STRONG>.
-
-
-</PRE><H2><a name="h2-AUTHOR">AUTHOR</a></H2><PRE>
-       Thomas Dickey (to support lynx's font-switching feature).
+       <STRONG><A HREF="unctrl.3x.html">unctrl(3x)</A></STRONG>
 
 
 
-                                                             <STRONG><A HREF="legacy_coding.3x.html">legacy_coding(3x)</A></STRONG>
+ncurses 6.5                       2024-04-20                 <STRONG><A HREF="legacy_coding.3x.html">legacy_coding(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -107,8 +107,8 @@
 <li><a href="#h2-DESCRIPTION">DESCRIPTION</a></li>
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
+<li><a href="#h2-AUTHORS">AUTHORS</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
-<li><a href="#h2-AUTHOR">AUTHOR</a></li>
 </ul>
 </div>
 </BODY>

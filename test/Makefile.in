@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.125 2020/07/18 18:47:54 tom Exp $
+# $Id: Makefile.in,v 1.130 2021/12/18 23:00:28 tom Exp $
 ##############################################################################
-# Copyright 2020 Thomas E. Dickey                                            #
+# Copyright 2020,2021 Thomas E. Dickey                                       #
 # Copyright 1998-2017,2018 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -44,6 +44,8 @@ destdir		=
 x		= @EXEEXT@
 o		= .@OBJEXT@
 
+PACKAGE		= @PACKAGE@
+
 MODEL		= ../@DFT_OBJ_SUBDIR@
 top_srcdir	= @top_srcdir@
 srcdir		= @srcdir@
@@ -52,18 +54,19 @@ exec_prefix	= @exec_prefix@
 datarootdir	= @datarootdir@
 
 bindir		= @bindir@
+libexecdir	= @libexecdir@
 libdir		= @libdir@
-includedir	= @includedir@
-includesubdir	= @includesubdir@
 datarootdir	= @datarootdir@
 datadir		= @datadir@
 
+real_bindir	= $(libexecdir)/$(PACKAGE)
+
 BINDIR		= $(DESTDIR)$(bindir)
+LIBEXECDIR	= $(DESTDIR)$(libexecdir)
 LIBDIR		= $(DESTDIR)$(libdir)
-INCLUDEDIR	= $(DESTDIR)$(includedir)$(includesubdir)
 DATADIR		= $(DESTDIR)$(datadir)
 
-PACKAGE		= @PACKAGE@
+REAL_BINDIR	= $(LIBEXECDIR)/$(PACKAGE)
 
 LIBTOOL		= @LIBTOOL@
 LIBTOOL_OPTS	= @LIBTOOL_OPTS@
@@ -118,19 +121,22 @@ LDFLAGS_SHARED	= $(LDFLAGS) $(CFLAGS_SHARED) @LD_SHARED_OPTS@
 TEST_ARGS	= @LDFLAGS_STATIC@ @TEST_ARGS@ @LDFLAGS_SHARED@
 
 # use these for linking with all of the libraries
-LIBS_DEFAULT	= $(TEST_ARGS) @LIBS@ $(TEST_LIBS) $(MATH_LIB)
+LIBS_DEFAULT	= $(TEST_ARGS) @LIBS@ $(TEST_LIBS)
 LDFLAGS_DEFAULT	= $(LDFLAGS_@DFT_UPR_MODEL@) $(LIBS_DEFAULT)
 
 # use these for linking with the (n)curses library and possibly pthreads
-LIBS_THREADS	= `echo "$(TEST_ARGS) @LIBS@" | sed -e 's/-l@FORM_NAME@.*-l@PANEL_NAME@[^ ]*//'` $(TEST_LIBS) $(MATH_LIB) @PTHREAD@
+LIBS_THREADS	= `echo "$(TEST_ARGS) @LIBS@" | sed -e 's/-l@FORM_NAME@.*-l@PANEL_NAME@[^ ]*//'` $(TEST_LIBS) @PTHREAD@
 LDFLAGS_THREADS	= $(LDFLAGS_@DFT_UPR_MODEL@) $(LIBS_THREADS)
 
 # use these for linking with the (n)curses library
-LIBS_CURSES	= `echo "$(TEST_ARGS) @LIBS@" | sed -e 's/-l@FORM_NAME@.*-l@PANEL_NAME@[^ ]*//'` $(TEST_LIBS) $(MATH_LIB)
+LIBS_CURSES	= `echo "$(TEST_ARGS) @LIBS@" | sed -e 's/-l@FORM_NAME@.*-l@PANEL_NAME@[^ ]*//'` $(TEST_LIBS)
 LDFLAGS_CURSES	= $(LDFLAGS_@DFT_UPR_MODEL@) $(LIBS_CURSES)
 
+# use these when we need the math library
+LDFLAGS_CURSES_M= $(LDFLAGS_CURSES) $(MATH_LIB)
+
 # use these for linking with the tinfo library if we have it, or curses library if not
-LIBS_TINFO	= @LDFLAGS_STATIC@ @TINFO_LIBS@ @LDFLAGS_SHARED@ @LIBS@ $(TEST_LIBS) $(MATH_LIB)
+LIBS_TINFO	= @LDFLAGS_STATIC@ @TINFO_LIBS@ @LDFLAGS_SHARED@ @LIBS@ $(TEST_LIBS)
 LDFLAGS_TINFO	= @TINFO_LDFLAGS@ $(LDFLAGS_@DFT_UPR_MODEL@) $(LIBS_TINFO)
 
 LINT		= @LINT@
@@ -149,5 +155,23 @@ HEADER_DEPS	= \
 	$(incdir)/term.h \
 	$(incdir)/unctrl.h \
 	$(INCDIR)/nc_alloc.h
+
+################################################################################
+
+@MAKE_PHONY@.PHONY :	all
+@MAKE_PHONY@.PHONY :	check
+
+all::
+
+# Verify that each header-file can be compiled without including another.
+check::
+	@$(SHELL) -c "for header in *.h;\
+		do \
+			echo \"** testing \$${header}\" ; \
+			echo \"#include <\$${header}>\" >headers.c; \
+			echo \"int main(void) { return 0; }\" >>headers.c; \
+			$(CC) -c $(CFLAGS) $(CPPFLAGS) headers.c; \
+		done"
+	-@rm -f headers.*
 
 # The rest is generated from the "programs" and "modules" files...

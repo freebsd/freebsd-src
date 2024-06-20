@@ -1,7 +1,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
-<HTML>
-<HEAD>
-<TITLE>terminal_interface-curses-putwin.ads</TITLE>
+<html>
+<head>
+<title>terminal_interface-curses-putwin.ads</title>
 <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 <style type="text/css">
 *.comment {
@@ -11,59 +11,59 @@
 	color: red;
 }
 </style>
-</HEAD>
-<BODY>
-<HR><DIV style="text-align:center"><H1> File : terminal_interface-curses-putwin.ads </H1></DIV><HR>
-<PRE>
-<span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>--                           <A HREF="http://www.gnat.com">GNAT</A> ncurses Binding                           --</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>--                    Terminal_Interface.Curses.PutWin                      --</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>--                                 S P E C                                  --</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<span class="comment"><EM>-- Copyright 2020 Thomas E. Dickey                                          --</EM></span>
-<span class="comment"><EM>-- Copyright 2000-2002,2003 Free Software Foundation, Inc.                  --</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></span>
-<span class="comment"><EM>-- copy of this software and associated documentation files (the            --</EM></span>
-<span class="comment"><EM>-- "Software"), to deal in the Software without restriction, including      --</EM></span>
-<span class="comment"><EM>-- without limitation the rights to use, copy, modify, merge, publish,      --</EM></span>
-<span class="comment"><EM>-- distribute, distribute with modifications, sublicense, and/or sell       --</EM></span>
-<span class="comment"><EM>-- copies of the Software, and to permit persons to whom the Software is    --</EM></span>
-<span class="comment"><EM>-- furnished to do so, subject to the following conditions:                 --</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>-- The above copyright notice and this permission notice shall be included  --</EM></span>
-<span class="comment"><EM>-- in all copies or substantial portions of the Software.                   --</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  --</EM></span>
-<span class="comment"><EM>-- OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               --</EM></span>
-<span class="comment"><EM>-- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   --</EM></span>
-<span class="comment"><EM>-- IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   --</EM></span>
-<span class="comment"><EM>-- DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    --</EM></span>
-<span class="comment"><EM>-- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    --</EM></span>
-<span class="comment"><EM>-- THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               --</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>-- Except as contained in this notice, the name(s) of the above copyright   --</EM></span>
-<span class="comment"><EM>-- holders shall not be used in advertising or otherwise to promote the     --</EM></span>
-<span class="comment"><EM>-- sale, use or other dealings in this Software without prior written       --</EM></span>
-<span class="comment"><EM>-- authorization.                                                           --</EM></span>
-<span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<span class="comment"><EM>--  Author:  Juergen Pfeifer, 1996</EM></span>
-<span class="comment"><EM>--  Version Control:</EM></span>
-<span class="comment"><EM>--  @Revision: 1.5 @</EM></span>
-<span class="comment"><EM>--  Binding Version 01.00</EM></span>
+</head>
+<body>
+<hr><div style="text-align:center"><h1> File : terminal_interface-curses-putwin.ads </h1></div><hr>
+<pre>
+<span class="comment"><em>------------------------------------------------------------------------------</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>--                           <strong>GNAT</strong> ncurses Binding                           --</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>--                    Terminal_Interface.Curses.PutWin                      --</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>--                                 S P E C                                  --</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>------------------------------------------------------------------------------</em></span>
+<span class="comment"><em>-- Copyright 2020 Thomas E. Dickey                                          --</em></span>
+<span class="comment"><em>-- Copyright 2000-2002,2003 Free Software Foundation, Inc.                  --</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>-- Permission is hereby granted, free of charge, to any person obtaining a  --</em></span>
+<span class="comment"><em>-- copy of this software and associated documentation files (the            --</em></span>
+<span class="comment"><em>-- "Software"), to deal in the Software without restriction, including      --</em></span>
+<span class="comment"><em>-- without limitation the rights to use, copy, modify, merge, publish,      --</em></span>
+<span class="comment"><em>-- distribute, distribute with modifications, sublicense, and/or sell       --</em></span>
+<span class="comment"><em>-- copies of the Software, and to permit persons to whom the Software is    --</em></span>
+<span class="comment"><em>-- furnished to do so, subject to the following conditions:                 --</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>-- The above copyright notice and this permission notice shall be included  --</em></span>
+<span class="comment"><em>-- in all copies or substantial portions of the Software.                   --</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  --</em></span>
+<span class="comment"><em>-- OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               --</em></span>
+<span class="comment"><em>-- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   --</em></span>
+<span class="comment"><em>-- IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   --</em></span>
+<span class="comment"><em>-- DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    --</em></span>
+<span class="comment"><em>-- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    --</em></span>
+<span class="comment"><em>-- THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               --</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>-- Except as contained in this notice, the name(s) of the above copyright   --</em></span>
+<span class="comment"><em>-- holders shall not be used in advertising or otherwise to promote the     --</em></span>
+<span class="comment"><em>-- sale, use or other dealings in this Software without prior written       --</em></span>
+<span class="comment"><em>-- authorization.                                                           --</em></span>
+<span class="comment"><em>------------------------------------------------------------------------------</em></span>
+<span class="comment"><em>--  Author:  Juergen Pfeifer, 1996</em></span>
+<span class="comment"><em>--  Version Control:</em></span>
+<span class="comment"><em>--  @Revision: 1.5 @</em></span>
+<span class="comment"><em>--  Binding Version 01.00</em></span>
 
 <b>with</b> Ada.Streams.Stream_IO;
 
-<b>package</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<span class="symbol"><A NAME="ref_44_35" HREF="terminal_interface-curses-putwin__adb.htm#ref_46_40">PutWin</A></span> <b>is</b>
+<b>package</b> <a href="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</a>.<a href="terminal_interface-curses__ads.htm#ref_48_28">Curses</a>.<span class="symbol"><a name="ref_44_35" href="terminal_interface-curses-putwin__adb.htm#ref_46_40">PutWin</a></span> <b>is</b>
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_46_14" HREF="terminal_interface-curses-putwin__adb.htm#ref_52_14">Put_Window</A></span> (<span class="symbol"><A NAME="ref_46_26" HREF="terminal_interface-curses-putwin__adb.htm#ref_52_26">Win</A></span>  : <A HREF="terminal_interface-curses__ads.htm#ref_56_9">Window</A>;
-                         <span class="symbol"><A NAME="ref_47_26" HREF="terminal_interface-curses-putwin__adb.htm#ref_53_26">File</A></span> : Ada.Streams.Stream_IO.File_Type);
+   <b>procedure</b> <span class="symbol"><a name="ref_46_14" href="terminal_interface-curses-putwin__adb.htm#ref_52_14">Put_Window</a></span> (<span class="symbol"><a name="ref_46_26" href="terminal_interface-curses-putwin__adb.htm#ref_52_26">Win</a></span>  : <a href="terminal_interface-curses__ads.htm#ref_56_9">Window</a>;
+                         <span class="symbol"><a name="ref_47_26" href="terminal_interface-curses-putwin__adb.htm#ref_53_26">File</a></span> : Ada.Streams.Stream_IO.File_Type);
 
-   <b>function</b> <span class="symbol"><A NAME="ref_49_13" HREF="terminal_interface-curses-putwin__adb.htm#ref_64_13">Get_Window</A></span> (<span class="symbol"><A NAME="ref_49_25" HREF="terminal_interface-curses-putwin__adb.htm#ref_64_25">File</A></span>  : Ada.Streams.Stream_IO.File_Type) <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_56_9">Window</A>;
+   <b>function</b> <span class="symbol"><a name="ref_49_13" href="terminal_interface-curses-putwin__adb.htm#ref_64_13">Get_Window</a></span> (<span class="symbol"><a name="ref_49_25" href="terminal_interface-curses-putwin__adb.htm#ref_64_25">File</a></span>  : Ada.Streams.Stream_IO.File_Type) <b>return</b> <a href="terminal_interface-curses__ads.htm#ref_56_9">Window</a>;
 
-<b>end</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-putwin__ads.htm#ref_44_35">PutWin</A>;
-</PRE></BODY></HTML>
+<b>end</b> <a href="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</a>.<a href="terminal_interface-curses__ads.htm#ref_48_28">Curses</a>.<a href="terminal_interface-curses-putwin__ads.htm#ref_44_35">PutWin</a>;
+</pre></body></html>

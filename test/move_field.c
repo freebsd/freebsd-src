@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020-2022,2023 Thomas E. Dickey                                *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: move_field.c,v 1.7 2020/05/09 12:52:00 tom Exp $
+ * $Id: move_field.c,v 1.15 2023/11/11 00:28:19 tom Exp $
  *
  * Demonstrate move_field().
  */
@@ -38,20 +38,11 @@
 #include <edit_field.h>
 #include <popup_msg.h>
 
-#ifdef HAVE_NETBSD_FORM_H
-#define form_field_row(field) (field)->form_row
-#define form_field_col(field) (field)->form_col
-#else	/* e.g., SVr4, ncurses */
-#define form_field_row(field) (field)->frow
-#define form_field_col(field) (field)->fcol
-#endif
-
 #define DO_DEMO	CTRL('F')	/* actual key for toggling demo-mode */
 #define MY_DEMO	EDIT_FIELD('f')	/* internal request-code */
 
 static char empty[] = "";
 static FIELD *all_fields[100];
-
 /* *INDENT-OFF* */
 static struct {
     int code;
@@ -125,7 +116,7 @@ make_label(const char *label, int frow, int fcol)
 
     if (f) {
 	set_field_buffer(f, 0, label);
-	set_field_opts(f, (int) ((unsigned) field_opts(f) & ~O_ACTIVE));
+	set_field_opts(f, (int) ((unsigned) field_opts(f) & (unsigned) ~O_ACTIVE));
     }
     return (f);
 }
@@ -152,7 +143,6 @@ erase_form(FORM *f)
     werase(w);
     wrefresh(w);
     delwin(s);
-    delwin(w);
 }
 
 static FieldAttrs *
@@ -196,7 +186,6 @@ my_edit_field(FORM *form, int *result)
     int status;
     FIELD *before;
     unsigned n;
-    int length;
     int before_row;
     int before_col;
     int before_off = offset_in_field(form);
@@ -222,8 +211,8 @@ my_edit_field(FORM *form, int *result)
 
     if (status == E_OK) {
 	bool modified = TRUE;
+	int length = buffer_length(before);
 
-	length = buffer_length(before);
 	if (length < before_off)
 	    length = before_off;
 	switch (*result) {
@@ -279,7 +268,7 @@ my_edit_field(FORM *form, int *result)
 static FIELD **
 copy_fields(FIELD **source, size_t length)
 {
-    FIELD **target = calloc(length + 1, sizeof(FIELD *));
+    FIELD **target = typeCalloc(FIELD *, length + 1);
     memcpy(target, source, length * sizeof(FIELD *));
     return target;
 }
@@ -311,15 +300,15 @@ do_demo(FORM *form)
 {
     int count = field_count(form);
     FIELD *my_field = current_field(form);
+    FIELD **old_fields = form_fields(form);
 
-    if (count > 0 && my_field != NULL) {
+    if (count > 0 && old_fields != NULL && my_field != NULL) {
 	size_t needed = (size_t) count;
-	FIELD **old_fields = copy_fields(form_fields(form), needed);
-	FIELD **new_fields = copy_fields(form_fields(form), needed);
-	int ch;
+	FIELD **new_fields = copy_fields(old_fields, needed);
 
-	if (old_fields != NULL && new_fields != NULL) {
+	if (new_fields != NULL) {
 	    bool found = FALSE;
+	    int ch;
 
 	    /* TODO: move the label too, in parallel with the editing field */
 
@@ -338,7 +327,6 @@ do_demo(FORM *form)
 		getyx(stdscr, currow, curcol);
 
 		show_status(form, my_field);
-		ch = '?';
 		while ((ch = wgetch(form_win(form))) != DO_DEMO) {
 		    int field_y = form_field_row(my_field);
 		    int field_x = form_field_col(my_field);
@@ -486,9 +474,44 @@ demo_forms(void)
     nl();
 }
 
-int
-main(void)
+static void
+usage(int ok)
 {
+    static const char *msg[] =
+    {
+	"Usage: move_field [options]"
+	,""
+	,USAGE_COMMON
+    };
+    size_t n;
+
+    for (n = 0; n < SIZEOF(msg); n++)
+	fprintf(stderr, "%s\n", msg[n]);
+
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
+}
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
+
+int
+main(int argc, char *argv[])
+{
+    int ch;
+
+    while ((ch = getopt(argc, argv, OPTS_COMMON)) != -1) {
+	switch (ch) {
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
+	default:
+	    usage(ch == OPTS_USAGE);
+	    /* NOTREACHED */
+	}
+    }
+    if (optind < argc)
+	usage(FALSE);
+
     setlocale(LC_ALL, "");
 
     initscr();

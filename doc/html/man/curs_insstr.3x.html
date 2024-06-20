@@ -1,6 +1,6 @@
-<!-- 
+<!--
   ****************************************************************************
-  * Copyright 2019,2020 Thomas E. Dickey                                     *
+  * Copyright 2019-2023,2024 Thomas E. Dickey                                *
   * Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,28 +27,28 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_insstr.3x,v 1.26 2020/10/18 00:20:36 tom Exp @
+  * @Id: curs_insstr.3x,v 1.51 2024/04/20 21:20:07 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_insstr 3x</TITLE>
+<TITLE>curs_insstr 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_insstr 3x</H1>
+<H1 class="no-header">curs_insstr 3x 2024-04-20 ncurses 6.5 Library calls</H1>
 <PRE>
-<STRONG><A HREF="curs_insstr.3x.html">curs_insstr(3x)</A></STRONG>                                                <STRONG><A HREF="curs_insstr.3x.html">curs_insstr(3x)</A></STRONG>
+<STRONG><A HREF="curs_insstr.3x.html">curs_insstr(3x)</A></STRONG>                  Library calls                 <STRONG><A HREF="curs_insstr.3x.html">curs_insstr(3x)</A></STRONG>
 
 
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
        <STRONG>insstr</STRONG>,  <STRONG>insnstr</STRONG>,  <STRONG>winsstr</STRONG>,  <STRONG>winsnstr</STRONG>,  <STRONG>mvinsstr</STRONG>, <STRONG>mvinsnstr</STRONG>, <STRONG>mvwinsstr</STRONG>,
-       <STRONG>mvwinsnstr</STRONG> - insert string before cursor in a <STRONG>curses</STRONG> window
+       <STRONG>mvwinsnstr</STRONG> - insert a string in a <EM>curses</EM> window
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
@@ -66,51 +66,62 @@
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
        These routines insert a character string (as many  characters  as  will
-       fit on the line) before the character under the cursor.  All characters
-       to the right of the cursor are shifted right with  the  possibility  of
-       the  rightmost  characters on the line being lost.  The cursor position
-       does not change (after moving to <EM>y</EM>, <EM>x</EM>, if  specified).   The  functions
-       with  <EM>n</EM>  as  the  last argument insert a leading substring of at most <EM>n</EM>
-       characters.  If <EM>n</EM>&lt;=0, then the entire string is inserted.
+       fit  on  the line) before the character under the cursor, as if calling
+       <STRONG><A HREF="curs_insch.3x.html">winsch(3x)</A></STRONG>.  All characters to the right  of  the  cursor  are  shifted
+       right,  with  the  possibility  of the rightmost characters on the line
+       being lost.  No wrapping is performed.
 
-       Special characters are handled as in <STRONG>addch</STRONG>.
+       The cursor  position  does  not  change  (after  moving  to  <EM>y</EM>,  <EM>x</EM>,  if
+       specified).
+
+       The functions with <EM>n</EM> as the last argument insert a leading substring of
+       at most <EM>n</EM> characters.  If <EM>n</EM> is less than zero,  the  entire  string  is
+       inserted (stopping on a NUL character).
+
+       Special characters are handled as in <STRONG><A HREF="curs_addch.3x.html">waddch(3x)</A></STRONG>.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       All routines that return an integer return  <STRONG>ERR</STRONG>  upon  failure  and  <STRONG>OK</STRONG>
-       (SVr4 specifies only "an integer value other than <STRONG>ERR</STRONG>") upon successful
-       completion,  unless  otherwise   noted   in   the   preceding   routine
-       descriptions.
+       All functions return the integer <STRONG>ERR</STRONG> upon failure and <STRONG>OK</STRONG> on success.
 
-       X/Open  defines  no  error  conditions.  In this implementation, if the
-       window parameter is null or the str parameter  is  null,  an  error  is
-       returned.
+       X/Open   Curses   does   not   specify   any  error  conditions.   This
+       implementation returns an error
 
-       Functions  with  a  "mv"  prefix  first perform a cursor movement using
-       <STRONG>wmove</STRONG>, and return an error if the position is outside the window, or if
-       the window pointer is null.
+       <STRONG>o</STRONG>   if the <EM>win</EM> parameter is null or
+
+       <STRONG>o</STRONG>   if the <EM>str</EM> parameter is null or
+
+       <STRONG>o</STRONG>   the <STRONG><A HREF="curs_insch.3x.html">winsch(3x)</A></STRONG> function returns an error.
+
+       Functions prefixed with "mv" first perform cursor movement and fail  if
+       the position (<EM>y</EM>, <EM>x</EM>) is outside the window boundaries.
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       Note that all but <STRONG>winsnstr</STRONG> may be macros.
+       All but <STRONG>winsnstr</STRONG> may be macros.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These  functions  are  described  in  the XSI Curses standard, Issue 4,
-       which adds const qualifiers to the arguments.
+       These  functions  are  described  in X/Open Curses, Issue 4, which adds
+       <EM>const</EM> qualifiers to the arguments.
 
        The Single Unix  Specification,  Version  2  states  that  <STRONG>insnstr</STRONG>  and
        <STRONG>winsnstr</STRONG>  perform  wrapping.  This is probably an error, since it makes
        this group of  functions  inconsistent.   Also,  no  implementation  of
        curses documents this inconsistency.
 
+       X/Open  states  that the entire string is inserted if <EM>n</EM> is less than 1.
+       This is probably an  error,  because  it  is  inconsistent  with  other
+       functions,  and  differs  from  the  SVr4 and X/Open implementations on
+       Solaris.
+
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_util.3x.html">curs_util(3x)</A></STRONG>, <STRONG><A HREF="curs_clear.3x.html">curs_clear(3x)</A></STRONG>, <STRONG><A HREF="curs_inch.3x.html">curs_inch(3x)</A></STRONG>.
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_inch.3x.html">curs_inch(3x)</A></STRONG>, <STRONG><A HREF="curs_ins_wstr.3x.html">curs_ins_wstr(3x)</A></STRONG>, <STRONG><A HREF="curs_util.3x.html">curs_util(3x)</A></STRONG>
 
 
 
-                                                               <STRONG><A HREF="curs_insstr.3x.html">curs_insstr(3x)</A></STRONG>
+ncurses 6.5                       2024-04-20                   <STRONG><A HREF="curs_insstr.3x.html">curs_insstr(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>

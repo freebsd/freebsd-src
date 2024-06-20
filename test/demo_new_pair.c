@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2020,2021 Thomas E. Dickey                                *
+ * Copyright 2018-2021,2022 Thomas E. Dickey                                *
  * Copyright 2017 Free Software Foundation, Inc.                            *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: demo_new_pair.c,v 1.24 2021/02/21 01:24:06 tom Exp $
+ * $Id: demo_new_pair.c,v 1.27 2022/12/04 00:40:11 tom Exp $
  *
  * Demonstrate the alloc_pair() function.
  */
@@ -127,26 +127,27 @@ now(void)
 }
 
 static void
-usage(void)
+usage(int ok)
 {
     static const char *msg[] =
     {
-	"Usage: demo_new_pair [options]",
-	"",
-	"Repeatedly print using all possible color combinations.",
-	"",
-	"Options:",
-	" -g       use getcchar to check setcchar",
-	" -i       use init_pair rather than alloc_pair",
-	" -p       start in paged-mode",
-	" -s       start in single-step mode",
-	" -w       print a wide-character cell",
+	"Usage: demo_new_pair [options]"
+	,""
+	,"Repeatedly print using all possible color combinations."
+	,""
+	,USAGE_COMMON
+	,"Options:"
+	," -g       use getcchar to check setcchar"
+	," -i       use init_pair rather than alloc_pair"
+	," -p       start in paged-mode"
+	," -s       start in single-step mode"
+	," -w       print a wide-character cell"
     };
     unsigned n;
     for (n = 0; n < SIZEOF(msg); ++n) {
 	fprintf(stderr, "%s\n", msg[n]);
     }
-    ExitProgram(EXIT_FAILURE);
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
 }
 
 #define use_pages() \
@@ -158,6 +159,9 @@ usage(void)
 #define update_modes() \
 	    scrollok(stdscr, !paged_mode); \
 	    nodelay(stdscr, !single_mode || paged_mode)
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
 
 int
 main(int argc, char *argv[])
@@ -204,7 +208,7 @@ main(int argc, char *argv[])
 
     setlocale(LC_ALL, "");
 
-    while ((ch = getopt(argc, argv, "gipsw")) != -1) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "gipsw")) != -1) {
 	switch (ch) {
 	case 'g':
 	    check_set = TRUE;
@@ -221,9 +225,12 @@ main(int argc, char *argv[])
 	case 'w':
 	    use_wide = TRUE;
 	    break;
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage();
-	    break;
+	    usage(ch == OPTS_USAGE);
+	    /* NOTREACHED */
 	}
     }
 

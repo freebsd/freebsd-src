@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2022,2023 Thomas E. Dickey                                *
  * Copyright 2007-2013,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -30,7 +30,7 @@
 /*
  * Author: Thomas E. Dickey - 2007
  *
- * $Id: dots_mvcur.c,v 1.26 2020/05/29 23:04:02 tom Exp $
+ * $Id: dots_mvcur.c,v 1.31 2023/01/07 17:21:48 tom Exp $
  *
  * A simple demo of the terminfo interface, and mvcur.
  */
@@ -112,12 +112,13 @@ get_number(NCURSES_CONST char *cap, int map)
 }
 
 static void
-usage(void)
+usage(int ok)
 {
     static const char *msg[] =
     {
 	"Usage: dots_termcap [options]"
 	,""
+	,USAGE_COMMON
 	,"Options:"
 	," -T TERM  override $TERM"
 #if HAVE_USE_ENV
@@ -133,12 +134,14 @@ usage(void)
     for (n = 0; n < SIZEOF(msg); n++)
 	fprintf(stderr, "%s\n", msg[n]);
 
-    ExitProgram(EXIT_FAILURE);
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
 }
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
 
 int
-main(int argc GCC_UNUSED,
-     char *argv[]GCC_UNUSED)
+main(int argc, char *argv[])
 {
     int x0 = 1, y0 = 1;
     int ch;
@@ -153,13 +156,14 @@ main(int argc GCC_UNUSED,
     size_t need;
     char *my_env;
 
-    while ((ch = getopt(argc, argv, "T:efm:r:s:")) != -1) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "T:efm:r:s:")) != -1) {
 	switch (ch) {
 	case 'T':
 	    need = 6 + strlen(optarg);
-	    my_env = malloc(need);
-	    _nc_SPRINTF(my_env, _nc_SLIMIT(need) "TERM=%s", optarg);
-	    putenv(my_env);
+	    if ((my_env = malloc(need)) != NULL) {
+		_nc_SPRINTF(my_env, _nc_SLIMIT(need) "TERM=%s", optarg);
+		putenv(my_env);
+	    }
 	    break;
 #if HAVE_USE_ENV
 	case 'e':
@@ -178,9 +182,12 @@ main(int argc GCC_UNUSED,
 	case 's':
 	    s_option = atoi(optarg);
 	    break;
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage();
-	    break;
+	    usage(ch == OPTS_USAGE);
+	    /* NOTREACHED */
 	}
     }
 
@@ -253,8 +260,7 @@ main(int argc GCC_UNUSED,
 }
 #else
 int
-main(int argc GCC_UNUSED,
-     char *argv[]GCC_UNUSED)
+main(void)
 {
     fprintf(stderr, "This program requires terminfo\n");
     exit(EXIT_FAILURE);

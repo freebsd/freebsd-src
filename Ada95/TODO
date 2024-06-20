@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
--- Copyright 2020 Thomas E. Dickey                                           --
+-- Copyright 2020,2021 Thomas E. Dickey                                      --
 -- Copyright 1998-1999,2006 Free Software Foundation, Inc.                   --
 --                                                                           --
 -- Permission is hereby granted, free of charge, to any person obtaining a   --
@@ -26,7 +26,7 @@
 -- sale, use or other dealings in this Software without prior written        --
 -- authorization.                                                            --
 -------------------------------------------------------------------------------
--- $Id: TODO,v 1.6 2020/02/02 23:34:34 tom Exp $
+-- $Id: TODO,v 1.8 2021/09/01 23:22:33 tom Exp $
 -------------------------------------------------------------------------------
 
 --  Intensive testing
@@ -36,12 +36,12 @@
     Like most WEB pages: under continuous construction
 
 --  Style cleanup
-    	
+
 --  Alternate functions for procedures with out params
     Comfort purpose
 
 --  Sample program
-    Under continuous construction (and it's not a WEB page!!!)
+    Under continuous construction (and it is not a WEB page!!!)
 
 --  Make the binding objects a shared library
     They are rather large, so it would make sense, otherwise Ada95

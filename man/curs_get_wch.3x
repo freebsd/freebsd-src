@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2019,2020 Thomas E. Dickey                                *
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
 .\" Copyright 2002-2016,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,159 +27,233 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_get_wch.3x,v 1.14 2020/10/17 23:17:05 tom Exp $
-.TH curs_get_wch 3X ""
-.na
-.hy 0
-.ie \n(.g .ds `` \(lq
-.el       .ds `` ``
-.ie \n(.g .ds '' \(rq
-.el       .ds '' ''
+.\" $Id: curs_get_wch.3x,v 1.40 2024/04/20 19:23:03 tom Exp $
+.TH curs_get_wch 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.
 .de bP
 .ie n  .IP \(bu 4
 .el    .IP \(bu 2
 ..
 .SH NAME
-\fBget_wch\fR,
-\fBwget_wch\fR,
-\fBmvget_wch\fR,
-\fBmvwget_wch\fR,
-\fBunget_wch\fR \- get (or push back) a wide character from curses terminal keyboard
-.ad
-.hy
+\fB\%get_wch\fP,
+\fB\%wget_wch\fP,
+\fB\%mvget_wch\fP,
+\fB\%mvwget_wch\fP,
+\fB\%unget_wch\fP \-
+get (or push back) a wide character from \fIcurses\fR terminal keyboard
 .SH SYNOPSIS
-\fB#include <curses.h>\fR
-.sp
-\fBint get_wch(wint_t *\fR\fIwch\fR\fB);\fR
-.br
-\fBint wget_wch(WINDOW *\fR\fIwin\fR\fB, wint_t *\fR\fIwch\fR\fB);\fR
-.br
-\fBint mvget_wch(int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, wint_t *\fR\fIwch\fR\fB);\fR
-.br
-\fBint mvwget_wch(WINDOW *\fR\fIwin\fR\fB, int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, wint_t *\fR\fIwch\fR\fB);\fR
-.sp
-\fBint unget_wch(const wchar_t \fR\fIwch\fR\fB);\fR
+.nf
+\fB#include <curses.h>
+.PP
+\fBint get_wch(wint_t *\fIwch\fP);
+\fBint wget_wch(WINDOW *\fIwin\fP, wint_t *\fIwch\fP);
+\fBint mvget_wch(int \fIy\fP, int \fIx\fP, wint_t *\fIwch\fP);
+\fBint mvwget_wch(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, wint_t *\fIwch\fP);
+.PP
+\fBint unget_wch(const wchar_t \fIwc\fP);
+.fi
 .SH DESCRIPTION
-The
-\fBget_wch\fR,
-\fBwget_wch\fR,
-\fBmvget_wch\fR, and
-\fBmvwget_wch\fR
-functions read a character
-from the terminal associated with the current or specified window.
-In no-delay mode,
-if no input is waiting, the value \fBERR\fR is returned.
-In delay mode,
-the program waits until the system passes text through to the program.
-Depending on the setting of \fBcbreak\fR,
-this is after one character (cbreak mode),
-or after the first newline (nocbreak mode).
-In half-delay mode,
-the program waits until the user types a character or the specified
-timeout interval has elapsed.
+.SS "Reading Characters"
+.B \%wget_wch
+gathers a key stroke
+.I wch
+from the terminal keyboard associated with a
+.I curses
+window
+.IR win ,
+returning
+.B OK
+if a wide character is read,
+.B \%KEY_CODE_YES
+if a function key is read,
+and
+.B ERR
+if no key event is available.
+\fB\%ncurses\fP(3X) describes the variants of this function.
 .PP
-Unless \fBnoecho\fR has been set,
-these routines echo the character into the designated window.
+When input is pending,
+.B \%wget_wch
+stores an integer
+identifying the key stroke in
+.IR wch ;
+for alphanumeric and punctuation keys,
+this value corresponds to the character encoding used by the terminal.
+Use of the control key as a modifier often results in a distinct code.
+The behavior of other keys depends on whether
+.I win
+is in keypad mode;
+see subsections \*(``Keypad Mode\*('' and \*(``Predefined Key Codes\*(''
+in \fB\%getch\fP(3X).
 .PP
-If the window is not a pad and has been moved or modified since the
-last call to \fBwrefresh\fR,
-\fBwrefresh\fR will be called before another character is read.
+If no input is pending,
+then if the no-delay flag is set in the window
+(see \fB\%nodelay\fP(3X)),
+the function returns
+.BR ERR ;
+otherwise,
+.I curses
+waits until the terminal has input.
+If \fB\%cbreak\fP(3X)
+has been called,
+this happens after one character is read.
+If \fB\%nocbreak\fP(3X)
+has been called,
+it occurs when the next newline is read.
+If \fB\%halfdelay\fP(3X)
+has been called,
+.I curses
+waits until a character is typed or the specified delay elapses.
 .PP
-If \fBkeypad\fR is enabled,
-these functions respond to
-the pressing of a function key by setting the object pointed to by
-\fIwch\fR
-to the keycode assigned to the function key,
-and returning \fBKEY_CODE_YES\fR.
-If a character (such as escape) that could be the
-beginning of a function key is received, curses sets a timer.
-If the remainder
-of the sequence does arrive within the designated time, curses passes through
-the character; otherwise, curses returns the function key value.
-For this
-reason, many terminals experience a delay between the time a user presses
-the escape key and the time the escape is returned to the program.
-.PP
-The keycodes returned by these functions are the same as those
-returned by \fBwgetch\fP:
+If \fB\%echo\fP(3X) has been called,
+and the window is not a pad,
+.I curses
+writes
+.I wch
+to the window
+(at the cursor position)
+per the following rules.
 .bP
-The predefined function
-keys are listed in \fB<curses.h>\fR as macros with values outside the range
-of 8-bit characters.
-Their names begin with \fBKEY_\fR.
+If
+.I wch
+matches the terminal's erase character,
+the cursor moves leftward one position
+and the new position is erased
+as if \fB\%wmove\fP(3X) and then \fB\%wdelch\fP(3X) were called.
+When the window's keypad mode is enabled
+(see below),
+.B \%KEY_LEFT
+and
+.B \%KEY_BACKSPACE
+are handled the same way.
 .bP
-Other (user-defined) function keys
-which may be defined using \fBdefine_key\fP(3X) have no names,
-but also are expected to have values outside the range of 8-bit characters.
+.I curses
+writes any other
+.I wch
+to the window,
+as with \fB\%wecho_wchar\fP(3X).
+.bP
+If the window has been moved or modified since the last call to
+\fB\%wrefresh\fP(3X),
+.I curses
+calls
+.BR \%wrefresh .
 .PP
-The
-\fBunget_wch\fR
-function pushes the wide character
-\fIwch\fR
-back onto the head of the input queue, so the wide character
-is returned by the next call to
-\fBget_wch\fR.
-The pushback of
-one character is guaranteed.
-If the program calls
-\fBunget_wch\fR
-too many times without an intervening call to
-\fBget_wch\fR,
-the operation may fail.
-.SH NOTES
-The header file
-\fB<curses.h>\fR
-automatically
-includes the header file
-\fB<stdio.h>\fR.
-.PP
-Applications should not define the escape key by itself as a single-character
-function.
-.PP
-When using
-\fBget_wch\fR,
-\fBwget_wch\fR,
-\fBmvget_wch\fR, or
-\fBmvwget_wch\fR, applications should
-not use
-\fBnocbreak\fR
-mode and
-\fBecho\fR
-mode
-at the same time.
-Depending on the state of the tty driver when each character
-is typed, the program may produce undesirable results.
-.PP
-All functions except \fBwget_wch\fR and \fBunget_wch\fR
-may be macros.
+If
+.I wch
+is a carriage return and \fBnl\fP(3X) has been called,
+.B \%wgetch
+stores the the character code for newline
+(line feed)
+in
+.I wch
+instead.
+.SS "Ungetting Characters"
+.B \%unget_wch
+places
+.I wch
+into the input queue to be returned by the next call to
+.BR \%wget_wch .
+A single input queue serves all windows.
 .SH RETURN VALUE
-When
-\fBget_wch\fR,
-\fBwget_wch\fR,
-\fBmvget_wch\fR, and
-\fBmvwget_wch\fR
-functions successfully
-report the pressing of a function key, they return
-\fBKEY_CODE_YES\fR.
-When they successfully report a wide character, they return
-\fBOK\fR.
-Otherwise, they return
-\fBERR\fR.
-.PP
-Upon successful completion,
-\fBunget_wch\fR
+.B \%wget_wch
 returns
-\fBOK\fR.
-Otherwise, the function returns
-\fBERR\fR.
+.B OK
+when it reads a wide character and
+.B \%KEY_CODE_YES
+when it reads a function key code.
+It returns
+.B ERR
+if
+.bP
+the
+.I \%WINDOW
+pointer is
+.BR NULL ,
+or
+.bP
+its timeout expires without any data arriving,
+or
+.bP
+execution was interrupted by a signal,
+in which case
+.B \%errno
+is set to
+.BR \%EINTR .
 .PP
-Functions with a \*(``mv\*('' prefix first perform a cursor movement using
-\fBwmove\fP, and return an error if the position is outside the window,
-or if the window pointer is null.
+Functions prefixed with \*(``mv\*('' first perform cursor movement and
+fail if the position
+.RI ( y ,
+.IR x )
+is outside the window boundaries.
+.PP
+.B \%unget_wch
+returns
+.B OK
+on success and
+.B ERR
+if there is no more room in the input queue.
+.SH NOTES
+See the \*(``NOTES\*('' section of \fB\%wgetch\fP(3X).
+.PP
+All of these functions except
+.B \%wget_wch
+and
+.B \%unget_wch
+may be implemented as macros.
+.PP
+Unlike \fB\%wgetch\fP(3X),
+.B \%wget_wch
+and its variants store the value of the input character in an additional
+.I wch
+parameter instead of the return value.
+.PP
+Unlike
+.BR \%ungetch ,
+.B \%unget_wch
+cannot distinguish function key codes
+.B \%wget_wch
+from conventional character codes.
+An application can overcome this limitation by pushing function key
+codes with
+.B \%ungetch
+and subsequently checking the return value of
+.B \%wget_wch
+for a match with
+.BR \%KEY_CODE_YES .
+.SH EXTENSIONS
+See the \*(``EXTENSIONS\*('' section of \fB\%wgetch\fP(3X).
+.SH PORTABILITY
+Applications employing
+.I \%ncurses
+extensions should condition their use on the visibility of the
+.B \%NCURSES_VERSION
+preprocessor macro.
+.PP
+X/Open Curses,
+Issue 4 describes these functions.
+It specifies no error conditions for them.
+.PP
+See the \*(``PORTABILITY\*('' section of \fB\%wgetch\fP(3X) regarding
+the interaction of
+.B \%wget_wch
+with signal handlers.
 .SH SEE ALSO
-\fBcurses\fR(3X),
-\fBcurs_getch\fR(3X),
-\fBcurs_ins_wch\fR(3X),
-\fBcurs_inopts\fR(3X),
-\fBcurs_move\fR(3X),
-\fBcurs_refresh\fR(3X)
+\fB\%curs_getch\fP(3X) describes comparable functions of the
+.I \%ncurses
+library in its non-wide-character configuration.
+.PP
+\fB\%curses\fP(3X),
+\fB\%curs_add_wch\fP(3X),
+\fB\%curs_inopts\fP(3X),
+\fB\%curs_move\fP(3X),
+\fB\%curs_refresh\fP(3X)

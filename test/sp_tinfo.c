@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2022,2023 Thomas E. Dickey                                *
  * Copyright 2017 Free Software Foundation, Inc.                            *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,7 +28,7 @@
  ****************************************************************************/
 
 /*
- * $Id: sp_tinfo.c,v 1.23 2020/02/02 23:34:34 tom Exp $
+ * $Id: sp_tinfo.c,v 1.29 2023/06/24 14:14:56 tom Exp $
  *
  * TOTO: add option for non-sp-funcs interface
  */
@@ -279,48 +279,51 @@ cleanup(MYDATA * data)
 {
     set_curterm(data->term);
     del_curterm(data->term);
-#if !NO_LEAKS
-    free(data->sp);		/* cannot use delscreen in tinfo */
-#endif
     free(data);
 }
 
 static void
-usage(void)
+usage(int ok)
 {
     static const char *tbl[] =
     {
-	"Usage: sp_tinfo [output] [error]",
-	"",
-	"Options:",
-	" -n   suppress call to new_prescr()",
-	" -t   use termcap functions rather than terminfo",
-	NULL
+	"Usage: sp_tinfo [output] [error]"
+	,""
+	,USAGE_COMMON
+	,"Options:"
+	," -n       suppress call to new_prescr()"
+	," -t       use termcap functions rather than terminfo"
     };
     size_t n;
     for (n = 0; n < SIZEOF(tbl); ++n) {
 	fprintf(stderr, "%s\n", tbl[n]);
     }
-    ExitProgram(EXIT_FAILURE);
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
 }
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
 
 int
 main(int argc, char *argv[])
 {
     MYDATA *my_out;
     MYDATA *my_err;
-    int n;
+    int ch;
 
-    while ((n = getopt(argc, argv, "nt")) != -1) {
-	switch (n) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "nt")) != -1) {
+	switch (ch) {
 	case 'n':
 	    opt_n = TRUE;
 	    break;
 	case 't':
 	    opt_t = TRUE;
 	    break;
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage();
+	    usage(ch == OPTS_USAGE);
 	    /* NOTREACHED */
 	}
     }
@@ -328,7 +331,7 @@ main(int argc, char *argv[])
     argc -= (optind - 1);
 
     if (argc > 3)
-	usage();
+	usage(FALSE);
 
     my_out = initialize((argc > 1) ? argv[1] : "vt100", stdout);
     my_err = initialize((argc > 2) ? argv[2] : "ansi", stderr);
@@ -336,14 +339,18 @@ main(int argc, char *argv[])
     do_stuff(my_out);
     do_stuff(my_err);
 
-    cleanup(my_out);
-    cleanup(my_err);
+    if (my_out != my_err) {
+	cleanup(my_out);
+	cleanup(my_err);
+    } else {
+	cleanup(my_out);
+    }
 
     ExitProgram(EXIT_SUCCESS);
 }
 #else
 int
-main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
+main(void)
 {
     fprintf(stderr,
 	    "This program requires the low-level ncurses sp-funcs tputs_sp\n");

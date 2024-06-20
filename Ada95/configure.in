@@ -1,5 +1,5 @@
 dnl***************************************************************************
-dnl Copyright 2018-2020,2021 Thomas E. Dickey                                *
+dnl Copyright 2018-2022,2023 Thomas E. Dickey                                *
 dnl Copyright 2010-2016,2018 Free Software Foundation, Inc.                  *
 dnl                                                                          *
 dnl Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -29,7 +29,7 @@ dnl***************************************************************************
 dnl
 dnl Author: Thomas E. Dickey
 dnl
-dnl $Id: configure.in,v 1.82 2021/01/09 11:20:33 tom Exp $
+dnl $Id: configure.in,v 1.91 2023/02/18 23:21:29 tom Exp $
 dnl Process this file with autoconf to produce a configure script.
 dnl
 dnl For additional information, see
@@ -37,12 +37,14 @@ dnl     https://invisible-island.net/autoconf/
 dnl     https://invisible-island.net/autoconf/my-autoconf.html
 dnl
 dnl ---------------------------------------------------------------------------
-AC_PREREQ(2.52.20200111)
-AC_REVISION($Revision: 1.82 $)
+AC_PREREQ(2.52.20210509)
+AC_REVISION($Revision: 1.91 $)
 AC_INIT(gen/gen.c)
 AC_CONFIG_HEADER(include/ncurses_cfg.h:include/ncurses_cfg.hin)
 
 AC_DEFUN([AC_PATH_XTRA],[])dnl ignore dependencies on this
+
+PACKAGE="AdaCurses"		AC_SUBST(PACKAGE)
 
 CF_TOP_BUILDDIR
 
@@ -102,6 +104,7 @@ fi
 
 # do this after mixed-case option (tags/TAGS is not as important as tic).
 AC_PROG_MAKE_SET
+CF_MAKE_PHONY
 CF_MAKE_TAGS
 CF_MAKEFLAGS
 
@@ -219,6 +222,7 @@ CF_ENABLE_BROKEN_LINKER
 
 # Check to define _XOPEN_SOURCE "automatically"
 CF_XOPEN_SOURCE(600)
+AC_CHECK_DECL(exit)
 
 CF_LARGEFILE
 
@@ -355,7 +359,7 @@ CF_DISABLE_ECHO
 
 CF_ENABLE_WARNINGS(Wno-unknown-pragmas Wswitch-enum,yes)
 if test "x$enable_warnings" = "xyes"; then
- 	CF_ADD_ADAFLAGS(-gnatg)
+ 	CF_ADD_ADAFLAGS(-gnatwa -gnatyg)
 fi
 
 ###	use option --enable-assertions to turn on generation of assertion code
@@ -418,20 +422,15 @@ CF_DISABLE_GNAT_PROJECTS
 ###	Checks for libraries.
 case $cf_cv_system_name in
 (*mingw32*)
+	CF_CHECK_LIBSSP
 	;;
 (*)
-AC_CHECK_FUNC(gettimeofday,
-	AC_DEFINE(HAVE_GETTIMEOFDAY),[
-
-AC_CHECK_LIB(bsd, gettimeofday,
-	AC_DEFINE(HAVE_GETTIMEOFDAY,1,[Define to 1 if we have gettimeofday])
-	LIBS="$LIBS -lbsd")])dnl CLIX: bzero, select, gettimeofday
+	CF_FUNC_GETTIME
 	;;
 esac
 
 ###	Checks for header files.
 AC_CHECK_SIZEOF([signed char])
-AC_STDC_HEADERS
 AC_HEADER_DIRENT
 AC_HEADER_TIME
 
@@ -586,6 +585,7 @@ AC_OUTPUT( \
 	src/library.gpr:src/library.gpr.in \
 	doc/adacurses${DFT_ARG_SUFFIX}-config.1:doc/MKada_config.in \
 	Makefile,[
+$AWK -v PACKAGE=$PACKAGE -f $srcdir/mk-pkg.awk </dev/null >> Makefile
 if test -z "$USE_OLD_MAKERULES" ; then
 	$AWK -f $srcdir/mk-1st.awk <$srcdir/src/modules >>src/Makefile
 fi
@@ -603,6 +603,7 @@ LN_S="$LN_S"
 NCURSES_MAJOR="$NCURSES_MAJOR"
 NCURSES_MINOR="$NCURSES_MINOR"
 NCURSES_PATCH="$NCURSES_PATCH"
+PACKAGE="$PACKAGE"
 USE_OLD_MAKERULES="$USE_OLD_MAKERULES"
 cf_cv_VERSION_GNATMAKE=$cf_cv_VERSION_GNATMAKE
 cf_cv_VERSION_GPRBUILD=$cf_cv_VERSION_GPRBUILD

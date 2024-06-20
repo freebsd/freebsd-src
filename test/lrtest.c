@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2020,2022 Thomas E. Dickey                                *
  * Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -35,7 +35,7 @@
  * This can't be part of the ncurses test-program, because ncurses rips off the
  * bottom line to do labels.
  *
- * $Id: lrtest.c,v 1.27 2020/02/02 23:34:34 tom Exp $
+ * $Id: lrtest.c,v 1.29 2022/12/10 23:44:18 tom Exp $
  */
 
 #include <test.priv.h>
@@ -82,10 +82,28 @@ show(MARK *m)
     }
 }
 
+static void
+usage(int ok)
+{
+    static const char *msg[] =
+    {
+	"Usage: lrtest [options]"
+	,""
+	,USAGE_COMMON
+    };
+    size_t n;
+
+    for (n = 0; n < SIZEOF(msg); n++)
+	fprintf(stderr, "%s\n", msg[n]);
+
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
+}
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
+
 int
-main(
-	int argc GCC_UNUSED,
-	char *argv[]GCC_UNUSED)
+main(int argc, char *argv[])
 {
     static MARK marks[] =
     {
@@ -97,6 +115,20 @@ main(
 	{1, 0, 1, 1, 1, '*' | A_REVERSE},
 	{2, 0, 1, 1, 1, '*' | A_REVERSE}
     };
+    int ch;
+
+    while ((ch = getopt(argc, argv, OPTS_COMMON)) != -1) {
+	switch (ch) {
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
+	default:
+	    usage(ch == OPTS_USAGE);
+	    /* NOTREACHED */
+	}
+    }
+    if (optind < argc)
+	usage(FALSE);
 
     setlocale(LC_ALL, "");
 
@@ -132,7 +164,7 @@ main(
     }
 
     for (;;) {
-	int ch;
+	int c2;
 	unsigned n;
 
 	box(stdscr, 0, 0);
@@ -140,21 +172,21 @@ main(
 	    show(&marks[n]);
 	}
 
-	if ((ch = getch()) > 0) {
-	    if (ch == 'q')
+	if ((c2 = getch()) > 0) {
+	    if (c2 == 'q')
 		break;
-	    else if (ch == 's')
+	    else if (c2 == 's')
 		nodelay(stdscr, FALSE);
-	    else if (ch == ' ')
+	    else if (c2 == ' ')
 		nodelay(stdscr, TRUE);
 #ifdef TRACE
-	    else if (ch == 'T')
+	    else if (c2 == 'T')
 		curses_trace(0);
-	    else if (ch == 't')
+	    else if (c2 == 't')
 		curses_trace(TRACE_CALLS | TRACE_ICALLS | TRACE_UPDATE);
 #endif
 #ifdef KEY_RESIZE
-	    else if (ch == KEY_RESIZE) {
+	    else if (c2 == KEY_RESIZE) {
 		for (n = 0; n < SIZEOF(marks); n++) {
 		    if (marks[n].mode == 0) {	/* moving along x-direction */
 			if (marks[n].y)

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020-2021,2022 Thomas E. Dickey                                *
  * Copyright 2006-2012,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: redraw.c,v 1.11 2020/02/02 23:34:34 tom Exp $
+ * $Id: redraw.c,v 1.17 2022/12/10 22:28:50 tom Exp $
  *
  * Demonstrate the redrawwin() and wredrawln() functions.
  * Thomas Dickey - 2006/11/4
@@ -82,7 +82,6 @@ test_redraw(WINDOW *win)
     WINDOW *win1;
     WINDOW *win2;
     bool done = FALSE;
-    int ch, y, x;
     int max_y, max_x;
     int beg_y, beg_x;
 
@@ -92,8 +91,11 @@ test_redraw(WINDOW *win)
     keypad(win, TRUE);
     getmaxyx(win, max_y, max_x);
     getbegyx(win, beg_y, beg_x);
+
     while (!done) {
-	ch = wgetch(win);
+	int ch = wgetch(win);
+	int y, x;
+
 	getyx(win, y, x);
 	switch (ch) {
 	case 'q':
@@ -133,7 +135,7 @@ test_redraw(WINDOW *win)
 	    /*
 	     * For a shell command, we can work around the problem noted above
 	     * using mvcur().  It is ifdef'd for NCURSES, since X/Open does
-	     * not define the case where the old location is unknown. 
+	     * not define the case where the old location is unknown.
 	     */
 	    IGNORE_RC(system("date"));
 	    mvcur(-1, -1, y, x);
@@ -187,30 +189,34 @@ test_redraw(WINDOW *win)
 }
 
 static void
-usage(void)
+usage(int ok)
 {
     static const char *tbl[] =
     {
 	"Usage: redraw [options]"
 	,""
+	,USAGE_COMMON
 	,"Options:"
-	,"  -e      use stderr (default stdout)"
-	,"  -n      do not initialize terminal"
+	," -e       use stderr (default stdout)"
+	," -n       do not initialize terminal"
     };
     unsigned n;
     for (n = 0; n < SIZEOF(tbl); ++n)
 	fprintf(stderr, "%s\n", tbl[n]);
-    ExitProgram(EXIT_FAILURE);
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
 }
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
 
 int
-main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
+main(int argc, char *argv[])
 {
     int ch;
     bool no_init = FALSE;
     FILE *my_fp = stdout;
 
-    while ((ch = getopt(argc, argv, "en")) != -1) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "en")) != -1) {
 	switch (ch) {
 	case 'e':
 	    my_fp = stderr;
@@ -218,13 +224,16 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 	case 'n':
 	    no_init = TRUE;
 	    break;
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage();
-	    break;
+	    usage(ch == OPTS_USAGE);
+	    /* NOTREACHED */
 	}
     }
     if (optind < argc)
-	usage();
+	usage(FALSE);
 
     if (no_init) {
 	START_TRACE();

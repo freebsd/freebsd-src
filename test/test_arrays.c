@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2022 Thomas E. Dickey                                     *
  * Copyright 2007-2010,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: test_arrays.c,v 1.9 2020/02/02 23:34:34 tom Exp $
+ * $Id: test_arrays.c,v 1.13 2022/12/10 23:23:27 tom Exp $
  *
  * Author: Thomas E Dickey
  *
@@ -135,37 +135,41 @@ dump_table(void)
 }
 
 static void
-usage(void)
+usage(int ok)
 {
     static const char *msg[] =
     {
-	"Usage: test_arrays [options]",
-	"",
-	"If no options are given, print all (boolean, numeric, string)",
-	"capability names showing their index within the tables.",
-	"",
-	"Options:",
-	" -C       print termcap names",
-	" -T       print terminfo names",
-	" -c       print termcap names",
-	" -f       print full terminfo names",
-	" -n       print short terminfo names",
-	" -t       print the result as CSV table",
+	"Usage: test_arrays [options]"
+	,""
+	,"If no options are given, print all (boolean, numeric, string)"
+	,"capability names showing their index within the tables."
+	,""
+	,USAGE_COMMON
+	,"Options:"
+	," -C       print termcap names"
+	," -T       print terminfo names"
+	," -c       print termcap names"
+	," -f       print full terminfo names"
+	," -n       print short terminfo names"
+	," -t       print the result as CSV table"
     };
     unsigned n;
     for (n = 0; n < SIZEOF(msg); ++n) {
 	fprintf(stderr, "%s\n", msg[n]);
     }
-    ExitProgram(EXIT_FAILURE);
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
 }
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
 
 int
 main(int argc, char *argv[])
 {
-    int n;
+    int ch;
 
-    while ((n = getopt(argc, argv, "CTcfnt")) != -1) {
-	switch (n) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "CTcfnt")) != -1) {
+	switch (ch) {
 	case 'C':
 	    opt_C = TRUE;
 	    break;
@@ -184,13 +188,16 @@ main(int argc, char *argv[])
 	case 't':
 	    opt_t = TRUE;
 	    break;
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage();
+	    usage(ch == OPTS_USAGE);
 	    /* NOTREACHED */
 	}
     }
     if (optind < argc)
-	usage();
+	usage(FALSE);
 
     if (!(opt_T || opt_C)) {
 	opt_T = opt_C = TRUE;
@@ -210,7 +217,7 @@ main(int argc, char *argv[])
 
 #else
 int
-main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
+main(void)
 {
     printf("This program requires the terminfo arrays\n");
     ExitProgram(EXIT_FAILURE);
@@ -218,7 +225,7 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 #endif
 #else /* !HAVE_TIGETSTR */
 int
-main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
+main(void)
 {
     printf("This program requires the terminfo functions such as tigetstr\n");
     ExitProgram(EXIT_FAILURE);

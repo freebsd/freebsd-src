@@ -1,6 +1,6 @@
-<!-- 
+<!--
   ****************************************************************************
-  * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
   * Copyright 1998-2006,2010 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,27 +27,27 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_scroll.3x,v 1.19 2020/10/24 09:45:48 tom Exp @
+  * @Id: curs_scroll.3x,v 1.43 2024/04/20 18:54:36 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_scroll 3x</TITLE>
+<TITLE>curs_scroll 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_scroll 3x</H1>
+<H1 class="no-header">curs_scroll 3x 2024-04-20 ncurses 6.5 Library calls</H1>
 <PRE>
-<STRONG><A HREF="curs_scroll.3x.html">curs_scroll(3x)</A></STRONG>                                                <STRONG><A HREF="curs_scroll.3x.html">curs_scroll(3x)</A></STRONG>
+<STRONG><A HREF="curs_scroll.3x.html">curs_scroll(3x)</A></STRONG>                  Library calls                 <STRONG><A HREF="curs_scroll.3x.html">curs_scroll(3x)</A></STRONG>
 
 
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
-       <STRONG>scroll</STRONG>, <STRONG>scrl</STRONG>, <STRONG>wscrl</STRONG> - scroll a <STRONG>curses</STRONG> window
+       <STRONG>scroll</STRONG>, <STRONG>scrl</STRONG>, <STRONG>wscrl</STRONG> - scroll a <EM>curses</EM> window
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
@@ -60,45 +60,54 @@
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       The  <STRONG>scroll</STRONG> routine scrolls the window up one line.  This involves mov-
-       ing the lines in the window data structure.  As an optimization, if the
-       scrolling  region  of  the  window  is  the entire screen, the <EM>physical</EM>
-       <EM>screen</EM> may be scrolled at the same time.
+       <STRONG>scroll</STRONG>  scrolls  the  given window up one line.  That is, every visible
+       line we might number <EM>i</EM> becomes line <EM>i</EM>-1.  The text of the top  line  in
+       the  window  disappears  and  the  bottom  line is populated with blank
+       characters; see <STRONG><A HREF="curs_bkgd.3x.html">bkgd(3x)</A></STRONG> or <STRONG><A HREF="curs_bkgrnd.3x.html">bkgrnd(3x)</A></STRONG>.  As  an  optimization,  if  the
+       scrolling  region  of  the  window  is  the entire screen, the physical
+       screen may be scrolled at the same time; see <STRONG><A HREF="curs_variables.3x.html">curscr(3x)</A></STRONG>.
 
-       For positive <EM>n</EM>, the <STRONG>scrl</STRONG> and <STRONG>wscrl</STRONG> routines  scroll  the  window  up  <EM>n</EM>
-       lines  (line  <EM>i</EM>+<EM>n</EM> becomes <EM>i</EM>); otherwise scroll the window down <EM>n</EM> lines.
-       This involves moving the lines in the window character image structure.
-       The current cursor position is not changed.
+       <STRONG>scrl</STRONG> and <STRONG>wscrl</STRONG> scroll  <STRONG>stdscr</STRONG>  or  the  specified  window  up  or  down
+       depending on the sign of <EM>n</EM>.
 
-       For these functions to work, scrolling must be enabled via <STRONG>scrollok</STRONG>.
+       <STRONG>o</STRONG>   For positive <EM>n</EM>, line <EM>i</EM>+<EM>n</EM> becomes <EM>i</EM> (scrolling up);
+
+       <STRONG>o</STRONG>   for negative <EM>n</EM>, line <EM>i</EM>-<EM>n</EM> becomes <EM>i</EM> (scrolling down).
+
+       The  cursor does not move.  These functions perform no operation unless
+       scrolling is enabled for the window via <STRONG><A HREF="scrollok.3x.html">scrollok(3x)</A></STRONG>.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       These routines return <STRONG>ERR</STRONG> upon failure, and <STRONG>OK</STRONG> (SVr4 only specifies "an
-       integer value other than <STRONG>ERR</STRONG>") upon successful completion.
+       These functions return <STRONG>ERR</STRONG> upon failure and <STRONG>OK</STRONG> upon success.
 
-       X/Open defines no error conditions.
-
-       This implementation returns an error if the window pointer is null,  or
-       if scrolling is not enabled in the window, e.g., with <STRONG>scrollok</STRONG>.
+       <EM>ncurses</EM> returns <STRONG>ERR</STRONG> if scrolling is not  enabled  in  the  window,  for
+       example with <STRONG><A HREF="scrollok.3x.html">scrollok(3x)</A></STRONG>, or if the <EM>WINDOW</EM> pointer is null.
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       Note that <STRONG>scrl</STRONG> and <STRONG>scroll</STRONG> may be macros.
+       Unusually,  there  is  no <STRONG>wscroll</STRONG> function; <STRONG>scroll</STRONG> behaves as one would
+       expect <STRONG>wscroll</STRONG> to, accepting a <EM>WINDOW</EM> pointer argument.
 
-       The  SVr4  documentation  says  that  the  optimization  of  physically
-       scrolling immediately if the scroll region is the  entire  screen  "is"
-       performed,  not  "may  be" performed.  This implementation deliberately
-       does not guarantee that this will occur, to leave open the  possibility
-       of smarter optimization of multiple scroll actions on the next update.
-
-       Neither  the SVr4 nor the XSI documentation specify whether the current
-       attribute or current color-pair of blanks generated by the scroll func-
-       tion is zeroed.  Under this implementation it is.
+       <STRONG>scrl</STRONG> and <STRONG>scroll</STRONG> may be implemented as macros.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       The XSI Curses standard, Issue 4 describes these functions.
+       X/Open Curses, Issue 4 describes these functions.  It defines no  error
+       conditions.
+
+       SVr4  specifies  only "an integer value other than <STRONG>ERR</STRONG>" as a successful
+       return value.
+
+       SVr4  indicates  that  the   optimization   of   physically   scrolling
+       immediately  if  the scroll region is the entire screen "is" performed,
+       not "may be" performed.  <EM>ncurses</EM> deliberately does not  guarantee  that
+       this  will occur, to leave open the possibility of smarter optimization
+       of multiple scroll actions on the next update.
+
+       Neither SVr4 <EM>curses</EM> nor  X/Open  Curses  specify  whether  the  current
+       attribute  or  current  color  pair  of  blanks generated by the scroll
+       function are zeroed.  <EM>ncurses</EM> does so.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
@@ -106,7 +115,7 @@
 
 
 
-                                                               <STRONG><A HREF="curs_scroll.3x.html">curs_scroll(3x)</A></STRONG>
+ncurses 6.5                       2024-04-20                   <STRONG><A HREF="curs_scroll.3x.html">curs_scroll(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>

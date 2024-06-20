@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2022,2023 Thomas E. Dickey                                *
  * Copyright 2009-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -30,7 +30,7 @@
 /*
  * Author: Thomas E. Dickey
  *
- * $Id: demo_terminfo.c,v 1.51 2020/05/09 13:56:40 tom Exp $
+ * $Id: demo_terminfo.c,v 1.57 2023/05/27 20:13:10 tom Exp $
  *
  * A simple demo of the terminfo interface.
  */
@@ -47,7 +47,7 @@
 #endif
 #endif
 
-static void failed(const char *) GCC_NORETURN;
+static GCC_NORETURN void failed(const char *);
 
 static void
 failed(const char *msg)
@@ -96,7 +96,7 @@ static long total_s_values;
 #define FNAME(type) "%s %-*s = ", #type, f_opt ? 24 : FCOLS
 
 static char *
-make_dbitem(char *p, char *q)
+make_dbitem(const char *const p, const char *const q)
 {
     size_t need = strlen(e_opt) + 2 + (size_t) (p - q);
     char *result = malloc(need);
@@ -430,7 +430,8 @@ typedef enum {
 static void
 parse_description(const char *input_name)
 {
-    static char empty[1];
+    static char empty[1] =
+    {0};
 
     FILE *fp;
     struct stat sb;
@@ -463,11 +464,13 @@ parse_description(const char *input_name)
 	failed("cannot allocate memory for input-file");
     }
 
-    if ((fp = fopen(input_name, "r")) == 0)
+    if ((fp = fopen(input_name, "r")) == 0) {
 	failed("cannot open input-file");
-    len = fread(my_blob, sizeof(char), (size_t) sb.st_size, fp);
-    my_blob[sb.st_size] = '\0';
-    fclose(fp);
+    } else {
+	len = fread(my_blob, sizeof(char), (size_t) sb.st_size, fp);
+	my_blob[sb.st_size] = '\0';
+	fclose(fp);
+    }
 
     /*
      * First, get rid of comments and escaped newlines, as well as repeated
@@ -768,49 +771,54 @@ free_code_list(char **list)
 #endif /* USE_CODE_LISTS */
 
 static void
-usage(void)
+usage(int ok)
 {
     static const char *msg[] =
     {
-	"Usage: demo_terminfo [options] [terminal]",
-	"",
-	"If no options are given, print all (boolean, numeric, string)",
-	"capabilities for the given terminal, using short names.",
-	"",
-	"Options:",
-	" -a       try all names, print capabilities found",
-	" -b       print boolean-capabilities",
-	" -d LIST  colon-separated list of databases to use",
-	" -e NAME  environment variable to set with -d option",
-	" -f       print full names",
-	" -i NAME  terminal description to use as names for \"-a\" option",
-	" -n       print numeric-capabilities",
-	" -q       quiet (prints only counts)",
-	" -r COUNT repeat for given count",
-	" -s       print string-capabilities",
+	"Usage: demo_terminfo [options] [terminal]"
+	,""
+	,"If no options are given, print all (boolean, numeric, string)"
+	,"capabilities for the given terminal, using short names."
+	,""
+	,USAGE_COMMON
+	,"Options:"
+	," -a       try all names, print capabilities found"
+	," -b       print boolean-capabilities"
+	," -d LIST  colon-separated list of databases to use"
+	," -e NAME  environment variable to set with -d option"
+	," -f       print full names"
+	," -i NAME  terminal description to use as names for \"-a\" option"
+	," -n       print numeric-capabilities"
+	," -q       quiet (prints only counts)"
+	," -r COUNT repeat for given count"
+	," -s       print string-capabilities"
 #ifdef NCURSES_VERSION
-	" -x       print extended capabilities",
-	" -y       direct-lookup names of extended capabilities",
+	," -x       print extended capabilities"
+	," -y       direct-lookup names of extended capabilities"
 #endif
     };
     unsigned n;
     for (n = 0; n < SIZEOF(msg); ++n) {
 	fprintf(stderr, "%s\n", msg[n]);
     }
-    ExitProgram(EXIT_FAILURE);
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
 }
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
 
 int
 main(int argc, char *argv[])
 {
+    int ch;
     int n;
     int repeat;
     char *name;
     int r_opt = 1;
     char *input_name = 0;
 
-    while ((n = getopt(argc, argv, "abd:e:fi:nqr:sxy")) != -1) {
-	switch (n) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "abd:e:fi:nqr:sxy")) != -1) {
+	switch (ch) {
 	case 'a':
 	    a_opt = TRUE;
 	    break;
@@ -837,7 +845,7 @@ main(int argc, char *argv[])
 	    break;
 	case 'r':
 	    if ((r_opt = atoi(optarg)) <= 0)
-		usage();
+		usage(FALSE);
 	    break;
 	case 's':
 	    s_opt = TRUE;
@@ -853,9 +861,12 @@ main(int argc, char *argv[])
 	    x_opt = TRUE;
 	    break;
 #endif
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage();
-	    break;
+	    usage(ch == OPTS_USAGE);
+	    /* NOTREACHED */
 	}
     }
 
@@ -946,7 +957,7 @@ main(int argc, char *argv[])
 
 #else /* !HAVE_TIGETSTR */
 int
-main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
+main(void)
 {
     failed("This program requires the terminfo functions such as tigetstr");
     ExitProgram(EXIT_FAILURE);

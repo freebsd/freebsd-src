@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2018-2020,2021 Thomas E. Dickey                                *
  * Copyright 2011-2012,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: color_name.h,v 1.8 2020/06/20 18:58:20 tom Exp $
+ * $Id: color_name.h,v 1.9 2021/04/24 23:25:29 tom Exp $
  */
 
 #ifndef __COLORNAME_H
@@ -37,7 +37,7 @@
 #include <test.priv.h>
 #endif
 
-static NCURSES_CONST char *the_color_names[] =
+static NCURSES_CONST char *const the_color_names[] =
 {
     "black",
     "red",

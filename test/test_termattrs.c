@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2022 Thomas E. Dickey                                     *
  * Copyright 2017 Free Software Foundation, Inc.                            *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,11 +27,12 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: test_termattrs.c,v 1.3 2020/02/02 23:34:34 tom Exp $
+ * $Id: test_termattrs.c,v 1.8 2022/12/10 23:23:27 tom Exp $
  *
  * Demonstrate the termattrs and term_attrs functions.
  */
 
+#define USE_CURSES
 #define USE_TINFO
 #include <test.priv.h>
 
@@ -117,28 +118,32 @@ test_termattrs(unsigned long value)
 }
 
 static void
-usage(void)
+usage(int ok)
 {
     static const char *tbl[] =
     {
 	"Usage: test_termattrs [options]"
 	,""
+	,USAGE_COMMON
 	,"Options:"
-	,"  -e      use stderr (default stdout)"
-	,"  -n      do not initialize terminal"
-	,"  -s      use setupterm rather than newterm"
+	," -e       use stderr (default stdout)"
+	," -n       do not initialize terminal"
+	," -s       use setupterm rather than newterm"
 #if USE_WIDEC_SUPPORT
-	,"  -w      use term_attrs rather than termattrs"
+	," -w       use term_attrs rather than termattrs"
 #endif
     };
     unsigned n;
     for (n = 0; n < SIZEOF(tbl); ++n)
 	fprintf(stderr, "%s\n", tbl[n]);
-    ExitProgram(EXIT_FAILURE);
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
 }
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
 
 int
-main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
+main(int argc, char *argv[])
 {
     int ch;
     bool no_init = FALSE;
@@ -149,7 +154,7 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 
     my_fp = stdout;
 
-    while ((ch = getopt(argc, argv, "ensw")) != -1) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "ensw")) != -1) {
 	switch (ch) {
 	case 'e':
 	    my_fp = stderr;
@@ -165,13 +170,16 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 	    w_opt = TRUE;
 	    break;
 #endif
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage();
-	    break;
+	    usage(ch == OPTS_USAGE);
+	    /* NOTREACHED */
 	}
     }
     if (optind < argc)
-	usage();
+	usage(FALSE);
 
     if (no_init) {
 	START_TRACE();
@@ -191,8 +199,7 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 
 #else
 int
-main(int argc GCC_UNUSED,
-     char *argv[]GCC_UNUSED)
+main(void)
 {
     fprintf(stderr, "This program requires terminfo\n");
     exit(EXIT_FAILURE);

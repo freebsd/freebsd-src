@@ -1,6 +1,6 @@
-<!-- 
+<!--
   ****************************************************************************
-  * Copyright 2020 Thomas E. Dickey                                          *
+  * Copyright 2020-2023,2024 Thomas E. Dickey                                *
   * Copyright 1998-2013,2015 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,28 +27,28 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_overlay.3x,v 1.19 2020/02/02 23:34:34 tom Exp @
+  * @Id: curs_overlay.3x,v 1.43 2024/04/20 21:20:07 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_overlay 3x</TITLE>
+<TITLE>curs_overlay 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_overlay 3x</H1>
+<H1 class="no-header">curs_overlay 3x 2024-04-20 ncurses 6.5 Library calls</H1>
 <PRE>
-<STRONG><A HREF="curs_overlay.3x.html">curs_overlay(3x)</A></STRONG>                                              <STRONG><A HREF="curs_overlay.3x.html">curs_overlay(3x)</A></STRONG>
+<STRONG><A HREF="curs_overlay.3x.html">curs_overlay(3x)</A></STRONG>                 Library calls                <STRONG><A HREF="curs_overlay.3x.html">curs_overlay(3x)</A></STRONG>
 
 
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
-       <STRONG>overlay</STRONG>, <STRONG>overwrite</STRONG>, <STRONG>copywin</STRONG> - overlay and manipulate overlapped <STRONG>curses</STRONG>
-       windows
+       <STRONG>overlay</STRONG>,  <STRONG>overwrite</STRONG>,  <STRONG>copywin</STRONG>  -  overlay <EM>curses</EM> windows and manipulate
+       them
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
@@ -63,27 +63,27 @@
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
 
-</PRE><H3><a name="h3-overlay_-overwrite">overlay, overwrite</a></H3><PRE>
+</PRE><H3><a name="h3-overlay_overwrite">overlay, overwrite</a></H3><PRE>
        The <STRONG>overlay</STRONG> and <STRONG>overwrite</STRONG> routines overlay <EM>srcwin</EM>  on  top  of  <EM>dstwin</EM>.
        <EM>scrwin</EM> and <EM>dstwin</EM> are not required to be the same size; only text where
        the two windows overlap is copied.  The difference is that  <STRONG>overlay</STRONG>  is
-       non-destructive  (blanks  are not copied) whereas <STRONG>overwrite</STRONG> is destruc-
-       tive.
+       non-destructive   (blanks   are   not   copied)  whereas  <STRONG>overwrite</STRONG>  is
+       destructive.
 
 
 </PRE><H3><a name="h3-copywin">copywin</a></H3><PRE>
        The <STRONG>copywin</STRONG> routine provides a finer granularity of  control  over  the
-       <STRONG>overlay</STRONG>  and <STRONG>overwrite</STRONG> routines.  As in the <STRONG>prefresh</STRONG> routine, a rectan-
-       gle is specified in the  destination  window,  (<EM>dminrow</EM>,  <EM>dmincol</EM>)  and
-       (<EM>dmaxrow</EM>, <EM>dmaxcol</EM>), and the upper-left-corner coordinates of the source
-       window, (<EM>sminrow</EM>, <EM>smincol</EM>).  If the  argument  <EM>overlay</EM>  is  <STRONG>true</STRONG>,  then
-       copying is non-destructive, as in <STRONG>overlay</STRONG>.
+       <STRONG>overlay</STRONG>  and  <STRONG>overwrite</STRONG>  routines.   As  in  the  <STRONG>prefresh</STRONG>  routine,  a
+       rectangle is specified in the destination  window,  (<EM>dminrow</EM>,  <EM>dmincol</EM>)
+       and  (<EM>dmaxrow</EM>,  <EM>dmaxcol</EM>),  and the upper-left-corner coordinates of the
+       source window, (<EM>sminrow</EM>, <EM>smincol</EM>).  If the argument  <EM>overlay</EM>  is  <STRONG>true</STRONG>,
+       then copying is non-destructive, as in <STRONG>overlay</STRONG>.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       Routines  that  return an integer return <STRONG>ERR</STRONG> upon failure, and <STRONG>OK</STRONG> (SVr4
-       only specifies "an integer value other than <STRONG>ERR</STRONG>") upon successful  com-
-       pletion.
+       These  routines  return  the  integer  <STRONG>ERR</STRONG> upon failure and an <STRONG>OK</STRONG> (SVr4
+       specifies only "an integer  value  other  than  <STRONG>ERR</STRONG>")  upon  successful
+       completion.
 
        X/Open  defines  no error conditions.  In this implementation, <STRONG>copywin</STRONG>,
        <STRONG>overlay</STRONG> and <STRONG>overwrite</STRONG> return an error if either of the window  pointers
@@ -95,10 +95,10 @@
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       The  XSI Curses standard, Issue 4 describes these functions (adding the
-       const qualifiers).  It further specifies their behavior in the presence
-       of  characters with multibyte renditions (not yet supported in this im-
-       plementation).
+       These  functions  are  described  in X/Open Curses, Issue 4, which adds
+       <EM>const</EM> qualifiers to the arguments.  It further specifies their behavior
+       in  the  presence  of  characters  with  multibyte  renditions (not yet
+       supported in this implementation).
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
@@ -106,7 +106,7 @@
 
 
 
-                                                              <STRONG><A HREF="curs_overlay.3x.html">curs_overlay(3x)</A></STRONG>
+ncurses 6.5                       2024-04-20                  <STRONG><A HREF="curs_overlay.3x.html">curs_overlay(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -114,7 +114,7 @@
 <li><a href="#h2-SYNOPSIS">SYNOPSIS</a></li>
 <li><a href="#h2-DESCRIPTION">DESCRIPTION</a>
 <ul>
-<li><a href="#h3-overlay_-overwrite">overlay, overwrite</a></li>
+<li><a href="#h3-overlay_overwrite">overlay, overwrite</a></li>
 <li><a href="#h3-copywin">copywin</a></li>
 </ul>
 </li>

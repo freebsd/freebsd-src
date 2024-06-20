@@ -12,7 +12,7 @@ DEB_HOST_GNU_TYPE   ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
 DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
 
 TARGET_DIR = $(CURDIR)/debian/adacurses
-SAMPLE_DIR = $(TARGET_DIR)/usr/bin/AdaCurses
+SAMPLE_DIR = $(TARGET_DIR)/usr/libexec/AdaCurses
 
 CFLAGS   = $(shell dpkg-buildflags --get CFLAGS) $(CC_NORMAL)
 CPPFLAGS = $(shell dpkg-buildflags --get CPPFLAGS)
@@ -67,11 +67,11 @@ install: install-stamp
 install-stamp: build-stamp
 	dh_testdir
 	dh_testroot
-	dh_clean -k
+	dh_prep
 	dh_installdirs
 
 	$(MAKE) install DESTDIR=$(TARGET_DIR)
-	
+
 	# FIXME: it would be nice to make these into separate packages
 	( cd samples && $(MAKE) install.examples DESTDIR=$(TARGET_DIR) BINDIR=$(SAMPLE_DIR) )
 	( cd doc && $(MAKE) install.html DESTDIR=$(TARGET_DIR) )

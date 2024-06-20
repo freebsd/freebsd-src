@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2009,2010 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -38,12 +38,12 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_win.c,v 1.20 2020/12/12 00:38:14 tom Exp $")
+MODULE_ID("$Id: m_win.c,v 1.21 2021/06/17 21:20:30 tom Exp $")
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnmenu  
+|   Facility      :  libnmenu
 |   Function      :  int set_menu_win(MENU *menu, WINDOW *win)
-|   
+|
 |   Description   :  Sets the window of the menu.
 |
 |   Return Values :  E_OK               - success
@@ -82,9 +82,9 @@ set_menu_win(MENU *menu, WINDOW *win)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnmenu  
+|   Facility      :  libnmenu
 |   Function      :  WINDOW* menu_win(const MENU*)
-|   
+|
 |   Description   :  Returns pointer to the window of the menu
 |
 |   Return Values :  NULL on error, otherwise pointer to window

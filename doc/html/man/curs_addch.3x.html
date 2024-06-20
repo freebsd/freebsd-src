@@ -1,7 +1,7 @@
-<!-- 
+<!--
   * t
   ****************************************************************************
-  * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
   * Copyright 1998-2015,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,28 +28,28 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_addch.3x,v 1.55 2020/10/24 09:12:31 tom Exp @
+  * @Id: curs_addch.3x,v 1.85 2024/04/20 19:03:47 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_addch 3x</TITLE>
+<TITLE>curs_addch 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_addch 3x</H1>
+<H1 class="no-header">curs_addch 3x 2024-04-20 ncurses 6.5 Library calls</H1>
 <PRE>
-<STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>                                                  <STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>
+<STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>                   Library calls                  <STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>
 
 
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
-       <STRONG>addch</STRONG>, <STRONG>waddch</STRONG>, <STRONG>mvaddch</STRONG>, <STRONG>mvwaddch</STRONG>, <STRONG>echochar</STRONG>, <STRONG>wechochar</STRONG> - add a character
-       (with attributes) to a <STRONG>curses</STRONG> window, then advance the cursor
+       <STRONG>addch</STRONG>,  <STRONG>waddch</STRONG>,  <STRONG>mvaddch</STRONG>,  <STRONG>mvwaddch</STRONG>, <STRONG>echochar</STRONG>, <STRONG>wechochar</STRONG> - add a <EM>curses</EM>
+       character to a window and advance the cursor
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
@@ -66,239 +66,241 @@
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
 
-</PRE><H3><a name="h3-Adding-characters">Adding characters</a></H3><PRE>
-       The <STRONG>addch</STRONG>, <STRONG>waddch</STRONG>, <STRONG>mvaddch</STRONG> and <STRONG>mvwaddch</STRONG> routines put the  character  <EM>ch</EM>
-       into  the  given  window  at its current window position, which is then
-       advanced.  They are  analogous  to  <STRONG>putchar(3)</STRONG>  in  <STRONG>stdio(3)</STRONG>.   If  the
-       advance is at the right margin:
+</PRE><H3><a name="h3-Adding-Characters">Adding Characters</a></H3><PRE>
+       <STRONG>waddch</STRONG> puts the character <EM>ch</EM> at the cursor position of window <EM>win</EM>, then
+       advances  the  cursor position, analogously to the standard C library's
+       <STRONG>putchar(3)</STRONG>.  <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG> describes the variants of this function.
 
-       <STRONG>o</STRONG>   The cursor automatically wraps to the beginning of the next line.
+       If advancement occurs at the right margin,
 
-       <STRONG>o</STRONG>   At  the  bottom of the current scrolling region, and if <STRONG>scrollok</STRONG> is
-           enabled, the scrolling region is scrolled up one line.
+       <STRONG>o</STRONG>   the cursor automatically wraps to the beginning of the  next  line;
+           and
 
-       <STRONG>o</STRONG>   If <STRONG>scrollok</STRONG> is not enabled, writing a character at the lower  right
-           margin  succeeds.   However, an error is returned because it is not
-           possible to wrap to a new line
+       <STRONG>o</STRONG>   at  the bottom of the current scrolling region, and if <STRONG><A HREF="scrollok.3x.html">scrollok(3x)</A></STRONG>
+           is enabled for <EM>win</EM>, the scrolling region scrolls up one line.
 
-       If <EM>ch</EM> is a tab, newline, carriage return or backspace,  the  cursor  is
-       moved appropriately within the window:
+       If <EM>ch</EM> is a backspace, carriage return, line feed, or  tab,  the  cursor
+       moves appropriately within the window.
 
-       <STRONG>o</STRONG>   Backspace  moves the cursor one character left; at the left edge of
-           a window it does nothing.
+       <STRONG>o</STRONG>   Backspace  moves  the cursor one character left; at the left margin
+           of a window, it does nothing.
 
-       <STRONG>o</STRONG>   Carriage return moves the cursor to the window left margin  on  the
-           current line.
+       <STRONG>o</STRONG>   Carriage return moves the cursor to the left margin on the  current
+           line of the window.
 
-       <STRONG>o</STRONG>   Newline  does  a <STRONG>clrtoeol</STRONG>, then moves the cursor to the window left
-           margin on the next line, scrolling the window if on the last line.
+       <STRONG>o</STRONG>   Line  feed  does  a <STRONG><A HREF="curs_clear.3x.html">clrtoeol(3x)</A></STRONG>, then moves the cursor to the left
+           margin on the next line of  the  window,  and  if  <STRONG><A HREF="scrollok.3x.html">scrollok(3x)</A></STRONG>  is
+           enabled  for  <EM>win</EM>,  scrolls the window if the cursor was already on
+           the last line.
 
-       <STRONG>o</STRONG>   Tabs are considered to be at every eighth column.  The tab interval
-           may be altered by setting the <STRONG>TABSIZE</STRONG> variable.
+       <STRONG>o</STRONG>   Tab advances the cursor to the next tab stop (possibly on the  next
+           line);  these  are placed at every eighth column by default.  Alter
+           the   tab   interval    with    the    <STRONG>TABSIZE</STRONG>    extension;    see
+           <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>.
 
        If  <EM>ch</EM>  is  any  other nonprintable character, it is drawn in printable
-       form, i.e., the <STRONG>^</STRONG><EM>X</EM> notation used by <STRONG><A HREF="unctrl.3x.html">unctrl(3x)</A></STRONG>.   Calling  <STRONG>winch</STRONG>  after
-       adding  a  nonprintable character does not return the character itself,
-       but instead returns the printable representation of the character.
+       form, using the same convention as <STRONG><A HREF="unctrl.3x.html">unctrl(3x)</A></STRONG>.
 
-       Video attributes can be combined with a character  argument  passed  to
-       <STRONG>addch</STRONG>  or  related  functions by logical-ORing them into the character.
-       (Thus, text, including attributes, can be  copied  from  one  place  to
-       another  using  <STRONG><A HREF="curs_inch.3x.html">inch(3x)</A></STRONG>  and  <STRONG>addch</STRONG>.)   See the <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG> page for
-       values of predefined video attribute constants  that  can  be  usefully
-       OR'ed into characters.
+       Calling <STRONG><A HREF="curs_inch.3x.html">winch(3x)</A></STRONG> on the location of a nonprintable character does  not
+       return the character itself, but its <STRONG><A HREF="unctrl.3x.html">unctrl(3x)</A></STRONG> representation.
 
-
-</PRE><H3><a name="h3-Echoing-characters">Echoing characters</a></H3><PRE>
-       The  <STRONG>echochar</STRONG>  and <STRONG>wechochar</STRONG> routines are equivalent to a call to <STRONG>addch</STRONG>
-       followed by a call to <STRONG><A HREF="curs_refresh.3x.html">refresh(3x)</A></STRONG>, or a call to <STRONG>waddch</STRONG>  followed  by  a
-       call  to <STRONG>wrefresh</STRONG>.  The knowledge that only a single character is being
-       output  is  used  and,  for  non-control  characters,  a   considerable
-       performance  gain  may be seen by using these routines instead of their
-       equivalents.
+       <EM>ch</EM>  may  contain  rendering  and/or color attributes, and others can be
+       combined with the parameter by logically "or"ing with it.  (A character
+       with  its  attributes can be copied from place to place using <STRONG><A HREF="curs_inch.3x.html">winch(3x)</A></STRONG>
+       and  <STRONG>waddch</STRONG>.)   See  <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG>  for  values  of  predefined   video
+       attribute constants that can be usefully "or"ed with characters.
 
 
-</PRE><H3><a name="h3-Line-Graphics">Line Graphics</a></H3><PRE>
-       The following variables may be used to add line drawing  characters  to
-       the  screen  with  routines of the <STRONG>addch</STRONG> family.  The default character
-       listed below is used if the <STRONG>acsc</STRONG> capability does not define a terminal-
-       specific   replacement   for   it,   or  if  the  terminal  and  locale
-       configuration requires  Unicode  but  the  library  is  unable  to  use
-       Unicode.
+</PRE><H3><a name="h3-Echoing-Characters">Echoing Characters</a></H3><PRE>
+       <STRONG>echochar</STRONG>  and  <STRONG>wechochar</STRONG> are equivalent to calling (<STRONG>w</STRONG>)<STRONG>addch</STRONG> followed by
+       (<STRONG>w</STRONG>)<STRONG>refresh</STRONG>.  <EM>curses</EM> interprets these functions as a hint  that  only  a
+       single  character  is  being  output;  for  non-control  characters,  a
+       considerable performance gain may be enjoyed by employing them.
 
-       The names are taken from VT100 nomenclature.
 
-       <STRONG>ACS</STRONG>            <STRONG>ACS</STRONG>       <STRONG>acsc</STRONG>   <STRONG>Glyph</STRONG>
-       <STRONG>Name</STRONG>           <STRONG>Default</STRONG>   <STRONG>char</STRONG>   <STRONG>Name</STRONG>
-       ---------------------------------------------------------
-       ACS_BLOCK      #         0      solid square block
-       ACS_BOARD      #         h      board of squares
-       ACS_BTEE       +         v      bottom tee
-       ACS_BULLET     o         ~      bullet
-       ACS_CKBOARD    :         a      checker board (stipple)
-       ACS_DARROW     v         .      arrow pointing down
-       ACS_DEGREE     '         f      degree symbol
-       ACS_DIAMOND    +         `      diamond
-       ACS_GEQUAL     &gt;         &gt;      greater-than-or-equal-to
-       ACS_HLINE      -         q      horizontal line
-       ACS_LANTERN    #         i      lantern symbol
-       ACS_LARROW     &lt;         ,      arrow pointing left
-       ACS_LEQUAL     &lt;         y      less-than-or-equal-to
-       ACS_LLCORNER   +         m      lower left-hand corner
-       ACS_LRCORNER   +         j      lower right-hand corner
-       ACS_LTEE       +         t      left tee
-       ACS_NEQUAL     !         |      not-equal
-       ACS_PI         *         {      greek pi
-       ACS_PLMINUS    #         g      plus/minus
-       ACS_PLUS       +         n      plus
-       ACS_RARROW     &gt;         +      arrow pointing right
-       ACS_RTEE       +         u      right tee
-       ACS_S1         -         o      scan line 1
-       ACS_S3         -         p      scan line 3
-       ACS_S7         -         r      scan line 7
-       ACS_S9         _         s      scan line 9
-       ACS_STERLING   f         }      pound-sterling symbol
-       ACS_TTEE       +         w      top tee
-       ACS_UARROW     ^         -      arrow pointing up
-       ACS_ULCORNER   +         l      upper left-hand corner
-       ACS_URCORNER   +         k      upper right-hand corner
-       ACS_VLINE      |         x      vertical line
+</PRE><H3><a name="h3-Forms-Drawing-Characters">Forms-Drawing Characters</a></H3><PRE>
+       <EM>curses</EM> defines macros starting with <STRONG>ACS_</STRONG> that can be used  with  <STRONG>waddch</STRONG>
+       to  write  line-drawing  and  other  special  characters to the screen.
+       <EM>ncurses</EM> terms these <EM>forms-drawing</EM> <EM>characters.</EM>  The ACS  default  listed
+       below  is  used  if  the  <STRONG>acs_chars</STRONG> (<STRONG>acsc</STRONG>) <EM>terminfo</EM> capability does not
+       define a terminal-specific replacement for it, or if the  terminal  and
+       locale  configuration  requires  Unicode to access these characters but
+       the  library  is  unable  to  use  Unicode.   The  "acsc  char"  column
+       corresponds to how the characters are specified in the <STRONG>acs_chars</STRONG> string
+       capability, and the characters in it may appear on the  screen  if  the
+       terminal's database entry incorrectly advertises ACS support.  The name
+       "ACS" originates in the Alternate Character  Set  feature  of  the  DEC
+       VT100 terminal.
+
+                      <STRONG>ACS</STRONG>       <STRONG>acsc</STRONG>
+       <STRONG>Symbol</STRONG>         <STRONG>Default</STRONG>   <STRONG>char</STRONG>   <STRONG>Glyph</STRONG> <STRONG>Name</STRONG>
+       ------------------------------------------------------------------------
+       <STRONG>ACS_BLOCK</STRONG>      #         0      solid square block
+       <STRONG>ACS_BOARD</STRONG>      #         h      board of squares
+       <STRONG>ACS_BTEE</STRONG>       +         v      bottom tee
+       <STRONG>ACS_BULLET</STRONG>     o         ~      bullet
+       <STRONG>ACS_CKBOARD</STRONG>    :         a      checker board (stipple)
+       <STRONG>ACS_DARROW</STRONG>     v         .      arrow pointing down
+       <STRONG>ACS_DEGREE</STRONG>     '         f      degree symbol
+       <STRONG>ACS_DIAMOND</STRONG>    +         `      diamond
+       <STRONG>ACS_GEQUAL</STRONG>     &gt;         &gt;      greater-than-or-equal-to
+       <STRONG>ACS_HLINE</STRONG>      -         q      horizontal line
+       <STRONG>ACS_LANTERN</STRONG>    #         i      lantern symbol
+       <STRONG>ACS_LARROW</STRONG>     &lt;         ,      arrow pointing left
+       <STRONG>ACS_LEQUAL</STRONG>     &lt;         y      less-than-or-equal-to
+       <STRONG>ACS_LLCORNER</STRONG>   +         m      lower left-hand corner
+       <STRONG>ACS_LRCORNER</STRONG>   +         j      lower right-hand corner
+       <STRONG>ACS_LTEE</STRONG>       +         t      left tee
+       <STRONG>ACS_NEQUAL</STRONG>     !         |      not-equal
+       <STRONG>ACS_PI</STRONG>         *         {      greek pi
+       <STRONG>ACS_PLMINUS</STRONG>    #         g      plus/minus
+       <STRONG>ACS_PLUS</STRONG>       +         n      plus
+       <STRONG>ACS_RARROW</STRONG>     &gt;         +      arrow pointing right
+       <STRONG>ACS_RTEE</STRONG>       +         u      right tee
+       <STRONG>ACS_S1</STRONG>         -         o      scan line 1
+       <STRONG>ACS_S3</STRONG>         -         p      scan line 3
+       <STRONG>ACS_S7</STRONG>         -         r      scan line 7
+       <STRONG>ACS_S9</STRONG>         _         s      scan line 9
+       <STRONG>ACS_STERLING</STRONG>   f         }      pound-sterling symbol
+       <STRONG>ACS_TTEE</STRONG>       +         w      top tee
+       <STRONG>ACS_UARROW</STRONG>     ^         -      arrow pointing up
+       <STRONG>ACS_ULCORNER</STRONG>   +         l      upper left-hand corner
+       <STRONG>ACS_URCORNER</STRONG>   +         k      upper right-hand corner
+       <STRONG>ACS_VLINE</STRONG>      |         x      vertical line
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       All routines return the integer <STRONG>ERR</STRONG> upon failure and <STRONG>OK</STRONG> on success (the
-       SVr4 manuals specify only "an  integer  value  other  than  <STRONG>ERR</STRONG>")  upon
-       successful  completion, unless otherwise noted in the preceding routine
-       descriptions.
+       These functions return <STRONG>OK</STRONG> on success and <STRONG>ERR</STRONG> on failure.
 
-       Functions with a "mv" prefix first  perform  a  cursor  movement  using
-       <STRONG>wmove</STRONG>, and return an error if the position is outside the window, or if
-       the window pointer is null.
+       In  <EM>ncurses</EM>, <STRONG>waddch</STRONG> returns <STRONG>ERR</STRONG> if it is not possible to add a complete
+       character at the cursor position, as when  conversion  of  a  multibyte
+       character  to  a  byte sequence fails, or at least one of the resulting
+       bytes cannot be added to the window.  See section  "PORTABILITY"  below
+       regarding the use of <STRONG>waddch</STRONG> with multibyte characters.
 
-       If it is not  possible  to  add  a  complete  character,  an  error  is
-       returned:
+       <STRONG>waddch</STRONG>  can successfully write a character at the bottom right location
+       of the window.  However, <EM>ncurses</EM> returns <STRONG>ERR</STRONG>  if  <STRONG><A HREF="scrollok.3x.html">scrollok(3x)</A></STRONG>  is  not
+       enabled  in  that  event,  because  it is not possible to wrap to a new
+       line.
 
-       <STRONG>o</STRONG>   If  <STRONG>scrollok</STRONG> is not enabled, writing a character at the lower right
-           margin succeeds.  However, an error is returned because it  is  not
-           possible to wrap to a new line
-
-       <STRONG>o</STRONG>   If  an error is detected when converting a multibyte character to a
-           sequence of bytes, or if it is not  possible  to  add  all  of  the
-           resulting bytes in the window, an error is returned.
+       Functions prefixed with "mv" first perform cursor movement and fail  if
+       the position (<EM>y</EM>, <EM>x</EM>) is outside the window boundaries.
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       Note that <STRONG>addch</STRONG>, <STRONG>mvaddch</STRONG>, <STRONG>mvwaddch</STRONG>, and <STRONG>echochar</STRONG> may be macros.
+       <STRONG>addch</STRONG>, <STRONG>mvaddch</STRONG>, <STRONG>mvwaddch</STRONG>, and <STRONG>echochar</STRONG> may be implemented as macros.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       All  these functions are described in the XSI Curses standard, Issue 4.
-       The defaults specified for forms-drawing characters apply in the  POSIX
+       X/Open  Curses,  Issue  4  describes  these functions.  It specifies no
+       error conditions for them.
+
+       SVr4 <EM>curses</EM> describes a successful return value  only  as  "an  integer
+       value other than <STRONG>ERR</STRONG>".
+
+       The  defaults specified for forms-drawing characters apply in the POSIX
        locale.
 
 
 </PRE><H3><a name="h3-ACS-Symbols">ACS Symbols</a></H3><PRE>
-       X/Open Curses states that the <EM>ACS</EM><STRONG>_</STRONG> definitions are <STRONG>char</STRONG> constants.  For
-       the  wide-character  implementation  (see  <STRONG>curs_add_wch</STRONG>),   there   are
-       analogous   <EM>WACS</EM><STRONG>_</STRONG>   definitions  which  are  <STRONG>cchar_t</STRONG>  constants.   Some
-       implementations are problematic:
+       X/Open Curses states that the <STRONG>ACS_</STRONG> definitions are <EM>char</EM> constants.
 
-       <STRONG>o</STRONG>   Some implementations define the ACS symbols to a constant (such  as
-           Solaris), while others define those to entries in an array.
+       Some implementations are problematic.
 
-           This  implementation uses an array <STRONG>acs_map</STRONG>, as done in SVr4 curses.
+       <STRONG>o</STRONG>   Solaris <EM>curses</EM>, for example, define the ACS symbols  as  constants;
+           others define them as elements of an array.
+
+           This  implementation  uses  an  array, <STRONG>acs_map</STRONG>, as did SVr4 <EM>curses</EM>.
            NetBSD also uses an array, actually named <STRONG>_acs_char</STRONG>, with a <STRONG>#define</STRONG>
            for compatibility.
 
-       <STRONG>o</STRONG>   HPUX curses equates some of the <EM>ACS</EM><STRONG>_</STRONG> symbols to the analogous <EM>WACS</EM><STRONG>_</STRONG>
-           symbols  as  if  the  <EM>ACS</EM><STRONG>_</STRONG>  symbols  were  wide  characters.    The
-           misdefined  symbols  are the arrows and other symbols which are not
-           used for line-drawing.
+       <STRONG>o</STRONG>   HP-UX  <EM>curses</EM>  equates  some  of  the <STRONG>ACS_</STRONG> symbols to the analogous
+           <STRONG>WACS_</STRONG> symbols as if the <STRONG>ACS_</STRONG>  symbols  were  wide  characters  (see
+           <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>).   The  misdefined  symbols  are  the  arrows and
+           others that are not used for line drawing.
 
-       <STRONG>o</STRONG>   X/Open Curses (issues 2 through 7) has a  typographical  error  for
-           the  ACS_LANTERN  symbol,  equating  its  "VT100+  Character"  to <STRONG>I</STRONG>
-           (capital I), while the header files for SVr4 curses and the various
-           implementations use <STRONG>i</STRONG> (lowercase).
+       <STRONG>o</STRONG>   X/Open Curses (Issues 2 through 7) has a  typographical  error  for
+           the  <STRONG>ACS_LANTERN</STRONG>  symbol,  equating  its  "VT100+ Character" to "I"
+           (capital I), while the header  files  for  SVr4  <EM>curses</EM>  and  other
+           implementations use "i" (small i).
 
-           None  of the terminal descriptions on Unix platforms use uppercase-
-           I,  except  for  Solaris  (i.e.,  <EM>screen</EM>'s  terminal   description,
+           None  of  the terminal descriptions on Unix platforms use uppercase
+           I, except  for  Solaris  (in  its  <EM>terminfo</EM>  entry  for  <STRONG>screen(1)</STRONG>,
            apparently  based on the X/Open documentation around 1995).  On the
-           other hand, the terminal description <EM>gs6300</EM> (AT&amp;T PC6300 with EMOTS
-           Terminal Emulator) uses lowercase-i.
+           other hand, its <STRONG>gs6300</STRONG> (AT&amp;T PC6300 with EMOTS  Terminal  Emulator)
+           description uses lowercase i.
 
-       Some  ACS  symbols  (ACS_S3,  ACS_S7,  ACS_LEQUAL,  ACS_GEQUAL, ACS_PI,
-       ACS_NEQUAL, ACS_STERLING) were not documented in any publicly  released
-       System  V.   However,  many  publicly  available terminfos include <STRONG>acsc</STRONG>
-       strings in which their key characters (pryz{|})  are  embedded,  and  a
-       second-hand  list  of  their  character descriptions has come to light.
-       The ACS-prefixed names for them were invented for <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG>.
+       Some  ACS  symbols  (<STRONG>ACS_S3</STRONG>,  <STRONG>ACS_S7</STRONG>,  <STRONG>ACS_LEQUAL</STRONG>,  <STRONG>ACS_GEQUAL</STRONG>, <STRONG>ACS_PI</STRONG>,
+       <STRONG>ACS_NEQUAL</STRONG>, and <STRONG>ACS_STERLING</STRONG>)  were  not  documented  in  any  publicly
+       released  System V.   However, many publicly available <EM>terminfo</EM> entries
+       include <STRONG>acsc</STRONG> strings  in  which  their  key  characters  <STRONG>(</STRONG>pryz{|}<STRONG>)</STRONG>  are
+       embedded,  and  a  second-hand list of their character descriptions has
+       come to light.  The <EM>ncurses</EM> developers invented ACS-prefixed names  for
+       them.
 
-       The <EM>displayed</EM> values for the <EM>ACS</EM><STRONG>_</STRONG> and <EM>WACS</EM><STRONG>_</STRONG> constants depend on
+       The <EM>displayed</EM> values of <STRONG>ACS_</STRONG> constants depend on
 
-       <STRONG>o</STRONG>   the library configuration, i.e., <STRONG>ncurses</STRONG> versus <STRONG>ncursesw</STRONG>, where the
-           latter  is  capable  of displaying Unicode while the former is not,
-           and
+       <STRONG>o</STRONG>   the  <EM>ncurses</EM>  ABI--for  example,  wide-character  versus  non-wide-
+           character configurations  (the  former  is  capable  of  displaying
+           Unicode while the latter is not), and
 
-       <STRONG>o</STRONG>   whether the <EM>locale</EM> uses UTF-8 encoding.
+       <STRONG>o</STRONG>   whether the locale uses UTF-8 encoding.
 
-       In certain cases,  the  terminal  is  unable  to  display  line-drawing
-       characters   except   by   using   UTF-8   (see   the   discussion   of
-       <STRONG>NCURSES_NO_UTF8_ACS</STRONG> in <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG>).
+       In  certain  cases,  the  terminal  is  unable to display forms-drawing
+       characters  <EM>except</EM>  by  using  UTF-8;  see  the   discussion   of   the
+       <EM>NCURSES</EM><STRONG>_</STRONG><EM>NO</EM><STRONG>_</STRONG><EM>UTF8</EM><STRONG>_</STRONG><EM>ACS</EM> environment variable in <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG>).
 
 
 </PRE><H3><a name="h3-Character-Set">Character Set</a></H3><PRE>
-       X/Open Curses assumes that the parameter passed to  <STRONG>waddch</STRONG>  contains  a
-       single  character.   As  discussed in <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG>, that character may
-       have been more than eight bits in an SVr3 or SVr4  implementation,  but
-       in  the  X/Open Curses model, the details are not given.  The important
-       distinction between SVr4 curses and X/Open  Curses  is  that  the  non-
-       character  information  (attributes  and  color) was separated from the
-       character information which is packed in a <STRONG>chtype</STRONG> to pass to <STRONG>waddch</STRONG>.
+       X/Open  Curses  assumes  that the parameter passed to <STRONG>waddch</STRONG> contains a
+       single character.  As discussed in <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG>,  that  character  may
+       have  been more than eight bits wide in an SVr3 or SVr4 implementation,
+       but in the X/Open  Curses  model,  the  details  are  not  given.   The
+       important distinction between SVr4 <EM>curses</EM> and X/Open Curses is that the
+       latter separates non-character information (attributes and color)  from
+       the  character  code,  which  SVr4  packs  into a <EM>chtype</EM> for passage to
+       <STRONG>waddch</STRONG>.
 
-       In this implementation,  <STRONG>chtype</STRONG>  holds  an  eight-bit  character.   But
-       ncurses  allows  multibyte  characters  to be passed in a succession of
-       calls to <STRONG>waddch</STRONG>.  The other implementations do not do this; a  call  to
-       <STRONG>waddch</STRONG>  passes  exactly  one  character which may be rendered as one or
-       more cells on the screen depending on whether it is printable.
+       In <EM>ncurses</EM>, <EM>chtype</EM> holds  an  eight-bit  character.   But  the  library
+       allows  a  multibyte character to be passed in a succession of calls to
+       <STRONG>waddch</STRONG>.  Other implementations do not; a <STRONG>waddch</STRONG> call transmits  exactly
+       one  character,  which  may be rendered in one or more screen locations
+       depending on whether it is printable.
 
-       Depending on the locale settings, ncurses will inspect the byte  passed
-       in  each  call  to <STRONG>waddch</STRONG>, and check if the latest call will continue a
-       multibyte sequence.  When a character is <EM>complete</EM>, ncurses displays the
-       character and moves to the next position in the screen.
+       Depending on the locale settings, <EM>ncurses</EM> inspects the byte  passed  in
+       each  <STRONG>waddch</STRONG>  call,  and  checks  whether  the  latest call continues a
+       multibyte sequence.  When a character is <EM>complete</EM>, <EM>ncurses</EM> displays the
+       character and advances the cursor.
 
        If  the  calling  application  interrupts  the succession of bytes in a
-       multibyte character by moving the current location (e.g., using <STRONG>wmove</STRONG>),
-       ncurses discards the partially built character, starting over again.
+       multibyte character sequence  by  changing  the  current  location--for
+       example, with <STRONG><A HREF="curs_move.3x.html">wmove(3x)</A></STRONG>--<EM>ncurses</EM> discards the incomplete character.
 
        For  portability  to  other  implementations,  do  not  rely  upon this
-       behavior:
+       behavior.  Check whether a character can be  represented  as  a  single
+       byte in the current locale.
 
-       <STRONG>o</STRONG>   check if a character can be represented as a  single  byte  in  the
-           current locale before attempting call <STRONG>waddch</STRONG>, and
+       <STRONG>o</STRONG>   If it can, call either <STRONG>waddch</STRONG> or <STRONG><A HREF="curs_add_wch.3x.html">wadd_wch(3x)</A></STRONG>.
 
-       <STRONG>o</STRONG>   call <STRONG>wadd_wch</STRONG> for characters which cannot be handled by <STRONG>waddch</STRONG>.
+       <STRONG>o</STRONG>   If it cannot, use only <STRONG><A HREF="curs_add_wch.3x.html">wadd_wch(3x)</A></STRONG>.
 
 
 </PRE><H3><a name="h3-TABSIZE">TABSIZE</a></H3><PRE>
-       The  <STRONG>TABSIZE</STRONG>  variable  is  implemented  in  SVr4 and other versions of
-       curses, but is not part of X/Open curses  (see  <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>  for
-       more details).
-
-       If <EM>ch</EM> is a carriage return, the cursor is moved to the beginning of the
-       current row of the window.  This is true of other implementations,  but
-       is not documented.
+       SVr4  and  other versions of <EM>curses</EM> implement the <STRONG>TABSIZE</STRONG> variable, but
+       X/Open Curses does not specify it (see <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>).
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,      <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG>,      <STRONG><A HREF="curs_clear.3x.html">curs_clear(3x)</A></STRONG>,     <STRONG><A HREF="curs_inch.3x.html">curs_inch(3x)</A></STRONG>,
-       <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>, <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>, <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>, <STRONG>putc(3)</STRONG>.
+       <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG> describes comparable functions of the <EM>ncurses</EM>  library
+       in its wide-character configuration (<EM>ncursesw</EM>).
 
-       Comparable functions  in  the  wide-character  (ncursesw)  library  are
-       described in <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>.
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,    <STRONG><A HREF="curs_addchstr.3x.html">curs_addchstr(3x)</A></STRONG>,    <STRONG><A HREF="curs_addstr.3x.html">curs_addstr(3x)</A></STRONG>,    <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG>,
+       <STRONG><A HREF="curs_clear.3x.html">curs_clear(3x)</A></STRONG>,  <STRONG><A HREF="curs_inch.3x.html">curs_inch(3x)</A></STRONG>,   <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>,   <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>,
+       <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>, <STRONG>putchar(3)</STRONG>
 
 
 
-                                                                <STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>
+ncurses 6.5                       2024-04-20                    <STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
@@ -306,9 +308,9 @@
 <li><a href="#h2-SYNOPSIS">SYNOPSIS</a></li>
 <li><a href="#h2-DESCRIPTION">DESCRIPTION</a>
 <ul>
-<li><a href="#h3-Adding-characters">Adding characters</a></li>
-<li><a href="#h3-Echoing-characters">Echoing characters</a></li>
-<li><a href="#h3-Line-Graphics">Line Graphics</a></li>
+<li><a href="#h3-Adding-Characters">Adding Characters</a></li>
+<li><a href="#h3-Echoing-Characters">Echoing Characters</a></li>
+<li><a href="#h3-Forms-Drawing-Characters">Forms-Drawing Characters</a></li>
 </ul>
 </li>
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2021,2022 Thomas E. Dickey                                *
  * Copyright 1998-2014,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -42,7 +42,7 @@
  *
  *	Date: 05.Nov.90
  *
- * $Id: hanoi.c,v 1.41 2020/02/02 23:34:34 tom Exp $
+ * $Id: hanoi.c,v 1.47 2022/12/04 00:40:11 tom Exp $
  */
 
 #include <test.priv.h>
@@ -125,6 +125,15 @@ InitTiles(void)
     Pegs[2].Count = 0;
 }
 
+static int
+two2n(int n)
+{
+    int result = 1;
+    while (n-- > 0)
+	result *= 2;
+    return result;
+}
+
 static void
 DisplayTiles(void)
 {
@@ -134,7 +143,7 @@ DisplayTiles(void)
     erase();
     MvAddStr(1, 24, "T O W E R S   O F   H A N O I");
     MvAddStr(3, 34, "SJR 1990");
-    MvPrintw(19, 5, "Moves : %d of %.0f", NMoves, pow(2.0, (float) NTiles) - 1);
+    MvPrintw(19, 5, "Moves : %d of %d", NMoves, two2n(NTiles) - 1);
     (void) attrset(A_REVERSE);
     MvAddStr(BASELINE, 8,
 	     "                                                               ");
@@ -232,12 +241,13 @@ Solved(int NumTiles)
 }
 
 static void
-usage(void)
+usage(int ok)
 {
     static const char *msg[] =
     {
 	"Usage: hanoi [options] [[<No Of Tiles>] [a]]"
 	,""
+	,USAGE_COMMON
 	,"Options:"
 #if HAVE_USE_DEFAULT_COLORS
 	," -d       invoke use_default_colors"
@@ -250,8 +260,11 @@ usage(void)
     for (n = 0; n < SIZEOF(msg); n++)
 	fprintf(stderr, "%s\n", msg[n]);
 
-    ExitProgram(EXIT_FAILURE);
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
 }
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
 
 int
 main(int argc, char **argv)
@@ -263,7 +276,7 @@ main(int argc, char **argv)
 #endif
 
     NTiles = DEFAULTTILES;
-    while ((ch = getopt(argc, argv, "dn:X")) != -1) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "dn:X")) != -1) {
 	switch (ch) {
 #if HAVE_USE_DEFAULT_COLORS
 	case 'd':
@@ -276,17 +289,20 @@ main(int argc, char **argv)
 	case 'X':
 	    AutoFlag = TRUE;
 	    break;
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage();
+	    usage(ch == OPTS_USAGE);
 	    /* NOTREACHED */
 	}
     }
     setlocale(LC_ALL, "");
 
-    switch (ch = (argc - optind)) {
+    switch (argc - optind) {
     case 2:
 	if (strcmp(argv[optind + 1], "a")) {
-	    usage();
+	    usage(FALSE);
 	}
 	AutoFlag = TRUE;
 	/* FALLTHRU */
@@ -296,12 +312,12 @@ main(int argc, char **argv)
     case 0:
 	break;
     default:
-	usage();
+	usage(FALSE);
     }
 
     if (NTiles > MAXTILES || NTiles < MINTILES) {
 	fprintf(stderr, "Range %d to %d\n", MINTILES, MAXTILES);
-	usage();
+	usage(FALSE);
     }
 
     initscr();

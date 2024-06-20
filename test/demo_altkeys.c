@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2018-2022,2023 Thomas E. Dickey                                *
  * Copyright 2005-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: demo_altkeys.c,v 1.14 2020/02/02 23:34:34 tom Exp $
+ * $Id: demo_altkeys.c,v 1.17 2023/02/25 18:08:02 tom Exp $
  *
  * Demonstrate the define_key() function.
  * Thomas Dickey - 2005/10/22
@@ -71,17 +71,49 @@ log_last_line(WINDOW *win)
     }
 }
 
+static void
+usage(int ok)
+{
+    static const char *msg[] =
+    {
+	"Usage: demo_altkeys [options]"
+	,""
+	,USAGE_COMMON
+    };
+    size_t n;
+
+    for (n = 0; n < SIZEOF(msg); n++)
+	fprintf(stderr, "%s\n", msg[n]);
+
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
+}
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
+
 int
-main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
+main(int argc, char *argv[])
 {
     int n;
     int ch;
-#if HAVE_GETTIMEOFDAY
-    struct timeval previous;
-#endif
+    TimeType previous;
+
+    while ((ch = getopt(argc, argv, OPTS_COMMON)) != -1) {
+	switch (ch) {
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
+	default:
+	    usage(ch == OPTS_USAGE);
+	    /* NOTREACHED */
+	}
+    }
+    if (optind < argc)
+	usage(FALSE);
 
     unlink(MY_LOGFILE);
 
+    setlocale(LC_ALL, "");
     if (newterm(0, stdout, stdin) == 0) {
 	fprintf(stderr, "Cannot initialize terminal\n");
 	ExitProgram(EXIT_FAILURE);
@@ -113,31 +145,16 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 	}
     }
 
-#if HAVE_GETTIMEOFDAY
-    gettimeofday(&previous, 0);
-#endif
+    GetClockTime(&previous);
 
     while ((ch = getch()) != ERR) {
 	bool escaped = (ch >= MY_KEYS);
 	const char *name = keyname(escaped ? (ch - MY_KEYS) : ch);
-#if HAVE_GETTIMEOFDAY
-	int secs, msecs;
-	struct timeval current;
+	TimeType current;
 
-	gettimeofday(&current, 0);
-	secs = (int) (current.tv_sec - previous.tv_sec);
-	msecs = (int) ((current.tv_usec - previous.tv_usec) / 1000);
-	if (msecs < 0) {
-	    msecs += 1000;
-	    --secs;
-	}
-	if (msecs >= 1000) {
-	    secs += msecs / 1000;
-	    msecs %= 1000;
-	}
-	printw("%6d.%03d ", secs, msecs);
+	GetClockTime(&current);
+	printw("%6.03f ", ElapsedSeconds(&previous, &current));
 	previous = current;
-#endif
 	printw("Keycode %d, name %s%s\n",
 	       ch,
 	       escaped ? "ESC-" : "",

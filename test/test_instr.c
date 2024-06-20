@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2022 Thomas E. Dickey                                     *
  * Copyright 2007-2010,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: test_instr.c,v 1.10 2020/02/02 23:34:34 tom Exp $
+ * $Id: test_instr.c,v 1.12 2022/12/10 23:58:01 tom Exp $
  *
  * Author: Thomas E Dickey
  *
@@ -232,19 +232,49 @@ recursive_test(int level, char **argv, WINDOW *chrwin, WINDOW *strwin)
     return TRUE;
 }
 
+static void
+usage(int ok)
+{
+    static const char *msg[] =
+    {
+	"Usage: test_instr [options] [file1 [...]]"
+	,""
+	,USAGE_COMMON
+    };
+    size_t n;
+
+    for (n = 0; n < SIZEOF(msg); n++)
+	fprintf(stderr, "%s\n", msg[n]);
+
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
+}
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
+
 int
 main(int argc, char *argv[])
 {
     WINDOW *chrbox;
     WINDOW *chrwin;
     WINDOW *strwin;
+    int ch;
+
+    while ((ch = getopt(argc, argv, OPTS_COMMON)) != -1) {
+	switch (ch) {
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
+	default:
+	    usage(ch == OPTS_USAGE);
+	    /* NOTREACHED */
+	}
+    }
 
     setlocale(LC_ALL, "");
 
-    if (argc < 2) {
-	fprintf(stderr, "usage: %s file\n", argv[0]);
-	return EXIT_FAILURE;
-    }
+    if (optind + 1 > argc)
+	usage(FALSE);
 
     initscr();
 
@@ -255,7 +285,7 @@ main(int argc, char *argv[])
     chrwin = derwin(chrbox, 2, COLS - 2, 1, 1);
     strwin = derwin(chrbox, 2, COLS - 2, 3, 1);
 
-    recursive_test(1, argv, chrwin, strwin);
+    recursive_test(optind, argv, chrwin, strwin);
 
     endwin();
     ExitProgram(EXIT_SUCCESS);

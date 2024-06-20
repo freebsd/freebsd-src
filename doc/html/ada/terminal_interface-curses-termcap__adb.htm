@@ -1,7 +1,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
-<HTML>
-<HEAD>
-<TITLE>terminal_interface-curses-termcap.adb</TITLE>
+<html>
+<head>
+<title>terminal_interface-curses-termcap.adb</title>
 <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 <style type="text/css">
 *.comment {
@@ -11,172 +11,172 @@
 	color: red;
 }
 </style>
-</HEAD>
-<BODY>
-<HR><DIV style="text-align:center"><H1> File : terminal_interface-curses-termcap.adb </H1></DIV><HR>
-<PRE>
-<span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>--                           <A HREF="http://www.gnat.com">GNAT</A> ncurses Binding                           --</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>--                    Terminal_Interface.Curses.Termcap                     --</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>--                                 B O D Y                                  --</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<span class="comment"><EM>-- Copyright 2020 Thomas E. Dickey                                          --</EM></span>
-<span class="comment"><EM>-- Copyright 2000-2006,2009 Free Software Foundation, Inc.                  --</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></span>
-<span class="comment"><EM>-- copy of this software and associated documentation files (the            --</EM></span>
-<span class="comment"><EM>-- "Software"), to deal in the Software without restriction, including      --</EM></span>
-<span class="comment"><EM>-- without limitation the rights to use, copy, modify, merge, publish,      --</EM></span>
-<span class="comment"><EM>-- distribute, distribute with modifications, sublicense, and/or sell       --</EM></span>
-<span class="comment"><EM>-- copies of the Software, and to permit persons to whom the Software is    --</EM></span>
-<span class="comment"><EM>-- furnished to do so, subject to the following conditions:                 --</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>-- The above copyright notice and this permission notice shall be included  --</EM></span>
-<span class="comment"><EM>-- in all copies or substantial portions of the Software.                   --</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  --</EM></span>
-<span class="comment"><EM>-- OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               --</EM></span>
-<span class="comment"><EM>-- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   --</EM></span>
-<span class="comment"><EM>-- IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   --</EM></span>
-<span class="comment"><EM>-- DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    --</EM></span>
-<span class="comment"><EM>-- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    --</EM></span>
-<span class="comment"><EM>-- THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               --</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>-- Except as contained in this notice, the name(s) of the above copyright   --</EM></span>
-<span class="comment"><EM>-- holders shall not be used in advertising or otherwise to promote the     --</EM></span>
-<span class="comment"><EM>-- sale, use or other dealings in this Software without prior written       --</EM></span>
-<span class="comment"><EM>-- authorization.                                                           --</EM></span>
-<span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<span class="comment"><EM>--  Author:  Juergen Pfeifer, 1996</EM></span>
-<span class="comment"><EM>--  Version Control:</EM></span>
-<span class="comment"><EM>--  @Revision: 1.13 @</EM></span>
-<span class="comment"><EM>--  @Date: 2020/02/02 23:34:34 @</EM></span>
-<span class="comment"><EM>--  Binding Version 01.00</EM></span>
-<span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
+</head>
+<body>
+<hr><div style="text-align:center"><h1> File : terminal_interface-curses-termcap.adb </h1></div><hr>
+<pre>
+<span class="comment"><em>------------------------------------------------------------------------------</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>--                           <strong>GNAT</strong> ncurses Binding                           --</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>--                    Terminal_Interface.Curses.Termcap                     --</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>--                                 B O D Y                                  --</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>------------------------------------------------------------------------------</em></span>
+<span class="comment"><em>-- Copyright 2020 Thomas E. Dickey                                          --</em></span>
+<span class="comment"><em>-- Copyright 2000-2006,2009 Free Software Foundation, Inc.                  --</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>-- Permission is hereby granted, free of charge, to any person obtaining a  --</em></span>
+<span class="comment"><em>-- copy of this software and associated documentation files (the            --</em></span>
+<span class="comment"><em>-- "Software"), to deal in the Software without restriction, including      --</em></span>
+<span class="comment"><em>-- without limitation the rights to use, copy, modify, merge, publish,      --</em></span>
+<span class="comment"><em>-- distribute, distribute with modifications, sublicense, and/or sell       --</em></span>
+<span class="comment"><em>-- copies of the Software, and to permit persons to whom the Software is    --</em></span>
+<span class="comment"><em>-- furnished to do so, subject to the following conditions:                 --</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>-- The above copyright notice and this permission notice shall be included  --</em></span>
+<span class="comment"><em>-- in all copies or substantial portions of the Software.                   --</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  --</em></span>
+<span class="comment"><em>-- OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               --</em></span>
+<span class="comment"><em>-- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   --</em></span>
+<span class="comment"><em>-- IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   --</em></span>
+<span class="comment"><em>-- DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    --</em></span>
+<span class="comment"><em>-- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    --</em></span>
+<span class="comment"><em>-- THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               --</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>-- Except as contained in this notice, the name(s) of the above copyright   --</em></span>
+<span class="comment"><em>-- holders shall not be used in advertising or otherwise to promote the     --</em></span>
+<span class="comment"><em>-- sale, use or other dealings in this Software without prior written       --</em></span>
+<span class="comment"><em>-- authorization.                                                           --</em></span>
+<span class="comment"><em>------------------------------------------------------------------------------</em></span>
+<span class="comment"><em>--  Author:  Juergen Pfeifer, 1996</em></span>
+<span class="comment"><em>--  Version Control:</em></span>
+<span class="comment"><em>--  @Revision: 1.13 @</em></span>
+<span class="comment"><em>--  @Date: 2020/02/02 23:34:34 @</em></span>
+<span class="comment"><em>--  Binding Version 01.00</em></span>
+<span class="comment"><em>------------------------------------------------------------------------------</em></span>
 
-<b>with</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_46_35">Aux</A>; <b>use</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_46_35">Aux</A>;
-<b>with</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C; <b>use</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C;
-<b>with</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.Strings; <b>use</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.Strings;
+<b>with</b> <a href="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</a>.<a href="terminal_interface-curses__ads.htm#ref_48_28">Curses</a>.<a href="terminal_interface-curses-aux__ads.htm#ref_46_35">Aux</a>; <b>use</b> <a href="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</a>.<a href="terminal_interface-curses__ads.htm#ref_48_28">Curses</a>.<a href="terminal_interface-curses-aux__ads.htm#ref_46_35">Aux</a>;
+<b>with</b> <a href="interfac__ads.htm#ref_38_9">Interfaces</a>.C; <b>use</b> <a href="interfac__ads.htm#ref_38_9">Interfaces</a>.C;
+<b>with</b> <a href="interfac__ads.htm#ref_38_9">Interfaces</a>.C.Strings; <b>use</b> <a href="interfac__ads.htm#ref_38_9">Interfaces</a>.C.Strings;
 
-<b>package</b> <b>body</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<span class="symbol"><A NAME="ref_48_40" HREF="terminal_interface-curses-termcap__ads.htm#ref_43_35">Termcap</A></span> <b>is</b>
+<b>package</b> <b>body</b> <a href="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</a>.<a href="terminal_interface-curses__ads.htm#ref_48_28">Curses</a>.<span class="symbol"><a name="ref_48_40" href="terminal_interface-curses-termcap__ads.htm#ref_43_35">Termcap</a></span> <b>is</b>
 
-   <b>function</b> <span class="symbol"><A NAME="ref_50_13" HREF="terminal_interface-curses-termcap__ads.htm#ref_60_13">Get_Entry</A></span> (<span class="symbol"><A NAME="ref_50_24" HREF="terminal_interface-curses-termcap__ads.htm#ref_60_24">Name</A></span> : String) <b>return</b> Boolean
+   <b>function</b> <span class="symbol"><a name="ref_50_13" href="terminal_interface-curses-termcap__ads.htm#ref_60_13">Get_Entry</a></span> (<span class="symbol"><a name="ref_50_24" href="terminal_interface-curses-termcap__ads.htm#ref_60_24">Name</a></span> : String) <b>return</b> Boolean
    <b>is</b>
-      <b>function</b> <span class="symbol"><A NAME="ref_52_16">tgetent</A></span> (<span class="symbol"><A NAME="ref_52_25" HREF="terminal_interface-curses-termcap__adb.htm#ref_52_16">name</A></span> : char_array; <span class="symbol"><A NAME="ref_52_44" HREF="terminal_interface-curses-termcap__adb.htm#ref_52_16">val</A></span> : char_array)
-                        <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_49_12">C_Int</A>;
+      <b>function</b> <span class="symbol"><a name="ref_52_16">tgetent</a></span> (<span class="symbol"><a name="ref_52_25">name</a></span> : char_array; <span class="symbol"><a name="ref_52_44">val</a></span> : char_array)
+                        <b>return</b> <a href="terminal_interface-curses-aux__ads.htm#ref_49_12">C_Int</a>;
       <b>pragma</b> Import (C, tgetent, "tgetent");
-      <span class="symbol"><A NAME="ref_55_7">NameTxt</A></span> : char_array (0 .. <A HREF="terminal_interface-curses-termcap__ads.htm#ref_60_24">Name</A>'Length);
-      <span class="symbol"><A NAME="ref_56_7">Length</A></span>  : size_t;
-      <span class="symbol"><A NAME="ref_57_7">ignored</A></span> : <b>constant</b> char_array (0 .. 0) := (0 =&gt; nul);
-      <span class="symbol"><A NAME="ref_58_7">result</A></span>  : <A HREF="terminal_interface-curses-aux__ads.htm#ref_49_12">C_Int</A>;
+      <span class="symbol"><a name="ref_55_7">NameTxt</a></span> : char_array (0 .. <a href="terminal_interface-curses-termcap__ads.htm#ref_60_24">Name</a>'Length);
+      <span class="symbol"><a name="ref_56_7">Length</a></span>  : size_t;
+      <span class="symbol"><a name="ref_57_7">ignored</a></span> : <b>constant</b> char_array (0 .. 0) := (0 =&gt; nul);
+      <span class="symbol"><a name="ref_58_7">result</a></span>  : <a href="terminal_interface-curses-aux__ads.htm#ref_49_12">C_Int</a>;
    <b>begin</b>
-      To_C (<A HREF="terminal_interface-curses-termcap__ads.htm#ref_60_24">Name</A>, <A HREF="terminal_interface-curses-termcap__adb.htm#ref_55_7">NameTxt</A>, <A HREF="terminal_interface-curses-termcap__adb.htm#ref_56_7">Length</A>);
-      <A HREF="terminal_interface-curses-termcap__adb.htm#ref_58_7">result</A> := <A HREF="terminal_interface-curses-termcap__adb.htm#ref_52_16">tgetent</A> (char_array (<A HREF="terminal_interface-curses-termcap__adb.htm#ref_57_7">ignored</A>), <A HREF="terminal_interface-curses-termcap__adb.htm#ref_55_7">NameTxt</A>);
-      <b>if</b> <A HREF="terminal_interface-curses-termcap__adb.htm#ref_58_7">result</A> = -1 <b>then</b>
-         <b>raise</b> <A HREF="terminal_interface-curses__ads.htm#ref_522_4">Curses_Exception</A>;
+      To_C (<a href="terminal_interface-curses-termcap__ads.htm#ref_60_24">Name</a>, <a href="terminal_interface-curses-termcap__adb.htm#ref_55_7">NameTxt</a>, <a href="terminal_interface-curses-termcap__adb.htm#ref_56_7">Length</a>);
+      <a href="terminal_interface-curses-termcap__adb.htm#ref_58_7">result</a> := <a href="terminal_interface-curses-termcap__adb.htm#ref_52_16">tgetent</a> (char_array (<a href="terminal_interface-curses-termcap__adb.htm#ref_57_7">ignored</a>), <a href="terminal_interface-curses-termcap__adb.htm#ref_55_7">NameTxt</a>);
+      <b>if</b> <a href="terminal_interface-curses-termcap__adb.htm#ref_58_7">result</a> = -1 <b>then</b>
+         <b>raise</b> <a href="terminal_interface-curses__ads.htm#ref_522_4">Curses_Exception</a>;
       <b>else</b>
-         <b>return</b> Boolean'Val (<A HREF="terminal_interface-curses-termcap__adb.htm#ref_58_7">result</A>);
+         <b>return</b> Boolean'Val (<a href="terminal_interface-curses-termcap__adb.htm#ref_58_7">result</a>);
       <b>end</b> <b>if</b>;
-   <b>end</b> <A HREF="terminal_interface-curses-termcap__ads.htm#ref_60_13">Get_Entry</A>;
+   <b>end</b> <a href="terminal_interface-curses-termcap__ads.htm#ref_60_13">Get_Entry</a>;
 
-<span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-   <b>function</b> <span class="symbol"><A NAME="ref_70_13" HREF="terminal_interface-curses-termcap__ads.htm#ref_64_13">Get_Flag</A></span> (<span class="symbol"><A NAME="ref_70_23" HREF="terminal_interface-curses-termcap__ads.htm#ref_64_23">Name</A></span> : String) <b>return</b> Boolean
+<span class="comment"><em>------------------------------------------------------------------------------</em></span>
+   <b>function</b> <span class="symbol"><a name="ref_70_13" href="terminal_interface-curses-termcap__ads.htm#ref_64_13">Get_Flag</a></span> (<span class="symbol"><a name="ref_70_23" href="terminal_interface-curses-termcap__ads.htm#ref_64_23">Name</a></span> : String) <b>return</b> Boolean
    <b>is</b>
-      <b>function</b> <span class="symbol"><A NAME="ref_72_16">tgetflag</A></span> (<span class="symbol"><A NAME="ref_72_26" HREF="terminal_interface-curses-termcap__adb.htm#ref_72_16">id</A></span> : char_array) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_49_12">C_Int</A>;
+      <b>function</b> <span class="symbol"><a name="ref_72_16">tgetflag</a></span> (<span class="symbol"><a name="ref_72_26">id</a></span> : char_array) <b>return</b> <a href="terminal_interface-curses-aux__ads.htm#ref_49_12">C_Int</a>;
       <b>pragma</b> Import (C, tgetflag, "tgetflag");
-      <span class="symbol"><A NAME="ref_74_7">Txt</A></span>    : char_array (0 .. <A HREF="terminal_interface-curses-termcap__ads.htm#ref_64_23">Name</A>'Length);
-      <span class="symbol"><A NAME="ref_75_7">Length</A></span> : size_t;
+      <span class="symbol"><a name="ref_74_7">Txt</a></span>    : char_array (0 .. <a href="terminal_interface-curses-termcap__ads.htm#ref_64_23">Name</a>'Length);
+      <span class="symbol"><a name="ref_75_7">Length</a></span> : size_t;
    <b>begin</b>
-      To_C (<A HREF="terminal_interface-curses-termcap__ads.htm#ref_64_23">Name</A>, <A HREF="terminal_interface-curses-termcap__adb.htm#ref_74_7">Txt</A>, <A HREF="terminal_interface-curses-termcap__adb.htm#ref_75_7">Length</A>);
-      <b>if</b> <A HREF="terminal_interface-curses-termcap__adb.htm#ref_72_16">tgetflag</A> (<A HREF="terminal_interface-curses-termcap__adb.htm#ref_74_7">Txt</A>) = 0 <b>then</b>
+      To_C (<a href="terminal_interface-curses-termcap__ads.htm#ref_64_23">Name</a>, <a href="terminal_interface-curses-termcap__adb.htm#ref_74_7">Txt</a>, <a href="terminal_interface-curses-termcap__adb.htm#ref_75_7">Length</a>);
+      <b>if</b> <a href="terminal_interface-curses-termcap__adb.htm#ref_72_16">tgetflag</a> (<a href="terminal_interface-curses-termcap__adb.htm#ref_74_7">Txt</a>) = 0 <b>then</b>
          <b>return</b> False;
       <b>else</b>
          <b>return</b> True;
       <b>end</b> <b>if</b>;
-   <b>end</b> <A HREF="terminal_interface-curses-termcap__ads.htm#ref_64_13">Get_Flag</A>;
+   <b>end</b> <a href="terminal_interface-curses-termcap__ads.htm#ref_64_13">Get_Flag</a>;
 
-<span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-   <b>procedure</b> <span class="symbol"><A NAME="ref_86_14" HREF="terminal_interface-curses-termcap__ads.htm#ref_68_14">Get_Number</A></span> (<span class="symbol"><A NAME="ref_86_26" HREF="terminal_interface-curses-termcap__ads.htm#ref_68_26">Name</A></span>   : String;
-                         <span class="symbol"><A NAME="ref_87_26" HREF="terminal_interface-curses-termcap__ads.htm#ref_69_26">Value</A></span>  : <b>out</b> Integer;
-                         <span class="symbol"><A NAME="ref_88_26" HREF="terminal_interface-curses-termcap__ads.htm#ref_70_26">Result</A></span> : <b>out</b> Boolean)
+<span class="comment"><em>------------------------------------------------------------------------------</em></span>
+   <b>procedure</b> <span class="symbol"><a name="ref_86_14" href="terminal_interface-curses-termcap__ads.htm#ref_68_14">Get_Number</a></span> (<span class="symbol"><a name="ref_86_26" href="terminal_interface-curses-termcap__ads.htm#ref_68_26">Name</a></span>   : String;
+                         <span class="symbol"><a name="ref_87_26" href="terminal_interface-curses-termcap__ads.htm#ref_69_26">Value</a></span>  : <b>out</b> Integer;
+                         <span class="symbol"><a name="ref_88_26" href="terminal_interface-curses-termcap__ads.htm#ref_70_26">Result</a></span> : <b>out</b> Boolean)
    <b>is</b>
-      <b>function</b> <span class="symbol"><A NAME="ref_90_16">tgetnum</A></span> (<span class="symbol"><A NAME="ref_90_25" HREF="terminal_interface-curses-termcap__adb.htm#ref_90_16">id</A></span> : char_array) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_49_12">C_Int</A>;
+      <b>function</b> <span class="symbol"><a name="ref_90_16">tgetnum</a></span> (<span class="symbol"><a name="ref_90_25">id</a></span> : char_array) <b>return</b> <a href="terminal_interface-curses-aux__ads.htm#ref_49_12">C_Int</a>;
       <b>pragma</b> Import (C, tgetnum, "tgetnum");
-      <span class="symbol"><A NAME="ref_92_7">Txt</A></span>    : char_array (0 .. <A HREF="terminal_interface-curses-termcap__ads.htm#ref_68_26">Name</A>'Length);
-      <span class="symbol"><A NAME="ref_93_7">Length</A></span> : size_t;
+      <span class="symbol"><a name="ref_92_7">Txt</a></span>    : char_array (0 .. <a href="terminal_interface-curses-termcap__ads.htm#ref_68_26">Name</a>'Length);
+      <span class="symbol"><a name="ref_93_7">Length</a></span> : size_t;
    <b>begin</b>
-      To_C (<A HREF="terminal_interface-curses-termcap__ads.htm#ref_68_26">Name</A>, <A HREF="terminal_interface-curses-termcap__adb.htm#ref_92_7">Txt</A>, <A HREF="terminal_interface-curses-termcap__adb.htm#ref_93_7">Length</A>);
-      <A HREF="terminal_interface-curses-termcap__ads.htm#ref_69_26">Value</A> := Integer (<A HREF="terminal_interface-curses-termcap__adb.htm#ref_90_16">tgetnum</A> (<A HREF="terminal_interface-curses-termcap__adb.htm#ref_92_7">Txt</A>));
-      <b>if</b> <A HREF="terminal_interface-curses-termcap__ads.htm#ref_69_26">Value</A> = -1 <b>then</b>
-         <A HREF="terminal_interface-curses-termcap__ads.htm#ref_70_26">Result</A> := False;
+      To_C (<a href="terminal_interface-curses-termcap__ads.htm#ref_68_26">Name</a>, <a href="terminal_interface-curses-termcap__adb.htm#ref_92_7">Txt</a>, <a href="terminal_interface-curses-termcap__adb.htm#ref_93_7">Length</a>);
+      <a href="terminal_interface-curses-termcap__ads.htm#ref_69_26">Value</a> := Integer (<a href="terminal_interface-curses-termcap__adb.htm#ref_90_16">tgetnum</a> (<a href="terminal_interface-curses-termcap__adb.htm#ref_92_7">Txt</a>));
+      <b>if</b> <a href="terminal_interface-curses-termcap__ads.htm#ref_69_26">Value</a> = -1 <b>then</b>
+         <a href="terminal_interface-curses-termcap__ads.htm#ref_70_26">Result</a> := False;
       <b>else</b>
-         <A HREF="terminal_interface-curses-termcap__ads.htm#ref_70_26">Result</A> :=  True;
+         <a href="terminal_interface-curses-termcap__ads.htm#ref_70_26">Result</a> :=  True;
       <b>end</b> <b>if</b>;
-   <b>end</b> <A HREF="terminal_interface-curses-termcap__ads.htm#ref_68_14">Get_Number</A>;
+   <b>end</b> <a href="terminal_interface-curses-termcap__ads.htm#ref_68_14">Get_Number</a>;
 
-<span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-   <b>procedure</b> <span class="symbol"><A NAME="ref_105_14" HREF="terminal_interface-curses-termcap__ads.htm#ref_74_14">Get_String</A></span> (<span class="symbol"><A NAME="ref_105_26" HREF="terminal_interface-curses-termcap__ads.htm#ref_74_26">Name</A></span>   : String;
-                         <span class="symbol"><A NAME="ref_106_26" HREF="terminal_interface-curses-termcap__ads.htm#ref_75_26">Value</A></span>  : <b>out</b> String;
-                         <span class="symbol"><A NAME="ref_107_26" HREF="terminal_interface-curses-termcap__ads.htm#ref_76_26">Result</A></span> : <b>out</b> Boolean)
+<span class="comment"><em>------------------------------------------------------------------------------</em></span>
+   <b>procedure</b> <span class="symbol"><a name="ref_105_14" href="terminal_interface-curses-termcap__ads.htm#ref_74_14">Get_String</a></span> (<span class="symbol"><a name="ref_105_26" href="terminal_interface-curses-termcap__ads.htm#ref_74_26">Name</a></span>   : String;
+                         <span class="symbol"><a name="ref_106_26" href="terminal_interface-curses-termcap__ads.htm#ref_75_26">Value</a></span>  : <b>out</b> String;
+                         <span class="symbol"><a name="ref_107_26" href="terminal_interface-curses-termcap__ads.htm#ref_76_26">Result</a></span> : <b>out</b> Boolean)
    <b>is</b>
-      <b>function</b> <span class="symbol"><A NAME="ref_109_16">tgetstr</A></span> (<span class="symbol"><A NAME="ref_109_25" HREF="terminal_interface-curses-termcap__adb.htm#ref_109_16">id</A></span>  : char_array;
-                        <span class="symbol"><A NAME="ref_110_25" HREF="terminal_interface-curses-termcap__adb.htm#ref_109_16">buf</A></span> : char_array) <b>return</b> chars_ptr;
+      <b>function</b> <span class="symbol"><a name="ref_109_16">tgetstr</a></span> (<span class="symbol"><a name="ref_109_25">id</a></span>  : char_array;
+                        <span class="symbol"><a name="ref_110_25">buf</a></span> : char_array) <b>return</b> chars_ptr;
       <b>pragma</b> Import (C, tgetstr, "tgetstr");
-      <span class="symbol"><A NAME="ref_112_7">Txt</A></span>    : char_array (0 .. <A HREF="terminal_interface-curses-termcap__ads.htm#ref_74_26">Name</A>'Length);
-      <span class="symbol"><A NAME="ref_113_7">Length</A></span> : size_t;
-      <span class="symbol"><A NAME="ref_114_7">Txt2</A></span>   : chars_ptr;
-      <b>type</b> t <b>is</b> <b>new</b> char_array (0 .. 1024); <span class="comment"><EM>--  does it need to be 1024?</EM></span>
-      <span class="symbol"><A NAME="ref_116_7">Return_Buffer</A></span> : <b>constant</b> t := (<b>others</b> =&gt; nul);
+      <span class="symbol"><a name="ref_112_7">Txt</a></span>    : char_array (0 .. <a href="terminal_interface-curses-termcap__ads.htm#ref_74_26">Name</a>'Length);
+      <span class="symbol"><a name="ref_113_7">Length</a></span> : size_t;
+      <span class="symbol"><a name="ref_114_7">Txt2</a></span>   : chars_ptr;
+      <b>type</b> t <b>is</b> <b>new</b> char_array (0 .. 1024); <span class="comment"><em>--  does it need to be 1024?</em></span>
+      <span class="symbol"><a name="ref_116_7">Return_Buffer</a></span> : <b>constant</b> t := (<b>others</b> =&gt; nul);
    <b>begin</b>
-      To_C (<A HREF="terminal_interface-curses-termcap__ads.htm#ref_74_26">Name</A>, <A HREF="terminal_interface-curses-termcap__adb.htm#ref_112_7">Txt</A>, <A HREF="terminal_interface-curses-termcap__adb.htm#ref_113_7">Length</A>);
-      <A HREF="terminal_interface-curses-termcap__adb.htm#ref_114_7">Txt2</A> := <A HREF="terminal_interface-curses-termcap__adb.htm#ref_109_16">tgetstr</A> (<A HREF="terminal_interface-curses-termcap__adb.htm#ref_112_7">Txt</A>, char_array (<A HREF="terminal_interface-curses-termcap__adb.htm#ref_116_7">Return_Buffer</A>));
-      <b>if</b> <A HREF="terminal_interface-curses-termcap__adb.htm#ref_114_7">Txt2</A> = Null_Ptr <b>then</b>
-         <A HREF="terminal_interface-curses-termcap__ads.htm#ref_76_26">Result</A> := False;
+      To_C (<a href="terminal_interface-curses-termcap__ads.htm#ref_74_26">Name</a>, <a href="terminal_interface-curses-termcap__adb.htm#ref_112_7">Txt</a>, <a href="terminal_interface-curses-termcap__adb.htm#ref_113_7">Length</a>);
+      <a href="terminal_interface-curses-termcap__adb.htm#ref_114_7">Txt2</a> := <a href="terminal_interface-curses-termcap__adb.htm#ref_109_16">tgetstr</a> (<a href="terminal_interface-curses-termcap__adb.htm#ref_112_7">Txt</a>, char_array (<a href="terminal_interface-curses-termcap__adb.htm#ref_116_7">Return_Buffer</a>));
+      <b>if</b> <a href="terminal_interface-curses-termcap__adb.htm#ref_114_7">Txt2</a> = Null_Ptr <b>then</b>
+         <a href="terminal_interface-curses-termcap__ads.htm#ref_76_26">Result</a> := False;
       <b>else</b>
-         <A HREF="terminal_interface-curses-termcap__ads.htm#ref_75_26">Value</A> := <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_13">Fill_String</A> (<A HREF="terminal_interface-curses-termcap__adb.htm#ref_114_7">Txt2</A>);
-         <A HREF="terminal_interface-curses-termcap__ads.htm#ref_76_26">Result</A> := True;
+         <a href="terminal_interface-curses-termcap__ads.htm#ref_75_26">Value</a> := <a href="terminal_interface-curses-aux__ads.htm#ref_96_13">Fill_String</a> (<a href="terminal_interface-curses-termcap__adb.htm#ref_114_7">Txt2</a>);
+         <a href="terminal_interface-curses-termcap__ads.htm#ref_76_26">Result</a> := True;
       <b>end</b> <b>if</b>;
-   <b>end</b> <A HREF="terminal_interface-curses-termcap__ads.htm#ref_74_14">Get_String</A>;
+   <b>end</b> <a href="terminal_interface-curses-termcap__ads.htm#ref_74_14">Get_String</a>;
 
-   <b>function</b> <span class="symbol"><A NAME="ref_128_13" HREF="terminal_interface-curses-termcap__ads.htm#ref_77_13">Get_String</A></span> (<span class="symbol"><A NAME="ref_128_25" HREF="terminal_interface-curses-termcap__ads.htm#ref_77_25">Name</A></span> : String) <b>return</b> Boolean
+   <b>function</b> <span class="symbol"><a name="ref_128_13" href="terminal_interface-curses-termcap__ads.htm#ref_77_13">Get_String</a></span> (<span class="symbol"><a name="ref_128_25" href="terminal_interface-curses-termcap__ads.htm#ref_77_25">Name</a></span> : String) <b>return</b> Boolean
    <b>is</b>
-      <b>function</b> <span class="symbol"><A NAME="ref_130_16">tgetstr</A></span> (<span class="symbol"><A NAME="ref_130_25" HREF="terminal_interface-curses-termcap__adb.htm#ref_130_16">Id</A></span>  : char_array;
-                        <span class="symbol"><A NAME="ref_131_25" HREF="terminal_interface-curses-termcap__adb.htm#ref_130_16">buf</A></span> : char_array) <b>return</b> chars_ptr;
+      <b>function</b> <span class="symbol"><a name="ref_130_16">tgetstr</a></span> (<span class="symbol"><a name="ref_130_25">Id</a></span>  : char_array;
+                        <span class="symbol"><a name="ref_131_25">buf</a></span> : char_array) <b>return</b> chars_ptr;
       <b>pragma</b> Import (C, tgetstr, "tgetstr");
-      <span class="symbol"><A NAME="ref_133_7">Txt</A></span>    : char_array (0 .. <A HREF="terminal_interface-curses-termcap__ads.htm#ref_77_25">Name</A>'Length);
-      <span class="symbol"><A NAME="ref_134_7">Length</A></span> : size_t;
-      <span class="symbol"><A NAME="ref_135_7">Txt2</A></span>   : chars_ptr;
-      <b>type</b> t <b>is</b> <b>new</b> char_array (0 .. 1024); <span class="comment"><EM>--  does it need to be 1024?</EM></span>
-      <span class="symbol"><A NAME="ref_137_7">Phony_Txt</A></span> : <b>constant</b> t := (<b>others</b> =&gt; nul);
+      <span class="symbol"><a name="ref_133_7">Txt</a></span>    : char_array (0 .. <a href="terminal_interface-curses-termcap__ads.htm#ref_77_25">Name</a>'Length);
+      <span class="symbol"><a name="ref_134_7">Length</a></span> : size_t;
+      <span class="symbol"><a name="ref_135_7">Txt2</a></span>   : chars_ptr;
+      <b>type</b> t <b>is</b> <b>new</b> char_array (0 .. 1024); <span class="comment"><em>--  does it need to be 1024?</em></span>
+      <span class="symbol"><a name="ref_137_7">Phony_Txt</a></span> : <b>constant</b> t := (<b>others</b> =&gt; nul);
    <b>begin</b>
-      To_C (<A HREF="terminal_interface-curses-termcap__ads.htm#ref_77_25">Name</A>, <A HREF="terminal_interface-curses-termcap__adb.htm#ref_133_7">Txt</A>, <A HREF="terminal_interface-curses-termcap__adb.htm#ref_134_7">Length</A>);
-      <A HREF="terminal_interface-curses-termcap__adb.htm#ref_135_7">Txt2</A> := <A HREF="terminal_interface-curses-termcap__adb.htm#ref_130_16">tgetstr</A> (<A HREF="terminal_interface-curses-termcap__adb.htm#ref_133_7">Txt</A>, char_array (<A HREF="terminal_interface-curses-termcap__adb.htm#ref_137_7">Phony_Txt</A>));
-      <b>if</b> <A HREF="terminal_interface-curses-termcap__adb.htm#ref_135_7">Txt2</A> = Null_Ptr <b>then</b>
+      To_C (<a href="terminal_interface-curses-termcap__ads.htm#ref_77_25">Name</a>, <a href="terminal_interface-curses-termcap__adb.htm#ref_133_7">Txt</a>, <a href="terminal_interface-curses-termcap__adb.htm#ref_134_7">Length</a>);
+      <a href="terminal_interface-curses-termcap__adb.htm#ref_135_7">Txt2</a> := <a href="terminal_interface-curses-termcap__adb.htm#ref_130_16">tgetstr</a> (<a href="terminal_interface-curses-termcap__adb.htm#ref_133_7">Txt</a>, char_array (<a href="terminal_interface-curses-termcap__adb.htm#ref_137_7">Phony_Txt</a>));
+      <b>if</b> <a href="terminal_interface-curses-termcap__adb.htm#ref_135_7">Txt2</a> = Null_Ptr <b>then</b>
          <b>return</b> False;
       <b>else</b>
          <b>return</b> True;
       <b>end</b> <b>if</b>;
-   <b>end</b> <A HREF="terminal_interface-curses-termcap__ads.htm#ref_77_13">Get_String</A>;
+   <b>end</b> <a href="terminal_interface-curses-termcap__ads.htm#ref_77_13">Get_String</a>;
 
-<span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-   <b>function</b> <span class="symbol"><A NAME="ref_149_13" HREF="terminal_interface-curses-termcap__ads.htm#ref_54_13">TGoto</A></span> (<span class="symbol"><A NAME="ref_149_20" HREF="terminal_interface-curses-termcap__ads.htm#ref_54_20">Cap</A></span> : String;
-                   <span class="symbol"><A NAME="ref_150_20" HREF="terminal_interface-curses-termcap__ads.htm#ref_55_20">Col</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_60_9">Column_Position</A>;
-                   <span class="symbol"><A NAME="ref_151_20" HREF="terminal_interface-curses-termcap__ads.htm#ref_56_20">Row</A></span> : <A HREF="terminal_interface-curses__ads.htm#ref_59_9">Line_Position</A>) <b>return</b> Termcap_String <b>is</b>
-      <b>function</b> <span class="symbol"><A NAME="ref_152_16">tgoto</A></span> (<span class="symbol"><A NAME="ref_152_23" HREF="terminal_interface-curses-termcap__adb.htm#ref_152_16">cap</A></span> : char_array;
-                      <span class="symbol"><A NAME="ref_153_23" HREF="terminal_interface-curses-termcap__adb.htm#ref_152_16">col</A></span> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_49_12">C_Int</A>;
-                      <span class="symbol"><A NAME="ref_154_23" HREF="terminal_interface-curses-termcap__adb.htm#ref_152_16">row</A></span> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_49_12">C_Int</A>) <b>return</b> chars_ptr;
+<span class="comment"><em>------------------------------------------------------------------------------</em></span>
+   <b>function</b> <span class="symbol"><a name="ref_149_13" href="terminal_interface-curses-termcap__ads.htm#ref_54_13">TGoto</a></span> (<span class="symbol"><a name="ref_149_20" href="terminal_interface-curses-termcap__ads.htm#ref_54_20">Cap</a></span> : String;
+                   <span class="symbol"><a name="ref_150_20" href="terminal_interface-curses-termcap__ads.htm#ref_55_20">Col</a></span> : <a href="terminal_interface-curses__ads.htm#ref_60_9">Column_Position</a>;
+                   <span class="symbol"><a name="ref_151_20" href="terminal_interface-curses-termcap__ads.htm#ref_56_20">Row</a></span> : <a href="terminal_interface-curses__ads.htm#ref_59_9">Line_Position</a>) <b>return</b> Termcap_String <b>is</b>
+      <b>function</b> <span class="symbol"><a name="ref_152_16">tgoto</a></span> (<span class="symbol"><a name="ref_152_23">cap</a></span> : char_array;
+                      <span class="symbol"><a name="ref_153_23">col</a></span> : <a href="terminal_interface-curses-aux__ads.htm#ref_49_12">C_Int</a>;
+                      <span class="symbol"><a name="ref_154_23">row</a></span> : <a href="terminal_interface-curses-aux__ads.htm#ref_49_12">C_Int</a>) <b>return</b> chars_ptr;
       <b>pragma</b> Import (C, tgoto);
-      <span class="symbol"><A NAME="ref_156_7">Txt</A></span>    : char_array (0 .. <A HREF="terminal_interface-curses-termcap__ads.htm#ref_54_20">Cap</A>'Length);
-      <span class="symbol"><A NAME="ref_157_7">Length</A></span> : size_t;
+      <span class="symbol"><a name="ref_156_7">Txt</a></span>    : char_array (0 .. <a href="terminal_interface-curses-termcap__ads.htm#ref_54_20">Cap</a>'Length);
+      <span class="symbol"><a name="ref_157_7">Length</a></span> : size_t;
    <b>begin</b>
-      To_C (<A HREF="terminal_interface-curses-termcap__ads.htm#ref_54_20">Cap</A>, <A HREF="terminal_interface-curses-termcap__adb.htm#ref_156_7">Txt</A>, <A HREF="terminal_interface-curses-termcap__adb.htm#ref_157_7">Length</A>);
-      <b>return</b> Termcap_String (<A HREF="terminal_interface-curses-aux__ads.htm#ref_96_13">Fill_String</A>
-                             (<A HREF="terminal_interface-curses-termcap__adb.htm#ref_152_16">tgoto</A> (<A HREF="terminal_interface-curses-termcap__adb.htm#ref_156_7">Txt</A>, <A HREF="terminal_interface-curses-aux__ads.htm#ref_49_12">C_Int</A> (<A HREF="terminal_interface-curses-termcap__ads.htm#ref_55_20">Col</A>), <A HREF="terminal_interface-curses-aux__ads.htm#ref_49_12">C_Int</A> (<A HREF="terminal_interface-curses-termcap__ads.htm#ref_56_20">Row</A>))));
-   <b>end</b> <A HREF="terminal_interface-curses-termcap__ads.htm#ref_54_13">TGoto</A>;
+      To_C (<a href="terminal_interface-curses-termcap__ads.htm#ref_54_20">Cap</a>, <a href="terminal_interface-curses-termcap__adb.htm#ref_156_7">Txt</a>, <a href="terminal_interface-curses-termcap__adb.htm#ref_157_7">Length</a>);
+      <b>return</b> Termcap_String (<a href="terminal_interface-curses-aux__ads.htm#ref_96_13">Fill_String</a>
+                             (<a href="terminal_interface-curses-termcap__adb.htm#ref_152_16">tgoto</a> (<a href="terminal_interface-curses-termcap__adb.htm#ref_156_7">Txt</a>, <a href="terminal_interface-curses-aux__ads.htm#ref_49_12">C_Int</a> (<a href="terminal_interface-curses-termcap__ads.htm#ref_55_20">Col</a>), <a href="terminal_interface-curses-aux__ads.htm#ref_49_12">C_Int</a> (<a href="terminal_interface-curses-termcap__ads.htm#ref_56_20">Row</a>))));
+   <b>end</b> <a href="terminal_interface-curses-termcap__ads.htm#ref_54_13">TGoto</a>;
 
-<b>end</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-termcap__ads.htm#ref_43_35">Termcap</A>;
-</PRE></BODY></HTML>
+<b>end</b> <a href="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</a>.<a href="terminal_interface-curses__ads.htm#ref_48_28">Curses</a>.<a href="terminal_interface-curses-termcap__ads.htm#ref_43_35">Termcap</a>;
+</pre></body></html>

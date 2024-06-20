@@ -1,6 +1,6 @@
-# $Id: mk-test.awk,v 1.23 2020/02/02 23:34:34 tom Exp $
+# $Id: mk-test.awk,v 1.30 2021/12/19 16:54:36 tom Exp $
 ##############################################################################
-# Copyright 2019,2020 Thomas E. Dickey                                       #
+# Copyright 2019-2020,2021 Thomas E. Dickey                                  #
 # Copyright 2006-2017,2018 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -77,11 +77,11 @@ END	{
 	print	"	$(srcdir)/*.x* \\"
 	print	"	$(srcdir)/*.dat"
 	print	""
-	print	"all: $(TESTS)"
+	print	"all:: $(TESTS)"
 	print	""
 	print	"sources:"
 	print	""
-	print	"check:"
+	print	"check::"
 	print	"	@ echo The test-programs are interactive"
 	print	"tags:"
 	print	"	$(CTAGS) *.[ch]"
@@ -93,19 +93,38 @@ END	{
 	print	""
 	if (INSTALL == "yes") {
 		print	"# we might install the test-programs"
+		print	"$(PACKAGE) :"
+		print	"	@echo \"creating $(PACKAGE) script\""
+		print	"	@$(SHELL) -c '\\"
+		print	"	L=$(real_bindir);                            \\"
+		print	"	rm -f $@;                                    \\"
+		print	"	echo \"#!$(SHELL)\" >                     $@;\\"
+		print	"	echo \"PATH=\\\"$$L\\\":\\$$PATH\"      >>$@;\\"
+		print	"	echo \"export PATH\"                    >>$@;\\"
+		print	"	echo \"if test \\$$# != 0; then\"       >>$@;\\"
+		print	"	echo \"  exec \\\"\\$$@\\\"\"           >>$@;\\"
+		print	"	echo \"elif test -t 1; then\"           >>$@;\\"
+		print	"	echo \"  cd \\\"$$L\\\" || exit\"       >>$@;\\"
+		print	"	echo \"  ls -l | \\$${PAGER:-less}\"    >>$@;\\"
+		print	"	echo \"fi\"                             >>$@;\\"
+		print	"	echo \"echo \\\"usage: $@ [program]\\\"\" >>$@'"
+		print	""
 		print	"install \\"
-		print	"install.test: $(BINDIR) $(DATADIR) $(TESTS)"
+		print	"install.test: $(PACKAGE) $(BINDIR) $(REAL_BINDIR) $(DATADIR) $(TESTS)"
+
+		print	"	@echo \"installing $(PACKAGE) -> $(BINDIR)/\""
+		print	"	@$(INSTALL_SCRIPT) $(PACKAGE) $(BINDIR)"
 
 		print	"	@$(SHELL) -c 'for src in $(TESTS); do \\"
 		print	"	dst=`echo $$src | $(TRANSFORM)`; \\"
-		print	"	echo \"installing $$src -> $(BINDIR)/$$dst\"; \\"
-		print	"	$(INSTALL_PROG) $$src $(BINDIR)/$$dst; \\"
+		print	"	echo \"installing $$src -> $(REAL_BINDIR)/$$dst\"; \\"
+		print	"	$(INSTALL_PROG) $$src $(REAL_BINDIR)/$$dst; \\"
 		print	"	done'"
 
 		print	"	@$(SHELL) -c 'for src in $(SCRIPTS); do \\"
 		print	"	dst=`echo $$src | sed -e 's,^.*/,,' | $(TRANSFORM)`; \\"
-		print	"	echo \"installing $$src -> $(BINDIR)/$$dst\"; \\"
-		print	"	$(INSTALL_SCRIPT) $$src $(BINDIR)/$$dst; \\"
+		print	"	echo \"installing $$src -> $(REAL_BINDIR)/$$dst\"; \\"
+		print	"	$(INSTALL_SCRIPT) $$src $(REAL_BINDIR)/$$dst; \\"
 		print	"	done'"
 
 		print	"	@$(SHELL) -c 'for src in $(DATAFILES); do \\"
@@ -117,14 +136,16 @@ END	{
 		print	"uninstall \\"
 		print	"uninstall.test:"
 
+		print	"	-rm -f $(BINDIR)/$(PACKAGE)"
+
 		print	"	@$(SHELL) -c 'for src in $(TESTS); do \\"
 		print	"	dst=`echo $$src | $(TRANSFORM)`; \\"
-		print	"	rm -f $(BINDIR)/$$dst; \\"
+		print	"	rm -f $(REAL_BINDIR)/$$dst; \\"
 		print	"	done'"
 
 		print	"	@$(SHELL) -c 'for src in $(SCRIPTS); do \\"
 		print	"	dst=`echo $$src | sed -e 's,^.*/,,' | $(TRANSFORM)`; \\"
-		print	"	rm -f $(BINDIR)/$$dst; \\"
+		print	"	rm -f $(REAL_BINDIR)/$$dst; \\"
 		print	"	done'"
 
 		print	"	@$(SHELL) -c 'for src in $(DATAFILES); do \\"
@@ -144,6 +165,7 @@ END	{
 	print	"clean :: mostlyclean"
 	print	"	-$(SHELL) -c \"if test -n '$x' ; then $(MAKE) clean x=''; fi\""
 	print	"	-rm -rf *$o screendump *.lis $(TESTS) .libs *.dSYM"
+	print	"	-rm -f $(PACKAGE)"
 	print	""
 	print	"distclean :: clean"
 	print	"	-rm -f Makefile ncurses_cfg.h config.status config.log"
@@ -152,7 +174,7 @@ END	{
 	print	""
 	print	"lint:"
 	print	"	$(SHELL) -c 'for N in $(TESTS); do echo LINT:$$N; $(LINT) $(LINT_OPTS) $(CPPFLAGS) $(srcdir)/$$N.c $(LINT_LIBS); done'"
-	print	"$(BINDIR) $(DATADIR) :"
+	print	"$(BINDIR) $(REAL_BINDIR) $(DATADIR) :"
 	print	"	mkdir -p $@"
 
 

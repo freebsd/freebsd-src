@@ -27,15 +27,15 @@ In a menu you can use the following Keys in the whole application:
    - Cursor Right  Right one item
    - END Key       Go to last item
 #FORMKEYS
-   - CTRL-X	   eXit the form                   
+   - CTRL-X	   eXit the form
    - CTRL-F	   Go forward to the next field
    - CTRL-B	   Go backward to the previous field
-   - CTRL-L	   Go to the field left of the current one           
+   - CTRL-L	   Go to the field left of the current one
    - CTRL-R	   Go to the field right of the current one
-   - CTRL-U	   Go to the field above the current one  
-   - CTRL-D	   Go to the field below the current one           
+   - CTRL-U	   Go to the field above the current one
+   - CTRL-D	   Go to the field below the current one
 
-   - CTRL-W	   Go to the next word in the field           
+   - CTRL-W	   Go to the next word in the field
    - CTRL-T	   Go to the previous word in the field
 
    - CTRL-A	   Go to the beginning of the field
@@ -43,13 +43,13 @@ In a menu you can use the following Keys in the whole application:
 
    - CTRL-I	   Insert a blank character at the current position
    - CTRL-O	   Insert a line
-   - CTRL-V	   Delete a character          
-   - CTRL-H	   Delete previous character     
-   - CTRL-Y	   Delete a line          
-   - CTRL-G	   Delete a word          
-   - CTRL-K	   Clear to end of field          
+   - CTRL-V	   Delete a character
+   - CTRL-H	   Delete previous character
+   - CTRL-Y	   Delete a line
+   - CTRL-G	   Delete a word
+   - CTRL-K	   Clear to end of field
 
-   - CTRL-N	   Next choice in a choice field (Enumerations etc.)         
+   - CTRL-N	   Next choice in a choice field (Enumerations etc.)
    - CTRL-P	   Previous choice in a choice field.
 #HELP
 #HELPKEYS
@@ -61,8 +61,8 @@ You may leave the help with the Function Key labeled 'Quit'.
 #MAIN
 This is the main menu of the sample program for the ncurses Ada95
 binding. The main intention of the demo is not to demonstrate or
-test all the features of ncurses and it's subsystems, but to provide
-to you some sample code how to use the binding with Ada95. 
+test all the features of ncurses and its subsystems, but to provide
+to you some sample code how to use the binding with Ada95.
 
 You may select this options:
 
@@ -71,7 +71,7 @@ You may select this options:
    * Look at some features of the form subsystem
    * Look at the output of the Ada.Text_IO like functions
      for ncurses.
-   
+
 #MAINPAD
 You may press at any place in this demo CTRL-C. This will give you a command
 window. You can just type in the Label-String of a function key, then this
@@ -86,13 +86,13 @@ descriptions for the items, a marker and a padding character between
 the item name and the description.
 #MENU01
 This is a demo of the some of the menu layout options. One of them
-is the spacing functionality. Just press the Key labeled "Flip" to 
+is the spacing functionality. Just press the Key labeled "Flip" to
 flip between the non-spaced and a spaced version of the menu. Please
-note that this functionality is unique for ncurses and is not found 
-in the SVr4 menu implementation. 
+note that this functionality is unique for ncurses and is not found
+in the SVr4 menu implementation.
 
-This is a menu that sometimes does not fit into it's window and 
-therefore it becomes a scroll menu. 
+This is a menu that sometimes does not fit into its window and
+therefore it becomes a scroll menu.
 
 You can also see here very nicely the pattern matching functionality
 of menus. Type for example a 'J' and you will be positioned to the
@@ -106,10 +106,10 @@ labeled "4x1", "4x2" or "4x3" to get a menu with that many rows
 and columns.
 
 With the Keys "O-Row" or "O-Col" (they occupy the same label and
-switch on selection) you can change the major order scheme for 
+switch on selection) you can change the major order scheme for
 the menu. If "O-Col" is visible, the menu is currently major
 ordered by rows, you can switch to major column order by pressing
-the key. If "O-Row" is visible, it's just the reverse situation.
+the key. If "O-Row" is visible, it is just the reverse situation.
 This Key is not visible in "4x1" layout mode, because in this case
 the functionality makes no sense.
 
@@ -136,7 +136,7 @@ For more details press the Key labeled "Help".
 This is a demo of the forms package.
 #FORM-PAD00
 Please note that this demo is far from being complete. It really shows
-only a small part of the functionality of the forms package. Let's hope 
+only a small part of the functionality of the forms package. Let's hope
 the next version will have a richer demo (You want to contribute ?).
 #NOTIMPL
 Sorry this functionality of the demo is not implemented at the moment.
@@ -148,7 +148,7 @@ This is a menu where you can select some different demos of the ncurses
 functionality.
 #CURSES-PAD00
 Please note that this demo is far from being complete. It really shows
-only a small part of the functionality of the curses package. Let's hope 
+only a small part of the functionality of the curses package. Let's hope
 the next version will have a richer demo (You want to contribute ?).
 #MOUSEKEYS
 In this demo you may use this keys:
@@ -160,16 +160,16 @@ In this demo you may use this keys:
 You may click the mouse buttons at any location at the screen and look
 at the protocol window !
 #MOUSE00
-A rather simple use of a mouse as demo. It's there just to test the
-code and to provide the sample source. 
+A rather simple use of a mouse as demo. It is there just to test the
+code and to provide the sample source.
 
 It might be of interest, that the output into the protocol window is
 done by the (n)curses Text_IO subpackages. Especially the output of
-the button and state names is done by Ads's enumeration IO, which 
+the button and state names is done by Ads's enumeration IO, which
 allows you to print the names of enumeration literals. That's really
 nice.
 #MOUSE-PAD00
-This is a very simple demo of the mouse features of ncurses. It's there
+This is a very simple demo of the mouse features of ncurses. It is there
 just to test whether or not the generated code for the binding really
 works on the different architectures (seems so).
 #ATTRIBDEMO

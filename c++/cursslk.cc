@@ -1,6 +1,6 @@
 // * this is for making emacs happy: -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2022,2023 Thomas E. Dickey                                *
  * Copyright 1998-2005,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -36,7 +36,7 @@
 #include "cursslk.h"
 #include "cursesapp.h"
 
-MODULE_ID("$Id: cursslk.cc,v 1.19 2020/07/18 19:57:11 anonymous.maarten Exp $")
+MODULE_ID("$Id: cursslk.cc,v 1.21 2023/02/25 23:36:06 tom Exp $")
 
 Soft_Label_Key_Set::Soft_Label_Key&
   Soft_Label_Key_Set::Soft_Label_Key::operator=(char *text)
@@ -56,7 +56,11 @@ Soft_Label_Key_Set::Label_Layout
 
 void Soft_Label_Key_Set::init()
 {
-  slk_array = new Soft_Label_Key[num_labels];
+  if (num_labels > 12)
+      num_labels = 12;
+  if (num_labels < 0)
+      num_labels = 0;
+  slk_array = new Soft_Label_Key[num_labels + 1];
   for(int i=0; i < num_labels; i++) {
     slk_array[i].num = i+1;
   }

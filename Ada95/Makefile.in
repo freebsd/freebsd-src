@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.26 2021/01/23 20:34:50 tom Exp $
+# $Id: Makefile.in,v 1.30 2022/12/17 23:33:33 tom Exp $
 ##############################################################################
-# Copyright 2020,2021 Thomas E. Dickey                                       #
+# Copyright 2020-2021,2022 Thomas E. Dickey                                  #
 # Copyright 1998-2010,2015 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -31,16 +31,49 @@
 #  Author:  Juergen Pfeifer, 1996
 #
 #  Version Control
-#  $Revision: 1.26 $
+#  $Revision: 1.30 $
 #
 SHELL		= @SHELL@
 VPATH		= @srcdir@
 THIS		= Makefile
 
+srcdir		= @srcdir@
+prefix		= @prefix@
+exec_prefix	= @exec_prefix@
+bindir		= @bindir@
+datarootdir	= @datarootdir@
+datadir		= @datadir@
+libdir		= @libdir@
+libexecdir	= @libexecdir@
+includedir	= @includedir@
+
+BINDIR		= $(DESTDIR)$(bindir)
+DATADIR		= $(DESTDIR)$(datadir)
+LIBDIR		= $(DESTDIR)$(libdir)
+LIBEXECDIR	= $(DESTDIR)$(libexecdir)
+
 SUBDIRS         = @ADA_SUBDIRS@
+
+INSTALL		= @INSTALL@ @INSTALL_OPT_O@
+INSTALL_SCRIPT	= @INSTALL@
 
 TOP_MFLAGS	= @cf_cv_makeflags@ DESTDIR="$(DESTDIR)" RPATH_LIST="$(RPATH_LIST)"
 @SET_MAKE@
+
+################################################################################
+
+@MAKE_PHONY@.PHONY :	all
+@MAKE_PHONY@.PHONY :	clean
+@MAKE_PHONY@.PHONY :	depend
+@MAKE_PHONY@.PHONY :	distclean
+@MAKE_PHONY@.PHONY :	install
+@MAKE_PHONY@.PHONY :	install.libs
+@MAKE_PHONY@.PHONY :	libs
+@MAKE_PHONY@.PHONY :	mostlyclean
+@MAKE_PHONY@.PHONY :	realclean
+@MAKE_PHONY@.PHONY :	sources
+@MAKE_PHONY@.PHONY :	uninstall
+@MAKE_PHONY@.PHONY :	uninstall.libs
 
 all \
 libs \
@@ -71,6 +104,12 @@ realclean ::
 	done
 	-rm -f config.cache config.log config.status include/ncurses_cfg.h
 	-rm -f Makefile
+
+depend :
+	@
+
+check :
+	@echo "The test-programs are interactive"
 
 tags :
 	@

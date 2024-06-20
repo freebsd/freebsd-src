@@ -1,7 +1,6 @@
-<!-- 
-  * t
+<!--
   ****************************************************************************
-  * Copyright 2018,2020 Thomas E. Dickey                                     *
+  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
   * Copyright 1998-2010,2015 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,21 +27,21 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: form_requestname.3x,v 1.16 2020/12/12 16:37:14 tom Exp @
+  * @Id: form_requestname.3x,v 1.35 2024/03/16 15:35:01 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>form_requestname 3x</TITLE>
+<TITLE>form_requestname 3x 2024-03-16 ncurses 6.5 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+
 </HEAD>
 <BODY>
-<H1 class="no-header">form_requestname 3x</H1>
+<H1 class="no-header">form_requestname 3x 2024-03-16 ncurses 6.5 Library calls</H1>
 <PRE>
-<STRONG><A HREF="form_requestname.3x.html">form_requestname(3x)</A></STRONG>                                      <STRONG><A HREF="form_requestname.3x.html">form_requestname(3x)</A></STRONG>
+<STRONG><A HREF="form_requestname.3x.html">form_requestname(3x)</A></STRONG>             Library calls            <STRONG><A HREF="form_requestname.3x.html">form_requestname(3x)</A></STRONG>
 
 
 
@@ -60,16 +59,10 @@
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-
-</PRE><H3><a name="h3-form_request_name">form_request_name</a></H3><PRE>
        The function <STRONG>form_request_name</STRONG> returns the printable  name  of  a  form
-       request code.
-
-
-</PRE><H3><a name="h3-form_request_name_by_name">form_request_name_by_name</a></H3><PRE>
-       The  function  <STRONG>form_request_by_name</STRONG>  searches  in  the name-table for a
-       request with the given name and returns its  request  code.   Otherwise
-       E_NO_MATCH is returned.
+       request  code.  The function <STRONG>form_request_by_name</STRONG> searches in the name-
+       table for a request with the given name and returns its  request  code.
+       Otherwise E_NO_MATCH is returned.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
@@ -80,17 +73,8 @@
        <STRONG>errno</STRONG>.
 
 
-</PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="form.3x.html">form(3x)</A></STRONG>.
-
-
-</PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       The  header  file  <STRONG>&lt;form.h&gt;</STRONG>  automatically  includes  the  header  file
-       <STRONG>&lt;curses.h&gt;</STRONG>.
-
-
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These routines are specific to ncurses.  They  were  not  supported  on
+       These  routines  are  specific  to <EM>ncurses</EM>.  They were not supported on
        Version 7, BSD or System V implementations.  It is recommended that any
        code depending on them be conditioned using NCURSES_VERSION.
 
@@ -100,24 +84,22 @@
        Raymond.
 
 
+</PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="form.3x.html">form(3x)</A></STRONG>
 
-                                                          <STRONG><A HREF="form_requestname.3x.html">form_requestname(3x)</A></STRONG>
+
+
+ncurses 6.5                       2024-03-16              <STRONG><A HREF="form_requestname.3x.html">form_requestname(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>
 <li><a href="#h2-NAME">NAME</a></li>
 <li><a href="#h2-SYNOPSIS">SYNOPSIS</a></li>
-<li><a href="#h2-DESCRIPTION">DESCRIPTION</a>
-<ul>
-<li><a href="#h3-form_request_name">form_request_name</a></li>
-<li><a href="#h3-form_request_name_by_name">form_request_name_by_name</a></li>
-</ul>
-</li>
+<li><a href="#h2-DESCRIPTION">DESCRIPTION</a></li>
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
-<li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
-<li><a href="#h2-NOTES">NOTES</a></li>
 <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
 <li><a href="#h2-AUTHORS">AUTHORS</a></li>
+<li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 </ul>
 </div>
 </BODY>

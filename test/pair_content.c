@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2018-2022,2023 Thomas E. Dickey                                *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: pair_content.c,v 1.14 2020/02/02 23:34:34 tom Exp $
+ * $Id: pair_content.c,v 1.22 2023/02/25 16:43:56 tom Exp $
  */
 
 #define NEED_TIME_H
@@ -57,10 +57,15 @@ static int x_opt;
 
 static MYPAIR *expected;
 
-#if HAVE_GETTIMEOFDAY
-static struct timeval initial_time;
-static struct timeval finish_time;
-#endif
+static TimeType initial_time;
+static TimeType finish_time;
+
+static GCC_NORETURN void
+finish(int code)
+{
+    free(expected);
+    ExitProgram(code);
+}
 
 static void
 failed(const char *msg)
@@ -68,7 +73,7 @@ failed(const char *msg)
     printw("%s", msg);
     getch();
     endwin();
-    ExitProgram(EXIT_FAILURE);
+    finish(EXIT_FAILURE);
 }
 
 #if USE_EXTENDED_COLOR
@@ -115,6 +120,7 @@ random_color(void)
 static void
 setup_test(void)
 {
+    setlocale(LC_ALL, "");
     initscr();
     cbreak();
     noecho();
@@ -163,9 +169,7 @@ setup_test(void)
     } else {
 	failed("This demo requires a color terminal");
     }
-#if HAVE_GETTIMEOFDAY
-    gettimeofday(&initial_time, 0);
-#endif
+    GetClockTime(&initial_time);
 }
 
 static void
@@ -198,23 +202,14 @@ finish_test(void)
     endwin();
 }
 
-#if HAVE_GETTIMEOFDAY
-static double
-seconds(struct timeval *mark)
-{
-    double result = (double) mark->tv_sec;
-    result += ((double) mark->tv_usec / 1e6);
-    return result;
-}
-#endif
-
 static void
-usage(void)
+usage(int ok)
 {
     static const char *msg[] =
     {
 	"Usage: pair_content [options]"
 	,""
+	,USAGE_COMMON
 	,"Options:"
 	," -f PAIR  first color pair to test (default: 1)"
 	," -i       interactive, showing test-progress"
@@ -230,26 +225,29 @@ usage(void)
     size_t n;
     for (n = 0; n < SIZEOF(msg); n++)
 	fprintf(stderr, "%s\n", msg[n]);
-    ExitProgram(EXIT_FAILURE);
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
 }
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
 
 int
-main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
+main(int argc, char *argv[])
 {
-    int i;
+    int ch;
 
-    while ((i = getopt(argc, argv, "f:il:npr:sx")) != -1) {
-	switch (i) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "f:il:npr:sx")) != -1) {
+	switch (ch) {
 	case 'f':
 	    if ((f_opt = atoi(optarg)) <= 0)
-		usage();
+		usage(FALSE);
 	    break;
 	case 'i':
 	    i_opt = 1;
 	    break;
 	case 'l':
 	    if ((l_opt = atoi(optarg)) <= 0)
-		usage();
+		usage(FALSE);
 	    break;
 	case 'n':
 	    n_opt = 1;
@@ -259,7 +257,7 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 	    break;
 	case 'r':
 	    if ((r_opt = atoi(optarg)) <= 0)
-		usage();
+		usage(FALSE);
 	    break;
 	case 's':
 	    s_opt = 1;
@@ -269,17 +267,22 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 	    x_opt = 1;
 	    break;
 #endif
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage();
+	    usage(ch == OPTS_USAGE);
+	    /* NOTREACHED */
 	}
     }
     if (optind < argc)
-	usage();
+	usage(FALSE);
     if (r_opt <= 0)
 	r_opt = 1;
 
     setup_test();
     if (p_opt) {
+	int i;
 	endwin();
 	for (i = f_opt; i < l_opt; ++i) {
 	    my_color_t fg, bg;
@@ -304,14 +307,10 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 	    addch('\n');
 	}
 	printw("DONE: ");
-#if HAVE_GETTIMEOFDAY
-	gettimeofday(&finish_time, 0);
-	printw("%.03f seconds",
-	       seconds(&finish_time)
-	       - seconds(&initial_time));
-#endif
+	GetClockTime(&finish_time);
+	printw("%.03f seconds", ElapsedSeconds(&initial_time, &finish_time));
 	finish_test();
     }
 
-    ExitProgram(EXIT_SUCCESS);
+    finish(EXIT_SUCCESS);
 }

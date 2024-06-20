@@ -1,11 +1,11 @@
 Summary: shared libraries for terminal handling
 Name: ncurses6
-Version: 6.2
-Release: 20210220
+Version: 6.5
+Release: 20240427
 License: X11
 Group: Development/Libraries
-Source: ncurses-%{version}-%{release}.tgz
-# URL: https://invisible-island.net/ncurses/
+URL: https://invisible-island.net/ncurses/
+Source: https://invisible-island.net/archives/ncurses/ncurses-%{version}-%{release}.tgz
 
 %global MY_ABI 6
 
@@ -69,15 +69,18 @@ This package is used for testing ABI %{MY_ABI}.
 	--disable-leaks \\\
 	--disable-macros  \\\
 	--disable-overwrite  \\\
-	%{_test_relink}  \\\
+	--disable-root-access \\\
+	--disable-root-environ \\\
+	--disable-rpath \\\
 	--disable-termcap \\\
+	%{_test_relink}  \\\
 	--enable-hard-tabs \\\
 	--enable-opaque-curses \\\
 	--enable-opaque-form \\\
 	--enable-opaque-menu \\\
 	--enable-opaque-panel \\\
 	--enable-pc-files \\\
-	--enable-rpath \\\
+	--enable-stdnoreturn \\\
 	--enable-warnings \\\
 	--enable-wgetch-events \\\
 	--enable-widec \\\
@@ -123,14 +126,6 @@ rm -f test/ncurses
 %endif
 %endif
 
-%clean
-if rm -rf $RPM_BUILD_ROOT; then
-  echo OK
-else
-  find $RPM_BUILD_ROOT -type f | grep -F -v /.nfs && exit 1
-fi
-exit 0
-
 %files
 %defattr(-,root,root,-)
 %{_bindir}/*
@@ -138,6 +133,12 @@ exit 0
 %{_libdir}/*
 
 %changelog
+
+* Sat Feb 25 2023 Thomas Dickey
+- amend URLs per rpmlint
+
+* Sat Oct 16 2021 Thomas Dickey
+- disable rpath to address QA_RPATHS=1 warning.
 
 * Tue Dec 24 2019 Thomas Dickey
 - drop custom CC_NORMAL warning flags because setting CFLAGS interferes with

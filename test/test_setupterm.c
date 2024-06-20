@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020-2022,2023 Thomas E. Dickey                                *
  * Copyright 2015,2016 Free Software Foundation, Inc.                       *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -30,7 +30,7 @@
 /*
  * Author: Thomas E. Dickey
  *
- * $Id: test_setupterm.c,v 1.10 2020/02/02 23:34:34 tom Exp $
+ * $Id: test_setupterm.c,v 1.17 2023/06/24 14:19:52 tom Exp $
  *
  * A simple demo of setupterm/restartterm.
  */
@@ -42,6 +42,55 @@ static bool a_opt = FALSE;
 static bool f_opt = FALSE;
 static bool n_opt = FALSE;
 static bool r_opt = FALSE;
+
+#if NO_LEAKS
+static TERMINAL **saved_terminals;
+static size_t num_saved;
+static size_t max_saved;
+
+static void
+failed(const char *msg)
+{
+    perror(msg);
+    ExitProgram(EXIT_FAILURE);
+}
+
+static void
+finish(int code)
+{
+    size_t n;
+    for (n = 0; n < num_saved; ++n)
+	del_curterm(saved_terminals[n]);
+    free(saved_terminals);
+    ExitProgram(code);
+}
+
+static void
+save_curterm(void)
+{
+    size_t n;
+    bool found = FALSE;
+    for (n = 0; n < num_saved; ++n) {
+	if (saved_terminals[n] == cur_term) {
+	    found = TRUE;
+	    break;
+	}
+    }
+    if (!found) {
+	if (num_saved + 1 >= max_saved) {
+	    max_saved += 100;
+	    saved_terminals = typeRealloc(TERMINAL *, max_saved, saved_terminals);
+	    if (saved_terminals == NULL)
+		failed("realloc");
+	}
+	saved_terminals[num_saved++] = cur_term;
+    }
+}
+
+#else
+#define finish(code) ExitProgram(code)
+#define save_curterm()		/* nothing */
+#endif
 
 static void
 test_rc(NCURSES_CONST char *name, int actual_rc, int actual_err)
@@ -104,40 +153,46 @@ test_setupterm(NCURSES_CONST char *name)
 #endif
 	rc = setupterm(name, 0, f_opt ? NULL : &err);
     test_rc(name, rc, err);
+    save_curterm();
 }
 
 static void
-usage(void)
+usage(int ok)
 {
     static const char *msg[] =
     {
-	"Usage: test_setupterm [options] [terminal]",
-	"",
-	"Demonstrate error-checking for setupterm and restartterm.",
-	"",
-	"Options:",
-	" -a       automatic test for each success/error code",
-	" -f       treat errors as fatal",
-	" -n       set environment to disable terminfo database, assuming",
-	"          the compiled-in paths for database also fail",
+	"Usage: test_setupterm [options] [terminal]"
+	,""
+	,USAGE_COMMON
+	,"Demonstrate error-checking for setupterm and restartterm."
+	,""
+	,"Options:"
+	," -a       automatic test for each success/error code"
+	," -f       treat errors as fatal"
+	," -n       set environment to disable terminfo database, assuming"
+	,"          the compiled-in paths for database also fail"
 #if HAVE_RESTARTTERM
-	" -r       test restartterm rather than setupterm",
+	," -r       test restartterm rather than setupterm"
 #endif
     };
     unsigned n;
     for (n = 0; n < SIZEOF(msg); ++n) {
 	fprintf(stderr, "%s\n", msg[n]);
     }
-    ExitProgram(EXIT_FAILURE);
+    finish(ok ? EXIT_SUCCESS : EXIT_FAILURE);
 }
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
 
 int
 main(int argc, char *argv[])
 {
+    int ch;
     int n;
 
-    while ((n = getopt(argc, argv, "afnr")) != -1) {
-	switch (n) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "afnr")) != -1) {
+	switch (ch) {
 	case 'a':
 	    a_opt = TRUE;
 	    break;
@@ -152,9 +207,12 @@ main(int argc, char *argv[])
 	    r_opt = TRUE;
 	    break;
 #endif
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage();
-	    break;
+	    usage(ch == OPTS_USAGE);
+	    /* NOTREACHED */
 	}
     }
 
@@ -182,13 +240,14 @@ main(int argc, char *argv[])
     if (r_opt) {
 	newterm("ansi", stdout, stdin);
 	reset_shell_mode();
+	save_curterm();
     }
 
     if (a_opt) {
 	static char predef[][9] =
 	{"vt100", "dumb", "lpr", "unknown", "none-such"};
 	if (optind < argc) {
-	    usage();
+	    usage(FALSE);
 	}
 	for (n = 0; n < 4; ++n) {
 	    test_setupterm(predef[n]);
@@ -203,12 +262,12 @@ main(int argc, char *argv[])
 	}
     }
 
-    ExitProgram(EXIT_SUCCESS);
+    finish(EXIT_SUCCESS);
 }
 
 #else /* !HAVE_TIGETSTR */
 int
-main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
+main(void)
 {
     printf("This program requires the terminfo functions such as tigetstr\n");
     ExitProgram(EXIT_FAILURE);

@@ -2,12 +2,12 @@
 
 Summary: shared libraries for terminal handling
 Name: mingw32-ncurses6
-Version: 6.2
-Release: 20210220
+Version: 6.5
+Release: 20240427
 License: X11
 Group: Development/Libraries
-Source: ncurses-%{version}-%{release}.tgz
-# URL: https://invisible-island.net/ncurses/
+URL: https://invisible-island.net/ncurses/
+Source: https://invisible-island.net/archives/ncurses/ncurses-%{version}-%{release}.tgz
 
 BuildRequires:  mingw32-filesystem >= 95
 BuildRequires:  mingw32-gcc
@@ -128,9 +128,6 @@ for name in $RPM_BUILD_ROOT%{mingw64_bindir}/*-config; \
 	done
 popd
 
-%clean
-rm -rf $RPM_BUILD_ROOT
-
 %files -n mingw32-ncurses6
 %defattr(-,root,root,-)
 %{_bindir}/%{mingw32_target}-*
@@ -146,6 +143,9 @@ rm -rf $RPM_BUILD_ROOT
 %{mingw64_libdir}/*
 
 %changelog
+
+* Sat Feb 25 2023 Thomas Dickey
+- amend URLs per rpmlint
 
 * Sun Jun 30 2019 Thomas E. Dickey
 - use tic-path and infocmp-path options for fallbacks

@@ -2,9 +2,11 @@ Source: adacurses
 Maintainer: Thomas E. Dickey <dickey@invisible-island.net>
 Section: misc
 Priority: optional
-Standards-Version: 3.8.4
-Build-Depends: debhelper (>= 5)
+Build-Depends: debhelper (>= 5),
+  gnat,
+  gprbuild
 Homepage: https://invisible-island.net/adacurses/
+Standards-Version: 4.6.1.0
 
 Package: adacurses
 Architecture: any

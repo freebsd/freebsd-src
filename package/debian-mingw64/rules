@@ -49,7 +49,7 @@ CONFIG_OPTIONS = \
 	--with-abi-version=$(MY_ABI) \
 	--with-cxx-shared \
 	--with-develop \
-	--with-fallbacks=unknown,rxvt \
+	--with-fallbacks=unknown,ms-terminal,xterm-256color \
 	--with-tic-path=/usr/bin/tic$(MY_ABI) \
 	--with-infocmp-path=/usr/bin/infocmp$(MY_ABI) \
 	--with-shared \
@@ -111,7 +111,7 @@ install: install-stamp
 install-stamp: build-stamp
 	dh_testdir
 	dh_testroot
-	dh_clean -k
+	dh_prep
 	dh_installdirs      $(verbose)
 
 	$(MAKE) install.libs DESTDIR=$(MINGW_TMP)

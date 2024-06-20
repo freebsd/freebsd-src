@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright 2020 Thomas E. Dickey                                          --
+-- Copyright 2020,2023 Thomas E. Dickey                                     --
 -- Copyright 1998-2006,2009 Free Software Foundation, Inc.                  --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
@@ -36,8 +36,8 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control
---  $Revision: 1.15 $
---  $Date: 2020/02/02 23:34:34 $
+--  $Revision: 1.16 $
+--  $Date: 2023/06/17 17:21:59 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Ada.Characters.Latin_1; use Ada.Characters.Latin_1;
@@ -79,7 +79,7 @@ package body Sample.Menu_Demo.Aux is
 
       --  Calculate horizontal coordinate at the screen center
       X := (Columns - C) / 2;
-      Y := 1;  -- always startin line 1
+      Y := 1;  -- always starting on line 1
 
    end Geometry;
 

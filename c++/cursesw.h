@@ -1,7 +1,7 @@
 // * This makes emacs happy -*-Mode: C++;-*-
 // vile:cppmode
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2021,2022 Thomas E. Dickey                                *
  * Copyright 1998-2014,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -32,7 +32,7 @@
 #ifndef NCURSES_CURSESW_H_incl
 #define NCURSES_CURSESW_H_incl 1
 
-// $Id: cursesw.h,v 1.57 2020/07/04 20:38:43 tom Exp $
+// $Id: cursesw.h,v 1.59 2022/08/20 20:52:15 tom Exp $
 
 extern "C" {
 #  include   <curses.h>
@@ -816,7 +816,7 @@ protected:
   NCursesWindow();
 
 public:
-  NCursesWindow(WINDOW* window);   // useful only for stdscr
+  explicit NCursesWindow(WINDOW* window);   // useful only for stdscr
 
   NCursesWindow(int nlines,        // number of lines
 		int ncols,         // number of columns
@@ -1385,7 +1385,7 @@ public:
 class NCURSES_CXX_IMPEXP NCursesColorWindow : public NCursesWindow
 {
 public:
-  NCursesColorWindow(WINDOW* &window)   // useful only for stdscr
+  explicit NCursesColorWindow(WINDOW* &window)   // useful only for stdscr
     : NCursesWindow(window) {
       useColors(); }
 
@@ -1503,7 +1503,7 @@ public:
   // Put the attributed character onto the pad and immediately do a
   // prefresh().
 
-  int refresh();
+  int refresh() NCURSES_OVERRIDE;
   // If a viewport is defined the pad is displayed in this window, otherwise
   // this is a noop.
 
@@ -1517,7 +1517,7 @@ public:
   // on the screen. <b>refresh</b> copies a rectangle of this size beginning
   // with top left corner pminrow,pmincol onto the screen and calls doupdate().
 
-  int noutrefresh();
+  int noutrefresh() NCURSES_OVERRIDE;
   // If a viewport is defined the pad is displayed in this window, otherwise
   // this is a noop.
 
@@ -1547,7 +1547,7 @@ public:
 class NCURSES_CXX_IMPEXP NCursesFramedPad : public NCursesPad
 {
 protected:
-  virtual void OnOperation(int pad_req);
+  virtual void OnOperation(int pad_req) NCURSES_OVERRIDE;
 
 public:
   NCursesFramedPad(NCursesWindow& win, int nlines, int ncols,
@@ -1562,7 +1562,7 @@ public:
     delete getSubWindow();
   }
 
-  void setWindow(NCursesWindow& view, int v_grid = 1, int h_grid = 1) {
+  void setWindow(NCursesWindow& view, int v_grid = 1, int h_grid = 1) NCURSES_OVERRIDE {
     (void) view;
     (void) v_grid;
     (void) h_grid;
@@ -1570,7 +1570,7 @@ public:
   }
   // Disable this call; the viewport is already defined
 
-  void setSubWindow(NCursesWindow& sub) {
+  void setSubWindow(NCursesWindow& sub) NCURSES_OVERRIDE {
     (void) sub;
     err_handler("Operation not allowed");
   }

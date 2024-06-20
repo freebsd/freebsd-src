@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2021 Thomas E. Dickey                                          *
+ * Copyright 2021,2022 Thomas E. Dickey                                     *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: back_ground.c,v 1.5 2021/02/20 12:23:21 tom Exp $
+ * $Id: back_ground.c,v 1.9 2022/12/10 22:28:50 tom Exp $
  */
 
 #include <test.priv.h>
@@ -170,12 +170,13 @@ test_background(void)
 }
 
 static void
-usage(void)
+usage(int ok)
 {
     static const char *msg[] =
     {
 	"Usage: background [options]"
 	,""
+	,USAGE_COMMON
 	,"Options:"
 #if HAVE_ASSUME_DEFAULT_COLORS
 	," -a       invoke assume_default_colors, repeat to use in init_pair"
@@ -194,11 +195,14 @@ usage(void)
     for (n = 0; n < SIZEOF(msg); n++)
 	fprintf(stderr, "%s\n", msg[n]);
 
-    ExitProgram(EXIT_FAILURE);
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
 }
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
 
 int
-main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
+main(int argc, char *argv[])
 {
 #if HAVE_ASSUME_DEFAULT_COLORS
     int a_option = 0;
@@ -206,12 +210,12 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 #if HAVE_USE_DEFAULT_COLORS
     int d_option = 0;
 #endif
-    int n;
+    int ch;
 
     setlocale(LC_ALL, "");
 
-    while ((n = getopt(argc, argv, "ab:df:l:wW:")) != -1) {
-	switch (n) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "ab:df:l:wW:")) != -1) {
+	switch (ch) {
 #if HAVE_ASSUME_DEFAULT_COLORS
 	case 'a':
 	    ++a_option;
@@ -230,7 +234,7 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 	    break;
 	case 'l':
 	    if (!open_dump(optarg))
-		usage();
+		usage(FALSE);
 	    break;
 	case 'w':
 	    wide_fill = L'\u2591';
@@ -238,8 +242,12 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 	case 'W':
 	    wide_fill = decode_wchar(optarg);
 	    break;
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage();
+	    usage(ch == OPTS_USAGE);
+	    /* NOTREACHED */
 	}
     }
 #if HAVE_USE_DEFAULT_COLORS && HAVE_ASSUME_DEFAULT_COLORS

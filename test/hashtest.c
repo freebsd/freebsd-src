@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2020,2022 Thomas E. Dickey                                *
  * Copyright 1998-2013,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -31,7 +31,7 @@
  *
  * Generate timing statistics for vertical-motion optimization.
  *
- * $Id: hashtest.c,v 1.36 2020/02/02 23:34:34 tom Exp $
+ * $Id: hashtest.c,v 1.39 2022/12/04 00:40:11 tom Exp $
  */
 
 #include <test.priv.h>
@@ -150,49 +150,53 @@ run_test(bool optimized GCC_UNUSED)
 }
 
 static void
-usage(void)
+usage(int ok)
 {
     static const char *const tbl[] =
     {
 	"Usage: hashtest [options]"
 	,""
+	,USAGE_COMMON
 	,"Options:"
-	,"  -c      continuous (don't reset between refresh's)"
-	,"  -f num  leave 'num' lines constant for footer"
-	,"  -h num  leave 'num' lines constant for header"
-	,"  -l num  repeat test 'num' times"
-	,"  -n      test the normal optimizer"
-	,"  -o      test the hashed optimizer"
-	,"  -r      reverse the loops"
-	,"  -s      single-step"
-	,"  -x      assume lower-right corner extension"
+	," -c       continuous (don't reset between refresh's)"
+	," -F num   leave 'num' lines constant for footer"
+	," -H num   leave 'num' lines constant for header"
+	," -l num   repeat test 'num' times"
+	," -n       test the normal optimizer"
+	," -o       test the hashed optimizer"
+	," -r       reverse the loops"
+	," -s       single-step"
+	," -x       assume lower-right corner extension"
     };
     size_t n;
 
     for (n = 0; n < SIZEOF(tbl); n++)
 	fprintf(stderr, "%s\n", tbl[n]);
-    ExitProgram(EXIT_FAILURE);
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
 }
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
 
 int
 main(int argc, char *argv[])
 {
-    int c;
+    int ch;
     int test_loops = 1;
     int test_normal = FALSE;
     int test_optimize = FALSE;
 
     setlocale(LC_ALL, "");
 
-    while ((c = getopt(argc, argv, "cf:h:l:norsx")) != -1) {
-	switch (c) {
+    while ((ch = getopt(argc, argv, OPTS_COMMON "cF:H:l:norsx")) != -1) {
+	switch (ch) {
 	case 'c':
 	    continuous = TRUE;
 	    break;
-	case 'f':
+	case 'F':
 	    foot_lines = atoi(optarg);
 	    break;
-	case 'h':
+	case 'H':
 	    head_lines = atoi(optarg);
 	    break;
 	case 'l':
@@ -214,8 +218,12 @@ main(int argc, char *argv[])
 	case 'x':
 	    extend_corner = TRUE;
 	    break;
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    usage();
+	    usage(ch == OPTS_USAGE);
+	    /* NOTREACHED */
 	}
     }
     if (!test_normal && !test_optimize) {

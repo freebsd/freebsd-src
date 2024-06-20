@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# $Id: tracemunch,v 1.40 2021/02/13 19:29:12 tom Exp $
+# $Id: tracemunch,v 1.41 2021/09/04 10:31:03 tom Exp $
 ##############################################################################
 # Copyright 2018-2020,2021 Thomas E. Dickey                                  #
 # Copyright 1998-2005,2017 Free Software Foundation, Inc.                    #
@@ -744,7 +744,7 @@ sub muncher($) {
                 $_ =~ s/^[^:]*://;
             }
 
-            # Transform window pointer addresses so it's easier to compare logs
+            # Transform window pointer addresses to make it easier to compare logs
             $awaiting = "curscr" if ( $_ =~ /creating curscr/ );
             $awaiting = "newscr" if ( $_ =~ /creating newscr/ );
             $awaiting = "stdscr" if ( $_ =~ /creating stdscr/ );

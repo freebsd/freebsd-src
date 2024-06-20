@@ -1,6 +1,6 @@
-# $Id: programs,v 1.48 2021/02/13 16:33:51 tom Exp $
+# $Id: programs,v 1.57 2023/11/10 11:48:38 tom Exp $
 ##############################################################################
-# Copyright 2018-2020,2021 Thomas E. Dickey                                  #
+# Copyright 2018-2022,2023 Thomas E. Dickey                                  #
 # Copyright 2006-2016,2017 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -40,6 +40,7 @@ chgat		$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	chgat popup_msg
 clip_printw	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	clip_printw popup_msg
 color_content	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	color_content
 color_set	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	color_set
+combine		$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	combine dump_window popup_msg
 demo_altkeys	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	demo_altkeys
 demo_defkey	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	demo_defkey
 demo_forms	$(LDFLAGS_DEFAULT)	$(LOCAL_LIBS)	demo_forms edit_field popup_msg
@@ -65,7 +66,7 @@ firstlast	$(LDFLAGS_DEFAULT)	$(LOCAL_LIBS)	firstlast
 foldkeys	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	foldkeys
 form_driver_w	$(LDFLAGS_DEFAULT)	$(LOCAL_LIBS)	form_driver_w popup_msg
 gdc		$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	gdc
-hanoi		$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	hanoi
+hanoi		$(LDFLAGS_CURSES_M)	$(LOCAL_LIBS)	hanoi
 hashtest	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	hashtest
 inch_wide	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	inch_wide popup_msg
 inchs		$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	inchs popup_msg
@@ -89,21 +90,25 @@ rain		$(LDFLAGS_THREADS)	$(LOCAL_LIBS)	rain popup_msg
 redraw		$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	redraw popup_msg
 savescreen	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	savescreen popup_msg
 sp_tinfo	$(LDFLAGS_TINFO)	$(LOCAL_LIBS)	sp_tinfo
-tclock		$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	tclock
+tclock		$(LDFLAGS_CURSES_M)	$(LOCAL_LIBS)	tclock
 test_add_wchstr	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_add_wchstr
 test_addchstr	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_addchstr
 test_addstr	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_addstr
 test_addwstr	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_addwstr
 test_arrays	$(LDFLAGS_TINFO)	$(LOCAL_LIBS)	test_arrays
+test_delwin	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_delwin
+test_endwin	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_endwin
 test_get_wstr	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_get_wstr popup_msg
 test_getstr	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_getstr popup_msg
 test_instr	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_instr
 test_inwstr	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_inwstr
+test_mouse	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_mouse
 test_opaque	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_opaque
 test_setupterm	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_setupterm
 test_sgr	$(LDFLAGS_TINFO)	$(LOCAL_LIBS)	test_sgr
 test_termattrs	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_termattrs
 test_tparm	$(LDFLAGS_TINFO)	$(LOCAL_LIBS)	test_tparm
+test_unget_wch	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_unget_wch
 test_vid_puts	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_vid_puts
 test_vidputs	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_vidputs
 testaddch	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	testaddch

@@ -1,5 +1,5 @@
 ##############################################################################
-# Copyright 2020 Thomas E. Dickey                                            #
+# Copyright 2020,2022 Thomas E. Dickey                                       #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -28,9 +28,11 @@
 #
 #  Author:  Thomas E. Dickey
 #
-#  $Id: split-path.awk,v 1.3 2020/02/02 23:34:34 tom Exp $
+#  $Id: split-path.awk,v 1.4 2022/11/26 23:46:20 tom Exp $
 BEGIN	{ cols = 72; }
 /[$]THIS_DATADIR/ {
+	if (substr(this_datadir, length(this_datadir)) != "/")
+		this_datadir = this_datadir "/";
 	gsub("[$]THIS_DATADIR", "\"" this_datadir "\"");
 	if ( length ($0) > cols ) {
 		indent = index($0, "\"") - 1;

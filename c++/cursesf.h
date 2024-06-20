@@ -1,6 +1,7 @@
 // * This makes emacs happy -*-Mode: C++;-*-
+// vile:cppmode
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2021,2022 Thomas E. Dickey                                *
  * Copyright 1998-2012,2014 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -32,7 +33,7 @@
  *   Author: Juergen Pfeifer, 1997                                          *
  ****************************************************************************/
 
-// $Id: cursesf.h,v 1.37 2020/07/18 19:57:11 anonymous.maarten Exp $
+// $Id: cursesf.h,v 1.39 2022/08/20 20:52:15 tom Exp $
 
 #ifndef NCURSES_CURSESF_H_incl
 #define NCURSES_CURSESF_H_incl 1
@@ -500,21 +501,21 @@ public:
   }
 
   // Decorations
-  inline void frame(const char *title=NULL, const char* btitle=NULL) {
+  inline void frame(const char *title=NULL, const char* btitle=NULL) NCURSES_OVERRIDE {
     if (b_framed)
       NCursesPanel::frame(title,btitle);
     else
       OnError(E_SYSTEM_ERROR);
   }
 
-  inline void boldframe(const char *title=NULL, const char* btitle=NULL) {
+  inline void boldframe(const char *title=NULL, const char* btitle=NULL) NCURSES_OVERRIDE {
     if (b_framed)
       NCursesPanel::boldframe(title,btitle);
     else
       OnError(E_SYSTEM_ERROR);
   }
 
-  inline void label(const char *topLabel, const char *bottomLabel) {
+  inline void label(const char *topLabel, const char *bottomLabel) NCURSES_OVERRIDE {
     if (b_framed)
       NCursesPanel::label(topLabel,bottomLabel);
     else
@@ -726,12 +727,12 @@ class NCURSES_CXX_IMPEXP Alpha_Field : public NCursesFieldType
 private:
   int min_field_width;
 
-  void set(NCursesFormField& f) {
+  void set(NCursesFormField& f) NCURSES_OVERRIDE {
     OnError(::set_field_type(f.get_field(),fieldtype,min_field_width));
   }
 
 public:
-  Alpha_Field(int width)
+  explicit Alpha_Field(int width)
     : NCursesFieldType(TYPE_ALPHA),
       min_field_width(width) {
   }
@@ -742,12 +743,12 @@ class NCURSES_CXX_IMPEXP Alphanumeric_Field : public NCursesFieldType
 private:
   int min_field_width;
 
-  void set(NCursesFormField& f) {
+  void set(NCursesFormField& f) NCURSES_OVERRIDE {
     OnError(::set_field_type(f.get_field(),fieldtype,min_field_width));
   }
 
 public:
-  Alphanumeric_Field(int width)
+  explicit Alphanumeric_Field(int width)
     : NCursesFieldType(TYPE_ALNUM),
       min_field_width(width) {
   }
@@ -759,7 +760,7 @@ private:
   int precision;
   long lower_limit, upper_limit;
 
-  void set(NCursesFormField& f) {
+  void set(NCursesFormField& f) NCURSES_OVERRIDE {
     OnError(::set_field_type(f.get_field(),fieldtype,
 			     precision,lower_limit,upper_limit));
   }
@@ -777,7 +778,7 @@ private:
   int precision;
   double lower_limit, upper_limit;
 
-  void set(NCursesFormField& f) {
+  void set(NCursesFormField& f) NCURSES_OVERRIDE {
     OnError(::set_field_type(f.get_field(),fieldtype,
 			     precision,lower_limit,upper_limit));
   }
@@ -794,7 +795,7 @@ class NCURSES_CXX_IMPEXP Regular_Expression_Field : public NCursesFieldType
 private:
   char* regex;
 
-  void set(NCursesFormField& f) {
+  void set(NCursesFormField& f) NCURSES_OVERRIDE {
     OnError(::set_field_type(f.get_field(),fieldtype,regex));
   }
 
@@ -805,7 +806,7 @@ private:
   }
 
 public:
-  Regular_Expression_Field(const char *expr)
+  explicit Regular_Expression_Field(const char *expr)
     : NCursesFieldType(TYPE_REGEXP),
       regex(NULL)
   {
@@ -841,7 +842,7 @@ private:
   int case_sensitive;
   int non_unique_matches;
 
-  void set(NCursesFormField& f) {
+  void set(NCursesFormField& f) NCURSES_OVERRIDE {
     OnError(::set_field_type(f.get_field(),fieldtype,
 			     list,case_sensitive,non_unique_matches));
   }
@@ -876,7 +877,7 @@ public:
 class NCURSES_CXX_IMPEXP IPV4_Address_Field : public NCursesFieldType
 {
 private:
-  void set(NCursesFormField& f) {
+  void set(NCursesFormField& f) NCURSES_OVERRIDE {
     OnError(::set_field_type(f.get_field(),fieldtype));
   }
 
@@ -911,7 +912,7 @@ protected:
   friend bool _nc_xx_fld_ccheck(int c, const void *);
   friend void* _nc_xx_fld_makearg(va_list*);
 
-  void set(NCursesFormField& f) {
+  void set(NCursesFormField& f) NCURSES_OVERRIDE {
     OnError(::set_field_type(f.get_field(),fieldtype,&f));
   }
 

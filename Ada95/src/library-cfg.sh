@@ -1,6 +1,6 @@
 #!/bin/sh
 ##############################################################################
-# Copyright 2018-2019,2020 Thomas E. Dickey                                  #
+# Copyright 2018-2020,2022 Thomas E. Dickey                                  #
 # Copyright 2016,2018 Free Software Foundation, Inc.                         #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -28,7 +28,7 @@
 # authorization.                                                             #
 ##############################################################################
 #
-# $Id: library-cfg.sh,v 1.7 2020/02/02 23:34:34 tom Exp $
+# $Id: library-cfg.sh,v 1.8 2022/07/16 17:03:59 tom Exp $
 #
 # Work around incompatible behavior introduced with gnat6, which causes
 # gnatmake to attempt to compile all of the C objects which might be part of
@@ -67,7 +67,7 @@ cat >$SCRIPT <<EOF
 }
 EOF
 
-sed -f $SCRIPT $input
+sed -f "$SCRIPT" "$input"
 rc=$?
-rm -f $SCRIPT
-exit $?
+rm -f "$SCRIPT"
+exit $rc

@@ -4,13 +4,13 @@ Current ncurses maintainer: Thomas Dickey <dickey@invisible-island.net>
 
 -------------------------------------------------------------------------------
 Files: *
-Copyright: 2017-2020,2021 by Thomas E. Dickey
+Copyright: 2017-2023,2024 by Thomas E. Dickey
 Copyright: 1998-2016,2017 Free Software Foundation, Inc.
-Licence: X11
+License: X11
 
 Files: aclocal.m4 package
-Copyright: 2010-2020,2021 by Thomas E. Dickey
-Licence: X11
+Copyright: 2010-2023,2024 by Thomas E. Dickey
+License: X11
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the
@@ -39,7 +39,7 @@ Licence: X11
 -------------------------------------------------------------------------------
 Files: install-sh
 Copyright:  1994 X Consortium
-Licence: X11
+License: X11
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to

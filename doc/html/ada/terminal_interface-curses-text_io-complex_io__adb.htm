@@ -1,7 +1,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
-<HTML>
-<HEAD>
-<TITLE>terminal_interface-curses-text_io-complex_io.adb</TITLE>
+<html>
+<head>
+<title>terminal_interface-curses-text_io-complex_io.adb</title>
 <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 <style type="text/css">
 *.comment {
@@ -11,82 +11,82 @@
 	color: red;
 }
 </style>
-</HEAD>
-<BODY>
-<HR><DIV style="text-align:center"><H1> File : terminal_interface-curses-text_io-complex_io.adb </H1></DIV><HR>
-<PRE>
-<span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>--                           <A HREF="http://www.gnat.com">GNAT</A> ncurses Binding                           --</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>--               Terminal_Interface.Curses.Text_IO.Complex_IO               --</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>--                                 B O D Y                                  --</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<span class="comment"><EM>-- Copyright 2020 Thomas E. Dickey                                          --</EM></span>
-<span class="comment"><EM>-- Copyright 1999-2003,2009 Free Software Foundation, Inc.                  --</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></span>
-<span class="comment"><EM>-- copy of this software and associated documentation files (the            --</EM></span>
-<span class="comment"><EM>-- "Software"), to deal in the Software without restriction, including      --</EM></span>
-<span class="comment"><EM>-- without limitation the rights to use, copy, modify, merge, publish,      --</EM></span>
-<span class="comment"><EM>-- distribute, distribute with modifications, sublicense, and/or sell       --</EM></span>
-<span class="comment"><EM>-- copies of the Software, and to permit persons to whom the Software is    --</EM></span>
-<span class="comment"><EM>-- furnished to do so, subject to the following conditions:                 --</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>-- The above copyright notice and this permission notice shall be included  --</EM></span>
-<span class="comment"><EM>-- in all copies or substantial portions of the Software.                   --</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  --</EM></span>
-<span class="comment"><EM>-- OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               --</EM></span>
-<span class="comment"><EM>-- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   --</EM></span>
-<span class="comment"><EM>-- IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   --</EM></span>
-<span class="comment"><EM>-- DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    --</EM></span>
-<span class="comment"><EM>-- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    --</EM></span>
-<span class="comment"><EM>-- THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               --</EM></span>
-<span class="comment"><EM>--                                                                          --</EM></span>
-<span class="comment"><EM>-- Except as contained in this notice, the name(s) of the above copyright   --</EM></span>
-<span class="comment"><EM>-- holders shall not be used in advertising or otherwise to promote the     --</EM></span>
-<span class="comment"><EM>-- sale, use or other dealings in this Software without prior written       --</EM></span>
-<span class="comment"><EM>-- authorization.                                                           --</EM></span>
-<span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<span class="comment"><EM>--  Author:  Juergen Pfeifer, 1996</EM></span>
-<span class="comment"><EM>--  Version Control:</EM></span>
-<span class="comment"><EM>--  @Revision: 1.12 @</EM></span>
-<span class="comment"><EM>--  Binding Version 01.00</EM></span>
-<span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
-<b>with</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_45_35">Text_IO</A>.<A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_45_43">Float_IO</A>;
+</head>
+<body>
+<hr><div style="text-align:center"><h1> File : terminal_interface-curses-text_io-complex_io.adb </h1></div><hr>
+<pre>
+<span class="comment"><em>------------------------------------------------------------------------------</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>--                           <strong>GNAT</strong> ncurses Binding                           --</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>--               Terminal_Interface.Curses.Text_IO.Complex_IO               --</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>--                                 B O D Y                                  --</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>------------------------------------------------------------------------------</em></span>
+<span class="comment"><em>-- Copyright 2020 Thomas E. Dickey                                          --</em></span>
+<span class="comment"><em>-- Copyright 1999-2003,2009 Free Software Foundation, Inc.                  --</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>-- Permission is hereby granted, free of charge, to any person obtaining a  --</em></span>
+<span class="comment"><em>-- copy of this software and associated documentation files (the            --</em></span>
+<span class="comment"><em>-- "Software"), to deal in the Software without restriction, including      --</em></span>
+<span class="comment"><em>-- without limitation the rights to use, copy, modify, merge, publish,      --</em></span>
+<span class="comment"><em>-- distribute, distribute with modifications, sublicense, and/or sell       --</em></span>
+<span class="comment"><em>-- copies of the Software, and to permit persons to whom the Software is    --</em></span>
+<span class="comment"><em>-- furnished to do so, subject to the following conditions:                 --</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>-- The above copyright notice and this permission notice shall be included  --</em></span>
+<span class="comment"><em>-- in all copies or substantial portions of the Software.                   --</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  --</em></span>
+<span class="comment"><em>-- OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               --</em></span>
+<span class="comment"><em>-- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   --</em></span>
+<span class="comment"><em>-- IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   --</em></span>
+<span class="comment"><em>-- DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    --</em></span>
+<span class="comment"><em>-- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    --</em></span>
+<span class="comment"><em>-- THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               --</em></span>
+<span class="comment"><em>--                                                                          --</em></span>
+<span class="comment"><em>-- Except as contained in this notice, the name(s) of the above copyright   --</em></span>
+<span class="comment"><em>-- holders shall not be used in advertising or otherwise to promote the     --</em></span>
+<span class="comment"><em>-- sale, use or other dealings in this Software without prior written       --</em></span>
+<span class="comment"><em>-- authorization.                                                           --</em></span>
+<span class="comment"><em>------------------------------------------------------------------------------</em></span>
+<span class="comment"><em>--  Author:  Juergen Pfeifer, 1996</em></span>
+<span class="comment"><em>--  Version Control:</em></span>
+<span class="comment"><em>--  @Revision: 1.12 @</em></span>
+<span class="comment"><em>--  Binding Version 01.00</em></span>
+<span class="comment"><em>------------------------------------------------------------------------------</em></span>
+<b>with</b> <a href="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</a>.<a href="terminal_interface-curses__ads.htm#ref_48_28">Curses</a>.<a href="terminal_interface-curses-text_io__ads.htm#ref_45_35">Text_IO</a>.<a href="terminal_interface-curses-text_io-float_io__ads.htm#ref_45_43">Float_IO</a>;
 
-<b>package</b> <b>body</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_45_35">Text_IO</A>.<span class="symbol"><A NAME="ref_44_48" HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_47_43">Complex_IO</A></span> <b>is</b>
+<b>package</b> <b>body</b> <a href="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</a>.<a href="terminal_interface-curses__ads.htm#ref_48_28">Curses</a>.<a href="terminal_interface-curses-text_io__ads.htm#ref_45_35">Text_IO</a>.<span class="symbol"><a name="ref_44_48" href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_47_43">Complex_IO</a></span> <b>is</b>
 
    <b>package</b> FIO <b>is</b> <b>new</b>
-     <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_45_35">Text_IO</A>.<A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_45_43">Float_IO</A> (Complex_Types.Real'Base);
+     <a href="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</a>.<a href="terminal_interface-curses__ads.htm#ref_48_28">Curses</a>.<a href="terminal_interface-curses-text_io__ads.htm#ref_45_35">Text_IO</a>.<a href="terminal_interface-curses-text_io-float_io__ads.htm#ref_45_43">Float_IO</a> (Complex_Types.Real'Base);
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_49_14" HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_55_14">Put</A></span>
-     (<span class="symbol"><A NAME="ref_50_7" HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_56_7">Win</A></span>  : <A HREF="terminal_interface-curses__ads.htm#ref_56_9">Window</A>;
+   <b>procedure</b> <span class="symbol"><a name="ref_49_14" href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_55_14">Put</a></span>
+     (<span class="symbol"><a name="ref_50_7" href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_56_7">Win</a></span>  : <a href="terminal_interface-curses__ads.htm#ref_56_9">Window</a>;
       Item : Complex;
-      <span class="symbol"><A NAME="ref_52_7" HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_58_7">Fore</A></span> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_51_12">Field</A> := <A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_51_4">Default_Fore</A>;
-      <span class="symbol"><A NAME="ref_53_7" HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_59_7">Aft</A></span>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_51_12">Field</A> := <A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_52_4">Default_Aft</A>;
-      <span class="symbol"><A NAME="ref_54_7" HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_60_7">Exp</A></span>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_51_12">Field</A> := <A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_53_4">Default_Exp</A>)
+      <span class="symbol"><a name="ref_52_7" href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_58_7">Fore</a></span> : <a href="terminal_interface-curses-text_io__ads.htm#ref_51_12">Field</a> := <a href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_51_4">Default_Fore</a>;
+      <span class="symbol"><a name="ref_53_7" href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_59_7">Aft</a></span>  : <a href="terminal_interface-curses-text_io__ads.htm#ref_51_12">Field</a> := <a href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_52_4">Default_Aft</a>;
+      <span class="symbol"><a name="ref_54_7" href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_60_7">Exp</a></span>  : <a href="terminal_interface-curses-text_io__ads.htm#ref_51_12">Field</a> := <a href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_53_4">Default_Exp</a>)
    <b>is</b>
    <b>begin</b>
-      <A HREF="terminal_interface-curses-text_io__ads.htm#ref_109_14">Put</A> (<A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_56_7">Win</A>, '(');
-      FIO.<A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_51_14">Put</A> (<A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_56_7">Win</A>, Item.Re, <A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_58_7">Fore</A>, <A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_59_7">Aft</A>, <A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_60_7">Exp</A>);
-      <A HREF="terminal_interface-curses-text_io__ads.htm#ref_109_14">Put</A> (<A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_56_7">Win</A>, ',');
-      FIO.<A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_51_14">Put</A> (<A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_56_7">Win</A>, Item.Im, <A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_58_7">Fore</A>, <A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_59_7">Aft</A>, <A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_60_7">Exp</A>);
-      <A HREF="terminal_interface-curses-text_io__ads.htm#ref_109_14">Put</A> (<A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_56_7">Win</A>, ')');
-   <b>end</b> <A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_55_14">Put</A>;
+      <a href="terminal_interface-curses-text_io__ads.htm#ref_109_14">Put</a> (<a href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_56_7">Win</a>, '(');
+      FIO.<a href="terminal_interface-curses-text_io-float_io__ads.htm#ref_51_14">Put</a> (<a href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_56_7">Win</a>, Item.Re, <a href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_58_7">Fore</a>, <a href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_59_7">Aft</a>, <a href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_60_7">Exp</a>);
+      <a href="terminal_interface-curses-text_io__ads.htm#ref_109_14">Put</a> (<a href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_56_7">Win</a>, ',');
+      FIO.<a href="terminal_interface-curses-text_io-float_io__ads.htm#ref_51_14">Put</a> (<a href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_56_7">Win</a>, Item.Im, <a href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_58_7">Fore</a>, <a href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_59_7">Aft</a>, <a href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_60_7">Exp</a>);
+      <a href="terminal_interface-curses-text_io__ads.htm#ref_109_14">Put</a> (<a href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_56_7">Win</a>, ')');
+   <b>end</b> <a href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_55_14">Put</a>;
 
-   <b>procedure</b> <span class="symbol"><A NAME="ref_64_14" HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_62_14">Put</A></span>
+   <b>procedure</b> <span class="symbol"><a name="ref_64_14" href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_62_14">Put</a></span>
      (Item : Complex;
-      <span class="symbol"><A NAME="ref_66_7" HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_64_7">Fore</A></span> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_51_12">Field</A> := <A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_51_4">Default_Fore</A>;
-      <span class="symbol"><A NAME="ref_67_7" HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_65_7">Aft</A></span>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_51_12">Field</A> := <A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_52_4">Default_Aft</A>;
-      <span class="symbol"><A NAME="ref_68_7" HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_66_7">Exp</A></span>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_51_12">Field</A> := <A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_53_4">Default_Exp</A>)
+      <span class="symbol"><a name="ref_66_7" href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_64_7">Fore</a></span> : <a href="terminal_interface-curses-text_io__ads.htm#ref_51_12">Field</a> := <a href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_51_4">Default_Fore</a>;
+      <span class="symbol"><a name="ref_67_7" href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_65_7">Aft</a></span>  : <a href="terminal_interface-curses-text_io__ads.htm#ref_51_12">Field</a> := <a href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_52_4">Default_Aft</a>;
+      <span class="symbol"><a name="ref_68_7" href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_66_7">Exp</a></span>  : <a href="terminal_interface-curses-text_io__ads.htm#ref_51_12">Field</a> := <a href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_53_4">Default_Exp</a>)
    <b>is</b>
    <b>begin</b>
-      <A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_55_14">Put</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_63_13">Get_Window</A>, Item, <A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_64_7">Fore</A>, <A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_65_7">Aft</A>, <A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_66_7">Exp</A>);
-   <b>end</b> <A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_62_14">Put</A>;
+      <a href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_55_14">Put</a> (<a href="terminal_interface-curses-text_io__ads.htm#ref_63_13">Get_Window</a>, Item, <a href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_64_7">Fore</a>, <a href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_65_7">Aft</a>, <a href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_66_7">Exp</a>);
+   <b>end</b> <a href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_62_14">Put</a>;
 
-<b>end</b> <A HREF="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_48_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_45_35">Text_IO</A>.<A HREF="terminal_interface-curses-text_io-complex_io__ads.htm#ref_47_43">Complex_IO</A>;
-</PRE></BODY></HTML>
+<b>end</b> <a href="terminal_interface__ads.htm#ref_43_9">Terminal_Interface</a>.<a href="terminal_interface-curses__ads.htm#ref_48_28">Curses</a>.<a href="terminal_interface-curses-text_io__ads.htm#ref_45_35">Text_IO</a>.<a href="terminal_interface-curses-text_io-complex_io__ads.htm#ref_47_43">Complex_IO</a>;
+</pre></body></html>

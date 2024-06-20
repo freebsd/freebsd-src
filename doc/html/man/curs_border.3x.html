@@ -1,6 +1,6 @@
-<!-- 
+<!--
   ****************************************************************************
-  * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+  * Copyright 2018-2023,2024 Thomas E. Dickey                                *
   * Copyright 1998-2007,2010 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,29 +27,29 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_border.3x,v 1.27 2020/10/18 00:33:06 tom Exp @
+  * @Id: curs_border.3x,v 1.49 2024/04/20 21:20:07 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
 <HEAD>
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
-<TITLE>curs_border 3x</TITLE>
+<TITLE>curs_border 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
 <link rel="author" href="mailto:bug-ncurses@gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+
 </HEAD>
 <BODY>
-<H1 class="no-header">curs_border 3x</H1>
+<H1 class="no-header">curs_border 3x 2024-04-20 ncurses 6.5 Library calls</H1>
 <PRE>
-<STRONG><A HREF="curs_border.3x.html">curs_border(3x)</A></STRONG>                                                <STRONG><A HREF="curs_border.3x.html">curs_border(3x)</A></STRONG>
+<STRONG><A HREF="curs_border.3x.html">curs_border(3x)</A></STRONG>                  Library calls                 <STRONG><A HREF="curs_border.3x.html">curs_border(3x)</A></STRONG>
 
 
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
-       <STRONG>border</STRONG>, <STRONG>wborder</STRONG>, <STRONG>box</STRONG>, <STRONG>hline</STRONG>, <STRONG>whline</STRONG>, <STRONG>vline</STRONG>, <STRONG>wvline</STRONG>, <STRONG>mvhline</STRONG>, <STRONG>mvwhline</STRONG>,
-       <STRONG>mvvline</STRONG>, <STRONG>mvwvline</STRONG> - create <STRONG>curses</STRONG> borders, horizontal and vertical
-       lines
+       <STRONG>border</STRONG>,  <STRONG>wborder</STRONG>, <STRONG>box</STRONG>, <STRONG>hline</STRONG>, <STRONG>whline</STRONG>, <STRONG>vline</STRONG>, <STRONG>wvline</STRONG>, <STRONG>mvhline</STRONG>, <STRONG>mvwhline</STRONG>,
+       <STRONG>mvvline</STRONG>, <STRONG>mvwvline</STRONG> - draw borders  and  lines  in  a  <EM>curses</EM>  window  of
+       characters
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
@@ -76,8 +76,8 @@
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
        The  <STRONG>border</STRONG>,  <STRONG>wborder</STRONG> and <STRONG>box</STRONG> routines draw a box around the edges of a
-       window.  Other than the window, each argument is a character  with  at-
-       tributes:
+       window.  Other than the window,  each  argument  is  a  character  with
+       attributes:
 
               <EM>ls</EM> - left side,
               <EM>rs</EM> - right side,
@@ -88,8 +88,8 @@
               <EM>bl</EM> - bottom left-hand corner, and
               <EM>br</EM> - bottom right-hand corner.
 
-       If  any of these arguments is zero, then the corresponding default val-
-       ues (defined in <STRONG>curses.h</STRONG>) are used instead:
+       If  any  of  these  arguments  is  zero, then the corresponding default
+       values (defined in <STRONG>curses.h</STRONG>) are used instead:
 
               <STRONG>ACS_VLINE</STRONG>,
               <STRONG>ACS_VLINE</STRONG>,
@@ -100,51 +100,48 @@
               <STRONG>ACS_LLCORNER</STRONG>,
               <STRONG>ACS_LRCORNER</STRONG>.
 
-       <STRONG>box(</STRONG><EM>win</EM><STRONG>,</STRONG> <EM>verch</EM><STRONG>,</STRONG> <EM>horch</EM><STRONG>)</STRONG> is a shorthand for  the  following  call:  <STRONG>wbor-</STRONG>
-       <STRONG>der(</STRONG><EM>win</EM><STRONG>,</STRONG> <EM>verch</EM><STRONG>,</STRONG> <EM>verch</EM><STRONG>,</STRONG> <EM>horch</EM><STRONG>,</STRONG> <EM>horch</EM><STRONG>,</STRONG> <STRONG>0,</STRONG> <STRONG>0,</STRONG> <STRONG>0,</STRONG> <STRONG>0)</STRONG>.
+       <STRONG>box(</STRONG><EM>win</EM><STRONG>,</STRONG>  <EM>verch</EM><STRONG>,</STRONG>  <EM>horch</EM><STRONG>)</STRONG>  is  a  shorthand  for  the  following   call:
+       <STRONG>wborder(</STRONG><EM>win</EM><STRONG>,</STRONG> <EM>verch</EM><STRONG>,</STRONG> <EM>verch</EM><STRONG>,</STRONG> <EM>horch</EM><STRONG>,</STRONG> <EM>horch</EM><STRONG>,</STRONG> <STRONG>0,</STRONG> <STRONG>0,</STRONG> <STRONG>0,</STRONG> <STRONG>0)</STRONG>.
 
        The  <STRONG>hline</STRONG>  and <STRONG>whline</STRONG> functions draw a horizontal (left to right) line
        using <EM>ch</EM> starting at the current cursor position in  the  window.   The
-       current  cursor position is not changed.  The line is at most <EM>n</EM> charac-
-       ters long, or as many as fit into the window.
+       current  cursor  position  is  not  changed.   The  line  is  at most <EM>n</EM>
+       characters long, or as many as fit into the window.
 
-       The <STRONG>vline</STRONG> and <STRONG>wvline</STRONG> functions draw a vertical (top to bottom) line us-
-       ing <EM>ch</EM> starting at the current cursor position in the window.  The cur-
-       rent cursor position is not changed.  The line is at most <EM>n</EM>  characters
-       long, or as many as fit into the window.
+       The <STRONG>vline</STRONG> and <STRONG>wvline</STRONG> functions draw a vertical  (top  to  bottom)  line
+       using  <EM>ch</EM>  starting  at the current cursor position in the window.  The
+       current cursor position  is  not  changed.   The  line  is  at  most  <EM>n</EM>
+       characters long, or as many as fit into the window.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
        All  routines return the integer <STRONG>OK</STRONG>.  The SVr4.0 manual says "or a non-
        negative integer if <STRONG>immedok</STRONG> is set", but this appears to be an error.
 
-       X/Open does not define any error conditions.  This  implementation  re-
-       turns an error if the window pointer is null.
+       X/Open  Curses  does  not   specify   any   error   conditions.    This
+       implementation returns an error if the window pointer is null.
 
-       Functions  with  a  "mv"  prefix  first perform a cursor movement using
-       <STRONG>wmove</STRONG>, and return an error if the position is outside the window, or if
-       the window pointer is null.
+       Functions  prefixed with "mv" first perform cursor movement and fail if
+       the position (<EM>y</EM>, <EM>x</EM>) is outside the window boundaries.
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       The  borders  generated  by these functions are <EM>inside</EM> borders (this is
+       The borders generated by these functions are <EM>inside</EM>  borders  (this  is
        also true of SVr4 curses, though the fact is not documented).
 
        Note that <STRONG>border</STRONG> and <STRONG>box</STRONG> may be macros.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These functions are described in the XSI Curses standard, Issue 4.  The
-       standard  specifies  that  they return <STRONG>ERR</STRONG> on failure, but specifies no
-       error conditions.
+       These functions are described in X/Open Curses, Issue 4.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>.
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>
 
 
 
-                                                               <STRONG><A HREF="curs_border.3x.html">curs_border(3x)</A></STRONG>
+ncurses 6.5                       2024-04-20                   <STRONG><A HREF="curs_border.3x.html">curs_border(3x)</A></STRONG>
 </PRE>
 <div class="nav">
 <ul>

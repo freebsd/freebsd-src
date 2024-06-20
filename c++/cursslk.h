@@ -1,6 +1,7 @@
 // * this is for making emacs happy: -*-Mode: C++;-*-
+// vile:cppmode
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2020,2021 Thomas E. Dickey                                *
  * Copyright 1998-2003,2005 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -32,7 +33,7 @@
  *   Author: Juergen Pfeifer, 1997                                          *
  ****************************************************************************/
 
-// $Id: cursslk.h,v 1.18 2020/07/18 19:57:11 anonymous.maarten Exp $
+// $Id: cursslk.h,v 1.19 2021/04/17 18:11:08 tom Exp $
 
 #ifndef NCURSES_CURSSLK_H_incl
 #define NCURSES_CURSSLK_H_incl
@@ -140,7 +141,7 @@ public:
   // You must create a Soft_Label_Key_Set before you create any object of
   // the NCursesWindow, NCursesPanel or derived classes. (Actually before
   // ::initscr() is called).
-  Soft_Label_Key_Set(Label_Layout fmt);
+  explicit Soft_Label_Key_Set(Label_Layout fmt);
 
   // This constructor assumes, that you already constructed a Key Set
   // with a layout by the constructor above. This layout will be reused.

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2022 Thomas E. Dickey                                     *
  * Copyright 2007-2012,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: test_getstr.c,v 1.14 2020/02/02 23:34:34 tom Exp $
+ * $Id: test_getstr.c,v 1.16 2022/12/10 23:58:37 tom Exp $
  *
  * Author: Thomas E Dickey
  *
@@ -362,18 +362,48 @@ recursive_test(int level, char **argv, WINDOW *strwin)
     return TRUE;
 }
 
+static void
+usage(int ok)
+{
+    static const char *msg[] =
+    {
+	"Usage: test_getstr [options] [file1 [...]]"
+	,""
+	,USAGE_COMMON
+    };
+    size_t n;
+
+    for (n = 0; n < SIZEOF(msg); n++)
+	fprintf(stderr, "%s\n", msg[n]);
+
+    ExitProgram(ok ? EXIT_SUCCESS : EXIT_FAILURE);
+}
+/* *INDENT-OFF* */
+VERSION_COMMON()
+/* *INDENT-ON* */
+
 int
 main(int argc, char *argv[])
 {
     WINDOW *chrbox;
     WINDOW *strwin;
+    int ch;
+
+    while ((ch = getopt(argc, argv, OPTS_COMMON)) != -1) {
+	switch (ch) {
+	case OPTS_VERSION:
+	    show_version(argv);
+	    ExitProgram(EXIT_SUCCESS);
+	default:
+	    usage(ch == OPTS_USAGE);
+	    /* NOTREACHED */
+	}
+    }
 
     setlocale(LC_ALL, "");
 
-    if (argc < 2) {
-	fprintf(stderr, "usage: %s file\n", argv[0]);
-	return EXIT_FAILURE;
-    }
+    if (optind + 1 > argc)
+	usage(FALSE);
 
     initscr();
 
@@ -383,7 +413,7 @@ main(int argc, char *argv[])
 
     strwin = derwin(chrbox, 4, COLS - 2, 1, 1);
 
-    recursive_test(1, argv, strwin);
+    recursive_test(optind, argv, strwin);
 
     endwin();
     ExitProgram(EXIT_SUCCESS);

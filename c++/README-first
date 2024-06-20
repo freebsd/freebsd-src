@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
--- Copyright 2020 Thomas E. Dickey                                           --
+-- Copyright 2020,2021 Thomas E. Dickey                                      --
 -- Copyright 1998-2006,2007 Free Software Foundation, Inc.                   --
 --                                                                           --
 -- Permission is hereby granted, free of charge, to any person obtaining a   --
@@ -26,7 +26,7 @@
 -- sale, use or other dealings in this Software without prior written        --
 -- authorization.                                                            --
 -------------------------------------------------------------------------------
--- $Id: README-first,v 1.10 2020/02/02 23:34:34 tom Exp $
+-- $Id: README-first,v 1.11 2021/06/17 21:20:30 tom Exp $
 -------------------------------------------------------------------------------
                   C++ interface to ncurses routines
 -----------------------------------------------------------------------
@@ -45,7 +45,7 @@ the curses.h file.  This is a steady cause of trouble because many
 common identifiers are used.  Instead now all #defines are inline
 functions, which also allows strict type checking of arguments.
 
-The next enhancement is color support. It was originally provided by a 
+The next enhancement is color support. It was originally provided by a
 derived class.  This caused some trouble if you think about Panels or
 Menus and Forms with colors.  We decided to put color support into the
 base class so that any derived class may use color support also.
