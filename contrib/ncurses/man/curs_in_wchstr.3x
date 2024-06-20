@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2019,2020 Thomas E. Dickey                                *
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
 .\" Copyright 2002-2012,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,100 +27,106 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_in_wchstr.3x,v 1.14 2020/10/17 23:19:44 tom Exp $
-.TH curs_in_wchstr 3X ""
-.ie \n(.g .ds `` \(lq
-.el       .ds `` ``
-.ie \n(.g .ds '' \(rq
-.el       .ds '' ''
-.na
-.hy 0
+.\" $Id: curs_in_wchstr.3x,v 1.39 2024/04/20 21:24:19 tom Exp $
+.TH curs_in_wchstr 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
 .SH NAME
-\fBin_wchstr\fR,
-\fBin_wchnstr\fR,
-\fBwin_wchstr\fR,
-\fBwin_wchnstr\fR,
-\fBmvin_wchstr\fR,
-\fBmvin_wchnstr\fR,
-\fBmvwin_wchstr\fR,
-\fBmvwin_wchnstr\fR \- get an array of complex characters and renditions from a curses window
-.ad
-.hy
+\fB\%in_wchstr\fP,
+\fB\%in_wchnstr\fP,
+\fB\%win_wchstr\fP,
+\fB\%win_wchnstr\fP,
+\fB\%mvin_wchstr\fP,
+\fB\%mvin_wchnstr\fP,
+\fB\%mvwin_wchstr\fP,
+\fB\%mvwin_wchnstr\fP \-
+get a \fIcurses\fR complex character string from a window
 .SH SYNOPSIS
 .nf
-\fB#include <curses.h>\fR
-.sp
-\fBint in_wchstr(cchar_t *\fR\fIwchstr\fR\fB);\fR
-.br
-\fBint in_wchnstr(cchar_t *\fR\fIwchstr\fR\fB, int \fR\fIn\fR\fB);\fR
-.br
-\fBint win_wchstr(WINDOW *\fR\fIwin\fR\fB, cchar_t *\fR\fIwchstr\fR\fB);\fR
-.br
-\fBint win_wchnstr(WINDOW *\fR\fIwin\fR\fB, cchar_t *\fR\fIwchstr\fR\fB, int \fR\fIn\fR\fB);\fR
-.sp
-\fBint mvin_wchstr(int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, cchar_t *\fR\fIwchstr\fR\fB);\fR
-.br
-\fBint mvin_wchnstr(int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, cchar_t *\fR\fIwchstr\fR\fB, int \fR\fIn\fR\fB);\fR
-.br
-\fBint mvwin_wchstr(WINDOW *\fR\fIwin\fR\fB, int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, cchar_t *\fR\fIwchstr\fR\fB);\fR
-.br
-\fBint mvwin_wchnstr(WINDOW *\fR\fIwin\fR\fB, int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, cchar_t *\fR\fIwchstr\fR, int \fIn\fR\fB);\fR
+\fB#include <curses.h>
+.PP
+\fBint in_wchstr(cchar_t *\fIwchstr\fP);
+\fBint win_wchstr(WINDOW *\fIwin\fP, cchar_t *\fIwchstr\fP);
+\fBint mvin_wchstr(int \fIy\fP, int \fIx\fP, cchar_t *\fIwchstr\fP);
+\fBint mvwin_wchstr(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, cchar_t *\fIwchstr\fP);
+.PP
+\fBint in_wchnstr(cchar_t *\fIwchstr\fP, int \fIn\fP);
+\fBint win_wchnstr(WINDOW *\fIwin\fP, cchar_t *\fIwchstr\fP, int \fIn\fP);
+\fBint mvin_wchnstr(int \fIy\fP, int \fIx\fP, cchar_t *\fIwchstr\fP, int \fIn\fP);
+\fBint mvwin_wchnstr(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, cchar_t *\fIwchstr\fP, int \fIn\fP);
 .fi
 .SH DESCRIPTION
-These functions return an array of complex characters in \fIwchstr\fR,
+These functions return an array of complex characters in \fIwchstr\fP,
 starting at the current cursor position in the named window.
 Attributes (rendition) are stored with the characters.
 .PP
-The
-\fBin_wchnstr\fR,
-\fBmvin_wchnstr\fR,
-\fBmvwin_wchnstr\fR
-and
-\fBwin_wchnstr\fR
-fill the array
-with at most
-\fIn\fR
-\fBcchar_t\fR
-elements.
-.br
-.SH NOTES
-Note that all routines except
-\fBwin_wchnstr\fR
-may be
-macros.
+The four functions with \fIn\fP as the last argument return
+a leading substring at most \fIn\fP characters long
+(exclusive of the trailing zeroed \fBcchar_t\fR.
+Transfer stops at the end of the current line, or when \fIn\fP characters have
+been stored at the location referenced by \fIwchstr\fP.
 .PP
-Reading a line that overflows the array pointed to by
-\fIwchstr\fR
-with
-\fBin_wchstr\fR,
-\fBmvin_wchstr\fR,
-\fBmvwin_wchstr\fR
-or
-\fBwin_wchstr\fR
-causes undefined results.
-Therefore, the use of
-\fBin_wchnstr\fR,
-\fBmvin_wchnstr\fR,
-\fBmvwin_wchnstr\fR, or
-\fBwin_wchnstr\fR
-is recommended.
+Constants defined in \fB<curses.h>\fP can be used with the \fB&\fP (logical
+AND) operator to extract the character or the attribute alone from any position
+in the \fIwchstr\fP [see \fBgetcchar\fP(3X)].
 .SH RETURN VALUE
 Upon successful completion, these functions return
-\fBOK\fR.
+\fBOK\fP.
 Otherwise, they return
-\fBERR\fR.
+\fBERR\fP.
 .PP
-Functions with a \*(``mv\*('' prefix first perform a cursor movement using
-\fBwmove\fP, and return an error if the position is outside the window,
-or if the window pointer is null.
+X/Open Curses defines no error conditions.
+This implementation returns an error
+.bP
+if the \fIwin\fP parameter is null or
+.bP
+if the \fIwchstr\fP parameter is null.
+.PP
+Functions prefixed with \*(``mv\*('' first perform cursor movement and
+fail if the position
+.RI ( y ,
+.IR x )
+is outside the window boundaries.
+.SH NOTES
+All routines except \fBwin_wchnstr\fP may be macros.
+.PP
+Reading a line that overflows the array pointed to by
+\fIwchstr\fP
+with
+\fBin_wchstr\fP,
+\fBmvin_wchstr\fP,
+\fBmvwin_wchstr\fP
+or
+\fBwin_wchstr\fP
+causes undefined results.
+Therefore, the use of
+\fBin_wchnstr\fP,
+\fBmvin_wchnstr\fP,
+\fBmvwin_wchnstr\fP, or
+\fBwin_wchnstr\fP
+is recommended.
 .SH PORTABILITY
-The XSI Curses defines no error conditions.
+X/Open Curses defines no error conditions.
 This implementation checks for null pointers,
 returning \fBERR\fP in that case.
 .SH SEE ALSO
-Functions:
-\fBcurses\fR(3X),
-\fBcurs_in_wch\fR(3X),
-\fBcurs_instr\fR(3X),
-\fBcurs_inwstr\fR(3X)
-\fBcurs_inchstr\fR(3X)
+\fB\%curs_inchstr\fP(3X) describes comparable functions of the
+.I \%ncurses
+library in its non-wide-character configuration.
+.PP
+\fB\%curses\fP(3X),
+\fB\%curs_inwstr\fP(3X),
+\fB\%curs_in_wch\fP(3X)

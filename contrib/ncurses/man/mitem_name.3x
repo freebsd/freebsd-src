@@ -1,6 +1,5 @@
-'\" t
 .\"***************************************************************************
-.\" Copyright 2018,2020 Thomas E. Dickey                                     *
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
 .\" Copyright 1998-2010,2015 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,34 +27,33 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: mitem_name.3x,v 1.14 2020/10/18 00:37:48 tom Exp $
-.TH mitem_name 3X ""
+.\" $Id: mitem_name.3x,v 1.31 2024/03/16 15:35:01 tom Exp $
+.TH mitem_name 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
-\fBitem_name\fR,
-\fBitem_description\fR \- get menu item name and description fields
+\fBitem_name\fP,
+\fBitem_description\fP \-
+get menu item name and description fields
 .SH SYNOPSIS
-\fB#include <menu.h>\fR
-.sp
-\fBconst char *item_name(const ITEM *\fP\fIitem\fP\fB);\fP
-.br
-\fBconst char *item_description(const ITEM *\fP\fIitem\fP\fB);\fP
-.br
+.nf
+\fB#include <menu.h>
+.PP
+\fBconst char *item_name(const ITEM *\fIitem\fP);
+\fBconst char *item_description(const ITEM *\fIitem\fP);
+.fi
 .SH DESCRIPTION
-The function \fBitem_name\fR returns the name part of the given item.
+The function \fBitem_name\fP returns the name part of the given item.
 .br
-The function \fBitem_description\fR returns the description part of the given
+The function \fBitem_description\fP returns the description part of the given
 item.
 .SH RETURN VALUE
-These routines return a pointer (which may be \fBNULL\fR).
+These routines return a pointer (which may be \fBNULL\fP).
 They do not set \fBerrno\fP.
-.SH SEE ALSO
-\fBcurses\fR(3X), \fBmenu\fR(3X).
-.SH NOTES
-The header file \fB<menu.h>\fR automatically includes the header file
-\fB<curses.h>\fR.
 .SH PORTABILITY
 These routines emulate the System V menu library.
 They were not supported on Version 7 or BSD versions.
 .SH AUTHORS
 Juergen Pfeifer.
 Manual pages and adaptation for new curses by Eric S. Raymond.
+.SH SEE ALSO
+\fB\%curses\fP(3X),
+\fB\%menu\fP(3X)

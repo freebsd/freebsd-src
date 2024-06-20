@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2018-2020,2021 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -40,7 +40,7 @@
 extern int malloc_errfd;	/* FIXME */
 #endif
 
-MODULE_ID("$Id: lib_freeall.c,v 1.72 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_freeall.c,v 1.76 2021/11/06 21:52:49 tom Exp $")
 
 /*
  * Free all ncurses data.  This is used for testing only (there's no practical
@@ -78,6 +78,9 @@ NCURSES_SP_NAME(_nc_freeall) (NCURSES_SP_DCL0)
 		WINDOW *p_win = &(p->win);
 		bool found = FALSE;
 
+		if (IS_PAD(p_win))
+		    continue;
+
 #ifndef USE_SP_WINDOWLIST
 		if (p->screen != SP_PARM)
 		    continue;
@@ -92,7 +95,7 @@ NCURSES_SP_NAME(_nc_freeall) (NCURSES_SP_DCL0)
 #endif
 
 		    if ((p != q)
-			&& (q_win->_flags & _SUBWIN)
+			&& IS_SUBWIN(q_win)
 			&& (p_win == q_win->_parent)) {
 			found = TRUE;
 			break;
@@ -171,8 +174,6 @@ NCURSES_SP_NAME(_nc_free_and_exit) (NCURSES_SP_DCLx int code)
 {
     if (SP_PARM) {
 	delscreen(SP_PARM);
-	if (SP_PARM->_term)
-	    NCURSES_SP_NAME(del_curterm) (NCURSES_SP_ARGx SP_PARM->_term);
     }
     exit(code);
 }

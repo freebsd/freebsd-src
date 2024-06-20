@@ -1,7 +1,7 @@
 #! /bin/sh
-# $Id: MKkey_defs.sh,v 1.21 2020/08/17 10:45:33 tom Exp $
+# $Id: MKkey_defs.sh,v 1.24 2024/01/19 12:26:17 tom Exp $
 ##############################################################################
-# Copyright 2019,2020 Thomas E. Dickey                                       #
+# Copyright 2019-2022,2024 Thomas E. Dickey                                  #
 # Copyright 2001-2013,2017 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -35,7 +35,7 @@
 #
 # Extract function-key definitions from the Caps file
 #
-: ${AWK-awk}
+: "${AWK-awk}"
 
 test $# = 0 && set Caps
 
@@ -44,7 +44,8 @@ pass1=pass1_$$
 pass2=pass2_$$
 pass3=pass3_$$
 pass4=pass4_$$
-trap 'rm -f $data pass[1234]_$$' EXIT INT QUIT TERM HUP
+trap 'rm -f $data pass[1234]_$$; exit 1' 1 2 3 15
+trap 'rm -f $data pass[1234]_$$' 0
 
 # change repeated tabs (used for readability) to single tabs (needed to make
 # awk see the right field alignment of the corresponding columns):
@@ -63,10 +64,10 @@ fi
 
 # add keys that we generate automatically:
 cat >>$data <<EOF
-key_resize	kr1	str	R1	KEY_RESIZE	+	NCURSES_EXT_FUNCS 	Terminal resize event
+key_resize	kr1	str	R1	KEY_RESIZE	+	NCURSES_SIGWINCH 	Terminal resize event
 EOF
 
-THIS=./`basename $0`
+THIS=./`basename "$0"`
 
 cat <<EOF
 /*
@@ -145,7 +146,7 @@ $5 != "-" && $6 != "-" {
 			if (index($7,"NCURSES_") == 1) {
 				ifdef = 1;
 				printf "\n";
-				printf "#ifdef %s\n", $7;
+				printf "#if %s\n", $7;
 			}
 			if ($5 == "KEY_F(0)" ) {
 				printf "#define "

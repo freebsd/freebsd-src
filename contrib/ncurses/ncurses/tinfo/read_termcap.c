@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2018-2021,2023 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -57,7 +57,7 @@
 #include <sys/types.h>
 #include <tic.h>
 
-MODULE_ID("$Id: read_termcap.c,v 1.98 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: read_termcap.c,v 1.104 2023/06/24 21:53:16 tom Exp $")
 
 #if !PURE_TERMINFO
 
@@ -187,7 +187,7 @@ _nc_cgetcap(char *buf, const char *cap, int type)
     bp = buf;
     for (;;) {
 	/*
-	 * Skip past the current capability field - it's either the
+	 * Skip past the current capability field - it is either the
 	 * name field if this is the first time through the loop, or
 	 * the remainder of a field whose name failed to match cap.
 	 */
@@ -324,7 +324,7 @@ _nc_getent(
 	    if (fd >= 0) {
 		(void) lseek(fd, (off_t) 0, SEEK_SET);
 	    } else if ((_nc_access(db_array[current], R_OK) < 0)
-		       || (fd = open(db_array[current], O_RDONLY, 0)) < 0) {
+		       || (fd = safe_open2(db_array[current], O_RDONLY)) < 0) {
 		/* No error on unfound file. */
 		if (errno == ENOENT)
 		    continue;
@@ -803,7 +803,7 @@ _nc_tgetent(char *bp, char **sourcename, int *lineno, const char *name)
     /*
      * TERMCAP can have one of two things in it.  It can be the name of a file
      * to use instead of /etc/termcap.  In this case it better start with a
-     * "/".  Or it can be an entry to use so we don't have to read the file. 
+     * "/".  Or it can be an entry to use so we don't have to read the file.
      * In this case it has to already have the newlines crunched out.  If
      * TERMCAP does not hold a file name then a path of names is searched
      * instead.  The path is found in the TERMPATH variable, or becomes
@@ -1055,23 +1055,25 @@ _nc_read_termcap_entry(const char *const tn, TERMTYPE2 *const tp)
     if (normal) {		/* normal case */
 	char envhome[PATH_MAX], *h;
 
-	copied = strdup(get_termpath());
-	for (cp = copied; *cp; cp++) {
-	    if (*cp == NCURSES_PATHSEP)
-		*cp = '\0';
-	    else if (cp == copied || cp[-1] == '\0') {
-		ADD_TC(cp, filecount);
+	if ((copied = strdup(get_termpath())) != 0) {
+	    for (cp = copied; *cp; cp++) {
+		if (*cp == NCURSES_PATHSEP)
+		    *cp = '\0';
+		else if (cp == copied || cp[-1] == '\0') {
+		    ADD_TC(cp, filecount);
+		}
 	    }
 	}
-
-#define PRIVATE_CAP "%s/.termcap"
+#define PRIVATE_CAP "%.*s/.termcap"
 
 	if (use_terminfo_vars() && (h = getenv("HOME")) != NULL && *h != '\0'
 	    && (strlen(h) + sizeof(PRIVATE_CAP)) < PATH_MAX) {
 	    /* user's .termcap, if any, should override it */
 	    _nc_STRCPY(envhome, h, sizeof(envhome));
 	    _nc_SPRINTF(pathbuf, _nc_SLIMIT(sizeof(pathbuf))
-			PRIVATE_CAP, envhome);
+			PRIVATE_CAP,
+			(int) (sizeof(pathbuf) - sizeof(PRIVATE_CAP)),
+			envhome);
 	    ADD_TC(pathbuf, filecount);
 	}
     }
@@ -1113,7 +1115,7 @@ _nc_read_termcap_entry(const char *const tn, TERMTYPE2 *const tp)
 
 	/*
 	 * We don't suppress warning messages here.  The presumption is
-	 * that since it's just a single entry, they won't be a pain.
+	 * that since it is just a single entry, they won't be a pain.
 	 */
 	_nc_read_entry_source((FILE *) 0, tc_buf, FALSE, FALSE, NULLHOOK);
 	free(tc_buf);
@@ -1124,7 +1126,7 @@ _nc_read_termcap_entry(const char *const tn, TERMTYPE2 *const tp)
 
 	    TR(TRACE_DATABASE, ("Looking for %s in %s", tn, termpaths[i]));
 	    if (_nc_access(termpaths[i], R_OK) == 0
-		&& (fp = fopen(termpaths[i], "r")) != (FILE *) 0) {
+		&& (fp = safe_fopen(termpaths[i], "r")) != (FILE *) 0) {
 		_nc_set_source(termpaths[i]);
 
 		/*
@@ -1164,7 +1166,7 @@ _nc_read_termcap_entry(const char *const tn, TERMTYPE2 *const tp)
 		_nc_free_entry(_nc_head, &(ep->tterm));
 
 		/*
-		 * OK, now try to write the type to user's terminfo directory. 
+		 * OK, now try to write the type to user's terminfo directory.
 		 * Next time he loads this, it will come through terminfo.
 		 *
 		 * Advantage:  Second and subsequent fetches of this entry will
