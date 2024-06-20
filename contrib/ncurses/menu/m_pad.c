@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2010,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -38,7 +38,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_pad.c,v 1.16 2020/12/12 00:38:14 tom Exp $")
+MODULE_ID("$Id: m_pad.c,v 1.17 2021/06/17 21:20:30 tom Exp $")
 
 /* Macro to redraw menu if it is posted and changed */
 #define Refresh_Menu(menu) \
@@ -49,11 +49,11 @@ MODULE_ID("$Id: m_pad.c,v 1.16 2020/12/12 00:38:14 tom Exp $")
    }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnmenu  
+|   Facility      :  libnmenu
 |   Function      :  int set_menu_pad(MENU* menu, int pad)
-|   
+|
 |   Description   :  Set the character to be used to separate the item name
-|                    from its description. This must be a printable 
+|                    from its description. This must be a printable
 |                    character.
 |
 |   Return Values :  E_OK              - success
@@ -79,9 +79,9 @@ set_menu_pad(MENU *menu, int pad)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnmenu  
+|   Facility      :  libnmenu
 |   Function      :  int menu_pad(const MENU *menu)
-|   
+|
 |   Description   :  Return the value of the padding character
 |
 |   Return Values :  The pad character

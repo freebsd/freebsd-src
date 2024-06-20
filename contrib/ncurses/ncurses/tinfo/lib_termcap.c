@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2018-2020,2023 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -51,7 +51,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_termcap.c,v 1.88 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_termcap.c,v 1.89 2023/05/27 20:13:10 tom Exp $")
 
 NCURSES_EXPORT_VAR(char *) UP = 0;
 NCURSES_EXPORT_VAR(char *) BC = 0;
@@ -415,7 +415,7 @@ tgetstr(const char *id, char **area)
 #undef CacheInx
 #define CacheInx num
 NCURSES_EXPORT(void)
-_nc_tgetent_leak(TERMINAL *termp)
+_nc_tgetent_leak(const TERMINAL *const termp)
 {
     if (termp != 0) {
 	int num;

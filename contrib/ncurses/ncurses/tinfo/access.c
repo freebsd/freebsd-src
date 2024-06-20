@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2021,2023 Thomas E. Dickey                                *
  * Copyright 1998-2011,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -35,9 +35,24 @@
 
 #include <ctype.h>
 
+#ifndef USE_ROOT_ACCESS
+#if HAVE_SETFSUID
+#include <sys/fsuid.h>
+#else
+#include <sys/stat.h>
+#endif
+#endif
+
+#if HAVE_GETAUXVAL && HAVE_SYS_AUXV_H && defined(__GLIBC__) && (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 19)
+#include <sys/auxv.h>
+#define USE_GETAUXVAL 1
+#else
+#define USE_GETAUXVAL 0
+#endif
+
 #include <tic.h>
 
-MODULE_ID("$Id: access.c,v 1.27 2020/08/29 16:22:03 juergen Exp $")
+MODULE_ID("$Id: access.c,v 1.37 2023/06/24 21:55:09 tom Exp $")
 
 #define LOWERCASE(c) ((isalpha(UChar(c)) && isupper(UChar(c))) ? tolower(UChar(c)) : (c))
 
@@ -55,8 +70,8 @@ _nc_rootname(char *path)
     static char *temp;
     char *s;
 
-    temp = strdup(result);
-    result = temp;
+    if ((temp = strdup(result)) != 0)
+	result = temp;
 #if !MIXEDCASE_FILENAMES
     for (s = result; *s != '\0'; ++s) {
 	*s = (char) LOWERCASE(*s);
@@ -169,23 +184,101 @@ _nc_is_file_path(const char *path)
     return result;
 }
 
-#ifndef USE_ROOT_ENVIRON
+#if HAVE_GETEUID && HAVE_GETEGID
+#define is_posix_elevated() \
+	(getuid() != geteuid() \
+	 || getgid() != getegid())
+#else
+#define is_posix_elevated() FALSE
+#endif
+
+#if HAVE_ISSETUGID
+#define is_elevated() issetugid()
+#elif USE_GETAUXVAL && defined(AT_SECURE)
+#define is_elevated() \
+	(getauxval(AT_SECURE) \
+	 ? TRUE \
+	 : (errno != ENOENT \
+	    ? FALSE \
+	    : is_posix_elevated()))
+#else
+#define is_elevated() is_posix_elevated()
+#endif
+
+#if HAVE_SETFSUID
+#define lower_privileges() \
+	    int save_err = errno; \
+	    setfsuid(getuid()); \
+	    setfsgid(getgid()); \
+	    errno = save_err
+#define resume_elevation() \
+	    save_err = errno; \
+	    setfsuid(geteuid()); \
+	    setfsgid(getegid()); \
+	    errno = save_err
+#else
+#define lower_privileges()	/* nothing */
+#define resume_elevation()	/* nothing */
+#endif
+
 /*
- * Returns true if we allow application to use environment variables that are
- * used for searching lists of directories, etc.
+ * Returns true if not running as root or setuid.  We use this check to allow
+ * applications to use environment variables that are used for searching lists
+ * of directories, etc.
  */
 NCURSES_EXPORT(int)
 _nc_env_access(void)
 {
-#if HAVE_ISSETUGID
-    if (issetugid())
-	return FALSE;
-#elif HAVE_GETEUID && HAVE_GETEGID
-    if (getuid() != geteuid()
-	|| getgid() != getegid())
-	return FALSE;
+    int result = TRUE;
+
+#if HAVE_GETUID && HAVE_GETEUID
+#if !defined(USE_SETUID_ENVIRON)
+    if (is_elevated()) {
+	result = FALSE;
+    }
 #endif
-    /* ...finally, disallow root */
-    return (getuid() != ROOT_UID) && (geteuid() != ROOT_UID);
+#if !defined(USE_ROOT_ENVIRON)
+    if ((getuid() == ROOT_UID) || (geteuid() == ROOT_UID)) {
+	result = FALSE;
+    }
+#endif
+#endif /* HAVE_GETUID && HAVE_GETEUID */
+    return result;
 }
+
+#ifndef USE_ROOT_ACCESS
+/*
+ * Limit privileges if possible; otherwise disallow access for updating files.
+ */
+NCURSES_EXPORT(FILE *)
+_nc_safe_fopen(const char *path, const char *mode)
+{
+    FILE *result = NULL;
+#if HAVE_SETFSUID
+    lower_privileges();
+    result = fopen(path, mode);
+    resume_elevation();
+#else
+    if (!is_elevated() || *mode == 'r') {
+	result = fopen(path, mode);
+    }
 #endif
+    return result;
+}
+
+NCURSES_EXPORT(int)
+_nc_safe_open3(const char *path, int flags, mode_t mode)
+{
+    int result = -1;
+#if HAVE_SETFSUID
+    lower_privileges();
+    result = open(path, flags, mode);
+    resume_elevation();
+#else
+    if (!is_elevated() || (flags & O_RDONLY)) {
+	result = open(path, flags, mode);
+    }
+#endif
+    return result;
+}
+#endif /* USE_ROOT_ACCESS */

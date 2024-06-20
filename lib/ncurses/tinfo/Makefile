@@ -54,6 +54,8 @@ HAVE_TERMIO_H=		0
 HAVE_VSSCANF=		1
 HAVE_STDINT_H=		1
 HEADER_STDBOOL=		1
+HAVE_STDNORETURN_H=	0
+ENABLE_SIGWINCH=	1
 # XXX amd64 1L and int
 ONEUL=			1U
 TYPEOF_CHTYPE=		uint32_t
@@ -340,6 +342,7 @@ curses.head: curses.h.in
 	    -e "/@BROKEN_LINKER@/s%%${BROKEN_LINKER}%" \
 	    -e "/@HAVE_VSSCANF@/s%%${HAVE_VSSCANF}%" \
 	    -e "/@HAVE_STDINT_H@/s%%${HAVE_STDINT_H}%" \
+	    -e "/@HAVE_STDNORETURN_H@/s%%${HAVE_STDNORETURN_H}%" \
 	    -e "/@NCURSES_CH_T@/s%%${NCURSES_CH_T}%" \
 	    -e "/@NCURSES_CONST@/s%%${NCURSES_CONST}%" \
 	    -e "/@NCURSES_EXT_COLORS@/s%%${NCURSES_EXT_COLORS}%" \
@@ -350,6 +353,7 @@ curses.head: curses.h.in
 	    -e "/@NCURSES_MBSTATE_T@/s%%${NCURSES_MBSTATE_T}%" \
 	    -e "/@NCURSES_MINOR@/s%%${NCURSES_MINOR}%" \
 	    -e "/@NCURSES_MOUSE_VERSION@/s%%${NCURSES_MOUSE_VERSION}%" \
+	    -e "/@NCURSES_XNAMES@/s%%${NCURSES_XNAMES}%" \
 	    -e "/@NCURSES_OK_WCHAR_T@/s%%${NCURSES_OK_WCHAR_T}%" \
 	    -e "/@NCURSES_OPAQUE@/s%%${NCURSES_OPAQUE}%" \
 	    -e "/@NCURSES_OPAQUE_FORM@/s%%${NCURSES_OPAQUE_FORM}%" \
@@ -375,6 +379,7 @@ curses.head: curses.h.in
 	    -e "s%@cf_cv_enable_lp64@%${ENABLE_LP64}%g" \
 	    -e "s%@cf_cv_enable_opaque@%${ENABLE_OPAQUE}%g" \
 	    -e "s%@cf_cv_enable_reentrant@%${ENABLE_REENTRANT}%g" \
+	    -e "s%@cf_cv_enable_sigwinch@%${ENABLE_SIGWINCH}%g" \
 	    -e "s%@cf_cv_header_stdbool_h@%${HEADER_STDBOOL}%g" \
 	    -e "s%@cf_cv_type_of_bool@%${TYPE_OF_BOOL}%g" \
 	    -e "s%@cf_cv_typeof_chtype@%${TYPEOF_CHTYPE}%g" \

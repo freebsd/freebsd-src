@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2008,2010 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -34,11 +34,11 @@
  ****************************************************************************/
 
 /* p_bottom.c
- * Place a panel on bottom of the stack; may already be in the stack 
+ * Place a panel on bottom of the stack; may already be in the stack
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_bottom.c,v 1.16 2020/09/26 18:02:35 tom Exp $")
+MODULE_ID("$Id: p_bottom.c,v 1.17 2021/06/17 21:20:30 tom Exp $")
 
 PANEL_EXPORT(int)
 bottom_panel(PANEL * pan)
