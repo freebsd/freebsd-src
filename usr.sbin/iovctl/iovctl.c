@@ -345,6 +345,12 @@ print_default_value(const nvlist_t *parameter, const char *type)
 		mac = nvlist_get_binary(parameter, DEFAULT_SCHEMA_NAME, &size);
 		printf(" (default = %02x:%02x:%02x:%02x:%02x:%02x)", mac[0],
 		    mac[1], mac[2], mac[3], mac[4], mac[5]);
+	} else if (strcasecmp(type, "vlan") == 0) {
+		uint16_t vlan = nvlist_get_number(parameter, DEFAULT_SCHEMA_NAME);
+		if (vlan == VF_VLAN_TRUNK)
+			printf(" (default = trunk)");
+		else
+			printf(" (default = %d)", vlan);
 	} else
 		errx(1, "Unexpected type in schema: '%s'", type);
 }

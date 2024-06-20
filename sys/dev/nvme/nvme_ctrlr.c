@@ -43,6 +43,7 @@
 #include <vm/vm.h>
 
 #include "nvme_private.h"
+#include "nvme_linux.h"
 
 #define B4_CHK_RDY_DELAY_MS	2300		/* work around controller bug */
 
@@ -1269,7 +1270,7 @@ nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 				ret = EFAULT;
 				goto err;
 			}
-			req = nvme_allocate_request_vaddr(buf->b_data, pt->len, 
+			req = nvme_allocate_request_vaddr(buf->b_data, pt->len,
 			    nvme_pt_done, pt);
 		} else
 			req = nvme_allocate_request_vaddr(pt->buf, pt->len,
@@ -1314,6 +1315,103 @@ err:
 	return (ret);
 }
 
+static void
+nvme_npc_done(void *arg, const struct nvme_completion *cpl)
+{
+	struct nvme_passthru_cmd *npc = arg;
+	struct mtx *mtx = (void *)(uintptr_t)npc->metadata;
+
+	npc->result = cpl->cdw0;	/* cpl in host order by now */
+	mtx_lock(mtx);
+	npc->metadata = 0;
+	wakeup(npc);
+	mtx_unlock(mtx);
+}
+
+/* XXX refactor? */
+
+int
+nvme_ctrlr_linux_passthru_cmd(struct nvme_controller *ctrlr,
+    struct nvme_passthru_cmd *npc, uint32_t nsid, bool is_user, bool is_admin)
+{
+	struct nvme_request	*req;
+	struct mtx		*mtx;
+	struct buf		*buf = NULL;
+	int			ret = 0;
+
+	/*
+	 * We don't support metadata.
+	 */
+	if (npc->metadata != 0 || npc->metadata_len != 0)
+		return (EIO);
+
+	if (npc->data_len > 0 && npc->addr != 0) {
+		if (npc->data_len > ctrlr->max_xfer_size) {
+			nvme_printf(ctrlr,
+			    "npc->data_len (%d) exceeds max_xfer_size (%d)\n",
+			    npc->data_len, ctrlr->max_xfer_size);
+			return (EIO);
+		}
+		/* We only support data out or data in commands, but not both at once. */
+		if ((npc->opcode & 0x3) == 0 || (npc->opcode & 0x3) == 3)
+			return (EINVAL);
+		if (is_user) {
+			/*
+			 * Ensure the user buffer is wired for the duration of
+			 *  this pass-through command.
+			 */
+			PHOLD(curproc);
+			buf = uma_zalloc(pbuf_zone, M_WAITOK);
+			buf->b_iocmd = npc->opcode & 1 ? BIO_WRITE : BIO_READ;
+			if (vmapbuf(buf, (void *)npc->addr, npc->data_len, 1) < 0) {
+				ret = EFAULT;
+				goto err;
+			}
+			req = nvme_allocate_request_vaddr(buf->b_data, npc->data_len,
+			    nvme_npc_done, npc);
+		} else
+			req = nvme_allocate_request_vaddr((void *)npc->addr, npc->data_len,
+			    nvme_npc_done, npc);
+	} else
+		req = nvme_allocate_request_null(nvme_npc_done, npc);
+
+	req->cmd.opc = npc->opcode;
+	req->cmd.fuse = npc->flags;
+	req->cmd.rsvd2 = htole16(npc->cdw2);
+	req->cmd.rsvd3 = htole16(npc->cdw3);
+	req->cmd.cdw10 = htole32(npc->cdw10);
+	req->cmd.cdw11 = htole32(npc->cdw11);
+	req->cmd.cdw12 = htole32(npc->cdw12);
+	req->cmd.cdw13 = htole32(npc->cdw13);
+	req->cmd.cdw14 = htole32(npc->cdw14);
+	req->cmd.cdw15 = htole32(npc->cdw15);
+
+	req->cmd.nsid = htole32(nsid);
+
+	mtx = mtx_pool_find(mtxpool_sleep, npc);
+	npc->metadata = (uintptr_t) mtx;
+
+	/* XXX no timeout passed down */
+	if (is_admin)
+		nvme_ctrlr_submit_admin_request(ctrlr, req);
+	else
+		nvme_ctrlr_submit_io_request(ctrlr, req);
+
+	mtx_lock(mtx);
+	while (npc->metadata != 0)
+		mtx_sleep(npc, mtx, PRIBIO, "nvme_npc", 0);
+	mtx_unlock(mtx);
+
+	if (buf != NULL) {
+		vunmapbuf(buf);
+err:
+		uma_zfree(pbuf_zone, buf);
+		PRELE(curproc);
+	}
+
+	return (ret);
+}
+
 static int
 nvme_ctrlr_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
     struct thread *td)
@@ -1324,6 +1422,7 @@ nvme_ctrlr_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 	ctrlr = cdev->si_drv1;
 
 	switch (cmd) {
+	case NVME_IOCTL_RESET: /* Linux compat */
 	case NVME_RESET_CONTROLLER:
 		nvme_ctrlr_reset(ctrlr);
 		break;
@@ -1342,6 +1441,19 @@ nvme_ctrlr_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 	case NVME_GET_MAX_XFER_SIZE:
 		*(uint64_t *)arg = ctrlr->max_xfer_size;
 		break;
+	/* Linux Compatible (see nvme_linux.h) */
+	case NVME_IOCTL_ID:
+		td->td_retval[0] = 0xfffffffful;
+		return (0);
+
+	case NVME_IOCTL_ADMIN_CMD:
+	case NVME_IOCTL_IO_CMD: {
+		struct nvme_passthru_cmd *npc = (struct nvme_passthru_cmd *)arg;
+
+		return (nvme_ctrlr_linux_passthru_cmd(ctrlr, npc, npc->nsid, true,
+		    cmd == NVME_IOCTL_ADMIN_CMD));
+	}
+
 	default:
 		return (ENOTTY);
 	}

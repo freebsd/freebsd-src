@@ -1564,7 +1564,6 @@ static int
 msk_probe(device_t dev)
 {
 	struct msk_softc *sc;
-	char desc[100];
 
 	sc = device_get_softc(device_get_parent(dev));
 	/*
@@ -1573,11 +1572,10 @@ msk_probe(device_t dev)
 	 * mskc_attach() will create a second device instance
 	 * for us.
 	 */
-	snprintf(desc, sizeof(desc),
+	device_set_descf(dev,
 	    "Marvell Technology Group Ltd. %s Id 0x%02x Rev 0x%02x",
 	    model_name[sc->msk_hw_id - CHIP_ID_YUKON_XL], sc->msk_hw_id,
 	    sc->msk_hw_rev);
-	device_set_desc_copy(dev, desc);
 
 	return (BUS_PROBE_DEFAULT);
 }

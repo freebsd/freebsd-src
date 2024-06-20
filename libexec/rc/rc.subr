@@ -1219,6 +1219,7 @@ run_rc_command()
 	if [ -n "$_svcj_options" ]; then	# translate service jail options
 		_svcj_cmd_options=""
 
+		_svcj_sysvipc_x=0
 		for _svcj_option in $_svcj_options; do
 			case "$_svcj_option" in
 				mlock)
@@ -1243,7 +1244,12 @@ run_rc_command()
 					_svcj_cmd_options="allow.nfsd enforce_statfs=1 ${_svcj_cmd_options}"
 					;;
 				sysvipc)
+					_svcj_sysvipc_x=$((${_svcj_sysvipc_x} + 1))
 					_svcj_cmd_options="sysvmsg=inherit sysvsem=inherit sysvshm=inherit  ${_svcj_cmd_options}"
+					;;
+				sysvipcnew)
+					_svcj_sysvipc_x=$((${_svcj_sysvipc_x} + 1))
+					_svcj_cmd_options="sysvmsg=new sysvsem=new sysvshm=new ${_svcj_cmd_options}"
 					;;
 				vmm)
 					_svcj_cmd_options="allow.vmm ${_svcj_cmd_options}"
@@ -1253,6 +1259,11 @@ run_rc_command()
 					;;
 			esac
 		done
+		if [ ${_svcj_sysvipc_x} -gt 1 ]; then
+			echo -n "ERROR: more than one sysvipc option is "
+			echo "specified in ${name}_svcj_options: $_svcj_options"
+			return 1
+		fi
 	fi
 
 	[ -z "$autoboot" ] && eval $_pidcmd	# determine the pid if necessary
@@ -1321,11 +1332,28 @@ run_rc_command()
 				start)
 					if [ "${_rc_svcj}" != jailing ]; then
 						_return=1
-						$JAIL_CMD -c $_svcj_generic_params $_svcj_cmd_options \
-						    exec.start="${SERVICE} -E _rc_svcj=jailing ${name} ${_rc_prefix}start $rc_extra_args" \
-						    exec.stop="${SERVICE} -E _rc_svcj=jailing ${name} ${_rc_prefix}stop $rc_extra_args" \
-						    exec.consolelog="/var/log/svcj_${name}_console.log" \
-						    name=svcj-${name} && _return=0
+						_do_jailing=1
+
+						if check_jail jailed; then
+							if [ $(${SYSCTL_N} security.jail.children.max) -eq 0 ]; then
+								echo ERROR: jail parameter children.max is set to 0, can not create a new service jail.
+								_do_jailing=0
+							else
+								_free_jails=$(($(${SYSCTL_N} security.jail.children.max) - $(${SYSCTL_N} security.jail.children.cur)))
+								if [ ${_free_jails} -eq 0 ]; then
+									echo ERROR: max number of jail children reached, can not create a new service jail.
+									_do_jailing=0
+
+								fi
+							fi
+						fi
+						if [ ${_do_jailing} -eq 1 ]; then
+							$JAIL_CMD -c $_svcj_generic_params $_svcj_cmd_options \
+							    exec.start="${SERVICE} -E _rc_svcj=jailing ${name} ${_rc_prefix}start $rc_extra_args" \
+							    exec.stop="${SERVICE} -E _rc_svcj=jailing ${name} ${_rc_prefix}stop $rc_extra_args" \
+							    exec.consolelog="/var/log/svcj_${name}_console.log" \
+							    name=svcj-${name} && _return=0
+						fi
 					else
 						_run_rc_doit "$_cpusetcmd $_cmd $rc_extra_args" || _return=1
 					fi
@@ -1421,6 +1449,18 @@ run_rc_command()
 
 			if checkyesno ${name}_svcj; then
 				if [ "${_rc_svcj}" != jailing ]; then
+					if check_jail jailed; then
+						if [ $(${SYSCTL_N} security.jail.children.max) -eq 0 ]; then
+							echo ERROR: jail parameter children.max is set to 0, can not create a new service jail.
+							return 1
+						else
+							_free_jails=$(($(${SYSCTL_N} security.jail.children.max) - $(${SYSCTL_N} security.jail.children.cur)))
+							if [ ${_free_jails} -eq 0 ]; then
+								echo ERROR: max number of jail children reached, can not create a new service jail.
+								return 1
+							fi
+						fi
+					fi
 					$JAIL_CMD -c $_svcj_generic_params $_svcj_cmd_options\
 					    exec.start="${SERVICE} -E _rc_svcj=jailing ${name} ${_rc_prefix}start $rc_extra_args" \
 					    exec.stop="${SERVICE} -E _rc_svcj=jailing ${name} ${_rc_prefix}stop $rc_extra_args" \

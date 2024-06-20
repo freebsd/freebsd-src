@@ -3207,6 +3207,16 @@ reassignbuf(struct buf *bp)
 	    bp, bp->b_vp, bp->b_flags);
 
 	BO_LOCK(bo);
+	if ((bo->bo_flag & BO_NONSTERILE) == 0) {
+		/*
+		 * Coordinate with getblk's unlocked lookup.  Make
+		 * BO_NONSTERILE visible before the first reassignbuf produces
+		 * any side effect.  This could be outside the bo lock if we
+		 * used a separate atomic flag field.
+		 */
+		bo->bo_flag |= BO_NONSTERILE;
+		atomic_thread_fence_rel();
+	}
 	buf_vlist_remove(bp);
 
 	/*

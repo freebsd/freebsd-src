@@ -4977,8 +4977,11 @@ to them.
 .It nfsd
 Allows to run nfsd and affiliated daemons.
 .It sysvipc
-Allows access to SysV semaphores, SysV shared memory and
-SysV messages.
+Inherits the SysV semaphores, SysV shared memory and
+SysV messages from the host or the parent jail.
+.It sysvipcnew
+Creates a new namespace for SysV semaphores, SysV shared memory
+and SysV messages for this particular service jail.
 .It vmm
 Allows access to
 .Xr vmm 4 .
@@ -4988,6 +4991,7 @@ is enabled in the kernel.
 .El
 
 All non-network options can be combined with all other options.
+From the SysV options only one option can be specified.
 
 If the
 .Ao Ar name Ac Ns Va _svcj

@@ -711,12 +711,16 @@ vm_phys_enq_chunk(struct vm_freelist *fl, vm_page_t m, int order, int tail)
 #ifdef VM_FREEPOOL_LAZYINIT
 	if (__predict_false(m->pool == VM_FREEPOOL_LAZYINIT)) {
 		vm_page_t m_next;
+		vm_paddr_t pa;
 		int npages;
 
 		npages = 1 << order;
 		m_next = m + npages;
-		vm_page_init_page(m_next, m->phys_addr + ptoa(npages), m->segind,
-		    VM_FREEPOOL_LAZYINIT);
+		pa = m->phys_addr + ptoa(npages);
+		if (pa < vm_phys_segs[m->segind].end) {
+			vm_page_init_page(m_next, pa, m->segind,
+			    VM_FREEPOOL_LAZYINIT);
+		}
 	}
 #endif
 }
@@ -1450,7 +1454,7 @@ vm_phys_find_range(vm_page_t bounds[], int segind, int domain,
 		vm_phys_lazy_init_domain(domain, false);
 #endif
 		bounds[0] = vm_phys_seg_paddr_to_vm_page(seg, pa_start);
-		bounds[1] = vm_phys_seg_paddr_to_vm_page(seg, pa_end);
+		bounds[1] = &seg->first_page[atop(pa_end - seg->start)];
 		return (seg - vm_phys_segs);
 	}
 	return (-1);

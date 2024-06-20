@@ -886,12 +886,11 @@ test(void)
 {
 	unsigned long	offset;
 	unsigned long	size = maxoplen;
-	unsigned long	rv;
+	unsigned long	rv = random();
 	unsigned long	op = rv % (3 + !lite + mapped_writes);
 
 	/* turn off the map read if necessary */
 
-	arc4random_buf(&rv, sizeof(rv));
 	if (op == 2 && !mapped_reads)
 	    op = 0;
 
