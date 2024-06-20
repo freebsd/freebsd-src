@@ -31,13 +31,8 @@ extern const union __nan_un {
 	float		__uf;
 } __nan;
 
-#if __GNUC_PREREQ__(3, 3)
 #define	__MATH_BUILTIN_CONSTANTS
-#endif
-
-#if __GNUC_PREREQ__(3, 0)
 #define	__MATH_BUILTIN_RELOPS
-#endif
 
 #ifdef __MATH_BUILTIN_CONSTANTS
 #define	HUGE_VAL	__builtin_huge_val()
@@ -79,7 +74,7 @@ extern const union __nan_un {
     float: f,								\
     double: d,								\
     long double: ld)(x)
-#elif __GNUC_PREREQ__(3, 1) && !defined(__cplusplus)
+#elif !defined(__cplusplus)
 #define	__fp_type_select(x, f, d, ld) __builtin_choose_expr(		\
     __builtin_types_compatible_p(__typeof(x), long double), ld(x),	\
     __builtin_choose_expr(						\
