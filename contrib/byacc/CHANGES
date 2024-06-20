@@ -1,3 +1,153 @@
+2024-01-09  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* yacc.1: minor cleanup
+
+	* package/debian/copyright: bump
+
+	* configure: regen
+
+	* VERSION, package/byacc.spec, package/debian/changelog,
+	  package/mingw-byacc.spec, package/pkgsrc/Makefile:
+	bump
+
+2023-12-01  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* aclocal.m4:
+	resync with my-autoconf: CF_CONST_X_STRING CF_MKSTEMP CF_WITH_MAN2HTML CF_XOPEN_SOURCE
+
+2023-09-15  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* config.sub: 2023-09-15
+
+2023-08-22  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* config.guess: 2023-08-22
+
+2023-05-21  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* VERSION, package/byacc.spec, package/debian/changelog,
+	  package/mingw-byacc.spec, package/pkgsrc/Makefile:
+	bump
+
+	* configure: regen
+
+	* aclocal.m4:
+	updates for CF_INSTALL_MAN from reflex, which needs the symbolic link feature
+
+	* aclocal.m4:
+	improve install-man by adding sed commands for --program-transform-name
+
+2023-05-19  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* makefile.in: use CF_INSTALL_MAN
+
+	* aclocal.m4:
+	add CF_INSTALL_MAN, to begin refactoring install rule for manpage
+
+	* configure: regen
+
+	* configure.in: use CF_INSTALL_MAN
+
+2023-05-18  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* error.c, defs.h, reader.c:
+	allow @1 or $@ with a warning if no %locations was given
+
+2023-05-17  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* reader.c: clear pointer in end_ainfo() after freeing it.
+
+2023-05-16  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* reader.c: report errors in %define as "unexpected value"
+
+	* reader.c:
+	add/use macros begin_ainfo() and end_ainfo() to reduce clutter
+
+	* defs.h, error.c: add function unexpected_value()
+
+	* reader.c:
+	recognize bison's "%define api.pure" as an alternative to "%pure-parser"
+
+	* reader.c:
+	add %nterm as an alias for %type, since bison made that confusion.
+
+	* reader.c:
+	ensure that filler_buf and prefix_buf are initialized for the special case
+	where they are empty (report by Martin Jansa, cf: 20230219)
+
+	* output.c:
+	make test-differences smaller when compiling with YY_NO_LEAKS by replacing
+	a blank line with the generated #define rather than adding 3 lines.
+
+	* reader.c: gcc-warnings
+
+2023-05-15  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* VERSION, package/byacc.spec, package/debian/changelog,
+	  package/mingw-byacc.spec, package/pkgsrc/Makefile:
+	bump
+
+	* reader.c:
+	when copying parameters, check for a case where the last token is not a
+	name, e.g., "foo [1]" would have "[1]".  In this case, scan back to find
+	the actual parameter name.
+
+	* reader.c:
+	correct a use-after-free in more_curly, which could occur if a %lex-param
+	or %parse-param was multi-line (Redhat #2183006).
+
+2023-05-11  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* main.c: rename no_space() to on_error()
+
+	* error.c: rename no_space() to no_error(), handling any errno
+
+	* defs.h: rename no_space() to on_error()
+
+2023-04-03  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* aclocal.m4: resync with my-autoconf: CF_GCC_VERSION CF_XOPEN_SOURCE
+
+2023-02-26  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* mstring.c, reader.c: yak-indent
+
+2023-02-26  mingodad
+
+	* reader.c:
+	patch for byacc #6: Segmentation fault when trying to parse bison-3.8.2 grammar
+
+2023-02-26  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* VERSION, package/byacc.spec, package/debian/changelog,
+	  package/mingw-byacc.spec, package/pkgsrc/Makefile:
+	bump
+
+2023-02-20  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* configure: regen
+
+	* aclocal.m4: resync with my-autoconf
+
+2023-02-19  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* test/yacc/ok_syntax1.tab.h, test/yacc/ok_syntax1.tab.c,
+	  test/btyacc/ok_syntax1.tab.h, test/btyacc/ok_syntax1.tab.c:
+	regen
+
+	* test/ok_syntax1.y:
+	modify test for %union to add tag for testing reader.c
+
+	* reader.c:
+	provide for a named union, e.g., "%union foo" by detecting the name and
+	deferring the typedef in that case until the end of copying the union
+	definition (report by Dag-Erling Smørgrav).
+
+	* VERSION, package/byacc.spec, package/debian/changelog,
+	  package/mingw-byacc.spec, package/pkgsrc/Makefile:
+	bump
+
 2023-02-01  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* configure: regen

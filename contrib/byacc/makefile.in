@@ -1,4 +1,4 @@
-# $Id: makefile.in,v 1.25 2022/11/06 21:03:11 tom Exp $
+# $Id: makefile.in,v 1.26 2023/05/19 23:16:31 tom Exp $
 #
 # UNIX template-makefile for Berkeley Yacc
 
@@ -99,7 +99,7 @@ all : $(THIS)$x
 
 install: all installdirs
 	$(INSTALL_PROGRAM) $(THIS)$x $(bindir)/$(actual_bin)
-	- $(INSTALL_DATA) $(srcdir)/$(THIS).1 $(mandir)/$(actual_man)
+	@ $(SHELL) ./install-man $(srcdir)/$(THIS).1 $(mandir)/$(actual_man)
 
 installdirs:
 	mkdir -p $(bindir)
@@ -107,7 +107,7 @@ installdirs:
 
 uninstall:
 	- rm -f $(bindir)/$(actual_bin)
-	- rm -f $(mandir)/$(actual_man)
+	@ $(SHELL) ./install-man $(mandir)/$(actual_man)
 
 ################################################################################
 .SUFFIXES : .c $o .i .skel
@@ -135,7 +135,7 @@ clean :: mostlyclean
 	- rm -f $(THIS)$x
 
 distclean :: clean
-	- rm -f config.log config.cache config.status config.h makefile man2html.tmp
+	- rm -f config.log config.cache config.status config.h makefile man2html.tmp install-man*
 	- rm -f $(testdir)/yacc/test-* $(testdir)/btyacc/test-*
 
 realclean :: distclean

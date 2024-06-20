@@ -137,7 +137,7 @@ extern void yyerror(const char *);
 #ifndef YYSTYPE_IS_DECLARED
 #define YYSTYPE_IS_DECLARED 1
 #line 31 "expr.oxout.y"
-typedef union {
+typedef union YYSTYPE {
 struct yyyOxAttrbs {
 struct yyyStackItem *yyyOxStackItem;
 } yyyOxAttrbs;

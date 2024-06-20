@@ -148,7 +148,7 @@ extern symbol *mksymbol(type t, class c, name id);
 #ifndef YYSTYPE_IS_DECLARED
 #define YYSTYPE_IS_DECLARED 1
 #line 53 "btyacc_destroy3.y"
-typedef union
+typedef union YYSTYPE
 {
     class	cval;
     type	tval;
