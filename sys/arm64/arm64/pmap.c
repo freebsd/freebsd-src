@@ -1323,13 +1323,12 @@ pmap_bootstrap(vm_size_t kernlen)
 	min_pa = pmap_early_vtophys(KERNBASE);
 
 	physmap_idx = physmem_avail(physmap, nitems(physmap));
-	physmap_idx /= 2;
 
 	/*
 	 * Find the minimum physical address. physmap is sorted,
 	 * but may contain empty ranges.
 	 */
-	for (i = 0; i < physmap_idx * 2; i += 2) {
+	for (i = 0; i < physmap_idx; i += 2) {
 		if (physmap[i] == physmap[i + 1])
 			continue;
 		if (physmap[i] <= min_pa)
@@ -1439,7 +1438,6 @@ pmap_bootstrap_san1(vm_offset_t va, int scale)
 	 * allocation since pmap_bootstrap().
 	 */
 	physmap_idx = physmem_avail(physmap, nitems(physmap));
-	physmap_idx /= 2;
 
 	eva = va + (virtual_avail - VM_MIN_KERNEL_ADDRESS) / scale;
 
@@ -1448,7 +1446,7 @@ pmap_bootstrap_san1(vm_offset_t va, int scale)
 	 * the shadow map as high up as we can to avoid depleting the lower 4GB in case
 	 * it's needed for, e.g., an xhci controller that can only do 32-bit DMA.
 	 */
-	for (i = (physmap_idx * 2) - 2; i >= 0; i -= 2) {
+	for (i = physmap_idx - 2; i >= 0; i -= 2) {
 		vm_paddr_t plow, phigh;
 
 		/* L2 mappings must be backed by memory that is L2-aligned */
