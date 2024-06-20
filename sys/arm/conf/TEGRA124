@@ -85,6 +85,7 @@ device		ehci			# EHCI USB interface
 device		xhci			# XHCI USB interface
 device		tegra124_xusb_fw	# Tegra XUSB firmware
 device		usb			# USB Bus (required)
+device		usbhid			# USB HID Transport
 device		umass			# Disks/Mass storage - Requires scbus and da
 device		uhid			# "Human Interface Devices"
 #device		u3g			# USB modems
@@ -129,6 +130,9 @@ device		drm2
 
 # HID support
 device		hid			# Generic HID support
+device		hidbus			# Generic HID Bus
+device		hkbd			# Allow keyboard like HIDs to control console
+device		hms			# HID mouse
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
