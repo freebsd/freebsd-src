@@ -238,13 +238,16 @@
 extern vm_paddr_t dmap_phys_base;
 extern vm_paddr_t dmap_phys_max;
 extern vm_offset_t dmap_max_addr;
-extern vm_offset_t init_pt_va;
 #endif
 
 #define	ZERO_REGION_SIZE	(64 * 1024)	/* 64KB */
 
+/*
+ * The top of KVA is reserved for early device mappings.
+ */
 #define	DEVMAP_MAX_VADDR	VM_MAX_KERNEL_ADDRESS
-#define	PMAP_MAPDEV_EARLY_SIZE	L2_SIZE
+#define	DEVMAP_MIN_VADDR	(DEVMAP_MAX_VADDR - PMAP_MAPDEV_EARLY_SIZE)
+#define	PMAP_MAPDEV_EARLY_SIZE	(4 * L2_SIZE)
 
 /*
  * No non-transparent large page support in the pmap.
