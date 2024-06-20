@@ -157,14 +157,14 @@ LOCK_DELAY_SYSINIT(rw_lock_delay_init);
 #define	__rw_assert(c, what, file, line)
 #endif
 
-void
+static void
 assert_rw(const struct lock_object *lock, int what)
 {
 
 	rw_assert((const struct rwlock *)lock, what);
 }
 
-void
+static void
 lock_rw(struct lock_object *lock, uintptr_t how)
 {
 	struct rwlock *rw;
@@ -176,7 +176,7 @@ lock_rw(struct lock_object *lock, uintptr_t how)
 		rw_wlock(rw);
 }
 
-uintptr_t
+static uintptr_t
 unlock_rw(struct lock_object *lock)
 {
 	struct rwlock *rw;
@@ -193,7 +193,7 @@ unlock_rw(struct lock_object *lock)
 }
 
 #ifdef KDTRACE_HOOKS
-int
+static int
 owner_rw(const struct lock_object *lock, struct thread **owner)
 {
 	const struct rwlock *rw = (const struct rwlock *)lock;
@@ -1524,7 +1524,7 @@ __rw_assert(const volatile uintptr_t *c, int what, const char *file, int line)
 #endif /* INVARIANT_SUPPORT */
 
 #ifdef DDB
-void
+static void
 db_show_rwlock(const struct lock_object *lock)
 {
 	const struct rwlock *rw;
