@@ -595,11 +595,11 @@ char *argv[];
 		{
 			wmove(com_win, 0, 0);
 			werase(com_win);
-			wprintw(com_win, ree_no_file_msg);
+			wprintw(com_win, "%s", ree_no_file_msg);
 			wrefresh(com_win);
 			edit_abort(0);
 		}
-		wprintw(com_win, no_file_string);
+		wprintw(com_win, "%s", no_file_string);
 		wrefresh(com_win);
 	}
 	else
@@ -619,7 +619,7 @@ char *argv[];
 			if (!nohighlight)
 				wstandout(info_win);
 			wmove(info_win, 5, 0);
-			wprintw(info_win, separator);
+			wprintw(info_win, "%s", separator);
 			wmove(info_win, 5, 5);
 			wprintw(info_win, "line %d col %d lines from top %d ", 
 			          curr_line->line_number, scr_horz, absolute_lin);
@@ -1666,7 +1666,7 @@ command_prompt()
 		if (result == 0)
 			wprintw(com_win, unkn_cmd_str, cmd_str);
 		else
-			wprintw(com_win, non_unique_cmd_msg);
+			wprintw(com_win, "%s", non_unique_cmd_msg);
 
 		wrefresh(com_win);
 
@@ -1742,7 +1742,7 @@ char *cmd_str1;
 		wmove(com_win, 0, 0);
 		wclrtoeol(com_win);
 		if (in_file_name == NULL)
-			wprintw(com_win, no_file_string);
+			wprintw(com_win, "%s", no_file_string);
 		else
 			wprintw(com_win, current_file_str, in_file_name);
 	}
@@ -2253,7 +2253,7 @@ char *file_name;
 		{
 			if ((errno == ENOTDIR) || (errno == EACCES) || (errno == EROFS) || (errno == ETXTBSY) || (errno == EFAULT))
 			{
-				wprintw(com_win, read_only_msg);
+				wprintw(com_win, "%s", read_only_msg);
 				ro_flag = TRUE;
 			}
 		}
@@ -2290,7 +2290,7 @@ char *file_name;
 		wclrtoeol(com_win);
 		wprintw(com_win, file_read_lines_msg, in_file_name, curr_line->line_number);
 		if (ro_flag)
-			wprintw(com_win, read_only_msg);
+			wprintw(com_win, "%s", read_only_msg);
 		wrefresh(com_win);
 	}
 	else if (can_read)	/* not input_file and file is non-zero size */
@@ -2409,7 +2409,7 @@ finish()	/* prepare to exit edit session	*/
 	if ((file_name == NULL) || (*file_name == '\0'))
 	{
 		wmove(com_win, 0, 0);
-		wprintw(com_win, file_not_saved_msg);
+		wprintw(com_win, "%s", file_not_saved_msg);
 		wclrtoeol(com_win);
 		wrefresh(com_win);
 		clear_com_win = TRUE;
@@ -2589,7 +2589,7 @@ int display_message;
 	{
 		wmove(com_win, 0, 0);
 		wclrtoeol(com_win);
-		wprintw(com_win, searching_msg);
+		wprintw(com_win, "%s", searching_msg);
 		wrefresh(com_win);
 		clear_com_win = TRUE;
 	}
@@ -3381,7 +3381,7 @@ struct menu_entries menu_list[];
 	{
 		wmove(com_win, 0, 0);
 		werase(com_win);
-		wprintw(com_win, menu_too_lrg_msg);
+		wprintw(com_win, "%s", menu_too_lrg_msg);
 		wrefresh(com_win);
 		clear_com_win = TRUE;
 		return(0);
@@ -3637,10 +3637,10 @@ int off_start, vert_size;
 		{
 			if (list_size > 1)
 				wprintw(menu_win, "%c) ", item_alpha[min((counter - 1), max_alpha_char)]);
-			wprintw(menu_win, menu_list[counter].item_string);
+			wprintw(menu_win, "%s", menu_list[counter].item_string);
 		}
 		else
-			wprintw(menu_win, more_below_str);
+			wprintw(menu_win, "%s", more_below_str);
 	}
 	else
 	{
@@ -3670,7 +3670,7 @@ help()
 	wrefresh(help_win);
 	werase(com_win);
 	wmove(com_win, 0, 0);
-	wprintw(com_win, press_any_key_msg);
+	wprintw(com_win, "%s", press_any_key_msg);
 	wrefresh(com_win);
 	counter = wgetch(com_win);
 	if (counter == -1)
@@ -3798,7 +3798,7 @@ int arg;
 		if ((string == NULL) || (*string == '\0'))
 		{
 			wmove(com_win, 0, 0);
-			wprintw(com_win, file_not_saved_msg);
+			wprintw(com_win, "%s", file_not_saved_msg);
 			wclrtoeol(com_win);
 			wrefresh(com_win);
 			clear_com_win = TRUE;
@@ -3932,7 +3932,7 @@ Format()	/* format the paragraph according to set margins	*/
 
 	wmove(com_win, 0, 0);
 	wclrtoeol(com_win);
-	wprintw(com_win, formatting_msg);
+	wprintw(com_win, "%s", formatting_msg);
 	wrefresh(com_win);
 
 /*
@@ -3978,7 +3978,7 @@ Format()	/* format the paragraph according to set margins	*/
 
 	wmove(com_win, 0, 0);
 	wclrtoeol(com_win);
-	wprintw(com_win, formatting_msg);
+	wprintw(com_win, "%s", formatting_msg);
 	wrefresh(com_win);
 
 /*
@@ -4053,7 +4053,7 @@ Format()	/* format the paragraph according to set margins	*/
 
 	wmove(com_win, 0, 0);
 	wclrtoeol(com_win);
-	wprintw(com_win, formatting_msg);
+	wprintw(com_win, "%s", formatting_msg);
 	wrefresh(com_win);
 
 /*
@@ -4276,7 +4276,7 @@ dump_ee_conf()
 
 	if (option == 0)
 	{
-		wprintw(com_win, conf_not_saved_msg);
+		wprintw(com_win, "%s", conf_not_saved_msg);
 		wrefresh(com_win);
 		return;
 	}
@@ -4299,7 +4299,7 @@ dump_ee_conf()
 	init_file = fopen(file_name, "w");
 	if (init_file == NULL)
 	{
-		wprintw(com_win, conf_dump_err_msg);
+		wprintw(com_win, "%s", conf_dump_err_msg);
 		wrefresh(com_win);
 		return;
 	}
@@ -4417,7 +4417,7 @@ spell_op()	/* check spelling of words in the editor	*/
 	command(shell_echo_msg);
 	adv_line();
 	wmove(com_win, 0, 0);
-	wprintw(com_win, spell_in_prog_msg);
+	wprintw(com_win, "%s", spell_in_prog_msg);
 	wrefresh(com_win);
 	command("<>!spell");	/* send contents of buffer to command 'spell' 
 				   and read the results back into the editor */
@@ -5007,7 +5007,7 @@ restrict_mode()
 		return(FALSE);
 
 	wmove(com_win, 0, 0);
-	wprintw(com_win, restricted_msg);
+	wprintw(com_win, "%s", restricted_msg);
 	wclrtoeol(com_win);
 	wrefresh(com_win);
 	clear_com_win = TRUE;
