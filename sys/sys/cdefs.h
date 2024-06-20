@@ -151,13 +151,9 @@
 #endif	/* !(__STDC__ || __cplusplus) */
 
 /*
- * Compiler-dependent macros to help declare dead (non-returning) and
- * pure (no side effects) functions, and unused variables.  They are
- * null except for versions of gcc that are known to support the features
- * properly (old versions of gcc-2 supported the dead and pure features
- * in a different (wrong) way).  If we do not provide an implementation
- * for a given compiler, let the compile fail if it is told to use
- * a feature that we cannot live without.
+ * Compiler-dependent macros to help declare dead (non-returning) and pure (no
+ * side effects) functions, and unused variables. These attributes are supported
+ * by all current compilers, even pcc.
  */
 #define	__weak_symbol	__attribute__((__weak__))
 #define	__dead2		__attribute__((__noreturn__))
@@ -266,7 +262,7 @@
     __has_extension(c_generic_selections)
 #define	__generic(expr, t, yes, no)					\
 	_Generic(expr, t: yes, default: no)
-#elif __GNUC_PREREQ__(3, 1) && !defined(__cplusplus)
+#elif !defined(__cplusplus)
 #define	__generic(expr, t, yes, no)					\
 	__builtin_choose_expr(						\
 	    __builtin_types_compatible_p(__typeof((0, (expr))), t), yes, no)
@@ -290,19 +286,8 @@
 #define	__malloc_like	__attribute__((__malloc__))
 #define	__pure		__attribute__((__pure__))
 
-#if __GNUC_PREREQ__(3, 1)
 #define	__always_inline	__attribute__((__always_inline__))
-#else
-#define	__always_inline
-#endif
-
-#if __GNUC_PREREQ__(3, 1)
 #define	__noinline	__attribute__ ((__noinline__))
-#else
-#define	__noinline
-#endif
-
-#if __GNUC_PREREQ__(3, 4)
 #define	__fastcall	__attribute__((__fastcall__))
 #define	__result_use_check	__attribute__((__warn_unused_result__))
 #ifdef __clang__
@@ -316,10 +301,6 @@
 #else
 #define	__result_use_or_ignore_check
 #endif /* !__clang__ */
-#else
-#define	__fastcall
-#define	__result_use_check
-#endif
 
 #if __GNUC_PREREQ__(4, 1)
 #define	__returns_twice	__attribute__((__returns_twice__))
@@ -408,15 +389,10 @@
  * assign pointer x to a local variable, to check that its type is
  * compatible with member m.
  */
-#if __GNUC_PREREQ__(3, 1)
 #define	__containerof(x, s, m) ({					\
 	const volatile __typeof(((s *)0)->m) *__x = (x);		\
 	__DEQUALIFY(s *, (const volatile char *)__x - __offsetof(s, m));\
 })
-#else
-#define	__containerof(x, s, m)						\
-	__DEQUALIFY(s *, (const volatile char *)(x) - __offsetof(s, m))
-#endif
 
 /*
  * Compiler-dependent macros to declare that functions take printf-like
@@ -434,14 +410,8 @@
 #define	__strftimelike(fmtarg, firstvararg) \
 	    __attribute__((__format__ (__strftime__, fmtarg, firstvararg)))
 
-/* Compiler-dependent macros that rely on FreeBSD-specific extensions. */
-#if defined(__FreeBSD_cc_version) && __FreeBSD_cc_version >= 300001 && \
-    defined(__GNUC__)
 #define	__printf0like(fmtarg, firstvararg) \
 	    __attribute__((__format__ (__printf0__, fmtarg, firstvararg)))
-#else
-#define	__printf0like(fmtarg, firstvararg)
-#endif
 
 #define	__strong_reference(sym,aliassym)	\
 	extern __typeof (sym) aliassym __attribute__ ((__alias__ (#sym)))
@@ -534,11 +504,7 @@
 #endif
 
 #if !defined(_STANDALONE) && !defined(_KERNEL)
-#if defined(__GNUC__) || defined(__PCC__)
 #define	__RENAME(x)	__asm(__STRING(x))
-#else
-#define	__RENAME(x)	no renaming support for compiler in use
-#endif /* __GNUC__ */
 #else /* _STANDALONE || _KERNEL */
 #define	__RENAME(x)	no renaming in kernel/standalone environment
 #endif
