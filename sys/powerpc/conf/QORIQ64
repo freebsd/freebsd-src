@@ -112,15 +112,24 @@ options 	USB_DEBUG	# enable debug msgs
 device		ehci
 device		umass
 device		usb
+device		usbhid
 device		vlan
 
 # Desktop related
 device  	vt
 device  	fbd
 options 	KBD_INSTALL_CDEV
+device  	hkbd
 device  	ukbd
+device  	hms
 device  	ums
+
+# evdev interface
+options 	EVDEV_SUPPORT		# evdev support in legacy drivers
+device		evdev			# input event device support
+device		uinput			# install /dev/uinput cdev
 
 # HID support
 options 	HID_DEBUG	# enable debug msgs
 device		hid		# Generic HID support
+device		hidbus		# Generic HID bus
