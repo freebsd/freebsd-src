@@ -363,7 +363,7 @@ pl061_pic_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
 	dprintf("%s: calling teardown interrupt %#x\n", __func__, mask);
 
 	sc = device_get_softc(dev);
-	if (isrc->isrc_handlers == 0) {
+	if (ISRC_NO_HANDLER(isrc)) {
 		irqsrc->mode = GPIO_INTR_INVALID;
 		PL061_LOCK(sc);
 		mask_and_set(sc, PL061_INTMASK, mask, 0);

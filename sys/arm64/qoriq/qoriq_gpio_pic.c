@@ -266,7 +266,7 @@ qoriq_gpio_pic_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
 	sc = device_get_softc(dev);
 	qisrc = (struct qoriq_gpio_pic_irqsrc *)isrc;
 
-	if (isrc->isrc_handlers > 0)
+	if (!ISRC_NO_HANDLER(isrc))
 		return (0);
 
 	GPIO_LOCK(&sc->base);

@@ -96,6 +96,9 @@ struct intr_irqsrc {
 	void *			isrc_iommu;
 };
 
+/* Macros for PIC usage. */
+#define ISRC_NO_HANDLER(isrc) ((isrc)->isrc_handlers == 0)
+
 /* Intr interface for PIC. */
 int intr_isrc_deregister(struct intr_irqsrc *);
 int intr_isrc_register(struct intr_irqsrc *, device_t, u_int, const char *, ...)

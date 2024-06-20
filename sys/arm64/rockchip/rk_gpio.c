@@ -762,7 +762,7 @@ rk_pic_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
 
 	irqsrc = (struct rk_pin_irqsrc *)isrc;
 
-	if (isrc->isrc_handlers == 0) {
+	if (ISRC_NO_HANDLER(isrc)) {
 		irqsrc->mode = GPIO_INTR_INVALID;
 		RK_GPIO_LOCK(sc);
 		rk_gpio_write_bit(sc, RK_GPIO_INTEN, irqsrc->irq, 0);

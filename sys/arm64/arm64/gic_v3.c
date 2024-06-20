@@ -276,7 +276,7 @@ gic_v3_reserve_msi_range(device_t dev, u_int start, u_int count)
 	    ("%s: Trying to allocate too many MSI IRQs: %d + %d > %d", __func__,
 	    start, count, sc->gic_nirqs));
 	for (i = 0; i < count; i++) {
-		KASSERT(sc->gic_irqs[start + i].gi_isrc.isrc_handlers == 0,
+		KASSERT(ISRC_NO_HANDLER(&sc->gic_irqs[start + i].gi_isrc),
 		    ("%s: MSI interrupt %d already has a handler", __func__,
 		    count + i));
 		KASSERT(sc->gic_irqs[start + i].gi_pol == INTR_POLARITY_CONFORM,
@@ -951,7 +951,7 @@ gic_v3_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
 {
 	struct gic_v3_irqsrc *gi = (struct gic_v3_irqsrc *)isrc;
 
-	if (isrc->isrc_handlers == 0 && (gi->gi_flags & GI_FLAG_MSI) == 0) {
+	if (ISRC_NO_HANDLER(isrc) && (gi->gi_flags & GI_FLAG_MSI) == 0) {
 		gi->gi_pol = INTR_POLARITY_INVALID;
 		gi->gi_trig = INTR_TRIGGER_INVALID;
 	}

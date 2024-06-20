@@ -300,7 +300,7 @@ gpio_pic_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
 	struct gpio_irqsrc *gi;
 
 	sc = device_get_softc(dev);
-	if (isrc->isrc_handlers == 0) {
+	if (ISRC_NO_HANDLER(isrc)) {
 		gi = (struct gpio_irqsrc *)isrc;
 		gi->gi_mode = GPIO_INTR_INVALID;
 
