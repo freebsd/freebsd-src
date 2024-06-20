@@ -1331,11 +1331,10 @@ callout_init(struct callout *c, int mpsafe)
 void
 _callout_init_lock(struct callout *c, struct lock_object *lock, int flags)
 {
+	KASSERT(lock != NULL, ("%s: no lock", __func__));
 	KASSERT((flags & ~(CALLOUT_RETURNUNLOCKED | CALLOUT_SHAREDLOCK)) == 0,
 	    ("%s: bad flags %d", __func__, flags));
-	KASSERT(lock != NULL || (flags & CALLOUT_RETURNUNLOCKED) == 0,
-	    ("%s: CALLOUT_RETURNUNLOCKED with no lock", __func__));
-	KASSERT(lock == NULL || !(LOCK_CLASS(lock)->lc_flags & LC_SLEEPABLE),
+	KASSERT(!(LOCK_CLASS(lock)->lc_flags & LC_SLEEPABLE),
 	    ("%s: callout %p has sleepable lock", __func__, c));
 
 	*c = (struct callout ){
