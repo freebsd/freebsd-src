@@ -58,8 +58,11 @@
 #include <sys/dtrace.h>
 #include <sys/dtrace_bsd.h>
 
+#include <cddl/dev/dtrace/dtrace_cddl.h>
+
 /* DTrace methods. */
 static void	sdt_getargdesc(void *, dtrace_id_t, void *, dtrace_argdesc_t *);
+static uint64_t	sdt_getargval(void *, dtrace_id_t, void *, int, int);
 static void	sdt_provide_probes(void *, dtrace_probedesc_t *);
 static void	sdt_destroy(void *, dtrace_id_t, void *);
 static void	sdt_enable(void *, dtrace_id_t, void *);
@@ -93,7 +96,7 @@ static dtrace_pops_t sdt_pops = {
 	.dtps_suspend =		NULL,
 	.dtps_resume =		NULL,
 	.dtps_getargdesc =	sdt_getargdesc,
-	.dtps_getargval =	NULL,
+	.dtps_getargval =	sdt_getargval,
 	.dtps_usermode =	NULL,
 	.dtps_destroy =		sdt_destroy,
 };
@@ -321,6 +324,23 @@ sdt_getargdesc(void *arg, dtrace_id_t id, void *parg, dtrace_argdesc_t *desc)
 	}
 }
 
+/*
+ * Fetch arguments beyond the first five passed directly to dtrace_probe().
+ * FreeBSD's SDT implement currently only supports up to 6 arguments, so we just
+ * need to handle arg5 here.
+ */
+static uint64_t
+sdt_getargval(void *arg __unused, dtrace_id_t id __unused,
+    void *parg __unused, int argno, int aframes __unused)
+{
+	if (argno != 5) {
+		DTRACE_CPUFLAG_SET(CPU_DTRACE_ILLOP);
+		return (0);
+	} else {
+		return (curthread->t_dtrace_sdt_arg[argno - 5]);
+	}
+}
+
 static void
 sdt_destroy(void *arg, dtrace_id_t id, void *parg)
 {
@@ -450,13 +470,20 @@ sdt_load_probes_cb(linker_file_t lf, void *arg __unused)
 }
 
 static void
+sdt_dtrace_probe(dtrace_id_t id, uintptr_t arg0, uintptr_t arg1,
+    uintptr_t arg2, uintptr_t arg3, uintptr_t arg4, uintptr_t arg5)
+{
+	curthread->t_dtrace_sdt_arg[0] = arg5;
+	dtrace_probe(id, arg0, arg1, arg2, arg3, arg4);
+}
+
+static void
 sdt_load(void)
 {
 
 	TAILQ_INIT(&sdt_prov_list);
 
-	sdt_probe_func = dtrace_probe;
-	sdt_probe6_func = (sdt_probe6_func_t)dtrace_probe;
+	sdt_probe_func = sdt_dtrace_probe;
 
 	sdt_kld_load_tag = EVENTHANDLER_REGISTER(kld_load, sdt_kld_load, NULL,
 	    EVENTHANDLER_PRI_ANY);
@@ -482,7 +509,6 @@ sdt_unload(void)
 	EVENTHANDLER_DEREGISTER(kld_unload_try, sdt_kld_unload_try_tag);
 
 	sdt_probe_func = sdt_probe_stub;
-	sdt_probe6_func = (sdt_probe6_func_t)sdt_probe_stub;
 
 	TAILQ_FOREACH_SAFE(prov, &sdt_prov_list, prov_entry, tmp) {
 		ret = dtrace_unregister(prov->id);
@@ -515,3 +541,4 @@ SYSUNINIT(sdt_unload, SI_SUB_DTRACE_PROVIDER, SI_ORDER_ANY, sdt_unload, NULL);
 DEV_MODULE(sdt, sdt_modevent, NULL);
 MODULE_VERSION(sdt, 1);
 MODULE_DEPEND(sdt, dtrace, 1, 1, 1);
+MODULE_DEPEND(sdt, opensolaris, 1, 1, 1);
