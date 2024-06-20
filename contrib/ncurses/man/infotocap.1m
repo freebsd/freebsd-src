@@ -1,6 +1,5 @@
-'\" t
 .\"***************************************************************************
-.\" Copyright 2018-2019,2020 Thomas E. Dickey                                *
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
 .\" Copyright 1999-2010,2016 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,54 +27,71 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: infotocap.1m,v 1.17 2020/12/19 21:49:52 tom Exp $
-.TH @INFOTOCAP@ 1M ""
-.ds n 5
+.\" $Id: infotocap.1m,v 1.41 2024/03/16 15:35:01 tom Exp $
+.TH @INFOTOCAP@ 1M 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "User commands"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.
 .ds d @TERMINFO@
 .SH NAME
-\fB@INFOTOCAP@\fR \- convert a \fIterminfo\fR description into a \fItermcap\fR description
+\fB\%@INFOTOCAP@\fP \-
+convert a \fI\%terminfo\fR description into a \fI\%termcap\fR description
 .SH SYNOPSIS
-\fB@INFOTOCAP@\fR [\fB\-v\fR\fIn\fR \fIwidth\fR]  [\fB\-V\fR] [\fB\-1\fR] [\fB\-w\fR \fIwidth\fR] \fIfile\fR ...
+.B @INFOTOCAP@
+.RI [ tic-option ]
+.I file
+\&.\|.\|.
+.P
+.B "@INFOTOCAP@ \-V"
 .SH DESCRIPTION
-\fB@INFOTOCAP@\fR looks in each given text
-\fIfile\fR for \fBterminfo\fR descriptions.
-For each terminfo description found,
-an equivalent \fBtermcap\fR description is written to standard output.
-Terminfo \fBuse\fR capabilities are translated directly to termcap
-\fBtc\fR capabilities.
-.TP 5
-\fB\-v\fR
-print out tracing information on standard error as the program runs.
-.TP 5
-\fB\-V\fR
-print out the version of the program in use on standard error and exit.
-.TP 5
-\fB\-1\fR
-cause the fields to print out one to a line.
-Otherwise, the fields
-will be printed several to a line to a maximum width of 60 characters.
-.TP 5
-\fB\-w\fR
-change the output to \fIwidth\fR characters.
-.SH FILES
-.TP 20
-\*d
-Compiled terminal description database.
-.SH NOTES
-This utility is actually a link to \fB@TIC@\fR, running in \fI\-C\fR mode.
-You can use other \fB@TIC@\fR options such as \fB\-f\fR and  \fB\-x\fR.
-.SH PORTABILITY
-None of X/Open Curses, Issue 7 (2009), SVr4 or NetBSD document this application.
-.SH SEE ALSO
-\fB@INFOCMP@\fR(1M),
-\fB@TIC@\fR(1M),
-\fBcurses\fR(3X),
-\fBterminfo\fR(\*n)
+\fB\%@INFOTOCAP@\fP translates terminal descriptions.
+It looks in each given text \fIfile\fP for \fI\%terminfo\fP entries and,
+For each one found,
+it writes an analogous \fI\%termcap\fP description to the standard
+output stream.
+\fI\%terminfo\fP \*(``\fBuse\fP\*('' capabilities translate to
+\fI\%termcap\fP \fBtc\fP capabilities.
+Because \fI\%termcap\fP is a less expressive format than
+\fI\%terminfo\fP,
+some capabilities cannot be translated.
 .PP
-This describes \fBncurses\fR
-version @NCURSES_MAJOR@.@NCURSES_MINOR@ (patch @NCURSES_PATCH@).
-.SH AUTHOR
+This utility is implemented as a link to \fB\%@TIC@\fP(1M),
+with the latter's
+.B \-C
+option implied.
+You can use other \fB\%@TIC@\fP options such as
+.BR \-1 ,
+.BR \-f ,
+.BR \-v ,
+.BR \-w ,
+and
+.BR \-x .
+The \fB\-V\fP option reports the version of \fI\%ncurses\fP associated
+with this program and exits with a successful status.
+.SH FILES
+.TP
+.I \*d
+compiled terminal description database
+.SH PORTABILITY
+None of X/Open Curses,
+Issue 7 (2009),
+SVr4,
+or NetBSD document this application.
+.SH AUTHORS
 Eric S. Raymond <esr@snark.thyrsus.com>
 and
 .br
-Thomas E. Dickey <dickey@invisible-island.net>
+Thomas E. Dickey <dickey@invisible\-island.net>
+.SH SEE ALSO
+\fB\%@INFOCMP@\fP(1M),
+\fB\%@TIC@\fP(1M),
+\fB\%curses\fP(3X),
+\fB\%terminfo\fP(5)

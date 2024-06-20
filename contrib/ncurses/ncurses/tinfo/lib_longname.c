@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2010,2015 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -43,7 +43,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_longname.c,v 1.14 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_longname.c,v 1.15 2021/04/03 22:36:21 tom Exp $")
 
 #if USE_REENTRANT
 NCURSES_EXPORT(char *)
@@ -51,11 +51,12 @@ NCURSES_SP_NAME(longname) (NCURSES_SP_DCL0)
 {
     static char empty[] =
     {'\0'};
-    char *ptr;
 
     T((T_CALLED("longname(%p)"), (void *) SP_PARM));
 
     if (SP_PARM) {
+	char *ptr;
+
 	for (ptr = SP_PARM->_ttytype + strlen(SP_PARM->_ttytype);
 	     ptr > SP_PARM->_ttytype;
 	     ptr--)

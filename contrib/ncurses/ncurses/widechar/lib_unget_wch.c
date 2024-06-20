@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2023 Thomas E. Dickey                                     *
  * Copyright 2002-2011,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -40,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_unget_wch.c,v 1.17 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_unget_wch.c,v 1.18 2023/06/03 12:50:52 tom Exp $")
 
 /*
  * Wrapper for wcrtomb() which obtains the length needed for the given
@@ -60,7 +60,7 @@ _nc_wcrtomb(char *target, wchar_t source, mbstate_t * state)
     } else {
 	result = (int) wcrtomb(target, source, state);
     }
-    if (!isEILSEQ(result) && (result == 0))
+    if (!isEILSEQ(result) && ((result == 0) || (result > MB_LEN_MAX)))
 	result = 1;
     return (size_t) result;
 }

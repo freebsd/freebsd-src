@@ -1,6 +1,5 @@
-'\" t
 .\"***************************************************************************
-.\" Copyright 2018-2019,2020 Thomas E. Dickey                                *
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
 .\" Copyright 1998-2012,2015 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,36 +27,36 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_items.3x,v 1.17 2020/10/24 09:00:06 tom Exp $
-.TH menu_items 3X ""
+.\" $Id: menu_items.3x,v 1.34 2024/03/16 15:35:01 tom Exp $
+.TH menu_items 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
-\fBset_menu_items\fR,
-\fBmenu_items\fR,
-\fBitem_count\fP \- make and break connections between items and menus
+\fBset_menu_items\fP,
+\fBmenu_items\fP,
+\fBitem_count\fP \-
+make and break connections between items and menus
 .SH SYNOPSIS
-\fB#include <menu.h>\fR
-.sp
-\fBint set_menu_items(MENU *\fP\fImenu\fP\fB, ITEM **\fP\fIitems\fP\fB);\fP
-.br
-\fBITEM **menu_items(const MENU *\fP\fImenu\fP\fB);\fP
-.br
-\fBint item_count(const MENU *\fP\fImenu\fP\fB);\fP
-.br
+.nf
+\fB#include <menu.h>
+.PP
+\fBint set_menu_items(MENU *\fImenu\fP, ITEM **\fIitems\fP);
+\fBITEM **menu_items(const MENU *\fImenu\fP);
+\fBint item_count(const MENU *\fImenu\fP);
+.fi
 .SH DESCRIPTION
-The function \fBset_menu_items\fR changes the item pointer array of the given
-\fImenu\fR.  The array must be terminated by a \fBNULL\fR.
+The function \fBset_menu_items\fP changes the item pointer array of the given
+\fImenu\fP.  The array must be terminated by a \fBNULL\fP.
 .PP
-The function \fBmenu_items\fR returns the item array of the given menu.
+The function \fBmenu_items\fP returns the item array of the given menu.
 .PP
-The function \fBitem_count\fR returns the count of items in \fImenu\fR.
+The function \fBitem_count\fP returns the count of items in \fImenu\fP.
 .SH RETURN VALUE
-The function \fBmenu_items\fR returns a pointer (which may be \fBNULL\fR).
+The function \fBmenu_items\fP returns a pointer (which may be \fBNULL\fP).
 It does not set \fBerrno\fP.
 .PP
-The function \fBitem_count\fR returns \fBERR\fR (the general \fBcurses\fR error
+The function \fBitem_count\fP returns \fBERR\fP (the general \fBcurses\fP error
 return value) if its \fImenu\fP parameter is \fBNULL\fP.
 .PP
-The function \fBset_menu_items\fR returns one of the following codes on error:
+The function \fBset_menu_items\fP returns one of the following codes on error:
 .TP 5
 .B E_OK
 The routine succeeded.
@@ -72,20 +71,17 @@ No items are connected to the menu.
 The menu is already posted.
 .TP 5
 .B E_SYSTEM_ERROR
-System error occurred (see \fBerrno\fR(3)).
-.
-.SH SEE ALSO
-\fBcurses\fR(3X), \fBmenu\fR(3X).
-.SH NOTES
-The header file \fB<menu.h>\fR automatically includes the header file
-\fB<curses.h>\fR.
+System error occurred (see \fBerrno\fP(3)).
 .SH PORTABILITY
 These routines emulate the System V menu library.
 They were not supported on
 Version 7 or BSD versions.
 .PP
-The SVr4 menu library documentation specifies the \fBitem_count\fR error value
-as \-1 (which is the value of \fBERR\fR).
+The SVr4 menu library documentation specifies the \fBitem_count\fP error value
+as \-1 (which is the value of \fBERR\fP).
 .SH AUTHORS
 Juergen Pfeifer.
 Manual pages and adaptation for new curses by Eric S. Raymond.
+.SH SEE ALSO
+\fB\%curses\fP(3X),
+\fB\%menu\fP(3X)

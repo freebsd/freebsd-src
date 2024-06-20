@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2018-2020,2021 Thomas E. Dickey                                *
  * Copyright 2008-2014,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,10 +28,10 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Author: Juergen Pfeifer, 2008-on                                         * 
+ * Author: Juergen Pfeifer, 2008-on                                         *
  ****************************************************************************/
 
-/* $Id: win32_curses.h,v 1.2 2020/11/14 23:52:46 tom Exp $ */
+/* $Id: win32_curses.h,v 1.3 2021/06/17 21:26:02 tom Exp $ */
 
 /*
  * This is the interface we use on Windows to mimic the control of the settings

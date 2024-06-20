@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
--- Copyright 2020 Thomas E. Dickey                                           --
+-- Copyright 2020,2021 Thomas E. Dickey                                      --
 -- Copyright 1998-2006,2018 Free Software Foundation, Inc.                   --
 --                                                                           --
 -- Permission is hereby granted, free of charge, to any person obtaining a   --
@@ -26,7 +26,7 @@
 -- sale, use or other dealings in this Software without prior written        --
 -- authorization.                                                            --
 -------------------------------------------------------------------------------
--- $Id: README.emx,v 1.11 2020/02/02 23:34:34 tom Exp $
+-- $Id: README.emx,v 1.12 2021/06/17 21:20:30 tom Exp $
 -- Author: Thomas Dickey
 -------------------------------------------------------------------------------
 
@@ -34,7 +34,7 @@ You can build ncurses on OS/2 in the EMX environment.  But you must build and
 acquire tools.  Not all of the tools distributed with EMX work properly, and
 some additional ones are required.
 
-First, the configure script distributed with ncurses will not run as-is in EMX. 
+First, the configure script distributed with ncurses will not run as-is in EMX.
 You can generate a new one if you have autoconf built for EMX.  You will need
 the EMX development tools, of course.  Get these programs to start:
 
@@ -65,7 +65,7 @@ may fix these problems:
 
 	+ I also built from sources (because the distributed binaries did not
 	  work) the cmp, diff programs.
-	  
+
 	  Other required utilities such as ar, cat, chmod, cp, gawk, grep, mv,
 	  ls, rm, mkdir, sed, sort and tr worked.
 

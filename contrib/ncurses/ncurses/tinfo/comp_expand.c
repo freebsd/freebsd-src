@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020-2021,2023 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -36,7 +36,7 @@
 #include <ctype.h>
 #include <tic.h>
 
-MODULE_ID("$Id: comp_expand.c,v 1.32 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: comp_expand.c,v 1.35 2023/04/28 20:59:06 tom Exp $")
 
 #if 0
 #define DEBUG_THIS(p) DEBUG(9, p)
@@ -87,7 +87,10 @@ _nc_tic_expand(const char *srcp, bool tic_format, int numbers)
 	      return 0;
     }
 
-    DEBUG_THIS(("_nc_tic_expand %s", _nc_visbuf(srcp)));
+    DEBUG_THIS(("_nc_tic_expand %s:%s:%s",
+		tic_format ? "ti" : "tc",
+		numbers ? "#" : "",
+		_nc_visbuf(srcp)));
     bufp = 0;
     while ((ch = UChar(*str)) != 0) {
 	if (ch == '%' && REALPRINT(str + 1)) {
@@ -126,7 +129,6 @@ _nc_tic_expand(const char *srcp, bool tic_format, int numbers)
 		    if (dst != 0
 			&& *dst == R_BRACE
 			&& value < 127
-			&& value != '\\'	/* FIXME */
 			&& isprint((int) value)) {
 			ch = (int) value;
 			buffer[bufp++] = S_QUOTE;
@@ -162,12 +164,12 @@ _nc_tic_expand(const char *srcp, bool tic_format, int numbers)
 					       trailing_spaces(str))) {
 	    buffer[bufp++] = '\\';
 	    buffer[bufp++] = 's';
-	} else if ((ch == ',' || ch == ':' || ch == '^') && tic_format) {
+	} else if ((ch == ',' || ch == '^') && tic_format) {
 	    buffer[bufp++] = '\\';
 	    buffer[bufp++] = (char) ch;
 	} else if (REALPRINT(str)
 		   && (ch != ','
-		       && ch != ':'
+		       && !(ch == ':' && !tic_format)
 		       && !(ch == '!' && !tic_format)
 		       && ch != '^'))
 	    buffer[bufp++] = (char) ch;
@@ -203,7 +205,7 @@ _nc_tic_expand(const char *srcp, bool tic_format, int numbers)
 
     /*
      * If most of a short string is ASCII control characters, reformat the
-     * string to show those in up-arrow format.  For longer strings, it's
+     * string to show those in up-arrow format.  For longer strings, it is
      * more likely that the characters are just binary coding.
      *
      * If we're formatting termcap, just use the shorter format (up-arrows).

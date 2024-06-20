@@ -1,7 +1,7 @@
 #! /bin/sh
-# $Id: MKkeys_list.sh,v 1.7 2020/02/02 23:34:34 tom Exp $
+# $Id: MKkeys_list.sh,v 1.9 2024/01/19 12:26:30 tom Exp $
 ##############################################################################
-# Copyright 2019,2020 Thomas E. Dickey                                       #
+# Copyright 2019-2022,2024 Thomas E. Dickey                                  #
 # Copyright 2001-2003,2017 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -36,6 +36,7 @@
 # Extract function-key names from the Caps file
 #
 : ${AWK-awk}
+: ${USE_SIGWINCH-0}
 if test $# != 0
 then
 	DATA="$*"
@@ -44,7 +45,8 @@ else
 fi
 
 data=data$$
-trap 'rm -f $data' EXIT INT QUIT TERM HUP
+trap 'rm -f $data; exit 1' 1 2 3 15
+trap 'rm -f $data' 0
 cat $DATA | sed -e 's/[	][	]*/	/g' >$data
 
 cat <<EOF
@@ -52,8 +54,8 @@ cat <<EOF
 KEY_BREAK
 KEY_SRESET
 KEY_RESET
-KEY_RESIZE
 EOF
+test "$USE_SIGWINCH" = 1 && echo KEY_RESIZE
 
 ${AWK-awk} <$data '
 /^#/		{next;}

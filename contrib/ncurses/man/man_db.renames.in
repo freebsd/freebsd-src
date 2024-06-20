@@ -1,5 +1,5 @@
 ##############################################################################
-# Copyright 2019,2020 Thomas E. Dickey                                       #
+# Copyright 2019-2023,2024 Thomas E. Dickey                                  #
 # Copyright 1998-2015,2017 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -26,7 +26,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: man_db.renames,v 1.56 2020/02/02 23:34:34 tom Exp $
+# $Id: man_db.renames.in,v 1.73 2024/04/13 23:39:11 tom Exp $
 # Manual-page renamings for the man_db program
 #
 # Files:
@@ -151,7 +151,7 @@ mitem_value.3x			menu_value.3menu
 mitem_visible.3x		menu_visible.3menu
 ncurses.3x			ncurses.3ncurses
 new_pair.3x			new_pair.3ncurses
-panel.3x			panel.3curses
+panel.3x			panel.3ncurses
 printf.3s			printf.3
 putc.3s 			putc.3
 resizeterm.3x			resizeterm.3ncurses
@@ -163,7 +163,6 @@ term.5				term.5
 term.7				term.7
 term_variables.3x		terminfo_variables.3ncurses
 terminfo.5			terminfo.5
-terminfo.\\\*n			terminfo.5
 tic.1m				tic.1
 toe.1m				toe.1
 tput.1				tput.1
@@ -171,10 +170,125 @@ tset.1				tset.1
 user_caps.5			user_caps.5
 wresize.3x			wresize.3ncurses
 #
-# Other:
-tack.1m				tack.1
+# Supplementary topics in the foregoing pages:
+add_wch.3x			add_wch.3ncurses
+addch.3x			addch.3ncurses
+assume_default_colors.3x	assume_default_colors.3ncurses
+attr_get.3x			attr_get.3ncurses
+attr_on.3x			attr_on.3ncurses
+attron.3x			attron.3ncurses
+baudrate.3x			baudrate.3ncurses
+bkgd.3x				bkgd.3ncurses
+bkgrnd.3x			bkgrnd.3ncurses
+cbreak.3x			cbreak.3ncurses
+clearok.3x			clearok.3ncurses
+clrtoeol.3x			clrtoeol.3ncurses
+curs_set.3x			curs_set.3ncurses
+curscr.3x			curscr.3ncurses
+curses_trace.3x			curses_trace.3ncurses
+def_prog_mode.3x		def_prog_mode.3ncurses
+def_shell_mode.3x		def_shell_mode.3ncurses
+del_curterm.3x			del_curterm.3ncurses
+delay_output.3x			delay_output.3ncurses
+delscreen.3x			delscreen.3ncurses
+derwin.3x			derwin.3ncurses
+doupdate.3x			doupdate.3ncurses
+echo.3x				echo.3ncurses
+endwin.3x			endwin.3ncurses
+extended_slk_color.3x		extended_slk_color.3ncurses
+filter.3x			filter.3ncurses
+flushinp.3x			flushinp.3ncurses
+get_wch.3x			get_wch.3ncurses
+getattr.3x			getattr.3ncurses
+getcchar.3x			getcchar.3ncurses
+getch.3x			getch.3ncurses
+getwin.3x			getwin.3ncurses
+halfdelay.3x			halfdelay.3ncurses
+has_key.3x			has_key.3ncurses
+idcok.3x			idcok.3ncurses
+idlok.3x			idlok.3ncurses
+immedok.3x			immedok.3ncurses
+in_wch.3x			in_wch.3ncurses
+inch.3x				inch.3ncurses
+initscr.3x			initscr.3ncurses
+is_scrollok.3x			is_scrollok.3ncurses
+keyname.3x			keyname.3ncurses
+keypad.3x			keypad.3ncurses
+leaveok.3x			leaveok.3ncurses
+longname.3x			longname.3ncurses
+meta.3x				meta.3ncurses
+move.3x				move.3ncurses
+mvcur.3x			mvcur.3ncurses
+mvwin.3x			mvwin.3ncurses
+newpad.3x			newpad.3ncurses
+newterm.3x			newterm.3ncurses
+newwin.3x			newwin.3ncurses
+nl.3x				nl.3ncurses
+nocbreak.3x			nocbreak.3ncurses
+nodelay.3x			nodelay.3ncurses
+nonl.3x				nonl.3ncurses
+notimeout.3x			notimeout.3ncurses
+pnoutrefresh.3x			pnoutrefresh.3ncurses
+prefresh.3x			prefresh.3ncurses
+printw.3x			printw.3ncurses
+putp.3x			putp.3ncurses
+putwin.3x			putwin.3ncurses
+raw.3x				raw.3ncurses
+refresh.3x			refresh.3ncurses
+reset_shell_mode.3x		reset_shell_mode.3ncurses
+restartterm.3x			restartterm.3ncurses
+ripoffline.3x			ripoffline.3ncurses
+scrollok.3x			scrollok.3ncurses
+set_curterm.3x			set_curterm.3ncurses
+set_term.3x			set_term.3nses
+setcchar.3x			setcchar.3ncurses
+setupterm.3x			setupterm.3ncurses
+slk_attr.3x			slk_attr.3ncurses
+slk_color.3x			slk_color.3ncurses
+slk_init.3x			slk_init.3ncurses
+slk_touch.3x			slk_touch.3ncurses
+start_color.3x			start_color.3ncurses
+subwin.3x			subwin.3ncurses
+syncok.3x			syncok.3ncurses
+terminfo.3x			terminfo.3ncurses
+tigetstr.3x			tigetstr.3ncurses
+touchline.3x			touchline.3ncurses
+touchwin.3x			touchwin.3ncurses
+tparm.3x			tparm.3ncurses
+tputs.3x			tputs.3ncurses
+trace.3x			trace.3ncurses
+unctrl.3x			unctrl.3ncurses
+use_default_colors.3x		use_default_colors.3ncurses
+use_env.3x			use_env.3ncurses
+use_extended_names.3x		use_extended_names.3ncurses
+use_legacy_coding.3x		use_legacy_coding.3ncurses
+use_tioctl.3x			use_tioctl.3ncurses
+vidputs.3x			vidputs.3ncurses
+wadd_wch.3x			wadd_wch.3ncurses
+waddch.3x			waddch.3ncurses
+waddstr.3x			waddstr.3ncurses
+waddwstr.3x			waddwstr.3ncurses
+wattr_set.3x			wattr_set.3ncurses
+wattrset.3x			wattrset.3ncurses
+wbkgdset.3x			wbkgdset.3ncurses
+wbkgrndset.3x			wbkgrndset.3ncurses
+wdelch.3x			wdelch.3ncurses
+wecho_wchar.3x			wecho_wchar.3ncurses
+wechochar.3x			wechochar.3ncurses
+wget_wch.3x			wget_wch.3ncurses
+wgetch.3x			wgetch.3ncurses
+wgetstr.3x			wgetstr.3ncurses
+winch.3x			winch.3ncurses
+wins_wch.3x			wins_wch.3ncurses
+winsch.3x			winsch.3ncurses
+wmove.3x			wmove.3ncurses
+wnoutrefresh.3x			wnoutrefresh.3ncurses
+wrefresh.3x			wrefresh.3ncurses
+wsetscrreg.3x			wsetscrreg.3ncurses
+wtimeout.3x			wtimeout.3ncurses
 #
-getty.1				getty.8
+# Other:
+getty.8				getty.8
 scanf.3				scanf.3
 ttys.5				ttys.4
 system.3			system.3
@@ -183,18 +297,7 @@ regexec.3x			regexec.3
 vprintf.3			vprintf.3
 #
 # The following are pages which may be generated depending on configuration:
-adacurses-config.1		adacurses-config.1
-adacurses5-config.1		adacurses5-config.1
-adacurses6-config.1		adacurses6-config.1
-#
-ncurses5-config.1		ncurses5-config.1
-ncursesw5-config.1		ncursesw5-config.1
-ncursest5-config.1		ncursest5-config.1
-ncursestw5-config.1		ncursestw5-config.1
-#
-ncurses6-config.1		ncurses6-config.1
-ncursesw6-config.1		ncursesw6-config.1
-ncursest6-config.1		ncursest6-config.1
-ncursestw6-config.1		ncursestw6-config.1
+adacurses@USE_CFG_SUFFIX@-config.1	adacurses@USE_CFG_SUFFIX@-config.1
+ncurses@USE_CFG_SUFFIX@-config.1	ncurses@USE_CFG_SUFFIX@-config.1
 #
 # vile:cfgmode

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2021,2023 Thomas E. Dickey                                *
  * Copyright 1998-2010,2011 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -34,7 +34,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: wresize.c,v 1.41 2020/04/18 21:01:00 tom Exp $")
+MODULE_ID("$Id: wresize.c,v 1.43 2023/10/21 11:13:03 tom Exp $")
 
 static int
 cleanup_lines(struct ldat *data, int length)
@@ -55,7 +55,7 @@ repair_subwindows(WINDOW *cmp)
     WINDOWLIST *wp;
     struct ldat *pline = cmp->_line;
     int row;
-#ifdef USE_SP_WINDOWLIST
+#if NCURSES_SP_FUNCS && defined(USE_SP_WINDOWLIST)
     SCREEN *sp = _nc_screen_of(cmp);
 #endif
 
@@ -135,7 +135,7 @@ wresize(WINDOW *win, int ToLines, int ToCols)
 	&& ToCols == size_x)
 	returnCode(OK);
 
-    if ((win->_flags & _SUBWIN)) {
+    if (IS_SUBWIN(win)) {
 	/*
 	 * Check if the new limits will fit into the parent window's size.  If
 	 * not, do not resize.  We could adjust the location of the subwindow,
@@ -169,7 +169,7 @@ wresize(WINDOW *win, int ToLines, int ToCols)
 	int end = ToCols;
 	NCURSES_CH_T *s;
 
-	if (!(win->_flags & _SUBWIN)) {
+	if (!IS_SUBWIN(win)) {
 	    if (row <= size_y) {
 		if (ToCols != size_x) {
 		    s = typeMalloc(NCURSES_CH_T, (unsigned) ToCols + 1);

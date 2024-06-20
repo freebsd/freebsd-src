@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2023 Thomas E. Dickey                                     *
  * Copyright 1998-2013,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -41,7 +41,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_overlay.c,v 1.33 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_overlay.c,v 1.34 2023/09/16 16:39:07 tom Exp $")
 
 static int
 overlap(const WINDOW *const src, WINDOW *const dst, int const flag)
@@ -78,12 +78,12 @@ overlap(const WINDOW *const src, WINDOW *const dst, int const flag)
 	dy2 = dy1 + dst->_maxy;
 
 	if (dx2 >= sx1 && dx1 <= sx2 && dy2 >= sy1 && dy1 <= sy2) {
-	    int sminrow = max(sy1, dy1) - sy1;
-	    int smincol = max(sx1, dx1) - sx1;
-	    int dminrow = max(sy1, dy1) - dy1;
-	    int dmincol = max(sx1, dx1) - dx1;
-	    int dmaxrow = min(sy2, dy2) - dy1;
-	    int dmaxcol = min(sx2, dx2) - dx1;
+	    int sminrow = Max(sy1, dy1) - sy1;
+	    int smincol = Max(sx1, dx1) - sx1;
+	    int dminrow = Max(sy1, dy1) - dy1;
+	    int dmincol = Max(sx1, dx1) - dx1;
+	    int dmaxrow = Min(sy2, dy2) - dy1;
+	    int dmaxcol = Min(sx2, dx2) - dx1;
 
 	    rc = copywin(src, dst,
 			 sminrow, smincol,

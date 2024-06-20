@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2018-2020,2023 Thomas E. Dickey                                *
  * Copyright 2008-2010,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -31,7 +31,7 @@
  * Author: Thomas Dickey, 2008-on                                           *
  ****************************************************************************/
 
-/* $Id: nc_mingw.h,v 1.9 2020/07/11 22:13:19 tom Exp $ */
+/* $Id: nc_mingw.h,v 1.10 2023/02/25 19:59:24 tom Exp $ */
 
 #ifndef NC_MINGW_H
 #define NC_MINGW_H 1
@@ -50,9 +50,6 @@
 #undef sleep
 #define sleep(n) Sleep((n) * 1000)
 
-#undef gettimeofday
-#define gettimeofday(tv,tz) _nc_gettimeofday(tv,tz)
-
 #if HAVE_SYS_TIME_H
 #include <sys/time.h>		/* for struct timeval */
 #endif
@@ -67,10 +64,12 @@ extern "C" {
 
 #include <ncurses_dll.h>
 
+#if !HAVE_CLOCK_GETTIME && !HAVE_GETTIMEOFDAY
 NCURSES_EXPORT(int) _nc_gettimeofday(struct timeval *, void *);
-
 #undef HAVE_GETTIMEOFDAY
-#define HAVE_GETTIMEOFDAY 1
+#define HAVE_GETTIMEOFDAY 2
+#define gettimeofday(tv,tz) _nc_gettimeofday(tv,tz)
+#endif
 
 #define SIGHUP  1
 #define SIGKILL 9

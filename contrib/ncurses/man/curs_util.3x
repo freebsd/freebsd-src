@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright 2018-2019,2020 Thomas E. Dickey                                *
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
 .\" Copyright 1998-2015,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,121 +28,133 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_util.3x,v 1.60 2020/12/19 22:44:46 tom Exp $
-.TH curs_util 3X ""
-.ie \n(.g .ds `` \(lq
-.el       .ds `` ``
-.ie \n(.g .ds '' \(rq
-.el       .ds '' ''
+.\" $Id: curs_util.3x,v 1.101 2024/04/20 21:20:07 tom Exp $
+.TH curs_util 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.
 .de bP
 .ie n  .IP \(bu 4
 .el    .IP \(bu 2
 ..
-.na
-.hy 0
 .SH NAME
-\fBdelay_output\fR,
-\fBfilter\fR,
-\fBflushinp\fR,
-\fBgetwin\fR,
-\fBkey_name\fR,
-\fBkeyname\fR,
-\fBnofilter\fR,
-\fBputwin\fR,
-\fBunctrl\fR,
-\fBuse_env\fR,
-\fBuse_tioctl\fR,
-\fBwunctrl\fR \- miscellaneous \fBcurses\fR utility routines
-.ad
-.hy
+\fB\%delay_output\fP,
+\fB\%filter\fP,
+\fB\%flushinp\fP,
+\fB\%getwin\fP,
+\fB\%key_name\fP,
+\fB\%keyname\fP,
+\fB\%nofilter\fP,
+\fB\%putwin\fP,
+\fB\%unctrl\fP,
+\fB\%use_env\fP,
+\fB\%use_tioctl\fP,
+\fB\%wunctrl\fP \-
+miscellaneous \fIcurses\fR utility routines
 .SH SYNOPSIS
-\fB#include <curses.h>\fR
-.sp
-\fBconst char *unctrl(chtype \fP\fIc\fP\fB);\fR
-.br
-\fBwchar_t *wunctrl(cchar_t *\fP\fIc\fP\fB);\fR
-.sp
-\fBconst char *keyname(int \fP\fIc\fP\fB);\fR
-.br
-\fBconst char *key_name(wchar_t \fP\fIw\fP\fB);\fR
-.sp
-\fBvoid filter(void);\fR
-.br
-\fBvoid nofilter(void);\fR
-.sp
-\fBvoid use_env(bool \fP\fIf\fP\fB);\fR
-.br
-\fBvoid use_tioctl(bool \fP\fIf\fP\fB);\fR
-.sp
-\fBint putwin(WINDOW *\fP\fIwin\fP\fB, FILE *\fP\fIfilep\fP\fB);\fR
-.br
-\fBWINDOW *getwin(FILE *\fP\fIfilep\fP\fB);\fR
-.sp
-\fBint delay_output(int \fP\fIms\fP\fB);\fR
-.br
-\fBint flushinp(void);\fR
-.br
+.nf
+\fB#include <curses.h>
+.PP
+\fBconst char *unctrl(chtype \fIch\fP);
+\fBwchar_t *wunctrl(cchar_t *\fIwch\fP);
+.PP
+\fBconst char *keyname(int \fIc\fP);
+\fBconst char *key_name(wchar_t \fIwc\fP);
+.PP
+\fBvoid filter(void);
+.PP
+\fBvoid use_env(bool \fIf\fP);
+.PP
+\fBint putwin(WINDOW *\fIwin\fP, FILE *\fIfilep\fP);
+\fBWINDOW *getwin(FILE *\fIfilep\fP);
+.PP
+\fBint delay_output(int \fIms\fP);
+\fBint flushinp(void);
+.PP
+\fI/* extensions */
+\fBvoid nofilter(void);
+\fBvoid use_tioctl(bool \fIf\fP);
+.fi
 .SH DESCRIPTION
 .SS unctrl
-.PP
-The \fBunctrl\fR routine returns a character string which is a printable
-representation of the character \fIc\fR, ignoring attributes.
-Control characters are displayed in the \fB^\fR\fIX\fR notation.
-Printing characters are displayed as is.
-The corresponding \fBwunctrl\fR returns a printable representation of
-a wide character.
-.SS keyname/key_name
-.PP
-The \fBkeyname\fR routine returns a character string
-corresponding to the key \fIc\fR:
+The \fBunctrl\fP routine returns a character string which is a printable
+representation of the character \fIch\fP:
 .bP
 Printable characters are displayed as themselves,
 e.g., a one-character string containing the key.
 .bP
-Control characters are displayed in the \fB^\fR\fIX\fR notation.
+Control characters are displayed in the \fB^\fIX\fR notation.
+.bP
+Printing characters are displayed as is.
 .bP
 DEL (character 127) is displayed as \fB^?\fP.
 .bP
 Values above 128 are either meta characters
 (if the screen has not been initialized,
 or if \fBmeta\fP(3X) has been called with a \fBTRUE\fP parameter),
-shown in the \fBM\-\fR\fIX\fR notation,
+shown in the \fBM\-\fIX\fR notation,
 or are displayed as themselves.
 In the latter case, the values may not be printable;
 this follows the X/Open specification.
+.PP
+The corresponding \fBwunctrl\fP returns a printable representation of
+a complex character \fIwch\fP.
+.PP
+In both \fBunctrl\fP and \fBwunctrl\fP the attributes and color associated
+with the character parameter are ignored.
+.SS "keyname, key_name"
+The \fBkeyname\fP routine returns a character string
+corresponding to the key \fIc\fP.
+Key codes are different from character codes.
 .bP
-Values above 256 may be the names of the names of function keys.
+Key codes below 256 are characters.
+They are displayed using \fBunctrl\fP.
 .bP
-Otherwise (if there is no corresponding name) the function returns null,
-to denote an error.
+Values above 256 may be the codes for function keys.
+The function key name is displayed.
+.bP
+Otherwise (if there is no corresponding name and the key is not a character)
+the function returns null, to denote an error.
 X/Open also lists an \*(``UNKNOWN KEY\*('' return value,
 which some implementations return rather than null.
 .LP
-The corresponding \fBkey_name\fR returns a character string corresponding
-to the wide-character value \fIw\fR.
-The two functions do not return the same set of strings;
-the latter returns null where the former would display a meta character.
-.SS filter/nofilter
-.PP
-The \fBfilter\fR routine, if used, must be called before \fBinitscr\fR or
-\fBnewterm\fR are called.
+The corresponding \fBkey_name\fP returns
+a multibyte character string corresponding
+to the wide-character value \fIw\fP.
+The two functions (\fBkeyname\fP and \fBkey_name\fP)
+do not return the same set of strings:
+.bP
+\fBkeyname\fP returns null where \fBkey_name\fP would display a meta character.
+.bP
+\fBkey_name\fP does not return the name of a function key.
+.SS "filter, nofilter"
+The \fBfilter\fP routine, if used, must be called before \fBinitscr\fP or
+\fBnewterm\fP are called.
 Calling \fBfilter\fP causes these changes in initialization:
 .bP
-\fBLINES\fR is set to 1;
+\fBLINES\fP is set to 1;
 .bP
 the capabilities
-\fBclear\fR,
-\fBcud1\fR,
-\fBcud\fR,
-\fBcup\fR,
-\fBcuu1\fR,
-\fBcuu\fR,
-\fBvpa\fR
+\fBclear\fP,
+\fBcud1\fP,
+\fBcud\fP,
+\fBcup\fP,
+\fBcuu1\fP,
+\fBcuu\fP,
+\fBvpa\fP
 are disabled;
 .bP
 the capability \fBed\fP is disabled if \fBbce\fP is set;
 .bP
-and the \fBhome\fR string is set to the value of \fBcr\fR.
+and the \fBhome\fP string is set to the value of \fBcr\fP.
 .PP
 The \fBnofilter\fP routine cancels the effect of a preceding \fBfilter\fP
 call.
@@ -151,15 +163,15 @@ using a different value of \fB$TERM\fP.
 The limitation arises because the \fBfilter\fP routine modifies the
 in-memory copy of the terminal information.
 .SS use_env
-.PP
-The \fBuse_env\fR routine, if used,
-should be called before \fBinitscr\fR or
-\fBnewterm\fR are called
+The \fBuse_env\fP routine, if used,
+should be called before \fBinitscr\fP or
+\fBnewterm\fP are called
 (because those compute the screen size).
-It modifies the way \fBncurses\fP treats environment variables
+It modifies the way \fI\%ncurses\fP treats environment variables
 when determining the screen size.
 .bP
-Normally \fBncurses\fP looks first at the terminal database for the screen size.
+Normally \fI\%ncurses\fP looks first at the terminal database for the
+screen size.
 .IP
 If \fBuse_env\fP was called with \fBFALSE\fP for parameter,
 it stops here unless
@@ -170,74 +182,74 @@ If successful,
 it overrides the values from the terminal database.
 .bP
 Finally (unless \fBuse_env\fP was called with \fBFALSE\fP parameter),
-\fBncurses\fP examines the \fBLINES\fR or \fBCOLUMNS\fR environment variables,
+\fI\%ncurses\fP examines the \fILINES\fP or \fI\%COLUMNS\fP environment
+variables,
 using a value in those to override the results
 from the operating system or terminal database.
 .IP
-\fBNcurses\fP also updates the screen size in response to \fBSIGWINCH\fP,
-unless overridden by the \fBLINES\fR or \fBCOLUMNS\fR environment variables,
+\fI\%curses\fP also updates the screen size in response to
+\fBSIGWINCH\fP,
+unless overridden by the \fILINES\fP or \fI\%COLUMNS\fP environment
+variables,
 .SS use_tioctl
-.PP
-The \fBuse_tioctl\fR routine, if used,
-should be called before \fBinitscr\fR or \fBnewterm\fR are called
+The \fBuse_tioctl\fP routine, if used,
+should be called before \fBinitscr\fP or \fBnewterm\fP are called
 (because those compute the screen size).
-After \fBuse_tioctl\fR is called with \fBTRUE\fR as an argument,
-\fBncurses\fP modifies the last step in its computation
+After \fBuse_tioctl\fP is called with \fBTRUE\fP as an argument,
+\fI\%ncurses\fP modifies the last step in its computation
 of screen size as follows:
 .bP
-checks if the \fBLINES\fR and \fBCOLUMNS\fR environment variables
+checks if the \fILINES\fP and \fI\%COLUMNS\fP environment variables
 are set to a number greater than zero.
 .bP
-for each, \fBncurses\fP updates the corresponding environment variable
+for each, \fI\%ncurses\fP updates the corresponding environment variable
 with the value that it has obtained via operating system call
 or from the terminal database.
 .bP
-\fBncurses\fP re-fetches the value of the environment variables so that
-it is still the environment variables which set the screen size.
+\fI\%ncurses\fP re-fetches the value of the environment variables so
+that it is still the environment variables which set the screen size.
 .PP
-The \fBuse_env\fP and \fBuse_tioctl\fP routines combine as
-summarized here:
+The \fB\%use_env\fP and \fB\%use_tioctl\fP routines combine as follows.
+.IP
 .TS
-center tab(/);
-l l l
-_ _ _
-lw7 lw7 lw40.
-\fIuse_env\fR/\fIuse_tioctl\fR/\fISummary\fR
-TRUE/FALSE/T{
+lB lB lB
+lB lB lx.
+use_env	use_tioctl	Summary
+_
+TRUE	FALSE	T{
 This is the default behavior.
-\fBncurses\fP uses operating system calls
-unless overridden by $LINES or $COLUMNS environment variables.
+\fI\%ncurses\fP uses operating system calls
+unless overridden by \fILINES\fP or \fI\%COLUMNS\fP environment
+variables;
+default.
 T}
-TRUE/TRUE/T{
-\fBncurses\fP updates $LINES and $COLUMNS based on operating system calls.
+TRUE	TRUE	T{
+\fI\%ncurses\fP updates \fILINES\fP and \fI\%COLUMNS\fP based on
+operating system calls.
 T}
-FALSE/TRUE/T{
-\fBncurses\fP ignores $LINES and $COLUMNS,
-uses operating system calls to obtain size.
-T}
-FALSE/FALSE/T{
-\fBncurses\fP relies on the terminal database to determine size.
+FALSE	TRUE	T{
+\fI\%ncurses\fP ignores \fILINES\fP and \fI\%COLUMNS\fP,
+using operating system calls to obtain size.
 T}
 .TE
-.SS putwin/getwin
-.PP
-The \fBputwin\fR routine writes all data associated
-with window (or pad) \fIwin\fR into
-the file to which \fIfilep\fR points.
+.SS "putwin, getwin"
+The \fBputwin\fP routine writes all data associated
+with window (or pad) \fIwin\fP into
+the file to which \fIfilep\fP points.
 This information can be later retrieved
-using the \fBgetwin\fR function.
+using the \fBgetwin\fP function.
 .PP
-The \fBgetwin\fR routine reads window related data stored in the file by
-\fBputwin\fR.
+The \fBgetwin\fP routine reads window related data stored in the file by
+\fBputwin\fP.
 The routine then creates and initializes a new window using that
 data.
 It returns a pointer to the new window.
 There are a few caveats:
 .bP
-the data written is a copy of the \fBWINDOW\fP structure,
+the data written is a copy of the \fI\%WINDOW\fP structure,
 and its associated character cells.
-The format differs between the wide-character (\fBncursesw\fP) and
-non-wide (\fBncurses\fP) libraries.
+The format differs between the wide-character (\fI\%ncursesw\fP) and
+non-wide (\fI\%ncurses\fP) libraries.
 You can transfer data between the two, however.
 .bP
 the retrieved window is always created as a top-level window (or pad),
@@ -249,29 +261,38 @@ If cells in the retrieved window use color pairs which have not been
 created in the application using \fBinit_pair\fP,
 they will not be colored when the window is refreshed.
 .SS delay_output
-.PP
-The \fBdelay_output\fR routine inserts an \fIms\fR millisecond pause
+The \fBdelay_output\fP routine inserts an \fIms\fP millisecond pause
 in output.
-This routine should not be used extensively because
-padding characters are used rather than a CPU pause.
-If no padding character is specified,
-this uses \fBnapms\fR to perform the delay.
-.SS flushinp
+Employ this function judiciously when terminal output uses padding,
+because \fI\%ncurses\fP transmits null characters
+(consuming CPU and I/O resources)
+instead of sleeping and requesting resumption from the operating system.
+Padding is used unless:
+.bP
+the terminal description has \fBnpc\fP (\fBno_pad_char\fP) capability, or
+.bP
+the environment variable \fB\%NCURSES_NO_PADDING\fP is set.
 .PP
-The \fBflushinp\fR routine throws away any typeahead that has been typed by the
+If padding is not in use,
+\fI\%ncurses\fP uses \fBnapms\fP to perform the delay.
+If the value of \fIms\fP exceeds 30,000
+(thirty seconds),
+it is capped at that value.
+.SS flushinp
+The \fBflushinp\fP routine throws away any typeahead that has been typed by the
 user and has not yet been read by the program.
 .SH RETURN VALUE
-Except for \fBflushinp\fR, routines that return an integer return \fBERR\fR
-upon failure and \fBOK\fR (SVr4 specifies only "an integer value other than
-\fBERR\fR") upon successful completion.
+Except for \fBflushinp\fP, routines that return an integer return \fBERR\fP
+upon failure and \fBOK\fP (SVr4 specifies only "an integer value other than
+\fBERR\fP") upon successful completion.
 .PP
-Routines that return pointers return \fBNULL\fR on error.
+Routines that return pointers return \fBNULL\fP on error.
 .PP
-X/Open does not define any error conditions.
+X/Open Curses does not specify any error conditions.
 In this implementation
 .RS 3
 .TP 5
-\fBflushinp\fR
+\fBflushinp\fP
 returns an error if the terminal was not initialized.
 .TP 5
 \fBputwin\fP
@@ -279,13 +300,22 @@ returns an error if the associated \fBfwrite\fP calls return an error.
 .RE
 .SH PORTABILITY
 .SS filter
-.PP
-The SVr4 documentation describes the action of \fBfilter\fR only in the vaguest
+The SVr4 documentation describes the action of \fBfilter\fP only in the vaguest
 terms.
-The description here is adapted from the XSI Curses standard (which
-erroneously fails to describe the disabling of \fBcuu\fR).
-.SS keyname
+The description here is adapted from X/Open Curses (which
+erroneously fails to describe the disabling of \fBcuu\fP).
+.SS "delay_output padding"
+The limitation to 30 seconds
+and the use of \fBnapms\fP
+differ from other implementations.
+.bP
+SVr4 curses does not delay if no padding character is available.
+.bP
+NetBSD curses uses \fBnapms\fP when no padding character is available,
+but does not take timing into account when using the padding character.
 .PP
+Neither limits the delay.
+.SS keyname
 The \fBkeyname\fP function may return the names of user-defined
 string capabilities which are defined in the terminfo entry via the \fB\-x\fP
 option of \fB@TIC@\fP.
@@ -296,14 +326,13 @@ the same value for different runs because user-defined codes are
 merged from all terminal descriptions which have been loaded.
 The \fBuse_extended_names\fP(3X) function controls whether this data is
 loaded when the terminal description is read by the library.
-.SS nofilter/use_tioctl
-.PP
-The \fBnofilter\fP and \fBuse_tioctl\fP routines are specific to \fBncurses\fP.
+.SS "nofilter, use_tioctl"
+The \fBnofilter\fP and \fBuse_tioctl\fP routines are specific to
+\fI\%ncurses\fP.
 They were not supported on Version 7, BSD or System V implementations.
-It is recommended that any code depending on \fBncurses\fP extensions
-be conditioned using NCURSES_VERSION.
-.SS putwin/getwin
-.PP
+It is recommended that any code depending on \fI\%ncurses\fP extensions
+be conditioned using \fBNCURSES_VERSION\fP.
+.SS "putwin/getwin file-format"
 The \fBputwin\fP and \fBgetwin\fP functions have several issues with
 portability:
 .bP
@@ -318,9 +347,10 @@ the University of California, Berkeley (in 1982)
 and were later (in 1988) incorporated into SVr4.
 Oddly, there are no such functions in the 4.3BSD curses sources.
 .bP
-Most implementations simply dump the binary \fBWINDOW\fP structure to the file.
+Most implementations simply dump the binary \fI\%WINDOW\fP structure
+to the file.
 These include SVr4 curses, NetBSD and PDCurses,
-as well as older \fBncurses\fP versions.
+as well as older \fI\%ncurses\fP versions.
 This implementation
 (as well as the X/Open variant of Solaris curses, dated 1995)
 uses textual dumps.
@@ -333,10 +363,9 @@ these functions.
 Doing that can run into problems mixing block- and buffered-I/O.
 This implementation reduces the problem on writes by flushing the output.
 However, reading from a file written using mixed schemes may not be successful.
-.SS unctrl/wunctrl
-.PP
-The XSI Curses standard, Issue 4 describes these functions.
-It states that \fBunctrl\fR and \fBwunctrl\fR will return a null pointer if
+.SS "unctrl, wunctrl"
+X/Open Curses, Issue 4 describes these functions.
+It states that \fBunctrl\fP and \fBwunctrl\fP will return a null pointer if
 unsuccessful, but does not define any error conditions.
 This implementation checks for three cases:
 .bP
@@ -358,7 +387,7 @@ and returns the \*(``~@\*('', etc., values in that case.
 parameter values outside the 0 to 255 range.
 \fBunctrl\fP returns a null pointer.
 .PP
-The strings returned by \fBunctrl\fR in this implementation are determined
+The strings returned by \fBunctrl\fP in this implementation are determined
 at compile time,
 showing C1 controls from the upper-128 codes
 with a \*(``~\*('' prefix rather than \*(``^\*(''.
@@ -384,24 +413,23 @@ When treating them as \*(``meta\*('' keys
 this implementation returns strings \*(``M\-^@\*('', \*(``M\-^A\*('', etc.
 .PP
 X/Open Curses documents \fBunctrl\fP as declared in \fB<unctrl.h>\fP,
-which \fBncurses\fP does.
-However, \fBncurses\fP' \fB<curses.h>\fP includes \fB<unctrl.h>\fP,
+which \fI\%ncurses\fP does.
+However, \fI\%ncurses\fP' \fB<curses.h>\fP includes \fB<unctrl.h>\fP,
 matching the behavior of SVr4 curses.
 Other implementations may not do that.
-.SS use_env/use_tioctl
-.PP
-If \fBncurses\fP is configured to provide the sp-functions extension,
+.SS "use_env, use_tioctl"
+If \fI\%ncurses\fP is configured to provide the sp-functions extension,
 the state of \fBuse_env\fP and \fBuse_tioctl\fP may be updated before
 creating each \fIscreen\fP rather than once only
-(\fBcurs_sp_funcs\fR(3X)).
+(\fBcurs_sp_funcs\fP(3X)).
 This feature of \fBuse_env\fP
-is not provided by other implementation of curses.
+is not provided by other implementations of curses.
 .SH SEE ALSO
-\fBcurses\fR(3X),
-\fBcurs_initscr\fR(3X),
-\fBcurs_inopts\fR(3X),
-\fBcurs_kernel\fR(3X),
-\fBcurs_scr_dump\fR(3X),
-\fBcurs_sp_funcs\fR(3X),
-\fBcurs_variables\fR(3X),
-\fBlegacy_coding\fR(3X).
+\fB\%curses\fP(3X),
+\fB\%curs_initscr\fP(3X),
+\fB\%curs_inopts\fP(3X),
+\fB\%curs_kernel\fP(3X),
+\fB\%curs_scr_dump\fP(3X),
+\fB\%curs_sp_funcs\fP(3X),
+\fB\%curs_variables\fP(3X),
+\fB\%legacy_coding\fP(3X)

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2018-2020,2022 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -49,7 +49,7 @@
 
 #include <tic.h>
 
-MODULE_ID("$Id: lib_newterm.c,v 1.103 2020/09/05 21:34:04 tom Exp $")
+MODULE_ID("$Id: lib_newterm.c,v 1.104 2022/07/09 18:58:58 tom Exp $")
 
 #ifdef USE_TERM_DRIVER
 #define NumLabels      InfoOf(SP_PARM).numlabels
@@ -362,11 +362,14 @@ NCURSES_EXPORT(SCREEN *)
 newterm(const char *name, FILE *ofp, FILE *ifp)
 {
     SCREEN *rc;
+
+    _nc_init_pthreads();
     _nc_lock_global(prescreen);
     START_TRACE();
     rc = NCURSES_SP_NAME(newterm) (CURRENT_SCREEN_PRE, name, ofp, ifp);
     _nc_forget_prescr();
     _nc_unlock_global(prescreen);
+
     return rc;
 }
 #endif

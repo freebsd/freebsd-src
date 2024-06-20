@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2019,2020 Thomas E. Dickey                                *
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
 .\" Copyright 1998-2010,2015 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,39 +27,40 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_pattern.3x,v 1.21 2020/10/18 00:41:14 tom Exp $
-.TH menu_pattern 3X ""
+.\" $Id: menu_pattern.3x,v 1.38 2024/03/16 15:35:01 tom Exp $
+.TH menu_pattern 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
 \fBset_menu_pattern\fP,
-\fBmenu_pattern\fR \- set and get a menu's pattern buffer
+\fBmenu_pattern\fP \-
+set and get a menu's pattern buffer
 .SH SYNOPSIS
-\fB#include <menu.h>\fR
-.sp
-\fBint set_menu_pattern(MENU *\fP\fImenu\fP\fB, const char *\fP\fIpattern\fP\fB);\fP
-.br
-\fBchar *menu_pattern(const MENU *\fP\fImenu\fP\fB);\fP
-.br
+.nf
+\fB#include <menu.h>
+.PP
+\fBint set_menu_pattern(MENU *\fImenu\fP, const char *\fIpattern\fP);
+\fBchar *menu_pattern(const MENU *\fImenu\fP);
+.fi
 .SH DESCRIPTION
 Every menu has an associated pattern match buffer.
 As input events that are
 printable characters come in, they are appended to this match buffer
-and tested for a match, as described in \fBmenu_driver\fR(3X).
+and tested for a match, as described in \fBmenu_driver\fP(3X).
 .PP
-The function \fBset_menu_pattern\fR sets the pattern buffer for the given menu
+The function \fBset_menu_pattern\fP sets the pattern buffer for the given menu
 and tries to find the first matching item.
 If it succeeds, that item becomes
 current; if not, the current item does not change.
 .PP
-The function \fBmenu_pattern\fR returns the pattern buffer of the given
-\fImenu\fR.
+The function \fBmenu_pattern\fP returns the pattern buffer of the given
+\fImenu\fP.
 .SH RETURN VALUE
-The function \fBmenu_pattern\fR returns a pointer,
-which is \fBNULL\fR if the \fImenu\fP parameter is \fBNULL\fP.
+The function \fBmenu_pattern\fP returns a pointer,
+which is \fBNULL\fP if the \fImenu\fP parameter is \fBNULL\fP.
 Otherwise, it is a pointer to a string which is empty
 if no pattern has been set.
 It does not set \fBerrno\fP.
 .PP
-The function \fBset_menu_pattern\fR may return the following error codes:
+The function \fBset_menu_pattern\fP may return the following error codes:
 .TP 5
 .B E_OK
 The routine succeeded.
@@ -77,12 +78,7 @@ No items are connected to menu.
 Character failed to match.
 .TP 5
 .B E_SYSTEM_ERROR
-System error occurred (see \fBerrno\fR(3)).
-.SH SEE ALSO
-\fBcurses\fR(3X), \fBmenu\fR(3X).
-.SH NOTES
-The header file \fB<menu.h>\fR automatically includes the header file
-\fB<curses.h>\fR.
+System error occurred (see \fBerrno\fP(3)).
 .SH PORTABILITY
 These routines emulate the System V menu library.
 They were not supported on
@@ -90,3 +86,6 @@ Version 7 or BSD versions.
 .SH AUTHORS
 Juergen Pfeifer.
 Manual pages and adaptation for new curses by Eric S. Raymond.
+.SH SEE ALSO
+\fB\%curses\fP(3X),
+\fB\%menu\fP(3X)

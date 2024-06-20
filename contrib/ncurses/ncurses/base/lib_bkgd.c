@@ -37,7 +37,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_bkgd.c,v 1.62 2021/02/13 20:06:54 tom Exp $")
+MODULE_ID("$Id: lib_bkgd.c,v 1.63 2021/05/08 14:58:12 tom Exp $")
 
 static const NCURSES_CH_T blank = NewChar(BLANK_TEXT);
 
@@ -64,7 +64,7 @@ wbkgrndset(WINDOW *win, const ARG_CH_T ch)
 	{
 	    int pair;
 
-	    if ((pair = GetPair(win->_nc_bkgd)) != 0)
+	    if (GetPair(win->_nc_bkgd) != 0)
 		SET_WINDOW_PAIR(win, 0);
 	    if ((pair = GetPair(CHDEREF(ch))) != 0)
 		SET_WINDOW_PAIR(win, pair);

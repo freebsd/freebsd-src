@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2020,2021 Thomas E. Dickey                                *
+ * Copyright 2018-2023,2024 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -85,7 +85,7 @@
 
 #include <ctype.h>
 
-MODULE_ID("$Id: tty_update.c,v 1.310 2021/02/06 14:24:38 tom Exp $")
+MODULE_ID("$Id: tty_update.c,v 1.316 2024/02/04 00:09:34 tom Exp $")
 
 /*
  * This define controls the line-breakout optimization.  Every once in a
@@ -256,6 +256,7 @@ PutAttrChar(NCURSES_SP_DCLx CARG_CH_T ch)
 	 *    not checked.
 	 */
 	if (is8bits(CharOf(CHDEREF(ch)))
+	    && (!is7bits(CharOf(CHDEREF(ch))) && _nc_unicode_locale())
 	    && (isprint(CharOf(CHDEREF(ch)))
 		|| (SP_PARM->_legacy_coding > 0 && CharOf(CHDEREF(ch)) >= 160)
 		|| (SP_PARM->_legacy_coding > 1 && CharOf(CHDEREF(ch)) >= 128)
@@ -473,7 +474,7 @@ wrap_cursor(NCURSES_SP_DCL0)
 	 * An aggressive way to handle this would be to emit CR/LF after the
 	 * char and then assume the wrap is done, you're on the first position
 	 * of the next line, and the terminal out of its weird state.  Here
-	 * it's safe to just tell the code that the cursor is in hyperspace and
+	 * it is safe to just tell the code that the cursor is in hyperspace and
 	 * let the next mvcur() call straighten things out.
 	 */
 	SP_PARM->_curscol = -1;
@@ -757,14 +758,20 @@ TINFO_DOUPDATE(NCURSES_SP_DCL0)
      * We do not allow applications to assign new values in the reentrant
      * model.
      */
+#if NCURSES_SP_FUNCS
+    if (SP_PARM == CURRENT_SCREEN) {
+#endif
 #define SyncScreens(internal,exported) \
 	if (internal == 0) internal = exported; \
 	if (internal != exported) exported = internal
 
-    SyncScreens(CurScreen(SP_PARM), curscr);
-    SyncScreens(NewScreen(SP_PARM), newscr);
-    SyncScreens(StdScreen(SP_PARM), stdscr);
+	SyncScreens(CurScreen(SP_PARM), curscr);
+	SyncScreens(NewScreen(SP_PARM), newscr);
+	SyncScreens(StdScreen(SP_PARM), stdscr);
+#if NCURSES_SP_FUNCS
+    }
 #endif
+#endif /* !USE_REENTRANT */
 
     if (CurScreen(SP_PARM) == 0
 	|| NewScreen(SP_PARM) == 0
@@ -823,7 +830,7 @@ TINFO_DOUPDATE(NCURSES_SP_DCL0)
     /*
      * This is the support for magic-cookie terminals.  The theory:  we scan
      * the virtual screen looking for attribute turnons.  Where we find one,
-     * check to make sure it's realizable by seeing if the required number of
+     * check to make sure it is realizable by seeing if the required number of
      * un-attributed blanks are present before and after the attributed range;
      * try to shift the range boundaries over blanks (not changing the screen
      * display) so this becomes true.  If it is, shift the beginning attribute
@@ -885,7 +892,7 @@ TINFO_DOUPDATE(NCURSES_SP_DCL0)
 		    bool end_onscreen = FALSE;
 		    int m, n = j;
 
-		    /* find end of span, if it's onscreen */
+		    /* find end of span, if it is onscreen */
 		    for (m = i; m < screen_lines(SP_PARM); m++) {
 			for (; n < screen_columns(SP_PARM); n++) {
 			    attr_t testattr =
@@ -998,7 +1005,7 @@ TINFO_DOUPDATE(NCURSES_SP_DCL0)
 	if (check_pending(NCURSES_SP_ARG))
 	    goto cleanup;
 
-	nonempty = min(screen_lines(SP_PARM), NewScreen(SP_PARM)->_maxy + 1);
+	nonempty = Min(screen_lines(SP_PARM), NewScreen(SP_PARM)->_maxy + 1);
 
 	if (SP_PARM->_scrolling) {
 	    NCURSES_SP_NAME(_nc_scroll_optimize) (NCURSES_SP_ARG);
@@ -1128,7 +1135,7 @@ ClrUpdate(NCURSES_SP_DCL0)
     if (0 != SP_PARM) {
 	int i;
 	NCURSES_CH_T blank = ClrBlank(NCURSES_SP_ARGx StdScreen(SP_PARM));
-	int nonempty = min(screen_lines(SP_PARM),
+	int nonempty = Min(screen_lines(SP_PARM),
 			   NewScreen(SP_PARM)->_maxy + 1);
 
 	ClearScreen(NCURSES_SP_ARGx blank);
@@ -1227,7 +1234,7 @@ static int
 ClrBottom(NCURSES_SP_DCLx int total)
 {
     int top = total;
-    int last = min(screen_columns(SP_PARM), NewScreen(SP_PARM)->_maxx + 1);
+    int last = Min(screen_columns(SP_PARM), NewScreen(SP_PARM)->_maxx + 1);
     NCURSES_CH_T blank = NewScreen(SP_PARM)->_line[total - 1].text[last - 1];
 
     if (clr_eos && can_clear_with(NCURSES_SP_ARGx CHREF(blank))) {
@@ -1287,7 +1294,7 @@ ClrBottom(NCURSES_SP_DCLx int total)
 **		nLastChar = position of last different character in new line
 **
 **		move to firstChar
-**		overwrite chars up to min(oLastChar, nLastChar)
+**		overwrite chars up to Min(oLastChar, nLastChar)
 **		if oLastChar < nLastChar
 **			insert newLine[oLastChar+1..nLastChar]
 **		else
@@ -1325,8 +1332,8 @@ TransformLine(NCURSES_SP_DCLx int const lineno)
 		newPair = GetPair(newLine[n]);
 		if (oldPair != newPair
 		    && unColor(oldLine[n]) == unColor(newLine[n])) {
-		    if (oldPair < SP_PARM->_pair_limit
-			&& newPair < SP_PARM->_pair_limit
+		    if (oldPair < SP_PARM->_pair_alloc
+			&& newPair < SP_PARM->_pair_alloc
 			&& (isSamePair(SP_PARM->_color_pairs[oldPair],
 				       SP_PARM->_color_pairs[newPair]))) {
 			SetPair(oldLine[n], GetPair(newLine[n]));
@@ -1525,7 +1532,7 @@ TransformLine(NCURSES_SP_DCLx int const lineno)
 		}
 		ClrToEOL(NCURSES_SP_ARGx blank, FALSE);
 	    } else {
-		n = max(nLastChar, oLastChar);
+		n = Max(nLastChar, oLastChar);
 		PutRange(NCURSES_SP_ARGx
 			 oldLine,
 			 newLine,
@@ -1550,7 +1557,7 @@ TransformLine(NCURSES_SP_DCLx int const lineno)
 		    break;
 	    }
 
-	    n = min(oLastChar, nLastChar);
+	    n = Min(oLastChar, nLastChar);
 	    if (n >= firstChar) {
 		GoTo(NCURSES_SP_ARGx lineno, firstChar);
 		PutRange(NCURSES_SP_ARGx
@@ -1562,7 +1569,7 @@ TransformLine(NCURSES_SP_DCLx int const lineno)
 	    }
 
 	    if (oLastChar < nLastChar) {
-		int m = max(nLastNonblank, oLastNonblank);
+		int m = Max(nLastNonblank, oLastNonblank);
 #if USE_WIDEC_SUPPORT
 		if (n) {
 		    while (isWidecExt(newLine[n + 1]) && n) {

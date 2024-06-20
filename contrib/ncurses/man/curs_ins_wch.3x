@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2019,2020 Thomas E. Dickey                                     *
+.\" Copyright 2019-2023,2024 Thomas E. Dickey                                *
 .\" Copyright 2002-2010,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,42 +27,89 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_ins_wch.3x,v 1.10 2020/10/18 00:22:21 tom Exp $
-.TH curs_ins_wch 3X ""
-.ie \n(.g .ds `` \(lq
-.el       .ds `` ``
-.ie \n(.g .ds '' \(rq
-.el       .ds '' ''
+.\" $Id: curs_ins_wch.3x,v 1.30 2024/04/20 19:18:18 tom Exp $
+.TH curs_ins_wch 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
 .SH NAME
-\fBins_wch\fR,
-\fBmvins_wch\fR,
-\fBmvwins_wch\fR,
-\fBwins_wch\fR \- insert a complex character and rendition into a window
+\fB\%ins_wch\fP,
+\fB\%mvins_wch\fP,
+\fB\%mvwins_wch\fP,
+\fB\%wins_wch\fP \-
+insert a \fIcurses\fR complex character in a window
 .SH SYNOPSIS
-#include <curses.h>
-.sp
-\fBint ins_wch(const cchar_t *\fR\fIwch\fR\fB);\fR
-.br
-\fBint wins_wch(WINDOW *\fR\fIwin\fP\fB, const cchar_t *\fR\fIwch\fR\fB);\fR
-.sp
-\fBint mvins_wch(int \fR\fIy\fP\fB, int \fR\fIx\fP\fB, const cchar_t *\fR\fIwch\fR\fB);\fR
-.br
-\fBint mvwins_wch(WINDOW *\fR\fIwin\fP\fB, int \fR\fIy\fP\fB, int \fR\fIx\fP\fB, const cchar_t *\fR\fIwch\fR\fB);\fR
-.SH DESCRIPTION
-These routines, insert the complex character \fIwch\fR with rendition
-before the character under the cursor.
-All characters to the right of the cursor are moved one space to the right,
-with the possibility of the rightmost character on the line being lost.
-The insertion operation does not change the cursor position.
-.SH RETURN VALUE
-If successful, these functions return \fBOK\fP.
-If not, they return \fBERR\fP.
+.nf
+\fB#include <curses.h>\fP
 .PP
-Functions with a \*(``mv\*('' prefix first perform a cursor movement using
-\fBwmove\fP, and return an error if the position is outside the window,
-or if the window pointer is null.
-.SH ERRORS
-No errors are defined.
-.SH SEE ALSO
-\fBcurses\fR(3X),
-\fBcurs_insch\fR(3X).
+\fBint ins_wch(const cchar_t *\fIwch\fP);
+\fBint wins_wch(WINDOW *\fIwin\fP, const cchar_t *\fIwch\fP);
+\fBint mvins_wch(int \fIy\fP, int \fIx\fP, const cchar_t *\fIwch\fP);
+\fBint mvwins_wch(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, const cchar_t *\fIwch\fP);
+.fi
+.SH DESCRIPTION
+These functions insert the
+.I curses
+complex character
+.I wch
+at the cursor in the specified window
+.I win
+(or
+.BR \%stdscr ).
+The character previously at the cursor and any to its right move one
+cell to the right;
+the rightmost character on the line is discarded.
+The cursor does not advance.
+.SH "RETURN VALUE"
+These functions return \fBOK\fP on success and \fBERR\fP on failure.
+.PP
+Functions taking a
+.I \%WINDOW
+pointer argument fail if the pointer is
+.BR NULL .
+.PP
+Functions prefixed with \*(``mv\*('' first perform cursor movement and
+fail if the position
+.RI ( y ,
+.IR x )
+is outside the window boundaries.
+.SH NOTES
+A terminal's
+.B \%insert_character
+.RB ( ich1 )
+capability
+is not necessarily employed.
+.PP
+\fB\%ins_wch\fP,
+\fB\%mvins_wch\fP,
+and
+\fB\%mvwins_wch\fP
+may be implemented as macros.
+.SH PORTABILITY
+X/Open Curses,
+Issue 4 describes these functions.
+.PP
+SVr4 describes successful return values only as
+\*(``an integer value other than \fBERR\fP\*(''.
+.SH HISTORY
+SVr4 (1989) implemented these functions under the names
+.BR inswch ,
+.BR winswch ,
+.BR mvinswch ,
+and
+.BR mvwinswch .
+.SH "SEE ALSO"
+\fB\%curs_insch\fP(3X) describes comparable functions in the
+non-wide-character
+.I curses
+configuration.
+.PP
+\fB\%curses\fP(3X),
+\fB\%terminfo\fP(5)

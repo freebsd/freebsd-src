@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2022 Thomas E. Dickey                                     *
  * Copyright 1998-2009,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -41,7 +41,7 @@
  */
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_slkinit.c,v 1.15 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_slkinit.c,v 1.16 2022/07/09 18:58:58 tom Exp $")
 
 #ifdef USE_SP_RIPOFF
 #define SoftkeyFormat SP_PARM->slk_format
@@ -77,10 +77,13 @@ NCURSES_EXPORT(int)
 slk_init(int format)
 {
     int rc;
+
+    _nc_init_pthreads();
     _nc_lock_global(prescreen);
     START_TRACE();
     rc = NCURSES_SP_NAME(slk_init) (CURRENT_SCREEN_PRE, format);
     _nc_unlock_global(prescreen);
+
     return rc;
 }
 #endif

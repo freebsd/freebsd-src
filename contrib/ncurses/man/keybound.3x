@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018,2020 Thomas E. Dickey                                     *
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
 .\" Copyright 1999-2008,2010 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -29,33 +29,37 @@
 .\"
 .\" Author: Thomas E. Dickey 1999
 .\"
-.\" $Id: keybound.3x,v 1.11 2020/10/17 23:39:30 tom Exp $
-.TH keybound 3X ""
+.\" $Id: keybound.3x,v 1.36 2024/03/16 15:35:01 tom Exp $
+.TH keybound 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
-\fBkeybound\fP \- return definition of keycode
+\fB\%keybound\fP \-
+get definition of \fIcurses\fR keycode
 .SH SYNOPSIS
-\fB#include <curses.h>\fP
-.sp
-\fBchar * keybound(int \fP\fIkeycode\fP\fB, int \fP\fIcount);\fP
+.nf
+\fB#include <curses.h>
+.PP
+\fBchar * keybound(int \fIkeycode\fP, int \fIcount\fP);
+.fi
 .SH DESCRIPTION
-This is an extension to the curses library.
+This is an extension to the \fIcurses\fP library.
 It permits an application to determine the string which is defined
 in the terminfo for specific keycodes.
 .SH RETURN VALUE
-The \fIkeycode\fP parameter must be greater than zero, else NULL is returned.
-If it does not correspond to a defined key, then NULL is returned.
+The \fIkeycode\fP parameter must be greater than zero,
+else \fBNULL\fP is returned.
+If it does not correspond to a defined key, then \fBNULL\fP is returned.
 The \fIcount\fP parameter is used to allow the application to iterate
 through multiple definitions, counting from zero.
 When successful,
 the function returns a string which must be freed by the caller.
 .SH PORTABILITY
-These routines are specific to ncurses.
-They were not supported on
+This routine is specific to \fI\%ncurses\fP.
+It was not supported on
 Version 7, BSD or System V implementations.
 It is recommended that
-any code depending on them be conditioned using NCURSES_VERSION.
+any code depending on them be conditioned using \fB\%NCURSES_VERSION\fP.
+.SH AUTHORS
+Thomas Dickey
 .SH SEE ALSO
-\fBdefine_key\fR(3X),
-\fBkeyok\fR(3X).
-.SH AUTHOR
-Thomas Dickey.
+\fB\%define_key\fP(3X),
+\fB\%keyok\fP(3X)

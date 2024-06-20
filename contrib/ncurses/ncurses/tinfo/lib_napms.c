@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2023 Thomas E. Dickey                                     *
  * Copyright 1998-2014,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -52,12 +52,15 @@
 #endif
 #endif
 
-MODULE_ID("$Id: lib_napms.c,v 1.27 2020/08/15 19:45:23 tom Exp $")
+MODULE_ID("$Id: lib_napms.c,v 1.28 2023/09/16 16:09:33 tom Exp $")
 
 NCURSES_EXPORT(int)
 NCURSES_SP_NAME(napms) (NCURSES_SP_DCLx int ms)
 {
     T((T_CALLED("napms(%d)"), ms));
+
+    if (ms > MAX_DELAY_MSECS)
+	ms = MAX_DELAY_MSECS;
 
 #ifdef USE_TERM_DRIVER
     CallDriver_1(SP_PARM, td_nap, ms);

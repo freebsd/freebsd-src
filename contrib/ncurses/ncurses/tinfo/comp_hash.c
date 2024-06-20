@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2020,2023 Thomas E. Dickey                                *
  * Copyright 1998-2008,2009 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -45,13 +45,12 @@
 #include <tic.h>
 #include <hashsize.h>
 
-MODULE_ID("$Id: comp_hash.c,v 1.53 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: comp_hash.c,v 1.55 2023/06/24 13:29:43 tom Exp $")
 
 /*
  * Finds the entry for the given string in the hash table if present.
  * Returns a pointer to the entry in the table or 0 if not found.
  */
-/* entrypoint used by tack 1.07 */
 NCURSES_EXPORT(struct name_table_entry const *)
 _nc_find_entry(const char *string,
 	       const HashValue * hash_table)
@@ -104,14 +103,16 @@ _nc_find_type_entry(const char *string,
 	&& data->table_data[hashvalue] >= 0) {
 	const struct name_table_entry *const table = _nc_get_table(termcap);
 
-	ptr = table + data->table_data[hashvalue];
-	while (ptr->nte_type != type
-	       || !data->compare_names(ptr->nte_name, string)) {
-	    if (ptr->nte_link < 0) {
-		ptr = 0;
-		break;
+	if (table != NULL) {
+	    ptr = table + data->table_data[hashvalue];
+	    while (ptr->nte_type != type
+		   || !data->compare_names(ptr->nte_name, string)) {
+		if (ptr->nte_link < 0) {
+		    ptr = 0;
+		    break;
+		}
+		ptr = table + (ptr->nte_link + data->table_data[data->table_size]);
 	    }
-	    ptr = table + (ptr->nte_link + data->table_data[data->table_size]);
 	}
     }
 

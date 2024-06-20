@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2018-2021,2024 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -31,7 +31,7 @@
  *   Author:  Juergen Pfeifer, 1995,1997                                    *
  ****************************************************************************/
 
-/* $Id: form.priv.h,v 0.47 2020/12/11 23:20:11 tom Exp $ */
+/* $Id: form.priv.h,v 0.49 2024/02/24 12:17:31 tom Exp $ */
 
 #ifndef FORM_PRIV_H
 #define FORM_PRIV_H 1
@@ -45,10 +45,6 @@
 #if USE_WIDEC_SUPPORT
 #if HAVE_WCTYPE_H
 #include <wctype.h>
-#endif
-
-#ifndef MB_LEN_MAX
-#define MB_LEN_MAX 8 /* should be >= MB_CUR_MAX, but that may be a function */
 #endif
 
 #define FIELD_CELL NCURSES_CH_T
@@ -202,12 +198,12 @@ extern FORM_EXPORT(FIELDTYPE *) _nc_TYPE_REGEXP(void);
 extern FORM_EXPORT(FIELDTYPE *) _nc_TYPE_IPV4(void);
 
 extern FORM_EXPORT(FIELDTYPE *)
-_nc_generic_fieldtype(bool (*const field_check) (FORM*, 
-						 FIELD *, 
+_nc_generic_fieldtype(bool (*const field_check) (FORM*,
+						 FIELD *,
 						 const void *),
-		      bool (*const char_check)  (int, 
-						 FORM*, 
-						 FIELD*, 
+		      bool (*const char_check)  (int,
+						 FORM*,
+						 FIELD*,
 						 const void *),
 		      bool (*const next)(FORM*,FIELD*,const void*),
 		      bool (*const prev)(FORM*,FIELD*,const void*),

@@ -1,6 +1,5 @@
-'\" t
 .\"***************************************************************************
-.\" Copyright 2018,2020 Thomas E. Dickey                                     *
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
 .\" Copyright 1998,2010 Free Software Foundation, Inc.                       *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,24 +27,21 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: mitem_visible.3x,v 1.10 2020/10/17 23:53:55 tom Exp $
-.TH mitem_visible 3X ""
+.\" $Id: mitem_visible.3x,v 1.27 2024/03/16 15:35:01 tom Exp $
+.TH mitem_visible 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
-\fBmitem_visible\fR \- check visibility of a menu item
+\fBitem_visible\fP \-
+check visibility of a menu item
 .SH SYNOPSIS
-\fB#include <menu.h>\fR
-.sp
-\fBbool item_visible(const ITEM *\fP\fIitem\fP\fB);\fP
-.br
+.nf
+\fB#include <menu.h>
+.PP
+\fBbool item_visible(const ITEM *\fIitem\fP);
+.fi
 .SH DESCRIPTION
 A menu item is visible when it is in the portion of a posted menu that
 is mapped onto the screen (if the menu is scrollable, in particular, this
 portion will be smaller than the whole menu).
-.SH SEE ALSO
-\fBcurses\fR(3X), \fBmenu\fR(3X).
-.SH NOTES
-The header file \fB<menu.h>\fR automatically includes the header file
-\fB<curses.h>\fR.
 .SH PORTABILITY
 These routines emulate the System V menu library.
 They were not supported on
@@ -53,3 +49,6 @@ Version 7 or BSD versions.
 .SH AUTHORS
 Juergen Pfeifer.
 Manual pages and adaptation for new curses by Eric S. Raymond.
+.SH SEE ALSO
+\fB\%curses\fP(3X),
+\fB\%menu\fP(3X)

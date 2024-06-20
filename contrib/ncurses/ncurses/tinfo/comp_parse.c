@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2018-2023,2024 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -48,7 +48,7 @@
 
 #include <tic.h>
 
-MODULE_ID("$Id: comp_parse.c,v 1.110 2020/02/29 15:46:00 anonymous.maarten Exp $")
+MODULE_ID("$Id: comp_parse.c,v 1.134 2024/02/10 15:52:11 tom Exp $")
 
 static void sanity_check2(TERMTYPE2 *, bool);
 NCURSES_IMPEXP void (NCURSES_API *_nc_check_termtype2) (TERMTYPE2 *, bool) = sanity_check2;
@@ -59,8 +59,11 @@ static void
 enqueue(ENTRY * ep)
 /* add an entry to the in-core list */
 {
-    ENTRY *newp = _nc_copy_entry(ep);
+    ENTRY *newp;
 
+    DEBUG(2, (T_CALLED("enqueue(ep=%p)"), (void *) ep));
+
+    newp = _nc_copy_entry(ep);
     if (newp == 0)
 	_nc_err_abort(MSG_NO_MEMORY);
 
@@ -70,6 +73,7 @@ enqueue(ENTRY * ep)
     newp->next = 0;
     if (newp->last)
 	newp->last->next = newp;
+    DEBUG(2, (T_RETURN("")));
 }
 
 #define NAMEBUFFER_SIZE (MAX_NAME_SIZE + 2)
@@ -217,6 +221,12 @@ _nc_read_entry_source(FILE *fp, char *buf,
     bool oldsuppress = _nc_suppress_warnings;
     int immediate = 0;
 
+    DEBUG(2,
+	  (T_CALLED("_nc_read_entry_source("
+		    "file=%p, buf=%p, literal=%d, silent=%d, hook=%#"
+		    PRIxPTR ")"),
+	   (void *) fp, buf, literal, silent, CASTxPTR(hook)));
+
     if (silent)
 	_nc_suppress_warnings = TRUE;	/* shut the lexer up, too */
 
@@ -244,29 +254,33 @@ _nc_read_entry_source(FILE *fp, char *buf,
 	    FreeIfNeeded(thisentry.tterm.Booleans);
 	    FreeIfNeeded(thisentry.tterm.Numbers);
 	    FreeIfNeeded(thisentry.tterm.Strings);
+	    FreeIfNeeded(thisentry.tterm.str_table);
 #if NCURSES_XNAMES
 	    FreeIfNeeded(thisentry.tterm.ext_Names);
+	    FreeIfNeeded(thisentry.tterm.ext_str_table);
 #endif
 	}
     }
 
     if (_nc_tail) {
 	/* set up the head pointer */
-	for (_nc_head = _nc_tail; _nc_head->last; _nc_head = _nc_head->last)
-	    continue;
+	for (_nc_head = _nc_tail; _nc_head->last; _nc_head = _nc_head->last) {
+	    /* EMPTY */ ;
+	}
 
-	DEBUG(1, ("head = %s", _nc_head->tterm.term_names));
-	DEBUG(1, ("tail = %s", _nc_tail->tterm.term_names));
+	DEBUG(2, ("head = %s", _nc_head->tterm.term_names));
+	DEBUG(2, ("tail = %s", _nc_tail->tterm.term_names));
     }
 #ifdef TRACE
     else if (!immediate)
-	DEBUG(1, ("no entries parsed"));
+	DEBUG(2, ("no entries parsed"));
 #endif
 
     _nc_suppress_warnings = oldsuppress;
+    DEBUG(2, (T_RETURN("")));
 }
 
-#if NCURSES_XNAMES
+#if 0 && NCURSES_XNAMES
 static unsigned
 find_capname(TERMTYPE2 *p, const char *name)
 {
@@ -298,7 +312,9 @@ extended_captype(TERMTYPE2 *p, unsigned which)
 	} else {
 	    limit += p->ext_Strings;
 	    if (limit != 0 && which < limit) {
-		result = STRING;
+		result = ((p->Strings[STRCOUNT + which] != CANCELLED_STRING)
+			  ? STRING
+			  : CANCEL);
 	    } else if (which >= limit) {
 		result = CANCEL;
 	    }
@@ -354,24 +370,19 @@ invalid_merge(TERMTYPE2 *to, TERMTYPE2 *from)
 		&& tf <= STRING
 		&& (tt == STRING) != (tf == STRING)) {
 		if (from_name != 0 && strcmp(to_name, from_name)) {
-		    DEBUG(2,
-			  ("merge of %s to %s changes type of %s from %s to %s",
-			   from_name,
-			   to_name,
-			   from->ext_Names[n],
-			   name_of_captype(tf),
-			   name_of_captype(tt)));
+		    _nc_warning("merge of %s to %s changes type of %s from %s to %s",
+				from_name,
+				to_name,
+				from->ext_Names[n],
+				name_of_captype(tf),
+				name_of_captype(tt));
 		} else {
-		    DEBUG(2, ("merge of %s changes type of %s from %s to %s",
-			      to_name,
-			      from->ext_Names[n],
-			      name_of_captype(tf),
-			      name_of_captype(tt)));
+		    _nc_warning("merge of %s changes type of %s from %s to %s",
+				to_name,
+				from->ext_Names[n],
+				name_of_captype(tf),
+				name_of_captype(tt));
 		}
-		_nc_warning("merge changes type of %s from %s to %s",
-			    from->ext_Names[n],
-			    name_of_captype(tf),
-			    name_of_captype(tt));
 		rc = TRUE;
 	    }
 	}
@@ -392,10 +403,10 @@ _nc_resolve_uses2(bool fullresolve, bool literal)
 {
     ENTRY *qp, *rp, *lastread = 0;
     bool keepgoing;
-    unsigned i;
-    int unresolved, total_unresolved, multiples;
+    unsigned i, j;
+    int total_unresolved, multiples;
 
-    DEBUG(2, ("RESOLUTION BEGINNING"));
+    DEBUG(2, (T_CALLED("_nc_resolve_uses2")));
 
     /*
      * Check for multiple occurrences of the same name.
@@ -404,7 +415,7 @@ _nc_resolve_uses2(bool fullresolve, bool literal)
     for_entry_list(qp) {
 	int matchcount = 0;
 
-	for_entry_list(rp) {
+	for_entry_list2(rp, qp->next) {
 	    if (qp > rp
 		&& check_collisions(qp->tterm.term_names,
 				    rp->tterm.term_names,
@@ -420,8 +431,10 @@ _nc_resolve_uses2(bool fullresolve, bool literal)
 	    }
 	}
     }
-    if (multiples > 0)
+    if (multiples > 0) {
+	DEBUG(2, (T_RETURN("false")));
 	return (FALSE);
+    }
 
     DEBUG(2, ("NO MULTIPLE NAME OCCURRENCES"));
 
@@ -431,7 +444,6 @@ _nc_resolve_uses2(bool fullresolve, bool literal)
     total_unresolved = 0;
     _nc_curr_col = -1;
     for_entry_list(qp) {
-	unresolved = 0;
 	for (i = 0; i < qp->nuses; i++) {
 	    bool foundit;
 	    char *child = _nc_first_name(qp->tterm.term_names);
@@ -449,11 +461,21 @@ _nc_resolve_uses2(bool fullresolve, bool literal)
 	    for_entry_list(rp) {
 		if (rp != qp
 		    && _nc_name_match(rp->tterm.term_names, lookfor, "|")) {
-		    DEBUG(2, ("%s: resolving use=%s (in core)",
-			      child, lookfor));
+		    DEBUG(2, ("%s: resolving use=%s %p (in core)",
+			      child, lookfor, lookfor));
 
 		    qp->uses[i].link = rp;
 		    foundit = TRUE;
+
+		    /* verify that there are no earlier uses */
+		    for (j = 0; j < i; ++j) {
+			if (qp->uses[j].link != NULL
+			    && !strcmp(qp->uses[j].link->tterm.term_names,
+				       rp->tterm.term_names)) {
+			    _nc_warning("duplicate use=%s", lookfor);
+			    break;
+			}
+		    }
 		}
 	    }
 
@@ -475,12 +497,21 @@ _nc_resolve_uses2(bool fullresolve, bool literal)
 
 		    qp->uses[i].link = rp;
 		    foundit = TRUE;
+
+		    /* verify that there are no earlier uses */
+		    for (j = 0; j < i; ++j) {
+			if (qp->uses[j].link != NULL
+			    && !strcmp(qp->uses[j].link->tterm.term_names,
+				       rp->tterm.term_names)) {
+			    _nc_warning("duplicate use=%s", lookfor);
+			    break;
+			}
+		    }
 		}
 	    }
 
 	    /* no good, mark this one unresolvable and complain */
 	    if (!foundit) {
-		unresolved++;
 		total_unresolved++;
 
 		_nc_curr_line = (int) lookline;
@@ -492,6 +523,7 @@ _nc_resolve_uses2(bool fullresolve, bool literal)
     if (total_unresolved) {
 	/* free entries read in off disk */
 	_nc_free_entries(lastread);
+	DEBUG(2, (T_RETURN("false")));
 	return (FALSE);
     }
 
@@ -510,20 +542,22 @@ _nc_resolve_uses2(bool fullresolve, bool literal)
 
 	    for_entry_list(qp) {
 		if (qp->nuses > 0) {
-		    DEBUG(2, ("%s: attempting merge",
-			      _nc_first_name(qp->tterm.term_names)));
+		    DEBUG(2, ("%s: attempting merge of %d entries",
+			      _nc_first_name(qp->tterm.term_names),
+			      qp->nuses));
 		    /*
 		     * If any of the use entries we're looking for is
 		     * incomplete, punt.  We'll catch this entry on a
 		     * subsequent pass.
 		     */
-		    for (i = 0; i < qp->nuses; i++)
+		    for (i = 0; i < qp->nuses; i++) {
 			if (qp->uses[i].link
 			    && qp->uses[i].link->nuses) {
 			    DEBUG(2, ("%s: use entry %d unresolved",
 				      _nc_first_name(qp->tterm.term_names), i));
 			    goto incomplete;
 			}
+		    }
 
 		    /*
 		     * First, make sure there is no garbage in the
@@ -538,10 +572,10 @@ _nc_resolve_uses2(bool fullresolve, bool literal)
 		     * (reverse) order.
 		     */
 		    for (; qp->nuses; qp->nuses--) {
-			validate_merge(&merged,
-				       qp->uses[qp->nuses - 1].link);
-			_nc_merge_entry(&merged,
-					qp->uses[qp->nuses - 1].link);
+			int n = (int) (qp->nuses - 1);
+			validate_merge(&merged, qp->uses[n].link);
+			_nc_merge_entry(&merged, qp->uses[n].link);
+			free(qp->uses[n].name);
 		    }
 
 		    /*
@@ -556,8 +590,10 @@ _nc_resolve_uses2(bool fullresolve, bool literal)
 		    FreeIfNeeded(qp->tterm.Booleans);
 		    FreeIfNeeded(qp->tterm.Numbers);
 		    FreeIfNeeded(qp->tterm.Strings);
+		    FreeIfNeeded(qp->tterm.str_table);
 #if NCURSES_XNAMES
 		    FreeIfNeeded(qp->tterm.ext_Names);
+		    FreeIfNeeded(qp->tterm.ext_str_table);
 #endif
 		    qp->tterm = merged.tterm;
 		    _nc_wrap_entry(qp, TRUE);
@@ -576,13 +612,6 @@ _nc_resolve_uses2(bool fullresolve, bool literal)
 
 	DEBUG(2, ("MERGES COMPLETED OK"));
     }
-
-    /*
-     * We'd like to free entries read in off disk at this point, but can't.
-     * The merge_entry() code doesn't copy the strings in the use entries,
-     * it just aliases them.  If this ever changes, do a
-     * free_entries(lastread) here.
-     */
 
     DEBUG(2, ("RESOLUTION FINISHED"));
 
@@ -614,6 +643,14 @@ _nc_resolve_uses2(bool fullresolve, bool literal)
 
 		_nc_check_termtype2(&qp->tterm, literal);
 
+		/*
+		 * Checking calls tparm, which can allocate memory.  Fix leaks.
+		 */
+#define TPS(name) fake_tm.tparm_state.name
+		FreeAndNull(TPS(out_buff));
+		FreeAndNull(TPS(fmt_buff));
+#undef TPS
+
 		_nc_set_screen(save_SP);
 		set_curterm(save_tm);
 	    } else {
@@ -623,6 +660,7 @@ _nc_resolve_uses2(bool fullresolve, bool literal)
 	DEBUG(2, ("SANITY CHECK FINISHED"));
     }
 
+    DEBUG(2, (T_RETURN("true")));
     return (TRUE);
 }
 
@@ -709,7 +747,7 @@ sanity_check2(TERMTYPE2 *tp, bool literal)
 NCURSES_EXPORT(void)
 _nc_leaks_tic(void)
 {
-    T((T_CALLED("_nc_free_tic()")));
+    T((T_CALLED("_nc_leaks_tic()")));
     _nc_globals.leak_checking = TRUE;
     _nc_alloc_entry_leaks();
     _nc_captoinfo_leaks();
@@ -719,11 +757,13 @@ _nc_leaks_tic(void)
     _nc_codes_leaks();
 #endif
     _nc_tic_expand(0, FALSE, 0);
+    T((T_RETURN("")));
 }
 
 NCURSES_EXPORT(void)
 _nc_free_tic(int code)
 {
+    T((T_CALLED("_nc_free_tic(%d)"), code));
     _nc_leaks_tic();
     exit_terminfo(code);
 }

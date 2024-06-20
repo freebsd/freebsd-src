@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2018-2022,2024 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -43,7 +43,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_data.c,v 1.81 2020/06/13 22:01:14 tom Exp $")
+MODULE_ID("$Id: lib_data.c,v 1.89 2024/02/24 18:11:38 tom Exp $")
 
 /*
  * OS/2's native linker complains if we don't initialize public data when
@@ -148,6 +148,7 @@ NCURSES_EXPORT_VAR(NCURSES_GLOBALS) _nc_globals = {
     TGETENT_0s,			/* tgetent_cache */
     0,				/* tgetent_index */
     0,				/* tgetent_sequence */
+    0,				/* terminal_count */
 
     0,				/* dbd_blob */
     0,				/* dbd_list */
@@ -195,7 +196,6 @@ NCURSES_EXPORT_VAR(NCURSES_GLOBALS) _nc_globals = {
 #endif
 #ifdef TRACE
     FALSE,			/* trace_opened */
-    CHARS_0s,			/* trace_fname */
     0,				/* trace_level */
     NULL,			/* trace_fp */
     -1,				/* trace_fd */
@@ -251,7 +251,6 @@ NCURSES_EXPORT_VAR(NCURSES_PRESCREEN) _nc_prescreen = {
 	NULL,			/* fmt_buff */
 	0,			/* fmt_size */
 
-	NUM_VARS_0s,		/* dynamic_var */
 	NUM_VARS_0s,		/* static_vars */
 #ifdef TRACE
 	NULL,			/* tname */
@@ -363,25 +362,28 @@ _nc_mutex_init(pthread_mutex_t * obj)
 NCURSES_EXPORT(int)
 _nc_mutex_lock(pthread_mutex_t * obj)
 {
-    if (_nc_use_pthreads == 0)
-	return 0;
-    return pthread_mutex_lock(obj);
+    int rc = 0;
+    if (_nc_use_pthreads != 0)
+	rc = pthread_mutex_lock(obj);
+    return rc;
 }
 
 NCURSES_EXPORT(int)
 _nc_mutex_trylock(pthread_mutex_t * obj)
 {
-    if (_nc_use_pthreads == 0)
-	return 0;
-    return pthread_mutex_trylock(obj);
+    int rc = 0;
+    if (_nc_use_pthreads != 0)
+	rc = pthread_mutex_trylock(obj);
+    return rc;
 }
 
 NCURSES_EXPORT(int)
 _nc_mutex_unlock(pthread_mutex_t * obj)
 {
-    if (_nc_use_pthreads == 0)
-	return 0;
-    return pthread_mutex_unlock(obj);
+    int rc = 0;
+    if (_nc_use_pthreads != 0)
+	rc = pthread_mutex_unlock(obj);
+    return rc;
 }
 #endif /* USE_PTHREADS */
 

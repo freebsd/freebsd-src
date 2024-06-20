@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2018-2020,2021 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -34,7 +34,7 @@
  ****************************************************************************/
 
 /*
- * $Id: dump_entry.h,v 1.43 2020/11/14 18:16:57 tom Exp $
+ * $Id: dump_entry.h,v 1.44 2021/04/18 19:56:09 tom Exp $
  *
  * Dump control definitions and variables
  */
@@ -67,8 +67,11 @@
 #define CMP_STRING	2	/* comparison on strings */
 #define CMP_USE		3	/* comparison on use capabilities */
 
+#ifndef _TERMSORT_H
 typedef unsigned PredType;
 typedef unsigned PredIdx;
+#endif
+
 typedef int (*PredFunc) (PredType, PredIdx);
 typedef void (*PredHook) (PredType, PredIdx, const char *);
 

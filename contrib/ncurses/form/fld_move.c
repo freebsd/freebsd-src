@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2010,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -33,12 +33,12 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_move.c,v 1.15 2020/12/11 23:48:05 tom Exp $")
+MODULE_ID("$Id: fld_move.c,v 1.16 2021/06/17 21:20:30 tom Exp $")
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  int move_field(FIELD *field,int frow, int fcol)
-|   
+|
 |   Description   :  Moves the disconnected field to the new location in
 |                    the form's subwindow.
 |

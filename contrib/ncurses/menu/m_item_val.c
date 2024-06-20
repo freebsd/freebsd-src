@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2004,2010 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -38,17 +38,17 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_item_val.c,v 1.18 2020/12/12 00:38:08 tom Exp $")
+MODULE_ID("$Id: m_item_val.c,v 1.20 2021/06/17 21:11:08 tom Exp $")
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnmenu  
+|   Facility      :  libnmenu
 |   Function      :  int set_item_value(ITEM *item, int value)
-|   
+|
 |   Description   :  Programmatically set the item's selection value. This is
 |                    only allowed if the item is selectable at all and if
 |                    it is not connected to a single-valued menu.
 |                    If the item is connected to a posted menu, the menu
-|                    will be redisplayed.  
+|                    will be redisplayed.
 |
 |   Return Values :  E_OK              - success
 |                    E_REQUEST_DENIED  - not selectable or single valued menu
@@ -56,12 +56,10 @@ MODULE_ID("$Id: m_item_val.c,v 1.18 2020/12/12 00:38:08 tom Exp $")
 MENU_EXPORT(int)
 set_item_value(ITEM *item, bool value)
 {
-  MENU *menu;
-
   T((T_CALLED("set_item_value(%p,%d)"), (void *)item, value));
   if (item)
     {
-      menu = item->imenu;
+      MENU *menu = item->imenu;
 
       if ((!(item->opt & O_SELECTABLE)) ||
 	  (menu && (menu->opt & O_ONEVALUE)))
@@ -87,9 +85,9 @@ set_item_value(ITEM *item, bool value)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnmenu  
+|   Facility      :  libnmenu
 |   Function      :  bool item_value(const ITEM *item)
-|   
+|
 |   Description   :  Return the selection value of the item
 |
 |   Return Values :  TRUE   - if item is selected

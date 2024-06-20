@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2022,2023 Thomas E. Dickey                                *
  * Copyright 2006-2012,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -38,7 +38,7 @@
 
 #include <tic.h>
 
-MODULE_ID("$Id: entries.c,v 1.30 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: entries.c,v 1.35 2023/05/27 20:13:10 tom Exp $")
 
 /****************************************************************************
  *
@@ -64,8 +64,8 @@ MODULE_ID("$Id: entries.c,v 1.30 2020/02/02 23:34:34 tom Exp $")
 NCURSES_EXPORT_VAR(ENTRY *) _nc_head = 0;
 NCURSES_EXPORT_VAR(ENTRY *) _nc_tail = 0;
 
-ENTRY *
-_nc_delink_entry(ENTRY * headp, TERMTYPE2 *tterm)
+static ENTRY *
+_nc_delink_entry(ENTRY * headp, const TERMTYPE2 *const tterm)
 /* delink the allocated storage for the given list entry */
 {
     ENTRY *ep, *last;
@@ -119,12 +119,28 @@ _nc_leaks_tinfo(void)
     char *s;
 #endif
 
-    T((T_CALLED("_nc_free_tinfo()")));
+    T((T_CALLED("_nc_leaks_tinfo()")));
 #if NO_LEAKS
     _nc_globals.leak_checking = TRUE;
-    _nc_free_tparm();
+    _nc_free_tparm(cur_term);
     _nc_tgetent_leaks();
 
+#ifdef USE_PTHREADS
+    /*
+     * Discard any prescreen data which is not used for the current screen.
+     */
+    _nc_lock_global(screen);
+    {
+	PRESCREEN_LIST *p;
+	pthread_t id = GetThreadID();
+	for (p = _nc_prescreen.allocated; p != 0; p = p->next) {
+	    if (p->id == id && p->sp != CURRENT_SCREEN) {
+		FreeAndNull(p->sp);
+	    }
+	}
+    }
+    _nc_unlock_global(screen);
+#endif
     if (TerminalOf(CURRENT_SCREEN) != 0) {
 	del_curterm(TerminalOf(CURRENT_SCREEN));
     }
@@ -161,6 +177,7 @@ _nc_leaks_tinfo(void)
 NCURSES_EXPORT(void)
 _nc_free_tinfo(int code)
 {
+    T((T_CALLED("_nc_free_tinfo(%d)"), code));
     _nc_leaks_tinfo();
     exit(code);
 }
@@ -169,6 +186,7 @@ _nc_free_tinfo(int code)
 NCURSES_EXPORT(void)
 exit_terminfo(int code)
 {
+    T((T_CALLED("exit_terminfo(%d)"), code));
 #if NO_LEAKS
     _nc_leaks_tinfo();
 #endif

@@ -1,6 +1,6 @@
 #!/bin/sh
 ##############################################################################
-# Copyright 2019,2020 Thomas E. Dickey                                       #
+# Copyright 2019-2021,2022 Thomas E. Dickey                                  #
 # Copyright 1998-2011,2017 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -27,7 +27,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: capconvert,v 1.9 2020/02/02 23:34:34 tom Exp $
+# $Id: capconvert,v 1.12 2022/07/16 21:00:27 tom Exp $
 #
 # capconvert -- automated conversion from termcap to terminfo
 #
@@ -47,7 +47,7 @@ then
 	echo "TERMINFO is already defined in your environment.  This means"
 	echo "you already have a local terminfo tree, so you do not need any"
 	echo "conversion."
-	if test ! -d $TERMINFO ; then
+	if test ! -d "$TERMINFO" ; then
 		echo "Caution: TERMINFO does not point to a directory!"
 	fi
 	exit;
@@ -62,7 +62,7 @@ for p in $TERMINFO \
 	/usr/local/lib/terminfo \
 	/usr/local/share/terminfo
 do
-	if test -d $p ; then
+	if test -d "$p" ; then
 		terminfo=yes
 		break
 	fi
@@ -95,7 +95,7 @@ else
 fi
 echo "";
 
-# Check if test -x works (it's not portable, but useful)
+# Check if test -x works (it is not portable, but useful)
 OPT="-x"
 TMP=test$$; touch $TMP && chmod 755 $TMP
 if test $OPT $TMP ; then
@@ -111,13 +111,13 @@ TIC=
 IFS="${IFS= 	}"; save_ifs="$IFS"; IFS="${IFS}:"
 for x in $PATH .
 do
-	if test $OPT $x/tic
+	if test "$OPT" "$x"/tic
 	then
 		TIC=$x/tic
 		break
 	fi
 done
-IFS="$ac_save_ifs"
+IFS="$save_ifs"
 
 if test -n "$TIC"
 then
@@ -140,7 +140,7 @@ echo "";
 #
 
 # Make the user a terminfo directory
-if test -d $HOME/.terminfo
+if test -d "$HOME"/.terminfo
 then
 	echo "It appears you already have a private terminfo directory"
 	echo "at $HOME/.terminfo; this seems odd, because TERMINFO"
@@ -150,7 +150,7 @@ then
 	exit;
 else
 	echo "I am creating your private terminfo directory at $HOME/.terminfo"
-	mkdir $HOME/.terminfo
+	mkdir "$HOME"/.terminfo
 	# Ensure that that's where tic's compilation results.
 	# This isn't strictly necessary with a 1.9.7 or later tic.
 	TERMINFO="$HOME/.terminfo"; export TERMINFO
@@ -165,8 +165,8 @@ then
 else
 	# Ooops...looks like we're running from somewhere other than the
 	# progs directory of an ncurses source tree.
-	master=`find $HOME -name "*terminfo.src" -print`
-	mcount=`echo $master | wc -l`
+	master=`find "$HOME" -name "*terminfo.src" -print`
+	mcount=`find "$HOME" -name "*terminfo.src" | wc -l`
 	case $mcount in
 	0)
 		echo "I can not find a terminfo source file anywhere under your home directory."
@@ -184,12 +184,12 @@ else
 	;;
 	2)
 		echo "I see more than one possible terminfo source.  Here they are:"
-		echo $master | sed "/^/s//	/";
+		echo "$master" | sed "/^/s//	/";
 		while :
 		do
 			echo "Please tell me which one to use:"
 			read master;
-			if test -f $master
+			if test -f "$master"
 			then
 				break
 			else
@@ -206,12 +206,13 @@ echo "OK, now I will make your private terminfo tree.  This may take a bit..."
 #
 # Kluge alert: we compile terminfo.src in two pieces because a lot of machines
 # with < 16MB RAM choke on tic's core-hog habits.
-trap "rm -f tsplit$$.*" EXIT INT QUIT TERM HUP
-sed -n $master \
+trap 'rm -f tsplit$$.*; exit 1' 1 2 3 15
+trap 'rm -f tsplit$$.*' 0
+sed -n "$master" \
 	-e '1,/SPLIT HERE/w 'tsplit$$.01 \
 	-e '/SPLIT HERE/,$w 'tsplit$$.02 \
 	2>/dev/null
-for x in tsplit$$.*; do eval $TIC $x; done
+for x in tsplit$$.*; do eval $TIC "$x"; done
 rm tsplit$$.*
 trap EXIT INT QUIT TERM HUP
 #
@@ -227,26 +228,26 @@ fi
 
 # OK, here comes the nasty case...user has a TERMCAP.  Instead of
 # trying to follow all the convolutions of the relationship between
-# TERM and TERMCAP (partly because it's too painful, and partly because
+# TERM and TERMCAP (partly because it is too painful, and partly because
 # we don't actually know what TERM will be nor even if it always has
 # the same value for this user) we do the following three steps...
 
-if test -f $HOME/.termcap
+if test -f "$HOME"/.termcap
 then
-	echo 'I see you have a $HOME/.termcap file.  I will compile that.'
-	eval $TIC $HOME/.termcap
+	echo "I see you have a \$HOME/.termcap file.  I will compile that."
+	eval $TIC "$HOME"/.termcap
 	echo "Done."
 	echo "Note that editing $HOME/.termcap will no longer change the data curses sees."
 elif test -f "$TERMCAP"
 then
 	echo "Your TERMCAP names the file $TERMCAP.  I will compile that."
-	eval $TIC $TERMCAP
+	eval $TIC "$TERMCAP"
 	echo "Done."
 	echo "Note that editing $TERMCAP will no longer change the data curses sees."
 else
 	echo "Your TERMCAP value appears to be an entry in termcap format."
 	echo "I will compile it."
-	echo $TERMCAP >myterm$$
+	echo "$TERMCAP" >myterm$$
 	eval $TIC myterm$$
 	rm myterm$$
 	echo "Done."

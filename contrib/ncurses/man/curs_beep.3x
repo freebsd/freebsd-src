@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018,2020 Thomas E. Dickey                                     *
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
 .\" Copyright 1998-2005,2010 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,35 +27,37 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_beep.3x,v 1.14 2020/02/02 23:34:34 tom Exp $
-.TH curs_beep 3X ""
+.\" $Id: curs_beep.3x,v 1.29 2024/04/20 21:20:07 tom Exp $
+.TH curs_beep 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
-\fBbeep\fR, \fBflash\fR \- \fBcurses\fR bell and screen flash routines
+\fB\%beep\fP,
+\fB\%flash\fP \-
+ring the (visual) bell of the terminal with \fIcurses\fR
 .SH SYNOPSIS
-\fB#include <curses.h>\fR
+.nf
+\fB#include <curses.h>
 .PP
-\fBint beep(void);\fR
-.br
-\fBint flash(void);\fR
-.br
+\fBint beep(void);
+\fBint flash(void);
+.fi
 .SH DESCRIPTION
-The \fBbeep\fR and \fBflash\fR routines are used to alert the terminal user.
-The routine \fBbeep\fR sounds an audible alarm on the terminal, if possible;
+The \fBbeep\fP and \fBflash\fP routines are used to alert the terminal user.
+The routine \fBbeep\fP sounds an audible alarm on the terminal, if possible;
 otherwise it flashes the screen (visible bell).
-The routine \fBflash\fR
+The routine \fBflash\fP
 flashes the screen, and if that is not possible, sounds the alert.
 If neither
 alert is possible, nothing happens.
 Nearly all terminals have an audible alert
 (bell or beep), but only some can flash the screen.
 .SH RETURN VALUE
-These routines return \fBOK\fR if they succeed in beeping or flashing,
-\fBERR\fR otherwise.
+These routines return \fBOK\fP if they succeed in beeping or flashing,
+\fBERR\fP otherwise.
 .SH EXTENSIONS
-SVr4's beep and flash routines always returned \fBOK\fR, so it was not
+SVr4's beep and flash routines always returned \fBOK\fP, so it was not
 possible to tell when the beep or flash failed.
 .SH PORTABILITY
-These functions are described in the XSI Curses standard, Issue 4.
-Like SVr4, it specifies that they always return \fBOK\fR.
+These functions are described in X/Open Curses, Issue 4.
+Like SVr4, it specifies that they always return \fBOK\fP.
 .SH SEE ALSO
-\fBcurses\fR(3X)
+\fB\%curses\fP(3X)

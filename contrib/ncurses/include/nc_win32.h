@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2018-2020,2023 Thomas E. Dickey                                *
  * Copyright 2008-2010,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -31,7 +31,7 @@
  * Author: Thomas Dickey, 2008-on                                           *
  ****************************************************************************/
 
-/* $Id: nc_win32.h,v 1.9 2020/09/13 00:17:30 tom Exp $ */
+/* $Id: nc_win32.h,v 1.10 2023/02/25 20:09:23 tom Exp $ */
 
 #ifndef NC_WIN32_H
 #define NC_WIN32_H 1
@@ -79,9 +79,11 @@ extern "C" {
 
 #include <ncurses_dll.h>
 
+#if !HAVE_CLOCK_GETTIME && !HAVE_GETTIMEOFDAY
 #undef HAVE_GETTIMEOFDAY
-#define HAVE_GETTIMEOFDAY 1
+#define HAVE_GETTIMEOFDAY 2
 extern NCURSES_EXPORT(int) _nc_gettimeofday(struct timeval *, void *);
+#endif
 
 #undef wcwidth
 #define wcwidth(ucs)  _nc_wcwidth((wchar_t)(ucs))

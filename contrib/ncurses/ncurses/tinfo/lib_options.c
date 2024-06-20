@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020,2021 Thomas E. Dickey                                     *
+ * Copyright 2020-2021,2023 Thomas E. Dickey                                *
  * Copyright 1998-2014,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -47,7 +47,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_options.c,v 1.82 2021/02/14 00:17:35 tom Exp $")
+MODULE_ID("$Id: lib_options.c,v 1.83 2023/04/29 18:56:12 tom Exp $")
 
 NCURSES_EXPORT(int)
 idlok(WINDOW *win, bool flag)
@@ -92,7 +92,7 @@ NCURSES_SP_NAME(halfdelay) (NCURSES_SP_DCLx int t)
 	returnCode(ERR);
 
     NCURSES_SP_NAME(cbreak) (NCURSES_SP_ARG);
-    SP_PARM->_cbreak = t + 1;
+    IsCbreak(SP_PARM) = t + 1;
     returnCode(OK);
 }
 

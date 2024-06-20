@@ -1,6 +1,5 @@
-'\" t
 .\"***************************************************************************
-.\" Copyright 2018,2020 Thomas E. Dickey                                     *
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
 .\" Copyright 1998-2010,2015 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,38 +27,34 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_requestname.3x,v 1.15 2020/10/18 00:40:34 tom Exp $
-.TH menu_requestname 3X ""
+.\" $Id: menu_requestname.3x,v 1.33 2024/03/16 15:35:01 tom Exp $
+.TH menu_requestname 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
 \fBmenu_request_by_name\fP,
-\fBmenu_request_name\fR \- handle printable menu request names
+\fBmenu_request_name\fP \-
+handle printable menu request names
 .SH SYNOPSIS
-\fB#include <menu.h>\fR
-.sp
-\fBconst char *menu_request_name(int \fP\fIrequest\fP\fB);\fP
-.br
-\fBint menu_request_by_name(const char *\fP\fIname\fP\fB);\fP
-.br
+.nf
+\fB#include <menu.h>
+.PP
+\fBconst char *menu_request_name(int \fIrequest\fP);
+\fBint menu_request_by_name(const char *\fIname\fP);
+.fi
 .SH DESCRIPTION
-The function \fBmenu_request_name\fR returns the printable name of a menu
+The function \fBmenu_request_name\fP returns the printable name of a menu
 request code.
 .br
-The function \fBmenu_request_by_name\fR searches in the name-table for a request
+The function \fBmenu_request_by_name\fP searches in the name-table for a request
 with the given name and returns its request code.
 Otherwise E_NO_MATCH is returned.
 .SH RETURN VALUE
-\fBmenu_request_name\fR returns \fBNULL\fR on error
-and sets \fBerrno\fP to \fBE_BAD_ARGUMENT\fR.
+\fBmenu_request_name\fP returns \fBNULL\fP on error
+and sets \fBerrno\fP to \fBE_BAD_ARGUMENT\fP.
 .br
-\fBmenu_request_by_name\fR returns \fBE_NO_MATCH\fR on error.
+\fBmenu_request_by_name\fP returns \fBE_NO_MATCH\fP on error.
 It does not set \fBerrno\fP.
-.SH SEE ALSO
-\fBcurses\fR(3X), \fBmenu\fR(3X).
-.SH NOTES
-The header file \fB<menu.h>\fR automatically includes the header file
-\fB<curses.h>\fR.
 .SH PORTABILITY
-These routines are specific to ncurses.
+These routines are specific to \fI\%ncurses\fP.
 They were not supported on
 Version 7, BSD or System V implementations.
 It is recommended that
@@ -67,3 +62,6 @@ any code depending on them be conditioned using NCURSES_VERSION.
 .SH AUTHORS
 Juergen Pfeifer.
 Manual pages and adaptation for new curses by Eric S. Raymond.
+.SH SEE ALSO
+\fB\%curses\fP(3X),
+\fB\%menu\fP(3X)

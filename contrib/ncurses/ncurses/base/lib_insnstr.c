@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2018-2022,2023 Thomas E. Dickey                                *
  * Copyright 2004-2009,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -41,7 +41,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_insnstr.c,v 1.7 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_insnstr.c,v 1.10 2023/11/21 21:58:03 tom Exp $")
 
 NCURSES_EXPORT(int)
 winsnstr(WINDOW *win, const char *s, int n)
@@ -51,7 +51,7 @@ winsnstr(WINDOW *win, const char *s, int n)
 
     T((T_CALLED("winsnstr(%p,%s,%d)"), (void *) win, _nc_visbufn(s, n), n));
 
-    if (win != 0 && str != 0) {
+    if (win != 0 && str != 0 && n != 0) {
 	SCREEN *sp = _nc_screen_of(win);
 #if USE_WIDEC_SUPPORT
 	/*
@@ -70,6 +70,7 @@ winsnstr(WINDOW *win, const char *s, int n)
 		init_mb(state);
 		n3 = mbstowcs(buffer, s, nn);
 		if (n3 != (size_t) (-1)) {
+		    buffer[n3] = '\0';
 		    code = wins_nwstr(win, buffer, (int) n3);
 		}
 		free(buffer);
@@ -82,7 +83,7 @@ winsnstr(WINDOW *win, const char *s, int n)
 	    NCURSES_SIZE_T ox = win->_curx;
 	    const unsigned char *cp;
 
-	    for (cp = str; (n <= 0 || (cp - str) < n) && *cp; cp++) {
+	    for (cp = str; (n < 0 || (cp - str) < n) && *cp; cp++) {
 		_nc_insert_ch(sp, win, (chtype) UChar(*cp));
 	    }
 	    win->_curx = ox;

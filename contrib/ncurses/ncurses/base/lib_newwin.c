@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -44,7 +44,7 @@
 #include <curses.priv.h>
 #include <stddef.h>
 
-MODULE_ID("$Id: lib_newwin.c,v 1.75 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_newwin.c,v 1.76 2021/10/23 18:53:38 tom Exp $")
 
 #define window_is(name) ((sp)->_##name == win)
 
@@ -114,7 +114,7 @@ _nc_freewin(WINDOW *win)
 		    else
 			q->next = p->next;
 
-		    if (!(win->_flags & _SUBWIN)) {
+		    if (!IS_SUBWIN(win)) {
 			int i;
 
 			for (i = 0; i <= win->_maxy; i++)
@@ -219,7 +219,7 @@ derwin(WINDOW *orig, int num_lines, int num_columns, int begy, int begx)
     if (num_columns == 0)
 	num_columns = orig->_maxx + 1 - begx;
 
-    if (orig->_flags & _ISPAD)
+    if (IS_PAD(orig))
 	flags |= _ISPAD;
 
     win = NCURSES_SP_NAME(_nc_makenew) (NCURSES_SP_ARGx num_lines, num_columns,

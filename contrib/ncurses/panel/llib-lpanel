@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2010,2015 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -43,20 +43,20 @@ PANEL	*_nc_retrace_panel(
 
 #undef _nc_my_visbuf
 const char *_nc_my_visbuf(
-		const void *ptr, 
+		const void *ptr,
 		int	n)
 		{ return(*(const char **)0); }
 
 #undef _nc_dPanel
 void	_nc_dPanel(
-		const char *text, 
+		const char *text,
 		const PANEL *pan)
 		{ /* void */ }
 
 #undef _nc_dStack
 void	_nc_dStack(
-		const char *fmt, 
-		int	num, 
+		const char *fmt,
+		int	num,
 		const PANEL *pan)
 		{ /* void */ }
 
@@ -72,8 +72,8 @@ void	_nc_Touchpan(
 
 #undef _nc_Touchline
 void	_nc_Touchline(
-		const PANEL *pan, 
-		int	start, 
+		const PANEL *pan,
+		int	start,
 		int	count)
 		{ /* void */ }
 
@@ -133,8 +133,8 @@ int	panel_hidden(
 
 #undef move_panel
 int	move_panel(
-		PANEL	*pan, 
-		int	starty, 
+		PANEL	*pan,
+		int	starty,
 		int	startx)
 		{ return(*(int *)0); }
 
@@ -149,7 +149,7 @@ PANEL	*new_panel(
 
 #undef replace_panel
 int	replace_panel(
-		PANEL	*pan, 
+		PANEL	*pan,
 		WINDOW	*win)
 		{ return(*(int *)0); }
 
@@ -182,7 +182,7 @@ void	update_panels(void)
 
 #undef set_panel_userptr
 int	set_panel_userptr(
-		PANEL	*pan, 
+		PANEL	*pan,
 		const void *uptr)
 		{ return(*(int *)0); }
 

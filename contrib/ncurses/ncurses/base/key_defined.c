@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2023 Thomas E. Dickey                                     *
  * Copyright 2003-2006,2009 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -32,8 +32,9 @@
  ****************************************************************************/
 
 #include <curses.priv.h>
+#include <tic.h>
 
-MODULE_ID("$Id: key_defined.c,v 1.10 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: key_defined.c,v 1.11 2023/06/24 15:36:32 tom Exp $")
 
 static int
 find_definition(TRIES * tree, const char *str)
@@ -41,7 +42,7 @@ find_definition(TRIES * tree, const char *str)
     TRIES *ptr;
     int result = OK;
 
-    if (str != 0 && *str != '\0') {
+    if (VALID_STRING(str) && *str != '\0') {
 	for (ptr = tree; ptr != 0; ptr = ptr->sibling) {
 	    if (UChar(*str) == UChar(ptr->ch)) {
 		if (str[1] == '\0' && ptr->child != 0) {
