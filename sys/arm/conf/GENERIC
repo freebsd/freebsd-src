@@ -191,7 +191,9 @@ device		musb
 
 device		axe			# USB-Ethernet
 device		umass			# Disks/Mass storage - Requires scbus and da
+device		usbhid			# USB HID Transport
 device		uhid			# "Human Interface Devices"
+device		hkbd			# Allow keyboard like HIDs to control console
 device		ukbd			# Allow keyboard like HIDs to control console
 
 # Device mode support
@@ -225,6 +227,7 @@ device		sound
 # Framebuffer support
 device		vt
 device		kbdmux
+device		hms
 device		ums
 device		videomode
 device		vchiq
@@ -262,6 +265,7 @@ device		aw_thermal	# Allwinner Thermal Sensor Controller
 
 # HID support
 device		hid		# Generic HID support
+device		hidbus		# Generic HID Bus
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data

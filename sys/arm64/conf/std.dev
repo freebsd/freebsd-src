@@ -99,7 +99,9 @@ device		uhci			# UHCI USB interface
 device		ehci			# EHCI USB interface (USB 2.0)
 device		xhci			# XHCI USB interface (USB 3.0)
 device		usb			# USB Bus (required)
-device		ukbd			# Keyboard
+device		usbhid			# USB HID Transport
+device		hkbd			# HID Keyboard
+device		ukbd			# USB Keyboard
 device		umass			# Disks/Mass storage - Requires scbus and da
 
 # Sound support
@@ -112,6 +114,7 @@ device		mmcsd			# mmc/sd flash cards
 # HID support
 options 	HID_DEBUG		# enable debug msgs
 device		hid			# Generic HID support
+device		hidbus			# Generic HID Bus
 
 # Firmware
 device		mmio_sram		# Generic on-chip SRAM

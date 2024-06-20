@@ -57,6 +57,7 @@ device		usb_template    	# Control of the gadget
 # Comment following lines for boot console on serial port
 device		vt
 device		kbdmux
+device		hkbd
 device		ukbd
 
 device		sdhci
