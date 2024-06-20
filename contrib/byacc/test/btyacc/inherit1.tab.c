@@ -145,7 +145,7 @@ extern void YYERROR_DECL();
 #ifndef YYSTYPE_IS_DECLARED
 #define YYSTYPE_IS_DECLARED 1
 #line 32 "inherit1.y"
-typedef union
+typedef union YYSTYPE
 {
     class	cval;
     type	tval;

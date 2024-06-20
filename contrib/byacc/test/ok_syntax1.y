@@ -40,7 +40,7 @@ static void YYERROR_DECL();
 %token TAB  '\t'
 %token VT   '\v'
 
-%union
+%union CalcData
 {
     char *	cval;
     int		ival;
