@@ -1142,7 +1142,6 @@ intr_setup_irq(device_t dev, struct resource *res, driver_filter_t filt,
 	mtx_lock(&isrc_table_lock);
 	error = PIC_SETUP_INTR(isrc->isrc_dev, isrc, res, data);
 	if (error == 0) {
-		isrc->isrc_handlers++;
 		if (startempty)
 			PIC_ENABLE_INTR(isrc->isrc_dev, isrc);
 	}
@@ -1192,7 +1191,6 @@ intr_teardown_irq(device_t dev, struct resource *res, void *cookie)
 	error = intr_event_remove_handler(cookie);
 	if (error == 0) {
 		mtx_lock(&isrc_table_lock);
-		isrc->isrc_handlers--;
 		if (ISRC_NO_HANDLER(isrc))
 			PIC_DISABLE_INTR(isrc->isrc_dev, isrc);
 		PIC_TEARDOWN_INTR(isrc->isrc_dev, isrc, res, data);
@@ -1918,8 +1916,6 @@ intr_ipi_setup(u_int ipi, const char *name, intr_ipi_handler_t *hand,
 
 	intr_event_add_handler(isrc->isrc_event, name, isrc_ipi_strayfunc,
 	    NULL, isrc, PI_INTR, 0, NULL);
-
-	isrc->isrc_handlers++;
 
 	ii = intr_ipi_lookup(ipi);
 	KASSERT(ii->ii_count == NULL, ("%s: ipi %u reused", __func__, ipi));
