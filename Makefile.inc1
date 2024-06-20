@@ -2068,7 +2068,7 @@ real-update-packages: stage-packages .PHONY
 	    continue; \
 	  fi ; \
 	  newsum=$$(pkg query -F ${REPODIR}/${PKG_ABI}/${PKG_VERSION}/$${newpkgname} '%X') ; \
-	  if [ "${BRANCH_EXT_FROM}" == "${BRANCH_EXT}" -a $${oldsum}" == "$${newsum}" ]; then \
+	  if [ "${BRANCH_EXT_FROM}" == "${BRANCH_EXT}" -a "$${oldsum}" == "$${newsum}" ]; then \
 	   echo "==> Keeping old ${PKG_NAME_PREFIX}-$${pkgname}-${PKG_VERSION_FROM}.${PKG_EXT}" ; \
 	   rm ${REPODIR}/${PKG_ABI}/${PKG_VERSION}/$${newpkgname} ; \
 	   cp $${pkg} ${REPODIR}/${PKG_ABI}/${PKG_VERSION} ; \
