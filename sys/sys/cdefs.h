@@ -164,18 +164,9 @@
 #define	__aligned(x)	__attribute__((__aligned__(x)))
 #define	__section(x)	__attribute__((__section__(x)))
 #define	__writeonly	__unused
-#if __GNUC_PREREQ__(4, 3) || __has_attribute(__alloc_size__)
 #define	__alloc_size(x)	__attribute__((__alloc_size__(x)))
 #define	__alloc_size2(n, x)	__attribute__((__alloc_size__(n, x)))
-#else
-#define	__alloc_size(x)
-#define	__alloc_size2(n, x)
-#endif
-#if __GNUC_PREREQ__(4, 9) || __has_attribute(__alloc_align__)
 #define	__alloc_align(x)	__attribute__((__alloc_align__(x)))
-#else
-#define	__alloc_align(x)
-#endif
 
 /*
  * Keywords added in C11.
@@ -199,15 +190,6 @@
 #define	_Alignof(x)		__alignof(x)
 #endif
 
-#if !defined(__cplusplus) && !__has_extension(c_atomic) && \
-	!__has_extension(cxx_atomic) && !__GNUC_PREREQ__(4, 7)
-/*
- * No native support for _Atomic(). Place object in structure to prevent
- * most forms of direct non-atomic access.
- */
-#define	_Atomic(T)		struct { T volatile __val; }
-#endif
-
 #if defined(__cplusplus) && __cplusplus >= 201103L
 #define	_Noreturn		[[noreturn]]
 #else
@@ -218,15 +200,6 @@
 #if (defined(__cplusplus) && __cplusplus >= 201103L) || \
     __has_extension(cxx_static_assert)
 #define	_Static_assert(x, y)	static_assert(x, y)
-#elif __GNUC_PREREQ__(4,6) && !defined(__cplusplus)
-/* Nothing, gcc 4.6 and higher has _Static_assert built-in */
-#elif defined(__COUNTER__)
-#define	_Static_assert(x, y)	__Static_assert(x, __COUNTER__)
-#define	__Static_assert(x, y)	___Static_assert(x, y)
-#define	___Static_assert(x, y)	typedef char __assert_ ## y[(x) ? 1 : -1] \
-				__unused
-#else
-#define	_Static_assert(x, y)	struct __hack
 #endif
 #endif
 
@@ -276,7 +249,6 @@
  * void bar(int myArray[__min_size(10)]);
  */
 #if !defined(__cplusplus) && \
-    (defined(__clang__) || __GNUC_PREREQ__(4, 6)) && \
     (!defined(__STDC_VERSION__) || (__STDC_VERSION__ >= 199901))
 #define __min_size(x)	static (x)
 #else
@@ -302,17 +274,9 @@
 #define	__result_use_or_ignore_check
 #endif /* !__clang__ */
 
-#if __GNUC_PREREQ__(4, 1)
 #define	__returns_twice	__attribute__((__returns_twice__))
-#else
-#define	__returns_twice
-#endif
 
-#if __GNUC_PREREQ__(4, 6) || __has_builtin(__builtin_unreachable)
 #define	__unreachable()	__builtin_unreachable()
-#else
-#define	__unreachable()	((void)0)
-#endif
 
 #if !defined(__STRICT_ANSI__) || __STDC_VERSION__ >= 199901
 #define	__LONG_LONG_SUPPORTED
@@ -353,33 +317,15 @@
 #define	__predict_true(exp)     __builtin_expect((exp), 1)
 #define	__predict_false(exp)    __builtin_expect((exp), 0)
 
-#if __GNUC_PREREQ__(4, 0)
 #define	__null_sentinel	__attribute__((__sentinel__))
 #define	__exported	__attribute__((__visibility__("default")))
 #define	__hidden	__attribute__((__visibility__("hidden")))
-#else
-#define	__null_sentinel
-#define	__exported
-#define	__hidden
-#endif
 
 /*
  * We define this here since <stddef.h>, <sys/queue.h>, and <sys/types.h>
  * require it.
  */
-#if __GNUC_PREREQ__(4, 1)
 #define	__offsetof(type, field)	 __builtin_offsetof(type, field)
-#else
-#ifndef __cplusplus
-#define	__offsetof(type, field) \
-	((__size_t)(__uintptr_t)((const volatile void *)&((type *)0)->field))
-#else
-#define	__offsetof(type, field)					\
-  (__offsetof__ (reinterpret_cast <__size_t>			\
-                 (&reinterpret_cast <const volatile char &>	\
-                  (static_cast<type *> (0)->field))))
-#endif
-#endif
 #define	__rangeof(type, start, end) \
 	(__offsetof(type, end) - __offsetof(type, start))
 
