@@ -1225,7 +1225,7 @@ bcm_gpio_pic_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
 	struct bcm_gpio_softc *sc = device_get_softc(dev);
 	struct bcm_gpio_irqsrc *bgi = (struct bcm_gpio_irqsrc *)isrc;
 
-	if (isrc->isrc_handlers == 0)
+	if (ISRC_NO_HANDLER(isrc))
 		bcm_gpio_pic_config_intr(sc, bgi, GPIO_INTR_CONFORM);
 	return (0);
 }

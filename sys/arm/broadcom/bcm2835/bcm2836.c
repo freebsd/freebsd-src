@@ -506,7 +506,7 @@ bcm_lintc_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 {
 	struct bcm_lintc_softc *sc;
 
-	if (isrc->isrc_handlers == 0 && isrc->isrc_flags & INTR_ISRCF_PPI) {
+	if (ISRC_NO_HANDLER(isrc) && isrc->isrc_flags & INTR_ISRCF_PPI) {
 		sc = device_get_softc(dev);
 		BCM_LINTC_LOCK(sc);
 		CPU_SET(PCPU_GET(cpuid), &isrc->isrc_cpu);

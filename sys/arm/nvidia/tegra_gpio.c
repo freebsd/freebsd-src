@@ -691,7 +691,7 @@ tegra_gpio_pic_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
 
 	tgi = (struct tegra_gpio_irqsrc *)isrc;
 
-	if (isrc->isrc_handlers == 0)
+	if (ISRC_NO_HANDLER(isrc))
 		tgi->cfgreg = GPIO_UNSET;
 
 	return (0);

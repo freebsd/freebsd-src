@@ -291,7 +291,7 @@ aw_nmi_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
 
 	sc = device_get_softc(dev);
 
-	if (isrc->isrc_handlers == 0) {
+	if (ISRC_NO_HANDLER(isrc)) {
 		sc->intr.pol = INTR_POLARITY_INVALID;
 		sc->intr.tri = INTR_TRIGGER_INVALID;
 

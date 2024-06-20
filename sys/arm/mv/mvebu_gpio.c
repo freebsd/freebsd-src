@@ -626,7 +626,7 @@ mvebu_gpio_pic_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
 	sc = device_get_softc(dev);
 	mgi = (struct mvebu_gpio_irqsrc *)isrc;
 
-	if (isrc->isrc_handlers == 0) {
+	if (ISRC_NO_HANDLER(isrc)) {
 		mvebu_gpio_isrc_mask(sc, mgi, 0);
 		mgi->is_setup = false;
 	}
