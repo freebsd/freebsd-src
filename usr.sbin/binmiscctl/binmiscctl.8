@@ -288,15 +288,15 @@ Add QEMU bsd-user program as an image activator for 64-bit RISC-V binaries:
            \exff\exff\exff\exff\exff\exff\exfe\exff\exff\exff" \e
   --size 20 --set-enabled
 .Ed
-.Ss "Create and use an ARMv6 chroot on an AMD64 host"
+.Ss "Create and use an ARMv7 chroot on an AMD64 host"
 Use an existing source tree to build a chroot host with architecture
 overrides:
 .Bd -literal -offset ident
 D=/path/to/chroot
 cd /usr/src
 mkdir -p $D
-make world TARGET=arm TARGET_ARCH=armv6 DESTDIR=$D
-make distribution TARGET=arm TARGET_ARCH=armv6 DESTDIR=$D
+make world TARGET=arm TARGET_ARCH=armv7 DESTDIR=$D
+make distribution TARGET=arm TARGET_ARCH=armv7 DESTDIR=$D
 .Ed
 .Pp
 With
