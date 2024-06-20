@@ -1408,15 +1408,15 @@ pf_commit_rules(u_int32_t ticket, int rs_num, char *anchor)
 				continue;
 			}
 			pf_counter_u64_critical_enter();
-			pf_counter_u64_add_protected(&rule->evaluations,
+			pf_counter_u64_rollup_protected(&rule->evaluations,
 			    pf_counter_u64_fetch(&old_rule->evaluations));
-			pf_counter_u64_add_protected(&rule->packets[0],
+			pf_counter_u64_rollup_protected(&rule->packets[0],
 			    pf_counter_u64_fetch(&old_rule->packets[0]));
-			pf_counter_u64_add_protected(&rule->packets[1],
+			pf_counter_u64_rollup_protected(&rule->packets[1],
 			    pf_counter_u64_fetch(&old_rule->packets[1]));
-			pf_counter_u64_add_protected(&rule->bytes[0],
+			pf_counter_u64_rollup_protected(&rule->bytes[0],
 			    pf_counter_u64_fetch(&old_rule->bytes[0]));
-			pf_counter_u64_add_protected(&rule->bytes[1],
+			pf_counter_u64_rollup_protected(&rule->bytes[1],
 			    pf_counter_u64_fetch(&old_rule->bytes[1]));
 			pf_counter_u64_critical_exit();
 		}

@@ -128,6 +128,14 @@ pf_counter_u64_critical_exit(void)
 }
 
 static inline void
+pf_counter_u64_rollup_protected(struct pf_counter_u64 *pfcu64, uint64_t n)
+{
+
+	MPASS(curthread->td_critnest > 0);
+	pfcu64->pfcu64_value += n;
+}
+
+static inline void
 pf_counter_u64_add_protected(struct pf_counter_u64 *pfcu64, uint32_t n)
 {
 	struct pf_counter_u64_pcpu *pcpu;
@@ -248,6 +256,13 @@ static inline void
 pf_counter_u64_critical_exit(void)
 {
 
+}
+
+static inline void
+pf_counter_u64_rollup_protected(struct pf_counter_u64 *pfcu64, uint64_t n)
+{
+
+	counter_u64_add(pfcu64->counter, n);
 }
 
 static inline void
