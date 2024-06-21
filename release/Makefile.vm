@@ -209,14 +209,6 @@ vm-install:
 .   endfor
 .  endfor
 . endif
-	# Compatibility hardlinks from "foo.bar" to "foo-${VMFS}.bar".
-. for FORMAT in ${VMFORMATS}
-.  if defined(WITH_COMPRESSED_VMIMAGES) && !empty(WITH_COMPRESSED_VMIMAGES)
-	ln -f ${DESTDIR}/vmimages/${OSRELEASE}-${VMFS}.${FORMAT}.xz ${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}.xz
-.  else
-	ln -f ${DESTDIR}/vmimages/${OSRELEASE}-${VMFS}.${FORMAT} ${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}
-.  endif
-. endfor
 	cd ${DESTDIR}/vmimages && sha512 ${OSRELEASE}* > \
 		${DESTDIR}/vmimages/CHECKSUM.SHA512
 	cd ${DESTDIR}/vmimages && sha256 ${OSRELEASE}* > \
@@ -231,10 +223,6 @@ cloud-install-BASIC-CI:
 		${DESTDIR}/ciimages/${OSRELEASE}-BASIC-CI-${_FS}.${_FMT}
 	${XZ_CMD} ${DESTDIR}/ciimages/${OSRELEASE}-BASIC-CI-${_FS}.${_FMT}
 . endfor
-.endfor
-.for _FMT in ${BASIC-CI_FORMAT}
-	ln -f ${DESTDIR}/ciimages/${OSRELEASE}-BASIC-CI-${VMFS}.${_FMT}.xz \
-		${DESTDIR}/ciimages/${OSRELEASE}-BASIC-CI.${_FMT}.xz
 .endfor
 	cd ${DESTDIR}/ciimages && sha512 ${OSRELEASE}* > \
 		${DESTDIR}/ciimages/CHECKSUM.SHA512
