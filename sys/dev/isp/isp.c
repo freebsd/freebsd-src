@@ -1539,7 +1539,15 @@ isp_getpdb(ispsoftc_t *isp, int chan, uint16_t id, isp_pdb_t *pdb)
 	    chan, id, pdb->portid, un.bill.pdb_flags,
 	    un.bill.pdb_curstate, un.bill.pdb_laststate);
 
-	if (un.bill.pdb_curstate < PDB2400_STATE_PLOGI_DONE || un.bill.pdb_curstate > PDB2400_STATE_LOGGED_IN) {
+	/*
+	 * XXX KDM this is broken for NVMe.  Need to determine whether this
+	 * is an NVMe target, and if so, check the NVMe status bits. We are
+	 * probably missing more bits for proper NVMe support, though.
+	 */
+	if (((un.bill.pdb_curstate & PDB2400_STATE_FCP_MASK) <
+	      PDB2400_STATE_PLOGI_DONE)
+	 || ((un.bill.pdb_curstate & PDB2400_STATE_FCP_MASK) >
+	      PDB2400_STATE_LOGGED_IN)) {
 		mbs.param[0] = MBOX_NOT_LOGGED_IN;
 		return (mbs.param[0]);
 	}
