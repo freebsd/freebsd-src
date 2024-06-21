@@ -203,7 +203,8 @@ static void nfsrv_locallock_commit(struct nfslockfile *lfp, int flags,
 static void nfsrv_locklf(struct nfslockfile *lfp);
 static void nfsrv_unlocklf(struct nfslockfile *lfp);
 static struct nfsdsession *nfsrv_findsession(uint8_t *sessionid);
-static int nfsrv_freesession(struct nfsdsession *sep, uint8_t *sessionid);
+static int nfsrv_freesession(struct nfsdsession *sep, uint8_t *sessionid,
+    bool locked, SVCXPRT **old_xprtp);
 static int nfsv4_setcbsequence(struct nfsrv_descript *nd, struct nfsclient *clp,
     int dont_replycache, struct nfsdsession **sepp, int *slotposp);
 static int nfsv4_getcbsession(struct nfsclient *clp, struct nfsdsession **sepp);
@@ -329,7 +330,7 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 		 */
 		if (i != nfsrv_clienthashsize) {
 			LIST_REMOVE(clp, lc_hash);
-			nfsrv_cleanclient(clp, p);
+			nfsrv_cleanclient(clp, p, false, NULL);
 			nfsrv_freedeleglist(&clp->lc_deleg);
 			nfsrv_freedeleglist(&clp->lc_olddeleg);
 			zapit = 1;
@@ -382,7 +383,7 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 	     */
 	    if (clp->lc_expiry < NFSD_MONOSEC &&
 	        (!LIST_EMPTY(&clp->lc_open) || !LIST_EMPTY(&clp->lc_deleg))) {
-		nfsrv_cleanclient(clp, p);
+		nfsrv_cleanclient(clp, p, false, NULL);
 		nfsrv_freedeleglist(&clp->lc_deleg);
 	    }
 
@@ -445,7 +446,7 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 
 		/* Get rid of all sessions on this clientid. */
 		LIST_FOREACH_SAFE(sep, &clp->lc_session, sess_list, nsep) {
-			ret = nfsrv_freesession(sep, NULL);
+			ret = nfsrv_freesession(sep, NULL, false, NULL);
 			if (ret != 0)
 				printf("nfsrv_setclient: verifier changed free"
 				    " session failed=%d\n", ret);
@@ -715,7 +716,7 @@ nfsrv_getclient(nfsquad_t clientid, int opflags, struct nfsclient **clpp,
 			 * for an Open with CLAIM_DELEGATE_PREV unless in
 			 * grace, but get rid of the rest of the state.
 			 */
-			nfsrv_cleanclient(clp, p);
+			nfsrv_cleanclient(clp, p, false, NULL);
 			nfsrv_freedeleglist(&clp->lc_olddeleg);
 			if (nfsrv_checkgrace(nd, clp, 0)) {
 			    /* In grace, so just delete delegations */
@@ -874,7 +875,7 @@ nfsrv_destroyclient(nfsquad_t clientid, NFSPROC_T *p)
 	}
 
 	/* Destroy the clientid and return ok. */
-	nfsrv_cleanclient(clp, p);
+	nfsrv_cleanclient(clp, p, false, NULL);
 	nfsrv_freedeleglist(&clp->lc_deleg);
 	nfsrv_freedeleglist(&clp->lc_olddeleg);
 	LIST_REMOVE(clp, lc_hash);
@@ -943,7 +944,7 @@ nfsrv_adminrevoke(struct nfsd_clid *revokep, NFSPROC_T *p)
 	 */
 	clp->lc_flags &= ~LCL_CALLBACKSON;
 	clp->lc_flags |= LCL_ADMINREVOKED;
-	nfsrv_cleanclient(clp, p);
+	nfsrv_cleanclient(clp, p, false, NULL);
 	nfsrv_freedeleglist(&clp->lc_deleg);
 	nfsrv_freedeleglist(&clp->lc_olddeleg);
 	NFSLOCKV4ROOTMUTEX();
@@ -1363,7 +1364,8 @@ nfsrv_servertimer(void *arg __unused)
  * there are no other active nfsd threads.
  */
 void
-nfsrv_cleanclient(struct nfsclient *clp, NFSPROC_T *p)
+nfsrv_cleanclient(struct nfsclient *clp, NFSPROC_T *p, bool locked,
+    SVCXPRT **old_xprtp)
 {
 	struct nfsstate *stp, *nstp;
 	struct nfsdsession *sep, *nsep;
@@ -1372,7 +1374,7 @@ nfsrv_cleanclient(struct nfsclient *clp, NFSPROC_T *p)
 		nfsrv_freeopenowner(stp, 1, p);
 	if ((clp->lc_flags & LCL_ADMINREVOKED) == 0)
 		LIST_FOREACH_SAFE(sep, &clp->lc_session, sess_list, nsep)
-			(void)nfsrv_freesession(sep, NULL);
+			(void)nfsrv_freesession(sep, NULL, locked, old_xprtp);
 }
 
 /*
@@ -4603,7 +4605,7 @@ nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
 			if (procnum != NFSV4PROC_CBNULL)
 				nfsv4_freeslot(&sep->sess_cbsess, slotpos,
 				    true);
-			nfsrv_freesession(sep, NULL);
+			nfsrv_freesession(sep, NULL, false, NULL);
 		} else if (nd->nd_procnum == NFSV4PROC_CBNULL)
 			error = newnfs_connect(NULL, &clp->lc_req, cred,
 			    NULL, 1, dotls, &clp->lc_req.nr_client);
@@ -4652,7 +4654,7 @@ nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
 				nfsv4_freeslot(&sep->sess_cbsess, slotpos,
 				    true);
 			}
-			nfsrv_freesession(sep, NULL);
+			nfsrv_freesession(sep, NULL, false, NULL);
 		} else
 			error = newnfs_request(nd, NULL, clp, &clp->lc_req,
 			    NULL, NULL, cred, clp->lc_program,
@@ -5250,7 +5252,7 @@ nfsrv_clientconflict(struct nfsclient *clp, int *haslockp, vnode_t vp,
 	 */
 	nfsrv_writestable(clp->lc_id, clp->lc_idlen, NFSNST_REVOKE, p);
 	nfsrv_backupstable();
-	nfsrv_cleanclient(clp, p);
+	nfsrv_cleanclient(clp, p, false, NULL);
 	nfsrv_freedeleglist(&clp->lc_deleg);
 	nfsrv_freedeleglist(&clp->lc_olddeleg);
 	LIST_REMOVE(clp, lc_hash);
@@ -5442,7 +5444,7 @@ nfsrv_delegconflict(struct nfsstate *stp, int *haslockp, NFSPROC_T *p,
 	nfsrv_writestable(clp->lc_id, clp->lc_idlen, NFSNST_REVOKE, p);
 	nfsrv_backupstable();
 	if (clp->lc_expiry < NFSD_MONOSEC) {
-		nfsrv_cleanclient(clp, p);
+		nfsrv_cleanclient(clp, p, false, NULL);
 		nfsrv_freedeleglist(&clp->lc_deleg);
 		nfsrv_freedeleglist(&clp->lc_olddeleg);
 		LIST_REMOVE(clp, lc_hash);
@@ -6243,7 +6245,7 @@ nfsrv_throwawayallstate(NFSPROC_T *p)
 	for (i = 0; i < nfsrv_clienthashsize; i++) {
 		LIST_FOREACH_SAFE(clp, &NFSD_VNET(nfsclienthash)[i], lc_hash,
 		    nclp) {
-			nfsrv_cleanclient(clp, p);
+			nfsrv_cleanclient(clp, p, false, NULL);
 			nfsrv_freedeleglist(&clp->lc_deleg);
 			nfsrv_freedeleglist(&clp->lc_olddeleg);
 			free(clp->lc_stateid, M_NFSDCLIENT);
@@ -6456,7 +6458,7 @@ nfsrv_destroysession(struct nfsrv_descript *nd, uint8_t *sessionid)
 	} while (igotlock == 0);
 	NFSUNLOCKV4ROOTMUTEX();
 
-	error = nfsrv_freesession(NULL, sessionid);
+	error = nfsrv_freesession(NULL, sessionid, false, NULL);
 	if (error == 0 && samesess != 0)
 		nd->nd_flag &= ~ND_HASSEQUENCE;
 
@@ -6547,12 +6549,14 @@ nfsrv_bindconnsess(struct nfsrv_descript *nd, uint8_t *sessionid, int *foreaftp)
  * Free up a session structure.
  */
 static int
-nfsrv_freesession(struct nfsdsession *sep, uint8_t *sessionid)
+nfsrv_freesession(struct nfsdsession *sep, uint8_t *sessionid,
+    bool locked, SVCXPRT **old_xprtp)
 {
 	struct nfssessionhash *shp;
 	int i;
 
-	NFSLOCKSTATE();
+	if (!locked)
+		NFSLOCKSTATE();
 	if (sep == NULL) {
 		shp = NFSSESSIONHASH(sessionid);
 		NFSLOCKSESSION(shp);
@@ -6565,21 +6569,28 @@ nfsrv_freesession(struct nfsdsession *sep, uint8_t *sessionid)
 		sep->sess_refcnt--;
 		if (sep->sess_refcnt > 0) {
 			NFSUNLOCKSESSION(shp);
-			NFSUNLOCKSTATE();
+			if (!locked)
+				NFSUNLOCKSTATE();
 			return (NFSERR_BACKCHANBUSY);
 		}
 		LIST_REMOVE(sep, sess_hash);
 		LIST_REMOVE(sep, sess_list);
 	}
 	NFSUNLOCKSESSION(shp);
-	NFSUNLOCKSTATE();
+	if (!locked)
+		NFSUNLOCKSTATE();
 	if (sep == NULL)
 		return (NFSERR_BADSESSION);
 	for (i = 0; i < NFSV4_SLOTS; i++)
 		if (sep->sess_slots[i].nfssl_reply != NULL)
 			m_freem(sep->sess_slots[i].nfssl_reply);
-	if (sep->sess_cbsess.nfsess_xprt != NULL)
-		SVC_RELEASE(sep->sess_cbsess.nfsess_xprt);
+	if (!locked) {
+		if (sep->sess_cbsess.nfsess_xprt != NULL)
+			SVC_RELEASE(sep->sess_cbsess.nfsess_xprt);
+		if (old_xprtp != NULL)
+			*old_xprtp = NULL;
+	} else if (old_xprtp != NULL)
+		*old_xprtp = sep->sess_cbsess.nfsess_xprt;
 	free(sep, M_NFSDSESSION);
 	return (0);
 }

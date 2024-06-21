@@ -331,7 +331,7 @@ struct nfsf_rec {
 	u_int32_t	numboots;		/* Number of boottimes */
 };
 
-void nfsrv_cleanclient(struct nfsclient *, NFSPROC_T *);
+void nfsrv_cleanclient(struct nfsclient *, NFSPROC_T *, bool, SVCXPRT **);
 void nfsrv_freedeleglist(struct nfsstatehead *);
 
 /*
