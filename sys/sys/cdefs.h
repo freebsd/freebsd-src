@@ -213,7 +213,7 @@
 #endif
 
 #if !__has_extension(c_thread_local)
-#if (defined(__cplusplus) && __cplusplus >= 201103L) ||
+#if (defined(__cplusplus) && __cplusplus >= 201103L) || \
     __has_extension(cxx_thread_local)
 #define	_Thread_local		thread_local
 #else
