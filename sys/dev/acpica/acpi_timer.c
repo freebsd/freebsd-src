@@ -154,7 +154,7 @@ acpi_timer_identify(driver_t *driver, device_t parent)
 static int
 acpi_timer_probe(device_t dev)
 {
-    int i, j, rid, rtype;
+    int j, rid, rtype;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
