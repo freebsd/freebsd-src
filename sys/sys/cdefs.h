@@ -90,8 +90,17 @@
 #define	__compiler_membar()	__asm __volatile(" " : : : "memory")
 
 #define	__CC_SUPPORTS___INLINE 1
+#define	__CC_SUPPORTS_SYMVER 1
 
 #endif /* __GNUC__ */
+
+/*
+ * TinyC pretends to be gcc 9.3. This is generally good enough to support
+ * everything FreeBSD... except for the .symver assembler directive.
+ */
+#ifdef __TINYC__
+#undef	__CC_SUPPORTS_SYMVER
+#endif
 
 /*
  * The __CONCAT macro is used to concatenate parts of symbol names, e.g.
@@ -369,10 +378,12 @@
 	__asm__(".section .gnu.warning." #sym);	\
 	__asm__(".asciz \"" msg "\"");	\
 	__asm__(".previous")
+#ifdef	__CC_SUPPORTS_SYMVER
 #define	__sym_compat(sym,impl,verid)	\
 	__asm__(".symver " #impl ", " #sym "@" #verid)
 #define	__sym_default(sym,impl,verid)	\
 	__asm__(".symver " #impl ", " #sym "@@@" #verid)
+#endif
 #else
 #define	__weak_reference(sym,alias)	\
 	__asm__(".weak alias");		\
@@ -381,10 +392,12 @@
 	__asm__(".section .gnu.warning.sym"); \
 	__asm__(".asciz \"msg\"");	\
 	__asm__(".previous")
+#ifdef	__CC_SUPPORTS_SYMVER
 #define	__sym_compat(sym,impl,verid)	\
 	__asm__(".symver impl, sym@verid")
 #define	__sym_default(impl,sym,verid)	\
 	__asm__(".symver impl, sym@@@verid")
+#endif
 #endif	/* __STDC__ */
 
 #define	__GLOBL(sym)	__asm__(".globl " __XSTRING(sym))
