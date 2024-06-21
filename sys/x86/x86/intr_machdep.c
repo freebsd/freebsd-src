@@ -234,8 +234,11 @@ intr_register_source(struct intsrc *isrc)
 		return (error);
 	sx_xlock(&intrsrc_lock);
 	if (interrupt_sources[vector] != NULL) {
+		int rc;
 		sx_xunlock(&intrsrc_lock);
-		intr_event_destroy(isrc->is_event);
+		rc = intr_event_destroy(isrc->is_event);
+			printf("ERROR: %s(): intr_event_destroy() rc = %d!\n",
+			    __func__, rc);
 		return (EEXIST);
 	}
 	intrcnt_register(isrc);
