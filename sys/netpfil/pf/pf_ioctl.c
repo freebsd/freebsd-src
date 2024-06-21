@@ -7025,6 +7025,9 @@ pf_unload_vnet(void)
 	ret = swi_remove(V_pf_swi_cookie);
 	MPASS(ret == 0);
 	ret = intr_event_destroy(V_pf_swi_ie);
+	if (ret != 0)
+		printf("ERROR: %s(): intr_event_destroy() ret = %d!\n",
+		    __func__, ret);
 	MPASS(ret == 0);
 
 	pf_unload_vnet_purge();
