@@ -84,7 +84,7 @@ tcp_socketpair(int *sv)
 	if (fcntl(sv[0], F_SETFL, flags) == -1)
 		err(1, "fcntl +O_NONBLOCK");
 
-	if (connect(sv[0], (void *)&sin, sizeof(sin)) != -1 ||
+	if (connect(sv[0], (void *)&sin, sizeof(sin)) == -1 &&
 	    errno != EINPROGRESS)
 		err(1, "connect cs");
 
