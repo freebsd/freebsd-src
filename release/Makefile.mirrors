@@ -209,10 +209,11 @@ vm-images-stage:
 		${OSRELEASE}-${FS}.${VMFORMAT}.xz
 .  endfor
 . endfor
-. for CW in ${CLOUDWARE}
-.  if ${CW} == BASIC-CLOUDINIT
-.   for VMFORMAT in ${${CW}_FORMAT}
-.    for FS in ${${CW}_FSLIST}
+. if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE)
+.  for CW in ${CLOUDWARE}
+.   if ${CW} == BASIC-CLOUDINIT
+.    for VMFORMAT in ${${CW}_FORMAT}
+.     for FS in ${${CW}_FSLIST}
 	cd ${RELEASEDIR}/vmimages && \
 		mv ${OSRELEASE}-${CW}.${FS}.${VMFORMAT}.xz \
 		${OSRELEASE}-${CW}-${SNAP_SUFFIX}.${FS}.${VMFORMAT}.xz
@@ -221,10 +222,11 @@ vm-images-stage:
 	cd ${VM_DIR}/Latest && \
 		ln -s ../${BUILDDATE}/${OSRELEASE}-${CW}-${SNAP_SUFFIX}.${FS}.${VMFORMAT}.xz \
 		${OSRELEASE}-${CW}.${FS}.${VMFORMAT}.xz
+.     endfor
 .    endfor
-.   endfor
-.  endif
-. endfor
+.   endif
+.  endfor
+. endif
 	cd ${RELEASEDIR}/vmimages && rm -f CHECKSUM.*
 . for CHECKSUM in ${CHECKSUM_FILES}
 	cd ${RELEASEDIR}/vmimages && \
@@ -248,16 +250,18 @@ vm-images-stage:
 		${VM_DIR}/Latest/${OSRELEASE}-${FS}.${VMFORMAT}.xz
 .  endfor
 . endfor
-. for CW in ${CLOUDWARE}
-.  if ${CW} == BASIC-CLOUDINIT
-.   for VMFORMAT in ${${CW}_FORMAT}
-.    for FS in ${${CW}_FSLIST}
+. if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE)
+.  for CW in ${CLOUDWARE}
+.   if ${CW} == BASIC-CLOUDINIT
+.    for VMFORMAT in ${${CW}_FORMAT}
+.     for FS in ${${CW}_FSLIST}
 	cp -p ${RELEASEDIR}/vmimages/${OSRELEASE}-${CW}.${FS}.${VMFORMAT}.xz \
 		${VM_DIR}/Latest/${OSRELEASE}-${CW}.${FS}.${VMFORMAT}.xz
+.     endfor
 .    endfor
-.   endfor
-.  endif
-. endfor
+.   endif
+.  endfor
+. endif
 . for CHECKSUM in ${CHECKSUM_FILES}
 	cp -p ${RELEASEDIR}/vmimages/CHECKSUM.${CHECKSUM} \
 		${VM_DIR}/Latest/CHECKSUM.${CHECKSUM}
