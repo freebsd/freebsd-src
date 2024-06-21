@@ -154,7 +154,7 @@ acpi_timer_identify(driver_t *driver, device_t parent)
 static int
 acpi_timer_probe(device_t dev)
 {
-    int j, rid, rtype;
+    int rid, rtype;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -188,16 +188,6 @@ acpi_timer_probe(device_t dev)
     acpi_timer_timecounter.tc_frequency = acpi_timer_frequency;
     acpi_timer_timecounter.tc_flags = TC_FLAGS_SUSPEND_SAFE;
 
-    /*
-     * If all tests of the counter succeed, use the ACPI-fast method.  If
-     * at least one failed, default to using the safe routine, which reads
-     * the timer multiple times to get a consistent value before returning.
-     */
-    j = 0;
-    if (bootverbose)
-	printf("ACPI timer:");
-    if (bootverbose)
-	printf(" -> %d\n", j);
     acpi_timer_timecounter.tc_name = "ACPI-fast";
     acpi_timer_timecounter.tc_get_timecount = acpi_timer_get_timecount;
     acpi_timer_timecounter.tc_quality = 900;
