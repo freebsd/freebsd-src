@@ -59,6 +59,48 @@ SRCS.i386= \
 	sha512-586.S \
 	ossl_x86.c
 
+SRCS.powerpc64le= \
+	ossl_ppccap.c \
+	aes-ppc.S \
+	aesp8-ppc.S \
+	chacha-ppc.S \
+	ecp_nistz256-ppc64.S \
+	ghashp8-ppc.S \
+	keccak1600-ppc64.S \
+	poly1305-ppc.S \
+	poly1305-ppcfp.S \
+	ppc-mont.S \
+	ppc.S \
+	ppccpuid.S \
+	sha1-ppc.S \
+	sha256-ppc.S \
+	sha256p8-ppc.S \
+	sha512-ppc.S \
+	sha512p8-ppc.S \
+	vpaes-ppc.S \
+	x25519-ppc64.S
+
+SRCS.powerpc64= \
+	ossl_ppccap.c \
+	aes-ppc.S \
+	aesp8-ppc.S \
+	chacha-ppc.S \
+	ecp_nistz256-ppc64.S \
+	ghashp8-ppc.S \
+	keccak1600-ppc64.S \
+	poly1305-ppc.S \
+	poly1305-ppcfp.S \
+	ppc-mont.S \
+	ppc.S \
+	ppccpuid.S \
+	sha1-ppc.S \
+	sha256-ppc.S \
+	sha256p8-ppc.S \
+	sha512-ppc.S \
+	sha512p8-ppc.S \
+	vpaes-ppc.S \
+	x25519-ppc64.S
+
 CFLAGS.bsaes-armv7.S+=	-D__KERNEL__
 
 CFLAGS+= -I${SRCTOP}/sys/crypto/openssl
