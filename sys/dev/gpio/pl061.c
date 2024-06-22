@@ -318,7 +318,7 @@ pl061_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 		return (EINVAL);
 	}
 
-	if (isrc->isrc_handlers != 0) {
+	if (irqsrc->mode == GPIO_INTR_INVALID) {
 		dprintf("%s: handler already attached\n", __func__);
 		return (irqsrc->mode == mode ? 0 : EINVAL);
 	}
@@ -364,7 +364,7 @@ pl061_pic_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
 
 	sc = device_get_softc(dev);
 	if (isrc->isrc_handlers == 0) {
-		irqsrc->mode = GPIO_INTR_CONFORM;
+		irqsrc->mode = GPIO_INTR_INVALID;
 		PL061_LOCK(sc);
 		mask_and_set(sc, PL061_INTMASK, mask, 0);
 		PL061_UNLOCK(sc);
@@ -475,7 +475,7 @@ pl061_attach(device_t dev)
 			    "trying to register pin %d name %s\n", irq, name);
 		}
 		sc->sc_isrcs[irq].irq = irq;
-		sc->sc_isrcs[irq].mode = GPIO_INTR_CONFORM;
+		sc->sc_isrcs[irq].mode = GPIO_INTR_INVALID;
 		ret = intr_isrc_register(PIC_INTR_ISRC(sc, irq), dev, 0,
 		    "%s", name);
 		if (ret) {

@@ -86,6 +86,7 @@ struct mvebu_gpio_irqsrc {
 	u_int			irq;
 	bool			is_level;
 	bool			is_inverted;
+	bool			is_setup;
 };
 
 struct mvebu_gpio_softc;
@@ -359,6 +360,7 @@ mvebu_gpio_pic_attach(struct mvebu_gpio_softc *sc)
 		sc->isrcs[irq].irq = irq;
 		sc->isrcs[irq].is_level = false;
 		sc->isrcs[irq].is_inverted = false;
+		sc->isrcs[irq].is_setup = false;
 		rv = intr_isrc_register(&sc->isrcs[irq].isrc,
 		    sc->dev, 0, "%s,%u", name, irq);
 		if (rv != 0)
@@ -597,13 +599,14 @@ mvebu_gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 	 * If this is a setup for another handler,
 	 * only check that its configuration match.
 	 */
-	if (isrc->isrc_handlers != 0)
+	if (mgi->is_setup)
 		return (
 		    mgi->is_level == level && mgi->is_inverted == inverted ?
 		    0 : EINVAL);
 
 	mgi->is_level = level;
 	mgi->is_inverted = inverted;
+	mgi->is_setup = true;
 
 	GPIO_LOCK(sc);
 	intr_modify(sc, GPIO_DATA_IN_POL, mgi, inverted ? 1 : 0);
@@ -623,8 +626,10 @@ mvebu_gpio_pic_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
 	sc = device_get_softc(dev);
 	mgi = (struct mvebu_gpio_irqsrc *)isrc;
 
-	if (isrc->isrc_handlers == 0)
+	if (isrc->isrc_handlers == 0) {
 		mvebu_gpio_isrc_mask(sc, mgi, 0);
+		mgi->is_setup = false;
+	}
 	return (0);
 }
 

@@ -998,7 +998,7 @@ bcm_gpio_pic_attach(struct bcm_gpio_softc *sc)
 	for (irq = 0; irq < sc->sc_maxpins; irq++) {
 		sc->sc_isrcs[irq].bgi_irq = irq;
 		sc->sc_isrcs[irq].bgi_mask = BCM_GPIO_MASK(irq);
-		sc->sc_isrcs[irq].bgi_mode = GPIO_INTR_CONFORM;
+		sc->sc_isrcs[irq].bgi_mode = GPIO_INTR_INVALID;
 
 		error = intr_isrc_register(&sc->sc_isrcs[irq].bgi_isrc,
 		    sc->sc_dev, 0, "%s,%u", name, irq);
@@ -1211,7 +1211,7 @@ bcm_gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 	 * If this is a setup for another handler,
 	 * only check that its configuration match.
 	 */
-	if (isrc->isrc_handlers != 0)
+	if (bgi->bgi_mode == GPIO_INTR_INVALID)
 		return (bgi->bgi_mode == mode ? 0 : EINVAL);
 
 	bcm_gpio_pic_config_intr(sc, bgi, mode);

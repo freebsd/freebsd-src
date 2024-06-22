@@ -302,7 +302,7 @@ gpio_pic_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
 	sc = device_get_softc(dev);
 	if (isrc->isrc_handlers == 0) {
 		gi = (struct gpio_irqsrc *)isrc;
-		gi->gi_mode = GPIO_INTR_CONFORM;
+		gi->gi_mode = GPIO_INTR_INVALID;
 
 		// XXX Not sure this is necessary
 		mtx_lock_spin(&sc->sc_mtx);
@@ -337,7 +337,7 @@ gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 		return (EINVAL);
 
 	/* Compare config if this is not first setup. */
-	if (isrc->isrc_handlers != 0)
+	if (gi->gi_mode == GPIO_INTR_INVALID)
 		return (gi->gi_mode == mode ? 0 : EINVAL);
 	gi->gi_mode = mode;
 
@@ -496,7 +496,7 @@ gpio_pic_register_isrcs(struct imx51_gpio_softc *sc)
 	name = device_get_nameunit(sc->dev);
 	for (irq = 0; irq < NGPIO; irq++) {
 		sc->gpio_pic_irqsrc[irq].gi_irq = irq;
-		sc->gpio_pic_irqsrc[irq].gi_mode = GPIO_INTR_CONFORM;
+		sc->gpio_pic_irqsrc[irq].gi_mode = GPIO_INTR_INVALID;
 
 		error = intr_isrc_register(&sc->gpio_pic_irqsrc[irq].gi_isrc,
 		    sc->dev, 0, "%s,%u", name, irq);
