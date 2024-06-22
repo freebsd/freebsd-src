@@ -33,8 +33,6 @@
  *
  * Authors: Julian Elischer <julian@freebsd.org>
  *          Archie Cobbs <archie@freebsd.org>
- *
- * $FreeBSD$
  * $Whistle: ng_base.c,v 1.39 1999/01/28 23:54:53 julian Exp $
  */
 
@@ -66,6 +64,7 @@
 #include <machine/cpu.h>
 #include <vm/uma.h>
 
+#include <machine/stack.h>
 #include <net/netisr.h>
 #include <net/vnet.h>
 
@@ -3464,7 +3463,19 @@ ngthread(void *arg)
 			} else {
 				NG_QUEUE_UNLOCK(&node->nd_input_queue);
 				NGI_GET_NODE(item, node); /* zaps stored node */
-				ng_apply_item(node, item, rw);
+
+				if ((item->el_flags & NGQF_TYPE) == NGQF_MESG) {
+					/*
+					 * NGQF_MESG items should never be processed in
+					 * NET_EPOCH context. So, temporary exit from EPOCH.
+					 */
+					NET_EPOCH_EXIT(et);
+					ng_apply_item(node, item, rw);
+					NET_EPOCH_ENTER(et);
+				} else {
+					ng_apply_item(node, item, rw);
+				}
+
 				NG_NODE_UNREF(node);
 			}
 		}
@@ -3473,6 +3484,7 @@ ngthread(void *arg)
 		CURVNET_RESTORE();
 	}
 }
+
 
 /*
  * XXX
