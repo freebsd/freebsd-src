@@ -63,6 +63,7 @@
 #define GPIOMAXNAME		64
 
 /* GPIO pin configuration flags */
+#define GPIO_PIN_INVALID	0x0000FFFF	/* invalid pin value */
 #define GPIO_PIN_INPUT		0x00000001	/* input direction */
 #define GPIO_PIN_OUTPUT		0x00000002	/* output direction */
 #define GPIO_PIN_OPENDRAIN	0x00000004	/* open-drain output */
@@ -77,6 +78,7 @@
 #define GPIO_PIN_PRESET_HIGH	0x00000800	/* low before enabling output */
 /* GPIO interrupt capabilities */
 #define GPIO_INTR_NONE		0x00000000	/* no interrupt support */
+#define GPIO_INTR_INVALID	0xFFFF0000	/* invalid interrupt value */
 #define GPIO_INTR_LEVEL_LOW	0x00010000	/* level trigger, low */
 #define GPIO_INTR_LEVEL_HIGH	0x00020000	/* level trigger, high */
 #define GPIO_INTR_EDGE_RISING	0x00040000	/* edge trigger, rising */
