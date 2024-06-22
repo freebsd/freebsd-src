@@ -677,7 +677,6 @@ tegra_gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 
 	tgi->cfgreg = cfgreg;
 	intr_write_modify(sc, GPIO_INT_LVL, tgi, cfgreg, GPIO_INT_LVL_MASK);
-	tegra_gpio_pic_enable_intr(dev, isrc);
 
 	return (0);
 }
@@ -686,14 +685,14 @@ static int
 tegra_gpio_pic_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
     struct resource *res, struct intr_map_data *data)
 {
+#if 0
 	struct tegra_gpio_softc *sc;
 	struct tegra_gpio_irqsrc *tgi;
 
 	sc = device_get_softc(dev);
 	tgi = (struct tegra_gpio_irqsrc *)isrc;
+#endif
 
-	if (isrc->isrc_handlers == 0)
-		tegra_gpio_isrc_mask(sc, tgi, 0);
 	return (0);
 }
 

@@ -709,6 +709,7 @@ tegra_pcib_msi_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
 {
 }
 
+#if defined(WITNESS) || defined(INVARIANTS)
 static int
 tegra_pcib_msi_setup_intr(device_t dev, struct intr_irqsrc *isrc,
     struct resource *res, struct intr_map_data *data)
@@ -716,26 +717,9 @@ tegra_pcib_msi_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 	if (data == NULL || data->type != INTR_MAP_DATA_MSI)
 		return (ENOTSUP);
 
-	if (isrc->isrc_handlers == 0)
-		tegra_pcib_msi_enable_intr(dev, isrc);
-
 	return (0);
 }
-
-static int
-tegra_pcib_msi_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
-    struct resource *res, struct intr_map_data *data)
-{
-	struct tegra_pcib_softc *sc;
-	struct tegra_pcib_irqsrc *tgi;
-
-	sc = device_get_softc(dev);
-	tgi = (struct tegra_pcib_irqsrc *)isrc;
-
-	if (isrc->isrc_handlers == 0)
-		tegra_pcib_isrc_mask(sc, tgi, 0);
-	return (0);
-}
+#endif
 
 static int
 tegra_pcib_msi_alloc_msi(device_t dev, device_t child, int count, int maxcount,
@@ -1602,8 +1586,9 @@ static device_method_t tegra_pcib_methods[] = {
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,		tegra_pcib_msi_disable_intr),
 	DEVMETHOD(pic_enable_intr,		tegra_pcib_msi_enable_intr),
+#if defined(WITNESS) || defined(INVARIANTS)
 	DEVMETHOD(pic_setup_intr,		tegra_pcib_msi_setup_intr),
-	DEVMETHOD(pic_teardown_intr,		tegra_pcib_msi_teardown_intr),
+#endif
 	DEVMETHOD(pic_post_filter,		tegra_pcib_msi_post_filter),
 	DEVMETHOD(pic_post_ithread,		tegra_pcib_msi_post_ithread),
 	DEVMETHOD(pic_pre_ithread,		tegra_pcib_msi_pre_ithread),
