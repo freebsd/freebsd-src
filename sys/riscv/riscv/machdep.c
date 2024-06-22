@@ -380,13 +380,16 @@ fake_preload_metadata(struct riscv_bootparams *rvbp)
 	PRELOAD_PUSH_VALUE(uint32_t, sizeof(size_t));
 	PRELOAD_PUSH_VALUE(uint64_t, (size_t)((vm_offset_t)&end - KERNBASE));
 
-	/* Copy the DTB to KVA space. */
+	/*
+	 * Copy the DTB to KVA space. We are able to dereference the physical
+	 * address due to the identity map created in locore.
+	 */
 	lastaddr = roundup(lastaddr, sizeof(int));
 	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_METADATA | MODINFOMD_DTBP);
 	PRELOAD_PUSH_VALUE(uint32_t, sizeof(vm_offset_t));
 	PRELOAD_PUSH_VALUE(vm_offset_t, lastaddr);
-	dtb_size = fdt_totalsize(rvbp->dtbp_virt);
-	memmove((void *)lastaddr, (const void *)rvbp->dtbp_virt, dtb_size);
+	dtb_size = fdt_totalsize(rvbp->dtbp_phys);
+	memmove((void *)lastaddr, (const void *)rvbp->dtbp_phys, dtb_size);
 	lastaddr = roundup(lastaddr + dtb_size, sizeof(int));
 
 	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_METADATA | MODINFOMD_KERNEND);
@@ -564,7 +567,7 @@ initriscv(struct riscv_bootparams *rvbp)
 
 	/* Bootstrap enough of pmap to enter the kernel proper */
 	kernlen = (lastaddr - KERNBASE);
-	pmap_bootstrap(rvbp->kern_l1pt, rvbp->kern_phys, kernlen);
+	pmap_bootstrap(rvbp->kern_phys, kernlen);
 
 	physmem_init_kernel_globals();
 

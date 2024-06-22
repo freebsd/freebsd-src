@@ -58,6 +58,7 @@ arm/arm/pmu.c			optional	pmu | hwpmc
 arm/arm/pmu_fdt.c		optional	fdt pmu | fdt hwpmc
 arm/arm/ptrace_machdep.c	standard
 arm/arm/sc_machdep.c		optional	sc
+arm/arm/sdt_machdep.c		optional	kdtrace_hooks
 arm/arm/setcpsr.S		standard
 arm/arm/setstack.S		standard
 arm/arm/stack_machdep.c		optional	ddb | stack

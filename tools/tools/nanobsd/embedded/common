@@ -52,7 +52,7 @@
 # o msdos mtools fallback
 # o special boot for !x86 !arm platforms
 # o qemu image for aarch64
-# o qemu image for armv6/armv7
+# o qemu image for armv7
 # o easy support for different image / vm formats
 # o need to promote much of this to nanobsd.sh and friends
 # o uses old kludge to build image w/o ownership being right
@@ -500,9 +500,6 @@ std_aarch64 ( ) {
 
 std_amd64 ( ) {
 	std_i386
-}
-
-std_armv6 ( ) {
 }
 
 std_armv7 ( ) {

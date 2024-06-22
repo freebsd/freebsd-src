@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2018-2020,2021 Thomas E. Dickey                                *
  * Copyright 2008-2012,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -35,7 +35,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fty_generic.c,v 1.14 2020/12/12 17:27:44 tom Exp $")
+MODULE_ID("$Id: fty_generic.c,v 1.15 2021/03/27 23:49:53 tom Exp $")
 
 /*
  * This is not a full implementation of a field type, but adds some
@@ -282,7 +282,7 @@ _nc_form_cursor(const FORM *form, int *pRow, int *pCol)
   int code = E_SYSTEM_ERROR;
   WINDOW *res = (WINDOW *)0;
 
-  if (!(form == 0 || pRow == 0 || pCol == 0))
+  if (form != 0 && pRow != 0 && pCol != 0)
     {
       *pRow = form->currow;
       *pCol = form->curcol;

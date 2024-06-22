@@ -982,7 +982,8 @@ startmsg()
 #
 #	${name}_limits	n	limits(1) to apply to ${command}.
 #
-#	${name}_offcmd	n	If set, run if a service is not enabled.
+#	${name}_offcmd	n	If set, run during start
+#				if a service is not enabled.
 #
 #	${rc_arg}_cmd	n	If set, use this as the method when invoked;
 #				Otherwise, use default command (see below)

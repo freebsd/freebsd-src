@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2018-2022,2024 Thomas E. Dickey                                *
  * Copyright 1998-2017,2018 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -44,7 +44,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_traceatr.c,v 1.94 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_traceatr.c,v 1.96 2024/02/04 00:11:35 tom Exp $")
 
 #define COLOR_OF(c) ((c < 0) ? "default" : (c > 7 ? color_of(c) : colors[c].name))
 
@@ -343,6 +343,7 @@ _tracecchar_t2(int bufnum, const cchar_t *ch)
 	    } else {
 		PUTC_DATA;
 		int n;
+		int assume_unicode = _nc_unicode_locale()? 128 : 255;
 
 		(void) _nc_trace_bufcat(bufnum, "{ ");
 		for (PUTC_i = 0; PUTC_i < CCHARW_MAX; ++PUTC_i) {
@@ -362,21 +363,22 @@ _tracecchar_t2(int bufnum, const cchar_t *ch)
 								  UChar(ch->chars[PUTC_i])));
 			}
 			break;
-		    } else if (ch->chars[PUTC_i] > 255) {
+		    } else if (ch->chars[PUTC_i] > assume_unicode) {
 			char temp[80];
 			_nc_SPRINTF(temp, _nc_SLIMIT(sizeof(temp))
-				    "{%d:\\u%lx}",
+				    "{%d:\\u%04lx}",
 				    _nc_wacs_width(ch->chars[PUTC_i]),
 				    (unsigned long) ch->chars[PUTC_i]);
 			(void) _nc_trace_bufcat(bufnum, temp);
-			break;
-		    }
-		    for (n = 0; n < PUTC_n; n++) {
-			if (n)
-			    (void) _nc_trace_bufcat(bufnum, ", ");
-			(void) _nc_trace_bufcat(bufnum,
-						_nc_tracechar(CURRENT_SCREEN,
-							      UChar(PUTC_buf[n])));
+			attr &= ~A_CHARTEXT;	/* ignore WidecExt(ch) */
+		    } else {
+			for (n = 0; n < PUTC_n; n++) {
+			    if (n)
+				(void) _nc_trace_bufcat(bufnum, ", ");
+			    (void) _nc_trace_bufcat(bufnum,
+						    _nc_tracechar(CURRENT_SCREEN,
+								  UChar(PUTC_buf[n])));
+			}
 		    }
 		}
 		(void) _nc_trace_bufcat(bufnum, " }");

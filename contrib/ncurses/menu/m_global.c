@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020-2021,2023 Thomas E. Dickey                                *
  * Copyright 1998-2012,2014 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -38,7 +38,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_global.c,v 1.32 2020/12/12 00:38:02 tom Exp $")
+MODULE_ID("$Id: m_global.c,v 1.34 2023/09/16 16:39:26 tom Exp $")
 
 static char mark[] = "-";
 /* *INDENT-OFF* */
@@ -113,12 +113,12 @@ ComputeMaximum_NameDesc_Lengths(MENU *menu)
   unsigned MaximumNameLength = 0;
   unsigned MaximumDescriptionLength = 0;
   ITEM **items;
-  unsigned check;
 
   assert(menu && menu->items);
   for (items = menu->items; *items; items++)
     {
-      check = (unsigned)_nc_Calculate_Text_Width(&((*items)->name));
+      unsigned check = (unsigned)_nc_Calculate_Text_Width(&((*items)->name));
+
       if (check > MaximumNameLength)
 	MaximumNameLength = check;
 
@@ -174,11 +174,12 @@ ResetConnectionInfo(MENU *menu, ITEM **items)
 MENU_EXPORT(bool)
 _nc_Connect_Items(MENU *menu, ITEM **items)
 {
-  ITEM **item;
   unsigned int ItemCount = 0;
 
   if (menu && items)
     {
+      ITEM **item;
+
       for (item = items; *item; item++)
 	{
 	  if ((*item)->imenu)
@@ -292,23 +293,19 @@ static int
 calculate_actual_width(MENU *menu, bool name)
 {
   int width = 0;
-  int check = 0;
-  ITEM **items;
 
   assert(menu && menu->items);
 
   if (menu->items != 0)
     {
+      ITEM **items;
+
       for (items = menu->items; *items; items++)
 	{
-	  if (name)
-	    {
-	      check = _nc_Calculate_Text_Width(&((*items)->name));
-	    }
-	  else
-	    {
-	      check = _nc_Calculate_Text_Width(&((*items)->description));
-	    }
+	  int check = (name
+		       ? _nc_Calculate_Text_Width(&((*items)->name))
+		       : _nc_Calculate_Text_Width(&((*items)->description)));
+
 	  if (check > width)
 	    width = check;
 	}
@@ -381,7 +378,7 @@ _nc_Link_Items(MENU *menu)
 {
   if (menu && menu->items && *(menu->items))
     {
-      int i, j;
+      int i;
       ITEM *item;
       int Number_Of_Items = menu->nitems;
       int col = 0, row = 0;
@@ -444,6 +441,7 @@ _nc_Link_Items(MENU *menu)
       else
 	{
 	  int Number_Of_Rows = menu->rows;
+	  int j;
 
 	  for (j = 0; j < Number_Of_Items; j++)
 	    {
@@ -506,12 +504,12 @@ _nc_Link_Items(MENU *menu)
 MENU_EXPORT(void)
 _nc_Show_Menu(const MENU *menu)
 {
-  WINDOW *win;
-  int maxy, maxx;
-
   assert(menu);
   if ((menu->status & _POSTED) && !(menu->status & _IN_DRIVER))
     {
+      WINDOW *win;
+      int maxy, maxx;
+
       /* adjust the internal subwindow to start on the current top */
       assert(menu->sub);
       mvderwin(menu->sub, menu->spc_rows * menu->toprow, 0);
@@ -549,13 +547,13 @@ _nc_New_TopRow_and_CurrentItem(
 				int new_toprow,
 				ITEM *new_current_item)
 {
-  ITEM *cur_item;
-  bool mterm_called = FALSE;
-  bool iterm_called = FALSE;
-
   assert(menu);
   if (menu->status & _POSTED)
     {
+      ITEM *cur_item;
+      bool mterm_called = FALSE;
+      bool iterm_called = FALSE;
+
       if (new_current_item != menu->curitem)
 	{
 	  Call_Hook(menu, itemterm);
@@ -570,7 +568,7 @@ _nc_New_TopRow_and_CurrentItem(
       cur_item = menu->curitem;
       assert(cur_item);
       menu->toprow = (short)(((menu->rows - menu->frows) >= 0)
-			     ? min(menu->rows - menu->frows, new_toprow)
+			     ? Min(menu->rows - menu->frows, new_toprow)
 			     : 0);
       menu->curitem = new_current_item;
 
@@ -594,7 +592,7 @@ _nc_New_TopRow_and_CurrentItem(
   else
     {				/* if we are not posted, this is quite simple */
       menu->toprow = (short)(((menu->rows - menu->frows) >= 0)
-			     ? min(menu->rows - menu->frows, new_toprow)
+			     ? Min(menu->rows - menu->frows, new_toprow)
 			     : 0);
       menu->curitem = new_current_item;
     }

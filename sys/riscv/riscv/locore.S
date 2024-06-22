@@ -1,6 +1,10 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2015-2018 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
+ * Copyright (c) 2019-2021 Mitchell Horne <mhorne@FreeBSD.org>
+ * Copyright (c) 2022-2024 The FreeBSD Foundation
  *
  * Portions of this software were developed by SRI International and the
  * University of Cambridge Computer Laboratory under DARPA/AFRL contract
@@ -9,6 +13,9 @@
  * Portions of this software were developed by the University of Cambridge
  * Computer Laboratory as part of the CTSRD Project, with support from the
  * UK Higher Education Innovation Fund (HEIF).
+ *
+ * Portions of this software were developed by Mitchell Horne
+ * <mhorne@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,7 +43,6 @@
 
 #include <machine/asm.h>
 #include <machine/param.h>
-#include <machine/trap.h>
 #include <machine/riscvreg.h>
 #include <machine/pte.h>
 
@@ -104,26 +110,51 @@ _start:
 	mv	a1, zero
 
 	/*
-	 * Set up page tables: map a 1GB region starting at KERNBASE using 2MB
-	 * superpages, starting from the first 2MB physical page into which the
-	 * kernel was loaded.  Also reserve an L2 page for the early device map
-	 * and map the DTB, if any, using the second-last entry of that L2
-	 * page.  This is hopefully enough to get us to pmap_bootstrap().
+	 * Set up page tables: Our goal is to enable virtual memory, doing the
+	 * minimum amount of work in assembly; just what is required to
+	 * bootstrap. We will construct the real page tables in C code, in
+	 * pmap_bootstrap().
 	 *
-	 * Implementations are required to provide SV39 mode, so we use that
-	 * initially and will optionally enable SV48 mode during kernel pmap
-	 * initialization.
+	 * Here we map a 1GB region starting at KERNBASE using 2MB superpages,
+	 * starting from the first 2MB physical page into which the kernel was
+	 * loaded.
 	 *
+	 * We also use an L1 entry to create a 1GB identity map (1:1 PA->VA).
+	 * This is useful for two reasons:
+	 *  - handling the DTB pointer passed from SBI firmware (physical addr)
+	 *  - simpler construction of pagetables in pmap_bootstrap()
+	 *
+	 * Implementations are required to provide Sv39 mode, so we use that
+	 * here and will conditionally enable Sv48 (or higher) later.
+	 *
+	 * We arrive here with:
 	 *  a0 - modulep or zero
 	 *  a1 - zero or dtbp
 	 */
 pagetables:
-	/* Get the kernel's load address */
+	/* Get the kernel's load address (kernstart) in s9 */
 	jal	get_physmem
 
+	/* Construct 1GB Identity Map (1:1 PA->VA) */
+	lla	s1, bootstrap_pt_l1
+
+	srli	s2, s9, L1_SHIFT	/* kernstart >> L1_SHIFT */
+	andi	a5, s2, Ln_ADDR_MASK	/* & Ln_ADDR_MASK */
+	li	t4, (PTE_KERN)
+	slli	s2, s2, PTE_PPN2_S	/* (s2 << PTE_PPN2_S) */
+	or	t6, t4, s2
+
+	/* Store L1 PTE entry to position */
+	li	a6, PTE_SIZE
+	mulw	a5, a5, a6		/* calculate L1 slot */
+	add	t0, s1, a5
+	sd	t6, (t0)		/* Store new PTE */
+
+	/* Construct the virtual address space at KERNBASE */
+
 	/* Add L1 entry for kernel */
-	lla	s1, pagetable_l1
-	lla	s2, pagetable_l2	/* Link to next level PN */
+	lla	s1, bootstrap_pt_l1
+	lla	s2, bootstrap_pt_l2	/* Link to next level PN */
 	srli	s2, s2, PAGE_SHIFT
 
 	li	a5, KERNBASE
@@ -140,9 +171,9 @@ pagetables:
 	sd	t6, (t0)
 
 	/* Level 2 superpages (512 x 2MiB) */
-	lla	s1, pagetable_l2
+	lla	s1, bootstrap_pt_l2
 	srli	t4, s9, L2_SHIFT	/* Div physmem base by 2 MiB */
-	li	t2, 512			/* Build 512 entries */
+	li	t2, Ln_ENTRIES		/* Build 512 entries */
 	add	t3, t4, t2
 	li	t0, (PTE_KERN | PTE_X)
 1:
@@ -154,47 +185,6 @@ pagetables:
 	addi	t4, t4, 1
 	bltu	t4, t3, 1b
 
-	/* Create an L1 table entry for early devmap */
-	lla	s1, pagetable_l1
-	lla	s2, pagetable_l2_devmap	/* Link to next level PN */
-	srli	s2, s2, PAGE_SHIFT
-
-	li	a5, (VM_MAX_KERNEL_ADDRESS - PMAP_MAPDEV_EARLY_SIZE)
-	srli	a5, a5, L1_SHIFT	/* >> L1_SHIFT */
-	andi	a5, a5, Ln_ADDR_MASK	/* & Ln_ADDR_MASK */
-	li	t4, PTE_V
-	slli	t5, s2, PTE_PPN0_S	/* (s2 << PTE_PPN0_S) */
-	or	t6, t4, t5
-
-	/* Store the L1 table entry */
-	li	a6, PTE_SIZE
-	mulw	a5, a5, a6
-	add	t0, s1, a5
-	sd	t6, (t0)
-
-	/* Check if we have a DTB that needs to be mapped */
-	beqz	a1, 2f
-
-	/* Create an L2 mapping for the DTB */
-	lla	s1, pagetable_l2_devmap
-	mv	s2, a1
-	srli	s2, s2, PAGE_SHIFT
-	/* Mask off any bits that aren't aligned */
-	andi	s2, s2, ~((1 << (PTE_PPN1_S - PTE_PPN0_S)) - 1)
-
-	li	t0, (PTE_KERN)
-	slli	t2, s2, PTE_PPN0_S	/* << PTE_PPN0_S */
-	or	t0, t0, t2
-
-	/* Store the L2 table entry for the DTB */
-	li	a6, PTE_SIZE
-	li	a5, VM_EARLY_DTB_ADDRESS
-	srli	a5, a5, L2_SHIFT    /* >> L2_SHIFT */
-	andi	a5, a5, Ln_ADDR_MASK    /* & Ln_ADDR_MASK */
-	mulw	a5, a5, a6
-	add	t1, s1, a5
-	sd	t0, (t1)
-
 	/* Page tables END */
 
 	/*
@@ -202,7 +192,6 @@ pagetables:
 	 * may generate a page fault. We simply wish to continue onwards, so
 	 * have the trap deliver us to 'va'.
 	 */
-2:
 	lla	t0, va
 	sub	t0, t0, s9
 	li	t1, KERNBASE
@@ -210,7 +199,7 @@ pagetables:
 	csrw	stvec, t0
 
 	/* Set page tables base register */
-	lla	s2, pagetable_l1
+	lla	s2, bootstrap_pt_l1
 	srli	s2, s2, PAGE_SHIFT
 	li	t0, SATP_MODE_SV39
 	or	s2, s2, t0
@@ -251,21 +240,11 @@ va:
 	bltu	t0, t1, 1b
 
 	/* Fill riscv_bootparams */
-	la	t0, pagetable_l1
-	sd	t0, RISCV_BOOTPARAMS_KERN_L1PT(sp)
 	sd	s9, RISCV_BOOTPARAMS_KERN_PHYS(sp)
 
 	la	t0, initstack
 	sd	t0, RISCV_BOOTPARAMS_KERN_STACK(sp)
-
-	li	t0, (VM_EARLY_DTB_ADDRESS)
-	/* Add offset of DTB within superpage */
-	li	t1, (L2_OFFSET)
-	and	t1, a1, t1
-	add	t0, t0, t1
-	sd	t0, RISCV_BOOTPARAMS_DTBP_VIRT(sp)
 	sd	a1, RISCV_BOOTPARAMS_DTBP_PHYS(sp)
-
 	sd	a0, RISCV_BOOTPARAMS_MODULEP(sp)
 
 	mv	a0, sp
@@ -293,12 +272,13 @@ initstack:
 	.space  (PAGE_SIZE * KSTACK_PAGES)
 initstack_end:
 
-	.align	12
-pagetable_l1:
+/*
+ * Static space for the bootstrap page tables. Unused after pmap_bootstrap().
+ */
+	.balign	PAGE_SIZE
+bootstrap_pt_l1:
 	.space	PAGE_SIZE
-pagetable_l2:
-	.space	PAGE_SIZE
-pagetable_l2_devmap:
+bootstrap_pt_l2:
 	.space	PAGE_SIZE
 
 	.align 3
@@ -306,10 +286,6 @@ virt_map:
 	.quad   virt_map
 hart_lottery:
 	.space	4
-
-	.globl init_pt_va
-init_pt_va:
-	.quad pagetable_l2	/* XXX: Keep page tables VA */
 
 #ifndef SMP
 ENTRY(mpentry)
@@ -358,10 +334,8 @@ ENTRY(mpentry)
 	csrw	stvec, t0
 
 	/* Set page tables base register */
-	lla	s2, pagetable_l1
-	srli	s2, s2, PAGE_SHIFT
-	li	t0, SATP_MODE_SV39
-	or	s2, s2, t0
+	lla	t2, kernel_pmap_store
+	ld	s2, PM_SATP(t2)
 	sfence.vma
 	csrw	satp, s2
 

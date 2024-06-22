@@ -1,6 +1,6 @@
-# $Id: magic,v 1.3 2020/02/02 23:34:34 tom Exp $
+# $Id: magic,v 1.5 2023/09/23 23:37:26 tom Exp $
 ##############################################################################
-# Copyright 2020 Thomas E. Dickey                                            #
+# Copyright 2020,2023 Thomas E. Dickey                                       #
 # Copyright 2015,2018 Free Software Foundation, Inc.                         #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -60,7 +60,7 @@
 !:mime	application/x-terminfo2
 #
 # While the compiled terminfo uses little-endian format irregardless of
-# platform, SystemV screen dumps do not.  They came later, and that detail was
+# platform, System V screen dumps do not.  They came later, and that detail was
 # overlooked.
 #
 # AIX and HPUX use the SVr4 big-endian format

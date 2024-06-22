@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2023,2024 Thomas E. Dickey                                *
  * Copyright 2016,2017 Free Software Foundation, Inc.                       *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -47,13 +47,13 @@
 #endif
 
 #if NEED_PTEM_H
-/* they neglected to define struct winsize in termios.h -- it's only
+/* they neglected to define struct winsize in termios.h -- it is only
    in termio.h	*/
 #include <sys/stream.h>
 #include <sys/ptem.h>
 #endif
 
-MODULE_ID("$Id: reset_cmd.c,v 1.24 2020/11/21 22:11:10 tom Exp $")
+MODULE_ID("$Id: reset_cmd.c,v 1.37 2024/04/08 17:29:34 tom Exp $")
 
 /*
  * SCO defines TIOCGSIZE and the corresponding struct.  Other systems (SunOS,
@@ -75,12 +75,15 @@ MODULE_ID("$Id: reset_cmd.c,v 1.24 2020/11/21 22:11:10 tom Exp $")
 # endif
 #endif
 
+#define set_flags(target, mask)    target |= mask
+#define clear_flags(target, mask)  target &= ~((unsigned)(mask))
+
 static FILE *my_file;
 
 static bool use_reset = FALSE;	/* invoked as reset */
 static bool use_init = FALSE;	/* invoked as init */
 
-static void
+static GCC_NORETURN void
 failed(const char *msg)
 {
     int code = errno;
@@ -102,7 +105,7 @@ cat_file(char *file)
     bool sent = FALSE;
 
     if (file != 0) {
-	if ((fp = fopen(file, "r")) == 0)
+	if ((fp = safe_fopen(file, "r")) == 0)
 	    failed(file);
 
 	while ((nr = fread(buf, sizeof(char), sizeof(buf), fp)) != 0) {
@@ -189,12 +192,90 @@ out_char(int c)
     tty_settings->c_cc[item] = CHK(tty_settings->c_cc[item], value)
 
 /*
+ * Simplify ifdefs
+ */
+#ifndef BSDLY
+#define BSDLY 0
+#endif
+#ifndef CRDLY
+#define CRDLY 0
+#endif
+#ifndef ECHOCTL
+#define ECHOCTL 0
+#endif
+#ifndef ECHOKE
+#define ECHOKE 0
+#endif
+#ifndef ECHOPRT
+#define ECHOPRT 0
+#endif
+#ifndef FFDLY
+#define FFDLY 0
+#endif
+#ifndef IMAXBEL
+#define IMAXBEL 0
+#endif
+#ifndef IUCLC
+#define IUCLC 0
+#endif
+#ifndef IXANY
+#define IXANY 0
+#endif
+#ifndef NLDLY
+#define NLDLY 0
+#endif
+#ifndef OCRNL
+#define OCRNL 0
+#endif
+#ifndef OFDEL
+#define OFDEL 0
+#endif
+#ifndef OFILL
+#define OFILL 0
+#endif
+#ifndef OLCUC
+#define OLCUC 0
+#endif
+#ifndef ONLCR
+#define ONLCR 0
+#endif
+#ifndef ONLRET
+#define ONLRET 0
+#endif
+#ifndef ONOCR
+#define ONOCR 0
+#endif
+#ifndef OXTABS
+#define OXTABS 0
+#endif
+#ifndef TAB3
+#define TAB3 0
+#endif
+#ifndef TABDLY
+#define TABDLY 0
+#endif
+#ifndef TOSTOP
+#define TOSTOP 0
+#endif
+#ifndef VTDLY
+#define VTDLY 0
+#endif
+#ifndef XCASE
+#define XCASE 0
+#endif
+
+/*
  * Reset the terminal mode bits to a sensible state.  Very useful after
  * a child program dies in raw mode.
  */
 void
-reset_tty_settings(int fd, TTY * tty_settings)
+reset_tty_settings(int fd, TTY * tty_settings, int noset)
 {
+    unsigned mask;
+#ifdef TIOCMGET
+    int modem_bits;
+#endif
+
     GET_TTY(fd, tty_settings);
 
 #ifdef TERMIOS
@@ -203,6 +284,9 @@ reset_tty_settings(int fd, TTY * tty_settings)
 #endif
     reset_char(VEOF, CEOF);
     reset_char(VERASE, CERASE);
+#if defined(VERASE2) && defined(CERASE2)
+    reset_char(VERASE2, CERASE2);
+#endif
 #if defined(VFLUSH) && defined(CFLUSH)
     reset_char(VFLUSH, CFLUSH);
 #endif
@@ -228,108 +312,69 @@ reset_tty_settings(int fd, TTY * tty_settings)
     reset_char(VWERASE, CWERASE);
 #endif
 
-    tty_settings->c_iflag &= ~((unsigned) (IGNBRK
-					   | PARMRK
-					   | INPCK
-					   | ISTRIP
-					   | INLCR
-					   | IGNCR
-#ifdef IUCLC
-					   | IUCLC
-#endif
-#ifdef IXANY
-					   | IXANY
-#endif
-					   | IXOFF));
+    clear_flags(tty_settings->c_iflag, (IGNBRK
+					| PARMRK
+					| INPCK
+					| ISTRIP
+					| INLCR
+					| IGNCR
+					| IUCLC
+					| IXANY
+					| IXOFF));
 
-    tty_settings->c_iflag |= (BRKINT
-			      | IGNPAR
-			      | ICRNL
-			      | IXON
-#ifdef IMAXBEL
-			      | IMAXBEL
-#endif
-	);
+    set_flags(tty_settings->c_iflag, (BRKINT
+				      | IGNPAR
+				      | ICRNL
+				      | IXON
+				      | IMAXBEL));
 
-    tty_settings->c_oflag &= ~((unsigned) (0
-#ifdef OLCUC
-					   | OLCUC
-#endif
-#ifdef OCRNL
-					   | OCRNL
-#endif
-#ifdef ONOCR
-					   | ONOCR
-#endif
-#ifdef ONLRET
-					   | ONLRET
-#endif
-#ifdef OFILL
-					   | OFILL
-#endif
-#ifdef OFDEL
-					   | OFDEL
-#endif
-#ifdef NLDLY
-					   | NLDLY
-#endif
-#ifdef CRDLY
-					   | CRDLY
-#endif
-#ifdef TABDLY
-					   | TABDLY
-#endif
-#ifdef BSDLY
-					   | BSDLY
-#endif
-#ifdef VTDLY
-					   | VTDLY
-#endif
-#ifdef FFDLY
-					   | FFDLY
-#endif
-			       ));
+    clear_flags(tty_settings->c_oflag, (0
+					| OLCUC
+					| OCRNL
+					| ONOCR
+					| ONLRET
+					| OFILL
+					| OFDEL
+					| NLDLY
+					| CRDLY
+					| TABDLY
+					| BSDLY
+					| VTDLY
+					| FFDLY));
 
-    tty_settings->c_oflag |= (OPOST
-#ifdef ONLCR
-			      | ONLCR
-#endif
-	);
+    set_flags(tty_settings->c_oflag, (OPOST
+				      | ONLCR));
 
-    tty_settings->c_cflag &= ~((unsigned) (CSIZE
-					   | CSTOPB
-					   | PARENB
-					   | PARODD
-					   | CLOCAL));
-    tty_settings->c_cflag |= (CS8 | CREAD);
-    tty_settings->c_lflag &= ~((unsigned) (ECHONL
-					   | NOFLSH
-#ifdef TOSTOP
-					   | TOSTOP
+    mask = (CSIZE | CSTOPB | PARENB | PARODD);
+#ifdef TIOCMGET
+    /* leave clocal alone if this appears to use a modem */
+    if (ioctl(fd, TIOCMGET, &modem_bits) == -1)
+	mask |= CLOCAL;
+#else
+    /* cannot check - use the behavior from tset */
+    mask |= CLOCAL;
 #endif
-#ifdef ECHOPTR
-					   | ECHOPRT
-#endif
-#ifdef XCASE
-					   | XCASE
-#endif
-			       ));
+    clear_flags(tty_settings->c_cflag, mask);
 
-    tty_settings->c_lflag |= (ISIG
-			      | ICANON
-			      | ECHO
-			      | ECHOE
-			      | ECHOK
-#ifdef ECHOCTL
-			      | ECHOCTL
-#endif
-#ifdef ECHOKE
-			      | ECHOKE
-#endif
-	);
-#endif
+    set_flags(tty_settings->c_cflag, (CS8 | CREAD));
+    clear_flags(tty_settings->c_lflag, (ECHONL
+					| NOFLSH
+					| TOSTOP
+					| ECHOPRT
+					| XCASE));
 
-    SET_TTY(fd, tty_settings);
+    set_flags(tty_settings->c_lflag, (ISIG
+				      | ICANON
+				      | ECHO
+				      | ECHOE
+				      | ECHOK
+				      | ECHOCTL
+				      | ECHOKE));
+#endif /* TERMIOS */
+
+    if (!noset) {
+	SET_TTY(fd, tty_settings);
+    }
 }
 
 /*
@@ -400,29 +445,23 @@ set_conversions(TTY * tty_settings)
 #if defined(EXP_WIN32_DRIVER)
     /* FIXME */
 #else
-#ifdef ONLCR
-    tty_settings->c_oflag |= ONLCR;
-#endif
-    tty_settings->c_iflag |= ICRNL;
-    tty_settings->c_lflag |= ECHO;
-#ifdef OXTABS
-    tty_settings->c_oflag |= OXTABS;
-#endif /* OXTABS */
+    set_flags(tty_settings->c_oflag, ONLCR);
+    set_flags(tty_settings->c_iflag, ICRNL);
+    set_flags(tty_settings->c_lflag, ECHO);
+    set_flags(tty_settings->c_oflag, OXTABS);
 
     /* test used to be tgetflag("NL") */
     if (VALID_STRING(newline) && newline[0] == '\n' && !newline[1]) {
 	/* Newline, not linefeed. */
-#ifdef ONLCR
-	tty_settings->c_oflag &= ~((unsigned) ONLCR);
-#endif
-	tty_settings->c_iflag &= ~((unsigned) ICRNL);
+	clear_flags(tty_settings->c_oflag, ONLCR);
+	clear_flags(tty_settings->c_iflag, ICRNL);
     }
-#ifdef OXTABS
+#if OXTABS
     /* test used to be tgetflag("pt") */
     if (VALID_STRING(set_tab) && VALID_STRING(clear_all_tabs))
-	tty_settings->c_oflag &= ~OXTABS;
+	clear_flags(tty_settings->c_oflag, OXTABS);
 #endif /* OXTABS */
-    tty_settings->c_lflag |= (ECHOE | ECHOK);
+    set_flags(tty_settings->c_lflag, (ECHOE | ECHOK));
 #endif
 }
 
@@ -488,7 +527,7 @@ send_init_strings(int fd GCC_UNUSED, TTY * old_settings)
     bool need_flush = FALSE;
 
     (void) old_settings;
-#ifdef TAB3
+#if TAB3
     if (old_settings != 0 &&
 	old_settings->c_oflag & (TAB3 | ONLCR | OCRNL | ONLRET)) {
 	old_settings->c_oflag &= (TAB3 | ONLCR | OCRNL | ONLRET);
@@ -510,22 +549,22 @@ send_init_strings(int fd GCC_UNUSED, TTY * old_settings)
 
 	if (VALID_STRING(clear_margins)) {
 	    need_flush |= sent_string(clear_margins);
-	} else
+	}
 #if defined(set_lr_margin)
-	if (VALID_STRING(set_lr_margin)) {
+	else if (VALID_STRING(set_lr_margin)) {
 	    need_flush |= sent_string(TIPARM_2(set_lr_margin, 0, columns - 1));
-	} else
+	}
 #endif
 #if defined(set_left_margin_parm) && defined(set_right_margin_parm)
-	    if (VALID_STRING(set_left_margin_parm)
-		&& VALID_STRING(set_right_margin_parm)) {
+	else if (VALID_STRING(set_left_margin_parm)
+		 && VALID_STRING(set_right_margin_parm)) {
 	    need_flush |= sent_string(TIPARM_1(set_left_margin_parm, 0));
 	    need_flush |= sent_string(TIPARM_1(set_right_margin_parm,
 					       columns - 1));
-	} else
+	}
 #endif
-	    if (VALID_STRING(set_left_margin)
-		&& VALID_STRING(set_right_margin)) {
+	else if (VALID_STRING(set_left_margin)
+		 && VALID_STRING(set_right_margin)) {
 	    need_flush |= to_left_margin();
 	    need_flush |= sent_string(set_left_margin);
 	    if (VALID_STRING(parm_right_cursor)) {
@@ -638,7 +677,7 @@ print_tty_chars(TTY * old_settings, TTY * new_settings)
  * size was set.
  */
 void
-set_window_size(int fd, short *high, short *wide)
+set_window_size(int fd, NCURSES_INT2 *high, NCURSES_INT2 *wide)
 {
     STRUCT_WINSIZE win;
     (void) ioctl(fd, IOCTL_GET_WINSIZE, &win);

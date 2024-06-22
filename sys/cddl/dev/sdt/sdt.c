@@ -19,7 +19,7 @@
  * CDDL HEADER END
  *
  * Portions Copyright 2006-2008 John Birrell jb@freebsd.org
- *
+ * Copyright 2024 Mark Johnston <markj@FreeBSD.org>
  */
 
 /*
@@ -58,8 +58,11 @@
 #include <sys/dtrace.h>
 #include <sys/dtrace_bsd.h>
 
+#include <cddl/dev/dtrace/dtrace_cddl.h>
+
 /* DTrace methods. */
 static void	sdt_getargdesc(void *, dtrace_id_t, void *, dtrace_argdesc_t *);
+static uint64_t	sdt_getargval(void *, dtrace_id_t, void *, int, int);
 static void	sdt_provide_probes(void *, dtrace_probedesc_t *);
 static void	sdt_destroy(void *, dtrace_id_t, void *);
 static void	sdt_enable(void *, dtrace_id_t, void *);
@@ -93,7 +96,7 @@ static dtrace_pops_t sdt_pops = {
 	.dtps_suspend =		NULL,
 	.dtps_resume =		NULL,
 	.dtps_getargdesc =	sdt_getargdesc,
-	.dtps_getargval =	NULL,
+	.dtps_getargval =	sdt_getargval,
 	.dtps_usermode =	NULL,
 	.dtps_destroy =		sdt_destroy,
 };
@@ -187,7 +190,7 @@ sdt_create_probe(struct sdt_probe *probe)
 	if (dtrace_probe_lookup(prov->id, mod, func, name) != DTRACE_IDNONE)
 		return;
 
-	(void)dtrace_probe_create(prov->id, mod, func, name, 1, probe);
+	(void)dtrace_probe_create(prov->id, mod, func, name, 0, probe);
 }
 
 /*
@@ -200,10 +203,62 @@ sdt_provide_probes(void *arg, dtrace_probedesc_t *desc)
 {
 }
 
+struct sdt_enable_cb_arg {
+	struct sdt_probe *probe;
+	int cpu;
+	int arrived;
+	int done;
+	bool enable;
+};
+
+static void
+sdt_probe_update_cb(void *_arg)
+{
+	struct sdt_enable_cb_arg *arg;
+	struct sdt_tracepoint *tp;
+
+	arg = _arg;
+	if (arg->cpu != curcpu) {
+		atomic_add_rel_int(&arg->arrived, 1);
+		while (atomic_load_acq_int(&arg->done) == 0)
+			cpu_spinwait();
+		return;
+	} else {
+		while (atomic_load_acq_int(&arg->arrived) != mp_ncpus - 1)
+			cpu_spinwait();
+	}
+
+	STAILQ_FOREACH(tp, &arg->probe->tracepoint_list, tracepoint_entry) {
+		if (arg->enable)
+			sdt_tracepoint_patch(tp->patchpoint, tp->target);
+		else
+			sdt_tracepoint_restore(tp->patchpoint);
+	}
+
+	atomic_store_rel_int(&arg->done, 1);
+}
+
+static void
+sdt_probe_update(struct sdt_probe *probe, bool enable)
+{
+	struct sdt_enable_cb_arg cbarg;
+
+	sched_pin();
+	cbarg.probe = probe;
+	cbarg.cpu = curcpu;
+	atomic_store_rel_int(&cbarg.arrived, 0);
+	atomic_store_rel_int(&cbarg.done, 0);
+	cbarg.enable = enable;
+	smp_rendezvous(NULL, sdt_probe_update_cb, NULL, &cbarg);
+	sched_unpin();
+}
+
 static void
 sdt_enable(void *arg __unused, dtrace_id_t id, void *parg)
 {
-	struct sdt_probe *probe = parg;
+	struct sdt_probe *probe;
+
+	probe = parg;
 
 	probe->id = id;
 	probe->sdtp_lf->nenabled++;
@@ -215,14 +270,19 @@ sdt_enable(void *arg __unused, dtrace_id_t id, void *parg)
 	sdt_probes_enabled_count++;
 	if (sdt_probes_enabled_count == 1)
 		sdt_probes_enabled = true;
+
+	sdt_probe_update(probe, true);
 }
 
 static void
 sdt_disable(void *arg __unused, dtrace_id_t id, void *parg)
 {
-	struct sdt_probe *probe = parg;
+	struct sdt_probe *probe;
 
+	probe = parg;
 	KASSERT(probe->sdtp_lf->nenabled > 0, ("no probes enabled"));
+
+	sdt_probe_update(probe, false);
 
 	sdt_probes_enabled_count--;
 	if (sdt_probes_enabled_count == 0)
@@ -264,6 +324,23 @@ sdt_getargdesc(void *arg, dtrace_id_t id, void *parg, dtrace_argdesc_t *desc)
 	}
 }
 
+/*
+ * Fetch arguments beyond the first five passed directly to dtrace_probe().
+ * FreeBSD's SDT implement currently only supports up to 6 arguments, so we just
+ * need to handle arg5 here.
+ */
+static uint64_t
+sdt_getargval(void *arg __unused, dtrace_id_t id __unused,
+    void *parg __unused, int argno, int aframes __unused)
+{
+	if (argno != 5) {
+		DTRACE_CPUFLAG_SET(CPU_DTRACE_ILLOP);
+		return (0);
+	} else {
+		return (curthread->t_dtrace_sdt_arg[argno - 5]);
+	}
+}
+
 static void
 sdt_destroy(void *arg, dtrace_id_t id, void *parg)
 {
@@ -284,24 +361,45 @@ sdt_kld_load_providers(struct linker_file *lf)
 static void
 sdt_kld_load_probes(struct linker_file *lf)
 {
-	struct sdt_probe **probe, **p_begin, **p_end;
-	struct sdt_argtype **argtype, **a_begin, **a_end;
+	struct sdt_probe **p_begin, **p_end;
+	struct sdt_argtype **a_begin, **a_end;
+	struct sdt_tracepoint *tp_begin, *tp_end;
 
 	if (linker_file_lookup_set(lf, "sdt_probes_set", &p_begin, &p_end,
 	    NULL) == 0) {
-		for (probe = p_begin; probe < p_end; probe++) {
+		for (struct sdt_probe **probe = p_begin; probe < p_end;
+		    probe++) {
 			(*probe)->sdtp_lf = lf;
 			sdt_create_probe(*probe);
 			TAILQ_INIT(&(*probe)->argtype_list);
+			STAILQ_INIT(&(*probe)->tracepoint_list);
 		}
 	}
 
 	if (linker_file_lookup_set(lf, "sdt_argtypes_set", &a_begin, &a_end,
 	    NULL) == 0) {
-		for (argtype = a_begin; argtype < a_end; argtype++) {
+		for (struct sdt_argtype **argtype = a_begin; argtype < a_end;
+		    argtype++) {
 			(*argtype)->probe->n_args++;
 			TAILQ_INSERT_TAIL(&(*argtype)->probe->argtype_list,
 			    *argtype, argtype_entry);
+		}
+	}
+
+	if (linker_file_lookup_set(lf, __XSTRING(_SDT_TRACEPOINT_SET),
+	    &tp_begin, &tp_end, NULL) == 0) {
+		for (struct sdt_tracepoint *tp = tp_begin; tp < tp_end; tp++) {
+			if (!sdt_tracepoint_valid(tp->patchpoint, tp->target)) {
+				printf(
+			    "invalid tracepoint %#jx->%#jx for %s:%s:%s:%s\n",
+				    (uintmax_t)tp->patchpoint,
+				    (uintmax_t)tp->target,
+				    tp->probe->prov->name, tp->probe->mod,
+				    tp->probe->func, tp->probe->name);
+				continue;
+			}
+			STAILQ_INSERT_TAIL(&tp->probe->tracepoint_list, tp,
+			    tracepoint_entry);
 		}
 	}
 }
@@ -372,12 +470,20 @@ sdt_load_probes_cb(linker_file_t lf, void *arg __unused)
 }
 
 static void
+sdt_dtrace_probe(dtrace_id_t id, uintptr_t arg0, uintptr_t arg1,
+    uintptr_t arg2, uintptr_t arg3, uintptr_t arg4, uintptr_t arg5)
+{
+	curthread->t_dtrace_sdt_arg[0] = arg5;
+	dtrace_probe(id, arg0, arg1, arg2, arg3, arg4);
+}
+
+static void
 sdt_load(void)
 {
 
 	TAILQ_INIT(&sdt_prov_list);
 
-	sdt_probe_func = dtrace_probe;
+	sdt_probe_func = sdt_dtrace_probe;
 
 	sdt_kld_load_tag = EVENTHANDLER_REGISTER(kld_load, sdt_kld_load, NULL,
 	    EVENTHANDLER_PRI_ANY);
@@ -419,7 +525,6 @@ sdt_unload(void)
 static int
 sdt_modevent(module_t mod __unused, int type, void *data __unused)
 {
-
 	switch (type) {
 	case MOD_LOAD:
 	case MOD_UNLOAD:
@@ -436,3 +541,4 @@ SYSUNINIT(sdt_unload, SI_SUB_DTRACE_PROVIDER, SI_ORDER_ANY, sdt_unload, NULL);
 DEV_MODULE(sdt, sdt_modevent, NULL);
 MODULE_VERSION(sdt, 1);
 MODULE_DEPEND(sdt, dtrace, 1, 1, 1);
+MODULE_DEPEND(sdt, opensolaris, 1, 1, 1);

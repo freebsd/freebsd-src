@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2018-2022,2023 Thomas E. Dickey                                *
  * Copyright 1998-2015,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -44,7 +44,7 @@
 #define NEED_KEY_EVENT
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_getch.c,v 1.141 2020/09/05 22:50:47 tom Exp $")
+MODULE_ID("$Id: lib_getch.c,v 1.146 2023/04/29 18:57:12 tom Exp $")
 
 #include <fifo_defs.h>
 
@@ -298,8 +298,8 @@ fifo_push(SCREEN *sp EVENTLIST_2nd(_nc_eventlist * evl))
     } else
 #endif
 #if USE_KLIBC_KBD
-    if (NC_ISATTY(sp->_ifd) && sp->_cbreak) {
-	ch = _read_kbd(0, 1, !sp->_raw);
+    if (NC_ISATTY(sp->_ifd) && IsCbreak(sp)) {
+	ch = _read_kbd(0, 1, !IsRaw(sp));
 	n = (ch == -1) ? -1 : 1;
 	sp->_extended_key = (ch == 0);
     } else
@@ -308,20 +308,15 @@ fifo_push(SCREEN *sp EVENTLIST_2nd(_nc_eventlist * evl))
 #if defined(USE_TERM_DRIVER)
 	int buf;
 # if defined(EXP_WIN32_DRIVER)
-	if (NC_ISATTY(sp->_ifd) && IsTermInfoOnConsole(sp) && sp->_cbreak) {
-#  if USE_PTHREADS_EINTR
-	    if ((pthread_self) && (pthread_kill) && (pthread_equal))
-		_nc_globals.read_thread = pthread_self();
-#  endif
+	if (NC_ISATTY(sp->_ifd) && IsTermInfoOnConsole(sp) && IsCbreak(sp)) {
+	    _nc_set_read_thread(TRUE);
 	    n = _nc_console_read(sp,
 				 _nc_console_handle(sp->_ifd),
 				 &buf);
-#  if USE_PTHREADS_EINTR
-	    _nc_globals.read_thread = 0;
-#  endif
+	    _nc_set_read_thread(FALSE);
 	} else
 # elif defined(_NC_WINDOWS)
-	if (NC_ISATTY(sp->_ifd) && IsTermInfoOnConsole(sp) && sp->_cbreak)
+	if (NC_ISATTY(sp->_ifd) && IsTermInfoOnConsole(sp) && IsCbreak(sp))
 	    n = _nc_mingw_console_read(sp,
 				       _nc_get_handle(sp->_ifd),
 				       &buf);
@@ -334,12 +329,8 @@ fifo_push(SCREEN *sp EVENTLIST_2nd(_nc_eventlist * evl))
 	int buf;
 #endif
 	unsigned char c2 = 0;
-#if USE_PTHREADS_EINTR
-#if USE_WEAK_SYMBOLS
-	if ((pthread_self) && (pthread_kill) && (pthread_equal))
-#endif
-	    _nc_globals.read_thread = pthread_self();
-#endif
+
+	_nc_set_read_thread(TRUE);
 #if defined(EXP_WIN32_DRIVER)
 	n = _nc_console_read(sp,
 			     _nc_console_handle(sp->_ifd),
@@ -348,9 +339,7 @@ fifo_push(SCREEN *sp EVENTLIST_2nd(_nc_eventlist * evl))
 #else
 	n = (int) read(sp->_ifd, &c2, (size_t) 1);
 #endif
-#if USE_PTHREADS_EINTR
-	_nc_globals.read_thread = 0;
-#endif
+	_nc_set_read_thread(FALSE);
 	ch = c2;
 #endif /* USE_TERM_DRIVER */
     }
@@ -391,7 +380,17 @@ recur_wrefresh(WINDOW *win)
 {
 #ifdef USE_PTHREADS
     SCREEN *sp = _nc_screen_of(win);
-    if (_nc_use_pthreads && sp != CURRENT_SCREEN) {
+    bool same_sp;
+
+    if (_nc_use_pthreads) {
+	_nc_lock_global(curses);
+	same_sp = (sp == CURRENT_SCREEN);
+	_nc_unlock_global(curses);
+    } else {
+	same_sp = (sp == CURRENT_SCREEN);
+    }
+
+    if (_nc_use_pthreads && !same_sp) {
 	SCREEN *save_SP;
 
 	/* temporarily switch to the window's screen to check/refresh */
@@ -404,7 +403,7 @@ recur_wrefresh(WINDOW *win)
     } else
 #endif
 	if ((is_wintouched(win) || (win->_flags & _HASMOVED))
-	    && !(win->_flags & _ISPAD)) {
+	    && !IS_PAD(win)) {
 	wrefresh(win);
     }
 }
@@ -480,8 +479,8 @@ _nc_wgetch(WINDOW *win,
      */
     if (head == -1 &&
 	!sp->_notty &&
-	!sp->_raw &&
-	!sp->_cbreak &&
+	!IsRaw(sp) &&
+	!IsCbreak(sp) &&
 	!sp->_called_wgetch) {
 	char buf[MAXCOLUMNS], *bufp;
 
@@ -514,13 +513,13 @@ _nc_wgetch(WINDOW *win,
 
     recur_wrefresh(win);
 
-    if (win->_notimeout || (win->_delay >= 0) || (sp->_cbreak > 1)) {
+    if (win->_notimeout || (win->_delay >= 0) || (IsCbreak(sp) > 1)) {
 	if (head == -1) {	/* fifo is empty */
 	    int delay;
 
 	    TR(TRACE_IEVENT, ("timed delay in wgetch()"));
-	    if (sp->_cbreak > 1)
-		delay = (sp->_cbreak - 1) * 100;
+	    if (IsCbreak(sp) > 1)
+		delay = (IsCbreak(sp) - 1) * 100;
 	    else
 		delay = win->_delay;
 
@@ -551,7 +550,7 @@ _nc_wgetch(WINDOW *win,
 	 * This is tricky.  We only want to get special-key
 	 * events one at a time.  But we want to accumulate
 	 * mouse events until either (a) the mouse logic tells
-	 * us it's picked up a complete gesture, or (b)
+	 * us it has picked up a complete gesture, or (b)
 	 * there's a detectable time lapse after one.
 	 *
 	 * Note: if the mouse code starts failing to compose
@@ -639,7 +638,7 @@ _nc_wgetch(WINDOW *win,
      * However, we provide the same visual result as Solaris, moving the
      * cursor to the left.
      */
-    if (sp->_echo && !(win->_flags & _ISPAD)) {
+    if (IsEcho(sp) && !IS_PAD(win)) {
 	chtype backup = (chtype) ((ch == KEY_BACKSPACE) ? '\b' : ch);
 	if (backup < KEY_MIN)
 	    wechochar(win, backup);
@@ -648,7 +647,7 @@ _nc_wgetch(WINDOW *win,
     /*
      * Simulate ICRNL mode
      */
-    if ((ch == '\r') && sp->_nl)
+    if ((ch == '\r') && IsNl(sp))
 	ch = '\n';
 
     /* Strip 8th-bit if so desired.  We do this only for characters that

@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018,2020 Thomas E. Dickey                                     *
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
 .\" Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,88 +27,109 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_inchstr.3x,v 1.21 2020/10/18 00:24:36 tom Exp $
-.TH curs_inchstr 3X ""
-.ie \n(.g .ds `` \(lq
-.el       .ds `` ``
-.ie \n(.g .ds '' \(rq
-.el       .ds '' ''
+.\" $Id: curs_inchstr.3x,v 1.45 2024/04/20 21:20:07 tom Exp $
+.TH curs_inchstr 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.
 .de bP
 .ie n  .IP \(bu 4
 .el    .IP \(bu 2
 ..
-.na
-.hy 0
 .SH NAME
-\fBinchstr\fR,
-\fBinchnstr\fR,
-\fBwinchstr\fR,
-\fBwinchnstr\fR,
-\fBmvinchstr\fR,
-\fBmvinchnstr\fR,
-\fBmvwinchstr\fR,
-\fBmvwinchnstr\fR \- get a string of characters (and attributes) from a \fBcurses\fR window
-.ad
-.hy
+\fB\%inchstr\fP,
+\fB\%inchnstr\fP,
+\fB\%winchstr\fP,
+\fB\%winchnstr\fP,
+\fB\%mvinchstr\fP,
+\fB\%mvinchnstr\fP,
+\fB\%mvwinchstr\fP,
+\fB\%mvwinchnstr\fP \-
+get a \fIcurses\fR character string from a window
 .SH SYNOPSIS
-\fB#include <curses.h>\fR
-.sp
-\fBint inchstr(chtype *\fP\fIchstr\fP\fB);\fR
-.br
-\fBint inchnstr(chtype *\fP\fIchstr\fP\fB, int \fP\fIn\fP\fB);\fR
-.br
-\fBint winchstr(WINDOW *\fP\fIwin\fP\fB, chtype *\fP\fIchstr\fP\fB);\fR
-.br
-\fBint winchnstr(WINDOW *\fP\fIwin\fP\fB, chtype *\fP\fIchstr\fP\fB, int \fP\fIn\fP\fB);\fR
-.sp
-\fBint mvinchstr(int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, chtype *\fP\fIchstr\fP\fB);\fR
-.br
-\fBint mvinchnstr(int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, chtype *\fP\fIchstr\fP\fB, int \fP\fIn\fP\fB);\fR
-.br
-\fBint mvwinchstr(WINDOW *\fP\fIwin\fP\fB, int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, chtype *\fP\fIchstr\fP\fB);\fR
-.br
-\fBint mvwinchnstr(WINDOW *\fP\fIwin\fP\fB, int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, chtype *\fP\fIchstr\fP\fB, int \fP\fIn\fP\fB);\fR
-.br
+.nf
+\fB#include <curses.h>
+.PP
+\fBint inchstr(chtype *\fIchstr\fP);
+\fBint inchnstr(chtype *\fIchstr\fP, int \fIn\fP);
+\fBint winchstr(WINDOW *\fIwin\fP, chtype *\fIchstr\fP);
+\fBint winchnstr(WINDOW *\fIwin\fP, chtype *\fIchstr\fP, int \fIn\fP);
+.PP
+\fBint mvinchstr(int \fIy\fP, int \fIx\fP, chtype *\fIchstr\fP);
+\fBint mvinchnstr(int \fIy\fP, int \fIx\fP, chtype *\fIchstr\fP, int \fIn\fP);
+\fBint mvwinchstr(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, chtype *\fIchstr\fP);
+\fBint mvwinchnstr(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, chtype *\fIchstr\fP, int \fIn\fP);
+.fi
 .SH DESCRIPTION
-These routines return a NULL-terminated array of \fBchtype\fR quantities,
+These routines return a NULL-terminated array of \fBchtype\fP quantities,
 starting at the current cursor position in the named window and ending at the
 right margin of the window.
-The four functions with \fIn\fR as
-the last argument, return a leading substring at most \fIn\fR characters long
+.PP
+The four functions with \fIn\fP as the last argument, return
+a leading substring at most \fIn\fP characters long
 (exclusive of the trailing (chtype)0).
-Constants defined in \fB<curses.h>\fR can be used with the \fB&\fR (logical
+Transfer stops at the end of the current line, or when \fIn\fP characters have
+been stored at the location referenced by \fIchstr\fP.
+.PP
+Constants defined in \fB<curses.h>\fP can be used with the \fB&\fP (logical
 AND) operator to extract the character or the attribute alone from any position
-in the \fIchstr\fR [see \fBcurs_inch\fR(3X)].
+in the \fIchstr\fP [see \fBcurs_inch\fP(3X)].
 .SH RETURN VALUE
-All routines return the integer \fBERR\fR upon failure and an integer value
-other than \fBERR\fR upon successful completion (the number of characters
+All routines return the integer \fBERR\fP upon failure and an integer value
+other than \fBERR\fP upon successful completion (the number of characters
 retrieved, exclusive of the trailing 0).
 .PP
 X/Open Curses defines no error conditions.
-In this implementation:
+This implementation returns an error
 .bP
-If the \fIwin\fP parameter is null, an error is returned,
+if the \fIwin\fP parameter is null or
 .bP
-If the \fIchstr\fP parameter is null, an error is returned,
+if the \fIchstr\fP parameter is null.
 .PP
-Functions with a \*(``mv\*('' prefix first perform a cursor movement using
-\fBwmove\fP, and return an error if the position is outside the window,
-or if the window pointer is null.
+Functions prefixed with \*(``mv\*('' first perform cursor movement and
+fail if the position
+.RI ( y ,
+.IR x )
+is outside the window boundaries.
 .SH NOTES
-Note that all routines except \fBwinchnstr\fR may be macros.
+All routines except \fBwinchnstr\fP may be macros.
+.PP
 SVr4 does not
 document whether the result string is zero-terminated; it does not document
 whether a length limit argument includes any trailing 0; and it does not
 document the meaning of the return value.
+.PP
+Reading a line that overflows the array pointed to by
+\fIchstr\fP
+with
+\fBinchstr\fP,
+\fBmvinchstr\fP,
+\fBmvwinchstr\fP
+or
+\fBwinchstr\fP
+causes undefined results.
+Therefore, the use of
+\fBinchnstr\fP,
+\fBmvinchnstr\fP,
+\fBmvwinchnstr\fP, or
+\fBwinchnstr\fP
+is recommended.
 .SH PORTABILITY
-These functions are described in the XSI Curses standard, Issue 4.
+These functions are described in X/Open Curses, Issue 4.
 It is no
 more specific than the SVr4 documentation on the trailing 0.
 It does specify
-that the successful return of the functions is \fBOK\fR.
+that the successful return of the functions is \fBOK\fP.
 .SH SEE ALSO
-\fBcurses\fR(3X), \fBcurs_inch\fR(3X).
-.PP
-Comparable functions in the wide-character (ncursesw) library are
-described in
-\fBcurs_in_wchstr\fR(3X).
+\fB\%curses\fP(3X),
+\fB\%curs_inch\fP(3X),
+\fB\%curs_inwstr\fP(3X),
+\fB\%curs_in_wchstr\fP(3X)
