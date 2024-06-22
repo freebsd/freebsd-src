@@ -360,8 +360,8 @@ gic_v3_attach(device_t dev)
 		struct intr_irqsrc *isrc;
 
 		sc->gic_irqs[irq].gi_irq = irq;
-		sc->gic_irqs[irq].gi_pol = INTR_POLARITY_CONFORM;
-		sc->gic_irqs[irq].gi_trig = INTR_TRIGGER_CONFORM;
+		sc->gic_irqs[irq].gi_pol = INTR_POLARITY_INVALID;
+		sc->gic_irqs[irq].gi_trig = INTR_TRIGGER_INVALID;
 
 		isrc = &sc->gic_irqs[irq].gi_isrc;
 		if (irq <= GIC_LAST_SGI) {
@@ -913,7 +913,8 @@ gic_v3_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 		return (EINVAL);
 
 	/* Compare config if this is not first setup. */
-	if (isrc->isrc_handlers != 0) {
+	if (gi->gi_pol != INTR_POLARITY_INVALID ||
+	    gi->gi_trig != INTR_TRIGGER_INVALID) {
 		if (pol != gi->gi_pol || trig != gi->gi_trig)
 			return (EINVAL);
 		else
@@ -951,8 +952,8 @@ gic_v3_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
 	struct gic_v3_irqsrc *gi = (struct gic_v3_irqsrc *)isrc;
 
 	if (isrc->isrc_handlers == 0 && (gi->gi_flags & GI_FLAG_MSI) == 0) {
-		gi->gi_pol = INTR_POLARITY_CONFORM;
-		gi->gi_trig = INTR_TRIGGER_CONFORM;
+		gi->gi_pol = INTR_POLARITY_INVALID;
+		gi->gi_trig = INTR_TRIGGER_INVALID;
 	}
 
 	return (0);

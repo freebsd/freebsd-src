@@ -347,7 +347,7 @@ rk_gpio_attach(device_t dev)
 
 	for (i = 0; i < RK_GPIO_MAX_PINS; i++) {
 		sc->isrcs[i].irq = i;
-		sc->isrcs[i].mode = GPIO_INTR_CONFORM;
+		sc->isrcs[i].mode = GPIO_INTR_INVALID;
 		if ((err = intr_isrc_register(RK_GPIO_ISRC(sc, i),
 		    dev, 0, "%s", device_get_nameunit(dev)))) {
 			device_printf(dev, "Can not register isrc %d\n", err);
@@ -697,7 +697,7 @@ rk_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 		return (EINVAL);
 	}
 
-	if (isrc->isrc_handlers != 0) {
+	if (rkisrc->mode == GPIO_INTR_INVALID) {
 		device_printf(dev, "Handler already attached\n");
 		return (rkisrc->mode == mode ? 0 : EINVAL);
 	}
@@ -763,7 +763,7 @@ rk_pic_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
 	irqsrc = (struct rk_pin_irqsrc *)isrc;
 
 	if (isrc->isrc_handlers == 0) {
-		irqsrc->mode = GPIO_INTR_CONFORM;
+		irqsrc->mode = GPIO_INTR_INVALID;
 		RK_GPIO_LOCK(sc);
 		rk_gpio_write_bit(sc, RK_GPIO_INTEN, irqsrc->irq, 0);
 		rk_gpio_write_bit(sc, RK_GPIO_INTMASK, irqsrc->irq, 0);

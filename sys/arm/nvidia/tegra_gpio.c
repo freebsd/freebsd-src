@@ -97,6 +97,8 @@
 #define	GPIO_MSK_INT_ENB	0xD0
 #define	GPIO_MSK_INT_LVL	0xE0
 
+#define GPIO_UNSET		0xFFFFFFFF
+
 char *tegra_gpio_port_names[] = {
 	 "A",  "B",  "C",  "D", /* Bank 0 */
 	 "E",  "F",  "G",  "H", /* Bank 1 */
@@ -443,7 +445,7 @@ tegra_gpio_pic_attach(struct tegra_gpio_softc *sc)
 	name = device_get_nameunit(sc->dev);
 	for (irq = 0; irq < sc->gpio_npins; irq++) {
 		sc->isrcs[irq].irq = irq;
-		sc->isrcs[irq].cfgreg = 0;
+		sc->isrcs[irq].cfgreg = GPIO_UNSET;
 		error = intr_isrc_register(&sc->isrcs[irq].isrc,
 		    sc->dev, 0, "%s,%u", name, irq);
 		if (error != 0)
@@ -672,7 +674,7 @@ tegra_gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 	 * If this is a setup for another handler,
 	 * only check that its configuration match.
 	 */
-	if (isrc->isrc_handlers != 0)
+	if (tgi->cfgreg != GPIO_UNSET)
 		return (tgi->cfgreg == cfgreg ? 0 : EINVAL);
 
 	tgi->cfgreg = cfgreg;
@@ -685,13 +687,12 @@ static int
 tegra_gpio_pic_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
     struct resource *res, struct intr_map_data *data)
 {
-#if 0
-	struct tegra_gpio_softc *sc;
 	struct tegra_gpio_irqsrc *tgi;
 
-	sc = device_get_softc(dev);
 	tgi = (struct tegra_gpio_irqsrc *)isrc;
-#endif
+
+	if (isrc->isrc_handlers == 0)
+		tgi->cfgreg = GPIO_UNSET;
 
 	return (0);
 }

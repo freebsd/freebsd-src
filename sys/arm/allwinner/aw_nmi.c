@@ -255,7 +255,8 @@ aw_nmi_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 		return (EINVAL);
 
 	/* Compare config if this is not first setup. */
-	if (isrc->isrc_handlers != 0) {
+	if (nmi_intr->pol != INTR_POLARITY_INVALID ||
+	    nmi_intr->tri != INTR_TRIGGER_INVALID) {
 		if (pol != nmi_intr->pol || trig != nmi_intr->tri)
 			return (EINVAL);
 		else
@@ -291,8 +292,8 @@ aw_nmi_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
 	sc = device_get_softc(dev);
 
 	if (isrc->isrc_handlers == 0) {
-		sc->intr.pol = INTR_POLARITY_CONFORM;
-		sc->intr.tri = INTR_TRIGGER_CONFORM;
+		sc->intr.pol = INTR_POLARITY_INVALID;
+		sc->intr.tri = INTR_TRIGGER_INVALID;
 
 		SC_NMI_WRITE(sc, sc->cfg->enable_reg, ~NMI_IRQ_ENABLE);
 	}
@@ -371,8 +372,8 @@ aw_nmi_attach(device_t dev)
 	xref = OF_xref_from_node(ofw_bus_get_node(dev));
 	/* Register our isrc */
 	sc->intr.irq = 0;
-	sc->intr.pol = INTR_POLARITY_CONFORM;
-	sc->intr.tri = INTR_TRIGGER_CONFORM;
+	sc->intr.pol = INTR_POLARITY_INVALID;
+	sc->intr.tri = INTR_TRIGGER_INVALID;
 	if (intr_isrc_register(&sc->intr.isrc, sc->dev, 0, "%s,%u",
 	      device_get_nameunit(sc->dev), sc->intr.irq) != 0)
 		goto error;
