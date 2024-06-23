@@ -69,6 +69,7 @@ extern int nfsrv_maxpnfsmirror;
 extern uint32_t nfs_srvmaxio;
 extern int nfs_bufpackets;
 extern u_long sb_max_adj;
+extern struct nfsv4lock nfsv4rootfs_lock;
 
 NFSD_VNET_DECLARE(int, nfsrv_numnfsd);
 NFSD_VNET_DECLARE(struct nfsrv_stablefirst, nfsrv_stablefirst);
@@ -178,8 +179,6 @@ SYSCTL_INT(_vfs_nfsd, OID_AUTO, commit_miss, CTLFLAG_RW, &nfs_commit_miss,
     0, "");
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, issue_delegations, CTLFLAG_RW,
     &nfsrv_issuedelegs, 0, "Enable nfsd to issue delegations");
-SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_locallocks, CTLFLAG_RW,
-    &nfsrv_dolocallocks, 0, "Enable nfsd to acquire local locks on files");
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, debuglevel, CTLFLAG_RW, &nfsd_debuglevel,
     0, "Debug level for NFS server");
 NFSD_VNET_DECLARE(int, nfsd_enable_stringtouid);
@@ -293,6 +292,38 @@ sysctl_srvmaxio(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_vfs_nfsd, OID_AUTO, srvmaxio,
     CTLTYPE_UINT | CTLFLAG_MPSAFE | CTLFLAG_RW, NULL, 0,
     sysctl_srvmaxio, "IU", "Maximum I/O size in bytes");
+
+static int
+sysctl_dolocallocks(SYSCTL_HANDLER_ARGS)
+{
+	int error, igotlock, newdolocallocks;
+
+	newdolocallocks = nfsrv_dolocallocks;
+	error = sysctl_handle_int(oidp, &newdolocallocks, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (newdolocallocks == nfsrv_dolocallocks)
+		return (0);
+	if (jailed(curthread->td_ucred))
+		return (EINVAL);
+
+	NFSLOCKV4ROOTMUTEX();
+	do {
+		igotlock = nfsv4_lock(&nfsv4rootfs_lock, 1, NULL,
+		    NFSV4ROOTLOCKMUTEXPTR, NULL);
+	} while (!igotlock);
+	NFSUNLOCKV4ROOTMUTEX();
+
+	nfsrv_dolocallocks = newdolocallocks;
+
+	NFSLOCKV4ROOTMUTEX();
+	nfsv4_unlock(&nfsv4rootfs_lock, 0);
+	NFSUNLOCKV4ROOTMUTEX();
+	return (0);
+}
+SYSCTL_PROC(_vfs_nfsd, OID_AUTO, enable_locallocks,
+    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RW, NULL, 0,
+    sysctl_dolocallocks, "IU", "Enable nfsd to acquire local locks on files");
 
 #define	MAX_REORDERED_RPC	16
 #define	NUM_HEURISTIC		1031
