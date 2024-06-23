@@ -295,8 +295,8 @@ static __inline void
 __storeload_barrier(void)
 {
 #if defined(_KERNEL)
-	__asm __volatile("lock; addl $0,%%gs:%0"
-	    : "+m" (*(u_int *)OFFSETOF_MONITORBUF) : : "memory", "cc");
+	__asm __volatile("lock; addl $0,%%gs:%c0"
+	    : : "i" (OFFSETOF_MONITORBUF) : "memory", "cc");
 #else /* !_KERNEL */
 	__asm __volatile("lock; addl $0,-8(%%rsp)" : : : "memory", "cc");
 #endif /* _KERNEL*/
