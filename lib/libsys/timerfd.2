@@ -97,6 +97,9 @@ argument specifies the clock used as a timing base and may be:
 Increments as a wall clock should.
 .It Dv CLOCK_MONOTONIC
 Increments monotonically in SI seconds.
+.It Dv CLOCK_UPTIME
+Starts at zero when the kernel boots and increments monotonically in SI seconds
+while the machine is running.
 .El
 .Pp
 The
