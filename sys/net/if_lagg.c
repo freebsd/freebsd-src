@@ -643,8 +643,8 @@ lagg_clone_destroy(struct if_clone *ifc, struct ifnet *ifp, uint32_t flags)
 
 	switch (ifp->if_type) {
 	case IFT_ETHER:
-		ifmedia_removeall(&sc->sc_media);
 		ether_ifdetach(ifp);
+		ifmedia_removeall(&sc->sc_media);
 		break;
 	case IFT_INFINIBAND:
 		infiniband_ifdetach(ifp);
