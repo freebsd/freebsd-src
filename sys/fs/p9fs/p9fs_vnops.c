@@ -243,6 +243,12 @@ p9fs_lookup(struct vop_lookup_args *ap)
 	if (dnp == NULL)
 		return (ENOENT);
 
+	if (cnp->cn_nameptr[0] == '.' && strlen(cnp->cn_nameptr) == 1) {
+		vref(dvp);
+		*vpp = dvp;
+		return (0);
+	}
+
 	vses = dnp->p9fs_ses;
 	mp = vses->p9fs_mount;
 
