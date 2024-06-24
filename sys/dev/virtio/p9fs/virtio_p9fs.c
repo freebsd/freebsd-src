@@ -332,6 +332,11 @@ vt9p_attach(device_t dev)
 	cv_init(&chan->submit_cv, "Conditional variable for submit queue" );
 	chan->max_nsegs = MAX_SUPPORTED_SGS;
 	chan->vt9p_sglist = sglist_alloc(chan->max_nsegs, M_NOWAIT);
+	if (chan->vt9p_sglist == NULL) {
+		error = ENOMEM;
+		P9_DEBUG(ERROR, "%s: Cannot allocate sglist\n", __func__);
+		goto out;
+	}
 
 	/* Negotiate the features from the host */
 	virtio_set_feature_desc(dev, virtio_9p_feature_desc);
@@ -366,12 +371,6 @@ vt9p_attach(device_t dev)
 	tree = device_get_sysctl_tree(dev);
 	SYSCTL_ADD_STRING(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "p9fs_mount_tag",
 	    CTLFLAG_RD, chan->mount_tag, 0, "Mount tag");
-
-	if (chan->vt9p_sglist == NULL) {
-		error = ENOMEM;
-		P9_DEBUG(ERROR, "%s: Cannot allocate sglist\n", __func__);
-		goto out;
-	}
 
 	/* We expect one virtqueue, for requests. */
 	error = vt9p_alloc_virtqueue(chan);
