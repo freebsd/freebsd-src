@@ -1307,7 +1307,7 @@ fetch_tag () {
 		return 1
 	fi
 
-	openssl rsautl -pubin -inkey pub.ssl -verify		\
+	openssl pkeyutl -pubin -inkey pub.ssl -verifyrecover	\
 	    < latest.ssl > tag.new 2>${QUIETREDIR} || true
 	rm latest.ssl
 
