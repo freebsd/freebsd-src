@@ -942,7 +942,7 @@ mana_gd_create_dma_region(struct gdma_dev *gd,
 	int err;
 	int i;
 
-	if (length < PAGE_SIZE || !is_power_of_2(length)) {
+	if (length < PAGE_SIZE || !powerof2(length)) {
 		mana_err(NULL, "gmi size incorrect: %u\n", length);
 		return EINVAL;
 	}
