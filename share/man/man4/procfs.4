@@ -1,7 +1,7 @@
 .\" Written by Garrett Wollman
 .\" This file is in the public domain.
 .\"
-.Dd April 10, 2023
+.Dd June 23, 2024
 .Dt PROCFS 4
 .Os
 .Sh NAME
@@ -229,11 +229,11 @@ comma separated.
 .It
 the wait channel message
 .It
-the process credentials consisting of
-the effective user id
-and the list of groups (whose first member
-is the effective group id)
-all comma separated.
+the process effective UID
+.It
+the process real UID
+.It
+group list, starting with the effective GID, comma-separated
 .It
 the hostname of the jail in which the process runs, or
 .Ql -
