@@ -275,7 +275,7 @@ am335x_dmtimer_probe(device_t dev)
 			return (ENXIO);
 	}
 
-	device_set_descf("AM335x DMTimer%d", tmr_num);
+	device_set_descf(dev, "AM335x DMTimer%d", tmr_num);
 
 	return(BUS_PROBE_DEFAULT);
 }
