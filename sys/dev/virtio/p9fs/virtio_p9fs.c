@@ -331,12 +331,7 @@ vt9p_attach(device_t dev)
 	/* Initialize the condition variable */
 	cv_init(&chan->submit_cv, "Conditional variable for submit queue" );
 	chan->max_nsegs = MAX_SUPPORTED_SGS;
-	chan->vt9p_sglist = sglist_alloc(chan->max_nsegs, M_NOWAIT);
-	if (chan->vt9p_sglist == NULL) {
-		error = ENOMEM;
-		P9_DEBUG(ERROR, "%s: Cannot allocate sglist\n", __func__);
-		goto out;
-	}
+	chan->vt9p_sglist = sglist_alloc(chan->max_nsegs, M_WAITOK);
 
 	/* Negotiate the features from the host */
 	virtio_set_feature_desc(dev, virtio_9p_feature_desc);
