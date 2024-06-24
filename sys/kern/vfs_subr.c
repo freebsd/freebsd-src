@@ -3980,7 +3980,7 @@ vdrop(struct vnode *vp)
 	vdropl(vp);
 }
 
-static void __always_inline
+static __always_inline void
 vdropl_impl(struct vnode *vp, bool enqueue)
 {
 
