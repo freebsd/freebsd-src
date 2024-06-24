@@ -361,7 +361,7 @@ static void		 pf_print_state_parts(struct pf_kstate *,
 static void		 pf_patch_8(struct mbuf *, u_int16_t *, u_int8_t *, u_int8_t,
 			    bool, u_int8_t);
 static struct pf_kstate	*pf_find_state(struct pfi_kkif *,
-			    struct pf_state_key_cmp *, u_int);
+			    const struct pf_state_key_cmp *, u_int);
 static int		 pf_src_connlimit(struct pf_kstate **);
 static void		 pf_overload_task(void *v, int pending);
 static u_short		 pf_insert_src_node(struct pf_ksrc_node **,
@@ -627,11 +627,11 @@ pf_packet_rework_nat(struct mbuf *m, struct pf_pdesc *pd, int off,
 }
 
 static __inline uint32_t
-pf_hashkey(struct pf_state_key *sk)
+pf_hashkey(const struct pf_state_key *sk)
 {
 	uint32_t h;
 
-	h = murmur3_32_hash32((uint32_t *)sk,
+	h = murmur3_32_hash32((const uint32_t *)sk,
 	    sizeof(struct pf_state_key_cmp)/sizeof(uint32_t),
 	    V_pf_hashseed);
 
@@ -1477,7 +1477,7 @@ pf_state_key_setup(struct pf_pdesc *pd, struct pf_addr *saddr,
 }
 
 struct pf_state_key *
-pf_state_key_clone(struct pf_state_key *orig)
+pf_state_key_clone(const struct pf_state_key *orig)
 {
 	struct pf_state_key *sk;
 
@@ -1576,7 +1576,8 @@ pf_find_state_byid(uint64_t id, uint32_t creatorid)
  * Returns with ID hash slot locked on success.
  */
 static struct pf_kstate *
-pf_find_state(struct pfi_kkif *kif, struct pf_state_key_cmp *key, u_int dir)
+pf_find_state(struct pfi_kkif *kif, const struct pf_state_key_cmp *key,
+    u_int dir)
 {
 	struct pf_keyhash	*kh;
 	struct pf_state_key	*sk;
@@ -1585,7 +1586,7 @@ pf_find_state(struct pfi_kkif *kif, struct pf_state_key_cmp *key, u_int dir)
 
 	pf_counter_u64_add(&V_pf_status.fcounters[FCNT_STATE_SEARCH], 1);
 
-	kh = &V_pf_keyhash[pf_hashkey((struct pf_state_key *)key)];
+	kh = &V_pf_keyhash[pf_hashkey((const struct pf_state_key *)key)];
 
 	PF_HASHROW_LOCK(kh);
 	LIST_FOREACH(sk, &kh->keys, entry)
@@ -1623,7 +1624,7 @@ pf_find_state(struct pfi_kkif *kif, struct pf_state_key_cmp *key, u_int dir)
  * Returns with ID hash slot locked on success.
  */
 struct pf_kstate *
-pf_find_state_all(struct pf_state_key_cmp *key, u_int dir, int *more)
+pf_find_state_all(const struct pf_state_key_cmp *key, u_int dir, int *more)
 {
 	struct pf_keyhash	*kh;
 	struct pf_state_key	*sk;
@@ -1632,7 +1633,7 @@ pf_find_state_all(struct pf_state_key_cmp *key, u_int dir, int *more)
 
 	pf_counter_u64_add(&V_pf_status.fcounters[FCNT_STATE_SEARCH], 1);
 
-	kh = &V_pf_keyhash[pf_hashkey((struct pf_state_key *)key)];
+	kh = &V_pf_keyhash[pf_hashkey((const struct pf_state_key *)key)];
 
 	PF_HASHROW_LOCK(kh);
 	LIST_FOREACH(sk, &kh->keys, entry)
@@ -1689,7 +1690,7 @@ second_run:
  * removing it.
  */
 bool
-pf_find_state_all_exists(struct pf_state_key_cmp *key, u_int dir)
+pf_find_state_all_exists(const struct pf_state_key_cmp *key, u_int dir)
 {
 	struct pf_kstate *s;
 
