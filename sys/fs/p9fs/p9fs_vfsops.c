@@ -35,6 +35,7 @@
 #include <sys/mount.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
+#include <sys/buf.h>
 #include <vm/uma.h>
 
 #include <fs/p9fs/p9fs_proto.h>
@@ -53,6 +54,7 @@ static uma_zone_t p9fs_node_zone;
 uma_zone_t p9fs_io_buffer_zone;
 uma_zone_t p9fs_getattr_zone;
 uma_zone_t p9fs_setattr_zone;
+uma_zone_t p9fs_pbuf_zone;
 extern struct vop_vector p9fs_vnops;
 
 /* option parsing */
@@ -106,6 +108,9 @@ p9fs_init(struct vfsconf *vfsp)
 	p9fs_setattr_zone = uma_zcreate("p9fs setattr zone",
 	    sizeof(struct p9_iattr_dotl), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 
+	/* Create the putpages zone */
+	p9fs_pbuf_zone = pbuf_zsecond_create("p9fs pbuf zone", nswbuf / 2);
+
 	/*
 	 * Create the io_buffer zone pool to keep things simpler in case of
 	 * multiple threads. Each thread works with its own so there is no
@@ -126,6 +131,7 @@ p9fs_uninit(struct vfsconf *vfsp)
 	uma_zdestroy(p9fs_io_buffer_zone);
 	uma_zdestroy(p9fs_getattr_zone);
 	uma_zdestroy(p9fs_setattr_zone);
+	uma_zdestroy(p9fs_pbuf_zone);
 
 	return (0);
 }
