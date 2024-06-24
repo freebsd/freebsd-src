@@ -2331,7 +2331,7 @@ mlx5e_get_wqe_sz(struct mlx5e_priv *priv, u32 *wqe_sz, u32 *nsegs)
 	 * Stride size is 16 * (n + 1), as the first segment is
 	 * control.
 	 */
-	n = (1 << fls(howmany(r, MLX5E_MAX_RX_BYTES))) - 1;
+	n = roundup_pow_of_two(1 + howmany(r, MLX5E_MAX_RX_BYTES)) - 1;
 	if (n > MLX5E_MAX_BUSDMA_RX_SEGS)
 		return (-ENOMEM);
 
