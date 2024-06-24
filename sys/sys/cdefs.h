@@ -40,7 +40,10 @@
 #endif
 
 /*
- * Testing against Clang-specific extensions.
+ * Provide clang-compatible testing macros. All supported versions of gcc (10+)
+ * provide all of these except has_feature and has_extension which are new in
+ * gcc 14. Keep the older ifndefs, though, for non-gcc compilers that may lack
+ * them like tcc and pcc.
  */
 #ifndef	__has_attribute
 #define	__has_attribute(x)	0
