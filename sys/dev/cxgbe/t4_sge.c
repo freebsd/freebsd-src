@@ -4228,7 +4228,7 @@ qsize_to_fthresh(int qsize)
 {
 	u_int fthresh;
 
-	fthresh = qsize == 0 ? 0 : fls(qsize - 1);
+	fthresh = qsize == 0 ? 0 : order_base_2(qsize);
 	if (fthresh > X_CIDXFLUSHTHRESH_128)
 		fthresh = X_CIDXFLUSHTHRESH_128;
 
