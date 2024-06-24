@@ -234,13 +234,6 @@ typedef void			irqreturn_t;
 #define	div_u64(n, d)		((n) / (d))
 #define	hweight32(i)		bitcount32(i)
 
-static inline unsigned long
-roundup_pow_of_two(unsigned long x)
-{
-
-	return (1UL << flsl(x - 1));
-}
-
 /**
  * ror32 - rotate a 32-bit value right
  * @word: value to rotate
