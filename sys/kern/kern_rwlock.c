@@ -384,7 +384,7 @@ _rw_wunlock_cookie(volatile uintptr_t *c, const char *file, int line)
  * is unlocked and has no writer waiters or spinners.  Failing otherwise
  * prioritizes writers before readers.
  */
-static bool __always_inline
+static __always_inline bool
 __rw_can_read(struct thread *td, uintptr_t v, bool fp)
 {
 
@@ -396,7 +396,7 @@ __rw_can_read(struct thread *td, uintptr_t v, bool fp)
 	return (false);
 }
 
-static bool __always_inline
+static __always_inline bool
 __rw_rlock_try(struct rwlock *rw, struct thread *td, uintptr_t *vp, bool fp
     LOCK_FILE_LINE_ARG_DEF)
 {
@@ -742,7 +742,7 @@ __rw_try_rlock(volatile uintptr_t *c, const char *file, int line)
 	return (__rw_try_rlock_int(rw LOCK_FILE_LINE_ARG));
 }
 
-static bool __always_inline
+static __always_inline bool
 __rw_runlock_try(struct rwlock *rw, struct thread *td, uintptr_t *vp)
 {
 

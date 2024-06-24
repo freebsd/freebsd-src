@@ -115,7 +115,7 @@ CTASSERT(LK_UNLOCKED == (LK_UNLOCKED &
 	}								\
 } while (0)
 
-static bool __always_inline
+static __always_inline bool
 LK_CAN_SHARE(uintptr_t x, int flags, bool fp)
 {
 
@@ -180,9 +180,10 @@ struct lockmgr_wait {
 	int itimo;
 };
 
-static bool __always_inline lockmgr_slock_try(struct lock *lk, uintptr_t *xp,
+static __always_inline bool lockmgr_slock_try(struct lock *lk, uintptr_t *xp,
     int flags, bool fp);
-static bool __always_inline lockmgr_sunlock_try(struct lock *lk, uintptr_t *xp);
+static __always_inline bool lockmgr_sunlock_try(struct lock *lk,
+    uintptr_t *xp);
 
 static void
 lockmgr_exit(u_int flags, struct lock_object *ilk, int wakeup_swapper)
@@ -511,7 +512,7 @@ lockdestroy(struct lock *lk)
 	lock_destroy(&lk->lock_object);
 }
 
-static bool __always_inline
+static __always_inline bool
 lockmgr_slock_try(struct lock *lk, uintptr_t *xp, int flags, bool fp)
 {
 
@@ -531,7 +532,7 @@ lockmgr_slock_try(struct lock *lk, uintptr_t *xp, int flags, bool fp)
 	return (false);
 }
 
-static bool __always_inline
+static __always_inline bool
 lockmgr_sunlock_try(struct lock *lk, uintptr_t *xp)
 {
 
