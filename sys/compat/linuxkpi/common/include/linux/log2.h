@@ -33,24 +33,9 @@
 
 #include <sys/libkern.h>
 
-static inline unsigned long
-roundup_pow_of_two(unsigned long x)
-{
-	return (1UL << flsl(x - 1));
-}
-
-static inline int
-is_power_of_2(unsigned long n)
-{
-	return (n == roundup_pow_of_two(n));
-}
-
-static inline unsigned long
-rounddown_pow_of_two(unsigned long x)
-{
-	return (1UL << (flsl(x) - 1));
-}
-
-#define	order_base_2(x) ilog2(roundup_pow_of_two(x))
+#define	is_power_of_2(n) ({			\
+	__typeof(n) _n = (n);			\
+	_n != 0 && (_n & (_n - 1)) == 0;	\
+})
 
 #endif	/* _LINUXKPI_LINUX_LOG2_H_ */
