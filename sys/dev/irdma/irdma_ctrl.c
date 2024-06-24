@@ -4939,7 +4939,7 @@ irdma_cfg_fpm_val(struct irdma_sc_dev *dev, u32 qp_count)
 
 	qpwanted = min(qp_count, hmc_info->hmc_obj[IRDMA_HMC_IW_QP].max_cnt);
 	if (qpwanted != 0)
-		qpwanted = 1 << ilog2(qpwanted);
+		qpwanted = rounddown_pow_of_two(qpwanted);
 
 	mrwanted = hmc_info->hmc_obj[IRDMA_HMC_IW_MR].max_cnt;
 	pblewanted = hmc_info->hmc_obj[IRDMA_HMC_IW_PBLE].max_cnt;
@@ -4982,7 +4982,7 @@ irdma_cfg_fpm_val(struct irdma_sc_dev *dev, u32 qp_count)
 		hmc_info->hmc_obj[IRDMA_HMC_IW_MR].cnt = mrwanted;
 
 		hte = round_up(qpwanted + hmc_info->hmc_obj[IRDMA_HMC_IW_FSIMC].cnt, 512);
-		hte = hte == 0 ? 1 : 1 << fls(hte - 1);
+		hte = roundup_pow_of_two(hte);
 		hmc_info->hmc_obj[IRDMA_HMC_IW_HTE].cnt =
 		    hte * hmc_fpm_misc->ht_multiplier;
 		if (dev->hw_attrs.uk_attrs.hw_rev == IRDMA_GEN_1)
