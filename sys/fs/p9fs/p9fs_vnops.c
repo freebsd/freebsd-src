@@ -39,10 +39,14 @@
 #include <sys/priv.h>
 #include <sys/stat.h>
 #include <sys/vnode.h>
+#include <sys/rwlock.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
+#include <vm/vm_page.h>
+#include <vm/vm_pager.h>
 #include <vm/vnode_pager.h>
 
 #include <fs/p9fs/p9_client.h>
@@ -62,6 +66,7 @@ static MALLOC_DEFINE(M_P9UIOV, "uio", "UIOV structures for strategy in p9fs");
 extern uma_zone_t p9fs_io_buffer_zone;
 extern uma_zone_t p9fs_getattr_zone;
 extern uma_zone_t p9fs_setattr_zone;
+extern uma_zone_t p9fs_pbuf_zone;
 /* For the root vnode's vnops. */
 struct vop_vector p9fs_vnops;
 
@@ -2126,6 +2131,79 @@ out:
 	return (error);
 }
 
+/*
+ * Put VM pages, synchronously.
+ * XXX: like smbfs, cannot use vop_stdputpages due to mapping requirement
+ */
+static int
+p9fs_putpages(struct vop_putpages_args *ap)
+{
+	struct uio uio;
+	struct iovec iov;
+	int i, error, npages, count;
+	off_t offset;
+	int *rtvals;
+	struct vnode *vp;
+	struct thread *td;
+	struct ucred *cred;
+	struct p9fs_node *np;
+	vm_page_t *pages;
+	vm_offset_t kva;
+	struct buf *bp;
+
+	vp = ap->a_vp;
+	np = P9FS_VTON(vp);
+	td = curthread;
+	cred = curthread->td_ucred;
+	pages = ap->a_m;
+	count = ap->a_count;
+	rtvals = ap->a_rtvals;
+	npages = btoc(count);
+	offset = IDX_TO_OFF(pages[0]->pindex);
+
+	/*
+	 * When putting pages, do not extend file past EOF.
+	 */
+	if (offset + count > np->inode.i_size) {
+		count = np->inode.i_size - offset;
+		if (count < 0)
+			count = 0;
+	}
+
+	for (i = 0; i < npages; i++)
+		rtvals[i] = VM_PAGER_ERROR;
+
+	bp = uma_zalloc(p9fs_pbuf_zone, M_WAITOK);
+	kva = (vm_offset_t) bp->b_data;
+	pmap_qenter(kva, pages, npages);
+
+	VM_CNT_INC(v_vnodeout);
+	VM_CNT_ADD(v_vnodepgsout, count);
+
+	iov.iov_base = (caddr_t) kva;
+	iov.iov_len = count;
+	uio.uio_iov = &iov;
+	uio.uio_iovcnt = 1;
+	uio.uio_offset = offset;
+	uio.uio_resid = count;
+	uio.uio_segflg = UIO_SYSSPACE;
+	uio.uio_rw = UIO_WRITE;
+	uio.uio_td = td;
+
+	P9_DEBUG(VOPS, "of=%jd,resid=%zd\n", (intmax_t)uio.uio_offset, uio.uio_resid);
+
+	error = VOP_WRITE(vp, &uio, vnode_pager_putpages_ioflags(ap->a_sync),
+	    cred);
+
+	pmap_qremove(kva, npages);
+	uma_zfree(p9fs_pbuf_zone, bp);
+
+	if (error == 0)
+		vnode_pager_undirty_pages(pages, rtvals, count - uio.uio_resid,
+		    np->inode.i_size - offset, npages * PAGE_SIZE);
+
+	return (rtvals[0]);
+}
 
 struct vop_vector p9fs_vnops = {
 	.vop_default =		&default_vnodeops,
@@ -2150,5 +2228,6 @@ struct vop_vector p9fs_vnops = {
 	.vop_rename =           p9fs_rename,
 	.vop_link =		p9fs_link,
 	.vop_readlink =		p9fs_readlink,
+	.vop_putpages =		p9fs_putpages,
 };
 VFS_VOP_VECTOR_REGISTER(p9fs_vnops);
