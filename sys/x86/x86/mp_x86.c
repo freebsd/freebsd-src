@@ -189,7 +189,7 @@ static __inline int
 mask_width(u_int x)
 {
 
-	return (x == 0 ? -1 : fls(x - 1));
+	return (x == 0 ? -1 : order_base_2(x));
 }
 
 /*
