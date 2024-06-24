@@ -4469,7 +4469,7 @@ main(int argc, char **argv)
 		if (fd == -1 && errno == ENOENT) {
 			saved_errno = errno;
 			retval = kldload("ctl");
-			if (retval != -1)
+			if (retval != -1 || errno == EEXIST)
 				fd = open(device, O_RDWR);
 			else
 				errno = saved_errno;
