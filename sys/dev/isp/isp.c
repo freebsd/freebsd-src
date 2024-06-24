@@ -457,7 +457,10 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	if (IS_27XX(isp)) {
 		switch (isp_load_risc(isp, 0)) {
 		case ISP_ABORTED:
-			/* download ispfw(4) as it's newer than flash */
+			/*
+			 * download ispfw(4) as it's newer than flash, or
+			 * the user requested it.
+			 */
 			dodnld = 1;
 			break;
 		case ISP_SUCCESS:
@@ -5223,7 +5226,20 @@ isp_load_risc_flash(ispsoftc_t *isp, uint32_t *srisc_addr, uint32_t faddr)
 
 		/* If ispfw(4) is loaded compare versions and use the newest */
 		if (isp->isp_osinfo.ispfw != NULL) {
+			int ispfw_newer = 0;
+
 			if (ISP_FW_NEWER_THANX(fcp->fw_ispfwrev, fcp->fw_flashrev)) {
+				ispfw_newer = 1;
+			}
+
+			if (isp->isp_confopts & ISP_CFG_FWLOAD_FORCE) {
+				isp_prt(isp, ISP_LOGCONFIG,
+				    "Loading RISC with %s ispfw(4) firmware %s",
+				    (ispfw_newer == 0) ? "older" : "newer",
+				    "because fwload_force is set");
+				return (ISP_ABORTED);
+			}
+			if (ispfw_newer != 0) {
 				isp_prt(isp, ISP_LOGCONFIG,
 				    "Loading RISC with newer ispfw(4) firmware");
 				return (ISP_ABORTED);
