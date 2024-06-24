@@ -984,7 +984,7 @@ _sx_xunlock_hard(struct sx *sx, uintptr_t x LOCK_FILE_LINE_ARG_DEF)
 		kick_proc0();
 }
 
-static bool __always_inline
+static __always_inline bool
 __sx_can_read(struct thread *td, uintptr_t x, bool fp)
 {
 
@@ -996,7 +996,7 @@ __sx_can_read(struct thread *td, uintptr_t x, bool fp)
 	return (false);
 }
 
-static bool __always_inline
+static __always_inline bool
 __sx_slock_try(struct sx *sx, struct thread *td, uintptr_t *xp, bool fp
     LOCK_FILE_LINE_ARG_DEF)
 {
@@ -1306,7 +1306,7 @@ _sx_slock(struct sx *sx, int opts, const char *file, int line)
 	return (_sx_slock_int(sx, opts LOCK_FILE_LINE_ARG));
 }
 
-static bool __always_inline
+static __always_inline bool
 _sx_sunlock_try(struct sx *sx, struct thread *td, uintptr_t *xp)
 {
 
