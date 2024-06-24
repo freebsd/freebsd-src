@@ -618,14 +618,6 @@
 #endif /* __STDC_WANT_LIB_EXT1__ */
 
 /*
- * Old versions of GCC use non-standard ARM arch symbols; acle-compat.h
- * translates them to __ARM_ARCH and the modern feature symbols defined by ARM.
- */
-#if defined(__arm__) && !defined(__ARM_ARCH)
-#include <machine/acle-compat.h>
-#endif
-
-/*
  * Nullability qualifiers: currently only supported by Clang.
  */
 #if !(defined(__clang__) && __has_feature(nullability))
