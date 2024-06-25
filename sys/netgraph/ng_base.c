@@ -119,7 +119,7 @@ struct ng_type ng_deadtype = {
 
 struct ng_node ng_deadnode = {
 	"dead",
-	&ng_deadtype,	
+	&ng_deadtype,
 	NGF_INVALID,
 	0,	/* numhooks */
 	NULL,	/* private */
@@ -1041,6 +1041,11 @@ ng_ID_rehash(void)
  brief moment within these routines. On invalidation or during creation
  they are connected to the 'dead' hook.
 ************************************************************************/
+static void
+ng_free_hook(epoch_context_t ctx) {
+    hook_p *hook = __containerof(ctx, struct hook_p, hook_epoch_ctx);
+    NG_FREE_HOOK(hook);
+}
 
 /*
  * Remove a hook reference
@@ -1055,7 +1060,8 @@ ng_unref_hook(hook_p hook)
 	if (refcount_release(&hook->hk_refs)) { /* we were the last */
 		if (_NG_HOOK_NODE(hook)) /* it'll probably be ng_deadnode */
 			_NG_NODE_UNREF((_NG_HOOK_NODE(hook)));
-		NG_FREE_HOOK(hook);
+		//NG_FREE_HOOK(hook);
+		NET_EPOCH_CALL(ng_free_hook, &hook->hook_epoch_ctx);//hook_epoch_ctx is not defined
 	}
 }
 
@@ -1068,14 +1074,19 @@ ng_add_hook(node_p node, const char *name, hook_p *hookp)
 {
 	hook_p hook;
 	int error = 0;
+	struct epoch_tracker et;
+
+	NET_EPOCH_ENTER(et);
 
 	/* Check that the given name is good */
 	if (name == NULL) {
 		TRAP_ERROR();
+		NET_EPOCH_EXIT(et);
 		return (EINVAL);
 	}
 	if (ng_findhook(node, name) != NULL) {
 		TRAP_ERROR();
+		NET_EPOCH_EXIT(et);
 		return (EEXIST);
 	}
 
@@ -1083,6 +1094,7 @@ ng_add_hook(node_p node, const char *name, hook_p *hookp)
 	NG_ALLOC_HOOK(hook);
 	if (hook == NULL) {
 		TRAP_ERROR();
+		NET_EPOCH_EXIT(et);
 		return (ENOMEM);
 	}
 	hook->hk_refs = 1;		/* add a reference for us to return */
@@ -1101,6 +1113,7 @@ ng_add_hook(node_p node, const char *name, hook_p *hookp)
 	if (node->nd_type->newhook != NULL) {
 		if ((error = (*node->nd_type->newhook)(node, hook, name))) {
 			NG_HOOK_UNREF(hook);	/* this frees the hook */
+			NET_EPOCH_EXIT(et);
 			return (error);
 		}
 	}
@@ -1114,6 +1127,8 @@ ng_add_hook(node_p node, const char *name, hook_p *hookp)
 
 	if (hookp)
 		*hookp = hook;
+
+	NET_EPOCH_EXIT(et);
 	return (0);
 }
 
@@ -1128,14 +1143,23 @@ hook_p
 ng_findhook(node_p node, const char *name)
 {
 	hook_p hook;
+	struct epoch_tracker et;
 
-	if (node->nd_type->findhook != NULL)
-		return (*node->nd_type->findhook)(node, name);
+	NET_EPOCH_ENTER(et);
+
+	if (node->nd_type->findhook != NULL){
+		hook = (*node->nd_type->findhook)(node, name);
+		NET_EPOCH_EXIT(et);
+		return hook;
+	}
+
 	LIST_FOREACH(hook, &node->nd_hooks, hk_hooks) {
 		if (NG_HOOK_IS_VALID(hook) &&
 		    (strcmp(NG_HOOK_NAME(hook), name) == 0))
+			NET_EPOCH_EXIT(et);
 			return (hook);
 	}
+	NET_EPOCH_EXIT(et);
 	return (NULL);
 }
 
@@ -1162,11 +1186,14 @@ ng_destroy_hook(hook_p hook)
 {
 	hook_p peer;
 	node_p node;
+	struct epoch_tracker et;
 
 	if (hook == &ng_deadhook) {	/* better safe than sorry */
 		printf("ng_destroy_hook called on deadhook\n");
 		return;
 	}
+
+	NET_EPOCH_ENTER(et);
 
 	/*
 	 * Protect divorce process with mutex, to avoid races on
@@ -1209,6 +1236,7 @@ ng_destroy_hook(hook_p hook)
 	 * in case the disconnection results in node shutdown.
 	 */
 	if (node == &ng_deadnode) { /* happens if called from ng_con_nodes() */
+		NET_EPOCH_EXIT(et);
 		return;
 	}
 	LIST_REMOVE(hook, hk_hooks);
@@ -1230,6 +1258,7 @@ ng_destroy_hook(hook_p hook)
 	_NG_HOOK_NODE(hook) = &ng_deadnode;
 	NG_NODE_UNREF(node);	/* We no longer point to it so adjust count */
 	NG_HOOK_UNREF(hook);	/* Account for linkage (in list) to node */
+	NET_EPOCH_EXIT(et);
 }
 
 /*
@@ -1239,13 +1268,16 @@ ng_destroy_hook(hook_p hook)
 int
 ng_bypass(hook_p hook1, hook_p hook2)
 {
+	struct epoch_tracker et;
 	if (hook1->hk_node != hook2->hk_node) {
 		TRAP_ERROR();
 		return (EINVAL);
 	}
+	NET_EPOCH_ENTER(et);
 	TOPOLOGY_WLOCK();
 	if (NG_HOOK_NOT_VALID(hook1) || NG_HOOK_NOT_VALID(hook2)) {
 		TOPOLOGY_WUNLOCK();
+		NET_EPOCH_EXIT(et);
 		return (EINVAL);
 	}
 	hook1->hk_peer->hk_peer = hook2->hk_peer;
@@ -1261,6 +1293,7 @@ ng_bypass(hook_p hook1, hook_p hook2)
 	/* XXX If we ever cache methods on hooks update them as well */
 	ng_destroy_hook(hook1);
 	ng_destroy_hook(hook2);
+	NET_EPOCH_EXIT(et);
 	return (0);
 }
 
@@ -1344,6 +1377,9 @@ static int
 ng_con_part3(node_p node, item_p item, hook_p hook)
 {
 	int	error = 0;
+	struct epoch_tracker et;
+
+	NET_EPOCH_ENTER(et);
 
 	/*
 	 * When we run, we know that the node 'node' is locked for us.
@@ -1363,12 +1399,14 @@ ng_con_part3(node_p node, item_p item, hook_p hook)
 		 * Since we know it's been destroyed, and it's our caller
 		 * that holds the references, just return.
 		 */
+		NET_EPOCH_EXIT(et);
 		ERROUT(ENOENT);
 	}
 	if (hook->hk_node->nd_type->connect) {
 		if ((error = (*hook->hk_node->nd_type->connect) (hook))) {
 			ng_destroy_hook(hook);	/* also zaps peer */
 			printf("failed in ng_con_part3()\n");
+			NET_EPOCH_EXIT(et);
 			ERROUT(error);
 		}
 	}
@@ -1380,6 +1418,7 @@ ng_con_part3(node_p node, item_p item, hook_p hook)
 	hook->hk_flags &= ~HK_INVALID;
 done:
 	NG_FREE_ITEM(item);
+	NET_EPOCH_EXIT(et);
 	return (error);
 }
 
@@ -1388,6 +1427,9 @@ ng_con_part2(node_p node, item_p item, hook_p hook)
 {
 	hook_p	peer;
 	int	error = 0;
+	struct epoch_tracker et;
+
+	NET_EPOCH_ENTER(et);
 
 	/*
 	 * When we run, we know that the node 'node' is locked for us.
@@ -1403,6 +1445,7 @@ ng_con_part2(node_p node, item_p item, hook_p hook)
 		TRAP_ERROR();
 		ng_destroy_hook(hook); /* should destroy peer too */
 		printf("failed in ng_con_part2()\n");
+		NET_EPOCH_EXIT(et);
 		ERROUT(EEXIST);
 	}
 	/*
@@ -1416,6 +1459,7 @@ ng_con_part2(node_p node, item_p item, hook_p hook)
 		    hook->hk_name))) {
 			ng_destroy_hook(hook); /* should destroy peer too */
 			printf("failed in ng_con_part2()\n");
+			NET_EPOCH_EXIT(et);
 			ERROUT(error);
 		}
 	}
@@ -1443,6 +1487,7 @@ ng_con_part2(node_p node, item_p item, hook_p hook)
 		if ((error = (*hook->hk_node->nd_type->connect) (hook))) {
 			ng_destroy_hook(hook);	/* also zaps peer */
 			printf("failed in ng_con_part2(A)\n");
+			NET_EPOCH_EXIT(et);
 			ERROUT(error);
 		}
 	}
@@ -1467,9 +1512,11 @@ ng_con_part2(node_p node, item_p item, hook_p hook)
 		return (error);		/* item was consumed. */
 	}
 	hook->hk_flags &= ~HK_INVALID; /* need both to be able to work */
+	NET_EPOCH_EXIT(et);
 	return (0);			/* item was consumed. */
 done:
 	NG_FREE_ITEM(item);
+	NET_EPOCH_EXIT(et);
 	return (error);
 }
 
@@ -1484,11 +1531,16 @@ ng_con_nodes(item_p item, node_p node, const char *name,
 	int	error;
 	hook_p	hook;
 	hook_p	hook2;
+	struct epoch_tracker et;
+
+	NET_EPOCH_ENTER(et);
 
 	if (ng_findhook(node2, name2) != NULL) {
+		NET_EPOCH_EXIT(et);
 		return(EEXIST);
 	}
 	if ((error = ng_add_hook(node, name, &hook)))  /* gives us a ref */
+		NET_EPOCH_EXIT(et);
 		return (error);
 	/* Allocate the other hook and link it up */
 	NG_ALLOC_HOOK(hook2);
@@ -1496,12 +1548,13 @@ ng_con_nodes(item_p item, node_p node, const char *name,
 		TRAP_ERROR();
 		ng_destroy_hook(hook);	/* XXX check ref counts so far */
 		NG_HOOK_UNREF(hook);	/* including our ref */
+		NET_EPOCH_EXIT(et);
 		return (ENOMEM);
 	}
 	hook2->hk_refs = 1;		/* start with a reference for us. */
 	hook2->hk_flags = HK_INVALID;
 	hook2->hk_peer = hook;		/* Link the two together */
-	hook->hk_peer = hook2;	
+	hook->hk_peer = hook2;
 	NG_HOOK_REF(hook);		/* Add a ref for the peer to each*/
 	NG_HOOK_REF(hook2);
 	hook2->hk_node = &ng_deadnode;
@@ -1520,6 +1573,7 @@ ng_con_nodes(item_p item, node_p node, const char *name,
 
 	NG_HOOK_UNREF(hook);		/* Let each hook go if it wants to */
 	NG_HOOK_UNREF(hook2);
+	NET_EPOCH_EXIT(et);
 	return (error);
 }
 
@@ -1608,14 +1662,19 @@ int
 ng_rmnode_self(node_p node)
 {
 	int		error;
+	struct epoch_tracker et;
 
 	if (node == &ng_deadnode)
 		return (0);
+
+	NET_EPOCH_ENTER(et);
 	node->nd_flags |= NGF_INVALID;
 	if (node->nd_flags & NGF_CLOSING)
+		NET_EPOCH_EXIT(et);
 		return (0);
 
 	error = ng_send_fn(node, NULL, &ng_rmnode, NULL, 0);
+	NET_EPOCH_EXIT(et);
 	return (error);
 }
 
@@ -1631,11 +1690,13 @@ ng_rmhook_self(hook_p hook)
 {
 	int		error;
 	node_p node = NG_HOOK_NODE(hook);
+	struct epoch_tracker et;
 
 	if (node == &ng_deadnode)
 		return (0);
-
+	NET_EPOCH_ENTER(et);
 	error = ng_send_fn(node, hook, &ng_rmhook_part2, NULL, 0);
+	NET_EPOCH_EXIT(et);
 	return (error);
 }
 
@@ -1731,9 +1792,14 @@ ng_path2noderef(node_p here, const char *address, node_p *destp,
 	char   *nodename, *path;
 	node_p  node, oldnode;
 
+	epoch_tracker et;
+
+	NET_EPOCH_ENTER(et);
+
 	/* Initialize */
 	if (destp == NULL) {
 		TRAP_ERROR();
+		NET_EPOCH_EXIT(et);
 		return EINVAL;
 	}
 	*destp = NULL;
@@ -1745,6 +1811,7 @@ ng_path2noderef(node_p here, const char *address, node_p *destp,
 	/* Parse out node and sequence of hooks */
 	if (ng_path_parse(fullpath, &nodename, &path, NULL) < 0) {
 		TRAP_ERROR();
+		NET_EPOCH_EXIT(et);
 		return EINVAL;
 	}
 
@@ -1757,11 +1824,13 @@ ng_path2noderef(node_p here, const char *address, node_p *destp,
 		node = ng_name2noderef(here, nodename);
 		if (node == NULL) {
 			TRAP_ERROR();
+			NET_EPOCH_EXIT(et);
 			return (ENOENT);
 		}
 	} else {
 		if (here == NULL) {
 			TRAP_ERROR();
+			NET_EPOCH_EXIT(et);
 			return (EINVAL);
 		}
 		node = here;
@@ -1772,6 +1841,7 @@ ng_path2noderef(node_p here, const char *address, node_p *destp,
 		if (lasthook != NULL)
 			*lasthook = NULL;
 		*destp = node;
+		NET_EPOCH_EXIT(et);
 		return (0);
 	}
 
@@ -1810,6 +1880,7 @@ ng_path2noderef(node_p here, const char *address, node_p *destp,
 			TRAP_ERROR();
 			NG_NODE_UNREF(node);
 			TOPOLOGY_WUNLOCK();
+			NET_EPOCH_EXIT(et);
 			return (ENOENT);
 		}
 
@@ -1828,6 +1899,7 @@ ng_path2noderef(node_p here, const char *address, node_p *destp,
 			NG_NODE_UNREF(node);	/* XXX more races */
 			TOPOLOGY_WUNLOCK();
 			TRAP_ERROR();
+			NET_EPOCH_EXIT(et);
 			return (ENXIO);
 		}
 
@@ -1841,10 +1913,12 @@ ng_path2noderef(node_p here, const char *address, node_p *destp,
 			}
 			TOPOLOGY_WUNLOCK();
 			*destp = node;
+			NET_EPOCH_EXIT(et);
 			return (0);
 		}
 		TOPOLOGY_WUNLOCK();
 	}
+	NET_EPOCH_EXIT(et);
 }
 
 /***************************************************************\
@@ -2114,7 +2188,7 @@ ng_upgrade_write(node_p node, item_p item)
 	atomic_add_int(&ngq->q_flags, WRITER_ACTIVE - READER_INCREMENT);
 	if ((ngq->q_flags & (NGQ_WMASK & ~OP_PENDING)) == WRITER_ACTIVE) {
 		NG_QUEUE_UNLOCK(ngq);
-		
+
 		/* It's just us, act on the item. */
 		/* will NOT drop writer lock when done */
 		ng_apply_item(node, item, 0);
@@ -2367,11 +2441,11 @@ ng_apply_item(node_p node, item_p item, int rw)
 	ng_rcvmsg_t *rcvmsg;
 	struct ng_apply_info *apply;
 	int	error = 0, depth;
-	
+
 	epoch_tracker et;
 
-    NET_EPOCH_ENTER(et);
-    NET_EPOCH_ASSERT();
+  NET_EPOCH_ENTER(et);
+  NET_EPOCH_ASSERT();
 
 	/* Node and item are never optional. */
 	KASSERT(node != NULL, ("ng_apply_item: node is NULL"));
@@ -2476,7 +2550,7 @@ ng_apply_item(node_p node, item_p item, int rw)
 			NG_FREE_ITEM(item);
 			break;
 		}
-		
+
 		if ((item->el_flags & NGQF_TYPE) == NGQF_FN) {
 			(*NGI_FN(item))(node, hook, NGI_ARG1(item),
 			    NGI_ARG2(item));
@@ -2519,11 +2593,11 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 	int error = 0;
 	struct ng_mesg *msg;
 	struct ng_mesg *resp = NULL;
-	
+
 	epoch_tracker et;
 
-    NET_EPOCH_ENTER(et);
-    NET_EPOCH_ASSERT();
+  NET_EPOCH_ENTER(et);
+  NET_EPOCH_ASSERT();
 
 	NGI_GET_MSG(item, msg);
 	if (msg->header.typecookie != NGM_GENERIC_COOKIE) {
@@ -3023,8 +3097,8 @@ void
 ng_free_item(item_p item)
 {
 	epoch_tracker et;
-    NET_EPOCH_ENTER(et);
-    NET_EPOCH_ASSERT();
+  NET_EPOCH_ENTER(et);
+  NET_EPOCH_ASSERT();
 	/*
 	 * The item may hold resources on its own. We need to free
 	 * these before we can free the item. What they are depends upon
@@ -3073,7 +3147,7 @@ ng_realloc_item(item_p pitem, int type, int flags)
 {
 	item_p item;
 	int from, to;
-	
+
 	epoch_tracker et;
 
 	KASSERT((pitem != NULL), ("%s: can't reallocate NULL", __func__));
@@ -3095,7 +3169,7 @@ ng_realloc_item(item_p pitem, int type, int flags)
 	} else
 		item = pitem;
 	item->el_flags = (item->el_flags & ~NGQF_TYPE) | type;
-	
+
 	NET_EPOCH_EXIT(et);
 	return (item);
 }
@@ -3629,7 +3703,7 @@ ng_address_hook(node_p here, item_p item, hook_p hook, ng_ID_t retaddr)
 	 */
 	//TOPOLOGY_RLOCK();
 	epoch_tracker et;
-    NET_EPOCH_ENTER(et);
+  NET_EPOCH_ENTER(et);
 	if ((hook == NULL) || NG_HOOK_NOT_VALID(hook) ||
 	    NG_HOOK_NOT_VALID(peer = NG_HOOK_PEER(hook)) ||
 	    NG_NODE_NOT_VALID(peernode = NG_PEER_NODE(hook))) {
@@ -3663,7 +3737,7 @@ ng_address_path(node_p here, item_p item, const char *address, ng_ID_t retaddr)
 
 	ITEM_DEBUG_CHECKS;
 	epoch_tracker et;
-    NET_EPOCH_ENTER(et);
+  NET_EPOCH_ENTER(et);
 	/*
 	 * Note that ng_path2noderef increments the reference count
 	 * on the node for us if it finds one. So we don't have to.
@@ -3690,7 +3764,7 @@ ng_address_ID(node_p here, item_p item, ng_ID_t ID, ng_ID_t retaddr)
 
 	ITEM_DEBUG_CHECKS;
 	epoch_tracker et;
-    NET_EPOCH_ENTER(et);
+  NET_EPOCH_ENTER(et);
 	/*
 	 * Find the target node.
 	 */
@@ -3719,7 +3793,7 @@ ng_package_msg_self(node_p here, hook_p hook, struct ng_mesg *msg)
 {
 	item_p item;
 	struct epoch_tracker et;
-    NET_EPOCH_ENTER(et);
+  NET_EPOCH_ENTER(et);
 
 	/*
 	 * Find the target node.
@@ -3763,7 +3837,7 @@ ng_send_fn1(node_p node, hook_p hook, ng_item_fn *fn, void * arg1, int arg2,
 {
 	item_p item;
 	struct epoch_tracker et;
-    NET_EPOCH_ENTER(et);
+  NET_EPOCH_ENTER(et);
 
 	if ((item = ng_alloc_item(NGQF_FN, flags)) == NULL) {
 		NET_EPOCH_EXIT(et);
@@ -3780,7 +3854,7 @@ ng_send_fn1(node_p node, hook_p hook, ng_item_fn *fn, void * arg1, int arg2,
 	NGI_ARG1(item) = arg1;
 	NGI_ARG2(item) = arg2;
 	int ret = ng_snd_item(item, flags);
-    NET_EPOCH_EXIT(et);
+  NET_EPOCH_EXIT(et);
 	return(ret);
 }
 
@@ -3798,9 +3872,9 @@ ng_send_fn2(node_p node, hook_p hook, item_p pitem, ng_item_fn2 *fn, void *arg1,
 {
 	item_p item;
 	struct epoch_tracker et;
-    NET_EPOCH_ENTER(et);
+  NET_EPOCH_ENTER(et);
 	NET_EPOCH_ASSERT();
-	
+
 	KASSERT((pitem != NULL || (flags & NG_REUSE_ITEM) == 0),
 	    ("%s: NG_REUSE_ITEM but no pitem", __func__));
 

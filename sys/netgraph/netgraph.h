@@ -5,7 +5,7 @@
 /*-
  * Copyright (c) 1996-1999 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -16,7 +16,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -122,6 +122,7 @@ struct ng_hook {
 	ng_rcvmsg_t	*hk_rcvmsg;	/* control messages come here */
 	ng_rcvdata_t	*hk_rcvdata;	/* data comes here */
 	int	hk_refs;		/* dont actually free this till 0 */
+	epoch_context_t hook_epoch_ctx; /* epoch context for safe freeing */
 #ifdef	NETGRAPH_DEBUG /*----------------------------------------------*/
 #define HK_MAGIC 0x78573011
 	int	hk_magic;
@@ -573,8 +574,8 @@ _ng_node_foreach_hook(node_p node, ng_fn_eachhook *fn, void *arg,
 	_NG_NODE_FOREACH_HOOK(node, fn, arg);
 }
 
-#define NG_NODE_NAME(node)		_ng_node_name(node, _NN_)	
-#define NG_NODE_HAS_NAME(node)		_ng_node_has_name(node, _NN_)	
+#define NG_NODE_NAME(node)		_ng_node_name(node, _NN_)
+#define NG_NODE_HAS_NAME(node)		_ng_node_has_name(node, _NN_)
 #define NG_NODE_ID(node)		_ng_node_id(node, _NN_)
 #define NG_NODE_REF(node)		_ng_node_ref(node, _NN_)
 #define	NG_NODE_UNREF(node)		_ng_node_unref(node, _NN_)
@@ -592,19 +593,19 @@ _ng_node_foreach_hook(node_p node, ng_fn_eachhook *fn, void *arg,
 
 #else	/* NETGRAPH_DEBUG */ /*----------------------------------------------*/
 
-#define NG_NODE_NAME(node)		_NG_NODE_NAME(node)	
-#define NG_NODE_HAS_NAME(node)		_NG_NODE_HAS_NAME(node)	
-#define NG_NODE_ID(node)		_NG_NODE_ID(node)	
-#define	NG_NODE_REF(node)		_NG_NODE_REF(node)	
-#define	NG_NODE_UNREF(node)		_NG_NODE_UNREF(node)	
-#define	NG_NODE_SET_PRIVATE(node, val)	_NG_NODE_SET_PRIVATE(node, val)	
-#define	NG_NODE_PRIVATE(node)		_NG_NODE_PRIVATE(node)	
-#define NG_NODE_IS_VALID(node)		_NG_NODE_IS_VALID(node)	
-#define NG_NODE_NOT_VALID(node)		_NG_NODE_NOT_VALID(node)	
+#define NG_NODE_NAME(node)		_NG_NODE_NAME(node)
+#define NG_NODE_HAS_NAME(node)		_NG_NODE_HAS_NAME(node)
+#define NG_NODE_ID(node)		_NG_NODE_ID(node)
+#define	NG_NODE_REF(node)		_NG_NODE_REF(node)
+#define	NG_NODE_UNREF(node)		_NG_NODE_UNREF(node)
+#define	NG_NODE_SET_PRIVATE(node, val)	_NG_NODE_SET_PRIVATE(node, val)
+#define	NG_NODE_PRIVATE(node)		_NG_NODE_PRIVATE(node)
+#define NG_NODE_IS_VALID(node)		_NG_NODE_IS_VALID(node)
+#define NG_NODE_NOT_VALID(node)		_NG_NODE_NOT_VALID(node)
 #define NG_NODE_FORCE_WRITER(node) 	_NG_NODE_FORCE_WRITER(node)
 #define NG_NODE_HI_STACK(node) 		_NG_NODE_HI_STACK(node)
 #define NG_NODE_REALLY_DIE(node) 	_NG_NODE_REALLY_DIE(node)
-#define NG_NODE_NUMHOOKS(node)		_NG_NODE_NUMHOOKS(node)	
+#define NG_NODE_NUMHOOKS(node)		_NG_NODE_NUMHOOKS(node)
 #define NG_NODE_REVIVE(node)		_NG_NODE_REVIVE(node)
 #define NG_NODE_FOREACH_HOOK(node, fn, arg)				\
 	_NG_NODE_FOREACH_HOOK(node, fn, arg)
