@@ -49,6 +49,12 @@
 #define	SBI_IMPL_ID_KVM			3
 #define	SBI_IMPL_ID_RUSTSBI		4
 #define	SBI_IMPL_ID_DIOSIX		5
+#define	SBI_IMPL_ID_COFFER		6
+#define	SBI_IMPL_ID_XEN_PROJECT		7
+#define	SBI_IMPL_ID_POLARFIRE_HSS	8
+#define	SBI_IMPL_ID_COREBOOT		9
+#define	SBI_IMPL_ID_OREBOOT		10
+#define	SBI_IMPL_ID_BHYVE		11
 
 /* SBI Error Codes */
 #define	SBI_SUCCESS			0

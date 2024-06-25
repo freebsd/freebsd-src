@@ -132,6 +132,11 @@ sbi_print_version(void)
 	case (SBI_IMPL_ID_BBL):
 		printf("SBI: Berkely Boot Loader %lu\n", sbi_impl_version);
 		break;
+	case (SBI_IMPL_ID_OPENSBI):
+		major = sbi_impl_version >> OPENSBI_VERSION_MAJOR_OFFSET;
+		minor = sbi_impl_version & OPENSBI_VERSION_MINOR_MASK;
+		printf("SBI: OpenSBI v%u.%u\n", major, minor);
+		break;
 	case (SBI_IMPL_ID_XVISOR):
 		printf("SBI: eXtensible Versatile hypervISOR %lu\n",
 		    sbi_impl_version);
@@ -146,10 +151,24 @@ sbi_print_version(void)
 	case (SBI_IMPL_ID_DIOSIX):
 		printf("SBI: Diosix %lu\n", sbi_impl_version);
 		break;
-	case (SBI_IMPL_ID_OPENSBI):
-		major = sbi_impl_version >> OPENSBI_VERSION_MAJOR_OFFSET;
-		minor = sbi_impl_version & OPENSBI_VERSION_MINOR_MASK;
-		printf("SBI: OpenSBI v%u.%u\n", major, minor);
+	case (SBI_IMPL_ID_COFFER):
+		printf("SBI: Coffer %lu\n", sbi_impl_version);
+		break;
+	case (SBI_IMPL_ID_XEN_PROJECT):
+		printf("SBI: Xen Project %lu\n", sbi_impl_version);
+		break;
+	case (SBI_IMPL_ID_POLARFIRE_HSS):
+		printf("SBI: PolarFire Hart Software Services %lu\n",
+		    sbi_impl_version);
+		break;
+	case (SBI_IMPL_ID_COREBOOT):
+		printf("SBI: coreboot %lu\n", sbi_impl_version);
+		break;
+	case (SBI_IMPL_ID_OREBOOT):
+		printf("SBI: oreboot %lu\n", sbi_impl_version);
+		break;
+	case (SBI_IMPL_ID_BHYVE):
+		printf("SBI: bhyve %lu\n", sbi_impl_version);
 		break;
 	default:
 		printf("SBI: Unrecognized Implementation: %lu\n", sbi_impl_id);
