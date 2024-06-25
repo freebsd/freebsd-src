@@ -91,13 +91,14 @@ dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
 struct td_sched {
 	short		ts_flags;	/* TSF_* flags. */
 	int		ts_cpu;		/* CPU we are on, or were last on. */
-	int		ts_rltick;	/* Real last tick, for affinity. */
-	int		ts_slice;	/* Ticks of slice remaining. */
+	u_int		ts_rltick;	/* Real last tick, for affinity. */
+	u_int		ts_slice;	/* Ticks of slice remaining. */
+	u_int		ts_ftick;	/* %CPU window's first tick */
+	u_int		ts_ltick;	/* %CPU window's last tick */
+	/* All ticks count below are stored shifted by SCHED_TICK_SHIFT. */
 	u_int		ts_slptime;	/* Number of ticks we vol. slept */
 	u_int		ts_runtime;	/* Number of ticks we were running */
-	int		ts_ltick;	/* Last tick that we were running on */
-	int		ts_ftick;	/* First tick that we were running on */
-	int		ts_ticks;	/* Tick count */
+	u_int		ts_ticks;	/* pctcpu window's running tick count */
 #ifdef KTR
 	char		ts_name[TS_NAME_LEN];
 #endif
@@ -137,20 +138,14 @@ _Static_assert(sizeof(struct thread) + sizeof(struct td_sched) <=
  * and end of the MIN to MAX timeshare range are only reachable with negative
  * or positive nice respectively.
  *
- * PRI_NRESV:	Number of priority levels reserved to account for nice values.
+ * CPU_RANGE:	Length of range for priorities computed from CPU use.
+ * NICE:	Priority offset due to the nice value.
  *              5/4 is to preserve historical nice effect on computation ratios.
- * PRI_RANGE:	Length of range for priorities computed from CPU use.
- * PRI_TICKS:	Compute a priority in PRI_RANGE from the ticks count and total.
- * PRI_NICE:	Determines the part of the priority inherited from nice.
+ * NRESV:	Number of priority levels reserved to account for nice values.
  */
-#define	SCHED_PRI_NRESV		((PRIO_MAX - PRIO_MIN) * 5 / 4)
-#define	SCHED_PRI_MIN		(PRI_MIN_BATCH + (SCHED_PRI_NRESV / 2))
-#define	SCHED_PRI_MAX		(PRI_MAX_BATCH - (SCHED_PRI_NRESV / 2))
-#define	SCHED_PRI_RANGE		(SCHED_PRI_MAX - SCHED_PRI_MIN + 1)
-#define	SCHED_PRI_TICKS(ts)						\
-    (SCHED_TICK_HZ((ts)) /						\
-    (roundup(SCHED_TICK_TOTAL((ts)), SCHED_PRI_RANGE) / SCHED_PRI_RANGE))
-#define	SCHED_PRI_NICE(nice)	((nice) * 5 / 4)
+#define	SCHED_PRI_CPU_RANGE	(PRI_BATCH_RANGE - SCHED_PRI_NRESV)
+#define	SCHED_PRI_NICE(nice)	(((nice) - PRIO_MIN) * 5 / 4)
+#define	SCHED_PRI_NRESV		SCHED_PRI_NICE(PRIO_MAX)
 
 /*
  * Runqueue indices for the implemented scheduling policies' priority bounds.
@@ -180,19 +175,26 @@ _Static_assert(RQ_TS_POL_MAX != RQ_ID_POL_MIN,
 /*
  * Cpu percentage computation macros and defines.
  *
- * SCHED_TICK_SECS:	Number of seconds to average the cpu usage across.
- * SCHED_TICK_TARG:	Number of hz ticks to average the cpu usage across.
- * SCHED_TICK_MAX:	Maximum number of ticks before scaling back.
+ * SCHED_TICK_SECS:	Max number of seconds to average the cpu usage across.
+ *   Must be at most 20 to avoid overflow in sched_pctcpu()'s current formula.
+ * SCHED_TICK_MAX:	Max number of hz ticks matching SCHED_TICK_SECS.
  * SCHED_TICK_SHIFT:	Shift factor to avoid rounding away results.
- * SCHED_TICK_HZ:	Compute the number of hz ticks for a given ticks count.
- * SCHED_TICK_TOTAL:	Gives the amount of time we've been recording ticks.
+ * SCHED_TICK_RUN_SHIFTED: Number of shifted ticks running in last window.
+ * SCHED_TICK_LENGTH:	Length of last window in shifted ticks or 1 if empty.
+ * SCHED_CPU_DECAY_NUMER: Numerator of %CPU decay factor.
+ * SCHED_CPU_DECAY_DENOM: Denominator of %CPU decay factor.
  */
-#define	SCHED_TICK_SECS		10
-#define	SCHED_TICK_TARG		(hz * SCHED_TICK_SECS)
-#define	SCHED_TICK_MAX		(SCHED_TICK_TARG + hz)
-#define	SCHED_TICK_SHIFT	10
-#define	SCHED_TICK_HZ(ts)	((ts)->ts_ticks >> SCHED_TICK_SHIFT)
-#define	SCHED_TICK_TOTAL(ts)	(max((ts)->ts_ltick - (ts)->ts_ftick, hz))
+#define	SCHED_TICK_SECS			11
+#define	SCHED_TICK_MAX(hz)		((hz) * SCHED_TICK_SECS)
+#define	SCHED_TICK_SHIFT		10
+#define	SCHED_TICK_RUN_SHIFTED(ts)	((ts)->ts_ticks)
+#define	SCHED_TICK_LENGTH(ts)		(max((ts)->ts_ltick - (ts)->ts_ftick, 1))
+#define	SCHED_CPU_DECAY_NUMER		10
+#define	SCHED_CPU_DECAY_DENOM		11
+_Static_assert(SCHED_CPU_DECAY_NUMER >= 0 && SCHED_CPU_DECAY_DENOM > 0 &&
+    SCHED_CPU_DECAY_NUMER <= SCHED_CPU_DECAY_DENOM,
+    "Inconsistent values for SCHED_CPU_DECAY_NUMER and/or "
+    "SCHED_CPU_DECAY_DENOM");
 
 /*
  * These determine the interactivity of a process.  Interactivity differs from
@@ -308,7 +310,11 @@ struct tdq {
 struct cpu_group __read_mostly *cpu_top;		/* CPU topology */
 
 #define	SCHED_AFFINITY_DEFAULT	(max(1, hz / 1000))
-#define	SCHED_AFFINITY(ts, t)	((ts)->ts_rltick > ticks - ((t) * affinity))
+/*
+ * This inequality has to be written with a positive difference of ticks to
+ * correctly handle wraparound.
+ */
+#define	SCHED_AFFINITY(ts, t)	((u_int)ticks - (ts)->ts_rltick < (t) * affinity)
 
 /*
  * Run-time tunables.
@@ -665,7 +671,7 @@ tdq_load_rem(struct tdq *tdq, struct thread *td)
  * aside from curthread and target no more than sched_slice latency but
  * no less than sched_slice_min runtime.
  */
-static inline int
+static inline u_int
 tdq_slice(struct tdq *tdq)
 {
 	int load;
@@ -1757,9 +1763,12 @@ static void
 sched_priority(struct thread *td)
 {
 	u_int pri, score;
+	int nice;
 
 	if (PRI_BASE(td->td_pri_class) != PRI_TIMESHARE)
 		return;
+
+	nice = td->td_proc->p_nice;
 	/*
 	 * If the score is interactive we place the thread in the realtime
 	 * queue with a priority that is less than kernel and interrupt
@@ -1773,7 +1782,7 @@ sched_priority(struct thread *td)
 	 * score.  Negative nice values make it easier for a thread to be
 	 * considered interactive.
 	 */
-	score = imax(0, sched_interact_score(td) + td->td_proc->p_nice);
+	score = imax(0, sched_interact_score(td) + nice);
 	if (score < sched_interact) {
 		pri = PRI_MIN_INTERACT;
 		pri += (PRI_MAX_INTERACT - PRI_MIN_INTERACT + 1) * score /
@@ -1782,17 +1791,26 @@ sched_priority(struct thread *td)
 		    ("sched_priority: invalid interactive priority %u score %u",
 		    pri, score));
 	} else {
-		pri = SCHED_PRI_MIN;
-		if (td_get_sched(td)->ts_ticks)
-			pri += min(SCHED_PRI_TICKS(td_get_sched(td)),
-			    SCHED_PRI_RANGE - 1);
-		pri += SCHED_PRI_NICE(td->td_proc->p_nice);
+		const struct td_sched *const ts = td_get_sched(td);
+		const u_int run = SCHED_TICK_RUN_SHIFTED(ts);
+		const u_int run_unshifted __unused = (run +
+		    (1 << SCHED_TICK_SHIFT) / 2) >> SCHED_TICK_SHIFT;
+		const u_int len = SCHED_TICK_LENGTH(ts);
+		const u_int nice_pri_off = SCHED_PRI_NICE(nice);
+		const u_int cpu_pri_off = (((SCHED_PRI_CPU_RANGE - 1) *
+		    run + len / 2) / len + (1 << SCHED_TICK_SHIFT) / 2) >>
+		    SCHED_TICK_SHIFT;
+
+		MPASS(cpu_pri_off < SCHED_PRI_CPU_RANGE);
+		pri = PRI_MIN_BATCH + cpu_pri_off + nice_pri_off;
 		KASSERT(pri >= PRI_MIN_BATCH && pri <= PRI_MAX_BATCH,
-		    ("sched_priority: invalid priority %u: nice %d, "
-		    "ticks %d ftick %d ltick %d tick pri %d",
-		    pri, td->td_proc->p_nice, td_get_sched(td)->ts_ticks,
-		    td_get_sched(td)->ts_ftick, td_get_sched(td)->ts_ltick,
-		    SCHED_PRI_TICKS(td_get_sched(td))));
+		    ("sched_priority: Invalid computed priority %u: "
+		    "Should be between %u and %u (PRI_MIN_BATCH: %u; "
+		    "Window size (ticks): %u, runtime (shifted ticks): %u,"
+		    "(unshifted ticks): %u => CPU pri off: %u; "
+		    "Nice: %d => nice pri off: %u)",
+		    pri, PRI_MIN_BATCH, PRI_MAX_BATCH, PRI_MIN_BATCH,
+		    len, run, run_unshifted, cpu_pri_off, nice, nice_pri_off));
 	}
 	sched_user_prio(td, pri);
 
@@ -1877,8 +1895,8 @@ schedinit(void)
 	 * Set up the scheduler specific parts of thread0.
 	 */
 	ts0 = td_get_sched(&thread0);
-	ts0->ts_ltick = ticks;
-	ts0->ts_ftick = ticks;
+	ts0->ts_ftick = (u_int)ticks;
+	ts0->ts_ltick = ts0->ts_ftick;
 	ts0->ts_slice = 0;
 	ts0->ts_cpu = curcpu;	/* set valid CPU number */
 }
@@ -1917,30 +1935,56 @@ sched_rr_interval(void)
 }
 
 /*
- * Update the percent cpu tracking information when it is requested or
- * the total history exceeds the maximum.  We keep a sliding history of
- * tick counts that slowly decays.  This is less precise than the 4BSD
- * mechanism since it happens with less regular and frequent events.
+ * Update the percent cpu tracking information when it is requested or the total
+ * history exceeds the maximum.  We keep a sliding history of tick counts that
+ * slowly decays, for running threads (see comments below for more details).
+ * This is less precise than the 4BSD mechanism since it happens with less
+ * regular and frequent events.
  */
 static void
 sched_pctcpu_update(struct td_sched *ts, int run)
 {
-	int t = ticks;
+	const u_int t = (u_int)ticks;
+	u_int t_max = SCHED_TICK_MAX((u_int)hz);
+	u_int t_tgt = ((t_max << SCHED_TICK_SHIFT) * SCHED_CPU_DECAY_NUMER /
+	    SCHED_CPU_DECAY_DENOM) >> SCHED_TICK_SHIFT;
+	const u_int lu_span = t - ts->ts_ltick;
 
-	/*
-	 * The signed difference may be negative if the thread hasn't run for
-	 * over half of the ticks rollover period.
-	 */
-	if ((u_int)(t - ts->ts_ltick) >= SCHED_TICK_TARG) {
-		ts->ts_ticks = 0;
-		ts->ts_ftick = t - SCHED_TICK_TARG;
-	} else if (t - ts->ts_ftick >= SCHED_TICK_MAX) {
-		ts->ts_ticks = (ts->ts_ticks / (ts->ts_ltick - ts->ts_ftick)) *
-		    (ts->ts_ltick - (t - SCHED_TICK_TARG));
-		ts->ts_ftick = t - SCHED_TICK_TARG;
+	if (lu_span >= t_tgt) {
+		/*
+		 * Forget all previous ticks if we are more than t_tgt
+		 * (currently, 10s) apart from the last update.  Don't account
+		 * for more than 't_tgt' ticks when running.
+		 */
+		ts->ts_ticks = run ? (t_tgt << SCHED_TICK_SHIFT) : 0;
+		ts->ts_ftick = t - t_tgt;
+		ts->ts_ltick = t;
+		return;
 	}
+
+	if (t - ts->ts_ftick >= t_max) {
+		/*
+		 * First reduce the existing ticks to proportionally occupy only
+		 * what's left of the target window given 'lu_span' will occupy
+		 * the rest.  Since sched_clock() is called frequently on
+		 * running threads, these threads have a small 'lu_span', and
+		 * the next formula basically becomes an exponential decay with
+		 * ratio r = SCHED_CPU_DECAY_NUMER / SCHED_CPU_DECAY_DENOM
+		 * (currently, 10/11) and period 1s.  However, a sleeping thread
+		 * will see its accounted ticks drop linearly with a high slope
+		 * with respect to 'lu_span', approaching 0 as 'lu_span'
+		 * approaches 't_tgt' (so, continuously with respect to the
+		 * previous case).  This rescaling is completely dependent on
+		 * the frequency of calls and the span since last update passed
+		 * at each call.
+		 */
+		ts->ts_ticks = SCHED_TICK_RUN_SHIFTED(ts) /
+		    SCHED_TICK_LENGTH(ts) * (t_tgt - lu_span);
+		ts->ts_ftick = t - t_tgt;
+	}
+
 	if (run)
-		ts->ts_ticks += (t - ts->ts_ltick) << SCHED_TICK_SHIFT;
+		ts->ts_ticks += lu_span << SCHED_TICK_SHIFT;
 	ts->ts_ltick = t;
 }
 
@@ -2300,9 +2344,9 @@ sched_switch(struct thread *td, int flags)
 #ifdef SMP
 	pickcpu = (td->td_flags & TDF_PICKCPU) != 0;
 	if (pickcpu)
-		ts->ts_rltick = ticks - affinity * MAX_CACHE_LEVELS;
+		ts->ts_rltick = (u_int)ticks - affinity * MAX_CACHE_LEVELS;
 	else
-		ts->ts_rltick = ticks;
+		ts->ts_rltick = (u_int)ticks;
 #endif
 	td->td_lastcpu = td->td_oncpu;
 	preempted = (td->td_flags & TDF_SLICEEND) == 0 &&
@@ -2658,7 +2702,7 @@ SCHED_STAT_DEFINE(ithread_preemptions,
  * Return time slice for a given thread.  For ithreads this is
  * sched_slice.  For other threads it is tdq_slice(tdq).
  */
-static inline int
+static inline u_int
 td_slice(struct thread *td, struct tdq *tdq)
 {
 	if (PRI_BASE(td->td_pri_class) == PRI_ITHD)
@@ -2943,22 +2987,18 @@ sched_rem(struct thread *td)
 fixpt_t
 sched_pctcpu(struct thread *td)
 {
-	fixpt_t pctcpu;
 	struct td_sched *ts;
-
-	pctcpu = 0;
-	ts = td_get_sched(td);
+	u_int len;
+	fixpt_t pctcpu;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	ts = td_get_sched(td);
 	sched_pctcpu_update(ts, TD_IS_RUNNING(td));
-	if (ts->ts_ticks) {
-		int rtick;
-
-		/* How many rtick per second ? */
-		rtick = min(SCHED_TICK_HZ(ts) / SCHED_TICK_SECS, hz);
-		pctcpu = (FSCALE * ((FSCALE * rtick)/hz)) >> FSHIFT;
-	}
-
+	len = SCHED_TICK_LENGTH(ts);
+	pctcpu = ((FSHIFT >= SCHED_TICK_SHIFT ? /* Resolved at compile-time. */
+	    (SCHED_TICK_RUN_SHIFTED(ts) << (FSHIFT - SCHED_TICK_SHIFT)) :
+	    (SCHED_TICK_RUN_SHIFTED(ts) >> (SCHED_TICK_SHIFT - FSHIFT))) +
+	    len / 2) / len;
 	return (pctcpu);
 }
 
