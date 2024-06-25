@@ -163,7 +163,7 @@ static int
 arm64_allocate_pmc(int cpu, int ri, struct pmc *pm,
   const struct pmc_op_pmcallocate *a)
 {
-	uint32_t config;
+	uint64_t config;
 	enum pmc_event pe;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
@@ -201,7 +201,8 @@ arm64_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	}
 
 	pm->pm_md.pm_arm64.pm_arm64_evsel = config;
-	PMCDBG2(MDP, ALL, 2, "arm64-allocate ri=%d -> config=0x%x", ri, config);
+	PMCDBG2(MDP, ALL, 2, "arm64-allocate ri=%d -> config=0x%lx", ri,
+	    config);
 
 	return (0);
 }
@@ -299,7 +300,7 @@ arm64_config_pmc(int cpu, int ri, struct pmc *pm)
 static int
 arm64_start_pmc(int cpu, int ri, struct pmc *pm)
 {
-	uint32_t config;
+	uint64_t config;
 
 	config = pm->pm_md.pm_arm64.pm_arm64_evsel;
 
