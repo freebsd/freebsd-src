@@ -270,13 +270,6 @@ SRCF+=		truncsfbf2
 
 SRCF+=		stdatomic
 CFLAGS+=	-DEMIT_SYNC_ATOMICS
-
-#.for op in add and max min nand or sub umax umin xor
-#. for size in 4 8
-#SRCF+=		sync_fetch_and_${op}_${size}
-#. endfor
-#.endfor
-
 .endif
 
 .for file in ${SRCF}
