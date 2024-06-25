@@ -3099,6 +3099,7 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 		if (ab->abrt_nphdl == ISP24XX_ABRT_OKAY)
 			return (0);
 		isp_prt(isp, ISP_LOGWARN, "Chan %d handle %d abort returned 0x%x", chan, tgt, ab->abrt_nphdl);
+		break;
 	}
 	case ISPCTL_FCLINK_TEST:
 	{
