@@ -711,7 +711,7 @@ ext4_ext_tree_init(struct inode *ip)
 
 	ip->i_flag |= IN_E4EXTENTS;
 
-	memset(ip->i_data, 0, EXT2_NDADDR + EXT2_NIADDR);
+	memset(ip->i_data, 0, sizeof(ip->i_data));
 	ehp = (struct ext4_extent_header *)ip->i_data;
 	ehp->eh_magic = htole16(EXT4_EXT_MAGIC);
 	ehp->eh_max = htole16(ext4_ext_space_root(ip));
