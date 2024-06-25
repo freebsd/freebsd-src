@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2009,2010 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -33,13 +33,13 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_win.c,v 1.18 2020/05/24 01:40:20 anonymous.maarten Exp $")
+MODULE_ID("$Id: frm_win.c,v 1.19 2021/06/17 21:20:30 tom Exp $")
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  int set_form_win(FORM *form,WINDOW *win)
-|   
-|   Description   :  Set the window of the form to win. 
+|
+|   Description   :  Set the window of the form to win.
 |
 |   Return Values :  E_OK       - success
 |                    E_POSTED   - form is posted
@@ -66,9 +66,9 @@ set_form_win(FORM *form, WINDOW *win)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  WINDOW *form_win(const FORM *)
-|   
+|
 |   Description   :  Retrieve the window of the form.
 |
 |   Return Values :  The pointer to the Window or stdscr if there is none.

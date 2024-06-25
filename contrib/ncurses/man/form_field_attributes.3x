@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright 2018-2019,2020 Thomas E. Dickey                                *
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
 .\" Copyright 1998-2006,2010 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,45 +28,50 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_field_attributes.3x,v 1.18 2020/10/18 00:14:20 tom Exp $
-.TH form_field_attributes 3X ""
-.ie \n(.g .ds `` \(lq
-.el       .ds `` ``
-.ie \n(.g .ds '' \(rq
-.el       .ds '' ''
+.\" $Id: form_field_attributes.3x,v 1.35 2024/03/16 15:35:01 tom Exp $
+.TH form_field_attributes 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
 .SH NAME
-\fBform_field_attributes\fR \- color and attribute control for form fields
+\fBform_field_attributes\fP \-
+color and attribute control for form fields
 .SH SYNOPSIS
-\fB#include <form.h>\fR
-.sp
-\fBint set_field_fore(FIELD *\fP\fIfield\fP\fB, chtype \fP\fIattr\fP\fB);\fP
-.br
-\fBchtype field_fore(const FIELD *\fP\fIfield\fP\fB);\fP
-.sp
-\fBint set_field_back(FIELD *\fP\fIfield\fP\fB, chtype \fP\fIattr\fP\fB);\fP
-.br
-\fBchtype field_back(const FIELD *\fP\fIfield\fP\fB);\fP
-.sp
-\fBint set_field_pad(FIELD *\fP\fIfield\fP\fB, int \fP\fIpad\fP\fB);\fP
-.br
-\fBint field_pad(const FIELD *\fP\fIfield\fP\fB);\fP
-.br
+.nf
+\fB#include <form.h>
+.PP
+\fBint set_field_fore(FIELD *\fIfield\fP, chtype \fIattr\fP);
+\fBchtype field_fore(const FIELD *\fIfield\fP);
+.PP
+\fBint set_field_back(FIELD *\fIfield\fP, chtype \fIattr\fP);
+\fBchtype field_back(const FIELD *\fIfield\fP);
+.PP
+\fBint set_field_pad(FIELD *\fIfield\fP, int \fIpad\fP);
+\fBint field_pad(const FIELD *\fIfield\fP);
+.fi
 .SH DESCRIPTION
-The function \fBset_field_fore\fR sets the foreground attribute of
-\fIfield\fR. This is the highlight used to display the field contents.  The
-function \fBfield_fore\fR returns the foreground attribute.
+The function \fBset_field_fore\fP sets the foreground attribute of
+\fIfield\fP. This is the highlight used to display the field contents.  The
+function \fBfield_fore\fP returns the foreground attribute.
 The default is
-\fBA_STANDOUT\fR.
+\fBA_STANDOUT\fP.
 .PP
-The function \fBset_field_back\fR sets the background attribute of
-\fIform\fR. This is the highlight used to display the extent fields in the
+The function \fBset_field_back\fP sets the background attribute of
+\fIform\fP. This is the highlight used to display the extent fields in the
 form.
-The function \fBfield_back\fR returns the background attribute.
+The function \fBfield_back\fP returns the background attribute.
 The
-default is \fBA_NORMAL\fR.
+default is \fBA_NORMAL\fP.
 .PP
-The function \fBset_field_pad\fR sets the character used to fill the field.
-The function \fBfield_pad\fR returns the given form's pad character.
+The function \fBset_field_pad\fP sets the character used to fill the field.
+The function \fBfield_pad\fP returns the given form's pad character.
 The
 default is a blank.
 .SH RETURN VALUE
@@ -79,14 +84,7 @@ The routine succeeded.
 Routine detected an incorrect or out-of-range argument.
 .TP 5
 .B E_SYSTEM_ERROR
-System error occurred (see \fBerrno\fR(3)).
-.
-.SH SEE ALSO
-\fBcurses\fR(3X) and related pages whose names begin \*(``form_\*('' for detailed
-descriptions of the entry points.
-.SH NOTES
-The header file \fB<form.h>\fR automatically includes the header file
-\fB<curses.h>\fR.
+System error occurred (see \fBerrno\fP(3)).
 .SH PORTABILITY
 These routines emulate the System V forms library.
 They were not supported on
@@ -94,3 +92,6 @@ Version 7 or BSD versions.
 .SH AUTHORS
 Juergen Pfeifer.
 Manual pages and adaptation for new curses by Eric S. Raymond.
+.SH SEE ALSO
+\fB\%curses\fP(3X) and related pages whose names begin \*(``form_\*(''
+for detailed descriptions of the entry points.

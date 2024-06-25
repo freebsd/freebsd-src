@@ -1,10 +1,10 @@
 #!/bin/sh
-# $Id: MKtermsort.sh,v 1.13 2020/02/02 23:34:34 tom Exp $
+# $Id: MKtermsort.sh,v 1.17 2022/02/05 20:39:41 tom Exp $
 #
 # MKtermsort.sh -- generate indirection vectors for the various sort methods
 #
 ##############################################################################
-# Copyright 2020 Thomas E. Dickey                                            #
+# Copyright 2020-2021,2022 Thomas E. Dickey                                  #
 # Copyright 1998-2015,2017 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -47,15 +47,26 @@ AWK=${1-awk}
 DATA=${2-../include/Caps}
 
 data=data$$
-trap 'rm -f $data' 1 2 3 15
-sed -e 's/[	][	]*/	/g' < $DATA >$data
+trap 'rm -f $data; exit 1' 1 2 3 15
+sed -e 's/[	][	]*/	/g' < "$DATA" >$data
 DATA=$data
 
-echo "/*";
-echo " * termsort.c --- sort order arrays for use by infocmp.";
-echo " *";
-echo " * Note: this file is generated using MKtermsort.sh, do not edit by hand.";
-echo " */";
+cat <<EOF
+/*
+ * termsort.h --- sort order arrays for use by infocmp.
+ *
+ * Note: this file is generated using MKtermsort.sh, do not edit by hand.
+ */
+#ifndef _TERMSORT_H
+#define _TERMSORT_H 1
+#include <curses.h>
+
+#ifndef DUMP_ENTRY_H
+typedef unsigned PredType;
+typedef unsigned PredIdx;
+#endif
+
+EOF
 
 echo "static const PredIdx bool_terminfo_sort[] = {";
 $AWK <$DATA '
@@ -165,7 +176,11 @@ $3 == "str" && substr($7, 1, 1) == "-"        {print "\tFALSE,\t/* ", $2, " */";
 $3 == "str" && substr($7, 1, 1) == "Y"        {print "\tTRUE,\t/* ", $2, " */"; valid = count++; }
 END { printf "#define OK_str_from_termcap %d\n", valid; }
 '
-echo "};";
-echo "";
+
+cat <<EOF
+};
+
+#endif /* _TERMSORT_H */
+EOF
 
 rm -f $data

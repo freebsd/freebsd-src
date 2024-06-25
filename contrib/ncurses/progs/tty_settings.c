@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 2016,2017 Free Software Foundation, Inc.                       *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -36,7 +36,7 @@
 
 #include <fcntl.h>
 
-MODULE_ID("$Id: tty_settings.c,v 1.6 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: tty_settings.c,v 1.7 2021/10/08 23:53:32 tom Exp $")
 
 static int my_fd;
 static TTY original_settings;
@@ -74,10 +74,12 @@ save_tty_settings(TTY * tty_settings, bool need_tty)
 {
     if (!get_tty_settings(STDERR_FILENO, tty_settings) &&
 	!get_tty_settings(STDOUT_FILENO, tty_settings) &&
-	!get_tty_settings(STDIN_FILENO, tty_settings) &&
-	!get_tty_settings(open("/dev/tty", O_RDWR), tty_settings)) {
+	!get_tty_settings(STDIN_FILENO, tty_settings)) {
 	if (need_tty) {
-	    failed("terminal attributes");
+	    int fd = open("/dev/tty", O_RDWR);
+	    if (!get_tty_settings(fd, tty_settings)) {
+		failed("terminal attributes");
+	    }
 	} else {
 	    my_fd = fileno(stdout);
 	}

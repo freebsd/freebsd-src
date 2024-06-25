@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2004,2010 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -33,12 +33,12 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_type.c,v 1.19 2020/12/11 23:20:37 tom Exp $")
+MODULE_ID("$Id: fld_type.c,v 1.20 2021/06/17 21:20:30 tom Exp $")
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  int set_field_type(FIELD *field, FIELDTYPE *type,...)
-|   
+|
 |   Description   :  Associate the specified fieldtype with the field.
 |                    Certain field types take additional arguments. Look
 |                    at the spec of the field types !
@@ -81,9 +81,9 @@ set_field_type(FIELD *field, FIELDTYPE *type, ...)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  FIELDTYPE *field_type(const FIELD *field)
-|   
+|
 |   Description   :  Retrieve the associated fieldtype for this field.
 |
 |   Return Values :  Pointer to fieldtype of NULL if none is defined.

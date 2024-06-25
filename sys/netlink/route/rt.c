@@ -475,6 +475,7 @@ struct nl_parsed_route {
 	uint32_t		rta_nh_id;
 	uint32_t		rta_weight;
 	uint32_t		rtax_mtu;
+	uint8_t			rtm_table;
 	uint8_t			rtm_family;
 	uint8_t			rtm_dst_len;
 	uint8_t			rtm_protocol;
@@ -507,6 +508,7 @@ static const struct nlfield_parser nlf_p_rtmsg[] = {
 	{ .off_in = _IN(rtm_dst_len), .off_out = _OUT(rtm_dst_len), .cb = nlf_get_u8 },
 	{ .off_in = _IN(rtm_protocol), .off_out = _OUT(rtm_protocol), .cb = nlf_get_u8 },
 	{ .off_in = _IN(rtm_type), .off_out = _OUT(rtm_type), .cb = nlf_get_u8 },
+	{ .off_in = _IN(rtm_table), .off_out = _OUT(rtm_table), .cb = nlf_get_u8 },
 	{ .off_in = _IN(rtm_flags), .off_out = _OUT(rtm_flags), .cb = nlf_get_u32 },
 };
 #undef _IN
@@ -937,7 +939,10 @@ rtnl_handle_newroute(struct nlmsghdr *hdr, struct nlpcb *nlp,
 		return (EINVAL);
 	}
 
-	if (attrs.rta_table >= V_rt_numfibs) {
+	if (attrs.rtm_table > 0 && attrs.rta_table == 0) {
+		/* pre-2.6.19 Linux API compatibility */
+		attrs.rta_table = attrs.rtm_table;
+	} else if (attrs.rta_table >= V_rt_numfibs) {
 		NLMSG_REPORT_ERR_MSG(npt, "invalid fib");
 		return (EINVAL);
 	}

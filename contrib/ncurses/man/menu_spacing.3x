@@ -1,6 +1,5 @@
-'\" t
 .\"***************************************************************************
-.\" Copyright 2018-2019,2020 Thomas E. Dickey                                *
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
 .\" Copyright 1998-2010,2015 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,61 +27,60 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_spacing.3x,v 1.17 2020/10/17 23:48:53 tom Exp $
-.TH menu_spacing 3X ""
+.\" $Id: menu_spacing.3x,v 1.37 2024/03/16 15:35:01 tom Exp $
+.TH menu_spacing 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
 \fBset_menu_spacing\fP,
-\fBmenu_spacing\fR \- set and get spacing between menu items.
+\fBmenu_spacing\fP \-
+set and get spacing between menu items.
 .SH SYNOPSIS
-\fB#include <menu.h>\fR
-.sp
-\fBint set_menu_spacing(MENU *\fP\fImenu\fP\fB,\fP
-                     \fBint \fP\fIspc_description\fP\fB,\fP
-                     \fBint \fP\fIspc_rows\fP\fB,\fP
-                     \fBint \fP\fIspc_columns\fP\fB);\fP
-.br
-\fBint menu_spacing(const MENU *\fP\fImenu\fP\fB,\fP
-                 \fBint* \fP\fIspc_description\fP\fB,\fP
-                 \fBint* \fP\fIspc_rows\fP\fB,\fP
-                 \fBint* \fP\fIspc_columns\fP\fB);\fP
-.br
+.nf
+\fB#include <menu.h>
+.PP
+\fBint set_menu_spacing(MENU *\fImenu\fP,
+                     \fBint \fIspc_description\fB,\fR
+                     \fBint \fIspc_rows\fB,\fR
+                     \fBint \fIspc_columns\fB);\fR
+\fBint menu_spacing(const MENU *\fImenu\fB,\fR
+                 \fBint* \fIspc_description\fB,\fR
+                 \fBint* \fIspc_rows\fB,\fR
+                 \fBint* \fIspc_columns\fB);\fR
+.fi
 .SH DESCRIPTION
-The function \fBset_menu_spacing\fR sets the spacing information for the menu.
-Its parameter \fBspc_description\fR controls the number of spaces
+The function \fBset_menu_spacing\fP sets the spacing information for the menu.
+Its parameters provide the description and the size (in rows and columns).
+.TP
+\fIspc_description\fP
+controls the number of spaces
 between an item name and an item description.
-It must not be larger than \fBTABSIZE\fR.
+It must not be larger than \fBTABSIZE\fP.
 The menu system puts in the
 middle of this spacing area the pad character.
 The remaining parts are filled with
 spaces.
-The \fBspc_rows\fR parameter controls the number of rows
+.TP
+\fIspc_rows\fP
+controls the number of rows
 that are used for an item.
 It must not be larger than 3.
 The menu system inserts the blank lines between item rows, these lines
 will contain the pad character in the appropriate positions.
-The \fBspc_columns\fR parameter controls
-the number of blanks between columns of items.
+.TP
+\fIspc_columns\fP
+controls the number of blanks between columns of items.
 It must not be larger than \fBTABSIZE\fP.
 A value of 0 for all the spacing values resets them to the default,
 which is 1 for all of them.
-.br
-The function \fBmenu_spacing\fR passes back the spacing info for the menu.
-If a
-pointer is NULL, this specific info is simply not returned.
+.PP
+The function \fBmenu_spacing\fP returns the spacing information for the menu.
+If a pointer is NULL, the corresponding information is simply not returned.
 .SH RETURN VALUE
-Both routines return \fBE_OK\fR on success.
-\fBset_menu_spacing\fR may return
-\fBE_POSTED\fR if the menu is posted, or \fBE_BAD_ARGUMENT\fR if one of the
+Both routines return \fBE_OK\fP on success.
+\fBset_menu_spacing\fP may return
+\fBE_POSTED\fP if the menu is posted, or \fBE_BAD_ARGUMENT\fP if one of the
 spacing values is out of range.
-.SH SEE ALSO
-\fBcurses\fR(3X),
-\fBcurs_variables\fR(3X),
-\fBmenu\fR(3X).
-.SH NOTES
-The header file \fB<menu.h>\fR automatically includes the header file
-\fB<curses.h>\fR.
 .SH PORTABILITY
-These routines are specific to ncurses.
+These routines are specific to \fI\%ncurses\fP.
 They were not supported on
 Version 7, BSD or System V implementations.
 It is recommended that
@@ -90,3 +88,7 @@ any code depending on them be conditioned using NCURSES_VERSION.
 .SH AUTHORS
 Juergen Pfeifer.
 Manual pages and adaptation for new curses by Eric S. Raymond.
+.SH SEE ALSO
+\fB\%curses\fP(3X),
+\fB\%curs_variables\fP(3X),
+\fB\%menu\fP(3X)

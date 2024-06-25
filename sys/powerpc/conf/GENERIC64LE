@@ -187,6 +187,7 @@ device		mlx5en		# Ethernet driver
 
 # Pseudo devices.
 device		crypto		# core crypto support
+device		ossl		# OpenSSL OpenCrypto module
 device		loop		# Network loopback
 device		ether		# Ethernet support
 device		vlan		# 802.1Q VLAN support

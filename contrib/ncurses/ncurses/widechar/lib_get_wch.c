@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 2002-2011,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -41,7 +41,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_get_wch.c,v 1.25 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_get_wch.c,v 1.26 2021/04/17 16:12:54 tom Exp $")
 
 NCURSES_EXPORT(int)
 wget_wch(WINDOW *win, wint_t *result)
@@ -49,7 +49,6 @@ wget_wch(WINDOW *win, wint_t *result)
     SCREEN *sp;
     int code;
     int value = 0;
-    wchar_t wch;
 #ifndef state_unused
     mbstate_t state;
 #endif
@@ -98,6 +97,7 @@ wget_wch(WINDOW *win, wint_t *result)
 		reset_mbytes(state);
 		status = count_mbytes(buffer, count, state);
 		if (status >= 0) {
+		    wchar_t wch;
 		    reset_mbytes(state);
 		    if (check_mbytes(wch, buffer, count, state) != status) {
 			code = ERR;	/* the two calls should match */

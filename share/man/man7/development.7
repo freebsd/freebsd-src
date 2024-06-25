@@ -1,3 +1,6 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2018 Edward Tomasz Napierala <trasz@FreeBSD.org>
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -89,7 +92,7 @@ and
 .Xr release 7 .
 Kernel programming interfaces (KPIs) are documented in section 9
 manual pages; use
-.Ql "apropos -s 9 ."
+.Ql apropos -s 9 \&.
 for a list.
 Regression test suite is described in
 .Xr tests 7 .
@@ -116,7 +119,6 @@ build and test status of CURRENT and STABLE branches,
 the continuous integration system is at:
 .Pp
 .Lk https://ci.FreeBSD.org
-.Pp
 .Sh EXAMPLES
 Check out the CURRENT branch, build it, and install, overwriting the current
 system:
@@ -187,8 +189,7 @@ The
 .Nm
 manual page was originally written by
 .An Matthew Dillon Aq Mt dillon@FreeBSD.org
-and first appeared
-in
+and first appeared in
 .Fx 5.0 ,
 December 2002.
 It was since extensively modified by

@@ -589,6 +589,10 @@ t4vf_attach(device_t dev)
 	if (rc != 0)
 		goto done; /* error message displayed already */
 
+	rc = t4_adj_doorbells(sc);
+	if (rc != 0)
+		goto done; /* error message displayed already */
+
 	rc = t4_create_dma_tag(sc);
 	if (rc != 0)
 		goto done; /* error message displayed already */
@@ -655,6 +659,8 @@ t4vf_attach(device_t dev)
 		if (rc == 0 && n == 1)
 			t4_os_set_hw_addr(pi, mac);
 		pmask &= ~(1 << p);
+
+		sc->vlan_id = t4vf_get_vf_vlan(sc);
 
 		/* No t4_link_start. */
 

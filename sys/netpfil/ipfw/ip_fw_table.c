@@ -1512,13 +1512,6 @@ destroy_table(struct ip_fw_chain *ch, struct tid_info *ti)
 	return (0);
 }
 
-static uint32_t
-roundup2p(uint32_t v)
-{
-
-	return (1 << fls(v - 1));
-}
-
 /*
  * Grow tables index.
  *
@@ -1540,7 +1533,7 @@ ipfw_resize_tables(struct ip_fw_chain *ch, unsigned int ntables)
 	if (ntables > IPFW_TABLES_MAX)
 		ntables = IPFW_TABLES_MAX;
 	/* Alight to nearest power of 2 */
-	ntables = (unsigned int)roundup2p(ntables); 
+	ntables = roundup_pow_of_two(ntables); 
 
 	/* Allocate new pointers */
 	tablestate = malloc(ntables * sizeof(struct table_info),

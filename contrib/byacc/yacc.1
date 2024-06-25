@@ -1,14 +1,21 @@
-.\" $Id: yacc.1,v 1.42 2022/11/06 17:07:16 tom Exp $
+.\" $Id: yacc.1,v 1.43 2024/01/10 00:30:34 tom Exp $
 .\"
-.\" .TH YACC 1 "July\ 15,\ 1990"
-.\" .UC 6
+.TH YACC 1 2024-01-09 "Berkeley Yacc" "User Commands"
+.
 .ds N Yacc
 .ds n yacc
+.
+.ie n .ds CW R
+.el   \{
+.ie \n(.g .ds CW CR
+.el       .ds CW CW
+.\}
+.
 .de Ex
 .RS +7
 .PP
 .nf
-.ft CW
+.ft \*(CW
 ..
 .de Ee
 .fi
@@ -16,20 +23,27 @@
 .RE
 ..
 .\" Escape single quotes in literal strings from groff's Unicode transform.
-.ie \n(.g .ds AQ \(aq
-.el       .ds AQ '
-.ie \n(.g .ds `` \(lq
-.el       .ds `` ``
-.ie \n(.g .ds '' \(rq
-.el       .ds '' ''
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.ds '  \(aq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.ie t .ds '  \(aq
+.el   .ds '  '
+.\}",
 .\" Bulleted paragraph
 .de bP
 .ie n  .IP \(bu 4
 .el    .IP \(bu 2
 ..
-.TH YACC 1 "November 6, 2022" "Berkeley Yacc" "User Commands"
 .SH NAME
-\*N \- an LALR(1) parser generator
+\*N \-
+an LALR(1) parser generator
 .SH SYNOPSIS
 .B \*n [ \-BdghilLPrtvVy ] [ \-b
 .I file_prefix
@@ -208,6 +222,13 @@ However, \fB\*n\fP accepts a single \*(``\-\*('' to read the grammar
 from the standard input.
 A double \*(``\-\-\*('' marker denotes the end of options.
 A single \fIfilename\fP parameter is expected after a \*(``\-\-\*('' marker.
+.
+.SH DIAGNOSTICS
+If there are rules that are never reduced, the number of such rules is
+reported on standard error.
+If there are any LALR(1) conflicts, the number of conflicts is reported
+on standard error.
+
 .SH EXTENSIONS
 .B \*N
 provides some extensions for
@@ -357,6 +378,7 @@ However,
 .B \*n
 does not predefine \*(``$end\*('', \*(``$error\*(''
 or \*(``$undefined\*('' in this array.
+.
 .SH PORTABILITY
 According to Robert Corbett,
 .Ex
@@ -420,8 +442,9 @@ Bison puts the additional parameters \fIfirst\fP for
 \fByyparse\fP and \fByyerror\fP but \fIlast\fP for destructors.
 \fBYacc\fP matches this behavior.
 .
-.SH DIAGNOSTICS
-If there are rules that are never reduced, the number of such rules is
-reported on standard error.
-If there are any LALR(1) conflicts, the number of conflicts is reported
-on standard error.
+.SH SEE ALSO
+\fBbison\fP(1),
+\fBbtyacc\fP(1),
+\fBlex\fP(1),
+\fBflex\fP(1),
+\fByacc\fP(1)

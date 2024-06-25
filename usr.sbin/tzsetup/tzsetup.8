@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 18, 2023
+.Dd June 14, 2024
 .Dt TZSETUP 8
 .Os
 .Sh NAME
@@ -59,6 +59,10 @@ The name is obtained from
 .Pa /var/db/zoneinfo .
 .It Fl s
 Skip the initial question about adjusting the clock if not set to UTC.
+.Nm
+will neither create nor delete
+.Pa /etc/wall_cmos_clock .
+On a newly installed system, the hardware clock will keep UTC.
 .El
 .Pp
 It is possible to short-circuit the menu system by specifying the

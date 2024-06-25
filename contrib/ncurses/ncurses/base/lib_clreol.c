@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2001,2009 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -41,7 +41,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_clreol.c,v 1.23 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_clreol.c,v 1.24 2021/10/23 19:06:01 tom Exp $")
 
 NCURSES_EXPORT(int)
 wclrtoeol(WINDOW *win)
@@ -61,7 +61,7 @@ wclrtoeol(WINDOW *win)
 	 * If we have just wrapped the cursor, the clear applies to the
 	 * new line, unless we are at the lower right corner.
 	 */
-	if ((win->_flags & _WRAPPED) != 0
+	if (IS_WRAPPED(win) != 0
 	    && y < win->_maxy) {
 	    win->_flags &= ~_WRAPPED;
 	}
@@ -70,7 +70,7 @@ wclrtoeol(WINDOW *win)
 	 * There's no point in clearing if we're not on a legal
 	 * position, either.
 	 */
-	if ((win->_flags & _WRAPPED) != 0
+	if (IS_WRAPPED(win)
 	    || y > win->_maxy
 	    || x > win->_maxx)
 	    returnCode(ERR);

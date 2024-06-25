@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2019,2020 Thomas E. Dickey                                *
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
 .\" Copyright 1998-2007,2010 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,137 +27,136 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_border.3x,v 1.27 2020/10/18 00:33:06 tom Exp $
-.TH curs_border 3X ""
-.ie \n(.g .ds `` \(lq
-.el       .ds `` ``
-.ie \n(.g .ds '' \(rq
-.el       .ds '' ''
-.na
-.hy 0
+.\" $Id: curs_border.3x,v 1.49 2024/04/20 21:20:07 tom Exp $
+.TH curs_border 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
 .SH NAME
-\fBborder\fR,
-\fBwborder\fR,
-\fBbox\fR,
-\fBhline\fR,
-\fBwhline\fR,
-\fBvline\fR,
-\fBwvline\fR,
-\fBmvhline\fR,
-\fBmvwhline\fR,
-\fBmvvline\fR,
-\fBmvwvline\fR \- create \fBcurses\fR borders, horizontal and vertical lines
-.ad
-.hy
+\fB\%border\fP,
+\fB\%wborder\fP,
+\fB\%box\fP,
+\fB\%hline\fP,
+\fB\%whline\fP,
+\fB\%vline\fP,
+\fB\%wvline\fP,
+\fB\%mvhline\fP,
+\fB\%mvwhline\fP,
+\fB\%mvvline\fP,
+\fB\%mvwvline\fP \-
+draw borders and lines in a \fIcurses\fR window of characters
 .SH SYNOPSIS
-\fB#include <curses.h>\fR
-.sp
-\fBint border(chtype \fP\fIls\fP\fB, chtype \fP\fIrs\fP\fB, chtype \fP\fIts\fP\fB, chtype \fP\fIbs\fP\fB,\fR
-           \fBchtype \fP\fItl\fP\fB, chtype \fP\fItr\fP\fB, chtype \fP\fIbl\fP\fB, chtype \fP\fIbr\fP\fB);\fR
-.br
-\fBint wborder(WINDOW *\fP\fIwin\fP\fB, chtype \fP\fIls\fP\fB, chtype \fP\fIrs\fP\fB,\fR
-            \fBchtype \fP\fIts\fP\fB, chtype \fP\fIbs\fP\fB, chtype \fP\fItl\fP\fB, chtype \fP\fItr\fP\fB,\fR
-            \fBchtype \fP\fIbl\fP\fB, chtype \fP\fIbr\fP\fB);\fR
-.sp
-\fBint box(WINDOW *\fP\fIwin\fP\fB, chtype \fP\fIverch\fP\fB, chtype \fP\fIhorch\fP\fB);\fR
-.sp
-\fBint hline(chtype \fP\fIch\fP\fB, int \fP\fIn\fP\fB);\fR
-.br
-\fBint whline(WINDOW *\fP\fIwin\fP\fB, chtype \fP\fIch\fP\fB, int \fP\fIn\fP\fB);\fR
-.br
-\fBint vline(chtype \fP\fIch\fP\fB, int \fP\fIn\fP\fB);\fR
-.br
-\fBint wvline(WINDOW *\fP\fIwin\fP\fB, chtype \fP\fIch\fP\fB, int \fP\fIn\fP\fB);\fR
-.sp
-\fBint mvhline(int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, chtype \fP\fIch\fP\fB, int \fP\fIn\fP\fB);\fR
-.br
-\fBint mvwhline(WINDOW *\fP\fIwin\fP\fB, int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, chtype \fP\fIch\fP\fB, int \fP\fIn\fP\fB);\fR
-.br
-\fBint mvvline(int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, chtype \fP\fIch\fP\fB, int \fP\fIn\fP\fB);\fR
-.br
-\fBint mvwvline(WINDOW *\fP\fIwin\fP\fB, int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, chtype \fP\fIch\fP\fB, int \fP\fIn\fP\fB);\fR
-.br
+.nf
+\fB#include <curses.h>
+.PP
+\fBint border(chtype \fIls\fP, chtype \fIrs\fP, chtype \fIts\fP, chtype \fIbs\fP,
+           \fBchtype \fItl\fB, chtype \fItr\fB, chtype \fIbl\fB, chtype \fIbr\fB);\fR
+\fBint wborder(WINDOW *\fIwin\fB, chtype \fIls\fB, chtype \fIrs\fB,\fR
+            \fBchtype \fIts\fB, chtype \fIbs\fB, chtype \fItl\fB, chtype \fItr\fB,\fR
+            \fBchtype \fIbl\fB, chtype \fIbr\fB);\fR
+.PP
+\fBint box(WINDOW *\fIwin\fB, chtype \fIverch\fB, chtype \fIhorch\fB);\fR
+.PP
+\fBint hline(chtype \fIch\fB, int \fIn\fB);\fR
+\fBint whline(WINDOW *\fIwin\fB, chtype \fIch\fB, int \fIn\fB);\fR
+\fBint vline(chtype \fIch\fB, int \fIn\fB);\fR
+\fBint wvline(WINDOW *\fIwin\fB, chtype \fIch\fB, int \fIn\fB);\fR
+.PP
+\fBint mvhline(int \fIy\fB, int \fIx\fB, chtype \fIch\fB, int \fIn\fB);\fR
+\fBint mvwhline(WINDOW *\fIwin\fB, int \fIy\fB, int \fIx\fB, chtype \fIch\fB, int \fIn\fB);\fR
+\fBint mvvline(int \fIy\fB, int \fIx\fB, chtype \fIch\fB, int \fIn\fB);\fR
+\fBint mvwvline(WINDOW *\fIwin\fB, int \fIy\fB, int \fIx\fB, chtype \fIch\fB, int \fIn\fB);\fR
+.fi
 .SH DESCRIPTION
-The \fBborder\fR, \fBwborder\fR and \fBbox\fR routines
+The \fBborder\fP, \fBwborder\fP and \fBbox\fP routines
 draw a box around the edges of a window.
 Other than the window, each argument is a character with attributes:
 .sp
 .RS
-\fIls\fR \- left side,
+\fIls\fP \- left side,
 .br
-\fIrs\fR \- right side,
+\fIrs\fP \- right side,
 .br
-\fIts\fR \- top side,
+\fIts\fP \- top side,
 .br
-\fIbs\fR \- bottom side,
+\fIbs\fP \- bottom side,
 .br
-\fItl\fR \- top left-hand corner,
+\fItl\fP \- top left-hand corner,
 .br
-\fItr\fR \- top right-hand corner,
+\fItr\fP \- top right-hand corner,
 .br
-\fIbl\fR \- bottom left-hand corner, and
+\fIbl\fP \- bottom left-hand corner, and
 .br
-\fIbr\fR \- bottom right-hand corner.
+\fIbr\fP \- bottom right-hand corner.
 .RE
 .PP
 If any of these arguments is zero, then the corresponding
-default values (defined in \fBcurses.h\fR) are used instead:
+default values (defined in \fBcurses.h\fP) are used instead:
 .sp
 .RS
-\fBACS_VLINE\fR,
+\fBACS_VLINE\fP,
 .br
-\fBACS_VLINE\fR,
+\fBACS_VLINE\fP,
 .br
-\fBACS_HLINE\fR,
+\fBACS_HLINE\fP,
 .br
-\fBACS_HLINE\fR,
+\fBACS_HLINE\fP,
 .br
-\fBACS_ULCORNER\fR,
+\fBACS_ULCORNER\fP,
 .br
-\fBACS_URCORNER\fR,
+\fBACS_URCORNER\fP,
 .br
-\fBACS_LLCORNER\fR,
+\fBACS_LLCORNER\fP,
 .br
-\fBACS_LRCORNER\fR.
+\fBACS_LRCORNER\fP.
 .RE
 .PP
-\fBbox(\fR\fIwin\fR\fB, \fR\fIverch\fR\fB, \fR\fIhorch\fR\fB)\fR is a shorthand
-for the following call: \fBwborder(\fR\fIwin\fR\fB,\fR \fIverch\fR\fB,\fR
-\fIverch\fR\fB,\fR \fIhorch\fR\fB,\fR \fIhorch\fR\fB, 0, 0, 0, 0)\fR.
+\fBbox(\fIwin\fB, \fIverch\fB, \fIhorch\fB)\fR is a shorthand
+for the following call: \fBwborder(\fIwin\fB,\fR \fIverch\fB,\fR
+\fIverch\fB,\fR \fIhorch\fB,\fR \fIhorch\fB, 0, 0, 0, 0)\fR.
 .PP
-The \fBhline\fR and \fBwhline\fR functions draw a horizontal (left to right)
-line using \fIch\fR starting at the current cursor position in the window.
+The \fBhline\fP and \fBwhline\fP functions draw a horizontal (left to right)
+line using \fIch\fP starting at the current cursor position in the window.
 The
 current cursor position is not changed.
-The line is at most \fIn\fR characters
+The line is at most \fIn\fP characters
 long, or as many as fit into the window.
 .PP
-The \fBvline\fR and \fBwvline\fR functions draw a vertical (top to bottom) line
-using \fIch\fR starting at the current cursor position in the window.
+The \fBvline\fP and \fBwvline\fP functions draw a vertical (top to bottom) line
+using \fIch\fP starting at the current cursor position in the window.
 The
 current cursor position is not changed.
-The line is at most \fIn\fR characters
+The line is at most \fIn\fP characters
 long, or as many as fit into the window.
 .SH RETURN VALUE
-All routines return the integer \fBOK\fR.
-The SVr4.0 manual says "or a
-non-negative integer if \fBimmedok\fR is set", but this appears to be an error.
+All routines return the integer \fBOK\fP.
+The SVr4.0 manual says
+\*(``or a non-negative integer if \fB\%immedok\fP is set\*('',
+but this appears to be an error.
 .PP
-X/Open does not define any error conditions.
+X/Open Curses does not specify any error conditions.
 This implementation returns an error
 if the window pointer is null.
 .PP
-Functions with a \*(``mv\*('' prefix first perform a cursor movement using
-\fBwmove\fP, and return an error if the position is outside the window,
-or if the window pointer is null.
+Functions prefixed with \*(``mv\*('' first perform cursor movement and
+fail if the position
+.RI ( y ,
+.IR x )
+is outside the window boundaries.
 .SH NOTES
-The borders generated by these functions are \fIinside\fR borders (this
+The borders generated by these functions are \fIinside\fP borders (this
 is also true of SVr4 curses, though the fact is not documented).
 .PP
-Note that \fBborder\fR and \fBbox\fR may be macros.
+Note that \fBborder\fP and \fBbox\fP may be macros.
 .SH PORTABILITY
-These functions are described in the XSI Curses standard, Issue 4.
-The standard specifies that they return \fBERR\fR on failure,
-but specifies no error conditions.
+These functions are described in X/Open Curses, Issue 4.
 .SH SEE ALSO
-\fBcurses\fR(3X), \fBcurs_outopts\fR(3X).
+\fB\%curses\fP(3X),
+\fB\%curs_outopts\fP(3X)

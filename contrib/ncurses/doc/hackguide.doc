@@ -1,6 +1,8 @@
                           A Hacker's Guide to NCURSES
 
-                                   Contents
+A Hacker's Guide to NCURSES
+
+Contents
 
      * Abstract
      * Objective of the Package
@@ -24,7 +26,7 @@
      * Style Tips for Developers
      * Porting Hints
 
-                                   Abstract
+Abstract
 
    This document is a hacker's tour of the ncurses library and utilities.
    It  discusses  design  philosophy,  implementation  methods,  and  the
@@ -32,7 +34,7 @@
    reading  for  anyone  who  is  interested  in  porting,  extending  or
    improving the package.
 
-                           Objective of the Package
+Objective of the Package
 
    The objective of the ncurses package is to provide a free software API
    for character-cell terminals and terminal emulators with the following
@@ -52,7 +54,7 @@
    cannot  add  features  if  it  means  breaking  the portion of the API
    corresponding to historical curses versions.
 
-Why System V Curses?
+  Why System V Curses?
 
    We  used System V curses as a model, reverse-engineering their API, in
    order to fulfill the first two objectives.
@@ -65,7 +67,7 @@ Why System V Curses?
    X/Open  is  explicitly and closely modeled on System V. So conformance
    with System V took us most of the way to base-level XSI conformance.
 
-How to Design Extensions
+  How to Design Extensions
 
    The  third  objective (standards conformance) requires that it be easy
    to  condition  source  code  using  ncurses  so  that  the  absence of
@@ -80,7 +82,7 @@ How to Design Extensions
    does  not  define, but which is defined in the ncurses library header.
    You can use this to condition the calls to the mouse API calls.
 
-                         Portability and Configuration
+Portability and Configuration
 
    Code  written  for  ncurses may assume an ANSI-standard C compiler and
    POSIX-compatible  OS  interface.  It may also assume the presence of a
@@ -101,7 +103,7 @@ How to Design Extensions
    specification  files  (configure.in  and  aclocal.m4)  to set up a new
    feature macro, which you then use to condition your code.
 
-                           Documentation Conventions
+Documentation Conventions
 
    There  are  three kinds of documentation associated with this package.
    Each has a different preferred format:
@@ -111,7 +113,7 @@ How to Design Extensions
 
    Our conventions are simple:
     1. Maintain package-internal files in plain text. The expected viewer
-       for  them  more(1)  or  an  editor  window;  there  is no point in
+       for  them  is  more(1)  or  an editor window; there is no point in
        elaborate mark-up.
     2. Mark  up manual pages in the man macros. These have to be viewable
        through traditional man(1) programs.
@@ -127,7 +129,7 @@ How to Design Extensions
    nice-looking  printed  version  from  it.  Also,  of  course,  it make
    exporting things like the announcement document to WWW pretty trivial.
 
-                              How to Report Bugs
+How to Report Bugs
 
    The  reporting  address  for  bugs  is  bug-ncurses@gnu.org. This is a
    majordomo  list;  to join, write to bug-ncurses-request@gnu.org with a
@@ -228,9 +230,9 @@ How to Design Extensions
    comments  of hardscroll.c and hashmap.c; then try it out. You can also
    test the hardware-scrolling optimization separately with hardscroll.
 
-                         A Tour of the Ncurses Library
+A Tour of the Ncurses Library
 
-Library Overview
+  Library Overview
 
    Most  of  the  library is superstructure -- fairly trivial convenience
    interfaces  to a small set of basic functions and data structures used
@@ -303,9 +305,9 @@ Library Overview
 
    We will discuss these in the compiler tour.
 
-The Engine Room
+  The Engine Room
 
-  Keyboard Input
+    Keyboard Input
 
    All  ncurses  input  funnels through the function wgetch(), defined in
    lib_getch.c.  This function is tricky; it has to poll for keyboard and
@@ -328,7 +330,7 @@ The Engine Room
    value.  The  function  timed_wait()  effectively  simulates a System V
    select.
 
-  Mouse Events
+    Mouse Events
 
    If the mouse interface is active, wgetch() polls for mouse events each
    call,  before  it  goes  to  the  keyboard  for  input.  It  is  up to
@@ -368,7 +370,7 @@ The Engine Room
    accepted to parse the digested mouse reports (low-level events) into a
    gesture (a high-level or composite event).
 
-  Output and Screen Updating
+    Output and Screen Updating
 
    With the single exception of character echoes during a wgetnstr() call
    (which  simulates  cooked-mode line editing in an ncurses window), the
@@ -412,7 +414,7 @@ The Engine Room
    variable  _nc_optimize_enable.  See  the  file include/curses.h.in for
    mask values, near the end.
 
-                         The Forms and Menu Libraries
+The Forms and Menu Libraries
 
    The  forms  and menu libraries should work reliably in any environment
    you  can  port ncurses to. The only portability issue anywhere in them
@@ -428,7 +430,7 @@ The Engine Room
    panels  support; u386mon 2.10 and beyond use it. This version has been
    slightly cleaned up for ncurses.
 
-                        A Tour of the Terminfo Compiler
+A Tour of the Terminfo Compiler
 
    The ncurses implementation of tic is rather complex internally; it has
    to  do  a  trying  combination  of missions. This starts with the fact
@@ -443,7 +445,7 @@ The Engine Room
    the  grammar above it is trivial, just "parse entries till you run out
    of file".
 
-Translation of Non-use Capabilities
+  Translation of Non-use Capabilities
 
    Translation   of  most  things  besides  use  capabilities  is  pretty
    straightforward.   The   lexical   analyzer's   tokenizer  hands  each
@@ -464,7 +466,7 @@ Translation of Non-use Capabilities
    of  adding one line to the include/Caps file. We will have more to say
    about this in the section on Source-Form Translation.
 
-Use Capability Resolution
+  Use Capability Resolution
 
    The  background  problem  that  makes tic tricky is not the capability
    translation  itself,  it  is the resolution of use capabilities. Older
@@ -512,7 +514,7 @@ Use Capability Resolution
    complain  about overwriting entries newly made during the tic run, but
    not about overwriting ones that predate it.
 
-Source-Form Translation
+  Source-Form Translation
 
    Another use of tic is to do source translation between various termcap
    and terminfo formats. There are more variants out there than you might
@@ -536,7 +538,7 @@ Source-Form Translation
    for  example,  is  where  the AIX box1 capability get translated to an
    acsc string.
 
-                                Other Utilities
+Other Utilities
 
    The  infocmp  utility  is just a wrapper around the same entry-dumping
    code  used  by tic for source translation. Perhaps the one interesting
@@ -548,7 +550,7 @@ Source-Form Translation
    The  tput  and  clear  utilities  just  do an entry load followed by a
    tputs() of a selected capability.
 
-                           Style Tips for Developers
+Style Tips for Developers
 
    See   the  TO-DO  file  in  the  top-level  directory  of  the  source
    distribution for additions that would be particularly useful.
@@ -575,7 +577,7 @@ Source-Form Translation
 
    Have fun!
 
-                                 Porting Hints
+Porting Hints
 
    The  following  notes  are intended to be a first step towards DOS and
    Macintosh ports of the ncurses libraries.

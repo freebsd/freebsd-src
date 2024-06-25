@@ -93,5 +93,3 @@ typedef	uint64_t	pn_t;			/* page number */
 #define	PTE_SIZE	8
 
 #endif /* !_MACHINE_PTE_H_ */
-
-/* End of pte.h */

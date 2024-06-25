@@ -251,13 +251,11 @@ static int
 nvmf_probe(device_t dev)
 {
 	struct nvmf_ivars *ivars = device_get_ivars(dev);
-	char desc[260];
 
 	if (ivars == NULL)
 		return (ENXIO);
 
-	snprintf(desc, sizeof(desc), "Fabrics: %.256s", ivars->cdata->subnqn);
-	device_set_desc_copy(dev, desc);
+	device_set_descf(dev, "Fabrics: %.256s", ivars->cdata->subnqn);
 	return (BUS_PROBE_DEFAULT);
 }
 
