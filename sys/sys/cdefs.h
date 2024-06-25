@@ -265,7 +265,7 @@
 #define	__malloc_like	__attribute__((__malloc__))
 #define	__pure		__attribute__((__pure__))
 
-#define	__always_inline	__attribute__((__always_inline__))
+#define	__always_inline	__inline __attribute__((__always_inline__))
 #define	__noinline	__attribute__ ((__noinline__))
 #define	__fastcall	__attribute__((__fastcall__))
 #define	__result_use_check	__attribute__((__warn_unused_result__))
