@@ -83,4 +83,4 @@ static device_method_t tpmtis_methods[] = {
 DEFINE_CLASS_2(tpmtis, tpmtis_acpi_driver, tpmtis_methods,
     sizeof(struct tpm_sc), tpmtis_driver, tpm_bus_driver);
 
-DRIVER_MODULE(tpmtis, acpi, tpmtis_driver, 0, 0);
+DRIVER_MODULE(tpmtis, acpi, tpmtis_acpi_driver, 0, 0);
