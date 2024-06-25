@@ -23,6 +23,7 @@ SRCS+= acpi_if.h
 SRCS+= tpm_tis_acpi.c
 SRCS+= tpm_crb.c
 SRCS+= tpm_bus.c
+CFLAGS+=-DDEV_ACPI
 .endif
 
 .include <bsd.kmod.mk>
