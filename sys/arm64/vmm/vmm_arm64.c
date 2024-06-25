@@ -1108,7 +1108,7 @@ vmmops_run(void *vcpui, register_t pc, pmap_t pmap, struct vm_eventinfo *evinfo)
 			 * Update fields that may change on exeption entry
 			 * based on how sctlr_el1 is configured.
 			 */
-			if ((hypctx->sctlr_el1 & SCTLR_SPAN) != 0)
+			if ((hypctx->sctlr_el1 & SCTLR_SPAN) == 0)
 				hypctx->tf.tf_spsr |= PSR_PAN;
 			if ((hypctx->sctlr_el1 & SCTLR_DSSBS) == 0)
 				hypctx->tf.tf_spsr &= ~PSR_SSBS;
