@@ -4611,19 +4611,12 @@ pmap_clear_modify(vm_page_t m)
 	int md_gen, pvh_gen;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-	    ("pmap_clear_modify: page %p is not managed", m));
+	    ("%s: page %p is not managed", __func__, m));
 	vm_page_assert_busied(m);
 
 	if (!pmap_page_is_write_mapped(m))
 	        return;
 
-	/*
-	 * If the page is not PGA_WRITEABLE, then no PTEs can have PG_M set.
-	 * If the object containing the page is locked and the page is not
-	 * exclusive busied, then PGA_WRITEABLE cannot be concurrently set.
-	 */
-	if ((m->a.flags & PGA_WRITEABLE) == 0)
-		return;
 	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pv_dummy :
 	    pa_to_pvh(VM_PAGE_TO_PHYS(m));
 	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
