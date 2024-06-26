@@ -41,6 +41,7 @@
 #include <ck_epoch.h>
 
 #include <linux/rcupdate.h>
+#include <linux/sched.h>
 #include <linux/srcu.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
