@@ -2895,14 +2895,14 @@ main(int argc, char **argv)
 			if (tmpconf == NULL) {
 				log_warnx("configuration error, "
 				    "continuing with old configuration");
+			} else if (new_pports_from_conf(tmpconf, &kports)) {
+				log_warnx("Error associating physical ports, "
+				    "continuing with old configuration");
 			} else {
 				if (debug > 0)
 					tmpconf->conf_debug = debug;
 				oldconf = newconf;
 				newconf = tmpconf;
-				if (new_pports_from_conf(newconf, &kports))
-					log_errx(1, "Error associating "
-					    "physical ports");
 
 				error = conf_apply(oldconf, newconf);
 				if (error != 0)
