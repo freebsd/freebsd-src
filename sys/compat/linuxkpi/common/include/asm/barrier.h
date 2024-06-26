@@ -58,4 +58,7 @@
 #define	smp_mb__before_atomic()	barrier()
 #define	smp_mb__after_atomic()	barrier()
 
+#define smp_store_release(p, v)	do { smp_mb(); WRITE_ONCE(*p, v); } while (0)
+#define smp_load_acquire(p) ({ typeof(*p) _v = READ_ONCE(*p); smp_mb(); _v; })
+
 #endif	/* _LINUXKPI_ASM_BARRIER_H_ */
