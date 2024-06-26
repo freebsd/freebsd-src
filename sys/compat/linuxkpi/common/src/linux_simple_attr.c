@@ -139,12 +139,13 @@ unlock:
 }
 
 /*
- * simple_attr_write: write contents of buffer into simple attribute file
+ * simple_attr_write_common: write contents of buffer into simple attribute file
  *
  * @filp: file pointer
  * @buf: kernel space buffer
  * @write_size: number bytes to be transferred
  * @ppos: starting pointer position for transfer
+ * @is_signed: signedness of data in @buf
  *
  * The simple_attr structure is stored in filp->private_data.
  * Convert the @buf string to unsigned long long.
@@ -154,8 +155,9 @@ unlock:
  * On success, number of bytes written to simple attr
  * On failure, negative signed ERRNO
  */
-ssize_t
-simple_attr_write(struct file *filp, const char *buf, size_t write_size, loff_t *ppos)
+static ssize_t
+simple_attr_write_common(struct file *filp, const char *buf, size_t write_size,
+    loff_t *ppos, bool is_signed)
 {
 	struct simple_attr *sattr;
 	unsigned long long data;
@@ -173,7 +175,10 @@ simple_attr_write(struct file *filp, const char *buf, size_t write_size, loff_t 
 
 	mutex_lock(&sattr->mutex);
 
-	ret = kstrtoull(buf + *ppos, 0, &data);
+	if (is_signed)
+		ret = kstrtoll(buf + *ppos, 0, &data);
+	else
+		ret = kstrtoull(buf + *ppos, 0, &data);
 	if (ret)
 		goto unlock;
 
@@ -186,4 +191,18 @@ simple_attr_write(struct file *filp, const char *buf, size_t write_size, loff_t 
 unlock:
 	mutex_unlock(&sattr->mutex);
 	return (ret);
+}
+
+ssize_t
+simple_attr_write(struct file *filp, const char *buf, size_t write_size,
+    loff_t *ppos)
+{
+	return (simple_attr_write_common(filp, buf,  write_size, ppos, false));
+}
+
+ssize_t
+simple_attr_write_signed(struct file *filp, const char *buf, size_t write_size,
+    loff_t *ppos)
+{
+	return (simple_attr_write_common(filp, buf,  write_size, ppos, true));
 }
