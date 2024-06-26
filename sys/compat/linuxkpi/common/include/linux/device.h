@@ -343,6 +343,9 @@ put_device(struct device *dev)
 }
 
 struct class *class_create(struct module *owner, const char *name);
+#if defined(LINUXKPI_VERSION) && LINUXKPI_VERSION >= 60400
+#define	class_create(name)	class_create(NULL, name)
+#endif
 
 static inline int
 class_register(struct class *class)
