@@ -94,6 +94,12 @@ kmap_atomic(struct page *page)
 }
 
 static inline void *
+kmap_local_page(struct page *page)
+{
+	return (kmap(page));
+}
+
+static inline void *
 kmap_local_page_prot(struct page *page, pgprot_t prot)
 {
 
