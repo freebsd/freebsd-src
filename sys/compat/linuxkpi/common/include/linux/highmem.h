@@ -43,6 +43,7 @@
 #include <vm/vm_page.h>
 #include <vm/pmap.h>
 
+#include <linux/mm.h>
 #include <linux/page.h>
 
 #define	PageHighMem(p)		(0)
