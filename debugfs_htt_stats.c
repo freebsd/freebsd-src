@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/vmalloc.h>
@@ -1403,6 +1404,8 @@ htt_print_tx_selfgen_ax_stats_tlv(const void *tag_buf,
 			 htt_stats_buf->ax_mu_mimo_brpoll_7);
 	len += scnprintf(buf + len, buf_len - len, "ax_basic_trigger = %u\n",
 			 htt_stats_buf->ax_basic_trigger);
+	len += scnprintf(buf + len, buf_len - len, "ax_ulmumimo_trigger = %u\n",
+			 htt_stats_buf->ax_ulmumimo_trigger);
 	len += scnprintf(buf + len, buf_len - len, "ax_bsr_trigger = %u\n",
 			 htt_stats_buf->ax_bsr_trigger);
 	len += scnprintf(buf + len, buf_len - len, "ax_mu_bar_trigger = %u\n",
@@ -1485,6 +1488,8 @@ htt_print_tx_selfgen_ax_err_stats_tlv(const void *tag_buf,
 			 htt_stats_buf->ax_mu_mimo_brp7_err);
 	len += scnprintf(buf + len, buf_len - len, "ax_basic_trigger_err = %u\n",
 			 htt_stats_buf->ax_basic_trigger_err);
+	len += scnprintf(buf + len, buf_len - len, "ax_ulmumimo_trigger_err = %u\n",
+			 htt_stats_buf->ax_ulmumimo_trigger_err);
 	len += scnprintf(buf + len, buf_len - len, "ax_bsr_trigger_err = %u\n",
 			 htt_stats_buf->ax_bsr_trigger_err);
 	len += scnprintf(buf + len, buf_len - len, "ax_mu_bar_trigger_err = %u\n",
@@ -1519,6 +1524,16 @@ htt_print_tx_pdev_mu_mimo_sch_stats_tlv(const void *tag_buf,
 	len += scnprintf(buf + len, buf_len - len, "mu_mimo_ppdu_posted = %u\n\n",
 			 htt_stats_buf->mu_mimo_ppdu_posted);
 
+	for (i = 0; i < HTT_TX_PDEV_STATS_NUM_AC_MUMIMO_USER_STATS; i++)
+		len += scnprintf(buf + len, buf_len - len,
+				 "ac_mu_mimo_sch_posted_per_group_index %u = %u\n",
+				 i, htt_stats_buf->ac_mu_mimo_sch_posted_per_grp_sz[i]);
+
+	for (i = 0; i < HTT_TX_PDEV_STATS_NUM_AX_MUMIMO_USER_STATS; i++)
+		len += scnprintf(buf + len, buf_len - len,
+				 "ax_mu_mimo_sch_posted_per_group_index %u = %u\n",
+				 i, htt_stats_buf->ax_mu_mimo_sch_posted_per_grp_sz[i]);
+
 	len += scnprintf(buf + len, buf_len - len, "11ac MU_MIMO SCH STATS:\n");
 
 	for (i = 0; i < HTT_TX_PDEV_STATS_NUM_AC_MUMIMO_USER_STATS; i++)
@@ -1535,10 +1550,34 @@ htt_print_tx_pdev_mu_mimo_sch_stats_tlv(const void *tag_buf,
 
 	len += scnprintf(buf + len, buf_len - len, "\n11ax OFDMA SCH STATS:\n");
 
-	for (i = 0; i < HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS; i++)
+	for (i = 0; i < HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS; i++) {
 		len += scnprintf(buf + len, buf_len - len,
 				 "ax_ofdma_sch_nusers_%u = %u\n",
 				 i, htt_stats_buf->ax_ofdma_sch_nusers[i]);
+		len += scnprintf(buf + len, buf_len - len,
+				 "ax_ul_ofdma_basic_sch_nusers_%u = %u\n",
+				 i, htt_stats_buf->ax_ul_ofdma_basic_sch_nusers[i]);
+		len += scnprintf(buf + len, buf_len - len,
+				 "ax_ul_ofdma_bsr_sch_nusers_%u = %u\n",
+				 i, htt_stats_buf->ax_ul_ofdma_bsr_sch_nusers[i]);
+		len += scnprintf(buf + len, buf_len - len,
+				 "ax_ul_ofdma_sch_bar_nusers_%u = %u\n",
+				 i, htt_stats_buf->ax_ul_ofdma_bar_sch_nusers[i]);
+		len += scnprintf(buf + len, buf_len - len,
+				 "ax_ul_ofdma_brp_sch_nusers_%u = %u\n",
+				 i, htt_stats_buf->ax_ul_ofdma_brp_sch_nusers[i]);
+	}
+
+	len += scnprintf(buf + len, buf_len - len, "\n11ax UL MUMIO SCH STATS:\n");
+
+	for (i = 0; i < HTT_TX_PDEV_STATS_NUM_UL_MUMIMO_USER_STATS; i++) {
+		len += scnprintf(buf + len, buf_len - len,
+				 "ax_ul_mumimo_basic_sch_nusers_%u = %u\n",
+				 i, htt_stats_buf->ax_ul_mumimo_basic_sch_nusers[i]);
+		len += scnprintf(buf + len, buf_len - len,
+				 "ax_ul_mumimo_brp_sch_nusers_%u = %u\n",
+				 i, htt_stats_buf->ax_ul_mumimo_brp_sch_nusers[i]);
+	}
 
 	if (len >= buf_len)
 		buf[buf_len - 1] = 0;
@@ -2933,6 +2972,21 @@ static inline void htt_print_rx_pdev_rate_stats_tlv(const void *tag_buf,
 	len += scnprintf(buf + len, buf_len - len, "txbf = %u\n",
 			 htt_stats_buf->txbf);
 
+	len += scnprintf(buf + len, buf_len - len, "\nrx_su_ndpa = %u",
+			 htt_stats_buf->rx_su_ndpa);
+	PRINT_ARRAY_TO_BUF(buf, len, htt_stats_buf->rx_11ax_su_txbf_mcs,
+			   "rx_11ax_su_txbf_mcs", HTT_RX_PDEV_STATS_NUM_MCS_COUNTERS,
+			   "\n");
+
+	len += scnprintf(buf + len, buf_len - len, "\nrx_mu_ndpa = %u",
+			 htt_stats_buf->rx_mu_ndpa);
+	PRINT_ARRAY_TO_BUF(buf, len, htt_stats_buf->rx_11ax_mu_txbf_mcs,
+			   "rx_11ax_mu_txbf_mcs", HTT_RX_PDEV_STATS_NUM_MCS_COUNTERS,
+			   "\n");
+
+	len += scnprintf(buf + len, buf_len - len, "\nrx_br_poll = %u",
+			 htt_stats_buf->rx_br_poll);
+
 	PRINT_ARRAY_TO_BUF(buf, len, htt_stats_buf->rx_legacy_cck_rate,
 			   "rx_legacy_cck_rate",
 			   HTT_RX_PDEV_STATS_NUM_LEGACY_CCK_STATS, "\n");
@@ -2994,6 +3048,38 @@ static inline void htt_print_rx_pdev_rate_stats_tlv(const void *tag_buf,
 					 i, htt_stats_buf->rx_ul_fd_rssi[j][i]);
 		len += scnprintf(buf + len, buf_len - len, "\n");
 	}
+
+	PRINT_ARRAY_TO_BUF(buf, len, htt_stats_buf->rx_ulofdma_non_data_nusers,
+			   "rx_ulofdma_non_data_nusers", HTT_RX_PDEV_MAX_OFDMA_NUM_USER,
+			   "\n");
+
+	PRINT_ARRAY_TO_BUF(buf, len, htt_stats_buf->rx_ulofdma_data_nusers,
+			   "rx_ulofdma_data_nusers", HTT_RX_PDEV_MAX_OFDMA_NUM_USER,
+			   "\n");
+
+	PRINT_ARRAY_TO_BUF(buf, len, htt_stats_buf->rx_11ax_dl_ofdma_mcs,
+			   "rx_11ax_dl_ofdma_mcs", HTT_RX_PDEV_STATS_NUM_MCS_COUNTERS,
+			   "\n");
+
+	PRINT_ARRAY_TO_BUF(buf, len, htt_stats_buf->rx_11ax_dl_ofdma_ru,
+			   "rx_11ax_dl_ofdma_ru", HTT_RX_PDEV_STATS_NUM_RU_SIZE_COUNTERS,
+			   "\n");
+
+	PRINT_ARRAY_TO_BUF(buf, len, htt_stats_buf->rx_ulmumimo_non_data_ppdu,
+			   "rx_ulmumimo_non_data_ppdu", HTT_RX_PDEV_MAX_ULMUMIMO_NUM_USER,
+			   "\n");
+
+	PRINT_ARRAY_TO_BUF(buf, len, htt_stats_buf->rx_ulmumimo_data_ppdu,
+			   "rx_ulmumimo_data_ppdu", HTT_RX_PDEV_MAX_ULMUMIMO_NUM_USER,
+			   "\n");
+
+	PRINT_ARRAY_TO_BUF(buf, len, htt_stats_buf->rx_ulmumimo_mpdu_ok,
+			   "rx_ulmumimo_mpdu_ok", HTT_RX_PDEV_MAX_ULMUMIMO_NUM_USER,
+			   "\n");
+
+	PRINT_ARRAY_TO_BUF(buf, len, htt_stats_buf->rx_ulmumimo_mpdu_fail,
+			   "rx_ulmumimo_mpdu_fail", HTT_RX_PDEV_MAX_ULMUMIMO_NUM_USER,
+			   "\n");
 
 	len += scnprintf(buf + len, buf_len - len, "per_chain_rssi_pkt_type = %#x\n",
 			 htt_stats_buf->per_chain_rssi_pkt_type);
@@ -3925,6 +4011,114 @@ void htt_print_phy_stats_tlv(const void *tag_buf,
 	stats_req->buf_len = len;
 }
 
+static inline void
+htt_print_phy_reset_counters_tlv(const void *tag_buf,
+				 u16 tag_len,
+				 struct debug_htt_stats_req *stats_req)
+{
+	const struct htt_phy_reset_counters_tlv *htt_stats_buf = tag_buf;
+	u8 *buf = stats_req->buf;
+	u32 len = stats_req->buf_len;
+	u32 buf_len = ATH11K_HTT_STATS_BUF_SIZE;
+
+	if (tag_len < sizeof(*htt_stats_buf))
+		return;
+
+	len += scnprintf(buf + len, buf_len - len, "HTT_PHY_RESET_COUNTERS_TLV:\n");
+
+	len += scnprintf(buf + len, buf_len - len, "pdev_id = %u\n",
+			 htt_stats_buf->pdev_id);
+	len += scnprintf(buf + len, buf_len - len, "cf_active_low_fail_cnt = %u\n",
+			 htt_stats_buf->cf_active_low_fail_cnt);
+	len += scnprintf(buf + len, buf_len - len, "cf_active_low_pass_cnt = %u\n",
+			 htt_stats_buf->cf_active_low_pass_cnt);
+	len += scnprintf(buf + len, buf_len - len, "phy_off_through_vreg_cnt = %u\n",
+			 htt_stats_buf->phy_off_through_vreg_cnt);
+	len += scnprintf(buf + len, buf_len - len, "force_calibration_cnt = %u\n",
+			 htt_stats_buf->force_calibration_cnt);
+	len += scnprintf(buf + len, buf_len - len, "rf_mode_switch_phy_off_cnt = %u\n",
+			 htt_stats_buf->rf_mode_switch_phy_off_cnt);
+
+	stats_req->buf_len = len;
+}
+
+static inline void
+htt_print_phy_reset_stats_tlv(const void *tag_buf,
+			      u16 tag_len,
+			      struct debug_htt_stats_req *stats_req)
+{
+	const struct htt_phy_reset_stats_tlv *htt_stats_buf = tag_buf;
+	u8 *buf = stats_req->buf;
+	u32 len = stats_req->buf_len;
+	u32 buf_len = ATH11K_HTT_STATS_BUF_SIZE;
+
+	if (tag_len < sizeof(*htt_stats_buf))
+		return;
+
+	len += scnprintf(buf + len, buf_len - len, "HTT_PHY_RESET_STATS_TLV:\n");
+
+	len += scnprintf(buf + len, buf_len - len, "pdev_id = %u\n",
+			 htt_stats_buf->pdev_id);
+	len += scnprintf(buf + len, buf_len - len, "chan_mhz = %u\n",
+			 htt_stats_buf->chan_mhz);
+	len += scnprintf(buf + len, buf_len - len, "chan_band_center_freq1 = %u\n",
+			 htt_stats_buf->chan_band_center_freq1);
+	len += scnprintf(buf + len, buf_len - len, "chan_band_center_freq2 = %u\n",
+			 htt_stats_buf->chan_band_center_freq2);
+	len += scnprintf(buf + len, buf_len - len, "chan_phy_mode = %u\n",
+			 htt_stats_buf->chan_phy_mode);
+	len += scnprintf(buf + len, buf_len - len, "chan_flags = 0x%0x\n",
+			 htt_stats_buf->chan_flags);
+	len += scnprintf(buf + len, buf_len - len, "chan_num = %u\n",
+			 htt_stats_buf->chan_num);
+	len += scnprintf(buf + len, buf_len - len, "reset_cause = 0x%0x\n",
+			 htt_stats_buf->reset_cause);
+	len += scnprintf(buf + len, buf_len - len, "prev_reset_cause = 0x%0x\n",
+			 htt_stats_buf->prev_reset_cause);
+	len += scnprintf(buf + len, buf_len - len, "phy_warm_reset_src = 0x%0x\n",
+			 htt_stats_buf->phy_warm_reset_src);
+	len += scnprintf(buf + len, buf_len - len, "rx_gain_tbl_mode = %d\n",
+			 htt_stats_buf->rx_gain_tbl_mode);
+	len += scnprintf(buf + len, buf_len - len, "xbar_val = 0x%0x\n",
+			 htt_stats_buf->xbar_val);
+	len += scnprintf(buf + len, buf_len - len, "force_calibration = %u\n",
+			 htt_stats_buf->force_calibration);
+	len += scnprintf(buf + len, buf_len - len, "phyrf_mode = %u\n",
+			 htt_stats_buf->phyrf_mode);
+	len += scnprintf(buf + len, buf_len - len, "phy_homechan = %u\n",
+			 htt_stats_buf->phy_homechan);
+	len += scnprintf(buf + len, buf_len - len, "phy_tx_ch_mask = 0x%0x\n",
+			 htt_stats_buf->phy_tx_ch_mask);
+	len += scnprintf(buf + len, buf_len - len, "phy_rx_ch_mask = 0x%0x\n",
+			 htt_stats_buf->phy_rx_ch_mask);
+	len += scnprintf(buf + len, buf_len - len, "phybb_ini_mask = 0x%0x\n",
+			 htt_stats_buf->phybb_ini_mask);
+	len += scnprintf(buf + len, buf_len - len, "phyrf_ini_mask = 0x%0x\n",
+			 htt_stats_buf->phyrf_ini_mask);
+	len += scnprintf(buf + len, buf_len - len, "phy_dfs_en_mask = 0x%0x\n",
+			 htt_stats_buf->phy_dfs_en_mask);
+	len += scnprintf(buf + len, buf_len - len, "phy_sscan_en_mask = 0x%0x\n",
+			 htt_stats_buf->phy_sscan_en_mask);
+	len += scnprintf(buf + len, buf_len - len, "phy_synth_sel_mask = 0x%0x\n",
+			 htt_stats_buf->phy_synth_sel_mask);
+	len += scnprintf(buf + len, buf_len - len, "phy_adfs_freq = %u\n",
+			 htt_stats_buf->phy_adfs_freq);
+	len += scnprintf(buf + len, buf_len - len, "cck_fir_settings = 0x%0x\n",
+			 htt_stats_buf->cck_fir_settings);
+	len += scnprintf(buf + len, buf_len - len, "phy_dyn_pri_chan = %u\n",
+			 htt_stats_buf->phy_dyn_pri_chan);
+	len += scnprintf(buf + len, buf_len - len, "cca_thresh = 0x%0x\n",
+			 htt_stats_buf->cca_thresh);
+	len += scnprintf(buf + len, buf_len - len, "dyn_cca_status = %u\n",
+			 htt_stats_buf->dyn_cca_status);
+	len += scnprintf(buf + len, buf_len - len, "rxdesense_thresh_hw = 0x%x\n",
+			 htt_stats_buf->rxdesense_thresh_hw);
+	len += scnprintf(buf + len, buf_len - len, "rxdesense_thresh_sw = 0x%x\n",
+			 htt_stats_buf->rxdesense_thresh_sw);
+
+	stats_req->buf_len = len;
+}
+
 static inline
 void htt_print_peer_ctrl_path_txrx_stats_tlv(const void *tag_buf,
 					     struct debug_htt_stats_req *stats_req)
@@ -4338,6 +4532,12 @@ static int ath11k_dbg_htt_ext_stats_parse(struct ath11k_base *ab,
 		break;
 	case HTT_STATS_PHY_STATS_TAG:
 		htt_print_phy_stats_tlv(tag_buf, stats_req);
+		break;
+	case HTT_STATS_PHY_RESET_COUNTERS_TAG:
+		htt_print_phy_reset_counters_tlv(tag_buf, len, stats_req);
+		break;
+	case HTT_STATS_PHY_RESET_STATS_TAG:
+		htt_print_phy_reset_stats_tlv(tag_buf, len, stats_req);
 		break;
 	case HTT_STATS_PEER_CTRL_PATH_TXRX_STATS_TAG:
 		htt_print_peer_ctrl_path_txrx_stats_tlv(tag_buf, stats_req);
