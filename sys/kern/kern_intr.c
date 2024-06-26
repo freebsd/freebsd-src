@@ -312,6 +312,9 @@ intr_event_create(struct intr_event **event, void *source, int flags, u_int irq,
 	strlcpy(ie->ie_fullname, ie->ie_name, sizeof(ie->ie_fullname));
 	rw_wlock(&event_lock);
 	if (flags & IE_MULTIPROC) {
+		if (bootverbose)
+			printf("Allocate multi-processor counter #%u to \"%s"
+			    "\"\n", intrcnt_multi_used, ie->ie_name);
 		ie->ie_intrcnt = intrcnt_multi_used;
 		if (++intrcnt_multi_used > nitems(DPCPU_GET(intrcnt_multi)))
 			panic("Exhausted multiprocessor interrupt counters");
