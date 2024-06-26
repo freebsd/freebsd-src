@@ -374,7 +374,7 @@ simple_read_from_buffer(void __user *dest, size_t read_size, loff_t *ppos,
 
 MALLOC_DECLARE(M_LSATTR);
 
-#define DEFINE_SIMPLE_ATTRIBUTE(__fops, __get, __set, __fmt)		\
+#define	__DEFINE_SIMPLE_ATTRIBUTE(__fops, __get, __set, __fmt, __wrfunc)\
 static inline int							\
 __fops ## _open(struct inode *inode, struct file *filp)			\
 {									\
@@ -385,9 +385,14 @@ static const struct file_operations __fops = {				\
 	.open	 = __fops ## _open,					\
 	.release = simple_attr_release,					\
 	.read	 = simple_attr_read,					\
-	.write	 = simple_attr_write,					\
+	.write	 = __wrfunc,						\
 	.llseek	 = no_llseek						\
 }
+
+#define	DEFINE_SIMPLE_ATTRIBUTE(fops, get, set, fmt)			\
+	__DEFINE_SIMPLE_ATTRIBUTE(fops, get, set, fmt, simple_attr_write)
+#define	DEFINE_SIMPLE_ATTRIBUTE_SIGNED(fops, get, set, fmt)		\
+	__DEFINE_SIMPLE_ATTRIBUTE(fops, get, set, fmt, simple_attr_write_signed)
 
 int simple_attr_open(struct inode *inode, struct file *filp,
     int (*get)(void *, uint64_t *), int (*set)(void *, uint64_t),
@@ -398,5 +403,8 @@ int simple_attr_release(struct inode *inode, struct file *filp);
 ssize_t simple_attr_read(struct file *filp, char *buf, size_t read_size, loff_t *ppos);
 
 ssize_t simple_attr_write(struct file *filp, const char *buf, size_t write_size, loff_t *ppos);
+
+ssize_t simple_attr_write_signed(struct file *filp, const char *buf,
+	    size_t write_size, loff_t *ppos);
 
 #endif /* _LINUXKPI_LINUX_FS_H_ */
