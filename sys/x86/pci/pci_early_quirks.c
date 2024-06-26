@@ -259,7 +259,9 @@ static const struct pci_device_id intel_ids[] = {
 	INTEL_RKL_IDS(&intel_stolen_ops_gen11),
 	INTEL_ADLS_IDS(&intel_stolen_ops_gen11),
 	INTEL_ADLP_IDS(&intel_stolen_ops_gen11),
+	INTEL_ADLN_IDS(&intel_stolen_ops_gen11),
 	INTEL_RPLS_IDS(&intel_stolen_ops_gen11),
+	INTEL_RPLP_IDS(&intel_stolen_ops_gen11),
 };
 
 /*
