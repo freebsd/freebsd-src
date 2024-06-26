@@ -35,6 +35,7 @@
 #include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/mm_types.h>
+#include <linux/mmzone.h>
 #include <linux/pfn.h>
 #include <linux/list.h>
 #include <linux/mmap_lock.h>
