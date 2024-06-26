@@ -315,6 +315,11 @@ intr_event_create(struct intr_event **event, void *source, int flags, u_int irq,
 	if (flags & IE_MULTIPROC) {
 		int idx;
 		bit_ffc(intrcnt_multi_inuse, INTRCNT_MULTI_COUNT, &idx);
+
+		if (bootverbose)
+			printf("Allocate multi-processor counter #%d to \"%s"
+			    "\"\n", idx, ie->ie_name);
+
 		if (idx == -1)
 			panic("Exhausted multiprocessor interrupt counters");
 		bit_set(intrcnt_multi_inuse, idx);
