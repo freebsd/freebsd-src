@@ -1053,6 +1053,7 @@ allocfail:
 	return (NULL);
 
 abort:
+	tcp_discardcb(tp);
 	in_pcbfree(inp);
 	sodealloc(so);
 	if ((s = tcp_log_addrs(&sc->sc_inc, NULL, NULL, NULL))) {
