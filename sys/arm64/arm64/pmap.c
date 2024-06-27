@@ -1215,7 +1215,7 @@ pmap_bootstrap_dmap(vm_paddr_t min_pa)
 	dmap_phys_max = 0;
 	dmap_max_addr = 0;
 
-	for (i = 0; i < (physmap_idx * 2); i += 2) {
+	for (i = 0; i < physmap_idx; i += 2) {
 		bs_state.pa = physmap[i] & ~L3_OFFSET;
 		bs_state.va = bs_state.pa - dmap_phys_base + DMAP_MIN_ADDRESS;
 
