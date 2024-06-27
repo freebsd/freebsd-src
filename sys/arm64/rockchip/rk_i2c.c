@@ -526,7 +526,7 @@ rk_i2c_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 
 		if (nmsgs - i >= 2 && msgs[i].len < 4 &&
 		    msgs[i].flags == (IIC_M_WR  | IIC_M_NOSTOP) &&
-		    msgs[i + 1].flags == IIC_M_RD &&
+		    (msgs[i + 1].flags & IIC_M_RD) == IIC_M_RD &&
 		    (msgs[i].slave & ~LSB) == (msgs[i + 1].slave & ~LSB)) {
 			sc->mode = RK_I2C_CON_MODE_RRX;
 
