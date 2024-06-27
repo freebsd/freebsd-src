@@ -1363,14 +1363,16 @@ nvme_ctrlr_linux_passthru_cmd(struct nvme_controller *ctrlr,
 			PHOLD(curproc);
 			buf = uma_zalloc(pbuf_zone, M_WAITOK);
 			buf->b_iocmd = npc->opcode & 1 ? BIO_WRITE : BIO_READ;
-			if (vmapbuf(buf, (void *)npc->addr, npc->data_len, 1) < 0) {
+			if (vmapbuf(buf, (void *)(uintptr_t)npc->addr,
+			    npc->data_len, 1) < 0) {
 				ret = EFAULT;
 				goto err;
 			}
 			req = nvme_allocate_request_vaddr(buf->b_data, npc->data_len,
 			    nvme_npc_done, npc);
 		} else
-			req = nvme_allocate_request_vaddr((void *)npc->addr, npc->data_len,
+			req = nvme_allocate_request_vaddr(
+			    (void *)(uintptr_t)npc->addr, npc->data_len,
 			    nvme_npc_done, npc);
 	} else
 		req = nvme_allocate_request_null(nvme_npc_done, npc);
