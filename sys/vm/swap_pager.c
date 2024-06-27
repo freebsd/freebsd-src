@@ -1183,6 +1183,21 @@ swap_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before,
 	return (TRUE);
 }
 
+static void
+swap_pager_unswapped_acct(vm_page_t m)
+{
+	KASSERT((m->object->flags & OBJ_SWAP) != 0,
+	    ("Free object not swappable"));
+	if ((m->a.flags & PGA_SWAP_FREE) != 0)
+		counter_u64_add(swap_free_completed, 1);
+	vm_page_aflag_clear(m, PGA_SWAP_FREE | PGA_SWAP_SPACE);
+
+	/*
+	 * The meta data only exists if the object is OBJT_SWAP
+	 * and even then might not be allocated yet.
+	 */
+}
+
 /*
  * SWAP_PAGER_PAGE_UNSWAPPED() - remove swap backing store related to page
  *
@@ -1229,16 +1244,7 @@ swap_pager_unswapped(vm_page_t m)
 		}
 		return;
 	}
-	if ((m->a.flags & PGA_SWAP_FREE) != 0)
-		counter_u64_add(swap_free_completed, 1);
-	vm_page_aflag_clear(m, PGA_SWAP_FREE | PGA_SWAP_SPACE);
-
-	/*
-	 * The meta data only exists if the object is OBJT_SWAP
-	 * and even then might not be allocated yet.
-	 */
-	KASSERT((m->object->flags & OBJ_SWAP) != 0,
-	    ("Free object not swappable"));
+	swap_pager_unswapped_acct(m);
 
 	sb = SWAP_PCTRIE_LOOKUP(&m->object->un_pager.swp.swp_blks,
 	    rounddown(m->pindex, SWAP_META_PAGES));
@@ -1786,11 +1792,12 @@ swap_pager_nswapdev(void)
 }
 
 static void
-swp_pager_force_dirty(vm_page_t m)
+swp_pager_force_dirty(struct page_range *range, vm_page_t m, daddr_t *blk)
 {
-
 	vm_page_dirty(m);
-	swap_pager_unswapped(m);
+	swap_pager_unswapped_acct(m);
+	swp_pager_update_freerange(range, *blk);
+	*blk = SWAPBLK_NONE;
 	vm_page_launder(m);
 }
 
@@ -1827,18 +1834,23 @@ swap_pager_swapped_pages(vm_object_t object)
 static void
 swap_pager_swapoff_object(struct swdevt *sp, vm_object_t object)
 {
+	struct page_range range;
 	struct swblk *sb;
 	vm_page_t m;
 	vm_pindex_t pi;
 	daddr_t blk;
-	int i, nv, rahead, rv;
+	int i, rahead, rv;
+	bool sb_empty;
 
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT((object->flags & OBJ_SWAP) != 0,
 	    ("%s: Object not swappable", __func__));
 
-	for (pi = 0; (sb = SWAP_PCTRIE_LOOKUP_GE(
-	    &object->un_pager.swp.swp_blks, pi)) != NULL; ) {
-		if ((object->flags & OBJ_DEAD) != 0) {
+	pi = 0;
+	i = 0;
+	swp_pager_init_freerange(&range);
+	for (;;) {
+		if (i == 0 && (object->flags & OBJ_DEAD) != 0) {
 			/*
 			 * Make sure that pending writes finish before
 			 * returning.
@@ -1847,76 +1859,86 @@ swap_pager_swapoff_object(struct swdevt *sp, vm_object_t object)
 			swp_pager_meta_free_all(object);
 			break;
 		}
-		for (i = 0; i < SWAP_META_PAGES; i++) {
-			/*
-			 * Count the number of contiguous valid blocks.
-			 */
-			for (nv = 0; nv < SWAP_META_PAGES - i; nv++) {
-				blk = sb->d[i + nv];
-				if (!swp_pager_isondev(blk, sp) ||
-				    blk == SWAPBLK_NONE)
-					break;
-			}
-			if (nv == 0)
-				continue;
 
-			/*
-			 * Look for a page corresponding to the first
-			 * valid block and ensure that any pending paging
-			 * operations on it are complete.  If the page is valid,
-			 * mark it dirty and free the swap block.  Try to batch
-			 * this operation since it may cause sp to be freed,
-			 * meaning that we must restart the scan.  Avoid busying
-			 * valid pages since we may block forever on kernel
-			 * stack pages.
-			 */
-			m = vm_page_lookup(object, sb->p + i);
-			if (m == NULL) {
-				m = vm_page_alloc(object, sb->p + i,
-				    VM_ALLOC_NORMAL | VM_ALLOC_WAITFAIL);
-				if (m == NULL)
-					break;
-			} else {
-				if ((m->oflags & VPO_SWAPINPROG) != 0) {
-					m->oflags |= VPO_SWAPSLEEP;
-					VM_OBJECT_SLEEP(object, &object->handle,
-					    PSWP, "swpoff", 0);
-					break;
-				}
-				if (vm_page_all_valid(m)) {
-					do {
-						swp_pager_force_dirty(m);
-					} while (--nv > 0 &&
-					    (m = vm_page_next(m)) != NULL &&
-					    vm_page_all_valid(m) &&
-					    (m->oflags & VPO_SWAPINPROG) == 0);
-					break;
-				}
-				if (!vm_page_busy_acquire(m, VM_ALLOC_WAITFAIL))
-					break;
-			}
-
-			vm_object_pip_add(object, 1);
-			rahead = SWAP_META_PAGES;
-			rv = swap_pager_getpages_locked(object, &m, 1, NULL,
-			    &rahead);
-			if (rv != VM_PAGER_OK)
-				panic("%s: read from swap failed: %d",
-				    __func__, rv);
-			VM_OBJECT_WLOCK(object);
-			vm_object_pip_wakeupn(object, 1);
-			vm_page_xunbusy(m);
-
-			/*
-			 * The object lock was dropped so we must restart the
-			 * scan of this swap block.  Pages paged in during this
-			 * iteration will be marked dirty in a future iteration.
-			 */
-			break;
-		}
-		if (i == SWAP_META_PAGES)
+		if (i == SWAP_META_PAGES) {
 			pi = sb->p + SWAP_META_PAGES;
+			if (sb_empty) {
+				SWAP_PCTRIE_REMOVE(
+				    &object->un_pager.swp.swp_blks, sb->p);
+				uma_zfree(swblk_zone, sb);
+			}
+			i = 0;
+		}
+
+		if (i == 0) {
+			sb = SWAP_PCTRIE_LOOKUP_GE(
+			    &object->un_pager.swp.swp_blks, pi);
+			if (sb == NULL)
+				break;
+			sb_empty = true;
+			m = NULL;
+		}
+
+		/* Skip an invalid block. */
+		blk = sb->d[i];
+		if (blk == SWAPBLK_NONE || !swp_pager_isondev(blk, sp)) {
+			if (blk != SWAPBLK_NONE)
+				sb_empty = false;
+			m = NULL;
+			i++;
+			continue;
+		}
+
+		/*
+		 * Look for a page corresponding to this block, If the found
+		 * page has pending operations, sleep and restart the scan.
+		 */
+		m = m != NULL ? vm_page_next(m) :
+		    vm_page_lookup(object, sb->p + i);
+		if (m != NULL && (m->oflags & VPO_SWAPINPROG) != 0) {
+			m->oflags |= VPO_SWAPSLEEP;
+			VM_OBJECT_SLEEP(object, &object->handle, PSWP, "swpoff",
+			    0);
+			i = 0;	/* Restart scan after object lock dropped. */
+			continue;
+		}
+
+		/*
+		 * If the found page is valid, mark it dirty and free the swap
+		 * block.
+		 */
+		if (m != NULL && vm_page_all_valid(m)) {
+			swp_pager_force_dirty(&range, m, &sb->d[i]);
+			i++;
+			continue;
+		}
+
+		/* Is there a page we can acquire or allocate? */
+		if (m == NULL) {
+			m = vm_page_alloc(object, sb->p + i,
+			    VM_ALLOC_NORMAL | VM_ALLOC_WAITFAIL);
+		} else if (!vm_page_busy_acquire(m, VM_ALLOC_WAITFAIL))
+			m = NULL;
+
+		/* If no page available, repeat this iteration. */
+		if (m == NULL)
+			continue;
+
+		/* Get the page from swap, mark it dirty, restart the scan. */
+		vm_object_pip_add(object, 1);
+		rahead = SWAP_META_PAGES;
+		rv = swap_pager_getpages_locked(object, &m, 1, NULL, &rahead);
+		if (rv != VM_PAGER_OK)
+			panic("%s: read from swap failed: %d", __func__, rv);
+		VM_OBJECT_WLOCK(object);
+		vm_object_pip_wakeupn(object, 1);
+		KASSERT(vm_page_all_valid(m),
+		    ("%s: Page %p not all valid", __func__, m));
+		swp_pager_force_dirty(&range, m, &sb->d[i]);
+		vm_page_xunbusy(m);
+		i = 0;	/* Restart scan after object lock dropped. */
 	}
+	swp_pager_freeswapspace(&range);
 }
 
 /*
