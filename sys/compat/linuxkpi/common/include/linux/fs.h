@@ -354,9 +354,8 @@ static inline ssize_t
 simple_read_from_buffer(void __user *dest, size_t read_size, loff_t *ppos,
     void *orig, size_t buf_size)
 {
-	void *read_pos = ((char *) orig) + *ppos;
+	void *p, *read_pos = ((char *) orig) + *ppos;
 	size_t buf_remain = buf_size - *ppos;
-	ssize_t num_read;
 
 	if (buf_remain < 0 || buf_remain > buf_size)
 		return -EINVAL;
@@ -364,13 +363,18 @@ simple_read_from_buffer(void __user *dest, size_t read_size, loff_t *ppos,
 	if (read_size > buf_remain)
 		read_size = buf_remain;
 
-	/* copy_to_user returns number of bytes NOT read */
-	num_read = read_size - copy_to_user(dest, read_pos, read_size);
-	if (num_read == 0)
-		return -EFAULT;
-	*ppos += num_read;
+	/*
+	 * XXX At time of commit only debugfs consumers could be
+	 * identified.  If others will use this function we may
+	 * have to revise this: normally we would call copy_to_user()
+	 * here but lindebugfs will return the result and the
+	 * copyout is done elsewhere for us.
+	 */
+	p = memcpy(dest, read_pos, read_size);
+	if (p != NULL)
+		*ppos += read_size;
 
-	return (num_read);
+	return (read_size);
 }
 
 MALLOC_DECLARE(M_LSATTR);
