@@ -2215,6 +2215,10 @@ tcp_newtcpcb(struct inpcb *inp)
 
 #ifdef TCP_HHOOK
 	if (khelp_init_osd(HELPER_CLASS_TCP, &tp->t_osd)) {
+		if (CC_ALGO(tp)->cb_destroy != NULL)
+			CC_ALGO(tp)->cb_destroy(&tp->t_ccv);
+		CC_DATA(tp) = NULL;
+		cc_detach(tp);
 		if (tp->t_fb->tfb_tcp_fb_fini)
 			(*tp->t_fb->tfb_tcp_fb_fini)(tp, 1);
 		refcount_release(&tp->t_fb->tfb_refcnt);
@@ -2291,6 +2295,13 @@ tcp_newtcpcb(struct inpcb *inp)
 	tp->t_pacing_rate = -1;
 	if (tp->t_fb->tfb_tcp_fb_init) {
 		if ((*tp->t_fb->tfb_tcp_fb_init)(tp, &tp->t_fb_ptr)) {
+			if (CC_ALGO(tp)->cb_destroy != NULL)
+				CC_ALGO(tp)->cb_destroy(&tp->t_ccv);
+			CC_DATA(tp) = NULL;
+			cc_detach(tp);
+#ifdef TCP_HHOOK
+			khelp_destroy_osd(&tp->t_osd);
+#endif
 			refcount_release(&tp->t_fb->tfb_refcnt);
 			return (NULL);
 		}
