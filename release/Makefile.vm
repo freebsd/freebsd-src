@@ -6,7 +6,11 @@
 
 VMTARGETS=	vm-image
 VMFORMATS?=	vhd vmdk qcow2 raw
+.if ${TARGET_ARCH} == riscv64
+VMSIZE?=	6144m
+.else
 VMSIZE?=	5120m
+.endif
 SWAPSIZE?=	1g
 VMBASE?=	vm
 
