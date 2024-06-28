@@ -356,27 +356,6 @@ logger(int pri, const char *fmt, ...)
 	va_end(ap);
 }
 
-/* Add/remove IP address from an interface */
-static int
-ifaddr_ad(unsigned long d, const char *ifnam, struct sockaddr *sa, struct sockaddr *mask)
-{
-	struct ifaliasreq req;
-	int fd, error;
-
-	fd = socket(AF_INET, SOCK_DGRAM, 0);
-	if (fd < 0)
-		return (-1);
-
-	memset(&req, 0, sizeof(struct ifaliasreq));
-	strlcpy(req.ifra_name, ifnam, sizeof(req.ifra_name));
-	memcpy(&req.ifra_addr, sa, sa->sa_len);
-	memcpy(&req.ifra_mask, mask, mask->sa_len);
-
-	error = ioctl(fd, d, (char *)&req);
-	close(fd);
-	return (error);
-}
-
 #define if_ifup(ifnam) if_setflags(ifnam, IFF_UP)
 #define if_ifdown(ifnam) if_setflags(ifnam, -IFF_UP)
 
@@ -418,22 +397,45 @@ if_setflags(const char *ifnam, int flags)
 static int
 ifaddr_add(const char *ifnam, struct sockaddr *sa, struct sockaddr *mask)
 {
-	int error;
+	struct ifaliasreq ifra;
+	int error, fd;
 
-	error = ifaddr_ad(SIOCAIFADDR, ifnam, sa, mask);
+	memset(&ifra, 0, sizeof(ifra));
+	strlcpy(ifra.ifra_name, ifnam, sizeof(ifra.ifra_name));
+	memcpy(&ifra.ifra_addr, sa, sa->sa_len);
+	memcpy(&ifra.ifra_mask, mask, mask->sa_len);
+
+	fd = socket(AF_INET, SOCK_DGRAM, 0);
+	if (fd < 0)
+		return (-1);
+
+	error = ioctl(fd, SIOCAIFADDR, (caddr_t)&ifra);
 	if (error != 0)
 		warn("ioctl SIOCAIFADDR");
+
+	close(fd);
 	return (error);
 }
 
 static int
-ifaddr_del(const char *ifnam, struct sockaddr *sa, struct sockaddr *mask)
+ifaddr_del(const char *ifnam, struct sockaddr *sa)
 {
-	int error;
+	struct ifreq ifr;
+	int error, fd;
 
-	error = ifaddr_ad(SIOCDIFADDR, ifnam, sa, mask);
+	memset(&ifr, 0, sizeof(ifr));
+	strlcpy(ifr.ifr_name, ifnam, sizeof(ifr.ifr_name));
+	memcpy(&ifr.ifr_addr, sa, sa->sa_len);
+
+	fd = socket(AF_INET, SOCK_DGRAM, 0);
+	if (fd < 0)
+		return (-1);
+
+	error = ioctl(fd, SIOCDIFADDR, (caddr_t)&ifr);
 	if (error != 0)
 		warn("ioctl SIOCDIFADDR");
+
+	close(fd);
 	return (error);
 }
 
@@ -897,8 +899,7 @@ at_async_owandata(void *arg, const char *resp)
 	if (ctx->flags & IPASSIGNED) {
 		memcpy(&sin.sin_addr.s_addr, &ctx->ip.s_addr,
 		    sizeof(sin.sin_addr.s_addr));
-		ifaddr_del(ctx->ifnam, (struct sockaddr *)&sin,
-		    (struct sockaddr *)&mask);
+		ifaddr_del(ctx->ifnam, (struct sockaddr *)&sin);
 	}
 	inet_pton(AF_INET, ip, &ctx->ip.s_addr);
 	memcpy(&sin.sin_addr.s_addr, &ctx->ip.s_addr,
@@ -1258,7 +1259,7 @@ do_connect(struct ctx *ctx, const char *tty)
 static void
 do_disconnect(struct ctx *ctx)
 {
-	struct sockaddr_in sin, mask;
+	struct sockaddr_in sin;
 
 	/* Disconnect */
 	at_cmd(ctx, NULL, NULL, NULL, "AT_OWANCALL=%d,0,0\r\n",
@@ -1267,14 +1268,11 @@ do_disconnect(struct ctx *ctx)
 
 	/* Remove ip-address from interface */
 	if (ctx->flags & IPASSIGNED) {
-		sin.sin_len = mask.sin_len = sizeof(struct sockaddr_in);
-		memset(&mask.sin_addr.s_addr, 0xff,
-		    sizeof(mask.sin_addr.s_addr));
-		sin.sin_family = mask.sin_family = AF_INET;
+		sin.sin_len = sizeof(struct sockaddr_in);
+		sin.sin_family = AF_INET;
 		memcpy(&sin.sin_addr.s_addr, &ctx->ip.s_addr,
 		    sizeof(sin.sin_addr.s_addr));
-		ifaddr_del(ctx->ifnam, (struct sockaddr *)&sin,
-		    (struct sockaddr *)&mask);
+		ifaddr_del(ctx->ifnam, (struct sockaddr *)&sin);
 
 		if_ifdown(ctx->ifnam);
 		ctx->flags &= ~IPASSIGNED;
