@@ -708,12 +708,6 @@ dtsec_attach(device_t dev)
 
 	/* Create network interface for upper layers */
 	ifp = sc->sc_ifnet = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(sc->sc_dev, "if_alloc() failed.\n");
-		dtsec_detach(dev);
-		return (ENOMEM);
-	}
-
 	if_setsoftc(ifp, sc);
 
 	if_setflags(ifp, IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST);

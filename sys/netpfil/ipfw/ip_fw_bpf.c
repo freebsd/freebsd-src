@@ -95,8 +95,6 @@ ipfw_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	struct ifnet *ifp;
 
 	ifp = if_alloc(IFT_PFLOG);
-	if (ifp == NULL)
-		return (ENOSPC);
 	if_initname(ifp, ipfwname, unit);
 	ifp->if_flags = IFF_UP | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_mtu = 65536;
@@ -121,8 +119,6 @@ ipfwlog_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	struct ifnet *ifp;
 
 	ifp = if_alloc(IFT_PFLOG);
-	if (ifp == NULL)
-		return (ENOSPC);
 	if_initname(ifp, ipfwlogname, unit);
 	ifp->if_flags = IFF_UP | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_mtu = 65536;

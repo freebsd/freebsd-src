@@ -240,9 +240,6 @@ felix_init_interface(felix_softc_t sc, int port)
 	snprintf(name, IFNAMSIZ, "%sport", device_get_nameunit(sc->dev));
 
 	sc->ports[port].ifp = if_alloc(IFT_ETHER);
-	if (sc->ports[port].ifp == NULL)
-		return (ENOMEM);
-
 	if_setsoftc(sc->ports[port].ifp, sc);
 	if_setflags(sc->ports[port].ifp, IFF_UP | IFF_BROADCAST | IFF_MULTICAST |
 	    IFF_DRV_RUNNING | IFF_SIMPLEX);

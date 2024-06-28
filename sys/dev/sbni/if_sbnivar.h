@@ -125,7 +125,7 @@ struct sbni_softc {
 
 void	sbni_intr(void *);
 int	sbni_probe(struct sbni_softc *);
-int	sbni_attach(struct sbni_softc *, int, struct sbni_flags);
+void	sbni_attach(struct sbni_softc *, int, struct sbni_flags);
 void	sbni_detach(struct sbni_softc *);
 void	sbni_release_resources(struct sbni_softc *);
 

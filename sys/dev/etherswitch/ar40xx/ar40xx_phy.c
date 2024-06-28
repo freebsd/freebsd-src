@@ -200,14 +200,6 @@ ar40xx_attach_phys(struct ar40xx_softc *sc)
 	snprintf(name, IFNAMSIZ, "%sport", device_get_nameunit(sc->sc_dev));
 	for (phy = 0; phy < AR40XX_NUM_PHYS; phy++) {
 		sc->sc_phys.ifp[phy] = if_alloc(IFT_ETHER);
-		if (sc->sc_phys.ifp[phy] == NULL) {
-			device_printf(sc->sc_dev,
-			    "PHY %d: couldn't allocate ifnet structure\n",
-			    phy);
-			err = ENOMEM;
-			break;
-		}
-
 		sc->sc_phys.ifp[phy]->if_softc = sc;
 		sc->sc_phys.ifp[phy]->if_flags |= IFF_UP | IFF_BROADCAST |
 		    IFF_DRV_RUNNING | IFF_SIMPLEX;

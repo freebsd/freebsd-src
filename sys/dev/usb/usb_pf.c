@@ -195,12 +195,6 @@ usbpf_clone_create(struct if_clone *ifc, char *name, size_t len,
 		return (error);
 	}
 	ifp = ubus->ifp = if_alloc(IFT_USB);
-	if (ifp == NULL) {
-		ifc_free_unit(ifc, unit);
-		device_printf(ubus->parent, "usbpf: Could not allocate "
-		    "instance\n");
-		return (ENOSPC);
-	}
 	if_setsoftc(ifp, ubus);
 	if_initname(ifp, usbusname, unit);
 	if_setname(ifp, name);

@@ -153,8 +153,6 @@ fwip_attach(device_t dev)
 	fwip = ((struct fwip_softc *)device_get_softc(dev));
 	unit = device_get_unit(dev);
 	ifp = fwip->fw_softc.fwip_ifp = if_alloc(IFT_IEEE1394);
-	if (ifp == NULL)
-		return (ENOSPC);
 
 	mtx_init(&fwip->mtx, "fwip", NULL, MTX_DEF);
 	/* XXX */
@@ -199,7 +197,7 @@ fwip_attach(device_t dev)
 	splx(s);
 
 	FWIPDEBUG(ifp, "interface created\n");
-	return 0;
+	return (0);
 }
 
 static void

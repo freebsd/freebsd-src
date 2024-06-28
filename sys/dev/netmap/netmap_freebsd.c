@@ -612,10 +612,6 @@ nm_os_vi_persist(const char *name, if_t *ret)
 	eaddr[5] = (uint8_t)unit;
 
 	ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		nm_prerr("if_alloc failed");
-		return ENOMEM;
-	}
 	if_initname(ifp, name, IF_DUNIT_NONE);
 	if_setflags(ifp, IFF_UP | IFF_SIMPLEX | IFF_MULTICAST);
 	if_setinitfn(ifp, (void *)nm_vi_dummy);

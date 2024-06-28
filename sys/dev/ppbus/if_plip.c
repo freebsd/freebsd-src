@@ -249,10 +249,6 @@ lp_attach(device_t dev)
 	}
 
 	ifp = lp->sc_ifp = if_alloc(IFT_PARA);
-	if (ifp == NULL) {
-		return (ENOSPC);
-	}
-
 	if_setsoftc(ifp, lp);
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	if_setmtu(ifp, LPMTU);

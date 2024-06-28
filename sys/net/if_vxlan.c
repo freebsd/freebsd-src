@@ -3248,11 +3248,6 @@ vxlan_clone_create(struct if_clone *ifc, char *name, size_t len,
 	}
 
 	ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		error = ENOSPC;
-		goto fail;
-	}
-
 	sc->vxl_ifp = ifp;
 	rm_init(&sc->vxl_lock, "vxlanrm");
 	callout_init_rw(&sc->vxl_callout, &sc->vxl_lock, 0);

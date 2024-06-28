@@ -2544,7 +2544,7 @@ cxgbe_probe(device_t dev)
     IFCAP_HWRXTSTMP | IFCAP_MEXTPG)
 #define T4_CAP_ENABLE (T4_CAP)
 
-static int
+static void
 cxgbe_vi_attach(device_t dev, struct vi_info *vi)
 {
 	if_t ifp;
@@ -2583,10 +2583,6 @@ cxgbe_vi_attach(device_t dev, struct vi_info *vi)
 
 	/* Allocate an ifnet and set it up */
 	ifp = if_alloc_dev(IFT_ETHER, dev);
-	if (ifp == NULL) {
-		device_printf(dev, "Cannot allocate ifnet\n");
-		return (ENOMEM);
-	}
 	vi->ifp = ifp;
 	if_setsoftc(ifp, vi);
 
@@ -2689,8 +2685,6 @@ cxgbe_vi_attach(device_t dev, struct vi_info *vi)
 	pa.pa_type = PFIL_TYPE_ETHERNET;
 	pa.pa_headname = if_name(ifp);
 	vi->pfil = pfil_head_register(&pa);
-
-	return (0);
 }
 
 static int
@@ -2699,13 +2693,11 @@ cxgbe_attach(device_t dev)
 	struct port_info *pi = device_get_softc(dev);
 	struct adapter *sc = pi->adapter;
 	struct vi_info *vi;
-	int i, rc;
+	int i;
 
 	sysctl_ctx_init(&pi->ctx);
 
-	rc = cxgbe_vi_attach(dev, &pi->vi[0]);
-	if (rc)
-		return (rc);
+	cxgbe_vi_attach(dev, &pi->vi[0]);
 
 	for_each_vi(pi, i, vi) {
 		if (i == 0)
@@ -3584,11 +3576,8 @@ vcxgbe_attach(device_t dev)
 	if (rc)
 		return (rc);
 
-	rc = cxgbe_vi_attach(dev, vi);
-	if (rc) {
-		t4_free_vi(sc, sc->mbox, sc->pf, 0, vi->viid);
-		return (rc);
-	}
+	cxgbe_vi_attach(dev, vi);
+
 	return (0);
 }
 
