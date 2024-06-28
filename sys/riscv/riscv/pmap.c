@@ -4614,11 +4614,6 @@ pmap_clear_modify(vm_page_t m)
 	    ("%s: page %p is not managed", __func__, m));
 	vm_page_assert_busied(m);
 
-	/*
-	 * If the page is not PGA_WRITEABLE, then no PTEs can have PG_M set.
-	 * If the object containing the page is locked and the page is not
-	 * exclusive busied, then PGA_WRITEABLE cannot be concurrently set.
-	 */
 	if (!pmap_page_is_write_mapped(m))
 	        return;
 
