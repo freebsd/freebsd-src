@@ -1875,6 +1875,21 @@ intr_ipi_pic_register(device_t dev, u_int priority)
 }
 
 /*
+ *  Handler for flagging IPIs called via intr_event_handle() as stray.
+ */
+static int
+isrc_ipi_strayfunc(void *_isrc)
+{
+	struct intr_irqsrc *isrc = _isrc;
+
+	printf("ERROR: %s(): IPI for \"%s\" called via intr_event_handle()!\n",
+	    __func__, isrc->isrc_event->ie_name);
+
+	/* ensure PIC_DISABLE_INTR() is NOT called */
+	return (FILTER_HANDLED);
+}
+
+/*
  *  Setup IPI handler on interrupt controller.
  *
  *  Not SMP coherent.
@@ -1900,6 +1915,9 @@ intr_ipi_setup(u_int ipi, const char *name, intr_ipi_handler_t *hand,
 	error = PIC_IPI_SETUP(intr_ipi_dev, ipi, &isrc);
 	if (error != 0)
 		return;
+
+	intr_event_add_handler(isrc->isrc_event, name, isrc_ipi_strayfunc,
+	    NULL, isrc, PI_INTR, 0, NULL);
 
 	isrc->isrc_handlers++;
 
