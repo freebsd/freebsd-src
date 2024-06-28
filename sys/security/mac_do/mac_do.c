@@ -130,23 +130,26 @@ out:
 }
 
 static int
-parse_rules(char *string, struct rulehead *head)
+parse_rules(const char *const string, struct rulehead *const head)
 {
 	struct rule *new;
+	char *const copy = strdup(string, M_DO);
+	char *p = copy;
 	char *element;
 	int error = 0;
 
-	while ((element = strsep(&string, ",")) != NULL) {
-		if (strlen(element) == 0)
+	while ((element = strsep(&p, ",")) != NULL) {
+		if (element[0] == '\0')
 			continue;
 		error = parse_rule_element(element, &new);
-		if (error)
+		if (error != 0) {
+			toast_rules(head);
 			goto out;
+		}
 		TAILQ_INSERT_TAIL(head, new, r_entries);
 	}
 out:
-	if (error != 0)
-		toast_rules(head);
+	free(copy, M_DO);
 	return (error);
 }
 
@@ -175,7 +178,7 @@ mac_do_rule_find(struct prison *spr, struct prison **prp)
 static int
 sysctl_rules(SYSCTL_HANDLER_ARGS)
 {
-	char *copy_string, *new_string;
+	char *new_string;
 	struct rulehead head, saved_head;
 	struct prison *pr;
 	struct mac_do_rule *rules;
@@ -196,10 +199,8 @@ sysctl_rules(SYSCTL_HANDLER_ARGS)
 	if (error)
 		goto out;
 
-	copy_string = strdup(new_string, M_DO);
 	TAILQ_INIT(&head);
-	error = parse_rules(copy_string, &head);
-	free(copy_string, M_DO);
+	error = parse_rules(new_string, &head);
 	if (error)
 		goto out;
 	TAILQ_INIT(&saved_head);
@@ -272,7 +273,7 @@ mac_do_prison_set(void *obj, void *data)
 	struct vfsoptlist *opts = data;
 	struct rulehead head, saved_head;
 	struct mac_do_rule *rules;
-	char *rules_string, *copy_string;
+	char *rules_string;
 	int error, jsys, len;
 
 	error = vfs_copyopt(opts, "mdo", &jsys, sizeof(jsys));
@@ -293,10 +294,8 @@ mac_do_prison_set(void *obj, void *data)
 		mac_do_alloc_prison(pr, &rules);
 		if (rules_string == NULL)
 			break;
-		copy_string = strdup(rules_string, M_DO);
 		TAILQ_INIT(&head);
-		error = parse_rules(copy_string, &head);
-		free(copy_string, M_DO);
+		error = parse_rules(rules_string, &head);
 		if (error)
 			return (1);
 		TAILQ_INIT(&saved_head);
