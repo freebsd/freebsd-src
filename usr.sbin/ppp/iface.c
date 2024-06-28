@@ -201,64 +201,42 @@ iface_Create(const char *name)
 static int
 iface_addr_Zap(const char *name, struct iface_addr *addr, int s)
 {
-  struct ifaliasreq ifra;
+  struct ifreq ifr;
 #ifndef NOINET6
-  struct in6_aliasreq ifra6;
+  struct in6_ifreq ifr6;
 #endif
-  struct sockaddr_in *me4, *msk4, *peer4;
-  struct sockaddr_storage ssme, sspeer, ssmsk;
+  struct sockaddr_in *me4;
+  struct sockaddr_storage ssme;
   int res, saved_errno;
 
-  ncprange_getsa(&addr->ifa, &ssme, &ssmsk);
-  ncpaddr_getsa(&addr->peer, &sspeer);
+  ncprange_getsa(&addr->ifa, &ssme, NULL);
   res = 0;
 
   switch (ncprange_family(&addr->ifa)) {
   case AF_INET:
-    memset(&ifra, '\0', sizeof ifra);
-    strncpy(ifra.ifra_name, name, sizeof ifra.ifra_name - 1);
-
-    me4 = (struct sockaddr_in *)&ifra.ifra_addr;
+    memset(&ifr, '\0', sizeof ifr);
+    strncpy(ifr.ifr_name, name, sizeof ifr.ifr_name - 1);
+    me4 = (struct sockaddr_in *)&ifr.ifr_addr;
     memcpy(me4, &ssme, sizeof *me4);
 
-    msk4 = (struct sockaddr_in *)&ifra.ifra_mask;
-    memcpy(msk4, &ssmsk, sizeof *msk4);
-
-    peer4 = (struct sockaddr_in *)&ifra.ifra_broadaddr;
-    if (ncpaddr_family(&addr->peer) == AF_UNSPEC) {
-      peer4->sin_family = AF_INET;
-      peer4->sin_len = sizeof(*peer4);
-      peer4->sin_addr.s_addr = INADDR_NONE;
-    } else
-      memcpy(peer4, &sspeer, sizeof *peer4);
-
-    res = ID0ioctl(s, SIOCDIFADDR, &ifra);
+    res = ID0ioctl(s, SIOCDIFADDR, &ifr);
     saved_errno = errno;
     if (log_IsKept(LogDEBUG)) {
       char buf[NCP_ASCIIBUFFERSIZE];
 
       snprintf(buf, sizeof buf, "%s", ncprange_ntoa(&addr->ifa));
       log_Printf(LogWARN, "%s: DIFADDR %s -> %s returns %d\n",
-                 ifra.ifra_name, buf, ncpaddr_ntoa(&addr->peer), res);
+                 ifr.ifr_name, buf, ncpaddr_ntoa(&addr->peer), res);
     }
     break;
 
 #ifndef NOINET6
   case AF_INET6:
-    memset(&ifra6, '\0', sizeof ifra6);
-    strncpy(ifra6.ifra_name, name, sizeof ifra6.ifra_name - 1);
+    memset(&ifr6, '\0', sizeof ifr6);
+    strncpy(ifr6.ifr_name, name, sizeof ifr6.ifr_name - 1);
+    memcpy(&ifr6.ifr_addr, &ssme, sizeof ifr6.ifr_addr);
 
-    memcpy(&ifra6.ifra_addr, &ssme, sizeof ifra6.ifra_addr);
-    memcpy(&ifra6.ifra_prefixmask, &ssmsk, sizeof ifra6.ifra_prefixmask);
-    ifra6.ifra_prefixmask.sin6_family = AF_UNSPEC;
-    if (ncpaddr_family(&addr->peer) == AF_UNSPEC)
-      ifra6.ifra_dstaddr.sin6_family = AF_UNSPEC;
-    else
-      memcpy(&ifra6.ifra_dstaddr, &sspeer, sizeof ifra6.ifra_dstaddr);
-    ifra6.ifra_lifetime.ia6t_vltime = ND6_INFINITE_LIFETIME;
-    ifra6.ifra_lifetime.ia6t_pltime = ND6_INFINITE_LIFETIME;
-
-    res = ID0ioctl(s, SIOCDIFADDR_IN6, &ifra6);
+    res = ID0ioctl(s, SIOCDIFADDR_IN6, &ifr6);
     saved_errno = errno;
     break;
 #endif
