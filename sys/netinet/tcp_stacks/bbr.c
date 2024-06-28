@@ -2356,11 +2356,11 @@ bbr_log_to_event(struct tcp_bbr *bbr, uint32_t cts, int32_t to_num)
 		log.u_bbr.flex1 = bbr->bbr_timer_src;
 		log.u_bbr.flex2 = 0;
 		log.u_bbr.flex3 = bbr->r_ctl.rc_hpts_flags;
-		ar = (uint64_t)(bbr->r_ctl.rc_resend);
+		ar = (uintptr_t)(bbr->r_ctl.rc_resend);
 		ar >>= 32;
 		ar &= 0x00000000ffffffff;
 		log.u_bbr.flex4 = (uint32_t)ar;
-		ar = (uint64_t)bbr->r_ctl.rc_resend;
+		ar = (uintptr_t)bbr->r_ctl.rc_resend;
 		ar &= 0x00000000ffffffff;
 		log.u_bbr.flex5 = (uint32_t)ar;
 		log.u_bbr.flex6 = TICKS_2_USEC(bbr->rc_tp->t_rxtcur);
@@ -2718,12 +2718,13 @@ bbr_type_log_hdwr_pacing(struct tcp_bbr *bbr, const struct ifnet *ifp,
 {
 	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
+		uint64_t ifp64 = (uintptr_t)ifp;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
 		log.u_bbr.flex1 = ((hw_rate >> 32) & 0x00000000ffffffff);
 		log.u_bbr.flex2 = (hw_rate & 0x00000000ffffffff);
-		log.u_bbr.flex3 = (((uint64_t)ifp  >> 32) & 0x00000000ffffffff);
-		log.u_bbr.flex4 = ((uint64_t)ifp & 0x00000000ffffffff);
+		log.u_bbr.flex3 = ((ifp64  >> 32) & 0x00000000ffffffff);
+		log.u_bbr.flex4 = (ifp64 & 0x00000000ffffffff);
 		log.u_bbr.bw_inuse = rate;
 		log.u_bbr.flex5 = line;
 		log.u_bbr.flex6 = error;
