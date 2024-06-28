@@ -172,12 +172,6 @@ ip17x_attach_phys(struct ip17x_softc *sc)
 		sc->phyport[phy] = port;
 		sc->portphy[port] = phy;
 		sc->ifp[port] = if_alloc(IFT_ETHER);
-		if (sc->ifp[port] == NULL) {
-			device_printf(sc->sc_dev, "couldn't allocate ifnet structure\n");
-			err = ENOMEM;
-			break;
-		}
-
 		if_setsoftc(sc->ifp[port], sc);
 		if_setflags(sc->ifp[port], IFF_UP | IFF_BROADCAST |
 		    IFF_DRV_RUNNING | IFF_SIMPLEX);

@@ -1025,11 +1025,6 @@ cpswp_attach(device_t dev)
 
 	/* Allocate network interface */
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		cpswp_detach(dev);
-		return (ENXIO);
-	}
-
 	if_initname(ifp, device_get_name(sc->dev), sc->unit);
 	if_setsoftc(ifp, sc);
 	if_setflags(ifp, IFF_SIMPLEX | IFF_MULTICAST | IFF_BROADCAST);

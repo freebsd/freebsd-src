@@ -137,10 +137,6 @@ ntb_net_attach(device_t dev)
 	int i;
 
 	ifp = sc->ifp = if_gethandle(IFT_ETHER);
-	if (ifp == NULL) {
-		printf("ntb: Cannot allocate ifnet structure\n");
-		return (ENOMEM);
-	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	if_setdev(ifp, dev);
 
