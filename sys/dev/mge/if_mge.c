@@ -849,12 +849,6 @@ mge_attach(device_t dev)
 
 	/* Allocate network interface */
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(dev, "if_alloc() failed\n");
-		mge_detach(dev);
-		return (ENOMEM);
-	}
-
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_softc = sc;
 	ifp->if_flags = IFF_SIMPLEX | IFF_MULTICAST | IFF_BROADCAST;

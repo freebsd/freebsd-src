@@ -238,12 +238,6 @@ rtl8366rb_attach(device_t dev)
 	/* PHYs need an interface, so we generate a dummy one */
 	for (i = 0; i < sc->numphys; i++) {
 		sc->ifp[i] = if_alloc(IFT_ETHER);
-		if (sc->ifp[i] == NULL) {
-			device_printf(dev, "couldn't allocate ifnet structure\n");
-			err = ENOMEM;
-			break;
-		}
-
 		sc->ifp[i]->if_softc = sc;
 		sc->ifp[i]->if_flags |= IFF_UP | IFF_BROADCAST | IFF_DRV_RUNNING
 			| IFF_SIMPLEX;

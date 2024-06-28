@@ -1363,12 +1363,6 @@ bce_attach(device_t dev)
 
 	/* Allocate an ifnet structure. */
 	ifp = sc->bce_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		BCE_PRINTF("%s(%d): Interface allocation failed!\n",
-		    __FILE__, __LINE__);
-		rc = ENXIO;
-		goto bce_attach_fail;
-	}
 
 	/* Initialize the ifnet interface. */
 	ifp->if_softc	= sc;

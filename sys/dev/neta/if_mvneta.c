@@ -620,11 +620,6 @@ mvneta_attach(device_t self)
 
 	/* Allocate network interface */
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(self, "if_alloc() failed\n");
-		mvneta_detach(self);
-		return (ENOMEM);
-	}
 	if_initname(ifp, device_get_name(self), device_get_unit(self));
 
 	/*

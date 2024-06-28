@@ -438,12 +438,6 @@ vte_attach(device_t dev)
 	vte_get_macaddr(sc);
 
 	ifp = sc->vte_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(dev, "cannot allocate ifnet structure.\n");
-		error = ENXIO;
-		goto fail;
-	}
-
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;

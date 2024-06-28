@@ -601,10 +601,6 @@ nm_os_vi_persist(const char *name, struct ifnet **ret)
 	eaddr[5] = (uint8_t)unit;
 
 	ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		nm_prerr("if_alloc failed");
-		return ENOMEM;
-	}
 	if_initname(ifp, name, IF_DUNIT_NONE);
 	ifp->if_mtu = 65536;
 	ifp->if_flags = IFF_UP | IFF_SIMPLEX | IFF_MULTICAST;

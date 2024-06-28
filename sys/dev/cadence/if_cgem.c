@@ -1786,11 +1786,6 @@ cgem_attach(device_t dev)
 
 	/* Set up ifnet structure. */
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(dev, "could not allocate ifnet structure\n");
-		cgem_detach(dev);
-		return (ENOMEM);
-	}
 	if_setsoftc(ifp, sc);
 	if_initname(ifp, IF_CGEM_NAME, device_get_unit(dev));
 	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);

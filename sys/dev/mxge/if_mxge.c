@@ -4778,11 +4778,6 @@ mxge_attach(device_t dev)
 	}
 
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(dev, "can not if_alloc()\n");
-		err = ENOSPC;
-		goto abort_with_parent_dmat;
-	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 
 	snprintf(sc->cmd_mtx_name, sizeof(sc->cmd_mtx_name), "%s:cmd",
@@ -4953,7 +4948,6 @@ abort_with_lock:
 	mtx_destroy(&sc->cmd_mtx);
 	mtx_destroy(&sc->driver_mtx);
 	if_free(ifp);
-abort_with_parent_dmat:
 	bus_dma_tag_destroy(sc->parent_dmat);
 abort_with_tq:
 	if (sc->tq != NULL) {

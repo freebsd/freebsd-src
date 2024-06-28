@@ -173,12 +173,6 @@ t4_cloner_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 		goto done;
 
 	ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		ifc_free_unit(ifc, unit);
-		rc = ENOMEM;
-		goto done;
-	}
-
 	/* Note that if_xname is not <if_dname><if_dunit>. */
 	strlcpy(ifp->if_xname, name, sizeof(ifp->if_xname));
 	ifp->if_dname = t4_cloner_name;

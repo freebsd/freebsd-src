@@ -1144,7 +1144,7 @@ check_tx_queues(struct sume_adapter *adapter)
 	}
 }
 
-static int
+static void
 sume_ifp_alloc(struct sume_adapter *adapter, uint32_t port)
 {
 	struct ifnet *ifp;
@@ -1152,11 +1152,6 @@ sume_ifp_alloc(struct sume_adapter *adapter, uint32_t port)
 	    M_ZERO | M_WAITOK);
 
 	ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(adapter->dev, "cannot allocate ifnet\n");
-		return (ENOMEM);
-	}
-
 	adapter->ifp[port] = ifp;
 	ifp->if_softc = nf_priv;
 
@@ -1182,8 +1177,6 @@ sume_ifp_alloc(struct sume_adapter *adapter, uint32_t port)
 	ifmedia_set(&nf_priv->media, IFM_ETHER | IFM_10G_SR);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-
-	return (0);
 }
 
 static void
@@ -1443,11 +1436,8 @@ sume_attach(device_t dev)
 		goto error;
 
 	/* Now do the network interfaces. */
-	for (i = 0; i < SUME_NPORTS; i++) {
-		error = sume_ifp_alloc(adapter, i);
-		if (error != 0)
-			goto error;
-	}
+	for (i = 0; i < SUME_NPORTS; i++)
+		sume_ifp_alloc(adapter, i);
 
 	/*  Register stats and register sysctls. */
 	sume_sysctl_init(adapter);

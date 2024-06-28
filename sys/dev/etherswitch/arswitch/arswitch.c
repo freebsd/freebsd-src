@@ -175,12 +175,6 @@ arswitch_attach_phys(struct arswitch_softc *sc)
 	snprintf(name, IFNAMSIZ, "%sport", device_get_nameunit(sc->sc_dev));
 	for (phy = 0; phy < sc->numphys; phy++) {
 		sc->ifp[phy] = if_alloc(IFT_ETHER);
-		if (sc->ifp[phy] == NULL) {
-			device_printf(sc->sc_dev, "couldn't allocate ifnet structure\n");
-			err = ENOMEM;
-			break;
-		}
-
 		sc->ifp[phy]->if_softc = sc;
 		sc->ifp[phy]->if_flags |= IFF_UP | IFF_BROADCAST |
 		    IFF_DRV_RUNNING | IFF_SIMPLEX;

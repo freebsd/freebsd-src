@@ -432,11 +432,6 @@ usie_attach(device_t self)
 
 	/* setup ifnet (Direct IP) */
 	sc->sc_ifp = ifp = if_alloc(IFT_OTHER);
-
-	if (ifp == NULL) {
-		device_printf(self, "Could not allocate a network interface\n");
-		goto detach;
-	}
 	if_initname(ifp, "usie", device_get_unit(self));
 
 	ifp->if_softc = sc;

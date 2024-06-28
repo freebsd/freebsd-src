@@ -1331,11 +1331,6 @@ lio_setup_nic_devices(struct octeon_device *octeon_dev)
 
 		ifp = if_alloc(IFT_ETHER);
 
-		if (ifp == NULL) {
-			lio_dev_err(octeon_dev, "Device allocation failed\n");
-			goto setup_nic_dev_fail;
-		}
-
 		lio = malloc(sizeof(struct lio), M_DEVBUF, M_NOWAIT | M_ZERO);
 
 		if (lio == NULL) {

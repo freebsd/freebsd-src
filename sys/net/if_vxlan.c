@@ -3217,10 +3217,6 @@ vxlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	}
 
 	ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		error = ENOSPC;
-		goto fail;
-	}
 
 	vxlan_stats_alloc(sc);
 	sc->vxl_ifp = ifp;

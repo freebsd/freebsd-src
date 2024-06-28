@@ -1283,11 +1283,6 @@ sk_attach(device_t dev)
 	sk_dma_jumbo_alloc(sc_if);
 
 	ifp = sc_if->sk_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(sc_if->sk_if_dev, "can not if_alloc()\n");
-		error = ENOSPC;
-		goto fail;
-	}
 	ifp->if_softc = sc_if;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;

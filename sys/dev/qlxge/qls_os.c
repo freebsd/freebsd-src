@@ -724,10 +724,6 @@ qls_init_ifnet(device_t dev, qla_host_t *ha)
 	QL_DPRINT2((dev, "%s: enter\n", __func__));
 
 	ifp = ha->ifp = if_alloc(IFT_ETHER);
-
-	if (ifp == NULL)
-		panic("%s: cannot if_alloc()\n", device_get_nameunit(dev));
-
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_baudrate = IF_Gbps(10);
 	ifp->if_init = qls_init;

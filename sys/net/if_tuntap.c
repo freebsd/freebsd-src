@@ -964,9 +964,6 @@ tuncreate(struct cdev *dev)
 		iflags |= IFF_POINTOPOINT;
 	}
 	ifp = tp->tun_ifp = if_alloc(type);
-	if (ifp == NULL)
-		panic("%s%d: failed to if_alloc() interface.\n",
-		    drv->cdevsw.d_name, dev2unit(dev));
 	ifp->if_softc = tp;
 	if_initname(ifp, drv->cdevsw.d_name, dev2unit(dev));
 	ifp->if_ioctl = tunifioctl;

@@ -523,10 +523,6 @@ ng_iface_constructor(node_p node)
 	/* Allocate node and interface private structures */
 	priv = malloc(sizeof(*priv), M_NETGRAPH_IFACE, M_WAITOK | M_ZERO);
 	ifp = if_alloc(IFT_PROPVIRTUAL);
-	if (ifp == NULL) {
-		free(priv, M_NETGRAPH_IFACE);
-		return (ENOMEM);
-	}
 
 	rm_init(&priv->lock, "ng_iface private rmlock");
 

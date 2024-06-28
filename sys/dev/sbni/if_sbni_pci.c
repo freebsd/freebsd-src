@@ -137,20 +137,9 @@ sbni_pci_attach(device_t dev)
 
 	memset(&flags, 0, sizeof(flags));
 
-	error = sbni_attach(sc, device_get_unit(dev) * 2, flags);
-	if (error) {
-		device_printf(dev, "cannot initialize driver\n");
-		goto attach_failed;
-	}
-	if (sc->slave_sc) {
-		error = sbni_attach(sc->slave_sc, device_get_unit(dev) * 2 + 1,
-		    flags);
-		if (error) {
-			device_printf(dev, "cannot initialize slave\n");
-			sbni_detach(sc);
-			goto attach_failed;
-		}
-	}
+	sbni_attach(sc, device_get_unit(dev) * 2, flags);
+	if (sc->slave_sc)
+		sbni_attach(sc->slave_sc, device_get_unit(dev) * 2 + 1, flags);
 
 	if (sc->irq_res) {
 		error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET |

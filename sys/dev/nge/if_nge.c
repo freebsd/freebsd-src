@@ -902,11 +902,6 @@ nge_attach(device_t dev)
 	nge_sysctl_node(sc);
 
 	ifp = sc->nge_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(dev, "can not allocate ifnet structure\n");
-		error = ENOSPC;
-		goto fail;
-	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;

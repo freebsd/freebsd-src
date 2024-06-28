@@ -527,10 +527,6 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	struct ifnet *ifp;
 
 	ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		ic_printf(ic, "%s: unable to allocate ifnet\n", __func__);
-		return ENOMEM;
-	}
 	if_initname(ifp, name, unit);
 	ifp->if_softc = vap;			/* back pointer */
 	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST;

@@ -2376,11 +2376,6 @@ ti_attach(device_t dev)
 	callout_init_mtx(&sc->ti_watchdog, &sc->ti_mtx, 0);
 	ifmedia_init(&sc->ifmedia, IFM_IMASK, ti_ifmedia_upd, ti_ifmedia_sts);
 	ifp = sc->ti_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(dev, "can not if_alloc()\n");
-		error = ENOSPC;
-		goto fail;
-	}
 	sc->ti_ifp->if_hwassist = TI_CSUM_FEATURES;
 	sc->ti_ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_RXCSUM;
 	sc->ti_ifp->if_capenable = sc->ti_ifp->if_capabilities;

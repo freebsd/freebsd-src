@@ -4528,10 +4528,6 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	    M_MLX5EN, mlx5_dev_domainset(mdev), M_WAITOK | M_ZERO);
 
 	ifp = priv->ifp = if_alloc_dev(IFT_ETHER, mdev->pdev->dev.bsddev);
-	if (ifp == NULL) {
-		mlx5_core_err(mdev, "if_alloc() failed\n");
-		goto err_free_priv;
-	}
 	/* setup all static fields */
 	if (mlx5e_priv_static_init(priv, mdev, mdev->priv.eq_table.num_comp_vectors)) {
 		mlx5_core_err(mdev, "mlx5e_priv_static_init() failed\n");
@@ -4860,8 +4856,6 @@ err_free_sysctl:
 
 err_free_ifp:
 	if_free(ifp);
-
-err_free_priv:
 	free(priv, M_MLX5EN);
 	return (NULL);
 }

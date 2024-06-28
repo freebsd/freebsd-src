@@ -1608,11 +1608,6 @@ re_attach(device_t dev)
 	re_add_sysctls(sc);
 
 	ifp = sc->rl_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(dev, "can not if_alloc()\n");
-		error = ENOSPC;
-		goto fail;
-	}
 
 	/* Take controller out of deep sleep mode. */
 	if ((sc->rl_flags & RL_FLAG_MACSLEEP) != 0) {

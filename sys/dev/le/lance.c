@@ -112,8 +112,6 @@ lance_config(struct lance_softc *sc, const char* name, int unit)
 		return (ENXIO);
 
 	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL)
-		return (ENOSPC);
 
 	callout_init_mtx(&sc->sc_wdog_ch, &sc->sc_mtx, 0);
 

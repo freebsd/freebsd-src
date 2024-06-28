@@ -1082,11 +1082,6 @@ sfxge_attach(device_t dev)
 
 	/* Allocate ifnet. */
 	ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(dev, "Couldn't allocate ifnet\n");
-		error = ENOMEM;
-		goto fail;
-	}
 	sc->ifnet = ifp;
 
 	/* Initialize hardware. */
@@ -1123,8 +1118,6 @@ fail3:
 
 fail2:
 	if_free(sc->ifnet);
-
-fail:
 	DBGPRINT(sc->dev, "failed %d", error);
 	return (error);
 }

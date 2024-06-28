@@ -315,10 +315,6 @@ smc_attach(device_t dev)
 	sc->smc_dev = dev;
 
 	ifp = sc->smc_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		error = ENOSPC;
-		goto done;
-	}
 
 	mtx_init(&sc->smc_mtx, device_get_nameunit(dev), NULL, MTX_DEF);
 

@@ -104,11 +104,6 @@ edsc_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	 */
 	sc = malloc(sizeof(struct edsc_softc), M_EDSC, M_WAITOK | M_ZERO);
 	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		free(sc, M_EDSC);
-		return (ENOSPC);
-	}
-
 	ifp->if_softc = sc;
 
 	/*

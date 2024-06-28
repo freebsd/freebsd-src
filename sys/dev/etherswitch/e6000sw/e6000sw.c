@@ -365,8 +365,6 @@ e6000sw_init_interface(e6000sw_softc_t *sc, int port)
 	snprintf(name, IFNAMSIZ, "%sport", device_get_nameunit(sc->dev));
 
 	sc->ifp[port] = if_alloc(IFT_ETHER);
-	if (sc->ifp[port] == NULL)
-		return (ENOMEM);
 	sc->ifp[port]->if_softc = sc;
 	sc->ifp[port]->if_flags |= IFF_UP | IFF_BROADCAST |
 	    IFF_DRV_RUNNING | IFF_SIMPLEX;

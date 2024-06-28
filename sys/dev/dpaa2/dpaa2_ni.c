@@ -573,11 +573,6 @@ dpaa2_ni_attach(device_t dev)
 
 	/* Allocate network interface */
 	ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(dev, "%s: failed to allocate network interface\n",
-		    __func__);
-		return (ENXIO);
-	}
 	sc->ifp = ifp;
 	if_initname(ifp, DPAA2_NI_IFNAME, device_get_unit(sc->dev));
 

@@ -389,11 +389,6 @@ axgbe_attach(device_t dev)
 	OF_getprop(node, "mac-address", sc->mac_addr, ETHER_ADDR_LEN);
 
 	sc->prv.netdev = ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(dev, "Cannot alloc ifnet\n");
-		return (ENXIO);
-	}
-
 	sc->prv.dev = dev;
 	sc->prv.dmat = bus_get_dma_tag(dev);
 	sc->prv.phy.advertising = ADVERTISED_10000baseKR_Full |

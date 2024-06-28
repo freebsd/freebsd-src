@@ -119,9 +119,6 @@ pflog_clone_create(struct if_clone *ifc, int unit, caddr_t param)
 		return (EINVAL);
 
 	ifp = if_alloc(IFT_PFLOG);
-	if (ifp == NULL) {
-		return (ENOSPC);
-	}
 	if_initname(ifp, pflogname, unit);
 	ifp->if_mtu = PFLOGMTU;
 	ifp->if_ioctl = pflogioctl;

@@ -2330,10 +2330,6 @@ qlnx_init_ifnet(device_t dev, qlnx_host_t *ha)
         struct ifnet	*ifp;
 
         ifp = ha->ifp = if_alloc(IFT_ETHER);
-
-        if (ifp == NULL)
-                panic("%s: cannot if_alloc()\n", device_get_nameunit(dev));
-
         if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 
 	device_id = pci_get_device(ha->pci_dev);

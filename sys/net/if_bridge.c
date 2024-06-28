@@ -749,10 +749,6 @@ bridge_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK|M_ZERO);
 	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		free(sc, M_DEVBUF);
-		return (ENOSPC);
-	}
 
 	BRIDGE_LOCK_INIT(sc);
 	sc->sc_brtmax = BRIDGE_RTABLE_MAX;

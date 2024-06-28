@@ -342,10 +342,6 @@ pfsync_clone_create(struct if_clone *ifc, int unit, caddr_t param)
 	sc->sc_maxupdates = 128;
 
 	ifp = sc->sc_ifp = if_alloc(IFT_PFSYNC);
-	if (ifp == NULL) {
-		free(sc, M_PFSYNC);
-		return (ENOSPC);
-	}
 	if_initname(ifp, pfsyncname, unit);
 	ifp->if_softc = sc;
 	ifp->if_ioctl = pfsyncioctl;

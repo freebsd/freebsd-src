@@ -5964,10 +5964,6 @@ iflib_register(if_ctx_t ctx)
 	} else
 		type = IFT_ETHER;
 	ifp = ctx->ifc_ifp = if_alloc(type);
-	if (ifp == NULL) {
-		device_printf(dev, "can not allocate ifnet structure\n");
-		return (ENOMEM);
-	}
 
 	/*
 	 * Initialize our context's device specific methods

@@ -989,11 +989,6 @@ ste_attach(device_t dev)
 		goto fail;
 
 	ifp = sc->ste_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(dev, "can not if_alloc()\n");
-		error = ENOSPC;
-		goto fail;
-	}
 
 	/* Do MII setup. */
 	phy = MII_PHY_ANY;

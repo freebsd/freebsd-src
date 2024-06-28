@@ -141,7 +141,7 @@ static void nicvf_config_cpi(struct nicvf *);
 static int nicvf_rss_init(struct nicvf *);
 static int nicvf_init_resources(struct nicvf *);
 
-static int nicvf_setup_ifnet(struct nicvf *);
+static void nicvf_setup_ifnet(struct nicvf *);
 static int nicvf_setup_ifmedia(struct nicvf *);
 static void nicvf_hw_addr_random(uint8_t *);
 
@@ -249,11 +249,7 @@ nicvf_attach(device_t dev)
 		nicvf_rss_init(nic);
 	NICVF_CORE_UNLOCK(nic);
 
-	err = nicvf_setup_ifnet(nic);
-	if (err != 0) {
-		device_printf(dev, "Could not set-up ifnet\n");
-		goto err_release_intr;
-	}
+	nicvf_setup_ifnet(nic);
 
 	err = nicvf_setup_ifmedia(nic);
 	if (err != 0) {
@@ -331,17 +327,12 @@ nicvf_hw_addr_random(uint8_t *hwaddr)
 	memcpy(hwaddr, addr, ETHER_ADDR_LEN);
 }
 
-static int
+static void
 nicvf_setup_ifnet(struct nicvf *nic)
 {
 	struct ifnet *ifp;
 
 	ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(nic->dev, "Could not allocate ifnet structure\n");
-		return (ENOMEM);
-	}
-
 	nic->ifp = ifp;
 
 	if_setsoftc(ifp, nic);
@@ -381,8 +372,6 @@ nicvf_setup_ifnet(struct nicvf *nic)
 	if (nic->hw_tso)
 		if_sethwassistbits(ifp, (CSUM_TSO), 0);
 	if_setcapenable(ifp, if_getcapabilities(ifp));
-
-	return (0);
 }
 
 static int

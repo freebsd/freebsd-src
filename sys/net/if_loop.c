@@ -125,9 +125,6 @@ lo_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	struct ifnet *ifp;
 
 	ifp = if_alloc(IFT_LOOP);
-	if (ifp == NULL)
-		return (ENOSPC);
-
 	if_initname(ifp, loname, unit);
 	ifp->if_mtu = LOMTU;
 	ifp->if_flags = IFF_LOOPBACK | IFF_MULTICAST;

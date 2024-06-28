@@ -170,7 +170,7 @@ static void oce_rx_lro(struct oce_rq *rq, struct nic_hwlro_singleton_cqe *cqe, s
 static void oce_rx_mbuf_chain(struct oce_rq *rq, struct oce_common_cqe_info *cqe_info, struct mbuf **m);
 
 /* Helper function prototypes in this file */
-static int  oce_attach_ifp(POCE_SOFTC sc);
+static void oce_attach_ifp(POCE_SOFTC sc);
 static void oce_add_vlan(void *arg, struct ifnet *ifp, uint16_t vtag);
 static void oce_del_vlan(void *arg, struct ifnet *ifp, uint16_t vtag);
 static int  oce_vid_config(POCE_SOFTC sc);
@@ -336,9 +336,7 @@ oce_attach(device_t dev)
 	if (rc)
 		goto intr_free;
 
-	rc = oce_attach_ifp(sc);
-	if (rc)
-		goto queues_free;
+	oce_attach_ifp(sc);
 
 #if defined(INET6) || defined(INET)
 	rc = oce_init_lro(sc);
@@ -394,7 +392,6 @@ ifp_free:
 #endif
 	ether_ifdetach(sc->ifp);
 	if_free(sc->ifp);
-queues_free:
 	oce_queue_release_all(sc);
 intr_free:
 	oce_intr_free(sc);
@@ -2103,13 +2100,11 @@ oce_rq_handler(void *arg)
  *		   Helper function prototypes in this file 		     *
  *****************************************************************************/
 
-static int 
+static void
 oce_attach_ifp(POCE_SOFTC sc)
 {
 
 	sc->ifp = if_alloc(IFT_ETHER);
-	if (!sc->ifp)
-		return ENOMEM;
 
 	ifmedia_init(&sc->media, IFM_IMASK, oce_media_change, oce_media_status);
 	ifmedia_add(&sc->media, IFM_ETHER | IFM_AUTO, 0, NULL);
@@ -2153,8 +2148,6 @@ oce_attach_ifp(POCE_SOFTC sc)
 	sc->ifp->if_hw_tsomaxsegsize = 4096;
 
 	ether_ifattach(sc->ifp, sc->macaddr.mac_addr);
-
-	return 0;
 }
 
 static void

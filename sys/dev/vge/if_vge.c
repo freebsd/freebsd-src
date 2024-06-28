@@ -1095,12 +1095,6 @@ vge_attach(device_t dev)
 		goto fail;
 
 	ifp = sc->vge_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(dev, "can not if_alloc()\n");
-		error = ENOSPC;
-		goto fail;
-	}
-
 	vge_miipoll_start(sc);
 	/* Do MII setup */
 	error = mii_attach(dev, &sc->vge_miibus, ifp, vge_ifmedia_upd,

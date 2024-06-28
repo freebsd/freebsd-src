@@ -190,8 +190,6 @@ cas_attach(struct cas_softc *sc)
 
 	/* Set up ifnet structure. */
 	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL)
-		return (ENOSPC);
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(sc->sc_dev),
 	    device_get_unit(sc->sc_dev));

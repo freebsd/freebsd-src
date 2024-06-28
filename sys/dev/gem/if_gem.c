@@ -153,8 +153,6 @@ gem_attach(struct gem_softc *sc)
 
 	/* Set up ifnet structure. */
 	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL)
-		return (ENOSPC);
 	sc->sc_csum_features = GEM_CSUM_FEATURES;
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(sc->sc_dev),

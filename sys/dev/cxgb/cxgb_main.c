@@ -1018,11 +1018,6 @@ cxgb_port_attach(device_t dev)
 
 	/* Allocate an ifnet object and set it up */
 	ifp = p->ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(dev, "Cannot allocate ifnet\n");
-		return (ENOMEM);
-	}
-	
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_init = cxgb_init;
 	ifp->if_softc = p;

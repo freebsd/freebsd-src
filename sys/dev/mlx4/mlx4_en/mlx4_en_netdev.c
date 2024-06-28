@@ -2143,11 +2143,6 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	dev = priv->dev = if_alloc(IFT_ETHER);
-	if (dev == NULL) {
-		en_err(priv, "Net device allocation failed\n");
-		kfree(priv);
-		return -ENOMEM;
-	}
 	dev->if_softc = priv;
 	if_initname(dev, "mlxen", (device_get_unit(
 	    mdev->pdev->dev.bsddev) * MLX4_MAX_PORTS) + port - 1);

@@ -148,7 +148,7 @@ static int ena_ioctl(if_t, u_long, caddr_t);
 static int ena_get_dev_offloads(struct ena_com_dev_get_features_ctx *);
 static void ena_update_host_info(struct ena_admin_host_info *, if_t);
 static void ena_update_hwassist(struct ena_adapter *);
-static int ena_setup_ifnet(device_t, struct ena_adapter *,
+static void ena_setup_ifnet(device_t, struct ena_adapter *,
     struct ena_com_dev_get_features_ctx *);
 static int ena_enable_wc(device_t, struct resource *);
 static int ena_set_queues_placement_policy(device_t, struct ena_com_dev *,
@@ -2462,7 +2462,7 @@ ena_update_hwassist(struct ena_adapter *adapter)
 	if_sethwassistbits(ifp, flags, 0);
 }
 
-static int
+static void
 ena_setup_ifnet(device_t pdev, struct ena_adapter *adapter,
     struct ena_com_dev_get_features_ctx *feat)
 {
@@ -2470,10 +2470,6 @@ ena_setup_ifnet(device_t pdev, struct ena_adapter *adapter,
 	int caps = 0;
 
 	ifp = adapter->ifp = if_gethandle(IFT_ETHER);
-	if (unlikely(ifp == NULL)) {
-		ena_log(pdev, ERR, "can not allocate ifnet structure\n");
-		return (ENXIO);
-	}
 	if_initname(ifp, device_get_name(pdev), device_get_unit(pdev));
 	if_setdev(ifp, pdev);
 	if_setsoftc(ifp, adapter);
@@ -2517,8 +2513,6 @@ ena_setup_ifnet(device_t pdev, struct ena_adapter *adapter,
 	ifmedia_set(&adapter->media, IFM_ETHER | IFM_AUTO);
 
 	ether_ifattach(ifp, adapter->mac_addr);
-
-	return (0);
 }
 
 void
@@ -3812,11 +3806,7 @@ ena_attach(device_t pdev)
 	ena_sysctl_add_nodes(adapter);
 
 	/* setup network interface */
-	rc = ena_setup_ifnet(pdev, adapter, &get_feat_ctx);
-	if (unlikely(rc != 0)) {
-		ena_log(pdev, ERR, "Error with network interface setup\n");
-		goto err_customer_metrics_alloc;
-	}
+	ena_setup_ifnet(pdev, adapter, &get_feat_ctx);
 
 	/* Initialize reset task queue */
 	TASK_INIT(&adapter->reset_task, 0, ena_reset_task, adapter);
@@ -3853,7 +3843,6 @@ ena_attach(device_t pdev)
 err_detach:
 	ether_ifdetach(adapter->ifp);
 #endif /* DEV_NETMAP */
-err_customer_metrics_alloc:
 	free(adapter->customer_metrics_array, M_DEVBUF);
 err_metrics_buffer_destroy:
 	ena_com_delete_customer_metrics_buffer(ena_dev);

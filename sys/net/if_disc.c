@@ -86,11 +86,6 @@ disc_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 
 	sc = malloc(sizeof(struct disc_softc), M_DISC, M_WAITOK | M_ZERO);
 	ifp = sc->sc_ifp = if_alloc(IFT_LOOP);
-	if (ifp == NULL) {
-		free(sc, M_DISC);
-		return (ENOSPC);
-	}
-
 	ifp->if_softc = sc;
 	if_initname(ifp, discname, unit);
 	ifp->if_mtu = DSMTU;

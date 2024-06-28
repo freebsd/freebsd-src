@@ -385,12 +385,7 @@ ng_eiface_constructor(node_p node)
 
 	/* Allocate node and interface private structures */
 	priv = malloc(sizeof(*priv), M_NETGRAPH, M_WAITOK | M_ZERO);
-
 	ifp = priv->ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		free(priv, M_NETGRAPH);
-		return (ENOSPC);
-	}
 
 	/* Link them together */
 	ifp->if_softc = priv;

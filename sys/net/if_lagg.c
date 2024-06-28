@@ -530,10 +530,6 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 
 	sc = malloc(sizeof(*sc), M_LAGG, M_WAITOK | M_ZERO);
 	ifp = sc->sc_ifp = if_alloc(if_type);
-	if (ifp == NULL) {
-		free(sc, M_LAGG);
-		return (ENOSPC);
-	}
 	LAGG_SX_INIT(sc);
 
 	mtx_init(&sc->sc_mtx, "lagg-mtx", NULL, MTX_DEF);

@@ -446,11 +446,6 @@ fxp_attach(device_t dev)
 	    fxp_serial_ifmedia_sts);
 
 	ifp = sc->ifp = if_gethandle(IFT_ETHER);
-	if (ifp == (void *)NULL) {
-		device_printf(dev, "can not if_alloc()\n");
-		error = ENOSPC;
-		goto fail;
-	}
 
 	/*
 	 * Enable bus mastering.

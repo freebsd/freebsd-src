@@ -164,8 +164,6 @@ icattach(device_t dev)
 	struct ifnet *ifp;
 
 	ifp = sc->ic_ifp = if_alloc(IFT_PARA);
-	if (ifp == NULL)
-		return (ENOSPC);
 
 	mtx_init(&sc->ic_lock, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);

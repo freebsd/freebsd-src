@@ -907,10 +907,6 @@ ipoib_intf_alloc(const char *name, struct ib_device *hca)
 
 	priv = ipoib_priv_alloc();
 	dev = priv->dev = if_alloc(IFT_INFINIBAND);
-	if (!dev) {
-		free(priv, M_TEMP);
-		return NULL;
-	}
 	dev->if_softc = priv;
 	priv->gone = 2; /* initializing */
 	priv->unit = alloc_unr(ipoib_unrhdr);
