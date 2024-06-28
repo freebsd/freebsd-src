@@ -254,7 +254,9 @@ struct prison_racct {
 #define	PR_ALLOW_KMEM_ACCESS		0x00010000	/* reserved, not used yet */
 #define	PR_ALLOW_NFSD			0x00020000
 #define	PR_ALLOW_EXTATTR		0x00040000
-#define	PR_ALLOW_ALL_STATIC		0x000787ff
+#define	PR_ALLOW_ADJTIME		0x00080000
+#define	PR_ALLOW_SETTIME		0x00100000
+#define	PR_ALLOW_ALL_STATIC		0x001f87ff
 
 /*
  * PR_ALLOW_DIFFERENCES determines which flags are able to be
