@@ -656,6 +656,18 @@ The super-user is enabled by default.
 .It Va allow.extattr
 Allow privileged process in the jail to manipulate filesystem extended
 attributes in the system namespace.
+.It Va allow.adjtime
+Allow privileged process in the jail to slowly adjusting global operating system
+time.
+For example through utilities like
+.Xr ntpd 8 .
+.It Va allow.settime
+Allow privileged process in the jail to set global operating system data
+and time.
+For example through utilities like
+.Xr date 1 .
+This permission includes also
+.Va allow.adjtime .
 .El
 .El
 .Pp
@@ -1416,6 +1428,7 @@ appears relative to its creator's own
 This is by virtue of the child jail being created in the chrooted
 environment of the first jail.
 .Sh SEE ALSO
+.Xr date 1 ,
 .Xr killall 1 ,
 .Xr lsvfs 1 ,
 .Xr newaliases 1 ,
@@ -1423,6 +1436,9 @@ environment of the first jail.
 .Xr pkill 1 ,
 .Xr ps 1 ,
 .Xr quota 1 ,
+.Xr adjtime 2 ,
+.Xr clock_settime 2 ,
+.Xr ntp_adjtime 2 ,
 .Xr jail_set 2 ,
 .Xr devfs 4 ,
 .Xr fdescfs 4 ,
@@ -1444,6 +1460,7 @@ environment of the first jail.
 .Xr mount 8 ,
 .Xr mountd 8 ,
 .Xr nfsd 8 ,
+.Xr ntpd 8 ,
 .Xr reboot 8 ,
 .Xr rpcbind 8 ,
 .Xr sendmail 8 ,
