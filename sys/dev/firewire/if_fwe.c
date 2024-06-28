@@ -178,10 +178,6 @@ fwe_attach(device_t dev)
 
 	/* fill the rest and attach interface */
 	ifp = fwe->eth_softc.ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(dev, "can not if_alloc()\n");
-		return (ENOSPC);
-	}
 	if_setsoftc(ifp, &fwe->eth_softc);
 
 	if_initname(ifp, device_get_name(dev), unit);
@@ -201,7 +197,7 @@ fwe_attach(device_t dev)
 	if_setcapenablebit(ifp, IFCAP_VLAN_MTU, 0);
 
 	FWEDEBUG(ifp, "interface created\n");
-	return 0;
+	return (0);
 }
 
 static void

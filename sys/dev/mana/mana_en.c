@@ -2805,11 +2805,6 @@ mana_probe_port(struct mana_context *ac, int port_idx,
 	int err;
 
 	ndev = if_alloc_dev(IFT_ETHER, gc->dev);
-	if (!ndev) {
-		mana_err(NULL, "Failed to allocate ifnet struct\n");
-		return ENOMEM;
-	}
-
 	*ndev_storage = ndev;
 
 	apc = malloc(sizeof(*apc), M_DEVBUF, M_WAITOK | M_ZERO);

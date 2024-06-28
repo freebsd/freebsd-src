@@ -1623,11 +1623,6 @@ msk_attach(device_t dev)
 	msk_rx_dma_jalloc(sc_if);
 
 	ifp = sc_if->msk_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(sc_if->msk_if_dev, "can not if_alloc()\n");
-		error = ENOSPC;
-		goto fail;
-	}
 	if_setsoftc(ifp, sc_if);
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
