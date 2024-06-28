@@ -2643,6 +2643,7 @@ rack_log_hdwr_pacing(struct tcp_rack *rack,
 		union tcp_log_stackspecific log;
 		struct timeval tv;
 		const struct ifnet *ifp;
+		uint64_t ifp64;
 
 		memset(&log, 0, sizeof(log));
 		log.u_bbr.flex1 = ((hw_rate >> 32) & 0x00000000ffffffff);
@@ -2655,8 +2656,9 @@ rack_log_hdwr_pacing(struct tcp_rack *rack,
 		} else
 			ifp = NULL;
 		if (ifp) {
-			log.u_bbr.flex3 = (((uint64_t)ifp  >> 32) & 0x00000000ffffffff);
-			log.u_bbr.flex4 = ((uint64_t)ifp & 0x00000000ffffffff);
+			ifp64 = (uintptr_t)ifp;
+			log.u_bbr.flex3 = ((ifp64  >> 32) & 0x00000000ffffffff);
+			log.u_bbr.flex4 = (ifp64 & 0x00000000ffffffff);
 		}
 		log.u_bbr.timeStamp = tcp_get_usecs(&tv);
 		log.u_bbr.bw_inuse = rate;
@@ -2881,9 +2883,9 @@ rack_log_map_chg(struct tcpcb *tp, struct tcp_rack *rack,
 		memset(&log.u_bbr, 0, sizeof(log.u_bbr));
 		log.u_bbr.flex8 = flag;
 		log.u_bbr.inhpts = tcp_in_hpts(rack->rc_tp);
-		log.u_bbr.cur_del_rate = (uint64_t)prev;
-		log.u_bbr.delRate = (uint64_t)rsm;
-		log.u_bbr.rttProp = (uint64_t)next;
+		log.u_bbr.cur_del_rate = (uintptr_t)prev;
+		log.u_bbr.delRate = (uintptr_t)rsm;
+		log.u_bbr.rttProp = (uintptr_t)next;
 		log.u_bbr.flex7 = 0;
 		if (prev) {
 			log.u_bbr.flex1 = prev->r_start;
@@ -5527,7 +5529,7 @@ skip_measurement:
 		rack_log_pacing_delay_calc(rack,
 					   tp->gput_seq,
 					   tp->gput_ack,
-					   (uint64_t)rsm,
+					   (uintptr_t)rsm,
 					   tp->gput_ts,
 					   (((uint64_t)rack->r_ctl.rc_app_limited_cnt << 32) | (uint64_t)rack->r_ctl.rc_gp_output_ts),
 					   9,
@@ -12739,7 +12741,7 @@ rack_log_collapse(struct tcp_rack *rack, uint32_t cnt, uint32_t split, uint32_t 
 		if (rsm == NULL)
 			log.u_bbr.rttProp = 0;
 		else
-			log.u_bbr.rttProp = (uint64_t)rsm;
+			log.u_bbr.rttProp = (uintptr_t)rsm;
 		log.u_bbr.timeStamp = tcp_get_usecs(&tv);
 		log.u_bbr.inflight = ctf_flight_size(rack->rc_tp, rack->r_ctl.rc_sacked);
 		TCP_LOG_EVENTP(rack->rc_tp, NULL,
@@ -15878,9 +15880,9 @@ rack_fini(struct tcpcb *tp, int32_t tcb_is_purged)
 			log.u_bbr.flex3 = cnt_free;
 			log.u_bbr.inflight = ctf_flight_size(rack->rc_tp, rack->r_ctl.rc_sacked);
 			rsm = tqhash_min(rack->r_ctl.tqh);
-			log.u_bbr.delRate = (uint64_t)rsm;
+			log.u_bbr.delRate = (uintptr_t)rsm;
 			rsm = TAILQ_FIRST(&rack->r_ctl.rc_free);
-			log.u_bbr.cur_del_rate = (uint64_t)rsm;
+			log.u_bbr.cur_del_rate = (uintptr_t)rsm;
 			log.u_bbr.timeStamp = tcp_get_usecs(&tv);
 			log.u_bbr.pkt_epoch = __LINE__;
 			(void)tcp_log_event(tp, NULL, NULL, NULL, TCP_LOG_OUT, ERRNO_UNK,
@@ -18885,7 +18887,7 @@ start_set:
 		rack_log_pacing_delay_calc(rack,
 					   tp->gput_seq,
 					   tp->gput_ack,
-					   (uint64_t)my_rsm,
+					   (uintptr_t)my_rsm,
 					   tp->gput_ts,
 					   (((uint64_t)rack->r_ctl.rc_app_limited_cnt << 32) | (uint64_t)rack->r_ctl.rc_gp_output_ts),
 					   9,
@@ -18938,7 +18940,7 @@ use_latest:
 	rack_log_pacing_delay_calc(rack,
 				   tp->gput_seq,
 				   tp->gput_ack,
-				   (uint64_t)my_rsm,
+				   (uintptr_t)my_rsm,
 				   tp->gput_ts,
 				   (((uint64_t)rack->r_ctl.rc_app_limited_cnt << 32) | (uint64_t)rack->r_ctl.rc_gp_output_ts),
 				   9, __LINE__, NULL, 0);
@@ -19754,7 +19756,7 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 		}
 		log.u_bbr.lt_epoch = rack->r_ctl.cwnd_to_use;
 		log.u_bbr.delivered = 0;
-		log.u_bbr.rttProp = (uint64_t)rsm;
+		log.u_bbr.rttProp = (uintptr_t)rsm;
 		log.u_bbr.delRate = rsm->r_flags;
 		log.u_bbr.delRate <<= 31;
 		log.u_bbr.delRate |= rack->r_must_retran;
@@ -22941,7 +22943,7 @@ send:
 		}
 		log.u_bbr.lt_epoch = cwnd_to_use;
 		log.u_bbr.delivered = sendalot;
-		log.u_bbr.rttProp = (uint64_t)rsm;
+		log.u_bbr.rttProp = (uintptr_t)rsm;
 		log.u_bbr.pkt_epoch = __LINE__;
 		if (rsm) {
 			log.u_bbr.delRate = rsm->r_flags;
