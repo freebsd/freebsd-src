@@ -2898,6 +2898,7 @@ main(int argc, char **argv)
 			} else if (new_pports_from_conf(tmpconf, &kports)) {
 				log_warnx("Error associating physical ports, "
 				    "continuing with old configuration");
+				conf_delete(tmpconf);
 			} else {
 				if (debug > 0)
 					tmpconf->conf_debug = debug;
