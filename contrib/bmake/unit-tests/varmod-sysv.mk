@@ -1,4 +1,4 @@
-# $NetBSD: varmod-sysv.mk,v 1.16 2023/11/19 21:47:52 rillig Exp $
+# $NetBSD: varmod-sysv.mk,v 1.17 2024/06/01 18:44:05 rillig Exp $
 #
 # Tests for the variable modifier ':from=to', which replaces the suffix
 # "from" with "to".  It can also use '%' as a wildcard.
@@ -251,5 +251,13 @@ INDIRECT=	1:${VALUE} 2:$${VALUE} 4:$$$${VALUE}
 .    endfor
 .  endfor
 .endfor
+
+
+# The error case of an unfinished ':from=to' modifier after the '=' requires
+# an expression that is missing the closing '}'.
+# expect+1: Malformed conditional (${error:L:from=$(}))
+.if ${error:L:from=$(})
+.endif
+
 
 all:

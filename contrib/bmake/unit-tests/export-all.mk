@@ -1,4 +1,4 @@
-# $NetBSD: export-all.mk,v 1.5 2020/10/24 08:50:17 rillig Exp $
+# $NetBSD: export-all.mk,v 1.6 2024/06/01 06:26:36 sjg Exp $
 
 UT_OK=	good
 UT_F=	fine
@@ -15,7 +15,7 @@ UT_BADDIR=	${${here}/../${here:T}:L:${M_tAbad}:T}
 # this will be ok
 UT_OKDIR=	${${here}/../${here:T}:L:${M_tA}:T}
 
-.export
+.export-all
 
 FILTER_CMD=	grep ^UT_
 .include "export.mk"

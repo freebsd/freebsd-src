@@ -1,4 +1,4 @@
-# $NetBSD: varmod-undefined.mk,v 1.9 2023/11/19 21:47:52 rillig Exp $
+# $NetBSD: varmod-undefined.mk,v 1.11 2024/06/03 02:46:29 sjg Exp $
 #
 # Tests for the :U variable modifier, which returns the given string
 # if the variable is undefined.
@@ -6,6 +6,9 @@
 # See also:
 #	directive-for.mk
 #	varmod-defined.mk
+
+# this test depends on
+.MAKE.SAVE_DOLLARS= yes
 
 # The pattern ${:Uword} is heavily used when expanding .for loops.
 #
@@ -53,6 +56,10 @@
 .if ${:U \: \} \$ \\ \a \b \n } != " : } \$ \\ \\a \\b \\n "
 .  error
 .endif
+# An expression enclosed in quotes may be based on an undefined variable.
+.if "${:U \: \} \$ \\ \a \b \n }" != " : } \$ \\ \\a \\b \\n "
+.  error
+.endif
 
 # Even after the :U modifier has been applied, the expression still remembers
 # that it originated from an undefined variable, and the :U modifier can
@@ -64,5 +71,43 @@
 .  error
 .endif
 
-all:
-	@:;
+
+# VARE_PARSE
+.if 0 && ${:U . \: \} \$ \\ ${EXPR}}
+.  error
+.endif
+
+# VARE_EVAL_KEEP_DOLLAR_AND_UNDEFINED
+SUBST:=		${:U . \: \} \$ \\ ${EXPR}}
+${:U }=		<space>
+EXPR=		<expr>
+.if ${SUBST} != " . : } <space>\\ "
+.  error
+.endif
+
+8_DOLLAR=	$$$$$$$$
+.if ${8_DOLLAR} != "\$\$\$\$"
+.  error
+.endif
+.if ${:U${8_DOLLAR}} != "\$\$\$\$"
+.  error
+.endif
+.if ${x:L:@_@${8_DOLLAR}@} != "\$\$\$\$"
+.  error
+.endif
+EXPR:=		${8_DOLLAR}
+.if ${EXPR} != "\$\$\$\$"
+.  error
+.endif
+EXPR:=		${:U${8_DOLLAR}}
+.if ${EXPR} != "\$\$\$\$"
+.  error
+.endif
+# VARE_EVAL_KEEP_UNDEFINED
+EXPR:=		${x:L:@_@${8_DOLLAR}@}
+.if ${EXPR} != "\$\$"
+.  error
+.endif
+
+
+all: .PHONY

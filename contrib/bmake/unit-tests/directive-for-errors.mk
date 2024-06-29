@@ -1,4 +1,4 @@
-# $NetBSD: directive-for-errors.mk,v 1.10 2024/04/20 10:18:55 rillig Exp $
+# $NetBSD: directive-for-errors.mk,v 1.11 2024/06/01 11:24:11 rillig Exp $
 #
 # Tests for error handling in .for loops.
 
@@ -41,7 +41,7 @@
 ${:U\$}=	dollar		# see whether the "variable" '$' is local
 ${:U\\}=	backslash	# see whether the "variable" '\' is local
 # expect+1: invalid character '$' in .for loop variable name
-.for $ \ in 1 2 3 4
+.for a b $ \ in 1 2 3 4
 .  info Dollar $$ ${$} $($) and backslash $\ ${\} $(\).
 .endfor
 

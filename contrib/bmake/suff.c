@@ -1,4 +1,4 @@
-/*	$NetBSD: suff.c,v 1.378 2024/02/07 06:43:02 rillig Exp $	*/
+/*	$NetBSD: suff.c,v 1.380 2024/06/02 15:31:26 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -115,7 +115,7 @@
 #include "dir.h"
 
 /*	"@(#)suff.c	8.4 (Berkeley) 3/21/94"	*/
-MAKE_RCSID("$NetBSD: suff.c,v 1.378 2024/02/07 06:43:02 rillig Exp $");
+MAKE_RCSID("$NetBSD: suff.c,v 1.380 2024/06/02 15:31:26 rillig Exp $");
 
 typedef List SuffixList;
 typedef ListNode SuffixListNode;
@@ -1223,6 +1223,7 @@ ExpandWildcards(GNodeListNode *cln, GNode *pgn)
 
 		DEBUG1(SUFF, "%s...", name);
 		gn = Targ_GetNode(name);
+		free(name);
 
 		/* Insert gn before the original child. */
 		Lst_InsertBefore(&pgn->children, cln, gn);
@@ -1273,7 +1274,7 @@ ExpandChildrenRegular(char *p, GNode *pgn, GNodeList *members)
 		} else if (*p == '$') {
 			/* Skip over the expression. */
 			const char *nested_p = p;
-			FStr junk = Var_Parse(&nested_p, pgn, VARE_PARSE_ONLY);
+			FStr junk = Var_Parse(&nested_p, pgn, VARE_PARSE);
 			/* TODO: handle errors */
 			if (junk.str == var_Error) {
 				Parse_Error(PARSE_FATAL,
@@ -1343,7 +1344,7 @@ ExpandChildren(GNodeListNode *cln, GNode *pgn)
 	}
 
 	DEBUG1(SUFF, "Expanding \"%s\"...", cgn->name);
-	expanded = Var_Subst(cgn->name, pgn, VARE_UNDEFERR);
+	expanded = Var_Subst(cgn->name, pgn, VARE_EVAL_DEFINED);
 	/* TODO: handle errors */
 
 	{
