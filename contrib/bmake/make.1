@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.375 2024/03/10 02:53:37 sjg Exp $
+.\"	$NetBSD: make.1,v 1.377 2024/06/01 06:26:36 sjg Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd March 9, 2024
+.Dd June 1, 2024
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -1154,9 +1154,19 @@ This mode can be used to detect undeclared dependencies between files.
 Used to create files in a separate directory, see
 .Va .OBJDIR .
 .It Va MAKE_OBJDIR_CHECK_WRITABLE
-Used to force a separate directory for the created files,
-even if that directory is not writable, see
-.Va .OBJDIR .
+When true,
+.Nm
+will check that
+.Va .OBJDIR
+is writable, and issue a warning if not.
+.It Va MAKE_DEBUG_OBJDIR_CHECK_WRITABLE
+When true and
+.Nm
+is warning about an unwritable
+.Va .OBJDIR ,
+report the variables listed in
+.Va MAKE_PRINT_VAR_ON_ERROR
+to help debug.
 .It Va MAKEOBJDIRPREFIX
 Used to create files in a separate directory, see
 .Va .OBJDIR .
@@ -1962,12 +1972,7 @@ The directives for exporting and unexporting variables are:
 .Bl -tag -width Ds
 .It Ic .export Ar variable No ...
 Export the specified global variable.
-If no variable list is provided, all globals are exported
-except for internal variables (those that start with
-.Ql \&. ) .
-This is not affected by the
-.Fl X
-flag, so should be used with caution.
+.Pp
 For compatibility with other make programs,
 .Cm export Ar variable\| Ns Cm \&= Ns Ar value
 (without leading dot) is also accepted.
@@ -1975,6 +1980,12 @@ For compatibility with other make programs,
 Appending a variable name to
 .Va .MAKE.EXPORTED
 is equivalent to exporting a variable.
+.It Ic .export-all
+Export all globals except for internal variables (those that start with
+.Ql \&. ) .
+This is not affected by the
+.Fl X
+flag, so should be used with caution.
 .It Ic .export-env Ar variable No ...
 The same as
 .Ql .export ,

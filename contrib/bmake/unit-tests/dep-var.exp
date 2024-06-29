@@ -16,9 +16,9 @@ Result of ${:U\$)} is "$)" (eval-defined, defined)
 Global: .ALLTARGETS =  all ${DEF2} a-${DEF2}-b ${UNDEF3} 1-${INDIRECT_1}-1 $$) undef1
 Global: .ALLTARGETS =  all ${DEF2} a-${DEF2}-b ${UNDEF3} 1-${INDIRECT_1}-1 $$) undef1 def2
 Global: .ALLTARGETS =  all ${DEF2} a-${DEF2}-b ${UNDEF3} 1-${INDIRECT_1}-1 $$) undef1 def2 a-def2-b
-Var_Parse: $INDIRECT_2-2-1 $): (parse-only)
+Var_Parse: $INDIRECT_2-2-1 $): (parse)
 Global: .ALLTARGETS =  all ${DEF2} a-${DEF2}-b ${UNDEF3} 1-${INDIRECT_1}-1 $$) undef1 def2 a-def2-b 1-2-$INDIRECT_2-2-1
-Var_Parse: $): (parse-only)
+Var_Parse: $): (parse)
 Global: .ALLTARGETS =  all ${DEF2} a-${DEF2}-b ${UNDEF3} 1-${INDIRECT_1}-1 $$) undef1 def2 a-def2-b 1-2-$INDIRECT_2-2-1 $)
 Global: .MAKEFLAGS =  -r -k -d v -d
 Global: .MAKEFLAGS =  -r -k -d v -d 0

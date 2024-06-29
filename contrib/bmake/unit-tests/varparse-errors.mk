@@ -1,4 +1,4 @@
-# $NetBSD: varparse-errors.mk,v 1.12 2024/04/20 10:18:56 rillig Exp $
+# $NetBSD: varparse-errors.mk,v 1.13 2024/06/02 15:31:26 rillig Exp $
 
 # Tests for parsing and evaluating all kinds of expressions.
 #
@@ -24,7 +24,7 @@ ERR_BAD_MOD=	An ${:Uindirect:Z} expression with an unknown modifier.
 ERR_EVAL=	An evaluation error ${:Uvalue:C,.,\3,}.
 
 # In a conditional, an expression that is not enclosed in quotes is
-# expanded using the mode VARE_UNDEFERR.
+# expanded using the mode VARE_EVAL_DEFINED.
 # The variable itself must be defined.
 # It may refer to undefined variables though.
 .if ${REF_UNDEF} != "A reference to an undefined variable."

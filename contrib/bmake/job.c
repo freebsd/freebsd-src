@@ -1,4 +1,4 @@
-/*	$NetBSD: job.c,v 1.471 2024/05/07 18:26:22 sjg Exp $	*/
+/*	$NetBSD: job.c,v 1.477 2024/06/25 05:18:38 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -154,7 +154,7 @@
 #include "trace.h"
 
 /*	"@(#)job.c	8.2 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: job.c,v 1.471 2024/05/07 18:26:22 sjg Exp $");
+MAKE_RCSID("$NetBSD: job.c,v 1.477 2024/06/25 05:18:38 rillig Exp $");
 
 /*
  * A shell defines how the commands are run.  All commands for a target are
@@ -930,9 +930,7 @@ JobWriteCommand(Job *job, ShellWriter *wr, StringListNode *ln, const char *ucmd)
 
 	run = GNode_ShouldExecute(job->node);
 
-	EvalStack_Push(job->node->name, NULL, NULL);
-	xcmd = Var_Subst(ucmd, job->node, VARE_WANTRES);
-	EvalStack_Pop();
+	xcmd = Var_SubstInTarget(ucmd, job->node);
 	/* TODO: handle errors */
 	xcmdStart = xcmd;
 
@@ -1059,11 +1057,10 @@ JobSaveCommands(Job *job)
 		 * variables such as .TARGET, .IMPSRC.  It is not intended to
 		 * expand the other variables as well; see deptgt-end.mk.
 		 */
-		EvalStack_Push(job->node->name, NULL, NULL);
-		expanded_cmd = Var_Subst(cmd, job->node, VARE_WANTRES);
-		EvalStack_Pop();
+		expanded_cmd = Var_SubstInTarget(cmd, job->node);
 		/* TODO: handle errors */
 		Lst_Append(&Targ_GetEndNode()->commands, expanded_cmd);
+		Parse_RegisterCommand(expanded_cmd);
 	}
 }
 
@@ -1098,7 +1095,7 @@ DebugFailedJob(const Job *job)
 		debug_printf("\t%s\n", cmd);
 
 		if (strchr(cmd, '$') != NULL) {
-			char *xcmd = Var_Subst(cmd, job->node, VARE_WANTRES);
+			char *xcmd = Var_Subst(cmd, job->node, VARE_EVAL);
 			debug_printf("\t=> %s\n", xcmd);
 			free(xcmd);
 		}
@@ -1484,11 +1481,11 @@ JobExec(Job *job, char **argv)
 		 * was marked close-on-exec, we must clear that bit in the
 		 * new input.
 		 */
-		if (dup2(fileno(job->cmdFILE), 0) == -1)
+		if (dup2(fileno(job->cmdFILE), STDIN_FILENO) == -1)
 			execDie("dup2", "job->cmdFILE");
-		if (fcntl(0, F_SETFD, 0) == -1)
+		if (fcntl(STDIN_FILENO, F_SETFD, 0) == -1)
 			execDie("fcntl clear close-on-exec", "stdin");
-		if (lseek(0, 0, SEEK_SET) == -1)
+		if (lseek(STDIN_FILENO, 0, SEEK_SET) == -1)
 			execDie("lseek to 0", "stdin");
 
 		if (Always_pass_job_queue ||
@@ -1506,18 +1503,18 @@ JobExec(Job *job, char **argv)
 		 * Set up the child's output to be routed through the pipe
 		 * we've created for it.
 		 */
-		if (dup2(job->outPipe, 1) == -1)
+		if (dup2(job->outPipe, STDOUT_FILENO) == -1)
 			execDie("dup2", "job->outPipe");
 
 		/*
 		 * The output channels are marked close on exec. This bit
-		 * was duplicated by the dup2(on some systems), so we have
+		 * was duplicated by dup2 (on some systems), so we have
 		 * to clear it before routing the shell's error output to
 		 * the same place as its standard output.
 		 */
-		if (fcntl(1, F_SETFD, 0) == -1)
+		if (fcntl(STDOUT_FILENO, F_SETFD, 0) == -1)
 			execDie("clear close-on-exec", "stdout");
-		if (dup2(1, 2) == -1)
+		if (dup2(STDOUT_FILENO, STDERR_FILENO) == -1)
 			execDie("dup2", "1, 2");
 
 		/*
@@ -2172,7 +2169,7 @@ InitShellNameAndPath(void)
 
 #ifdef DEFSHELL_CUSTOM
 	if (shellName[0] == '/') {
-		shellPath = shellName;
+		shellPath = bmake_strdup(shellName);
 		shellName = str_basename(shellPath);
 		return;
 	}
@@ -2229,7 +2226,7 @@ Job_SetPrefix(void)
 		Global_Set(".MAKE.JOB.PREFIX", "---");
 
 	targPrefix = Var_Subst("${.MAKE.JOB.PREFIX}",
-	    SCOPE_GLOBAL, VARE_WANTRES);
+	    SCOPE_GLOBAL, VARE_EVAL);
 	/* TODO: handle errors */
 }
 
@@ -2525,7 +2522,8 @@ Job_ParseShell(char *line)
 			}
 		}
 	} else {
-		shellPath = path;
+		free(UNCONST(shellPath));
+		shellPath = bmake_strdup(path);
 		shellName = newShell.name != NULL ? newShell.name
 		    : str_basename(path);
 		if (!fullSpec) {

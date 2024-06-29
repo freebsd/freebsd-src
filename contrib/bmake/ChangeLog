@@ -1,3 +1,52 @@
+2024-06-25  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240625
+	Merge with NetBSD make, pick up
+	o job.c: ensure shellPath is always duped, avoid upsetting free()
+
+2024-06-16  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240616
+	Merge with NetBSD make, pick up
+	o clean up collection of context information for error messages
+	o in warnings, move the word "warning" to the front
+	o var.c: throw an error on attempt to override an internal
+	read-only variable
+
+2024-06-10  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240610
+	Merge with NetBSD make, pick up
+	o for.c: remove redundant shortcut for building the .for loop body
+
+2024-06-02  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240602
+	Merge with NetBSD make, pick up
+	o rename some VarEvalMode constants to better match debug names.
+	o var.c: avoid out-of-bounds read when parsing indirect modifiers.
+
+2024-06-01  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240601
+	Merge with NetBSD make, pick up
+	o add .export-all rather than allow .export with no argument
+	which can happen accidentally.
+	o if lua is available, run check-expect.lua after unit-tests
+	o main.c: use snprintf rather than strncpy
+	fix memory leak when purging realpath cache.
+
+2024-05-28  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240528
+	Merge with NetBSD make, pick up
+	o fix a number of memory leaks
+	o replace magic numbers with POSIX FILENO constants
+	o hash.c: remove dead code from HashTable_DeleteEntry
+	o main.c: when complaining about unusable .OBJDIR
+	call PrintOnError if MAKE_DEBUG_OBJDIR_CHECK_WRITABLE is true.
+	o parse.c: use fewer technical terms in debug message for dependency
+
 2024-05-20  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* VERSION (_MAKE_VERSION):

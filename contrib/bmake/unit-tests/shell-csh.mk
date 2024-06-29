@@ -1,4 +1,4 @@
-# $NetBSD: shell-csh.mk,v 1.8 2021/04/04 09:58:51 rillig Exp $
+# $NetBSD: shell-csh.mk,v 1.9 2024/05/25 15:37:17 rillig Exp $
 #
 # Tests for using a C shell for running the commands.
 
@@ -6,7 +6,7 @@ CSH!=	which csh 2> /dev/null || true
 
 # The shell path must be an absolute path.
 # This is only obvious in parallel mode since in compat mode,
-# simple commands are executed via execve directly.
+# simple commands are executed via execvp directly.
 .if ${CSH} != ""
 .SHELL: name="csh" path="${CSH}"
 .endif

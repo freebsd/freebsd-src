@@ -1,6 +1,6 @@
-# $Id: Makefile,v 1.216 2024/04/30 16:42:50 sjg Exp $
+# $Id: Makefile,v 1.219 2024/06/01 16:14:47 sjg Exp $
 #
-# $NetBSD: Makefile,v 1.344 2024/04/30 16:41:32 sjg Exp $
+# $NetBSD: Makefile,v 1.347 2024/06/01 15:54:40 sjg Exp $
 #
 # Unit tests for make(1)
 #
@@ -745,11 +745,11 @@ all: ${OUTFILES}
 CLEANFILES=		*.rawout *.out *.status *.tmp *.core *.tmp
 CLEANFILES+=		obj*.[och] lib*.a	# posix1.mk
 CLEANFILES+=		issue* .[ab]*		# suffixes.mk
-CLEANDIRS=		dir dummy		# posix1.mk
+CLEANDIRS=		dir dummy *.tmp		# posix1.mk
 
 clean:
-	rm -f ${CLEANFILES}
 	rm -rf ${CLEANDIRS}
+	rm -f ${CLEANFILES}
 
 TEST_MAKE?=	${.MAKE}
 TOOL_SED?=	sed
@@ -864,6 +864,11 @@ test:	${OUTFILES} .PHONY
 	  echo "Failed tests: $${failed}" ; false ; \
 	else \
 	  echo "All tests passed" ; \
+	  lua=${LUA:Ulua} ; \
+	  have_lua=$$("$$lua" -e 'print "yes"' 2>&1) ; \
+	  if [ "$$have_lua" = "yes" -a -s ${.CURDIR}/check-expect.lua ]; then \
+	    (cd ${.CURDIR} && "$$lua" ./check-expect.lua *.mk); \
+	  fi; \
 	fi
 
 accept:
