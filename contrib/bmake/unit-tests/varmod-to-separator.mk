@@ -1,4 +1,4 @@
-# $NetBSD: varmod-to-separator.mk,v 1.14 2024/04/20 10:18:55 rillig Exp $
+# $NetBSD: varmod-to-separator.mk,v 1.15 2024/06/01 18:44:05 rillig Exp $
 #
 # Tests for the :ts variable modifier, which joins the words of the variable
 # using an arbitrary character as word separator.
@@ -172,6 +172,19 @@ WORDS=	one two three four five six
 .  warning The separator \x100 is accepted even though it is out of bounds.
 .else
 .  warning The separator \x100 is accepted even though it is out of bounds.
+.endif
+
+# The number after ':ts\x' must be hexadecimal.
+# expect+2: while evaluating variable "word": Invalid character number at ",}"
+# expect+1: Malformed conditional (${word:L:ts\x,})
+.if ${word:L:ts\x,}
+.endif
+
+# The hexadecimal number must be in the range of 'unsigned long' on all
+# supported platforms.
+# expect+2: while evaluating variable "word": Invalid character number at "112233445566778899}"
+# expect+1: Malformed conditional (${word:L:ts\x112233445566778899})
+.if ${word:L:ts\x112233445566778899}
 .endif
 
 # Negative numbers are not allowed for the separator character.

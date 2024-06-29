@@ -1,4 +1,4 @@
-# $NetBSD: varmod-head.mk,v 1.5 2022/07/10 21:11:49 rillig Exp $
+# $NetBSD: varmod-head.mk,v 1.6 2024/06/01 18:44:05 rillig Exp $
 #
 # Tests for the :H variable modifier, which returns the dirname of
 # each of the words in the variable value.
@@ -58,6 +58,12 @@ _!=	echo "The modifier ':H' generates an empty word." 1>&2; echo
 # An empty list is split into a single empty word.
 # The dirname of this empty word is ".".
 .if ${:U :H} != "."
+.  error
+.endif
+
+# If the ':H' is not directly followed by a delimiting ':' or '}', the
+# ':from=to' modifier is tried as a fallback.
+.if ${:U Head :Head=replaced} != "replaced"
 .  error
 .endif
 

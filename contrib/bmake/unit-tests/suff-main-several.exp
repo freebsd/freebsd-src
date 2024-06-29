@@ -58,7 +58,7 @@ ParseDependency(suff-main-several.1:)
 Parsing line 39: 	: Making ${.TARGET} out of nothing.
 Parsing line 40: next-main: suff-main-several.{2,3,4}
 ParseDependency(next-main: suff-main-several.{2,3,4})
-# LinkSource: added child next-main - suff-main-several.{2,3,4}
+Target "next-main" depends on "suff-main-several.{2,3,4}"
 # next-main, unmade, type OP_DEPENDS|OP_HAS_COMMANDS, flags none
 # suff-main-several.{2,3,4}, unmade, type none, flags none
 Parsing line 42: .MAKEFLAGS: -d0 -dg1

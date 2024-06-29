@@ -1,4 +1,4 @@
-# $NetBSD: parse-var.mk,v 1.9 2023/11/19 21:47:52 rillig Exp $
+# $NetBSD: parse-var.mk,v 1.10 2024/06/02 15:31:26 rillig Exp $
 #
 # Tests for parsing expressions.
 #
@@ -20,11 +20,11 @@
 #
 # VarEvalMode:
 #	parse
+#	parse-balanced
 #	eval
-#	eval-undeferr
-#	eval-keep-dollar
-#	eval-keep-undef
-#	eval-keep-dollar-undef
+#	eval-defined
+#	eval-keep-undefined
+#	eval-keep-dollar-and-undefined
 #
 # Global mode:
 #	without -dL

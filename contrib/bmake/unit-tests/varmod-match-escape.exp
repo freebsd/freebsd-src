@@ -34,8 +34,8 @@ make: "varmod-match-escape.mk" line 43: warning: XXX: Oops
 Global: .MAKEFLAGS =  -r -k -d cv -d
 Global: .MAKEFLAGS =  -r -k -d cv -d 0
 make: "varmod-match-escape.mk" line 69: while evaluating "${:U\$:M\$} != """: Dollar followed by nothing
-make: "varmod-match-escape.mk" line 110: while evaluating variable "WORDS": warning: Unfinished character list in pattern '[A-]' of modifier ':M'
-make: "varmod-match-escape.mk" line 110: while evaluating variable "WORDS": warning: Unfinished character list in pattern '[^A-]' of modifier ':M'
+make: "varmod-match-escape.mk" line 110: warning: while evaluating variable "WORDS": Unfinished character list in pattern '[A-]' of modifier ':M'
+make: "varmod-match-escape.mk" line 110: warning: while evaluating variable "WORDS": Unfinished character list in pattern '[^A-]' of modifier ':M'
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

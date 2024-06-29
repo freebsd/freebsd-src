@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.333 2024/05/07 18:26:22 sjg Exp $	*/
+/*	$NetBSD: make.h,v 1.339 2024/06/15 20:02:45 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -938,6 +938,15 @@ void Targ_PrintType(GNodeType);
 void Targ_PrintGraph(int);
 void Targ_Propagate(void);
 const char *GNodeMade_Name(GNodeMade) MAKE_ATTR_USE;
+#ifdef CLEANUP
+void Parse_RegisterCommand(char *);
+#else
+/* ARGSUSED */
+MAKE_INLINE
+void Parse_RegisterCommand(char *cmd MAKE_ATTR_UNUSED)
+{
+}
+#endif
 
 /* var.c */
 void Var_Init(void);
@@ -951,7 +960,7 @@ typedef enum VarEvalMode {
 	 * TODO: Document what Var_Parse and Var_Subst return in this mode.
 	 *  As of 2021-03-15, they return unspecified, inconsistent results.
 	 */
-	VARE_PARSE_ONLY,
+	VARE_PARSE,
 
 	/*
 	 * Parse text in which '${...}' and '$(...)' are not parsed as
@@ -962,25 +971,13 @@ typedef enum VarEvalMode {
 	VARE_PARSE_BALANCED,
 
 	/* Parse and evaluate the expression. */
-	VARE_WANTRES,
+	VARE_EVAL,
 
 	/*
 	 * Parse and evaluate the expression.  It is an error if a
 	 * subexpression evaluates to undefined.
 	 */
-	VARE_UNDEFERR,
-
-	/*
-	 * Parse and evaluate the expression.  Keep '$$' as '$$' instead of
-	 * reducing it to a single '$'.  Subexpressions that evaluate to
-	 * undefined expand to an empty string.
-	 *
-	 * Used in variable assignments using the ':=' operator.  It allows
-	 * multiple such assignments to be chained without accidentally
-	 * expanding '$$file' to '$file' in the first assignment and
-	 * interpreting it as '${f}' followed by 'ile' in the next assignment.
-	 */
-	VARE_EVAL_KEEP_DOLLAR,
+	VARE_EVAL_DEFINED,
 
 	/*
 	 * Parse and evaluate the expression.  Keep undefined variables as-is
@@ -993,13 +990,13 @@ typedef enum VarEvalMode {
 	 *	# way) is still undefined, the updated CFLAGS becomes
 	 *	# "-I.. $(.INCLUDES)".
 	 */
-	VARE_EVAL_KEEP_UNDEF,
+	VARE_EVAL_KEEP_UNDEFINED,
 
 	/*
 	 * Parse and evaluate the expression.  Keep '$$' as '$$' and preserve
 	 * undefined subexpressions.
 	 */
-	VARE_KEEP_DOLLAR_UNDEF
+	VARE_EVAL_KEEP_DOLLAR_AND_UNDEFINED
 } VarEvalMode;
 
 typedef enum VarSetFlags {
@@ -1018,6 +1015,8 @@ typedef enum VarSetFlags {
 } VarSetFlags;
 
 typedef enum VarExportMode {
+	/* .export-all */
+	VEM_ALL,
 	/* .export-env */
 	VEM_ENV,
 	/* .export: Initial export or update an already exported variable. */
@@ -1027,6 +1026,9 @@ typedef enum VarExportMode {
 } VarExportMode;
 
 void Var_Delete(GNode *, const char *);
+#ifdef CLEANUP
+void Var_DeleteAll(GNode *scope);
+#endif
 void Var_Undef(const char *);
 void Var_Set(GNode *, const char *, const char *);
 void Var_SetExpand(GNode *, const char *, const char *);
@@ -1039,6 +1041,7 @@ FStr Var_Value(GNode *, const char *) MAKE_ATTR_USE;
 const char *GNode_ValueDirect(GNode *, const char *) MAKE_ATTR_USE;
 FStr Var_Parse(const char **, GNode *, VarEvalMode);
 char *Var_Subst(const char *, GNode *, VarEvalMode);
+char *Var_SubstInTarget(const char *, GNode *);
 void Var_Expand(FStr *, GNode *, VarEvalMode);
 void Var_Stats(void);
 void Var_Dump(GNode *);
@@ -1053,8 +1056,6 @@ void Global_Append(const char *, const char *);
 void Global_Delete(const char *);
 void Global_Set_ReadOnly(const char *, const char *);
 
-void EvalStack_Push(const char *, const char *, const char *);
-void EvalStack_Pop(void);
 const char *EvalStack_Details(void);
 
 /* util.c */
