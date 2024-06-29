@@ -1,4 +1,4 @@
-# $NetBSD: dep-duplicate.mk,v 1.3 2022/01/20 19:24:53 rillig Exp $
+# $NetBSD: dep-duplicate.mk,v 1.4 2024/05/25 21:11:30 rillig Exp $
 #
 # Test for a target whose commands are defined twice.  This generates a
 # warning, not an error, so ensure that the correct commands are kept.
@@ -13,9 +13,9 @@ all: .PHONY
 	echo '# empty line 1'; \
 	echo '# empty line 2'; \
 	echo 'all:; @echo main-output'; \
-	echo '.include "dep-duplicate.inc"'
+	echo '.include "dep-duplicate.tmp"'
 
-	@exec > dep-duplicate.inc; \
+	@exec > dep-duplicate.tmp; \
 	echo 'all:; @echo inc-output'
 
 	# The main file must be specified using a relative path, just like the
@@ -24,4 +24,4 @@ all: .PHONY
 	@${MAKE} -r -f dep-duplicate.main
 
 	@rm -f dep-duplicate.main
-	@rm -f dep-duplicate.inc
+	@rm -f dep-duplicate.tmp

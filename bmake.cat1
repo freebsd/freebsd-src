@@ -756,8 +756,13 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
              Used to create files in a separate directory, see _._O_B_J_D_I_R.
 
      _M_A_K_E___O_B_J_D_I_R___C_H_E_C_K___W_R_I_T_A_B_L_E
-             Used to force a separate directory for the created files, even if
-             that directory is not writable, see _._O_B_J_D_I_R.
+             When true, bbmmaakkee will check that _._O_B_J_D_I_R is writable, and issue a
+             warning if not.
+
+     _M_A_K_E___D_E_B_U_G___O_B_J_D_I_R___C_H_E_C_K___W_R_I_T_A_B_L_E
+             When true and bbmmaakkee is warning about an unwritable _._O_B_J_D_I_R,
+             report the variables listed in _M_A_K_E___P_R_I_N_T___V_A_R___O_N___E_R_R_O_R to help
+             debug.
 
      _M_A_K_E_O_B_J_D_I_R_P_R_E_F_I_X
              Used to create files in a separate directory, see _._O_B_J_D_I_R.
@@ -1230,15 +1235,18 @@ DDIIRREECCTTIIVVEESS
      The directives for exporting and unexporting variables are:
 
      ..eexxppoorrtt _v_a_r_i_a_b_l_e ...
-             Export the specified global variable.  If no variable list is
-             provided, all globals are exported except for internal variables
-             (those that start with `.').  This is not affected by the --XX
-             flag, so should be used with caution.  For compatibility with
-             other make programs, eexxppoorrtt _v_a_r_i_a_b_l_e==_v_a_l_u_e (without leading dot)
-             is also accepted.
+             Export the specified global variable.
+
+             For compatibility with other make programs, eexxppoorrtt _v_a_r_i_a_b_l_e==_v_a_l_u_e
+             (without leading dot) is also accepted.
 
              Appending a variable name to _._M_A_K_E_._E_X_P_O_R_T_E_D is equivalent to
              exporting a variable.
+
+     ..eexxppoorrtt--aallll
+             Export all globals except for internal variables (those that
+             start with `.').  This is not affected by the --XX flag, so should
+             be used with caution.
 
      ..eexxppoorrtt--eennvv _v_a_r_i_a_b_l_e ...
              The same as `.export', except that the variable is not appended
@@ -1780,4 +1788,4 @@ BBUUGGSS
      attempt to suppress a cascade of unnecessary errors, can result in a
      seemingly unexplained `*** Error code 6'
 
-FreeBSD 13.2-RELEASE-p10         March 9, 2024        FreeBSD 13.2-RELEASE-p10
+FreeBSD 13.2-RELEASE-p11         June 1, 2024         FreeBSD 13.2-RELEASE-p11

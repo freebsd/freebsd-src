@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.616 2024/05/19 17:55:54 sjg Exp $	*/
+/*	$NetBSD: main.c,v 1.624 2024/06/02 15:31:26 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -111,7 +111,7 @@
 #include "trace.h"
 
 /*	"@(#)main.c	8.3 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: main.c,v 1.616 2024/05/19 17:55:54 sjg Exp $");
+MAKE_RCSID("$NetBSD: main.c,v 1.624 2024/06/02 15:31:26 rillig Exp $");
 #if defined(MAKE_NATIVE)
 __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993 "
 	    "The Regents of the University of California.  "
@@ -372,7 +372,7 @@ MainParseArgChdir(const char *argvalue)
 	    stat(curdir, &sb) != -1 &&
 	    sa.st_ino == sb.st_ino &&
 	    sa.st_dev == sb.st_dev)
-		strncpy(curdir, argvalue, MAXPATHLEN);
+		snprintf(curdir, MAXPATHLEN, "%s", argvalue);
 	ignorePWD = true;
 }
 
@@ -743,6 +743,10 @@ Main_SetObjdir(bool writable, const char *fmt, ...)
 	if ((writable && access(path, W_OK) != 0) || chdir(path) != 0) {
 		(void)fprintf(stderr, "%s: warning: %s: %s.\n",
 		    progname, path, strerror(errno));
+		/* Allow debugging how we got here - not always obvious */
+		if (GetBooleanExpr("${MAKE_DEBUG_OBJDIR_CHECK_WRITABLE}",
+			false))
+			PrintOnError(NULL, "");
 		return false;
 	}
 
@@ -766,7 +770,7 @@ SetVarObjdir(bool writable, const char *var, const char *suffix)
 		return false;
 	}
 
-	Var_Expand(&path, SCOPE_GLOBAL, VARE_WANTRES);
+	Var_Expand(&path, SCOPE_GLOBAL, VARE_EVAL);
 
 	(void)Main_SetObjdir(writable, "%s%s", path.str, suffix);
 
@@ -808,8 +812,7 @@ siginfo(int signo MAKE_ATTR_UNUSED)
 static void
 MakeMode(void)
 {
-	char *mode = Var_Subst("${.MAKE.MODE:tl}",
-	    SCOPE_GLOBAL, VARE_WANTRES);
+	char *mode = Var_Subst("${.MAKE.MODE:tl}", SCOPE_GLOBAL, VARE_EVAL);
 	/* TODO: handle errors */
 
 	if (mode[0] != '\0') {
@@ -832,14 +835,14 @@ static void
 PrintVar(const char *varname, bool expandVars)
 {
 	if (strchr(varname, '$') != NULL) {
-		char *evalue = Var_Subst(varname, SCOPE_GLOBAL, VARE_WANTRES);
+		char *evalue = Var_Subst(varname, SCOPE_GLOBAL, VARE_EVAL);
 		/* TODO: handle errors */
 		printf("%s\n", evalue);
 		free(evalue);
 
 	} else if (expandVars) {
 		char *expr = str_concat3("${", varname, "}");
-		char *evalue = Var_Subst(expr, SCOPE_GLOBAL, VARE_WANTRES);
+		char *evalue = Var_Subst(expr, SCOPE_GLOBAL, VARE_EVAL);
 		/* TODO: handle errors */
 		free(expr);
 		printf("%s\n", evalue);
@@ -865,7 +868,7 @@ GetBooleanExpr(const char *expr, bool fallback)
 	char *value;
 	bool res;
 
-	value = Var_Subst(expr, SCOPE_GLOBAL, VARE_WANTRES);
+	value = Var_Subst(expr, SCOPE_GLOBAL, VARE_EVAL);
 	/* TODO: handle errors */
 	res = ParseBoolean(value, fallback);
 	free(value);
@@ -1050,7 +1053,7 @@ HandlePWD(const struct stat *curdir_st)
 	if (stat(pwd, &pwd_st) == 0 &&
 	    curdir_st->st_ino == pwd_st.st_ino &&
 	    curdir_st->st_dev == pwd_st.st_dev)
-		(void)strncpy(curdir, pwd, MAXPATHLEN);
+		snprintf(curdir, MAXPATHLEN, "%s", pwd);
 
 ignore_pwd:
 	FStr_Done(&makeobjdir);
@@ -1140,9 +1143,9 @@ static void
 InitVarMake(const char *argv0)
 {
 	const char *make = argv0;
+	char pathbuf[MAXPATHLEN];
 
 	if (argv0[0] != '/' && strchr(argv0, '/') != NULL) {
-		char pathbuf[MAXPATHLEN];
 		const char *abspath = cached_realpath(argv0, pathbuf);
 		struct stat st;
 		if (abspath != NULL && abspath[0] == '/' &&
@@ -1230,7 +1233,7 @@ InitMaxJobs(void)
 	    !Var_Exists(SCOPE_GLOBAL, ".MAKE.JOBS"))
 		return;
 
-	value = Var_Subst("${.MAKE.JOBS}", SCOPE_GLOBAL, VARE_WANTRES);
+	value = Var_Subst("${.MAKE.JOBS}", SCOPE_GLOBAL, VARE_EVAL);
 	/* TODO: handle errors */
 	n = (int)strtol(value, NULL, 0);
 	if (n < 1) {
@@ -1265,7 +1268,7 @@ InitVpath(void)
 	if (!Var_Exists(SCOPE_CMDLINE, "VPATH"))
 		return;
 
-	vpath = Var_Subst("${VPATH}", SCOPE_CMDLINE, VARE_WANTRES);
+	vpath = Var_Subst("${VPATH}", SCOPE_CMDLINE, VARE_EVAL);
 	/* TODO: handle errors */
 	path = vpath;
 	do {
@@ -1302,7 +1305,7 @@ ReadFirstDefaultMakefile(void)
 	StringList makefiles = LST_INIT;
 	StringListNode *ln;
 	char *prefs = Var_Subst("${.MAKE.MAKEFILE_PREFERENCE}",
-	    SCOPE_CMDLINE, VARE_WANTRES);
+	    SCOPE_CMDLINE, VARE_EVAL);
 	/* TODO: handle errors */
 
 	AppendWords(&makefiles, prefs);
@@ -1513,7 +1516,7 @@ main_PrepareMaking(void)
 	/* In particular suppress .depend for '-r -V .OBJDIR -f /dev/null' */
 	if (!opts.noBuiltins || opts.printVars == PVM_NONE) {
 		makeDependfile = Var_Subst("${.MAKE.DEPENDFILE}",
-		    SCOPE_CMDLINE, VARE_WANTRES);
+		    SCOPE_CMDLINE, VARE_EVAL);
 		if (makeDependfile[0] != '\0') {
 			/* TODO: handle errors */
 			doing_depend = true;
@@ -1605,9 +1608,9 @@ main_CleanUp(void)
 	meta_finish();
 #endif
 	Suff_End();
+	Var_End();
 	Targ_End();
 	Arch_End();
-	Var_End();
 	Parse_End();
 	Dir_End();
 	Job_End();
@@ -1988,22 +1991,19 @@ execDie(const char *af, const char *av)
 static void
 purge_relative_cached_realpaths(void)
 {
-	HashEntry *he, *next;
 	HashIter hi;
+	bool more;
 
 	HashIter_Init(&hi, &cached_realpaths);
-	he = HashIter_Next(&hi);
-	while (he != NULL) {
-		next = HashIter_Next(&hi);
+	more = HashIter_Next(&hi);
+	while (more) {
+		HashEntry *he = hi.entry;
+		more = HashIter_Next(&hi);
 		if (he->key[0] != '/') {
 			DEBUG1(DIR, "cached_realpath: purging %s\n", he->key);
+			free(he->value);
 			HashTable_DeleteEntry(&cached_realpaths, he);
-			/*
-			 * XXX: What about the allocated he->value? Either
-			 * free them or document why they cannot be freed.
-			 */
 		}
-		he = next;
 	}
 }
 
@@ -2017,9 +2017,7 @@ cached_realpath(const char *pathname, char *resolved)
 
 	rp = HashTable_FindValue(&cached_realpaths, pathname);
 	if (rp != NULL) {
-		/* a hit */
-		strncpy(resolved, rp, MAXPATHLEN);
-		resolved[MAXPATHLEN - 1] = '\0';
+		snprintf(resolved, MAXPATHLEN, "%s", rp);
 		return resolved;
 	}
 
@@ -2107,7 +2105,7 @@ PrintOnError(GNode *gn, const char *msg)
 	{
 		char *errorVarsValues = Var_Subst(
 		    "${MAKE_PRINT_VAR_ON_ERROR:@v@$v='${$v}'\n@}",
-		    SCOPE_GLOBAL, VARE_WANTRES);
+		    SCOPE_GLOBAL, VARE_EVAL);
 		/* TODO: handle errors */
 		printf("%s", errorVarsValues);
 		free(errorVarsValues);
@@ -2137,10 +2135,11 @@ Main_ExportMAKEFLAGS(bool first)
 
 	flags = Var_Subst(
 	    "${.MAKEFLAGS} ${.MAKEOVERRIDES:O:u:@v@$v=${$v:Q}@}",
-	    SCOPE_CMDLINE, VARE_WANTRES);
+	    SCOPE_CMDLINE, VARE_EVAL);
 	/* TODO: handle errors */
 	if (flags[0] != '\0')
 		setenv("MAKEFLAGS", flags, 1);
+	free(flags);
 }
 
 char *
@@ -2154,7 +2153,7 @@ getTmpdir(void)
 
 	/* Honor $TMPDIR if it is valid, strip a trailing '/'. */
 	tmpdir = Var_Subst("${TMPDIR:tA:U" _PATH_TMP ":S,/$,,W}/",
-	    SCOPE_GLOBAL, VARE_WANTRES);
+	    SCOPE_GLOBAL, VARE_EVAL);
 	/* TODO: handle errors */
 
 	if (stat(tmpdir, &st) < 0 || !S_ISDIR(st.st_mode)) {

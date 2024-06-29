@@ -1,4 +1,5 @@
-make: "directive-export.mk" line 56: 00:00:00
-make: "directive-export.mk" line 61: 00:00:00
-make: "directive-export.mk" line 64: 16:00:00
+make: "directive-export.mk" line 36: warning: .export requires an argument.
+make: "directive-export.mk" line 60: 00:00:00
+make: "directive-export.mk" line 65: 00:00:00
+make: "directive-export.mk" line 68: 16:00:00
 exit status 0

@@ -3,6 +3,31 @@ make: "varmod.mk" line 101: Invalid variable name ':', at "$:L} != """
 make: "varmod.mk" line 107: while evaluating "${:Uword:@word@${word}$@} != "word"": Dollar followed by nothing
 make: "varmod.mk" line 117: while evaluating variable "VAR": Missing delimiter ':' after modifier "P"
 make: "varmod.mk" line 119: Missing argument for ".error"
+make: Bad modifier ":[99333000222000111000]" for variable "word"
+make: "varmod.mk" line 125: Malformed conditional (${word:L:[99333000222000111000]})
+make: Bad modifier ":[2147483648]" for variable "word"
+make: "varmod.mk" line 128: Malformed conditional (${word:L:[2147483648]})
+make: "varmod.mk" line 135: while evaluating variable "word": Invalid number "99333000222000111000}" for ':range' modifier
+make: "varmod.mk" line 135: Malformed conditional (${word:L:range=99333000222000111000})
+make: "varmod.mk" line 143: while evaluating "${:${:Ugmtime=\\}}": Invalid time value "\"
+make: "varmod.mk" line 143: Malformed conditional (${:${:Ugmtime=\\}})
+make: "varmod.mk" line 158: while evaluating variable "VAR": Dollar followed by nothing
+make: "varmod.mk" line 164: while evaluating variable "VAR": Dollar followed by nothing
+make: "varmod.mk" line 164: while evaluating variable "VAR": Dollar followed by nothing
+make: "varmod.mk" line 174: while evaluating variable "word": Dollar followed by nothing
+make: Bad modifier ":[$]" for variable "word"
+make: "varmod.mk" line 179: Malformed conditional (${word:[$]})
+make: "varmod.mk" line 196: while evaluating variable "VAR": Dollar followed by nothing
+make: "varmod.mk" line 196: while evaluating variable "VAR": Invalid variable name '}', at "$} != "set""
+make: "varmod.mk" line 200: while evaluating "${:Ufallback$} != "fallback"": Invalid variable name '}', at "$} != "fallback""
+make: "varmod.mk" line 205: while evaluating variable "%y": Invalid time value "1000$"
+make: "varmod.mk" line 205: Malformed conditional (${%y:L:gmtime=1000$})
+make: "varmod.mk" line 212: while evaluating variable "%y": Invalid time value "1000$"
+make: "varmod.mk" line 212: Malformed conditional (${%y:L:localtime=1000$})
+make: "varmod.mk" line 218: while evaluating variable "word": Dollar followed by nothing
+make: "varmod.mk" line 222: while evaluating variable "word": Dollar followed by nothing
+make: "varmod.mk" line 227: while evaluating variable ".": Invalid argument 'fallback$' for modifier ':mtime'
+make: "varmod.mk" line 227: Malformed conditional (${.:L:mtime=fallback$})
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

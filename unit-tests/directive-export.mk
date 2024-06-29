@@ -1,4 +1,4 @@
-# $NetBSD: directive-export.mk,v 1.10 2023/11/19 09:45:19 rillig Exp $
+# $NetBSD: directive-export.mk,v 1.12 2024/06/01 10:06:23 rillig Exp $
 #
 # Tests for the .export directive.
 #
@@ -28,7 +28,11 @@ VAR=		value $$ ${INDIRECT}
 .  error
 .endif
 
-# No syntactical argument means to export all variables.
+# Before var.c 1.1117 from 2024-06-01, a plain ".export" without a syntactical
+# argument exported all global variables.  This case could be triggered
+# unintentionally by writing a line of the form ".export ${VARNAMES}" to a
+# makefile, when VARNAMES was an empty list.
+# expect+1: warning: .export requires an argument.
 .export
 
 # An empty argument means no additional variables to export.

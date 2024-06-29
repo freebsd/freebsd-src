@@ -1,3 +1,16 @@
+2024-06-22  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20240616
+
+	* dirdeps.mk: apply DEP_DIRDEPS_BUILD_DIR_FILTER after we have
+	computed build dirs, since some filters cannot be easily expressed via
+	DEP_DIRDEPS_FILTER.
+
+2024-05-31  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* dirdeps.mk: move reset of DIRDEPS_EXPORT_VARS
+	until after we a finished with it if building a cache.
+
 2024-05-04  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* install-mk (MK_VERSION): 20240504
