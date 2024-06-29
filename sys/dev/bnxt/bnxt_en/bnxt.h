@@ -86,6 +86,7 @@
 #define BCM58700	0x16cd
 #define BCM57508  	0x1750
 #define BCM57504  	0x1751
+#define BCM57504_NPAR	0x1801
 #define BCM57502  	0x1752
 #define NETXTREME_C_VF1	0x16cb
 #define NETXTREME_C_VF2	0x16e1
