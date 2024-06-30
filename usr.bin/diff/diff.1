@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 7, 2024
+.Dd June 29, 2024
 .Dt DIFF 1
 .Os
 .Sh NAME
@@ -52,6 +52,7 @@
 .Op Fl -ignore-space-change
 .Op Fl -initial-tab
 .Op Fl -minimal
+.Op Fl -no-dereference
 .Op Fl -no-ignore-file-name-case
 .Op Fl -normal
 .Op Fl -rcs
@@ -83,6 +84,7 @@
 .Op Fl -ignore-space-change
 .Op Fl -initial-tab
 .Op Fl -minimal
+.Op Fl -no-dereference
 .Op Fl -no-ignore-file-name-case
 .Op Fl -normal
 .Op Fl -paginate
@@ -110,6 +112,7 @@
 .Op Fl -ignore-space-change
 .Op Fl -initial-tab
 .Op Fl -minimal
+.Op Fl -no-dereference
 .Op Fl -no-ignore-file-name-case
 .Op Fl -normal
 .Op Fl -paginate
@@ -139,6 +142,7 @@
 .Op Fl -ignore-space-change
 .Op Fl -initial-tab
 .Op Fl -minimal
+.Op Fl -no-dereference
 .Op Fl -no-ignore-file-name-case
 .Op Fl -normal
 .Op Fl -paginate
@@ -171,6 +175,7 @@
 .Op Fl -initial-tab
 .Op Fl -minimal
 .Op Fl -new-file
+.Op Fl -no-dereference
 .Op Fl -no-ignore-file-name-case
 .Op Fl -normal
 .Op Fl -paginate
@@ -201,6 +206,7 @@
 .Op Fl -ignore-blank-lines
 .Op Fl -ignore-case
 .Op Fl -minimal
+.Op Fl -no-dereference
 .Op Fl -no-ignore-file-name-case
 .Op Fl -strip-trailing-cr
 .Op Fl -suppress-common-lines
@@ -497,6 +503,8 @@ lines from FILE2
 .El
 .It Fl -ignore-file-name-case
 ignore case when comparing file names
+.It Fl -no-dereference
+do not follow symbolic links
 .It Fl -no-ignore-file-name-case
 do not ignore case when comparing file names (default)
 .It Fl -normal
