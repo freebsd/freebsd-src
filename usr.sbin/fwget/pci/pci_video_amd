@@ -26,6 +26,9 @@
 
 pci_video_amd()
 {
+	# A table listing the required firmware versions for each GPU series
+	# is available at https://docs.kernel.org/gpu/amdgpu/driver-misc.html
+
 	case "$1" in
 		0x678*|0x679*)
 			addpkg "gpu-firmware-amd-kmod-tahiti"
@@ -149,6 +152,13 @@ pci_video_amd()
 			addpkg "gpu-firmware-amd-kmod-dcn-3-1-4"
 			addpkg "gpu-firmware-amd-kmod-sdma-6-0-1"
 			addpkg "gpu-firmware-amd-kmod-vcn-4-0-2"
+			;;
+		0x164e)
+			addpkg "gpu-firmware-amd-kmod-gc-10-3-6"
+			addpkg "gpu-firmware-amd-kmod-psp-13-0-5"
+			addpkg "gpu-firmware-amd-kmod-dcn-3-1-5"
+			addpkg "gpu-firmware-amd-kmod-sdma-5-2-6"
+			addpkg "gpu-firmware-amd-kmod-vcn-3-1-2"
 			;;
 	esac
 }
