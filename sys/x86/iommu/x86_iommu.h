@@ -183,4 +183,6 @@ void iommu_qi_common_fini(struct iommu_unit *unit, void (*disable_qi)(
 int iommu_alloc_irq(struct iommu_unit *unit, int idx);
 void iommu_release_intr(struct iommu_unit *unit, int idx);
 
+void iommu_device_tag_init(struct iommu_ctx *ctx, device_t dev);
+
 #endif

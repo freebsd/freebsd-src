@@ -588,3 +588,20 @@ iommu_release_intr(struct iommu_unit *unit, int idx)
 	    dev, dmd->irq);
 	dmd->irq = -1;
 }
+
+void
+iommu_device_tag_init(struct iommu_ctx *ctx, device_t dev)
+{
+	bus_addr_t maxaddr;
+
+	maxaddr = MIN(ctx->domain->end, BUS_SPACE_MAXADDR);
+	ctx->tag->common.impl = &bus_dma_iommu_impl;
+	ctx->tag->common.boundary = 0;
+	ctx->tag->common.lowaddr = maxaddr;
+	ctx->tag->common.highaddr = maxaddr;
+	ctx->tag->common.maxsize = maxaddr;
+	ctx->tag->common.nsegments = BUS_SPACE_UNRESTRICTED;
+	ctx->tag->common.maxsegsz = maxaddr;
+	ctx->tag->ctx = ctx;
+	ctx->tag->owner = dev;
+}

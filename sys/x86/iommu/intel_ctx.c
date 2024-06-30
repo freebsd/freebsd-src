@@ -126,26 +126,6 @@ dmar_map_ctx_entry(struct dmar_ctx *ctx, struct sf_buf **sfp)
 }
 
 static void
-device_tag_init(struct dmar_ctx *ctx, device_t dev)
-{
-	struct dmar_domain *domain;
-	bus_addr_t maxaddr;
-
-	domain = CTX2DOM(ctx);
-	maxaddr = MIN(domain->iodom.end, BUS_SPACE_MAXADDR);
-	ctx->context.tag->common.ref_count = 1; /* Prevent free */
-	ctx->context.tag->common.impl = &bus_dma_iommu_impl;
-	ctx->context.tag->common.boundary = 0;
-	ctx->context.tag->common.lowaddr = maxaddr;
-	ctx->context.tag->common.highaddr = maxaddr;
-	ctx->context.tag->common.maxsize = maxaddr;
-	ctx->context.tag->common.nsegments = BUS_SPACE_UNRESTRICTED;
-	ctx->context.tag->common.maxsegsz = maxaddr;
-	ctx->context.tag->ctx = CTX2IOCTX(ctx);
-	ctx->context.tag->owner = dev;
-}
-
-static void
 ctx_id_entry_init_one(dmar_ctx_entry_t *ctxp, struct dmar_domain *domain,
     vm_page_t ctx_root)
 {
@@ -588,7 +568,7 @@ dmar_get_ctx_for_dev1(struct dmar_unit *dmar, device_t dev, uint16_t rid,
 			ctx = ctx1;
 			dmar_ctx_link(ctx);
 			ctx->context.tag->owner = dev;
-			device_tag_init(ctx, dev);
+			iommu_device_tag_init(CTX2IOCTX(ctx), dev);
 
 			/*
 			 * This is the first activated context for the
