@@ -1694,7 +1694,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 				 * XXX check if the beacon we recv'd gives
 				 * us what we need and suppress the probe req
 				 */
-				ieee80211_probe_curchan(vap, 1);
+				ieee80211_probe_curchan(vap, true);
 				ic->ic_flags_ext &= ~IEEE80211_FEXT_PROBECHAN;
 			}
 			ieee80211_add_scan(vap, rxchan, &scan, wh,

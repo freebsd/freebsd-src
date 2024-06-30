@@ -104,7 +104,7 @@ struct ieee80211_scan_methods {
 	void (*sc_cancel_anyscan)(struct ieee80211vap *);
 	void (*sc_scan_next)(struct ieee80211vap *);
 	void (*sc_scan_done)(struct ieee80211vap *);
-	void (*sc_scan_probe_curchan)(struct ieee80211vap *, int);
+	void (*sc_scan_probe_curchan)(struct ieee80211vap *, bool);
 	void (*sc_add_scan)(struct ieee80211vap *,
 	    struct ieee80211_channel *,
 	    const struct ieee80211_scanparams *,
@@ -179,7 +179,7 @@ void	ieee80211_cancel_scan(struct ieee80211vap *);
 void	ieee80211_cancel_anyscan(struct ieee80211vap *);
 void	ieee80211_scan_next(struct ieee80211vap *);
 void	ieee80211_scan_done(struct ieee80211vap *);
-void	ieee80211_probe_curchan(struct ieee80211vap *, int);
+void	ieee80211_probe_curchan(struct ieee80211vap *, bool);
 struct ieee80211_channel *ieee80211_scan_pickchannel(struct ieee80211com *, int);
 
 struct ieee80211_scanparams;
