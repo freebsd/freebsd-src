@@ -1096,12 +1096,11 @@ static void
 gic_v3_init_secondary(device_t dev)
 {
 	struct gic_v3_setup_periph_args pargs;
-	device_t child;
 	struct gic_v3_softc *sc;
 	gic_v3_initseq_t *init_func;
 	struct intr_irqsrc *isrc;
 	u_int cpu, irq;
-	int err, i;
+	int err;
 
 	sc = device_get_softc(dev);
 	cpu = PCPU_GET(cpuid);
@@ -1136,11 +1135,6 @@ gic_v3_init_secondary(device_t dev)
 			gic_v3_setup_intr_periph(&pargs);
 			gic_v3_enable_intr_periph(&pargs);
 		}
-	}
-
-	for (i = 0; i < sc->gic_nchildren; i++) {
-		child = sc->gic_children[i];
-		PIC_INIT_SECONDARY(child);
 	}
 }
 
