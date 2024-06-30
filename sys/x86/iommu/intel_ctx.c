@@ -425,7 +425,7 @@ dmar_domain_alloc(struct dmar_unit *dmar, bool id_mapped)
 		}
 		domain->iodom.flags |= IOMMU_DOMAIN_IDMAP;
 	} else {
-		error = domain_alloc_pgtbl(domain);
+		error = dmar_domain_alloc_pgtbl(domain);
 		if (error != 0)
 			goto fail;
 		/* Disable local apic region access */
@@ -511,7 +511,7 @@ dmar_domain_destroy(struct dmar_domain *domain)
 	if ((domain->iodom.flags & IOMMU_DOMAIN_PGTBL_INITED) != 0) {
 		if (domain->pgtbl_obj != NULL)
 			DMAR_DOMAIN_PGLOCK(domain);
-		domain_free_pgtbl(domain);
+		dmar_domain_free_pgtbl(domain);
 	}
 	iommu_domain_fini(iodom);
 	dmar = DOM2DMAR(domain);

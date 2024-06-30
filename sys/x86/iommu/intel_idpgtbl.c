@@ -697,7 +697,7 @@ domain_unmap_buf(struct iommu_domain *iodom, iommu_gaddr_t base,
 }
 
 int
-domain_alloc_pgtbl(struct dmar_domain *domain)
+dmar_domain_alloc_pgtbl(struct dmar_domain *domain)
 {
 	vm_page_t m;
 
@@ -719,7 +719,7 @@ domain_alloc_pgtbl(struct dmar_domain *domain)
 }
 
 void
-domain_free_pgtbl(struct dmar_domain *domain)
+dmar_domain_free_pgtbl(struct dmar_domain *domain)
 {
 	vm_object_t obj;
 	vm_page_t m;
