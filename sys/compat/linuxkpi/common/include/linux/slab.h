@@ -92,6 +92,8 @@ struct linux_kmem_cache;
 #define ZERO_OR_NULL_PTR(x)	((x) == NULL || (x) == ZERO_SIZE_PTR)
 
 extern void *lkpi_kmalloc(size_t size, gfp_t flags);
+void *lkpi___kmalloc(size_t size, gfp_t flags);
+#define	__kmalloc(_s, _f)	lkpi___kmalloc(_s, _f)
 
 static inline gfp_t
 linux_check_m_flags(gfp_t flags)
@@ -106,13 +108,6 @@ linux_check_m_flags(gfp_t flags)
 
 	/* mask away LinuxKPI specific flags */
 	return (flags & GFP_NATIVE_MASK);
-}
-
-static inline void *
-__kmalloc(size_t size, gfp_t flags)
-{
-	return (malloc(MAX(size, sizeof(struct llist_node)), M_KMALLOC,
-	    linux_check_m_flags(flags)));
 }
 
 static inline void *
