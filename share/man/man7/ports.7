@@ -30,12 +30,27 @@
 .Nm ports
 .Nd contributed applications
 .Sh DESCRIPTION
+The Ports Collection is the framework for third party applications on the
+.Fx
+platform.
+Individual collections of files which support an application on
+.Fx
+are called
+.Em ports .
+.Pp
+There are two ways to access available ports.
 The
 .Fx
-Ports Collection
-offers a simple way to compile and install third party applications.
-It is also used to build packages, to be installed using
-.Xr pkg 8 .
+project maintains a repository of compiled ports, called packages, which
+can be fetched and installed with the
+.Xr pkg 7
+tool.
+.Pp
+Alternatively, the
+.Em ports tree
+can be installed locally, which provides a simple way to customize,
+build, and install packages from source locally with
+.Xr make 1 .
 .Pp
 The ports tree, typically located at
 .Pa /usr/ports ,
