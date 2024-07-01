@@ -1,4 +1,4 @@
-#	$OpenBSD: rekey.sh,v 1.19 2021/07/19 05:08:54 dtucker Exp $
+#	$OpenBSD: rekey.sh,v 1.20 2024/05/22 04:20:00 djm Exp $
 #	Placed in the Public Domain.
 
 tid="rekey"
@@ -14,7 +14,7 @@ ssh_data_rekeying()
 {
 	_kexopt=$1 ; shift
 	_opts="$@"
-	if ! test -z "$_kexopts" ; then
+	if ! test -z "$_kexopt" ; then
 		cp $OBJ/sshd_proxy_bak $OBJ/sshd_proxy
 		echo "$_kexopt" >> $OBJ/sshd_proxy
 		_opts="$_opts -o$_kexopt"

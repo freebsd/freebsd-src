@@ -1,4 +1,4 @@
-/* $OpenBSD: addr.c,v 1.7 2023/03/27 03:31:05 djm Exp $ */
+/* $OpenBSD: addr.c,v 1.8 2024/04/02 09:29:31 deraadt Exp $ */
 
 /*
  * Copyright (c) 2004-2008 Damien Miller <djm@mindrot.org>
@@ -27,6 +27,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <limits.h>
 
 #include "addr.h"
 
@@ -457,8 +458,9 @@ int
 addr_pton_cidr(const char *p, struct xaddr *n, u_int *l)
 {
 	struct xaddr tmp;
-	long unsigned int masklen = 999;
-	char addrbuf[64], *mp, *cp;
+	u_int masklen = 999;
+	char addrbuf[64], *mp;
+	const char *errstr;
 
 	/* Don't modify argument */
 	if (p == NULL || strlcpy(addrbuf, p, sizeof(addrbuf)) >= sizeof(addrbuf))
@@ -467,8 +469,8 @@ addr_pton_cidr(const char *p, struct xaddr *n, u_int *l)
 	if ((mp = strchr(addrbuf, '/')) != NULL) {
 		*mp = '\0';
 		mp++;
-		masklen = strtoul(mp, &cp, 10);
-		if (*mp < '0' || *mp > '9' || *cp != '\0' || masklen > 128)
+		masklen = (u_int)strtonum(mp, 0, INT_MAX, &errstr);
+		if (errstr)
 			return -1;
 	}
 

@@ -1,18 +1,14 @@
 Makefile
 buildpkg.sh
 config.h
-config.h.in
 config.h.in~
 config.log
 config.status
-configure
-aclocal.m4
 openbsd-compat/Makefile
 openbsd-compat/regress/Makefile
 openssh.xml
 opensshd.init
 survey.sh
-**/*.0
 **/*.o
 **/*.lo
 **/*.so
@@ -36,3 +32,4 @@ sshd
 !regress/misc/fuzz-harness/Makefile
 !regress/unittests/sshsig/Makefile
 tags
+

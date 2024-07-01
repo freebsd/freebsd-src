@@ -1,4 +1,4 @@
-/* $OpenBSD: sshkey.h,v 1.62 2023/06/21 05:10:26 djm Exp $ */
+/* $OpenBSD: sshkey.h,v 1.63 2024/05/17 06:42:04 jsg Exp $ */
 
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
@@ -316,7 +316,6 @@ int ssh_rsa_complete_crt_parameters(struct sshkey *, const BIGNUM *);
 int	 sshkey_set_filename(struct sshkey *, const char *);
 int	 sshkey_enable_maxsign(struct sshkey *, u_int32_t);
 u_int32_t sshkey_signatures_left(const struct sshkey *);
-int	 sshkey_forward_state(const struct sshkey *, u_int32_t, int);
 int	 sshkey_private_serialize_maxsign(struct sshkey *key,
     struct sshbuf *buf, u_int32_t maxsign, int);
 

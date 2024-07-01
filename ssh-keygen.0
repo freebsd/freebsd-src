@@ -6,7 +6,7 @@ NAME
 SYNOPSIS
      ssh-keygen [-q] [-a rounds] [-b bits] [-C comment] [-f output_keyfile]
                 [-m format] [-N new_passphrase] [-O option]
-                [-t dsa | ecdsa | ecdsa-sk | ed25519 | ed25519-sk | rsa]
+                [-t ecdsa | ecdsa-sk | ed25519 | ed25519-sk | rsa]
                 [-w provider] [-Z cipher]
      ssh-keygen -p [-a rounds] [-f keyfile] [-m format] [-N new_passphrase]
                 [-P old_passphrase] [-Z cipher]
@@ -56,10 +56,10 @@ DESCRIPTION
      KEY REVOCATION LISTS section for details.
 
      Normally each user wishing to use SSH with public key authentication runs
-     this once to create the authentication key in ~/.ssh/id_dsa,
-     ~/.ssh/id_ecdsa, ~/.ssh/id_ecdsa_sk, ~/.ssh/id_ed25519,
-     ~/.ssh/id_ed25519_sk or ~/.ssh/id_rsa.  Additionally, the system
-     administrator may use this to generate host keys, as seen in /etc/rc.
+     this once to create the authentication key in ~/.ssh/id_ecdsa,
+     ~/.ssh/id_ecdsa_sk, ~/.ssh/id_ed25519, ~/.ssh/id_ed25519_sk or
+     ~/.ssh/id_rsa.  Additionally, the system administrator may use this to
+     generate host keys, as seen in /etc/rc.
 
      Normally this program generates the key and asks for a file in which to
      store the private key.  The public key is stored in a file with the same
@@ -117,8 +117,7 @@ DESCRIPTION
      -b bits
              Specifies the number of bits in the key to create.  For RSA keys,
              the minimum size is 1024 bits and the default is 3072 bits.
-             Generally, 3072 bits is considered sufficient.  DSA keys must be
-             exactly 1024 bits as specified by FIPS 186-2.  For ECDSA keys,
+             Generally, 3072 bits is considered sufficient.  For ECDSA keys,
              the -b flag determines the key length by selecting from one of
              three elliptic curve sizes: 256, 384 or 521 bits.  Attempting to
              use bit lengths other than these three values for ECDSA keys will
@@ -201,9 +200,9 @@ DESCRIPTION
 
      -L      Prints the contents of one or more certificates.
 
-     -l      Show fingerprint of specified public key file.  For RSA and DSA
-             keys ssh-keygen tries to find the matching public key file and
-             prints its fingerprint.  If combined with -v, a visual ASCII art
+     -l      Show fingerprint of specified public key file.  ssh-keygen will
+             try to find the matching public key file and prints its
+             fingerprint.  If combined with -v, a visual ASCII art
              representation of the key is supplied with the fingerprint.
 
      -M generate
@@ -318,9 +317,9 @@ DESCRIPTION
              file used to revoke certificates directly by key ID or serial
              number.  See the KEY REVOCATION LISTS section for details.
 
-     -t dsa | ecdsa | ecdsa-sk | ed25519 | ed25519-sk | rsa
+     -t ecdsa | ecdsa-sk | ed25519 | ed25519-sk | rsa
              Specifies the type of key to create.  The possible values are
-             M-bM-^@M-^\dsaM-bM-^@M-^], M-bM-^@M-^\ecdsaM-bM-^@M-^], M-bM-^@M-^\ecdsa-skM-bM-^@M-^], M-bM-^@M-^\ed25519M-bM-^@M-^], M-bM-^@M-^\ed25519-skM-bM-^@M-^], or M-bM-^@M-^\rsaM-bM-^@M-^].
+             M-bM-^@M-^\ecdsaM-bM-^@M-^], M-bM-^@M-^\ecdsa-skM-bM-^@M-^], M-bM-^@M-^\ed25519M-bM-^@M-^], M-bM-^@M-^\ed25519-skM-bM-^@M-^], or M-bM-^@M-^\rsaM-bM-^@M-^].
 
              This flag may also be used to specify the desired signature type
              when signing certificates using an RSA CA key.  The available RSA
@@ -862,13 +861,12 @@ ENVIRONMENT
              the built-in USB HID support.
 
 FILES
-     ~/.ssh/id_dsa
      ~/.ssh/id_ecdsa
      ~/.ssh/id_ecdsa_sk
      ~/.ssh/id_ed25519
      ~/.ssh/id_ed25519_sk
      ~/.ssh/id_rsa
-             Contains the DSA, ECDSA, authenticator-hosted ECDSA, Ed25519,
+             Contains the ECDSA, authenticator-hosted ECDSA, Ed25519,
              authenticator-hosted Ed25519 or RSA authentication identity of
              the user.  This file should not be readable by anyone but the
              user.  It is possible to specify a passphrase when generating the
@@ -878,13 +876,12 @@ FILES
              the private key.  ssh(1) will read this file when a login attempt
              is made.
 
-     ~/.ssh/id_dsa.pub
      ~/.ssh/id_ecdsa.pub
      ~/.ssh/id_ecdsa_sk.pub
      ~/.ssh/id_ed25519.pub
      ~/.ssh/id_ed25519_sk.pub
      ~/.ssh/id_rsa.pub
-             Contains the DSA, ECDSA, authenticator-hosted ECDSA, Ed25519,
+             Contains the ECDSA, authenticator-hosted ECDSA, Ed25519,
              authenticator-hosted Ed25519 or RSA public key for
              authentication.  The contents of this file should be added to
              ~/.ssh/authorized_keys on all machines where the user wishes to
@@ -907,4 +904,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 7.5                    September 4, 2023                   OpenBSD 7.5
+OpenBSD 7.5                      June 17, 2024                     OpenBSD 7.5

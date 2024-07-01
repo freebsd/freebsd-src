@@ -22,7 +22,6 @@ FILES
      /etc/ssh/ssh_config
              Controls whether ssh-keysign is enabled.
 
-     /etc/ssh/ssh_host_dsa_key
      /etc/ssh/ssh_host_ecdsa_key
      /etc/ssh/ssh_host_ed25519_key
      /etc/ssh/ssh_host_rsa_key
@@ -32,7 +31,6 @@ FILES
              are readable only by root, ssh-keysign must be set-uid root if
              host-based authentication is used.
 
-     /etc/ssh/ssh_host_dsa_key-cert.pub
      /etc/ssh/ssh_host_ecdsa_key-cert.pub
      /etc/ssh/ssh_host_ed25519_key-cert.pub
      /etc/ssh/ssh_host_rsa_key-cert.pub
@@ -49,4 +47,4 @@ HISTORY
 AUTHORS
      Markus Friedl <markus@openbsd.org>
 
-OpenBSD 7.5                     March 31, 2022                     OpenBSD 7.5
+OpenBSD 7.5                      June 17, 2024                     OpenBSD 7.5

@@ -1,0 +1,34 @@
+SSH-SK-HELPER(8)            System Manager's Manual           SSH-SK-HELPER(8)
+
+NAME
+     ssh-sk-helper M-bM-^@M-^S OpenSSH helper for FIDO authenticator support
+
+SYNOPSIS
+     ssh-sk-helper [-v]
+
+DESCRIPTION
+     ssh-sk-helper is used by ssh(1), ssh-agent(1), and ssh-keygen(1) to
+     access keys provided by a FIDO authenticator.
+
+     ssh-sk-helper is not intended to be invoked directly by the user.
+
+     A single option is supported:
+
+     -v      Verbose mode.  Causes ssh-sk-helper to print debugging messages
+             about its progress.  This is helpful in debugging problems.
+             Multiple -v options increase the verbosity.  The maximum is 3.
+
+             Note that ssh(1), ssh-agent(1), and ssh-keygen(1) will
+             automatically pass the -v flag to ssh-sk-helper when they have
+             themselves been placed in debug mode.
+
+SEE ALSO
+     ssh(1), ssh-agent(1), ssh-keygen(1)
+
+HISTORY
+     ssh-sk-helper first appeared in OpenBSD 6.7.
+
+AUTHORS
+     Damien Miller <djm@openbsd.org>
+
+OpenBSD 7.5                     April 29, 2022                     OpenBSD 7.5

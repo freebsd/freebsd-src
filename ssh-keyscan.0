@@ -4,7 +4,7 @@ NAME
      ssh-keyscan M-bM-^@M-^S gather SSH public keys from servers
 
 SYNOPSIS
-     ssh-keyscan [-46cDHv] [-f file] [-O option] [-p port] [-T timeout]
+     ssh-keyscan [-46cDHqv] [-f file] [-O option] [-p port] [-T timeout]
                  [-t type] [host | addrlist namelist]
 
 DESCRIPTION
@@ -66,6 +66,9 @@ DESCRIPTION
      -p port
              Connect to port on the remote host.
 
+     -q      Quiet mode: do not print server host name and banners in
+             comments.
+
      -T timeout
              Set the timeout for connection attempts.  If timeout seconds have
              elapsed since a connection was initiated to a host or since the
@@ -75,10 +78,9 @@ DESCRIPTION
 
      -t type
              Specify the type of the key to fetch from the scanned hosts.  The
-             possible values are M-bM-^@M-^\dsaM-bM-^@M-^], M-bM-^@M-^\ecdsaM-bM-^@M-^], M-bM-^@M-^\ed25519M-bM-^@M-^], M-bM-^@M-^\ecdsa-skM-bM-^@M-^],
-             M-bM-^@M-^\ed25519-skM-bM-^@M-^], or M-bM-^@M-^\rsaM-bM-^@M-^].  Multiple values may be specified by
-             separating them with commas.  The default is to fetch M-bM-^@M-^\rsaM-bM-^@M-^],
-             M-bM-^@M-^\ecdsaM-bM-^@M-^], M-bM-^@M-^\ed25519M-bM-^@M-^], M-bM-^@M-^\ecdsa-skM-bM-^@M-^], and M-bM-^@M-^\ed25519-skM-bM-^@M-^] keys.
+             possible values are M-bM-^@M-^\ecdsaM-bM-^@M-^], M-bM-^@M-^\ed25519M-bM-^@M-^], M-bM-^@M-^\ecdsa-skM-bM-^@M-^], M-bM-^@M-^\ed25519-skM-bM-^@M-^],
+             or M-bM-^@M-^\rsaM-bM-^@M-^].  Multiple values may be specified by separating them
+             with commas.  The default is to fetch all the above key types.
 
      -v      Verbose mode: print debugging messages about progress.
 
@@ -104,7 +106,7 @@ EXAMPLES
      Find all hosts from the file ssh_hosts which have new or different keys
      from those in the sorted file ssh_known_hosts:
 
-           $ ssh-keyscan -t rsa,dsa,ecdsa,ed25519 -f ssh_hosts | \
+           $ ssh-keyscan -t rsa,ecdsa,ed25519 -f ssh_hosts | \
                    sort -u - ssh_known_hosts | diff ssh_known_hosts -
 
 SEE ALSO
@@ -118,4 +120,4 @@ AUTHORS
      Davison <wayned@users.sourceforge.net> added support for protocol version
      2.
 
-OpenBSD 7.5                    February 10, 2023                   OpenBSD 7.5
+OpenBSD 7.5                      June 17, 2024                     OpenBSD 7.5

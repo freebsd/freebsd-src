@@ -1,4 +1,4 @@
-#	$OpenBSD: key-options.sh,v 1.9 2018/07/03 13:53:26 djm Exp $
+#	$OpenBSD: key-options.sh,v 1.10 2024/03/25 02:07:08 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="key options"
