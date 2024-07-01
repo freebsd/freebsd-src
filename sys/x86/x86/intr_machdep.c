@@ -240,7 +240,6 @@ intr_register_source(struct intsrc *isrc)
 	}
 	intrcnt_register(isrc);
 	interrupt_sources[vector] = isrc;
-	isrc->is_handlers = 0;
 	sx_xunlock(&intrsrc_lock);
 	return (0);
 }
@@ -259,6 +258,7 @@ intr_add_handler(struct intsrc *isrc, const char *name, driver_filter_t filter,
     driver_intr_t handler, void *arg, enum intr_type flags, void **cookiep,
     int domain)
 {
+	bool startempty = CK_SLIST_EMPTY(&isrc->is_event->ie_handlers);
 	int error;
 
 	error = intr_event_add_handler(isrc->is_event, name, filter, handler,
@@ -266,8 +266,7 @@ intr_add_handler(struct intsrc *isrc, const char *name, driver_filter_t filter,
 	if (error == 0) {
 		sx_xlock(&intrsrc_lock);
 		intrcnt_updatename(isrc);
-		isrc->is_handlers++;
-		if (isrc->is_handlers == 1) {
+		if (startempty) {
 			isrc->is_domain = domain;
 			isrc->is_pic->pic_enable_intr(isrc);
 			isrc->is_pic->pic_enable_source(isrc);
@@ -287,8 +286,7 @@ intr_remove_handler(void *cookie)
 	error = intr_event_remove_handler(cookie);
 	if (error == 0) {
 		sx_xlock(&intrsrc_lock);
-		isrc->is_handlers--;
-		if (isrc->is_handlers == 0) {
+		if (CK_SLIST_EMPTY(&isrc->is_event->ie_handlers)) {
 			isrc->is_pic->pic_disable_source(isrc, PIC_NO_EOI);
 			isrc->is_pic->pic_disable_intr(isrc);
 		}

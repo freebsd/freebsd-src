@@ -111,7 +111,6 @@ struct intsrc {
 	u_long *is_count;
 	u_long *is_straycount;
 	u_int is_index;
-	u_int is_handlers;
 	u_int is_domain;
 	u_int is_cpu;
 };

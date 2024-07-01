@@ -330,7 +330,7 @@ xen_arch_intr_alloc(void)
 		KASSERT(isrc->xi_arch.intsrc.is_pic == &xen_intr_pic,
 		    ("interrupt not owned by Xen code?"));
 
-		KASSERT(isrc->xi_arch.intsrc.is_handlers == 0,
+		KASSERT(CK_SLIST_EMPTY(&isrc->xi_arch.intsrc.is_event->ie_handlers),
 		    ("Free evtchn still has handlers"));
 
 		return (isrc);
@@ -367,7 +367,7 @@ void
 xen_arch_intr_release(struct xenisrc *isrc)
 {
 
-	KASSERT(isrc->xi_arch.intsrc.is_handlers == 0,
+	KASSERT(CK_SLIST_EMPTY(&isrc->xi_arch.intsrc.is_event->ie_handlers),
 	    ("Release called, but xenisrc still in use"));
 
 	_Static_assert(sizeof(struct xenisrc) >= sizeof(struct avail_list),

@@ -33,6 +33,8 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/ck.h>
+#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -473,7 +475,7 @@ ioapic_assign_cpu(struct intsrc *isrc, u_int apic_id)
 
 	intpin->io_cpu = apic_id;
 	intpin->io_vector = new_vector;
-	if (isrc->is_handlers > 0)
+	if (!CK_SLIST_EMPTY(&isrc->is_event->ie_handlers))
 		apic_enable_vector(intpin->io_cpu, intpin->io_vector);
 	if (bootverbose) {
 		printf("ioapic%u: routing intpin %u (", io->io_id,
@@ -490,7 +492,7 @@ ioapic_assign_cpu(struct intsrc *isrc, u_int apic_id)
 	 * to prevent races where we could miss an interrupt.
 	 */
 	if (old_vector) {
-		if (isrc->is_handlers > 0)
+		if (!CK_SLIST_EMPTY(&isrc->is_event->ie_handlers))
 			apic_disable_vector(old_id, old_vector);
 		apic_free_vector(old_id, old_vector, intpin->io_irq);
 	}
