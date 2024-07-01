@@ -90,7 +90,7 @@ osd_default_destructor(void *value __unused)
 }
 
 int
-osd_register(u_int type, osd_destructor_t destructor, osd_method_t *methods)
+osd_register(u_int type, osd_destructor_t destructor, const osd_method_t *methods)
 {
 	void *newptr;
 	u_int i, m;

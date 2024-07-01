@@ -55,7 +55,7 @@ typedef void (*osd_destructor_t)(void *value);
 typedef int (*osd_method_t)(void *obj, void *data);
 
 int osd_register(u_int type, osd_destructor_t destructor,
-    osd_method_t *methods);
+    const osd_method_t *methods);
 void osd_deregister(u_int type, u_int slot);
 
 int osd_set(u_int type, struct osd *osd, u_int slot, void *value);
