@@ -1,4 +1,4 @@
-#	$OpenBSD: Makefile,v 1.14 2023/02/02 12:12:52 djm Exp $
+#	$OpenBSD: Makefile,v 1.15 2024/05/19 19:10:01 anton Exp $
 
 PROG=test_kex
 SRCS=tests.c test_kex.c test_proposal.c
@@ -14,6 +14,7 @@ SRCS+=cipher-chachapoly.c chacha.c poly1305.c ssh-ecdsa-sk.c ssh-sk.c
 SRCS+=ssh-ed25519-sk.c sk-usbhid.c
 
 SRCS+=	kex.c
+SRCS+=	kex-names.c
 SRCS+=	dh.c
 SRCS+=	kexdh.c
 SRCS+=	kexecdh.c

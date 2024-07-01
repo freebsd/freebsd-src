@@ -1,4 +1,4 @@
-/* $OpenBSD: clientloop.h,v 1.37 2020/04/03 02:40:32 djm Exp $ */
+/* $OpenBSD: clientloop.h,v 1.38 2024/05/17 06:42:04 jsg Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -43,7 +43,6 @@ struct ssh;
 int	 client_loop(struct ssh *, int, int, int);
 int	 client_x11_get_proto(struct ssh *, const char *, const char *,
 	    u_int, u_int, char **, char **);
-void	 client_global_request_reply_fwd(int, u_int32_t, void *);
 void	 client_session2_setup(struct ssh *, int, int, int,
 	    const char *, struct termios *, int, struct sshbuf *, char **);
 char	 *client_request_tun_fwd(struct ssh *, int, int, int,

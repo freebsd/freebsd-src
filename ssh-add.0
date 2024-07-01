@@ -13,11 +13,11 @@ SYNOPSIS
 DESCRIPTION
      ssh-add adds private key identities to the authentication agent,
      ssh-agent(1).  When run without arguments, it adds the files
-     ~/.ssh/id_rsa, ~/.ssh/id_ecdsa, ~/.ssh/id_ecdsa_sk, ~/.ssh/id_ed25519,
-     ~/.ssh/id_ed25519_sk, and ~/.ssh/id_dsa.  After loading a private key,
-     ssh-add will try to load corresponding certificate information from the
-     filename obtained by appending -cert.pub to the name of the private key
-     file.  Alternative file names can be given on the command line.
+     ~/.ssh/id_rsa, ~/.ssh/id_ecdsa, ~/.ssh/id_ecdsa_sk, ~/.ssh/id_ed25519 and
+     ~/.ssh/id_ed25519_sk.  After loading a private key, ssh-add will try to
+     load corresponding certificate information from the filename obtained by
+     appending -cert.pub to the name of the private key file.  Alternative
+     file names can be given on the command line.
 
      If any file requires a passphrase, ssh-add asks for the passphrase from
      the user.  The passphrase is read from the user's tty.  ssh-add retries
@@ -180,13 +180,12 @@ ENVIRONMENT
              the built-in USB HID support.
 
 FILES
-     ~/.ssh/id_dsa
      ~/.ssh/id_ecdsa
      ~/.ssh/id_ecdsa_sk
      ~/.ssh/id_ed25519
      ~/.ssh/id_ed25519_sk
      ~/.ssh/id_rsa
-             Contains the DSA, ECDSA, authenticator-hosted ECDSA, Ed25519,
+             Contains the ECDSA, authenticator-hosted ECDSA, Ed25519,
              authenticator-hosted Ed25519 or RSA authentication identity of
              the user.
 
@@ -207,4 +206,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 7.5                    December 19, 2023                   OpenBSD 7.5
+OpenBSD 7.5                      June 17, 2024                     OpenBSD 7.5

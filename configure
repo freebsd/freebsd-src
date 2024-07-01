@@ -1467,7 +1467,7 @@ Optional Features:
   --disable-largefile     omit support for large files
   --disable-pkcs11        disable PKCS#11 support code [no]
   --disable-security-key  disable U2F/FIDO support code no
-  --disable-dsa-keys      disable DSA key support no
+  --enable-dsa-keys       enable DSA key support no
   --disable-strip         Disable calling strip(1) on install
   --disable-etc-default-login Disable using PATH from /etc/default/login no
   --disable-fd-passing    disable file descriptor passsing no
@@ -6143,7 +6143,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -6210,7 +6213,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -6292,7 +6298,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -6359,7 +6368,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -6441,7 +6453,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -6508,7 +6523,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -6590,7 +6608,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -6657,7 +6678,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -6739,7 +6763,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -6806,7 +6833,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -6888,7 +6918,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -6955,7 +6988,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -7037,7 +7073,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -7104,7 +7143,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -7186,7 +7228,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -7253,7 +7298,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -7335,7 +7383,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -7402,7 +7453,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -7484,7 +7538,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -7551,7 +7608,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -7633,7 +7693,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -7700,7 +7763,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -7782,7 +7848,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -7849,7 +7918,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -7931,7 +8003,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -7998,7 +8073,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -8080,7 +8158,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -8147,7 +8228,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -8229,7 +8313,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -8296,7 +8383,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -8378,7 +8468,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -8445,7 +8538,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -8527,7 +8623,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -8594,7 +8693,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -8676,7 +8778,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -8743,7 +8848,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -8826,7 +8934,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -8893,7 +9004,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -8975,7 +9089,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -9043,7 +9160,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -9126,7 +9246,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -9194,7 +9317,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -9277,7 +9403,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -9345,7 +9474,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -9433,7 +9565,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -9500,7 +9635,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -9589,7 +9727,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -9656,7 +9797,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -9740,7 +9884,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -9807,7 +9954,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -9891,7 +10041,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -9958,7 +10111,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -10042,7 +10198,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -10109,7 +10268,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -10191,7 +10353,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -10259,7 +10424,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -11676,7 +11844,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -11743,7 +11914,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -12214,6 +12388,9 @@ printf "%s\n" "#define _PATH_BTMP \"/var/log/btmp\"" >>confdefs.h
 
 
 printf "%s\n" "#define LINUX_OOM_ADJUST 1" >>confdefs.h
+
+
+printf "%s\n" "#define SYSTEMD_NOTIFY 1" >>confdefs.h
 
 	inet6_default_4in6=yes
 	case `uname -r` in
@@ -15367,7 +15544,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -15434,7 +15614,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -15516,7 +15699,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -15584,7 +15770,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {
@@ -16670,21 +16859,17 @@ then :
 fi
 
 
-disable_ecdsa=
+enable_dsa=
 # Check whether --enable-dsa-keys was given.
 if test ${enable_dsa_keys+y}
 then :
   enableval=$enable_dsa_keys;
-		if test "x$enableval" = "xno" ; then
-			disable_ecdsa=1
+		if test "x$enableval" != "xno" ; then
+			enable_dsa=1
 		fi
 
 
 fi
-
-test -z "$disable_ecdsa" &&
-
-printf "%s\n" "#define WITH_DSA 1" >>confdefs.h
 
 
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for library containing dlopen" >&5
@@ -18589,12 +18774,9 @@ then :
 				*) ;;	# Assume all other versions are good.
 				esac
 				;;
-			300*)
+			30*)
 				# OpenSSL 3; we use the 1.1x API
-				CPPFLAGS="$CPPFLAGS -DOPENSSL_API_COMPAT=0x10100000L"
-				;;
-			301*|302*|303*)
-				# OpenSSL development branch; request 1.1x API
+				# https://openssl.org/policies/general/versioning-policy.html
 				CPPFLAGS="$CPPFLAGS -DOPENSSL_API_COMPAT=0x10100000L"
 				;;
 		        *)
@@ -19235,7 +19417,7 @@ main (void)
 
 		unsigned char buf[64];
 		memset(buf, 0, sizeof(buf));
-		exit(EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519,
+		exit(EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519, NULL,
 		    buf, sizeof(buf)) == NULL);
 
   ;
@@ -19260,6 +19442,56 @@ printf "%s\n" "no" >&6; }
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.beam \
     conftest$ac_exeext conftest.$ac_ext
+
+	openssl_dsa=no
+	if test ! -z "$enable_dsa" ; then
+		ac_fn_check_decl "$LINENO" "OPENSSL_NO_DSA" "ac_cv_have_decl_OPENSSL_NO_DSA" " #include <openssl/opensslconf.h>
+
+" "$ac_c_undeclared_builtin_options" "CFLAGS"
+if test "x$ac_cv_have_decl_OPENSSL_NO_DSA" = xyes
+then :
+  ac_have_decl=1
+else $as_nop
+  ac_have_decl=0
+fi
+printf "%s\n" "#define HAVE_DECL_OPENSSL_NO_DSA $ac_have_decl" >>confdefs.h
+if test $ac_have_decl = 1
+then :
+
+else $as_nop
+
+			ac_fn_check_decl "$LINENO" "OPENSSL_IS_BORINGSSL" "ac_cv_have_decl_OPENSSL_IS_BORINGSSL" " #include <openssl/opensslconf.h>
+
+" "$ac_c_undeclared_builtin_options" "CFLAGS"
+if test "x$ac_cv_have_decl_OPENSSL_IS_BORINGSSL" = xyes
+then :
+  ac_have_decl=1
+else $as_nop
+  ac_have_decl=0
+fi
+printf "%s\n" "#define HAVE_DECL_OPENSSL_IS_BORINGSSL $ac_have_decl" >>confdefs.h
+if test $ac_have_decl = 1
+then :
+
+else $as_nop
+   openssl_dsa=yes
+fi
+
+
+fi
+
+		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether to enable DSA key support" >&5
+printf %s "checking whether to enable DSA key support... " >&6; }
+		if test "x$openssl_dsa" = "xno"; then
+			as_fn_error $? "DSA requested but not supported by OpenSSL" "$LINENO" 5
+		else
+			{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+
+printf "%s\n" "#define WITH_DSA 1" >>confdefs.h
+
+		fi
+	fi
 fi
 
 # PKCS11/U2F depend on OpenSSL and dlopen().

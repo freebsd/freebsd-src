@@ -1,5 +1,5 @@
 #!/bin/sh
-#       $OpenBSD: ed25519.sh,v 1.1 2023/01/15 23:05:32 djm Exp $
+#       $OpenBSD: ed25519.sh,v 1.2 2024/05/17 02:39:11 jsg Exp $
 #       Placed in the Public Domain.
 #
 AUTHOR="supercop-20221122/crypto_sign/ed25519/ref/implementors"
@@ -74,7 +74,7 @@ for i in $FILES; do
 	    sed -e "s/crypto_sign_open/crypto_sign_ed25519_open/g"
 	    ;;
 	*/crypto_sign/ed25519/ref/fe25519.*)
-	    # avoid a couple of name collions with other files
+	    # avoid a couple of name collisions with other files
 	    sed -e "s/reduce_add_sub/fe25519_reduce_add_sub/g" \
 	        -e "s/ equal[(]/ fe25519_equal(/g" \
 	        -e "s/^int /static int /g"

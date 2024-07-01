@@ -112,7 +112,6 @@ reset_idtab(void)
 	idtab_init();
 	// Load keys.
 	add_key(PRIV_RSA, CERT_RSA);
-	add_key(PRIV_DSA, CERT_DSA);
 	add_key(PRIV_ECDSA, CERT_ECDSA);
 	add_key(PRIV_ED25519, CERT_ED25519);
 	add_key(PRIV_ECDSA_SK, CERT_ECDSA_SK);

@@ -328,13 +328,14 @@ getrrsetbyname(const char *hostname, unsigned int rdclass,
 
 		if (rdata) {
 			rdata->rdi_length = rr->size;
-			rdata->rdi_data   = malloc(rr->size);
-
-			if (rdata->rdi_data == NULL) {
-				result = ERRSET_NOMEMORY;
-				goto fail;
+			if (rr->size != 0) {
+				rdata->rdi_data   = malloc(rr->size);
+				if (rdata->rdi_data == NULL) {
+					result = ERRSET_NOMEMORY;
+					goto fail;
+				}
+				memcpy(rdata->rdi_data, rr->rdata, rr->size);
 			}
-			memcpy(rdata->rdi_data, rr->rdata, rr->size);
 		}
 	}
 	free_dns_response(response);
@@ -577,12 +578,13 @@ parse_dns_rrsection(const u_char *answer, int size, const u_char **cp,
 
 		/* rdata itself */
 		NEED(curr->size);
-		curr->rdata = malloc(curr->size);
-		if (curr->rdata == NULL) {
-			free_dns_rr(head);
-			return (NULL);
+		if (curr->size != 0) {
+			if ((curr->rdata = malloc(curr->size)) == NULL) {
+				free_dns_rr(head);
+				return (NULL);
+			}
+			memcpy(curr->rdata, *cp, curr->size);
 		}
-		memcpy(curr->rdata, *cp, curr->size);
 		*cp += curr->size;
 	}
 #undef NEED

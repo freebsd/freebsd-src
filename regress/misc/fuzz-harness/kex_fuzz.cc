@@ -144,7 +144,6 @@ static int
 prepare_keys(struct shared_state *st)
 {
 	if (prepare_key(st, KEY_RSA, 2048) != 0 ||
-	    prepare_key(st, KEY_DSA, 1024) != 0 ||
 	    prepare_key(st, KEY_ECDSA, 256) != 0 ||
 	    prepare_key(st, KEY_ED25519, 256) != 0) {
 		error_f("key prepare failed");
@@ -264,10 +263,6 @@ prepare_key(struct shared_state *st, int kt, int bits)
 		pubstr = PUB_RSA;
 		privstr = PRIV_RSA;
 		break;
-	case KEY_DSA:
-		pubstr = PUB_DSA;
-		privstr = PRIV_DSA;
-		break;
 	case KEY_ECDSA:
 		pubstr = PUB_ECDSA;
 		privstr = PRIV_ECDSA;
@@ -325,7 +320,7 @@ int main(void)
 {
 	static struct shared_state *st;
 	struct test_state *ts;
-	const int keytypes[] = { KEY_RSA, KEY_DSA, KEY_ECDSA, KEY_ED25519, -1 };
+	const int keytypes[] = { KEY_RSA, KEY_ECDSA, KEY_ED25519, -1 };
 	static const char * const kextypes[] = {
 		"sntrup761x25519-sha512@openssh.com",
 		"curve25519-sha256@libssh.org",
@@ -399,7 +394,6 @@ static void
 do_kex(struct shared_state *st, struct test_state *ts, const char *kex)
 {
 	do_kex_with_key(st, ts, kex, KEY_RSA);
-	do_kex_with_key(st, ts, kex, KEY_DSA);
 	do_kex_with_key(st, ts, kex, KEY_ECDSA);
 	do_kex_with_key(st, ts, kex, KEY_ED25519);
 }

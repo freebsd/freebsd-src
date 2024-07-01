@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect2.c,v 1.372 2024/01/08 00:34:34 djm Exp $ */
+/* $OpenBSD: sshconnect2.c,v 1.373 2024/05/17 06:38:00 jsg Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2008 Damien Miller.  All rights reserved.
@@ -80,8 +80,6 @@
 #endif
 
 /* import */
-extern char *client_version_string;
-extern char *server_version_string;
 extern Options options;
 
 /*

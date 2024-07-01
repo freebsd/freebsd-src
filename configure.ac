@@ -915,6 +915,7 @@ int main(void) { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 	AC_DEFINE([_PATH_BTMP], ["/var/log/btmp"], [log for bad login attempts])
 	AC_DEFINE([USE_BTMP])
 	AC_DEFINE([LINUX_OOM_ADJUST], [1], [Adjust Linux out-of-memory killer])
+	AC_DEFINE([SYSTEMD_NOTIFY], [1], [Have sshd notify systemd on start/reload])
 	inet6_default_4in6=yes
 	case `uname -r` in
 	1.*|2.0.*)
@@ -2075,17 +2076,15 @@ AC_ARG_WITH([security-key-builtin],
 	[ enable_sk_internal=$withval ]
 )
 
-disable_ecdsa=
+enable_dsa=
 AC_ARG_ENABLE([dsa-keys],
-	[  --disable-dsa-keys      disable DSA key support [no]],
+	[  --enable-dsa-keys       enable DSA key support [no]],
 	[
-		if test "x$enableval" = "xno" ; then
-			disable_ecdsa=1
+		if test "x$enableval" != "xno" ; then
+			enable_dsa=1
 		fi
 	]
 )
-test -z "$disable_ecdsa" &&
-    AC_DEFINE([WITH_DSA], [1], [Define if to enable DSA keys.])
 
 AC_SEARCH_LIBS([dlopen], [dl])
 AC_CHECK_FUNCS([dlopen])
@@ -2883,12 +2882,9 @@ if test "x$openssl" = "xyes" ; then
 				*) ;;	# Assume all other versions are good.
 				esac
 				;;
-			300*)
+			30*)
 				# OpenSSL 3; we use the 1.1x API
-				CPPFLAGS="$CPPFLAGS -DOPENSSL_API_COMPAT=0x10100000L"
-				;;
-			301*|302*|303*)
-				# OpenSSL development branch; request 1.1x API
+				# https://openssl.org/policies/general/versioning-policy.html
 				CPPFLAGS="$CPPFLAGS -DOPENSSL_API_COMPAT=0x10100000L"
 				;;
 		        *)
@@ -3184,7 +3180,7 @@ if test "x$openssl" = "xyes" ; then
 		]], [[
 		unsigned char buf[64];
 		memset(buf, 0, sizeof(buf));
-		exit(EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519,
+		exit(EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519, NULL,
 		    buf, sizeof(buf)) == NULL);
 		]])],
 		[
@@ -3196,6 +3192,26 @@ if test "x$openssl" = "xyes" ; then
 			AC_MSG_RESULT([no])
 		]
 	)
+
+	openssl_dsa=no
+	if test ! -z "$enable_dsa" ; then
+		AC_CHECK_DECLS([OPENSSL_NO_DSA], [], [
+			AC_CHECK_DECLS([OPENSSL_IS_BORINGSSL], [],
+			    [ openssl_dsa=yes ],
+			    [ #include <openssl/opensslconf.h> ]
+			)
+		    ],
+		    [ #include <openssl/opensslconf.h> ]
+		)
+		AC_MSG_CHECKING([whether to enable DSA key support])
+		if test "x$openssl_dsa" = "xno"; then
+			AC_MSG_ERROR([DSA requested but not supported by OpenSSL])
+		else
+			AC_MSG_RESULT([yes])
+			AC_DEFINE([WITH_DSA], [1],
+			   [DSA keys explicitly enabled])
+		fi
+	fi
 fi
 
 # PKCS11/U2F depend on OpenSSL and dlopen().

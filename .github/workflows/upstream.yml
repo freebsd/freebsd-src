@@ -3,28 +3,38 @@ name: Upstream self-hosted
 on:
   push:
     branches: [ master ]
-    paths: [ '**.c', '**.h', '.github/**' ]
+    paths: [ '**.c', '**.h', '**.sh', '.github/configs', '.github/workflows/upstream.yml' ]
 
 jobs:
   selfhosted:
+    name: "upstream ${{ matrix.target }} ${{ matrix.config }}"
     if: github.repository == 'openssh/openssh-portable-selfhosted'
     runs-on: 'libvirt'
     env:
+      DEBUG_ACTIONS: true
+      EPHEMERAL: true
       HOST: 'libvirt'
       TARGET_HOST: ${{ matrix.target }}
       TARGET_CONFIG: ${{ matrix.config }}
+      TARGET_DOMAIN: ${{ format('{0}-{1}-{2}', matrix.target, matrix.config, github.run_id) || matrix.target }}
     strategy:
       fail-fast: false
       matrix:
         target: [ obsdsnap, obsdsnap-i386 ]
         config: [ default, without-openssl, ubsan ]
     steps:
+    - name: unmount stale workspace
+      run: fusermount -u ${GITHUB_WORKSPACE} || true
+      working-directory: ${{ runner.temp }}
     - name: shutdown VM if running
       run: vmshutdown
       working-directory: ${{ runner.temp }}
     - uses: actions/checkout@main
     - name: startup VM
       run: vmstartup
+      working-directory: ${{ runner.temp }}
+    - name: copy and mount workspace
+      run: sshfs_mount
       working-directory: ${{ runner.temp }}
     - name: update source
       run: vmrun "cd /usr/src && cvs up -dPA usr.bin/ssh regress/usr.bin/ssh"
@@ -33,7 +43,7 @@ jobs:
     - name: make
       run: vmrun "cd /usr/src/usr.bin/ssh && case ${{ matrix.config }} in without-openssl) make OPENSSL=no;; ubsan) make DEBUG='-fsanitize-minimal-runtime -fsanitize=undefined';; *) make; esac"
     - name: make install
-      run: vmrun "cd /usr/src/usr.bin/ssh && sudo make install"
+      run: vmrun "cd /usr/src/usr.bin/ssh && sudo make install && sudo /etc/rc.d/sshd -f restart"
     - name: make tests`
       run: vmrun "cd /usr/src/regress/usr.bin/ssh && case ${{ matrix.config }} in without-openssl) make OPENSSL=no;; ubsan) make DEBUG='-fsanitize-minimal-runtime -fsanitize=undefined';; *) make; esac"
       env:
@@ -47,6 +57,10 @@ jobs:
         path: |
           /usr/obj/regress/usr.bin/ssh/obj/*.log
           /usr/obj/regress/usr.bin/ssh/obj/log/*
+    - name: unmount workspace
+      if: always()
+      run: fusermount -u ${GITHUB_WORKSPACE} || true
+      working-directory: ${{ runner.temp }}
     - name: shutdown VM
       if: always()
       run: vmshutdown

@@ -255,7 +255,6 @@ AUTHORIZED_KEYS FILE FORMAT
            ecdsa-sha2-nistp521
            sk-ssh-ed25519@openssh.com
            ssh-ed25519
-           ssh-dss
            ssh-rsa
 
      The comment field is not used for anything (but may be convenient for the
@@ -264,8 +263,8 @@ AUTHORIZED_KEYS FILE FORMAT
      Note that lines in this file can be several hundred bytes long (because
      of the size of the public key encoding) up to a limit of 8 kilobytes,
      which permits RSA keys up to 16 kilobits.  You don't want to type them
-     in; instead, copy the id_dsa.pub, id_ecdsa.pub, id_ecdsa_sk.pub,
-     id_ed25519.pub, id_ed25519_sk.pub, or the id_rsa.pub file and edit it.
+     in; instead, copy the id_ecdsa.pub, id_ecdsa_sk.pub, id_ed25519.pub,
+     id_ed25519_sk.pub, or the id_rsa.pub file and edit it.
 
      sshd enforces a minimum RSA key modulus size of 1024 bits.
 
@@ -567,11 +566,11 @@ FILES
              for the user, and not accessible by others.
 
      ~/.ssh/authorized_keys
-             Lists the public keys (DSA, ECDSA, Ed25519, RSA) that can be used
-             for logging in as this user.  The format of this file is
-             described above.  The content of the file is not highly
-             sensitive, but the recommended permissions are read/write for the
-             user, and not accessible by others.
+             Lists the public keys (ECDSA, Ed25519, RSA) that can be used for
+             logging in as this user.  The format of this file is described
+             above.  The content of the file is not highly sensitive, but the
+             recommended permissions are read/write for the user, and not
+             accessible by others.
 
              If this file, the ~/.ssh directory, or the user's home directory
              are writable by other users, then the file could be modified or
@@ -683,4 +682,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 7.5                   September 19, 2023                   OpenBSD 7.5
+OpenBSD 7.5                      June 17, 2024                     OpenBSD 7.5

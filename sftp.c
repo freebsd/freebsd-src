@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp.c,v 1.237 2024/02/01 02:37:33 djm Exp $ */
+/* $OpenBSD: sftp.c,v 1.239 2024/06/26 23:14:14 deraadt Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -234,12 +234,14 @@ killchild(int signo)
 static void
 suspchild(int signo)
 {
+	int save_errno = errno;
 	if (sshpid > 1) {
 		kill(sshpid, signo);
 		while (waitpid(sshpid, NULL, WUNTRACED) == -1 && errno == EINTR)
 			continue;
 	}
 	kill(getpid(), SIGSTOP);
+	errno = save_errno;
 }
 
 static void
@@ -2301,8 +2303,10 @@ interactive_loop(struct sftp_conn *conn, char *file1, char *file2)
 			break;
 		}
 		if (el == NULL) {
-			if (interactive)
+			if (interactive) {
 				printf("sftp> ");
+				fflush(stdout);
+			}
 			if (fgets(cmd, sizeof(cmd), infile) == NULL) {
 				if (interactive)
 					printf("\n");

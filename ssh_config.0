@@ -662,19 +662,19 @@ DESCRIPTION
              VARIABLES section.
 
      IdentityFile
-             Specifies a file from which the user's DSA, ECDSA, authenticator-
+             Specifies a file from which the user's ECDSA, authenticator-
              hosted ECDSA, Ed25519, authenticator-hosted Ed25519 or RSA
              authentication identity is read.  You can also specify a public
              key file to use the corresponding private key that is loaded in
              ssh-agent(1) when the private key file is not present locally.
              The default is ~/.ssh/id_rsa, ~/.ssh/id_ecdsa,
-             ~/.ssh/id_ecdsa_sk, ~/.ssh/id_ed25519, ~/.ssh/id_ed25519_sk and
-             ~/.ssh/id_dsa.  Additionally, any identities represented by the
-             authentication agent will be used for authentication unless
-             IdentitiesOnly is set.  If no certificates have been explicitly
-             specified by CertificateFile, ssh(1) will try to load certificate
-             information from the filename obtained by appending -cert.pub to
-             the path of a specified IdentityFile.
+             ~/.ssh/id_ecdsa_sk, ~/.ssh/id_ed25519 and ~/.ssh/id_ed25519_sk.
+             Additionally, any identities represented by the authentication
+             agent will be used for authentication unless IdentitiesOnly is
+             set.  If no certificates have been explicitly specified by
+             CertificateFile, ssh(1) will try to load certificate information
+             from the filename obtained by appending -cert.pub to the path of
+             a specified IdentityFile.
 
              Arguments to IdentityFile may use the tilde syntax to refer to a
              user's home directory or the tokens described in the TOKENS
@@ -738,15 +738,21 @@ DESCRIPTION
              OpenSSH server, it may be zero or more of: bsdauth and pam.
 
      KexAlgorithms
-             Specifies the available KEX (Key Exchange) algorithms.  Multiple
-             algorithms must be comma-separated.  If the specified list begins
-             with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the specified algorithms will be
-             appended to the default set instead of replacing them.  If the
-             specified list begins with a M-bM-^@M-^X-M-bM-^@M-^Y character, then the specified
-             algorithms (including wildcards) will be removed from the default
-             set instead of replacing them.  If the specified list begins with
-             a M-bM-^@M-^X^M-bM-^@M-^Y character, then the specified algorithms will be placed at
-             the head of the default set.  The default is:
+             Specifies the permitted KEX (Key Exchange) algorithms that will
+             be used and their preference order.  The selected algorithm will
+             the the first algorithm in this list that the server also
+             supports.  Multiple algorithms must be comma-separated.
+
+             If the specified list begins with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the
+             specified algorithms will be appended to the default set instead
+             of replacing them.  If the specified list begins with a M-bM-^@M-^X-M-bM-^@M-^Y
+             character, then the specified algorithms (including wildcards)
+             will be removed from the default set instead of replacing them.
+             If the specified list begins with a M-bM-^@M-^X^M-bM-^@M-^Y character, then the
+             specified algorithms will be placed at the head of the default
+             set.
+
+             The default is:
 
                    sntrup761x25519-sha512@openssh.com,
                    curve25519-sha256,curve25519-sha256@libssh.org,
@@ -756,7 +762,7 @@ DESCRIPTION
                    diffie-hellman-group18-sha512,
                    diffie-hellman-group14-sha256
 
-             The list of available key exchange algorithms may also be
+             The list of supported key exchange algorithms may also be
              obtained using "ssh -Q kex".
 
      KnownHostsCommand
@@ -1422,4 +1428,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 7.5                    February 21, 2024                   OpenBSD 7.5
+OpenBSD 7.5                      June 17, 2024                     OpenBSD 7.5
