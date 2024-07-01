@@ -160,7 +160,7 @@ find_rules(struct prison *spr, struct prison **prp)
 	struct rules *rules;
 
 	for (pr = spr;; pr = pr->pr_parent) {
-		mtx_lock(&pr->pr_mtx);
+		prison_lock(pr);
 		if (pr == &prison0) {
 			rules = &rules0;
 			break;
@@ -168,7 +168,7 @@ find_rules(struct prison *spr, struct prison **prp)
 		rules = osd_jail_get(pr, mac_do_osd_jail_slot);
 		if (rules != NULL)
 			break;
-		mtx_unlock(&pr->pr_mtx);
+		prison_unlock(pr);
 	}
 	*prp = pr;
 
@@ -185,15 +185,15 @@ sysctl_rules(SYSCTL_HANDLER_ARGS)
 	int error;
 
 	rules = find_rules(req->td->td_ucred->cr_prison, &pr);
-	mtx_unlock(&pr->pr_mtx);
+	prison_unlock(pr);
 	if (req->newptr == NULL)
 		return (sysctl_handle_string(oidp, rules->string, MAC_RULE_STRING_LEN, req));
 
 	new_string = malloc(MAC_RULE_STRING_LEN, M_DO,
 	    M_WAITOK|M_ZERO);
-	mtx_lock(&pr->pr_mtx);
+	prison_lock(pr);
 	strlcpy(new_string, rules->string, MAC_RULE_STRING_LEN);
-	mtx_unlock(&pr->pr_mtx);
+	prison_unlock(pr);
 
 	error = sysctl_handle_string(oidp, new_string, MAC_RULE_STRING_LEN, req);
 	if (error)
@@ -204,11 +204,11 @@ sysctl_rules(SYSCTL_HANDLER_ARGS)
 	if (error)
 		goto out;
 	TAILQ_INIT(&saved_head);
-	mtx_lock(&pr->pr_mtx);
+	prison_lock(pr);
 	TAILQ_CONCAT(&saved_head, &rules->head, r_entries);
 	TAILQ_CONCAT(&rules->head, &head, r_entries);
 	strlcpy(rules->string, new_string, MAC_RULE_STRING_LEN);
-	mtx_unlock(&pr->pr_mtx);
+	prison_unlock(pr);
 	toast_rules(&saved_head);
 
 out:
@@ -239,7 +239,7 @@ mac_do_alloc_prison(struct prison *pr, struct rules **lrp)
 	if (ppr == pr)
 		goto done;
 
-	mtx_unlock(&ppr->pr_mtx);
+	prison_unlock(ppr);
 	new_rules = malloc(sizeof(*new_rules), M_PRISON, M_WAITOK|M_ZERO);
 	rsv = osd_reserve(mac_do_osd_jail_slot);
 	rules = find_rules(pr, &ppr);
@@ -248,14 +248,14 @@ mac_do_alloc_prison(struct prison *pr, struct rules **lrp)
 		osd_free_reserved(rsv);
 		goto done;
 	}
-	mtx_lock(&pr->pr_mtx);
+	prison_lock(pr);
 	osd_jail_set_reserved(pr, mac_do_osd_jail_slot, rsv, new_rules);
 	TAILQ_INIT(&new_rules->head);
 done:
 	if (lrp != NULL)
 		*lrp = rules;
-	mtx_unlock(&pr->pr_mtx);
-	mtx_unlock(&ppr->pr_mtx);
+	prison_unlock(pr);
+	prison_unlock(ppr);
 }
 
 static void
@@ -286,9 +286,9 @@ mac_do_prison_set(void *obj, void *data)
 		jsys = JAIL_SYS_NEW;
 	switch (jsys) {
 	case JAIL_SYS_INHERIT:
-		mtx_lock(&pr->pr_mtx);
+		prison_lock(pr);
 		osd_jail_del(pr, mac_do_osd_jail_slot);
-		mtx_unlock(&pr->pr_mtx);
+		prison_unlock(pr);
 		break;
 	case JAIL_SYS_NEW:
 		mac_do_alloc_prison(pr, &rules);
@@ -299,11 +299,11 @@ mac_do_prison_set(void *obj, void *data)
 		if (error)
 			return (1);
 		TAILQ_INIT(&saved_head);
-		mtx_lock(&pr->pr_mtx);
+		prison_lock(pr);
 		TAILQ_CONCAT(&saved_head, &rules->head, r_entries);
 		TAILQ_CONCAT(&rules->head, &head, r_entries);
 		strlcpy(rules->string, rules_string, MAC_RULE_STRING_LEN);
-		mtx_unlock(&pr->pr_mtx);
+		prison_unlock(pr);
 		toast_rules(&saved_head);
 		break;
 	}
@@ -329,7 +329,7 @@ mac_do_prison_get(void *obj, void *data)
 	error = vfs_setopts(opts, "mdo.rules", rules->string);
 	if (error != 0 && error != ENOENT)
 		goto done;
-	mtx_unlock(&ppr->pr_mtx);
+	prison_unlock(ppr);
 	error = 0;
 done:
 	return (0);
@@ -350,9 +350,9 @@ mac_do_prison_remove(void *obj, void *data __unused)
 	struct prison *pr = obj;
 	struct rules *r;
 
-	mtx_lock(&pr->pr_mtx);
+	prison_lock(pr);
 	r = osd_jail_get(pr, mac_do_osd_jail_slot);
-	mtx_unlock(&pr->pr_mtx);
+	prison_unlock(pr);
 	toast_rules(&r->head);
 	return (0);
 }
@@ -431,14 +431,14 @@ priv_grant(struct ucred *cred, int priv)
 			switch (priv) {
 			case PRIV_CRED_SETGROUPS:
 			case PRIV_CRED_SETUID:
-				mtx_unlock(&pr->pr_mtx);
+				prison_unlock(pr);
 				return (0);
 			default:
 				break;
 			}
 		}
 	}
-	mtx_unlock(&pr->pr_mtx);
+	prison_unlock(pr);
 	return (EPERM);
 }
 
@@ -467,11 +467,11 @@ check_setgroups(struct ucred *cred, int ngrp, gid_t *groups)
 	rule = find_rules(cred->cr_prison, &pr);
 	TAILQ_FOREACH(r, &rule->head, r_entries) {
 		if (rule_applies(cred, r)) {
-			mtx_unlock(&pr->pr_mtx);
+			prison_unlock(pr);
 			return (0);
 		}
 	}
-	mtx_unlock(&pr->pr_mtx);
+	prison_unlock(pr);
 
 	return (EPERM);
 }
@@ -527,7 +527,7 @@ check_setuid(struct ucred *cred, uid_t uid)
 			}
 		}
 	}
-	mtx_unlock(&pr->pr_mtx);
+	prison_unlock(pr);
 	return (error);
 }
 
