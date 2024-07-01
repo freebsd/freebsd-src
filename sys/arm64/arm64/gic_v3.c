@@ -276,7 +276,7 @@ gic_v3_reserve_msi_range(device_t dev, u_int start, u_int count)
 	    ("%s: Trying to allocate too many MSI IRQs: %d + %d > %d", __func__,
 	    start, count, sc->gic_nirqs));
 	for (i = 0; i < count; i++) {
-		KASSERT(sc->gic_irqs[start + i].gi_isrc.isrc_handlers == 0,
+		KASSERT(ISRC_NO_HANDLER(&sc->gic_irqs[start + i].gi_isrc),
 		    ("%s: MSI interrupt %d already has a handler", __func__,
 		    count + i));
 		KASSERT(sc->gic_irqs[start + i].gi_pol == INTR_POLARITY_CONFORM,
@@ -360,8 +360,8 @@ gic_v3_attach(device_t dev)
 		struct intr_irqsrc *isrc;
 
 		sc->gic_irqs[irq].gi_irq = irq;
-		sc->gic_irqs[irq].gi_pol = INTR_POLARITY_CONFORM;
-		sc->gic_irqs[irq].gi_trig = INTR_TRIGGER_CONFORM;
+		sc->gic_irqs[irq].gi_pol = INTR_POLARITY_INVALID;
+		sc->gic_irqs[irq].gi_trig = INTR_TRIGGER_INVALID;
 
 		isrc = &sc->gic_irqs[irq].gi_isrc;
 		if (irq <= GIC_LAST_SGI) {
@@ -913,7 +913,8 @@ gic_v3_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 		return (EINVAL);
 
 	/* Compare config if this is not first setup. */
-	if (isrc->isrc_handlers != 0) {
+	if (gi->gi_pol != INTR_POLARITY_INVALID ||
+	    gi->gi_trig != INTR_TRIGGER_INVALID) {
 		if (pol != gi->gi_pol || trig != gi->gi_trig)
 			return (EINVAL);
 		else
@@ -950,9 +951,9 @@ gic_v3_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
 {
 	struct gic_v3_irqsrc *gi = (struct gic_v3_irqsrc *)isrc;
 
-	if (isrc->isrc_handlers == 0 && (gi->gi_flags & GI_FLAG_MSI) == 0) {
-		gi->gi_pol = INTR_POLARITY_CONFORM;
-		gi->gi_trig = INTR_TRIGGER_CONFORM;
+	if (ISRC_NO_HANDLER(isrc) && (gi->gi_flags & GI_FLAG_MSI) == 0) {
+		gi->gi_pol = INTR_POLARITY_INVALID;
+		gi->gi_trig = INTR_TRIGGER_INVALID;
 	}
 
 	return (0);
