@@ -12,6 +12,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20240701:
+	13.2-RELEASE-p12 SA-24:04.openssh
+
+	Fix pre-authentication remote code execution in sshd [SA-24:04.openssh]
+
 20240327:
 	13.2-RELEASE-p11 SA-24:03.unbound
 			EN-24:05.tty
