@@ -664,12 +664,9 @@ variables only specific ports:
 .Ic TRYBROKEN=		yes
 .Ic \&.endif
 .Ed
-.It Sy Example 6\&: Debugging Ports
-By default ports are built and packaged without debugging support (e.g.,
-debugging symbols are stripped from binaries, optimization flags are used for
-compiling, verbose logging is disabled).
-Whether ports are built with debugging symbols can be controlled by the
-settings in
+.It Sy Example 6\&: Setting Debugging Variables
+Whether ports are built with debugging symbols can be controlled by
+setting the debugging variables in
 .Xr make.conf 5 ,
 e.g.,
 .Bd -literal -offset 2n
@@ -687,13 +684,15 @@ It is also possible to use the debug variables on the command line:
 See the
 .Sx MAKE VARIABLES
 section to learn more about the debug variables.
-.Pp
+.Sh DIAGNOSTICS
+By default ports are built and packaged without debugging support (e.g.,
+debugging symbols are stripped from binaries, optimization flags are used for
+compiling, verbose logging is disabled).
 To understand the details of what happens when the debug variables are set it
 is best to consult the files located at
-.Pa ${PORTSDIR}/Mk/*
-.Po Pa bsd.port.mk
-in particular
-.Pc .
+.Pa ${PORTSDIR}/Mk/* ,
+especially
+.Pa bsd.port.mk .
 .Pp
 If debugging is enabled for a specific port, the ports framework will:
 .Bl -bullet
