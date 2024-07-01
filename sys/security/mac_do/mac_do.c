@@ -154,7 +154,7 @@ out:
 }
 
 static struct rules *
-mac_do_rule_find(struct prison *spr, struct prison **prp)
+find_rules(struct prison *spr, struct prison **prp)
 {
 	struct prison *pr;
 	struct rules *rules;
@@ -184,7 +184,7 @@ sysctl_rules(SYSCTL_HANDLER_ARGS)
 	struct rules *rules;
 	int error;
 
-	rules = mac_do_rule_find(req->td->td_ucred->cr_prison, &pr);
+	rules = find_rules(req->td->td_ucred->cr_prison, &pr);
 	mtx_unlock(&pr->pr_mtx);
 	if (req->newptr == NULL)
 		return (sysctl_handle_string(oidp, rules->string, MAC_RULE_STRING_LEN, req));
@@ -235,14 +235,14 @@ mac_do_alloc_prison(struct prison *pr, struct rules **lrp)
 	struct rules *rules, *new_rules;
 	void **rsv;
 
-	rules = mac_do_rule_find(pr, &ppr);
+	rules = find_rules(pr, &ppr);
 	if (ppr == pr)
 		goto done;
 
 	mtx_unlock(&ppr->pr_mtx);
 	new_rules = malloc(sizeof(*new_rules), M_PRISON, M_WAITOK|M_ZERO);
 	rsv = osd_reserve(mac_do_osd_jail_slot);
-	rules = mac_do_rule_find(pr, &ppr);
+	rules = find_rules(pr, &ppr);
 	if (ppr == pr) {
 		free(new_rules, M_PRISON);
 		osd_free_reserved(rsv);
@@ -322,7 +322,7 @@ mac_do_prison_get(void *obj, void *data)
 	struct rules *rules;
 	int jsys, error;
 
-	rules = mac_do_rule_find(pr, &ppr);
+	rules = find_rules(pr, &ppr);
 	error = vfs_setopt(opts, "mdo", &jsys, sizeof(jsys));
 	if (error != 0 && error != ENOENT)
 		goto done;
@@ -425,7 +425,7 @@ priv_grant(struct ucred *cred, int priv)
 	if (do_enabled == 0)
 		return (EPERM);
 
-	rule = mac_do_rule_find(cred->cr_prison, &pr);
+	rule = find_rules(cred->cr_prison, &pr);
 	TAILQ_FOREACH(r, &rule->head, r_entries) {
 		if (rule_applies(cred, r)) {
 			switch (priv) {
@@ -464,7 +464,7 @@ check_setgroups(struct ucred *cred, int ngrp, gid_t *groups)
 	}
 	free(freebuf, M_TEMP);
 
-	rule = mac_do_rule_find(cred->cr_prison, &pr);
+	rule = find_rules(cred->cr_prison, &pr);
 	TAILQ_FOREACH(r, &rule->head, r_entries) {
 		if (rule_applies(cred, r)) {
 			mtx_unlock(&pr->pr_mtx);
@@ -500,7 +500,7 @@ check_setuid(struct ucred *cred, uid_t uid)
 	free(freebuf, M_TEMP);
 
 	error = EPERM;
-	rule = mac_do_rule_find(cred->cr_prison, &pr);
+	rule = find_rules(cred->cr_prison, &pr);
 	TAILQ_FOREACH(r, &rule->head, r_entries) {
 		if (r->from_type == RULE_UID) {
 			if (cred->cr_uid != r->f_uid)
