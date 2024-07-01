@@ -608,8 +608,9 @@ obfuscate_keystroke_timing(struct ssh *ssh, struct timespec *timeout,
 		if (timespeccmp(&now, &chaff_until, >=)) {
 			/* Stop if there have been no keystrokes for a while */
 			stop_reason = "chaff time expired";
-		} else if (timespeccmp(&now, &next_interval, >=)) {
-			/* Otherwise if we were due to send, then send chaff */
+		} else if (timespeccmp(&now, &next_interval, >=) &&
+		    !ssh_packet_have_data_to_write(ssh)) {
+			/* If due to send but have no data, then send chaff */
 			if (send_chaff(ssh))
 				nchaff++;
 		}
