@@ -1051,10 +1051,8 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 	if (l2p != NULL && ((l2 = pmap_load(l2p)) & PTE_V) != 0) {
 		if ((l2 & PTE_RWX) == 0) {
 			l3p = pmap_l2_to_l3(l2p, va);
-			if (l3p != NULL) {
-				pa = PTE_TO_PHYS(pmap_load(l3p));
-				pa |= (va & L3_OFFSET);
-			}
+			pa = PTE_TO_PHYS(pmap_load(l3p));
+			pa |= (va & L3_OFFSET);
 		} else {
 			/* L2 is a superpage mapping. */
 			pa = L2PTE_TO_PHYS(l2);
@@ -1128,8 +1126,6 @@ pmap_kextract(vm_offset_t va)
 		}
 
 		l3 = pmap_l2_to_l3(&l2e, va);
-		if (l3 == NULL)
-			panic("pmap_kextract: No l3...");
 		pa = PTE_TO_PHYS(pmap_load(l3));
 		pa |= (va & PAGE_MASK);
 	}
@@ -2505,8 +2501,6 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			va_next = eva;
 
 		l2 = pmap_l1_to_l2(l1, sva);
-		if (l2 == NULL)
-			continue;
 		if ((l2e = pmap_load(l2)) == 0)
 			continue;
 		if ((l2e & PTE_RWX) != 0) {
@@ -2690,7 +2684,7 @@ resume:
 			va_next = eva;
 
 		l2 = pmap_l1_to_l2(l1, sva);
-		if (l2 == NULL || (l2e = pmap_load(l2)) == 0)
+		if ((l2e = pmap_load(l2)) == 0)
 			continue;
 		if ((l2e & PTE_RWX) != 0) {
 			if (sva + L2_SIZE == va_next && eva >= va_next) {
@@ -2770,7 +2764,7 @@ pmap_fault(pmap_t pmap, vm_offset_t va, vm_prot_t ftype)
 		goto done;
 	if ((l2e & PTE_RWX) == 0) {
 		pte = pmap_l2_to_l3(l2, va);
-		if (pte == NULL || ((oldpte = pmap_load(pte)) & PTE_V) == 0)
+		if (((oldpte = pmap_load(pte)) & PTE_V) == 0)
 			goto done;
 	} else {
 		pte = l2;
@@ -4770,7 +4764,7 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 			continue;
 		}
 		l2 = pmap_l1_to_l2(l1, tmpva);
-		if (l2 == NULL || ((l2e = pmap_load(l2)) & PTE_V) == 0)
+		if (((l2e = pmap_load(l2)) & PTE_V) == 0)
 			return (EINVAL);
 		if ((l2e & PTE_RWX) != 0) {
 			/*
@@ -4784,7 +4778,7 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 			continue;
 		}
 		l3 = pmap_l2_to_l3(l2, tmpva);
-		if (l3 == NULL || ((l3e = pmap_load(l3)) & PTE_V) == 0)
+		if (((l3e = pmap_load(l3)) & PTE_V) == 0)
 			return (EINVAL);
 		/*
 		 * TODO: Update the L3 entry if the attributes don't match once
