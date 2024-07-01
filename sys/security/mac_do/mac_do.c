@@ -53,12 +53,12 @@ struct rule {
 	TAILQ_ENTRY(rule) r_entries;
 };
 
-struct mac_do_rule {
+struct rules {
 	char string[MAC_RULE_STRING_LEN];
 	TAILQ_HEAD(rulehead, rule) head;
 };
 
-static struct mac_do_rule rules0;
+static struct rules rules0;
 
 static void
 toast_rules(struct rulehead *head)
@@ -153,11 +153,11 @@ out:
 	return (error);
 }
 
-static struct mac_do_rule *
+static struct rules *
 mac_do_rule_find(struct prison *spr, struct prison **prp)
 {
 	struct prison *pr;
-	struct mac_do_rule *rules;
+	struct rules *rules;
 
 	for (pr = spr;; pr = pr->pr_parent) {
 		mtx_lock(&pr->pr_mtx);
@@ -181,7 +181,7 @@ sysctl_rules(SYSCTL_HANDLER_ARGS)
 	char *new_string;
 	struct rulehead head, saved_head;
 	struct prison *pr;
-	struct mac_do_rule *rules;
+	struct rules *rules;
 	int error;
 
 	rules = mac_do_rule_find(req->td->td_ucred->cr_prison, &pr);
@@ -229,10 +229,10 @@ destroy(struct mac_policy_conf *mpc)
 }
 
 static void
-mac_do_alloc_prison(struct prison *pr, struct mac_do_rule **lrp)
+mac_do_alloc_prison(struct prison *pr, struct rules **lrp)
 {
 	struct prison *ppr;
-	struct mac_do_rule *rules, *new_rules;
+	struct rules *rules, *new_rules;
 	void **rsv;
 
 	rules = mac_do_rule_find(pr, &ppr);
@@ -261,7 +261,7 @@ done:
 static void
 mac_do_dealloc_prison(void *data)
 {
-	struct mac_do_rule *r = data;
+	struct rules *r = data;
 
 	toast_rules(&r->head);
 }
@@ -272,7 +272,7 @@ mac_do_prison_set(void *obj, void *data)
 	struct prison *pr = obj;
 	struct vfsoptlist *opts = data;
 	struct rulehead head, saved_head;
-	struct mac_do_rule *rules;
+	struct rules *rules;
 	char *rules_string;
 	int error, jsys, len;
 
@@ -319,7 +319,7 @@ mac_do_prison_get(void *obj, void *data)
 {
 	struct prison *ppr, *pr = obj;
 	struct vfsoptlist *opts = data;
-	struct mac_do_rule *rules;
+	struct rules *rules;
 	int jsys, error;
 
 	rules = mac_do_rule_find(pr, &ppr);
@@ -348,7 +348,7 @@ static int
 mac_do_prison_remove(void *obj, void *data __unused)
 {
 	struct prison *pr = obj;
-	struct mac_do_rule *r;
+	struct rules *r;
 
 	mtx_lock(&pr->pr_mtx);
 	r = osd_jail_get(pr, mac_do_osd_jail_slot);
@@ -420,7 +420,7 @@ priv_grant(struct ucred *cred, int priv)
 {
 	struct rule *r;
 	struct prison *pr;
-	struct mac_do_rule *rule;
+	struct rules *rule;
 
 	if (do_enabled == 0)
 		return (EPERM);
@@ -449,7 +449,7 @@ check_setgroups(struct ucred *cred, int ngrp, gid_t *groups)
 	char *fullpath = NULL;
 	char *freebuf = NULL;
 	struct prison *pr;
-	struct mac_do_rule *rule;
+	struct rules *rule;
 
 	if (do_enabled == 0)
 		return (0);
@@ -484,7 +484,7 @@ check_setuid(struct ucred *cred, uid_t uid)
 	char *fullpath = NULL;
 	char *freebuf = NULL;
 	struct prison *pr;
-	struct mac_do_rule *rule;
+	struct rules *rule;
 
 	if (do_enabled == 0)
 		return (0);
