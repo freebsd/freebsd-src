@@ -406,7 +406,7 @@ init(struct mac_policy_conf *mpc)
 }
 
 static bool
-rule_is_valid(struct ucred *cred, struct rule *r)
+rule_applies(struct ucred *cred, struct rule *r)
 {
 	if (r->from_type == RULE_UID && r->f_uid == cred->cr_uid)
 		return (true);
@@ -427,7 +427,7 @@ priv_grant(struct ucred *cred, int priv)
 
 	rule = mac_do_rule_find(cred->cr_prison, &pr);
 	TAILQ_FOREACH(r, &rule->head, r_entries) {
-		if (rule_is_valid(cred, r)) {
+		if (rule_applies(cred, r)) {
 			switch (priv) {
 			case PRIV_CRED_SETGROUPS:
 			case PRIV_CRED_SETUID:
@@ -466,7 +466,7 @@ check_setgroups(struct ucred *cred, int ngrp, gid_t *groups)
 
 	rule = mac_do_rule_find(cred->cr_prison, &pr);
 	TAILQ_FOREACH(r, &rule->head, r_entries) {
-		if (rule_is_valid(cred, r)) {
+		if (rule_applies(cred, r)) {
 			mtx_unlock(&pr->pr_mtx);
 			return (0);
 		}
