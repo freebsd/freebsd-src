@@ -1,7 +1,7 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.\" Copyright (c) 1997 David E. O'Brien
-.\"
-.\" All rights reserved.
+.\" Copyright (c) 1997 David E. O'Brien. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -45,7 +45,7 @@ Each port is a directory with metadata and patches necessary to make
 the original application source code compile and run on
 .Fx .
 Compiling an application is as simple as typing
-.Dq Li "make build"
+.Ql make build
 in the port directory.
 The
 .Pa Makefile
@@ -55,7 +55,7 @@ applies the patches, and compiles it.
 It also recursively handles dependencies \(em other pieces of software
 the port depends on in order to build and work.
 Afterwards,
-.Dq Li "make install"
+.Ql make install
 installs the application.
 .Pp
 The
@@ -139,7 +139,7 @@ Some of the
 .Xr make 1
 targets work recursively through subdirectories.
 This lets you, for example, install all of the
-.Dq Li biology
+.Ql biology
 ports with one command.
 The targets that do this are
 .Cm build , checksum , clean , configure ,
@@ -353,7 +353,7 @@ For example, one would type:
 .Pp
 to find all ports whose
 name matches
-.Dq Li query .
+.Ql query .
 Results include the matching ports' path, comment, maintainer,
 build dependencies, and run dependencies.
 .Bd -literal -offset indent
@@ -363,7 +363,7 @@ cd /usr/ports && make search name=pear- \e
 .Pp
 To find all ports whose
 names contain
-.Dq Li pear-
+.Ql pear-
 and which do not have apache
 listed in build-time dependencies.
 .Bd -literal -offset indent
@@ -372,17 +372,17 @@ cd /usr/ports && make search name=pear- \e
 .Ed
 .Pp
 To find all ports whose names contain
-.Dq Li pear- ,
+.Ql pear- ,
 but not
-.Dq Li html
+.Ql html
 or
-.Dq Li http .
+.Ql http .
 .Bd -literal -offset indent
 make search key=apache display=name,path,info keylim=1
 .Ed
 .Pp
 To find ports that contain
-.Dq Li apache
+.Ql apache
 in either of the name, path, info
 fields, ignore the rest of the record.
 .Pp
@@ -512,7 +512,7 @@ Command to get
 .Cm fetchindex
 target).
 Defaults to
-.Dq Li "fetch -am" .
+.Ql fetch -am .
 .It Va NOCLEANDEPENDS
 If defined, do not let
 .Cm clean
@@ -598,22 +598,22 @@ The big Kahuna.
 .El
 .Sh EXAMPLES
 .Bl -tag -width 0n
-.It Sy Example 1\&: No Building and Installing a Port
+.It Sy Example 1\&: Building and Installing a Port
 .Pp
 The following command builds and installs Emacs.
 .Bd -literal -offset 2n
-.Li # Ic cd /usr/ports/editors/emacs
-.Li # Ic make install
+.Ic # cd /usr/ports/editors/emacs
+.Ic # make install
 .Ed
-.It Sy Example 2\&: No Installing Dependencies with Xr pkg 8
+.It Sy Example 2\&: Installing Dependencies with Xr pkg 8
 .Pp
 The following example shows how to build and install a port without having to
 build its dependencies.
 Instead, the dependencies are downloaded via
 .Xr pkg 8 .
 .Bd -literal -offset 2n
-.Li # Ic make install-missing-packages
-.Li # Ic make install
+.Ic # make install-missing-packages
+.Ic # make install
 .Ed
 .Pp
 It is especially useful, when the dependencies are costly
@@ -623,48 +623,48 @@ The drawback is that
 .Xr pkg 8
 offers only packages built with the default set of
 .Va OPTIONS .
-.It Sy Example 3\&: No Building a Non-Default Flavor of a Port
+.It Sy Example 3\&: Building a Non-Default Flavor of a Port
 .Pp
 The following command builds a non-default flavor of a port.
 (In this case
 .Pa devel/py-pip
 is going to be built with Python 3.7 support.)
 .Bd -literal -offset 2n
-.Li # Ic cd /usr/ports/devel/py-pip
-.Li # Ic env FLAVOR=py37 make build
+.Ic # cd /usr/ports/devel/py-pip
+.Ic # env FLAVOR=py37 make build
 .Ed
-.It Sy Example 4\&: No Setting Ports Options via Xr make.conf 5
+.It Sy Example 4\&: Setting Ports Options via Xr make.conf 5
 .Pp
 The following lines present various ways of configuring ports options via
 .Xr make.conf 5
 (as an alternative to, e.g., running
-.Dq Li make config ) :
+.Ql make config ) :
 .Bd -literal -offset 2n
 # Enable NLS for all ports unless configured otherwise
 # using the options dialog.
-OPTIONS_SET=		NLS
+.Ic OPTIONS_SET=		NLS
 # Disable DOCS for all ports overriding the options set
 # via the options dialog.
-OPTIONS_UNSET_FORCE=	DOCS
+.Ic OPTIONS_UNSET_FORCE=	DOCS
 # Disable DOCS and EXAMPLES for the shells/zsh port.
-shells_zsh_UNSET=	DOCS EXAMPLES
+.Ic shells_zsh_UNSET=	DOCS EXAMPLES
 .Ed
 .Pp
 These and other options-related variables are documented in
 .Pa /usr/ports/Mk/bsd.options.mk .
-.It Sy Example 5\&: No Setting Xr make 1 Variables for Specific Ports via Xr make.conf 5
+.It Sy Example 5\&: Setting Xr make 1 Sy Variables for Specific Ports via Xr make.conf 5
 .Pp
 The following example shows how to set arbitrary
 .Xr make 1
 variables only specific ports:
 .Bd -literal -offset 2n
 # Set DISABLE_MAKE_JOBS for the lang/rust port:
-\&.if ${.CURDIR:M*/lang/rust}
-DISABLE_MAKE_JOBS=	yes
-TRYBROKEN=		yes
-\&.endif
+.Ic \&.if ${.CURDIR:M*/lang/rust}
+.Ic DISABLE_MAKE_JOBS=	yes
+.Ic TRYBROKEN=		yes
+.Ic \&.endif
 .Ed
-.It Sy Example 6\&: No Debugging Ports
+.It Sy Example 6\&: Debugging Ports
 By default ports are built and packaged without debugging support (e.g.,
 debugging symbols are stripped from binaries, optimization flags are used for
 compiling, verbose logging is disabled).
@@ -674,14 +674,14 @@ settings in
 e.g.,
 .Bd -literal -offset 2n
 # Enable debugging for all ports.
-WITH_DEBUG=		yes
+.Ic WITH_DEBUG=		yes
 # Enable debugging for selected ports.
-WITH_DEBUG_PORTS=	mail/dovecot security/krb5
+.Ic WITH_DEBUG_PORTS=	mail/dovecot security/krb5
 .Ed
 .Pp
 It is also possible to use the debug variables on the command line:
 .Bd -literal -offset 2n
-.Li # Ic make -DWITH_DEBUG DEBUG_FLAGS="-g -O0" build
+.Ic # make -DWITH_DEBUG DEBUG_FLAGS="-g -O0" build
 .Ed
 .Pp
 See the
@@ -759,5 +759,4 @@ the
 .Dq "Packages and Ports"
 chapter of
 .%B "The FreeBSD Handbook" ,
-and
-this manual page.
+and this manual page.
