@@ -12,6 +12,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20240701:
+	14.1-RELEASE-p1 SA-24:04.openssh
+
+	Fix pre-authentication remote code execution in sshd [SA-24:04.openssh]
+
 20240619:
 	14.1-RELEASE-p1 EN-24:10.zfs
 			EN-24:13.libc++
