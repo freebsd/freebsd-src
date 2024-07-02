@@ -8082,6 +8082,14 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0,
 	pd.af = AF_INET;
 	pd.act.rtableid = -1;
 
+	if (m->m_len < sizeof(struct ip) &&
+	    (m = *m0 = m_pullup(*m0, sizeof(struct ip))) == NULL) {
+		DPFPRINTF(PF_DEBUG_URGENT,
+		    ("pf_test: m_len=%d < sizeof(struct ip), pullup failed\n",
+		    m->m_len));
+		PF_RULES_RUNLOCK();
+		return (PF_DROP);
+	}
 	h = mtod(m, struct ip *);
 	off = h->ip_hl << 2;
 
