@@ -244,8 +244,8 @@
 	_Generic(expr, t: yes, default: no)
 #elif !defined(__cplusplus)
 #define	__generic(expr, t, yes, no)					\
-	__builtin_choose_expr(						\
-	    __builtin_types_compatible_p(__typeof((0, (expr))), t), yes, no)
+	__builtin_choose_expr(__builtin_types_compatible_p(		\
+	    __typeof(((void)0, (expr))), t), yes, no)
 #endif
 
 /*
