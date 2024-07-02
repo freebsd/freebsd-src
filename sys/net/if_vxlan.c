@@ -367,7 +367,7 @@ static void	vxlan_rcv_udp_packet(struct mbuf *, int, struct inpcb *,
 static int	vxlan_input(struct vxlan_socket *, uint32_t, struct mbuf **,
 		    const struct sockaddr *);
 
-static int	vxlan_stats_alloc(struct vxlan_softc *);
+static void	vxlan_stats_alloc(struct vxlan_softc *);
 static void	vxlan_stats_free(struct vxlan_softc *);
 static void	vxlan_set_default_config(struct vxlan_softc *);
 static int	vxlan_set_user_config(struct vxlan_softc *,
@@ -2918,27 +2918,14 @@ out:
 	return (error);
 }
 
-static int
+static void
 vxlan_stats_alloc(struct vxlan_softc *sc)
 {
 	struct vxlan_statistics *stats = &sc->vxl_stats;
 
 	stats->txcsum = counter_u64_alloc(M_WAITOK);
-	if (stats->txcsum == NULL)
-		goto failed;
-
 	stats->tso = counter_u64_alloc(M_WAITOK);
-	if (stats->tso == NULL)
-		goto failed;
-
 	stats->rxcsum = counter_u64_alloc(M_WAITOK);
-	if (stats->rxcsum == NULL)
-		goto failed;
-
-	return (0);
-failed:
-	vxlan_stats_free(sc);
-	return (ENOMEM);
 }
 
 static void
@@ -2946,18 +2933,9 @@ vxlan_stats_free(struct vxlan_softc *sc)
 {
 	struct vxlan_statistics *stats = &sc->vxl_stats;
 
-	if (stats->txcsum != NULL) {
-		counter_u64_free(stats->txcsum);
-		stats->txcsum = NULL;
-	}
-	if (stats->tso != NULL) {
-		counter_u64_free(stats->tso);
-		stats->tso = NULL;
-	}
-	if (stats->rxcsum != NULL) {
-		counter_u64_free(stats->rxcsum);
-		stats->rxcsum = NULL;
-	}
+	counter_u64_free(stats->txcsum);
+	counter_u64_free(stats->tso);
+	counter_u64_free(stats->rxcsum);
 }
 
 static void
@@ -3227,9 +3205,6 @@ vxlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	sc->vxl_unit = unit;
 	sc->vxl_fibnum = curthread->td_proc->p_fibnum;
 	vxlan_set_default_config(sc);
-	error = vxlan_stats_alloc(sc);
-	if (error != 0)
-		goto fail;
 
 	if (params != 0) {
 		error = copyin(params, &vxlp, sizeof(vxlp));
@@ -3241,6 +3216,7 @@ vxlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 			goto fail;
 	}
 
+	vxlan_stats_alloc(sc);
 	ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		error = ENOSPC;
