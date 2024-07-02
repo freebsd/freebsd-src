@@ -8085,8 +8085,7 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0,
 	if (m->m_len < sizeof(struct ip) &&
 	    (m = *m0 = m_pullup(*m0, sizeof(struct ip))) == NULL) {
 		DPFPRINTF(PF_DEBUG_URGENT,
-		    ("pf_test: m_len=%d < sizeof(struct ip), pullup failed\n",
-		    m->m_len));
+		    ("pf_test: m_len < sizeof(struct ip), pullup failed\n"));
 		PF_RULES_RUNLOCK();
 		return (PF_DROP);
 	}
