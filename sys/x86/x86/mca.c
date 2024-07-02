@@ -51,7 +51,7 @@
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
-#include <machine/intr_machdep.h>
+#include <machine/machintr.h>
 #include <x86/apicvar.h>
 #include <machine/cpu.h>
 #include <machine/cputypes.h>

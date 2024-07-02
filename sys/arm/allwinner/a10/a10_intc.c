@@ -44,7 +44,7 @@
 #include <sys/systm.h>
 #include <sys/sched.h>
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/machintr.h>
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>

@@ -63,7 +63,7 @@
 #include <machine/pcpu.h>
 
 #include <machine/resource.h>
-#include <machine/intr.h>
+#include <machine/machintr.h>
 
 #ifdef KDTRACE_HOOKS
 #include <sys/dtrace_bsd.h>

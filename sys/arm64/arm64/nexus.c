@@ -54,7 +54,7 @@
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/machintr.h>
 #include <machine/machdep.h>
 #include <machine/pcb.h>
 #include <machine/resource.h>

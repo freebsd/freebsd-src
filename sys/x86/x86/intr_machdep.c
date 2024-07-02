@@ -40,6 +40,7 @@
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
+#include <sys/intrtab.h>
 #include <sys/ktr.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -56,7 +57,6 @@
 #include <sys/taskqueue.h>
 #include <sys/vmmeter.h>
 #include <machine/clock.h>
-#include <machine/intr_machdep.h>
 #include <machine/smp.h>
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -87,6 +87,7 @@ static struct sx intrsrc_lock;
 static struct mtx intrpic_lock;
 static struct mtx intrcnt_lock;
 static TAILQ_HEAD(pics_head, pic) pics;
+static struct rman intr_mgr;
 u_int num_io_irqs;
 
 #if defined(SMP) && !defined(EARLY_AP_STARTUP)
@@ -164,11 +165,15 @@ static void
 intr_init_sources(void *arg)
 {
 	struct pic *pic;
+	rman_res_t end, discard;
 
 	MPASS(num_io_irqs > 0);
 
-	interrupt_sources = mallocarray(num_io_irqs, sizeof(*interrupt_sources),
-	    M_INTR, M_WAITOK | M_ZERO);
+	if (rman_last_free_region(&intr_mgr, &end, &discard) != 0)
+		panic("%s(): failure retrieving IRQ range", __func__);
+	intr_mgr.rm_end = end;
+	intrtab_init();
+
 #ifdef SMP
 	interrupt_sorted = mallocarray(num_io_irqs, sizeof(*interrupt_sorted),
 	    M_INTR, M_WAITOK | M_ZERO);
@@ -216,42 +221,33 @@ SYSINIT(intr_init_sources, SI_SUB_INTR, SI_ORDER_FOURTH + 1, intr_init_sources,
  * called.
  */
 int
-intr_register_source(struct intsrc *isrc)
+intr_register_source(struct resource *ires, u_int vector, struct intsrc *isrc)
 {
-	int error, vector;
+	int error;
 
 	KASSERT(intr_pic_registered(isrc->is_pic), ("unregistered PIC"));
-	vector = isrc->is_pic->pic_vector(isrc);
-	KASSERT(vector < num_io_irqs, ("IRQ %d too large (%u irqs)", vector,
-	    num_io_irqs));
-	if (interrupt_sources[vector] != NULL)
+	if (vector < num_io_irqs && intrtab_lookup(vector) != NULL)
 		return (EEXIST);
-	error = intr_event_create(&isrc->is_event, isrc, 0, vector,
+	error = intr_event_create(&isrc->is_event, isrc, 0,
 	    intr_disable_src, (mask_fn)isrc->is_pic->pic_enable_source,
 	    (mask_fn)isrc->is_pic->pic_eoi_source, intr_assign_cpu, "irq%d:",
 	    vector);
 	if (error)
 		return (error);
-	sx_xlock(&intrsrc_lock);
-	if (interrupt_sources[vector] != NULL) {
-		sx_xunlock(&intrsrc_lock);
-		intr_event_destroy(isrc->is_event);
-		return (EEXIST);
-	}
-	intrcnt_register(isrc);
-	interrupt_sources[vector] = isrc;
+	isrc->is_event->ie_irq = vector;
 	isrc->is_handlers = 0;
-	sx_xunlock(&intrsrc_lock);
+	if (ires != NULL) {
+		sx_xlock(&intrsrc_lock);
+		error = intrtab_set(ires, vector, isrc, NULL);
+		if (error != 0) {
+			sx_xunlock(&intrsrc_lock);
+			intr_event_destroy(isrc->is_event);
+			isrc->is_event = NULL;
+			return (error);
+		}
+		sx_xunlock(&intrsrc_lock);
+	}
 	return (0);
-}
-
-struct intsrc *
-intr_lookup_source(int vector)
-{
-
-	if (vector < 0 || vector >= num_io_irqs)
-		return (NULL);
-	return (interrupt_sources[vector]);
 }
 
 int
@@ -336,7 +332,7 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 	 * XXX: We assume that IRQ 0 is only used for the ISA timer
 	 * device (clk).
 	 */
-	vector = isrc->is_pic->pic_vector(isrc);
+	vector = isrc->is_event->ie_irq;
 	if (vector == 0)
 		clkintr_pending = 1;
 
@@ -436,7 +432,7 @@ intrcnt_register(struct intsrc *is)
 	is->is_index = intrcnt_index;
 	intrcnt_index += 2;
 	snprintf(straystr, sizeof(straystr), "stray irq%d",
-	    is->is_pic->pic_vector(is));
+	    is->is_event->ie_irq);
 	intrcnt_updatename(is);
 	is->is_count = &intrcnt[is->is_index];
 	intrcnt_setname(straystr, is->is_index + 1);
@@ -464,6 +460,16 @@ intr_init(void *dummy __unused)
 	mtx_init(&intrpic_lock, "intrpic", NULL, MTX_DEF);
 	sx_init(&intrsrc_lock, "intrsrc");
 	mtx_init(&intrcnt_lock, "intrcnt", NULL, MTX_SPIN);
+
+	intr_mgr.rm_start = 0;
+	intr_mgr.rm_end = -1;
+	intr_mgr.rm_type = RMAN_ARRAY;
+	intr_mgr.rm_descr = "x86 interrupt event manager";
+	if (rman_init(&intr_mgr) ||
+	    rman_manage_region(&intr_mgr, intr_mgr.rm_start, intr_mgr.rm_end))
+		panic("%s(): failure initializing interrupt rman", __func__);
+
+	intrtab_setup(&intr_mgr);
 }
 SYSINIT(intr_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_init, NULL);
 

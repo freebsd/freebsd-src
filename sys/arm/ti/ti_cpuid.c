@@ -41,7 +41,7 @@
 #include <machine/cpu.h>
 #include <machine/fdt.h>
 #include <machine/resource.h>
-#include <machine/intr.h>
+#include <machine/machintr.h>
 
 #include <dev/fdt/simplebus.h>
 #include <dev/fdt/fdt_common.h>

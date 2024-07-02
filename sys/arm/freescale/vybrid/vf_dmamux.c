@@ -48,7 +48,7 @@
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
+#include <machine/machintr.h>
 
 #include <arm/freescale/vybrid/vf_common.h>
 #include <arm/freescale/vybrid/vf_dmamux.h>

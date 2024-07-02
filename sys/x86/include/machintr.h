@@ -30,6 +30,15 @@
 
 #ifdef _KERNEL
 
+/* FreeBSD standard interrupt controller interface */
+
+typedef struct intsrc interrupt_t;
+
+#define	_intr2event(intr)	((intr)->is_event)
+#define	intr2event(intr)	((intr) != NULL ? _intr2event(intr) : NULL)
+
+/* FreeBSD standard interrupt controller interface */
+
 /*
  * Values used in determining the allocation of IRQ values among
  * different types of I/O interrupts.  These values are used as
@@ -82,7 +91,6 @@ struct pic {
 	void (*pic_eoi_source)(struct intsrc *);
 	void (*pic_enable_intr)(struct intsrc *);
 	void (*pic_disable_intr)(struct intsrc *);
-	int (*pic_vector)(struct intsrc *);
 	int (*pic_source_pending)(struct intsrc *);
 	void (*pic_suspend)(struct pic *);
 	void (*pic_resume)(struct pic *, bool suspend_cancelled);
@@ -146,9 +154,9 @@ int	intr_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 int	intr_describe(struct intsrc *isrc, void *ih, const char *descr);
 void	intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame);
 u_int	intr_next_cpu(int domain);
-struct intsrc *intr_lookup_source(int vector);
 int	intr_register_pic(struct pic *pic);
-int	intr_register_source(struct intsrc *isrc);
+int	intr_register_source(struct resource *ires, u_int vector,
+    struct intsrc *isrc);
 int	intr_remove_handler(void *cookie);
 void	intr_resume(bool suspend_cancelled);
 void	intr_suspend(void);

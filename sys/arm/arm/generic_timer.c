@@ -54,7 +54,7 @@
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
+#include <machine/machintr.h>
 #include <machine/machdep.h>
 #include <machine/md_var.h>
 

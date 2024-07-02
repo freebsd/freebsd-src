@@ -175,10 +175,10 @@ struct _cpuset;
 int	intr_event_bind_ithread_cpuset(struct intr_event *ie,
 	    struct _cpuset *mask);
 int	intr_event_create(struct intr_event **event, void *source,
-	    int flags, u_int irq, void (*pre_ithread)(void *),
+	    int flags, void (*pre_ithread)(void *),
 	    void (*post_ithread)(void *), void (*post_filter)(void *),
 	    int (*assign_cpu)(void *, int), const char *fmt, ...)
-	    __printflike(9, 10);
+	    __printflike(8, 9);
 int	intr_event_describe_handler(struct intr_event *ie, void *cookie,
 	    const char *descr);
 int	intr_event_destroy(struct intr_event *ie);
@@ -186,10 +186,10 @@ int	intr_event_handle(struct intr_event *ie, struct trapframe *frame);
 int	intr_event_remove_handler(void *cookie);
 int	intr_event_suspend_handler(void *cookie);
 int	intr_event_resume_handler(void *cookie);
-int	intr_getaffinity(int irq, int mode, void *mask);
+int	intr_getaffinity(struct intr_event *ie, int mode, void *mask);
 void	*intr_handler_source(void *cookie);
-int	intr_setaffinity(int irq, int mode, const void *mask);
-void	_intr_drain(int irq);  /* LinuxKPI only. */
+int	intr_setaffinity(struct intr_event *ie, int mode, const void *mask);
+void	_intr_drain(struct intr_event *ie);  /* LinuxKPI only. */
 int	swi_add(struct intr_event **eventp, const char *name,
 	    driver_intr_t handler, void *arg, int pri, enum intr_type flags,
 	    void **cookiep);

@@ -60,7 +60,7 @@
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
+#include <machine/machintr.h>
 
 struct s10_svc_softc {
 	device_t		dev;
