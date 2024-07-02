@@ -98,7 +98,7 @@ struct vxlan_socket_mc_info {
 		60 /* Maximum IPv4 header len */ - \
 		sizeof(struct udphdr) - \
 		sizeof(struct vxlan_header) - \
-		ETHER_HDR_LEN - ETHER_CRC_LEN - ETHER_VLAN_ENCAP_LEN)
+		ETHER_HDR_LEN - ETHER_VLAN_ENCAP_LEN)
 #define VXLAN_BASIC_IFCAPS (IFCAP_LINKSTATE | IFCAP_JUMBO_MTU)
 
 #define VXLAN_SO_MC_MAX_GROUPS		32
