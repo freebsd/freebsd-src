@@ -69,6 +69,7 @@ toast_rules(struct rulehead *head)
 		TAILQ_REMOVE(head, r, r_entries);
 		free(r, M_DO);
 	}
+	TAILQ_INIT(head);
 }
 
 static int
@@ -129,15 +130,38 @@ out:
 	return (error);
 }
 
+/*
+ * Parse rules specification and produce rule structures out of it.
+ *
+ * 'head' must be an empty list head. Returns 0 on success, with 'head' filled
+ * with structures representing the rules.  On error, 'head' is left empty and
+ * the returned value is non-zero.  If 'string' has length greater or equal to
+ * MAC_RULE_STRING_LEN, ENAMETOOLONG is returned.  If it is not in the expected
+ * format (comma-separated list of clauses of the form "<type>=<val>:<target>",
+ * where <type> is "uid" or "gid", <val> an UID or GID (depending on <type>) and
+ * <target> is "*", "any" or some UID), EINVAL is returned.
+ */
 static int
 parse_rules(const char *const string, struct rulehead *const head)
 {
-	struct rule *new;
-	char *const copy = strdup(string, M_DO);
-	char *p = copy;
+	const size_t len = strlen(string);
+	char *copy;
+	char *p;
 	char *element;
+	struct rule *new;
 	int error = 0;
 
+	QMD_TAILQ_CHECK_TAIL(head, r_entries);
+	MPASS(TAILQ_EMPTY(head));
+
+	if (len >= MAC_RULE_STRING_LEN)
+		return (ENAMETOOLONG);
+
+	copy = malloc(len + 1, M_DO, M_WAITOK);
+	bcopy(string, copy, len + 1);
+	MPASS(copy[len] == '\0'); /* Catch some races. */
+
+	p = copy;
 	while ((element = strsep(&p, ",")) != NULL) {
 		if (element[0] == '\0')
 			continue;
@@ -183,11 +207,125 @@ find_rules(struct prison *const pr, struct prison **const aprp)
 	return (rules);
 }
 
+/*
+ * Ensure the passed prison has its own 'struct rules'.
+ *
+ * On entry, the prison must be unlocked, but will be returned locked.  Returns
+ * the newly allocated and initialized 'struct rules', or the existing one.
+ */
+static struct rules *
+ensure_rules(struct prison *const pr)
+{
+	struct rules *rules, *new_rules;
+	void **rsv;
+
+	if (pr == &prison0) {
+		prison_lock(pr);
+		return (&rules0);
+	}
+
+	/* Optimistically try to avoid memory allocations. */
+restart:
+	prison_lock(pr);
+	rules = osd_jail_get(pr, mac_do_osd_jail_slot);
+	if (rules != NULL)
+		return (rules);
+	prison_unlock(pr);
+
+	new_rules = malloc(sizeof(*new_rules), M_DO, M_WAITOK|M_ZERO);
+	TAILQ_INIT(&new_rules->head);
+	rsv = osd_reserve(mac_do_osd_jail_slot);
+	prison_lock(pr);
+	rules = osd_jail_get(pr, mac_do_osd_jail_slot);
+	if (rules != NULL) {
+		/*
+		 * We could cleanup while holding the prison lock (given the
+		 * current implementation of osd_free_reserved()), but be safe
+		 * and a good citizen by not keeping it more than strictly
+		 * necessary.  The only consequence is that we have to relookup
+		 * the rules.
+		 */
+		prison_unlock(pr);
+		osd_free_reserved(rsv);
+		free(new_rules, M_DO);
+		goto restart;
+	}
+	osd_jail_set_reserved(pr, mac_do_osd_jail_slot, rsv, new_rules);
+	return (new_rules);
+}
+
+/*
+ * OSD destructor for slot 'mac_do_osd_jail_slot'.
+ *
+ * Called with 'value' not NULL.
+ */
+static void
+dealloc_osd(void *const value)
+{
+	struct rules *const rules = value;
+
+	toast_rules(&rules->head);
+	free(rules, M_DO);
+}
+
+/*
+ * Deallocate the rules associated to a prison.
+ *
+ * Destroys the 'mac_do_osd_jail_slot' slot of the passed jail.
+ */
+static void
+dealloc_rules(struct prison *const pr)
+{
+	prison_lock(pr);
+	/* This calls destructor dealloc_osd(). */
+	osd_jail_del(pr, mac_do_osd_jail_slot);
+	prison_unlock(pr);
+}
+
+/*
+ * Assign already parsed rules to a jail.
+ */
+static void
+set_rules(struct prison *const pr, const char *const rules_string,
+    struct rulehead *const head)
+{
+	struct rules *rules;
+	struct rulehead old_head;
+
+	MPASS(rules_string != NULL);
+	MPASS(strlen(rules_string) < MAC_RULE_STRING_LEN);
+
+	TAILQ_INIT(&old_head);
+	rules = ensure_rules(pr);
+	strlcpy(rules->string, rules_string, MAC_RULE_STRING_LEN);
+	TAILQ_CONCAT(&old_head, &rules->head, r_entries);
+	TAILQ_CONCAT(&rules->head, head, r_entries);
+	prison_unlock(pr);
+	toast_rules(&old_head);
+}
+
+/*
+ * Parse a rules specification and assign them to a jail.
+ *
+ * Returns the same error code as parse_rules() (which see).
+ */
+static int
+parse_and_set_rules(struct prison *const pr, const char *rules_string)
+{
+	struct rulehead head;
+	int error;
+
+	error = parse_rules(rules_string, &head);
+	if (error != 0)
+		return (error);
+	set_rules(pr, rules_string, &head);
+	return (0);
+}
+
 static int
 sysctl_rules(SYSCTL_HANDLER_ARGS)
 {
 	char *new_string;
-	struct rulehead head, saved_head;
 	struct prison *pr;
 	struct rules *rules;
 	int error;
@@ -207,17 +345,7 @@ sysctl_rules(SYSCTL_HANDLER_ARGS)
 	if (error)
 		goto out;
 
-	TAILQ_INIT(&head);
-	error = parse_rules(new_string, &head);
-	if (error)
-		goto out;
-	TAILQ_INIT(&saved_head);
-	prison_lock(pr);
-	TAILQ_CONCAT(&saved_head, &rules->head, r_entries);
-	TAILQ_CONCAT(&rules->head, &head, r_entries);
-	strlcpy(rules->string, new_string, MAC_RULE_STRING_LEN);
-	prison_unlock(pr);
-	toast_rules(&saved_head);
+	error = parse_and_set_rules(pr, new_string);
 
 out:
 	free(new_string, M_DO);
@@ -236,51 +364,11 @@ destroy(struct mac_policy_conf *mpc)
 	toast_rules(&rules0.head);
 }
 
-static void
-mac_do_alloc_prison(struct prison *pr, struct rules **lrp)
-{
-	struct prison *ppr;
-	struct rules *rules, *new_rules;
-	void **rsv;
-
-	rules = find_rules(pr, &ppr);
-	if (ppr == pr)
-		goto done;
-
-	prison_unlock(ppr);
-	new_rules = malloc(sizeof(*new_rules), M_PRISON, M_WAITOK|M_ZERO);
-	rsv = osd_reserve(mac_do_osd_jail_slot);
-	rules = find_rules(pr, &ppr);
-	if (ppr == pr) {
-		free(new_rules, M_PRISON);
-		osd_free_reserved(rsv);
-		goto done;
-	}
-	prison_lock(pr);
-	osd_jail_set_reserved(pr, mac_do_osd_jail_slot, rsv, new_rules);
-	TAILQ_INIT(&new_rules->head);
-done:
-	if (lrp != NULL)
-		*lrp = rules;
-	prison_unlock(pr);
-	prison_unlock(ppr);
-}
-
-static void
-mac_do_dealloc_prison(void *data)
-{
-	struct rules *r = data;
-
-	toast_rules(&r->head);
-}
-
 static int
 mac_do_prison_set(void *obj, void *data)
 {
 	struct prison *pr = obj;
 	struct vfsoptlist *opts = data;
-	struct rulehead head, saved_head;
-	struct rules *rules;
 	char *rules_string;
 	int error, jsys, len;
 
@@ -289,33 +377,19 @@ mac_do_prison_set(void *obj, void *data)
 		jsys = -1;
 	error = vfs_getopt(opts, "mdo.rules", (void **)&rules_string, &len);
 	if (error == ENOENT)
-		rules = NULL;
+		rules_string = "";
 	else
 		jsys = JAIL_SYS_NEW;
 	switch (jsys) {
 	case JAIL_SYS_INHERIT:
-		prison_lock(pr);
-		osd_jail_del(pr, mac_do_osd_jail_slot);
-		prison_unlock(pr);
+		dealloc_rules(pr);
+		error = 0;
 		break;
 	case JAIL_SYS_NEW:
-		mac_do_alloc_prison(pr, &rules);
-		if (rules_string == NULL)
-			break;
-		TAILQ_INIT(&head);
-		error = parse_rules(rules_string, &head);
-		if (error)
-			return (1);
-		TAILQ_INIT(&saved_head);
-		prison_lock(pr);
-		TAILQ_CONCAT(&saved_head, &rules->head, r_entries);
-		TAILQ_CONCAT(&rules->head, &head, r_entries);
-		strlcpy(rules->string, rules_string, MAC_RULE_STRING_LEN);
-		prison_unlock(pr);
-		toast_rules(&saved_head);
+		error = parse_and_set_rules(pr, rules_string);
 		break;
 	}
-	return (0);
+	return (error);
 }
 
 SYSCTL_JAIL_PARAM_SYS_NODE(mdo, CTLFLAG_RW, "Jail MAC/do parameters");
@@ -346,9 +420,10 @@ done:
 static int
 mac_do_prison_create(void *obj, void *data __unused)
 {
-	struct prison *pr = obj;
+	struct prison *const pr = obj;
 
-	mac_do_alloc_prison(pr, NULL);
+	(void)ensure_rules(pr);
+	prison_unlock(pr);
 	return (0);
 }
 
@@ -405,11 +480,13 @@ init(struct mac_policy_conf *mpc)
 	};
 	struct prison *pr;
 
-	mac_do_osd_jail_slot = osd_jail_register(mac_do_dealloc_prison, methods);
+	mac_do_osd_jail_slot = osd_jail_register(dealloc_osd, methods);
 	TAILQ_INIT(&rules0.head);
 	sx_slock(&allprison_lock);
-	TAILQ_FOREACH(pr, &allprison, pr_list)
-		mac_do_alloc_prison(pr, NULL);
+	TAILQ_FOREACH(pr, &allprison, pr_list) {
+		(void)ensure_rules(pr);
+		prison_unlock(pr);
+	}
 	sx_sunlock(&allprison_lock);
 }
 
