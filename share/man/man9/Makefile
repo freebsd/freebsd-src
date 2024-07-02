@@ -62,6 +62,7 @@ MAN=	accept_filter.9 \
 	callout.9 \
 	casuword.9 \
 	cd.9 \
+	cdefs.9 \
 	cnv.9 \
 	condvar.9 \
 	config_intrhook.9 \
