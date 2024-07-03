@@ -12112,7 +12112,7 @@ t4_os_link_changed(struct port_info *pi)
 
 	for_each_vi(pi, v, vi) {
 		ifp = vi->ifp;
-		if (ifp == NULL)
+		if (ifp == NULL || IS_DETACHING(vi))
 			continue;
 
 		if (lc->link_ok) {
