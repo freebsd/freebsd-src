@@ -153,24 +153,32 @@ out:
 	return (error);
 }
 
+/*
+ * Find rules applicable to the passed prison.
+ *
+ * Returns the applicable rules (and never NULL).  'pr' must be unlocked.
+ * 'aprp' is set to the (ancestor) prison holding these, and it must be unlocked
+ * once the caller is done accessing the rules.  '*aprp' is equal to 'pr' if and
+ * only if the current jail has its own set of rules.
+ */
 static struct rules *
-find_rules(struct prison *spr, struct prison **prp)
+find_rules(struct prison *const pr, struct prison **const aprp)
 {
-	struct prison *pr;
+	struct prison *cpr;
 	struct rules *rules;
 
-	for (pr = spr;; pr = pr->pr_parent) {
-		prison_lock(pr);
-		if (pr == &prison0) {
+	for (cpr = pr;; cpr = cpr->pr_parent) {
+		prison_lock(cpr);
+		if (cpr == &prison0) {
 			rules = &rules0;
 			break;
 		}
-		rules = osd_jail_get(pr, mac_do_osd_jail_slot);
+		rules = osd_jail_get(cpr, mac_do_osd_jail_slot);
 		if (rules != NULL)
 			break;
-		prison_unlock(pr);
+		prison_unlock(cpr);
 	}
-	*prp = pr;
+	*aprp = cpr;
 
 	return (rules);
 }
