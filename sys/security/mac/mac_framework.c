@@ -105,7 +105,7 @@ SYSCTL_NODE(_security, OID_AUTO, mac, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TrustedBSD MAC policy controls");
 
 /*
- * Declare that the kernel provides MAC support, version 3 (FreeBSD 7.x).
+ * Declare that the kernel provides a specific version of MAC support.
  * This permits modules to refuse to be loaded if the necessary support isn't
  * present, even if it's pre-boot.
  */
