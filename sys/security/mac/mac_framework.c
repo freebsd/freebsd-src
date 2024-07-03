@@ -71,6 +71,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/condvar.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mac.h>
@@ -103,6 +104,11 @@ SDT_PROBE_DEFINE1(mac, , policy, unregister,
  */
 SYSCTL_NODE(_security, OID_AUTO, mac, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TrustedBSD MAC policy controls");
+
+/*
+ * Root sysctl node for MAC modules' jail parameters.
+ */
+SYSCTL_JAIL_PARAM_NODE(mac, "Jail parameters for MAC policy controls");
 
 /*
  * Declare that the kernel provides a specific version of MAC support.
