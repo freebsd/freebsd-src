@@ -105,14 +105,16 @@ VNET_DEFINE(struct ifnet *, pflogifs[PFLOGIFS_MAX]);	/* for fast access */
 static void
 pflogattach(int npflog __unused)
 {
-	int	i;
+	int i;
+
 	for (i = 0; i < PFLOGIFS_MAX; i++)
 		V_pflogifs[i] = NULL;
 
 	struct if_clone_addreq req = {
 		.create_f = pflog_clone_create,
 		.destroy_f = pflog_clone_destroy,
-		.flags = IFC_F_AUTOUNIT,
+		.flags = IFC_F_AUTOUNIT | IFC_F_LIMITUNIT,
+		.maxunit = PFLOGIFS_MAX - 1,
 	};
 	V_pflog_cloner = ifc_attach_cloner(pflogname, &req);
 	struct ifc_data ifd = { .unit = 0 };
@@ -125,8 +127,7 @@ pflog_clone_create(struct if_clone *ifc, char *name, size_t maxlen,
 {
 	struct ifnet *ifp;
 
-	if (ifd->unit >= PFLOGIFS_MAX)
-		return (EINVAL);
+	MPASS(ifd->unit < PFLOGIFS_MAX);
 
 	ifp = if_alloc(IFT_PFLOG);
 	if_initname(ifp, pflogname, ifd->unit);
