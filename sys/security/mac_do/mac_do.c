@@ -337,40 +337,23 @@ SYSCTL_PROC(_security_mac_do, OID_AUTO, rules,
     0, 0, sysctl_rules, "A",
     "Rules");
 
-static int
-mac_do_prison_set(void *obj, void *data)
-{
-	struct prison *pr = obj;
-	struct vfsoptlist *opts = data;
-	char *rules_string;
-	int error, jsys, len;
-
-	error = vfs_copyopt(opts, "mdo", &jsys, sizeof(jsys));
-	if (error == ENOENT)
-		jsys = -1;
-	error = vfs_getopt(opts, "mdo.rules", (void **)&rules_string, &len);
-	if (error == ENOENT)
-		rules_string = "";
-	else
-		jsys = JAIL_SYS_NEW;
-	switch (jsys) {
-	case JAIL_SYS_INHERIT:
-		remove_rules(pr);
-		error = 0;
-		break;
-	case JAIL_SYS_NEW:
-		error = parse_and_set_rules(pr, rules_string);
-		break;
-	}
-	return (error);
-}
 
 SYSCTL_JAIL_PARAM_SYS_NODE(mdo, CTLFLAG_RW, "Jail MAC/do parameters");
 SYSCTL_JAIL_PARAM_STRING(_mdo, rules, CTLFLAG_RW, MAC_RULE_STRING_LEN,
     "Jail MAC/do rules");
 
+
 static int
-mac_do_prison_get(void *obj, void *data)
+mac_do_jail_create(void *obj, void *data __unused)
+{
+	struct prison *const pr = obj;
+
+	set_empty_rules(pr);
+	return (0);
+}
+
+static int
+mac_do_jail_get(void *obj, void *data)
 {
 	struct prison *ppr, *pr = obj;
 	struct vfsoptlist *opts = data;
@@ -391,16 +374,7 @@ done:
 }
 
 static int
-mac_do_prison_create(void *obj, void *data __unused)
-{
-	struct prison *const pr = obj;
-
-	set_empty_rules(pr);
-	return (0);
-}
-
-static int
-mac_do_prison_check(void *obj, void *data)
+mac_do_jail_check(void *obj, void *data)
 {
 	struct vfsoptlist *opts = data;
 	char *rules_string;
@@ -427,6 +401,34 @@ mac_do_prison_check(void *obj, void *data)
 	return (error);
 }
 
+static int
+mac_do_jail_set(void *obj, void *data)
+{
+	struct prison *pr = obj;
+	struct vfsoptlist *opts = data;
+	char *rules_string;
+	int error, jsys, len;
+
+	error = vfs_copyopt(opts, "mdo", &jsys, sizeof(jsys));
+	if (error == ENOENT)
+		jsys = -1;
+	error = vfs_getopt(opts, "mdo.rules", (void **)&rules_string, &len);
+	if (error == ENOENT)
+		rules_string = "";
+	else
+		jsys = JAIL_SYS_NEW;
+	switch (jsys) {
+	case JAIL_SYS_INHERIT:
+		remove_rules(pr);
+		error = 0;
+		break;
+	case JAIL_SYS_NEW:
+		error = parse_and_set_rules(pr, rules_string);
+		break;
+	}
+	return (error);
+}
+
 /*
  * OSD jail methods.
  *
@@ -435,11 +437,12 @@ mac_do_prison_check(void *obj, void *data)
  * destructor.
  */
 static const osd_method_t osd_methods[PR_MAXMETHOD] = {
-	[PR_METHOD_CREATE] = mac_do_prison_create,
-	[PR_METHOD_GET] = mac_do_prison_get,
-	[PR_METHOD_SET] = mac_do_prison_set,
-	[PR_METHOD_CHECK] = mac_do_prison_check,
+	[PR_METHOD_CREATE] = mac_do_jail_create,
+	[PR_METHOD_GET] = mac_do_jail_get,
+	[PR_METHOD_CHECK] = mac_do_jail_check,
+	[PR_METHOD_SET] = mac_do_jail_set,
 };
+
 
 static void
 init(struct mac_policy_conf *mpc)
