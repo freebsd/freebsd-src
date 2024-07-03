@@ -12939,30 +12939,26 @@ tweak_tunables(void)
 
 #ifdef DDB
 static void
-t4_dump_tcb(struct adapter *sc, int tid)
+t4_dump_mem(struct adapter *sc, u_int addr, u_int len)
 {
-	uint32_t base, i, j, off, pf, reg, save, tcb_addr, win_pos;
+	uint32_t base, j, off, pf, reg, save, win_pos;
 
 	reg = PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_OFFSET, 2);
 	save = t4_read_reg(sc, reg);
 	base = sc->memwin[2].mw_base;
 
-	/* Dump TCB for the tid */
-	tcb_addr = t4_read_reg(sc, A_TP_CMM_TCB_BASE);
-	tcb_addr += tid * TCB_SIZE;
-
 	if (is_t4(sc)) {
 		pf = 0;
-		win_pos = tcb_addr & ~0xf;	/* start must be 16B aligned */
+		win_pos = addr & ~0xf;	/* start must be 16B aligned */
 	} else {
 		pf = V_PFNUM(sc->pf);
-		win_pos = tcb_addr & ~0x7f;	/* start must be 128B aligned */
+		win_pos = addr & ~0x7f;	/* start must be 128B aligned */
 	}
+	off = addr - win_pos;
 	t4_write_reg(sc, reg, win_pos | pf);
 	t4_read_reg(sc, reg);
 
-	off = tcb_addr - win_pos;
-	for (i = 0; i < 4; i++) {
+	while (len > 0 && !db_pager_quit) {
 		uint32_t buf[8];
 		for (j = 0; j < 8; j++, off += 4)
 			buf[j] = htonl(t4_read_reg(sc, base + off));
@@ -12970,10 +12966,25 @@ t4_dump_tcb(struct adapter *sc, int tid)
 		db_printf("%08x %08x %08x %08x %08x %08x %08x %08x\n",
 		    buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6],
 		    buf[7]);
+		if (len <= sizeof(buf))
+			len = 0;
+		else
+			len -= sizeof(buf);
 	}
 
 	t4_write_reg(sc, reg, save);
 	t4_read_reg(sc, reg);
+}
+
+static void
+t4_dump_tcb(struct adapter *sc, int tid)
+{
+	uint32_t tcb_addr;
+
+	/* Dump TCB for the tid */
+	tcb_addr = t4_read_reg(sc, A_TP_CMM_TCB_BASE);
+	tcb_addr += tid * TCB_SIZE;
+	t4_dump_mem(sc, tcb_addr, TCB_SIZE);
 }
 
 static void
@@ -13106,6 +13117,51 @@ DB_TABLE_COMMAND_FLAGS(show_t4, tcb, db_show_t4tcb, CS_OWN)
 	}
 
 	t4_dump_tcb(device_get_softc(dev), tid);
+}
+
+DB_TABLE_COMMAND_FLAGS(show_t4, memdump, db_show_memdump, CS_OWN)
+{
+	device_t dev;
+	int radix, t;
+	bool valid;
+
+	valid = false;
+	radix = db_radix;
+	db_radix = 10;
+	t = db_read_token();
+	if (t == tIDENT) {
+		dev = device_lookup_by_name(db_tok_string);
+		t = db_read_token();
+		if (t == tNUMBER) {
+			addr = db_tok_number;
+			t = db_read_token();
+			if (t == tNUMBER) {
+				count = db_tok_number;
+				valid = true;
+			}
+		}
+	}
+	db_radix = radix;
+	db_skip_to_eol();
+	if (!valid) {
+		db_printf("usage: show t4 memdump <nexus> <addr> <len>\n");
+		return;
+	}
+
+	if (dev == NULL) {
+		db_printf("device not found\n");
+		return;
+	}
+	if (addr < 0) {
+		db_printf("invalid address\n");
+		return;
+	}
+	if (count <= 0) {
+		db_printf("invalid length\n");
+		return;
+	}
+
+	t4_dump_mem(device_get_softc(dev), addr, count);
 }
 #endif
 
