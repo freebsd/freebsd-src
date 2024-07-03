@@ -331,7 +331,7 @@ out:
 }
 
 SYSCTL_PROC(_security_mac_do, OID_AUTO, rules,
-    CTLTYPE_STRING|CTLFLAG_RW|CTLFLAG_MPSAFE,
+    CTLTYPE_STRING|CTLFLAG_RW|CTLFLAG_PRISON|CTLFLAG_MPSAFE,
     0, 0, sysctl_rules, "A",
     "Rules");
 
