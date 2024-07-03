@@ -8243,10 +8243,6 @@ sysctl_bitfield_8b(SYSCTL_HANDLER_ARGS)
 	int rc;
 	struct sbuf *sb;
 
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return(rc);
-
 	sb = sbuf_new_for_sysctl(NULL, NULL, 128, req);
 	if (sb == NULL)
 		return (ENOMEM);
@@ -8263,10 +8259,6 @@ sysctl_bitfield_16b(SYSCTL_HANDLER_ARGS)
 {
 	int rc;
 	struct sbuf *sb;
-
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return(rc);
 
 	sb = sbuf_new_for_sysctl(NULL, NULL, 128, req);
 	if (sb == NULL)
@@ -8525,10 +8517,6 @@ sysctl_pause_settings(SYSCTL_HANDLER_ARGS)
 		struct sbuf *sb;
 		static char *bits = "\20\1RX\2TX\3AUTO";
 
-		rc = sysctl_wire_old_buffer(req, 0);
-		if (rc != 0)
-			return(rc);
-
 		sb = sbuf_new_for_sysctl(NULL, NULL, 128, req);
 		if (sb == NULL)
 			return (ENOMEM);
@@ -8590,10 +8578,6 @@ sysctl_link_fec(SYSCTL_HANDLER_ARGS)
 	struct sbuf *sb;
 	static char *bits = "\20\1RS-FEC\2FC-FEC\3NO-FEC\4RSVD1\5RSVD2";
 
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return(rc);
-
 	sb = sbuf_new_for_sysctl(NULL, NULL, 128, req);
 	if (sb == NULL)
 		return (ENOMEM);
@@ -8620,10 +8604,6 @@ sysctl_requested_fec(SYSCTL_HANDLER_ARGS)
 		struct sbuf *sb;
 		static char *bits = "\20\1RS-FEC\2FC-FEC\3NO-FEC\4RSVD2"
 		    "\5RSVD3\6auto\7module";
-
-		rc = sysctl_wire_old_buffer(req, 0);
-		if (rc != 0)
-			return(rc);
 
 		sb = sbuf_new_for_sysctl(NULL, NULL, 128, req);
 		if (sb == NULL)
@@ -8700,10 +8680,6 @@ sysctl_module_fec(SYSCTL_HANDLER_ARGS)
 	struct sbuf *sb;
 	static char *bits = "\20\1RS-FEC\2FC-FEC\3NO-FEC\4RSVD2\5RSVD3";
 
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return (rc);
-
 	sb = sbuf_new_for_sysctl(NULL, NULL, 128, req);
 	if (sb == NULL)
 		return (ENOMEM);
@@ -8730,14 +8706,15 @@ sysctl_module_fec(SYSCTL_HANDLER_ARGS)
 	fec = lc->fec_hint;
 	if (pi->mod_type == FW_PORT_MOD_TYPE_NONE ||
 	    !fec_supported(lc->pcaps)) {
+		PORT_UNLOCK(pi);
 		sbuf_printf(sb, "n/a");
 	} else {
 		if (fec == 0)
 			fec = FEC_NONE;
+		PORT_UNLOCK(pi);
 		sbuf_printf(sb, "%b", fec & M_FW_PORT_CAP32_FEC, bits);
 	}
 	rc = sbuf_finish(sb);
-	PORT_UNLOCK(pi);
 done:
 	sbuf_delete(sb);
 	end_synchronized_op(sc, 0);
@@ -8957,10 +8934,6 @@ sysctl_loadavg(SYSCTL_HANDLER_ARGS)
 	if (rc)
 		return (rc);
 
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return (rc);
-
 	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
 	if (sb == NULL)
 		return (ENOMEM);
@@ -8990,14 +8963,11 @@ sysctl_cctrl(SYSCTL_HANDLER_ARGS)
 		"0.9375"
 	};
 
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return (rc);
-
 	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
 	if (sb == NULL)
 		return (ENOMEM);
 
+	rc = 0;
 	mtx_lock(&sc->reg_lock);
 	if (hw_off_limits(sc))
 		rc = ENXIO;
@@ -9072,10 +9042,6 @@ sysctl_cim_ibq_obq(SYSCTL_HANDLER_ARGS)
 		goto done;
 	}
 	n = rc * sizeof(uint32_t);	/* rc has # of words actually read */
-
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		goto done;
 
 	sb = sbuf_new_for_sysctl(NULL, NULL, PAGE_SIZE, req);
 	if (sb == NULL) {
@@ -9195,9 +9161,6 @@ sysctl_cim_la(SYSCTL_HANDLER_ARGS)
 	struct sbuf *sb;
 	int rc;
 
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return (rc);
 	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
 	if (sb == NULL)
 		return (ENOMEM);
@@ -9265,10 +9228,6 @@ sysctl_cim_ma_la(SYSCTL_HANDLER_ARGS)
 	uint32_t *buf, *p;
 	int rc;
 
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return (rc);
-
 	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
 	if (sb == NULL)
 		return (ENOMEM);
@@ -9276,6 +9235,7 @@ sysctl_cim_ma_la(SYSCTL_HANDLER_ARGS)
 	buf = malloc(2 * CIM_MALA_SIZE * 5 * sizeof(uint32_t), M_CXGBE,
 	    M_ZERO | M_WAITOK);
 
+	rc = 0;
 	mtx_lock(&sc->reg_lock);
 	if (hw_off_limits(sc))
 		rc = ENXIO;
@@ -9316,10 +9276,6 @@ sysctl_cim_pif_la(SYSCTL_HANDLER_ARGS)
 	uint32_t *buf, *p;
 	int rc;
 
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return (rc);
-
 	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
 	if (sb == NULL)
 		return (ENOMEM);
@@ -9327,6 +9283,7 @@ sysctl_cim_pif_la(SYSCTL_HANDLER_ARGS)
 	buf = malloc(2 * CIM_PIFLA_SIZE * 6 * sizeof(uint32_t), M_CXGBE,
 	    M_ZERO | M_WAITOK);
 
+	rc = 0;
 	mtx_lock(&sc->reg_lock);
 	if (hw_off_limits(sc))
 		rc = ENXIO;
@@ -9396,10 +9353,6 @@ sysctl_cim_qcfg(SYSCTL_HANDLER_ARGS)
 	if (rc)
 		return (rc);
 
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return (rc);
-
 	sb = sbuf_new_for_sysctl(NULL, NULL, PAGE_SIZE, req);
 	if (sb == NULL)
 		return (ENOMEM);
@@ -9432,14 +9385,11 @@ sysctl_cpl_stats(SYSCTL_HANDLER_ARGS)
 	int rc;
 	struct tp_cpl_stats stats;
 
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return (rc);
-
 	sb = sbuf_new_for_sysctl(NULL, NULL, 256, req);
 	if (sb == NULL)
 		return (ENOMEM);
 
+	rc = 0;
 	mtx_lock(&sc->reg_lock);
 	if (hw_off_limits(sc))
 		rc = ENXIO;
@@ -9478,14 +9428,11 @@ sysctl_ddp_stats(SYSCTL_HANDLER_ARGS)
 	int rc;
 	struct tp_usm_stats stats;
 
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return(rc);
-
 	sb = sbuf_new_for_sysctl(NULL, NULL, 256, req);
 	if (sb == NULL)
 		return (ENOMEM);
 
+	rc = 0;
 	mtx_lock(&sc->reg_lock);
 	if (hw_off_limits(sc))
 		rc = ENXIO;
@@ -9511,14 +9458,11 @@ sysctl_tid_stats(SYSCTL_HANDLER_ARGS)
 	int rc;
 	struct tp_tid_stats stats;
 
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return(rc);
-
 	sb = sbuf_new_for_sysctl(NULL, NULL, 256, req);
 	if (sb == NULL)
 		return (ENOMEM);
 
+	rc = 0;
 	mtx_lock(&sc->reg_lock);
 	if (hw_off_limits(sc))
 		rc = ENXIO;
@@ -9655,9 +9599,6 @@ sysctl_devlog(SYSCTL_HANDLER_ARGS)
 	int rc;
 	struct sbuf *sb;
 
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return (rc);
 	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
 	if (sb == NULL)
 		return (ENOMEM);
@@ -9700,10 +9641,7 @@ sysctl_fcoe_stats(SYSCTL_HANDLER_ARGS)
 	struct tp_fcoe_stats stats[MAX_NCHAN];
 	int i, nchan = sc->chip_params->nchan;
 
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return (rc);
-
+	rc = 0;
 	mtx_lock(&sc->reg_lock);
 	if (hw_off_limits(sc))
 		rc = ENXIO;
@@ -9756,16 +9694,13 @@ sysctl_hw_sched(SYSCTL_HANDLER_ARGS)
 	unsigned int map, kbps, ipg, mode;
 	unsigned int pace_tab[NTX_SCHED];
 
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return (rc);
-
 	sb = sbuf_new_for_sysctl(NULL, NULL, 512, req);
 	if (sb == NULL)
 		return (ENOMEM);
 
 	mtx_lock(&sc->reg_lock);
 	if (hw_off_limits(sc)) {
+		mtx_unlock(&sc->reg_lock);
 		rc = ENXIO;
 		goto done;
 	}
@@ -9773,6 +9708,7 @@ sysctl_hw_sched(SYSCTL_HANDLER_ARGS)
 	map = t4_read_reg(sc, A_TP_TX_MOD_QUEUE_REQ_MAP);
 	mode = G_TIMERMODE(t4_read_reg(sc, A_TP_MOD_CONFIG));
 	t4_read_pace_tbl(sc, pace_tab);
+	mtx_unlock(&sc->reg_lock);
 
 	sbuf_printf(sb, "Scheduler  Mode   Channel  Rate (Kbps)   "
 	    "Class IPG (0.1 ns)   Flow IPG (us)");
@@ -9798,7 +9734,6 @@ sysctl_hw_sched(SYSCTL_HANDLER_ARGS)
 	}
 	rc = sbuf_finish(sb);
 done:
-	mtx_unlock(&sc->reg_lock);
 	sbuf_delete(sb);
 	return (rc);
 }
@@ -9821,16 +9756,13 @@ sysctl_lb_stats(SYSCTL_HANDLER_ARGS)
 		"BG2FramesTrunc:", "BG3FramesTrunc:"
 	};
 
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return (rc);
-
 	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
 	if (sb == NULL)
 		return (ENOMEM);
 
 	memset(s, 0, sizeof(s));
 
+	rc = 0;
 	for (i = 0; i < sc->chip_params->nchan; i += 2) {
 		mtx_lock(&sc->reg_lock);
 		if (hw_off_limits(sc))
@@ -9853,7 +9785,8 @@ sysctl_lb_stats(SYSCTL_HANDLER_ARGS)
 				   *p0++, *p1++);
 	}
 
-	rc = sbuf_finish(sb);
+	if (rc == 0)
+		rc = sbuf_finish(sb);
 	sbuf_delete(sb);
 
 	return (rc);
@@ -9867,9 +9800,6 @@ sysctl_linkdnrc(SYSCTL_HANDLER_ARGS)
 	struct link_config *lc = &pi->link_cfg;
 	struct sbuf *sb;
 
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return(rc);
 	sb = sbuf_new_for_sysctl(NULL, NULL, 64, req);
 	if (sb == NULL)
 		return (ENOMEM);
@@ -10207,10 +10137,6 @@ sysctl_mps_tcam(SYSCTL_HANDLER_ARGS)
 
 	MPASS(chip_id(sc) <= CHELSIO_T5);
 
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return (rc);
-
 	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
 	if (sb == NULL)
 		return (ENOMEM);
@@ -10218,6 +10144,7 @@ sysctl_mps_tcam(SYSCTL_HANDLER_ARGS)
 	sbuf_printf(sb,
 	    "Idx  Ethernet address     Mask     Vld Ports PF"
 	    "  VF              Replication             P0 P1 P2 P3  ML");
+	rc = 0;
 	for (i = 0; i < sc->chip_params->mps_tcam_size; i++) {
 		uint64_t tcamx, tcamy, mask;
 		uint32_t cls_lo, cls_hi;
@@ -10311,10 +10238,6 @@ sysctl_mps_tcam_t6(SYSCTL_HANDLER_ARGS)
 
 	MPASS(chip_id(sc) > CHELSIO_T5);
 
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return (rc);
-
 	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
 	if (sb == NULL)
 		return (ENOMEM);
@@ -10324,6 +10247,7 @@ sysctl_mps_tcam_t6(SYSCTL_HANDLER_ARGS)
 	    "                           Replication"
 	    "                                    P0 P1 P2 P3  ML\n");
 
+	rc = 0;
 	for (i = 0; i < sc->chip_params->mps_tcam_size; i++) {
 		uint8_t dip_hit, vlan_vld, lookup_type, port_num;
 		uint16_t ivlan;
@@ -10493,10 +10417,7 @@ sysctl_path_mtus(SYSCTL_HANDLER_ARGS)
 	int rc;
 	uint16_t mtus[NMTUS];
 
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return (rc);
-
+	rc = 0;
 	mtx_lock(&sc->reg_lock);
 	if (hw_off_limits(sc))
 		rc = ENXIO;
@@ -10538,10 +10459,7 @@ sysctl_pm_stats(SYSCTL_HANDLER_ARGS)
 		"Rx FIFO wait", NULL, "Rx latency"
 	};
 
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return (rc);
-
+	rc = 0;
 	mtx_lock(&sc->reg_lock);
 	if (hw_off_limits(sc))
 		rc = ENXIO;
@@ -10602,10 +10520,7 @@ sysctl_rdma_stats(SYSCTL_HANDLER_ARGS)
 	int rc;
 	struct tp_rdma_stats stats;
 
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return (rc);
-
+	rc = 0;
 	mtx_lock(&sc->reg_lock);
 	if (hw_off_limits(sc))
 		rc = ENXIO;
@@ -10636,10 +10551,7 @@ sysctl_tcp_stats(SYSCTL_HANDLER_ARGS)
 	int rc;
 	struct tp_tcp_stats v4, v6;
 
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return (rc);
-
+	rc = 0;
 	mtx_lock(&sc->reg_lock);
 	if (hw_off_limits(sc))
 		rc = ENXIO;
@@ -10679,10 +10591,7 @@ sysctl_tids(SYSCTL_HANDLER_ARGS)
 	uint32_t x, y;
 	struct tid_info *t = &sc->tids;
 
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return (rc);
-
+	rc = 0;
 	sb = sbuf_new_for_sysctl(NULL, NULL, 256, req);
 	if (sb == NULL)
 		return (ENOMEM);
@@ -10774,10 +10683,7 @@ sysctl_tp_err_stats(SYSCTL_HANDLER_ARGS)
 	int rc;
 	struct tp_err_stats stats;
 
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return (rc);
-
+	rc = 0;
 	mtx_lock(&sc->reg_lock);
 	if (hw_off_limits(sc))
 		rc = ENXIO;
@@ -10855,10 +10761,7 @@ sysctl_tnl_stats(SYSCTL_HANDLER_ARGS)
 	int rc;
 	struct tp_tnl_stats stats;
 
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return(rc);
-
+	rc = 0;
 	mtx_lock(&sc->reg_lock);
 	if (hw_off_limits(sc))
 		rc = ENXIO;
@@ -11122,10 +11025,7 @@ sysctl_tp_la(SYSCTL_HANDLER_ARGS)
 	u_int i, inc;
 	void (*show_func)(struct sbuf *, uint64_t *, int);
 
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return (rc);
-
+	rc = 0;
 	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
 	if (sb == NULL)
 		return (ENOMEM);
@@ -11173,10 +11073,7 @@ sysctl_tx_rate(SYSCTL_HANDLER_ARGS)
 	int rc;
 	u64 nrate[MAX_NCHAN], orate[MAX_NCHAN];
 
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return (rc);
-
+	rc = 0;
 	mtx_lock(&sc->reg_lock);
 	if (hw_off_limits(sc))
 		rc = ENXIO;
@@ -11219,10 +11116,7 @@ sysctl_ulprx_la(SYSCTL_HANDLER_ARGS)
 	uint32_t *buf, *p;
 	int rc, i;
 
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return (rc);
-
+	rc = 0;
 	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
 	if (sb == NULL)
 		return (ENOMEM);
@@ -11263,10 +11157,7 @@ sysctl_wcwr_stats(SYSCTL_HANDLER_ARGS)
 
 	MPASS(chip_id(sc) >= CHELSIO_T5);
 
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return (rc);
-
+	rc = 0;
 	mtx_lock(&sc->reg_lock);
 	if (hw_off_limits(sc))
 		rc = ENXIO;
@@ -11313,10 +11204,6 @@ sysctl_cpus(SYSCTL_HANDLER_ARGS)
 
 	CPU_ZERO(&cpuset);
 	rc = bus_get_cpus(sc->dev, op, sizeof(cpuset), &cpuset);
-	if (rc != 0)
-		return (rc);
-
-	rc = sysctl_wire_old_buffer(req, 0);
 	if (rc != 0)
 		return (rc);
 
