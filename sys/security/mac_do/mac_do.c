@@ -353,22 +353,28 @@ mac_do_jail_create(void *obj, void *data __unused)
 static int
 mac_do_jail_get(void *obj, void *data)
 {
-	struct prison *ppr, *pr = obj;
-	struct vfsoptlist *opts = data;
+	struct prison *ppr, *const pr = obj;
+	struct vfsoptlist *const opts = data;
 	struct rules *rules;
 	int jsys, error;
 
 	rules = find_rules(pr, &ppr);
+
+	jsys = pr == ppr ?
+	    (TAILQ_EMPTY(&rules->head) ? JAIL_SYS_DISABLE : JAIL_SYS_NEW) :
+	    JAIL_SYS_INHERIT;
 	error = vfs_setopt(opts, "mac.do", &jsys, sizeof(jsys));
 	if (error != 0 && error != ENOENT)
 		goto done;
+
 	error = vfs_setopts(opts, "mac.do.rules", rules->string);
 	if (error != 0 && error != ENOENT)
 		goto done;
-	prison_unlock(ppr);
+
 	error = 0;
 done:
-	return (0);
+	prison_unlock(ppr);
+	return (error);
 }
 
 static int
