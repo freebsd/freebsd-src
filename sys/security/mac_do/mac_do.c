@@ -329,12 +329,6 @@ SYSCTL_PROC(_security_mac_do, OID_AUTO, rules,
     0, 0, sysctl_rules, "A",
     "Rules");
 
-static void
-destroy(struct mac_policy_conf *mpc)
-{
-	osd_jail_deregister(mac_do_osd_jail_slot);
-}
-
 static int
 mac_do_prison_set(void *obj, void *data)
 {
@@ -450,6 +444,12 @@ init(struct mac_policy_conf *mpc)
 	TAILQ_FOREACH(pr, &allprison, pr_list)
 	    set_empty_rules(pr);
 	sx_sunlock(&allprison_lock);
+}
+
+static void
+destroy(struct mac_policy_conf *mpc)
+{
+	osd_jail_deregister(mac_do_osd_jail_slot);
 }
 
 static bool
