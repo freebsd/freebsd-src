@@ -377,31 +377,94 @@ done:
 	return (error);
 }
 
+/*
+ * -1 is used as a sentinel in mac_do_jail_check() and mac_do_jail_set() below.
+ */
+_Static_assert(-1 != JAIL_SYS_DISABLE && -1 != JAIL_SYS_NEW &&
+    -1 != JAIL_SYS_INHERIT,
+    "mac_do(4) uses -1 as a sentinel for uninitialized 'jsys'.");
+
+/*
+ * We perform only cheap checks here, i.e., we do not really parse the rules
+ * specification string, if any.
+ */
 static int
 mac_do_jail_check(void *obj, void *data)
 {
 	struct vfsoptlist *opts = data;
 	char *rules_string;
-	int error, jsys, len;
+	int error, jsys, size;
 
 	error = vfs_copyopt(opts, "mac.do", &jsys, sizeof(jsys));
-	if (error != ENOENT) {
+	if (error == ENOENT)
+		jsys = -1;
+	else {
 		if (error != 0)
 			return (error);
-		if (jsys != JAIL_SYS_NEW && jsys != JAIL_SYS_INHERIT)
+		if (jsys != JAIL_SYS_DISABLE && jsys != JAIL_SYS_NEW &&
+		    jsys != JAIL_SYS_INHERIT)
 			return (EINVAL);
 	}
-	error = vfs_getopt(opts, "mac.do.rules", (void **)&rules_string, &len);
-	if (error != ENOENT) {
+
+	/*
+	 * We use vfs_getopt() here instead of vfs_getopts() to get the length.
+	 * We perform the additional checks done by the latter here, even if
+	 * jail_set() calls vfs_getopts() itself later (they becoming
+	 * inconsistent wouldn't cause any security problem).
+	 */
+	error = vfs_getopt(opts, "mac.do.rules", (void**)&rules_string, &size);
+	if (error == ENOENT) {
+		/*
+		 * Default (in absence of "mac.do.rules") is to disable (and, in
+		 * particular, not inherit).
+		 */
+		if (jsys == -1)
+			jsys = JAIL_SYS_DISABLE;
+
+		if (jsys == JAIL_SYS_NEW) {
+			vfs_opterror(opts, "'mac.do.rules' must be specified "
+			    "given 'mac.do''s value");
+			return (EINVAL);
+		}
+
+		/* Absence of "mac.do.rules" at this point is OK. */
+		error = 0;
+	} else {
 		if (error != 0)
 			return (error);
-		if (len > MAC_RULE_STRING_LEN) {
-			vfs_opterror(opts, "mdo.rules too long");
+
+		/* Not a proper string. */
+		if (size == 0 || rules_string[size - 1] != '\0') {
+			vfs_opterror(opts, "'mac.do.rules' not a proper string");
+			return (EINVAL);
+		}
+
+		if (size > MAC_RULE_STRING_LEN) {
+			vfs_opterror(opts, "'mdo.rules' too long");
 			return (ENAMETOOLONG);
 		}
+
+		if (jsys == -1)
+			/* Default (if "mac.do.rules" is present). */
+			jsys = rules_string[0] == '\0' ? JAIL_SYS_DISABLE :
+			    JAIL_SYS_NEW;
+
+		/*
+		 * Be liberal and accept JAIL_SYS_DISABLE and JAIL_SYS_INHERIT
+		 * with an explicit empty rules specification.
+		 */
+		switch (jsys) {
+		case JAIL_SYS_DISABLE:
+		case JAIL_SYS_INHERIT:
+			if (rules_string[0] != '\0') {
+				vfs_opterror(opts, "'mac.do.rules' specified "
+				    "but should not given 'mac.do''s value");
+				return (EINVAL);
+			}
+			break;
+		}
 	}
-	if (error == ENOENT)
-		error = 0;
+
 	return (error);
 }
 
@@ -411,24 +474,55 @@ mac_do_jail_set(void *obj, void *data)
 	struct prison *pr = obj;
 	struct vfsoptlist *opts = data;
 	char *rules_string;
-	int error, jsys, len;
+	int error, jsys;
+
+	/*
+	 * The invariants checks used below correspond to what has already been
+	 * checked in jail_check() above.
+	 */
 
 	error = vfs_copyopt(opts, "mac.do", &jsys, sizeof(jsys));
-	if (error == ENOENT)
-		jsys = -1;
-	error = vfs_getopt(opts, "mac.do.rules", (void **)&rules_string, &len);
-	if (error == ENOENT)
-		rules_string = "";
-	else
-		jsys = JAIL_SYS_NEW;
+	MPASS(error == 0 || error == ENOENT);
+	if (error != 0)
+		jsys = -1; /* Mark unfilled. */
+
+	rules_string = vfs_getopts(opts, "mac.do.rules", &error);
+	MPASS(error == 0 || error == ENOENT);
+	if (error == 0) {
+		MPASS(strlen(rules_string) < MAC_RULE_STRING_LEN);
+		if (jsys == -1)
+			/* Default (if "mac.do.rules" is present). */
+			jsys = rules_string[0] == '\0' ? JAIL_SYS_DISABLE :
+			    JAIL_SYS_NEW;
+		else
+			MPASS(jsys == JAIL_SYS_NEW ||
+			    ((jsys == JAIL_SYS_DISABLE ||
+			    jsys == JAIL_SYS_INHERIT) &&
+			    rules_string[0] == '\0'));
+	} else {
+		MPASS(jsys != JAIL_SYS_NEW);
+		if (jsys == -1)
+			/*
+			 * Default (in absence of "mac.do.rules") is to disable
+			 * (and, in particular, not inherit).
+			 */
+			jsys = JAIL_SYS_DISABLE;
+		/* If disabled, we'll store an empty rule specification. */
+		if (jsys == JAIL_SYS_DISABLE)
+			rules_string = "";
+	}
+
 	switch (jsys) {
 	case JAIL_SYS_INHERIT:
 		remove_rules(pr);
 		error = 0;
 		break;
+	case JAIL_SYS_DISABLE:
 	case JAIL_SYS_NEW:
 		error = parse_and_set_rules(pr, rules_string);
 		break;
+	default:
+		__assert_unreachable();
 	}
 	return (error);
 }
