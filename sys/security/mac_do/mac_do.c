@@ -58,8 +58,6 @@ struct rules {
 	TAILQ_HEAD(rulehead, rule) head;
 };
 
-static struct rules *rules0;
-
 static void
 toast_rules(struct rules *const rules)
 {
@@ -204,19 +202,20 @@ out:
 static struct rules *
 find_rules(struct prison *const pr, struct prison **const aprp)
 {
-	struct prison *cpr;
+	struct prison *cpr, *ppr;
 	struct rules *rules;
 
-	for (cpr = pr;; cpr = cpr->pr_parent) {
+	cpr = pr;
+	for (;;) {
 		prison_lock(cpr);
-		if (cpr == &prison0) {
-			rules = rules0;
-			break;
-		}
 		rules = osd_jail_get(cpr, mac_do_osd_jail_slot);
 		if (rules != NULL)
 			break;
 		prison_unlock(cpr);
+
+		ppr = cpr->pr_parent;
+		MPASS(ppr != NULL); /* prison0 always has rules. */
+		cpr = ppr;
 	}
 	*aprp = cpr;
 
@@ -265,13 +264,8 @@ set_rules(struct prison *const pr, struct rules *const rules)
 	rsv = osd_reserve(mac_do_osd_jail_slot);
 
 	prison_lock(pr);
-	if (pr == &prison0) {
-		old_rules = rules0;
-		rules0 = rules;
-	} else {
-		old_rules = osd_jail_get(pr, mac_do_osd_jail_slot);
-		osd_jail_set_reserved(pr, mac_do_osd_jail_slot, rsv, rules);
-	}
+	old_rules = osd_jail_get(pr, mac_do_osd_jail_slot);
+	osd_jail_set_reserved(pr, mac_do_osd_jail_slot, rsv, rules);
 	prison_unlock(pr);
 	if (old_rules != NULL)
 		toast_rules(old_rules);
@@ -339,7 +333,6 @@ static void
 destroy(struct mac_policy_conf *mpc)
 {
 	osd_jail_deregister(mac_do_osd_jail_slot);
-	toast_rules(rules0);
 }
 
 static int
@@ -452,7 +445,7 @@ init(struct mac_policy_conf *mpc)
 	struct prison *pr;
 
 	mac_do_osd_jail_slot = osd_jail_register(dealloc_osd, osd_methods);
-	rules0 = alloc_rules();
+	set_empty_rules(&prison0);
 	sx_slock(&allprison_lock);
 	TAILQ_FOREACH(pr, &allprison, pr_list)
 	    set_empty_rules(pr);
