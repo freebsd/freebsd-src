@@ -321,6 +321,13 @@
 #define	__restrict	restrict
 #endif
 
+/*
+ * All modern compilers have explicit branch prediction so that the CPU back-end
+ * can hint to the processor and also so that code blocks can be reordered such
+ * that the predicted path sees a more linear flow, thus improving cache
+ * behavior, etc. Use sparingly, except in performance critical code where
+ * they make things measurably faster.
+ */
 #define	__predict_true(exp)     __builtin_expect((exp), 1)
 #define	__predict_false(exp)    __builtin_expect((exp), 0)
 
