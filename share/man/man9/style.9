@@ -897,6 +897,22 @@ New code should use
 .Fn _Static_assert
 instead of the older
 .Fn CTASSERT .
+.Pp
+.Fn __predict_true
+and
+.Fn __predict_false
+should only be used in frequently executed code when it makes the code
+measurably faster.
+It is wasteful to make predictions for infrequently run code, like subsystem
+initialization.
+When using branch prediction hints, atypical error conditions should use
+.Fn __predict_false
+(document the exceptions).
+Operations that almost always succeed use
+.Fn __predict_true .
+Only use the annotation for the entire if statement, rather than individual clauses.
+Do not add these annotations without empirical evidence of the likelihood of the
+branch.
 .Sh FILES
 .Bl -tag -width indent
 .It Pa /usr/src/tools/build/checkstyle9.pl
