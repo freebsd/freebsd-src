@@ -4403,8 +4403,22 @@ pmap_mask_set_locked(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, pt_entry_t m
 					va = va_next;
 				}
 				if ((l3 & ATTR_CONTIGUOUS) != 0) {
-					l3p += L3C_ENTRIES - 1;
-					sva += L3C_SIZE - L3_SIZE;
+					/*
+					 * Does this L3C page extend beyond
+					 * the requested range?  Handle the
+					 * possibility that "va_next" is zero.
+					 */
+					if ((sva | L3C_OFFSET) > va_next - 1)
+						break;
+
+					/*
+					 * Skip ahead to the last L3_PAGE
+					 * within this L3C page.
+					 */
+					l3p = (pt_entry_t *)((uintptr_t)l3p |
+					    ((L3C_ENTRIES - 1) *
+					    sizeof(pt_entry_t)));
+					sva |= L3C_SIZE - L3_SIZE;
 				}
 				continue;
 			}
