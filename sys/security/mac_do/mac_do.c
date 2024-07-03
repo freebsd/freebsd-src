@@ -94,7 +94,7 @@ parse_rule_element(char *element, struct rule **rule)
 	type = strsep(&element, "=");
 	if (type == NULL) {
 		error = EINVAL;
-		goto out;
+		goto error;
 	}
 	if (strcmp(type, "uid") == 0) {
 		new->from_type = RULE_UID;
@@ -102,24 +102,30 @@ parse_rule_element(char *element, struct rule **rule)
 		new->from_type = RULE_GID;
 	} else {
 		error = EINVAL;
-		goto out;
+		goto error;
 	}
 	id = strsep(&element, ":");
 	if (id == NULL) {
 		error = EINVAL;
-		goto out;
+		goto error;
 	}
-	if (new->from_type == RULE_UID)
+	switch (new->from_type) {
+	case RULE_UID:
 		new->f_uid = strtol(id, &p, 10);
-	if (new->from_type == RULE_GID)
+		break;
+	case RULE_GID:
 		new->f_gid = strtol(id, &p, 10);
+		break;
+	default:
+		__assert_unreachable();
+	}
 	if (*p != '\0') {
 		error = EINVAL;
-		goto out;
+		goto error;
 	}
-	if (*element == '\0') {
+	if (element == NULL || *element == '\0') {
 		error = EINVAL;
-		goto out;
+		goto error;
 	}
 	if (strcmp(element, "any") == 0 || strcmp(element, "*") == 0) {
 		new->to_type = RULE_ANY;
@@ -128,15 +134,17 @@ parse_rule_element(char *element, struct rule **rule)
 		new->t_uid = strtol(element, &p, 10);
 		if (*p != '\0') {
 			error = EINVAL;
-			goto out;
+			goto error;
 		}
 	}
-out:
-	if (error != 0) {
-		free(new, M_DO);
-		*rule = NULL;
-	} else
-		*rule = new;
+
+	MPASS(error == 0);
+	*rule = new;
+	return (0);
+error:
+	MPASS(error != 0);
+	free(new, M_DO);
+	*rule = NULL;
 	return (error);
 }
 
