@@ -47,8 +47,8 @@ _get_curthread(void)
 {
 	struct pthread *thr;
 
-	__asm __volatile("movq %%fs:%1, %0" : "=r" (thr)
-	    : "m" (*(volatile u_long *)offsetof(struct tcb, tcb_thread)));
+	__asm __volatile("movq %%fs:%c1, %0" : "=r" (thr)
+	    : "i" (offsetof(struct tcb, tcb_thread)));
 	return (thr);
 }
 
