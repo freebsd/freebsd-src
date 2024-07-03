@@ -483,12 +483,13 @@ if_clone_alloc(const char *name, int maxunit)
 	struct if_clone *ifc;
 
 	KASSERT(name != NULL, ("%s: no name\n", __func__));
+	MPASS(maxunit >= 0);
 
 	ifc = malloc(sizeof(struct if_clone), M_CLONE, M_WAITOK | M_ZERO);
 	strncpy(ifc->ifc_name, name, IFCLOSIZ-1);
 	IF_CLONE_LOCK_INIT(ifc);
 	IF_CLONE_ADDREF(ifc);
-	ifc->ifc_maxunit = maxunit ? maxunit : IF_MAXUNIT;
+	ifc->ifc_maxunit = maxunit;
 	ifc->ifc_unrhdr = new_unrhdr(0, ifc->ifc_maxunit, &ifc->ifc_mtx);
 	LIST_INIT(&ifc->ifc_iflist);
 
@@ -521,12 +522,16 @@ if_clone_attach(struct if_clone *ifc)
 struct if_clone *
 ifc_attach_cloner(const char *name, struct if_clone_addreq *req)
 {
+	int maxunit;
+	struct if_clone *ifc;
+
 	if (req->create_f == NULL || req->destroy_f == NULL)
 		return (NULL);
 	if (strnlen(name, IFCLOSIZ) >= (IFCLOSIZ - 1))
 		return (NULL);
 
-	struct if_clone *ifc = if_clone_alloc(name, req->maxunit);
+	maxunit = (req->flags & IFC_F_LIMITUNIT) ? req->maxunit : IF_MAXUNIT;
+	ifc = if_clone_alloc(name, maxunit);
 	ifc->ifc_match = req->match_f != NULL ? req->match_f : ifc_simple_match;
 	ifc->ifc_create = req->create_f;
 	ifc->ifc_destroy = req->destroy_f;
@@ -584,7 +589,7 @@ if_clone_advanced(const char *name, u_int maxunit, ifc_match_t match,
 {
 	struct if_clone *ifc;
 
-	ifc = if_clone_alloc(name, maxunit);
+	ifc = if_clone_alloc(name, maxunit ? maxunit : IF_MAXUNIT);
 	ifc->ifc_match = match;
 	ifc->ifc_create = ifc_advanced_create_wrapper;
 	ifc->ifc_destroy = ifc_advanced_destroy_wrapper;
@@ -629,7 +634,7 @@ if_clone_simple(const char *name, ifcs_create_t create, ifcs_destroy_t destroy,
 	struct if_clone *ifc;
 	u_int unit;
 
-	ifc = if_clone_alloc(name, 0);
+	ifc = if_clone_alloc(name, IF_MAXUNIT);
 	ifc->ifc_match = ifc_simple_match;
 	ifc->ifc_create = ifc_simple_create_wrapper;
 	ifc->ifc_destroy = ifc_simple_destroy_wrapper;
