@@ -309,30 +309,22 @@ parse_and_set_rules(struct prison *const pr, const char *rules_string)
 static int
 sysctl_rules(SYSCTL_HANDLER_ARGS)
 {
-	char *new_string;
+	char *const buf = malloc(MAC_RULE_STRING_LEN, M_DO, M_WAITOK);
 	struct prison *pr;
 	struct rules *rules;
 	int error;
 
 	rules = find_rules(req->td->td_ucred->cr_prison, &pr);
-	prison_unlock(pr);
-	if (req->newptr == NULL)
-		return (sysctl_handle_string(oidp, rules->string, MAC_RULE_STRING_LEN, req));
-
-	new_string = malloc(MAC_RULE_STRING_LEN, M_DO,
-	    M_WAITOK|M_ZERO);
-	prison_lock(pr);
-	strlcpy(new_string, rules->string, MAC_RULE_STRING_LEN);
+	strlcpy(buf, rules->string, MAC_RULE_STRING_LEN);
 	prison_unlock(pr);
 
-	error = sysctl_handle_string(oidp, new_string, MAC_RULE_STRING_LEN, req);
-	if (error)
+	error = sysctl_handle_string(oidp, buf, MAC_RULE_STRING_LEN, req);
+	if (error != 0 || req->newptr == NULL)
 		goto out;
 
-	error = parse_and_set_rules(pr, new_string);
-
+	error = parse_and_set_rules(pr, buf);
 out:
-	free(new_string, M_DO);
+	free(buf, M_DO);
 	return (error);
 }
 
