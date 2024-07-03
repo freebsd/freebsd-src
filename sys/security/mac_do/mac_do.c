@@ -310,11 +310,12 @@ static int
 sysctl_rules(SYSCTL_HANDLER_ARGS)
 {
 	char *const buf = malloc(MAC_RULE_STRING_LEN, M_DO, M_WAITOK);
+	struct prison *const td_pr = req->td->td_ucred->cr_prison;
 	struct prison *pr;
 	struct rules *rules;
 	int error;
 
-	rules = find_rules(req->td->td_ucred->cr_prison, &pr);
+	rules = find_rules(td_pr, &pr);
 	strlcpy(buf, rules->string, MAC_RULE_STRING_LEN);
 	prison_unlock(pr);
 
@@ -322,7 +323,8 @@ sysctl_rules(SYSCTL_HANDLER_ARGS)
 	if (error != 0 || req->newptr == NULL)
 		goto out;
 
-	error = parse_and_set_rules(pr, buf);
+	/* Set our prison's rules, not that of the jail we inherited from. */
+	error = parse_and_set_rules(td_pr, buf);
 out:
 	free(buf, M_DO);
 	return (error);
