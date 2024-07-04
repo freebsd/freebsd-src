@@ -89,8 +89,6 @@
 #include <security/mac/mac_policy.h>
 #include <security/mac_mls/mac_mls.h>
 
-SYSCTL_DECL(_security_mac);
-
 static SYSCTL_NODE(_security_mac, OID_AUTO, mls,
     CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TrustedBSD mac_mls policy controls");
