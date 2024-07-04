@@ -76,7 +76,6 @@ discover_interfaces(struct interface_info *iface)
 {
 	struct ifaddrs *ifap, *ifa;
 	struct ifreq *tif;
-	int len = IFNAMSIZ + sizeof(struct sockaddr_storage);
 
 	if (getifaddrs(&ifap) != 0)
 		error("getifaddrs failed");
@@ -119,7 +118,7 @@ discover_interfaces(struct interface_info *iface)
 			    LLADDR(foo), foo->sdl_alen);
 		}
 		if (!iface->ifp) {
-			if ((tif = calloc(1, len)) == NULL)
+			if ((tif = calloc(1, sizeof(struct ifreq))) == NULL)
 				error("no space to remember ifp");
 			strlcpy(tif->ifr_name, ifa->ifa_name, IFNAMSIZ);
 			iface->ifp = tif;
