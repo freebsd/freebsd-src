@@ -399,6 +399,10 @@ SYSCTL_DECL(_security_jail_param);
 	SYSCTL_JAIL_PARAM_NODE(module, descr);				\
 	SYSCTL_JAIL_PARAM(_##module, , CTLTYPE_INT | (access), "E,jailsys", \
 	    descr)
+#define	SYSCTL_JAIL_PARAM_SYS_SUBNODE(parent, module, access, descr)	\
+	SYSCTL_JAIL_PARAM_SUBNODE(parent, module, descr);		\
+	SYSCTL_JAIL_PARAM(_##parent##_##module, , CTLTYPE_INT | (access), \
+	    "E,jailsys", descr)
 
 /*
  * Kernel support functions for jail().
