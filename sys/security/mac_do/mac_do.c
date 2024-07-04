@@ -94,19 +94,22 @@ parse_rule_element(char *element, struct rule **rule)
 		error = EINVAL;
 		goto error;
 	}
-	if (strcmp(type, "uid") == 0) {
+
+	if (strcmp(type, "uid") == 0)
 		new->from_type = RULE_UID;
-	} else if (strcmp(type, "gid") == 0) {
+	else if (strcmp(type, "gid") == 0)
 		new->from_type = RULE_GID;
-	} else {
+	else {
 		error = EINVAL;
 		goto error;
 	}
+
 	id = strsep(&element, ":");
 	if (id == NULL) {
 		error = EINVAL;
 		goto error;
 	}
+
 	switch (new->from_type) {
 	case RULE_UID:
 		new->f_uid = strtol(id, &p, 10);
@@ -121,13 +124,14 @@ parse_rule_element(char *element, struct rule **rule)
 		error = EINVAL;
 		goto error;
 	}
+
 	if (element == NULL || *element == '\0') {
 		error = EINVAL;
 		goto error;
 	}
-	if (strcmp(element, "any") == 0 || strcmp(element, "*") == 0) {
+	if (strcmp(element, "any") == 0 || strcmp(element, "*") == 0)
 		new->to_type = RULE_ANY;
-	} else {
+	else {
 		new->to_type = RULE_UID;
 		new->t_uid = strtol(element, &p, 10);
 		if (*p != '\0') {
