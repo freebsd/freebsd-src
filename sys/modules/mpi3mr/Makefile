@@ -7,7 +7,6 @@ SRCS+=	opt_cam.h
 SRCS+=	device_if.h bus_if.h pci_if.h
 
 CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
-DEBUG_FLAGS= -g
 
 .include <bsd.kmod.mk>
 
