@@ -570,10 +570,6 @@ debugnet_input_one(struct ifnet *ifp, struct mbuf *m)
 		    m->m_len, m->m_pkthdr.len);
 		goto done;
 	}
-	if ((m->m_flags & M_HASFCS) != 0) {
-		m_adj(m, -ETHER_CRC_LEN);
-		m->m_flags &= ~M_HASFCS;
-	}
 	eh = mtod(m, struct ether_header *);
 	etype = ntohs(eh->ether_type);
 	if ((m->m_flags & M_VLANTAG) != 0 || etype == ETHERTYPE_VLAN) {
