@@ -57,13 +57,6 @@
 #include <sys/rmlock.h>
 
 /*
- * MAC Framework sysctl namespace.
- */
-#ifdef SYSCTL_DECL
-SYSCTL_DECL(_security_mac);
-#endif /* SYSCTL_DECL */
-
-/*
  * MAC Framework SDT DTrace probe namespace, macros for declaring entry
  * point probes, macros for invoking them.
  */
