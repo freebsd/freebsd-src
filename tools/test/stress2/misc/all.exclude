@@ -1,4 +1,4 @@
-# List of tests not to run, unless the '-a' option is used with run.sh
+# List of tests not to run, unless the '-a' option is used with all.sh
 # Exclude names must start in column 1
 
 backingstore.sh		g_vfs_done():md6a[WRITE(offset=...)]error = 28			20111220
@@ -65,11 +65,13 @@ systrace2.sh		WiP								20200227
 syzkaller16.sh		zonelimit issue							20210722
 syzkaller28.sh		panic: About to free ctl:0x... so:0x... and its in 1		20201120
 syzkaller31.sh		panic: Bad tailq NEXT(0xfffffe01a0899430->tqh_last) != NULL	20220420
+syzkaller55.sh		https://people.freebsd.org/~pho/stress/log/log0533.txt		20240702
 syzkaller59.sh		Page fault							20220625
 syzkaller65.sh		panic: in_pcblookup_hash_locked: invalid local address		20230318
 syzkaller66.sh		panic: in_pcbconnect: inp is already connected			20230621
 syzkaller67.sh		panic: ASan: Invalid access, 8-byte read at ...			20230621
 truss3.sh		WiP								20200915
+unionfs19.sh		https://people.freebsd.org/~pho/stress/log/log0519.txt		20240702
 
 # Test not to run for other reasons:
 
