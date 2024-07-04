@@ -575,7 +575,6 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 		break;
 	}
 	case CCTL_PORT_MODE_REMOVE:
-		/* FALLTHROUGH */
 	case CCTL_PORT_MODE_CREATE: {
 		bzero(&req, sizeof(req));
 		strlcpy(req.driver, driver, sizeof(req.driver));
