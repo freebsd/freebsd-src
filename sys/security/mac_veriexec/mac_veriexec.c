@@ -73,8 +73,6 @@
 static int sysctl_mac_veriexec_state(SYSCTL_HANDLER_ARGS);
 static int sysctl_mac_veriexec_db(SYSCTL_HANDLER_ARGS);
 
-SYSCTL_DECL(_security_mac);
-
 SYSCTL_NODE(_security_mac, OID_AUTO, veriexec, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "MAC/veriexec policy controls");
 

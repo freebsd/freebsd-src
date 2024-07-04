@@ -1034,4 +1034,19 @@ int	mac_policy_modevent(module_t mod, int type, void *data);
 intptr_t	mac_label_get(struct label *l, int slot);
 void		mac_label_set(struct label *l, int slot, intptr_t v);
 
+/*
+ * Common MAC Framework's sysctl and jail parameters' sysctl nodes' declarations.
+ *
+ * Headers <sys/jail.h> and <sys/sysctl.h> normally have to be included before
+ * this header as style(9) hints to.  If they weren't, just forego the
+ * corresponding declarations, assuming they are not needed.
+ */
+#ifdef SYSCTL_DECL
+SYSCTL_DECL(_security_mac);
+#endif
+
+#ifdef SYSCTL_JAIL_PARAM_DECL
+SYSCTL_JAIL_PARAM_DECL(mac);
+#endif
+
 #endif /* !_SECURITY_MAC_MAC_POLICY_H_ */

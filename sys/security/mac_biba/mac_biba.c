@@ -88,8 +88,6 @@
 #include <security/mac/mac_policy.h>
 #include <security/mac_biba/mac_biba.h>
 
-SYSCTL_DECL(_security_mac);
-
 static SYSCTL_NODE(_security_mac, OID_AUTO, biba,
     CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TrustedBSD mac_biba policy controls");

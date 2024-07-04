@@ -85,8 +85,6 @@
 
 #include <security/mac/mac_policy.h>
 
-SYSCTL_DECL(_security_mac);
-
 static SYSCTL_NODE(_security_mac, OID_AUTO, stub,
     CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TrustedBSD mac_stub policy controls");
