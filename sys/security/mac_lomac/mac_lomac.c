@@ -89,8 +89,6 @@ struct mac_lomac_proc {
 	struct mtx mtx;
 };
 
-SYSCTL_DECL(_security_mac);
-
 static SYSCTL_NODE(_security_mac, OID_AUTO, lomac,
     CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TrustedBSD mac_lomac policy controls");
