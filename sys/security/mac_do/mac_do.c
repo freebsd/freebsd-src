@@ -23,8 +23,6 @@
 
 #include <security/mac/mac_policy.h>
 
-SYSCTL_DECL(_security_mac);
-
 static SYSCTL_NODE(_security_mac, OID_AUTO, do,
     CTLFLAG_RW|CTLFLAG_MPSAFE, 0, "mac_do policy controls");
 
@@ -338,8 +336,8 @@ SYSCTL_PROC(_security_mac_do, OID_AUTO, rules,
     "Rules");
 
 
-SYSCTL_JAIL_PARAM_SYS_NODE(mdo, CTLFLAG_RW, "Jail MAC/do parameters");
-SYSCTL_JAIL_PARAM_STRING(_mdo, rules, CTLFLAG_RW, MAC_RULE_STRING_LEN,
+SYSCTL_JAIL_PARAM_SYS_SUBNODE(mac, do, CTLFLAG_RW, "Jail MAC/do parameters");
+SYSCTL_JAIL_PARAM_STRING(_mac_do, rules, CTLFLAG_RW, MAC_RULE_STRING_LEN,
     "Jail MAC/do rules");
 
 
@@ -361,10 +359,10 @@ mac_do_jail_get(void *obj, void *data)
 	int jsys, error;
 
 	rules = find_rules(pr, &ppr);
-	error = vfs_setopt(opts, "mdo", &jsys, sizeof(jsys));
+	error = vfs_setopt(opts, "mac.do", &jsys, sizeof(jsys));
 	if (error != 0 && error != ENOENT)
 		goto done;
-	error = vfs_setopts(opts, "mdo.rules", rules->string);
+	error = vfs_setopts(opts, "mac.do.rules", rules->string);
 	if (error != 0 && error != ENOENT)
 		goto done;
 	prison_unlock(ppr);
@@ -380,14 +378,14 @@ mac_do_jail_check(void *obj, void *data)
 	char *rules_string;
 	int error, jsys, len;
 
-	error = vfs_copyopt(opts, "mdo", &jsys, sizeof(jsys));
+	error = vfs_copyopt(opts, "mac.do", &jsys, sizeof(jsys));
 	if (error != ENOENT) {
 		if (error != 0)
 			return (error);
 		if (jsys != JAIL_SYS_NEW && jsys != JAIL_SYS_INHERIT)
 			return (EINVAL);
 	}
-	error = vfs_getopt(opts, "mdo.rules", (void **)&rules_string, &len);
+	error = vfs_getopt(opts, "mac.do.rules", (void **)&rules_string, &len);
 	if (error != ENOENT) {
 		if (error != 0)
 			return (error);
@@ -409,10 +407,10 @@ mac_do_jail_set(void *obj, void *data)
 	char *rules_string;
 	int error, jsys, len;
 
-	error = vfs_copyopt(opts, "mdo", &jsys, sizeof(jsys));
+	error = vfs_copyopt(opts, "mac.do", &jsys, sizeof(jsys));
 	if (error == ENOENT)
 		jsys = -1;
-	error = vfs_getopt(opts, "mdo.rules", (void **)&rules_string, &len);
+	error = vfs_getopt(opts, "mac.do.rules", (void **)&rules_string, &len);
 	if (error == ENOENT)
 		rules_string = "";
 	else
