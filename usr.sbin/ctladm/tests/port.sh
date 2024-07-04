@@ -62,7 +62,7 @@ cleanup() {
 			;;
 		"iscsi")
 			TARGET=`awk '/target:/ {print $2}' port-create.txt`
-			ctladm port -r -d $driver -p "$PORTNUM" -O cfiscsi_portal_group_tag=$PGTAG -O cfiscsi_target=$TARGET
+			ctladm port -r -d $driver -O cfiscsi_portal_group_tag=$PGTAG -O cfiscsi_target=$TARGET
 			;;
 		esac
 	fi
