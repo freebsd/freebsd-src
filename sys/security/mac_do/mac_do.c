@@ -38,18 +38,18 @@ static MALLOC_DEFINE(M_DO, "do_rule", "Rules for mac_do");
 
 static unsigned		osd_jail_slot;
 
-#define RULE_INVALID	0 /* Must stay 0. */
-#define RULE_UID	1
-#define RULE_GID	2
-#define RULE_ANY	3
+#define IT_INVALID	0 /* Must stay 0. */
+#define IT_UID		1
+#define IT_GID		2
+#define IT_ANY		3
+#define IT_LAST		IT_ANY
 
 static const char *id_type_to_str[] = {
-	[RULE_INVALID]	= "invalid",
-	[RULE_UID]	= "uid",
-	[RULE_GID]	= "gid",
+	[IT_INVALID]	= "invalid",
+	[IT_UID]	= "uid",
+	[IT_GID]	= "gid",
 	/* See also parse_id_type(). */
-	[RULE_ANY]	= "*",
-	NULL
+	[IT_ANY]	= "*",
 };
 
 /*
@@ -60,18 +60,235 @@ _Static_assert(sizeof(uid_t) == sizeof(u_int) && (uid_t)-1 >= 0 &&
     sizeof(gid_t) == sizeof(u_int) && (gid_t)-1 >= 0,
     "mac_do(4) assumes that 'uid_t' and 'gid_t' are aliases to 'u_int'");
 
-struct rule {
-	u_int	from_type;
-	u_int	from_id;
-	u_int	to_type;
-	u_int	to_id;
-	TAILQ_ENTRY(rule) r_entries;
+/*
+ * Internal flags.
+ *
+ * They either apply as per-type (t) or per-ID (i) but are conflated because all
+ * per-ID flags are also valid as per-type ones to qualify the "current" (".")
+ * per-type flag.  Also, some of them are in fact exclusive, but we use one-hot
+ * encoding for simplicity.
+ *
+ * There is currently room for "only" 16 bits.  As these flags are purely
+ * internal, they can be renumbered and/or their type changed as needed.
+ *
+ * See also the check_*() functions below.
+ */
+typedef uint16_t	flags_t;
+
+/* (i,gid) Specification concerns primary groups. */
+#define MDF_PRIMARY	(1u << 0)
+/* (i,gid) Specification concerns supplementary groups. */
+#define MDF_SUPP_ALLOW	(1u << 1)
+/* (i,gid) Group must appear as a supplementary group. */
+#define MDF_SUPP_MUST	(1u << 2)
+/* (i,gid) Group must not appear as a supplementary group. */
+#define MDF_SUPP_DONT	(1u << 3)
+#define MDF_SUPP_MASK	(MDF_SUPP_ALLOW | MDF_SUPP_MUST | MDF_SUPP_DONT)
+#define MDF_ID_MASK	(MDF_PRIMARY | MDF_SUPP_MASK)
+
+/*
+ * (t) All IDs allowed.
+ *
+ * For GIDs, MDF_ANY only concerns primary groups.  The MDF_PRIMARY and
+ * MDF_SUPP_* flags never apply to MDF_ANY, but can be present if MDF_CURRENT is
+ * present also, as usual.
+ */
+#define MDF_ANY			(1u << 8)
+/* (t) Current IDs allowed. */
+#define MDF_CURRENT		(1u << 9)
+#define MDF_TYPE_COMMON_MASK	(MDF_ANY | MDF_CURRENT)
+/* (t,gid) All IDs allowed as supplementary groups. */
+#define MDF_ANY_SUPP		(1u << 10)
+/* (t,gid) Some ID or MDF_CURRENT has MDF_SUPP_MUST or MDF_SUPP_DONT. */
+#define MDF_MAY_REJ_SUPP	(1u << 11)
+/* (t,gid) Some explicit ID (not MDF_CURRENT) has MDF_SUPP_MUST. */
+#define MDF_EXPLICIT_SUPP_MUST	(1u << 12)
+/* (t,gid) Whether any target clause is about primary groups.  Used during
+ * parsing only. */
+#define MDF_HAS_PRIMARY_CLAUSE	(1u << 13)
+/* (t,gid) Whether any target clause is about supplementary groups.  Used during
+ * parsing only. */
+#define MDF_HAS_SUPP_CLAUSE	(1u << 14)
+#define MDF_TYPE_GID_MASK	(MDF_ANY_SUPP | MDF_MAY_REJ_SUPP |	\
+    MDF_EXPLICIT_SUPP_MUST | MDF_HAS_PRIMARY_CLAUSE | MDF_HAS_SUPP_CLAUSE)
+#define MDF_TYPE_MASK		(MDF_TYPE_COMMON_MASK | MDF_TYPE_GID_MASK)
+
+/*
+ * Persistent structures.
+ */
+
+struct id_spec {
+	u_int		 id;
+	flags_t		 flags; /* See MDF_* above. */
 };
+
+/*
+ * This limits the number of target clauses per type to 65535.  With the current
+ * value of MAC_RULE_STRING_LEN (1024), this is way more than enough anyway.
+ */
+typedef uint16_t	 id_nb_t;
+/* We only have a few IT_* types. */
+typedef uint16_t	 id_type_t;
+
+struct rule {
+	TAILQ_ENTRY(rule) r_entries;
+	id_type_t	 from_type;
+	u_int		 from_id;
+	flags_t		 uid_flags; /* See MDF_* above. */
+	id_nb_t		 uids_nb;
+	flags_t		 gid_flags; /* See MDF_* above. */
+	id_nb_t		 gids_nb;
+	struct id_spec	*uids;
+	struct id_spec	*gids;
+};
+
+TAILQ_HEAD(rulehead, rule);
 
 struct rules {
 	char string[MAC_RULE_STRING_LEN];
-	TAILQ_HEAD(rulehead, rule) head;
+	struct rulehead head;
 };
+
+/*
+ * Temporary structures used to build a 'struct rule' above.
+ */
+
+struct id_elem {
+	TAILQ_ENTRY(id_elem) ie_entries;
+	struct id_spec spec;
+};
+
+TAILQ_HEAD(id_list, id_elem);
+
+#ifdef INVARIANTS
+static void
+check_type(const id_type_t type)
+{
+	if (type > IT_LAST)
+		panic("Invalid type number %u", type);
+}
+
+static void
+panic_for_unexpected_flags(const id_type_t type, const flags_t flags,
+    const char *const str)
+{
+	panic("ID type %s: Unexpected flags %u (%s), ", id_type_to_str[type],
+	    flags, str);
+}
+
+static void
+check_type_and_id_flags(const id_type_t type, const flags_t flags)
+{
+	const char *str;
+
+	check_type(type);
+	switch (type) {
+	case IT_UID:
+		if (flags != 0) {
+			str = "only 0 allowed";
+			goto unexpected_flags;
+		}
+		break;
+	case IT_GID:
+		if ((flags & ~MDF_ID_MASK) != 0) {
+			str = "only bits in MDF_ID_MASK allowed";
+			goto unexpected_flags;
+		}
+		if (!powerof2(flags & MDF_SUPP_MASK)) {
+			str = "only a single flag in MDF_SUPP_MASK allowed";
+			goto unexpected_flags;
+		}
+		break;
+	default:
+	    __assert_unreachable();
+	}
+	return;
+
+unexpected_flags:
+	panic_for_unexpected_flags(type, flags, str);
+}
+
+static void
+check_type_and_id_spec(const id_type_t type, const struct id_spec *const is)
+{
+	check_type_and_id_flags(type, is->flags);
+}
+
+static void
+check_type_and_type_flags(const id_type_t type, const flags_t flags)
+{
+	const char *str;
+
+	check_type_and_id_flags(type, flags & MDF_ID_MASK);
+	if ((flags & ~MDF_ID_MASK & ~MDF_TYPE_MASK) != 0) {
+		str = "only MDF_ID_MASK | MDF_TYPE_MASK bits allowed";
+		goto unexpected_flags;
+	}
+	if ((flags & MDF_ANY) != 0 && (flags & MDF_CURRENT) != 0 &&
+	    (type == IT_UID || (flags & MDF_PRIMARY) != 0)) {
+		str = "MDF_ANY and MDF_CURRENT are exclusive for UIDs "
+		    "or primary group GIDs";
+		goto unexpected_flags;
+	}
+	if ((flags & MDF_ANY_SUPP) != 0 && (flags & MDF_CURRENT) != 0 &&
+	    (flags & MDF_SUPP_MASK) != 0) {
+		str = "MDF_SUPP_ANY and MDF_CURRENT with supplementary "
+		    "groups specification are exclusive";
+		goto unexpected_flags;
+	}
+	if (((flags & MDF_PRIMARY) != 0 || (flags & MDF_ANY) != 0) &&
+	    (flags & MDF_HAS_PRIMARY_CLAUSE) == 0) {
+		str = "Presence of folded primary clause not reflected "
+		    "by presence of MDF_HAS_PRIMARY_CLAUSE";
+		goto unexpected_flags;
+	}
+	if (((flags & MDF_SUPP_MASK) != 0 || (flags & MDF_ANY_SUPP) != 0) &&
+	    (flags & MDF_HAS_SUPP_CLAUSE) == 0) {
+		str = "Presence of folded supplementary clause not reflected "
+		    "by presence of MDF_HAS_SUPP_CLAUSE";
+		goto unexpected_flags;
+	}
+	return;
+
+unexpected_flags:
+	panic_for_unexpected_flags(type, flags, str);
+}
+#else /* !INVARIANTS */
+#define check_type_and_id_flags(...)
+#define check_type_and_id_spec(...)
+#define check_type_and_type_flags(...)
+#endif /* INVARIANTS */
+
+/*
+ * Returns EALREADY if both flags have some overlap, or EINVAL if flags are
+ * incompatible, else 0 with flags successfully merged into 'dest'.
+ */
+static int
+coalesce_id_flags(const flags_t src, flags_t *const dest)
+{
+	flags_t res;
+
+	if ((src & *dest) != 0)
+		return (EALREADY);
+
+	res = src | *dest;
+
+	/* Check for compatibility of supplementary flags, and coalesce. */
+	if ((res & MDF_SUPP_MASK) != 0) {
+		/* MDF_SUPP_DONT incompatible with the rest. */
+		if ((res & MDF_SUPP_DONT) != 0 && (res & MDF_SUPP_MASK &
+		    ~MDF_SUPP_DONT) != 0)
+			return (EINVAL);
+		/*
+		 * Coalesce MDF_SUPP_ALLOW and MDF_SUPP_MUST into MDF_SUPP_MUST.
+		 */
+		if ((res & MDF_SUPP_ALLOW) != 0 && (res & MDF_SUPP_MUST) != 0)
+			res &= ~MDF_SUPP_ALLOW;
+	}
+
+	*dest = res;
+	return (0);
+}
 
 static void
 toast_rules(struct rules *const rules)
@@ -81,6 +298,8 @@ toast_rules(struct rules *const rules)
 
 	while ((rule = TAILQ_FIRST(head)) != NULL) {
 		TAILQ_REMOVE(head, rule, r_entries);
+		free(rule->uids, M_DO);
+		free(rule->gids, M_DO);
 		free(rule, M_DO);
 	}
 	free(rules, M_DO);
@@ -95,6 +314,12 @@ alloc_rules(void)
 	rules->string[0] = 0;
 	TAILQ_INIT(&rules->head);
 	return (rules);
+}
+
+static bool
+is_null_or_empty(const char *s)
+{
+	return (s == NULL || s[0] == '\0');
 }
 
 /*
@@ -140,79 +365,442 @@ strtoui_strict(const char *const restrict s, const char **const restrict endptr,
 }
 
 static int
-parse_id_type(const char *const string, int *const type)
+parse_id_type(const char *const string, id_type_t *const type)
 {
 	/*
-	 * Special case for "any", as the canonical form for RULE_ANY in
+	 * Special case for "any", as the canonical form for IT_ANY in
 	 * id_type_to_str[] is "*".
 	 */
 	if (strcmp(string, "any") == 0) {
-		*type = RULE_ANY;
+		*type = IT_ANY;
 		return (0);
 	}
 
 	/* Start at 1 to avoid parsing "invalid". */
-	for (size_t i = 1; id_type_to_str[i] != NULL; ++i) {
+	for (size_t i = 1; i <= IT_LAST; ++i) {
 		if (strcmp(string, id_type_to_str[i]) == 0) {
 			*type = i;
 			return (0);
 		}
 	}
 
-	*type = RULE_INVALID;
+	*type = IT_INVALID;
+	return (EINVAL);
+}
+
+static size_t
+parse_gid_flags(const char *const string, flags_t *const flags,
+    flags_t *const gid_flags)
+{
+	switch (string[0]) {
+	case '+':
+		*flags |= MDF_SUPP_ALLOW;
+		goto has_supp_clause;
+	case '!':
+		*flags |= MDF_SUPP_MUST;
+		*gid_flags |= MDF_MAY_REJ_SUPP;
+		goto has_supp_clause;
+	case '-':
+		*flags |= MDF_SUPP_DONT;
+		*gid_flags |= MDF_MAY_REJ_SUPP;
+		goto has_supp_clause;
+	has_supp_clause:
+		*gid_flags |= MDF_HAS_SUPP_CLAUSE;
+		return (1);
+	}
+
+	return (0);
+}
+
+static bool
+parse_any(const char *const string)
+{
+	return (strcmp(string, "*") == 0 || strcmp(string, "any") == 0);
+}
+
+static bool
+has_clauses(const id_nb_t nb, const flags_t type_flags)
+{
+	return ((type_flags & MDF_TYPE_MASK) != 0 || nb != 0);
+}
+
+static int
+parse_target_clause(char *to, struct rule *const rule,
+    struct id_list *const uid_list, struct id_list *const gid_list)
+{
+	char *to_type, *to_id;
+	const char *p;
+	struct id_list *list;
+	id_nb_t *nb;
+	flags_t *tflags;
+	struct id_elem *ie;
+	struct id_spec is = {.flags = 0};
+	flags_t gid_flags = 0;
+	id_type_t type;
+	int error;
+
+	MPASS(to != NULL);
+	to_type = strsep(&to, "=");
+	MPASS(to_type != NULL);
+	to_type += parse_gid_flags(to_type, &is.flags, &gid_flags);
+	error = parse_id_type(to_type, &type);
+	if (error != 0)
+		goto einval;
+	if (type != IT_GID && is.flags != 0)
+		goto einval;
+
+	to_id = strsep(&to, "");
+	switch (type) {
+	case IT_GID:
+		if (to_id == NULL)
+			goto einval;
+
+		if (is.flags == 0) {
+			/* No flags: Dealing with a primary group. */
+			is.flags |= MDF_PRIMARY;
+			gid_flags |= MDF_HAS_PRIMARY_CLAUSE;
+		}
+
+		list = gid_list;
+		nb = &rule->gids_nb;
+		tflags = &rule->gid_flags;
+
+		/* "*" or "any"? */
+		if (parse_any(to_id)) {
+			/*
+			 * We check that we have not seen any other clause of
+			 * the same category (i.e., concerning primary or
+			 * supplementary groups).
+			 */
+			if ((is.flags & MDF_PRIMARY) != 0) {
+				if ((*tflags & MDF_HAS_PRIMARY_CLAUSE) != 0)
+					goto einval;
+				*tflags |= gid_flags | MDF_ANY;
+			} else {
+				/*
+				 * If a supplementary group flag was present, it
+				 * must be MDF_SUPP_ALLOW ("+").
+				 */
+				if ((is.flags & MDF_SUPP_MASK) != MDF_SUPP_ALLOW ||
+				    (*tflags & MDF_HAS_SUPP_CLAUSE) != 0)
+					goto einval;
+				*tflags |= gid_flags | MDF_ANY_SUPP;
+			}
+			goto check_type_and_finish;
+		} else {
+			/*
+			 * Check that we haven't already seen "any" for the same
+			 * category.
+			 */
+			if ((is.flags & MDF_PRIMARY) != 0) {
+				if ((*tflags & MDF_ANY) != 0)
+					goto einval;
+			} else if ((*tflags & MDF_ANY_SUPP) != 0 &&
+			    (is.flags & MDF_SUPP_ALLOW) != 0)
+				goto einval;
+			*tflags |= gid_flags;
+		}
+		break;
+
+	case IT_UID:
+		if (to_id == NULL)
+			goto einval;
+
+		list = uid_list;
+		nb = &rule->uids_nb;
+		tflags = &rule->uid_flags;
+
+		/* "*" or "any"? */
+		if (parse_any(to_id)) {
+			/* There must not be any other clause. */
+			if (has_clauses(*nb, *tflags))
+				goto einval;
+			*tflags |= MDF_ANY;
+			goto check_type_and_finish;
+		} else {
+			/*
+			 * Check that we haven't already seen "any" for the same
+			 * category.
+			 */
+			if ((*tflags & MDF_ANY) != 0)
+				goto einval;
+		}
+		break;
+
+	case IT_ANY:
+		/* No ID allowed. */
+		if (to_id != NULL)
+			goto einval;
+		/*
+		 * We can't have IT_ANY after any other IT_*, it must be the
+		 * only one.
+		 */
+		if (has_clauses(rule->uids_nb, rule->uid_flags) ||
+		    has_clauses(rule->gids_nb, rule->gid_flags))
+			goto einval;
+		rule->uid_flags |= MDF_ANY;
+		rule->gid_flags |= MDF_ANY | MDF_ANY_SUPP |
+		    MDF_HAS_PRIMARY_CLAUSE | MDF_HAS_SUPP_CLAUSE;
+		goto finish;
+
+	default:
+		/* parse_id_type() returns no other types currently. */
+		__assert_unreachable();
+	}
+
+	/* Rule out cases that have been treated above. */
+	MPASS((type == IT_UID || type == IT_GID) && !parse_any(to_id));
+
+	/* "."? */
+	if (strcmp(to_id, ".") == 0) {
+		if ((*tflags & MDF_CURRENT) != 0) {
+			/* Duplicate "." <id>.  Try to coalesce. */
+			error = coalesce_id_flags(is.flags, tflags);
+			if (error != 0)
+				goto einval;
+		} else
+			*tflags |= MDF_CURRENT | is.flags;
+		goto check_type_and_finish;
+	}
+
+	/* Parse an ID. */
+	error = strtoui_strict(to_id, &p, 10, &is.id);
+	if (error != 0 || *p != '\0')
+		goto einval;
+
+	/* Explicit ID flags. */
+	if (type == IT_GID && (is.flags & MDF_SUPP_MUST) != 0)
+		*tflags |= MDF_EXPLICIT_SUPP_MUST;
+
+	/*
+	 * We check for duplicate IDs and coalesce their 'struct id_spec' only
+	 * at end of parse_single_rule() because it is much more performant then
+	 * (using sorted arrays).
+	 */
+	++*nb;
+	if (*nb == 0)
+		return (EOVERFLOW);
+	ie = malloc(sizeof(*ie), M_DO, M_WAITOK);
+	ie->spec = is;
+	TAILQ_INSERT_TAIL(list, ie, ie_entries);
+	check_type_and_id_spec(type, &is);
+finish:
+	return (0);
+check_type_and_finish:
+	check_type_and_type_flags(type, *tflags);
+	return (0);
+einval:
 	return (EINVAL);
 }
 
 static int
-parse_rule_element(char *element, struct rule **rule)
+u_int_cmp(const u_int i1, const u_int i2)
 {
-	const char *from_type, *from_id, *to, *p;
+	return ((i1 > i2) - (i1 < i2));
+}
+
+static int
+id_spec_cmp(const void *const p1, const void *const p2)
+{
+	const struct id_spec *const is1 = p1;
+	const struct id_spec *const is2 = p2;
+
+	return (u_int_cmp(is1->id, is2->id));
+}
+
+/*
+ * Transfer content of 'list' into 'array', freeing and emptying list.
+ *
+ * 'nb' must be 'list''s length and not be greater than 'array''s size.  The
+ * destination array is sorted by ID.  Structures 'struct id_spec' with same IDs
+ * are coalesced if that makes sense (not including duplicate clauses), else
+ * EINVAL is returned.  On success, 'nb' is updated (lowered) to account for
+ * coalesced specifications.  The parameter 'type' is only for testing purposes
+ * (INVARIANTS).
+ */
+static int
+pour_list_into_rule(const id_type_t type, struct id_list *const list,
+    struct id_spec *const array, id_nb_t *const nb)
+{
+	struct id_elem *ie, *ie_next;
+	size_t idx = 0;
+
+	/* Fill the array. */
+	TAILQ_FOREACH_SAFE(ie, list, ie_entries, ie_next) {
+		MPASS(idx < *nb);
+		array[idx] = ie->spec;
+		free(ie, M_DO);
+		++idx;
+	}
+	MPASS(idx == *nb);
+	TAILQ_INIT(list);
+
+	/* Sort it (by ID). */
+	qsort(array, *nb, sizeof(*array), id_spec_cmp);
+
+	/* Coalesce same IDs. */
+	if (*nb != 0) {
+		size_t ref_idx = 0;
+
+		for (idx = 1; idx < *nb; ++idx) {
+			const u_int id = array[idx].id;
+
+			if (id != array[ref_idx].id) {
+				++ref_idx;
+				if (ref_idx != idx)
+					array[ref_idx] = array[idx];
+				continue;
+			}
+
+			switch (type) {
+				int error;
+
+			case IT_GID:
+				error = coalesce_id_flags(array[idx].flags,
+				    &array[ref_idx].flags);
+				if (error != 0)
+					return (EINVAL);
+				check_type_and_id_flags(type,
+				    array[ref_idx].flags);
+				break;
+
+			case IT_UID:
+				/*
+				 * No flags in this case.  Multiple appearances
+				 * of the same UID is an exact redundancy, so
+				 * error out.
+				 */
+				return (EINVAL);
+
+			default:
+				__assert_unreachable();
+			}
+		}
+		*nb = ref_idx + 1;
+	}
+
+	return (0);
+}
+
+/*
+ * See also first comments for parse_rule() below.
+ *
+ * The second part of a rule, called <target> (or <to>), is a comma-separated
+ * (',') list of '<flags><type>=<id>' clauses similar to that of the <from>
+ * part, with the extensions that <id> may also be "*" or "any" or ".", and that
+ * <flags> may contain at most one of the '+', '-' and '!' characters when
+ * <type> is "gid" (no flags are allowed for "uid").  No two clauses in a single
+ * <to> list may list the same <id>.  "*" and "any" both designate any ID for
+ * the <type>, and are aliases to each other.  In front of "any" (or "*"), only
+ * the '+' flag is allowed (in the "gid" case).  "." designates the process'
+ * current IDs for the <type>.  The precise meaning of flags and "." is
+ * explained in functions checking privileges below.
+ */
+static int
+parse_single_rule(char *rule, struct rules *const rules)
+{
+	const char *from_type, *from_id, *p;
+	char *to_list;
+	struct id_list uid_list, gid_list;
+	struct id_elem *ie, *ie_next;
 	struct rule *new;
 	int error;
 
-	new = malloc(sizeof(*new), M_DO, M_ZERO|M_WAITOK);
+	MPASS(rule != NULL);
+	TAILQ_INIT(&uid_list);
+	TAILQ_INIT(&gid_list);
 
-	from_type = strsep(&element, "=");
-	if (from_type == NULL)
-		goto einval;
+	/* Freed when the 'struct rules' container is freed. */
+	new = malloc(sizeof(*new), M_DO, M_WAITOK | M_ZERO);
 
+	from_type = strsep(&rule, "=");
+	MPASS(from_type != NULL); /* Because 'rule' was not NULL. */
 	error = parse_id_type(from_type, &new->from_type);
 	if (error != 0)
 		goto einval;
 	switch (new->from_type) {
-	case RULE_UID:
-	case RULE_GID:
+	case IT_UID:
+	case IT_GID:
 		break;
 	default:
 		goto einval;
 	}
 
-	from_id = strsep(&element, ":");
-	if (from_id == NULL || *from_id == '\0')
+	from_id = strsep(&rule, ":");
+	if (is_null_or_empty(from_id))
 		goto einval;
 
 	error = strtoui_strict(from_id, &p, 10, &new->from_id);
 	if (error != 0 || *p != '\0')
 		goto einval;
 
-	to = element;
-	if (to == NULL || *to == '\0')
+	/*
+	 * We will now parse the "to" list.
+	 *
+	 * In order to ease parsing, we will begin by building lists of target
+	 * UIDs and GIDs in local variables 'uid_list' and 'gid_list'.  The
+	 * number of each type of IDs will be filled directly in 'new'.  At end
+	 * of parse, we will allocate both arrays of IDs to be placed into the
+	 * 'uids' and 'gids' members, sort them, and discard the tail queues
+	 * used to build them.  This conversion to sorted arrays at end of parse
+	 * allows to minimize memory allocations and enables searching IDs in
+	 * O(log(n)) instead of linearly.
+	 */
+	to_list = strsep(&rule, ",");
+	if (to_list == NULL)
 		goto einval;
+	do {
+		error = parse_target_clause(to_list, new, &uid_list, &gid_list);
+		if (error != 0)
+			goto einval;
 
-	if (strcmp(to, "any") == 0 || strcmp(to, "*") == 0)
-		new->to_type = RULE_ANY;
-	else {
-		new->to_type = RULE_UID;
-		error = strtoui_strict(to, &p, 10, &new->to_id);
-		if (error != 0 || *p != '\0')
+		to_list = strsep(&rule, ",");
+	} while (to_list != NULL);
+
+	if (new->uids_nb != 0) {
+		new->uids = malloc(sizeof(*new->uids) * new->uids_nb, M_DO,
+		    M_WAITOK);
+		error = pour_list_into_rule(IT_UID, &uid_list, new->uids,
+		    &new->uids_nb);
+		if (error != 0)
 			goto einval;
 	}
+	MPASS(TAILQ_EMPTY(&uid_list));
+	if (!has_clauses(new->uids_nb, new->uid_flags)) {
+		/* No UID specified, default is "uid=.". */
+		MPASS(new->uid_flags == 0);
+		new->uid_flags = MDF_CURRENT;
+		check_type_and_type_flags(IT_UID, new->uid_flags);
+	}
 
-	*rule = new;
+	if (new->gids_nb != 0) {
+		new->gids = malloc(sizeof(*new->gids) * new->gids_nb, M_DO,
+		    M_WAITOK);
+		error = pour_list_into_rule(IT_GID, &gid_list, new->gids,
+		    &new->gids_nb);
+		if (error != 0)
+			goto einval;
+	}
+	MPASS(TAILQ_EMPTY(&gid_list));
+	if (!has_clauses(new->gids_nb, new->gid_flags)) {
+		/* No GID specified, default is "gid=.,!gid=.". */
+		MPASS(new->gid_flags == 0);
+		new->gid_flags = MDF_CURRENT | MDF_PRIMARY | MDF_SUPP_MUST |
+		    MDF_HAS_PRIMARY_CLAUSE | MDF_HAS_SUPP_CLAUSE;
+		check_type_and_type_flags(IT_GID, new->gid_flags);
+	}
+
+	TAILQ_INSERT_TAIL(&rules->head, new, r_entries);
 	return (0);
+
 einval:
+	free(new->gids, M_DO);
+	free(new->uids, M_DO);
 	free(new, M_DO);
-	*rule = NULL;
+	TAILQ_FOREACH_SAFE(ie, &gid_list, ie_entries, ie_next)
+	    free(ie, M_DO);
+	TAILQ_FOREACH_SAFE(ie, &uid_list, ie_entries, ie_next)
+	    free(ie, M_DO);
 	return (EINVAL);
 }
 
@@ -223,19 +811,25 @@ einval:
  * representing the rules.  On error, the returned value is non-zero and
  * '*rulesp' is unchanged.  If 'string' has length greater or equal to
  * MAC_RULE_STRING_LEN, ENAMETOOLONG is returned.  If it is not in the expected
- * format (comma-separated list of clauses of the form "<type>=<val>:<target>",
- * where <type> is "uid" or "gid", <val> an UID or GID (depending on <type>) and
- * <target> is "*", "any" or some UID), EINVAL is returned.
+ * format, EINVAL is returned.
+ *
+ * Expected format: A semi-colon-separated list of rules of the form
+ * "<from>:<target>".  The <from> part is of the form "<type>=<id>" where <type>
+ * is "uid" or "gid", <id> an UID or GID (depending on <type>) and <target> is
+ * "*", "any" or a comma-separated list of '<flags><type>=<id>' clauses (see the
+ * comment for parse_single_rule() for more details).  For convenience, empty
+ * rules are allowed (and do nothing).
+ *
+ * Examples:
+ * - "uid=1001:uid=1010,gid=1010;uid=1002:any"
+ * - "gid=1010:gid=1011,gid=1012,gid=1013"
  */
 static int
 parse_rules(const char *const string, struct rules **const rulesp)
 {
 	const size_t len = strlen(string);
-	char *copy;
-	char *p;
-	char *element;
+	char *copy, *p, *rule;
 	struct rules *rules;
-	struct rule *new;
 	int error = 0;
 
 	if (len >= MAC_RULE_STRING_LEN)
@@ -250,15 +844,14 @@ parse_rules(const char *const string, struct rules **const rulesp)
 	MPASS(copy[len] == '\0'); /* Catch some races. */
 
 	p = copy;
-	while ((element = strsep(&p, ",")) != NULL) {
-		if (element[0] == '\0')
+	while ((rule = strsep(&p, ";")) != NULL) {
+		if (rule[0] == '\0')
 			continue;
-		error = parse_rule_element(element, &new);
+		error = parse_single_rule(rule, rules);
 		if (error != 0) {
 			toast_rules(rules);
 			goto out;
 		}
-		TAILQ_INSERT_TAIL(&rules->head, new, r_entries);
 	}
 
 	*rulesp = rules;
@@ -293,8 +886,8 @@ find_rules(struct prison *const pr, struct prison **const aprp)
 		MPASS(ppr != NULL); /* prison0 always has rules. */
 		cpr = ppr;
 	}
-	*aprp = cpr;
 
+	*aprp = cpr;
 	return (rules);
 }
 
@@ -634,9 +1227,9 @@ mac_do_destroy(struct mac_policy_conf *mpc)
 static bool
 rule_applies(struct ucred *cred, struct rule *r)
 {
-	if (r->from_type == RULE_UID && r->from_id == cred->cr_uid)
+	if (r->from_type == IT_UID && r->from_id == cred->cr_uid)
 		return (true);
-	if (r->from_type == RULE_GID && groupmember(r->from_id, cred))
+	if (r->from_type == IT_GID && groupmember(r->from_id, cred))
 		return (true);
 	return (false);
 }
@@ -706,11 +1299,12 @@ static int
 mac_do_check_setuid(struct ucred *cred, uid_t uid)
 {
 	struct rule *r;
-	int error;
 	char *fullpath = NULL;
 	char *freebuf = NULL;
 	struct prison *pr;
 	struct rules *rule;
+	struct id_spec uid_is = {.id = uid};
+	int error;
 
 	if (do_enabled == 0)
 		return (0);
@@ -728,29 +1322,17 @@ mac_do_check_setuid(struct ucred *cred, uid_t uid)
 	error = EPERM;
 	rule = find_rules(cred->cr_prison, &pr);
 	TAILQ_FOREACH(r, &rule->head, r_entries) {
-		if (r->from_type == RULE_UID) {
-			if (cred->cr_uid != r->from_id)
-				continue;
-			if (r->to_type == RULE_ANY) {
-				error = 0;
-				break;
-			}
-			if (r->to_type == RULE_UID && uid == r->to_id) {
-				error = 0;
-				break;
-			}
-		}
-		if (r->from_type == RULE_GID) {
-			if (!groupmember(r->from_id, cred))
-				continue;
-			if (r->to_type == RULE_ANY) {
-				error = 0;
-				break;
-			}
-			if (r->to_type == RULE_UID && uid == r->to_id) {
-				error = 0;
-				break;
-			}
+		if (!((r->from_type == IT_UID && cred->cr_uid == r->from_id) ||
+		    (r->from_type == IT_GID && groupmember(r->from_id, cred))))
+			continue;
+
+		if (r->uid_flags & MDF_ANY ||
+		    ((r->uid_flags & MDF_CURRENT) && (uid == cred->cr_uid ||
+		    uid == cred->cr_ruid || uid == cred->cr_svuid)) ||
+		    bsearch(&uid_is, r->uids, r->uids_nb, sizeof(*r->uids),
+		    id_spec_cmp) != NULL) {
+			error = 0;
+			break;
 		}
 	}
 	prison_unlock(pr);
