@@ -38,9 +38,19 @@ static MALLOC_DEFINE(M_DO, "do_rule", "Rules for mac_do");
 
 static unsigned		mac_do_osd_jail_slot;
 
+#define RULE_INVALID	0 /* Must stay 0. */
 #define RULE_UID	1
 #define RULE_GID	2
 #define RULE_ANY	3
+
+static const char *id_type_to_str[] = {
+	[RULE_INVALID]	= "invalid",
+	[RULE_UID]	= "uid",
+	[RULE_GID]	= "gid",
+	/* See also parse_id_type(). */
+	[RULE_ANY]	= "*",
+	NULL
+};
 
 /*
  * We assume that 'uid_t' and 'gid_t' are aliases to 'u_int' in conversions
@@ -130,10 +140,35 @@ strtoui_strict(const char *const restrict s, const char **const restrict endptr,
 }
 
 static int
+parse_id_type(const char *const string, int *const type)
+{
+	/*
+	 * Special case for "any", as the canonical form for RULE_ANY in
+	 * id_type_to_str[] is "*".
+	 */
+	if (strcmp(string, "any") == 0) {
+		*type = RULE_ANY;
+		return (0);
+	}
+
+	/* Start at 1 to avoid parsing "invalid". */
+	for (size_t i = 1; id_type_to_str[i] != NULL; ++i) {
+		if (strcmp(string, id_type_to_str[i]) == 0) {
+			*type = i;
+			return (0);
+		}
+	}
+
+	*type = RULE_INVALID;
+	return (EINVAL);
+}
+
+static int
 parse_rule_element(char *element, struct rule **rule)
 {
 	const char *from_type, *from_id, *to, *p;
 	struct rule *new;
+	int error;
 
 	new = malloc(sizeof(*new), M_DO, M_ZERO|M_WAITOK);
 
@@ -141,12 +176,16 @@ parse_rule_element(char *element, struct rule **rule)
 	if (from_type == NULL)
 		goto einval;
 
-	if (strcmp(from_type, "uid") == 0)
-		new->from_type = RULE_UID;
-	else if (strcmp(from_type, "gid") == 0)
-		new->from_type = RULE_GID;
-	else
+	error = parse_id_type(from_type, &new->from_type);
+	if (error != 0)
 		goto einval;
+	switch (new->from_type) {
+	case RULE_UID:
+	case RULE_GID:
+		break;
+	default:
+		goto einval;
+	}
 
 	from_id = strsep(&element, ":");
 	if (from_id == NULL || *from_id == '\0')
