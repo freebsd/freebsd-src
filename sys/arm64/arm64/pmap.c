@@ -4373,7 +4373,8 @@ pmap_mask_set_locked(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, pt_entry_t m
 			if (sva + L2_SIZE == va_next && eva >= va_next) {
 				pmap_protect_l2(pmap, l2, sva, mask, nbits);
 				continue;
-			} else if (pmap_demote_l2(pmap, l2, sva) == NULL)
+			} else if ((pmap_load(l2) & mask) == nbits ||
+			    pmap_demote_l2(pmap, l2, sva) == NULL)
 				continue;
 		}
 		KASSERT((pmap_load(l2) & ATTR_DESCR_MASK) == L2_TABLE,

@@ -6796,8 +6796,7 @@ retry_pdpe:
 		 */
 		if ((ptpaddr & PG_PS) != 0) {
 			/*
-			 * Are we protecting the entire large page?  If not,
-			 * demote the mapping and fall through.
+			 * Are we protecting the entire large page?
 			 */
 			if (sva + NBPDR == va_next && eva >= va_next) {
 				/*
@@ -6807,9 +6806,23 @@ retry_pdpe:
 				if (pmap_protect_pde(pmap, pde, sva, prot))
 					anychanged = true;
 				continue;
-			} else if (!pmap_demote_pde(pmap, pde, sva)) {
+			}
+
+			/*
+			 * Does the large page mapping need to change?  If so,
+			 * demote it and fall through.
+			 */
+			pbits = ptpaddr;
+			if ((prot & VM_PROT_WRITE) == 0)
+				pbits &= ~(PG_RW | PG_M);
+			if ((prot & VM_PROT_EXECUTE) == 0)
+				pbits |= pg_nx;
+			if (ptpaddr == pbits || !pmap_demote_pde(pmap, pde,
+			    sva)) {
 				/*
-				 * The large page mapping was destroyed.
+				 * Either the large page mapping doesn't need
+				 * to change, or it was destroyed during
+				 * demotion.
 				 */
 				continue;
 			}
