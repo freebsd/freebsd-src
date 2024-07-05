@@ -105,7 +105,7 @@ parse_rule_element(char *element, struct rule **rule)
 	}
 
 	id = strsep(&element, ":");
-	if (id == NULL) {
+	if (id == NULL || *id == '\0') {
 		error = EINVAL;
 		goto error;
 	}
