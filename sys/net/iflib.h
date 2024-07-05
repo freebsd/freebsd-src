@@ -470,9 +470,9 @@ void iflib_irq_free(if_ctx_t ctx, if_irq_t irq);
 void iflib_io_tqg_attach(struct grouptask *gt, void *uniq, int cpu,
     const char *name);
 
-void iflib_config_gtask_init(void *ctx, struct grouptask *gtask,
-			     gtask_fn_t *fn, const char *name);
-void iflib_config_gtask_deinit(struct grouptask *gtask);
+void iflib_config_task_init(if_ctx_t ctx, struct task *config_task,
+    task_fn_t *fn);
+void iflib_config_task_enqueue(if_ctx_t ctx, struct task *config_task);
 
 void iflib_tx_intr_deferred(if_ctx_t ctx, int txqid);
 void iflib_rx_intr_deferred(if_ctx_t ctx, int rxqid);
