@@ -6,8 +6,10 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/ctype.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -85,11 +87,52 @@ alloc_rules(void)
 	return (rules);
 }
 
+/*
+ * String to unsigned int.
+ *
+ * Contrary to the "standard" strtou*() family of functions, do not tolerate
+ * spaces at start nor an empty string, and returns a status code, the 'u_int'
+ * result being returned through a passed pointer (if no error).
+ *
+ * We detour through 'quad_t' because in-kernel strto*() functions cannot set
+ * 'errno' and thus can't distinguish a true maximum value from one returned
+ * because of overflow.  We use 'quad_t' instead of 'u_quad_t' to support
+ * negative specifications (e.g., such as "-1" for UINT_MAX).
+ */
+static int
+strtoui_strict(const char *const restrict s, const char **const restrict endptr,
+    int base, u_int *result)
+{
+	char *ep;
+	quad_t q;
+
+	/* Rule out spaces and empty specifications. */
+	if (s[0] == '\0' || isspace(s[0])) {
+		if (endptr != NULL)
+			*endptr = s;
+		return (EINVAL);
+	}
+
+	q = strtoq(s, &ep, base);
+	if (endptr != NULL)
+		*endptr = ep;
+	if (q < 0) {
+		/* We allow specifying a negative number. */
+		if (q < -(quad_t)UINT_MAX - 1 || q == QUAD_MIN)
+			return (EOVERFLOW);
+	} else {
+		if (q > UINT_MAX || q == UQUAD_MAX)
+			return (EOVERFLOW);
+	}
+
+	*result = (u_int)q;
+	return (0);
+}
+
 static int
 parse_rule_element(char *element, struct rule **rule)
 {
-	const char *from_type, *from_id, *to;
-	char *p;
+	const char *from_type, *from_id, *to, *p;
 	struct rule *new;
 
 	new = malloc(sizeof(*new), M_DO, M_ZERO|M_WAITOK);
@@ -109,8 +152,8 @@ parse_rule_element(char *element, struct rule **rule)
 	if (from_id == NULL || *from_id == '\0')
 		goto einval;
 
-	new->from_id = strtol(from_id, &p, 10);
-	if (*p != '\0')
+	error = strtoui_strict(from_id, &p, 10, &new->from_id);
+	if (error != 0 || *p != '\0')
 		goto einval;
 
 	to = element;
@@ -121,8 +164,8 @@ parse_rule_element(char *element, struct rule **rule)
 		new->to_type = RULE_ANY;
 	else {
 		new->to_type = RULE_UID;
-		new->to_id = strtol(to, &p, 10);
-		if (*p != '\0')
+		error = strtoui_strict(to, &p, 10, &new->to_id);
+		if (error != 0 || *p != '\0')
 			goto einval;
 	}
 
