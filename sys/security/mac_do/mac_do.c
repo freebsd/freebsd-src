@@ -40,14 +40,19 @@ static unsigned		mac_do_osd_jail_slot;
 #define RULE_GID	2
 #define RULE_ANY	3
 
+/*
+ * We assume that 'uid_t' and 'gid_t' are aliases to 'u_int' in conversions
+ * required for parsing rules specification strings.
+ */
+_Static_assert(sizeof(uid_t) == sizeof(u_int) && (uid_t)-1 >= 0 &&
+    sizeof(gid_t) == sizeof(u_int) && (gid_t)-1 >= 0,
+    "mac_do(4) assumes that 'uid_t' and 'gid_t' are aliases to 'u_int'");
+
 struct rule {
-	int	from_type;
-	union {
-		uid_t f_uid;
-		gid_t f_gid;
-	};
-	int	to_type;
-	uid_t t_uid;
+	u_int	from_type;
+	u_int	from_id;
+	u_int	to_type;
+	u_int	to_id;
 	TAILQ_ENTRY(rule) r_entries;
 };
 
@@ -83,71 +88,50 @@ alloc_rules(void)
 static int
 parse_rule_element(char *element, struct rule **rule)
 {
-	int error = 0;
-	char *type, *id, *p;
+	const char *from_type, *from_id, *to;
+	char *p;
 	struct rule *new;
 
 	new = malloc(sizeof(*new), M_DO, M_ZERO|M_WAITOK);
 
-	type = strsep(&element, "=");
-	if (type == NULL) {
-		error = EINVAL;
-		goto error;
-	}
+	from_type = strsep(&element, "=");
+	if (from_type == NULL)
+		goto einval;
 
-	if (strcmp(type, "uid") == 0)
+	if (strcmp(from_type, "uid") == 0)
 		new->from_type = RULE_UID;
-	else if (strcmp(type, "gid") == 0)
+	else if (strcmp(from_type, "gid") == 0)
 		new->from_type = RULE_GID;
-	else {
-		error = EINVAL;
-		goto error;
-	}
+	else
+		goto einval;
 
-	id = strsep(&element, ":");
-	if (id == NULL || *id == '\0') {
-		error = EINVAL;
-		goto error;
-	}
+	from_id = strsep(&element, ":");
+	if (from_id == NULL || *from_id == '\0')
+		goto einval;
 
-	switch (new->from_type) {
-	case RULE_UID:
-		new->f_uid = strtol(id, &p, 10);
-		break;
-	case RULE_GID:
-		new->f_gid = strtol(id, &p, 10);
-		break;
-	default:
-		__assert_unreachable();
-	}
-	if (*p != '\0') {
-		error = EINVAL;
-		goto error;
-	}
+	new->from_id = strtol(from_id, &p, 10);
+	if (*p != '\0')
+		goto einval;
 
-	if (element == NULL || *element == '\0') {
-		error = EINVAL;
-		goto error;
-	}
-	if (strcmp(element, "any") == 0 || strcmp(element, "*") == 0)
+	to = element;
+	if (to == NULL || *to == '\0')
+		goto einval;
+
+	if (strcmp(to, "any") == 0 || strcmp(to, "*") == 0)
 		new->to_type = RULE_ANY;
 	else {
 		new->to_type = RULE_UID;
-		new->t_uid = strtol(element, &p, 10);
-		if (*p != '\0') {
-			error = EINVAL;
-			goto error;
-		}
+		new->to_id = strtol(to, &p, 10);
+		if (*p != '\0')
+			goto einval;
 	}
 
-	MPASS(error == 0);
 	*rule = new;
 	return (0);
-error:
-	MPASS(error != 0);
+einval:
 	free(new, M_DO);
 	*rule = NULL;
-	return (error);
+	return (EINVAL);
 }
 
 /*
@@ -568,9 +552,9 @@ mac_do_destroy(struct mac_policy_conf *mpc)
 static bool
 rule_applies(struct ucred *cred, struct rule *r)
 {
-	if (r->from_type == RULE_UID && r->f_uid == cred->cr_uid)
+	if (r->from_type == RULE_UID && r->from_id == cred->cr_uid)
 		return (true);
-	if (r->from_type == RULE_GID && groupmember(r->f_gid, cred))
+	if (r->from_type == RULE_GID && groupmember(r->from_id, cred))
 		return (true);
 	return (false);
 }
@@ -663,25 +647,25 @@ mac_do_check_setuid(struct ucred *cred, uid_t uid)
 	rule = find_rules(cred->cr_prison, &pr);
 	TAILQ_FOREACH(r, &rule->head, r_entries) {
 		if (r->from_type == RULE_UID) {
-			if (cred->cr_uid != r->f_uid)
+			if (cred->cr_uid != r->from_id)
 				continue;
 			if (r->to_type == RULE_ANY) {
 				error = 0;
 				break;
 			}
-			if (r->to_type == RULE_UID && uid == r->t_uid) {
+			if (r->to_type == RULE_UID && uid == r->to_id) {
 				error = 0;
 				break;
 			}
 		}
 		if (r->from_type == RULE_GID) {
-			if (!groupmember(r->f_gid, cred))
+			if (!groupmember(r->from_id, cred))
 				continue;
 			if (r->to_type == RULE_ANY) {
 				error = 0;
 				break;
 			}
-			if (r->to_type == RULE_UID && uid == r->t_uid) {
+			if (r->to_type == RULE_UID && uid == r->to_id) {
 				error = 0;
 				break;
 			}
