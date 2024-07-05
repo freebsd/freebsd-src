@@ -229,7 +229,7 @@ static void bnxt_clear_ids(struct bnxt_softc *softc);
 static void inline bnxt_do_enable_intr(struct bnxt_cp_ring *cpr);
 static void inline bnxt_do_disable_intr(struct bnxt_cp_ring *cpr);
 static void bnxt_mark_cpr_invalid(struct bnxt_cp_ring *cpr);
-static void bnxt_def_cp_task(void *context);
+static void bnxt_def_cp_task(void *context, int pending);
 static void bnxt_handle_async_event(struct bnxt_softc *softc,
     struct cmpl_base *cmpl);
 static uint64_t bnxt_get_baudrate(struct bnxt_link_info *link);
@@ -2384,8 +2384,7 @@ bnxt_attach_pre(if_ctx_t ctx)
 	    &softc->def_cp_ring_mem, 0);
 	softc->def_cp_ring.ring.vaddr = softc->def_cp_ring_mem.idi_vaddr;
 	softc->def_cp_ring.ring.paddr = softc->def_cp_ring_mem.idi_paddr;
-	iflib_config_gtask_init(ctx, &softc->def_cp_task, bnxt_def_cp_task,
-	    "dflt_cp");
+	iflib_config_task_init(ctx, &softc->def_cp_task, bnxt_def_cp_task);
 
 	rc = bnxt_init_sysctl_ctx(softc);
 	if (rc)
@@ -2512,7 +2511,6 @@ bnxt_detach(if_ctx_t ctx)
 	bnxt_free_ctx_mem(softc);
 	bnxt_clear_ids(softc);
 	iflib_irq_free(ctx, &softc->def_cp_ring.irq);
-	iflib_config_gtask_deinit(&softc->def_cp_task);
 	/* We need to free() these here... */
 	for (i = softc->nrxqsets-1; i>=0; i--) {
 		if (BNXT_CHIP_P5(softc))
@@ -4348,7 +4346,7 @@ bnxt_handle_def_cp(void *arg)
 	struct bnxt_softc *softc = arg;
 
 	softc->db_ops.bnxt_db_rx_cq(&softc->def_cp_ring, 0);
-	GROUPTASK_ENQUEUE(&softc->def_cp_task);
+	iflib_config_task_enqueue(softc->ctx, &softc->def_cp_task);
 	return FILTER_HANDLED;
 }
 
@@ -4608,7 +4606,7 @@ async_event_process_exit:
 }
 
 static void
-bnxt_def_cp_task(void *context)
+bnxt_def_cp_task(void *context, int pending)
 {
 	if_ctx_t ctx = context;
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
