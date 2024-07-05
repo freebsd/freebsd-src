@@ -266,7 +266,7 @@ check_pkt_coalesce(struct sge_qset *qs)
 	if (cxgb_tx_coalesce_enable_start > COALESCE_START_MAX)
 		cxgb_tx_coalesce_enable_start = COALESCE_START_MAX;
 	if (cxgb_tx_coalesce_enable_stop < COALESCE_STOP_MIN)
-		cxgb_tx_coalesce_enable_start = COALESCE_STOP_MIN;
+		cxgb_tx_coalesce_enable_stop = COALESCE_STOP_MIN;
 	/*
 	 * if the hardware transmit queue is more than 1/8 full
 	 * we mark it as coalescing - we drop back from coalescing
