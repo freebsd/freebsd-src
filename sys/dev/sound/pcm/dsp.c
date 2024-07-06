@@ -2182,6 +2182,10 @@ dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai, bool ex)
 
 		CHN_UNLOCK(ch);
 	}
+	if (ai->min_rate == INT_MAX)
+		ai->min_rate = 0;
+	if (ai->min_channels == INT_MAX)
+		ai->min_channels = 0;
 
 	PCM_UNLOCK(d);
 
