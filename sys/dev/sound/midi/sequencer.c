@@ -91,10 +91,6 @@
 #define LOOKUP_OPEN	(1)
 #define LOOKUP_CLOSE	(2)
 
-#define PCMMKMINOR(u, d, c) \
-	    ((((c) & 0xff) << 16) | (((u) & 0x0f) << 4) | ((d) & 0x0f))
-#define MIDIMKMINOR(u, d, c) PCMMKMINOR(u, d, c)
-#define MIDIUNIT(y) ((dev2unit(y) >> 4) & 0x0f)
 #define MIDIDEV(y) (dev2unit(y) & 0x0f)
 
 /* These are the entries to the sequencer driver. */
@@ -567,12 +563,10 @@ seq_addunit(void)
 	if (scp->mapper == NULL)
 		goto err;
 
-	scp->seqdev = make_dev(&seq_cdevsw,
-	    MIDIMKMINOR(scp->unit, SND_DEV_SEQ, 0), UID_ROOT,
-	    GID_WHEEL, 0666, "sequencer%d", scp->unit);
+	scp->seqdev = make_dev(&seq_cdevsw, SND_DEV_SEQ, UID_ROOT, GID_WHEEL,
+	    0666, "sequencer%d", scp->unit);
 
-	scp->musicdev = make_dev(&seq_cdevsw,
-	    MIDIMKMINOR(scp->unit, SND_DEV_MUSIC, 0), UID_ROOT,
+	scp->musicdev = make_dev(&seq_cdevsw, SND_DEV_MUSIC, UID_ROOT,
 	    GID_WHEEL, 0666, "music%d", scp->unit);
 
 	if (scp->seqdev == NULL || scp->musicdev == NULL)
