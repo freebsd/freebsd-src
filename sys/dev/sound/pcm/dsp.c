@@ -2170,8 +2170,13 @@ dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai, bool ex)
 		else
 			ai->iformats |= fmts;
 
-		ai->min_rate = min(ai->min_rate, caps->minspeed);
-		ai->max_rate = max(ai->max_rate, caps->maxspeed);
+		if (ex || (pcm_getflags(d->dev) & SD_F_BITPERFECT)) {
+			ai->min_rate = min(ai->min_rate, caps->minspeed);
+			ai->max_rate = max(ai->max_rate, caps->maxspeed);
+		} else {
+			ai->min_rate = min(ai->min_rate, feeder_rate_min);
+			ai->max_rate = max(ai->max_rate, feeder_rate_max);
+		}
 		ai->min_channels = min(ai->min_channels, minch);
 		ai->max_channels = max(ai->max_channels, maxch);
 
@@ -2369,8 +2374,15 @@ dsp_oss_engineinfo(struct cdev *i_dev, oss_audioinfo *ai)
 			 * @todo @c handle - haven't decided how to generate
 			 *       this yet; bus, vendor, device IDs?
 			 */
-			ai->min_rate = caps->minspeed;
-			ai->max_rate = caps->maxspeed;
+
+			if ((ch->flags & CHN_F_EXCLUSIVE) ||
+			    (pcm_getflags(d->dev) & SD_F_BITPERFECT)) {
+				ai->min_rate = caps->minspeed;
+				ai->max_rate = caps->maxspeed;
+			} else {
+				ai->min_rate = feeder_rate_min;
+				ai->max_rate = feeder_rate_max;
+			}
 
 			ai->min_channels = minch;
 			ai->max_channels = maxch;
