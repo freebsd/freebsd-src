@@ -181,7 +181,8 @@ TAILQ_HEAD(, snd_midi) midi_devs;
  * /dev/midistat variables and declarations, protected by midistat_lock
  */
 
-static struct sx midistat_lock;
+struct sx midistat_lock;
+
 static int      midistat_isopen = 0;
 static struct sbuf midistat_sbuf;
 static struct cdev *midistat_dev;
@@ -1470,16 +1471,28 @@ midimapper_addseq(void *arg1, int *unit, void **cookie)
 }
 
 int
-midimapper_open(void *arg1, void **cookie)
+midimapper_open_locked(void *arg1, void **cookie)
 {
 	int retval = 0;
 	struct snd_midi *m;
 
-	sx_xlock(&midistat_lock);
+	sx_assert(&midistat_lock, SX_XLOCKED);
 	TAILQ_FOREACH(m, &midi_devs, link) {
 		retval++;
 	}
+
+	return retval;
+}
+
+int
+midimapper_open(void *arg1, void **cookie)
+{
+	int retval;
+
+	sx_xlock(&midistat_lock);
+	retval = midimapper_open_locked(arg1, cookie);
 	sx_xunlock(&midistat_lock);
+
 	return retval;
 }
 
@@ -1490,21 +1503,31 @@ midimapper_close(void *arg1, void *cookie)
 }
 
 kobj_t
-midimapper_fetch_synth(void *arg, void *cookie, int unit)
+midimapper_fetch_synth_locked(void *arg, void *cookie, int unit)
 {
 	struct snd_midi *m;
 	int retval = 0;
 
-	sx_xlock(&midistat_lock);
+	sx_assert(&midistat_lock, SX_XLOCKED);
 	TAILQ_FOREACH(m, &midi_devs, link) {
-		if (unit == retval) {
-			sx_xunlock(&midistat_lock);
+		if (unit == retval)
 			return (kobj_t)m->synth;
-		}
 		retval++;
 	}
-	sx_xunlock(&midistat_lock);
+
 	return NULL;
+}
+
+kobj_t
+midimapper_fetch_synth(void *arg, void *cookie, int unit)
+{
+	kobj_t synth;
+
+	sx_xlock(&midistat_lock);
+	synth = midimapper_fetch_synth_locked(arg, cookie, unit);
+	sx_xunlock(&midistat_lock);
+
+	return synth;
 }
 
 DEV_MODULE(midi, midi_modevent, NULL);

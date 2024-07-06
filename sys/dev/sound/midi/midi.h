@@ -41,6 +41,8 @@ MALLOC_DECLARE(M_MIDI);
 
 #define MIDI_TYPE unsigned char
 
+extern struct sx midistat_lock;
+
 struct snd_midi;
 
 struct snd_midi *
@@ -50,8 +52,10 @@ int	midi_out(struct snd_midi *_m, MIDI_TYPE *_buf, int _size);
 int	midi_in(struct snd_midi *_m, MIDI_TYPE *_buf, int _size);
 
 kobj_t	midimapper_addseq(void *arg1, int *unit, void **cookie);
+int	midimapper_open_locked(void *arg1, void **cookie);
 int	midimapper_open(void *arg1, void **cookie);
 int	midimapper_close(void *arg1, void *cookie);
+kobj_t	midimapper_fetch_synth_locked(void *arg, void *cookie, int unit);
 kobj_t	midimapper_fetch_synth(void *arg, void *cookie, int unit);
 
 #endif
