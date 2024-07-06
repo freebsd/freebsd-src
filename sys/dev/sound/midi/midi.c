@@ -281,7 +281,7 @@ midi_init(kobj_class_t cls, int unit, int channel, void *cookie)
 	struct snd_midi *m;
 	int i;
 	int inqsize, outqsize;
-	MIDI_TYPE *buf;
+	uint8_t *buf;
 
 	MIDI_DEBUG(1, printf("midiinit: unit %d/%d.\n", unit, channel));
 	sx_xlock(&midistat_lock);
@@ -330,14 +330,14 @@ midi_init(kobj_class_t cls, int unit, int channel, void *cookie)
 	mtx_lock(&m->qlock);
 
 	if (inqsize)
-		buf = malloc(sizeof(MIDI_TYPE) * inqsize, M_MIDI, M_NOWAIT);
+		buf = malloc(sizeof(uint8_t) * inqsize, M_MIDI, M_NOWAIT);
 	else
 		buf = NULL;
 
 	MIDIQ_INIT(m->inq, buf, inqsize);
 
 	if (outqsize)
-		buf = malloc(sizeof(MIDI_TYPE) * outqsize, M_MIDI, M_NOWAIT);
+		buf = malloc(sizeof(uint8_t) * outqsize, M_MIDI, M_NOWAIT);
 	else
 		buf = NULL;
 	m->hiwat = outqsize / 2;
@@ -448,12 +448,12 @@ static int midi_lengths[] = {2, 2, 2, 2, 1, 1, 2, 0};
 #define MIDI_SYSEX_END	    0xF7
 
 int
-midi_in(struct snd_midi *m, MIDI_TYPE *buf, int size)
+midi_in(struct snd_midi *m, uint8_t *buf, int size)
 {
 	/* int             i, sig, enq; */
 	int used;
 
-	/* MIDI_TYPE       data; */
+	/* uint8_t       data; */
 	MIDI_DEBUG(5, printf("midi_in: m=%p size=%d\n", m, size));
 
 /*
@@ -578,7 +578,7 @@ midi_in(struct snd_midi *m, MIDI_TYPE *buf, int size)
  * midi_out: The only clearer of the M_TXEN flag.
  */
 int
-midi_out(struct snd_midi *m, MIDI_TYPE *buf, int size)
+midi_out(struct snd_midi *m, uint8_t *buf, int size)
 {
 	int used;
 
