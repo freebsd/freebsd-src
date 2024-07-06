@@ -891,11 +891,11 @@ static const char non_interactive_message[] =
 
 static const char args_bootstrap_message[] =
 "Too many arguments\n"
-"Usage: pkg [-4|-6] bootstrap [-f] [-y]\n";
+"Usage: pkg [-4|-6] [-d] bootstrap [-fy] [-r reponame]\n";
 
 static const char args_add_message[] =
 "Too many arguments\n"
-"Usage: pkg add [-f] [-y] {pkg.txz}\n";
+"Usage: pkg add [-dfy] [-r reponame] {pkg.txz}\n";
 
 static int
 pkg_query_yes_no(void)
