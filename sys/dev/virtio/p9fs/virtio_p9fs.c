@@ -352,9 +352,9 @@ vt9p_attach(device_t dev)
 	mount_tag = malloc(mount_tag_len + 1, M_P9FS_MNTTAG,
 	    M_WAITOK | M_ZERO);
 
-	virtio_read_device_config(dev,
+	virtio_read_device_config_array(dev,
 	    offsetof(struct virtio_9pnet_config, mount_tag),
-	    mount_tag, mount_tag_len);
+	    mount_tag, 1, mount_tag_len);
 
 	device_printf(dev, "Mount tag: %s\n", mount_tag);
 
