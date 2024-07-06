@@ -263,7 +263,7 @@ static struct sx t4_list_lock;
 SLIST_HEAD(, adapter) t4_list;
 #ifdef TCP_OFFLOAD
 static struct sx t4_uld_list_lock;
-SLIST_HEAD(, uld_info) t4_uld_list;
+struct uld_info *t4_uld_list[ULD_MAX + 1];
 #endif
 
 /*
@@ -864,7 +864,7 @@ static int release_clip_addr(struct adapter *, struct t4_clip_addr *);
 #ifdef TCP_OFFLOAD
 static int toe_capability(struct vi_info *, bool);
 static int t4_deactivate_all_uld(struct adapter *);
-static void t4_async_event(struct adapter *);
+static void stop_all_uld(struct adapter *);
 #endif
 #ifdef KERN_TLS
 static int ktls_capability(struct adapter *, bool);
@@ -3616,7 +3616,7 @@ fatal_error_task(void *arg, int pending)
 	int rc;
 
 #ifdef TCP_OFFLOAD
-	t4_async_event(sc);
+	stop_all_uld(sc);
 #endif
 	if (atomic_testandclear_int(&sc->error_flags, ilog2(ADAP_CIM_ERR))) {
 		dump_cim_regs(sc);
@@ -12515,82 +12515,61 @@ toe_capability(struct vi_info *vi, bool enable)
  * Add an upper layer driver to the global list.
  */
 int
-t4_register_uld(struct uld_info *ui)
+t4_register_uld(struct uld_info *ui, int id)
 {
-	int rc = 0;
-	struct uld_info *u;
+	int rc;
 
+	if (id < 0 || id > ULD_MAX)
+		return (EINVAL);
 	sx_xlock(&t4_uld_list_lock);
-	SLIST_FOREACH(u, &t4_uld_list, link) {
-	    if (u->uld_id == ui->uld_id) {
-		    rc = EEXIST;
-		    goto done;
-	    }
+	if (t4_uld_list[id] != NULL)
+		rc = EEXIST;
+	else {
+		t4_uld_list[id] = ui;
+		rc = 0;
 	}
-
-	SLIST_INSERT_HEAD(&t4_uld_list, ui, link);
-	ui->refcount = 0;
-done:
 	sx_xunlock(&t4_uld_list_lock);
 	return (rc);
 }
 
 int
-t4_unregister_uld(struct uld_info *ui)
+t4_unregister_uld(struct uld_info *ui, int id)
 {
-	int rc = EINVAL;
-	struct uld_info *u;
 
+	if (id < 0 || id > ULD_MAX)
+		return (EINVAL);
 	sx_xlock(&t4_uld_list_lock);
-
-	SLIST_FOREACH(u, &t4_uld_list, link) {
-	    if (u == ui) {
-		    if (ui->refcount > 0) {
-			    rc = EBUSY;
-			    goto done;
-		    }
-
-		    SLIST_REMOVE(&t4_uld_list, ui, uld_info, link);
-		    rc = 0;
-		    goto done;
-	    }
-	}
-done:
+	MPASS(t4_uld_list[id] == ui);
+	t4_uld_list[id] = NULL;
 	sx_xunlock(&t4_uld_list_lock);
-	return (rc);
+	return (0);
 }
 
 int
 t4_activate_uld(struct adapter *sc, int id)
 {
 	int rc;
-	struct uld_info *ui;
 
 	ASSERT_SYNCHRONIZED_OP(sc);
 
 	if (id < 0 || id > ULD_MAX)
 		return (EINVAL);
-	rc = EAGAIN;	/* kldoad the module with this ULD and try again. */
 
-	sx_slock(&t4_uld_list_lock);
-
-	SLIST_FOREACH(ui, &t4_uld_list, link) {
-		if (ui->uld_id == id) {
-			if (!(sc->flags & FULL_INIT_DONE)) {
-				rc = adapter_init(sc);
-				if (rc != 0)
-					break;
-			}
-
-			rc = ui->activate(sc);
-			if (rc == 0) {
-				setbit(&sc->active_ulds, id);
-				ui->refcount++;
-			}
-			break;
-		}
+	/* Adapter needs to be initialized before any ULD can be activated. */
+	if (!(sc->flags & FULL_INIT_DONE)) {
+		rc = adapter_init(sc);
+		if (rc != 0)
+			return (rc);
 	}
 
+	sx_slock(&t4_uld_list_lock);
+	if (t4_uld_list[id] == NULL)
+		rc = EAGAIN;	/* load the KLD with this ULD and try again. */
+	else {
+		rc = t4_uld_list[id]->uld_activate(sc);
+		if (rc == 0)
+			setbit(&sc->active_ulds, id);
+	}
 	sx_sunlock(&t4_uld_list_lock);
 
 	return (rc);
@@ -12600,27 +12579,20 @@ int
 t4_deactivate_uld(struct adapter *sc, int id)
 {
 	int rc;
-	struct uld_info *ui;
 
 	ASSERT_SYNCHRONIZED_OP(sc);
 
 	if (id < 0 || id > ULD_MAX)
 		return (EINVAL);
-	rc = ENXIO;
 
 	sx_slock(&t4_uld_list_lock);
-
-	SLIST_FOREACH(ui, &t4_uld_list, link) {
-		if (ui->uld_id == id) {
-			rc = ui->deactivate(sc);
-			if (rc == 0) {
-				clrbit(&sc->active_ulds, id);
-				ui->refcount--;
-			}
-			break;
-		}
+	if (t4_uld_list[id] == NULL)
+		rc = ENXIO;
+	else {
+		rc = t4_uld_list[id]->uld_deactivate(sc);
+		if (rc == 0)
+			clrbit(&sc->active_ulds, id);
 	}
-
 	sx_sunlock(&t4_uld_list_lock);
 
 	return (rc);
@@ -12629,25 +12601,20 @@ t4_deactivate_uld(struct adapter *sc, int id)
 static int
 t4_deactivate_all_uld(struct adapter *sc)
 {
-	int rc;
-	struct uld_info *ui;
+	int i, rc;
 
 	rc = begin_synchronized_op(sc, NULL, SLEEP_OK, "t4detuld");
 	if (rc != 0)
 		return (ENXIO);
-
 	sx_slock(&t4_uld_list_lock);
-
-	SLIST_FOREACH(ui, &t4_uld_list, link) {
-		if (isset(&sc->active_ulds, ui->uld_id)) {
-			rc = ui->deactivate(sc);
-			if (rc != 0)
-				break;
-			clrbit(&sc->active_ulds, ui->uld_id);
-			ui->refcount--;
-		}
+	for (i = 0; i <= ULD_MAX; i++) {
+		if (t4_uld_list[i] == NULL || !uld_active(sc, i))
+			continue;
+		rc = t4_uld_list[i]->uld_deactivate(sc);
+		if (rc != 0)
+			break;
+		clrbit(&sc->active_ulds, i);
 	}
-
 	sx_sunlock(&t4_uld_list_lock);
 	end_synchronized_op(sc, 0);
 
@@ -12655,30 +12622,30 @@ t4_deactivate_all_uld(struct adapter *sc)
 }
 
 static void
-t4_async_event(struct adapter *sc)
+stop_all_uld(struct adapter *sc)
 {
-	struct uld_info *ui;
+	int i;
 
-	if (begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4async") != 0)
+	if (begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4uldst") != 0)
 		return;
 	sx_slock(&t4_uld_list_lock);
-	SLIST_FOREACH(ui, &t4_uld_list, link) {
-		if (ui->uld_id == ULD_IWARP) {
-			ui->async_event(sc);
-			break;
-		}
+	for (i = 0; i <= ULD_MAX; i++) {
+		if (t4_uld_list[i] == NULL || !uld_active(sc, i) ||
+		    t4_uld_list[i]->uld_stop == NULL)
+			continue;
+		(void) t4_uld_list[i]->uld_stop(sc);
 	}
 	sx_sunlock(&t4_uld_list_lock);
 	end_synchronized_op(sc, 0);
 }
 
 int
-uld_active(struct adapter *sc, int uld_id)
+uld_active(struct adapter *sc, int id)
 {
 
-	MPASS(uld_id >= 0 && uld_id <= ULD_MAX);
+	MPASS(id >= 0 && id <= ULD_MAX);
 
-	return (isset(&sc->active_ulds, uld_id));
+	return (isset(&sc->active_ulds, id));
 }
 #endif
 
@@ -13170,7 +13137,6 @@ mod_event(module_t mod, int cmd, void *arg)
 			callout_init(&fatal_callout, 1);
 #ifdef TCP_OFFLOAD
 			sx_init(&t4_uld_list_lock, "T4/T5 ULDs");
-			SLIST_INIT(&t4_uld_list);
 #endif
 #ifdef INET6
 			t4_clip_modload();
@@ -13199,9 +13165,20 @@ mod_event(module_t mod, int cmd, void *arg)
 	case MOD_UNLOAD:
 		sx_xlock(&mlu);
 		if (--loaded == 0) {
+#ifdef TCP_OFFLOAD
+			int i;
+#endif
 			int tries;
 
 			taskqueue_free(reset_tq);
+
+			tries = 0;
+			while (tries++ < 5 && t4_sge_extfree_refs() != 0) {
+				uprintf("%ju clusters with custom free routine "
+				    "still is use.\n", t4_sge_extfree_refs());
+				pause("t4unload", 2 * hz);
+			}
+
 			sx_slock(&t4_list_lock);
 			if (!SLIST_EMPTY(&t4_list)) {
 				rc = EBUSY;
@@ -13210,20 +13187,14 @@ mod_event(module_t mod, int cmd, void *arg)
 			}
 #ifdef TCP_OFFLOAD
 			sx_slock(&t4_uld_list_lock);
-			if (!SLIST_EMPTY(&t4_uld_list)) {
-				rc = EBUSY;
-				sx_sunlock(&t4_uld_list_lock);
-				sx_sunlock(&t4_list_lock);
-				goto done_unload;
+			for (i = 0; i <= ULD_MAX; i++) {
+				if (t4_uld_list[i] != NULL) {
+					rc = EBUSY;
+					sx_sunlock(&t4_uld_list_lock);
+					sx_sunlock(&t4_list_lock);
+					goto done_unload;
+				}
 			}
-#endif
-			tries = 0;
-			while (tries++ < 5 && t4_sge_extfree_refs() != 0) {
-				uprintf("%ju clusters with custom free routine "
-				    "still is use.\n", t4_sge_extfree_refs());
-				pause("t4unload", 2 * hz);
-			}
-#ifdef TCP_OFFLOAD
 			sx_sunlock(&t4_uld_list_lock);
 #endif
 			sx_sunlock(&t4_list_lock);
