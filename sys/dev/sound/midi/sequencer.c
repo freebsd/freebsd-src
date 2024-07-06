@@ -64,6 +64,7 @@
 #include <sys/kthread.h>
 #include <sys/unistd.h>
 #include <sys/selinfo.h>
+#include <sys/sx.h>
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_snd.h"
@@ -751,6 +752,7 @@ mseq_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	 * Mark this device busy.
 	 */
 
+	sx_xlock(&midistat_lock);
 	mtx_lock(&scp->seq_lock);
 	if (scp->busy) {
 		mtx_unlock(&scp->seq_lock);
@@ -768,14 +770,15 @@ mseq_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	 * Enumerate the available midi devices
 	 */
 	scp->midi_number = 0;
-	scp->maxunits = midimapper_open(scp->mapper, &scp->mapper_cookie);
+	scp->maxunits = midimapper_open_locked(scp->mapper, &scp->mapper_cookie);
 
 	if (scp->maxunits == 0)
 		SEQ_DEBUG(2, printf("seq_open: no midi devices\n"));
 
 	for (i = 0; i < scp->maxunits; i++) {
 		scp->midis[scp->midi_number] =
-		    midimapper_fetch_synth(scp->mapper, scp->mapper_cookie, i);
+		    midimapper_fetch_synth_locked(scp->mapper,
+		    scp->mapper_cookie, i);
 		if (scp->midis[scp->midi_number]) {
 			if (SYNTH_OPEN(scp->midis[scp->midi_number], scp,
 				scp->fflags) != 0)
@@ -787,6 +790,7 @@ mseq_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 			}
 		}
 	}
+	sx_xunlock(&midistat_lock);
 
 	timer_setvals(scp, 60, 100);
 
