@@ -2159,9 +2159,13 @@ dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai, bool ex)
 		/*
 		 * Skip physical channels if we are servicing SNDCTL_AUDIOINFO,
 		 * or VCHANs if we are servicing SNDCTL_AUDIOINFO_EX.
+		 *
+		 * For SNDCTL_AUDIOINFO do not skip the physical channels if
+		 * there are no VCHANs.
 		 */
 		if ((ex && (ch->flags & CHN_F_VIRTUAL) != 0) ||
-		    (!ex && (ch->flags & CHN_F_VIRTUAL) == 0)) {
+		    ((!ex && (ch->flags & CHN_F_VIRTUAL) == 0) &&
+		    (d->pvchancount > 0 || d->rvchancount > 0))) {
 			CHN_UNLOCK(ch);
 			continue;
 		}
