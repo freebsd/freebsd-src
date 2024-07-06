@@ -52,7 +52,6 @@ struct dsp_cdevpriv {
 	struct pcm_channel *rdch;
 	struct pcm_channel *wrch;
 	struct pcm_channel *volch;
-	int simplex;
 };
 
 static int dsp_mmap_allow_prot_exec = 0;
@@ -301,10 +300,10 @@ static int
 dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
 	struct dsp_cdevpriv *priv;
-	struct pcm_channel *rdch, *wrch;
+	struct pcm_channel *rdch, *wrch, *ch;
 	struct snddev_info *d;
 	uint32_t fmt, spd;
-	int error, rderror, wrerror;
+	int error, rderror, wrerror, dir;
 
 	/* Kind of impossible.. */
 	if (i_dev == NULL || td == NULL)
@@ -319,7 +318,6 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	priv->rdch = NULL;
 	priv->wrch = NULL;
 	priv->volch = NULL;
-	priv->simplex = (pcm_getflags(d->dev) & SD_F_SIMPLEX) ? 1 : 0;
 
 	error = devfs_set_cdevpriv(priv, dsp_close);
 	if (error != 0)
@@ -333,6 +331,36 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 
 	error = 0;
 	DSP_FIXUP_ERROR();
+	if (pcm_getflags(d->dev) & SD_F_SIMPLEX) {
+		if (DSP_F_DUPLEX(flags)) {
+			/*
+			 * If no channels are opened yet, and we request
+			 * DUPLEX, limit to playback only, otherwise open one
+			 * channel in a direction that already exists.
+			 */
+			if (CHN_EMPTY(d, channels.pcm.opened)) {
+				if (d->playcount > 0)
+					flags &= ~FREAD;
+				else if (d->reccount > 0)
+					flags &= ~FWRITE;
+			} else {
+				ch = CHN_FIRST(d, channels.pcm.opened);
+				if (ch->direction == PCMDIR_PLAY)
+					flags &= ~FREAD;
+				else if (ch->direction == PCMDIR_REC)
+					flags &= ~FWRITE;
+			}
+		} else if (!CHN_EMPTY(d, channels.pcm.opened)) {
+			/*
+			 * If we requested SIMPLEX, make sure we do not open a
+			 * channel in the opposite direction.
+			 */
+			ch = CHN_FIRST(d, channels.pcm.opened);
+			dir = DSP_F_READ(flags) ? PCMDIR_REC : PCMDIR_PLAY;
+			if (ch->direction != dir)
+				error = ENOTSUP;
+		}
+	}
 	if (error != 0) {
 		PCM_UNLOCK(d);
 		PCM_GIANT_EXIT(d);
