@@ -81,16 +81,15 @@ userland
 jail userland.
 .El
 .Sh IMPLEMENTATION NOTES
-The
 .Nm
-utility should provide the correct answer in the vast majority of
-cases, including those where
+should provide the correct answer in the vast majority of cases,
+including those where
 .Xr freebsd-update 8 
 changes the patch level of the kernel but not userland (or vice versa).
 .Pp
-To determine the name (and hence the location) of a custom kernel, the
+To determine the name (and hence the location) of a custom kernel,
 .Nm
-utility will attempt to parse
+will attempt to parse
 .Pa /boot/defaults/loader.conf
 and
 .Pa /boot/loader.conf ,
@@ -131,7 +130,7 @@ env ROOT=/mnt /mnt/bin/freebsd-version -ku
 .Sh HISTORY
 The
 .Nm
-command appeared in
+utility first appeared in
 .Fx 10.0 .
 .Sh AUTHORS
 The
