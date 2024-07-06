@@ -335,7 +335,7 @@ chroot_build_release() {
 		fi
 		if [ -z "${VMSIZE}" ]; then
 			VMSIZE="$(eval chroot ${CHROOTDIR} \
-				make -C /usr/src/release -V VMSIZE)"
+				make -C /usr/src/release ${ARCH_FLAGS} -V VMSIZE)"
 		fi
 		RELEASE_RMAKEFLAGS="${RELEASE_RMAKEFLAGS} \
 			VMFORMATS=\"${VMFORMATS}\" VMSIZE=${VMSIZE}"
