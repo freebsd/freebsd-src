@@ -88,6 +88,7 @@ int libwrap = 0;
 #endif
 int nofork = 0;
 int verboselog = 0;
+int nobind_localhost = 0;
 
 static char **hosts = NULL;
 static struct sockaddr **bound_sa;
@@ -342,9 +343,9 @@ init_transport(struct netconfig *nconf)
 	    if (nhostsbak == 1)
 	        hosts[0] = "*";
 	    else {
-		if (hints.ai_family == AF_INET) {
+		if (hints.ai_family == AF_INET && nobind_localhost == 0) {
 		    hosts[nhostsbak - 1] = "127.0.0.1";
-		} else if (hints.ai_family == AF_INET6) {
+		} else if (hints.ai_family == AF_INET6 && nobind_localhost == 0) {
 		    hosts[nhostsbak - 1] = "::1";
 		} else
 		    return 1;
@@ -802,7 +803,7 @@ parseargs(int argc, char *argv[])
 #else
 #define WRAPOP	""
 #endif
-	while ((c = getopt(argc, argv, "6adh:iLlNs" WRAPOP WSOP)) != -1) {
+	while ((c = getopt(argc, argv, "6adh:IiLlNs" WRAPOP WSOP)) != -1) {
 		switch (c) {
 		case '6':
 			ipv6_only = 1;
@@ -822,6 +823,9 @@ parseargs(int argc, char *argv[])
 			hosts[nhosts - 1] = strdup(optarg);
 			if (hosts[nhosts - 1] == NULL)
 				errx(1, "Out of memory");
+			break;
+		case 'I':
+			nobind_localhost = 1;
 			break;
 		case 'i':
 			insecure = 1;
@@ -850,7 +854,7 @@ parseargs(int argc, char *argv[])
 #endif
 		default:	/* error */
 			fprintf(stderr,
-			    "usage: rpcbind [-6adiLls%s%s] [-h bindip]\n",
+			    "usage: rpcbind [-6adIiLls%s%s] [-h bindip]\n",
 			    WRAPOP, WSOP);
 			exit (1);
 		}
