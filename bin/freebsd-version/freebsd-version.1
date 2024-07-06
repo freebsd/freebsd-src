@@ -56,9 +56,7 @@ Unlike
 this is unaffected by environment variables.
 .It Fl u
 Print the version and patch level of the installed userland.
-These are hardcoded into
-.Nm
-during the build.
+The same information will be printed if no option is specified.
 .It Fl j Ar jail
 Print the version and patch level of the installed userland in the
 given jail specified by
@@ -73,7 +71,6 @@ If several of the above options are specified,
 will print the installed kernel version first, then the running kernel
 version, next the userland version, and finally the userland version
 of the specified jails, on separate lines.
-If neither is specified, it will print the userland version only.
 .Sh IMPLEMENTATION NOTES
 The
 .Nm
@@ -98,6 +95,9 @@ variables, both with a default value of
 It may however fail to locate the correct kernel if either or both of
 these variables are defined in a non-standard location, such as in
 .Pa /boot/loader.rc .
+Userland information is hardcoded into
+.Nm
+at build time.
 .Sh ENVIRONMENT
 .Bl -tag -width ROOT
 .It Ev ROOT
