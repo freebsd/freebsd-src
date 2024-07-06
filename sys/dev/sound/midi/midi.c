@@ -73,10 +73,6 @@ MALLOC_DEFINE(M_MIDI, "midi buffers", "Midi data allocation area");
 #define KOBJMETHOD_END	{ NULL, NULL }
 #endif
 
-#define PCMMKMINOR(u, d, c) ((((c) & 0xff) << 16) | (((u) & 0x0f) << 4) | ((d) & 0x0f))
-#define MIDIMKMINOR(u, d, c) PCMMKMINOR(u, d, c)
-
-#define MIDI_DEV_RAW	2
 #define MIDI_DEV_MIDICTL 12
 
 enum midi_states {
@@ -364,9 +360,8 @@ midi_init(kobj_class_t cls, int unit, int channel, void *cookie)
 
 	sx_xunlock(&midistat_lock);
 
-	m->dev = make_dev(&midi_cdevsw,
-	    MIDIMKMINOR(unit, MIDI_DEV_RAW, channel),
-	    UID_ROOT, GID_WHEEL, 0666, "midi%d.%d", unit, channel);
+	m->dev = make_dev(&midi_cdevsw, unit, UID_ROOT, GID_WHEEL, 0666,
+	    "midi%d.%d", unit, channel);
 	m->dev->si_drv1 = m;
 
 	return m;
@@ -1387,9 +1382,8 @@ midi_load(void)
 	sx_init(&midistat_lock, "midistat lock");
 	TAILQ_INIT(&midi_devs);
 
-	midistat_dev = make_dev(&midistat_cdevsw,
-	    MIDIMKMINOR(0, MIDI_DEV_MIDICTL, 0),
-	    UID_ROOT, GID_WHEEL, 0666, "midistat");
+	midistat_dev = make_dev(&midistat_cdevsw, MIDI_DEV_MIDICTL, UID_ROOT,
+	    GID_WHEEL, 0666, "midistat");
 
 	return 0;
 }
