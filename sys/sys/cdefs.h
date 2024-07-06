@@ -124,8 +124,6 @@
 #define	__STRING(x)	#x		/* stringify without expanding x */
 #define	__XSTRING(x)	__STRING(x)	/* expand x, then stringify */
 
-#define	__const		const		/* define reserved names to standard */
-#define	__signed	signed
 #define	__volatile	volatile
 #if defined(__cplusplus)
 #define	__inline	inline		/* convert to C++ keyword */
@@ -141,9 +139,7 @@
 #define	__STRING(x)	"x"
 
 #if !defined(__CC_SUPPORTS___INLINE)
-#define	__const				/* delete pseudo-ANSI C keywords */
 #define	__inline
-#define	__signed
 #define	__volatile
 /*
  * In non-ANSI C environments, new programs will want ANSI-only C keywords
