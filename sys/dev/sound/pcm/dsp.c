@@ -142,52 +142,8 @@ dsp_destroy_dev(device_t dev)
 }
 
 static void
-getchns(struct dsp_cdevpriv *priv, uint32_t prio)
+dsp_lock_chans(struct dsp_cdevpriv *priv, uint32_t prio)
 {
-	struct snddev_info *d;
-	struct pcm_channel *ch;
-	uint32_t flags;
-
-	if (priv->simplex) {
-		d = priv->sc;
-		if (!PCM_REGISTERED(d))
-			return;
-		PCM_LOCK(d);
-		PCM_WAIT(d);
-		PCM_ACQUIRE(d);
-		/*
-		 * Note: order is important -
-		 *       pcm flags -> prio query flags -> wild guess
-		 */
-		ch = NULL;
-		flags = pcm_getflags(d->dev);
-		if (flags & SD_F_PRIO_WR) {
-			ch = priv->rdch;
-		} else if (flags & SD_F_PRIO_RD) {
-			ch = priv->wrch;
-		} else if (prio & SD_F_PRIO_WR) {
-			ch = priv->rdch;
-			flags |= SD_F_PRIO_WR;
-		} else if (prio & SD_F_PRIO_RD) {
-			ch = priv->wrch;
-			flags |= SD_F_PRIO_RD;
-		} else if (priv->wrch != NULL) {
-			ch = priv->rdch;
-			flags |= SD_F_PRIO_WR;
-		} else if (priv->rdch != NULL) {
-			ch = priv->wrch;
-			flags |= SD_F_PRIO_RD;
-		}
-		pcm_setflags(d->dev, flags);
-		if (ch != NULL) {
-			CHN_LOCK(ch);
-			chn_ref(ch, -1);
-			chn_release(ch);
-		}
-		PCM_RELEASE(d);
-		PCM_UNLOCK(d);
-	}
-
 	if (priv->rdch != NULL && (prio & SD_F_PRIO_RD))
 		CHN_LOCK(priv->rdch);
 	if (priv->wrch != NULL && (prio & SD_F_PRIO_WR))
@@ -195,7 +151,7 @@ getchns(struct dsp_cdevpriv *priv, uint32_t prio)
 }
 
 static void
-relchns(struct dsp_cdevpriv *priv, uint32_t prio)
+dsp_unlock_chans(struct dsp_cdevpriv *priv, uint32_t prio)
 {
 	if (priv->rdch != NULL && (prio & SD_F_PRIO_RD))
 		CHN_UNLOCK(priv->rdch);
@@ -333,17 +289,12 @@ skip:
 }
 
 #define DSP_FIXUP_ERROR()		do {				\
-	prio = pcm_getflags(d->dev);					\
 	if (!DSP_F_VALID(flags))					\
 		error = EINVAL;						\
 	if (!DSP_F_DUPLEX(flags) &&					\
 	    ((DSP_F_READ(flags) && d->reccount == 0) ||			\
 	    (DSP_F_WRITE(flags) && d->playcount == 0)))			\
 		error = ENOTSUP;					\
-	else if (!DSP_F_DUPLEX(flags) && (prio & SD_F_SIMPLEX) &&	\
-	    ((DSP_F_READ(flags) && (prio & SD_F_PRIO_WR)) ||		\
-	    (DSP_F_WRITE(flags) && (prio & SD_F_PRIO_RD))))		\
-		error = EBUSY;						\
 } while (0)
 
 static int
@@ -352,7 +303,7 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	struct dsp_cdevpriv *priv;
 	struct pcm_channel *rdch, *wrch;
 	struct snddev_info *d;
-	uint32_t fmt, spd, prio;
+	uint32_t fmt, spd;
 	int error, rderror, wrerror;
 
 	/* Kind of impossible.. */
@@ -533,18 +484,18 @@ dsp_io_ops(struct dsp_cdevpriv *priv, struct uio *buf)
 
 	runpid = buf->uio_td->td_proc->p_pid;
 
-	getchns(priv, prio);
+	dsp_lock_chans(priv, prio);
 
 	if (*ch == NULL || !((*ch)->flags & CHN_F_BUSY)) {
 		if (priv->rdch != NULL || priv->wrch != NULL)
-			relchns(priv, prio);
+			dsp_unlock_chans(priv, prio);
 		PCM_GIANT_EXIT(d);
 		return (EBADF);
 	}
 
 	if (((*ch)->flags & (CHN_F_MMAP | CHN_F_DEAD)) ||
 	    (((*ch)->flags & CHN_F_RUNNING) && (*ch)->pid != runpid)) {
-		relchns(priv, prio);
+		dsp_unlock_chans(priv, prio);
 		PCM_GIANT_EXIT(d);
 		return (EINVAL);
 	} else if (!((*ch)->flags & CHN_F_RUNNING)) {
@@ -563,7 +514,7 @@ dsp_io_ops(struct dsp_cdevpriv *priv, struct uio *buf)
 
 	CHN_BROADCAST(&(*ch)->cv);
 
-	relchns(priv, prio);
+	dsp_unlock_chans(priv, prio);
 
 	PCM_GIANT_LEAVE(d);
 
@@ -799,7 +750,6 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 		return (ret);
 	}
 
-	getchns(priv, 0);
 	rdch = priv->rdch;
 	wrch = priv->wrch;
 
@@ -1858,7 +1808,7 @@ dsp_poll(struct cdev *i_dev, int events, struct thread *td)
 
 	ret = 0;
 
-	getchns(priv, SD_F_PRIO_RD | SD_F_PRIO_WR);
+	dsp_lock_chans(priv, SD_F_PRIO_RD | SD_F_PRIO_WR);
 	wrch = priv->wrch;
 	rdch = priv->rdch;
 
@@ -1874,7 +1824,7 @@ dsp_poll(struct cdev *i_dev, int events, struct thread *td)
 			ret |= chn_poll(rdch, e, td);
 	}
 
-	relchns(priv, SD_F_PRIO_RD | SD_F_PRIO_WR);
+	dsp_unlock_chans(priv, SD_F_PRIO_RD | SD_F_PRIO_WR);
 
 	PCM_GIANT_LEAVE(d);
 
@@ -1936,7 +1886,7 @@ dsp_mmap_single(struct cdev *i_dev, vm_ooffset_t *offset,
 
 	PCM_GIANT_ENTER(d);
 
-	getchns(priv, SD_F_PRIO_RD | SD_F_PRIO_WR);
+	dsp_lock_chans(priv, SD_F_PRIO_RD | SD_F_PRIO_WR);
 	wrch = priv->wrch;
 	rdch = priv->rdch;
 
@@ -1945,7 +1895,7 @@ dsp_mmap_single(struct cdev *i_dev, vm_ooffset_t *offset,
 	    (*offset  + size) > sndbuf_getallocsize(c->bufsoft) ||
 	    (wrch != NULL && (wrch->flags & CHN_F_MMAP_INVALID)) ||
 	    (rdch != NULL && (rdch->flags & CHN_F_MMAP_INVALID))) {
-		relchns(priv, SD_F_PRIO_RD | SD_F_PRIO_WR);
+		dsp_unlock_chans(priv, SD_F_PRIO_RD | SD_F_PRIO_WR);
 		PCM_GIANT_EXIT(d);
 		return (EINVAL);
 	}
@@ -1956,7 +1906,7 @@ dsp_mmap_single(struct cdev *i_dev, vm_ooffset_t *offset,
 		rdch->flags |= CHN_F_MMAP;
 
 	*offset = (uintptr_t)sndbuf_getbufofs(c->bufsoft, *offset);
-	relchns(priv, SD_F_PRIO_RD | SD_F_PRIO_WR);
+	dsp_unlock_chans(priv, SD_F_PRIO_RD | SD_F_PRIO_WR);
 	*object = vm_pager_allocate(OBJT_DEVICE, i_dev,
 	    size, nprot, *offset, curthread->td_ucred);
 
