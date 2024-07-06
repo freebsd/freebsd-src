@@ -456,6 +456,8 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 			goto done;
 		}
 
+		CHN_LOCK(c);
+
 		nvlist_add_string(cdi, SNDST_DSPS_SOUND4_CHAN_NAME, c->name);
 		nvlist_add_string(cdi, SNDST_DSPS_SOUND4_CHAN_PARENTCHAN,
 		    c->parentchannel != NULL ? c->parentchannel->name : "");
@@ -536,6 +538,8 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 		}
 		sbuf_printf(&sb, "%s]",
 		    (c->direction == PCMDIR_REC) ? "userland" : "hardware");
+
+		CHN_UNLOCK(c);
 
 		sbuf_finish(&sb);
 		nvlist_add_string(cdi, SNDST_DSPS_SOUND4_CHAN_FEEDERCHAIN,
@@ -1230,6 +1234,8 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 		KASSERT(c->bufhard != NULL && c->bufsoft != NULL,
 		    ("hosed pcm channel setup"));
 
+		CHN_LOCK(c);
+
 		sbuf_printf(s, "\n\t");
 
 		sbuf_printf(s, "%s[%s]: ",
@@ -1321,6 +1327,8 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 		}
 		sbuf_printf(s, "{%s}",
 		    (c->direction == PCMDIR_REC) ? "userland" : "hardware");
+
+		CHN_UNLOCK(c);
 	}
 
 	return (0);
