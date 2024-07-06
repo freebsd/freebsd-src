@@ -323,46 +323,36 @@ sndstat_write(struct cdev *i_dev, struct uio *buf, int flag)
 }
 
 static void
-sndstat_get_caps(struct snddev_info *d, bool play, uint32_t *min_rate,
+sndstat_get_caps(struct snddev_info *d, int dir, uint32_t *min_rate,
     uint32_t *max_rate, uint32_t *fmts, uint32_t *minchn, uint32_t *maxchn)
 {
 	struct pcm_channel *c;
-	int dir;
-
-	dir = play ? PCMDIR_PLAY : PCMDIR_REC;
-
-	if (play && d->pvchancount > 0) {
-		*min_rate = *max_rate = d->pvchanrate;
-		*fmts = AFMT_ENCODING(d->pvchanformat);
-		*minchn = *maxchn = AFMT_CHANNEL(d->pvchanformat);
-		return;
-	} else if (!play && d->rvchancount > 0) {
-		*min_rate = *max_rate = d->rvchanrate;
-		*fmts = AFMT_ENCODING(d->rvchanformat);
-		*minchn = *maxchn = AFMT_CHANNEL(d->rvchanformat);
-		return;
-	}
+	struct pcmchan_caps *caps;
+	int i;
 
 	*fmts = 0;
 	*min_rate = UINT32_MAX;
 	*max_rate = 0;
 	*minchn = UINT32_MAX;
 	*maxchn = 0;
+
 	CHN_FOREACH(c, d, channels.pcm) {
-		struct pcmchan_caps *caps;
-		int i;
-
-		if (c->direction != dir || (c->flags & CHN_F_VIRTUAL) != 0)
+		if (c->direction != dir)
 			continue;
-
 		CHN_LOCK(c);
 		caps = chn_getcaps(c);
-		*min_rate = min(caps->minspeed, *min_rate);
-		*max_rate = max(caps->maxspeed, *max_rate);
 		for (i = 0; caps->fmtlist[i]; i++) {
 			*fmts |= AFMT_ENCODING(caps->fmtlist[i]);
 			*minchn = min(AFMT_CHANNEL(caps->fmtlist[i]), *minchn);
 			*maxchn = max(AFMT_CHANNEL(caps->fmtlist[i]), *maxchn);
+		}
+		if ((c->flags & CHN_F_EXCLUSIVE) ||
+		    (pcm_getflags(d->dev) & SD_F_BITPERFECT)) {
+			*min_rate = min(*min_rate, caps->minspeed);
+			*max_rate = max(*max_rate, caps->maxspeed);
+		} else {
+			*min_rate = min(*min_rate, feeder_rate_min);
+			*max_rate = max(*max_rate, feeder_rate_max);
 		}
 		CHN_UNLOCK(c);
 	}
@@ -422,8 +412,8 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 	nvlist_add_number(di, SNDST_DSPS_PCHAN, d->playcount);
 	nvlist_add_number(di, SNDST_DSPS_RCHAN, d->reccount);
 	if (d->playcount > 0) {
-		sndstat_get_caps(d, true, &minrate, &maxrate, &fmts, &minchn,
-		    &maxchn);
+		sndstat_get_caps(d, PCMDIR_PLAY, &minrate, &maxrate, &fmts,
+		    &minchn, &maxchn);
 		nvlist_add_number(di, "pminrate", minrate);
 		nvlist_add_number(di, "pmaxrate", maxrate);
 		nvlist_add_number(di, "pfmts", fmts);
@@ -435,8 +425,8 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 			nvlist_move_nvlist(di, SNDST_DSPS_INFO_PLAY, diinfo);
 	}
 	if (d->reccount > 0) {
-		sndstat_get_caps(d, false, &minrate, &maxrate, &fmts, &minchn,
-		    &maxchn);
+		sndstat_get_caps(d, PCMDIR_REC, &minrate, &maxrate, &fmts,
+		    &minchn, &maxchn);
 		nvlist_add_number(di, "rminrate", minrate);
 		nvlist_add_number(di, "rmaxrate", maxrate);
 		nvlist_add_number(di, "rfmts", fmts);
