@@ -338,9 +338,7 @@
 
 /*
  * Compiler-dependent macros to declare that functions take printf-like
- * or scanf-like arguments.  They are null except for versions of gcc
- * that are known to support the features properly (old versions of gcc-2
- * didn't permit keeping the keywords out of the application namespace).
+ * or scanf-like arguments.
  */
 #define	__printflike(fmtarg, firstvararg) \
 	    __attribute__((__format__ (__printf__, fmtarg, firstvararg)))
@@ -352,8 +350,18 @@
 #define	__strftimelike(fmtarg, firstvararg) \
 	    __attribute__((__format__ (__strftime__, fmtarg, firstvararg)))
 
-#define	__printf0like(fmtarg, firstvararg) \
-	    __attribute__((__format__ (__printf0__, fmtarg, firstvararg)))
+/*
+ * Like __printflike, but allows fmtarg to be NULL. FreeBSD invented 'printf0'
+ * for this because older versions of gcc issued warnings for NULL first args.
+ * Clang has always had printf and printf0 as aliases. gcc 11.0 now follows
+ * clang. So now this is an alias for __printflike, or nothing. In the future
+ * _Nullable or _Nonnull will replace this.
+ */
+#if defined(__clang__) || __GNUC_PREREQ__(11, 0)
+#define	__printf0like(fmtarg, firstvararg) __printflike(fmtarg, firstvararg)
+#else
+#define	__printf0like(fmtarg, firstvararg)
+#endif
 
 #define	__strong_reference(sym,aliassym)	\
 	extern __typeof (sym) aliassym __attribute__ ((__alias__ (#sym)))
