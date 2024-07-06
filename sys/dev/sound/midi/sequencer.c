@@ -746,7 +746,7 @@ mseq_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	 * Mark this device busy.
 	 */
 
-	sx_xlock(&midistat_lock);
+	midistat_lock();
 	mtx_lock(&scp->seq_lock);
 	if (scp->busy) {
 		mtx_unlock(&scp->seq_lock);
@@ -784,7 +784,7 @@ mseq_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 			}
 		}
 	}
-	sx_xunlock(&midistat_lock);
+	midistat_unlock();
 
 	timer_setvals(scp, 60, 100);
 

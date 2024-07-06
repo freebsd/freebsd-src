@@ -39,9 +39,11 @@ MALLOC_DECLARE(M_MIDI);
 #define M_RXEN		0x04
 #define M_TXEN		0x08
 
-extern struct sx midistat_lock;
-
 struct snd_midi;
+
+void	midistat_lock(void);
+void	midistat_unlock(void);
+void	midistat_lockassert(void);
 
 struct snd_midi *
 midi_init(kobj_class_t _mpu_cls, int _unit, int _channel, void *cookie);
