@@ -209,12 +209,9 @@ enum {
 struct adapter;
 struct port_info;
 struct uld_info {
-	SLIST_ENTRY(uld_info) link;
-	int refcount;
-	int uld_id;
-	int (*activate)(struct adapter *);
-	int (*deactivate)(struct adapter *);
-	void (*async_event)(struct adapter *);
+	int (*uld_activate)(struct adapter *);
+	int (*uld_deactivate)(struct adapter *);
+	int (*uld_stop)(struct adapter *);
 };
 
 struct tom_tunables {
@@ -242,8 +239,8 @@ struct tls_tunables {
 };
 
 #ifdef TCP_OFFLOAD
-int t4_register_uld(struct uld_info *);
-int t4_unregister_uld(struct uld_info *);
+int t4_register_uld(struct uld_info *, int);
+int t4_unregister_uld(struct uld_info *, int);
 int t4_activate_uld(struct adapter *, int);
 int t4_deactivate_uld(struct adapter *, int);
 int uld_active(struct adapter *, int);
