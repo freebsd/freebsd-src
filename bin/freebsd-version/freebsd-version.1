@@ -84,10 +84,9 @@ jail userland.
 The
 .Nm
 utility should provide the correct answer in the vast majority of
-cases, including on systems kept up-to-date using
-.Xr freebsd-update 8 ,
-which does not update the kernel version unless the kernel itself was
-affected by the latest patch.
+cases, including those where
+.Xr freebsd-update 8 
+changes the patch level of the kernel but not userland (or vice versa).
 .Pp
 To determine the name (and hence the location) of a custom kernel, the
 .Nm
