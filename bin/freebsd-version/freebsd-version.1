@@ -39,7 +39,7 @@ The
 utility makes a best effort to determine the version and patch level
 of the kernel and / or userland.
 .Pp
-The following options are available:
+.Ss Options
 .Bl -tag -width Fl
 .It Fl k
 Print the version and patch level of the installed kernel.
@@ -66,11 +66,19 @@ or
 This option can be specified multiple times.
 .El
 .Pp
-If several of the above options are specified,
-.Nm
-will print the installed kernel version first, then the running kernel
-version, next the userland version, and finally the userland version
-of the specified jails, on separate lines.
+If multiple options are specified, lines will be printed in a preset
+order (regardless of user-specified order):
+.Pp
+.Bl -dash -compact
+.It
+installed kernel
+.It
+running kernel
+.It
+userland
+.It
+jail userland.
+.El
 .Sh IMPLEMENTATION NOTES
 The
 .Nm
