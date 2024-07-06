@@ -356,9 +356,12 @@
  * Clang has always had printf and printf0 as aliases. gcc 11.0 now follows
  * clang. So now this is an alias for __printflike, or nothing. In the future
  * _Nullable or _Nonnull will replace this.
+ * XXX Except that doesn't work, so for now revert to printf0 for clang and
+ * the FreeBSD gcc until I can work this out.
  */
-#if defined(__clang__) || __GNUC_PREREQ__(11, 0)
-#define	__printf0like(fmtarg, firstvararg) __printflike(fmtarg, firstvararg)
+#if defined(__clang__) || (defined(__GNUC__) && defined (__FreeBSD_cc_version))
+#define	__printf0like(fmtarg, firstvararg) \
+	    __attribute__((__format__ (__printf0__, fmtarg, firstvararg)))
 #else
 #define	__printf0like(fmtarg, firstvararg)
 #endif
