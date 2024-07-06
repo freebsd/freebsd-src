@@ -287,15 +287,6 @@ skip:
 	priv = NULL;
 }
 
-#define DSP_FIXUP_ERROR()		do {				\
-	if (!DSP_F_VALID(flags))					\
-		error = EINVAL;						\
-	if (!DSP_F_DUPLEX(flags) &&					\
-	    ((DSP_F_READ(flags) && d->reccount == 0) ||			\
-	    (DSP_F_WRITE(flags) && d->playcount == 0)))			\
-		error = ENOTSUP;					\
-} while (0)
-
 static int
 dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
@@ -330,7 +321,12 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	PCM_WAIT(d);
 
 	error = 0;
-	DSP_FIXUP_ERROR();
+	if (!DSP_F_VALID(flags))
+		error = EINVAL;
+	else if (!DSP_F_DUPLEX(flags) &&
+	    ((DSP_F_READ(flags) && d->reccount == 0) ||
+	    (DSP_F_WRITE(flags) && d->playcount == 0)))
+		error = ENOTSUP;
 	if (pcm_getflags(d->dev) & SD_F_SIMPLEX) {
 		if (DSP_F_DUPLEX(flags)) {
 			/*
