@@ -91,9 +91,8 @@ static int t4_tom_activate(struct adapter *);
 static int t4_tom_deactivate(struct adapter *);
 
 static struct uld_info tom_uld_info = {
-	.uld_id = ULD_TOM,
-	.activate = t4_tom_activate,
-	.deactivate = t4_tom_deactivate,
+	.uld_activate = t4_tom_activate,
+	.uld_deactivate = t4_tom_deactivate,
 };
 
 static void release_offload_resources(struct toepcb *);
@@ -2013,7 +2012,7 @@ t4_tom_mod_load(void)
 	toe6_protosw.pr_ctloutput = t4_ctloutput_tom;
 	toe6_protosw.pr_aio_queue = t4_aio_queue_tom;
 
-	return (t4_register_uld(&tom_uld_info));
+	return (t4_register_uld(&tom_uld_info, ULD_TOM));
 }
 
 static void
@@ -2034,7 +2033,7 @@ t4_tom_mod_unload(void)
 {
 	t4_iterate(tom_uninit, NULL);
 
-	if (t4_unregister_uld(&tom_uld_info) == EBUSY)
+	if (t4_unregister_uld(&tom_uld_info, ULD_TOM) == EBUSY)
 		return (EBUSY);
 
 	t4_tls_mod_unload();
