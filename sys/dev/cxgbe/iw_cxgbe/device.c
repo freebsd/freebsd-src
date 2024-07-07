@@ -260,11 +260,13 @@ static int c4iw_mod_unload(void);
 static int c4iw_activate(struct adapter *);
 static int c4iw_deactivate(struct adapter *);
 static int c4iw_stop(struct adapter *);
+static int c4iw_restart(struct adapter *);
 
 static struct uld_info c4iw_uld_info = {
 	.uld_activate = c4iw_activate,
 	.uld_deactivate = c4iw_deactivate,
 	.uld_stop = c4iw_stop,
+	.uld_restart = c4iw_restart,
 };
 
 static int
@@ -341,6 +343,12 @@ c4iw_stop(struct adapter *sc)
 		ib_dispatch_event(&event);
 	}
 
+	return (0);
+}
+
+static int
+c4iw_restart(struct adapter *sc)
+{
 	return (0);
 }
 
