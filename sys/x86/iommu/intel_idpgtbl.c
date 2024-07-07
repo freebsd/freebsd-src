@@ -47,6 +47,7 @@
 #include <sys/tree.h>
 #include <sys/uio.h>
 #include <sys/vmem.h>
+#include <sys/vmmeter.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
@@ -390,7 +391,7 @@ retry:
 			 * pte write and clean while the lock is
 			 * dropped.
 			 */
-			m->ref_count++;
+			vm_page_wire(m);
 
 			sfp = NULL;
 			ptep = domain_pgtbl_map_pte(domain, base, lvl - 1,
@@ -398,7 +399,7 @@ retry:
 			if (ptep == NULL) {
 				KASSERT(m->pindex != 0,
 				    ("loosing root page %p", domain));
-				m->ref_count--;
+				vm_page_unwire_noq(m);
 				iommu_pgfree(domain->pgtbl_obj, m->pindex,
 				    flags);
 				return (NULL);
@@ -406,8 +407,8 @@ retry:
 			dmar_pte_store(&ptep->pte, DMAR_PTE_R | DMAR_PTE_W |
 			    VM_PAGE_TO_PHYS(m));
 			dmar_flush_pte_to_ram(domain->dmar, ptep);
-			sf_buf_page(sfp)->ref_count += 1;
-			m->ref_count--;
+			vm_page_wire(sf_buf_page(sfp));
+			vm_page_unwire_noq(m);
 			iommu_unmap_pgtbl(sfp);
 			/* Only executed once. */
 			goto retry;
@@ -486,7 +487,7 @@ domain_map_buf_locked(struct dmar_domain *domain, iommu_gaddr_t base,
 		dmar_pte_store(&pte->pte, VM_PAGE_TO_PHYS(ma[pi]) | pflags |
 		    (superpage ? DMAR_PTE_SP : 0));
 		dmar_flush_pte_to_ram(domain->dmar, pte);
-		sf_buf_page(sf)->ref_count += 1;
+		vm_page_wire(sf_buf_page(sf));
 	}
 	if (sf != NULL)
 		iommu_unmap_pgtbl(sf);
@@ -592,8 +593,7 @@ domain_unmap_clear_pte(struct dmar_domain *domain, iommu_gaddr_t base, int lvl,
 		iommu_unmap_pgtbl(*sf);
 		*sf = NULL;
 	}
-	m->ref_count--;
-	if (m->ref_count != 0)
+	if (!vm_page_unwire_noq(m))
 		return;
 	KASSERT(lvl != 0,
 	    ("lost reference (lvl) on root pg domain %p base %jx lvl %d",
@@ -709,7 +709,7 @@ domain_alloc_pgtbl(struct dmar_domain *domain)
 	m = iommu_pgalloc(domain->pgtbl_obj, 0, IOMMU_PGF_WAITOK |
 	    IOMMU_PGF_ZERO | IOMMU_PGF_OBJL);
 	/* No implicit free of the top level page table page. */
-	m->ref_count = 1;
+	vm_page_wire(m);
 	DMAR_DOMAIN_PGUNLOCK(domain);
 	DMAR_LOCK(domain->dmar);
 	domain->iodom.flags |= IOMMU_DOMAIN_PGTBL_INITED;
@@ -741,8 +741,10 @@ domain_free_pgtbl(struct dmar_domain *domain)
 
 	/* Obliterate ref_counts */
 	VM_OBJECT_ASSERT_WLOCKED(obj);
-	for (m = vm_page_lookup(obj, 0); m != NULL; m = vm_page_next(m))
-		m->ref_count = 0;
+	for (m = vm_page_lookup(obj, 0); m != NULL; m = vm_page_next(m)) {
+		vm_page_clearref(m);
+		vm_wire_sub(1);
+	}
 	VM_OBJECT_WUNLOCK(obj);
 	vm_object_deallocate(obj);
 }
