@@ -32,6 +32,10 @@ CFLAGS+=-I${SRCTOP}/lib/libthread_db
 
 CFLAGS.thr_stack.c+=	-Wno-cast-align
 CFLAGS.rtld_malloc.c+=	-Wno-cast-align
+# Disable compiler builtins so that the compiler does not optimize away rtld's
+# attempts to force early PLT resolution for certain functions that may be
+# replaced by builtins.
+CFLAGS.thr_rtld.c+=	-fno-builtin
 CFLAGS.thr_symbols.c+=	-Wno-missing-variable-declarations
 .if ${MK_ASAN} != "no"
 # False-positive ASAN error claiming the local "struct sigaction act;" is
