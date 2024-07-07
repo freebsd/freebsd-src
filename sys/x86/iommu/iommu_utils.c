@@ -605,3 +605,17 @@ iommu_device_tag_init(struct iommu_ctx *ctx, device_t dev)
 	ctx->tag->ctx = ctx;
 	ctx->tag->owner = dev;
 }
+
+void
+iommu_domain_free_entry(struct iommu_map_entry *entry, bool free)
+{
+	if ((entry->flags & IOMMU_MAP_ENTRY_RMRR) != 0)
+		iommu_gas_free_region(entry);
+	else
+		iommu_gas_free_space(entry);
+	if (free)
+		iommu_gas_free_entry(entry);
+	else
+		entry->flags = 0;
+}
+
