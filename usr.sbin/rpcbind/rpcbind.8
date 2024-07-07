@@ -1,6 +1,6 @@
 .\" Copyright 1989 AT&T
 .\" Copyright 1991 Sun Microsystems, Inc.
-.Dd August 31, 2023
+.Dd July 5, 2024
 .Dt RPCBIND 8
 .Os
 .Sh NAME
@@ -99,12 +99,21 @@ returning a UDP packet from a different IP address than it was
 sent to.
 Note that when specifying IP addresses with
 .Fl h ,
+and no
+.Fl I
+option is specified,
 .Nm
 will automatically add
 .Li 127.0.0.1
 and if IPv6 is enabled,
 .Li ::1
 to the list.
+.It Fl I
+Cause
+.Nm
+not to bind to the localhost when
+.Fl h
+has been specified.
 .It Fl i
 .Dq Insecure
 mode.
