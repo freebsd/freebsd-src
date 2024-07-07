@@ -345,7 +345,8 @@ static void	pfsync_defer_tmo(void *);
 static void	pfsync_request_update(u_int32_t, u_int64_t);
 static bool	pfsync_update_state_req(struct pf_kstate *);
 
-static void	pfsync_drop(struct pfsync_softc *);
+static void	pfsync_drop_all(struct pfsync_softc *);
+static void	pfsync_drop(struct pfsync_softc *, int);
 static void	pfsync_sendout(int, int);
 static void	pfsync_send_plus(void *, size_t);
 
@@ -485,7 +486,7 @@ pfsync_clone_destroy(struct ifnet *ifp)
 	bpfdetach(ifp);
 	if_detach(ifp);
 
-	pfsync_drop(sc);
+	pfsync_drop_all(sc);
 
 	if_free(ifp);
 	pfsync_multicast_cleanup(sc);
@@ -1736,40 +1737,54 @@ pfsync_out_del_c(struct pf_kstate *st, void *buf)
 }
 
 static void
-pfsync_drop(struct pfsync_softc *sc)
+pfsync_drop_all(struct pfsync_softc *sc)
+{
+	struct pfsync_bucket *b;
+	int c;
+
+	for (c = 0; c < pfsync_buckets; c++) {
+		b = &sc->sc_buckets[c];
+
+		PFSYNC_BUCKET_LOCK(b);
+		pfsync_drop(sc, c);
+		PFSYNC_BUCKET_UNLOCK(b);
+	}
+}
+
+static void
+pfsync_drop(struct pfsync_softc *sc, int c)
 {
 	struct pf_kstate *st, *next;
 	struct pfsync_upd_req_item *ur;
 	struct pfsync_bucket *b;
-	int c;
 	enum pfsync_q_id q;
 
-	for (c = 0; c < pfsync_buckets; c++) {
-		b = &sc->sc_buckets[c];
-		for (q = 0; q < PFSYNC_Q_COUNT; q++) {
-			if (TAILQ_EMPTY(&b->b_qs[q]))
-				continue;
+	b = &sc->sc_buckets[c];
+	PFSYNC_BUCKET_LOCK_ASSERT(b);
 
-			TAILQ_FOREACH_SAFE(st, &b->b_qs[q], sync_list, next) {
-				KASSERT(st->sync_state == pfsync_qid_sstate[q],
-					("%s: st->sync_state == q",
-						__func__));
-				st->sync_state = PFSYNC_S_NONE;
-				pf_release_state(st);
-			}
-			TAILQ_INIT(&b->b_qs[q]);
+	for (q = 0; q < PFSYNC_Q_COUNT; q++) {
+		if (TAILQ_EMPTY(&b->b_qs[q]))
+			continue;
+
+		TAILQ_FOREACH_SAFE(st, &b->b_qs[q], sync_list, next) {
+			KASSERT(st->sync_state == pfsync_qid_sstate[q],
+				("%s: st->sync_state %d == q %d",
+					__func__, st->sync_state, q));
+			st->sync_state = PFSYNC_S_NONE;
+			pf_release_state(st);
 		}
-
-		while ((ur = TAILQ_FIRST(&b->b_upd_req_list)) != NULL) {
-			TAILQ_REMOVE(&b->b_upd_req_list, ur, ur_entry);
-			free(ur, M_PFSYNC);
-		}
-
-		b->b_len = PFSYNC_MINPKT;
-		free(b->b_plus, M_PFSYNC);
-		b->b_plus = NULL;
-		b->b_pluslen = 0;
+		TAILQ_INIT(&b->b_qs[q]);
 	}
+
+	while ((ur = TAILQ_FIRST(&b->b_upd_req_list)) != NULL) {
+		TAILQ_REMOVE(&b->b_upd_req_list, ur, ur_entry);
+		free(ur, M_PFSYNC);
+	}
+
+	b->b_len = PFSYNC_MINPKT;
+	free(b->b_plus, M_PFSYNC);
+	b->b_plus = NULL;
+	b->b_pluslen = 0;
 }
 
 static void
@@ -1793,7 +1808,7 @@ pfsync_sendout(int schedswi, int c)
 	PFSYNC_BUCKET_LOCK_ASSERT(b);
 
 	if (!bpf_peers_present(ifp->if_bpf) && sc->sc_sync_if == NULL) {
-		pfsync_drop(sc);
+		pfsync_drop(sc, c);
 		return;
 	}
 
@@ -1841,6 +1856,7 @@ pfsync_sendout(int schedswi, int c)
 #endif
 	default:
 		m_freem(m);
+		pfsync_drop(sc, c);
 		return;
 	}
 	m->m_len = m->m_pkthdr.len = len;
@@ -2401,8 +2417,8 @@ pfsync_q_ins(struct pf_kstate *st, int sync_state, bool ref)
 	}
 
 	b->b_len += nlen;
-	TAILQ_INSERT_TAIL(&b->b_qs[q], st, sync_list);
 	st->sync_state = pfsync_qid_sstate[q];
+	TAILQ_INSERT_TAIL(&b->b_qs[q], st, sync_list);
 	if (ref)
 		pf_ref_state(st);
 }
