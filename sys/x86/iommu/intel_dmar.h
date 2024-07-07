@@ -243,7 +243,6 @@ void dmar_free_ctx_method(struct iommu_ctx *ctx);
 struct dmar_ctx *dmar_find_ctx_locked(struct dmar_unit *dmar, uint16_t rid);
 struct iommu_ctx *dmar_get_ctx(struct iommu_unit *iommu, device_t dev,
     uint16_t rid, bool id_mapped, bool rmrr_init);
-void dmar_domain_free_entry(struct iommu_map_entry *entry, bool free);
 void dmar_domain_unload_entry(struct iommu_map_entry *entry, bool free,
     bool cansleep);
 void dmar_domain_unload(struct iommu_domain *iodom,
