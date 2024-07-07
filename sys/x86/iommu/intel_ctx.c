@@ -834,19 +834,6 @@ dmar_find_ctx_locked(struct dmar_unit *dmar, uint16_t rid)
 	return (NULL);
 }
 
-void
-dmar_domain_free_entry(struct iommu_map_entry *entry, bool free)
-{
-	if ((entry->flags & IOMMU_MAP_ENTRY_RMRR) != 0)
-		iommu_gas_free_region(entry);
-	else
-		iommu_gas_free_space(entry);
-	if (free)
-		iommu_gas_free_entry(entry);
-	else
-		entry->flags = 0;
-}
-
 /*
  * If the given value for "free" is true, then the caller must not be using
  * the entry's dmamap_link field.
@@ -875,12 +862,12 @@ dmar_domain_unload_entry(struct iommu_map_entry *entry, bool free,
 		} else {
 			iommu_qi_invalidate_sync(&domain->iodom, entry->start,
 			    entry->end - entry->start, cansleep);
-			dmar_domain_free_entry(entry, false);
+			iommu_domain_free_entry(entry, false);
 		}
 	} else {
 		domain_flush_iotlb_sync(domain, entry->start, entry->end -
 		    entry->start);
-		dmar_domain_free_entry(entry, free);
+		iommu_domain_free_entry(entry, free);
 	}
 }
 
@@ -916,7 +903,7 @@ dmar_domain_unload(struct iommu_domain *iodom,
 			domain_flush_iotlb_sync(domain, entry->start,
 			    entry->end - entry->start);
 			TAILQ_REMOVE(entries, entry, dmamap_link);
-			dmar_domain_free_entry(entry, true);
+			iommu_domain_free_entry(entry, true);
 		}
 	}
 	if (TAILQ_EMPTY(entries))

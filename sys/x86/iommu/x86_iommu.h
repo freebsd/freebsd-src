@@ -167,6 +167,8 @@ struct x86_unit_common {
 	struct iommu_msi_data intrs[IOMMU_MAX_MSI];
 };
 
+void iommu_domain_free_entry(struct iommu_map_entry *entry, bool free);
+
 void iommu_qi_emit_wait_seq(struct iommu_unit *unit, struct iommu_qi_genseq *
     pseq, bool emit_wait);
 void iommu_qi_wait_for_seq(struct iommu_unit *unit, const struct
