@@ -1190,7 +1190,7 @@ vpd_read_elem_data(struct vpd_readstate *vrs, char keyword[2], char **value, int
 	int len;
 
 	len = vpd_read_elem_head(vrs, keyword);
-	if (len > maxlen)
+	if (len < 0 || len > maxlen)
 		return (-1);
 	*value = vpd_read_value(vrs, len);
 
@@ -1211,7 +1211,7 @@ vpd_fixup_cksum(struct vpd_readstate *vrs, char *rvstring, int len)
 }
 
 /* fetch one read-only element and return size of heading + data */
-static size_t
+static int
 next_vpd_ro_elem(struct vpd_readstate *vrs, int maxsize)
 {
 	struct pcicfg_vpd *vpd;
@@ -1245,7 +1245,7 @@ next_vpd_ro_elem(struct vpd_readstate *vrs, int maxsize)
 }
 
 /* fetch one writable element and return size of heading + data */
-static size_t
+static int
 next_vpd_rw_elem(struct vpd_readstate *vrs, int maxsize)
 {
 	struct pcicfg_vpd *vpd;
