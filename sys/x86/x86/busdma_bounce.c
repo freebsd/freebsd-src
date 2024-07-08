@@ -733,7 +733,7 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		    segp))
 			break;
 		vaddr += sgsize;
-		buflen -= sgsize;
+		buflen -= MIN(sgsize, buflen); /* avoid underflow */
 	}
 
 	/*
@@ -808,7 +808,7 @@ bounce_bus_dmamap_load_ma(bus_dma_tag_t dmat, bus_dmamap_t map,
 			break;
 		KASSERT(buflen >= sgsize,
 		    ("Segment length overruns original buffer"));
-		buflen -= sgsize;
+		buflen -= MIN(sgsize, buflen); /* avoid underflow */
 		if (((ma_offs + sgsize) & ~PAGE_MASK) != 0)
 			page_index++;
 		ma_offs = (ma_offs + sgsize) & PAGE_MASK;

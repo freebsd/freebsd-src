@@ -656,7 +656,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 		    segp))
 			break;
 		vaddr += sgsize;
-		buflen -= sgsize;
+		buflen -= MIN(sgsize, buflen); /* avoid underflow */
 	}
 
 	/*
