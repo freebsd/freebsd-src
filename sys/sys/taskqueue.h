@@ -35,20 +35,12 @@
 
 #include <sys/queue.h>
 #include <sys/_task.h>
-#include <sys/_callout.h>
 #include <sys/_cpuset.h>
 
 struct taskqueue;
 struct taskqgroup;
 struct proc;
 struct thread;
-
-struct timeout_task {
-	struct taskqueue *q;
-	struct task t;
-	struct callout c;
-	int    f;
-};
 
 enum taskqueue_callback_type {
 	TASKQUEUE_CALLBACK_TYPE_INIT,
