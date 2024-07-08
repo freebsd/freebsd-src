@@ -861,10 +861,16 @@ static int read_i2c(struct adapter *, struct t4_i2c_data *);
 static int clear_stats(struct adapter *, u_int);
 static int hold_clip_addr(struct adapter *, struct t4_clip_addr *);
 static int release_clip_addr(struct adapter *, struct t4_clip_addr *);
+static inline int stop_adapter(struct adapter *);
+static inline void set_adapter_hwstatus(struct adapter *, const bool);
+static int stop_lld(struct adapter *);
+static inline int restart_adapter(struct adapter *);
+static int restart_lld(struct adapter *);
 #ifdef TCP_OFFLOAD
 static int toe_capability(struct vi_info *, bool);
-static int t4_deactivate_all_uld(struct adapter *);
+static int deactivate_all_uld(struct adapter *);
 static void stop_all_uld(struct adapter *);
+static void restart_all_uld(struct adapter *);
 #endif
 #ifdef KERN_TLS
 static int ktls_capability(struct adapter *, bool);
@@ -1764,7 +1770,7 @@ t4_detach_common(device_t dev)
 	sc = device_get_softc(dev);
 
 #ifdef TCP_OFFLOAD
-	rc = t4_deactivate_all_uld(sc);
+	rc = deactivate_all_uld(sc);
 	if (rc) {
 		device_printf(dev,
 		    "failed to detach upper layer drivers: %d\n", rc);
@@ -1909,57 +1915,77 @@ t4_detach_common(device_t dev)
 	return (0);
 }
 
-static inline bool
-ok_to_reset(struct adapter *sc)
-{
-	struct tid_info *t = &sc->tids;
-	struct port_info *pi;
-	struct vi_info *vi;
-	int i, j;
-	int caps = IFCAP_TOE | IFCAP_NETMAP | IFCAP_TXRTLMT;
-
-	if (is_t6(sc))
-		caps |= IFCAP_TXTLS;
-
-	ASSERT_SYNCHRONIZED_OP(sc);
-	MPASS(!(sc->flags & IS_VF));
-
-	for_each_port(sc, i) {
-		pi = sc->port[i];
-		for_each_vi(pi, j, vi) {
-			if (if_getcapenable(vi->ifp) & caps)
-				return (false);
-		}
-	}
-
-	if (atomic_load_int(&t->tids_in_use) > 0)
-		return (false);
-	if (atomic_load_int(&t->stids_in_use) > 0)
-		return (false);
-	if (atomic_load_int(&t->atids_in_use) > 0)
-		return (false);
-	if (atomic_load_int(&t->ftids_in_use) > 0)
-		return (false);
-	if (atomic_load_int(&t->hpftids_in_use) > 0)
-		return (false);
-	if (atomic_load_int(&t->etids_in_use) > 0)
-		return (false);
-
-	return (true);
-}
-
 static inline int
 stop_adapter(struct adapter *sc)
 {
-	if (atomic_testandset_int(&sc->error_flags, ilog2(ADAP_STOPPED)))
-		return (1);		/* Already stopped. */
+	if (atomic_testandset_int(&sc->error_flags, ilog2(ADAP_STOPPED))) {
+		CH_ALERT(sc, "%s from %p, flags 0x%08x,0x%08x, EALREADY\n",
+			 __func__, curthread, sc->flags, sc->error_flags);
+		return (EALREADY);
+	}
+	CH_ALERT(sc, "%s from %p, flags 0x%08x,0x%08x\n", __func__, curthread,
+		 sc->flags, sc->error_flags);
 	return (t4_shutdown_adapter(sc));
 }
 
-static int
-t4_suspend(device_t dev)
+static inline int
+restart_adapter(struct adapter *sc)
 {
-	struct adapter *sc = device_get_softc(dev);
+	uint32_t val;
+
+	if (!atomic_testandclear_int(&sc->error_flags, ilog2(ADAP_STOPPED))) {
+		CH_ALERT(sc, "%s from %p, flags 0x%08x,0x%08x, EALREADY\n",
+			 __func__, curthread, sc->flags, sc->error_flags);
+		return (EALREADY);
+	}
+	CH_ALERT(sc, "%s from %p, flags 0x%08x,0x%08x\n", __func__, curthread,
+		 sc->flags, sc->error_flags);
+
+	MPASS(hw_off_limits(sc));
+	MPASS((sc->flags & FW_OK) == 0);
+	MPASS((sc->flags & MASTER_PF) == 0);
+	MPASS(sc->reset_thread == NULL);
+
+	/*
+	 * The adapter is supposed to be back on PCIE with its config space and
+	 * BARs restored to their state before reset.  Register access via
+	 * t4_read_reg BAR0 should just work.
+	 */
+	sc->reset_thread = curthread;
+	val = t4_read_reg(sc, A_PL_WHOAMI);
+	if (val == 0xffffffff || val == 0xeeeeeeee) {
+		CH_ERR(sc, "%s: device registers not readable.\n", __func__);
+		sc->reset_thread = NULL;
+		atomic_set_int(&sc->error_flags, ADAP_STOPPED);
+		return (ENXIO);
+	}
+	atomic_clear_int(&sc->error_flags, ADAP_FATAL_ERR);
+	atomic_add_int(&sc->incarnation, 1);
+	atomic_add_int(&sc->num_resets, 1);
+
+	return (0);
+}
+
+static inline void
+set_adapter_hwstatus(struct adapter *sc, const bool usable)
+{
+	mtx_lock(&sc->reg_lock);
+	if (usable) {
+		/* Must be marked reusable by the designated thread. */
+		MPASS(sc->reset_thread == curthread);
+		atomic_clear_int(&sc->error_flags, HW_OFF_LIMITS);
+	} else {
+		/* Mark the adapter totally off limits. */
+		atomic_set_int(&sc->error_flags, HW_OFF_LIMITS);
+		sc->flags &= ~(FW_OK | MASTER_PF);
+		sc->reset_thread = NULL;
+	}
+	mtx_unlock(&sc->reg_lock);
+}
+
+static int
+stop_lld(struct adapter *sc)
+{
 	struct port_info *pi;
 	struct vi_info *vi;
 	if_t ifp;
@@ -1974,24 +2000,19 @@ t4_suspend(device_t dev)
 #endif
 	int rc, i, j, k;
 
-	CH_ALERT(sc, "suspend requested\n");
-
-	rc = begin_synchronized_op(sc, NULL, SLEEP_OK, "t4sus");
+	/*
+	 * XXX: Can there be a synch_op in progress that will hang because
+	 * hardware has been stopped?  We'll hang too and the solution will be
+	 * to use a version of begin_synch_op that wakes up existing synch_op
+	 * with errors.  Maybe stop_adapter should do this wakeup?
+	 *
+	 * I don't think any synch_op could get stranded waiting for DMA or
+	 * interrupt so I think we're okay here.  Remove this comment block
+	 * after testing.
+	 */
+	rc = begin_synchronized_op(sc, NULL, SLEEP_OK, "t4slld");
 	if (rc != 0)
 		return (ENXIO);
-
-	/* XXX: Can the kernel call suspend repeatedly without resume? */
-	MPASS(!hw_off_limits(sc));
-
-	if (!ok_to_reset(sc)) {
-		/* XXX: should list what resource is preventing suspend. */
-		CH_ERR(sc, "not safe to suspend.\n");
-		rc = EBUSY;
-		goto done;
-	}
-
-	/* No more DMA or interrupts. */
-	stop_adapter(sc);
 
 	/* Quiesce all activity. */
 	for_each_port(sc, i) {
@@ -2069,23 +2090,31 @@ t4_suspend(device_t dev)
 	callout_stop(&sc->cal_callout);
 	callout_drain(&sc->cal_callout);
 
-	/* Mark the adapter totally off limits. */
-	mtx_lock(&sc->reg_lock);
-	atomic_set_int(&sc->error_flags, HW_OFF_LIMITS);
-	sc->flags &= ~(FW_OK | MASTER_PF);
-	sc->reset_thread = NULL;
-	mtx_unlock(&sc->reg_lock);
-
 	if (t4_clock_gate_on_suspend) {
 		t4_set_reg_field(sc, A_PMU_PART_CG_PWRMODE, F_MA_PART_CGEN |
 		    F_LE_PART_CGEN | F_EDC1_PART_CGEN | F_EDC0_PART_CGEN |
 		    F_TP_PART_CGEN | F_PDP_PART_CGEN | F_SGE_PART_CGEN, 0);
 	}
 
-	CH_ALERT(sc, "suspend completed.\n");
-done:
 	end_synchronized_op(sc, 0);
 	return (rc);
+}
+
+static int
+t4_suspend(device_t dev)
+{
+	struct adapter *sc = device_get_softc(dev);
+
+	CH_ALERT(sc, "%s from thread %p.\n", __func__, curthread);
+	stop_adapter(sc);
+	stop_lld(sc);
+#ifdef TCP_OFFLOAD
+	stop_all_uld(sc);
+#endif
+	set_adapter_hwstatus(sc, false);
+	CH_ALERT(sc, "%s end (thread %p).\n", __func__, curthread);
+
+	return (0);
 }
 
 struct adapter_pre_reset_state {
@@ -2240,9 +2269,8 @@ compare_caps_and_params(struct adapter *sc, struct adapter_pre_reset_state *o)
 }
 
 static int
-t4_resume(device_t dev)
+restart_lld(struct adapter *sc)
 {
-	struct adapter *sc = device_get_softc(dev);
 	struct adapter_pre_reset_state *old_state = NULL;
 	struct port_info *pi;
 	struct vi_info *vi;
@@ -2250,37 +2278,18 @@ t4_resume(device_t dev)
 	struct sge_txq *txq;
 	int rc, i, j, k;
 
-	CH_ALERT(sc, "resume requested.\n");
-
-	rc = begin_synchronized_op(sc, NULL, SLEEP_OK, "t4res");
+	rc = begin_synchronized_op(sc, NULL, SLEEP_OK, "t4rlld");
 	if (rc != 0)
 		return (ENXIO);
-	MPASS(hw_off_limits(sc));
-	MPASS((sc->flags & FW_OK) == 0);
-	MPASS((sc->flags & MASTER_PF) == 0);
-	MPASS(sc->reset_thread == NULL);
-	sc->reset_thread = curthread;
-
-	/* Register access is expected to work by the time we're here. */
-	if (t4_read_reg(sc, A_PL_WHOAMI) == 0xffffffff) {
-		CH_ERR(sc, "%s: can't read device registers\n", __func__);
-		rc = ENXIO;
-		goto done;
-	}
-
-	/* Note that HW_OFF_LIMITS is cleared a bit later. */
-	atomic_clear_int(&sc->error_flags, ADAP_FATAL_ERR | ADAP_STOPPED);
 
 	/* Restore memory window. */
 	setup_memwin(sc);
 
 	/* Go no further if recovery mode has been requested. */
 	if (TUNABLE_INT_FETCH("hw.cxgbe.sos", &i) && i != 0) {
-		CH_ALERT(sc, "recovery mode on resume.\n");
+		CH_ALERT(sc, "%s: recovery mode during restart.\n", __func__);
 		rc = 0;
-		mtx_lock(&sc->reg_lock);
-		atomic_clear_int(&sc->error_flags, HW_OFF_LIMITS);
-		mtx_unlock(&sc->reg_lock);
+		set_adapter_hwstatus(sc, true);
 		goto done;
 	}
 
@@ -2346,9 +2355,7 @@ t4_resume(device_t dev)
 	 * want to access the hardware too.  It is safe to do so.  Note that
 	 * this thread is still in the middle of a synchronized_op.
 	 */
-	mtx_lock(&sc->reg_lock);
-	atomic_clear_int(&sc->error_flags, HW_OFF_LIMITS);
-	mtx_unlock(&sc->reg_lock);
+	set_adapter_hwstatus(sc, true);
 
 	if (sc->flags & FULL_INIT_DONE) {
 		rc = adapter_full_init(sc);
@@ -2437,15 +2444,26 @@ t4_resume(device_t dev)
 
 	/* Reset all calibration */
 	t4_calibration_start(sc);
-
 done:
-	if (rc == 0) {
-		sc->incarnation++;
-		CH_ALERT(sc, "resume completed.\n");
-	}
 	end_synchronized_op(sc, 0);
 	free(old_state, M_CXGBE);
 	return (rc);
+}
+
+static int
+t4_resume(device_t dev)
+{
+	struct adapter *sc = device_get_softc(dev);
+
+	CH_ALERT(sc, "%s from thread %p.\n", __func__, curthread);
+	restart_adapter(sc);
+	restart_lld(sc);
+#ifdef TCP_OFFLOAD
+	restart_all_uld(sc);
+#endif
+	CH_ALERT(sc, "%s end (thread %p).\n", __func__, curthread);
+
+	return (0);
 }
 
 static int
@@ -2453,7 +2471,7 @@ t4_reset_prepare(device_t dev, device_t child)
 {
 	struct adapter *sc = device_get_softc(dev);
 
-	CH_ALERT(sc, "reset_prepare.\n");
+	CH_ALERT(sc, "%s from thread %p.\n", __func__, curthread);
 	return (0);
 }
 
@@ -2462,70 +2480,65 @@ t4_reset_post(device_t dev, device_t child)
 {
 	struct adapter *sc = device_get_softc(dev);
 
-	CH_ALERT(sc, "reset_post.\n");
+	CH_ALERT(sc, "%s from thread %p.\n", __func__, curthread);
 	return (0);
 }
 
 static int
-reset_adapter(struct adapter *sc)
+reset_adapter_with_pci_bus_reset(struct adapter *sc)
 {
-	int rc, oldinc, error_flags;
+	int rc;
 
-	CH_ALERT(sc, "reset requested.\n");
-
-	rc = begin_synchronized_op(sc, NULL, SLEEP_OK, "t4rst1");
-	if (rc != 0)
-		return (EBUSY);
-
-	if (hw_off_limits(sc)) {
-		CH_ERR(sc, "adapter is suspended, use resume (not reset).\n");
-		rc = ENXIO;
-		goto done;
-	}
-
-	if (!ok_to_reset(sc)) {
-		/* XXX: should list what resource is preventing reset. */
-		CH_ERR(sc, "not safe to reset.\n");
-		rc = EBUSY;
-		goto done;
-	}
-
-done:
-	oldinc = sc->incarnation;
-	end_synchronized_op(sc, 0);
-	if (rc != 0)
-		return (rc);	/* Error logged already. */
-
-	atomic_add_int(&sc->num_resets, 1);
 	mtx_lock(&Giant);
 	rc = BUS_RESET_CHILD(device_get_parent(sc->dev), sc->dev, 0);
 	mtx_unlock(&Giant);
-	if (rc != 0)
-		CH_ERR(sc, "bus_reset_child failed: %d.\n", rc);
-	else {
-		rc = begin_synchronized_op(sc, NULL, SLEEP_OK, "t4rst2");
-		if (rc != 0)
-			return (EBUSY);
-		error_flags = atomic_load_int(&sc->error_flags);
-		if (sc->incarnation > oldinc && error_flags == 0) {
-			CH_ALERT(sc, "bus_reset_child succeeded.\n");
-		} else {
-			CH_ERR(sc, "adapter did not reset properly, flags "
-			    "0x%08x, error_flags 0x%08x.\n", sc->flags,
-			    error_flags);
-			rc = ENXIO;
-		}
-		end_synchronized_op(sc, 0);
-	}
-
 	return (rc);
+}
+
+static int
+reset_adapter_with_pl_rst(struct adapter *sc)
+{
+	stop_adapter(sc);
+	stop_lld(sc);
+#ifdef TCP_OFFLOAD
+	stop_all_uld(sc);
+#endif
+	set_adapter_hwstatus(sc, false);
+
+	/* This is a t4_write_reg without the hw_off_limits check. */
+	MPASS(sc->error_flags & HW_OFF_LIMITS);
+	bus_space_write_4(sc->bt, sc->bh, A_PL_RST,
+			  F_PIORSTMODE | F_PIORST | F_AUTOPCIEPAUSE);
+	pause("pl_rst", 1 * hz);		/* Wait 1s for reset */
+
+	restart_adapter(sc);
+	restart_lld(sc);
+#ifdef TCP_OFFLOAD
+	restart_all_uld(sc);
+#endif
+
+	return (0);
 }
 
 static void
 reset_adapter_task(void *arg, int pending)
 {
-	/* XXX: t4_async_event here? */
-	reset_adapter(arg);
+	struct adapter *sc = arg;
+	const int flags = sc->flags;
+	const int eflags = sc->error_flags;
+	int rc;
+
+	if (pending > 1)
+		CH_ALERT(sc, "%s: pending %d\n", __func__, pending);
+	if (vm_guest == 0)
+		rc = reset_adapter_with_pci_bus_reset(sc);
+	else
+		rc = reset_adapter_with_pl_rst(sc);
+	if (rc != 0) {
+		CH_ERR(sc, "adapter did not reset properly, rc = %d, "
+		       "flags 0x%08x -> 0x%08x, err_flags 0x%08x -> 0x%08x.\n",
+		       rc, flags, sc->flags, eflags, sc->error_flags);
+	}
 }
 
 static int
@@ -3615,9 +3628,6 @@ fatal_error_task(void *arg, int pending)
 	struct adapter *sc = arg;
 	int rc;
 
-#ifdef TCP_OFFLOAD
-	stop_all_uld(sc);
-#endif
 	if (atomic_testandclear_int(&sc->error_flags, ilog2(ADAP_CIM_ERR))) {
 		dump_cim_regs(sc);
 		dump_cimla(sc);
@@ -3625,8 +3635,8 @@ fatal_error_task(void *arg, int pending)
 	}
 
 	if (t4_reset_on_fatal_err) {
-		CH_ALERT(sc, "resetting on fatal error.\n");
-		rc = reset_adapter(sc);
+		CH_ALERT(sc, "resetting adapter after fatal error.\n");
+		rc = reset_adapter_with_pci_bus_reset(sc);
 		if (rc == 0 && t4_panic_on_fatal_err) {
 			CH_ALERT(sc, "reset was successful, "
 			    "system will NOT panic.\n");
@@ -12599,7 +12609,7 @@ t4_deactivate_uld(struct adapter *sc, int id)
 }
 
 static int
-t4_deactivate_all_uld(struct adapter *sc)
+deactivate_all_uld(struct adapter *sc)
 {
 	int i, rc;
 
@@ -12634,6 +12644,24 @@ stop_all_uld(struct adapter *sc)
 		    t4_uld_list[i]->uld_stop == NULL)
 			continue;
 		(void) t4_uld_list[i]->uld_stop(sc);
+	}
+	sx_sunlock(&t4_uld_list_lock);
+	end_synchronized_op(sc, 0);
+}
+
+static void
+restart_all_uld(struct adapter *sc)
+{
+	int i;
+
+	if (begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4uldre") != 0)
+		return;
+	sx_slock(&t4_uld_list_lock);
+	for (i = 0; i <= ULD_MAX; i++) {
+		if (t4_uld_list[i] == NULL || !uld_active(sc, i) ||
+		    t4_uld_list[i]->uld_restart == NULL)
+			continue;
+		(void) t4_uld_list[i]->uld_restart(sc);
 	}
 	sx_sunlock(&t4_uld_list_lock);
 	end_synchronized_op(sc, 0);

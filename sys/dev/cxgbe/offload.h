@@ -212,6 +212,7 @@ struct uld_info {
 	int (*uld_activate)(struct adapter *);
 	int (*uld_deactivate)(struct adapter *);
 	int (*uld_stop)(struct adapter *);
+	int (*uld_restart)(struct adapter *);
 };
 
 struct tom_tunables {
