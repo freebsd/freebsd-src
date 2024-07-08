@@ -1071,6 +1071,26 @@ SYSCTL_PROC(_vfs_cache, OID_AUTO, nchstats, CTLTYPE_OPAQUE | CTLFLAG_RD |
     CTLFLAG_MPSAFE, 0, 0, sysctl_nchstats, "LU",
     "VFS cache effectiveness statistics");
 
+static int
+sysctl_hitpct(SYSCTL_HANDLER_ARGS)
+{
+	long poshits, neghits, miss, total;
+	long pct;
+
+	poshits = counter_u64_fetch(numposhits);
+	neghits = counter_u64_fetch(numneghits);
+	miss = counter_u64_fetch(nummiss);
+	total = poshits + neghits + miss;
+
+	pct = 0;
+	if (total != 0)
+		pct = ((poshits + neghits) * 100) / total;
+	return (sysctl_handle_int(oidp, 0, pct, req));
+}
+SYSCTL_PROC(_vfs_cache_stats, OID_AUTO, hitpct,
+    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RD, NULL, 0, sysctl_hitpct,
+    "I", "Percentage of hits");
+
 static void
 cache_recalc_neg_min(void)
 {
