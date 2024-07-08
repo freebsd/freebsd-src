@@ -144,6 +144,7 @@ sdt_create_probe(struct sdt_probe *probe)
 	const char *from;
 	char *to;
 	size_t len;
+	int aframes;
 
 	if (probe->version != (int)sizeof(*probe)) {
 		printf("ignoring probe %p, version %u expected %u\n",
@@ -190,7 +191,17 @@ sdt_create_probe(struct sdt_probe *probe)
 	if (dtrace_probe_lookup(prov->id, mod, func, name) != DTRACE_IDNONE)
 		return;
 
-	(void)dtrace_probe_create(prov->id, mod, func, name, 0, probe);
+	aframes = 1; /* unwind past sdt_probe() */
+	if (strcmp(prov->name, "lockstat") == 0) {
+		/*
+		 * Locking primitives instrumented by lockstat automatically
+		 * disable inlining.  Step forward an extra frame so that DTrace
+		 * variables like "caller" provide the function trying to
+		 * acquire or release the lock rather than an internal function.
+		 */
+		aframes++;
+	}
+	(void)dtrace_probe_create(prov->id, mod, func, name, aframes, probe);
 }
 
 /*
