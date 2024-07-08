@@ -1741,6 +1741,7 @@ dev/gpio/gpiobus.c		optional gpio				\
 	dependency	"gpiobus_if.h"
 dev/gpio/gpioc.c		optional gpio				\
 	dependency	"gpio_if.h"
+dev/gpio/acpi_gpiobus.c		optional acpi gpio
 dev/gpio/gpioiic.c		optional gpioiic
 dev/gpio/gpioled.c		optional gpioled !fdt
 dev/gpio/gpioled_fdt.c		optional gpioled fdt
