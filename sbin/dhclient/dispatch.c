@@ -155,7 +155,8 @@ dispatch(void)
 	struct protocol *l;
 	struct pollfd *fds;
 	struct timespec howlong;
-	struct timespec time_now = { .tv_sec = cur_time, .tv_nsec = 0 };
+	time_now.tv_sec = cur_time;
+	time_now.tv_nsec = 0;
 
 	for (l = protocols; l; l = l->next)
 		nfds++;
