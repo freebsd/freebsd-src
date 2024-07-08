@@ -121,7 +121,7 @@ struct pidfh *pidfile;
  */
 #define TIME_MAX        ((((time_t) 1 << (sizeof(time_t) * CHAR_BIT - 2)) - 1) * 2 + 1)
 
-static struct timespec arp_timeout = { .tv_sec = 2, .tv_nsec = 0 };
+static struct timespec arp_timeout = { .tv_sec = 0, .tv_nsec = 250 * 1000 * 1000 };
 static const struct timespec zero_timespec = { .tv_sec = 0, .tv_nsec = 0 };
 int		log_priority;
 static int		no_daemon;
@@ -386,7 +386,7 @@ main(int argc, char *argv[])
 	cap_openlog(capsyslog, getprogname(), LOG_PID | LOG_NDELAY, DHCPD_LOG_FACILITY);
 	cap_setlogmask(capsyslog, LOG_UPTO(LOG_DEBUG));
 
-	while ((ch = getopt(argc, argv, "bc:dl:p:qu")) != -1)
+	while ((ch = getopt(argc, argv, "bc:dl:np:qu")) != -1)
 		switch (ch) {
 		case 'b':
 			immediate_daemon = 1;
@@ -399,6 +399,9 @@ main(int argc, char *argv[])
 			break;
 		case 'l':
 			path_dhclient_db = optarg;
+			break;
+		case 'n':
+			arp_timeout = zero_timespec;
 			break;
 		case 'p':
 			path_dhclient_pidfile = optarg;
@@ -576,7 +579,7 @@ void
 usage(void)
 {
 
-	fprintf(stderr, "usage: %s [-bdqu] ", getprogname());
+	fprintf(stderr, "usage: %s [-bdnqu] ", getprogname());
 	fprintf(stderr, "[-c conffile] [-l leasefile] interface\n");
 	exit(1);
 }
