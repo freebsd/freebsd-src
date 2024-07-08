@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2023 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2024 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -308,14 +308,14 @@ else
 
 	printf '0\n' > "$ext_reg_res"
 
-	"$exe" "$@" -e "gxpR" 2> /dev/null > "$ext_reg_out"
+	printf '%s\n' "$halt" | "$exe" "$@" -e "gxpR" 2> /dev/null > "$ext_reg_out"
 	err="$?"
 
 	checktest "$d" "$err" "Extended register command" "$ext_reg_out" "$ext_reg_res"
 
 	printf '1\n' > "$ext_reg_res"
 
-	"$exe" "$@" -x -e "gxpR" 2> /dev/null > "$ext_reg_out"
+	printf '%s\n' "$halt" | "$exe" "$@" -x -e "gxpR" 2> /dev/null > "$ext_reg_out"
 	err="$?"
 
 	checktest "$d" "$err" "Extended register command" "$ext_reg_out" "$ext_reg_res"
