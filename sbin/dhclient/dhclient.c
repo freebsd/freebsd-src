@@ -446,7 +446,8 @@ main(int argc, char *argv[])
 		log_perror = 0;
 
 	tzset();
-	time(&cur_time);
+	clock_gettime(CLOCK_MONOTONIC, &time_now);
+	cur_time = time_now.tv_sec;
 
 	inaddr_broadcast.s_addr = INADDR_BROADCAST;
 	inaddr_any.s_addr = INADDR_ANY;

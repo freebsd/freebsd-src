@@ -56,6 +56,10 @@
 #define assert_aligned(p, align) assert((((uintptr_t)p) & ((align) - 1)) == 0)
 
 static struct protocol *protocols;
+static const struct timespec timespec_intmax_ms = {
+	.tv_sec = INT_MAX / 1000,
+	.tv_nsec = (INT_MAX % 1000) * 1000000
+};
 static struct timeout *timeouts;
 static struct timeout *free_timeouts;
 static int interfaces_invalidated;
@@ -190,9 +194,9 @@ another:
 			 * negative timeout and blocking indefinitely.
 			 */
 			timespecsub(&timeouts->when, &time_now, &howlong);
-			if (howlong.tv_sec > INT_MAX / 1000)
-				howlong.tv_sec = INT_MAX / 1000;
-			to_msec = howlong.tv_sec * 1000;
+			if (timespeccmp(&howlong, &timespec_intmax_ms, >))
+				howlong = timespec_intmax_ms;
+			to_msec = howlong.tv_sec * 1000 + howlong.tv_nsec / 1000000;
 		} else
 			to_msec = -1;
 
@@ -219,16 +223,16 @@ another:
 		/* Not likely to be transitory... */
 		if (count == -1) {
 			if (errno == EAGAIN || errno == EINTR) {
-				time(&cur_time);
-				time_now.tv_sec = cur_time;
+				clock_gettime(CLOCK_MONOTONIC, &time_now);
+				cur_time = time_now.tv_sec;
 				continue;
 			} else
 				error("poll: %m");
 		}
 
 		/* Get the current time... */
-		time(&cur_time);
-		time_now.tv_sec = cur_time;
+		clock_gettime(CLOCK_MONOTONIC, &time_now);
+		cur_time = time_now.tv_sec;
 
 		i = 0;
 		for (l = protocols; l; l = l->next) {
