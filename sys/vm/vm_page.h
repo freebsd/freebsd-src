@@ -947,6 +947,17 @@ vm_page_in_laundry(vm_page_t m)
 	return (queue == PQ_LAUNDRY || queue == PQ_UNSWAPPABLE);
 }
 
+static inline void
+vm_page_clearref(vm_page_t m)
+{
+	u_int r;
+
+	r = m->ref_count;
+	while (atomic_fcmpset_int(&m->ref_count, &r, r & (VPRC_BLOCKED |
+	    VPRC_OBJREF)) == 0)
+		;
+}
+
 /*
  *	vm_page_drop:
  *
