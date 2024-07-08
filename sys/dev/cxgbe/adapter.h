@@ -1122,9 +1122,17 @@ forwarding_intr_to_fwq(struct adapter *sc)
 static inline bool
 hw_off_limits(struct adapter *sc)
 {
-	int off_limits = atomic_load_int(&sc->error_flags) & HW_OFF_LIMITS;
+	const int off_limits = atomic_load_int(&sc->error_flags) & HW_OFF_LIMITS;
 
 	return (__predict_false(off_limits != 0));
+}
+
+static inline bool
+adapter_stopped(struct adapter *sc)
+{
+	const int stopped = atomic_load_int(&sc->error_flags) & ADAP_STOPPED;
+
+	return (__predict_false(stopped != 0));
 }
 
 static inline int
