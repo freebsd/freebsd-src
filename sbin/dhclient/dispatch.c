@@ -155,7 +155,8 @@ dispatch(void)
 	int count, live_interfaces, i, to_msec, nfds = 0;
 	struct protocol *l;
 	struct pollfd *fds;
-	time_t howlong;
+	struct timespec howlong;
+	struct timespec time_now = { .tv_sec = cur_time, .tv_nsec = 0 };
 
 	for (l = protocols; l; l = l->next)
 		nfds++;
@@ -173,7 +174,7 @@ another:
 		if (timeouts) {
 			struct timeout *t;
 
-			if (timeouts->when <= cur_time) {
+			if (timespeccmp(&timeouts->when, &time_now, <=)) {
 				t = timeouts;
 				timeouts = timeouts->next;
 				(*(t->func))(t->what);
@@ -188,10 +189,10 @@ another:
 			 * int for poll, while not polling with a
 			 * negative timeout and blocking indefinitely.
 			 */
-			howlong = timeouts->when - cur_time;
-			if (howlong > INT_MAX / 1000)
-				howlong = INT_MAX / 1000;
-			to_msec = howlong * 1000;
+			timespecsub(&timeouts->when, &time_now, &howlong);
+			if (howlong.tv_sec > INT_MAX / 1000)
+				howlong.tv_sec = INT_MAX / 1000;
+			to_msec = howlong.tv_sec * 1000;
 		} else
 			to_msec = -1;
 
@@ -219,6 +220,7 @@ another:
 		if (count == -1) {
 			if (errno == EAGAIN || errno == EINTR) {
 				time(&cur_time);
+				time_now.tv_sec = cur_time;
 				continue;
 			} else
 				error("poll: %m");
@@ -226,6 +228,7 @@ another:
 
 		/* Get the current time... */
 		time(&cur_time);
+		time_now.tv_sec = cur_time;
 
 		i = 0;
 		for (l = protocols; l; l = l->next) {
@@ -356,7 +359,14 @@ active:
 }
 
 void
-add_timeout(time_t when, void (*where)(void *), void *what)
+add_timeout(time_t when_s, void (*where)(void *), void *what)
+{
+	struct timespec when = { .tv_sec = when_s, .tv_nsec = 0 };
+	add_timeout_timespec(when, where, what);
+}
+
+void
+add_timeout_timespec(struct timespec when, void (*where)(void *), void *what)
 {
 	struct timeout *t, *q;
 
@@ -395,7 +405,7 @@ add_timeout(time_t when, void (*where)(void *), void *what)
 	/* Now sort this timeout into the timeout list. */
 
 	/* Beginning of list? */
-	if (!timeouts || timeouts->when > q->when) {
+	if (!timeouts || timespeccmp(&timeouts->when, &q->when, >)) {
 		q->next = timeouts;
 		timeouts = q;
 		return;
@@ -403,7 +413,7 @@ add_timeout(time_t when, void (*where)(void *), void *what)
 
 	/* Middle of list? */
 	for (t = timeouts; t->next; t = t->next) {
-		if (t->next->when > q->when) {
+		if (timespeccmp(&t->next->when, &q->when, >)) {
 			q->next = t->next;
 			t->next = q;
 			return;
