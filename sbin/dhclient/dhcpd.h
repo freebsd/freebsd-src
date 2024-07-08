@@ -219,7 +219,7 @@ struct interface_info {
 
 struct timeout {
 	struct timeout	*next;
-	time_t		 when;
+	struct timespec	 when;
 	void		 (*func)(void *);
 	void		*what;
 };
@@ -321,6 +321,7 @@ void reinitialize_interfaces(void);
 void dispatch(void);
 void got_one(struct protocol *);
 void add_timeout(time_t, void (*)(void *), void *);
+void add_timeout_timespec(struct timespec, void (*)(void *), void *);
 void cancel_timeout(void (*)(void *), void *);
 void add_protocol(const char *, int, void (*)(struct protocol *), void *);
 void remove_protocol(struct protocol *);
