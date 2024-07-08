@@ -1207,11 +1207,14 @@ pmap_bootstrap_l3_page(struct pmap_bootstrap_state *state, int i)
 }
 
 static void
-pmap_bootstrap_dmap(vm_paddr_t min_pa)
+pmap_bootstrap_dmap(void)
 {
 	int i;
 
-	dmap_phys_base = min_pa & ~L1_OFFSET;
+	/* Fill in physmap array. */
+	physmap_idx = physmem_avail(physmap, nitems(physmap));
+
+	dmap_phys_base = physmap[0] & ~L1_OFFSET;
 	dmap_phys_max = 0;
 	dmap_max_addr = 0;
 
@@ -1299,8 +1302,7 @@ void
 pmap_bootstrap(vm_size_t kernlen)
 {
 	vm_offset_t dpcpu, msgbufpv;
-	vm_paddr_t start_pa, pa, min_pa;
-	int i;
+	vm_paddr_t start_pa, pa;
 
 	/* Verify that the ASID is set through TTBR0. */
 	KASSERT((READ_SPECIALREG(tcr_el1) & TCR_A1) == 0,
@@ -1319,28 +1321,13 @@ pmap_bootstrap(vm_size_t kernlen)
 	kernel_pmap->pm_ttbr = kernel_pmap->pm_l0_paddr;
 	kernel_pmap->pm_asid_set = &asids;
 
-	/* Assume the address we were loaded to is a valid physical address */
-	min_pa = pmap_early_vtophys(KERNBASE);
-
-	physmap_idx = physmem_avail(physmap, nitems(physmap));
-
-	/*
-	 * Find the minimum physical address. physmap is sorted,
-	 * but may contain empty ranges.
-	 */
-	for (i = 0; i < physmap_idx; i += 2) {
-		if (physmap[i] == physmap[i + 1])
-			continue;
-		if (physmap[i] <= min_pa)
-			min_pa = physmap[i];
-	}
-
 	bs_state.freemempos = KERNBASE + kernlen;
 	bs_state.freemempos = roundup2(bs_state.freemempos, PAGE_SIZE);
 
 	/* Create a direct map region early so we can use it for pa -> va */
-	pmap_bootstrap_dmap(min_pa);
+	pmap_bootstrap_dmap();
 	bs_state.dmap_valid = true;
+
 	/*
 	 * We only use PXN when we know nothing will be executed from it, e.g.
 	 * the DMAP region.
