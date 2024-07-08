@@ -2249,6 +2249,7 @@ MLINKS+=taskqueue.9 TASK_INIT.9 \
 	taskqueue.9 taskqueue_drain_timeout.9 \
 	taskqueue.9 taskqueue_enqueue.9 \
 	taskqueue.9 taskqueue_enqueue_timeout.9 \
+	taskqueue.9 taskqueue_enqueue_timeout_sbt.9 \
 	taskqueue.9 TASKQUEUE_FAST_DEFINE.9 \
 	taskqueue.9 TASKQUEUE_FAST_DEFINE_THREAD.9 \
 	taskqueue.9 taskqueue_free.9 \
