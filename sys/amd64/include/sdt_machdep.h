@@ -7,6 +7,6 @@
 #ifndef _SYS_SDT_MACHDEP_H_
 #define	_SYS_SDT_MACHDEP_H_
 
-#define	_SDT_ASM_PATCH_INSTR	"nop; nop; nop; nop; nop"
+#define	_SDT_ASM_PATCH_INSTR	"nopw 0(%%rax,%%rax,1)"
 
 #endif
