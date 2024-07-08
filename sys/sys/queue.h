@@ -339,6 +339,40 @@ struct {								\
 /*
  * Singly-linked Tail queue functions.
  */
+#if (defined(_KERNEL) && defined(INVARIANTS))
+/*
+ * QMD_STAILQ_CHECK_EMPTY(STAILQ_HEAD *head)
+ *
+ * Validates that the stailq head's pointer to the last element's next pointer
+ * actually points to the head's first element pointer field.
+ */
+#define	QMD_STAILQ_CHECK_EMPTY(head) do {				\
+	if ((head)->stqh_last != &(head)->stqh_first)			\
+		panic("Empty stailq %p->stqh_last is %p, not head's "	\
+		    "first field address", (head), (head)->stqh_last);	\
+} while (0)
+
+#define	STAILQ_ASSERT_EMPTY(head) do {					\
+	if (!STAILQ_EMPTY((head)))					\
+		panic("stailq %p is not empty", (head));		\
+}
+
+/*
+ * QMD_STAILQ_CHECK_TAIL(STAILQ_HEAD *head)
+ *
+ * Validates that the stailq's last element's next pointer is NULL.
+ */
+#define	QMD_STAILQ_CHECK_TAIL(head) do {				\
+	if (*(head)->stqh_last != NULL)					\
+		panic("Stailq %p last element's next pointer is %p, "	\
+		    "not NULL", (head), *(head)->stqh_last);		\
+} while (0)
+#else
+#define	QMD_STAILQ_CHECK_EMPTY(head)
+#define STAILQ_ASSERT_EMPTY(head)
+#define	QMD_STAILQ_CHECK_TAIL(head)
+#endif /* (_KERNEL && INVARIANTS) */
+
 #define	STAILQ_CONCAT(head1, head2) do {				\
 	if (!STAILQ_EMPTY((head2))) {					\
 		*(head1)->stqh_last = (head2)->stqh_first;		\
@@ -347,7 +381,11 @@ struct {								\
 	}								\
 } while (0)
 
-#define	STAILQ_EMPTY(head)	((head)->stqh_first == NULL)
+#define	STAILQ_EMPTY(head)	({					\
+	if (STAILQ_FIRST(head) == NULL)					\
+		QMD_STAILQ_CHECK_EMPTY(head);				\
+	STAILQ_FIRST(head) == NULL;					\
+})
 
 #define	STAILQ_FIRST(head)	((head)->stqh_first)
 
@@ -389,6 +427,7 @@ struct {								\
 } while (0)
 
 #define	STAILQ_INSERT_TAIL(head, elm, field) do {			\
+	QMD_STAILQ_CHECK_TAIL(head);					\
 	STAILQ_NEXT((elm), field) = NULL;				\
 	*(head)->stqh_last = (elm);					\
 	(head)->stqh_last = &STAILQ_NEXT((elm), field);			\
