@@ -91,6 +91,7 @@
 cap_channel_t *capsyslog;
 
 time_t cur_time;
+struct timespec time_now;
 static time_t default_lease_time = 43200; /* 12 hours... */
 
 const char *path_dhclient_conf = _PATH_DHCLIENT_CONF;
@@ -120,6 +121,8 @@ struct pidfh *pidfile;
  */
 #define TIME_MAX        ((((time_t) 1 << (sizeof(time_t) * CHAR_BIT - 2)) - 1) * 2 + 1)
 
+static struct timespec arp_timeout = { .tv_sec = 2, .tv_nsec = 0 };
+static const struct timespec zero_timespec = { .tv_sec = 0, .tv_nsec = 0 };
 int		log_priority;
 static int		no_daemon;
 static int		unknown_ok = 1;
@@ -1022,7 +1025,11 @@ dhcpoffer(struct packet *packet)
 	struct interface_info *ip = packet->interface;
 	struct client_lease *lease, *lp;
 	int i;
-	int arp_timeout_needed, stop_selecting;
+	struct timespec arp_timeout_needed;
+	struct timespec stop_selecting = { .tv_sec = 0, .tv_nsec = 0 };
+	time_now.tv_sec = cur_time;
+	time_now.tv_nsec = 0;
+
 	const char *name = packet->options[DHO_DHCP_MESSAGE_TYPE].len ?
 	    "DHCPOFFER" : "BOOTREPLY";
 
@@ -1078,12 +1085,13 @@ dhcpoffer(struct packet *packet)
 	/* If the script can't send an ARP request without waiting,
 	   we'll be waiting when we do the ARPCHECK, so don't wait now. */
 	if (script_go())
-		arp_timeout_needed = 0;
+		arp_timeout_needed = zero_timespec;
+
 	else
-		arp_timeout_needed = 2;
+		arp_timeout_needed = arp_timeout;
 
 	/* Figure out when we're supposed to stop selecting. */
-	stop_selecting =
+	stop_selecting.tv_sec =
 	    ip->client->first_sending + ip->client->config->select_interval;
 
 	/* If this is the lease we asked for, put it at the head of the
@@ -1099,9 +1107,13 @@ dhcpoffer(struct packet *packet)
 		   offer would take us past the selection timeout,
 		   then don't extend the timeout - just hope for the
 		   best. */
+
+		struct timespec interm_struct;
+		timespecadd(&time_now, &arp_timeout_needed, &interm_struct);
+
 		if (ip->client->offered_leases &&
-		    (cur_time + arp_timeout_needed) > stop_selecting)
-			arp_timeout_needed = 0;
+		    timespeccmp(&interm_struct, &stop_selecting, >))
+			arp_timeout_needed = zero_timespec;
 
 		/* Put the lease at the end of the list. */
 		lease->next = NULL;
@@ -1118,16 +1130,22 @@ dhcpoffer(struct packet *packet)
 	/* If we're supposed to stop selecting before we've had time
 	   to wait for the ARPREPLY, add some delay to wait for
 	   the ARPREPLY. */
-	if (stop_selecting - cur_time < arp_timeout_needed)
-		stop_selecting = cur_time + arp_timeout_needed;
+	struct timespec time_left;
+	timespecsub(&stop_selecting, &time_now, &time_left);
+
+	if (timespeccmp(&time_left, &arp_timeout_needed, <)) {
+		timespecadd(&time_now, &arp_timeout_needed, &stop_selecting);
+	}
 
 	/* If the selecting interval has expired, go immediately to
 	   state_selecting().  Otherwise, time out into
 	   state_selecting at the select interval. */
-	if (stop_selecting <= 0)
+
+
+	if (timespeccmp(&stop_selecting, &zero_timespec, <=))
 		state_selecting(ip);
 	else {
-		add_timeout(stop_selecting, state_selecting, ip);
+		add_timeout_timespec(stop_selecting, state_selecting, ip);
 		cancel_timeout(send_discover, ip);
 	}
 }
