@@ -1320,12 +1320,23 @@ ktls_enable_rx(struct socket *so, struct tls_enable *en)
 		return (error);
 	}
 
+	/*
+	 * Serialize with soreceive_generic() and make sure that we're not
+	 * operating on a listening socket.
+	 */
+	error = SOCK_IO_RECV_LOCK(so, SBL_WAIT);
+	if (error) {
+		ktls_free(tls);
+		return (error);
+	}
+
 	/* Mark the socket as using TLS offload. */
 	SOCK_RECVBUF_LOCK(so);
-	if (SOLISTENING(so)) {
+	if (__predict_false(so->so_rcv.sb_tls_info != NULL)) {
 		SOCK_RECVBUF_UNLOCK(so);
+		SOCK_IO_RECV_UNLOCK(so);
 		ktls_free(tls);
-		return (EINVAL);
+		return (EALREADY);
 	}
 	so->so_rcv.sb_tls_seqno = be64dec(en->rec_seq);
 	so->so_rcv.sb_tls_info = tls;
@@ -1335,6 +1346,7 @@ ktls_enable_rx(struct socket *so, struct tls_enable *en)
 	sb_mark_notready(&so->so_rcv);
 	ktls_check_rx(&so->so_rcv);
 	SOCK_RECVBUF_UNLOCK(so);
+	SOCK_IO_RECV_UNLOCK(so);
 
 	/* Prefer TOE -> ifnet TLS -> software TLS. */
 #ifdef TCP_OFFLOAD
@@ -1420,6 +1432,13 @@ ktls_enable_tx(struct socket *so, struct tls_enable *en)
 	inp = so->so_pcb;
 	INP_WLOCK(inp);
 	SOCK_SENDBUF_LOCK(so);
+	if (__predict_false(so->so_snd.sb_tls_info != NULL)) {
+		SOCK_SENDBUF_UNLOCK(so);
+		INP_WUNLOCK(inp);
+		SOCK_IO_SEND_UNLOCK(so);
+		ktls_free(tls);
+		return (EALREADY);
+	}
 	so->so_snd.sb_tls_seqno = be64dec(en->rec_seq);
 	so->so_snd.sb_tls_info = tls;
 	if (tls->mode != TCP_TLS_MODE_SW) {
