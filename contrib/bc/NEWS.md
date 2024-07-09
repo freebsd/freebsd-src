@@ -1,5 +1,12 @@
 # News
 
+## 6.7.6
+
+This is a production release to fix one bug.
+
+The bug was that `bc` attempted to jump out when flushing `stdout` on exit, but
+there is no jump buf at that point.
+
 ## 6.7.5
 
 This is a production release to fix one small bug.
