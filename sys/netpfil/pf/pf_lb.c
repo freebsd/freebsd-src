@@ -225,6 +225,23 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_krule *r,
 	if (pf_map_addr(af, r, saddr, naddr, NULL, &init_addr, sn))
 		return (1);
 
+	if (proto == IPPROTO_ICMP) {
+		if (*nport == htons(ICMP_ECHO)) {
+			low = 1;
+			high = 65535;
+		} else
+			return (0);	/* Don't try to modify non-echo ICMP */
+	}
+#ifdef INET6
+	if (proto == IPPROTO_ICMPV6) {
+		if (*nport == htons(ICMP6_ECHO_REQUEST)) {
+			low = 1;
+			high = 65535;
+		} else
+			return (0);	/* Don't try to modify non-echo ICMP */
+	}
+#endif /* INET6 */
+
 	bzero(&key, sizeof(key));
 	key.af = af;
 	key.proto = proto;
@@ -633,7 +650,7 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 	switch (r->action) {
 	case PF_NAT:
 		if (pd->proto == IPPROTO_ICMP) {
-			low  = 1;
+			low = 1;
 			high = 65535;
 		} else {
 			low  = r->rpool.proxy_port[0];
