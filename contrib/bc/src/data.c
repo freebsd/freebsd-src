@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2024 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -70,7 +70,7 @@ const uchar dc_sig_msg_len = (uchar) (sizeof(dc_sig_msg) - 1);
 
 /// The copyright banner.
 const char bc_copyright[] =
-	"Copyright (c) 2018-2023 Gavin D. Howard and contributors\n"
+	"Copyright (c) 2018-2024 Gavin D. Howard and contributors\n"
 	"Report bugs at: https://git.gavinhoward.com/gavin/bc\n\n"
 	"This is free software with ABSOLUTELY NO WARRANTY.\n";
 

@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2024 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -45,8 +45,9 @@
 /**
  * The main function for dc. It just sets variables and passes its arguments
  * through to @a bc_vm_boot().
+ * @return  A status.
  */
-void
+BcStatus
 dc_main(int argc, char* argv[]);
 
 // A reference to the dc help text.
