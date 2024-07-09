@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2023 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2024 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -127,7 +127,7 @@ usage() {
 	printf '        If this option is given along with -e and -r, the last occurrence of\n'
 	printf '        all of the three is used.\n'
 	printf '    -k KARATSUBA_LEN, --karatsuba-len KARATSUBA_LEN\n'
-	printf '        Set the karatsuba length to KARATSUBA_LEN (default is 64).\n'
+	printf '        Set the karatsuba length to KARATSUBA_LEN (default is 32).\n'
 	printf '        It is an error if KARATSUBA_LEN is not a number or is less than 16.\n'
 	printf '    -l, --install-all-locales\n'
 	printf '        Installs all locales, regardless of how many are on the system. This\n'
@@ -163,7 +163,7 @@ usage() {
 	printf '        Enable the use of libreadline/readline. This is meant for those users\n'
 	printf '        that want vi-like or Emacs-like behavior in history. This option is\n'
 	printf '        ignored if history is disabled. If this option is given along with -e\n'
-	printf '        and -r, the last occurrence of all of the three is used.\n'
+	printf '        and -i, the last occurrence of all of the three is used.\n'
 	printf '    -s SETTING, --set-default-on SETTING\n'
 	printf '        Set the default named by SETTING to on. See below for possible values\n'
 	printf '        for SETTING. For multiple instances of the -s or -S for the the same\n'
@@ -1671,10 +1671,10 @@ else
 	CPPFLAGS="$CPPFLAGS -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700"
 fi
 
-# Test Mac OSX. This is not in an if statement because regardless of whatever
-# the user says, we need to know if we are on Mac OSX. If we are, we have to set
+# Test macOS. This is not in an if statement because regardless of whatever the
+# user says, we need to know if we are on macOS. If we are, we have to set
 # _DARWIN_C_SOURCE.
-printf 'Testing for Mac OSX...\n'
+printf 'Testing for macOS...\n'
 
 flags="-DBC_TEST_APPLE -DBC_ENABLE_AFL=0"
 "$CC" $CPPFLAGS $CFLAGS $flags "-I$scriptdir/include" -E "$scriptdir/src/vm.c" > /dev/null 2>&1
@@ -1682,15 +1682,15 @@ flags="-DBC_TEST_APPLE -DBC_ENABLE_AFL=0"
 err="$?"
 
 if [ "$err" -ne 0 ]; then
-	printf 'On Mac OSX. Using _DARWIN_C_SOURCE.\n\n'
+	printf 'On macOS. Using _DARWIN_C_SOURCE.\n\n'
 	apple="-D_DARWIN_C_SOURCE"
 else
-	printf 'Not on Mac OSX.\n\n'
+	printf 'Not on macOS.\n\n'
 	apple=""
 fi
 
-# We can't use the linker's strip flag on Mac OSX.
-if [ "$debug" -eq 0 ] && [ "$apple" == "" ] && [ "$strip_bin" -ne 0 ]; then
+# We can't use the linker's strip flag on macOS.
+if [ "$debug" -eq 0 ] && [ "$apple" = "" ] && [ "$strip_bin" -ne 0 ]; then
 	LDFLAGS="-s $LDFLAGS"
 fi
 

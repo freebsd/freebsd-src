@@ -1,7 +1,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.\" Copyright (c) 2018-2023 Gavin D. Howard and contributors.
+.\" Copyright (c) 2018-2024 Gavin D. Howard and contributors.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions are met:
@@ -25,38 +25,38 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.TH "BC" "1" "November 2023" "Gavin D. Howard" "General Commands Manual"
+.TH "BC" "1" "January 2024" "Gavin D. Howard" "General Commands Manual"
 .nh
 .ad l
 .SH NAME
-bc - arbitrary-precision decimal arithmetic language and calculator
+bc \- arbitrary\-precision decimal arithmetic language and calculator
 .SH SYNOPSIS
-\f[B]bc\f[R] [\f[B]-cCghilPqRsvVw\f[R]] [\f[B]--digit-clamp\f[R]]
-[\f[B]--no-digit-clamp\f[R]] [\f[B]--global-stacks\f[R]]
-[\f[B]--help\f[R]] [\f[B]--interactive\f[R]] [\f[B]--mathlib\f[R]]
-[\f[B]--no-prompt\f[R]] [\f[B]--no-read-prompt\f[R]] [\f[B]--quiet\f[R]]
-[\f[B]--standard\f[R]] [\f[B]--warn\f[R]] [\f[B]--version\f[R]]
-[\f[B]-e\f[R] \f[I]expr\f[R]]
-[\f[B]--expression\f[R]=\f[I]expr\f[R]\&...]
-[\f[B]-f\f[R] \f[I]file\f[R]\&...]
-[\f[B]--file\f[R]=\f[I]file\f[R]\&...]
+\f[B]bc\f[R] [\f[B]\-cCghilPqRsvVw\f[R]] [\f[B]\-\-digit\-clamp\f[R]]
+[\f[B]\-\-no\-digit\-clamp\f[R]] [\f[B]\-\-global\-stacks\f[R]]
+[\f[B]\-\-help\f[R]] [\f[B]\-\-interactive\f[R]] [\f[B]\-\-mathlib\f[R]]
+[\f[B]\-\-no\-prompt\f[R]] [\f[B]\-\-no\-read\-prompt\f[R]]
+[\f[B]\-\-quiet\f[R]] [\f[B]\-\-standard\f[R]] [\f[B]\-\-warn\f[R]]
+[\f[B]\-\-version\f[R]] [\f[B]\-e\f[R] \f[I]expr\f[R]]
+[\f[B]\-\-expression\f[R]=\f[I]expr\f[R]\&...]
+[\f[B]\-f\f[R] \f[I]file\f[R]\&...]
+[\f[B]\-\-file\f[R]=\f[I]file\f[R]\&...]
 [\f[I]file\f[R]\&...]
-[\f[B]-I\f[R] \f[I]ibase\f[R]] [\f[B]--ibase\f[R]=\f[I]ibase\f[R]]
-[\f[B]-O\f[R] \f[I]obase\f[R]] [\f[B]--obase\f[R]=\f[I]obase\f[R]]
-[\f[B]-S\f[R] \f[I]scale\f[R]] [\f[B]--scale\f[R]=\f[I]scale\f[R]]
-[\f[B]-E\f[R] \f[I]seed\f[R]] [\f[B]--seed\f[R]=\f[I]seed\f[R]]
+[\f[B]\-I\f[R] \f[I]ibase\f[R]] [\f[B]\-\-ibase\f[R]=\f[I]ibase\f[R]]
+[\f[B]\-O\f[R] \f[I]obase\f[R]] [\f[B]\-\-obase\f[R]=\f[I]obase\f[R]]
+[\f[B]\-S\f[R] \f[I]scale\f[R]] [\f[B]\-\-scale\f[R]=\f[I]scale\f[R]]
+[\f[B]\-E\f[R] \f[I]seed\f[R]] [\f[B]\-\-seed\f[R]=\f[I]seed\f[R]]
 .SH DESCRIPTION
 bc(1) is an interactive processor for a language first standardized in
 1991 by POSIX.
 (See the \f[B]STANDARDS\f[R] section.)
 The language provides unlimited precision decimal arithmetic and is
-somewhat C-like, but there are differences.
+somewhat C\-like, but there are differences.
 Such differences will be noted in this document.
 .PP
 After parsing and handling options, this bc(1) reads any files given on
 the command line and executes them before reading from \f[B]stdin\f[R].
 .PP
-This bc(1) is a drop-in replacement for \f[I]any\f[R] bc(1), including
+This bc(1) is a drop\-in replacement for \f[I]any\f[R] bc(1), including
 (and especially) the GNU bc(1).
 It also has many extensions and extra features beyond other
 implementations.
@@ -65,9 +65,9 @@ implementations.
 another bc(1) gives a parse error, it is probably because a word this
 bc(1) reserves as a keyword is used as the name of a function, variable,
 or array.
-To fix that, use the command-line option \f[B]-r\f[R] \f[I]keyword\f[R],
-where \f[I]keyword\f[R] is the keyword that is used as a name in the
-script.
+To fix that, use the command\-line option \f[B]\-r\f[R]
+\f[I]keyword\f[R], where \f[I]keyword\f[R] is the keyword that is used
+as a name in the script.
 For more information, see the \f[B]OPTIONS\f[R] section.
 .PP
 If parsing scripts meant for other bc(1) implementations still does not
@@ -76,7 +76,7 @@ See the \f[B]BUGS\f[R] section.
 .SH OPTIONS
 The following are the options that bc(1) accepts.
 .TP
-\f[B]-C\f[R], \f[B]--no-digit-clamp\f[R]
+\f[B]\-C\f[R], \f[B]\-\-no\-digit\-clamp\f[R]
 Disables clamping of digits greater than or equal to the current
 \f[B]ibase\f[R] when parsing numbers.
 .RS
@@ -86,17 +86,17 @@ digit\[cq]s value multiplied by the value of ibase raised to the power
 of the digit\[cq]s position, which starts from 0 at the least
 significant digit.
 .PP
-If this and/or the \f[B]-c\f[R] or \f[B]--digit-clamp\f[R] options are
-given multiple times, the last one given is used.
+If this and/or the \f[B]\-c\f[R] or \f[B]\-\-digit\-clamp\f[R] options
+are given multiple times, the last one given is used.
 .PP
 This option overrides the \f[B]BC_DIGIT_CLAMP\f[R] environment variable
 (see the \f[B]ENVIRONMENT VARIABLES\f[R] section) and the default, which
-can be queried with the \f[B]-h\f[R] or \f[B]--help\f[R] options.
+can be queried with the \f[B]\-h\f[R] or \f[B]\-\-help\f[R] options.
 .PP
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .RE
 .TP
-\f[B]-c\f[R], \f[B]--digit-clamp\f[R]
+\f[B]\-c\f[R], \f[B]\-\-digit\-clamp\f[R]
 Enables clamping of digits greater than or equal to the current
 \f[B]ibase\f[R] when parsing numbers.
 .RS
@@ -107,17 +107,17 @@ all multiplied by the value of ibase raised to the power of the
 digit\[cq]s position, which starts from 0 at the least significant
 digit.
 .PP
-If this and/or the \f[B]-C\f[R] or \f[B]--no-digit-clamp\f[R] options
-are given multiple times, the last one given is used.
+If this and/or the \f[B]\-C\f[R] or \f[B]\-\-no\-digit\-clamp\f[R]
+options are given multiple times, the last one given is used.
 .PP
 This option overrides the \f[B]BC_DIGIT_CLAMP\f[R] environment variable
 (see the \f[B]ENVIRONMENT VARIABLES\f[R] section) and the default, which
-can be queried with the \f[B]-h\f[R] or \f[B]--help\f[R] options.
+can be queried with the \f[B]\-h\f[R] or \f[B]\-\-help\f[R] options.
 .PP
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .RE
 .TP
-\f[B]-E\f[R] \f[I]seed\f[R], \f[B]--seed\f[R]=\f[I]seed\f[R]
+\f[B]\-E\f[R] \f[I]seed\f[R], \f[B]\-\-seed\f[R]=\f[I]seed\f[R]
 Sets the builtin variable \f[B]seed\f[R] to the value \f[I]seed\f[R]
 assuming that \f[I]seed\f[R] is in base 10.
 It is a fatal error if \f[I]seed\f[R] is not a valid number.
@@ -125,54 +125,54 @@ It is a fatal error if \f[I]seed\f[R] is not a valid number.
 .PP
 If multiple instances of this option are given, the last is used.
 .PP
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .RE
 .TP
-\f[B]-e\f[R] \f[I]expr\f[R], \f[B]--expression\f[R]=\f[I]expr\f[R]
+\f[B]\-e\f[R] \f[I]expr\f[R], \f[B]\-\-expression\f[R]=\f[I]expr\f[R]
 Evaluates \f[I]expr\f[R].
 If multiple expressions are given, they are evaluated in order.
-If files are given as well (see the \f[B]-f\f[R] and \f[B]--file\f[R]
+If files are given as well (see the \f[B]\-f\f[R] and \f[B]\-\-file\f[R]
 options), the expressions and files are evaluated in the order given.
 This means that if a file is given before an expression, the file is
 read in and evaluated first.
 .RS
 .PP
-If this option is given on the command-line (i.e., not in
+If this option is given on the command\-line (i.e., not in
 \f[B]BC_ENV_ARGS\f[R], see the \f[B]ENVIRONMENT VARIABLES\f[R] section),
 then after processing all expressions and files, bc(1) will exit, unless
-\f[B]-\f[R] (\f[B]stdin\f[R]) was given as an argument at least once to
-\f[B]-f\f[R] or \f[B]--file\f[R], whether on the command-line or in
+\f[B]\-\f[R] (\f[B]stdin\f[R]) was given as an argument at least once to
+\f[B]\-f\f[R] or \f[B]\-\-file\f[R], whether on the command\-line or in
 \f[B]BC_ENV_ARGS\f[R].
-However, if any other \f[B]-e\f[R], \f[B]--expression\f[R],
-\f[B]-f\f[R], or \f[B]--file\f[R] arguments are given after
-\f[B]-f-\f[R] or equivalent is given, bc(1) will give a fatal error and
-exit.
+However, if any other \f[B]\-e\f[R], \f[B]\-\-expression\f[R],
+\f[B]\-f\f[R], or \f[B]\-\-file\f[R] arguments are given after
+\f[B]\-f\-\f[R] or equivalent is given, bc(1) will give a fatal error
+and exit.
 .PP
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .RE
 .TP
-\f[B]-f\f[R] \f[I]file\f[R], \f[B]--file\f[R]=\f[I]file\f[R]
+\f[B]\-f\f[R] \f[I]file\f[R], \f[B]\-\-file\f[R]=\f[I]file\f[R]
 Reads in \f[I]file\f[R] and evaluates it, line by line, as though it
 were read through \f[B]stdin\f[R].
-If expressions are also given (see the \f[B]-e\f[R] and
-\f[B]--expression\f[R] options), the expressions are evaluated in the
+If expressions are also given (see the \f[B]\-e\f[R] and
+\f[B]\-\-expression\f[R] options), the expressions are evaluated in the
 order given.
 .RS
 .PP
-If this option is given on the command-line (i.e., not in
+If this option is given on the command\-line (i.e., not in
 \f[B]BC_ENV_ARGS\f[R], see the \f[B]ENVIRONMENT VARIABLES\f[R] section),
 then after processing all expressions and files, bc(1) will exit, unless
-\f[B]-\f[R] (\f[B]stdin\f[R]) was given as an argument at least once to
-\f[B]-f\f[R] or \f[B]--file\f[R].
-However, if any other \f[B]-e\f[R], \f[B]--expression\f[R],
-\f[B]-f\f[R], or \f[B]--file\f[R] arguments are given after
-\f[B]-f-\f[R] or equivalent is given, bc(1) will give a fatal error and
-exit.
+\f[B]\-\f[R] (\f[B]stdin\f[R]) was given as an argument at least once to
+\f[B]\-f\f[R] or \f[B]\-\-file\f[R].
+However, if any other \f[B]\-e\f[R], \f[B]\-\-expression\f[R],
+\f[B]\-f\f[R], or \f[B]\-\-file\f[R] arguments are given after
+\f[B]\-f\-\f[R] or equivalent is given, bc(1) will give a fatal error
+and exit.
 .PP
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .RE
 .TP
-\f[B]-g\f[R], \f[B]--global-stacks\f[R]
+\f[B]\-g\f[R], \f[B]\-\-global\-stacks\f[R]
 Turns the globals \f[B]ibase\f[R], \f[B]obase\f[R], \f[B]scale\f[R], and
 \f[B]seed\f[R] into stacks.
 .RS
@@ -221,8 +221,8 @@ aliases.
 Examples:
 .IP
 .EX
-alias d2o=\[dq]bc -e ibase=A -e obase=8\[dq]
-alias h2b=\[dq]bc -e ibase=G -e obase=2\[dq]
+alias d2o=\[dq]bc \-e ibase=A \-e obase=8\[dq]
+alias h2b=\[dq]bc \-e ibase=G \-e obase=2\[dq]
 .EE
 .PP
 Second, if the purpose of a function is to set \f[B]ibase\f[R],
@@ -233,11 +233,12 @@ desired value for a global.
 .PP
 For functions that set \f[B]seed\f[R], the value assigned to
 \f[B]seed\f[R] is not propagated to parent functions.
-This means that the sequence of pseudo-random numbers that they see will
-not be the same sequence of pseudo-random numbers that any parent sees.
+This means that the sequence of pseudo\-random numbers that they see
+will not be the same sequence of pseudo\-random numbers that any parent
+sees.
 This is only the case once \f[B]seed\f[R] has been set.
 .PP
-If a function desires to not affect the sequence of pseudo-random
+If a function desires to not affect the sequence of pseudo\-random
 numbers of its parents, but wants to use the same \f[B]seed\f[R], it can
 use the following line:
 .IP
@@ -250,16 +251,16 @@ users could make sure to define \f[B]BC_ENV_ARGS\f[R] and include this
 option (see the \f[B]ENVIRONMENT VARIABLES\f[R] section for more
 details).
 .PP
-If \f[B]-s\f[R], \f[B]-w\f[R], or any equivalents are used, this option
-is ignored.
+If \f[B]\-s\f[R], \f[B]\-w\f[R], or any equivalents are used, this
+option is ignored.
 .PP
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .RE
 .TP
-\f[B]-h\f[R], \f[B]--help\f[R]
+\f[B]\-h\f[R], \f[B]\-\-help\f[R]
 Prints a usage message and exits.
 .TP
-\f[B]-I\f[R] \f[I]ibase\f[R], \f[B]--ibase\f[R]=\f[I]ibase\f[R]
+\f[B]\-I\f[R] \f[I]ibase\f[R], \f[B]\-\-ibase\f[R]=\f[I]ibase\f[R]
 Sets the builtin variable \f[B]ibase\f[R] to the value \f[I]ibase\f[R]
 assuming that \f[I]ibase\f[R] is in base 10.
 It is a fatal error if \f[I]ibase\f[R] is not a valid number.
@@ -267,28 +268,28 @@ It is a fatal error if \f[I]ibase\f[R] is not a valid number.
 .PP
 If multiple instances of this option are given, the last is used.
 .PP
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .RE
 .TP
-\f[B]-i\f[R], \f[B]--interactive\f[R]
+\f[B]\-i\f[R], \f[B]\-\-interactive\f[R]
 Forces interactive mode.
 (See the \f[B]INTERACTIVE MODE\f[R] section.)
 .RS
 .PP
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .RE
 .TP
-\f[B]-L\f[R], \f[B]--no-line-length\f[R]
+\f[B]\-L\f[R], \f[B]\-\-no\-line\-length\f[R]
 Disables line length checking and prints numbers without backslashes and
 newlines.
 In other words, this option sets \f[B]BC_LINE_LENGTH\f[R] to \f[B]0\f[R]
 (see the \f[B]ENVIRONMENT VARIABLES\f[R] section).
 .RS
 .PP
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .RE
 .TP
-\f[B]-l\f[R], \f[B]--mathlib\f[R]
+\f[B]\-l\f[R], \f[B]\-\-mathlib\f[R]
 Sets \f[B]scale\f[R] (see the \f[B]SYNTAX\f[R] section) to \f[B]20\f[R]
 and loads the included math library and the extended math library before
 running any code, including any expressions or files specified on the
@@ -298,7 +299,7 @@ command line.
 To learn what is in the libraries, see the \f[B]LIBRARY\f[R] section.
 .RE
 .TP
-\f[B]-O\f[R] \f[I]obase\f[R], \f[B]--obase\f[R]=\f[I]obase\f[R]
+\f[B]\-O\f[R] \f[I]obase\f[R], \f[B]\-\-obase\f[R]=\f[I]obase\f[R]
 Sets the builtin variable \f[B]obase\f[R] to the value \f[I]obase\f[R]
 assuming that \f[I]obase\f[R] is in base 10.
 It is a fatal error if \f[I]obase\f[R] is not a valid number.
@@ -306,10 +307,10 @@ It is a fatal error if \f[I]obase\f[R] is not a valid number.
 .PP
 If multiple instances of this option are given, the last is used.
 .PP
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .RE
 .TP
-\f[B]-P\f[R], \f[B]--no-prompt\f[R]
+\f[B]\-P\f[R], \f[B]\-\-no\-prompt\f[R]
 Disables the prompt in TTY mode.
 (The prompt is only enabled in TTY mode.
 See the \f[B]TTY MODE\f[R] section.)
@@ -322,26 +323,26 @@ Most of those users would want to put this option in
 These options override the \f[B]BC_PROMPT\f[R] and \f[B]BC_TTY_MODE\f[R]
 environment variables (see the \f[B]ENVIRONMENT VARIABLES\f[R] section).
 .PP
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .RE
 .TP
-\f[B]-q\f[R], \f[B]--quiet\f[R]
+\f[B]\-q\f[R], \f[B]\-\-quiet\f[R]
 This option is for compatibility with the GNU bc(1)
-(https://www.gnu.org/software/bc/); it is a no-op.
+(https://www.gnu.org/software/bc/); it is a no\-op.
 Without this option, GNU bc(1) prints a copyright header.
 This bc(1) only prints the copyright header if one or more of the
-\f[B]-v\f[R], \f[B]-V\f[R], or \f[B]--version\f[R] options are given
+\f[B]\-v\f[R], \f[B]\-V\f[R], or \f[B]\-\-version\f[R] options are given
 unless the \f[B]BC_BANNER\f[R] environment variable is set and contains
-a non-zero integer or if this bc(1) was built with the header displayed
+a non\-zero integer or if this bc(1) was built with the header displayed
 by default.
 If \f[I]any\f[R] of that is the case, then this option \f[I]does\f[R]
 prevent bc(1) from printing the header.
 .RS
 .PP
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .RE
 .TP
-\f[B]-R\f[R], \f[B]--no-read-prompt\f[R]
+\f[B]\-R\f[R], \f[B]\-\-no\-read\-prompt\f[R]
 Disables the read prompt in TTY mode.
 (The read prompt is only enabled in TTY mode.
 See the \f[B]TTY MODE\f[R] section.)
@@ -354,16 +355,16 @@ prompt for user input.
 .RS
 .PP
 This option does not disable the regular prompt because the read prompt
-is only used when the \f[B]read()\f[R] built-in function is called.
+is only used when the \f[B]read()\f[R] built\-in function is called.
 .PP
 These options \f[I]do\f[R] override the \f[B]BC_PROMPT\f[R] and
 \f[B]BC_TTY_MODE\f[R] environment variables (see the \f[B]ENVIRONMENT
 VARIABLES\f[R] section), but only for the read prompt.
 .PP
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .RE
 .TP
-\f[B]-r\f[R] \f[I]keyword\f[R], \f[B]--redefine\f[R]=\f[I]keyword\f[R]
+\f[B]\-r\f[R] \f[I]keyword\f[R], \f[B]\-\-redefine\f[R]=\f[I]keyword\f[R]
 Redefines \f[I]keyword\f[R] in order to allow it to be used as a
 function, variable, or array name.
 This is useful when this bc(1) gives parse errors when parsing scripts
@@ -424,7 +425,7 @@ It is a fatal error to attempt to redefine words that this bc(1) does
 not reserve as keywords.
 .RE
 .TP
-\f[B]-S\f[R] \f[I]scale\f[R], \f[B]--scale\f[R]=\f[I]scale\f[R]
+\f[B]\-S\f[R] \f[I]scale\f[R], \f[B]\-\-scale\f[R]=\f[I]scale\f[R]
 Sets the builtin variable \f[B]scale\f[R] to the value \f[I]scale\f[R]
 assuming that \f[I]scale\f[R] is in base 10.
 It is a fatal error if \f[I]scale\f[R] is not a valid number.
@@ -432,35 +433,35 @@ It is a fatal error if \f[I]scale\f[R] is not a valid number.
 .PP
 If multiple instances of this option are given, the last is used.
 .PP
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .RE
 .TP
-\f[B]-s\f[R], \f[B]--standard\f[R]
+\f[B]\-s\f[R], \f[B]\-\-standard\f[R]
 Process exactly the language defined by the standard (see the
 \f[B]STANDARDS\f[R] section) and error if any extensions are used.
 .RS
 .PP
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .RE
 .TP
-\f[B]-v\f[R], \f[B]-V\f[R], \f[B]--version\f[R]
+\f[B]\-v\f[R], \f[B]\-V\f[R], \f[B]\-\-version\f[R]
 Print the version information (copyright header) and exits.
 .RS
 .PP
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .RE
 .TP
-\f[B]-w\f[R], \f[B]--warn\f[R]
-Like \f[B]-s\f[R] and \f[B]--standard\f[R], except that warnings (and
-not errors) are printed for non-standard extensions and execution
+\f[B]\-w\f[R], \f[B]\-\-warn\f[R]
+Like \f[B]\-s\f[R] and \f[B]\-\-standard\f[R], except that warnings (and
+not errors) are printed for non\-standard extensions and execution
 continues normally.
 .RS
 .PP
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .RE
 .TP
-\f[B]-z\f[R], \f[B]--leading-zeroes\f[R]
-Makes bc(1) print all numbers greater than \f[B]-1\f[R] and less than
+\f[B]\-z\f[R], \f[B]\-\-leading\-zeroes\f[R]
+Makes bc(1) print all numbers greater than \f[B]\-1\f[R] and less than
 \f[B]1\f[R], and not equal to \f[B]0\f[R], with a leading zero.
 .RS
 .PP
@@ -468,14 +469,14 @@ This can be set for individual numbers with the \f[B]plz(x)\f[R],
 \f[B]plznl(x)\f[R], \f[B]pnlz(x)\f[R], and \f[B]pnlznl(x)\f[R] functions
 in the extended math library (see the \f[B]LIBRARY\f[R] section).
 .PP
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .RE
 .PP
-All long options are \f[B]non-portable extensions\f[R].
+All long options are \f[B]non\-portable extensions\f[R].
 .SH STDIN
-If no files or expressions are given by the \f[B]-f\f[R],
-\f[B]--file\f[R], \f[B]-e\f[R], or \f[B]--expression\f[R] options, then
-bc(1) reads from \f[B]stdin\f[R].
+If no files or expressions are given by the \f[B]\-f\f[R],
+\f[B]\-\-file\f[R], \f[B]\-e\f[R], or \f[B]\-\-expression\f[R] options,
+then bc(1) reads from \f[B]stdin\f[R].
 .PP
 However, there are a few caveats to this.
 .PP
@@ -489,7 +490,7 @@ Second, after an \f[B]if\f[R] statement, bc(1) doesn\[cq]t know if an
 \f[B]else\f[R] statement will follow, so it will not execute until it
 knows there will not be an \f[B]else\f[R] statement.
 .SH STDOUT
-Any non-error output is written to \f[B]stdout\f[R].
+Any non\-error output is written to \f[B]stdout\f[R].
 In addition, if history (see the \f[B]HISTORY\f[R] section) and the
 prompt (see the \f[B]TTY MODE\f[R] section) are enabled, both are output
 to \f[B]stdout\f[R].
@@ -497,7 +498,7 @@ to \f[B]stdout\f[R].
 \f[B]Note\f[R]: Unlike other bc(1) implementations, this bc(1) will
 issue a fatal error (see the \f[B]EXIT STATUS\f[R] section) if it cannot
 write to \f[B]stdout\f[R], so if \f[B]stdout\f[R] is closed, as in
-\f[B]bc  >&-\f[R], it will quit with an error.
+\f[B]bc  >&\-\f[R], it will quit with an error.
 This is done so that bc(1) can report problems when \f[B]stdout\f[R] is
 redirected to a file.
 .PP
@@ -510,7 +511,7 @@ Any error output is written to \f[B]stderr\f[R].
 \f[B]Note\f[R]: Unlike other bc(1) implementations, this bc(1) will
 issue a fatal error (see the \f[B]EXIT STATUS\f[R] section) if it cannot
 write to \f[B]stderr\f[R], so if \f[B]stderr\f[R] is closed, as in
-\f[B]bc  2>&-\f[R], it will quit with an error.
+\f[B]bc  2>&\-\f[R], it will quit with an error.
 This is done so that bc(1) can exit with an error code when
 \f[B]stderr\f[R] is redirected to a file.
 .PP
@@ -518,7 +519,7 @@ If there are scripts that depend on the behavior of other bc(1)
 implementations, it is recommended that those scripts be changed to
 redirect \f[B]stderr\f[R] to \f[B]/dev/null\f[R].
 .SH SYNTAX
-The syntax for bc(1) programs is mostly C-like, with some differences.
+The syntax for bc(1) programs is mostly C\-like, with some differences.
 This bc(1) follows the POSIX standard (see the \f[B]STANDARDS\f[R]
 section), which is a much more thorough resource for the language this
 bc(1) accepts.
@@ -529,32 +530,32 @@ In the sections below, \f[B]E\f[R] means expression, \f[B]S\f[R] means
 statement, and \f[B]I\f[R] means identifier.
 .PP
 Identifiers (\f[B]I\f[R]) start with a lowercase letter and can be
-followed by any number (up to \f[B]BC_NAME_MAX-1\f[R]) of lowercase
-letters (\f[B]a-z\f[R]), digits (\f[B]0-9\f[R]), and underscores
+followed by any number (up to \f[B]BC_NAME_MAX\-1\f[R]) of lowercase
+letters (\f[B]a\-z\f[R]), digits (\f[B]0\-9\f[R]), and underscores
 (\f[B]_\f[R]).
-The regex is \f[B][a-z][a-z0-9_]*\f[R].
+The regex is \f[B][a\-z][a\-z0\-9_]*\f[R].
 Identifiers with more than one character (letter) are a
-\f[B]non-portable extension\f[R].
+\f[B]non\-portable extension\f[R].
 .PP
 \f[B]ibase\f[R] is a global variable determining how to interpret
 constant numbers.
 It is the \[lq]input\[rq] base, or the number base used for interpreting
 input numbers.
 \f[B]ibase\f[R] is initially \f[B]10\f[R].
-If the \f[B]-s\f[R] (\f[B]--standard\f[R]) and \f[B]-w\f[R]
-(\f[B]--warn\f[R]) flags were not given on the command line, the max
+If the \f[B]\-s\f[R] (\f[B]\-\-standard\f[R]) and \f[B]\-w\f[R]
+(\f[B]\-\-warn\f[R]) flags were not given on the command line, the max
 allowable value for \f[B]ibase\f[R] is \f[B]36\f[R].
 Otherwise, it is \f[B]16\f[R].
 The min allowable value for \f[B]ibase\f[R] is \f[B]2\f[R].
 The max allowable value for \f[B]ibase\f[R] can be queried in bc(1)
-programs with the \f[B]maxibase()\f[R] built-in function.
+programs with the \f[B]maxibase()\f[R] built\-in function.
 .PP
 \f[B]obase\f[R] is a global variable determining how to output results.
 It is the \[lq]output\[rq] base, or the number base used for outputting
 numbers.
 \f[B]obase\f[R] is initially \f[B]10\f[R].
 The max allowable value for \f[B]obase\f[R] is \f[B]BC_BASE_MAX\f[R] and
-can be queried in bc(1) programs with the \f[B]maxobase()\f[R] built-in
+can be queried in bc(1) programs with the \f[B]maxobase()\f[R] built\-in
 function.
 The min allowable value for \f[B]obase\f[R] is \f[B]0\f[R].
 If \f[B]obase\f[R] is \f[B]0\f[R], values are output in scientific
@@ -562,8 +563,8 @@ notation, and if \f[B]obase\f[R] is \f[B]1\f[R], values are output in
 engineering notation.
 Otherwise, values are output in the specified base.
 .PP
-Outputting in scientific and engineering notations are \f[B]non-portable
-extensions\f[R].
+Outputting in scientific and engineering notations are
+\f[B]non\-portable extensions\f[R].
 .PP
 The \f[I]scale\f[R] of an expression is the number of digits in the
 result of the expression right of the decimal point, and \f[B]scale\f[R]
@@ -573,7 +574,7 @@ exceptions.
 \f[B]scale\f[R] cannot be negative.
 The max allowable value for \f[B]scale\f[R] is \f[B]BC_SCALE_MAX\f[R]
 and can be queried in bc(1) programs with the \f[B]maxscale()\f[R]
-built-in function.
+built\-in function.
 .PP
 bc(1) has both \f[I]global\f[R] variables and \f[I]local\f[R] variables.
 All \f[I]local\f[R] variables are local to the function; they are
@@ -598,7 +599,7 @@ The value that is printed is also assigned to the special variable
 \f[B]last\f[R].
 A single dot (\f[B].\f[R]) may also be used as a synonym for
 \f[B]last\f[R].
-These are \f[B]non-portable extensions\f[R].
+These are \f[B]non\-portable extensions\f[R].
 .PP
 Either semicolons or newlines may separate statements.
 .SS Comments
@@ -608,7 +609,7 @@ Block comments are enclosed in \f[B]/*\f[R] and \f[B]*/\f[R].
 .IP "2." 3
 Line comments go from \f[B]#\f[R] until, and not including, the next
 newline.
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .SS Named Expressions
 The following are named expressions in bc(1):
 .IP "1." 3
@@ -626,26 +627,26 @@ Array Elements: \f[B]I[E]\f[R]
 .IP "7." 3
 \f[B]last\f[R] or a single dot (\f[B].\f[R])
 .PP
-Numbers 6 and 7 are \f[B]non-portable extensions\f[R].
+Numbers 6 and 7 are \f[B]non\-portable extensions\f[R].
 .PP
-The meaning of \f[B]seed\f[R] is dependent on the current pseudo-random
+The meaning of \f[B]seed\f[R] is dependent on the current pseudo\-random
 number generator but is guaranteed to not change except for new major
 versions.
 .PP
 The \f[I]scale\f[R] and sign of the value may be significant.
 .PP
 If a previously used \f[B]seed\f[R] value is assigned to \f[B]seed\f[R]
-and used again, the pseudo-random number generator is guaranteed to
-produce the same sequence of pseudo-random numbers as it did when the
+and used again, the pseudo\-random number generator is guaranteed to
+produce the same sequence of pseudo\-random numbers as it did when the
 \f[B]seed\f[R] value was previously used.
 .PP
 The exact value assigned to \f[B]seed\f[R] is not guaranteed to be
 returned if \f[B]seed\f[R] is queried again immediately.
 However, if \f[B]seed\f[R] \f[I]does\f[R] return a different value, both
 values, when assigned to \f[B]seed\f[R], are guaranteed to produce the
-same sequence of pseudo-random numbers.
+same sequence of pseudo\-random numbers.
 This means that certain values assigned to \f[B]seed\f[R] will
-\f[I]not\f[R] produce unique sequences of pseudo-random numbers.
+\f[I]not\f[R] produce unique sequences of pseudo\-random numbers.
 The value of \f[B]seed\f[R] will change after any use of the
 \f[B]rand()\f[R] and \f[B]irand(E)\f[R] operands (see the
 \f[I]Operands\f[R] subsection below), except if the parameter passed to
@@ -675,61 +676,61 @@ Array indices (\f[B]I[E]\f[R]).
 \f[B](E)\f[R]: The value of \f[B]E\f[R] (used to change precedence).
 .IP " 4." 4
 \f[B]sqrt(E)\f[R]: The square root of \f[B]E\f[R].
-\f[B]E\f[R] must be non-negative.
+\f[B]E\f[R] must be non\-negative.
 .IP " 5." 4
 \f[B]length(E)\f[R]: The number of significant decimal digits in
 \f[B]E\f[R].
 Returns \f[B]1\f[R] for \f[B]0\f[R] with no decimal places.
 If given a string, the length of the string is returned.
-Passing a string to \f[B]length(E)\f[R] is a \f[B]non-portable
+Passing a string to \f[B]length(E)\f[R] is a \f[B]non\-portable
 extension\f[R].
 .IP " 6." 4
 \f[B]length(I[])\f[R]: The number of elements in the array \f[B]I\f[R].
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .IP " 7." 4
 \f[B]scale(E)\f[R]: The \f[I]scale\f[R] of \f[B]E\f[R].
 .IP " 8." 4
 \f[B]abs(E)\f[R]: The absolute value of \f[B]E\f[R].
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .IP " 9." 4
 \f[B]is_number(E)\f[R]: \f[B]1\f[R] if the given argument is a number,
 \f[B]0\f[R] if it is a string.
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .IP "10." 4
 \f[B]is_string(E)\f[R]: \f[B]1\f[R] if the given argument is a string,
 \f[B]0\f[R] if it is a number.
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .IP "11." 4
 \f[B]modexp(E, E, E)\f[R]: Modular exponentiation, where the first
 expression is the base, the second is the exponent, and the third is the
 modulus.
 All three values must be integers.
-The second argument must be non-negative.
-The third argument must be non-zero.
-This is a \f[B]non-portable extension\f[R].
+The second argument must be non\-negative.
+The third argument must be non\-zero.
+This is a \f[B]non\-portable extension\f[R].
 .IP "12." 4
 \f[B]divmod(E, E, I[])\f[R]: Division and modulus in one operation.
 This is for optimization.
 The first expression is the dividend, and the second is the divisor,
-which must be non-zero.
+which must be non\-zero.
 The return value is the quotient, and the modulus is stored in index
 \f[B]0\f[R] of the provided array (the last argument).
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .IP "13." 4
 \f[B]asciify(E)\f[R]: If \f[B]E\f[R] is a string, returns a string that
 is the first letter of its argument.
 If it is a number, calculates the number mod \f[B]256\f[R] and returns
-that number as a one-character string.
-This is a \f[B]non-portable extension\f[R].
+that number as a one\-character string.
+This is a \f[B]non\-portable extension\f[R].
 .IP "14." 4
 \f[B]asciify(I[])\f[R]: A string that is made up of the characters that
 would result from running \f[B]asciify(E)\f[R] on each element of the
 array identified by the argument.
-This allows creating multi-character strings and storing them.
-This is a \f[B]non-portable extension\f[R].
+This allows creating multi\-character strings and storing them.
+This is a \f[B]non\-portable extension\f[R].
 .IP "15." 4
 \f[B]I()\f[R], \f[B]I(E)\f[R], \f[B]I(E, E)\f[R], and so on, where
-\f[B]I\f[R] is an identifier for a non-\f[B]void\f[R] function (see the
+\f[B]I\f[R] is an identifier for a non\-\f[B]void\f[R] function (see the
 \f[I]Void Functions\f[R] subsection of the \f[B]FUNCTIONS\f[R] section).
 The \f[B]E\f[R] argument(s) may also be arrays of the form
 \f[B]I[]\f[R], which will automatically be turned into array references
@@ -741,47 +742,47 @@ function definition is an array reference.
 expression.
 The result of that expression is the result of the \f[B]read()\f[R]
 operand.
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .IP "17." 4
 \f[B]maxibase()\f[R]: The max allowable \f[B]ibase\f[R].
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .IP "18." 4
 \f[B]maxobase()\f[R]: The max allowable \f[B]obase\f[R].
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .IP "19." 4
 \f[B]maxscale()\f[R]: The max allowable \f[B]scale\f[R].
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .IP "20." 4
 \f[B]line_length()\f[R]: The line length set with
 \f[B]BC_LINE_LENGTH\f[R] (see the \f[B]ENVIRONMENT VARIABLES\f[R]
 section).
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .IP "21." 4
 \f[B]global_stacks()\f[R]: \f[B]0\f[R] if global stacks are not enabled
-with the \f[B]-g\f[R] or \f[B]--global-stacks\f[R] options, non-zero
-otherwise.
+with the \f[B]\-g\f[R] or \f[B]\-\-global\-stacks\f[R] options,
+non\-zero otherwise.
 See the \f[B]OPTIONS\f[R] section.
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .IP "22." 4
 \f[B]leading_zero()\f[R]: \f[B]0\f[R] if leading zeroes are not enabled
-with the \f[B]-z\f[R] or \f[B]\[en]leading-zeroes\f[R] options, non-zero
-otherwise.
+with the \f[B]\-z\f[R] or \f[B]\[en]leading\-zeroes\f[R] options,
+non\-zero otherwise.
 See the \f[B]OPTIONS\f[R] section.
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .IP "23." 4
-\f[B]rand()\f[R]: A pseudo-random integer between \f[B]0\f[R]
+\f[B]rand()\f[R]: A pseudo\-random integer between \f[B]0\f[R]
 (inclusive) and \f[B]BC_RAND_MAX\f[R] (inclusive).
 Using this operand will change the value of \f[B]seed\f[R].
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .IP "24." 4
-\f[B]irand(E)\f[R]: A pseudo-random integer between \f[B]0\f[R]
+\f[B]irand(E)\f[R]: A pseudo\-random integer between \f[B]0\f[R]
 (inclusive) and the value of \f[B]E\f[R] (exclusive).
-If \f[B]E\f[R] is negative or is a non-integer (\f[B]E\f[R]\[cq]s
+If \f[B]E\f[R] is negative or is a non\-integer (\f[B]E\f[R]\[cq]s
 \f[I]scale\f[R] is not \f[B]0\f[R]), an error is raised, and bc(1)
 resets (see the \f[B]RESET\f[R] section) while \f[B]seed\f[R] remains
 unchanged.
 If \f[B]E\f[R] is larger than \f[B]BC_RAND_MAX\f[R], the higher bound is
-honored by generating several pseudo-random integers, multiplying them
+honored by generating several pseudo\-random integers, multiplying them
 by appropriate powers of \f[B]BC_RAND_MAX+1\f[R], and adding them
 together.
 Thus, the size of integer that can be generated with this operand is
@@ -790,25 +791,25 @@ Using this operand will change the value of \f[B]seed\f[R], unless the
 value of \f[B]E\f[R] is \f[B]0\f[R] or \f[B]1\f[R].
 In that case, \f[B]0\f[R] is returned, and \f[B]seed\f[R] is
 \f[I]not\f[R] changed.
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .IP "25." 4
 \f[B]maxrand()\f[R]: The max integer returned by \f[B]rand()\f[R].
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .PP
 The integers generated by \f[B]rand()\f[R] and \f[B]irand(E)\f[R] are
 guaranteed to be as unbiased as possible, subject to the limitations of
-the pseudo-random number generator.
+the pseudo\-random number generator.
 .PP
-\f[B]Note\f[R]: The values returned by the pseudo-random number
+\f[B]Note\f[R]: The values returned by the pseudo\-random number
 generator with \f[B]rand()\f[R] and \f[B]irand(E)\f[R] are guaranteed to
 \f[I]NOT\f[R] be cryptographically secure.
-This is a consequence of using a seeded pseudo-random number generator.
+This is a consequence of using a seeded pseudo\-random number generator.
 However, they \f[I]are\f[R] guaranteed to be reproducible with identical
 \f[B]seed\f[R] values.
-This means that the pseudo-random values from bc(1) should only be used
-where a reproducible stream of pseudo-random numbers is
+This means that the pseudo\-random values from bc(1) should only be used
+where a reproducible stream of pseudo\-random numbers is
 \f[I]ESSENTIAL\f[R].
-In any other case, use a non-seeded pseudo-random number generator.
+In any other case, use a non\-seeded pseudo\-random number generator.
 .SS Numbers
 Numbers are strings made up of digits, uppercase letters, and at most
 \f[B]1\f[R] period for a radix.
@@ -820,12 +821,12 @@ alphabet, starting from \f[B]1\f[R] (i.e., \f[B]A\f[R] equals
 If a digit or letter makes no sense with the current value of
 \f[B]ibase\f[R] (i.e., they are greater than or equal to the current
 value of \f[B]ibase\f[R]), then the behavior depends on the existence of
-the \f[B]-c\f[R]/\f[B]--digit-clamp\f[R] or
-\f[B]-C\f[R]/\f[B]--no-digit-clamp\f[R] options (see the
+the \f[B]\-c\f[R]/\f[B]\-\-digit\-clamp\f[R] or
+\f[B]\-C\f[R]/\f[B]\-\-no\-digit\-clamp\f[R] options (see the
 \f[B]OPTIONS\f[R] section), the existence and setting of the
 \f[B]BC_DIGIT_CLAMP\f[R] environment variable (see the \f[B]ENVIRONMENT
 VARIABLES\f[R] section), or the default, which can be queried with the
-\f[B]-h\f[R]/\f[B]--help\f[R] option.
+\f[B]\-h\f[R]/\f[B]\-\-help\f[R] option.
 .PP
 If clamping is off, then digits or letters that are greater than or
 equal to the current value of \f[B]ibase\f[R] are not changed.
@@ -843,7 +844,7 @@ This means that, with an \f[B]ibase\f[R] of \f[B]3\f[R], the number
 \f[B]AB\f[R] is equal to \f[B]3\[ha]1*2+3\[ha]0*2\f[R], which is
 \f[B]3\f[R] times \f[B]2\f[R] plus \f[B]2\f[R], or \f[B]8\f[R].
 .PP
-There is one exception to clamping: single-character numbers (i.e.,
+There is one exception to clamping: single\-character numbers (i.e.,
 \f[B]A\f[R] alone).
 Such numbers are never clamped and always take the value they would have
 in the highest possible \f[B]ibase\f[R].
@@ -862,11 +863,11 @@ These have the form \f[B]<number>e<integer>\f[R].
 The exponent (the portion after the \f[B]e\f[R]) must be an integer.
 An example is \f[B]1.89237e9\f[R], which is equal to
 \f[B]1892370000\f[R].
-Negative exponents are also allowed, so \f[B]4.2890e-3\f[R] is equal to
+Negative exponents are also allowed, so \f[B]4.2890e\-3\f[R] is equal to
 \f[B]0.0042890\f[R].
 .PP
-Using scientific notation is an error or warning if the \f[B]-s\f[R] or
-\f[B]-w\f[R], respectively, command-line options (or equivalents) are
+Using scientific notation is an error or warning if the \f[B]\-s\f[R] or
+\f[B]\-w\f[R], respectively, command\-line options (or equivalents) are
 given.
 .PP
 \f[B]WARNING\f[R]: Both the number and the exponent in scientific
@@ -876,16 +877,16 @@ of the current \f[B]ibase\f[R].
 For example, if \f[B]ibase\f[R] is \f[B]16\f[R] and bc(1) is given the
 number string \f[B]FFeA\f[R], the resulting decimal number will be
 \f[B]2550000000000\f[R], and if bc(1) is given the number string
-\f[B]10e-4\f[R], the resulting decimal number will be \f[B]0.0016\f[R].
+\f[B]10e\-4\f[R], the resulting decimal number will be \f[B]0.0016\f[R].
 .PP
-Accepting input as scientific notation is a \f[B]non-portable
+Accepting input as scientific notation is a \f[B]non\-portable
 extension\f[R].
 .SS Operators
 The following arithmetic and logical operators can be used.
 They are listed in order of decreasing precedence.
 Operators in the same group have the same precedence.
 .TP
-\f[B]++\f[R] \f[B]--\f[R]
+\f[B]++\f[R] \f[B]\-\-\f[R]
 Type: Prefix and Postfix
 .RS
 .PP
@@ -894,7 +895,7 @@ Associativity: None
 Description: \f[B]increment\f[R], \f[B]decrement\f[R]
 .RE
 .TP
-\f[B]-\f[R] \f[B]!\f[R]
+\f[B]\-\f[R] \f[B]!\f[R]
 Type: Prefix
 .RS
 .PP
@@ -939,7 +940,7 @@ Associativity: Left
 Description: \f[B]multiply\f[R], \f[B]divide\f[R], \f[B]modulus\f[R]
 .RE
 .TP
-\f[B]+\f[R] \f[B]-\f[R]
+\f[B]+\f[R] \f[B]\-\f[R]
 Type: Binary
 .RS
 .PP
@@ -957,7 +958,7 @@ Associativity: Left
 Description: \f[B]shift left\f[R], \f[B]shift right\f[R]
 .RE
 .TP
-\f[B]=\f[R] \f[B]<<=\f[R] \f[B]>>=\f[R] \f[B]+=\f[R] \f[B]-=\f[R] \f[B]*=\f[R] \f[B]/=\f[R] \f[B]%=\f[R] \f[B]\[ha]=\f[R] \f[B]\[at]=\f[R]
+\f[B]=\f[R] \f[B]<<=\f[R] \f[B]>>=\f[R] \f[B]+=\f[R] \f[B]\-=\f[R] \f[B]*=\f[R] \f[B]/=\f[R] \f[B]%=\f[R] \f[B]\[ha]=\f[R] \f[B]\[at]=\f[R]
 Type: Binary
 .RS
 .PP
@@ -995,7 +996,7 @@ Description: \f[B]boolean or\f[R]
 .PP
 The operators will be described in more detail below.
 .TP
-\f[B]++\f[R] \f[B]--\f[R]
+\f[B]++\f[R] \f[B]\-\-\f[R]
 The prefix and postfix \f[B]increment\f[R] and \f[B]decrement\f[R]
 operators behave exactly like they would in C. They require a named
 expression (see the \f[I]Named Expressions\f[R] subsection) as an
@@ -1006,7 +1007,7 @@ The prefix versions of these operators are more efficient; use them
 where possible.
 .RE
 .TP
-\f[B]-\f[R]
+\f[B]\-\f[R]
 The \f[B]negation\f[R] operator returns \f[B]0\f[R] if a user attempts
 to negate any expression with the value \f[B]0\f[R].
 Otherwise, a copy of the expression with its sign flipped is returned.
@@ -1016,7 +1017,11 @@ The \f[B]boolean not\f[R] operator returns \f[B]1\f[R] if the expression
 is \f[B]0\f[R], or \f[B]0\f[R] otherwise.
 .RS
 .PP
-This is a \f[B]non-portable extension\f[R].
+\f[B]Warning\f[R]: This operator has a \f[B]different precedence\f[R]
+than the equivalent operator in GNU bc(1) and other bc(1)
+implementations!
+.PP
+This is a \f[B]non\-portable extension\f[R].
 .RE
 .TP
 \f[B]$\f[R]
@@ -1024,7 +1029,7 @@ The \f[B]truncation\f[R] operator returns a copy of the given expression
 with all of its \f[I]scale\f[R] removed.
 .RS
 .PP
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .RE
 .TP
 \f[B]\[at]\f[R]
@@ -1038,9 +1043,9 @@ more).
 .RS
 .PP
 The second expression must be an integer (no \f[I]scale\f[R]) and
-non-negative.
+non\-negative.
 .PP
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .RE
 .TP
 \f[B]\[ha]\f[R]
@@ -1051,7 +1056,7 @@ The \f[I]scale\f[R] of the result is equal to \f[B]scale\f[R].
 .RS
 .PP
 The second expression must be an integer (no \f[I]scale\f[R]), and if it
-is negative, the first value must be non-zero.
+is negative, the first value must be non\-zero.
 .RE
 .TP
 \f[B]*\f[R]
@@ -1069,18 +1074,18 @@ returns the quotient.
 The \f[I]scale\f[R] of the result shall be the value of \f[B]scale\f[R].
 .RS
 .PP
-The second expression must be non-zero.
+The second expression must be non\-zero.
 .RE
 .TP
 \f[B]%\f[R]
 The \f[B]modulus\f[R] operator takes two expressions, \f[B]a\f[R] and
 \f[B]b\f[R], and evaluates them by 1) Computing \f[B]a/b\f[R] to current
 \f[B]scale\f[R] and 2) Using the result of step 1 to calculate
-\f[B]a-(a/b)*b\f[R] to \f[I]scale\f[R]
+\f[B]a\-(a/b)*b\f[R] to \f[I]scale\f[R]
 \f[B]max(scale+scale(b),scale(a))\f[R].
 .RS
 .PP
-The second expression must be non-zero.
+The second expression must be non\-zero.
 .RE
 .TP
 \f[B]+\f[R]
@@ -1088,7 +1093,7 @@ The \f[B]add\f[R] operator takes two expressions, \f[B]a\f[R] and
 \f[B]b\f[R], and returns the sum, with a \f[I]scale\f[R] equal to the
 max of the \f[I]scale\f[R]s of \f[B]a\f[R] and \f[B]b\f[R].
 .TP
-\f[B]-\f[R]
+\f[B]\-\f[R]
 The \f[B]subtract\f[R] operator takes two expressions, \f[B]a\f[R] and
 \f[B]b\f[R], and returns the difference, with a \f[I]scale\f[R] equal to
 the max of the \f[I]scale\f[R]s of \f[B]a\f[R] and \f[B]b\f[R].
@@ -1100,9 +1105,9 @@ decimal point moved \f[B]b\f[R] places to the right.
 .RS
 .PP
 The second expression must be an integer (no \f[I]scale\f[R]) and
-non-negative.
+non\-negative.
 .PP
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .RE
 .TP
 \f[B]>>\f[R]
@@ -1112,12 +1117,12 @@ decimal point moved \f[B]b\f[R] places to the left.
 .RS
 .PP
 The second expression must be an integer (no \f[I]scale\f[R]) and
-non-negative.
+non\-negative.
 .PP
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .RE
 .TP
-\f[B]=\f[R] \f[B]<<=\f[R] \f[B]>>=\f[R] \f[B]+=\f[R] \f[B]-=\f[R] \f[B]*=\f[R] \f[B]/=\f[R] \f[B]%=\f[R] \f[B]\[ha]=\f[R] \f[B]\[at]=\f[R]
+\f[B]=\f[R] \f[B]<<=\f[R] \f[B]>>=\f[R] \f[B]+=\f[R] \f[B]\-=\f[R] \f[B]*=\f[R] \f[B]/=\f[R] \f[B]%=\f[R] \f[B]\[ha]=\f[R] \f[B]\[at]=\f[R]
 The \f[B]assignment\f[R] operators take two expressions, \f[B]a\f[R] and
 \f[B]b\f[R] where \f[B]a\f[R] is a named expression (see the \f[I]Named
 Expressions\f[R] subsection).
@@ -1130,7 +1135,7 @@ the corresponding arithmetic operator and the result is assigned to
 \f[B]a\f[R].
 .PP
 The \f[B]assignment\f[R] operators that correspond to operators that are
-extensions are themselves \f[B]non-portable extensions\f[R].
+extensions are themselves \f[B]non\-portable extensions\f[R].
 .RE
 .TP
 \f[B]==\f[R] \f[B]<=\f[R] \f[B]>=\f[R] \f[B]!=\f[R] \f[B]<\f[R] \f[B]>\f[R]
@@ -1147,28 +1152,28 @@ interpreted as \f[B](a=b)>c\f[R].
 Also, unlike the standard (see the \f[B]STANDARDS\f[R] section)
 requires, these operators can appear anywhere any other expressions can
 be used.
-This allowance is a \f[B]non-portable extension\f[R].
+This allowance is a \f[B]non\-portable extension\f[R].
 .RE
 .TP
 \f[B]&&\f[R]
 The \f[B]boolean and\f[R] operator takes two expressions and returns
-\f[B]1\f[R] if both expressions are non-zero, \f[B]0\f[R] otherwise.
+\f[B]1\f[R] if both expressions are non\-zero, \f[B]0\f[R] otherwise.
 .RS
 .PP
-This is \f[I]not\f[R] a short-circuit operator.
+This is \f[I]not\f[R] a short\-circuit operator.
 .PP
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .RE
 .TP
 \f[B]||\f[R]
 The \f[B]boolean or\f[R] operator takes two expressions and returns
-\f[B]1\f[R] if one of the expressions is non-zero, \f[B]0\f[R]
+\f[B]1\f[R] if one of the expressions is non\-zero, \f[B]0\f[R]
 otherwise.
 .RS
 .PP
-This is \f[I]not\f[R] a short-circuit operator.
+This is \f[I]not\f[R] a short\-circuit operator.
 .PP
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .RE
 .SS Statements
 The following items are statements:
@@ -1217,10 +1222,10 @@ The \f[B]E\f[R] argument(s) may also be arrays of the form
 \f[B]FUNCTIONS\f[R] section) if the corresponding parameter in the
 function definition is an array reference.
 .PP
-Numbers 4, 9, 11, 12, 14, 15, and 16 are \f[B]non-portable
+Numbers 4, 9, 11, 12, 14, 15, and 16 are \f[B]non\-portable
 extensions\f[R].
 .PP
-Also, as a \f[B]non-portable extension\f[R], any or all of the
+Also, as a \f[B]non\-portable extension\f[R], any or all of the
 expressions in the header of a for loop may be omitted.
 If the condition (second expression) is omitted, it is assumed to be a
 constant \f[B]1\f[R].
@@ -1237,7 +1242,7 @@ This is only allowed in loops.
 The \f[B]if\f[R] \f[B]else\f[R] statement does the same thing as in C.
 .PP
 The \f[B]quit\f[R] statement causes bc(1) to quit, even if it is on a
-branch that will not be executed (it is a compile-time command).
+branch that will not be executed (it is a compile\-time command).
 .PP
 \f[B]Warning\f[R]: The behavior of this bc(1) on \f[B]quit\f[R] is
 slightly different from other bc(1) implementations.
@@ -1262,7 +1267,7 @@ that is not executed, bc(1) does not quit.)
 .PP
 The \f[B]limits\f[R] statement prints the limits that this bc(1) is
 subject to.
-This is like the \f[B]quit\f[R] statement in that it is a compile-time
+This is like the \f[B]quit\f[R] statement in that it is a compile\-time
 command.
 .PP
 An expression by itself is evaluated and printed, followed by a newline.
@@ -1275,11 +1280,11 @@ Scientific notation is activated by assigning \f[B]0\f[R] to
 To deactivate them, just assign a different value to \f[B]obase\f[R].
 .PP
 Scientific notation and engineering notation are disabled if bc(1) is
-run with either the \f[B]-s\f[R] or \f[B]-w\f[R] command-line options
+run with either the \f[B]\-s\f[R] or \f[B]\-w\f[R] command\-line options
 (or equivalents).
 .PP
 Printing numbers in scientific notation and/or engineering notation is a
-\f[B]non-portable extension\f[R].
+\f[B]non\-portable extension\f[R].
 .SS Strings
 If strings appear as a statement by themselves, they are printed without
 a trailing newline.
@@ -1297,7 +1302,7 @@ element that has been assigned a string, an error is raised, and bc(1)
 resets (see the \f[B]RESET\f[R] section).
 .PP
 Assigning strings to variables and array elements and passing them to
-functions are \f[B]non-portable extensions\f[R].
+functions are \f[B]non\-portable extensions\f[R].
 .SS Print Statement
 The \[lq]expressions\[rq] in a \f[B]print\f[R] statement may also be
 strings.
@@ -1325,9 +1330,9 @@ below:
 \f[B]\[rs]t\f[R]: \f[B]\[rs]t\f[R]
 .PP
 Any other character following a backslash causes the backslash and
-character to be printed as-is.
+character to be printed as\-is.
 .PP
-Any non-string expression in a print statement shall be assigned to
+Any non\-string expression in a print statement shall be assigned to
 \f[B]last\f[R], like any other expression that is printed.
 .SS Stream Statement
 The expressions in a \f[B]stream\f[R] statement may also be strings.
@@ -1340,7 +1345,7 @@ without a newline.
 If a \f[B]stream\f[R] statement is given a number, a copy of it is
 truncated and its absolute value is calculated.
 The result is then printed as though \f[B]obase\f[R] is \f[B]256\f[R]
-and each digit is interpreted as an 8-bit ASCII character, making it a
+and each digit is interpreted as an 8\-bit ASCII character, making it a
 byte stream.
 .SS Order of Evaluation
 All expressions in a statment are evaluated left to right, except as
@@ -1386,10 +1391,10 @@ asterisk in the call; they must be called with just \f[B]I[]\f[R] like
 normal array parameters and will be automatically converted into
 references.
 .PP
-As a \f[B]non-portable extension\f[R], the opening brace of a
+As a \f[B]non\-portable extension\f[R], the opening brace of a
 \f[B]define\f[R] statement may appear on the next line.
 .PP
-As a \f[B]non-portable extension\f[R], the return statement may also be
+As a \f[B]non\-portable extension\f[R], the return statement may also be
 in one of the following forms:
 .IP "1." 3
 \f[B]return\f[R]
@@ -1425,7 +1430,7 @@ possible to have variables, arrays, and functions named \f[B]void\f[R].
 The word \[lq]void\[rq] is only treated specially right after the
 \f[B]define\f[R] keyword.
 .PP
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .SS Array References
 For any array in the parameter list, if the array is declared in the
 form
@@ -1440,13 +1445,13 @@ function returns, to the array that was passed in.
 .PP
 Other than this, all function arguments are passed by value.
 .PP
-This is a \f[B]non-portable extension\f[R].
+This is a \f[B]non\-portable extension\f[R].
 .SH LIBRARY
 All of the functions below, including the functions in the extended math
 library (see the \f[I]Extended Library\f[R] subsection below), are
-available when the \f[B]-l\f[R] or \f[B]--mathlib\f[R] command-line
+available when the \f[B]\-l\f[R] or \f[B]\-\-mathlib\f[R] command\-line
 flags are given, except that the extended math library is not available
-when the \f[B]-s\f[R] option, the \f[B]-w\f[R] option, or equivalents
+when the \f[B]\-s\f[R] option, the \f[B]\-w\f[R] option, or equivalents
 are given.
 .SS Standard Library
 The standard (see the \f[B]STANDARDS\f[R] section) defines the following
@@ -1502,11 +1507,11 @@ Functions\f[R] subsection below).
 .RE
 .SS Extended Library
 The extended library is \f[I]not\f[R] loaded when the
-\f[B]-s\f[R]/\f[B]--standard\f[R] or \f[B]-w\f[R]/\f[B]--warn\f[R]
+\f[B]\-s\f[R]/\f[B]\-\-standard\f[R] or \f[B]\-w\f[R]/\f[B]\-\-warn\f[R]
 options are given since they are not part of the library defined by the
 standard (see the \f[B]STANDARDS\f[R] section).
 .PP
-The extended library is a \f[B]non-portable extension\f[R].
+The extended library is a \f[B]non\-portable extension\f[R].
 .TP
 \f[B]p(x, y)\f[R]
 Calculates \f[B]x\f[R] to the power of \f[B]y\f[R], even if \f[B]y\f[R]
@@ -1627,11 +1632,11 @@ Otherwise, if \f[B]x\f[R] is greater than \f[B]0\f[R], it returns
 If \f[B]x\f[R] is less than \f[B]0\f[R], and \f[B]y\f[R] is greater than
 or equal to \f[B]0\f[R], it returns \f[B]a(y/x)+pi\f[R].
 If \f[B]x\f[R] is less than \f[B]0\f[R], and \f[B]y\f[R] is less than
-\f[B]0\f[R], it returns \f[B]a(y/x)-pi\f[R].
+\f[B]0\f[R], it returns \f[B]a(y/x)\-pi\f[R].
 If \f[B]x\f[R] is equal to \f[B]0\f[R], and \f[B]y\f[R] is greater than
 \f[B]0\f[R], it returns \f[B]pi/2\f[R].
 If \f[B]x\f[R] is equal to \f[B]0\f[R], and \f[B]y\f[R] is less than
-\f[B]0\f[R], it returns \f[B]-pi/2\f[R].
+\f[B]0\f[R], it returns \f[B]\-pi/2\f[R].
 .RS
 .PP
 This function is the same as the \f[B]atan2()\f[R] function in many
@@ -1665,7 +1670,7 @@ Functions\f[R] subsection below).
 Returns the tangent of \f[B]x\f[R], which is assumed to be in radians.
 .RS
 .PP
-If \f[B]x\f[R] is equal to \f[B]1\f[R] or \f[B]-1\f[R], this raises an
+If \f[B]x\f[R] is equal to \f[B]1\f[R] or \f[B]\-1\f[R], this raises an
 error and causes bc(1) to reset (see the \f[B]RESET\f[R] section).
 .PP
 This is an alias of \f[B]t(x)\f[R].
@@ -1693,11 +1698,11 @@ Otherwise, if \f[B]x\f[R] is greater than \f[B]0\f[R], it returns
 If \f[B]x\f[R] is less than \f[B]0\f[R], and \f[B]y\f[R] is greater than
 or equal to \f[B]0\f[R], it returns \f[B]a(y/x)+pi\f[R].
 If \f[B]x\f[R] is less than \f[B]0\f[R], and \f[B]y\f[R] is less than
-\f[B]0\f[R], it returns \f[B]a(y/x)-pi\f[R].
+\f[B]0\f[R], it returns \f[B]a(y/x)\-pi\f[R].
 If \f[B]x\f[R] is equal to \f[B]0\f[R], and \f[B]y\f[R] is greater than
 \f[B]0\f[R], it returns \f[B]pi/2\f[R].
 If \f[B]x\f[R] is equal to \f[B]0\f[R], and \f[B]y\f[R] is less than
-\f[B]0\f[R], it returns \f[B]-pi/2\f[R].
+\f[B]0\f[R], it returns \f[B]\-pi/2\f[R].
 .RS
 .PP
 This function is the same as the \f[B]atan2()\f[R] function in many
@@ -1726,7 +1731,7 @@ Functions\f[R] subsection below).
 .RE
 .TP
 \f[B]frand(p)\f[R]
-Generates a pseudo-random integer between \f[B]0\f[R] (inclusive) and
+Generates a pseudo\-random integer between \f[B]0\f[R] (inclusive) and
 \f[B]1\f[R] (exclusive) with the number of decimal digits after the
 decimal point equal to the truncated absolute value of \f[B]p\f[R].
 If \f[B]p\f[R] is not \f[B]0\f[R], then calling this function will
@@ -1735,7 +1740,7 @@ If \f[B]p\f[R] is \f[B]0\f[R], then \f[B]0\f[R] is returned, and
 \f[B]seed\f[R] is \f[I]not\f[R] changed.
 .TP
 \f[B]ifrand(i, p)\f[R]
-Generates a pseudo-random integer that is between \f[B]0\f[R]
+Generates a pseudo\-random integer that is between \f[B]0\f[R]
 (inclusive) and the truncated absolute value of \f[B]i\f[R] (exclusive)
 with the number of decimal digits after the decimal point equal to the
 truncated absolute value of \f[B]p\f[R].
@@ -1746,7 +1751,7 @@ is returned, and \f[B]seed\f[R] is not changed.
 .TP
 \f[B]i2rand(a, b)\f[R]
 Takes the truncated value of \f[B]a\f[R] and \f[B]b\f[R] and uses them
-as inclusive bounds to enerate a pseudo-random integer.
+as inclusive bounds to enerate a pseudo\-random integer.
 If the difference of the truncated values of \f[B]a\f[R] and \f[B]b\f[R]
 is \f[B]0\f[R], then the truncated value is returned, and \f[B]seed\f[R]
 is \f[I]not\f[R] changed.
@@ -1792,8 +1797,8 @@ If you want to use signed two\[cq]s complement arguments, use
 .TP
 \f[B]bshl(a, b)\f[R]
 Takes the truncated absolute value of both \f[B]a\f[R] and \f[B]b\f[R]
-and calculates and returns the result of \f[B]a\f[R] bit-shifted left by
-\f[B]b\f[R] places.
+and calculates and returns the result of \f[B]a\f[R] bit\-shifted left
+by \f[B]b\f[R] places.
 .RS
 .PP
 If you want to use signed two\[cq]s complement arguments, use
@@ -1803,7 +1808,7 @@ If you want to use signed two\[cq]s complement arguments, use
 \f[B]bshr(a, b)\f[R]
 Takes the truncated absolute value of both \f[B]a\f[R] and \f[B]b\f[R]
 and calculates and returns the truncated result of \f[B]a\f[R]
-bit-shifted right by \f[B]b\f[R] places.
+bit\-shifted right by \f[B]b\f[R] places.
 .RS
 .PP
 If you want to use signed two\[cq]s complement arguments, use
@@ -1867,7 +1872,7 @@ If you want to a use signed two\[cq]s complement argument, use
 .TP
 \f[B]brevn(x, n)\f[R]
 Runs a bit reversal on the truncated absolute value of \f[B]x\f[R] as
-though it has the same number of 8-bit bytes as the truncated absolute
+though it has the same number of 8\-bit bytes as the truncated absolute
 value of \f[B]n\f[R].
 .RS
 .PP
@@ -1922,11 +1927,11 @@ If you want to a use signed two\[cq]s complement argument, use
 .TP
 \f[B]broln(x, p, n)\f[R]
 Does a left bitwise rotatation of the truncated absolute value of
-\f[B]x\f[R], as though it has the same number of unsigned 8-bit bytes as
-the truncated absolute value of \f[B]n\f[R], by the number of places
+\f[B]x\f[R], as though it has the same number of unsigned 8\-bit bytes
+as the truncated absolute value of \f[B]n\f[R], by the number of places
 equal to the truncated absolute value of \f[B]p\f[R] modded by the
 \f[B]2\f[R] to the power of the number of binary digits in \f[B]n\f[R]
-8-bit bytes.
+8\-bit bytes.
 .RS
 .PP
 If you want to a use signed two\[cq]s complement argument, use
@@ -1980,9 +1985,9 @@ If you want to a use signed two\[cq]s complement argument, use
 \f[B]brol(x, p)\f[R]
 Does a left bitwise rotatation of the truncated absolute value of
 \f[B]x\f[R], as though it has the minimum number of power of two
-unsigned 8-bit bytes, by the number of places equal to the truncated
+unsigned 8\-bit bytes, by the number of places equal to the truncated
 absolute value of \f[B]p\f[R] modded by 2 to the power of the number of
-binary digits in the minimum number of 8-bit bytes.
+binary digits in the minimum number of 8\-bit bytes.
 .RS
 .PP
 If you want to a use signed two\[cq]s complement argument, use
@@ -1991,11 +1996,11 @@ If you want to a use signed two\[cq]s complement argument, use
 .TP
 \f[B]brorn(x, p, n)\f[R]
 Does a right bitwise rotatation of the truncated absolute value of
-\f[B]x\f[R], as though it has the same number of unsigned 8-bit bytes as
-the truncated absolute value of \f[B]n\f[R], by the number of places
+\f[B]x\f[R], as though it has the same number of unsigned 8\-bit bytes
+as the truncated absolute value of \f[B]n\f[R], by the number of places
 equal to the truncated absolute value of \f[B]p\f[R] modded by the
 \f[B]2\f[R] to the power of the number of binary digits in \f[B]n\f[R]
-8-bit bytes.
+8\-bit bytes.
 .RS
 .PP
 If you want to a use signed two\[cq]s complement argument, use
@@ -2049,9 +2054,9 @@ If you want to a use signed two\[cq]s complement argument, use
 \f[B]bror(x, p)\f[R]
 Does a right bitwise rotatation of the truncated absolute value of
 \f[B]x\f[R], as though it has the minimum number of power of two
-unsigned 8-bit bytes, by the number of places equal to the truncated
+unsigned 8\-bit bytes, by the number of places equal to the truncated
 absolute value of \f[B]p\f[R] modded by 2 to the power of the number of
-binary digits in the minimum number of 8-bit bytes.
+binary digits in the minimum number of 8\-bit bytes.
 .RS
 .PP
 If you want to a use signed two\[cq]s complement argument, use
@@ -2105,7 +2110,7 @@ If you want to a use signed two\[cq]s complement argument, use
 .RE
 .TP
 \f[B]bunrev(t)\f[R]
-Assumes \f[B]t\f[R] is a bitwise-reversed number with an extra set bit
+Assumes \f[B]t\f[R] is a bitwise\-reversed number with an extra set bit
 one place more significant than the real most significant bit (which was
 the least significant bit in the original number).
 This number is reversed and returned without the extra set bit.
@@ -2116,29 +2121,29 @@ meant to be used by users, but it can be.
 .RE
 .TP
 \f[B]plz(x)\f[R]
-If \f[B]x\f[R] is not equal to \f[B]0\f[R] and greater that \f[B]-1\f[R]
-and less than \f[B]1\f[R], it is printed with a leading zero, regardless
-of the use of the \f[B]-z\f[R] option (see the \f[B]OPTIONS\f[R]
-section) and without a trailing newline.
+If \f[B]x\f[R] is not equal to \f[B]0\f[R] and greater that
+\f[B]\-1\f[R] and less than \f[B]1\f[R], it is printed with a leading
+zero, regardless of the use of the \f[B]\-z\f[R] option (see the
+\f[B]OPTIONS\f[R] section) and without a trailing newline.
 .RS
 .PP
 Otherwise, \f[B]x\f[R] is printed normally, without a trailing newline.
 .RE
 .TP
 \f[B]plznl(x)\f[R]
-If \f[B]x\f[R] is not equal to \f[B]0\f[R] and greater that \f[B]-1\f[R]
-and less than \f[B]1\f[R], it is printed with a leading zero, regardless
-of the use of the \f[B]-z\f[R] option (see the \f[B]OPTIONS\f[R]
-section) and with a trailing newline.
+If \f[B]x\f[R] is not equal to \f[B]0\f[R] and greater that
+\f[B]\-1\f[R] and less than \f[B]1\f[R], it is printed with a leading
+zero, regardless of the use of the \f[B]\-z\f[R] option (see the
+\f[B]OPTIONS\f[R] section) and with a trailing newline.
 .RS
 .PP
 Otherwise, \f[B]x\f[R] is printed normally, with a trailing newline.
 .RE
 .TP
 \f[B]pnlz(x)\f[R]
-If \f[B]x\f[R] is not equal to \f[B]0\f[R] and greater that \f[B]-1\f[R]
-and less than \f[B]1\f[R], it is printed without a leading zero,
-regardless of the use of the \f[B]-z\f[R] option (see the
+If \f[B]x\f[R] is not equal to \f[B]0\f[R] and greater that
+\f[B]\-1\f[R] and less than \f[B]1\f[R], it is printed without a leading
+zero, regardless of the use of the \f[B]\-z\f[R] option (see the
 \f[B]OPTIONS\f[R] section) and without a trailing newline.
 .RS
 .PP
@@ -2146,9 +2151,9 @@ Otherwise, \f[B]x\f[R] is printed normally, without a trailing newline.
 .RE
 .TP
 \f[B]pnlznl(x)\f[R]
-If \f[B]x\f[R] is not equal to \f[B]0\f[R] and greater that \f[B]-1\f[R]
-and less than \f[B]1\f[R], it is printed without a leading zero,
-regardless of the use of the \f[B]-z\f[R] option (see the
+If \f[B]x\f[R] is not equal to \f[B]0\f[R] and greater that
+\f[B]\-1\f[R] and less than \f[B]1\f[R], it is printed without a leading
+zero, regardless of the use of the \f[B]\-z\f[R] option (see the
 \f[B]OPTIONS\f[R] section) and with a trailing newline.
 .RS
 .PP
@@ -2160,22 +2165,22 @@ Returns the numbers of unsigned integer bytes required to hold the
 truncated absolute value of \f[B]x\f[R].
 .TP
 \f[B]sbytes(x)\f[R]
-Returns the numbers of signed, two\[cq]s-complement integer bytes
+Returns the numbers of signed, two\[cq]s\-complement integer bytes
 required to hold the truncated value of \f[B]x\f[R].
 .TP
 \f[B]s2u(x)\f[R]
-Returns \f[B]x\f[R] if it is non-negative.
+Returns \f[B]x\f[R] if it is non\-negative.
 If it \f[I]is\f[R] negative, then it calculates what \f[B]x\f[R] would
-be as a 2\[cq]s-complement signed integer and returns the non-negative
+be as a 2\[cq]s\-complement signed integer and returns the non\-negative
 integer that would have the same representation in binary.
 .TP
 \f[B]s2un(x,n)\f[R]
-Returns \f[B]x\f[R] if it is non-negative.
+Returns \f[B]x\f[R] if it is non\-negative.
 If it \f[I]is\f[R] negative, then it calculates what \f[B]x\f[R] would
-be as a 2\[cq]s-complement signed integer with \f[B]n\f[R] bytes and
-returns the non-negative integer that would have the same representation
-in binary.
-If \f[B]x\f[R] cannot fit into \f[B]n\f[R] 2\[cq]s-complement signed
+be as a 2\[cq]s\-complement signed integer with \f[B]n\f[R] bytes and
+returns the non\-negative integer that would have the same
+representation in binary.
+If \f[B]x\f[R] cannot fit into \f[B]n\f[R] 2\[cq]s\-complement signed
 bytes, it is truncated to fit.
 .TP
 \f[B]hex(x)\f[R]
@@ -2219,7 +2224,7 @@ subsection of the \f[B]FUNCTIONS\f[R] section).
 .TP
 \f[B]int(x)\f[R]
 Outputs the representation, in binary and hexadecimal, of \f[B]x\f[R] as
-a signed, two\[cq]s-complement integer in as few power of two bytes as
+a signed, two\[cq]s\-complement integer in as few power of two bytes as
 possible.
 Both outputs are split into bytes separated by spaces.
 .RS
@@ -2247,7 +2252,7 @@ subsection of the \f[B]FUNCTIONS\f[R] section).
 .TP
 \f[B]intn(x, n)\f[R]
 Outputs the representation, in binary and hexadecimal, of \f[B]x\f[R] as
-a signed, two\[cq]s-complement integer in \f[B]n\f[R] bytes.
+a signed, two\[cq]s\-complement integer in \f[B]n\f[R] bytes.
 Both outputs are split into bytes separated by spaces.
 .RS
 .PP
@@ -2275,7 +2280,7 @@ subsection of the \f[B]FUNCTIONS\f[R] section).
 .TP
 \f[B]int8(x)\f[R]
 Outputs the representation, in binary and hexadecimal, of \f[B]x\f[R] as
-a signed, two\[cq]s-complement integer in \f[B]1\f[R] byte.
+a signed, two\[cq]s\-complement integer in \f[B]1\f[R] byte.
 Both outputs are split into bytes separated by spaces.
 .RS
 .PP
@@ -2303,7 +2308,7 @@ subsection of the \f[B]FUNCTIONS\f[R] section).
 .TP
 \f[B]int16(x)\f[R]
 Outputs the representation, in binary and hexadecimal, of \f[B]x\f[R] as
-a signed, two\[cq]s-complement integer in \f[B]2\f[R] bytes.
+a signed, two\[cq]s\-complement integer in \f[B]2\f[R] bytes.
 Both outputs are split into bytes separated by spaces.
 .RS
 .PP
@@ -2331,7 +2336,7 @@ subsection of the \f[B]FUNCTIONS\f[R] section).
 .TP
 \f[B]int32(x)\f[R]
 Outputs the representation, in binary and hexadecimal, of \f[B]x\f[R] as
-a signed, two\[cq]s-complement integer in \f[B]4\f[R] bytes.
+a signed, two\[cq]s\-complement integer in \f[B]4\f[R] bytes.
 Both outputs are split into bytes separated by spaces.
 .RS
 .PP
@@ -2359,7 +2364,7 @@ subsection of the \f[B]FUNCTIONS\f[R] section).
 .TP
 \f[B]int64(x)\f[R]
 Outputs the representation, in binary and hexadecimal, of \f[B]x\f[R] as
-a signed, two\[cq]s-complement integer in \f[B]8\f[R] bytes.
+a signed, two\[cq]s\-complement integer in \f[B]8\f[R] bytes.
 Both outputs are split into bytes separated by spaces.
 .RS
 .PP
@@ -2406,7 +2411,7 @@ subsection of the \f[B]FUNCTIONS\f[R] section).
 \f[B]output_byte(x, i)\f[R]
 Outputs byte \f[B]i\f[R] of the truncated absolute value of \f[B]x\f[R],
 where \f[B]0\f[R] is the least significant byte and \f[B]number_of_bytes
-- 1\f[R] is the most significant byte.
+\- 1\f[R] is the most significant byte.
 .RS
 .PP
 This is a \f[B]void\f[R] function (see the \f[I]Void Functions\f[R]
@@ -2468,7 +2473,7 @@ The transcendental functions in the extended math library are:
 .IP \[bu] 2
 \f[B]d2r(x)\f[R]
 .SH RESET
-When bc(1) encounters an error or a signal that it has a non-default
+When bc(1) encounters an error or a signal that it has a non\-default
 handler for, it resets.
 This means that several things happen.
 .PP
@@ -2539,29 +2544,29 @@ Set at \f[B]BC_BASE_POW\f[R].
 .TP
 \f[B]BC_DIM_MAX\f[R]
 The maximum size of arrays.
-Set at \f[B]SIZE_MAX-1\f[R].
+Set at \f[B]SIZE_MAX\-1\f[R].
 .TP
 \f[B]BC_SCALE_MAX\f[R]
 The maximum \f[B]scale\f[R].
-Set at \f[B]BC_OVERFLOW_MAX-1\f[R].
+Set at \f[B]BC_OVERFLOW_MAX\-1\f[R].
 .TP
 \f[B]BC_STRING_MAX\f[R]
 The maximum length of strings.
-Set at \f[B]BC_OVERFLOW_MAX-1\f[R].
+Set at \f[B]BC_OVERFLOW_MAX\-1\f[R].
 .TP
 \f[B]BC_NAME_MAX\f[R]
 The maximum length of identifiers.
-Set at \f[B]BC_OVERFLOW_MAX-1\f[R].
+Set at \f[B]BC_OVERFLOW_MAX\-1\f[R].
 .TP
 \f[B]BC_NUM_MAX\f[R]
 The maximum length of a number (in decimal digits), which includes
 digits after the decimal point.
-Set at \f[B]BC_OVERFLOW_MAX-1\f[R].
+Set at \f[B]BC_OVERFLOW_MAX\-1\f[R].
 .TP
 \f[B]BC_RAND_MAX\f[R]
 The maximum integer (inclusive) returned by the \f[B]rand()\f[R]
 operand.
-Set at \f[B]2\[ha]BC_LONG_BIT-1\f[R].
+Set at \f[B]2\[ha]BC_LONG_BIT\-1\f[R].
 .TP
 Exponent
 The maximum allowable exponent (positive or negative).
@@ -2569,28 +2574,28 @@ Set at \f[B]BC_OVERFLOW_MAX\f[R].
 .TP
 Number of vars
 The maximum number of vars/arrays.
-Set at \f[B]SIZE_MAX-1\f[R].
+Set at \f[B]SIZE_MAX\-1\f[R].
 .PP
 The actual values can be queried with the \f[B]limits\f[R] statement.
 .PP
-These limits are meant to be effectively non-existent; the limits are so
-large (at least on 64-bit machines) that there should not be any point
-at which they become a problem.
+These limits are meant to be effectively non\-existent; the limits are
+so large (at least on 64\-bit machines) that there should not be any
+point at which they become a problem.
 In fact, memory should be exhausted before these limits should be hit.
 .SH ENVIRONMENT VARIABLES
-As \f[B]non-portable extensions\f[R], bc(1) recognizes the following
+As \f[B]non\-portable extensions\f[R], bc(1) recognizes the following
 environment variables:
 .TP
 \f[B]POSIXLY_CORRECT\f[R]
 If this variable exists (no matter the contents), bc(1) behaves as if
-the \f[B]-s\f[R] option was given.
+the \f[B]\-s\f[R] option was given.
 .TP
 \f[B]BC_ENV_ARGS\f[R]
-This is another way to give command-line arguments to bc(1).
-They should be in the same format as all other command-line arguments.
+This is another way to give command\-line arguments to bc(1).
+They should be in the same format as all other command\-line arguments.
 These are always processed first, so any files given in
 \f[B]BC_ENV_ARGS\f[R] will be processed before arguments and files given
-on the command-line.
+on the command\-line.
 This gives the user the ability to set up \[lq]standard\[rq] options and
 files to be used at every invocation.
 The most useful thing for such files to contain would be useful
@@ -2611,14 +2616,14 @@ you can use double quotes as the outside quotes, as in \f[B]\[lq]some
 quotes.
 However, handling a file with both kinds of quotes in
 \f[B]BC_ENV_ARGS\f[R] is not supported due to the complexity of the
-parsing, though such files are still supported on the command-line where
-the parsing is done by the shell.
+parsing, though such files are still supported on the command\-line
+where the parsing is done by the shell.
 .RE
 .TP
 \f[B]BC_LINE_LENGTH\f[R]
 If this environment variable exists and contains an integer that is
 greater than \f[B]1\f[R] and is less than \f[B]UINT16_MAX\f[R]
-(\f[B]2\[ha]16-1\f[R]), bc(1) will output lines to that length,
+(\f[B]2\[ha]16\-1\f[R]), bc(1) will output lines to that length,
 including the backslash (\f[B]\[rs]\f[R]).
 The default line length is \f[B]70\f[R].
 .RS
@@ -2630,7 +2635,7 @@ newlines.
 .TP
 \f[B]BC_BANNER\f[R]
 If this environment variable exists and contains an integer, then a
-non-zero value activates the copyright banner when bc(1) is in
+non\-zero value activates the copyright banner when bc(1) is in
 interactive mode, while zero deactivates it.
 .RS
 .PP
@@ -2639,7 +2644,7 @@ section), then this environment variable has no effect because bc(1)
 does not print the banner when not in interactive mode.
 .PP
 This environment variable overrides the default, which can be queried
-with the \f[B]-h\f[R] or \f[B]--help\f[R] options.
+with the \f[B]\-h\f[R] or \f[B]\-\-help\f[R] options.
 .RE
 .TP
 \f[B]BC_SIGINT_RESET\f[R]
@@ -2649,13 +2654,13 @@ exits on \f[B]SIGINT\f[R] when not in interactive mode.
 .RS
 .PP
 However, when bc(1) is in interactive mode, then if this environment
-variable exists and contains an integer, a non-zero value makes bc(1)
+variable exists and contains an integer, a non\-zero value makes bc(1)
 reset on \f[B]SIGINT\f[R], rather than exit, and zero makes bc(1) exit.
 If this environment variable exists and is \f[I]not\f[R] an integer,
 then bc(1) will exit on \f[B]SIGINT\f[R].
 .PP
 This environment variable overrides the default, which can be queried
-with the \f[B]-h\f[R] or \f[B]--help\f[R] options.
+with the \f[B]\-h\f[R] or \f[B]\-\-help\f[R] options.
 .RE
 .TP
 \f[B]BC_TTY_MODE\f[R]
@@ -2664,11 +2669,11 @@ section), then this environment variable has no effect.
 .RS
 .PP
 However, when TTY mode is available, then if this environment variable
-exists and contains an integer, then a non-zero value makes bc(1) use
+exists and contains an integer, then a non\-zero value makes bc(1) use
 TTY mode, and zero makes bc(1) not use TTY mode.
 .PP
 This environment variable overrides the default, which can be queried
-with the \f[B]-h\f[R] or \f[B]--help\f[R] options.
+with the \f[B]\-h\f[R] or \f[B]\-\-help\f[R] options.
 .RE
 .TP
 \f[B]BC_PROMPT\f[R]
@@ -2677,43 +2682,44 @@ section), then this environment variable has no effect.
 .RS
 .PP
 However, when TTY mode is available, then if this environment variable
-exists and contains an integer, a non-zero value makes bc(1) use a
-prompt, and zero or a non-integer makes bc(1) not use a prompt.
+exists and contains an integer, a non\-zero value makes bc(1) use a
+prompt, and zero or a non\-integer makes bc(1) not use a prompt.
 If this environment variable does not exist and \f[B]BC_TTY_MODE\f[R]
 does, then the value of the \f[B]BC_TTY_MODE\f[R] environment variable
 is used.
 .PP
 This environment variable and the \f[B]BC_TTY_MODE\f[R] environment
 variable override the default, which can be queried with the
-\f[B]-h\f[R] or \f[B]--help\f[R] options.
+\f[B]\-h\f[R] or \f[B]\-\-help\f[R] options.
 .RE
 .TP
 \f[B]BC_EXPR_EXIT\f[R]
-If any expressions or expression files are given on the command-line
-with \f[B]-e\f[R], \f[B]--expression\f[R], \f[B]-f\f[R], or
-\f[B]--file\f[R], then if this environment variable exists and contains
-an integer, a non-zero value makes bc(1) exit after executing the
-expressions and expression files, and a zero value makes bc(1) not exit.
+If any expressions or expression files are given on the command\-line
+with \f[B]\-e\f[R], \f[B]\-\-expression\f[R], \f[B]\-f\f[R], or
+\f[B]\-\-file\f[R], then if this environment variable exists and
+contains an integer, a non\-zero value makes bc(1) exit after executing
+the expressions and expression files, and a zero value makes bc(1) not
+exit.
 .RS
 .PP
 This environment variable overrides the default, which can be queried
-with the \f[B]-h\f[R] or \f[B]--help\f[R] options.
+with the \f[B]\-h\f[R] or \f[B]\-\-help\f[R] options.
 .RE
 .TP
 \f[B]BC_DIGIT_CLAMP\f[R]
 When parsing numbers and if this environment variable exists and
-contains an integer, a non-zero value makes bc(1) clamp digits that are
+contains an integer, a non\-zero value makes bc(1) clamp digits that are
 greater than or equal to the current \f[B]ibase\f[R] so that all such
 digits are considered equal to the \f[B]ibase\f[R] minus 1, and a zero
 value disables such clamping so that those digits are always equal to
 their value, which is multiplied by the power of the \f[B]ibase\f[R].
 .RS
 .PP
-This never applies to single-digit numbers, as per the standard (see the
-\f[B]STANDARDS\f[R] section).
+This never applies to single\-digit numbers, as per the standard (see
+the \f[B]STANDARDS\f[R] section).
 .PP
 This environment variable overrides the default, which can be queried
-with the \f[B]-h\f[R] or \f[B]--help\f[R] options.
+with the \f[B]\-h\f[R] or \f[B]\-\-help\f[R] options.
 .RE
 .SH EXIT STATUS
 bc(1) returns the following exit statuses:
@@ -2729,10 +2735,10 @@ since math errors will happen in the process of normal execution.
 .PP
 Math errors include divide by \f[B]0\f[R], taking the square root of a
 negative number, using a negative number as a bound for the
-pseudo-random number generator, attempting to convert a negative number
+pseudo\-random number generator, attempting to convert a negative number
 to a hardware integer, overflow when converting a number to a hardware
 integer, overflow when calculating the size of a number, and attempting
-to use a non-integer where an integer is required.
+to use a non\-integer where an integer is required.
 .PP
 Converting to a hardware integer happens for the second operand of the
 power (\f[B]\[ha]\f[R]), places (\f[B]\[at]\f[R]), left shift
@@ -2754,7 +2760,7 @@ giving an invalid \f[B]auto\f[R] list, having a duplicate
 \f[B]auto\f[R]/function parameter, failing to find the end of a code
 block, attempting to return a value from a \f[B]void\f[R] function,
 attempting to use a variable as a reference, and using any extensions
-when the option \f[B]-s\f[R] or any equivalents were given.
+when the option \f[B]\-s\f[R] or any equivalents were given.
 .RE
 .TP
 \f[B]3\f[R]
@@ -2777,7 +2783,7 @@ A fatal error occurred.
 Fatal errors include memory allocation errors, I/O errors, failing to
 open files, attempting to use files that do not have only ASCII
 characters (bc(1) only accepts ASCII characters), attempting to open a
-directory as a file, and giving invalid command-line options.
+directory as a file, and giving invalid command\-line options.
 .RE
 .PP
 The exit status \f[B]4\f[R] is special; when a fatal error occurs, bc(1)
@@ -2788,17 +2794,18 @@ interactive mode (see the \f[B]INTERACTIVE MODE\f[R] section), since
 bc(1) resets its state (see the \f[B]RESET\f[R] section) and accepts
 more input when one of those errors occurs in interactive mode.
 This is also the case when interactive mode is forced by the
-\f[B]-i\f[R] flag or \f[B]--interactive\f[R] option.
+\f[B]\-i\f[R] flag or \f[B]\-\-interactive\f[R] option.
 .PP
 These exit statuses allow bc(1) to be used in shell scripting with error
 checking, and its normal behavior can be forced by using the
-\f[B]-i\f[R] flag or \f[B]--interactive\f[R] option.
+\f[B]\-i\f[R] flag or \f[B]\-\-interactive\f[R] option.
 .SH INTERACTIVE MODE
 Per the standard (see the \f[B]STANDARDS\f[R] section), bc(1) has an
-interactive mode and a non-interactive mode.
+interactive mode and a non\-interactive mode.
 Interactive mode is turned on automatically when both \f[B]stdin\f[R]
-and \f[B]stdout\f[R] are hooked to a terminal, but the \f[B]-i\f[R] flag
-and \f[B]--interactive\f[R] option can turn it on in other situations.
+and \f[B]stdout\f[R] are hooked to a terminal, but the \f[B]\-i\f[R]
+flag and \f[B]\-\-interactive\f[R] option can turn it on in other
+situations.
 .PP
 In interactive mode, bc(1) attempts to recover from errors (see the
 \f[B]RESET\f[R] section), and in normal execution, flushes
@@ -2814,16 +2821,16 @@ settings.
 .PP
 If there is the environment variable \f[B]BC_TTY_MODE\f[R] in the
 environment (see the \f[B]ENVIRONMENT VARIABLES\f[R] section), then if
-that environment variable contains a non-zero integer, bc(1) will turn
+that environment variable contains a non\-zero integer, bc(1) will turn
 on TTY mode when \f[B]stdin\f[R], \f[B]stdout\f[R], and \f[B]stderr\f[R]
 are all connected to a TTY.
 If the \f[B]BC_TTY_MODE\f[R] environment variable exists but is
-\f[I]not\f[R] a non-zero integer, then bc(1) will not turn TTY mode on.
+\f[I]not\f[R] a non\-zero integer, then bc(1) will not turn TTY mode on.
 .PP
 If the environment variable \f[B]BC_TTY_MODE\f[R] does \f[I]not\f[R]
 exist, the default setting is used.
-The default setting can be queried with the \f[B]-h\f[R] or
-\f[B]--help\f[R] options.
+The default setting can be queried with the \f[B]\-h\f[R] or
+\f[B]\-\-help\f[R] options.
 .PP
 TTY mode is different from interactive mode because interactive mode is
 required in the bc(1) standard (see the \f[B]STANDARDS\f[R] section),
@@ -2835,18 +2842,18 @@ Like TTY mode itself, it can be turned on or off with an environment
 variable: \f[B]BC_PROMPT\f[R] (see the \f[B]ENVIRONMENT VARIABLES\f[R]
 section).
 .PP
-If the environment variable \f[B]BC_PROMPT\f[R] exists and is a non-zero
-integer, then the prompt is turned on when \f[B]stdin\f[R],
+If the environment variable \f[B]BC_PROMPT\f[R] exists and is a
+non\-zero integer, then the prompt is turned on when \f[B]stdin\f[R],
 \f[B]stdout\f[R], and \f[B]stderr\f[R] are connected to a TTY and the
-\f[B]-P\f[R] and \f[B]--no-prompt\f[R] options were not used.
+\f[B]\-P\f[R] and \f[B]\-\-no\-prompt\f[R] options were not used.
 The read prompt will be turned on under the same conditions, except that
-the \f[B]-R\f[R] and \f[B]--no-read-prompt\f[R] options must also not be
-used.
+the \f[B]\-R\f[R] and \f[B]\-\-no\-read\-prompt\f[R] options must also
+not be used.
 .PP
 However, if \f[B]BC_PROMPT\f[R] does not exist, the prompt can be
 enabled or disabled with the \f[B]BC_TTY_MODE\f[R] environment variable,
-the \f[B]-P\f[R] and \f[B]--no-prompt\f[R] options, and the \f[B]-R\f[R]
-and \f[B]--no-read-prompt\f[R] options.
+the \f[B]\-P\f[R] and \f[B]\-\-no\-prompt\f[R] options, and the
+\f[B]\-R\f[R] and \f[B]\-\-no\-read\-prompt\f[R] options.
 See the \f[B]ENVIRONMENT VARIABLES\f[R] and \f[B]OPTIONS\f[R] sections
 for more details.
 .SH SIGNAL HANDLING
@@ -2858,7 +2865,7 @@ section), or the \f[B]BC_SIGINT_RESET\f[R] environment variable (see the
 an integer or it is zero, bc(1) will exit.
 .PP
 However, if bc(1) is in interactive mode, and the
-\f[B]BC_SIGINT_RESET\f[R] or its default is an integer and non-zero,
+\f[B]BC_SIGINT_RESET\f[R] or its default is an integer and non\-zero,
 then bc(1) will stop executing the current input and reset (see the
 \f[B]RESET\f[R] section) upon receiving a \f[B]SIGINT\f[R].
 .PP
@@ -2886,10 +2893,10 @@ locales and thus, supports \f[B]LC_MESSAGES\f[R].
 .SH SEE ALSO
 dc(1)
 .SH STANDARDS
-bc(1) is compliant with the IEEE Std 1003.1-2017
-(\[lq]POSIX.1-2017\[rq]) specification at
+bc(1) is compliant with the IEEE Std 1003.1\-2017
+(\[lq]POSIX.1\-2017\[rq]) specification at
 https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html .
-The flags \f[B]-efghiqsvVw\f[R], all long options, and the extensions
+The flags \f[B]\-efghiqsvVw\f[R], all long options, and the extensions
 noted above are extensions to that specification.
 .PP
 In addition, the behavior of the \f[B]quit\f[R] implements an
