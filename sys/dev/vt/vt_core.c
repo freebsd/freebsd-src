@@ -44,6 +44,7 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/splash.h>
 #include <sys/power.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
@@ -1657,18 +1658,33 @@ vtterm_done(struct terminal *tm)
 static void
 vtterm_splash(struct vt_device *vd)
 {
+	caddr_t kmdp;
+	struct splash_info *si;
+	uintptr_t image;
 	vt_axis_t top, left;
 
-	/* Display a nice boot splash. */
+	kmdp = preload_search_by_type("elf kernel");
+	if (kmdp == NULL)
+		kmdp = preload_search_by_type("elf64 kernel");
+	si = MD_FETCH(kmdp, MODINFOMD_SPLASH, struct splash_info *);
 	if (!(vd->vd_flags & VDF_TEXTMODE) && (boothowto & RB_MUTE)) {
-		top = (vd->vd_height - vt_logo_height) / 2;
-		left = (vd->vd_width - vt_logo_width) / 2;
-		switch (vt_logo_depth) {
-		case 1:
-			/* XXX: Unhardcode colors! */
+		if (si == NULL) {
+			top = (vd->vd_height - vt_logo_height) / 2;
+			left = (vd->vd_width - vt_logo_width) / 2;
 			vd->vd_driver->vd_bitblt_bmp(vd, vd->vd_curwindow,
 			    vt_logo_image, NULL, vt_logo_width, vt_logo_height,
 			    left, top, TC_WHITE, TC_BLACK);
+		} else {
+			if (si->si_depth != 4)
+				return;
+			printf("SPLASH: width: %d height: %d depth: %d\n", si->si_width, si->si_height, si->si_depth);
+			image = (uintptr_t)si + sizeof(struct splash_info);
+			image = roundup2(image, 8);
+			top = (vd->vd_height - si->si_height) / 2;
+			left = (vd->vd_width - si->si_width) / 2;
+			vd->vd_driver->vd_bitblt_argb(vd, vd->vd_curwindow,
+			    (unsigned char *)image, si->si_width, si->si_height,
+			    left, top);
 		}
 		vd->vd_flags |= VDF_SPLASH;
 	}
