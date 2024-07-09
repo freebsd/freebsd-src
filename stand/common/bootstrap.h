@@ -282,6 +282,7 @@ int tslog_init(void);
 int tslog_publish(void);
 
 vm_offset_t build_font_module(vm_offset_t);
+vm_offset_t build_splash_module(vm_offset_t);
 
 /* MI module loaders */
 #ifdef __elfN
