@@ -97,6 +97,7 @@ static vd_blank_t	vga_blank;
 static vd_bitblt_text_t	vga_bitblt_text;
 static vd_invalidate_text_t	vga_invalidate_text;
 static vd_bitblt_bmp_t	vga_bitblt_bitmap;
+static vd_bitblt_argb_t	vga_bitblt_argb;
 static vd_drawrect_t	vga_drawrect;
 static vd_setpixel_t	vga_setpixel;
 static vd_postswitch_t	vga_postswitch;
@@ -109,6 +110,7 @@ static const struct vt_driver vt_vga_driver = {
 	.vd_bitblt_text	= vga_bitblt_text,
 	.vd_invalidate_text = vga_invalidate_text,
 	.vd_bitblt_bmp	= vga_bitblt_bitmap,
+	.vd_bitblt_argb	= vga_bitblt_argb,
 	.vd_drawrect	= vga_drawrect,
 	.vd_setpixel	= vga_setpixel,
 	.vd_postswitch	= vga_postswitch,
@@ -997,6 +999,16 @@ vga_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
 			x_count = min(width - src_x, VT_VGA_PIXELS_BLOCK);
 		}
 	}
+}
+
+static int
+vga_bitblt_argb(struct vt_device *vd, const struct vt_window *vw,
+    const uint8_t *argb,
+    unsigned int width, unsigned int height,
+    unsigned int x, unsigned int y)
+{
+
+	return (EOPNOTSUPP);
 }
 
 static void

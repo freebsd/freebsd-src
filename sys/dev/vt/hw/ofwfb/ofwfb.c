@@ -67,6 +67,7 @@ static vd_probe_t	ofwfb_probe;
 static vd_init_t	ofwfb_init;
 static vd_bitblt_text_t	ofwfb_bitblt_text;
 static vd_bitblt_bmp_t	ofwfb_bitblt_bitmap;
+static vd_bitblt_argb_t	ofwfb_bitblt_argb;
 
 static const struct vt_driver vt_ofwfb_driver = {
 	.vd_name	= "ofwfb",
@@ -75,6 +76,7 @@ static const struct vt_driver vt_ofwfb_driver = {
 	.vd_blank	= vt_fb_blank,
 	.vd_bitblt_text	= ofwfb_bitblt_text,
 	.vd_bitblt_bmp	= ofwfb_bitblt_bitmap,
+	.vd_bitblt_argb	= ofwfb_bitblt_argb,
 	.vd_fb_ioctl	= vt_fb_ioctl,
 	.vd_fb_mmap	= vt_fb_mmap,
 	.vd_priority	= VD_PRIORITY_GENERIC+1,
@@ -241,6 +243,16 @@ ofwfb_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
 			line += sc->fb_stride;
 		}
 	}
+}
+
+static int
+ofwfb_bitblt_argb(struct vt_device *vd, const struct vt_window *vw,
+    const uint8_t *argb,
+    unsigned int width, unsigned int height,
+    unsigned int x, unsigned int y)
+{
+
+	return (EOPNOTSUPP);
 }
 
 void
