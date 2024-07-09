@@ -125,16 +125,6 @@ p9fs_cleanup(struct p9fs_node *np)
 	/* Destroy the vm object and flush associated pages. */
 	vnode_destroy_vobject(vp);
 
-	/* Remove the vnode from hash list if vnode is not already deleted */
-	if ((np->flags & P9FS_NODE_DELETED) == 0)
-		vfs_hash_remove(vp);
-
-	/* Invalidate all entries to a particular vnode. */
-	cache_purge(vp);
-
-	/* Destroy the vm object and flush associated pages. */
-	vnode_destroy_vobject(vp);
-
 	/* Remove all the FID */
 	p9fs_fid_remove_all(np, FALSE);
 
