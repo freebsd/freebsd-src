@@ -148,6 +148,8 @@ dump_state(struct nlpcb *nlp, const struct nlmsghdr *hdr, struct pf_kstate *s,
 	int af;
 	struct pf_state_key *key;
 
+	PF_STATE_LOCK_ASSERT(s);
+
 	if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr)))
 		goto enomem;
 
@@ -282,10 +284,16 @@ static int
 handle_getstate(struct nlpcb *nlp, struct nl_parsed_state *attrs,
     struct nlmsghdr *hdr, struct nl_pstate *npt)
 {
-	struct pf_kstate *s = pf_find_state_byid(attrs->id, attrs->creatorid);
+	struct pf_kstate *s;
+	int ret;
+
+	s = pf_find_state_byid(attrs->id, attrs->creatorid);
 	if (s == NULL)
 		return (ENOENT);
-	return (dump_state(nlp, hdr, s, npt));
+	ret = dump_state(nlp, hdr, s, npt);
+	PF_STATE_UNLOCK(s);
+
+	return (ret);
 }
 
 static int
