@@ -580,6 +580,7 @@ db_error(const char *s)
 	    db_printf("%s", s);
 	db_flush_lex();
 	kdb_reenter_silent();
+	panic("%s: did not reenter debugger", __func__);
 }
 
 static void
