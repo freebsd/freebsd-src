@@ -2609,17 +2609,15 @@ soreceive_stream(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	error = SOCK_IO_RECV_LOCK(so, SBLOCKWAIT(flags));
 	if (error)
 		return (error);
-	SOCKBUF_LOCK(sb);
-
 #ifdef KERN_TLS
-	if (sb->sb_tls_info != NULL) {
-		SOCKBUF_UNLOCK(sb);
+	if (__predict_false(sb->sb_tls_info != NULL)) {
 		SOCK_IO_RECV_UNLOCK(so);
 		return (soreceive_generic(so, psa, uio, mp0, controlp,
 		    flagsp));
 	}
 #endif
 
+	SOCKBUF_LOCK(sb);
 	/* Easy one, no space to copyout anything. */
 	if (uio->uio_resid == 0) {
 		error = EINVAL;
