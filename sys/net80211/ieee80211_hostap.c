@@ -1539,9 +1539,14 @@ ieee80211_parse_rsn(struct ieee80211vap *vap, const uint8_t *frm,
 		rsn->rsn_keymgmt = RSN_ASE_8021X_PSK;
 
 	/* optional RSN capabilities */
-	if (len > 2)
+	if (len >= 2) {
 		rsn->rsn_caps = le16dec(frm);
-	/* XXXPMKID */
+		frm += 2, len -= 2;
+	}
+
+	/* XXX PMK Count / PMKID */
+
+	/* XXX Group Cipher Management Suite */
 
 	return 0;
 }
