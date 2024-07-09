@@ -49,6 +49,7 @@
 static vd_init_t vt_simplefb_init;
 static vd_fini_t vt_simplefb_fini;
 static vd_probe_t vt_simplefb_probe;
+static vd_bitblt_argb_t	vt_simplefb_bitblt_argb;
 
 static struct vt_driver vt_simplefb_driver = {
 	.vd_name = "simplefb",
@@ -59,6 +60,7 @@ static struct vt_driver vt_simplefb_driver = {
 	.vd_bitblt_text = vt_fb_bitblt_text,
 	.vd_invalidate_text = vt_fb_invalidate_text,
 	.vd_bitblt_bmp = vt_fb_bitblt_bitmap,
+	.vd_bitblt_argb	= vt_simplefb_bitblt_argb,
 	.vd_drawrect = vt_fb_drawrect,
 	.vd_setpixel = vt_fb_setpixel,
 	.vd_fb_ioctl = vt_fb_ioctl,
@@ -220,4 +222,14 @@ vt_simplefb_fini(struct vt_device *vd, void *softc)
 	sc = softc;
 	vt_fb_fini(vd, softc);
 	pmap_unmapdev((void *)sc->fb_vbase, sc->fb_size);
+}
+
+static int
+vt_simplefb_bitblt_argb(struct vt_device *vd, const struct vt_window *vw,
+    const uint8_t *argb,
+    unsigned int width, unsigned int height,
+    unsigned int x, unsigned int y)
+{
+
+	return (EOPNOTSUPP);
 }
