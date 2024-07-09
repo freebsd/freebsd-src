@@ -750,6 +750,7 @@ mseq_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	mtx_lock(&scp->seq_lock);
 	if (scp->busy) {
 		mtx_unlock(&scp->seq_lock);
+		midistat_unlock();
 		SEQ_DEBUG(2, printf("seq_open: unit %d is busy.\n", scp->unit));
 		return EBUSY;
 	}
