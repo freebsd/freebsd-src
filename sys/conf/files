@@ -1760,7 +1760,7 @@ dev/hid/hgame.c			optional hgame
 dev/hid/hid.c			optional hid
 dev/hid/hid_if.m		optional hid
 dev/hid/hidbus.c		optional hidbus
-dev/hid/hidmap.c		optional hidmap
+dev/hid/hidmap.c		optional hidmap | hms
 dev/hid/hidquirk.c		optional hid
 dev/hid/hidraw.c		optional hidraw
 dev/hid/hkbd.c			optional hkbd
