@@ -1797,8 +1797,15 @@ pf_icmp_mapping(struct pf_pdesc *pd, u_int8_t type,
 			break;
 
 		case MLD_LISTENER_QUERY:
-			*icmp_dir = PF_IN;
 		case MLD_LISTENER_REPORT: {
+			/*
+			 * Listener Report can be sent by clients
+			 * without an associated Listener Query.
+			 * In addition to that, when Report is sent as a
+			 * reply to a Query its source and destination
+			 * address are different.
+			 */
+			*icmp_dir = PF_IN;
 			*virtual_type = MLD_LISTENER_QUERY;
 			*virtual_id = 0;
 			break;
