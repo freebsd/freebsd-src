@@ -1251,19 +1251,21 @@ dt_module_update(dtrace_hdl_t *dtp, struct kld_file_stat *k_stat)
 	 * [Text][R/O data][R/W data][Dynamic][BSS][Non loadable]
 	 */
 	dmp->dm_text_size = dmp->dm_data_va - dmp->dm_text_va;
-#if defined(__i386__)
-	/*
-	 * Find the first load section and figure out the relocation
-	 * offset for the symbols. The kernel module will not need
-	 * relocation, but the kernel linker modules will.
-	 */
-	for (i = 0; gelf_getphdr(dmp->dm_elf, i, &ph) != NULL; i++) {
-		if (ph.p_type == PT_LOAD) {
-			dmp->dm_reloc_offset = k_stat->address - ph.p_vaddr;
-			break;
+
+	if (!is_elf_obj) {
+		/*
+		 * Find the first load section and figure out the relocation
+		 * offset for the symbols. The kernel module will not need
+		 * relocation, but the kernel linker modules will.
+		 */
+		for (i = 0; gelf_getphdr(dmp->dm_elf, i, &ph) != NULL; i++) {
+			if (ph.p_type == PT_LOAD) {
+				dmp->dm_reloc_offset =
+				    k_stat->address - ph.p_vaddr;
+				break;
+			}
 		}
 	}
-#endif
 
 	if (dmp->dm_info.objfs_info_primary)
 		dmp->dm_flags |= DT_DM_PRIMARY;
