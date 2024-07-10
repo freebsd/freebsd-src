@@ -452,17 +452,17 @@ dt_module_symaddr64(dt_module_t *dmp, GElf_Addr addr,
 }
 
 static const dt_modops_t dt_modops_32 = {
-	dt_module_syminit32,
-	dt_module_symsort32,
-	dt_module_symname32,
-	dt_module_symaddr32
+	.do_syminit = dt_module_syminit32,
+	.do_symsort = dt_module_symsort32,
+	.do_symname = dt_module_symname32,
+	.do_symaddr = dt_module_symaddr32
 };
 
 static const dt_modops_t dt_modops_64 = {
-	dt_module_syminit64,
-	dt_module_symsort64,
-	dt_module_symname64,
-	dt_module_symaddr64
+	.do_syminit = dt_module_syminit64,
+	.do_symsort = dt_module_symsort64,
+	.do_symname = dt_module_symname64,
+	.do_symaddr = dt_module_symaddr64
 };
 
 dt_module_t *
