@@ -139,6 +139,11 @@ device  	videomode
 device  	vt
 device  	fbd
 
+# evdev interface
+options 	EVDEV_SUPPORT		# evdev support in legacy drivers
+device		evdev			# input event device support
+device		uinput			# install /dev/uinput cdev
+
 # HID support
 options 	HID_DEBUG	# enable debug msgs
 device		hid		# Generic HID support
