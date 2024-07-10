@@ -99,6 +99,13 @@ struct plic_softc {
 	int			ndev;
 };
 
+static struct ofw_compat_data compat_data[] = {
+	{ "riscv,plic0",	1 },
+	{ "sifive,plic-1.0.0",	1 },
+	{ "thead,c900-plic",	1 },
+	{ NULL,			0 }
+};
+
 #define	RD4(sc, reg)				\
     bus_read_4(sc->mem_res, (reg))
 #define	WR4(sc, reg, val)			\
@@ -230,8 +237,7 @@ plic_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "riscv,plic0") &&
-	    !ofw_bus_is_compatible(dev, "sifive,plic-1.0.0"))
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "RISC-V PLIC");
