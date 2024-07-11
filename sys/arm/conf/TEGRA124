@@ -128,6 +128,11 @@ device		drm2
 #device		sound
 #device		snd_hda
 
+# evdev interface
+options 	EVDEV_SUPPORT           # evdev support in legacy drivers
+device		evdev                   # input event device support
+device		uinput                  # install /dev/uinput cdev
+
 # HID support
 device		hid			# Generic HID support
 device		hidbus			# Generic HID Bus
