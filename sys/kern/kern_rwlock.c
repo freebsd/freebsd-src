@@ -770,11 +770,12 @@ __rw_runlock_hard(struct rwlock *rw, struct thread *td, uintptr_t v
     LOCK_FILE_LINE_ARG_DEF)
 {
 	struct turnstile *ts;
-	uintptr_t setv, queue;
+	uintptr_t setv, passedv, queue;
 
 	if (SCHEDULER_STOPPED())
 		return;
 
+	passedv = v;
 	if (__rw_runlock_try(rw, td, &v))
 		goto out_lockstat;
 
@@ -827,7 +828,10 @@ __rw_runlock_hard(struct rwlock *rw, struct thread *td, uintptr_t v
 		 * release the lock.
 		 */
 		ts = turnstile_lookup(&rw->lock_object);
-		MPASS(ts != NULL);
+		if (__predict_false(ts == NULL)) {
+			panic("got NULL turnstile on rwlock %p passedv %zx v %zx",
+			    rw, passedv, v);
+		}
 		turnstile_broadcast(ts, queue);
 		turnstile_unpend(ts);
 		td->td_rw_rlocks--;
@@ -1206,7 +1210,7 @@ __rw_wunlock_hard(volatile uintptr_t *c, uintptr_t v LOCK_FILE_LINE_ARG_DEF)
 {
 	struct rwlock *rw;
 	struct turnstile *ts;
-	uintptr_t tid, setv;
+	uintptr_t tid, setv, passedv;
 	int queue;
 
 	tid = (uintptr_t)curthread;
@@ -1254,6 +1258,7 @@ __rw_wunlock_hard(volatile uintptr_t *c, uintptr_t v LOCK_FILE_LINE_ARG_DEF)
 	 * of waiters or doing some complicated lock handoff gymnastics.
 	 */
 	setv = RW_UNLOCKED;
+	passedv = v;
 	v = RW_READ_VALUE(rw);
 	queue = TS_SHARED_QUEUE;
 	if (v & RW_LOCK_WRITE_WAITERS) {
@@ -1268,7 +1273,10 @@ __rw_wunlock_hard(volatile uintptr_t *c, uintptr_t v LOCK_FILE_LINE_ARG_DEF)
 		    queue == TS_SHARED_QUEUE ? "read" : "write");
 
 	ts = turnstile_lookup(&rw->lock_object);
-	MPASS(ts != NULL);
+	if (__predict_false(ts == NULL)) {
+		panic("got NULL turnstile on rwlock %p passedv %zx v %zx", rw,
+		    passedv, v);
+	}
 	turnstile_broadcast(ts, queue);
 	turnstile_unpend(ts);
 	turnstile_chain_unlock(&rw->lock_object);
