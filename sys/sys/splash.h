@@ -8,6 +8,8 @@
 #ifndef _SYS_SPLASH_H_
 #define	_SYS_SPLASH_H_
 
+#include <sys/types.h>
+
 struct splash_info {
 	uint32_t si_width;
 	uint32_t si_height;
