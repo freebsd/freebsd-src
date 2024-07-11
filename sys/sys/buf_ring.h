@@ -30,11 +30,18 @@
 #ifndef	_SYS_BUF_RING_H_
 #define	_SYS_BUF_RING_H_
 
+#include <sys/param.h>
+#include <sys/kassert.h>
+#include <machine/atomic.h>
 #include <machine/cpu.h>
 
 #ifdef DEBUG_BUFRING
+#ifdef _KERNEL
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#else
+#error "DEBUG_BUFRING is only supported in kernel"
+#endif
 #endif
 
 struct buf_ring {
@@ -361,8 +368,36 @@ buf_ring_count(struct buf_ring *br)
 	    & br->br_prod_mask);
 }
 
+#ifdef _KERNEL
 struct buf_ring *buf_ring_alloc(int count, struct malloc_type *type, int flags,
     struct mtx *);
 void buf_ring_free(struct buf_ring *br, struct malloc_type *type);
+#else
 
-#endif
+#include <stdlib.h>
+
+static inline struct buf_ring *
+buf_ring_alloc(int count)
+{
+	struct buf_ring *br;
+
+	KASSERT(powerof2(count), ("buf ring must be size power of 2"));
+
+	br = calloc(1, sizeof(struct buf_ring) + count * sizeof(void *));
+	if (br == NULL)
+		return (NULL);
+	br->br_prod_size = br->br_cons_size = count;
+	br->br_prod_mask = br->br_cons_mask = count - 1;
+	br->br_prod_head = br->br_cons_head = 0;
+	br->br_prod_tail = br->br_cons_tail = 0;
+	return (br);
+}
+
+static inline void
+buf_ring_free(struct buf_ring *br)
+{
+	free(br);
+}
+
+#endif /* !_KERNEL */
+#endif /* _SYS_BUF_RING_H_ */
