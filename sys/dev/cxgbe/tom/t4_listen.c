@@ -88,6 +88,111 @@ static struct inpcb *release_lctx(struct adapter *, struct listen_ctx *);
 
 static void send_abort_rpl_synqe(struct toedev *, struct synq_entry *, int);
 
+static int create_server6(struct adapter *, struct listen_ctx *);
+static int create_server(struct adapter *, struct listen_ctx *);
+
+int
+alloc_stid_tab(struct adapter *sc)
+{
+	struct tid_info *t = &sc->tids;
+
+	MPASS(t->nstids > 0);
+	MPASS(t->stid_tab == NULL);
+
+	t->stid_tab = malloc(t->nstids * sizeof(*t->stid_tab), M_CXGBE,
+	    M_ZERO | M_NOWAIT);
+	if (t->stid_tab == NULL)
+		return (ENOMEM);
+	mtx_init(&t->stid_lock, "stid lock", NULL, MTX_DEF);
+	t->stids_in_use = 0;
+	TAILQ_INIT(&t->stids);
+	t->nstids_free_head = t->nstids;
+
+	return (0);
+}
+
+void
+free_stid_tab(struct adapter *sc)
+{
+	struct tid_info *t = &sc->tids;
+
+	KASSERT(t->stids_in_use == 0,
+	    ("%s: %d tids still in use.", __func__, t->stids_in_use));
+
+	if (mtx_initialized(&t->stid_lock))
+		mtx_destroy(&t->stid_lock);
+	free(t->stid_tab, M_CXGBE);
+	t->stid_tab = NULL;
+}
+
+void
+stop_stid_tab(struct adapter *sc)
+{
+	struct tid_info *t = &sc->tids;
+	struct tom_data *td = sc->tom_softc;
+	struct listen_ctx *lctx;
+	struct synq_entry *synqe;
+	int i, ntids;
+
+	mtx_lock(&t->stid_lock);
+	t->stid_tab_stopped = true;
+	mtx_unlock(&t->stid_lock);
+
+	mtx_lock(&td->lctx_hash_lock);
+	for (i = 0; i <= td->listen_mask; i++) {
+		LIST_FOREACH(lctx, &td->listen_hash[i], link)
+			lctx->flags &= ~(LCTX_RPL_PENDING | LCTX_SETUP_IN_HW);
+	}
+	mtx_unlock(&td->lctx_hash_lock);
+
+	mtx_lock(&td->toep_list_lock);
+	TAILQ_FOREACH(synqe, &td->synqe_list, link) {
+		MPASS(sc->incarnation == synqe->incarnation);
+		MPASS(synqe->tid >= 0);
+		MPASS(synqe == lookup_tid(sc, synqe->tid));
+		/* Remove tid from the lookup table immediately. */
+		CTR(KTR_CXGBE, "%s: tid %d@%d STRANDED, removed from table",
+		    __func__, synqe->tid, synqe->incarnation);
+		ntids = synqe->lctx->inp->inp_vflag & INP_IPV6 ? 2 : 1;
+		remove_tid(sc, synqe->tid, ntids);
+#if 0
+		/* synqe->tid is stale now but left alone for debug. */
+		synqe->tid = -1;
+#endif
+	}
+	MPASS(TAILQ_EMPTY(&td->stranded_synqe));
+	TAILQ_CONCAT(&td->stranded_synqe, &td->synqe_list, link);
+	MPASS(TAILQ_EMPTY(&td->synqe_list));
+	mtx_unlock(&td->toep_list_lock);
+}
+
+void
+restart_stid_tab(struct adapter *sc)
+{
+	struct tid_info *t = &sc->tids;
+	struct tom_data *td = sc->tom_softc;
+	struct listen_ctx *lctx;
+	int i;
+
+	mtx_lock(&td->lctx_hash_lock);
+	for (i = 0; i <= td->listen_mask; i++) {
+		LIST_FOREACH(lctx, &td->listen_hash[i], link) {
+			MPASS((lctx->flags & (LCTX_RPL_PENDING | LCTX_SETUP_IN_HW)) == 0);
+			lctx->flags |= LCTX_RPL_PENDING;
+			if (lctx->inp->inp_vflag & INP_IPV6)
+				create_server6(sc, lctx);
+			else
+				create_server(sc, lctx);
+		}
+	}
+	mtx_unlock(&td->lctx_hash_lock);
+
+	mtx_lock(&t->stid_lock);
+	t->stid_tab_stopped = false;
+	mtx_unlock(&t->stid_lock);
+
+}
+
 static int
 alloc_stid(struct adapter *sc, struct listen_ctx *lctx, int isipv6)
 {
@@ -107,7 +212,7 @@ alloc_stid(struct adapter *sc, struct listen_ctx *lctx, int isipv6)
 	    __func__, t->stid_base, t->nstids, n));
 
 	mtx_lock(&t->stid_lock);
-	if (n > t->nstids - t->stids_in_use) {
+	if (n > t->nstids - t->stids_in_use || t->stid_tab_stopped) {
 		mtx_unlock(&t->stid_lock);
 		return (-1);
 	}
@@ -632,12 +737,13 @@ t4_listen_stop(struct toedev *tod, struct tcpcb *tp)
 		return (EINPROGRESS);
 	}
 
-	destroy_server(sc, lctx);
+	if (lctx->flags & LCTX_SETUP_IN_HW)
+		destroy_server(sc, lctx);
 	return (0);
 }
 
 static inline struct synq_entry *
-alloc_synqe(struct adapter *sc __unused, struct listen_ctx *lctx, int flags)
+alloc_synqe(struct adapter *sc, struct listen_ctx *lctx, int flags)
 {
 	struct synq_entry *synqe;
 
@@ -647,6 +753,7 @@ alloc_synqe(struct adapter *sc __unused, struct listen_ctx *lctx, int flags)
 	synqe = malloc(sizeof(*synqe), M_CXGBE, flags);
 	if (__predict_true(synqe != NULL)) {
 		synqe->flags = TPF_SYNQE;
+		synqe->incarnation = sc->incarnation;
 		refcount_init(&synqe->refcnt, 1);
 		synqe->lctx = lctx;
 		hold_lctx(lctx);	/* Every synqe has a ref on its lctx. */
@@ -761,8 +868,9 @@ do_pass_open_rpl(struct sge_iq *iq, const struct rss_header *rss,
 	    __func__, stid, status, lctx->flags);
 
 	lctx->flags &= ~LCTX_RPL_PENDING;
-
-	if (status != CPL_ERR_NONE)
+	if (status == CPL_ERR_NONE)
+		lctx->flags |= LCTX_SETUP_IN_HW;
+	else
 		log(LOG_ERR, "listener (stid %u) failed: %d\n", stid, status);
 
 #ifdef INVARIANTS
@@ -856,13 +964,15 @@ done_with_synqe(struct adapter *sc, struct synq_entry *synqe)
 	int ntids;
 
 	INP_WLOCK_ASSERT(inp);
-	ntids = inp->inp_vflag & INP_IPV6 ? 2 : 1;
 
-	remove_tid(sc, synqe->tid, ntids);
-	mtx_lock(&td->toep_list_lock);
-	TAILQ_REMOVE(&td->synqe_list, synqe, link);
-	mtx_unlock(&td->toep_list_lock);
-	release_tid(sc, synqe->tid, lctx->ctrlq);
+	if (synqe->tid != -1) {
+		ntids = inp->inp_vflag & INP_IPV6 ? 2 : 1;
+		remove_tid(sc, synqe->tid, ntids);
+		mtx_lock(&td->toep_list_lock);
+		TAILQ_REMOVE(&td->synqe_list, synqe, link);
+		mtx_unlock(&td->toep_list_lock);
+		release_tid(sc, synqe->tid, lctx->ctrlq);
+	}
 	t4_l2t_release(e);
 	inp = release_synqe(sc, synqe);
 	if (inp)
@@ -870,10 +980,8 @@ done_with_synqe(struct adapter *sc, struct synq_entry *synqe)
 }
 
 void
-synack_failure_cleanup(struct adapter *sc, int tid)
+synack_failure_cleanup(struct adapter *sc, struct synq_entry *synqe)
 {
-	struct synq_entry *synqe = lookup_tid(sc, tid);
-
 	INP_WLOCK(synqe->lctx->inp);
 	done_with_synqe(sc, synqe);
 }
