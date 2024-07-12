@@ -95,7 +95,7 @@ __DEFAULT_DEPENDENT_OPTIONS = \
 # means that ASLR is of limited effectiveness, and it may cause issues with
 # some memory-hungry workloads.
 #
-.if ${MACHINE_ARCH} == "armv6" || ${MACHINE_ARCH} == "armv7" \
+.if ${MACHINE_ARCH} == "armv7" \
     || ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "powerpc" \
     || ${MACHINE_ARCH} == "powerpcspe"
 __DEFAULT_NO_OPTIONS+= PIE

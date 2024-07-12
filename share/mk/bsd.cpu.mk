@@ -315,13 +315,10 @@ MACHINE_CPU = riscv
 ########## arm
 .if ${MACHINE_CPUARCH} == "arm"
 MACHINE_CPU += arm
-. if ${MACHINE_ARCH:Marmv6*} != ""
-MACHINE_CPU += armv6
-. endif
 . if ${MACHINE_ARCH:Marmv7*} != ""
 MACHINE_CPU += armv7
 . endif
-# Normally armv6 and armv7 are hard float ABI from FreeBSD 11 onwards. However
+# Normally armv7 is hard float ABI from FreeBSD 11 onwards. However
 # when CPUTYPE has 'soft' in it, we use the soft-float ABI to allow building of
 # soft-float ABI libraries. In this case, we have to add the -mfloat-abi=softfp
 # to force that.
