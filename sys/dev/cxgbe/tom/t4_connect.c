@@ -110,15 +110,16 @@ done:
 }
 
 void
-act_open_failure_cleanup(struct adapter *sc, u_int atid, u_int status)
+act_open_failure_cleanup(struct adapter *sc, struct toepcb *toep, u_int status)
 {
-	struct toepcb *toep = lookup_atid(sc, atid);
 	struct inpcb *inp = toep->inp;
 	struct toedev *tod = &toep->td->tod;
 	struct epoch_tracker et;
 
-	free_atid(sc, atid);
-	toep->tid = -1;
+	if (toep->tid >= 0) {
+		free_atid(sc, toep->tid);
+		toep->tid = -1;
+	}
 
 	CURVNET_SET(toep->vnet);
 	if (status != EAGAIN)
@@ -158,7 +159,7 @@ do_act_open_rpl(struct sge_iq *iq, const struct rss_header *rss,
 		release_tid(sc, GET_TID(cpl), toep->ctrlq);
 
 	rc = act_open_rpl_status_to_errno(status);
-	act_open_failure_cleanup(sc, atid, rc);
+	act_open_failure_cleanup(sc, toep, rc);
 
 	return (0);
 }
