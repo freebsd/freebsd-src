@@ -151,6 +151,7 @@ struct tid_info {
 	union aopen_entry *atid_tab;
 	union aopen_entry *afree;
 	u_int atids_in_use;
+	bool atid_alloc_stopped;
 
 	/* High priority filters and normal filters share the lock and cv. */
 	struct mtx ftid_lock __aligned(CACHE_LINE_SIZE);
