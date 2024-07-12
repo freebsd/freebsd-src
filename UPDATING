@@ -27,6 +27,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20240712:
+	Support for armv6 has been disconnected and is being removed.
+
 20240617:
 	ifconfig now treats IPv4 addresses without a width or mask as an error.
 	Specify the desired mask or width along with the IP address on the
