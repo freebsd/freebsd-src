@@ -55,7 +55,7 @@
 #include "pmu.h"
 
 /* CCNT */
-#if defined(__arm__) && (__ARM_ARCH > 6)
+#if defined(__arm__)
 int pmu_attched = 0;
 uint32_t ccnt_hi[MAXCPU];
 #endif
@@ -67,7 +67,7 @@ static int
 pmu_intr(void *arg)
 {
 	uint32_t r;
-#if defined(__arm__) && (__ARM_ARCH > 6)
+#if defined(__arm__)
 	u_int cpu;
 
 	cpu = PCPU_GET(cpuid);
@@ -96,7 +96,7 @@ int
 pmu_attach(device_t dev)
 {
 	struct pmu_softc *sc;
-#if defined(__arm__) && (__ARM_ARCH > 6)
+#if defined(__arm__)
 	uint32_t iesr;
 #endif
 	int err, i;
@@ -126,7 +126,7 @@ pmu_attach(device_t dev)
 		}
 	}
 
-#if defined(__arm__) && (__ARM_ARCH > 6)
+#if defined(__arm__)
 	/* Initialize to 0. */
 	for (i = 0; i < MAXCPU; i++)
 		ccnt_hi[i] = 0;

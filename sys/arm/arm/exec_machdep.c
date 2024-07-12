@@ -353,12 +353,10 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		tf->tf_usr_lr = (register_t)(PROC_PS_STRINGS(p) -
 		    *(sysent->sv_szsigcode));
 	/* Set the mode to enter in the signal handler */
-#if __ARM_ARCH >= 7
 	if ((register_t)catcher & 1)
 		tf->tf_spsr |= PSR_T;
 	else
 		tf->tf_spsr &= ~PSR_T;
-#endif
 
 	CTR3(KTR_SIG, "sendsig: return td=%p pc=%#x sp=%#x", td, tf->tf_usr_lr,
 	    tf->tf_usr_sp);
