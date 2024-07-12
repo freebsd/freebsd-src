@@ -780,6 +780,8 @@ static int t4_alloc_irq(struct adapter *, struct irq *, int rid,
 static int t4_free_irq(struct adapter *, struct irq *);
 static void t4_init_atid_table(struct adapter *);
 static void t4_free_atid_table(struct adapter *);
+static void stop_atid_allocator(struct adapter *);
+static void restart_atid_allocator(struct adapter *);
 static void get_regs(struct adapter *, struct t4_regdump *, uint8_t *);
 static void vi_refresh_stats(struct vi_info *);
 static void cxgbe_refresh_stats(struct vi_info *);
@@ -2097,6 +2099,9 @@ stop_lld(struct adapter *sc)
 	}
 
 	end_synchronized_op(sc, 0);
+
+	stop_atid_allocator(sc);
+
 	return (rc);
 }
 
@@ -2447,6 +2452,9 @@ restart_lld(struct adapter *sc)
 done:
 	end_synchronized_op(sc, 0);
 	free(old_state, M_CXGBE);
+
+	restart_atid_allocator(sc);
+
 	return (rc);
 }
 
@@ -3941,6 +3949,7 @@ t4_init_atid_table(struct adapter *sc)
 	mtx_init(&t->atid_lock, "atid lock", NULL, MTX_DEF);
 	t->afree = t->atid_tab;
 	t->atids_in_use = 0;
+	t->atid_alloc_stopped = false;
 	for (i = 1; i < t->natids; i++)
 		t->atid_tab[i - 1].next = &t->atid_tab[i];
 	t->atid_tab[t->natids - 1].next = NULL;
@@ -3962,6 +3971,28 @@ t4_free_atid_table(struct adapter *sc)
 	t->atid_tab = NULL;
 }
 
+static void
+stop_atid_allocator(struct adapter *sc)
+{
+	struct tid_info *t = &sc->tids;
+
+	mtx_lock(&t->atid_lock);
+	t->atid_alloc_stopped = true;
+	mtx_unlock(&t->atid_lock);
+}
+
+static void
+restart_atid_allocator(struct adapter *sc)
+{
+	struct tid_info *t = &sc->tids;
+
+	mtx_lock(&t->atid_lock);
+	KASSERT(t->atids_in_use == 0,
+	    ("%s: %d atids still in use.", __func__, t->atids_in_use));
+	t->atid_alloc_stopped = false;
+	mtx_unlock(&t->atid_lock);
+}
+
 int
 alloc_atid(struct adapter *sc, void *ctx)
 {
@@ -3969,7 +4000,7 @@ alloc_atid(struct adapter *sc, void *ctx)
 	int atid = -1;
 
 	mtx_lock(&t->atid_lock);
-	if (t->afree) {
+	if (t->afree && !t->atid_alloc_stopped) {
 		union aopen_entry *p = t->afree;
 
 		atid = p - t->atid_tab;
