@@ -1589,9 +1589,20 @@ shm_mmap_large(struct shmfd *shmfd, vm_map_t map, vm_offset_t *addr,
 	if (align == 0) {
 		align = pagesizes[shmfd->shm_lp_psind];
 	} else if (align == MAP_ALIGNED_SUPER) {
-		if (shmfd->shm_lp_psind != 1)
+		/*
+		 * MAP_ALIGNED_SUPER is only supported on superpage sizes,
+		 * i.e., [1, VM_NRESERVLEVEL].  shmfd->shm_lp_psind < 1 is
+		 * handled above.
+		 */
+		if (
+#if VM_NRESERVLEVEL > 0
+		    shmfd->shm_lp_psind > VM_NRESERVLEVEL
+#else
+		    shmfd->shm_lp_psind > 1
+#endif
+		    )
 			return (EINVAL);
-		align = pagesizes[1];
+		align = pagesizes[shmfd->shm_lp_psind];
 	} else {
 		align >>= MAP_ALIGNMENT_SHIFT;
 		align = 1ULL << align;

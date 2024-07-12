@@ -120,7 +120,10 @@ SYSCTL_ULONG(_vm, OID_AUTO, max_kernel_address, CTLFLAG_RD,
 #endif
     "Max kernel address");
 
-#if VM_NRESERVLEVEL > 0
+#if VM_NRESERVLEVEL > 1
+#define	KVA_QUANTUM_SHIFT	(VM_LEVEL_1_ORDER + VM_LEVEL_0_ORDER + \
+    PAGE_SHIFT)
+#elif VM_NRESERVLEVEL > 0
 #define	KVA_QUANTUM_SHIFT	(VM_LEVEL_0_ORDER + PAGE_SHIFT)
 #else
 /* On non-superpage architectures we want large import sizes. */

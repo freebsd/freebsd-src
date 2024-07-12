@@ -5562,7 +5562,7 @@ vm_page_is_valid(vm_page_t m, int base, int size)
  * (super)page and false otherwise.
  */
 bool
-vm_page_ps_test(vm_page_t m, int flags, vm_page_t skip_m)
+vm_page_ps_test(vm_page_t m, int psind, int flags, vm_page_t skip_m)
 {
 	vm_object_t object;
 	int i, npages;
@@ -5571,7 +5571,9 @@ vm_page_ps_test(vm_page_t m, int flags, vm_page_t skip_m)
 	if (skip_m != NULL && skip_m->object != object)
 		return (false);
 	VM_OBJECT_ASSERT_LOCKED(object);
-	npages = atop(pagesizes[m->psind]);
+	KASSERT(psind <= m->psind,
+	    ("psind %d > psind %d of m %p", psind, m->psind, m));
+	npages = atop(pagesizes[psind]);
 
 	/*
 	 * The physically contiguous pages that make up a superpage, i.e., a

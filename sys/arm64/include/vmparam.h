@@ -114,24 +114,33 @@
 #endif
 
 /*
- * Enable superpage reservations: 1 level.
+ * Enable superpage reservations: 2 levels.
  */
 #ifndef	VM_NRESERVLEVEL
-#define	VM_NRESERVLEVEL		1
+#define	VM_NRESERVLEVEL		2
 #endif
 
 /*
- * Level 0 reservations consist of 512 pages when PAGE_SIZE is 4KB, and
- * 2048 pages when PAGE_SIZE is 16KB.
+ * Level 0 reservations consist of 16 pages when PAGE_SIZE is 4KB, and 128
+ * pages when PAGE_SIZE is 16KB.  Level 1 reservations consist of 32 64KB
+ * pages when PAGE_SIZE is 4KB, and 16 2M pages when PAGE_SIZE is 16KB.
  */
-#ifndef	VM_LEVEL_0_ORDER
 #if PAGE_SIZE == PAGE_SIZE_4K
-#define	VM_LEVEL_0_ORDER	9
+#ifndef	VM_LEVEL_0_ORDER
+#define	VM_LEVEL_0_ORDER	4
+#endif
+#ifndef	VM_LEVEL_1_ORDER
+#define	VM_LEVEL_1_ORDER	5
+#endif
 #elif PAGE_SIZE == PAGE_SIZE_16K
-#define	VM_LEVEL_0_ORDER	11
+#ifndef	VM_LEVEL_0_ORDER
+#define	VM_LEVEL_0_ORDER	7
+#endif
+#ifndef	VM_LEVEL_1_ORDER
+#define	VM_LEVEL_1_ORDER	4
+#endif
 #else
 #error Unsupported page size
-#endif
 #endif
 
 /**

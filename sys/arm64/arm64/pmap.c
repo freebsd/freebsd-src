@@ -1631,11 +1631,14 @@ pmap_init(void)
 	if (superpages_enabled) {
 		KASSERT(MAXPAGESIZES > 1 && pagesizes[1] == 0,
 		    ("pmap_init: can't assign to pagesizes[1]"));
-		pagesizes[1] = L2_SIZE;
+		pagesizes[1] = L3C_SIZE;
+		KASSERT(MAXPAGESIZES > 2 && pagesizes[2] == 0,
+		    ("pmap_init: can't assign to pagesizes[2]"));
+		pagesizes[2] = L2_SIZE;
 		if (L1_BLOCKS_SUPPORTED) {
-			KASSERT(MAXPAGESIZES > 2 && pagesizes[2] == 0,
-			    ("pmap_init: can't assign to pagesizes[2]"));
-			pagesizes[2] = L1_SIZE;
+			KASSERT(MAXPAGESIZES > 3 && pagesizes[3] == 0,
+			    ("pmap_init: can't assign to pagesizes[3]"));
+			pagesizes[3] = L1_SIZE;
 		}
 	}
 
@@ -4959,7 +4962,7 @@ static int
 pmap_enter_largepage(pmap_t pmap, vm_offset_t va, pt_entry_t pte, int flags,
     int psind)
 {
-	pd_entry_t *l0p, *l1p, *l2p, newpte, origpte;
+	pd_entry_t *l0p, *l1p, *l2p, *l3p, newpte, origpte, *tl3p;
 	vm_page_t mp;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
@@ -4973,9 +4976,11 @@ restart:
 	newpte = pte;
 	if (!pmap_bti_same(pmap, va, va + pagesizes[psind], &newpte))
 		return (KERN_PROTECTION_FAILURE);
-	if (psind == 2) {
+	if (psind == 3) {
 		PMAP_ASSERT_L1_BLOCKS_SUPPORTED;
 
+		KASSERT(pagesizes[psind] == L1_SIZE,
+		    ("pagesizes[%d] != L1_SIZE", psind));
 		l0p = pmap_l0(pmap, va);
 		if ((pmap_load(l0p) & ATTR_DESCR_VALID) == 0) {
 			mp = _pmap_alloc_l3(pmap, pmap_l0_pindex(va), NULL);
@@ -5005,7 +5010,9 @@ restart:
 		    ("va %#lx changing 1G phys page l1 %#lx newpte %#lx",
 		    va, origpte, newpte));
 		pmap_store(l1p, newpte);
-	} else /* (psind == 1) */ {
+	} else if (psind == 2) {
+		KASSERT(pagesizes[psind] == L2_SIZE,
+		    ("pagesizes[%d] != L2_SIZE", psind));
 		l2p = pmap_l2(pmap, va);
 		if (l2p == NULL) {
 			mp = _pmap_alloc_l3(pmap, pmap_l1_pindex(va), NULL);
@@ -5034,6 +5041,40 @@ restart:
 		    ("va %#lx changing 2M phys page l2 %#lx newpte %#lx",
 		    va, origpte, newpte));
 		pmap_store(l2p, newpte);
+	} else /* (psind == 1) */ {
+		KASSERT(pagesizes[psind] == L3C_SIZE,
+		    ("pagesizes[%d] != L3C_SIZE", psind));
+		l2p = pmap_l2(pmap, va);
+		if (l2p == NULL || (pmap_load(l2p) & ATTR_DESCR_VALID) == 0) {
+			mp = _pmap_alloc_l3(pmap, pmap_l2_pindex(va), NULL);
+			if (mp == NULL) {
+				if ((flags & PMAP_ENTER_NOSLEEP) != 0)
+					return (KERN_RESOURCE_SHORTAGE);
+				PMAP_UNLOCK(pmap);
+				vm_wait(NULL);
+				PMAP_LOCK(pmap);
+				goto restart;
+			}
+			mp->ref_count += L3C_ENTRIES - 1;
+			l3p = (pd_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(mp));
+			l3p = &l3p[pmap_l3_index(va)];
+		} else {
+			l3p = pmap_l2_to_l3(l2p, va);
+			if ((pmap_load(l3p) & ATTR_DESCR_VALID) == 0) {
+				mp = PTE_TO_VM_PAGE(pmap_load(l2p));
+				mp->ref_count += L3C_ENTRIES;
+			}
+		}
+		for (tl3p = l3p; tl3p < &l3p[L3C_ENTRIES]; tl3p++) {
+			origpte = pmap_load(tl3p);
+			KASSERT((origpte & ATTR_DESCR_VALID) == 0 ||
+			    ((origpte & ATTR_CONTIGUOUS) != 0 &&
+			    PTE_TO_PHYS(origpte) == PTE_TO_PHYS(newpte)),
+			    ("va %#lx changing 64K phys page l3 %#lx newpte %#lx",
+			    va, origpte, newpte));
+			pmap_store(tl3p, newpte);
+			newpte += L3_SIZE;
+		}
 	}
 	dsb(ishst);
 
@@ -5072,7 +5113,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	vm_paddr_t opa, pa;
 	vm_page_t mpte, om;
 	bool nosleep;
-	int lvl, rv;
+	int full_lvl, lvl, rv;
 
 	KASSERT(ADDR_IS_CANONICAL(va),
 	    ("%s: Address not in canonical form: %lx", __func__, va));
@@ -5128,24 +5169,47 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if ((flags & PMAP_ENTER_LARGEPAGE) != 0) {
 		KASSERT((m->oflags & VPO_UNMANAGED) != 0,
 		    ("managed largepage va %#lx flags %#x", va, flags));
-		new_l3 &= ~L3_PAGE;
-		if (psind == 2) {
+		if (psind == 3) {
 			PMAP_ASSERT_L1_BLOCKS_SUPPORTED;
+			new_l3 &= ~L3_PAGE;
 			new_l3 |= L1_BLOCK;
-		} else /* (psind == 1) */
+		} else if (psind == 2) {
+			new_l3 &= ~L3_PAGE;
 			new_l3 |= L2_BLOCK;
+		} else /* (psind == 1) */
+			new_l3 |= ATTR_CONTIGUOUS;
 		rv = pmap_enter_largepage(pmap, va, new_l3, flags, psind);
 		goto out;
 	}
-	if (psind == 1) {
+	if (psind == 2) {
 		/* Assert the required virtual and physical alignment. */
 		KASSERT((va & L2_OFFSET) == 0, ("pmap_enter: va unaligned"));
-		KASSERT(m->psind > 0, ("pmap_enter: m->psind < psind"));
+		KASSERT(m->psind > 1, ("pmap_enter: m->psind < psind"));
 		rv = pmap_enter_l2(pmap, va, (new_l3 & ~L3_PAGE) | L2_BLOCK,
 		    flags, m, &lock);
 		goto out;
 	}
 	mpte = NULL;
+	if (psind == 1) {
+		KASSERT((va & L3C_OFFSET) == 0, ("pmap_enter: va unaligned"));
+		KASSERT(m->psind > 0, ("pmap_enter: m->psind < psind"));
+		rv = pmap_enter_l3c(pmap, va, new_l3 | ATTR_CONTIGUOUS, flags,
+		    m, &mpte, &lock);
+#if VM_NRESERVLEVEL > 0
+		/*
+		 * Attempt L2 promotion, if both the PTP and a level 1
+		 * reservation are fully populated.
+		 */
+		if (rv == KERN_SUCCESS &&
+		    (mpte == NULL || mpte->ref_count == NL3PG) &&
+		    (m->flags & PG_FICTITIOUS) == 0 &&
+		    vm_reserv_level_iffullpop(m) == 1) {
+			pde = pmap_l2(pmap, va);
+			(void)pmap_promote_l2(pmap, pde, va, mpte, &lock);
+		}
+#endif
+		goto out;
+	}
 
 	/*
 	 * In the case that a page table page is not
@@ -5365,15 +5429,14 @@ validate:
 	 * are aligned with each other and an underlying reservation has the
 	 * neighboring L3 pages allocated.  The first condition is simply an
 	 * optimization that recognizes some eventual promotion failures early
-	 * at a lower run-time cost.  Then, if both the page table page and
-	 * the reservation are fully populated, attempt L2 promotion.
+	 * at a lower run-time cost.  Then, if both a level 1 reservation and
+	 * the PTP are fully populated, attempt L2 promotion.
 	 */
 	if ((va & L3C_OFFSET) == (pa & L3C_OFFSET) &&
 	    (m->flags & PG_FICTITIOUS) == 0 &&
-	    vm_reserv_is_populated(m, L3C_ENTRIES) &&
+	    (full_lvl = vm_reserv_level_iffullpop(m)) >= 0 &&
 	    pmap_promote_l3c(pmap, l3, va) &&
-	    (mpte == NULL || mpte->ref_count == NL3PG) &&
-	    vm_reserv_level_iffullpop(m) == 0)
+	    full_lvl == 1 && (mpte == NULL || mpte->ref_count == NL3PG))
 		(void)pmap_promote_l2(pmap, pde, va, mpte, &lock);
 #endif
 
@@ -5667,6 +5730,8 @@ pmap_enter_l3c(pmap_t pmap, vm_offset_t va, pt_entry_t l3e, u_int flags,
 	    ("pmap_enter_l3c: va is not aligned"));
 	KASSERT(!VA_IS_CLEANMAP(va) || (l3e & ATTR_SW_MANAGED) == 0,
 	    ("pmap_enter_l3c: managed mapping within the clean submap"));
+	KASSERT((l3e & ATTR_CONTIGUOUS) != 0,
+	    ("pmap_enter_l3c: l3e is missing ATTR_CONTIGUOUS"));
 
 	/*
 	 * If the L3 PTP is not resident, we attempt to create it here.
@@ -5873,14 +5938,12 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		va = start + ptoa(diff);
 		if ((va & L2_OFFSET) == 0 && va + L2_SIZE <= end &&
-		    m->psind == 1 && pmap_ps_enabled(pmap) &&
+		    m->psind == 2 && pmap_ps_enabled(pmap) &&
 		    ((rv = pmap_enter_l2_rx(pmap, va, m, prot, &lock)) ==
 		    KERN_SUCCESS || rv == KERN_NO_SPACE))
 			m = &m[L2_SIZE / PAGE_SIZE - 1];
 		else if ((va & L3C_OFFSET) == 0 && va + L3C_SIZE <= end &&
-		    (VM_PAGE_TO_PHYS(m) & L3C_OFFSET) == 0 &&
-		    vm_reserv_is_populated(m, L3C_ENTRIES) &&
-		    pmap_ps_enabled(pmap) &&
+		    m->psind >= 1 && pmap_ps_enabled(pmap) &&
 		    ((rv = pmap_enter_l3c_rx(pmap, va, m, &mpte, prot,
 		    &lock)) == KERN_SUCCESS || rv == KERN_NO_SPACE))
 			m = &m[L3C_ENTRIES - 1];
@@ -5932,7 +5995,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 {
 	pt_entry_t *l1, *l2, *l3, l3_val;
 	vm_paddr_t pa;
-	int lvl;
+	int full_lvl, lvl;
 
 	KASSERT(!VA_IS_CLEANMAP(va) ||
 	    (m->oflags & VPO_UNMANAGED) != 0,
@@ -6063,18 +6126,17 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	 * are aligned with each other and an underlying reservation has the
 	 * neighboring L3 pages allocated.  The first condition is simply an
 	 * optimization that recognizes some eventual promotion failures early
-	 * at a lower run-time cost.  Then, attempt L2 promotion, if both the
-	 * PTP and the reservation are fully populated.
+	 * at a lower run-time cost.  Then, attempt L2 promotion, if both a
+	 * level 1 reservation and the PTP are fully populated.
 	 */
 	if ((prot & VM_PROT_NO_PROMOTE) == 0 &&
 	    (va & L3C_OFFSET) == (pa & L3C_OFFSET) &&
 	    (m->flags & PG_FICTITIOUS) == 0 &&
-	    vm_reserv_is_populated(m, L3C_ENTRIES) &&
+	    (full_lvl = vm_reserv_level_iffullpop(m)) >= 0 &&
 	    pmap_promote_l3c(pmap, l3, va) &&
-	    (mpte == NULL || mpte->ref_count == NL3PG) &&
-	    vm_reserv_level_iffullpop(m) == 0) {
+	    full_lvl == 1 && (mpte == NULL || mpte->ref_count == NL3PG)) {
 		if (l2 == NULL)
-			l2 = pmap_pde(pmap, va, &lvl);
+			l2 = pmap_l2(pmap, va);
 
 		/*
 		 * If promotion succeeds, then the next call to this function
@@ -8566,7 +8628,7 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *pap)
 {
 	pt_entry_t *pte, tpte;
 	vm_paddr_t mask, pa;
-	int lvl, val;
+	int lvl, psind, val;
 	bool managed;
 
 	PMAP_ASSERT_STAGE1(pmap);
@@ -8578,21 +8640,22 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *pap)
 		switch (lvl) {
 		case 3:
 			mask = L3_OFFSET;
+			psind = (tpte & ATTR_CONTIGUOUS) != 0 ? 1 : 0;
 			break;
 		case 2:
 			mask = L2_OFFSET;
+			psind = 2;
 			break;
 		case 1:
 			mask = L1_OFFSET;
+			psind = 3;
 			break;
 		default:
 			panic("pmap_mincore: invalid level %d", lvl);
 		}
 
 		managed = (tpte & ATTR_SW_MANAGED) != 0;
-		val = MINCORE_INCORE;
-		if (lvl != 3)
-			val |= MINCORE_PSIND(3 - lvl);
+		val = MINCORE_INCORE | MINCORE_PSIND(psind);
 		if ((managed && pmap_pte_dirty(pmap, tpte)) || (!managed &&
 		    (tpte & ATTR_S1_AP_RW_BIT) == ATTR_S1_AP(ATTR_S1_AP_RW)))
 			val |= MINCORE_MODIFIED | MINCORE_MODIFIED_OTHER;
@@ -9128,18 +9191,37 @@ pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
 {
 	vm_offset_t superpage_offset;
 
-	if (size < L2_SIZE)
+	if (size < L3C_SIZE)
 		return;
 	if (object != NULL && (object->flags & OBJ_COLORED) != 0)
 		offset += ptoa(object->pg_color);
+
+	/*
+	 * Considering the object's physical alignment, is the mapping large
+	 * enough to encompass an L2 (2MB/32MB) superpage ...
+	 */
 	superpage_offset = offset & L2_OFFSET;
-	if (size - ((L2_SIZE - superpage_offset) & L2_OFFSET) < L2_SIZE ||
-	    (*addr & L2_OFFSET) == superpage_offset)
+	if (size - ((L2_SIZE - superpage_offset) & L2_OFFSET) >= L2_SIZE) {
+		/*
+		 * If the virtual and physical alignments differ, then
+		 * increase the virtual address so that the alignments match.
+		 */
+		if ((*addr & L2_OFFSET) < superpage_offset)
+			*addr = (*addr & ~L2_OFFSET) + superpage_offset;
+		else if ((*addr & L2_OFFSET) > superpage_offset)
+			*addr = ((*addr + L2_OFFSET) & ~L2_OFFSET) +
+			    superpage_offset;
 		return;
-	if ((*addr & L2_OFFSET) < superpage_offset)
-		*addr = (*addr & ~L2_OFFSET) + superpage_offset;
-	else
-		*addr = ((*addr + L2_OFFSET) & ~L2_OFFSET) + superpage_offset;
+	}
+	/* ... or an L3C (64KB/2MB) superpage? */
+	superpage_offset = offset & L3C_OFFSET;
+	if (size - ((L3C_SIZE - superpage_offset) & L3C_OFFSET) >= L3C_SIZE) {
+		if ((*addr & L3C_OFFSET) < superpage_offset)
+			*addr = (*addr & ~L3C_OFFSET) + superpage_offset;
+		else if ((*addr & L3C_OFFSET) > superpage_offset)
+			*addr = ((*addr + L3C_OFFSET) & ~L3C_OFFSET) +
+			    superpage_offset;
+	}
 }
 
 /**

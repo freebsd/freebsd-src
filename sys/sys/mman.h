@@ -175,7 +175,9 @@
 #define	MINCORE_REFERENCED_OTHER 0x8 /* Page has been referenced */
 #define	MINCORE_MODIFIED_OTHER	0x10 /* Page has been modified */
 #define	MINCORE_SUPER		0x60 /* Page is a "super" page */
-#define	MINCORE_PSIND(i)	(((i) << 5) & MINCORE_SUPER) /* Page size */
+#define	MINCORE_PSIND_SHIFT	5
+#define	MINCORE_PSIND(i)	(((i) << MINCORE_PSIND_SHIFT) & MINCORE_SUPER)
+				     /* Page size */
 
 /*
  * Anonymous object constant for shm_open().
