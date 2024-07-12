@@ -146,7 +146,6 @@ TARGET_TRIPLE_ABI?=	unknown
 TARGET_TRIPLE?=	${TARGET_ARCH:S/amd64/x86_64/}-${TARGET_TRIPLE_ABI}-freebsd${OS_REVISION}
 KNOWN_ARCHES?=	aarch64/arm64 \
 		amd64 \
-		armv6/arm \
 		armv7/arm \
 		i386 \
 		powerpc \
