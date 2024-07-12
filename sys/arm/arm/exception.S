@@ -270,13 +270,9 @@ ASENTRY_NP(undefined_entry)
 	mov	r0, sp			/* exception exit routine. pass frame */
 
 	ldr	r2, [sp, #(TF_PC)]	/* load pc */
-#if __ARM_ARCH >= 7
 	tst	r4, #(PSR_T)		/* test if PSR_T */
 	subne	r2, r2, #(THUMB_INSN_SIZE)
 	subeq	r2, r2, #(INSN_SIZE)
-#else
-	sub	r2, r2, #(INSN_SIZE)	/* fix pc */
-#endif
 	str	r2, [sp, #TF_PC]	/* store pc */
 
 #ifdef KDTRACE_HOOKS

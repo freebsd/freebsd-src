@@ -169,9 +169,7 @@ init_secondary(int cpu)
 
 	/* Spin until the BSP releases the APs */
 	while (!atomic_load_acq_int(&aps_ready)) {
-#if __ARM_ARCH >= 7
 		__asm __volatile("wfe");
-#endif
 	}
 
 	/* Initialize curthread */

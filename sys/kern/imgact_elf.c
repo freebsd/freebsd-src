@@ -119,7 +119,7 @@ SYSCTL_INT(_debug, OID_AUTO, __elfN(legacy_coredump), CTLFLAG_RW,
 
 int __elfN(nxstack) =
 #if defined(__amd64__) || defined(__powerpc64__) /* both 64 and 32 bit */ || \
-    (defined(__arm__) && __ARM_ARCH >= 7) || defined(__aarch64__) || \
+    defined(__arm__) || defined(__aarch64__) || \
     defined(__riscv)
 	1;
 #else
