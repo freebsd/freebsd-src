@@ -37,8 +37,6 @@ __RCSID("$NetBSD: memcpy_chk.c,v 1.7 2015/05/13 19:57:16 joerg Exp $");
 #include <ssp/string.h>
 #undef memcpy
 
-#include "ssp_internal.h"
-
 void *
 __memcpy_chk(void * __restrict dst, const void * __restrict src, size_t len,
     size_t slen)
