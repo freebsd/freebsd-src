@@ -65,6 +65,7 @@ local includes = {
 	"sys/random.h",
 	"sys/resource.h",
 	"sys/time.h",
+	"sys/uio.h",
 	"sys/wait.h",
 	"dirent.h",
 	"errno.h",
@@ -103,6 +104,14 @@ local printf_stackvars = "\tchar srcvar[__len + 10];\n"
 local printf_init = [[
 	memset(srcvar, 'A', sizeof(srcvar) - 1);
 	srcvar[sizeof(srcvar) - 1] = '\0';
+]]
+
+local readv_stackvars = "\tstruct iovec iov[1];\n"
+local readv_init = [[
+	iov[0].iov_base = __stack.__buf;
+	iov[0].iov_len = __len;
+
+	replace_stdin();
 ]]
 
 local stdio_init = [[
@@ -158,6 +167,57 @@ local all_tests = {
 				"0",
 			},
 			exclude = excludes_stack_overflow,
+		},
+	},
+	uio = {
+		-- <sys/uio.h>
+		{
+			func = "readv",
+			buftype = "struct iovec[]",
+			bufsize = 2,
+			arguments = {
+				"STDIN_FILENO",
+				"__buf",
+				"__len",
+			},
+		},
+		{
+			func = "readv",
+			variant = "iov",
+			arguments = {
+				"STDIN_FILENO",
+				"iov",
+				"nitems(iov)",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = readv_stackvars,
+			init = readv_init,
+			uses_len = true,
+		},
+		{
+			func = "preadv",
+			buftype = "struct iovec[]",
+			bufsize = 2,
+			arguments = {
+				"STDIN_FILENO",
+				"__buf",
+				"__len",
+				"0",
+			},
+		},
+		{
+			func = "preadv",
+			variant = "iov",
+			arguments = {
+				"STDIN_FILENO",
+				"iov",
+				"nitems(iov)",
+				"0",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = readv_stackvars,
+			init = readv_init,
+			uses_len = true,
 		},
 	},
 	poll = {

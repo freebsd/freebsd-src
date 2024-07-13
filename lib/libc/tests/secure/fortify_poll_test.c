@@ -7,6 +7,7 @@
 #include <sys/random.h>
 #include <sys/resource.h>
 #include <sys/time.h>
+#include <sys/uio.h>
 #include <sys/wait.h>
 #include <dirent.h>
 #include <errno.h>
