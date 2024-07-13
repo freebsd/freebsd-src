@@ -36,9 +36,10 @@ __RCSID("$NetBSD: wmemmove.c,v 1.1 2000/12/23 23:14:37 itojun Exp $");
 #endif
 #include <string.h>
 #include <wchar.h>
+#include <ssp/ssp.h>
 
 wchar_t *
-wmemmove(wchar_t *d, const wchar_t *s, size_t n)
+__ssp_real(wmemmove)(wchar_t *d, const wchar_t *s, size_t n)
 {
 	return (wchar_t *)memmove(d, s, n * sizeof(wchar_t));
 }

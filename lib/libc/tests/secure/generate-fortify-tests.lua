@@ -77,6 +77,7 @@ local includes = {
 	"strings.h",
 	"sysexits.h",
 	"unistd.h",
+	"wchar.h",
 	"atf-c.h",
 }
 
@@ -111,6 +112,13 @@ local string_stackvars = "\tchar src[__len];\n"
 local string_init = [[
 	memset(__stack.__buf, 0, __len);
 	memset(src, 'A', __len - 1);
+	src[__len - 1] = '\0';
+]]
+
+local wstring_stackvars = "\twchar_t src[__len];\n"
+local wstring_init = [[
+	wmemset(__stack.__buf, 0, __len);
+	wmemset(src, 'A', __len - 1);
 	src[__len - 1] = '\0';
 ]]
 
@@ -604,6 +612,148 @@ local all_tests = {
 	if (!isatty(fd))
 		atf_tc_skip("stdin is not an fd");
 ]]
+		},
+	},
+	wchar = {
+		-- <wchar.h>
+		{
+			func = "wmemcpy",
+			buftype = "wchar_t[]",
+			arguments = {
+				"__buf",
+				"src",
+				"__len",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = "\twchar_t src[__len + 10];\n",
+		},
+		{
+			func = "wmempcpy",
+			buftype = "wchar_t[]",
+			arguments = {
+				"__buf",
+				"src",
+				"__len",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = "\twchar_t src[__len + 10];\n",
+		},
+		{
+			func = "wmemmove",
+			buftype = "wchar_t[]",
+			arguments = {
+				"__buf",
+				"src",
+				"__len",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = "\twchar_t src[__len + 10];\n",
+		},
+		{
+			func = "wmemset",
+			buftype = "wchar_t[]",
+			arguments = {
+				"__buf",
+				"L'0'",
+				"__len",
+			},
+			exclude = excludes_stack_overflow,
+		},
+		{
+			func = "wcpcpy",
+			buftype = "wchar_t[]",
+			arguments = {
+				"__buf",
+				"src",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = wstring_stackvars,
+			init = wstring_init,
+			uses_len = true,
+		},
+		{
+			func = "wcpncpy",
+			buftype = "wchar_t[]",
+			arguments = {
+				"__buf",
+				"src",
+				"__len",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = wstring_stackvars,
+			init = wstring_init,
+		},
+		{
+			func = "wcscat",
+			buftype = "wchar_t[]",
+			arguments = {
+				"__buf",
+				"src",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = wstring_stackvars,
+			init = wstring_init,
+			uses_len = true,
+		},
+		{
+			func = "wcslcat",
+			buftype = "wchar_t[]",
+			arguments = {
+				"__buf",
+				"src",
+				"__len",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = wstring_stackvars,
+			init = wstring_init,
+		},
+		{
+			func = "wcsncat",
+			buftype = "wchar_t[]",
+			arguments = {
+				"__buf",
+				"src",
+				"__len",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = wstring_stackvars,
+			init = wstring_init,
+		},
+		{
+			func = "wcscpy",
+			buftype = "wchar_t[]",
+			arguments = {
+				"__buf",
+				"src",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = wstring_stackvars,
+			init = wstring_init,
+			uses_len = true,
+		},
+		{
+			func = "wcslcpy",
+			buftype = "wchar_t[]",
+			arguments = {
+				"__buf",
+				"src",
+				"__len",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = wstring_stackvars,
+			init = wstring_init,
+		},
+		{
+			func = "wcsncpy",
+			buftype = "wchar_t[]",
+			arguments = {
+				"__buf",
+				"src",
+				"__len",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = wstring_stackvars,
+			init = wstring_init,
 		},
 	},
 }
