@@ -1172,9 +1172,9 @@ int
 register_tcp_functions_as_names(struct tcp_function_block *blk, int wait,
     const char *names[], int *num_names)
 {
-	struct tcp_function *n;
+	struct tcp_function *f[TCP_FUNCTION_NAME_NUM_MAX];
 	struct tcp_function_set fs;
-	int error, i;
+	int error, i, num_registered;
 
 	KASSERT(names != NULL, ("%s: Called with NULL name list", __func__));
 	KASSERT(*num_names > 0,
@@ -1182,71 +1182,73 @@ register_tcp_functions_as_names(struct tcp_function_block *blk, int wait,
 	KASSERT(rw_initialized(&tcp_function_lock),
 	    ("%s: called too early", __func__));
 
+	if (*num_names > TCP_FUNCTION_NAME_NUM_MAX) {
+		/* Too many names. */
+		*num_names = 0;
+		return (E2BIG);
+	}
 	if ((blk->tfb_tcp_output == NULL) ||
 	    (blk->tfb_tcp_do_segment == NULL) ||
 	    (blk->tfb_tcp_ctloutput == NULL) ||
 	    (blk->tfb_tcp_handoff_ok == NULL) ||
 	    (strlen(blk->tfb_tcp_block_name) == 0)) {
-		/*
-		 * These functions are required and you
-		 * need a name.
-		 */
+		/* These functions are required and a name is needed. */
 		*num_names = 0;
 		return (EINVAL);
 	}
 
+	for (i = 0; i < *num_names; i++) {
+		f[i] = malloc(sizeof(struct tcp_function), M_TCPFUNCTIONS, wait);
+		if (f[i] == NULL) {
+			while (--i >= 0)
+				free(f[i], M_TCPFUNCTIONS);
+			*num_names = 0;
+			return (ENOMEM);
+		}
+	}
+
+	num_registered = 0;
+	rw_wlock(&tcp_function_lock);
+	if (find_tcp_fb_locked(blk, NULL) != NULL) {
+		/* A TCP function block can only be registered once. */
+		error = EALREADY;
+		goto cleanup;
+	}
 	if (blk->tfb_flags & TCP_FUNC_BEING_REMOVED) {
-		*num_names = 0;
-		return (EINVAL);
+		error = EINVAL;
+		goto cleanup;
 	}
-
 	refcount_init(&blk->tfb_refcnt, 0);
 	blk->tfb_id = atomic_fetchadd_int(&next_tcp_stack_id, 1);
 	for (i = 0; i < *num_names; i++) {
-		n = malloc(sizeof(struct tcp_function), M_TCPFUNCTIONS, wait);
-		if (n == NULL) {
-			error = ENOMEM;
-			goto cleanup;
-		}
-		n->tf_fb = blk;
-
 		(void)strlcpy(fs.function_set_name, names[i],
 		    sizeof(fs.function_set_name));
-		rw_wlock(&tcp_function_lock);
 		if (find_tcp_functions_locked(&fs) != NULL) {
 			/* Duplicate name space not allowed */
-			rw_wunlock(&tcp_function_lock);
-			free(n, M_TCPFUNCTIONS);
 			error = EALREADY;
 			goto cleanup;
 		}
-		(void)strlcpy(n->tf_name, names[i], sizeof(n->tf_name));
-		TAILQ_INSERT_TAIL(&t_functions, n, tf_next);
+		f[i]->tf_fb = blk;
+		(void)strlcpy(f[i]->tf_name, names[i], sizeof(f[i]->tf_name));
+		TAILQ_INSERT_TAIL(&t_functions, f[i], tf_next);
 		tcp_fb_cnt++;
-		rw_wunlock(&tcp_function_lock);
+		num_registered++;
 	}
+	rw_wunlock(&tcp_function_lock);
 	return (0);
 
 cleanup:
-	/*
-	 * Deregister the names we just added. Because registration failed
-	 * for names[i], we don't need to deregister that name.
-	 */
-	*num_names = i;
-	rw_wlock(&tcp_function_lock);
-	while (--i >= 0) {
-		TAILQ_FOREACH(n, &t_functions, tf_next) {
-			if (!strncmp(n->tf_name, names[i],
-			    TCP_FUNCTION_NAME_LEN_MAX)) {
-				TAILQ_REMOVE(&t_functions, n, tf_next);
-				tcp_fb_cnt--;
-				n->tf_fb = NULL;
-				free(n, M_TCPFUNCTIONS);
-				break;
-			}
+	/* Remove the entries just added. */
+	for (i = 0; i < *num_names; i++) {
+		if (i < num_registered) {
+			TAILQ_REMOVE(&t_functions, f[i], tf_next);
+			tcp_fb_cnt--;
 		}
+		f[i]->tf_fb = NULL;
+		free(f[i], M_TCPFUNCTIONS);
 	}
 	rw_wunlock(&tcp_function_lock);
+	*num_names = num_registered;
 	return (error);
 }
 
