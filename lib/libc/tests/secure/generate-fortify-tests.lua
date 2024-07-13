@@ -64,6 +64,7 @@ local includes = {
 	"sys/param.h",
 	"sys/random.h",
 	"sys/resource.h",
+	"sys/select.h",
 	"sys/time.h",
 	"sys/uio.h",
 	"sys/wait.h",
@@ -167,6 +168,36 @@ local all_tests = {
 				"0",
 			},
 			exclude = excludes_stack_overflow,
+		},
+	},
+	select = {
+		-- <sys/select.h>
+		{
+			func = "FD_SET",
+			bufsize = "FD_SETSIZE",
+			buftype = "fd_set",
+			arguments = {
+				"__idx",
+				"__buf",
+			},
+		},
+		{
+			func = "FD_CLR",
+			bufsize = "FD_SETSIZE",
+			buftype = "fd_set",
+			arguments = {
+				"__idx",
+				"__buf",
+			},
+		},
+		{
+			func = "FD_ISSET",
+			bufsize = "FD_SETSIZE",
+			buftype = "fd_set",
+			arguments = {
+				"__idx",
+				"__buf",
+			},
 		},
 	},
 	uio = {
