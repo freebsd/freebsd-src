@@ -4758,8 +4758,8 @@ pmap_allocpte_nosleep(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp,
 		}
 		if ((*pdp & PG_V) == 0) {
 			/* Have to allocate a new pd, recurse */
-		  if (pmap_allocpte_nosleep(pmap, pmap_pdpe_pindex(va),
-		      lockp, va) == NULL) {
+			if (pmap_allocpte_nosleep(pmap, pmap_pdpe_pindex(va),
+			    lockp, va) == NULL) {
 				pmap_allocpte_free_unref(pmap, va,
 				    pmap_pml4e(pmap, va));
 				pmap_free_pt_page(pmap, m, true);
