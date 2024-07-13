@@ -69,6 +69,10 @@ typedef struct {
  */
 #define	RAND_MAX	0x7fffffff
 
+#if !defined(_STANDALONE) && defined(_FORTIFY_SOURCE) && _FORTIFY_SOURCE > 0
+#include <ssp/stdlib.h>
+#endif
+
 __BEGIN_DECLS
 #ifdef _XLOCALE_H_
 #include <xlocale/_stdlib.h>
