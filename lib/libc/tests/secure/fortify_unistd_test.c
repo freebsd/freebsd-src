@@ -4,6 +4,7 @@
 #define	TMPFILE_SIZE	(1024 * 32)
 
 #include <sys/param.h>
+#include <sys/random.h>
 #include <sys/resource.h>
 #include <sys/time.h>
 #include <sys/wait.h>
