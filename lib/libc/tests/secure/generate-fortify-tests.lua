@@ -65,6 +65,7 @@ local includes = {
 	"sys/random.h",
 	"sys/resource.h",
 	"sys/select.h",
+	"sys/socket.h",
 	"sys/time.h",
 	"sys/uio.h",
 	"sys/wait.h",
@@ -113,6 +114,19 @@ local readv_init = [[
 	iov[0].iov_len = __len;
 
 	replace_stdin();
+]]
+
+local socket_stackvars = "\tint sock[2] = { -1, -1 };\n"
+local recvfrom_sockaddr_stackvars = socket_stackvars .. [[
+	char data[16];
+	socklen_t socklen;
+]]
+local recvmsg_stackvars = socket_stackvars .. "\tstruct msghdr msg;\n"
+local socket_init = [[
+	new_socket(sock);
+]]
+local socket_socklen_init = socket_init .. [[
+	socklen = __len;
 ]]
 
 local stdio_init = [[
@@ -198,6 +212,187 @@ local all_tests = {
 				"__idx",
 				"__buf",
 			},
+		},
+	},
+	socket = {
+		-- <sys/socket.h>
+		{
+			func = "getpeername",
+			buftype = "struct sockaddr",
+			bufsize = "sizeof(struct sockaddr)",
+			arguments = {
+				"sock[0]",
+				"__buf",
+				"&socklen",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = socket_stackvars .. "\tsocklen_t socklen;",
+			init = socket_socklen_init,
+			uses_len = true,
+		},
+		{
+			func = "getsockname",
+			buftype = "struct sockaddr",
+			bufsize = "sizeof(struct sockaddr)",
+			arguments = {
+				"sock[0]",
+				"__buf",
+				"&socklen",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = socket_stackvars .. "\tsocklen_t socklen;",
+			init = socket_socklen_init,
+			uses_len = true,
+		},
+		{
+			func = "recv",
+			arguments = {
+				"sock[0]",
+				"__buf",
+				"__len",
+				"0",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = socket_stackvars,
+			init = socket_init,
+		},
+		{
+			func = "recvfrom",
+			arguments = {
+				"sock[0]",
+				"__buf",
+				"__len",
+				"0",
+				"NULL",
+				"NULL",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = socket_stackvars,
+			init = socket_init,
+		},
+		{
+			func = "recvfrom",
+			variant = "sockaddr",
+			buftype = "struct sockaddr",
+			bufsize = "sizeof(struct sockaddr)",
+			arguments = {
+				"sock[0]",
+				"data",
+				"sizeof(data)",
+				"0",
+				"__buf",
+				"&socklen",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = recvfrom_sockaddr_stackvars,
+			init = socket_socklen_init,
+			uses_len = true,
+		},
+		{
+			func = "recvmsg",
+			variant = "msg_name",
+			buftype = "struct sockaddr",
+			bufsize = "sizeof(struct sockaddr)",
+			arguments = {
+				"sock[0]",
+				"&msg",
+				"0",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = recvmsg_stackvars,
+			init = [[
+	memset(&msg, 0, sizeof(msg));
+	msg.msg_name = BUF;
+	msg.msg_namelen = __len;
+]],
+			uses_len = true,
+		},
+		{
+			func = "recvmsg",
+			variant = "msg_iov",
+			arguments = {
+				"sock[0]",
+				"&msg",
+				"0",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = recvmsg_stackvars .. "\tstruct iovec iov[2];\n",
+			init = [[
+	memset(&msg, 0, sizeof(msg));
+	memset(&iov[0], 0, sizeof(iov));
+
+	/*
+	 * We position the buffer second just so that we can confirm that the
+	 * fortification bits are traversing the iovec correctly.
+	 */
+	iov[1].iov_base = BUF;
+	iov[1].iov_len = __len;
+
+	msg.msg_iov = &iov[0];
+	msg.msg_iovlen = nitems(iov);
+]],
+			uses_len = true,
+		},
+		{
+			func = "recvmsg",
+			variant = "msg_control",
+			bufsize = "CMSG_SPACE(sizeof(int))",
+			arguments = {
+				"sock[0]",
+				"&msg",
+				"0",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = recvmsg_stackvars,
+			init = [[
+	memset(&msg, 0, sizeof(msg));
+
+	msg.msg_control = BUF;
+	msg.msg_controllen = __len;
+]],
+			uses_len = true,
+		},
+		{
+			func = "recvmmsg",
+			variant = "msgvec",
+			buftype = "struct mmsghdr[]",
+			bufsize = "2",
+			arguments = {
+				"sock[0]",
+				"__buf",
+				"__len",
+				"0",
+				"NULL",
+			},
+			stackvars = socket_stackvars,
+		},
+		{
+			-- We'll assume that recvmsg is covering msghdr
+			-- validation thoroughly enough, we'll just try tossing
+			-- an error in the second element of a msgvec to try and
+			-- make sure that each one is being validated.
+			func = "recvmmsg",
+			variant = "msghdr",
+			arguments = {
+				"sock[0]",
+				"&msgvec[0]",
+				"nitems(msgvec)",
+				"0",
+				"NULL",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = socket_stackvars .. "\tstruct mmsghdr msgvec[2];\n",
+			init = [[
+	memset(&msgvec[0], 0, sizeof(msgvec));
+
+	/*
+	 * Same as above, make sure fortification isn't ignoring n > 1 elements
+	 * of the msgvec.
+	 */
+	msgvec[1].msg_hdr.msg_control = BUF;
+	msgvec[1].msg_hdr.msg_controllen = __len;
+]],
+			uses_len = true,
 		},
 	},
 	uio = {
@@ -1205,6 +1400,50 @@ new_symlink(size_t __len)
 	ATF_REQUIRE(error == 0);
 
 	return (linkname);
+}
+
+/*
+ * For our purposes, first descriptor will be the reader; we'll send both
+ * raw data and a control message over it so that the result can be used for
+ * any of our recv*() tests.
+ */
+static void __unused
+new_socket(int sock[2])
+{
+	unsigned char ctrl[CMSG_SPACE(sizeof(int))] = { 0 };
+	static char sockbuf[256];
+	ssize_t rv;
+	size_t total = 0;
+	struct msghdr hdr = { 0 };
+	struct cmsghdr *cmsg;
+	int error, fd;
+
+	error = socketpair(AF_UNIX, SOCK_STREAM, 0, sock);
+	ATF_REQUIRE(error == 0);
+
+	while (total != sizeof(sockbuf)) {
+		rv = send(sock[1], &sockbuf[total], sizeof(sockbuf) - total, 0);
+
+		ATF_REQUIRE_MSG(rv > 0,
+		    "expected bytes sent, got %zd with %zu left (size %zu, total %zu)",
+		    rv, sizeof(sockbuf) - total, sizeof(sockbuf), total);
+		ATF_REQUIRE_MSG(total + (size_t)rv <= sizeof(sockbuf),
+		    "%zd exceeds total %zu", rv, sizeof(sockbuf));
+		total += rv;
+	}
+
+	hdr.msg_control = ctrl;
+	hdr.msg_controllen = sizeof(ctrl);
+
+	cmsg = CMSG_FIRSTHDR(&hdr);
+	cmsg->cmsg_level = SOL_SOCKET;
+	cmsg->cmsg_type = SCM_RIGHTS;
+	cmsg->cmsg_len = CMSG_LEN(sizeof(fd));
+	fd = STDIN_FILENO;
+	memcpy(CMSG_DATA(cmsg), &fd, sizeof(fd));
+
+	error = sendmsg(sock[1], &hdr, 0);
+	ATF_REQUIRE(error != -1);
 }
 
 /*

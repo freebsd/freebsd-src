@@ -7,6 +7,7 @@
 #include <sys/random.h>
 #include <sys/resource.h>
 #include <sys/select.h>
+#include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/uio.h>
 #include <sys/wait.h>
@@ -64,6 +65,50 @@ new_symlink(size_t __len)
 	ATF_REQUIRE(error == 0);
 
 	return (linkname);
+}
+
+/*
+ * For our purposes, first descriptor will be the reader; we'll send both
+ * raw data and a control message over it so that the result can be used for
+ * any of our recv*() tests.
+ */
+static void __unused
+new_socket(int sock[2])
+{
+	unsigned char ctrl[CMSG_SPACE(sizeof(int))] = { 0 };
+	static char sockbuf[256];
+	ssize_t rv;
+	size_t total = 0;
+	struct msghdr hdr = { 0 };
+	struct cmsghdr *cmsg;
+	int error, fd;
+
+	error = socketpair(AF_UNIX, SOCK_STREAM, 0, sock);
+	ATF_REQUIRE(error == 0);
+
+	while (total != sizeof(sockbuf)) {
+		rv = send(sock[1], &sockbuf[total], sizeof(sockbuf) - total, 0);
+
+		ATF_REQUIRE_MSG(rv > 0,
+		    "expected bytes sent, got %zd with %zu left (size %zu, total %zu)",
+		    rv, sizeof(sockbuf) - total, sizeof(sockbuf), total);
+		ATF_REQUIRE_MSG(total + (size_t)rv <= sizeof(sockbuf),
+		    "%zd exceeds total %zu", rv, sizeof(sockbuf));
+		total += rv;
+	}
+
+	hdr.msg_control = ctrl;
+	hdr.msg_controllen = sizeof(ctrl);
+
+	cmsg = CMSG_FIRSTHDR(&hdr);
+	cmsg->cmsg_level = SOL_SOCKET;
+	cmsg->cmsg_type = SCM_RIGHTS;
+	cmsg->cmsg_len = CMSG_LEN(sizeof(fd));
+	fd = STDIN_FILENO;
+	memcpy(CMSG_DATA(cmsg), &fd, sizeof(fd));
+
+	error = sendmsg(sock[1], &hdr, 0);
+	ATF_REQUIRE(error != -1);
 }
 
 /*
