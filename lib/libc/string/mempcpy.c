@@ -29,9 +29,11 @@
  */
 
 #include <string.h>
+#include <ssp/ssp.h>
 
 void *
-mempcpy(void *__restrict dst, const void *__restrict src, size_t len)
+__ssp_real(mempcpy)(void *__restrict dst, const void *__restrict src,
+    size_t len)
 {
 	return ((char *)memcpy(dst, src, len) + len);
 }

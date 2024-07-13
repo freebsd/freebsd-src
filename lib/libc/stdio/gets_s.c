@@ -39,6 +39,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <ssp/ssp.h>
 #include "un-namespace.h"
 #include "libc_private.h"
 #include "local.h"
@@ -77,7 +78,7 @@ _gets_s(char *buf, rsize_t n)
 
 /* ISO/IEC 9899:2011 K.3.7.4.1 */
 char *
-gets_s(char *buf, rsize_t n)
+__ssp_real(gets_s)(char *buf, rsize_t n)
 {
 	char *ret;
 	if (buf == NULL) {

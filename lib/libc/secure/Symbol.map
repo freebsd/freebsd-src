@@ -15,7 +15,9 @@ FBSD_1.8 {
 	__stpncpy_chk;
 	__strcat_chk;
 	__strcpy_chk;
+	__strlcat_chk;
 	__strncat_chk;
+	__strlcpy_chk;
 	__strncpy_chk;
 	__vsnprintf_chk;
 	__vsprintf_chk;

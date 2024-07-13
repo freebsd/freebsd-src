@@ -20,6 +20,23 @@
 #include <unistd.h>
 #include <atf-c.h>
 
+static FILE * __unused
+new_fp(size_t __len)
+{
+	static char fpbuf[LINE_MAX];
+	FILE *fp;
+
+	ATF_REQUIRE(__len <= sizeof(fpbuf));
+
+	memset(fpbuf, 'A', sizeof(fpbuf) - 1);
+	fpbuf[sizeof(fpbuf) - 1] = '\0';
+
+	fp = fmemopen(fpbuf, sizeof(fpbuf), "rb");
+	ATF_REQUIRE(fp != NULL);
+
+	return (fp);
+}
+
 /*
  * Create a new symlink to use for readlink(2) style tests, we'll just use a
  * random target name to have something interesting to look at.
@@ -77,6 +94,22 @@ disable_coredumps(void)
 
 	if (setrlimit(RLIMIT_CORE, &rl) == -1)
 		_exit(EX_OSERR);
+}
+
+/*
+ * Replaces stdin with a file that we can actually read from, for tests where
+ * we want a FILE * or fd that we can get data from.
+ */
+static void __unused
+replace_stdin(void)
+{
+	int fd;
+
+	fd = new_tmpfile();
+
+	(void)dup2(fd, STDIN_FILENO);
+	if (fd != STDIN_FILENO)
+		close(fd);
 }
 
 ATF_TC_WITHOUT_HEAD(memcpy_before_end);
@@ -185,6 +218,138 @@ ATF_TC_BODY(memcpy_heap_after_end, tc)
 	__stack.__buf = malloc(__bufsz);
 
 	memcpy(__stack.__buf, src, __len);
+	_exit(EX_SOFTWARE);	/* Should have aborted. */
+
+monitor:
+	while (waitpid(__child, &__status, 0) != __child) {
+		ATF_REQUIRE_EQ(EINTR, errno);
+	}
+
+	if (!WIFSIGNALED(__status)) {
+		switch (WEXITSTATUS(__status)) {
+		case EX_SOFTWARE:
+			atf_tc_fail("FORTIFY_SOURCE failed to abort");
+			break;
+		case EX_OSERR:
+			atf_tc_fail("setrlimit(2) failed");
+			break;
+		default:
+			atf_tc_fail("child exited with status %d",
+			    WEXITSTATUS(__status));
+		}
+	} else {
+		ATF_REQUIRE_EQ(SIGABRT, WTERMSIG(__status));
+	}
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(mempcpy_before_end);
+ATF_TC_BODY(mempcpy_before_end, tc)
+{
+#define BUF &__stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char __buf[42];
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(__stack.__buf);
+	const size_t __len = 42 - 1;
+	const size_t __idx __unused = __len - 1;
+	char src[__len + 10];
+
+	mempcpy(__stack.__buf, src, __len);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(mempcpy_end);
+ATF_TC_BODY(mempcpy_end, tc)
+{
+#define BUF &__stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char __buf[42];
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(__stack.__buf);
+	const size_t __len = 42;
+	const size_t __idx __unused = __len - 1;
+	char src[__len + 10];
+
+	mempcpy(__stack.__buf, src, __len);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(mempcpy_heap_before_end);
+ATF_TC_BODY(mempcpy_heap_before_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (42);
+	const size_t __len = 42 - 1;
+	const size_t __idx __unused = __len - 1;
+	char src[__len + 10];
+
+	__stack.__buf = malloc(__bufsz);
+
+	mempcpy(__stack.__buf, src, __len);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(mempcpy_heap_end);
+ATF_TC_BODY(mempcpy_heap_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (42);
+	const size_t __len = 42;
+	const size_t __idx __unused = __len - 1;
+	char src[__len + 10];
+
+	__stack.__buf = malloc(__bufsz);
+
+	mempcpy(__stack.__buf, src, __len);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(mempcpy_heap_after_end);
+ATF_TC_BODY(mempcpy_heap_after_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (42);
+	const size_t __len = 42 + 1;
+	const size_t __idx __unused = __len - 1;
+	pid_t __child;
+	int __status;
+	char src[__len + 10];
+
+	__child = fork();
+	ATF_REQUIRE(__child >= 0);
+	if (__child > 0)
+		goto monitor;
+
+	/* Child */
+	disable_coredumps();
+	__stack.__buf = malloc(__bufsz);
+
+	mempcpy(__stack.__buf, src, __len);
 	_exit(EX_SOFTWARE);	/* Should have aborted. */
 
 monitor:
@@ -917,6 +1082,155 @@ monitor:
 
 }
 
+ATF_TC_WITHOUT_HEAD(strlcat_before_end);
+ATF_TC_BODY(strlcat_before_end, tc)
+{
+#define BUF &__stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char __buf[42];
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(__stack.__buf);
+	const size_t __len = 42 - 1;
+	const size_t __idx __unused = __len - 1;
+	char src[__len];
+
+	memset(__stack.__buf, 0, __len);
+	memset(src, 'A', __len - 1);
+	src[__len - 1] = '\0';
+
+	strlcat(__stack.__buf, src, __len);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(strlcat_end);
+ATF_TC_BODY(strlcat_end, tc)
+{
+#define BUF &__stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char __buf[42];
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(__stack.__buf);
+	const size_t __len = 42;
+	const size_t __idx __unused = __len - 1;
+	char src[__len];
+
+	memset(__stack.__buf, 0, __len);
+	memset(src, 'A', __len - 1);
+	src[__len - 1] = '\0';
+
+	strlcat(__stack.__buf, src, __len);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(strlcat_heap_before_end);
+ATF_TC_BODY(strlcat_heap_before_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (42);
+	const size_t __len = 42 - 1;
+	const size_t __idx __unused = __len - 1;
+	char src[__len];
+
+	__stack.__buf = malloc(__bufsz);
+	memset(__stack.__buf, 0, __len);
+	memset(src, 'A', __len - 1);
+	src[__len - 1] = '\0';
+
+	strlcat(__stack.__buf, src, __len);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(strlcat_heap_end);
+ATF_TC_BODY(strlcat_heap_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (42);
+	const size_t __len = 42;
+	const size_t __idx __unused = __len - 1;
+	char src[__len];
+
+	__stack.__buf = malloc(__bufsz);
+	memset(__stack.__buf, 0, __len);
+	memset(src, 'A', __len - 1);
+	src[__len - 1] = '\0';
+
+	strlcat(__stack.__buf, src, __len);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(strlcat_heap_after_end);
+ATF_TC_BODY(strlcat_heap_after_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (42);
+	const size_t __len = 42 + 1;
+	const size_t __idx __unused = __len - 1;
+	pid_t __child;
+	int __status;
+	char src[__len];
+
+	__child = fork();
+	ATF_REQUIRE(__child >= 0);
+	if (__child > 0)
+		goto monitor;
+
+	/* Child */
+	disable_coredumps();
+	__stack.__buf = malloc(__bufsz);
+	memset(__stack.__buf, 0, __len);
+	memset(src, 'A', __len - 1);
+	src[__len - 1] = '\0';
+
+	strlcat(__stack.__buf, src, __len);
+	_exit(EX_SOFTWARE);	/* Should have aborted. */
+
+monitor:
+	while (waitpid(__child, &__status, 0) != __child) {
+		ATF_REQUIRE_EQ(EINTR, errno);
+	}
+
+	if (!WIFSIGNALED(__status)) {
+		switch (WEXITSTATUS(__status)) {
+		case EX_SOFTWARE:
+			atf_tc_fail("FORTIFY_SOURCE failed to abort");
+			break;
+		case EX_OSERR:
+			atf_tc_fail("setrlimit(2) failed");
+			break;
+		default:
+			atf_tc_fail("child exited with status %d",
+			    WEXITSTATUS(__status));
+		}
+	} else {
+		ATF_REQUIRE_EQ(SIGABRT, WTERMSIG(__status));
+	}
+#undef BUF
+
+}
+
 ATF_TC_WITHOUT_HEAD(strncat_before_end);
 ATF_TC_BODY(strncat_before_end, tc)
 {
@@ -1215,6 +1529,155 @@ monitor:
 
 }
 
+ATF_TC_WITHOUT_HEAD(strlcpy_before_end);
+ATF_TC_BODY(strlcpy_before_end, tc)
+{
+#define BUF &__stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char __buf[42];
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(__stack.__buf);
+	const size_t __len = 42 - 1;
+	const size_t __idx __unused = __len - 1;
+	char src[__len];
+
+	memset(__stack.__buf, 0, __len);
+	memset(src, 'A', __len - 1);
+	src[__len - 1] = '\0';
+
+	strlcpy(__stack.__buf, src, __len);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(strlcpy_end);
+ATF_TC_BODY(strlcpy_end, tc)
+{
+#define BUF &__stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char __buf[42];
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(__stack.__buf);
+	const size_t __len = 42;
+	const size_t __idx __unused = __len - 1;
+	char src[__len];
+
+	memset(__stack.__buf, 0, __len);
+	memset(src, 'A', __len - 1);
+	src[__len - 1] = '\0';
+
+	strlcpy(__stack.__buf, src, __len);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(strlcpy_heap_before_end);
+ATF_TC_BODY(strlcpy_heap_before_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (42);
+	const size_t __len = 42 - 1;
+	const size_t __idx __unused = __len - 1;
+	char src[__len];
+
+	__stack.__buf = malloc(__bufsz);
+	memset(__stack.__buf, 0, __len);
+	memset(src, 'A', __len - 1);
+	src[__len - 1] = '\0';
+
+	strlcpy(__stack.__buf, src, __len);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(strlcpy_heap_end);
+ATF_TC_BODY(strlcpy_heap_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (42);
+	const size_t __len = 42;
+	const size_t __idx __unused = __len - 1;
+	char src[__len];
+
+	__stack.__buf = malloc(__bufsz);
+	memset(__stack.__buf, 0, __len);
+	memset(src, 'A', __len - 1);
+	src[__len - 1] = '\0';
+
+	strlcpy(__stack.__buf, src, __len);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(strlcpy_heap_after_end);
+ATF_TC_BODY(strlcpy_heap_after_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (42);
+	const size_t __len = 42 + 1;
+	const size_t __idx __unused = __len - 1;
+	pid_t __child;
+	int __status;
+	char src[__len];
+
+	__child = fork();
+	ATF_REQUIRE(__child >= 0);
+	if (__child > 0)
+		goto monitor;
+
+	/* Child */
+	disable_coredumps();
+	__stack.__buf = malloc(__bufsz);
+	memset(__stack.__buf, 0, __len);
+	memset(src, 'A', __len - 1);
+	src[__len - 1] = '\0';
+
+	strlcpy(__stack.__buf, src, __len);
+	_exit(EX_SOFTWARE);	/* Should have aborted. */
+
+monitor:
+	while (waitpid(__child, &__status, 0) != __child) {
+		ATF_REQUIRE_EQ(EINTR, errno);
+	}
+
+	if (!WIFSIGNALED(__status)) {
+		switch (WEXITSTATUS(__status)) {
+		case EX_SOFTWARE:
+			atf_tc_fail("FORTIFY_SOURCE failed to abort");
+			break;
+		case EX_OSERR:
+			atf_tc_fail("setrlimit(2) failed");
+			break;
+		default:
+			atf_tc_fail("child exited with status %d",
+			    WEXITSTATUS(__status));
+		}
+	} else {
+		ATF_REQUIRE_EQ(SIGABRT, WTERMSIG(__status));
+	}
+#undef BUF
+
+}
+
 ATF_TC_WITHOUT_HEAD(strncpy_before_end);
 ATF_TC_BODY(strncpy_before_end, tc)
 {
@@ -1371,6 +1834,11 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, memcpy_heap_before_end);
 	ATF_TP_ADD_TC(tp, memcpy_heap_end);
 	ATF_TP_ADD_TC(tp, memcpy_heap_after_end);
+	ATF_TP_ADD_TC(tp, mempcpy_before_end);
+	ATF_TP_ADD_TC(tp, mempcpy_end);
+	ATF_TP_ADD_TC(tp, mempcpy_heap_before_end);
+	ATF_TP_ADD_TC(tp, mempcpy_heap_end);
+	ATF_TP_ADD_TC(tp, mempcpy_heap_after_end);
 	ATF_TP_ADD_TC(tp, memmove_before_end);
 	ATF_TP_ADD_TC(tp, memmove_end);
 	ATF_TP_ADD_TC(tp, memmove_heap_before_end);
@@ -1396,6 +1864,11 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, strcat_heap_before_end);
 	ATF_TP_ADD_TC(tp, strcat_heap_end);
 	ATF_TP_ADD_TC(tp, strcat_heap_after_end);
+	ATF_TP_ADD_TC(tp, strlcat_before_end);
+	ATF_TP_ADD_TC(tp, strlcat_end);
+	ATF_TP_ADD_TC(tp, strlcat_heap_before_end);
+	ATF_TP_ADD_TC(tp, strlcat_heap_end);
+	ATF_TP_ADD_TC(tp, strlcat_heap_after_end);
 	ATF_TP_ADD_TC(tp, strncat_before_end);
 	ATF_TP_ADD_TC(tp, strncat_end);
 	ATF_TP_ADD_TC(tp, strncat_heap_before_end);
@@ -1406,6 +1879,11 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, strcpy_heap_before_end);
 	ATF_TP_ADD_TC(tp, strcpy_heap_end);
 	ATF_TP_ADD_TC(tp, strcpy_heap_after_end);
+	ATF_TP_ADD_TC(tp, strlcpy_before_end);
+	ATF_TP_ADD_TC(tp, strlcpy_end);
+	ATF_TP_ADD_TC(tp, strlcpy_heap_before_end);
+	ATF_TP_ADD_TC(tp, strlcpy_heap_end);
+	ATF_TP_ADD_TC(tp, strlcpy_heap_after_end);
 	ATF_TP_ADD_TC(tp, strncpy_before_end);
 	ATF_TP_ADD_TC(tp, strncpy_end);
 	ATF_TP_ADD_TC(tp, strncpy_heap_before_end);

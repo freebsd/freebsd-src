@@ -36,6 +36,7 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#include <ssp/ssp.h>
 
 __warn_references(tmpnam,
     "warning: tmpnam() possibly used unsafely; consider using mkstemp()");
@@ -43,7 +44,7 @@ __warn_references(tmpnam,
 extern char *_mktemp(char *);
 
 char *
-tmpnam(char *s)
+__ssp_real(tmpnam)(char *s)
 {
 	static u_long tmpcount;
 	static char buf[L_tmpnam];
