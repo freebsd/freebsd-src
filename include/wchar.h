@@ -109,6 +109,14 @@ typedef struct __sFILE FILE;
 struct tm;
 
 __BEGIN_DECLS
+size_t	wcslen(const wchar_t *) __pure;
+__END_DECLS
+
+#if !defined(_STANDALONE) && defined(_FORTIFY_SOURCE) && _FORTIFY_SOURCE > 0
+#include <ssp/wchar.h>
+#endif
+
+__BEGIN_DECLS
 wint_t	btowc(int);
 wint_t	fgetwc(FILE *);
 wchar_t	*
@@ -146,7 +154,6 @@ wchar_t	*wcscpy(wchar_t * __restrict, const wchar_t * __restrict);
 size_t	wcscspn(const wchar_t *, const wchar_t *) __pure;
 size_t	wcsftime(wchar_t * __restrict, size_t, const wchar_t * __restrict,
 	    const struct tm * __restrict);
-size_t	wcslen(const wchar_t *) __pure;
 wchar_t	*wcsncat(wchar_t * __restrict, const wchar_t * __restrict,
 	    size_t);
 int	wcsncmp(const wchar_t *, const wchar_t *, size_t) __pure;

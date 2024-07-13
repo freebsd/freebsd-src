@@ -37,6 +37,7 @@ __RCSID("$NetBSD: wcslcat.c,v 1.1 2000/12/23 23:14:36 itojun Exp $");
 #endif
 #include <sys/types.h>
 #include <wchar.h>
+#include <ssp/ssp.h>
 
 /*
  * Appends src to string dst of size siz (unlike wcsncat, siz is the
@@ -46,7 +47,7 @@ __RCSID("$NetBSD: wcslcat.c,v 1.1 2000/12/23 23:14:36 itojun Exp $");
  * truncation occurred.
  */
 size_t
-wcslcat(wchar_t *dst, const wchar_t *src, size_t siz)
+__ssp_real(wcslcat)(wchar_t *dst, const wchar_t *src, size_t siz)
 {
 	wchar_t *d = dst;
 	const wchar_t *s = src;

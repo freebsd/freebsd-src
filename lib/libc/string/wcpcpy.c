@@ -32,9 +32,10 @@
  */
 
 #include <wchar.h>
+#include <ssp/ssp.h>
 
 wchar_t *
-wcpcpy(wchar_t * __restrict to, const wchar_t * __restrict from)
+__ssp_real(wcpcpy)(wchar_t * __restrict to, const wchar_t * __restrict from)
 {
 
 	for (; (*to = *from); ++from, ++to);

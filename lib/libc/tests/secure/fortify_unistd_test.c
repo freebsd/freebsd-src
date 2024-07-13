@@ -19,6 +19,7 @@
 #include <strings.h>
 #include <sysexits.h>
 #include <unistd.h>
+#include <wchar.h>
 #include <atf-c.h>
 
 static FILE * __unused

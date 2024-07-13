@@ -8,6 +8,7 @@ FORTIFY_TCATS+=	stdio
 FORTIFY_TCATS+=	string
 FORTIFY_TCATS+=	strings
 FORTIFY_TCATS+=	unistd
+FORTIFY_TCATS+=	wchar
 
 # Manually run after updating the test generator.
 generate-tests: .PHONY
