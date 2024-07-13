@@ -4707,8 +4707,8 @@ pmap_allocpte_nosleep(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp,
 		*pml5 = VM_PAGE_TO_PHYS(m) | PG_U | PG_RW | PG_V | PG_A | PG_M;
 
 		if (pmap->pm_pmltopu != NULL && pml5index < NUPML5E) {
-			if (pmap->pm_ucr3 != PMAP_NO_CR3)
-				*pml5 |= pg_nx;
+			MPASS(pmap->pm_ucr3 != PMAP_NO_CR3);
+			*pml5 |= pg_nx;
 
 			pml5u = &pmap->pm_pmltopu[pml5index];
 			*pml5u = VM_PAGE_TO_PHYS(m) | PG_U | PG_RW | PG_V |
@@ -4728,6 +4728,8 @@ pmap_allocpte_nosleep(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp,
 
 		if (!pmap_is_la57(pmap) && pmap->pm_pmltopu != NULL &&
 		    pml4index < NUPML4E) {
+			MPASS(pmap->pm_ucr3 != PMAP_NO_CR3);
+
 			/*
 			 * PTI: Make all user-space mappings in the
 			 * kernel-mode page table no-execute so that
@@ -4735,8 +4737,7 @@ pmap_allocpte_nosleep(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp,
 			 * the kernel-mode page table active on return
 			 * to user space.
 			 */
-			if (pmap->pm_ucr3 != PMAP_NO_CR3)
-				*pml4 |= pg_nx;
+			*pml4 |= pg_nx;
 
 			pml4u = &pmap->pm_pmltopu[pml4index];
 			*pml4u = VM_PAGE_TO_PHYS(m) | PG_U | PG_RW | PG_V |
