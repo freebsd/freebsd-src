@@ -634,6 +634,9 @@ struct tcp_function_block {
 	uint8_t	tfb_id;
 };
 
+/* Maximum number of names each TCP function block can be registered with. */
+#define	TCP_FUNCTION_NAME_NUM_MAX	8
+
 struct tcp_function {
 	TAILQ_ENTRY(tcp_function)	tf_next;
 	char				tf_name[TCP_FUNCTION_NAME_LEN_MAX];
