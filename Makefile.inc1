@@ -1241,10 +1241,18 @@ WMAKE_TGTS+=	build${libcompat}
 .endif
 WMAKE_TGTS+=	everything
 
-# record buildworld time in seconds
+# record buildworld / install time in seconds
 .if make(buildworld)
 _BUILDWORLD_START!= date '+%s'
 .export _BUILDWORLD_START
+.endif
+.if make(installworld)
+_INSTALLWORLD_START!= date '+%s'
+.export _INSTALLWORLD_START
+.endif
+.if make(installkernel)
+_INSTALLKERNEL_START!= date '+%s'
+.export _INSTALLKERNEL_START
 .endif
 
 buildworld: buildworld_prologue ${WMAKE_TGTS} buildworld_epilogue .PHONY
@@ -1313,11 +1321,11 @@ kernel-toolchain: ${KERNEL_TOOLCHAIN_TGTS} .PHONY
 installcheck: _installcheck_world _installcheck_kernel .PHONY
 _installcheck_world: .PHONY
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Install check world"
+	@echo ">>> Install check world started on `LC_ALL=C date`"
 	@echo "--------------------------------------------------------------"
 _installcheck_kernel: .PHONY
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Install check kernel"
+	@echo ">>> Install check kernel started on `LC_ALL=C date`"
 	@echo "--------------------------------------------------------------"
 
 #
@@ -1641,6 +1649,8 @@ restage reinstall: .MAKE .PHONY
 .endfor
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing everything completed on `LC_ALL=C date`"
+	@seconds=$$(($$(date '+%s') - ${_INSTALLWORLD_START})); \
+	  echo ">>> Install world completed in $$seconds seconds, ncpu: $$(${_ncpu_cmd})${.MAKE.JOBS:S/^/, make -j/}"
 	@echo "--------------------------------------------------------------"
 
 redistribute: .MAKE .PHONY
@@ -1873,6 +1883,9 @@ reinstallkernel reinstallkernel.debug: _installcheck_kernel .PHONY
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing kernel ${INSTALLKERNEL} completed on $$(LC_ALL=C date)"
 	@echo "--------------------------------------------------------------"
+	@seconds=$$(($$(date '+%s') - ${_INSTALLKERNEL_START})); \
+	  echo ">>> Install kernel(s) ${INSTALLKERNEL} completed in $$seconds seconds, ncpu: $$(${_ncpu_cmd})${.MAKE.JOBS:S/^/, make -j/}"
+	@echo "--------------------------------------------------------------"
 .endif
 .if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
 .for _kernel in ${BUILDKERNELS:[2..-1]}
@@ -1887,6 +1900,9 @@ reinstallkernel reinstallkernel.debug: _installcheck_kernel .PHONY
 	@echo ">>> Installing kernel ${_kernel} completed on $$(LC_ALL=C date)"
 	@echo "--------------------------------------------------------------"
 .endfor
+	@seconds=$$(($$(date '+%s') - ${_INSTALLKERNEL_START})); \
+	  echo ">>> Install kernel(s) ${BUILDKERNELS} completed in $$seconds seconds, ncpu: $$(${_ncpu_cmd})${.MAKE.JOBS:S/^/, make -j/}"
+	@echo "--------------------------------------------------------------"
 .endif
 
 distributekernel distributekernel.debug: .PHONY
