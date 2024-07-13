@@ -67,21 +67,25 @@
 #define __ssp_bos0(ptr) __builtin_object_size(ptr, 0)
 
 #define __ssp_check(buf, len, bos) \
-	if (bos(buf) != (size_t)-1 && len > bos(buf)) \
+	if (bos(buf) != (size_t)-1 && (size_t)len > bos(buf)) \
 		__chk_fail()
-#define __ssp_redirect_raw(rtype, fun, symbol, args, call, cond, bos) \
+
+#define __ssp_redirect_raw_impl(rtype, fun, symbol, args) \
 rtype __ssp_real_(fun) args __RENAME(symbol); \
 __ssp_inline rtype fun args __RENAME(__ssp_protected_ ## fun); \
-__ssp_inline rtype fun args { \
+__ssp_inline rtype fun args
+
+#define __ssp_redirect_raw(rtype, fun, symbol, args, call, cond, bos, len) \
+__ssp_redirect_raw_impl(rtype, fun, symbol, args) { \
 	if (cond) \
-		__ssp_check(__buf, __len, bos); \
+		__ssp_check(__buf, len, bos); \
 	return __ssp_real_(fun) call; \
 }
 
 #define __ssp_redirect(rtype, fun, args, call) \
-    __ssp_redirect_raw(rtype, fun, fun, args, call, 1, __ssp_bos)
+    __ssp_redirect_raw(rtype, fun, fun, args, call, 1, __ssp_bos, __len)
 #define __ssp_redirect0(rtype, fun, args, call) \
-    __ssp_redirect_raw(rtype, fun, fun, args, call, 1, __ssp_bos0)
+    __ssp_redirect_raw(rtype, fun, fun, args, call, 1, __ssp_bos0, __len)
 
 #include <machine/_stdint.h>
 

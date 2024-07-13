@@ -96,6 +96,10 @@ local printf_init = [[
 	srcvar[sizeof(srcvar) - 1] = '\0';
 ]]
 
+local stdio_init = [[
+	replace_stdin();
+]]
+
 local string_stackvars = "\tchar src[__len];\n"
 local string_init = [[
 	memset(__stack.__buf, 0, __len);
@@ -131,6 +135,53 @@ local all_tests = {
 	stdio = {
 		-- <stdio.h>
 		{
+			func = "ctermid",
+			bufsize = "L_ctermid",
+			arguments = {
+				"__buf",
+			},
+			exclude = excludes_stack_overflow,
+		},
+		{
+			func = "ctermid_r",
+			bufsize = "L_ctermid",
+			arguments = {
+				"__buf",
+			},
+			exclude = excludes_stack_overflow,
+		},
+		{
+			func = "fread",
+			arguments = {
+				"__buf",
+				"__len",
+				"1",
+				"stdin",
+			},
+			exclude = excludes_stack_overflow,
+			init = stdio_init,
+		},
+		{
+			func = "fread_unlocked",
+			arguments = {
+				"__buf",
+				"__len",
+				"1",
+				"stdin",
+			},
+			exclude = excludes_stack_overflow,
+			init = stdio_init,
+		},
+		{
+			func = "gets_s",
+			arguments = {
+				"__buf",
+				"__len",
+			},
+			exclude = excludes_stack_overflow,
+			init = stdio_init,
+		},
+		{
 			func = "sprintf",
 			arguments = {
 				"__buf",
@@ -155,11 +206,42 @@ local all_tests = {
 			stackvars = printf_stackvars,
 			init = printf_init,
 		},
+		{
+			func = "tmpnam",
+			bufsize = "L_tmpnam",
+			arguments = {
+				"__buf",
+			},
+			exclude = excludes_stack_overflow,
+		},
+		{
+			func = "fgets",
+			arguments = {
+				"__buf",
+				"__len",
+				"fp",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = "\tFILE *fp;\n",
+			init = [[
+	fp = new_fp(__len);
+]],
+		},
 	},
 	string = {
 		-- <string.h>
 		{
 			func = "memcpy",
+			arguments = {
+				"__buf",
+				"src",
+				"__len",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = "\tchar src[__len + 10];\n",
+		},
+		{
+			func = "mempcpy",
 			arguments = {
 				"__buf",
 				"src",
@@ -221,6 +303,17 @@ local all_tests = {
 			uses_len = true,
 		},
 		{
+			func = "strlcat",
+			arguments = {
+				"__buf",
+				"src",
+				"__len",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = string_stackvars,
+			init = string_init,
+		},
+		{
 			func = "strncat",
 			arguments = {
 				"__buf",
@@ -241,6 +334,17 @@ local all_tests = {
 			stackvars = string_stackvars,
 			init = string_init,
 			uses_len = true,
+		},
+		{
+			func = "strlcpy",
+			arguments = {
+				"__buf",
+				"src",
+				"__len",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = string_stackvars,
+			init = string_init,
 		},
 		{
 			func = "strncpy",
@@ -274,6 +378,14 @@ local all_tests = {
 			},
 			exclude = excludes_stack_overflow,
 		},
+		{
+			func = "explicit_bzero",
+			arguments = {
+				"__buf",
+				"__len",
+			},
+			exclude = excludes_stack_overflow,
+		},
 	},
 	unistd = {
 		-- <unistd.h>
@@ -285,6 +397,53 @@ local all_tests = {
 				"__len",
 			},
 			exclude = excludes_stack_overflow,
+		},
+		{
+			func = "getgrouplist",
+			bufsize = "4",
+			buftype = "gid_t[]",
+			arguments = {
+				"\"root\"",
+				"0",
+				"__buf",
+				"&intlen",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = "\tint intlen = (int)__len;\n",
+			uses_len = true,
+		},
+		{
+			func = "getgroups",
+			bufsize = "4",
+			buftype = "gid_t[]",
+			arguments = {
+				"__len",
+				"__buf",
+			},
+			exclude = excludes_stack_overflow,
+		},
+		{
+			func = "getloginclass",
+			arguments = {
+				"__buf",
+				"__len",
+			},
+			exclude = excludes_stack_overflow,
+		},
+		{
+			func = "pread",
+			bufsize = "41",
+			arguments = {
+				"fd",
+				"__buf",
+				"__len",
+				"0",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = "\tint fd;\n",
+			init = [[
+	fd = new_tmpfile();	/* Cannot fail */
+]],
 		},
 		{
 			func = "read",
@@ -312,6 +471,85 @@ local all_tests = {
 			init = [[
 	path = new_symlink(__len);		/* Cannot fail */
 ]],
+		},
+		{
+			func = "readlinkat",
+			arguments = {
+				"AT_FDCWD",
+				"path",
+				"__buf",
+				"__len",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = "\tconst char *path;\n",
+			init = [[
+	path = new_symlink(__len);		/* Cannot fail */
+]],
+		},
+		{
+			func = "getdomainname",
+			bufsize = "4",
+			arguments = {
+				"__buf",
+				"__len",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = "\tchar sysdomain[256];\n",
+			early_init = [[
+	(void)getdomainname(sysdomain, __len);
+	if (strlen(sysdomain) <= __len)
+		atf_tc_skip("domain name too short for testing");
+]]
+		},
+		{
+			func = "getentropy",
+			arguments = {
+				"__buf",
+				"__len",
+			},
+			exclude = excludes_stack_overflow,
+		},
+		{
+			func = "gethostname",
+			bufsize = "4",
+			arguments = {
+				"__buf",
+				"__len",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = [[
+	char syshost[256];
+	int error;
+]],
+			early_init = [[
+	error = gethostname(syshost, __len);
+	if (error != 0 || strlen(syshost) <= __len)
+		atf_tc_skip("hostname too short for testing");
+]]
+		},
+		{
+			func = "getlogin_r",
+			bufsize = "MAXLOGNAME + 1",
+			arguments = {
+				"__buf",
+				"__len",
+			},
+			exclude = excludes_stack_overflow,
+		},
+		{
+			func = "ttyname_r",
+			arguments = {
+				"fd",
+				"__buf",
+				"__len",
+			},
+			exclude = excludes_stack_overflow,
+			stackvars = "\tint fd;\n",
+			early_init = [[
+	fd = STDIN_FILENO;
+	if (!isatty(fd))
+		atf_tc_skip("stdin is not an fd");
+]]
 		},
 	},
 }
@@ -620,6 +858,23 @@ end
 
 fh:write([[
 
+static FILE * __unused
+new_fp(size_t __len)
+{
+	static char fpbuf[LINE_MAX];
+	FILE *fp;
+
+	ATF_REQUIRE(__len <= sizeof(fpbuf));
+
+	memset(fpbuf, 'A', sizeof(fpbuf) - 1);
+	fpbuf[sizeof(fpbuf) - 1] = '\0';
+
+	fp = fmemopen(fpbuf, sizeof(fpbuf), "rb");
+	ATF_REQUIRE(fp != NULL);
+
+	return (fp);
+}
+
 /*
  * Create a new symlink to use for readlink(2) style tests, we'll just use a
  * random target name to have something interesting to look at.
@@ -677,6 +932,22 @@ disable_coredumps(void)
 
 	if (setrlimit(RLIMIT_CORE, &rl) == -1)
 		_exit(EX_OSERR);
+}
+
+/*
+ * Replaces stdin with a file that we can actually read from, for tests where
+ * we want a FILE * or fd that we can get data from.
+ */
+static void __unused
+replace_stdin(void)
+{
+	int fd;
+
+	fd = new_tmpfile();
+
+	(void)dup2(fd, STDIN_FILENO);
+	if (fd != STDIN_FILENO)
+		close(fd);
 }
 
 ]])

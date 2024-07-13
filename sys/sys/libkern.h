@@ -337,4 +337,10 @@ signed_extend32(uint32_t bitmap, int lsb, int width)
 #define	FNM_IGNORECASE	FNM_CASEFOLD
 #define	FNM_FILE_NAME	FNM_PATHNAME
 
+#if __has_include(<ssp/ssp.h>)
+#include <ssp/ssp.h>	/* __ssp_real */
+#else
+#define __ssp_real(fun)		fun
+#endif
+
 #endif /* !_SYS_LIBKERN_H_ */

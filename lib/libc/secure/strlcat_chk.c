@@ -1,6 +1,8 @@
 /*	$OpenBSD: strlcat.c,v 1.15 2015/03/02 21:41:08 millert Exp $	*/
 
 /*
+ * SPDX-License-Identifier: ISC
+ *
  * Copyright (c) 1998, 2015 Todd C. Miller <Todd.Miller@courtesan.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -16,10 +18,10 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/types.h>
+#include <stdio.h>
 #include <string.h>
 
-#undef strlcat	/* FORTIFY_SOURCE */
+#include <ssp/string.h>
 
 /*
  * Appends src to string dst of size dsize (unlike strncat, dsize is the
@@ -29,29 +31,40 @@
  * If retval >= dsize, truncation occurred.
  */
 size_t
-strlcat(char * __restrict dst, const char * __restrict src, size_t dsize)
+__strlcat_chk(char * __restrict dst, const char * __restrict src, size_t dsize,
+    size_t dbufsize)
 {
 	const char *odst = dst;
 	const char *osrc = src;
 	size_t n = dsize;
 	size_t dlen;
 
+	if (dsize > dbufsize)
+		__chk_fail();
+
 	/* Find the end of dst and adjust bytes left but don't go past end. */
-	while (n-- != 0 && *dst != '\0')
+	while (n-- != 0 && *dst != '\0') {
 		dst++;
+	}
+
 	dlen = dst - odst;
 	n = dsize - dlen;
 
 	if (n-- == 0)
-		return(dlen + strlen(src));
+		return (dlen + strlen(src));
 	while (*src != '\0') {
 		if (n != 0) {
+			if (dbufsize-- == 0)
+				__chk_fail();
 			*dst++ = *src;
 			n--;
 		}
+
 		src++;
 	}
-	*dst = '\0';
 
-	return(dlen + (src - osrc));	/* count does not include NUL */
+	if (dbufsize-- == 0)
+		__chk_fail();
+	*dst = '\0';
+	return (dlen + (src - osrc));	/* count does not include NUL */
 }

@@ -43,14 +43,46 @@ __BEGIN_DECLS
 #define	_FORTIFY_SOURCE_read	read
 #endif
 
-__ssp_redirect0(ssize_t, _FORTIFY_SOURCE_read, (int __fd, void *__buf,
+__ssp_inline size_t
+__ssp_gid_bos(const void *ptr)
+{
+	size_t ptrsize = __ssp_bos(ptr);
+
+	if (ptrsize == (size_t)-1)
+		return (ptrsize);
+
+	return (ptrsize / sizeof(gid_t));
+}
+
+__ssp_redirect_raw(int, getgrouplist, getgrouplist,
+    (const char *__name, gid_t __base, gid_t *__buf, int *__lenp),
+    (__name, __base, __buf, __lenp), 1, __ssp_gid_bos, *__lenp);
+
+__ssp_redirect_raw(int, getgroups, getgroups, (int __len, gid_t *__buf),
+    (__len, __buf), 1, __ssp_gid_bos, __len);
+
+__ssp_redirect(int, getloginclass, (char *__buf, size_t __len),
+    (__buf, __len));
+
+__ssp_redirect(ssize_t, _FORTIFY_SOURCE_read, (int __fd, void *__buf,
     size_t __len), (__fd, __buf, __len));
+__ssp_redirect(ssize_t, pread, (int __fd, void *__buf, size_t __len,
+    off_t __offset), (__fd, __buf, __len, __offset));
 
 __ssp_redirect(ssize_t, readlink, (const char *__restrict __path, \
     char *__restrict __buf, size_t __len), (__path, __buf, __len));
+__ssp_redirect(ssize_t, readlinkat, (int __fd, const char *__restrict __path,
+	char *__restrict __buf, size_t __len), (__fd, __path, __buf, __len));
 
 __ssp_redirect_raw(char *, getcwd, getcwd, (char *__buf, size_t __len),
-    (__buf, __len), __buf != 0, __ssp_bos);
+    (__buf, __len), __buf != 0, __ssp_bos, __len);
+
+__ssp_redirect(int, getdomainname, (char *__buf, int __len), (__buf, __len));
+__ssp_redirect(int, getentropy, (void *__buf, size_t __len), (__buf, __len));
+__ssp_redirect(int, gethostname, (char *__buf, size_t __len), (__buf, __len));
+__ssp_redirect(int, getlogin_r, (char *__buf, size_t __len), (__buf, __len));
+__ssp_redirect(int, ttyname_r, (int __fd, char *__buf, size_t __len),
+    (__fd, __buf, __len));
 
 __END_DECLS
 

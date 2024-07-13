@@ -20,6 +20,23 @@
 #include <unistd.h>
 #include <atf-c.h>
 
+static FILE * __unused
+new_fp(size_t __len)
+{
+	static char fpbuf[LINE_MAX];
+	FILE *fp;
+
+	ATF_REQUIRE(__len <= sizeof(fpbuf));
+
+	memset(fpbuf, 'A', sizeof(fpbuf) - 1);
+	fpbuf[sizeof(fpbuf) - 1] = '\0';
+
+	fp = fmemopen(fpbuf, sizeof(fpbuf), "rb");
+	ATF_REQUIRE(fp != NULL);
+
+	return (fp);
+}
+
 /*
  * Create a new symlink to use for readlink(2) style tests, we'll just use a
  * random target name to have something interesting to look at.
@@ -77,6 +94,678 @@ disable_coredumps(void)
 
 	if (setrlimit(RLIMIT_CORE, &rl) == -1)
 		_exit(EX_OSERR);
+}
+
+/*
+ * Replaces stdin with a file that we can actually read from, for tests where
+ * we want a FILE * or fd that we can get data from.
+ */
+static void __unused
+replace_stdin(void)
+{
+	int fd;
+
+	fd = new_tmpfile();
+
+	(void)dup2(fd, STDIN_FILENO);
+	if (fd != STDIN_FILENO)
+		close(fd);
+}
+
+ATF_TC_WITHOUT_HEAD(ctermid_before_end);
+ATF_TC_BODY(ctermid_before_end, tc)
+{
+#define BUF &__stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char __buf[L_ctermid + 1];
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(__stack.__buf);
+	const size_t __len = L_ctermid + 1;
+	const size_t __idx __unused = __len - 1;
+
+	ctermid(__stack.__buf);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(ctermid_end);
+ATF_TC_BODY(ctermid_end, tc)
+{
+#define BUF &__stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char __buf[L_ctermid];
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(__stack.__buf);
+	const size_t __len = L_ctermid;
+	const size_t __idx __unused = __len - 1;
+
+	ctermid(__stack.__buf);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(ctermid_heap_before_end);
+ATF_TC_BODY(ctermid_heap_before_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (L_ctermid + 1);
+	const size_t __len = L_ctermid + 1;
+	const size_t __idx __unused = __len - 1;
+
+	__stack.__buf = malloc(__bufsz);
+
+	ctermid(__stack.__buf);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(ctermid_heap_end);
+ATF_TC_BODY(ctermid_heap_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (L_ctermid);
+	const size_t __len = L_ctermid;
+	const size_t __idx __unused = __len - 1;
+
+	__stack.__buf = malloc(__bufsz);
+
+	ctermid(__stack.__buf);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(ctermid_heap_after_end);
+ATF_TC_BODY(ctermid_heap_after_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (L_ctermid - 1);
+	const size_t __len = L_ctermid - 1;
+	const size_t __idx __unused = __len - 1;
+	pid_t __child;
+	int __status;
+
+	__child = fork();
+	ATF_REQUIRE(__child >= 0);
+	if (__child > 0)
+		goto monitor;
+
+	/* Child */
+	disable_coredumps();
+	__stack.__buf = malloc(__bufsz);
+
+	ctermid(__stack.__buf);
+	_exit(EX_SOFTWARE);	/* Should have aborted. */
+
+monitor:
+	while (waitpid(__child, &__status, 0) != __child) {
+		ATF_REQUIRE_EQ(EINTR, errno);
+	}
+
+	if (!WIFSIGNALED(__status)) {
+		switch (WEXITSTATUS(__status)) {
+		case EX_SOFTWARE:
+			atf_tc_fail("FORTIFY_SOURCE failed to abort");
+			break;
+		case EX_OSERR:
+			atf_tc_fail("setrlimit(2) failed");
+			break;
+		default:
+			atf_tc_fail("child exited with status %d",
+			    WEXITSTATUS(__status));
+		}
+	} else {
+		ATF_REQUIRE_EQ(SIGABRT, WTERMSIG(__status));
+	}
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(ctermid_r_before_end);
+ATF_TC_BODY(ctermid_r_before_end, tc)
+{
+#define BUF &__stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char __buf[L_ctermid + 1];
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(__stack.__buf);
+	const size_t __len = L_ctermid + 1;
+	const size_t __idx __unused = __len - 1;
+
+	ctermid_r(__stack.__buf);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(ctermid_r_end);
+ATF_TC_BODY(ctermid_r_end, tc)
+{
+#define BUF &__stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char __buf[L_ctermid];
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(__stack.__buf);
+	const size_t __len = L_ctermid;
+	const size_t __idx __unused = __len - 1;
+
+	ctermid_r(__stack.__buf);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(ctermid_r_heap_before_end);
+ATF_TC_BODY(ctermid_r_heap_before_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (L_ctermid + 1);
+	const size_t __len = L_ctermid + 1;
+	const size_t __idx __unused = __len - 1;
+
+	__stack.__buf = malloc(__bufsz);
+
+	ctermid_r(__stack.__buf);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(ctermid_r_heap_end);
+ATF_TC_BODY(ctermid_r_heap_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (L_ctermid);
+	const size_t __len = L_ctermid;
+	const size_t __idx __unused = __len - 1;
+
+	__stack.__buf = malloc(__bufsz);
+
+	ctermid_r(__stack.__buf);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(ctermid_r_heap_after_end);
+ATF_TC_BODY(ctermid_r_heap_after_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (L_ctermid - 1);
+	const size_t __len = L_ctermid - 1;
+	const size_t __idx __unused = __len - 1;
+	pid_t __child;
+	int __status;
+
+	__child = fork();
+	ATF_REQUIRE(__child >= 0);
+	if (__child > 0)
+		goto monitor;
+
+	/* Child */
+	disable_coredumps();
+	__stack.__buf = malloc(__bufsz);
+
+	ctermid_r(__stack.__buf);
+	_exit(EX_SOFTWARE);	/* Should have aborted. */
+
+monitor:
+	while (waitpid(__child, &__status, 0) != __child) {
+		ATF_REQUIRE_EQ(EINTR, errno);
+	}
+
+	if (!WIFSIGNALED(__status)) {
+		switch (WEXITSTATUS(__status)) {
+		case EX_SOFTWARE:
+			atf_tc_fail("FORTIFY_SOURCE failed to abort");
+			break;
+		case EX_OSERR:
+			atf_tc_fail("setrlimit(2) failed");
+			break;
+		default:
+			atf_tc_fail("child exited with status %d",
+			    WEXITSTATUS(__status));
+		}
+	} else {
+		ATF_REQUIRE_EQ(SIGABRT, WTERMSIG(__status));
+	}
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(fread_before_end);
+ATF_TC_BODY(fread_before_end, tc)
+{
+#define BUF &__stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char __buf[42];
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(__stack.__buf);
+	const size_t __len = 42 - 1;
+	const size_t __idx __unused = __len - 1;
+
+	replace_stdin();
+
+	fread(__stack.__buf, __len, 1, stdin);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(fread_end);
+ATF_TC_BODY(fread_end, tc)
+{
+#define BUF &__stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char __buf[42];
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(__stack.__buf);
+	const size_t __len = 42;
+	const size_t __idx __unused = __len - 1;
+
+	replace_stdin();
+
+	fread(__stack.__buf, __len, 1, stdin);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(fread_heap_before_end);
+ATF_TC_BODY(fread_heap_before_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (42);
+	const size_t __len = 42 - 1;
+	const size_t __idx __unused = __len - 1;
+
+	__stack.__buf = malloc(__bufsz);
+	replace_stdin();
+
+	fread(__stack.__buf, __len, 1, stdin);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(fread_heap_end);
+ATF_TC_BODY(fread_heap_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (42);
+	const size_t __len = 42;
+	const size_t __idx __unused = __len - 1;
+
+	__stack.__buf = malloc(__bufsz);
+	replace_stdin();
+
+	fread(__stack.__buf, __len, 1, stdin);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(fread_heap_after_end);
+ATF_TC_BODY(fread_heap_after_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (42);
+	const size_t __len = 42 + 1;
+	const size_t __idx __unused = __len - 1;
+	pid_t __child;
+	int __status;
+
+	__child = fork();
+	ATF_REQUIRE(__child >= 0);
+	if (__child > 0)
+		goto monitor;
+
+	/* Child */
+	disable_coredumps();
+	__stack.__buf = malloc(__bufsz);
+	replace_stdin();
+
+	fread(__stack.__buf, __len, 1, stdin);
+	_exit(EX_SOFTWARE);	/* Should have aborted. */
+
+monitor:
+	while (waitpid(__child, &__status, 0) != __child) {
+		ATF_REQUIRE_EQ(EINTR, errno);
+	}
+
+	if (!WIFSIGNALED(__status)) {
+		switch (WEXITSTATUS(__status)) {
+		case EX_SOFTWARE:
+			atf_tc_fail("FORTIFY_SOURCE failed to abort");
+			break;
+		case EX_OSERR:
+			atf_tc_fail("setrlimit(2) failed");
+			break;
+		default:
+			atf_tc_fail("child exited with status %d",
+			    WEXITSTATUS(__status));
+		}
+	} else {
+		ATF_REQUIRE_EQ(SIGABRT, WTERMSIG(__status));
+	}
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(fread_unlocked_before_end);
+ATF_TC_BODY(fread_unlocked_before_end, tc)
+{
+#define BUF &__stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char __buf[42];
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(__stack.__buf);
+	const size_t __len = 42 - 1;
+	const size_t __idx __unused = __len - 1;
+
+	replace_stdin();
+
+	fread_unlocked(__stack.__buf, __len, 1, stdin);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(fread_unlocked_end);
+ATF_TC_BODY(fread_unlocked_end, tc)
+{
+#define BUF &__stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char __buf[42];
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(__stack.__buf);
+	const size_t __len = 42;
+	const size_t __idx __unused = __len - 1;
+
+	replace_stdin();
+
+	fread_unlocked(__stack.__buf, __len, 1, stdin);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(fread_unlocked_heap_before_end);
+ATF_TC_BODY(fread_unlocked_heap_before_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (42);
+	const size_t __len = 42 - 1;
+	const size_t __idx __unused = __len - 1;
+
+	__stack.__buf = malloc(__bufsz);
+	replace_stdin();
+
+	fread_unlocked(__stack.__buf, __len, 1, stdin);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(fread_unlocked_heap_end);
+ATF_TC_BODY(fread_unlocked_heap_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (42);
+	const size_t __len = 42;
+	const size_t __idx __unused = __len - 1;
+
+	__stack.__buf = malloc(__bufsz);
+	replace_stdin();
+
+	fread_unlocked(__stack.__buf, __len, 1, stdin);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(fread_unlocked_heap_after_end);
+ATF_TC_BODY(fread_unlocked_heap_after_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (42);
+	const size_t __len = 42 + 1;
+	const size_t __idx __unused = __len - 1;
+	pid_t __child;
+	int __status;
+
+	__child = fork();
+	ATF_REQUIRE(__child >= 0);
+	if (__child > 0)
+		goto monitor;
+
+	/* Child */
+	disable_coredumps();
+	__stack.__buf = malloc(__bufsz);
+	replace_stdin();
+
+	fread_unlocked(__stack.__buf, __len, 1, stdin);
+	_exit(EX_SOFTWARE);	/* Should have aborted. */
+
+monitor:
+	while (waitpid(__child, &__status, 0) != __child) {
+		ATF_REQUIRE_EQ(EINTR, errno);
+	}
+
+	if (!WIFSIGNALED(__status)) {
+		switch (WEXITSTATUS(__status)) {
+		case EX_SOFTWARE:
+			atf_tc_fail("FORTIFY_SOURCE failed to abort");
+			break;
+		case EX_OSERR:
+			atf_tc_fail("setrlimit(2) failed");
+			break;
+		default:
+			atf_tc_fail("child exited with status %d",
+			    WEXITSTATUS(__status));
+		}
+	} else {
+		ATF_REQUIRE_EQ(SIGABRT, WTERMSIG(__status));
+	}
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(gets_s_before_end);
+ATF_TC_BODY(gets_s_before_end, tc)
+{
+#define BUF &__stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char __buf[42];
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(__stack.__buf);
+	const size_t __len = 42 - 1;
+	const size_t __idx __unused = __len - 1;
+
+	replace_stdin();
+
+	gets_s(__stack.__buf, __len);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(gets_s_end);
+ATF_TC_BODY(gets_s_end, tc)
+{
+#define BUF &__stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char __buf[42];
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(__stack.__buf);
+	const size_t __len = 42;
+	const size_t __idx __unused = __len - 1;
+
+	replace_stdin();
+
+	gets_s(__stack.__buf, __len);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(gets_s_heap_before_end);
+ATF_TC_BODY(gets_s_heap_before_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (42);
+	const size_t __len = 42 - 1;
+	const size_t __idx __unused = __len - 1;
+
+	__stack.__buf = malloc(__bufsz);
+	replace_stdin();
+
+	gets_s(__stack.__buf, __len);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(gets_s_heap_end);
+ATF_TC_BODY(gets_s_heap_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (42);
+	const size_t __len = 42;
+	const size_t __idx __unused = __len - 1;
+
+	__stack.__buf = malloc(__bufsz);
+	replace_stdin();
+
+	gets_s(__stack.__buf, __len);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(gets_s_heap_after_end);
+ATF_TC_BODY(gets_s_heap_after_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (42);
+	const size_t __len = 42 + 1;
+	const size_t __idx __unused = __len - 1;
+	pid_t __child;
+	int __status;
+
+	__child = fork();
+	ATF_REQUIRE(__child >= 0);
+	if (__child > 0)
+		goto monitor;
+
+	/* Child */
+	disable_coredumps();
+	__stack.__buf = malloc(__bufsz);
+	replace_stdin();
+
+	gets_s(__stack.__buf, __len);
+	_exit(EX_SOFTWARE);	/* Should have aborted. */
+
+monitor:
+	while (waitpid(__child, &__status, 0) != __child) {
+		ATF_REQUIRE_EQ(EINTR, errno);
+	}
+
+	if (!WIFSIGNALED(__status)) {
+		switch (WEXITSTATUS(__status)) {
+		case EX_SOFTWARE:
+			atf_tc_fail("FORTIFY_SOURCE failed to abort");
+			break;
+		case EX_OSERR:
+			atf_tc_fail("setrlimit(2) failed");
+			break;
+		default:
+			atf_tc_fail("child exited with status %d",
+			    WEXITSTATUS(__status));
+		}
+	} else {
+		ATF_REQUIRE_EQ(SIGABRT, WTERMSIG(__status));
+	}
+#undef BUF
+
 }
 
 ATF_TC_WITHOUT_HEAD(sprintf_before_end);
@@ -367,8 +1056,299 @@ monitor:
 
 }
 
+ATF_TC_WITHOUT_HEAD(tmpnam_before_end);
+ATF_TC_BODY(tmpnam_before_end, tc)
+{
+#define BUF &__stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char __buf[L_tmpnam + 1];
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(__stack.__buf);
+	const size_t __len = L_tmpnam + 1;
+	const size_t __idx __unused = __len - 1;
+
+	tmpnam(__stack.__buf);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(tmpnam_end);
+ATF_TC_BODY(tmpnam_end, tc)
+{
+#define BUF &__stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char __buf[L_tmpnam];
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(__stack.__buf);
+	const size_t __len = L_tmpnam;
+	const size_t __idx __unused = __len - 1;
+
+	tmpnam(__stack.__buf);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(tmpnam_heap_before_end);
+ATF_TC_BODY(tmpnam_heap_before_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (L_tmpnam + 1);
+	const size_t __len = L_tmpnam + 1;
+	const size_t __idx __unused = __len - 1;
+
+	__stack.__buf = malloc(__bufsz);
+
+	tmpnam(__stack.__buf);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(tmpnam_heap_end);
+ATF_TC_BODY(tmpnam_heap_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (L_tmpnam);
+	const size_t __len = L_tmpnam;
+	const size_t __idx __unused = __len - 1;
+
+	__stack.__buf = malloc(__bufsz);
+
+	tmpnam(__stack.__buf);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(tmpnam_heap_after_end);
+ATF_TC_BODY(tmpnam_heap_after_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (L_tmpnam - 1);
+	const size_t __len = L_tmpnam - 1;
+	const size_t __idx __unused = __len - 1;
+	pid_t __child;
+	int __status;
+
+	__child = fork();
+	ATF_REQUIRE(__child >= 0);
+	if (__child > 0)
+		goto monitor;
+
+	/* Child */
+	disable_coredumps();
+	__stack.__buf = malloc(__bufsz);
+
+	tmpnam(__stack.__buf);
+	_exit(EX_SOFTWARE);	/* Should have aborted. */
+
+monitor:
+	while (waitpid(__child, &__status, 0) != __child) {
+		ATF_REQUIRE_EQ(EINTR, errno);
+	}
+
+	if (!WIFSIGNALED(__status)) {
+		switch (WEXITSTATUS(__status)) {
+		case EX_SOFTWARE:
+			atf_tc_fail("FORTIFY_SOURCE failed to abort");
+			break;
+		case EX_OSERR:
+			atf_tc_fail("setrlimit(2) failed");
+			break;
+		default:
+			atf_tc_fail("child exited with status %d",
+			    WEXITSTATUS(__status));
+		}
+	} else {
+		ATF_REQUIRE_EQ(SIGABRT, WTERMSIG(__status));
+	}
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(fgets_before_end);
+ATF_TC_BODY(fgets_before_end, tc)
+{
+#define BUF &__stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char __buf[42];
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(__stack.__buf);
+	const size_t __len = 42 - 1;
+	const size_t __idx __unused = __len - 1;
+	FILE *fp;
+
+	fp = new_fp(__len);
+
+	fgets(__stack.__buf, __len, fp);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(fgets_end);
+ATF_TC_BODY(fgets_end, tc)
+{
+#define BUF &__stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char __buf[42];
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(__stack.__buf);
+	const size_t __len = 42;
+	const size_t __idx __unused = __len - 1;
+	FILE *fp;
+
+	fp = new_fp(__len);
+
+	fgets(__stack.__buf, __len, fp);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(fgets_heap_before_end);
+ATF_TC_BODY(fgets_heap_before_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (42);
+	const size_t __len = 42 - 1;
+	const size_t __idx __unused = __len - 1;
+	FILE *fp;
+
+	__stack.__buf = malloc(__bufsz);
+	fp = new_fp(__len);
+
+	fgets(__stack.__buf, __len, fp);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(fgets_heap_end);
+ATF_TC_BODY(fgets_heap_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (42);
+	const size_t __len = 42;
+	const size_t __idx __unused = __len - 1;
+	FILE *fp;
+
+	__stack.__buf = malloc(__bufsz);
+	fp = new_fp(__len);
+
+	fgets(__stack.__buf, __len, fp);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(fgets_heap_after_end);
+ATF_TC_BODY(fgets_heap_after_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (42);
+	const size_t __len = 42 + 1;
+	const size_t __idx __unused = __len - 1;
+	pid_t __child;
+	int __status;
+	FILE *fp;
+
+	__child = fork();
+	ATF_REQUIRE(__child >= 0);
+	if (__child > 0)
+		goto monitor;
+
+	/* Child */
+	disable_coredumps();
+	__stack.__buf = malloc(__bufsz);
+	fp = new_fp(__len);
+
+	fgets(__stack.__buf, __len, fp);
+	_exit(EX_SOFTWARE);	/* Should have aborted. */
+
+monitor:
+	while (waitpid(__child, &__status, 0) != __child) {
+		ATF_REQUIRE_EQ(EINTR, errno);
+	}
+
+	if (!WIFSIGNALED(__status)) {
+		switch (WEXITSTATUS(__status)) {
+		case EX_SOFTWARE:
+			atf_tc_fail("FORTIFY_SOURCE failed to abort");
+			break;
+		case EX_OSERR:
+			atf_tc_fail("setrlimit(2) failed");
+			break;
+		default:
+			atf_tc_fail("child exited with status %d",
+			    WEXITSTATUS(__status));
+		}
+	} else {
+		ATF_REQUIRE_EQ(SIGABRT, WTERMSIG(__status));
+	}
+#undef BUF
+
+}
+
 ATF_TP_ADD_TCS(tp)
 {
+	ATF_TP_ADD_TC(tp, ctermid_before_end);
+	ATF_TP_ADD_TC(tp, ctermid_end);
+	ATF_TP_ADD_TC(tp, ctermid_heap_before_end);
+	ATF_TP_ADD_TC(tp, ctermid_heap_end);
+	ATF_TP_ADD_TC(tp, ctermid_heap_after_end);
+	ATF_TP_ADD_TC(tp, ctermid_r_before_end);
+	ATF_TP_ADD_TC(tp, ctermid_r_end);
+	ATF_TP_ADD_TC(tp, ctermid_r_heap_before_end);
+	ATF_TP_ADD_TC(tp, ctermid_r_heap_end);
+	ATF_TP_ADD_TC(tp, ctermid_r_heap_after_end);
+	ATF_TP_ADD_TC(tp, fread_before_end);
+	ATF_TP_ADD_TC(tp, fread_end);
+	ATF_TP_ADD_TC(tp, fread_heap_before_end);
+	ATF_TP_ADD_TC(tp, fread_heap_end);
+	ATF_TP_ADD_TC(tp, fread_heap_after_end);
+	ATF_TP_ADD_TC(tp, fread_unlocked_before_end);
+	ATF_TP_ADD_TC(tp, fread_unlocked_end);
+	ATF_TP_ADD_TC(tp, fread_unlocked_heap_before_end);
+	ATF_TP_ADD_TC(tp, fread_unlocked_heap_end);
+	ATF_TP_ADD_TC(tp, fread_unlocked_heap_after_end);
+	ATF_TP_ADD_TC(tp, gets_s_before_end);
+	ATF_TP_ADD_TC(tp, gets_s_end);
+	ATF_TP_ADD_TC(tp, gets_s_heap_before_end);
+	ATF_TP_ADD_TC(tp, gets_s_heap_end);
+	ATF_TP_ADD_TC(tp, gets_s_heap_after_end);
 	ATF_TP_ADD_TC(tp, sprintf_before_end);
 	ATF_TP_ADD_TC(tp, sprintf_end);
 	ATF_TP_ADD_TC(tp, sprintf_heap_before_end);
@@ -379,5 +1359,15 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, snprintf_heap_before_end);
 	ATF_TP_ADD_TC(tp, snprintf_heap_end);
 	ATF_TP_ADD_TC(tp, snprintf_heap_after_end);
+	ATF_TP_ADD_TC(tp, tmpnam_before_end);
+	ATF_TP_ADD_TC(tp, tmpnam_end);
+	ATF_TP_ADD_TC(tp, tmpnam_heap_before_end);
+	ATF_TP_ADD_TC(tp, tmpnam_heap_end);
+	ATF_TP_ADD_TC(tp, tmpnam_heap_after_end);
+	ATF_TP_ADD_TC(tp, fgets_before_end);
+	ATF_TP_ADD_TC(tp, fgets_end);
+	ATF_TP_ADD_TC(tp, fgets_heap_before_end);
+	ATF_TP_ADD_TC(tp, fgets_heap_end);
+	ATF_TP_ADD_TC(tp, fgets_heap_after_end);
 	return (atf_no_error());
 }

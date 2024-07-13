@@ -35,6 +35,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <ssp/ssp.h>
 
 #include "libc_private.h"
 
@@ -105,7 +106,7 @@ getentropy_fallback(void *buf, size_t buflen)
 }
 
 int
-getentropy(void *buf, size_t buflen)
+__ssp_real(getentropy)(void *buf, size_t buflen)
 {
 	ssize_t rd;
 	bool have_getrandom;

@@ -33,9 +33,10 @@
 #include <sys/sysctl.h>
 
 #include <unistd.h>
+#include <ssp/ssp.h>
 
 int
-getdomainname(char *name, int namelen)
+__ssp_real(getdomainname)(char *name, int namelen)
 {
 	int mib[2];
 	size_t size;
