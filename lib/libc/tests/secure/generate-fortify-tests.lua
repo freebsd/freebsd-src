@@ -262,6 +262,26 @@ local all_tests = {
 ]],
 		},
 	},
+	stdlib = {
+		-- <stdlib.h>
+		{
+			func = "arc4random_buf",
+			arguments = {
+				"__buf",
+				"__len",
+			},
+			exclude = excludes_stack_overflow,
+		},
+		{
+			func = "realpath",
+			bufsize = "PATH_MAX",
+			arguments = {
+				"\".\"",
+				"__buf",
+			},
+			exclude = excludes_stack_overflow,
+		},
+	},
 	string = {
 		-- <string.h>
 		{
