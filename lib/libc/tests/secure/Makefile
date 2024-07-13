@@ -2,6 +2,10 @@
 
 TESTSDIR:=	${TESTSBASE}/${RELDIR:C/libc\/tests/libc/}
 
+# sys/ headers
+FORTIFY_TCATS+=	random
+
+# non-sys/ headers
 FORTIFY_TCATS+=	poll
 FORTIFY_TCATS+=	stdlib
 FORTIFY_TCATS+=	stdio

@@ -62,6 +62,7 @@
 
 local includes = {
 	"sys/param.h",
+	"sys/random.h",
 	"sys/resource.h",
 	"sys/time.h",
 	"sys/wait.h",
@@ -147,6 +148,18 @@ local wstring_init = [[
 -- circumstances it's useful to use a different type (e.g., for alignment
 -- requirements).
 local all_tests = {
+	random = {
+		-- <sys/random.h>
+		{
+			func = "getrandom",
+			arguments = {
+				"__buf",
+				"__len",
+				"0",
+			},
+			exclude = excludes_stack_overflow,
+		},
+	},
 	poll = {
 		-- <poll.h>
 		{
