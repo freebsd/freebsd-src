@@ -1333,8 +1333,8 @@ unionfs_vn_create_on_upper(struct vnode **vpp, struct vnode *udvp,
 		goto unionfs_vn_create_on_upper_cleanup;
 	}
 	error = VOP_ADD_WRITECOUNT(uvp, 1);
-	CTR3(KTR_VFS, "%s: newvp %p v_writecount increased to %d",
-	    __func__, newvp, newvp->v_writecount);
+	CTR3(KTR_VFS, "%s: vp %p v_writecount increased to %d",
+	    __func__, uvp, uvp->v_writecount);
 	if (error == 0) {
 		*vpp = uvp;
 	} else {
