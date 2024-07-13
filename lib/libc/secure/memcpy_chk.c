@@ -44,7 +44,7 @@ __memcpy_chk(void * __restrict dst, const void * __restrict src, size_t len,
 	if (len > slen)
 		__chk_fail();
 
-	if (__ssp_overlap((const char *)src, (const char *)dst, len))
+	if (__ssp_overlap(src, dst, len))
 		__chk_fail();
 
 	return (memcpy(dst, src, len));

@@ -83,12 +83,19 @@ __ssp_inline rtype fun args { \
 #define __ssp_redirect0(rtype, fun, args, call) \
     __ssp_redirect_raw(rtype, fun, fun, args, call, 1, __ssp_bos0)
 
-/*
- * Take caution when using __ssp_overlap!  Don't use it in contexts where we
- * can end up with double-evaluation of a statement with some side-effects.
- */
-#define __ssp_overlap(a, b, l) \
-    (((a) <= (b) && (b) < (a) + (l)) || ((b) <= (a) && (a) < (b) + (l)))
+#include <machine/_stdint.h>
+
+static inline int
+__ssp_overlap(const void *leftp, const void *rightp, __size_t sz)
+{
+	__uintptr_t left = (__uintptr_t)leftp;
+	__uintptr_t right = (__uintptr_t)rightp;
+
+	if (left <= right)
+		return (SIZE_MAX - sz < left || right < left + sz);
+
+	return (SIZE_MAX - sz < right || left < right + sz);
+}
 
 __BEGIN_DECLS
 void __stack_chk_fail(void) __dead2;
