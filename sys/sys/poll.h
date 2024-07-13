@@ -109,6 +109,10 @@ typedef	__sigset_t	sigset_t;
 
 #endif
 
+#if defined(_FORTIFY_SOURCE) && _FORTIFY_SOURCE > 0
+#include <ssp/poll.h>
+#endif
+
 __BEGIN_DECLS
 int	poll(struct pollfd _pfd[], nfds_t _nfds, int _timeout);
 #if __BSD_VISIBLE
