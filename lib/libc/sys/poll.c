@@ -31,13 +31,14 @@
 
 #include <sys/types.h>
 #include <sys/poll.h>
+#include <ssp/ssp.h>
 #include "libc_private.h"
 
 __weak_reference(__sys_poll, __poll);
 
-#pragma weak poll
+#pragma weak __ssp_real(poll)
 int
-poll(struct pollfd pfd[], nfds_t nfds, int timeout)
+__ssp_real(poll)(struct pollfd pfd[], nfds_t nfds, int timeout)
 {
 	return (INTERPOS_SYS(poll, pfd, nfds, timeout));
 }

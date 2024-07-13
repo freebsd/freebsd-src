@@ -69,6 +69,7 @@ local includes = {
 	"errno.h",
 	"fcntl.h",
 	"limits.h",
+	"poll.h",
 	"signal.h",
 	"stdio.h",
 	"stdlib.h",
@@ -89,6 +90,12 @@ local tests_added = {}
 local function excludes_stack_overflow(disposition, is_heap)
 	return (not is_heap) and disposition > 0
 end
+
+local poll_init = [[
+	for (size_t i = 0; i < howmany(__bufsz, sizeof(struct pollfd)); i++) {
+		__stack.__buf[i].fd = -1;
+	}
+]]
 
 local printf_stackvars = "\tchar srcvar[__len + 10];\n"
 local printf_init = [[
@@ -132,6 +139,33 @@ local string_init = [[
 -- circumstances it's useful to use a different type (e.g., for alignment
 -- requirements).
 local all_tests = {
+	poll = {
+		-- <poll.h>
+		{
+			func = "poll",
+			bufsize = "4",
+			buftype = "struct pollfd[]",
+			arguments = {
+				"__buf",
+				"__len",
+				"0",
+			},
+			init = poll_init,
+		},
+		{
+			func = "ppoll",
+			bufsize = "4",
+			buftype = "struct pollfd[]",
+			arguments = {
+				"__buf",
+				"__len",
+				"&tv",
+				"NULL",
+			},
+			stackvars = "\tstruct timespec tv = { 0 };\n",
+			init = poll_init,
+		},
+	},
 	stdio = {
 		-- <stdio.h>
 		{

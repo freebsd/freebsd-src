@@ -2,6 +2,7 @@
 
 TESTSDIR:=	${TESTSBASE}/${RELDIR:C/libc\/tests/libc/}
 
+FORTIFY_TCATS+=	poll
 FORTIFY_TCATS+=	stdio
 FORTIFY_TCATS+=	string
 FORTIFY_TCATS+=	strings
