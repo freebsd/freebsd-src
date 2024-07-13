@@ -269,7 +269,7 @@ enum tcp_log_events {
 	TCP_LOG_PRU,		/* TCP protocol user request        70 */
 	TCP_POLICER_DET,	/* TCP Policer detectionn           71 */
 	TCP_PCM_MEASURE,	/* TCP Path Capacity Measurement    72 */
-	TCP_LOG_END		/* End (keep at end)                72 */
+	TCP_LOG_END		/* End (keep at end)                73 */
 };
 
 enum tcp_log_states {
