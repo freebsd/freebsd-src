@@ -36,7 +36,7 @@
 .\" see ``http://www.isc.org/isc''.  To learn more about Vixie
 .\" Enterprises, see ``http://www.vix.com''.
 .\"
-.Dd August 4, 2018
+.Dd August 1, 2024
 .Dt DHCLIENT 8
 .Os
 .Sh NAME
@@ -82,6 +82,10 @@ will revert to running in the background.
 Specify an alternate location,
 .Ar file ,
 for the leases file.
+.It Fl n
+Make
+.Nm
+not wait for ARP resolution.
 .It Fl p Ar file
 Specify an alternate location for the PID file.
 The default is
