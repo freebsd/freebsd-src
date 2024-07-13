@@ -22,7 +22,7 @@ CFLAGS+= -I${SRCTOP}/sys
 CFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/include
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/module/icp/include
 CFLAGS+= -include ${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/spl/sys/ccompile.h
-CFLAGS+= -DHAVE_ISSETUGID 
+CFLAGS+= -DHAVE_ISSETUGID -DHAVE_STRLCAT -DHAVE_STRLCPY
 CFLAGS+= -include ${SRCTOP}/sys/modules/zfs/zfs_config.h
 
 HAS_TESTS=	yes

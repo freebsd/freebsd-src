@@ -26,6 +26,8 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>	/* __RENAME */
+
 #include <stdbool.h>
 
 #include <sys/param.h>
