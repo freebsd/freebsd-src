@@ -1799,7 +1799,6 @@ static int hptiop_probe(device_t dev)
 {
 	struct hpt_iop_hba *hba;
 	u_int32_t id;
-	static char buf[256];
 	int sas = 0;
 	struct hptiop_adapter_ops *ops;
 
@@ -1852,9 +1851,8 @@ static int hptiop_probe(device_t dev)
 		pci_get_bus(dev), pci_get_slot(dev),
 		pci_get_function(dev), pci_get_irq(dev));
 
-	sprintf(buf, "RocketRAID %x %s Controller\n",
-				id, sas ? "SAS" : "SATA");
-	device_set_desc_copy(dev, buf);
+	device_set_descf(dev, "RocketRAID %x %s Controller",
+	    id, sas ? "SAS" : "SATA");
 
 	hba = (struct hpt_iop_hba *)device_get_softc(dev);
 	bzero(hba, sizeof(struct hpt_iop_hba));
