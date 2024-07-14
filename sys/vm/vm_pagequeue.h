@@ -246,6 +246,10 @@ struct vm_domain {
 	u_int vmd_domain;		/* (c) Domain number. */
 	u_int vmd_page_count;		/* (c) Total page count. */
 	long vmd_segs;			/* (c) bitmask of the segments */
+	struct vm_nofreeq {
+		vm_page_t ma;
+		int offs;
+	} vmd_nofreeq;			/* (f) NOFREE page bump allocator. */
 	u_int __aligned(CACHE_LINE_SIZE) vmd_free_count; /* (a,f) free page count */
 	u_int vmd_pageout_deficit;	/* (a) Estimated number of pages deficit */
 	uint8_t vmd_pad[CACHE_LINE_SIZE - (sizeof(u_int) * 2)];
