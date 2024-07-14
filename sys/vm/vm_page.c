@@ -2082,7 +2082,8 @@ vm_page_alloc_domain_after(vm_object_t object, vm_pindex_t pindex, int domain,
 #define	VPA_FLAGS	(VM_ALLOC_CLASS_MASK | VM_ALLOC_WAITFAIL |	\
 			 VM_ALLOC_NOWAIT | VM_ALLOC_NOBUSY |		\
 			 VM_ALLOC_SBUSY | VM_ALLOC_WIRED |		\
-			 VM_ALLOC_NODUMP | VM_ALLOC_ZERO | VM_ALLOC_COUNT_MASK)
+			 VM_ALLOC_NODUMP | VM_ALLOC_ZERO |		\
+			 VM_ALLOC_NOFREE | VM_ALLOC_COUNT_MASK)
 	KASSERT((req & ~VPA_FLAGS) == 0,
 	    ("invalid request %#x", req));
 	KASSERT(((req & (VM_ALLOC_NOBUSY | VM_ALLOC_SBUSY)) !=
@@ -2154,6 +2155,8 @@ found:
 	flags |= m->flags & PG_ZERO;
 	if ((req & VM_ALLOC_NODUMP) != 0)
 		flags |= PG_NODUMP;
+	if ((req & VM_ALLOC_NOFREE) != 0)
+		flags |= PG_NOFREE;
 	m->flags = flags;
 	m->a.flags = 0;
 	m->oflags = (object->flags & OBJ_UNMANAGED) != 0 ? VPO_UNMANAGED : 0;
@@ -2418,11 +2421,13 @@ vm_page_alloc_noobj_domain(int domain, int req)
 #define	VPAN_FLAGS	(VM_ALLOC_CLASS_MASK | VM_ALLOC_WAITFAIL |      \
 			 VM_ALLOC_NOWAIT | VM_ALLOC_WAITOK |		\
 			 VM_ALLOC_NOBUSY | VM_ALLOC_WIRED |		\
-			 VM_ALLOC_NODUMP | VM_ALLOC_ZERO | VM_ALLOC_COUNT_MASK)
+			 VM_ALLOC_NODUMP | VM_ALLOC_ZERO |		\
+			 VM_ALLOC_NOFREE | VM_ALLOC_COUNT_MASK)
 	KASSERT((req & ~VPAN_FLAGS) == 0,
 	    ("invalid request %#x", req));
 
-	flags = (req & VM_ALLOC_NODUMP) != 0 ? PG_NODUMP : 0;
+	flags = ((req & VM_ALLOC_NODUMP) != 0 ? PG_NODUMP : 0) |
+	    ((req & VM_ALLOC_NOFREE) != 0 ? PG_NOFREE : 0);
 	vmd = VM_DOMAIN(domain);
 again:
 	if (vmd->vmd_pgcache[VM_FREEPOOL_DIRECT].zone != NULL) {
@@ -3937,6 +3942,8 @@ vm_page_free_prep(vm_page_t m)
 			    m, i, (uintmax_t)*p));
 	}
 #endif
+	KASSERT((m->flags & PG_NOFREE) == 0,
+	    ("%s: attempting to free a PG_NOFREE page", __func__));
 	if ((m->oflags & VPO_UNMANAGED) == 0) {
 		KASSERT(!pmap_page_is_mapped(m),
 		    ("vm_page_free_prep: freeing mapped page %p", m));
