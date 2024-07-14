@@ -3,8 +3,13 @@
 
 KMOD=	vmm
 
-SRCS=	opt_acpi.h opt_bhyve_snapshot.h opt_ddb.h \
-	acpi_if.h bus_if.h device_if.h pci_if.h pcib_if.h vnode_if.h
+.if ${MACHINE_CPUARCH} == "amd64"
+SRCS+=	opt_acpi.h		\
+	opt_bhyve_snapshot.h	\
+	opt_ddb.h
+.endif
+
+SRCS+=	acpi_if.h bus_if.h device_if.h pci_if.h pcib_if.h vnode_if.h
 
 CFLAGS+= -DVMM_KEEP_STATS
 CFLAGS+= -I${SRCTOP}/sys/${MACHINE}/vmm
