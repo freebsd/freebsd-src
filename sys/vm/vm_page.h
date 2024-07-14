@@ -457,6 +457,7 @@ extern struct mtx_padalign pa_lock[];
 #define	PG_ZERO		0x04		/* page is zeroed */
 #define	PG_MARKER	0x08		/* special queue marker page */
 #define	PG_NODUMP	0x10		/* don't include this page in a dump */
+#define	PG_NOFREE	0x20		/* page should never be freed. */
 
 /*
  * Misc constants.
@@ -537,7 +538,7 @@ vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
 #define	VM_ALLOC_WIRED		0x0020	/* (acgnp) Allocate a wired page */
 #define	VM_ALLOC_ZERO		0x0040	/* (acgnp) Allocate a zeroed page */
 #define	VM_ALLOC_NORECLAIM	0x0080	/* (c) Do not reclaim after failure */
-#define	VM_ALLOC_AVAIL0		0x0100
+#define	VM_ALLOC_NOFREE		0x0100	/* (an) Page will never be released */
 #define	VM_ALLOC_NOBUSY		0x0200	/* (acgp) Do not excl busy the page */
 #define	VM_ALLOC_NOCREAT	0x0400	/* (gp) Don't create a page */
 #define	VM_ALLOC_AVAIL1		0x0800
@@ -575,6 +576,8 @@ malloc2vm_flags(int malloc_flags)
 		pflags |= VM_ALLOC_WAITOK;
 	if ((malloc_flags & M_NORECLAIM))
 		pflags |= VM_ALLOC_NORECLAIM;
+	if ((malloc_flags & M_NEVERFREED))
+		pflags |= VM_ALLOC_NOFREE;
 	return (pflags);
 }
 #endif
