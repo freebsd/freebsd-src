@@ -55,6 +55,8 @@
 #if defined(__i386__) || defined(__amd64__)
 #include <machine/clock.h>
 #include <machine/pci_cfgreg.h>
+#include <x86/cputypes.h>
+#include <x86/x86_var.h>
 #endif
 #include <machine/resource.h>
 #include <machine/bus.h>
@@ -296,6 +298,10 @@ TUNABLE_INT("debug.acpi.quirks", &acpi_quirks);
 int acpi_susp_bounce;
 SYSCTL_INT(_debug_acpi, OID_AUTO, suspend_bounce, CTLFLAG_RW,
     &acpi_susp_bounce, 0, "Don't actually suspend, just test devices.");
+
+#if defined(__amd64__) || defined(__i386__)
+int acpi_override_isa_irq_polarity;
+#endif
 
 /*
  * ACPI standard UUID for Device Specific Data Package
@@ -610,6 +616,19 @@ acpi_attach(device_t dev)
     SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "handle_reboot", CTLFLAG_RW,
 	&sc->acpi_handle_reboot, 0, "Use ACPI Reset Register to reboot");
+
+#if defined(__amd64__) || defined(__i386__)
+    /*
+     * Enable workaround for incorrect ISA IRQ polarity by default on
+     * systems with Intel CPUs.
+     */
+    if (cpu_vendor_id == CPU_VENDOR_INTEL)
+	acpi_override_isa_irq_polarity = 1;
+    SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
+	OID_AUTO, "override_isa_irq_polarity", CTLFLAG_RDTUN,
+	&acpi_override_isa_irq_polarity, 0,
+	"Force active-hi polarity for edge-triggered ISA IRQs");
+#endif
 
     /*
      * Default to 1 second before sleeping to give some machines time to
