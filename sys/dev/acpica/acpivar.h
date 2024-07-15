@@ -234,6 +234,18 @@ extern int	acpi_quirks;
 #define ACPI_Q_TIMER		(1 << 1)
 #define ACPI_Q_MADT_IRQ0	(1 << 2)
 
+#if defined(__amd64__) || defined(__i386__)
+/*
+ * Certain Intel BIOSes have buggy AML that specify an IRQ that is
+ * edge-sensitive and active-lo.  Normally, edge-sensitive IRQs should
+ * be active-hi.  If this value is non-zero, edge-sensitive ISA IRQs
+ * are forced to be active-hi instead.  At least some AMD systems use
+ * active-lo edge-sensitive ISA IRQs, so this setting is only enabled
+ * by default on systems with Intel CPUs.
+ */
+extern int	acpi_override_isa_irq_polarity;
+#endif
+
 /*
  * Plug and play information for device matching.  Matching table format
  * is compatible with ids parameter of ACPI_ID_PROBE bus method.
