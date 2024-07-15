@@ -1158,8 +1158,10 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	maxalign = PAGE_SIZE;
 	maxsalign = PAGE_SIZE * 1024;
 	for (i = MAXPAGESIZES - 1; i > 0; i--) {
-		if (pagesizes[i] > maxsalign)
+		if (pagesizes[i] > maxsalign) {
 			maxsalign = pagesizes[i];
+			break;
+		}
 	}
 
 	mapsz = 0;
