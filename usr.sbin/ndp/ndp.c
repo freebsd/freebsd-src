@@ -1334,7 +1334,7 @@ plist(void)
 		if (p->expire == 0)
 			xo_emit(", expire=Never{en:permanent/true}");
 		else if (p->expire >= now.tv_sec)
-			xo_emit(", expire=%s{e:expires_sec/%d}",
+			xo_emit(", expire={:expires/%s}{e:expires_sec/%d}",
 			    sec2str(expire_in), expire_in);
 		else
 			xo_emit(", expired{e:expires_sec/%d}", expire_in);
