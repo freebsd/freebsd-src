@@ -1,4 +1,3 @@
-
 LIB=	fifolog
 INTERNALLIB=	# API not published or supported.
 

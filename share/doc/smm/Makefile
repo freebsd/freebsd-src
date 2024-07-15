@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 # The following modules do not describe FreeBSD:

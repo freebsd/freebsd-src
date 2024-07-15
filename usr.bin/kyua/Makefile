@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 KYUA_CONFDIR=	/etc/kyua

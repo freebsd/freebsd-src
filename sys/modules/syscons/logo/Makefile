@@ -1,4 +1,3 @@
-
 .PATH:	${SRCTOP}/sys/dev/syscons/logo
 
 KMOD=	logo_saver

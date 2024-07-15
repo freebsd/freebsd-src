@@ -1,4 +1,3 @@
-
 SUBDIR=	common_source .WAIT \
 	chkprintcap lp lpc lpd lpq lpr lprm lptest pac \
 	filters filters.ru

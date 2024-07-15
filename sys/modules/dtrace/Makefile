@@ -1,4 +1,3 @@
-
 .include "Makefile.inc"
 
 SUBDIR=		dtaudit		\

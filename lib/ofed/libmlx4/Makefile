@@ -1,4 +1,3 @@
-
 _spath=	${SRCTOP}/contrib/ofed/libmlx4
 .PATH: ${_spath}
 

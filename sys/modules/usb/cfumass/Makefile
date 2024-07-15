@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/usb/storage
 KMOD=	cfumass
 

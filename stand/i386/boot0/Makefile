@@ -1,4 +1,3 @@
-
 PROG?=	boot0
 STRIP=
 BINMODE=${NOBINMODE}

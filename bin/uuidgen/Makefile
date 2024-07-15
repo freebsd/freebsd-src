@@ -1,4 +1,3 @@
-
 PACKAGE=	runtime
 PROG=	uuidgen
 

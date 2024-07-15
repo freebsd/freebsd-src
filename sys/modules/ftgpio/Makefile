@@ -1,4 +1,3 @@
-
 .PATH:	${SRCTOP}/sys/dev/ftgpio
 KMOD=	ftgpio
 SRCS=	ftgpio.c

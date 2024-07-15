@@ -1,4 +1,3 @@
-
 PACKAGE=runtime
 PROG=	reboot
 MAN=	reboot.8 nextboot.8

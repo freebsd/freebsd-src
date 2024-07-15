@@ -1,4 +1,3 @@
-
 PROG=	sesutil
 SRCS=	sesutil.c eltsub.c
 MAN=	sesutil.8

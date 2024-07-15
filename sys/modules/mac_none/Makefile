@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/security/mac_none
 
 KMOD=	mac_none

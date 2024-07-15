@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/geom
 
 KMOD=	geom_flashmap

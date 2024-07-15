@@ -1,4 +1,3 @@
-
 PROG=	number
 MAN=	number.6
 

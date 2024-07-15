@@ -1,4 +1,3 @@
-
 WARNS?=		3
 LIB=		memstat
 SHLIB_MAJOR=	3

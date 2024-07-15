@@ -1,4 +1,3 @@
-
 include $(top_srcdir)/Makefile.am.common
 
 lib_LTLIBRARIES = libheimbase.la

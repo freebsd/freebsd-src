@@ -1,4 +1,3 @@
-
 PREFIX?=	/usr/local
 BINDIR?=	${PREFIX}/bin
 SCRIPTS=	track.sh

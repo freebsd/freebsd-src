@@ -1,4 +1,3 @@
-
 .PATH:	${SRCTOP}/sys/crypto/openssl
 .PATH:	${SRCTOP}/sys/crypto/openssl/${MACHINE_CPUARCH}
 

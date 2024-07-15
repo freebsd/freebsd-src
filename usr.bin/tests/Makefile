@@ -1,4 +1,3 @@
-
 PACKAGE=	tests
 
 .PATH:		${SRCTOP}/tests

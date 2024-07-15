@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 BYACC_SRC=	${SRCTOP}/contrib/byacc

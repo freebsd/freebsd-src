@@ -1,4 +1,3 @@
-
 #CFLAGS+=	-DGLXIIC_DEBUG
 
 .PATH:	${SRCTOP}/sys/dev/glxiic

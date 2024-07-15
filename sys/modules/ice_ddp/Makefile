@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/contrib/dev/ice
 
 KMOD=	ice_ddp

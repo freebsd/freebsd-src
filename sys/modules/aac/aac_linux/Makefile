@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/aac
 
 KMOD=	aac_linux

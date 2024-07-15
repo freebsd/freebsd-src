@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/iwi
 
 KMOD    = if_iwi

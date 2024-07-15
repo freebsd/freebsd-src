@@ -1,4 +1,3 @@
-
 PROG_CXX=	llc
 
 SRCDIR=		llvm/tools/llc

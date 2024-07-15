@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 TESTSDIR=	${TESTSBASE}/sys/cddl

@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 # The SUBDIR_BOOTSTRAP list is a small set of libraries which are used by many

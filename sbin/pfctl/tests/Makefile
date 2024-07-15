@@ -1,4 +1,3 @@
-
 PACKAGE=	tests
 
 ATF_TESTS_C=	pfctl_test

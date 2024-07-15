@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/netinet/libalias
 
 KMOD=	libalias

@@ -1,4 +1,3 @@
-
 PACKAGE=	console-tools
 PROG=	moused
 MAN=	moused.8

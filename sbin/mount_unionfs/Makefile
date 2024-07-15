@@ -1,4 +1,3 @@
-
 PACKAGE=runtime
 PROG=	mount_unionfs
 SRCS=	mount_unionfs.c getmntopts.c

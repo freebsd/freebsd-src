@@ -1,4 +1,3 @@
-
 FORTUNE_SRC=	${SRCTOP}/usr.bin/fortune
 FORTUNE_OBJ=	${OBJTOP}/usr.bin/fortune
 

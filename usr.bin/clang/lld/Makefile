@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 LLVM_BASE=	${SRCTOP}/contrib/llvm-project

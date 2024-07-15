@@ -1,4 +1,3 @@
-
 .PATH:	${SRCTOP}/sys/dev/qat_c2xxx
 
 KMOD=	qat_c2xxx

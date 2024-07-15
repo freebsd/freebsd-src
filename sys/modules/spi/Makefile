@@ -1,4 +1,3 @@
-
 SUBDIR = \
 	../spigen \
 	at45d \

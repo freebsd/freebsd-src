@@ -1,4 +1,3 @@
-
 MAN=	adb.4 \
 	akbd.4 \
 	abtn.4 \

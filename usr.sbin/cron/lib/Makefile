@@ -1,4 +1,3 @@
-
 LIB=	cron
 INTERNALLIB=
 SRCS= entry.c env.c misc.c

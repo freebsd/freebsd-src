@@ -1,4 +1,3 @@
-
 .PATH:  ${.CURDIR}
 
 KMOD=	kthrdlk

@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/geom/eli
 
 KMOD=	geom_eli

@@ -1,4 +1,3 @@
-
 PACKAGE=runtime
 PROG=	etherswitchcfg
 MAN=	etherswitchcfg.8

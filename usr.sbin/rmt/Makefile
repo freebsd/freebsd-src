@@ -1,4 +1,3 @@
-
 PROG=	rmt
 MAN=	rmt.8
 

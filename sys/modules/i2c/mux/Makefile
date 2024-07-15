@@ -1,4 +1,3 @@
-
 SUBDIR = \
 	iicmux \
 	ltc430x \

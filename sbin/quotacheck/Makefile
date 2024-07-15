@@ -1,4 +1,3 @@
-
 PACKAGE=quotacheck
 PROG=	quotacheck
 SRCS=	quotacheck.c preen.c fsutil.c utilities.c

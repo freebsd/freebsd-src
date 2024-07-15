@@ -1,4 +1,3 @@
-
 NETBSD_ATF_TESTS_C=	setjmp_test
 NETBSD_ATF_TESTS_C+=	threadjmp_test
 

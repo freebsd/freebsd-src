@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/security/mac_partition
 
 KMOD=	mac_partition

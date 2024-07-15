@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/net ${SRCTOP}/sys/netipsec
 
 KMOD=	ipsec

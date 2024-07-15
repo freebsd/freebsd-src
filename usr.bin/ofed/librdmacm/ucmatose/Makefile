@@ -1,4 +1,3 @@
-
 PACKAGE=	rdma
 PROG=	ucmatose
 MAN=	ucmatose.1

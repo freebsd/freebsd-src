@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/compat/linprocfs
 
 KMOD=	linprocfs

@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/arm/freescale/imx
 
 KMOD=	imx_wdog

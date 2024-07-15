@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 MAN=	accept_filter.9 \

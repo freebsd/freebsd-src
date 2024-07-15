@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/mpi3mr
 
 KMOD=	mpi3mr

@@ -1,4 +1,3 @@
-
 VOLUME=		papers
 DOC=		kernmalloc
 SRCS=		kernmalloc.t appendix.ms

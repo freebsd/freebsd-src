@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/compat/linsysfs
 
 KMOD=	linsysfs

@@ -1,4 +1,3 @@
-
 PACKAGE=lp
 CONFS=	hosts.lpd printcap
 PROG=	lpd

@@ -1,4 +1,3 @@
-
 PACKAGE=	tests
 
 TESTSRC=	${SRCTOP}/contrib/netbsd-tests/usr.sbin/mtree

@@ -1,4 +1,3 @@
-
 SUBDIR=	tinfo ncurses form menu panel
 
 SUBDIR_PARALLEL=

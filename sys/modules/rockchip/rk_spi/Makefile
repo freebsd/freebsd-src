@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/spibus/controller/rockchip
 
 KMOD=	rk_spi

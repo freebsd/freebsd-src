@@ -1,4 +1,3 @@
-
 .include <bsd.init.mk>
 
 BOOT1?=		boot1

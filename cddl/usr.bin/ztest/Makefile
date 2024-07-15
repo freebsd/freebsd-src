@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 ZFSTOP=	${SRCTOP}/sys/contrib/openzfs

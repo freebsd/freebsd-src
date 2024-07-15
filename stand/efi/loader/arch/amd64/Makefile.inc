@@ -1,4 +1,3 @@
-
 SRCS+=	amd64_tramp.S \
 	start.S \
 	elf64_freebsd.c \

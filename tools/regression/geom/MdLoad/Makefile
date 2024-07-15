@@ -1,4 +1,3 @@
-
 PROG=	MdLoad
 LIBADD=	sbuf bsdxml
 NO_OBJ=	t

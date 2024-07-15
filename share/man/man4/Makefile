@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 MAN=	aac.4 \
