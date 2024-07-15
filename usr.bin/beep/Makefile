@@ -1,4 +1,3 @@
-
 PROG=	beep
 MAN=	beep.1
 

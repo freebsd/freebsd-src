@@ -1,4 +1,3 @@
-
 .PATH: ${.CURDIR:H}/resolv
 
 PACKAGE=	tests

@@ -1,4 +1,3 @@
-
 PACKAGE=	ppp
 PROG=	pppctl
 MAN=	pppctl.8

@@ -1,4 +1,3 @@
-
 BLOCKLIST_DIR=${SRCTOP}/contrib/blocklist
 .PATH: ${BLOCKLIST_DIR}/bin ${BLOCKLIST_DIR}/port
 

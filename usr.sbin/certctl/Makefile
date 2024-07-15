@@ -1,4 +1,3 @@
-
 PACKAGE=	certctl
 SCRIPTS=certctl.sh
 MAN=	certctl.8

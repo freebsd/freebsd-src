@@ -1,4 +1,3 @@
-
 M4=		m4
 CHMOD=		chmod
 ROMODE=		444

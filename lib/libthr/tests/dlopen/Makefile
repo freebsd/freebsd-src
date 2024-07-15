@@ -1,4 +1,3 @@
-
 TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/libpthread/dlopen
 
 WARNS?=		2

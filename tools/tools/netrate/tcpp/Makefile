@@ -1,4 +1,3 @@
-
 PROG=	tcpp
 INCS=	tcpp.h
 MAN=

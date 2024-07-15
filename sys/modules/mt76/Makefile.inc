@@ -1,4 +1,3 @@
-
 # Common information shared by all submodule builds.
 
 COMMONDIR=	${SRCTOP}/sys/contrib/dev/mediatek/mt76

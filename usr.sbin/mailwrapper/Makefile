@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 .if ${MK_MAILWRAPPER} != "no"

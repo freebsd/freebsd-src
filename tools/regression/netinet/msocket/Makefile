@@ -1,4 +1,3 @@
-
 PROG=	msocket
 MAN=
 CFLAGS+=	-Wall

@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 BINDIR?=	/usr/sbin

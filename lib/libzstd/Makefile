@@ -1,4 +1,3 @@
-
 LIB=	zstd
 SRCS=	entropy_common.c \
 	error_private.c \

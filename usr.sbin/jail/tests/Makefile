@@ -1,4 +1,3 @@
-
 PACKAGE=        tests
 
 ATF_TESTS_SH+=  jail_basic_test

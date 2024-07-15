@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/geom/label
 
 KMOD=	geom_label

@@ -1,4 +1,3 @@
-
 KMOD=	alias_nbt
 SRCS=	alias_nbt.c
 

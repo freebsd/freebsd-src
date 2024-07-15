@@ -1,4 +1,3 @@
-
 .PATH: ${.CURDIR}/../boot0
 
 PROGNAME=	boot0sio

@@ -1,4 +1,3 @@
-
 PROG=	gaithrstress
 LIBADD=	pthread
 

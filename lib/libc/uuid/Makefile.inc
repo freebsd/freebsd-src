@@ -1,4 +1,3 @@
-
 # DCE 1.1 UUID implementation sources
 
 .PATH: ${LIBC_SRCTOP}/uuid

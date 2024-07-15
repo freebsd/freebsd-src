@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/sound
 
 KMOD=	snd_driver

@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/ale
 
 KMOD=	if_ale

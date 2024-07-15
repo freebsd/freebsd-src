@@ -1,4 +1,3 @@
-
 .include <bsd.own.mk>
 
 MK_WERROR=	no

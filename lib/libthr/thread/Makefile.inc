@@ -1,4 +1,3 @@
-
 # thr sources
 .PATH: ${.CURDIR}/thread
 

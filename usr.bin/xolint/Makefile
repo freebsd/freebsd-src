@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 LIBXOSRC=	${SRCTOP}/contrib/libxo

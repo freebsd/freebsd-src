@@ -1,4 +1,3 @@
-
 PAMDIR=		${SRCTOP}/contrib/openpam
 
 MK_INSTALLLIB=	no

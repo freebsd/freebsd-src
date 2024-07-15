@@ -1,4 +1,3 @@
-
 KMOD=	ng_tag
 SRCS= 	ng_tag.c
 

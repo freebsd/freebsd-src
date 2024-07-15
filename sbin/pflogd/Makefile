@@ -1,4 +1,3 @@
-
 .PATH:	${SRCTOP}/contrib/pf/pflogd
 
 PACKAGE=pf

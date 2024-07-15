@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/netinet6
 
 KMOD=	ip6_mroute

@@ -1,4 +1,3 @@
-
 PROG=	logic
 MAN=
 

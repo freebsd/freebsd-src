@@ -1,4 +1,3 @@
-
 .PATH: ${.PARSEDIR:H:H}/dev/veriexec
 
 .include <bsd.own.mk>

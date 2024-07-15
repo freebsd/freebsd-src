@@ -1,4 +1,3 @@
-
 PROG=	keylogin
 
 LIBADD=	rpcsvc

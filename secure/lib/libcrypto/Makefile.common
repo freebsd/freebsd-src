@@ -1,4 +1,3 @@
-
 .include <bsd.endian.mk>
 
 .if ${TARGET_ENDIANNESS} == 1234

@@ -1,4 +1,3 @@
-
 SHLIB_NAME?=	legacy.so
 LIBADD=		crypto
 

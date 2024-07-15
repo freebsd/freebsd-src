@@ -1,4 +1,3 @@
-
 PROG_CXX=	bugpoint
 
 SRCDIR=		llvm/tools/bugpoint

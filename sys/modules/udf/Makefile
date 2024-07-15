@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/fs/udf
 
 KMOD=	udf

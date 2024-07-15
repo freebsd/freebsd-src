@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/cddl/contrib/opensolaris/lib/libdtrace/common
 
 PACKAGE=	dtrace

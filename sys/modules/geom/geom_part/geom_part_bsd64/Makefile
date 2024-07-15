@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/geom/part
 
 KMOD=	geom_part_bsd64

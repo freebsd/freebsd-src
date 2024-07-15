@@ -1,4 +1,3 @@
-
 DB=	freebsd-tips
 
 BLDS=	${DB:S/$/.dat/}

@@ -1,4 +1,3 @@
-
 PROG=	sminfo
 SRCS=	sminfo.c
 MAN=	sminfo.8

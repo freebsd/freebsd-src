@@ -1,4 +1,3 @@
-
 CXGB = ${SRCTOP}/sys/dev/cxgb
 .PATH: ${CXGB} 
 

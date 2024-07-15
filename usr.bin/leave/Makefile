@@ -1,4 +1,3 @@
-
 PROG=	leave
 
 NO_WFORMAT=

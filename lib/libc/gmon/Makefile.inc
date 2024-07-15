@@ -1,4 +1,3 @@
-
 # gmon sources
 .PATH: ${LIBC_SRCTOP}/gmon
 

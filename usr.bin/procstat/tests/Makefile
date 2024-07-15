@@ -1,4 +1,3 @@
-
 ATF_TESTS_SH+=	procstat_test
 
 PROGS+=		while1

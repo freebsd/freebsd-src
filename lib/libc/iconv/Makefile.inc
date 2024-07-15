@@ -1,4 +1,3 @@
-
 # iconv sources
 .PATH: ${LIBC_SRCTOP}/iconv
 

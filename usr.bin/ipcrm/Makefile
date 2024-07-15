@@ -1,4 +1,3 @@
-
 PROG=	ipcrm
 SRCS=	ipcrm.c ipc.c
 LIBADD=	kvm

@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/gem
 
 KMOD=	if_gem

@@ -1,4 +1,3 @@
-
 .PATH: ${LIBC_SRCTOP}/rpc ${LIBC_SRCTOP}/.
 CONFS+=	rpc/netconfig rpc/rpc
 SRCS+=	auth_none.c auth_unix.c authunix_prot.c bindresvport.c clnt_bcast.c \

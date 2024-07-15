@@ -1,4 +1,3 @@
-
 PACKAGE=examples
 FILESDIR=${SHAREDIR}/examples/kld/${KMOD}
 SRCS	= dyn_sysctl.c

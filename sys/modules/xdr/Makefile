@@ -1,4 +1,3 @@
-
 .PATH:	${SRCTOP}/sys/xdr
 KMOD=	xdr
 SRCS=	xdr.c \

@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 MAN=		arb.3 \

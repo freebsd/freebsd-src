@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/fdt
 
 KMOD=	fdt_slicer

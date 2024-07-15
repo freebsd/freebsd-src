@@ -1,4 +1,3 @@
-
 .PATH:	${SRCTOP}/sys/dev/spibus
 KMOD=	spigen
 SRCS=	spigen.c

@@ -1,4 +1,3 @@
-
 PACKAGE=resolvconf
 DIST=		${SRCTOP}/contrib/openresolv
 .PATH:		${DIST}

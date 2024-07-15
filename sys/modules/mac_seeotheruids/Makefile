@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/security/mac_seeotheruids
 
 KMOD=	mac_seeotheruids

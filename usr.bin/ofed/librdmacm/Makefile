@@ -1,4 +1,3 @@
-
 SUBDIR=	ucmatose mckey rping udaddy
 
 SUBDIR_PARALLEL=

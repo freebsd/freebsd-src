@@ -1,4 +1,3 @@
-
 PROG=	locate.code
 CFLAGS+=-I${.CURDIR}/../locate 
 MAN=

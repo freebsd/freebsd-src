@@ -1,4 +1,3 @@
-
 PROG=	tgmath
 CSTD=	c99
 CFLAGS+= -fno-builtin

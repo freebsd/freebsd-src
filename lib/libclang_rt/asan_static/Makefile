@@ -1,4 +1,3 @@
-
 .include <bsd.init.mk>
 
 LIB=		clang_rt.asan_static-${CRTARCH}

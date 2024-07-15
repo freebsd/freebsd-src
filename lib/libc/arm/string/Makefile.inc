@@ -1,4 +1,3 @@
-
 MDSRCS+= \
 	bcopy.S \
 	bzero.S \

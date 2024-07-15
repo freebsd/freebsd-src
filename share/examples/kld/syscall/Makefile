@@ -1,4 +1,3 @@
-
 PACKAGE=examples
 FILESDIR=${SHAREDIR}/examples/kld/syscall
 SUBDIR=	module test

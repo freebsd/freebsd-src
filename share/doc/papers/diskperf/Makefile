@@ -1,4 +1,3 @@
-
 VOLUME=		papers
 DOC=		diskperf
 SRCS=		abs.ms motivation.ms equip.ms methodology.ms tests.ms \

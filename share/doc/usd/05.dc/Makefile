@@ -1,4 +1,3 @@
-
 VOLUME=	usd/05.dc
 SRCS=	dc
 MACROS=	-ms

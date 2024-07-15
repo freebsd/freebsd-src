@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/vge
 
 KMOD=	if_vge

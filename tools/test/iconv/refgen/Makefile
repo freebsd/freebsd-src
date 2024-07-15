@@ -1,4 +1,3 @@
-
 .PATH: ${.CURDIR}/../tablegen
 
 PROG=	refgen

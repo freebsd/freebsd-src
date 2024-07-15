@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/amd64/sgx
 
 KMOD=	sgx_linux

@@ -1,4 +1,3 @@
-
 .PATH:  ${SRCTOP}/sys/dev/bnxt/bnxt_en
 
 KMOD    = if_bnxt

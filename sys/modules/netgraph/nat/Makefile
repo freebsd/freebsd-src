@@ -1,4 +1,3 @@
-
 KMOD=	ng_nat
 SRCS= 	ng_nat.c
 

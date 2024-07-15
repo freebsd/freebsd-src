@@ -1,4 +1,3 @@
-
 BINDIR		?= ${HOME}/bin
 BINOWN		?= ${USER}
 BINGRP		?= ${USER}

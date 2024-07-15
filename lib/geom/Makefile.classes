@@ -1,4 +1,3 @@
-
 .if !defined(COMPAT_libcompat)
 GEOM_CLASS_DIR?=/lib/geom
 .else

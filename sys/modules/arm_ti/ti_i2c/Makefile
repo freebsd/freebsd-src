@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/arm/ti
 
 KMOD=	ti_i2c

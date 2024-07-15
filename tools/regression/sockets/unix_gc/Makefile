@@ -1,4 +1,3 @@
-
 PROG=	unix_gc
 MAN=
 

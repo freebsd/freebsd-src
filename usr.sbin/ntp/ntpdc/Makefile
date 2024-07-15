@@ -1,4 +1,3 @@
-
 MAN=
 
 .include <src.opts.mk>

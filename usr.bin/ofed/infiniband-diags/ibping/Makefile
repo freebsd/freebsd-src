@@ -1,4 +1,3 @@
-
 PROG=	ibping
 SRCS=	ibping.c
 MAN=	ibping.8

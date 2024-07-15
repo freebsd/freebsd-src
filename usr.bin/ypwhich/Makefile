@@ -1,4 +1,3 @@
-
 YPSERV=${SRCTOP}/usr.sbin/ypserv/common
 .PATH: ${YPSERV}
 

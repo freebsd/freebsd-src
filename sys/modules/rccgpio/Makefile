@@ -1,4 +1,3 @@
-
 .PATH:	${SRCTOP}/sys/dev/rccgpio
 KMOD=	rccgpio
 SRCS=	rccgpio.c

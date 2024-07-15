@@ -1,4 +1,3 @@
-
 PROG=	bspatch
 
 LIBADD=	bz2

@@ -1,4 +1,3 @@
-
 PACKAGE=runtime
 PROG=	fdisk
 SRCS=	fdisk.c fdisk_mbr_enc.c

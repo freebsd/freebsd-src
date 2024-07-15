@@ -1,4 +1,3 @@
-
 PACKAGE=	vt-data
 
 FILES=	INDEX.keymaps \

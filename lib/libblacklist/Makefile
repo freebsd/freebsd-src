@@ -1,4 +1,3 @@
-
 BLOCKLIST_DIR=${SRCTOP}/contrib/blocklist
 
 .PATH: ${BLOCKLIST_DIR}/lib ${BLOCKLIST_DIR}/include

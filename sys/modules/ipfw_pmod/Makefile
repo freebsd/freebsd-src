@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/netpfil/ipfw/pmod
 
 KMOD=   ipfw_pmod

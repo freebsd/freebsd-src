@@ -1,4 +1,3 @@
-
 _spath=	${SRCTOP}/contrib/ofed/opensm/libvendor
 .PATH: ${_spath}
 

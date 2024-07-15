@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 MAN=	builtin.1 intro.1

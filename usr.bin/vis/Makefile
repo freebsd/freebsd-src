@@ -1,4 +1,3 @@
-
 PROG=	vis
 SRCS=	vis.c foldit.c
 

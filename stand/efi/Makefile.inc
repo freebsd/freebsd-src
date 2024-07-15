@@ -1,4 +1,3 @@
-
 # Options used when building app-specific efi components
 # See conf/kern.mk for the correct set of these
 CFLAGS+=	-Wformat

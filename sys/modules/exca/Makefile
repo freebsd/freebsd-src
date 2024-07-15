@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/exca
 
 KMOD=	exca

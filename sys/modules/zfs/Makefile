@@ -1,4 +1,3 @@
-
 SRCDIR=${SRCTOP}/sys/contrib/openzfs/module
 INCDIR=${SRCTOP}/sys/contrib/openzfs/include
 

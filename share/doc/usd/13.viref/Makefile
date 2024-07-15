@@ -1,4 +1,3 @@
-
 VOLUME=		usd/13.viref
 EXTRA=		ex.cmd.roff ref.so set.opt.roff vi.cmd.roff
 MACROS=		-me

@@ -1,4 +1,3 @@
-
 .if ${MK_OPENSSL} != "no"
 LIBADD+=	ssl crypto
 CFLAGS+= -DCONFIG_SHA256

@@ -1,4 +1,3 @@
-
 PACKAGE=utilities
 FILESDIR= ${SHAREDIR}/examples/smbfs
 FILES=	dot.nsmbrc

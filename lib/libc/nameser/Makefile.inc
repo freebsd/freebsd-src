@@ -1,4 +1,3 @@
-
 # nameser sources
 .PATH: ${LIBC_SRCTOP}/nameser
 

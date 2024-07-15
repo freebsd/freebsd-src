@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/xl
 
 KMOD=	if_xl

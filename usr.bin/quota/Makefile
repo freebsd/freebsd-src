@@ -1,4 +1,3 @@
-
 PROG=	quota
 BINOWN=	root
 BINMODE=4555

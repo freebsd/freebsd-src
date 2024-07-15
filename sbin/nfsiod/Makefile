@@ -1,4 +1,3 @@
-
 PROG=	nfsiod
 MAN=	nfsiod.8
 

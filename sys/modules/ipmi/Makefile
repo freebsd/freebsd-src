@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/ipmi
 
 # XXX - ipmi_smbus and ipmi_ssif depend on smbus

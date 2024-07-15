@@ -1,4 +1,3 @@
-
 .include <kmod.opts.mk>
 
 KMOD=	vmm

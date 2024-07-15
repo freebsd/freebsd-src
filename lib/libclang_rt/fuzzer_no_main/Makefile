@@ -1,4 +1,3 @@
-
 .include <bsd.init.mk>
 
 LIB=		clang_rt.fuzzer_no_main-${CRTARCH}

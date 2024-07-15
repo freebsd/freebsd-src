@@ -1,4 +1,3 @@
-
 ZFSTOP=	${SRCTOP}/sys/contrib/openzfs
 
 # ZFS_COMMON_SRCS

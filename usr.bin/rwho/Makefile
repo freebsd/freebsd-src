@@ -1,4 +1,3 @@
-
 PROG=	rwho
 
 PACKAGE=rcmds

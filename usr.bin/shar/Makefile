@@ -1,4 +1,3 @@
-
 SCRIPTS=shar.sh
 MAN=	shar.1
 

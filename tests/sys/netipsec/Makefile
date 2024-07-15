@@ -1,4 +1,3 @@
-
 TESTSDIR=		${TESTSBASE}/sys/netipsec
 
 TESTS_SUBDIRS+=		tunnel

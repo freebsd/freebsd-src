@@ -1,4 +1,3 @@
-
 .PATH:  ${SRCTOP}/sys/netinet
 KMOD=	siftr
 SRCS=	siftr.c opt_kern_tls.h

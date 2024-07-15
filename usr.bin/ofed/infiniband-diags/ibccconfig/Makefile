@@ -1,4 +1,3 @@
-
 PROG=	ibccconfig
 SRCS=	ibccconfig.c
 MAN=	ibccconfig.8

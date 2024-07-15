@@ -1,4 +1,3 @@
-
 .include <bsd.own.mk>
 
 # OpenSSL version used for manual page generation

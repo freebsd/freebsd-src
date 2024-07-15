@@ -1,4 +1,3 @@
-
 .PATH:		${SRCTOP}/stand/common
 
 BINDIR?=	/usr/bin

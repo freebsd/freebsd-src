@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/bwi
 
 KMOD	= if_bwi

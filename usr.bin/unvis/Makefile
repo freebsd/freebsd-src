@@ -1,4 +1,3 @@
-
 PROG=	unvis
 
 .PATH: ${SRCTOP}/contrib/unvis

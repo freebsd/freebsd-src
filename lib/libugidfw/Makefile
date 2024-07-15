@@ -1,4 +1,3 @@
-
 LIB=		ugidfw
 SHLIB_MAJOR=	5
 SRCS=		ugidfw.c

@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/security/mac_stub
 
 KMOD=	mac_stub

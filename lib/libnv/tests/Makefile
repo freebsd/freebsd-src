@@ -1,4 +1,3 @@
-
 ATF_TESTS_C= \
 	nvlist_send_recv_test
 

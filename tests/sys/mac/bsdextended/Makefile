@@ -1,4 +1,3 @@
-
 TESTSDIR=	${TESTSBASE}/sys/mac/bsdextended
 
 ATF_TESTS_SH+=	matches_test

@@ -1,4 +1,3 @@
-
 PROG=	pr_atomic
 MAN=
 

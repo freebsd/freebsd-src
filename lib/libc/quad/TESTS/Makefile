@@ -1,4 +1,3 @@
-
 all: mul divrem
 
 MUL=	mul.c ../muldi3.c

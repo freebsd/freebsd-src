@@ -1,4 +1,3 @@
-
 .PATH: ${.CURDIR:H}
 
 SRCS=	zfs_defs.c

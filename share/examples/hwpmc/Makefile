@@ -1,4 +1,3 @@
-
 PACKAGE=examples
 FILESDIR=${SHAREDIR}/examples/hwpmc
 PROG=	overhead

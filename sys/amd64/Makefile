@@ -1,4 +1,3 @@
-
 # Makefile for amd64 links, tags file
 
 # SYS is normally set in Make.tags.inc

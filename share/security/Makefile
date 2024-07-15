@@ -1,4 +1,3 @@
-
 FILES=	lomac-policy.contexts
 FILESDIR=	${BINDIR}/security
 

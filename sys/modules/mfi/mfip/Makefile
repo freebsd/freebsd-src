@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/mfi
 
 KMOD=	mfip

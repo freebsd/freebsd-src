@@ -1,4 +1,3 @@
-
 PROG=	ifinfo
 SRCS=	ifinfo.c rfc1650.c
 MAN=
