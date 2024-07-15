@@ -58,18 +58,30 @@ struct rules {
 	TAILQ_HEAD(rulehead, rule) head;
 };
 
-static struct rules rules0;
+static struct rules *rules0;
 
 static void
-toast_rules(struct rulehead *head)
+toast_rules(struct rules *const rules)
 {
-	struct rule *r;
+	struct rulehead *const head = &rules->head;
+	struct rule *rule;
 
-	while ((r = TAILQ_FIRST(head)) != NULL) {
-		TAILQ_REMOVE(head, r, r_entries);
-		free(r, M_DO);
+	while ((rule = TAILQ_FIRST(head)) != NULL) {
+		TAILQ_REMOVE(head, rule, r_entries);
+		free(rule, M_DO);
 	}
-	TAILQ_INIT(head);
+	free(rules, M_DO);
+}
+
+static struct rules *
+alloc_rules(void)
+{
+	struct rules *const rules = malloc(sizeof(*rules), M_DO, M_WAITOK);
+
+	_Static_assert(MAC_RULE_STRING_LEN > 0, "MAC_RULE_STRING_LEN <= 0!");
+	rules->string[0] = 0;
+	TAILQ_INIT(&rules->head);
+	return (rules);
 }
 
 static int
@@ -133,29 +145,31 @@ out:
 /*
  * Parse rules specification and produce rule structures out of it.
  *
- * 'head' must be an empty list head. Returns 0 on success, with 'head' filled
- * with structures representing the rules.  On error, 'head' is left empty and
- * the returned value is non-zero.  If 'string' has length greater or equal to
+ * Returns 0 on success, with '*rulesp' made to point to a 'struct rule'
+ * representing the rules.  On error, the returned value is non-zero and
+ * '*rulesp' is unchanged.  If 'string' has length greater or equal to
  * MAC_RULE_STRING_LEN, ENAMETOOLONG is returned.  If it is not in the expected
  * format (comma-separated list of clauses of the form "<type>=<val>:<target>",
  * where <type> is "uid" or "gid", <val> an UID or GID (depending on <type>) and
  * <target> is "*", "any" or some UID), EINVAL is returned.
  */
 static int
-parse_rules(const char *const string, struct rulehead *const head)
+parse_rules(const char *const string, struct rules **const rulesp)
 {
 	const size_t len = strlen(string);
 	char *copy;
 	char *p;
 	char *element;
+	struct rules *rules;
 	struct rule *new;
 	int error = 0;
 
-	QMD_TAILQ_CHECK_TAIL(head, r_entries);
-	MPASS(TAILQ_EMPTY(head));
-
 	if (len >= MAC_RULE_STRING_LEN)
 		return (ENAMETOOLONG);
+
+	rules = alloc_rules();
+	bcopy(string, rules->string, len + 1);
+	MPASS(rules->string[len] == '\0'); /* Catch some races. */
 
 	copy = malloc(len + 1, M_DO, M_WAITOK);
 	bcopy(string, copy, len + 1);
@@ -167,11 +181,13 @@ parse_rules(const char *const string, struct rulehead *const head)
 			continue;
 		error = parse_rule_element(element, &new);
 		if (error != 0) {
-			toast_rules(head);
+			toast_rules(rules);
 			goto out;
 		}
-		TAILQ_INSERT_TAIL(head, new, r_entries);
+		TAILQ_INSERT_TAIL(&rules->head, new, r_entries);
 	}
+
+	*rulesp = rules;
 out:
 	free(copy, M_DO);
 	return (error);
@@ -194,7 +210,7 @@ find_rules(struct prison *const pr, struct prison **const aprp)
 	for (cpr = pr;; cpr = cpr->pr_parent) {
 		prison_lock(cpr);
 		if (cpr == &prison0) {
-			rules = &rules0;
+			rules = rules0;
 			break;
 		}
 		rules = osd_jail_get(cpr, mac_do_osd_jail_slot);
@@ -208,53 +224,6 @@ find_rules(struct prison *const pr, struct prison **const aprp)
 }
 
 /*
- * Ensure the passed prison has its own 'struct rules'.
- *
- * On entry, the prison must be unlocked, but will be returned locked.  Returns
- * the newly allocated and initialized 'struct rules', or the existing one.
- */
-static struct rules *
-ensure_rules(struct prison *const pr)
-{
-	struct rules *rules, *new_rules;
-	void **rsv;
-
-	if (pr == &prison0) {
-		prison_lock(pr);
-		return (&rules0);
-	}
-
-	/* Optimistically try to avoid memory allocations. */
-restart:
-	prison_lock(pr);
-	rules = osd_jail_get(pr, mac_do_osd_jail_slot);
-	if (rules != NULL)
-		return (rules);
-	prison_unlock(pr);
-
-	new_rules = malloc(sizeof(*new_rules), M_DO, M_WAITOK|M_ZERO);
-	TAILQ_INIT(&new_rules->head);
-	rsv = osd_reserve(mac_do_osd_jail_slot);
-	prison_lock(pr);
-	rules = osd_jail_get(pr, mac_do_osd_jail_slot);
-	if (rules != NULL) {
-		/*
-		 * We could cleanup while holding the prison lock (given the
-		 * current implementation of osd_free_reserved()), but be safe
-		 * and a good citizen by not keeping it more than strictly
-		 * necessary.  The only consequence is that we have to relookup
-		 * the rules.
-		 */
-		prison_unlock(pr);
-		osd_free_reserved(rsv);
-		free(new_rules, M_DO);
-		goto restart;
-	}
-	osd_jail_set_reserved(pr, mac_do_osd_jail_slot, rsv, new_rules);
-	return (new_rules);
-}
-
-/*
  * OSD destructor for slot 'mac_do_osd_jail_slot'.
  *
  * Called with 'value' not NULL.
@@ -264,17 +233,19 @@ dealloc_osd(void *const value)
 {
 	struct rules *const rules = value;
 
-	toast_rules(&rules->head);
-	free(rules, M_DO);
+	toast_rules(rules);
 }
 
 /*
- * Deallocate the rules associated to a prison.
+ * Remove the rules specifically associated to a prison.
+ *
+ * In practice, this means that the rules become inherited (from the closest
+ * ascendant that has some).
  *
  * Destroys the 'mac_do_osd_jail_slot' slot of the passed jail.
  */
 static void
-dealloc_rules(struct prison *const pr)
+remove_rules(struct prison *const pr)
 {
 	prison_lock(pr);
 	/* This calls destructor dealloc_osd(). */
@@ -283,25 +254,38 @@ dealloc_rules(struct prison *const pr)
 }
 
 /*
- * Assign already parsed rules to a jail.
+ * Assign already built rules to a jail.
  */
 static void
-set_rules(struct prison *const pr, const char *const rules_string,
-    struct rulehead *const head)
+set_rules(struct prison *const pr, struct rules *const rules)
 {
-	struct rules *rules;
-	struct rulehead old_head;
+	struct rules *old_rules;
+	void **rsv;
 
-	MPASS(rules_string != NULL);
-	MPASS(strlen(rules_string) < MAC_RULE_STRING_LEN);
+	rsv = osd_reserve(mac_do_osd_jail_slot);
 
-	TAILQ_INIT(&old_head);
-	rules = ensure_rules(pr);
-	strlcpy(rules->string, rules_string, MAC_RULE_STRING_LEN);
-	TAILQ_CONCAT(&old_head, &rules->head, r_entries);
-	TAILQ_CONCAT(&rules->head, head, r_entries);
+	prison_lock(pr);
+	if (pr == &prison0) {
+		old_rules = rules0;
+		rules0 = rules;
+	} else {
+		old_rules = osd_jail_get(pr, mac_do_osd_jail_slot);
+		osd_jail_set_reserved(pr, mac_do_osd_jail_slot, rsv, rules);
+	}
 	prison_unlock(pr);
-	toast_rules(&old_head);
+	if (old_rules != NULL)
+		toast_rules(old_rules);
+}
+
+/*
+ * Assigns empty rules to a jail.
+ */
+static void
+set_empty_rules(struct prison *const pr)
+{
+	struct rules *const rules = alloc_rules();
+
+	set_rules(pr, rules);
 }
 
 /*
@@ -312,13 +296,13 @@ set_rules(struct prison *const pr, const char *const rules_string,
 static int
 parse_and_set_rules(struct prison *const pr, const char *rules_string)
 {
-	struct rulehead head;
+	struct rules *rules;
 	int error;
 
-	error = parse_rules(rules_string, &head);
+	error = parse_rules(rules_string, &rules);
 	if (error != 0)
 		return (error);
-	set_rules(pr, rules_string, &head);
+	set_rules(pr, rules);
 	return (0);
 }
 
@@ -361,7 +345,7 @@ static void
 destroy(struct mac_policy_conf *mpc)
 {
 	osd_jail_deregister(mac_do_osd_jail_slot);
-	toast_rules(&rules0.head);
+	toast_rules(rules0);
 }
 
 static int
@@ -382,7 +366,7 @@ mac_do_prison_set(void *obj, void *data)
 		jsys = JAIL_SYS_NEW;
 	switch (jsys) {
 	case JAIL_SYS_INHERIT:
-		dealloc_rules(pr);
+		remove_rules(pr);
 		error = 0;
 		break;
 	case JAIL_SYS_NEW:
@@ -422,8 +406,7 @@ mac_do_prison_create(void *obj, void *data __unused)
 {
 	struct prison *const pr = obj;
 
-	(void)ensure_rules(pr);
-	prison_unlock(pr);
+	set_empty_rules(pr);
 	return (0);
 }
 
@@ -431,12 +414,8 @@ static int
 mac_do_prison_remove(void *obj, void *data __unused)
 {
 	struct prison *pr = obj;
-	struct rules *r;
 
-	prison_lock(pr);
-	r = osd_jail_get(pr, mac_do_osd_jail_slot);
-	prison_unlock(pr);
-	toast_rules(&r->head);
+	remove_rules(pr);
 	return (0);
 }
 
@@ -481,12 +460,10 @@ init(struct mac_policy_conf *mpc)
 	struct prison *pr;
 
 	mac_do_osd_jail_slot = osd_jail_register(dealloc_osd, methods);
-	TAILQ_INIT(&rules0.head);
+	rules0 = alloc_rules();
 	sx_slock(&allprison_lock);
-	TAILQ_FOREACH(pr, &allprison, pr_list) {
-		(void)ensure_rules(pr);
-		prison_unlock(pr);
-	}
+	TAILQ_FOREACH(pr, &allprison, pr_list)
+	    set_empty_rules(pr);
 	sx_sunlock(&allprison_lock);
 }
 
