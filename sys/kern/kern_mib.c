@@ -182,10 +182,14 @@ sysctl_kern_arnd(SYSCTL_HANDLER_ARGS)
 {
 	char buf[256];
 	size_t len;
+	int error;
 
 	len = MIN(req->oldlen, sizeof(buf));
 	read_random(buf, len);
-	return (SYSCTL_OUT(req, buf, len));
+
+	error = SYSCTL_OUT(req, buf, len);
+	explicit_bzero(buf, len);
+	return (error);
 }
 
 SYSCTL_PROC(_kern, KERN_ARND, arandom,
