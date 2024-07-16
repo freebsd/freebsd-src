@@ -3216,13 +3216,13 @@ vxlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 			goto fail;
 	}
 
-	vxlan_stats_alloc(sc);
 	ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		error = ENOSPC;
 		goto fail;
 	}
 
+	vxlan_stats_alloc(sc);
 	sc->vxl_ifp = ifp;
 	rm_init(&sc->vxl_lock, "vxlanrm");
 	callout_init_rw(&sc->vxl_callout, &sc->vxl_lock, 0);
