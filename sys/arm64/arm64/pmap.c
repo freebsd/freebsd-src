@@ -2959,7 +2959,7 @@ pmap_growkernel(vm_offset_t addr)
 		if (pmap_load(l1) == 0) {
 			/* We need a new PDP entry */
 			nkpg = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT |
-			    VM_ALLOC_WIRED | VM_ALLOC_ZERO);
+			    VM_ALLOC_NOFREE | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 			if (nkpg == NULL)
 				panic("pmap_growkernel: no memory to grow kernel");
 			nkpg->pindex = kernel_vm_end >> L1_SHIFT;
@@ -2978,8 +2978,8 @@ pmap_growkernel(vm_offset_t addr)
 			continue;
 		}
 
-		nkpg = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED |
-		    VM_ALLOC_ZERO);
+		nkpg = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT |
+		    VM_ALLOC_NOFREE | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 		if (nkpg == NULL)
 			panic("pmap_growkernel: no memory to grow kernel");
 		nkpg->pindex = kernel_vm_end >> L2_SHIFT;

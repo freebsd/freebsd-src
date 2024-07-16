@@ -5156,8 +5156,8 @@ pmap_growkernel(vm_offset_t addr)
 		pdpe = pmap_pdpe(kernel_pmap, end);
 		if ((*pdpe & X86_PG_V) == 0) {
 			nkpg = pmap_alloc_pt_page(kernel_pmap,
-			    pmap_pdpe_pindex(end), VM_ALLOC_WIRED |
-			    VM_ALLOC_INTERRUPT | VM_ALLOC_ZERO);
+			    pmap_pdpe_pindex(end), VM_ALLOC_INTERRUPT |
+			        VM_ALLOC_NOFREE | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 			if (nkpg == NULL)
 				panic("pmap_growkernel: no memory to grow kernel");
 			paddr = VM_PAGE_TO_PHYS(nkpg);
@@ -5176,7 +5176,8 @@ pmap_growkernel(vm_offset_t addr)
 		}
 
 		nkpg = pmap_alloc_pt_page(kernel_pmap, pmap_pde_pindex(end),
-		    VM_ALLOC_WIRED | VM_ALLOC_INTERRUPT | VM_ALLOC_ZERO);
+		    VM_ALLOC_INTERRUPT | VM_ALLOC_NOFREE | VM_ALLOC_WIRED |
+			VM_ALLOC_ZERO);
 		if (nkpg == NULL)
 			panic("pmap_growkernel: no memory to grow kernel");
 		paddr = VM_PAGE_TO_PHYS(nkpg);
