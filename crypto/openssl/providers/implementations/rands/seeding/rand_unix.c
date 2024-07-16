@@ -356,7 +356,7 @@ static ssize_t syscall_random(void *buf, size_t buflen)
      * Note: Sometimes getentropy() can be provided but not implemented
      * internally. So we need to check errno for ENOSYS
      */
-#  if !defined(__DragonFly__) && !defined(__NetBSD__)
+#  if !defined(__DragonFly__) && !defined(__NetBSD__) && !defined(__FreeBSD__)
 #    if defined(__GNUC__) && __GNUC__>=2 && defined(__ELF__) && !defined(__hpux)
     extern int getentropy(void *buffer, size_t length) __attribute__((weak));
 
@@ -393,11 +393,12 @@ static ssize_t syscall_random(void *buf, size_t buflen)
     /* Linux supports this since version 3.17 */
 #  if defined(__linux) && defined(__NR_getrandom)
     return syscall(__NR_getrandom, buf, buflen, 0);
-#  elif (defined(__FreeBSD__) || defined(__NetBSD__)) && defined(KERN_ARND)
-    return sysctl_random(buf, buflen);
 #  elif (defined(__DragonFly__)  && __DragonFly_version >= 500700) \
-     || (defined(__NetBSD__) && __NetBSD_Version >= 1000000000)
+     || (defined(__NetBSD__) && __NetBSD_Version >= 1000000000) \
+     || defined(__FreeBSD__)
     return getrandom(buf, buflen, 0);
+#  elif defined(__NetBSD__) && defined(KERN_ARND)
+    return sysctl_random(buf, buflen);
 #  else
     errno = ENOSYS;
     return -1;
