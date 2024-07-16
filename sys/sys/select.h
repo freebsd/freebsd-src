@@ -86,7 +86,7 @@ typedef	struct fd_set {
 #define	__fdset_idx(p, n)	__fdset_idx_(p, n)
 #else
 __ssp_inline unsigned long
-__fdset_idx(fd_set *p, unsigned long idx)
+__fdset_idx(const fd_set *p, unsigned long idx)
 {
 	__size_t psz = __ssp_bos0(p);
 	unsigned long sidx = __fdset_idx_(p, idx);
