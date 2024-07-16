@@ -2525,6 +2525,7 @@ int			 pf_ioctl_set_timeout(int, int, int *);
 int			 pf_ioctl_get_limit(int, unsigned int *);
 int			 pf_ioctl_set_limit(int, unsigned int, unsigned int *);
 int			 pf_ioctl_begin_addrs(uint32_t *);
+int			 pf_ioctl_add_addr(struct pfioc_pooladdr *);
 
 void			 pf_krule_free(struct pf_krule *);
 void			 pf_krule_clear_counters(struct pf_krule *);

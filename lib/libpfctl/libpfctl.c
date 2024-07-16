@@ -1106,6 +1106,19 @@ snl_add_msg_attr_addr_wrap(struct snl_writer *nw, uint32_t type, const struct pf
 }
 
 static void
+snl_add_msg_attr_pool_addr(struct snl_writer *nw, uint32_t type, const struct pf_pooladdr *pa)
+{
+	int off;
+
+	off = snl_add_msg_attr_nested(nw, type);
+
+	snl_add_msg_attr_string(nw, PF_PA_IFNAME, pa->ifname);
+	snl_add_msg_attr_addr_wrap(nw, PF_PA_ADDR, &pa->addr);
+
+	snl_end_attr_nested(nw, off);
+}
+
+static void
 snl_add_msg_attr_rule_addr(struct snl_writer *nw, uint32_t type, const struct pf_rule_addr *addr)
 {
 	int off;
@@ -2737,3 +2750,42 @@ pfctl_begin_addrs(struct pfctl_handle *h, uint32_t *ticket)
 	return (e.error);
 }
 
+int
+pfctl_add_addr(struct pfctl_handle *h, const struct pfioc_pooladdr *pa)
+{
+	struct snl_writer nw;
+	struct snl_errmsg_data e = {};
+	struct nlmsghdr *hdr;
+	uint32_t seq_id;
+	int family_id;
+
+	family_id = snl_get_genl_family(&h->ss, PFNL_FAMILY_NAME);
+	if (family_id == 0)
+		return (ENOTSUP);
+
+	snl_init_writer(&h->ss, &nw);
+	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_ADD_ADDR);
+
+	snl_add_msg_attr_u32(&nw, PF_AA_ACTION, pa->action);
+	snl_add_msg_attr_u32(&nw, PF_AA_TICKET, pa->ticket);
+	snl_add_msg_attr_u32(&nw, PF_AA_NR, pa->nr);
+	snl_add_msg_attr_u32(&nw, PF_AA_R_NUM, pa->r_num);
+	snl_add_msg_attr_u8(&nw, PF_AA_R_ACTION, pa->r_action);
+	snl_add_msg_attr_u8(&nw, PF_AA_R_LAST, pa->r_last);
+	snl_add_msg_attr_u8(&nw, PF_AA_AF, pa->af);
+	snl_add_msg_attr_string(&nw, PF_AA_ANCHOR, pa->anchor);
+	snl_add_msg_attr_pool_addr(&nw, PF_AA_ADDR, &pa->addr);
+
+	if ((hdr = snl_finalize_msg(&nw)) == NULL)
+		return (ENXIO);
+
+	seq_id = hdr->nlmsg_seq;
+
+	if (! snl_send_message(&h->ss, hdr))
+		return (ENXIO);
+
+	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
+	}
+
+	return (e.error);
+}

@@ -55,6 +55,7 @@ enum {
 	PFNL_CMD_SET_LIMIT = 17,
 	PFNL_CMD_GET_LIMIT = 18,
 	PFNL_CMD_BEGIN_ADDRS = 19,
+	PFNL_CMD_ADD_ADDR = 20,
 	__PFNL_CMD_MAX,
 };
 #define PFNL_CMD_MAX (__PFNL_CMD_MAX -1)
@@ -354,6 +355,25 @@ enum pf_limit_types_t {
 enum pf_begin_addrs_types_t {
 	PF_BA_UNSPEC,
 	PF_BA_TICKET		= 1, /* u32 */
+};
+
+enum pf_pool_addr_types_t {
+	PF_PA_UNSPEC,
+	PF_PA_ADDR		= 1, /* nested, pf_addr_wrap */
+	PF_PA_IFNAME		= 2, /* string */
+};
+
+enum pf_add_addr_types_t {
+	PF_AA_UNSPEC,
+	PF_AA_ACTION		= 1, /* u32 */
+	PF_AA_TICKET		= 2, /* u32 */
+	PF_AA_NR		= 3, /* u32 */
+	PF_AA_R_NUM		= 4, /* u32 */
+	PF_AA_R_ACTION		= 5, /* u8 */
+	PF_AA_R_LAST		= 6, /* u8 */
+	PF_AA_AF		= 7, /* u8 */
+	PF_AA_ANCHOR		= 8, /* string */
+	PF_AA_ADDR		= 9, /* nested, pf_pooladdr */
 };
 
 #ifdef _KERNEL
