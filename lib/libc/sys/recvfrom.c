@@ -37,8 +37,7 @@
 
 __weak_reference(__sys_recvfrom, __recvfrom);
 
-#pragma weak recvfrom
-ssize_t
+ssize_t __weak_symbol
 __ssp_real(recvfrom)(int s, void *buf, size_t len, int flags,
     struct sockaddr * __restrict from, socklen_t * __restrict fromlen)
 {

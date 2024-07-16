@@ -36,8 +36,7 @@
 
 __weak_reference(__sys_ppoll, __ppoll);
 
-#pragma weak __ssp_real(ppoll)
-int
+int __weak_symbol
 __ssp_real(ppoll)(struct pollfd pfd[], nfds_t nfds,
     const struct timespec *__restrict timeout,
     const sigset_t *__restrict newsigmask)

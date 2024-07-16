@@ -38,8 +38,7 @@
 
 __weak_reference(__sys_readv, __readv);
 
-#pragma weak readv
-ssize_t
+ssize_t __weak_symbol
 __ssp_real(readv)(int fd, const struct iovec *iov, int iovcnt)
 {
 	return (INTERPOS_SYS(readv, fd, iov, iovcnt));

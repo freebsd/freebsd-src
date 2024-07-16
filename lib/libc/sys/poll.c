@@ -36,8 +36,7 @@
 
 __weak_reference(__sys_poll, __poll);
 
-#pragma weak __ssp_real(poll)
-int
+int __weak_symbol
 __ssp_real(poll)(struct pollfd pfd[], nfds_t nfds, int timeout)
 {
 	return (INTERPOS_SYS(poll, pfd, nfds, timeout));
