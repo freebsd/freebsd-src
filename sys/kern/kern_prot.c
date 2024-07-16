@@ -807,7 +807,7 @@ struct setgroups_args {
 int
 sys_setgroups(struct thread *td, struct setgroups_args *uap)
 {
-	gid_t smallgroups[XU_NGROUPS];
+	gid_t smallgroups[CRED_SMALLGROUPS_NB];
 	gid_t *groups;
 	int gidsetsize, error;
 
@@ -815,7 +815,7 @@ sys_setgroups(struct thread *td, struct setgroups_args *uap)
 	if (gidsetsize > ngroups_max + 1 || gidsetsize < 0)
 		return (EINVAL);
 
-	if (gidsetsize > XU_NGROUPS)
+	if (gidsetsize > CRED_SMALLGROUPS_NB)
 		groups = malloc(gidsetsize * sizeof(gid_t), M_TEMP, M_WAITOK);
 	else
 		groups = smallgroups;
@@ -824,7 +824,7 @@ sys_setgroups(struct thread *td, struct setgroups_args *uap)
 	if (error == 0)
 		error = kern_setgroups(td, gidsetsize, groups);
 
-	if (gidsetsize > XU_NGROUPS)
+	if (gidsetsize > CRED_SMALLGROUPS_NB)
 		free(groups, M_TEMP);
 	return (error);
 }
