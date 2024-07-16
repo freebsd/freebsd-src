@@ -1,4 +1,4 @@
-// Copyright 2010 The Kyua Authors.
+// Copyright 2024 The Kyua Authors.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -26,15 +26,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "cli/main.hpp"
 #include "os/freebsd/main.hpp"
 
+#include "engine/execenv/execenv.hpp"
+#include "os/freebsd/execenv_jail_manager.hpp"
 
-/// Program entry point.
-///
-/// The whole purpose of this extremely-simple function is to delegate execution
-/// to an internal module that does not contain a proper ::main() function.
-/// This is to allow unit-testing of the internal code.
+namespace execenv = engine::execenv;
+
+/// FreeBSD related features initialization.
 ///
 /// \param argc The number of arguments passed on the command line.
 /// \param argv NULL-terminated array containing the command line arguments.
@@ -45,9 +44,11 @@
 ///     are bugs, but we let them propagate so that the runtime will abort and
 ///     dump core.
 int
-main(const int argc, const char* const* const argv)
+freebsd::main(const int, const char* const* const)
 {
-    freebsd::main(argc, argv);
+    execenv::register_execenv(
+        std::shared_ptr< execenv::manager >(new freebsd::execenv_jail_manager())
+    );
 
-    return cli::main(argc, argv);
+    return 0;
 }

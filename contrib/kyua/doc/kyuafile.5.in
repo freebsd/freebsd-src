@@ -1,4 +1,4 @@
-.\" Copyright 2012 The Kyua Authors.
+.\" Copyright 2012-2024 The Kyua Authors.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
 .\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 .\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-.Dd July 3, 2015
+.Dd March 23, 2024
 .Dt KYUAFILE 5
 .Os
 .Sh NAME
@@ -173,6 +173,75 @@ Refer to the
 section below for clarification.
 .It Va description
 Textual description of the test.
+.It Va execenv
+The name of the execution environment to be used for running the test.
+If empty or not defined, the
+.Sq host
+execution environment is meant.
+The possible values are:
+.Bl -tag -width xUnnnnnnn
+.It host
+The default environment which runs the test as a usual child process.
+.It jail
+The
+.Fx
+.Xr jail 8
+environment.
+It creates a temporary jail to run the test and its optional cleanup logic
+within.
+.Pp
+This feature requires
+.Xr kyua 1
+to be running with superuser privileges.
+.Pp
+The difference between
+.Va security.jail.children.max
+and
+.Va security.jail.children.cur
+sysctl of the jail
+.Xr kyua 1
+is running within must have a value high enough for the jail based tests
+planned to be run.
+For instance, the value 1 should be enough for a sequential run of simple
+tests.
+Otherwise, such aspects as parallel test execution and sub-jails spawned
+by specific test cases should be considered.
+.Pp
+The formula of a temporary jail name is
+.Sq kyua
++
+.Va test program path
++
+.Sq _
++
+.Va test case name .
+All non-alphanumeric characters are replaced with
+.Sq _ .
+.Sq kyua_usr_tests_sys_netpfil_pf_pass_block_v4
+is an example for /usr/tests/sys/netpfil/pf/pass_block:v4 test case.
+.El
+.It Va execenv_jail_params
+Additional test-specific whitespace-separated parameters of
+.Fx
+.Xr jail 8
+to create a temporary jail within which the test is run.
+It makes sense only if execenv is set to
+.Sq jail .
+.sp
+.Xr kyua 1
+implicitly passes
+.Sq children.max
+parameter to
+.Xr jail 8
+for a temporary jail with the maximum possible value according to
+the jail
+.Xr kyua 1
+itself is running within.
+It allows tests to easily spawn their own sub-jails without additional
+configuration.
+It can be overridden via
+.Va execenv_jail_params
+if needed.
 .It Va is_exclusive
 If true, indicates that this test program cannot be executed along any other
 programs at the same time.
@@ -360,6 +429,36 @@ test_suite('FreeBSD')
 plain_test_program{name='the_test',
                    ['custom.FreeBSD-Bug-Id']='category/12345'}
 .Ed
+.Ss FreeBSD jail execution environment
+The following example configures the test to be run within a temporary jail
+with
+.Xr vnet 9
+support and the permission to create raw sockets:
+.Bd -literal -offset indent
+syntax(2)
+
+test_suite('FreeBSD')
+
+atf_test_program{name='network_test',
+                 execenv='jail',
+                 execenv_jail_params='vnet allow.raw_sockets',
+                 required_user='root'}
+.Ed
+.Pp
+A test case itself may have no requirements in superuser privileges,
+but required_user='root' metadata property reminds that the jail execution
+environment requires
+.Xr kyua 1
+being running with root privileges, and the test is skipped otherwise with
+the respective message. The combination of
+.Va execenv
+set to
+.Sq jail
+and
+.Va required_user
+set to
+.Sq unprivileged
+does not work respectively.
 .Ss Connecting disjoint test suites
 Now suppose you had various test suites on your file system and you would
 like to connect them together so that they could be executed and treated as

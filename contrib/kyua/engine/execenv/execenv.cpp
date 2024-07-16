@@ -1,4 +1,4 @@
-// Copyright 2010 The Kyua Authors.
+// Copyright 2023 The Kyua Authors.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -26,28 +26,49 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "cli/main.hpp"
-#include "os/freebsd/main.hpp"
+#include "engine/execenv/execenv.hpp"
+
+#include "engine/execenv/execenv_host.hpp"
+
+namespace execenv = engine::execenv;
+
+using utils::none;
 
 
-/// Program entry point.
+const char* execenv::default_execenv_name = "host";
+
+
+/// List of registered execution environments, except default host one.
 ///
-/// The whole purpose of this extremely-simple function is to delegate execution
-/// to an internal module that does not contain a proper ::main() function.
-/// This is to allow unit-testing of the internal code.
-///
-/// \param argc The number of arguments passed on the command line.
-/// \param argv NULL-terminated array containing the command line arguments.
-///
-/// \return 0 on success, some other integer on error.
-///
-/// \throw std::exception This throws any uncaught exception.  Such exceptions
-///     are bugs, but we let them propagate so that the runtime will abort and
-///     dump core.
-int
-main(const int argc, const char* const* const argv)
+/// Use register_execenv() to add an entry to this global list.
+static std::vector< std::shared_ptr< execenv::manager > >
+    execenv_managers;
+
+
+void
+execenv::register_execenv(const std::shared_ptr< execenv::manager > manager)
 {
-    freebsd::main(argc, argv);
+    execenv_managers.push_back(manager);
+}
 
-    return cli::main(argc, argv);
+
+const std::vector< std::shared_ptr< execenv::manager> >
+execenv::execenvs()
+{
+    return execenv_managers;
+}
+
+
+std::unique_ptr< execenv::interface >
+execenv::get(const model::test_program& test_program,
+             const std::string& test_case_name)
+{
+    for (auto m : execenv_managers) {
+        auto e = m->probe(test_program, test_case_name);
+        if (e != nullptr)
+            return e;
+    }
+
+    return std::unique_ptr< execenv::interface >(
+        new execenv::execenv_host(test_program, test_case_name));
 }

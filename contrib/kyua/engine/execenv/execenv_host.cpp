@@ -1,4 +1,4 @@
-// Copyright 2010 The Kyua Authors.
+// Copyright 2024 The Kyua Authors.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -26,28 +26,27 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "cli/main.hpp"
-#include "os/freebsd/main.hpp"
+#include "engine/execenv/execenv_host.hpp"
 
+#include "utils/fs/path.hpp"
+#include "utils/process/operations.hpp"
 
-/// Program entry point.
-///
-/// The whole purpose of this extremely-simple function is to delegate execution
-/// to an internal module that does not contain a proper ::main() function.
-/// This is to allow unit-testing of the internal code.
-///
-/// \param argc The number of arguments passed on the command line.
-/// \param argv NULL-terminated array containing the command line arguments.
-///
-/// \return 0 on success, some other integer on error.
-///
-/// \throw std::exception This throws any uncaught exception.  Such exceptions
-///     are bugs, but we let them propagate so that the runtime will abort and
-///     dump core.
-int
-main(const int argc, const char* const* const argv)
+void
+execenv::execenv_host::init() const
 {
-    freebsd::main(argc, argv);
+    // nothing to do
+}
 
-    return cli::main(argc, argv);
+
+void
+execenv::execenv_host::cleanup() const
+{
+    // nothing to do
+}
+
+
+void
+execenv::execenv_host::exec(const args_vector& args) const
+{
+    utils::process::exec(_test_program.absolute_path(), args);
 }

@@ -121,6 +121,10 @@ engine::parse_atf_metadata(const model::properties_map& props)
                 mdbuilder.set_string("has_cleanup", value);
             } else if (name == "require.arch") {
                 mdbuilder.set_string("allowed_architectures", value);
+            } else if (name == "execenv") {
+                mdbuilder.set_string("execenv", value);
+            } else if (name == "execenv.jail.params") {
+                mdbuilder.set_string("execenv_jail_params", value);
             } else if (name == "require.config") {
                 mdbuilder.set_string("required_configs", value);
             } else if (name == "require.files") {

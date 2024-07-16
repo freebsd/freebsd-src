@@ -1,4 +1,4 @@
-// Copyright 2010 The Kyua Authors.
+// Copyright 2024 The Kyua Authors.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -26,28 +26,38 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "cli/main.hpp"
-#include "os/freebsd/main.hpp"
+#include "os/freebsd/execenv_jail_manager.hpp"
 
+#include "model/metadata.hpp"
+#include "model/test_case.hpp"
+#include "os/freebsd/execenv_jail.hpp"
 
-/// Program entry point.
-///
-/// The whole purpose of this extremely-simple function is to delegate execution
-/// to an internal module that does not contain a proper ::main() function.
-/// This is to allow unit-testing of the internal code.
-///
-/// \param argc The number of arguments passed on the command line.
-/// \param argv NULL-terminated array containing the command line arguments.
-///
-/// \return 0 on success, some other integer on error.
-///
-/// \throw std::exception This throws any uncaught exception.  Such exceptions
-///     are bugs, but we let them propagate so that the runtime will abort and
-///     dump core.
-int
-main(const int argc, const char* const* const argv)
+static const std::string execenv_name = "jail";
+
+const std::string&
+freebsd::execenv_jail_manager::name() const
 {
-    freebsd::main(argc, argv);
+    return execenv_name;
+}
 
-    return cli::main(argc, argv);
+
+bool
+freebsd::execenv_jail_manager::is_supported() const
+{
+    return freebsd::execenv_jail_supported;
+}
+
+
+std::unique_ptr< execenv::interface >
+freebsd::execenv_jail_manager::probe(
+    const model::test_program& test_program,
+    const std::string& test_case_name) const
+{
+    auto test_case = test_program.find(test_case_name);
+    if (test_case.get_metadata().execenv() != execenv_name)
+        return nullptr;
+
+    return std::unique_ptr< execenv::interface >(
+        new freebsd::execenv_jail(test_program, test_case_name)
+    );
 }

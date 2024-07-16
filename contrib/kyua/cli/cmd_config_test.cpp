@@ -61,6 +61,7 @@ fake_config(void)
 {
     config::tree user_config = engine::default_config();
     user_config.set_string("architecture", "the-architecture");
+    user_config.set_string("execenvs", "the-env");
     user_config.set_string("parallelism", "128");
     user_config.set_string("platform", "the-platform");
     //user_config.set_string("unprivileged_user", "");
@@ -83,12 +84,13 @@ ATF_TEST_CASE_BODY(all)
     cmdline::ui_mock ui;
     ATF_REQUIRE_EQ(EXIT_SUCCESS, cmd.main(&ui, args, fake_config()));
 
-    ATF_REQUIRE_EQ(5, ui.out_log().size());
+    ATF_REQUIRE_EQ(6, ui.out_log().size());
     ATF_REQUIRE_EQ("architecture = the-architecture", ui.out_log()[0]);
-    ATF_REQUIRE_EQ("parallelism = 128", ui.out_log()[1]);
-    ATF_REQUIRE_EQ("platform = the-platform", ui.out_log()[2]);
-    ATF_REQUIRE_EQ("test_suites.foo.bar = first", ui.out_log()[3]);
-    ATF_REQUIRE_EQ("test_suites.foo.baz = second", ui.out_log()[4]);
+    ATF_REQUIRE_EQ("execenvs = the-env", ui.out_log()[1]);
+    ATF_REQUIRE_EQ("parallelism = 128", ui.out_log()[2]);
+    ATF_REQUIRE_EQ("platform = the-platform", ui.out_log()[3]);
+    ATF_REQUIRE_EQ("test_suites.foo.bar = first", ui.out_log()[4]);
+    ATF_REQUIRE_EQ("test_suites.foo.baz = second", ui.out_log()[5]);
     ATF_REQUIRE(ui.err_log().empty());
 }
 

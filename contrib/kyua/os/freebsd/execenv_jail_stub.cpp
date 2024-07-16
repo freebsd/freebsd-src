@@ -1,4 +1,4 @@
-// Copyright 2010 The Kyua Authors.
+// Copyright 2024 The Kyua Authors.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -26,28 +26,50 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "cli/main.hpp"
-#include "os/freebsd/main.hpp"
+#include "os/freebsd/execenv_jail.hpp"
+
+#include <iostream>
+
+#include "utils/process/operations_fwd.hpp"
+
+using utils::process::args_vector;
 
 
-/// Program entry point.
-///
-/// The whole purpose of this extremely-simple function is to delegate execution
-/// to an internal module that does not contain a proper ::main() function.
-/// This is to allow unit-testing of the internal code.
-///
-/// \param argc The number of arguments passed on the command line.
-/// \param argv NULL-terminated array containing the command line arguments.
-///
-/// \return 0 on success, some other integer on error.
-///
-/// \throw std::exception This throws any uncaught exception.  Such exceptions
-///     are bugs, but we let them propagate so that the runtime will abort and
-///     dump core.
-int
-main(const int argc, const char* const* const argv)
+static inline void requires_freebsd(void) UTILS_NORETURN;
+
+static inline void
+requires_freebsd(void)
 {
-    freebsd::main(argc, argv);
-
-    return cli::main(argc, argv);
+    std::cerr << "execenv=\"jail\" requires FreeBSD with jail feature.\n";
+    std::exit(EXIT_FAILURE);
 }
+
+
+namespace freebsd {
+
+
+bool execenv_jail_supported = false;
+
+
+void
+execenv_jail::init() const
+{
+    requires_freebsd();
+}
+
+
+void
+execenv_jail::cleanup() const
+{
+    requires_freebsd();
+}
+
+
+void
+execenv_jail::exec(const args_vector&) const
+{
+    requires_freebsd();
+}
+
+
+}  // namespace freebsd

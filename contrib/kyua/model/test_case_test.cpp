@@ -200,7 +200,8 @@ ATF_TEST_CASE_BODY(test_case__output)
     ATF_REQUIRE_EQ(
         "test_case{name='the-name', "
         "metadata=metadata{allowed_architectures='', allowed_platforms='foo', "
-        "custom.bar='baz', description='', has_cleanup='false', "
+        "custom.bar='baz', description='', execenv='', execenv_jail_params='', "
+        "has_cleanup='false', "
         "is_exclusive='false', "
         "required_configs='', required_disk_space='0', required_files='', "
         "required_memory='0', "

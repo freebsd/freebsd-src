@@ -382,9 +382,14 @@ config::base_set_node< ValueType >::push_lua(lutok::state& /* state */) const
 template< typename ValueType >
 void
 config::base_set_node< ValueType >::set_lua(
-    lutok::state& /* state */,
-    const int /* value_index */)
+    lutok::state& state,
+    const int value_index)
 {
+    if (state.is_string(value_index)) {
+        set_string(state.to_string(value_index));
+        return;
+    }
+
     UNREACHABLE;
 }
 
