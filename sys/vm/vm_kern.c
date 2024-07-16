@@ -473,10 +473,12 @@ kmem_malloc_domain(int domain, vm_size_t size, int flags)
 	vm_size_t asize;
 	int rv;
 
-	if (__predict_true((flags & M_EXEC) == 0))
+	if (__predict_true((flags & (M_EXEC | M_NEVERFREED)) == 0))
 		arena = vm_dom[domain].vmd_kernel_arena;
-	else
+	else if ((flags & M_EXEC) != 0)
 		arena = vm_dom[domain].vmd_kernel_rwx_arena;
+	else
+		arena = vm_dom[domain].vmd_kernel_nofree_arena;
 	asize = round_page(size);
 	if (vmem_alloc(arena, asize, flags | M_BESTFIT, &addr))
 		return (0);
@@ -882,19 +884,28 @@ kmem_init(vm_offset_t start, vm_offset_t end)
 		/*
 		 * In architectures with superpages, maintain separate arenas
 		 * for allocations with permissions that differ from the
-		 * "standard" read/write permissions used for kernel memory,
-		 * so as not to inhibit superpage promotion.
+		 * "standard" read/write permissions used for kernel memory
+		 * and pages that are never released, so as not to inhibit
+		 * superpage promotion.
 		 *
-		 * Use the base import quantum since this arena is rarely used.
+		 * Use the base import quantum since these arenas are rarely
+		 * used.
 		 */
 #if VM_NRESERVLEVEL > 0
 		vm_dom[domain].vmd_kernel_rwx_arena = vmem_create(
 		    "kernel rwx arena domain", 0, 0, PAGE_SIZE, 0, M_WAITOK);
+		vm_dom[domain].vmd_kernel_nofree_arena = vmem_create(
+		    "kernel NOFREE arena domain", 0, 0, PAGE_SIZE, 0, M_WAITOK);
 		vmem_set_import(vm_dom[domain].vmd_kernel_rwx_arena,
+		    kva_import_domain, (vmem_release_t *)vmem_xfree,
+		    kernel_arena, KVA_QUANTUM);
+		vmem_set_import(vm_dom[domain].vmd_kernel_nofree_arena,
 		    kva_import_domain, (vmem_release_t *)vmem_xfree,
 		    kernel_arena, KVA_QUANTUM);
 #else
 		vm_dom[domain].vmd_kernel_rwx_arena =
+		    vm_dom[domain].vmd_kernel_arena;
+		vm_dom[domain].vmd_kernel_nofree_arena =
 		    vm_dom[domain].vmd_kernel_arena;
 #endif
 	}
