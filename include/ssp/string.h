@@ -106,6 +106,7 @@ __ ## fun ## _ichk(type1 __restrict dst, type2 __restrict src) { \
 
 __BEGIN_DECLS
 __ssp_bos_icheck3_restrict(memcpy, void *, const void *)
+__ssp_bos_icheck3_restrict(mempcpy, void *, const void *)
 __ssp_bos_icheck3(memmove, void *, const void *)
 __ssp_bos_icheck3(memset, void *, int)
 __ssp_bos_icheck2_restrict(stpcpy, char *, const char *)
@@ -116,23 +117,10 @@ __ssp_redirect0(int, strerror_r, (int __errnum, char *__buf, size_t __len),
     (__errnum, __buf, __len));
 __ssp_bos_icheck3_restrict(strncpy, char *, const char *)
 __ssp_bos_icheck3_restrict(strncat, char *, const char *)
-
-__ssp_redirect_raw_impl(void *, mempcpy, mempcpy,
-    (void *__restrict buf, const void *__restrict src, size_t len))
-{
-	const size_t slen = __ssp_bos(buf);
-
-	if (len > slen)
-		__chk_fail();
-
-	if (__ssp_overlap(src, buf, len))
-		__chk_fail();
-
-	return (__ssp_real(mempcpy)(buf, src, len));
-}
 __END_DECLS
 
 #define memcpy(dst, src, len) __ssp_bos_check3(memcpy, dst, src, len)
+#define mempcpy(dst, src, len) __ssp_bos_check3(mempcpy, dst, src, len)
 #define memmove(dst, src, len) __ssp_bos_check3(memmove, dst, src, len)
 #define memset(dst, val, len) \
     __ssp_bos_check3_typed(memset, void *, dst, int, val, len)

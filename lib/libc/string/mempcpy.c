@@ -32,7 +32,7 @@
 #include <ssp/ssp.h>
 
 void *
-__ssp_real(mempcpy)(void *__restrict dst, const void *__restrict src,
+(mempcpy)(void *__restrict dst, const void *__restrict src,
     size_t len)
 {
 	return ((char *)memcpy(dst, src, len) + len);
