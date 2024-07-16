@@ -37,8 +37,7 @@
 
 __weak_reference(__sys_recvmsg, __recvmsg);
 
-#pragma weak recvmsg
-ssize_t
+ssize_t __weak_symbol
 __ssp_real(recvmsg)(int s, struct msghdr *msg, int flags)
 {
 	return (INTERPOS_SYS(recvmsg, s, msg, flags));
