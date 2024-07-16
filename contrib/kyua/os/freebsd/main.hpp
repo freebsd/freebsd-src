@@ -1,4 +1,4 @@
-// Copyright 2010 The Kyua Authors.
+// Copyright 2024 The Kyua Authors.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -26,28 +26,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "cli/main.hpp"
-#include "os/freebsd/main.hpp"
+/// \file os/freebsd/main.hpp
+/// FreeBSD related features initialization.
 
+#if !defined(FREEBSD_MAIN_HPP)
+#define FREEBSD_MAIN_HPP
 
-/// Program entry point.
-///
-/// The whole purpose of this extremely-simple function is to delegate execution
-/// to an internal module that does not contain a proper ::main() function.
-/// This is to allow unit-testing of the internal code.
-///
-/// \param argc The number of arguments passed on the command line.
-/// \param argv NULL-terminated array containing the command line arguments.
-///
-/// \return 0 on success, some other integer on error.
-///
-/// \throw std::exception This throws any uncaught exception.  Such exceptions
-///     are bugs, but we let them propagate so that the runtime will abort and
-///     dump core.
-int
-main(const int argc, const char* const* const argv)
-{
-    freebsd::main(argc, argv);
+namespace freebsd {
 
-    return cli::main(argc, argv);
-}
+int main(const int argc, const char* const* const argv);
+
+}  // namespace freebsd
+
+#endif  // !defined(FREEBSD_MAIN_HPP)
