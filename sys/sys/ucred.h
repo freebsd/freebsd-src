@@ -42,6 +42,14 @@ struct loginclass;
 
 #define	XU_NGROUPS	16
 
+#if defined(_KERNEL) || defined(_WANT_UCRED)
+/*
+ * Number of groups inlined in 'struct ucred'.  It must stay reasonably low as
+ * it is also used by some functions to allocate an array of this size on the
+ * stack.
+ */
+#define	CRED_SMALLGROUPS_NB	16
+
 /*
  * Credentials.
  *
@@ -55,7 +63,6 @@ struct loginclass;
  *
  * See "Credential management" comment in kern_prot.c for more information.
  */
-#if defined(_KERNEL) || defined(_WANT_UCRED)
 struct ucred {
 	struct mtx cr_mtx;
 	long	cr_ref;			/* (c) reference count */
@@ -78,7 +85,8 @@ struct ucred {
 	struct label	*cr_label;	/* MAC label */
 	gid_t	*cr_groups;		/* groups */
 	int	cr_agroups;		/* Available groups */
-	gid_t   cr_smallgroups[XU_NGROUPS];	/* storage for small groups */
+	/* storage for small groups */
+	gid_t   cr_smallgroups[CRED_SMALLGROUPS_NB];
 };
 #define	NOCRED	((struct ucred *)0)	/* no credential available */
 #define	FSCRED	((struct ucred *)-1)	/* filesystem credential */
