@@ -41,11 +41,14 @@
 #endif
 #include <bsm/audit.h>
 
+#if defined(_KERNEL) || defined(_WANT_UCRED)
 struct loginclass;
 
-#define	XU_NGROUPS	16
+/*
+ * Flags for cr_flags.
+ */
+#define	CRED_FLAG_CAPMODE	0x00000001	/* In capability mode. */
 
-#if defined(_KERNEL) || defined(_WANT_UCRED)
 /*
  * Number of groups inlined in 'struct ucred'.  It must stay reasonably low as
  * it is also used by some functions to allocate an array of this size on the
@@ -103,10 +106,7 @@ struct ucred {
 #define	FSCRED	((struct ucred *)-1)	/* filesystem credential */
 #endif /* _KERNEL || _WANT_UCRED */
 
-/*
- * Flags for cr_flags.
- */
-#define	CRED_FLAG_CAPMODE	0x00000001	/* In capability mode. */
+#define	XU_NGROUPS	16
 
 /*
  * This is the external representation of struct ucred.
