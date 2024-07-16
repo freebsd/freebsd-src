@@ -265,7 +265,7 @@ state(KINFO *k, VARENT *ve __unused)
 		*cp++ = 'V';
 	if ((flag & P_SYSTEM) || k->ki_p->ki_lock > 0)
 		*cp++ = 'L';
-	if ((k->ki_p->ki_cr_flags & CRED_FLAG_CAPMODE) != 0)
+	if ((k->ki_p->ki_cr_flags & KI_CRF_CAPABILITY_MODE) != 0)
 		*cp++ = 'C';
 	if (k->ki_p->ki_kiflag & KI_SLEADER)
 		*cp++ = 's';
