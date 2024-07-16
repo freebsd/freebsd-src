@@ -101,11 +101,12 @@ __ssp_redirect_raw_impl(ssize_t, recvmmsg, recvmmsg,
     const struct timespec *__restrict timeout))
 {
 	const size_t vecsz = __ssp_bos(hdrvec);
+	size_t i;
 
 	if (vecsz != (size_t)-1 && vecsz / sizeof(*hdrvec) < vlen)
 		__chk_fail();
 
-	for (size_t i = 0; i < vlen; i++) {
+	for (i = 0; i < vlen; i++) {
 		__ssp_check_msghdr(&hdrvec[i].msg_hdr);
 	}
 
