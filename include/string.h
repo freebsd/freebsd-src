@@ -68,7 +68,7 @@ void	*memmem(const void *, size_t, const void *, size_t) __pure;
 #endif
 void	*(memmove)(void *, const void *, size_t);
 #if __BSD_VISIBLE
-void	*mempcpy(void * __restrict, const void * __restrict, size_t);
+void	*(mempcpy)(void * __restrict, const void * __restrict, size_t);
 #endif
 void	*(memset)(void *, int, size_t);
 #if __POSIX_VISIBLE >= 200809
