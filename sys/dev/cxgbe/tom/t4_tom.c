@@ -97,6 +97,7 @@ static struct uld_info tom_uld_info = {
 };
 
 static void release_offload_resources(struct toepcb *);
+static void done_with_toepcb(struct toepcb *);
 static int alloc_tid_tabs(struct tid_info *);
 static void free_tid_tabs(struct tid_info *);
 static void free_tom_data(struct adapter *, struct tom_data *);
@@ -311,11 +312,41 @@ release_offload_resources(struct toepcb *toep)
 
 	KASSERT(!(toep->flags & TPF_CPL_PENDING),
 	    ("%s: %p has CPL pending.", __func__, toep));
-	KASSERT(!(toep->flags & TPF_ATTACHED),
-	    ("%s: %p is still attached.", __func__, toep));
 
 	CTR5(KTR_CXGBE, "%s: toep %p (tid %d, l2te %p, ce %p)",
 	    __func__, toep, tid, toep->l2te, toep->ce);
+
+	if (toep->l2te) {
+		t4_l2t_release(toep->l2te);
+		toep->l2te = NULL;
+	}
+	if (tid >= 0) {
+		remove_tid(sc, tid, toep->ce ? 2 : 1);
+		release_tid(sc, tid, toep->ctrlq);
+		toep->tid = -1;
+	}
+	if (toep->ce) {
+		t4_release_clip_entry(sc, toep->ce);
+		toep->ce = NULL;
+	}
+	if (toep->params.tc_idx != -1)
+		t4_release_cl_rl(sc, toep->vi->pi->port_id, toep->params.tc_idx);
+}
+
+/*
+ * Both the driver and kernel are done with the toepcb.
+ */
+static void
+done_with_toepcb(struct toepcb *toep)
+{
+	struct tom_data *td = toep->td;
+
+	KASSERT(!(toep->flags & TPF_CPL_PENDING),
+	    ("%s: %p has CPL pending.", __func__, toep));
+	KASSERT(!(toep->flags & TPF_ATTACHED),
+	    ("%s: %p is still attached.", __func__, toep));
+
+	CTR(KTR_CXGBE, "%s: toep %p (0x%x)", __func__, toep, toep->flags);
 
 	/*
 	 * These queues should have been emptied at approximately the same time
@@ -329,20 +360,9 @@ release_offload_resources(struct toepcb *toep)
 		ddp_assert_empty(toep);
 #endif
 	MPASS(TAILQ_EMPTY(&toep->aiotx_jobq));
-
-	if (toep->l2te)
-		t4_l2t_release(toep->l2te);
-
-	if (tid >= 0) {
-		remove_tid(sc, tid, toep->ce ? 2 : 1);
-		release_tid(sc, tid, toep->ctrlq);
-	}
-
-	if (toep->ce)
-		t4_release_clip_entry(sc, toep->ce);
-
-	if (toep->params.tc_idx != -1)
-		t4_release_cl_rl(sc, toep->vi->pi->port_id, toep->params.tc_idx);
+	MPASS(toep->tid == -1);
+	MPASS(toep->l2te == NULL);
+	MPASS(toep->ce == NULL);
 
 	mtx_lock(&td->toep_list_lock);
 	TAILQ_REMOVE(&td->toep_list, toep, link);
@@ -392,7 +412,7 @@ t4_pcb_detach(struct toedev *tod __unused, struct tcpcb *tp)
 	toep->flags &= ~TPF_ATTACHED;
 
 	if (!(toep->flags & TPF_CPL_PENDING))
-		release_offload_resources(toep);
+		done_with_toepcb(toep);
 }
 
 /*
@@ -988,9 +1008,9 @@ final_cpl_received(struct toepcb *toep)
 	toep->flags &= ~(TPF_CPL_PENDING | TPF_WAITING_FOR_FINAL);
 	mbufq_drain(&toep->ulp_pduq);
 	mbufq_drain(&toep->ulp_pdu_reclaimq);
-
+	release_offload_resources(toep);
 	if (!(toep->flags & TPF_ATTACHED))
-		release_offload_resources(toep);
+		done_with_toepcb(toep);
 
 	if (!in_pcbrele_wlocked(inp))
 		INP_WUNLOCK(inp);
