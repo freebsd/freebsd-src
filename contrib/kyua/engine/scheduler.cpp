@@ -40,6 +40,7 @@ extern "C" {
 
 #include "engine/config.hpp"
 #include "engine/exceptions.hpp"
+#include "engine/execenv/execenv.hpp"
 #include "engine/requirements.hpp"
 #include "model/context.hpp"
 #include "model/metadata.hpp"
@@ -68,6 +69,7 @@ extern "C" {
 
 namespace config = utils::config;
 namespace datetime = utils::datetime;
+namespace execenv = engine::execenv;
 namespace executor = utils::process::executor;
 namespace fs = utils::fs;
 namespace logging = utils::logging;
@@ -85,6 +87,10 @@ using utils::optional;
 /// TODO(jmmv): This is here only for testing purposes.  Maybe we should expose
 /// this setting as part of the user_config.
 datetime::delta scheduler::cleanup_timeout(60, 0);
+
+
+/// Timeout for the test case execenv cleanup operation.
+datetime::delta scheduler::execenv_cleanup_timeout(60, 0);
 
 
 /// Timeout for the test case listing operation.
@@ -206,6 +212,18 @@ struct test_exec_data : public exec_data {
     /// denote that no further attempts shall be made at cleaning this up.
     bool needs_cleanup;
 
+    /// Whether this test case still needs to have its execenv cleanup executed.
+    ///
+    /// This is set externally when the cleanup routine is actually invoked to
+    /// denote that no further attempts shall be made at cleaning this up.
+    bool needs_execenv_cleanup;
+
+    /// Original PID of the test case subprocess.
+    ///
+    /// This is used for the cleanup upon termination by a signal, to reap the
+    /// leftovers and form missing exit_handle.
+    pid_t pid;
+
     /// The exit_handle for this test once it has completed.
     ///
     /// This is set externally when the test case has finished, as we need this
@@ -222,12 +240,14 @@ struct test_exec_data : public exec_data {
     test_exec_data(const model::test_program_ptr test_program_,
                    const std::string& test_case_name_,
                    const std::shared_ptr< scheduler::interface > interface_,
-                   const config::tree& user_config_) :
+                   const config::tree& user_config_,
+                   const pid_t pid_) :
         exec_data(test_program_, test_case_name_),
-        interface(interface_), user_config(user_config_)
+        interface(interface_), user_config(user_config_), pid(pid_)
     {
         const model::test_case& test_case = test_program->find(test_case_name);
         needs_cleanup = test_case.get_metadata().has_cleanup();
+        needs_execenv_cleanup = test_case.get_metadata().has_execenv();
     }
 };
 
@@ -259,6 +279,40 @@ struct cleanup_exec_data : public exec_data {
                       const std::string& test_case_name_,
                       const executor::exit_handle& body_exit_handle_,
                       const model::test_result& body_result_) :
+        exec_data(test_program_, test_case_name_),
+        body_exit_handle(body_exit_handle_), body_result(body_result_)
+    {
+    }
+};
+
+
+/// Maintenance data held while a test execenv cleanup is being executed.
+///
+/// Instances of this object are related to a previous test_exec_data, as
+/// cleanup routines can only exist once the test has been run.
+struct execenv_exec_data : public exec_data {
+    /// The exit handle of the test.  This is necessary so that we can return
+    /// the correct exit_handle to the user of the scheduler.
+    executor::exit_handle body_exit_handle;
+
+    /// The final result of the test's body.  This is necessary to compute the
+    /// right return value for a test with a cleanup routine: the body result is
+    /// respected if it is a "bad" result; else the result of the cleanup
+    /// routine is used if it has failed.
+    model::test_result body_result;
+
+    /// Constructor.
+    ///
+    /// \param test_program_ Test program data for this test case.
+    /// \param test_case_name_ Name of the test case.
+    /// \param body_exit_handle_ If not none, exit handle of the body
+    ///     corresponding to the cleanup routine represented by this exec_data.
+    /// \param body_result_ If not none, result of the body corresponding to the
+    ///     cleanup routine represented by this exec_data.
+    execenv_exec_data(const model::test_program_ptr test_program_,
+                              const std::string& test_case_name_,
+                              const executor::exit_handle& body_exit_handle_,
+                              const model::test_result& body_result_) :
         exec_data(test_program_, test_case_name_),
         body_exit_handle(body_exit_handle_), body_result(body_result_)
     {
@@ -488,6 +542,40 @@ public:
             _user_config, _test_program.test_suite_name());
         _interface->exec_cleanup(_test_program, _test_case_name, vars,
                                  control_directory);
+    }
+};
+
+
+/// Functor to execute a test execenv cleanup in a child process.
+class run_execenv_cleanup {
+    /// Test program to execute.
+    const model::test_program _test_program;
+
+    /// Name of the test case to execute.
+    const std::string& _test_case_name;
+
+public:
+    /// Constructor.
+    ///
+    /// \param test_program Test program to execute.
+    /// \param test_case_name Name of the test case to execute.
+    run_execenv_cleanup(
+        const model::test_program_ptr test_program,
+        const std::string& test_case_name) :
+        _test_program(force_absolute_paths(*test_program)),
+        _test_case_name(test_case_name)
+    {
+    }
+
+    /// Body of the subprocess.
+    ///
+    /// \param control_directory The testcase directory where cleanup will be
+    ///     run from.
+    void
+    operator()(const fs::path& /* control_directory */)
+    {
+        auto e = execenv::get(_test_program, _test_case_name);
+        e->cleanup();
     }
 };
 
@@ -835,6 +923,22 @@ struct engine::scheduler::scheduler_handle::impl : utils::noncopyable {
                    % test_data->test_case_name);
             }
         }
+
+        const test_exec_data_vector td = tests_needing_execenv_cleanup();
+
+        for (test_exec_data_vector::const_iterator iter = td.begin();
+             iter != td.end(); ++iter) {
+            const test_exec_data* test_data = *iter;
+
+            try {
+                sync_execenv_cleanup(test_data);
+            } catch (const std::runtime_error& e) {
+                LW(F("Failed to run execenv cleanup routine for %s:%s on abrupt "
+                     "termination")
+                   % test_data->test_program->relative_path()
+                   % test_data->test_case_name);
+            }
+        }
     }
 
     /// Finds any pending exec_datas that correspond to tests needing cleanup.
@@ -856,9 +960,42 @@ struct engine::scheduler::scheduler_handle::impl : utils::noncopyable {
                 if (test_data->needs_cleanup) {
                     tests_data.push_back(test_data);
                     test_data->needs_cleanup = false;
+                    if (!test_data->exit_handle)
+                        test_data->exit_handle = generic.reap(test_data->pid);
                 }
             } catch (const std::bad_cast& e) {
                 // Do nothing for cleanup_exec_data objects.
+            }
+        }
+
+        return tests_data;
+    }
+
+    /// Finds any pending exec_datas that correspond to tests needing execenv
+    /// cleanup.
+    ///
+    /// \return The collection of test_exec_data objects that have their
+    /// specific execenv property set.
+    test_exec_data_vector
+    tests_needing_execenv_cleanup(void)
+    {
+        test_exec_data_vector tests_data;
+
+        for (exec_data_map::const_iterator iter = all_exec_data.begin();
+             iter != all_exec_data.end(); ++iter) {
+            const exec_data_ptr data = (*iter).second;
+
+            try {
+                test_exec_data* test_data = &dynamic_cast< test_exec_data& >(
+                    *data.get());
+                if (test_data->needs_execenv_cleanup) {
+                    tests_data.push_back(test_data);
+                    test_data->needs_execenv_cleanup = false;
+                    if (!test_data->exit_handle)
+                        test_data->exit_handle = generic.reap(test_data->pid);
+                }
+            } catch (const std::bad_cast& e) {
+                // Do nothing for other objects.
             }
         }
 
@@ -919,6 +1056,61 @@ struct engine::scheduler::scheduler_handle::impl : utils::noncopyable {
         const exec_data_ptr data(new cleanup_exec_data(
             test_program, test_case_name, body_handle, body_result));
         LD(F("Inserting %s into all_exec_data (cleanup)") % handle.pid());
+        INV_MSG(all_exec_data.find(handle.pid()) == all_exec_data.end(),
+                F("PID %s already in all_exec_data; not properly cleaned "
+                  "up or reused too fast") % handle.pid());;
+        all_exec_data.insert(exec_data_map::value_type(handle.pid(), data));
+
+        return handle;
+    }
+
+    /// Cleans up a single test case execenv synchronously.
+    ///
+    /// \param test_data The data of the previously executed test case to be
+    ///     cleaned up.
+    void
+    sync_execenv_cleanup(const test_exec_data* test_data)
+    {
+        // The message in this result should never be seen by the user, but use
+        // something reasonable just in case it leaks and we need to pinpoint
+        // the call site.
+        model::test_result result(model::test_result_broken,
+                                  "Test case died abruptly");
+
+        const executor::exec_handle cleanup_handle = spawn_execenv_cleanup(
+            test_data->test_program, test_data->test_case_name,
+            test_data->exit_handle.get(), result);
+        generic.wait(cleanup_handle);
+    }
+
+    /// Forks and executes a test case execenv cleanup asynchronously.
+    ///
+    /// \param test_program The container test program.
+    /// \param test_case_name The name of the test case to run.
+    /// \param body_handle The exit handle of the test case's corresponding
+    ///     body.  The cleanup will be executed in the same context.
+    /// \param body_result The result of the test case's corresponding body.
+    ///
+    /// \return A handle for the background operation.  Used to match the result
+    /// of the execution returned by wait_any() with this invocation.
+    executor::exec_handle
+    spawn_execenv_cleanup(const model::test_program_ptr test_program,
+                          const std::string& test_case_name,
+                          const executor::exit_handle& body_handle,
+                          const model::test_result& body_result)
+    {
+        generic.check_interrupt();
+
+        LI(F("Spawning %s:%s (execenv cleanup)")
+            % test_program->absolute_path() % test_case_name);
+
+        const executor::exec_handle handle = generic.spawn_followup(
+            run_execenv_cleanup(test_program, test_case_name),
+            body_handle, execenv_cleanup_timeout);
+
+        const exec_data_ptr data(new execenv_exec_data(
+            test_program, test_case_name, body_handle, body_result));
+        LD(F("Inserting %s into all_exec_data (execenv cleanup)") % handle.pid());
         INV_MSG(all_exec_data.find(handle.pid()) == all_exec_data.end(),
                 F("PID %s already in all_exec_data; not properly cleaned "
                   "up or reused too fast") % handle.pid());;
@@ -1115,7 +1307,7 @@ scheduler::scheduler_handle::spawn_test(
         unprivileged_user);
 
     const exec_data_ptr data(new test_exec_data(
-        test_program, test_case_name, interface, user_config));
+        test_program, test_case_name, interface, user_config, handle.pid()));
     LD(F("Inserting %s into all_exec_data") % handle.pid());
     INV_MSG(
         _pimpl->all_exec_data.find(handle.pid()) == _pimpl->all_exec_data.end(),
@@ -1150,6 +1342,8 @@ scheduler::scheduler_handle::wait_any(void)
                                         _pimpl->generic, handle);
 
     optional< model::test_result > result;
+
+    // test itself
     try {
         test_exec_data* test_data = &dynamic_cast< test_exec_data& >(
             *data.get());
@@ -1185,6 +1379,7 @@ scheduler::scheduler_handle::wait_any(void)
                 // if the test's body reports a skip (because actions could have
                 // already been taken).
                 test_data->needs_cleanup = false;
+                test_data->needs_execenv_cleanup = false;
             }
         }
         if (!result) {
@@ -1209,7 +1404,6 @@ scheduler::scheduler_handle::wait_any(void)
             _pimpl->spawn_cleanup(test_data->test_program,
                                   test_data->test_case_name,
                                   test_data->user_config, handle, result.get());
-            test_data->needs_cleanup = false;
 
             // TODO(jmmv): Chaining this call is ugly.  We'd be better off by
             // looping over terminated processes until we got a result suitable
@@ -1218,7 +1412,21 @@ scheduler::scheduler_handle::wait_any(void)
             // of test cases do not have cleanup routines.
             return wait_any();
         }
+
+        if (test_data->needs_execenv_cleanup) {
+            INV(test_case.get_metadata().has_execenv());
+            _pimpl->spawn_execenv_cleanup(test_data->test_program,
+                                          test_data->test_case_name,
+                                          handle, result.get());
+            test_data->needs_execenv_cleanup = false;
+            return wait_any();
+        }
     } catch (const std::bad_cast& e) {
+        // ok, let's check for another type
+    }
+
+    // test cleanup
+    try {
         const cleanup_exec_data* cleanup_data =
             &dynamic_cast< const cleanup_exec_data& >(*data.get());
         LD(F("Got %s from all_exec_data (cleanup)") % handle.original_pid());
@@ -1257,7 +1465,65 @@ scheduler::scheduler_handle::wait_any(void)
         _pimpl->all_exec_data.erase(handle.original_pid());
 
         handle = cleanup_data->body_exit_handle;
+
+        const exec_data_map::iterator it = _pimpl->all_exec_data.find(
+            handle.original_pid());
+        if (it != _pimpl->all_exec_data.end()) {
+            exec_data_ptr d = (*it).second;
+            test_exec_data* test_data = &dynamic_cast< test_exec_data& >(
+                *d.get());
+            const model::test_case& test_case =
+                cleanup_data->test_program->find(cleanup_data->test_case_name);
+            test_data->needs_cleanup = false;
+
+            if (test_data->needs_execenv_cleanup) {
+                INV(test_case.get_metadata().has_execenv());
+                _pimpl->spawn_execenv_cleanup(cleanup_data->test_program,
+                                              cleanup_data->test_case_name,
+                                              handle, result.get());
+                test_data->needs_execenv_cleanup = false;
+                return wait_any();
+            }
+        }
+    } catch (const std::bad_cast& e) {
+        // ok, let's check for another type
     }
+
+    // execenv cleanup
+    try {
+        const execenv_exec_data* execenv_data =
+            &dynamic_cast< const execenv_exec_data& >(*data.get());
+        LD(F("Got %s from all_exec_data (execenv cleanup)") % handle.original_pid());
+
+        const model::test_result& body_result = execenv_data->body_result;
+        if (body_result.good()) {
+            if (!handle.status()) {
+                result = model::test_result(model::test_result_broken,
+                                            "Test case execenv cleanup timed out");
+            } else {
+                if (!handle.status().get().exited() ||
+                    handle.status().get().exitstatus() != EXIT_SUCCESS) {
+                    result = model::test_result(
+                        model::test_result_broken,
+                        "Test case execenv cleanup did not terminate successfully"); // ?
+                } else {
+                    result = body_result;
+                }
+            }
+        } else {
+            result = body_result;
+        }
+
+        LD(F("Removing %s from all_exec_data (execenv cleanup) in favor of %s")
+           % handle.original_pid()
+           % execenv_data->body_exit_handle.original_pid());
+        _pimpl->all_exec_data.erase(handle.original_pid());
+
+        handle = execenv_data->body_exit_handle;
+    } catch (const std::bad_cast& e) {
+        // ok, it was one of the types above
+    }
+
     INV(result);
 
     std::shared_ptr< result_handle::bimpl > result_handle_bimpl(

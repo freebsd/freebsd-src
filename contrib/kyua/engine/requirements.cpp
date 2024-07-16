@@ -28,6 +28,7 @@
 
 #include "engine/requirements.hpp"
 
+#include "engine/execenv/execenv.hpp"
 #include "model/metadata.hpp"
 #include "model/types.hpp"
 #include "utils/config/nodes.ipp"
@@ -96,6 +97,34 @@ check_allowed_architectures(const model::strings_set& allowed_architectures,
             allowed_architectures.end())
             return F("Current architecture '%s' not supported") % architecture;
     }
+    return "";
+}
+
+
+/// Checks if test's execenv matches the user configuration.
+///
+/// \param execenv Execution environment name a test is designed for.
+/// \param user_config Runtime user configuration.
+///
+/// \return Empty if the execenv is in the list or an error message otherwise.
+static std::string
+check_execenv(const std::string& execenv, const config::tree& user_config)
+{
+    std::string name = execenv;
+    if (name.empty())
+        name = engine::execenv::default_execenv_name; // if test claims nothing
+
+    std::set< std::string > execenvs;
+    try {
+        execenvs = user_config.lookup< config::strings_set_node >("execenvs");
+    } catch (const config::unknown_key_error&) {
+        // okay, user config does not define it, empty set then
+    }
+
+    if (execenvs.find(name) == execenvs.end())
+        return F("'%s' execenv is not supported or not allowed by "
+            "the runtime user configuration") % name;
+
     return "";
 }
 
@@ -260,6 +289,10 @@ engine::check_reqs(const model::metadata& md, const config::tree& cfg,
         return reason;
 
     reason = check_allowed_architectures(md.allowed_architectures(), cfg);
+    if (!reason.empty())
+        return reason;
+
+    reason = check_execenv(md.execenv(), cfg);
     if (!reason.empty())
         return reason;
 

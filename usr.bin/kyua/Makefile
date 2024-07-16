@@ -128,7 +128,12 @@ SRCS+=	engine/atf.cpp			\
 	engine/scanner.cpp		\
 	engine/tap.cpp			\
 	engine/tap_parser.cpp		\
-	engine/scheduler.cpp
+	engine/scheduler.cpp		\
+	engine/execenv/execenv.cpp	\
+	engine/execenv/execenv_host.cpp
+
+SRCS+=	os/freebsd/execenv_jail_manager.cpp	\
+	os/freebsd/main.cpp
 
 SRCS+=	store/dbtypes.cpp		\
 	store/exceptions.cpp		\
@@ -160,6 +165,14 @@ SRCS+=	cli/cmd_about.cpp		\
 	cli/common.cpp			\
 	cli/config.cpp			\
 	cli/main.cpp
+
+.if ${MK_JAIL} == "no"
+SRCS+=	os/freebsd/execenv_jail_stub.cpp
+.else
+SRCS+=	os/freebsd/execenv_jail.cpp	\
+	os/freebsd/utils/jail.cpp
+LIBADD+=	jail
+.endif
 
 FILESGROUPS=	DOCS MISC STORE
 

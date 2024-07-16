@@ -1,4 +1,4 @@
-.\" Copyright 2012 The Kyua Authors.
+.\" Copyright 2012-2024 The Kyua Authors.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
 .\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 .\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-.Dd February 20, 2015
+.Dd March 22, 2024
 .Dt KYUA.CONF 5
 .Os
 .Sh NAME
@@ -36,6 +36,7 @@
 .Pp
 Variables:
 .Va architecture ,
+.Va execenvs ,
 .Va platform ,
 .Va test_suites ,
 .Va unprivileged_user .
@@ -72,6 +73,14 @@ The following variables are internally recognized by
 .Bl -tag -width XX -offset indent
 .It Va architecture
 Name of the system architecture (aka processor type).
+.It Va execenvs
+Whitespace-separated list of execution environment names.
+.Pp
+Only tests which require one of the given execution environments will be run.
+.Pp
+See
+.Xr kyuafile 5
+for the list of possible execution environments.
 .It Va parallelism
 Maximum number of test cases to execute concurrently.
 .It Va platform

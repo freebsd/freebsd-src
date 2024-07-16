@@ -1,4 +1,4 @@
-// Copyright 2010 The Kyua Authors.
+// Copyright 2024 The Kyua Authors.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -26,28 +26,39 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "cli/main.hpp"
-#include "os/freebsd/main.hpp"
+/// \file os/freebsd/utils/jail.hpp
+/// FreeBSD jail utilities.
+
+#if !defined(FREEBSD_UTILS_JAIL_HPP)
+#define FREEBSD_UTILS_JAIL_HPP
+
+#include "utils/defs.hpp"
+#include "utils/fs/path_fwd.hpp"
+#include "utils/process/operations_fwd.hpp"
+
+namespace fs = utils::fs;
+
+using utils::process::args_vector;
+
+namespace freebsd {
+namespace utils {
 
 
-/// Program entry point.
-///
-/// The whole purpose of this extremely-simple function is to delegate execution
-/// to an internal module that does not contain a proper ::main() function.
-/// This is to allow unit-testing of the internal code.
-///
-/// \param argc The number of arguments passed on the command line.
-/// \param argv NULL-terminated array containing the command line arguments.
-///
-/// \return 0 on success, some other integer on error.
-///
-/// \throw std::exception This throws any uncaught exception.  Such exceptions
-///     are bugs, but we let them propagate so that the runtime will abort and
-///     dump core.
-int
-main(const int argc, const char* const* const argv)
-{
-    freebsd::main(argc, argv);
+class jail {
+public:
+    std::vector< std::string > parse_params_string(const std::string& str);
+    std::string make_name(const fs::path& program,
+                          const std::string& test_case_name);
+    void create(const std::string& jail_name,
+                const std::string& jail_params);
+    void exec(const std::string& jail_name,
+              const fs::path& program,
+              const args_vector& args) throw() UTILS_NORETURN;
+    void remove(const std::string& jail_name);
+};
 
-    return cli::main(argc, argv);
-}
+
+}  // namespace utils
+}  // namespace freebsd
+
+#endif  // !defined(FREEBSD_UTILS_JAIL_HPP)
