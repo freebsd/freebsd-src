@@ -1280,13 +1280,13 @@ sys___setugid(struct thread *td, struct __setugid_args *uap)
  * Returns whether gid designates a supplementary group in cred.
  */
 static bool
-supplementary_group_member(gid_t gid, struct ucred *cred)
+group_is_supplementary(const gid_t gid, const struct ucred *const cred)
 {
 	int l, h, m;
 
 	/*
-	 * Perform a binary search of the supplemental groups.  This is possible
-	 * because we sort the groups in crsetgroups().
+	 * Perform a binary search of the supplementary groups.  This is
+	 * possible because we sort the groups in crsetgroups().
 	 */
 	l = 1;
 	h = cred->cr_ngroups;
@@ -1320,7 +1320,7 @@ groupmember(gid_t gid, struct ucred *cred)
 	if (gid == cred->cr_groups[0])
 		return (true);
 
-	return (supplementary_group_member(gid, cred));
+	return (group_is_supplementary(gid, cred));
 }
 
 /*
@@ -1333,7 +1333,7 @@ realgroupmember(gid_t gid, struct ucred *cred)
 	if (gid == cred->cr_rgid)
 		return (true);
 
-	return (supplementary_group_member(gid, cred));
+	return (group_is_supplementary(gid, cred));
 }
 
 /*
@@ -2316,7 +2316,7 @@ crextend(struct ucred *cr, int n)
 
 /*
  * Copy groups in to a credential, preserving any necessary invariants.
- * Currently this includes the sorting of all supplemental gids.
+ * Currently this includes the sorting of all supplementary gids.
  * crextend() must have been called before hand to ensure sufficient
  * space is available.
  */
