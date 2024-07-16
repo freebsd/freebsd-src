@@ -62,7 +62,7 @@ procstat_cred(struct procstat *procstat, struct kinfo_proc *kipp)
 	xo_emit("{:rgid/%5d} ", kipp->ki_rgid);
 	xo_emit("{:svgid/%5d} ", kipp->ki_svgid);
 	xo_emit("{:umask/%5s} ", get_umask(procstat, kipp));
-	xo_emit("{:cr_flags/%s}", kipp->ki_cr_flags & CRED_FLAG_CAPMODE ?
+	xo_emit("{:cr_flags/%s}", kipp->ki_cr_flags & KI_CRF_CAPABILITY_MODE ?
 	    "C" : "-");
 	xo_emit("{P:     }");
 
