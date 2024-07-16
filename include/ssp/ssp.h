@@ -89,7 +89,7 @@ __ssp_redirect_raw_impl(rtype, fun, symbol, args) { \
 
 #include <machine/_stdint.h>
 
-static inline int
+__ssp_inline int
 __ssp_overlap(const void *leftp, const void *rightp, __size_t sz)
 {
 	__uintptr_t left = (__uintptr_t)leftp;
@@ -112,11 +112,12 @@ __ssp_inline void
 __ssp_check_iovec(const struct iovec *iov, int iovcnt)
 {
 	const size_t iovsz = __ssp_bos(iov);
+	int i;
 
 	if (iovsz != (size_t)-1 && iovsz / sizeof(*iov) < (size_t)iovcnt)
 		__chk_fail();
 
-	for (int i = 0; i < iovcnt; i++) {
+	for (i = 0; i < iovcnt; i++) {
 		if (__ssp_bos(iov[i].iov_base) < iov[i].iov_len)
 			__chk_fail();
 	}
