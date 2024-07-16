@@ -1509,6 +1509,45 @@ pf_handle_begin_addrs(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	return (0);
 }
 
+#define _OUT(_field)	offsetof(struct pf_pooladdr, _field)
+static const struct nlattr_parser nla_p_pool_addr[] = {
+	{ .type = PF_PA_ADDR, .off = _OUT(addr), .arg = &addr_wrap_parser, .cb = nlattr_get_nested },
+	{ .type = PF_PA_IFNAME, .off = _OUT(ifname), .arg = (void *)IFNAMSIZ, .cb = nlattr_get_chara },
+};
+NL_DECLARE_ATTR_PARSER(pool_addr_parser, nla_p_pool_addr);
+#undef _OUT
+
+#define	_OUT(_field)	offsetof(struct pfioc_pooladdr, _field)
+static const struct nlattr_parser nla_p_add_addr[] = {
+	{ .type = PF_AA_ACTION, .off = _OUT(action), .cb = nlattr_get_uint32 },
+	{ .type = PF_AA_TICKET, .off = _OUT(ticket), .cb = nlattr_get_uint32 },
+	{ .type = PF_AA_NR, .off = _OUT(nr), .cb = nlattr_get_uint32 },
+	{ .type = PF_AA_R_NUM, .off = _OUT(r_num), .cb = nlattr_get_uint32 },
+	{ .type = PF_AA_R_ACTION, .off = _OUT(r_action), .cb = nlattr_get_uint8 },
+	{ .type = PF_AA_R_LAST, .off = _OUT(r_last), .cb = nlattr_get_uint8 },
+	{ .type = PF_AA_AF, .off = _OUT(af), .cb = nlattr_get_uint8 },
+	{ .type = PF_AA_ANCHOR, .off = _OUT(anchor), .arg = (void *)MAXPATHLEN, .cb = nlattr_get_chara },
+	{ .type = PF_AA_ADDR, .off = _OUT(addr), .arg = &pool_addr_parser, .cb = nlattr_get_nested },
+};
+static const struct nlfield_parser nlf_p_add_addr[] = {};
+#undef _OUT
+NL_DECLARE_PARSER(add_addr_parser, struct genlmsghdr, nlf_p_add_addr, nla_p_add_addr);
+
+static int
+pf_handle_add_addr(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	struct pfioc_pooladdr attrs = { 0 };
+	int error;
+
+	error = nl_parse_nlmsg(hdr, &add_addr_parser, npt, &attrs);
+	if (error != 0)
+		return (error);
+
+	error = pf_ioctl_add_addr(&attrs);
+
+	return (error);
+}
+
 static const struct nlhdr_parser *all_parsers[] = {
 	&state_parser,
 	&addrule_parser,
@@ -1519,6 +1558,8 @@ static const struct nlhdr_parser *all_parsers[] = {
 	&set_debug_parser,
 	&set_timeout_parser,
 	&set_limit_parser,
+	&pool_addr_parser,
+	&add_addr_parser,
 };
 
 static int family_id;
@@ -1655,6 +1696,13 @@ static const struct genl_cmd pf_cmds[] = {
 		.cmd_name = "BEGIN_ADDRS",
 		.cmd_cb = pf_handle_begin_addrs,
 		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_ADD_ADDR,
+		.cmd_name = "ADD_ADDR",
+		.cmd_cb = pf_handle_add_addr,
+		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
 		.cmd_priv = PRIV_NETINET_PF,
 	},
 };
