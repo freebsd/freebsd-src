@@ -2119,8 +2119,7 @@ crget(void)
 	mac_cred_init(cr);
 #endif
 	cr->cr_groups = cr->cr_smallgroups;
-	cr->cr_agroups =
-	    sizeof(cr->cr_smallgroups) / sizeof(cr->cr_smallgroups[0]);
+	cr->cr_agroups = nitems(cr->cr_smallgroups);
 	return (cr);
 }
 
