@@ -359,7 +359,7 @@ release_offload_resources(struct toepcb *toep)
  * Also gets called when an offloaded active open fails and the TOM wants the
  * kernel to take the TCP PCB back.
  */
-static void
+void
 t4_pcb_detach(struct toedev *tod __unused, struct tcpcb *tp)
 {
 #if defined(KTR) || defined(INVARIANTS)
