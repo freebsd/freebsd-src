@@ -666,11 +666,6 @@ timeout_head()
 timeout_body()
 {
 	sctp_init
-}
-
-timeout_cleanup()
-{
-	pft_cleanup
 
 	vnet_mkjail timeout
 
@@ -685,6 +680,11 @@ timeout_cleanup()
 	# We've not changed other timeouts
 	atf_check -s exit:0 -o match:"sctp.established.*86400" \
 	    jexec timeout pfctl -st
+}
+
+timeout_cleanup()
+{
+	pft_cleanup
 }
 
 atf_init_test_cases()
