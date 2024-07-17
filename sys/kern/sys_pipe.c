@@ -941,8 +941,10 @@ pipe_build_write_buffer(struct pipe *wpipe, struct uio *uio)
 
 	uio->uio_iov->iov_len -= size;
 	uio->uio_iov->iov_base = (char *)uio->uio_iov->iov_base + size;
-	if (uio->uio_iov->iov_len == 0)
+	if (uio->uio_iov->iov_len == 0) {
 		uio->uio_iov++;
+		uio->uio_iovcnt--;
+	}
 	uio->uio_resid -= size;
 	uio->uio_offset += size;
 	return (0);
