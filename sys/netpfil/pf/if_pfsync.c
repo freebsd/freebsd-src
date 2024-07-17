@@ -979,7 +979,7 @@ pfsync_in_clr(struct mbuf *m, int offset, int count, int flags, int action)
 		    pfi_kkif_find(clr[i].ifname) == NULL)
 			continue;
 
-		for (int i = 0; i <= pf_hashmask; i++) {
+		for (int i = 0; i <= V_pf_hashmask; i++) {
 			struct pf_idhash *ih = &V_pf_idhash[i];
 			struct pf_kstate *s;
 relock:
@@ -2080,7 +2080,11 @@ pfsync_defer_tmo(void *arg)
 	struct pfsync_softc *sc = pd->pd_sc;
 	struct mbuf *m = pd->pd_m;
 	struct pf_kstate *st = pd->pd_st;
-	struct pfsync_bucket *b = pfsync_get_bucket(sc, st);
+	struct pfsync_bucket *b;
+
+	CURVNET_SET(sc->sc_ifp->if_vnet);
+
+	b = pfsync_get_bucket(sc, st);
 
 	PFSYNC_BUCKET_LOCK_ASSERT(b);
 
@@ -2093,11 +2097,11 @@ pfsync_defer_tmo(void *arg)
 	if (sc->sc_sync_if == NULL) {
 		pf_release_state(st);
 		m_freem(m);
+		CURVNET_RESTORE();
 		return;
 	}
 
 	NET_EPOCH_ENTER(et);
-	CURVNET_SET(sc->sc_sync_if->if_vnet);
 
 	pfsync_tx(sc, m);
 
@@ -2483,7 +2487,7 @@ pfsync_bulk_update(void *arg)
 	else
 		i = sc->sc_bulk_hashid;
 
-	for (; i <= pf_hashmask; i++) {
+	for (; i <= V_pf_hashmask; i++) {
 		struct pf_idhash *ih = &V_pf_idhash[i];
 
 		if (s != NULL)
