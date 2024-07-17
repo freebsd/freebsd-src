@@ -38,7 +38,30 @@ unlink_dash_filename_body()
 	atf_check -s exit:0 unlink -- -bar
 }
 
+atf_test_case f_flag_msdosfs cleanup
+f_flag_msdosfs_head()
+{
+	atf_set "descr" "Verify that -f nonexistent* does not print an error on MS-DOS file systems"
+	atf_set "require.user" root
+}
+f_flag_msdosfs_body()
+{
+	# Create an MS-DOS FS mount
+	md=$(mdconfig -a -t swap -s 5m)
+	mkdir mnt
+	newfs_msdos -h 1 -u 63 "$md"
+	mount_msdosfs /dev/"${md}" mnt
+
+	atf_check -s exit:0 rm -f mnt/foo*
+}
+f_flag_msdosfs_cleanup()
+{
+	umount mnt
+	mdconfig -d -u /dev/"${md}"
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case unlink_dash_filename
+	atf_add_test_case f_flag_msdosfs
 }
