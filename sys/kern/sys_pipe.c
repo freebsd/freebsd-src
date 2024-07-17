@@ -225,7 +225,7 @@ static void pipeclose(struct pipe *cpipe);
 static void pipe_free_kmem(struct pipe *cpipe);
 static int pipe_create(struct pipe *pipe, bool backing);
 static int pipe_paircreate(struct thread *td, struct pipepair **p_pp);
-static __inline int pipelock(struct pipe *cpipe, int catch);
+static __inline int pipelock(struct pipe *cpipe, bool catch);
 static __inline void pipeunlock(struct pipe *cpipe);
 static void pipe_timestamp(struct timespec *tsp);
 #ifndef PIPE_NODIRECT
@@ -633,7 +633,7 @@ pipespace(struct pipe *cpipe, int size)
  * lock a pipe for I/O, blocking other access
  */
 static __inline int
-pipelock(struct pipe *cpipe, int catch)
+pipelock(struct pipe *cpipe, bool catch)
 {
 	int error, prio;
 
@@ -738,7 +738,7 @@ pipe_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
 
 	PIPE_LOCK(rpipe);
 	++rpipe->pipe_busy;
-	error = pipelock(rpipe, 1);
+	error = pipelock(rpipe, true);
 	if (error)
 		goto unlocked_error;
 
@@ -854,7 +854,7 @@ pipe_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
 				if ((error = msleep(rpipe, PIPE_MTX(rpipe),
 				    PRIBIO | PCATCH,
 				    "piperd", 0)) == 0)
-					error = pipelock(rpipe, 1);
+					error = pipelock(rpipe, true);
 			}
 			if (error)
 				goto unlocked_error;
@@ -1034,7 +1034,7 @@ retry:
 		pipeunlock(wpipe);
 		error = msleep(wpipe, PIPE_MTX(wpipe),
 		    PRIBIO | PCATCH, "pipdww", 0);
-		pipelock(wpipe, 0);
+		pipelock(wpipe, false);
 		if (error != 0)
 			goto error1;
 		goto retry;
@@ -1049,7 +1049,7 @@ retry:
 		pipeunlock(wpipe);
 		error = msleep(wpipe, PIPE_MTX(wpipe),
 		    PRIBIO | PCATCH, "pipdwc", 0);
-		pipelock(wpipe, 0);
+		pipelock(wpipe, false);
 		if (error != 0)
 			goto error1;
 		goto retry;
@@ -1071,7 +1071,7 @@ retry:
 		pipeunlock(wpipe);
 		error = msleep(wpipe, PIPE_MTX(wpipe), PRIBIO | PCATCH,
 		    "pipdwt", 0);
-		pipelock(wpipe, 0);
+		pipelock(wpipe, false);
 		if (error != 0)
 			break;
 	}
@@ -1107,7 +1107,7 @@ pipe_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	rpipe = fp->f_data;
 	wpipe = PIPE_PEER(rpipe);
 	PIPE_LOCK(rpipe);
-	error = pipelock(wpipe, 1);
+	error = pipelock(wpipe, true);
 	if (error) {
 		PIPE_UNLOCK(rpipe);
 		return (error);
@@ -1206,7 +1206,7 @@ pipe_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 			pipeunlock(wpipe);
 			error = msleep(wpipe, PIPE_MTX(rpipe), PRIBIO | PCATCH,
 			    "pipbww", 0);
-			pipelock(wpipe, 0);
+			pipelock(wpipe, false);
 			if (error != 0)
 				break;
 			continue;
@@ -1311,7 +1311,7 @@ pipe_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 			pipeunlock(wpipe);
 			error = msleep(wpipe, PIPE_MTX(rpipe),
 			    PRIBIO | PCATCH, "pipewr", 0);
-			pipelock(wpipe, 0);
+			pipelock(wpipe, false);
 			if (error != 0)
 				break;
 			continue;
@@ -1671,7 +1671,7 @@ pipeclose(struct pipe *cpipe)
 	KASSERT(cpipe != NULL, ("pipeclose: cpipe == NULL"));
 
 	PIPE_LOCK(cpipe);
-	pipelock(cpipe, 0);
+	pipelock(cpipe, false);
 #ifdef MAC
 	pp = cpipe->pipe_pair;
 #endif
@@ -1686,7 +1686,7 @@ pipeclose(struct pipe *cpipe)
 		cpipe->pipe_state |= PIPE_WANT;
 		pipeunlock(cpipe);
 		msleep(cpipe, PIPE_MTX(cpipe), PRIBIO, "pipecl", 0);
-		pipelock(cpipe, 0);
+		pipelock(cpipe, false);
 	}
 
 	pipeselwakeup(cpipe);
