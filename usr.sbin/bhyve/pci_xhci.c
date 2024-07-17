@@ -580,7 +580,7 @@ pci_xhci_get_dev_ctx(struct pci_xhci_softc *sc, uint32_t slot)
 	uint64_t devctx_addr;
 	struct xhci_dev_ctx *devctx;
 
-	assert(slot > 0 && slot <= XHCI_MAX_DEVS);
+	assert(slot > 0 && slot <= XHCI_MAX_SLOTS);
 	assert(XHCI_SLOTDEV_PTR(sc, slot) != NULL);
 	assert(sc->opregs.dcbaa_p != NULL);
 
@@ -853,7 +853,10 @@ pci_xhci_cmd_disable_slot(struct pci_xhci_softc *sc, uint32_t slot)
 	if (sc->portregs == NULL)
 		goto done;
 
-	if (slot > XHCI_MAX_SLOTS) {
+	if (slot == 0) {
+		cmderr = XHCI_TRB_ERROR_TRB;
+		goto done;
+	} else if (slot > XHCI_MAX_SLOTS) {
 		cmderr = XHCI_TRB_ERROR_SLOT_NOT_ON;
 		goto done;
 	}
@@ -889,6 +892,14 @@ pci_xhci_cmd_reset_device(struct pci_xhci_softc *sc, uint32_t slot)
 
 	DPRINTF(("pci_xhci reset device slot %u", slot));
 
+	if (slot == 0) {
+		cmderr = XHCI_TRB_ERROR_TRB;
+		goto done;
+	} else if (slot > XHCI_MAX_SLOTS) {
+		cmderr = XHCI_TRB_ERROR_SLOT_NOT_ON;
+		goto done;
+	}
+
 	dev = XHCI_SLOTDEV_PTR(sc, slot);
 	if (!dev || dev->dev_slotstate == XHCI_ST_DISABLED)
 		cmderr = XHCI_TRB_ERROR_SLOT_NOT_ON;
@@ -897,6 +908,10 @@ pci_xhci_cmd_reset_device(struct pci_xhci_softc *sc, uint32_t slot)
 
 		dev->hci.hci_address = 0;
 		dev_ctx = pci_xhci_get_dev_ctx(sc, slot);
+		if (dev_ctx == NULL) {
+			cmderr = XHCI_TRB_ERROR_PARAMETER;
+			goto done;
+		}
 
 		/* slot state */
 		dev_ctx->ctx_slot.dwSctx3 = FIELD_REPLACE(
@@ -957,8 +972,20 @@ pci_xhci_cmd_address_device(struct pci_xhci_softc *sc, uint32_t slot,
 		goto done;
 	}
 
+	if (slot == 0) {
+		cmderr = XHCI_TRB_ERROR_TRB;
+		goto done;
+	} else if (slot > XHCI_MAX_SLOTS) {
+		cmderr = XHCI_TRB_ERROR_SLOT_NOT_ON;
+		goto done;
+	}
+
 	/* assign address to slot */
 	dev_ctx = pci_xhci_get_dev_ctx(sc, slot);
+	if (dev_ctx == NULL) {
+		cmderr = XHCI_TRB_ERROR_PARAMETER;
+		goto done;
+	}
 
 	DPRINTF(("pci_xhci: address device, dev ctx"));
 	DPRINTF(("          slot %08x %08x %08x %08x",
@@ -1019,6 +1046,14 @@ pci_xhci_cmd_config_ep(struct pci_xhci_softc *sc, uint32_t slot,
 
 	DPRINTF(("pci_xhci config_ep slot %u", slot));
 
+	if (slot == 0) {
+		cmderr = XHCI_TRB_ERROR_TRB;
+		goto done;
+	} else if (slot > XHCI_MAX_SLOTS) {
+		cmderr = XHCI_TRB_ERROR_SLOT_NOT_ON;
+		goto done;
+	}
+
 	dev = XHCI_SLOTDEV_PTR(sc, slot);
 	assert(dev != NULL);
 
@@ -1032,6 +1067,10 @@ pci_xhci_cmd_config_ep(struct pci_xhci_softc *sc, uint32_t slot,
 
 		dev->hci.hci_address = 0;
 		dev_ctx = pci_xhci_get_dev_ctx(sc, slot);
+		if (dev_ctx == NULL) {
+			cmderr = XHCI_TRB_ERROR_PARAMETER;
+			goto done;
+		}
 
 		/* number of contexts */
 		dev_ctx->ctx_slot.dwSctx0 = FIELD_REPLACE(
@@ -1138,10 +1177,18 @@ pci_xhci_cmd_reset_ep(struct pci_xhci_softc *sc, uint32_t slot,
 
 	cmderr = XHCI_TRB_ERROR_SUCCESS;
 
-	type = XHCI_TRB_3_TYPE_GET(trb->dwTrb3);
+	if (slot == 0) {
+		cmderr = XHCI_TRB_ERROR_TRB;
+		goto done;
+	} else if (slot > XHCI_MAX_SLOTS) {
+		cmderr = XHCI_TRB_ERROR_SLOT_NOT_ON;
+		goto done;
+	}
 
 	dev = XHCI_SLOTDEV_PTR(sc, slot);
 	assert(dev != NULL);
+
+	type = XHCI_TRB_3_TYPE_GET(trb->dwTrb3);
 
 	if (type == XHCI_TRB_TYPE_STOP_EP &&
 	    (trb->dwTrb3 & XHCI_TRB_3_SUSP_EP_BIT) != 0) {
@@ -1226,6 +1273,14 @@ pci_xhci_cmd_set_tr(struct pci_xhci_softc *sc, uint32_t slot,
 	uint32_t	streamid;
 
 	cmderr = XHCI_TRB_ERROR_SUCCESS;
+
+	if (slot == 0) {
+		cmderr = XHCI_TRB_ERROR_TRB;
+		goto done;
+	} else if (slot > XHCI_MAX_SLOTS) {
+		cmderr = XHCI_TRB_ERROR_SLOT_NOT_ON;
+		goto done;
+	}
 
 	dev = XHCI_SLOTDEV_PTR(sc, slot);
 	assert(dev != NULL);
@@ -1325,8 +1380,20 @@ pci_xhci_cmd_eval_ctx(struct pci_xhci_softc *sc, uint32_t slot,
 		goto done;
 	}
 
+	if (slot == 0) {
+		cmderr = XHCI_TRB_ERROR_TRB;
+		goto done;
+	} else if (slot > XHCI_MAX_SLOTS) {
+		cmderr = XHCI_TRB_ERROR_SLOT_NOT_ON;
+		goto done;
+	}
+
 	/* assign address to slot; in this emulation, slot_id = address */
 	dev_ctx = pci_xhci_get_dev_ctx(sc, slot);
+	if (dev_ctx == NULL) {
+		cmderr = XHCI_TRB_ERROR_PARAMETER;
+		goto done;
+	}
 
 	DPRINTF(("pci_xhci: eval ctx, dev ctx"));
 	DPRINTF(("          slot %08x %08x %08x %08x",
@@ -1555,8 +1622,9 @@ pci_xhci_xfer_complete(struct pci_xhci_softc *sc, struct usb_data_xfer *xfer,
 	dev = XHCI_SLOTDEV_PTR(sc, slot);
 	devep = &dev->eps[epid];
 	dev_ctx = pci_xhci_get_dev_ctx(sc, slot);
-
-	assert(dev_ctx != NULL);
+	if (dev_ctx == NULL) {
+		return XHCI_TRB_ERROR_PARAMETER;
+	}
 
 	ep_ctx = &dev_ctx->ctx_ep[epid];
 
