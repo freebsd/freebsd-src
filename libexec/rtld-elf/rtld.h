@@ -376,6 +376,7 @@ enum {
 	LD_TRACE_LOADED_OBJECTS_ALL,
 	LD_SHOW_AUXV,
 	LD_STATIC_TLS_EXTRA,
+	LD_NO_DL_ITERATE_PHDR_AFTER_FORK,
 };
 
 void _rtld_error(const char *, ...) __printflike(1, 2) __exported;
