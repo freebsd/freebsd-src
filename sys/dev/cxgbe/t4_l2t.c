@@ -369,14 +369,19 @@ int
 do_l2t_write_rpl(struct sge_iq *iq, const struct rss_header *rss,
     struct mbuf *m)
 {
+	struct adapter *sc = iq->adapter;
 	const struct cpl_l2t_write_rpl *rpl = (const void *)(rss + 1);
-	unsigned int tid = GET_TID(rpl);
-	unsigned int idx = tid % L2T_SIZE;
+	const u_int hwidx = GET_TID(rpl) & ~(F_SYNC_WR | V_TID_QID(M_TID_QID));
+	const bool sync = GET_TID(rpl) & F_SYNC_WR;
 
-	if (__predict_false(rpl->status != CPL_ERR_NONE)) {
-		log(LOG_ERR,
-		    "Unexpected L2T_WRITE_RPL (%u) for entry at hw_idx %u\n",
-		    rpl->status, idx);
+	MPASS(iq->abs_id == G_TID_QID(GET_TID(rpl)));
+
+	if (__predict_false(hwidx < sc->vres.l2t.start) ||
+	    __predict_false(hwidx >= sc->vres.l2t.start + sc->vres.l2t.size) ||
+	    __predict_false(rpl->status != CPL_ERR_NONE)) {
+		CH_ERR(sc, "%s: hwidx %u, rpl %u, sync %u; L2T st %u, sz %u\n",
+		       __func__, hwidx, rpl->status, sync, sc->vres.l2t.start,
+		       sc->vres.l2t.size);
 		return (EINVAL);
 	}
 
