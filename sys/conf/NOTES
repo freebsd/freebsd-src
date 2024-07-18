@@ -2433,8 +2433,8 @@ device		virtio_blk	# VirtIO Block device
 device		virtio_console	# VirtIO Console device
 device		virtio_gpu	# VirtIO GPU device
 device		virtio_random	# VirtIO Entropy device
-device		virtio_scmi	# VirtIO SCSI device
-device		virtio_scsi	# VirtIO SCMI device
+device		virtio_scmi	# VirtIO SCMI device
+device		virtio_scsi	# VirtIO SCSI device
 
 #####################################################################
 # HID support
