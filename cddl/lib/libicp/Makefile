@@ -68,13 +68,10 @@ KERNEL_C = \
         algs/blake3/blake3_impl.c \
         algs/edonr/edonr.c \
         algs/modes/modes.c \
-        algs/modes/cbc.c \
         algs/modes/gcm_generic.c \
         algs/modes/gcm_pclmulqdq.c \
         algs/modes/gcm.c \
-        algs/modes/ctr.c \
         algs/modes/ccm.c \
-        algs/modes/ecb.c \
         algs/sha2/sha2_generic.c \
         algs/sha2/sha256_impl.c \
         algs/sha2/sha512_impl.c \
@@ -84,7 +81,6 @@ KERNEL_C = \
         illumos-crypto.c \
         io/aes.c \
         io/sha2_mod.c \
-        io/skein_mod.c \
         core/kcf_sched.c \
         core/kcf_prov_lib.c \
         core/kcf_callprov.c \

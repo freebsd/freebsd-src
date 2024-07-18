@@ -101,10 +101,7 @@ ICP_OBJS := \
 	algs/blake3/blake3_generic.o \
 	algs/blake3/blake3_impl.o \
 	algs/edonr/edonr.o \
-	algs/modes/cbc.o \
 	algs/modes/ccm.o \
-	algs/modes/ctr.o \
-	algs/modes/ecb.o \
 	algs/modes/gcm.o \
 	algs/modes/gcm_generic.o \
 	algs/modes/modes.o \
@@ -125,7 +122,6 @@ ICP_OBJS := \
 	illumos-crypto.o \
 	io/aes.o \
 	io/sha2_mod.o \
-	io/skein_mod.o \
 	spi/kcf_spi.o
 
 ICP_OBJS_X86_64 := \
@@ -494,6 +490,7 @@ zfs-$(CONFIG_PPC64) += $(addprefix zfs/,$(ZFS_OBJS_PPC_PPC64))
 UBSAN_SANITIZE_zap_leaf.o := n
 UBSAN_SANITIZE_zap_micro.o := n
 UBSAN_SANITIZE_sa.o := n
+UBSAN_SANITIZE_zfs/zap_micro.o := n
 
 # Suppress incorrect warnings from versions of objtool which are not
 # aware of x86 EVEX prefix instructions used for AVX512.
