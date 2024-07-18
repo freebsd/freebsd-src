@@ -5264,9 +5264,9 @@ get_params__post_init(struct adapter *sc)
 	}
 	sc->vres.l2t.start = val[4];
 	sc->vres.l2t.size = val[5] - val[4] + 1;
-	KASSERT(sc->vres.l2t.size <= L2T_SIZE,
-	    ("%s: L2 table size (%u) larger than expected (%u)",
-	    __func__, sc->vres.l2t.size, L2T_SIZE));
+	/* val[5] is the last hwidx and it must not collide with F_SYNC_WR */
+	if (sc->vres.l2t.size > 0)
+		MPASS(fls(val[5]) <= S_SYNC_WR);
 	sc->params.core_vdd = val[6];
 
 	param[0] = FW_PARAM_PFVF(IQFLINT_END);
