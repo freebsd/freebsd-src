@@ -178,10 +178,8 @@ static int
 pcib_is_resource_managed(struct pcib_softc *sc, struct resource *r)
 {
 
-#ifdef PCI_RES_BUS
 	if (rman_get_type(r) == PCI_RES_BUS)
 		return (rman_is_region_manager(r, &sc->bus.rman));
-#endif
 	return (pcib_get_resource_window(sc, r) != NULL);
 }
 
@@ -605,7 +603,6 @@ pcib_free_windows(struct pcib_softc *sc)
 	pcib_release_window(sc, &sc->io, SYS_RES_IOPORT);
 }
 
-#ifdef PCI_RES_BUS
 /*
  * Allocate a suitable secondary bus for this bridge if needed and
  * initialize the resource manager for the secondary bus range.  Note
@@ -793,7 +790,6 @@ pcib_alloc_subbus(struct pcib_secbus *bus, device_t child, int *rid,
 		    flags));
 	return (NULL);
 }
-#endif
 
 #ifdef PCI_HP
 /*
@@ -1400,10 +1396,6 @@ pcib_attach_common(device_t dev)
      * Get current bridge configuration.
      */
     sc->domain = pci_get_domain(dev);
-#if !defined(PCI_RES_BUS)
-    sc->bus.sec = pci_read_config(dev, PCIR_SECBUS_1, 1);
-    sc->bus.sub = pci_read_config(dev, PCIR_SUBBUS_1, 1);
-#endif
     sc->bridgectl = pci_read_config(dev, PCIR_BRIDGECTL_1, 2);
 
     /*
@@ -1431,20 +1423,6 @@ pcib_attach_common(device_t dev)
      * Quirk handling.
      */
     switch (pci_get_devid(dev)) {
-#if !defined(PCI_RES_BUS)
-    case 0x12258086:		/* Intel 82454KX/GX (Orion) */
-	{
-	    uint8_t	supbus;
-
-	    supbus = pci_read_config(dev, 0x41, 1);
-	    if (supbus != 0xff) {
-		sc->bus.sec = supbus + 1;
-		sc->bus.sub = supbus + 1;
-	    }
-	    break;
-	}
-#endif
-
     /*
      * The i82380FB mobile docking controller is a PCI-PCI bridge,
      * and it is a subtractive bridge.  However, the ProgIf is wrong
@@ -1457,34 +1435,6 @@ pcib_attach_common(device_t dev)
     case 0x060513d7:		/* Toshiba ???? */
 	sc->flags |= PCIB_SUBTRACTIVE;
 	break;
-
-#if !defined(PCI_RES_BUS)
-    /* Compaq R3000 BIOS sets wrong subordinate bus number. */
-    case 0x00dd10de:
-	{
-	    char *cp;
-
-	    if ((cp = kern_getenv("smbios.planar.maker")) == NULL)
-		break;
-	    if (strncmp(cp, "Compal", 6) != 0) {
-		freeenv(cp);
-		break;
-	    }
-	    freeenv(cp);
-	    if ((cp = kern_getenv("smbios.planar.product")) == NULL)
-		break;
-	    if (strncmp(cp, "08A0", 4) != 0) {
-		freeenv(cp);
-		break;
-	    }
-	    freeenv(cp);
-	    if (sc->bus.sub < 0xa) {
-		pci_write_config(dev, PCIR_SUBBUS_1, 0xa, 1);
-		sc->bus.sub = pci_read_config(dev, PCIR_SUBBUS_1, 1);
-	    }
-	    break;
-	}
-#endif
     }
 
     if (pci_msi_device_blacklisted(dev))
@@ -1508,9 +1458,7 @@ pcib_attach_common(device_t dev)
 #ifdef PCI_HP
     pcib_probe_hotplug(sc);
 #endif
-#ifdef PCI_RES_BUS
     pcib_setup_secbus(dev, &sc->bus, 1);
-#endif
     pcib_probe_windows(sc);
 #ifdef PCI_HP
     if (sc->flags & PCIB_HOTPLUG)
@@ -1617,9 +1565,7 @@ pcib_detach(device_t dev)
 	if (error)
 		return (error);
 	pcib_free_windows(sc);
-#ifdef PCI_RES_BUS
 	pcib_free_secbus(dev, &sc->bus);
-#endif
 	return (0);
 }
 
@@ -2097,11 +2043,9 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	}
 
 	switch (type) {
-#ifdef PCI_RES_BUS
 	case PCI_RES_BUS:
 		return (pcib_alloc_subbus(&sc->bus, child, rid, start, end,
 		    count, flags));
-#endif
 	case SYS_RES_IOPORT:
 		if (pcib_is_isa_range(sc, start, end, count))
 			return (NULL);
@@ -2181,7 +2125,6 @@ pcib_adjust_resource(device_t bus, device_t child, struct resource *r,
 	if (!pcib_is_resource_managed(sc, r))
 		return (bus_generic_adjust_resource(bus, child, r, start, end));
 
-#ifdef PCI_RES_BUS
 	if (type == PCI_RES_BUS) {
 		/*
 		 * If our bus range isn't big enough to grow the sub-allocation
@@ -2195,9 +2138,7 @@ pcib_adjust_resource(device_t bus, device_t child, struct resource *r,
 			if (error != 0)
 				return (error);
 		}
-	} else
-#endif
-	{
+	} else {
 		/*
 		 * Resource is managed and not a secondary bus number, must
 		 * be from one of our windows.

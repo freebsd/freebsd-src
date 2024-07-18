@@ -283,7 +283,6 @@ pcib_host_res_adjust(struct pcib_host_resources *hr, device_t dev,
 	return (ERANGE);
 }
 
-#ifdef PCI_RES_BUS
 struct pci_domain {
 	int	pd_domain;
 	struct rman pd_bus_rman;
@@ -411,4 +410,3 @@ pci_domain_deactivate_bus(int domain, device_t dev, struct resource *r)
 #endif
 	return (rman_deactivate_resource(r));
 }
-#endif /* PCI_RES_BUS */
