@@ -114,6 +114,9 @@
 /* bdev_max_secure_erase_sectors() is available */
 /* #undef HAVE_BDEV_MAX_SECURE_ERASE_SECTORS */
 
+/* bdev_nr_bytes() is available */
+/* #undef HAVE_BDEV_NR_BYTES */
+
 /* bdev_open_by_path() exists */
 /* #undef HAVE_BDEV_OPEN_BY_PATH */
 
@@ -633,6 +636,9 @@
 
 /* kernel_write() take loff_t pointer */
 /* #undef HAVE_KERNEL_WRITE_PPOS */
+
+/* kernel has kmap_local_page */
+/* #undef HAVE_KMAP_LOCAL_PAGE */
 
 /* kmem_cache_create_usercopy() exists */
 /* #undef HAVE_KMEM_CACHE_CREATE_USERCOPY */
@@ -1194,7 +1200,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.2.99-517-FreeBSD_ge2357561b"
+#define ZFS_META_ALIAS "zfs-2.2.99-559-FreeBSD_g1147a2797"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -1203,7 +1209,7 @@
 /* #undef ZFS_META_DATA */
 
 /* Define the maximum compatible kernel version. */
-#define ZFS_META_KVER_MAX "6.8"
+#define ZFS_META_KVER_MAX "6.9"
 
 /* Define the minimum compatible kernel version. */
 #define ZFS_META_KVER_MIN "3.10"
@@ -1224,7 +1230,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "517-FreeBSD_ge2357561b"
+#define ZFS_META_RELEASE "559-FreeBSD_g1147a2797"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.2.99"

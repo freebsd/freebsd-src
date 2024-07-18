@@ -34,7 +34,7 @@
 /* BEGIN CSTYLED */
 SDT_PROBE_DECLARE(sdt, , , set__error);
 
-#define	SET_ERROR(err)	({					\
+#define	SET_ERROR(err)	({ 					\
 	SDT_PROBE1(sdt, , , set__error, (uintptr_t)err);	\
 	err;							\
 })
