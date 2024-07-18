@@ -105,7 +105,8 @@
 #define	PRIV_CRED_SETRESGID	58	/* setresgid. */
 #define	PRIV_SEEOTHERGIDS	59	/* Exempt bsd.seeothergids. */
 #define	PRIV_SEEOTHERUIDS	60	/* Exempt bsd.seeotheruids. */
-#define	PRIV_SEEJAILPROC        61      /* Exempt from bsd.see_jail_proc. */
+#define	PRIV_SEEJAILPROC	61	/* Exempt from bsd.see_jail_proc. */
+#define	PRIV_CRED_SETCRED	62	/* setcred. */
 
 /*
  * Debugging privileges.
