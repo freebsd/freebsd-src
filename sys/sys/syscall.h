@@ -527,4 +527,5 @@
 #define	SYS_kcmp	588
 #define	SYS_getrlimitusage	589
 #define	SYS_fchroot	590
-#define	SYS_MAXSYSCALL	591
+#define	SYS_setcred	591
+#define	SYS_MAXSYSCALL	592

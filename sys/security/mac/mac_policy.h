@@ -144,6 +144,10 @@ typedef int	(*mpo_cred_check_setaudit_t)(struct ucred *cred,
 typedef int	(*mpo_cred_check_setaudit_addr_t)(struct ucred *cred,
 		    struct auditinfo_addr *aia);
 typedef int	(*mpo_cred_check_setauid_t)(struct ucred *cred, uid_t auid);
+typedef void	(*mpo_cred_setcred_enter_t)(void);
+typedef int	(*mpo_cred_check_setcred_t)(u_int flags,
+		    const struct ucred *old_cred, struct ucred *new_cred);
+typedef void	(*mpo_cred_setcred_exit_t)(void);
 typedef int	(*mpo_cred_check_setegid_t)(struct ucred *cred, gid_t egid);
 typedef int	(*mpo_cred_check_seteuid_t)(struct ucred *cred, uid_t euid);
 typedef int	(*mpo_cred_check_setgid_t)(struct ucred *cred, gid_t gid);
@@ -720,6 +724,9 @@ struct mac_policy_ops {
 	mpo_cred_check_setaudit_t		mpo_cred_check_setaudit;
 	mpo_cred_check_setaudit_addr_t		mpo_cred_check_setaudit_addr;
 	mpo_cred_check_setauid_t		mpo_cred_check_setauid;
+	mpo_cred_setcred_enter_t		mpo_cred_setcred_enter;
+	mpo_cred_check_setcred_t		mpo_cred_check_setcred;
+	mpo_cred_setcred_exit_t			mpo_cred_setcred_exit;
 	mpo_cred_check_setuid_t			mpo_cred_check_setuid;
 	mpo_cred_check_seteuid_t		mpo_cred_check_seteuid;
 	mpo_cred_check_setgid_t			mpo_cred_check_setgid;
@@ -1033,8 +1040,9 @@ struct mac_policy_conf {
  *   3                       7.x
  *   4                       8.x
  *   5                       14.x
+ *   6                       15.x
  */
-#define	MAC_VERSION	5
+#define	MAC_VERSION	6
 
 #define	MAC_POLICY_SET(mpops, mpname, mpfullname, mpflags, privdata_wanted) \
 	static struct mac_policy_conf mpname##_mac_policy_conf = {	\

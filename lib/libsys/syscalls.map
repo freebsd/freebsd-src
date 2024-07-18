@@ -807,4 +807,6 @@ FBSDprivate_1.0 {
 	__sys_getrlimitusage;
 	_fchroot;
 	__sys_fchroot;
+	_setcred;
+	__sys_setcred;
 };

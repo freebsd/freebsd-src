@@ -596,4 +596,5 @@ const char *syscallnames[] = {
 	"kcmp",			/* 588 = kcmp */
 	"getrlimitusage",			/* 589 = getrlimitusage */
 	"fchroot",			/* 590 = fchroot */
+	"setcred",			/* 591 = setcred */
 };
