@@ -84,13 +84,11 @@ struct pcib_window {
 struct pcib_secbus {
 	u_int		sec;
 	u_int		sub;
-#if defined(PCI_RES_BUS)
 	device_t	dev;
 	struct rman	rman;
 	struct resource	*res;
 	const char	*name;
 	int		sub_reg;
-#endif
 };
 
 /*
@@ -140,7 +138,6 @@ typedef uint32_t pci_read_config_fn(int d, int b, int s, int f, int reg,
 
 int		host_pcib_get_busno(pci_read_config_fn read_config, int bus,
     int slot, int func, uint8_t *busnum);
-#if defined(PCI_RES_BUS)
 struct resource *pci_domain_alloc_bus(int domain, device_t dev, int *rid,
 		    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags);
 int		pci_domain_adjust_bus(int domain, device_t dev,
@@ -157,7 +154,6 @@ struct resource *pcib_alloc_subbus(struct pcib_secbus *bus, device_t child,
 void		pcib_free_secbus(device_t dev, struct pcib_secbus *bus);
 void		pcib_setup_secbus(device_t dev, struct pcib_secbus *bus,
     int min_count);
-#endif
 int		pcib_attach(device_t dev);
 int		pcib_attach_child(device_t dev);
 void		pcib_attach_common(device_t dev);
