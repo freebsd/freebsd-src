@@ -127,10 +127,8 @@ struct vmbus_softc {
 
 	struct intr_config_hook	vmbus_intrhook;
 
-#ifdef NEW_PCIB
 	/* The list of usable MMIO ranges for PCIe pass-through */
 	struct pcib_host_resources vmbus_mmio_res;
-#endif
 
 #if defined(__aarch64__)
 	struct resource *ires;

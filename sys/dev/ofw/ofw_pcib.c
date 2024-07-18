@@ -421,13 +421,13 @@ static struct resource *
 ofw_pcib_alloc_resource(device_t bus, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+#if defined(PCI_RES_BUS)
 	struct ofw_pci_softc *sc;
 
 	sc = device_get_softc(bus);
 #endif
 	switch (type) {
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+#if defined(PCI_RES_BUS)
 	case PCI_RES_BUS:
 		return (pci_domain_alloc_bus(sc->sc_pci_domain, child, rid,
 		    start, end, count, flags));
@@ -445,13 +445,13 @@ ofw_pcib_alloc_resource(device_t bus, device_t child, int type, int *rid,
 static int
 ofw_pcib_release_resource(device_t bus, device_t child, struct resource *res)
 {
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+#if defined(PCI_RES_BUS)
 	struct ofw_pci_softc *sc;
 
 	sc = device_get_softc(bus);
 #endif
 	switch (rman_get_type(res)) {
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+#if defined(PCI_RES_BUS)
 	case PCI_RES_BUS:
 		return (pci_domain_release_bus(sc->sc_pci_domain, child, res));
 #endif
@@ -505,13 +505,13 @@ ofw_pcib_translate_resource(device_t bus, int type, rman_res_t start,
 static int
 ofw_pcib_activate_resource(device_t bus, device_t child, struct resource *res)
 {
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+#if defined(PCI_RES_BUS)
 	struct ofw_pci_softc *sc;
 
 	sc = device_get_softc(bus);
 #endif
 	switch (rman_get_type(res)) {
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+#if defined(PCI_RES_BUS)
 	case PCI_RES_BUS:
 		return (pci_domain_activate_bus(sc->sc_pci_domain, child, res));
 #endif
@@ -621,13 +621,13 @@ ofw_pcib_bus_get_bus_tag(device_t bus, device_t child)
 static int
 ofw_pcib_deactivate_resource(device_t bus, device_t child, struct resource *res)
 {
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+#if defined(PCI_RES_BUS)
 	struct ofw_pci_softc *sc;
 
 	sc = device_get_softc(bus);
 #endif
 	switch (rman_get_type(res)) {
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+#if defined(PCI_RES_BUS)
 	case PCI_RES_BUS:
 		return (pci_domain_deactivate_bus(sc->sc_pci_domain, child,
 		    res));
@@ -644,13 +644,13 @@ static int
 ofw_pcib_adjust_resource(device_t bus, device_t child,
     struct resource *res, rman_res_t start, rman_res_t end)
 {
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+#if defined(PCI_RES_BUS)
 	struct ofw_pci_softc *sc;
 
 	sc = device_get_softc(bus);
 #endif
 	switch (rman_get_type(res)) {
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+#if defined(PCI_RES_BUS)
 	case PCI_RES_BUS:
 		return (pci_domain_adjust_bus(sc->sc_pci_domain, child, res,
 		    start, end));

@@ -595,7 +595,7 @@ legacy_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+#if defined(PCI_RES_BUS)
 	if (type == PCI_RES_BUS)
 		return (pci_domain_alloc_bus(0, child, rid, start, end, count,
 		    flags));
@@ -605,7 +605,7 @@ legacy_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	    count, flags));
 }
 
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+#if defined(PCI_RES_BUS)
 int
 legacy_pcib_adjust_resource(device_t dev, device_t child,
     struct resource *r, rman_res_t start, rman_res_t end)
@@ -656,7 +656,7 @@ static device_method_t legacy_pcib_methods[] = {
 	DEVMETHOD(bus_read_ivar,	legacy_pcib_read_ivar),
 	DEVMETHOD(bus_write_ivar,	legacy_pcib_write_ivar),
 	DEVMETHOD(bus_alloc_resource,	legacy_pcib_alloc_resource),
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+#if defined(PCI_RES_BUS)
 	DEVMETHOD(bus_adjust_resource,	legacy_pcib_adjust_resource),
 	DEVMETHOD(bus_release_resource,	legacy_pcib_release_resource),
 	DEVMETHOD(bus_activate_resource, legacy_pcib_activate_resource),
