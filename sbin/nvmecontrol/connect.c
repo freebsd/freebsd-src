@@ -82,7 +82,7 @@ connect_nvm_controller(enum nvmf_trtype trtype, int adrfam, const char *address,
 
 	io = calloc(opt.num_io_queues, sizeof(*io));
 	error = connect_nvm_queues(&aparams, trtype, adrfam, address, port,
-	    cntlid, subnqn, opt.hostnqn, opt.kato, &admin, io,
+	    cntlid, subnqn, opt.hostnqn, opt.kato * 1000, &admin, io,
 	    opt.num_io_queues, opt.queue_size, &cdata);
 	if (error != 0) {
 		free(io);
