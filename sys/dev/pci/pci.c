@@ -405,7 +405,7 @@ static int pci_clear_bars;
 SYSCTL_INT(_hw_pci, OID_AUTO, clear_bars, CTLFLAG_RDTUN, &pci_clear_bars, 0,
     "Ignore firmware-assigned resources for BARs.");
 
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+#if defined(PCI_RES_BUS)
 static int pci_clear_buses;
 SYSCTL_INT(_hw_pci, OID_AUTO, clear_buses, CTLFLAG_RDTUN, &pci_clear_buses, 0,
     "Ignore firmware-assigned bus numbers.");
@@ -3706,7 +3706,7 @@ xhci_early_takeover(device_t self)
 	bus_release_resource(self, SYS_RES_MEMORY, rid, res);
 }
 
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+#if defined(PCI_RES_BUS)
 static void
 pci_reserve_secbus(device_t bus, device_t dev, pcicfgregs *cfg,
     struct resource_list *rl)
@@ -4118,7 +4118,7 @@ pci_add_resources(device_t bus, device_t dev, int force, uint32_t prefetchmask)
 			uhci_early_takeover(dev);
 	}
 
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+#if defined(PCI_RES_BUS)
 	/*
 	 * Reserve resources for secondary bus ranges behind bridge
 	 * devices.
@@ -5551,7 +5551,7 @@ pci_alloc_multi_resource(device_t dev, device_t child, int type, int *rid,
 	rl = &dinfo->resources;
 	cfg = &dinfo->cfg;
 	switch (type) {
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+#if defined(PCI_RES_BUS)
 	case PCI_RES_BUS:
 		return (pci_alloc_secbus(dev, child, rid, start, end, count,
 		    flags));
@@ -5576,7 +5576,6 @@ pci_alloc_multi_resource(device_t dev, device_t child, int type, int *rid,
 		break;
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
-#ifdef NEW_PCIB
 		/*
 		 * PCI-PCI bridge I/O window resources are not BARs.
 		 * For those allocations just pass the request up the
@@ -5595,7 +5594,6 @@ pci_alloc_multi_resource(device_t dev, device_t child, int type, int *rid,
 				    type, rid, start, end, count, flags));
 			}
 		}
-#endif
 		/* Reserve resources for this BAR if needed. */
 		rle = resource_list_find(rl, type, *rid);
 		if (rle == NULL) {
@@ -5668,7 +5666,6 @@ pci_release_resource(device_t dev, device_t child, struct resource *r)
 	}
 #endif
 
-#ifdef NEW_PCIB
 	/*
 	 * PCI-PCI bridge I/O window resources are not BARs.  For
 	 * those allocations just pass the request up the tree.
@@ -5683,7 +5680,6 @@ pci_release_resource(device_t dev, device_t child, struct resource *r)
 			return (bus_generic_release_resource(dev, child, r));
 		}
 	}
-#endif
 
 	rl = &dinfo->resources;
 	return (resource_list_release(rl, dev, child, r));

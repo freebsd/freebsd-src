@@ -1069,15 +1069,12 @@ vmbus_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	device_t parent = device_get_parent(dev);
 	struct resource *res;
 
-#ifdef NEW_PCIB
 	if (type == SYS_RES_MEMORY) {
 		struct vmbus_softc *sc = device_get_softc(dev);
 
 		res = pcib_host_res_alloc(&sc->vmbus_mmio_res, child, type,
 		    rid, start, end, count, flags);
-	} else
-#endif
-	{
+	} else {
 		res = BUS_ALLOC_RESOURCE(parent, child, type, rid, start,
 		    end, count, flags);
 	}
@@ -1158,7 +1155,6 @@ vmbus_get_eventtq_method(device_t bus, device_t dev __unused, int cpu)
 	return (VMBUS_PCPU_GET(sc, event_tq, cpu));
 }
 
-#ifdef NEW_PCIB
 #define VTPM_BASE_ADDR 0xfed40000
 #define FOUR_GB (1ULL << 32)
 
@@ -1375,7 +1371,6 @@ vmbus_free_mmio_res(device_t dev)
 	if (hv_fb_res)
 		hv_fb_res = NULL;
 }
-#endif	/* NEW_PCIB */
 
 static void
 vmbus_identify(driver_t *driver, device_t parent)
@@ -1460,10 +1455,8 @@ vmbus_doattach(struct vmbus_softc *sc)
 	if (sc->vmbus_flags & VMBUS_FLAG_ATTACHED)
 		return (0);
 
-#ifdef NEW_PCIB
 	vmbus_get_mmio_res(sc->vmbus_dev);
 	vmbus_fb_mmio_res(sc->vmbus_dev);
-#endif
 
 	sc->vmbus_flags |= VMBUS_FLAG_ATTACHED;
 
@@ -1681,9 +1674,7 @@ vmbus_detach(device_t dev)
 	mtx_destroy(&sc->vmbus_prichan_lock);
 	mtx_destroy(&sc->vmbus_chan_lock);
 
-#ifdef NEW_PCIB
 	vmbus_free_mmio_res(dev);
-#endif
 
 #if defined(__aarch64__)
 	bus_release_resource(device_get_parent(dev), SYS_RES_IRQ, sc->vector,

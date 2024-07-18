@@ -29,6 +29,4 @@ options 	CC_CUBIC		# include CUBIC congestion control
 # enable support for native hardware
 device		atpic
 
-options 	NEW_PCIB
-
 options 	NETLINK			# netlink(4) support

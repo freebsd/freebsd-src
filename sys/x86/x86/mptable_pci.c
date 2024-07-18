@@ -64,14 +64,11 @@ static int
 mptable_hostb_attach(device_t dev)
 {
 
-#ifdef NEW_PCIB
 	mptable_pci_host_res_init(dev);
-#endif
 	device_add_child(dev, "pci", -1);
 	return (bus_generic_attach(dev));
 }
 
-#ifdef NEW_PCIB
 static int
 mptable_is_isa_range(rman_res_t start, rman_res_t end)
 {
@@ -151,7 +148,6 @@ mptable_hostb_adjust_resource(device_t dev, device_t child,
 	sc = device_get_softc(dev);
 	return (pcib_host_res_adjust(&sc->sc_host_res, child, r, start, end));
 }
-#endif
 
 static device_method_t mptable_hostb_methods[] = {
 	/* Device interface */
@@ -164,14 +160,9 @@ static device_method_t mptable_hostb_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	legacy_pcib_read_ivar),
 	DEVMETHOD(bus_write_ivar,	legacy_pcib_write_ivar),
-#ifdef NEW_PCIB
 	DEVMETHOD(bus_alloc_resource,	mptable_hostb_alloc_resource),
 	DEVMETHOD(bus_adjust_resource,	mptable_hostb_adjust_resource),
-#else
-	DEVMETHOD(bus_alloc_resource,	legacy_pcib_alloc_resource),
-	DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
-#endif
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+#if defined(PCI_RES_BUS)
 	DEVMETHOD(bus_release_resource,	legacy_pcib_release_resource),
 	DEVMETHOD(bus_activate_resource, legacy_pcib_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, legacy_pcib_deactivate_resource),

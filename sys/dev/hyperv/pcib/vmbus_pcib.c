@@ -25,7 +25,6 @@
  */
 
 #include <sys/cdefs.h>
-#ifdef NEW_PCIB
 #include "opt_acpi.h"
 
 #include <sys/param.h>
@@ -2042,5 +2041,3 @@ DEFINE_CLASS_0(pcib, vmbus_pcib_driver, vmbus_pcib_methods,
 DRIVER_MODULE(vmbus_pcib, vmbus, vmbus_pcib_driver, 0, 0);
 MODULE_DEPEND(vmbus_pcib, vmbus, 1, 1, 1);
 MODULE_DEPEND(vmbus_pcib, pci, 1, 1, 1);
-
-#endif /* NEW_PCIB */

@@ -276,7 +276,7 @@ cbb_print_config(device_t dev)
 static int
 cbb_pci_attach(device_t brdev)
 {
-#if !(defined(NEW_PCIB) && defined(PCI_RES_BUS))
+#if !defined(PCI_RES_BUS)
 	static int curr_bus_number = 2; /* XXX EVILE BAD (see below) */
 	uint32_t pribus;
 #endif
@@ -293,7 +293,7 @@ cbb_pci_attach(device_t brdev)
 	sc->cbdev = NULL;
 	sc->domain = pci_get_domain(brdev);
 	sc->pribus = pcib_get_bus(parent);
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+#if defined(PCI_RES_BUS)
 	pci_write_config(brdev, PCIR_PRIBUS_2, sc->pribus, 1);
 	pcib_setup_secbus(brdev, &sc->bus, 1);
 #else
@@ -351,7 +351,7 @@ cbb_pci_attach(device_t brdev)
 	    CTLFLAG_RD, &sc->subbus, 0, "io range 2 open");
 #endif
 
-#if !(defined(NEW_PCIB) && defined(PCI_RES_BUS))
+#if !defined(PCI_RES_BUS)
 	/*
 	 * This is a gross hack.  We should be scanning the entire pci
 	 * tree, assigning bus numbers in a way such that we (1) can
@@ -429,13 +429,13 @@ err:
 static int
 cbb_pci_detach(device_t brdev)
 {
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+#if defined(PCI_RES_BUS)
 	struct cbb_softc *sc = device_get_softc(brdev);
 #endif
 	int error;
 
 	error = cbb_detach(brdev);
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+#if defined(PCI_RES_BUS)
 	if (error == 0)
 		pcib_free_secbus(brdev, &sc->bus);
 #endif
@@ -787,7 +787,7 @@ cbb_pci_filt(void *arg)
 	return retval;
 }
 
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+#if defined(PCI_RES_BUS)
 static struct resource *
 cbb_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
@@ -931,7 +931,7 @@ static device_method_t cbb_methods[] = {
 	/* bus methods */
 	DEVMETHOD(bus_read_ivar,		cbb_read_ivar),
 	DEVMETHOD(bus_write_ivar,		cbb_write_ivar),
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+#if defined(PCI_RES_BUS)
 	DEVMETHOD(bus_alloc_resource,		cbb_pci_alloc_resource),
 	DEVMETHOD(bus_adjust_resource,		cbb_pci_adjust_resource),
 	DEVMETHOD(bus_release_resource,		cbb_pci_release_resource),
