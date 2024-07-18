@@ -49,6 +49,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/abi_compat.h>
 #include <sys/acct.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
@@ -74,6 +75,10 @@
 #include <sys/socketvar.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
+
+#ifdef MAC
+#include <security/mac/mac_syscalls.h>
+#endif
 
 #ifdef REGRESSION
 FEATURE(regression,
@@ -484,6 +489,365 @@ done:
 	return (error);
 }
 
+static int
+gidp_cmp(const void *p1, const void *p2)
+{
+	const gid_t g1 = *(const gid_t *)p1;
+	const gid_t g2 = *(const gid_t *)p2;
+
+	return ((g1 > g2) - (g1 < g2));
+}
+
+/*
+ * Final storage for groups (including the effective GID) will be returned via
+ * 'groups'.  '*groups' must be NULL on input, and if not equal to 'smallgroups'
+ * on output, must be freed (M_TEMP) *even if* an error is returned.
+ */
+static int
+kern_setcred_copyin_supp_groups(struct setcred *const wcred,
+    const u_int flags, gid_t *const smallgroups, gid_t **const groups)
+{
+	MPASS(*groups == NULL);
+
+	if (flags & SETCREDF_SUPP_GROUPS) {
+		int error;
+
+		/*
+		 * Check for the limit for number of groups right now in order
+		 * to limit the amount of bytes to copy.
+		 */
+		if (wcred->sc_supp_groups_nb > ngroups_max)
+			return (EINVAL);
+
+		/*
+		 * Since we are going to be copying the supplementary groups
+		 * from userland, make room also for the effective GID right
+		 * now, to avoid having to allocate and copy again the
+		 * supplementary groups.
+		 */
+		*groups = wcred->sc_supp_groups_nb < CRED_SMALLGROUPS_NB ?
+		    smallgroups : malloc((wcred->sc_supp_groups_nb + 1) *
+		    sizeof(*groups), M_TEMP, M_WAITOK);
+
+		error = copyin(wcred->sc_supp_groups, *groups + 1,
+		    wcred->sc_supp_groups_nb * sizeof(*groups));
+		if (error != 0)
+			return (error);
+		wcred->sc_supp_groups = *groups + 1;
+	} else {
+		wcred->sc_supp_groups_nb = 0;
+		wcred->sc_supp_groups = NULL;
+	}
+
+	return (0);
+}
+
+int
+user_setcred(struct thread *td, const u_int flags,
+    const void *const uwcred, const size_t size, bool is_32bit)
+{
+	struct setcred wcred;
+#ifdef MAC
+	struct mac mac;
+	/* Pointer to 'struct mac' or 'struct mac32'. */
+	void *umac;
+#endif
+	gid_t smallgroups[CRED_SMALLGROUPS_NB];
+	gid_t *groups = NULL;
+	int error;
+
+	/*
+	 * As the only point of this wrapper function is to copyin() from
+	 * userland, we only interpret the data pieces we need to perform this
+	 * operation and defer further sanity checks to kern_setcred(), except
+	 * that we redundantly check here that no unknown flags have been
+	 * passed.
+	 */
+	if ((flags & ~SETCREDF_MASK) != 0)
+		return (EINVAL);
+
+#ifdef COMPAT_FREEBSD32
+	if (is_32bit) {
+		struct setcred32 wcred32;
+
+		if (size != sizeof(wcred32))
+			return (EINVAL);
+		error = copyin(uwcred, &wcred32, sizeof(wcred32));
+		if (error != 0)
+			return (error);
+		/* These fields have exactly the same sizes and positions. */
+		memcpy(&wcred, &wcred32, &wcred32.setcred32_copy_end -
+		    &wcred32.setcred32_copy_start);
+		/* Remaining fields are pointers and need PTRIN*(). */
+		PTRIN_CP(wcred32, wcred, sc_supp_groups);
+		PTRIN_CP(wcred32, wcred, sc_label);
+	} else
+#endif /* COMPAT_FREEBSD32 */
+	{
+		if (size != sizeof(wcred))
+			return (EINVAL);
+		error = copyin(uwcred, &wcred, sizeof(wcred));
+		if (error != 0)
+			return (error);
+	}
+#ifdef MAC
+	umac = wcred.sc_label;
+#endif
+	/* Also done on !MAC as a defensive measure. */
+	wcred.sc_label = NULL;
+
+	/*
+	 * Copy supplementary groups as needed.  There is no specific
+	 * alternative for 32-bit compatibility as 'gid_t' has the same size
+	 * everywhere.
+	 */
+	error = kern_setcred_copyin_supp_groups(&wcred, flags, smallgroups,
+	    &groups);
+	if (error != 0)
+		goto free_groups;
+
+#ifdef MAC
+	if ((flags & SETCREDF_MAC_LABEL) != 0) {
+#ifdef COMPAT_FREEBSD32
+		if (is_32bit)
+			error = mac_label_copyin32(umac, &mac, NULL);
+		else
+#endif
+			error = mac_label_copyin(umac, &mac, NULL);
+		if (error != 0)
+			goto free_groups;
+		wcred.sc_label = &mac;
+	}
+#endif
+
+	error = kern_setcred(td, flags, &wcred, groups);
+
+#ifdef MAC
+	if (wcred.sc_label != NULL)
+		free_copied_label(wcred.sc_label);
+#endif
+
+free_groups:
+	if (groups != smallgroups)
+		free(groups, M_TEMP);
+
+	return (error);
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct setcred_args {
+	u_int			 flags;	/* Flags. */
+	const struct setcred	*wcred;
+	size_t			 size;	/* Passed 'setcred' structure length. */
+};
+#endif
+/* ARGSUSED */
+int
+sys_setcred(struct thread *td, struct setcred_args *uap)
+{
+	return (user_setcred(td, uap->flags, uap->wcred, uap->size, false));
+}
+
+/*
+ * CAUTION: This function normalizes groups in 'wcred'.
+ *
+ * If 'preallocated_groups' is non-NULL, it must be an already allocated array
+ * of size 'wcred->sc_supp_groups_nb + 1', with the supplementary groups
+ * starting at index 1, and 'wcred->sc_supp_groups' then must point to the first
+ * supplementary group.
+ */
+int
+kern_setcred(struct thread *const td, const u_int flags,
+    struct setcred *const wcred, gid_t *preallocated_groups)
+{
+	struct proc *const p = td->td_proc;
+	struct ucred *new_cred, *old_cred, *to_free_cred;
+	struct uidinfo *uip = NULL, *ruip = NULL;
+#ifdef MAC
+	void *mac_set_proc_data = NULL;
+	bool proc_label_set = false;
+#endif
+	gid_t *groups = NULL;
+	gid_t smallgroups[CRED_SMALLGROUPS_NB];
+	int error;
+	bool cred_set;
+
+	/* Bail out on unrecognized flags. */
+	if (flags & ~SETCREDF_MASK)
+		return (EINVAL);
+
+	/*
+	 * Part 1: We allocate and perform preparatory operations with no locks.
+	 */
+
+	if (flags & SETCREDF_SUPP_GROUPS) {
+		if (wcred->sc_supp_groups_nb > ngroups_max)
+			return (EINVAL);
+		if (preallocated_groups != NULL) {
+			groups = preallocated_groups;
+			MPASS(preallocated_groups + 1 == wcred->sc_supp_groups);
+		} else {
+			groups = wcred->sc_supp_groups_nb < CRED_SMALLGROUPS_NB ?
+			    smallgroups :
+			    malloc((wcred->sc_supp_groups_nb + 1) *
+			    sizeof(*groups), M_TEMP, M_WAITOK);
+			memcpy(groups + 1, wcred->sc_supp_groups,
+			    wcred->sc_supp_groups_nb * sizeof(*groups));
+		}
+	}
+
+	if (flags & SETCREDF_MAC_LABEL) {
+#ifdef MAC
+		error = mac_set_proc_prepare(td, wcred->sc_label,
+		    &mac_set_proc_data);
+		if (error != 0)
+			goto free_groups;
+#else
+		error = ENOTSUP;
+		goto free_groups;
+#endif
+	}
+
+	if (flags & SETCREDF_UID) {
+		AUDIT_ARG_EUID(wcred->sc_uid);
+		uip = uifind(wcred->sc_uid);
+	}
+	if (flags & SETCREDF_RUID) {
+		AUDIT_ARG_RUID(wcred->sc_ruid);
+		ruip = uifind(wcred->sc_ruid);
+	}
+	if (flags & SETCREDF_SVUID)
+		AUDIT_ARG_SUID(wcred->sc_svuid);
+
+	if (flags & SETCREDF_GID)
+		AUDIT_ARG_EGID(wcred->sc_gid);
+	if (flags & SETCREDF_RGID)
+		AUDIT_ARG_RGID(wcred->sc_rgid);
+	if (flags & SETCREDF_SVGID)
+		AUDIT_ARG_SGID(wcred->sc_svgid);
+	if (flags & SETCREDF_SUPP_GROUPS) {
+		int ngrp = wcred->sc_supp_groups_nb;
+
+		/*
+		 * Output the raw supplementary groups array for better
+		 * traceability.
+		 */
+		AUDIT_ARG_GROUPSET(groups + 1, ngrp);
+		++ngrp;
+		groups_normalize(&ngrp, groups);
+		wcred->sc_supp_groups_nb = ngrp - 1;
+	}
+
+	/*
+	 * We first completely build the new credentials and only then pass them
+	 * to MAC along with the old ones so that modules can check whether the
+	 * requested transition is allowed.
+	 */
+	new_cred = crget();
+	to_free_cred = new_cred;
+	if (flags & SETCREDF_SUPP_GROUPS)
+		crextend(new_cred, wcred->sc_supp_groups_nb + 1);
+
+#ifdef MAC
+	mac_cred_setcred_enter();
+#endif
+
+	/*
+	 * Part 2: We grab the process lock as to have a stable view of its
+	 * current credentials, and prepare a copy of them with the requested
+	 * changes applied under that lock.
+	 */
+
+	PROC_LOCK(p);
+	old_cred = crcopysafe(p, new_cred);
+
+	/*
+	 * Change user IDs.
+	 */
+	if (flags & SETCREDF_UID)
+		change_euid(new_cred, uip);
+	if (flags & SETCREDF_RUID)
+		change_ruid(new_cred, ruip);
+	if (flags & SETCREDF_SVUID)
+		change_svuid(new_cred, wcred->sc_svuid);
+
+	/*
+	 * Change groups.
+	 *
+	 * crsetgroups_internal() changes both the effective and supplementary
+	 * ones.
+	 */
+	if (flags & SETCREDF_SUPP_GROUPS) {
+		groups[0] = flags & SETCREDF_GID ? wcred->sc_gid :
+		    new_cred->cr_gid;
+		crsetgroups_internal(new_cred, wcred->sc_supp_groups_nb + 1,
+		    groups);
+	} else if (flags & SETCREDF_GID)
+		change_egid(new_cred, wcred->sc_gid);
+	if (flags & SETCREDF_RGID)
+		change_rgid(new_cred, wcred->sc_rgid);
+	if (flags & SETCREDF_SVGID)
+		change_svgid(new_cred, wcred->sc_svgid);
+
+#ifdef MAC
+	/*
+	 * Change the MAC label.
+	 */
+	if (flags & SETCREDF_MAC_LABEL) {
+		error = mac_set_proc_core(td, new_cred, mac_set_proc_data);
+		if (error != 0)
+			goto unlock_finish;
+		proc_label_set = true;
+	}
+
+	/*
+	 * MAC security modules checks.
+	 */
+	error = mac_cred_check_setcred(flags, old_cred, new_cred);
+	if (error != 0)
+		goto unlock_finish;
+#endif
+	/*
+	 * Privilege check.
+	 */
+	error = priv_check_cred(old_cred, PRIV_CRED_SETCRED);
+	if (error != 0)
+		goto unlock_finish;
+
+	/*
+	 * Set the new credentials, noting that they have changed.
+	 */
+	cred_set = proc_set_cred_enforce_proc_lim(p, new_cred);
+	if (cred_set) {
+		setsugid(p);
+		to_free_cred = old_cred;
+		MPASS(error == 0);
+	} else
+		error = EAGAIN;
+
+unlock_finish:
+	PROC_UNLOCK(p);
+	/*
+	 * Part 3: After releasing the process lock, we perform cleanups and
+	 * finishing operations.
+	 */
+
+#ifdef MAC
+	if (mac_set_proc_data != NULL)
+		mac_set_proc_finish(td, proc_label_set, mac_set_proc_data);
+	mac_cred_setcred_exit();
+#endif
+	crfree(to_free_cred);
+	if (uip != NULL)
+		uifree(uip);
+	if (ruip != NULL)
+		uifree(ruip);
+free_groups:
+	if (groups != preallocated_groups && groups != smallgroups)
+		free(groups, M_TEMP); /* Deals with 'groups' being NULL. */
+	return (error);
+}
+
 /*
  * Use the clause in B.4.2.2 that allows setuid/setgid to be 4.2/4.3BSD
  * compatible.  It says that setting the uid/gid to euid/egid is a special
@@ -857,15 +1221,6 @@ sys_setgroups(struct thread *td, struct setgroups_args *uap)
 	if (groups != smallgroups)
 		free(groups, M_TEMP);
 	return (error);
-}
-
-static int
-gidp_cmp(const void *p1, const void *p2)
-{
-	const gid_t g1 = *(const gid_t *)p1;
-	const gid_t g2 = *(const gid_t *)p2;
-
-	return ((g1 > g2) - (g1 < g2));
 }
 
 /*

@@ -209,6 +209,53 @@ mac_cred_check_relabel(struct ucred *cred, struct label *newlabel)
 	return (error);
 }
 
+/*
+ * Entry hook for setcred().
+ *
+ * Called with no lock held by setcred() so that MAC modules may allocate memory
+ * in preparation for checking privileges.  A call to this hook is always
+ * followed by a matching call to mac_cred_setcred_exit().  Between these two,
+ * setcred() may or may not call mac_cred_check_setcred().
+ */
+void
+mac_cred_setcred_enter(void)
+{
+	MAC_POLICY_PERFORM_NOSLEEP(cred_setcred_enter);
+}
+
+MAC_CHECK_PROBE_DEFINE3(cred_check_setcred, "unsigned int", "struct ucred *",
+    "struct ucred *");
+
+/*
+ * Check hook for setcred().
+ *
+ * When called, the current process' lock is held.  It thus cannot perform
+ * memory allocations, which must be done in advance in
+ * mac_cred_setcred_enter().  It *MUST NOT* tamper with the process' lock.
+ */
+int
+mac_cred_check_setcred(u_int flags, const struct ucred *old_cred,
+    struct ucred *new_cred)
+{
+	int error;
+
+	MAC_POLICY_CHECK_NOSLEEP(cred_check_setcred, flags, old_cred, new_cred);
+	MAC_CHECK_PROBE3(cred_check_setcred, error, flags, old_cred, new_cred);
+
+	return (error);
+}
+
+/*
+ * Exit hook for setcred().
+ *
+ * Called with no lock held, exactly once per call to mac_cred_setcred_enter().
+ */
+void
+mac_cred_setcred_exit(void)
+{
+	MAC_POLICY_PERFORM_NOSLEEP(cred_setcred_exit);
+}
+
 MAC_CHECK_PROBE_DEFINE2(cred_check_setuid, "struct ucred *", "uid_t");
 
 int

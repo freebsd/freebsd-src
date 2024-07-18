@@ -595,4 +595,6 @@ const char *freebsd32_syscallnames[] = {
 	"freebsd32_timerfd_settime",			/* 587 = freebsd32_timerfd_settime */
 	"kcmp",			/* 588 = kcmp */
 	"getrlimitusage",			/* 589 = getrlimitusage */
+	"#590",			/* 590 = fchroot */
+	"freebsd32_setcred",			/* 591 = freebsd32_setcred */
 };
