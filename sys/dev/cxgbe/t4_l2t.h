@@ -35,8 +35,6 @@
 #define V_SYNC_WR(x) ((x) << S_SYNC_WR)
 #define F_SYNC_WR    V_SYNC_WR(1)
 
-enum { L2T_SIZE = 4096 };     /* # of L2T entries */
-
 enum {
 	L2T_STATE_VALID,	/* entry is up to date */
 	L2T_STATE_STALE,	/* entry may be used but needs revalidation */
