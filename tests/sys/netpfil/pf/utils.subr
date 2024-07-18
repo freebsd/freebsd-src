@@ -83,6 +83,8 @@ pfsynct_init()
 
 pflog_init()
 {
+	pft_init
+
 	if ! kldstat -q -m pflog; then
 		atf_skip "This test requires pflog"
 	fi
