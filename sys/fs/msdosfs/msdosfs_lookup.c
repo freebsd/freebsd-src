@@ -88,9 +88,13 @@ msdosfs_lookup_checker(struct msdosfsmount *pmp, struct vnode *dvp,
 int
 msdosfs_lookup(struct vop_cachedlookup_args *ap)
 {
+	int error;
 
-	return (msdosfs_lookup_ino(ap->a_dvp, ap->a_vpp, ap->a_cnp, NULL,
-	    NULL));
+	error = msdosfs_lookup_ino(ap->a_dvp, ap->a_vpp, ap->a_cnp, NULL,
+	    NULL);
+	if (error == EINVAL)
+		error = ENOENT;
+	return (error);
 }
 
 struct deget_dotdot {
