@@ -176,7 +176,7 @@ atomic_fcmpset_16(__volatile uint16_t *addr, uint16_t *old, uint16_t val)
 
 #ifndef atomic_load_acq_8
 static __inline uint8_t
-atomic_load_acq_8(volatile uint8_t *p)
+atomic_load_acq_8(const volatile uint8_t *p)
 {
 	int shift;
 	uint8_t ret;
@@ -189,7 +189,7 @@ atomic_load_acq_8(volatile uint8_t *p)
 
 #ifndef atomic_load_acq_16
 static __inline uint16_t
-atomic_load_acq_16(volatile uint16_t *p)
+atomic_load_acq_16(const volatile uint16_t *p)
 {
 	int shift;
 	uint16_t ret;

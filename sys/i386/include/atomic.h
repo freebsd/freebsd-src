@@ -249,7 +249,7 @@ atomic_testandclear_int(volatile u_int *p, u_int v)
 
 #define	ATOMIC_LOAD(TYPE)					\
 static __inline u_##TYPE					\
-atomic_load_acq_##TYPE(volatile u_##TYPE *p)			\
+atomic_load_acq_##TYPE(const volatile u_##TYPE *p)		\
 {								\
 	u_##TYPE res;						\
 								\
@@ -302,8 +302,8 @@ atomic_thread_fence_seq_cst(void)
 #ifdef WANT_FUNCTIONS
 int		atomic_cmpset_64_i386(volatile uint64_t *, uint64_t, uint64_t);
 int		atomic_cmpset_64_i586(volatile uint64_t *, uint64_t, uint64_t);
-uint64_t	atomic_load_acq_64_i386(volatile uint64_t *);
-uint64_t	atomic_load_acq_64_i586(volatile uint64_t *);
+uint64_t	atomic_load_acq_64_i386(const volatile uint64_t *);
+uint64_t	atomic_load_acq_64_i586(const volatile uint64_t *);
 void		atomic_store_rel_64_i386(volatile uint64_t *, uint64_t);
 void		atomic_store_rel_64_i586(volatile uint64_t *, uint64_t);
 uint64_t	atomic_swap_64_i386(volatile uint64_t *, uint64_t);
@@ -353,12 +353,12 @@ atomic_fcmpset_64_i386(volatile uint64_t *dst, uint64_t *expect, uint64_t src)
 }
 
 static __inline uint64_t
-atomic_load_acq_64_i386(volatile uint64_t *p)
+atomic_load_acq_64_i386(const volatile uint64_t *p)
 {
-	volatile uint32_t *q;
+	const volatile uint32_t *q;
 	uint64_t res;
 
-	q = (volatile uint32_t *)p;
+	q = (const volatile uint32_t *)p;
 	__asm __volatile(
 	"	pushfl ;		"
 	"	cli ;			"
@@ -447,8 +447,12 @@ atomic_fcmpset_64_i586(volatile uint64_t *dst, uint64_t *expect, uint64_t src)
 	return (res);
 }
 
+/*
+ * Architecturally always writes back some value to '*p' so will trigger
+ * a #GP(0) on read-only mappings.
+ */
 static __inline uint64_t
-atomic_load_acq_64_i586(volatile uint64_t *p)
+atomic_load_acq_64_i586(const volatile uint64_t *p)
 {
 	uint64_t res;
 
@@ -456,9 +460,9 @@ atomic_load_acq_64_i586(volatile uint64_t *p)
 	"	movl	%%ebx,%%eax ;	"
 	"	movl	%%ecx,%%edx ;	"
 	"	lock; cmpxchg8b %1"
-	: "=&A" (res),			/* 0 */
-	  "+m" (*p)			/* 1 */
-	: : "memory", "cc");
+	: "=&A" (res)			/* 0 */
+	: "m" (*p)			/* 1 */
+	: "memory", "cc");
 	return (res);
 }
 
@@ -514,7 +518,7 @@ atomic_fcmpset_64(volatile uint64_t *dst, uint64_t *expect, uint64_t src)
 }
 
 static __inline uint64_t
-atomic_load_acq_64(volatile uint64_t *p)
+atomic_load_acq_64(const volatile uint64_t *p)
 {
 
 	if ((cpu_feature & CPUID_CX8) == 0)
@@ -842,7 +846,7 @@ atomic_swap_long(volatile u_long *p, u_long v)
 #define	atomic_subtract_rel_ptr(p, v) \
 	atomic_subtract_rel_int((volatile u_int *)(p), (u_int)(v))
 #define	atomic_load_acq_ptr(p) \
-	atomic_load_acq_int((volatile u_int *)(p))
+	atomic_load_acq_int((const volatile u_int *)(p))
 #define	atomic_store_rel_ptr(p, v) \
 	atomic_store_rel_int((volatile u_int *)(p), (v))
 #define	atomic_cmpset_ptr(dst, old, new) \
