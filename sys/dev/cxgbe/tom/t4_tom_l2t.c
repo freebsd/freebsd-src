@@ -380,6 +380,10 @@ t4_l2t_get(struct port_info *pi, if_t ifp, struct sockaddr *sa)
 
 	hash = l2_hash(d, sa, if_getindex(ifp));
 	rw_wlock(&d->lock);
+	if (__predict_false(d->l2t_stopped)) {
+		e = NULL;
+		goto done;
+	}
 	for (e = d->l2tab[hash].first; e; e = e->next) {
 		if (l2_cmp(sa, e) == 0 && e->ifp == ifp && e->vlan == vtag &&
 		    e->smt_idx == smt_idx) {
@@ -429,6 +433,8 @@ t4_l2_update(struct toedev *tod, if_t ifp, struct sockaddr *sa,
 
 	hash = l2_hash(d, sa, if_getindex(ifp));
 	rw_rlock(&d->lock);
+	if (__predict_false(d->l2t_stopped))
+		goto done;
 	for (e = d->l2tab[hash].first; e; e = e->next) {
 		if (l2_cmp(sa, e) == 0 && e->ifp == ifp) {
 			mtx_lock(&e->lock);
@@ -439,6 +445,7 @@ t4_l2_update(struct toedev *tod, if_t ifp, struct sockaddr *sa,
 			break;
 		}
 	}
+done:
 	rw_runlock(&d->lock);
 
 	/*

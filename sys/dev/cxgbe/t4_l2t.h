@@ -79,6 +79,7 @@ struct l2t_entry {
 struct l2t_data {
 	struct rwlock lock;
 	u_int l2t_size;
+	bool l2t_stopped;
 	volatile int nfree;	/* number of free entries */
 	struct l2t_entry *rover;/* starting point for next allocation */
 	struct l2t_entry l2tab[];
@@ -86,7 +87,9 @@ struct l2t_data {
 
 
 int t4_init_l2t(struct adapter *, int);
-int t4_free_l2t(struct l2t_data *);
+int t4_free_l2t(struct adapter *);
+int t4_stop_l2t(struct adapter *);
+int t4_restart_l2t(struct adapter *);
 struct l2t_entry *t4_alloc_l2e(struct l2t_data *);
 struct l2t_entry *t4_l2t_alloc_switching(struct adapter *, uint16_t, uint8_t,
     uint8_t *);

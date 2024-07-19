@@ -73,7 +73,8 @@ t4_alloc_l2e(struct l2t_data *d)
 	struct l2t_entry *end, *e, **p;
 
 	rw_assert(&d->lock, RA_WLOCKED);
-
+	if (__predict_false(d->l2t_stopped))
+		return (NULL);
 	if (!atomic_load_acq_int(&d->nfree))
 		return (NULL);
 
@@ -291,7 +292,10 @@ t4_l2t_alloc_switching(struct adapter *sc, uint16_t vlan, uint8_t port,
 	int rc;
 
 	rw_wlock(&d->lock);
-	e = find_or_alloc_l2e(d, vlan, port, eth_addr);
+	if (__predict_false(d->l2t_stopped))
+		e = NULL;
+	else
+		e = find_or_alloc_l2e(d, vlan, port, eth_addr);
 	if (e) {
 		if (atomic_load_acq_int(&e->refcnt) == 0) {
 			mtx_lock(&e->lock);    /* avoid race with t4_l2t_free */
@@ -333,6 +337,7 @@ t4_init_l2t(struct adapter *sc, int flags)
 		return (ENOMEM);
 
 	d->l2t_size = l2t_size;
+	d->l2t_stopped = false;
 	d->rover = d->l2tab;
 	atomic_store_rel_int(&d->nfree, l2t_size);
 	rw_init(&d->lock, "L2T");
@@ -353,14 +358,39 @@ t4_init_l2t(struct adapter *sc, int flags)
 }
 
 int
-t4_free_l2t(struct l2t_data *d)
+t4_free_l2t(struct adapter *sc)
 {
+	struct l2t_data *d = sc->l2t;
 	int i;
 
 	for (i = 0; i < d->l2t_size; i++)
 		mtx_destroy(&d->l2tab[i].lock);
 	rw_destroy(&d->lock);
 	free(d, M_CXGBE);
+
+	return (0);
+}
+
+int
+t4_stop_l2t(struct adapter *sc)
+{
+	struct l2t_data *d = sc->l2t;
+
+	rw_wlock(&d->lock);
+	d->l2t_stopped = true;
+	rw_wunlock(&d->lock);
+
+	return (0);
+}
+
+int
+t4_restart_l2t(struct adapter *sc)
+{
+	struct l2t_data *d = sc->l2t;
+
+	rw_wlock(&d->lock);
+	d->l2t_stopped = false;
+	rw_wunlock(&d->lock);
 
 	return (0);
 }
