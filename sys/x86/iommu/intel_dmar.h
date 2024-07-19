@@ -175,9 +175,7 @@ bool dmar_pglvl_supported(struct dmar_unit *unit, int pglvl);
 int domain_set_agaw(struct dmar_domain *domain, int mgaw);
 int dmar_maxaddr2mgaw(struct dmar_unit *unit, iommu_gaddr_t maxaddr,
     bool allow_less);
-vm_pindex_t pglvl_max_pages(int pglvl);
 int domain_is_sp_lvl(struct dmar_domain *domain, int lvl);
-iommu_gaddr_t pglvl_page_size(int total_pglvl, int lvl);
 iommu_gaddr_t domain_page_size(struct dmar_domain *domain, int lvl);
 int calc_am(struct dmar_unit *unit, iommu_gaddr_t base, iommu_gaddr_t size,
     iommu_gaddr_t *isizep);

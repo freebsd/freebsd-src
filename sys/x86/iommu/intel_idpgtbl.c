@@ -317,40 +317,6 @@ put_idmap_pgtbl(vm_object_t obj)
  * address.  Support superpages.
  */
 
-/*
- * Index of the pte for the guest address base in the page table at
- * the level lvl.
- */
-static int
-domain_pgtbl_pte_off(struct dmar_domain *domain, iommu_gaddr_t base, int lvl)
-{
-
-	base >>= IOMMU_PAGE_SHIFT + (domain->pglvl - lvl - 1) *
-	    IOMMU_NPTEPGSHIFT;
-	return (base & IOMMU_PTEMASK);
-}
-
-/*
- * Returns the page index of the page table page in the page table
- * object, which maps the given address base at the page table level
- * lvl.
- */
-static vm_pindex_t
-domain_pgtbl_get_pindex(struct dmar_domain *domain, iommu_gaddr_t base, int lvl)
-{
-	vm_pindex_t idx, pidx;
-	int i;
-
-	KASSERT(lvl >= 0 && lvl < domain->pglvl,
-	    ("wrong lvl %p %d", domain, lvl));
-
-	for (pidx = idx = 0, i = 0; i < lvl; i++, pidx = idx) {
-		idx = domain_pgtbl_pte_off(domain, base, i) +
-		    pidx * IOMMU_NPTEPG + 1;
-	}
-	return (idx);
-}
-
 static iommu_pte_t *
 domain_pgtbl_map_pte(struct dmar_domain *domain, iommu_gaddr_t base, int lvl,
     int flags, vm_pindex_t *idxp, struct sf_buf **sf)
@@ -363,7 +329,7 @@ domain_pgtbl_map_pte(struct dmar_domain *domain, iommu_gaddr_t base, int lvl,
 	DMAR_DOMAIN_ASSERT_PGLOCKED(domain);
 	KASSERT((flags & IOMMU_PGF_OBJL) != 0, ("lost PGF_OBJL"));
 
-	idx = domain_pgtbl_get_pindex(domain, base, lvl);
+	idx = pglvl_pgtbl_get_pindex(domain->pglvl, base, lvl);
 	if (*sf != NULL && idx == *idxp) {
 		pte = (iommu_pte_t *)sf_buf_kva(*sf);
 	} else {
@@ -415,7 +381,7 @@ retry:
 			goto retry;
 		}
 	}
-	pte += domain_pgtbl_pte_off(domain, base, lvl);
+	pte += pglvl_pgtbl_pte_off(domain->pglvl, base, lvl);
 	return (pte);
 }
 

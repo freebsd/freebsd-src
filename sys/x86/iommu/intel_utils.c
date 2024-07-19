@@ -174,23 +174,6 @@ dmar_maxaddr2mgaw(struct dmar_unit *unit, iommu_gaddr_t maxaddr, bool allow_less
 }
 
 /*
- * Calculate the total amount of page table pages needed to map the
- * whole bus address space on the context with the selected agaw.
- */
-vm_pindex_t
-pglvl_max_pages(int pglvl)
-{
-	vm_pindex_t res;
-	int i;
-
-	for (res = 0, i = pglvl; i > 0; i--) {
-		res *= IOMMU_NPTEPG;
-		res++;
-	}
-	return (res);
-}
-
-/*
  * Return true if the page table level lvl supports the superpage for
  * the context ctx.
  */
@@ -208,26 +191,6 @@ domain_is_sp_lvl(struct dmar_domain *domain, int lvl)
 	alvl = domain->pglvl - lvl - 1;
 	cap_sps = DMAR_CAP_SPS(domain->dmar->hw_cap);
 	return (alvl < nitems(sagaw_sp) && (sagaw_sp[alvl] & cap_sps) != 0);
-}
-
-iommu_gaddr_t
-pglvl_page_size(int total_pglvl, int lvl)
-{
-	int rlvl;
-	static const iommu_gaddr_t pg_sz[] = {
-		(iommu_gaddr_t)IOMMU_PAGE_SIZE,
-		(iommu_gaddr_t)IOMMU_PAGE_SIZE << IOMMU_NPTEPGSHIFT,
-		(iommu_gaddr_t)IOMMU_PAGE_SIZE << (2 * IOMMU_NPTEPGSHIFT),
-		(iommu_gaddr_t)IOMMU_PAGE_SIZE << (3 * IOMMU_NPTEPGSHIFT),
-		(iommu_gaddr_t)IOMMU_PAGE_SIZE << (4 * IOMMU_NPTEPGSHIFT),
-		(iommu_gaddr_t)IOMMU_PAGE_SIZE << (5 * IOMMU_NPTEPGSHIFT),
-	};
-
-	KASSERT(lvl >= 0 && lvl < total_pglvl,
-	    ("total %d lvl %d", total_pglvl, lvl));
-	rlvl = total_pglvl - lvl - 1;
-	KASSERT(rlvl < nitems(pg_sz), ("sizeof pg_sz lvl %d", lvl));
-	return (pg_sz[rlvl]);
 }
 
 iommu_gaddr_t
