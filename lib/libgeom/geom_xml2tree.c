@@ -407,7 +407,7 @@ geom_xml2tree(struct gmesh *gmp, char *p)
 		free(mt);
 		return (error);
 	}
-	gmp->lg_ident = calloc(sizeof *gmp->lg_ident, mt->nident + 1);
+	gmp->lg_ident = calloc(mt->nident + 1, sizeof(*gmp->lg_ident));
 	free(mt);
 	if (gmp->lg_ident == NULL)
 		return (ENOMEM);
