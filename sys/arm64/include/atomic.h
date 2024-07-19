@@ -465,7 +465,7 @@ _ATOMIC_TEST_OP(set,   orr, set)
 
 #define	_ATOMIC_LOAD_ACQ_IMPL(t, w, s)					\
 static __inline uint##t##_t						\
-atomic_load_acq_##t(volatile uint##t##_t *p)				\
+atomic_load_acq_##t(const volatile uint##t##_t *p)			\
 {									\
 	uint##t##_t ret;						\
 									\
