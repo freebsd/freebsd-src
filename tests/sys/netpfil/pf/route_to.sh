@@ -140,7 +140,7 @@ multiwan_body()
 	jexec srv sysctl net.inet.ip.forwarding=1
 
 	# Run echo server in srv jail
-	jexec srv /usr/sbin/inetd -p multiwan.pid $(atf_get_srcdir)/echo_inetd.conf
+	jexec srv /usr/sbin/inetd -p ${PWD}/multiwan.pid $(atf_get_srcdir)/echo_inetd.conf
 
 	jexec srv pfctl -e
 	pft_set_rules srv \
@@ -178,7 +178,6 @@ multiwan_body()
 
 multiwan_cleanup()
 {
-	rm -f multiwan.pid
 	pft_cleanup
 }
 

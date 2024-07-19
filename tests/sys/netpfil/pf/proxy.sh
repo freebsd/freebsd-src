@@ -57,7 +57,7 @@ ftp_body()
 	jexec srv route add default 198.51.100.1
 
 	# Start FTP server in srv
-	jexec srv twistd ftp -r `pwd` -p 21
+	jexec srv twistd --logfile=/dev/null ftp -r `pwd` -p 21
 
 	# Sanity check
 	atf_check -s exit:0 -o ignore ping -c 1 198.51.100.2

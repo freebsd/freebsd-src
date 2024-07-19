@@ -410,7 +410,7 @@ match_body()
 	vnet_mkjail singsing ${epair_two}b
 	jexec singsing ifconfig ${epair_two}b 198.51.100.2/24 up
 	jexec singsing route add default 198.51.100.1
-	jexec singsing /usr/sbin/inetd -p inetd-echo.pid \
+	jexec singsing /usr/sbin/inetd -p ${PWD}/inetd-echo.pid \
 	    $(atf_get_srcdir)/echo_inetd.conf
 
 	route add 198.51.100.0/24 192.0.2.2
