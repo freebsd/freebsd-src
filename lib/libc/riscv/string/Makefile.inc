@@ -4,4 +4,5 @@ MDSRCS+= \
 	memset.S \
 	strlen.S \
 	strnlen.S \
+	strchrnul.S \
 	strrchr.S
