@@ -157,6 +157,7 @@ engine::tap_interface::exec_test(
     auto e = execenv::get(test_program, test_case_name);
     e->init();
     e->exec(args);
+    __builtin_unreachable();
 }
 
 
