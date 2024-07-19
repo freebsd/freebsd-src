@@ -619,3 +619,74 @@ iommu_domain_free_entry(struct iommu_map_entry *entry, bool free)
 		entry->flags = 0;
 }
 
+/*
+ * Index of the pte for the guest address base in the page table at
+ * the level lvl.
+ */
+int
+pglvl_pgtbl_pte_off(int pglvl, iommu_gaddr_t base, int lvl)
+{
+
+	base >>= IOMMU_PAGE_SHIFT + (pglvl - lvl - 1) *
+	    IOMMU_NPTEPGSHIFT;
+	return (base & IOMMU_PTEMASK);
+}
+
+/*
+ * Returns the page index of the page table page in the page table
+ * object, which maps the given address base at the page table level
+ * lvl.
+ */
+vm_pindex_t
+pglvl_pgtbl_get_pindex(int pglvl, iommu_gaddr_t base, int lvl)
+{
+	vm_pindex_t idx, pidx;
+	int i;
+
+	KASSERT(lvl >= 0 && lvl < pglvl,
+	    ("wrong lvl %d %d", pglvl, lvl));
+
+	for (pidx = idx = 0, i = 0; i < lvl; i++, pidx = idx) {
+		idx = pglvl_pgtbl_pte_off(pglvl, base, i) +
+		    pidx * IOMMU_NPTEPG + 1;
+	}
+	return (idx);
+}
+
+/*
+ * Calculate the total amount of page table pages needed to map the
+ * whole bus address space on the context with the selected agaw.
+ */
+vm_pindex_t
+pglvl_max_pages(int pglvl)
+{
+	vm_pindex_t res;
+	int i;
+
+	for (res = 0, i = pglvl; i > 0; i--) {
+		res *= IOMMU_NPTEPG;
+		res++;
+	}
+	return (res);
+}
+
+iommu_gaddr_t
+pglvl_page_size(int total_pglvl, int lvl)
+{
+	int rlvl;
+	static const iommu_gaddr_t pg_sz[] = {
+		(iommu_gaddr_t)IOMMU_PAGE_SIZE,
+		(iommu_gaddr_t)IOMMU_PAGE_SIZE << IOMMU_NPTEPGSHIFT,
+		(iommu_gaddr_t)IOMMU_PAGE_SIZE << (2 * IOMMU_NPTEPGSHIFT),
+		(iommu_gaddr_t)IOMMU_PAGE_SIZE << (3 * IOMMU_NPTEPGSHIFT),
+		(iommu_gaddr_t)IOMMU_PAGE_SIZE << (4 * IOMMU_NPTEPGSHIFT),
+		(iommu_gaddr_t)IOMMU_PAGE_SIZE << (5 * IOMMU_NPTEPGSHIFT),
+		(iommu_gaddr_t)IOMMU_PAGE_SIZE << (6 * IOMMU_NPTEPGSHIFT),
+	};
+
+	KASSERT(lvl >= 0 && lvl < total_pglvl,
+	    ("total %d lvl %d", total_pglvl, lvl));
+	rlvl = total_pglvl - lvl - 1;
+	KASSERT(rlvl < nitems(pg_sz), ("sizeof pg_sz lvl %d", lvl));
+	return (pg_sz[rlvl]);
+}
