@@ -968,7 +968,7 @@ pfctl_get_pool(int dev, struct pfctl_pool *pool, u_int32_t nr,
 	pp.r_action = r_action;
 	pp.r_num = nr;
 	pp.ticket = ticket;
-	if (ioctl(dev, DIOCGETADDRS, &pp)) {
+	if (pfctl_get_addrs(pfh, ticket, nr, r_action, anchorname, &pp.nr) != 0) {
 		warn("DIOCGETADDRS");
 		return (-1);
 	}

@@ -2589,6 +2589,31 @@ out:
 	return (error);
 }
 
+int
+pf_ioctl_get_addrs(struct pfioc_pooladdr *pp)
+{
+	struct pf_kpool		*pool;
+	struct pf_kpooladdr	*pa;
+
+	PF_RULES_RLOCK_TRACKER;
+
+	pp->anchor[sizeof(pp->anchor) - 1] = 0;
+	pp->nr = 0;
+
+	PF_RULES_RLOCK();
+	pool = pf_get_kpool(pp->anchor, pp->ticket, pp->r_action,
+	    pp->r_num, 0, 1, 0);
+	if (pool == NULL) {
+		PF_RULES_RUNLOCK();
+		return (EBUSY);
+	}
+	TAILQ_FOREACH(pa, &pool->list, entries)
+		pp->nr++;
+	PF_RULES_RUNLOCK();
+
+	return (0);
+}
+
 static int
 pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
@@ -4267,23 +4292,8 @@ DIOCGETSTATESV2_full:
 
 	case DIOCGETADDRS: {
 		struct pfioc_pooladdr	*pp = (struct pfioc_pooladdr *)addr;
-		struct pf_kpool		*pool;
-		struct pf_kpooladdr	*pa;
 
-		pp->anchor[sizeof(pp->anchor) - 1] = 0;
-		pp->nr = 0;
-
-		PF_RULES_RLOCK();
-		pool = pf_get_kpool(pp->anchor, pp->ticket, pp->r_action,
-		    pp->r_num, 0, 1, 0);
-		if (pool == NULL) {
-			PF_RULES_RUNLOCK();
-			error = EBUSY;
-			break;
-		}
-		TAILQ_FOREACH(pa, &pool->list, entries)
-			pp->nr++;
-		PF_RULES_RUNLOCK();
+		error = pf_ioctl_get_addrs(pp);
 		break;
 	}
 
