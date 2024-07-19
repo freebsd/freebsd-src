@@ -85,7 +85,7 @@ hostent_unpack(const nvlist_t *nvl, struct hostent *hp)
 	hp->h_length = (int)nvlist_get_number(nvl, "length");
 
 	nitems = (unsigned int)nvlist_get_number(nvl, "naliases");
-	hp->h_aliases = calloc(sizeof(hp->h_aliases[0]), nitems + 1);
+	hp->h_aliases = calloc(nitems + 1, sizeof(hp->h_aliases[0]));
 	if (hp->h_aliases == NULL)
 		goto fail;
 	for (ii = 0; ii < nitems; ii++) {
@@ -99,7 +99,7 @@ hostent_unpack(const nvlist_t *nvl, struct hostent *hp)
 	hp->h_aliases[ii] = NULL;
 
 	nitems = (unsigned int)nvlist_get_number(nvl, "naddrs");
-	hp->h_addr_list = calloc(sizeof(hp->h_addr_list[0]), nitems + 1);
+	hp->h_addr_list = calloc(nitems + 1, sizeof(hp->h_addr_list[0]));
 	if (hp->h_addr_list == NULL)
 		goto fail;
 	for (ii = 0; ii < nitems; ii++) {
