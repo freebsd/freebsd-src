@@ -92,7 +92,7 @@ tcp_v6_body()
 	    jexec ${j}a ping -6 -c 1 2001:db8:b::2
 
 	# capture packets on c so we can look for incorrect checksums
-	jexec ${j}c tcpdump --immediate-mode -w ${j}.pcap tcp and port 8000 &
+	jexec ${j}c tcpdump --immediate-mode -w ${PWD}/${j}.pcap tcp and port 8000 &
 	tcpdumppid=$!
 
 	# start a web server and give it a second to start
@@ -112,7 +112,7 @@ tcp_v6_body()
 
 	# Check for 'incorrect' in packet capture, this should tell us if
 	# checksums are bad with rdr rules
-	count=$(jexec ${j}c tcpdump -vvvv -r ${j}.pcap | grep incorrect | wc -l)
+	count=$(jexec ${j}c tcpdump -vvvv -r ${PWD}/${j}.pcap | grep incorrect | wc -l)
 	atf_check_equal "       0" "$count"
 }
 

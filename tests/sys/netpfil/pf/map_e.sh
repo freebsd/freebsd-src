@@ -53,7 +53,7 @@ map_e_body()
 	jexec map_e sysctl net.inet.ip.forwarding=1
 
 	jexec echo ifconfig ${epair_echo}b 198.51.100.2/24 up
-	jexec echo /usr/sbin/inetd -p inetd-echo.pid $(atf_get_srcdir)/echo_inetd.conf
+	jexec echo /usr/sbin/inetd -p ${PWD}/inetd-echo.pid $(atf_get_srcdir)/echo_inetd.conf
 
 	# Enable pf!
 	jexec map_e pfctl -e
@@ -81,7 +81,6 @@ map_e_body()
 
 map_e_cleanup()
 {
-	rm -f inetd-echo.pid
 	pft_cleanup
 }
 
