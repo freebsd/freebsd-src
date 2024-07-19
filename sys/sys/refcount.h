@@ -64,7 +64,7 @@ refcount_init(volatile u_int *count, u_int value)
 }
 
 static __inline u_int
-refcount_load(volatile u_int *count)
+refcount_load(volatile const u_int *count)
 {
 	return (atomic_load_int(count));
 }
