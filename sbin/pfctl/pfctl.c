@@ -964,19 +964,14 @@ pfctl_get_pool(int dev, struct pfctl_pool *pool, u_int32_t nr,
 	u_int32_t pnr, mpnr;
 
 	memset(&pp, 0, sizeof(pp));
-	memcpy(pp.anchor, anchorname, sizeof(pp.anchor));
-	pp.r_action = r_action;
-	pp.r_num = nr;
-	pp.ticket = ticket;
-	if (pfctl_get_addrs(pfh, ticket, nr, r_action, anchorname, &pp.nr) != 0) {
+	if (pfctl_get_addrs(pfh, ticket, nr, r_action, anchorname, &mpnr) != 0) {
 		warn("DIOCGETADDRS");
 		return (-1);
 	}
-	mpnr = pp.nr;
+
 	TAILQ_INIT(&pool->list);
 	for (pnr = 0; pnr < mpnr; ++pnr) {
-		pp.nr = pnr;
-		if (ioctl(dev, DIOCGETADDR, &pp)) {
+		if (pfctl_get_addr(pfh, ticket, nr, r_action, anchorname, pnr, &pp) != 0) {
 			warn("DIOCGETADDR");
 			return (-1);
 		}
