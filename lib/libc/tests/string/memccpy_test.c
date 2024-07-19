@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2009 David Schultz <das@FreeBSD.org>
- * Copyright (c) 2023 The FreeBSD Foundation
+ * Copyright (c) 2023, 2024 The FreeBSD Foundation
  * All rights reserved.
  *
  * Portions of this software were developed by Robert Clausecker
@@ -54,34 +54,57 @@ makebuf(size_t len, int guard_at_end)
 	buf = mmap(NULL, alloc_size, PROT_READ | PROT_WRITE, MAP_ANON, -1, 0);
 	assert(buf);
 	if (guard_at_end) {
-		assert(munmap(buf + alloc_size - page_size, page_size) == 0);
+		assert(mprotect(buf + alloc_size - page_size, page_size, PROT_NONE) == 0);
 		return (buf + alloc_size - page_size - len);
 	} else {
-		assert(munmap(buf, page_size) == 0);
+		assert(mprotect(buf, page_size, PROT_NONE) == 0);
 		return (buf + page_size);
 	}
 }
 
 static void
-test_memccpy(const char *s)
+freebuf(char * buf, size_t len, int guard_at_end)
+{
+	size_t alloc_size, page_size;
+
+	page_size = getpagesize();
+	alloc_size = roundup2(len, page_size) + page_size;
+
+	if (guard_at_end)
+		munmap(buf + len + page_size - alloc_size, alloc_size);
+	else
+		munmap(buf - page_size, alloc_size);
+}
+
+static void
+test_memccpy(const char *s, size_t size)
 {
 	char *src, *dst, *expected;
-	size_t size, bufsize, x;
+	size_t bufsize, x;
 	int i, j;
 
-	size = strlen(s) + 1;
 	for (i = 0; i <= 1; i++) {
 		for (j = 0; j <= 1; j++) {
-			for (bufsize = 0; bufsize <= size + 10; bufsize++) {
-				src = makebuf(size, i);
-				memcpy(src, s, size);
+			for (bufsize = 0; bufsize <= size + 32; bufsize++) {
 				dst = makebuf(bufsize, j);
+				if (bufsize < size) {
+					src = makebuf(bufsize, i);
+					memcpy(src, s, bufsize);
+					expected = NULL;
+				} else {
+					src = makebuf(size, i);
+					memcpy(src, s, size);
+					expected = dst + size;
+				}
+
 				memset(dst, 'X', bufsize);
-				expected = bufsize >= size ? dst + size : NULL;
-				assert(memccpy_fn(dst, src, src[size-1], bufsize) == expected);
-				assert(bufsize == 0 || strncmp(src, dst, bufsize - 1) == 0);
+				assert(memccpy_fn(dst, src, s[size-1], bufsize) == expected);
+				assert(memcmp(src, dst, MIN(bufsize, size)) == 0);
 				for (x = size; x < bufsize; x++)
 					assert(dst[x] == 'X');
+
+				freebuf(dst, bufsize, j);
+				freebuf(src, bufsize < size ? bufsize : size, i);
 			}
 		}
 	}
@@ -168,7 +191,8 @@ ATF_TC_BODY(bounds, tc)
 
 	for (i = 0; i < sizeof(buf) - 1; i++) {
 		buf[i] = ' ' + i;
-		test_memccpy(buf);
+		buf[i+1] = '\0';
+		test_memccpy(buf, i + 1);
 	}
 }
 
