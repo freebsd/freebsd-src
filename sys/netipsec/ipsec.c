@@ -172,8 +172,6 @@ VNET_DEFINE(int, natt_cksum_policy) = 0;
 FEATURE(ipsec, "Internet Protocol Security (IPsec)");
 FEATURE(ipsec_natt, "UDP Encapsulation of IPsec ESP Packets ('NAT-T')");
 
-SYSCTL_DECL(_net_inet_ipsec);
-
 /* net.inet.ipsec */
 SYSCTL_PROC(_net_inet_ipsec, IPSECCTL_DEF_POLICY, def_policy,
     CTLTYPE_INT | CTLFLAG_VNET | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
@@ -256,8 +254,6 @@ VNET_DEFINE(int, ip6_ipsec_ecn) = 0;	/* ECN ignore(-1)/forbidden(0)/allowed(1) *
 
 VNET_DEFINE_STATIC(int, ip6_filtertunnel) = 0;
 #define	V_ip6_filtertunnel	VNET(ip6_filtertunnel)
-
-SYSCTL_DECL(_net_inet6_ipsec6);
 
 /* net.inet6.ipsec6 */
 SYSCTL_PROC(_net_inet6_ipsec6, IPSECCTL_DEF_POLICY, def_policy,
