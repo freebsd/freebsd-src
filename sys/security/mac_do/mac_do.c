@@ -17,6 +17,7 @@
 #include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/refcount.h>
 #include <sys/socket.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
@@ -159,8 +160,9 @@ struct rule {
 TAILQ_HEAD(rulehead, rule);
 
 struct rules {
-	char string[MAC_RULE_STRING_LEN];
-	struct rulehead head;
+	char		string[MAC_RULE_STRING_LEN];
+	struct rulehead	head;
+	volatile u_int	use_count __aligned(CACHE_LINE_SIZE);
 };
 
 /*
@@ -327,6 +329,7 @@ alloc_rules(void)
 	_Static_assert(MAC_RULE_STRING_LEN > 0, "MAC_RULE_STRING_LEN <= 0!");
 	rules->string[0] = 0;
 	TAILQ_INIT(&rules->head);
+	rules->use_count = 0;
 	return (rules);
 }
 
@@ -1027,16 +1030,46 @@ find_rules(struct prison *const pr, struct prison **const aprp)
 	return (rules);
 }
 
+static void
+hold_rules(struct rules *const rules)
+{
+	refcount_acquire(&rules->use_count);
+}
+
+static void
+drop_rules(struct rules *const rules)
+{
+	if (refcount_release(&rules->use_count))
+		toast_rules(rules);
+}
+
+#ifdef INVARIANTS
+static void
+check_rules_use_count(const struct rules *const rules, u_int expected)
+{
+	const u_int use_count = refcount_load(&rules->use_count);
+
+	if (use_count != expected)
+		panic("MAC/do: Rules at %p: Use count is %u, expected %u",
+		    rules, use_count, expected);
+}
+#else
+#define check_rules_use_count(...)
+#endif /* INVARIANTS */
+
 /*
  * OSD destructor for slot 'osd_jail_slot'.
  *
- * Called with 'value' not NULL.
+ * Called with 'value' not NULL.  We have arranged that it is only ever called
+ * when the corresponding jail goes down or at module unload.
  */
 static void
 dealloc_osd(void *const value)
 {
 	struct rules *const rules = value;
 
+	/* No one should be using the rules but us at this point. */
+	check_rules_use_count(rules, 1);
 	toast_rules(rules);
 }
 
@@ -1051,10 +1084,28 @@ dealloc_osd(void *const value)
 static void
 remove_rules(struct prison *const pr)
 {
+	struct rules *old_rules;
+	int error __unused;
+
 	prison_lock(pr);
-	/* This calls destructor dealloc_osd(). */
+	/*
+	 * We go to the burden of extracting rules first instead of just letting
+	 * osd_jail_del() calling dealloc_osd() as we want to decrement their
+	 * use count, and possibly free them, outside of the prison lock.
+	 */
+	old_rules = osd_jail_get(pr, osd_jail_slot);
+	error = osd_jail_set(pr, osd_jail_slot, NULL);
+	/* osd_set() never fails nor allocate memory when 'value' is NULL. */
+	MPASS(error == 0);
+	/*
+	 * This completely frees the OSD slot, but doesn't call the destructor
+	 * since we've just put NULL in the slot.
+	 */
 	osd_jail_del(pr, osd_jail_slot);
 	prison_unlock(pr);
+
+	if (old_rules != NULL)
+		drop_rules(old_rules);
 }
 
 /*
@@ -1066,6 +1117,8 @@ set_rules(struct prison *const pr, struct rules *const rules)
 	struct rules *old_rules;
 	void **rsv;
 
+	check_rules_use_count(rules, 0);
+	hold_rules(rules);
 	rsv = osd_reserve(osd_jail_slot);
 
 	prison_lock(pr);
@@ -1073,7 +1126,7 @@ set_rules(struct prison *const pr, struct rules *const rules)
 	osd_jail_set_reserved(pr, osd_jail_slot, rsv, rules);
 	prison_unlock(pr);
 	if (old_rules != NULL)
-		toast_rules(old_rules);
+		drop_rules(old_rules);
 }
 
 /*
