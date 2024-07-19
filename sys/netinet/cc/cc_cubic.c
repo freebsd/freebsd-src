@@ -490,13 +490,11 @@ cubic_cong_signal(struct cc_var *ccv, ccsignal_t type)
 		}
 		cubic_data->flags |= CUBICFLAG_CONG_EVENT | CUBICFLAG_RTO_EVENT;
 		cubic_data->undo_W_max = cubic_data->W_max;
-		cubic_data->num_cong_events++;
 		CCV(ccv, snd_cwnd) = mss;
 		break;
 
 	case CC_RTO_ERR:
 		cubic_data->flags &= ~(CUBICFLAG_CONG_EVENT | CUBICFLAG_RTO_EVENT);
-		cubic_data->num_cong_events--;
 		cubic_data->K = cubic_data->undo_K;
 		cubic_data->cwnd_prior = cubic_data->undo_cwnd_prior;
 		cubic_data->W_max = cubic_data->undo_W_max;
