@@ -501,5 +501,7 @@ int	pfctl_begin_addrs(struct pfctl_handle *h, uint32_t *ticket);
 int	pfctl_add_addr(struct pfctl_handle *h, const struct pfioc_pooladdr *pa);
 int	pfctl_get_addrs(struct pfctl_handle *h, uint32_t ticket, uint32_t r_num,
 	    uint8_t r_action, const char *anchor, uint32_t *nr);
+int	pfctl_get_addr(struct pfctl_handle *h, uint32_t ticket, uint32_t r_num,
+	    uint8_t r_action, const char *anchor, uint32_t nr, struct pfioc_pooladdr *pa);
 
 #endif
