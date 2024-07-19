@@ -48,14 +48,14 @@ isns_req_alloc(void)
 {
 	struct isns_req *req;
 
-	req = calloc(sizeof(struct isns_req), 1);
+	req = calloc(1, sizeof(struct isns_req));
 	if (req == NULL) {
 		log_err(1, "calloc");
 		return (NULL);
 	}
 	req->ir_buflen = sizeof(struct isns_hdr);
 	req->ir_usedlen = 0;
-	req->ir_buf = calloc(req->ir_buflen, 1);
+	req->ir_buf = calloc(1, req->ir_buflen);
 	if (req->ir_buf == NULL) {
 		free(req);
 		log_err(1, "calloc");
