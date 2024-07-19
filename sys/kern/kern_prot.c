@@ -50,6 +50,7 @@
 #include <sys/acct.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
+#include <sys/libkern.h>
 #include <sys/lock.h>
 #include <sys/loginclass.h>
 #include <sys/malloc.h>
@@ -832,6 +833,15 @@ sys_setgroups(struct thread *td, struct setgroups_args *uap)
 	return (error);
 }
 
+static int
+gidp_cmp(const void *p1, const void *p2)
+{
+	const gid_t g1 = *(const gid_t *)p1;
+	const gid_t g2 = *(const gid_t *)p2;
+
+	return ((g1 > g2) - (g1 < g2));
+}
+
 int
 kern_setgroups(struct thread *td, u_int ngrp, gid_t *groups)
 {
@@ -1282,24 +1292,13 @@ sys___setugid(struct thread *td, struct __setugid_args *uap)
 static bool
 group_is_supplementary(const gid_t gid, const struct ucred *const cred)
 {
-	int l, h, m;
 
 	/*
 	 * Perform a binary search of the supplementary groups.  This is
 	 * possible because we sort the groups in crsetgroups().
 	 */
-	l = 1;
-	h = cred->cr_ngroups;
-
-	while (l < h) {
-		m = l + (h - l) / 2;
-		if (cred->cr_groups[m] < gid)
-			l = m + 1;
-		else
-			h = m;
-	}
-
-	return (l < cred->cr_ngroups && cred->cr_groups[l] == gid);
+	return (bsearch(&gid, cred->cr_groups + 1, cred->cr_ngroups - 1,
+	    sizeof(gid), gidp_cmp) != NULL);
 }
 
 /*
