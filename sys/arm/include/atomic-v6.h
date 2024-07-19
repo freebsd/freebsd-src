@@ -614,7 +614,7 @@ atomic_fetchadd_long(volatile u_long *p, u_long val)
 }
 
 static __inline uint32_t
-atomic_load_acq_32(volatile uint32_t *p)
+atomic_load_acq_32(const volatile uint32_t *p)
 {
 	uint32_t v;
 
@@ -624,7 +624,7 @@ atomic_load_acq_32(volatile uint32_t *p)
 }
 
 static __inline uint64_t
-atomic_load_64(volatile uint64_t *p)
+atomic_load_64(const volatile uint64_t *p)
 {
 	uint64_t ret;
 
@@ -643,7 +643,7 @@ atomic_load_64(volatile uint64_t *p)
 }
 
 static __inline uint64_t
-atomic_load_acq_64(volatile uint64_t *p)
+atomic_load_acq_64(const volatile uint64_t *p)
 {
 	uint64_t ret;
 
@@ -653,7 +653,7 @@ atomic_load_acq_64(volatile uint64_t *p)
 }
 
 static __inline u_long
-atomic_load_acq_long(volatile u_long *p)
+atomic_load_acq_long(const volatile u_long *p)
 {
 	u_long v;
 
