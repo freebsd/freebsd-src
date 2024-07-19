@@ -196,7 +196,7 @@ rm_tree(char **argv)
 	while (errno = 0, (p = fts_read(fts)) != NULL) {
 		switch (p->fts_info) {
 		case FTS_DNR:
-			if (!fflag && p->fts_errno != ENOENT) {
+			if (!fflag || p->fts_errno != ENOENT) {
 				warnx("%s: %s",
 				    p->fts_path, strerror(p->fts_errno));
 				eval = 1;
@@ -211,7 +211,7 @@ rm_tree(char **argv)
 			 */
 			if (!needstat)
 				break;
-			if (!fflag && p->fts_errno != ENOENT) {
+			if (!fflag || p->fts_errno != ENOENT) {
 				warnx("%s: %s",
 				    p->fts_path, strerror(p->fts_errno));
 				eval = 1;
@@ -338,7 +338,7 @@ rm_file(char **argv)
 			if (Wflag) {
 				sb.st_mode = S_IFWHT|S_IWUSR|S_IRUSR;
 			} else {
-				if (!fflag && errno != ENOENT) {
+				if (!fflag || errno != ENOENT) {
 					warn("%s", f);
 					eval = 1;
 				}
@@ -370,7 +370,7 @@ rm_file(char **argv)
 			else
 				rval = unlink(f);
 		}
-		if (rval && (!fflag && errno != ENOENT)) {
+		if (rval && (!fflag || errno != ENOENT)) {
 			warn("%s", f);
 			eval = 1;
 		}
