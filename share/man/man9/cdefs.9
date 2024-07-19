@@ -3,7 +3,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd July 8, 2024
+.Dd July 18, 2024
 .Dt CDEFS 9
 .Os
 .Sh NAME
@@ -40,10 +40,13 @@ They are not intended as a general portability layer.
 Due to testing constraints, tcc and pcc may not always work.
 .It Compilers supported for building Fx itself:
 .Bl -column -offset 0n indent-two
-.It Sy Compiler Ta Sy Versions
-.It gcc Ta 12, 13
-.It clang Ta 16, 17, 19
+.It Sy Compiler Ta Sy Major Versions Supported
+.It gcc Ta 12, 13, 14
+.It clang Ta 16, 17, 18
 .El
+.Pp
+Please note: Not every single minor versions of these compilers
+will work or are supported.
 .Sh Macros and Magic for Programming Environment
 .Nm
 defines (or refrains from defining) a number of macros to increase portability
