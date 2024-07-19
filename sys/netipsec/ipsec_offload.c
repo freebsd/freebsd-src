@@ -35,8 +35,11 @@
 #include <sys/pctrie.h>
 #include <sys/proc.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 #include <sys/protosw.h>
 #include <sys/taskqueue.h>
+
+#include <machine/stdarg.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -190,6 +193,27 @@ ipsec_accel_fini(void *arg)
 SYSUNINIT(ipsec_accel_fini, SI_SUB_VNET_DONE, SI_ORDER_ANY,
     ipsec_accel_fini, NULL);
 
+SYSCTL_NODE(_net_inet_ipsec, OID_AUTO, offload, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "");
+
+static bool ipsec_offload_verbose = false;
+SYSCTL_BOOL(_net_inet_ipsec_offload, OID_AUTO, verbose, CTLFLAG_RW,
+    &ipsec_offload_verbose, 0,
+    "Verbose SA/SP offload install and deinstall");
+
+static void
+dprintf(const char *fmt, ...)
+{
+	va_list ap;
+
+	if (!ipsec_offload_verbose)
+		return;
+
+	va_start(ap, fmt);
+	vprintf(fmt, ap);
+	va_end(ap);
+}
+
 static void
 ipsec_accel_alloc_forget_tq(struct secasvar *sav)
 {
@@ -209,7 +233,7 @@ ipsec_accel_sa_install_match(if_t ifp, void *arg)
 	if ((ifp->if_capenable2 & IFCAP2_BIT(IFCAP2_IPSEC_OFFLOAD)) == 0)
 		return (false);
 	if (ifp->if_ipsec_accel_m->if_sa_newkey == NULL) {
-		printf("driver bug ifp %s if_sa_newkey NULL\n",
+		dprintf("driver bug ifp %s if_sa_newkey NULL\n",
 		    if_name(ifp));
 		return (false);
 	}
@@ -226,7 +250,7 @@ ipsec_accel_sa_newkey_cb(if_t ifp, void *arg)
 
 	tq = arg;
 
-	printf("ipsec_accel_sa_newkey_act: ifp %s h %p spi %#x "
+	dprintf("ipsec_accel_sa_newkey_act: ifp %s h %p spi %#x "
 	    "flags %#x seq %d\n",
 	    if_name(ifp), ifp->if_ipsec_accel_m->if_sa_newkey,
 	    be32toh(tq->sav->spi), tq->sav->flags, tq->sav->seq);
@@ -240,7 +264,7 @@ ipsec_accel_sa_newkey_cb(if_t ifp, void *arg)
 	}
 	if (drv_spi == -1) {
 		/* XXXKIB */
-		printf("ipsec_accel_sa_install_newkey: cannot alloc "
+		dprintf("ipsec_accel_sa_install_newkey: cannot alloc "
 		    "drv_spi if %s spi %#x\n", if_name(ifp),
 		    be32toh(tq->sav->spi));
 		return (ENOMEM);
@@ -249,14 +273,14 @@ ipsec_accel_sa_newkey_cb(if_t ifp, void *arg)
 	    drv_spi, &priv);
 	if (error != 0) {
 		if (error == EOPNOTSUPP) {
-			printf("ipsec_accel_sa_newkey: driver "
+			dprintf("ipsec_accel_sa_newkey: driver "
 			    "refused sa if %s spi %#x\n",
 			    if_name(ifp), be32toh(tq->sav->spi));
 			error = ipsec_accel_handle_sav(tq->sav,
 			    ifp, drv_spi, priv, IFP_HS_REJECTED, NULL);
 			/* XXXKIB */
 		} else {
-			printf("ipsec_accel_sa_newkey: driver "
+			dprintf("ipsec_accel_sa_newkey: driver "
 			    "error %d if %s spi %#x\n",
 			    error, if_name(ifp), be32toh(tq->sav->spi));
 			/* XXXKIB */
@@ -266,7 +290,7 @@ ipsec_accel_sa_newkey_cb(if_t ifp, void *arg)
 		    drv_spi, priv, IFP_HS_HANDLED, NULL);
 		if (error != 0) {
 			/* XXXKIB */
-			printf("ipsec_accel_sa_newkey: handle_sav "
+			dprintf("ipsec_accel_sa_newkey: handle_sav "
 			    "err %d if %s spi %#x\n", error,
 			    if_name(ifp), be32toh(tq->sav->spi));
 		}
@@ -324,13 +348,13 @@ ipsec_accel_sa_newkey_impl(struct secasvar *sav)
 	    SADB_KEY_ACCEL_DEINST)) != 0)
 		return;
 
-	printf(
+	dprintf(
 	    "ipsec_accel_sa_install_newkey: spi %#x flags %#x seq %d\n",
 	    be32toh(sav->spi), sav->flags, sav->seq);
 
 	tq = malloc(sizeof(*tq), M_TEMP, M_NOWAIT);
 	if (tq == NULL) {
-		printf("ipsec_accel_sa_install_newkey: no memory for tq, "
+		dprintf("ipsec_accel_sa_install_newkey: no memory for tq, "
 		    "spi %#x\n", be32toh(sav->spi));
 		/* XXXKIB */
 		return;
@@ -403,7 +427,7 @@ ipsec_accel_forget_handle_sav(struct ifp_handle_sav *i, bool freesav)
 	sav = i->sav;
 	if ((i->flags & (IFP_HS_HANDLED | IFP_HS_REJECTED)) ==
 	    IFP_HS_HANDLED) {
-		printf("sa deinstall %s %p spi %#x ifl %#x\n",
+		dprintf("sa deinstall %s %p spi %#x ifl %#x\n",
 		    if_name(ifp), sav, be32toh(sav->spi), i->flags);
 		ifp->if_ipsec_accel_m->if_sa_deinstall(ifp,
 		    i->drv_spi, i->ifdata);
@@ -597,18 +621,18 @@ ipsec_accel_spdadd_cb(if_t ifp, void *arg)
 
 	sp = arg;
 	inp = sp->ipsec_accel_add_sp_inp;
-	printf("ipsec_accel_spdadd_cb: ifp %s m %p sp %p inp %p\n",
+	dprintf("ipsec_accel_spdadd_cb: ifp %s m %p sp %p inp %p\n",
 	    if_name(ifp), ifp->if_ipsec_accel_m->if_spdadd, sp, inp);
 	error = ipsec_accel_remember_sp(sp, ifp, &i);
 	if (error != 0) {
-		printf("ipsec_accel_spdadd: %s if_spdadd %p remember res %d\n",
+		dprintf("ipsec_accel_spdadd: %s if_spdadd %p remember res %d\n",
 		    if_name(ifp), sp, error);
 		return (error);
 	}
 	error = ifp->if_ipsec_accel_m->if_spdadd(ifp, sp, inp, &i->ifdata);
 	if (error != 0) {
 		i->flags |= IFP_HP_REJECTED;
-		printf("ipsec_accel_spdadd: %s if_spdadd %p res %d\n",
+		dprintf("ipsec_accel_spdadd: %s if_spdadd %p res %d\n",
 		    if_name(ifp), sp, error);
 	}
 	return (error);
@@ -676,11 +700,11 @@ ipsec_accel_spddel_act(void *arg, int pending)
 		NET_EPOCH_WAIT();
 		if ((i->flags & (IFP_HP_HANDLED | IFP_HP_REJECTED)) ==
 		    IFP_HP_HANDLED) {
-			printf("spd deinstall %s %p\n", if_name(i->ifp), sp);
+			dprintf("spd deinstall %s %p\n", if_name(i->ifp), sp);
 			error = i->ifp->if_ipsec_accel_m->if_spddel(i->ifp,
 			    sp, i->ifdata);
 			if (error != 0) {
-				printf(
+				dprintf(
 		    "ipsec_accel_spddel: %s if_spddel %p res %d\n",
 				    if_name(i->ifp), sp, error);
 			}
@@ -741,12 +765,12 @@ ipsec_accel_on_ifdown_sp(struct ifnet *ifp)
 		NET_EPOCH_WAIT();
 		if ((i->flags & (IFP_HP_HANDLED | IFP_HP_REJECTED)) ==
 		    IFP_HP_HANDLED) {
-			printf("spd deinstall %s %p\n", if_name(ifp), sp);
+			dprintf("spd deinstall %s %p\n", if_name(ifp), sp);
 			error = ifp->if_ipsec_accel_m->if_spddel(ifp,
 			    sp, i->ifdata);
 		}
 		if (error != 0) {
-			printf(
+			dprintf(
 		    "ipsec_accel_on_ifdown_sp: %s if_spddel %p res %d\n",
 			    if_name(ifp), sp, error);
 		}
@@ -894,7 +918,7 @@ ipsec_accel_input(struct mbuf *m, int offset, int proto)
 
 	if (tag->drv_spi < IPSEC_ACCEL_DRV_SPI_MIN ||
 	    tag->drv_spi > IPSEC_ACCEL_DRV_SPI_MAX) {
-		printf("if %s mbuf %p drv_spi %d invalid, packet dropped\n",
+		dprintf("if %s mbuf %p drv_spi %d invalid, packet dropped\n",
 		    (m->m_flags & M_PKTHDR) != 0 ? if_name(m->m_pkthdr.rcvif) :
 		    "<unknwn>", m, tag->drv_spi);
 		m_freem(m);
