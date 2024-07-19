@@ -13,8 +13,9 @@ ATF_TESTS_SH+=	\
 		fragments \
 		forward
 
-# Tests reuse jail names and so cannot run in parallel.
-TEST_METADATA+=	is_exclusive=true
+# Allow tests to run in parallel in their own jails
+TEST_METADATA+= execenv="jail"
+TEST_METADATA+= execenv_jail_params="vnet allow.raw_sockets"
 
 ${PACKAGE}FILES+=	\
 		utils.subr \
