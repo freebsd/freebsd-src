@@ -1847,7 +1847,7 @@ t4_detach_common(device_t dev)
 		    sc->msix_res);
 
 	if (sc->l2t)
-		t4_free_l2t(sc->l2t);
+		t4_free_l2t(sc);
 	if (sc->smt)
 		t4_free_smt(sc->smt);
 	t4_free_atid_table(sc);
@@ -2101,6 +2101,7 @@ stop_lld(struct adapter *sc)
 	end_synchronized_op(sc, 0);
 
 	stop_atid_allocator(sc);
+	t4_stop_l2t(sc);
 
 	return (rc);
 }
@@ -2454,6 +2455,7 @@ done:
 	free(old_state, M_CXGBE);
 
 	restart_atid_allocator(sc);
+	t4_restart_l2t(sc);
 
 	return (rc);
 }
