@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.377 2024/06/01 06:26:36 sjg Exp $
+.\"	$NetBSD: make.1,v 1.378 2024/07/01 21:02:26 sjg Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd June 1, 2024
+.Dd July 1, 2024
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -1586,6 +1586,9 @@ If
 .Ar c
 is omitted, no separator is used.
 The common escapes (including octal numeric codes) work as expected.
+.It Cm \&:tt
+Converts the first character of each word to upper-case,
+and the rest to lower-case letters.
 .It Cm \&:tu
 Converts the value to upper-case letters.
 .It Cm \&:tW

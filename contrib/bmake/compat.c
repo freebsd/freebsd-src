@@ -1,4 +1,4 @@
-/*	$NetBSD: compat.c,v 1.259 2024/06/15 20:02:45 rillig Exp $	*/
+/*	$NetBSD: compat.c,v 1.260 2024/07/11 20:09:16 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -94,7 +94,7 @@
 #include "pathnames.h"
 
 /*	"@(#)compat.c	8.2 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: compat.c,v 1.259 2024/06/15 20:02:45 rillig Exp $");
+MAKE_RCSID("$NetBSD: compat.c,v 1.260 2024/07/11 20:09:16 sjg Exp $");
 
 static GNode *curTarg = NULL;
 static pid_t compatChild;
@@ -249,6 +249,8 @@ Compat_RunCommand(const char *cmdp, GNode *gn, StringListNode *ln)
 	bool useShell;		/* True if command should be executed using a
 				 * shell */
 	const char *cmd = cmdp;
+	char cmd_file[MAXPATHLEN];
+	size_t cmd_len;
 
 	silent = (gn->type & OP_SILENT) != OP_NONE;
 	errCheck = !(gn->type & OP_IGNORE);
@@ -319,20 +321,20 @@ Compat_RunCommand(const char *cmdp, GNode *gn, StringListNode *ln)
 
 	DEBUG1(JOB, "Execute: '%s'\n", cmd);
 
-	if (useShell && shellPath == NULL)
-		Shell_Init();		/* we need shellPath */
+	cmd_len = strlen(cmd);
+	if (cmd_len > MAKE_CMDLEN_LIMIT)
+		useShell = true;
+	else
+		cmd_file[0] = '\0';
 
 	if (useShell) {
 		static const char *shargv[5];
 
-		/* The following work for any of the builtin shell specs. */
-		int shargc = 0;
-		shargv[shargc++] = shellPath;
-		if (errCheck && shellErrFlag != NULL)
-			shargv[shargc++] = shellErrFlag;
-		shargv[shargc++] = DEBUG(SHELL) ? "-xc" : "-c";
-		shargv[shargc++] = cmd;
-		shargv[shargc] = NULL;
+		if (Cmd_Argv(cmd, cmd_len, shargv, 5,
+			cmd_file, sizeof(cmd_file),
+			(errCheck && shellErrFlag != NULL),
+			DEBUG(SHELL)) < 0)
+			Fatal("cannot run \"%s\"", cmd);
 		av = shargv;
 		bp = NULL;
 		mav = NULL;
@@ -425,6 +427,8 @@ Compat_RunCommand(const char *cmdp, GNode *gn, StringListNode *ln)
 	}
 
 	free(cmdStart);
+	if (cmd_file[0] != '\0')
+		unlink(cmd_file);
 	compatChild = 0;
 	if (compatSigno != 0) {
 		bmake_signal(compatSigno, SIG_DFL);

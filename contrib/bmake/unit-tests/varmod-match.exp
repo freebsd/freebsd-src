@@ -1,13 +1,13 @@
-make: "varmod-match.mk" line 289: warning: while evaluating variable "WORDS": Unfinished character list in pattern 'a[' of modifier ':M'
-make: "varmod-match.mk" line 297: warning: while evaluating variable "WORDS": Unfinished character list in pattern 'a[^' of modifier ':M'
-make: "varmod-match.mk" line 305: warning: while evaluating variable "WORDS": Unfinished character list in pattern '[-x1-3' of modifier ':M'
-make: "varmod-match.mk" line 313: warning: while evaluating variable "WORDS": Unfinished character list in pattern '*[-x1-3' of modifier ':M'
-make: "varmod-match.mk" line 322: warning: while evaluating variable "WORDS": Unfinished character list in pattern '[^-x1-3' of modifier ':M'
-make: "varmod-match.mk" line 336: warning: while evaluating variable "WORDS": Unfinished character list in pattern '?[\' of modifier ':M'
-make: "varmod-match.mk" line 344: warning: while evaluating variable "WORDS": Unfinished character range in pattern '[x-' of modifier ':M'
-make: "varmod-match.mk" line 356: warning: while evaluating variable "WORDS": Unfinished character range in pattern '[^x-' of modifier ':M'
-make: "varmod-match.mk" line 364: warning: while evaluating variable " : :: ": Unfinished character list in pattern '[' of modifier ':M'
-make: "varmod-match.mk" line 364: while evaluating variable " : :: ": Unknown modifier "]"
+make: "varmod-match.mk" line 289: while evaluating variable "WORDS" with value "a a[": Unfinished character list in pattern 'a[' of modifier ':M'
+make: "varmod-match.mk" line 297: while evaluating variable "WORDS" with value "a a[ aX": Unfinished character list in pattern 'a[^' of modifier ':M'
+make: "varmod-match.mk" line 305: while evaluating variable "WORDS" with value "- + x xx 0 1 2 3 4 [x1-3": Unfinished character list in pattern '[-x1-3' of modifier ':M'
+make: "varmod-match.mk" line 313: while evaluating variable "WORDS" with value "- + x xx 0 1 2 3 4 00 01 10 11 000 001 010 011 100 101 110 111 [x1-3": Unfinished character list in pattern '*[-x1-3' of modifier ':M'
+make: "varmod-match.mk" line 322: while evaluating variable "WORDS" with value "- + x xx 0 1 2 3 4 [x1-3": Unfinished character list in pattern '[^-x1-3' of modifier ':M'
+make: "varmod-match.mk" line 336: while evaluating variable "WORDS" with value "\\ \a x\": Unfinished character list in pattern '?[\' of modifier ':M'
+make: "varmod-match.mk" line 344: while evaluating variable "WORDS" with value "[x- x x- y": Unfinished character range in pattern '[x-' of modifier ':M'
+make: "varmod-match.mk" line 356: while evaluating variable "WORDS" with value "[x- x x- y yyyyy": Unfinished character range in pattern '[^x-' of modifier ':M'
+make: "varmod-match.mk" line 364: while evaluating variable " : :: " with value " : :: ": Unfinished character list in pattern '[' of modifier ':M'
+make: "varmod-match.mk" line 364: while evaluating variable " : :: " with value "": Unknown modifier "]"
 make: "varmod-match.mk" line 364: Malformed conditional (${ ${:U\:} ${:U\:\:} :L:M[:]} != ":")
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests

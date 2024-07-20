@@ -1,4 +1,4 @@
-# $NetBSD: varmod-sun-shell.mk,v 1.2 2022/01/10 20:32:29 rillig Exp $
+# $NetBSD: varmod-sun-shell.mk,v 1.5 2024/07/04 17:47:54 rillig Exp $
 #
 # Tests for the :sh variable modifier, which runs the shell command
 # given by the variable value and returns its output.
@@ -12,15 +12,17 @@
 .  error
 .endif
 
-# If the command exits with non-zero, an error message is printed.
-# XXX: Processing continues as usual though.
-.if ${echo word; false:L:sh} != "word"
+# If the command exits with non-zero, a warning is printed.
+# expect+1: warning: while evaluating variable "echo word; (exit 13)" with value "echo word; (exit 13)": Command "echo word; (exit 13)" exited with status 13
+.if ${echo word; (exit 13):L:sh} != "word"
 .  error
 .endif
 
 
-.MAKEFLAGS: -dv			# to see the actual command
-_:=	${echo word; ${:Ufalse}:L:sh}
+.MAKEFLAGS: -dv			# to see the "Capturing" debug output
+# expect+1: warning: while evaluating variable "echo word; (exit 13)" with value "echo word; (exit 13)": Command "echo word; (exit 13)" exited with status 13
+_:=	${echo word; ${:U(exit 13)}:L:sh}
 .MAKEFLAGS: -d0
+
 
 all:

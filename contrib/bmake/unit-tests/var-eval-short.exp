@@ -1,4 +1,4 @@
-make: "var-eval-short.mk" line 46: while evaluating "${:Uword:@${FAIL}@expr@}": In the :@ modifier, the variable name "${FAIL}" must not contain a dollar
+make: "var-eval-short.mk" line 46: while parsing "${:Uword:@${FAIL}@expr@}": In the :@ modifier, the variable name "${FAIL}" must not contain a dollar
 make: "var-eval-short.mk" line 46: Malformed conditional (0 && ${:Uword:@${FAIL}@expr@})
 Parsing line 159: .if 0 && ${0:?${FAIL}then:${FAIL}else}
 CondParser_Eval: 0 && ${0:?${FAIL}then:${FAIL}else}
@@ -27,5 +27,5 @@ ParseDependency(.MAKEFLAGS: -d0)
 Global: .MAKEFLAGS =  -r -k -d cpv -d
 Global: .MAKEFLAGS =  -r -k -d cpv -d 0
 make: Fatal errors encountered -- cannot continue
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 exit status 1

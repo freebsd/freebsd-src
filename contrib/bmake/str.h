@@ -1,4 +1,4 @@
-/*	$NetBSD: str.h,v 1.19 2024/01/05 21:56:55 rillig Exp $	*/
+/*	$NetBSD: str.h,v 1.20 2024/07/07 07:50:57 rillig Exp $	*/
 
 /*
  Copyright (c) 2021 Roland Illig <rillig@NetBSD.org>
@@ -333,5 +333,7 @@ char *str_concat3(const char *, const char *, const char *);
 StrMatchResult Str_Match(const char *, const char *);
 
 void Str_Intern_Init(void);
+#ifdef CLEANUP
 void Str_Intern_End(void);
+#endif
 const char *Str_Intern(const char *);

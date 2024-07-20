@@ -1,4 +1,4 @@
-# $NetBSD: cmd-errors-jobs.mk,v 1.4 2024/04/23 22:51:28 rillig Exp $
+# $NetBSD: cmd-errors-jobs.mk,v 1.8 2024/07/09 19:43:01 rillig Exp $
 #
 # Demonstrate how errors in expressions affect whether the commands
 # are actually executed in jobs mode.
@@ -13,27 +13,26 @@ all: undefined unclosed-expression unclosed-modifier unknown-modifier end
 undefined:
 	: $@-${UNDEFINED}-eol
 
-# XXX: This command is executed even though it contains parse errors.
-# expect: make: in target "unclosed-expression": Unclosed variable "UNCLOSED"
-# expect: : unclosed-expression-
 unclosed-expression:
+# expect: make: in target "unclosed-expression": Unclosed variable "UNCLOSED"
+# XXX: This command is executed even though it contains parse errors.
+# expect: : unclosed-expression-
 	: $@-${UNCLOSED
 
-# XXX: This command is executed even though it contains parse errors.
-# expect: make: Unclosed expression, expecting '}' for "UNCLOSED"
-# expect: : unclosed-modifier-
 unclosed-modifier:
+# expect: make: in target "unclosed-modifier": while evaluating variable "UNCLOSED" with value "": Unclosed expression, expecting '}'
+# XXX: This command is executed even though it contains parse errors.
+# expect: : unclosed-modifier-
 	: $@-${UNCLOSED:
 
-# XXX: This command is executed even though it contains parse errors.
-# expect: make: in target "unknown-modifier": while evaluating variable "UNKNOWN": Unknown modifier "Z"
-# expect: : unknown-modifier--eol
 unknown-modifier:
+# expect: make: in target "unknown-modifier": while evaluating variable "UNKNOWN" with value "": Unknown modifier "Z"
+# XXX: This command is executed even though it contains parse errors.
+# expect: : unknown-modifier--eol
 	: $@-${UNKNOWN:Z}-eol
 
 # expect: : end-eol
 end:
 	: $@-eol
 
-# XXX: Despite the parse errors, the exit status is 0.
-# expect: exit status 0
+# expect: exit status 2

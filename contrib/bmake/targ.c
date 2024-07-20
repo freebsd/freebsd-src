@@ -1,4 +1,4 @@
-/*	$NetBSD: targ.c,v 1.183 2024/05/25 21:07:48 rillig Exp $	*/
+/*	$NetBSD: targ.c,v 1.184 2024/07/07 09:54:12 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -107,7 +107,7 @@
 #include "dir.h"
 
 /*	"@(#)targ.c	8.2 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: targ.c,v 1.183 2024/05/25 21:07:48 rillig Exp $");
+MAKE_RCSID("$NetBSD: targ.c,v 1.184 2024/07/07 09:54:12 rillig Exp $");
 
 /*
  * All target nodes that appeared on the left-hand side of one of the
@@ -126,23 +126,24 @@ void
 Targ_Init(void)
 {
 	HashTable_Init(&allTargetsByName);
+	SCOPE_INTERNAL = GNode_New("Internal");
+	SCOPE_GLOBAL = GNode_New("Global");
+	SCOPE_CMDLINE = GNode_New("Command");
 }
 
+#ifdef CLEANUP
 void
 Targ_End(void)
 {
-#ifdef CLEANUP
 	GNodeListNode *ln;
-#endif
-	Targ_Stats();
-#ifdef CLEANUP
+
 	Lst_Done(&allTargets);
 	HashTable_Done(&allTargetsByName);
 	for (ln = allNodes.first; ln != NULL; ln = ln->next)
 		GNode_Free(ln->datum);
 	Lst_Done(&allNodes);
-#endif
 }
+#endif
 
 void
 Targ_Stats(void)

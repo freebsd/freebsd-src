@@ -1,4 +1,4 @@
-# $NetBSD: varmod-sysv.mk,v 1.17 2024/06/01 18:44:05 rillig Exp $
+# $NetBSD: varmod-sysv.mk,v 1.19 2024/07/04 17:47:54 rillig Exp $
 #
 # Tests for the variable modifier ':from=to', which replaces the suffix
 # "from" with "to".  It can also use '%' as a wildcard.
@@ -208,11 +208,12 @@
 
 # This is not a SysV modifier since the nested expression expands
 # to an empty string.  The '=' in it should be irrelevant during parsing.
-# XXX: As of 2020-12-05, this expression generates an "Unfinished modifier"
+# XXX: As of 2024-06-30, this expression generates an "Unfinished modifier"
 # error, while the correct error message would be "Unknown modifier" since
 # there is no modifier named "fromto".
-# expect+1: Malformed conditional (${word214:L:from${:D=}to})
-.if ${word214:L:from${:D=}to}
+# expect+2: while evaluating variable "word216" with value "word216": Unfinished modifier ('=' missing)
+# expect+1: Malformed conditional (${word216:L:from${:D=}to})
+.if ${word216:L:from${:D=}to}
 .  error
 .endif
 
@@ -255,6 +256,7 @@ INDIRECT=	1:${VALUE} 2:$${VALUE} 4:$$$${VALUE}
 
 # The error case of an unfinished ':from=to' modifier after the '=' requires
 # an expression that is missing the closing '}'.
+# expect+2: while evaluating variable "error" with value "error": Unfinished modifier ('}' missing)
 # expect+1: Malformed conditional (${error:L:from=$(}))
 .if ${error:L:from=$(})
 .endif

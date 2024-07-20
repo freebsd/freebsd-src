@@ -13,7 +13,7 @@ Test case all=ok all-dep=ok end=ok end-dep=ERR.
 *** Error code 1 (continuing)
 
 Stop.
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 exit status 1
 
 
@@ -25,7 +25,7 @@ Test case all=ok all-dep=ok end=ERR end-dep=ok.
 *** Error code 1 (continuing)
 
 Stop.
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 exit status 1
 
 
@@ -36,7 +36,7 @@ Test case all=ok all-dep=ok end=ERR end-dep=ERR.
 *** Error code 1 (continuing)
 
 Stop.
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 exit status 1
 
 
@@ -46,7 +46,7 @@ Test case all=ok all-dep=ERR end=ok end-dep=ok.
 `all' not remade because of errors.
 
 Stop.
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 exit status 1
 
 
@@ -56,7 +56,7 @@ Test case all=ok all-dep=ERR end=ok end-dep=ERR.
 `all' not remade because of errors.
 
 Stop.
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 exit status 1
 
 
@@ -66,7 +66,7 @@ Test case all=ok all-dep=ERR end=ERR end-dep=ok.
 `all' not remade because of errors.
 
 Stop.
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 exit status 1
 
 
@@ -76,7 +76,7 @@ Test case all=ok all-dep=ERR end=ERR end-dep=ERR.
 `all' not remade because of errors.
 
 Stop.
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 exit status 1
 
 
@@ -86,7 +86,7 @@ Test case all=ERR all-dep=ok end=ok end-dep=ok.
 *** Error code 1 (continuing)
 
 Stop.
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 exit status 1
 
 
@@ -96,7 +96,7 @@ Test case all=ERR all-dep=ok end=ok end-dep=ERR.
 *** Error code 1 (continuing)
 
 Stop.
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 exit status 1
 
 
@@ -106,7 +106,7 @@ Test case all=ERR all-dep=ok end=ERR end-dep=ok.
 *** Error code 1 (continuing)
 
 Stop.
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 exit status 1
 
 
@@ -116,7 +116,7 @@ Test case all=ERR all-dep=ok end=ERR end-dep=ERR.
 *** Error code 1 (continuing)
 
 Stop.
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 exit status 1
 
 
@@ -126,7 +126,7 @@ Test case all=ERR all-dep=ERR end=ok end-dep=ok.
 `all' not remade because of errors.
 
 Stop.
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 exit status 1
 
 
@@ -136,7 +136,7 @@ Test case all=ERR all-dep=ERR end=ok end-dep=ERR.
 `all' not remade because of errors.
 
 Stop.
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 exit status 1
 
 
@@ -146,7 +146,7 @@ Test case all=ERR all-dep=ERR end=ERR end-dep=ok.
 `all' not remade because of errors.
 
 Stop.
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 exit status 1
 
 
@@ -156,7 +156,7 @@ Test case all=ERR all-dep=ERR end=ERR end-dep=ERR.
 `all' not remade because of errors.
 
 Stop.
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 exit status 1
 
 
