@@ -758,7 +758,7 @@ cam_iosched_cl_maybe_steer(struct control_loop *clp)
 #ifdef CAM_IOSCHED_DYNAMIC
 static void
 cam_iosched_io_metric_update(struct cam_iosched_softc *isc,
-    sbintime_t sim_latency, int cmd, size_t size);
+    sbintime_t sim_latency, const struct bio *bp);
 #endif
 
 static inline bool
@@ -1801,8 +1801,8 @@ cam_iosched_bio_complete(struct cam_iosched_softc *isc, struct bio *bp,
 		
 		sim_latency = cam_iosched_sbintime_t(done_ccb->ccb_h.qos.periph_data);
 		
-		cam_iosched_io_metric_update(isc, sim_latency,
-		    bp->bio_cmd, bp->bio_bcount);
+		cam_iosched_io_metric_update(isc, sim_latency, bp);
+
 		/*
 		 * Debugging code: allow callbacks to the periph driver when latency max
 		 * is exceeded. This can be useful for triggering external debugging actions.
@@ -1924,7 +1924,8 @@ static sbintime_t latencies[LAT_BUCKETS - 1] = {
 };
 
 static void
-cam_iosched_update(struct iop_stats *iop, sbintime_t sim_latency)
+cam_iosched_update(struct iop_stats *iop, sbintime_t sim_latency,
+    const struct bio *bp __unused)
 {
 	sbintime_t y, deltasq, delta;
 	int i;
@@ -2014,18 +2015,17 @@ cam_iosched_update(struct iop_stats *iop, sbintime_t sim_latency)
 
 static void
 cam_iosched_io_metric_update(struct cam_iosched_softc *isc,
-    sbintime_t sim_latency, int cmd, size_t size)
+    sbintime_t sim_latency, const struct bio *bp)
 {
-	/* xxx Do we need to scale based on the size of the I/O ? */
-	switch (cmd) {
+	switch (bp->bio_cmd) {
 	case BIO_READ:
-		cam_iosched_update(&isc->read_stats, sim_latency);
+		cam_iosched_update(&isc->read_stats, sim_latency, bp);
 		break;
 	case BIO_WRITE:
-		cam_iosched_update(&isc->write_stats, sim_latency);
+		cam_iosched_update(&isc->write_stats, sim_latency, bp);
 		break;
 	case BIO_DELETE:
-		cam_iosched_update(&isc->trim_stats, sim_latency);
+		cam_iosched_update(&isc->trim_stats, sim_latency, bp);
 		break;
 	default:
 		break;
