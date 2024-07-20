@@ -3,7 +3,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd July 18, 2024
+.Dd July 20, 2024
 .Dt CDEFS 9
 .Os
 .Sh NAME
@@ -281,7 +281,7 @@ still uses these.
 supports a number C standard environments.
 Selection of the language dialect is a compiler-dependent command line option,
 though it is usually
-.Fl cstd=XX
+.Fl std=XX
 where XX is the standard to set for compiling, such as c89 or c23.
 .Fx
 provides a number of selection macros to control visibility of symbols.
@@ -402,6 +402,45 @@ extensions are visible, 0 otherwise.
 .St -isoC-2011
 Appendix K 3.7.4.1
 extensions are visible, 0 otherwise.
+.Sh Supported C++ Environments
+.Fx
+supports C++11 and newer standards fully.
+.Bl -tag
+.It ISO/IEC 14882:1998 ("C++98")
+.Dv __cplusplus = 199711
+.Pp
+The first standardized version of C++.
+Unlike K \*(Am R support in C, compilers dropped support for versions of
+the language prior to C++98.
+.It ISO/IEC 14882:2003 ("C++03")
+.Dv __cplusplus = 199711
+.Pp
+Note, this is the same value as C++98.
+C++03 did not define a new value for
+.Dv __cplusplus .
+There is no way, at compile time, to detect the difference.
+The standard resolved a number of defect reports and slightly
+expanded value initialization.
+Most compilers support it the same as C++98.
+.It ISO/IEC 14882:2011 ("C++11")
+.Dv __cplusplus = 201103
+.It ISO/IEC 14882:2014 ("C++14")
+.Dv __cplusplus = 201402
+.It ISO/IEC 14882:2017 ("C++17")
+.Dv __cplusplus = 201703
+.It ISO/IEC 14882:2020 ("C++20")
+.Dv __cplusplus = 202002
+.It ISO/IEC 14882:2023 ("C++23")
+.Dv __cplusplus = 202302
+.El
+.Pp
+.Fx
+uses llvm project's libc++.
+However, they are removing support for C++ prior to C++11.
+While programs can still build with earlier environments for now, these changes
+mean that
+.Fl pedantic-errors
+cannot be reliably enabled for standards older than C++11.
 .Sh HISTORY
 .In sys/cdefs.h
 first appeared in
