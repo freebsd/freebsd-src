@@ -271,6 +271,9 @@ struct iop_stats {
 	sbintime_t      emvar;
 	sbintime_t      sd;		/* Last computed sd */
 
+	uint64_t	too_long;	/* Number of I/Os greater than bad lat threshold */
+	sbintime_t	bad_latency;	/* Latency threshold */
+
 	uint32_t	state_flags;
 #define IOP_RATE_LIMITED		1u
 
@@ -856,6 +859,7 @@ cam_iosched_iop_stats_init(struct cam_iosched_softc *isc, struct iop_stats *ios)
 	ios->total = 0;
 	ios->ema = 0;
 	ios->emvar = 0;
+	ios->bad_latency = SBT_1S / 2;	/* Default to 500ms */
 	ios->softc = isc;
 	cam_iosched_limiter_init(ios);
 }
@@ -1046,6 +1050,15 @@ cam_iosched_iop_stats_sysctl_init(struct cam_iosched_softc *isc, struct iop_stat
 	    OID_AUTO, "errs", CTLFLAG_RD,
 	    &ios->errs, 0,
 	    "# of transactions completed with an error");
+	SYSCTL_ADD_U64(ctx, n,
+	    OID_AUTO, "too_long", CTLFLAG_RD,
+	    &ios->too_long, 0,
+	    "# of transactions completed took too long");
+	SYSCTL_ADD_PROC(ctx, n,
+	    OID_AUTO, "bad_latency",
+	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
+	    &ios->bad_latency, 0, cam_iosched_sbintime_sysctl, "A",
+	    "Threshold for counting transactions that took too long (in us)");
 
 	SYSCTL_ADD_PROC(ctx, n,
 	    OID_AUTO, "limiter",
@@ -1915,6 +1928,14 @@ cam_iosched_update(struct iop_stats *iop, sbintime_t sim_latency)
 {
 	sbintime_t y, deltasq, delta;
 	int i;
+
+	/*
+	 * Simple threshold: count the number of events that excede the
+	 * configured threshold.
+	 */
+	if (sim_latency > iop->bad_latency) {
+		iop->too_long++;
+	}
 
 	/*
 	 * Keep counts for latency. We do it by power of two buckets.
