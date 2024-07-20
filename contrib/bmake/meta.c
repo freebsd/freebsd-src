@@ -36,6 +36,9 @@
 # include "config.h"
 #endif
 #include <sys/stat.h>
+#if defined(HAVE_SYS_SELECT_H)
+# include <sys/select.h>
+#endif
 #ifdef HAVE_LIBGEN_H
 #include <libgen.h>
 #elif !defined(HAVE_DIRNAME)

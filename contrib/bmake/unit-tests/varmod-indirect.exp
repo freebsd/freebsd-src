@@ -1,5 +1,5 @@
-make: "varmod-indirect.mk" line 19: while evaluating variable "value": Unknown modifier "${"
-make: "varmod-indirect.mk" line 52: while evaluating variable "value": Unknown modifier "${"
+make: "varmod-indirect.mk" line 19: while evaluating variable "value" with value "value": Unknown modifier "${"
+make: "varmod-indirect.mk" line 52: while evaluating variable "value" with value "value": Unknown modifier "${"
 make: "varmod-indirect.mk" line 54: warning: FIXME: this expression should have resulted in a parse error rather than returning the unparsed portion of the expression.
 make: "varmod-indirect.mk" line 143: before
 make: "varmod-indirect.mk" line 143: after
@@ -7,7 +7,7 @@ make: "varmod-indirect.mk" line 151: before
 make: "varmod-indirect.mk" line 151: after
 make: "varmod-indirect.mk" line 159: before
 make: "varmod-indirect.mk" line 159: after
-make: "varmod-indirect.mk" line 164: while evaluating variable "UNDEF": Unknown modifier "Z"
+make: "varmod-indirect.mk" line 164: while evaluating variable "UNDEF" with value "": Unknown modifier "Z"
 make: "varmod-indirect.mk" line 167: before
 make: "varmod-indirect.mk" line 167: after
 Parsing line 176: _:=	before ${UNDEF} after
@@ -31,7 +31,7 @@ Parsing line 195: _:=	before ${UNDEF:${:UZ}} after
 Var_Parse: ${UNDEF:${:UZ}} after (eval-keep-dollar-and-undefined)
 Indirect modifier "Z" from "${:UZ}"
 Evaluating modifier ${UNDEF:Z} on value "" (eval-keep-dollar-and-undefined, undefined)
-make: "varmod-indirect.mk" line 195: while evaluating variable "UNDEF": Unknown modifier "Z"
+make: "varmod-indirect.mk" line 195: while evaluating variable "UNDEF" with value "": Unknown modifier "Z"
 Result of ${UNDEF:Z} is error (eval-keep-dollar-and-undefined, undefined)
 Global: _ = before ${UNDEF:Z} after
 Parsing line 197: .MAKEFLAGS: -d0

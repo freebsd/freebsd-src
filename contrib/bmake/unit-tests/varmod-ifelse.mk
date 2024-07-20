@@ -1,4 +1,4 @@
-# $NetBSD: varmod-ifelse.mk,v 1.29 2024/06/02 15:31:26 rillig Exp $
+# $NetBSD: varmod-ifelse.mk,v 1.32 2024/07/05 20:01:52 rillig Exp $
 #
 # Tests for the ${cond:?then:else} variable modifier, which evaluates either
 # the then-expression or the else-expression, depending on the condition.
@@ -24,6 +24,7 @@
 # Evaluating the variable name lazily would require additional code in
 # Var_Parse and ParseVarname, it would be more useful and predictable
 # though.
+# expect+2: while evaluating condition "bare words == "literal"": Bad condition
 # expect+1: Malformed conditional (${${:Ubare words} == "literal":?bad:bad})
 .if ${${:Ubare words} == "literal":?bad:bad}
 .  error
@@ -35,6 +36,7 @@
 # Because of the early expansion, the whole condition evaluates to
 # ' == ""' though, which cannot be parsed because the left-hand side looks
 # empty.
+# expect+1: while evaluating condition " == """: Bad condition
 COND:=	${${UNDEF} == "":?bad-assign:bad-assign}
 
 # In a condition, undefined variables generate a "Malformed conditional"
@@ -42,6 +44,7 @@ COND:=	${${UNDEF} == "":?bad-assign:bad-assign}
 # "Undefined variable" error message is generated.
 # The difference to the ':=' variable assignment is the additional
 # "Malformed conditional" error message.
+# expect+2: while evaluating condition " == """: Bad condition
 # expect+1: Malformed conditional (${${UNDEF} == "":?bad-cond:bad-cond})
 .if ${${UNDEF} == "":?bad-cond:bad-cond}
 .  error
@@ -65,6 +68,7 @@ COND:=	${${UNDEF} == "":?bad-assign:bad-assign}
 # conditional therefore returns a parse error from Var_Parse, and this parse
 # error propagates to CondEvalExpression, where the "Malformed conditional"
 # comes from.
+# expect+2: while evaluating condition "1 == == 2": Bad condition
 # expect+1: Malformed conditional (${1 == == 2:?yes:no} != "")
 .if ${1 == == 2:?yes:no} != ""
 .  error
@@ -89,6 +93,7 @@ COND:=	${${UNDEF} == "":?bad-assign:bad-assign}
 # condition should be detected as being malformed before any comparison is
 # done since there is no well-formed comparison in the condition at all.
 .MAKEFLAGS: -dc
+# expect+1: while evaluating condition "1 == == 2": Bad condition
 .if "${1 == == 2:?yes:no}" != ""
 .  error
 .else
@@ -156,18 +161,18 @@ STRING=		string
 NUMBER=		no		# not really a number
 # expect+1: no.
 .info ${${STRING} == "literal" && ${NUMBER} >= 10:?yes:no}.
-# expect+3: while evaluating variable "string == "literal" || no >= 10": Comparison with '>=' requires both operands 'no' and '10' to be numeric
-# expect: make: Bad conditional expression 'string == "literal" || no >= 10' before '?yes:no'
+# expect+3: while evaluating condition "string == "literal" || no >= 10": Comparison with '>=' requires both operands 'no' and '10' to be numeric
+# expect+2: while evaluating condition "string == "literal" || no >= 10": Bad condition
 # expect+1: .
 .info ${${STRING} == "literal" || ${NUMBER} >= 10:?yes:no}.
 
 # The following situation occasionally occurs with MKINET6 or similar
 # variables.
 NUMBER=		# empty, not really a number either
-# expect: make: Bad conditional expression 'string == "literal" &&  >= 10' before '?yes:no'
+# expect+2: while evaluating condition "string == "literal" &&  >= 10": Bad condition
 # expect+1: .
 .info ${${STRING} == "literal" && ${NUMBER} >= 10:?yes:no}.
-# expect: make: Bad conditional expression 'string == "literal" ||  >= 10' before '?yes:no'
+# expect+2: while evaluating condition "string == "literal" ||  >= 10": Bad condition
 # expect+1: .
 .info ${${STRING} == "literal" || ${NUMBER} >= 10:?yes:no}.
 
@@ -182,6 +187,7 @@ EMPTY=		# empty
 # expect+1: <false>
 .info <${${ASTERISK}	:?true:false}>
 # syntax error since the condition is completely blank.
+# expect+2: while evaluating condition "	": Bad condition
 # expect+1: <>
 .info <${${EMPTY}	:?true:false}>
 
@@ -304,4 +310,10 @@ YES=	${1:?${BRACES:S,}}},yes,}:${BRACES:S,}}},no,}}
 BOTH=	<${YES}> <${NO}>
 .if ${BOTH} != "<yes> <no>"
 .  error
+.endif
+
+
+# expect+2: while evaluating then-branch of condition "1": while evaluating "${:X-then}:${:X-else}}" with value "": Unknown modifier "X-then"
+# expect+1: while evaluating else-branch of condition "1": while parsing "${:X-else}}": Unknown modifier "X-else"
+.if ${1:?${:X-then}:${:X-else}}
 .endif

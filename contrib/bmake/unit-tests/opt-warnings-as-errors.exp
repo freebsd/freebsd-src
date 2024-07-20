@@ -3,5 +3,5 @@ make: parsing warnings being treated as errors
 make: "opt-warnings-as-errors.mk" line 15: warning: message 2
 parsing continues
 make: Fatal errors encountered -- cannot continue
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 exit status 1
