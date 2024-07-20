@@ -1,8 +1,11 @@
 make: "directive-for-if.mk" line 51: if-less endif
+	in .for loop from directive-for-if.mk:46 with directive = if
 make: "directive-for-if.mk" line 51: if-less endif
+	in .for loop from directive-for-if.mk:46 with directive = ifdef
 make: "directive-for-if.mk" line 51: if-less endif
+	in .for loop from directive-for-if.mk:46 with directive = ifndef
 VAR1
 VAR3
 make: Fatal errors encountered -- cannot continue
-make: stopped in unit-tests
+make: stopped making "." in unit-tests
 exit status 1

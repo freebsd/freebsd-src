@@ -137,5 +137,5 @@ make: don't know how to make suff-main-several.4 (continuing)
 `next-main' not remade because of errors.
 
 Stop.
-make: stopped in unit-tests
+make: stopped making "next-main" in unit-tests
 exit status 1

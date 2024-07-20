@@ -1,4 +1,4 @@
-/*	$NetBSD: job.c,v 1.477 2024/06/25 05:18:38 rillig Exp $	*/
+/*	$NetBSD: job.c,v 1.480 2024/07/07 07:50:57 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -154,7 +154,7 @@
 #include "trace.h"
 
 /*	"@(#)job.c	8.2 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: job.c,v 1.477 2024/06/25 05:18:38 rillig Exp $");
+MAKE_RCSID("$NetBSD: job.c,v 1.480 2024/07/07 07:50:57 rillig Exp $");
 
 /*
  * A shell defines how the commands are run.  All commands for a target are
@@ -428,7 +428,7 @@ static Shell shells[] = {
  * It is set by the Job_ParseShell function.
  */
 static Shell *shell = &shells[DEFSHELL_INDEX];
-const char *shellPath = NULL;	/* full pathname of executable image */
+char *shellPath;		/* full pathname of executable image */
 const char *shellName = NULL;	/* last component of shellPath */
 char *shellErrFlag = NULL;
 static char *shell_freeIt = NULL; /* Allocated memory for custom .SHELL */
@@ -623,7 +623,6 @@ JobCondPassSig(int signo)
  *
  * Sends a token on the child exit pipe to wake us up from select()/poll().
  */
-/*ARGSUSED*/
 static void
 JobChildSig(int signo MAKE_ATTR_UNUSED)
 {
@@ -635,7 +634,6 @@ JobChildSig(int signo MAKE_ATTR_UNUSED)
 
 
 /* Resume all stopped jobs. */
-/*ARGSUSED*/
 static void
 JobContinueSig(int signo MAKE_ATTR_UNUSED)
 {
@@ -2175,7 +2173,7 @@ InitShellNameAndPath(void)
 	}
 #endif
 #ifdef DEFSHELL_PATH
-	shellPath = DEFSHELL_PATH;
+	shellPath = bmake_strdup(DEFSHELL_PATH);
 #else
 	shellPath = str_concat3(_PATH_DEFSHELLDIR, "/", shellName);
 #endif
@@ -2516,13 +2514,13 @@ Job_ParseShell(char *line)
 				 * Shell_Init has already been called!
 				 * Do it again.
 				 */
-				free(UNCONST(shellPath));
+				free(shellPath);
 				shellPath = NULL;
 				Shell_Init();
 			}
 		}
 	} else {
-		free(UNCONST(shellPath));
+		free(shellPath);
 		shellPath = bmake_strdup(path);
 		shellName = newShell.name != NULL ? newShell.name
 		    : str_basename(path);
@@ -2630,14 +2628,14 @@ Job_Finish(void)
 	return job_errors;
 }
 
+#ifdef CLEANUP
 /* Clean up any memory used by the jobs module. */
 void
 Job_End(void)
 {
-#ifdef CLEANUP
 	free(shell_freeIt);
-#endif
 }
+#endif
 
 /*
  * Waits for all running jobs to finish and returns.

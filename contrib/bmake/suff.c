@@ -1,4 +1,4 @@
-/*	$NetBSD: suff.c,v 1.380 2024/06/02 15:31:26 rillig Exp $	*/
+/*	$NetBSD: suff.c,v 1.382 2024/07/07 07:50:57 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -115,7 +115,7 @@
 #include "dir.h"
 
 /*	"@(#)suff.c	8.4 (Berkeley) 3/21/94"	*/
-MAKE_RCSID("$NetBSD: suff.c,v 1.380 2024/06/02 15:31:26 rillig Exp $");
+MAKE_RCSID("$NetBSD: suff.c,v 1.382 2024/07/07 07:50:57 rillig Exp $");
 
 typedef List SuffixList;
 typedef ListNode SuffixListNode;
@@ -979,7 +979,6 @@ Candidate_New(char *name, char *prefix, Suffix *suff, Candidate *parent,
 }
 
 /* Add a new candidate to the list. */
-/*ARGSUSED*/
 static void
 CandidateList_Add(CandidateList *list, char *srcName, Candidate *targ,
 		  Suffix *suff, const char *debug_tag MAKE_ATTR_UNUSED)
@@ -2042,11 +2041,11 @@ Suff_Init(void)
 	Suff_ClearSuffixes();
 }
 
+#ifdef CLEANUP
 /* Clean up the suffixes module. */
 void
 Suff_End(void)
 {
-#ifdef CLEANUP
 	SuffixListNode *ln;
 
 	for (ln = sufflist.first; ln != NULL; ln = ln->next)
@@ -2058,8 +2057,8 @@ Suff_End(void)
 	if (nullSuff != NULL)
 		Suffix_Free(nullSuff);
 	Lst_Done(&transforms);
-#endif
 }
+#endif
 
 
 static void

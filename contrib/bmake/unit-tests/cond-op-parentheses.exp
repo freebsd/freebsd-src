@@ -3,5 +3,5 @@ make: "cond-op-parentheses.mk" line 25: Malformed conditional ((3) > 2)
 make: "cond-op-parentheses.mk" line 44: Malformed conditional (()
 make: "cond-op-parentheses.mk" line 58: Malformed conditional ())
 make: Fatal errors encountered -- cannot continue
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 exit status 1

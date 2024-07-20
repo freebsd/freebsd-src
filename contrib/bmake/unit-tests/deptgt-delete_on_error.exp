@@ -15,7 +15,7 @@ make: *** deptgt-delete_on_error-regular-delete removed
 *** Error code 1 (continuing)
 
 Stop.
-make: stopped in unit-tests
+make: stopped making "deptgt-delete_on_error-regular deptgt-delete_on_error-regular-delete deptgt-delete_on_error-phony deptgt-delete_on_error-phony-delete deptgt-delete_on_error-precious deptgt-delete_on_error-precious-delete" in unit-tests
 *** Error code 1 (ignored)
 
 Parallel mode
@@ -23,27 +23,27 @@ Parallel mode
 *** [deptgt-delete_on_error-regular] Error code 1
 make: *** deptgt-delete_on_error-regular removed
 
-make: stopped in unit-tests
+make: stopped making "deptgt-delete_on_error-regular deptgt-delete_on_error-regular-delete deptgt-delete_on_error-phony deptgt-delete_on_error-phony-delete deptgt-delete_on_error-precious deptgt-delete_on_error-precious-delete" in unit-tests
 > deptgt-delete_on_error-regular-delete; false
 *** [deptgt-delete_on_error-regular-delete] Error code 1
 make: *** deptgt-delete_on_error-regular-delete removed
 
-make: stopped in unit-tests
+make: stopped making "deptgt-delete_on_error-regular deptgt-delete_on_error-regular-delete deptgt-delete_on_error-phony deptgt-delete_on_error-phony-delete deptgt-delete_on_error-precious deptgt-delete_on_error-precious-delete" in unit-tests
 > deptgt-delete_on_error-phony; false
 *** [deptgt-delete_on_error-phony] Error code 1
 
-make: stopped in unit-tests
+make: stopped making "deptgt-delete_on_error-regular deptgt-delete_on_error-regular-delete deptgt-delete_on_error-phony deptgt-delete_on_error-phony-delete deptgt-delete_on_error-precious deptgt-delete_on_error-precious-delete" in unit-tests
 > deptgt-delete_on_error-phony-delete; false
 *** [deptgt-delete_on_error-phony-delete] Error code 1
 
-make: stopped in unit-tests
+make: stopped making "deptgt-delete_on_error-regular deptgt-delete_on_error-regular-delete deptgt-delete_on_error-phony deptgt-delete_on_error-phony-delete deptgt-delete_on_error-precious deptgt-delete_on_error-precious-delete" in unit-tests
 > deptgt-delete_on_error-precious; false
 *** [deptgt-delete_on_error-precious] Error code 1
 
-make: stopped in unit-tests
+make: stopped making "deptgt-delete_on_error-regular deptgt-delete_on_error-regular-delete deptgt-delete_on_error-phony deptgt-delete_on_error-phony-delete deptgt-delete_on_error-precious deptgt-delete_on_error-precious-delete" in unit-tests
 > deptgt-delete_on_error-precious-delete; false
 *** [deptgt-delete_on_error-precious-delete] Error code 1
 
-make: stopped in unit-tests
+make: stopped making "deptgt-delete_on_error-regular deptgt-delete_on_error-regular-delete deptgt-delete_on_error-phony deptgt-delete_on_error-phony-delete deptgt-delete_on_error-precious deptgt-delete_on_error-precious-delete" in unit-tests
 *** Error code 1 (ignored)
 exit status 0

@@ -37,18 +37,18 @@ Global: .MAKEOVERRIDES =  FIRST LAST LAST LAST APPENDED RAN RAN RAN IT1 THEN1 IE
 Result of ${CMD_NEW_VAR::=new-value} is "" (eval, undefined)
 Global: .MAKEFLAGS =  -r -k -d v -d 0 -d v -d
 Global: .MAKEFLAGS =  -r -k -d v -d 0 -d v -d 0
-make: Bad modifier ":" for variable ""
+make: in target "mod-assign-empty": while evaluating "${::=value}" with value "": Bad modifier ":"
 mod-assign-empty: value}
-make: Bad modifier ":" for variable ""
+make: in target "mod-assign-empty": while evaluating "${:Uvalue::=overwritten}" with value "value": Bad modifier ":"
 mod-assign-empty: overwritten}
 mod-assign-empty: VAR=overwritten
-make: in target "mod-assign-parse": while evaluating variable "ASSIGN": Unknown modifier ":x"
+make: in target "mod-assign-parse": while evaluating variable "ASSIGN" with value "": Unknown modifier ":x"
 
 sysv:y
-make: Unfinished modifier for "ASSIGN" ('}' missing)
+make: in target "mod-assign-parse": while evaluating variable "ASSIGN" with value "": Unfinished modifier ('}' missing)
 
 ok=word
-make: " echo word; false " returned non-zero status
+make: warning: in target "mod-assign-shell-error": while evaluating variable "SH_ERR" with value "previous": Command " echo word; (exit 13) " exited with status 13
 err=previous
 Command: TARGET_CMD_VAR = cmd-value
 Global: TARGET_GLOBAL_VAR = global-value
@@ -57,4 +57,4 @@ target: TARGET_TARGET_VAR = new-value
 Global: TARGET_GLOBAL_VAR = new-value
 Global: TARGET_ENV_VAR = new-value
 target: TARGET_NEW_VAR = new-value
-exit status 0
+exit status 2

@@ -1,4 +1,4 @@
-/*	$NetBSD: job.h,v 1.78 2023/12/19 19:33:39 rillig Exp $	*/
+/*	$NetBSD: job.h,v 1.80 2024/07/07 07:50:57 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -179,7 +179,7 @@ typedef struct Job {
 #endif
 } Job;
 
-extern const char *shellPath;
+extern char *shellPath;
 extern const char *shellName;
 extern char *shellErrFlag;
 
@@ -196,7 +196,9 @@ void Job_Make(GNode *);
 void Job_Init(void);
 bool Job_ParseShell(char *) MAKE_ATTR_USE;
 int Job_Finish(void);
+#ifdef CLEANUP
 void Job_End(void);
+#endif
 void Job_Wait(void);
 void Job_AbortAll(void);
 void Job_TokenReturn(void);

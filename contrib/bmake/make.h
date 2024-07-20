@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.339 2024/06/15 20:02:45 rillig Exp $	*/
+/*	$NetBSD: make.h,v 1.344 2024/07/11 20:09:16 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -114,7 +114,7 @@
 #define MAKE_GNUC_PREREQ(x, y)	0
 #endif
 
-#if MAKE_GNUC_PREREQ(2, 7)
+#if MAKE_GNUC_PREREQ(2, 7) || lint
 #define MAKE_ATTR_UNUSED	__attribute__((__unused__))
 #else
 #define MAKE_ATTR_UNUSED	/* delete */
@@ -811,7 +811,9 @@ extern char **environ;
 
 /* arch.c */
 void Arch_Init(void);
+#ifdef CLEANUP
 void Arch_End(void);
+#endif
 
 bool Arch_ParseArchive(char **, GNodeList *, GNode *);
 void Arch_Touch(GNode *);
@@ -866,8 +868,13 @@ void For_Break(struct ForLoop *);
 /* job.c */
 void JobReapChild(pid_t, int, bool);
 
+/* longer than this we use a temp file */
+#ifndef MAKE_CMDLEN_LIMIT
+# define MAKE_CMDLEN_LIMIT 1000
+#endif
 /* main.c */
 void Main_ParseArgLine(const char *);
+int Cmd_Argv(const char *, size_t, const char **, size_t, char *, size_t, bool, bool);
 char *Cmd_Exec(const char *, char **) MAKE_ATTR_USE;
 void Error(const char *, ...) MAKE_ATTR_PRINTFLIKE(1, 2);
 void Fatal(const char *, ...) MAKE_ATTR_PRINTFLIKE(1, 2) MAKE_ATTR_DEAD;
@@ -882,8 +889,11 @@ const char *cached_realpath(const char *, char *);
 bool GetBooleanExpr(const char *, bool);
 
 /* parse.c */
+extern int parseErrors;
 void Parse_Init(void);
+#ifdef CLEANUP
 void Parse_End(void);
+#endif
 
 void PrintLocation(FILE *, bool, const GNode *);
 void PrintStackTrace(bool);
@@ -893,7 +903,6 @@ void Parse_File(const char *, int);
 void Parse_PushInput(const char *, unsigned, unsigned, Buffer,
 		     struct ForLoop *);
 void Parse_MainName(GNodeList *);
-int Parse_NumErrors(void) MAKE_ATTR_USE;
 unsigned int CurFile_CondMinDepth(void) MAKE_ATTR_USE;
 void Parse_GuardElse(void);
 void Parse_GuardEndif(void);
@@ -901,7 +910,9 @@ void Parse_GuardEndif(void);
 
 /* suff.c */
 void Suff_Init(void);
+#ifdef CLEANUP
 void Suff_End(void);
+#endif
 
 void Suff_ClearSuffixes(void);
 bool Suff_IsTransform(const char *) MAKE_ATTR_USE;
@@ -941,7 +952,6 @@ const char *GNodeMade_Name(GNodeMade) MAKE_ATTR_USE;
 #ifdef CLEANUP
 void Parse_RegisterCommand(char *);
 #else
-/* ARGSUSED */
 MAKE_INLINE
 void Parse_RegisterCommand(char *cmd MAKE_ATTR_UNUSED)
 {
@@ -949,8 +959,6 @@ void Parse_RegisterCommand(char *cmd MAKE_ATTR_UNUSED)
 #endif
 
 /* var.c */
-void Var_Init(void);
-void Var_End(void);
 
 typedef enum VarEvalMode {
 

@@ -33,5 +33,5 @@ word1 word2
 `all' not remade because of errors.
 
 Stop.
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 exit status 1

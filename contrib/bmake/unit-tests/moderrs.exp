@@ -1,137 +1,115 @@
-mod-unknown-direct:
-want: Unknown modifier 'Z'
-make: in target "mod-unknown-direct": while evaluating variable "VAR": Unknown modifier "Z"
+make: in target "mod-unknown-direct": while evaluating variable "VAR" with value "TheVariable": Unknown modifier "Z"
 VAR:Z=before--after
 
-mod-unknown-indirect:
-want: Unknown modifier 'Z'
-make: in target "mod-unknown-indirect": while evaluating variable "VAR": Unknown modifier "Z"
+make: in target "mod-unknown-indirect": while evaluating variable "VAR" with value "TheVariable": Unknown modifier "Z"
 VAR:Z=before-inner}-after
 
 unclosed-direct:
-want: Unclosed expression, expecting '}' for modifier "S,V,v," of variable "VAR" with value "Thevariable"
-make: Unclosed expression, expecting '}' for modifier "S,V,v," of variable "VAR" with value "Thevariable"
+make: in target "unclosed-direct": while evaluating variable "VAR" with value "Thevariable": Unclosed expression, expecting '}' for modifier "S,V,v,"
 VAR:S,V,v,=Thevariable
 
 unclosed-indirect:
-want: Unclosed expression after indirect modifier, expecting '}' for variable "VAR"
-make: Unclosed expression after indirect modifier, expecting '}' for variable "VAR"
+make: in target "unclosed-indirect": while evaluating variable "VAR" with value "Thevariable": Unclosed expression after indirect modifier, expecting '}'
 VAR:S,V,v,=Thevariable
 
-unfinished-indirect:
-want: Unfinished modifier for VAR (',' missing)
-make: Unfinished modifier for "VAR" (',' missing)
+make: in target "unfinished-indirect": while evaluating variable "VAR" with value "TheVariable": Unfinished modifier (',' missing)
 VAR:S,V,v=
 
-unfinished-loop:
-want: Unfinished modifier for UNDEF ('@' missing)
-make: Unfinished modifier for "UNDEF" ('@' missing)
+make: in target "unfinished-loop": while evaluating variable "UNDEF" with value "1 2 3": Unfinished modifier ('@' missing)
 
-want: Unfinished modifier for UNDEF ('@' missing)
-make: Unfinished modifier for "UNDEF" ('@' missing)
+make: in target "unfinished-loop": while evaluating variable "UNDEF" with value "1 2 3": Unfinished modifier ('@' missing)
 
 1 2 3
 
 loop-close:
-make: Unclosed expression, expecting '}' for modifier "@var@${var}}...@" of variable "UNDEF" with value "1}... 2}... 3}..."
+make: in target "loop-close": while evaluating variable "UNDEF" with value "1}... 2}... 3}...": Unclosed expression, expecting '}' for modifier "@var@${var}}...@"
 1}... 2}... 3}...
 1}... 2}... 3}...
 
-words:
-want: Unfinished modifier for UNDEF (']' missing)
-make: Unfinished modifier for "UNDEF" (']' missing)
+make: in target "words": while evaluating variable "UNDEF" with value "1 2 3": Unfinished modifier (']' missing)
 
-want: Unfinished modifier for UNDEF (']' missing)
-make: Unfinished modifier for "UNDEF" (']' missing)
+make: in target "words": while evaluating variable "UNDEF" with value "1 2 3": Unfinished modifier (']' missing)
 
 13=
-make: Bad modifier ":[123451234512345123451234512345]" for variable "UNDEF"
+make: in target "words": while evaluating variable "UNDEF" with value "1 2 3": Bad modifier ":[123451234512345123451234512345]"
 12345=S,^ok,:S,^3ok,}
 
-exclam:
-want: Unfinished modifier for VARNAME ('!' missing)
-make: Unfinished modifier for "VARNAME" ('!' missing)
+make: in target "exclam": while evaluating variable "VARNAME" with value "": Unfinished modifier ('!' missing)
 
-want: Unfinished modifier for ! ('!' missing)
-make: Unfinished modifier for "!" ('!' missing)
+make: in target "exclam": while evaluating variable "!" with value "!": Unfinished modifier ('!' missing)
 
 
-mod-subst-delimiter:
-make: Missing delimiter for modifier ':S'
+make: in target "mod-subst-delimiter": while evaluating variable "VAR" with value "TheVariable": Missing delimiter for modifier ':S'
 1:
-make: Unfinished modifier for "VAR" (',' missing)
+make: in target "mod-subst-delimiter": while evaluating variable "VAR" with value "TheVariable": Unfinished modifier (',' missing)
 2:
-make: Unfinished modifier for "VAR" (',' missing)
+make: in target "mod-subst-delimiter": while evaluating variable "VAR" with value "TheVariable": Unfinished modifier (',' missing)
 3:
-make: Unfinished modifier for "VAR" (',' missing)
+make: in target "mod-subst-delimiter": while evaluating variable "VAR" with value "TheVariable": Unfinished modifier (',' missing)
 4:
-make: Unfinished modifier for "VAR" (',' missing)
+make: in target "mod-subst-delimiter": while evaluating variable "VAR" with value "TheVariable": Unfinished modifier (',' missing)
 5:
-make: Unclosed expression, expecting '}' for modifier "S,from,to," of variable "VAR" with value "TheVariable"
+make: in target "mod-subst-delimiter": while evaluating variable "VAR" with value "TheVariable": Unclosed expression, expecting '}' for modifier "S,from,to,"
 6: TheVariable
 7: TheVariable
 
-mod-regex-delimiter:
-make: Missing delimiter for :C modifier
+make: in target "mod-regex-delimiter": while evaluating variable "VAR" with value "TheVariable": Missing delimiter for modifier ':C'
 1:
-make: Unfinished modifier for "VAR" (',' missing)
+make: in target "mod-regex-delimiter": while evaluating variable "VAR" with value "TheVariable": Unfinished modifier (',' missing)
 2:
-make: Unfinished modifier for "VAR" (',' missing)
+make: in target "mod-regex-delimiter": while evaluating variable "VAR" with value "TheVariable": Unfinished modifier (',' missing)
 3:
-make: Unfinished modifier for "VAR" (',' missing)
+make: in target "mod-regex-delimiter": while evaluating variable "VAR" with value "TheVariable": Unfinished modifier (',' missing)
 4:
-make: Unfinished modifier for "VAR" (',' missing)
+make: in target "mod-regex-delimiter": while evaluating variable "VAR" with value "TheVariable": Unfinished modifier (',' missing)
 5:
-make: Unclosed expression, expecting '}' for modifier "C,from,to," of variable "VAR" with value "TheVariable"
+make: in target "mod-regex-delimiter": while evaluating variable "VAR" with value "TheVariable": Unclosed expression, expecting '}' for modifier "C,from,to,"
 6: TheVariable
 7: TheVariable
 
 mod-ts-parse:
 112358132134
 15152535558513521534
-make: Bad modifier ":ts\65oct" for variable "FIB"
+make: in target "mod-ts-parse": while evaluating variable "FIB" with value "1 1 2 3 5 8 13 21 34": Bad modifier ":ts\65oct"
 65oct}
-make: Bad modifier ":ts\65oct" for variable ""
+make: in target "mod-ts-parse": while evaluating "${:U${FIB}:ts\65oct} # bad modifier, variable name is """ with value "1 1 2 3 5 8 13 21 34": Bad modifier ":ts\65oct"
 65oct}
-make: Bad modifier ":tsxy" for variable "FIB"
+make: in target "mod-ts-parse": while evaluating variable "FIB" with value "1 1 2 3 5 8 13 21 34": Bad modifier ":tsxy"
 xy}
 
 mod-t-parse:
-make: Bad modifier ":t" for variable "FIB"
+make: in target "mod-t-parse": while evaluating variable "FIB" with value "1 1 2 3 5 8 13 21 34": Bad modifier ":t"
 
-make: Bad modifier ":txy" for variable "FIB"
+make: in target "mod-t-parse": while evaluating variable "FIB" with value "1 1 2 3 5 8 13 21 34": Bad modifier ":txy"
 y}
-make: Bad modifier ":t" for variable "FIB"
+make: in target "mod-t-parse": while evaluating variable "FIB" with value "1 1 2 3 5 8 13 21 34": Bad modifier ":t"
 
-make: Bad modifier ":t" for variable "FIB"
+make: in target "mod-t-parse": while evaluating variable "FIB" with value "1 1 2 3 5 8 13 21 34": Bad modifier ":t"
 M*}
 
-mod-ifelse-parse:
-make: Unfinished modifier for "FIB" (':' missing)
+make: in target "mod-ifelse-parse": while evaluating then-branch of condition "FIB": Unfinished modifier (':' missing)
 
-make: Unfinished modifier for "FIB" (':' missing)
+make: in target "mod-ifelse-parse": while evaluating then-branch of condition "FIB": Unfinished modifier (':' missing)
 
-make: Unfinished modifier for "FIB" ('}' missing)
+make: in target "mod-ifelse-parse": while evaluating else-branch of condition "FIB": Unfinished modifier ('}' missing)
 
-make: Unfinished modifier for "FIB" ('}' missing)
+make: in target "mod-ifelse-parse": while evaluating else-branch of condition "FIB": Unfinished modifier ('}' missing)
 
 then
 
-mod-remember-parse:
 1 1 2 3 5 8 13 21 34
-make: in target "mod-remember-parse": while evaluating variable "FIB": Unknown modifier "__"
+make: in target "mod-remember-parse": while evaluating variable "FIB" with value "1 1 2 3 5 8 13 21 34": Unknown modifier "__"
 
 
-mod-sysv-parse:
-make: in target "mod-sysv-parse": while evaluating variable "FIB": Unknown modifier "3"
-make: Unclosed expression, expecting '}' for modifier "3" of variable "FIB" with value ""
+make: in target "mod-sysv-parse": while evaluating variable "FIB" with value "1 1 2 3 5 8 13 21 34": Unknown modifier "3"
+make: in target "mod-sysv-parse": while evaluating variable "FIB" with value "": Unclosed expression, expecting '}' for modifier "3"
 
-make: in target "mod-sysv-parse": while evaluating variable "FIB": Unknown modifier "3="
-make: Unclosed expression, expecting '}' for modifier "3=" of variable "FIB" with value ""
+make: in target "mod-sysv-parse": while evaluating variable "FIB" with value "1 1 2 3 5 8 13 21 34": Unknown modifier "3="
+make: in target "mod-sysv-parse": while evaluating variable "FIB" with value "": Unclosed expression, expecting '}' for modifier "3="
 
-make: in target "mod-sysv-parse": while evaluating variable "FIB": Unknown modifier "3=x3"
-make: Unclosed expression, expecting '}' for modifier "3=x3" of variable "FIB" with value ""
+make: in target "mod-sysv-parse": while evaluating variable "FIB" with value "1 1 2 3 5 8 13 21 34": Unknown modifier "3=x3"
+make: in target "mod-sysv-parse": while evaluating variable "FIB" with value "": Unclosed expression, expecting '}' for modifier "3=x3"
 
 1 1 2 x3 5 8 1x3 21 34
 
-exit status 0
+exit status 2

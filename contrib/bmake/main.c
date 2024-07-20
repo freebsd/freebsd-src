@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.624 2024/06/02 15:31:26 rillig Exp $	*/
+/*	$NetBSD: main.c,v 1.632 2024/07/11 20:09:16 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -111,7 +111,7 @@
 #include "trace.h"
 
 /*	"@(#)main.c	8.3 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: main.c,v 1.624 2024/06/02 15:31:26 rillig Exp $");
+MAKE_RCSID("$NetBSD: main.c,v 1.632 2024/07/11 20:09:16 sjg Exp $");
 #if defined(MAKE_NATIVE)
 __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993 "
 	    "The Regents of the University of California.  "
@@ -793,7 +793,6 @@ AppendWords(StringList *lp, char *str)
 }
 
 #ifdef SIGINFO
-/*ARGSUSED*/
 static void
 siginfo(int signo MAKE_ATTR_UNUSED)
 {
@@ -1361,7 +1360,6 @@ main_Init(int argc, char **argv)
 
 	/* Just in case MAKEOBJDIR wants us to do something tricky. */
 	Targ_Init();
-	Var_Init();
 #ifdef FORCE_MAKE_OS
 	Global_Set_ReadOnly(".MAKE.OS", FORCE_MAKE_OS);
 #else
@@ -1604,25 +1602,31 @@ main_CleanUp(void)
 	if (opts.enterFlag)
 		printf("%s: Leaving directory `%s'\n", progname, curdir);
 
+	Var_Stats();
+	Targ_Stats();
+
 #ifdef USE_META
 	meta_finish();
 #endif
+#ifdef CLEANUP
 	Suff_End();
-	Var_End();
 	Targ_End();
 	Arch_End();
 	Parse_End();
 	Dir_End();
 	Job_End();
+#endif
 	Trace_End();
+#ifdef CLEANUP
 	Str_Intern_End();
+#endif
 }
 
 /* Determine the exit code. */
 static int
 main_Exit(bool outOfDate)
 {
-	if (opts.strict && (main_errors > 0 || Parse_NumErrors() > 0))
+	if ((opts.strict && main_errors > 0) || parseErrors > 0)
 		return 2;	/* Not 1 so -q can distinguish error */
 	return outOfDate ? 1 : 0;
 }
@@ -1703,6 +1707,56 @@ found:
 	return true;
 }
 
+/* populate av for Cmd_Exec and Compat_RunCommand */
+int
+Cmd_Argv(const char *cmd, size_t cmd_len, const char **av, size_t avsz,
+    char *cmd_file, size_t cmd_filesz, bool eflag, bool xflag)
+{
+	int ac = 0;
+	int cmd_fd = -1;
+
+	if (shellPath == NULL)
+		Shell_Init();
+
+	if (cmd_file != NULL) {
+		if (cmd_len == 0)
+			cmd_len = strlen(cmd);
+
+		if (cmd_len > MAKE_CMDLEN_LIMIT) {
+			cmd_fd = mkTempFile(NULL, cmd_file, cmd_filesz);
+			if (cmd_fd >= 0) {
+				ssize_t n;
+
+				n = write(cmd_fd, cmd, cmd_len);
+				close(cmd_fd);
+				if (n < (ssize_t)cmd_len) {
+					unlink(cmd_file);
+					cmd_fd = -1;
+				}
+			}
+		} else
+			cmd_file[0] = '\0';
+	}
+
+	if (avsz < 4 || (eflag && avsz < 5))
+		return -1;
+
+	/* The following works for any of the builtin shell specs. */
+	av[ac++] = shellPath;
+	if (eflag)
+		av[ac++] = shellErrFlag;
+	if (cmd_fd >= 0) {
+		if (xflag)
+			av[ac++] = "-x";
+		av[ac++] = cmd_file;
+	} else {
+		av[ac++] = xflag ? "-xc" : "-c";
+		av[ac++] = cmd;
+	}
+	av[ac] = NULL;
+	return ac;
+}
+
 /*
  * Execute the command in cmd, and return its output (only stdout, not
  * stderr, possibly empty).  In the output, replace newlines with spaces.
@@ -1721,40 +1775,11 @@ Cmd_Exec(const char *cmd, char **error)
 	char *p;
 	int saved_errno;
 	char cmd_file[MAXPATHLEN];
-	size_t cmd_len;
-	int cmd_fd = -1;
 
-	if (shellPath == NULL)
-		Shell_Init();
-
-	cmd_len = strlen(cmd);
-	if (cmd_len > 1000) {
-		cmd_fd = mkTempFile(NULL, cmd_file, sizeof(cmd_file));
-		if (cmd_fd >= 0) {
-			ssize_t n;
-
-			n = write(cmd_fd, cmd, cmd_len);
-			close(cmd_fd);
-			if (n < (ssize_t)cmd_len) {
-				unlink(cmd_file);
-				cmd_fd = -1;
-			}
-		}
-	}
-
-	args[0] = shellName;
-	if (cmd_fd >= 0) {
-		args[1] = cmd_file;
-		args[2] = NULL;
-	} else {
-		cmd_file[0] = '\0';
-		args[1] = "-c";
-		args[2] = cmd;
-		args[3] = NULL;
-	}
 	DEBUG1(VAR, "Capturing the output of command \"%s\"\n", cmd);
 
-	if (pipe(pipefds) == -1) {
+	if (Cmd_Argv(cmd, 0, args, 4, cmd_file, sizeof(cmd_file), false, false) < 0
+	    || pipe(pipefds) == -1) {
 		*error = str_concat3(
 		    "Couldn't create pipe for \"", cmd, "\"");
 		return bmake_strdup("");
@@ -1806,10 +1831,15 @@ Cmd_Exec(const char *cmd, char **error)
 
 	if (WIFSIGNALED(status))
 		*error = str_concat3("\"", cmd, "\" exited on a signal");
-	else if (WEXITSTATUS(status) != 0)
-		*error = str_concat3(
-		    "\"", cmd, "\" returned non-zero status");
-	else if (saved_errno != 0)
+	else if (WEXITSTATUS(status) != 0) {
+		Buffer errBuf;
+		Buf_Init(&errBuf);
+		Buf_AddStr(&errBuf, "Command \"");
+		Buf_AddStr(&errBuf, cmd);
+		Buf_AddStr(&errBuf, "\" exited with status ");
+		Buf_AddInt(&errBuf, WEXITSTATUS(status));
+		*error = Buf_DoneData(&errBuf);
+	} else if (saved_errno != 0)
 		*error = str_concat3(
 		    "Couldn't read shell's output for \"", cmd, "\"");
 	else
@@ -2084,6 +2114,7 @@ void
 PrintOnError(GNode *gn, const char *msg)
 {
 	static GNode *errorNode = NULL;
+	StringListNode *ln;
 
 	if (DEBUG(HASH)) {
 		Targ_Stats();
@@ -2093,7 +2124,19 @@ PrintOnError(GNode *gn, const char *msg)
 	if (errorNode != NULL)
 		return;		/* we've been here! */
 
-	printf("%s%s: stopped in %s\n", msg, progname, curdir);
+	printf("%s%s: stopped", msg, progname);
+	ln = opts.create.first;
+	if (ln != NULL || mainNode != NULL) {
+		printf(" making \"");
+		if (ln != NULL) {
+			printf("%s", (const char *)ln->datum);
+			for (ln = ln->next; ln != NULL; ln = ln->next)
+				printf(" %s", (const char *)ln->datum);
+		} else
+			printf("%s", mainNode->name);
+		printf("\"");
+	}
+	printf(" in %s\n", curdir);
 
 	/* we generally want to keep quiet if a sub-make died */
 	if (shouldDieQuietly(gn, -1))

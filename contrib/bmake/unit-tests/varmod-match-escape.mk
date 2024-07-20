@@ -1,4 +1,4 @@
-# $NetBSD: varmod-match-escape.mk,v 1.14 2024/06/15 19:43:56 rillig Exp $
+# $NetBSD: varmod-match-escape.mk,v 1.17 2024/07/09 17:07:23 rillig Exp $
 #
 # As of 2020-08-01, the :M and :N modifiers interpret backslashes differently,
 # depending on whether there was an expression somewhere before the
@@ -65,7 +65,7 @@ VALUES=		: :: :\:
 
 # In lint mode, the case of a lonely '$' is covered with an error message.
 .MAKEFLAGS: -dL
-# expect+1: while evaluating "${:U\$:M\$} != """: Dollar followed by nothing
+# expect+1: while evaluating "${:U\$:M\$} != """ with value "$": Dollar followed by nothing
 .if ${:U\$:M\$} != ""
 .  error
 .endif
@@ -105,8 +105,8 @@ EXP.[^A-]]=	a
 EXP.[^A-]]]=	a]
 
 .for pattern in [A-] [A-]] [A-]]] [^A-] [^A-]] [^A-]]]
-# expect+2: warning: while evaluating variable "WORDS": Unfinished character list in pattern '[A-]' of modifier ':M'
-# expect+1: warning: while evaluating variable "WORDS": Unfinished character list in pattern '[^A-]' of modifier ':M'
+# expect+2: while evaluating variable "WORDS" with value "A A] A]] B B] B]] ] ]] ]]] a a] a]]": Unfinished character list in pattern '[A-]' of modifier ':M'
+# expect+1: while evaluating variable "WORDS" with value "A A] A]] B B] B]] ] ]] ]]] a a] a]]": Unfinished character list in pattern '[^A-]' of modifier ':M'
 .  if ${WORDS:M${pattern}} != ${EXP.${pattern}}
 .    warning ${pattern}: ${WORDS:M${pattern}} != ${EXP.${pattern}}
 .  endif

@@ -1,6 +1,6 @@
-# $Id: Makefile,v 1.219 2024/06/01 16:14:47 sjg Exp $
+# $Id: Makefile,v 1.224 2024/07/13 05:27:35 sjg Exp $
 #
-# $NetBSD: Makefile,v 1.347 2024/06/01 15:54:40 sjg Exp $
+# $NetBSD: Makefile,v 1.350 2024/07/07 09:37:00 rillig Exp $
 #
 # Unit tests for make(1)
 #
@@ -398,6 +398,7 @@ TESTS+=		varmod-to-lower
 TESTS+=		varmod-to-many-words
 TESTS+=		varmod-to-one-word
 TESTS+=		varmod-to-separator
+TESTS+=		varmod-to-title
 TESTS+=		varmod-to-upper
 TESTS+=		varmod-undefined
 TESTS+=		varmod-unique
@@ -465,8 +466,23 @@ _shell := ${.SHELL:tA:T}
 .if ${_shell} == "dash" 
 # dash fails -x output
 BROKEN_TESTS+= opt-debug-x-trace
-.elif ${_shell} == "ksh"
-BROKEN_TESTS+= sh-flags
+.elif ${_shell:N*ksh*} == ""
+BROKEN_TESTS+= \
+	deptgt-silent-jobs \
+	job-flags \
+	job-output-long-lines \
+	opt-debug-x-trace \
+	sh-flags \
+	var-op-shell \
+
+.if ${_shell:Nmksh} == ""
+# more broken that pdksh
+BROKEN_TESTS+= \
+	opt-jobs-no-action \
+	sh-errctl \
+	sh-leading-hyphen \
+
+.endif
 .endif
 
 .if ${UTC_1:Uno} == ""
@@ -591,7 +607,7 @@ SED_CMDS.meta-ignore= -e 's,\(\.meta:\) [1-9][0-9]*:,\1 <line>:,'
 SED_CMDS.opt-debug-graph1=	${STD_SED_CMDS.dg1}
 SED_CMDS.opt-debug-graph2=	${STD_SED_CMDS.dg2}
 SED_CMDS.opt-debug-graph3=	${STD_SED_CMDS.dg3}
-SED_CMDS.opt-debug-hash=	-e 's,\(numEntries\)=[1-9][0-9],\1=<entries>,'
+SED_CMDS.opt-debug-hash=	-e 's,\(entries\)=[1-9][0-9],\1=<entries>,'
 SED_CMDS.opt-debug-jobs=	-e 's,([0-9][0-9]*),(<pid>),'
 SED_CMDS.opt-debug-jobs+=	-e 's,pid [0-9][0-9]*,pid <pid>,'
 SED_CMDS.opt-debug-jobs+=	-e 's,Process [0-9][0-9]*,Process <pid>,'
@@ -807,7 +823,7 @@ LIMIT_RESOURCES?=	:
 # Postprocess the test output to make the output platform-independent.
 #
 # Replace anything after 'stopped in' with unit-tests
-_SED_CMDS+=	-e '/stopped/s, /.*, unit-tests,'
+_SED_CMDS+=	-e '/stopped/s, in /.*, in unit-tests,'
 # Allow the test files to be placed anywhere.
 _SED_CMDS+=	-e 's,\(\.PARSEDIR}\) = `'"/[^']*'"',\1 = <some-dir>,'
 _SED_CMDS+=	-e 's,\(\.INCLUDEDFROMDIR}\) = `'"/[^']*'"',\1 = <some-dir>,'
@@ -833,8 +849,10 @@ _SED_CMDS+=	-e '/EGREP=/d'
 .if ${.MAKE.OS:N*BSD} != ""
 _SED_CMDS+=	-e 's,\(Error code\) 255,\1 1,'
 .endif
-.if ${.SHELL:T} == "ksh"
+.if ${_shell:N*ksh*} == ""
 _SED_CMDS+=	-e '/^set [+-]v/d'
+SED_CMDS.opt-debug-jobs+= -e 's,Command: ksh -v,Command: <shell>,'
+SED_CMDS.opt-debug-jobs+= -e 's,Command: <shell> -v,Command: <shell>,'
 .endif
 
 .rawout.out:

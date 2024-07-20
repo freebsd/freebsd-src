@@ -1,4 +1,4 @@
-# $NetBSD: deptgt.mk,v 1.17 2024/04/20 10:18:55 rillig Exp $
+# $NetBSD: deptgt.mk,v 1.20 2024/07/06 10:14:35 rillig Exp $
 #
 # Tests for special targets like .BEGIN or .SUFFIXES in dependency
 # declarations.
@@ -39,14 +39,14 @@ ${:U}: empty-source
 	: command for empty targets list
 .MAKEFLAGS: -d0
 
-# Just to show that a malformed expression is only expanded once in
-# ParseDependencyTargetWord.  The only way to produce an expression that
-# is well-formed on the first expansion and ill-formed on the second
-# expansion would be to use the variable modifier '::=' to modify the
-# targets.  This in turn would be such an extreme and unreliable edge case
-# that nobody uses it.
-# expect+1: while evaluating "${:U:Z}:": Unknown modifier "Z"
-$$$$$$$${:U:Z}:
+# In a dependency declaration, the whole line is expanded before interpreting
+# the line.
+# expect+1: while evaluating "${:U:Z}:" with value "": Unknown modifier "Z"
+${:U:Z}:
+# After expanding the line as a whole, each target is parsed but not
+# evaluated, separately, in ParseDependencyTargetWord.
+# expect+1: while parsing "${:U:Z}:": Unknown modifier "Z"
+$${:U:Z}:
 
 # expect+1: warning: Extra target 'ordinary' ignored
 .END ordinary:
@@ -56,6 +56,3 @@ $$$$$$$${:U:Z}:
 
 # expect+1: warning: Special and mundane targets don't mix. Mundane ones ignored
 ordinary .PATH:
-
-all:
-	@:;

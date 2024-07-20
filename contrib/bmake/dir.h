@@ -1,4 +1,4 @@
-/*	$NetBSD: dir.h,v 1.48 2024/05/19 20:09:40 sjg Exp $	*/
+/*	$NetBSD: dir.h,v 1.49 2024/07/07 07:50:57 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -80,7 +80,9 @@ typedef struct CachedDir CachedDir;
 void Dir_Init(void);
 void Dir_InitCur(const char *);
 void Dir_InitDot(void);
+#ifdef CLEANUP
 void Dir_End(void);
+#endif
 void Dir_SetPATH(void);
 void Dir_SetSYSPATH(void);
 bool Dir_HasWildcards(const char *) MAKE_ATTR_USE;

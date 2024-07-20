@@ -7,5 +7,5 @@ false all
 *** Error code 1 (continuing)
 
 Stop.
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 exit status 1

@@ -3,7 +3,7 @@
 /*
  * Missing stuff from OS's
  *
- *	$Id: util.c,v 1.52 2024/01/04 00:27:30 sjg Exp $
+ *	$Id: util.c,v 1.53 2024/07/12 18:37:25 sjg Exp $
  */
 
 #include <sys/param.h>
@@ -341,6 +341,10 @@ getcwd(path, sz)
 
 #if !defined(HAVE_SIGACTION)
 #include "sigact.h"
+#endif
+
+#ifndef SA_RESTART
+# define SA_RESTART 0
 #endif
 
 /* force posix signals */

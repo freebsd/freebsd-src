@@ -45,7 +45,7 @@ mod-subst-delimiter:
 1 two 3 tilde
 mod-subst-chain:
 A B c.
-make: in target "mod-subst-chain": while evaluating "${:Uvalue:S,a,x,i}.": Unknown modifier "i"
+make: in target "mod-subst-chain": while evaluating "${:Uvalue:S,a,x,i}." with value "vxlue": Unknown modifier "i"
 .
 mod-subst-dollar:$1:
 mod-subst-dollar:$2:
@@ -59,4 +59,4 @@ mod-subst-dollar:$40:
 mod-subst-dollar:U8:
 mod-subst-dollar:$$$$:
 mod-subst-dollar:$$$good3
-exit status 0
+exit status 2
