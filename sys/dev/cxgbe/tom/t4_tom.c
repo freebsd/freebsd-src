@@ -1831,6 +1831,7 @@ t4_tom_activate(struct adapter *sc)
 	/* List of TOE PCBs and associated lock */
 	mtx_init(&td->toep_list_lock, "PCB list lock", NULL, MTX_DEF);
 	TAILQ_INIT(&td->toep_list);
+	TAILQ_INIT(&td->synqe_list);
 
 	/* Listen context */
 	mtx_init(&td->lctx_hash_lock, "lctx hash lock", NULL, MTX_DEF);
@@ -1915,6 +1916,7 @@ t4_tom_deactivate(struct adapter *sc)
 	mtx_lock(&td->toep_list_lock);
 	if (!TAILQ_EMPTY(&td->toep_list))
 		rc = EBUSY;
+	MPASS(TAILQ_EMPTY(&td->synqe_list));
 	mtx_unlock(&td->toep_list_lock);
 
 	mtx_lock(&td->lctx_hash_lock);
