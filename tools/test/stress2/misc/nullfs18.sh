@@ -41,6 +41,7 @@ mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 mdconfig -a -t swap -s 2g -u $mdstart || exit 1
 
 newfs -n md$mdstart > /dev/null
+tunefs -n disable md$mdstart 2>/dev/null
 
 mount /dev/md$mdstart $mntpoint
 chmod 777 $mntpoint
