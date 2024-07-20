@@ -1160,37 +1160,39 @@ int
 cam_iosched_init(struct cam_iosched_softc **iscp, struct cam_periph *periph,
     const struct disk *dp, cam_iosched_schedule_t schedfnc)
 {
+	struct cam_iosched_softc *isc;
 
-	*iscp = malloc(sizeof(**iscp), M_CAMSCHED, M_NOWAIT | M_ZERO);
-	if (*iscp == NULL)
+	isc = malloc(sizeof(*isc), M_CAMSCHED, M_NOWAIT | M_ZERO);
+	if (isc == NULL)
 		return ENOMEM;
-	(*iscp)->disk = dp;
-	(*iscp)->schedfnc = schedfnc;
+	isc->disk = dp;
+	isc->schedfnc = schedfnc;
 #ifdef CAM_IOSCHED_DYNAMIC
 	if (iosched_debug)
-		printf("CAM IOSCHEDULER Allocating entry at %p\n", *iscp);
+		printf("CAM IOSCHEDULER Allocating entry at %p\n", isc);
 #endif
-	(*iscp)->sort_io_queue = -1;
-	bioq_init(&(*iscp)->bio_queue);
-	bioq_init(&(*iscp)->trim_queue);
+	isc->sort_io_queue = -1;
+	bioq_init(&isc->bio_queue);
+	bioq_init(&isc->trim_queue);
 #ifdef CAM_IOSCHED_DYNAMIC
 	if (do_dynamic_iosched) {
-		bioq_init(&(*iscp)->write_queue);
-		(*iscp)->read_bias = default_read_bias;
-		(*iscp)->current_read_bias = 0;
-		(*iscp)->quanta = min(hz, 200);
-		cam_iosched_iop_stats_init(*iscp, &(*iscp)->read_stats);
-		cam_iosched_iop_stats_init(*iscp, &(*iscp)->write_stats);
-		cam_iosched_iop_stats_init(*iscp, &(*iscp)->trim_stats);
-		(*iscp)->trim_stats.max = 1;	/* Trims are special: one at a time for now */
-		(*iscp)->last_time = sbinuptime();
-		callout_init_mtx(&(*iscp)->ticker, cam_periph_mtx(periph), 0);
-		(*iscp)->periph = periph;
-		cam_iosched_cl_init(&(*iscp)->cl, *iscp);
-		callout_reset(&(*iscp)->ticker, hz / (*iscp)->quanta, cam_iosched_ticker, *iscp);
-		(*iscp)->flags |= CAM_IOSCHED_FLAG_CALLOUT_ACTIVE;
+		bioq_init(&isc->write_queue);
+		isc->read_bias = default_read_bias;
+		isc->current_read_bias = 0;
+		isc->quanta = min(hz, 200);
+		cam_iosched_iop_stats_init(isc, &isc->read_stats);
+		cam_iosched_iop_stats_init(isc, &isc->write_stats);
+		cam_iosched_iop_stats_init(isc, &isc->trim_stats);
+		isc->trim_stats.max = 1;	/* Trims are special: one at a time for now */
+		isc->last_time = sbinuptime();
+		callout_init_mtx(&isc->ticker, cam_periph_mtx(periph), 0);
+		isc->periph = periph;
+		cam_iosched_cl_init(&isc->cl, isc);
+		callout_reset(&isc->ticker, hz / isc->quanta, cam_iosched_ticker, isc);
+		isc->flags |= CAM_IOSCHED_FLAG_CALLOUT_ACTIVE;
 	}
 #endif
+	*iscp = isc;
 
 	return 0;
 }
