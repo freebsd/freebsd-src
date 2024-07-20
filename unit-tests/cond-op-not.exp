@@ -5,5 +5,5 @@ make: "cond-op-not.mk" line 53: Not 1 evaluates to false.
 make: "cond-op-not.mk" line 60: Not word evaluates to false.
 make: "cond-op-not.mk" line 65: Malformed conditional (!)
 make: Fatal errors encountered -- cannot continue
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 exit status 1

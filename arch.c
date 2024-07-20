@@ -1,4 +1,4 @@
-/*	$NetBSD: arch.c,v 1.219 2024/06/02 15:31:25 rillig Exp $	*/
+/*	$NetBSD: arch.c,v 1.221 2024/07/07 07:50:57 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -147,7 +147,7 @@ struct ar_hdr {
 #include "dir.h"
 
 /*	"@(#)arch.c	8.2 (Berkeley) 1/2/94"	*/
-MAKE_RCSID("$NetBSD: arch.c,v 1.219 2024/06/02 15:31:25 rillig Exp $");
+MAKE_RCSID("$NetBSD: arch.c,v 1.221 2024/07/07 07:50:57 rillig Exp $");
 
 typedef struct List ArchList;
 typedef struct ListNode ArchListNode;
@@ -818,7 +818,6 @@ Arch_Touch(GNode *gn)
  * Both the modification time of the library and of the RANLIBMAG member are
  * set to 'now'.
  */
-/*ARGSUSED*/
 void
 Arch_TouchLib(GNode *gn MAKE_ATTR_UNUSED)
 {
@@ -919,7 +918,6 @@ Arch_FindLib(GNode *gn, SearchPath *path)
 	Var_Set(gn, TARGET, gn->name);
 }
 
-/* ARGSUSED */
 static bool
 RanlibOODate(const GNode *gn MAKE_ATTR_UNUSED)
 {
@@ -999,18 +997,18 @@ Arch_Init(void)
 	Lst_Init(&archives);
 }
 
+#ifdef CLEANUP
 /* Clean up the archives module. */
 void
 Arch_End(void)
 {
-#ifdef CLEANUP
 	ArchListNode *ln;
 
 	for (ln = archives.first; ln != NULL; ln = ln->next)
 		ArchFree(ln->datum);
 	Lst_Done(&archives);
-#endif
 }
+#endif
 
 bool
 Arch_IsLib(GNode *gn)

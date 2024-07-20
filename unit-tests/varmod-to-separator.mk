@@ -1,4 +1,4 @@
-# $NetBSD: varmod-to-separator.mk,v 1.15 2024/06/01 18:44:05 rillig Exp $
+# $NetBSD: varmod-to-separator.mk,v 1.18 2024/07/05 19:47:22 rillig Exp $
 #
 # Tests for the :ts variable modifier, which joins the words of the variable
 # using an arbitrary character as word separator.
@@ -150,7 +150,7 @@ WORDS=	one two three four five six
 # for an unsigned character though.
 #
 # Since 2020-11-01, these out-of-bounds values are rejected.
-# expect+2: while evaluating variable "WORDS": Invalid character number at "400:tu}"
+# expect+2: while evaluating variable "WORDS" with value "one two three": Invalid character number at "400:tu}"
 # expect+1: Malformed conditional (${WORDS:[1..3]:ts\400:tu})
 .if ${WORDS:[1..3]:ts\400:tu}
 .  warning The separator \400 is accepted even though it is out of bounds.
@@ -166,7 +166,7 @@ WORDS=	one two three four five six
 # The hexadecimal number must be in the range of an unsigned char.
 #
 # Since 2020-11-01, these out-of-bounds values are rejected.
-# expect+2: while evaluating variable "WORDS": Invalid character number at "100:tu}"
+# expect+2: while evaluating variable "WORDS" with value "one two three": Invalid character number at "100:tu}"
 # expect+1: Malformed conditional (${WORDS:[1..3]:ts\x100:tu})
 .if ${WORDS:[1..3]:ts\x100:tu}
 .  warning The separator \x100 is accepted even though it is out of bounds.
@@ -175,19 +175,20 @@ WORDS=	one two three four five six
 .endif
 
 # The number after ':ts\x' must be hexadecimal.
-# expect+2: while evaluating variable "word": Invalid character number at ",}"
+# expect+2: while evaluating variable "word" with value "word": Invalid character number at ",}"
 # expect+1: Malformed conditional (${word:L:ts\x,})
 .if ${word:L:ts\x,}
 .endif
 
 # The hexadecimal number must be in the range of 'unsigned long' on all
 # supported platforms.
-# expect+2: while evaluating variable "word": Invalid character number at "112233445566778899}"
+# expect+2: while evaluating variable "word" with value "word": Invalid character number at "112233445566778899}"
 # expect+1: Malformed conditional (${word:L:ts\x112233445566778899})
 .if ${word:L:ts\x112233445566778899}
 .endif
 
 # Negative numbers are not allowed for the separator character.
+# expect+2: while evaluating variable "WORDS" with value "one two three": Bad modifier ":ts\-300"
 # expect+1: Malformed conditional (${WORDS:[1..3]:ts\-300:tu})
 .if ${WORDS:[1..3]:ts\-300:tu}
 .  warning The separator \-300 is accepted even though it is negative.
@@ -197,6 +198,7 @@ WORDS=	one two three four five six
 
 # The character number is interpreted as octal number by default.
 # The digit '8' is not an octal digit though.
+# expect+2: while evaluating variable "1 2 3" with value "1 2 3": Bad modifier ":ts\8"
 # expect+1: Malformed conditional (${1 2 3:L:ts\8:tu})
 .if ${1 2 3:L:ts\8:tu}
 .  warning The separator \8 is accepted even though it is not octal.
@@ -205,6 +207,7 @@ WORDS=	one two three four five six
 .endif
 
 # Trailing characters after the octal character number are rejected.
+# expect+2: while evaluating variable "1 2 3" with value "1 2 3": Bad modifier ":ts\100L"
 # expect+1: Malformed conditional (${1 2 3:L:ts\100L})
 .if ${1 2 3:L:ts\100L}
 .  warning The separator \100L is accepted even though it contains an 'L'.
@@ -213,6 +216,7 @@ WORDS=	one two three four five six
 .endif
 
 # Trailing characters after the hexadecimal character number are rejected.
+# expect+2: while evaluating variable "1 2 3" with value "1 2 3": Bad modifier ":ts\x40g"
 # expect+1: Malformed conditional (${1 2 3:L:ts\x40g})
 .if ${1 2 3:L:ts\x40g}
 .  warning The separator \x40g is accepted even though it contains a 'g'.
@@ -222,7 +226,7 @@ WORDS=	one two three four five six
 
 
 # In the :t modifier, the :t must be followed by any of A, l, s, u.
-# expect: make: Bad modifier ":tx" for variable "WORDS"
+# expect+2: while evaluating variable "WORDS" with value "one two three four five six": Bad modifier ":tx"
 # expect+1: Malformed conditional (${WORDS:tx})
 .if ${WORDS:tx}
 .  error
@@ -231,7 +235,7 @@ WORDS=	one two three four five six
 .endif
 
 # The word separator can only be a single character.
-# expect: make: Bad modifier ":ts\X" for variable "WORDS"
+# expect+2: while evaluating variable "WORDS" with value "one two three four five six": Bad modifier ":ts\X"
 # expect+1: Malformed conditional (${WORDS:ts\X})
 .if ${WORDS:ts\X}
 .  error
@@ -241,6 +245,7 @@ WORDS=	one two three four five six
 
 # After the backslash, only n, t, an octal number, or x and a hexadecimal
 # number are allowed.
+# expect+2: while evaluating variable "WORDS" with value "one two three four five six": Bad modifier ":t\X"
 # expect+1: Malformed conditional (${WORDS:t\X} != "anything")
 .if ${WORDS:t\X} != "anything"
 .  info This line is not reached.
@@ -257,7 +262,7 @@ WORDS=	one two three four five six
 # happens for non-octal digits.  From 2003.07.23.18.06.46 to
 # 2016.02.27.16.20.06, the result was '1E2', since 2016.03.07.20.20.35 make no
 # longer accepts this escape and complains.
-# expect: make: Bad modifier ":ts\69" for variable ""
+# expect+2: while evaluating "${:Ua b:ts\69}" with value "a b": Bad modifier ":ts\69"
 # expect+1: Malformed conditional (${:Ua b:ts\69})
 .if ${:Ua b:ts\69}
 .  error
@@ -266,7 +271,7 @@ WORDS=	one two three four five six
 .endif
 
 # Try whether bmake is Unicode-ready.
-# expect+2: while evaluating "${:Ua b:ts\x1F60E}": Invalid character number at "1F60E}"
+# expect+2: while evaluating "${:Ua b:ts\x1F60E}" with value "a b": Invalid character number at "1F60E}"
 # expect+1: Malformed conditional (${:Ua b:ts\x1F60E})
 .if ${:Ua b:ts\x1F60E}		# U+1F60E "smiling face with sunglasses"
 .  error
