@@ -315,6 +315,7 @@ struct cam_iosched_softc {
 	struct bio_queue_head bio_queue;
 	struct bio_queue_head trim_queue;
 	const struct disk *disk;
+	cam_iosched_schedule_t schedfnc;
 				/* scheduler flags < 16, user flags >= 16 */
 	uint32_t	flags;
 	int		sort_io_queue;
@@ -619,7 +620,7 @@ cam_iosched_ticker(void *arg)
 	cam_iosched_limiter_tick(&isc->write_stats);
 	cam_iosched_limiter_tick(&isc->trim_stats);
 
-	cam_iosched_schedule(isc, isc->periph);
+	isc->schedfnc(isc->periph);
 
 	/*
 	 * isc->load is an EMA of the pending I/Os at each tick. The number of
@@ -1155,13 +1156,14 @@ cam_iosched_cl_sysctl_fini(struct control_loop *clp)
  */
 int
 cam_iosched_init(struct cam_iosched_softc **iscp, struct cam_periph *periph,
-    const struct disk *dp)
+    const struct disk *dp, cam_iosched_schedule_t schedfnc)
 {
 
 	*iscp = malloc(sizeof(**iscp), M_CAMSCHED, M_NOWAIT | M_ZERO);
 	if (*iscp == NULL)
 		return ENOMEM;
 	(*iscp)->disk = dp;
+	(*iscp)->schedfnc = schedfnc;
 #ifdef CAM_IOSCHED_DYNAMIC
 	if (iosched_debug)
 		printf("CAM IOSCHEDULER Allocating entry at %p\n", *iscp);

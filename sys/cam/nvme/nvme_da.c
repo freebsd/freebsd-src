@@ -946,7 +946,8 @@ ndaregister(struct cam_periph *periph, void *arg)
 	    DEVSTAT_TYPE_DIRECT | XPORT_DEVSTAT_TYPE(cpi.transport),
 	    DEVSTAT_PRIORITY_DISK);
 
-	if (cam_iosched_init(&softc->cam_iosched, periph, disk) != 0) {
+	if (cam_iosched_init(&softc->cam_iosched, periph, disk,
+	    ndaschedule) != 0) {
 		printf("ndaregister: Unable to probe new device. "
 		       "Unable to allocate iosched memory\n");
 		free(softc, M_DEVBUF);

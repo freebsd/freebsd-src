@@ -1913,7 +1913,8 @@ adaregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_drv1 = periph;
 	softc->disk->d_unit = periph->unit_number;
 
-	if (cam_iosched_init(&softc->cam_iosched, periph, softc->disk) != 0) {
+	if (cam_iosched_init(&softc->cam_iosched, periph, softc->disk,
+	    adaschedule) != 0) {
 		printf("adaregister: Unable to probe new device. "
 		       "Unable to allocate iosched memory\n");
 		free(softc, M_DEVBUF);
