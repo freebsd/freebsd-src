@@ -269,6 +269,7 @@ struct synq_entry {
 	struct listen_ctx *lctx;	/* backpointer to listen ctx */
 	struct mbuf *syn;
 	int flags;			/* same as toepcb's tp_flags */
+	TAILQ_ENTRY(synq_entry) link;	/* synqe_list */
 	volatile int ok_to_respond;
 	volatile u_int refcnt;
 	int tid;
@@ -329,6 +330,7 @@ struct tom_data {
 	/* toepcb's associated with this TOE device */
 	struct mtx toep_list_lock;
 	TAILQ_HEAD(, toepcb) toep_list;
+	TAILQ_HEAD(, synq_entry) synqe_list;
 
 	struct mtx lctx_hash_lock;
 	LIST_HEAD(, listen_ctx) *listen_hash;

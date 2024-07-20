@@ -849,6 +849,7 @@ do_close_server_rpl(struct sge_iq *iq, const struct rss_header *rss,
 static void
 done_with_synqe(struct adapter *sc, struct synq_entry *synqe)
 {
+	struct tom_data *td = sc->tom_softc;
 	struct listen_ctx *lctx = synqe->lctx;
 	struct inpcb *inp = lctx->inp;
 	struct l2t_entry *e = &sc->l2t->l2tab[synqe->params.l2t_idx];
@@ -858,6 +859,9 @@ done_with_synqe(struct adapter *sc, struct synq_entry *synqe)
 	ntids = inp->inp_vflag & INP_IPV6 ? 2 : 1;
 
 	remove_tid(sc, synqe->tid, ntids);
+	mtx_lock(&td->toep_list_lock);
+	TAILQ_REMOVE(&td->synqe_list, synqe, link);
+	mtx_unlock(&td->toep_list_lock);
 	release_tid(sc, synqe->tid, lctx->ctrlq);
 	t4_l2t_release(e);
 	inp = release_synqe(sc, synqe);
@@ -961,6 +965,7 @@ void
 t4_offload_socket(struct toedev *tod, void *arg, struct socket *so)
 {
 	struct adapter *sc = tod->tod_softc;
+	struct tom_data *td = sc->tom_softc;
 	struct synq_entry *synqe = arg;
 	struct inpcb *inp = sotoinpcb(so);
 	struct toepcb *toep = synqe->toep;
@@ -976,6 +981,9 @@ t4_offload_socket(struct toedev *tod, void *arg, struct socket *so)
 	toep->flags |= TPF_CPL_PENDING;
 	update_tid(sc, synqe->tid, toep);
 	synqe->flags |= TPF_SYNQE_EXPANDED;
+	mtx_lock(&td->toep_list_lock);
+	TAILQ_REMOVE(&td->synqe_list, synqe, link);
+	mtx_unlock(&td->toep_list_lock);
 	inp->inp_flowtype = (inp->inp_vflag & INP_IPV6) ?
 	    M_HASHTYPE_RSS_TCP_IPV6 : M_HASHTYPE_RSS_TCP_IPV4;
 	inp->inp_flowid = synqe->rss_hash;
@@ -1177,6 +1185,7 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
     struct mbuf *m)
 {
 	struct adapter *sc = iq->adapter;
+	struct tom_data *td = sc->tom_softc;
 	struct toedev *tod;
 	const struct cpl_pass_accept_req *cpl = mtod(m, const void *);
 	unsigned int stid = G_PASS_OPEN_TID(be32toh(cpl->tos_stid));
@@ -1383,6 +1392,9 @@ found:
 			REJECT_PASS_ACCEPT_REQ(true);
 		}
 
+		mtx_lock(&td->toep_list_lock);
+		TAILQ_INSERT_TAIL(&td->synqe_list, synqe, link);
+		mtx_unlock(&td->toep_list_lock);
 		CTR6(KTR_CXGBE,
 		    "%s: stid %u, tid %u, synqe %p, opt0 %#016lx, opt2 %#08x",
 		    __func__, stid, tid, synqe, be64toh(opt0), be32toh(opt2));
