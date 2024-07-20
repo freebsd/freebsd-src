@@ -479,7 +479,7 @@ domain_map_buf(struct iommu_domain *iodom, iommu_gaddr_t base,
 	domain = IODOM2DOM(iodom);
 	unit = domain->dmar;
 
-	KASSERT((domain->iodom.flags & IOMMU_DOMAIN_IDMAP) == 0,
+	KASSERT((iodom->flags & IOMMU_DOMAIN_IDMAP) == 0,
 	    ("modifying idmap pagetable domain %p", domain));
 	KASSERT((base & IOMMU_PAGE_MASK) == 0,
 	    ("non-aligned base %p %jx %jx", domain, (uintmax_t)base,
