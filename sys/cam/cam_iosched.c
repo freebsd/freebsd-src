@@ -48,6 +48,8 @@
 
 #include <ddb/ddb.h>
 
+#include <geom/geom_disk.h>
+
 static MALLOC_DEFINE(M_CAMSCHED, "CAM I/O Scheduler",
     "CAM I/O Scheduler buffers");
 
