@@ -1267,41 +1267,31 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 	tr = TAILQ_FIRST(&qpair->free_tr);
 	req->qpair = qpair;
 
-	if (tr == NULL || qpair->recovery_state != RECOVERY_NONE) {
-		/*
-		 * No tracker is available, or the qpair is disabled due to an
-		 * in-progress controller-level reset. If we lose the race with
-		 * recovery_state, then we may add an extra request to the queue
-		 * which will be resubmitted later.  We only set recovery_state
-		 * to NONE with qpair->lock also held, so if we observe that the
-		 * state is not NONE, we know it can't transition to NONE below
-		 * when we've submitted the request to hardware.
-		 *
-		 * Also, as part of the failure process, we set recovery_state
-		 * to RECOVERY_WAITING, so we check here to see if we've failed
-		 * the controller. We set it before we call the qpair_fail
-		 * functions, which take out the lock lock before messing with
-		 * queued_req. Since we hold that lock, we know it's safe to
-		 * either fail directly, or queue the failure should is_failed
-		 * be stale. If we lose the race reading is_failed, then
-		 * nvme_qpair_fail will fail the queued request.
-		 */
+	/*
+	 * The controller has failed, so fail the request. Note, that this races
+	 * the recovery / timeout code. Since we hold the qpair lock, we know
+	 * it's safe to fail directly. is_failed is set when we fail the controller.
+	 * It is only ever reset in the ioctl reset controller path, which is safe
+	 * to race (for failed controllers, we make no guarantees about bringing
+	 * it out of failed state relative to other commands).
+	 */
+	if (qpair->ctrlr->is_failed) {
+		nvme_qpair_manual_complete_request(qpair, req,
+		    NVME_SCT_GENERIC, NVME_SC_ABORTED_BY_REQUEST);
+		return;
+	}
 
-		if (qpair->ctrlr->is_failed) {
-			/*
-			 * The controller has failed, so fail the request.
-			 */
-			nvme_qpair_manual_complete_request(qpair, req,
-			    NVME_SCT_GENERIC, NVME_SC_ABORTED_BY_REQUEST);
-		} else {
-			/*
-			 * Put the request on the qpair's request queue to be
-			 *  processed when a tracker frees up via a command
-			 *  completion or when the controller reset is
-			 *  completed.
-			 */
-			STAILQ_INSERT_TAIL(&qpair->queued_req, req, stailq);
-		}
+	/*
+	 * No tracker is available, or the qpair is disabled due to an
+	 * in-progress controller-level reset. If we lose the race with
+	 * recovery_state, then we may add an extra request to the queue which
+	 * will be resubmitted later.  We only set recovery_state to NONE with
+	 * qpair->lock also held, so if we observe that the state is not NONE,
+	 * we know it won't transition back to NONE without retrying queued
+	 * request.
+	 */
+	if (tr == NULL || qpair->recovery_state != RECOVERY_NONE) {
+		STAILQ_INSERT_TAIL(&qpair->queued_req, req, stailq);
 		return;
 	}
 
