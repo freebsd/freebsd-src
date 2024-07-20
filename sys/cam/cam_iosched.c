@@ -314,6 +314,7 @@ struct control_loop {
 struct cam_iosched_softc {
 	struct bio_queue_head bio_queue;
 	struct bio_queue_head trim_queue;
+	const struct disk *disk;
 				/* scheduler flags < 16, user flags >= 16 */
 	uint32_t	flags;
 	int		sort_io_queue;
@@ -1153,12 +1154,14 @@ cam_iosched_cl_sysctl_fini(struct control_loop *clp)
  * sizeof struct cam_iosched_softc.
  */
 int
-cam_iosched_init(struct cam_iosched_softc **iscp, struct cam_periph *periph)
+cam_iosched_init(struct cam_iosched_softc **iscp, struct cam_periph *periph,
+    const struct disk *dp)
 {
 
 	*iscp = malloc(sizeof(**iscp), M_CAMSCHED, M_NOWAIT | M_ZERO);
 	if (*iscp == NULL)
 		return ENOMEM;
+	(*iscp)->disk = dp;
 #ifdef CAM_IOSCHED_DYNAMIC
 	if (iosched_debug)
 		printf("CAM IOSCHEDULER Allocating entry at %p\n", *iscp);

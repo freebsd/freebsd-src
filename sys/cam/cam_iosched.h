@@ -80,7 +80,8 @@ cam_iosched_sbintime_t(uintptr_t delta)
 
 typedef void (*cam_iosched_latfcn_t)(void *, sbintime_t, struct bio *);
 
-int cam_iosched_init(struct cam_iosched_softc **, struct cam_periph *periph);
+int cam_iosched_init(struct cam_iosched_softc **, struct cam_periph *periph,
+    const struct disk *dp);
 void cam_iosched_fini(struct cam_iosched_softc *);
 void cam_iosched_sysctl_init(struct cam_iosched_softc *, struct sysctl_ctx_list *, struct sysctl_oid *);
 struct bio *cam_iosched_next_trim(struct cam_iosched_softc *isc);
