@@ -482,6 +482,20 @@ nvme_qpair_complete_tracker(struct nvme_tracker *tr,
 	mtx_unlock(&qpair->lock);
 }
 
+static uint32_t
+nvme_qpair_make_status(uint32_t sct, uint32_t sc, uint32_t dnr)
+{
+	uint32_t status = 0;
+
+	status |= NVMEF(NVME_STATUS_SCT, sct);
+	status |= NVMEF(NVME_STATUS_SC, sc);
+	status |= NVMEF(NVME_STATUS_DNR, dnr);
+	/* M=0 : this is artificial so no data in error log page */
+	/* CRD=0 : this is artificial and no delayed retry support anyway */
+	/* P=0 : phase not checked */
+	return (status);
+}
+
 static void
 nvme_qpair_manual_complete_tracker(
     struct nvme_tracker *tr, uint32_t sct, uint32_t sc, uint32_t dnr,
@@ -496,30 +510,24 @@ nvme_qpair_manual_complete_tracker(
 
 	cpl.sqid = qpair->id;
 	cpl.cid = tr->cid;
-	cpl.status |= NVMEF(NVME_STATUS_SCT, sct);
-	cpl.status |= NVMEF(NVME_STATUS_SC, sc);
-	cpl.status |= NVMEF(NVME_STATUS_DNR, dnr);
-	/* M=0 : this is artificial so no data in error log page */
-	/* CRD=0 : this is artificial and no delayed retry support anyway */
-	/* P=0 : phase not checked */
+	cpl.status = nvme_qpair_make_status(sct, sc, dnr);
 	nvme_qpair_complete_tracker(tr, &cpl, print_on_error);
 }
 
-void
+static void
 nvme_qpair_manual_complete_request(struct nvme_qpair *qpair,
-    struct nvme_request *req, uint32_t sct, uint32_t sc)
+    struct nvme_request *req, uint32_t sct, uint32_t sc, uint32_t dnr,
+    error_print_t print_on_error)
 {
 	struct nvme_completion	cpl;
 	bool			error;
 
 	memset(&cpl, 0, sizeof(cpl));
 	cpl.sqid = qpair->id;
-	cpl.status |= NVMEF(NVME_STATUS_SCT, sct);
-	cpl.status |= NVMEF(NVME_STATUS_SC, sc);
-
+	cpl.status = nvme_qpair_make_status(sct, sc, dnr);
 	error = nvme_completion_is_error(&cpl);
 
-	if (error) {
+	if (error && print_on_error == ERROR_PRINT_ALL) {
 		nvme_qpair_print_command(qpair, &req->cmd);
 		nvme_qpair_print_completion(qpair, &cpl);
 	}
@@ -1277,7 +1285,8 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 	 */
 	if (qpair->ctrlr->is_failed) {
 		nvme_qpair_manual_complete_request(qpair, req,
-		    NVME_SCT_GENERIC, NVME_SC_ABORTED_BY_REQUEST);
+		    NVME_SCT_GENERIC, NVME_SC_ABORTED_BY_REQUEST, 1,
+		    ERROR_PRINT_NONE);
 		return;
 	}
 
@@ -1512,7 +1521,7 @@ nvme_qpair_fail(struct nvme_qpair *qpair)
 		STAILQ_REMOVE_HEAD(&qpair->queued_req, stailq);
 		mtx_unlock(&qpair->lock);
 		nvme_qpair_manual_complete_request(qpair, req, NVME_SCT_GENERIC,
-		    NVME_SC_ABORTED_BY_REQUEST);
+		    NVME_SC_ABORTED_BY_REQUEST, 1, ERROR_PRINT_ALL);
 		mtx_lock(&qpair->lock);
 	}
 
