@@ -78,6 +78,7 @@ backups=`newfs -N $flags md$u2 | grep -A1 "super-block backups" | \
     tail -1 | sed 's/,//g'`
 echo "newfs $flags /dev/md$u2"
 newfs $flags md$u2 > /dev/null
+[ "$newfs_flags" = "" ] && tunefs -n disable md$u2
 mdconfig -d -u $u2
 
 chk() {

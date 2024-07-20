@@ -53,6 +53,7 @@ for i in "" "-U"; do
 	[ "$i" = "-U" -a "$newfs_flags" != "-U" ] && continue
 	echo "newfs $i /dev/md$mdstart"
 	newfs $i /dev/md$mdstart > /dev/null 2>&1
+	[ "$i" = "" ] && tunefs -n disable md$mdstart
 	mount /dev/md$mdstart $mntpoint
 	mkdir $mntpoint/dir
 

@@ -71,6 +71,7 @@ tst() {
 s=0
 for i in "" "-U" "-j"; do
 	newfs $i /dev/md$mdstart > /dev/null 2>&1
+	[ "$i" = "" ] && tunefs -n disable md$mdstart
 	mount /dev/md$mdstart $mntpoint
 
 	t1=`date +%s`
