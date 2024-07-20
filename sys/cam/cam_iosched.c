@@ -1813,7 +1813,6 @@ cam_iosched_bio_complete(struct cam_iosched_softc *isc, struct bio *bp,
 		if (isc->latfcn && isc->max_lat != 0 && sim_latency > isc->max_lat)
 			isc->latfcn(isc->latarg, sim_latency, bp);
 	}
-		
 #endif
 	return retval;
 }
@@ -1926,9 +1925,35 @@ static sbintime_t latencies[LAT_BUCKETS - 1] = {
 	BUCKET_BASE << 18	/* 5,242,880us */
 };
 
+#define CAM_IOSCHED_DEVD_MSG_SIZE	256
+
+static void
+cam_iosched_devctl_outlier(struct iop_stats *iop, sbintime_t sim_latency,
+    const struct bio *bp)
+{
+	daddr_t lba = bp->bio_pblkno;
+	daddr_t cnt = bp->bio_bcount / iop->softc->disk->d_sectorsize;
+	char *sbmsg;
+	struct sbuf sb;
+
+	sbmsg = malloc(CAM_IOSCHED_DEVD_MSG_SIZE, M_CAMSCHED, M_NOWAIT);
+	if (sbmsg == NULL)
+		return;
+	sbuf_new(&sb, sbmsg, CAM_IOSCHED_DEVD_MSG_SIZE, SBUF_FIXEDLEN);
+
+	sbuf_printf(&sb, "device=%s%d lba=%jd blocks=%jd latency=%jd",
+	    iop->softc->periph->periph_name,
+	    iop->softc->periph->unit_number,
+	    lba, cnt, sbttons(sim_latency));
+	if (sbuf_finish(&sb) == 0)
+		devctl_notify("CAM", "iosched", "latency", sbuf_data(&sb));
+	sbuf_delete(&sb);
+	free(sbmsg, M_CAMSCHED);
+}
+
 static void
 cam_iosched_update(struct iop_stats *iop, sbintime_t sim_latency,
-    const struct bio *bp __unused)
+    const struct bio *bp)
 {
 	sbintime_t y, deltasq, delta;
 	int i;
@@ -1938,6 +1963,7 @@ cam_iosched_update(struct iop_stats *iop, sbintime_t sim_latency,
 	 * configured threshold.
 	 */
 	if (sim_latency > iop->bad_latency) {
+		cam_iosched_devctl_outlier(iop, sim_latency, bp);
 		iop->too_long++;
 	}
 
