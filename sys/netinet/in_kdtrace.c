@@ -339,6 +339,8 @@ MIB_PROBE_TCP(tcps_ecn_sndect1);
 MIB_PROBE_TCP(tcps_tlpresends);
 MIB_PROBE_TCP(tcps_tlpresend_bytes);
 
+MIB_PROBE_TCP(tcps_rcvghostack);
+MIB_PROBE_TCP(tcps_rcvacktooold);
 #endif
 
 SDT_PROBE_DEFINE6_XLATE(ip, , , receive,

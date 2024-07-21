@@ -330,6 +330,9 @@ SDT_PROBE_DECLARE(mib, tcp, count, tcps_ecn_sndect1);
 
 SDT_PROBE_DECLARE(mib, tcp, count, tcps_tlpresends);
 SDT_PROBE_DECLARE(mib, tcp, count, tcps_tlpresend_bytes);
+
+SDT_PROBE_DECLARE(mib, tcp, count, tcps_rcvghostack);
+SDT_PROBE_DECLARE(mib, tcp, count, tcps_rcvacktooold);
 #endif
 
 SDT_PROBE_DECLARE(ip, , , receive);
