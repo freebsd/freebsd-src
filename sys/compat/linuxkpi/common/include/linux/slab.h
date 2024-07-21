@@ -91,6 +91,8 @@ struct linux_kmem_cache;
 #define	ZERO_SIZE_PTR		((void *)16)
 #define ZERO_OR_NULL_PTR(x)	((x) == NULL || (x) == ZERO_SIZE_PTR)
 
+extern void *lkpi_kmalloc(size_t size, gfp_t flags);
+
 static inline gfp_t
 linux_check_m_flags(gfp_t flags)
 {
@@ -212,13 +214,29 @@ kfree_sensitive(const void *ptr)
 	zfree(__DECONST(void *, ptr), M_KMALLOC);
 }
 
+static inline void *
+kvrealloc(const void *ptr, size_t oldsize, size_t newsize, gfp_t flags)
+{
+	void *newptr;
+
+	if (newsize <= oldsize)
+		return (__DECONST(void *, ptr));
+
+	newptr = kvmalloc(newsize, flags);
+	if (newptr != NULL) {
+		memcpy(newptr, ptr, oldsize);
+		kvfree(ptr);
+	}
+
+	return (newptr);
+}
+
 static inline size_t
 ksize(const void *ptr)
 {
 	return (malloc_usable_size(ptr));
 }
 
-extern void *lkpi_kmalloc(size_t size, gfp_t flags);
 extern struct linux_kmem_cache *linux_kmem_cache_create(const char *name,
     size_t size, size_t align, unsigned flags, linux_kmem_ctor_t *ctor);
 extern void *lkpi_kmem_cache_alloc(struct linux_kmem_cache *, gfp_t);
