@@ -25289,7 +25289,7 @@ static struct tcp_function_block __tcp_rack = {
 	.tfb_compute_pipe = rack_compute_pipe,
 	.tfb_stack_info = rack_stack_information,
 	.tfb_inherit = rack_inherit,
-	.tfb_flags = TCP_FUNC_OUTPUT_CANDROP,
+	.tfb_flags = TCP_FUNC_OUTPUT_CANDROP | TCP_FUNC_DEFAULT_OK,
 
 };
 

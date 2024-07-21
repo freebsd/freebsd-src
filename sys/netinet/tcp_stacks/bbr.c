@@ -14181,7 +14181,7 @@ struct tcp_function_block __tcp_bbr = {
 	.tfb_tcp_mtu_chg = bbr_mtu_chg,
 	.tfb_pru_options = bbr_pru_options,
 	.tfb_switch_failed = bbr_switch_failed,
-	.tfb_flags = TCP_FUNC_OUTPUT_CANDROP,
+	.tfb_flags = TCP_FUNC_OUTPUT_CANDROP | TCP_FUNC_DEFAULT_OK,
 };
 
 /*
