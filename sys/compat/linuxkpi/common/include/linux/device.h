@@ -701,4 +701,8 @@ int lkpi_devm_add_action_or_reset(struct device *dev, void (*action)(void *), vo
 #define	devm_add_action_or_reset(dev, action, data)	\
 	lkpi_devm_add_action_or_reset(dev, action, data)
 
+int lkpi_devm_device_add_group(struct device *dev, const struct attribute_group *group);
+#define	devm_device_add_group(dev, group)	\
+	lkpi_devm_device_add_group(dev, group)
+
 #endif	/* _LINUXKPI_LINUX_DEVICE_H_ */
