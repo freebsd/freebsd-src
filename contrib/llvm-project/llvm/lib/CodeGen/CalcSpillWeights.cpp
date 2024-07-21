@@ -256,7 +256,12 @@ float VirtRegAuxInfo::weightCalcHelper(LiveInterval &LI, SlotIndex *Start,
       return -1.0f;
     }
 
-    float Weight = 1.0f;
+    // FreeBSD customization: similar to the HWeight declaration below, add a
+    // volatile qualifier to avoid slightly different weight results on amd64
+    // and i386 hosts, and possibly choosing different registers in the register
+    // allocator. See <https://github.com/llvm/llvm-project/issues/99396> for
+    // more details.
+    volatile float Weight = 1.0f;
     if (IsSpillable) {
       // Get loop info for mi.
       if (MI->getParent() != MBB) {
