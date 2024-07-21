@@ -237,6 +237,14 @@ ksize(const void *ptr)
 	return (malloc_usable_size(ptr));
 }
 
+static inline size_t
+kmalloc_size_roundup(size_t size)
+{
+	if (unlikely(size == 0 || size == SIZE_MAX))
+		return (size);
+	return (malloc_size(size));
+}
+
 extern struct linux_kmem_cache *linux_kmem_cache_create(const char *name,
     size_t size, size_t align, unsigned flags, linux_kmem_ctor_t *ctor);
 extern void *lkpi_kmem_cache_alloc(struct linux_kmem_cache *, gfp_t);
