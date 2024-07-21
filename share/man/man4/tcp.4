@@ -31,7 +31,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 30, 2023
+.Dd July 21, 2024
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -698,6 +698,9 @@ Use criteria defined in RFC793 instead of RFC5961 for accepting RST segments.
 Default is false.
 .It Va insecure_syn
 Use criteria defined in RFC793 instead of RFC5961 for accepting SYN segments.
+Default is false.
+.It Va insecure_ack
+Use criteria defined in RFC793 for validating SEG.ACK.
 Default is false.
 .It Va isn_reseed_interval
 The interval (in seconds) specifying how often the secret data used in
