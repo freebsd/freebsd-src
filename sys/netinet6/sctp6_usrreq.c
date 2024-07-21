@@ -359,7 +359,7 @@ sctp6_ctlinput(struct ip6ctlparam *ip6cp)
 }
 
 /*
- * this routine can probably be collasped into the one in sctp_userreq.c
+ * this routine can probably be collapsed into the one in sctp_userreq.c
  * since they do the same thing and now we lookup with a sockaddr
  */
 static int
@@ -721,8 +721,8 @@ connected_type:
 		 * note with the current version this code will only be used
 		 * by OpenBSD, NetBSD and FreeBSD have methods for
 		 * re-defining sosend() to use sctp_sosend().  One can
-		 * optionaly switch back to this code (by changing back the
-		 * defininitions but this is not advisable.
+		 * optionally switch back to this code (by changing back the
+		 * definitions but this is not advisable.
 		 */
 		struct epoch_tracker et;
 		int ret;
