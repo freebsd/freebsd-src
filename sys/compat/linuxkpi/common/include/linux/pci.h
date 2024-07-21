@@ -362,6 +362,8 @@ bool pci_device_is_present(struct pci_dev *pdev);
 
 int linuxkpi_pcim_enable_device(struct pci_dev *pdev);
 void __iomem **linuxkpi_pcim_iomap_table(struct pci_dev *pdev);
+void *linuxkpi_pci_iomap_range(struct pci_dev *pdev, int mmio_bar,
+    unsigned long mmio_off, unsigned long mmio_size);
 void *linuxkpi_pci_iomap(struct pci_dev *pdev, int mmio_bar, int mmio_size);
 void linuxkpi_pci_iounmap(struct pci_dev *pdev, void *res);
 int linuxkpi_pcim_iomap_regions(struct pci_dev *pdev, uint32_t mask,
@@ -774,6 +776,8 @@ static inline void pci_disable_sriov(struct pci_dev *dev)
 {
 }
 
+#define	pci_iomap_range(pdev, mmio_bar, mmio_off, mmio_size) \
+	linuxkpi_pci_iomap_range(pdev, mmio_bar, mmio_off, mmio_size)
 #define	pci_iomap(pdev, mmio_bar, mmio_size) \
 	linuxkpi_pci_iomap(pdev, mmio_bar, mmio_size)
 #define	pci_iounmap(pdev, res)	linuxkpi_pci_iounmap(pdev, res)
