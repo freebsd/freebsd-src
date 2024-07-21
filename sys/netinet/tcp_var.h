@@ -1454,7 +1454,7 @@ void	 tcp_mss_update(struct tcpcb *, int, int, struct hc_metrics_lite *,
 void	 tcp_mss(struct tcpcb *, int);
 int	 tcp_mssopt(struct in_conninfo *);
 struct tcpcb *
-	 tcp_newtcpcb(struct inpcb *);
+	 tcp_newtcpcb(struct inpcb *, struct tcpcb *);
 int	 tcp_default_output(struct tcpcb *);
 void	 tcp_state_change(struct tcpcb *, int);
 void	 tcp_respond(struct tcpcb *, void *,
