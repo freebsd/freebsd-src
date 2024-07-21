@@ -26,7 +26,7 @@
 # SUCH DAMAGE.
 #
 
-# UFS cache inconsistancy for rename(2) demonstrated
+# UFS cache inconsistency for rename(2) demonstrated
 # Fails with:
 #    ls -ali /mnt
 #    ls: tfa1022: No such file or directory
