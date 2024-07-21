@@ -29,6 +29,9 @@
 #ifndef _LINUXKPI_ACPI_ACPI_BUS_H_
 #define _LINUXKPI_ACPI_ACPI_BUS_H_
 
+/* Aliase struct acpi_device to device_t */
+#define	acpi_device	_device
+
 typedef char acpi_device_class[20];
 
 struct acpi_bus_event {
@@ -38,6 +41,8 @@ struct acpi_bus_event {
 };
 
 #define	acpi_dev_present(...)	lkpi_acpi_dev_present(__VA_ARGS__)
+#define	acpi_dev_get_first_match_dev(...)	\
+	lkpi_acpi_dev_get_first_match_dev(__VA_ARGS__)
 
 ACPI_HANDLE	bsd_acpi_get_handle(device_t bsddev);
 bool		acpi_check_dsm(ACPI_HANDLE handle, const char *uuid, int rev,
@@ -50,5 +55,7 @@ int		unregister_acpi_notifier(struct notifier_block *nb);
 uint32_t	acpi_target_system_state(void);
 bool		lkpi_acpi_dev_present(const char *hid, const char *uid,
 		    int64_t hrv);
+struct acpi_device *lkpi_acpi_dev_get_first_match_dev(const char *hid,
+		    const char *uid, int64_t hrv);
 
 #endif /* _LINUXKPI_ACPI_ACPI_BUS_H_ */
