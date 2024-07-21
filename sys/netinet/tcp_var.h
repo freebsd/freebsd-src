@@ -858,6 +858,7 @@ tcp_packets_this_ack(struct tcpcb *tp, tcp_seq ack)
 #define	TF2_MBUF_QUEUE_READY	0x00020000 /* Inputs can be queued */
 #define	TF2_DONT_SACK_QUEUE	0x00040000 /* Don't wake on sack */
 #define	TF2_CANNOT_DO_ECN	0x00080000 /* The stack does not do ECN */
+#define	TF2_NO_ISS_CHECK	0x00200000 /* Don't check SEG.ACK against ISS */
 
 /*
  * Structure to hold TCP options that are only used during segment
@@ -1109,8 +1110,11 @@ struct	tcpstat {
 	uint64_t tcps_tlpresends;	/* number of tlp resends */
 	uint64_t tcps_tlpresend_bytes;	/* number of bytes resent by tlp */
 
+	/* SEG.ACK validation failures */
+	uint64_t tcps_rcvghostack;	/* received ACK for data never sent */
+	uint64_t tcps_rcvacktooold;	/* received ACK for data too long ago */
 
-	uint64_t _pad[4];		/* 4 TBD placeholder for STABLE */
+	uint64_t _pad[2];		/* 2 TBD placeholder for STABLE */
 };
 
 #define	tcps_rcvmemdrop	tcps_rcvreassfull	/* compat */
@@ -1291,6 +1295,7 @@ VNET_DECLARE(int, tcp_ecn_maxretries);
 VNET_DECLARE(int, tcp_initcwnd_segments);
 VNET_DECLARE(int, tcp_insecure_rst);
 VNET_DECLARE(int, tcp_insecure_syn);
+VNET_DECLARE(int, tcp_insecure_ack);
 VNET_DECLARE(uint32_t, tcp_map_entries_limit);
 VNET_DECLARE(uint32_t, tcp_map_split_limit);
 VNET_DECLARE(int, tcp_minmss);
@@ -1337,6 +1342,7 @@ VNET_DECLARE(struct inpcbinfo, tcbinfo);
 #define	V_tcp_initcwnd_segments		VNET(tcp_initcwnd_segments)
 #define	V_tcp_insecure_rst		VNET(tcp_insecure_rst)
 #define	V_tcp_insecure_syn		VNET(tcp_insecure_syn)
+#define	V_tcp_insecure_ack		VNET(tcp_insecure_ack)
 #define	V_tcp_map_entries_limit		VNET(tcp_map_entries_limit)
 #define	V_tcp_map_split_limit		VNET(tcp_map_split_limit)
 #define	V_tcp_minmss			VNET(tcp_minmss)
