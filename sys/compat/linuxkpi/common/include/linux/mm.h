@@ -276,12 +276,14 @@ get_page(struct page *page)
 }
 
 extern long
-get_user_pages(unsigned long start, unsigned long nr_pages,
-    unsigned int gup_flags, struct page **,
-    struct vm_area_struct **);
+lkpi_get_user_pages(unsigned long start, unsigned long nr_pages,
+    unsigned int gup_flags, struct page **);
 #if defined(LINUXKPI_VERSION) && LINUXKPI_VERSION >= 60500
 #define	get_user_pages(start, nr_pages, gup_flags, pages)	\
-	get_user_pages(start, nr_pages, gup_flags, pages, NULL)
+	lkpi_get_user_pages(start, nr_pages, gup_flags, pages)
+#else
+#define	get_user_pages(start, nr_pages, gup_flags, pages, vmas)	\
+	lkpi_get_user_pages(start, nr_pages, gup_flags, pages)
 #endif
 
 #if defined(LINUXKPI_VERSION) && LINUXKPI_VERSION >= 60500
