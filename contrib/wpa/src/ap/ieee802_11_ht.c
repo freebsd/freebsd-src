@@ -479,15 +479,14 @@ static void update_sta_no_ht(struct hostapd_data *hapd, struct sta_info *sta)
 }
 
 
-void update_ht_state(struct hostapd_data *hapd, struct sta_info *sta)
+int update_ht_state(struct hostapd_data *hapd, struct sta_info *sta)
 {
 	if ((sta->flags & WLAN_STA_HT) && sta->ht_capabilities)
 		update_sta_ht(hapd, sta);
 	else
 		update_sta_no_ht(hapd, sta);
 
-	if (hostapd_ht_operation_update(hapd->iface) > 0)
-		ieee802_11_set_beacons(hapd->iface);
+	return hostapd_ht_operation_update(hapd->iface);
 }
 
 

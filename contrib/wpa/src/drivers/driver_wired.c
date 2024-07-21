@@ -285,7 +285,7 @@ static int wired_init_sockets(struct wpa_driver_wired_data *drv, u8 *own_addr)
 
 static int wired_send_eapol(void *priv, const u8 *addr,
 			    const u8 *data, size_t data_len, int encrypt,
-			    const u8 *own_addr, u32 flags)
+			    const u8 *own_addr, u32 flags, int link_id)
 {
 	struct wpa_driver_wired_data *drv = priv;
 	struct ieee8023_hdr *hdr;

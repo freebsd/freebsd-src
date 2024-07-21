@@ -1,5 +1,5 @@
 /*
- * EAP peer method: EAP-TLS (RFC 2716)
+ * EAP peer method: EAP-TLS (RFC 5216, RFC 9190)
  * Copyright (c) 2004-2008, 2012-2019, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
@@ -26,6 +26,7 @@ struct eap_tls_data {
 	void *ssl_ctx;
 	u8 eap_type;
 	struct wpabuf *pending_resp;
+	bool prot_success_received;
 };
 
 
@@ -302,15 +303,20 @@ static struct wpabuf * eap_tls_process(struct eap_sm *sm, void *priv,
 		return NULL;
 	}
 
-	/* draft-ietf-emu-eap-tls13-13 Section 2.5 */
+	/* RFC 9190 Section 2.5 */
 	if (res == 2 && data->ssl.tls_v13 && wpabuf_len(resp) == 1 &&
 	    *wpabuf_head_u8(resp) == 0) {
-		wpa_printf(MSG_DEBUG, "EAP-TLS: ACKing Commitment Message");
+		wpa_printf(MSG_DEBUG,
+			   "EAP-TLS: ACKing protected success indication (appl data 0x00)");
 		eap_peer_tls_reset_output(&data->ssl);
 		res = 1;
+		ret->methodState = METHOD_DONE;
+		ret->decision = DECISION_UNCOND_SUCC;
+		data->prot_success_received = true;
 	}
 
-	if (tls_connection_established(data->ssl_ctx, data->ssl.conn))
+	if (tls_connection_established(data->ssl_ctx, data->ssl.conn) &&
+	    (!data->ssl.tls_v13 || data->prot_success_received))
 		eap_tls_success(sm, data, ret);
 
 	if (res == 1) {
@@ -335,6 +341,7 @@ static void eap_tls_deinit_for_reauth(struct eap_sm *sm, void *priv)
 
 	wpabuf_free(data->pending_resp);
 	data->pending_resp = NULL;
+	data->prot_success_received = false;
 }
 
 

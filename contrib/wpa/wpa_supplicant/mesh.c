@@ -225,12 +225,13 @@ static int wpas_mesh_update_freq_params(struct wpa_supplicant *wpa_s)
 		    ifmsh->conf->ieee80211n,
 		    ifmsh->conf->ieee80211ac,
 		    ifmsh->conf->ieee80211ax,
+		    ifmsh->conf->ieee80211be,
 		    ifmsh->conf->secondary_channel,
 		    hostapd_get_oper_chwidth(ifmsh->conf),
 		    hostapd_get_oper_centr_freq_seg0_idx(ifmsh->conf),
 		    hostapd_get_oper_centr_freq_seg1_idx(ifmsh->conf),
 		    ifmsh->conf->vht_capab,
-		    he_capab)) {
+		    he_capab, NULL, 0)) {
 		wpa_printf(MSG_ERROR, "Error updating mesh frequency params");
 		wpa_supplicant_mesh_deinit(wpa_s, true);
 		return -1;
@@ -633,6 +634,7 @@ int wpa_supplicant_join_mesh(struct wpa_supplicant *wpa_s,
 	wpa_s->mesh_ht_enabled = !!params->freq.ht_enabled;
 	wpa_s->mesh_vht_enabled = !!params->freq.vht_enabled;
 	wpa_s->mesh_he_enabled = !!params->freq.he_enabled;
+	wpa_s->mesh_eht_enabled = !!params->freq.eht_enabled;
 	if (params->freq.ht_enabled && params->freq.sec_channel_offset)
 		ssid->ht40 = params->freq.sec_channel_offset;
 
@@ -642,23 +644,27 @@ int wpa_supplicant_join_mesh(struct wpa_supplicant *wpa_s,
 		switch (params->freq.bandwidth) {
 		case 80:
 			if (params->freq.center_freq2) {
-				ssid->max_oper_chwidth = CHANWIDTH_80P80MHZ;
+				ssid->max_oper_chwidth =
+					CONF_OPER_CHWIDTH_80P80MHZ;
 				ssid->vht_center_freq2 =
 					params->freq.center_freq2;
 			} else {
-				ssid->max_oper_chwidth = CHANWIDTH_80MHZ;
+				ssid->max_oper_chwidth =
+					CONF_OPER_CHWIDTH_80MHZ;
 			}
 			break;
 		case 160:
-			ssid->max_oper_chwidth = CHANWIDTH_160MHZ;
+			ssid->max_oper_chwidth = CONF_OPER_CHWIDTH_160MHZ;
 			break;
 		default:
-			ssid->max_oper_chwidth = CHANWIDTH_USE_HT;
+			ssid->max_oper_chwidth = CONF_OPER_CHWIDTH_USE_HT;
 			break;
 		}
 	}
 	if (wpa_s->mesh_he_enabled)
 		ssid->he = 1;
+	if (wpa_s->mesh_eht_enabled)
+		ssid->eht = 1;
 	if (ssid->beacon_int > 0)
 		params->beacon_int = ssid->beacon_int;
 	else if (wpa_s->conf->beacon_int > 0)

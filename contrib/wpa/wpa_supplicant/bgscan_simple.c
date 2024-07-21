@@ -15,11 +15,16 @@
 #include "wpa_supplicant_i.h"
 #include "driver_i.h"
 #include "scan.h"
+#include "config.h"
+#include "wnm_sta.h"
+#include "bss.h"
 #include "bgscan.h"
 
 struct bgscan_simple_data {
 	struct wpa_supplicant *wpa_s;
 	const struct wpa_ssid *ssid;
+	unsigned int use_btm_query;
+	unsigned int scan_action_count;
 	int scan_interval;
 	int signal_threshold;
 	int short_scan_count; /* counter for scans using short scan interval */
@@ -30,11 +35,53 @@ struct bgscan_simple_data {
 };
 
 
+static void bgscan_simple_timeout(void *eloop_ctx, void *timeout_ctx);
+
+
+static bool bgscan_simple_btm_query(struct wpa_supplicant *wpa_s,
+				    struct bgscan_simple_data *data)
+{
+	unsigned int mod;
+
+	if (!data->use_btm_query || wpa_s->conf->disable_btm ||
+	    !wpa_s->current_bss ||
+	    !wpa_bss_ext_capab(wpa_s->current_bss,
+			       WLAN_EXT_CAPAB_BSS_TRANSITION))
+		return false;
+
+	/* Try BTM x times, scan on x + 1 */
+	data->scan_action_count++;
+	mod = data->scan_action_count % (data->use_btm_query + 1);
+	if (mod >= data->use_btm_query)
+		return false;
+
+	wpa_printf(MSG_DEBUG,
+		   "bgscan simple: Send BSS transition management query %d/%d",
+		   mod, data->use_btm_query);
+	if (wnm_send_bss_transition_mgmt_query(
+		    wpa_s, WNM_TRANSITION_REASON_BETTER_AP_FOUND, NULL, 0)) {
+		wpa_printf(MSG_DEBUG,
+			   "bgscan simple: Failed to send BSS transition management query");
+		/* Fall through and do regular scan */
+		return false;
+	}
+
+	/* Start a new timeout for the next one. We don't have scan callback to
+	 * otherwise trigger future progress when using BTM path. */
+	eloop_register_timeout(data->scan_interval, 0,
+			       bgscan_simple_timeout, data, NULL);
+	return true;
+}
+
+
 static void bgscan_simple_timeout(void *eloop_ctx, void *timeout_ctx)
 {
 	struct bgscan_simple_data *data = eloop_ctx;
 	struct wpa_supplicant *wpa_s = data->wpa_s;
 	struct wpa_driver_scan_params params;
+
+	if (bgscan_simple_btm_query(wpa_s, data))
+		goto scan_ok;
 
 	os_memset(&params, 0, sizeof(params));
 	params.num_ssids = 1;
@@ -49,11 +96,12 @@ static void bgscan_simple_timeout(void *eloop_ctx, void *timeout_ctx)
 	 */
 
 	wpa_printf(MSG_DEBUG, "bgscan simple: Request a background scan");
-	if (wpa_supplicant_trigger_scan(wpa_s, &params)) {
+	if (wpa_supplicant_trigger_scan(wpa_s, &params, true, false)) {
 		wpa_printf(MSG_DEBUG, "bgscan simple: Failed to trigger scan");
 		eloop_register_timeout(data->scan_interval, 0,
 				       bgscan_simple_timeout, data, NULL);
 	} else {
+	scan_ok:
 		if (data->scan_interval == data->short_interval) {
 			data->short_scan_count++;
 			if (data->short_scan_count >= data->max_short_scans) {
@@ -80,6 +128,8 @@ static int bgscan_simple_get_params(struct bgscan_simple_data *data,
 {
 	const char *pos;
 
+	data->use_btm_query = 0;
+
 	data->short_interval = atoi(params);
 
 	pos = os_strchr(params, ':');
@@ -95,6 +145,11 @@ static int bgscan_simple_get_params(struct bgscan_simple_data *data,
 	}
 	pos++;
 	data->long_interval = atoi(pos);
+	pos = os_strchr(pos, ':');
+	if (pos) {
+		pos++;
+		data->use_btm_query = atoi(pos);
+	}
 
 	return 0;
 }
@@ -134,10 +189,11 @@ static void * bgscan_simple_init(struct wpa_supplicant *wpa_s,
 	data->scan_interval = data->short_interval;
 	data->max_short_scans = data->long_interval / data->short_interval + 1;
 	if (data->signal_threshold) {
+		wpa_s->signal_threshold = data->signal_threshold;
 		/* Poll for signal info to set initial scan interval */
 		struct wpa_signal_info siginfo;
 		if (wpa_drv_signal_poll(wpa_s, &siginfo) == 0 &&
-		    siginfo.current_signal >= data->signal_threshold)
+		    siginfo.data.signal >= data->signal_threshold)
 			data->scan_interval = data->long_interval;
 	}
 	wpa_printf(MSG_DEBUG, "bgscan simple: Init scan interval: %d",
@@ -161,8 +217,10 @@ static void bgscan_simple_deinit(void *priv)
 {
 	struct bgscan_simple_data *data = priv;
 	eloop_cancel_timeout(bgscan_simple_timeout, data, NULL);
-	if (data->signal_threshold)
+	if (data->signal_threshold) {
+		data->wpa_s->signal_threshold = 0;
 		wpa_drv_signal_monitor(data->wpa_s, 0, 0);
+	}
 	os_free(data);
 }
 

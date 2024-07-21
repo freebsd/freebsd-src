@@ -55,7 +55,7 @@ static void update_channel_utilization(void *eloop_data, void *user_data)
 		return;
 	}
 
-	ieee802_11_set_beacon(hapd);
+	ieee802_11_set_beacon_per_bss_only(hapd);
 
 	if (get_bss_load_update_timeout(hapd, &sec, &usec) < 0)
 		return;

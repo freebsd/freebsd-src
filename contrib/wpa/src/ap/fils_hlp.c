@@ -530,9 +530,9 @@ static int fils_process_hlp_ip(struct hostapd_data *hapd,
 	switch (iph->ip_p) {
 	case 17:
 		return fils_process_hlp_udp(hapd, sta, dst, pos, len);
+	default:
+		return 0;
 	}
-
-	return 0;
 }
 
 
@@ -546,7 +546,7 @@ static int fils_process_hlp_req(struct hostapd_data *hapd,
 		   " src=" MACSTR " len=%u)",
 		   MAC2STR(sta->addr), MAC2STR(pos), MAC2STR(pos + ETH_ALEN),
 		   (unsigned int) len);
-	if (os_memcmp(sta->addr, pos + ETH_ALEN, ETH_ALEN) != 0) {
+	if (!ether_addr_equal(sta->addr, pos + ETH_ALEN)) {
 		wpa_printf(MSG_DEBUG,
 			   "FILS: Ignore HLP request with unexpected source address"
 			   MACSTR, MAC2STR(pos + ETH_ALEN));
@@ -567,9 +567,9 @@ static int fils_process_hlp_req(struct hostapd_data *hapd,
 	case ETH_P_IP:
 		return fils_process_hlp_ip(hapd, sta, pos, pkt + 2,
 					   end - pkt - 2);
+	default:
+		return 0;
 	}
-
-	return 0;
 }
 
 

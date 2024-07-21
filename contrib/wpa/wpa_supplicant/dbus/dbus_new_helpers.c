@@ -11,6 +11,7 @@
 
 #include "utils/common.h"
 #include "utils/eloop.h"
+#include "drivers/driver.h"
 #include "dbus_common.h"
 #include "dbus_common_i.h"
 #include "dbus_new.h"
@@ -670,20 +671,27 @@ static void do_send_prop_changed_signal(
 					    &interface) ||
 	    /* Changed properties dict */
 	    !dbus_message_iter_open_container(&signal_iter, DBUS_TYPE_ARRAY,
-					      "{sv}", &dict_iter) ||
-	    !put_changed_properties(obj_dsc, interface, &dict_iter, 0) ||
-	    !dbus_message_iter_close_container(&signal_iter, &dict_iter) ||
+					      "{sv}", &dict_iter))
+		goto fail;
+	if (!put_changed_properties(obj_dsc, interface, &dict_iter, 0)) {
+		dbus_message_iter_close_container(&signal_iter, &dict_iter);
+		goto fail;
+	}
+	if (!dbus_message_iter_close_container(&signal_iter, &dict_iter) ||
 	    /* Invalidated properties array (empty) */
 	    !dbus_message_iter_open_container(&signal_iter, DBUS_TYPE_ARRAY,
 					      "s", &dict_iter) ||
-	    !dbus_message_iter_close_container(&signal_iter, &dict_iter)) {
-		wpa_printf(MSG_DEBUG, "dbus: %s: Failed to construct signal",
-			   __func__);
-	} else {
-		dbus_connection_send(con, msg, NULL);
-	}
+	    !dbus_message_iter_close_container(&signal_iter, &dict_iter))
+		goto fail;
 
+	dbus_connection_send(con, msg, NULL);
+
+out:
 	dbus_message_unref(msg);
+	return;
+fail:
+	wpa_printf(MSG_DEBUG, "dbus: %s: Failed to construct signal", __func__);
+	goto out;
 }
 
 
@@ -701,16 +709,23 @@ static void do_send_deprecated_prop_changed_signal(
 	dbus_message_iter_init_append(msg, &signal_iter);
 
 	if (!dbus_message_iter_open_container(&signal_iter, DBUS_TYPE_ARRAY,
-					      "{sv}", &dict_iter) ||
-	    !put_changed_properties(obj_dsc, interface, &dict_iter, 1) ||
-	    !dbus_message_iter_close_container(&signal_iter, &dict_iter)) {
-		wpa_printf(MSG_DEBUG, "dbus: %s: Failed to construct signal",
-			   __func__);
-	} else {
-		dbus_connection_send(con, msg, NULL);
+					      "{sv}", &dict_iter))
+		goto fail;
+	if (!put_changed_properties(obj_dsc, interface, &dict_iter, 1)) {
+		dbus_message_iter_close_container(&signal_iter, &dict_iter);
+		goto fail;
 	}
+	if (!dbus_message_iter_close_container(&signal_iter, &dict_iter))
+		goto fail;
 
+	dbus_connection_send(con, msg, NULL);
+
+out:
 	dbus_message_unref(msg);
+	return;
+fail:
+	wpa_printf(MSG_DEBUG, "dbus: %s: Failed to construct signal", __func__);
+	goto out;
 }
 
 
@@ -1022,4 +1037,166 @@ DBusMessage * wpas_dbus_reply_new_from_error(DBusMessage *message,
 					      fallback_string);
 	}
 	return NULL;
+}
+
+
+static double guard_interval_to_double(enum guard_interval value)
+{
+	switch (value) {
+	case GUARD_INTERVAL_0_4:
+		return 0.4;
+	case GUARD_INTERVAL_0_8:
+		return 0.8;
+	case GUARD_INTERVAL_1_6:
+		return 1.6;
+	case GUARD_INTERVAL_3_2:
+		return 3.2;
+	default:
+		return 0;
+	}
+}
+
+
+/**
+ * wpas_dbus_new_from_signal_information - Adds a wpa_signal_info
+ * to a DBusMessage.
+ * @msg: Pointer to message to append fields to
+ * @si: Pointer to wpa_signal_info to add to the message
+ * Returns: 0 on success, otherwise, an errorcode
+ *
+ * Adds all the pertinent fields from a wpa_signal_info to a DBusMessage.
+ * The same logic is useful in both responding to signal_poll calls, and
+ * sending signal_change signals.
+ */
+int wpas_dbus_new_from_signal_information(DBusMessageIter *iter,
+					  struct wpa_signal_info *si)
+{
+	DBusMessageIter iter_dict, variant_iter;
+
+	if (!dbus_message_iter_open_container(iter, DBUS_TYPE_VARIANT,
+					      "a{sv}", &variant_iter) ||
+	    !wpa_dbus_dict_open_write(&variant_iter, &iter_dict) ||
+	    !wpa_dbus_dict_append_int32(&iter_dict, "rssi",
+					si->data.signal) ||
+	    !wpa_dbus_dict_append_uint32(&iter_dict, "linkspeed",
+					si->data.current_tx_rate / 1000) ||
+	    !wpa_dbus_dict_append_int32(&iter_dict, "noise",
+					si->current_noise) ||
+	    !wpa_dbus_dict_append_uint32(&iter_dict, "frequency",
+					 si->frequency) ||
+	    (si->chanwidth != CHAN_WIDTH_UNKNOWN &&
+	     !wpa_dbus_dict_append_string(
+		     &iter_dict, "width",
+		     channel_width_to_string(si->chanwidth))) ||
+	    (si->center_frq1 > 0 && si->center_frq2 > 0 &&
+	     (!wpa_dbus_dict_append_int32(&iter_dict, "center-frq1",
+					  si->center_frq1) ||
+	      !wpa_dbus_dict_append_int32(&iter_dict, "center-frq2",
+					  si->center_frq2))) ||
+	    (si->data.avg_signal &&
+	     !wpa_dbus_dict_append_int32(&iter_dict, "avg-rssi",
+					 si->data.avg_signal)) ||
+	    (si->data.rx_bytes &&
+	     !wpa_dbus_dict_append_uint64(&iter_dict, "rx-bytes",
+					  si->data.rx_bytes)) ||
+	    (si->data.tx_bytes &&
+	     !wpa_dbus_dict_append_uint64(&iter_dict, "tx-bytes",
+					  si->data.tx_bytes)) ||
+	    (si->data.rx_packets &&
+	     !wpa_dbus_dict_append_uint32(&iter_dict, "rx-packets",
+					  si->data.rx_packets)) ||
+	    (si->data.tx_packets &&
+	     !wpa_dbus_dict_append_uint32(&iter_dict, "tx-packets",
+					  si->data.tx_packets)) ||
+	    (si->data.beacons_count &&
+	     !wpa_dbus_dict_append_uint64(&iter_dict, "beacons",
+					  si->data.beacons_count)) ||
+	    (si->data.current_rx_rate &&
+	     !wpa_dbus_dict_append_uint32(&iter_dict, "linkrxspeed",
+					  si->data.current_rx_rate)) ||
+	    (si->data.current_rx_rate &&
+	     !wpa_dbus_dict_append_uint32(&iter_dict, "linktxspeed",
+					  si->data.current_tx_rate)) ||
+	    (si->data.inactive_msec &&
+	     !wpa_dbus_dict_append_uint32(&iter_dict, "inactive-time",
+					 si->data.inactive_msec)) ||
+	    (si->data.tx_retry_failed &&
+	     !wpa_dbus_dict_append_uint32(&iter_dict, "retries-failed",
+					  si->data.tx_retry_failed)) ||
+	    (si->data.tx_retry_count &&
+	     !wpa_dbus_dict_append_uint32(&iter_dict, "retries",
+					  si->data.tx_retry_count)) ||
+	    (si->data.last_ack_rssi &&
+	     !wpa_dbus_dict_append_int32(&iter_dict, "last-ack-rssi",
+					 si->data.last_ack_rssi)) ||
+	    (si->data.fcs_error_count &&
+	     !wpa_dbus_dict_append_uint32(&iter_dict, "fcs-errors",
+					  si->data.fcs_error_count)) ||
+	    (si->data.beacon_loss_count &&
+	     !wpa_dbus_dict_append_uint32(&iter_dict, "beacon-losses",
+					  si->data.beacon_loss_count)) ||
+	    (si->data.expected_throughput &&
+	     !wpa_dbus_dict_append_uint32(&iter_dict, "expected-throughput",
+					  si->data.expected_throughput)) ||
+	    (si->data.rx_drop_misc &&
+	     !wpa_dbus_dict_append_uint32(&iter_dict, "rx-drop-misc",
+					  si->data.rx_drop_misc)) ||
+	    (si->data.rx_mpdus &&
+	     !wpa_dbus_dict_append_uint32(&iter_dict, "rx-mpdus",
+					  si->data.rx_mpdus)) ||
+	    (si->data.rx_hemcs &&
+	     !wpa_dbus_dict_append_uint32(&iter_dict, "rx-he-mcs",
+					  si->data.rx_hemcs)) ||
+	    (si->data.tx_hemcs &&
+	     !wpa_dbus_dict_append_uint32(&iter_dict, "tx-he-mcs",
+					  si->data.tx_hemcs)) ||
+	    (si->data.rx_vhtmcs &&
+	     !wpa_dbus_dict_append_uint32(&iter_dict, "rx-vht-mcs",
+					  si->data.rx_vhtmcs)) ||
+	    (si->data.tx_vhtmcs &&
+	     !wpa_dbus_dict_append_uint32(&iter_dict, "tx-vht-mcs",
+					  si->data.tx_vhtmcs)) ||
+	    (si->data.rx_mcs &&
+	     !wpa_dbus_dict_append_uint32(&iter_dict, "rx-mcs",
+					  si->data.rx_mcs)) ||
+	    (si->data.tx_mcs &&
+	     !wpa_dbus_dict_append_uint32(&iter_dict, "tx-mcs",
+					  si->data.tx_mcs)) ||
+	    (si->data.rx_he_nss &&
+	     !wpa_dbus_dict_append_uint32(&iter_dict, "rx-he-nss",
+					  si->data.rx_he_nss)) ||
+	    (si->data.tx_he_nss &&
+	     !wpa_dbus_dict_append_uint32(&iter_dict, "tx-he-nss",
+					  si->data.tx_he_nss)) ||
+	    (si->data.rx_vht_nss &&
+	     !wpa_dbus_dict_append_uint32(&iter_dict, "rx-vht-nss",
+					  si->data.rx_vht_nss)) ||
+	    (si->data.tx_vht_nss &&
+	     !wpa_dbus_dict_append_uint32(&iter_dict, "tx-vht-nss",
+					  si->data.tx_vht_nss)) ||
+	    (si->data.avg_beacon_signal &&
+	     !wpa_dbus_dict_append_int32(&iter_dict, "avg-beacon-rssi",
+					 si->data.avg_beacon_signal)) ||
+	    (si->data.avg_ack_signal &&
+	     !wpa_dbus_dict_append_int32(&iter_dict, "avg-ack-rssi",
+					 si->data.avg_ack_signal)) ||
+	    (si->data.rx_guard_interval &&
+	     !wpa_dbus_dict_append_double(
+		     &iter_dict, "rx-guard-interval",
+		     guard_interval_to_double(si->data.rx_guard_interval))) ||
+	    (si->data.tx_guard_interval &&
+	     !wpa_dbus_dict_append_double(
+		     &iter_dict, "tx-guard-interval",
+		     guard_interval_to_double(si->data.tx_guard_interval))) ||
+	    ((si->data.flags & STA_DRV_DATA_RX_HE_DCM) &&
+	     !wpa_dbus_dict_append_bool(&iter_dict, "rx-dcm",
+					si->data.rx_dcm)) ||
+	    ((si->data.flags & STA_DRV_DATA_TX_HE_DCM) &&
+	     !wpa_dbus_dict_append_bool(&iter_dict, "tx-dcm",
+					si->data.tx_dcm)) ||
+	    !wpa_dbus_dict_close_write(&variant_iter, &iter_dict) ||
+	    !dbus_message_iter_close_container(iter, &variant_iter))
+		return -ENOMEM;
+
+	return 0;
 }

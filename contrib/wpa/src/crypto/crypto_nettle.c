@@ -467,3 +467,8 @@ void crypto_cipher_deinit(struct crypto_cipher *ctx)
 {
 	bin_clear_free(ctx, sizeof(*ctx));
 }
+
+
+void crypto_unload(void)
+{
+}

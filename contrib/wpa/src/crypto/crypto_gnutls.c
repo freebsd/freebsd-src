@@ -504,3 +504,8 @@ void crypto_cipher_deinit(struct crypto_cipher *ctx)
 	gcry_cipher_close(ctx->dec);
 	os_free(ctx);
 }
+
+
+void crypto_unload(void)
+{
+}
