@@ -755,7 +755,8 @@ _lkpi_pci_iomap(struct pci_dev *pdev, int bar, int mmio_size __unused)
 }
 
 void *
-linuxkpi_pci_iomap(struct pci_dev *pdev, int mmio_bar, int mmio_size)
+linuxkpi_pci_iomap_range(struct pci_dev *pdev, int mmio_bar,
+    unsigned long mmio_off, unsigned long mmio_size)
 {
 	struct resource *res;
 
@@ -765,7 +766,14 @@ linuxkpi_pci_iomap(struct pci_dev *pdev, int mmio_bar, int mmio_size)
 	/* This is a FreeBSD extension so we can use bus_*(). */
 	if (pdev->want_iomap_res)
 		return (res);
-	return ((void *)rman_get_bushandle(res));
+	MPASS(mmio_off < rman_get_size(res));
+	return ((void *)(rman_get_bushandle(res) + mmio_off));
+}
+
+void *
+linuxkpi_pci_iomap(struct pci_dev *pdev, int mmio_bar, int mmio_size)
+{
+	return (linuxkpi_pci_iomap_range(pdev, mmio_bar, 0, mmio_size));
 }
 
 void
@@ -774,7 +782,9 @@ linuxkpi_pci_iounmap(struct pci_dev *pdev, void *res)
 	struct pci_mmio_region *mmio, *p;
 
 	TAILQ_FOREACH_SAFE(mmio, &pdev->mmio, next, p) {
-		if (res != (void *)rman_get_bushandle(mmio->res))
+		if ((bus_space_handle_t)res < rman_get_bushandle(mmio->res) ||
+		    (bus_space_handle_t)res >= rman_get_bushandle(mmio->res) +
+					       rman_get_size(mmio->res))
 			continue;
 		bus_release_resource(pdev->dev.bsddev,
 		    mmio->type, mmio->rid, mmio->res);
