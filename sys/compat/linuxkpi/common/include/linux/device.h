@@ -57,7 +57,6 @@ struct device;
 
 struct class {
 	const char	*name;
-	struct module	*owner;
 	struct kobject	kobj;
 	devclass_t	bsdclass;
 	const struct dev_pm_ops *pm;
@@ -342,9 +341,11 @@ put_device(struct device *dev)
 		kobject_put(&dev->kobj);
 }
 
-struct class *class_create(struct module *owner, const char *name);
+struct class *lkpi_class_create(const char *name);
 #if defined(LINUXKPI_VERSION) && LINUXKPI_VERSION >= 60400
-#define	class_create(name)	class_create(NULL, name)
+#define	class_create(name)		lkpi_class_create(name)
+#else
+#define	class_create(owner, name)	lkpi_class_create(name)
 #endif
 
 static inline int
