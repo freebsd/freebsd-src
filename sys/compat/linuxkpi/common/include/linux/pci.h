@@ -1268,6 +1268,29 @@ pci_dev_present(const struct pci_device_id *cur)
 	return (0);
 }
 
+static inline const struct pci_device_id *
+pci_match_id(const struct pci_device_id *ids, struct pci_dev *pdev)
+{
+	if (ids == NULL)
+		return (NULL);
+
+	for (;
+	     ids->vendor != 0 || ids->subvendor != 0 || ids->class_mask != 0;
+	     ids++)
+		if ((ids->vendor == PCI_ANY_ID ||
+		     ids->vendor == pdev->vendor) &&
+		    (ids->device == PCI_ANY_ID ||
+		     ids->device == pdev->device) &&
+		    (ids->subvendor == PCI_ANY_ID ||
+		     ids->subvendor == pdev->subsystem_vendor) &&
+		    (ids->subdevice == PCI_ANY_ID ||
+		     ids->subdevice == pdev->subsystem_device) &&
+		    ((ids->class ^ pdev->class) & ids->class_mask) == 0)
+			return (ids);
+
+	return (NULL);
+}
+
 struct pci_dev *lkpi_pci_get_domain_bus_and_slot(int domain,
     unsigned int bus, unsigned int devfn);
 #define	pci_get_domain_bus_and_slot(domain, bus, devfn)	\
