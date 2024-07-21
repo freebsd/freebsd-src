@@ -72,7 +72,7 @@ static const u32 crc32_table[256] = {
 };
 
 
-u32 crc32(const u8 *frame, size_t frame_len)
+u32 ieee80211_crc32(const u8 *frame, size_t frame_len)
 {
 	size_t i;
 	u32 crc;

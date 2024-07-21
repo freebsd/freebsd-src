@@ -147,8 +147,9 @@ static const char * linkmode_str(int mode)
 		return "kernel-control";
 	case 1:
 		return "userspace-control";
+	default:
+		return "?";
 	}
-	return "?";
 }
 
 
@@ -161,8 +162,9 @@ static const char * operstate_str(int state)
 		return "IF_OPER_DORMANT";
 	case IF_OPER_UP:
 		return "IF_OPER_UP";
+	default:
+		return "?";
 	}
-	return "?";
 }
 
 

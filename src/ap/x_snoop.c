@@ -31,6 +31,8 @@ int x_snoop_init(struct hostapd_data *hapd)
 		return -1;
 	}
 
+	hapd->x_snoop_initialized = true;
+
 	if (hostapd_drv_br_port_set_attr(hapd, DRV_BR_PORT_ATTR_HAIRPIN_MODE,
 					 1)) {
 		wpa_printf(MSG_DEBUG,
@@ -125,7 +127,10 @@ void x_snoop_mcast_to_ucast_convert_send(struct hostapd_data *hapd,
 
 void x_snoop_deinit(struct hostapd_data *hapd)
 {
+	if (!hapd->x_snoop_initialized)
+		return;
 	hostapd_drv_br_set_net_param(hapd, DRV_BR_NET_PARAM_GARP_ACCEPT, 0);
 	hostapd_drv_br_port_set_attr(hapd, DRV_BR_PORT_ATTR_PROXYARP, 0);
 	hostapd_drv_br_port_set_attr(hapd, DRV_BR_PORT_ATTR_HAIRPIN_MODE, 0);
+	hapd->x_snoop_initialized = false;
 }

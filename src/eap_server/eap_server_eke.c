@@ -276,6 +276,7 @@ static struct wpabuf * eap_eke_build_commit(struct eap_sm *sm,
 
 	if (eap_eke_dh_init(data->sess.dhgroup, data->dh_priv, pub) < 0) {
 		wpa_printf(MSG_INFO, "EAP-EKE: Failed to initialize DH");
+		wpabuf_free(msg);
 		eap_eke_fail(data, EAP_EKE_FAIL_PRIVATE_INTERNAL_ERROR);
 		return eap_eke_build_failure(data, id);
 	}

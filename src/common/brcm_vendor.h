@@ -40,15 +40,15 @@
  * @BRCM_VENDOR_SCMD_SET_CONNECT_PARAMS: Set some connect parameters.
  *      Used for the case that FW handle SAE.
  *
- * @BRCM_VENDOR_SCMD_SET_START_AP_PARAMS: Set SoftAP paramters.
+ * @BRCM_VENDOR_SCMD_SET_START_AP_PARAMS: Set SoftAP parameters.
  *      Used for the case that FW handle SAE.
  *
  * @BRCM_VENDOR_SCMD_ACS: ACS command/event which is used to
  *	invoke the ACS function in device and pass selected channels to
  *	hostapd. Uses enum qca_wlan_vendor_attr_acs_offload attributes.
  *
- * @BRCM_VENDOR_SCMD_MAX: This acts as a the tail of cmds list.
- *      Make sure it located at the end of the list.
+ * @BRCM_VENDOR_SCMD_MAX: This acts as a tail of cmds list.
+ *      Make sure it is located at the end of the list.
  *
  */
 enum brcm_nl80211_vendor_subcmds {
@@ -66,7 +66,7 @@ enum brcm_nl80211_vendor_subcmds {
 };
 
 /**
- * enum brcm_nl80211_vendor_events - BRCM nl80211 asynchoronous event identifiers
+ * enum brcm_nl80211_vendor_events - BRCM nl80211 asynchronous event identifiers
  *
  * @BRCM_VENDOR_EVENT_UNSPEC: Reserved value 0
  *

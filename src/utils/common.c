@@ -13,7 +13,7 @@
 #include "common.h"
 
 
-static int hex2num(char c)
+int hex2num(char c)
 {
 	if (c >= '0' && c <= '9')
 		return c - '0';
@@ -987,6 +987,19 @@ void int_array_add_unique(int **res, int a)
 	n[reslen + 1] = 0;
 
 	*res = n;
+}
+
+
+bool int_array_includes(int *arr, int val)
+{
+	int i;
+
+	for (i = 0; arr && arr[i]; i++) {
+		if (val == arr[i])
+			return true;
+	}
+
+	return false;
 }
 
 

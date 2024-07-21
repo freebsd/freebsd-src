@@ -1231,12 +1231,13 @@ static void set_pps_cred_home_sp_oi(struct hs20_osu_client *ctx, int id,
 		   homeoi, required);
 
 	if (required) {
-		if (set_cred(ctx->ifname, id, "required_roaming_consortium",
-			     homeoi) < 0)
-			wpa_printf(MSG_INFO, "Failed to set cred required_roaming_consortium");
+		if (set_cred_quoted(ctx->ifname, id, "required_home_ois",
+				    homeoi) < 0)
+			wpa_printf(MSG_INFO,
+				   "Failed to set cred required_home_ois");
 	} else {
-		if (set_cred(ctx->ifname, id, "roaming_consortium", homeoi) < 0)
-			wpa_printf(MSG_INFO, "Failed to set cred roaming_consortium");
+		if (set_cred_quoted(ctx->ifname, id, "home_ois", homeoi) < 0)
+			wpa_printf(MSG_INFO, "Failed to set cred home_ois");
 	}
 
 	xml_node_get_text_free(ctx->xml, homeoi);
@@ -2018,6 +2019,7 @@ static struct osu_data * parse_osu_providers(const char *fname, size_t *count)
 	struct osu_data *osu = NULL, *last = NULL;
 	size_t osu_count = 0;
 	char *pos, *end;
+	int res;
 
 	f = fopen(fname, "r");
 	if (f == NULL) {
@@ -2037,15 +2039,20 @@ static struct osu_data * parse_osu_providers(const char *fname, size_t *count)
 			osu = last;
 			last = &osu[osu_count++];
 			memset(last, 0, sizeof(*last));
-			snprintf(last->bssid, sizeof(last->bssid), "%s",
-				 buf + 13);
+			res = os_snprintf(last->bssid, sizeof(last->bssid),
+					  "%s", buf + 13);
+			if (os_snprintf_error(sizeof(last->bssid), res))
+				break;
 			continue;
 		}
 		if (!last)
 			continue;
 
 		if (strncmp(buf, "uri=", 4) == 0) {
-			snprintf(last->url, sizeof(last->url), "%s", buf + 4);
+			res = os_snprintf(last->url, sizeof(last->url),
+					  "%s", buf + 4);
+			if (os_snprintf_error(sizeof(last->url), res))
+				break;
 			continue;
 		}
 
@@ -2055,26 +2062,37 @@ static struct osu_data * parse_osu_providers(const char *fname, size_t *count)
 		}
 
 		if (strncmp(buf, "osu_ssid=", 9) == 0) {
-			snprintf(last->osu_ssid, sizeof(last->osu_ssid),
-				 "%s", buf + 9);
+			res = os_snprintf(last->osu_ssid,
+					  sizeof(last->osu_ssid),
+					  "%s", buf + 9);
+			if (os_snprintf_error(sizeof(last->osu_ssid), res))
+				break;
 			continue;
 		}
 
 		if (strncmp(buf, "osu_ssid2=", 10) == 0) {
-			snprintf(last->osu_ssid2, sizeof(last->osu_ssid2),
-				 "%s", buf + 10);
+			res = os_snprintf(last->osu_ssid2,
+					  sizeof(last->osu_ssid2),
+					  "%s", buf + 10);
+			if (os_snprintf_error(sizeof(last->osu_ssid2), res))
+				break;
 			continue;
 		}
 
 		if (os_strncmp(buf, "osu_nai=", 8) == 0) {
-			os_snprintf(last->osu_nai, sizeof(last->osu_nai),
-				    "%s", buf + 8);
+			res = os_snprintf(last->osu_nai, sizeof(last->osu_nai),
+					  "%s", buf + 8);
+			if (os_snprintf_error(sizeof(last->osu_nai), res))
+				break;
 			continue;
 		}
 
 		if (os_strncmp(buf, "osu_nai2=", 9) == 0) {
-			os_snprintf(last->osu_nai2, sizeof(last->osu_nai2),
-				    "%s", buf + 9);
+			res = os_snprintf(last->osu_nai2,
+					  sizeof(last->osu_nai2),
+					  "%s", buf + 9);
+			if (os_snprintf_error(sizeof(last->osu_nai2), res))
+				break;
 			continue;
 		}
 
@@ -2087,8 +2105,14 @@ static struct osu_data * parse_osu_providers(const char *fname, size_t *count)
 				continue;
 			*pos++ = '\0';
 			txt = &last->friendly_name[last->friendly_name_count++];
-			snprintf(txt->lang, sizeof(txt->lang), "%s", buf + 14);
-			snprintf(txt->text, sizeof(txt->text), "%s", pos);
+			res = os_snprintf(txt->lang, sizeof(txt->lang),
+					  "%s", buf + 14);
+			if (os_snprintf_error(sizeof(txt->lang), res))
+				break;
+			res = os_snprintf(txt->text, sizeof(txt->text),
+					  "%s", pos);
+			if (os_snprintf_error(sizeof(txt->text), res))
+				break;
 		}
 
 		if (strncmp(buf, "desc=", 5) == 0) {
@@ -2100,8 +2124,14 @@ static struct osu_data * parse_osu_providers(const char *fname, size_t *count)
 				continue;
 			*pos++ = '\0';
 			txt = &last->serv_desc[last->serv_desc_count++];
-			snprintf(txt->lang, sizeof(txt->lang), "%s", buf + 5);
-			snprintf(txt->text, sizeof(txt->text), "%s", pos);
+			res = os_snprintf(txt->lang, sizeof(txt->lang),
+					  "%s", buf + 5);
+			if (os_snprintf_error(sizeof(txt->lang), res))
+				break;
+			res = os_snprintf(txt->text, sizeof(txt->text),
+					  "%s", pos);
+			if (os_snprintf_error(sizeof(txt->text), res))
+				break;
 		}
 
 		if (strncmp(buf, "icon=", 5) == 0) {
@@ -2124,23 +2154,30 @@ static struct osu_data * parse_osu_providers(const char *fname, size_t *count)
 			if (!end)
 				continue;
 			*end = '\0';
-			snprintf(icon->lang, sizeof(icon->lang), "%s", pos);
+			res = os_snprintf(icon->lang, sizeof(icon->lang),
+					  "%s", pos);
+			if (os_snprintf_error(sizeof(icon->lang), res))
+				break;
 			pos = end + 1;
 
 			end = strchr(pos, ':');
 			if (end)
 				*end = '\0';
-			snprintf(icon->mime_type, sizeof(icon->mime_type),
-				 "%s", pos);
-			if (!pos)
+			res = os_snprintf(icon->mime_type,
+					  sizeof(icon->mime_type), "%s", pos);
+			if (os_snprintf_error(sizeof(icon->mime_type), res))
+				break;
+			if (!end)
 				continue;
 			pos = end + 1;
 
 			end = strchr(pos, ':');
 			if (end)
 				*end = '\0';
-			snprintf(icon->filename, sizeof(icon->filename),
-				 "%s", pos);
+			res = os_snprintf(icon->filename,
+					  sizeof(icon->filename), "%s", pos);
+			if (os_snprintf_error(sizeof(icon->filename), res))
+				break;
 			continue;
 		}
 	}
@@ -2911,20 +2948,27 @@ static int osu_cert_cb(void *_ctx, struct http_cert *cert)
 	int found;
 	char *host = NULL;
 
-	wpa_printf(MSG_INFO, "osu_cert_cb(osu_cert_validation=%d, url=%s)",
-		   !ctx->no_osu_cert_validation, ctx->server_url);
+	wpa_printf(MSG_INFO, "osu_cert_cb(osu_cert_validation=%d, url=%s server_url=%s)",
+		   !ctx->no_osu_cert_validation, cert->url ? cert->url : "N/A",
+		   ctx->server_url);
 
-	host = get_hostname(ctx->server_url);
+	if (ctx->no_osu_cert_validation && cert->url)
+		host = get_hostname(cert->url);
+	else
+		host = get_hostname(ctx->server_url);
 
-	for (i = 0; i < ctx->server_dnsname_count; i++)
-		os_free(ctx->server_dnsname[i]);
-	os_free(ctx->server_dnsname);
-	ctx->server_dnsname = os_calloc(cert->num_dnsname, sizeof(char *));
-	ctx->server_dnsname_count = 0;
+	if (!ctx->no_osu_cert_validation) {
+		for (i = 0; i < ctx->server_dnsname_count; i++)
+			os_free(ctx->server_dnsname[i]);
+		os_free(ctx->server_dnsname);
+		ctx->server_dnsname = os_calloc(cert->num_dnsname,
+						sizeof(char *));
+		ctx->server_dnsname_count = 0;
+	}
 
 	found = 0;
 	for (i = 0; i < cert->num_dnsname; i++) {
-		if (ctx->server_dnsname) {
+		if (!ctx->no_osu_cert_validation && ctx->server_dnsname) {
 			ctx->server_dnsname[ctx->server_dnsname_count] =
 				os_strdup(cert->dnsname[i]);
 			if (ctx->server_dnsname[ctx->server_dnsname_count])
@@ -3249,7 +3293,6 @@ int main(int argc, char *argv[])
 		default:
 			usage();
 			exit(0);
-			break;
 		}
 	}
 

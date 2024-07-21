@@ -2,7 +2,7 @@
 
 <refentry>
   <refentryinfo>
-    <date>07 August 2019</date>
+    <date>1 February 2023</date>
   </refentryinfo>
 
   <refmeta>
@@ -22,6 +22,7 @@
       <arg>-D<replaceable>driver</replaceable></arg>
       <arg>-P<replaceable>PID_file</replaceable></arg>
       <arg>-f<replaceable>output file</replaceable></arg>
+      <arg>-I<replaceable>additional config file</replaceable></arg>
     </cmdsynopsis>
   </refsynopsisdiv>
   <refsect1>
@@ -29,7 +30,7 @@
 
     <para>
     Wireless networks do not require physical access to the network equipment
-    in the same way as wired networks. This makes it easier for unauthorized
+    in the same way that wired networks do. This makes it easier for unauthorized
     users to passively monitor a network and capture all transmitted frames.
     In addition, unauthorized use of the network is much easier. In many cases,
     this can happen even without user's explicit knowledge since the wireless
@@ -41,14 +42,14 @@
     Link-layer encryption can be used to provide a layer of security for
     wireless networks. The original wireless LAN standard, IEEE 802.11,
     included a simple encryption mechanism, WEP. However, that proved to
-    be flawed in many areas and network protected with WEP cannot be consider
+    be flawed in many areas and networks protected with WEP cannot be considered
     secure. IEEE 802.1X authentication and frequently changed dynamic WEP keys
     can be used to improve the network security, but even that has inherited
     security issues due to the use of WEP for encryption. Wi-Fi Protected
-    Access and IEEE 802.11i amendment to the wireless LAN standard introduce
+    Access and the IEEE 802.11i amendment to the wireless LAN standard introduce
     a much improved mechanism for securing wireless networks. IEEE 802.11i
-    enabled networks that are using CCMP (encryption mechanism based on strong
-    cryptographic algorithm AES) can finally be called secure used for
+    enabled networks that are using CCMP (an encryption mechanism based on the strong
+    cryptographic algorithm AES) can finally be called secure and used for
     applications which require efficient protection against unauthorized
     access.
     </para>
@@ -69,13 +70,13 @@
     wpa_supplicant.</para>
 
     <para>Before wpa_supplicant can do its work, the network interface
-    must be available.  That means that the physical device must be
+    must be available. That means that the physical device must be
     present and enabled, and the driver for the device must be
     loaded. The daemon will exit immediately if the device is not already
     available.</para>
 
     <para>After <command>wpa_supplicant</command> has configured the
-    network device, higher level configuration such as DHCP may
+    network device, higher level configuration of the device, such as DHCP, may
     proceed.  There are a variety of ways to integrate wpa_supplicant
     into a machine's networking scripts, a few of which are described
     in sections below.</para>
@@ -86,7 +87,7 @@
     <itemizedlist>
       <listitem>
 	<para><command>wpa_supplicant</command> requests the kernel
-	driver to scan neighboring BSSes</para>
+	driver to scan neighboring BSSes (Basic Service Set)</para>
       </listitem>
 
       <listitem>
@@ -273,9 +274,23 @@
       </varlistentry>
 
       <varlistentry>
+	<term>macsec_linux</term>
+	<listitem>
+	  <para>MACsec Ethernet driver for Linux</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
 	<term>roboswitch</term>
 	<listitem>
 	  <para>wpa_supplicant Broadcom switch driver</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>none</term>
+	<listitem>
+	  <para>no driver (RADIUS server/WPS ER only)</para>
 	</listitem>
       </varlistentry>
 
@@ -337,6 +352,13 @@
 	  <para>Interface to listen on. Multiple instances of this option can
 	  be present, one per interface, separated by <option>-N</option>
 	  option (see below).</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-I filename</term>
+	<listitem>
+          <para>Path to additional configuration file.</para>
 	</listitem>
       </varlistentry>
 
@@ -512,10 +534,10 @@
 wpa_supplicant -B -c/etc/wpa_supplicant.conf -iwlan0
 </programlisting></blockquote>
 
-    <para>This makes the process fork into background.</para>
+    <para>This makes the process fork into the background.</para>
 
-    <para>The easiest way to debug problems, and to get debug log for
-    bug reports, is to start <command>wpa_supplicant</command> on
+    <para>The easiest way to debug problems, and to get a debug log for
+    bug reports, is to start <command>wpa_supplicant</command> in the
     foreground with debugging enabled:</para>
 
 <blockquote><programlisting>
@@ -699,7 +721,7 @@ wpa_supplicant -iwlan0 -c/etc/wpa_supplicant.conf -B
   <refsect1>
     <title>Interface to pcmcia-cs/cardmrg</title>
 
-    <para>For example, following small changes to pcmcia-cs scripts
+    <para>For example, the following small changes to pcmcia-cs scripts
     can be used to enable WPA support:</para>
 
     <para>Add MODE="Managed" and WPA="y" to the network scheme in

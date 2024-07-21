@@ -267,6 +267,7 @@ SM_STATE(EAP, INITIALIZE)
 	sm->reauthInit = false;
 	sm->erp_seq = (u32) -1;
 	sm->use_machine_cred = 0;
+	sm->eap_fast_mschapv2 = false;
 }
 
 
@@ -1673,6 +1674,7 @@ struct wpabuf * eap_sm_buildIdentity(struct eap_sm *sm, int id, int encrypted)
 	struct wpabuf *resp;
 	const u8 *identity;
 	size_t identity_len;
+	struct wpabuf *privacy_identity = NULL;
 
 	if (config == NULL) {
 		wpa_printf(MSG_WARNING, "EAP: buildIdentity: configuration "
@@ -1694,6 +1696,30 @@ struct wpabuf * eap_sm_buildIdentity(struct eap_sm *sm, int id, int encrypted)
 		identity = config->machine_identity;
 		identity_len = config->machine_identity_len;
 		wpa_hexdump_ascii(MSG_DEBUG, "EAP: using machine identity",
+				  identity, identity_len);
+	} else if (config->imsi_privacy_cert && config->identity &&
+		   config->identity_len > 0) {
+		const u8 *pos = config->identity;
+		const u8 *end = config->identity + config->identity_len;
+
+		privacy_identity = wpabuf_alloc(9 + config->identity_len);
+		if (!privacy_identity)
+			return NULL;
+
+		/* Include method prefix */
+		if (*pos == '0' || *pos == '1' || *pos == '6')
+			wpabuf_put_u8(privacy_identity, *pos);
+		wpabuf_put_str(privacy_identity, "anonymous");
+
+		/* Include realm */
+		while (pos < end && *pos != '@')
+			pos++;
+		wpabuf_put_data(privacy_identity, pos, end - pos);
+
+		identity = wpabuf_head(privacy_identity);
+		identity_len = wpabuf_len(privacy_identity);
+		wpa_hexdump_ascii(MSG_DEBUG,
+				  "EAP: using IMSI privacy anonymous identity",
 				  identity, identity_len);
 	} else {
 		identity = config->identity;
@@ -1731,6 +1757,12 @@ struct wpabuf * eap_sm_buildIdentity(struct eap_sm *sm, int id, int encrypted)
 		return NULL;
 
 	wpabuf_put_data(resp, identity, identity_len);
+
+	os_free(sm->identity);
+	sm->identity = os_memdup(identity, identity_len);
+	sm->identity_len = identity_len;
+
+	wpabuf_free(privacy_identity);
 
 	return resp;
 }
@@ -2146,6 +2178,11 @@ static void eap_peer_sm_tls_event(void *ctx, enum tls_event ev,
 			eap_notify_status(sm, "remote TLS alert",
 					  data->alert.description);
 		break;
+	case TLS_UNSAFE_RENEGOTIATION_DISABLED:
+		wpa_printf(MSG_INFO,
+			   "TLS handshake failed due to the server not supporting safe renegotiation (RFC 5746); phase1 parameter allow_unsafe_renegotiation=1 can be used to work around this");
+		eap_notify_status(sm, "unsafe server renegotiation", "failure");
+		break;
 	}
 
 	os_free(hash_hex);
@@ -2184,9 +2221,15 @@ struct eap_sm * eap_peer_sm_init(void *eapol_ctx,
 	dl_list_init(&sm->erp_keys);
 
 	os_memset(&tlsconf, 0, sizeof(tlsconf));
+#ifndef CONFIG_OPENSC_ENGINE_PATH
 	tlsconf.opensc_engine_path = conf->opensc_engine_path;
+#endif /* CONFIG_OPENSC_ENGINE_PATH */
+#ifndef CONFIG_PKCS11_ENGINE_PATH
 	tlsconf.pkcs11_engine_path = conf->pkcs11_engine_path;
+#endif /* CONFIG_PKCS11_ENGINE_PATH */
+#ifndef CONFIG_PKCS11_MODULE_PATH
 	tlsconf.pkcs11_module_path = conf->pkcs11_module_path;
+#endif /* CONFIG_PKCS11_MODULE_PATH */
 	tlsconf.openssl_ciphers = conf->openssl_ciphers;
 #ifdef CONFIG_FIPS
 	tlsconf.fips_mode = 1;
@@ -2230,6 +2273,7 @@ void eap_peer_sm_deinit(struct eap_sm *sm)
 		tls_deinit(sm->ssl_ctx2);
 	tls_deinit(sm->ssl_ctx);
 	eap_peer_erp_free_keys(sm);
+	os_free(sm->identity);
 	os_free(sm);
 }
 

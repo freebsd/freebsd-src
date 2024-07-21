@@ -160,6 +160,7 @@ struct eap_sm {
 	size_t identity_len;
 	char *serial_num;
 	char imsi[20];
+	char sim_aka_permanent[20];
 	/* Whether Phase 2 method should validate identity match */
 	int require_identity_match;
 	int lastId; /* Identifier used in the last EAP-Packet */
@@ -176,8 +177,14 @@ struct eap_sm {
 		METHOD_PENDING_NONE, METHOD_PENDING_WAIT, METHOD_PENDING_CONT
 	} method_pending;
 
+	/* Optional challenges generated in Phase 1 (EAP-FAST) */
 	u8 *auth_challenge;
 	u8 *peer_challenge;
+
+	/* Whether to use the EAP-FAST-MSCHAPv2 instantiation of EAP-MSCHAPv2.
+	 * That variant is otherwise identical, but it generates the MSK using
+	 * MS-MPPE keys in reverse order. */
+	bool eap_fast_mschapv2;
 
 	struct wpabuf *assoc_wps_ie;
 	struct wpabuf *assoc_p2p_ie;

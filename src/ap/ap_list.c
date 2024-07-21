@@ -55,7 +55,7 @@ static struct ap_info * ap_get_ap(struct hostapd_iface *iface, const u8 *ap)
 	struct ap_info *s;
 
 	s = iface->ap_hash[STA_HASH(ap)];
-	while (s != NULL && os_memcmp(s->addr, ap, ETH_ALEN) != 0)
+	while (s != NULL && !ether_addr_equal(s->addr, ap))
 		s = s->hnext;
 	return s;
 }
@@ -100,13 +100,13 @@ static void ap_ap_hash_del(struct hostapd_iface *iface, struct ap_info *ap)
 
 	s = iface->ap_hash[STA_HASH(ap->addr)];
 	if (s == NULL) return;
-	if (os_memcmp(s->addr, ap->addr, ETH_ALEN) == 0) {
+	if (ether_addr_equal(s->addr, ap->addr)) {
 		iface->ap_hash[STA_HASH(ap->addr)] = s->hnext;
 		return;
 	}
 
 	while (s->hnext != NULL &&
-	       os_memcmp(s->hnext->addr, ap->addr, ETH_ALEN) != 0)
+	       !ether_addr_equal(s->hnext->addr, ap->addr))
 		s = s->hnext;
 	if (s->hnext != NULL)
 		s->hnext = s->hnext->hnext;

@@ -564,7 +564,6 @@ static int hs20_spp_exec(struct hs20_osu_client *ctx, xml_node_t *exec,
 			free(id);
 			return -1;
 		}
-		return 0;
 	}
 
 	if (strcasecmp(name, "uploadMO") == 0) {

@@ -20,13 +20,6 @@
 #include "ap_drv_ops.h"
 #include "wmm.h"
 
-#ifndef MIN
-#define MIN(a, b) (((a) < (b)) ? (a) : (b))
-#endif
-#ifndef MAX
-#define MAX(a, b) (((a) > (b)) ? (a) : (b))
-#endif
-
 
 static inline u8 wmm_aci_aifsn(int aifsn, int acm, int aci)
 {

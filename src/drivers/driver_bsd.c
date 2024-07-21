@@ -553,12 +553,12 @@ bsd_new_sta(void *priv, void *ctx, u8 addr[IEEE80211_ADDR_LEN])
 		ielen += 2;
 
 no_ie:
-	drv_event_assoc(ctx, addr, iebuf, ielen, 0);
+	drv_event_assoc(ctx, addr, iebuf, ielen, NULL, 0, NULL, -1, 0);
 }
 
 static int
 bsd_send_eapol(void *priv, const u8 *addr, const u8 *data, size_t data_len,
-	       int encrypt, const u8 *own_addr, u32 flags)
+	       int encrypt, const u8 *own_addr, u32 flags, int link_id)
 {
 	struct bsd_driver_data *drv = priv;
 
@@ -882,7 +882,7 @@ bsd_wireless_event_receive(int sock, void *ctx, void *sock_ctx)
 #undef WPA_OUI_TYPE
 
 static int bsd_sta_deauth(void *priv, const u8 *own_addr, const u8 *addr,
-			  u16 reason_code);
+			  u16 reason_code, int link_id);
 
 static const char *
 ether_sprintf(const u8 *addr)
@@ -906,7 +906,7 @@ bsd_set_privacy(void *priv, int enabled)
 
 static int
 bsd_get_seqnum(const char *ifname, void *priv, const u8 *addr, int idx,
-	       u8 *seq)
+	       int link_id, u8 *seq)
 {
 	struct ieee80211req_key wk;
 
@@ -946,12 +946,13 @@ bsd_get_seqnum(const char *ifname, void *priv, const u8 *addr, int idx,
 
 
 static int
-bsd_flush(void *priv)
+bsd_flush(void *priv, int link_id)
 {
 	u8 allsta[IEEE80211_ADDR_LEN];
 
 	memset(allsta, 0xff, IEEE80211_ADDR_LEN);
-	return bsd_sta_deauth(priv, NULL, allsta, IEEE80211_REASON_AUTH_LEAVE);
+	return bsd_sta_deauth(priv, NULL, allsta, IEEE80211_REASON_AUTH_LEAVE,
+			      -1);
 }
 
 
@@ -974,7 +975,8 @@ bsd_read_sta_driver_data(void *priv, struct hostap_sta_driver_data *data,
 }
 
 static int
-bsd_sta_deauth(void *priv, const u8 *own_addr, const u8 *addr, u16 reason_code)
+bsd_sta_deauth(void *priv, const u8 *own_addr, const u8 *addr, u16 reason_code,
+	       int link_id)
 {
 	return bsd_send_mlme_param(priv, IEEE80211_MLME_DEAUTH, reason_code,
 				   addr);

@@ -29,9 +29,9 @@ static const char * mlme_auth_alg_str(int alg)
 		return "SHARED_KEY";
 	case WLAN_AUTH_FT:
 		return "FT";
+	default:
+		return "unknown";
 	}
-
-	return "unknown";
 }
 #endif /* CONFIG_NO_HOSTAPD_LOGGER */
 

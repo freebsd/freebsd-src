@@ -17,10 +17,11 @@
 int fips186_2_prf(const u8 *seed, size_t seed_len, u8 *x, size_t xlen)
 {
 	u8 xkey[64];
-	u32 t[5], _t[5];
+	u32 _t[5];
 	int i, j, m, k;
 	u8 *xpos = x;
 	u32 carry;
+	struct SHA1Context ctx;
 
 	if (seed_len < sizeof(xkey))
 		os_memset(xkey + seed_len, 0, sizeof(xkey) - seed_len);
@@ -30,11 +31,7 @@ int fips186_2_prf(const u8 *seed, size_t seed_len, u8 *x, size_t xlen)
 	/* FIPS 186-2 + change notice 1 */
 
 	os_memcpy(xkey, seed, seed_len);
-	t[0] = 0x67452301;
-	t[1] = 0xEFCDAB89;
-	t[2] = 0x98BADCFE;
-	t[3] = 0x10325476;
-	t[4] = 0xC3D2E1F0;
+	SHA1Init(&ctx);
 
 	m = xlen / 40;
 	for (j = 0; j < m; j++) {
@@ -43,7 +40,7 @@ int fips186_2_prf(const u8 *seed, size_t seed_len, u8 *x, size_t xlen)
 			/* XVAL = (XKEY + XSEED_j) mod 2^b */
 
 			/* w_i = G(t, XVAL) */
-			os_memcpy(_t, t, 20);
+			os_memcpy(_t, ctx.state, 20);
 			SHA1Transform(_t, xkey);
 			_t[0] = host_to_be32(_t[0]);
 			_t[1] = host_to_be32(_t[1]);

@@ -168,6 +168,17 @@ Credentials can be pre-configured for automatic network selection:
 # milenage: Milenage parameters for SIM/USIM simulator in <Ki>:<OPc>:<SQN>
 #	format
 #
+# imsi_privacy_cert: IMSI privacy certificate (PEM encoded X.509v3 certificate)
+#	This field is used with EAP-SIM/AKA/AKA' to encrypt the permanent
+#	identity (IMSI) to improve privacy. The X.509v3 certificate needs to
+#	include a 2048-bit RSA public key and this is from the operator who
+#	authenticates the SIM/USIM.
+# imsi_privacy_attr: IMSI privacy attribute
+#	This field is used to help the EAP-SIM/AKA/AKA' server to identify
+#	the used certificate (and as such, the matching private key). This
+#	is set to an attribute in name=value format if the operator needs
+#	this information.
+#
 # domain_suffix_match: Constraint for server domain name
 #	If set, this FQDN is used as a suffix match requirement for the AAA
 #	server certificate in SubjectAltName dNSName element(s). If a
@@ -188,7 +199,26 @@ Credentials can be pre-configured for automatic network selection:
 #	be used to configure alternative FQDNs that will be considered home
 #	networks.
 #
+# home_ois: Home OI(s)
+#	This string field contains one or more comma delimited OIs (hexdump)
+#	identifying the access the access points that support authentication
+#	with this credential. There are an alternative to the use of the realm
+#	parameter. When using Home OIs to match the network, the EAP parameters
+#	need to be pre-configured with the credentials since the NAI Realm
+#	information may not be available or fetched.
+#	A successful authentication with the access point is possible as soon
+#	as at least one Home OI from the list matches an OI in the Roaming
+#	Consortium advertised by the access point.
+#	(Hotspot 2.0 PerProviderSubscription/<X+>/HomeSP/HomeOIList/<X+>/HomeOI)
+#
+# required_home_ois: Required Home OI(s)
+#	This string field contains the set of Home OI(s) (hexdump) that are
+#	required to be advertised by the AP for the credential to be considered
+#	matching.
+#	(Hotspot 2.0 PerProviderSubscription/<X+>/HomeSP/HomeOIList/<X+>/HomeOIRequired)
+#
 # roaming_consortium: Roaming Consortium OI
+#	Deprecated: use home_ois instead.
 #	If roaming_consortium_len is non-zero, this field contains the
 #	Roaming Consortium OI that can be used to determine which access
 #	points support authentication with this credential. This is an
@@ -198,6 +228,7 @@ Credentials can be pre-configured for automatic network selection:
 #	may not be available or fetched.
 #
 # required_roaming_consortium: Required Roaming Consortium OI
+#	Deprecated: use required_home_ois instead.
 #	If required_roaming_consortium_len is non-zero, this field contains the
 #	Roaming Consortium OI that is required to be advertised by the AP for
 #	the credential to be considered matching.
@@ -314,7 +345,7 @@ Credentials can be pre-configured for automatic network selection:
 #	password="password"
 #	ca_cert="/etc/wpa_supplicant/ca.pem"
 #	domain="example.com"
-#	roaming_consortium=223344
+#	home_ois="223344"
 #	roaming_consortiums="112233,4455667788,aabbcc"
 #	eap=TTLS
 #	phase2="auth=MSCHAPV2"

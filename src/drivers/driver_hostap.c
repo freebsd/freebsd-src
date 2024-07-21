@@ -264,7 +264,7 @@ static int hostap_init_sockets(struct hostap_driver_data *drv, u8 *own_addr)
 static int hostap_send_mlme(void *priv, const u8 *msg, size_t len, int noack,
 			    unsigned int freq,
 			    const u16 *csa_offs, size_t csa_offs_len,
-			    int no_encrypt, unsigned int wait)
+			    int no_encrypt, unsigned int wait, int link_id)
 {
 	struct hostap_driver_data *drv = priv;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) msg;
@@ -281,7 +281,7 @@ static int hostap_send_mlme(void *priv, const u8 *msg, size_t len, int noack,
 
 static int hostap_send_eapol(void *priv, const u8 *addr, const u8 *data,
 			     size_t data_len, int encrypt, const u8 *own_addr,
-			     u32 flags)
+			     u32 flags, int link_id)
 {
 	struct hostap_driver_data *drv = priv;
 	struct ieee80211_hdr *hdr;
@@ -313,7 +313,7 @@ static int hostap_send_eapol(void *priv, const u8 *addr, const u8 *data,
 	pos += 2;
 	memcpy(pos, data, data_len);
 
-	res = hostap_send_mlme(drv, (u8 *) hdr, len, 0, 0, NULL, 0, 0, 0);
+	res = hostap_send_mlme(drv, (u8 *) hdr, len, 0, 0, NULL, 0, 0, 0, -1);
 	if (res < 0) {
 		wpa_printf(MSG_ERROR, "hostap_send_eapol - packet len: %lu - "
 			   "failed: %d (%s)",
@@ -459,7 +459,7 @@ static int wpa_driver_hostap_set_key(void *priv,
 
 
 static int hostap_get_seqnum(const char *ifname, void *priv, const u8 *addr,
-			     int idx, u8 *seq)
+			     int idx, int link_id, u8 *seq)
 {
 	struct hostap_driver_data *drv = priv;
 	struct prism2_hostapd_param *param;
@@ -572,7 +572,7 @@ static int hostap_set_ssid(void *priv, const u8 *buf, int len)
 }
 
 
-static int hostap_flush(void *priv)
+static int hostap_flush(void *priv, int link_id)
 {
 	struct hostap_driver_data *drv = priv;
 	struct prism2_hostapd_param param;
@@ -1032,7 +1032,7 @@ static void hostap_driver_deinit(void *priv)
 
 
 static int hostap_sta_deauth(void *priv, const u8 *own_addr, const u8 *addr,
-			     u16 reason)
+			     u16 reason, int link_id)
 {
 	struct hostap_driver_data *drv = priv;
 	struct ieee80211_mgmt mgmt;
@@ -1055,7 +1055,7 @@ static int hostap_sta_deauth(void *priv, const u8 *own_addr, const u8 *addr,
 	memcpy(mgmt.bssid, own_addr, ETH_ALEN);
 	mgmt.u.deauth.reason_code = host_to_le16(reason);
 	return hostap_send_mlme(drv, (u8 *) &mgmt, IEEE80211_HDRLEN +
-				sizeof(mgmt.u.deauth), 0, 0, NULL, 0, 0, 0);
+				sizeof(mgmt.u.deauth), 0, 0, NULL, 0, 0, 0, -1);
 }
 
 
@@ -1093,7 +1093,8 @@ static int hostap_sta_disassoc(void *priv, const u8 *own_addr, const u8 *addr,
 	memcpy(mgmt.bssid, own_addr, ETH_ALEN);
 	mgmt.u.disassoc.reason_code = host_to_le16(reason);
 	return  hostap_send_mlme(drv, (u8 *) &mgmt, IEEE80211_HDRLEN +
-				 sizeof(mgmt.u.disassoc), 0, 0, NULL, 0, 0, 0);
+				 sizeof(mgmt.u.disassoc), 0, 0, NULL, 0, 0, 0,
+				 -1);
 }
 
 
@@ -1173,7 +1174,8 @@ static void wpa_driver_hostap_poll_client(void *priv, const u8 *own_addr,
 	os_memcpy(hdr.IEEE80211_BSSID_FROMDS, own_addr, ETH_ALEN);
 	os_memcpy(hdr.IEEE80211_SA_FROMDS, own_addr, ETH_ALEN);
 
-	hostap_send_mlme(priv, (u8 *)&hdr, sizeof(hdr), 0, 0, NULL, 0, 0, 0);
+	hostap_send_mlme(priv, (u8 *)&hdr, sizeof(hdr), 0, 0, NULL, 0, 0, 0,
+			 -1);
 }
 
 
