@@ -538,7 +538,7 @@ bcm_lintc_init_pmu_on_ap(struct bcm_lintc_softc *sc, u_int cpu)
 }
 
 static void
-bcm_lintc_init_secondary(device_t dev)
+bcm_lintc_init_secondary(device_t dev, uint32_t rootnum)
 {
 	u_int cpu;
 	struct bcm_lintc_softc *sc;
@@ -646,7 +646,8 @@ bcm_lintc_pic_attach(struct bcm_lintc_softc *sc)
 	if (pic == NULL)
 		return (ENXIO);
 
-	error = intr_pic_claim_root(sc->bls_dev, xref, bcm_lintc_intr, sc);
+	error = intr_pic_claim_root(sc->bls_dev, xref, bcm_lintc_intr, sc,
+	    INTR_ROOT_IRQ);
 	if (error != 0)
 		return (error);
 
