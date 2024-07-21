@@ -9,6 +9,8 @@
 #include "includes.h"
 
 #include "common.h"
+#include "utils/base64.h"
+#include "crypto/crypto.h"
 #include "crypto/random.h"
 #include "eap_server/eap_i.h"
 #include "eap_common/eap_sim_common.h"
@@ -104,12 +106,28 @@ static struct wpabuf * eap_sim_build_start(struct eap_sm *sm,
 {
 	struct eap_sim_msg *msg;
 	u8 ver[2];
+	bool id_req = true;
 
 	wpa_printf(MSG_DEBUG, "EAP-SIM: Generating Start");
 	msg = eap_sim_msg_init(EAP_CODE_REQUEST, id, EAP_TYPE_SIM,
 			       EAP_SIM_SUBTYPE_START);
 	data->start_round++;
-	if (data->start_round == 1) {
+
+	if (data->start_round == 1 && (sm->cfg->eap_sim_id & 0x04)) {
+		char *username;
+
+		username = sim_get_username(sm->identity, sm->identity_len);
+		if (username && username[0] == EAP_SIM_REAUTH_ID_PREFIX &&
+		    eap_sim_db_get_reauth_entry(sm->cfg->eap_sim_db_priv,
+						username))
+			id_req = false;
+
+		os_free(username);
+	}
+
+	if (!id_req) {
+		wpa_printf(MSG_DEBUG, "   No identity request");
+	} else if (data->start_round == 1) {
 		/*
 		 * RFC 4186, Chap. 4.2.4 recommends that identity from EAP is
 		 * ignored and the SIM/Start is used to request the identity.
@@ -432,6 +450,7 @@ static void eap_sim_process_start(struct eap_sm *sm,
 				  struct wpabuf *respData,
 				  struct eap_sim_attrs *attr)
 {
+	const u8 *identity;
 	size_t identity_len;
 	u8 ver_list[2];
 	u8 *new_identity;
@@ -447,9 +466,13 @@ static void eap_sim_process_start(struct eap_sm *sm,
 		goto skip_id_update;
 	}
 
+	if ((sm->cfg->eap_sim_id & 0x04) &&
+	    (!attr->identity || attr->identity_len == 0))
+		goto skip_id_attr;
+
 	/*
-	 * We always request identity in SIM/Start, so the peer is required to
-	 * have replied with one.
+	 * Unless explicitly configured otherwise, we always request identity
+	 * in SIM/Start, so the peer is required to have replied with one.
 	 */
 	if (!attr->identity || attr->identity_len == 0) {
 		wpa_printf(MSG_DEBUG, "EAP-SIM: Peer did not provide any "
@@ -465,9 +488,17 @@ static void eap_sim_process_start(struct eap_sm *sm,
 	os_memcpy(sm->identity, attr->identity, attr->identity_len);
 	sm->identity_len = attr->identity_len;
 
+skip_id_attr:
+	if (sm->sim_aka_permanent[0]) {
+		identity = (const u8 *) sm->sim_aka_permanent;
+		identity_len = os_strlen(sm->sim_aka_permanent);
+	} else {
+		identity = sm->identity;
+		identity_len = sm->identity_len;
+	}
 	wpa_hexdump_ascii(MSG_DEBUG, "EAP-SIM: Identity",
-			  sm->identity, sm->identity_len);
-	username = sim_get_username(sm->identity, sm->identity_len);
+			  identity, identity_len);
+	username = sim_get_username(identity, identity_len);
 	if (username == NULL)
 		goto failed;
 
@@ -483,7 +514,30 @@ static void eap_sim_process_start(struct eap_sm *sm,
 			/* Remain in START state for another round */
 			return;
 		}
-		wpa_printf(MSG_DEBUG, "EAP-SIM: Using fast re-authentication");
+
+		if (data->reauth->counter >
+		    sm->cfg->eap_sim_aka_fast_reauth_limit &&
+		    (sm->cfg->eap_sim_id & 0x04)) {
+			wpa_printf(MSG_DEBUG,
+				   "EAP-SIM: Too many fast re-authentication attemps - fall back to full authentication");
+			wpa_printf(MSG_DEBUG,
+				   "EAP-SIM: Permanent identity recognized - skip new Identity query");
+			os_strlcpy(data->permanent,
+				   data->reauth->permanent,
+				   sizeof(data->permanent));
+			os_strlcpy(sm->sim_aka_permanent,
+				   data->reauth->permanent,
+				   sizeof(sm->sim_aka_permanent));
+			eap_sim_db_remove_reauth(
+				sm->cfg->eap_sim_db_priv,
+				data->reauth);
+			data->reauth = NULL;
+			goto skip_id_update;
+		}
+
+		wpa_printf(MSG_DEBUG,
+			   "EAP-SIM: Using fast re-authentication (counter=%d)",
+			   data->reauth->counter);
 		os_strlcpy(data->permanent, data->reauth->permanent,
 			   sizeof(data->permanent));
 		data->counter = data->reauth->counter;
@@ -512,6 +566,73 @@ static void eap_sim_process_start(struct eap_sm *sm,
 			   username);
 		os_strlcpy(data->permanent, username, sizeof(data->permanent));
 		os_free(username);
+#ifdef CRYPTO_RSA_OAEP_SHA256
+	} else if (sm->identity_len > 1 && sm->identity[0] == '\0') {
+		char *enc_id, *pos, *end;
+		size_t enc_id_len;
+		u8 *decoded_id;
+		size_t decoded_id_len;
+		struct wpabuf *enc, *dec;
+		u8 *new_id;
+
+		os_free(username);
+		if (!sm->cfg->imsi_privacy_key) {
+			wpa_printf(MSG_DEBUG,
+				   "EAP-SIM: Received encrypted identity, but no IMSI privacy key configured to decrypt it");
+			goto failed;
+		}
+
+		enc_id = (char *) &sm->identity[1];
+		end = (char *) &sm->identity[sm->identity_len];
+		for (pos = enc_id; pos < end; pos++) {
+			if (*pos == ',')
+				break;
+		}
+		enc_id_len = pos - enc_id;
+
+		wpa_hexdump_ascii(MSG_DEBUG,
+				  "EAP-SIM: Encrypted permanent identity",
+				  enc_id, enc_id_len);
+		decoded_id = base64_decode(enc_id, enc_id_len, &decoded_id_len);
+		if (!decoded_id) {
+			wpa_printf(MSG_DEBUG,
+				   "EAP-SIM: Could not base64 decode encrypted identity");
+			goto failed;
+		}
+		wpa_hexdump(MSG_DEBUG,
+			    "EAP-SIM: Decoded encrypted permanent identity",
+			    decoded_id, decoded_id_len);
+		enc = wpabuf_alloc_copy(decoded_id, decoded_id_len);
+		os_free(decoded_id);
+		if (!enc)
+			goto failed;
+		dec = crypto_rsa_oaep_sha256_decrypt(sm->cfg->imsi_privacy_key,
+						     enc);
+		wpabuf_free(enc);
+		if (!dec) {
+			wpa_printf(MSG_DEBUG,
+				   "EAP-SIM: Failed to decrypt encrypted identity");
+			goto failed;
+		}
+		wpa_hexdump_ascii(MSG_DEBUG, "EAP-SIM: Decrypted permanent identity",
+				  wpabuf_head(dec), wpabuf_len(dec));
+		username = sim_get_username(wpabuf_head(dec), wpabuf_len(dec));
+		if (!username) {
+			wpabuf_free(dec);
+			goto failed;
+		}
+		new_id = os_memdup(wpabuf_head(dec), wpabuf_len(dec));
+		if (!new_id) {
+			wpabuf_free(dec);
+			goto failed;
+		}
+		os_free(sm->identity);
+		sm->identity = new_id;
+		sm->identity_len = wpabuf_len(dec);
+		wpabuf_free(dec);
+		os_strlcpy(data->permanent, username, sizeof(data->permanent));
+		os_free(username);
+#endif /* CRYPTO_RSA_OAEP_SHA256 */
 	} else {
 		wpa_printf(MSG_DEBUG, "EAP-SIM: Unrecognized username '%s'",
 			   username);

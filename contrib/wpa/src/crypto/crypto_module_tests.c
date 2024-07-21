@@ -2190,6 +2190,286 @@ static int test_extract_expand_hkdf(void)
 }
 
 
+#ifdef CONFIG_DPP3
+
+static const struct hpke_test {
+	const char *name;
+	enum hpke_mode mode;
+	enum hpke_kem_id kem_id;
+	enum hpke_kdf_id kdf_id;
+	enum hpke_aead_id aead_id;
+	const char *info;
+	int sk_r_group;
+	const char *pk_r;
+	const char *sk_r;
+	const char *enc;
+	const char *pt;
+	const char *aad;
+	const char *ct;
+} hpke_tests[] = {
+	{
+		.name = "A.3. DHKEM(P-256, HKDF-SHA256), HKDF-SHA256, AES-128-GCM",
+		.mode = HPKE_MODE_BASE,
+		.kem_id = HPKE_DHKEM_P256_HKDF_SHA256,
+		.kdf_id = HPKE_KDF_HKDF_SHA256,
+		.aead_id = HPKE_AEAD_AES_128_GCM,
+		.info = "4f6465206f6e2061204772656369616e2055726e",
+		.sk_r_group = 19,
+		.pk_r = "04fe8c19ce0905191ebc298a9245792531f26f0cece2460639e8bc39cb7f706a826a779b4cf969b8a0e539c7f62fb3d30ad6aa8f80e30f1d128aafd68a2ce72ea0",
+		.sk_r = "f3ce7fdae57e1a310d87f1ebbde6f328be0a99cdbcadf4d6589cf29de4b8ffd2",
+		.enc = "04a92719c6195d5085104f469a8b9814d5838ff72b60501e2c4466e5e67b325ac98536d7b61a1af4b78e5b7f951c0900be863c403ce65c9bfcb9382657222d18c4",
+		.pt = "4265617574792069732074727574682c20747275746820626561757479",
+		.aad = "436f756e742d30",
+		.ct = "5ad590bb8baa577f8619db35a36311226a896e7342a6d836d8b7bcd2f20b6c7f9076ac232e3ab2523f39513434",
+	},
+	{
+		.name = "A.4. DHKEM(P-256, HKDF-SHA256), HKDF-SHA512, AES-128-GCM",
+		.mode = HPKE_MODE_BASE,
+		.kem_id = HPKE_DHKEM_P256_HKDF_SHA256,
+		.kdf_id = HPKE_KDF_HKDF_SHA512,
+		.aead_id = HPKE_AEAD_AES_128_GCM,
+		.info = "4f6465206f6e2061204772656369616e2055726e",
+		.sk_r_group = 19,
+		.pk_r = "04085aa5b665dc3826f9650ccbcc471be268c8ada866422f739e2d531d4a8818a9466bc6b449357096232919ec4fe9070ccbac4aac30f4a1a53efcf7af90610edd",
+		.sk_r = "3ac8530ad1b01885960fab38cf3cdc4f7aef121eaa239f222623614b4079fb38",
+		.enc = "0493ed86735bdfb978cc055c98b45695ad7ce61ce748f4dd63c525a3b8d53a15565c6897888070070c1579db1f86aaa56deb8297e64db7e8924e72866f9a472580",
+		.pt = "4265617574792069732074727574682c20747275746820626561757479",
+		.aad = "436f756e742d30",
+		.ct = "d3cf4984931484a080f74c1bb2a6782700dc1fef9abe8442e44a6f09044c88907200b332003543754eb51917ba",
+	},
+	{
+		.name = "A.6. DHKEM(P-521, HKDF-SHA512), HKDF-SHA512, AES-256-GCM",
+		.mode = HPKE_MODE_BASE,
+		.kem_id = HPKE_DHKEM_P521_HKDF_SHA512,
+		.kdf_id = HPKE_KDF_HKDF_SHA512,
+		.aead_id = HPKE_AEAD_AES_256_GCM,
+		.info = "4f6465206f6e2061204772656369616e2055726e",
+		.sk_r_group = 21,
+		.pk_r = "0401b45498c1714e2dce167d3caf162e45e0642afc7ed435df7902ccae0e84ba0f7d373f646b7738bbbdca11ed91bdeae3cdcba3301f2457be452f271fa6837580e661012af49583a62e48d44bed350c7118c0d8dc861c238c72a2bda17f64704f464b57338e7f40b60959480c0e58e6559b190d81663ed816e523b6b6a418f66d2451ec64",
+		.sk_r = "01462680369ae375e4b3791070a7458ed527842f6a98a79ff5e0d4cbde83c27196a3916956655523a6a2556a7af62c5cadabe2ef9da3760bb21e005202f7b2462847",
+		.enc = "040138b385ca16bb0d5fa0c0665fbbd7e69e3ee29f63991d3e9b5fa740aab8900aaeed46ed73a49055758425a0ce36507c54b29cc5b85a5cee6bae0cf1c21f2731ece2013dc3fb7c8d21654bb161b463962ca19e8c654ff24c94dd2898de12051f1ed0692237fb02b2f8d1dc1c73e9b366b529eb436e98a996ee522aef863dd5739d2f29b0",
+		.pt = "4265617574792069732074727574682c20747275746820626561757479",
+		.aad = "436f756e742d30",
+		.ct = "170f8beddfe949b75ef9c387e201baf4132fa7374593dfafa90768788b7b2b200aafcc6d80ea4c795a7c5b841a",
+	},
+	{ /* self-generated test vector for P-384 */
+		.name = "custom DHKEM(P-384, HKDF-SHA384), HKDF-SHA384, AES-256-GCM",
+		.mode = HPKE_MODE_BASE,
+		.kem_id = HPKE_DHKEM_P384_HKDF_SHA384,
+		.kdf_id = HPKE_KDF_HKDF_SHA384,
+		.aead_id = HPKE_AEAD_AES_256_GCM,
+		.info = "4f6465206f6e2061204772656369616e2055726e",
+		.sk_r_group = 20,
+		.pk_r = "049c0e4dcbbb3c80715cafaa1839d0bc3c3adcc95eb8062f84175f9c3cec115e6b799061c65a0605907785c25b3571564706a8ba6a204452b38c7c205db17d328f2353df05d5f1c568e7503331178c36c2d37bbed48401295407face3f8dae5ed8",
+		.sk_r = "cabffb07d20ffcfdaa043e1de49e1654659e0f0aba5de56523e8b73dc80c579a9e5c89ed3810ec21c4bafcf74ad2a245",
+		.enc = "04b30bea96d0e51582033b02a4d676d0464a5eb2d858be86cda1c4e6f8b2aa9fb80f5365483f781b1b3a8b3b8efd50b0f7bca16f06d0435fa3da1d671ea0a318b40fe170a074923c651e5dc824966b7b98d0e36bdf932875dae7130369a793cecc",
+		.pt = "4265617574792069732074727574682c20747275746820626561757479",
+		.aad = "436f756e742d30",
+		.ct = "ae7feccfea0f8fcd620d15369a28db8701cdc90d55c20efff6296bd441697b0da34671d1f3c4864183e86d27fc",
+	},
+	{ /* self-generated test vector for BP-256 */
+		.name = "custom PB-256 using DHKEM(P-256, HKDF-SHA256), HKDF-SHA256, AES-128-GCM",
+		.mode = HPKE_MODE_BASE,
+		.kem_id = HPKE_DHKEM_P256_HKDF_SHA256,
+		.kdf_id = HPKE_KDF_HKDF_SHA256,
+		.aead_id = HPKE_AEAD_AES_128_GCM,
+		.info = "4f6465206f6e2061204772656369616e2055726e",
+		.sk_r_group = 28,
+		.pk_r = "04a2cb9c4cae90cdc1c27516e9f84b6b166e4b1dcc517286268239ddb0bf74cca6390fed092ac4423ab2192b8bb41a4824d908d2053b93fc813830bebac5ce19b9",
+		.sk_r = "11d9db41c4341166ca52f5a1775595c0bdb4934350daeb7bce659c4b7a40e314",
+		.enc = "047a25e309c7ee50ec27f13d44734a3ccd8c703e3affcc728513df416511ef9bf02f5e7750e7415de8b5f306ebd3fc88ea9b9368523eb1733a8d82c1a877e5a0f4",
+		.pt = "4265617574792069732074727574682c20747275746820626561757479",
+		.aad = "436f756e742d30",
+		.ct = "17c84b3f07f6ffe08ff2be45c709ea782229504aa5b2253876725c6c39f8d8c992304fc5877994f79d6c10d462",
+	},
+	{ /* self-generated test vector for BP-384 */
+		.name = "custom PB-384 using DHKEM(P-384, HKDF-SHA384), HKDF-SHA384, AES-256-GCM",
+		.mode = HPKE_MODE_BASE,
+		.kem_id = HPKE_DHKEM_P384_HKDF_SHA384,
+		.kdf_id = HPKE_KDF_HKDF_SHA384,
+		.aead_id = HPKE_AEAD_AES_256_GCM,
+		.info = "4f6465206f6e2061204772656369616e2055726e",
+		.sk_r_group = 29,
+		.pk_r = "041f4199ad28835908079c45d165d55630098be53eb4beede9921f5b2204fa396111f99ac54c56411f7cb2c43ec18d8e604d895027228cf975f5a4b598f189d8fb03e3fefe020258c40d4d1b15fd7587d209925d67a41f9659a8ed6f662fb441e4",
+		.sk_r = "7017cf8a5a9a81ad4e0d755ccbea27a378b787561f8d5662639850805fefcbaab6b9a15729872abb7dc53d19a6cf77e4",
+		.enc = "0415d49dedc5bc1ffe9f8de9022c266bb605ec6cd7b77b6ce68974095398856f8aefa4b7abbfbd496b99a2dda3a9c65f1a71b9d40255aa1c7c4205a8b4ef611b96ed29fd2d7b0cde4c0e82058805e6276025cc4fc606f6e5771c31bd9704e9ba0b",
+		.pt = "4265617574792069732074727574682c20747275746820626561757479",
+		.aad = "436f756e742d30",
+		.ct = "5f5e9f82bedadec0e9b01a1b304cb48b05c0d6d397b1c8a95ed541218ec54f634a41cbc4066910a409e47b254e",
+	},
+	{ /* self-generated test vector for BP-512 */
+		.name = "custom PB-512 using DHKEM(P-521, HKDF-SHA512), HKDF-SHA512, AES-256-GCM",
+		.mode = HPKE_MODE_BASE,
+		.kem_id = HPKE_DHKEM_P521_HKDF_SHA512,
+		.kdf_id = HPKE_KDF_HKDF_SHA512,
+		.aead_id = HPKE_AEAD_AES_256_GCM,
+		.info = "4f6465206f6e2061204772656369616e2055726e",
+		.sk_r_group = 30,
+		.pk_r = "049e81046a531365a3b5215ac37e7b38f5fa34f86c4eb2e03113b197390a26c555bb007596e131c2541f336eb24a45f44283b5b53fedddfa5642675602fdec17d34120a35efffb44952e32dee7732f2f3245c3314269996b610703a63fb8555a75ca5092690a1125ae8712c1e31fd77aee42bd052e71f9f9459814d6f4065bcea0",
+		.sk_r = "483b6882608182b296843fa7dfffbdd61ed0372574d4aa32a035c8e33a493927aaf00d42bd9124ebe4df26010b38124668c02b35a749e74845d565734310cfe9",
+		.enc = "04158d18473aeb3b283d3345b1a87d3de2b192ff9e41b5a98f91daacfb24be72e698cbc04c33078681e507bf346c0ea70c927083a22ca9ea027f420067ee42285b798d95fea51002d097ce28371883202bfd300fb64943669e32c6f1a348087368bb480b757892ebd199a9389978c92cbc44076626d705a771fbbd90c030a6767e",
+		.pt = "4265617574792069732074727574682c20747275746820626561757479",
+		.aad = "436f756e742d30",
+		.ct = "033d91c4514857da5b833635180c1acc09f175cbf44777a7b71e177705cfd17437b1c85d671dd767bb4fe20e2e",
+	},
+};
+
+
+static int run_hpke_test(const struct hpke_test *test)
+{
+	struct wpabuf *info, *pk_r, *sk_r, *enc, *pt, *aad, *ct;
+	struct wpabuf *res_pt = NULL, *enc_ct = NULL, *res_ct = NULL;
+	struct crypto_ec_key *own_priv = NULL, *peer_pub = NULL;
+	int res = -1;
+	size_t coord_len;
+
+	wpa_printf(MSG_INFO, "- %s", test->name);
+
+	info = wpabuf_parse_bin(test->info);
+	pk_r = wpabuf_parse_bin(test->pk_r);
+	sk_r = wpabuf_parse_bin(test->sk_r);
+	enc = wpabuf_parse_bin(test->enc);
+	pt = wpabuf_parse_bin(test->pt);
+	aad = wpabuf_parse_bin(test->aad);
+	ct = wpabuf_parse_bin(test->ct);
+	if (!info || !pk_r || !sk_r || !enc || !pt || !aad || !ct) {
+		wpa_printf(MSG_ERROR, "Could not parse test data");
+		goto fail;
+	}
+
+	/* Receiver - decryption against the test vector */
+
+	enc_ct = wpabuf_concat(enc, ct);
+	enc = NULL;
+	ct = NULL;
+	if (!enc_ct)
+		goto fail;
+
+	own_priv = crypto_ec_key_set_priv(test->sk_r_group, wpabuf_head(sk_r),
+					  wpabuf_len(sk_r));
+	if (!own_priv) {
+		wpa_printf(MSG_ERROR,
+			   "HPKE base open - failed to set private key");
+		goto fail;
+	}
+
+	res_pt = hpke_base_open(test->kem_id, test->kdf_id, test->aead_id,
+				own_priv,
+				wpabuf_head(info), wpabuf_len(info),
+				wpabuf_head(aad), wpabuf_len(aad),
+				wpabuf_head(enc_ct), wpabuf_len(enc_ct));
+	if (!res_pt) {
+		wpa_printf(MSG_ERROR, "HPKE base open - failed to decrypt");
+		wpa_hexdump_buf(MSG_INFO, "pt", res_pt);
+		goto fail;
+	}
+	if (wpabuf_len(res_pt) != wpabuf_len(pt) ||
+	    os_memcmp(wpabuf_head(res_pt), wpabuf_head(pt),
+		      wpabuf_len(pt)) != 0) {
+		wpa_printf(MSG_ERROR,
+			   "HPKE base open - failed - decryption mismatch");
+		goto fail;
+	}
+
+	/* Sender - encryption (randomized algorithm) */
+
+	if (test->sk_r_group == 19)
+		coord_len = 32;
+	else if (test->sk_r_group == 20)
+		coord_len = 48;
+	else if (test->sk_r_group == 21)
+		coord_len = 66;
+	else if (test->sk_r_group == 28)
+		coord_len = 32;
+	else if (test->sk_r_group == 29)
+		coord_len = 48;
+	else if (test->sk_r_group == 30)
+		coord_len = 64;
+	else
+		goto fail;
+	if (wpabuf_len(pk_r) != 1 + 2 * coord_len) {
+		wpa_printf(MSG_ERROR, "Unexpected pkR length (%zu != %zu)",
+			   wpabuf_len(pk_r), 1 + 2 * coord_len);
+		goto fail;
+	}
+	peer_pub = crypto_ec_key_set_pub(test->sk_r_group,
+					 wpabuf_head_u8(pk_r) + 1,
+					 wpabuf_head_u8(pk_r) + 1 + coord_len,
+					 coord_len);
+	if (!peer_pub) {
+		wpa_printf(MSG_ERROR,
+			   "HPKE base open - failed to set public key");
+		goto fail;
+	}
+
+	res_ct = hpke_base_seal(test->kem_id, test->kdf_id, test->aead_id,
+				peer_pub,
+				wpabuf_head(info), wpabuf_len(info),
+				wpabuf_head(aad), wpabuf_len(aad),
+				wpabuf_head(pt), wpabuf_len(pt));
+	if (!res_ct) {
+		wpa_printf(MSG_ERROR, "HPKE base open - failed to encrypt");
+		goto fail;
+	}
+
+	/* Receiver - decryption (to verify own encryption) */
+
+	wpabuf_free(res_pt);
+	res_pt = hpke_base_open(test->kem_id, test->kdf_id, test->aead_id,
+				own_priv,
+				wpabuf_head(info), wpabuf_len(info),
+				wpabuf_head(aad), wpabuf_len(aad),
+				wpabuf_head(res_ct), wpabuf_len(res_ct));
+	if (!res_pt) {
+		wpa_printf(MSG_ERROR, "HPKE base open - failed to decrypt own encrypted version");
+		goto fail;
+	}
+	if (wpabuf_len(res_pt) != wpabuf_len(pt) ||
+	    os_memcmp(wpabuf_head(res_pt), wpabuf_head(pt),
+		      wpabuf_len(pt)) != 0) {
+		wpa_printf(MSG_ERROR,
+			   "HPKE base open - failed - decryption mismatch for own encrypted version");
+		wpa_hexdump_buf(MSG_INFO, "pt", res_pt);
+		goto fail;
+	}
+
+	res = 0;
+fail:
+	wpabuf_free(info);
+	wpabuf_free(pk_r);
+	wpabuf_free(sk_r);
+	wpabuf_free(enc);
+	wpabuf_free(pt);
+	wpabuf_free(aad);
+	wpabuf_free(ct);
+	wpabuf_free(enc_ct);
+	wpabuf_free(res_pt);
+	wpabuf_free(res_ct);
+	crypto_ec_key_deinit(own_priv);
+	crypto_ec_key_deinit(peer_pub);
+	return res;
+}
+
+#endif /* CONFIG_DPP3 */
+
+
+static int test_hpke(void)
+{
+#ifdef CONFIG_DPP3
+	unsigned int i;
+
+	wpa_printf(MSG_INFO, "RFC 9180 - HPKE");
+	for (i = 0; i < ARRAY_SIZE(hpke_tests); i++) {
+		if (run_hpke_test(&hpke_tests[i]) < 0)
+			return -1;
+	}
+
+	wpa_printf(MSG_INFO, "HPKE base open test cases passed");
+#endif /* CONFIG_DPP3 */
+	return 0;
+}
+
+
 static int test_ms_funcs(void)
 {
 #ifndef CONFIG_FIPS
@@ -2310,6 +2590,7 @@ int crypto_module_tests(void)
 	    test_sha384() ||
 	    test_fips186_2_prf() ||
 	    test_extract_expand_hkdf() ||
+	    test_hpke() ||
 	    test_ms_funcs())
 		ret = -1;
 

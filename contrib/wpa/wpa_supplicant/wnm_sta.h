@@ -37,6 +37,7 @@ struct neighbor_report {
 	u32 distance; /* valid if bearing_present=1 */
 	u64 bss_term_tsf; /* valid if bss_term_present=1 */
 	u16 bss_term_dur; /* valid if bss_term_present=1 */
+	unsigned int disassoc_imminent:1;
 	unsigned int preference_present:1;
 	unsigned int tsf_present:1;
 	unsigned int country_present:1;
@@ -64,17 +65,27 @@ int wnm_send_bss_transition_mgmt_query(struct wpa_supplicant *wpa_s,
 				       const char *btm_candidates,
 				       int cand_list);
 
-void wnm_deallocate_memory(struct wpa_supplicant *wpa_s);
 int wnm_send_coloc_intf_report(struct wpa_supplicant *wpa_s, u8 dialog_token,
 			       const struct wpabuf *elems);
 void wnm_set_coloc_intf_elems(struct wpa_supplicant *wpa_s,
 			      struct wpabuf *elems);
 
+int wnm_btm_resp_tx_status(struct wpa_supplicant *wpa_s, const u8 *data,
+			   size_t data_len);
 
 #ifdef CONFIG_WNM
 
-int wnm_scan_process(struct wpa_supplicant *wpa_s, int reply_on_fail);
+int wnm_scan_process(struct wpa_supplicant *wpa_s, bool pre_scan_check);
 void wnm_clear_coloc_intf_reporting(struct wpa_supplicant *wpa_s);
+
+bool wnm_is_bss_excluded(struct wpa_supplicant *wpa_s, struct wpa_bss *bss);
+
+void wnm_btm_reset(struct wpa_supplicant *wpa_s);
+
+static inline bool wnm_active_bss_trans_mgmt(struct wpa_supplicant *wpa_s)
+{
+	return !!wpa_s->wnm_dialog_token;
+}
 
 #else /* CONFIG_WNM */
 
@@ -86,6 +97,21 @@ static inline int wnm_scan_process(struct wpa_supplicant *wpa_s,
 
 static inline void wnm_clear_coloc_intf_reporting(struct wpa_supplicant *wpa_s)
 {
+}
+
+static inline bool
+wnm_is_bss_excluded(struct wpa_supplicant *wpa_s, struct wpa_bss *bss)
+{
+	return false;
+}
+
+static inline void wnm_btm_reset(struct wpa_supplicant *wpa_s)
+{
+}
+
+static inline bool wnm_active_bss_trans_mgmt(struct wpa_supplicant *wpa_s)
+{
+	return false;
 }
 
 #endif /* CONFIG_WNM */

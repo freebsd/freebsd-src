@@ -370,11 +370,21 @@ int hs20_web_browser(const char *url, int ignore_tls)
 
 #ifdef USE_WEBKIT2
 	if (ignore_tls) {
+#if WEBKIT_CHECK_VERSION(2, 32, 0)
+		WebKitWebContext *wkctx;
+		WebKitWebsiteDataManager *wkmgr;
+
+		wkctx = webkit_web_context_get_default();
+		wkmgr = webkit_web_context_get_website_data_manager(wkctx);
+		webkit_website_data_manager_set_tls_errors_policy(
+			wkmgr, WEBKIT_TLS_ERRORS_POLICY_IGNORE);
+#else
 		WebKitWebContext *wkctx;
 
 		wkctx = webkit_web_context_get_default();
 		webkit_web_context_set_tls_errors_policy(
 			wkctx, WEBKIT_TLS_ERRORS_POLICY_IGNORE);
+#endif
 	}
 #endif /* USE_WEBKIT2 */
 

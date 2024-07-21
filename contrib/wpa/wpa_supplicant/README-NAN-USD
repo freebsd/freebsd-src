@@ -1,0 +1,147 @@
+Wi-Fi Aware unsynchronized service discovery (NAN USD)
+======================================================
+
+This document descibes how the unsynchronized service discovery defined
+in the Wi-Fi Aware specification v4.0 can be used with wpa_spplicant.
+
+More information about Wi-Fi Aware is available from this Wi-Fi
+Alliance web page:
+https://www.wi-fi.org/discover-wi-fi/wi-fi-aware
+
+Build config setup
+------------------
+
+The following parameters must be included in the config file used to
+compile hostapd and wpa_supplicant.
+
+wpa_supplicant build config
+---------------------------
+
+Enable NAN USD in wpa_supplicant build config file
+
+CONFIG_NAN_USD=y
+
+Control interface commands and events
+-------------------------------------
+
+Following control interface commands can be used:
+
+NAN_PUBLISH service_name=<name> [ttl=<time-to-live-in-sec>] [freq=<in MHz>] [freq_list=<comma separate list of MHz>] [srv_proto_type=<type>] [ssi=<service specific information (hexdump)>] [solicited=0] [unsolicited=0] [fsd=0]
+
+If ttl=0 or the parameter is not included, only one Publish message is
+transmitted.
+
+If freq is not included, the default frequency 2437 MHz (channel 6 on
+the 2.4 GHz band) is used.
+
+If freq_list is included, publisher iterates over all the listed
+channels. A special freq_list=all value can be used to generate the
+channel list automatically based on the list of allowed 2.4 and 5 GHz
+channels.
+
+srv_proto_type values are defined in the Service Protocol Types table in
+the Wi-Fi Aware specification.
+
+This command returns the assigned publish_id value or FAIL on failure.
+
+This command maps to the Publish() method in the NAN Discovery Engine.
+
+NAN_CANCEL_PUBLISH publish_id=<id from NAN_PUBLISH>
+
+This command maps to the CancelPublish() method in the NAN Discovery
+Engine.
+
+NAN_UPDATE_PUBLISH publish_id=<id from NAN_PUBLISH> [ssi=<service specific information (hexdump)>]
+
+This command maps to the UpdatePublish() method in the NAN Discovery
+Engine.
+
+NAN_SUBSCRIBE service_name=<name> [active=1] [ttl=<time-to-live-in-sec>] [freq=<in MHz>] [srv_proto_type=<type>] [ssi=<service specific information (hexdump)>]
+
+If ttl=0 or the parameter is not included, operation is terminated once
+the first matching publisher is found.
+
+If freq is not included, the default frequency 2437 MHz (channel 6 on
+the 2.4 GHz band) is used.
+
+srv_proto_type values are defined in the Service Protocol Types table in
+the Wi-Fi Aware specification.
+
+This command returns the assigned subscribe_id value or FAIL on failure.
+
+This command maps to the Subscribe() method in the NAN Discovery Engine.
+
+NAN_CANCEL_SUBSCRIBE subscribe_id=<id from NAN_SUBSCRIBE>
+
+This command maps to the CancelSubscribe() method in the NAN Discovery Engine.
+
+NAN_TRANSMIT handle=<id from NAN_PUBLISH or NAN_SUBSCRIBE> req_instance_id=<peer's id> address=<peer's MAC address> [ssi=<service specific information (hexdump)>]
+
+This command maps to the Transmit() method in the NAN Discovery Engine.
+
+Following control interface events are used:
+
+NAN-DISCOVERY-RESULT subscribe_id=<own id> publish_id=<peer's id> address=<peer MAC address> fsd=<0/1> fsd_gas=<0/1> srv_proto_type=<type> ssi=<service specific information (hexdump)>
+
+This event maps to the DiscoveryResult() event in the NAN Discovery
+Engine.
+
+NAN-REPLIED publish_id=<own id> address=<peer MAC address> subscribe_id=<peer id> srv_proto_type=<ype> ssi=<service specific information (hexdump)>
+
+This event maps to the Replied() event in the NAN Discovery Engine.
+
+NAN-PUBLISH-TERMINATED publish_id=<own id> reason=<timeout/user-request/failure>
+
+This event maps to the PublishTerminated() event in the NAN Discovery
+Engine.
+
+NAN-SUBSCRIBE-TERMINATED subscribe_id=<own id> reason=<timeout/user-request/failure>
+
+This event maps to the SubscribeTerminate() event in the NAN Discovery
+Engine.
+
+NAN-RECEIVE id=<own id> peer_instance_id=<peer id> address=<peer MAC adress> ssi=<service specific information (hexdump)>
+
+This event maps to the Receive() event in the NAN Discovery Engine.
+
+
+Example operation
+-----------------
+
+Start Subscribe and Publish functions:
+
+dev0: NAN_SUBSCRIBE service_name=_test srv_proto_type=3 ssi=1122334455
+--> returns 7
+
+dev1: NAN_PUBLISH service_name=_test srv_proto_type=3 ssi=6677
+--> returns 5
+
+Subscriber notification of a discovery:
+
+event on dev0: <3>NAN-DISCOVERY-RESULT subscribe_id=7 publish_id=5 address=02:00:00:00:01:00 fsd=1 fsd_gas=0 srv_proto_type=3 ssi=6677
+
+Publisher notification of a Follow-up message with no ssi (to enter
+paused state to continue exchange with the subscriber):
+
+event on dev1: <3>NAN-RECEIVE id=5 peer_instance_id=7 address=02:00:00:00:00:00 ssi=
+
+Subscriber sending a Follow-up message:
+
+dev0: NAN_TRANSMIT handle=7 req_instance_id=5 address=02:00:00:00:01:00 ssi=8899
+
+Publisher receiving the Follow-up message:
+
+event on dev1: <3>NAN-RECEIVE id=5 peer_instance_id=7 address=02:00:00:00:00:00 ssi=8899
+
+Publisher sending a Follow-up message:
+
+dev1: NAN_TRANSMIT handle=5 req_instance_id=7 address=02:00:00:00:00:00 ssi=aabbccdd
+
+Subscriber receiving the Follow-up message:
+
+event on dev0: <3>NAN-RECEIVE id=7 peer_instance_id=5 address=02:00:00:00:01:00 ssi=aabbccdd
+
+Stop Subscribe and Publish functions:
+
+dev0: NAN_CANCEL_SUBSCRIBE subscribe_id=7
+dev1: NAN_CANCEL_PUBLIST publish_id=5

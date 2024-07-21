@@ -2,6 +2,7 @@
  * Generic advertisement service (GAS) server
  * Copyright (c) 2017, Qualcomm Atheros, Inc.
  * Copyright (c) 2020, The Linux Foundation
+ * Copyright (c) 2022, Qualcomm Innovation Center, Inc.
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -18,7 +19,7 @@
 
 
 #define MAX_ADV_PROTO_ID_LEN 10
-#define GAS_QUERY_TIMEOUT 10
+#define GAS_QUERY_TIMEOUT 60
 
 struct gas_server_handler {
 	struct dl_list list;
@@ -26,7 +27,7 @@ struct gas_server_handler {
 	u8 adv_proto_id_len;
 	struct wpabuf * (*req_cb)(void *ctx, void *resp_ctx, const u8 *sa,
 				  const u8 *query, size_t query_len,
-				  u16 *comeback_delay);
+				  int *comeback_delay);
 	void (*status_cb)(void *ctx, struct wpabuf *resp, int ok);
 	void *ctx;
 	struct gas_server *gas;
@@ -42,6 +43,7 @@ struct gas_server_response {
 	u8 dialog_token;
 	struct gas_server_handler *handler;
 	u16 comeback_delay;
+	bool initial_resp_sent;
 };
 
 struct gas_server {
@@ -86,25 +88,22 @@ static void gas_server_free_response(struct gas_server_response *response)
 
 
 static void
-gas_server_send_resp(struct gas_server *gas, struct gas_server_handler *handler,
+gas_server_send_resp(struct gas_server *gas,
 		     struct gas_server_response *response,
-		     const u8 *da, int freq, u8 dialog_token,
 		     struct wpabuf *query_resp, u16 comeback_delay)
 {
-	size_t max_len = (freq > 56160) ? 928 : 1400;
+	struct gas_server_handler *handler = response->handler;
+	size_t max_len = (response->freq > 56160) ? 928 : 1400;
 	size_t hdr_len = 24 + 2 + 5 + 3 + handler->adv_proto_id_len + 2;
 	size_t resp_frag_len;
 	struct wpabuf *resp;
 
 	if (comeback_delay == 0 && !query_resp) {
+		dl_list_del(&response->list);
 		gas_server_free_response(response);
 		return;
 	}
 
-	response->freq = freq;
-	response->handler = handler;
-	os_memcpy(response->dst, da, ETH_ALEN);
-	response->dialog_token = dialog_token;
 	if (comeback_delay) {
 		/* Need more time to prepare the response */
 		resp_frag_len = 0;
@@ -119,12 +118,14 @@ gas_server_send_resp(struct gas_server *gas, struct gas_server_handler *handler,
 		resp_frag_len = wpabuf_len(query_resp);
 	}
 
-	resp = gas_build_initial_resp(dialog_token, WLAN_STATUS_SUCCESS,
+	resp = gas_build_initial_resp(response->dialog_token,
+				      WLAN_STATUS_SUCCESS,
 				      comeback_delay,
 				      handler->adv_proto_id_len +
 				      resp_frag_len);
 	if (!resp) {
 		wpabuf_free(query_resp);
+		dl_list_del(&response->list);
 		gas_server_free_response(response);
 		return;
 	}
@@ -152,8 +153,9 @@ gas_server_send_resp(struct gas_server *gas, struct gas_server_handler *handler,
 	}
 	response->offset = resp_frag_len;
 	response->resp = query_resp;
-	dl_list_add(&gas->responses, &response->list);
-	gas->tx(gas->ctx, freq, da, resp, comeback_delay ? 2000 : 0);
+	response->initial_resp_sent = true;
+	gas->tx(gas->ctx, response->freq, response->dst, resp,
+		comeback_delay ? 2000 : 0);
 	wpabuf_free(resp);
 	eloop_register_timeout(GAS_QUERY_TIMEOUT, 0,
 			       gas_server_response_timeout, response, NULL);
@@ -223,12 +225,18 @@ gas_server_rx_initial_req(struct gas_server *gas, const u8 *da, const u8 *sa,
 	wpa_printf(MSG_DEBUG, "DPP: Allocated GAS response @%p", response);
 	dl_list_for_each(handler, &gas->handlers, struct gas_server_handler,
 			 list) {
-		u16 comeback_delay = 0;
+		int comeback_delay = 0;
 
 		if (adv_proto_len < 1 + handler->adv_proto_id_len ||
 		    os_memcmp(adv_proto + 1, handler->adv_proto_id,
 			      handler->adv_proto_id_len) != 0)
 			continue;
+
+		response->freq = freq;
+		response->handler = handler;
+		os_memcpy(response->dst, sa, ETH_ALEN);
+		response->dialog_token = dialog_token;
+		dl_list_add(&gas->responses, &response->list);
 
 		wpa_printf(MSG_DEBUG,
 			   "GAS: Calling handler for the requested Advertisement Protocol ID");
@@ -236,12 +244,16 @@ gas_server_rx_initial_req(struct gas_server *gas, const u8 *da, const u8 *sa,
 				       query_req_len, &comeback_delay);
 		wpa_hexdump_buf(MSG_MSGDUMP, "GAS: Response from the handler",
 				resp);
+		if (comeback_delay < 0) {
+			wpa_printf(MSG_DEBUG,
+				   "GAS: Handler requested short delay before sending out the initial response");
+			return 0;
+		}
 		if (comeback_delay)
 			wpa_printf(MSG_DEBUG,
 				   "GAS: Handler requested comeback delay: %u TU",
 				   comeback_delay);
-		gas_server_send_resp(gas, handler, response, sa, freq,
-				     dialog_token, resp, comeback_delay);
+		gas_server_send_resp(gas, response, resp, comeback_delay);
 		return 0;
 	}
 
@@ -340,7 +352,7 @@ gas_server_rx_comeback_req(struct gas_server *gas, const u8 *da, const u8 *sa,
 	dl_list_for_each(response, &gas->responses, struct gas_server_response,
 			 list) {
 		if (response->dialog_token != dialog_token ||
-		    os_memcmp(sa, response->dst, ETH_ALEN) != 0)
+		    !ether_addr_equal(sa, response->dst))
 			continue;
 		gas_server_handle_rx_comeback_req(response);
 		return 0;
@@ -458,7 +470,7 @@ void gas_server_tx_status(struct gas_server *gas, const u8 *dst, const u8 *data,
 	dl_list_for_each(response, &gas->responses, struct gas_server_response,
 			 list) {
 		if (response->dialog_token != dialog_token ||
-		    os_memcmp(dst, response->dst, ETH_ALEN) != 0)
+		    !ether_addr_equal(dst, response->dst))
 			continue;
 		gas_server_handle_tx_status(response, ack);
 		return;
@@ -484,7 +496,38 @@ int gas_server_set_resp(struct gas_server *gas, void *resp_ctx,
 	if (!response || response->resp)
 		return -1;
 
+	if (!response->initial_resp_sent) {
+		wpa_printf(MSG_DEBUG, "GAS: Send the delayed initial response");
+		gas_server_send_resp(gas, response, resp, 0);
+		return 0;
+	}
+
 	response->resp = resp;
+	return 0;
+}
+
+
+int gas_server_set_comeback_delay(struct gas_server *gas, void *resp_ctx,
+				  u16 comeback_delay)
+{
+	struct gas_server_response *tmp, *response = NULL;
+
+	dl_list_for_each(tmp, &gas->responses, struct gas_server_response,
+			 list) {
+		if (tmp == resp_ctx) {
+			response = tmp;
+			break;
+		}
+	}
+
+	if (!response || response->initial_resp_sent)
+		return -1;
+
+	wpa_printf(MSG_DEBUG,
+		   "GAS: Send the delayed initial response with comeback delay %u",
+		   comeback_delay);
+	gas_server_send_resp(gas, response, NULL, comeback_delay);
+
 	return 0;
 }
 
@@ -552,7 +595,7 @@ int gas_server_register(struct gas_server *gas,
 			struct wpabuf *
 			(*req_cb)(void *ctx, void *resp_ctx, const u8 *sa,
 				  const u8 *query, size_t query_len,
-				  u16 *comeback_delay),
+				  int *comeback_delay),
 			void (*status_cb)(void *ctx, struct wpabuf *resp,
 					  int ok),
 			void *ctx)

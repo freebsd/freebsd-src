@@ -23,6 +23,7 @@ struct eapol_auth_config {
 	size_t eap_req_id_text_len;
 	int erp_send_reauth_start;
 	char *erp_domain; /* a copy of this will be allocated */
+	bool eap_skip_prot_success;
 
 	/* Opaque context pointer to owner data for callback functions */
 	void *ctx;
@@ -45,8 +46,8 @@ struct eapol_auth_cb {
 			   size_t datalen);
 	void (*aaa_send)(void *ctx, void *sta_ctx, const u8 *data,
 			 size_t datalen);
-	void (*finished)(void *ctx, void *sta_ctx, int success, int preauth,
-			 int remediation);
+	bool (*finished)(void *ctx, void *sta_ctx, int success, int preauth,
+			 int remediation, bool logoff);
 	int (*get_eap_user)(void *ctx, const u8 *identity, size_t identity_len,
 			    int phase2, struct eap_user *user);
 	int (*sta_entry_alive)(void *ctx, const u8 *addr);

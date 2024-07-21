@@ -17,6 +17,7 @@
 #include "dbus/dbus_common.h"
 #include "dbus/dbus_new.h"
 #include "rsn_supp/wpa.h"
+#include "rsn_supp/pmksa_cache.h"
 #include "fst/fst.h"
 #include "crypto/tls.h"
 #include "bss.h"
@@ -212,6 +213,15 @@ void wpas_notify_bssid_changed(struct wpa_supplicant *wpa_s)
 }
 
 
+void wpas_notify_mac_address_changed(struct wpa_supplicant *wpa_s)
+{
+	if (wpa_s->p2p_mgmt)
+		return;
+
+	wpas_dbus_signal_prop_changed(wpa_s, WPAS_DBUS_PROP_MAC_ADDRESS);
+}
+
+
 void wpas_notify_auth_changed(struct wpa_supplicant *wpa_s)
 {
 	if (wpa_s->p2p_mgmt)
@@ -382,8 +392,35 @@ void wpas_notify_network_removed(struct wpa_supplicant *wpa_s,
 {
 	if (wpa_s->next_ssid == ssid)
 		wpa_s->next_ssid = NULL;
-	if (wpa_s->wpa)
+	if (wpa_s->last_ssid == ssid)
+		wpa_s->last_ssid = NULL;
+	if (wpa_s->current_ssid == ssid)
+		wpa_s->current_ssid = NULL;
+	if (wpa_s->ml_connect_probe_ssid == ssid) {
+		wpa_s->ml_connect_probe_ssid = NULL;
+		wpa_s->ml_connect_probe_bss = NULL;
+	}
+	if (wpa_s->connect_without_scan == ssid)
+		wpa_s->connect_without_scan = NULL;
+#if defined(CONFIG_SME) && defined(CONFIG_SAE)
+	if (wpa_s->sme.ext_auth_wpa_ssid == ssid)
+		wpa_s->sme.ext_auth_wpa_ssid = NULL;
+#endif /* CONFIG_SME && CONFIG_SAE */
+	if (wpa_s->wpa) {
+		if ((wpa_key_mgmt_sae(ssid->key_mgmt) &&
+		     (wpa_s->drv_flags2 & WPA_DRIVER_FLAGS2_SAE_OFFLOAD_STA)) ||
+		    ((ssid->key_mgmt & WPA_KEY_MGMT_OWE) &&
+		     (wpa_s->drv_flags2 & WPA_DRIVER_FLAGS2_OWE_OFFLOAD_STA))) {
+			/* For cases when PMK is generated at the driver */
+			struct wpa_pmkid_params params;
+
+			os_memset(&params, 0, sizeof(params));
+			params.ssid = ssid->ssid;
+			params.ssid_len = ssid->ssid_len;
+			wpa_drv_remove_pmkid(wpa_s, &params);
+		}
 		wpa_sm_pmksa_cache_flush(wpa_s->wpa, ssid);
+	}
 	if (!ssid->p2p_group && wpa_s->global->p2p_group_formation != wpa_s &&
 	    !wpa_s->p2p_mgmt) {
 		wpas_dbus_unregister_network(wpa_s, ssid->id);
@@ -394,11 +431,6 @@ void wpas_notify_network_removed(struct wpa_supplicant *wpa_s,
 		wpas_notify_persistent_group_removed(wpa_s, ssid);
 
 	wpas_p2p_network_removed(wpa_s, ssid);
-
-#ifdef CONFIG_PASN
-	if (wpa_s->pasn.ssid == ssid)
-		wpa_s->pasn.ssid = NULL;
-#endif /* CONFIG_PASN */
 }
 
 
@@ -526,6 +558,15 @@ void wpas_notify_bss_seen(struct wpa_supplicant *wpa_s, unsigned int id)
 		return;
 
 	wpas_dbus_bss_signal_prop_changed(wpa_s, WPAS_DBUS_BSS_PROP_AGE, id);
+}
+
+
+void wpas_notify_bss_anqp_changed(struct wpa_supplicant *wpa_s, unsigned int id)
+{
+	if (wpa_s->p2p_mgmt)
+		return;
+
+	wpas_dbus_bss_signal_prop_changed(wpa_s, WPAS_DBUS_BSS_PROP_ANQP, id);
 }
 
 
@@ -746,7 +787,7 @@ void wpas_notify_p2p_invitation_received(struct wpa_supplicant *wpa_s,
 
 static void wpas_notify_ap_sta_authorized(struct wpa_supplicant *wpa_s,
 					  const u8 *sta,
-					  const u8 *p2p_dev_addr)
+					  const u8 *p2p_dev_addr, const u8 *ip)
 {
 #ifdef CONFIG_P2P
 	wpas_p2p_notify_ap_sta_authorized(wpa_s, p2p_dev_addr);
@@ -790,10 +831,11 @@ static void wpas_notify_ap_sta_deauthorized(struct wpa_supplicant *wpa_s,
 
 void wpas_notify_sta_authorized(struct wpa_supplicant *wpa_s,
 				const u8 *mac_addr, int authorized,
-				const u8 *p2p_dev_addr)
+				const u8 *p2p_dev_addr, const u8 *ip)
 {
 	if (authorized)
-		wpas_notify_ap_sta_authorized(wpa_s, mac_addr, p2p_dev_addr);
+		wpas_notify_ap_sta_authorized(wpa_s, mac_addr, p2p_dev_addr,
+					      ip);
 	else
 		wpas_notify_ap_sta_deauthorized(wpa_s, mac_addr, p2p_dev_addr);
 }
@@ -864,6 +906,12 @@ void wpas_notify_eap_error(struct wpa_supplicant *wpa_s, int error_code)
 }
 
 
+void wpas_notify_psk_mismatch(struct wpa_supplicant *wpa_s)
+{
+	wpas_dbus_signal_psk_mismatch(wpa_s);
+}
+
+
 void wpas_notify_network_bssid_set_changed(struct wpa_supplicant *wpa_s,
 					   struct wpa_ssid *ssid)
 {
@@ -930,6 +978,8 @@ void wpas_notify_mesh_peer_connected(struct wpa_supplicant *wpa_s,
 	if (wpa_s->p2p_mgmt)
 		return;
 
+	wpa_msg(wpa_s, MSG_INFO, MESH_PEER_CONNECTED MACSTR,
+		MAC2STR(peer_addr));
 	wpas_dbus_signal_mesh_peer_connected(wpa_s, peer_addr);
 }
 
@@ -940,6 +990,8 @@ void wpas_notify_mesh_peer_disconnected(struct wpa_supplicant *wpa_s,
 	if (wpa_s->p2p_mgmt)
 		return;
 
+	wpa_msg(wpa_s, MSG_INFO, MESH_PEER_DISCONNECTED MACSTR,
+		MAC2STR(peer_addr));
 	wpas_dbus_signal_mesh_peer_disconnected(wpa_s, peer_addr, reason_code);
 }
 
@@ -972,4 +1024,37 @@ void wpas_notify_interworking_select_done(struct wpa_supplicant *wpa_s)
 	wpas_dbus_signal_interworking_select_done(wpa_s);
 }
 
+
+void wpas_notify_anqp_query_done(struct wpa_supplicant *wpa_s,
+				 const u8 *dst, const char *result)
+{
+	wpa_msg(wpa_s, MSG_INFO, ANQP_QUERY_DONE "addr=" MACSTR " result=%s",
+		MAC2STR(dst), result);
+
+	wpas_dbus_signal_anqp_query_done(wpa_s, dst, result);
+}
+
 #endif /* CONFIG_INTERWORKING */
+
+
+void wpas_notify_pmk_cache_added(struct wpa_supplicant *wpa_s,
+				 struct rsn_pmksa_cache_entry *entry)
+{
+	/* TODO: Notify external entities of the added PMKSA cache entry */
+}
+
+
+void wpas_notify_signal_change(struct wpa_supplicant *wpa_s)
+{
+	wpas_dbus_signal_prop_changed(wpa_s, WPAS_DBUS_PROP_SIGNAL_CHANGE);
+}
+
+
+#ifdef CONFIG_HS20
+void wpas_notify_hs20_t_c_acceptance(struct wpa_supplicant *wpa_s,
+				     const char *url)
+{
+	wpa_msg(wpa_s, MSG_INFO, HS20_T_C_ACCEPTANCE "%s", url);
+	wpas_dbus_signal_hs20_t_c_acceptance(wpa_s, url);
+}
+#endif /* CONFIG_HS20 */
