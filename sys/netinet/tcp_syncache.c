@@ -777,7 +777,7 @@ done:
 static struct socket *
 syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 {
-	struct tcp_function_block *blk;
+	struct tcpcb *listening_tcb;
 	struct inpcb *inp = NULL;
 	struct socket *so;
 	struct tcpcb *tp;
@@ -802,7 +802,11 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		goto allocfail;
 	}
 	inp = sotoinpcb(so);
-	if ((tp = tcp_newtcpcb(inp)) == NULL) {
+	if (V_functions_inherit_listen_socket_stack)
+		listening_tcb = sototcpcb(lso);
+	else
+		listening_tcb = NULL;
+	if ((tp = tcp_newtcpcb(inp, listening_tcb)) == NULL) {
 		in_pcbfree(inp);
 		sodealloc(so);
 		goto allocfail;
@@ -912,37 +916,6 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	tp->t_port = sc->sc_port;
 	tcp_rcvseqinit(tp);
 	tcp_sendseqinit(tp);
-	blk = sototcpcb(lso)->t_fb;
-	if (V_functions_inherit_listen_socket_stack && blk != tp->t_fb) {
-		/*
-		 * Our parents t_fb was not the default,
-		 * we need to release our ref on tp->t_fb and
-		 * pickup one on the new entry.
-		 */
-		struct tcp_function_block *rblk;
-		void *ptr = NULL;
-
-		rblk = find_and_ref_tcp_fb(blk);
-		KASSERT(rblk != NULL,
-		    ("cannot find blk %p out of syncache?", blk));
-
-		if (rblk->tfb_tcp_fb_init == NULL ||
-		    (*rblk->tfb_tcp_fb_init)(tp, &ptr) == 0) {
-			/* Release the old stack */
-			if (tp->t_fb->tfb_tcp_fb_fini != NULL)
-				(*tp->t_fb->tfb_tcp_fb_fini)(tp, 0);
-			refcount_release(&tp->t_fb->tfb_refcnt);
-			/* Now set in all the pointers */
-			tp->t_fb = rblk;
-			tp->t_fb_ptr = ptr;
-		} else {
-			/*
-			 * Initialization failed. Release the reference count on
-			 * the looked up default stack.
-			 */
-			refcount_release(&rblk->tfb_refcnt);
-		}
-	}
 	tp->snd_wl1 = sc->sc_irs;
 	tp->snd_max = tp->iss + 1;
 	tp->snd_nxt = tp->iss + 1;

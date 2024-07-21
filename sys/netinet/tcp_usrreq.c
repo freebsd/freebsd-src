@@ -172,7 +172,7 @@ tcp_usr_attach(struct socket *so, int proto, struct thread *td)
 	if (error)
 		goto out;
 	inp = sotoinpcb(so);
-	tp = tcp_newtcpcb(inp);
+	tp = tcp_newtcpcb(inp, NULL);
 	if (tp == NULL) {
 		error = ENOBUFS;
 		in_pcbfree(inp);
