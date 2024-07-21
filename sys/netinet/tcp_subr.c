@@ -359,6 +359,7 @@ static struct tcp_function_block tcp_def_funcblk = {
 	.tfb_tcp_fb_init = tcp_default_fb_init,
 	.tfb_tcp_fb_fini = tcp_default_fb_fini,
 	.tfb_switch_failed = tcp_default_switch_failed,
+	.tfb_flags = TCP_FUNC_DEFAULT_OK,
 };
 
 static int tcp_fb_cnt = 0;
@@ -674,6 +675,10 @@ sysctl_net_inet_default_tcp_functions(SYSCTL_HANDLER_ARGS)
 	if ((blk == NULL) ||
 	    (blk->tfb_flags & TCP_FUNC_BEING_REMOVED)) {
 		error = ENOENT;
+		goto done;
+	}
+	if ((blk->tfb_flags & TCP_FUNC_DEFAULT_OK) == 0) {
+		error = EINVAL;
 		goto done;
 	}
 	V_tcp_func_set_ptr = blk;
