@@ -196,6 +196,7 @@ riscv_timer_attach(device_t dev)
 	int irq, rid, error;
 	phandle_t iparent;
 	pcell_t cell;
+	device_t rootdev;
 
 	sc = device_get_softc(dev);
 	if (riscv_timer_sc != NULL)
@@ -211,7 +212,8 @@ riscv_timer_attach(device_t dev)
 
 	riscv_timer_sc = sc;
 
-	iparent = OF_xref_from_node(ofw_bus_get_node(intr_irq_root_dev));
+	rootdev = intr_irq_root_device(INTR_ROOT_IRQ);
+	iparent = OF_xref_from_node(ofw_bus_get_node(rootdev));
 	cell = IRQ_TIMER_SUPERVISOR;
 	irq = ofw_bus_map_intr(dev, iparent, 1, &cell);
 	error = bus_set_resource(dev, SYS_RES_IRQ, 0, irq, 1);

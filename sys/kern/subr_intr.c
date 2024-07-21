@@ -89,6 +89,15 @@
 
 #define	INTRNAME_LEN	(2*MAXCOMLEN + 1)
 
+/*
+ * Archs may define multiple roots with INTR_ROOT_NUM to support different kinds
+ * of interrupts (e.g. arm64 FIQs which use a different exception vector than
+ * IRQs).
+ */
+#if !defined(INTR_ROOT_NUM)
+#define	INTR_ROOT_NUM	1
+#endif
+
 #ifdef DEBUG
 #define debugf(fmt, args...) do { printf("%s(): ", __func__);	\
     printf(fmt,##args); } while (0)
@@ -99,13 +108,14 @@
 MALLOC_DECLARE(M_INTRNG);
 MALLOC_DEFINE(M_INTRNG, "intr", "intr interrupt handling");
 
-/* Main interrupt handler called from assembler -> 'hidden' for C code. */
-void intr_irq_handler(struct trapframe *tf);
-
 /* Root interrupt controller stuff. */
-device_t intr_irq_root_dev;
-static intr_irq_filter_t *irq_root_filter;
-static void *irq_root_arg;
+struct intr_irq_root {
+	device_t dev;
+	intr_irq_filter_t *filter;
+	void *arg;
+};
+
+static struct intr_irq_root intr_irq_roots[INTR_ROOT_NUM];
 
 struct intr_pic_child {
 	SLIST_ENTRY(intr_pic_child)	 pc_next;
@@ -327,12 +337,17 @@ isrc_release_counters(struct intr_irqsrc *isrc)
  *  from the assembler, where CPU interrupt is served.
  */
 void
-intr_irq_handler(struct trapframe *tf)
+intr_irq_handler(struct trapframe *tf, uint32_t rootnum)
 {
 	struct trapframe * oldframe;
 	struct thread * td;
+	struct intr_irq_root *root;
 
-	KASSERT(irq_root_filter != NULL, ("%s: no filter", __func__));
+	KASSERT(rootnum < INTR_ROOT_NUM,
+	    ("%s: invalid interrupt root %d", __func__, rootnum));
+
+	root = &intr_irq_roots[rootnum];
+	KASSERT(root->filter != NULL, ("%s: no filter", __func__));
 
 	kasan_mark(tf, sizeof(*tf), sizeof(*tf), 0);
 	kmsan_mark(tf, sizeof(*tf), KMSAN_STATE_INITED);
@@ -342,7 +357,7 @@ intr_irq_handler(struct trapframe *tf)
 	td = curthread;
 	oldframe = td->td_intr_frame;
 	td->td_intr_frame = tf;
-	irq_root_filter(irq_root_arg);
+	(root->filter)(root->arg);
 	td->td_intr_frame = oldframe;
 	critical_exit();
 #ifdef HWPMC_HOOKS
@@ -477,6 +492,14 @@ isrc_free_irq(struct intr_irqsrc *isrc)
 		irq_next_free = 0;
 
 	return (0);
+}
+
+device_t
+intr_irq_root_device(uint32_t rootnum)
+{
+	KASSERT(rootnum < INTR_ROOT_NUM,
+	    ("%s: invalid interrupt root %d", __func__, rootnum));
+	return (intr_irq_roots[rootnum].dev);
 }
 
 /*
@@ -877,9 +900,10 @@ intr_pic_deregister(device_t dev, intptr_t xref)
  */
 int
 intr_pic_claim_root(device_t dev, intptr_t xref, intr_irq_filter_t *filter,
-    void *arg)
+    void *arg, uint32_t rootnum)
 {
 	struct intr_pic *pic;
+	struct intr_irq_root *root;
 
 	pic = pic_lookup(dev, xref, FLAG_PIC);
 	if (pic == NULL) {
@@ -901,14 +925,17 @@ intr_pic_claim_root(device_t dev, intptr_t xref, intr_irq_filter_t *filter,
 	 * Note that we further suppose that there is not threaded interrupt
 	 * routine (handler) on the root. See intr_irq_handler().
 	 */
-	if (intr_irq_root_dev != NULL) {
+	KASSERT(rootnum < INTR_ROOT_NUM,
+	    ("%s: invalid interrupt root %d", __func__, rootnum));
+	root = &intr_irq_roots[rootnum];
+	if (root->dev != NULL) {
 		device_printf(dev, "another root already set\n");
 		return (EBUSY);
 	}
 
-	intr_irq_root_dev = dev;
-	irq_root_filter = filter;
-	irq_root_arg = arg;
+	root->dev = dev;
+	root->filter = filter;
+	root->arg = arg;
 
 	debugf("irq root set to %s\n", device_get_nameunit(dev));
 	return (0);
@@ -1552,14 +1579,19 @@ dosoftints(void)
 void
 intr_pic_init_secondary(void)
 {
+	device_t dev;
+	uint32_t rootnum;
 
 	/*
-	 * QQQ: Only root PIC is aware of other CPUs ???
+	 * QQQ: Only root PICs are aware of other CPUs ???
 	 */
-	KASSERT(intr_irq_root_dev != NULL, ("%s: no root attached", __func__));
-
 	//mtx_lock(&isrc_table_lock);
-	PIC_INIT_SECONDARY(intr_irq_root_dev);
+	for (rootnum = 0; rootnum < INTR_ROOT_NUM; rootnum++) {
+		dev = intr_irq_roots[rootnum].dev;
+		if (dev != NULL) {
+			PIC_INIT_SECONDARY(dev, rootnum);
+		}
+	}
 	//mtx_unlock(&isrc_table_lock);
 }
 #endif
