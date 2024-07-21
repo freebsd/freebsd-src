@@ -71,7 +71,7 @@ tegra_bo_destruct(struct tegra_bo *bo)
 
 	vm_object_deallocate(bo->cdev_pager);
 	if (bo->vbase != 0)
-		vmem_free(kmem_arena, bo->vbase, size);
+		vmem_free(kernel_arena, bo->vbase, size);
 }
 
 static void
@@ -137,7 +137,7 @@ tegra_bo_init_pager(struct tegra_bo *bo)
 	size = round_page(bo->gem_obj.size);
 
 	bo->pbase = VM_PAGE_TO_PHYS(bo->m[0]);
-	if (vmem_alloc(kmem_arena, size, M_WAITOK | M_BESTFIT, &bo->vbase))
+	if (vmem_alloc(kernel_arena, size, M_WAITOK | M_BESTFIT, &bo->vbase))
 		return (ENOMEM);
 
 	VM_OBJECT_WLOCK(bo->cdev_pager);
