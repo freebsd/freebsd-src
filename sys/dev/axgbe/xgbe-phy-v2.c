@@ -500,7 +500,7 @@ xgbe_phy_i2c_write(struct xgbe_prv_data *pdata, unsigned int target, void *val,
 
 	retry = 1;
 again:
-	/* Write the specfied register */
+	/* Write the specified register */
 	i2c_op.cmd = XGBE_I2C_CMD_WRITE;
 	i2c_op.target = target;
 	i2c_op.len = val_len;
@@ -539,7 +539,7 @@ again1:
 
 	retry = 1;
 again2:
-	/* Read the specfied register */
+	/* Read the specified register */
 	i2c_op.cmd = XGBE_I2C_CMD_READ;
 	i2c_op.target = target;
 	i2c_op.len = val_len;
