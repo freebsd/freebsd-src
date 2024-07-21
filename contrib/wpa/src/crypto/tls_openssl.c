@@ -7,6 +7,9 @@
  */
 
 #include "includes.h"
+#ifdef CONFIG_TESTING_OPTIONS
+#include <fcntl.h>
+#endif /* CONFIG_TESTING_OPTIONS */
 
 #ifndef CONFIG_SMARTCARD
 #ifndef OPENSSL_NO_ENGINE
@@ -16,22 +19,31 @@
 #endif
 #endif
 
+#ifndef OPENSSL_NO_ENGINE
+/* OpenSSL 3.0 has moved away from the engine API */
+#define OPENSSL_SUPPRESS_DEPRECATED
+#include <openssl/engine.h>
+#endif /* OPENSSL_NO_ENGINE */
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/opensslv.h>
 #include <openssl/pkcs12.h>
 #include <openssl/x509v3.h>
-#ifndef OPENSSL_NO_ENGINE
-#include <openssl/engine.h>
-#endif /* OPENSSL_NO_ENGINE */
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#include <openssl/core_names.h>
+#include <openssl/decoder.h>
+#include <openssl/param_build.h>
+#else /* OpenSSL version >= 3.0 */
 #ifndef OPENSSL_NO_DSA
 #include <openssl/dsa.h>
 #endif
 #ifndef OPENSSL_NO_DH
 #include <openssl/dh.h>
 #endif
+#endif /* OpenSSL version >= 3.0 */
 
 #include "common.h"
+#include "utils/list.h"
 #include "crypto.h"
 #include "sha1.h"
 #include "sha256.h"
@@ -65,9 +77,7 @@ typedef int stack_index_t;
 #endif /* OPENSSL_NO_TLSEXT */
 #endif /* SSL_set_tlsext_status_type */
 
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L || \
-     (defined(LIBRESSL_VERSION_NUMBER) && \
-      LIBRESSL_VERSION_NUMBER < 0x20700000L)) && \
+#if OPENSSL_VERSION_NUMBER < 0x10100000L && \
     !defined(BORINGSSL_API_VERSION)
 /*
  * SSL_get_client_random() and SSL_get_server_random() were added in OpenSSL
@@ -111,17 +121,7 @@ static size_t SSL_SESSION_get_master_key(const SSL_SESSION *session,
 
 #endif
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L || \
-	(defined(LIBRESSL_VERSION_NUMBER) && \
-	 LIBRESSL_VERSION_NUMBER < 0x20700000L)
-#ifdef CONFIG_SUITEB
-static int RSA_bits(const RSA *r)
-{
-	return BN_num_bits(r->n);
-}
-#endif /* CONFIG_SUITEB */
-
-
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 static const unsigned char * ASN1_STRING_get0_data(const ASN1_STRING *x)
 {
 	return ASN1_STRING_data((ASN1_STRING *) x);
@@ -207,12 +207,18 @@ static int tls_add_ca_from_keystore_encoded(X509_STORE *ctx,
 static int tls_openssl_ref_count = 0;
 static int tls_ex_idx_session = -1;
 
+struct tls_session_data {
+	struct dl_list list;
+	struct wpabuf *buf;
+};
+
 struct tls_context {
 	void (*event_cb)(void *ctx, enum tls_event ev,
 			 union tls_event_data *data);
 	void *cb_ctx;
 	int cert_in_cb;
 	char *ocsp_stapling_response;
+	struct dl_list sessions; /* struct tls_session_data */
 };
 
 static struct tls_context *tls_global = NULL;
@@ -227,6 +233,7 @@ struct tls_data {
 	unsigned int crl_reload_interval;
 	struct os_reltime crl_last_reload;
 	char *check_cert_subject;
+	char *openssl_ciphers;
 };
 
 struct tls_connection {
@@ -280,6 +287,7 @@ static struct tls_context * tls_context_new(const struct tls_config *conf)
 	struct tls_context *context = os_zalloc(sizeof(*context));
 	if (context == NULL)
 		return NULL;
+	dl_list_init(&context->sessions);
 	if (conf) {
 		context->event_cb = conf->event_cb;
 		context->cb_ctx = conf->cb_ctx;
@@ -931,21 +939,53 @@ static int tls_engine_load_dynamic_opensc(const char *opensc_so_path)
 #endif /* OPENSSL_NO_ENGINE */
 
 
+static struct tls_session_data * get_session_data(struct tls_context *context,
+						  const struct wpabuf *buf)
+{
+	struct tls_session_data *data;
+
+	dl_list_for_each(data, &context->sessions, struct tls_session_data,
+			 list) {
+		if (data->buf == buf)
+			return data;
+	}
+
+	return NULL;
+}
+
+
 static void remove_session_cb(SSL_CTX *ctx, SSL_SESSION *sess)
 {
 	struct wpabuf *buf;
+	struct tls_context *context;
+	struct tls_session_data *found;
+
+	wpa_printf(MSG_DEBUG,
+		   "OpenSSL: Remove session %p (tls_ex_idx_session=%d)", sess,
+		   tls_ex_idx_session);
 
 	if (tls_ex_idx_session < 0)
 		return;
 	buf = SSL_SESSION_get_ex_data(sess, tls_ex_idx_session);
 	if (!buf)
 		return;
+
+	context = SSL_CTX_get_app_data(ctx);
+	SSL_SESSION_set_ex_data(sess, tls_ex_idx_session, NULL);
+	found = get_session_data(context, buf);
+	if (!found) {
+		wpa_printf(MSG_DEBUG,
+			   "OpenSSL: Do not free application session data %p (sess %p)",
+			   buf, sess);
+		return;
+	}
+
+	dl_list_del(&found->list);
+	os_free(found);
 	wpa_printf(MSG_DEBUG,
 		   "OpenSSL: Free application session data %p (sess %p)",
 		   buf, sess);
 	wpabuf_free(buf);
-
-	SSL_SESSION_set_ex_data(sess, tls_ex_idx_session, NULL);
 }
 
 
@@ -955,6 +995,26 @@ void * tls_init(const struct tls_config *conf)
 	SSL_CTX *ssl;
 	struct tls_context *context;
 	const char *ciphers;
+#ifndef OPENSSL_NO_ENGINE
+#ifdef CONFIG_OPENSC_ENGINE_PATH
+	char const * const opensc_engine_path = CONFIG_OPENSC_ENGINE_PATH;
+#else /* CONFIG_OPENSC_ENGINE_PATH */
+	char const * const opensc_engine_path =
+		conf ? conf->opensc_engine_path : NULL;
+#endif /* CONFIG_OPENSC_ENGINE_PATH */
+#ifdef CONFIG_PKCS11_ENGINE_PATH
+	char const * const pkcs11_engine_path = CONFIG_PKCS11_ENGINE_PATH;
+#else /* CONFIG_PKCS11_ENGINE_PATH */
+	char const * const pkcs11_engine_path =
+		conf ? conf->pkcs11_engine_path : NULL;
+#endif /* CONFIG_PKCS11_ENGINE_PATH */
+#ifdef CONFIG_PKCS11_MODULE_PATH
+	char const * const pkcs11_module_path = CONFIG_PKCS11_MODULE_PATH;
+#else /* CONFIG_PKCS11_MODULE_PATH */
+	char const * const pkcs11_module_path =
+		conf ? conf->pkcs11_module_path : NULL;
+#endif /* CONFIG_PKCS11_MODULE_PATH */
+#endif /* OPENSSL_NO_ENGINE */
 
 	if (tls_openssl_ref_count == 0) {
 		void openssl_load_legacy_provider(void);
@@ -992,9 +1052,7 @@ void * tls_init(const struct tls_config *conf)
 		}
 #endif /* OPENSSL_FIPS */
 #endif /* CONFIG_FIPS */
-#if OPENSSL_VERSION_NUMBER < 0x10100000L || \
-	(defined(LIBRESSL_VERSION_NUMBER) && \
-	 LIBRESSL_VERSION_NUMBER < 0x20700000L)
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 		SSL_load_error_strings();
 		SSL_library_init();
 #ifndef OPENSSL_NO_SHA256
@@ -1071,8 +1129,19 @@ void * tls_init(const struct tls_config *conf)
 		SSL_CTX_set_session_cache_mode(ssl, SSL_SESS_CACHE_SERVER);
 		SSL_CTX_set_timeout(ssl, data->tls_session_lifetime);
 		SSL_CTX_sess_set_remove_cb(ssl, remove_session_cb);
+#if OPENSSL_VERSION_NUMBER >= 0x10101000L && \
+	!defined(LIBRESSL_VERSION_NUMBER) && \
+	!defined(OPENSSL_IS_BORINGSSL)
+		/* One session ticket is sufficient for EAP-TLS */
+		SSL_CTX_set_num_tickets(ssl, 1);
+#endif
 	} else {
 		SSL_CTX_set_session_cache_mode(ssl, SSL_SESS_CACHE_OFF);
+#if OPENSSL_VERSION_NUMBER >= 0x10101000L && \
+	!defined(LIBRESSL_VERSION_NUMBER) && \
+	!defined(OPENSSL_IS_BORINGSSL)
+		SSL_CTX_set_num_tickets(ssl, 0);
+#endif
 	}
 
 	if (tls_ex_idx_session < 0) {
@@ -1088,12 +1157,10 @@ void * tls_init(const struct tls_config *conf)
 	wpa_printf(MSG_DEBUG, "ENGINE: Loading builtin engines");
 	ENGINE_load_builtin_engines();
 
-	if (conf &&
-	    (conf->opensc_engine_path || conf->pkcs11_engine_path ||
-	     conf->pkcs11_module_path)) {
-		if (tls_engine_load_dynamic_opensc(conf->opensc_engine_path) ||
-		    tls_engine_load_dynamic_pkcs11(conf->pkcs11_engine_path,
-						   conf->pkcs11_module_path)) {
+	if (opensc_engine_path || pkcs11_engine_path || pkcs11_module_path) {
+		if (tls_engine_load_dynamic_opensc(opensc_engine_path) ||
+		    tls_engine_load_dynamic_pkcs11(pkcs11_engine_path,
+						   pkcs11_module_path)) {
 			tls_deinit(data);
 			return NULL;
 		}
@@ -1121,18 +1188,30 @@ void tls_deinit(void *ssl_ctx)
 	struct tls_data *data = ssl_ctx;
 	SSL_CTX *ssl = data->ssl;
 	struct tls_context *context = SSL_CTX_get_app_data(ssl);
+	struct tls_session_data *sess_data;
+
+	if (data->tls_session_lifetime > 0) {
+		wpa_printf(MSG_DEBUG, "OpenSSL: Flush sessions");
+		SSL_CTX_flush_sessions(ssl, 0);
+		wpa_printf(MSG_DEBUG, "OpenSSL: Flush sessions - done");
+	}
+	while ((sess_data = dl_list_first(&context->sessions,
+					  struct tls_session_data, list))) {
+		wpa_printf(MSG_DEBUG,
+			   "OpenSSL: Freeing not-flushed session data %p",
+			   sess_data->buf);
+		wpabuf_free(sess_data->buf);
+		dl_list_del(&sess_data->list);
+		os_free(sess_data);
+	}
 	if (context != tls_global)
 		os_free(context);
-	if (data->tls_session_lifetime > 0)
-		SSL_CTX_flush_sessions(ssl, 0);
 	os_free(data->ca_cert);
 	SSL_CTX_free(ssl);
 
 	tls_openssl_ref_count--;
 	if (tls_openssl_ref_count == 0) {
-#if OPENSSL_VERSION_NUMBER < 0x10100000L || \
-	(defined(LIBRESSL_VERSION_NUMBER) && \
-	 LIBRESSL_VERSION_NUMBER < 0x20700000L)
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 #ifndef OPENSSL_NO_ENGINE
 		ENGINE_cleanup();
 #endif /* OPENSSL_NO_ENGINE */
@@ -1148,6 +1227,7 @@ void tls_deinit(void *ssl_ctx)
 	}
 
 	os_free(data->check_cert_subject);
+	os_free(data->openssl_ciphers);
 	os_free(data);
 }
 
@@ -1499,6 +1579,15 @@ static void tls_msg_cb(int write_p, int version, int content_type,
 	struct tls_connection *conn = arg;
 	const u8 *pos = buf;
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+	if ((SSL_version(ssl) == TLS1_VERSION ||
+	     SSL_version(ssl) == TLS1_1_VERSION) &&
+	    SSL_get_security_level(ssl) > 0) {
+		wpa_printf(MSG_DEBUG,
+			   "OpenSSL: Drop security level to 0 to allow TLS 1.0/1.1 use of MD5-SHA1 signature algorithm");
+		SSL_set_security_level(ssl, 0);
+	}
+#endif /* OpenSSL version >= 3.0 */
 	if (write_p == 2) {
 		wpa_printf(MSG_DEBUG,
 			   "OpenSSL: session ver=0x%x content_type=%d",
@@ -1532,6 +1621,63 @@ static void tls_msg_cb(int write_p, int version, int content_type,
 		check_server_key_exchange(ssl, conn, pos + 1, pos + len);
 #endif /* CONFIG_SUITEB */
 }
+
+
+#ifdef CONFIG_TESTING_OPTIONS
+#if OPENSSL_VERSION_NUMBER >= 0x10101000L && !defined(LIBRESSL_VERSION_NUMBER)
+/*
+ * By setting the environment variable SSLKEYLOGFILE to a filename keying
+ * material will be exported that you may use with Wireshark to decode any
+ * TLS flows. Please see the following for more details:
+ *
+ *	https://gitlab.com/wireshark/wireshark/-/wikis/TLS#tls-decryption
+ *
+ * Example logging sessions are (you should delete the file on each run):
+ *
+ *	rm -f /tmp/sslkey.log
+ *	env SSLKEYLOGFILE=/tmp/sslkey.log hostapd ...
+ *
+ *	rm -f /tmp/sslkey.log
+ *	env SSLKEYLOGFILE=/tmp/sslkey.log wpa_supplicant ...
+ *
+ *	rm -f /tmp/sslkey.log
+ *	env SSLKEYLOGFILE=/tmp/sslkey.log eapol_test ...
+ */
+static void tls_keylog_cb(const SSL *ssl, const char *line)
+{
+	int fd;
+	const char *filename;
+	struct iovec iov[2];
+
+	filename = getenv("SSLKEYLOGFILE");
+	if (!filename)
+		return;
+
+	fd = open(filename, O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR);
+	if (fd < 0) {
+		wpa_printf(MSG_ERROR,
+			   "OpenSSL: Failed to open keylog file %s: %s",
+			   filename, strerror(errno));
+		return;
+	}
+
+	/* Assume less than _POSIX_PIPE_BUF (512) where writes are guaranteed
+	 * to be atomic for O_APPEND. */
+	iov[0].iov_base = (void *) line;
+	iov[0].iov_len = os_strlen(line);
+	iov[1].iov_base = "\n";
+	iov[1].iov_len = 1;
+
+	if (writev(fd, iov, ARRAY_SIZE(iov)) < 01) {
+		wpa_printf(MSG_DEBUG,
+			   "OpenSSL: Failed to write to keylog file %s: %s",
+			   filename, strerror(errno));
+	}
+
+	close(fd);
+}
+#endif
+#endif /* CONFIG_TESTING_OPTIONS */
 
 
 struct tls_connection * tls_connection_init(void *ssl_ctx)
@@ -1590,6 +1736,14 @@ struct tls_connection * tls_connection_init(void *ssl_ctx)
 	 * when going through EAP authentication. */
 	SSL_clear_options(conn->ssl, SSL_OP_ENABLE_MIDDLEBOX_COMPAT);
 #endif
+
+#ifdef CONFIG_TESTING_OPTIONS
+#if OPENSSL_VERSION_NUMBER >= 0x10101000L && !defined(LIBRESSL_VERSION_NUMBER)
+	/* Set the keylog file if the admin requested it. */
+	if (getenv("SSLKEYLOGFILE"))
+		SSL_CTX_set_keylog_callback(conn->ssl_ctx, tls_keylog_cb);
+#endif
+#endif /* CONFIG_TESTING_OPTIONS */
 
 	conn->ssl_in = BIO_new(BIO_s_mem());
 	if (!conn->ssl_in) {
@@ -2529,16 +2683,11 @@ static int tls_verify_cb(int preverify_ok, X509_STORE_CTX *x509_ctx)
 #ifdef CONFIG_SUITEB
 	if (conn->flags & TLS_CONN_SUITEB) {
 		EVP_PKEY *pk;
-		RSA *rsa;
 		int len = -1;
 
 		pk = X509_get_pubkey(err_cert);
 		if (pk) {
-			rsa = EVP_PKEY_get1_RSA(pk);
-			if (rsa) {
-				len = RSA_bits(rsa);
-				RSA_free(rsa);
-			}
+			len = EVP_PKEY_bits(pk);
 			EVP_PKEY_free(pk);
 		}
 
@@ -2926,7 +3075,6 @@ static int tls_connection_set_subject_match(struct tls_connection *conn,
 
 
 #ifdef CONFIG_SUITEB
-#if OPENSSL_VERSION_NUMBER >= 0x10002000L
 static int suiteb_cert_cb(SSL *ssl, void *arg)
 {
 	struct tls_connection *conn = arg;
@@ -2953,7 +3101,6 @@ static int suiteb_cert_cb(SSL *ssl, void *arg)
 		   conn->server_dh_prime_len);
 	return 0;
 }
-#endif /* OPENSSL_VERSION_NUMBER */
 #endif /* CONFIG_SUITEB */
 
 
@@ -2968,6 +3115,11 @@ static int tls_set_conn_flags(struct tls_connection *conn, unsigned int flags,
 	else
 		SSL_clear_options(ssl, SSL_OP_NO_TICKET);
 #endif /* SSL_OP_NO_TICKET */
+
+#ifdef SSL_OP_LEGACY_SERVER_CONNECT
+	if (flags & TLS_CONN_ALLOW_UNSAFE_RENEGOTIATION)
+		SSL_set_options(ssl, SSL_OP_LEGACY_SERVER_CONNECT);
+#endif /* SSL_OP_LEGACY_SERVER_CONNECT */
 
 #ifdef SSL_OP_NO_TLSv1
 	if (flags & TLS_CONN_DISABLE_TLSv1_0)
@@ -3043,12 +3195,14 @@ static int tls_set_conn_flags(struct tls_connection *conn, unsigned int flags,
 	}
 #endif
 
+	if (!openssl_ciphers)
+		openssl_ciphers = conn->data->openssl_ciphers;
+
 #ifdef CONFIG_SUITEB
 #ifdef OPENSSL_IS_BORINGSSL
 	/* Start with defaults from BoringSSL */
 	SSL_CTX_set_verify_algorithm_prefs(conn->ssl_ctx, NULL, 0);
 #endif /* OPENSSL_IS_BORINGSSL */
-#if OPENSSL_VERSION_NUMBER >= 0x10002000L
 	if (flags & TLS_CONN_SUITEB_NO_ECDH) {
 		const char *ciphers = "DHE-RSA-AES256-GCM-SHA384";
 
@@ -3064,7 +3218,9 @@ static int tls_set_conn_flags(struct tls_connection *conn, unsigned int flags,
 			return -1;
 		}
 	} else if (flags & TLS_CONN_SUITEB) {
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
 		EC_KEY *ecdh;
+#endif
 		const char *ciphers =
 			"ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384";
 		int nid[1] = { NID_secp384r1 };
@@ -3081,6 +3237,14 @@ static int tls_set_conn_flags(struct tls_connection *conn, unsigned int flags,
 			return -1;
 		}
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+		if (SSL_set1_groups(ssl, nid, 1) != 1) {
+			wpa_printf(MSG_INFO,
+				   "OpenSSL: Failed to set Suite B groups");
+			return -1;
+		}
+
+#else
 		if (SSL_set1_curves(ssl, nid, 1) != 1) {
 			wpa_printf(MSG_INFO,
 				   "OpenSSL: Failed to set Suite B curves");
@@ -3095,20 +3259,35 @@ static int tls_set_conn_flags(struct tls_connection *conn, unsigned int flags,
 			return -1;
 		}
 		EC_KEY_free(ecdh);
+#endif
 	}
 	if (flags & (TLS_CONN_SUITEB | TLS_CONN_SUITEB_NO_ECDH)) {
 #ifdef OPENSSL_IS_BORINGSSL
-		uint16_t sigalgs[1] = { SSL_SIGN_RSA_PKCS1_SHA384 };
+		uint16_t sigalgs[3] = { SSL_SIGN_RSA_PKCS1_SHA384 };
+		int num = 1;
+
+		if (!(flags & TLS_CONN_DISABLE_TLSv1_3)) {
+#ifdef SSL_SIGN_ECDSA_SECP384R1_SHA384
+			sigalgs[num++] = SSL_SIGN_ECDSA_SECP384R1_SHA384;
+#endif
+#ifdef SSL_SIGN_RSA_PSS_RSAE_SHA384
+			sigalgs[num++] = SSL_SIGN_RSA_PSS_RSAE_SHA384;
+#endif
+		}
 
 		if (SSL_CTX_set_verify_algorithm_prefs(conn->ssl_ctx, sigalgs,
-						       1) != 1) {
+						       num) != 1) {
 			wpa_printf(MSG_INFO,
 				   "OpenSSL: Failed to set Suite B sigalgs");
 			return -1;
 		}
 #else /* OPENSSL_IS_BORINGSSL */
 		/* ECDSA+SHA384 if need to add EC support here */
-		if (SSL_set1_sigalgs_list(ssl, "RSA+SHA384") != 1) {
+		const char *algs = "RSA+SHA384";
+
+		if (!(flags & TLS_CONN_DISABLE_TLSv1_3))
+			algs = "RSA+SHA384:ecdsa_secp384r1_sha384:rsa_pss_rsae_sha384";
+		if (SSL_set1_sigalgs_list(ssl, algs) != 1) {
 			wpa_printf(MSG_INFO,
 				   "OpenSSL: Failed to set Suite B sigalgs");
 			return -1;
@@ -3119,13 +3298,6 @@ static int tls_set_conn_flags(struct tls_connection *conn, unsigned int flags,
 		SSL_set_options(ssl, SSL_OP_NO_TLSv1_1);
 		SSL_set_cert_cb(ssl, suiteb_cert_cb, conn);
 	}
-#else /* OPENSSL_VERSION_NUMBER < 0x10002000L */
-	if (flags & (TLS_CONN_SUITEB | TLS_CONN_SUITEB_NO_ECDH)) {
-		wpa_printf(MSG_ERROR,
-			   "OpenSSL: Suite B RSA case not supported with this OpenSSL version");
-		return -1;
-	}
-#endif /* OPENSSL_VERSION_NUMBER */
 
 #ifdef OPENSSL_IS_BORINGSSL
 	if (openssl_ciphers && os_strcmp(openssl_ciphers, "SUITEB192") == 0) {
@@ -3259,14 +3431,14 @@ static int tls_connection_client_cert(struct tls_connection *conn,
 		return 0;
 
 #ifdef PKCS12_FUNCS
-#if OPENSSL_VERSION_NUMBER < 0x10002000L || defined(LIBRESSL_VERSION_NUMBER)
+#ifdef LIBRESSL_VERSION_NUMBER
 	/*
 	 * Clear previously set extra chain certificates, if any, from PKCS#12
-	 * processing in tls_parse_pkcs12() to allow OpenSSL to build a new
+	 * processing in tls_parse_pkcs12() to allow LibreSSL to build a new
 	 * chain properly.
 	 */
 	SSL_CTX_clear_extra_chain_certs(conn->ssl_ctx);
-#endif /* OPENSSL_VERSION_NUMBER < 0x10002000L */
+#endif /* LIBRESSL_VERSION_NUMBER */
 #endif /* PKCS12_FUNCS */
 
 	if (client_cert_blob &&
@@ -3455,7 +3627,7 @@ static int tls_parse_pkcs12(struct tls_data *data, SSL *ssl, PKCS12 *p12,
 	}
 
 	if (certs) {
-#if OPENSSL_VERSION_NUMBER >= 0x10002000L && !defined(LIBRESSL_VERSION_NUMBER)
+#ifndef LIBRESSL_VERSION_NUMBER
 		if (ssl)
 			SSL_clear_chain_certs(ssl);
 		else
@@ -3504,7 +3676,7 @@ static int tls_parse_pkcs12(struct tls_data *data, SSL *ssl, PKCS12 *p12,
 		 * the extra certificates not to be required.
 		 */
 		res = 0;
-#else /* OPENSSL_VERSION_NUMBER >= 0x10002000L */
+#else /* LIBRESSL_VERSION_NUMBER */
 		SSL_CTX_clear_extra_chain_certs(data->ssl);
 		while ((cert = sk_X509_pop(certs)) != NULL) {
 			X509_NAME_oneline(X509_get_subject_name(cert), buf,
@@ -3523,7 +3695,7 @@ static int tls_parse_pkcs12(struct tls_data *data, SSL *ssl, PKCS12 *p12,
 			}
 		}
 		sk_X509_pop_free(certs, X509_free);
-#endif /* OPENSSL_VERSION_NUMBER >= 0x10002000L */
+#endif /* LIBRSESSL_VERSION_NUMBER */
 	}
 
 	PKCS12_free(p12);
@@ -3824,6 +3996,7 @@ static int tls_connection_private_key(struct tls_data *data,
 		}
 #endif /* OPENSSL_NO_EC */
 
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
 		if (SSL_use_RSAPrivateKey_ASN1(conn->ssl,
 					       (u8 *) private_key_blob,
 					       private_key_blob_len) == 1) {
@@ -3832,6 +4005,7 @@ static int tls_connection_private_key(struct tls_data *data,
 			ok = 1;
 			break;
 		}
+#endif
 
 		bio = BIO_new_mem_buf((u8 *) private_key_blob,
 				      private_key_blob_len);
@@ -3939,79 +4113,44 @@ static int tls_global_private_key(struct tls_data *data,
 }
 
 
-static int tls_connection_dh(struct tls_connection *conn, const char *dh_file)
-{
-#ifdef OPENSSL_NO_DH
-	if (dh_file == NULL)
-		return 0;
-	wpa_printf(MSG_ERROR, "TLS: openssl does not include DH support, but "
-		   "dh_file specified");
-	return -1;
-#else /* OPENSSL_NO_DH */
-	DH *dh;
-	BIO *bio;
-
-	/* TODO: add support for dh_blob */
-	if (dh_file == NULL)
-		return 0;
-	if (conn == NULL)
-		return -1;
-
-	bio = BIO_new_file(dh_file, "r");
-	if (bio == NULL) {
-		wpa_printf(MSG_INFO, "TLS: Failed to open DH file '%s': %s",
-			   dh_file, ERR_error_string(ERR_get_error(), NULL));
-		return -1;
-	}
-	dh = PEM_read_bio_DHparams(bio, NULL, NULL, NULL);
-	BIO_free(bio);
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#ifndef OPENSSL_NO_DH
 #ifndef OPENSSL_NO_DSA
-	while (dh == NULL) {
-		DSA *dsa;
-		wpa_printf(MSG_DEBUG, "TLS: Failed to parse DH file '%s': %s -"
-			   " trying to parse as DSA params", dh_file,
-			   ERR_error_string(ERR_get_error(), NULL));
-		bio = BIO_new_file(dh_file, "r");
-		if (bio == NULL)
-			break;
-		dsa = PEM_read_bio_DSAparams(bio, NULL, NULL, NULL);
-		BIO_free(bio);
-		if (!dsa) {
-			wpa_printf(MSG_DEBUG, "TLS: Failed to parse DSA file "
-				   "'%s': %s", dh_file,
-				   ERR_error_string(ERR_get_error(), NULL));
-			break;
-		}
+/* This is needed to replace the deprecated DSA_dup_DH() function */
+static EVP_PKEY * openssl_dsa_to_dh(EVP_PKEY *dsa)
+{
+	OSSL_PARAM_BLD *bld = NULL;
+	OSSL_PARAM *params = NULL;
+	BIGNUM *p = NULL, *q = NULL, *g = NULL;
+	EVP_PKEY_CTX *ctx = NULL;
+	EVP_PKEY *pkey = NULL;
 
-		wpa_printf(MSG_DEBUG, "TLS: DH file in DSA param format");
-		dh = DSA_dup_DH(dsa);
-		DSA_free(dsa);
-		if (dh == NULL) {
-			wpa_printf(MSG_INFO, "TLS: Failed to convert DSA "
-				   "params into DH params");
-			break;
-		}
-		break;
-	}
-#endif /* !OPENSSL_NO_DSA */
-	if (dh == NULL) {
-		wpa_printf(MSG_INFO, "TLS: Failed to read/parse DH/DSA file "
-			   "'%s'", dh_file);
-		return -1;
-	}
+	if (!EVP_PKEY_get_bn_param(dsa, OSSL_PKEY_PARAM_FFC_P, &p) ||
+	    !EVP_PKEY_get_bn_param(dsa, OSSL_PKEY_PARAM_FFC_Q, &q) ||
+	    !EVP_PKEY_get_bn_param(dsa, OSSL_PKEY_PARAM_FFC_G, &g) ||
+	    !(bld = OSSL_PARAM_BLD_new()) ||
+	    !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_P, p) ||
+	    !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_Q, q) ||
+	    !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_G, g) ||
+	    !(params = OSSL_PARAM_BLD_to_param(bld)) ||
+	    !(ctx = EVP_PKEY_CTX_new_from_name(NULL, "DHX", NULL)) ||
+	    EVP_PKEY_fromdata_init(ctx) != 1 ||
+	    EVP_PKEY_fromdata(ctx, &pkey, EVP_PKEY_KEY_PARAMETERS,
+			      params) != 1)
+		wpa_printf(MSG_INFO,
+			   "TLS: Failed to convert DSA parameters to DH parameters");
 
-	if (SSL_set_tmp_dh(conn->ssl, dh) != 1) {
-		wpa_printf(MSG_INFO, "TLS: Failed to set DH params from '%s': "
-			   "%s", dh_file,
-			   ERR_error_string(ERR_get_error(), NULL));
-		DH_free(dh);
-		return -1;
-	}
-	DH_free(dh);
-	return 0;
-#endif /* OPENSSL_NO_DH */
+	EVP_PKEY_CTX_free(ctx);
+	OSSL_PARAM_free(params);
+	OSSL_PARAM_BLD_free(bld);
+	BN_free(p);
+	BN_free(q);
+	BN_free(g);
+	return pkey;
 }
-
+#endif /* !OPENSSL_NO_DSA */
+#endif /* OPENSSL_NO_DH */
+#endif /* OpenSSL version >= 3.0 */
 
 static int tls_global_dh(struct tls_data *data, const char *dh_file)
 {
@@ -4022,15 +4161,90 @@ static int tls_global_dh(struct tls_data *data, const char *dh_file)
 		   "dh_file specified");
 	return -1;
 #else /* OPENSSL_NO_DH */
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+	SSL_CTX *ssl_ctx = data->ssl;
+	BIO *bio;
+	OSSL_DECODER_CTX *ctx = NULL;
+	EVP_PKEY *pkey = NULL, *tmpkey = NULL;
+	bool dsa = false;
+
+	if (!ssl_ctx)
+		return -1;
+	if (!dh_file) {
+		SSL_CTX_set_dh_auto(ssl_ctx, 1);
+		return 0;
+	}
+
+	bio = BIO_new_file(dh_file, "r");
+	if (!bio) {
+		wpa_printf(MSG_INFO, "TLS: Failed to open DH file '%s': %s",
+			   dh_file, ERR_error_string(ERR_get_error(), NULL));
+		return -1;
+	}
+	ctx = OSSL_DECODER_CTX_new_for_pkey(
+		&tmpkey, "PEM", NULL, NULL,
+		OSSL_KEYMGMT_SELECT_DOMAIN_PARAMETERS, NULL, NULL);
+	if (!ctx ||
+	    OSSL_DECODER_from_bio(ctx, bio) != 1) {
+		wpa_printf(MSG_INFO,
+			   "TLS: Failed to decode domain parameters from '%s': %s",
+			   dh_file, ERR_error_string(ERR_get_error(), NULL));
+		BIO_free(bio);
+		OSSL_DECODER_CTX_free(ctx);
+		return -1;
+	}
+	OSSL_DECODER_CTX_free(ctx);
+	BIO_free(bio);
+
+	if (!tmpkey) {
+		wpa_printf(MSG_INFO, "TLS: Failed to load domain parameters");
+		return -1;
+	}
+
+#ifndef OPENSSL_NO_DSA
+	if (EVP_PKEY_is_a(tmpkey, "DSA")) {
+		pkey = openssl_dsa_to_dh(tmpkey);
+		EVP_PKEY_free(tmpkey);
+		if (!pkey)
+			return -1;
+		dsa = true;
+	}
+#endif /* !OPENSSL_NO_DSA */
+	if (!dsa) {
+		if (EVP_PKEY_is_a(tmpkey, "DH") ||
+		    EVP_PKEY_is_a(tmpkey, "DHX")) {
+		} else {
+			wpa_printf(MSG_INFO,
+				   "TLS: No DH parameters found in %s",
+				   dh_file);
+			EVP_PKEY_free(tmpkey);
+			return -1;
+		}
+		pkey = tmpkey;
+		tmpkey = NULL;
+	}
+
+	if (SSL_CTX_set0_tmp_dh_pkey(ssl_ctx, pkey) != 1) {
+		wpa_printf(MSG_INFO,
+			   "TLS: Failed to set DH params from '%s': %s",
+			   dh_file, ERR_error_string(ERR_get_error(), NULL));
+		EVP_PKEY_free(pkey);
+		return -1;
+	}
+	return 0;
+#else /* OpenSSL version >= 3.0 */
 	SSL_CTX *ssl_ctx = data->ssl;
 	DH *dh;
 	BIO *bio;
 
-	/* TODO: add support for dh_blob */
-	if (dh_file == NULL)
-		return 0;
-	if (ssl_ctx == NULL)
+	if (!ssl_ctx)
 		return -1;
+	if (!dh_file) {
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L && !defined(OPENSSL_IS_BORINGSSL)
+		SSL_CTX_set_dh_auto(ssl_ctx, 1);
+#endif
+		return 0;
+	}
 
 	bio = BIO_new_file(dh_file, "r");
 	if (bio == NULL) {
@@ -4084,6 +4298,7 @@ static int tls_global_dh(struct tls_data *data, const char *dh_file)
 	}
 	DH_free(dh);
 	return 0;
+#endif /* OpenSSL version >= 3.0 */
 #endif /* OPENSSL_NO_DH */
 }
 
@@ -4114,9 +4329,7 @@ int tls_connection_get_random(void *ssl_ctx, struct tls_connection *conn,
 #ifdef OPENSSL_NEED_EAP_FAST_PRF
 static int openssl_get_keyblock_size(SSL *ssl)
 {
-#if OPENSSL_VERSION_NUMBER < 0x10100000L || \
-	(defined(LIBRESSL_VERSION_NUMBER) && \
-	 LIBRESSL_VERSION_NUMBER < 0x20700000L)
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	const EVP_CIPHER *c;
 	const EVP_MD *h;
 	int md_size;
@@ -4284,6 +4497,7 @@ int tls_connection_get_eap_fast_key(void *tls_ctx, struct tls_connection *conn,
 static struct wpabuf *
 openssl_handshake(struct tls_connection *conn, const struct wpabuf *in_data)
 {
+	struct tls_context *context = conn->context;
 	int res;
 	struct wpabuf *out_data;
 
@@ -4313,7 +4527,19 @@ openssl_handshake(struct tls_connection *conn, const struct wpabuf *in_data)
 			wpa_printf(MSG_DEBUG, "SSL: SSL_connect - want to "
 				   "write");
 		else {
+			unsigned long error = ERR_peek_last_error();
+
 			tls_show_errors(MSG_INFO, __func__, "SSL_connect");
+
+			if (context->event_cb &&
+			    ERR_GET_LIB(error) == ERR_LIB_SSL &&
+			    ERR_GET_REASON(error) ==
+			    SSL_R_UNSAFE_LEGACY_RENEGOTIATION_DISABLED) {
+				context->event_cb(
+					context->cb_ctx,
+					TLS_UNSAFE_RENEGOTIATION_DISABLED,
+					NULL);
+			}
 			conn->failed++;
 			if (!conn->server && !conn->client_hello_generated) {
 				/* The server would not understand TLS Alert
@@ -4336,8 +4562,6 @@ openssl_handshake(struct tls_connection *conn, const struct wpabuf *in_data)
 	if ((conn->flags & TLS_CONN_SUITEB) && !conn->server &&
 	    os_strncmp(SSL_get_cipher(conn->ssl), "DHE-", 4) == 0 &&
 	    conn->server_dh_prime_len < 3072) {
-		struct tls_context *context = conn->context;
-
 		/*
 		 * This should not be reached since earlier cert_cb should have
 		 * terminated the handshake. Keep this check here for extra
@@ -4829,6 +5053,21 @@ static int ocsp_resp_cb(SSL *s, void *arg)
 
 	len = SSL_get_tlsext_status_ocsp_resp(s, &p);
 	if (!p) {
+#if OPENSSL_VERSION_NUMBER >= 0x10101000L
+#if !defined(LIBRESSL_VERSION_NUMBER) || LIBRESSL_VERSION_NUMBER >= 0x30400000L
+		if (SSL_version(s) == TLS1_3_VERSION && SSL_session_reused(s)) {
+			/* TLS 1.3 sends the OCSP response with the server
+			 * Certificate message. Since that Certificate message
+			 * is not sent when resuming a session, there can be no
+			 * new OCSP response. Allow this since the OCSP response
+			 * was validated when checking the initial certificate
+			 * exchange. */
+			wpa_printf(MSG_DEBUG,
+				   "OpenSSL: Allow no OCSP response when using TLS 1.3 and a resumed session");
+			return 1;
+		}
+#endif
+#endif
 		wpa_printf(MSG_DEBUG, "OpenSSL: No OCSP response received");
 		return (conn->flags & TLS_CONN_REQUIRE_OCSP) ? 0 : 1;
 	}
@@ -5177,6 +5416,10 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 			   __func__, ERR_error_string(err, NULL));
 	}
 
+	if (tls_set_conn_flags(conn, params->flags,
+			       params->openssl_ciphers) < 0)
+		return -1;
+
 	if (engine_id) {
 		wpa_printf(MSG_DEBUG, "SSL: Initializing TLS engine %s",
 			   engine_id);
@@ -5224,12 +5467,6 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 		return -1;
 	}
 
-	if (tls_connection_dh(conn, params->dh_file)) {
-		wpa_printf(MSG_INFO, "TLS: Failed to load DH file '%s'",
-			   params->dh_file);
-		return -1;
-	}
-
 	ciphers = params->openssl_ciphers;
 #ifdef CONFIG_SUITEB
 #ifdef OPENSSL_IS_BORINGSSL
@@ -5251,22 +5488,21 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 	if (!params->openssl_ecdh_curves) {
 #ifndef OPENSSL_IS_BORINGSSL
 #ifndef OPENSSL_NO_EC
-#if (OPENSSL_VERSION_NUMBER >= 0x10002000L) && \
-	(OPENSSL_VERSION_NUMBER < 0x10100000L)
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 		if (SSL_set_ecdh_auto(conn->ssl, 1) != 1) {
 			wpa_printf(MSG_INFO,
 				   "OpenSSL: Failed to set ECDH curves to auto");
 			return -1;
 		}
-#endif /* >= 1.0.2 && < 1.1.0 */
+#endif /* < 1.1.0 */
 #endif /* OPENSSL_NO_EC */
 #endif /* OPENSSL_IS_BORINGSSL */
 	} else if (params->openssl_ecdh_curves[0]) {
-#if defined(OPENSSL_IS_BORINGSSL) || (OPENSSL_VERSION_NUMBER < 0x10002000L)
+#ifdef OPENSSL_IS_BORINGSSL
 		wpa_printf(MSG_INFO,
-			"OpenSSL: ECDH configuration nnot supported");
+			"OpenSSL: ECDH configuration not supported");
 		return -1;
-#else /* OPENSSL_IS_BORINGSSL || < 1.0.2 */
+#else /* !OPENSSL_IS_BORINGSSL */
 #ifndef OPENSSL_NO_EC
 		if (SSL_set1_curves_list(conn->ssl,
 					 params->openssl_ecdh_curves) != 1) {
@@ -5281,10 +5517,6 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 #endif /* OPENSSL_NO_EC */
 #endif /* OPENSSL_IS_BORINGSSL */
 	}
-
-	if (tls_set_conn_flags(conn, params->flags,
-			       params->openssl_ciphers) < 0)
-		return -1;
 
 #ifdef OPENSSL_IS_BORINGSSL
 	if (params->flags & TLS_CONN_REQUEST_OCSP) {
@@ -5358,8 +5590,9 @@ static const char * openssl_pkey_type_str(const EVP_PKEY *pkey)
 		return "DH";
 	case EVP_PKEY_EC:
 		return "EC";
+	default:
+		return "?";
 	}
-	return "?";
 }
 
 
@@ -5463,6 +5696,14 @@ int tls_global_set_params(void *tls_ctx,
 		return -1;
 	}
 
+	os_free(data->openssl_ciphers);
+	if (params->openssl_ciphers) {
+		data->openssl_ciphers = os_strdup(params->openssl_ciphers);
+		if (!data->openssl_ciphers)
+			return -1;
+	} else {
+		data->openssl_ciphers = NULL;
+	}
 	if (params->openssl_ciphers &&
 	    SSL_CTX_set_cipher_list(ssl_ctx, params->openssl_ciphers) != 1) {
 		wpa_printf(MSG_INFO,
@@ -5474,22 +5715,21 @@ int tls_global_set_params(void *tls_ctx,
 	if (!params->openssl_ecdh_curves) {
 #ifndef OPENSSL_IS_BORINGSSL
 #ifndef OPENSSL_NO_EC
-#if (OPENSSL_VERSION_NUMBER >= 0x10002000L) && \
-	(OPENSSL_VERSION_NUMBER < 0x10100000L)
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 		if (SSL_CTX_set_ecdh_auto(ssl_ctx, 1) != 1) {
 			wpa_printf(MSG_INFO,
 				   "OpenSSL: Failed to set ECDH curves to auto");
 			return -1;
 		}
-#endif /* >= 1.0.2 && < 1.1.0 */
+#endif /* < 1.1.0 */
 #endif /* OPENSSL_NO_EC */
 #endif /* OPENSSL_IS_BORINGSSL */
 	} else if (params->openssl_ecdh_curves[0]) {
-#if defined(OPENSSL_IS_BORINGSSL) || (OPENSSL_VERSION_NUMBER < 0x10002000L)
+#ifdef OPENSSL_IS_BORINGSSL
 		wpa_printf(MSG_INFO,
-			"OpenSSL: ECDH configuration nnot supported");
+			"OpenSSL: ECDH configuration not supported");
 		return -1;
-#else /* OPENSSL_IS_BORINGSSL || < 1.0.2 */
+#else /* !OPENSSL_IS_BORINGSSL */
 #ifndef OPENSSL_NO_EC
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 		SSL_CTX_set_ecdh_auto(ssl_ctx, 1);
@@ -5551,9 +5791,7 @@ static int tls_sess_sec_cb(SSL *s, void *secret, int *secret_len,
 	struct tls_connection *conn = arg;
 	int ret;
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L || \
-	(defined(LIBRESSL_VERSION_NUMBER) && \
-	 LIBRESSL_VERSION_NUMBER < 0x20700000L)
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	if (conn == NULL || conn->session_ticket_cb == NULL)
 		return 0;
 
@@ -5664,6 +5902,7 @@ void tls_connection_set_success_data(struct tls_connection *conn,
 {
 	SSL_SESSION *sess;
 	struct wpabuf *old;
+	struct tls_session_data *sess_data = NULL;
 
 	if (tls_ex_idx_session < 0)
 		goto fail;
@@ -5672,20 +5911,35 @@ void tls_connection_set_success_data(struct tls_connection *conn,
 		goto fail;
 	old = SSL_SESSION_get_ex_data(sess, tls_ex_idx_session);
 	if (old) {
-		wpa_printf(MSG_DEBUG, "OpenSSL: Replacing old success data %p",
-			   old);
-		wpabuf_free(old);
+		struct tls_session_data *found;
+
+		found = get_session_data(conn->context, old);
+		wpa_printf(MSG_DEBUG,
+			   "OpenSSL: Replacing old success data %p (sess %p)%s",
+			   old, sess, found ? "" : " (not freeing)");
+		if (found) {
+			dl_list_del(&found->list);
+			os_free(found);
+			wpabuf_free(old);
+		}
 	}
-	if (SSL_SESSION_set_ex_data(sess, tls_ex_idx_session, data) != 1)
+
+	sess_data = os_zalloc(sizeof(*sess_data));
+	if (!sess_data ||
+	    SSL_SESSION_set_ex_data(sess, tls_ex_idx_session, data) != 1)
 		goto fail;
 
-	wpa_printf(MSG_DEBUG, "OpenSSL: Stored success data %p", data);
+	sess_data->buf = data;
+	dl_list_add(&conn->context->sessions, &sess_data->list);
+	wpa_printf(MSG_DEBUG, "OpenSSL: Stored success data %p (sess %p)",
+		   data, sess);
 	conn->success_data = 1;
 	return;
 
 fail:
 	wpa_printf(MSG_INFO, "OpenSSL: Failed to store success data");
 	wpabuf_free(data);
+	os_free(sess_data);
 }
 
 

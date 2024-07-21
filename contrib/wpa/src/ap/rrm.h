@@ -29,5 +29,7 @@ int hostapd_send_beacon_req(struct hostapd_data *hapd, const u8 *addr,
 void hostapd_rrm_beacon_req_tx_status(struct hostapd_data *hapd,
 				      const struct ieee80211_mgmt *mgmt,
 				      size_t len, int ok);
+int hostapd_send_link_measurement_req(struct hostapd_data *hapd,
+				      const u8 *addr);
 
 #endif /* RRM_H */

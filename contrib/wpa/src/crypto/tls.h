@@ -22,7 +22,8 @@ enum tls_event {
 	TLS_CERT_CHAIN_SUCCESS,
 	TLS_CERT_CHAIN_FAILURE,
 	TLS_PEER_CERTIFICATE,
-	TLS_ALERT
+	TLS_ALERT,
+	TLS_UNSAFE_RENEGOTIATION_DISABLED,
 };
 
 /*
@@ -79,9 +80,15 @@ union tls_event_data {
 };
 
 struct tls_config {
+#ifndef CONFIG_OPENSC_ENGINE_PATH
 	const char *opensc_engine_path;
+#endif /* CONFIG_OPENSC_ENGINE_PATH */
+#ifndef CONFIG_PKCS11_ENGINE_PATH
 	const char *pkcs11_engine_path;
+#endif /* CONFIG_PKCS11_ENGINE_PATH */
+#ifndef CONFIG_PKCS11_MODULE_PATH
 	const char *pkcs11_module_path;
+#endif /* CONFIG_PKCS11_MODULE_PATH */
 	int fips_mode;
 	int cert_in_cb;
 	const char *openssl_ciphers;
@@ -112,6 +119,7 @@ struct tls_config {
 #define TLS_CONN_ENABLE_TLSv1_1 BIT(15)
 #define TLS_CONN_ENABLE_TLSv1_2 BIT(16)
 #define TLS_CONN_TEAP_ANON_DH BIT(17)
+#define TLS_CONN_ALLOW_UNSAFE_RENEGOTIATION BIT(18)
 
 /**
  * struct tls_connection_params - Parameters for TLS connection
@@ -148,8 +156,6 @@ struct tls_config {
  * @private_key_passwd: Passphrase for decrypted private key, %NULL if no
  * passphrase is used.
  * @dh_file: File name for DH/DSA data in PEM format, or %NULL if not used
- * @dh_blob: dh_file as inlined data or %NULL if not used
- * @dh_blob_len: dh_blob length
  * @engine: 1 = use engine (e.g., a smartcard) for private key operations
  * (this is OpenSSL specific for now)
  * @engine_id: engine id string (this is OpenSSL specific for now)
@@ -198,8 +204,6 @@ struct tls_connection_params {
 	const char *private_key_passwd;
 	const char *private_key_passwd2;
 	const char *dh_file;
-	const u8 *dh_blob;
-	size_t dh_blob_len;
 
 	/* OpenSSL specific variables */
 	int engine;
@@ -355,7 +359,9 @@ int __must_check tls_global_set_verify(void *tls_ctx, int check_crl,
  * tls_connection_set_verify - Set certificate verification options
  * @tls_ctx: TLS context data from tls_init()
  * @conn: Connection context data from tls_connection_init()
- * @verify_peer: 1 = verify peer certificate
+ * @verify_peer: 0 = do not verify peer certificate, 1 = verify peer
+ *	certificate (require it to be provided), 2 = verify peer certificate if
+ *	provided
  * @flags: Connection flags (TLS_CONN_*)
  * @session_ctx: Session caching context or %NULL to use default
  * @session_ctx_len: Length of @session_ctx in bytes.

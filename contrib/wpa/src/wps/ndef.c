@@ -63,12 +63,18 @@ static int ndef_parse_record(const u8 *data, u32 size,
 	} else
 		record->id_length = 0;
 
+	if (record->type_length > data + size - pos)
+		return -1;
 	record->type = record->type_length == 0 ? NULL : pos;
 	pos += record->type_length;
 
+	if (record->id_length > data + size - pos)
+		return -1;
 	record->id = record->id_length == 0 ? NULL : pos;
 	pos += record->id_length;
 
+	if (record->payload_length > (size_t) (data + size - pos))
+		return -1;
 	record->payload = record->payload_length == 0 ? NULL : pos;
 	pos += record->payload_length;
 

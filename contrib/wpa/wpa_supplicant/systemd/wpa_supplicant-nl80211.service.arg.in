@@ -1,5 +1,5 @@
 [Unit]
-Description=WPA supplicant daemon (interface- and nl80211 driver-specific version)
+Description=WPA supplicant daemon (for interface %I using nl80211)
 Requires=sys-subsystem-net-devices-%i.device
 After=sys-subsystem-net-devices-%i.device
 Before=network.target

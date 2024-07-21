@@ -24,6 +24,13 @@
 #define WLAN_FC_ISWEP		0x4000
 #define WLAN_FC_HTC		0x8000
 
+#define WLAN_FC_S1G_BEACON_NEXT_TBTT	0x0100
+#define WLAN_FC_S1G_BEACON_COMP_SSID	0x0200
+#define WLAN_FC_S1G_BEACON_ANO		0x0400
+#define WLAN_FC_S1G_BEACON_BSS_BW	0x3800
+#define WLAN_FC_S1G_BEACON_SECURITY	0x4000
+#define WLAN_FC_S1G_BEACON_AP_PM	0x8000
+
 #define WLAN_FC_GET_TYPE(fc)	(((fc) & 0x000c) >> 2)
 #define WLAN_FC_GET_STYPE(fc)	(((fc) & 0x00f0) >> 4)
 
@@ -36,6 +43,7 @@
 #define WLAN_FC_TYPE_MGMT		0
 #define WLAN_FC_TYPE_CTRL		1
 #define WLAN_FC_TYPE_DATA		2
+#define WLAN_FC_TYPE_EXT		3
 
 /* management */
 #define WLAN_FC_STYPE_ASSOC_REQ		0
@@ -77,6 +85,10 @@
 #define WLAN_FC_STYPE_QOS_CFPOLL	14
 #define WLAN_FC_STYPE_QOS_CFACKPOLL	15
 
+/* extension */
+#define WLAN_FC_STYPE_DMG_BEACON	0
+#define WLAN_FC_STYPE_S1G_BEACON	1
+
 /* Authentication algorithms */
 #define WLAN_AUTH_OPEN			0
 #define WLAN_AUTH_SHARED_KEY		1
@@ -107,7 +119,7 @@
 #define WLAN_CAPABILITY_DELAYED_BLOCK_ACK BIT(14)
 #define WLAN_CAPABILITY_IMM_BLOCK_ACK BIT(15)
 
-/* Status codes (IEEE Std 802.11-2016, 9.4.1.9, Table 9-46) */
+/* Status codes (IEEE Std 802.11-2020, 9.4.1.9, Table 9-50) */
 #define WLAN_STATUS_SUCCESS 0
 #define WLAN_STATUS_UNSPECIFIED_FAILURE 1
 #define WLAN_STATUS_TDLS_WAKEUP_ALTERNATE 2
@@ -209,8 +221,20 @@
 #define WLAN_STATUS_DENIED_HE_NOT_SUPPORTED 124
 #define WLAN_STATUS_SAE_HASH_TO_ELEMENT 126
 #define WLAN_STATUS_SAE_PK 127
+#define WLAN_STATUS_DENIED_STA_AFF_WITH_MLD_WITH_EXISTING_ASSOC 130
+#define WLAN_STATUS_EPCS_DENIED_UNAUTHORIZED 131
+#define WLAN_STATUS_EPCS_DENIED 132
+#define WLAN_STATUS_DENIED_TID_TO_LINK_MAPPING 133
+#define WLAN_STATUS_PREFERRED_TID_TO_LINK_MAPPING_SUGGESTED 134
+#define WLAN_STATUS_DENIED_EHT_NOT_SUPPORTED 135
+#define WLAN_STATUS_INVALID_PUBLIC_KEY 136
+#define WLAN_STATUS_PASN_BASE_AKMP_FAILED 137
+#define WLAN_STATUS_OCI_MISMATCH 138
+#define WLAN_STATUS_DENIED_TX_LINK_NOT_ACCEPTED 139
+#define WLAN_STATUS_EPCS_DENIED_VERIFICATION_FAILURE 140
+#define WLAN_STATUS_DENIED_OPERATION_PARAMETER_UPDATE 141
 
-/* Reason codes (IEEE Std 802.11-2016, 9.4.1.7, Table 9-45) */
+/* Reason codes (IEEE Std 802.11-2020, 9.4.1.7, Table 9-90) */
 #define WLAN_REASON_UNSPECIFIED 1
 #define WLAN_REASON_PREV_AUTH_NOT_VALID 2
 #define WLAN_REASON_DEAUTH_LEAVING 3
@@ -274,7 +298,7 @@
 #define WLAN_REASON_MESH_CHANNEL_SWITCH_UNSPECIFIED 66
 
 
-/* Information Element IDs (IEEE Std 802.11-2016, 9.4.2.1, Table 9-77) */
+/* Element IDs (IEEE Std 802.11-2020, 9.4.2.1, Table 9-92) */
 #define WLAN_EID_SSID 0
 #define WLAN_EID_SUPP_RATES 1
 #define WLAN_EID_DS_PARAMS 3
@@ -432,13 +456,13 @@
 #define WLAN_EID_ANTENNA_SECTOR_ID_PATTERN 190
 #define WLAN_EID_VHT_CAP 191
 #define WLAN_EID_VHT_OPERATION 192
-#define WLAN_EID_VHT_EXTENDED_BSS_LOAD 193
-#define WLAN_EID_VHT_WIDE_BW_CHSWITCH  194
+#define WLAN_EID_EXTENDED_BSS_LOAD 193
+#define WLAN_EID_WIDE_BW_CHSWITCH  194
 #define WLAN_EID_TRANSMIT_POWER_ENVELOPE 195
-#define WLAN_EID_VHT_CHANNEL_SWITCH_WRAPPER 196
-#define WLAN_EID_VHT_AID 197
-#define WLAN_EID_VHT_QUIET_CHANNEL 198
-#define WLAN_EID_VHT_OPERATING_MODE_NOTIFICATION 199
+#define WLAN_EID_CHANNEL_SWITCH_WRAPPER 196
+#define WLAN_EID_AID 197
+#define WLAN_EID_QUIET_CHANNEL 198
+#define WLAN_EID_OPERATING_MODE_NOTIFICATION 199
 #define WLAN_EID_UPSIM 200
 #define WLAN_EID_REDUCED_NEIGHBOR_REPORT 201
 #define WLAN_EID_TVHT_OPERATION 202
@@ -479,7 +503,11 @@
 #define WLAN_EID_EXT_HE_OPERATION 36
 #define WLAN_EID_EXT_HE_MU_EDCA_PARAMS 38
 #define WLAN_EID_EXT_SPATIAL_REUSE 39
+#define WLAN_EID_EXT_COLOR_CHANGE_ANNOUNCEMENT 42
 #define WLAN_EID_EXT_OCV_OCI 54
+#define WLAN_EID_EXT_MULTIPLE_BSSID_CONFIGURATION 55
+#define WLAN_EID_EXT_NON_INHERITANCE 56
+#define WLAN_EID_EXT_KNOWN_BSSID 57
 #define WLAN_EID_EXT_SHORT_SSID_LIST 58
 #define WLAN_EID_EXT_HE_6GHZ_BAND_CAP 59
 #define WLAN_EID_EXT_EDMG_CAPABILITIES 61
@@ -489,6 +517,13 @@
 #define WLAN_EID_EXT_REJECTED_GROUPS 92
 #define WLAN_EID_EXT_ANTI_CLOGGING_TOKEN 93
 #define WLAN_EID_EXT_PASN_PARAMS 100
+#define WLAN_EID_EXT_EHT_OPERATION 106
+#define WLAN_EID_EXT_MULTI_LINK 107
+#define WLAN_EID_EXT_EHT_CAPABILITIES 108
+#define WLAN_EID_EXT_TID_TO_LINK_MAPPING 109
+#define WLAN_EID_EXT_MULTI_LINK_TRAFFIC_INDICATION 110
+#define WLAN_EID_EXT_QOS_CHARACTERISTICS 113
+#define WLAN_EID_EXT_AKM_SUITE_SELECTOR 114
 
 /* Extended Capabilities field */
 #define WLAN_EXT_CAPAB_20_40_COEX 0
@@ -579,9 +614,14 @@
 #define WLAN_RSNX_CAPAB_SAE_PK 6
 #define WLAN_RSNX_CAPAB_SECURE_LTF 8
 #define WLAN_RSNX_CAPAB_SECURE_RTT 9
-#define WLAN_RSNX_CAPAB_PROT_RANGE_NEG 10
+#define WLAN_RSNX_CAPAB_URNM_MFPR_X20 10
+#define WLAN_RSNX_CAPAB_URNM_MFPR 15
+#define WLAN_RSNX_CAPAB_SSID_PROTECTION 21
 
-/* Action frame categories (IEEE Std 802.11-2016, 9.4.1.11, Table 9-76) */
+/* Multiple BSSID element subelements */
+#define WLAN_MBSSID_SUBELEMENT_NONTRANSMITTED_BSSID_PROFILE 0
+
+/* Action frame categories (IEEE Std 802.11-2020, 9.4.1.11, Table 9-51) */
 #define WLAN_ACTION_SPECTRUM_MGMT 0
 #define WLAN_ACTION_QOS 1
 #define WLAN_ACTION_DLS 2
@@ -604,17 +644,25 @@
 #define WLAN_ACTION_ROBUST_AV_STREAMING 19
 #define WLAN_ACTION_UNPROTECTED_DMG 20
 #define WLAN_ACTION_VHT 21
-#define WLAN_ACTION_S1G 22
-#define WLAN_ACTION_S1G_RELAY 23
+#define WLAN_ACTION_UNPROTECTED_S1G 22
+#define WLAN_ACTION_S1G 23
 #define WLAN_ACTION_FLOW_CONTROL 24
 #define WLAN_ACTION_CTRL_RESP_MCS_NEG 25
 #define WLAN_ACTION_FILS 26
+#define WLAN_ACTION_CDMG 27
+#define WLAN_ACTION_CMMG 28
+#define WLAN_ACTION_GLK 29
+#define WLAN_ACTION_HE 30
+#define WLAN_ACTION_PROTECTED_HE 31
+#define WLAN_ACTION_WUR 32
 #define WLAN_ACTION_PROTECTED_FTM 34
+#define WLAN_ACTION_EHT 36
+#define WLAN_ACTION_PROTECTED_EHT 37
 #define WLAN_ACTION_VENDOR_SPECIFIC_PROTECTED 126
 #define WLAN_ACTION_VENDOR_SPECIFIC 127
 /* Note: 128-255 used to report errors by setting category | 0x80 */
 
-/* Public action codes (IEEE Std 802.11-2016, 9.6.8.1, Table 9-307) */
+/* Public action codes (IEEE Std 802.11-2020, 9.6.7.1, Table 9-364) */
 #define WLAN_PA_20_40_BSS_COEX 0
 #define WLAN_PA_DSE_ENABLEMENT 1
 #define WLAN_PA_DSE_DEENABLEMENT 2
@@ -652,8 +700,21 @@
 #define WLAN_PA_FILS_DISCOVERY 34
 #define WLAN_PA_LOCATION_MEASUREMENT_REPORT 47
 
-/* Protected Dual of Public Action frames (IEEE Std 802.11-2016, 9.6.11,
- * Table 9-332) */
+/* HT Action field values (IEEE P802.11-REVme/D4.0, 9.6.11.1, Table 9-491) */
+#define WLAN_HT_ACTION_NOTIFY_CHANWIDTH 0
+#define WLAN_HT_ACTION_SMPS 1
+#define WLAN_HT_ACTION_CSI 4
+#define WLAN_HT_ACTION_NONCOMPRESSED_BF 5
+#define WLAN_HT_ACTION_COMPRESSED_BF 6
+#define WLAN_HT_ACTION_ASEL_IDX_FEEDBACK 7
+
+/* VHT Action field values (IEEE P802.11-REVme/D4.0, 9.6.22.1, Table 9-579) */
+#define WLAN_VHT_ACTION_COMPRESSED_BF 0
+#define WLAN_VHT_ACTION_GROUP_ID_MGMT 1
+#define WLAN_VHT_ACTION_OPMODE_NOTIF 2
+
+/* Protected Dual of Public Action frames (IEEE Std 802.11-2020, 9.6.10,
+ * Table 9-404) */
 #define WLAN_PROT_DSE_ENABLEMENT 1
 #define WLAN_PROT_DSE_DEENABLEMENT 2
 #define WLAN_PROT_EXT_CSA 4
@@ -681,7 +742,7 @@
 #define WLAN_PROT_NETWORK_CHANNEL_CONTROL 30
 #define WLAN_PROT_WHITE_SPACE_MAP_ANNOUNCEMENT 31
 
-/* SA Query Action frame (IEEE 802.11w/D8.0, 7.4.9) */
+/* SA Query Action frame (IEEE Std 802.11-2020, 9.6.9) */
 #define WLAN_SA_QUERY_REQUEST 0
 #define WLAN_SA_QUERY_RESPONSE 1
 
@@ -714,7 +775,7 @@
 #define WLAN_PROT_FTM_REPORT 3
 
 /* Radio Measurement capabilities (from RM Enabled Capabilities element)
- * IEEE Std 802.11-2016, 9.4.2.45, Table 9-157 */
+ * IEEE Std 802.11-2020, 9.4.2.44, Table 9-179 */
 /* byte 1 (out of 5) */
 #define WLAN_RRM_CAPS_LINK_MEASUREMENT BIT(0)
 #define WLAN_RRM_CAPS_NEIGHBOR_REPORT BIT(1)
@@ -727,8 +788,8 @@
 #define WLAN_RRM_CAPS_FTM_RANGE_REPORT BIT(2)
 
 /*
- * IEEE P802.11-REVmc/D5.0, 9.4.2.21.19 (Fine Timing Measurement Range
- * request) - Minimum AP count
+ * IEEE Std 802.11-2020, 9.4.2.20.19 (Fine Timing Measurement Range
+ * request) - Minimum AP Count
  */
 #define WLAN_RRM_RANGE_REQ_MAX_MIN_AP 15
 
@@ -737,7 +798,8 @@
 #define WLAN_TIMEOUT_KEY_LIFETIME 2
 #define WLAN_TIMEOUT_ASSOC_COMEBACK 3
 
-/* Interworking element (IEEE 802.11u) - Access Network Options */
+/* Interworking element (IEEE Std 802.11-2020, 9.4.2.91) -
+ * Access Network Options */
 #define INTERWORKING_ANO_ACCESS_NETWORK_MASK 0x0f
 #define INTERWORKING_ANO_INTERNET 0x10
 #define INTERWORKING_ANO_ASRA 0x20
@@ -753,7 +815,7 @@
 #define INTERWORKING_ANT_TEST 6
 #define INTERWORKING_ANT_WILDCARD 15
 
-/* Advertisement Protocol ID definitions (IEEE Std 802.11-2016, Table 9-215) */
+/* Advertisement Protocol ID definitions (IEEE Std 802.11-2020, Table 9-237) */
 enum adv_proto_id {
 	ACCESS_NETWORK_QUERY_PROTOCOL = 0,
 	MIH_INFO_SERVICE = 1,
@@ -763,8 +825,7 @@ enum adv_proto_id {
 	ADV_PROTO_VENDOR_SPECIFIC = 221
 };
 
-/* Access Network Query Protocol info ID definitions (IEEE Std 802.11-2016,
- * Table 9-271; P802.11ai) */
+/* ANQP-element definitions (IEEE Std 802.11-2020, Table 9-331) */
 enum anqp_info_id {
 	ANQP_QUERY_LIST = 256,
 	ANQP_CAPABILITY_LIST = 257,
@@ -839,7 +900,7 @@ enum nai_realm_eap_cred_type {
 #define S1G_ACT_TWT_INFORMATION      11
 
 /*
- * IEEE P802.11-REVmc/D5.0 Table 9-81 - Measurement type definitions for
+ * IEEE Std 802.11-2020, Table 9-98 - Measurement type definitions for
  * measurement requests
  */
 enum measure_type {
@@ -863,7 +924,7 @@ enum measure_type {
 	MEASURE_TYPE_MEASURE_PAUSE = 255,
 };
 
-/* IEEE Std 802.11-2012 Table 8-71 - Location subject definition */
+/* IEEE Std 802.11-2020, Table 9-110 - Location Subject field definition */
 enum location_subject {
 	LOCATION_SUBJECT_LOCAL = 0,
 	LOCATION_SUBJECT_REMOTE = 1,
@@ -871,7 +932,7 @@ enum location_subject {
 };
 
 /*
- * IEEE P802.11-REVmc/D5.0 Table 9-94 - Optional subelement IDs for LCI request
+ * IEEE Std 802.11-2020, Table 9-111 - Optional subelement IDs for LCI request
  */
 enum lci_req_subelem {
 	LCI_REQ_SUBELEM_AZIMUTH_REQ = 1,
@@ -905,6 +966,23 @@ struct ieee80211_hdr {
 #define IEEE80211_SA_FROMDS addr3
 
 #define IEEE80211_HDRLEN (sizeof(struct ieee80211_hdr))
+
+struct ieee80211_hdr_s1g_beacon {
+	le16 frame_control;
+	le16 duration_id;
+	u8 sa[6];
+	u8 timestamp[4];
+	u8 change_seq[1];
+	/* followed by:
+	 *   'u8 next_tbtt[3];' if the Next TBTT Present field in the
+	 *			Frame Control field is 1
+	 *   'u8 compressed_ssid[4];' if the Compressed SSID Present field in
+	 *			the Frame Control is 1
+	 *   'u8 ano[1];' if the ANO field in the Frame Control field is 1
+	 */
+} STRUCT_PACKED;
+
+#define IEEE80211_HDRLEN_S1G_BEACON (sizeof(struct ieee80211_hdr_s1g_beacon))
 
 #define IEEE80211_FC(type, stype) host_to_le16((type << 2) | (stype << 4))
 
@@ -1159,9 +1237,6 @@ struct ieee80211_ampe_ie {
 	 */
 } STRUCT_PACKED;
 
-#ifdef _MSC_VER
-#pragma pack(pop)
-#endif /* _MSC_VER */
 
 #define ERP_INFO_NON_ERP_PRESENT BIT(0)
 #define ERP_INFO_USE_PROTECTION BIT(1)
@@ -1268,9 +1343,12 @@ struct ieee80211_ampe_ie {
 #define HT_OPER_PARAM_PCO_PHASE				((u16) BIT(11))
 /* B36..B39 - Reserved */
 
+#define BSS_MEMBERSHIP_SELECTOR_HE_PHY 122
+#define BSS_MEMBERSHIP_SELECTOR_SAE_H2E_ONLY 123
+#define BSS_MEMBERSHIP_SELECTOR_EPD 124
+#define BSS_MEMBERSHIP_SELECTOR_GLK 125
 #define BSS_MEMBERSHIP_SELECTOR_VHT_PHY 126
 #define BSS_MEMBERSHIP_SELECTOR_HT_PHY 127
-#define BSS_MEMBERSHIP_SELECTOR_SAE_H2E_ONLY 123
 
 /* VHT Defines */
 #define VHT_CAP_MAX_MPDU_LENGTH_7991                ((u32) BIT(0))
@@ -1328,16 +1406,15 @@ struct ieee80211_ampe_ie {
 
 #define VHT_RX_NSS_MAX_STREAMS			    8
 
-/* VHT/EDMG channel widths */
+#define VHT_OPMODE_CHANNEL_40MHZ		    ((u8) BIT(0))
+#define VHT_OPMODE_CHANNEL_80MHZ		    ((u8) BIT(1))
+#define VHT_OPMODE_CHANNEL_160MHZ		    ((u8) BIT(1) | BIT(2))
+
+/* VHT operation information - channel widths */
 #define CHANWIDTH_USE_HT	0
 #define CHANWIDTH_80MHZ		1
 #define CHANWIDTH_160MHZ	2
 #define CHANWIDTH_80P80MHZ	3
-#define CHANWIDTH_2160MHZ	4
-#define CHANWIDTH_4320MHZ	5
-#define CHANWIDTH_6480MHZ	6
-#define CHANWIDTH_8640MHZ	7
-#define CHANWIDTH_40MHZ_6GHZ	8
 
 #define HE_NSS_MAX_STREAMS			    8
 
@@ -1352,7 +1429,11 @@ struct ieee80211_ampe_ie {
 #define WFD_OUI_TYPE 10
 #define HS20_IE_VENDOR_TYPE 0x506f9a10
 #define OSEN_IE_VENDOR_TYPE 0x506f9a12
+#define NAN_IE_VENDOR_TYPE 0x506f9a13
+#define NAN_SDF_VENDOR_TYPE 0x506f9a13
+#define NAN_OUI_TYPE 0x13
 #define MBO_IE_VENDOR_TYPE 0x506f9a16
+#define NAN_NAF_VENDOR_TYPE 0x506f9a18
 #define MBO_OUI_TYPE 22
 #define OWE_IE_VENDOR_TYPE 0x506f9a1c
 #define OWE_OUI_TYPE 28
@@ -1367,10 +1448,19 @@ struct ieee80211_ampe_ie {
 #define WFA_CAPA_OUI_TYPE 0x23
 
 #define MULTI_AP_SUB_ELEM_TYPE 0x06
+#define MULTI_AP_PROFILE_SUB_ELEM_TYPE 0x07
+#define MULTI_AP_VLAN_SUB_ELEM_TYPE 0x08
+
+#define MULTI_AP_PROFILE2_BACKHAUL_STA_DISALLOWED BIT(2)
+#define MULTI_AP_PROFILE1_BACKHAUL_STA_DISALLOWED BIT(3)
 #define MULTI_AP_TEAR_DOWN BIT(4)
 #define MULTI_AP_FRONTHAUL_BSS BIT(5)
 #define MULTI_AP_BACKHAUL_BSS BIT(6)
 #define MULTI_AP_BACKHAUL_STA BIT(7)
+
+#define MULTI_AP_PROFILE_1	1
+#define MULTI_AP_PROFILE_2	2
+#define MULTI_AP_PROFILE_MAX	6
 
 #define WMM_OUI_TYPE 2
 #define WMM_OUI_SUBTYPE_INFORMATION_ELEMENT 0
@@ -1838,8 +1928,9 @@ enum wnm_action {
 #define WNM_BSS_TM_REQ_DISASSOC_IMMINENT BIT(2)
 #define WNM_BSS_TM_REQ_BSS_TERMINATION_INCLUDED BIT(3)
 #define WNM_BSS_TM_REQ_ESS_DISASSOC_IMMINENT BIT(4)
+#define WNM_BSS_TM_REQ_LINK_REMOVAL_IMMINENT BIT(5)
 
-/* IEEE Std 802.11-2012 - Table 8-253 */
+/* IEEE Std 802.11-2020, Table 9-428 (BTM status code definitions) */
 enum bss_trans_mgmt_status_code {
 	WNM_BSS_TM_ACCEPT = 0,
 	WNM_BSS_TM_REJECT_UNSPECIFIED = 1,
@@ -1852,9 +1943,36 @@ enum bss_trans_mgmt_status_code {
 	WNM_BSS_TM_REJECT_LEAVING_ESS = 8
 };
 
+/* BSS transition management reasons
+ * IEEE Std 802.11-2020, Table 9-198 (Transition and Transition Query reasons)
+ */
+enum bss_trans_mgmt_reason {
+	WNM_TRANSITION_REASON_UNSPECIFIED = 0,
+	WNM_TRANSITION_REASON_EXCESSIVE_FRAME_LOSS = 1,
+	WNM_TRANSITION_REASON_EXCESSIVE_DELAY = 2,
+	WNM_TRANSITION_REASON_INSUFFICIENT_QOS = 3,
+	WNM_TRANSITION_REASON_FIRST_ESS_ASSOC = 4,
+	WNM_TRANSITION_REASON_LOAD_BALANCING = 5,
+	WNM_TRANSITION_REASON_BETTER_AP_FOUND = 6,
+	WNM_TRANSITION_REASON_DEAUTH_FROM_PREV_AP = 7,
+	WNM_TRANSITION_REASON_AP_FAILED_EAP = 8,
+	WNM_TRANSITION_REASON_AP_FAILED_4WAY_HS = 9,
+	WNM_TRANSITION_REASON_RX_TOO_MANY_REPLAYS = 10,
+	WNM_TRANSITION_REASON_RX_TOO_MANY_MIC_FAILURES = 11,
+	WNM_TRANSITION_REASON_EXCEEDED_MAX_RETRANS = 12,
+	WNM_TRANSITION_REASON_RX_TOO_MANY_BC_DISASSOC = 13,
+	WNM_TRANSITION_REASON_RX_TOO_MANY_BC_DEAUTH = 14,
+	WNM_TRANSITION_REASON_PREV_TRANSITION_FAILED = 15,
+	WNM_TRANSITION_REASON_LOW_RSSI = 16,
+	WNM_TRANSITION_REASON_ROAM_FROM_NON_802_11 = 17,
+	WNM_TRANSITION_REASON_TRANSITION_DUE_TO_BTM_REQ = 18,
+	WNM_TRANSITION_REASON_PREF_TRANSITION_CANDIDATE_LIST = 19,
+	WNM_TRANSITION_REASON_LEAVING_ESS = 20,
+};
+
 /*
- * IEEE P802.11-REVmc/D5.0 Table 9-150 - Optional subelement IDs for
- * neighbor report
+ * IEEE Std 802.11-2020, Table 9-173 - Optional subelement IDs for
+ * Neighbor Report
  */
 #define WNM_NEIGHBOR_TSF                         1
 #define WNM_NEIGHBOR_CONDENSED_COUNTRY_STRING    2
@@ -1881,7 +1999,7 @@ enum qos_action {
 	QOS_QOS_MAP_CONFIG = 4,
 };
 
-/* IEEE Std 802.11-2012, 8.4.2.62 20/40 BSS Coexistence element */
+/* IEEE Std 802.11-2020, 9.4.2.59 (20/40 BSS Coexistence element) */
 #define WLAN_20_40_BSS_COEX_INFO_REQ            BIT(0)
 #define WLAN_20_40_BSS_COEX_40MHZ_INTOL         BIT(1)
 #define WLAN_20_40_BSS_COEX_20MHZ_WIDTH_REQ     BIT(2)
@@ -1929,11 +2047,47 @@ enum wnm_sleep_mode_subelement_id {
 	WNM_SLEEP_SUBELEM_BIGTK = 2,
 };
 
-/* WNM notification type (IEEE P802.11-REVmd/D3.0, Table 9-430) */
+/* WNM notification type (IEEE Std 802.11-2020, Table 9-431) */
 enum wnm_notification_Type {
 	WNM_NOTIF_TYPE_FIRMWARE_UPDATE = 0,
 	WNM_NOTIF_TYPE_BEACON_PROTECTION_FAILURE = 2,
 	WNM_NOTIF_TYPE_VENDOR_SPECIFIC = 221,
+};
+
+struct wnm_event_report_element {
+	u8 eid; /* WLAN_EID_EVENT_REPORT */
+	u8 len;
+	u8 token;
+	u8 type;
+	u8 status;
+	/* Followed by conditional fields */
+	union {
+		struct {
+			u8 tsf[8]; /* Event TSF */
+			u8 color_bitmap[8]; /* Event Report field */
+		} STRUCT_PACKED bss_color_collision;
+		struct {
+			u8 tsf[8]; /* Event TSF */
+			u8 color; /* Event Report field */
+		} STRUCT_PACKED bss_color_in_use;
+	} u;
+} STRUCT_PACKED;
+
+enum wnm_event_report_status {
+	WNM_STATUS_SUCCESSFUL = 0,
+	WNM_STATUS_REQ_FAILED = 1,
+	WNM_STATUS_REQ_REFUSED = 2,
+	WNM_STATUS_REQ_INCAPABLE = 3,
+	WNM_STATUS_FREQUENT_TRANSITION = 4,
+};
+
+enum wnm_event_report_type {
+       WNM_EVENT_TYPE_TRANSITION = 0,
+       WNM_EVENT_TYPE_RSNA = 1,
+       WNM_EVENT_TYPE_P2P_LINK = 2,
+       WNM_EVENT_TYPE_WNM_LOG = 3,
+       WNM_EVENT_TYPE_BSS_COLOR_COLLISION = 4,
+       WNM_EVENT_TYPE_BSS_COLOR_IN_USE = 5,
 };
 
 /* Channel Switch modes (802.11h) */
@@ -1947,9 +2101,29 @@ struct tpc_report {
 	u8 link_margin;
 } STRUCT_PACKED;
 
+/*
+ * IEEE Std 802.11ax-2021, Table 9-275a - Maximum Transmit Power
+ * Interpretation subfield encoding
+ */
+enum max_tx_pwr_interpretation {
+	LOCAL_EIRP = 0,
+	LOCAL_EIRP_PSD = 1,
+	REGULATORY_CLIENT_EIRP = 2,
+	REGULATORY_CLIENT_EIRP_PSD = 3,
+};
+
+/*
+ * IEEE Std 802.11ax-2021, Table E-13 - Maximum Transmit Power
+ * Category subfield encoding in the United States
+ */
+enum reg_6g_client_type {
+	REG_DEFAULT_CLIENT = 0,
+	REG_SUBORDINATE_CLIENT = 1,
+};
+
 #define RRM_CAPABILITIES_IE_LEN 5
 
-/* IEEE Std 802.11-2012, 8.5.7.4 - Link Measurement Request frame format */
+/* IEEE Std 802.11-2020, 9.6.6.4 - Link Measurement Request frame format */
 struct rrm_link_measurement_request {
 	u8 dialog_token;
 	s8 tx_power;
@@ -1957,7 +2131,7 @@ struct rrm_link_measurement_request {
 	u8 variable[0];
 } STRUCT_PACKED;
 
-/* IEEE Std 802.11-2012, 8.5.7.5 - Link Measurement Report frame format */
+/* IEEE Std 802.11-2020, 9.6.6.5 - Link Measurement Report frame format */
 struct rrm_link_measurement_report {
 	u8 dialog_token;
 	struct tpc_report tpc;
@@ -1968,7 +2142,7 @@ struct rrm_link_measurement_report {
 	u8 variable[0];
 } STRUCT_PACKED;
 
-/* IEEE Std 802.11-2016, 9.4.2.21 - Measurement Request element */
+/* IEEE Std 802.11-2020, 9.4.2.20 - Measurement Request element */
 struct rrm_measurement_request_element {
 	u8 eid; /* Element ID */
 	u8 len; /* Length */
@@ -1978,14 +2152,14 @@ struct rrm_measurement_request_element {
 	u8 variable[0]; /* Measurement Request */
 } STRUCT_PACKED;
 
-/* IEEE Std 802.11-2016, Figure 9-148 - Measurement Request Mode field */
+/* IEEE Std 802.11-2020, Figure 9-180 - Measurement Request Mode field format */
 #define MEASUREMENT_REQUEST_MODE_PARALLEL BIT(0)
 #define MEASUREMENT_REQUEST_MODE_ENABLE BIT(1)
 #define MEASUREMENT_REQUEST_MODE_REQUEST BIT(2)
 #define MEASUREMENT_REQUEST_MODE_REPORT BIT(3)
 #define MEASUREMENT_REQUEST_MODE_DURATION_MANDATORY BIT(4)
 
-/* IEEE Std 802.11-2016, 9.4.2.21.7 - Beacon request */
+/* IEEE Std 802.11-2020, 9.4.2.20.7 - Beacon request */
 struct rrm_measurement_beacon_request {
 	u8 oper_class; /* Operating Class */
 	u8 channel; /* Channel Number */
@@ -1997,7 +2171,7 @@ struct rrm_measurement_beacon_request {
 } STRUCT_PACKED;
 
 /*
- * IEEE Std 802.11-2016, Table 9-87 - Measurement Mode definitions for Beacon
+ * IEEE Std 802.11-2020, Table 9-103 - Measurement Mode definitions for Beacon
  * request
  */
 enum beacon_report_mode {
@@ -2006,20 +2180,19 @@ enum beacon_report_mode {
 	BEACON_REPORT_MODE_TABLE = 2,
 };
 
-/* IEEE Std 802.11-2016, Table 9-88 - Beacon Request subelement IDs */
-/* IEEE P802.11-REVmd/D2.0, Table 9-106 - Optional subelement IDs for
+/* IEEE Std 802.11-2020, Table 9-104 - Optional subelement IDs for
  * Beacon request */
 #define WLAN_BEACON_REQUEST_SUBELEM_SSID	0
 #define WLAN_BEACON_REQUEST_SUBELEM_INFO	1 /* Beacon Reporting */
 #define WLAN_BEACON_REQUEST_SUBELEM_DETAIL	2 /* Reporting Detail */
 #define WLAN_BEACON_REQUEST_SUBELEM_REQUEST	10
+#define WLAN_BEACON_REQUEST_SUBELEM_EXT_REQUEST	11
 #define WLAN_BEACON_REQUEST_SUBELEM_AP_CHANNEL	51 /* AP Channel Report */
+#define WLAN_BEACON_REQUEST_SUBELEM_WIDE_BW_CS	163
 #define WLAN_BEACON_REQUEST_SUBELEM_LAST_INDICATION	164
 #define WLAN_BEACON_REQUEST_SUBELEM_VENDOR	221
 
-/*
- * IEEE Std 802.11-2016, Table 9-90 - Reporting Detail values
- */
+/* IEEE Std 802.11-2020, Table 9-106 - Reporting Detail values */
 enum beacon_report_detail {
 	/* No fixed-length fields or elements */
 	BEACON_REPORT_DETAIL_NONE = 0,
@@ -2031,7 +2204,7 @@ enum beacon_report_detail {
 	BEACON_REPORT_DETAIL_ALL_FIELDS_AND_ELEMENTS = 2,
 };
 
-/* IEEE Std 802.11-2016, 9.4.2.22 - Measurement Report element */
+/* IEEE Std 802.11-2020, 9.4.2.21 - Measurement Report element */
 struct rrm_measurement_report_element {
 	u8 eid; /* Element ID */
 	u8 len; /* Length */
@@ -2041,13 +2214,13 @@ struct rrm_measurement_report_element {
 	u8 variable[0]; /* Measurement Report */
 } STRUCT_PACKED;
 
-/* IEEE Std 802.11-2016, Figure 9-192 - Measurement Report Mode field */
+/* IEEE Std 802.11-2020, Figure 9-223 - Measurement Report Mode field */
 #define MEASUREMENT_REPORT_MODE_ACCEPT 0
 #define MEASUREMENT_REPORT_MODE_REJECT_LATE BIT(0)
 #define MEASUREMENT_REPORT_MODE_REJECT_INCAPABLE BIT(1)
 #define MEASUREMENT_REPORT_MODE_REJECT_REFUSED BIT(2)
 
-/* IEEE Std 802.11-2016, 9.4.2.22.7 - Beacon report */
+/* IEEE Std 802.11-2020, 9.4.2.21.7 - Beacon report */
 struct rrm_measurement_beacon_report {
 	u8 op_class; /* Operating Class */
 	u8 channel; /* Channel Number */
@@ -2063,23 +2236,23 @@ struct rrm_measurement_beacon_report {
 	u8 variable[0]; /* Optional Subelements */
 } STRUCT_PACKED;
 
-/* IEEE Std 802.11-2016, Table 9-112 - Beacon report Subelement IDs */
-/* IEEE P802.11-REVmd/D2.0, Table 9-130 - Optional subelement IDs for
+/* IEEE Std 802.11-2020, Table 9-130 - Optional subelement IDs for
  * Beacon report */
 #define WLAN_BEACON_REPORT_SUBELEM_FRAME_BODY	1
 #define WLAN_BEACON_REPORT_SUBELEM_FRAME_BODY_FRAGMENT_ID	2
+#define WLAN_BEACON_REPORT_SUBELEM_WID_BW_CS	163
 #define WLAN_BEACON_REPORT_SUBELEM_LAST_INDICATION	164
 #define WLAN_BEACON_REPORT_SUBELEM_VENDOR	221
 
-/* IEEE P802.11-REVmd/D2.0, Table 9-232 - Data field format of the
- * Reported Frame Body Fragment ID subelement */
+/* IEEE Std 802.11-2020, Table 9-232 - Data field format (of the
+ * Reported Frame Body Fragment ID subelement) */
 #define REPORTED_FRAME_BODY_SUBELEM_LEN		4
 #define REPORTED_FRAME_BODY_MORE_FRAGMENTS	BIT(7)
 
-/* IEEE P802.11-REVmd/D2.0, 9.4.2.21.7 - Beacon report  */
+/* IEEE Std 802.11-2020, 9.4.2.21.7 - Beacon report  */
 #define BEACON_REPORT_LAST_INDICATION_SUBELEM_LEN	3
 
-/* IEEE Std 802.11ad-2012 - Multi-band element */
+/* IEEE Std 802.11-2020, 9.4.2.138 - Multi-band element */
 struct multi_band_ie {
 	u8 eid; /* WLAN_EID_MULTI_BAND */
 	u8 len;
@@ -2125,7 +2298,7 @@ enum mb_band_id {
 #define MB_CONNECTION_CAPABILITY_TDLS ((u8) (BIT(3)))
 #define MB_CONNECTION_CAPABILITY_IBSS ((u8) (BIT(4)))
 
-/* IEEE Std 802.11ad-2014 - FST Action field */
+/* IEEE Std 802.11-2020, Table 9-479 - FST Action field values */
 enum fst_action {
 	FST_ACTION_SETUP_REQUEST = 0,
 	FST_ACTION_SETUP_RESPONSE = 1,
@@ -2135,21 +2308,23 @@ enum fst_action {
 	FST_ACTION_ON_CHANNEL_TUNNEL = 5,
 };
 
-/* IEEE Std 802.11ac-2013, Annex C - dot11PHYType */
+/* IEEE Std 802.11-2020, Annex C - dot11PHYType */
 enum phy_type {
 	PHY_TYPE_UNSPECIFIED = 0,
-	PHY_TYPE_FHSS = 1,
 	PHY_TYPE_DSSS = 2,
-	PHY_TYPE_IRBASEBAND = 3,
 	PHY_TYPE_OFDM = 4,
 	PHY_TYPE_HRDSSS = 5,
 	PHY_TYPE_ERP = 6,
 	PHY_TYPE_HT = 7,
 	PHY_TYPE_DMG = 8,
 	PHY_TYPE_VHT = 9,
+	PHY_TYPE_TVHT = 10,
+	PHY_TYPE_S1G = 11,
+	PHY_TYPE_CDMG = 12,
+	PHY_TYPE_CMMG = 13,
 };
 
-/* IEEE P802.11-REVmd/D3.0, 9.4.2.36 - Neighbor Report element */
+/* IEEE Std 802.11-2020, 9.4.2.36 - Neighbor Report element */
 /* BSSID Information Field */
 #define NEI_REP_BSSID_INFO_AP_NOT_REACH BIT(0)
 #define NEI_REP_BSSID_INFO_AP_UNKNOWN_REACH BIT(1)
@@ -2167,9 +2342,10 @@ enum phy_type {
 #define NEI_REP_BSSID_INFO_VHT BIT(12)
 #define NEI_REP_BSSID_INFO_FTM BIT(13)
 #define NEI_REP_BSSID_INFO_HE BIT(14)
+#define NEI_REP_BSSID_INFO_EHT BIT(21)
 
 /*
- * IEEE P802.11-REVmc/D5.0 Table 9-152 - HT/VHT Operation Information
+ * IEEE Std 802.11-2020, Table 9-175 - HT/VHT Operation Information
  * subfields.
  * Note: These definitions are not the same as other CHANWIDTH_*.
  */
@@ -2199,7 +2375,7 @@ struct ieee80211_he_operation {
 	 * Operation Information subfield (5 octets). */
 } STRUCT_PACKED;
 
-/* IEEE P802.11ax/D6.0, Figure 9-787k - 6 GHz Operation Information field */
+/* IEEE Std 802.11ax-2021, Figure 9-788k - 6 GHz Operation Information field */
 struct ieee80211_he_6ghz_oper_info {
 	u8 primary_chan;
 	u8 control;
@@ -2208,15 +2384,22 @@ struct ieee80211_he_6ghz_oper_info {
 	u8 min_rate;
 } STRUCT_PACKED;
 
+/* IEEE Std 802.11ax-2021, Figure 9-788l - Control field format */
 #define HE_6GHZ_OPER_INFO_CTRL_CHAN_WIDTH_MASK	(BIT(0) | BIT(1))
 #define HE_6GHZ_OPER_INFO_CTRL_DUP_BEACON	BIT(2)
+#define HE_6GHZ_OPER_INFO_CTRL_REG_INFO_MASK	(BIT(3) | BIT(4) | BIT(5))
+#define HE_6GHZ_OPER_INFO_CTRL_REG_INFO_SHIFT	3
 
-/* IEEE P802.11ax/D6.0, 9.4.2.261 HE 6 GHz Band Capabilities element */
+/* IEEE Std 802.11ax-2021, 9.4.2.263 HE 6 GHz Band Capabilities element */
 struct ieee80211_he_6ghz_band_cap {
 	 /* Minimum MPDU Start Spacing B0..B2
 	  * Maximum A-MPDU Length Exponent B3..B5
-	  * Maximum MPDU Length B6..B7 */
-	le16 capab;
+	  * Maximum MPDU Length B6..B7
+	  * SM Power Save B9..B10
+	  * RD Responder B11
+	  * Rx Antenna Pattern Consistency B12
+	  * Tx Antenna Consistency B13 */
+	le16 capab; /* Capabilities Information field */
 } STRUCT_PACKED;
 
 #define HE_6GHZ_BAND_CAP_MIN_MPDU_START              (BIT(0) | BIT(1) | BIT(2))
@@ -2242,7 +2425,7 @@ struct ieee80211_he_6ghz_band_cap {
 #define HE_6GHZ_BAND_CAP_TX_ANTPAT_CONS              BIT(13)
 
 /*
- * IEEE P802.11ax/D4.0, 9.4.2.246 Spatial Reuse Parameter Set element
+ * IEEE Std 802.11ax-2021, 9.4.2.252 Spatial Reuse Parameter Set element
  */
 struct ieee80211_spatial_reuse {
 	u8 sr_ctrl; /* SR Control */
@@ -2305,6 +2488,33 @@ struct ieee80211_spatial_reuse {
 #define HE_OPERATION_BSS_COLOR_PARTIAL		((u32) BIT(30))
 #define HE_OPERATION_BSS_COLOR_DISABLED		((u32) BIT(31))
 #define HE_OPERATION_BSS_COLOR_OFFSET		24
+#define HE_OPERATION_BSS_COLOR_MAX		64
+
+/**
+ * enum he_reg_info_6ghz_ap_type - Allowed Access Point types for 6 GHz Band
+ *
+ * IEEE P802.11-REVme/D4.0, Table E-12 (Regulatory Info subfield encoding)
+ */
+enum he_reg_info_6ghz_ap_type {
+	HE_REG_INFO_6GHZ_AP_TYPE_INDOOR         = 0,
+	HE_REG_INFO_6GHZ_AP_TYPE_SP		= 1,
+	HE_REG_INFO_6GHZ_AP_TYPE_VLP		= 2,
+	HE_REG_INFO_6GHZ_AP_TYPE_INDOOR_ENABLED	= 3,
+	HE_REG_INFO_6GHZ_AP_TYPE_INDOOR_SP	= 4,
+	HE_REG_INFO_6GHZ_AP_TYPE_MAX = HE_REG_INFO_6GHZ_AP_TYPE_INDOOR_SP,
+};
+
+static inline bool he_reg_is_indoor(enum he_reg_info_6ghz_ap_type type)
+{
+	return type == HE_REG_INFO_6GHZ_AP_TYPE_INDOOR ||
+		type == HE_REG_INFO_6GHZ_AP_TYPE_INDOOR_SP;
+}
+
+static inline bool he_reg_is_sp(enum he_reg_info_6ghz_ap_type type)
+{
+	return type == HE_REG_INFO_6GHZ_AP_TYPE_SP ||
+		type == HE_REG_INFO_6GHZ_AP_TYPE_INDOOR_SP;
+}
 
 /* Spatial Reuse defines */
 #define SPATIAL_REUSE_SRP_DISALLOWED		BIT(0)
@@ -2352,9 +2562,14 @@ struct ieee80211_he_mu_edca_parameter_set {
  */
 #define RNR_HEADER_LEN                              2
 #define RNR_TBTT_HEADER_LEN                         4
+#define RNR_TBTT_INFO_HDR_TYPE_MSK                  0x03
+#define RNR_TBTT_INFO_HDR_FILTERED_AP               0x04
+#define RNR_TBTT_INFO_HDR_CNT_MSK                   0xf0
 #define RNR_TBTT_INFO_COUNT(x)                      (((x) & 0xf) << 4)
 #define RNR_TBTT_INFO_COUNT_MAX                     16
+#define RNR_TBTT_INFO_COUNT_VAL(x)                  (((x) & 0xf0) >> 4)
 #define RNR_TBTT_INFO_LEN                           13
+#define RNR_TBTT_INFO_MLD_LEN                       16
 #define RNR_NEIGHBOR_AP_OFFSET_UNKNOWN              255
 /* Figure 9-632a - BSS Parameters subfield format */
 #define RNR_BSS_PARAM_OCT_RECOMMENDED               BIT(0)
@@ -2364,7 +2579,289 @@ struct ieee80211_he_mu_edca_parameter_set {
 #define RNR_BSS_PARAM_MEMBER_CO_LOCATED_ESS         BIT(4)
 #define RNR_BSS_PARAM_UNSOLIC_PROBE_RESP_ACTIVE     BIT(5)
 #define RNR_BSS_PARAM_CO_LOCATED                    BIT(6)
-#define RNR_20_MHZ_PSD_MAX_TXPOWER                  255 /* dBm */
+/* Maximum transmit power in Y/2 dBm (-127..126); 127 indicates no maximum
+ * transmit power is specified for the corresponding 20 MHz channel. */
+#define RNR_20_MHZ_PSD_MAX_TXPOWER                  127
+
+/* IEEE P802.11be/D5.0, Figure 9-704c - MLD Parameters subfield format */
+/* B0..B7: AP MLD ID */
+/* B8..B11: Link ID */
+/* B12..B19: BSS Parameters Change Count */
+/* B20: All Updates Included */
+#define RNR_TBTT_INFO_MLD_PARAM2_ALL_UPDATE_INC 0x10
+/* B21: Disabled Link Indication */
+#define RNR_TBTT_INFO_MLD_PARAM2_LINK_DISABLED  0x20
+
+/* IEEE P802.11be/D2.3, 9.4.2.311 - EHT Operation element */
+
+/* Figure 9-1002b: EHT Operation Parameters field subfields */
+#define EHT_OPER_INFO_PRESENT                          BIT(0)
+#define EHT_OPER_DISABLED_SUBCHAN_BITMAP_PRESENT       BIT(1)
+#define EHT_OPER_DEFAULT_PE_DURATION                   BIT(2)
+#define EHT_OPER_GROUP_ADDR_BU_INDICATION_LIMIT        BIT(3)
+#define EHT_OPER_GROUP_ADDR_BU_INDICATION_EXPONENT     (BIT(4) | BIT(5))
+#define EHT_OPER_DISABLED_SUBCHAN_BITMAP_SIZE          2
+
+/* Control subfield: Channel Width subfield; see Table 9-401b */
+#define EHT_OPER_CHANNEL_WIDTH_20MHZ                   0
+#define EHT_OPER_CHANNEL_WIDTH_40MHZ                   1
+#define EHT_OPER_CHANNEL_WIDTH_80MHZ                   2
+#define EHT_OPER_CHANNEL_WIDTH_160MHZ                  3
+#define EHT_OPER_CHANNEL_WIDTH_320MHZ                  4
+
+/* Figure 9-1002c: EHT Operation Information field format */
+struct ieee80211_eht_oper_info {
+	u8 control; /* B0..B2: Channel Width */
+	u8 ccfs0;
+	u8 ccfs1;
+	le16 disabled_chan_bitmap; /* 0 or 2 octets */
+} STRUCT_PACKED;
+
+/* Figure 9-1002a: EHT Operation element format */
+struct ieee80211_eht_operation {
+	u8 oper_params; /* EHT Operation Parameters: EHT_OPER_* bits */
+	u8 basic_eht_mcs_nss_set[4];
+	struct ieee80211_eht_oper_info oper_info; /* 0 or 3 or 5 octets */
+} STRUCT_PACKED;
+
+/* IEEE P802.11be/D1.5, 9.4.2.313 - EHT Capabilities element */
+
+/* Figure 9-1002af: EHT MAC Capabilities Information field */
+#define EHT_MACCAP_EPCS_PRIO			BIT(0)
+#define EHT_MACCAP_OM_CONTROL			BIT(1)
+#define EHT_MACCAP_TRIGGERED_TXOP_MODE1		BIT(2)
+#define EHT_MACCAP_TRIGGERED_TXOP_MODE2		BIT(3)
+#define EHT_MACCAP_RESTRICTED_TWT		BIT(4)
+#define EHT_MACCAP_SCS_TRAFFIC_DESC		BIT(5)
+#define EHT_MACCAP_MAX_MPDU_LEN_MASK		(BIT(6) | BIT(7))
+#define EHT_MACCAP_MAX_MPDU_LEN_3895		0
+#define EHT_MACCAP_MAX_MPDU_LEN_7991		BIT(6)
+#define EHT_MACCAP_MAX_MPDU_LEN_11454		BIT(7)
+#define EHT_MACCAP_MAX_AMPDU_LEN_EXP_EXT	BIT(8)
+
+/* Figure 9-1002ag: EHT PHY Capabilities Information field format
+ * _IDX indicates the octet index within the field */
+#define EHT_PHY_CAPAB_LEN			9
+
+#define EHT_PHYCAP_320MHZ_IN_6GHZ_SUPPORT_IDX	0
+#define EHT_PHYCAP_320MHZ_IN_6GHZ_SUPPORT_MASK	((u8) BIT(1))
+
+#define EHT_PHYCAP_SU_BEAMFORMER_IDX		0
+#define EHT_PHYCAP_SU_BEAMFORMER		((u8) BIT(5))
+#define EHT_PHYCAP_SU_BEAMFORMEE_IDX		0
+#define EHT_PHYCAP_SU_BEAMFORMEE		((u8) BIT(6))
+
+#define EHT_PHYCAP_PPE_THRESHOLD_PRESENT_IDX	5
+#define EHT_PHYCAP_PPE_THRESHOLD_PRESENT	((u8) BIT(3))
+
+#define EHT_PHYCAP_MU_BEAMFORMER_IDX		7
+#define EHT_PHYCAP_MU_BEAMFORMER_80MHZ		((u8) BIT(4))
+#define EHT_PHYCAP_MU_BEAMFORMER_160MHZ		((u8) BIT(5))
+#define EHT_PHYCAP_MU_BEAMFORMER_320MHZ		((u8) BIT(6))
+#define EHT_PHYCAP_MU_BEAMFORMER_MASK	(EHT_PHYCAP_MU_BEAMFORMER_80MHZ | \
+					 EHT_PHYCAP_MU_BEAMFORMER_160MHZ | \
+					 EHT_PHYCAP_MU_BEAMFORMER_320MHZ)
+
+/* Figure 9-1002ah: Supported EHT-MCS and NSS Set field format */
+#define EHT_PHYCAP_MCS_NSS_LEN_20MHZ_ONLY	4
+#define EHT_PHYCAP_MCS_NSS_LEN_20MHZ_PLUS	3
+
+#define EHT_MCS_NSS_CAPAB_LEN			9
+/*
+ * Figure 9-1002ak: EHT PPE Thresholds field format
+ * Maximum PPE threshold length: 62 octets
+ * NSS: 4 bits (maximum NSS: 16), RU index: 5 bits, each pair: 6 bits
+ * 4 + 5 + 5 * 16 * 6 = 489 bits, Padding: 7 bits
+ */
+#define EHT_PPE_THRESH_CAPAB_LEN		62
+
+/* 9.4.2.313.5: EHT PPE Thresholds field */
+#define EHT_PPE_THRES_NSS_SHIFT			0
+#define EHT_PPE_THRES_NSS_MASK			((u8) (BIT(0) | BIT(1) | \
+						       BIT(2) | BIT(3)))
+#define EHT_PPE_THRES_RU_INDEX_SHIFT		4
+#define EHT_PPE_THRES_RU_INDEX_MASK		((u16) (BIT(4) | BIT(5) | \
+							BIT(6) | BIT(7) | \
+							BIT(8)))
+
+#define EHT_NSS_MAX_STREAMS			8
+
+/* Figure 9-1002ae: EHT Capabilities element format */
+struct ieee80211_eht_capabilities {
+	/* EHT MAC Capabilities Information */
+	le16 mac_cap;
+	/* EHT PHY Capabilities Information */
+	u8 phy_cap[EHT_PHY_CAPAB_LEN];
+	/* Supported EHT-MCS And NSS Set and EHT PPE thresholds (Optional) */
+	u8 optional[EHT_MCS_NSS_CAPAB_LEN + EHT_PPE_THRESH_CAPAB_LEN];
+} STRUCT_PACKED;
+
+#define IEEE80211_EHT_CAPAB_MIN_LEN (2 + 9)
+
+/* IEEE P802.11be/D2.1, 9.4.2.312 - Multi-Link element */
+
+/* Figure 9-1002f: Multi-Link Control field */
+#define MULTI_LINK_CONTROL_TYPE_MASK			0x07
+#define MULTI_LINK_CONTROL_LEN				2
+
+/* Table 9-401c: Mult-Link element Type subfield encoding */
+#define MULTI_LINK_CONTROL_TYPE_BASIC			0
+#define MULTI_LINK_CONTROL_TYPE_PROBE_REQ		1
+#define MULTI_LINK_CONTROL_TYPE_RECONF			2
+#define MULTI_LINK_CONTROL_TYPE_TDLS			3
+#define MULTI_LINK_CONTROL_TYPE_PRIOR_ACCESS		4
+
+/*
+ * IEEE P802.11be/D2.2, Table 9-401c: Optional subelement IDs for Link Info
+ * field of the Multi-Link element
+ */
+#define MULTI_LINK_SUB_ELEM_ID_PER_STA_PROFILE		0
+#define MULTI_LINK_SUB_ELEM_ID_VENDOR			221
+#define MULTI_LINK_SUB_ELEM_ID_FRAGMENT			254
+
+/* IEEE P802.11be/D2.2, 9.4.2.312.2 - Basic Multi-Link element */
+
+/* Figure 9-1002g: Presence Bitmap subfield of the Basic Multi-Link element */
+#define BASIC_MULTI_LINK_CTRL_PRES_LINK_ID		0x0010
+#define BASIC_MULTI_LINK_CTRL_PRES_BSS_PARAM_CH_COUNT	0x0020
+#define BASIC_MULTI_LINK_CTRL_PRES_MSD_INFO		0x0040
+#define BASIC_MULTI_LINK_CTRL_PRES_EML_CAPA		0x0080
+#define BASIC_MULTI_LINK_CTRL_PRES_MLD_CAPA		0x0100
+#define BASIC_MULTI_LINK_CTRL_PRES_AP_MLD_ID		0x0200
+
+/*
+ * STA Control field definitions of Per-STA Profile subelement in Basic
+ * Multi-Link element as described in Figure 9-1002n: STA Control field format.
+ */
+#define BASIC_MLE_STA_CTRL_LEN				2
+#define BASIC_MLE_STA_CTRL_LINK_ID_MASK			0x000F
+#define BASIC_MLE_STA_CTRL_COMPLETE_PROFILE		0x0010
+#define BASIC_MLE_STA_CTRL_PRES_STA_MAC			0x0020
+#define BASIC_MLE_STA_CTRL_PRES_BEACON_INT		0x0040
+#define BASIC_MLE_STA_CTRL_PRES_TSF_OFFSET		0x0080
+#define BASIC_MLE_STA_CTRL_PRES_DTIM_INFO		0x0100
+#define BASIC_MLE_STA_CTRL_PRES_NSTR_LINK_PAIR		0x0200
+#define BASIC_MLE_STA_CTRL_NSTR_BITMAP			0x0400
+#define BASIC_MLE_STA_CTRL_PRES_BSS_PARAM_COUNT		0x0800
+
+#define BASIC_MLE_STA_PROF_STA_MAC_IDX			3
+
+/* IEEE P802.11be/D2.2, 9.4.2.312.2.3 - Common Info field of the Basic
+ * Multi-Link element */
+struct eht_ml_basic_common_info {
+	u8 len;
+	u8 mld_addr[ETH_ALEN];
+
+	/*
+	 * Followed by optional fields based on the multi link basic presence
+	 * bitmap
+	 *
+	 * Link ID Info: 1 octet
+	 * BSS Parameters Change Count: 1 octet
+	 * Medium Synchronization Delay Information: 2 octets
+	 * EML Capabilities: 2 octets
+	 * MLD Capabilities and Operations: 2 octets
+	 * AP MLD ID: 1 octet
+	 */
+	u8 variable[];
+} STRUCT_PACKED;
+
+#define EHT_ML_LINK_ID_MSK   0x0f
+
+#define EHT_ML_MEDIUM_SYNC_DELAY_DURATION   0x00ff
+#define EHT_ML_MEDIUM_SYNC_DELAY_OFDM_ED_TH 0x0f00
+#define EHT_ML_MEDIUM_SYNC_DELAY_MAX_TXOP   0xf000
+
+#define EHT_ML_EML_CAPA_EMLSR_SUPP               0x0001
+#define EHT_ML_EML_CAPA_EMLSR_PADDING_DELAY_MASK 0x000e
+#define EHT_ML_EML_CAPA_EMLSR_TRANS_DELAY_MASK   0x0070
+#define EHT_ML_EML_CAPA_EMLMR_SUPP               0x0080
+#define EHT_ML_EML_CAPA_EMLMR_DELAY_MASK         0x0700
+#define EHT_ML_EML_CAPA_TRANSITION_TIMEOUT_MASK  0x7800
+
+#define EHT_ML_MLD_CAPA_MAX_NUM_SIM_LINKS_MASK        0x000f
+#define EHT_ML_MLD_CAPA_SRS_SUPP                      0x0010
+#define EHT_ML_MLD_CAPA_TID_TO_LINK_MAP_ALL_TO_ALL    0x0020
+#define EHT_ML_MLD_CAPA_TID_TO_LINK_MAP_ALL_TO_ONE    0x0040
+#define EHT_ML_MLD_CAPA_TID_TO_LINK_MAP_NEG_SUPP_MSK  0x0060
+#define EHT_ML_MLD_CAPA_FREQ_SEP_FOR_STR_MASK         0x0f80
+#define EHT_ML_MLD_CAPA_AAR_SUPP                      0x1000
+
+#define EHT_PER_STA_CTRL_LINK_ID_MSK                  0x000f
+#define EHT_PER_STA_CTRL_COMPLETE_PROFILE_MSK         0x0010
+#define EHT_PER_STA_CTRL_MAC_ADDR_PRESENT_MSK         0x0020
+#define EHT_PER_STA_CTRL_BEACON_INTERVAL_PRESENT_MSK  0x0040
+#define EHT_PER_STA_CTRL_TSF_OFFSET_PRESENT_MSK       0x0080
+#define EHT_PER_STA_CTRL_DTIM_INFO_PRESENT_MSK        0x0100
+#define EHT_PER_STA_CTRL_NSTR_LINK_PAIR_PRESENT_MSK   0x0200
+#define EHT_PER_STA_CTRL_NSTR_BM_SIZE_MSK             0x0400
+#define EHT_PER_STA_CTRL_BSS_PARAM_CNT_PRESENT_MSK    0x0800
+
+/* IEEE P802.11be/D4.1, Figure 9-1001x - STA Control field format for the
+ * Reconfiguration Multi-Link element */
+#define EHT_PER_STA_RECONF_CTRL_LINK_ID_MSK        0x000f
+#define EHT_PER_STA_RECONF_CTRL_COMPLETE_PROFILE   0x0010
+#define EHT_PER_STA_RECONF_CTRL_MAC_ADDR           0x0020
+#define EHT_PER_STA_RECONF_CTRL_AP_REMOVAL_TIMER   0x0040
+#define EHT_PER_STA_RECONF_CTRL_OP_UPDATE_TYPE_MSK 0x0780
+#define EHT_PER_STA_RECONF_CTRL_OP_PARAMS          0x0800
+#define EHT_PER_STA_RECONF_CTRL_NSTR_BITMAP_SIZE   0x1000
+#define EHT_PER_STA_RECONF_CTRL_NSTR_INDIC_BITMAP  0x2000
+
+/* IEEE P802.11be/D2.0, 9.4.2.312.2.4 - Per-STA Profile subelement format */
+struct ieee80211_eht_per_sta_profile {
+	le16 sta_control;
+
+	/* Followed by STA Info and STA Profile fields */
+	u8 variable[];
+} STRUCT_PACKED;
+
+/* IEEE P802.11be/D4.0, 9.4.2.312.3 - Probe Request Multi-Link element
+ * Presence Bitmap field is B4..B15 of the Multi-Link Control field, i.e.,
+ * B0 in the presence bitmap is B4 in the control field. */
+
+#define EHT_ML_PRES_BM_PROBE_REQ_AP_MLD_ID 0x0010
+
+struct eht_ml_probe_req_common_info {
+	u8 len;
+
+	/*
+	 * Followed by optional fields based on the multi link basic presence
+	 * bitmap
+	 *
+	 * AP MLD ID: 1 octet
+	 */
+	u8 variable[];
+} STRUCT_PACKED;
+
+/* IEEE P802.11be/D4.0, 9.4.2.312.4 - Reconfiguration Multi-Link element */
+
+#define RECONF_MULTI_LINK_CTRL_PRES_MLD_MAC_ADDR   0x0001
+
+#define EHT_PER_STA_RECONF_CTRL_LINK_ID_MSK        0x000f
+#define EHT_PER_STA_RECONF_CTRL_COMPLETE_PROFILE   0x0010
+#define EHT_PER_STA_RECONF_CTRL_MAC_ADDR           0x0020
+#define EHT_PER_STA_RECONF_CTRL_AP_REMOVAL_TIMER   0x0040
+#define EHT_PER_STA_RECONF_CTRL_OP_UPDATE_TYPE_MSK 0x0780
+#define EHT_PER_STA_RECONF_CTRL_OP_PARAMS          0x0800
+#define EHT_PER_STA_RECONF_CTRL_NSTR_BITMAP_SIZE   0x1000
+
+/* IEEE P802.11be/D2.0, 9.4.2.312.1 - Multi-Link element / General */
+
+struct ieee80211_eht_ml {
+	le16 ml_control;
+
+	/* Followed by Common Info and Link Info fields */
+	u8 variable[];
+} STRUCT_PACKED;
+
+/* Table 9-401c - Optional subelement IDs for Link Info field of the
+ * Multi-Link element */
+enum ieee80211_eht_ml_sub_elem {
+	EHT_ML_SUB_ELEM_PER_STA_PROFILE = 0,
+	EHT_ML_SUB_ELEM_VENDOR = 221,
+	EHT_ML_SUB_ELEM_FRAGMENT = 254,
+};
 
 /* IEEE P802.11ay/D4.0, 9.4.2.251 - EDMG Operation element */
 #define EDMG_BSS_OPERATING_CHANNELS_OFFSET	6
@@ -2418,14 +2915,47 @@ enum scs_request_type {
 	SCS_REQ_CHANGE = 2,
 };
 
+/*
+ * IEEE P802.11be/D4.0, 9.4.2.316 QoS Characteristics element,
+ * Table 9-404s (Direction subfield encoding)
+ */
+enum scs_direction {
+	SCS_DIRECTION_UP = 0,
+	SCS_DIRECTION_DOWN = 1,
+	SCS_DIRECTION_DIRECT = 2,
+};
+
+/*
+ * IEEE P802.11be/D4.0, 9.4.2.316 QoS Characteristics element,
+ * Figure 9-1001av (Control Info field format)
+ */
+#define EHT_QOS_CONTROL_INFO_DIRECTION_OFFSET		0
+#define EHT_QOS_CONTROL_INFO_TID_OFFSET			2
+#define EHT_QOS_CONTROL_INFO_USER_PRIORITY_OFFSET	6
+#define EHT_QOS_CONTROL_INFO_PRESENCE_MASK_OFFSET	9
+#define EHT_QOS_CONTROL_INFO_LINK_ID_OFFSET		25
+
+/*
+ * IEEE P802.11be/D4.0, 9.4.2.316 QoS Characteristics element,
+ * Presence Bitmap Of Additional Parameters
+ */
+#define SCS_QOS_BIT_MAX_MSDU_SIZE			((u16) BIT(0))
+#define SCS_QOS_BIT_SERVICE_START_TIME			((u16) BIT(1))
+#define SCS_QOS_BIT_SERVICE_START_TIME_LINKID		((u16) BIT(2))
+#define SCS_QOS_BIT_MEAN_DATA_RATE			((u16) BIT(3))
+#define SCS_QOS_BIT_DELAYED_BOUNDED_BURST_SIZE		((u16) BIT(4))
+#define SCS_QOS_BIT_MSDU_LIFETIME			((u16) BIT(5))
+#define SCS_QOS_BIT_MSDU_DELIVERY_INFO			((u16) BIT(6))
+#define SCS_QOS_BIT_MEDIUM_TIME				((u16) BIT(7))
+
 /* Optional subelement IDs for MSCS Descriptor element */
 enum mscs_description_subelem {
 	MCSC_SUBELEM_STATUS = 1,
 };
 
 /*
- * IEEE Std 802.11ai-2016, 9.6.8.36 FILS Discovery frame format,
- * Figure 9-687b - FILS Discovery Frame Control subfield format
+ * IEEE Std 802.11-2020, 9.6.7.36 FILS Discovery frame format,
+ * Figure 9-900 - FILS Discovery Frame Control subfield format
  */
 #define FD_FRAME_CTL_CAP_PRESENT			((u16) BIT(5))
 #define FD_FRAME_CTL_SHORT_SSID_PRESENT			((u16) BIT(6))
@@ -2438,8 +2968,8 @@ enum mscs_description_subelem {
 #define FD_FRAME_CTL_MD_PRESENT				((u16) BIT(13))
 
 /*
- * IEEE Std 802.11ai-2016, 9.6.8.36 FILS Discovery frame format,
- * Figure 9-687c - FD Capability subfield format
+ * IEEE Std 802.11-2020, 9.6.7.36 FILS Discovery frame format,
+ * Figure 9-901 - FD Capability subfield format
  */
 #define FD_CAP_ESS					BIT(0)
 #define FD_CAP_PRIVACY					BIT(1)
@@ -2449,6 +2979,7 @@ enum mscs_description_subelem {
 #define FD_CAP_BSS_CHWIDTH_40				1
 #define FD_CAP_BSS_CHWIDTH_80				2
 #define FD_CAP_BSS_CHWIDTH_160_80_80			3
+#define FD_CAP_BSS_CHWIDTH_320				4
 #define FD_CAP_BSS_CHWIDTH_SHIFT			2
 
 #define FD_CAP_NSS_1					0
@@ -2463,12 +2994,19 @@ enum mscs_description_subelem {
 #define FD_CAP_PHY_INDEX_HT				2
 #define FD_CAP_PHY_INDEX_VHT				3
 #define FD_CAP_PHY_INDEX_HE				4 /* P802.11ax */
+#define FD_CAP_PHY_INDEX_EHT				5 /* P802.11be */
 #define FD_CAP_PHY_INDEX_SHIFT				10
 
 /*
- * IEEE P802.11ax/D8.0 26.17.2.3.2, AP behavior for fast passive scanning
+ * IEEE Std 802.11ax-2021, 26.17.2.3.2, AP behavior for fast passive scanning
  */
 #define FD_MAX_INTERVAL_6GHZ                  20 /* TUs */
+
+/* IEEE Std 802.11ax-2021, 26.17.3.5.1: AP needs to wait and see the collision
+ * persists for at least the minimum default timeout
+ * dot11BSSColorCollisionAPPeriod (50 seconds)
+ */
+#define DOT11BSS_COLOR_COLLISION_AP_PERIOD	50
 
 /* Protected Vendor-specific QoS Management Action frame identifiers - WFA */
 #define QM_ACTION_VENDOR_TYPE 0x506f9a1a
@@ -2500,5 +3038,29 @@ enum dscp_policy_request_type {
 /* Wi-Fi Alliance Capabilities element - Capabilities field */
 #define WFA_CAPA_QM_DSCP_POLICY BIT(0)
 #define WFA_CAPA_QM_UNSOLIC_DSCP BIT(1)
+#define WFA_CAPA_QM_NON_EHT_SCS_TRAFFIC_DESC BIT(2)
+
+struct ieee80211_neighbor_ap_info {
+	u8 tbtt_info_hdr;
+	u8 tbtt_info_len;
+	u8 op_class;
+	u8 channel;
+
+	/* Followed by the rest of the TBTT Information field contents */
+	u8 data[0];
+} STRUCT_PACKED;
+
+/* S1G Beacon Compatibility element */
+struct ieee80211_s1g_beacon_compat {
+	u8 element_id;
+	u8 length;
+	le16 compat_info;
+	le16 beacon_interval;
+	le32 tsf_completion;
+} STRUCT_PACKED;
+
+#ifdef _MSC_VER
+#pragma pack(pop)
+#endif /* _MSC_VER */
 
 #endif /* IEEE802_11_DEFS_H */

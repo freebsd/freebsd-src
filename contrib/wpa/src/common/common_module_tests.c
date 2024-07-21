@@ -428,7 +428,7 @@ static int sae_tests(void)
 	}
 
 	if (sae_parse_commit(&sae, peer_commit, sizeof(peer_commit), NULL, NULL,
-			     NULL, 0) != 0 ||
+			     NULL, 0, NULL) != 0 ||
 	    sae_process_commit(&sae) < 0)
 		goto fail;
 

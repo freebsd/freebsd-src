@@ -232,7 +232,7 @@ static int get_weight_for_sta(struct hostapd_data *hapd, const u8 *sta)
 	struct airtime_sta_weight *wt;
 
 	wt = hapd->conf->airtime_weight_list;
-	while (wt && os_memcmp(wt->addr, sta, ETH_ALEN) != 0)
+	while (wt && !ether_addr_equal(wt->addr, sta))
 		wt = wt->next;
 
 	return wt ? wt->weight : hapd->conf->airtime_weight;

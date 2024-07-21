@@ -24,7 +24,7 @@ hostapd_neighbor_get(struct hostapd_data *hapd, const u8 *bssid,
 
 	dl_list_for_each(nr, &hapd->nr_db, struct hostapd_neighbor_entry,
 			 list) {
-		if (os_memcmp(bssid, nr->bssid, ETH_ALEN) == 0 &&
+		if (ether_addr_equal(bssid, nr->bssid) &&
 		    (!ssid ||
 		     (ssid->ssid_len == nr->ssid.ssid_len &&
 		      os_memcmp(ssid->ssid, nr->ssid.ssid,
@@ -99,7 +99,10 @@ static void hostapd_neighbor_clear_entry(struct hostapd_neighbor_entry *nr)
 	nr->civic = NULL;
 	os_memset(nr->bssid, 0, sizeof(nr->bssid));
 	os_memset(&nr->ssid, 0, sizeof(nr->ssid));
+	os_memset(&nr->lci_date, 0, sizeof(nr->lci_date));
 	nr->stationary = 0;
+	nr->short_ssid = 0;
+	nr->bss_parameters = 0;
 }
 
 
@@ -136,7 +139,7 @@ int hostapd_neighbor_set(struct hostapd_data *hapd, const u8 *bssid,
 
 	os_memcpy(entry->bssid, bssid, ETH_ALEN);
 	os_memcpy(&entry->ssid, ssid, sizeof(entry->ssid));
-	entry->short_ssid = crc32(ssid->ssid, ssid->ssid_len);
+	entry->short_ssid = ieee80211_crc32(ssid->ssid, ssid->ssid_len);
 
 	entry->nr = wpabuf_dup(nr);
 	if (!entry->nr)
@@ -165,6 +168,14 @@ fail:
 }
 
 
+static void hostapd_neighbor_free(struct hostapd_neighbor_entry *nr)
+{
+	hostapd_neighbor_clear_entry(nr);
+	dl_list_del(&nr->list);
+	os_free(nr);
+}
+
+
 int hostapd_neighbor_remove(struct hostapd_data *hapd, const u8 *bssid,
 			    const struct wpa_ssid_value *ssid)
 {
@@ -174,9 +185,7 @@ int hostapd_neighbor_remove(struct hostapd_data *hapd, const u8 *bssid,
 	if (!nr)
 		return -1;
 
-	hostapd_neighbor_clear_entry(nr);
-	dl_list_del(&nr->list);
-	os_free(nr);
+	hostapd_neighbor_free(nr);
 
 	return 0;
 }
@@ -188,9 +197,7 @@ void hostapd_free_neighbor_db(struct hostapd_data *hapd)
 
 	dl_list_for_each_safe(nr, prev, &hapd->nr_db,
 			      struct hostapd_neighbor_entry, list) {
-		hostapd_neighbor_clear_entry(nr);
-		dl_list_del(&nr->list);
-		os_free(nr);
+		hostapd_neighbor_free(nr);
 	}
 }
 
@@ -199,19 +206,21 @@ void hostapd_free_neighbor_db(struct hostapd_data *hapd)
 static enum nr_chan_width hostapd_get_nr_chan_width(struct hostapd_data *hapd,
 						    int ht, int vht, int he)
 {
-	u8 oper_chwidth = hostapd_get_oper_chwidth(hapd->iconf);
+	enum oper_chan_width oper_chwidth;
+
+	oper_chwidth = hostapd_get_oper_chwidth(hapd->iconf);
 
 	if (!ht && !vht && !he)
 		return NR_CHAN_WIDTH_20;
 	if (!hapd->iconf->secondary_channel)
 		return NR_CHAN_WIDTH_20;
-	if ((!vht && !he) || oper_chwidth == CHANWIDTH_USE_HT)
+	if ((!vht && !he) || oper_chwidth == CONF_OPER_CHWIDTH_USE_HT)
 		return NR_CHAN_WIDTH_40;
-	if (oper_chwidth == CHANWIDTH_80MHZ)
+	if (oper_chwidth == CONF_OPER_CHWIDTH_80MHZ)
 		return NR_CHAN_WIDTH_80;
-	if (oper_chwidth == CHANWIDTH_160MHZ)
+	if (oper_chwidth == CONF_OPER_CHWIDTH_160MHZ)
 		return NR_CHAN_WIDTH_160;
-	if (oper_chwidth == CHANWIDTH_80P80MHZ)
+	if (oper_chwidth == CONF_OPER_CHWIDTH_80P80MHZ)
 		return NR_CHAN_WIDTH_80P80;
 	return NR_CHAN_WIDTH_20;
 }
@@ -225,6 +234,7 @@ void hostapd_neighbor_set_own_report(struct hostapd_data *hapd)
 	int ht = hapd->iconf->ieee80211n && !hapd->conf->disable_11n;
 	int vht = hapd->iconf->ieee80211ac && !hapd->conf->disable_11ac;
 	int he = hapd->iconf->ieee80211ax && !hapd->conf->disable_11ax;
+	bool eht = he && hapd->iconf->ieee80211be && !hapd->conf->disable_11be;
 	struct wpa_ssid_value ssid;
 	u8 channel, op_class;
 	u8 center_freq1_idx = 0, center_freq2_idx = 0;
@@ -260,10 +270,12 @@ void hostapd_neighbor_set_own_report(struct hostapd_data *hapd)
 		/* VHT bit added in IEEE P802.11-REVmc/D4.3 */
 		if (vht)
 			bssid_info |= NEI_REP_BSSID_INFO_VHT;
-		if (he)
-			bssid_info |= NEI_REP_BSSID_INFO_HE;
 	}
 
+	if (he)
+		bssid_info |= NEI_REP_BSSID_INFO_HE;
+	if (eht)
+		bssid_info |= NEI_REP_BSSID_INFO_EHT;
 	/* TODO: Set NEI_REP_BSSID_INFO_MOBILITY_DOMAIN if MDE is set */
 
 	if (ieee80211_freq_to_channel_ext(hapd->iface->freq,
@@ -319,4 +331,36 @@ void hostapd_neighbor_set_own_report(struct hostapd_data *hapd)
 
 	wpabuf_free(nr);
 #endif /* NEED_AP_MLME */
+}
+
+
+static struct hostapd_neighbor_entry *
+hostapd_neighbor_get_diff_short_ssid(struct hostapd_data *hapd, const u8 *bssid)
+{
+	struct hostapd_neighbor_entry *nr;
+
+	dl_list_for_each(nr, &hapd->nr_db, struct hostapd_neighbor_entry,
+			 list) {
+		if (ether_addr_equal(bssid, nr->bssid) &&
+		    nr->short_ssid != hapd->conf->ssid.short_ssid)
+			return nr;
+	}
+	return NULL;
+}
+
+
+int hostapd_neighbor_sync_own_report(struct hostapd_data *hapd)
+{
+	struct hostapd_neighbor_entry *nr;
+
+	nr = hostapd_neighbor_get_diff_short_ssid(hapd, hapd->own_addr);
+	if (!nr)
+		return -1;
+
+	/* Clear old entry due to SSID change */
+	hostapd_neighbor_free(nr);
+
+	hostapd_neighbor_set_own_report(hapd);
+
+	return 0;
 }

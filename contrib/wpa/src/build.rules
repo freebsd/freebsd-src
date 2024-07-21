@@ -80,7 +80,7 @@ endif
 _DIRS := $(BUILDDIR)/$(PROJ)
 .PHONY: _make_dirs
 _make_dirs:
-	@mkdir -p $(_DIRS)
+	@mkdir -p $(sort $(_DIRS))
 
 $(BUILDDIR)/$(PROJ)/src/%.o: $(ROOTDIR)src/%.c $(CONFIG_FILE) | _make_dirs
 	$(Q)$(CC) -c -o $@ $(CFLAGS) $<

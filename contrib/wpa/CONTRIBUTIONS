@@ -37,7 +37,7 @@ without moderation. You can subscribe to the list at this address:
 http://lists.infradead.org/mailman/listinfo/hostap
 
 The message should contain an inlined patch against the current
-development branch (i.e., the master branch of
+development branch (i.e., the main branch of
 git://w1.fi/hostap.git). Please make sure the software you use for
 sending the patch does not corrupt whitespace. If that cannot be fixed
 for some reason, it is better to include an attached version of the

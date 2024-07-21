@@ -98,12 +98,17 @@ static int wpas_set_receive_lowest_pn(void *wpa_s, struct receive_sa *sa)
 }
 
 
+static int wpas_set_offload(void *wpa_s, u8 offload)
+{
+	return wpa_drv_set_offload(wpa_s, offload);
+}
+
+
 static unsigned int conf_offset_val(enum confidentiality_offset co)
 {
 	switch (co) {
 	case CONFIDENTIALITY_OFFSET_30:
 		return 30;
-		break;
 	case CONFIDENTIALITY_OFFSET_50:
 		return 50;
 	default:
@@ -220,6 +225,7 @@ int ieee802_1x_alloc_kay_sm(struct wpa_supplicant *wpa_s, struct wpa_ssid *ssid)
 	kay_ctx->enable_protect_frames = wpas_enable_protect_frames;
 	kay_ctx->enable_encrypt = wpas_enable_encrypt;
 	kay_ctx->set_replay_protect = wpas_set_replay_protect;
+	kay_ctx->set_offload = wpas_set_offload;
 	kay_ctx->set_current_cipher_suite = wpas_set_current_cipher_suite;
 	kay_ctx->enable_controlled_port = wpas_enable_controlled_port;
 	kay_ctx->get_receive_lowest_pn = wpas_get_receive_lowest_pn;
@@ -240,9 +246,10 @@ int ieee802_1x_alloc_kay_sm(struct wpa_supplicant *wpa_s, struct wpa_ssid *ssid)
 	kay_ctx->disable_transmit_sa = wpas_disable_transmit_sa;
 
 	res = ieee802_1x_kay_init(kay_ctx, policy, ssid->macsec_replay_protect,
-				  ssid->macsec_replay_window, ssid->macsec_port,
-				  ssid->mka_priority, wpa_s->ifname,
-				  wpa_s->own_addr);
+				  ssid->macsec_replay_window,
+				  ssid->macsec_offload, ssid->macsec_port,
+				  ssid->mka_priority, ssid->macsec_csindex,
+				  wpa_s->ifname, wpa_s->own_addr);
 	/* ieee802_1x_kay_init() frees kay_ctx on failure */
 	if (res == NULL)
 		return -1;
@@ -260,32 +267,6 @@ void ieee802_1x_dealloc_kay_sm(struct wpa_supplicant *wpa_s)
 
 	ieee802_1x_kay_deinit(wpa_s->kay);
 	wpa_s->kay = NULL;
-}
-
-
-static int ieee802_1x_auth_get_session_id(struct wpa_supplicant *wpa_s,
-					  const u8 *addr, u8 *sid, size_t *len)
-{
-	const u8 *session_id;
-	size_t id_len, need_len;
-
-	session_id = eapol_sm_get_session_id(wpa_s->eapol, &id_len);
-	if (session_id == NULL) {
-		wpa_printf(MSG_DEBUG,
-			   "Failed to get SessionID from EAPOL state machines");
-		return -1;
-	}
-
-	need_len = 1 + 2 * 32 /* random size */;
-	if (need_len > id_len) {
-		wpa_printf(MSG_DEBUG, "EAP Session-Id not long enough");
-		return -1;
-	}
-
-	os_memcpy(sid, session_id, need_len);
-	*len = need_len;
-
-	return 0;
 }
 
 
@@ -321,8 +302,8 @@ static int ieee802_1x_auth_get_msk(struct wpa_supplicant *wpa_s, const u8 *addr,
 void * ieee802_1x_notify_create_actor(struct wpa_supplicant *wpa_s,
 				      const u8 *peer_addr)
 {
-	u8 *sid;
-	size_t sid_len = 128;
+	const u8 *sid;
+	size_t sid_len;
 	struct mka_key_name *ckn;
 	struct mka_key *cak;
 	struct mka_key *msk;
@@ -336,10 +317,9 @@ void * ieee802_1x_notify_create_actor(struct wpa_supplicant *wpa_s,
 		   MACSTR, MAC2STR(peer_addr));
 
 	msk = os_zalloc(sizeof(*msk));
-	sid = os_zalloc(sid_len);
 	ckn = os_zalloc(sizeof(*ckn));
 	cak = os_zalloc(sizeof(*cak));
-	if (!msk || !sid || !ckn || !cak)
+	if (!msk || !ckn || !cak)
 		goto fail;
 
 	msk->len = DEFAULT_KEY_LEN;
@@ -348,8 +328,8 @@ void * ieee802_1x_notify_create_actor(struct wpa_supplicant *wpa_s,
 		goto fail;
 	}
 
-	if (ieee802_1x_auth_get_session_id(wpa_s, wpa_s->bssid, sid, &sid_len))
-	{
+	sid = eapol_sm_get_session_id(wpa_s->eapol, &sid_len);
+	if (!sid) {
 		wpa_printf(MSG_ERROR,
 			   "IEEE 802.1X: Could not get EAP Session Id");
 		goto fail;
@@ -383,7 +363,6 @@ fail:
 		os_memset(msk, 0, sizeof(*msk));
 		os_free(msk);
 	}
-	os_free(sid);
 	os_free(ckn);
 	if (cak) {
 		os_memset(cak, 0, sizeof(*cak));

@@ -10,6 +10,7 @@
 
 #include "common.h"
 #include "common/ieee802_11_defs.h"
+#include "common/ieee802_11_common.h"
 #include "common/qca-vendor.h"
 #include "wps/wps_i.h"
 #include "p2p_i.h"
@@ -111,7 +112,7 @@ void p2p_buf_add_operating_channel(struct wpabuf *buf, const char *country,
 
 
 void p2p_buf_add_pref_channel_list(struct wpabuf *buf,
-				   const unsigned int *preferred_freq_list,
+				   const struct weighted_pcl *pref_freq_list,
 				   unsigned int size)
 {
 	unsigned int i, count = 0;
@@ -126,8 +127,9 @@ void p2p_buf_add_pref_channel_list(struct wpabuf *buf,
 	 * of the vendor IE size.
 	 */
 	for (i = 0; i < size; i++) {
-		if (p2p_freq_to_channel(preferred_freq_list[i], &op_class,
-					&op_channel) == 0)
+		if (p2p_freq_to_channel(pref_freq_list[i].freq, &op_class,
+					&op_channel) == 0 &&
+		    !(pref_freq_list[i].flag & WEIGHTED_PCL_EXCLUDE))
 			count++;
 	}
 
@@ -136,10 +138,11 @@ void p2p_buf_add_pref_channel_list(struct wpabuf *buf,
 	wpabuf_put_be24(buf, OUI_QCA);
 	wpabuf_put_u8(buf, QCA_VENDOR_ELEM_P2P_PREF_CHAN_LIST);
 	for (i = 0; i < size; i++) {
-		if (p2p_freq_to_channel(preferred_freq_list[i], &op_class,
-					&op_channel) < 0) {
+		if (p2p_freq_to_channel(pref_freq_list[i].freq, &op_class,
+					&op_channel) < 0 ||
+		    (pref_freq_list[i].flag & WEIGHTED_PCL_EXCLUDE)) {
 			wpa_printf(MSG_DEBUG, "Unsupported frequency %u MHz",
-				   preferred_freq_list[i]);
+				   pref_freq_list[i].freq);
 			continue;
 		}
 		wpabuf_put_u8(buf, op_class);
@@ -149,7 +152,7 @@ void p2p_buf_add_pref_channel_list(struct wpabuf *buf,
 
 
 void p2p_buf_add_channel_list(struct wpabuf *buf, const char *country,
-			      struct p2p_channels *chan)
+			      struct p2p_channels *chan, bool is_6ghz_capab)
 {
 	u8 *len;
 	size_t i;
@@ -161,6 +164,9 @@ void p2p_buf_add_channel_list(struct wpabuf *buf, const char *country,
 
 	for (i = 0; i < chan->reg_classes; i++) {
 		struct p2p_reg_class *c = &chan->reg_class[i];
+
+		if (is_6ghz_op_class(c->reg_class) && !is_6ghz_capab)
+			continue;
 		wpabuf_put_u8(buf, c->reg_class);
 		wpabuf_put_u8(buf, c->channels);
 		wpabuf_put_data(buf, c->channel, c->channels);

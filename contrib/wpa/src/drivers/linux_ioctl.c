@@ -161,11 +161,20 @@ int linux_br_add_if(int sock, const char *brname, const char *ifname)
 	ifr.ifr_ifindex = ifindex;
 	if (ioctl(sock, SIOCBRADDIF, &ifr) < 0) {
 		int saved_errno = errno;
+		char in_br[IFNAMSIZ];
 
 		wpa_printf(MSG_DEBUG, "Could not add interface %s into bridge "
 			   "%s: %s", ifname, brname, strerror(errno));
 		errno = saved_errno;
-		return -1;
+
+		/* If ioctl() returns EBUSY when adding an interface into the
+		 * bridge, the interface might have already been added by an
+		 * external operation, so check whether the interface is
+		 * currently on the right bridge and ignore the error if it is.
+		 */
+		if (errno != EBUSY || linux_br_get(in_br, ifname) != 0 ||
+		    os_strcmp(in_br, brname) != 0)
+			return -1;
 	}
 
 	return 0;

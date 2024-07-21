@@ -23,5 +23,7 @@ struct hostapd_ip_addr {
 const char * hostapd_ip_txt(const struct hostapd_ip_addr *addr, char *buf,
 			    size_t buflen);
 int hostapd_parse_ip_addr(const char *txt, struct hostapd_ip_addr *addr);
+bool hostapd_ip_equal(const struct hostapd_ip_addr *a,
+		      const struct hostapd_ip_addr *b);
 
 #endif /* IP_ADDR_H */

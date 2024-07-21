@@ -56,6 +56,10 @@ struct eap_peap_data {
 };
 
 
+static int eap_peap_phase2_init(struct eap_sm *sm, struct eap_peap_data *data,
+				int vendor, enum eap_type eap_type);
+
+
 static const char * eap_peap_state_txt(int state)
 {
 	switch (state) {
@@ -558,10 +562,24 @@ static struct wpabuf * eap_peap_buildReq(struct eap_sm *sm, void *priv, u8 id)
 			wpa_printf(MSG_DEBUG, "EAP-PEAP: Phase1 done, "
 				   "starting Phase2");
 			eap_peap_state(data, PHASE2_START);
+			if (data->ssl.tls_v13 && data->ssl.tls_out &&
+			    wpabuf_len(data->ssl.tls_out) == 0) {
+				/* This can happen with TLS 1.3 when a new
+				 * session ticket is not generated and the
+				 * Finished message from the peer terminates
+				 * Phase 1. */
+				wpa_printf(MSG_DEBUG,
+					   "EAP-PEAP: No pending data to send - move directly to Phase 2 ID query");
+				eap_peap_state(data, PHASE2_ID);
+				eap_peap_phase2_init(sm, data, EAP_VENDOR_IETF,
+						     EAP_TYPE_IDENTITY);
+				goto phase2_id;
+			}
 		}
 		break;
 	case PHASE2_ID:
 	case PHASE2_METHOD:
+	phase2_id:
 		wpabuf_free(data->ssl.tls_out);
 		data->ssl.tls_out_pos = 0;
 		data->ssl.tls_out = eap_peap_build_phase2_req(sm, data, id);

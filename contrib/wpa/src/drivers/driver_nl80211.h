@@ -32,6 +32,7 @@ struct nl80211_global {
 	struct nl_cb *nl_cb;
 	struct nl_sock *nl;
 	int nl80211_id;
+	unsigned int nl80211_maxattr;
 	int nlctrl_id;
 	int ioctl_sock; /* socket for ioctl() use */
 
@@ -49,15 +50,30 @@ struct nl80211_wiphy_data {
 	int wiphy_idx;
 };
 
+#define NL80211_DRV_LINK_ID_NA (-1)
+
+struct i802_link {
+	unsigned int beacon_set:1;
+
+	int freq;
+	int bandwidth;
+	u8 addr[ETH_ALEN];
+	void *ctx;
+};
+
 struct i802_bss {
 	struct wpa_driver_nl80211_data *drv;
 	struct i802_bss *next;
+
+	u16 valid_links;
+	struct i802_link links[MAX_NUM_MLD_LINKS];
+	struct i802_link *flink;
+
 	int ifindex;
 	int br_ifindex;
 	u64 wdev_id;
 	char ifname[IFNAMSIZ + 1];
 	char brname[IFNAMSIZ];
-	unsigned int beacon_set:1;
 	unsigned int added_if_into_bridge:1;
 	unsigned int already_in_bridge:1;
 	unsigned int added_bridge:1;
@@ -65,12 +81,10 @@ struct i802_bss {
 	unsigned int wdev_id_set:1;
 	unsigned int added_if:1;
 	unsigned int static_ap:1;
-	unsigned int use_nl_connect:1;
 
 	u8 addr[ETH_ALEN];
+	u8 prev_addr[ETH_ALEN];
 
-	int freq;
-	int bandwidth;
 	int if_dynamic;
 
 	void *ctx;
@@ -104,12 +118,14 @@ struct wpa_driver_nl80211_data {
 	struct wpa_driver_capa capa;
 	u8 *extended_capa, *extended_capa_mask;
 	unsigned int extended_capa_len;
-	struct drv_nl80211_ext_capa {
+	struct drv_nl80211_iface_capa {
 		enum nl80211_iftype iftype;
 		u8 *ext_capa, *ext_capa_mask;
 		unsigned int ext_capa_len;
-	} iface_ext_capa[NL80211_IFTYPE_MAX];
-	unsigned int num_iface_ext_capa;
+		u16 eml_capa;
+		u16 mld_capa_and_ops;
+	} iface_capa[NL80211_IFTYPE_MAX];
+	unsigned int num_iface_capa;
 
 	int has_capability;
 	int has_driver_key_mgmt;
@@ -128,6 +144,7 @@ struct wpa_driver_nl80211_data {
 	u8 bssid[ETH_ALEN];
 	u8 prev_bssid[ETH_ALEN];
 	int associated;
+	struct driver_sta_mlo_info sta_mlo_info;
 	u8 ssid[SSID_MAX_LEN];
 	size_t ssid_len;
 	enum nl80211_iftype nlmode;
@@ -147,8 +164,6 @@ struct wpa_driver_nl80211_data {
 	unsigned int scan_for_auth:1;
 	unsigned int retry_auth:1;
 	unsigned int use_monitor:1;
-	unsigned int ignore_next_local_disconnect:1;
-	unsigned int ignore_next_local_deauth:1;
 	unsigned int hostapd:1;
 	unsigned int start_mode_sta:1;
 	unsigned int start_iface_up:1;
@@ -180,14 +195,24 @@ struct wpa_driver_nl80211_data {
 	unsigned int unsol_bcast_probe_resp:1;
 	unsigned int qca_do_acs:1;
 	unsigned int brcm_do_acs:1;
+	unsigned int uses_6ghz:1;
+	unsigned int uses_s1g:1;
+	unsigned int secure_ranging_ctx_vendor_cmd_avail:1;
+	unsigned int puncturing:1;
+	unsigned int qca_ap_allowed_freqs:1;
+
+	u32 ignore_next_local_disconnect;
+	u32 ignore_next_local_deauth;
 
 	u64 vendor_scan_cookie;
 	u64 remain_on_chan_cookie;
 	u64 send_frame_cookie;
+	int send_frame_link_id;
 #define MAX_SEND_FRAME_COOKIES 20
 	u64 send_frame_cookies[MAX_SEND_FRAME_COOKIES];
 	unsigned int num_send_frame_cookies;
 	u64 eapol_tx_cookie;
+	int eapol_tx_link_id;
 
 	unsigned int last_mgmt_freq;
 
@@ -221,6 +246,9 @@ struct wpa_driver_nl80211_data {
 	int auth_wep_tx_keyidx;
 	int auth_local_state_change;
 	int auth_p2p;
+	bool auth_mld;
+	u8 auth_mld_link_id;
+	u8 auth_ap_mld_addr[ETH_ALEN];
 
 	/*
 	 * Tells whether the last scan issued from wpa_supplicant was a normal
@@ -232,11 +260,18 @@ struct wpa_driver_nl80211_data {
 	bool roam_indication_done;
 	u8 *pending_roam_data;
 	size_t pending_roam_data_len;
-	struct os_reltime pending_roam_ind_time;
+	u8 *pending_t2lm_data;
+	size_t pending_t2lm_data_len;
+	u8 *pending_link_reconfig_data;
+	size_t pending_link_reconfig_data_len;
 #endif /* CONFIG_DRIVER_NL80211_QCA */
 };
 
 struct nl_msg;
+
+struct nl80211_err_info {
+	int link_id;
+};
 
 void * nl80211_cmd(struct wpa_driver_nl80211_data *drv,
 		   struct nl_msg *msg, int flags, uint8_t cmd);
@@ -244,12 +279,33 @@ struct nl_msg * nl80211_cmd_msg(struct i802_bss *bss, int flags, uint8_t cmd);
 struct nl_msg * nl80211_drv_msg(struct wpa_driver_nl80211_data *drv, int flags,
 				uint8_t cmd);
 struct nl_msg * nl80211_bss_msg(struct i802_bss *bss, int flags, uint8_t cmd);
-int send_and_recv_msgs(struct wpa_driver_nl80211_data *drv, struct nl_msg *msg,
-		       int (*valid_handler)(struct nl_msg *, void *),
-		       void *valid_data,
-		       int (*ack_handler_custom)(struct nl_msg *, void *),
-		       void *ack_data);
-struct nl_sock * get_connect_handle(struct i802_bss *bss);
+
+int send_and_recv(struct nl80211_global *global,
+		  struct nl_sock *nl_handle, struct nl_msg *msg,
+		  int (*valid_handler)(struct nl_msg *, void *),
+		  void *valid_data,
+		  int (*ack_handler_custom)(struct nl_msg *, void *),
+		  void *ack_data,
+		  struct nl80211_err_info *err_info);
+
+static inline int
+send_and_recv_cmd(struct wpa_driver_nl80211_data *drv,
+		  struct nl_msg *msg)
+{
+	return send_and_recv(drv->global, drv->global->nl, msg,
+			     NULL, NULL, NULL, NULL, NULL);
+}
+
+static inline int
+send_and_recv_resp(struct wpa_driver_nl80211_data *drv,
+		   struct nl_msg *msg,
+		   int (*valid_handler)(struct nl_msg *, void *),
+		   void *valid_data)
+{
+	return send_and_recv(drv->global, drv->global->nl, msg,
+			     valid_handler, valid_data, NULL, NULL, NULL);
+}
+
 int nl80211_create_iface(struct wpa_driver_nl80211_data *drv,
 			 const char *ifname, enum nl80211_iftype iftype,
 			 const u8 *addr, int wds,
@@ -266,7 +322,8 @@ int is_ap_interface(enum nl80211_iftype nlmode);
 int is_sta_interface(enum nl80211_iftype nlmode);
 int wpa_driver_nl80211_authenticate_retry(struct wpa_driver_nl80211_data *drv);
 int nl80211_get_link_signal(struct wpa_driver_nl80211_data *drv,
-			    struct wpa_signal_info *sig);
+			    const u8 *bssid,
+			    struct hostap_sta_driver_data *data);
 int nl80211_get_link_noise(struct wpa_driver_nl80211_data *drv,
 			   struct wpa_signal_info *sig_change);
 int nl80211_get_wiphy_index(struct i802_bss *bss);
@@ -294,6 +351,25 @@ int process_bss_event(struct nl_msg *msg, void *arg);
 const char * nl80211_iftype_str(enum nl80211_iftype mode);
 
 void nl80211_restore_ap_mode(struct i802_bss *bss);
+struct i802_link * nl80211_get_link(struct i802_bss *bss, s8 link_id);
+
+static inline bool nl80211_link_valid(u16 links, s8 link_id)
+{
+	if (link_id < 0 || link_id >= MAX_NUM_MLD_LINKS)
+		return false;
+
+	if (links & BIT(link_id))
+		return true;
+
+	return false;
+}
+
+
+static inline bool
+nl80211_attr_supported(struct wpa_driver_nl80211_data *drv, unsigned int attr)
+{
+	return attr <= drv->global->nl80211_maxattr;
+}
 
 #ifdef ANDROID
 int android_nl_socket_set_nonblocking(struct nl_sock *handle);
@@ -326,7 +402,8 @@ int wpa_driver_nl80211_scan(struct i802_bss *bss,
 int wpa_driver_nl80211_sched_scan(void *priv,
 				  struct wpa_driver_scan_params *params);
 int wpa_driver_nl80211_stop_sched_scan(void *priv);
-struct wpa_scan_results * wpa_driver_nl80211_get_scan_results(void *priv);
+struct wpa_scan_results * wpa_driver_nl80211_get_scan_results(void *priv,
+							      const u8 *bssid);
 void nl80211_dump_scan(struct wpa_driver_nl80211_data *drv);
 int wpa_driver_nl80211_abort_scan(void *priv, u64 scan_cookie);
 int wpa_driver_nl80211_vendor_scan(struct i802_bss *bss,

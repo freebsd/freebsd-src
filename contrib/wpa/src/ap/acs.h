@@ -15,6 +15,9 @@
 enum hostapd_chan_status acs_init(struct hostapd_iface *iface);
 void acs_cleanup(struct hostapd_iface *iface);
 
+#define ACS_SCAN_RETRY_MAX_COUNT	15
+#define ACS_SCAN_RETRY_INTERVAL		5
+
 #else /* CONFIG_ACS */
 
 static inline enum hostapd_chan_status acs_init(struct hostapd_iface *iface)

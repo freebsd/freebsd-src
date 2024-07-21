@@ -366,7 +366,7 @@ static void macsec_qca_hapd_deinit(void *priv)
 
 static int macsec_qca_send_eapol(void *priv, const u8 *addr,
 				 const u8 *data, size_t data_len, int encrypt,
-				 const u8 *own_addr, u32 flags)
+				 const u8 *own_addr, u32 flags, int link_id)
 {
 	struct macsec_qca_data *drv = priv;
 	struct ieee8023_hdr *hdr;
@@ -861,7 +861,7 @@ static int macsec_qca_get_available_transmit_sc(void *priv, u32 *channel)
 		}
 	}
 
-	wpa_printf(MSG_DEBUG, "%s: no avaiable channel", __func__);
+	wpa_printf(MSG_DEBUG, "%s: no available channel", __func__);
 
 	return -1;
 }

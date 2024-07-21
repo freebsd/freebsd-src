@@ -55,6 +55,8 @@ struct eap_ssl_data {
 	 * tls_v13 - Whether TLS v1.3 or newer is used
 	 */
 	int tls_v13;
+
+	bool skip_prot_success; /* testing behavior only for TLS v1.3 */
 };
 
 

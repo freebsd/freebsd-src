@@ -599,10 +599,15 @@ int wps_parse_msg(const struct wpabuf *msg, struct wps_parse_attr *attr)
 	u16 type, len;
 #ifdef WPS_WORKAROUNDS
 	u16 prev_type = 0;
+	size_t last_nonzero = 0;
+	const u8 *start;
 #endif /* WPS_WORKAROUNDS */
 
 	os_memset(attr, 0, sizeof(*attr));
 	pos = wpabuf_head(msg);
+#ifdef WPS_WORKAROUNDS
+	start = pos;
+#endif /* WPS_WORKAROUNDS */
 	end = pos + wpabuf_len(msg);
 
 	while (pos < end) {
@@ -649,9 +654,15 @@ int wps_parse_msg(const struct wpabuf *msg, struct wps_parse_attr *attr)
 			 * end of M1. Skip those to avoid interop issues.
 			 */
 			int i;
+
+			if (last_nonzero > (size_t) (pos - start))
+				continue;
+
 			for (i = 0; i < end - pos; i++) {
-				if (pos[i])
+				if (pos[i]) {
+					last_nonzero = pos - start + i;
 					break;
+				}
 			}
 			if (i == end - pos) {
 				wpa_printf(MSG_DEBUG, "WPS: Workaround - skip "

@@ -154,6 +154,7 @@ OBJS += src/utils/crc32.c
 OBJS += src/common/ieee802_11_common.c
 OBJS += src/common/wpa_common.c
 OBJS += src/common/hw_features_common.c
+OBJS += src/common/ptksa_cache.c
 
 OBJS += src/eapol_auth/eapol_auth_sm.c
 
@@ -237,6 +238,8 @@ L_CFLAGS += -DCONFIG_OCV
 OBJS += src/common/ocv.c
 endif
 
+NEED_AES_UNWRAP=y
+
 ifdef CONFIG_IEEE80211R
 L_CFLAGS += -DCONFIG_IEEE80211R -DCONFIG_IEEE80211R_AP
 OBJS += src/ap/wpa_auth_ft.c
@@ -256,6 +259,7 @@ L_CFLAGS += -DCONFIG_SAE
 OBJS += src/common/sae.c
 ifdef CONFIG_SAE_PK
 L_CFLAGS += -DCONFIG_SAE_PK
+NEED_AES_SIV=y
 OBJS += src/common/sae_pk.c
 endif
 NEED_ECC=y
@@ -292,6 +296,12 @@ endif
 
 ifdef CONFIG_IEEE80211AC
 L_CFLAGS += -DCONFIG_IEEE80211AC
+endif
+
+ifdef CONFIG_IEEE80211BE
+CONFIG_IEEE80211AX=y
+L_CFLAGS += -DCONFIG_IEEE80211BE
+OBJS += src/ap/ieee802_11_eht.c
 endif
 
 ifdef CONFIG_IEEE80211AX
@@ -572,6 +582,12 @@ L_CFLAGS += -DCONFIG_DPP3
 endif
 endif
 
+ifdef CONFIG_NAN_USD
+OBJS += src/common/nan_de.c
+OBJS += src/ap/nan_usd_ap.c
+L_CFLAGS += -DCONFIG_NAN_USD
+endif
+
 ifdef CONFIG_PASN
 L_CFLAGS += -DCONFIG_PASN
 L_CFLAGS += -DCONFIG_PTKSA_CACHE
@@ -579,7 +595,6 @@ NEED_HMAC_SHA256_KDF=y
 NEED_HMAC_SHA384_KDF=y
 NEED_SHA256=y
 NEED_SHA384=y
-OBJS += src/common/ptksa_cache.c
 endif
 
 ifdef CONFIG_EAP_IKEV2
@@ -632,6 +647,11 @@ ifdef CHAP
 OBJS += src/eap_common/chap.c
 endif
 
+ifdef CONFIG_RADIUS_TLS
+TLS_FUNCS=y
+L_CFLAGS += -DCONFIG_RADIUS_TLS
+endif
+
 ifdef TLS_FUNCS
 NEED_DES=y
 # Shared TLS functions (needed for EAP_TLS, EAP_PEAP, and EAP_TTLS)
@@ -653,6 +673,7 @@ L_CFLAGS += -DCONFIG_TLSV12
 endif
 
 ifeq ($(CONFIG_TLS), openssl)
+L_CFLAGS += -DCRYPTO_RSA_OAEP_SHA256
 ifdef TLS_FUNCS
 OBJS += src/crypto/tls_openssl.c
 OBJS += src/crypto/tls_openssl_ocsp.c
@@ -825,7 +846,9 @@ endif
 ifdef NEED_AES_ENCBLOCK
 AESOBJS += src/crypto/aes-encblock.c
 endif
+ifneq ($(CONFIG_TLS), openssl)
 AESOBJS += src/crypto/aes-omac1.c
+endif
 ifdef NEED_AES_UNWRAP
 ifneq ($(CONFIG_TLS), openssl)
 NEED_AES_DEC=y
@@ -1026,6 +1049,9 @@ endif
 ifdef NEED_AP_MLME
 OBJS += src/ap/wmm.c
 OBJS += src/ap/ap_list.c
+OBJS += src/ap/comeback_token.c
+OBJS += src/pasn/pasn_responder.c
+OBJS += src/pasn/pasn_common.c
 OBJS += src/ap/ieee802_11.c
 OBJS += src/ap/hw_features.c
 OBJS += src/ap/dfs.c

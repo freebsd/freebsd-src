@@ -17,9 +17,12 @@
 static int wpas_bssid_ignore_module_tests(void)
 {
 	struct wpa_supplicant wpa_s;
+	struct wpa_global global;
 	int ret = -1;
 
 	os_memset(&wpa_s, 0, sizeof(wpa_s));
+	os_memset(&global, 0, sizeof(global));
+	wpa_s.global = &global;
 
 	wpa_bssid_ignore_clear(&wpa_s);
 

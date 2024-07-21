@@ -11,6 +11,7 @@
 #include "common.h"
 #include "utils/eloop.h"
 #include "common/ieee802_11_defs.h"
+#include "common/ieee802_11_common.h"
 #include "common/wpa_ctrl.h"
 #include "wps/wps_defs.h"
 #include "p2p_i.h"
@@ -142,6 +143,7 @@ static struct wpabuf * p2p_build_go_neg_req(struct p2p_data *p2p,
 	u8 group_capab;
 	size_t extra = 0;
 	u16 pw_id;
+	bool is_6ghz_capab;
 
 #ifdef CONFIG_WIFI_DISPLAY
 	if (p2p->wfd_ie_go_neg)
@@ -179,7 +181,22 @@ static struct wpabuf * p2p_build_go_neg_req(struct p2p_data *p2p,
 		p2p_buf_add_ext_listen_timing(buf, p2p->ext_listen_period,
 					      p2p->ext_listen_interval);
 	p2p_buf_add_intended_addr(buf, p2p->intended_addr);
-	p2p_buf_add_channel_list(buf, p2p->cfg->country, &p2p->channels);
+	is_6ghz_capab = is_p2p_6ghz_capable(p2p) &&
+		p2p_is_peer_6ghz_capab(p2p, peer->info.p2p_device_addr);
+	if (p2p->num_pref_freq) {
+		bool go = p2p->go_intent == 15;
+		struct p2p_channels pref_chanlist;
+
+		p2p_pref_channel_filter(&p2p->channels, p2p->pref_freq_list,
+					p2p->num_pref_freq, &pref_chanlist, go);
+		p2p_channels_dump(p2p, "channel list after filtering",
+				  &pref_chanlist);
+		p2p_buf_add_channel_list(buf, p2p->cfg->country,
+					 &pref_chanlist, is_6ghz_capab);
+	} else {
+		p2p_buf_add_channel_list(buf, p2p->cfg->country,
+					 &p2p->channels, is_6ghz_capab);
+	}
 	p2p_buf_add_device_info(buf, p2p, peer);
 	p2p_buf_add_operating_channel(buf, p2p->cfg->country,
 				      p2p->op_reg_class, p2p->op_channel);
@@ -278,6 +295,8 @@ static struct wpabuf * p2p_build_go_neg_resp(struct p2p_data *p2p,
 	u8 group_capab;
 	size_t extra = 0;
 	u16 pw_id;
+	bool is_6ghz_capab;
+	struct p2p_channels pref_chanlist;
 
 	p2p_dbg(p2p, "Building GO Negotiation Response");
 
@@ -328,17 +347,35 @@ static struct wpabuf * p2p_build_go_neg_resp(struct p2p_data *p2p,
 					      p2p->op_channel);
 	}
 	p2p_buf_add_intended_addr(buf, p2p->intended_addr);
+	if (p2p->num_pref_freq) {
+		bool go = (peer && peer->go_state == LOCAL_GO) ||
+			p2p->go_intent == 15;
+
+		p2p_pref_channel_filter(&p2p->channels, p2p->pref_freq_list,
+					p2p->num_pref_freq, &pref_chanlist, go);
+		p2p_channels_dump(p2p, "channel list after filtering",
+				  &pref_chanlist);
+	} else {
+		p2p_copy_channels(&pref_chanlist, &p2p->channels,
+				  p2p->allow_6ghz);
+	}
 	if (status || peer == NULL) {
 		p2p_buf_add_channel_list(buf, p2p->cfg->country,
-					 &p2p->channels);
+					 &pref_chanlist, false);
 	} else if (peer->go_state == REMOTE_GO) {
+		is_6ghz_capab = is_p2p_6ghz_capable(p2p) &&
+			p2p_is_peer_6ghz_capab(p2p, peer->info.p2p_device_addr);
 		p2p_buf_add_channel_list(buf, p2p->cfg->country,
-					 &p2p->channels);
+					 &pref_chanlist, is_6ghz_capab);
 	} else {
 		struct p2p_channels res;
-		p2p_channels_intersect(&p2p->channels, &peer->channels,
+
+		is_6ghz_capab = is_p2p_6ghz_capable(p2p) &&
+			p2p_is_peer_6ghz_capab(p2p, peer->info.p2p_device_addr);
+		p2p_channels_intersect(&pref_chanlist, &peer->channels,
 				       &res);
-		p2p_buf_add_channel_list(buf, p2p->cfg->country, &res);
+		p2p_buf_add_channel_list(buf, p2p->cfg->country, &res,
+				       is_6ghz_capab);
 	}
 	p2p_buf_add_device_info(buf, p2p, peer);
 	if (peer && peer->go_state == LOCAL_GO) {
@@ -562,7 +599,8 @@ int p2p_go_select_channel(struct p2p_data *p2p, struct p2p_device *dev,
 static void p2p_check_pref_chan_no_recv(struct p2p_data *p2p, int go,
 					struct p2p_device *dev,
 					struct p2p_message *msg,
-					unsigned freq_list[], unsigned int size)
+					const struct weighted_pcl freq_list[],
+					unsigned int size)
 {
 	u8 op_class, op_channel;
 	unsigned int oper_freq = 0, i, j;
@@ -577,10 +615,11 @@ static void p2p_check_pref_chan_no_recv(struct p2p_data *p2p, int go,
 	 */
 	for (i = 0; i < size && !found; i++) {
 		/* Make sure that the common frequency is supported by peer. */
-		oper_freq = freq_list[i];
+		oper_freq = freq_list[i].freq;
 		if (p2p_freq_to_channel(oper_freq, &op_class,
-					&op_channel) < 0)
-			continue; /* cannot happen due to earlier check */
+					&op_channel) < 0 ||
+		    !p2p_pref_freq_allowed(&freq_list[i], go))
+			continue;
 		for (j = 0; j < msg->channel_list_len; j++) {
 			if (!msg->channel_list ||
 			    op_channel != msg->channel_list[j])
@@ -609,7 +648,8 @@ static void p2p_check_pref_chan_no_recv(struct p2p_data *p2p, int go,
 static void p2p_check_pref_chan_recv(struct p2p_data *p2p, int go,
 				     struct p2p_device *dev,
 				     struct p2p_message *msg,
-				     unsigned freq_list[], unsigned int size)
+				     const struct weighted_pcl freq_list[],
+				     unsigned int size)
 {
 	u8 op_class, op_channel;
 	unsigned int oper_freq = 0, i, j;
@@ -625,11 +665,13 @@ static void p2p_check_pref_chan_recv(struct p2p_data *p2p, int go,
 			oper_freq = p2p_channel_to_freq(
 				msg->pref_freq_list[2 * j],
 				msg->pref_freq_list[2 * j + 1]);
-			if (freq_list[i] != oper_freq)
+			if (freq_list[i].freq != oper_freq)
 				continue;
 			if (p2p_freq_to_channel(oper_freq, &op_class,
 						&op_channel) < 0)
 				continue; /* cannot happen */
+			if (!p2p_pref_freq_allowed(&freq_list[i], go))
+				break;
 			p2p->op_reg_class = op_class;
 			p2p->op_channel = op_channel;
 			os_memcpy(&p2p->channels, &p2p->cfg->channels,
@@ -652,10 +694,11 @@ static void p2p_check_pref_chan_recv(struct p2p_data *p2p, int go,
 void p2p_check_pref_chan(struct p2p_data *p2p, int go,
 			 struct p2p_device *dev, struct p2p_message *msg)
 {
-	unsigned int freq_list[P2P_MAX_PREF_CHANNELS], size;
+	unsigned int size;
 	unsigned int i;
 	u8 op_class, op_channel;
 	char txt[100], *pos, *end;
+	bool is_6ghz_capab;
 	int res;
 
 	/*
@@ -669,25 +712,34 @@ void p2p_check_pref_chan(struct p2p_data *p2p, int go,
 
 	/* Obtain our preferred frequency list from driver based on P2P role. */
 	size = P2P_MAX_PREF_CHANNELS;
-	if (p2p->cfg->get_pref_freq_list(p2p->cfg->cb_ctx, go, &size,
-					 freq_list))
+	if (p2p->cfg->get_pref_freq_list(p2p->cfg->cb_ctx, go,
+					 &p2p->num_pref_freq,
+					 p2p->pref_freq_list))
+		return;
+	size = p2p->num_pref_freq;
+	if (!size)
 		return;
 	/* Filter out frequencies that are not acceptable for P2P use */
+	is_6ghz_capab = is_p2p_6ghz_capable(p2p) &&
+		p2p_is_peer_6ghz_capab(p2p, dev->info.p2p_device_addr);
 	i = 0;
 	while (i < size) {
-		if (p2p_freq_to_channel(freq_list[i], &op_class,
-					&op_channel) < 0 ||
+		if (p2p_freq_to_channel(p2p->pref_freq_list[i].freq,
+					&op_class, &op_channel) < 0 ||
 		    (!p2p_channels_includes(&p2p->cfg->channels,
 					    op_class, op_channel) &&
 		     (go || !p2p_channels_includes(&p2p->cfg->cli_channels,
-						   op_class, op_channel)))) {
+						   op_class, op_channel))) ||
+		    (is_6ghz_freq(p2p->pref_freq_list[i].freq) &&
+		     !is_6ghz_capab)) {
 			p2p_dbg(p2p,
 				"Ignore local driver frequency preference %u MHz since it is not acceptable for P2P use (go=%d)",
-				freq_list[i], go);
+				p2p->pref_freq_list[i].freq, go);
 			if (size - i - 1 > 0)
-				os_memmove(&freq_list[i], &freq_list[i + 1],
+				os_memmove(&p2p->pref_freq_list[i],
+					   &p2p->pref_freq_list[i + 1],
 					   (size - i - 1) *
-					   sizeof(unsigned int));
+					   sizeof(struct weighted_pcl));
 			size--;
 			continue;
 		}
@@ -699,7 +751,8 @@ void p2p_check_pref_chan(struct p2p_data *p2p, int go,
 	pos = txt;
 	end = pos + sizeof(txt);
 	for (i = 0; i < size; i++) {
-		res = os_snprintf(pos, end - pos, " %u", freq_list[i]);
+		res = os_snprintf(pos, end - pos, " %u",
+				  p2p->pref_freq_list[i].freq);
 		if (os_snprintf_error(end - pos, res))
 			break;
 		pos += res;
@@ -713,11 +766,14 @@ void p2p_check_pref_chan(struct p2p_data *p2p, int go,
 	 * our preferred channel list.
 	 */
 	for (i = 0; i < size; i++) {
-		if (freq_list[i] == (unsigned int) dev->oper_freq)
+		if (p2p->pref_freq_list[i].freq ==
+		    (unsigned int) dev->oper_freq &&
+		    p2p_pref_freq_allowed(&p2p->pref_freq_list[i], go))
 			break;
 	}
 	if (i != size &&
-	    p2p_freq_to_channel(freq_list[i], &op_class, &op_channel) == 0) {
+	    p2p_freq_to_channel(p2p->pref_freq_list[i].freq, &op_class,
+				&op_channel) == 0) {
 		/* Peer operating channel preference matches our preference */
 		p2p->op_reg_class = op_class;
 		p2p->op_channel = op_channel;
@@ -735,9 +791,11 @@ void p2p_check_pref_chan(struct p2p_data *p2p, int go,
 	  * _not_ included in the GO Negotiation Request or Invitation Request.
 	  */
 	if (msg->pref_freq_list_len == 0)
-		p2p_check_pref_chan_no_recv(p2p, go, dev, msg, freq_list, size);
+		p2p_check_pref_chan_no_recv(p2p, go, dev, msg,
+					    p2p->pref_freq_list, size);
 	else
-		p2p_check_pref_chan_recv(p2p, go, dev, msg, freq_list, size);
+		p2p_check_pref_chan_recv(p2p, go, dev, msg,
+					 p2p->pref_freq_list, size);
 }
 
 
@@ -801,7 +859,7 @@ void p2p_process_go_neg_req(struct p2p_data *p2p, const u8 *sa,
 		goto fail;
 	}
 
-	if (os_memcmp(msg.p2p_device_addr, sa, ETH_ALEN) != 0) {
+	if (!ether_addr_equal(msg.p2p_device_addr, sa)) {
 		p2p_dbg(p2p, "Unexpected GO Negotiation Request SA=" MACSTR
 			" != dev_addr=" MACSTR,
 			MAC2STR(sa), MAC2STR(msg.p2p_device_addr));
@@ -851,6 +909,9 @@ void p2p_process_go_neg_req(struct p2p_data *p2p, const u8 *sa,
 			MAC2STR(dev->info.p2p_device_addr));
 		p2p_add_dev_info(p2p, sa, dev, &msg);
 	}
+
+	if (dev)
+		p2p_update_peer_6ghz_capab(dev, &msg);
 
 	if (p2p->go_neg_peer && p2p->go_neg_peer == dev)
 		eloop_cancel_timeout(p2p_go_neg_wait_timeout, p2p, NULL);
@@ -1085,6 +1146,7 @@ static struct wpabuf * p2p_build_go_neg_conf(struct p2p_data *p2p,
 	struct p2p_channels res;
 	u8 group_capab;
 	size_t extra = 0;
+	bool is_6ghz_capab;
 
 	p2p_dbg(p2p, "Building GO Negotiation Confirm");
 
@@ -1128,7 +1190,9 @@ static struct wpabuf * p2p_build_go_neg_conf(struct p2p_data *p2p,
 		p2p_buf_add_operating_channel(buf, (const char *) resp_chan,
 					      resp_chan[3], resp_chan[4]);
 	p2p_channels_intersect(&p2p->channels, &peer->channels, &res);
-	p2p_buf_add_channel_list(buf, p2p->cfg->country, &res);
+	is_6ghz_capab = is_p2p_6ghz_capable(p2p) &&
+		p2p_is_peer_6ghz_capab(p2p, peer->info.p2p_device_addr);
+	p2p_buf_add_channel_list(buf, p2p->cfg->country, &res, is_6ghz_capab);
 	if (go) {
 		p2p_buf_add_group_id(buf, p2p->cfg->dev_addr, p2p->ssid,
 				     p2p->ssid_len);
@@ -1175,6 +1239,7 @@ void p2p_process_go_neg_resp(struct p2p_data *p2p, const u8 *sa,
 		return;
 	}
 	dev->flags &= ~P2P_DEV_WAIT_GO_NEG_RESPONSE;
+	p2p_update_peer_6ghz_capab(dev, &msg);
 
 	if (msg.dialog_token != dev->dialog_token) {
 		p2p_dbg(p2p, "Unexpected Dialog Token %u (expected %u)",
@@ -1469,6 +1534,8 @@ void p2p_process_go_neg_conf(struct p2p_data *p2p, const u8 *sa,
 		p2p_parse_free(&msg);
 		return;
 	}
+
+	p2p_update_peer_6ghz_capab(dev, &msg);
 
 	if (dev->go_state == REMOTE_GO && msg.group_id) {
 		/* Store SSID for Provisioning step */

@@ -12,6 +12,7 @@
 
 #include "utils/common.h"
 #include "common/ieee802_11_defs.h"
+#include "common/hw_features_common.h"
 #include "hostapd.h"
 #include "ap_config.h"
 #include "sta_info.h"
@@ -75,6 +76,13 @@ u8 * hostapd_eid_vht_operation(struct hostapd_data *hapd, u8 *eid)
 {
 	struct ieee80211_vht_operation *oper;
 	u8 *pos = eid;
+	enum oper_chan_width oper_chwidth =
+		hostapd_get_oper_chwidth(hapd->iconf);
+	u8 seg0 = hapd->iconf->vht_oper_centr_freq_seg0_idx;
+	u8 seg1 = hapd->iconf->vht_oper_centr_freq_seg1_idx;
+#ifdef CONFIG_IEEE80211BE
+	u16 punct_bitmap = hostapd_get_punct_bitmap(hapd);
+#endif /* CONFIG_IEEE80211BE */
 
 	if (is_6ghz_op_class(hapd->iconf->op_class))
 		return eid;
@@ -85,23 +93,29 @@ u8 * hostapd_eid_vht_operation(struct hostapd_data *hapd, u8 *eid)
 	oper = (struct ieee80211_vht_operation *) pos;
 	os_memset(oper, 0, sizeof(*oper));
 
+#ifdef CONFIG_IEEE80211BE
+	if (punct_bitmap) {
+		punct_update_legacy_bw(punct_bitmap,
+				       hapd->iconf->channel,
+				       &oper_chwidth, &seg0, &seg1);
+	}
+#endif /* CONFIG_IEEE80211BE */
+
 	/*
 	 * center freq = 5 GHz + (5 * index)
 	 * So index 42 gives center freq 5.210 GHz
 	 * which is channel 42 in 5G band
 	 */
-	oper->vht_op_info_chan_center_freq_seg0_idx =
-		hapd->iconf->vht_oper_centr_freq_seg0_idx;
-	oper->vht_op_info_chan_center_freq_seg1_idx =
-		hapd->iconf->vht_oper_centr_freq_seg1_idx;
+	oper->vht_op_info_chan_center_freq_seg0_idx = seg0;
+	oper->vht_op_info_chan_center_freq_seg1_idx = seg1;
 
-	oper->vht_op_info_chwidth = hapd->iconf->vht_oper_chwidth;
-	if (hapd->iconf->vht_oper_chwidth == 2) {
+	oper->vht_op_info_chwidth = oper_chwidth;
+	if (oper_chwidth == CONF_OPER_CHWIDTH_160MHZ) {
 		/*
 		 * Convert 160 MHz channel width to new style as interop
 		 * workaround.
 		 */
-		oper->vht_op_info_chwidth = 1;
+		oper->vht_op_info_chwidth = CHANWIDTH_80MHZ;
 		oper->vht_op_info_chan_center_freq_seg1_idx =
 			oper->vht_op_info_chan_center_freq_seg0_idx;
 		if (hapd->iconf->channel <
@@ -109,12 +123,12 @@ u8 * hostapd_eid_vht_operation(struct hostapd_data *hapd, u8 *eid)
 			oper->vht_op_info_chan_center_freq_seg0_idx -= 8;
 		else
 			oper->vht_op_info_chan_center_freq_seg0_idx += 8;
-	} else if (hapd->iconf->vht_oper_chwidth == 3) {
+	} else if (oper_chwidth == CONF_OPER_CHWIDTH_80P80MHZ) {
 		/*
 		 * Convert 80+80 MHz channel width to new style as interop
 		 * workaround.
 		 */
-		oper->vht_op_info_chwidth = 1;
+		oper->vht_op_info_chwidth = CHANWIDTH_80MHZ;
 	}
 
 	/* VHT Basic MCS set comes from hw */

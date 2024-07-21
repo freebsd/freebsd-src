@@ -65,7 +65,28 @@ struct eap_ttls_data {
 	int ready_for_tnc;
 	int tnc_started;
 #endif /* EAP_TNC */
+
+	enum { NO_AUTH, FOR_INITIAL, ALWAYS } phase2_auth;
 };
+
+
+static void eap_ttls_parse_phase1(struct eap_ttls_data *data,
+				  const char *phase1)
+{
+	if (os_strstr(phase1, "phase2_auth=0")) {
+		data->phase2_auth = NO_AUTH;
+		wpa_printf(MSG_DEBUG,
+			   "EAP-TTLS: Do not require Phase 2 authentication");
+	} else if (os_strstr(phase1, "phase2_auth=1")) {
+		data->phase2_auth = FOR_INITIAL;
+		wpa_printf(MSG_DEBUG,
+			   "EAP-TTLS: Require Phase 2 authentication for initial connection");
+	} else if (os_strstr(phase1, "phase2_auth=2")) {
+		data->phase2_auth = ALWAYS;
+		wpa_printf(MSG_DEBUG,
+			   "EAP-TTLS: Require Phase 2 authentication for all cases");
+	}
+}
 
 
 static void * eap_ttls_init(struct eap_sm *sm)
@@ -82,6 +103,10 @@ static void * eap_ttls_init(struct eap_sm *sm)
 	selected = "EAP";
 	selected_non_eap = 0;
 	data->phase2_type = EAP_TTLS_PHASE2_EAP;
+	data->phase2_auth = FOR_INITIAL;
+
+	if (config && config->phase1)
+		eap_ttls_parse_phase1(data, config->phase1);
 
 	/*
 	 * Either one auth= type or one or more autheap= methods can be
@@ -1473,11 +1498,11 @@ start:
 		goto start;
 	}
 
-	/* draft-ietf-emu-eap-tls13-13 Section 2.5 */
+	/* RFC 9190 Section 2.5 */
 	if (data->ssl.tls_v13 && wpabuf_len(in_decrypted) == 1 &&
 	    *wpabuf_head_u8(in_decrypted) == 0) {
 		wpa_printf(MSG_DEBUG,
-			   "EAP-TTLS: ACKing EAP-TLS Commitment Message");
+			   "EAP-TLS: ACKing protected success indication (appl data 0x00)");
 		eap_peer_tls_reset_output(&data->ssl);
 		wpabuf_free(in_decrypted);
 		return 1;
@@ -1703,8 +1728,9 @@ static struct wpabuf * eap_ttls_process(struct eap_sm *sm, void *priv,
 static bool eap_ttls_has_reauth_data(struct eap_sm *sm, void *priv)
 {
 	struct eap_ttls_data *data = priv;
+
 	return tls_connection_established(sm->ssl_ctx, data->ssl.conn) &&
-		data->phase2_success;
+		data->phase2_success && data->phase2_auth != ALWAYS;
 }
 
 

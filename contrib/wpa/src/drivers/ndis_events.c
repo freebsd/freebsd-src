@@ -372,8 +372,9 @@ ndis_events_indicate(IWbemObjectSink *this, long lObjectCount,
 				  L"MSNdis_NotifyAdapterRemoval") == 0) {
 			ndis_events_adapter_removal(events);
 		} else {
-			wpa_printf(MSG_DEBUG, "Unepected event - __CLASS: "
-				   "'%S'", vtClass.bstrVal);
+			wpa_printf(MSG_DEBUG,
+				   "Unexpected event - __CLASS: '%S'",
+				   vtClass.bstrVal);
 		}
 
 		VariantClear(&vtClass);

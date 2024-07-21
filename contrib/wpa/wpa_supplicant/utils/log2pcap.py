@@ -1,6 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
-# Copyright (c) 2012, Intel Corporation
+# Copyright (c) 2012-2022, Intel Corporation
 #
 # Author: Johannes Berg <johannes@sipsolutions.net>
 #
@@ -8,6 +8,7 @@
 # See README for more details.
 
 import sys, struct, re
+from binascii import unhexlify
 
 def write_pcap_header(pcap_file):
     pcap_file.write(
@@ -32,7 +33,7 @@ if __name__ == "__main__":
         sys.exit(2)
 
     input_file = open(input, 'r')
-    pcap_file = open(pcap, 'w')
+    pcap_file = open(pcap, 'wb')
     frame_re = re.compile(r'(([0-9]+.[0-9]{6}):\s*)?nl80211: MLME event frame - hexdump\(len=[0-9]*\):((\s*[0-9a-fA-F]{2})*)')
 
     write_pcap_header(pcap_file)
@@ -47,7 +48,7 @@ if __name__ == "__main__":
             ts = 0
         hexdata = m.group(3)
         hexdata = hexdata.split()
-        data = ''.join([chr(int(x, 16)) for x in hexdata])
+        data = unhexlify("".join(hexdata))
         pcap_addpacket(pcap_file, ts, data)
 
     input_file.close()

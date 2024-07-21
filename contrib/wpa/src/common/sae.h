@@ -11,6 +11,7 @@
 
 #define SAE_KCK_LEN 32
 #define SAE_PMK_LEN 32
+#define SAE_PMK_LEN_MAX 64
 #define SAE_PMKID_LEN 16
 #define SAE_MAX_PRIME_LEN 512
 #define SAE_MAX_ECC_PRIME_LEN 66
@@ -81,6 +82,8 @@ struct sae_temporary_data {
 	bool omit_pk_elem;
 #endif /* CONFIG_TESTING_OPTIONS */
 #endif /* CONFIG_SAE_PK */
+
+	struct os_reltime disabled_until;
 };
 
 struct sae_pt {
@@ -104,7 +107,11 @@ enum sae_state {
 struct sae_data {
 	enum sae_state state;
 	u16 send_confirm;
-	u8 pmk[SAE_PMK_LEN];
+	u8 pmk[SAE_PMK_LEN_MAX];
+	size_t pmk_len;
+	int akmp; /* WPA_KEY_MGMT_* used in key derivation */
+	u32 own_akm_suite_selector;
+	u32 peer_akm_suite_selector;
 	u8 pmkid[SAE_PMKID_LEN];
 	struct crypto_bignum *peer_commit_scalar;
 	struct crypto_bignum *peer_commit_scalar_accepted;
@@ -131,9 +138,10 @@ int sae_write_commit(struct sae_data *sae, struct wpabuf *buf,
 		     const struct wpabuf *token, const char *identifier);
 u16 sae_parse_commit(struct sae_data *sae, const u8 *data, size_t len,
 		     const u8 **token, size_t *token_len, int *allowed_groups,
-		     int h2e);
+		     int h2e, int *ie_offset);
 int sae_write_confirm(struct sae_data *sae, struct wpabuf *buf);
-int sae_check_confirm(struct sae_data *sae, const u8 *data, size_t len);
+int sae_check_confirm(struct sae_data *sae, const u8 *data, size_t len,
+		      int *ie_offset);
 u16 sae_group_allowed(struct sae_data *sae, int *allowed_groups, u16 group);
 const char * sae_state_txt(enum sae_state state);
 size_t sae_ecc_prime_len_2_hash_len(size_t prime_len);

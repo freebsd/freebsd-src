@@ -64,6 +64,7 @@ struct http_ctx {
 	X509 *peer_issuer_issuer;
 
 	const char *last_err;
+	const char *url;
 };
 
 
@@ -432,28 +433,6 @@ ASN1_SEQUENCE(LogotypeExtn) = {
 
 IMPLEMENT_ASN1_FUNCTIONS(LogotypeExtn);
 
-#ifdef OPENSSL_IS_BORINGSSL
-#define sk_LogotypeInfo_num(st) \
-sk_num(CHECKED_CAST(_STACK *, STACK_OF(LogotypeInfo) *, (st)))
-#define sk_LogotypeInfo_value(st, i) (LogotypeInfo *) \
-sk_value(CHECKED_CAST(_STACK *, const STACK_OF(LogotypeInfo) *, (st)), (i))
-#define sk_LogotypeImage_num(st) \
-sk_num(CHECKED_CAST(_STACK *, STACK_OF(LogotypeImage) *, (st)))
-#define sk_LogotypeImage_value(st, i) (LogotypeImage *) \
-sk_value(CHECKED_CAST(_STACK *, const STACK_OF(LogotypeImage) *, (st)), (i))
-#define sk_LogotypeAudio_num(st) \
-sk_num(CHECKED_CAST(_STACK *, STACK_OF(LogotypeAudio) *, (st)))
-#define sk_LogotypeAudio_value(st, i) (LogotypeAudio *) \
-sk_value(CHECK_CAST(_STACK *, const STACK_OF(LogotypeAudio) *, (st)), (i))
-#define sk_HashAlgAndValue_num(st) \
-sk_num(CHECKED_CAST(_STACK *, STACK_OF(HashAlgAndValue) *, (st)))
-#define sk_HashAlgAndValue_value(st, i) (HashAlgAndValue *) \
-sk_value(CHECKED_CAST(_STACK *, const STACK_OF(HashAlgAndValue) *, (st)), (i))
-#define sk_ASN1_IA5STRING_num(st) \
-sk_num(CHECKED_CAST(_STACK *, STACK_OF(ASN1_IA5STRING) *, (st)))
-#define sk_ASN1_IA5STRING_value(st, i) (ASN1_IA5STRING *) \
-sk_value(CHECKED_CAST(_STACK *, const STACK_OF(ASN1_IA5STRING) *, (st)), (i))
-#else /* OPENSSL_IS_BORINGSSL */
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 #define sk_LogotypeInfo_num(st) SKM_sk_num(LogotypeInfo, (st))
 #define sk_LogotypeInfo_value(st, i) SKM_sk_value(LogotypeInfo, (st), (i))
@@ -472,7 +451,6 @@ DEFINE_STACK_OF(LogotypeAudio)
 DEFINE_STACK_OF(HashAlgAndValue)
 DEFINE_STACK_OF(ASN1_IA5STRING)
 #endif
-#endif /* OPENSSL_IS_BORINGSSL */
 
 
 static void add_logo(struct http_ctx *ctx, struct http_cert *hcert,
@@ -871,6 +849,7 @@ static void parse_cert(struct http_ctx *ctx, struct http_cert *hcert,
 		       X509 *cert, GENERAL_NAMES **names)
 {
 	os_memset(hcert, 0, sizeof(*hcert));
+	hcert->url = ctx->url ? ctx->url : ctx->svc_address;
 
 	*names = X509_get_ext_d2i(cert, NID_subject_alt_name, NULL, NULL);
 	if (*names)
@@ -1617,23 +1596,23 @@ int http_download_file(struct http_ctx *ctx, const char *url,
 		       const char *fname, const char *ca_fname)
 {
 	CURL *curl;
-	FILE *f;
+	FILE *f = NULL;
 	CURLcode res;
 	long http = 0;
+	int ret = -1;
 
 	ctx->last_err = NULL;
+	ctx->url = url;
 
 	wpa_printf(MSG_DEBUG, "curl: Download file from %s to %s (ca=%s)",
 		   url, fname, ca_fname);
 	curl = curl_easy_init();
 	if (curl == NULL)
-		return -1;
+		goto fail;
 
 	f = fopen(fname, "wb");
-	if (f == NULL) {
-		curl_easy_cleanup(curl);
-		return -1;
-	}
+	if (!f)
+		goto fail;
 
 	curl_easy_setopt(curl, CURLOPT_URL, url);
 	if (ca_fname) {
@@ -1655,9 +1634,7 @@ int http_download_file(struct http_ctx *ctx, const char *url,
 			ctx->last_err = curl_easy_strerror(res);
 		wpa_printf(MSG_ERROR, "curl_easy_perform() failed: %s",
 			   ctx->last_err);
-		curl_easy_cleanup(curl);
-		fclose(f);
-		return -1;
+		goto fail;
 	}
 
 	curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http);
@@ -1665,15 +1642,19 @@ int http_download_file(struct http_ctx *ctx, const char *url,
 	if (http != 200) {
 		ctx->last_err = "HTTP download failed";
 		wpa_printf(MSG_INFO, "HTTP download failed - code %ld", http);
-		curl_easy_cleanup(curl);
-		fclose(f);
-		return -1;
+		goto fail;
 	}
 
-	curl_easy_cleanup(curl);
-	fclose(f);
+	ret = 0;
 
-	return 0;
+fail:
+	ctx->url = NULL;
+	if (curl)
+		curl_easy_cleanup(curl);
+	if (f)
+		fclose(f);
+
+	return ret;
 }
 
 
@@ -1686,16 +1667,17 @@ char * http_post(struct http_ctx *ctx, const char *url, const char *data,
 {
 	long http = 0;
 	CURLcode res;
-	char *ret;
+	char *ret = NULL;
 	CURL *curl;
 	struct curl_slist *curl_hdr = NULL;
 
 	ctx->last_err = NULL;
+	ctx->url = url;
 	wpa_printf(MSG_DEBUG, "curl: HTTP POST to %s", url);
 	curl = setup_curl_post(ctx, url, ca_fname, username, password,
 			       client_cert, client_key);
 	if (curl == NULL)
-		return NULL;
+		goto fail;
 
 	if (content_type) {
 		char ct[200];
@@ -1715,8 +1697,7 @@ char * http_post(struct http_ctx *ctx, const char *url, const char *data,
 			ctx->last_err = curl_easy_strerror(res);
 		wpa_printf(MSG_ERROR, "curl_easy_perform() failed: %s",
 			   ctx->last_err);
-		free_curl_buf(ctx);
-		return NULL;
+		goto fail;
 	}
 
 	curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http);
@@ -1724,12 +1705,11 @@ char * http_post(struct http_ctx *ctx, const char *url, const char *data,
 	if (http != 200) {
 		ctx->last_err = "HTTP POST failed";
 		wpa_printf(MSG_INFO, "HTTP POST failed - code %ld", http);
-		free_curl_buf(ctx);
-		return NULL;
+		goto fail;
 	}
 
 	if (ctx->curl_buf == NULL)
-		return NULL;
+		goto fail;
 
 	ret = ctx->curl_buf;
 	if (resp_len)
@@ -1739,6 +1719,9 @@ char * http_post(struct http_ctx *ctx, const char *url, const char *data,
 
 	wpa_printf(MSG_MSGDUMP, "Server response:\n%s", ret);
 
+fail:
+	free_curl_buf(ctx);
+	ctx->url = NULL;
 	return ret;
 }
 

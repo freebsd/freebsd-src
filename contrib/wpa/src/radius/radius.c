@@ -1,6 +1,6 @@
 /*
  * RADIUS message processing
- * Copyright (c) 2002-2009, 2011-2015, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2002-2009, 2011-2022, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -159,7 +159,8 @@ static const char *radius_code_string(u8 code)
 
 
 struct radius_attr_type {
-	u8 type;
+	u16 type; /* 0..255 for basic types;
+		   * (241 << 8) | <ext-type> for extended types */
 	char *name;
 	enum {
 		RADIUS_ATTR_UNDIST, RADIUS_ATTR_TEXT, RADIUS_ATTR_IP,
@@ -175,6 +176,7 @@ static const struct radius_attr_type radius_attrs[] =
 	{ RADIUS_ATTR_NAS_PORT, "NAS-Port", RADIUS_ATTR_INT32 },
 	{ RADIUS_ATTR_SERVICE_TYPE, "Service-Type", RADIUS_ATTR_INT32 },
 	{ RADIUS_ATTR_FRAMED_IP_ADDRESS, "Framed-IP-Address", RADIUS_ATTR_IP },
+	{ RADIUS_ATTR_FILTER_ID, "Filter-Id", RADIUS_ATTR_TEXT },
 	{ RADIUS_ATTR_FRAMED_MTU, "Framed-MTU", RADIUS_ATTR_INT32 },
 	{ RADIUS_ATTR_REPLY_MESSAGE, "Reply-Message", RADIUS_ATTR_TEXT },
 	{ RADIUS_ATTR_STATE, "State", RADIUS_ATTR_UNDIST },
@@ -260,11 +262,31 @@ static const struct radius_attr_type radius_attrs[] =
 	  RADIUS_ATTR_HEXDUMP },
 	{ RADIUS_ATTR_WLAN_GROUP_MGMT_CIPHER, "WLAN-Group-Mgmt-Pairwise-Cipher",
 	  RADIUS_ATTR_HEXDUMP },
+	{ RADIUS_ATTR_EXT_TYPE_1, "Extended-Type-1", RADIUS_ATTR_UNDIST },
+	{ RADIUS_ATTR_EXT_TYPE_2, "Extended-Type-2", RADIUS_ATTR_UNDIST },
+	{ RADIUS_ATTR_EXT_TYPE_3, "Extended-Type-3", RADIUS_ATTR_UNDIST },
+	{ RADIUS_ATTR_EXT_TYPE_4, "Extended-Type-4", RADIUS_ATTR_UNDIST },
+	{ RADIUS_ATTR_LONG_EXT_TYPE_1, "Long-Extended-Type-1",
+	  RADIUS_ATTR_UNDIST },
+	{ RADIUS_ATTR_LONG_EXT_TYPE_2, "Long-Extended-Type-2",
+	  RADIUS_ATTR_UNDIST },
+	{ RADIUS_ATTR_EXT_VENDOR_SPECIFIC_1, "Extended-Vendor-Specific-1",
+	  RADIUS_ATTR_UNDIST },
+	{ RADIUS_ATTR_EXT_VENDOR_SPECIFIC_2, "Extended-Vendor-Specific-2",
+	  RADIUS_ATTR_UNDIST },
+	{ RADIUS_ATTR_EXT_VENDOR_SPECIFIC_3, "Extended-Vendor-Specific-3",
+	  RADIUS_ATTR_UNDIST },
+	{ RADIUS_ATTR_EXT_VENDOR_SPECIFIC_4, "Extended-Vendor-Specific-4",
+	  RADIUS_ATTR_UNDIST },
+	{ RADIUS_ATTR_EXT_VENDOR_SPECIFIC_5, "Extended-Vendor-Specific-5",
+	  RADIUS_ATTR_UNDIST },
+	{ RADIUS_ATTR_EXT_VENDOR_SPECIFIC_6, "Extended-Vendor-Specific-6",
+	  RADIUS_ATTR_UNDIST },
 };
 #define RADIUS_ATTRS ARRAY_SIZE(radius_attrs)
 
 
-static const struct radius_attr_type *radius_get_attr_type(u8 type)
+static const struct radius_attr_type * radius_get_attr_type(u16 type)
 {
 	size_t i;
 
@@ -277,23 +299,60 @@ static const struct radius_attr_type *radius_get_attr_type(u8 type)
 }
 
 
+static bool radius_is_long_ext_type(u8 type)
+{
+	return type == RADIUS_ATTR_LONG_EXT_TYPE_1 ||
+		type == RADIUS_ATTR_LONG_EXT_TYPE_2;
+}
+
+
+static bool radius_is_ext_type(u8 type)
+{
+	return type >= RADIUS_ATTR_EXT_TYPE_1 &&
+		type <= RADIUS_ATTR_LONG_EXT_TYPE_2;
+}
+
+
 static void radius_msg_dump_attr(struct radius_attr_hdr *hdr)
 {
+	struct radius_attr_hdr_ext *ext = NULL;
 	const struct radius_attr_type *attr;
 	int len;
 	unsigned char *pos;
 	char buf[1000];
 
-	attr = radius_get_attr_type(hdr->type);
-
-	wpa_printf(MSG_INFO, "   Attribute %d (%s) length=%d",
-		   hdr->type, attr ? attr->name : "?Unknown?", hdr->length);
-
-	if (attr == NULL || hdr->length < sizeof(struct radius_attr_hdr))
+	if (hdr->length < sizeof(struct radius_attr_hdr))
 		return;
 
-	len = hdr->length - sizeof(struct radius_attr_hdr);
-	pos = (unsigned char *) (hdr + 1);
+	if (radius_is_ext_type(hdr->type)) {
+		if (hdr->length < 4) {
+			wpa_printf(MSG_INFO,
+				   "   Invalid attribute %d (too short for extended type)",
+				hdr->type);
+			return;
+		}
+
+		ext = (struct radius_attr_hdr_ext *) hdr;
+	}
+
+	if (ext) {
+		attr = radius_get_attr_type((ext->type << 8) | ext->ext_type);
+		wpa_printf(MSG_INFO, "   Attribute %d.%d (%s) length=%d",
+			   ext->type, ext->ext_type,
+			   attr ? attr->name : "?Unknown?", ext->length);
+		pos = (unsigned char *) (ext + 1);
+		len = ext->length - sizeof(struct radius_attr_hdr_ext);
+	} else {
+		attr = radius_get_attr_type(hdr->type);
+		wpa_printf(MSG_INFO, "   Attribute %d (%s) length=%d",
+			   hdr->type, attr ? attr->name : "?Unknown?",
+			   hdr->length);
+		pos = (unsigned char *) (hdr + 1);
+		len = hdr->length - sizeof(struct radius_attr_hdr);
+	}
+
+	if (!attr)
+		return;
 
 	switch (attr->data_type) {
 	case RADIUS_ATTR_TEXT:
@@ -364,25 +423,54 @@ void radius_msg_dump(struct radius_msg *msg)
 }
 
 
+u8 * radius_msg_add_msg_auth(struct radius_msg *msg)
+{
+	u8 auth[MD5_MAC_LEN];
+	struct radius_attr_hdr *attr;
+
+	os_memset(auth, 0, MD5_MAC_LEN);
+	attr = radius_msg_add_attr(msg, RADIUS_ATTR_MESSAGE_AUTHENTICATOR,
+				   auth, MD5_MAC_LEN);
+	if (!attr) {
+		wpa_printf(MSG_ERROR,
+			   "WARNING: Could not add Message-Authenticator");
+		return NULL;
+	}
+
+	return (u8 *) (attr + 1);
+}
+
+
+static u8 * radius_msg_auth_pos(struct radius_msg *msg)
+{
+	u8 *pos;
+	size_t alen;
+
+	if (radius_msg_get_attr_ptr(msg, RADIUS_ATTR_MESSAGE_AUTHENTICATOR,
+				    &pos, &alen, NULL) == 0 &&
+	    alen == MD5_MAC_LEN) {
+		/* Use already added Message-Authenticator attribute */
+		return pos;
+	}
+
+	/* Add a Message-Authenticator attribute */
+	return radius_msg_add_msg_auth(msg);
+}
+
+
 int radius_msg_finish(struct radius_msg *msg, const u8 *secret,
 		      size_t secret_len)
 {
 	if (secret) {
-		u8 auth[MD5_MAC_LEN];
-		struct radius_attr_hdr *attr;
+		u8 *pos;
 
-		os_memset(auth, 0, MD5_MAC_LEN);
-		attr = radius_msg_add_attr(msg,
-					   RADIUS_ATTR_MESSAGE_AUTHENTICATOR,
-					   auth, MD5_MAC_LEN);
-		if (attr == NULL) {
-			wpa_printf(MSG_WARNING, "RADIUS: Could not add "
-				   "Message-Authenticator");
+		pos = radius_msg_auth_pos(msg);
+		if (!pos)
 			return -1;
-		}
 		msg->hdr->length = host_to_be16(wpabuf_len(msg->buf));
-		hmac_md5(secret, secret_len, wpabuf_head(msg->buf),
-			 wpabuf_len(msg->buf), (u8 *) (attr + 1));
+		if (hmac_md5(secret, secret_len, wpabuf_head(msg->buf),
+			     wpabuf_len(msg->buf), pos) < 0)
+			return -1;
 	} else
 		msg->hdr->length = host_to_be16(wpabuf_len(msg->buf));
 
@@ -398,23 +486,19 @@ int radius_msg_finish(struct radius_msg *msg, const u8 *secret,
 int radius_msg_finish_srv(struct radius_msg *msg, const u8 *secret,
 			  size_t secret_len, const u8 *req_authenticator)
 {
-	u8 auth[MD5_MAC_LEN];
-	struct radius_attr_hdr *attr;
 	const u8 *addr[4];
 	size_t len[4];
+	u8 *pos;
 
-	os_memset(auth, 0, MD5_MAC_LEN);
-	attr = radius_msg_add_attr(msg, RADIUS_ATTR_MESSAGE_AUTHENTICATOR,
-				   auth, MD5_MAC_LEN);
-	if (attr == NULL) {
-		wpa_printf(MSG_ERROR, "WARNING: Could not add Message-Authenticator");
+	pos = radius_msg_auth_pos(msg);
+	if (!pos)
 		return -1;
-	}
 	msg->hdr->length = host_to_be16(wpabuf_len(msg->buf));
 	os_memcpy(msg->hdr->authenticator, req_authenticator,
 		  sizeof(msg->hdr->authenticator));
-	hmac_md5(secret, secret_len, wpabuf_head(msg->buf),
-		 wpabuf_len(msg->buf), (u8 *) (attr + 1));
+	if (hmac_md5(secret, secret_len, wpabuf_head(msg->buf),
+		     wpabuf_len(msg->buf), pos) < 0)
+		return -1;
 
 	/* ResponseAuth = MD5(Code+ID+Length+RequestAuth+Attributes+Secret) */
 	addr[0] = (u8 *) msg->hdr;
@@ -442,21 +526,17 @@ int radius_msg_finish_das_resp(struct radius_msg *msg, const u8 *secret,
 {
 	const u8 *addr[2];
 	size_t len[2];
-	u8 auth[MD5_MAC_LEN];
-	struct radius_attr_hdr *attr;
+	u8 *pos;
 
-	os_memset(auth, 0, MD5_MAC_LEN);
-	attr = radius_msg_add_attr(msg, RADIUS_ATTR_MESSAGE_AUTHENTICATOR,
-				   auth, MD5_MAC_LEN);
-	if (attr == NULL) {
-		wpa_printf(MSG_WARNING, "Could not add Message-Authenticator");
+	pos = radius_msg_auth_pos(msg);
+	if (!pos)
 		return -1;
-	}
 
 	msg->hdr->length = host_to_be16(wpabuf_len(msg->buf));
 	os_memcpy(msg->hdr->authenticator, req_hdr->authenticator, 16);
-	hmac_md5(secret, secret_len, wpabuf_head(msg->buf),
-		 wpabuf_len(msg->buf), (u8 *) (attr + 1));
+	if (hmac_md5(secret, secret_len, wpabuf_head(msg->buf),
+		     wpabuf_len(msg->buf), pos) < 0)
+		return -1;
 
 	/* ResponseAuth = MD5(Code+ID+Length+RequestAuth+Attributes+Secret) */
 	addr[0] = wpabuf_head_u8(msg->buf);
@@ -627,22 +707,54 @@ static int radius_msg_add_attr_to_array(struct radius_msg *msg,
 }
 
 
-struct radius_attr_hdr *radius_msg_add_attr(struct radius_msg *msg, u8 type,
-					    const u8 *data, size_t data_len)
+struct radius_attr_hdr * radius_msg_add_attr(struct radius_msg *msg, u16 type,
+					     const u8 *data, size_t data_len)
 {
-	size_t buf_needed;
-	struct radius_attr_hdr *attr;
+	size_t buf_needed, max_len;
+	struct radius_attr_hdr *attr = NULL;
+	struct radius_attr_hdr_ext *ext;
+	u8 ext_type = 0;
 
 	if (TEST_FAIL())
 		return NULL;
 
-	if (data_len > RADIUS_MAX_ATTR_LEN) {
-		wpa_printf(MSG_ERROR, "radius_msg_add_attr: too long attribute (%lu bytes)",
-		       (unsigned long) data_len);
-		return NULL;
+	if (type > 255) {
+		if (!radius_is_ext_type(type >> 8)) {
+			wpa_printf(MSG_ERROR,
+				   "%s: Undefined extended type %d.%d",
+				   __func__, type >> 8, type & 0xff);
+			return NULL;
+		}
+		ext_type = type & 0xff;
+		type >>= 8;
+	} else if (radius_is_ext_type(type)) {
+		wpa_printf(MSG_ERROR, "%s: Unexpected extended type use for %d",
+			   __func__, type);
 	}
 
-	buf_needed = sizeof(*attr) + data_len;
+	if (radius_is_long_ext_type(type)) {
+		size_t hdr_len = sizeof(struct radius_attr_hdr_ext) + 1;
+		size_t plen = 255 - hdr_len;
+		size_t num;
+
+		max_len = 4096;
+		num = (data_len + plen - 1) / plen;
+		if (num == 0)
+			num = 1;
+		buf_needed = num * hdr_len + data_len;
+	} else if (radius_is_ext_type(type)) {
+		max_len = RADIUS_MAX_EXT_ATTR_LEN;
+		buf_needed = sizeof(struct radius_attr_hdr_ext) + data_len;
+	} else {
+		max_len = RADIUS_MAX_ATTR_LEN;
+		buf_needed = sizeof(*attr) + data_len;
+	}
+	if (data_len > max_len) {
+		wpa_printf(MSG_ERROR,
+			   "%s: too long attribute (%zu > %zu bytes)",
+			   __func__, data_len, max_len);
+		return NULL;
+	}
 
 	if (wpabuf_tailroom(msg->buf) < buf_needed) {
 		/* allocate more space for message buffer */
@@ -651,13 +763,44 @@ struct radius_attr_hdr *radius_msg_add_attr(struct radius_msg *msg, u8 type,
 		msg->hdr = wpabuf_mhead(msg->buf);
 	}
 
-	attr = wpabuf_put(msg->buf, sizeof(struct radius_attr_hdr));
-	attr->type = type;
-	attr->length = sizeof(*attr) + data_len;
-	wpabuf_put_data(msg->buf, data, data_len);
+	if (radius_is_long_ext_type(type)) {
+		size_t plen = 255 - sizeof(struct radius_attr_hdr_ext) - 1;
+		size_t alen;
 
-	if (radius_msg_add_attr_to_array(msg, attr))
-		return NULL;
+		do {
+			alen = data_len > plen ? plen : data_len;
+			ext = wpabuf_put(msg->buf,
+					 sizeof(struct radius_attr_hdr_ext));
+			if (!attr)
+				attr = (struct radius_attr_hdr *) ext;
+			ext->type = type;
+			ext->length = sizeof(*ext) + 1 + alen;
+			ext->ext_type = ext_type;
+			wpabuf_put_u8(msg->buf, data_len > alen ? 0x80 : 0);
+			wpabuf_put_data(msg->buf, data, data_len);
+			data += alen;
+			data_len -= alen;
+			if (radius_msg_add_attr_to_array(
+				    msg, (struct radius_attr_hdr *) ext))
+				return NULL;
+		} while (data_len > 0);
+	} else if (radius_is_ext_type(type)) {
+		ext = wpabuf_put(msg->buf, sizeof(struct radius_attr_hdr_ext));
+		attr = (struct radius_attr_hdr *) ext;
+		ext->type = type;
+		ext->length = sizeof(*ext) + data_len;
+		ext->ext_type = ext_type;
+		wpabuf_put_data(msg->buf, data, data_len);
+		if (radius_msg_add_attr_to_array(msg, attr))
+			return NULL;
+	} else {
+		attr = wpabuf_put(msg->buf, sizeof(struct radius_attr_hdr));
+		attr->type = type;
+		attr->length = sizeof(*attr) + data_len;
+		wpabuf_put_data(msg->buf, data, data_len);
+		if (radius_msg_add_attr_to_array(msg, attr))
+			return NULL;
+	}
 
 	return attr;
 }
@@ -856,6 +999,20 @@ int radius_msg_verify(struct radius_msg *msg, const u8 *secret,
 	if (sent_msg == NULL) {
 		wpa_printf(MSG_INFO, "No matching Access-Request message found");
 		return 1;
+	}
+
+	if (!auth) {
+		u8 *pos;
+		size_t alen;
+
+		if (radius_msg_get_attr_ptr(msg,
+					    RADIUS_ATTR_MESSAGE_AUTHENTICATOR,
+					    &pos, &alen, NULL) == 0) {
+			/* Check the Message-Authenticator attribute since it
+			 * was included even if we are configured to not
+			 * require it. */
+			auth = 1;
+		}
 	}
 
 	if (auth &&
@@ -1282,6 +1439,28 @@ int radius_msg_add_wfa(struct radius_msg *msg, u8 subtype, const u8 *data,
 		return 0;
 
 	return 1;
+}
+
+
+int radius_msg_add_ext_vs(struct radius_msg *msg, u16 type, u32 vendor_id,
+			  u8 vendor_type, const u8 *data, size_t len)
+{
+	struct radius_attr_hdr *attr;
+	u8 *buf, *pos;
+	size_t alen;
+
+	alen = 4 + 1 + len;
+	buf = os_malloc(alen);
+	if (!buf)
+		return 0;
+	pos = buf;
+	WPA_PUT_BE32(pos, vendor_id);
+	pos += 4;
+	*pos++ = vendor_type;
+	os_memcpy(pos, data, len);
+	attr = radius_msg_add_attr(msg, type, buf, alen);
+	os_free(buf);
+	return attr != NULL;
 }
 
 

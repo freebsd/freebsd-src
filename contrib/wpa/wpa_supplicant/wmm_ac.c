@@ -678,7 +678,7 @@ static void wmm_ac_handle_addts_resp(struct wpa_supplicant *wpa_s, const u8 *sa,
 	}
 
 	/* make sure the params are the same */
-	if (os_memcmp(req->address, sa, ETH_ALEN) != 0 ||
+	if (!ether_addr_equal(req->address, sa) ||
 	    tsid != wmm_ac_get_tsid(&req->tspec) ||
 	    up != wmm_ac_get_user_priority(&req->tspec) ||
 	    dir != wmm_ac_get_direction(&req->tspec)) {
@@ -755,13 +755,13 @@ void wmm_ac_rx_action(struct wpa_supplicant *wpa_s, const u8 *da,
 	}
 
 	/* WMM AC action frame */
-	if (os_memcmp(da, wpa_s->own_addr, ETH_ALEN) != 0) {
+	if (!ether_addr_equal(da, wpa_s->own_addr)) {
 		wpa_printf(MSG_DEBUG, "WMM AC: frame destination addr="MACSTR
 			   " is other than ours, ignoring frame", MAC2STR(da));
 		return;
 	}
 
-	if (os_memcmp(sa, wpa_s->bssid, ETH_ALEN) != 0) {
+	if (!ether_addr_equal(sa, wpa_s->bssid)) {
 		wpa_printf(MSG_DEBUG, "WMM AC: ignore frame with sa " MACSTR
 			   " different other than our bssid", MAC2STR(da));
 		return;

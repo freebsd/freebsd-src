@@ -17,7 +17,8 @@
 #include "base64.h"
 
 
-struct wpa_config * wpa_config_read(const char *name, struct wpa_config *cfgp)
+struct wpa_config * wpa_config_read(const char *name, struct wpa_config *cfgp,
+				    bool ro)
 {
 	struct wpa_config *config;
 

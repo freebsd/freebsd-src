@@ -24,6 +24,7 @@ static struct wpabuf * p2p_build_invitation_req(struct p2p_data *p2p,
 	u8 *len;
 	const u8 *dev_addr;
 	size_t extra = 0;
+	bool is_6ghz_capab;
 
 #ifdef CONFIG_WIFI_DISPLAY
 	struct wpabuf *wfd_ie = p2p->wfd_ie_invitation;
@@ -32,8 +33,8 @@ static struct wpabuf * p2p_build_invitation_req(struct p2p_data *p2p,
 		for (i = 0; i < p2p->num_groups; i++) {
 			struct p2p_group *g = p2p->groups[i];
 			struct wpabuf *ie;
-			if (os_memcmp(p2p_group_get_interface_addr(g),
-				      p2p->inv_bssid, ETH_ALEN) != 0)
+			if (!ether_addr_equal(p2p_group_get_interface_addr(g),
+					      p2p->inv_bssid))
 				continue;
 			ie = p2p_group_get_wfd_ie(g);
 			if (ie) {
@@ -74,7 +75,10 @@ static struct wpabuf * p2p_build_invitation_req(struct p2p_data *p2p,
 					      p2p->op_channel);
 	if (p2p->inv_bssid_set)
 		p2p_buf_add_group_bssid(buf, p2p->inv_bssid);
-	p2p_buf_add_channel_list(buf, p2p->cfg->country, &p2p->channels);
+	is_6ghz_capab = is_p2p_6ghz_capable(p2p) &&
+		p2p_is_peer_6ghz_capab(p2p, peer->info.p2p_device_addr);
+	p2p_buf_add_channel_list(buf, p2p->cfg->country, &p2p->channels,
+				 is_6ghz_capab);
 	if (go_dev_addr)
 		dev_addr = go_dev_addr;
 	else if (p2p->inv_role == P2P_INVITE_ROLE_CLIENT)
@@ -123,8 +127,8 @@ static struct wpabuf * p2p_build_invitation_resp(struct p2p_data *p2p,
 		for (i = 0; i < p2p->num_groups; i++) {
 			struct p2p_group *g = p2p->groups[i];
 			struct wpabuf *ie;
-			if (os_memcmp(p2p_group_get_interface_addr(g),
-				      group_bssid, ETH_ALEN) != 0)
+			if (!ether_addr_equal(p2p_group_get_interface_addr(g),
+					      group_bssid))
 				continue;
 			ie = p2p_group_get_wfd_ie(g);
 			if (ie) {
@@ -155,8 +159,14 @@ static struct wpabuf * p2p_build_invitation_resp(struct p2p_data *p2p,
 					      reg_class, channel);
 	if (group_bssid)
 		p2p_buf_add_group_bssid(buf, group_bssid);
-	if (channels)
-		p2p_buf_add_channel_list(buf, p2p->cfg->country, channels);
+	if (channels) {
+		bool is_6ghz_capab;
+
+		is_6ghz_capab = is_p2p_6ghz_capable(p2p) &&
+			p2p_is_peer_6ghz_capab(p2p, peer->info.p2p_device_addr);
+		p2p_buf_add_channel_list(buf, p2p->cfg->country, channels,
+					 is_6ghz_capab);
+	}
 	p2p_buf_update_ie_hdr(buf, len);
 
 #ifdef CONFIG_WIFI_DISPLAY
@@ -588,9 +598,14 @@ int p2p_invite_send(struct p2p_data *p2p, struct p2p_device *dev,
 	p2p->pending_action_state = P2P_PENDING_INVITATION_REQUEST;
 	p2p->invite_peer = dev;
 	dev->invitation_reqs++;
+
+	/* In case of an active P2P GO use a shorter wait time to avoid
+	 * issues if not sending out multiple consecutive Beacon frames. */
 	if (p2p_send_action(p2p, freq, dev->info.p2p_device_addr,
 			    p2p->cfg->dev_addr, dev->info.p2p_device_addr,
-			    wpabuf_head(req), wpabuf_len(req), 500) < 0) {
+			    wpabuf_head(req), wpabuf_len(req),
+			    p2p->inv_role == P2P_INVITE_ROLE_ACTIVE_GO ?
+			    150 : 500) < 0) {
 		p2p_dbg(p2p, "Failed to send Action frame");
 		/* Use P2P find to recover and retry */
 		p2p_set_timeout(p2p, 0, 0);
