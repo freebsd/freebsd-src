@@ -31,7 +31,7 @@
 
 #if __SSP_FORTIFY_LEVEL > 0
 
-static inline int
+__ssp_inline int
 __ssp_wchar_overlap(const void *leftp, const void *rightp, size_t len)
 {
 
