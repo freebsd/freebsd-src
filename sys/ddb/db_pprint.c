@@ -117,7 +117,7 @@ db_pprint_struct(db_addr_t addr, struct ctf_type_v3 *type, u_int depth)
 				return;
 			}
 			mtype = db_ctf_typeid_to_type(&sym_data, mp->ctm_type);
-			maddr = addr + mp->ctm_offset;
+			maddr = addr + (mp->ctm_offset / NBBY);
 			mname = db_ctf_stroff_to_str(&sym_data, mp->ctm_name);
 			db_indent = depth;
 			if (mname != NULL) {
@@ -140,7 +140,7 @@ db_pprint_struct(db_addr_t addr, struct ctf_type_v3 *type, u_int depth)
 				return;
 			}
 			mtype = db_ctf_typeid_to_type(&sym_data, mp->ctlm_type);
-			maddr = addr + CTF_LMEM_OFFSET(mp);
+			maddr = addr + (CTF_LMEM_OFFSET(mp) / NBBY);
 			mname = db_ctf_stroff_to_str(&sym_data, mp->ctlm_name);
 			db_indent = depth;
 			if (mname != NULL) {
