@@ -43,6 +43,7 @@
 
 #if (defined(OPENSSL_SYS_UNIX) && !defined(OPENSSL_SYS_VXWORKS)) \
      || defined(__DJGPP__)
+# include <sys/random.h>
 # include <sys/types.h>
 # include <sys/stat.h>
 # include <fcntl.h>
