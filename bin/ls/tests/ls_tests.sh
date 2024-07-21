@@ -932,6 +932,31 @@ atf_test_case 1_flag
 	atf_check_equal "$(cat $WITH_1)" "$(cat $WITHOUT_1)"
 }
 
+atf_test_case l_flag_nonexistent_msdosfs cleanup
+l_flag_nonexistent_msdosfs_head()
+{
+	atf_set "descr" "Verify that -l nonexistent* prints out the right error on MS-DOS file systems"
+	atf_set "require.user" root
+}
+
+l_flag_nonexistent_msdosfs_body()
+{
+	# Create an MS-DOS FS mount
+	md=$(mdconfig -a -t swap -s 5m)
+	mkdir mnt
+	newfs_msdos -h 1 -u 63 "$md"
+	mount_msdosfs /dev/"${md}" mnt
+
+	atf_check -e match:'No such file or directory' -o empty -s exit:1 \
+	    ls -l mnt/nonexistent*
+}
+
+l_flag_nonexistent_msdosfs_cleanup()
+{
+	umount mnt
+	mdconfig -d -u /dev/"${md}"
+}
+
 atf_init_test_cases()
 {
 	export BLOCKSIZE=512
@@ -978,4 +1003,5 @@ atf_init_test_cases()
 	atf_add_test_case x_flag
 	atf_add_test_case y_flag
 	atf_add_test_case 1_flag
+	atf_add_test_case l_flag_nonexistent_msdosfs
 }
