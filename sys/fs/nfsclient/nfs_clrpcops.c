@@ -140,6 +140,7 @@ static int nfsrpc_createv4(vnode_t , char *, int, struct vattr *,
     nfsquad_t, int, struct nfsclowner *, struct nfscldeleg **, struct ucred *,
     NFSPROC_T *, struct nfsvattr *, struct nfsvattr *, struct nfsfh **, int *,
     int *, void *, int *);
+static bool nfscl_invalidfname(bool, char *, int);
 static int nfsrpc_locku(struct nfsrv_descript *, struct nfsmount *,
     struct nfscllockowner *, u_int64_t, u_int64_t,
     u_int32_t, struct ucred *, NFSPROC_T *, int);
@@ -2998,6 +2999,31 @@ nfsrpc_rmdir(vnode_t dvp, char *name, int namelen, struct ucred *cred,
 }
 
 /*
+ * Check to make sure the file name in a Readdir reply is valid.
+ */
+static bool
+nfscl_invalidfname(bool is_v4, char *name, int len)
+{
+	int i;
+	char *cp;
+
+	if (is_v4 && ((len == 1 && name[0] == '.') ||
+	    (len == 2 && name[0] == '.' && name[1] == '.'))) {
+		printf("Readdir NFSv4 reply has dot or dotdot in it\n");
+		return (true);
+	}
+	cp = name;
+	for (i = 0; i < len; i++, cp++) {
+		if (*cp == '/' || *cp == '\0') {
+			printf("Readdir reply file name had imbedded / or nul"
+			    " byte\n");
+			return (true);
+		}
+	}
+	return (false);
+}
+
+/*
  * Readdir rpc.
  * Always returns with either uio_resid unchanged, if you are at the
  * end of the directory, or uio_resid == 0, with all DIRBLKSIZ chunks
@@ -3049,6 +3075,8 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 	KASSERT(uiop->uio_iovcnt == 1 &&
 	    (uiop->uio_resid & (DIRBLKSIZ - 1)) == 0,
 	    ("nfs readdirrpc bad uio"));
+	KASSERT(uiop->uio_segflg == UIO_SYSSPACE,
+	    ("nfsrpc_readdir: uio userspace"));
 	ncookie.lval[0] = ncookie.lval[1] = 0;
 	/*
 	 * There is no point in reading a lot more than uio_resid, however
@@ -3307,6 +3335,17 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 			    uiop->uio_resid)
 				bigenough = 0;
 			if (bigenough) {
+				struct iovec saviov;
+				off_t savoff;
+				ssize_t savresid;
+				int savblksiz;
+
+				saviov.iov_base = uiop->uio_iov->iov_base;
+				saviov.iov_len = uiop->uio_iov->iov_len;
+				savoff = uiop->uio_offset;
+				savresid = uiop->uio_resid;
+				savblksiz = blksiz;
+
 				dp = (struct dirent *)uiop->uio_iov->iov_base;
 				dp->d_pad0 = dp->d_pad1 = 0;
 				dp->d_off = 0;
@@ -3322,20 +3361,35 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				uiop->uio_iov->iov_base =
 				    (char *)uiop->uio_iov->iov_base + DIRHDSIZ;
 				uiop->uio_iov->iov_len -= DIRHDSIZ;
+				cp = uiop->uio_iov->iov_base;
 				error = nfsm_mbufuio(nd, uiop, len);
 				if (error)
 					goto nfsmout;
-				cp = uiop->uio_iov->iov_base;
-				tlen -= len;
-				NFSBZERO(cp, tlen);
-				cp += tlen;	/* points to cookie storage */
-				tl2 = (u_int32_t *)cp;
-				uiop->uio_iov->iov_base =
-				    (char *)uiop->uio_iov->iov_base + tlen +
-				    NFSX_HYPER;
-				uiop->uio_iov->iov_len -= tlen + NFSX_HYPER;
-				uiop->uio_resid -= tlen + NFSX_HYPER;
-				uiop->uio_offset += (tlen + NFSX_HYPER);
+				/* Check for an invalid file name. */
+				if (nfscl_invalidfname(
+				    (nd->nd_flag & ND_NFSV4) != 0, cp, len)) {
+					/* Skip over this entry. */
+					uiop->uio_iov->iov_base =
+					    saviov.iov_base;
+					uiop->uio_iov->iov_len =
+					    saviov.iov_len;
+					uiop->uio_offset = savoff;
+					uiop->uio_resid = savresid;
+					blksiz = savblksiz;
+				} else {
+					cp = uiop->uio_iov->iov_base;
+					tlen -= len;
+					NFSBZERO(cp, tlen);
+					cp += tlen; /* points to cookie store */
+					tl2 = (u_int32_t *)cp;
+					uiop->uio_iov->iov_base =
+					    (char *)uiop->uio_iov->iov_base +
+					    tlen + NFSX_HYPER;
+					uiop->uio_iov->iov_len -= tlen +
+					    NFSX_HYPER;
+					uiop->uio_resid -= tlen + NFSX_HYPER;
+					uiop->uio_offset += (tlen + NFSX_HYPER);
+				}
 			} else {
 				error = nfsm_advance(nd, NFSM_RNDUP(len), -1);
 				if (error)
@@ -3503,6 +3557,8 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 	KASSERT(uiop->uio_iovcnt == 1 &&
 	    (uiop->uio_resid & (DIRBLKSIZ - 1)) == 0,
 	    ("nfs readdirplusrpc bad uio"));
+	KASSERT(uiop->uio_segflg == UIO_SYSSPACE,
+	    ("nfsrpc_readdirplus: uio userspace"));
 	ncookie.lval[0] = ncookie.lval[1] = 0;
 	timespecclear(&dctime);
 	*attrflagp = 0;
@@ -3738,6 +3794,17 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 			    uiop->uio_resid)
 				bigenough = 0;
 			if (bigenough) {
+				struct iovec saviov;
+				off_t savoff;
+				ssize_t savresid;
+				int savblksiz;
+
+				saviov.iov_base = uiop->uio_iov->iov_base;
+				saviov.iov_len = uiop->uio_iov->iov_len;
+				savoff = uiop->uio_offset;
+				savresid = uiop->uio_resid;
+				savblksiz = blksiz;
+
 				dp = (struct dirent *)uiop->uio_iov->iov_base;
 				dp->d_pad0 = dp->d_pad1 = 0;
 				dp->d_off = 0;
@@ -3756,25 +3823,41 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				cnp->cn_nameptr = uiop->uio_iov->iov_base;
 				cnp->cn_namelen = len;
 				NFSCNHASHZERO(cnp);
+				cp = uiop->uio_iov->iov_base;
 				error = nfsm_mbufuio(nd, uiop, len);
 				if (error)
 					goto nfsmout;
-				cp = uiop->uio_iov->iov_base;
-				tlen -= len;
-				NFSBZERO(cp, tlen);
-				cp += tlen;	/* points to cookie storage */
-				tl2 = (u_int32_t *)cp;
-				if (len == 2 && cnp->cn_nameptr[0] == '.' &&
-				    cnp->cn_nameptr[1] == '.')
-					isdotdot = 1;
-				else
-					isdotdot = 0;
-				uiop->uio_iov->iov_base =
-				    (char *)uiop->uio_iov->iov_base + tlen +
-				    NFSX_HYPER;
-				uiop->uio_iov->iov_len -= tlen + NFSX_HYPER;
-				uiop->uio_resid -= tlen + NFSX_HYPER;
-				uiop->uio_offset += (tlen + NFSX_HYPER);
+				/* Check for an invalid file name. */
+				if (nfscl_invalidfname(
+				    (nd->nd_flag & ND_NFSV4) != 0, cp, len)) {
+					/* Skip over this entry. */
+					uiop->uio_iov->iov_base =
+					    saviov.iov_base;
+					uiop->uio_iov->iov_len =
+					    saviov.iov_len;
+					uiop->uio_offset = savoff;
+					uiop->uio_resid = savresid;
+					blksiz = savblksiz;
+				} else {
+					cp = uiop->uio_iov->iov_base;
+					tlen -= len;
+					NFSBZERO(cp, tlen);
+					cp += tlen; /* points to cookie store */
+					tl2 = (u_int32_t *)cp;
+					if (len == 2 &&
+					    cnp->cn_nameptr[0] == '.' &&
+					    cnp->cn_nameptr[1] == '.')
+						isdotdot = 1;
+					else
+						isdotdot = 0;
+					uiop->uio_iov->iov_base =
+					    (char *)uiop->uio_iov->iov_base +
+					    tlen + NFSX_HYPER;
+					uiop->uio_iov->iov_len -= tlen +
+					    NFSX_HYPER;
+					uiop->uio_resid -= tlen + NFSX_HYPER;
+					uiop->uio_offset += (tlen + NFSX_HYPER);
+				}
 			} else {
 				error = nfsm_advance(nd, NFSM_RNDUP(len), -1);
 				if (error)
