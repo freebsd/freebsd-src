@@ -195,6 +195,11 @@ struct wps_config {
 	 * enrollee
 	 */
 	int multi_ap_backhaul_sta;
+
+	/*
+	 * multi_ap_profile - Get the Multi-AP Profile
+	 */
+	int multi_ap_profile;
 };
 
 struct wps_data * wps_init(const struct wps_config *cfg);

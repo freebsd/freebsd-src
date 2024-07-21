@@ -23,6 +23,7 @@ int secy_cp_control_validate_frames(struct ieee802_1x_kay *kay,
 int secy_cp_control_protect_frames(struct ieee802_1x_kay *kay, bool flag);
 int secy_cp_control_encrypt(struct ieee802_1x_kay *kay, bool enabled);
 int secy_cp_control_replay(struct ieee802_1x_kay *kay, bool flag, u32 win);
+int secy_cp_control_offload(struct ieee802_1x_kay *kay, u8 offload);
 int secy_cp_control_current_cipher_suite(struct ieee802_1x_kay *kay, u64 cs);
 int secy_cp_control_confidentiality_offset(struct ieee802_1x_kay *kay,
 					   enum confidentiality_offset co);

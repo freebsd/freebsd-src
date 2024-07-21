@@ -94,6 +94,11 @@ int eap_server_tls_ssl_init(struct eap_sm *sm, struct eap_ssl_data *data,
 		if (data->tls_out_limit > 100)
 			data->tls_out_limit -= 100;
 	}
+
+#ifdef CONFIG_TESTING_OPTIONS
+	data->skip_prot_success = sm->cfg->skip_prot_success;
+#endif /* CONFIG_TESTING_OPTIONS */
+
 	return 0;
 }
 
@@ -367,14 +372,14 @@ int eap_server_tls_phase1(struct eap_sm *sm, struct eap_ssl_data *data)
 			sm->cfg->ssl_ctx, data->conn);
 
 	/*
-	 * https://tools.ietf.org/html/draft-ietf-emu-eap-tls13#section-2.5
+	 * RFC 9190 Section 2.5
 	 *
 	 * We need to signal the other end that TLS negotiation is done. We
 	 * can't send a zero-length application data message, so we send
 	 * application data which is one byte of zero.
 	 *
 	 * Note this is only done for when there is no application data to be
-	 * sent. So this is done always for EAP-TLS but notibly not for PEAP
+	 * sent. So this is done always for EAP-TLS but notably not for PEAP
 	 * even on resumption.
 	 */
 	if (data->tls_v13 &&
@@ -390,8 +395,15 @@ int eap_server_tls_phase1(struct eap_sm *sm, struct eap_ssl_data *data)
 				break;
 			/* fallthrough */
 		case EAP_TYPE_TLS:
+#ifdef CONFIG_TESTING_OPTIONS
+			if (data->skip_prot_success) {
+				wpa_printf(MSG_INFO,
+					   "TESTING: Do not send protected success indication");
+				break;
+			}
+#endif /* CONFIG_TESTING_OPTIONS */
 			wpa_printf(MSG_DEBUG,
-				   "EAP-TLS: Send Commitment Message");
+				   "EAP-TLS: Send protected success indication (appl data 0x00)");
 
 			plain = wpabuf_alloc(1);
 			if (!plain)

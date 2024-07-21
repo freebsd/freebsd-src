@@ -164,26 +164,33 @@ int eap_sake_parse_attributes(const u8 *buf, size_t len,
 
 	os_memset(attr, 0, sizeof(*attr));
 	while (pos < end) {
+		u8 attr_id, attr_len;
+
 		if (end - pos < 2) {
 			wpa_printf(MSG_DEBUG, "EAP-SAKE: Too short attribute");
 			return -1;
 		}
 
-		if (pos[1] < 2) {
-			wpa_printf(MSG_DEBUG, "EAP-SAKE: Invalid attribute "
-				   "length (%d)", pos[1]);
+		attr_id = *pos++;
+		attr_len = *pos++;
+		/* Attribute length value includes the Type and Length fields */
+		if (attr_len < 2) {
+			wpa_printf(MSG_DEBUG,
+				   "EAP-SAKE: Invalid attribute length (%d)",
+				   attr_len);
 			return -1;
 		}
+		attr_len -= 2;
 
-		if (pos + pos[1] > end) {
+		if (attr_len > end - pos) {
 			wpa_printf(MSG_DEBUG, "EAP-SAKE: Attribute underflow");
 			return -1;
 		}
 
-		if (eap_sake_parse_add_attr(attr, pos[0], pos[1] - 2, pos + 2))
+		if (eap_sake_parse_add_attr(attr, attr_id, attr_len, pos))
 			return -1;
 
-		pos += pos[1];
+		pos += attr_len;
 	}
 
 	return 0;

@@ -28,10 +28,11 @@ int hmac_sha256_vector(const u8 *key, size_t key_len, size_t num_elem,
 {
 	unsigned char k_pad[64]; /* padding - key XORd with ipad/opad */
 	unsigned char tk[32];
-	const u8 *_addr[11];
-	size_t _len[11], i;
+	const u8 *_addr[HMAC_VECTOR_MAX_ELEM + 1];
+	size_t _len[HMAC_VECTOR_MAX_ELEM + 1], i;
+	int ret;
 
-	if (num_elem > 10) {
+	if (num_elem > HMAC_VECTOR_MAX_ELEM) {
 		/*
 		 * Fixed limit on the number of fragments to avoid having to
 		 * allocate memory (which could fail).
@@ -70,8 +71,9 @@ int hmac_sha256_vector(const u8 *key, size_t key_len, size_t num_elem,
 		_addr[i + 1] = addr[i];
 		_len[i + 1] = len[i];
 	}
-	if (sha256_vector(1 + num_elem, _addr, _len, mac) < 0)
-		return -1;
+	ret = sha256_vector(1 + num_elem, _addr, _len, mac);
+	if (ret < 0)
+		goto fail;
 
 	os_memset(k_pad, 0, sizeof(k_pad));
 	os_memcpy(k_pad, key, key_len);
@@ -84,7 +86,14 @@ int hmac_sha256_vector(const u8 *key, size_t key_len, size_t num_elem,
 	_len[0] = 64;
 	_addr[1] = mac;
 	_len[1] = SHA256_MAC_LEN;
-	return sha256_vector(2, _addr, _len, mac);
+
+	ret = sha256_vector(2, _addr, _len, mac);
+
+fail:
+	forced_memzero(k_pad, sizeof(k_pad));
+	forced_memzero(tk, sizeof(tk));
+
+	return ret;
 }
 
 

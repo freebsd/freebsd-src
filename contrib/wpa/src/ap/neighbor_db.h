@@ -20,6 +20,7 @@ int hostapd_neighbor_set(struct hostapd_data *hapd, const u8 *bssid,
 			 const struct wpabuf *civic, int stationary,
 			 u8 bss_parameters);
 void hostapd_neighbor_set_own_report(struct hostapd_data *hapd);
+int hostapd_neighbor_sync_own_report(struct hostapd_data *hapd);
 int hostapd_neighbor_remove(struct hostapd_data *hapd, const u8 *bssid,
 			    const struct wpa_ssid_value *ssid);
 void hostapd_free_neighbor_db(struct hostapd_data *hapd);

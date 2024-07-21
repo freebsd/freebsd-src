@@ -44,6 +44,20 @@ static int ieee80211_11_set_tfs_ie(struct hostapd_data *hapd, const u8 *addr,
 }
 
 
+static const u8 * wnm_ap_get_own_addr(struct hostapd_data *hapd,
+				      struct sta_info *sta)
+{
+	const u8 *own_addr = hapd->own_addr;
+
+#ifdef CONFIG_IEEE80211BE
+	if (hapd->conf->mld_ap && (!sta || ap_sta_is_mld(hapd, sta)))
+		own_addr = hapd->mld->mld_addr;
+#endif /* CONFIG_IEEE80211BE */
+
+	return own_addr;
+}
+
+
 /* MLME-SLEEPMODE.response */
 static int ieee802_11_send_wnmsleep_resp(struct hostapd_data *hapd,
 					 const u8 *addr, u8 dialog_token,
@@ -63,6 +77,7 @@ static int ieee802_11_send_wnmsleep_resp(struct hostapd_data *hapd,
 	struct sta_info *sta;
 	enum wnm_oper tfs_oper = action_type == WNM_SLEEP_MODE_ENTER ?
 		WNM_SLEEP_TFS_RESP_IE_ADD : WNM_SLEEP_TFS_RESP_IE_NONE;
+	const u8 *own_addr;
 
 	sta = ap_get_sta(hapd, addr);
 	if (sta == NULL) {
@@ -143,9 +158,12 @@ static int ieee802_11_send_wnmsleep_resp(struct hostapd_data *hapd,
 		res = -1;
 		goto fail;
 	}
+
+	own_addr = wnm_ap_get_own_addr(hapd, sta);
+
 	os_memcpy(mgmt->da, addr, ETH_ALEN);
-	os_memcpy(mgmt->sa, hapd->own_addr, ETH_ALEN);
-	os_memcpy(mgmt->bssid, hapd->own_addr, ETH_ALEN);
+	os_memcpy(mgmt->sa, own_addr, ETH_ALEN);
+	os_memcpy(mgmt->bssid, own_addr, ETH_ALEN);
 	mgmt->frame_control = IEEE80211_FC(WLAN_FC_TYPE_MGMT,
 					   WLAN_FC_STYPE_ACTION);
 	mgmt->u.action.category = WLAN_ACTION_WNM;
@@ -366,6 +384,8 @@ static int ieee802_11_send_bss_trans_mgmt_request(struct hostapd_data *hapd,
 						  u8 dialog_token)
 {
 	struct ieee80211_mgmt *mgmt;
+	const u8 *own_addr;
+	struct sta_info *sta;
 	size_t len;
 	u8 *pos;
 	int res;
@@ -373,9 +393,13 @@ static int ieee802_11_send_bss_trans_mgmt_request(struct hostapd_data *hapd,
 	mgmt = os_zalloc(sizeof(*mgmt));
 	if (mgmt == NULL)
 		return -1;
+
+	sta = ap_get_sta(hapd, addr);
+	own_addr = wnm_ap_get_own_addr(hapd, sta);
+
 	os_memcpy(mgmt->da, addr, ETH_ALEN);
-	os_memcpy(mgmt->sa, hapd->own_addr, ETH_ALEN);
-	os_memcpy(mgmt->bssid, hapd->own_addr, ETH_ALEN);
+	os_memcpy(mgmt->sa, own_addr, ETH_ALEN);
+	os_memcpy(mgmt->bssid, own_addr, ETH_ALEN);
 	mgmt->frame_control = IEEE80211_FC(WLAN_FC_TYPE_MGMT,
 					   WLAN_FC_STYPE_ACTION);
 	mgmt->u.action.category = WLAN_ACTION_WNM;
@@ -409,6 +433,8 @@ static void ieee802_11_rx_bss_trans_mgmt_query(struct hostapd_data *hapd,
 	u8 dialog_token, reason;
 	const u8 *pos, *end;
 	int enabled = hapd->conf->bss_transition;
+	char *hex = NULL;
+	size_t hex_len;
 
 #ifdef CONFIG_MBO
 	if (hapd->conf->mbo_enabled)
@@ -440,6 +466,17 @@ static void ieee802_11_rx_bss_trans_mgmt_query(struct hostapd_data *hapd,
 
 	wpa_hexdump(MSG_DEBUG, "WNM: BSS Transition Candidate List Entries",
 		    pos, end - pos);
+
+	hex_len = 2 * (end - pos) + 1;
+	if (hex_len > 1) {
+		hex = os_malloc(hex_len);
+		if (hex)
+			wpa_snprintf_hex(hex, hex_len, pos, end - pos);
+	}
+	wpa_msg(hapd->msg_ctx, MSG_INFO,
+		BSS_TM_QUERY MACSTR " reason=%u%s%s",
+		MAC2STR(addr), reason, hex ? " neighbor=" : "", hex);
+	os_free(hex);
 
 	ieee802_11_send_bss_trans_mgmt_request(hapd, addr, dialog_token);
 }
@@ -630,6 +667,133 @@ static void ieee802_11_rx_wnm_coloc_intf_report(struct hostapd_data *hapd,
 }
 
 
+
+static const char * wnm_event_type2str(enum wnm_event_report_type wtype)
+{
+#define W2S(wtype) case WNM_EVENT_TYPE_ ## wtype: return #wtype;
+	switch (wtype) {
+	W2S(TRANSITION)
+	W2S(RSNA)
+	W2S(P2P_LINK)
+	W2S(WNM_LOG)
+	W2S(BSS_COLOR_COLLISION)
+	W2S(BSS_COLOR_IN_USE)
+	}
+	return "UNKNOWN";
+#undef W2S
+}
+
+
+static void ieee802_11_rx_wnm_event_report(struct hostapd_data *hapd,
+					   const u8 *addr, const u8 *buf,
+					   size_t len)
+{
+	struct sta_info *sta;
+	u8 dialog_token;
+	struct wnm_event_report_element *report_ie;
+	const u8 *pos = buf, *end = buf + len;
+	const size_t fixed_field_len = 3; /* Event Token/Type/Report Status */
+#ifdef CONFIG_IEEE80211AX
+	const size_t tsf_len = 8;
+	u8 color;
+	u64 bitmap;
+#endif /* CONFIG_IEEE80211AX */
+
+	if (end - pos < 1 + 2) {
+		wpa_printf(MSG_DEBUG,
+			   "WNM: Ignore too short WNM Event Report frame from "
+			   MACSTR, MAC2STR(addr));
+		return;
+	}
+
+	dialog_token = *pos++;
+	report_ie = (struct wnm_event_report_element *) pos;
+
+	if (end - pos < 2 + report_ie->len ||
+	    report_ie->len < fixed_field_len) {
+		wpa_printf(MSG_DEBUG,
+			   "WNM: Ignore truncated WNM Event Report frame from "
+			   MACSTR, MAC2STR(addr));
+		return;
+	}
+
+	if (report_ie->eid != WLAN_EID_EVENT_REPORT ||
+	    report_ie->status != WNM_STATUS_SUCCESSFUL)
+		return;
+
+	wpa_printf(MSG_DEBUG, "WNM: Received WNM Event Report frame from "
+		   MACSTR " dialog_token=%u event_token=%u type=%d (%s)",
+		   MAC2STR(addr), dialog_token, report_ie->token,
+		   report_ie->type, wnm_event_type2str(report_ie->type));
+
+	pos += 2 + fixed_field_len;
+	wpa_hexdump(MSG_MSGDUMP, "WNM: Event Report", pos, end - pos);
+
+	sta = ap_get_sta(hapd, addr);
+	if (!sta || !(sta->flags & WLAN_STA_ASSOC)) {
+		wpa_printf(MSG_DEBUG, "Station " MACSTR
+			   " not found for received WNM Event Report",
+			   MAC2STR(addr));
+		return;
+	}
+
+	switch (report_ie->type) {
+#ifdef CONFIG_IEEE80211AX
+	case WNM_EVENT_TYPE_BSS_COLOR_COLLISION:
+		if (!hapd->iconf->ieee80211ax || hapd->conf->disable_11ax)
+			return;
+		if (report_ie->len <
+		    fixed_field_len + tsf_len + 8) {
+			wpa_printf(MSG_DEBUG,
+				   "WNM: Too short BSS color collision event report from "
+				   MACSTR, MAC2STR(addr));
+			return;
+		}
+		bitmap = WPA_GET_LE64(report_ie->u.bss_color_collision.color_bitmap);
+		wpa_printf(MSG_DEBUG,
+			   "WNM: BSS color collision bitmap 0x%llx reported by "
+			   MACSTR, (unsigned long long) bitmap, MAC2STR(addr));
+		hostapd_switch_color(hapd->iface->bss[0], bitmap);
+		break;
+	case WNM_EVENT_TYPE_BSS_COLOR_IN_USE:
+		if (!hapd->iconf->ieee80211ax || hapd->conf->disable_11ax)
+			return;
+		if (report_ie->len < fixed_field_len + tsf_len + 1) {
+			wpa_printf(MSG_DEBUG,
+				   "WNM: Too short BSS color in use event report from "
+				   MACSTR, MAC2STR(addr));
+			return;
+		}
+		color = report_ie->u.bss_color_in_use.color;
+		if (color > 63) {
+			wpa_printf(MSG_DEBUG,
+				   "WNM: Invalid BSS color %u report from "
+				   MACSTR, color, MAC2STR(addr));
+			return;
+		}
+		if (color == 0) {
+			wpa_printf(MSG_DEBUG,
+				   "WNM: BSS color use report canceled by "
+				   MACSTR, MAC2STR(addr));
+			/* TODO: Clear stored color from the collision bitmap
+			 * if there are no other users for it. */
+			return;
+		}
+		wpa_printf(MSG_DEBUG, "WNM: BSS color %u use report by "
+			   MACSTR, color, MAC2STR(addr));
+		hapd->color_collision_bitmap |= 1ULL << color;
+		break;
+#endif /* CONFIG_IEEE80211AX */
+	default:
+		wpa_printf(MSG_DEBUG,
+			   "WNM Event Report type=%d (%s) not supported",
+			   report_ie->type,
+			   wnm_event_type2str(report_ie->type));
+		break;
+	}
+}
+
+
 int ieee802_11_rx_wnm_action_ap(struct hostapd_data *hapd,
 				const struct ieee80211_mgmt *mgmt, size_t len)
 {
@@ -645,6 +809,10 @@ int ieee802_11_rx_wnm_action_ap(struct hostapd_data *hapd,
 	plen = len - IEEE80211_HDRLEN - 2;
 
 	switch (action) {
+	case WNM_EVENT_REPORT:
+		ieee802_11_rx_wnm_event_report(hapd, mgmt->sa, payload,
+					       plen);
+		return 0;
 	case WNM_BSS_TRANS_MGMT_QUERY:
 		ieee802_11_rx_bss_trans_mgmt_query(hapd, mgmt->sa, payload,
 						   plen);
@@ -677,14 +845,15 @@ int wnm_send_disassoc_imminent(struct hostapd_data *hapd,
 {
 	u8 buf[1000], *pos;
 	struct ieee80211_mgmt *mgmt;
+	const u8 *own_addr = wnm_ap_get_own_addr(hapd, sta);
 
 	os_memset(buf, 0, sizeof(buf));
 	mgmt = (struct ieee80211_mgmt *) buf;
 	mgmt->frame_control = IEEE80211_FC(WLAN_FC_TYPE_MGMT,
 					   WLAN_FC_STYPE_ACTION);
 	os_memcpy(mgmt->da, sta->addr, ETH_ALEN);
-	os_memcpy(mgmt->sa, hapd->own_addr, ETH_ALEN);
-	os_memcpy(mgmt->bssid, hapd->own_addr, ETH_ALEN);
+	os_memcpy(mgmt->sa, own_addr, ETH_ALEN);
+	os_memcpy(mgmt->bssid, own_addr, ETH_ALEN);
 	mgmt->u.action.category = WLAN_ACTION_WNM;
 	mgmt->u.action.u.bss_tm_req.action = WNM_BSS_TRANS_MGMT_REQ;
 	mgmt->u.action.u.bss_tm_req.dialog_token = 1;
@@ -743,14 +912,15 @@ int wnm_send_ess_disassoc_imminent(struct hostapd_data *hapd,
 	u8 buf[1000], *pos;
 	struct ieee80211_mgmt *mgmt;
 	size_t url_len;
+	const u8 *own_addr = wnm_ap_get_own_addr(hapd, sta);
 
 	os_memset(buf, 0, sizeof(buf));
 	mgmt = (struct ieee80211_mgmt *) buf;
 	mgmt->frame_control = IEEE80211_FC(WLAN_FC_TYPE_MGMT,
 					   WLAN_FC_STYPE_ACTION);
 	os_memcpy(mgmt->da, sta->addr, ETH_ALEN);
-	os_memcpy(mgmt->sa, hapd->own_addr, ETH_ALEN);
-	os_memcpy(mgmt->bssid, hapd->own_addr, ETH_ALEN);
+	os_memcpy(mgmt->sa, own_addr, ETH_ALEN);
+	os_memcpy(mgmt->bssid, own_addr, ETH_ALEN);
 	mgmt->u.action.category = WLAN_ACTION_WNM;
 	mgmt->u.action.u.bss_tm_req.action = WNM_BSS_TRANS_MGMT_REQ;
 	mgmt->u.action.u.bss_tm_req.dialog_token = 1;
@@ -795,6 +965,7 @@ int wnm_send_bss_tm_req(struct hostapd_data *hapd, struct sta_info *sta,
 	u8 *buf, *pos;
 	struct ieee80211_mgmt *mgmt;
 	size_t url_len;
+	const u8 *own_addr = wnm_ap_get_own_addr(hapd, sta);
 
 	wpa_printf(MSG_DEBUG, "WNM: Send BSS Transition Management Request to "
 		   MACSTR
@@ -808,8 +979,8 @@ int wnm_send_bss_tm_req(struct hostapd_data *hapd, struct sta_info *sta,
 	mgmt->frame_control = IEEE80211_FC(WLAN_FC_TYPE_MGMT,
 					   WLAN_FC_STYPE_ACTION);
 	os_memcpy(mgmt->da, sta->addr, ETH_ALEN);
-	os_memcpy(mgmt->sa, hapd->own_addr, ETH_ALEN);
-	os_memcpy(mgmt->bssid, hapd->own_addr, ETH_ALEN);
+	os_memcpy(mgmt->sa, own_addr, ETH_ALEN);
+	os_memcpy(mgmt->bssid, own_addr, ETH_ALEN);
 	mgmt->u.action.category = WLAN_ACTION_WNM;
 	mgmt->u.action.u.bss_tm_req.action = WNM_BSS_TRANS_MGMT_REQ;
 	mgmt->u.action.u.bss_tm_req.dialog_token = dialog_token;
@@ -858,6 +1029,26 @@ int wnm_send_bss_tm_req(struct hostapd_data *hapd, struct sta_info *sta,
 	os_free(buf);
 
 	if (disassoc_timer) {
+#ifdef CONFIG_IEEE80211BE
+		if (ap_sta_is_mld(hapd, sta)) {
+			int i;
+			unsigned int links = 0;
+
+			for (i = 0; i < MAX_NUM_MLD_LINKS; i++) {
+				if (sta->mld_info.links[i].valid)
+					links++;
+			}
+
+			if (links > 1) {
+				wpa_printf(MSG_DEBUG,
+					   "WNM: Only terminating one link - other links remains associated for "
+					   MACSTR,
+					   MAC2STR(sta->mld_info.common_info.mld_addr));
+				return 0;
+			}
+		}
+#endif /* CONFIG_IEEE80211BE */
+
 		/* send disassociation frame after time-out */
 		set_disassoc_timer(hapd, sta, disassoc_timer);
 	}
@@ -872,6 +1063,7 @@ int wnm_send_coloc_intf_req(struct hostapd_data *hapd, struct sta_info *sta,
 	u8 buf[100], *pos;
 	struct ieee80211_mgmt *mgmt;
 	u8 dialog_token = 1;
+	const u8 *own_addr = wnm_ap_get_own_addr(hapd, sta);
 
 	if (auto_report > 3 || timeout > 63)
 		return -1;
@@ -880,8 +1072,8 @@ int wnm_send_coloc_intf_req(struct hostapd_data *hapd, struct sta_info *sta,
 	mgmt->frame_control = IEEE80211_FC(WLAN_FC_TYPE_MGMT,
 					   WLAN_FC_STYPE_ACTION);
 	os_memcpy(mgmt->da, sta->addr, ETH_ALEN);
-	os_memcpy(mgmt->sa, hapd->own_addr, ETH_ALEN);
-	os_memcpy(mgmt->bssid, hapd->own_addr, ETH_ALEN);
+	os_memcpy(mgmt->sa, own_addr, ETH_ALEN);
+	os_memcpy(mgmt->bssid, own_addr, ETH_ALEN);
 	mgmt->u.action.category = WLAN_ACTION_WNM;
 	mgmt->u.action.u.coloc_intf_req.action =
 		WNM_COLLOCATED_INTERFERENCE_REQ;

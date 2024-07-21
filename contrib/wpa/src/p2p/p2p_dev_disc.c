@@ -223,7 +223,7 @@ void p2p_process_dev_disc_resp(struct p2p_data *p2p, const u8 *sa,
 
 	go = p2p->pending_client_disc_go;
 	if (go == NULL ||
-	    os_memcmp(sa, go->info.p2p_device_addr, ETH_ALEN) != 0) {
+	    !ether_addr_equal(sa, go->info.p2p_device_addr)) {
 		p2p_dbg(p2p, "Ignore unexpected Device Discoverability Response");
 		return;
 	}
@@ -249,10 +249,10 @@ void p2p_process_dev_disc_resp(struct p2p_data *p2p, const u8 *sa,
 	p2p_dbg(p2p, "Device Discoverability Response status %u", status);
 
 	if (p2p->go_neg_peer == NULL ||
-	    os_memcmp(p2p->pending_client_disc_addr,
-		      p2p->go_neg_peer->info.p2p_device_addr, ETH_ALEN) != 0 ||
-	    os_memcmp(p2p->go_neg_peer->member_in_go_dev,
-		      go->info.p2p_device_addr, ETH_ALEN) != 0) {
+	    !ether_addr_equal(p2p->pending_client_disc_addr,
+			      p2p->go_neg_peer->info.p2p_device_addr) ||
+	    !ether_addr_equal(p2p->go_neg_peer->member_in_go_dev,
+			      go->info.p2p_device_addr)) {
 		p2p_dbg(p2p, "No pending operation with the client discoverability peer anymore");
 		return;
 	}

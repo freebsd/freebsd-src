@@ -1,5 +1,55 @@
 ChangeLog for wpa_supplicant
 
+2024-07-20 - v2.11
+	* Wi-Fi Easy Connect
+	  - add support for DPP release 3
+	  - allow Configurator parameters to be provided during config exchange
+	* MACsec
+	  - add support for GCM-AES-256 cipher suite
+	  - remove incorrect EAP Session-Id length constraint
+	  - add hardware offload support for additional drivers
+	* HE/IEEE 802.11ax/Wi-Fi 6
+	  - support BSS color updates
+	  - various fixes
+	* EHT/IEEE 802.11be/Wi-Fi 7
+	  - add preliminary support
+	* support OpenSSL 3.0 API changes
+	* improve EAP-TLS support for TLSv1.3
+	* EAP-SIM/AKA: support IMSI privacy
+	* improve mitigation against DoS attacks when PMF is used
+	* improve 4-way handshake operations
+	  - discard unencrypted EAPOL frames in additional cases
+	  - use Secure=1 in message 2 during PTK rekeying
+	* OCV: do not check Frequency Segment 1 Channel Number for 160 MHz cases
+	  to avoid interoperability issues
+	* support new SAE AKM suites with variable length keys
+	* support new AKM for 802.1X/EAP with SHA384
+	* improve cross-AKM roaming with driver-based SME/BSS selection
+	* PASN
+	  - extend support for secure ranging
+	  - allow PASN implementation to be used with external programs for
+	    Wi-Fi Aware
+	* FT: Use SHA256 to derive PMKID for AKM 00-0F-AC:3 (FT-EAP)
+	  - this is based on additional details being added in the IEEE 802.11
+	    standard
+	  - the new implementation is not backwards compatible, but PMKSA
+	    caching with FT-EAP was, and still is, disabled by default
+	* support a pregenerated MAC (mac_addr=3) as an alternative mechanism
+	  for using per-network random MAC addresses
+	* EAP-PEAP: require Phase 2 authentication by default (phase2_auth=1)
+	  to improve security for still unfortunately common invalid
+	  configurations that do not set ca_cert
+	* extend SCS support for QoS Characteristics
+	* extend MSCS support
+	* support unsynchronized service discovery (USD)
+	* add support for explicit SSID protection in 4-way handshake
+	  (a mitigation for CVE-2023-52424; disabled by default for now, can be
+	  enabled with ssid_protection=1)
+	  - in addition, verify SSID after key setup when beacon protection is
+	    used
+	* fix SAE H2E rejected groups validation to avoid downgrade attacks
+	* a large number of other fixes, cleanup, and extensions
+
 2022-01-16 - v2.10
 	* SAE changes
 	  - improved protection against side channel attacks

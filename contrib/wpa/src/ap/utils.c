@@ -43,6 +43,7 @@ int hostapd_register_probereq_cb(struct hostapd_data *hapd,
 struct prune_data {
 	struct hostapd_data *hapd;
 	const u8 *addr;
+	int mld_assoc_link_id;
 };
 
 static int prune_associations(struct hostapd_iface *iface, void *ctx)
@@ -72,6 +73,12 @@ static int prune_associations(struct hostapd_iface *iface, void *ctx)
 		if (!osta)
 			continue;
 
+#ifdef CONFIG_IEEE80211BE
+		if (data->mld_assoc_link_id >= 0 &&
+		    osta->mld_assoc_link_id == data->mld_assoc_link_id)
+			continue;
+#endif /* CONFIG_IEEE80211BE */
+
 		wpa_printf(MSG_INFO, "%s: Prune association for " MACSTR,
 			   ohapd->conf->iface, MAC2STR(osta->addr));
 		ap_sta_disassociate(ohapd, osta, WLAN_REASON_UNSPECIFIED);
@@ -84,15 +91,20 @@ static int prune_associations(struct hostapd_iface *iface, void *ctx)
  * hostapd_prune_associations - Remove extraneous associations
  * @hapd: Pointer to BSS data for the most recent association
  * @addr: Associated STA address
+ * @mld_assoc_link_id: MLD link id used for association or -1 for non MLO
  *
  * This function looks through all radios and BSS's for previous
  * (stale) associations of STA. If any are found they are removed.
  */
-void hostapd_prune_associations(struct hostapd_data *hapd, const u8 *addr)
+void hostapd_prune_associations(struct hostapd_data *hapd, const u8 *addr,
+				int mld_assoc_link_id)
 {
 	struct prune_data data;
+
 	data.hapd = hapd;
 	data.addr = addr;
+	data.mld_assoc_link_id = mld_assoc_link_id;
+
 	if (hapd->iface->interfaces &&
 	    hapd->iface->interfaces->for_each_interface)
 		hapd->iface->interfaces->for_each_interface(

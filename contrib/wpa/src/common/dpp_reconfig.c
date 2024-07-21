@@ -131,6 +131,7 @@ static struct wpabuf * dpp_reconfig_build_req(struct dpp_authentication *auth)
 {
 	struct wpabuf *msg;
 	size_t attr_len;
+	u8 ver = DPP_VERSION;
 
 	/* Build DPP Reconfig Authentication Request frame attributes */
 	attr_len = 4 + 1 + 4 + 1 + 4 + os_strlen(auth->conf->connector) +
@@ -144,10 +145,25 @@ static struct wpabuf * dpp_reconfig_build_req(struct dpp_authentication *auth)
 	wpabuf_put_le16(msg, 1);
 	wpabuf_put_u8(msg, auth->transaction_id);
 
+#ifdef CONFIG_TESTING_OPTIONS
+	if (dpp_test == DPP_TEST_NO_PROTOCOL_VERSION_RECONFIG_AUTH_REQ) {
+		wpa_printf(MSG_INFO, "DPP: TESTING - no Protocol Version");
+		goto skip_proto_ver;
+	}
+	if (dpp_test == DPP_TEST_INVALID_PROTOCOL_VERSION_RECONFIG_AUTH_REQ) {
+		wpa_printf(MSG_INFO, "DPP: TESTING - invalid Protocol Version");
+		ver = 1;
+	}
+#endif /* CONFIG_TESTING_OPTIONS */
+
 	/* Protocol Version */
 	wpabuf_put_le16(msg, DPP_ATTR_PROTOCOL_VERSION);
 	wpabuf_put_le16(msg, 1);
-	wpabuf_put_u8(msg, DPP_VERSION);
+	wpabuf_put_u8(msg, ver);
+
+#ifdef CONFIG_TESTING_OPTIONS
+skip_proto_ver:
+#endif /* CONFIG_TESTING_OPTIONS */
 
 	/* DPP Connector */
 	wpabuf_put_le16(msg, DPP_ATTR_CONNECTOR);

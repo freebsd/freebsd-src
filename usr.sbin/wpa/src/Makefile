@@ -8,6 +8,7 @@ SUBDIR=	ap \
 	eapol_auth \
 	eapol_supp \
 	l2_packet \
+	pasn \
 	radius \
 	rsn_supp \
 	tls \

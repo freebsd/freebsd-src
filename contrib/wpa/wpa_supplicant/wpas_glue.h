@@ -27,4 +27,6 @@ enum wpa_ctrl_req_type wpa_supplicant_ctrl_req_from_string(const char *field);
 void wpas_send_ctrl_req(struct wpa_supplicant *wpa_s, struct wpa_ssid *ssid,
 			const char *field_name, const char *txt);
 
+void wpas_transition_disable(struct wpa_supplicant *wpa_s, u8 bitmap);
+
 #endif /* WPAS_GLUE_H */

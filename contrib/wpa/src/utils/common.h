@@ -244,6 +244,18 @@ static inline void WPA_PUT_BE24(u8 *a, u32 val)
 	a[2] = val & 0xff;
 }
 
+static inline u32 WPA_GET_LE24(const u8 *a)
+{
+	return (a[2] << 16) | (a[1] << 8) | a[0];
+}
+
+static inline void WPA_PUT_LE24(u8 *a, u32 val)
+{
+	a[2] = (val >> 16) & 0xff;
+	a[1] = (val >> 8) & 0xff;
+	a[0] = val & 0xff;
+}
+
 static inline u32 WPA_GET_BE32(const u8 *a)
 {
 	return ((u32) a[0] << 24) | (a[1] << 16) | (a[2] << 8) | a[3];
@@ -429,6 +441,13 @@ void perror(const char *s);
 #define BIT(x) (1U << (x))
 #endif
 
+#ifndef MIN
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#endif
+#ifndef MAX
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#endif
+
 /*
  * Definitions for sparse validation
  * (http://kernel.org/pub/linux/kernel/people/josh/sparse/)
@@ -477,6 +496,7 @@ int hwaddr_aton(const char *txt, u8 *addr);
 int hwaddr_masked_aton(const char *txt, u8 *addr, u8 *mask, u8 maskable);
 int hwaddr_compact_aton(const char *txt, u8 *addr);
 int hwaddr_aton2(const char *txt, u8 *addr);
+int hex2num(char c);
 int hex2byte(const char *hex);
 int hexstr2bin(const char *hex, u8 *buf, size_t len);
 void inc_byte_array(u8 *counter, size_t len);
@@ -530,6 +550,11 @@ static inline int is_multicast_ether_addr(const u8 *a)
 	return a[0] & 0x01;
 }
 
+static inline bool ether_addr_equal(const u8 *a, const u8 *b)
+{
+	return os_memcmp(a, b, ETH_ALEN) == 0;
+}
+
 #define broadcast_ether_addr (const u8 *) "\xff\xff\xff\xff\xff\xff"
 
 #include "wpa_debug.h"
@@ -552,6 +577,7 @@ size_t int_array_len(const int *a);
 void int_array_concat(int **res, const int *a);
 void int_array_sort_unique(int *a);
 void int_array_add_unique(int **res, int a);
+bool int_array_includes(int *arr, int val);
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
@@ -573,6 +599,18 @@ int str_starts(const char *str, const char *start);
 
 u8 rssi_to_rcpi(int rssi);
 char * get_param(const char *cmd, const char *param);
+
+#define for_each_link(__links, __i)                            \
+	for ((__i) = 0; (__i) < MAX_NUM_MLD_LINKS; (__i)++)    \
+		if ((__links) & BIT(__i))
+
+/* Iterate all links, or, if no link is defined, iterate given index */
+#define for_each_link_default(_links, _i, _def_idx)	\
+	for ((_i) = (_links) ? 0 : (_def_idx);		\
+	     (_i) < MAX_NUM_MLD_LINKS ||		\
+		     (!(_links) && (_i) == (_def_idx));	\
+	     (_i)++)					\
+		if (!(_links) || (_links) & BIT(_i))
 
 void forced_memzero(void *ptr, size_t len);
 
