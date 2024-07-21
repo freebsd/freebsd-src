@@ -23800,7 +23800,7 @@ static struct tcp_function_block __tcp_rack = {
 	.tfb_switch_failed = rack_switch_failed,
 	.tfb_early_wake_check = rack_wake_check,
 	.tfb_compute_pipe = rack_compute_pipe,
-	.tfb_flags = TCP_FUNC_OUTPUT_CANDROP,
+	.tfb_flags = TCP_FUNC_OUTPUT_CANDROP | TCP_FUNC_DEFAULT_OK,
 };
 
 /*

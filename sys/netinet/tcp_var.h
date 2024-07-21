@@ -536,6 +536,7 @@ typedef enum {
 /* Flags for tcp functions */
 #define	TCP_FUNC_BEING_REMOVED	0x01   	/* Can no longer be referenced */
 #define	TCP_FUNC_OUTPUT_CANDROP	0x02   	/* tfb_tcp_output may ask tcp_drop */
+#define	TCP_FUNC_DEFAULT_OK	0x04   	/* Can be used as default */
 
 /**
  * If defining the optional tcp_timers, in the
