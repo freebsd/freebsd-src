@@ -4008,7 +4008,6 @@ static char *cm_devnode(struct device *dev, umode_t *mode)
 }
 
 struct class cm_class = {
-	.owner   = THIS_MODULE,
 	.name    = "infiniband_cm",
 	.devnode = cm_devnode,
 };

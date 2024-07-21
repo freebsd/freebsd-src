@@ -342,13 +342,12 @@ error:
 }
 
 struct class *
-class_create(struct module *owner, const char *name)
+lkpi_class_create(const char *name)
 {
 	struct class *class;
 	int error;
 
 	class = kzalloc(sizeof(*class), M_WAITOK);
-	class->owner = owner;
 	class->name = name;
 	class->class_release = linux_class_kfree;
 	error = class_register(class);
