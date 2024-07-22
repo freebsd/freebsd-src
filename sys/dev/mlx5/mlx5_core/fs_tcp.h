@@ -27,15 +27,15 @@
 #define	__MLX5E_ACCEL_FS_TCP_H__
 
 struct inpcb;
-struct mlx5_flow_rule;
+struct mlx5_flow_handle;
 struct mlx5e_priv;
 
 int	mlx5e_accel_fs_tcp_create(struct mlx5e_priv *);
 void	mlx5e_accel_fs_tcp_destroy(struct mlx5e_priv *);
-struct mlx5_flow_rule *
+struct mlx5_flow_handle *
 mlx5e_accel_fs_add_inpcb(struct mlx5e_priv *,
     struct inpcb *, uint32_t tirn, uint32_t flow_tag, uint16_t vlan_id);
 #define	MLX5E_ACCEL_FS_ADD_INPCB_NO_VLAN 0xFFFF
-void	mlx5e_accel_fs_del_inpcb(struct mlx5_flow_rule *);
+void	mlx5e_accel_fs_del_inpcb(struct mlx5_flow_handle *);
 
 #endif					/* __MLX5E_ACCEL_FS_TCP_H__ */

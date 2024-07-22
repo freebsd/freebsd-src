@@ -144,6 +144,8 @@ enum {
 #define	MLX5_SEND_WQE_DS	16
 #define	MLX5_SEND_WQE_BB	64
 #define MLX5_SEND_WQEBB_NUM_DS	(MLX5_SEND_WQE_BB / MLX5_SEND_WQE_DS)
+#define MLX5_WQE_CTRL_QPN_SHIFT 8
+#define MLX5_WQE_CTRL_WQE_INDEX_SHIFT 8
 
 enum {
 	MLX5_SEND_WQE_MAX_WQEBBS	= 16,
@@ -192,7 +194,10 @@ struct mlx5_wqe_ctrl_seg {
 	u8			signature;
 	u8			rsvd[2];
 	u8			fm_ce_se;
-	__be32			imm;
+	union {
+		__be32		imm;
+		__be32          general_id;
+	};
 };
 
 #define MLX5_WQE_CTRL_DS_MASK 0x3f
@@ -226,6 +231,10 @@ enum {
 	MLX5_ETH_WQE_SWP_OUTER_L4_TYPE = 1 << 5,
 };
 
+enum {
+	MLX5_ETH_WQE_FT_META_IPSEC = BIT(0),
+};
+
 struct mlx5_wqe_eth_seg {
 	u8              swp_outer_l4_offset;
 	u8		swp_outer_l3_offset;
@@ -234,7 +243,7 @@ struct mlx5_wqe_eth_seg {
 	u8		cs_flags;
 	u8		swp_flags;
 	__be16		mss;
-	__be32		rsvd2;
+	__be32		flow_table_metadata;
 	union {
 		struct {
 			__be16		inline_hdr_sz;

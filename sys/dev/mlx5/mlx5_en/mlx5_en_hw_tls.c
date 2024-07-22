@@ -31,6 +31,7 @@
 #include <dev/mlx5/mlx5_en/en.h>
 
 #include <dev/mlx5/tls.h>
+#include <dev/mlx5/crypto.h>
 
 #include <linux/delay.h>
 #include <sys/ktls.h>
@@ -237,6 +238,7 @@ mlx5e_tls_work(struct work_struct *work)
 
 		/* try to allocate a DEK context ID */
 		err = mlx5_encryption_key_create(priv->mdev, priv->pdn,
+		    MLX5_GENERAL_OBJECT_TYPE_ENCRYPTION_KEY_TYPE_TLS,
 		    MLX5_ADDR_OF(sw_tls_cntx, ptag->crypto_params, key.key_data),
 		    MLX5_GET(sw_tls_cntx, ptag->crypto_params, key.key_len),
 		    &ptag->dek_index);

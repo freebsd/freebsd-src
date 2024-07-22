@@ -29,6 +29,8 @@
 #include <linux/if_ether.h>
 #include <dev/mlx5/device.h>
 
+#define MLX5_ESWITCH_MANAGER(mdev) MLX5_CAP_GEN(mdev, eswitch_flow_table)
+
 #define MLX5_MAX_UC_PER_VPORT(dev) \
 	(1 << MLX5_CAP_GEN(dev, log_max_current_uc_list))
 
@@ -83,15 +85,15 @@ struct l2addr_node {
 struct vport_ingress {
 	struct mlx5_flow_table *acl;
 	struct mlx5_flow_group *drop_grp;
-	struct mlx5_flow_rule  *drop_rule;
+	struct mlx5_flow_handle  *drop_rule;
 };
 
 struct vport_egress {
 	struct mlx5_flow_table *acl;
 	struct mlx5_flow_group *allowed_vlans_grp;
 	struct mlx5_flow_group *drop_grp;
-	struct mlx5_flow_rule  *allowed_vlan;
-	struct mlx5_flow_rule  *drop_rule;
+	struct mlx5_flow_handle  *allowed_vlan;
+	struct mlx5_flow_handle  *drop_rule;
 };
 
 struct mlx5_vport {
