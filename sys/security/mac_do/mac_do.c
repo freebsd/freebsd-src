@@ -45,6 +45,7 @@ static MALLOC_DEFINE(M_DO, "do_rule", "Rules for mac_do");
 #define MAC_RULE_STRING_LEN	1024
 
 static unsigned		osd_jail_slot;
+static unsigned		osd_thread_slot;
 
 #define IT_INVALID	0 /* Must stay 0. */
 #define IT_UID		1
@@ -1064,11 +1065,24 @@ check_rules_use_count(const struct rules *const rules, u_int expected)
  * when the corresponding jail goes down or at module unload.
  */
 static void
-dealloc_osd(void *const value)
+dealloc_jail_osd(void *const value)
 {
 	struct rules *const rules = value;
 
-	/* No one should be using the rules but us at this point. */
+	/*
+	 * If called because the "holding" jail goes down, no one should be
+	 * using the rules but us at this point because no threads of that jail
+	 * (or its sub-jails) should currently be executing (in particular,
+	 * currently executing setcred()).  The case of module unload is more
+	 * complex.  Although the MAC framework takes care that no hook is
+	 * called while a module is unloading, the unload could happen between
+	 * two calls to MAC hooks in the course of, e.g., executing setcred(),
+	 * where the rules' reference count has been bumped to keep them alive
+	 * even if the rules on the "holding" jail has been concurrently
+	 * changed.  These other references are held in our thread OSD slot, so
+	 * we ensure that all thread's slots are freed first in mac_do_destroy()
+	 * to be able to check that only one reference remains.
+	 */
 	check_rules_use_count(rules, 1);
 	toast_rules(rules);
 }
@@ -1090,8 +1104,8 @@ remove_rules(struct prison *const pr)
 	prison_lock(pr);
 	/*
 	 * We go to the burden of extracting rules first instead of just letting
-	 * osd_jail_del() calling dealloc_osd() as we want to decrement their
-	 * use count, and possibly free them, outside of the prison lock.
+	 * osd_jail_del() calling dealloc_jail_osd() as we want to decrement
+	 * their use count, and possibly free them, outside of the prison lock.
 	 */
 	old_rules = osd_jail_get(pr, osd_jail_slot);
 	error = osd_jail_set(pr, osd_jail_slot, NULL);
@@ -1398,7 +1412,7 @@ mac_do_jail_set(void *obj, void *data)
  * OSD jail methods.
  *
  * There is no PR_METHOD_REMOVE, as OSD storage is destroyed by the common jail
- * code (see prison_cleanup()), which triggers a run of our dealloc_osd()
+ * code (see prison_cleanup()), which triggers a run of our dealloc_jail_osd()
  * destructor.
  */
 static const osd_method_t osd_methods[PR_MAXMETHOD] = {
@@ -1409,148 +1423,658 @@ static const osd_method_t osd_methods[PR_MAXMETHOD] = {
 };
 
 
+/*
+ * Common header structure.
+ *
+ * Each structure that is used to pass information between some MAC check
+ * function and priv_grant() must start with this header.
+ */
+struct mac_do_data_header {
+	/* Size of the allocated buffer holding the containing structure. */
+	size_t		 allocated_size;
+	/* Full size of the containing structure. */
+	size_t		 size;
+	/*
+	 * For convenience, we use privilege numbers as an identifier for the
+	 * containing structure's type, since there is one distinct privilege
+	 * for each privilege changing function we are supporting.  0 in 'priv'
+	 * indicates this header is uninitialized.
+	 */
+	int		 priv;
+	/* Rules to apply. */
+	struct rules	*rules;
+};
+
+/*
+ * The case of unusable or absent per-thread data can actually happen as nothing
+ * prevents, e.g., priv_check*() with privilege 'priv' to be called standalone,
+ * as it is currently by, e.g., the Linux emulator for PRIV_CRED_SETUID.  We
+ * interpret such calls to priv_check*() as full, unrestricted requests for
+ * 'priv', contrary to what we're doing here for selected operations, and
+ * consequently will not grant the requested privilege.
+ *
+ * Also, we protect ourselves from a concurrent change of 'do_enabled' while
+ * a call to setcred() is in progress by storing the rules per-thread
+ * which is then consulted by each successive hook so that they all have
+ * a coherent view of the specifications, and we empty the slot (actually, mark
+ * it as empty) when MAC/do is disabled.
+ */
+static int
+check_data_usable(const void *const data, const size_t size, const int priv)
+{
+	const struct mac_do_data_header *const hdr = data;
+
+	if (hdr == NULL || hdr->priv == 0)
+		return (ENOENT);
+	/*
+	 * Impacting changes in the protocols we are based on...  Don't crash in
+	 * production.
+	 */
+	if (hdr->priv != priv) {
+		MPASS(hdr->priv == priv);
+		return (EBUSY);
+	}
+	MPASS(hdr->size == size);
+	MPASS(hdr->size <= hdr->allocated_size);
+	return (0);
+}
+
+static void
+clear_data(void *const data)
+{
+	struct mac_do_data_header *const hdr = data;
+
+	if (hdr != NULL) {
+		drop_rules(hdr->rules);
+		/* We don't deallocate so as to save time on next access. */
+		hdr->priv = 0;
+	}
+}
+
+static void *
+fetch_data(void)
+{
+	return (osd_thread_get_unlocked(curthread, osd_thread_slot));
+}
+
+static bool
+is_data_reusable(const void *const data, const size_t size)
+{
+	const struct mac_do_data_header *const hdr = data;
+
+	return (hdr != NULL && size <= hdr->allocated_size);
+}
+
+static void
+set_data_header(void *const data, const size_t size, const int priv,
+    struct rules *const rules)
+{
+	struct mac_do_data_header *const hdr = data;
+
+	MPASS(hdr->priv == 0);
+	MPASS(priv != 0);
+	MPASS(size <= hdr->allocated_size);
+	hdr->size = size;
+	hdr->priv = priv;
+	hdr->rules = rules;
+}
+
+/* The proc lock (and any other non-sleepable lock) must not be held. */
+static void *
+alloc_data(void *const data, const size_t size)
+{
+	struct mac_do_data_header *const hdr = realloc(data, size, M_DO,
+	    M_WAITOK);
+
+	MPASS(size >= sizeof(struct mac_do_data_header));
+	hdr->allocated_size = size;
+	hdr->priv = 0;
+	if (hdr != data) {
+		/*
+		 * This call either reuses the existing memory allocated for the
+		 * slot or tries to allocate some without blocking.
+		 */
+		int error = osd_thread_set(curthread, osd_thread_slot, hdr);
+
+		if (error != 0) {
+			/* Going to make a M_WAITOK allocation. */
+			void **const rsv = osd_reserve(osd_thread_slot);
+
+			error = osd_thread_set_reserved(curthread,
+			    osd_thread_slot, rsv, hdr);
+			MPASS(error == 0);
+		}
+	}
+	return (hdr);
+}
+
+/* Destructor for 'osd_thread_slot'. */
+static void
+dealloc_thread_osd(void *const value)
+{
+	free(value, M_DO);
+}
+
+/*
+ * Whether to grant access to some primary group according to flags.
+ *
+ * The passed 'flags' must be those of a rule's matching GID, or the IT_GID type
+ * flags when MDF_CURRENT has been matched.
+ *
+ * Return values:
+ * - 0:			Access granted.
+ * - EJUSTRETURN:	Flags are agnostic.
+ */
+static int
+grant_primary_group_from_flags(const flags_t flags)
+{
+	return ((flags & MDF_PRIMARY) != 0 ? 0 : EJUSTRETURN);
+}
+
+/*
+ * Same as grant_primary_group_from_flags(), but for supplementary groups.
+ *
+ * Return values:
+ * - 0:			Access granted.
+ * - EJUSTRETURN:	Flags are agnostic.
+ * - EPERM:		Access denied.
+ */
+static int
+grant_supplementary_group_from_flags(const flags_t flags)
+{
+	if ((flags & MDF_SUPP_MASK) != 0)
+		return ((flags & MDF_SUPP_DONT) != 0 ? EPERM : 0);
+
+	return (EJUSTRETURN);
+}
+
+static int
+rule_grant_supplementary_groups(const struct rule *const rule,
+    const struct ucred *const old_cred, const struct ucred *const new_cred)
+{
+	const gid_t *const old_groups = old_cred->cr_groups;
+	const gid_t *const new_groups = new_cred->cr_groups;
+	const int old_ngroups = old_cred->cr_ngroups;
+	const int new_ngroups = new_cred->cr_ngroups;
+	const flags_t gid_flags = rule->gid_flags;
+	const bool current_has_supp = (gid_flags & MDF_CURRENT) != 0 &&
+	    (gid_flags & MDF_SUPP_MASK) != 0;
+	id_nb_t rule_idx = 0;
+	int old_idx = 1, new_idx = 1;
+
+	if ((gid_flags & MDF_ANY_SUPP) != 0 &&
+	    (gid_flags & MDF_MAY_REJ_SUPP) == 0)
+		/*
+		 * Any set of supplementary groups is accepted, no need to loop
+		 * over them.
+		 */
+		return (0);
+
+	for (; new_idx < new_ngroups; ++new_idx) {
+		const gid_t gid = new_groups[new_idx];
+		bool may_accept = false;
+
+		if ((gid_flags & MDF_ANY_SUPP) != 0)
+			may_accept = true;
+
+		/* Do we have to check for the current supplementary groups? */
+		if (current_has_supp) {
+			/*
+			 * Linear search, as both supplementary groups arrays
+			 * are sorted.  Advancing 'old_idx' with a binary search
+			 * on absence of MDF_SUPP_MUST doesn't seem worth it in
+			 * practice.
+			 */
+			for (; old_idx < old_ngroups; ++old_idx) {
+				const gid_t old_gid = old_groups[old_idx];
+
+				if (old_gid < gid) {
+					/* Mandatory but absent. */
+					if ((gid_flags & MDF_SUPP_MUST) != 0)
+						return (EPERM);
+				} else if (old_gid == gid) {
+					switch (gid_flags & MDF_SUPP_MASK) {
+					case MDF_SUPP_DONT:
+						/* Present but forbidden. */
+						return (EPERM);
+					case MDF_SUPP_ALLOW:
+					case MDF_SUPP_MUST:
+						may_accept = true;
+						break;
+					default:
+#ifdef INVARIANTS
+						__assert_unreachable();
+#else
+						/* Better be safe than sorry. */
+						return (EPERM);
+#endif
+					}
+					++old_idx;
+					break;
+				}
+				else
+					break;
+			}
+		}
+
+		/*
+		 * Search by GID for a corresponding 'struct id_spec'.
+		 *
+		 * Again, linear search, with same note on not using binary
+		 * search optimization as above (the trigger would be absence of
+		 * MDF_EXPLICIT_SUPP_MUST this time).
+		 */
+		for (; rule_idx < rule->gids_nb; ++rule_idx) {
+			const struct id_spec is = rule->gids[rule_idx];
+
+			if (is.id < gid) {
+				/* Mandatory but absent. */
+				if ((is.flags & MDF_SUPP_MUST) != 0)
+					return (EPERM);
+			} else if (is.id == gid) {
+				switch (is.flags & MDF_SUPP_MASK) {
+				case MDF_SUPP_DONT:
+					/* Present but forbidden. */
+					return (EPERM);
+				case MDF_SUPP_ALLOW:
+				case MDF_SUPP_MUST:
+					may_accept = true;
+					break;
+				case 0:
+					/* Primary group only. */
+					break;
+				default:
+#ifdef INVARIANTS
+					__assert_unreachable();
+#else
+					/* Better be safe than sorry. */
+					return (EPERM);
+#endif
+				}
+				++rule_idx;
+				break;
+			}
+			else
+				break;
+		}
+
+		/* 'gid' wasn't explicitly accepted. */
+		if (!may_accept)
+			return (EPERM);
+	}
+
+	/*
+	 * If we must have all current groups and we didn't browse all
+	 * of them at this point (because the remaining ones have GIDs
+	 * greater than the last requested group), we are simply missing
+	 * them.
+	 */
+	if ((gid_flags & MDF_CURRENT) != 0 &&
+	    (gid_flags & MDF_SUPP_MUST) != 0 &&
+	    old_idx < old_ngroups)
+		return (EPERM);
+	/*
+	 * Similarly, we have to finish browsing all GIDs from the rule
+	 * in case some are marked mandatory.
+	 */
+	if ((gid_flags & MDF_EXPLICIT_SUPP_MUST) != 0) {
+		for (; rule_idx < rule->gids_nb; ++rule_idx) {
+			const struct id_spec is = rule->gids[rule_idx];
+
+			if ((is.flags & MDF_SUPP_MUST) != 0)
+				return (EPERM);
+		}
+	}
+
+	return (0);
+}
+
+static int
+rule_grant_primary_group(const struct rule *const rule,
+    const struct ucred *const old_cred, const gid_t gid)
+{
+	struct id_spec gid_is = {.flags = 0};
+	const struct id_spec *found_is;
+	int error;
+
+	if ((rule->gid_flags & MDF_ANY) != 0)
+		return (0);
+
+	/* Was MDF_CURRENT specified, and is 'gid' a current GID? */
+	if ((rule->gid_flags & MDF_CURRENT) != 0 &&
+	    group_is_primary(gid, old_cred)) {
+		error = grant_primary_group_from_flags(rule->gid_flags);
+		if (error == 0)
+			return (0);
+	}
+
+	/* Search by GID for a corresponding 'struct id_spec'. */
+	gid_is.id = gid;
+	found_is = bsearch(&gid_is, rule->gids, rule->gids_nb,
+	    sizeof(*rule->gids), id_spec_cmp);
+
+	if (found_is != NULL) {
+		error = grant_primary_group_from_flags(found_is->flags);
+		if (error == 0)
+			return (0);
+	}
+
+	return (EPERM);
+}
+
+static int
+rule_grant_primary_groups(const struct rule *const rule,
+    const struct ucred *const old_cred, const struct ucred *const new_cred)
+{
+	int error;
+
+	/* Shortcut. */
+	if ((rule->gid_flags & MDF_ANY) != 0)
+		return (0);
+
+	error = rule_grant_primary_group(rule, old_cred, new_cred->cr_gid);
+	if (error != 0)
+		return (error);
+	error = rule_grant_primary_group(rule, old_cred, new_cred->cr_rgid);
+	if (error != 0)
+		return (error);
+	error = rule_grant_primary_group(rule, old_cred, new_cred->cr_svgid);
+	if (error != 0)
+		return (error);
+	return (0);
+}
+
+static bool
+user_is_current(const uid_t uid, const struct ucred *const old_cred)
+{
+	return (uid == old_cred->cr_uid || uid == old_cred->cr_ruid ||
+	    uid == old_cred->cr_svuid);
+}
+
+static int
+rule_grant_user(const struct rule *const rule,
+    const struct ucred *const old_cred, const uid_t uid)
+{
+	struct id_spec uid_is = {.flags = 0};
+	const struct id_spec *found_is;
+
+	if ((rule->uid_flags & MDF_ANY) != 0)
+		return (0);
+
+	/* Was MDF_CURRENT specified, and is 'uid' a current UID? */
+	if ((rule->uid_flags & MDF_CURRENT) != 0 &&
+	    user_is_current(uid, old_cred))
+		return (0);
+
+	/* Search by UID for a corresponding 'struct id_spec'. */
+	uid_is.id = uid;
+	found_is = bsearch(&uid_is, rule->uids, rule->uids_nb,
+	    sizeof(*rule->uids), id_spec_cmp);
+
+	if (found_is != NULL)
+		return (0);
+
+	return (EPERM);
+}
+
+static int
+rule_grant_users(const struct rule *const rule,
+    const struct ucred *const old_cred, const struct ucred *const new_cred)
+{
+	int error;
+
+	/* Shortcut. */
+	if ((rule->uid_flags & MDF_ANY) != 0)
+		return (0);
+
+	error = rule_grant_user(rule, old_cred, new_cred->cr_uid);
+	if (error != 0)
+		return (error);
+	error = rule_grant_user(rule, old_cred, new_cred->cr_ruid);
+	if (error != 0)
+		return (error);
+	error = rule_grant_user(rule, old_cred, new_cred->cr_svuid);
+	if (error != 0)
+		return (error);
+
+	return (0);
+}
+
+static int
+rule_grant_setcred(const struct rule *const rule,
+    const struct ucred *const old_cred, const struct ucred *const new_cred)
+{
+	int error;
+
+	error = rule_grant_users(rule, old_cred, new_cred);
+	if (error != 0)
+		return (error);
+	error = rule_grant_primary_groups(rule, old_cred, new_cred);
+	if (error != 0)
+		return (error);
+	error = rule_grant_supplementary_groups(rule, old_cred, new_cred);
+	if (error != 0)
+		return (error);
+
+	return (0);
+}
+
+static bool
+rule_applies(const struct rule *const rule, const struct ucred *const cred)
+{
+	if (rule->from_type == IT_UID && rule->from_id == cred->cr_uid)
+		return (true);
+	if (rule->from_type == IT_GID && groupmember(rule->from_id, cred))
+		return (true);
+	return (false);
+}
+
+/*
+ * To pass data between check_setcred() and priv_grant() (on PRIV_CRED_SETCRED).
+ */
+struct mac_do_setcred_data {
+	struct mac_do_data_header hdr;
+	const struct ucred *new_cred;
+	u_int setcred_flags;
+};
+
+static int
+mac_do_priv_grant(struct ucred *cred, int priv)
+{
+	struct mac_do_setcred_data *const data = fetch_data();
+	const struct rules *rules;
+	const struct ucred *new_cred;
+	const struct rule *rule;
+	u_int setcred_flags;
+	int error;
+
+	/* Bail out fast if we aren't concerned. */
+	if (priv != PRIV_CRED_SETCRED)
+		return (EPERM);
+
+	/*
+	 * Do we have to do something?
+	 */
+	if (check_data_usable(data, sizeof(*data), priv) != 0)
+		/* No. */
+		return (EPERM);
+
+	rules = data->hdr.rules;
+	new_cred = data->new_cred;
+	KASSERT(new_cred != NULL,
+	    ("priv_check*() called before mac_cred_check_setcred()"));
+	setcred_flags = data->setcred_flags;
+
+	/*
+	 * Explicitly check that only the flags we currently support are present
+	 * in order to avoid accepting transitions with other changes than those
+	 * we are actually going to check.  Currently, this rules out the
+	 * SETCREDF_MAC_LABEL flag.  This may be improved by adding code
+	 * actually checking whether the requested label and the current one
+	 * would differ.
+	 */
+	if ((setcred_flags & ~(SETCREDF_UID | SETCREDF_RUID | SETCREDF_SVUID |
+	    SETCREDF_GID | SETCREDF_RGID | SETCREDF_SVGID |
+	    SETCREDF_SUPP_GROUPS)) != 0)
+		return (EPERM);
+
+	/*
+	 * Browse rules, and for those that match the requestor, call specific
+	 * privilege granting functions interpreting the "to"/"target" part.
+	 */
+	error = EPERM;
+	TAILQ_FOREACH(rule, &rules->head, r_entries)
+	    if (rule_applies(rule, cred)) {
+		    error = rule_grant_setcred(rule, cred, new_cred);
+		    if (error != EPERM)
+			    break;
+	    }
+
+	return (error);
+}
+
+static int
+check_proc(void)
+{
+	char *path, *to_free;
+	int error;
+
+	/*
+	 * Only grant privileges if requested by the right executable.
+	 *
+	 * XXXOC: We may want to base this check on a tunable path and/or
+	 * a specific MAC label.  Going even further, e.g., envisioning to
+	 * completely replace the path check with the latter, we would need to
+	 * install FreeBSD on a FS with multilabel enabled by default, which in
+	 * practice entails adding an option to ZFS to set MNT_MULTILABEL
+	 * automatically on mounts, ensuring that root (and more if using
+	 * different partitions) ZFS or UFS filesystems are created with
+	 * multilabel turned on, and having the installation procedure support
+	 * setting a MAC label per file (perhaps via additions to mtree(1)).  So
+	 * this probably isn't going to happen overnight, if ever.
+	 */
+	if (vn_fullpath(curproc->p_textvp, &path, &to_free) != 0)
+		return (EPERM);
+	error = strcmp(path, "/usr/bin/mdo") == 0 ? 0 : EPERM;
+	free(to_free, M_TEMP);
+	return (error);
+}
+
+static void
+mac_do_setcred_enter(void)
+{
+	struct rules *rules;
+	struct prison *pr;
+	struct mac_do_setcred_data * data;
+	int error;
+
+	/*
+	 * If not enabled, don't prepare data.  Other hooks will check for that
+	 * to know if they have to do something.
+	 */
+	if (do_enabled == 0)
+		return;
+
+	/*
+	 * MAC/do only applies to a process launched from a given executable.
+	 * For other processes, we just won't intervene (we don't deny requests,
+	 * nor do we grant privileges to them).
+	 */
+	error = check_proc();
+	if (error != 0)
+		return;
+
+	/*
+	 * Find the currently applicable rules.
+	 */
+	rules = find_rules(curproc->p_ucred->cr_prison, &pr);
+	hold_rules(rules);
+	prison_unlock(pr);
+
+	/*
+	 * Setup thread data to be used by other hooks.
+	 */
+	data = fetch_data();
+	if (!is_data_reusable(data, sizeof(*data)))
+		data = alloc_data(data, sizeof(*data));
+	set_data_header(data, sizeof(*data), PRIV_CRED_SETCRED, rules);
+	/* Not really necessary, but helps to catch programming errors. */
+	data->new_cred = NULL;
+	data->setcred_flags = 0;
+}
+
+static int
+mac_do_check_setcred(u_int flags, const struct ucred *const old_cred,
+    struct ucred *const new_cred)
+{
+	struct mac_do_setcred_data *const data = fetch_data();
+
+	/*
+	 * Do we have to do something?
+	 */
+	if (check_data_usable(data, sizeof(*data), PRIV_CRED_SETCRED) != 0)
+		/* No. */
+		return (0);
+
+	/*
+	 * Keep track of the setcred() flags and the new credentials for
+	 * priv_check*().
+	 */
+	data->new_cred = new_cred;
+	data->setcred_flags = flags;
+
+	return (0);
+}
+
+static void
+mac_do_setcred_exit(void)
+{
+	struct mac_do_setcred_data *const data = fetch_data();
+
+	if (check_data_usable(data, sizeof(*data), PRIV_CRED_SETCRED) == 0)
+		/*
+		 * This doesn't deallocate the small per-thread data storage,
+		 * which can be reused on subsequent calls.  (That data is of
+		 * course deallocated as the current thread dies or this module
+		 * is unloaded.)
+		 */
+		clear_data(data);
+}
+
 static void
 mac_do_init(struct mac_policy_conf *mpc)
 {
 	struct prison *pr;
 
-	osd_jail_slot = osd_jail_register(dealloc_osd, osd_methods);
+	osd_jail_slot = osd_jail_register(dealloc_jail_osd, osd_methods);
 	set_empty_rules(&prison0);
 	sx_slock(&allprison_lock);
 	TAILQ_FOREACH(pr, &allprison, pr_list)
 	    set_empty_rules(pr);
 	sx_sunlock(&allprison_lock);
+
+	osd_thread_slot = osd_thread_register(dealloc_thread_osd);
 }
 
 static void
 mac_do_destroy(struct mac_policy_conf *mpc)
 {
+	/*
+	 * osd_thread_deregister() must be called before osd_jail_deregister(),
+	 * for the reason explained in dealloc_jail_osd().
+	 */
+	osd_thread_deregister(osd_thread_slot);
 	osd_jail_deregister(osd_jail_slot);
 }
 
-static bool
-rule_applies(struct ucred *cred, struct rule *r)
-{
-	if (r->from_type == IT_UID && r->from_id == cred->cr_uid)
-		return (true);
-	if (r->from_type == IT_GID && groupmember(r->from_id, cred))
-		return (true);
-	return (false);
-}
-
-static int
-mac_do_priv_grant(struct ucred *cred, int priv)
-{
-	struct rule *r;
-	struct prison *pr;
-	struct rules *rule;
-
-	if (do_enabled == 0)
-		return (EPERM);
-
-	rule = find_rules(cred->cr_prison, &pr);
-	TAILQ_FOREACH(r, &rule->head, r_entries) {
-		if (rule_applies(cred, r)) {
-			switch (priv) {
-			case PRIV_CRED_SETGROUPS:
-			case PRIV_CRED_SETUID:
-				prison_unlock(pr);
-				return (0);
-			default:
-				break;
-			}
-		}
-	}
-	prison_unlock(pr);
-	return (EPERM);
-}
-
-static int
-mac_do_check_setgroups(struct ucred *cred, int ngrp, gid_t *groups)
-{
-	struct rule *r;
-	char *fullpath = NULL;
-	char *freebuf = NULL;
-	struct prison *pr;
-	struct rules *rule;
-
-	if (do_enabled == 0)
-		return (0);
-	if (cred->cr_uid == 0)
-		return (0);
-
-	if (vn_fullpath(curproc->p_textvp, &fullpath, &freebuf) != 0)
-		return (EPERM);
-	if (strcmp(fullpath, "/usr/bin/mdo") != 0) {
-		free(freebuf, M_TEMP);
-		return (EPERM);
-	}
-	free(freebuf, M_TEMP);
-
-	rule = find_rules(cred->cr_prison, &pr);
-	TAILQ_FOREACH(r, &rule->head, r_entries) {
-		if (rule_applies(cred, r)) {
-			prison_unlock(pr);
-			return (0);
-		}
-	}
-	prison_unlock(pr);
-
-	return (EPERM);
-}
-
-static int
-mac_do_check_setuid(struct ucred *cred, uid_t uid)
-{
-	struct rule *r;
-	char *fullpath = NULL;
-	char *freebuf = NULL;
-	struct prison *pr;
-	struct rules *rule;
-	struct id_spec uid_is = {.id = uid};
-	int error;
-
-	if (do_enabled == 0)
-		return (0);
-	if (cred->cr_uid == uid || cred->cr_uid == 0 || cred->cr_ruid == 0)
-		return (0);
-
-	if (vn_fullpath(curproc->p_textvp, &fullpath, &freebuf) != 0)
-		return (EPERM);
-	if (strcmp(fullpath, "/usr/bin/mdo") != 0) {
-		free(freebuf, M_TEMP);
-		return (EPERM);
-	}
-	free(freebuf, M_TEMP);
-
-	error = EPERM;
-	rule = find_rules(cred->cr_prison, &pr);
-	TAILQ_FOREACH(r, &rule->head, r_entries) {
-		if (!((r->from_type == IT_UID && cred->cr_uid == r->from_id) ||
-		    (r->from_type == IT_GID && groupmember(r->from_id, cred))))
-			continue;
-
-		if (r->uid_flags & MDF_ANY ||
-		    ((r->uid_flags & MDF_CURRENT) && (uid == cred->cr_uid ||
-		    uid == cred->cr_ruid || uid == cred->cr_svuid)) ||
-		    bsearch(&uid_is, r->uids, r->uids_nb, sizeof(*r->uids),
-		    id_spec_cmp) != NULL) {
-			error = 0;
-			break;
-		}
-	}
-	prison_unlock(pr);
-	return (error);
-}
-
 static struct mac_policy_ops do_ops = {
-	.mpo_destroy = mac_do_destroy,
 	.mpo_init = mac_do_init,
-	.mpo_cred_check_setuid = mac_do_check_setuid,
-	.mpo_cred_check_setgroups = mac_do_check_setgroups,
+	.mpo_destroy = mac_do_destroy,
+	.mpo_cred_setcred_enter = mac_do_setcred_enter,
+	.mpo_cred_check_setcred = mac_do_check_setcred,
+	.mpo_cred_setcred_exit = mac_do_setcred_exit,
 	.mpo_priv_grant = mac_do_priv_grant,
 };
 
-MAC_POLICY_SET(&do_ops, mac_do, "MAC/do",
-   MPC_LOADTIME_FLAG_UNLOADOK, NULL);
+MAC_POLICY_SET(&do_ops, mac_do, "MAC/do", MPC_LOADTIME_FLAG_UNLOADOK, NULL);
 MODULE_VERSION(mac_do, 1);
