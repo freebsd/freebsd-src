@@ -284,7 +284,7 @@ c4iw_activate(struct adapter *sc)
 	}
 
 	if (uld_active(sc, ULD_IWARP)) {
-		KASSERT(0, ("%s: RDMA already eanbled on sc %p", __func__, sc));
+		KASSERT(0, ("%s: RDMA already enabled on sc %p", __func__, sc));
 		return (0);
 	}
 
