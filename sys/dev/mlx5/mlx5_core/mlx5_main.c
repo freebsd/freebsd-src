@@ -26,6 +26,7 @@
 
 #include "opt_rss.h"
 #include "opt_ratelimit.h"
+#include "opt_ipsec.h"
 
 #include <linux/kmod.h>
 #include <linux/module.h>
@@ -67,6 +68,9 @@ MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DEPEND(mlx5, linuxkpi, 1, 1, 1);
 MODULE_DEPEND(mlx5, mlxfw, 1, 1, 1);
 MODULE_DEPEND(mlx5, firmware, 1, 1, 1);
+#ifdef IPSEC_OFFLOAD
+MODULE_DEPEND(mlx5, ipsec, 1, 1, 1);
+#endif
 MODULE_VERSION(mlx5, 1);
 
 SYSCTL_NODE(_hw, OID_AUTO, mlx5, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
@@ -1209,7 +1213,7 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		goto err_stop_eqs;
 	}
 
-	err = mlx5_init_fs(dev);
+	err = mlx5_fs_core_init(dev);
 	if (err) {
 		mlx5_core_err(dev, "flow steering init %d\n", err);
 		goto err_free_comp_eqs;
@@ -1327,7 +1331,7 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	mlx5_diag_cnt_cleanup(dev);
 	mlx5_fpga_device_stop(dev);
 	mlx5_mpfs_destroy(dev);
-	mlx5_cleanup_fs(dev);
+	mlx5_fs_core_cleanup(dev);
 	mlx5_wait_for_reclaim_vfs_pages(dev);
 	free_comp_eqs(dev);
 	mlx5_stop_eqs(dev);
@@ -1694,10 +1698,17 @@ static int init_one(struct pci_dev *pdev,
 
 	mlx5_pagealloc_init(dev);
 
+	pr_info("%s - MARK BLOCH WAS HERE\n", __func__);
+	err = mlx5_fs_core_alloc(dev);
+	if (err) {
+		mlx5_core_err(dev, "Failed to alloc flow steering\n");
+		goto clean_health;
+	}
+
 	err = mlx5_load_one(dev, priv, true);
 	if (err) {
 		mlx5_core_err(dev, "mlx5_load_one failed %d\n", err);
-		goto clean_health;
+		goto clean_fs;
 	}
 
 	mlx5_fwdump_prep(dev);
@@ -1743,6 +1754,8 @@ static int init_one(struct pci_dev *pdev,
 	pci_save_state(pdev);
 	return 0;
 
+clean_fs:
+	mlx5_fs_core_free(dev);
 clean_health:
 	mlx5_pagealloc_cleanup(dev);
 	mlx5_health_cleanup(dev);
@@ -1774,6 +1787,7 @@ static void remove_one(struct pci_dev *pdev)
 		    (long long)(dev->priv.fw_pages * MLX5_ADAPTER_PAGE_SIZE));
 	}
 
+	mlx5_fs_core_free(dev);
 	mlx5_pagealloc_cleanup(dev);
 	mlx5_health_cleanup(dev);
 	mlx5_fwdump_clean(dev);

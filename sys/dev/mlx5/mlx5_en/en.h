@@ -70,6 +70,7 @@
 #include <dev/mlx5/mlx5_core/wq.h>
 #include <dev/mlx5/mlx5_core/transobj.h>
 #include <dev/mlx5/mlx5_core/mlx5_core.h>
+#include <dev/mlx5/mlx5_accel/ipsec.h>
 
 #define	MLX5_SET_CFG(p, f, v) MLX5_SET(create_flow_group_in, p, f, v)
 
@@ -956,7 +957,7 @@ struct mlx5_flow_rule;
 struct mlx5e_eth_addr_info {
 	u8	addr [ETH_ALEN + 2];
 	/* flow table rule per traffic type */
-	struct mlx5_flow_rule	*ft_rule[MLX5E_NUM_TT];
+	struct mlx5_flow_handle	*ft_rule[MLX5E_NUM_TT];
 };
 
 #define	MLX5E_ETH_ADDR_HASH_SIZE (1 << BITS_PER_BYTE)
@@ -992,10 +993,10 @@ enum {
 
 struct mlx5e_vlan_db {
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
-	struct mlx5_flow_rule	*active_vlans_ft_rule[VLAN_N_VID];
-	struct mlx5_flow_rule	*untagged_ft_rule;
-	struct mlx5_flow_rule	*any_cvlan_ft_rule;
-	struct mlx5_flow_rule	*any_svlan_ft_rule;
+	struct mlx5_flow_handle	*active_vlans_ft_rule[VLAN_N_VID];
+	struct mlx5_flow_handle	*untagged_ft_rule;
+	struct mlx5_flow_handle	*any_cvlan_ft_rule;
+	struct mlx5_flow_handle	*any_svlan_ft_rule;
 	bool	filter_disabled;
 };
 
@@ -1004,7 +1005,7 @@ struct mlx5e_vxlan_db_el {
 	u_int proto;
 	u_int port;
 	bool installed;
-	struct mlx5_flow_rule *vxlan_ft_rule;
+	struct mlx5_flow_handle *vxlan_ft_rule;
 	TAILQ_ENTRY(mlx5e_vxlan_db_el) link;
 };
 
@@ -1027,19 +1028,20 @@ enum accel_fs_tcp_type {
 struct mlx5e_accel_fs_tcp {
 	struct mlx5_flow_namespace *ns;
 	struct mlx5e_flow_table tables[MLX5E_ACCEL_FS_TCP_NUM_TYPES];
-	struct mlx5_flow_rule *default_rules[MLX5E_ACCEL_FS_TCP_NUM_TYPES];
+	struct mlx5_flow_handle *default_rules[MLX5E_ACCEL_FS_TCP_NUM_TYPES];
 };
 
 struct mlx5e_flow_tables {
 	struct mlx5_flow_namespace *ns;
 	struct mlx5e_flow_table vlan;
 	struct mlx5e_flow_table vxlan;
-	struct mlx5_flow_rule *vxlan_catchall_ft_rule;
+	struct mlx5_flow_handle *vxlan_catchall_ft_rule;
 	struct mlx5e_flow_table main;
 	struct mlx5e_flow_table main_vxlan;
-	struct mlx5_flow_rule *main_vxlan_rule[MLX5E_NUM_TT];
+	struct mlx5_flow_handle *main_vxlan_rule[MLX5E_NUM_TT];
 	struct mlx5e_flow_table inner_rss;
 	struct mlx5e_accel_fs_tcp accel_tcp;
+	struct mlx5_flow_table *ipsec_ft;
 };
 
 struct mlx5e_xmit_args {
@@ -1067,6 +1069,7 @@ struct mlx5e_dcbx {
 	u32	xoff;
 };
 
+struct mlx5e_ipsec;
 struct mlx5e_priv {
 	struct mlx5_core_dev *mdev;     /* must be first */
 
@@ -1145,6 +1148,7 @@ struct mlx5e_priv {
 	bool	sw_is_port_buf_owner;
 
 	struct pfil_head *pfil;
+	struct mlx5e_ipsec *ipsec;
 	struct mlx5e_channel channel[];
 };
 

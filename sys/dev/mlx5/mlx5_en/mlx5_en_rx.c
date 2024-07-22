@@ -28,6 +28,7 @@
 
 #include <dev/mlx5/mlx5_en/en.h>
 #include <machine/in_cksum.h>
+#include <dev/mlx5/mlx5_accel/ipsec.h>
 
 static inline int
 mlx5e_alloc_rx_wqe(struct mlx5e_rq *rq,
@@ -69,6 +70,9 @@ mlx5e_alloc_rx_wqe(struct mlx5e_rq *rq,
 	/* get IP header aligned */
 	m_adj(mb, MLX5E_NET_IP_ALIGN);
 
+	err = mlx5_accel_ipsec_rx_tag_add(rq->ifp, mb);
+	if (err)
+		goto err_free_mbuf;
 	err = -bus_dmamap_load_mbuf_sg(rq->dma_tag, rq->mbuf[ix].dma_map,
 	    mb, segs, &nsegs, BUS_DMA_NOWAIT);
 	if (err != 0)
@@ -418,6 +422,8 @@ mlx5e_build_rx_mbuf(struct mlx5_cqe64 *cqe,
 	default:
 		break;
 	}
+
+	mlx5e_accel_ipsec_handle_rx(mb, cqe);
 }
 
 static inline void
@@ -563,7 +569,9 @@ mlx5e_poll_rx_cq(struct mlx5e_rq *rq, int budget)
 					("Filter returned %d!\n", rv));
 			}
 		}
-		if ((MHLEN - MLX5E_NET_IP_ALIGN) >= byte_cnt &&
+		if (!mlx5e_accel_ipsec_flow(cqe) /* tag is already assigned
+						    to rq->mbuf */ &&
+		    MHLEN - MLX5E_NET_IP_ALIGN >= byte_cnt &&
 		    (mb = m_gethdr(M_NOWAIT, MT_DATA)) != NULL) {
 			/* set maximum mbuf length */
 			mb->m_len = MHLEN - MLX5E_NET_IP_ALIGN;
