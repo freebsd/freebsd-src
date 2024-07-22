@@ -847,8 +847,8 @@ tcp_packets_this_ack(struct tcpcb *tp, tcp_seq ack)
 #define	TF2_MBUF_QUEUE_READY	0x00020000 /* Inputs can be queued */
 #define	TF2_DONT_SACK_QUEUE	0x00040000 /* Don't wake on sack */
 #define	TF2_CANNOT_DO_ECN	0x00080000 /* The stack does not do ECN */
-#define TF2_PROC_SACK_PROHIBIT	0x00100000 /* Due to small MSS size do not process sack's */
-#define	TF2_IPSEC_TSO		0x00200000	/* IPSEC + TSO supported */
+#define	TF2_PROC_SACK_PROHIBIT	0x00100000 /* Due to small MSS size do not process sack's */
+#define	TF2_IPSEC_TSO		0x00200000 /* IPSEC + TSO supported */
 #define	TF2_NO_ISS_CHECK	0x00200000 /* Don't check SEG.ACK against ISS */
 
 /*
