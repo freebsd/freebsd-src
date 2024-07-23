@@ -16,7 +16,7 @@ this affects `length`, `substr`, `index`, `match`, `split`,
 points are not necessarily characters.
 
 UTF-8 sequences may appear in literal strings and regular expressions.
-Aribtrary characters may be included with `\u` followed by 1 to 8 hexadecimal digits.
+Arbitrary characters may be included with `\u` followed by 1 to 8 hexadecimal digits.
 
 ### Regular expressions ###
 
