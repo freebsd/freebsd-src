@@ -108,10 +108,10 @@ local function adduser(pwd)
 	local precmd = ""
 	local postcmd = ""
 	if pwd.passwd then
-		precmd = "echo "..pwd.passwd .. "| "
+		precmd = "echo " .. ("%q"):format(pwd.passwd) .. " | "
 		postcmd = " -H 0 "
 	elseif pwd.plain_text_passwd then
-		precmd = "echo "..pwd.plain_text_passwd .. "| "
+		precmd = "echo " .. ("%q"):format(pwd.plain_text_passwd) .. " | "
 		postcmd = " -h 0 "
 	end
 	cmd = precmd .. "pw "
