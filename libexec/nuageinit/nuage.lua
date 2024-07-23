@@ -86,8 +86,8 @@ local function adduser(pwd)
 	if not pwd.gecos then
 		pwd.gecos = pwd.name .. " User"
 	end
-	if not pwd.home then
-		pwd.home = "/home/" .. pwd.name
+	if not pwd.homedir then
+		pwd.homedir = "/home/" .. pwd.name
 	end
 	local extraargs=""
 	if pwd.groups then
@@ -120,7 +120,7 @@ local function adduser(pwd)
 	end
 	cmd = cmd .. "useradd -n ".. pwd.name .. " -M 0755 -w none "
 	cmd = cmd .. extraargs .. " -c '".. pwd.gecos
-	cmd = cmd .. "' -d '" .. pwd.home .. "' -s "..pwd.shell .. postcmd
+	cmd = cmd .. "' -d '" .. pwd.homedir .. "' -s "..pwd.shell .. postcmd
 
 	local r = os.execute(cmd)
 	if not r then
@@ -136,7 +136,7 @@ local function adduser(pwd)
 		cmd = cmd .. "lock " .. pwd.name
 		os.execute(cmd)
 	end
-	return pwd.home
+	return pwd.homedir
 end
 
 local function addgroup(grp)
