@@ -9,7 +9,7 @@ BEGIN {
 	status = system("exit 42")
 	print "normal status", status
 
-	status = system("kill -HUP $$")
+	status = system("kill -KILL $$")
 	print "death by signal status", status
 
 	status = system("kill -ABRT $$")
