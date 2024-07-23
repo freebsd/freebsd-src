@@ -335,14 +335,16 @@ int readcsvrec(char **pbuf, int *pbufsize, FILE *inf, bool newflag) /* csv can h
 
 char *getargv(int n)	/* get ARGV[n] */
 {
+	Array *ap;
 	Cell *x;
 	char *s, temp[50];
-	extern Array *ARGVtab;
+	extern Cell *ARGVcell;
 
+	ap = (Array *)ARGVcell->sval;
 	snprintf(temp, sizeof(temp), "%d", n);
-	if (lookup(temp, ARGVtab) == NULL)
+	if (lookup(temp, ap) == NULL)
 		return NULL;
-	x = setsymtab(temp, "", 0.0, STR, ARGVtab);
+	x = setsymtab(temp, "", 0.0, STR, ap);
 	s = getsval(x);
 	DPRINTF("getargv(%d) returns |%s|\n", n, s);
 	return s;

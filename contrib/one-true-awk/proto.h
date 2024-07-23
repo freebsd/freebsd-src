@@ -34,9 +34,6 @@ extern	void	startreg(void);
 extern	int	input(void);
 extern	void	unput(int);
 extern	void	unputstr(const char *);
-extern	int	yylook(void);
-extern	int	yyback(int *, int);
-extern	int	yyinput(void);
 
 extern	fa	*makedfa(const char *, bool);
 extern	fa	*mkdfa(const char *, bool);
@@ -169,7 +166,6 @@ extern	Cell	*boolop(Node **, int);
 extern	Cell	*relop(Node **, int);
 extern	void	tfree(Cell *);
 extern	Cell	*gettemp(void);
-extern	Cell	*field(Node **, int);
 extern	Cell	*indirect(Node **, int);
 extern	Cell	*substr(Node **, int);
 extern	Cell	*sindex(Node **, int);

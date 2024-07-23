@@ -25,15 +25,31 @@ THIS SOFTWARE.
 This file lists all bug fixes, changes, etc., made since the 
 second edition of the AWK book was published in September 2023.
 
+Jun 23, 2024
+	Fix signal for system-status test. Thanks to Tim van der Molen.
+	Rewrite if-else chain as switch. Thanks to Andrew Sukach.
+
+May 27, 2024
+	Spelling fixes and removal of unneeded prototypes and extern.
+	Thanks to Jonathan Gray.
+
+May 4, 2024
+	Fixed a use-after-free bug with ARGV for "delete ARGV".
+	Also ENVtab is no longer global. Thanks to Benjamin Sturz
+	for spotting the ARGV issue and	Todd Miller for the fix. 
+
+May 3, 2024:
+	Remove warnings when compiling with g++. Thanks to Arnold Robbins.
+
 Apr 22, 2024:
-	fixed regex engine gototab reallocation issue that was
-	introduced during the Nov 24 rewrite. Thanks to Arnold Robbins.
+	Fixed regex engine gototab reallocation issue that was
+	Introduced during the Nov 24 rewrite. Thanks to Arnold Robbins.
 	Fixed a scan bug in split in the case the separator is a single
-	character. thanks to Oguz Ismail for spotting the issue.
+	character. Thanks to Oguz Ismail for spotting the issue.
 
 Mar 10, 2024:
-	fixed use-after-free bug in fnematch due to adjbuf invalidating
-	the pointers to buf. thanks to github user caffe3 for spotting
+	Fixed use-after-free bug in fnematch due to adjbuf invalidating
+	the pointers to buf. Thanks to github user caffe3 for spotting
 	the issue and providing a fix, and to Miguel Pineiro Jr.
 	for the alternative fix.
 	MAX_UTF_BYTES in fnematch has been replaced with awk_mb_cur_max.
