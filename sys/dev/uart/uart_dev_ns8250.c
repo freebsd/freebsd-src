@@ -460,6 +460,7 @@ UART_CLASS(uart_ns8250_class);
 static struct acpi_uart_compat_data acpi_compat_data[] = {
 	{"AMD0020",	&uart_ns8250_class, 0, 2, 0, 48000000, UART_F_BUSY_DETECT, "AMD / Synopsys Designware UART"},
 	{"AMDI0020", &uart_ns8250_class, 0, 2, 0, 48000000, UART_F_BUSY_DETECT, "AMD / Synopsys Designware UART"},
+	{"APMC0D08", &uart_ns8250_class, ACPI_DBG2_16550_COMPATIBLE, 2, 4, 0, 0, "APM compatible UART"},
 	{"MRVL0001", &uart_ns8250_class, ACPI_DBG2_16550_SUBSET, 2, 0, 200000000, UART_F_BUSY_DETECT, "Marvell / Synopsys Designware UART"},
 	{"SCX0006",  &uart_ns8250_class, 0, 2, 0, 62500000, UART_F_BUSY_DETECT, "SynQuacer / Synopsys Designware UART"},
 	{"HISI0031", &uart_ns8250_class, 0, 2, 0, 200000000, UART_F_BUSY_DETECT, "HiSilicon / Synopsys Designware UART"},
