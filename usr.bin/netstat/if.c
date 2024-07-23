@@ -501,7 +501,7 @@ intpr(void (*pfunc)(char *), int af)
 		    IFA_STAT(ipackets), link|network, 1);
 		show_stat("lu", nerr_len, "received-errors", IFA_STAT(ierrors),
 		    link, 1);
-		/* Below is kept for backwards compatibility. Will be removed in the future. */
+		/* Below is kept for backwards compatibility. Will be removed before FreeBSD 16. */
 		show_stat("lu", nerr_len, "dropped-packets", IFA_STAT(iqdrops),
 		    link, 1);
 		show_stat("lu", nerr_len, "dropped-packets-in", IFA_STAT(iqdrops),
@@ -708,7 +708,7 @@ loop:
 	    new->ift_ip - old->ift_ip, 1, 1);
 	show_stat("lu", 5, "received-errors",
 	    new->ift_ie - old->ift_ie, 1, 1);
-	/* Below is kept for backwards compatibility. Will be removed in the future. */
+	/* Below is kept for backwards compatibility. Will be removed before FreeBSD 16. */
 	show_stat("lu", 5, "dropped-packets",
 	    new->ift_id - old->ift_id, 1, 1);
 	show_stat("lu", 5, "dropped-packets-in",

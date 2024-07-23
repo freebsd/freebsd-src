@@ -711,7 +711,7 @@ sctp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	    "secret\n");
 	p(sctps_timopathmtu, "\t\t{:pmtu-timer/%ju} "
 	    "{N:/PMTU timer%s fired}\n");
-	p(sctps_timoshutdownack, "\t\t{:shutdown-timer/%ju} "
+	p(sctps_timoshutdownack, "\t\t{:shutdown-ack-timer/%ju} "
 	    "{N:/shutdown ack timer%s fired}\n");
 	p(sctps_timoshutdownguard, "\t\t{:shutdown-guard-timer/%ju} "
 	    "{N:/shutdown guard timer%s fired}\n");
