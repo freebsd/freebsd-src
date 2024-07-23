@@ -317,8 +317,10 @@ LENTRY(enter_kernel_el)
 	msr	hstr_el2, xzr
 
 	/* Enable access to the physical timers at EL1 */
-	mrs	x2, cnthctl_el2
-	orr	x2, x2, #(CNTHCTL_EL1PCTEN | CNTHCTL_EL1PCEN)
+	tst	x4, #HCR_E2H
+	ldr	x3, =(CNTHCTL_EL1PCTEN | CNTHCTL_EL1PCEN)
+	ldr	x5, =(CNTHCTL_E2H_EL1PCTEN | CNTHCTL_E2H_EL1PTEN)
+	csel	x2, x3, x5, eq
 	msr	cnthctl_el2, x2
 
 	/* Set the counter offset to a known value */
