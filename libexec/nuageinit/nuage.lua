@@ -4,6 +4,10 @@
 
 local pu = require("posix.unistd")
 
+function sanitize(str)
+	return ("%q"):format(str)
+end
+
 local function warnmsg(str)
 	io.stderr:write(str.."\n")
 end
@@ -72,12 +76,12 @@ local function adduser(pwd)
 		warnmsg("Argument should be a table")
 		return nil
 	end
-	local root = os.getenv("NUAGE_FAKE_ROOTDIR")
+	local root = sanitize(os.getenv("NUAGE_FAKE_ROOTDIR"))
 	local cmd = "pw "
 	if root then
 		cmd = cmd .. "-R " .. root .. " "
 	end
-	local f = io.popen(cmd .. " usershow " ..pwd.name .. " -7 2>/dev/null")
+	local f = io.popen(cmd .. " usershow " .. sanitize(pwd.name) .. " -7 2>/dev/null")
 	local pwdstr = f:read("*a")
 	f:close()
 	if pwdstr:len() ~= 0 then
@@ -91,13 +95,13 @@ local function adduser(pwd)
 	end
 	local extraargs=""
 	if pwd.groups then
-		local list = splitlist(pwd.groups)
-		extraargs = " -G ".. table.concat(list, ',')
+		local list = splitlist(sanitize(pwd.groups))
+		extraargs = " -G " .. table.concat(list, ',')
 	end
 	-- pw will automatically create a group named after the username
 	-- do not add a -g option in this case
 	if pwd.primary_group and pwd.primary_group ~= pwd.name then
-		extraargs = extraargs .. " -g " .. pwd.primary_group
+		extraargs = extraargs .. " -g " .. sanitize(pwd.primary_group)
 	end
 	if not pwd.no_create_home then
 		extraargs = extraargs .. " -m "
@@ -108,23 +112,23 @@ local function adduser(pwd)
 	local precmd = ""
 	local postcmd = ""
 	if pwd.passwd then
-		precmd = "echo " .. ("%q"):format(pwd.passwd) .. " | "
+		precmd = "echo " .. sanitize(pwd.passwd) .. " | "
 		postcmd = " -H 0 "
 	elseif pwd.plain_text_passwd then
-		precmd = "echo " .. ("%q"):format(pwd.plain_text_passwd) .. " | "
+		precmd = "echo " .. sanitize(pwd.plain_text_passwd) .. " | "
 		postcmd = " -h 0 "
 	end
 	cmd = precmd .. "pw "
 	if root then
 		cmd = cmd .. "-R " .. root .. " "
 	end
-	cmd = cmd .. "useradd -n ".. pwd.name .. " -M 0755 -w none "
-	cmd = cmd .. extraargs .. " -c '".. pwd.gecos
-	cmd = cmd .. "' -d '" .. pwd.homedir .. "' -s "..pwd.shell .. postcmd
+	cmd = cmd .. "useradd -n ".. sanitize(pwd.name) .. " -M 0755 -w none "
+	cmd = cmd .. extraargs .. " -c ".. sanitize(pwd.gecos)
+	cmd = cmd .. " -d " .. sanitize(pwd.homedir) .. " -s ".. sanitize(pwd.shell) .. postcmd
 
 	local r = os.execute(cmd)
 	if not r then
-		warnmsg("nuageinit: fail to add user "..pwd.name);
+		warnmsg("nuageinit: fail to add user " .. sanitize(pwd.name));
 		warnmsg(cmd)
 		return nil
 	end
@@ -133,10 +137,10 @@ local function adduser(pwd)
 		if root then
 			cmd = cmd .. "-R " .. root .. " "
 		end
-		cmd = cmd .. "lock " .. pwd.name
+		cmd = cmd .. "lock " .. sanitize(pwd.name)
 		os.execute(cmd)
 	end
-	return pwd.homedir
+	return sanitize(pwd.homedir)
 end
 
 local function addgroup(grp)
