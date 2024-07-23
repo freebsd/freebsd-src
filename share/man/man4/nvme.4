@@ -239,6 +239,15 @@ detects that the AHCI device supports RST and when it is enabled.
 See
 .Xr ahci 4
 for more details.
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "nvme%d: System interrupt issues?"
+The driver found a timed-out transaction had a pending completion record,
+indicating an interrupt had not been delivered.
+The system is either not configuring interrupts properly, or the system drops
+them under load.
+This message will appear at most once per boot per controller.
+.El
 .Sh SEE ALSO
 .Xr nda 4 ,
 .Xr nvd 4 ,

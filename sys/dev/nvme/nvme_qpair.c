@@ -1145,9 +1145,14 @@ do_reset:
 		/*
 		 * There's a stale transaction at the start of the queue whose
 		 * deadline has passed. Poll the competions as a last-ditch
-		 * effort in case an interrupt has been missed.
+		 * effort in case an interrupt has been missed. Warn the user if
+		 * transactions were found of possible interrupt issues, but
+		 * just once per controller.
 		 */
-		_nvme_qpair_process_completions(qpair);
+		if (_nvme_qpair_process_completions(qpair) && !ctrlr->isr_warned) {
+			nvme_printf(ctrlr, "System interrupt issues?\n");
+			ctrlr->isr_warned = true;
+		}
 
 		/*
 		 * Now that we've run the ISR, re-rheck to see if there's any

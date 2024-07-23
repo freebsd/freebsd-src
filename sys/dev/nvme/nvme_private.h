@@ -303,6 +303,7 @@ struct nvme_controller {
 
 	bool				is_failed;
 	bool				is_dying;
+	bool				isr_warned;
 	STAILQ_HEAD(, nvme_request)	fail_req;
 
 	/* Host Memory Buffer */
