@@ -112,7 +112,7 @@ local function adduser(pwd)
 		postcmd = " -H 0 "
 	elseif pwd.plain_text_passwd then
 		precmd = "echo "..pwd.plain_text_passwd .. "| "
-		postcmd = " -H 0 "
+		postcmd = " -h 0 "
 	end
 	cmd = precmd .. "pw "
 	if root then
