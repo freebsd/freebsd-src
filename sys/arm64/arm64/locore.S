@@ -65,19 +65,6 @@ ENTRY(_start)
 	/* Enter the kernel exception level */
 	bl	enter_kernel_el
 
-	/*
-	 * Disable the MMU. We may have entered the kernel with it on and
-	 * will need to update the tables later. If this has been set up
-	 * with anything other than a VA == PA map then this will fail,
-	 * but in this case the code to find where we are running from
-	 * would have also failed.
-	 */
-	dsb	sy
-	mrs	x2, sctlr_el1
-	bic	x2, x2, SCTLR_M
-	msr	sctlr_el1, x2
-	isb
-
 	/* Set the context id */
 	msr	contextidr_el1, xzr
 
@@ -266,19 +253,37 @@ END(mpentry)
  * registers and drop to EL1.
  */
 LENTRY(enter_kernel_el)
+#define	INIT_SCTLR_EL1	(SCTLR_LSMAOE | SCTLR_nTLSMD | SCTLR_EIS | \
+    SCTLR_TSCXT | SCTLR_EOS)
 	mrs	x23, CurrentEL
 	lsr	x23, x23, #2
 	cmp	x23, #0x2
 	b.eq	1f
-	ret
-1:
-	/*
-	 * Disable the MMU. If the HCR_EL2.E2H field is set we will clear it
-	 * which may break address translation.
+
+	ldr	x2, =INIT_SCTLR_EL1
+	msr	sctlr_el1, x2
+	/* SCTLR_EOS is set so eret is a context synchronizing event so we
+	 * need an isb here to ensure it's observed by later instructions,
+	 * but don't need it in the eret below.
 	 */
+	isb
+
+	/* Ensure SPSR_EL1 and pstate are in sync. The only wat to set the
+	 * latter is to set the former and return from an exception with eret.
+	 */
+	mov	x2, #(PSR_DAIF | PSR_M_EL1h)
+	msr	spsr_el1, x2
+	msr	elr_el1, lr
+	eret
+
+1:
 	dsb	sy
-	mrs	x2, sctlr_el2
-	bic	x2, x2, SCTLR_M
+	/*
+	 * Set just the reserved bits in sctlr_el2. This will disable the
+	 * MMU which may have broken the kernel if we enter the kernel in
+	 * EL2, e.g. when using VHE.
+	 */
+	ldr	x2, =(SCTLR_EL2_RES1 | SCTLR_EL2_EIS | SCTLR_EL2_EOS)
 	msr	sctlr_el2, x2
 	isb
 
@@ -298,8 +303,8 @@ LENTRY(enter_kernel_el)
 	mrs	x2, mpidr_el1
 	msr	vmpidr_el2, x2
 
-	/* Set the bits that need to be 1 in sctlr_el1 */
-	ldr	x2, .Lsctlr_res1
+	/* Set the initial sctlr_el1 */
+	ldr	x2, =INIT_SCTLR_EL1
 	msr	sctlr_el1, x2
 
 	/*
@@ -355,10 +360,7 @@ LENTRY(enter_kernel_el)
 	isb
 
 	eret
-
-	.align 3
-.Lsctlr_res1:
-	.quad SCTLR_RES1
+#undef INIT_SCTLR_EL1
 LEND(enter_kernel_el)
 
 /*
