@@ -1007,22 +1007,35 @@ nvme_abort_complete(void *arg, const struct nvme_completion *status)
 	struct nvme_tracker     *tr = arg;
 
 	/*
-	 * If cdw0 == 1, the controller was not able to abort the command
-	 *  we requested.  We still need to check the active tracker array,
-	 *  to cover race where I/O timed out at same time controller was
-	 *  completing the I/O.
+	 * If cdw0 bit 0 == 1, the controller was not able to abort the command
+	 * we requested.  We still need to check the active tracker array, to
+	 * cover race where I/O timed out at same time controller was completing
+	 * the I/O. An abort command always is on the admin queue, but affects
+	 * either an admin or an I/O queue, so take the appropriate qpair lock
+	 * for the original command's queue, since we'll need it to avoid races
+	 * with the completion code and to complete the command manually.
 	 */
-	if (status->cdw0 == 1 && tr->qpair->act_tr[tr->cid] != NULL) {
+	mtx_lock(&tr->qpair->lock);
+	if ((status->cdw0 & 1) == 1 && tr->qpair->act_tr[tr->cid] != NULL) {
 		/*
-		 * An I/O has timed out, and the controller was unable to
-		 *  abort it for some reason.  Construct a fake completion
-		 *  status, and then complete the I/O's tracker manually.
+		 * An I/O has timed out, and the controller was unable to abort
+		 * it for some reason.  And we've not processed a completion for
+		 * it yet. Construct a fake completion status, and then complete
+		 * the I/O's tracker manually.
 		 */
 		nvme_printf(tr->qpair->ctrlr,
 		    "abort command failed, aborting command manually\n");
 		nvme_qpair_manual_complete_tracker(tr,
 		    NVME_SCT_GENERIC, NVME_SC_ABORTED_BY_REQUEST, 0, ERROR_PRINT_ALL);
 	}
+	/*
+	 * XXX We don't check status for the possible 'Could not abort because
+	 * excess aborts were submitted to the controller'. We don't prevent
+	 * that, either. Document for the future here, since the standard is
+	 * squishy and only says 'may generate' but implies anything is possible
+	 * including hangs if you exceed the ACL.
+	 */
+	mtx_unlock(&tr->qpair->lock);
 }
 
 static void
