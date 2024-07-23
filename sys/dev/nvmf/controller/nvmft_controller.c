@@ -122,6 +122,11 @@ nvmft_handoff_admin_queue(struct nvmft_port *np,
 
 	qp = nvmft_qpair_init(handoff->trtype, &handoff->params, 0,
 	    "admin queue");
+	if (qp == NULL) {
+		printf("NVMFT: Failed to setup admin queue from %.*s\n",
+		    (int)sizeof(data->hostnqn), data->hostnqn);
+		return (ENXIO);
+	}
 
 	sx_xlock(&np->lock);
 	cntlid = alloc_unr(np->ids);
@@ -187,6 +192,11 @@ nvmft_handoff_io_queue(struct nvmft_port *np,
 
 	snprintf(name, sizeof(name), "I/O queue %u", qid);
 	qp = nvmft_qpair_init(handoff->trtype, &handoff->params, qid, name);
+	if (qp == NULL) {
+		printf("NVMFT: Failed to setup I/O queue %u from %.*s\n", qid,
+		    (int)sizeof(data->hostnqn), data->hostnqn);
+		return (ENXIO);
+	}
 
 	sx_slock(&np->lock);
 	TAILQ_FOREACH(ctrlr, &np->controllers, link) {
