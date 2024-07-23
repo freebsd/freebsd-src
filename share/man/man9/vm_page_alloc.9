@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 .\" DAMAGE.
 .\"
-.Dd November 11, 2021
+.Dd July 21, 2024
 .Dt VM_PAGE_ALLOC 9
 .Os
 .Sh NAME
@@ -85,17 +85,6 @@
 .Fa "int domain"
 .Fa "int req"
 .Fa "vm_page_t mpred"
-.Fc
-.Ft vm_page_t
-.Fo vm_page_alloc_freelist
-.Fa "int freelist"
-.Fa "int req"
-.Fc
-.Ft vm_page_t
-.Fo vm_page_alloc_freelist_domain
-.Fa "int domain"
-.Fa "int freelist"
-.Fa "int req"
 .Fc
 .Ft vm_page_t
 .Fo vm_page_alloc_noobj
@@ -212,19 +201,6 @@ or
 will carry the machine-dependent encoding of the memory attribute.
 Additionally, the direct mapping of the page, if any, will be updated to
 reflect the requested memory attribute.
-.Pp
-The
-.Fn vm_page_alloc_freelist
-and
-.Fn vm_page_alloc_freelist_domain
-functions behave identically to
-.Fn vm_page_alloc_noobj
-and
-.Fn vm_page_alloc_noobj_domain ,
-respectively, except that a successful allocation will return a page from the
-specified physical memory freelist.
-These functions are not intended for use outside of the virtual memory
-subsystem and exist only to support the requirements of certain platforms.
 .Sh REQUEST FLAGS
 All page allocator functions accept a
 .Fa req
