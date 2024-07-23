@@ -389,9 +389,8 @@ LENTRY(enter_kernel_el)
 	mrs	x2, id_aa64pfr0_el1
 	/* Extract GIC bits from the register */
 	ubfx	x2, x2, #ID_AA64PFR0_GIC_SHIFT, #ID_AA64PFR0_GIC_BITS
-	/* GIC[3:0] == 0001 - GIC CPU interface via special regs. supported */
-	cmp	x2, #(ID_AA64PFR0_GIC_CPUIF_EN >> ID_AA64PFR0_GIC_SHIFT)
-	b.ne	2f
+	/* GIC[3:0] != 0000 - GIC CPU interface via special regs. supported */
+	cbz	x2, 2f
 
 	mrs	x2, icc_sre_el2
 	orr	x2, x2, #ICC_SRE_EL2_EN	/* Enable access from insecure EL1 */
