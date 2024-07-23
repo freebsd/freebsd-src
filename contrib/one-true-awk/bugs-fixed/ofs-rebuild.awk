@@ -10,7 +10,7 @@ BEGIN {
 	# Change OFS after (conceptually) rebuilding the record
 	OFS = "<>"
 
-	# Unmodifed nawk prints "a<>b<>3333<>d<>e<>f<>g" because
+	# Unmodified nawk prints "a<>b<>3333<>d<>e<>f<>g" because
 	# it delays rebuilding $0 until it's needed, and then it uses
 	# the current value of OFS. Oops.
 	print
