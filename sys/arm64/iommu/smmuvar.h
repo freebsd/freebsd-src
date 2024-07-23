@@ -82,7 +82,6 @@ struct smmu_queue_local_copy {
 
 struct smmu_cd {
 	vm_paddr_t paddr;
-	vm_size_t size;
 	void *vaddr;
 };
 
@@ -121,7 +120,6 @@ struct smmu_cmdq_entry {
 
 struct l1_desc {
 	uint8_t		span;
-	size_t		size;
 	void		*va;
 	vm_paddr_t	pa;
 };

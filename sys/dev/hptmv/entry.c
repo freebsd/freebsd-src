@@ -914,7 +914,7 @@ hptmv_allocate_edma_queues(IAL_ADAPTER_T *pAdapter)
 	{
 		MV_ERROR("RR18xx[%d]: Error in Request Quueues Alignment\n",
 				 pAdapter->mvSataAdapter.adapterId);
-		contigfree(pAdapter->requestsArrayBaseAddr, REQUESTS_ARRAY_SIZE, M_DEVBUF);
+		free(pAdapter->requestsArrayBaseAddr, M_DEVBUF);
 		return -1;
 	}
 	/* response queues */
@@ -924,7 +924,7 @@ hptmv_allocate_edma_queues(IAL_ADAPTER_T *pAdapter)
 	{
 		MV_ERROR("RR18xx[%d]: Failed to allocate memory for EDMA response"
 				 " queues\n", pAdapter->mvSataAdapter.adapterId);
-		contigfree(pAdapter->requestsArrayBaseAddr, RESPONSES_ARRAY_SIZE, M_DEVBUF);
+		free(pAdapter->requestsArrayBaseAddr, M_DEVBUF);
 		return -1;
 	}
 	pAdapter->responsesArrayBaseDmaAddr = fOsPhysicalAddress(pAdapter->responsesArrayBaseAddr);
@@ -941,8 +941,8 @@ hptmv_allocate_edma_queues(IAL_ADAPTER_T *pAdapter)
 	{
 		MV_ERROR("RR18xx[%d]: Error in Response Queues Alignment\n",
 				 pAdapter->mvSataAdapter.adapterId);
-		contigfree(pAdapter->requestsArrayBaseAddr, REQUESTS_ARRAY_SIZE, M_DEVBUF);
-		contigfree(pAdapter->responsesArrayBaseAddr, RESPONSES_ARRAY_SIZE, M_DEVBUF);
+		free(pAdapter->requestsArrayBaseAddr, M_DEVBUF);
+		free(pAdapter->responsesArrayBaseAddr, M_DEVBUF);
 		return -1;
 	}
 	return 0;
@@ -951,8 +951,8 @@ hptmv_allocate_edma_queues(IAL_ADAPTER_T *pAdapter)
 static void
 hptmv_free_edma_queues(IAL_ADAPTER_T *pAdapter)
 {
-	contigfree(pAdapter->requestsArrayBaseAddr, REQUESTS_ARRAY_SIZE, M_DEVBUF);
-	contigfree(pAdapter->responsesArrayBaseAddr, RESPONSES_ARRAY_SIZE, M_DEVBUF);
+	free(pAdapter->requestsArrayBaseAddr, M_DEVBUF);
+	free(pAdapter->responsesArrayBaseAddr, M_DEVBUF);
 }
 
 static PVOID
@@ -2950,13 +2950,13 @@ void
 void
 os_free_page(_VBUS_ARG void *p) 
 { 
-	contigfree(p, 0x1000, M_DEVBUF); 
+	free(p, M_DEVBUF); 
 }
 
 void
 os_free_dma_page(_VBUS_ARG void *p) 
 { 
-	contigfree(p, 0x1000, M_DEVBUF); 
+	free(p, M_DEVBUF); 
 }
 
 void

@@ -1796,7 +1796,7 @@ agp_i810_free_memory(device_t dev, struct agp_memory *mem)
 			vm_page_unwire(m, PQ_INACTIVE);
 			VM_OBJECT_WUNLOCK(mem->am_obj);
 		} else {
-			contigfree(sc->argb_cursor, mem->am_size, M_AGP);
+			free(sc->argb_cursor, M_AGP);
 			sc->argb_cursor = NULL;
 		}
 	}

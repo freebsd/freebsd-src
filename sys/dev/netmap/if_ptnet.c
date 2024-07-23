@@ -540,7 +540,7 @@ ptnet_detach(device_t dev)
 	ptnet_irqs_fini(sc);
 
 	if (sc->csb_gh) {
-		contigfree(sc->csb_gh, 2*PAGE_SIZE, M_DEVBUF);
+		free(sc->csb_gh, M_DEVBUF);
 		sc->csb_gh = NULL;
 		sc->csb_hg = NULL;
 	}

@@ -371,8 +371,8 @@ vtgpu_detach(device_t dev)
 		vt_deallocate(&vtgpu_fb_driver, &sc->vtgpu_fb_info);
 	if (sc->vtgpu_fb_info.fb_vbase != 0) {
 		MPASS(sc->vtgpu_fb_info.fb_size != 0);
-		contigfree((void *)sc->vtgpu_fb_info.fb_vbase,
-		    sc->vtgpu_fb_info.fb_size, M_DEVBUF);
+		free((void *)sc->vtgpu_fb_info.fb_vbase,
+		    M_DEVBUF);
 	}
 
 	/* TODO: Tell the host we are detaching */

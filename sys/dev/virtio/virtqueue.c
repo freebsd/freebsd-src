@@ -360,7 +360,7 @@ virtqueue_free(struct virtqueue *vq)
 		virtqueue_free_indirect(vq);
 
 	if (vq->vq_ring_mem != NULL) {
-		contigfree(vq->vq_ring_mem, vq->vq_ring_size, M_DEVBUF);
+		free(vq->vq_ring_mem, M_DEVBUF);
 		vq->vq_ring_size = 0;
 		vq->vq_ring_mem = NULL;
 	}

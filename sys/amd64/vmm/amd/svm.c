@@ -2259,8 +2259,8 @@ svm_cleanup(void *vmi)
 {
 	struct svm_softc *sc = vmi;
 
-	contigfree(sc->iopm_bitmap, SVM_IO_BITMAP_SIZE, M_SVM);
-	contigfree(sc->msr_bitmap, SVM_MSR_BITMAP_SIZE, M_SVM);
+	free(sc->iopm_bitmap, M_SVM);
+	free(sc->msr_bitmap, M_SVM);
 	free(sc, M_SVM);
 }
 

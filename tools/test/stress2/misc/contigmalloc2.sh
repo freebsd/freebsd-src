@@ -26,7 +26,7 @@
 # SUCH DAMAGE.
 #
 
-# contigmalloc(9) / contigfree(9) test scenario.
+# contigmalloc(9) / free(9) test scenario.
 # Regression test for allocations >= 2 GiB.
 # "panic: vm_page_insert_after: mpred doesn't precede pindex" seen.
 # Fixed by r284207.
@@ -87,8 +87,7 @@ test(int argc, char *argv[])
 #endif
 			res = syscall(no, TFREE, &p, &size);
 #if defined(TEST)
-			fprintf(stderr, "contigfree(%lu pages)\n",
-			    size);
+			fprintf(stderr, "free(%lu pages)\n", size);
 #endif
 		}
 		size /= 2;
@@ -165,10 +164,8 @@ cmalloc(struct thread *td, struct cmalloc_args *uap)
 	switch (uap->a_op) {
 	case TFREE:
 		error = copyin(uap->a_ptr, &p, sizeof(p));
-		if (error == 0) {
-			if (p != NULL)
-				contigfree(p, size, M_TEMP);
-		}
+		if (error == 0)
+			free(p, M_TEMP);
 		return (error);
 
 	case TALLOC:

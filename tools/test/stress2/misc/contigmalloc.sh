@@ -26,7 +26,7 @@
 # SUCH DAMAGE.
 #
 
-# contigmalloc(9) / contigfree(9) test scenario.
+# contigmalloc(9) / free(9) test scenario.
 # malloc() a random number of buffers with random size and then free them.
 
 # A malloc pattern might look like this:
@@ -116,7 +116,7 @@ test(int argc, char *argv[])
 		if (p[i] != NULL) {
 			res = syscall(no, TFREE, &p[i], &size[i]);
 #if defined(TEST)
-			fprintf(stderr, "contigfree(%lu pages)\n",
+			fprintf(stderr, "free(%lu pages)\n",
 			    size[i] / ps);
 #endif
 			p[i] = NULL;
@@ -197,10 +197,8 @@ cmalloc(struct thread *td, struct cmalloc_args *uap)
 	switch (uap->a_op) {
 	case TFREE:
 		error = copyin(uap->a_ptr, &p, sizeof(p));
-		if (error == 0) {
-			if (p != NULL)
-				contigfree(p, size, M_TEMP);
-		}
+		if (error == 0)
+			free(p, M_TEMP);
 		return (error);
 
 	case TALLOC:

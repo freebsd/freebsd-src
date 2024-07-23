@@ -1064,9 +1064,7 @@ xbd_free(struct xbd_softc *sc)
 				gnttab_end_foreign_access_references(
 				    sc->xbd_max_request_indirectpages,
 				    &cm->cm_indirectionrefs[0]);
-				contigfree(cm->cm_indirectionpages, PAGE_SIZE *
-				    sc->xbd_max_request_indirectpages,
-				    M_XENBLOCKFRONT);
+				free(cm->cm_indirectionpages, M_XENBLOCKFRONT);
 				cm->cm_indirectionpages = NULL;
 			}
 
@@ -1373,9 +1371,7 @@ xbd_connect(struct xbd_softc *sc)
 				break;
 		}
 		if (j < sc->xbd_max_request_indirectpages) {
-			contigfree(indirectpages,
-			    PAGE_SIZE * sc->xbd_max_request_indirectpages,
-			    M_XENBLOCKFRONT);
+			free(indirectpages, M_XENBLOCKFRONT);
 			break;
 		}
 		cm->cm_indirectionpages = indirectpages;

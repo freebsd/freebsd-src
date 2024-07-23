@@ -847,7 +847,6 @@ smmu_init_cd(struct smmu_softc *sc, struct smmu_domain *domain)
 		return (ENXIO);
 	}
 
-	cd->size = size;
 	cd->paddr = vtophys(cd->vaddr);
 
 	ptr = cd->vaddr;
@@ -962,7 +961,7 @@ smmu_init_strtab_2lvl(struct smmu_softc *sc)
 
 	strtab->l1 = malloc(sz, M_SMMU, M_WAITOK | M_ZERO);
 	if (strtab->l1 == NULL) {
-		contigfree(strtab->vaddr, l1size, M_SMMU);
+		free(strtab->vaddr, M_SMMU);
 		return (ENOMEM);
 	}
 
@@ -1014,7 +1013,6 @@ smmu_init_l1_entry(struct smmu_softc *sc, int sid)
 	size = 1 << (STRTAB_SPLIT + ilog2(STRTAB_STE_DWORDS) + 3);
 
 	l1_desc->span = STRTAB_SPLIT + 1;
-	l1_desc->size = size;
 	l1_desc->va = contigmalloc(size, M_SMMU,
 	    M_WAITOK | M_ZERO,	/* flags */
 	    0,			/* low */
@@ -1057,7 +1055,7 @@ smmu_deinit_l1_entry(struct smmu_softc *sc, int sid)
 	*addr = 0;
 
 	l1_desc = &strtab->l1[sid >> STRTAB_SPLIT];
-	contigfree(l1_desc->va, l1_desc->size, M_SMMU);
+	free(l1_desc->va, M_SMMU);
 }
 
 static int
@@ -1765,7 +1763,7 @@ smmu_domain_free(device_t dev, struct iommu_domain *iodom)
 	smmu_tlbi_asid(sc, domain->asid);
 	smmu_asid_free(sc, domain->asid);
 
-	contigfree(cd->vaddr, cd->size, M_SMMU);
+	free(cd->vaddr, M_SMMU);
 	free(cd, M_SMMU);
 
 	free(domain, M_SMMU);

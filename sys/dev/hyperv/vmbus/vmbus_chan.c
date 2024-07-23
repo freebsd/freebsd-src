@@ -341,8 +341,7 @@ vmbus_chan_open(struct vmbus_channel *chan, int txbr_size, int rxbr_size,
 	 * Allocate the TX+RX bufrings.
 	 */
 	KASSERT(chan->ch_bufring == NULL, ("bufrings are allocated"));
-	chan->ch_bufring_size = txbr_size + rxbr_size;
-	chan->ch_bufring = contigmalloc(chan->ch_bufring_size, M_DEVBUF,
+	chan->ch_bufring = contigmalloc(txbr_size + rxbr_size, M_DEVBUF,
 	    M_WAITOK | M_ZERO, 0ul, ~0ul, PAGE_SIZE, 0);
 	if (chan->ch_bufring == NULL) {
 		vmbus_chan_printf(chan, "bufring allocation failed\n");
@@ -368,8 +367,7 @@ vmbus_chan_open(struct vmbus_channel *chan, int txbr_size, int rxbr_size,
 			    "leak %d bytes memory\n", chan->ch_id,
 			    txbr_size + rxbr_size);
 		} else {
-			contigfree(chan->ch_bufring, chan->ch_bufring_size,
-			    M_DEVBUF);
+			free(chan->ch_bufring, M_DEVBUF);
 		}
 		chan->ch_bufring = NULL;
 	}
@@ -939,7 +937,7 @@ disconnect:
 	 * Destroy the TX+RX bufrings.
 	 */
 	if (chan->ch_bufring != NULL) {
-		contigfree(chan->ch_bufring, chan->ch_bufring_size, M_DEVBUF);
+		free(chan->ch_bufring, M_DEVBUF);
 		chan->ch_bufring = NULL;
 	}
 	return (error);
@@ -1679,7 +1677,7 @@ vmbus_chan_free(struct vmbus_channel *chan)
 	KASSERT(chan->ch_poll_intvl == 0, ("chan%u: polling is activated",
 	    chan->ch_id));
 
-	contigfree(chan->ch_monprm, sizeof(struct hyperv_mon_param), M_DEVBUF);
+	free(chan->ch_monprm, M_DEVBUF);
 	mtx_destroy(&chan->ch_subchan_lock);
 	sx_destroy(&chan->ch_orphan_lock);
 	vmbus_rxbr_deinit(&chan->ch_rxbr);
