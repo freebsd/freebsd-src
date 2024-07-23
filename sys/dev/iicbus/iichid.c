@@ -1154,7 +1154,7 @@ iichid_attach(device_t dev)
 	if (sc->irq_res == NULL || error != 0) {
 #ifdef IICHID_SAMPLING
 		device_printf(sc->dev,
-		    "Interrupt setup failed. Fallback to sampling\n");
+		    "Using sampling mode\n");
 		sc->sampling_rate_slow = IICHID_SAMPLING_RATE_SLOW;
 #else
 		device_printf(sc->dev, "Interrupt setup failed\n");
