@@ -61,6 +61,9 @@ extern int (*ipsec_accel_sa_lifetime_op_p)(struct secasvar *sav,
 extern void (*ipsec_accel_sync_p)(void);
 extern bool (*ipsec_accel_is_accel_sav_p)(struct secasvar *sav);
 extern struct mbuf *(*ipsec_accel_key_setaccelif_p)(struct secasvar *sav);
+extern void (*ipsec_accel_on_ifdown_p)(struct ifnet *ifp);
+extern void (*ipsec_accel_drv_sa_lifetime_update_p)(struct secasvar *sav,
+    if_t ifp, u_int drv_spi, uint64_t octets, uint64_t allocs);
 
 #ifdef IPSEC_OFFLOAD
 /*
