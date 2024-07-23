@@ -555,8 +555,7 @@ lge_attach(device_t dev)
 fail:
 	lge_free_jumbo_mem(sc);
 	if (sc->lge_ldata)
-		contigfree(sc->lge_ldata,
-		    sizeof(struct lge_list_data), M_DEVBUF);
+		free(sc->lge_ldata, M_DEVBUF);
 	if (ifp)
 		if_free(ifp);
 	if (sc->lge_irq)
@@ -590,7 +589,7 @@ lge_detach(device_t dev)
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->lge_irq);
 	bus_release_resource(dev, LGE_RES, LGE_RID, sc->lge_res);
 
-	contigfree(sc->lge_ldata, sizeof(struct lge_list_data), M_DEVBUF);
+	free(sc->lge_ldata, M_DEVBUF);
 	if_free(ifp);
 	lge_free_jumbo_mem(sc);
 	mtx_destroy(&sc->lge_mtx);
@@ -784,7 +783,7 @@ lge_free_jumbo_mem(struct lge_softc *sc)
 		free(entry, M_DEVBUF);
 	}
 
-	contigfree(sc->lge_cdata.lge_jumbo_buf, LGE_JMEM, M_DEVBUF);
+	free(sc->lge_cdata.lge_jumbo_buf, M_DEVBUF);
 
 	return;
 }

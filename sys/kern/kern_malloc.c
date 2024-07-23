@@ -509,21 +509,15 @@ contigmalloc_domainset(unsigned long size, struct malloc_type *type,
 	}
 	return (ret);
 }
+#undef	IS_CONTIG_MALLOC
+#undef	CONTIG_MALLOC_SLAB
 
-/*
- *	contigfree (deprecated).
- *
- *	Free a block of memory allocated by contigmalloc.
- *
- *	This routine may not block.
- */
+/* contigfree(9) is deprecated. */
 void
 contigfree(void *addr, unsigned long size __unused, struct malloc_type *type)
 {
 	free(addr, type);
 }
-#undef	IS_CONTIG_MALLOC
-#undef	CONTIG_MALLOC_SLAB
 
 #ifdef MALLOC_DEBUG
 static int

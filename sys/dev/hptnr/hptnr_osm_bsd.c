@@ -143,9 +143,9 @@ static __inline void *__get_free_pages(int order)
 			M_DEVBUF, M_WAITOK, BUS_SPACE_MAXADDR_24BIT, BUS_SPACE_MAXADDR, PAGE_SIZE, 0);
 }
 
-static __inline void free_pages(void *p, int order)
+static __inline void free_pages(void *p)
 {
-	contigfree(p, PAGE_SIZE<<order, M_DEVBUF);
+	free(p, M_DEVBUF);
 }
 
 static int hpt_alloc_mem(PVBUS_EXT vbus_ext)
@@ -227,7 +227,7 @@ static void hpt_free_mem(PVBUS_EXT vbus_ext)
 	for (i=0; i<os_max_cache_pages; i++) {
 		p = dmapool_get_page((PVBUS)vbus_ext->vbus, &bus);
 		HPT_ASSERT(p);
-		free_pages(p, 0);
+		free_pages(p);
 	}
 
 	for (f=vbus_ext->freelist_dma_head; f; f=f->next) {
@@ -241,7 +241,7 @@ static void hpt_free_mem(PVBUS_EXT vbus_ext)
 
 		while ((p=freelist_get_dma(f, &bus))) {
 			if (order)
-				free_pages(p, order);
+				free_pages(p);
 			else {
 			/* can't free immediately since other blocks in this page may still be in the list */
 				if (((HPT_UPTR)p & (PAGE_SIZE-1))==0)
@@ -251,7 +251,7 @@ static void hpt_free_mem(PVBUS_EXT vbus_ext)
 	}
 	
 	while ((p = dmapool_get_page((PVBUS)vbus_ext->vbus, &bus)))
-		free_pages(p, 0);
+		free_pages(p);
 }
 
 static int hpt_init_vbus(PVBUS_EXT vbus_ext)

@@ -177,7 +177,8 @@ extern struct mtx malloc_mtx;
  */
 typedef void malloc_type_list_func_t(struct malloc_type *, void *);
 
-void	contigfree(void *addr, unsigned long size, struct malloc_type *type);
+/* contigfree(9) is deprecated. */
+void	contigfree(void *addr, unsigned long, struct malloc_type *type);
 void	*contigmalloc(unsigned long size, struct malloc_type *type, int flags,
 	    vm_paddr_t low, vm_paddr_t high, unsigned long alignment,
 	    vm_paddr_t boundary) __malloc_like __result_use_check

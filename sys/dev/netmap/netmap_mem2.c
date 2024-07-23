@@ -1284,7 +1284,7 @@ netmap_reset_obj_allocator(struct netmap_obj_pool *p)
 		 * in the lut.
 		 */
 		for (i = 0; i < p->objtotal; i += p->_clustentries) {
-			contigfree(p->lut[i].vaddr, p->_clustsize, M_NETMAP);
+			free(p->lut[i].vaddr, M_NETMAP);
 		}
 		nm_free_lut(p->lut, p->objtotal);
 	}
@@ -1402,7 +1402,6 @@ static int
 netmap_finalize_obj_allocator(struct netmap_obj_pool *p)
 {
 	int i; /* must be signed */
-	size_t n;
 
 	if (p->lut) {
 		/* if the lut is already there we assume that also all the
@@ -1430,7 +1429,6 @@ netmap_finalize_obj_allocator(struct netmap_obj_pool *p)
 	 * Allocate clusters, init pointers
 	 */
 
-	n = p->_clustsize;
 	for (i = 0; i < (int)p->objtotal;) {
 		int lim = i + p->_clustentries;
 		char *clust;
@@ -1442,7 +1440,7 @@ netmap_finalize_obj_allocator(struct netmap_obj_pool *p)
 		 * can live with standard malloc, because the hardware will not
 		 * access the pages directly.
 		 */
-		clust = contigmalloc(n, M_NETMAP, M_NOWAIT | M_ZERO,
+		clust = contigmalloc(p->_clustsize, M_NETMAP, M_NOWAIT | M_ZERO,
 		    (size_t)0, -1UL, PAGE_SIZE, 0);
 		if (clust == NULL) {
 			/*
@@ -1456,8 +1454,7 @@ netmap_finalize_obj_allocator(struct netmap_obj_pool *p)
 			lim = i / 2;
 			for (i--; i >= lim; i--) {
 				if (i % p->_clustentries == 0 && p->lut[i].vaddr)
-					contigfree(p->lut[i].vaddr,
-						n, M_NETMAP);
+					free(p->lut[i].vaddr, M_NETMAP);
 				p->lut[i].vaddr = NULL;
 			}
 		out:

@@ -6478,7 +6478,6 @@ int agtiapi_ReleaseHBA( device_t dev )
     pCard->pPortalData = NULL;
     AGTIAPI_PRINTK("agtiapi_ReleaseHBA: PortalData released\n");
   }
-  //calls contigfree() or free()  
   agtiapi_MemFree(pCardInfo);
   AGTIAPI_PRINTK("agtiapi_ReleaseHBA: low level resource released\n");
 
