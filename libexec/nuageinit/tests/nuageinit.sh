@@ -104,6 +104,7 @@ sys:*:1:0::0:0:Sys:/home/sys:/bin/csh
 freebsd:freebsd:1001:1003::0:0:FreeBSD User:/home/freebsd:/bin/sh
 foobar:H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/:1002:1004::0:0:Foo B. Bar:/home/foobar:/bin/sh
 EOF
+	sed -i "" "s/freebsd:.*:1001/freebsd:freebsd:1001/" ${here}/etc/master.passwd
 	atf_check -o file:expectedpasswd cat ${here}/etc/master.passwd
 	atf_check -o file:expectedgroup cat ${here}/etc/group
 }
