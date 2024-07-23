@@ -2384,8 +2384,6 @@ MLINKS+=vm_page_alloc.9 vm_page_alloc_after.9 \
 	vm_page_alloc.9 vm_page_alloc_contig_domain.9 \
 	vm_page_alloc.9 vm_page_alloc_domain.9 \
 	vm_page_alloc.9 vm_page_alloc_domain_after.9 \
-	vm_page_alloc.9 vm_page_alloc_freelist.9 \
-	vm_page_alloc.9 vm_page_alloc_freelist_domain.9 \
 	vm_page_alloc.9 vm_page_alloc_noobj.9 \
 	vm_page_alloc.9 vm_page_alloc_noobj_contig.9 \
 	vm_page_alloc.9 vm_page_alloc_noobj_contig_domain.9 \

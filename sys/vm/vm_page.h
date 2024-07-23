@@ -614,8 +614,6 @@ vm_page_t vm_page_alloc_contig_domain(vm_object_t object,
     vm_pindex_t pindex, int domain, int req, u_long npages, vm_paddr_t low,
     vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
     vm_memattr_t memattr);
-vm_page_t vm_page_alloc_freelist(int, int);
-vm_page_t vm_page_alloc_freelist_domain(int, int, int);
 vm_page_t vm_page_alloc_noobj(int);
 vm_page_t vm_page_alloc_noobj_domain(int, int);
 vm_page_t vm_page_alloc_noobj_contig(int req, u_long npages, vm_paddr_t low,

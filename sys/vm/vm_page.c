@@ -2406,11 +2406,10 @@ vm_page_alloc_contig_domain(vm_object_t object, vm_pindex_t pindex, int domain,
 
 /*
  * Allocate a physical page that is not intended to be inserted into a VM
- * object.  If the "freelist" parameter is not equal to VM_NFREELIST, then only
- * pages from the specified vm_phys freelist will be returned.
+ * object.
  */
-static __always_inline vm_page_t
-_vm_page_alloc_noobj_domain(int domain, const int freelist, int req)
+vm_page_t
+vm_page_alloc_noobj_domain(int domain, int req)
 {
 	struct vm_domain *vmd;
 	vm_page_t m;
@@ -2426,8 +2425,7 @@ _vm_page_alloc_noobj_domain(int domain, const int freelist, int req)
 	flags = (req & VM_ALLOC_NODUMP) != 0 ? PG_NODUMP : 0;
 	vmd = VM_DOMAIN(domain);
 again:
-	if (freelist == VM_NFREELIST &&
-	    vmd->vmd_pgcache[VM_FREEPOOL_DIRECT].zone != NULL) {
+	if (vmd->vmd_pgcache[VM_FREEPOOL_DIRECT].zone != NULL) {
 		m = uma_zalloc(vmd->vmd_pgcache[VM_FREEPOOL_DIRECT].zone,
 		    M_NOWAIT | M_NOVM);
 		if (m != NULL) {
@@ -2438,17 +2436,12 @@ again:
 
 	if (vm_domain_allocate(vmd, req, 1)) {
 		vm_domain_free_lock(vmd);
-		if (freelist == VM_NFREELIST)
-			m = vm_phys_alloc_pages(domain, VM_FREEPOOL_DIRECT, 0);
-		else
-			m = vm_phys_alloc_freelist_pages(domain, freelist,
-			    VM_FREEPOOL_DIRECT, 0);
+		m = vm_phys_alloc_pages(domain, VM_FREEPOOL_DIRECT, 0);
 		vm_domain_free_unlock(vmd);
 		if (m == NULL) {
 			vm_domain_freecnt_inc(vmd, 1);
 #if VM_NRESERVLEVEL > 0
-			if (freelist == VM_NFREELIST &&
-			    vm_reserv_reclaim_inactive(domain))
+			if (vm_reserv_reclaim_inactive(domain))
 				goto again;
 #endif
 		}
@@ -2483,32 +2476,6 @@ found:
 }
 
 vm_page_t
-vm_page_alloc_freelist(int freelist, int req)
-{
-	struct vm_domainset_iter di;
-	vm_page_t m;
-	int domain;
-
-	vm_domainset_iter_page_init(&di, NULL, 0, &domain, &req);
-	do {
-		m = vm_page_alloc_freelist_domain(domain, freelist, req);
-		if (m != NULL)
-			break;
-	} while (vm_domainset_iter_page(&di, NULL, &domain) == 0);
-
-	return (m);
-}
-
-vm_page_t
-vm_page_alloc_freelist_domain(int domain, int freelist, int req)
-{
-	KASSERT(freelist >= 0 && freelist < VM_NFREELIST,
-	    ("%s: invalid freelist %d", __func__, freelist));
-
-	return (_vm_page_alloc_noobj_domain(domain, freelist, req));
-}
-
-vm_page_t
 vm_page_alloc_noobj(int req)
 {
 	struct vm_domainset_iter di;
@@ -2523,12 +2490,6 @@ vm_page_alloc_noobj(int req)
 	} while (vm_domainset_iter_page(&di, NULL, &domain) == 0);
 
 	return (m);
-}
-
-vm_page_t
-vm_page_alloc_noobj_domain(int domain, int req)
-{
-	return (_vm_page_alloc_noobj_domain(domain, VM_NFREELIST, req));
 }
 
 vm_page_t
