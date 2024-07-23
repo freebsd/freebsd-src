@@ -109,6 +109,9 @@ int (*ipsec_accel_sa_lifetime_op_p)(struct secasvar *sav,
 void (*ipsec_accel_sync_p)(void);
 bool (*ipsec_accel_is_accel_sav_p)(struct secasvar *sav);
 struct mbuf *(*ipsec_accel_key_setaccelif_p)(struct secasvar *sav);
+void (*ipsec_accel_on_ifdown_p)(struct ifnet *ifp);
+void (*ipsec_accel_drv_sa_lifetime_update_p)(struct secasvar *sav, if_t ifp,
+    u_int drv_spi, uint64_t octets, uint64_t allocs);
 #endif
 
 #define FULLMASK	0xff
@@ -8964,3 +8967,27 @@ ipsec_sahtree_rlock(struct rm_priotracker *sahtree_trackerp)
 {
 	rm_rlock(&sahtree_lock, sahtree_trackerp);
 }
+
+#ifdef IPSEC_OFFLOAD
+void
+ipsec_accel_on_ifdown(struct ifnet *ifp)
+{
+	void (*p)(struct ifnet *ifp);
+
+	p = atomic_load_ptr(&ipsec_accel_on_ifdown_p);
+	if (p != NULL)
+		p(ifp);
+}
+
+void
+ipsec_accel_drv_sa_lifetime_update(struct secasvar *sav, if_t ifp,
+    u_int drv_spi, uint64_t octets, uint64_t allocs)
+{
+	void (*p)(struct secasvar *sav, if_t ifp, u_int drv_spi,
+	    uint64_t octets, uint64_t allocs);
+
+	p = atomic_load_ptr(&ipsec_accel_drv_sa_lifetime_update_p);
+	if (p != NULL)
+		p(sav, ifp, drv_spi, octets, allocs);
+}
+#endif
