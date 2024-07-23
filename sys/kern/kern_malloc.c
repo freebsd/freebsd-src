@@ -713,7 +713,7 @@ malloc_domain(size_t *sizep, int *indxp, struct malloc_type *mtp, int domain,
 
 	size = *sizep;
 	KASSERT(size <= kmem_zmax && (flags & M_EXEC) == 0,
-	    ("malloc_domain: Called with bad flag / size combination."));
+	    ("malloc_domain: Called with bad flag / size combination"));
 	if (size & KMEM_ZMASK)
 		size = (size & ~KMEM_ZMASK) + KMEM_ZBASE;
 	indx = kmemsize[size >> KMEM_ZSHIFT];
@@ -990,7 +990,7 @@ zfree(void *addr, struct malloc_type *mtp)
 
 	vtozoneslab((vm_offset_t)addr & (~UMA_SLAB_MASK), &zone, &slab);
 	if (slab == NULL)
-		panic("free: address %p(%p) has not been allocated.\n",
+		panic("free: address %p(%p) has not been allocated",
 		    addr, (void *)((u_long)addr & (~UMA_SLAB_MASK)));
 
 	switch (GET_SLAB_COOKIE(slab)) {
@@ -1156,7 +1156,7 @@ malloc_usable_size(const void *addr)
 #else
 	vtozoneslab((vm_offset_t)addr & (~UMA_SLAB_MASK), &zone, &slab);
 	if (slab == NULL)
-		panic("malloc_usable_size: address %p(%p) is not allocated.\n",
+		panic("malloc_usable_size: address %p(%p) is not allocated",
 		    addr, (void *)((u_long)addr & (~UMA_SLAB_MASK)));
 
 	switch (GET_SLAB_COOKIE(slab)) {
