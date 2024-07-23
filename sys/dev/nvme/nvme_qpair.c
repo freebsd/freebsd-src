@@ -1045,8 +1045,8 @@ nvme_qpair_timeout(void *arg)
 	struct nvme_controller	*ctrlr = qpair->ctrlr;
 	struct nvme_tracker	*tr;
 	sbintime_t		now;
-	bool			idle = false;
-	bool			needs_reset;
+	bool			idle = true;
+	bool			fast;
 	uint32_t		csts;
 	uint8_t			cfs;
 
@@ -1092,23 +1092,35 @@ nvme_qpair_timeout(void *arg)
 		 */
 		csts = nvme_mmio_read_4(ctrlr, csts);
 		cfs = NVMEV(NVME_CSTS_REG_CFS, csts);
-		if (csts == NVME_GONE || cfs == 1)
-			goto do_reset;
+		if (csts == NVME_GONE || cfs == 1) {
+			/*
+			 * We've had a command timeout that we weren't able to
+			 * abort or we have aborts disabled and any command
+			 * timed out.
+			 *
+			 * If we get here due to a possible surprise hot-unplug
+			 * event, then we let nvme_ctrlr_reset confirm and fail
+			 * the controller.
+			 */
+do_reset:
+			nvme_printf(ctrlr, "Resetting controller due to a timeout%s.\n",
+			    (csts == 0xffffffff) ? " and possible hot unplug" :
+			    (cfs ? " and fatal error status" : ""));
+			qpair->recovery_state = RECOVERY_WAITING;
+			nvme_ctrlr_reset(ctrlr);
+			idle = false;
+			break;
+		}
+
 
 		/*
-		 * Process completions. We already have the recovery lock, so
-		 * call the locked version.
+		 * See if there's any recovery needed. First, do a fast check to
+		 * see if anything could have timed out. If not, then skip
+		 * everything else.
 		 */
-		_nvme_qpair_process_completions(qpair);
-
-		/*
-		 * Check to see if we need to timeout any commands. If we do, then
-		 * we also enter a recovery phase.
-		 */
-		now = getsbinuptime();
-		needs_reset = false;
-		idle = true;
+		fast = false;
 		mtx_lock(&qpair->lock);
+		now = getsbinuptime();
 		TAILQ_FOREACH(tr, &qpair->outstanding_tr, tailq) {
 			/*
 			 * Skip async commands, they are posted to the card for
@@ -1116,48 +1128,78 @@ nvme_qpair_timeout(void *arg)
 			 */
 			if (tr->deadline == SBT_MAX)
 				continue;
-			if (now > tr->deadline) {
-				if (tr->req->cb_fn != nvme_abort_complete &&
-				    ctrlr->enable_aborts) {
-					/*
-					 * This isn't an abort command, ask
-					 * for a hardware abort.
-					 */
-					nvme_ctrlr_cmd_abort(ctrlr, tr->cid,
-					    qpair->id, nvme_abort_complete, tr);
-				} else {
-					/*
-					 * Otherwise we have a live command in
-					 * the card (either one we couldn't
-					 * abort, or aborts weren't enabled).
-					 * The only safe way to proceed is to do
-					 * a reset.
-					 */
-					needs_reset = true;
-				}
-			} else {
-				idle = false;
-			}
+
+			/*
+			 * If the first real transaction is not in timeout, then
+			 * we're done. Otherwise, we try recovery.
+			 */
+			idle = false;
+			if (now <= tr->deadline)
+				fast = true;
+			break;
 		}
 		mtx_unlock(&qpair->lock);
-		if (!needs_reset)
+		if (idle || fast)
 			break;
 
 		/*
-		 * We've had a command timeout that we weren't able to abort
-		 *
-		 * If we get here due to a possible surprise hot-unplug event,
-		 * then we let nvme_ctrlr_reset confirm and fail the
-		 * controller.
+		 * There's a stale transaction at the start of the queue whose
+		 * deadline has passed. Poll the competions as a last-ditch
+		 * effort in case an interrupt has been missed.
 		 */
-	do_reset:
-		nvme_printf(ctrlr, "Resetting controller due to a timeout%s.\n",
-		    (csts == 0xffffffff) ? " and possible hot unplug" :
-		    (cfs ? " and fatal error status" : ""));
-		qpair->recovery_state = RECOVERY_WAITING;
-		nvme_ctrlr_reset(ctrlr);
-		idle = false;			/* We want to keep polling */
+		_nvme_qpair_process_completions(qpair);
+
+		/*
+		 * Now that we've run the ISR, re-rheck to see if there's any
+		 * timed out commands and abort them or reset the card if so.
+		 */
+		mtx_lock(&qpair->lock);
+		idle = true;
+		TAILQ_FOREACH(tr, &qpair->outstanding_tr, tailq) {
+			/*
+			 * Skip async commands, they are posted to the card for
+			 * an indefinite amount of time and have no deadline.
+			 */
+			if (tr->deadline == SBT_MAX)
+				continue;
+
+			/*
+			 * If we know this tracker hasn't timed out, we also
+			 * know all subsequent ones haven't timed out. The tr
+			 * queue is in submission order and all normal commands
+			 * in a queue have the same timeout (or the timeout was
+			 * changed by the user, but we eventually timeout then).
+			 */
+			idle = false;
+			if (now <= tr->deadline)
+				break;
+
+			/*
+			 * Timeout expired, abort it or reset controller.
+			 */
+			if (ctrlr->enable_aborts &&
+			    tr->req->cb_fn != nvme_abort_complete) {
+				/*
+				 * This isn't an abort command, ask for a
+				 * hardware abort. This goes to the admin
+				 * queue which will reset the card if it
+				 * times out.
+				 */
+				nvme_ctrlr_cmd_abort(ctrlr, tr->cid, qpair->id,
+				    nvme_abort_complete, tr);
+			} else {
+				/*
+				 * We have a live command in the card (either
+				 * one we couldn't abort, or aborts weren't
+				 * enabled).  We can only reset.
+				 */
+				mtx_unlock(&qpair->lock);
+				goto do_reset;
+			}
+		}
+		mtx_unlock(&qpair->lock);
 		break;
+
 	case RECOVERY_WAITING:
 		/*
 		 * These messages aren't interesting while we're suspended. We
