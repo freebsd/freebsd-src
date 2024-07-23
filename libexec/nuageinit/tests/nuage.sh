@@ -17,6 +17,8 @@ addsshkey_body() {
 	if [ ! -f .ssh/authorized_keys ]; then
 		atf_fail "ssh key not added"
 	fi
+	atf_check -o inline:".ssh: 040700 [drwx------ ] -> 040700 [drwx------ ]\n" chmod -vv 0700 .ssh
+	atf_check -o inline:".ssh/authorized_keys: 0100600 [-rw------- ] -> 0100600 [-rw------- ]\n" chmod -vv 0600 .ssh/authorized_keys
 	atf_check -o inline:"mykey\n" cat .ssh/authorized_keys
 	atf_check /usr/libexec/flua $(atf_get_srcdir)/addsshkey.lua
 	atf_check -o inline:"mykey\nmykey\n" cat .ssh/authorized_keys

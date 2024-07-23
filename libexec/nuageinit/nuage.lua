@@ -205,9 +205,11 @@ local function addsshkey(homedir, key)
 	f:write(key .. "\n")
 	f:close()
 	if chownak then
+		os.execute("chmod 0600 " .. ak_path)
 		pu.chown(ak_path, dirattrs.uid, dirattrs.gid)
 	end
 	if chowndotssh then
+		os.execute("chmod 0700 " .. dotssh_path)
 		pu.chown(dotssh_path, dirattrs.uid, dirattrs.gid)
 	end
 end
