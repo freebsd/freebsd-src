@@ -690,7 +690,7 @@ _nvme_qpair_process_completions(struct nvme_qpair *qpair)
 bool
 nvme_qpair_process_completions(struct nvme_qpair *qpair)
 {
-	bool done;
+	bool done = false;
 
 	/*
 	 * Interlock with reset / recovery code. This is an usually uncontended
@@ -698,12 +698,12 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 	 * and to prevent races with the recovery process called from a timeout
 	 * context.
 	 */
-	if (!mtx_trylock(&qpair->recovery)) {
-		qpair->num_recovery_nolock++;
-		return (false);
-	}
+	mtx_lock(&qpair->recovery);
 
-	done = _nvme_qpair_process_completions(qpair);
+	if (__predict_true(qpair->recovery_state == RECOVERY_NONE))
+		done = _nvme_qpair_process_completions(qpair);
+	else
+		qpair->num_recovery_nolock++;	// XXX likely need to rename
 
 	mtx_unlock(&qpair->recovery);
 
