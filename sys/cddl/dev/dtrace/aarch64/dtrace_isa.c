@@ -27,6 +27,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/dtrace_impl.h>
 #include <sys/kernel.h>
 #include <sys/stack.h>
 #include <sys/pcpu.h>
@@ -45,6 +46,8 @@
 #include <ddb/db_sym.h>
 #include <ddb/ddb.h>
 #include <sys/kdb.h>
+
+#include <cddl/dev/dtrace/dtrace_cddl.h>
 
 #include "regset.h"
 
