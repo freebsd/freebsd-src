@@ -29,9 +29,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)exit.3	8.1 (Berkeley) 6/4/93
 .\"
-.Dd August 5, 2021
+.Dd July 24, 2024
 .Dt EXIT 3
 .Os
 .Sh NAME
@@ -103,6 +102,23 @@ in a program which might be called by a mail transfer agent, the
 values described in
 .Xr sysexits 3
 may be used to provide more information to the parent process.
+.Pp
+Calls to the
+.Fn exit
+function are serialized.
+All functions registered by
+.Xr atexit 3
+are executed in the first thread that called
+.Nm exit .
+If any other thread of the process calls
+.Nm exit
+before all registered functions have completed or before the process
+terminates, the thread is blocked until the process terminates.
+The exit status of the process is the
+.Fa status
+argument of the first
+.Nm exit
+call which thread proceeds the atexit handlers.
 .Pp
 Note that
 .Fn exit

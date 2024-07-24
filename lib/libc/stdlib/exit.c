@@ -34,6 +34,7 @@ static char sccsid[] = "@(#)exit.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include "namespace.h"
 #include <stdlib.h>
+#include <pthread.h>
 #include <unistd.h>
 #include "un-namespace.h"
 
@@ -51,6 +52,20 @@ void (*__cleanup)(void);
  */
 int	__isthreaded	= 0;
 
+static pthread_mutex_t exit_mutex;
+static pthread_once_t exit_mutex_once = PTHREAD_ONCE_INIT;
+
+static void
+exit_mutex_init_once(void)
+{
+	pthread_mutexattr_t ma;
+
+	_pthread_mutexattr_init(&ma);
+	_pthread_mutexattr_settype(&ma, PTHREAD_MUTEX_RECURSIVE);
+	_pthread_mutex_init(&exit_mutex, &ma);
+	_pthread_mutexattr_destroy(&ma);
+}
+
 /*
  * Exit, flushing stdio buffers if necessary.
  */
@@ -61,6 +76,12 @@ exit(int status)
 	extern int _thread_autoinit_dummy_decl;
 
 	_thread_autoinit_dummy_decl = 1;
+
+	/* Make exit(3) thread-safe */
+	if (__isthreaded) {
+		_once(&exit_mutex_once, exit_mutex_init_once);
+		_pthread_mutex_lock(&exit_mutex);
+	}
 
 	/*
 	 * We're dealing with cleaning up thread_local destructors in the case of
