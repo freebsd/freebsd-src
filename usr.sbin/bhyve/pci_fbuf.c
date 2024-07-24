@@ -231,7 +231,8 @@ pci_fbuf_baraddr(struct pci_devinst *pi, int baridx, int enabled,
 		if (vm_mmap_memseg(pi->pi_vmctx, address, VM_FRAMEBUFFER, 0,
 		    FB_SIZE, prot) != 0)
 			EPRINTLN("pci_fbuf: mmap_memseg failed");
-		sc->fbaddr = address;
+		else
+			sc->fbaddr = address;
 	}
 }
 
