@@ -1130,7 +1130,7 @@ malloc_size(size_t size)
 	int indx;
 
 	if (size > kmem_zmax)
-		return (0);
+		return (round_page(size));
 	if (size & KMEM_ZMASK)
 		size = (size & ~KMEM_ZMASK) + KMEM_ZBASE;
 	indx = kmemsize[size >> KMEM_ZSHIFT];
