@@ -1,17 +1,14 @@
 /*-
- * Copyright (c) 2005 David Xu <davidxu@freebsd.org>.
- * Copyright (c) 2014 the FreeBSD Foundation
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause
  *
- * Portions of this software were developed by Andrew Turner
- * under sponsorship from the FreeBSD Foundation
+ * Copyright (c) 2024, Michal Meloun <mmel@freebsd.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    notice unmodified, this list of conditions, and the following
+ *    disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -28,30 +25,43 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
- * Machine-dependent thread prototypes/definitions.
- */
-#ifndef _PTHREAD_MD_H_
-#define	_PTHREAD_MD_H_
+#include <stdlib.h>
+#include <string.h>
 
-#include <sys/types.h>
-#include <machine/tls.h>
+#include "thr_private.h"
 
-#define	CPU_SPINWAIT
+int __aeabi_idiv(int , int );
+unsigned __aeabi_uidiv(unsigned, unsigned );
 
-/* For use in _Static_assert to check structs will fit in a page */
-#define	THR_PAGE_SIZE_MIN	PAGE_SIZE_4K
+struct {int q; int r;} __aeabi_idivmod(int, int );
+struct {unsigned q; unsigned r;} __aeabi_uidivmod(unsigned, unsigned);
 
-static __inline struct pthread *
-_get_curthread(void)
-{
+struct {int64_t q; int64_t r;} __aeabi_ldivmod(int64_t, int64_t);
+struct {uint64_t q; uint64_t r;} __aeabi_uldivmod(uint64_t, uint64_t);
 
-	return (_tcb_get()->tcb_thread);
-}
+void __aeabi_memset(void *dest, size_t n, int c);
+void __aeabi_memclr(void *dest, size_t n);
+void __aeabi_memmove(void *dest, void *src, size_t n);
+void __aeabi_memcpy(void *dest, void *src, size_t n);
+void __aeabi_memcmp(void *dest, void *src, size_t n);
 
-static __inline void
+void
 _thr_resolve_machdep(void)
 {
-}
+	char tmp[2];
 
-#endif /* _PTHREAD_MD_H_ */
+	__aeabi_idiv(1, 1);
+	__aeabi_uidiv(1, 1);
+
+	__aeabi_idivmod(1, 1);
+	__aeabi_uidivmod(1, 1);
+
+	__aeabi_ldivmod(1, 1);
+	__aeabi_uldivmod(1, 1);
+
+	__aeabi_memset(tmp, 1, 0);
+	__aeabi_memclr(tmp, 1);
+	__aeabi_memmove(tmp, tmp + 1, 1);
+	__aeabi_memcpy(tmp, tmp + 1, 1);
+	__aeabi_memcmp(tmp, tmp + 1, 1);
+}
