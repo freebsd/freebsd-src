@@ -9396,8 +9396,7 @@ pmap_bti_same(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, pt_entry_t *pte)
 			return (false);
 		rs = next_rs;
 	}
-	if (rs != NULL)
-		*pte |= ATTR_S1_GP;
+	*pte |= ATTR_S1_GP;
 	return (true);
 }
 
