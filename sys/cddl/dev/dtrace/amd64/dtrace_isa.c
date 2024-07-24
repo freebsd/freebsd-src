@@ -27,6 +27,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/dtrace_impl.h>
 #include <sys/kernel.h>
 #include <sys/stack.h>
 #include <sys/pcpu.h>
@@ -368,7 +369,7 @@ dtrace_getarg(int arg, int aframes)
 	for (i = 1; i <= aframes; i++) {
 		fp = fp->f_frame;
 
-		if (P2ROUNDUP(fp->f_retaddr, 16) ==
+		if (roundup2(fp->f_retaddr, 16) ==
 		    (long)dtrace_invop_callsite) {
 			/*
 			 * In the case of amd64, we will use the pointer to the

@@ -29,6 +29,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/dtrace_impl.h>
 #include <sys/kernel.h>
 #include <sys/stack.h>
 #include <sys/pcpu.h>
