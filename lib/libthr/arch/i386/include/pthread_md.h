@@ -52,4 +52,9 @@ _get_curthread(void)
 	return (thr);
 }
 
+static __inline void
+_thr_resolve_machdep(void)
+{
+}
+
 #endif
