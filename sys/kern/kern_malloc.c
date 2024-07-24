@@ -922,15 +922,8 @@ free_dbg(void **addrp, struct malloc_type *mtp)
 }
 #endif
 
-/*
- *	free:
- *
- *	Free a block of memory allocated by malloc.
- *
- *	This routine may not block.
- */
-void
-free(void *addr, struct malloc_type *mtp)
+static __always_inline void
+_free(void *addr, struct malloc_type *mtp, bool dozero)
 {
 	uma_zone_t zone;
 	uma_slab_t slab;
@@ -946,8 +939,8 @@ free(void *addr, struct malloc_type *mtp)
 
 	vtozoneslab((vm_offset_t)addr & (~UMA_SLAB_MASK), &zone, &slab);
 	if (slab == NULL)
-		panic("free: address %p(%p) has not been allocated",
-		    addr, (void *)((u_long)addr & (~UMA_SLAB_MASK)));
+		panic("%s(%d): address %p(%p) has not been allocated", __func__,
+		    dozero, addr, (void *)((uintptr_t)addr & (~UMA_SLAB_MASK)));
 
 	switch (GET_SLAB_COOKIE(slab)) {
 	case __predict_true(SLAB_COOKIE_SLAB_PTR):
@@ -955,79 +948,54 @@ free(void *addr, struct malloc_type *mtp)
 #if defined(INVARIANTS) && !defined(KASAN)
 		free_save_type(addr, mtp, size);
 #endif
+		if (dozero) {
+			kasan_mark(addr, size, size, 0);
+			explicit_bzero(addr, size);
+		}
 		uma_zfree_arg(zone, addr, slab);
 		break;
 	case SLAB_COOKIE_MALLOC_LARGE:
 		size = malloc_large_size(slab);
+		if (dozero) {
+			kasan_mark(addr, size, size, 0);
+			explicit_bzero(addr, size);
+		}
 		free_large(addr, size);
 		break;
 	case SLAB_COOKIE_CONTIG_MALLOC:
-		size = contigmalloc_size(slab);
+		size = round_page(contigmalloc_size(slab));
+		if (dozero)
+			explicit_bzero(addr, size);
 		kmem_free(addr, size);
-		size = round_page(size);
 		break;
 	default:
-		panic("%s: addr %p slab %p with unknown cookie %d", __func__,
-		    addr, slab, GET_SLAB_COOKIE(slab));
+		panic("%s(%d): addr %p slab %p with unknown cookie %d",
+		    __func__, dozero, addr, slab, GET_SLAB_COOKIE(slab));
 		/* NOTREACHED */
 	}
 	malloc_type_freed(mtp, size);
 }
 
 /*
- *	zfree:
- *
- *	Zero then free a block of memory allocated by malloc.
- *
+ * free:
+ *	Free a block of memory allocated by malloc/contigmalloc.
+ *	This routine may not block.
+ */
+void
+free(void *addr, struct malloc_type *mtp)
+{
+	_free(addr, mtp, false);
+}
+
+/*
+ * zfree:
+ *	Zero then free a block of memory allocated by malloc/contigmalloc.
  *	This routine may not block.
  */
 void
 zfree(void *addr, struct malloc_type *mtp)
 {
-	uma_zone_t zone;
-	uma_slab_t slab;
-	u_long size;
-
-#ifdef MALLOC_DEBUG
-	if (free_dbg(&addr, mtp) != 0)
-		return;
-#endif
-	/* free(NULL, ...) does nothing */
-	if (addr == NULL)
-		return;
-
-	vtozoneslab((vm_offset_t)addr & (~UMA_SLAB_MASK), &zone, &slab);
-	if (slab == NULL)
-		panic("free: address %p(%p) has not been allocated",
-		    addr, (void *)((u_long)addr & (~UMA_SLAB_MASK)));
-
-	switch (GET_SLAB_COOKIE(slab)) {
-	case __predict_true(SLAB_COOKIE_SLAB_PTR):
-		size = zone->uz_size;
-#if defined(INVARIANTS) && !defined(KASAN)
-		free_save_type(addr, mtp, size);
-#endif
-		kasan_mark(addr, size, size, 0);
-		explicit_bzero(addr, size);
-		uma_zfree_arg(zone, addr, slab);
-		break;
-	case SLAB_COOKIE_MALLOC_LARGE:
-		size = malloc_large_size(slab);
-		kasan_mark(addr, size, size, 0);
-		explicit_bzero(addr, size);
-		free_large(addr, size);
-		break;
-	case SLAB_COOKIE_CONTIG_MALLOC:
-		size = round_page(contigmalloc_size(slab));
-		explicit_bzero(addr, size);
-		kmem_free(addr, size);
-		break;
-	default:
-		panic("%s: addr %p slab %p with unknown cookie %d", __func__,
-		    addr, slab, GET_SLAB_COOKIE(slab));
-		/* NOTREACHED */
-	}
-	malloc_type_freed(mtp, size);
+	_free(addr, mtp, true);
 }
 
 /*
