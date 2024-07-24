@@ -101,7 +101,7 @@ static int
 emulate_inout_port(struct vcpu *vcpu, struct vm_exit *vmexit, bool *retu)
 {
 	ioport_handler_func_t handler;
-	uint32_t mask, val;
+	uint32_t mask, val = 0;
 	int error;
 
 	/*
