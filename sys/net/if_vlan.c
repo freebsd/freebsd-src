@@ -188,10 +188,10 @@ struct ifvlan {
 	int	ifv_encaplen;	/* encapsulation length */
 	int	ifv_mtufudge;	/* MTU fudged by this much */
 	int	ifv_mintu;	/* min transmission unit */
-	struct  ether_8021q_tag ifv_qtag;
-#define ifv_proto	ifv_qtag.proto
-#define ifv_vid		ifv_qtag.vid
-#define ifv_pcp		ifv_qtag.pcp
+	uint16_t ifv_proto;
+	uint16_t ifv_vid;
+	uint8_t ifv_pcp;
+	/*uint8_t ifv_cfi; TBD */
 	struct task lladdr_task;
 	CK_SLIST_HEAD(, vlan_mc_entry) vlan_mc_listhead;
 #ifndef VLAN_ARRAY
@@ -1472,7 +1472,10 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 		return (ENETDOWN);
 	}
 
-	if (!ether_8021q_frame(&m, ifp, p, &ifv->ifv_qtag)) {
+	m->m_pkthdr.ether_vtag = EVL_MAKETAG(ifv->ifv_vid, ifv->ifv_pcp,
+	    /*ifv->ifv_pcp TBD*/ 0);
+	m->m_flags |= M_VLANTAG;
+	if (!ether_8021q_frame(&m, ifp, p, ifv->ifv_proto)) {
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		return (0);
 	}

@@ -131,15 +131,6 @@ struct	vlanreq {
 #define	DOT1Q_VID_DEF_SR_PVID	0x2
 #define	DOT1Q_VID_RSVD_IMPL	0xfff
 
-/*
- * 802.1q full tag. Proto and vid are stored in host byte order.
- */
-struct ether_8021q_tag {
-	uint16_t proto;
-	uint16_t vid;
-	uint8_t  pcp;
-};
-
 #define	VLAN_CAPABILITIES(_ifp) do {				\
 	if (if_getvlantrunk(_ifp) != NULL) 			\
 		(*vlan_trunk_cap_p)(_ifp);			\

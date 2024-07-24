@@ -442,7 +442,6 @@ bad:			if (m != NULL)
 static bool
 ether_set_pcp(struct mbuf **mp, struct ifnet *ifp, uint8_t pcp)
 {
-	struct ether_8021q_tag qtag;
 	struct ether_header *eh;
 
 	eh = mtod(*mp, struct ether_header *);
@@ -452,10 +451,8 @@ ether_set_pcp(struct mbuf **mp, struct ifnet *ifp, uint8_t pcp)
 		return (true);
 	}
 
-	qtag.vid = 0;
-	qtag.pcp = pcp;
-	qtag.proto = ETHERTYPE_VLAN;
-	if (ether_8021q_frame(mp, ifp, ifp, &qtag))
+	EVL_APPLY_PRI((*mp), pcp);
+	if (ether_8021q_frame(mp, ifp, ifp, ETHERTYPE_VLAN))
 		return (true);
 	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	return (false);
@@ -1401,13 +1398,11 @@ ether_do_pcp(struct ifnet *ifp, struct mbuf *m)
 
 bool
 ether_8021q_frame(struct mbuf **mp, struct ifnet *ife, struct ifnet *p,
-    const struct ether_8021q_tag *qtag)
+    const uint16_t proto)
 {
 	struct m_tag *mtag;
 	int n;
-	uint16_t tag;
-	uint8_t pcp = qtag->pcp;
-	static const char pad[8];	/* just zeros */
+	static const char pad[8] = { 0, 0, 0, 0, 0, 0, 0, 0 }; /* Just zeros. */
 
 	/*
 	 * Pad the frame to the minimum size allowed if told to.
@@ -1436,13 +1431,6 @@ ether_8021q_frame(struct mbuf **mp, struct ifnet *ife, struct ifnet *p,
 	}
 
 	/*
-	 * If PCP is set in mbuf, use it
-	 */
-	if ((*mp)->m_flags & M_VLANTAG) {
-		pcp = EVL_PRIOFTAG((*mp)->m_pkthdr.ether_vtag);
-	}
-
-	/*
 	 * If underlying interface can do VLAN tag insertion itself,
 	 * just pass the packet along. However, we need some way to
 	 * tell the interface where the packet came from so that it
@@ -1451,15 +1439,12 @@ ether_8021q_frame(struct mbuf **mp, struct ifnet *ife, struct ifnet *p,
 	 */
 	if (V_vlan_mtag_pcp && (mtag = m_tag_locate(*mp, MTAG_8021Q,
 	    MTAG_8021Q_PCP_OUT, NULL)) != NULL)
-		tag = EVL_MAKETAG(qtag->vid, *(uint8_t *)(mtag + 1), 0);
-	else
-		tag = EVL_MAKETAG(qtag->vid, pcp, 0);
-	if ((p->if_capenable & IFCAP_VLAN_HWTAGGING) &&
-	    (qtag->proto == ETHERTYPE_VLAN)) {
-		(*mp)->m_pkthdr.ether_vtag = tag;
-		(*mp)->m_flags |= M_VLANTAG;
-	} else {
-		*mp = ether_vlanencap_proto(*mp, tag, qtag->proto);
+		EVL_APPLY_PRI((*mp), *(uint8_t *)(mtag + 1));
+
+	if ((p->if_capenable & IFCAP_VLAN_HWTAGGING) == 0 ||
+	    (proto != ETHERTYPE_VLAN)) {
+		*mp = ether_vlanencap_proto(*mp,
+		    (*mp)->m_pkthdr.ether_vtag, proto);
 		if (*mp == NULL) {
 			if_printf(ife, "unable to prepend 802.1Q header");
 			return (false);
