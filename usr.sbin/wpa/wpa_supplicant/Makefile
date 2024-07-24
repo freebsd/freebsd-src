@@ -52,7 +52,7 @@ CFLAGS+=-DCONFIG_BACKEND_FILE
 LIBADD+=pcap util wpadrivers wpaeapol_supp \
 	wpaeap_server \
 	wpaeap_peer wpaeap_common wpal2_packet wparsn_supp wpatls wpawps \
-	wpacommon wpacrypto wpautils wpapasn
+	wpapasn wpacommon wpacrypto wpautils
 
 # User customizations to the wpa_supplicant build environment
 CFLAGS+=${WPA_SUPPLICANT_CFLAGS}
