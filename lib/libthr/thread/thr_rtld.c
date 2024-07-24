@@ -276,6 +276,9 @@ _thr_rtld_init(void)
 	_thr_signal_block_check_fast();
 	_thr_signal_block_setup(curthread);
 
+	/* resolve machine depended functions, if any */
+	_thr_resolve_machdep();
+
 	uc_len = __getcontextx_size();
 	uc = alloca(uc_len);
 	getcontext(uc);
