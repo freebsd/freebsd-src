@@ -1435,7 +1435,7 @@ smu_attach_i2c(device_t smu, phandle_t i2croot)
 			continue;
 		}
 
-		cdev = device_add_child(smu, NULL, -1);
+		cdev = device_add_child(smu, NULL, DEVICE_UNIT_ANY);
 		if (cdev == NULL) {
 			device_printf(smu, "<%s>: device_add_child failed\n",
 			    dinfo->obd_name);
@@ -1476,7 +1476,7 @@ smuiic_attach(device_t dev)
 	    sizeof(sc->sc_busno));
 
 	/* Add the IIC bus layer */
-	device_add_child(dev, "iicbus", -1);
+	device_add_child(dev, "iicbus", DEVICE_UNIT_ANY);
 
 	return (bus_generic_attach(dev));
 }

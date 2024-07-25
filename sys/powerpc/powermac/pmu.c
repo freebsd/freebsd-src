@@ -399,7 +399,7 @@ pmu_attach(device_t dev)
 			device_printf(dev, "PMU child <%s>\n",name);
 
 		if (strncmp(name, "adb", 4) == 0) {
-			sc->adb_bus = device_add_child(dev,"adb",-1);
+			sc->adb_bus = device_add_child(dev,"adb",DEVICE_UNIT_ANY);
 		}
 
 		if (strncmp(name, "power-mgt", 9) == 0) {

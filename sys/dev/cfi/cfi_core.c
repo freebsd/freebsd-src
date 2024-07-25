@@ -445,7 +445,7 @@ cfi_attach(device_t dev)
 	}
 #endif
 
-	device_add_child(dev, "cfid", -1);
+	device_add_child(dev, "cfid", DEVICE_UNIT_ANY);
 	bus_generic_attach(dev);
 
 	return (0);

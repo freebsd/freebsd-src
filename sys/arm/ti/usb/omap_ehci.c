@@ -337,7 +337,7 @@ omap_ehci_attach(device_t dev)
 	}
 
 	/* Add this device as a child of the USBus device */
-	sc->sc_bus.bdev = device_add_child(dev, "usbus", -1);
+	sc->sc_bus.bdev = device_add_child(dev, "usbus", DEVICE_UNIT_ANY);
 	if (!sc->sc_bus.bdev) {
 		device_printf(dev, "Error: could not add USB device\n");
 		goto error;

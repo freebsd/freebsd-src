@@ -99,7 +99,7 @@ generic_xhci_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	sc->sc_bus.bdev = device_add_child(dev, "usbus", -1);
+	sc->sc_bus.bdev = device_add_child(dev, "usbus", DEVICE_UNIT_ANY);
 	if (sc->sc_bus.bdev == NULL) {
 		device_printf(dev, "Failed to add USB device\n");
 		generic_xhci_detach(dev);

@@ -306,7 +306,7 @@ cbb_pci_attach(device_t brdev)
 	}
 
 	/* attach children */
-	sc->cbdev = device_add_child(brdev, "cardbus", -1);
+	sc->cbdev = device_add_child(brdev, "cardbus", DEVICE_UNIT_ANY);
 	if (sc->cbdev == NULL)
 		DEVPRINTF((brdev, "WARNING: cannot add cardbus bus.\n"));
 	else if (device_probe_and_attach(sc->cbdev) != 0)

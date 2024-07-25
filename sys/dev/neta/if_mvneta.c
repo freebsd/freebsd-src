@@ -801,7 +801,7 @@ mvneta_attach(device_t self)
 		if (mvneta_has_switch(self)) {
 			if (bootverbose)
 				device_printf(self, "This device is attached to a switch\n");
-			child = device_add_child(sc->dev, "mdio", -1);
+			child = device_add_child(sc->dev, "mdio", DEVICE_UNIT_ANY);
 			if (child == NULL) {
 				ether_ifdetach(sc->ifp);
 				mvneta_detach(self);

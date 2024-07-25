@@ -89,7 +89,7 @@ am335x_scm_identify(driver_t *driver, device_t parent)
 	if (device_find_child(parent, "am335x_scm", -1) != NULL)
 		return;
 
-	child = device_add_child(parent, "am335x_scm", -1);
+	child = device_add_child(parent, "am335x_scm", DEVICE_UNIT_ANY);
 	if (child == NULL)
 		device_printf(parent, "cannot add ti_scm child\n");
 }

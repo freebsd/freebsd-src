@@ -775,7 +775,7 @@ mfi_attach(struct mfi_softc *sc)
 	    &sc->mfi_keep_deleted_volumes, 0,
 	    "Don't detach the mfid device for a busy volume that is deleted");
 
-	device_add_child(sc->mfi_dev, "mfip", -1);
+	device_add_child(sc->mfi_dev, "mfip", DEVICE_UNIT_ANY);
 	bus_generic_attach(sc->mfi_dev);
 
 	/* Start the timeout watchdog */

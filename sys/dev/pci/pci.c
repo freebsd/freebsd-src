@@ -4426,7 +4426,7 @@ pci_add_child(device_t bus, struct pci_devinfo *dinfo)
 {
 	device_t dev;
 
-	dinfo->cfg.dev = dev = device_add_child(bus, NULL, -1);
+	dinfo->cfg.dev = dev = device_add_child(bus, NULL, DEVICE_UNIT_ANY);
 	device_set_ivars(dev, dinfo);
 	resource_list_init(&dinfo->resources);
 	pci_cfg_save(dev, dinfo, 0);

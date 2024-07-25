@@ -280,7 +280,7 @@ madt_gicv2m_handler(ACPI_SUBTABLE_HEADER *entry, void *arg)
 		device_printf(dev, "frame: %x %lx %x %u %u\n", msi->MsiFrameId,
 		    msi->BaseAddress, msi->Flags, msi->SpiCount, msi->SpiBase);
 
-		cdev = device_add_child(dev, NULL, -1);
+		cdev = device_add_child(dev, NULL, DEVICE_UNIT_ANY);
 		if (cdev == NULL)
 			return;
 

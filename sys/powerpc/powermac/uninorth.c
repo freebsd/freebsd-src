@@ -374,7 +374,7 @@ unin_chip_attach(device_t dev)
 
 		unin_chip_add_reg(child, dinfo);
 
-		cdev = device_add_child(dev, NULL, -1);
+		cdev = device_add_child(dev, NULL, DEVICE_UNIT_ANY);
 		if (cdev == NULL) {
 			device_printf(dev, "<%s>: device_add_child failed\n",
 				      dinfo->udi_obdinfo.obd_name);

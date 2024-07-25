@@ -107,7 +107,7 @@ ntb_register_device(device_t dev)
 		nc->dbcnt = db;
 		nc->dbmask = (db == 0) ? 0 : (0xffffffffffffffff >> (64 - db));
 		rm_init(&nc->ctx_lock, "ntb ctx");
-		nc->dev = device_add_child(dev, name, -1);
+		nc->dev = device_add_child(dev, name, DEVICE_UNIT_ANY);
 		if (nc->dev == NULL) {
 			ntb_unregister_device(dev);
 			return (ENOMEM);

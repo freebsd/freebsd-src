@@ -159,7 +159,7 @@ amdsmb_attach(device_t dev)
 	mtx_init(&amdsmb_sc->lock, device_get_nameunit(dev), "amdsmb", MTX_DEF);
 
 	/* Allocate a new smbus device */
-	amdsmb_sc->smbus = device_add_child(dev, "smbus", -1);
+	amdsmb_sc->smbus = device_add_child(dev, "smbus", DEVICE_UNIT_ANY);
 	if (!amdsmb_sc->smbus) {
 		amdsmb_detach(dev);
 		return (EINVAL);

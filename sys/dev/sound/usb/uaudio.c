@@ -1125,7 +1125,7 @@ uaudio_attach(device_t dev)
 		    sc->sc_child[i].mix_info == 0)
 			continue;
 		sc->sc_child[i].pcm_device =
-		    device_add_child(dev, "pcm", -1);
+		    device_add_child(dev, "pcm", DEVICE_UNIT_ANY);
 
 		if (sc->sc_child[i].pcm_device == NULL) {
 			DPRINTF("out of memory\n");

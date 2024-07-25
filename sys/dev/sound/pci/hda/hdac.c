@@ -1617,7 +1617,7 @@ hdac_attach2(void *arg)
 			    HDA_PARAM_REVISION_ID_REVISION_ID(revisionid);
 			sc->codecs[i].stepping_id =
 			    HDA_PARAM_REVISION_ID_STEPPING_ID(revisionid);
-			child = device_add_child(sc->dev, "hdacc", -1);
+			child = device_add_child(sc->dev, "hdacc", DEVICE_UNIT_ANY);
 			if (child == NULL) {
 				device_printf(sc->dev,
 				    "Failed to add CODEC device\n");

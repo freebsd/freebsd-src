@@ -198,7 +198,7 @@ cardbus_attach_card(device_t cbdev)
 		if (dinfo->pci.cfg.mfdev)
 			cardbusfunchigh = PCI_FUNCMAX;
 
-		child = device_add_child(cbdev, NULL, -1);
+		child = device_add_child(cbdev, NULL, DEVICE_UNIT_ANY);
 		if (child == NULL) {
 			DEVPRINTF((cbdev, "Cannot add child!\n"));
 			pci_freecfg((struct pci_devinfo *)dinfo);

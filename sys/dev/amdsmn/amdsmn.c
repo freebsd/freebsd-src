@@ -176,7 +176,7 @@ amdsmn_identify(driver_t *driver, device_t parent)
 	if (!amdsmn_match(parent, NULL))
 		return;
 
-	child = device_add_child(parent, "amdsmn", -1);
+	child = device_add_child(parent, "amdsmn", DEVICE_UNIT_ANY);
 	if (child == NULL)
 		device_printf(parent, "add amdsmn child failed\n");
 }

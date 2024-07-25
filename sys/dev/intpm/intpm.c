@@ -326,7 +326,7 @@ intsmb_attach(device_t dev)
 
 no_intr:
 	sc->isbusy = 0;
-	sc->smbus = device_add_child(dev, "smbus", -1);
+	sc->smbus = device_add_child(dev, "smbus", DEVICE_UNIT_ANY);
 	if (sc->smbus == NULL) {
 		device_printf(dev, "failed to add smbus child\n");
 		error = ENXIO;

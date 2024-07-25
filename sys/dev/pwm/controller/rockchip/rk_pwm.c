@@ -212,7 +212,7 @@ rk_pwm_attach(device_t dev)
 	node = ofw_bus_get_node(dev);
 	OF_device_register_xref(OF_xref_from_node(node), dev);
 
-	sc->busdev = device_add_child(dev, "pwmbus", -1);
+	sc->busdev = device_add_child(dev, "pwmbus", DEVICE_UNIT_ANY);
 
 	return (bus_generic_attach(dev));
 

@@ -2725,7 +2725,7 @@ cxgbe_attach(device_t dev)
 	for_each_vi(pi, i, vi) {
 		if (i == 0)
 			continue;
-		vi->dev = device_add_child(dev, sc->names->vi_ifnet_name, -1);
+		vi->dev = device_add_child(dev, sc->names->vi_ifnet_name, DEVICE_UNIT_ANY);
 		if (vi->dev == NULL) {
 			device_printf(dev, "failed to add VI %d\n", i);
 			continue;

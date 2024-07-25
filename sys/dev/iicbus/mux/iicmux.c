@@ -279,7 +279,7 @@ iicmux_attach_children(struct iicmux_softc *sc)
 			    idx, sc->numbuses);
 			continue;
 		}
-		sc->childdevs[idx] = device_add_child(sc->dev, "iicbus", -1);
+		sc->childdevs[idx] = device_add_child(sc->dev, "iicbus", DEVICE_UNIT_ANY);
 		sc->childnodes[idx] = child;
 		if (sc->maxbus < (int)idx)
 			sc->maxbus = idx;
@@ -295,7 +295,7 @@ iicmux_attach_children(struct iicmux_softc *sc)
 	 * Add an iicbus child for every downstream bus supported by the mux.
 	 */
 	for (i = 0; i < sc->numbuses; ++i) {
-		sc->childdevs[i] = device_add_child(sc->dev, "iicbus", -1);
+		sc->childdevs[i] = device_add_child(sc->dev, "iicbus", DEVICE_UNIT_ANY);
 		sc->maxbus = i;
 	}
 

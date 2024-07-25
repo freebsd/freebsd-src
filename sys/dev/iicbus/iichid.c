@@ -1190,7 +1190,7 @@ iichid_attach(device_t dev)
 	}
 #endif /* IICHID_SAMPLING */
 
-	child = device_add_child(dev, "hidbus", -1);
+	child = device_add_child(dev, "hidbus", DEVICE_UNIT_ANY);
 	if (child == NULL) {
 		device_printf(sc->dev, "Could not add I2C device\n");
 		iichid_detach(dev);

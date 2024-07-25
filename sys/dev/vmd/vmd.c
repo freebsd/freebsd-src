@@ -383,8 +383,7 @@ vmd_attach(device_t dev)
 	}
 
 	sc->vmd_dma_tag = bus_get_dma_tag(dev);
-
-	sc->psc.child = device_add_child(dev, "pci", -1);
+	sc->psc.child = device_add_child(dev, "pci", DEVICE_UNIT_ANY);
 	return (bus_generic_attach(dev));
 
 fail:
