@@ -57,7 +57,7 @@ init_io(const char *subnqn)
 	aparams.tcp.pda = 0;
 	aparams.tcp.header_digests = header_digests;
 	aparams.tcp.data_digests = data_digests;
-	aparams.tcp.maxh2cdata = 256 * 1024;
+	aparams.tcp.maxh2cdata = maxh2cdata;
 	io_na = nvmf_allocate_association(NVMF_TRTYPE_TCP, true,
 	    &aparams);
 	if (io_na == NULL)

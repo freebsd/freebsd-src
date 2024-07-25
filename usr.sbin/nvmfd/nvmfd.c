@@ -18,6 +18,7 @@
 #include <libutil.h>
 #include <netdb.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -29,6 +30,7 @@ bool data_digests = false;
 bool header_digests = false;
 bool flow_control_disable = false;
 bool kernel_io = false;
+uint32_t maxh2cdata = 256 * 1024;
 
 static const char *subnqn;
 static volatile bool quit = false;
@@ -36,8 +38,8 @@ static volatile bool quit = false;
 static void
 usage(void)
 {
-	fprintf(stderr, "nvmfd -K [-dFGg] [-P port] [-p port] [-t transport] [-n subnqn]\n"
-	    "nvmfd [-dFGg] [-P port] [-p port] [-t transport] [-n subnqn]\n"
+	fprintf(stderr, "nvmfd -K [-dFGg] [-H MAXH2CDATA] [-P port] [-p port] [-t transport] [-n subnqn]\n"
+	    "nvmfd [-dFGg] [-H MAXH2CDATA] [-P port] [-p port] [-t transport] [-n subnqn]\n"
 	    "\tdevice [device [...]]\n"
 	    "\n"
 	    "Devices use one of the following syntaxes:\n"
@@ -150,6 +152,7 @@ main(int ac, char **av)
 	struct pidfh *pfh;
 	const char *dport, *ioport, *transport;
 	pid_t pid;
+	uint64_t value;
 	int ch, error, kqfd;
 	bool daemonize;
 	static char nqn[NVMF_NQN_MAX_LEN];
@@ -162,7 +165,7 @@ main(int ac, char **av)
 	ioport = "0";
 	subnqn = NULL;
 	transport = "tcp";
-	while ((ch = getopt(ac, av, "dFgGKn:P:p:t:")) != -1) {
+	while ((ch = getopt(ac, av, "dFgGH:Kn:P:p:t:")) != -1) {
 		switch (ch) {
 		case 'd':
 			daemonize = false;
@@ -175,6 +178,14 @@ main(int ac, char **av)
 			break;
 		case 'g':
 			header_digests = true;
+			break;
+		case 'H':
+			if (expand_number(optarg, &value) != 0)
+				errx(1, "Invalid MAXH2CDATA value %s", optarg);
+			if (value < 4096 || value > UINT32_MAX ||
+			    value % 4 != 0)
+				errx(1, "Invalid MAXH2CDATA value %s", optarg);
+			maxh2cdata = value;
 			break;
 		case 'K':
 			kernel_io = true;

@@ -13,12 +13,14 @@
 .Nm
 .Fl K
 .Op Fl dFGg
+.Op Fl H Ar MAXH2CDATA
 .Op Fl P Ar port
 .Op Fl p Ar port
 .Op Fl t Ar transport
 .Op Fl n Ar subnqn
 .Nm
 .Op Fl dFGg
+.Op Fl H Ar MAXH2CDATA
 .Op Fl P Ar port
 .Op Fl p Ar port
 .Op Fl t Ar transport
@@ -42,6 +44,11 @@ Permit remote hosts to disable SQ flow control.
 Permit remote hosts to enable PDU data digests for the TCP transport.
 .It Fl g
 Permit remote hosts to enable PDU header digests for the TCP transport.
+.It Fl H
+Set the MAXH2CDATA value advertised to the remote host for the TCP transport.
+This value is in bytes and determines the maximum data payload size for
+data PDUs sent by the remote host.
+The value must be at least 4096 and defaults to 256KiB.
 .It Fl K
 Enable kernel mode which hands off incoming I/O controller connections to
 .Xr nvmft 4 .
@@ -121,5 +128,4 @@ should be merged into
 .Xr ctld 8 .
 .Pp
 Additional parameters such as
-.Va MAXH2CDATA
-and queue sizes should be configurable.
+queue sizes should be configurable.
