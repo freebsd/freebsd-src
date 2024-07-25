@@ -49,6 +49,12 @@
 
 #include <cam/scsi/scsi_pass.h>
 
+/*
+ * Note: struct cdev *dev parameter here is simply passed through. For cdioctl
+ * we need to pass down a struct periph * which has been cast to a cdev and that
+ * is cast back again in cdioctl_dev().
+ */
+
 static int cam_compat_handle_0x17(struct cdev *dev, u_long cmd, caddr_t addr,
     int flag, struct thread *td, d_ioctl_t *cbfnp);
 static int cam_compat_handle_0x18(struct cdev *dev, u_long cmd, caddr_t addr,

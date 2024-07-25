@@ -1122,6 +1122,20 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 	return (error);
 }
 
+static int
+cam_periph_ioctl_compat(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
+{
+	struct cam_periph *periph;
+
+	/*
+	 * For compat, we need to cast struct periph * into struct cdev *dev and
+	 * then back again.
+	 */
+	periph = (struct cam_periph *)(void *)dev;
+	cam_periph_assert(periph, MA_OWNED);
+	return (cam_periph_ioctl(periph, cmd, addr, cderror));
+}
+
 int
 cam_periph_ioctl(struct cam_periph *periph, u_long cmd, caddr_t addr,
 		 int (*error_routine)(union ccb *ccb, 
@@ -1178,7 +1192,13 @@ cam_periph_ioctl(struct cam_periph *periph, u_long cmd, caddr_t addr,
 
 		break;
 	default:
-		error = ENOTTY;
+		/*
+		 * We assume that the compat layer doesn't care about
+		 * the dev parameter. It just passes it through, so
+		 * cheat a little.
+		 */
+		error = cam_compat_ioctl((struct cdev *)(void *)periph,
+		    cmd, addr, flag, td, cam_periph_ioctl_compat);
 		break;
 	}
 	return(error);
