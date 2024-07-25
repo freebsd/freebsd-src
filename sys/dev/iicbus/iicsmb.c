@@ -135,7 +135,7 @@ iicsmb_identify(driver_t *driver, device_t parent)
 {
 
 	if (device_find_child(parent, "iicsmb", -1) == NULL)
-		BUS_ADD_CHILD(parent, 0, "iicsmb", -1);
+		BUS_ADD_CHILD(parent, 0, "iicsmb", DEVICE_UNIT_ANY);
 }
 
 static int

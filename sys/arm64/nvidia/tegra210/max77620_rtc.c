@@ -385,7 +385,7 @@ max77620_rtc_create(struct max77620_softc *sc, phandle_t node)
 
 	parent = device_get_parent(sc->dev);
 
-	child = BUS_ADD_CHILD(parent, 0, NULL, -1);
+	child = BUS_ADD_CHILD(parent, 0, NULL, DEVICE_UNIT_ANY);
 	if (child == NULL)	{
 		device_printf(sc->dev, "Cannot create MAX77620 RTC device.\n");
 		return (ENXIO);

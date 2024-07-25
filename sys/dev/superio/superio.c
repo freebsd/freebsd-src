@@ -685,7 +685,7 @@ superio_add_known_child(device_t dev, superio_dev_type_t type, uint8_t ldn)
 	struct superio_devinfo *dinfo;
 	device_t child;
 
-	child = BUS_ADD_CHILD(dev, 0, NULL, -1);
+	child = BUS_ADD_CHILD(dev, 0, NULL, DEVICE_UNIT_ANY);
 	if (child == NULL) {
 		device_printf(dev, "failed to add child for ldn %d, type %s\n",
 		    ldn, devtype_to_str(type));

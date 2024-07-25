@@ -2396,7 +2396,7 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "scanning '%s'\n", handle_str));
 	    order = level * 10 + ACPI_DEV_BASE_ORDER;
 	    acpi_probe_order(handle, &order);
-	    child = BUS_ADD_CHILD(bus, order, NULL, -1);
+	    child = BUS_ADD_CHILD(bus, order, NULL, DEVICE_UNIT_ANY);
 	    if (child == NULL)
 		break;
 
