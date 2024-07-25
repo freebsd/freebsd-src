@@ -25,7 +25,6 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#
 
 . $(atf_get_srcdir)/../common/vnet.subr
 
@@ -36,6 +35,7 @@ ndp_add_gu_success_head() {
 }
 
 ndp_add_gu_success_body() {
+	local epair0 jname
 
 	vnet_init
 
@@ -74,6 +74,7 @@ ndp_del_gu_success_head() {
 }
 
 ndp_del_gu_success_body() {
+	local epair0 jname
 
 	vnet_init
 
@@ -102,13 +103,94 @@ ndp_del_gu_success_cleanup() {
 	vnet_cleanup
 }
 
+ndp_if_up()
+{
+	local ifname=$1
+	local jname=$2
+
+	if [ -n "$jname" ]; then
+		jname="jexec ${jname}"
+	fi
+	atf_check ${jname} ifconfig ${ifname} up
+	atf_check ${jname} ifconfig ${ifname} inet6 -ifdisabled
+	while ${jname} ifconfig ${ifname} inet6 | grep tentative; do
+		sleep 0.1
+	done
+}
+
+ndp_if_lladdr()
+{
+	local ifname=$1
+	local jname=$2
+
+	if [ -n "$jname" ]; then
+		jname="jexec ${jname}"
+	fi
+	${jname} ifconfig ${ifname} inet6 | \
+	    awk '/inet6 fe80:/{split($2, addr, "%"); print addr[1]}'
+}
+
+atf_test_case "ndp_slaac_default_route" "cleanup"
+ndp_slaac_default_route_head() {
+	atf_set descr 'Test default route installation via SLAAC'
+	atf_set require.user root
+	atf_set require.progs "python"
+}
+
+ndp_slaac_default_route_body() {
+	local epair0 jname lladdr
+
+	vnet_init
+
+	jname="v6t-ndp_slaac_default_route"
+
+	epair0=$(vnet_mkepair)
+
+	vnet_mkjail ${jname} ${epair0}a
+
+	ndp_if_up ${epair0}a ${jname}
+	ndp_if_up ${epair0}b
+	atf_check jexec ${jname} ifconfig ${epair0}a inet6 accept_rtadv
+
+        # Send an RA advertising a prefix.
+	atf_check -e ignore python $(atf_get_srcdir)/ra.py \
+	    --sendif ${epair0}b \
+	    --dst $(ndp_if_lladdr ${epair0}a ${jname}) \
+	    --src $(ndp_if_lladdr ${epair0}b) \
+	    --prefix "2001:db8:ffff:1000::" --prefixlen 64
+
+	# Wait for a default router to appear.
+	while [ -z "$(jexec ${jname} ndp -r)" ]; do
+		sleep 0.1
+	done
+	atf_check -o match:"^default[[:space:]]+fe80:" \
+	    jexec ${jname} netstat -rn -6
+
+	# Get rid of the default route.
+	jexec ${jname} route -6 flush
+	atf_check -o not-match:"^default[[:space:]]+fe80:" \
+	    jexec ${jname} netstat -rn -6
+
+	# Send another RA, make sure that the default route is installed again.
+	atf_check -e ignore python $(atf_get_srcdir)/ra.py \
+	    --sendif ${epair0}b \
+	    --dst $(ndp_if_lladdr ${epair0}a ${jname}) \
+	    --src $(ndp_if_lladdr ${epair0}b) \
+	    --prefix "2001:db8:ffff:1000::" --prefixlen 64
+	while [ -z "$(jexec ${jname} ndp -r)" ]; do
+		sleep 0.1
+	done
+	atf_check -o match:"^default[[:space:]]+fe80:" \
+	    jexec ${jname} netstat -rn -6
+}
+
+ndp_slaac_default_route_cleanup() {
+	vnet_cleanup
+}
 
 atf_init_test_cases()
 {
-
 	atf_add_test_case "ndp_add_gu_success"
 	atf_add_test_case "ndp_del_gu_success"
+	atf_add_test_case "ndp_slaac_default_route"
 }
-
-# end
-
