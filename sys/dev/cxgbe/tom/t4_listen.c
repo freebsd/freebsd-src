@@ -1090,7 +1090,10 @@ t4_offload_socket(struct toedev *tod, void *arg, struct socket *so)
 	update_tid(sc, synqe->tid, toep);
 	synqe->flags |= TPF_SYNQE_EXPANDED;
 	mtx_lock(&td->toep_list_lock);
+	/* Remove synqe from its list and add the TOE PCB to the active list. */
 	TAILQ_REMOVE(&td->synqe_list, synqe, link);
+	TAILQ_INSERT_TAIL(&td->toep_list, toep, link);
+	toep->flags |= TPF_IN_TOEP_LIST;
 	mtx_unlock(&td->toep_list_lock);
 	inp->inp_flowtype = (inp->inp_vflag & INP_IPV6) ?
 	    M_HASHTYPE_RSS_TCP_IPV6 : M_HASHTYPE_RSS_TCP_IPV4;
