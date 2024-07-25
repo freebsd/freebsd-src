@@ -12,12 +12,17 @@ SRCS+=	ipmi_kcs.c ipmi_smic.c ipmi_bt.c
 SRCS+=	ipmi_acpi.c
 SRCS+=	opt_acpi.h
 SRCS+=	acpi_if.h
+SRCS+=	ipmi_smbios.c
+SRCS+=	ipmi_ssif.c
+SRCS+=	ipmi_pci.c
+SRCS+=	ipmi_smbus.c
+SRCS+=	pci_if.h
+SRCS+=	smbus_if.h
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
-SRCS+=	ipmi_smbios.c ipmi_ssif.c
-SRCS+=	ipmi_isa.c ipmi_pci.c ipmi_smbus.c
-SRCS+=	isa_if.h pci_if.h smbus_if.h
+SRCS+=	ipmi_isa.c
+SRCS+=	isa_if.h
 
 SUBDIR+= ipmi_linux
 
