@@ -138,7 +138,7 @@ static void	tcp_free_qpair(struct nvmf_qpair *nq);
 SYSCTL_NODE(_kern_nvmf, OID_AUTO, tcp, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "TCP transport");
 static u_int tcp_max_transmit_data = 256 * 1024;
-SYSCTL_UINT(_kern_nvmf_tcp, OID_AUTO, max_c2hdata, CTLFLAG_RWTUN,
+SYSCTL_UINT(_kern_nvmf_tcp, OID_AUTO, max_transmit_data, CTLFLAG_RWTUN,
     &tcp_max_transmit_data, 0,
     "Maximum size of data payload in a transmitted PDU");
 
