@@ -192,8 +192,8 @@ ipmi_smbios_probe(struct ipmi_get_info *info)
 	/* Now map the actual table and walk it looking for an IPMI entry. */
 	table = pmap_mapbios(header->structure_table_address,
 	    header->structure_table_length);
-	smbios_walk_table(table, header->number_structures, smbios_ipmi_info,
-	    info);
+	smbios_walk_table(table, header->number_structures,
+	    header->structure_table_length, smbios_ipmi_info, info);
 
 	/* Unmap everything. */
 	pmap_unmapbios(table, header->structure_table_length);
