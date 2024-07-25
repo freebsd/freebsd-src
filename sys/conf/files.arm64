@@ -383,7 +383,11 @@ dev/ipmi/ipmi.c					optional ipmi
 dev/ipmi/ipmi_acpi.c				optional ipmi acpi
 dev/ipmi/ipmi_bt.c				optional ipmi
 dev/ipmi/ipmi_kcs.c				optional ipmi
+dev/ipmi/ipmi_pci.c				optional ipmi pci
+dev/ipmi/ipmi_smbios.c				optional ipmi
+dev/ipmi/ipmi_smbus.c				optional ipmi smbus
 dev/ipmi/ipmi_smic.c				optional ipmi
+dev/ipmi/ipmi_ssif.c				optional ipmi smbus
 
 dev/mailbox/arm/arm_doorbell.c			optional fdt arm_doorbell
 dev/mbox/mbox_if.m				optional soc_brcm_bcm2837
