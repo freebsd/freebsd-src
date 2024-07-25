@@ -1060,9 +1060,9 @@ devclass_get_count(devclass_t dc)
 /**
  * @brief Get the maximum unit number used in a devclass
  *
- * Note that this is one greater than the highest currently-allocated
- * unit.  If a null devclass_t is passed in, -1 is returned to indicate
- * that not even the devclass has been allocated yet.
+ * Note that this is one greater than the highest currently-allocated unit.  If
+ * @p dc is NULL, @c -1 is returned to indicate that not even the devclass has
+ * been allocated yet.
  *
  * @param dc		the devclass to examine
  */
@@ -1135,9 +1135,9 @@ devclass_get_sysctl_tree(devclass_t dc)
  * @internal
  * @brief Allocate a unit number
  *
- * On entry, @p *unitp is the desired unit number (or @c -1 if any
+ * On entry, @p *unitp is the desired unit number (or @c DEVICE_UNIT_ANY if any
  * will do). The allocated unit number is returned in @p *unitp.
-
+ *
  * @param dc		the devclass to allocate from
  * @param unitp		points at the location for the allocated unit
  *			number
@@ -1155,13 +1155,12 @@ devclass_alloc_unit(devclass_t dc, device_t dev, int *unitp)
 	PDEBUG(("unit %d in devclass %s", unit, DEVCLANAME(dc)));
 
 	/* Ask the parent bus if it wants to wire this device. */
-	if (unit == -1)
+	if (unit == DEVICE_UNIT_ANY)
 		BUS_HINT_DEVICE_UNIT(device_get_parent(dev), dev, dc->name,
 		    &unit);
 
 	/* If we were given a wired unit number, check for existing device */
-	/* XXX imp XXX */
-	if (unit != -1) {
+	if (unit != DEVICE_UNIT_ANY) {
 		if (unit >= 0 && unit < dc->maxunit &&
 		    dc->devices[unit] != NULL) {
 			if (bootverbose)
@@ -1282,7 +1281,7 @@ devclass_delete_device(devclass_t dc, device_t dev)
 		panic("devclass_delete_device: inconsistent device class");
 	dc->devices[dev->unit] = NULL;
 	if (dev->flags & DF_WILDCARD)
-		dev->unit = -1;
+		dev->unit = DEVICE_UNIT_ANY;
 	dev->devclass = NULL;
 	free(dev->nameunit, M_BUS);
 	dev->nameunit = NULL;
@@ -1297,8 +1296,8 @@ devclass_delete_device(devclass_t dc, device_t dev)
  * @param parent	the parent of the new device
  * @param name		the devclass name of the new device or @c NULL
  *			to leave the devclass unspecified
- * @parem unit		the unit number of the new device of @c -1 to
- *			leave the unit number unspecified
+ * @parem unit		the unit number of the new device of @c DEVICE_UNIT_ANY
+ *			to leave the unit number unspecified
  *
  * @returns the new device
  */
@@ -1337,7 +1336,7 @@ make_device(device_t parent, const char *name, int unit)
 	dev->devflags = 0;
 	dev->flags = DF_ENABLED;
 	dev->order = 0;
-	if (unit == -1)
+	if (unit == DEVICE_UNIT_ANY)
 		dev->flags |= DF_WILDCARD;
 	if (name) {
 		dev->flags |= DF_FIXEDCLASS;
@@ -1387,7 +1386,7 @@ device_print_child(device_t dev, device_t child)
  *			new child device
  * @param name		devclass name for new device or @c NULL if not
  *			specified
- * @param unit		unit number for new device or @c -1 if not
+ * @param unit		unit number for new device or @c DEVICE_UNIT_ANY if not
  *			specified
  *
  * @returns		the new device
@@ -1413,7 +1412,7 @@ device_add_child(device_t dev, const char *name, int unit)
  *			dev's list of children
  * @param name		devclass name for new device or @c NULL if not
  *			specified
- * @param unit		unit number for new device or @c -1 if not
+ * @param unit		unit number for new device or @c DEVICE_UNIT_ANY if not
  *			specified
  *
  * @returns		the new device
@@ -1426,7 +1425,7 @@ device_add_child_ordered(device_t dev, u_int order, const char *name, int unit)
 
 	PDEBUG(("%s at %s with order %u as unit %d",
 	    name, DEVICENAME(dev), order, unit));
-	KASSERT(name != NULL || unit == -1,
+	KASSERT(name != NULL || unit == DEVICE_UNIT_ANY,
 	    ("child device with wildcard name and specific unit number"));
 
 	child = make_device(dev, name, unit);
@@ -1541,9 +1540,10 @@ device_delete_children(device_t dev)
  * devices which have @p dev as a parent.
  *
  * @param dev		the parent device to search
- * @param unit		the unit number to search for.  If the unit is -1,
- *			return the first child of @p dev which has name
- *			@p classname (that is, the one with the lowest unit.)
+ * @param unit		the unit number to search for.  If the unit is
+ *			@c DEVICE_UNIT_ANY, return the first child of @p dev
+ *			which has name @p classname (that is, the one with the
+ *			lowest unit.)
  *
  * @returns		the device with the given unit number or @c
  *			NULL if there is no such device
@@ -1558,7 +1558,7 @@ device_find_child(device_t dev, const char *classname, int unit)
 	if (!dc)
 		return (NULL);
 
-	if (unit != -1) {
+	if (unit != DEVICE_UNIT_ANY) {
 		child = devclass_get_device(dc, unit);
 		if (child && child->parent == dev)
 			return (child);
@@ -5788,7 +5788,7 @@ devctl2_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		if (dev->flags & DF_FIXEDCLASS)
 			devclass_delete_device(dev->devclass, dev);
 		dev->flags |= DF_WILDCARD;
-		dev->unit = -1;
+		dev->unit = DEVICE_UNIT_ANY;
 
 		/* Force the new device class. */
 		error = devclass_add_device(dc, dev);
