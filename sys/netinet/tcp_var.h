@@ -461,6 +461,11 @@ struct tcpcb {
 	/* TCP Fast Open */
 	uint8_t t_tfo_client_cookie_len; /* TFO client cookie length */
 	uint32_t t_end_info_status;	/* Status flag of end info */
+	sbintime_t t_challenge_ack_end;	/* End of the challenge ack epoch */
+	uint32_t t_challenge_ack_cnt;	/* Number of challenge ACKs sent in
+					 * current epoch
+					 */
+
 	unsigned int *t_tfo_pending;	/* TFO server pending counter */
 	union {
 		uint8_t client[TCP_FASTOPEN_MAX_COOKIE_LEN];
@@ -1469,6 +1474,7 @@ int	 tcp_default_output(struct tcpcb *);
 void	 tcp_state_change(struct tcpcb *, int);
 void	 tcp_respond(struct tcpcb *, void *,
 	    struct tcphdr *, struct mbuf *, tcp_seq, tcp_seq, uint16_t);
+void	 tcp_send_challenge_ack(struct tcpcb *, struct tcphdr *, struct mbuf *);
 bool	 tcp_twcheck(struct inpcb *, struct tcpopt *, struct tcphdr *,
 	    struct mbuf *, int);
 void	 tcp_setpersist(struct tcpcb *);
