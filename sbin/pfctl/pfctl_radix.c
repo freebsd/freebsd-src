@@ -534,8 +534,8 @@ pfr_next_token(char buf[BUF_SIZE], FILE *fp)
 		/* skip spaces */
 		while (isspace(next_ch) && !feof(fp))
 			next_ch = fgetc(fp);
-		/* remove from '#' until end of line */
-		if (next_ch == '#')
+		/* remove from '#' or ';' until end of line */
+		if (next_ch == '#' || next_ch == ';')
 			while (!feof(fp)) {
 				next_ch = fgetc(fp);
 				if (next_ch == '\n')
