@@ -243,7 +243,7 @@ if __name__ == "__main__":
         sys.exit("MAKEOBJDIRPREFIX is not set, cannot continue!")
     if not Path(MAKEOBJDIRPREFIX).is_dir():
         sys.exit(
-            "Chosen MAKEOBJDIRPREFIX=" + MAKEOBJDIRPREFIX + " doesn't exit!")
+            "Chosen MAKEOBJDIRPREFIX=" + MAKEOBJDIRPREFIX + " doesn't exist!")
     objdir_prefix = Path(MAKEOBJDIRPREFIX).absolute()
     source_root = Path(__file__).absolute().parent.parent.parent
 
