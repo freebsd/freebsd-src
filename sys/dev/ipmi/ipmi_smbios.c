@@ -166,10 +166,12 @@ ipmi_smbios_probe(struct ipmi_get_info *info)
 		addr = (vm_paddr_t)addr_efi;
 #endif
 
+#if defined(__amd64__) || defined(__i386__)
 	if (addr == 0)
 		/* Find the SMBIOS table header. */
 		addr = bios_sigsearch(SMBIOS_START, SMBIOS_SIG, SMBIOS_LEN,
 			SMBIOS_STEP, SMBIOS_OFF);
+#endif
 	if (addr == 0)
 		return;
 
