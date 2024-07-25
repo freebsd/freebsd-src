@@ -36,8 +36,8 @@ static volatile bool quit = false;
 static void
 usage(void)
 {
-	fprintf(stderr, "nvmfd -K [-FGg] [-P port] [-p port] [-t transport] [-n subnqn]\n"
-	    "nvmfd [-dDFH] [-P port] [-p port] [-t transport] [-n subnqn]\n"
+	fprintf(stderr, "nvmfd -K [-dFGg] [-P port] [-p port] [-t transport] [-n subnqn]\n"
+	    "nvmfd [-dFGg] [-P port] [-p port] [-t transport] [-n subnqn]\n"
 	    "\tdevice [device [...]]\n"
 	    "\n"
 	    "Devices use one of the following syntaxes:\n"
