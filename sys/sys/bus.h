@@ -159,6 +159,7 @@ struct devreq {
 /* Flags for DEV_RESET */
 #define	DEVF_RESET_DETACH	0x0000001	/* Detach drivers vs suspend
 						   device */
+#define DEVICE_UNIT_ANY		(-1)
 
 #ifdef _KERNEL
 
