@@ -380,7 +380,7 @@ mii_attach_proxy(device_t dev)
 		return (NULL);
 	}
 
-	miiproxy = device_add_child(dev, miiproxy_driver.name, -1);
+	miiproxy = device_add_child(dev, miiproxy_driver.name, DEVICE_UNIT_ANY);
 	error = bus_generic_attach(dev);
 	if (error != 0) {
 		device_printf(dev, "can't attach miiproxy\n");

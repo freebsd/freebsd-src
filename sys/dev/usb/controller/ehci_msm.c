@@ -125,7 +125,7 @@ ehci_msm_attach(device_t dev)
 		panic("%s: unable to subregion USB host registers",
 		    device_get_name(dev));
 
-	sc->sc_bus.bdev = device_add_child(dev, "usbus", -1);
+	sc->sc_bus.bdev = device_add_child(dev, "usbus", DEVICE_UNIT_ANY);
 	if (!sc->sc_bus.bdev) {
 		device_printf(dev, "Could not add USB device\n");
 		goto error;

@@ -88,7 +88,7 @@ int
 pst_add_raid(struct iop_softc *sc, struct i2o_lct_entry *lct)
 {
     struct pst_softc *psc;
-    device_t child = device_add_child(sc->dev, "pst", -1);
+    device_t child = device_add_child(sc->dev, "pst", DEVICE_UNIT_ANY);
 
     if (!child)
 	return ENOMEM;

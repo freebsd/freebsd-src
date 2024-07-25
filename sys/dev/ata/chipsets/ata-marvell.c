@@ -125,7 +125,7 @@ ata_marvell_chipinit(device_t dev)
 		return ENXIO;
 	/* Create AHCI subdevice if AHCI part present. */
 	if (ctlr->chip->cfg1) {
-	    	child = device_add_child(dev, NULL, -1);
+		child = device_add_child(dev, NULL, DEVICE_UNIT_ANY);
 		if (child != NULL) {
 		    device_set_ivars(child, (void *)(intptr_t)-1);
 		    bus_generic_attach(dev);

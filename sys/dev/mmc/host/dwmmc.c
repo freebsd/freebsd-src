@@ -485,7 +485,7 @@ dwmmc_card_task(void *arg, int pending __unused)
 			if (bootverbose)
 				device_printf(sc->dev, "Card inserted\n");
 
-			sc->child = device_add_child(sc->dev, "mmc", -1);
+			sc->child = device_add_child(sc->dev, "mmc", DEVICE_UNIT_ANY);
 			DWMMC_UNLOCK(sc);
 			if (sc->child) {
 				device_set_ivars(sc->child, sc);

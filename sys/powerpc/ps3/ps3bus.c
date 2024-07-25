@@ -408,7 +408,7 @@ ps3bus_attach(device_t self)
 				ps3bus_resources_init_by_type(&sc->sc_mem_rman, bus_index,
 				    dev_index, OHCI_IRQ, OHCI_REG, dinfo);
 
-				cdev = device_add_child(self, "ohci", -1);
+				cdev = device_add_child(self, "ohci", DEVICE_UNIT_ANY);
 				if (cdev == NULL) {
 					device_printf(self,
 					    "device_add_child failed\n");
@@ -434,7 +434,7 @@ ps3bus_attach(device_t self)
 				ps3bus_resources_init_by_type(&sc->sc_mem_rman, bus_index,
 				    dev_index, EHCI_IRQ, EHCI_REG, dinfo);
 
-				cdev = device_add_child(self, "ehci", -1);
+				cdev = device_add_child(self, "ehci", DEVICE_UNIT_ANY);
 				if (cdev == NULL) {
 					device_printf(self,
 					    "device_add_child failed\n");
@@ -463,7 +463,7 @@ ps3bus_attach(device_t self)
 				ps3bus_resources_init(&sc->sc_mem_rman, bus_index,
 				    dev_index, dinfo);
 
-				cdev = device_add_child(self, NULL, -1);
+				cdev = device_add_child(self, NULL, DEVICE_UNIT_ANY);
 				if (cdev == NULL) {
 					device_printf(self,
 					    "device_add_child failed\n");

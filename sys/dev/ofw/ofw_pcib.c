@@ -302,7 +302,7 @@ ofw_pcib_attach(device_t dev)
 			return (error);
 	}
 
-	device_add_child(dev, "pci", -1);
+	device_add_child(dev, "pci", DEVICE_UNIT_ANY);
 	return (bus_generic_attach(dev));
 }
 

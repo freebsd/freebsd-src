@@ -665,7 +665,7 @@ rtsx_card_task(void *arg, int pending __unused)
 			mmc_cam_sim_discover(&sc->rtsx_mmc_sim);
 #else  /* !MMCCAM */
 			RTSX_LOCK(sc);
-			sc->rtsx_mmc_dev = device_add_child(sc->rtsx_dev, "mmc", -1);
+			sc->rtsx_mmc_dev = device_add_child(sc->rtsx_dev, "mmc", DEVICE_UNIT_ANY);
 			RTSX_UNLOCK(sc);
 			if (sc->rtsx_mmc_dev == NULL) {
 				device_printf(sc->rtsx_dev, "Adding MMC bus failed\n");

@@ -342,7 +342,7 @@ bcm_bsc_attach(device_t dev)
 	bcm_bsc_reset(sc);
 	BCM_BSC_UNLOCK(sc);
 
-	sc->sc_iicbus = device_add_child(dev, "iicbus", -1);
+	sc->sc_iicbus = device_add_child(dev, "iicbus", DEVICE_UNIT_ANY);
 	if (sc->sc_iicbus == NULL) {
 		bcm_bsc_detach(dev);
 		return (ENXIO);

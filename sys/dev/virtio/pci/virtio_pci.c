@@ -168,7 +168,7 @@ vtpci_add_child(struct vtpci_common *cn)
 
 	dev = cn->vtpci_dev;
 
-	child = device_add_child(dev, NULL, -1);
+	child = device_add_child(dev, NULL, DEVICE_UNIT_ANY);
 	if (child == NULL) {
 		device_printf(dev, "cannot create child device\n");
 		return (ENOMEM);

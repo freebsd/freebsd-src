@@ -218,7 +218,7 @@ alpm_attach(device_t dev)
 	mtx_init(&alpm->lock, device_get_nameunit(dev), "alpm", MTX_DEF);
 
 	/* attach the smbus */
-	alpm->smbus = device_add_child(dev, "smbus", -1);
+	alpm->smbus = device_add_child(dev, "smbus", DEVICE_UNIT_ANY);
 	if (alpm->smbus == NULL) {
 		alpm_detach(dev);
 		return (EINVAL);

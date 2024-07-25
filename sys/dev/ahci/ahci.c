@@ -354,7 +354,7 @@ ahci_attach(device_t dev)
 	}
 	/* Attach all channels on this controller */
 	for (unit = 0; unit < ctlr->channels; unit++) {
-		child = device_add_child(dev, "ahcich", -1);
+		child = device_add_child(dev, "ahcich", DEVICE_UNIT_ANY);
 		if (child == NULL) {
 			device_printf(dev, "failed to add channel device\n");
 			continue;
@@ -365,7 +365,7 @@ ahci_attach(device_t dev)
 	}
 	/* Attach any remapped NVME device */
 	for (; unit < ctlr->channels + ctlr->remapped_devices; unit++) {
-		child = device_add_child(dev, "nvme", -1);
+		child = device_add_child(dev, "nvme", DEVICE_UNIT_ANY);
 		if (child == NULL) {
 			device_printf(dev, "failed to add remapped NVMe device");
 			    continue;
@@ -377,7 +377,7 @@ ahci_attach(device_t dev)
 	resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "em", &em);
 	if (em) {
-		child = device_add_child(dev, "ahciem", -1);
+		child = device_add_child(dev, "ahciem", DEVICE_UNIT_ANY);
 		if (child == NULL)
 			device_printf(dev, "failed to add enclosure device\n");
 		else

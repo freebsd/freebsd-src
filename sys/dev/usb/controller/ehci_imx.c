@@ -438,7 +438,7 @@ imx_ehci_attach(device_t dev)
 		imx_ehci_disable_oc(sc);
 
 	/* Add USB bus device. */
-	esc->sc_bus.bdev = device_add_child(dev, "usbus", -1);
+	esc->sc_bus.bdev = device_add_child(dev, "usbus", DEVICE_UNIT_ANY);
 	if (esc->sc_bus.bdev == NULL) {
 		device_printf(dev, "Could not add USB device\n");
 		goto out;

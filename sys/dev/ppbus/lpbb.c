@@ -85,7 +85,7 @@ lpbb_attach(device_t dev)
 	device_t bitbang;
 
 	/* add generic bit-banging code */
-	bitbang = device_add_child(dev, "iicbb", -1);
+	bitbang = device_add_child(dev, "iicbb", DEVICE_UNIT_ANY);
 	device_probe_and_attach(bitbang);
 
 	return (0);

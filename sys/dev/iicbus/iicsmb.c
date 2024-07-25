@@ -152,7 +152,7 @@ iicsmb_attach(device_t dev)
 
 	mtx_init(&sc->lock, "iicsmb", NULL, MTX_DEF);
 
-	sc->smbus = device_add_child(dev, "smbus", -1);
+	sc->smbus = device_add_child(dev, "smbus", DEVICE_UNIT_ANY);
 
 	/* probe and attach the smbus */
 	bus_generic_attach(dev);

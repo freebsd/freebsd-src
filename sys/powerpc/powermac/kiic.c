@@ -239,7 +239,7 @@ kiic_attach(device_t self)
 		device_printf(self, "Revision: %02X\n", kiic_readreg(sc, REV));
 
 	/* Add the IIC bus layer */
-	sc->sc_iicbus = device_add_child(self, "iicbus", -1);
+	sc->sc_iicbus = device_add_child(self, "iicbus", DEVICE_UNIT_ANY);
 
 	return (bus_generic_attach(self));
 }

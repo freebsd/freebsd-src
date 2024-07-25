@@ -5542,7 +5542,7 @@ hdaa_create_pcms(struct hdaa_devinfo *devinfo)
 	for (i = 0; i < devinfo->num_devs; i++) {
 		struct hdaa_pcm_devinfo *pdevinfo = &devinfo->devs[i];
 
-		pdevinfo->dev = device_add_child(devinfo->dev, "pcm", -1);
+		pdevinfo->dev = device_add_child(devinfo->dev, "pcm", DEVICE_UNIT_ANY);
 		device_set_ivars(pdevinfo->dev, (void *)pdevinfo);
 	}
 }

@@ -1113,7 +1113,7 @@ pcib_pcie_hotplug_task(void *context, int pending)
 	dev = sc->dev;
 	if (pcib_hotplug_present(sc) != 0) {
 		if (sc->child == NULL) {
-			sc->child = device_add_child(dev, "pci", -1);
+			sc->child = device_add_child(dev, "pci", DEVICE_UNIT_ANY);
 			bus_generic_attach(dev);
 		}
 	} else {
@@ -1532,7 +1532,7 @@ pcib_attach_child(device_t dev)
 	}
 #endif
 
-	sc->child = device_add_child(dev, "pci", -1);
+	sc->child = device_add_child(dev, "pci", DEVICE_UNIT_ANY);
 	return (bus_generic_attach(dev));
 }
 

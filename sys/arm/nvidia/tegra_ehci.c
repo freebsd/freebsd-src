@@ -259,7 +259,7 @@ tegra_ehci_attach(device_t dev)
 	}
 
 	/* Add USB bus device. */
-	esc->sc_bus.bdev = device_add_child(dev, "usbus", -1);
+	esc->sc_bus.bdev = device_add_child(dev, "usbus", DEVICE_UNIT_ANY);
 	if (esc->sc_bus.bdev == NULL) {
 		device_printf(dev, "Could not add USB device\n");
 		goto out;

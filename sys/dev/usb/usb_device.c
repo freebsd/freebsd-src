@@ -1359,7 +1359,7 @@ usb_probe_and_attach_sub(struct usb_device *udev,
 	}
 	if (uaa->temp_dev == NULL) {
 		/* create a new child */
-		uaa->temp_dev = device_add_child(udev->parent_dev, NULL, -1);
+		uaa->temp_dev = device_add_child(udev->parent_dev, NULL, DEVICE_UNIT_ANY);
 		if (uaa->temp_dev == NULL) {
 			device_printf(udev->parent_dev,
 			    "Device creation failed\n");

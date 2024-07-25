@@ -76,7 +76,7 @@ pci_hostb_attach(device_t dev)
 	 * an AGP child.
 	 */
 	if (pci_find_cap(dev, PCIY_AGP, NULL) == 0)
-		device_add_child(dev, "agp", -1);
+		device_add_child(dev, "agp", DEVICE_UNIT_ANY);
 	bus_generic_attach(dev);
 	return (0);
 }

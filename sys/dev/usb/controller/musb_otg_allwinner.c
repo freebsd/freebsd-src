@@ -494,7 +494,7 @@ awusbdrd_attach(device_t dev)
 	sc->sc.sc_io_hdl = rman_get_bushandle(sc->res[0]);
 	sc->sc.sc_io_size = rman_get_size(sc->res[0]);
 
-	sc->sc.sc_bus.bdev = device_add_child(dev, "usbus", -1);
+	sc->sc.sc_bus.bdev = device_add_child(dev, "usbus", DEVICE_UNIT_ANY);
 	if (sc->sc.sc_bus.bdev == NULL) {
 		error = ENXIO;
 		goto fail;

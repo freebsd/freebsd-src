@@ -190,7 +190,7 @@ isavga_attach(device_t dev)
 		vidd_diag(sc->adp, bootverbose);
 
 #if 0 /* experimental */
-	device_add_child(dev, "fb", -1);
+	device_add_child(dev, "fb", DEVICE_UNIT_ANY);
 	bus_generic_attach(dev);
 #endif
 

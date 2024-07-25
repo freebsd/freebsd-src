@@ -321,7 +321,7 @@ ow_add_child(device_t dev, romid_t romid)
 
 	di = malloc(sizeof(*di), M_OW, M_WAITOK);
 	di->romid = romid;
-	child = device_add_child(dev, NULL, -1);
+	child = device_add_child(dev, NULL, DEVICE_UNIT_ANY);
 	if (child == NULL) {
 		free(di, M_OW);
 		return ENOMEM;

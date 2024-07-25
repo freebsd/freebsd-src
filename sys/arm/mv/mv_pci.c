@@ -553,12 +553,12 @@ mv_pcib_attach(device_t self)
 		if (err)
 			goto error;
 
-		device_add_child(self, "pci", -1);
+		device_add_child(self, "pci", DEVICE_UNIT_ANY);
 	} else {
 		sc->sc_devnr = 1;
 		bus_space_write_4(sc->sc_bst, sc->sc_bsh,
 		    PCIE_REG_STATUS, 1 << PCIE_STATUS_DEV_OFFS);
-		device_add_child(self, "pci_ep", -1);
+		device_add_child(self, "pci_ep", DEVICE_UNIT_ANY);
 	}
 
 	mtx_init(&sc->sc_msi_mtx, "msi_mtx", NULL, MTX_DEF);

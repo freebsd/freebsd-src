@@ -1679,7 +1679,7 @@ skc_attach(device_t dev)
 		device_printf(dev, "SRAM size = 0x%06x\n", sc->sk_ramsize);
 	}
 
-	sc->sk_devs[SK_PORT_A] = device_add_child(dev, "sk", -1);
+	sc->sk_devs[SK_PORT_A] = device_add_child(dev, "sk", DEVICE_UNIT_ANY);
 	if (sc->sk_devs[SK_PORT_A] == NULL) {
 		device_printf(dev, "failed to add child for PORT_A\n");
 		error = ENXIO;
@@ -1696,7 +1696,7 @@ skc_attach(device_t dev)
 	device_set_ivars(sc->sk_devs[SK_PORT_A], port);
 
 	if (!(sk_win_read_1(sc, SK_CONFIG) & SK_CONFIG_SINGLEMAC)) {
-		sc->sk_devs[SK_PORT_B] = device_add_child(dev, "sk", -1);
+		sc->sk_devs[SK_PORT_B] = device_add_child(dev, "sk", DEVICE_UNIT_ANY);
 		if (sc->sk_devs[SK_PORT_B] == NULL) {
 			device_printf(dev, "failed to add child for PORT_B\n");
 			error = ENXIO;

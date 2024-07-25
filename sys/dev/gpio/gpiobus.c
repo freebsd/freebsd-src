@@ -299,7 +299,7 @@ gpiobus_attach_bus(device_t dev)
 {
 	device_t busdev;
 
-	busdev = device_add_child(dev, "gpiobus", -1);
+	busdev = device_add_child(dev, "gpiobus", DEVICE_UNIT_ANY);
 	if (busdev == NULL)
 		return (NULL);
 	if (device_add_child(dev, "gpioc", -1) == NULL) {

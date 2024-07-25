@@ -716,7 +716,7 @@ xenbusb_add_device(device_t dev, const char *type, const char *id)
 		xbs->xbs_connecting_children++;
 		mtx_unlock(&xbs->xbs_lock);
 
-		child = device_add_child(dev, NULL, -1);
+		child = device_add_child(dev, NULL, DEVICE_UNIT_ANY);
 		ivars->xd_dev = child;
 		device_set_ivars(child, ivars);
 	}

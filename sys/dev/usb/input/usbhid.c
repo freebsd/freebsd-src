@@ -834,7 +834,7 @@ usbhid_attach(device_t dev)
 
 	mtx_init(&sc->sc_mtx, "usbhid lock", NULL, MTX_DEF);
 
-	child = device_add_child(dev, "hidbus", -1);
+	child = device_add_child(dev, "hidbus", DEVICE_UNIT_ANY);
 	if (child == NULL) {
 		device_printf(dev, "Could not add hidbus device\n");
 		usbhid_detach(dev);

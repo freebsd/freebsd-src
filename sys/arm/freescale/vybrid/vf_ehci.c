@@ -331,7 +331,7 @@ vybrid_ehci_attach(device_t dev)
 	}
 
 	/* Add USB device */
-	sc->sc_bus.bdev = device_add_child(dev, "usbus", -1);
+	sc->sc_bus.bdev = device_add_child(dev, "usbus", DEVICE_UNIT_ANY);
 	if (!sc->sc_bus.bdev) {
 		device_printf(dev, "Could not add USB device\n");
 		err = bus_teardown_intr(dev, esc->res[5],

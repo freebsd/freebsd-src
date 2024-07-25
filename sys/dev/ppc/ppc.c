@@ -1801,7 +1801,7 @@ ppc_attach(device_t dev)
 	}
 
 	/* add ppbus as a child of this isa to parallel bridge */
-	ppc->ppbus = device_add_child(dev, "ppbus", -1);
+	ppc->ppbus = device_add_child(dev, "ppbus", DEVICE_UNIT_ANY);
 
 	/*
 	 * Probe the ppbus and attach devices found.

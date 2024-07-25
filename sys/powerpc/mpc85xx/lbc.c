@@ -645,7 +645,7 @@ lbc_attach(device_t dev)
 		fdt_lbc_fixup(child, sc, di);
 
 		/* Add newbus device for this FDT node */
-		cdev = device_add_child(dev, NULL, -1);
+		cdev = device_add_child(dev, NULL, DEVICE_UNIT_ANY);
 		if (cdev == NULL) {
 			device_printf(dev, "could not add child: %s\n",
 			    di->di_ofw.obd_name);

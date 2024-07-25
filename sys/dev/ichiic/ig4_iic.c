@@ -1045,7 +1045,7 @@ ig4iic_attach(ig4iic_softc_t *sc)
 		goto done;
 	ig4iic_get_fifo(sc);
 
-	sc->iicbus = device_add_child(sc->dev, "iicbus", -1);
+	sc->iicbus = device_add_child(sc->dev, "iicbus", DEVICE_UNIT_ANY);
 	if (sc->iicbus == NULL) {
 		device_printf(sc->dev, "iicbus driver not found\n");
 		error = ENXIO;

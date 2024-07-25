@@ -80,7 +80,7 @@ iicoc_attach(device_t dev)
 		return (-1);
 	}
 	iicoc_init(dev);
-	sc->iicbus = device_add_child(dev, "iicbus", -1);
+	sc->iicbus = device_add_child(dev, "iicbus", DEVICE_UNIT_ANY);
 	if (sc->iicbus == NULL) {
 		device_printf(dev, "Could not allocate iicbus instance.\n");
 		bus_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid,

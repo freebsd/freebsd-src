@@ -1015,7 +1015,8 @@ vmbus_add_child(struct vmbus_channel *chan)
 	device_t parent = sc->vmbus_dev;
 
 	bus_topo_lock();
-	chan->ch_dev = device_add_child(parent, NULL, -1);
+
+	chan->ch_dev = device_add_child(parent, NULL, DEVICE_UNIT_ANY);
 	if (chan->ch_dev == NULL) {
 		bus_topo_unlock();
 		device_printf(parent, "device_add_child for chan%u failed\n",
@@ -1379,7 +1380,7 @@ vmbus_identify(driver_t *driver, device_t parent)
 	if (device_get_unit(parent) != 0 || vm_guest != VM_GUEST_HV ||
 	    (hyperv_features & CPUID_HV_MSR_SYNIC) == 0)
 		return;
-	device_add_child(parent, "vmbus", -1);
+	device_add_child(parent, "vmbus", DEVICE_UNIT_ANY);
 }
 
 static int

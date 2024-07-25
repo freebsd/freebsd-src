@@ -521,7 +521,7 @@ hdacc_attach(device_t dev)
 		codec->fgs[n].subsystem_id = hda_command(dev,
 		    HDA_CMD_GET_SUBSYSTEM_ID(0, i));
 		hdacc_unlock(codec);
-		codec->fgs[n].dev = child = device_add_child(dev, NULL, -1);
+		codec->fgs[n].dev = child = device_add_child(dev, NULL, DEVICE_UNIT_ANY);
 		if (child == NULL) {
 			device_printf(dev, "Failed to add function device\n");
 			continue;

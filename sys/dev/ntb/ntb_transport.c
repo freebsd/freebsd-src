@@ -462,7 +462,7 @@ ntb_transport_attach(device_t dev)
 		nc->consumer = i;
 		nc->qpoff = qpu;
 		nc->qpcnt = qp;
-		nc->dev = device_add_child(dev, name, -1);
+		nc->dev = device_add_child(dev, name, DEVICE_UNIT_ANY);
 		if (nc->dev == NULL) {
 			device_printf(dev, "Can not add child.\n");
 			break;

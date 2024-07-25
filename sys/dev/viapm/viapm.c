@@ -371,7 +371,7 @@ viapm_pro_attach(device_t dev)
 		device_printf(dev, "SMBus revision code 0x%x\n", l);
 	}
 
-	viapm->smbus = device_add_child(dev, "smbus", -1);
+	viapm->smbus = device_add_child(dev, "smbus", DEVICE_UNIT_ANY);
 
 	/* probe and attach the smbus */
 	bus_generic_attach(dev);
