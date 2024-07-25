@@ -573,7 +573,8 @@ struct pmap_pkru_range {
 };
 
 static uma_zone_t pmap_pkru_ranges_zone;
-static bool pmap_pkru_same(pmap_t pmap, vm_offset_t sva, vm_offset_t eva);
+static bool pmap_pkru_same(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
+    pt_entry_t *pte);
 static pt_entry_t pmap_pkru_get(pmap_t pmap, vm_offset_t va);
 static void pmap_pkru_on_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva);
 static void *pkru_dup_range(void *ctx, void *data);
@@ -7071,11 +7072,9 @@ pmap_enter_largepage(pmap_t pmap, vm_offset_t va, pt_entry_t newpte, int flags,
 	PG_V = pmap_valid_bit(pmap);
 
 restart:
-	if (!pmap_pkru_same(pmap, va, va + pagesizes[psind]))
-		return (KERN_PROTECTION_FAILURE);
 	pten = newpte;
-	if (va < VM_MAXUSER_ADDRESS && pmap->pm_type == PT_X86)
-		pten |= pmap_pkru_get(pmap, va);
+	if (!pmap_pkru_same(pmap, va, va + pagesizes[psind], &pten))
+		return (KERN_PROTECTION_FAILURE);
 
 	if (psind == 2) {	/* 1G */
 		pml4e = pmap_pml4e(pmap, va);
@@ -7529,13 +7528,9 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, pd_entry_t newpde, u_int flags,
 	 * and let vm_fault() cope.  Check after pde allocation, since
 	 * it could sleep.
 	 */
-	if (!pmap_pkru_same(pmap, va, va + NBPDR)) {
+	if (!pmap_pkru_same(pmap, va, va + NBPDR, &newpde)) {
 		pmap_abort_ptp(pmap, va, pdpg);
 		return (KERN_PROTECTION_FAILURE);
-	}
-	if (va < VM_MAXUSER_ADDRESS && pmap->pm_type == PT_X86) {
-		newpde &= ~X86_PG_PKU_MASK;
-		newpde |= pmap_pkru_get(pmap, va);
 	}
 
 	/*
@@ -11460,13 +11455,21 @@ pmap_pkru_deassign_all(pmap_t pmap)
 		rangeset_remove_all(&pmap->pm_pkru);
 }
 
+/*
+ * Returns true if the PKU setting is the same across the specified address
+ * range, and false otherwise.  When returning true, updates the referenced PTE
+ * to reflect the PKU setting.
+ */
 static bool
-pmap_pkru_same(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+pmap_pkru_same(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, pt_entry_t *pte)
 {
 	struct pmap_pkru_range *next_ppr, *ppr;
 	vm_offset_t va;
+	u_int keyidx;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	KASSERT(pmap->pm_type != PT_X86 || (*pte & X86_PG_PKU_MASK) == 0,
+	    ("pte %p has unexpected PKU %ld", pte, *pte & X86_PG_PKU_MASK));
 	if (pmap->pm_type != PT_X86 ||
 	    (cpu_stdext_feature2 & CPUID_STDEXT2_PKU) == 0 ||
 	    sva >= VM_MAXUSER_ADDRESS)
@@ -11478,14 +11481,16 @@ pmap_pkru_same(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		return (ppr == NULL ||
 		    ppr->pkru_rs_el.re_start >= eva);
 	}
+	keyidx = ppr->pkru_keyidx;
 	while ((va = ppr->pkru_rs_el.re_end) < eva) {
 		next_ppr = rangeset_next(&pmap->pm_pkru, va);
 		if (next_ppr == NULL ||
 		    va != next_ppr->pkru_rs_el.re_start ||
-		    ppr->pkru_keyidx != next_ppr->pkru_keyidx)
+		    keyidx != next_ppr->pkru_keyidx)
 			return (false);
 		ppr = next_ppr;
 	}
+	*pte |= X86_PG_PKU(keyidx);
 	return (true);
 }
 
