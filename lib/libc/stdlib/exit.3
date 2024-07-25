@@ -103,6 +103,20 @@ values described in
 .Xr sysexits 3
 may be used to provide more information to the parent process.
 .Pp
+The complete
+.Fa status
+value is avaliable as
+.Va si_status
+member of the
+.Vt siginfo_t
+structure, to the
+.Xr wait6 2
+and
+.Xr sigwaitinfo 2
+callers, and
+.Va SIGCHLD
+signal handlers.
+.Pp
 Calls to the
 .Fn exit
 function are serialized.
