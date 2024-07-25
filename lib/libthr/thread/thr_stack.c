@@ -126,7 +126,10 @@ static char *last_stack = NULL;
 static inline size_t
 round_up(size_t size)
 {
-	return (roundup2(size, _thr_page_size - 1));
+	if (size % _thr_page_size != 0)
+		size = ((size / _thr_page_size) + 1) *
+		    _thr_page_size;
+	return size;
 }
 
 void
