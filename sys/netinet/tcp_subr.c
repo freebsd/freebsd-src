@@ -2182,6 +2182,45 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 }
 
 /*
+ * Send a challenge ack (no data, no SACK option), but not more than
+ * tcp_ack_war_cnt per tcp_ack_war_time_window (per TCP connection).
+ */
+void
+tcp_send_challenge_ack(struct tcpcb *tp, struct tcphdr *th, struct mbuf *m)
+{
+	sbintime_t now;
+	bool send_challenge_ack;
+
+	if (tcp_ack_war_time_window == 0 || tcp_ack_war_cnt == 0) {
+		/* ACK war protection is disabled. */
+		send_challenge_ack = true;
+	} else {
+		/* Start new epoch, if the previous one is already over. */
+		now = getsbinuptime();
+		if (tp->t_challenge_ack_end < now) {
+			tp->t_challenge_ack_cnt = 0;
+			tp->t_challenge_ack_end = now +
+			    tcp_ack_war_time_window * SBT_1MS;
+		}
+		/*
+		 * Send a challenge ACK, if less than tcp_ack_war_cnt have been
+		 * sent in the current epoch.
+		 */
+		if (tp->t_challenge_ack_cnt < tcp_ack_war_cnt) {
+			send_challenge_ack = true;
+			tp->t_challenge_ack_cnt++;
+		} else {
+			send_challenge_ack = false;
+		}
+	}
+	if (send_challenge_ack) {
+		tcp_respond(tp, mtod(m, void *), th, m, tp->rcv_nxt,
+		    tp->snd_nxt, TH_ACK);
+		tp->last_ack_sent = tp->rcv_nxt;
+	}
+}
+
+/*
  * Create a new TCP control block, making an empty reassembly queue and hooking
  * it to the argument protocol control block.  The `inp' parameter must have
  * come from the zone allocator set up by tcpcbstor declaration.
