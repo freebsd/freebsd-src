@@ -2728,7 +2728,8 @@ vm_copy_setup(struct vcpu *vcpu, struct vm_guest_paging *paging,
 	nused = 0;
 	remaining = len;
 	while (remaining > 0) {
-		KASSERT(nused < num_copyinfo, ("insufficient vm_copyinfo"));
+		if (nused >= num_copyinfo)
+			return (EFAULT);
 		error = vm_gla2gpa(vcpu, paging, gla, prot, &gpa, fault);
 		if (error || *fault)
 			return (error);
