@@ -924,10 +924,17 @@ nvmf_tcp_read_ic_resp(struct nvmf_association *na, struct nvmf_tcp_qpair *qp,
 }
 
 static struct nvmf_association *
-tcp_allocate_association(bool controller __unused,
-    const struct nvmf_association_params *params __unused)
+tcp_allocate_association(bool controller,
+    const struct nvmf_association_params *params)
 {
 	struct nvmf_tcp_association *ta;
+
+	if (controller) {
+		/* 7.4.10.3 */
+		if (params->tcp.maxh2cdata < 4096 ||
+		    params->tcp.maxh2cdata % 4 != 0)
+			return (NULL);
+	}
 
 	ta = calloc(1, sizeof(*ta));
 
