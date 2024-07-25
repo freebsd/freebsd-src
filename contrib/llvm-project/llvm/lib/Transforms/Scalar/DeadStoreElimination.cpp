@@ -1697,7 +1697,9 @@ struct DSEState {
 
   /// Delete dead memory defs and recursively add their operands to ToRemove if
   /// they became dead.
-  void deleteDeadInstruction(Instruction *SI) {
+  void
+  deleteDeadInstruction(Instruction *SI,
+                        SmallPtrSetImpl<MemoryAccess *> *Deleted = nullptr) {
     MemorySSAUpdater Updater(&MSSA);
     SmallVector<Instruction *, 32> NowDeadInsts;
     NowDeadInsts.push_back(SI);
@@ -1718,6 +1720,8 @@ struct DSEState {
         if (IsMemDef) {
           auto *MD = cast<MemoryDef>(MA);
           SkipStores.insert(MD);
+          if (Deleted)
+            Deleted->insert(MD);
           if (auto *SI = dyn_cast<StoreInst>(MD->getMemoryInst())) {
             if (SI->getValueOperand()->getType()->isPointerTy()) {
               const Value *UO = getUnderlyingObject(SI->getValueOperand());
@@ -2111,7 +2115,12 @@ static bool eliminateDeadStores(Function &F, AliasAnalysis &AA, MemorySSA &MSSA,
     unsigned WalkerStepLimit = MemorySSAUpwardsStepLimit;
     unsigned PartialLimit = MemorySSAPartialStoreLimit;
     // Worklist of MemoryAccesses that may be killed by KillingDef.
-    SetVector<MemoryAccess *> ToCheck;
+    SmallSetVector<MemoryAccess *, 8> ToCheck;
+    // Track MemoryAccesses that have been deleted in the loop below, so we can
+    // skip them. Don't use SkipStores for this, which may contain reused
+    // MemoryAccess addresses.
+    SmallPtrSet<MemoryAccess *, 8> Deleted;
+    [[maybe_unused]] unsigned OrigNumSkipStores = State.SkipStores.size();
     ToCheck.insert(KillingDef->getDefiningAccess());
 
     bool Shortend = false;
@@ -2119,7 +2128,7 @@ static bool eliminateDeadStores(Function &F, AliasAnalysis &AA, MemorySSA &MSSA,
     // Check if MemoryAccesses in the worklist are killed by KillingDef.
     for (unsigned I = 0; I < ToCheck.size(); I++) {
       MemoryAccess *Current = ToCheck[I];
-      if (State.SkipStores.count(Current))
+      if (Deleted.contains(Current))
         continue;
 
       std::optional<MemoryAccess *> MaybeDeadAccess = State.getDomMemoryDef(
@@ -2166,7 +2175,7 @@ static bool eliminateDeadStores(Function &F, AliasAnalysis &AA, MemorySSA &MSSA,
           continue;
         LLVM_DEBUG(dbgs() << "DSE: Remove Dead Store:\n  DEAD: " << *DeadI
                           << "\n  KILLER: " << *KillingI << '\n');
-        State.deleteDeadInstruction(DeadI);
+        State.deleteDeadInstruction(DeadI, &Deleted);
         ++NumFastStores;
         MadeChange = true;
       } else {
@@ -2203,7 +2212,7 @@ static bool eliminateDeadStores(Function &F, AliasAnalysis &AA, MemorySSA &MSSA,
               Shortend = true;
               // Remove killing store and remove any outstanding overlap
               // intervals for the updated store.
-              State.deleteDeadInstruction(KillingSI);
+              State.deleteDeadInstruction(KillingSI, &Deleted);
               auto I = State.IOLs.find(DeadSI->getParent());
               if (I != State.IOLs.end())
                 I->second.erase(DeadSI);
@@ -2215,12 +2224,15 @@ static bool eliminateDeadStores(Function &F, AliasAnalysis &AA, MemorySSA &MSSA,
         if (OR == OW_Complete) {
           LLVM_DEBUG(dbgs() << "DSE: Remove Dead Store:\n  DEAD: " << *DeadI
                             << "\n  KILLER: " << *KillingI << '\n');
-          State.deleteDeadInstruction(DeadI);
+          State.deleteDeadInstruction(DeadI, &Deleted);
           ++NumFastStores;
           MadeChange = true;
         }
       }
     }
+
+    assert(State.SkipStores.size() - OrigNumSkipStores == Deleted.size() &&
+           "SkipStores and Deleted out of sync?");
 
     // Check if the store is a no-op.
     if (!Shortend && State.storeIsNoop(KillingDef, KillingUndObj)) {
