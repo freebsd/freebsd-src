@@ -159,6 +159,7 @@ struct lkpi_sta {
 struct lkpi_vif {
         TAILQ_ENTRY(lkpi_vif)	lvif_entry;
 	struct ieee80211vap	iv_vap;
+	eventhandler_tag	lvif_ifllevent;
 
 	struct mtx		mtx;
 	struct wireless_dev	wdev;

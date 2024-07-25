@@ -2751,6 +2751,32 @@ lkpi_ic_wme_update(struct ieee80211com *ic)
 	return (0);	/* unused */
 }
 
+/*
+ * Change link-layer address on the vif (if the vap is not started/"UP").
+ * This can happen if a user changes 'ether' using ifconfig.
+ * The code is based on net80211/ieee80211_freebsd.c::wlan_iflladdr() but
+ * we do use a per-[l]vif event handler to be sure we exist as we
+ * cannot assume that from every vap derives a vif and we have a hard
+ * time checking based on net80211 information.
+ */
+static void
+lkpi_vif_iflladdr(void *arg, struct ifnet *ifp)
+{
+	struct epoch_tracker et;
+	struct ieee80211_vif *vif;
+
+	NET_EPOCH_ENTER(et);
+	/* NB: identify vap's by if_init; left as an extra check. */
+	if (ifp->if_init != ieee80211_init || (ifp->if_flags & IFF_UP) != 0) {
+		NET_EPOCH_EXIT(et);
+		return;
+	}
+
+	vif = arg;
+	IEEE80211_ADDR_COPY(vif->bss_conf.addr, IF_LLADDR(ifp));
+	NET_EPOCH_EXIT(et);
+}
+
 static struct ieee80211vap *
 lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
     int unit, enum ieee80211_opmode opmode, int flags,
@@ -2799,6 +2825,8 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	vif->bss_conf.vif = vif;
 	/* vap->iv_myaddr is not set until net80211::vap_setup or vap_attach. */
 	IEEE80211_ADDR_COPY(vif->bss_conf.addr, mac);
+	lvif->lvif_ifllevent = EVENTHANDLER_REGISTER(iflladdr_event,
+	    lkpi_vif_iflladdr, vif, EVENTHANDLER_PRI_ANY);
 	vif->bss_conf.link_id = 0;	/* Non-MLO operation. */
 	vif->bss_conf.chandef.width = NL80211_CHAN_WIDTH_20_NOHT;
 	vif->bss_conf.use_short_preamble = false;	/* vap->iv_flags IEEE80211_F_SHPREAMBLE */
@@ -2971,6 +2999,8 @@ lkpi_ic_vap_delete(struct ieee80211vap *vap)
 	ic = vap->iv_ic;
 	lhw = ic->ic_softc;
 	hw = LHW_TO_HW(lhw);
+
+	EVENTHANDLER_DEREGISTER(iflladdr_event, lvif->lvif_ifllevent);
 
 	LKPI_80211_LHW_LVIF_LOCK(lhw);
 	TAILQ_REMOVE(&lhw->lvif_head, lvif, lvif_entry);
