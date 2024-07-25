@@ -102,3 +102,6 @@ options 	PPS_SYNC
 # EFI devices
 device		efidev			# EFI pseudo-device
 device		efirtc			# EFI RTC
+
+# SMBIOS -- all EFI platforms
+device		smbios
