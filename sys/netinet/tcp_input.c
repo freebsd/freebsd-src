@@ -2208,10 +2208,7 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 				}
 			} else {
 				TCPSTAT_INC(tcps_badrst);
-				/* Send challenge ACK. */
-				tcp_respond(tp, mtod(m, void *), th, m,
-				    tp->rcv_nxt, tp->snd_nxt, TH_ACK);
-				tp->last_ack_sent = tp->rcv_nxt;
+				tcp_send_challenge_ack(tp, th, m);
 				m = NULL;
 			}
 		}
@@ -2233,10 +2230,7 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 			rstreason = BANDLIM_UNLIMITED;
 		} else {
 			tcp_ecn_input_syn_sent(tp, thflags, iptos);
-			/* Send challenge ACK. */
-			tcp_respond(tp, mtod(m, void *), th, m, tp->rcv_nxt,
-			    tp->snd_nxt, TH_ACK);
-			tp->last_ack_sent = tp->rcv_nxt;
+			tcp_send_challenge_ack(tp, th, m);
 			m = NULL;
 		}
 		goto drop;
@@ -2474,10 +2468,7 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 				TCPSTAT_INC(tcps_rcvghostack);
 			else
 				TCPSTAT_INC(tcps_rcvacktooold);
-			/* Send a challenge ACK. */
-			tcp_respond(tp, mtod(m, void *), th, m,
-			    tp->rcv_nxt, tp->snd_nxt, TH_ACK);
-			tp->last_ack_sent = tp->rcv_nxt;
+			tcp_send_challenge_ack(tp, th, m);
 			m = NULL;
 			goto drop;
 		}
