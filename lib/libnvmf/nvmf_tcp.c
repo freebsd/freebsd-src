@@ -956,6 +956,7 @@ tcp_connect(struct nvmf_tcp_qpair *qp, struct nvmf_association *na, bool admin)
 	struct nvmf_tcp_association *ta = TASSOC(na);
 	struct nvme_tcp_ic_req ic_req;
 	struct nvme_tcp_ic_resp ic_resp;
+	uint32_t maxh2cdata;
 	int error;
 
 	if (!admin) {
@@ -1007,9 +1008,9 @@ tcp_connect(struct nvmf_tcp_qpair *qp, struct nvmf_association *na, bool admin)
 	 * some large value and report larger values as an unsupported
 	 * parameter?
 	 */
-	if (le32toh(ic_resp.maxh2cdata) < 4096) {
-		na_error(na, "Invalid MAXH2CDATA %u",
-		    le32toh(ic_resp.maxh2cdata));
+	maxh2cdata = le32toh(ic_resp.maxh2cdata);
+	if (maxh2cdata < 4096 || maxh2cdata % 4 != 0) {
+		na_error(na, "Invalid MAXH2CDATA %u", maxh2cdata);
 		nvmf_tcp_report_error(na, qp,
 		    NVME_TCP_TERM_REQ_FES_INVALID_HEADER_FIELD, 12, &ic_resp,
 		    sizeof(ic_resp), sizeof(ic_resp));
@@ -1021,7 +1022,7 @@ tcp_connect(struct nvmf_tcp_qpair *qp, struct nvmf_association *na, bool admin)
 	qp->header_digests = ic_resp.dgst.bits.hdgst_enable != 0;
 	qp->data_digests = ic_resp.dgst.bits.ddgst_enable != 0;
 	qp->maxr2t = params->tcp.maxr2t;
-	qp->maxh2cdata = le32toh(ic_resp.maxh2cdata);
+	qp->maxh2cdata = maxh2cdata;
 	if (admin)
 		/* 7.4.3 */
 		qp->max_icd = 8192;
