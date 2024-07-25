@@ -157,7 +157,7 @@ isl_identify(driver_t *driver, device_t parent)
 
 	/* Check if we can communicate to our slave. */
 	if (init_device(dev, 0x88, 1) == 0)
-		BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, "isl", -1);
+		BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, "isl", DEVICE_UNIT_ANY);
 }
 #endif
 

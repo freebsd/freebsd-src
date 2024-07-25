@@ -271,7 +271,7 @@ amdsbwd_identify(driver_t *driver, device_t parent)
 	    pci_get_devid(smb_dev) != HYGONCZ_SMBUS_DEVID)
 		return;
 
-	child = BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, "amdsbwd", -1);
+	child = BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, "amdsbwd", DEVICE_UNIT_ANY);
 	if (child == NULL)
 		device_printf(parent, "add amdsbwd child failed\n");
 }

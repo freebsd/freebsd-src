@@ -226,7 +226,7 @@ hidbus_enumerate_children(device_t dev, const void* data, hid_size_t len)
 	while (hid_get_item(hd, &hi)) {
 		if (hi.kind != hid_collection || hi.collevel != 1)
 			continue;
-		child = BUS_ADD_CHILD(dev, 0, NULL, -1);
+		child = BUS_ADD_CHILD(dev, 0, NULL, DEVICE_UNIT_ANY);
 		if (child == NULL) {
 			device_printf(dev, "Could not add HID device\n");
 			continue;

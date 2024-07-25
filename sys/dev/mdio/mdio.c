@@ -38,7 +38,7 @@ mdio_identify(driver_t *driver, device_t parent)
 {
 
 	if (device_find_child(parent, mdio_driver.name, -1) == NULL)
-		BUS_ADD_CHILD(parent, 0, mdio_driver.name, -1);
+		BUS_ADD_CHILD(parent, 0, mdio_driver.name, DEVICE_UNIT_ANY);
 }
 
 static int

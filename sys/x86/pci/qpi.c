@@ -132,7 +132,7 @@ qpi_probe_pcib(device_t dev, int bus)
 		return (ENXIO);
 	}
 
-	child = BUS_ADD_CHILD(dev, 0, "pcib", -1);
+	child = BUS_ADD_CHILD(dev, 0, "pcib", DEVICE_UNIT_ANY);
 	if (child == NULL)
 		panic("%s: failed to add pci bus %d", device_get_nameunit(dev),
 		    bus);

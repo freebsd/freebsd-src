@@ -63,7 +63,7 @@ lpbb_identify(driver_t *driver, device_t parent)
 
 	dev = device_find_child(parent, "lpbb", -1);
 	if (!dev)
-		BUS_ADD_CHILD(parent, 0, "lpbb", -1);
+		BUS_ADD_CHILD(parent, 0, "lpbb", DEVICE_UNIT_ANY);
 }
 
 static int
