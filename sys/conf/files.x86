@@ -157,14 +157,14 @@ dev/iommu/busdma_iommu.c	optional	acpi iommu pci
 dev/iommu/iommu_gas.c		optional	acpi iommu pci
 dev/ipmi/ipmi.c			optional	ipmi
 dev/ipmi/ipmi_acpi.c		optional	ipmi acpi
-dev/ipmi/ipmi_isa.c		optional	ipmi isa
 dev/ipmi/ipmi_bt.c		optional	ipmi
+dev/ipmi/ipmi_isa.c		optional	ipmi isa
 dev/ipmi/ipmi_kcs.c		optional	ipmi
-dev/ipmi/ipmi_smic.c		optional	ipmi
-dev/ipmi/ipmi_smbus.c		optional	ipmi smbus
-dev/ipmi/ipmi_smbios.c		optional	ipmi
-dev/ipmi/ipmi_ssif.c		optional	ipmi smbus
 dev/ipmi/ipmi_pci.c		optional	ipmi pci
+dev/ipmi/ipmi_smbios.c		optional	ipmi
+dev/ipmi/ipmi_smbus.c		optional	ipmi smbus
+dev/ipmi/ipmi_smic.c		optional	ipmi
+dev/ipmi/ipmi_ssif.c		optional	ipmi smbus
 dev/isci/isci.c							optional isci \
 	compile-with "${NORMAL_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
 dev/isci/isci_controller.c					optional isci
