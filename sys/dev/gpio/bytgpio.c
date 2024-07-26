@@ -278,6 +278,8 @@ const struct pinmap_info bytgpio_sus_pins[] = {
 	GPIO_PIN_MAP(40, 0)
 };
 
+static char *bytgpio_gpio_ids[] = { "INT33FC", NULL };
+
 #define	SUS_PINS	nitems(bytgpio_sus_pins)
 
 #define	BYGPIO_PIN_REGISTER(sc, pin, r)	((sc)->sc_pinpad_map[(pin)].reg * 16 + (r))
@@ -538,12 +540,11 @@ bytgpio_pin_toggle(device_t dev, uint32_t pin)
 static int
 bytgpio_probe(device_t dev)
 {
-	static char *gpio_ids[] = { "INT33FC", NULL };
 	int rv;
 
 	if (acpi_disabled("gpio"))
 		return (ENXIO);
-	rv = ACPI_ID_PROBE(device_get_parent(dev), dev, gpio_ids, NULL);
+	rv = ACPI_ID_PROBE(device_get_parent(dev), dev, bytgpio_gpio_ids, NULL);
 	if (rv <= 0)
 		device_set_desc(dev, "Intel Baytrail GPIO Controller");
 	return (rv);
@@ -675,3 +676,4 @@ static driver_t bytgpio_driver = {
 DRIVER_MODULE(bytgpio, acpi, bytgpio_driver, 0, 0);
 MODULE_DEPEND(bytgpio, acpi, 1, 1, 1);
 MODULE_DEPEND(bytgpio, gpiobus, 1, 1, 1);
+ACPI_PNP_INFO(bytgpio_gpio_ids);
