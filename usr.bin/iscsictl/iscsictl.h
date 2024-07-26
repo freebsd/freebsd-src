@@ -38,6 +38,8 @@
 #define	DEFAULT_CONFIG_PATH		"/etc/iscsi.conf"
 #define	DEFAULT_IQN			"iqn.1994-09.org.freebsd:"
 
+#define	ISCSICTL_XO_VERSION		"1"
+
 #define	MAX_NAME_LEN			223
 
 #define	AUTH_METHOD_UNSPECIFIED		0
