@@ -48,6 +48,8 @@ __RCSID("$NetBSD: lastlogin.c,v 1.4 1998/02/03 04:45:35 perry Exp $");
 
 #include <libxo/xo.h>
 
+#define LASTLOGIN_XO_VERSION "1"
+
 	int	main(int, char **);
 static	void	output(struct utmpx *);
 static	void	usage(void);
@@ -103,6 +105,7 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
+	xo_set_version(LASTLOGIN_XO_VERSION);
 	xo_open_container("lastlogin-information");
 	xo_open_list("lastlogin");
 
