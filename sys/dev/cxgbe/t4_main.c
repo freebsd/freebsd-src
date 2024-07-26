@@ -2534,6 +2534,15 @@ reset_adapter_with_pl_rst(struct adapter *sc)
 	return (0);
 }
 
+static inline int
+reset_adapter(struct adapter *sc)
+{
+	if (vm_guest == 0)
+		return (reset_adapter_with_pci_bus_reset(sc));
+	else
+		return (reset_adapter_with_pl_rst(sc));
+}
+
 static void
 reset_adapter_task(void *arg, int pending)
 {
@@ -2544,10 +2553,7 @@ reset_adapter_task(void *arg, int pending)
 
 	if (pending > 1)
 		CH_ALERT(sc, "%s: pending %d\n", __func__, pending);
-	if (vm_guest == 0)
-		rc = reset_adapter_with_pci_bus_reset(sc);
-	else
-		rc = reset_adapter_with_pl_rst(sc);
+	rc = reset_adapter(sc);
 	if (rc != 0) {
 		CH_ERR(sc, "adapter did not reset properly, rc = %d, "
 		       "flags 0x%08x -> 0x%08x, err_flags 0x%08x -> 0x%08x.\n",
@@ -3650,7 +3656,7 @@ fatal_error_task(void *arg, int pending)
 
 	if (t4_reset_on_fatal_err) {
 		CH_ALERT(sc, "resetting adapter after fatal error.\n");
-		rc = reset_adapter_with_pci_bus_reset(sc);
+		rc = reset_adapter(sc);
 		if (rc == 0 && t4_panic_on_fatal_err) {
 			CH_ALERT(sc, "reset was successful, "
 			    "system will NOT panic.\n");
