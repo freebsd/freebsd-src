@@ -67,10 +67,10 @@ public:
                    bool MinimizeSize, AAResults *AA, AssumptionCache &AC,
                    TargetLibraryInfo &TLI, TargetTransformInfo &TTI,
                    DominatorTree &DT, OptimizationRemarkEmitter &ORE,
-                   BlockFrequencyInfo *BFI, ProfileSummaryInfo *PSI,
-                   const DataLayout &DL, LoopInfo *LI)
+                   BlockFrequencyInfo *BFI, BranchProbabilityInfo *BPI,
+                   ProfileSummaryInfo *PSI, const DataLayout &DL, LoopInfo *LI)
       : InstCombiner(Worklist, Builder, MinimizeSize, AA, AC, TLI, TTI, DT, ORE,
-                     BFI, PSI, DL, LI) {}
+                     BFI, BPI, PSI, DL, LI) {}
 
   virtual ~InstCombinerImpl() = default;
 
@@ -98,6 +98,7 @@ public:
   Instruction *visitSub(BinaryOperator &I);
   Instruction *visitFSub(BinaryOperator &I);
   Instruction *visitMul(BinaryOperator &I);
+  Instruction *foldPowiReassoc(BinaryOperator &I);
   Instruction *foldFMulReassoc(BinaryOperator &I);
   Instruction *visitFMul(BinaryOperator &I);
   Instruction *visitURem(BinaryOperator &I);
@@ -202,16 +203,17 @@ public:
                                    FPClassTest Interested = fcAllFlags,
                                    const Instruction *CtxI = nullptr,
                                    unsigned Depth = 0) const {
-    return llvm::computeKnownFPClass(Val, FMF, DL, Interested, Depth, &TLI, &AC,
-                                     CtxI, &DT);
+    return llvm::computeKnownFPClass(
+        Val, FMF, Interested, Depth,
+        getSimplifyQuery().getWithInstruction(CtxI));
   }
 
   KnownFPClass computeKnownFPClass(Value *Val,
                                    FPClassTest Interested = fcAllFlags,
                                    const Instruction *CtxI = nullptr,
                                    unsigned Depth = 0) const {
-    return llvm::computeKnownFPClass(Val, DL, Interested, Depth, &TLI, &AC,
-                                     CtxI, &DT);
+    return llvm::computeKnownFPClass(
+        Val, Interested, Depth, getSimplifyQuery().getWithInstruction(CtxI));
   }
 
   /// Check if fmul \p MulVal, +0.0 will yield +0.0 (or signed zero is
@@ -235,6 +237,9 @@ public:
   Constant *getLosslessSignedTrunc(Constant *C, Type *TruncTy) {
     return getLosslessTrunc(C, TruncTy, Instruction::SExt);
   }
+
+  std::optional<std::pair<Intrinsic::ID, SmallVector<Value *, 3>>>
+  convertOrOfShiftsToFunnelShift(Instruction &Or);
 
 private:
   bool annotateAnyAllocSite(CallBase &Call, const TargetLibraryInfo *TLI);
@@ -349,8 +354,9 @@ private:
   }
 
   bool willNotOverflowUnsignedMul(const Value *LHS, const Value *RHS,
-                                  const Instruction &CxtI) const {
-    return computeOverflowForUnsignedMul(LHS, RHS, &CxtI) ==
+                                  const Instruction &CxtI,
+                                  bool IsNSW = false) const {
+    return computeOverflowForUnsignedMul(LHS, RHS, &CxtI, IsNSW) ==
            OverflowResult::NeverOverflows;
   }
 
@@ -371,10 +377,15 @@ private:
     }
   }
 
-  Value *EmitGEPOffset(User *GEP);
+  Value *EmitGEPOffset(GEPOperator *GEP, bool RewriteGEP = false);
   Instruction *scalarizePHI(ExtractElementInst &EI, PHINode *PN);
   Instruction *foldBitcastExtElt(ExtractElementInst &ExtElt);
   Instruction *foldCastedBitwiseLogic(BinaryOperator &I);
+  Instruction *foldFBinOpOfIntCasts(BinaryOperator &I);
+  // Should only be called by `foldFBinOpOfIntCasts`.
+  Instruction *foldFBinOpOfIntCastsFromSign(
+      BinaryOperator &BO, bool OpsFromSigned, std::array<Value *, 2> IntOps,
+      Constant *Op1FpC, SmallVectorImpl<WithCache<const Value *>> &OpsKnown);
   Instruction *foldBinopOfSextBoolToSelect(BinaryOperator &I);
   Instruction *narrowBinOp(TruncInst &Trunc);
   Instruction *narrowMaskedBinOp(BinaryOperator &And);
@@ -451,7 +462,7 @@ public:
     auto *SI = new StoreInst(ConstantInt::getTrue(Ctx),
                              PoisonValue::get(PointerType::getUnqual(Ctx)),
                              /*isVolatile*/ false, Align(1));
-    InsertNewInstBefore(SI, InsertAt->getIterator());
+    InsertNewInstWith(SI, InsertAt->getIterator());
   }
 
   /// Combiner aware instruction erasure.
@@ -534,21 +545,23 @@ public:
                                ConstantInt *&Less, ConstantInt *&Equal,
                                ConstantInt *&Greater);
 
-  /// Attempts to replace V with a simpler value based on the demanded
+  /// Attempts to replace I with a simpler value based on the demanded
   /// bits.
-  Value *SimplifyDemandedUseBits(Value *V, APInt DemandedMask, KnownBits &Known,
-                                 unsigned Depth, Instruction *CxtI);
+  Value *SimplifyDemandedUseBits(Instruction *I, const APInt &DemandedMask,
+                                 KnownBits &Known, unsigned Depth,
+                                 const SimplifyQuery &Q);
+  using InstCombiner::SimplifyDemandedBits;
   bool SimplifyDemandedBits(Instruction *I, unsigned Op,
                             const APInt &DemandedMask, KnownBits &Known,
-                            unsigned Depth = 0) override;
+                            unsigned Depth, const SimplifyQuery &Q) override;
 
   /// Helper routine of SimplifyDemandedUseBits. It computes KnownZero/KnownOne
   /// bits. It also tries to handle simplifications that can be done based on
   /// DemandedMask, but without modifying the Instruction.
   Value *SimplifyMultipleUseDemandedBits(Instruction *I,
                                          const APInt &DemandedMask,
-                                         KnownBits &Known,
-                                         unsigned Depth, Instruction *CxtI);
+                                         KnownBits &Known, unsigned Depth,
+                                         const SimplifyQuery &Q);
 
   /// Helper routine of SimplifyDemandedUseBits. It tries to simplify demanded
   /// bit for "r1 = shr x, c1; r2 = shl r1, c2" instruction sequence.
@@ -564,6 +577,15 @@ public:
   Value *SimplifyDemandedVectorElts(Value *V, APInt DemandedElts,
                                     APInt &PoisonElts, unsigned Depth = 0,
                                     bool AllowMultipleUsers = false) override;
+
+  /// Attempts to replace V with a simpler value based on the demanded
+  /// floating-point classes
+  Value *SimplifyDemandedUseFPClass(Value *V, FPClassTest DemandedMask,
+                                    KnownFPClass &Known, unsigned Depth,
+                                    Instruction *CxtI);
+  bool SimplifyDemandedFPClass(Instruction *I, unsigned Op,
+                               FPClassTest DemandedMask, KnownFPClass &Known,
+                               unsigned Depth = 0);
 
   /// Canonicalize the position of binops relative to shufflevector.
   Instruction *foldVectorBinop(BinaryOperator &Inst);
@@ -642,8 +664,8 @@ public:
   Instruction *foldICmpUsingBoolRange(ICmpInst &I);
   Instruction *foldICmpInstWithConstant(ICmpInst &Cmp);
   Instruction *foldICmpInstWithConstantNotInt(ICmpInst &Cmp);
-  Instruction *foldICmpInstWithConstantAllowUndef(ICmpInst &Cmp,
-                                                  const APInt &C);
+  Instruction *foldICmpInstWithConstantAllowPoison(ICmpInst &Cmp,
+                                                   const APInt &C);
   Instruction *foldICmpBinOp(ICmpInst &Cmp, const SimplifyQuery &SQ);
   Instruction *foldICmpWithMinMax(Instruction &I, MinMaxIntrinsic *MinMax,
                                   Value *Z, ICmpInst::Predicate Pred);
@@ -736,6 +758,12 @@ public:
   Value *EvaluateInDifferentType(Value *V, Type *Ty, bool isSigned);
 
   bool tryToSinkInstruction(Instruction *I, BasicBlock *DestBlock);
+  void tryToSinkInstructionDbgValues(
+      Instruction *I, BasicBlock::iterator InsertPos, BasicBlock *SrcBlock,
+      BasicBlock *DestBlock, SmallVectorImpl<DbgVariableIntrinsic *> &DbgUsers);
+  void tryToSinkInstructionDbgVariableRecords(
+      Instruction *I, BasicBlock::iterator InsertPos, BasicBlock *SrcBlock,
+      BasicBlock *DestBlock, SmallVectorImpl<DbgVariableRecord *> &DPUsers);
 
   bool removeInstructionsBeforeUnreachable(Instruction &I);
   void addDeadEdge(BasicBlock *From, BasicBlock *To,

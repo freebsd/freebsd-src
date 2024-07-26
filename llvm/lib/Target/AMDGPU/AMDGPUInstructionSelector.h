@@ -103,7 +103,6 @@ private:
   bool selectG_MERGE_VALUES(MachineInstr &I) const;
   bool selectG_UNMERGE_VALUES(MachineInstr &I) const;
   bool selectG_BUILD_VECTOR(MachineInstr &I) const;
-  bool selectG_PTR_ADD(MachineInstr &I) const;
   bool selectG_IMPLICIT_DEF(MachineInstr &I) const;
   bool selectG_INSERT(MachineInstr &I) const;
   bool selectG_SBFX_UBFX(MachineInstr &I) const;
@@ -113,7 +112,6 @@ private:
   bool selectDivScale(MachineInstr &MI) const;
   bool selectIntrinsicCmp(MachineInstr &MI) const;
   bool selectBallot(MachineInstr &I) const;
-  bool selectInverseBallot(MachineInstr &I) const;
   bool selectRelocConstant(MachineInstr &I) const;
   bool selectGroupStaticSize(MachineInstr &I) const;
   bool selectReturnAddress(MachineInstr &I) const;
@@ -198,6 +196,19 @@ private:
 
   InstructionSelector::ComplexRendererFns
   selectWMMAOpSelVOP3PMods(MachineOperand &Root) const;
+
+  InstructionSelector::ComplexRendererFns
+  selectWMMAModsF32NegAbs(MachineOperand &Root) const;
+  InstructionSelector::ComplexRendererFns
+  selectWMMAModsF16Neg(MachineOperand &Root) const;
+  InstructionSelector::ComplexRendererFns
+  selectWMMAModsF16NegAbs(MachineOperand &Root) const;
+  InstructionSelector::ComplexRendererFns
+  selectWMMAVISrc(MachineOperand &Root) const;
+  InstructionSelector::ComplexRendererFns
+  selectSWMMACIndex8(MachineOperand &Root) const;
+  InstructionSelector::ComplexRendererFns
+  selectSWMMACIndex16(MachineOperand &Root) const;
 
   InstructionSelector::ComplexRendererFns
   selectVOP3OpSelMods(MachineOperand &Root) const;
@@ -340,9 +351,7 @@ private:
   void renderFPPow2ToExponent(MachineInstrBuilder &MIB, const MachineInstr &MI,
                               int OpIdx) const;
 
-  bool isInlineImmediate16(int64_t Imm) const;
-  bool isInlineImmediate32(int64_t Imm) const;
-  bool isInlineImmediate64(int64_t Imm) const;
+  bool isInlineImmediate(const APInt &Imm) const;
   bool isInlineImmediate(const APFloat &Imm) const;
 
   // Returns true if TargetOpcode::G_AND MachineInstr `MI`'s masking of the

@@ -47,6 +47,9 @@
 #  pragma GCC system_header
 #endif
 
+_LIBCPP_PUSH_MACROS
+#include <__undef_macros>
+
 _LIBCPP_BEGIN_NAMESPACE_STD
 
 #if _LIBCPP_STD_VER >= 20
@@ -323,13 +326,6 @@ public:
   {
     return __x.__current_ - __y.__current_;
   }
-
-  _LIBCPP_HIDE_FROM_ABI friend constexpr decltype(auto) iter_move(const __iterator& __i) noexcept(noexcept(*__i)) {
-    if constexpr (is_lvalue_reference_v<decltype(*__i)>)
-      return std::move(*__i);
-    else
-      return *__i;
-  }
 };
 
 #  if _LIBCPP_STD_VER >= 23
@@ -415,5 +411,7 @@ inline constexpr auto transform = __transform::__fn{};
 #endif // _LIBCPP_STD_VER >= 20
 
 _LIBCPP_END_NAMESPACE_STD
+
+_LIBCPP_POP_MACROS
 
 #endif // _LIBCPP___RANGES_TRANSFORM_VIEW_H
