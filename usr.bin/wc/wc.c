@@ -51,6 +51,8 @@
 #include <libcasper.h>
 #include <casper/cap_fileargs.h>
 
+#define WC_XO_VERSION "1"
+
 static const char *stdin_filename = "stdin";
 
 static fileargs_t *fa;
@@ -132,6 +134,8 @@ main(int argc, char *argv[])
 		doline = doword = dochar = true;
 
 	stderr_handle = xo_create_to_file(stderr, XO_STYLE_TEXT, 0);
+
+	xo_set_version(WC_XO_VERSION);
 	xo_open_container("wc");
 	xo_open_list("file");
 
