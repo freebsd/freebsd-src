@@ -260,6 +260,7 @@ CFLAGS+=	-DCOMPILER_RT_HAS_FLOAT16
     ((${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 130000) && \
      (defined(CRT_COMMON_F16_ARCH)))
 CFLAGS+=	-DCOMPILER_RT_HAS_BFLOAT16
+SRCF+=		extendbfsf2
 SRCF+=		truncdfbf2
 SRCF+=		truncsfbf2
 .endif

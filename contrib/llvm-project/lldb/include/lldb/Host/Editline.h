@@ -367,7 +367,14 @@ private:
   void SetGetCharacterFunction(EditlineGetCharCallbackType callbackFn);
 
 #if LLDB_EDITLINE_USE_WCHAR
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
   std::wstring_convert<std::codecvt_utf8<wchar_t>> m_utf8conv;
+#ifdef __clang__
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
 #endif
   ::EditLine *m_editline = nullptr;
   EditlineHistorySP m_history_sp;

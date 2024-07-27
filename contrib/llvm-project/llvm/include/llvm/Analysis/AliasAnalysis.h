@@ -41,6 +41,7 @@
 #include "llvm/ADT/Sequence.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Analysis/MemoryLocation.h"
+#include "llvm/IR/Function.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/ModRef.h"
@@ -566,8 +567,6 @@ public:
   AliasResult alias(const MemoryLocation &LocA, const MemoryLocation &LocB,
                     AAQueryInfo &AAQI, const Instruction *CtxI = nullptr);
 
-  bool pointsToConstantMemory(const MemoryLocation &Loc, AAQueryInfo &AAQI,
-                              bool OrLocal = false);
   ModRefInfo getModRefInfoMask(const MemoryLocation &Loc, AAQueryInfo &AAQI,
                                bool IgnoreLocals = false);
   ModRefInfo getModRefInfo(const Instruction *I, const CallBase *Call2,
@@ -635,7 +634,7 @@ public:
     return AA.alias(LocA, LocB, AAQI);
   }
   bool pointsToConstantMemory(const MemoryLocation &Loc, bool OrLocal = false) {
-    return AA.pointsToConstantMemory(Loc, AAQI, OrLocal);
+    return isNoModRef(AA.getModRefInfoMask(Loc, AAQI, OrLocal));
   }
   ModRefInfo getModRefInfoMask(const MemoryLocation &Loc,
                                bool IgnoreLocals = false) {
