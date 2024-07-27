@@ -86,6 +86,7 @@ dsps (NVLIST ARRAY): 1
 			name (STRING): pcm0:virtual_play:dsp0.vp0
 			parentchan (STRING): pcm0:play:dsp0.p0
 			unit (NUMBER): 1
+			caps (NUMBER): 0x073200
 			latency (NUMBER): 2
 			rate (NUMBER): 48000
 			format (NUMBER): 0x201000
@@ -201,6 +202,8 @@ Channel name.
 Parent channel name (e.g., in the case of virtual channels).
 .It Dv unit
 Channel unit.
+.It Dv caps
+OSS capabilities.
 .It Dv latency
 Latency.
 .It Dv rate
