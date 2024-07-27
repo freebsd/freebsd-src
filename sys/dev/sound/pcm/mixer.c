@@ -224,7 +224,7 @@ mixer_set_eq(struct snd_mixer *m, struct snddev_info *d,
 
 	CHN_FOREACH(c, d, channels.pcm.busy) {
 		CHN_LOCK(c);
-		f = chn_findfeeder(c, FEEDER_EQ);
+		f = feeder_find(c, FEEDER_EQ);
 		if (f != NULL)
 			(void)FEEDER_SET(f, tone, level);
 		CHN_UNLOCK(c);
