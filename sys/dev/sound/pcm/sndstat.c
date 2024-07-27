@@ -444,7 +444,15 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 	nvlist_add_bool(
 	    sound4di, SNDST_DSPS_SOUND4_BITPERFECT, d->flags & SD_F_BITPERFECT);
 	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_PVCHAN, d->pvchancount);
+	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_PVCHANRATE,
+	    d->pvchanrate);
+	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_PVCHANFORMAT,
+	    d->pvchanformat);
 	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_RVCHAN, d->rvchancount);
+	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_RVCHANRATE,
+	    d->rvchanrate);
+	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_RVCHANFORMAT,
+	    d->rvchanformat);
 
 	nchan = 0;
 	CHN_FOREACH(c, d, channels.pcm) {
