@@ -64,6 +64,7 @@ struct x86_unit_common;
 struct x86_iommu {
 	struct x86_unit_common *(*get_x86_common)(struct
 	    iommu_unit *iommu);
+	void (*unit_pre_instantiate_ctx)(struct iommu_unit *iommu);
 	void (*qi_ensure)(struct iommu_unit *unit, int descr_count);
 	void (*qi_emit_wait_descr)(struct iommu_unit *unit, uint32_t seq,
 	    bool, bool, bool);
