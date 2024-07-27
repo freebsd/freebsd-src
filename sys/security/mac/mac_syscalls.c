@@ -68,6 +68,7 @@
 #include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
 #include <security/mac/mac_policy.h>
+#include <security/mac/mac_syscalls.h>
 
 #ifdef MAC
 
@@ -85,7 +86,7 @@ static int	kern___mac_set_path(struct thread *td, const char *path_p,
  * after use by calling free_copied_label() (which see).  On success, 'u_string'
  * if not NULL is filled with the userspace address for 'u_mac->m_string'.
  */
-static int
+int
 mac_label_copyin(const struct mac *const u_mac, struct mac *const mac,
     char **const u_string)
 {
@@ -115,7 +116,7 @@ mac_label_copyin(const struct mac *const u_mac, struct mac *const mac,
 	return (0);
 }
 
-static void
+void
 free_copied_label(const struct mac *const mac)
 {
 	free(mac->m_string, M_MACTEMP);
@@ -183,52 +184,126 @@ sys___mac_get_proc(struct thread *td, struct __mac_get_proc_args *uap)
 	return (error);
 }
 
+/*
+ * Performs preparation (including allocations) for mac_set_proc().
+ *
+ * No lock should be held while calling this function.  On success,
+ * mac_set_proc_finish() must be called to free the data associated to
+ * 'mac_set_proc_data', even if mac_set_proc_core() fails.  'mac_set_proc_data'
+ * is not set in case of error, and is set to a non-NULL value on success.
+ */
+int
+mac_set_proc_prepare(struct thread *const td, const struct mac *const mac,
+    void **const mac_set_proc_data)
+{
+	struct label *intlabel;
+	int error;
+
+	PROC_LOCK_ASSERT(td->td_proc, MA_NOTOWNED);
+
+	if (!(mac_labeled & MPC_OBJECT_CRED))
+		return (EINVAL);
+
+	intlabel = mac_cred_label_alloc();
+	error = mac_cred_internalize_label(intlabel, mac->m_string);
+	if (error) {
+		mac_cred_label_free(intlabel);
+		return (error);
+	}
+
+	*mac_set_proc_data = intlabel;
+	return (0);
+}
+
+/*
+ * Actually sets the MAC label on 'newcred'.
+ *
+ * The current process' lock *must* be held.  This function only sets the label
+ * on 'newcred', but does not put 'newcred' in place on the current process'
+ * (consequently, it also does not call setsugid()).  'mac_set_proc_data' must
+ * be the pointer returned by mac_set_proc_prepare().  If called, this function
+ * must be so between a successful call to mac_set_proc_prepare() and
+ * mac_set_proc_finish(), but calling it is not mandatory (e.g., if some other
+ * error occured under the process lock that obsoletes setting the MAC label).
+ */
+int
+mac_set_proc_core(struct thread *const td, struct ucred *const newcred,
+    void *const mac_set_proc_data)
+{
+	struct label *const intlabel = mac_set_proc_data;
+	struct proc *const p = td->td_proc;
+	int error;
+
+	MPASS(td == curthread);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	error = mac_cred_check_relabel(p->p_ucred, intlabel);
+	if (error)
+		return (error);
+
+	mac_cred_relabel(newcred, intlabel);
+	return (0);
+}
+
+/*
+ * Performs mac_set_proc() last operations, without the process lock.
+ *
+ * 'proc_label_set' indicates whether the label was actually set by a call to
+ * mac_set_proc_core() that succeeded.  'mac_set_proc_data' must be the pointer
+ * returned by mac_set_proc_prepare(), and its associated data will be freed.
+ */
+void
+mac_set_proc_finish(struct thread *const td, bool proc_label_set,
+    void *const mac_set_proc_data)
+{
+	struct label *const intlabel = mac_set_proc_data;
+
+	PROC_LOCK_ASSERT(td->td_proc, MA_NOTOWNED);
+
+	if (proc_label_set)
+		mac_proc_vm_revoke(td);
+	mac_cred_label_free(intlabel);
+}
+
 int
 sys___mac_set_proc(struct thread *td, struct __mac_set_proc_args *uap)
 {
 	struct ucred *newcred, *oldcred;
-	struct label *intlabel;
-	struct proc *p;
+	void *intlabel;
+	struct proc *const p = td->td_proc;
 	struct mac mac;
 	int error;
-
-	if (!(mac_labeled & MPC_OBJECT_CRED))
-		return (EINVAL);
 
 	error = mac_label_copyin(uap->mac_p, &mac, NULL);
 	if (error)
 		return (error);
 
-	intlabel = mac_cred_label_alloc();
-	error = mac_cred_internalize_label(intlabel, mac.m_string);
-	free_copied_label(&mac);
+	error = mac_set_proc_prepare(td, &mac, &intlabel);
 	if (error)
-		goto out;
+		goto free_label;
 
 	newcred = crget();
 
-	p = td->td_proc;
 	PROC_LOCK(p);
 	oldcred = p->p_ucred;
+	crcopy(newcred, oldcred);
 
-	error = mac_cred_check_relabel(oldcred, intlabel);
+	error = mac_set_proc_core(td, newcred, intlabel);
 	if (error) {
 		PROC_UNLOCK(p);
 		crfree(newcred);
-		goto out;
+		goto finish;
 	}
 
 	setsugid(p);
-	crcopy(newcred, oldcred);
-	mac_cred_relabel(newcred, intlabel);
 	proc_set_cred(p, newcred);
-
 	PROC_UNLOCK(p);
-	crfree(oldcred);
-	mac_proc_vm_revoke(td);
 
-out:
-	mac_cred_label_free(intlabel);
+	crfree(oldcred);
+finish:
+	mac_set_proc_finish(td, error == 0, intlabel);
+free_label:
+	free_copied_label(&mac);
 	return (error);
 }
 
