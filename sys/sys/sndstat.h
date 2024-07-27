@@ -82,6 +82,7 @@ struct sndstioc_nv_arg {
 #define SNDST_DSPS_SOUND4_CHAN_NAME		"name"
 #define SNDST_DSPS_SOUND4_CHAN_PARENTCHAN	"parentchan"
 #define SNDST_DSPS_SOUND4_CHAN_UNIT		"unit"
+#define SNDST_DSPS_SOUND4_CHAN_CAPS		"caps"
 #define SNDST_DSPS_SOUND4_CHAN_LATENCY		"latency"
 #define SNDST_DSPS_SOUND4_CHAN_RATE		"rate"
 #define SNDST_DSPS_SOUND4_CHAN_FORMAT		"format"
