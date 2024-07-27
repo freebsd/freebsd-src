@@ -17,10 +17,6 @@
     c++
         v1
             __algorithm
-                pstl_backends
-                    cpu_backends
-                    ..
-                ..
             ..
             __atomic
             ..
@@ -35,6 +31,8 @@
             __concepts
             ..
             __condition_variable
+            ..
+            __configuration
             ..
             __coroutine
             ..
@@ -72,6 +70,14 @@
             ..
             __numeric
             ..
+            __ostream
+            ..
+            __pstl
+                backends
+                ..
+                cpu_algos
+                ..
+            ..
             __random
             ..
             __ranges
@@ -83,6 +89,8 @@
             __system_error
             ..
             __thread
+                support
+                ..
             ..
             __tuple
             ..
