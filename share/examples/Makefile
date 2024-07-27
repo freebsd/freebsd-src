@@ -314,12 +314,15 @@ SE_SCSI_TARGET= \
 	scsi_cmds.c
 
 SE_DIRS+=	sound
-SE_SOUND= \
+SE_SOUND=
+
+SE_DIRS+=	sound/oss
+SE_SOUND_OSS= \
+	README \
 	basic.c \
-	ossinit.h \
-	ossmidi.h \
 	midi.c \
-	README
+	ossinit.h \
+	ossmidi.h
 
 SE_DIRS+=	sunrpc
 SE_SUNRPC=	Makefile
