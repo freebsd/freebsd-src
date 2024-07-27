@@ -110,6 +110,11 @@ STATISTIC(NumAddSubHoisted, "Number of add/subtract expressions reassociated "
                             "and hoisted out of the loop");
 STATISTIC(NumFPAssociationsHoisted, "Number of invariant FP expressions "
                                     "reassociated and hoisted out of the loop");
+STATISTIC(NumIntAssociationsHoisted,
+          "Number of invariant int expressions "
+          "reassociated and hoisted out of the loop");
+STATISTIC(NumBOAssociationsHoisted, "Number of invariant BinaryOp expressions "
+                                    "reassociated and hoisted out of the loop");
 
 /// Memory promotion is enabled by default.
 static cl::opt<bool>
@@ -131,6 +136,12 @@ static cl::opt<uint32_t> MaxNumUsesTraversed(
 
 static cl::opt<unsigned> FPAssociationUpperLimit(
     "licm-max-num-fp-reassociations", cl::init(5U), cl::Hidden,
+    cl::desc(
+        "Set upper limit for the number of transformations performed "
+        "during a single round of hoisting the reassociated expressions."));
+
+cl::opt<unsigned> IntAssociationUpperLimit(
+    "licm-max-num-int-reassociations", cl::init(5U), cl::Hidden,
     cl::desc(
         "Set upper limit for the number of transformations performed "
         "during a single round of hoisting the reassociated expressions."));
@@ -924,12 +935,14 @@ bool llvm::hoistRegion(DomTreeNode *N, AAResults *AA, LoopInfo *LI,
         ReciprocalDivisor->setFastMathFlags(I.getFastMathFlags());
         SafetyInfo->insertInstructionTo(ReciprocalDivisor, I.getParent());
         ReciprocalDivisor->insertBefore(&I);
+        ReciprocalDivisor->setDebugLoc(I.getDebugLoc());
 
         auto Product =
             BinaryOperator::CreateFMul(I.getOperand(0), ReciprocalDivisor);
         Product->setFastMathFlags(I.getFastMathFlags());
         SafetyInfo->insertInstructionTo(Product, I.getParent());
         Product->insertAfter(&I);
+        Product->setDebugLoc(I.getDebugLoc());
         I.replaceAllUsesWith(Product);
         eraseInstruction(I, *SafetyInfo, MSSAU);
 
@@ -1041,7 +1054,7 @@ bool llvm::hoistRegion(DomTreeNode *N, AAResults *AA, LoopInfo *LI,
 static bool isLoadInvariantInLoop(LoadInst *LI, DominatorTree *DT,
                                   Loop *CurLoop) {
   Value *Addr = LI->getPointerOperand();
-  const DataLayout &DL = LI->getModule()->getDataLayout();
+  const DataLayout &DL = LI->getDataLayout();
   const TypeSize LocSizeInBits = DL.getTypeSizeInBits(LI->getType());
 
   // It is not currently possible for clang to generate an invariant.start
@@ -1208,6 +1221,14 @@ bool llvm::canSinkOrHoistInst(Instruction &I, AAResults *AA, DominatorTree *DT,
     if (CI->isConvergent())
       return false;
 
+    // FIXME: Current LLVM IR semantics don't work well with coroutines and
+    // thread local globals. We currently treat getting the address of a thread
+    // local global as not accessing memory, even though it may not be a
+    // constant throughout a function with coroutines. Remove this check after
+    // we better model semantics of thread local globals.
+    if (CI->getFunction()->isPresplitCoroutine())
+      return false;
+
     using namespace PatternMatch;
     if (match(CI, m_Intrinsic<Intrinsic::assume>()))
       // Assumes don't actually alias anything or throw
@@ -1215,14 +1236,6 @@ bool llvm::canSinkOrHoistInst(Instruction &I, AAResults *AA, DominatorTree *DT,
 
     // Handle simple cases by querying alias analysis.
     MemoryEffects Behavior = AA->getMemoryEffects(CI);
-
-    // FIXME: we don't handle the semantics of thread local well. So that the
-    // address of thread locals are fake constants in coroutines. So We forbid
-    // to treat onlyReadsMemory call in coroutines as constants now. Note that
-    // it is possible to hide a thread local access in a onlyReadsMemory call.
-    // Remove this check after we handle the semantics of thread locals well.
-    if (Behavior.onlyReadsMemory() && CI->getFunction()->isPresplitCoroutine())
-      return false;
 
     if (Behavior.doesNotAccessMemory())
       return true;
@@ -1442,6 +1455,7 @@ static Instruction *cloneInstructionInExitBlock(
     }
 
     New = CallInst::Create(CI, OpBundles);
+    New->copyMetadata(*CI);
   } else {
     New = I.clone();
   }
@@ -2031,7 +2045,7 @@ bool llvm::promoteLoopAccessesToScalars(
   bool SawNotAtomic = false;
   AAMDNodes AATags;
 
-  const DataLayout &MDL = Preheader->getModule()->getDataLayout();
+  const DataLayout &MDL = Preheader->getDataLayout();
 
   // If there are reads outside the promoted set, then promoting stores is
   // definitely not safe.
@@ -2225,7 +2239,7 @@ bool llvm::promoteLoopAccessesToScalars(
   if (FoundLoadToPromote || !StoreIsGuanteedToExecute) {
     PreheaderLoad =
         new LoadInst(AccessTy, SomePtr, SomePtr->getName() + ".promoted",
-                     Preheader->getTerminator());
+                     Preheader->getTerminator()->getIterator());
     if (SawUnorderedAtomic)
       PreheaderLoad->setOrdering(AtomicOrdering::Unordered);
     PreheaderLoad->setAlignment(Alignment);
@@ -2494,7 +2508,7 @@ static bool hoistGEP(Instruction &I, Loop &L, ICFLoopSafetyInfo &SafetyInfo,
   // The swapped GEPs are inbounds if both original GEPs are inbounds
   // and the sign of the offsets is the same. For simplicity, only
   // handle both offsets being non-negative.
-  const DataLayout &DL = GEP->getModule()->getDataLayout();
+  const DataLayout &DL = GEP->getDataLayout();
   auto NonNegative = [&](Value *V) {
     return isKnownNonNegative(V, SimplifyQuery(DL, DT, AC, GEP));
   };
@@ -2544,7 +2558,7 @@ static bool hoistAdd(ICmpInst::Predicate Pred, Value *VariantLHS,
   // freely move values from left side of inequality to right side (just as in
   // normal linear arithmetics). Overflows make things much more complicated, so
   // we want to avoid this.
-  auto &DL = L.getHeader()->getModule()->getDataLayout();
+  auto &DL = L.getHeader()->getDataLayout();
   bool ProvedNoOverflowAfterReassociate =
       computeOverflowForSignedSub(InvariantRHS, InvariantOp,
                                   SimplifyQuery(DL, DT, AC, &ICmp)) ==
@@ -2597,7 +2611,7 @@ static bool hoistSub(ICmpInst::Predicate Pred, Value *VariantLHS,
   // normal linear arithmetics). Overflows make things much more complicated, so
   // we want to avoid this. Likewise, for "C1 - LV < C2" we need to prove that
   // "C1 - C2" does not overflow.
-  auto &DL = L.getHeader()->getModule()->getDataLayout();
+  auto &DL = L.getHeader()->getDataLayout();
   SimplifyQuery SQ(DL, DT, AC, &ICmp);
   if (VariantSubtracted) {
     // C1 - LV < C2 --> LV > C1 - C2
@@ -2661,21 +2675,29 @@ static bool hoistAddSub(Instruction &I, Loop &L, ICFLoopSafetyInfo &SafetyInfo,
   return false;
 }
 
+static bool isReassociableOp(Instruction *I, unsigned IntOpcode,
+                             unsigned FPOpcode) {
+  if (I->getOpcode() == IntOpcode)
+    return true;
+  if (I->getOpcode() == FPOpcode && I->hasAllowReassoc() &&
+      I->hasNoSignedZeros())
+    return true;
+  return false;
+}
+
 /// Try to reassociate expressions like ((A1 * B1) + (A2 * B2) + ...) * C where
 /// A1, A2, ... and C are loop invariants into expressions like
 /// ((A1 * C * B1) + (A2 * C * B2) + ...) and hoist the (A1 * C), (A2 * C), ...
 /// invariant expressions. This functions returns true only if any hoisting has
 /// actually occured.
-static bool hoistFPAssociation(Instruction &I, Loop &L,
-                               ICFLoopSafetyInfo &SafetyInfo,
-                               MemorySSAUpdater &MSSAU, AssumptionCache *AC,
-                               DominatorTree *DT) {
-  using namespace PatternMatch;
-  Value *VariantOp = nullptr, *InvariantOp = nullptr;
-
-  if (!match(&I, m_FMul(m_Value(VariantOp), m_Value(InvariantOp))) ||
-      !I.hasAllowReassoc() || !I.hasNoSignedZeros())
+static bool hoistMulAddAssociation(Instruction &I, Loop &L,
+                                   ICFLoopSafetyInfo &SafetyInfo,
+                                   MemorySSAUpdater &MSSAU, AssumptionCache *AC,
+                                   DominatorTree *DT) {
+  if (!isReassociableOp(&I, Instruction::Mul, Instruction::FMul))
     return false;
+  Value *VariantOp = I.getOperand(0);
+  Value *InvariantOp = I.getOperand(1);
   if (L.isLoopInvariant(VariantOp))
     std::swap(VariantOp, InvariantOp);
   if (L.isLoopInvariant(VariantOp) || !L.isLoopInvariant(InvariantOp))
@@ -2684,20 +2706,24 @@ static bool hoistFPAssociation(Instruction &I, Loop &L,
 
   // First, we need to make sure we should do the transformation.
   SmallVector<Use *> Changes;
+  SmallVector<BinaryOperator *> Adds;
   SmallVector<BinaryOperator *> Worklist;
   if (BinaryOperator *VariantBinOp = dyn_cast<BinaryOperator>(VariantOp))
     Worklist.push_back(VariantBinOp);
   while (!Worklist.empty()) {
     BinaryOperator *BO = Worklist.pop_back_val();
-    if (!BO->hasOneUse() || !BO->hasAllowReassoc() || !BO->hasNoSignedZeros())
+    if (!BO->hasOneUse())
       return false;
-    BinaryOperator *Op0, *Op1;
-    if (match(BO, m_FAdd(m_BinOp(Op0), m_BinOp(Op1)))) {
-      Worklist.push_back(Op0);
-      Worklist.push_back(Op1);
+    if (isReassociableOp(BO, Instruction::Add, Instruction::FAdd) &&
+        isa<BinaryOperator>(BO->getOperand(0)) &&
+        isa<BinaryOperator>(BO->getOperand(1))) {
+      Worklist.push_back(cast<BinaryOperator>(BO->getOperand(0)));
+      Worklist.push_back(cast<BinaryOperator>(BO->getOperand(1)));
+      Adds.push_back(BO);
       continue;
     }
-    if (BO->getOpcode() != Instruction::FMul || L.isLoopInvariant(BO))
+    if (!isReassociableOp(BO, Instruction::Mul, Instruction::FMul) ||
+        L.isLoopInvariant(BO))
       return false;
     Use &U0 = BO->getOperandUse(0);
     Use &U1 = BO->getOperandUse(1);
@@ -2707,11 +2733,20 @@ static bool hoistFPAssociation(Instruction &I, Loop &L,
       Changes.push_back(&U1);
     else
       return false;
-    if (Changes.size() > FPAssociationUpperLimit)
+    unsigned Limit = I.getType()->isIntOrIntVectorTy()
+                         ? IntAssociationUpperLimit
+                         : FPAssociationUpperLimit;
+    if (Changes.size() > Limit)
       return false;
   }
   if (Changes.empty())
     return false;
+
+  // Drop the poison flags for any adds we looked through.
+  if (I.getType()->isIntOrIntVectorTy()) {
+    for (auto *Add : Adds)
+      Add->dropPoisonGeneratingFlags();
+  }
 
   // We know we should do it so let's do the transformation.
   auto *Preheader = L.getLoopPreheader();
@@ -2719,12 +2754,85 @@ static bool hoistFPAssociation(Instruction &I, Loop &L,
   IRBuilder<> Builder(Preheader->getTerminator());
   for (auto *U : Changes) {
     assert(L.isLoopInvariant(U->get()));
-    Instruction *Ins = cast<Instruction>(U->getUser());
-    U->set(Builder.CreateFMulFMF(U->get(), Factor, Ins, "factor.op.fmul"));
+    auto *Ins = cast<BinaryOperator>(U->getUser());
+    Value *Mul;
+    if (I.getType()->isIntOrIntVectorTy()) {
+      Mul = Builder.CreateMul(U->get(), Factor, "factor.op.mul");
+      // Drop the poison flags on the original multiply.
+      Ins->dropPoisonGeneratingFlags();
+    } else
+      Mul = Builder.CreateFMulFMF(U->get(), Factor, Ins, "factor.op.fmul");
+
+    // Rewrite the reassociable instruction.
+    unsigned OpIdx = U->getOperandNo();
+    auto *LHS = OpIdx == 0 ? Mul : Ins->getOperand(0);
+    auto *RHS = OpIdx == 1 ? Mul : Ins->getOperand(1);
+    auto *NewBO = BinaryOperator::Create(Ins->getOpcode(), LHS, RHS,
+                                         Ins->getName() + ".reass", Ins);
+    NewBO->copyIRFlags(Ins);
+    if (VariantOp == Ins)
+      VariantOp = NewBO;
+    Ins->replaceAllUsesWith(NewBO);
+    eraseInstruction(*Ins, SafetyInfo, MSSAU);
   }
+
   I.replaceAllUsesWith(VariantOp);
   eraseInstruction(I, SafetyInfo, MSSAU);
   return true;
+}
+
+/// Reassociate general associative binary expressions of the form
+///
+/// 1. "(LV op C1) op C2" ==> "LV op (C1 op C2)"
+///
+/// where op is an associative binary op, LV is a loop variant, and C1 and C2
+/// are loop invariants that we want to hoist.
+///
+/// TODO: This can be extended to more cases such as
+/// 2. "C1 op (C2 op LV)" ==> "(C1 op C2) op LV"
+/// 3. "(C1 op LV) op C2" ==> "LV op (C1 op C2)" if op is commutative
+/// 4. "C1 op (LV op C2)" ==> "(C1 op C2) op LV" if op is commutative
+static bool hoistBOAssociation(Instruction &I, Loop &L,
+                               ICFLoopSafetyInfo &SafetyInfo,
+                               MemorySSAUpdater &MSSAU, AssumptionCache *AC,
+                               DominatorTree *DT) {
+  BinaryOperator *BO = dyn_cast<BinaryOperator>(&I);
+  if (!BO || !BO->isAssociative())
+    return false;
+
+  Instruction::BinaryOps Opcode = BO->getOpcode();
+  BinaryOperator *Op0 = dyn_cast<BinaryOperator>(BO->getOperand(0));
+
+  // Transform: "(LV op C1) op C2" ==> "LV op (C1 op C2)"
+  if (Op0 && Op0->getOpcode() == Opcode) {
+    Value *LV = Op0->getOperand(0);
+    Value *C1 = Op0->getOperand(1);
+    Value *C2 = BO->getOperand(1);
+
+    if (L.isLoopInvariant(LV) || !L.isLoopInvariant(C1) ||
+        !L.isLoopInvariant(C2))
+      return false;
+
+    auto *Preheader = L.getLoopPreheader();
+    assert(Preheader && "Loop is not in simplify form?");
+    IRBuilder<> Builder(Preheader->getTerminator());
+    Value *Inv = Builder.CreateBinOp(Opcode, C1, C2, "invariant.op");
+
+    auto *NewBO =
+        BinaryOperator::Create(Opcode, LV, Inv, BO->getName() + ".reass", BO);
+    NewBO->copyIRFlags(BO);
+    BO->replaceAllUsesWith(NewBO);
+    eraseInstruction(*BO, SafetyInfo, MSSAU);
+
+    // Note: (LV op C1) might not be erased if it has more uses than the one we
+    //       just replaced.
+    if (Op0->use_empty())
+      eraseInstruction(*Op0, SafetyInfo, MSSAU);
+
+    return true;
+  }
+
+  return false;
 }
 
 static bool hoistArithmetics(Instruction &I, Loop &L,
@@ -2754,9 +2862,19 @@ static bool hoistArithmetics(Instruction &I, Loop &L,
     return true;
   }
 
-  if (hoistFPAssociation(I, L, SafetyInfo, MSSAU, AC, DT)) {
+  bool IsInt = I.getType()->isIntOrIntVectorTy();
+  if (hoistMulAddAssociation(I, L, SafetyInfo, MSSAU, AC, DT)) {
     ++NumHoisted;
-    ++NumFPAssociationsHoisted;
+    if (IsInt)
+      ++NumIntAssociationsHoisted;
+    else
+      ++NumFPAssociationsHoisted;
+    return true;
+  }
+
+  if (hoistBOAssociation(I, L, SafetyInfo, MSSAU, AC, DT)) {
+    ++NumHoisted;
+    ++NumBOAssociationsHoisted;
     return true;
   }
 
