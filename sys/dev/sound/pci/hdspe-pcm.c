@@ -650,6 +650,35 @@ clean(struct sc_chinfo *ch)
 }
 
 /* Channel interface. */
+static int
+hdspechan_free(kobj_t obj, void *data)
+{
+	struct sc_pcminfo *scp;
+	struct sc_chinfo *ch;
+	struct sc_info *sc;
+
+	ch = data;
+	scp = ch->parent;
+	sc = scp->sc;
+
+#if 0
+	device_printf(scp->dev, "hdspechan_free()\n");
+#endif
+
+	snd_mtxlock(sc->lock);
+	if (ch->data != NULL) {
+		free(ch->data, M_HDSPE);
+		ch->data = NULL;
+	}
+	if (ch->caps != NULL) {
+		free(ch->caps, M_HDSPE);
+		ch->caps = NULL;
+	}
+	snd_mtxunlock(sc->lock);
+
+	return (0);
+}
+
 static void *
 hdspechan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
     struct pcm_channel *c, int dir)
@@ -702,6 +731,7 @@ hdspechan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 
 	if (sndbuf_setup(ch->buffer, ch->data, ch->size) != 0) {
 		device_printf(scp->dev, "Can't setup sndbuf.\n");
+		hdspechan_free(obj, ch);
 		return (NULL);
 	}
 
@@ -772,35 +802,6 @@ hdspechan_getptr(kobj_t obj, void *data)
 	pos *= AFMT_CHANNEL(ch->format); /* Hardbuf with multiple channels. */
 
 	return (pos);
-}
-
-static int
-hdspechan_free(kobj_t obj, void *data)
-{
-	struct sc_pcminfo *scp;
-	struct sc_chinfo *ch;
-	struct sc_info *sc;
-
-	ch = data;
-	scp = ch->parent;
-	sc = scp->sc;
-
-#if 0
-	device_printf(scp->dev, "hdspechan_free()\n");
-#endif
-
-	snd_mtxlock(sc->lock);
-	if (ch->data != NULL) {
-		free(ch->data, M_HDSPE);
-		ch->data = NULL;
-	}
-	if (ch->caps != NULL) {
-		free(ch->caps, M_HDSPE);
-		ch->caps = NULL;
-	}
-	snd_mtxunlock(sc->lock);
-
-	return (0);
 }
 
 static int
