@@ -1324,8 +1324,7 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	return (c);
 
 fail:
-	while (feeder_remove(c) == 0)
-		;
+	feeder_remove(c);
 	if (c->devinfo && CHANNEL_FREE(c->methods, c->devinfo))
 		sndbuf_free(b);
 	if (bs)
@@ -1356,8 +1355,7 @@ chn_kill(struct pcm_channel *c)
 		chn_trigger(c, PCMTRIG_ABORT);
 		CHN_UNLOCK(c);
 	}
-	while (feeder_remove(c) == 0)
-		;
+	feeder_remove(c);
 	if (CHANNEL_FREE(c->methods, c->devinfo))
 		sndbuf_free(b);
 	sndbuf_destroy(bs);
