@@ -588,8 +588,7 @@ feeder_chain(struct pcm_channel *c)
 	CHN_LOCKASSERT(c);
 
 	/* Remove everything first. */
-	while (feeder_remove(c) == 0)
-		;
+	feeder_remove(c);
 
 	KASSERT(c->feeder == NULL, ("feeder chain not empty"));
 
