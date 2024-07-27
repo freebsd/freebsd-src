@@ -1365,6 +1365,8 @@ out2:
 	if (CHN_LOCKOWNED(c))
 		CHN_UNLOCK(c);
 	if (ret) {
+		while (chn_removefeeder(c) == 0)
+			;
 		if (c->devinfo) {
 			if (CHANNEL_FREE(c->methods, c->devinfo))
 				sndbuf_free(b);
