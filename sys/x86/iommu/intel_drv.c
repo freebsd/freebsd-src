@@ -1310,8 +1310,16 @@ dmar_get_x86_common(struct iommu_unit *unit)
 	return (&dmar->x86c);
 }
 
+static void
+dmar_unit_pre_instantiate_ctx(struct iommu_unit *unit)
+{
+	dmar_quirks_pre_use(unit);
+	dmar_instantiate_rmrr_ctxs(unit);
+}
+
 static struct x86_iommu dmar_x86_iommu = {
 	.get_x86_common = dmar_get_x86_common,
+	.unit_pre_instantiate_ctx = dmar_unit_pre_instantiate_ctx,
 	.domain_unload_entry = dmar_domain_unload_entry,
 	.domain_unload = dmar_domain_unload,
 	.get_ctx = dmar_get_ctx,

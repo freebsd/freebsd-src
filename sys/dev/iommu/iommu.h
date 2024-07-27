@@ -158,6 +158,7 @@ void iommu_domain_unload_entry(struct iommu_map_entry *entry, bool free,
 void iommu_domain_unload(struct iommu_domain *domain,
     struct iommu_map_entries_tailq *entries, bool cansleep);
 
+void iommu_unit_pre_instantiate_ctx(struct iommu_unit *iommu);
 struct iommu_ctx *iommu_instantiate_ctx(struct iommu_unit *iommu,
     device_t dev, bool rmrr);
 device_t iommu_get_requester(device_t dev, uint16_t *rid);
