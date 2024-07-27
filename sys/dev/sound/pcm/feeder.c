@@ -39,7 +39,6 @@
 static MALLOC_DEFINE(M_FEEDER, "feeder", "pcm feeder");
 
 #define MAXFEEDERS 	256
-#undef FEEDER_DEBUG
 
 struct feedertab_entry {
 	SLIST_ENTRY(feedertab_entry) link;
