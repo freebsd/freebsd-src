@@ -29,7 +29,7 @@
 .\"
 .\" Note: The date here should be updated whenever a non-trivial
 .\" change is made to the manual page.
-.Dd June 5, 2024
+.Dd July 26, 2024
 .Dt SNDSTAT 4
 .Os
 .Sh NAME
@@ -74,6 +74,7 @@ dsps (NVLIST ARRAY): 1
 		max_chn (NUMBER): 2
 	provider_info (NVLIST):
 		unit (NUMBER): 0
+		status (STRING): on hdaa0
 		bitperfect (BOOL): FALSE
 		pvchan (NUMBER): 1
 		rvchan (NUMBER): 0
@@ -169,6 +170,9 @@ provider, there are a number of name/value pairs inside this field:
 .Bl -tag -width ".Dv channel_info"
 .It Dv unit
 Sound card unit.
+.It Dv status
+Status string.
+Usually reports the driver the device is attached on.
 .It Dv bitperfect
 Whether the sound card has bit-perfect mode enabled.
 .It Dv pvchan
