@@ -385,7 +385,7 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 	struct pcm_channel *c;
 	struct pcm_feeder *f;
 	struct sbuf sb;
-	uint32_t maxrate, minrate, fmts, minchn, maxchn;
+	uint32_t maxrate, minrate, fmts, minchn, maxchn, caps;
 	nvlist_t *di = NULL, *sound4di = NULL, *diinfo = NULL, *cdi = NULL;
 	int err, nchan;
 
@@ -467,10 +467,15 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 
 		CHN_LOCK(c);
 
+		caps = PCM_CAP_REALTIME | PCM_CAP_MMAP | PCM_CAP_TRIGGER |
+		    ((c->flags & CHN_F_VIRTUAL) ? PCM_CAP_VIRTUAL : 0) |
+		    ((c->direction == PCMDIR_PLAY) ? PCM_CAP_OUTPUT : PCM_CAP_INPUT);
+
 		nvlist_add_string(cdi, SNDST_DSPS_SOUND4_CHAN_NAME, c->name);
 		nvlist_add_string(cdi, SNDST_DSPS_SOUND4_CHAN_PARENTCHAN,
 		    c->parentchannel != NULL ? c->parentchannel->name : "");
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_UNIT, nchan++);
+		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_CAPS, caps);
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_LATENCY,
 		    c->latency);
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_RATE, c->speed);
