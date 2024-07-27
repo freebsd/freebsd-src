@@ -278,6 +278,12 @@ iommu_unmap_ioapic_intr(u_int ioapic_id, u_int *cookie)
 	return (x86_iommu->unmap_ioapic_intr(ioapic_id, cookie));
 }
 
+void
+iommu_unit_pre_instantiate_ctx(struct iommu_unit *unit)
+{
+	x86_iommu->unit_pre_instantiate_ctx(unit);
+}
+
 #define	IOMMU2X86C(iommu)	(x86_iommu->get_x86_common(iommu))
 
 static bool
