@@ -70,6 +70,7 @@ struct sndstioc_nv_arg {
  */
 #define SNDST_DSPS_SOUND4_PROVIDER		"sound(4)"
 #define SNDST_DSPS_SOUND4_UNIT			"unit"
+#define SNDST_DSPS_SOUND4_STATUS		"status"
 #define SNDST_DSPS_SOUND4_BITPERFECT		"bitperfect"
 #define SNDST_DSPS_SOUND4_PVCHAN		"pvchan"
 #define SNDST_DSPS_SOUND4_RVCHAN		"rvchan"

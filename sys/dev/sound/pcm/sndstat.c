@@ -440,6 +440,7 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 
 	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_UNIT,
 			device_get_unit(d->dev)); // XXX: I want signed integer here
+	nvlist_add_string(sound4di, SNDST_DSPS_SOUND4_STATUS, d->status);
 	nvlist_add_bool(
 	    sound4di, SNDST_DSPS_SOUND4_BITPERFECT, d->flags & SD_F_BITPERFECT);
 	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_PVCHAN, d->pvchancount);
