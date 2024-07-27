@@ -91,6 +91,10 @@
         ..
         usr.sbin
             dtrace
+                amd64
+                    arrays
+                    ..
+                ..
                 common
                     aggs
                     ..
@@ -267,10 +271,6 @@
                     pid
                     ..
                     ustack
-                    ..
-                ..
-                amd64
-                    arrays
                     ..
                 ..
             ..
@@ -1201,11 +1201,11 @@
         ..
         tsort
         ..
-        units
-        ..
         unifdef
         ..
         uniq
+        ..
+        units
         ..
         unzip
         ..
