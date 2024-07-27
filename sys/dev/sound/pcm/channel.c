@@ -1287,7 +1287,7 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 		    __func__);
 		goto out2;
 	}
-	if (chn_addfeeder(c, fc, NULL)) {
+	if (feeder_add(c, fc, NULL)) {
 		device_printf(d->dev, "%s(): failed to add feeder\n", __func__);
 		goto out2;
 	}
@@ -1365,7 +1365,7 @@ out2:
 	if (CHN_LOCKOWNED(c))
 		CHN_UNLOCK(c);
 	if (ret) {
-		while (chn_removefeeder(c) == 0)
+		while (feeder_remove(c) == 0)
 			;
 		if (c->devinfo) {
 			if (CHANNEL_FREE(c->methods, c->devinfo))
@@ -1407,7 +1407,7 @@ chn_kill(struct pcm_channel *c)
 		chn_trigger(c, PCMTRIG_ABORT);
 		CHN_UNLOCK(c);
 	}
-	while (chn_removefeeder(c) == 0)
+	while (feeder_remove(c) == 0)
 		;
 	if (CHANNEL_FREE(c->methods, c->devinfo))
 		sndbuf_free(b);
@@ -2300,7 +2300,7 @@ chn_syncstate(struct pcm_channel *c)
 		else
 			bass = ((bass & 0x7f) + ((bass >> 8) & 0x7f)) >> 1;
 
-		f = chn_findfeeder(c, FEEDER_EQ);
+		f = feeder_find(c, FEEDER_EQ);
 		if (f != NULL) {
 			if (FEEDER_SET(f, FEEDEQ_TREBLE, treble) != 0)
 				device_printf(c->dev,

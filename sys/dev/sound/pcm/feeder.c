@@ -232,7 +232,7 @@ feeder_getclass(struct pcm_feederdesc *desc)
 }
 
 int
-chn_addfeeder(struct pcm_channel *c, struct feeder_class *fc, struct pcm_feederdesc *desc)
+feeder_add(struct pcm_channel *c, struct feeder_class *fc, struct pcm_feederdesc *desc)
 {
 	struct pcm_feeder *nf;
 
@@ -250,7 +250,7 @@ chn_addfeeder(struct pcm_channel *c, struct feeder_class *fc, struct pcm_feederd
 }
 
 int
-chn_removefeeder(struct pcm_channel *c)
+feeder_remove(struct pcm_channel *c)
 {
 	struct pcm_feeder *f;
 
@@ -264,7 +264,7 @@ chn_removefeeder(struct pcm_channel *c)
 }
 
 struct pcm_feeder *
-chn_findfeeder(struct pcm_channel *c, u_int32_t type)
+feeder_find(struct pcm_channel *c, u_int32_t type)
 {
 	struct pcm_feeder *f;
 

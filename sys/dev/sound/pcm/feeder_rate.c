@@ -268,7 +268,7 @@ sysctl_hw_snd_feeder_rate_quality(SYSCTL_HANDLER_ARGS)
 		PCM_ACQUIRE(d);
 		CHN_FOREACH(c, d, channels.pcm) {
 			CHN_LOCK(c);
-			f = chn_findfeeder(c, FEEDER_RATE);
+			f = feeder_find(c, FEEDER_RATE);
 			if (f == NULL || f->data == NULL || CHN_STARTED(c)) {
 				CHN_UNLOCK(c);
 				continue;
