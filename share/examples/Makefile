@@ -314,7 +314,8 @@ SE_SCSI_TARGET= \
 	scsi_cmds.c
 
 SE_DIRS+=	sound
-SE_SOUND=
+SE_SOUND= \
+	  sndstat_nv.c
 
 SE_DIRS+=	sound/oss
 SE_SOUND_OSS= \
