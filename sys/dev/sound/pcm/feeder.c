@@ -248,18 +248,16 @@ feeder_add(struct pcm_channel *c, struct feeder_class *fc, struct pcm_feederdesc
 	return 0;
 }
 
-int
+void
 feeder_remove(struct pcm_channel *c)
 {
 	struct pcm_feeder *f;
 
-	if (c->feeder == NULL)
-		return -1;
-	f = c->feeder;
-	c->feeder = c->feeder->source;
-	feeder_destroy(f);
-
-	return 0;
+	while (c->feeder != NULL) {
+		f = c->feeder;
+		c->feeder = c->feeder->source;
+		feeder_destroy(f);
+	}
 }
 
 struct pcm_feeder *
