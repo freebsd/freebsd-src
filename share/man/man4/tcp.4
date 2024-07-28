@@ -31,7 +31,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 21, 2024
+.Dd July 28, 2024
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -432,6 +432,17 @@ branch of the
 MIB, which can also be read or modified with
 .Xr sysctl 8 .
 .Bl -tag -width ".Va v6pmtud_blackhole_mss"
+.It Va ack_war_timewindow , ack_war_cnt
+The challenge ACK throttling algorithm defined in RFC 5961 limits
+the number of challenge ACKs sent per TCP connection to
+.Va ack_war_cnt
+during the time interval specified in milliseconds by
+.Va ack_war_timewindow .
+Setting
+.Va ack_war_timewindow
+or
+.Va ack_war_cnt
+to zero disables challenge ACK throttling.
 .It Va always_keepalive
 Assume that
 .Dv SO_KEEPALIVE
@@ -1077,6 +1088,13 @@ when trying to use a TCP function block that is not available;
 .%A "D. Black"
 .%T "The Addition of Explicit Congestion Notification (ECN) to IP"
 .%O "RFC 3168"
+.Re
+.Rs
+.%A "A. Ramaiah"
+.%A "R. Stewart"
+.%A "M. Dalal"
+.%T "Improving TCP's Robustness to Blind In-Window Attacks"
+.%O "RFC 5961"
 .Re
 .Sh HISTORY
 The
