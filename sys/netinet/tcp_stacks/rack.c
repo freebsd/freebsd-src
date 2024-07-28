@@ -15547,7 +15547,7 @@ rack_init(struct tcpcb *tp, void **ptr)
 	rack->r_ctl.rc_lower_rtt_us_cts = us_cts;
 	rack->r_ctl.rc_time_of_last_probertt = us_cts;
 	rack->r_ctl.rc_went_idle_time = us_cts;
-	rack->r_ctl.challenge_ack_ts = tcp_ts_getticks() - (tcp_ack_war_time_window + 1);
+	rack->r_ctl.challenge_ack_ts = tcp_ts_getticks() - (V_tcp_ack_war_time_window + 1);
 	rack->r_ctl.rc_time_probertt_starts = 0;
 
 	rack->r_ctl.gp_rnd_thresh = rack_rnd_cnt_req & 0xff;
