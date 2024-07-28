@@ -201,7 +201,7 @@ dctcp_cb_init(struct cc_var *ccv, void *ptr)
 {
 	struct dctcp *dctcp_data;
 
-	INP_WLOCK_ASSERT(tptoinpcb(ccv->ccvc.tcp));
+	INP_WLOCK_ASSERT(tptoinpcb(ccv->tp));
 	if (ptr == NULL) {
 		dctcp_data = malloc(sizeof(struct dctcp), M_CC_MEM, M_NOWAIT|M_ZERO);
 		if (dctcp_data == NULL)
@@ -245,7 +245,7 @@ dctcp_cong_signal(struct cc_var *ccv, ccsignal_t type)
 	if (CCV(ccv, t_flags2) & TF2_ECN_PERMIT) {
 		dctcp_data = ccv->cc_data;
 		cwin = CCV(ccv, snd_cwnd);
-		mss = tcp_fixed_maxseg(ccv->ccvc.tcp);
+		mss = tcp_fixed_maxseg(ccv->tp);
 
 		switch (type) {
 		case CC_NDUPACK:
@@ -294,7 +294,7 @@ dctcp_cong_signal(struct cc_var *ccv, ccsignal_t type)
 		case CC_RTO:
 			if (CCV(ccv, t_rxtshift) == 1) {
 				if (V_tcp_do_newsack) {
-					pipe = tcp_compute_pipe(ccv->ccvc.tcp);
+					pipe = tcp_compute_pipe(ccv->tp);
 				} else {
 					pipe = CCV(ccv, snd_max) -
 						CCV(ccv, snd_fack) +

@@ -2243,8 +2243,7 @@ tcp_newtcpcb(struct inpcb *inp, struct tcpcb *listening_tcb)
 	bzero(&tp->t_start_zero, t_zero_size);
 
 	/* Initialise cc_var struct for this tcpcb. */
-	tp->t_ccv.type = IPPROTO_TCP;
-	tp->t_ccv.ccvc.tcp = tp;
+	tp->t_ccv.tp = tp;
 	rw_rlock(&tcp_function_lock);
 	if (listening_tcb != NULL) {
 		INP_LOCK_ASSERT(tptoinpcb(listening_tcb));

@@ -404,7 +404,7 @@ newreno_cc_post_recovery(struct cc_var *ccv)
 		 * XXXLAS: Find a way to do this without needing curack
 		 */
 		if (V_tcp_do_newsack)
-			pipe = tcp_compute_pipe(ccv->ccvc.tcp);
+			pipe = tcp_compute_pipe(ccv->tp);
 		else
 			pipe = CCV(ccv, snd_max) - ccv->curack;
 		if (pipe < CCV(ccv, snd_ssthresh))
@@ -440,7 +440,7 @@ newreno_cc_after_idle(struct cc_var *ccv)
 	 * maximum of the former ssthresh or 3/4 of the old cwnd, to
 	 * not exit slow-start prematurely.
 	 */
-	rw = tcp_compute_initwnd(tcp_fixed_maxseg(ccv->ccvc.tcp));
+	rw = tcp_compute_initwnd(tcp_fixed_maxseg(ccv->tp));
 
 	CCV(ccv, snd_ssthresh) = max(CCV(ccv, snd_ssthresh),
 	    CCV(ccv, snd_cwnd)-(CCV(ccv, snd_cwnd)>>2));
@@ -457,7 +457,7 @@ newreno_cc_cong_signal(struct cc_var *ccv, ccsignal_t type)
 	uint32_t cwin, factor, mss, pipe;
 
 	cwin = CCV(ccv, snd_cwnd);
-	mss = tcp_fixed_maxseg(ccv->ccvc.tcp);
+	mss = tcp_fixed_maxseg(ccv->tp);
 	/*
 	 * Other TCP congestion controls use newreno_cong_signal(), but
 	 * with their own private cc_data. Make sure the cc_data is used
@@ -490,7 +490,7 @@ newreno_cc_cong_signal(struct cc_var *ccv, ccsignal_t type)
 	case CC_RTO:
 		if (CCV(ccv, t_rxtshift) == 1) {
 			if (V_tcp_do_newsack) {
-				pipe = tcp_compute_pipe(ccv->ccvc.tcp);
+				pipe = tcp_compute_pipe(ccv->tp);
 			} else {
 				pipe = CCV(ccv, snd_max) -
 					CCV(ccv, snd_fack) +

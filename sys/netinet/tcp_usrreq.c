@@ -1957,7 +1957,7 @@ no_mem_needed:
 	tp = intotcpcb(inp);
 	if (ptr != NULL)
 		memset(ptr, 0, mem_sz);
-	cc_mem.ccvc.tcp = tp;
+	cc_mem.tp = tp;
 	/*
 	 * We once again hold a write lock over the tcb so it's
 	 * safe to do these things without ordering concerns.

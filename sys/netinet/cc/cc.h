@@ -87,21 +87,12 @@ int	cc_deregister_algo(struct cc_algo *remove_cc);
 #endif /* _KERNEL */
 
 #if defined(_KERNEL) || defined(_WANT_TCPCB)
-/*
- * Wrapper around transport structs that contain same-named congestion
- * control variables. Allows algos to be shared amongst multiple CC aware
- * transprots.
- */
 struct cc_var {
 	void		*cc_data; /* Per-connection private CC algorithm data. */
 	int		bytes_this_ack; /* # bytes acked by the current ACK. */
 	tcp_seq		curack; /* Most recent ACK. */
 	uint32_t	flags; /* Flags for cc_var (see below) */
-	int		type; /* Indicates which ptr is valid in ccvc. */
-	union ccv_container {
-		struct tcpcb		*tcp;
-		struct sctp_nets	*sctp;
-	} ccvc;
+	struct tcpcb	*tp; /* Pointer to tcpcb */
 	uint16_t	nsegs; /* # segments coalesced into current chain. */
 	uint8_t		labc;  /* Dont use system abc use passed in */
 };
