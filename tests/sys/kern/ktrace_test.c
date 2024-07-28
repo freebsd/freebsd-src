@@ -116,7 +116,7 @@ cap_trace_child(int cpid, struct ktr_cap_fail *v, int numv)
 	int error, fd, i;
 
 	ATF_REQUIRE((fd = open("ktrace.out",
-	    O_RDONLY | O_CREAT | O_TRUNC)) != -1);
+	    O_RDONLY | O_CREAT | O_TRUNC, 0600)) != -1);
 	ATF_REQUIRE(ktrace("ktrace.out", KTROP_SET,
 	    KTRFAC_CAPFAIL, cpid) != -1);
 	/* Notify child that we've starting tracing. */
