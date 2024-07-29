@@ -99,11 +99,3 @@ faultin(struct proc *p)
 	if ((p->p_flag & P_INMEM) == 0)
 		panic("faultin: proc %p swapped out with NO_SWAPPING", p);
 }
-
-void
-swapper(void)
-{
-
-	for (;;)
-		tsleep(&proc0, PVM, "swapin", MAXSLP * hz);
-}
