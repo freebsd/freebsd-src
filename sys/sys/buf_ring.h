@@ -35,13 +35,9 @@
 #include <machine/atomic.h>
 #include <machine/cpu.h>
 
-#ifdef DEBUG_BUFRING
-#ifdef _KERNEL
+#if defined(DEBUG_BUFRING) && defined(_KERNEL)
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#else
-#error "DEBUG_BUFRING is only supported in kernel"
-#endif
 #endif
 
 struct buf_ring {
@@ -54,7 +50,7 @@ struct buf_ring {
 	volatile uint32_t	br_cons_tail;
 	int		 	br_cons_size;
 	int              	br_cons_mask;
-#ifdef DEBUG_BUFRING
+#if defined(DEBUG_BUFRING) && defined(_KERNEL)
 	struct mtx		*br_lock;
 #endif	
 	void			*br_ring[0] __aligned(CACHE_LINE_SIZE);
@@ -210,8 +206,10 @@ buf_ring_dequeue_sc(struct buf_ring *br)
 
 #ifdef DEBUG_BUFRING
 	br->br_ring[cons_head] = NULL;
+#ifdef _KERNEL
 	if (!mtx_owned(br->br_lock))
 		panic("lock not held on single consumer dequeue");
+#endif
 	if (br->br_cons_tail != cons_head)
 		panic("inconsistent list cons_tail=%d cons_head=%d",
 		    br->br_cons_tail, cons_head);
@@ -277,7 +275,7 @@ static __inline void *
 buf_ring_peek(struct buf_ring *br)
 {
 
-#ifdef DEBUG_BUFRING
+#if defined(DEBUG_BUFRING) && defined(_KERNEL)
 	if ((br->br_lock != NULL) && !mtx_owned(br->br_lock))
 		panic("lock not held on single consumer dequeue");
 #endif	
@@ -296,9 +294,9 @@ buf_ring_peek(struct buf_ring *br)
 static __inline void *
 buf_ring_peek_clear_sc(struct buf_ring *br)
 {
-#ifdef DEBUG_BUFRING
 	void *ret;
 
+#if defined(DEBUG_BUFRING) && defined(_KERNEL)
 	if (!mtx_owned(br->br_lock))
 		panic("lock not held on single consumer dequeue");
 #endif	
@@ -320,17 +318,15 @@ buf_ring_peek_clear_sc(struct buf_ring *br)
 	atomic_thread_fence_acq();
 #endif
 
+	ret = br->br_ring[br->br_cons_head];
 #ifdef DEBUG_BUFRING
 	/*
 	 * Single consumer, i.e. cons_head will not move while we are
 	 * running, so atomic_swap_ptr() is not necessary here.
 	 */
-	ret = br->br_ring[br->br_cons_head];
 	br->br_ring[br->br_cons_head] = NULL;
-	return (ret);
-#else
-	return (br->br_ring[br->br_cons_head]);
 #endif
+	return (ret);
 }
 
 static __inline int
