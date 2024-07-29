@@ -263,6 +263,10 @@ menu.welcome = {
 			menu_entries.boot_envs,
 			menu_entries.chainload,
 			menu_entries.vendor,
+			{
+				entry_type = core.MENU_SEPARATOR,
+			},
+			menu_entries.loader_needs_upgrade,
 		}
 	end,
 	all_entries = {
@@ -410,6 +414,15 @@ menu.welcome = {
 				return loader.getenv('chain_disk') ~= nil
 			end,
 			alias = {"l", "L"},
+		},
+		loader_needs_upgrade = {
+			entry_type = core.MENU_SEPARATOR,
+			name = function()
+				return color.highlight("Loader needs to be updated")
+			end,
+			visible = function()
+				return core.loaderTooOld()
+			end
 		},
 		vendor = {
 			entry_type = core.MENU_ENTRY,
