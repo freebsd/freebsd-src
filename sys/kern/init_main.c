@@ -256,7 +256,6 @@ symbol_name(vm_offset_t va, db_strategy_t strategy)
 void
 mi_startup(void)
 {
-
 	struct sysinit *sip;
 	int last;
 #if defined(VERBOSE_SYSINIT)
@@ -339,10 +338,12 @@ mi_startup(void)
 	mtx_unlock(&Giant);
 
 	/*
-	 * Now hand over this thread to swapper.
+	 * We can't free our thread structure since it is statically allocated.
+	 * Just sleep forever.  This thread could be repurposed for something if
+	 * the need arises.
 	 */
-	swapper();
-	/* NOTREACHED*/
+	for (;;)
+		tsleep(__builtin_frame_address(0), PNOLOCK, "parked", 0);
 }
 
 static void
