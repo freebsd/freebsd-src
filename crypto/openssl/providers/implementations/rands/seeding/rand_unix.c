@@ -28,7 +28,7 @@
 #  include <sys/utsname.h>
 # endif
 #endif
-#if (defined(__FreeBSD__) || defined(__NetBSD__)) && !defined(OPENSSL_SYS_UEFI)
+#if defined(__NetBSD__)
 # include <sys/types.h>
 # include <sys/sysctl.h>
 # include <sys/param.h>
@@ -36,7 +36,8 @@
 #if defined(__OpenBSD__)
 # include <sys/param.h>
 #endif
-#if defined(__DragonFly__)
+#if (defined(__DragonFly__) || defined(__FreeBSD__)) \
+     && !defined(OPENSSL_SYS_UEFI)
 # include <sys/param.h>
 # include <sys/random.h>
 #endif
@@ -212,7 +213,7 @@ void ossl_rand_pool_keep_random_devices_open(int keep)
 #   error "librandom not (yet) supported"
 #  endif
 
-#  if (defined(__FreeBSD__) || defined(__NetBSD__)) && defined(KERN_ARND)
+#  if defined(__NetBSD__) && defined(KERN_ARND)
 /*
  * sysctl_random(): Use sysctl() to read a random number from the kernel
  * Returns the number of bytes returned in buf on success, -1 on failure.
