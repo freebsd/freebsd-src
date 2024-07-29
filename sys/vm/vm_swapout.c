@@ -154,7 +154,6 @@ SYSCTL_INT(_vm, OID_AUTO, vmdaemon_timeout, CTLFLAG_RW,
     &vm_daemon_timeout, 0,
     "Time between vmdaemon runs");
 
-static int vm_pageout_req_swapout;	/* XXX */
 static int vm_daemon_needed;
 static struct mtx vm_daemon_mtx;
 /* Allow for use by vm_pageout before vm_daemon is initialized. */
@@ -165,12 +164,8 @@ static int swap_inprogress;	/* Pending swap-ins done outside swapper. */
 static int last_swapin;
 
 static void swapclear(struct proc *);
-static int swapout(struct proc *);
 static void vm_swapout_map_deactivate_pages(vm_map_t, long);
 static void vm_swapout_object_deactivate(pmap_t, vm_object_t, long);
-static void swapout_procs(int action);
-static void vm_req_vmdaemon(int req);
-static void vm_thread_swapout(struct thread *td);
 
 static void
 vm_swapout_object_deactivate_page(pmap_t pmap, vm_page_t m, bool unmap)
@@ -322,49 +317,6 @@ vm_swapout_map_deactivate_pages(vm_map_t map, long desired)
 	vm_map_unlock_read(map);
 }
 
-/*
- * Swap out requests
- */
-#define VM_SWAP_NORMAL 1
-#define VM_SWAP_IDLE 2
-
-void
-vm_swapout_run(void)
-{
-
-	if (vm_swap_enabled)
-		vm_req_vmdaemon(VM_SWAP_NORMAL);
-}
-
-/*
- * Idle process swapout -- run once per second when pagedaemons are
- * reclaiming pages.
- */
-void
-vm_swapout_run_idle(void)
-{
-	static long lsec;
-
-	if (!vm_swap_idle_enabled || time_second == lsec)
-		return;
-	vm_req_vmdaemon(VM_SWAP_IDLE);
-	lsec = time_second;
-}
-
-static void
-vm_req_vmdaemon(int req)
-{
-	static int lastrun = 0;
-
-	mtx_lock(&vm_daemon_mtx);
-	vm_pageout_req_swapout |= req;
-	if ((ticks > (lastrun + hz)) || (ticks < lastrun)) {
-		wakeup(&vm_daemon_needed);
-		lastrun = ticks;
-	}
-	mtx_unlock(&vm_daemon_mtx);
-}
-
 static void
 vm_daemon(void)
 {
@@ -372,7 +324,7 @@ vm_daemon(void)
 	struct proc *p;
 	struct thread *td;
 	struct vmspace *vm;
-	int breakout, swapout_flags, tryagain, attempts;
+	int breakout, tryagain, attempts;
 #ifdef RACCT
 	uint64_t rsize, ravailable;
 
@@ -384,18 +336,7 @@ vm_daemon(void)
 		mtx_lock(&vm_daemon_mtx);
 		msleep(&vm_daemon_needed, &vm_daemon_mtx, PPAUSE, "psleep",
 		    vm_daemon_timeout);
-		swapout_flags = vm_pageout_req_swapout;
-		vm_pageout_req_swapout = 0;
 		mtx_unlock(&vm_daemon_mtx);
-		if (swapout_flags != 0) {
-			/*
-			 * Drain the per-CPU page queue batches as a deadlock
-			 * avoidance measure.
-			 */
-			if ((swapout_flags & VM_SWAP_NORMAL) != 0)
-				vm_page_pqbatch_drain();
-			swapout_procs(swapout_flags);
-		}
 
 		/*
 		 * scan the processes for exceeding their rlimits or if
@@ -518,36 +459,6 @@ again:
 			goto again;
 		}
 	}
-}
-
-/*
- * Allow a thread's kernel stack to be paged out.
- */
-static void
-vm_thread_swapout(struct thread *td)
-{
-	vm_page_t m;
-	vm_offset_t kaddr;
-	vm_pindex_t pindex;
-	int i, pages;
-	vm_object_t obj;
-
-	cpu_thread_swapout(td);
-	kaddr = td->td_kstack;
-	pages = td->td_kstack_pages;
-	obj = vm_thread_kstack_size_to_obj(pages);
-	pindex = vm_kstack_pindex(kaddr, pages);
-	pmap_qremove(kaddr, pages);
-	VM_OBJECT_WLOCK(obj);
-	for (i = 0; i < pages; i++) {
-		m = vm_page_lookup(obj, pindex + i);
-		if (m == NULL)
-			panic("vm_thread_swapout: kstack already missing?");
-		vm_page_dirty(m);
-		vm_page_xunbusy_unchecked(m);
-		vm_page_unwire(m, PQ_LAUNDRY);
-	}
-	VM_OBJECT_WUNLOCK(obj);
 }
 
 /*
@@ -773,100 +684,6 @@ swapper(void)
 	}
 }
 
-/*
- * First, if any processes have been sleeping or stopped for at least
- * "swap_idle_threshold1" seconds, they are swapped out.  If, however,
- * no such processes exist, then the longest-sleeping or stopped
- * process is swapped out.  Finally, and only as a last resort, if
- * there are no sleeping or stopped processes, the longest-resident
- * process is swapped out.
- */
-static void
-swapout_procs(int action)
-{
-	struct proc *p;
-	struct thread *td;
-	int slptime;
-	bool didswap, doswap;
-
-	MPASS((action & (VM_SWAP_NORMAL | VM_SWAP_IDLE)) != 0);
-
-	didswap = false;
-	sx_slock(&allproc_lock);
-	FOREACH_PROC_IN_SYSTEM(p) {
-		/*
-		 * Filter out not yet fully constructed processes.  Do
-		 * not swap out held processes.  Avoid processes which
-		 * are system, exiting, execing, traced, already swapped
-		 * out or are in the process of being swapped in or out.
-		 */
-		PROC_LOCK(p);
-		if (p->p_state != PRS_NORMAL || p->p_lock != 0 || (p->p_flag &
-		    (P_SYSTEM | P_WEXIT | P_INEXEC | P_STOPPED_SINGLE |
-		    P_TRACED | P_SWAPPINGOUT | P_SWAPPINGIN | P_INMEM)) !=
-		    P_INMEM) {
-			PROC_UNLOCK(p);
-			continue;
-		}
-
-		/*
-		 * Further consideration of this process for swap out
-		 * requires iterating over its threads.  We release
-		 * allproc_lock here so that process creation and
-		 * destruction are not blocked while we iterate.
-		 *
-		 * To later reacquire allproc_lock and resume
-		 * iteration over the allproc list, we will first have
-		 * to release the lock on the process.  We place a
-		 * hold on the process so that it remains in the
-		 * allproc list while it is unlocked.
-		 */
-		_PHOLD_LITE(p);
-		sx_sunlock(&allproc_lock);
-
-		/*
-		 * Do not swapout a realtime process.
-		 * Guarantee swap_idle_threshold1 time in memory.
-		 * If the system is under memory stress, or if we are
-		 * swapping idle processes >= swap_idle_threshold2,
-		 * then swap the process out.
-		 */
-		doswap = true;
-		FOREACH_THREAD_IN_PROC(p, td) {
-			thread_lock(td);
-			slptime = (ticks - td->td_slptick) / hz;
-			if (PRI_IS_REALTIME(td->td_pri_class) ||
-			    slptime < swap_idle_threshold1 ||
-			    !thread_safetoswapout(td) ||
-			    ((action & VM_SWAP_NORMAL) == 0 &&
-			    slptime < swap_idle_threshold2))
-				doswap = false;
-			thread_unlock(td);
-			if (!doswap)
-				break;
-		}
-		if (doswap && swapout(p) == 0)
-			didswap = true;
-
-		PROC_UNLOCK(p);
-		if (didswap) {
-			sx_xlock(&allproc_lock);
-			swapped_cnt++;
-			sx_downgrade(&allproc_lock);
-		} else
-			sx_slock(&allproc_lock);
-		PRELE(p);
-	}
-	sx_sunlock(&allproc_lock);
-
-	/*
-	 * If we swapped something out, and another process needed memory,
-	 * then wakeup the sched process.
-	 */
-	if (didswap)
-		wakeup(&proc0);
-}
-
 static void
 swapclear(struct proc *p)
 {
@@ -895,58 +712,4 @@ swapclear(struct proc *p)
 	}
 	p->p_flag &= ~(P_SWAPPINGIN | P_SWAPPINGOUT);
 	p->p_flag |= P_INMEM;
-}
-
-static int
-swapout(struct proc *p)
-{
-	struct thread *td;
-
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-
-	/*
-	 * The states of this process and its threads may have changed
-	 * by now.  Assuming that there is only one pageout daemon thread,
-	 * this process should still be in memory.
-	 */
-	KASSERT((p->p_flag & (P_INMEM | P_SWAPPINGOUT | P_SWAPPINGIN)) ==
-	    P_INMEM, ("swapout: lost a swapout race?"));
-
-	/*
-	 * Remember the resident count.
-	 */
-	p->p_vmspace->vm_swrss = vmspace_resident_count(p->p_vmspace);
-
-	/*
-	 * Check and mark all threads before we proceed.
-	 */
-	p->p_flag &= ~P_INMEM;
-	p->p_flag |= P_SWAPPINGOUT;
-	FOREACH_THREAD_IN_PROC(p, td) {
-		thread_lock(td);
-		if (!thread_safetoswapout(td)) {
-			thread_unlock(td);
-			swapclear(p);
-			return (EBUSY);
-		}
-		td->td_flags &= ~TDF_INMEM;
-		TD_SET_SWAPPED(td);
-		thread_unlock(td);
-	}
-	td = FIRST_THREAD_IN_PROC(p);
-	++td->td_ru.ru_nswap;
-	PROC_UNLOCK(p);
-
-	/*
-	 * This list is stable because all threads are now prevented from
-	 * running.  The list is only modified in the context of a running
-	 * thread in this process.
-	 */
-	FOREACH_THREAD_IN_PROC(p, td)
-		vm_thread_swapout(td);
-
-	PROC_LOCK(p);
-	p->p_flag &= ~P_SWAPPINGOUT;
-	p->p_swtick = ticks;
-	return (0);
 }

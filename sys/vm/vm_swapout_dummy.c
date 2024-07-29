@@ -92,16 +92,6 @@ SYSCTL_INT(_vm, OID_AUTO, swap_idle_enabled, CTLFLAG_RD,
     "Allow swapout on idle criteria");
 
 void
-vm_swapout_run(void)
-{
-}
-
-void
-vm_swapout_run_idle(void)
-{
-}
-
-void
 faultin(struct proc *p)
 {
 
