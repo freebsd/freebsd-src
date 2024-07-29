@@ -90,6 +90,8 @@ struct dev_pm_ops {
 struct device_driver {
 	const char	*name;
 	const struct dev_pm_ops *pm;
+
+	void (*shutdown) (struct device *);
 };
 
 struct device_type {
