@@ -1765,22 +1765,10 @@ vm_pageout_inactive(struct vm_domain *vmd, int shortage, int *addl_shortage)
 	}
 
 	/*
-	 * Wakeup the swapout daemon if we didn't free the targeted number of
-	 * pages.
-	 */
-	if (page_shortage > 0)
-		vm_swapout_run();
-
-	/*
 	 * If the inactive queue scan fails repeatedly to meet its
 	 * target, kill the largest process.
 	 */
 	vm_pageout_mightbe_oom(vmd, page_shortage, starting_page_shortage);
-
-	/*
-	 * Reclaim pages by swapping out idle processes, if configured to do so.
-	 */
-	vm_swapout_run_idle();
 
 	/*
 	 * See the description of addl_page_shortage above.
