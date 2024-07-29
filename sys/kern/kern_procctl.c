@@ -573,17 +573,7 @@ reap_kill(struct thread *td, struct proc *p, void *data)
 		w.rk = rk;
 		w.error = &error;
 		TASK_INIT(&w.t, 0, reap_kill_proc_work, &w);
-
-		/*
-		 * Prevent swapout, since w, ksi, and possibly rk, are
-		 * allocated on the stack.  We sleep in
-		 * reap_kill_subtree_once() waiting for task to
-		 * complete single-threading.
-		 */
-		PHOLD(td->td_proc);
-
 		reap_kill_subtree(td, p, reaper, &w);
-		PRELE(td->td_proc);
 		crfree(w.cr);
 	}
 	PROC_LOCK(p);
