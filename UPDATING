@@ -27,6 +27,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20240729:
+	The build now defaults to WITHOUT_CLEAN - i.e., no automatic clean
+	is performed at the beginning of buildworld or buildkernel.  The
+	WITH_CLEAN src.conf(5) knob can be used to restore the previous
+	behaviour.
+
+	If you encounter incremental build issues, please report them to the
+	freebsd-current mailing list so that a special-case dependency can be
+	added, if necessary.
+
 20240712:
 	Support for armv6 has been disconnected and is being removed.
 
