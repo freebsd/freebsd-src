@@ -558,25 +558,23 @@ mi_switch(int flags)
 }
 
 /*
- * Change thread state to be runnable, placing it on the run queue if
- * it is in memory.  If it is swapped out, return true so our caller
- * will know to awaken the swapper.
+ * Change thread state to be runnable, placing it on the run queue.
  *
  * Requires the thread lock on entry, drops on exit.
  */
 int
 setrunnable(struct thread *td, int srqflags)
 {
-	int swapin;
-
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	KASSERT(td->td_proc->p_state != PRS_ZOMBIE,
 	    ("setrunnable: pid %d is a zombie", td->td_proc->p_pid));
 
-	swapin = 0;
 	switch (TD_GET_STATE(td)) {
 	case TDS_RUNNING:
 	case TDS_RUNQ:
+	case TDS_INHIBITED:
+		if ((srqflags & (SRQ_HOLD | SRQ_HOLDTD)) == 0)
+			thread_unlock(td);
 		break;
 	case TDS_CAN_RUN:
 		KASSERT((td->td_flags & TDF_INMEM) != 0,
@@ -584,25 +582,12 @@ setrunnable(struct thread *td, int srqflags)
 		    td, td->td_flags, td->td_inhibitors));
 		/* unlocks thread lock according to flags */
 		sched_wakeup(td, srqflags);
-		return (0);
-	case TDS_INHIBITED:
-		/*
-		 * If we are only inhibited because we are swapped out
-		 * arrange to swap in this process.
-		 */
-		if (td->td_inhibitors == TDI_SWAPPED &&
-		    (td->td_flags & TDF_SWAPINREQ) == 0) {
-			td->td_flags |= TDF_SWAPINREQ;
-			swapin = 1;
-		}
 		break;
 	default:
 		panic("setrunnable: state 0x%x", TD_GET_STATE(td));
 	}
-	if ((srqflags & (SRQ_HOLD | SRQ_HOLDTD)) == 0)
-		thread_unlock(td);
 
-	return (swapin);
+	return (0);
 }
 
 /*
