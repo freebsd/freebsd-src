@@ -245,6 +245,7 @@ menu.welcome = {
 			boot_entry_1, boot_entry_2 = multi_user, single_user
 		end
 		return {
+			loader_needs_upgrade,
 			boot_entry_1,
 			boot_entry_2,
 			menu_entries.prompt,
@@ -410,6 +411,15 @@ menu.welcome = {
 				return loader.getenv('chain_disk') ~= nil
 			end,
 			alias = {"l", "L"},
+		},
+		loader_needs_upgrade = {
+			entry_type = core.MENU_SEPARATOR,
+			name = function()
+				return "Loader requires updating"
+			end
+			visible = function()
+				return core.loaderTooOld()
+			end
 		},
 		vendor = {
 			entry_type = core.MENU_ENTRY,
