@@ -29,7 +29,7 @@
 .\"
 .\"     @(#)diff.1	8.1 (Berkeley) 6/30/93
 .\"
-.Dd June 19, 2020
+.Dd July 26, 2024
 .Dt DIFF 1
 .Os
 .Sh NAME
@@ -184,7 +184,7 @@
 .Nm diff
 .Op Fl aBbditwW
 .Op Fl -expand-tabs
-.Op Fl -ignore-all-blanks
+.Op Fl -ignore-all-space
 .Op Fl -ignore-blank-lines
 .Op Fl -ignore-case
 .Op Fl -minimal
@@ -380,7 +380,7 @@ output adds character(s) to the front of each line which may screw up
 the indentation of the original source lines and make the output listing
 difficult to interpret.
 This option will preserve the original source's indentation.
-.It Fl w -ignore-all-blanks
+.It Fl w -ignore-all-space
 Is similar to
 .Fl b -ignore-space-change
 but causes whitespace (blanks and tabs) to be totally ignored.
