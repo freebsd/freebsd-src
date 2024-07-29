@@ -186,7 +186,7 @@ static __always_inline bool lockmgr_sunlock_try(struct lock *lk,
     uintptr_t *xp);
 
 static void
-lockmgr_exit(u_int flags, struct lock_object *ilk, int wakeup_swapper)
+lockmgr_exit(u_int flags, struct lock_object *ilk)
 {
 	struct lock_class *class;
 
@@ -194,9 +194,6 @@ lockmgr_exit(u_int flags, struct lock_object *ilk, int wakeup_swapper)
 		class = LOCK_CLASS(ilk);
 		class->lc_unlock(ilk);
 	}
-
-	if (__predict_false(wakeup_swapper))
-		kick_proc0();
 }
 
 static void
@@ -310,14 +307,13 @@ sleeplk(struct lock *lk, u_int flags, struct lock_object *ilk,
 	return (error);
 }
 
-static __inline int
+static __inline void
 wakeupshlk(struct lock *lk, const char *file, int line)
 {
 	uintptr_t v, x, orig_x;
 	u_int realexslp;
-	int queue, wakeup_swapper;
+	int queue;
 
-	wakeup_swapper = 0;
 	for (;;) {
 		x = lockmgr_read_value(lk);
 		if (lockmgr_sunlock_try(lk, &x))
@@ -361,9 +357,8 @@ retry_sleepq:
 				LOCK_LOG2(lk,
 			    "%s: %p waking up threads on the exclusive queue",
 				    __func__, lk);
-				wakeup_swapper =
-				    sleepq_broadcast(&lk->lock_object,
-				    SLEEPQ_LK, 0, SQ_EXCLUSIVE_QUEUE);
+				sleepq_broadcast(&lk->lock_object, SLEEPQ_LK, 0,
+				    SQ_EXCLUSIVE_QUEUE);
 				queue = SQ_SHARED_QUEUE;
 			}
 		} else {
@@ -390,14 +385,12 @@ retry_sleepq:
 		LOCK_LOG3(lk, "%s: %p waking up threads on the %s queue",
 		    __func__, lk, queue == SQ_SHARED_QUEUE ? "shared" :
 		    "exclusive");
-		wakeup_swapper |= sleepq_broadcast(&lk->lock_object, SLEEPQ_LK,
-		    0, queue);
+		sleepq_broadcast(&lk->lock_object, SLEEPQ_LK, 0, queue);
 		sleepq_release(&lk->lock_object);
 		break;
 	}
 
 	LOCKSTAT_PROFILE_RELEASE_RWLOCK(lockmgr__release, lk, LOCKSTAT_READER);
-	return (wakeup_swapper);
 }
 
 static void
@@ -730,7 +723,7 @@ retry_sleepq:
 	}
 
 out:
-	lockmgr_exit(flags, ilk, 0);
+	lockmgr_exit(flags, ilk);
 	return (error);
 }
 
@@ -968,7 +961,7 @@ retry_sleepq:
 	}
 
 out:
-	lockmgr_exit(flags, ilk, 0);
+	lockmgr_exit(flags, ilk);
 	return (error);
 }
 
@@ -1028,7 +1021,7 @@ out_xlock:
 	error = lockmgr_xlock_hard(lk, flags, ilk, file, line, lwa);
 	flags &= ~LK_INTERLOCK;
 out:
-	lockmgr_exit(flags, ilk, 0);
+	lockmgr_exit(flags, ilk);
 	return (error);
 }
 
@@ -1100,17 +1093,10 @@ lockmgr_lock_flags(struct lock *lk, u_int flags, struct lock_object *ilk,
 static __noinline int
 lockmgr_sunlock_hard(struct lock *lk, uintptr_t x, u_int flags, struct lock_object *ilk,
     const char *file, int line)
-
 {
-	int wakeup_swapper = 0;
-
-	if (SCHEDULER_STOPPED())
-		goto out;
-
-	wakeup_swapper = wakeupshlk(lk, file, line);
-
-out:
-	lockmgr_exit(flags, ilk, wakeup_swapper);
+	if (!SCHEDULER_STOPPED())
+		wakeupshlk(lk, file, line);
+	lockmgr_exit(flags, ilk);
 	return (0);
 }
 
@@ -1119,7 +1105,6 @@ lockmgr_xunlock_hard(struct lock *lk, uintptr_t x, u_int flags, struct lock_obje
     const char *file, int line)
 {
 	uintptr_t tid, v;
-	int wakeup_swapper = 0;
 	u_int realexslp;
 	int queue;
 
@@ -1188,8 +1173,8 @@ lockmgr_xunlock_hard(struct lock *lk, uintptr_t x, u_int flags, struct lock_obje
 			LOCK_LOG2(lk,
 			    "%s: %p waking up threads on the exclusive queue",
 			    __func__, lk);
-			wakeup_swapper = sleepq_broadcast(&lk->lock_object,
-			    SLEEPQ_LK, 0, SQ_EXCLUSIVE_QUEUE);
+			sleepq_broadcast(&lk->lock_object, SLEEPQ_LK, 0,
+			    SQ_EXCLUSIVE_QUEUE);
 			queue = SQ_SHARED_QUEUE;
 		}
 	} else {
@@ -1207,11 +1192,11 @@ lockmgr_xunlock_hard(struct lock *lk, uintptr_t x, u_int flags, struct lock_obje
 	    __func__, lk, queue == SQ_SHARED_QUEUE ? "shared" :
 	    "exclusive");
 	atomic_store_rel_ptr(&lk->lk_lock, v);
-	wakeup_swapper |= sleepq_broadcast(&lk->lock_object, SLEEPQ_LK, 0, queue);
+	sleepq_broadcast(&lk->lock_object, SLEEPQ_LK, 0, queue);
 	sleepq_release(&lk->lock_object);
 
 out:
-	lockmgr_exit(flags, ilk, wakeup_swapper);
+	lockmgr_exit(flags, ilk);
 	return (0);
 }
 
@@ -1309,7 +1294,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 	const char *iwmesg;
 	uintptr_t tid, v, x;
 	u_int op, realexslp;
-	int error, ipri, itimo, queue, wakeup_swapper;
+	int error, ipri, itimo, queue;
 #ifdef LOCK_PROFILING
 	uint64_t waittime = 0;
 	int contested = 0;
@@ -1361,7 +1346,6 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 		}
 	}
 
-	wakeup_swapper = 0;
 	switch (op) {
 	case LK_SHARED:
 		return (lockmgr_slock_hard(lk, flags, ilk, file, line, &lwa));
@@ -1519,8 +1503,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 							LOCK_LOG2(lk,
 			"%s: %p waking up threads on the exclusive queue",
 							    __func__, lk);
-							wakeup_swapper =
-							    sleepq_broadcast(
+							sleepq_broadcast(
 							    &lk->lock_object,
 							    SLEEPQ_LK, 0,
 							    SQ_EXCLUSIVE_QUEUE);
@@ -1536,8 +1519,8 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 				"%s: %p waking up all threads on the %s queue",
 				    __func__, lk, queue == SQ_SHARED_QUEUE ?
 				    "shared" : "exclusive");
-				wakeup_swapper |= sleepq_broadcast(
-				    &lk->lock_object, SLEEPQ_LK, 0, queue);
+				sleepq_broadcast(&lk->lock_object, SLEEPQ_LK, 0,
+				    queue);
 
 				/*
 				 * If shared waiters have been woken up we need
@@ -1604,8 +1587,6 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 
 	if (flags & LK_INTERLOCK)
 		class->lc_unlock(ilk);
-	if (wakeup_swapper)
-		kick_proc0();
 
 	return (error);
 }

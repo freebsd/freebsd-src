@@ -2068,20 +2068,16 @@ SYSINIT(linux_timer, SI_SUB_DRIVERS, SI_ORDER_FIRST, linux_timer_init, NULL);
 void
 linux_complete_common(struct completion *c, int all)
 {
-	int wakeup_swapper;
-
 	sleepq_lock(c);
 	if (all) {
 		c->done = UINT_MAX;
-		wakeup_swapper = sleepq_broadcast(c, SLEEPQ_SLEEP, 0, 0);
+		sleepq_broadcast(c, SLEEPQ_SLEEP, 0, 0);
 	} else {
 		if (c->done != UINT_MAX)
 			c->done++;
-		wakeup_swapper = sleepq_signal(c, SLEEPQ_SLEEP, 0, 0);
+		sleepq_signal(c, SLEEPQ_SLEEP, 0, 0);
 	}
 	sleepq_release(c);
-	if (wakeup_swapper)
-		kick_proc0();
 }
 
 /*
