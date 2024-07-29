@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20240729: rename quick_exit_test to libc_exit_test
+OLD_FILES+=usr/tests/lib/libc/stdlib/quick_exit_test
+
 # 20240729: retire ifaddr_byindex
 OLD_FILES+=usr/share/man/man9/ifaddr_byindex.9.gz
 
