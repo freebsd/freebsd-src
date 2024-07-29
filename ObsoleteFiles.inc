@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20240801: retire ifaddr_byindex
+OLD_FILES+=usr/share/man/man9/ifaddr_byindex.9.gz
+
 # 20240509: Remove remnants of portsnap(8)
 OLD_DIRS+=var/db/portsnap
 
