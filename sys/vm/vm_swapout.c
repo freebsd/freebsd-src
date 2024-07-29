@@ -122,33 +122,6 @@ static struct kproc_desc vm_kp = {
 };
 SYSINIT(vmdaemon, SI_SUB_KTHREAD_VM, SI_ORDER_FIRST, kproc_start, &vm_kp);
 
-static int vm_swap_enabled = 1;
-static int vm_swap_idle_enabled = 0;
-
-SYSCTL_INT(_vm, VM_SWAPPING_ENABLED, swap_enabled, CTLFLAG_RW,
-    &vm_swap_enabled, 0,
-    "Enable entire process swapout");
-SYSCTL_INT(_vm, OID_AUTO, swap_idle_enabled, CTLFLAG_RW,
-    &vm_swap_idle_enabled, 0,
-    "Allow swapout on idle criteria");
-
-/*
- * Swap_idle_threshold1 is the guaranteed swapped in time for a process
- */
-static int swap_idle_threshold1 = 2;
-SYSCTL_INT(_vm, OID_AUTO, swap_idle_threshold1, CTLFLAG_RW,
-    &swap_idle_threshold1, 0,
-    "Guaranteed swapped in time for a process");
-
-/*
- * Swap_idle_threshold2 is the time that a process can be idle before
- * it will be swapped out, if idle swapping is enabled.
- */
-static int swap_idle_threshold2 = 10;
-SYSCTL_INT(_vm, OID_AUTO, swap_idle_threshold2, CTLFLAG_RW,
-    &swap_idle_threshold2, 0,
-    "Time before a process will be swapped out");
-
 static int vm_daemon_timeout = 0;
 SYSCTL_INT(_vm, OID_AUTO, vmdaemon_timeout, CTLFLAG_RW,
     &vm_daemon_timeout, 0,

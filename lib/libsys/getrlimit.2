@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 30, 2016
+.Dd July 25, 2024
 .Dt GETRLIMIT 2
 .Os
 .Sh NAME
@@ -88,12 +88,6 @@ The maximum number of pseudo-terminals this user id is allowed to create.
 When there is memory pressure and swap is available, prioritize eviction of
 a process' resident pages beyond this amount (in bytes).
 When memory is not under pressure, this rlimit is effectively ignored.
-Even when there is memory pressure, the amount of available swap space and some
-sysctl settings like
-.Xr vm.swap_enabled
-and
-.Xr vm.swap_idle_enabled
-can affect what happens to processes that have exceeded this size.
 .Pp
 Processes that exceed their set
 .Dv RLIMIT_RSS
