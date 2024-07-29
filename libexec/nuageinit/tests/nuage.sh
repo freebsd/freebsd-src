@@ -1,9 +1,16 @@
+#-
+# Copyright (c) 2022 Baptiste Daroussin <bapt@FreeBSD.org>
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
+
 atf_test_case sethostname
 atf_test_case addsshkey
 atf_test_case adduser
 atf_test_case addgroup
 
-sethostname_body() {
+sethostname_body()
+{
 	export NUAGE_FAKE_ROOTDIR="$(pwd)"
 	atf_check /usr/libexec/flua $(atf_get_srcdir)/sethostname.lua
 	if [ ! -f etc/rc.conf.d/hostname ]; then
@@ -12,7 +19,8 @@ sethostname_body() {
 	atf_check -o inline:"hostname=\"myhostname\"\n" cat etc/rc.conf.d/hostname
 }
 
-addsshkey_body() {
+addsshkey_body()
+{
 	atf_check /usr/libexec/flua $(atf_get_srcdir)/addsshkey.lua
 	if [ ! -f .ssh/authorized_keys ]; then
 		atf_fail "ssh key not added"
@@ -24,7 +32,8 @@ addsshkey_body() {
 	atf_check -o inline:"mykey\nmykey\n" cat .ssh/authorized_keys
 }
 
-adduser_body() {
+adduser_body()
+{
 	export NUAGE_FAKE_ROOTDIR="$(pwd)"
 	if [ $(id -u) -ne 0 ]; then
 		atf_skip "root required"
@@ -38,7 +47,8 @@ adduser_body() {
 	atf_check -o inline:"impossible_username::1001:1001::0:0:impossible_username User:/home/impossible_username:/bin/sh\n" grep impossible_username etc/master.passwd
 }
 
-addgroup_body() {
+addgroup_body()
+{
 	export NUAGE_FAKE_ROOTDIR="$(pwd)"
 	mkdir etc
 	printf "wheel:*:0:root\n" > etc/group
@@ -46,7 +56,8 @@ addgroup_body() {
 	atf_check -o inline:"impossible_groupname:*:1001:\n" grep impossible_groupname etc/group
 }
 
-atf_init_test_cases() {
+atf_init_test_cases()
+{
 	atf_add_test_case sethostname
 	atf_add_test_case addsshkey
 	atf_add_test_case adduser
