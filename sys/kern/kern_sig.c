@@ -2791,8 +2791,7 @@ sig_suspend_threads(struct thread *td, struct proc *p)
 	FOREACH_THREAD_IN_PROC(p, td2) {
 		thread_lock(td2);
 		ast_sched_locked(td2, TDA_SUSPEND);
-		if ((TD_IS_SLEEPING(td2) || TD_IS_SWAPPED(td2)) &&
-		    (td2->td_flags & TDF_SINTR)) {
+		if (TD_IS_SLEEPING(td2) && (td2->td_flags & TDF_SINTR) != 0) {
 			if (td2->td_flags & TDF_SBDRY) {
 				/*
 				 * Once a thread is asleep with
@@ -3579,16 +3578,8 @@ proc_wkilled(struct proc *p)
 {
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	if ((p->p_flag & P_WKILLED) == 0) {
+	if ((p->p_flag & P_WKILLED) == 0)
 		p->p_flag |= P_WKILLED;
-		/*
-		 * Notify swapper that there is a process to swap in.
-		 * The notification is racy, at worst it would take 10
-		 * seconds for the swapper process to notice.
-		 */
-		if ((p->p_flag & (P_INMEM | P_SWAPPINGIN)) == 0)
-			wakeup(&proc0);
-	}
 }
 
 /*

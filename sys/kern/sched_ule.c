@@ -2334,8 +2334,6 @@ sched_sleep(struct thread *td, int prio)
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 
 	td->td_slptick = ticks;
-	if (TD_IS_SUSPENDED(td) || prio >= PSOCK)
-		td->td_flags |= TDF_CANSWAP;
 	if (PRI_BASE(td->td_pri_class) != PRI_TIMESHARE)
 		return;
 	if (static_boost == 1 && prio)
@@ -2358,7 +2356,6 @@ sched_wakeup(struct thread *td, int srqflags)
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	ts = td_get_sched(td);
-	td->td_flags &= ~TDF_CANSWAP;
 
 	/*
 	 * If we slept for more than a tick update our interactivity and

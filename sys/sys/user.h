@@ -613,7 +613,7 @@ struct kinfo_vmobject {
 #define	KKST_MAXLEN	1024
 
 #define	KKST_STATE_STACKOK	0		/* Stack is valid. */
-#define	KKST_STATE_SWAPPED	1		/* Stack swapped out. */
+#define	KKST_STATE_SWAPPED	1		/* Stack swapped out, obsolete. */
 #define	KKST_STATE_RUNNING	2		/* Stack ephemeral. */
 
 #if defined(__amd64__) || defined(__i386__)
