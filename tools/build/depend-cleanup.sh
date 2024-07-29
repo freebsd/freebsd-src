@@ -103,57 +103,6 @@ clean_dep()
 }
 
 # Date      Rev      Description
-# 20200310  r358851  rename of openmp's ittnotify_static.c to .cpp
-clean_dep lib/libomp ittnotify_static c
-# 20200414  r359930  closefrom
-clean_dep lib/libc   closefrom S
-
-# 20200826  r364746  OpenZFS merge, apply a big hammer (remove whole tree)
-if [ -e "$OBJTOP"/cddl/lib/libzfs/.depend.libzfs_changelist.o ] && \
-    egrep -qw "cddl/contrib/opensolaris/lib/libzfs/common/libzfs_changelist.c" \
-    "$OBJTOP"/cddl/lib/libzfs/.depend.libzfs_changelist.o; then
-	echo "Removing old ZFS tree"
-	for libcompat in "" $ALL_libcompats; do
-		dirprfx=${libcompat:+obj-lib${libcompat}/}
-		run rm -rf "$OBJTOP"/${dirprfx}cddl
-	done
-fi
-
-# 20200916  WARNS bumped, need bootstrapped crunchgen stubs
-if [ -e "$OBJTOP"/rescue/rescue/rescue.c ] && \
-    ! grep -q 'crunched_stub_t' "$OBJTOP"/rescue/rescue/rescue.c; then
-	echo "Removing old rescue(8) tree"
-	run rm -rf "$OBJTOP"/rescue/rescue
-fi
-
-# 20210105  fda7daf06301   pfctl gained its own version of pf_ruleset.c
-if [ -e "$OBJTOP"/sbin/pfctl/.depend.pf_ruleset.o ] && \
-    egrep -qw "sys/netpfil/pf/pf_ruleset.c" \
-    "$OBJTOP"/sbin/pfctl/.depend.pf_ruleset.o; then
-	echo "Removing old pf_ruleset dependecy file"
-	run rm -rf "$OBJTOP"/sbin/pfctl/.depend.pf_ruleset.o
-fi
-
-# 20210108  821aa63a0940   non-widechar version of ncurses removed
-if [ -e "$OBJTOP"/lib/ncurses/ncursesw ]; then
-	echo "Removing stale ncurses objects"
-	for libcompat in "" $ALL_libcompats; do
-		dirprfx=${libcompat:+obj-lib${libcompat}/}
-		run rm -rf "$OBJTOP"/${dirprfx}lib/ncurses
-	done
-fi
-
-# 20210608  f20893853e8e    move from atomic.S to atomic.c
-clean_dep   cddl/lib/libspl atomic S
-# 20211207  cbdec8db18b5    switch to libthr-friendly pdfork
-clean_dep   lib/libc        pdfork S
-
-# 20211230  5e6a2d6eb220    libc++.so.1 path changed in ldscript
-if [ -e "$OBJTOP"/lib/libc++/libc++.ld ] && \
-    fgrep -q "/usr/lib/libc++.so" "$OBJTOP"/lib/libc++/libc++.ld; then
-	echo "Removing old libc++ linker script"
-	run rm -f "$OBJTOP"/lib/libc++/libc++.ld
-fi
 
 # 20220326  fbc002cb72d2    move from bcmp.c to bcmp.S
 if [ "$MACHINE_ARCH" = "amd64" ]; then
