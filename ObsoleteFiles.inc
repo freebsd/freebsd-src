@@ -56,8 +56,8 @@ OLD_FILES+=usr/share/man/man9/ifaddr_byindex.9.gz
 
 # 20240729: remove MD5(9)
 OLD_FILES+=usr/share/man/man9/MD5.9.gz
-OLD_FILES+=usr/share/man/man9/MD5Init.9
-OLD_FILES+=usr/share/man/man9/MD5Transform.9
+OLD_FILES+=usr/share/man/man9/MD5Init.9.gz
+OLD_FILES+=usr/share/man/man9/MD5Transform.9.gz
 
 # 20240726: deprecate contigfree(9)
 OLD_FILES+=usr/share/man/man9/contigfree.9.gz
