@@ -90,12 +90,3 @@ static int vm_swap_idle_enabled = 0;
 SYSCTL_INT(_vm, OID_AUTO, swap_idle_enabled, CTLFLAG_RD,
     &vm_swap_idle_enabled, 0,
     "Allow swapout on idle criteria");
-
-void
-faultin(struct proc *p)
-{
-
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-	if ((p->p_flag & P_INMEM) == 0)
-		panic("faultin: proc %p swapped out with NO_SWAPPING", p);
-}

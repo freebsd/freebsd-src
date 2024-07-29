@@ -159,11 +159,6 @@ static struct mtx vm_daemon_mtx;
 /* Allow for use by vm_pageout before vm_daemon is initialized. */
 MTX_SYSINIT(vm_daemon, &vm_daemon_mtx, "vm daemon", MTX_DEF);
 
-static int swapped_cnt;
-static int swap_inprogress;	/* Pending swap-ins done outside swapper. */
-static int last_swapin;
-
-static void swapclear(struct proc *);
 static void vm_swapout_map_deactivate_pages(vm_map_t, long);
 static void vm_swapout_object_deactivate(pmap_t, vm_object_t, long);
 
@@ -396,7 +391,7 @@ again:
 			if ((p->p_flag & P_INMEM) == 0)
 				limit = 0;	/* XXX */
 			vm = vmspace_acquire_ref(p);
-			_PHOLD_LITE(p);
+			_PHOLD(p);
 			PROC_UNLOCK(p);
 			if (vm == NULL) {
 				PRELE(p);
@@ -459,137 +454,4 @@ again:
 			goto again;
 		}
 	}
-}
-
-/*
- * Bring the kernel stack for a specified thread back in.
- */
-static void
-vm_thread_swapin(struct thread *td, int oom_alloc)
-{
-	vm_page_t ma[KSTACK_MAX_PAGES];
-	vm_offset_t kaddr;
-	vm_object_t obj;
-	int a, count, i, j, pages, rv __diagused;
-
-	kaddr = td->td_kstack;
-	pages = td->td_kstack_pages;
-	obj = vm_thread_kstack_size_to_obj(pages);
-	while (vm_thread_stack_back(kaddr, ma, pages, oom_alloc,
-	    td->td_kstack_domain) == ENOMEM)
-		    ;
-	for (i = 0; i < pages;) {
-		vm_page_assert_xbusied(ma[i]);
-		if (vm_page_all_valid(ma[i])) {
-			i++;
-			continue;
-		}
-		vm_object_pip_add(obj, 1);
-		for (j = i + 1; j < pages; j++)
-			if (vm_page_all_valid(ma[j]))
-				break;
-		VM_OBJECT_WLOCK(obj);
-		rv = vm_pager_has_page(obj, ma[i]->pindex, NULL, &a);
-		VM_OBJECT_WUNLOCK(obj);
-		KASSERT(rv == 1, ("%s: missing page %p", __func__, ma[i]));
-		count = min(a + 1, j - i);
-		rv = vm_pager_get_pages(obj, ma + i, count, NULL, NULL);
-		KASSERT(rv == VM_PAGER_OK, ("%s: cannot get kstack for proc %d",
-		    __func__, td->td_proc->p_pid));
-		vm_object_pip_wakeup(obj);
-		i += count;
-	}
-	pmap_qenter(kaddr, ma, pages);
-	cpu_thread_swapin(td);
-}
-
-void
-faultin(struct proc *p)
-{
-	struct thread *td;
-	int oom_alloc;
-
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-
-	/*
-	 * If another process is swapping in this process,
-	 * just wait until it finishes.
-	 */
-	if (p->p_flag & P_SWAPPINGIN) {
-		while (p->p_flag & P_SWAPPINGIN)
-			msleep(&p->p_flag, &p->p_mtx, PVM, "faultin", 0);
-		return;
-	}
-
-	if ((p->p_flag & P_INMEM) == 0) {
-		oom_alloc = (p->p_flag & P_WKILLED) != 0 ? VM_ALLOC_SYSTEM :
-		    VM_ALLOC_NORMAL;
-
-		/*
-		 * Don't let another thread swap process p out while we are
-		 * busy swapping it in.
-		 */
-		++p->p_lock;
-		p->p_flag |= P_SWAPPINGIN;
-		PROC_UNLOCK(p);
-		sx_xlock(&allproc_lock);
-		MPASS(swapped_cnt > 0);
-		swapped_cnt--;
-		if (curthread != &thread0)
-			swap_inprogress++;
-		sx_xunlock(&allproc_lock);
-
-		/*
-		 * We hold no lock here because the list of threads
-		 * can not change while all threads in the process are
-		 * swapped out.
-		 */
-		FOREACH_THREAD_IN_PROC(p, td)
-			vm_thread_swapin(td, oom_alloc);
-
-		if (curthread != &thread0) {
-			sx_xlock(&allproc_lock);
-			MPASS(swap_inprogress > 0);
-			swap_inprogress--;
-			last_swapin = ticks;
-			sx_xunlock(&allproc_lock);
-		}
-		PROC_LOCK(p);
-		swapclear(p);
-		p->p_swtick = ticks;
-
-		/* Allow other threads to swap p out now. */
-		wakeup(&p->p_flag);
-		--p->p_lock;
-	}
-}
-
-static void
-swapclear(struct proc *p)
-{
-	struct thread *td;
-
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-
-	FOREACH_THREAD_IN_PROC(p, td) {
-		thread_lock(td);
-		td->td_flags |= TDF_INMEM;
-		td->td_flags &= ~TDF_SWAPINREQ;
-		TD_CLR_SWAPPED(td);
-		if (TD_CAN_RUN(td)) {
-			if (setrunnable(td, 0)) {
-#ifdef INVARIANTS
-				/*
-				 * XXX: We just cleared TDI_SWAPPED
-				 * above and set TDF_INMEM, so this
-				 * should never happen.
-				 */
-				panic("not waking up swapper");
-#endif
-			}
-		} else
-			thread_unlock(td);
-	}
-	p->p_flag &= ~(P_SWAPPINGIN | P_SWAPPINGOUT);
-	p->p_flag |= P_INMEM;
 }

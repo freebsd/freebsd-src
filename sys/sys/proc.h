@@ -704,7 +704,7 @@ struct proc {
 	struct vnode	*p_textvp;	/* (b) Vnode of executable. */
 	struct vnode	*p_textdvp;	/* (b) Dir containing textvp. */
 	char		*p_binname;	/* (b) Binary hardlink name. */
-	u_int		p_lock;		/* (c) Proclock (prevent swap) count. */
+	u_int		p_lock;		/* (c) Prevent exit. */
 	struct sigiolst	p_sigiolst;	/* (c) List of sigio sources. */
 	int		p_sigparent;	/* (c) Signal to parent on exit. */
 	int		p_sig;		/* (n) For core dump/debugger XXX. */
@@ -986,18 +986,12 @@ extern pid_t pid_max;
 #define	SESS_LOCK_ASSERT(s, type)	mtx_assert(&(s)->s_mtx, (type))
 
 /*
- * Non-zero p_lock ensures that:
- * - exit1() is not performed until p_lock reaches zero;
- * - the process' threads stack are not swapped out if they are currently
- *   not (P_INMEM).
+ * A non-zero p_lock prevents the process from exiting; it will sleep in exit1()
+ * until the count reaches zero.
  *
  * PHOLD() asserts that the process (except the current process) is
- * not exiting, increments p_lock and swaps threads stacks into memory,
- * if needed.
+ * not exiting and increments p_lock.
  * _PHOLD() is same as PHOLD(), it takes the process locked.
- * _PHOLD_LITE() also takes the process locked, but comparing with
- * _PHOLD(), it only guarantees that exit1() is not executed,
- * faultin() is not called.
  */
 #define	PHOLD(p) do {							\
 	PROC_LOCK(p);							\
@@ -1005,14 +999,6 @@ extern pid_t pid_max;
 	PROC_UNLOCK(p);							\
 } while (0)
 #define	_PHOLD(p) do {							\
-	PROC_LOCK_ASSERT((p), MA_OWNED);				\
-	KASSERT(!((p)->p_flag & P_WEXIT) || (p) == curproc,		\
-	    ("PHOLD of exiting process %p", p));			\
-	(p)->p_lock++;							\
-	if (((p)->p_flag & P_INMEM) == 0)				\
-		faultin((p));						\
-} while (0)
-#define	_PHOLD_LITE(p) do {						\
 	PROC_LOCK_ASSERT((p), MA_OWNED);				\
 	KASSERT(!((p)->p_flag & P_WEXIT) || (p) == curproc,		\
 	    ("PHOLD of exiting process %p", p));			\
@@ -1174,7 +1160,6 @@ int	cr_cansignal(struct ucred *cred, struct proc *proc, int signum);
 int	enterpgrp(struct proc *p, pid_t pgid, struct pgrp *pgrp,
 	    struct session *sess);
 int	enterthispgrp(struct proc *p, struct pgrp *pgrp);
-void	faultin(struct proc *p);
 int	fork1(struct thread *, struct fork_req *);
 void	fork_exit(void (*)(void *, struct trapframe *), void *,
 	    struct trapframe *);
