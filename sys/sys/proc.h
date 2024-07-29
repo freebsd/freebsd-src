@@ -1200,7 +1200,7 @@ int	securelevel_ge(struct ucred *cr, int level);
 int	securelevel_gt(struct ucred *cr, int level);
 void	sess_hold(struct session *);
 void	sess_release(struct session *);
-int	setrunnable(struct thread *, int);
+void	setrunnable(struct thread *, int);
 void	setsugid(struct proc *p);
 bool	should_yield(void);
 int	sigonstack(size_t sp);
