@@ -1544,8 +1544,6 @@ MLINKS+=\
 	mbuf_tags.9 m_tag_next.9 \
 	mbuf_tags.9 m_tag_prepend.9 \
 	mbuf_tags.9 m_tag_unlink.9
-MLINKS+=MD5.9 MD5Init.9 \
-	MD5.9 MD5Transform.9
 MLINKS+=mdchain.9 md_append_record.9 \
 	mdchain.9 md_done.9 \
 	mdchain.9 md_get_int64.9 \
