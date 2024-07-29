@@ -225,7 +225,7 @@ void fill_kinfo_proc(struct proc *, struct kinfo_proc *);
  *  Legacy PS_ flag.  This moved to p_flag but is maintained for
  *  compatibility.
  */
-#define	PS_INMEM	0x00001		/* Loaded into memory. */
+#define	PS_INMEM	0x00001		/* Loaded into memory, always true. */
 
 /* ki_sessflag values */
 #define	KI_CTTY		0x00000001	/* controlling tty vnode active */

@@ -215,8 +215,6 @@ db_ps_proc(struct proc *p)
 	state[1] = '\0';
 
 	/* Additional process state flags. */
-	if (!(p->p_flag & P_INMEM))
-		strlcat(state, "W", sizeof(state));
 	if (p->p_flag & P_TRACED)
 		strlcat(state, "X", sizeof(state));
 	if (p->p_flag & P_WEXIT && p->p_state != PRS_ZOMBIE)
