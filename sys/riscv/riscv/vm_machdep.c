@@ -114,16 +114,6 @@ cpu_reset(void)
 }
 
 void
-cpu_thread_swapin(struct thread *td)
-{
-}
-
-void
-cpu_thread_swapout(struct thread *td)
-{
-}
-
-void
 cpu_set_syscall_retval(struct thread *td, int error)
 {
 	struct trapframe *frame;
