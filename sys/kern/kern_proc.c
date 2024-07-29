@@ -1148,10 +1148,7 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 		kp->ki_ssize = vm->vm_ssize;
 	} else if (p->p_state == PRS_ZOMBIE)
 		kp->ki_stat = SZOMB;
-	if (kp->ki_flag & P_INMEM)
-		kp->ki_sflag = PS_INMEM;
-	else
-		kp->ki_sflag = 0;
+	kp->ki_sflag = PS_INMEM;
 	/* Calculate legacy swtime as seconds since 'swtick'. */
 	kp->ki_swtime = (ticks - p->p_swtick) / hz;
 	kp->ki_pid = p->p_pid;

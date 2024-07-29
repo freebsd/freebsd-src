@@ -835,7 +835,7 @@ struct proc {
 #define	P_TOTAL_STOP	0x02000000	/* Stopped in stop_all_proc. */
 #define	P_INEXEC	0x04000000	/* Process is in execve(). */
 #define	P_STATCHILD	0x08000000	/* Child process stopped or exited. */
-#define	P_INMEM		0x10000000	/* Loaded into memory. */
+#define	P_INMEM		0x10000000	/* Loaded into memory, always set. */
 #define	P_UNUSED1	0x20000000	/* --available-- */
 #define	P_UNUSED2	0x40000000	/* --available-- */
 #define	P_PPTRACE	0x80000000	/* PT_TRACEME by vforked child. */

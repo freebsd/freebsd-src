@@ -871,10 +871,7 @@ db_stack_trace(db_expr_t tid, bool hastid, db_expr_t count, char *modif)
 	else
 		pid = -1;
 	db_printf("Tracing pid %d tid %ld td %p\n", pid, (long)td->td_tid, td);
-	if (td->td_proc != NULL && (td->td_proc->p_flag & P_INMEM) == 0)
-		db_printf("--- swapped out\n");
-	else
-		db_trace_thread(td, count);
+	db_trace_thread(td, count);
 }
 
 static void
@@ -898,10 +895,7 @@ _db_stack_trace_all(bool active_only)
 				db_printf("\nTracing command %s pid %d"
 				    " tid %ld td %p\n", td->td_proc->p_comm,
 				    td->td_proc->p_pid, (long)td->td_tid, td);
-			if (td->td_proc->p_flag & P_INMEM)
-				db_trace_thread(td, -1);
-			else
-				db_printf("--- swapped out\n");
+			db_trace_thread(td, -1);
 			if (db_pager_quit) {
 				kdb_jmpbuf(prev_jb);
 				return;

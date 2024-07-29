@@ -383,13 +383,6 @@ again:
 			limit = OFF_TO_IDX(
 			    qmin(rsslim.rlim_cur, rsslim.rlim_max));
 
-			/*
-			 * let processes that are swapped out really be
-			 * swapped out set the limit to nothing (will force a
-			 * swap-out.)
-			 */
-			if ((p->p_flag & P_INMEM) == 0)
-				limit = 0;	/* XXX */
 			vm = vmspace_acquire_ref(p);
 			_PHOLD(p);
 			PROC_UNLOCK(p);
