@@ -562,7 +562,7 @@ mi_switch(int flags)
  *
  * Requires the thread lock on entry, drops on exit.
  */
-int
+void
 setrunnable(struct thread *td, int srqflags)
 {
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
@@ -586,8 +586,6 @@ setrunnable(struct thread *td, int srqflags)
 	default:
 		panic("setrunnable: state 0x%x", TD_GET_STATE(td));
 	}
-
-	return (0);
 }
 
 /*
