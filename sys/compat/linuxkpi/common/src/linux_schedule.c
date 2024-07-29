@@ -98,18 +98,16 @@ linux_msleep_interruptible(unsigned int ms)
 static int
 wake_up_task(struct task_struct *task, unsigned int state)
 {
-	int ret, wakeup_swapper;
+	int ret;
 
-	ret = wakeup_swapper = 0;
+	ret = 0;
 	sleepq_lock(task);
 	if ((atomic_read(&task->state) & state) != 0) {
 		set_task_state(task, TASK_WAKING);
-		wakeup_swapper = sleepq_signal(task, SLEEPQ_SLEEP, 0, 0);
+		sleepq_signal(task, SLEEPQ_SLEEP, 0, 0);
 		ret = 1;
 	}
 	sleepq_release(task);
-	if (wakeup_swapper)
-		kick_proc0();
 	return (ret);
 }
 
@@ -330,13 +328,9 @@ linux_schedule_timeout(int timeout)
 static void
 wake_up_sleepers(void *wchan)
 {
-	int wakeup_swapper;
-
 	sleepq_lock(wchan);
-	wakeup_swapper = sleepq_signal(wchan, SLEEPQ_SLEEP, 0, 0);
+	sleepq_signal(wchan, SLEEPQ_SLEEP, 0, 0);
 	sleepq_release(wchan);
-	if (wakeup_swapper)
-		kick_proc0();
 }
 
 #define	bit_to_wchan(word, bit)	((void *)(((uintptr_t)(word) << 6) | (bit)))

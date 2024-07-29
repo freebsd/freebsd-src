@@ -344,16 +344,9 @@ pause_sbt(const char *wmesg, sbintime_t sbt, sbintime_t pr, int flags)
 void
 wakeup(const void *ident)
 {
-	int wakeup_swapper;
-
 	sleepq_lock(ident);
-	wakeup_swapper = sleepq_broadcast(ident, SLEEPQ_SLEEP, 0, 0);
+	sleepq_broadcast(ident, SLEEPQ_SLEEP, 0, 0);
 	sleepq_release(ident);
-	if (wakeup_swapper) {
-		KASSERT(ident != &proc0,
-		    ("wakeup and wakeup_swapper and proc0"));
-		kick_proc0();
-	}
 }
 
 /*
@@ -364,24 +357,15 @@ wakeup(const void *ident)
 void
 wakeup_one(const void *ident)
 {
-	int wakeup_swapper;
-
 	sleepq_lock(ident);
-	wakeup_swapper = sleepq_signal(ident, SLEEPQ_SLEEP | SLEEPQ_DROP, 0, 0);
-	if (wakeup_swapper)
-		kick_proc0();
+	sleepq_signal(ident, SLEEPQ_SLEEP | SLEEPQ_DROP, 0, 0);
 }
 
 void
 wakeup_any(const void *ident)
 {
-	int wakeup_swapper;
-
 	sleepq_lock(ident);
-	wakeup_swapper = sleepq_signal(ident, SLEEPQ_SLEEP | SLEEPQ_UNFAIR |
-	    SLEEPQ_DROP, 0, 0);
-	if (wakeup_swapper)
-		kick_proc0();
+	sleepq_signal(ident, SLEEPQ_SLEEP | SLEEPQ_UNFAIR | SLEEPQ_DROP, 0, 0);
 }
 
 /*
