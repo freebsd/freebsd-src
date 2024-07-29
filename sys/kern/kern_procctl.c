@@ -337,7 +337,7 @@ reap_kill_sched(struct reap_kill_tracker_head *tracker, struct proc *p2)
 		PROC_UNLOCK(p2);
 		return;
 	}
-	_PHOLD_LITE(p2);
+	_PHOLD(p2);
 	PROC_UNLOCK(p2);
 	t = malloc(sizeof(struct reap_kill_tracker), M_TEMP, M_WAITOK);
 	t->parent = p2;
@@ -463,7 +463,7 @@ reap_kill_subtree_once(struct thread *td, struct proc *p, struct proc *reaper,
 			} else {
 				PROC_LOCK(p2);
 				if ((p2->p_flag2 & P2_WEXIT) == 0) {
-					_PHOLD_LITE(p2);
+					_PHOLD(p2);
 					p2->p_flag2 |= P2_REAPKILLED;
 					PROC_UNLOCK(p2);
 					w->target = p2;
