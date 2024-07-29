@@ -12,32 +12,36 @@
 
 #include <atf-c.h>
 
-static void func_a(void)
+static void
+func_a(void)
 {
 	if (write(STDOUT_FILENO, "a", 1) != 1)
 		_Exit(1);
 }
 
-static void func_b(void)
+static void
+func_b(void)
 {
 	if (write(STDOUT_FILENO, "b", 1) != 1)
 		_Exit(1);
 }
 
-static void func_c(void)
+static void
+func_c(void)
 {
 	if (write(STDOUT_FILENO, "c", 1) != 1)
 		_Exit(1);
 }
 
-static void child(void)
+static void
+child(void)
 {
-	// this will be received by the parent
+	/* this will be received by the parent */
 	printf("hello, ");
 	fflush(stdout);
-	// this won't, because quick_exit() does not flush
+	/* this won't, because quick_exit() does not flush */
 	printf("world");
-	// these will be called in reverse order, producing "abc"
+	/* these will be called in reverse order, producing "abc" */
 	if (at_quick_exit(func_c) != 0 ||
 	    at_quick_exit(func_b) != 0 ||
 	    at_quick_exit(func_a) != 0)
