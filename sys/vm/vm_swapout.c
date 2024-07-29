@@ -68,7 +68,6 @@
  * rights to redistribute these changes.
  */
 
-#include <sys/cdefs.h>
 #include "opt_kstack_pages.h"
 #include "opt_kstack_max_pages.h"
 #include "opt_vm.h"
@@ -293,12 +292,10 @@ vm_daemon(void)
 	struct thread *td;
 	struct vmspace *vm;
 	int breakout, tryagain, attempts;
-#ifdef RACCT
 	uint64_t rsize, ravailable;
 
 	if (racct_enable && vm_daemon_timeout == 0)
 		vm_daemon_timeout = hz;
-#endif
 
 	while (TRUE) {
 		mtx_lock(&vm_daemon_mtx);
@@ -371,7 +368,6 @@ again:
 				    &vm->vm_map, limit);
 				size = vmspace_resident_count(vm);
 			}
-#ifdef RACCT
 			if (racct_enable) {
 				rsize = IDX_TO_OFF(size);
 				PROC_LOCK(p);
@@ -409,7 +405,6 @@ again:
 						tryagain = 1;
 				}
 			}
-#endif
 			vmspace_free(vm);
 			sx_slock(&allproc_lock);
 			PRELE(p);
