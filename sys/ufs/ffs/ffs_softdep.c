@@ -1904,7 +1904,6 @@ process_worklist_item(struct mount *mp,
 	 */
 	if (curthread->td_pflags & TDP_COWINPROGRESS)
 		return (-1);
-	PHOLD(curproc);	/* Don't let the stack go away. */
 	ump = VFSTOUFS(mp);
 	LOCK_OWNED(ump);
 	matchcnt = 0;
@@ -1977,7 +1976,6 @@ process_worklist_item(struct mount *mp,
 		ump->softdep_worklist_tail =
 		    (struct worklist *)sentinel.wk_list.le_prev;
 	LIST_REMOVE(&sentinel, wk_list);
-	PRELE(curproc);
 	return (matchcnt);
 }
 
@@ -10230,7 +10228,6 @@ softdep_disk_io_initiation(
 		return;
 
 	marker.wk_type = D_LAST + 1;	/* Not a normal workitem */
-	PHOLD(curproc);			/* Don't swap out kernel stack */
 	ACQUIRE_LOCK(ump);
 	/*
 	 * Do any necessary pre-I/O processing.
@@ -10315,7 +10312,6 @@ softdep_disk_io_initiation(
 		}
 	}
 	FREE_LOCK(ump);
-	PRELE(curproc);			/* Allow swapout of kernel stack */
 }
 
 /*

@@ -268,11 +268,6 @@ linux_wait_event_common(wait_queue_head_t *wqh, wait_queue_t *wq, int timeout,
 
 	task = current;
 
-	/*
-	 * Our wait queue entry is on the stack - make sure it doesn't
-	 * get swapped out while we sleep.
-	 */
-	PHOLD(task->task_thread->td_proc);
 	sleepq_lock(task);
 	if (atomic_read(&task->state) != TASK_WAKING) {
 		ret = linux_add_to_sleepqueue(task, task, "wevent", timeout,
@@ -281,7 +276,6 @@ linux_wait_event_common(wait_queue_head_t *wqh, wait_queue_t *wq, int timeout,
 		sleepq_release(task);
 		ret = 0;
 	}
-	PRELE(task->task_thread->td_proc);
 
 	if (lock != NULL)
 		spin_lock_irq(lock);
