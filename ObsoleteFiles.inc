@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20240729: retire ifaddr_byindex
+OLD_FILES+=usr/share/man/man9/ifaddr_byindex.9.gz
+
 # 20240726: deprecate contigfree(9)
 OLD_FILES+=usr/share/man/man9/contigfree.9.gz
 

@@ -1335,7 +1335,6 @@ MLINKS+=ifnet.9 if_addmulti.9 \
 	ifnet.9 ifa_ifwithnet.9 \
 	ifnet.9 ifa_ref.9 \
 	ifnet.9 ifaddr.9 \
-	ifnet.9 ifaddr_byindex.9 \
 	ifnet.9 ifaof_ifpforaddr.9 \
 	ifnet.9 ifioctl.9 \
 	ifnet.9 ifpromisc.9 \
