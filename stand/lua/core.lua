@@ -542,6 +542,27 @@ function core.nextConsoleChoice()
 	end
 end
 
+-- Sanity check the boot loader revision
+-- Loaders with version 3.0 have everything that we need without backwards
+-- compatible hacks. Warn users that still have old versions to upgrade so
+-- that we can remove the backwards compatible hacks in the future since
+-- they have been there a long time.
+local loader_major = 3
+
+function core.loaderTooOld()
+	return loader.version == nil or loader.version < loader_major * 1000
+end
+
+if core.loaderTooOld() then
+	print("**********************************************************************")
+	print("**********************************************************************")
+	print("*****                                                            *****")
+	print("*****           BOOT LOADER IS TOO OLD. PLEASE UPGRADE.          *****")
+	print("*****                                                            *****")
+	print("**********************************************************************")
+	print("**********************************************************************")
+end
+
 recordDefaults()
 hook.register("config.reloaded", core.clearCachedKernels)
 return core
