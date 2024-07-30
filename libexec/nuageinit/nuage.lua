@@ -7,12 +7,19 @@ local unistd = require("posix.unistd")
 local sys_stat = require("posix.sys.stat")
 local lfs = require("lfs")
 
-local function warnmsg(str)
-	io.stderr:write(str .. "\n")
+local function warnmsg(str, prepend)
+	if not str then
+		return
+	end
+	local tag = ""
+	if prepend ~= false then
+		tag = "nuageinit: "
+	end
+	io.stderr:write(tag .. str .. "\n")
 end
 
-local function errmsg(str)
-	io.stderr:write(str .. "\n")
+local function errmsg(str, prepend)
+	warnmsg(str, prepend)
 	os.exit(1)
 end
 
@@ -129,7 +136,7 @@ local function adduser(pwd)
 
 	local r = os.execute(cmd)
 	if not r then
-		warnmsg("nuageinit: fail to add user " .. pwd.name)
+		warnmsg("fail to add user " .. pwd.name)
 		warnmsg(cmd)
 		return nil
 	end
@@ -172,7 +179,7 @@ local function addgroup(grp)
 	cmd = cmd .. "groupadd -n " .. grp.name .. extraargs
 	local r = os.execute(cmd)
 	if not r then
-		warnmsg("nuageinit: fail to add group " .. grp.name)
+		warnmsg("fail to add group " .. grp.name)
 		warnmsg(cmd)
 		return false
 	end
@@ -201,7 +208,7 @@ local function addsshkey(homedir, key)
 
 	local f = io.open(ak_path, "a")
 	if not f then
-		warnmsg("nuageinit: impossible to open " .. ak_path)
+		warnmsg("impossible to open " .. ak_path)
 		return
 	end
 	f:write(key .. "\n")
