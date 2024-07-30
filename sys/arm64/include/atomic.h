@@ -65,8 +65,9 @@ extern _Bool lse_supported;
 
 #include <sys/atomic_common.h>
 
-#ifdef _KERNEL
-
+#if defined(__ARM_FEATURE_ATOMICS)
+#define	_ATOMIC_LSE_SUPPORTED	1
+#elif defined(_KERNEL)
 #ifdef LSE_ATOMICS
 #define	_ATOMIC_LSE_SUPPORTED	1
 #else
