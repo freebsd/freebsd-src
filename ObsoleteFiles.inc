@@ -1043,7 +1043,6 @@ OLD_FILES+=usr/include/c++/v1/__pstl/internal/parallel_backend_utils.h
 OLD_FILES+=usr/include/c++/v1/__pstl/internal/unseq_backend_simd.h
 OLD_FILES+=usr/include/c++/v1/__pstl/internal/utils.h
 OLD_DIRS+=usr/include/c++/v1/__pstl/internal
-OLD_DIRS+=usr/include/c++/v1/__pstl
 OLD_FILES+=usr/include/c++/v1/__pstl_algorithm
 OLD_FILES+=usr/include/c++/v1/__pstl_memory
 OLD_FILES+=usr/include/c++/v1/__pstl_numeric

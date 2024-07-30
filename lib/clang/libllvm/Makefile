@@ -1062,6 +1062,7 @@ SRCS_MIN+=	ProfileData/InstrProfReader.cpp
 SRCS_MIN+=	ProfileData/InstrProfWriter.cpp
 SRCS_MIN+=	ProfileData/ItaniumManglingCanonicalizer.cpp
 SRCS_MIN+=	ProfileData/MemProf.cpp
+SRCS_COV+=	ProfileData/MemProfReader.cpp
 SRCS_MIN+=	ProfileData/ProfileSummaryBuilder.cpp
 SRCS_MIN+=	ProfileData/SampleProf.cpp
 SRCS_MIN+=	ProfileData/SampleProfReader.cpp
