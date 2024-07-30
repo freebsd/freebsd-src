@@ -2863,3 +2863,6 @@ device		xz		# xz_embedded LZMA de-compression library
 
 # Kernel support for stats(3).
 options 	STATS
+
+# File system monitoring
+device		filemon		# file monitoring for make(1) meta-mode
