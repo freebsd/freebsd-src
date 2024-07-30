@@ -42,7 +42,7 @@ __ssp_redirect_raw_impl(int, poll, poll,
 	return (__ssp_real(poll)(fds, nfds, timeout));
 }
 
-
+#if __BSD_VISIBLE
 __ssp_redirect_raw_impl(int, ppoll, ppoll,
     (struct pollfd fds[], nfds_t nfds,
     const struct timespec *__restrict timeout,
@@ -53,7 +53,7 @@ __ssp_redirect_raw_impl(int, ppoll, ppoll,
 
 	return (__ssp_real(ppoll)(fds, nfds, timeout, newsigmask));
 }
-
+#endif	/* __BSD_VISIBLE */
 __END_DECLS
 
 #endif /* __SSP_FORTIFY_LEVEL > 0 */
