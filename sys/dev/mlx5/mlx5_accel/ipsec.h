@@ -37,6 +37,8 @@
 #define MLX5E_IPSEC_SADB_RX_BITS 10
 #define MLX5_IPSEC_METADATA_MARKER(ipsec_metadata) ((ipsec_metadata >> 31) & 0x1)
 
+#define VLAN_NONE 0xfff
+
 struct mlx5e_priv;
 struct mlx5e_tx_wqe;
 struct mlx5e_ipsec_tx;
@@ -135,6 +137,7 @@ struct mlx5e_ipsec_rule {
 	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_handle *kspi_rule;
 	struct mlx5_flow_handle *reqid_rule;
+	struct mlx5_flow_handle *vid_zero_rule;
 	struct mlx5_modify_hdr *modify_hdr;
 	struct mlx5_pkt_reformat *pkt_reformat;
 	struct mlx5_fc *fc;
@@ -149,6 +152,7 @@ struct mlx5e_ipsec_esn_state {
 struct mlx5e_ipsec_sa_entry {
 	struct secasvar *savp;
 	if_t ifp;
+	if_t ifpo;
 	struct mlx5e_ipsec *ipsec;
 	struct mlx5_accel_esp_xfrm_attrs attrs;
 	struct mlx5e_ipsec_rule ipsec_rule;
@@ -158,6 +162,7 @@ struct mlx5e_ipsec_sa_entry {
 	u32 enc_key_id;
 	u16 kspi; /* Stack allocated unique SA identifier */
 	struct mlx5e_ipsec_esn_state esn_state;
+	u16 vid;
 };
 
 struct upspec {
@@ -184,6 +189,7 @@ struct mlx5_accel_pol_xfrm_attrs {
         u8 dir : 2;
         u32 reqid;
         u32 prio;
+        u16 vid;
 };
 
 struct mlx5e_ipsec_pol_entry {

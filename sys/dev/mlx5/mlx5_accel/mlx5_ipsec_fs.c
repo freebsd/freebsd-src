@@ -185,6 +185,44 @@ static void setup_fte_spi(struct mlx5_flow_spec *spec, u32 spi, bool encap)
 	}
 }
 
+static void
+setup_fte_vid(struct mlx5_flow_spec *spec, u16 vid)
+{
+	/* virtual lan tag */
+	spec->match_criteria_enable |= MLX5_MATCH_OUTER_HEADERS;
+
+	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria,
+	    outer_headers.cvlan_tag);
+	MLX5_SET(fte_match_param, spec->match_value,
+	    outer_headers.cvlan_tag, 1);
+	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria,
+	    outer_headers.first_vid);
+	MLX5_SET(fte_match_param, spec->match_value, outer_headers.first_vid,
+	    vid);
+}
+
+static void
+clear_fte_vid(struct mlx5_flow_spec *spec)
+{
+	MLX5_SET(fte_match_param, spec->match_criteria,
+	    outer_headers.cvlan_tag, 0);
+	MLX5_SET(fte_match_param, spec->match_value,
+	    outer_headers.cvlan_tag, 0);
+	MLX5_SET(fte_match_param, spec->match_criteria,
+	    outer_headers.first_vid, 0);
+	MLX5_SET(fte_match_param, spec->match_value,
+	    outer_headers.first_vid, 0);
+}
+
+static void
+setup_fte_no_vid(struct mlx5_flow_spec *spec)
+{
+	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria,
+	    outer_headers.cvlan_tag);
+	MLX5_SET(fte_match_param, spec->match_value,
+	    outer_headers.cvlan_tag, 0);
+}
+
 static struct mlx5_fs_chains *
 ipsec_chains_create(struct mlx5_core_dev *mdev, struct mlx5_flow_table *miss_ft,
 		    enum mlx5_flow_namespace_type ns, int base_prio,
@@ -474,17 +512,6 @@ static int rx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 	if (!spec)
 		return -ENOMEM;
 
-	if (attrs->family == AF_INET)
-		setup_fte_addr4(spec, &attrs->saddr.a4, &attrs->daddr.a4);
-	else
-		setup_fte_addr6(spec, attrs->saddr.a6, attrs->daddr.a6);
-
-	if (!attrs->encap)
-		setup_fte_esp(spec);
-
-	setup_fte_spi(spec, attrs->spi, attrs->encap);
-	setup_fte_no_frags(spec);
-
 	if (!attrs->drop) {
 		err = setup_modify_header(mdev, sa_entry->kspi | BIT(31), IPSEC_DIR_INBOUND,
 					  &flow_act);
@@ -520,15 +547,46 @@ static int rx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 	dest[1].type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
 	dest[1].counter_id = mlx5_fc_id(counter);
 
+	if (attrs->family == AF_INET)
+		setup_fte_addr4(spec, &attrs->saddr.a4, &attrs->daddr.a4);
+	else
+		setup_fte_addr6(spec, attrs->saddr.a6, attrs->daddr.a6);
+
+	if (!attrs->encap)
+		setup_fte_esp(spec);
+
+	setup_fte_spi(spec, attrs->spi, attrs->encap);
+	setup_fte_no_frags(spec);
+
+	if (sa_entry->vid != VLAN_NONE)
+		setup_fte_vid(spec, sa_entry->vid);
+	else
+		setup_fte_no_vid(spec);
+
 	rule = mlx5_add_flow_rules(rx->ft.sa, spec, &flow_act, dest, 2);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
 		mlx5_core_err(mdev, "fail to add RX ipsec rule err=%d\n", err);
 		goto err_add_flow;
 	}
+	ipsec_rule->rule = rule;
+
+	/* Add another rule for zero vid */
+	if (sa_entry->vid == VLAN_NONE) {
+		clear_fte_vid(spec);
+		setup_fte_vid(spec, 0);
+		rule = mlx5_add_flow_rules(rx->ft.sa, spec, &flow_act, dest, 2);
+		if (IS_ERR(rule)) {
+			err = PTR_ERR(rule);
+			mlx5_core_err(mdev,
+			    "fail to add RX ipsec zero vid rule err=%d\n",
+			    err);
+			goto err_add_flow;
+		}
+		ipsec_rule->vid_zero_rule = rule;
+	}
 
 	kvfree(spec);
-	ipsec_rule->rule = rule;
 	ipsec_rule->fc = counter;
 	ipsec_rule->modify_hdr = flow_act.modify_hdr;
 	ipsec_rule->pkt_reformat = flow_act.pkt_reformat;
@@ -536,10 +594,12 @@ static int rx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 
 err_add_flow:
 	mlx5_fc_destroy(mdev, counter);
+	if (ipsec_rule->rule != NULL)
+		mlx5_del_flow_rules(&ipsec_rule->rule);
 err_add_cnt:
 	mlx5_packet_reformat_dealloc(mdev, flow_act.pkt_reformat);
 err_pkt_reformat:
-	if (flow_act.modify_hdr)
+	if (flow_act.modify_hdr != NULL)
 		mlx5_modify_header_dealloc(mdev, flow_act.modify_hdr);
 err_mod_header:
 	kvfree(spec);
@@ -1222,8 +1282,6 @@ static int tx_add_policy(struct mlx5e_ipsec_pol_entry *pol_entry)
         switch (attrs->action) {
         case IPSEC_POLICY_IPSEC:
                 flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
-                /*if (!attrs->reqid)
-                    break;*/
                 err = setup_modify_header(mdev, attrs->reqid,
                                           IPSEC_DIR_OUTBOUND, &flow_act);
                 if (err)
@@ -1278,7 +1336,7 @@ static int rx_add_policy(struct mlx5e_ipsec_pol_entry *pol_entry)
         struct mlx5_flow_spec *spec;
         struct mlx5_flow_table *ft;
         struct mlx5e_ipsec_rx *rx;
-        int err, dstn = 0;
+	int err, dstn = 0;
 
         rx = (attrs->family == AF_INET) ? ipsec->rx_ipv4 : ipsec->rx_ipv6;
         ft = rx->chains ? ipsec_chains_get_table(rx->chains, attrs->prio) : rx->ft.pol;
@@ -1290,14 +1348,6 @@ static int rx_add_policy(struct mlx5e_ipsec_pol_entry *pol_entry)
                 err = -ENOMEM;
                 goto err_alloc;
         }
-
-        if (attrs->family == AF_INET)
-                setup_fte_addr4(spec, &attrs->saddr.a4, &attrs->daddr.a4);
-        else
-                setup_fte_addr6(spec, attrs->saddr.a6, attrs->daddr.a6);
-
-        setup_fte_no_frags(spec);
-	setup_fte_upper_proto_match(spec, &attrs->upspec);
 
         switch (attrs->action) {
         case IPSEC_POLICY_IPSEC:
@@ -1318,21 +1368,52 @@ static int rx_add_policy(struct mlx5e_ipsec_pol_entry *pol_entry)
         dest[dstn].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
         dest[dstn].ft = rx->ft.sa;
         dstn++;
-        rule = mlx5_add_flow_rules(ft, spec, &flow_act, dest, dstn);
-        if (IS_ERR(rule)) {
-                err = PTR_ERR(rule);
-                mlx5_core_err(mdev, "Fail to add RX IPsec policy rule err=%d\n", err);
-                goto err_action;
-        }
 
-        kvfree(spec);
-        pol_entry->ipsec_rule.rule = rule;
+	if (attrs->family == AF_INET)
+		setup_fte_addr4(spec, &attrs->saddr.a4, &attrs->daddr.a4);
+	else
+		setup_fte_addr6(spec, attrs->saddr.a6, attrs->daddr.a6);
+
+	setup_fte_no_frags(spec);
+	setup_fte_upper_proto_match(spec, &attrs->upspec);
+	if (attrs->vid != VLAN_NONE)
+		setup_fte_vid(spec, attrs->vid);
+	else
+		setup_fte_no_vid(spec);
+
+	rule = mlx5_add_flow_rules(ft, spec, &flow_act, dest, dstn);
+	if (IS_ERR(rule)) {
+		err = PTR_ERR(rule);
+		mlx5_core_err(mdev,
+		    "Failed to add RX IPsec policy rule err=%d\n", err);
+		goto err_action;
+	}
+	pol_entry->ipsec_rule.rule = rule;
+
+	/* Add also rule for zero vid */
+	if (attrs->vid == VLAN_NONE) {
+		clear_fte_vid(spec);
+		setup_fte_vid(spec, 0);
+		rule = mlx5_add_flow_rules(ft, spec, &flow_act, dest, dstn);
+		if (IS_ERR(rule)) {
+			err = PTR_ERR(rule);
+			mlx5_core_err(mdev,
+			    "Failed to add RX IPsec policy rule err=%d\n",
+			    err);
+			goto err_action;
+		}
+		pol_entry->ipsec_rule.vid_zero_rule = rule;
+	}
+
+	kvfree(spec);
         return 0;
 
 err_action:
-        kvfree(spec);
+	if (pol_entry->ipsec_rule.rule != NULL)
+		mlx5_del_flow_rules(&pol_entry->ipsec_rule.rule);
+	kvfree(spec);
 err_alloc:
-        if (rx->chains)
+        if (rx->chains != NULL)
                 ipsec_chains_put_table(rx->chains, attrs->prio);
         return err;
 }
@@ -1854,7 +1935,9 @@ void mlx5e_accel_ipsec_fs_del_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 
 	mlx5_del_flow_rules(&ipsec_rule->rule);
 	mlx5_del_flow_rules(&ipsec_rule->kspi_rule);
-	if (ipsec_rule->reqid_rule)
+	if (ipsec_rule->vid_zero_rule != NULL)
+		mlx5_del_flow_rules(&ipsec_rule->vid_zero_rule);
+	if (ipsec_rule->reqid_rule != NULL)
 		mlx5_del_flow_rules(&ipsec_rule->reqid_rule);
 	mlx5_fc_destroy(mdev, ipsec_rule->fc);
 	mlx5_packet_reformat_dealloc(mdev, ipsec_rule->pkt_reformat);
@@ -1863,7 +1946,7 @@ void mlx5e_accel_ipsec_fs_del_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 		return;
 	}
 
-	if (ipsec_rule->modify_hdr)
+	if (ipsec_rule->modify_hdr != NULL)
 		mlx5_modify_header_dealloc(mdev, ipsec_rule->modify_hdr);
 }
 
@@ -1881,6 +1964,8 @@ void mlx5e_accel_ipsec_fs_del_pol(struct mlx5e_ipsec_pol_entry *pol_entry)
 	struct mlx5_core_dev *mdev = mlx5e_ipsec_pol2dev(pol_entry);
 
 	mlx5_del_flow_rules(&ipsec_rule->rule);
+	if (ipsec_rule->vid_zero_rule != NULL)
+		mlx5_del_flow_rules(&ipsec_rule->vid_zero_rule);
 
 	if (pol_entry->attrs.dir == IPSEC_DIR_INBOUND) {
 		struct mlx5e_ipsec_rx *rx;
