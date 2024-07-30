@@ -1,6 +1,5 @@
 /*-
  * Copyright (c) 2016 The FreeBSD Foundation
- * All rights reserved.
  *
  * This software was developed by Kurt Lidl under sponsorship from the
  * FreeBSD Foundation.

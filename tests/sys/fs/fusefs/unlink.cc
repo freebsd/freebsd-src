@@ -1,6 +1,5 @@
 /*-
  * Copyright (c) 2019 The FreeBSD Foundation
- * All rights reserved.
  *
  * This software was developed by BFF Storage Systems, LLC under sponsorship
  * from the FreeBSD Foundation.
