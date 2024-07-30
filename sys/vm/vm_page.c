@@ -2528,7 +2528,7 @@ vm_page_alloc_nofree_domain(int domain, int req)
 			return (NULL);
 		}
 		nqp->ma = vm_phys_alloc_pages(domain, VM_FREEPOOL_DEFAULT,
-		    VM_LEVEL_0_ORDER);
+		    VM_NOFREE_IMPORT_ORDER);
 		if (nqp->ma == NULL) {
 			vm_domain_freecnt_inc(vmd, 1 << VM_NOFREE_IMPORT_ORDER);
 			vm_domain_free_unlock(vmd);
