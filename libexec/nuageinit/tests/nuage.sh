@@ -4,6 +4,8 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
 
+export NUAGE_FAKE_ROOTDIR="$PWD"
+
 atf_test_case sethostname
 atf_test_case addsshkey
 atf_test_case adduser
@@ -11,7 +13,6 @@ atf_test_case addgroup
 
 sethostname_body()
 {
-	export NUAGE_FAKE_ROOTDIR="$(pwd)"
 	atf_check /usr/libexec/flua $(atf_get_srcdir)/sethostname.lua
 	if [ ! -f etc/rc.conf.d/hostname ]; then
 		atf_fail "hostname not written"
@@ -32,14 +33,14 @@ addsshkey_body()
 	atf_check -o inline:"mykey\nmykey\n" cat .ssh/authorized_keys
 }
 
+adduser_head()
+{
+	atf_set "require.user" root
+}
 adduser_body()
 {
-	export NUAGE_FAKE_ROOTDIR="$(pwd)"
-	if [ $(id -u) -ne 0 ]; then
-		atf_skip "root required"
-	fi
 	mkdir etc
-	printf "root:*:0:0::0:0:Charlie &:/root:/bin/csh\n" > etc/master.passwd
+	printf "root:*:0:0::0:0:Charlie &:/root:/bin/sh\n" > etc/master.passwd
 	pwd_mkdb -d etc etc/master.passwd
 	printf "wheel:*:0:root\n" > etc/group
 	atf_check -e inline:"nuageinit: Argument should be a table\nnuageinit: Argument should be a table\n" /usr/libexec/flua $(atf_get_srcdir)/adduser.lua
@@ -49,7 +50,6 @@ adduser_body()
 
 addgroup_body()
 {
-	export NUAGE_FAKE_ROOTDIR="$(pwd)"
 	mkdir etc
 	printf "wheel:*:0:root\n" > etc/group
 	atf_check -e inline:"nuageinit: Argument should be a table\nnuageinit: Argument should be a table\n" /usr/libexec/flua $(atf_get_srcdir)/addgroup.lua
