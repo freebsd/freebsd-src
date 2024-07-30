@@ -10,12 +10,12 @@ atf_test_case dirname
 
 warn_body()
 {
-	atf_check -e "inline:plop\n" -s exit:0 /usr/libexec/flua $(atf_get_srcdir)/warn.lua
+	atf_check -e "inline:nuageinit: plop\n" -s exit:0 /usr/libexec/flua $(atf_get_srcdir)/warn.lua
 }
 
 err_body()
 {
-	atf_check -e "inline:plop\n" -s exit:1 /usr/libexec/flua $(atf_get_srcdir)/err.lua
+	atf_check -e "inline:nuageinit: plop\n" -s exit:1 /usr/libexec/flua $(atf_get_srcdir)/err.lua
 }
 
 dirname_body()
