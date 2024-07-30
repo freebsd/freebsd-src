@@ -245,7 +245,6 @@ menu.welcome = {
 			boot_entry_1, boot_entry_2 = multi_user, single_user
 		end
 		return {
-			loader_needs_upgrade,
 			boot_entry_1,
 			boot_entry_2,
 			menu_entries.prompt,
@@ -264,6 +263,10 @@ menu.welcome = {
 			menu_entries.boot_envs,
 			menu_entries.chainload,
 			menu_entries.vendor,
+			{
+				entry_type = core.MENU_SEPARATOR,
+			},
+			menu_entries.loader_needs_upgrade,
 		}
 	end,
 	all_entries = {
@@ -415,8 +418,8 @@ menu.welcome = {
 		loader_needs_upgrade = {
 			entry_type = core.MENU_SEPARATOR,
 			name = function()
-				return "Loader requires updating"
-			end
+				return color.highlight("Loader needs to be updated")
+			end,
 			visible = function()
 				return core.loaderTooOld()
 			end
