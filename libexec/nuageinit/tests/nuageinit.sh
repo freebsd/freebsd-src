@@ -81,7 +81,7 @@ EOF
 wheel:*:0:root
 users:*:1:
 EOF
-	cat > media/nuageinit/user-data << EOF
+	cat > media/nuageinit/user-data << 'EOF'
 #cloud-config
 groups:
   - admingroup: [root,sys]
@@ -103,11 +103,11 @@ cloud-users:*:1002:
 freebsd:*:1003:
 foobar:*:1004:
 EOF
-	cat > expectedpasswd << EOF
+	cat > expectedpasswd << 'EOF'
 root:*:0:0::0:0:Charlie &:/root:/bin/csh
 sys:*:1:0::0:0:Sys:/home/sys:/bin/csh
 freebsd:freebsd:1001:1003::0:0:FreeBSD User:/home/freebsd:/bin/sh
-foobar:H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/:1002:1004::0:0:Foo B. Bar:/home/foobar:/bin/sh
+foobar:$6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/:1002:1004::0:0:Foo B. Bar:/home/foobar:/bin/sh
 EOF
 	sed -i "" "s/freebsd:.*:1001/freebsd:freebsd:1001/" ${here}/etc/master.passwd
 	atf_check -o file:expectedpasswd cat ${here}/etc/master.passwd
