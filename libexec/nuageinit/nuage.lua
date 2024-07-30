@@ -3,8 +3,9 @@
 --
 -- Copyright(c) 2022 Baptiste Daroussin <bapt@FreeBSD.org>
 
+local unistd = require("posix.unistd")
+local sys_stat = require("posix.sys.stat")
 local lfs = require("lfs")
-local pu = require("posix.unistd")
 
 local function warnmsg(str)
 	io.stderr:write(str .. "\n")
@@ -206,12 +207,12 @@ local function addsshkey(homedir, key)
 	f:write(key .. "\n")
 	f:close()
 	if chownak then
-		os.execute("chmod 0600 " .. ak_path)
-		pu.chown(ak_path, dirattrs.uid, dirattrs.gid)
+		sys_stat.chmod(ak_path, 384)
+		unistd.chown(ak_path, dirattrs.uid, dirattrs.gid)
 	end
 	if chowndotssh then
-		os.execute("chmod 0700 " .. dotssh_path)
-		pu.chown(dotssh_path, dirattrs.uid, dirattrs.gid)
+		sys_stat.chmod(dotssh_path, 448)
+		unistd.chown(dotssh_path, dirattrs.uid, dirattrs.gid)
 	end
 end
 
