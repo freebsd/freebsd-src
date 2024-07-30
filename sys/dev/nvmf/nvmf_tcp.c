@@ -1464,7 +1464,7 @@ tcp_allocate_qpair(bool controller,
 
 		/* NB: maxr2t is 0's based. */
 		qp->num_ttags = MIN((u_int)UINT16_MAX + 1,
-		    (uint64_t)params->qsize * (uint64_t)qp->maxr2t + 1);
+		    (uint64_t)params->qsize * ((uint64_t)qp->maxr2t + 1));
 		qp->open_ttags = mallocarray(qp->num_ttags,
 		    sizeof(*qp->open_ttags), M_NVMF_TCP, M_WAITOK | M_ZERO);
 	}
