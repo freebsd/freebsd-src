@@ -9,7 +9,7 @@ local ucl = require("ucl")
 local yaml = require("yaml")
 
 if #arg ~= 2 then
-	nuage.err("Usage " .. arg[0] .. " <cloud-init directory> [config-2|nocloud]", false)
+	nuage.err("Usage: " .. arg[0] .. " <cloud-init-directory> (<config-2> | <nocloud>)", false)
 end
 local path = arg[1]
 local citype = arg[2]

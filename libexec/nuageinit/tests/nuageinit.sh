@@ -19,9 +19,9 @@ atf_test_case config2_network_static_v4
 
 args_body()
 {
-	atf_check -s exit:1 -e inline:"Usage /usr/libexec/nuageinit <cloud-init directory> [config-2|nocloud]\n" /usr/libexec/nuageinit
-	atf_check -s exit:1 -e inline:"Usage /usr/libexec/nuageinit <cloud-init directory> [config-2|nocloud]\n" /usr/libexec/nuageinit bla
-	atf_check -s exit:1 -e inline:"Usage /usr/libexec/nuageinit <cloud-init directory> [config-2|nocloud]\n" /usr/libexec/nuageinit bla meh plop
+	atf_check -s exit:1 -e inline:"Usage: /usr/libexec/nuageinit <cloud-init-directory> (<config-2> | <nocloud>)\n" /usr/libexec/nuageinit
+	atf_check -s exit:1 -e inline:"Usage: /usr/libexec/nuageinit <cloud-init-directory> (<config-2> | <nocloud>)\n" /usr/libexec/nuageinit bla
+	atf_check -s exit:1 -e inline:"Usage: /usr/libexec/nuageinit <cloud-init-directory> (<config-2> | <nocloud>)\n" /usr/libexec/nuageinit bla meh plop
 	atf_check -s exit:1 -e inline:"nuageinit: Unknown cloud init type: meh\n" /usr/libexec/nuageinit bla meh
 }
 
