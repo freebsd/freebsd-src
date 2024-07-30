@@ -131,8 +131,8 @@ typedef void (*if_qflush_fn_t)(if_t);
 typedef int (*if_transmit_fn_t)(if_t, struct mbuf *);
 typedef	uint64_t (*if_get_counter_t)(if_t, ift_counter);
 typedef	void (*if_reassign_fn_t)(if_t, struct vnet *, char *);
-typedef int (*if_spdadd_fn_t)(if_t, void *sp, void *inp, void **priv);
-typedef int (*if_spddel_fn_t)(if_t, void *sp, void *priv);
+typedef int (*if_spdadd_fn_t)(if_t ifp, void *sp, void *inp, void **priv);
+typedef int (*if_spddel_fn_t)(if_t ifp, void *sp, void *priv);
 typedef int (*if_sa_newkey_fn_t)(if_t ifp, void *sav, u_int drv_spi,
     void **privp);
 typedef int (*if_sa_deinstall_fn_t)(if_t ifp, u_int drv_spi, void *priv);
