@@ -1450,12 +1450,13 @@ tcp_allocate_qpair(bool controller,
 	qp->header_digests = params->tcp.header_digests;
 	qp->data_digests = params->tcp.data_digests;
 	qp->maxr2t = params->tcp.maxr2t;
-	qp->maxh2cdata = params->tcp.maxh2cdata;
+	if (controller)
+		qp->maxh2cdata = params->tcp.maxh2cdata;
 	qp->max_tx_data = tcp_max_transmit_data;
 	if (!controller) {
 		qp->max_tx_data = min(qp->max_tx_data, params->tcp.maxh2cdata);
+		qp->max_icd = params->tcp.max_icd;
 	}
-	qp->max_icd = params->tcp.max_icd;
 
 	if (controller) {
 		/* Use the SUCCESS flag if SQ flow control is disabled. */
