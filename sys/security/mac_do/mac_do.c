@@ -309,7 +309,7 @@ parse_and_set_rules(struct prison *const pr, const char *rules_string)
 }
 
 static int
-sysctl_rules(SYSCTL_HANDLER_ARGS)
+mac_do_sysctl_rules(SYSCTL_HANDLER_ARGS)
 {
 	char *const buf = malloc(MAC_RULE_STRING_LEN, M_DO, M_WAITOK);
 	struct prison *const td_pr = req->td->td_ucred->cr_prison;
@@ -334,7 +334,7 @@ out:
 
 SYSCTL_PROC(_security_mac_do, OID_AUTO, rules,
     CTLTYPE_STRING|CTLFLAG_RW|CTLFLAG_PRISON|CTLFLAG_MPSAFE,
-    0, 0, sysctl_rules, "A",
+    0, 0, mac_do_sysctl_rules, "A",
     "Rules");
 
 
@@ -445,7 +445,7 @@ static const osd_method_t osd_methods[PR_MAXMETHOD] = {
 
 
 static void
-init(struct mac_policy_conf *mpc)
+mac_do_init(struct mac_policy_conf *mpc)
 {
 	struct prison *pr;
 
@@ -458,7 +458,7 @@ init(struct mac_policy_conf *mpc)
 }
 
 static void
-destroy(struct mac_policy_conf *mpc)
+mac_do_destroy(struct mac_policy_conf *mpc)
 {
 	osd_jail_deregister(mac_do_osd_jail_slot);
 }
@@ -474,7 +474,7 @@ rule_applies(struct ucred *cred, struct rule *r)
 }
 
 static int
-priv_grant(struct ucred *cred, int priv)
+mac_do_priv_grant(struct ucred *cred, int priv)
 {
 	struct rule *r;
 	struct prison *pr;
@@ -501,7 +501,7 @@ priv_grant(struct ucred *cred, int priv)
 }
 
 static int
-check_setgroups(struct ucred *cred, int ngrp, gid_t *groups)
+mac_do_check_setgroups(struct ucred *cred, int ngrp, gid_t *groups)
 {
 	struct rule *r;
 	char *fullpath = NULL;
@@ -535,7 +535,7 @@ check_setgroups(struct ucred *cred, int ngrp, gid_t *groups)
 }
 
 static int
-check_setuid(struct ucred *cred, uid_t uid)
+mac_do_check_setuid(struct ucred *cred, uid_t uid)
 {
 	struct rule *r;
 	int error;
@@ -590,11 +590,11 @@ check_setuid(struct ucred *cred, uid_t uid)
 }
 
 static struct mac_policy_ops do_ops = {
-	.mpo_destroy = destroy,
-	.mpo_init = init,
-	.mpo_cred_check_setuid = check_setuid,
-	.mpo_cred_check_setgroups = check_setgroups,
-	.mpo_priv_grant = priv_grant,
+	.mpo_destroy = mac_do_destroy,
+	.mpo_init = mac_do_init,
+	.mpo_cred_check_setuid = mac_do_check_setuid,
+	.mpo_cred_check_setgroups = mac_do_check_setgroups,
+	.mpo_priv_grant = mac_do_priv_grant,
 };
 
 MAC_POLICY_SET(&do_ops, mac_do, "MAC/do",
