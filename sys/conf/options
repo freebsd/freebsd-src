@@ -100,7 +100,6 @@ DEADLKRES	opt_watchdog.h
 EXPERIMENTAL	opt_global.h
 EXT_RESOURCES	opt_global.h
 DIRECTIO
-FILEMON		opt_dontuse.h
 FFCLOCK
 FULL_PREEMPTION	opt_sched.h
 GZIO		opt_gzio.h
