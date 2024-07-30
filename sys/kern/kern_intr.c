@@ -851,9 +851,6 @@ intr_event_remove_handler(void *cookie)
 	struct intr_event *ie;
 	struct intr_handler *ih;
 	struct intr_handler **prevptr;
-#ifdef notyet
-	int dead;
-#endif
 
 	if (handler == NULL)
 		return (EINVAL);
@@ -874,53 +871,30 @@ intr_event_remove_handler(void *cookie)
 		    "interrupt event \"%s\"", handler->ih_name, ie->ie_name);
 	}
 
-	/*
-	 * If there is no ithread, then directly remove the handler.  Note that
-	 * intr_event_handle() iterates ie_handlers in a lock-less fashion, so
-	 * care needs to be taken to keep ie_handlers consistent and to free
-	 * the removed handler only when ie_handlers is quiescent.
-	 */
 	if (ie->ie_thread == NULL) {
+		/*
+		 * If there is no ithread, then directly remove the handler.
+		 * Note that intr_event_handle() iterates ie_handlers in a
+		 * lock-less fashion, so care needs to be taken to keep
+		 * ie_handlers consistent and to free the removed handler only
+		 * when ie_handlers is quiescent.
+		 */
 		CK_SLIST_REMOVE_PREVPTR(prevptr, ih, ih_next);
 		intr_event_barrier(ie);
-		intr_event_update(ie);
-		mtx_unlock(&ie->ie_lock);
-		free(handler, M_ITHREAD);
-		return (0);
+	} else {
+		/*
+		 * Let the interrupt thread do the job.  The interrupt source is
+		 * disabled when the interrupt thread is running, so it does not
+		 * have to worry about interaction with intr_event_handle().
+		 */
+		KASSERT((handler->ih_flags & IH_DEAD) == 0,
+		    ("duplicate handle remove"));
+		handler->ih_flags |= IH_DEAD;
+		intr_event_schedule_thread(ie, NULL);
+		while (handler->ih_flags & IH_DEAD)
+			msleep(handler, &ie->ie_lock, 0, "iev_rmh", 0);
 	}
-
-	/*
-	 * Let the interrupt thread do the job.
-	 * The interrupt source is disabled when the interrupt thread is
-	 * running, so it does not have to worry about interaction with
-	 * intr_event_handle().
-	 */
-	KASSERT((handler->ih_flags & IH_DEAD) == 0,
-	    ("duplicate handle remove"));
-	handler->ih_flags |= IH_DEAD;
-	intr_event_schedule_thread(ie, NULL);
-	while (handler->ih_flags & IH_DEAD)
-		msleep(handler, &ie->ie_lock, 0, "iev_rmh", 0);
 	intr_event_update(ie);
-
-#ifdef notyet
-	/*
-	 * XXX: This could be bad in the case of ppbus(8).  Also, I think
-	 * this could lead to races of stale data when servicing an
-	 * interrupt.
-	 */
-	dead = 1;
-	CK_SLIST_FOREACH(ih, &ie->ie_handlers, ih_next) {
-		if (ih->ih_handler != NULL) {
-			dead = 0;
-			break;
-		}
-	}
-	if (dead) {
-		ithread_destroy(ie->ie_thread);
-		ie->ie_thread = NULL;
-	}
-#endif
 	mtx_unlock(&ie->ie_lock);
 	free(handler, M_ITHREAD);
 	return (0);
