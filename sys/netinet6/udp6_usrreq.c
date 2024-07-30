@@ -937,7 +937,7 @@ udp6_send(struct socket *so, int flags_arg, struct mbuf *m,
 	else
 		UDP_PROBE(send, NULL, inp, ip6, inp, udp6);
 	error = ip6_output(m, optp,
-	    sin6 == NULL ? &inp->inp_route6 : NULL, flags,
+	    INP_WLOCKED(inp) ? &inp->inp_route6 : NULL, flags,
 	    inp->in6p_moptions, NULL, inp);
 	INP_UNLOCK(inp);
 	NET_EPOCH_EXIT(et);

@@ -1087,6 +1087,7 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	uint16_t cscov = 0;
 	uint32_t flowid = 0;
 	uint8_t flowtype = M_HASHTYPE_NONE;
+	bool use_cached_route;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp_send: inp == NULL"));
@@ -1115,21 +1116,16 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	sin = (struct sockaddr_in *)addr;
 
 	/*
-	 * In the following cases we want a write lock on the inp for either
-	 * local operations or for possible route cache updates in the IPv6
-	 * output path:
-	 * - on connected sockets (sin6 is NULL) for route cache updates,
-	 * - when we are not bound to an address and source port (it is
-	 *   in_pcbinshash() which will require the write lock).
-	 * - when we are using a mapped address on an IPv6 socket (for
-	 *   updating inp_vflag).
+	 * udp_send() may need to temporarily bind or connect the current
+	 * inpcb.  As such, we don't know up front whether we will need the
+	 * pcbinfo lock or not.  Do any work to decide what is needed up
+	 * front before acquiring any locks.
 	 *
 	 * We will need network epoch in either case, to safely lookup into
 	 * pcb hash.
 	 */
-	if (sin == NULL ||
-	    (inp->inp_laddr.s_addr == INADDR_ANY && inp->inp_lport == 0) ||
-	    (flags & PRUS_IPV6) != 0)
+	use_cached_route = sin == NULL || (inp->inp_laddr.s_addr == INADDR_ANY && inp->inp_lport == 0);
+	if (use_cached_route || (flags & PRUS_IPV6) != 0)
 		INP_WLOCK(inp);
 	else
 		INP_RLOCK(inp);
@@ -1480,7 +1476,7 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	else
 		UDP_PROBE(send, NULL, inp, &ui->ui_i, inp, &ui->ui_u);
 	error = ip_output(m, inp->inp_options,
-	    sin == NULL ? &inp->inp_route : NULL, ipflags,
+	    use_cached_route ? &inp->inp_route : NULL, ipflags,
 	    inp->inp_moptions, inp);
 	INP_UNLOCK(inp);
 	NET_EPOCH_EXIT(et);
