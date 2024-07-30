@@ -623,10 +623,7 @@ mbuf_copyto_io(struct mbuf *m, u_int skip, u_int len,
 	while (len != 0) {
 		MPASS((m->m_flags & M_EXTPG) == 0);
 
-		todo = m->m_len - skip;
-		if (todo > len)
-			todo = len;
-
+		todo = min(m->m_len - skip, len);
 		memdesc_copyback(&io->io_mem, io_offset, todo, mtodo(m, skip));
 		skip = 0;
 		io_offset += todo;
@@ -1000,9 +997,7 @@ nvmf_tcp_handle_r2t(struct nvmf_tcp_qpair *qp, struct nvmf_tcp_rxpdu *pdu)
 		struct mbuf *m;
 		uint32_t sent, todo;
 
-		todo = data_len;
-		if (todo > qp->max_tx_data)
-			todo = qp->max_tx_data;
+		todo = min(data_len, qp->max_tx_data);
 		m = nvmf_tcp_command_buffer_mbuf(cb, data_offset, todo, &sent,
 		    todo < data_len);
 		tcp_send_h2c_pdu(qp, r2t->cccid, r2t->ttag, data_offset, m,
@@ -1458,8 +1453,7 @@ tcp_allocate_qpair(bool controller,
 	qp->maxh2cdata = params->tcp.maxh2cdata;
 	qp->max_tx_data = tcp_max_transmit_data;
 	if (!controller) {
-		if (qp->max_tx_data > params->tcp.maxh2cdata)
-			qp->max_tx_data = params->tcp.maxh2cdata;
+		qp->max_tx_data = min(qp->max_tx_data, params->tcp.maxh2cdata);
 	}
 	qp->max_icd = params->tcp.max_icd;
 
