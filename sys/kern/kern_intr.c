@@ -541,14 +541,10 @@ intr_event_destroy(struct intr_event *ie)
 		return (EBUSY);
 	}
 	TAILQ_REMOVE(&event_list, ie, ie_list);
-#ifndef notyet
-	if (ie->ie_thread != NULL) {
-		ithread_destroy(ie->ie_thread);
-		ie->ie_thread = NULL;
-	}
-#endif
-	mtx_unlock(&ie->ie_lock);
 	mtx_unlock(&event_lock);
+	if (ie->ie_thread != NULL)
+		ithread_destroy(ie->ie_thread);
+	mtx_unlock(&ie->ie_lock);
 	mtx_destroy(&ie->ie_lock);
 	free(ie, M_ITHREAD);
 	return (0);
@@ -581,10 +577,16 @@ ithread_create(const char *name)
 static void
 ithread_destroy(struct intr_thread *ithread)
 {
+	struct intr_event *ie;
 	struct thread *td;
 
-	CTR2(KTR_INTR, "%s: killing %s", __func__, ithread->it_event->ie_name);
 	td = ithread->it_thread;
+	ie = ithread->it_event;
+
+	mtx_assert(&ie->ie_lock, MA_OWNED);
+
+	CTR2(KTR_INTR, "%s: killing %s", __func__, ie->ie_name);
+
 	thread_lock(td);
 	ithread->it_flags |= IT_DEAD;
 	if (TD_AWAITING_INTR(td)) {
@@ -592,6 +594,8 @@ ithread_destroy(struct intr_thread *ithread)
 		sched_wakeup(td, SRQ_INTR);
 	} else
 		thread_unlock(td);
+	while (ie->ie_thread != NULL)
+		msleep(ithread, &ie->ie_lock, 0, "ithd_dth", 0);
 }
 
 int
@@ -1235,7 +1239,7 @@ ithread_loop(void *arg)
 	struct intr_event *ie;
 	struct thread *td;
 	struct proc *p;
-	int wake, epoch_count;
+	int epoch_count;
 	bool needs_epoch;
 
 	td = curthread;
@@ -1245,7 +1249,6 @@ ithread_loop(void *arg)
 	    ("%s: ithread and proc linkage out of sync", __func__));
 	ie = ithd->it_event;
 	ie->ie_count = 0;
-	wake = 0;
 
 	/*
 	 * As long as we have interrupts outstanding, go through the
@@ -1255,9 +1258,14 @@ ithread_loop(void *arg)
 		/*
 		 * If we are an orphaned thread, then just die.
 		 */
-		if (ithd->it_flags & IT_DEAD) {
+		if (__predict_false((ithd->it_flags & IT_DEAD) != 0)) {
 			CTR3(KTR_INTR, "%s: pid %d (%s) exiting", __func__,
 			    p->p_pid, td->td_name);
+			mtx_lock(&ie->ie_lock);
+			ie->ie_thread = NULL;
+			wakeup(ithd);
+			mtx_unlock(&ie->ie_lock);
+
 			free(ithd, M_ITHREAD);
 			kthread_exit();
 		}
@@ -1302,17 +1310,12 @@ ithread_loop(void *arg)
 			TD_SET_IWAIT(td);
 			ie->ie_count = 0;
 			mi_switch(SW_VOL | SWT_IWAIT);
-		} else {
-			if (ithd->it_flags & IT_WAIT) {
-				wake = 1;
-				ithd->it_flags &= ~IT_WAIT;
-			}
+		} else if ((ithd->it_flags & IT_WAIT) != 0) {
+			ithd->it_flags &= ~IT_WAIT;
 			thread_unlock(td);
-		}
-		if (wake) {
 			wakeup(ithd);
-			wake = 0;
-		}
+		} else
+			thread_unlock(td);
 	}
 }
 
