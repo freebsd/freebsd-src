@@ -95,6 +95,10 @@ CWARNFLAGS.clang+=	-Wno-error=array-parameter
 CWARNFLAGS.clang+=	-Wno-error=deprecated-non-prototype
 CWARNFLAGS.clang+=	-Wno-error=unused-but-set-parameter
 .endif
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 190000
+# Similar to gcc >= 8.1 -Wno-error=cast-function-type below
+CWARNFLAGS.clang+=	-Wno-error=cast-function-type-mismatch
+.endif
 .endif # WARNS <= 6
 .if ${WARNS} <= 3
 CWARNFLAGS.clang+=	-Wno-tautological-compare -Wno-unused-value\
