@@ -581,7 +581,7 @@ OLD_FILES+=usr/share/certs/trusted/Security_Communication_Root_CA.pem
 OLD_FILES+=usr/share/man/man9/callout_async_drain.9.gz
 
 # 20240114: Removal of geom_map(4)
-OLD_FILES+=usr/share/man/man4/geom_map.4
+OLD_FILES+=usr/share/man/man4/geom_map.4.gz
 
 # 20240112: remove pmap_init2()
 OLD_FILES+=usr/share/man/man9/pmap_init2.9.gz
@@ -1060,9 +1060,9 @@ OLD_FILES+=usr/tests/lib/googletest/gmock_main/gmock-matchers_test
 OLD_FILES+=usr/tests/lib/googletest/gtest_main/googletest-linked-ptr-test
 
 # 20230807: Removal of the ath(4) AHB bus-frontend for MIPS
-OLD_FILES+=usr/share/man/man4/ath_ahb.4
-OLD_FILES+=usr/share/man/man4/ath_pci.4
-OLD_FILES+=usr/share/man/man4/if_ath_pci.4
+OLD_FILES+=usr/share/man/man4/ath_ahb.4.gz
+OLD_FILES+=usr/share/man/man4/ath_pci.4.gz
+OLD_FILES+=usr/share/man/man4/if_ath_pci.4.gz
 
 # 20230803: Removal of support for cloning pseudo interfaces from iflib(9)
 OLD_FILES+=usr/include/net/iflib_private.h
@@ -2096,8 +2096,8 @@ OLD_FILES+=usr/include/netinet/tcp_debug.h
 
 # 20221213: remove sync serial drivers and utilities
 OLD_FILES+=sbin/sconfig
-OLD_FILES+=usr/share/man/man4/ce.4
-OLD_FILES+=usr/share/man/man4/cp.4
+OLD_FILES+=usr/share/man/man4/ce.4.gz
+OLD_FILES+=usr/share/man/man4/cp.4.gz
 OLD_FILES+=usr/share/man/man8/sconfig.8.gz
 
 # 20221202: remove trpt(8)
@@ -12541,8 +12541,8 @@ OLD_DIRS+=usr/lib/clang/3.9.1/lib
 OLD_DIRS+=usr/lib/clang/3.9.1
 # 20170226: SVR4 compatibility removed
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
-OLD_FILES+=usr/share/man/man4/streams.4
-OLD_FILES+=usr/share/man/man4/svr4.4
+OLD_FILES+=usr/share/man/man4/streams.4.gz
+OLD_FILES+=usr/share/man/man4/svr4.4.gz
 .endif
 # 20170219: OpenPAM RADULA upgrade removed the libpam tests
 OLD_FILES+=usr/tests/lib/libpam/Kyuafile
