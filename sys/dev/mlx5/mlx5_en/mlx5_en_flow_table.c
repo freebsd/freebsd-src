@@ -27,6 +27,7 @@
 #include "opt_ratelimit.h"
 
 #include <dev/mlx5/mlx5_en/en.h>
+#include <dev/mlx5/mlx5_accel/ipsec.h>
 
 #include <linux/list.h>
 #include <dev/mlx5/fs.h>
