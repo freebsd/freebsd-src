@@ -58,6 +58,8 @@ ASSYM(PCB_TPIDRRO, offsetof(struct pcb, pcb_tpidrro_el0));
 ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
 ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 
+ASSYM(P_PID, offsetof(struct proc, p_pid));
+
 ASSYM(SF_UC, offsetof(struct sigframe, sf_uc));
 
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
