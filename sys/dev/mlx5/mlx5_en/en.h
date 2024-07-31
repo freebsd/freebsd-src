@@ -747,10 +747,13 @@ struct mlx5e_cq {
 	struct mlx5_wq_ctrl wq_ctrl;
 } __aligned(MLX5E_CACHELINE_SIZE);
 
+struct ipsec_accel_in_tag;
+
 struct mlx5e_rq_mbuf {
 	bus_dmamap_t	dma_map;
 	caddr_t		data;
 	struct mbuf	*mbuf;
+	struct ipsec_accel_in_tag *ipsec_mtag;
 };
 
 struct mlx5e_rq {

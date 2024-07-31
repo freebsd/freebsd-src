@@ -70,7 +70,7 @@ mlx5e_alloc_rx_wqe(struct mlx5e_rq *rq,
 	/* get IP header aligned */
 	m_adj(mb, MLX5E_NET_IP_ALIGN);
 
-	err = mlx5_accel_ipsec_rx_tag_add(rq->ifp, mb);
+	err = mlx5_accel_ipsec_rx_tag_add(rq->ifp, &rq->mbuf[ix]);
 	if (err)
 		goto err_free_mbuf;
 	err = -bus_dmamap_load_mbuf_sg(rq->dma_tag, rq->mbuf[ix].dma_map,
@@ -277,9 +277,8 @@ mlx5e_mbuf_tstmp(struct mlx5e_priv *priv, uint64_t hw_tstmp)
 }
 
 static inline void
-mlx5e_build_rx_mbuf(struct mlx5_cqe64 *cqe,
-    struct mlx5e_rq *rq, struct mbuf *mb,
-    u32 cqe_bcnt)
+mlx5e_build_rx_mbuf(struct mlx5_cqe64 *cqe, struct mlx5e_rq *rq,
+    struct mbuf *mb, struct mlx5e_rq_mbuf *mr, u32 cqe_bcnt)
 {
 	if_t ifp = rq->ifp;
 	struct mlx5e_channel *c;
@@ -423,7 +422,7 @@ mlx5e_build_rx_mbuf(struct mlx5_cqe64 *cqe,
 		break;
 	}
 
-	mlx5e_accel_ipsec_handle_rx(mb, cqe);
+	mlx5e_accel_ipsec_handle_rx(mb, cqe, mr);
 }
 
 static inline void
@@ -588,7 +587,8 @@ mlx5e_poll_rx_cq(struct mlx5e_rq *rq, int budget)
 			    rq->mbuf[wqe_counter].dma_map);
 		}
 rx_common:
-		mlx5e_build_rx_mbuf(cqe, rq, mb, byte_cnt);
+		mlx5e_build_rx_mbuf(cqe, rq, mb, &rq->mbuf[wqe_counter],
+		    byte_cnt);
 		rq->stats.bytes += byte_cnt;
 		rq->stats.packets++;
 #ifdef NUMA
