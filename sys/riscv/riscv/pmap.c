@@ -279,6 +279,13 @@ SYSCTL_ULONG(_vm_pmap_l2, OID_AUTO, promotions, CTLFLAG_RD,
     &pmap_l2_promotions, 0,
     "2MB page promotions");
 
+static SYSCTL_NODE(_vm_pmap, OID_AUTO, l1, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "L1 (1GB) page mapping counters");
+
+static COUNTER_U64_DEFINE_EARLY(pmap_l1_demotions);
+SYSCTL_COUNTER_U64(_vm_pmap_l1, OID_AUTO, demotions, CTLFLAG_RD,
+    &pmap_l1_demotions, "L1 (1GB) page demotions");
+
 /*
  * Data for the pv entry allocation mechanism
  */
@@ -303,6 +310,7 @@ static vm_page_t reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp);
 static void	pmap_pvh_free(struct md_page *pvh, pmap_t pmap, vm_offset_t va);
 static pv_entry_t pmap_pvh_remove(struct md_page *pvh, pmap_t pmap,
 		    vm_offset_t va);
+static bool	pmap_demote_l1(pmap_t pmap, pd_entry_t *l1, vm_offset_t va);
 static bool	pmap_demote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va);
 static bool	pmap_demote_l2_locked(pmap_t pmap, pd_entry_t *l2,
 		    vm_offset_t va, struct rwlock **lockp);
@@ -2793,6 +2801,67 @@ pmap_fault(pmap_t pmap, vm_offset_t va, vm_prot_t ftype)
 done:
 	PMAP_UNLOCK(pmap);
 	return (rv);
+}
+
+/*
+ *	Demote the specified L1 page to separate L2 pages.
+ *	Currently only used for DMAP entries.
+ */
+static bool
+pmap_demote_l1(pmap_t pmap, pd_entry_t *l1, vm_offset_t va)
+{
+	vm_page_t m;
+	pt_entry_t *l2, oldl1, newl2;
+	pd_entry_t newl1;
+	vm_paddr_t l2phys;
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+
+	oldl1 = pmap_load(l1);
+	KASSERT((oldl1 & PTE_RWX) != 0,
+	    ("pmap_demote_l1: oldl1 is not a leaf PTE"));
+	KASSERT((oldl1 & PTE_A) != 0,
+	    ("pmap_demote_l1: oldl1 is missing PTE_A"));
+	KASSERT((oldl1 & (PTE_D | PTE_W)) != PTE_W,
+	    ("pmap_demote_l1: not dirty!"));
+	KASSERT((oldl1 & PTE_SW_MANAGED) == 0,
+	    ("pmap_demote_l1: L1 table shouldn't be managed"));
+	KASSERT(VIRT_IN_DMAP(va),
+	    ("pmap_demote_l1: is unsupported for non-DMAP va=%#lx", va));
+
+	/* Demoting L1 means we need to allocate a new page-table page. */
+	m = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED);
+	if (m == NULL) {
+		CTR2(KTR_PMAP, "pmap_demote_l1: failure for va %#lx in pmap %p",
+		    va, pmap);
+		return (false);
+	}
+
+	l2phys = VM_PAGE_TO_PHYS(m);
+	l2 = (pt_entry_t *)PHYS_TO_DMAP(l2phys);
+
+	/*
+	 * Create new entries, relying on the fact that only the low bits
+	 * (index) of the physical address are changing.
+	 */
+	newl2 = oldl1;
+	for (int i = 0; i < Ln_ENTRIES; i++)
+		pmap_store(&l2[i], newl2 | (i << PTE_PPN1_S));
+
+	/*
+	 * And update the L1 entry.
+	 *
+	 * NB: flushing the TLB is the responsibility of the caller. Cached
+	 * translations are still "correct" for demoted mappings until some
+	 * subset of the demoted range is modified.
+	 */
+	newl1 = ((l2phys / PAGE_SIZE) << PTE_PPN0_S) | PTE_V;
+	pmap_store(l1, newl1);
+
+	counter_u64_add(pmap_l1_demotions, 1);
+	CTR2(KTR_PMAP, "pmap_demote_l1: success for va %#lx in pmap %p",
+	    va, pmap);
+	return (true);
 }
 
 static bool
