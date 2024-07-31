@@ -577,6 +577,10 @@ OLD_FILES+=usr/tests/usr.bin/awk/bugs-fixed/system-status.ok2
 # 20240211: caroot bundle updated
 OLD_FILES+=usr/share/certs/trusted/Security_Communication_Root_CA.pem
 
+# 20240202: remove obsolete share/examples/IPv6/USAGE
+OLD_FILES+=usr/share/examples/IPv6/USAGE
+OLD_DIRS+=usr/share/examples/IPv6
+
 # 20240122: callout_async_drain() removed
 OLD_FILES+=usr/share/man/man9/callout_async_drain.9.gz
 
