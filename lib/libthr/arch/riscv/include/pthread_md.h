@@ -61,9 +61,4 @@ _thr_resolve_machdep(void)
 {
 }
 
-static __inline void
-_thr_resolve_machdep(void)
-{
-}
-
 #endif /* _PTHREAD_MD_H_ */
