@@ -1008,6 +1008,9 @@ OLD_FILES+=usr/include/machine/swi.h
 # 20230714: gsignal
 OLD_FILES+=usr/share/man/man9/gsignal.9.gz
 
+# 20230704: kinst dtrace tests moved to common
+OLD_DIRS+=usr/tests/cddl/usr.sbin/dtrace/amd64/kinst
+
 # 20230626: Only install sys/dev/nvme/nvme.h to /usr/include
 OLD_FILES+=usr/include/dev/nvme/nvme_private.h
 
