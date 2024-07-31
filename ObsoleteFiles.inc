@@ -101,6 +101,7 @@ OLD_DIRS+=var/db/portsnap
 # 20240507: remove gbde
 OLD_FILES+=boot/kernel/geom_bde.ko
 OLD_FILES+=etc/rc.d/gbde
+OLD_FILES+=rescue/gbde
 OLD_FILES+=sbin/gbde
 OLD_FILES+=usr/share/man/man4/gbde.4.gz
 OLD_FILES+=usr/share/man/man8/gbde.8.gz
