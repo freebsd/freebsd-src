@@ -83,6 +83,25 @@ typedef	uint64_t	pn_t;			/* page number */
 #define	PTE_PROMOTE	(PTE_V | PTE_RWX | PTE_D | PTE_G | PTE_U | \
 			 PTE_SW_MANAGED | PTE_SW_WIRED)
 
+/*
+ * Svpbmt Memory Attribute (MA) bits [62:61].
+ *
+ * +------+-------+------------------------------------------------------------+
+ * | Mode | Value | Requested Memory Attributes                                |
+ * +------+-------+------------------------------------------------------------+
+ * | PMA  | 00    | None, inherited from Physical Memory Attributes (firmware) |
+ * | NC   | 01    | Non-cacheable, idempotent, weakly-ordered (RVWMO),         |
+ * |      |       | main memory                                                |
+ * | IO   | 10    | Non-cacheable, non-idempotent, strongly-ordered, I/O       |
+ * | --   | 11    | Reserved                                                   |
+ * +------+-------+------------------------------------------------------------+
+ */
+#define	PTE_MA_SHIFT		61
+#define	PTE_MA_MASK		(0x3ul << PTE_MA_SHIFT)
+#define	PTE_MA_NONE		(0ul)
+#define	PTE_MA_NC		(1ul << PTE_MA_SHIFT)
+#define	PTE_MA_IO		(2ul << PTE_MA_SHIFT)
+
 /* Bits 63 - 54 are reserved for future use. */
 #define PTE_HI_MASK	0xFFC0000000000000ULL
 
