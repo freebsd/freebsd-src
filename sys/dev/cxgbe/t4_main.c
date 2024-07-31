@@ -2060,7 +2060,9 @@ stop_lld(struct adapter *sc)
 			}
 #if defined(TCP_OFFLOAD) || defined(RATELIMIT)
 			for_each_ofld_txq(vi, k, ofld_txq) {
+				TXQ_LOCK(&ofld_txq->wrq);
 				ofld_txq->wrq.eq.flags &= ~EQ_HW_ALLOCATED;
+				TXQ_UNLOCK(&ofld_txq->wrq);
 			}
 #endif
 			for_each_rxq(vi, k, rxq) {
@@ -2078,7 +2080,9 @@ stop_lld(struct adapter *sc)
 		if (sc->flags & FULL_INIT_DONE) {
 			/* Control queue */
 			wrq = &sc->sge.ctrlq[i];
+			TXQ_LOCK(wrq);
 			wrq->eq.flags &= ~EQ_HW_ALLOCATED;
+			TXQ_UNLOCK(wrq);
 			quiesce_wrq(wrq);
 		}
 	}
@@ -7047,8 +7051,22 @@ quiesce_txq(struct sge_txq *txq)
 static void
 quiesce_wrq(struct sge_wrq *wrq)
 {
+	struct wrqe *wr;
 
-	/* XXXTX */
+	TXQ_LOCK(wrq);
+	while ((wr = STAILQ_FIRST(&wrq->wr_list)) != NULL) {
+		STAILQ_REMOVE_HEAD(&wrq->wr_list, link);
+#ifdef INVARIANTS
+		wrq->nwr_pending--;
+		wrq->ndesc_needed -= howmany(wr->wr_len, EQ_ESIZE);
+#endif
+		free(wr, M_CXGBE);
+	}
+	MPASS(wrq->nwr_pending == 0);
+	MPASS(wrq->ndesc_needed == 0);
+	wrq->nwr_pending = 0;
+	wrq->ndesc_needed = 0;
+	TXQ_UNLOCK(wrq);
 }
 
 static void

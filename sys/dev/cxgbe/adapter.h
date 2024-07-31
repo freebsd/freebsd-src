@@ -1561,7 +1561,10 @@ t4_wrq_tx(struct adapter *sc, struct wrqe *wr)
 	struct sge_wrq *wrq = wr->wrq;
 
 	TXQ_LOCK(wrq);
-	t4_wrq_tx_locked(sc, wrq, wr);
+	if (__predict_true(wrq->eq.flags & EQ_HW_ALLOCATED))
+		t4_wrq_tx_locked(sc, wrq, wr);
+	else
+		free(wr, M_CXGBE);
 	TXQ_UNLOCK(wrq);
 }
 
