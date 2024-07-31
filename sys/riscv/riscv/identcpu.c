@@ -74,6 +74,7 @@ u_int mmu_caps;
 /* Supervisor-mode extension support. */
 bool __read_frequently has_sstc;
 bool __read_frequently has_sscofpmf;
+bool has_svpbmt;
 
 struct cpu_desc {
 	const char	*cpu_mvendor_name;
@@ -414,6 +415,7 @@ update_global_capabilities(u_int cpu, struct cpu_desc *desc)
 	/* Supervisor-mode extension support. */
 	UPDATE_CAP(has_sstc, (desc->smode_extensions & SV_SSTC) != 0);
 	UPDATE_CAP(has_sscofpmf, (desc->smode_extensions & SV_SSCOFPMF) != 0);
+	UPDATE_CAP(has_svpbmt, (desc->smode_extensions & SV_SVPBMT) != 0);
 
 #undef UPDATE_CAP
 }
