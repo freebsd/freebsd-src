@@ -562,6 +562,9 @@ OLD_FILES+=usr/include/c++/v1/setjmp.h
 # 20240321: remove empty /usr/libdata/gcc directory
 OLD_DIRS+=usr/libdata/gcc
 
+# 20240315: stop installing CAM.4 link to scsi.4
+OLD_FILES+=usr/share/man/man4/CAM.4.gz
+
 # 20240307: Improperly installed awk tests removed
 OLD_FILES+=usr/tests/usr.bin/awk/bugs-fixed/missing-precision.ok
 OLD_FILES+=usr/tests/usr.bin/awk/bugs-fixed/negative-nf.ok
