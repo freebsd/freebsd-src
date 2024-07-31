@@ -251,27 +251,22 @@ void mlx5e_accel_ipsec_fs_rx_tables_destroy(struct mlx5e_priv *priv);
 int mlx5e_accel_ipsec_fs_rx_tables_create(struct mlx5e_priv *priv);
 void mlx5e_accel_ipsec_fs_rx_catchall_rules_destroy(struct mlx5e_priv *priv);
 int mlx5e_accel_ipsec_fs_rx_catchall_rules(struct mlx5e_priv *priv);
-int mlx5_accel_ipsec_rx_tag_add(if_t ifp, struct mbuf *mb);
-int mlx5e_accel_ipsec_handle_rx_cqe(struct mbuf *mb, struct mlx5_cqe64 *cqe);
+int mlx5_accel_ipsec_rx_tag_add(if_t ifp, struct mlx5e_rq_mbuf *mr);
+void mlx5e_accel_ipsec_handle_rx_cqe(struct mbuf *mb, struct mlx5_cqe64 *cqe,
+    struct mlx5e_rq_mbuf *mr);
+
 static inline int mlx5e_accel_ipsec_flow(struct mlx5_cqe64 *cqe)
 {
 	return MLX5_IPSEC_METADATA_MARKER(be32_to_cpu(cqe->ft_metadata));
 }
 
-static inline void mlx5e_accel_ipsec_handle_rx(struct mbuf *mb, struct mlx5_cqe64 *cqe)
+static inline void
+mlx5e_accel_ipsec_handle_rx(struct mbuf *mb, struct mlx5_cqe64 *cqe,
+    struct mlx5e_rq_mbuf *mr)
 {
 	u32 ipsec_meta_data = be32_to_cpu(cqe->ft_metadata);
 
-	if (!MLX5_IPSEC_METADATA_MARKER(ipsec_meta_data)) {
-		struct m_tag *mtag;
-
-		mtag = m_tag_find(mb, PACKET_TAG_IPSEC_ACCEL_IN, NULL);
-		if (mtag != NULL)
-			m_tag_delete(mb, mtag);
-
-		return;
-	}
-
-	mlx5e_accel_ipsec_handle_rx_cqe(mb, cqe);
+	if (MLX5_IPSEC_METADATA_MARKER(ipsec_meta_data))
+		mlx5e_accel_ipsec_handle_rx_cqe(mb, cqe, mr);
 }
 #endif	/* __MLX5_ACCEL_IPSEC_H__ */

@@ -35,36 +35,41 @@
 
 #define MLX5_IPSEC_METADATA_HANDLE(ipsec_metadata) (ipsec_metadata & 0xFFFFFF)
 
-int mlx5_accel_ipsec_rx_tag_add(if_t ifp, struct mbuf *mb)
+int
+mlx5_accel_ipsec_rx_tag_add(if_t ifp, struct mlx5e_rq_mbuf *mr)
 {
 	struct mlx5e_priv *priv;
-	struct ipsec_accel_in_tag *tag;
-	struct m_tag *mtag;
+	struct ipsec_accel_in_tag *mtag;
 
 	priv = if_getsoftc(ifp);
 	if (priv->ipsec == NULL)
 		return (0);
+	if (mr->ipsec_mtag != NULL)
+		return (0);
 
-	mtag = m_tag_get(PACKET_TAG_IPSEC_ACCEL_IN, sizeof(*tag), M_NOWAIT);
+	mtag = (struct ipsec_accel_in_tag *)m_tag_get(
+	    PACKET_TAG_IPSEC_ACCEL_IN, sizeof(*mtag), M_NOWAIT);
 	if (mtag == NULL)
-		return -ENOMEM;
-
-	m_tag_prepend(mb, mtag);
-	return 0;
+		return (-ENOMEM);
+	mr->ipsec_mtag = mtag;
+	return (0);
 }
 
-int mlx5e_accel_ipsec_handle_rx_cqe(struct mbuf *mb, struct mlx5_cqe64 *cqe)
+void
+mlx5e_accel_ipsec_handle_rx_cqe(struct mbuf *mb, struct mlx5_cqe64 *cqe,
+    struct mlx5e_rq_mbuf *mr)
 {
-	struct ipsec_accel_in_tag *tag;
-	u32  drv_spi;
+	struct ipsec_accel_in_tag *mtag;
+	u32 drv_spi;
 
 	drv_spi = MLX5_IPSEC_METADATA_HANDLE(be32_to_cpu(cqe->ft_metadata));
-	tag = (struct ipsec_accel_in_tag *) m_tag_find(mb, PACKET_TAG_IPSEC_ACCEL_IN, NULL);
-	WARN_ON(tag == NULL);
-	if (tag)
-		tag->drv_spi = drv_spi;
-
-	return 0;
+	mtag = mr->ipsec_mtag;
+	WARN_ON(mtag == NULL);
+	mr->ipsec_mtag = NULL;
+	if (mtag != NULL) {
+		mtag->drv_spi = drv_spi;
+		m_tag_prepend(mb, &mtag->tag);
+	}
 }
 
 void
