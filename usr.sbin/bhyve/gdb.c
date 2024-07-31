@@ -652,6 +652,28 @@ append_packet_data(const uint8_t *data, size_t len)
 }
 
 static void
+append_binary_data(const uint8_t *data, size_t len)
+{
+	uint8_t buf[2];
+
+	for (; len > 0; data++, len--) {
+		switch (*data) {
+		case '}':
+		case '#':
+		case '$':
+		case '*':
+			buf[0] = 0x7d;
+			buf[1] = *data ^ 0x20;
+			append_packet_data(buf, 2);
+			break;
+		default:
+			append_packet_data(data, 1);
+			break;
+		}
+	}
+}
+
+static void
 append_string(const char *str)
 {
 
@@ -1801,10 +1823,10 @@ gdb_query(const uint8_t *data, size_t len)
 			append_char('l');
 		} else if (doff + dlen >= xmllen) {
 			append_char('l');
-			append_packet_data(xml + doff, xmllen - doff);
+			append_binary_data(xml + doff, xmllen - doff);
 		} else {
 			append_char('m');
-			append_packet_data(xml + doff, dlen);
+			append_binary_data(xml + doff, dlen);
 		}
 		finish_packet();
 		(void)munmap(__DECONST(void *, xml), xmllen);
