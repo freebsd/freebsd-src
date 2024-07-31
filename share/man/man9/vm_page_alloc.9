@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 .\" DAMAGE.
 .\"
-.Dd July 21, 2024
+.Dd August 4, 2024
 .Dt VM_PAGE_ALLOC 9
 .Os
 .Sh NAME
@@ -307,6 +307,10 @@ pages will be allocated by the caller in the near future.
 must be no larger than 65535.
 If the system is short of free pages, this hint may cause the kernel
 to reclaim memory more aggressively than it would otherwise.
+.It Dv VM_ALLOC_NOFREE
+The caller asserts that the returned page will never be released.
+If this flag is specified, the allocator will try to fetch a page from a
+special per-domain arena in order to curb long-term physical memory fragmentation.
 .El
 .Sh RETURN VALUES
 If the allocation was successful, a pointer to the

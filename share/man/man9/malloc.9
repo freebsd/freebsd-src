@@ -28,7 +28,7 @@
 .\"
 .\" $NetBSD: malloc.9,v 1.3 1996/11/11 00:05:11 lukem Exp $
 .\"
-.Dd October 12, 2022
+.Dd August 4, 2024
 .Dt MALLOC 9
 .Os
 .Sh NAME
@@ -269,6 +269,15 @@ This option should only be used in combination with
 .Dv M_NOWAIT
 when an allocation failure cannot be tolerated by the caller without
 catastrophic effects on the system.
+.It Dv M_NEVERFREED
+This is an internal flag used by the
+.Xr UMA 9
+allocator and should not be used in regular
+.Fn malloc
+invocations.
+See the description of VM_ALLOC_NOFREE in
+.Xr vm_page_alloc 9
+for more details.
 .El
 .Pp
 Exactly one of either
