@@ -249,7 +249,8 @@ vmexit_smccc(struct vmctx *ctx, struct vcpu *vcpu, struct vm_run *vmrun)
 			how = VM_SUSPEND_POWEROFF;
 		else
 			how = VM_SUSPEND_RESET;
-		vm_suspend(ctx, how);
+		error = vm_suspend(ctx, how);
+		assert(error == 0 || errno == EALREADY);
 		break;
 	default:
 		break;
