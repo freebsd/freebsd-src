@@ -542,6 +542,8 @@ malloc_dbg(caddr_t *vap, size_t *sizep, struct malloc_type *mtp,
 			once++;
 		}
 	}
+	KASSERT((flags & M_NEVERFREED) == 0,
+	    ("malloc: M_NEVERFREED is for internal use only"));
 #endif
 #ifdef MALLOC_MAKE_FAILURES
 	if ((flags & M_NOWAIT) && (malloc_failure_rate != 0)) {
