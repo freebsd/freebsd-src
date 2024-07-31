@@ -194,7 +194,7 @@ SCI_STATUS scif_sas_smp_remote_device_decode_smp_response(
 
    //if Core set the status of this io to be RETRY_REQUIRED, we should
    //retry the IO without even decode the response.
-   if (completion_status == SCI_FAILURE_RETRY_REQUIRED)
+   if (completion_status == SCI_IO_FAILURE_RETRY_REQUIRED)
    {
       scif_sas_smp_remote_device_continue_current_activity(
          fw_device, fw_request, SCI_FAILURE_RETRY_REQUIRED
