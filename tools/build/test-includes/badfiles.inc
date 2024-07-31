@@ -75,7 +75,6 @@ BADHDRS= \
 	sys/lockf.h \
 	sys/lockmgr.h \
 	sys/loginclass.h \
-	sys/mac.h \
 	sys/mbuf.h \
 	sys/md4.h \
 	sys/md5.h \
