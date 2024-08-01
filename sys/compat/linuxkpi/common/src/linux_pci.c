@@ -752,8 +752,7 @@ linux_pci_register_driver(struct pci_driver *pdrv)
 {
 	devclass_t dc;
 
-	pdrv->isdrm = strcmp(pdrv->name, "drmn") == 0;
-	dc = pdrv->isdrm ? devclass_create("vgapci") : devclass_find("pci");
+	dc = devclass_find("pci");
 	if (dc == NULL)
 		return (-ENXIO);
 	return (_linux_pci_register_driver(pdrv, dc));
@@ -908,7 +907,7 @@ linux_pci_unregister_driver(struct pci_driver *pdrv)
 {
 	devclass_t bus;
 
-	bus = devclass_find(pdrv->isdrm ? "vgapci" : "pci");
+	bus = devclass_find("pci");
 
 	spin_lock(&pci_lock);
 	list_del(&pdrv->node);
