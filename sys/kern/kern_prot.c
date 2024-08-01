@@ -2281,11 +2281,6 @@ cru2xt(struct thread *td, struct xucred *xcr)
  * Change process credentials.
  * Callers are responsible for providing the reference for passed credentials
  * and for freeing old ones.
- *
- * Process has to be locked except when it does not have credentials (as it
- * should not be visible just yet) or when newcred is NULL (as this can be
- * only used when the process is about to be freed, at which point it should
- * not be visible anymore).
  */
 void
 proc_set_cred(struct proc *p, struct ucred *newcred)
