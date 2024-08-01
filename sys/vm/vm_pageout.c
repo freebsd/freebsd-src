@@ -2305,9 +2305,6 @@ vm_pageout_init(void)
 	/*
 	 * Initialize some paging parameters.
 	 */
-	if (vm_cnt.v_page_count < 2000)
-		vm_pageout_page_count = 8;
-
 	freecount = 0;
 	for (i = 0; i < vm_ndomains; i++) {
 		struct vm_domain *vmd;
