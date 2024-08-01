@@ -357,7 +357,7 @@ SYSTEM_OBJS+= embedfs_${MFS_IMAGE:T:R}.o
 .endif
 .endif
 SYSTEM_LD_BASECMD= \
-	${LD} -m ${LD_EMULATION} -Bdynamic -T ${LDSCRIPT} ${_LDFLAGS} \
+	${LD} -m ${LD_EMULATION} -Bdynamic -L $S/conf -T ${LDSCRIPT} ${_LDFLAGS} \
 	--no-warn-mismatch --warn-common --export-dynamic \
 	--dynamic-linker /red/herring -X
 SYSTEM_LD= @${SYSTEM_LD_BASECMD} -o ${.TARGET} ${SYSTEM_OBJS} vers.o
