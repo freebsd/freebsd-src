@@ -34,3 +34,8 @@
   /* DWARF 3 */
   .debug_pubtypes 0 : { *(.debug_pubtypes) }
   .debug_ranges   0 : { *(.debug_ranges) }
+  /* DWARF 4 */
+  .debug_types	0 : { *(.debug_types) }
+  /* DWARF 5 */
+  .debug_macro	0 : { *(.debug_macro) }
+  .debug_addr	0 : { *(.debug_addr) }
