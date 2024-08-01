@@ -5019,20 +5019,11 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 			at += padded_size;
 			break;
 		case SCTP_HAS_NAT_SUPPORT:
-			if (padded_size != sizeof(struct sctp_paramhdr)) {
-				SCTPDBG(SCTP_DEBUG_OUTPUT1, "Invalid size - error nat support %d\n", plen);
-				goto invalid_size;
-			}
 			*nat_friendly = 1;
-<<<<<<< HEAD
 			/* fall through */
-=======
-			at += padded_size;
-			break;
->>>>>>> 533faf21c19d (sctp: improve consistency)
 		case SCTP_PRSCTP_SUPPORTED:
 			if (padded_size != sizeof(struct sctp_paramhdr)) {
-				SCTPDBG(SCTP_DEBUG_OUTPUT1, "Invalid size - error prsctp %d\n", plen);
+				SCTPDBG(SCTP_DEBUG_OUTPUT1, "Invalid size - error prsctp/nat support %d\n", plen);
 				goto invalid_size;
 			}
 			at += padded_size;
