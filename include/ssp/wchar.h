@@ -35,7 +35,7 @@ __ssp_inline int
 __ssp_wchar_overlap(const void *leftp, const void *rightp, size_t len)
 {
 
-	if (len > SIZE_MAX / sizeof(wchar_t))
+	if (len > __SIZE_T_MAX / sizeof(wchar_t))
 		return (1);
 	return (__ssp_overlap(leftp, rightp, len * sizeof(wchar_t)));
 }

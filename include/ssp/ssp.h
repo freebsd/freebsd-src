@@ -87,7 +87,7 @@ __ssp_redirect_raw_impl(rtype, fun, symbol, args) { \
 #define __ssp_redirect0(rtype, fun, args, call) \
     __ssp_redirect_raw(rtype, fun, fun, args, call, 1, __ssp_bos0, __len)
 
-#include <machine/_stdint.h>
+#include <machine/_limits.h>
 
 __ssp_inline int
 __ssp_overlap(const void *leftp, const void *rightp, __size_t sz)
@@ -96,9 +96,9 @@ __ssp_overlap(const void *leftp, const void *rightp, __size_t sz)
 	__uintptr_t right = (__uintptr_t)rightp;
 
 	if (left <= right)
-		return (SIZE_MAX - sz < left || right < left + sz);
+		return (__SIZE_T_MAX - sz < left || right < left + sz);
 
-	return (SIZE_MAX - sz < right || left < right + sz);
+	return (__SIZE_T_MAX - sz < right || left < right + sz);
 }
 
 #include <sys/_iovec.h>
