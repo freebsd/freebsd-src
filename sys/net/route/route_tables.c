@@ -218,6 +218,7 @@ populate_kernel_routes(struct rib_head **new_rt_tables, struct rib_head *rh)
 static void
 grow_rtables(uint32_t num_tables)
 {
+	static bool printedonce;
 	struct domain *dom;
 	struct rib_head **prnh, *rh;
 	struct rib_head **new_rt_tables, **old_rt_tables;
@@ -231,10 +232,12 @@ grow_rtables(uint32_t num_tables)
 	new_rt_tables = mallocarray(num_tables * (AF_MAX + 1), sizeof(void *),
 	    M_RTABLE, M_WAITOK | M_ZERO);
 
-	if ((num_tables > 1) && (V_rt_add_addr_allfibs == 0))
+	if (num_tables > 1 && V_rt_add_addr_allfibs == 0 && !printedonce) {
+		printedonce = true;
 		printf("WARNING: Adding ifaddrs to all fibs has been turned off "
 			"by default. Consider tuning %s if needed\n",
 			"net.add_addr_allfibs");
+	}
 
 #ifdef FIB_ALGO
 	fib_grow_rtables(num_tables);
