@@ -52,7 +52,7 @@ vmm_hyp.o: vmm_hyp.c
 	    ${.IMPSRC} -o ${.TARGET} -fpie
 
 vmm_hyp_blob.elf.full:	vmm_hyp_exception.o vmm_hyp.o
-	${LD} -m ${LD_EMULATION} -Bdynamic -T ${SYSDIR}/conf/ldscript.arm64 \
+	${LD} -m ${LD_EMULATION} -Bdynamic -L ${SYSDIR}/conf -T ${SYSDIR}/conf/ldscript.arm64 \
 	    ${_LDFLAGS:N-zbti-report*} --no-warn-mismatch --warn-common --export-dynamic \
 	    --dynamic-linker /red/herring -X -o ${.TARGET} ${.ALLSRC} \
 	    --defsym=_start='0x0' --defsym=text_start='0x0'
