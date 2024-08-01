@@ -32,7 +32,12 @@ VERSION_FILE=	${.CURDIR}/../loader/version
 #
 # will tell you how many kiB of lomem are available.
 #
-LOADERSIZE?=	560000		# Largest known safe size for loader.bin
+# We further reduce this to 500k, though, to give PXE an additional 64k of space
+# so pxeloader will fit. If you have special needs that do not include pxeboot,
+# you can safely set this as high as 560000 generally, or a bit higher if you
+# have tight control over the machines you are booting on.
+#
+LOADERSIZE?=	500000		# Largest known safe size for loader.bin
 
 .PATH:		${BOOTSRC}/i386/loader
 
