@@ -940,14 +940,18 @@ _free(void *addr, struct malloc_type *mtp, bool dozero)
 #if defined(INVARIANTS) && !defined(KASAN)
 		free_save_type(addr, mtp, size);
 #endif
-		if (dozero)
+		if (dozero) {
+			kasan_mark(addr, size, size, 0);
 			explicit_bzero(addr, size);
+		}
 		uma_zfree_arg(zone, addr, slab);
 		break;
 	case SLAB_COOKIE_MALLOC_LARGE:
 		size = malloc_large_size(slab);
-		if (dozero)
+		if (dozero) {
+			kasan_mark(addr, size, size, 0);
 			explicit_bzero(addr, size);
+		}
 		free_large(addr, size);
 		break;
 	case SLAB_COOKIE_CONTIG_MALLOC:
