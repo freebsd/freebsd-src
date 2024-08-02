@@ -1087,7 +1087,7 @@ fail0:
 #endif
 	racct_proc_exit(newproc);
 fail1:
-	proc_unset_cred(newproc);
+	proc_unset_cred(newproc, false);
 fail2:
 	if (vm2 != NULL)
 		vmspace_free(vm2);

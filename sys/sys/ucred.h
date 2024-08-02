@@ -34,6 +34,7 @@
 #ifndef _SYS_UCRED_H_
 #define	_SYS_UCRED_H_
 
+#include <sys/types.h>
 #if defined(_KERNEL) || defined(_WANT_UCRED)
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
@@ -158,8 +159,9 @@ void	crcopy(struct ucred *dest, struct ucred *src);
 struct ucred	*crcopysafe(struct proc *p, struct ucred *cr);
 struct ucred	*crdup(struct ucred *cr);
 void	crextend(struct ucred *cr, int n);
-void	proc_set_cred(struct proc *p, struct ucred *cr);
-void	proc_unset_cred(struct proc *p);
+void	proc_set_cred(struct proc *p, struct ucred *newcred);
+bool	proc_set_cred_enforce_proc_lim(struct proc *p, struct ucred *newcred);
+void	proc_unset_cred(struct proc *p, bool decrement_proc_count);
 void	crfree(struct ucred *cr);
 struct ucred	*crcowsync(void);
 struct ucred	*crget(void);
