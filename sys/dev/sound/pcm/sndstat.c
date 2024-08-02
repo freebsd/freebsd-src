@@ -517,8 +517,13 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_SWBUF_READY,
 		    sndbuf_getready(c->bufsoft));
 
-		sbuf_printf(&sb, "[%s",
-		    (c->direction == PCMDIR_REC) ? "hardware" : "userland");
+		if (c->parentchannel != NULL) {
+			sbuf_printf(&sb, "[%s", (c->direction == PCMDIR_REC) ?
+			    c->parentchannel->name : "userland");
+		} else {
+			sbuf_printf(&sb, "[%s", (c->direction == PCMDIR_REC) ?
+			    "hardware" : "userland");
+		}
 		sbuf_printf(&sb, " -> ");
 		f = c->feeder;
 		while (f->source != NULL)
@@ -550,8 +555,13 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 			sbuf_printf(&sb, " -> ");
 			f = f->parent;
 		}
-		sbuf_printf(&sb, "%s]",
-		    (c->direction == PCMDIR_REC) ? "userland" : "hardware");
+		if (c->parentchannel != NULL) {
+			sbuf_printf(&sb, "%s]", (c->direction == PCMDIR_REC) ?
+			    "userland" : c->parentchannel->name);
+		} else {
+			sbuf_printf(&sb, "%s]", (c->direction == PCMDIR_REC) ?
+			    "userland" : "hardware");
+		}
 
 		CHN_UNLOCK(c);
 
@@ -1306,8 +1316,13 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 		sbuf_printf(s, "channel flags=0x%b", c->flags, CHN_F_BITS);
 		sbuf_printf(s, "\n\t");
 
-		sbuf_printf(s, "{%s}",
-		    (c->direction == PCMDIR_REC) ? "hardware" : "userland");
+		if (c->parentchannel != NULL) {
+			sbuf_printf(s, "{%s}", (c->direction == PCMDIR_REC) ?
+			    c->parentchannel->name : "userland");
+		} else {
+			sbuf_printf(s, "{%s}", (c->direction == PCMDIR_REC) ?
+			    "hardware" : "userland");
+		}
 		sbuf_printf(s, " -> ");
 		f = c->feeder;
 		while (f->source != NULL)
@@ -1339,8 +1354,13 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 			sbuf_printf(s, " -> ");
 			f = f->parent;
 		}
-		sbuf_printf(s, "{%s}",
-		    (c->direction == PCMDIR_REC) ? "userland" : "hardware");
+		if (c->parentchannel != NULL) {
+			sbuf_printf(s, "{%s}", (c->direction == PCMDIR_REC) ?
+			    "userland" : c->parentchannel->name);
+		} else {
+			sbuf_printf(s, "{%s}", (c->direction == PCMDIR_REC) ?
+			    "userland" : "hardware");
+		}
 
 		CHN_UNLOCK(c);
 	}
