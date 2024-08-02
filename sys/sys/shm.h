@@ -171,9 +171,6 @@ typedef __size_t        size_t;
 #endif
 
 __BEGIN_DECLS
-#if __BSD_VISIBLE
-int shmsys(int, ...);
-#endif
 void *shmat(int, const void *, int);
 int shmget(key_t, size_t, int);
 int shmctl(int, int, struct shmid_ds *);
