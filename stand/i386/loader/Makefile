@@ -130,8 +130,8 @@ FILESMODE_${LOADER}= ${BINMODE} -b
 # Note: crt0.o needs to be first for pxeboot(8) to work. It assumes that the
 # startup code is located at the start of the loader and will jump
 # there. Although btx is more flexible than this, the emulated boot2 environment
-# that pxeldr provides has none of that flexibility assumes an entry point of
-# 0. In addition, pxeldr and cdboot assume that it is loading an a.out file.
+# that pxeldr provides has none of that flexibility and assumes the entry point
+# is 0. Finally, both pxeldr and cdboot assume they are loading an a.out file.
 #
 # We must add it to the LDFLAGS instead of the OBJS because the former won't try
 # to clean it. When it is in OBJS, this cleaning can lead to races where
