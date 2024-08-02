@@ -348,7 +348,7 @@ static int
 vm_pageout_cluster(vm_page_t m)
 {
 	vm_object_t object;
-	vm_page_t mc[2 * vm_pageout_page_count], p, pb, ps;
+	vm_page_t mc[2 * vm_pageout_page_count - 1], p, pb, ps;
 	vm_pindex_t pindex;
 	int ib, is, page_base, pageout_count;
 
@@ -358,9 +358,9 @@ vm_pageout_cluster(vm_page_t m)
 
 	vm_page_assert_xbusied(m);
 
-	mc[vm_pageout_page_count] = pb = ps = m;
 	pageout_count = 1;
-	page_base = vm_pageout_page_count;
+	page_base = nitems(mc) / 2;
+	mc[page_base] = pb = ps = m;
 	ib = 1;
 	is = 1;
 

@@ -1115,13 +1115,14 @@ static int
 vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int pagerflags,
     int flags, boolean_t *allclean, boolean_t *eio)
 {
-	vm_page_t ma[2 * vm_pageout_page_count], tp;
-	int count, mreq, runlen;
+	vm_page_t ma[2 * vm_pageout_page_count - 1], tp;
+	int base, count, runlen;
 
 	vm_page_lock_assert(p, MA_NOTOWNED);
 	vm_page_assert_xbusied(p);
 	VM_OBJECT_ASSERT_WLOCKED(object);
-	ma[vm_pageout_page_count] = p;
+	base = nitems(ma) / 2;
+	ma[base] = p;
 	for (count = 1, tp = p; count < vm_pageout_page_count; count++) {
 		tp = vm_page_next(tp);
 		if (tp == NULL || vm_page_tryxbusy(tp) == 0)
@@ -1130,10 +1131,10 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int pagerflags,
 			vm_page_xunbusy(tp);
 			break;
 		}
-		ma[vm_pageout_page_count + count] = tp;
+		ma[base + count] = tp;
 	}
 
-	for (mreq = 0, tp = p; count < vm_pageout_page_count; count++, mreq++) {
+	for (tp = p; count < vm_pageout_page_count; count++) {
 		tp = vm_page_prev(tp);
 		if (tp == NULL || vm_page_tryxbusy(tp) == 0)
 			break;
@@ -1141,11 +1142,11 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int pagerflags,
 			vm_page_xunbusy(tp);
 			break;
 		}
-		ma[vm_pageout_page_count - 1 - mreq] = tp;
+		ma[--base] = tp;
 	}
 
-	vm_pageout_flush(&ma[vm_pageout_page_count - mreq], count, pagerflags,
-	    mreq, &runlen, eio);
+	vm_pageout_flush(&ma[base], count, pagerflags, nitems(ma) / 2 - base,
+	    &runlen, eio);
 	return (runlen);
 }
 
