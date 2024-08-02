@@ -1464,7 +1464,6 @@ _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 		pd_entry_t *l0;
 		vm_page_t pdpg;
 
-		MPASS(pmap_mode != PMAP_MODE_SV39);
 		l0 = pmap_l0(pmap, va);
 		pdpg = PTE_TO_VM_PAGE(pmap_load(l0));
 		pmap_unwire_ptp(pmap, va, pdpg, free);
