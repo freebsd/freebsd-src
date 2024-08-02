@@ -568,7 +568,7 @@ sys_setuid(struct thread *td, struct setuid_args *uap)
 #endif
 	{
 		/*
-		 * Set the real uid and transfer proc count to new user.
+		 * Set the real uid.
 		 */
 		if (uid != oldcred->cr_ruid) {
 			change_ruid(newcred, uip);
@@ -594,6 +594,9 @@ sys_setuid(struct thread *td, struct setuid_args *uap)
 		change_euid(newcred, uip);
 		setsugid(p);
 	}
+	/*
+	 * This also transfers the proc count to the new user.
+	 */
 	proc_set_cred(p, newcred);
 #ifdef RACCT
 	racct_proc_ucred_changed(p, oldcred, newcred);
@@ -2279,31 +2282,76 @@ cru2xt(struct thread *td, struct xucred *xcr)
 
 /*
  * Change process credentials.
+ *
  * Callers are responsible for providing the reference for passed credentials
- * and for freeing old ones.
+ * and for freeing old ones.  Calls chgproccnt() to correctly account the
+ * current process to the proper real UID, if the latter has changed.  Returns
+ * whether the operation was successful.  Failure can happen only on
+ * 'enforce_proc_lim' being true and if no new process can be accounted to the
+ * new real UID because of the current limit (see the inner comment for more
+ * details) and the caller does not have privilege (PRIV_PROC_LIMIT) to override
+ * that.
  */
-void
-proc_set_cred(struct proc *p, struct ucred *newcred)
+static bool
+_proc_set_cred(struct proc *p, struct ucred *newcred, bool enforce_proc_lim)
 {
-	struct ucred *cr;
+	struct ucred *const oldcred = p->p_ucred;
 
-	cr = p->p_ucred;
-	MPASS(cr != NULL);
+	MPASS(oldcred != NULL);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	KASSERT(newcred->cr_users == 0, ("%s: users %d not 0 on cred %p",
 	    __func__, newcred->cr_users, newcred));
-	mtx_lock(&cr->cr_mtx);
-	KASSERT(cr->cr_users > 0, ("%s: users %d not > 0 on cred %p",
-	    __func__, cr->cr_users, cr));
-	cr->cr_users--;
-	mtx_unlock(&cr->cr_mtx);
+	KASSERT(newcred->cr_ref == 1, ("%s: ref %ld not 1 on cred %p",
+	    __func__, newcred->cr_ref, newcred));
+
+	if (newcred->cr_ruidinfo != oldcred->cr_ruidinfo) {
+		/*
+		 * XXXOC: This check is flawed but nonetheless the best we can
+		 * currently do as we don't really track limits per UID contrary
+		 * to what we pretend in setrlimit(2).  Until this is reworked,
+		 * we just check here that the number of processes for our new
+		 * real UID doesn't exceed this process' process number limit
+		 * (which is meant to be associated with the current real UID).
+		 */
+		const int proccnt_changed = chgproccnt(newcred->cr_ruidinfo, 1,
+		    enforce_proc_lim ? lim_cur_proc(p, RLIMIT_NPROC) : 0);
+
+		if (!proccnt_changed) {
+			if (priv_check_cred(oldcred, PRIV_PROC_LIMIT) != 0)
+				return (false);
+			(void)chgproccnt(newcred->cr_ruidinfo, 1, 0);
+		}
+	}
+
+	mtx_lock(&oldcred->cr_mtx);
+	KASSERT(oldcred->cr_users > 0, ("%s: users %d not > 0 on cred %p",
+	    __func__, oldcred->cr_users, oldcred));
+	oldcred->cr_users--;
+	mtx_unlock(&oldcred->cr_mtx);
 	p->p_ucred = newcred;
 	newcred->cr_users = 1;
 	PROC_UPDATE_COW(p);
+	if (newcred->cr_ruidinfo != oldcred->cr_ruidinfo)
+		(void)chgproccnt(oldcred->cr_ruidinfo, -1, 0);
+	return (true);
 }
 
 void
-proc_unset_cred(struct proc *p)
+proc_set_cred(struct proc *p, struct ucred *newcred)
+{
+	bool success = _proc_set_cred(p, newcred, false);
+
+	MPASS(success);
+}
+
+bool
+proc_set_cred_enforce_proc_lim(struct proc *p, struct ucred *newcred)
+{
+	return (_proc_set_cred(p, newcred, true));
+}
+
+void
+proc_unset_cred(struct proc *p, bool decrement_proc_count)
 {
 	struct ucred *cr;
 
@@ -2318,6 +2366,8 @@ proc_unset_cred(struct proc *p)
 		KASSERT(cr->cr_ref > 0, ("%s: ref %ld not > 0 on cred %p",
 		    __func__, cr->cr_ref, cr));
 	mtx_unlock(&cr->cr_mtx);
+	if (decrement_proc_count)
+		(void)chgproccnt(cr->cr_ruidinfo, -1, 0);
 	crfree(cr);
 }
 
@@ -2602,8 +2652,7 @@ change_egid(struct ucred *newcred, gid_t egid)
 /*-
  * Change a process's real uid.
  * Side effects: newcred->cr_ruid will be updated, newcred->cr_ruidinfo
- *               will be updated, and the old and new cr_ruidinfo proc
- *               counts will be updated.
+ *               will be updated.
  * References: newcred must be an exclusive credential reference for the
  *             duration of the call.
  */
@@ -2611,12 +2660,10 @@ void
 change_ruid(struct ucred *newcred, struct uidinfo *ruip)
 {
 
-	(void)chgproccnt(newcred->cr_ruidinfo, -1, 0);
 	newcred->cr_ruid = ruip->ui_uid;
 	uihold(ruip);
 	uifree(newcred->cr_ruidinfo);
 	newcred->cr_ruidinfo = ruip;
-	(void)chgproccnt(newcred->cr_ruidinfo, 1, 0);
 }
 
 /*-
