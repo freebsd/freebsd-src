@@ -920,11 +920,6 @@ unionfs_mkshadowdir(struct vnode *dvp, struct vnode *vp,
 	/* Authority change to root */
 	rootinfo = uifind((uid_t)0);
 	cred = crdup(cnp->cn_cred);
-	/*
-	 * The calls to chgproccnt() are needed to compensate for change_ruid()
-	 * calling chgproccnt().
-	 */
-	chgproccnt(cred->cr_ruidinfo, 1, 0);
 	change_euid(cred, rootinfo);
 	change_ruid(cred, rootinfo);
 	change_svuid(cred, (uid_t)0);
@@ -1046,7 +1041,6 @@ unionfs_mkshadowdir_relock:
 unionfs_mkshadowdir_finish:
 	unionfs_clear_in_progress_flag(vp, UNIONFS_COPY_IN_PROGRESS);
 	cnp->cn_cred = credbk;
-	chgproccnt(cred->cr_ruidinfo, -1, 0);
 	crfree(cred);
 
 	return (error);
