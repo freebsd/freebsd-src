@@ -234,8 +234,7 @@ To switch all TCP endpoints from using the freebsd stack to the RACK stack use:
 # tcpsso -S freebsd TCP_FUNCTION_BLK rack
 .Ed
 .Pp
-All TCP endpoints in the LISTEN state can be switched to the RACK stack by
-using:
+Switch all TCP endpoints in the LISTEN state to the RACK stack by using:
 .Bd -literal -offset indent
 # tcpsso -s LISTEN TCP_FUNCTION_BLK rack
 .Ed
