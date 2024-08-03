@@ -746,21 +746,6 @@ sctp_build_readq_entry_from_ctl(struct sctp_queued_to_read *nc, struct sctp_queu
 	nc->do_not_ref_stcb = control->do_not_ref_stcb;
 }
 
-static void
-sctp_reset_a_control(struct sctp_queued_to_read *control,
-    struct sctp_inpcb *inp, uint32_t tsn)
-{
-	control->fsn_included = tsn;
-	if (control->on_read_q) {
-		/*
-		 * We have to purge it from there, hopefully this will work
-		 * :-)
-		 */
-		TAILQ_REMOVE(&inp->read_queue, control, next);
-		control->on_read_q = 0;
-	}
-}
-
 static int
 sctp_handle_old_unordered_data(struct sctp_tcb *stcb,
     struct sctp_association *asoc,
@@ -1922,7 +1907,8 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 				SCTP_SNPRINTF(msg, sizeof(msg), "Duplicate MID=%8.8x detected.", mid);
 				goto err_out;
 			} else {
-				if ((tsn == control->fsn_included + 1) &&
+				if ((control->first_frag_seen) &&
+				    (tsn == control->fsn_included + 1) &&
 				    (control->end_added == 0)) {
 					SCTP_SNPRINTF(msg, sizeof(msg),
 					    "Illegal message sequence, missing end for MID: %8.8x",
@@ -5430,12 +5416,25 @@ sctp_flush_reassm_for_str_seq(struct sctp_tcb *stcb,
 		sctp_free_a_chunk(stcb, chk, SCTP_SO_NOT_LOCKED);
 	}
 	if (!TAILQ_EMPTY(&control->reasm)) {
-		/* This has to be old data, unordered */
+		KASSERT(!asoc->idata_supported,
+		    ("Reassembly queue not empty for I-DATA"));
+		KASSERT(!ordered,
+		    ("Reassembly queue not empty for ordered data"));
 		if (control->data) {
 			sctp_m_freem(control->data);
 			control->data = NULL;
 		}
-		sctp_reset_a_control(control, stcb->sctp_ep, cumtsn);
+		control->fsn_included = 0xffffffff;
+		control->first_frag_seen = 0;
+		control->last_frag_seen = 0;
+		if (control->on_read_q) {
+			/*
+			 * We have to purge it from there, hopefully this
+			 * will work :-)
+			 */
+			TAILQ_REMOVE(&stcb->sctp_ep->read_queue, control, next);
+			control->on_read_q = 0;
+		}
 		chk = TAILQ_FIRST(&control->reasm);
 		if (chk->rec.data.rcv_flags & SCTP_DATA_FIRST_FRAG) {
 			TAILQ_REMOVE(&control->reasm, chk, sctp_next);
