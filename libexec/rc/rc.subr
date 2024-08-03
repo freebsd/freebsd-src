@@ -2767,10 +2767,7 @@ $_DEBUG_SH vdot /libexec/debug.sh
 
 # Ensure we can still operate if debug.sh and
 # safe_eval.sh are not found.
-if have DebugOn; then
-	# allow DEBUG_SH to be set from loader prompt
-	DEBUG_SH=${DEBUG_SH:-$(kenv -q DEBUG_SH)}
-else
+if ! have DebugOn; then
 	DebugOn() { return 0; }
 	DebugOff() { return 0; }
 fi
