@@ -114,14 +114,6 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, syncookies_only, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_syncookiesonly), 0,
     "Use only TCP SYN cookies");
 
-VNET_DEFINE_STATIC(int, functions_inherit_listen_socket_stack) = 1;
-#define V_functions_inherit_listen_socket_stack \
-    VNET(functions_inherit_listen_socket_stack)
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, functions_inherit_listen_socket_stack,
-    CTLFLAG_VNET | CTLFLAG_RW,
-    &VNET_NAME(functions_inherit_listen_socket_stack), 0,
-    "Inherit listen socket's stack");
-
 #ifdef TCP_OFFLOAD
 #define ADDED_BY_TOE(sc) ((sc)->sc_tod != NULL)
 #endif
@@ -777,7 +769,6 @@ done:
 static struct socket *
 syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 {
-	struct tcpcb *listening_tcb;
 	struct inpcb *inp = NULL;
 	struct socket *so;
 	struct tcpcb *tp;
@@ -802,11 +793,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		goto allocfail;
 	}
 	inp = sotoinpcb(so);
-	if (V_functions_inherit_listen_socket_stack)
-		listening_tcb = sototcpcb(lso);
-	else
-		listening_tcb = NULL;
-	if ((tp = tcp_newtcpcb(inp, listening_tcb)) == NULL) {
+	if ((tp = tcp_newtcpcb(inp, sototcpcb(lso))) == NULL) {
 		in_pcbfree(inp);
 		sodealloc(so);
 		goto allocfail;
