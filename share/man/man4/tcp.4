@@ -31,7 +31,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 28, 2024
+.Dd August 3, 2024
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -622,11 +622,6 @@ Defaults to 60 seconds.
 List of available TCP function blocks (TCP stacks).
 .It Va functions_default
 The default TCP function block (TCP stack).
-.It Va functions_inherit_listen_socket_stack
-Determines whether to inherit listen socket's TCP stack or use the current
-system default TCP stack, as defined by
-.Va functions_default .
-Default is true.
 .It Va hostcache
 The TCP host cache is used to cache connection details and metrics to
 improve future performance of connections between the same hosts.
