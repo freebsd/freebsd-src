@@ -563,7 +563,7 @@ xen_arch_init_physmem(device_t dev, struct rman *mem)
 	set_xen_guest_handle(memmap.buffer, smap);
 	error = HYPERVISOR_memory_op(XENMEM_memory_map, &memmap);
 	if (error != 0)
-		return (error);
+		return (0);
 
 	/*
 	 * Fill with UNUSABLE regions, as it's always fine to use those for
