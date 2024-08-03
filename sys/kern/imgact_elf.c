@@ -617,9 +617,9 @@ __elfN(map_insert)(const struct image_params *imgp, vm_map_t map,
 	return (KERN_SUCCESS);
 }
 
-static int __elfN(load_section)(const struct image_params *imgp,
-    vm_ooffset_t offset, caddr_t vmaddr, size_t memsz, size_t filsz,
-    vm_prot_t prot)
+static int
+__elfN(load_section)(const struct image_params *imgp, vm_ooffset_t offset,
+    caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot)
 {
 	struct sf_buf *sf;
 	size_t map_len;
