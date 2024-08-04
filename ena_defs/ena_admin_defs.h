@@ -472,6 +472,10 @@ struct ena_admin_basic_stats {
 	uint32_t tx_drops_low;
 
 	uint32_t tx_drops_high;
+
+	uint32_t rx_overruns_low;
+
+	uint32_t rx_overruns_high;
 };
 
 /* ENI Statistics Command. */
@@ -1269,6 +1273,10 @@ struct ena_admin_aenq_keep_alive_desc {
 	uint32_t tx_drops_low;
 
 	uint32_t tx_drops_high;
+
+	uint32_t rx_overruns_low;
+
+	uint32_t rx_overruns_high;
 };
 
 struct ena_admin_ena_mmio_req_read_less_resp {
