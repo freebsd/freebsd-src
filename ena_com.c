@@ -2345,7 +2345,8 @@ int ena_com_get_dev_attr_feat(struct ena_com_dev *ena_dev,
 	else
 		return rc;
 
-	rc = ena_com_get_feature(ena_dev, &get_resp, ENA_ADMIN_LLQ, 0);
+	rc = ena_com_get_feature(ena_dev, &get_resp,
+				 ENA_ADMIN_LLQ, ENA_ADMIN_LLQ_FEATURE_VERSION_1);
 	if (!rc)
 		memcpy(&get_feat_ctx->llq, &get_resp.u.llq,
 		       sizeof(get_resp.u.llq));
