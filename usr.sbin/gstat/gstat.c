@@ -406,16 +406,20 @@ main(int argc, char **argv)
 				PRINTMSG(",%.0f", (double)ld[2] * 1024);
 				if (ld[3] > 1e3) 
 					PRINTMSG(",%.0f", (double)ld[3]);
-				else
+				else if (ld[3] > 1e0)
 					PRINTMSG(",%.1f", (double)ld[3]);
+				else
+					PRINTMSG(",%.3f", (double)ld[3]);
 				PRINTMSG(",%.0f", (double)ld[4]);
 				if (flag_s)
 					PRINTMSG(",%.0f", (double)ld[14]);
 				PRINTMSG(",%.0f", (double)ld[5] * 1024);
 				if (ld[6] > 1e3) 
 					PRINTMSG(",%.0f", (double)ld[6]);
-				else
+				else if (ld[6] > 1e0)
 					PRINTMSG(",%.1f", (double)ld[6]);
+				else
+					PRINTMSG(",%.3f", (double)ld[6]);
 
 				if (flag_d) {
 					PRINTMSG(",%.0f", (double)ld[8]);
@@ -426,8 +430,11 @@ main(int argc, char **argv)
 					if (ld[10] > 1e3) 
 						PRINTMSG(",%.0f",
 								(double)ld[10]);
-					else
+					else if (ld[10] > 1e0)
 						PRINTMSG(",%.1f",
+								(double)ld[10]);
+					else
+						PRINTMSG(",%.3f",
 								(double)ld[10]);
 				}
 
@@ -436,8 +443,11 @@ main(int argc, char **argv)
 					if (ld[12] > 1e3) 
 						PRINTMSG(",%.0f",
 								(double)ld[12]);
+					else if (ld[12] > 1e0)
+						PRINTMSG(",%.1f",
+								(double)ld[12]);
 					else
-						PRINTMSG(",%.1f", 
+						PRINTMSG(",%.3f",
 								(double)ld[12]);
 				}
 				PRINTMSG(",%.1lf", (double)ld[7]);
@@ -450,16 +460,20 @@ main(int argc, char **argv)
 				PRINTMSG(" %6.0f", (double)ld[2] * 1024);
 				if (ld[3] > 1e3) 
 					PRINTMSG(" %6.0f", (double)ld[3]);
-				else
+				else if (ld[3] > 1e0)
 					PRINTMSG(" %6.1f", (double)ld[3]);
+				else
+					PRINTMSG(" %6.3f", (double)ld[3]);
 				PRINTMSG(" %6.0f", (double)ld[4]);
 				if (flag_s)
 					PRINTMSG(" %6.0f", (double)ld[14]);
 				PRINTMSG(" %6.0f", (double)ld[5] * 1024);
 				if (ld[6] > 1e3) 
 					PRINTMSG(" %6.0f", (double)ld[6]);
-				else
+				else if (ld[6] > 1e0)
 					PRINTMSG(" %6.1f", (double)ld[6]);
+				else
+					PRINTMSG(" %6.3f", (double)ld[6]);
 
 				if (flag_d) {
 					PRINTMSG(" %6.0f", (double)ld[8]);
@@ -471,8 +485,11 @@ main(int argc, char **argv)
 					if (ld[10] > 1e3) 
 						PRINTMSG(" %6.0f",
 								(double)ld[10]);
-					else
+					else if (ld[10] > 1e0)
 						PRINTMSG(" %6.1f",
+								(double)ld[10]);
+					else
+						PRINTMSG(" %6.3f",
 								(double)ld[10]);
 				}
 
@@ -481,8 +498,11 @@ main(int argc, char **argv)
 					if (ld[12] > 1e3) 
 						PRINTMSG(" %6.0f",
 								(double)ld[12]);
+					else if (ld[12] > 1e0)
+						PRINTMSG(" %6.1f",
+								(double)ld[12]);
 					else
-						PRINTMSG(" %6.1f", 
+						PRINTMSG(" %6.3f",
 								(double)ld[12]);
 				}
 
