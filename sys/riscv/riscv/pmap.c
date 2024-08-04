@@ -1888,8 +1888,8 @@ pmap_growkernel(vm_offset_t addr)
 			nkpg = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT |
 			    VM_ALLOC_NOFREE | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 			if (nkpg == NULL)
-				panic("pmap_growkernel: no memory to grow kernel");
-			nkpg->pindex = kernel_vm_end >> L1_SHIFT;
+				panic("%s: no memory to grow kernel", __func__);
+			nkpg->pindex = pmap_l1_pindex(kernel_vm_end);
 			paddr = VM_PAGE_TO_PHYS(nkpg);
 
 			pn = (paddr / PAGE_SIZE);
@@ -1914,8 +1914,8 @@ pmap_growkernel(vm_offset_t addr)
 		nkpg = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT |
 		    VM_ALLOC_NOFREE | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 		if (nkpg == NULL)
-			panic("pmap_growkernel: no memory to grow kernel");
-		nkpg->pindex = kernel_vm_end >> L2_SHIFT;
+			panic("%s: no memory to grow kernel", __func__);
+		nkpg->pindex = pmap_l2_pindex(kernel_vm_end);
 		paddr = VM_PAGE_TO_PHYS(nkpg);
 
 		pn = (paddr / PAGE_SIZE);
