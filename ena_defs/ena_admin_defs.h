@@ -1014,7 +1014,8 @@ struct ena_admin_host_info {
 	 * 4 : rss_configurable_function_key
 	 * 5 : reserved
 	 * 6 : rx_page_reuse
-	 * 31:7 : reserved
+	 * 7 : tx_ipv6_csum_offload
+	 * 31:8 : reserved
 	 */
 	uint32_t driver_supported_features;
 };
@@ -1406,6 +1407,8 @@ struct ena_admin_phc_resp {
 #define ENA_ADMIN_HOST_INFO_RSS_CONFIGURABLE_FUNCTION_KEY_MASK BIT(4)
 #define ENA_ADMIN_HOST_INFO_RX_PAGE_REUSE_SHIFT             6
 #define ENA_ADMIN_HOST_INFO_RX_PAGE_REUSE_MASK              BIT(6)
+#define ENA_ADMIN_HOST_INFO_TX_IPV6_CSUM_OFFLOAD_SHIFT      7
+#define ENA_ADMIN_HOST_INFO_TX_IPV6_CSUM_OFFLOAD_MASK       BIT(7)
 
 /* feature_rss_ind_table */
 #define ENA_ADMIN_FEATURE_RSS_IND_TABLE_ONE_ENTRY_UPDATE_MASK BIT(0)
@@ -1875,6 +1878,16 @@ static inline uint32_t get_ena_admin_host_info_rx_page_reuse(const struct ena_ad
 static inline void set_ena_admin_host_info_rx_page_reuse(struct ena_admin_host_info *p, uint32_t val)
 {
 	p->driver_supported_features |= (val << ENA_ADMIN_HOST_INFO_RX_PAGE_REUSE_SHIFT) & ENA_ADMIN_HOST_INFO_RX_PAGE_REUSE_MASK;
+}
+
+static inline uint32_t get_ena_admin_host_info_tx_ipv6_csum_offload(const struct ena_admin_host_info *p)
+{
+	return (p->driver_supported_features & ENA_ADMIN_HOST_INFO_TX_IPV6_CSUM_OFFLOAD_MASK) >> ENA_ADMIN_HOST_INFO_TX_IPV6_CSUM_OFFLOAD_SHIFT;
+}
+
+static inline void set_ena_admin_host_info_tx_ipv6_csum_offload(struct ena_admin_host_info *p, uint32_t val)
+{
+	p->driver_supported_features |= (val << ENA_ADMIN_HOST_INFO_TX_IPV6_CSUM_OFFLOAD_SHIFT) & ENA_ADMIN_HOST_INFO_TX_IPV6_CSUM_OFFLOAD_MASK;
 }
 
 static inline uint8_t get_ena_admin_feature_rss_ind_table_one_entry_update(const struct ena_admin_feature_rss_ind_table *p)
