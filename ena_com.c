@@ -70,6 +70,8 @@
 
 #define ENA_REGS_ADMIN_INTR_MASK 1
 
+#define ENA_MAX_BACKOFF_DELAY_EXP 16U
+
 #define ENA_MIN_ADMIN_POLL_US 100
 
 #define ENA_MAX_ADMIN_POLL_US 5000
@@ -581,8 +583,9 @@ static int ena_com_comp_status_to_errno(struct ena_com_admin_queue *admin_queue,
 
 static void ena_delay_exponential_backoff_us(u32 exp, u32 delay_us)
 {
+	exp = ENA_MIN32(ENA_MAX_BACKOFF_DELAY_EXP, exp);
 	delay_us = ENA_MAX32(ENA_MIN_ADMIN_POLL_US, delay_us);
-	delay_us = ENA_MIN32(delay_us * (1U << exp), ENA_MAX_ADMIN_POLL_US);
+	delay_us = ENA_MIN32(ENA_MAX_ADMIN_POLL_US, delay_us * (1U << exp));
 	ENA_USLEEP(delay_us);
 }
 
