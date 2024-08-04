@@ -238,7 +238,7 @@ p9fs_lookup(struct vop_lookup_args *ap)
 	if (dnp == NULL)
 		return (ENOENT);
 
-	if (cnp->cn_nameptr[0] == '.' && strlen(cnp->cn_nameptr) == 1) {
+	if (cnp->cn_nameptr[0] == '.' && cnp->cn_namelen == 1) {
 		vref(dvp);
 		*vpp = dvp;
 		return (0);
