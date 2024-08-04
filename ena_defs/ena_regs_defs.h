@@ -134,6 +134,8 @@ enum ena_regs_reset_reason_types {
 #define ENA_REGS_DEV_CTL_QUIESCENT_MASK                     0x4
 #define ENA_REGS_DEV_CTL_IO_RESUME_SHIFT                    3
 #define ENA_REGS_DEV_CTL_IO_RESUME_MASK                     0x8
+#define ENA_REGS_DEV_CTL_RESET_REASON_EXT_SHIFT             24
+#define ENA_REGS_DEV_CTL_RESET_REASON_EXT_MASK              0xf000000
 #define ENA_REGS_DEV_CTL_RESET_REASON_SHIFT                 28
 #define ENA_REGS_DEV_CTL_RESET_REASON_MASK                  0xf0000000
 

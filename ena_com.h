@@ -51,6 +51,14 @@
 #define ADMIN_CQ_SIZE(depth)	((depth) * sizeof(struct ena_admin_acq_entry))
 #define ADMIN_AENQ_SIZE(depth)	((depth) * sizeof(struct ena_admin_aenq_entry))
 
+/* Macros used to extract LSB/MSB from the
+ * enums defining the reset reasons
+ */
+#define ENA_RESET_REASON_LSB_OFFSET			    0
+#define ENA_RESET_REASON_LSB_MASK			    0xf
+#define ENA_RESET_REASON_MSB_OFFSET			    4
+#define ENA_RESET_REASON_MSB_MASK			    0xf0
+
 #define ENA_CUSTOMER_METRICS_BUFFER_SIZE 512
 
 /*****************************************************************************/

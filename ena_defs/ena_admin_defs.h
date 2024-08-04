@@ -112,6 +112,7 @@ enum ena_admin_aq_caps_id {
 	/* ENA SRD customer metrics */
 	ENA_ADMIN_ENA_SRD_INFO                      = 1,
 	ENA_ADMIN_CUSTOMER_METRICS                  = 2,
+	ENA_ADMIN_EXTENDED_RESET_REASONS	    = 3,
 };
 
 enum ena_admin_placement_policy_type {

@@ -469,6 +469,8 @@ void	ena_rss_key_fill(void *key, size_t size);
 
 #define ENA_RSS_FILL_KEY(key, size) ena_rss_key_fill(key, size)
 
+#define ENA_FIELD_GET(value, mask, offset) ((value & mask) >> offset)
+
 #include "ena_defs/ena_includes.h"
 
 #define ENA_BITS_PER_U64(bitmap) (bitcount64(bitmap))
