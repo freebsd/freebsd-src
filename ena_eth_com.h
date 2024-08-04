@@ -247,7 +247,7 @@ static inline int ena_com_tx_comp_req_id_get(struct ena_com_io_cq *io_cq,
 	 * expected, it mean that the device still didn't update
 	 * this completion.
 	 */
-	cdesc_phase = READ_ONCE16(cdesc->flags) & ENA_ETH_IO_TX_CDESC_PHASE_MASK;
+	cdesc_phase = READ_ONCE8(cdesc->flags) & ENA_ETH_IO_TX_CDESC_PHASE_MASK;
 	if (cdesc_phase != expected_phase)
 		return ENA_COM_TRY_AGAIN;
 
