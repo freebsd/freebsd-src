@@ -2259,11 +2259,20 @@ tcp_newtcpcb(struct inpcb *inp, struct tcpcb *listening_tcb)
 	KASSERT((tp->t_fb->tfb_flags & TCP_FUNC_BEING_REMOVED) == 0,
 	    ("tcp_newtcpcb: using TFB being removed"));
 	rw_runlock(&tcp_function_lock);
-	/*
-	 * Use the current system default CC algorithm.
-	 */
-	cc_attach(tp, CC_DEFAULT_ALGO());
-
+	CC_LIST_RLOCK();
+	if (listening_tcb != NULL) {
+		if (CC_ALGO(listening_tcb)->flags & CC_MODULE_BEING_REMOVED) {
+			CC_LIST_RUNLOCK();
+			if (tp->t_fb->tfb_tcp_fb_fini)
+				(*tp->t_fb->tfb_tcp_fb_fini)(tp, 1);
+			refcount_release(&tp->t_fb->tfb_refcnt);
+			return (NULL);
+		}
+		CC_ALGO(tp) = CC_ALGO(listening_tcb);
+	} else
+		CC_ALGO(tp) = CC_DEFAULT_ALGO();
+	cc_refer(CC_ALGO(tp));
+	CC_LIST_RUNLOCK();
 	if (CC_ALGO(tp)->cb_init != NULL)
 		if (CC_ALGO(tp)->cb_init(&tp->t_ccv, NULL) > 0) {
 			cc_detach(tp);
