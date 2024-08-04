@@ -340,6 +340,25 @@ vm_pageout_defer(vm_page_t m, const uint8_t queue, const bool enqueued)
 }
 
 /*
+ * We can cluster only if the page is not clean, busy, or held, and the page is
+ * in the laundry queue.
+ */
+static bool
+vm_pageout_flushable(vm_page_t m)
+{
+	if (vm_page_tryxbusy(m) == 0)
+		return (false);
+	if (!vm_page_wired(m)) {
+		vm_page_test_dirty(m);
+		if (m->dirty != 0 && vm_page_in_laundry(m) &&
+		    vm_page_try_remove_write(m))
+			return (true);
+	}
+	vm_page_xunbusy(m);
+	return (false);
+}
+
+/*
  * Scan for pages at adjacent offsets within the given page's object that are
  * eligible for laundering, form a cluster of these pages and the given page,
  * and launder that cluster.
@@ -348,26 +367,21 @@ static int
 vm_pageout_cluster(vm_page_t m)
 {
 	vm_object_t object;
-	vm_page_t mc[2 * vm_pageout_page_count - 1], p, pb, ps;
-	vm_pindex_t pindex;
-	int ib, is, page_base, pageout_count;
+	vm_page_t mc[2 * vm_pageout_page_count - 1];
+	int alignment, num_ends, page_base, pageout_count;
 
 	object = m->object;
 	VM_OBJECT_ASSERT_WLOCKED(object);
-	pindex = m->pindex;
 
 	vm_page_assert_xbusied(m);
 
-	pageout_count = 1;
+	alignment = m->pindex % vm_pageout_page_count;
+	num_ends = 0;
 	page_base = nitems(mc) / 2;
-	mc[page_base] = pb = ps = m;
-	ib = 1;
-	is = 1;
+	pageout_count = 1;
+	mc[page_base] = m;
 
 	/*
-	 * We can cluster only if the page is not clean, busy, or held, and
-	 * the page is in the laundry queue.
-	 *
 	 * During heavy mmap/modification loads the pageout
 	 * daemon can really fragment the underlying file
 	 * due to flushing pages out of order and not trying to
@@ -377,73 +391,36 @@ vm_pageout_cluster(vm_page_t m)
 	 * forward scan if room remains.
 	 */
 more:
-	while (ib != 0 && pageout_count < vm_pageout_page_count) {
-		if (ib > pindex) {
-			ib = 0;
-			break;
-		}
-		if ((p = vm_page_prev(pb)) == NULL ||
-		    vm_page_tryxbusy(p) == 0) {
-			ib = 0;
-			break;
-		}
-		if (vm_page_wired(p)) {
-			ib = 0;
-			vm_page_xunbusy(p);
-			break;
-		}
-		vm_page_test_dirty(p);
-		if (p->dirty == 0) {
-			ib = 0;
-			vm_page_xunbusy(p);
-			break;
-		}
-		if (!vm_page_in_laundry(p) || !vm_page_try_remove_write(p)) {
-			vm_page_xunbusy(p);
-			ib = 0;
-			break;
-		}
-		mc[--page_base] = pb = p;
-		++pageout_count;
-		++ib;
-
+	m = mc[page_base];
+	while (pageout_count < vm_pageout_page_count) {
 		/*
-		 * We are at an alignment boundary.  Stop here, and switch
-		 * directions.  Do not clear ib.
+		 * If we are at an alignment boundary, and haven't reached the
+		 * last flushable page forward, stop here, and switch
+		 * directions.
 		 */
-		if ((pindex - (ib - 1)) % vm_pageout_page_count == 0)
+		if (alignment == pageout_count - 1 && num_ends == 0)
 			break;
-	}
-	while (pageout_count < vm_pageout_page_count && 
-	    pindex + is < object->size) {
-		if ((p = vm_page_next(ps)) == NULL ||
-		    vm_page_tryxbusy(p) == 0)
-			break;
-		if (vm_page_wired(p)) {
-			vm_page_xunbusy(p);
-			break;
-		}
-		vm_page_test_dirty(p);
-		if (p->dirty == 0) {
-			vm_page_xunbusy(p);
-			break;
-		}
-		if (!vm_page_in_laundry(p) || !vm_page_try_remove_write(p)) {
-			vm_page_xunbusy(p);
-			break;
-		}
-		mc[page_base + pageout_count] = ps = p;
-		++pageout_count;
-		++is;
-	}
 
-	/*
-	 * If we exhausted our forward scan, continue with the reverse scan
-	 * when possible, even past an alignment boundary.  This catches
-	 * boundary conditions.
-	 */
-	if (ib != 0 && pageout_count < vm_pageout_page_count)
-		goto more;
+		m = vm_page_prev(m);
+		if (m == NULL || !vm_pageout_flushable(m)) {
+			num_ends++;
+			break;
+		}
+		mc[--page_base] = m;
+		++pageout_count;
+	}
+	m = mc[page_base + pageout_count - 1];
+	while (num_ends != 2 && pageout_count < vm_pageout_page_count) {
+		m = vm_page_next(m);
+		if (m == NULL || !vm_pageout_flushable(m)) {
+			if (num_ends++ == 0)
+				/* Resume the reverse scan. */
+				goto more;
+			break;
+		}
+		mc[page_base + pageout_count] = m;
+		++pageout_count;
+	}
 
 	return (vm_pageout_flush(&mc[page_base], pageout_count,
 	    VM_PAGER_PUT_NOREUSE, 0, NULL, NULL));
