@@ -32,7 +32,7 @@
 
 #include <sys/cdefs.h>
 /*
- * Pseudo-nulmodem driver
+ * Pseudo-nullmodem driver
  * Mighty handy for use with serial console in Vmware
  */
 
@@ -115,16 +115,16 @@ nmdm_close(struct tty *tp)
 		return;
 
 	/* Shut down self. */
+	tty_lock(tp);
 	tty_rel_gone(tp);
 
 	/* Shut down second part. */
-	tty_lock(tp);
 	onp = np->np_other;
 	if (onp == NULL)
 		return;
 	otp = onp->np_tty;
+	tty_lock(otp);
 	tty_rel_gone(otp);
-	tty_lock(tp);
 }
 
 static void
