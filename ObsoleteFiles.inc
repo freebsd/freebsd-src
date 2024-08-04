@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20240827: retire fips.so
+OLD_LIBS+=usr/lib/ossl-modules/fips.so
+
 # 20240824: sound examples: midi.c moved out of oss/
 OLD_FILES+=share/examples/sound/oss/midi.c
 
