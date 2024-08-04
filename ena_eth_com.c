@@ -102,7 +102,8 @@ static int ena_com_write_bounce_buffer_to_dev(struct ena_com_io_sq *io_sq,
 	wmb();
 
 	/* The line is completed. Copy it to dev */
-	ENA_MEMCPY_TO_DEVICE_64(io_sq->desc_addr.pbuf_dev_addr + dst_offset,
+	ENA_MEMCPY_TO_DEVICE_64(io_sq->bus,
+				io_sq->desc_addr.pbuf_dev_addr + dst_offset,
 				bounce_buffer,
 				llq_info->desc_list_entry_size);
 
