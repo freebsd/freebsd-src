@@ -39,6 +39,11 @@ extern "C" {
 #endif
 #include "ena_com.h"
 
+/* we allow 2 DMA descriptors per LLQ entry */
+#define ENA_LLQ_ENTRY_DESC_CHUNK_SIZE	(2 * sizeof(struct ena_eth_io_tx_desc))
+#define ENA_LLQ_HEADER		(128UL - ENA_LLQ_ENTRY_DESC_CHUNK_SIZE)
+#define ENA_LLQ_LARGE_HEADER	(256UL - ENA_LLQ_ENTRY_DESC_CHUNK_SIZE)
+
 struct ena_com_tx_ctx {
 	struct ena_com_tx_meta ena_meta;
 	struct ena_com_buf *ena_bufs;
