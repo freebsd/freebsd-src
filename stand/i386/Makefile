@@ -21,6 +21,11 @@ SUBDIR.yes+=	pxeldr
 
 SUBDIR.${MK_LOADER_ZFS}+=	zfsboot gptzfsboot
 
-SUBDIR_DEPEND_pxeldr+=	loader_${LOADER_DEFAULT_INTERP}
+.if defined(PXEBOOT_DEFAULT_INTERP)
+L=${PXEBOOT_DEFAULT_INTERP}
+.else
+L=${LOADER_DEFAULT_INTERP}
+.endif
+SUBDIR_DEPEND_pxeldr+=	loader_${L}
 
 .include <bsd.subdir.mk>
