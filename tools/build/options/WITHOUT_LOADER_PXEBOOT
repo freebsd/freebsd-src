@@ -1,0 +1,10 @@
+Do not build pxeboot on i386/amd64.
+When the pxeboot is too large, or unneeded, it may be disabled with this option.
+See
+.Va WITH_LOADER_PXEBOOT
+for how to adjust the defaults when you need both a larger
+.Pa /boot/loader
+and
+.Pa /boot/pxeboot
+.Pp
+This option only has an effect on x86.
