@@ -36,6 +36,7 @@
 #include <machine/atomic.h>
 
 #include <net/debugnet.h>
+#include <netinet/tcp_ratelimit.h>
 #include <netipsec/keydb.h>
 #include <netipsec/ipsec_offload.h>
 
@@ -4876,7 +4877,12 @@ mlx5e_destroy_ifp(struct mlx5_core_dev *mdev, void *vpriv)
 
 #ifdef RATELIMIT
 	/*
-	 * The kernel can have reference(s) via the m_snd_tag's into
+	 * Tell the TCP ratelimit code to release the rate-sets attached
+	 * to our ifnet.
+	 */
+	tcp_rl_release_ifnet(ifp);
+	/*
+	 * The kernel can still have reference(s) via the m_snd_tag's into
 	 * the ratelimit channels, and these must go away before
 	 * detaching:
 	 */
