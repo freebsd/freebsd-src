@@ -19,7 +19,7 @@
 .\" OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 .\" THE SOFTWARE.
 .\"
-.Dd May 22, 2024
+.Dd August 4, 2024
 .Dt MIXER 3
 .Os
 .Sh NAME
@@ -388,18 +388,15 @@ controls.
 .Pp
 The
 .Fn mixer_get_mode
-function returns the playback/recording mode of the audio device the mixer \
-belongs to.
-The available values are the following:
-.Bl -tag -width "MIX_STATUS_PLAY | MIX_STATUS_REC" -offset indent
-.It Dv MIX_STATUS_NONE
-Neither playback nor recording.
-.It Dv MIX_STATUS_PLAY
-Playback.
-.It Dv MIX_STATUS_REC
-Recording.
-.It Dv MIX_STATUS_PLAY | MIX_STATUS_REC
-Playback and recording.
+function returns the operating mode of the audio device the mixer belongs to.
+The following values can be OR'ed in case more than one mode is supported:
+.Bl -tag -width "MIX_MODE_MIXER" -offset indent
+.It Dv MIX_MODE_MIXER
+The audio device has a mixer.
+.It Dv MIX_MODE_PLAY
+The audio device supports playback.
+.It Dv MIX_MODE_REC
+The audio device supports recording.
 .El
 .Pp
 The
