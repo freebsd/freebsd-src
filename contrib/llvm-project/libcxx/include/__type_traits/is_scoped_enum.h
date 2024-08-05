@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _LIBCPP___TYPE_TRAITS_IS_ENUM_H
-#define _LIBCPP___TYPE_TRAITS_IS_ENUM_H
+#ifndef _LIBCPP___TYPE_TRAITS_IS_SCOPED_ENUM_H
+#define _LIBCPP___TYPE_TRAITS_IS_SCOPED_ENUM_H
 
 #include <__config>
 #include <__type_traits/integral_constant.h>
@@ -18,14 +18,16 @@
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
-template <class _Tp>
-struct _LIBCPP_TEMPLATE_VIS is_enum : public integral_constant<bool, __is_enum(_Tp)> {};
+#if _LIBCPP_STD_VER >= 23
 
-#if _LIBCPP_STD_VER >= 17
 template <class _Tp>
-inline constexpr bool is_enum_v = __is_enum(_Tp);
-#endif
+struct _LIBCPP_TEMPLATE_VIS is_scoped_enum : bool_constant<__is_scoped_enum(_Tp)> {};
+
+template <class _Tp>
+inline constexpr bool is_scoped_enum_v = __is_scoped_enum(_Tp);
+
+#endif // _LIBCPP_STD_VER >= 23
 
 _LIBCPP_END_NAMESPACE_STD
 
-#endif // _LIBCPP___TYPE_TRAITS_IS_ENUM_H
+#endif // _LIBCPP___TYPE_TRAITS_IS_SCOPED_ENUM_H
