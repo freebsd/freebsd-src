@@ -10,7 +10,7 @@ autogen definitions options;
 // file name.
 prog-name	= "ntp.keys";
 file-path	= "/etc/ntp.keys";
-prog-title	= "NTP symmetric key file format";
+prog-title	= "Network Time Protocol symmetric key format";
 
 /* explain: Additional information whenever the usage routine is invoked */
 explain = <<- _END_EXPLAIN
