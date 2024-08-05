@@ -2876,6 +2876,14 @@ db_print_tflags(u_int t_flags)
 		db_printf("%sTF_PREVVALID", comma ? ", " : "");
 		comma = 1;
 	}
+	if (t_flags & TF_WAKESOR) {
+		db_printf("%sTF_WAKESOR", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_GPUTINPROG) {
+		db_printf("%sTF_GPUTINPROG", comma ? ", " : "");
+		comma = 1;
+	}
 	if (t_flags & TF_MORETOCOME) {
 		db_printf("%sTF_MORETOCOME", comma ? ", " : "");
 		comma = 1;
@@ -2896,16 +2904,8 @@ db_print_tflags(u_int t_flags)
 		db_printf("%sTF_FASTRECOVERY", comma ? ", " : "");
 		comma = 1;
 	}
-	if (t_flags & TF_CONGRECOVERY) {
-		db_printf("%sTF_CONGRECOVERY", comma ? ", " : "");
-		comma = 1;
-	}
 	if (t_flags & TF_WASFRECOVERY) {
 		db_printf("%sTF_WASFRECOVERY", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_WASCRECOVERY) {
-		db_printf("%sTF_WASCRECOVERY", comma ? ", " : "");
 		comma = 1;
 	}
 	if (t_flags & TF_SIGNATURE) {
@@ -2918,6 +2918,30 @@ db_print_tflags(u_int t_flags)
 	}
 	if (t_flags & TF_TSO) {
 		db_printf("%sTF_TSO", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_TOE) {
+		db_printf("%sTF_TOE", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_CLOSED) {
+		db_printf("%sTF_CLOSED", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_SENTSYN) {
+		db_printf("%sTF_SENTSYN", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_LRD) {
+		db_printf("%sTF_LRD", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_CONGRECOVERY) {
+		db_printf("%sTF_CONGRECOVERY", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_WASCRECOVERY) {
+		db_printf("%sTF_WASCRECOVERY", comma ? ", " : "");
 		comma = 1;
 	}
 	if (t_flags & TF_FASTOPEN) {
@@ -2968,8 +2992,60 @@ db_print_tflags2(u_int t_flags2)
 		db_printf("%sTF2_ACE_PERMIT", comma ? ", " : "");
 		comma = 1;
 	}
+	if (t_flags2 & TF2_HPTS_CPU_SET) {
+		db_printf("%sTF2_HPTS_CPU_SET", comma ? ", " : "");
+		comma = 1;
+	}
 	if (t_flags2 & TF2_FBYTES_COMPLETE) {
 		db_printf("%sTF2_FBYTES_COMPLETE", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags2 & TF2_ECN_USE_ECT1) {
+		db_printf("%sTF2_ECN_USE_ECT1", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags2 & TF2_TCP_ACCOUNTING) {
+		db_printf("%sTF2_TCP_ACCOUNTING", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags2 & TF2_HPTS_CALLS) {
+		db_printf("%sTF2_HPTS_CALLS", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags2 & TF2_MBUF_L_ACKS) {
+		db_printf("%sTF2_MBUF_L_ACKS", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags2 & TF2_MBUF_ACKCMP) {
+		db_printf("%sTF2_MBUF_ACKCMP", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags2 & TF2_SUPPORTS_MBUFQ) {
+		db_printf("%sTF2_SUPPORTS_MBUFQ", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags2 & TF2_MBUF_QUEUE_READY) {
+		db_printf("%sTF2_MBUF_QUEUE_READY", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags2 & TF2_DONT_SACK_QUEUE) {
+		db_printf("%sTF2_DONT_SACK_QUEUE", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags2 & TF2_CANNOT_DO_ECN) {
+		db_printf("%sTF2_CANNOT_DO_ECN", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags2 & TF2_PROC_SACK_PROHIBIT) {
+		db_printf("%sTF2_PROC_SACK_PROHIBIT", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags2 & TF2_IPSEC_TSO) {
+		db_printf("%sTF2_IPSEC_TSO", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags2 & TF2_NO_ISS_CHECK) {
+		db_printf("%sTF2_NO_ISS_CHECK", comma ? ", " : "");
 		comma = 1;
 	}
 }
