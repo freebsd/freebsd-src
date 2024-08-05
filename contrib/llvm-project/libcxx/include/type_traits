@@ -453,6 +453,8 @@ namespace std
 #include <__type_traits/is_fundamental.h>
 #include <__type_traits/is_integral.h>
 #include <__type_traits/is_literal_type.h>
+#include <__type_traits/is_member_function_pointer.h>
+#include <__type_traits/is_member_object_pointer.h>
 #include <__type_traits/is_member_pointer.h>
 #include <__type_traits/is_nothrow_assignable.h>
 #include <__type_traits/is_nothrow_constructible.h>
