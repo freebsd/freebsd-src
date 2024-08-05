@@ -366,12 +366,10 @@ vm_pageout_flushable(vm_page_t m)
 static int
 vm_pageout_cluster(vm_page_t m)
 {
-	vm_object_t object;
 	vm_page_t mc[2 * vm_pageout_page_count - 1];
 	int alignment, num_ends, page_base, pageout_count;
 
-	object = m->object;
-	VM_OBJECT_ASSERT_WLOCKED(object);
+	VM_OBJECT_ASSERT_WLOCKED(m->object);
 
 	vm_page_assert_xbusied(m);
 
