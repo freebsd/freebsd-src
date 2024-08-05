@@ -7,7 +7,7 @@ autogen definitions options;
 #include autogen-version.def
 
 prog-name      = "ntpq";
-prog-title     = "standard NTP query program";
+prog-title     = "query Network Time Protocol servers";
 argument       = '[ host ...]';
 
 flag = {
