@@ -19,7 +19,6 @@
 #include <__fwd/format.h>
 #include <__memory/addressof.h>
 #include <__type_traits/conditional.h>
-#include <__type_traits/remove_const.h>
 #include <__utility/forward.h>
 #include <__utility/move.h>
 #include <__utility/unreachable.h>
