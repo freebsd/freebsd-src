@@ -28,7 +28,7 @@ using __remove_cv_t = typename remove_cv<_Tp>::type;
 #else
 template <class _Tp>
 using __remove_cv_t = __remove_cv(_Tp);
-#endif
+#endif // __has_builtin(__remove_cv)
 
 #if _LIBCPP_STD_VER >= 14
 template <class _Tp>
