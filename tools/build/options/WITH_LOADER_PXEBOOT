@@ -1,4 +1,4 @@
-Build pxeboot on i386/amd64.
+Build pxeboot on i386/amd64 for BIOS booting.
 The PXE Boot loader package needs more space than we may have in the boot loader.
 If you need to increase
 .Va LOADERSIZE
