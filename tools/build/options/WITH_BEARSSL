@@ -9,7 +9,7 @@ signature verification and related operations
 for Verified Exec and
 .Xr loader 8 .
 .Pp
-Due to size constraints, one may need to set
+Due to size constraints in the BIOS environment on x86, one may need to set
 .Va LOADERSIZE
 larger than the
 default 500000, although often loader is under the 500k limit even with
