@@ -12,6 +12,20 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20240806:
+	13.3-RELEASE-p5	SA-24:05.pf
+			SA-24:06.ktrace
+			SA-24:07.nfsclient
+			SA-24:08.openssh
+
+	pf incorrectly matches different ICMPv6 states in the state table [SA-24:05.pf]
+
+	ktrace(2) fails to detach when executing a setuid binary [SA-24:06.ktrace]
+
+	NFS client accepts file names containing path separators [SA-24:07.nfsclient]
+
+	OpenSSH pre-authentication async signal safety issue [SA-24:08.openssh]
+
 20240701:
 	13.3-RELEASE-p4 SA-24:04.openssh
 
