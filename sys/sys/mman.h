@@ -30,7 +30,7 @@
  */
 
 #ifndef _SYS_MMAN_H_
-#define _SYS_MMAN_H_
+#define	_SYS_MMAN_H_
 
 #include <sys/cdefs.h>
 #include <sys/_types.h>
@@ -39,10 +39,10 @@
 /*
  * Inheritance for minherit()
  */
-#define INHERIT_SHARE	0
-#define INHERIT_COPY	1
-#define INHERIT_NONE	2
-#define INHERIT_ZERO	3
+#define	INHERIT_SHARE	0
+#define	INHERIT_COPY	1
+#define	INHERIT_NONE	2
+#define	INHERIT_ZERO	3
 #endif
 
 /*
@@ -118,9 +118,9 @@
  * Flags provided to shm_rename
  */
 /* Don't overwrite dest, if it exists */
-#define SHM_RENAME_NOREPLACE	(1 << 0)
+#define	SHM_RENAME_NOREPLACE	(1 << 0)
 /* Atomically swap src and dest */
-#define SHM_RENAME_EXCHANGE	(1 << 1)
+#define	SHM_RENAME_EXCHANGE	(1 << 1)
 
 #endif /* __BSD_VISIBLE */
 
@@ -128,21 +128,21 @@
 /*
  * Process memory locking
  */
-#define MCL_CURRENT	0x0001	/* Lock only current memory */
-#define MCL_FUTURE	0x0002	/* Lock all future memory as well */
+#define	MCL_CURRENT	0x0001	/* Lock only current memory */
+#define	MCL_FUTURE	0x0002	/* Lock all future memory as well */
 #endif
 
 /*
  * Error return from mmap()
  */
-#define MAP_FAILED	((void *)-1)
+#define	MAP_FAILED	((void *)-1)
 
 /*
  * msync() flags
  */
 #define	MS_SYNC		0x0000	/* msync synchronously */
-#define MS_ASYNC	0x0001	/* return immediately */
-#define MS_INVALIDATE	0x0002	/* invalidate all cached data */
+#define	MS_ASYNC	0x0001	/* return immediately */
+#define	MS_INVALIDATE	0x0002	/* invalidate all cached data */
 
 /*
  * Advice to madvise
