@@ -230,13 +230,13 @@ static const long double R[] = {
 static const long double MAXLOGL = 1.1356523406294143949492E4L;
 static const long double MINLOGL = -1.13994985314888605586758E4L;
 static const long double LOGE2L = 6.9314718055994530941723E-1L;
-static volatile long double z;
-static long double w, W, Wa, Wb, ya, yb, u;
+static _Thread_local volatile long double z;
+static _Thread_local long double w, W, Wa, Wb, ya, yb, u;
 static const long double huge = 0x1p10000L;
 #if 0 /* XXX Prevent gcc from erroneously constant folding this. */
 static const long double twom10000 = 0x1p-10000L;
 #else
-static volatile long double twom10000 = 0x1p-10000L;
+static _Thread_local volatile long double twom10000 = 0x1p-10000L;
 #endif
 
 static long double reducl( long double );
