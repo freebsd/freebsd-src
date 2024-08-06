@@ -3677,6 +3677,9 @@ def err_attribute_weak_static : Error<
   "weak declaration cannot have internal linkage">;
 def err_attribute_selectany_non_extern_data : Error<
   "'selectany' can only be applied to data items with external linkage">;
+def warn_attribute_hybrid_patchable_non_extern : Warning<
+  "'hybrid_patchable' is ignored on functions without external linkage">,
+  InGroup<IgnoredAttributes>;
 def err_declspec_thread_on_thread_variable : Error<
   "'__declspec(thread)' applied to variable that already has a "
   "thread-local storage specifier">;
@@ -3808,8 +3811,6 @@ def warn_sme_locally_streaming_has_vl_args_returns : Warning<
   InGroup<AArch64SMEAttributes>, DefaultIgnore;
 def err_conflicting_attributes_arm_state : Error<
   "conflicting attributes for state '%0'">;
-def err_sme_streaming_cannot_be_multiversioned : Error<
-  "streaming function cannot be multi-versioned">;
 def err_unknown_arm_state : Error<
   "unknown state '%0'">;
 def err_missing_arm_state : Error<
