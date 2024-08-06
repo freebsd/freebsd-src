@@ -1732,7 +1732,7 @@ unionfs_rmdir(struct vop_rmdir_args *ap)
 		}
 		ump = MOUNTTOUNIONFSMOUNT(ap->a_vp->v_mount);
 		if (ump->um_whitemode == UNIONFS_WHITE_ALWAYS || lvp != NULLVP)
-			cnp->cn_flags |= DOWHITEOUT;
+			cnp->cn_flags |= (DOWHITEOUT | IGNOREWHITEOUT);
 		int udvp_lkflags, uvp_lkflags;
 		unionfs_forward_vop_start_pair(udvp, &udvp_lkflags,
 		    uvp, &uvp_lkflags);

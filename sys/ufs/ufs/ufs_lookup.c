@@ -1298,7 +1298,8 @@ ufs_dirrewrite(struct inode *dp, struct inode *oip, ino_t newinum, int newtype,
  * NB: does not handle corrupted directories.
  */
 int
-ufs_dirempty(struct inode *ip, ino_t parentino, struct ucred *cred)
+ufs_dirempty(struct inode *ip, ino_t parentino, struct ucred *cred,
+    int skipwhiteout)
 {
 	doff_t off;
 	struct dirtemplate dbuf;
@@ -1321,7 +1322,8 @@ ufs_dirempty(struct inode *ip, ino_t parentino, struct ucred *cred)
 		if (dp->d_reclen == 0)
 			return (0);
 		/* skip empty entries */
-		if (dp->d_ino == 0 || dp->d_ino == UFS_WINO)
+		if (dp->d_ino == 0 ||
+		    (skipwhiteout != 0 && dp->d_ino == UFS_WINO))
 			continue;
 		/* accept only "." and ".." */
 #		if (BYTE_ORDER == LITTLE_ENDIAN)
