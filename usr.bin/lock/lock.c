@@ -87,7 +87,7 @@ main(int argc, char **argv)
 	struct tm *timp;
 	time_t timval;
 	int ch, failures, pam_err, sectimeout, usemine, vtylock;
-	char *ap, *ttynam, *tzn;
+	char ap[26], *ttynam, *tzn;
 	char hostname[MAXHOSTNAMELEN], s[BUFSIZ], s1[BUFSIZ];
 
 	openlog("lock", 0, LOG_AUTH);
@@ -139,7 +139,7 @@ main(int argc, char **argv)
 	timval = time(NULL);
 	nexttime = timval + (sectimeout * 60);
 	timp = localtime(&timval);
-	ap = asctime(timp);
+	strftime(ap, sizeof(ap), "Www Mmm dd hh:mm:ss yyyy\n", timp);
 	tzn = timp->tm_zone;
 
 	(void)signal(SIGINT, quit);

@@ -880,8 +880,9 @@ main(int argc, char **argv)
 
 	if (atverify)
 	{
-	    struct tm *tm = localtime(&timer);
-	    fprintf(stderr, "%s\n", asctime(tm));
+	    char time_string[26];
+	    strftime(time_string, sizeof(time_string), "Www Mmm dd hh:mm:ss yyyy\n", localtime(&timer));
+	    fprintf(stderr, "%s\n", time_string);
 	}
 	writefile(timer, queue);
 	break;
@@ -899,8 +900,9 @@ main(int argc, char **argv)
 	
 	if (atverify)
 	{
-	    struct tm *tm = localtime(&timer);
-	    fprintf(stderr, "%s\n", asctime(tm));
+	    char time_string[26];
+	    strftime(time_string, sizeof(time_string), "Www Mmm dd hh:mm:ss yyyy\n", localtime(&timer));
+	    fprintf(stderr, "%s\n", time_string);
 	}
 
         writefile(timer, queue);
