@@ -349,7 +349,7 @@ intr_irq_handler_root(struct trapframe *tf, uint32_t rootnum)
 	struct intr_irq_root *root;
 
 	KASSERT(rootnum < INTR_ROOT_NUM,
-		("%s: invalid interrupt root %d", __func__, rootnum));
+	    ("%s: invalid interrupt root %d", __func__, rootnum));
 
 	root = &intr_irq_roots[rootnum];
 	KASSERT(root->filter != NULL, ("%s: no filter", __func__));
@@ -508,7 +508,7 @@ isrc_free_irq(struct intr_irqsrc *isrc)
 device_t
 intr_irq_root_dev(void)
 {
-	return intr_irq_roots[INTR_ROOT_IRQ].dev;
+	return (intr_irq_roots[INTR_ROOT_IRQ].dev);
 }
 
 /*
@@ -935,7 +935,7 @@ intr_pic_claim_root_num(device_t dev, intptr_t xref, intr_irq_filter_t *filter,
 	 * routine (handler) on the root. See intr_irq_handler().
 	 */
 	KASSERT(rootnum < INTR_ROOT_NUM,
-		("%s: invalid interrupt root %d", __func__, rootnum));
+	    ("%s: invalid interrupt root %d", __func__, rootnum));
 	root = &intr_irq_roots[rootnum];
 	if (root->dev != NULL) {
 		device_printf(dev, "another root already set\n");
@@ -954,7 +954,7 @@ int
 intr_pic_claim_root(device_t dev, intptr_t xref, intr_irq_filter_t *filter,
     void *arg)
 {
-	return intr_pic_claim_root_num(dev, xref, filter, arg, INTR_ROOT_IRQ);
+	return (intr_pic_claim_root_num(dev, xref, filter, arg, INTR_ROOT_IRQ));
 }
 
 /*
@@ -1595,15 +1595,16 @@ dosoftints(void)
 void
 intr_pic_init_secondary(void)
 {
+	device_t dev;
+	uint32_t rootnum;
+
 	/*
 	 * QQQ: Only root PICs are aware of other CPUs ???
 	 */
-	uint32_t rootnum;
-	device_t dev;
 	//mtx_lock(&isrc_table_lock);
 	for (rootnum = 0; rootnum < INTR_ROOT_NUM; rootnum++) {
 		dev = intr_irq_roots[rootnum].dev;
-		if (dev) {
+		if (dev != NULL) {
 			PIC_INIT_SECONDARY(dev, rootnum);
 		}
 	}
