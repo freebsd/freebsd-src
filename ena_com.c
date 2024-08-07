@@ -1878,12 +1878,15 @@ int ena_com_phc_config(struct ena_com_dev *ena_dev)
 void ena_com_phc_destroy(struct ena_com_dev *ena_dev)
 {
 	struct ena_com_phc_info *phc = &ena_dev->phc;
-
-	phc->active = false;
+	unsigned long flags = 0;
 
 	/* In case PHC is not supported by the device, silently exiting */
 	if (!phc->virt_addr)
 		return;
+
+	ENA_SPINLOCK_LOCK(phc->lock, flags);
+	phc->active = false;
+	ENA_SPINLOCK_UNLOCK(phc->lock, flags);
 
 	ENA_MEM_FREE_COHERENT(ena_dev->dmadev,
 			      sizeof(*phc->virt_addr),
