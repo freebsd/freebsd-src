@@ -301,6 +301,8 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 	    &dev_stats->missing_admin_interrupt, "Missing admin interrupts count");
 	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "admin_to", CTLFLAG_RD,
 	    &dev_stats->admin_to, "Admin queue timeouts count");
+	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "device_request_reset", CTLFLAG_RD,
+	    &dev_stats->device_request_reset, "Device reset requests count");
 	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "total_resets", CTLFLAG_RD,
 	    &dev_stats->total_resets, "Total resets count");
 
