@@ -396,6 +396,7 @@ struct ena_stats_dev {
 	counter_u64_t rx_desc_malformed;
 	counter_u64_t missing_admin_interrupt;
 	counter_u64_t admin_to;
+	counter_u64_t device_request_reset;
 };
 
 struct ena_hw_stats {
@@ -558,6 +559,7 @@ static const struct ena_reset_stats_offset resets_to_stats_offset_map[ENA_REGS_R
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_TX_DESCRIPTOR_MALFORMED, tx_desc_malformed),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_RX_DESCRIPTOR_MALFORMED, rx_desc_malformed),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_MISSING_ADMIN_INTERRUPT, missing_admin_interrupt),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_DEVICE_REQUEST, device_request_reset),
 };
 
 int	ena_up(struct ena_adapter *adapter);
