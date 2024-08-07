@@ -71,7 +71,6 @@ static void ena_netmap_unmap_last_socket_chain(struct ena_netmap_ctx *,
     struct ena_tx_buffer *);
 static void ena_netmap_tx_cleanup(struct ena_netmap_ctx *);
 static uint16_t ena_netmap_tx_clean_one(struct ena_netmap_ctx *, uint16_t);
-static inline int validate_tx_req_id(struct ena_ring *, uint16_t);
 static int ena_netmap_rx_frames(struct ena_netmap_ctx *);
 static int ena_netmap_rx_frame(struct ena_netmap_ctx *);
 static int ena_netmap_rx_load_desc(struct ena_netmap_ctx *, uint16_t, int *);
@@ -795,25 +794,33 @@ ena_netmap_unmap_last_socket_chain(struct ena_netmap_ctx *ctx,
 static void
 ena_netmap_tx_cleanup(struct ena_netmap_ctx *ctx)
 {
+	struct ena_ring *tx_ring = ctx->ring;
+	int rc;
 	uint16_t req_id;
 	uint16_t total_tx_descs = 0;
 
 	ctx->nm_i = ctx->kring->nr_hwtail;
-	ctx->nt = ctx->ring->next_to_clean;
+	ctx->nt = tx_ring->next_to_clean;
 
 	/* Reclaim buffers for completed transmissions */
-	while (ena_com_tx_comp_req_id_get(ctx->io_cq, &req_id) >= 0) {
-		if (validate_tx_req_id(ctx->ring, req_id) != 0)
+	do {
+		rc = ena_com_tx_comp_req_id_get(ctx->io_cq, &req_id);
+		if(unlikely(rc == ENA_COM_TRY_AGAIN))
 			break;
+
+		rc = validate_tx_req_id(tx_ring, req_id, rc);
+		if(unlikely(rc != 0))
+			break;
+
 		total_tx_descs += ena_netmap_tx_clean_one(ctx, req_id);
-	}
+	} while (1);
 
 	ctx->kring->nr_hwtail = ctx->nm_i;
 
 	if (total_tx_descs > 0) {
 		/* acknowledge completion of sent packets */
-		ctx->ring->next_to_clean = ctx->nt;
-		ena_com_comp_ack(ctx->ring->ena_com_io_sq, total_tx_descs);
+		tx_ring->next_to_clean = ctx->nt;
+		ena_com_comp_ack(tx_ring->ena_com_io_sq, total_tx_descs);
 	}
 }
 
@@ -854,23 +861,6 @@ ena_netmap_tx_clean_one(struct ena_netmap_ctx *ctx, uint16_t req_id)
 	ctx->nt = ENA_TX_RING_IDX_NEXT(ctx->nt, ctx->lim);
 
 	return tx_info->tx_descs;
-}
-
-static inline int
-validate_tx_req_id(struct ena_ring *tx_ring, uint16_t req_id)
-{
-	struct ena_adapter *adapter = tx_ring->adapter;
-
-	if (likely(req_id < tx_ring->ring_size))
-		return (0);
-
-	ena_log_nm(adapter->pdev, WARN, "Invalid req_id %hu in qid %hu\n",
-	    req_id, tx_ring->qid);
-	counter_u64_add(tx_ring->tx_stats.bad_req_id, 1);
-
-	ena_trigger_reset(adapter, ENA_REGS_RESET_INV_TX_REQ_ID);
-
-	return (EFAULT);
 }
 
 static int
