@@ -169,6 +169,9 @@ static int ena_copy_eni_metrics(struct ena_adapter *);
 static int ena_copy_srd_metrics(struct ena_adapter *);
 static int ena_copy_customer_metrics(struct ena_adapter *);
 static void ena_timer_service(void *);
+static enum ena_regs_reset_reason_types check_cdesc_in_tx_cq(struct ena_adapter *,
+    struct ena_ring *);
+
 
 static char ena_version[] = ENA_DEVICE_NAME ENA_DRV_MODULE_NAME
     " v" ENA_DRV_MODULE_VERSION;
@@ -3089,6 +3092,31 @@ check_for_rx_interrupt_queue(struct ena_adapter *adapter,
 	return (0);
 }
 
+static enum ena_regs_reset_reason_types
+check_cdesc_in_tx_cq(struct ena_adapter *adapter,
+    struct ena_ring *tx_ring)
+{
+	device_t pdev = adapter->pdev;
+	int rc;
+	u16 req_id;
+
+	rc = ena_com_tx_comp_req_id_get(tx_ring->ena_com_io_cq, &req_id);
+	/* TX CQ is empty */
+	if (rc == ENA_COM_TRY_AGAIN) {
+		ena_log(pdev, ERR,
+		    "No completion descriptors found in CQ %d\n",
+		    tx_ring->qid);
+		return ENA_REGS_RESET_MISS_TX_CMPL;
+	}
+
+	/* TX CQ has cdescs */
+	ena_log(pdev, ERR,
+	    "Completion descriptors found in CQ %d",
+	    tx_ring->qid);
+
+	return ENA_REGS_RESET_MISS_INTERRUPT;
+}
+
 static int
 check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
     struct ena_ring *tx_ring)
@@ -3101,6 +3129,8 @@ check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 	int missing_tx_comp_to;
 	sbintime_t time_offset;
 	int i, rc = 0;
+	enum ena_regs_reset_reason_types reset_reason = ENA_REGS_RESET_MISS_TX_CMPL;
+	bool cleanup_scheduled, cleanup_running;
 
 	getbinuptime(&curtime);
 
@@ -3156,7 +3186,19 @@ check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 		    "The number of lost tx completion is above the threshold "
 		    "(%d > %d). Reset the device\n",
 		    missed_tx, adapter->missing_tx_threshold);
-		ena_trigger_reset(adapter, ENA_REGS_RESET_MISS_TX_CMPL);
+		/* Set the reset flag to prevent ena_cleanup() from running */
+		ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
+		/* Need to make sure that ENA_FLAG_TRIGGER_RESET is visible to ena_cleanup() and
+		 * that cleanup_running is visible to check_missing_comp_in_tx_queue() to
+		 * prevent the case of accessing CQ concurrently with check_cdesc_in_tx_cq()
+		 */
+		mb();
+		cleanup_scheduled = !!(atomic_load_16(&tx_ring->que->cleanup_task.ta_pending));
+		cleanup_running = !!(atomic_load_8((&tx_ring->cleanup_running)));
+		if (!(cleanup_scheduled || cleanup_running))
+			reset_reason = check_cdesc_in_tx_cq(adapter, tx_ring);
+
+		adapter->reset_reason = reset_reason;
 		rc = EIO;
 	}
 	/* Add the newly discovered missing TX completions */
@@ -3619,6 +3661,7 @@ ena_reset_task(void *arg, int pending)
 
 	ENA_LOCK_LOCK();
 	if (likely(ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, adapter))) {
+		ena_increment_reset_counter(adapter);
 		ena_destroy_device(adapter, false);
 		ena_restore_device(adapter);
 

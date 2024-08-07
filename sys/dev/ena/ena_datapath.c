@@ -77,16 +77,23 @@ ena_cleanup(void *arg, int pending)
 	int qid, ena_qid;
 	int txc, rxc, i;
 
-	if (unlikely((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0))
-		return;
-
-	ena_log_io(adapter->pdev, DBG, "MSI-X TX/RX routine\n");
-
 	tx_ring = que->tx_ring;
 	rx_ring = que->rx_ring;
 	qid = que->id;
 	ena_qid = ENA_IO_TXQ_IDX(qid);
 	io_cq = &adapter->ena_dev->io_cq_queues[ena_qid];
+
+	atomic_store_8(&tx_ring->cleanup_running, 1);
+	/* Need to make sure that ENA_FLAG_TRIGGER_RESET is visible to ena_cleanup() and
+	 * that cleanup_running is visible to check_missing_comp_in_tx_queue() to
+	 * prevent the case of accessing CQ concurrently with check_cdesc_in_tx_cq()
+	 */
+	mb();
+	if (unlikely(((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0) ||
+	    (ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, adapter))))
+		return;
+
+	ena_log_io(adapter->pdev, DBG, "MSI-X TX/RX routine\n");
 
 	atomic_store_8(&tx_ring->first_interrupt, 1);
 	atomic_store_8(&rx_ring->first_interrupt, 1);
@@ -95,7 +102,8 @@ ena_cleanup(void *arg, int pending)
 		rxc = ena_rx_cleanup(rx_ring);
 		txc = ena_tx_cleanup(tx_ring);
 
-		if (unlikely((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0))
+		if (unlikely(((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0) ||
+		    (ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, adapter))))
 			return;
 
 		if ((txc != ENA_TX_BUDGET) && (rxc != ENA_RX_BUDGET))
@@ -107,6 +115,7 @@ ena_cleanup(void *arg, int pending)
 	    ENA_TX_IRQ_INTERVAL, true, false);
 	counter_u64_add(tx_ring->tx_stats.unmask_interrupt_num, 1);
 	ena_com_unmask_intr(io_cq, &intr_reg);
+	atomic_store_8(&tx_ring->cleanup_running, 0);
 }
 
 void
