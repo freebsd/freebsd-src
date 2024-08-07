@@ -938,8 +938,28 @@ gdb_cpu_add(struct vcpu *vcpu)
 	 * executing the first instruction.
 	 */
 	if (!CPU_EMPTY(&vcpus_suspended)) {
+		cpuset_t suspended;
+		int error;
+
+		error = vm_debug_cpus(ctx, &suspended);
+		assert(error == 0);
+
 		CPU_SET(vcpuid, &vcpus_suspended);
 		_gdb_cpu_suspend(vcpu, false);
+
+		/*
+		 * In general, APs are started in a suspended mode such that
+		 * they exit with VM_EXITCODE_DEBUG until the BSP starts them.
+		 * In particular, this refers to the kernel's view of the vCPU
+		 * state rather than our own.  If the debugger resumes guest
+		 * execution, vCPUs will be unsuspended from the kernel's point
+		 * of view, so we should restore the previous state before
+		 * continuing.
+		 */
+		if (CPU_ISSET(vcpuid, &suspended)) {
+			error = vm_suspend_cpu(vcpu);
+			assert(error == 0);
+		}
 	}
 	pthread_mutex_unlock(&gdb_lock);
 }
