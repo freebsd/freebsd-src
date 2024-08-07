@@ -1586,13 +1586,18 @@ void
 intr_pic_init_secondary(void)
 {
 
-	/*
-	 * QQQ: Only root PIC is aware of other CPUs ???
-	 */
-	KASSERT(intr_irq_root_dev() != NULL, ("%s: no root attached", __func__));
-
+	uint32_t root;
+	device_t dev;
 	//mtx_lock(&isrc_table_lock);
-	PIC_INIT_SECONDARY(intr_irq_root_dev());
+	for (root = 0; root < INTR_ROOT_NUM; root++) {
+		dev = intr_irq_root_devs[root];
+		if (dev) {
+			/*
+			 * QQQ: Only root PIC is aware of other CPUs ???
+			 */
+			PIC_INIT_SECONDARY(dev, root);
+		}
+	}
 	//mtx_unlock(&isrc_table_lock);
 }
 #endif
