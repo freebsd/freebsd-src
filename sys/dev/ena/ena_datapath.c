@@ -200,29 +200,22 @@ ena_get_tx_req_id(struct ena_ring *tx_ring, struct ena_com_io_cq *io_cq,
     uint16_t *req_id)
 {
 	struct ena_adapter *adapter = tx_ring->adapter;
-	int rc;
+	int rc = ena_com_tx_comp_req_id_get(io_cq, req_id);
 
-	rc = ena_com_tx_comp_req_id_get(io_cq, req_id);
-	if (rc == ENA_COM_TRY_AGAIN)
+	if (unlikely(rc == ENA_COM_TRY_AGAIN))
 		return (EAGAIN);
 
-	if (unlikely(rc != 0)) {
-		ena_log(adapter->pdev, ERR, "Invalid req_id %hu in qid %hu\n",
+	rc = validate_tx_req_id(tx_ring, *req_id, rc);
+
+	if (unlikely(tx_ring->tx_buffer_info[*req_id].mbuf == NULL)) {
+		ena_log(adapter->pdev, ERR,
+		    "tx_info doesn't have valid mbuf. req_id %hu qid %hu\n",
 		    *req_id, tx_ring->qid);
-		counter_u64_add(tx_ring->tx_stats.bad_req_id, 1);
-		goto err;
+		ena_trigger_reset(adapter, ENA_REGS_RESET_INV_TX_REQ_ID);
+		rc = EFAULT;
 	}
 
-	if (tx_ring->tx_buffer_info[*req_id].mbuf != NULL)
-		return (0);
-
-	ena_log(adapter->pdev, ERR,
-	    "tx_info doesn't have valid mbuf. req_id %hu qid %hu\n",
-	    *req_id, tx_ring->qid);
-err:
-	ena_trigger_reset(adapter, ENA_REGS_RESET_INV_TX_REQ_ID);
-
-	return (EFAULT);
+	return (rc);
 }
 
 /**

@@ -560,6 +560,32 @@ ena_free_rx_dma_tag(struct ena_adapter *adapter)
 	return (ret);
 }
 
+int
+validate_tx_req_id(struct ena_ring *tx_ring, uint16_t req_id, int tx_req_id_rc)
+{
+	struct ena_adapter *adapter = tx_ring->adapter;
+	enum ena_regs_reset_reason_types reset_reason = ENA_REGS_RESET_INV_TX_REQ_ID;
+
+	if (unlikely(tx_req_id_rc != 0)) {
+		if (tx_req_id_rc == ENA_COM_FAULT) {
+			reset_reason = ENA_REGS_RESET_TX_DESCRIPTOR_MALFORMED;
+			ena_log(adapter->pdev, ERR,
+			    "TX descriptor malformed. req_id %hu qid %hu\n",
+			    req_id, tx_ring->qid);
+		} else if (tx_req_id_rc == ENA_COM_INVAL) {
+			ena_log_nm(adapter->pdev, WARN,
+			    "Invalid req_id %hu in qid %hu\n",
+			    req_id, tx_ring->qid);
+			counter_u64_add(tx_ring->tx_stats.bad_req_id, 1);
+		}
+
+		ena_trigger_reset(adapter, reset_reason);
+		return (EFAULT);
+	}
+
+	return (0);
+}
+
 static void
 ena_release_all_tx_dmamap(struct ena_ring *tx_ring)
 {

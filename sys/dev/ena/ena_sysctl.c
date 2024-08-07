@@ -294,6 +294,8 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 	    &dev_stats->invalid_state, "Driver invalid state count");
 	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "missing_intr", CTLFLAG_RD,
 	    &dev_stats->missing_intr, "Missing interrupt count");
+	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "tx_desc_malformed", CTLFLAG_RD,
+	    &dev_stats->tx_desc_malformed, "TX descriptors malformed count");
 	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "total_resets", CTLFLAG_RD,
 	    &dev_stats->total_resets, "Total resets count");
 
