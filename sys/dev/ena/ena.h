@@ -173,6 +173,15 @@ enum ena_flags_t {
 	ENA_FLAGS_NUMBER = ENA_FLAG_RSS_ACTIVE
 };
 
+enum ena_llq_header_size_policy_t {
+	/* Policy for Regular LLQ entry size (128B) */
+	ENA_LLQ_HEADER_SIZE_POLICY_REGULAR,
+	/* Policy for Large LLQ entry size (256B) */
+	ENA_LLQ_HEADER_SIZE_POLICY_LARGE,
+	/* Policy for device recommended LLQ entry size */
+	ENA_LLQ_HEADER_SIZE_POLICY_DEFAULT
+};
+
 BITSET_DEFINE(_ena_state, ENA_FLAGS_NUMBER);
 typedef struct _ena_state ena_state_t;
 
@@ -458,6 +467,8 @@ struct ena_adapter {
 
 	uint8_t mac_addr[ETHER_ADDR_LEN];
 	/* mdio and phy*/
+
+	uint8_t llq_policy;
 
 	ena_state_t flags;
 
