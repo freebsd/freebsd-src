@@ -1915,7 +1915,6 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	struct portal *oldp, *newp;
 	struct port *oldport, *newport, *tmpport;
 	struct isns *oldns, *newns;
-	pid_t otherpid;
 	int changed, cumulated_error = 0, error, sockbuf;
 	int one = 1;
 
@@ -1924,32 +1923,25 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 		log_init(newconf->conf_debug);
 	}
 
-	if (oldconf->conf_pidfh != NULL) {
-		assert(oldconf->conf_pidfile_path != NULL);
-		if (newconf->conf_pidfile_path != NULL &&
-		    strcmp(oldconf->conf_pidfile_path,
-		    newconf->conf_pidfile_path) == 0) {
-			newconf->conf_pidfh = oldconf->conf_pidfh;
-			oldconf->conf_pidfh = NULL;
-		} else {
-			log_debugx("removing pidfile %s",
-			    oldconf->conf_pidfile_path);
-			pidfile_remove(oldconf->conf_pidfh);
-			oldconf->conf_pidfh = NULL;
+	if (oldconf->conf_pidfile_path != NULL &&
+	    newconf->conf_pidfile_path != NULL)
+	{
+		if (strcmp(oldconf->conf_pidfile_path,
+		           newconf->conf_pidfile_path) != 0)
+		{
+			/* pidfile has changed.  rename it */
+			log_debugx("moving pidfile to %s",
+				newconf->conf_pidfile_path);
+			if (rename(oldconf->conf_pidfile_path,
+				   newconf->conf_pidfile_path))
+			{
+				log_err(1, "renaming pidfile %s -> %s",
+					oldconf->conf_pidfile_path,
+					newconf->conf_pidfile_path);
+			}
 		}
-	}
-
-	if (newconf->conf_pidfh == NULL && newconf->conf_pidfile_path != NULL) {
-		log_debugx("opening pidfile %s", newconf->conf_pidfile_path);
-		newconf->conf_pidfh =
-		    pidfile_open(newconf->conf_pidfile_path, 0600, &otherpid);
-		if (newconf->conf_pidfh == NULL) {
-			if (errno == EEXIST)
-				log_errx(1, "daemon already running, pid: %jd.",
-				    (intmax_t)otherpid);
-			log_err(1, "cannot open or create pidfile \"%s\"",
-			    newconf->conf_pidfile_path);
-		}
+		newconf->conf_pidfh = oldconf->conf_pidfh;
+		oldconf->conf_pidfh = NULL;
 	}
 
 	/*
@@ -2471,8 +2463,8 @@ handle_connection(struct portal *portal, int fd,
 			close(fd);
 			return;
 		}
+		pidfile_close(conf->conf_pidfh);
 	}
-	pidfile_close(conf->conf_pidfh);
 
 	error = getnameinfo(client_sa, client_sa->sa_len,
 	    host, sizeof(host), NULL, 0, NI_NUMERICHOST);
@@ -2807,6 +2799,7 @@ main(int argc, char **argv)
 	struct isns *newns;
 	const char *config_path = DEFAULT_CONFIG_PATH;
 	int debug = 0, ch, error;
+	pid_t otherpid;
 	bool dont_daemonize = false;
 	bool test_config = false;
 	bool use_ucl = false;
@@ -2846,7 +2839,6 @@ main(int argc, char **argv)
 	kernel_init();
 
 	TAILQ_INIT(&kports.pports);
-	oldconf = conf_new_from_kernel(&kports);
 	newconf = conf_new_from_file(config_path, use_ucl);
 
 	if (newconf == NULL)
@@ -2854,6 +2846,22 @@ main(int argc, char **argv)
 
 	if (test_config)
 		return (0);
+
+	assert(newconf->conf_pidfile_path != NULL);
+	log_debugx("opening pidfile %s", newconf->conf_pidfile_path);
+	newconf->conf_pidfh = pidfile_open(newconf->conf_pidfile_path, 0600,
+		&otherpid);
+	if (newconf->conf_pidfh == NULL) {
+		if (errno == EEXIST)
+			log_errx(1, "daemon already running, pid: %jd.",
+			    (intmax_t)otherpid);
+		log_err(1, "cannot open or create pidfile \"%s\"",
+		    newconf->conf_pidfile_path);
+	}
+
+	register_signals();
+
+	oldconf = conf_new_from_kernel(&kports);
 
 	if (debug > 0) {
 		oldconf->conf_debug = debug;
@@ -2869,8 +2877,6 @@ main(int argc, char **argv)
 
 	conf_delete(oldconf);
 	oldconf = NULL;
-
-	register_signals();
 
 	if (dont_daemonize == false) {
 		log_debugx("daemonizing");
@@ -2926,6 +2932,10 @@ main(int argc, char **argv)
 			error = conf_apply(oldconf, newconf);
 			if (error != 0)
 				log_warnx("failed to apply configuration");
+			if (oldconf->conf_pidfh) {
+				pidfile_remove(oldconf->conf_pidfh);
+				oldconf->conf_pidfh = NULL;
+			}
 			conf_delete(newconf);
 			conf_delete(oldconf);
 			oldconf = NULL;
