@@ -553,8 +553,6 @@ struct rack_control {
 	uint32_t rc_last_timeout_snduna;
 	uint32_t last_tlp_acked_start;
 	uint32_t last_tlp_acked_end;
-	uint32_t challenge_ack_ts;
-	uint32_t challenge_ack_cnt;
 	uint32_t rc_min_to;	/* Socket option value Lock(a) */
 	uint32_t rc_pkt_delay;	/* Socket option value Lock(a) */
 	uint32_t persist_lost_ends;

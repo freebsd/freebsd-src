@@ -12504,17 +12504,13 @@ rack_process_ack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			else
 				TCPSTAT_INC(tcps_rcvacktooold);
 			/* Send challenge ACK. */
-			__ctf_do_dropafterack(m, tp, th, thflags, tlen, ret_val,
-					      &rack->r_ctl.challenge_ack_ts,
-					      &rack->r_ctl.challenge_ack_cnt);
+			ctf_do_dropafterack(m, tp, th, thflags, tlen, ret_val);
 			rack->r_wanted_output = 1;
 			return (1);
 		}
 	}
 	if (SEQ_GT(th->th_ack, tp->snd_max)) {
-		__ctf_do_dropafterack(m, tp, th, thflags, tlen, ret_val,
-				      &rack->r_ctl.challenge_ack_ts,
-				      &rack->r_ctl.challenge_ack_cnt);
+		ctf_do_dropafterack(m, tp, th, thflags, tlen, ret_val);
 		rack->r_wanted_output = 1;
 		return (1);
 	}
@@ -13795,9 +13791,7 @@ rack_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	ctf_calc_rwin(so, tp);
 	if ((thflags & TH_RST) ||
 	    (tp->t_fin_is_rst && (thflags & TH_FIN)))
-		return (__ctf_process_rst(m, th, so, tp,
-					  &rack->r_ctl.challenge_ack_ts,
-					  &rack->r_ctl.challenge_ack_cnt));
+		return (ctf_process_rst(m, th, so, tp));
 	if ((thflags & TH_ACK) &&
 	    (SEQ_LEQ(th->th_ack, tp->snd_una) ||
 	    SEQ_GT(th->th_ack, tp->snd_max))) {
@@ -13852,9 +13846,7 @@ rack_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		ctf_do_dropwithreset(m, tp, th, BANDLIM_RST_OPENPORT, tlen);
 		return (1);
 	}
-	if (_ctf_drop_checks(to, m, th, tp, &tlen, &thflags, &drop_hdrlen, &ret_val,
-			      &rack->r_ctl.challenge_ack_ts,
-			      &rack->r_ctl.challenge_ack_cnt)) {
+	if (ctf_drop_checks(to, m, th, tp, &tlen, &thflags, &drop_hdrlen, &ret_val)) {
 		return (ret_val);
 	}
 	/*
@@ -14043,9 +14035,7 @@ rack_do_established(struct mbuf *m, struct tcphdr *th, struct socket *so,
 
 	if ((thflags & TH_RST) ||
 	    (tp->t_fin_is_rst && (thflags & TH_FIN)))
-		return (__ctf_process_rst(m, th, so, tp,
-					  &rack->r_ctl.challenge_ack_ts,
-					  &rack->r_ctl.challenge_ack_cnt));
+		return (ctf_process_rst(m, th, so, tp));
 
 	/*
 	 * RFC5961 Section 4.2 Send challenge ACK for any SYN in
@@ -14064,9 +14054,7 @@ rack_do_established(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if (ctf_ts_check(m, th, tp, tlen, thflags, &ret_val))
 			return (ret_val);
 	}
-	if (_ctf_drop_checks(to, m, th, tp, &tlen, &thflags, &drop_hdrlen, &ret_val,
-			      &rack->r_ctl.challenge_ack_ts,
-			      &rack->r_ctl.challenge_ack_cnt)) {
+	if (ctf_drop_checks(to, m, th, tp, &tlen, &thflags, &drop_hdrlen, &ret_val)) {
 		return (ret_val);
 	}
 	/*
@@ -14139,15 +14127,11 @@ rack_do_close_wait(struct mbuf *m, struct tcphdr *th, struct socket *so,
 {
 	int32_t ret_val = 0;
 	int32_t orig_tlen = tlen;
-	struct tcp_rack *rack;
 
-	rack = (struct tcp_rack *)tp->t_fb_ptr;
 	ctf_calc_rwin(so, tp);
 	if ((thflags & TH_RST) ||
 	    (tp->t_fin_is_rst && (thflags & TH_FIN)))
-		return (__ctf_process_rst(m, th, so, tp,
-					  &rack->r_ctl.challenge_ack_ts,
-					  &rack->r_ctl.challenge_ack_cnt));
+		return (ctf_process_rst(m, th, so, tp));
 	/*
 	 * RFC5961 Section 4.2 Send challenge ACK for any SYN in
 	 * synchronized state.
@@ -14165,9 +14149,7 @@ rack_do_close_wait(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if (ctf_ts_check(m, th, tp, tlen, thflags, &ret_val))
 			return (ret_val);
 	}
-	if (_ctf_drop_checks(to, m, th, tp, &tlen, &thflags, &drop_hdrlen, &ret_val,
-			      &rack->r_ctl.challenge_ack_ts,
-			      &rack->r_ctl.challenge_ack_cnt)) {
+	if (ctf_drop_checks(to, m, th, tp, &tlen, &thflags, &drop_hdrlen, &ret_val)) {
 		return (ret_val);
 	}
 	/*
@@ -14269,16 +14251,12 @@ rack_do_fin_wait_1(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	int32_t ret_val = 0;
 	int32_t orig_tlen = tlen;
 	int32_t ourfinisacked = 0;
-	struct tcp_rack *rack;
 
-	rack = (struct tcp_rack *)tp->t_fb_ptr;
 	ctf_calc_rwin(so, tp);
 
 	if ((thflags & TH_RST) ||
 	    (tp->t_fin_is_rst && (thflags & TH_FIN)))
-		return (__ctf_process_rst(m, th, so, tp,
-					  &rack->r_ctl.challenge_ack_ts,
-					  &rack->r_ctl.challenge_ack_cnt));
+		return (ctf_process_rst(m, th, so, tp));
 	/*
 	 * RFC5961 Section 4.2 Send challenge ACK for any SYN in
 	 * synchronized state.
@@ -14296,9 +14274,7 @@ rack_do_fin_wait_1(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if (ctf_ts_check(m, th, tp, tlen, thflags, &ret_val))
 			return (ret_val);
 	}
-	if (_ctf_drop_checks(to, m, th, tp, &tlen, &thflags, &drop_hdrlen, &ret_val,
-			      &rack->r_ctl.challenge_ack_ts,
-			      &rack->r_ctl.challenge_ack_cnt)) {
+	if (ctf_drop_checks(to, m, th, tp, &tlen, &thflags, &drop_hdrlen, &ret_val)) {
 		return (ret_val);
 	}
 	/*
@@ -14397,16 +14373,12 @@ rack_do_closing(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	int32_t ret_val = 0;
 	int32_t orig_tlen = tlen;
 	int32_t ourfinisacked = 0;
-	struct tcp_rack *rack;
 
-	rack = (struct tcp_rack *)tp->t_fb_ptr;
 	ctf_calc_rwin(so, tp);
 
 	if ((thflags & TH_RST) ||
 	    (tp->t_fin_is_rst && (thflags & TH_FIN)))
-		return (__ctf_process_rst(m, th, so, tp,
-					  &rack->r_ctl.challenge_ack_ts,
-					  &rack->r_ctl.challenge_ack_cnt));
+		return (ctf_process_rst(m, th, so, tp));
 	/*
 	 * RFC5961 Section 4.2 Send challenge ACK for any SYN in
 	 * synchronized state.
@@ -14424,9 +14396,7 @@ rack_do_closing(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if (ctf_ts_check(m, th, tp, tlen, thflags, &ret_val))
 			return (ret_val);
 	}
-	if (_ctf_drop_checks(to, m, th, tp, &tlen, &thflags, &drop_hdrlen, &ret_val,
-			      &rack->r_ctl.challenge_ack_ts,
-			      &rack->r_ctl.challenge_ack_cnt)) {
+	if (ctf_drop_checks(to, m, th, tp, &tlen, &thflags, &drop_hdrlen, &ret_val)) {
 		return (ret_val);
 	}
 	/*
@@ -14504,16 +14474,12 @@ rack_do_lastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	int32_t ret_val = 0;
 	int32_t orig_tlen;
 	int32_t ourfinisacked = 0;
-	struct tcp_rack *rack;
 
-	rack = (struct tcp_rack *)tp->t_fb_ptr;
 	ctf_calc_rwin(so, tp);
 
 	if ((thflags & TH_RST) ||
 	    (tp->t_fin_is_rst && (thflags & TH_FIN)))
-		return (__ctf_process_rst(m, th, so, tp,
-					  &rack->r_ctl.challenge_ack_ts,
-					  &rack->r_ctl.challenge_ack_cnt));
+		return (ctf_process_rst(m, th, so, tp));
 	/*
 	 * RFC5961 Section 4.2 Send challenge ACK for any SYN in
 	 * synchronized state.
@@ -14532,9 +14498,7 @@ rack_do_lastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			return (ret_val);
 	}
 	orig_tlen = tlen;
-	if (_ctf_drop_checks(to, m, th, tp, &tlen, &thflags, &drop_hdrlen, &ret_val,
-			      &rack->r_ctl.challenge_ack_ts,
-			      &rack->r_ctl.challenge_ack_cnt)) {
+	if (ctf_drop_checks(to, m, th, tp, &tlen, &thflags, &drop_hdrlen, &ret_val)) {
 		return (ret_val);
 	}
 	/*
@@ -14612,17 +14576,13 @@ rack_do_fin_wait_2(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	int32_t ret_val = 0;
 	int32_t orig_tlen = tlen;
 	int32_t ourfinisacked = 0;
-	struct tcp_rack *rack;
 
-	rack = (struct tcp_rack *)tp->t_fb_ptr;
 	ctf_calc_rwin(so, tp);
 
 	/* Reset receive buffer auto scaling when not in bulk receive mode. */
 	if ((thflags & TH_RST) ||
 	    (tp->t_fin_is_rst && (thflags & TH_FIN)))
-		return (__ctf_process_rst(m, th, so, tp,
-					  &rack->r_ctl.challenge_ack_ts,
-					  &rack->r_ctl.challenge_ack_cnt));
+		return (ctf_process_rst(m, th, so, tp));
 	/*
 	 * RFC5961 Section 4.2 Send challenge ACK for any SYN in
 	 * synchronized state.
@@ -14640,9 +14600,7 @@ rack_do_fin_wait_2(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if (ctf_ts_check(m, th, tp, tlen, thflags, &ret_val))
 			return (ret_val);
 	}
-	if (_ctf_drop_checks(to, m, th, tp, &tlen, &thflags, &drop_hdrlen, &ret_val,
-			      &rack->r_ctl.challenge_ack_ts,
-			      &rack->r_ctl.challenge_ack_cnt)) {
+	if (ctf_drop_checks(to, m, th, tp, &tlen, &thflags, &drop_hdrlen, &ret_val)) {
 		return (ret_val);
 	}
 	/*
@@ -15547,7 +15505,6 @@ rack_init(struct tcpcb *tp, void **ptr)
 	rack->r_ctl.rc_lower_rtt_us_cts = us_cts;
 	rack->r_ctl.rc_time_of_last_probertt = us_cts;
 	rack->r_ctl.rc_went_idle_time = us_cts;
-	rack->r_ctl.challenge_ack_ts = tcp_ts_getticks() - (V_tcp_ack_war_time_window + 1);
 	rack->r_ctl.rc_time_probertt_starts = 0;
 
 	rack->r_ctl.gp_rnd_thresh = rack_rnd_cnt_req & 0xff;
@@ -16702,7 +16659,7 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 				 * ack is beyond the largest seq we sent.
 				 */
 				if ((tp->t_flags & TF_ACKNOW) == 0) {
-					ctf_ack_war_checks(tp, &rack->r_ctl.challenge_ack_ts, &rack->r_ctl.challenge_ack_cnt);
+					ctf_ack_war_checks(tp);
 					if (tp->t_flags && TF_ACKNOW)
 						rack->r_wanted_output = 1;
 				}
