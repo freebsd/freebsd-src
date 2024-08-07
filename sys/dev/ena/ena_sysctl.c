@@ -148,17 +148,17 @@ SYSCTL_INT(_hw_ena, OID_AUTO, enable_9k_mbufs, CTLFLAG_RDTUN,
     &ena_enable_9k_mbufs, 0, "Use 9 kB mbufs for Rx descriptors");
 
 /*
- * Force the driver to use large LLQ (Low Latency Queue) header. Defaults to
- * false. This option may be important for platforms, which often handle packet
- * headers on Tx with total header size greater than 96B, as it may
- * reduce the latency.
+ * Force the driver to use large or regular LLQ (Low Latency Queue) header size.
+ * Defaults to ENA_LLQ_HEADER_SIZE_POLICY_DEFAULT. This option may be
+ * important for platforms, which often handle packet headers on Tx with total
+ * header size greater than 96B, as it may reduce the latency.
  * It also reduces the maximum Tx queue size by half, so it may cause more Tx
  * packet drops.
  */
-bool ena_force_large_llq_header = false;
-SYSCTL_BOOL(_hw_ena, OID_AUTO, force_large_llq_header, CTLFLAG_RDTUN,
+int ena_force_large_llq_header = ENA_LLQ_HEADER_SIZE_POLICY_DEFAULT;
+SYSCTL_INT(_hw_ena, OID_AUTO, force_large_llq_header, CTLFLAG_RDTUN,
     &ena_force_large_llq_header, 0,
-    "Increases maximum supported header size in LLQ mode to 224 bytes, while reducing the maximum Tx queue size by half.\n");
+    "Change default LLQ entry size received from the device\n");
 
 int ena_rss_table_size = ENA_RX_RSS_TABLE_SIZE;
 
