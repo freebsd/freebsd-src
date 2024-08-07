@@ -1901,12 +1901,11 @@ void ena_com_phc_destroy(struct ena_com_dev *ena_dev)
 int ena_com_phc_get_timestamp(struct ena_com_dev *ena_dev, u64 *timestamp)
 {
 	volatile struct ena_admin_phc_resp *read_resp = ena_dev->phc.virt_addr;
+	const ena_time_high_res_t zero_system_time = ENA_TIME_INIT_HIGH_RES();
 	struct ena_com_phc_info *phc = &ena_dev->phc;
-	ena_time_high_res_t initial_time = ENA_TIME_INIT_HIGH_RES();
-	static ena_time_high_res_t start_time;
-	unsigned long flags = 0;
 	ena_time_high_res_t expire_time;
 	ena_time_high_res_t block_time;
+	unsigned long flags = 0;
 	int ret = ENA_COM_OK;
 
 	if (!phc->active) {
@@ -1917,9 +1916,10 @@ int ena_com_phc_get_timestamp(struct ena_com_dev *ena_dev, u64 *timestamp)
 	ENA_SPINLOCK_LOCK(phc->lock, flags);
 
 	/* Check if PHC is in blocked state */
-	if (unlikely(ENA_TIME_COMPARE_HIGH_RES(start_time, initial_time))) {
+	if (unlikely(ENA_TIME_COMPARE_HIGH_RES(phc->system_time, zero_system_time))) {
 		/* Check if blocking time expired */
-		block_time = ENA_GET_SYSTEM_TIMEOUT_HIGH_RES(start_time, phc->block_timeout_usec);
+		block_time = ENA_GET_SYSTEM_TIMEOUT_HIGH_RES(phc->system_time,
+							     phc->block_timeout_usec);
 		if (!ENA_TIME_EXPIRE_HIGH_RES(block_time)) {
 			/* PHC is still in blocked state, skip PHC request */
 			phc->stats.phc_skp++;
@@ -1941,9 +1941,9 @@ int ena_com_phc_get_timestamp(struct ena_com_dev *ena_dev, u64 *timestamp)
 	}
 
 	/* Setting relative timeouts */
-	start_time = ENA_GET_SYSTEM_TIME_HIGH_RES();
-	block_time = ENA_GET_SYSTEM_TIMEOUT_HIGH_RES(start_time, phc->block_timeout_usec);
-	expire_time = ENA_GET_SYSTEM_TIMEOUT_HIGH_RES(start_time, phc->expire_timeout_usec);
+	phc->system_time = ENA_GET_SYSTEM_TIME_HIGH_RES();
+	block_time = ENA_GET_SYSTEM_TIMEOUT_HIGH_RES(phc->system_time, phc->block_timeout_usec);
+	expire_time = ENA_GET_SYSTEM_TIMEOUT_HIGH_RES(phc->system_time, phc->expire_timeout_usec);
 
 	/* We expect the device to return this req_id once the new PHC timestamp is updated */
 	phc->req_id++;
@@ -1998,7 +1998,7 @@ int ena_com_phc_get_timestamp(struct ena_com_dev *ena_dev, u64 *timestamp)
 		phc->stats.phc_cnt++;
 
 		/* This indicates PHC state is active */
-		start_time = initial_time;
+		phc->system_time = zero_system_time;
 		break;
 	}
 
