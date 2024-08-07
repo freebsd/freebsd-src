@@ -1242,7 +1242,8 @@ enum ena_admin_aenq_group {
 	ENA_ADMIN_KEEP_ALIVE                        = 4,
 	ENA_ADMIN_REFRESH_CAPABILITIES              = 5,
 	ENA_ADMIN_CONF_NOTIFICATIONS		    = 6,
-	ENA_ADMIN_AENQ_GROUPS_NUM                   = 7,
+	ENA_ADMIN_DEVICE_REQUEST_RESET              = 7,
+	ENA_ADMIN_AENQ_GROUPS_NUM                   = 8,
 };
 
 enum ena_admin_aenq_notification_syndrome {
