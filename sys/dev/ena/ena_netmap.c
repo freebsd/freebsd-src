@@ -783,10 +783,10 @@ ena_netmap_unmap_last_socket_chain(struct ena_netmap_ctx *ctx,
 	/* Next, retain the sockets back to the userspace */
 	n = nm_info->sockets_used;
 	while (n--) {
+		ctx->nm_i = nm_prev(ctx->nm_i, ctx->lim);
 		ctx->slots[ctx->nm_i].buf_idx = nm_info->socket_buf_idx[n];
 		ctx->slots[ctx->nm_i].flags = NS_BUF_CHANGED;
 		nm_info->socket_buf_idx[n] = 0;
-		ctx->nm_i = nm_prev(ctx->nm_i, ctx->lim);
 	}
 	nm_info->sockets_used = 0;
 }
