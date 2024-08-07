@@ -2491,6 +2491,45 @@ void ena_com_aenq_intr_handler(struct ena_com_dev *ena_dev, void *data)
 				ena_dev->reg_bar + ENA_REGS_AENQ_HEAD_DB_OFF);
 	mmiowb();
 }
+
+bool ena_com_aenq_has_keep_alive(struct ena_com_dev *ena_dev)
+{
+	struct ena_admin_aenq_common_desc *aenq_common;
+	struct ena_com_aenq *aenq = &ena_dev->aenq;
+	struct ena_admin_aenq_entry *aenq_e;
+	u8 phase = aenq->phase;
+	u16 masked_head;
+
+	masked_head = aenq->head & (aenq->q_depth - 1);
+	aenq_e = &aenq->entries[masked_head]; /* Get first entry */
+	aenq_common = &aenq_e->aenq_common_desc;
+
+	/* Go over all the events */
+	while ((READ_ONCE8(aenq_common->flags) &
+		ENA_ADMIN_AENQ_COMMON_DESC_PHASE_MASK) == phase) {
+		/* Make sure the device finished writing the rest of the descriptor
+		 * before reading it.
+		 */
+		dma_rmb();
+
+		if (aenq_common->group == ENA_ADMIN_KEEP_ALIVE)
+			return true;
+
+		/* Get next event entry */
+		masked_head++;
+
+		if (unlikely(masked_head == aenq->q_depth)) {
+			masked_head = 0;
+			phase = !phase;
+		}
+
+		aenq_e = &aenq->entries[masked_head];
+		aenq_common = &aenq_e->aenq_common_desc;
+	}
+
+	return false;
+}
+
 #ifdef ENA_EXTENDED_STATS
 /*
  * Sets the function Idx and Queue Idx to be used for

@@ -667,6 +667,16 @@ void ena_com_admin_q_comp_intr_handler(struct ena_com_dev *ena_dev);
  */
 void ena_com_aenq_intr_handler(struct ena_com_dev *ena_dev, void *data);
 
+/* ena_com_aenq_has_keep_alive - Retrieve if there is a keep alive notification in the aenq
+ * @ena_dev: ENA communication layer struct
+ *
+ * This method goes over the async event notification queue and returns if there
+ * is a keep alive notification.
+ *
+ * @return - true if there is a keep alive notification in the aenq or false otherwise
+ */
+bool ena_com_aenq_has_keep_alive(struct ena_com_dev *ena_dev);
+
 /* ena_com_abort_admin_commands - Abort all the outstanding admin commands.
  * @ena_dev: ENA communication layer struct
  *
