@@ -391,6 +391,8 @@ struct ena_stats_dev {
 	counter_u64_t missing_intr;
 	counter_u64_t tx_desc_malformed;
 	counter_u64_t rx_desc_malformed;
+	counter_u64_t missing_admin_interrupt;
+	counter_u64_t admin_to;
 };
 
 struct ena_hw_stats {
@@ -542,7 +544,7 @@ struct ena_reset_stats_offset {
 
 static const struct ena_reset_stats_offset resets_to_stats_offset_map[ENA_REGS_RESET_LAST] = {
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_KEEP_ALIVE_TO, wd_expired),
-	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_ADMIN_TO, admin_q_pause),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_ADMIN_TO, admin_to),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_OS_TRIGGER, os_trigger),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_MISS_TX_CMPL, missing_tx_cmpl),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_INV_RX_REQ_ID, bad_rx_req_id),
@@ -552,6 +554,7 @@ static const struct ena_reset_stats_offset resets_to_stats_offset_map[ENA_REGS_R
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_MISS_INTERRUPT, missing_intr),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_TX_DESCRIPTOR_MALFORMED, tx_desc_malformed),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_RX_DESCRIPTOR_MALFORMED, rx_desc_malformed),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_MISSING_ADMIN_INTERRUPT, missing_admin_interrupt),
 };
 
 int	ena_up(struct ena_adapter *adapter);
