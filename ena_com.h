@@ -265,6 +265,8 @@ struct ena_com_admin_queue {
 	 */
 	bool running_state;
 
+	bool is_missing_admin_interrupt;
+
 	/* Count the number of outstanding admin commands */
 	ena_atomic32_t outstanding_cmds;
 
@@ -1116,6 +1118,16 @@ unsigned int ena_com_get_nonadaptive_moderation_interval_rx(struct ena_com_dev *
 int ena_com_config_dev_mode(struct ena_com_dev *ena_dev,
 			    struct ena_admin_feature_llq_desc *llq_features,
 			    struct ena_llq_configurations *llq_default_config);
+
+/* ena_com_get_missing_admin_interrupt - Return if there is a missing admin interrupt
+ * @ena_dev: ENA communication layer struct
+ *
+ * @return - true if there is a missing admin interrupt or false otherwise
+ */
+static inline bool ena_com_get_missing_admin_interrupt(struct ena_com_dev *ena_dev)
+{
+	return ena_dev->admin_queue.is_missing_admin_interrupt;
+}
 
 /* ena_com_io_sq_to_ena_dev - Extract ena_com_dev using contained field io_sq.
  * @io_sq: IO submit queue struct

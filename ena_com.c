@@ -839,6 +839,7 @@ static int ena_com_wait_and_process_admin_cq_interrupts(struct ena_comp_ctx *com
 		ENA_SPINLOCK_UNLOCK(admin_queue->q_lock, flags);
 
 		if (comp_ctx->status == ENA_CMD_COMPLETED) {
+			admin_queue->is_missing_admin_interrupt = true;
 			ena_trc_err(admin_queue->ena_dev,
 				    "The ena device sent a completion but the driver didn't receive a MSI-X interrupt (cmd %d), autopolling mode is %s\n",
 				    comp_ctx->cmd_opcode, admin_queue->auto_polling ? "ON" : "OFF");
@@ -2174,6 +2175,7 @@ int ena_com_admin_init(struct ena_com_dev *ena_dev,
 
 	admin_queue->ena_dev = ena_dev;
 	admin_queue->running_state = true;
+	admin_queue->is_missing_admin_interrupt = false;
 
 	return 0;
 error:
