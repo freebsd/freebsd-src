@@ -476,4 +476,6 @@ void	ena_rss_key_fill(void *key, size_t size);
 
 #define ENA_BITS_PER_U64(bitmap) (bitcount64(bitmap))
 
+#define ENA_ADMIN_OS_FREEBSD 4
+
 #endif /* ENA_PLAT_H_ */
