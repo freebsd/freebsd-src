@@ -381,6 +381,14 @@ struct ena_stats_dev {
 	counter_u64_t interface_up;
 	counter_u64_t interface_down;
 	counter_u64_t admin_q_pause;
+	counter_u64_t total_resets;
+	counter_u64_t os_trigger;
+	counter_u64_t missing_tx_cmpl;
+	counter_u64_t bad_rx_req_id;
+	counter_u64_t bad_tx_req_id;
+	counter_u64_t bad_rx_desc_num;
+	counter_u64_t invalid_state;
+	counter_u64_t missing_intr;
 };
 
 struct ena_hw_stats {
@@ -519,6 +527,29 @@ struct ena_adapter {
 
 extern struct sx ena_global_lock;
 
+#define ENA_RESET_STATS_ENTRY(reset_reason, stat) \
+	[reset_reason] = { \
+	.stat_offset = offsetof(struct ena_stats_dev, stat) / sizeof(u64), \
+	.has_counter = true \
+}
+
+struct ena_reset_stats_offset {
+	int stat_offset;
+	bool has_counter;
+};
+
+static const struct ena_reset_stats_offset resets_to_stats_offset_map[ENA_REGS_RESET_LAST] = {
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_KEEP_ALIVE_TO, wd_expired),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_ADMIN_TO, admin_q_pause),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_OS_TRIGGER, os_trigger),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_MISS_TX_CMPL, missing_tx_cmpl),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_INV_RX_REQ_ID, bad_rx_req_id),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_INV_TX_REQ_ID, bad_tx_req_id),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_TOO_MANY_RX_DESCS, bad_rx_desc_num),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_DRIVER_INVALID_STATE, invalid_state),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_MISS_INTERRUPT, missing_intr),
+};
+
 int	ena_up(struct ena_adapter *adapter);
 void	ena_down(struct ena_adapter *adapter);
 int	ena_restore_device(struct ena_adapter *adapter);
@@ -547,6 +578,17 @@ ena_trigger_reset(struct ena_adapter *adapter,
     enum ena_regs_reset_reason_types reset_reason)
 {
 	if (likely(!ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, adapter))) {
+		const struct ena_reset_stats_offset *ena_reset_stats_offset =
+		    &resets_to_stats_offset_map[reset_reason];
+
+		if (ena_reset_stats_offset->has_counter) {
+			uint64_t *stat_ptr = (uint64_t *)&adapter->dev_stats +
+			    ena_reset_stats_offset->stat_offset;
+
+			counter_u64_add((counter_u64_t)(*stat_ptr), 1);
+		}
+
+		counter_u64_add(adapter->dev_stats.total_resets, 1);
 		adapter->reset_reason = reset_reason;
 		ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
 	}

@@ -280,6 +280,22 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 	    "Network interface down count");
 	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "admin_q_pause",
 	    CTLFLAG_RD, &dev_stats->admin_q_pause, "Admin queue pauses");
+	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "os_trigger", CTLFLAG_RD,
+	    &dev_stats->os_trigger, "OS trigger count");
+	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "missing_tx_cmpl", CTLFLAG_RD,
+	    &dev_stats->missing_tx_cmpl, "Missing TX completions resets count");
+	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "bad_rx_req_id", CTLFLAG_RD,
+	    &dev_stats->bad_rx_req_id, "Bad RX req id count");
+	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "bad_tx_req_id", CTLFLAG_RD,
+	    &dev_stats->bad_tx_req_id, "Bad TX req id count");
+	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "bad_rx_desc_num", CTLFLAG_RD,
+	    &dev_stats->bad_rx_desc_num, "Bad RX descriptors number count");
+	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "invalid_state", CTLFLAG_RD,
+	    &dev_stats->invalid_state, "Driver invalid state count");
+	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "missing_intr", CTLFLAG_RD,
+	    &dev_stats->missing_intr, "Missing interrupt count");
+	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "total_resets", CTLFLAG_RD,
+	    &dev_stats->total_resets, "Total resets count");
 
 	for (i = 0; i < adapter->num_io_queues; ++i, ++tx_ring, ++rx_ring) {
 		snprintf(namebuf, QUEUE_NAME_LEN, "queue%d", i);
