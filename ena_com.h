@@ -321,17 +321,20 @@ struct ena_com_phc_info {
 	 */
 	u32 block_timeout_usec;
 
+	/* Cached error bound per timestamp sample */
+	u32 error_bound;
+
 	/* Request id sent to the device */
 	u16 req_id;
 
 	/* True if PHC is active in the device */
 	bool active;
 
-	/* PHC shared memory - memory handle */
-	ena_mem_handle_t mem_handle;
-
 	/* PHC shared memory - physical address */
 	dma_addr_t phys_addr;
+
+	/* PHC shared memory handle */
+	ena_mem_handle_t mem_handle;
 };
 
 struct ena_rss {
@@ -496,12 +499,19 @@ int ena_com_phc_config(struct ena_com_dev *ena_dev);
  */
 void ena_com_phc_destroy(struct ena_com_dev *ena_dev);
 
-/* ena_com_phc_get - Retrieve PHC timestamp
+/* ena_com_phc_get_timestamp - Retrieve PHC timestamp
  * @ena_dev: ENA communication layer struct
- * @timestamp: Retrieve PHC timestamp
+ * @timestamp: Retrieved PHC timestamp
  * @return - 0 on success, negative value on failure
  */
-int ena_com_phc_get(struct ena_com_dev *ena_dev, u64 *timestamp);
+int ena_com_phc_get_timestamp(struct ena_com_dev *ena_dev, u64 *timestamp);
+
+/* ena_com_phc_get_error_bound - Retrieve cached PHC error bound
+ * @ena_dev: ENA communication layer struct
+ * @error_bound: Cached PHC error bound
+ * @return - 0 on success, negative value on failure
+ */
+int ena_com_phc_get_error_bound(struct ena_com_dev *ena_dev, u32 *error_bound);
 
 /* ena_com_set_mmio_read_mode - Enable/disable the indirect mmio reg read mechanism
  * @ena_dev: ENA communication layer struct

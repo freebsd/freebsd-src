@@ -79,8 +79,10 @@
 /* PHC definitions */
 #define ENA_PHC_DEFAULT_EXPIRE_TIMEOUT_USEC 20
 #define ENA_PHC_DEFAULT_BLOCK_TIMEOUT_USEC 1000
-#define ENA_PHC_TIMESTAMP_ERROR 0xFFFFFFFFFFFFFFFF
+#define ENA_PHC_MAX_ERROR_BOUND 0xFFFFFFFF
 #define ENA_PHC_REQ_ID_OFFSET 0xDEAD
+#define ENA_PHC_ERROR_FLAGS (ENA_ADMIN_PHC_ERROR_FLAG_TIMESTAMP | \
+			     ENA_ADMIN_PHC_ERROR_FLAG_ERROR_BOUND)
 
 /*****************************************************************************/
 /*****************************************************************************/
@@ -1840,11 +1842,11 @@ int ena_com_phc_config(struct ena_com_dev *ena_dev)
 				   get_feat_resp.u.phc.block_timeout_usec :
 				   ENA_PHC_DEFAULT_BLOCK_TIMEOUT_USEC;
 
-	/* Sanity check - expire timeout must not be above skip timeout */
+	/* Sanity check - expire timeout must not exceed block timeout */
 	if (phc->expire_timeout_usec > phc->block_timeout_usec)
 		phc->expire_timeout_usec = phc->block_timeout_usec;
 
-	/* Prepare PHC feature command with PHC output address */
+	/* Prepare PHC feature command */
 	memset(&set_feat_cmd, 0x0, sizeof(set_feat_cmd));
 	set_feat_cmd.aq_common_descriptor.opcode = ENA_ADMIN_SET_FEATURE;
 	set_feat_cmd.feat_common.feature_id = ENA_ADMIN_PHC_CONFIG;
@@ -1893,7 +1895,7 @@ void ena_com_phc_destroy(struct ena_com_dev *ena_dev)
 	ENA_SPINLOCK_DESTROY(phc->lock);
 }
 
-int ena_com_phc_get(struct ena_com_dev *ena_dev, u64 *timestamp)
+int ena_com_phc_get_timestamp(struct ena_com_dev *ena_dev, u64 *timestamp)
 {
 	volatile struct ena_admin_phc_resp *read_resp = ena_dev->phc.virt_addr;
 	struct ena_com_phc_info *phc = &ena_dev->phc;
@@ -1922,9 +1924,9 @@ int ena_com_phc_get(struct ena_com_dev *ena_dev, u64 *timestamp)
 			goto skip;
 		}
 
-		/* PHC is in active state, update statistics according to req_id and timestamp */
+		/* PHC is in active state, update statistics according to req_id and error_flags */
 		if ((READ_ONCE16(read_resp->req_id) != phc->req_id) ||
-		    (read_resp->timestamp == ENA_PHC_TIMESTAMP_ERROR)) {
+		    (read_resp->error_flags & ENA_PHC_ERROR_FLAGS)) {
 			/* Device didn't update req_id during blocking time or timestamp is invalid,
 			 * this indicates on a device error
 			 */
@@ -1955,31 +1957,41 @@ int ena_com_phc_get(struct ena_com_dev *ena_dev, u64 *timestamp)
 	while (1) {
 		if (unlikely(ENA_TIME_EXPIRE_HIGH_RES(expire_time))) {
 			/* Gave up waiting for updated req_id, PHC enters into blocked state until
-			 * passing blocking time
+			 * passing blocking time, during this time any get PHC timestamp or
+			 * error bound requests will fail with device busy error
 			 */
+			phc->error_bound = ENA_PHC_MAX_ERROR_BOUND;
 			ret = ENA_COM_DEVICE_BUSY;
 			break;
 		}
 
 		/* Check if req_id was updated by the device */
 		if (READ_ONCE16(read_resp->req_id) != phc->req_id) {
-			/* req_id was not updated by the device, check again on next loop */
+			/* req_id was not updated by the device yet, check again on next loop */
 			continue;
 		}
 
-		/* req_id was updated which indicates that PHC timestamp was updated too */
-		*timestamp = read_resp->timestamp;
-
-		/* PHC timestamp validty check */
-		if (unlikely(*timestamp == ENA_PHC_TIMESTAMP_ERROR)) {
-			/* Retrieved invalid PHC timestamp, PHC enters into blocked state until
-			 * passing blocking time
+		/* req_id was updated by the device which indicates that PHC timestamp, error_bound
+		 * and error_flags are updated too, checking errors before retrieving timestamp and
+		 * error_bound values
+		 */
+		if (unlikely(read_resp->error_flags & ENA_PHC_ERROR_FLAGS)) {
+			/* Retrieved timestamp or error bound errors, PHC enters into blocked state
+			 * until passing blocking time, during this time any get PHC timestamp or
+			 * error bound requests will fail with device busy error
 			 */
+			phc->error_bound = ENA_PHC_MAX_ERROR_BOUND;
 			ret = ENA_COM_DEVICE_BUSY;
 			break;
 		}
 
-		/* Retrieved valid PHC timestamp */
+		/* PHC timestamp value is returned to the caller */
+		*timestamp = read_resp->timestamp;
+
+		/* Error bound value is cached for future retrieval by caller */
+		phc->error_bound = read_resp->error_bound;
+
+		/* Update statistic on valid PHC timestamp retrieval */
 		phc->stats.phc_cnt++;
 
 		/* This indicates PHC state is active */
@@ -1991,6 +2003,24 @@ skip:
 	ENA_SPINLOCK_UNLOCK(phc->lock, flags);
 
 	return ret;
+}
+
+int ena_com_phc_get_error_bound(struct ena_com_dev *ena_dev, u32 *error_bound)
+{
+	struct ena_com_phc_info *phc = &ena_dev->phc;
+	u32 local_error_bound = phc->error_bound;
+
+	if (!phc->active) {
+		ena_trc_err(ena_dev, "PHC feature is not active in the device\n");
+		return ENA_COM_UNSUPPORTED;
+	}
+
+	if (local_error_bound == ENA_PHC_MAX_ERROR_BOUND)
+		return ENA_COM_DEVICE_BUSY;
+
+	*error_bound = local_error_bound;
+
+	return ENA_COM_OK;
 }
 
 int ena_com_mmio_reg_read_request_init(struct ena_com_dev *ena_dev)
