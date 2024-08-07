@@ -964,7 +964,7 @@ ena_netmap_rx_frame(struct ena_netmap_ctx *ctx)
 	 * It just set flag NS_MOREFRAG to all slots, then here flag of
 	 * last slot is cleared.
 	 */
-	ctx->slots[nm_prev(ctx->nm_i, ctx->lim)].flags = NS_BUF_CHANGED;
+	ctx->slots[nm_prev(ctx->nm_i, ctx->lim)].flags &= ~NS_MOREFRAG;
 
 	if (rc != 0) {
 		goto rx_clear_desc;
