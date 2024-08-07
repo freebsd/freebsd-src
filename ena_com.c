@@ -860,7 +860,18 @@ static int ena_com_wait_and_process_admin_cq_interrupts(struct ena_comp_ctx *com
 			ret = ENA_COM_TIMER_EXPIRED;
 			goto err;
 		}
+	} else if (unlikely(comp_ctx->status == ENA_CMD_ABORTED)) {
+		ena_trc_err(admin_queue->ena_dev, "Command was aborted\n");
+		ENA_SPINLOCK_LOCK(admin_queue->q_lock, flags);
+		admin_queue->stats.aborted_cmd++;
+		ENA_SPINLOCK_UNLOCK(admin_queue->q_lock, flags);
+		ret = ENA_COM_NO_DEVICE;
+		goto err;
 	}
+
+	ENA_WARN(comp_ctx->status != ENA_CMD_COMPLETED,
+		 admin_queue->ena_dev, "Invalid comp status %d\n",
+		 comp_ctx->status);
 
 	ret = ena_com_comp_status_to_errno(admin_queue, comp_ctx->comp_status);
 err:
