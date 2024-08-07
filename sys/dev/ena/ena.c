@@ -2911,7 +2911,8 @@ ena_device_init(struct ena_adapter *adapter, device_t pdev,
 	    BIT(ENA_ADMIN_FATAL_ERROR) |
 	    BIT(ENA_ADMIN_WARNING) |
 	    BIT(ENA_ADMIN_NOTIFICATION) |
-	    BIT(ENA_ADMIN_KEEP_ALIVE);
+	    BIT(ENA_ADMIN_KEEP_ALIVE) |
+	    BIT(ENA_ADMIN_CONF_NOTIFICATIONS);
 
 	aenq_groups &= get_feat_ctx->aenq.supported_groups;
 	rc = ena_com_set_aenq_config(ena_dev, aenq_groups);
@@ -4041,11 +4042,38 @@ unimplemented_aenq_handler(void *adapter_data,
 	    "Unknown event was received or event with unimplemented handler\n");
 }
 
+static void ena_conf_notification(void *adapter_data,
+    struct ena_admin_aenq_entry *aenq_e)
+{
+	struct ena_adapter *adapter = (struct ena_adapter *)adapter_data;
+	struct ena_admin_aenq_conf_notifications_desc *desc;
+	u64 bitmap, bit;
+
+	desc = (struct ena_admin_aenq_conf_notifications_desc *)aenq_e;
+	bitmap = desc->notifications_bitmap;
+
+	if (bitmap == 0) {
+		ena_log(adapter->pdev, INFO,
+		    "Empty configuration notification bitmap\n");
+		return;
+	}
+
+	for (bit = ffsll(bitmap); bit != 0; bit = ffsll(bitmap)) {
+		bit--;
+		ena_log(adapter->pdev, INFO,
+		    "Sub-optimal configuration notification code: %" PRIu64 " Refer to AWS ENA documentation for additional details and mitigation options.\n",
+		    bit + 1);
+		// Clear the processed bit
+		bitmap &= ~(1UL << bit);
+	}
+}
+
 static struct ena_aenq_handlers aenq_handlers = {
     .handlers = {
 	    [ENA_ADMIN_LINK_CHANGE] = ena_update_on_link_change,
 	    [ENA_ADMIN_NOTIFICATION] = ena_notification,
 	    [ENA_ADMIN_KEEP_ALIVE] = ena_keep_alive_wd,
+	    [ENA_ADMIN_CONF_NOTIFICATIONS] = ena_conf_notification,
     },
     .unimplemented_handler = unimplemented_aenq_handler
 };
