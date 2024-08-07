@@ -498,7 +498,8 @@ isrc_free_irq(struct intr_irqsrc *isrc)
 	return (0);
 }
 
-device_t intr_irq_root_dev(void)
+device_t
+intr_irq_root_dev(void)
 {
 	return intr_irq_root_devs[INTR_ROOT_IRQ];
 }
@@ -1585,16 +1586,15 @@ dosoftints(void)
 void
 intr_pic_init_secondary(void)
 {
-
+	/*
+	 * QQQ: Only root PICs are aware of other CPUs ???
+	 */
 	uint32_t root;
 	device_t dev;
 	//mtx_lock(&isrc_table_lock);
 	for (root = 0; root < INTR_ROOT_NUM; root++) {
 		dev = intr_irq_root_devs[root];
 		if (dev) {
-			/*
-			 * QQQ: Only root PIC is aware of other CPUs ???
-			 */
 			PIC_INIT_SECONDARY(dev, root);
 		}
 	}
