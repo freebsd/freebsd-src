@@ -725,8 +725,8 @@ struct ena_admin_feature_llq_desc {
 	 */
 	uint8_t entry_size_recommended;
 
-	/* reserved */
-	uint8_t reserved1[2];
+	/* max depth of wide llq, or 0 for N/A */
+	uint16_t max_wide_llq_depth;
 
 	/* accelerated low latency queues requirement. driver needs to
 	 * support those requirements in order to use accelerated llq
