@@ -3842,8 +3842,8 @@ ena_attach(device_t pdev)
 #ifdef DEV_NETMAP
 err_detach:
 	ether_ifdetach(adapter->ifp);
-#endif /* DEV_NETMAP */
 	free(adapter->customer_metrics_array, M_DEVBUF);
+#endif /* DEV_NETMAP */
 err_metrics_buffer_destroy:
 	ena_com_delete_customer_metrics_buffer(ena_dev);
 err_msix_free:
