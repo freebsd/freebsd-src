@@ -390,6 +390,7 @@ struct ena_stats_dev {
 	counter_u64_t invalid_state;
 	counter_u64_t missing_intr;
 	counter_u64_t tx_desc_malformed;
+	counter_u64_t rx_desc_malformed;
 };
 
 struct ena_hw_stats {
@@ -550,6 +551,7 @@ static const struct ena_reset_stats_offset resets_to_stats_offset_map[ENA_REGS_R
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_DRIVER_INVALID_STATE, invalid_state),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_MISS_INTERRUPT, missing_intr),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_TX_DESCRIPTOR_MALFORMED, tx_desc_malformed),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_RX_DESCRIPTOR_MALFORMED, rx_desc_malformed),
 };
 
 int	ena_up(struct ena_adapter *adapter);
