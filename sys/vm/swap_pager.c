@@ -2201,10 +2201,9 @@ swp_pager_meta_transfer(vm_object_t srcobject, vm_object_t dstobject,
 				VM_OBJECT_WLOCK(srcobject);
 			}
 			if (moved != NULL) {
-				if (m != NULL && m->pindex != pindex + i - 1)
-					m = NULL;
-				m = m != NULL ? vm_page_next(m) :
-				    vm_page_lookup(srcobject, pindex + i);
+				m = (m != NULL && m->pindex == sb->p + i - 1) ?
+				    vm_page_next(m) :
+				    vm_page_lookup(srcobject, sb->p + i);
 				if (m == NULL || vm_page_none_valid(m))
 					mc++;
 			}
