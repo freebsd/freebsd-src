@@ -2448,8 +2448,8 @@ void ena_com_aenq_intr_handler(struct ena_com_dev *ena_dev, void *data)
 	/* Go over all the events */
 	while ((READ_ONCE8(aenq_common->flags) &
 		ENA_ADMIN_AENQ_COMMON_DESC_PHASE_MASK) == phase) {
-		/* Make sure the phase bit (ownership) is as expected before
-		 * reading the rest of the descriptor.
+		/* Make sure the device finished writing the rest of the descriptor
+		 * before reading it.
 		 */
 		dma_rmb();
 
