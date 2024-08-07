@@ -128,12 +128,13 @@ drain1:
 					goto drain1;
 				sleepq_release(&lock->head);
 				/* Possibly forgive passed conflict */
-				continue;
+			} else {
+				x = (v & ~RL_CHEAT_MASK) + RL_CHEAT_READER;
+				x |= RL_CHEAT_CHEATING;
+				if (atomic_fcmpset_acq_ptr(&lock->head, &v,
+				    x) != 0)
+					break;
 			}
-			x = (v & ~RL_CHEAT_MASK) + RL_CHEAT_READER;
-			x |= RL_CHEAT_CHEATING;
-			if (atomic_fcmpset_acq_ptr(&lock->head, &v, x) != 0)
-				break;
 			if ((v & RL_CHEAT_CHEATING) == 0)
 				return (false);
 			if ((v & RL_CHEAT_DRAINING) != 0)
@@ -156,11 +157,12 @@ drain1:
 					goto drain1;
 				sleepq_release(&lock->head);
 				/* Possibly forgive passed conflict */
-				continue;
+			} else {
+				x = RL_CHEAT_WLOCKED | RL_CHEAT_CHEATING;
+				if (atomic_fcmpset_acq_ptr(&lock->head, &v,
+				    x) != 0)
+					break;
 			}
-			x = RL_CHEAT_WLOCKED | RL_CHEAT_CHEATING;
-			if (atomic_fcmpset_acq_ptr(&lock->head, &v, x) != 0)
-				break;
 			if ((v & RL_CHEAT_CHEATING) == 0)
 				return (false);
 			if ((v & RL_CHEAT_DRAINING) != 0)
