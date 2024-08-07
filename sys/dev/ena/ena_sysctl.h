@@ -46,6 +46,6 @@ extern int ena_enable_9k_mbufs;
 #define ena_mbuf_sz (ena_enable_9k_mbufs ? MJUM9BYTES : MJUMPAGESIZE)
 
 /* Force the driver to use large LLQ (Low Latency Queue) headers. */
-extern bool ena_force_large_llq_header;
+extern int ena_force_large_llq_header;
 
 #endif /* !(ENA_SYSCTL_H) */

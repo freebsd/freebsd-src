@@ -156,7 +156,7 @@ static int ena_set_queues_placement_policy(device_t, struct ena_com_dev *,
 static int ena_map_llq_mem_bar(device_t, struct ena_com_dev *);
 static uint32_t ena_calc_max_io_queue_num(device_t, struct ena_com_dev *,
     struct ena_com_dev_get_features_ctx *);
-static int ena_calc_io_queue_size(struct ena_calc_queue_size_ctx *);
+static int ena_calc_io_queue_size(struct ena_calc_queue_size_ctx *, struct ena_adapter *);
 static void ena_config_host_info(struct ena_com_dev *, device_t);
 static int ena_attach(device_t);
 static int ena_detach(device_t);
@@ -2757,27 +2757,32 @@ ena_map_llq_mem_bar(device_t pdev, struct ena_com_dev *ena_dev)
 }
 
 static inline void
-set_default_llq_configurations(struct ena_llq_configurations *llq_config,
-    struct ena_admin_feature_llq_desc *llq)
+ena_set_llq_configurations(struct ena_llq_configurations *llq_config,
+    struct ena_admin_feature_llq_desc *llq, struct ena_adapter *adapter)
 {
 	llq_config->llq_header_location = ENA_ADMIN_INLINE_HEADER;
 	llq_config->llq_stride_ctrl = ENA_ADMIN_MULTIPLE_DESCS_PER_ENTRY;
 	llq_config->llq_num_decs_before_header =
 	    ENA_ADMIN_LLQ_NUM_DESCS_BEFORE_HEADER_2;
-	if ((llq->entry_size_ctrl_supported & ENA_ADMIN_LIST_ENTRY_SIZE_256B) !=
-	    0 && ena_force_large_llq_header) {
-		llq_config->llq_ring_entry_size =
-		    ENA_ADMIN_LIST_ENTRY_SIZE_256B;
-		llq_config->llq_ring_entry_size_value = 256;
+	if ((llq->entry_size_ctrl_supported & ENA_ADMIN_LIST_ENTRY_SIZE_256B) != 0) {
+		if ((ena_force_large_llq_header == ENA_LLQ_HEADER_SIZE_POLICY_LARGE) ||
+		    (ena_force_large_llq_header == ENA_LLQ_HEADER_SIZE_POLICY_DEFAULT &&
+		    llq->entry_size_recommended == ENA_ADMIN_LIST_ENTRY_SIZE_256B)) {
+			llq_config->llq_ring_entry_size =
+			    ENA_ADMIN_LIST_ENTRY_SIZE_256B;
+			llq_config->llq_ring_entry_size_value = 256;
+			adapter->llq_policy = ENA_ADMIN_LIST_ENTRY_SIZE_256B;
+		}
 	} else {
 		llq_config->llq_ring_entry_size =
 		    ENA_ADMIN_LIST_ENTRY_SIZE_128B;
 		llq_config->llq_ring_entry_size_value = 128;
+		adapter->llq_policy = ENA_ADMIN_LIST_ENTRY_SIZE_128B;
 	}
 }
 
 static int
-ena_calc_io_queue_size(struct ena_calc_queue_size_ctx *ctx)
+ena_calc_io_queue_size(struct ena_calc_queue_size_ctx *ctx, struct ena_adapter *adapter)
 {
 	struct ena_admin_feature_llq_desc *llq = &ctx->get_feat_ctx->llq;
 	struct ena_com_dev *ena_dev = ctx->ena_dev;
@@ -2832,22 +2837,20 @@ ena_calc_io_queue_size(struct ena_calc_queue_size_ctx *ctx)
 	max_rx_queue_size = 1 << (flsl(max_rx_queue_size) - 1);
 
 	/*
-	 * When forcing large headers, we multiply the entry size by 2,
+	 * When using large headers, we multiply the entry size by 2,
 	 * and therefore divide the queue size by 2, leaving the amount
 	 * of memory used by the queues unchanged.
 	 */
-	if (ena_force_large_llq_header) {
-		if ((llq->entry_size_ctrl_supported &
-		    ENA_ADMIN_LIST_ENTRY_SIZE_256B) != 0 &&
-		    ena_dev->tx_mem_queue_type ==
+	if (adapter->llq_policy == ENA_ADMIN_LIST_ENTRY_SIZE_256B) {
+		if (ena_dev->tx_mem_queue_type ==
 		    ENA_ADMIN_PLACEMENT_POLICY_DEV) {
 			max_tx_queue_size /= 2;
 			ena_log(ctx->pdev, INFO,
-			    "Forcing large headers and decreasing maximum Tx queue size to %d\n",
+			    "Using large headers and decreasing maximum Tx queue size to %d\n",
 			    max_tx_queue_size);
 		} else {
 			ena_log(ctx->pdev, WARN,
-			    "Forcing large headers failed: LLQ is disabled or device does not support large headers\n");
+			    "Using large headers failed: LLQ is disabled or device does not support large headers\n");
 		}
 	}
 
@@ -3003,7 +3006,7 @@ ena_device_init(struct ena_adapter *adapter, device_t pdev,
 
 	*wd_active = !!(aenq_groups & BIT(ENA_ADMIN_KEEP_ALIVE));
 
-	set_default_llq_configurations(&llq_config, &get_feat_ctx->llq);
+	ena_set_llq_configurations(&llq_config, &get_feat_ctx->llq, adapter);
 
 	rc = ena_set_queues_placement_policy(pdev, ena_dev, &get_feat_ctx->llq,
 	    &llq_config);
@@ -3862,7 +3865,7 @@ ena_attach(device_t pdev)
 	/* Calculate initial and maximum IO queue number and size */
 	max_num_io_queues = ena_calc_max_io_queue_num(pdev, ena_dev,
 	    &get_feat_ctx);
-	rc = ena_calc_io_queue_size(&calc_queue_ctx);
+	rc = ena_calc_io_queue_size(&calc_queue_ctx, adapter);
 	if (unlikely((rc != 0) || (max_num_io_queues <= 0))) {
 		rc = EFAULT;
 		goto err_com_free;

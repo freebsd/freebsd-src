@@ -137,17 +137,17 @@ This can further lead to OS instability, together with ENA driver reset and NVMe
 timeouts.
 If network performance is critical and memory capacity is sufficient, the 9k
 mbufs can be used.
-.It Va hw.ena.force_large_llq_headers
-Force the driver to use large LLQ headers (224 bytes).
-The default is 0.
+.It Va hw.ena.force_large_llq_header
+Force the driver to use large (224 bytes) or regular (96 bytes) LLQ header size.
+The default value is 2 and the recommended LLQ header size will be used.
 If the node value is set to 0, the regular size LLQ header will be used, which
 is 96B.
 In some cases, the packet header can be bigger than this (for example -
 IPv6 with multiple extensions).
-In such a situation, the large LLQ headers should be used by setting this node
-value to 1.
-This will take effect only if the device supports both LLQ and large LLQ
-headers.
+In such a situation, the large LLQ header size which is 224B should be used,
+and can be forced by setting this node value to 1.
+Using large LLQ header size will take effect only if the device supports
+both LLQ and large LLQ headers.
 Otherwise, it will fallback to the no LLQ mode or regular header size.
 .Pp
 Increasing LLQ header size reduces the size of the Tx queue by half, so it may
