@@ -938,6 +938,8 @@ ena_netmap_rx_frame(struct ena_netmap_ctx *ctx)
 		if (rc == ENA_COM_NO_SPACE) {
 			counter_u64_add(ctx->ring->rx_stats.bad_desc_num, 1);
 			reset_reason = ENA_REGS_RESET_TOO_MANY_RX_DESCS;
+		} else if (rc == ENA_COM_FAULT) {
+			reset_reason = ENA_REGS_RESET_RX_DESCRIPTOR_MALFORMED;
 		} else {
 			counter_u64_add(ctx->ring->rx_stats.bad_req_id, 1);
 			reset_reason = ENA_REGS_RESET_INV_RX_REQ_ID;
