@@ -6,6 +6,7 @@
 
 #include <sys/wait.h>
 
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -78,8 +79,76 @@ ATF_TC_BODY(quick_exit, tc)
 	ATF_CHECK_STREQ("hello, abc", buf);
 }
 
+static void
+myatexit1(void)
+{
+	exit(12);
+}
+
+ATF_TC_WITHOUT_HEAD(recursive_exit1);
+ATF_TC_BODY(recursive_exit1, tc)
+{
+	pid_t pid;
+	int wstatus;
+
+	pid = fork();
+	if (pid == 0) {
+		atexit(myatexit1);
+		exit(1);
+	}
+	ATF_REQUIRE_MSG(pid > 0,
+	    "expect fork() to succeed");
+	ATF_CHECK_EQ_MSG(pid, waitpid(pid, &wstatus, 0),
+	    "expect to collect child process");
+	ATF_CHECK(WIFEXITED(wstatus));
+	ATF_CHECK_EQ(WEXITSTATUS(wstatus), 12);
+}
+
+static pthread_barrier_t barrier;
+
+static void
+myatexit2(void)
+{
+	pthread_barrier_wait(&barrier);
+	exit(12);
+}
+
+static void *
+mythreadexit(void *arg)
+{
+	pthread_barrier_wait(&barrier);
+	exit(15);
+}
+
+ATF_TC_WITHOUT_HEAD(recursive_exit2);
+ATF_TC_BODY(recursive_exit2, tc)
+{
+	pid_t pid;
+	int wstatus;
+
+	pid = fork();
+	if (pid == 0) {
+		pthread_t thr;
+
+		atexit(myatexit2);
+
+		pthread_barrier_init(&barrier, NULL, 2);
+		pthread_create(&thr, NULL, mythreadexit, NULL);
+
+		exit(1);
+	}
+	ATF_REQUIRE_MSG(pid > 0,
+	    "expect fork() to succeed");
+	ATF_CHECK_EQ_MSG(pid, waitpid(pid, &wstatus, 0),
+	    "expect to collect child process");
+	ATF_CHECK(WIFEXITED(wstatus));
+	ATF_CHECK_EQ(WEXITSTATUS(wstatus), 12);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, quick_exit);
+	ATF_TP_ADD_TC(tp, recursive_exit1);
+	ATF_TP_ADD_TC(tp, recursive_exit2);
 	return (atf_no_error());
 }

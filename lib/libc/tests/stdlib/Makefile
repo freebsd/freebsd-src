@@ -75,6 +75,7 @@ LDFLAGS.$t+=	-L${LIBNETBSD_OBJDIR}
 LIBADD.${t}+=	netbsd util
 .endfor
 
+LIBADD.libc_exit_test+=		pthread
 LIBADD.strtod_test+=		m
 
 SUBDIR+=	dynthr_mod
