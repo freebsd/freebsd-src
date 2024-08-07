@@ -327,6 +327,7 @@ struct ena_ring {
 	};
 
 	uint8_t first_interrupt;
+	uint8_t cleanup_running;
 	uint16_t no_interrupt_event_cnt;
 
 	struct ena_com_rx_buf_info ena_bufs[ENA_PKT_MAX_BUFS];
@@ -584,21 +585,27 @@ ena_mbuf_count(struct mbuf *mbuf)
 }
 
 static inline void
+ena_increment_reset_counter(struct ena_adapter *adapter)
+{
+	enum ena_regs_reset_reason_types reset_reason = adapter->reset_reason;
+	const struct ena_reset_stats_offset *ena_reset_stats_offset =
+	    &resets_to_stats_offset_map[reset_reason];
+
+	if (ena_reset_stats_offset->has_counter) {
+		uint64_t *stat_ptr = (uint64_t *)&adapter->dev_stats +
+		    ena_reset_stats_offset->stat_offset;
+
+		counter_u64_add((counter_u64_t)(*stat_ptr), 1);
+	}
+
+	counter_u64_add(adapter->dev_stats.total_resets, 1);
+}
+
+static inline void
 ena_trigger_reset(struct ena_adapter *adapter,
     enum ena_regs_reset_reason_types reset_reason)
 {
 	if (likely(!ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, adapter))) {
-		const struct ena_reset_stats_offset *ena_reset_stats_offset =
-		    &resets_to_stats_offset_map[reset_reason];
-
-		if (ena_reset_stats_offset->has_counter) {
-			uint64_t *stat_ptr = (uint64_t *)&adapter->dev_stats +
-			    ena_reset_stats_offset->stat_offset;
-
-			counter_u64_add((counter_u64_t)(*stat_ptr), 1);
-		}
-
-		counter_u64_add(adapter->dev_stats.total_resets, 1);
 		adapter->reset_reason = reset_reason;
 		ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
 	}
