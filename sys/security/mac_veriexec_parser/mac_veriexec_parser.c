@@ -241,9 +241,9 @@ open_file(const char *path, struct nameidata *nid)
 
 	NDINIT(nid, LOOKUP, 0, UIO_SYSSPACE, path);
 	rc = vn_open(nid, &flags, 0, NULL);
-	NDFREE_PNBUF(nid);
 	if (rc != 0)
 		return (rc);
+	NDFREE_PNBUF(nid);
 
 	return (0);
 }
@@ -346,7 +346,6 @@ parse_entry(char *entry, char *prefix)
 	}
 
 	rc = open_file(path, &nid);
-	NDFREE_PNBUF(&nid);
 	if (rc != 0)
 		return (rc);
 
