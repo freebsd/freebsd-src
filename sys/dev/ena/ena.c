@@ -2832,27 +2832,33 @@ ena_calc_io_queue_size(struct ena_calc_queue_size_ctx *ctx, struct ena_adapter *
 		    max_queues->max_packet_rx_descs);
 	}
 
-	/* round down to the nearest power of 2 */
-	max_tx_queue_size = 1 << (flsl(max_tx_queue_size) - 1);
-	max_rx_queue_size = 1 << (flsl(max_rx_queue_size) - 1);
-
-	/*
-	 * When using large headers, we multiply the entry size by 2,
-	 * and therefore divide the queue size by 2, leaving the amount
-	 * of memory used by the queues unchanged.
-	 */
 	if (adapter->llq_policy == ENA_ADMIN_LIST_ENTRY_SIZE_256B) {
-		if (ena_dev->tx_mem_queue_type ==
-		    ENA_ADMIN_PLACEMENT_POLICY_DEV) {
-			max_tx_queue_size /= 2;
-			ena_log(ctx->pdev, INFO,
-			    "Using large headers and decreasing maximum Tx queue size to %d\n",
-			    max_tx_queue_size);
+		if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) {
+			if (llq->max_wide_llq_depth != max_tx_queue_size) {
+				if (llq->max_wide_llq_depth == 0) {
+					/* if there is no large llq max depth from device, we divide
+					* the queue size by 2, leaving the amount of memory
+					* used by the queues unchanged.
+					*/
+					max_tx_queue_size /= 2;
+				} else {
+					max_tx_queue_size = llq->max_wide_llq_depth;
+				}
+				ena_log(ctx->pdev, INFO,
+				    "Using large LLQ headers and decreasing maximum Tx queue size to %d\n",
+				    max_tx_queue_size);
+			} else {
+				ena_log(ctx->pdev, INFO, "Using large LLQ headers\n");
+			}
 		} else {
 			ena_log(ctx->pdev, WARN,
 			    "Using large headers failed: LLQ is disabled or device does not support large headers\n");
 		}
 	}
+
+	/* round down to the nearest power of 2 */
+	max_tx_queue_size = 1 << (flsl(max_tx_queue_size) - 1);
+	max_rx_queue_size = 1 << (flsl(max_rx_queue_size) - 1);
 
 	tx_queue_size = clamp_val(tx_queue_size, ENA_MIN_RING_SIZE,
 	    max_tx_queue_size);
