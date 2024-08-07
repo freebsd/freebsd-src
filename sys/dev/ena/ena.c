@@ -3058,13 +3058,13 @@ static int
 check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
     struct ena_ring *tx_ring)
 {
+	uint32_t missed_tx = 0, new_missed_tx = 0;
 	device_t pdev = adapter->pdev;
 	struct bintime curtime, time;
 	struct ena_tx_buffer *tx_buf;
 	int time_since_last_cleanup;
 	int missing_tx_comp_to;
 	sbintime_t time_offset;
-	uint32_t missed_tx = 0;
 	int i, rc = 0;
 
 	getbinuptime(&curtime);
@@ -3107,13 +3107,15 @@ check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 				    "%d msecs have passed since last cleanup. Missing Tx timeout value %d msecs.\n",
 				    tx_ring->qid, i, time_since_last_cleanup,
 				    missing_tx_comp_to);
+				/* Add new TX completions which are missed */
+				new_missed_tx++;
 			}
 
 			tx_buf->print_once = false;
 			missed_tx++;
 		}
 	}
-
+	/* Checking if this TX ring missing TX completions have passed the threshold */
 	if (unlikely(missed_tx > adapter->missing_tx_threshold)) {
 		ena_log(pdev, ERR,
 		    "The number of lost tx completion is above the threshold "
@@ -3122,8 +3124,8 @@ check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 		ena_trigger_reset(adapter, ENA_REGS_RESET_MISS_TX_CMPL);
 		rc = EIO;
 	}
-
-	counter_u64_add(tx_ring->tx_stats.missing_tx_comp, missed_tx);
+	/* Add the newly discovered missing TX completions */
+	counter_u64_add(tx_ring->tx_stats.missing_tx_comp, new_missed_tx);
 
 	return (rc);
 }
