@@ -2991,7 +2991,8 @@ ena_device_init(struct ena_adapter *adapter, device_t pdev,
 	    BIT(ENA_ADMIN_WARNING) |
 	    BIT(ENA_ADMIN_NOTIFICATION) |
 	    BIT(ENA_ADMIN_KEEP_ALIVE) |
-	    BIT(ENA_ADMIN_CONF_NOTIFICATIONS);
+	    BIT(ENA_ADMIN_CONF_NOTIFICATIONS) |
+	    BIT(ENA_ADMIN_DEVICE_REQUEST_RESET);
 
 	aenq_groups &= get_feat_ctx->aenq.supported_groups;
 	rc = ena_com_set_aenq_config(ena_dev, aenq_groups);
@@ -4196,12 +4197,22 @@ static void ena_conf_notification(void *adapter_data,
 	}
 }
 
+static void ena_admin_device_request_reset(void *adapter_data,
+    struct ena_admin_aenq_entry *aenq_e)
+{
+	struct ena_adapter *adapter = (struct ena_adapter *)adapter_data;
+	ena_log(adapter->pdev, WARN,
+	    "The device has detected an unhealthy state, reset is requested\n");
+	ena_trigger_reset(adapter, ENA_REGS_RESET_DEVICE_REQUEST);
+}
+
 static struct ena_aenq_handlers aenq_handlers = {
     .handlers = {
 	    [ENA_ADMIN_LINK_CHANGE] = ena_update_on_link_change,
 	    [ENA_ADMIN_NOTIFICATION] = ena_notification,
 	    [ENA_ADMIN_KEEP_ALIVE] = ena_keep_alive_wd,
 	    [ENA_ADMIN_CONF_NOTIFICATIONS] = ena_conf_notification,
+	    [ENA_ADMIN_DEVICE_REQUEST_RESET] = ena_admin_device_request_reset,
     },
     .unimplemented_handler = unimplemented_aenq_handler
 };
