@@ -113,24 +113,18 @@ nmdm_destroy(struct tty *tp)
 
 	np = tty_softc(tp);
 
-	if (np == NULL)
+	/* Shut down self. tty_rel_gone() schedules a deferred free callback. */
+	tty_rel_gone(tp);
+
+	/* Shut down second (other) part. */
+	onp = np->np_other;
+	if (onp == NULL)
 		return;
 
-	if (tp) {
-		/* Shut down self. tty_rel_gone() schedules a deferred free callback. */
-		tty_lock(tp);
-		tty_rel_gone(tp);
+	tty_lock(tp);
+	otp = onp->np_tty;
 
-		/* Shut down second (other) part. */
-		onp = np->np_other;
-		if (onp == NULL)
-			return;
-
-		otp = onp->np_tty;
-
-		tty_lock(otp);
-		tty_rel_gone(otp);
-	}
+	tty_rel_gone(otp);
 }
 
 static void
@@ -150,6 +144,7 @@ nmdm_close(struct tty *tp)
 
 	mtx_lock(&nmdmsoftc_lock);
 	nmdm_destroy(tp);
+	tty_lock(otp);
 	mtx_unlock(&nmdmsoftc_lock);
 }
 
@@ -461,6 +456,7 @@ nmdm_unload(void *data)
 
 	mtx_lock(&nmdmsoftc_lock);
 	TAILQ_FOREACH(ns, &nmdmsoftc_list, ns_list) {
+		tty_lock(ns->ns_part1.np_tty);
 		nmdm_destroy(ns->ns_part1.np_tty);
 	}
 	mtx_unlock(&nmdmsoftc_lock);
