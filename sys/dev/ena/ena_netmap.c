@@ -577,7 +577,7 @@ ena_netmap_tx_map_slots(struct ena_netmap_ctx *ctx,
 	remaining_len = *packet_len;
 	delta = 0;
 
-	__builtin_prefetch(&ctx->slots[ctx->nm_i + 1]);
+	__builtin_prefetch(&ctx->slots[nm_next(ctx->nm_i, ctx->lim)]);
 	if (tx_ring->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) {
 		/*
 		 * When the device is in LLQ mode, the driver will copy
@@ -664,7 +664,7 @@ ena_netmap_tx_map_slots(struct ena_netmap_ctx *ctx,
 		 * The first segment is already counted in.
 		 */
 		while (delta > 0) {
-			__builtin_prefetch(&ctx->slots[ctx->nm_i + 1]);
+			__builtin_prefetch(&ctx->slots[nm_next(ctx->nm_i, ctx->lim)]);
 			frag_len = slot->len;
 
 			/*
@@ -722,7 +722,7 @@ ena_netmap_tx_map_slots(struct ena_netmap_ctx *ctx,
 
 	/* Map all remaining data (regular routine for non-LLQ mode) */
 	while (remaining_len > 0) {
-		__builtin_prefetch(&ctx->slots[ctx->nm_i + 1]);
+		__builtin_prefetch(&ctx->slots[nm_next(ctx->nm_i, ctx->lim)]);
 
 		rc = ena_netmap_map_single_slot(ctx->na, slot,
 		    adapter->tx_buf_tag, *nm_maps, &vaddr, &paddr);
