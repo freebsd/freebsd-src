@@ -171,7 +171,9 @@ static int ena_copy_customer_metrics(struct ena_adapter *);
 static void ena_timer_service(void *);
 static enum ena_regs_reset_reason_types check_cdesc_in_tx_cq(struct ena_adapter *,
     struct ena_ring *);
-
+#ifdef DEV_NETMAP
+static int ena_reinit_netmap(struct ena_adapter *adapter);
+#endif
 
 static char ena_version[] = ENA_DEVICE_NAME ENA_DRV_MODULE_NAME
     " v" ENA_DRV_MODULE_VERSION;
@@ -1162,6 +1164,21 @@ ena_refill_rx_bufs(struct ena_ring *rx_ring, uint32_t num)
 	return (i);
 }
 
+#ifdef DEV_NETMAP
+static int
+ena_reinit_netmap(struct ena_adapter *adapter)
+{
+	int rc;
+
+	netmap_detach(adapter->ifp);
+	rc = ena_netmap_attach(adapter);
+	if (rc != 0)
+		ena_log(adapter->pdev, ERR, "netmap attach failed: %d\n", rc);
+
+	return rc;
+}
+
+#endif /* DEV_NETMAP */
 int
 ena_update_buf_ring_size(struct ena_adapter *adapter,
     uint32_t new_buf_ring_size)
@@ -1179,6 +1196,12 @@ ena_update_buf_ring_size(struct ena_adapter *adapter,
 	/* Reconfigure buf ring for all Tx rings. */
 	ena_free_all_io_rings_resources(adapter);
 	ena_init_io_rings_advanced(adapter);
+#ifdef DEV_NETMAP
+	rc = ena_reinit_netmap(adapter);
+	if (rc != 0)
+		return rc;
+
+#endif /* DEV_NETMAP */
 	if (dev_was_up) {
 		/*
 		 * If ena_up() fails, it's not because of recent buf_ring size
@@ -1196,7 +1219,12 @@ ena_update_buf_ring_size(struct ena_adapter *adapter,
 			adapter->buf_ring_size = old_buf_ring_size;
 			ena_free_all_io_rings_resources(adapter);
 			ena_init_io_rings_advanced(adapter);
+#ifdef DEV_NETMAP
+			rc = ena_reinit_netmap(adapter);
+			if (rc != 0)
+				return rc;
 
+#endif /* DEV_NETMAP */
 			ENA_FLAG_SET_ATOMIC(ENA_FLAG_DEV_UP_BEFORE_RESET,
 			    adapter);
 			ena_trigger_reset(adapter, ENA_REGS_RESET_OS_TRIGGER);
@@ -1224,6 +1252,12 @@ ena_update_queue_size(struct ena_adapter *adapter, uint32_t new_tx_size,
 
 	/* Configure queues with new size. */
 	ena_init_io_rings_basic(adapter);
+#ifdef DEV_NETMAP
+	rc = ena_reinit_netmap(adapter);
+	if (rc != 0)
+		return rc;
+
+#endif /* DEV_NETMAP */
 	if (dev_was_up) {
 		rc = ena_up(adapter);
 		if (unlikely(rc != 0)) {
@@ -1235,7 +1269,12 @@ ena_update_queue_size(struct ena_adapter *adapter, uint32_t new_tx_size,
 			adapter->requested_tx_ring_size = old_tx_size;
 			adapter->requested_rx_ring_size = old_rx_size;
 			ena_init_io_rings_basic(adapter);
+#ifdef DEV_NETMAP
+			rc = ena_reinit_netmap(adapter);
+			if (rc != 0)
+				return rc;
 
+#endif /* DEV_NETMAP */
 			/* And try again. */
 			rc = ena_up(adapter);
 			if (unlikely(rc != 0)) {
@@ -1359,7 +1398,12 @@ ena_update_io_queue_nb(struct ena_adapter *adapter, uint32_t new_num)
 	ena_down(adapter);
 
 	ena_update_io_rings(adapter, new_num);
+#ifdef DEV_NETMAP
+	rc = ena_reinit_netmap(adapter);
+	if (rc != 0)
+		return rc;
 
+#endif /* DEV_NETMAP */
 	if (dev_was_up) {
 		rc = ena_up(adapter);
 		if (unlikely(rc != 0)) {
@@ -1369,7 +1413,12 @@ ena_update_io_queue_nb(struct ena_adapter *adapter, uint32_t new_num)
 			    new_num, old_num);
 
 			ena_update_io_rings(adapter, old_num);
+#ifdef DEV_NETMAP
+			rc = ena_reinit_netmap(adapter);
+			if (rc != 0)
+				return rc;
 
+#endif /* DEV_NETMAP */
 			rc = ena_up(adapter);
 			if (unlikely(rc != 0)) {
 				ena_log(adapter->pdev, ERR,
