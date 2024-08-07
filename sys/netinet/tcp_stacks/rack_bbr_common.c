@@ -532,28 +532,19 @@ ctf_do_dropwithreset(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th,
 }
 
 void
-ctf_ack_war_checks(struct tcpcb *tp, uint32_t *ts, uint32_t *cnt)
+ctf_ack_war_checks(struct tcpcb *tp)
 {
-	if ((ts != NULL) && (cnt != NULL) &&
-	    (V_tcp_ack_war_time_window > 0) &&
-	    (V_tcp_ack_war_cnt > 0)) {
-		/* We are possibly doing ack war prevention */
-		uint32_t cts;
+	sbintime_t now;
 
-		/*
-		 * We use a msec tick here which gives us
-		 * roughly 49 days. We don't need the
-		 * precision of a microsecond timestamp which
-		 * would only give us hours.
-		 */
-		cts = tcp_ts_getticks();
-		if (TSTMP_LT((*ts), cts)) {
-			/* Timestamp is in the past */
-			*cnt = 0;
-			*ts = (cts + V_tcp_ack_war_time_window);
+	if ((V_tcp_ack_war_time_window > 0) && (V_tcp_ack_war_cnt > 0)) {
+		now = getsbinuptime();
+		if (tp->t_challenge_ack_end < now) {
+			tp->t_challenge_ack_cnt = 0;
+			tp->t_challenge_ack_end = now +
+			    V_tcp_ack_war_time_window * SBT_1MS;
 		}
-		if (*cnt < V_tcp_ack_war_cnt) {
-			*cnt = (*cnt + 1);
+		if (tp->t_challenge_ack_cnt < V_tcp_ack_war_cnt) {
+			tp->t_challenge_ack_cnt++;
 			tp->t_flags |= TF_ACKNOW;
 		} else
 			tp->t_flags &= ~TF_ACKNOW;
@@ -568,10 +559,9 @@ ctf_ack_war_checks(struct tcpcb *tp, uint32_t *ts, uint32_t *cnt)
  * TCB is still valid and locked.
  */
 int
-_ctf_drop_checks(struct tcpopt *to, struct mbuf *m, struct tcphdr *th,
-		 struct tcpcb *tp, int32_t *tlenp,
-		 int32_t *thf, int32_t *drop_hdrlen, int32_t *ret_val,
-		 uint32_t *ts, uint32_t *cnt)
+ctf_drop_checks(struct tcpopt *to, struct mbuf *m, struct tcphdr *th,
+		struct tcpcb *tp, int32_t *tlenp,
+		int32_t *thf, int32_t *drop_hdrlen, int32_t *ret_val)
 {
 	int32_t todrop;
 	int32_t thflags;
@@ -605,7 +595,7 @@ _ctf_drop_checks(struct tcpopt *to, struct mbuf *m, struct tcphdr *th,
 			 * Send an ACK to resynchronize and drop any data.
 			 * But keep on processing for RST or ACK.
 			 */
-			ctf_ack_war_checks(tp, ts, cnt);
+			ctf_ack_war_checks(tp);
 			todrop = tlen;
 			KMOD_TCPSTAT_INC(tcps_rcvduppack);
 			KMOD_TCPSTAT_ADD(tcps_rcvdupbyte, todrop);
@@ -621,7 +611,7 @@ _ctf_drop_checks(struct tcpopt *to, struct mbuf *m, struct tcphdr *th,
 			 * ACK now, as the next in-sequence segment
 			 * will clear the DSACK block again
 			 */
-			ctf_ack_war_checks(tp, ts, cnt);
+			ctf_ack_war_checks(tp);
 			if (tp->t_flags & TF_ACKNOW)
 				tcp_update_sack_list(tp, th->th_seq,
 						     th->th_seq + todrop);
@@ -653,10 +643,10 @@ _ctf_drop_checks(struct tcpopt *to, struct mbuf *m, struct tcphdr *th,
 			 * ack.
 			 */
 			if (tp->rcv_wnd == 0 && th->th_seq == tp->rcv_nxt) {
-				ctf_ack_war_checks(tp, ts, cnt);
+				ctf_ack_war_checks(tp);
 				KMOD_TCPSTAT_INC(tcps_rcvwinprobe);
 			} else {
-				__ctf_do_dropafterack(m, tp, th, thflags, tlen, ret_val, ts, cnt);
+				ctf_do_dropafterack(m, tp, th, thflags, tlen, ret_val);
 				return (1);
 			}
 		} else
@@ -677,7 +667,7 @@ _ctf_drop_checks(struct tcpopt *to, struct mbuf *m, struct tcphdr *th,
  * and valid.
  */
 void
-__ctf_do_dropafterack(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th, int32_t thflags, int32_t tlen, int32_t *ret_val, uint32_t *ts, uint32_t *cnt)
+ctf_do_dropafterack(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th, int32_t thflags, int32_t tlen, int32_t *ret_val)
 {
 	/*
 	 * Generate an ACK dropping incoming segment if it occupies sequence
@@ -701,7 +691,7 @@ __ctf_do_dropafterack(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th, int32
 		return;
 	} else
 		*ret_val = 0;
-	ctf_ack_war_checks(tp, ts, cnt);
+	ctf_ack_war_checks(tp);
 	if (m)
 		m_freem(m);
 }
@@ -720,8 +710,8 @@ ctf_do_drop(struct mbuf *m, struct tcpcb *tp)
 }
 
 int
-__ctf_process_rst(struct mbuf *m, struct tcphdr *th, struct socket *so,
-		struct tcpcb *tp, uint32_t *ts, uint32_t *cnt)
+ctf_process_rst(struct mbuf *m, struct tcphdr *th, struct socket *so,
+		struct tcpcb *tp)
 {
 	/*
 	 * RFC5961 Section 3.2
@@ -768,40 +758,8 @@ __ctf_process_rst(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			dropped = 1;
 			ctf_do_drop(m, tp);
 		} else {
-			int send_challenge;
-
 			KMOD_TCPSTAT_INC(tcps_badrst);
-			if ((ts != NULL) && (cnt != NULL) &&
-			    (V_tcp_ack_war_time_window > 0) &&
-			    (V_tcp_ack_war_cnt > 0)) {
-				/* We are possibly preventing an  ack-rst  war prevention */
-				uint32_t cts;
-
-				/*
-				 * We use a msec tick here which gives us
-				 * roughly 49 days. We don't need the
-				 * precision of a microsecond timestamp which
-				 * would only give us hours.
-				 */
-				cts = tcp_ts_getticks();
-				if (TSTMP_LT((*ts), cts)) {
-					/* Timestamp is in the past */
-					*cnt = 0;
-					*ts = (cts + V_tcp_ack_war_time_window);
-				}
-				if (*cnt < V_tcp_ack_war_cnt) {
-					*cnt = (*cnt + 1);
-					send_challenge = 1;
-				} else
-					send_challenge = 0;
-			} else
-				send_challenge = 1;
-			if (send_challenge) {
-				/* Send challenge ACK. */
-				tcp_respond(tp, mtod(m, void *), th, m,
-					    tp->rcv_nxt, tp->snd_nxt, TH_ACK);
-				tp->last_ack_sent = tp->rcv_nxt;
-			}
+			tcp_send_challenge_ack(tp, th, m);
 		}
 	} else {
 		m_freem(m);
