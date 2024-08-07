@@ -339,17 +339,17 @@ exception_vectors:
 
 	vector el1h_sync 1	/* Synchronous EL1h */
 	vector el1h_irq 1	/* IRQ EL1h */
-	vector el1h_fiq 1		/* FIQ EL1h */
+	vector el1h_fiq 1	/* FIQ EL1h */
 	vector el1h_serror 1	/* Error EL1h */
 
 	vector el0_sync 0	/* Synchronous 64-bit EL0 */
 	vector el0_irq 0	/* IRQ 64-bit EL0 */
-	vector el0_fiq 0		/* FIQ 64-bit EL0 */
+	vector el0_fiq 0	/* FIQ 64-bit EL0 */
 	vector el0_serror 0	/* Error 64-bit EL0 */
 
 	vector el0_sync 0	/* Synchronous 32-bit EL0 */
 	vector el0_irq 0	/* IRQ 32-bit EL0 */
-	vector el0_fiq 0		/* FIQ 32-bit EL0 */
+	vector el0_fiq 0	/* FIQ 32-bit EL0 */
 	vector el0_serror 0	/* Error 32-bit EL0 */
 
 GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)
