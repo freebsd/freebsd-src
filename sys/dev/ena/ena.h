@@ -38,7 +38,7 @@
 #include "ena-com/ena_eth_com.h"
 
 #define ENA_DRV_MODULE_VER_MAJOR	2
-#define ENA_DRV_MODULE_VER_MINOR	7
+#define ENA_DRV_MODULE_VER_MINOR	8
 #define ENA_DRV_MODULE_VER_SUBMINOR	0
 
 #define ENA_DRV_MODULE_NAME		"ena"
