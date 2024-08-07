@@ -217,6 +217,7 @@ static int ena_com_admin_init_aenq(struct ena_com_dev *ena_dev,
 static void comp_ctxt_release(struct ena_com_admin_queue *queue,
 				     struct ena_comp_ctx *comp_ctx)
 {
+	comp_ctx->user_cqe = NULL;
 	comp_ctx->occupied = false;
 	ATOMIC32_DEC(&queue->outstanding_cmds);
 }
@@ -509,6 +510,9 @@ static void ena_com_handle_single_admin_completion(struct ena_com_admin_queue *a
 		admin_queue->running_state = false;
 		return;
 	}
+
+	if (!comp_ctx->occupied)
+		return;
 
 	comp_ctx->status = ENA_CMD_COMPLETED;
 	comp_ctx->comp_status = cqe->acq_common_descriptor.status;
