@@ -238,11 +238,8 @@ static int ena_com_sq_update_llq_tail(struct ena_com_io_sq *io_sq)
 	return ENA_COM_OK;
 }
 
-static int ena_com_sq_update_tail(struct ena_com_io_sq *io_sq)
+static int ena_com_sq_update_reqular_queue_tail(struct ena_com_io_sq *io_sq)
 {
-	if (io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)
-		return ena_com_sq_update_llq_tail(io_sq);
-
 	io_sq->tail++;
 
 	/* Switch phase bit in case of wrap around */
@@ -250,6 +247,14 @@ static int ena_com_sq_update_tail(struct ena_com_io_sq *io_sq)
 		io_sq->phase ^= 1;
 
 	return ENA_COM_OK;
+}
+
+static int ena_com_sq_update_tail(struct ena_com_io_sq *io_sq)
+{
+	if (io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)
+		return ena_com_sq_update_llq_tail(io_sq);
+
+	return ena_com_sq_update_reqular_queue_tail(io_sq);
 }
 
 static struct ena_eth_io_rx_cdesc_base *
@@ -690,7 +695,7 @@ int ena_com_add_single_rx_desc(struct ena_com_io_sq *io_sq,
 	desc->buff_addr_hi =
 		((ena_buf->paddr & GENMASK_ULL(io_sq->dma_addr_bits - 1, 32)) >> 32);
 
-	return ena_com_sq_update_tail(io_sq);
+	return ena_com_sq_update_reqular_queue_tail(io_sq);
 }
 
 bool ena_com_cq_empty(struct ena_com_io_cq *io_cq)
