@@ -108,6 +108,8 @@ static struct entry {
 
 #define	debugproc(p) *(&((struct kinfo_proc *)p)->ki_udata)
 
+#define	W_XO_VERSION	"1"
+
 #define	W_DISPUSERSIZE	10
 #define	W_DISPLINESIZE	8
 #define	W_MAXHOSTSIZE	40
@@ -317,6 +319,7 @@ main(int argc, char *argv[])
 	if (fromwidth > W_MAXHOSTSIZE)
 		fromwidth = W_MAXHOSTSIZE;
 
+	xo_set_version(W_XO_VERSION);
 	xo_open_container("uptime-information");
 
 	if (header || wcmd == 0) {
