@@ -434,7 +434,9 @@ ena_rx_mbuf(struct ena_ring *rx_ring, struct ena_com_rx_buf_info *ena_bufs,
 	req_id = ena_bufs[buf].req_id;
 	rx_info = &rx_ring->rx_buffer_info[req_id];
 	if (unlikely(rx_info->mbuf == NULL)) {
-		ena_log(pdev, ERR, "NULL mbuf in rx_info");
+		ena_log(pdev, ERR, "NULL mbuf in rx_info. qid %u req_id %u\n",
+		    rx_ring->qid, req_id);
+		ena_trigger_reset(adapter, ENA_REGS_RESET_INV_RX_REQ_ID);
 		return (NULL);
 	}
 
@@ -476,7 +478,8 @@ ena_rx_mbuf(struct ena_ring *rx_ring, struct ena_com_rx_buf_info *ena_bufs,
 		rx_info = &rx_ring->rx_buffer_info[req_id];
 
 		if (unlikely(rx_info->mbuf == NULL)) {
-			ena_log(pdev, ERR, "NULL mbuf in rx_info");
+			ena_log(pdev, ERR, "NULL mbuf in rx_info. qid %u req_id %u\n",
+			    rx_ring->qid, req_id);
 			/*
 			 * If one of the required mbufs was not allocated yet,
 			 * we can break there.
@@ -488,6 +491,7 @@ ena_rx_mbuf(struct ena_ring *rx_ring, struct ena_com_rx_buf_info *ena_bufs,
 			 * with hw ring.
 			 */
 			m_freem(mbuf);
+			ena_trigger_reset(adapter, ENA_REGS_RESET_INV_RX_REQ_ID);
 			return (NULL);
 		}
 
