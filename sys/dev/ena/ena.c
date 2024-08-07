@@ -3981,6 +3981,7 @@ ena_attach(device_t pdev)
 #ifdef DEV_NETMAP
 err_detach:
 	ether_ifdetach(adapter->ifp);
+	ifmedia_removeall(&adapter->media);
 	free(adapter->customer_metrics_array, M_DEVBUF);
 #endif /* DEV_NETMAP */
 err_metrics_buffer_destroy:
@@ -4030,6 +4031,8 @@ ena_detach(device_t pdev)
 	}
 
 	ether_ifdetach(adapter->ifp);
+
+	ifmedia_removeall(&adapter->media);
 
 	/* Stop timer service */
 	ENA_LOCK_LOCK();
