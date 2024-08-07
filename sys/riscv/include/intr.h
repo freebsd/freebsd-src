@@ -38,6 +38,10 @@
 enum root_type {
 	INTR_ROOT_IRQ = 0,
 
+#if 0
+	INTR_ROOT_HYPER,
+#endif
+
 	INTR_ROOT_COUNT	/* MUST BE LAST */
 };
 
