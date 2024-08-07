@@ -3029,6 +3029,7 @@ static void
 check_for_missing_keep_alive(struct ena_adapter *adapter)
 {
 	sbintime_t timestamp, time;
+	enum ena_regs_reset_reason_types reset_reason = ENA_REGS_RESET_KEEP_ALIVE_TO;
 
 	if (adapter->wd_active == 0)
 		return;
@@ -3040,7 +3041,10 @@ check_for_missing_keep_alive(struct ena_adapter *adapter)
 	time = getsbinuptime() - timestamp;
 	if (unlikely(time > adapter->keep_alive_timeout)) {
 		ena_log(adapter->pdev, ERR, "Keep alive watchdog timeout.\n");
-		ena_trigger_reset(adapter, ENA_REGS_RESET_KEEP_ALIVE_TO);
+		if (ena_com_aenq_has_keep_alive(adapter->ena_dev))
+			reset_reason = ENA_REGS_RESET_MISSING_ADMIN_INTERRUPT;
+
+		ena_trigger_reset(adapter, reset_reason);
 	}
 }
 
@@ -3048,10 +3052,15 @@ check_for_missing_keep_alive(struct ena_adapter *adapter)
 static void
 check_for_admin_com_state(struct ena_adapter *adapter)
 {
+	enum ena_regs_reset_reason_types reset_reason = ENA_REGS_RESET_ADMIN_TO;
 	if (unlikely(ena_com_get_admin_running_state(adapter->ena_dev) == false)) {
 		ena_log(adapter->pdev, ERR,
 		    "ENA admin queue is not in running state!\n");
-		ena_trigger_reset(adapter, ENA_REGS_RESET_ADMIN_TO);
+		counter_u64_add(adapter->dev_stats.admin_q_pause, 1);
+		if (ena_com_get_missing_admin_interrupt(adapter->ena_dev))
+			reset_reason = ENA_REGS_RESET_MISSING_ADMIN_INTERRUPT;
+
+		ena_trigger_reset(adapter, reset_reason);
 	}
 }
 
