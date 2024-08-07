@@ -599,6 +599,8 @@ ena_rx_cleanup(struct ena_ring *rx_ring)
 				counter_u64_add(rx_ring->rx_stats.bad_desc_num,
 				    1);
 				reset_reason = ENA_REGS_RESET_TOO_MANY_RX_DESCS;
+			} else if (rc == ENA_COM_FAULT) {
+				reset_reason = ENA_REGS_RESET_RX_DESCRIPTOR_MALFORMED;
 			} else {
 				counter_u64_add(rx_ring->rx_stats.bad_req_id,
 				    1);
