@@ -178,8 +178,9 @@ struct iflib_ctx {
 	struct resource *ifc_msix_mem;
 
 	struct if_irq ifc_legacy_irq;
-	struct grouptask ifc_admin_task;
-	struct grouptask ifc_vflr_task;
+	struct task ifc_admin_task;
+	struct task ifc_vflr_task;
+	struct taskqueue *ifc_tq;
 	struct iflib_filter_info ifc_filter_info;
 	struct ifmedia	ifc_media;
 	struct ifmedia	*ifc_mediap;
@@ -1640,7 +1641,7 @@ static int
 iflib_fast_intr_ctx(void *arg)
 {
 	iflib_filter_info_t info = arg;
-	struct grouptask *gtask = info->ifi_task;
+	if_ctx_t ctx = info->ifi_ctx;
 	int result;
 
 	DBG_COUNTER_INC(fast_intrs);
@@ -1650,8 +1651,12 @@ iflib_fast_intr_ctx(void *arg)
 			return (result);
 	}
 
-	if (gtask->gt_taskqueue != NULL)
-		GROUPTASK_ENQUEUE(gtask);
+	/*
+	 * Don't enqueue task if interrupt arrived during driver
+	 * detach and taskqueue was already freed.
+	 */
+	if (ctx->ifc_tq != NULL)
+		taskqueue_enqueue(ctx->ifc_tq, &ctx->ifc_admin_task);
 	return (FILTER_HANDLED);
 }
 
@@ -4173,7 +4178,7 @@ skip_rxeof:
 }
 
 static void
-_task_fn_admin(void *context)
+_task_fn_admin(void *context, int pending)
 {
 	if_ctx_t ctx = context;
 	if_softc_ctx_t sctx = &ctx->ifc_softc_ctx;
@@ -5197,6 +5202,7 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 	kobj_method_t *kobj_method;
 	int err, msix, rid;
 	int num_txd, num_rxd;
+	char namebuf[TASKQUEUE_NAMELEN];
 
 	ctx = malloc(sizeof(* ctx), M_IFLIB, M_WAITOK|M_ZERO);
 
@@ -5287,10 +5293,24 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 		scctx->isc_rss_table_size = 64;
 	scctx->isc_rss_table_mask = scctx->isc_rss_table_size-1;
 
-	GROUPTASK_INIT(&ctx->ifc_admin_task, 0, _task_fn_admin, ctx);
-	/* XXX format name */
-	taskqgroup_attach(qgroup_if_config_tqg, &ctx->ifc_admin_task, ctx,
-	    NULL, NULL, "admin");
+	/* Create and start admin taskqueue */
+	snprintf(namebuf, TASKQUEUE_NAMELEN, "%s_tq", device_get_nameunit(dev));
+	ctx->ifc_tq = taskqueue_create_fast(namebuf, M_NOWAIT,
+	    taskqueue_thread_enqueue, &ctx->ifc_tq);
+	if (ctx->ifc_tq == NULL) {
+		device_printf(dev, "Unable to create admin taskqueue\n");
+		return (ENOMEM);
+	}
+
+	err = taskqueue_start_threads(&ctx->ifc_tq, 1, PI_NET, "%s", namebuf);
+	if (err) {
+		device_printf(dev, "Unable to start admin taskqueue threads error: %d\n",
+		    err);
+		taskqueue_free(ctx->ifc_tq);
+		return (err);
+	}
+
+	TASK_INIT(&ctx->ifc_admin_task, 0, _task_fn_admin, ctx);
 
 	/* Set up cpu set.  If it fails, use the set of all CPUs. */
 	if (bus_get_cpus(dev, INTR_CPUS, sizeof(ctx->ifc_cpus), &ctx->ifc_cpus) != 0) {
@@ -5427,6 +5447,7 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 fail_detach:
 	ether_ifdetach(ctx->ifc_ifp);
 fail_queues:
+	taskqueue_free(ctx->ifc_tq);
 	iflib_tqg_detach(ctx);
 	iflib_tx_structures_free(ctx);
 	iflib_rx_structures_free(ctx);
@@ -5496,6 +5517,8 @@ iflib_device_deregister(if_ctx_t ctx)
 	if (ctx->ifc_led_dev != NULL)
 		led_destroy(ctx->ifc_led_dev);
 
+	taskqueue_free(ctx->ifc_tq);
+	ctx->ifc_tq = NULL;
 	iflib_tqg_detach(ctx);
 	iflib_tx_structures_free(ctx);
 	iflib_rx_structures_free(ctx);
@@ -5542,11 +5565,6 @@ iflib_tqg_detach(if_ctx_t ctx)
 		if (rxq->ifr_task.gt_uniq != NULL)
 			taskqgroup_detach(tqg, &rxq->ifr_task);
 	}
-	tqg = qgroup_if_config_tqg;
-	if (ctx->ifc_admin_task.gt_uniq != NULL)
-		taskqgroup_detach(tqg, &ctx->ifc_admin_task);
-	if (ctx->ifc_vflr_task.gt_uniq != NULL)
-		taskqgroup_detach(tqg, &ctx->ifc_vflr_task);
 }
 
 static void
@@ -6321,9 +6339,7 @@ iflib_irq_alloc_generic(if_ctx_t ctx, if_irq_t irq, int rid,
 		q = ctx;
 		tqrid = -1;
 		info = &ctx->ifc_filter_info;
-		gtask = &ctx->ifc_admin_task;
-		tqg = qgroup_if_config_tqg;
-		fn = _task_fn_admin;
+		gtask = NULL;
 		intr_fast = iflib_fast_intr_ctx;
 		break;
 	default:
@@ -6385,12 +6401,8 @@ iflib_softirq_alloc_generic(if_ctx_t ctx, if_irq_t irq, iflib_intr_type_t type,
 		NET_GROUPTASK_INIT(gtask, 0, fn, q);
 		break;
 	case IFLIB_INTR_IOV:
-		q = ctx;
-		gtask = &ctx->ifc_vflr_task;
-		tqg = qgroup_if_config_tqg;
-		fn = _task_fn_iov;
-		GROUPTASK_INIT(gtask, 0, fn, q);
-		break;
+		device_printf(ctx->ifc_dev, "Unsupported interrupt type\n");
+		return;
 	default:
 		panic("unknown net intr type");
 	}
@@ -6424,15 +6436,11 @@ iflib_legacy_setup(if_ctx_t ctx, driver_filter_t filter, void *filter_arg, int *
 	device_t dev;
 	struct grouptask *gtask;
 	struct resource *res;
-	struct taskqgroup *tqg;
-	void *q;
 	int err, tqrid;
 	bool rx_only;
 
-	q = &ctx->ifc_rxqs[0];
-	info = &rxq[0].ifr_filter_info;
-	gtask = &rxq[0].ifr_task;
-	tqg = qgroup_if_io_tqg;
+	info = &rxq->ifr_filter_info;
+	gtask = &rxq->ifr_task;
 	tqrid = *rid;
 	rx_only = (ctx->ifc_sctx->isc_flags & IFLIB_SINGLE_IRQ_RX_ONLY) != 0;
 
@@ -6440,17 +6448,17 @@ iflib_legacy_setup(if_ctx_t ctx, driver_filter_t filter, void *filter_arg, int *
 	info->ifi_filter = filter;
 	info->ifi_filter_arg = filter_arg;
 	info->ifi_task = gtask;
-	info->ifi_ctx = rx_only ? ctx : q;
+	info->ifi_ctx = rxq;
 
 	dev = ctx->ifc_dev;
 	/* We allocate a single interrupt resource */
-	err = _iflib_irq_alloc(ctx, irq, tqrid, rx_only ? iflib_fast_intr_ctx :
+	err = _iflib_irq_alloc(ctx, irq, tqrid, rx_only ? iflib_fast_intr :
 	    iflib_fast_intr_rxtx, NULL, info, name);
 	if (err != 0)
 		return (err);
-	NET_GROUPTASK_INIT(gtask, 0, _task_fn_rx, q);
+	NET_GROUPTASK_INIT(gtask, 0, _task_fn_rx, rxq);
 	res = irq->ii_res;
-	taskqgroup_attach(tqg, gtask, q, dev, res, name);
+	taskqgroup_attach(qgroup_if_io_tqg, gtask, rxq, dev, res, name);
 
 	GROUPTASK_INIT(&txq->ift_task, 0, _task_fn_tx, txq);
 	taskqgroup_attach(qgroup_if_io_tqg, &txq->ift_task, txq, dev, res,
@@ -6484,15 +6492,14 @@ void
 iflib_admin_intr_deferred(if_ctx_t ctx)
 {
 
-	MPASS(ctx->ifc_admin_task.gt_taskqueue != NULL);
-	GROUPTASK_ENQUEUE(&ctx->ifc_admin_task);
+	taskqueue_enqueue(ctx->ifc_tq, &ctx->ifc_admin_task);
 }
 
 void
 iflib_iov_intr_deferred(if_ctx_t ctx)
 {
 
-	GROUPTASK_ENQUEUE(&ctx->ifc_vflr_task);
+	taskqueue_enqueue(ctx->ifc_tq, &ctx->ifc_vflr_task);
 }
 
 void
@@ -6504,20 +6511,15 @@ iflib_io_tqg_attach(struct grouptask *gt, void *uniq, int cpu, const char *name)
 }
 
 void
-iflib_config_gtask_init(void *ctx, struct grouptask *gtask, gtask_fn_t *fn,
-	const char *name)
+iflib_config_task_init(if_ctx_t ctx, struct task *config_task, task_fn_t *fn)
 {
-
-	GROUPTASK_INIT(gtask, 0, fn, ctx);
-	taskqgroup_attach(qgroup_if_config_tqg, gtask, gtask, NULL, NULL,
-	    name);
+	TASK_INIT(config_task, 0, fn, ctx);
 }
 
 void
-iflib_config_gtask_deinit(struct grouptask *gtask)
+iflib_config_task_enqueue(if_ctx_t ctx, struct task *config_task)
 {
-
-	taskqgroup_detach(qgroup_if_config_tqg, gtask);	
+	taskqueue_enqueue(ctx->ifc_tq, config_task);
 }
 
 void
