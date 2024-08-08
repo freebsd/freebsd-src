@@ -30,6 +30,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/ck.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/pctrie.h>
@@ -138,6 +139,8 @@ PCTRIE_DEFINE(DRVSPI_SA, ifp_handle_sav, drv_spi,
     drvspi_sa_trie_alloc, drvspi_sa_trie_free);
 static struct pctrie drv_spi_pctrie;
 
+static eventhandler_tag ipsec_accel_ifdetach_event_tag;
+
 static void ipsec_accel_sa_newkey_impl(struct secasvar *sav);
 static int ipsec_accel_handle_sav(struct secasvar *sav, struct ifnet *ifp,
     u_int drv_spi, void *priv, uint32_t flags, struct ifp_handle_sav **ires);
@@ -154,6 +157,7 @@ static struct mbuf *ipsec_accel_key_setaccelif_impl(struct secasvar *sav);
 static void ipsec_accel_on_ifdown_impl(struct ifnet *ifp);
 static void ipsec_accel_drv_sa_lifetime_update_impl(struct secasvar *sav,
     if_t ifp, u_int drv_spi, uint64_t octets, uint64_t allocs);
+static void ipsec_accel_ifdetach_event(void *arg, struct ifnet *ifp);
 
 static void
 ipsec_accel_init(void *arg)
@@ -174,6 +178,9 @@ ipsec_accel_init(void *arg)
 	ipsec_accel_drv_sa_lifetime_update_p =
 	    ipsec_accel_drv_sa_lifetime_update_impl;
 	pctrie_init(&drv_spi_pctrie);
+	ipsec_accel_ifdetach_event_tag = EVENTHANDLER_REGISTER(
+	    ifnet_departure_event, ipsec_accel_ifdetach_event, NULL,
+	    EVENTHANDLER_PRI_ANY);
 }
 SYSINIT(ipsec_accel_init, SI_SUB_VNET_DONE, SI_ORDER_ANY,
     ipsec_accel_init, NULL);
@@ -181,6 +188,8 @@ SYSINIT(ipsec_accel_init, SI_SUB_VNET_DONE, SI_ORDER_ANY,
 static void
 ipsec_accel_fini(void *arg)
 {
+	EVENTHANDLER_DEREGISTER(ifnet_departure_event,
+	    ipsec_accel_ifdetach_event_tag);
 	ipsec_accel_sa_newkey_p = NULL;
 	ipsec_accel_forget_sav_p = NULL;
 	ipsec_accel_spdadd_p = NULL;
@@ -797,6 +806,14 @@ ipsec_accel_on_ifdown_impl(struct ifnet *ifp)
 {
 	ipsec_accel_on_ifdown_sp(ifp);
 	ipsec_accel_on_ifdown_sav(ifp);
+}
+
+static void
+ipsec_accel_ifdetach_event(void *arg __unused, struct ifnet *ifp)
+{
+	if ((ifp->if_flags & IFF_RENAMING) != 0)
+		return;
+	ipsec_accel_on_ifdown_impl(ifp);
 }
 
 static bool
