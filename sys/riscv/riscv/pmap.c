@@ -1744,7 +1744,7 @@ pmap_alloc_l2(pmap_t pmap, vm_offset_t va, struct rwlock **lockp)
 {
 	pd_entry_t *l1;
 	vm_page_t l2pg;
-	vm_pindex_t l2pindex;
+	vm_pindex_t ptdpindex;
 
 retry:
 	l1 = pmap_l1(pmap, va);
@@ -1757,8 +1757,8 @@ retry:
 		l2pg->ref_count++;
 	} else {
 		/* Allocate a L2 page. */
-		l2pindex = pmap_l2_pindex(va) >> Ln_ENTRIES_SHIFT;
-		l2pg = _pmap_alloc_l3(pmap, NUL2E + l2pindex, lockp);
+		ptdpindex = pmap_l1_pindex(va);
+		l2pg = _pmap_alloc_l3(pmap, ptdpindex, lockp);
 		if (l2pg == NULL && lockp != NULL)
 			goto retry;
 	}
@@ -1888,8 +1888,8 @@ pmap_growkernel(vm_offset_t addr)
 			nkpg = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT |
 			    VM_ALLOC_NOFREE | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 			if (nkpg == NULL)
-				panic("pmap_growkernel: no memory to grow kernel");
-			nkpg->pindex = kernel_vm_end >> L1_SHIFT;
+				panic("%s: no memory to grow kernel", __func__);
+			nkpg->pindex = pmap_l1_pindex(kernel_vm_end);
 			paddr = VM_PAGE_TO_PHYS(nkpg);
 
 			pn = (paddr / PAGE_SIZE);
@@ -1914,8 +1914,8 @@ pmap_growkernel(vm_offset_t addr)
 		nkpg = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT |
 		    VM_ALLOC_NOFREE | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 		if (nkpg == NULL)
-			panic("pmap_growkernel: no memory to grow kernel");
-		nkpg->pindex = kernel_vm_end >> L2_SHIFT;
+			panic("%s: no memory to grow kernel", __func__);
+		nkpg->pindex = pmap_l2_pindex(kernel_vm_end);
 		paddr = VM_PAGE_TO_PHYS(nkpg);
 
 		pn = (paddr / PAGE_SIZE);
