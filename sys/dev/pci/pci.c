@@ -164,18 +164,12 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
 	DEVMETHOD(bus_delete_resource,	pci_delete_resource),
 	DEVMETHOD(bus_alloc_resource,	pci_alloc_resource),
-#ifdef PCI_IOV
 	DEVMETHOD(bus_adjust_resource,	pci_adjust_resource),
-#else
-	DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
-#endif
 	DEVMETHOD(bus_release_resource,	pci_release_resource),
 	DEVMETHOD(bus_activate_resource, pci_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, pci_deactivate_resource),
-#ifdef PCI_IOV
 	DEVMETHOD(bus_map_resource,	pci_map_resource),
 	DEVMETHOD(bus_unmap_resource,	pci_unmap_resource),
-#endif
 	DEVMETHOD(bus_child_deleted,	pci_child_deleted),
 	DEVMETHOD(bus_child_detached,	pci_child_detached),
 	DEVMETHOD(bus_child_pnpinfo,	pci_child_pnpinfo_method),
@@ -5784,11 +5778,11 @@ pci_deactivate_resource(device_t dev, device_t child, int type,
 	return (0);
 }
 
-#ifdef PCI_IOV
 int
 pci_adjust_resource(device_t dev, device_t child, int type, struct resource *r,
     rman_res_t start, rman_res_t end)
 {
+#ifdef PCI_IOV
 	struct pci_devinfo *dinfo;
 
 	if (device_get_parent(child) != dev)
@@ -5808,6 +5802,7 @@ pci_adjust_resource(device_t dev, device_t child, int type, struct resource *r,
 
 		/* Fall through for other types of resource allocations. */
 	}
+#endif
 
 	return (bus_generic_adjust_resource(dev, child, type, r, start, end));
 }
@@ -5816,6 +5811,7 @@ int
 pci_map_resource(device_t dev, device_t child, int type, struct resource *r,
     struct resource_map_request *argsp, struct resource_map *map)
 {
+#ifdef PCI_IOV
 	struct pci_devinfo *dinfo;
 
 	if (device_get_parent(child) != dev)
@@ -5835,6 +5831,7 @@ pci_map_resource(device_t dev, device_t child, int type, struct resource *r,
 
 		/* Fall through for other types of resource allocations. */
 	}
+#endif
 
 	return (bus_generic_map_resource(dev, child, type, r, argsp, map));
 }
@@ -5843,6 +5840,7 @@ int
 pci_unmap_resource(device_t dev, device_t child, int type, struct resource *r,
     struct resource_map *map)
 {
+#ifdef PCI_IOV
 	struct pci_devinfo *dinfo;
 
 	if (device_get_parent(child) != dev)
@@ -5860,10 +5858,10 @@ pci_unmap_resource(device_t dev, device_t child, int type, struct resource *r,
 
 		/* Fall through for other types of resource allocations. */
 	}
+#endif
 
 	return (bus_generic_unmap_resource(dev, child, type, r, map));
 }
-#endif
 
 void
 pci_child_deleted(device_t dev, device_t child)
