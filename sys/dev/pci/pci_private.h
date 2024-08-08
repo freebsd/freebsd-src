@@ -63,16 +63,12 @@ bus_get_dma_tag_t	pci_get_dma_tag;
 bus_get_resource_list_t	pci_get_resource_list;
 bus_delete_resource_t	pci_delete_resource;
 bus_alloc_resource_t	pci_alloc_resource;
-#ifdef PCI_IOV
 bus_adjust_resource_t	pci_adjust_resource;
-#endif
 bus_release_resource_t	pci_release_resource;
 bus_activate_resource_t	pci_activate_resource;
 bus_deactivate_resource_t pci_deactivate_resource;
-#ifdef PCI_IOV
 bus_map_resource_t	pci_map_resource;
 bus_unmap_resource_t	pci_unmap_resource;
-#endif
 bus_child_deleted_t	pci_child_deleted;
 bus_child_detached_t	pci_child_detached;
 bus_child_pnpinfo_t	pci_child_pnpinfo_method;
