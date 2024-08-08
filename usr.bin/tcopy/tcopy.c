@@ -37,6 +37,7 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libutil.h>
 #include <paths.h>
 #include <sys/sysctl.h>
 #include <signal.h>
@@ -71,6 +72,7 @@ main(int argc, char *argv[])
 	const char *inf;
 	unsigned long maxphys = 0;
 	size_t l_maxphys = sizeof maxphys;
+	uint64_t tmp;
 
 	if (!sysctlbyname("kern.maxphys", &maxphys, &l_maxphys, NULL, 0))
 		maxblk = maxphys;
@@ -84,8 +86,12 @@ main(int argc, char *argv[])
 			op = COPYVERIFY;
 			break;
 		case 's':
-			maxblk = atoi(optarg);
-			if (maxblk <= 0) {
+			if (expand_number(optarg, &tmp)) {
+				warnx("illegal block size");
+				usage();
+			}
+			maxblk = tmp;
+			if (maxblk == 0) {
 				warnx("illegal block size");
 				usage();
 			}
