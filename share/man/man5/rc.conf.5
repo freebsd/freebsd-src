@@ -618,6 +618,15 @@ When specified, this variable overrides the
 variable for interface
 .Ar iface
 only.
+.It Va dhclient_arpwait
+.Pq Vt bool
+Set to
+.Dq Li NO
+to stop
+.Xr dhclient 8
+from waiting for ARP resolution, to make the system boot faster.
+This may be done on networks where the DHCP server is certain to
+know whether an address is available.
 .It Va synchronous_dhclient
 .Pq Vt bool
 Set to
