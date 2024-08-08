@@ -275,7 +275,6 @@ static struct so_name so_names[] = {
 	tcp_entry(TCP_BBR_MIN_TOPACEOUT),	/* int */
 	tcp_entry(TCP_BBR_FLOOR_MIN_TSO),	/* int */
 	tcp_entry(TCP_BBR_TSTMP_RAISES),	/* int */
-	tcp_entry(TCP_BBR_POLICER_DETECT),	/* int */
 	tcp_entry(TCP_BBR_USE_RACK_CHEAT),	/* int */
 	tcp_entry(TCP_BBR_PACE_SEG_MAX),	/* int */
 	tcp_entry(TCP_BBR_PACE_SEG_MIN),	/* int */
