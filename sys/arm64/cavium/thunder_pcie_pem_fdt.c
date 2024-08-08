@@ -49,7 +49,7 @@
 #include <dev/pci/pcib_private.h>
 #include <dev/pci/pci_host_generic.h>
 
-#include <machine/intr.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 
 #include "thunder_pcie_common.h"
 #include "thunder_pcie_pem.h"

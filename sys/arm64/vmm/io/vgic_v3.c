@@ -56,7 +56,7 @@
 #include <machine/param.h>
 #include <machine/pmap.h>
 #include <machine/vmparam.h>
-#include <machine/intr.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 #include <machine/vmm.h>
 #include <machine/vmm_dev.h>
 #include <machine/vmm_instruction_emul.h>

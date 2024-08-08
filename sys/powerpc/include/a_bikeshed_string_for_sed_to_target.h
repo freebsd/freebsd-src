@@ -28,6 +28,15 @@
 #ifndef	_MACHINE_INTR_MACHDEP_H_
 #define	_MACHINE_INTR_MACHDEP_H_
 
+/* FreeBSD standard interrupt controller interface */
+
+typedef struct powerpc_intr interrupt_t;
+
+extern struct intr_event *_intr2event(interrupt_t *intr);
+#define	intr2event(intr)	((intr) != NULL ? _intr2event(intr) : NULL)
+
+/* FreeBSD standard interrupt controller interface */
+
 #define	INTR_VECTORS	256
 
 #define	MAX_PICS		32

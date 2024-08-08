@@ -36,7 +36,7 @@
 #include <vm/pmap.h>
 
 #include <x86/apicreg.h>
-#include <machine/intr_machdep.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 #include <x86/apicvar.h>
 #include <machine/md_var.h>
 #include <x86/vmware.h>

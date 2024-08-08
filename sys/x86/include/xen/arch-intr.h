@@ -29,12 +29,11 @@
 #ifndef	_MACHINE__XEN_ARCH_INTR_H_
 #define	_MACHINE__XEN_ARCH_INTR_H_
 
-#include <x86/intr_machdep.h>
+#include <x86/a_bikeshed_string_for_sed_to_target.h>
 #include <x86/apicvar.h>
 
 typedef struct {
 	struct intsrc		intsrc;		/* @TOP -> *xen_arch_isrc */
-	u_int			vector;		/* Global isrc vector number */
 } xen_arch_isrc_t;
 
 #include <dev/xen/bus/intr-internal.h>

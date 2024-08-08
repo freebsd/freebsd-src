@@ -50,7 +50,7 @@
 
 #include <machine/bus.h>
 #include <machine/clock.h>
-#include <machine/intr.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 #include <machine/resource.h>
 
 #include "clock_if.h"

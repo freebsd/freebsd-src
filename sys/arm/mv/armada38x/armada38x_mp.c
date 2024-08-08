@@ -32,7 +32,7 @@
 
 #include <machine/smp.h>
 #include <machine/fdt.h>
-#include <machine/intr.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 #include <machine/platformvar.h>
 
 #include <dev/ofw/ofw_bus.h>

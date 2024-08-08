@@ -40,7 +40,7 @@
 
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
-#include <machine/intr_machdep.h>	/* For x86/apicvar.h */
+#include <machine/a_bikeshed_string_for_sed_to_target.h>	/* For x86/apicvar.h */
 #include <machine/md_var.h>
 #include <machine/pmc_mdep.h>
 #include <machine/stack.h>

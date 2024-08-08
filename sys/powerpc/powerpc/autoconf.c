@@ -34,7 +34,7 @@
 #include <sys/cons.h>
 #include <sys/kernel.h>
 
-#include <machine/intr_machdep.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 
 #ifdef DEV_ISA
 extern void isa_probe_children(device_t dev);

@@ -48,7 +48,7 @@
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 #include <machine/bus.h>
-#include <machine/intr_machdep.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 #include <x86/include/apicreg.h>
 #include <x86/include/apicvar.h>
 #include <x86/include/busdma_impl.h>

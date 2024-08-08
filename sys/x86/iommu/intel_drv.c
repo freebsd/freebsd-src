@@ -72,7 +72,7 @@
 
 #ifdef DEV_APIC
 #include "pcib_if.h"
-#include <machine/intr_machdep.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 #include <x86/apicreg.h>
 #include <x86/apicvar.h>
 #endif

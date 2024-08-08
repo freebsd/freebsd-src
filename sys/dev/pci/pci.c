@@ -61,7 +61,7 @@
 #include <machine/stdarg.h>
 
 #if defined(__i386__) || defined(__amd64__) || defined(__powerpc__)
-#include <machine/intr_machdep.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 #endif
 
 #include <sys/pciio.h>

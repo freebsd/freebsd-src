@@ -3809,6 +3809,7 @@ kern/kern_fork.c		standard
 kern/kern_hhook.c		standard
 kern/kern_idle.c		standard
 kern/kern_intr.c		standard
+kern/kern_intrtab.c		standard
 kern/kern_jail.c		standard
 kern/kern_kcov.c		optional kcov			\
 	compile-with "${NORMAL_C:N-fsanitize*} ${NORMAL_C:M-fsanitize=kernel-memory}"

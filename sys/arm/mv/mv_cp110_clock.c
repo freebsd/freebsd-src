@@ -37,7 +37,7 @@
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <machine/intr.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 
 #include <dev/clk/clk_fixed.h>
 #include <dev/clk/clk_gate.h>

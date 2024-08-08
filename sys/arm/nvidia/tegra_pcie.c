@@ -40,7 +40,7 @@
 #include <sys/mutex.h>
 #include <sys/rman.h>
 
-#include <machine/intr.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>

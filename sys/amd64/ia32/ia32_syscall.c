@@ -75,7 +75,7 @@
 #include <vm/vm_extern.h>
 
 #include <machine/cpu.h>
-#include <machine/intr_machdep.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 #include <machine/md_var.h>
 
 #include <compat/freebsd32/freebsd32_signal.h>

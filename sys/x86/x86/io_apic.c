@@ -33,6 +33,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/intrtab.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -49,7 +50,7 @@
 
 #include <x86/apicreg.h>
 #include <machine/frame.h>
-#include <machine/intr_machdep.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 #include <x86/apicvar.h>
 #include <machine/resource.h>
 #include <machine/segments.h>
@@ -92,11 +93,10 @@ struct ioapic_intsrc {
 
 struct ioapic {
 	struct pic io_pic;
+	struct resource *intrs;
 	u_int io_id:8;			/* logical ID */
 	u_int io_apic_id:8;		/* Id as enumerated by MADT */
 	u_int io_hw_apic_id:8;		/* Content of APIC ID register */
-	u_int io_intbase:8;		/* System Interrupt base */
-	u_int io_numintr:8;
 	u_int io_haseoi:1;
 	volatile ioapic_t *io_addr;	/* XXX: should use bus_space */
 	vm_paddr_t io_paddr;
@@ -117,7 +117,6 @@ static void	ioapic_disable_source(struct intsrc *isrc, int eoi);
 static void	ioapic_eoi_source(struct intsrc *isrc);
 static void	ioapic_enable_intr(struct intsrc *isrc);
 static void	ioapic_disable_intr(struct intsrc *isrc);
-static int	ioapic_vector(struct intsrc *isrc);
 static int	ioapic_source_pending(struct intsrc *isrc);
 static int	ioapic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 		    enum intr_polarity pol);
@@ -134,7 +133,6 @@ struct pic ioapic_template = {
 	.pic_eoi_source = ioapic_eoi_source,
 	.pic_enable_intr = ioapic_enable_intr,
 	.pic_disable_intr = ioapic_disable_intr,
-	.pic_vector = ioapic_vector,
 	.pic_source_pending = ioapic_source_pending,
 	.pic_suspend = NULL,
 	.pic_resume = ioapic_resume,
@@ -529,15 +527,6 @@ ioapic_disable_intr(struct intsrc *isrc)
 }
 
 static int
-ioapic_vector(struct intsrc *isrc)
-{
-	struct ioapic_intsrc *pin;
-
-	pin = (struct ioapic_intsrc *)isrc;
-	return (pin->io_irq);
-}
-
-static int
 ioapic_source_pending(struct intsrc *isrc)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
@@ -598,7 +587,8 @@ ioapic_resume(struct pic *pic, bool suspend_cancelled)
 	int i;
 
 	mtx_lock_spin(&icu_lock);
-	for (i = 0; i < io->io_numintr; i++)
+	for (i = 0; i < rman_get_end(io->intrs) - rman_get_start(io->intrs);
+	    i++)
 		ioapic_program_intpin(&io->io_pins[i]);
 	mtx_unlock_spin(&icu_lock);
 }
@@ -649,11 +639,22 @@ ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
 	} else if (intbase != next_ioapic_base && bootverbose)
 		printf("ioapic%u: WARNING: intbase %d != expected base %d\n",
 		    io->io_id, intbase, next_ioapic_base);
-	io->io_intbase = intbase;
+
+	io->intrs = intrtab_alloc_intr(NULL, numintr);
+	if (io->intrs == NULL)
+		panic("%s(): failed allocating interrupt resource", __func__);
+
+	if (rman_get_start(io->intrs) < intbase) {
+		if (rman_adjust_resource(io->intrs, rman_get_start(io->intrs),
+		    intbase + numintr) != 0)
+			panic("%s(): failed setting upper interrupt", __func__);
+		if (rman_adjust_resource(io->intrs, intbase, intbase + numintr)
+		    != 0)
+			panic("%s(): failed setting lower interrupt", __func__);
+	} else if (rman_get_start(io->intrs) > intbase)
+		panic("%s(): unable to get lowest interrupt", __func__);
+
 	next_ioapic_base = intbase + numintr;
-	if (next_ioapic_base > num_io_irqs)
-		num_io_irqs = next_ioapic_base;
-	io->io_numintr = numintr;
 	io->io_addr = apic;
 	io->io_paddr = addr;
 
@@ -732,7 +733,7 @@ ioapic_get_vector(void *cookie, u_int pin)
 	struct ioapic *io;
 
 	io = (struct ioapic *)cookie;
-	if (pin >= io->io_numintr)
+	if (pin >= rman_get_end(io->intrs) - rman_get_start(io->intrs))
 		return (-1);
 	return (io->io_pins[pin].io_irq);
 }
@@ -743,7 +744,7 @@ ioapic_disable_pin(void *cookie, u_int pin)
 	struct ioapic *io;
 
 	io = (struct ioapic *)cookie;
-	if (pin >= io->io_numintr)
+	if (pin >= rman_get_end(io->intrs) - rman_get_start(io->intrs))
 		return (EINVAL);
 	if (io->io_pins[pin].io_irq == IRQ_DISABLED)
 		return (EINVAL);
@@ -759,7 +760,8 @@ ioapic_remap_vector(void *cookie, u_int pin, int vector)
 	struct ioapic *io;
 
 	io = (struct ioapic *)cookie;
-	if (pin >= io->io_numintr || vector < 0)
+	if (pin >= rman_get_end(io->intrs) - rman_get_start(io->intrs) ||
+	    vector < 0)
 		return (EINVAL);
 	if (io->io_pins[pin].io_irq < 0)
 		return (EINVAL);
@@ -778,7 +780,7 @@ ioapic_set_bus(void *cookie, u_int pin, int bus_type)
 	if (bus_type < 0 || bus_type > APIC_BUS_MAX)
 		return (EINVAL);
 	io = (struct ioapic *)cookie;
-	if (pin >= io->io_numintr)
+	if (pin >= rman_get_end(io->intrs) - rman_get_start(io->intrs))
 		return (EINVAL);
 	if (io->io_pins[pin].io_irq < 0)
 		return (EINVAL);
@@ -797,7 +799,7 @@ ioapic_set_nmi(void *cookie, u_int pin)
 	struct ioapic *io;
 
 	io = (struct ioapic *)cookie;
-	if (pin >= io->io_numintr)
+	if (pin >= rman_get_end(io->intrs) - rman_get_start(io->intrs))
 		return (EINVAL);
 	if (io->io_pins[pin].io_irq == IRQ_NMI)
 		return (0);
@@ -820,7 +822,7 @@ ioapic_set_smi(void *cookie, u_int pin)
 	struct ioapic *io;
 
 	io = (struct ioapic *)cookie;
-	if (pin >= io->io_numintr)
+	if (pin >= rman_get_end(io->intrs) - rman_get_start(io->intrs))
 		return (EINVAL);
 	if (io->io_pins[pin].io_irq == IRQ_SMI)
 		return (0);
@@ -843,7 +845,7 @@ ioapic_set_extint(void *cookie, u_int pin)
 	struct ioapic *io;
 
 	io = (struct ioapic *)cookie;
-	if (pin >= io->io_numintr)
+	if (pin >= rman_get_end(io->intrs) - rman_get_start(io->intrs))
 		return (EINVAL);
 	if (io->io_pins[pin].io_irq == IRQ_EXTINT)
 		return (0);
@@ -870,7 +872,8 @@ ioapic_set_polarity(void *cookie, u_int pin, enum intr_polarity pol)
 	int activehi;
 
 	io = (struct ioapic *)cookie;
-	if (pin >= io->io_numintr || pol == INTR_POLARITY_CONFORM)
+	if (pin >= rman_get_end(io->intrs) - rman_get_start(io->intrs) ||
+	    pol == INTR_POLARITY_CONFORM)
 		return (EINVAL);
 	if (io->io_pins[pin].io_irq < 0)
 		return (EINVAL);
@@ -891,7 +894,8 @@ ioapic_set_triggermode(void *cookie, u_int pin, enum intr_trigger trigger)
 	int edgetrigger;
 
 	io = (struct ioapic *)cookie;
-	if (pin >= io->io_numintr || trigger == INTR_TRIGGER_CONFORM)
+	if (pin >= rman_get_end(io->intrs) - rman_get_start(io->intrs) ||
+	    trigger == INTR_TRIGGER_CONFORM)
 		return (EINVAL);
 	if (io->io_pins[pin].io_irq < 0)
 		return (EINVAL);
@@ -923,16 +927,18 @@ ioapic_register(void *cookie)
 	flags = ioapic_read(apic, IOAPIC_VER) & IOART_VER_VERSION;
 	STAILQ_INSERT_TAIL(&ioapic_list, io, io_next);
 	mtx_unlock_spin(&icu_lock);
-	printf("ioapic%u <Version %u.%u> irqs %u-%u\n",
-	    io->io_id, flags >> 4, flags & 0xf, io->io_intbase,
-	    io->io_intbase + io->io_numintr - 1);
+	printf("ioapic%u <Version %u.%u> irqs %lu-%lu\n",
+	    io->io_id, flags >> 4, flags & 0xf,
+	    (u_long)rman_get_start(io->intrs),
+	    (u_long)rman_get_end(io->intrs) - 1);
 
 	/*
 	 * Reprogram pins to handle special case pins (such as NMI and
 	 * SMI) and disable normal pins until a handler is registered.
 	 */
 	intr_register_pic(&io->io_pic);
-	for (i = 0, pin = io->io_pins; i < io->io_numintr; i++, pin++)
+	for (i = 0, pin = io->io_pins; i < rman_get_end(io->intrs) -
+	    rman_get_start(io->intrs); i++, pin++)
 		ioapic_reprogram_intpin(&pin->io_intsrc);
 }
 
@@ -947,9 +953,11 @@ ioapic_register_sources(struct pic *pic)
 	int i;
 
 	io = (struct ioapic *)pic;
-	for (i = 0, pin = io->io_pins; i < io->io_numintr; i++, pin++) {
+	for (i = 0, pin = io->io_pins; i < rman_get_end(io->intrs) -
+	    rman_get_start(io->intrs); i++, pin++) {
 		if (pin->io_irq >= 0)
-			intr_register_source(&pin->io_intsrc);
+			intr_register_source(io->intrs, pin->io_irq,
+			    &pin->io_intsrc);
 	}
 }
 

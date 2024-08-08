@@ -41,7 +41,7 @@
 
 #include <machine/cpu.h>
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 #include <machine/conf.h>
 
 #include <dev/isa/isareg.h>

@@ -43,7 +43,7 @@
 #include <vm/vm_page.h>
 
 #include <machine/cpufunc.h>
-#include <machine/intr_machdep.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 #include <machine/pmap.h>
 #include <machine/stdarg.h>
 

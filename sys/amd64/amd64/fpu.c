@@ -51,7 +51,7 @@
 
 #include <machine/cputypes.h>
 #include <machine/frame.h>
-#include <machine/intr_machdep.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/psl.h>

@@ -50,7 +50,7 @@
 #include <sys/watchdog.h>
 
 #include <machine/cpufunc.h>
-#include <machine/intr.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 #include <machine/md_var.h>
 #include <machine/sbi.h>
 

@@ -45,7 +45,7 @@
 #include <sys/rman.h>
 
 #if defined(INTRNG)
-#include <machine/intr.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 #endif
 
 #include <dev/ofw/openfirm.h>
@@ -59,7 +59,7 @@
 #include <dev/pci/pci_host_generic.h>
 #include <dev/pci/pci_host_generic_fdt.h>
 
-#include <machine/intr.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 
 #include "pcib_if.h"
 
