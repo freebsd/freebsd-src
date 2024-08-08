@@ -118,7 +118,7 @@ struct intr_pic_child {
 
 /* Interrupt controller definition. */
 struct intr_pic {
-	SLIST_ENTRY(intr_pic)	pic_next;
+	STAILQ_ENTRY(intr_pic)	pic_next;
 	intptr_t		pic_xref;	/* hardware identification */
 	device_t		pic_dev;
 /* Only one of FLAG_PIC or FLAG_MSI may be set */
@@ -147,7 +147,7 @@ static bool intr_ipi_dev_frozen;
 #endif
 
 static struct mtx pic_list_lock;
-static SLIST_HEAD(, intr_pic) pic_list;
+static STAILQ_HEAD(, intr_pic) pic_list;
 
 static struct intr_pic *pic_lookup(device_t dev, intptr_t xref, u_int flags);
 
@@ -191,7 +191,7 @@ static void
 intr_irq_init(void *dummy __unused)
 {
 
-	SLIST_INIT(&pic_list);
+	STAILQ_INIT(&pic_list);
 	mtx_init(&pic_list_lock, "intr pic list", NULL, MTX_DEF);
 
 	mtx_init(&isrc_table_lock, "intr isrc table", NULL, MTX_DEF);
@@ -398,195 +398,13 @@ intr_isrc_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
 			return (0);
 	} else
 #endif
-	if (isrc->isrc_event != NULL) {
-		if (intr_event_handle(isrc->isrc_event, tf) == 0)
-			return (0);
-	}
+	if (intr_event_handle(isrc->isrc_event, tf) == 0)
+		return (0);
 
 	if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
 		isrc_increment_straycount(isrc);
 	return (EINVAL);
 }
-
-/*
- *  Alloc unique interrupt number (resource handle) for interrupt source.
- *
- *  There could be various strategies how to allocate free interrupt number
- *  (resource handle) for new interrupt source.
- *
- *  1. Handles are always allocated forward, so handles are not recycled
- *     immediately. However, if only one free handle left which is reused
- *     constantly...
- */
-static inline int
-isrc_alloc_irq(struct intr_irqsrc *isrc)
-{
-	u_int irq;
-
-	mtx_assert(&isrc_table_lock, MA_OWNED);
-
-	if (irq_next_free >= intr_nirq)
-		return (ENOSPC);
-
-	for (irq = irq_next_free; irq < intr_nirq; irq++) {
-		if (irq_sources[irq] == NULL)
-			goto found;
-	}
-	for (irq = 0; irq < irq_next_free; irq++) {
-		if (irq_sources[irq] == NULL)
-			goto found;
-	}
-
-	irq_next_free = intr_nirq;
-	return (ENOSPC);
-
-found:
-	isrc->isrc_irq = irq;
-	irq_sources[irq] = isrc;
-
-	irq_next_free = irq + 1;
-	if (irq_next_free >= intr_nirq)
-		irq_next_free = 0;
-	return (0);
-}
-
-/*
- *  Free unique interrupt number (resource handle) from interrupt source.
- */
-static inline int
-isrc_free_irq(struct intr_irqsrc *isrc)
-{
-
-	mtx_assert(&isrc_table_lock, MA_OWNED);
-
-	if (isrc->isrc_irq >= intr_nirq)
-		return (EINVAL);
-	if (irq_sources[isrc->isrc_irq] != isrc)
-		return (EINVAL);
-
-	irq_sources[isrc->isrc_irq] = NULL;
-	isrc->isrc_irq = INTR_IRQ_INVALID;	/* just to be safe */
-
-	/*
-	 * If we are recovering from the state irq_sources table is full,
-	 * then the following allocation should check the entire table. This
-	 * will ensure maximum separation of allocation order from release
-	 * order.
-	 */
-	if (irq_next_free >= intr_nirq)
-		irq_next_free = 0;
-
-	return (0);
-}
-
-/*
- *  Initialize interrupt source and register it into global interrupt table.
- */
-int
-intr_isrc_register(struct intr_irqsrc *isrc, device_t dev, u_int flags,
-    const char *fmt, ...)
-{
-	int error;
-	va_list ap;
-
-	bzero(isrc, sizeof(struct intr_irqsrc));
-	isrc->isrc_dev = dev;
-	isrc->isrc_irq = INTR_IRQ_INVALID;	/* just to be safe */
-	isrc->isrc_flags = flags;
-
-	va_start(ap, fmt);
-	vsnprintf(isrc->isrc_name, INTR_ISRC_NAMELEN, fmt, ap);
-	va_end(ap);
-
-	mtx_lock(&isrc_table_lock);
-	error = isrc_alloc_irq(isrc);
-	if (error != 0) {
-		mtx_unlock(&isrc_table_lock);
-		return (error);
-	}
-	/*
-	 * Setup interrupt counters, but not for IPI sources. Those are setup
-	 * later and only for used ones (up to INTR_IPI_COUNT) to not exhaust
-	 * our counter pool.
-	 */
-	if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
-		isrc_setup_counters(isrc);
-	mtx_unlock(&isrc_table_lock);
-	return (0);
-}
-
-/*
- *  Deregister interrupt source from global interrupt table.
- */
-int
-intr_isrc_deregister(struct intr_irqsrc *isrc)
-{
-	int error;
-
-	mtx_lock(&isrc_table_lock);
-	if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
-		isrc_release_counters(isrc);
-	error = isrc_free_irq(isrc);
-	mtx_unlock(&isrc_table_lock);
-	return (error);
-}
-
-#ifdef SMP
-/*
- *  A support function for a PIC to decide if provided ISRC should be inited
- *  on given cpu. The logic of INTR_ISRCF_BOUND flag and isrc_cpu member of
- *  struct intr_irqsrc is the following:
- *
- *     If INTR_ISRCF_BOUND is set, the ISRC should be inited only on cpus
- *     set in isrc_cpu. If not, the ISRC should be inited on every cpu and
- *     isrc_cpu is kept consistent with it. Thus isrc_cpu is always correct.
- */
-bool
-intr_isrc_init_on_cpu(struct intr_irqsrc *isrc, u_int cpu)
-{
-
-	if (isrc->isrc_handlers == 0)
-		return (false);
-	if ((isrc->isrc_flags & (INTR_ISRCF_PPI | INTR_ISRCF_IPI)) == 0)
-		return (false);
-	if (isrc->isrc_flags & INTR_ISRCF_BOUND)
-		return (CPU_ISSET(cpu, &isrc->isrc_cpu));
-
-	CPU_SET(cpu, &isrc->isrc_cpu);
-	return (true);
-}
-#endif
-
-#ifdef INTR_SOLO
-/*
- *  Setup filter into interrupt source.
- */
-static int
-iscr_setup_filter(struct intr_irqsrc *isrc, const char *name,
-    intr_irq_filter_t *filter, void *arg, void **cookiep)
-{
-
-	if (filter == NULL)
-		return (EINVAL);
-
-	mtx_lock(&isrc_table_lock);
-	/*
-	 * Make sure that we do not mix the two ways
-	 * how we handle interrupt sources.
-	 */
-	if (isrc->isrc_filter != NULL || isrc->isrc_event != NULL) {
-		mtx_unlock(&isrc_table_lock);
-		return (EBUSY);
-	}
-	isrc->isrc_filter = filter;
-	isrc->isrc_arg = arg;
-	isrc_update_name(isrc, name);
-	mtx_unlock(&isrc_table_lock);
-
-	*cookiep = isrc;
-	return (0);
-}
-#endif
 
 /*
  *  Interrupt source pre_ithread method for MI interrupt framework.
@@ -667,67 +485,236 @@ intr_isrc_assign_cpu(void *arg, int cpu)
 static int
 isrc_event_create(struct intr_irqsrc *isrc)
 {
-	struct intr_event *ie;
 	int error;
 
-	error = intr_event_create(&ie, isrc, 0, isrc->isrc_irq,
+	error = intr_event_create(&isrc->isrc_event, isrc, 0, INTR_IRQ_INVALID,
 	    intr_isrc_pre_ithread, intr_isrc_post_ithread, intr_isrc_post_filter,
 	    intr_isrc_assign_cpu, "%s:", isrc->isrc_name);
+
+	return (error);
+}
+
+/*
+ *  Destroy interrupt event for interrupt source.
+ */
+static int
+isrc_event_destroy(struct intr_irqsrc *isrc)
+{
+	int rc;
+
+	MPASS(isrc->isrc_event != NULL);
+	MPASS(isrc->isrc_event->ie_irq >= intr_nirq);
+
+	rc = intr_event_destroy(isrc->isrc_event);
+	if (rc == 0)
+		isrc->isrc_event = NULL;
+
+	return (rc);
+}
+
+/*
+ *  Alloc unique interrupt number (resource handle) for interrupt source.
+ *
+ *  There could be various strategies how to allocate free interrupt number
+ *  (resource handle) for new interrupt source.
+ *
+ *  1. Handles are always allocated forward, so handles are not recycled
+ *     immediately. However, if only one free handle left which is reused
+ *     constantly...
+ */
+static inline int
+isrc_alloc_irq(struct intr_irqsrc *isrc)
+{
+	u_int irq;
+
+	mtx_assert(&isrc_table_lock, MA_OWNED);
+
+	if (irq_next_free >= intr_nirq)
+		return (ENOSPC);
+
+	for (irq = irq_next_free; irq < intr_nirq; irq++) {
+		if (irq_sources[irq] == NULL)
+			goto found;
+	}
+	for (irq = 0; irq < irq_next_free; irq++) {
+		if (irq_sources[irq] == NULL)
+			goto found;
+	}
+
+	irq_next_free = intr_nirq;
+	return (ENOSPC);
+
+found:
+	isrc->isrc_event->ie_irq = irq;
+	isrc->isrc_irq = irq;
+	irq_sources[irq] = isrc;
+
+	irq_next_free = irq + 1;
+	if (irq_next_free >= intr_nirq)
+		irq_next_free = 0;
+	return (0);
+}
+
+/*
+ *  Free unique interrupt number (resource handle) from interrupt source.
+ */
+static inline int
+isrc_free_irq(struct intr_irqsrc *isrc)
+{
+
+	mtx_assert(&isrc_table_lock, MA_OWNED);
+	MPASS(isrc->isrc_event != NULL);
+
+	if (isrc->isrc_irq >= intr_nirq)
+		return (EINVAL);
+	if (irq_sources[isrc->isrc_irq] != isrc)
+		return (EINVAL);
+
+	irq_sources[isrc->isrc_irq] = NULL;
+	isrc->isrc_irq = INTR_IRQ_INVALID;	/* just to be safe */
+
+	/*
+	 * If we are recovering from the state irq_sources table is full,
+	 * then the following allocation should check the entire table. This
+	 * will ensure maximum separation of allocation order from release
+	 * order.
+	 */
+	if (irq_next_free >= intr_nirq)
+		irq_next_free = 0;
+
+	return (0);
+}
+
+/*
+ *  Initialize interrupt source and register it into global interrupt table.
+ */
+int
+intr_isrc_register(struct intr_irqsrc *isrc, device_t dev, u_int flags,
+    const char *fmt, ...)
+{
+	int error;
+	va_list ap;
+
+	bzero(isrc, sizeof(struct intr_irqsrc));
+	isrc->isrc_dev = dev;
+	isrc->isrc_irq = INTR_IRQ_INVALID;	/* just to be safe */
+	isrc->isrc_flags = flags;
+
+	va_start(ap, fmt);
+	vsnprintf(isrc->isrc_name, INTR_ISRC_NAMELEN, fmt, ap);
+	va_end(ap);
+
+	error = isrc_event_create(isrc);
 	if (error)
 		return (error);
 
 	mtx_lock(&isrc_table_lock);
-	/*
-	 * Make sure that we do not mix the two ways
-	 * how we handle interrupt sources. Let contested event wins.
-	 */
-#ifdef INTR_SOLO
-	if (isrc->isrc_filter != NULL || isrc->isrc_event != NULL) {
-#else
-	if (isrc->isrc_event != NULL) {
-#endif
+	error = isrc_alloc_irq(isrc);
+	if (error != 0) {
+		int rc;
 		mtx_unlock(&isrc_table_lock);
-		intr_event_destroy(ie);
-		return (isrc->isrc_event != NULL ? EBUSY : 0);
+		if ((rc = intr_event_destroy(isrc->isrc_event)) != 0)
+			printf("ERROR: %s(): intr_event_destroy() rc = %d!\n",
+			    __func__, rc);
+		return (error);
 	}
-	isrc->isrc_event = ie;
+	/*
+	 * Setup interrupt counters, but not for IPI sources. Those are setup
+	 * later and only for used ones (up to INTR_IPI_COUNT) to not exhaust
+	 * our counter pool.
+	 */
+	if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
+		isrc_setup_counters(isrc);
 	mtx_unlock(&isrc_table_lock);
-
 	return (0);
 }
-#ifdef notyet
+
 /*
- *  Destroy interrupt event for interrupt source.
+ *  Deregister interrupt source from global interrupt table.
  */
-static void
-isrc_event_destroy(struct intr_irqsrc *isrc)
+int
+intr_isrc_deregister(struct intr_irqsrc *isrc)
 {
-	struct intr_event *ie;
+	int error;
 
 	mtx_lock(&isrc_table_lock);
-	ie = isrc->isrc_event;
-	isrc->isrc_event = NULL;
+	if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
+		isrc_release_counters(isrc);
+	error = isrc_free_irq(isrc);
 	mtx_unlock(&isrc_table_lock);
 
-	if (ie != NULL)
-		intr_event_destroy(ie);
+	if (error != 0)
+		return (error);
+
+	return (isrc_event_destroy(isrc));
+}
+
+#ifdef SMP
+/*
+ *  A support function for a PIC to decide if provided ISRC should be inited
+ *  on given cpu. The logic of INTR_ISRCF_BOUND flag and isrc_cpu member of
+ *  struct intr_irqsrc is the following:
+ *
+ *     If INTR_ISRCF_BOUND is set, the ISRC should be inited only on cpus
+ *     set in isrc_cpu. If not, the ISRC should be inited on every cpu and
+ *     isrc_cpu is kept consistent with it. Thus isrc_cpu is always correct.
+ */
+bool
+intr_isrc_init_on_cpu(struct intr_irqsrc *isrc, u_int cpu)
+{
+
+	if (isrc->isrc_handlers == 0)
+		return (false);
+	if ((isrc->isrc_flags & (INTR_ISRCF_PPI | INTR_ISRCF_IPI)) == 0)
+		return (false);
+	if (isrc->isrc_flags & INTR_ISRCF_BOUND)
+		return (CPU_ISSET(cpu, &isrc->isrc_cpu));
+
+	CPU_SET(cpu, &isrc->isrc_cpu);
+	return (true);
 }
 #endif
+
+#ifdef INTR_SOLO
+/*
+ *  Setup filter into interrupt source.
+ */
+static int
+iscr_setup_filter(struct intr_irqsrc *isrc, const char *name,
+    intr_irq_filter_t *filter, void *arg, void **cookiep)
+{
+
+	if (filter == NULL)
+		return (EINVAL);
+
+	mtx_lock(&isrc_table_lock);
+	/*
+	 * Make sure that we do not mix the two ways
+	 * how we handle interrupt sources.
+	 */
+	if (isrc->isrc_filter != NULL || isrc->isrc_event != NULL) {
+		mtx_unlock(&isrc_table_lock);
+		return (EBUSY);
+	}
+	isrc->isrc_filter = filter;
+	isrc->isrc_arg = arg;
+	isrc_update_name(isrc, name);
+	mtx_unlock(&isrc_table_lock);
+
+	*cookiep = isrc;
+	return (0);
+}
+#endif
+
 /*
  *  Add handler to interrupt source.
  */
-static int
-isrc_add_handler(struct intr_irqsrc *isrc, const char *name,
+int
+intr_add_handler(struct intr_irqsrc *isrc, const char *name,
     driver_filter_t filter, driver_intr_t handler, void *arg,
     enum intr_type flags, void **cookiep)
 {
 	int error;
-
-	if (isrc->isrc_event == NULL) {
-		error = isrc_event_create(isrc);
-		if (error)
-			return (error);
-	}
 
 	error = intr_event_add_handler(isrc->isrc_event, name, filter, handler,
 	    arg, intr_priority(flags), flags, cookiep);
@@ -754,8 +741,8 @@ pic_lookup_locked(device_t dev, intptr_t xref, u_int flags)
 		return (NULL);
 
 	/* Note that pic->pic_dev is never NULL on registered PIC. */
-	SLIST_FOREACH(pic, &pic_list, pic_next) {
-		if ((pic->pic_flags & FLAG_TYPE_MASK) !=
+	STAILQ_FOREACH(pic, &pic_list, pic_next) {
+		if ((pic->pic_flags & flags & FLAG_TYPE_MASK) !=
 		    (flags & FLAG_TYPE_MASK))
 			continue;
 
@@ -786,6 +773,25 @@ pic_lookup(device_t dev, intptr_t xref, u_int flags)
 }
 
 /*
+ * Resolve an interrupt to its PIC.
+ */
+static device_t
+pic_lookup_dev(device_t dev, intptr_t xref, u_int flags)
+{
+	struct intr_pic *pic;
+
+	pic = pic_lookup(dev, xref, flags);
+	if (__predict_false(pic == NULL))
+		return (NULL);
+
+	KASSERT((pic->pic_flags & flags & FLAG_TYPE_MASK) == (flags & FLAG_TYPE_MASK),
+	    ("%s: Found wrong type of controler: %s (flags = %u, type = %u)",
+	    __func__, device_get_name(pic->pic_dev), flags & FLAG_TYPE_MASK,
+	    pic->pic_flags & FLAG_TYPE_MASK));
+	return (pic->pic_dev);
+}
+
+/*
  *  Create interrupt controller.
  */
 static struct intr_pic *
@@ -794,8 +800,9 @@ pic_create(device_t dev, intptr_t xref, u_int flags)
 	struct intr_pic *pic;
 
 	mtx_lock(&pic_list_lock);
-	pic = pic_lookup_locked(dev, xref, flags);
+	pic = pic_lookup_locked(dev, xref, flags & ~FLAG_TYPE_MASK);
 	if (pic != NULL) {
+		pic->pic_flags |= flags & FLAG_TYPE_MASK;
 		mtx_unlock(&pic_list_lock);
 		return (pic);
 	}
@@ -808,7 +815,7 @@ pic_create(device_t dev, intptr_t xref, u_int flags)
 	pic->pic_dev = dev;
 	pic->pic_flags = flags;
 	mtx_init(&pic->pic_child_lock, "pic child lock", NULL, MTX_SPIN);
-	SLIST_INSERT_HEAD(&pic_list, pic, pic_next);
+	STAILQ_INSERT_TAIL(&pic_list, pic, pic_next);
 	mtx_unlock(&pic_list_lock);
 
 	return (pic);
@@ -828,7 +835,7 @@ pic_destroy(device_t dev, intptr_t xref, u_int flags)
 		mtx_unlock(&pic_list_lock);
 		return;
 	}
-	SLIST_REMOVE(&pic_list, pic, intr_pic, pic_next);
+	STAILQ_REMOVE(&pic_list, pic, intr_pic, pic_next);
 	mtx_unlock(&pic_list_lock);
 
 	free(pic, M_INTRNG);
@@ -879,17 +886,13 @@ int
 intr_pic_claim_root(device_t dev, intptr_t xref, intr_irq_filter_t *filter,
     void *arg)
 {
-	struct intr_pic *pic;
+	device_t pic;
 
-	pic = pic_lookup(dev, xref, FLAG_PIC);
+	pic = pic_lookup_dev(dev, xref, FLAG_PIC);
 	if (pic == NULL) {
 		device_printf(dev, "not registered\n");
 		return (EINVAL);
 	}
-
-	KASSERT((pic->pic_flags & FLAG_TYPE_MASK) == FLAG_PIC,
-	    ("%s: Found a non-PIC controller: %s", __func__,
-	     device_get_name(pic->pic_dev)));
 
 	if (filter == NULL) {
 		device_printf(dev, "filter missing\n");
@@ -957,31 +960,25 @@ static int
 intr_resolve_irq(device_t dev, intptr_t xref, struct intr_map_data *data,
     struct intr_irqsrc **isrc)
 {
-	struct intr_pic *pic;
+	device_t pic;
 	struct intr_map_data_msi *msi;
 
 	if (data == NULL)
 		return (EINVAL);
 
-	pic = pic_lookup(dev, xref,
+	pic = pic_lookup_dev(dev, xref,
 	    (data->type == INTR_MAP_DATA_MSI) ? FLAG_MSI : FLAG_PIC);
 	if (pic == NULL)
 		return (ESRCH);
 
 	switch (data->type) {
 	case INTR_MAP_DATA_MSI:
-		KASSERT((pic->pic_flags & FLAG_TYPE_MASK) == FLAG_MSI,
-		    ("%s: Found a non-MSI controller: %s", __func__,
-		     device_get_name(pic->pic_dev)));
 		msi = (struct intr_map_data_msi *)data;
 		*isrc = msi->isrc;
 		return (0);
 
 	default:
-		KASSERT((pic->pic_flags & FLAG_TYPE_MASK) == FLAG_PIC,
-		    ("%s: Found a non-PIC controller: %s", __func__,
-		     device_get_name(pic->pic_dev)));
-		return (PIC_MAP_INTR(pic->pic_dev, data, isrc));
+		return (PIC_MAP_INTR(pic, data, isrc));
 	}
 }
 
@@ -1102,7 +1099,7 @@ intr_setup_irq(device_t dev, struct resource *res, driver_filter_t filt,
 	} else
 #endif
 		{
-		error = isrc_add_handler(isrc, name, filt, hand, arg, flags,
+		error = intr_add_handler(isrc, name, filt, hand, arg, flags,
 		    cookiep);
 		debugf("irq %u add handler error %d on %s\n", isrc->isrc_irq, error, name);
 	}
@@ -1172,21 +1169,14 @@ intr_teardown_irq(device_t dev, struct resource *res, void *cookie)
 	return (error);
 }
 
+/*
+ *  Describe an interrupt
+ */
 int
-intr_describe_irq(device_t dev, struct resource *res, void *cookie,
-    const char *descr)
+intr_describe(struct intr_irqsrc *isrc, void *cookie, const char *descr)
 {
 	int error;
-	struct intr_irqsrc *isrc;
-	u_int res_id;
 
-	KASSERT(rman_get_start(res) == rman_get_end(res),
-	    ("%s: more interrupts in resource", __func__));
-
-	res_id = (u_int)rman_get_start(res);
-	isrc = intr_map_get_isrc(res_id);
-	if (isrc == NULL || isrc->isrc_handlers == 0)
-		return (EINVAL);
 #ifdef INTR_SOLO
 	if (isrc->isrc_filter != NULL) {
 		if (isrc != cookie)
@@ -1205,6 +1195,23 @@ intr_describe_irq(device_t dev, struct resource *res, void *cookie,
 		mtx_unlock(&isrc_table_lock);
 	}
 	return (error);
+}
+
+int
+intr_describe_irq(device_t dev, struct resource *res, void *cookie,
+    const char *descr)
+{
+	struct intr_irqsrc *isrc;
+	u_int res_id;
+
+	KASSERT(rman_get_start(res) == rman_get_end(res),
+	    ("%s: more interrupts in resource", __func__));
+
+	res_id = (u_int)rman_get_start(res);
+	isrc = intr_map_get_isrc(res_id);
+	if (isrc == NULL || isrc->isrc_handlers == 0)
+		return (EINVAL);
+	return (intr_describe(isrc, cookie, descr));
 }
 
 #ifdef SMP
@@ -1277,8 +1284,7 @@ intr_irq_shuffle(void *arg __unused)
 		    isrc->isrc_flags & (INTR_ISRCF_PPI | INTR_ISRCF_IPI))
 			continue;
 
-		if (isrc->isrc_event != NULL &&
-		    isrc->isrc_flags & INTR_ISRCF_BOUND &&
+		if (isrc->isrc_flags & INTR_ISRCF_BOUND &&
 		    isrc->isrc_event->ie_cpu != CPU_FFS(&isrc->isrc_cpu) - 1)
 			panic("%s: CPU inconsistency", __func__);
 
@@ -1353,29 +1359,25 @@ intr_alloc_msi(device_t pci, device_t child, intptr_t xref, int count,
 {
 	struct iommu_domain *domain;
 	struct intr_irqsrc **isrc;
-	struct intr_pic *pic;
+	device_t dev;
 	device_t pdev;
 	struct intr_map_data_msi *msi;
 	int err, i;
 
-	pic = pic_lookup(NULL, xref, FLAG_MSI);
-	if (pic == NULL)
+	dev = pic_lookup_dev(NULL, xref, FLAG_MSI);
+	if (dev == NULL)
 		return (ESRCH);
-
-	KASSERT((pic->pic_flags & FLAG_TYPE_MASK) == FLAG_MSI,
-	    ("%s: Found a non-MSI controller: %s", __func__,
-	     device_get_name(pic->pic_dev)));
 
 	/*
 	 * If this is the first time we have used this context ask the
 	 * interrupt controller to map memory the msi source will need.
 	 */
-	err = MSI_IOMMU_INIT(pic->pic_dev, child, &domain);
+	err = MSI_IOMMU_INIT(dev, child, &domain);
 	if (err != 0)
 		return (err);
 
 	isrc = malloc(sizeof(*isrc) * count, M_INTRNG, M_WAITOK);
-	err = MSI_ALLOC_MSI(pic->pic_dev, child, count, maxcount, &pdev, isrc);
+	err = MSI_ALLOC_MSI(dev, child, count, maxcount, &pdev, isrc);
 	if (err != 0) {
 		free(isrc, M_INTRNG);
 		return (err);
@@ -1387,8 +1389,7 @@ intr_alloc_msi(device_t pci, device_t child, intptr_t xref, int count,
 		    INTR_MAP_DATA_MSI, sizeof(*msi), M_WAITOK | M_ZERO);
 		msi-> isrc = isrc[i];
 
-		irqs[i] = intr_map_irq(pic->pic_dev, xref,
-		    (struct intr_map_data *)msi);
+		irqs[i] = intr_map_irq(dev, xref, (struct intr_map_data *)msi);
 	}
 	free(isrc, M_INTRNG);
 
@@ -1400,17 +1401,13 @@ intr_release_msi(device_t pci, device_t child, intptr_t xref, int count,
     int *irqs)
 {
 	struct intr_irqsrc **isrc;
-	struct intr_pic *pic;
+	device_t dev;
 	struct intr_map_data_msi *msi;
 	int i, err;
 
-	pic = pic_lookup(NULL, xref, FLAG_MSI);
-	if (pic == NULL)
+	dev = pic_lookup_dev(NULL, xref, FLAG_MSI);
+	if (dev == NULL)
 		return (ESRCH);
-
-	KASSERT((pic->pic_flags & FLAG_TYPE_MASK) == FLAG_MSI,
-	    ("%s: Found a non-MSI controller: %s", __func__,
-	     device_get_name(pic->pic_dev)));
 
 	isrc = malloc(sizeof(*isrc) * count, M_INTRNG, M_WAITOK);
 
@@ -1423,9 +1420,9 @@ intr_release_msi(device_t pci, device_t child, intptr_t xref, int count,
 		isrc[i] = msi->isrc;
 	}
 
-	MSI_IOMMU_DEINIT(pic->pic_dev, child);
+	MSI_IOMMU_DEINIT(dev, child);
 
-	err = MSI_RELEASE_MSI(pic->pic_dev, child, count, isrc);
+	err = MSI_RELEASE_MSI(dev, child, count, isrc);
 
 	for (i = 0; i < count; i++) {
 		if (isrc[i] != NULL)
@@ -1441,28 +1438,24 @@ intr_alloc_msix(device_t pci, device_t child, intptr_t xref, int *irq)
 {
 	struct iommu_domain *domain;
 	struct intr_irqsrc *isrc;
-	struct intr_pic *pic;
+	device_t dev;
 	device_t pdev;
 	struct intr_map_data_msi *msi;
 	int err;
 
-	pic = pic_lookup(NULL, xref, FLAG_MSI);
-	if (pic == NULL)
+	dev = pic_lookup_dev(NULL, xref, FLAG_MSI);
+	if (dev == NULL)
 		return (ESRCH);
-
-	KASSERT((pic->pic_flags & FLAG_TYPE_MASK) == FLAG_MSI,
-	    ("%s: Found a non-MSI controller: %s", __func__,
-	     device_get_name(pic->pic_dev)));
 
 	/*
 	 * If this is the first time we have used this context ask the
 	 * interrupt controller to map memory the msi source will need.
 	 */
-	err = MSI_IOMMU_INIT(pic->pic_dev, child, &domain);
+	err = MSI_IOMMU_INIT(dev, child, &domain);
 	if (err != 0)
 		return (err);
 
-	err = MSI_ALLOC_MSIX(pic->pic_dev, child, &pdev, &isrc);
+	err = MSI_ALLOC_MSIX(dev, child, &pdev, &isrc);
 	if (err != 0)
 		return (err);
 
@@ -1470,7 +1463,7 @@ intr_alloc_msix(device_t pci, device_t child, intptr_t xref, int *irq)
 	msi = (struct intr_map_data_msi *)intr_alloc_map_data(
 		    INTR_MAP_DATA_MSI, sizeof(*msi), M_WAITOK | M_ZERO);
 	msi->isrc = isrc;
-	*irq = intr_map_irq(pic->pic_dev, xref, (struct intr_map_data *)msi);
+	*irq = intr_map_irq(dev, xref, (struct intr_map_data *)msi);
 	return (0);
 }
 
@@ -1478,17 +1471,13 @@ int
 intr_release_msix(device_t pci, device_t child, intptr_t xref, int irq)
 {
 	struct intr_irqsrc *isrc;
-	struct intr_pic *pic;
+	device_t dev;
 	struct intr_map_data_msi *msi;
 	int err;
 
-	pic = pic_lookup(NULL, xref, FLAG_MSI);
-	if (pic == NULL)
+	dev = pic_lookup_dev(NULL, xref, FLAG_MSI);
+	if (dev == NULL)
 		return (ESRCH);
-
-	KASSERT((pic->pic_flags & FLAG_TYPE_MASK) == FLAG_MSI,
-	    ("%s: Found a non-MSI controller: %s", __func__,
-	     device_get_name(pic->pic_dev)));
 
 	msi = (struct intr_map_data_msi *)
 	    intr_map_get_map_data(irq);
@@ -1501,9 +1490,9 @@ intr_release_msix(device_t pci, device_t child, intptr_t xref, int irq)
 		return (EINVAL);
 	}
 
-	MSI_IOMMU_DEINIT(pic->pic_dev, child);
+	MSI_IOMMU_DEINIT(dev, child);
 
-	err = MSI_RELEASE_MSIX(pic->pic_dev, child, isrc);
+	err = MSI_RELEASE_MSIX(dev, child, isrc);
 	intr_unmap_irq(irq);
 
 	return (err);
@@ -1514,22 +1503,18 @@ intr_map_msi(device_t pci, device_t child, intptr_t xref, int irq,
     uint64_t *addr, uint32_t *data)
 {
 	struct intr_irqsrc *isrc;
-	struct intr_pic *pic;
+	device_t dev;
 	int err;
 
-	pic = pic_lookup(NULL, xref, FLAG_MSI);
-	if (pic == NULL)
+	dev = pic_lookup_dev(NULL, xref, FLAG_MSI);
+	if (dev == NULL)
 		return (ESRCH);
-
-	KASSERT((pic->pic_flags & FLAG_TYPE_MASK) == FLAG_MSI,
-	    ("%s: Found a non-MSI controller: %s", __func__,
-	     device_get_name(pic->pic_dev)));
 
 	isrc = intr_map_get_isrc(irq);
 	if (isrc == NULL)
 		return (EINVAL);
 
-	err = MSI_MAP_MSI(pic->pic_dev, child, isrc, addr, data);
+	err = MSI_MAP_MSI(dev, child, isrc, addr, data);
 
 #ifdef IOMMU
 	if (isrc->isrc_iommu != NULL)
@@ -1552,15 +1537,12 @@ dosoftints(void)
 void
 intr_pic_init_secondary(void)
 {
+	struct intr_pic *pic;
 
-	/*
-	 * QQQ: Only root PIC is aware of other CPUs ???
-	 */
-	KASSERT(intr_irq_root_dev != NULL, ("%s: no root attached", __func__));
-
-	//mtx_lock(&isrc_table_lock);
-	PIC_INIT_SECONDARY(intr_irq_root_dev);
-	//mtx_unlock(&isrc_table_lock);
+	//mtx_lock(&pic_list_lock);
+	STAILQ_FOREACH(pic, &pic_list, pic_next)
+		PIC_INIT_SECONDARY(pic->pic_dev);
+	//mtx_unlock(&pic_list_lock);
 }
 #endif
 
