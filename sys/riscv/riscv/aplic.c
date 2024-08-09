@@ -407,7 +407,7 @@ aplic_setup_direct_mode(device_t dev)
 		    APLIC_IDC_ITHRESHOLD_DISABLE);
 	}
 
-	iparent = OF_xref_from_node(ofw_bus_get_node(intr_irq_root_dev));
+	iparent = OF_xref_from_node(ofw_bus_get_node(intr_irq_root_dev()));
 	cell = IRQ_EXTERNAL_SUPERVISOR;
 	irq = ofw_bus_map_intr(dev, iparent, 1, &cell);
 	error = bus_set_resource(dev, SYS_RES_IRQ, 0, irq, 1);
