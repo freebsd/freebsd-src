@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 7, 2022
+.Dd August 4, 2024
 .Dt SHUTDOWN 8
 .Os
 .Sh NAME
@@ -43,6 +43,7 @@
 .Fl o
 .Op Fl n
 .Oc
+.Op Fl q
 .Ar time
 .Op Ar warning-message ...
 .Nm poweroff
@@ -113,6 +114,12 @@ to
 or
 .Xr reboot 8 .
 This option should probably not be used.
+.It Fl q
+Shut down quietly.
+Suppress the warning message to all logged in users about system shutdown.
+It is an error to supply a
+.Ar warning-message
+when warnings are suppressed.
 .It Ar time
 .Ar Time
 is the time at which
