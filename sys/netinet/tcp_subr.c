@@ -1448,6 +1448,7 @@ tcp_init(void)
 	tcp_fastopen_init();
 
 	V_tcp_msl = TCPTV_MSL;
+	arc4rand(&V_ts_offset_secret, sizeof(V_ts_offset_secret), 0);
 
 	/* Skip initialization of globals for non-default instances. */
 	if (!IS_DEFAULT_VNET(curvnet))
@@ -1481,7 +1482,6 @@ tcp_init(void)
 	/* Initialize the TCP logging data. */
 	tcp_log_init();
 #endif
-	arc4rand(&V_ts_offset_secret, sizeof(V_ts_offset_secret), 0);
 
 	if (tcp_soreceive_stream) {
 #ifdef INET
