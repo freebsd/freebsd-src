@@ -37,8 +37,6 @@
 
 #define	INTR_IRQ_INVALID	0xFFFFFFFF
 
-#define INTR_ROOT_IRQ	0
-
 #ifndef LOCORE
 
 enum intr_map_data_type {

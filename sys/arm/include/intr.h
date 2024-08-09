@@ -51,4 +51,7 @@ void arm_irq_memory_barrier(uintptr_t);
 #define	NIRQ		1024	/* XXX - It should be an option. */
 #endif
 
+#define	INTR_ROOT_IRQ	0
+#define	INTR_ROOT_COUNT	1
+
 #endif	/* _MACHINE_INTR_H */
