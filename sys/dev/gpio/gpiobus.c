@@ -363,6 +363,43 @@ gpiobus_init_softc(device_t dev)
 }
 
 int
+gpiobus_destroy_softc(device_t dev)
+{
+	struct gpiobus_softc *sc;
+	struct gpiobus_ivar *devi;
+	device_t *devlist;
+	int i, err, ndevs;
+
+	sc = GPIOBUS_SOFTC(dev);
+	KASSERT(mtx_initialized(&sc->sc_mtx),
+	    ("gpiobus mutex not initialized"));
+	GPIOBUS_LOCK_DESTROY(sc);
+
+	if ((err = device_get_children(dev, &devlist, &ndevs)) != 0)
+		return (err);
+	for (i = 0; i < ndevs; i++) {
+		devi = GPIOBUS_IVAR(devlist[i]);
+		gpiobus_free_ivars(devi);
+		resource_list_free(&devi->rl);
+		free(devi, M_DEVBUF);
+		device_delete_child(dev, devlist[i]);
+	}
+	free(devlist, M_TEMP);
+	rman_fini(&sc->sc_intr_rman);
+	if (sc->sc_pins) {
+		for (i = 0; i < sc->sc_npins; i++) {
+			if (sc->sc_pins[i].name != NULL)
+				free(sc->sc_pins[i].name, M_DEVBUF);
+			sc->sc_pins[i].name = NULL;
+		}
+		free(sc->sc_pins, M_DEVBUF);
+		sc->sc_pins = NULL;
+	}
+
+	return (0);
+}
+
+int
 gpiobus_alloc_ivars(struct gpiobus_ivar *devi)
 {
 
@@ -575,41 +612,12 @@ gpiobus_attach(device_t dev)
 static int
 gpiobus_detach(device_t dev)
 {
-	struct gpiobus_softc *sc;
-	struct gpiobus_ivar *devi;
-	device_t *devlist;
-	int i, err, ndevs;
-
-	sc = GPIOBUS_SOFTC(dev);
-	KASSERT(mtx_initialized(&sc->sc_mtx),
-	    ("gpiobus mutex not initialized"));
-	GPIOBUS_LOCK_DESTROY(sc);
+	int err;
 
 	if ((err = bus_generic_detach(dev)) != 0)
 		return (err);
 
-	if ((err = device_get_children(dev, &devlist, &ndevs)) != 0)
-		return (err);
-	for (i = 0; i < ndevs; i++) {
-		devi = GPIOBUS_IVAR(devlist[i]);
-		gpiobus_free_ivars(devi);
-		resource_list_free(&devi->rl);
-		free(devi, M_DEVBUF);
-		device_delete_child(dev, devlist[i]);
-	}
-	free(devlist, M_TEMP);
-	rman_fini(&sc->sc_intr_rman);
-	if (sc->sc_pins) {
-		for (i = 0; i < sc->sc_npins; i++) {
-			if (sc->sc_pins[i].name != NULL)
-				free(sc->sc_pins[i].name, M_DEVBUF);
-			sc->sc_pins[i].name = NULL;
-		}
-		free(sc->sc_pins, M_DEVBUF);
-		sc->sc_pins = NULL;
-	}
-
-	return (0);
+	return (gpiobus_destroy_softc(dev));
 }
 
 static int
