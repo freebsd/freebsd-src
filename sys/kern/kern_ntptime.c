@@ -193,7 +193,7 @@ static l_fp pps_freq;			/* scaled frequency offset (ns/s) */
 static long pps_fcount;			/* frequency accumulator */
 static long pps_jitter;			/* nominal jitter (ns) */
 static long pps_stabil;			/* nominal stability (scaled ns/s) */
-static long pps_lastsec;		/* time at last calibration (s) */
+static time_t pps_lastsec;		/* time at last calibration (s) */
 static int pps_valid;			/* signal watchdog counter */
 static int pps_shift = PPS_FAVG;	/* interval duration (s) (shift) */
 static int pps_shiftmax = PPS_FAVGDEF;	/* max interval duration (s) (shift) */
@@ -742,7 +742,8 @@ hardupdate(long offset /* clock offset (ns) */)
 void
 hardpps(struct timespec *tsp, long delta_nsec)
 {
-	long u_sec, u_nsec, v_nsec; /* temps */
+	long u_nsec, v_nsec; /* temps */
+	time_t u_sec;
 	l_fp ftemp;
 
 	NTP_LOCK();
