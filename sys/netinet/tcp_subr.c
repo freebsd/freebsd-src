@@ -1465,6 +1465,7 @@ tcp_vnet_init(void *arg __unused)
 	VNET_PCPUSTAT_ALLOC(tcpstat, M_WAITOK);
 
 	V_tcp_msl = TCPTV_MSL;
+	arc4rand(&V_ts_offset_secret, sizeof(V_ts_offset_secret), 0);
 }
 VNET_SYSINIT(tcp_vnet_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH,
     tcp_vnet_init, NULL);
@@ -1502,7 +1503,6 @@ tcp_init(void *arg __unused)
 	/* Initialize the TCP logging data. */
 	tcp_log_init();
 #endif
-	arc4rand(&V_ts_offset_secret, sizeof(V_ts_offset_secret), 0);
 
 	if (tcp_soreceive_stream) {
 #ifdef INET
