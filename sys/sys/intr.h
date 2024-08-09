@@ -34,6 +34,8 @@
 #endif
 
 #include <sys/systm.h>
+#include <sys/ck.h>
+#include <sys/interrupt.h>
 
 #define	INTR_IRQ_INVALID	0xFFFFFFFF
 
@@ -86,7 +88,6 @@ struct intr_irqsrc {
 	cpuset_t		isrc_cpu;	/* on which CPUs is enabled */
 	u_int			isrc_index;
 	u_long *		isrc_count;
-	u_int			isrc_handlers;
 	struct intr_event *	isrc_event;
 #ifdef INTR_SOLO
 	intr_irq_filter_t *	isrc_filter;
@@ -95,6 +96,9 @@ struct intr_irqsrc {
 	/* Used by MSI interrupts to store the iommu details */
 	void *			isrc_iommu;
 };
+
+/* Macros for PIC usage. */
+#define ISRC_NO_HANDLER(isrc) CK_SLIST_EMPTY(&(isrc)->isrc_event->ie_handlers)
 
 /* Intr interface for PIC. */
 int intr_isrc_deregister(struct intr_irqsrc *);

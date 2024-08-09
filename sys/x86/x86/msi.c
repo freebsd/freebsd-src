@@ -42,6 +42,8 @@
 
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/ck.h>
+#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
@@ -501,7 +503,7 @@ again:
 		    "msi: routing MSI IRQ %d to local APIC %u vector %u\n",
 			    msi->msi_irq, msi->msi_cpu, msi->msi_vector);
 		msi->msi_first = fsrc;
-		KASSERT(msi->msi_intsrc.is_handlers == 0,
+		KASSERT(CK_SLIST_EMPTY(&msi->msi_intsrc.is_event->ie_handlers),
 		    ("dead MSI has handlers"));
 	}
 	fsrc->msi_count = count;
@@ -738,7 +740,8 @@ again:
 	msi->msi_maxcount = 1;
 	msi->msi_irqs = NULL;
 
-	KASSERT(msi->msi_intsrc.is_handlers == 0, ("dead MSI-X has handlers"));
+	KASSERT(CK_SLIST_EMPTY(&msi->msi_intsrc.is_event->ie_handlers),
+	    ("dead MSI-X has handlers"));
 	mtx_unlock(&msi_lock);
 
 	*irq = i;

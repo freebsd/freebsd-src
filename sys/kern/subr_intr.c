@@ -545,7 +545,7 @@ bool
 intr_isrc_init_on_cpu(struct intr_irqsrc *isrc, u_int cpu)
 {
 
-	if (isrc->isrc_handlers == 0)
+	if (ISRC_NO_HANDLER(isrc))
 		return (false);
 	if ((isrc->isrc_flags & (INTR_ISRCF_PPI | INTR_ISRCF_IPI)) == 0)
 		return (false);
@@ -1064,6 +1064,7 @@ intr_setup_irq(device_t dev, struct resource *res, driver_filter_t filt,
 	struct intr_irqsrc *isrc;
 	const char *name;
 	u_int res_id;
+	bool startempty;
 
 	KASSERT(rman_get_start(res) == rman_get_end(res),
 	    ("%s: more interrupts in resource", __func__));
@@ -1077,6 +1078,8 @@ intr_setup_irq(device_t dev, struct resource *res, driver_filter_t filt,
 
 	data = rman_get_virtual(res);
 	name = device_get_nameunit(dev);
+
+	startempty = ISRC_NO_HANDLER(isrc);
 
 #ifdef INTR_SOLO
 	/*
@@ -1112,8 +1115,7 @@ intr_setup_irq(device_t dev, struct resource *res, driver_filter_t filt,
 	mtx_lock(&isrc_table_lock);
 	error = PIC_SETUP_INTR(isrc->isrc_dev, isrc, res, data);
 	if (error == 0) {
-		isrc->isrc_handlers++;
-		if (isrc->isrc_handlers == 1)
+		if (startempty)
 			PIC_ENABLE_INTR(isrc->isrc_dev, isrc);
 	}
 	mtx_unlock(&isrc_table_lock);
@@ -1135,7 +1137,7 @@ intr_teardown_irq(device_t dev, struct resource *res, void *cookie)
 
 	res_id = (u_int)rman_get_start(res);
 	isrc = intr_map_get_isrc(res_id);
-	if (isrc == NULL || isrc->isrc_handlers == 0)
+	if (isrc == NULL || ISRC_NO_HANDLER(isrc))
 		return (EINVAL);
 
 	data = rman_get_virtual(res);
@@ -1162,8 +1164,7 @@ intr_teardown_irq(device_t dev, struct resource *res, void *cookie)
 	error = intr_event_remove_handler(cookie);
 	if (error == 0) {
 		mtx_lock(&isrc_table_lock);
-		isrc->isrc_handlers--;
-		if (isrc->isrc_handlers == 0)
+		if (ISRC_NO_HANDLER(isrc))
 			PIC_DISABLE_INTR(isrc->isrc_dev, isrc);
 		PIC_TEARDOWN_INTR(isrc->isrc_dev, isrc, res, data);
 		intrcnt_updatename(isrc);
@@ -1185,7 +1186,7 @@ intr_describe_irq(device_t dev, struct resource *res, void *cookie,
 
 	res_id = (u_int)rman_get_start(res);
 	isrc = intr_map_get_isrc(res_id);
-	if (isrc == NULL || isrc->isrc_handlers == 0)
+	if (isrc == NULL || ISRC_NO_HANDLER(isrc))
 		return (EINVAL);
 #ifdef INTR_SOLO
 	if (isrc->isrc_filter != NULL) {
@@ -1219,7 +1220,7 @@ intr_bind_irq(device_t dev, struct resource *res, int cpu)
 
 	res_id = (u_int)rman_get_start(res);
 	isrc = intr_map_get_isrc(res_id);
-	if (isrc == NULL || isrc->isrc_handlers == 0)
+	if (isrc == NULL || ISRC_NO_HANDLER(isrc))
 		return (EINVAL);
 #ifdef INTR_SOLO
 	if (isrc->isrc_filter != NULL)
@@ -1273,7 +1274,7 @@ intr_irq_shuffle(void *arg __unused)
 	irq_assign_cpu = true;
 	for (i = 0; i < intr_nirq; i++) {
 		isrc = irq_sources[i];
-		if (isrc == NULL || isrc->isrc_handlers == 0 ||
+		if (isrc == NULL || ISRC_NO_HANDLER(isrc) ||
 		    isrc->isrc_flags & (INTR_ISRCF_PPI | INTR_ISRCF_IPI))
 			continue;
 
@@ -1838,6 +1839,21 @@ intr_ipi_pic_register(device_t dev, u_int priority)
 }
 
 /*
+ *  Handler for flagging IPIs called via intr_event_handle() as stray.
+ */
+static int
+isrc_ipi_strayfunc(void *_isrc)
+{
+	struct intr_irqsrc *isrc = _isrc;
+
+	printf("ERROR: %s(): IPI for \"%s\" called via intr_event_handle()!\n",
+	    __func__, isrc->isrc_event->ie_name);
+
+	/* ensure PIC_DISABLE_INTR() is NOT called */
+	return (FILTER_HANDLED);
+}
+
+/*
  *  Setup IPI handler on interrupt controller.
  *
  *  Not SMP coherent.
@@ -1864,7 +1880,8 @@ intr_ipi_setup(u_int ipi, const char *name, intr_ipi_handler_t *hand,
 	if (error != 0)
 		return;
 
-	isrc->isrc_handlers++;
+	intr_event_add_handler(isrc->isrc_event, name, isrc_ipi_strayfunc,
+	    NULL, isrc, PI_INTR, 0, NULL);
 
 	ii = intr_ipi_lookup(ipi);
 	KASSERT(ii->ii_count == NULL, ("%s: ipi %u reused", __func__, ipi));

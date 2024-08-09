@@ -49,6 +49,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/interrupt.h>
 #include <sys/lock.h>
 #include <sys/kdb.h>
 #include <sys/mutex.h>
@@ -557,6 +558,15 @@ attimer_probe(device_t dev)
 	return (result);
 }
 
+/* Dirty hack, to make bus_setup_intr to not enable source. */
+static int
+empty_handler(void *unused)
+{
+
+	/* ensure disable is NOT called */
+	return (FILTER_HANDLED);
+}
+
 static int
 attimer_attach(device_t dev)
 {
@@ -586,6 +596,8 @@ attimer_attach(device_t dev)
 	}
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "clock", &i) != 0 || i != 0) {
+		void *cookie;
+
 	    	sc->intr_rid = 0;
 		while (bus_get_resource(dev, SYS_RES_IRQ, sc->intr_rid,
 		    &s, NULL) == 0 && s != 0)
@@ -596,16 +608,17 @@ attimer_attach(device_t dev)
 			return (0);
 		}
 		/* Dirty hack, to make bus_setup_intr to not enable source. */
-		i8254_intsrc->is_handlers++;
+		intr_event_add_handler(i8254_intsrc->is_event, "",
+		    empty_handler, NULL, NULL, PI_INTR, 0, &cookie);
 		if ((bus_setup_intr(dev, sc->intr_res,
 		    INTR_MPSAFE | INTR_TYPE_CLK,
 		    (driver_filter_t *)clkintr, NULL,
 		    sc, &sc->intr_handler))) {
 			device_printf(dev, "Can't setup interrupt.\n");
-			i8254_intsrc->is_handlers--;
+			intr_event_remove_handler(cookie);
 			return (0);
 		}
-		i8254_intsrc->is_handlers--;
+		intr_event_remove_handler(cookie);
 		i8254_intsrc->is_pic->pic_enable_intr(i8254_intsrc);
 		sc->et.et_name = "i8254";
 		sc->et.et_flags = ET_FLAGS_PERIODIC;
