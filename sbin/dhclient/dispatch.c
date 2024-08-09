@@ -56,6 +56,10 @@
 #define assert_aligned(p, align) assert((((uintptr_t)p) & ((align) - 1)) == 0)
 
 static struct protocol *protocols;
+static const struct timespec timespec_intmax_ms = {
+	.tv_sec = INT_MAX / 1000,
+	.tv_nsec = (INT_MAX % 1000) * 1000000
+};
 static struct timeout *timeouts;
 static struct timeout *free_timeouts;
 static int interfaces_invalidated;
@@ -154,7 +158,9 @@ dispatch(void)
 	int count, live_interfaces, i, to_msec, nfds = 0;
 	struct protocol *l;
 	struct pollfd *fds;
-	time_t howlong;
+	struct timespec howlong;
+	time_now.tv_sec = cur_time;
+	time_now.tv_nsec = 0;
 
 	for (l = protocols; l; l = l->next)
 		nfds++;
@@ -172,7 +178,7 @@ another:
 		if (timeouts) {
 			struct timeout *t;
 
-			if (timeouts->when <= cur_time) {
+			if (timespeccmp(&timeouts->when, &time_now, <=)) {
 				t = timeouts;
 				timeouts = timeouts->next;
 				(*(t->func))(t->what);
@@ -187,10 +193,10 @@ another:
 			 * int for poll, while not polling with a
 			 * negative timeout and blocking indefinitely.
 			 */
-			howlong = timeouts->when - cur_time;
-			if (howlong > INT_MAX / 1000)
-				howlong = INT_MAX / 1000;
-			to_msec = howlong * 1000;
+			timespecsub(&timeouts->when, &time_now, &howlong);
+			if (timespeccmp(&howlong, &timespec_intmax_ms, >))
+				howlong = timespec_intmax_ms;
+			to_msec = howlong.tv_sec * 1000 + howlong.tv_nsec / 1000000;
 		} else
 			to_msec = -1;
 
@@ -217,14 +223,16 @@ another:
 		/* Not likely to be transitory... */
 		if (count == -1) {
 			if (errno == EAGAIN || errno == EINTR) {
-				time(&cur_time);
+				clock_gettime(CLOCK_MONOTONIC, &time_now);
+				cur_time = time_now.tv_sec;
 				continue;
 			} else
 				error("poll: %m");
 		}
 
 		/* Get the current time... */
-		time(&cur_time);
+		clock_gettime(CLOCK_MONOTONIC, &time_now);
+		cur_time = time_now.tv_sec;
 
 		i = 0;
 		for (l = protocols; l; l = l->next) {
@@ -355,7 +363,14 @@ active:
 }
 
 void
-add_timeout(time_t when, void (*where)(void *), void *what)
+add_timeout(time_t when_s, void (*where)(void *), void *what)
+{
+	struct timespec when = { .tv_sec = when_s, .tv_nsec = 0 };
+	add_timeout_timespec(when, where, what);
+}
+
+void
+add_timeout_timespec(struct timespec when, void (*where)(void *), void *what)
 {
 	struct timeout *t, *q;
 
@@ -394,7 +409,7 @@ add_timeout(time_t when, void (*where)(void *), void *what)
 	/* Now sort this timeout into the timeout list. */
 
 	/* Beginning of list? */
-	if (!timeouts || timeouts->when > q->when) {
+	if (!timeouts || timespeccmp(&timeouts->when, &q->when, >)) {
 		q->next = timeouts;
 		timeouts = q;
 		return;
@@ -402,7 +417,7 @@ add_timeout(time_t when, void (*where)(void *), void *what)
 
 	/* Middle of list? */
 	for (t = timeouts; t->next; t = t->next) {
-		if (t->next->when > q->when) {
+		if (timespeccmp(&t->next->when, &q->when, >)) {
 			q->next = t->next;
 			t->next = q;
 			return;

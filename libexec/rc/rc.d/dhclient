@@ -48,6 +48,10 @@ dhclient_prestart()
 		rc_flags="${rc_flags} -b"
 	fi
 
+	dhclient_arpwait=$(get_if_var $ifn dhclient_arpwait_IF $dhclient_arpwait)
+	if ! checkyesno dhclient_arpwait; then
+		rc_flags="${rc_flags} -n"
+	fi
 
 	# /var/run/dhclient is not guaranteed to exist,
 	# e.g. if /var/run is a tmpfs

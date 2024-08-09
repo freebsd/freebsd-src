@@ -218,7 +218,7 @@ struct interface_info {
 
 struct timeout {
 	struct timeout	*next;
-	time_t		 when;
+	struct timespec	 when;
 	void		 (*func)(void *);
 	void		*what;
 };
@@ -320,6 +320,7 @@ void reinitialize_interfaces(void);
 void dispatch(void);
 void got_one(struct protocol *);
 void add_timeout(time_t, void (*)(void *), void *);
+void add_timeout_timespec(struct timespec, void (*)(void *), void *);
 void cancel_timeout(void (*)(void *), void *);
 void add_protocol(const char *, int, void (*)(struct protocol *), void *);
 void remove_protocol(struct protocol *);
@@ -360,6 +361,7 @@ char *piaddr(struct iaddr);
 extern cap_channel_t *capsyslog;
 extern const char *path_dhclient_conf;
 extern char *path_dhclient_db;
+extern struct timespec time_now;
 extern time_t cur_time;
 extern int log_priority;
 extern int log_perror;
