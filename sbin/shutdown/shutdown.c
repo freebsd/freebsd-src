@@ -133,7 +133,7 @@ main(int argc, char **argv)
 		goto poweroff;
 	}
 
-	while ((ch = getopt(argc, argv, "-chknoprq")) != -1)
+	while ((ch = getopt(argc, argv, "-chknopqr")) != -1)
 		switch (ch) {
 		case '-':
 			readstdin = 1;
@@ -156,11 +156,11 @@ main(int argc, char **argv)
 		case 'p':
 			dopower = 1;
 			break;
-		case 'r':
-			doreboot = 1;
-			break;
 		case 'q':
 			dowarn = false;
+			break;
+		case 'r':
+			doreboot = 1;
 			break;
 		case '?':
 		default:
