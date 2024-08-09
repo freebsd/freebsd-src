@@ -309,9 +309,9 @@ void			acl_nfs4_compute_inherited_acl(
 			    const struct acl *parent_aclp,
 			    struct acl *child_aclp, mode_t mode,
 			    int file_owner_id, int is_directory);
-int			acl_copy_oldacl_into_acl(const struct oldacl *source,
+int __result_use_check	acl_copy_oldacl_into_acl(const struct oldacl *source,
 			    struct acl *dest);
-int			acl_copy_acl_into_oldacl(const struct acl *source,
+int __result_use_check	acl_copy_acl_into_oldacl(const struct acl *source,
 			    struct oldacl *dest);
 
 /*
