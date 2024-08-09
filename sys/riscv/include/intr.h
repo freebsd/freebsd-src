@@ -56,4 +56,7 @@ enum {
 };
 #endif /* !LOCORE */
 
+#define	INTR_ROOT_IRQ	0
+#define	INTR_ROOT_COUNT	1
+
 #endif /* !_MACHINE_INTR_MACHDEP_H_ */

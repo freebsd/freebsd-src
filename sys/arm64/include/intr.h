@@ -48,7 +48,8 @@ arm_irq_memory_barrier(uintptr_t irq)
 #define	ACPI_GPIO_XREF	3
 #endif
 
+#define	INTR_ROOT_IRQ	0
 #define	INTR_ROOT_FIQ	1
-#define	INTR_ROOT_NUM	2
+#define	INTR_ROOT_COUNT	2
 
 #endif	/* _MACHINE_INTR_H */
