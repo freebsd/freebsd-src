@@ -289,6 +289,7 @@ static uma_zone_t rl_entry_zone;
 static smr_t rl_smr;
 
 static void rangelock_free_free(struct rl_q_entry *free);
+static void rangelock_noncheating_destroy(struct rangelock *lock);
 
 static void
 rangelock_sys_init(void)
@@ -340,16 +341,9 @@ rangelock_init(struct rangelock *lock)
 void
 rangelock_destroy(struct rangelock *lock)
 {
-	struct rl_q_entry *e, *ep;
-
 	MPASS(!lock->sleepers);
-	if (rangelock_cheat_destroy(lock))
-		return;
-	for (e = (struct rl_q_entry *)atomic_load_ptr(&lock->head);
-	    e != NULL; e = rl_e_unmark(ep)) {
-		ep = atomic_load_ptr(&e->rl_q_next);
-		uma_zfree_smr(rl_entry_zone, e);
-	}
+	if (!rangelock_cheat_destroy(lock))
+		rangelock_noncheating_destroy(lock);
 }
 
 static bool
@@ -485,6 +479,50 @@ rl_q_cas(struct rl_q_entry **prev, struct rl_q_entry *old,
 {
 	return (atomic_cmpset_rel_ptr((uintptr_t *)prev, (uintptr_t)old,
 	    (uintptr_t)new) != 0);
+}
+
+static void
+rangelock_noncheating_destroy(struct rangelock *lock)
+{
+	struct rl_q_entry *cur, *free, *next, **prev;
+
+	free = NULL;
+again:
+	smr_enter(rl_smr);
+	prev = (struct rl_q_entry **)&lock->head;
+	cur = rl_q_load(prev);
+	MPASS(!rl_e_is_marked(cur));
+
+	for (;;) {
+		if (cur == NULL)
+			break;
+		if (rl_e_is_marked(cur))
+			goto again;
+
+		next = rl_q_load(&cur->rl_q_next);
+		if (rl_e_is_marked(next)) {
+			next = rl_e_unmark(next);
+			if (rl_q_cas(prev, cur, next)) {
+#ifdef INVARIANTS
+				cur->rl_q_owner = NULL;
+#endif
+				cur->rl_q_free = free;
+				free = cur;
+				cur = next;
+				continue;
+			}
+			smr_exit(rl_smr);
+			goto again;
+		}
+
+		sleepq_lock(&lock->sleepers);
+		if (!rl_e_is_marked(cur)) {
+			rl_insert_sleep(lock);
+			goto again;
+		}
+	}
+	smr_exit(rl_smr);
+	rangelock_free_free(free);
 }
 
 enum RL_INSERT_RES {
