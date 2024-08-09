@@ -445,7 +445,7 @@ void	ether_vlan_mtap(struct bpf_if *, struct mbuf *,
 	    void *, u_int);
 struct mbuf  *ether_vlanencap_proto(struct mbuf *, uint16_t, uint16_t);
 bool	ether_8021q_frame(struct mbuf **mp, struct ifnet *ife,
-		struct ifnet *p, const struct ether_8021q_tag *);
+		struct ifnet *p, const uint16_t proto);
 void	ether_gen_addr(struct ifnet *ifp, struct ether_addr *hwaddr);
 void	ether_gen_addr_byname(const char *nameunit, struct ether_addr *hwaddr);
 
