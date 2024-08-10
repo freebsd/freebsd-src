@@ -31,7 +31,6 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/cpuset.h>
-#include <sys/intr.h>
 #include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -48,6 +47,7 @@
 #include <machine/atomic.h>
 #include <machine/bus.h>
 #include <machine/cpu_feat.h>
+#include <machine/intr.h>
 #include <machine/smp.h>
 
 #ifdef FDT

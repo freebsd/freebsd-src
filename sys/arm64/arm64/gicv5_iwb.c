@@ -29,7 +29,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/intr.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -39,6 +38,7 @@
 #include <sys/rman.h>
 
 #include <machine/bus.h>
+#include <machine/intr.h>
 
 #ifdef FDT
 #include <dev/fdt/fdt_intr.h>
