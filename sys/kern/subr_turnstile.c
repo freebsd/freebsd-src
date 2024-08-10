@@ -246,7 +246,8 @@ propagate_priority(struct thread *td)
 		"Sleeping thread (tid %d, pid %d) owns a non-sleepable lock\n",
 			    td->td_tid, td->td_proc->p_pid);
 			kdb_backtrace_thread(td);
-			panic("sleeping thread");
+			panic("sleeping thread holds %s",
+			    ts->ts_lockobj->lo_name);
 		}
 
 		/*
