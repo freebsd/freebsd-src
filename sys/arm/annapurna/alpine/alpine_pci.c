@@ -36,7 +36,6 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/rman.h>
-#include <sys/intr.h>
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
