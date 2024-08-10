@@ -33,6 +33,7 @@ MAN= \
 	zpool-labelclear.8 \
 	zpool-list.8 \
 	zpool-offline.8 \
+	zpool-prefetch.8 \
 	zpool-reguid.8 \
 	zpool-remove.8 \
 	zpool-reopen.8 \
