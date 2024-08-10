@@ -55,13 +55,13 @@
 #include <sys/taskqueue.h>
 #include <sys/bus.h>
 #include <sys/cpuset.h>
-#ifdef INTRNG
-#include <sys/intr.h>
-#endif
 
 #include <net/vnet.h>
 
 #include <machine/cpu.h>
+#ifdef INTRNG
+#include <machine/intr.h>
+#endif
 
 #include <vm/uma.h>
 #include <vm/vm.h>

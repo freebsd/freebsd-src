@@ -33,6 +33,10 @@
 #error Need INTRNG for this file
 #endif
 
+#if !defined(_MACHINE_INTR_MACHDEP_H_) && !defined(_MACHINE_INTR_H_)
+#error "sys/intr.h included without architecture interrupt header!"
+#endif
+
 #define	INTR_IRQ_INVALID	0xFFFFFFFF
 
 #ifndef LOCORE

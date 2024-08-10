@@ -29,7 +29,8 @@
 #include <sys/bus.h>
 #include <sys/cpuset.h>
 #include <sys/resource.h>
-#include <sys/intr.h>
+
+#include <machine/intr.h>
 
 INTERFACE pic;
 

@@ -34,9 +34,6 @@
 #include "acpi_if.h"
 #include "bus_if.h"
 #include <sys/_eventhandler.h>
-#ifdef INTRNG
-#include <sys/intr.h>
-#endif
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -46,6 +43,9 @@
 #include <sys/sysctl.h>
 
 #include <machine/bus.h>
+#ifdef INTRNG
+#include <machine/intr.h>
+#endif
 #include <machine/resource.h>
 
 struct apm_clone_data;
