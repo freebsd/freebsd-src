@@ -411,7 +411,7 @@
 #define	DAIF_I			(1 << 1)
 #define	DAIF_F			(1 << 0)
 #define	DAIF_ALL		(DAIF_D | DAIF_A | DAIF_I | DAIF_F)
-#define	DAIF_INTR		(DAIF_I)	/* All exceptions that pass */
+#define	DAIF_INTR		(DAIF_I | DAIF_F)	/* All exceptions that pass */
 						/* through the intr framework */
 
 /* DBGBCR<n>_EL1 - Debug Breakpoint Control Registers */
@@ -2401,7 +2401,7 @@
 #define	PSR_D		0x00000200UL
 #define	PSR_DAIF	(PSR_D | PSR_A | PSR_I | PSR_F)
 /* The default DAIF mask. These bits are valid in spsr_el1 and daif */
-#define	PSR_DAIF_DEFAULT (PSR_F)
+#define	PSR_DAIF_DEFAULT (0)
 #define	PSR_BTYPE	0x00000c00UL
 #define	PSR_SSBS	0x00001000UL
 #define	PSR_ALLINT	0x00002000UL
