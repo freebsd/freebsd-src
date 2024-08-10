@@ -30,9 +30,6 @@
 #include <sys/bus.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
-#ifdef INTRNG
-#include <sys/intr.h>
-#endif
 #include <sys/kexec.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
