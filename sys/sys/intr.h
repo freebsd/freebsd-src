@@ -33,6 +33,10 @@
 #error Need INTRNG for this file
 #endif
 
+#if !defined(_MACHINE_INTR_MACHDEP_H_) && !defined(_MACHINE_INTR_H_)
+#error "sys/intr.h included without architecture interrupt header!"
+#endif
+
 #include <sys/_cpuset.h>
 #include <sys/_interrupt.h>
 #include <sys/param.h>

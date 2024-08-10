@@ -34,7 +34,6 @@
 #include <sys/bus.h>
 #include <sys/proc.h>
 #include <sys/rman.h>
-#include <sys/intr.h>
 #include <sys/mutex.h>
 #include <sys/gpio.h>
 
@@ -55,7 +54,6 @@
 #include <dev/hwreset/hwreset.h>
 
 #include <machine/bus.h>
-#include <machine/intr.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
