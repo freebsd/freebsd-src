@@ -344,6 +344,7 @@ rangelock_destroy(struct rangelock *lock)
 	MPASS(!lock->sleepers);
 	if (!rangelock_cheat_destroy(lock))
 		rangelock_noncheating_destroy(lock);
+	DEBUG_POISON_POINTER(*(void **)&lock->head);
 }
 
 static bool
