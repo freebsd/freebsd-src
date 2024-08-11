@@ -478,6 +478,7 @@ static bool
 rl_q_cas(struct rl_q_entry **prev, struct rl_q_entry *old,
     struct rl_q_entry *new)
 {
+	MPASS(!rl_e_is_marked(old));
 	return (atomic_cmpset_rel_ptr((uintptr_t *)prev, (uintptr_t)old,
 	    (uintptr_t)new) != 0);
 }
@@ -647,6 +648,7 @@ again:
 			}
 		}
 
+		MPASS(!rl_e_is_marked(cur));
 		r = rl_e_compare(cur, e);
 		if (r == -1) {
 			prev = &cur->rl_q_next;
