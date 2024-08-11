@@ -636,8 +636,8 @@ linux_faccessat2(struct thread *td, struct linux_faccessat2_args *args)
 {
 	int flags, unsupported;
 
-	/* XXX. AT_SYMLINK_NOFOLLOW is not supported by kern_accessat */
-	unsupported = args->flags & ~(LINUX_AT_EACCESS | LINUX_AT_EMPTY_PATH);
+	unsupported = args->flags & ~(LINUX_AT_EACCESS | LINUX_AT_EMPTY_PATH  |
+	    LINUX_AT_SYMLINK_NOFOLLOW);
 	if (unsupported != 0) {
 		linux_msg(td, "faccessat2 unsupported flag 0x%x", unsupported);
 		return (EINVAL);
@@ -647,6 +647,8 @@ linux_faccessat2(struct thread *td, struct linux_faccessat2_args *args)
 	    AT_EACCESS;
 	flags |= (args->flags & LINUX_AT_EMPTY_PATH) == 0 ? 0 :
 	    AT_EMPTY_PATH;
+	flags |= (args->flags & LINUX_AT_SYMLINK_NOFOLLOW) == 0 ? 0 :
+	    AT_SYMLINK_NOFOLLOW;
 	return (linux_do_accessat(td, args->dfd, args->filename, args->amode,
 	    flags));
 }
