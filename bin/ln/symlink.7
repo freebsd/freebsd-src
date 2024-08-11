@@ -26,9 +26,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)symlink.7	8.3 (Berkeley) 3/31/94
-.\"
-.Dd February 16, 2015
+.Dd August 11, 2024
 .Dt SYMLINK 7
 .Os
 .Sh NAME
@@ -146,6 +144,7 @@ unless given the
 .Dv AT_SYMLINK_NOFOLLOW
 flag:
 .Xr chflagsat 2 ,
+.Xr faccessat 2 ,
 .Xr fchmodat 2 ,
 .Xr fchownat 2 ,
 .Xr fstatat 2
