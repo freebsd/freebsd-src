@@ -105,6 +105,11 @@ LDFLAGS+=	-Wl,-T${LDSCRIPT},-Bsymbolic,-znotext -pie
 LDFLAGS+=	-Wl,--no-dynamic-linker
 .endif
 
+# When lld is using multiple threads, which it does by default, it can
+# result in non-reproducible output with the custom linker script. Work
+# around this by disabling threading.
+LDFLAGS.lld+=	-Wl,--threads=1
+
 CLEANFILES+=	${LOADER}.efi
 
 ${LOADER}.efi: ${PROG}
