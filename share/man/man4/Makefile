@@ -713,6 +713,8 @@ MLINKS+=gpioths.4 dht11.4
 MLINKS+=gpioths.4 dht22.4
 MLINKS+=gre.4 if_gre.4
 MLINKS+=hpet.4 acpi_hpet.4
+MLINKS+=hv_netvsc.4 hn.4 \
+	hv_netvsc.4 if_hn.4
 MLINKS+=${_hptrr.4} ${_rr232x.4}
 MLINKS+=${_attimer.4} ${_i8254.4}
 MLINKS+=ip.4 rawip.4
