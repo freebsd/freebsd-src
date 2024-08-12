@@ -788,7 +788,7 @@ run_command(struct cfjail *j)
 		setenv("HOME", pwd->pw_dir, 1);
 		setenv("SHELL",
 		    *pwd->pw_shell ? pwd->pw_shell : _PATH_BSHELL, 1);
-		if (clean && chdir(pwd->pw_dir) < 0) {
+		if (clean && username && chdir(pwd->pw_dir) < 0) {
 			jail_warnx(j, "chdir %s: %s",
 			    pwd->pw_dir, strerror(errno));
 			exit(1);
