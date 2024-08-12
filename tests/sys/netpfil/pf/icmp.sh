@@ -71,7 +71,72 @@ cve_2019_5598_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "ttl_exceeded" "cleanup"
+ttl_exceeded_head()
+{
+	atf_set descr 'Test that we correctly translate TTL exceeded back'
+	atf_set require.user root
+}
+
+ttl_exceeded_body()
+{
+	pft_init
+
+	epair_srv=$(vnet_mkepair)
+	epair_int=$(vnet_mkepair)
+	epair_cl=$(vnet_mkepair)
+
+	vnet_mkjail srv ${epair_srv}a
+	jexec srv ifconfig ${epair_srv}a 192.0.2.1/24 up
+	jexec srv route add default 192.0.2.2
+
+	vnet_mkjail int ${epair_srv}b ${epair_int}a
+	jexec int sysctl net.inet.ip.forwarding=1
+	jexec int ifconfig ${epair_srv}b 192.0.2.2/24 up
+	jexec int ifconfig ${epair_int}a 203.0.113.2/24 up
+
+	vnet_mkjail nat ${epair_int}b ${epair_cl}b
+	jexec nat ifconfig ${epair_int}b 203.0.113.1/24 up
+	jexec nat ifconfig ${epair_cl}b 198.51.100.2/24 up
+	jexec nat sysctl net.inet.ip.forwarding=1
+	jexec nat route add default 203.0.113.2
+
+	vnet_mkjail cl ${epair_cl}a
+	jexec cl ifconfig ${epair_cl}a 198.51.100.1/24 up
+	jexec cl route add default 198.51.100.2
+
+	jexec nat pfctl -e
+	pft_set_rules nat \
+	    "nat on ${epair_int}b from 198.51.100.0/24 -> (${epair_int}b)" \
+	    "pass"
+
+	# Sanity checks
+	atf_check -s exit:0 -o ignore \
+	    jexec cl ping -c 1 198.51.100.2
+	atf_check -s exit:0 -o ignore \
+	    jexec cl ping -c 1 203.0.113.1
+	atf_check -s exit:0 -o ignore \
+	    jexec cl ping -c 1 203.0.113.2
+	atf_check -s exit:0 -o ignore \
+	    jexec cl ping -c 1 192.0.2.1
+
+	echo "UDP"
+	atf_check -s exit:0 -e ignore -o match:".*203.0.113.2.*" \
+	    jexec cl traceroute 192.0.2.1
+	jexec nat pfctl -Fs
+
+	echo "ICMP"
+	atf_check -s exit:0 -e ignore -o match:".*203.0.113.2.*" \
+	    jexec cl traceroute -I 192.0.2.1
+}
+
+ttl_exceeded_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "cve_2019_5598"
+	atf_add_test_case "ttl_exceeded"
 }
