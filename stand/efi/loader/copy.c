@@ -268,7 +268,9 @@ command_staging_slop(int argc, char *argv[])
 			res = CMD_ERROR;
 		}
 		if (res == CMD_OK && staging_slop != new) {
+			staging_slop = new;
 			printf("changed slop, unloading kernel\n");
+
 			unload();
 			efi_copy_free();
 			efi_copy_init();
