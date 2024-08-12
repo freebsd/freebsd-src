@@ -6485,9 +6485,9 @@ pf_test_state_icmp(struct pf_kstate **state, int direction, struct pfi_kkif *kif
 		}
 #ifdef INET
 		case IPPROTO_ICMP: {
-			struct icmp		iih;
+			struct icmp	*iih = &pd2.hdr.icmp;
 
-			if (!pf_pull_hdr(m, off2, &iih, ICMP_MINLEN,
+			if (!pf_pull_hdr(m, off2, iih, ICMP_MINLEN,
 			    NULL, reason, pd2.af)) {
 				DPFPRINTF(PF_DEBUG_MISC,
 				    ("pf: ICMP error message too short i"
@@ -6495,12 +6495,13 @@ pf_test_state_icmp(struct pf_kstate **state, int direction, struct pfi_kkif *kif
 				return (PF_DROP);
 			}
 
-			icmpid = iih.icmp_id;
-			pf_icmp_mapping(&pd2, iih.icmp_type,
+			icmpid = iih->icmp_id;
+			pf_icmp_mapping(&pd2, iih->icmp_type,
 			    &icmp_dir, &multi, &virtual_id, &virtual_type);
 
+			pd2.dir = icmp_dir;
 			ret = pf_icmp_state_lookup(&key, &pd2, state, m,
-			    pd->dir, kif, virtual_id, virtual_type,
+			    pd2.dir, kif, virtual_id, virtual_type,
 			    icmp_dir, &iidx, PF_ICMP_MULTI_NONE);
 			if (ret >= 0)
 				return (ret);
@@ -6514,10 +6515,10 @@ pf_test_state_icmp(struct pf_kstate **state, int direction, struct pfi_kkif *kif
 				if (PF_ANEQ(pd2.src,
 				    &nk->addr[pd2.sidx], pd2.af) ||
 				    (virtual_type == htons(ICMP_ECHO) &&
-				    nk->port[iidx] != iih.icmp_id))
+				    nk->port[iidx] != iih->icmp_id))
 					pf_change_icmp(pd2.src,
 					    (virtual_type == htons(ICMP_ECHO)) ?
-					    &iih.icmp_id : NULL,
+					    &iih->icmp_id : NULL,
 					    daddr, &nk->addr[pd2.sidx],
 					    (virtual_type == htons(ICMP_ECHO)) ?
 					    nk->port[iidx] : 0, NULL,
@@ -6533,7 +6534,7 @@ pf_test_state_icmp(struct pf_kstate **state, int direction, struct pfi_kkif *kif
 
 				m_copyback(m, off, ICMP_MINLEN, (caddr_t)&pd->hdr.icmp);
 				m_copyback(m, ipoff2, sizeof(h2), (caddr_t)&h2);
-				m_copyback(m, off2, ICMP_MINLEN, (caddr_t)&iih);
+				m_copyback(m, off2, ICMP_MINLEN, (caddr_t)iih);
 			}
 			return (PF_PASS);
 			break;
@@ -6541,9 +6542,9 @@ pf_test_state_icmp(struct pf_kstate **state, int direction, struct pfi_kkif *kif
 #endif /* INET */
 #ifdef INET6
 		case IPPROTO_ICMPV6: {
-			struct icmp6_hdr	iih;
+			struct icmp6_hdr	*iih = &pd2.hdr.icmp6;
 
-			if (!pf_pull_hdr(m, off2, &iih,
+			if (!pf_pull_hdr(m, off2, iih,
 			    sizeof(struct icmp6_hdr), NULL, reason, pd2.af)) {
 				DPFPRINTF(PF_DEBUG_MISC,
 				    ("pf: ICMP error message too short "
@@ -6551,8 +6552,10 @@ pf_test_state_icmp(struct pf_kstate **state, int direction, struct pfi_kkif *kif
 				return (PF_DROP);
 			}
 
-			pf_icmp_mapping(&pd2, iih.icmp6_type,
+			pf_icmp_mapping(&pd2, iih->icmp6_type,
 			    &icmp_dir, &multi, &virtual_id, &virtual_type);
+
+			pd2.dir = icmp_dir;
 			ret = pf_icmp_state_lookup(&key, &pd2, state, m,
 			    pd->dir, kif, virtual_id, virtual_type,
 			    icmp_dir, &iidx, PF_ICMP_MULTI_NONE);
@@ -6580,10 +6583,10 @@ pf_test_state_icmp(struct pf_kstate **state, int direction, struct pfi_kkif *kif
 				if (PF_ANEQ(pd2.src,
 				    &nk->addr[pd2.sidx], pd2.af) ||
 				    ((virtual_type == htons(ICMP6_ECHO_REQUEST)) &&
-				    nk->port[pd2.sidx] != iih.icmp6_id))
+				    nk->port[pd2.sidx] != iih->icmp6_id))
 					pf_change_icmp(pd2.src,
 					    (virtual_type == htons(ICMP6_ECHO_REQUEST))
-					    ? &iih.icmp6_id : NULL,
+					    ? &iih->icmp6_id : NULL,
 					    daddr, &nk->addr[pd2.sidx],
 					    (virtual_type == htons(ICMP6_ECHO_REQUEST))
 					    ? nk->port[iidx] : 0, NULL,
@@ -6601,7 +6604,7 @@ pf_test_state_icmp(struct pf_kstate **state, int direction, struct pfi_kkif *kif
 				    (caddr_t)&pd->hdr.icmp6);
 				m_copyback(m, ipoff2, sizeof(h2_6), (caddr_t)&h2_6);
 				m_copyback(m, off2, sizeof(struct icmp6_hdr),
-				    (caddr_t)&iih);
+				    (caddr_t)iih);
 			}
 			return (PF_PASS);
 			break;
