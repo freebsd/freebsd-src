@@ -5513,6 +5513,15 @@ pf_test_state_sctp(struct pf_kstate **state, struct pfi_kkif *kif,
 		psrc = PF_PEER_DST;
 	}
 
+	if ((src->state >= SCTP_SHUTDOWN_SENT || src->state == SCTP_CLOSED) &&
+	    (dst->state >= SCTP_SHUTDOWN_SENT || dst->state == SCTP_CLOSED) &&
+	    pd->sctp_flags & PFDESC_SCTP_INIT) {
+		pf_set_protostate(*state, PF_PEER_BOTH, SCTP_CLOSED);
+		pf_unlink_state(*state, PF_ENTER_LOCKED);
+		*state = NULL;
+		return (PF_DROP);
+	}
+
 	/* Track state. */
 	if (pd->sctp_flags & PFDESC_SCTP_INIT) {
 		if (src->state < SCTP_COOKIE_WAIT) {
