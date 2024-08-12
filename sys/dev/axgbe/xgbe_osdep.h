@@ -56,11 +56,6 @@ typedef uint32_t __le32;
 #define	le32_to_cpu(x)		htole32(x)
 #define cpu_to_le16(x)		htole16(x)
 
-#define for_each_set_bit(bit, addr, size) \
-	for ((bit) = find_first_bit((addr), (size));		\
-	     (bit) < (size);					\
-	     (bit) = find_next_bit((addr), (size), (bit) + 1))
-
 typedef struct mtx spinlock_t;
 
 static inline void
@@ -239,67 +234,6 @@ get_bitmask_order(unsigned int count)
 
 	order = fls(count);
 	return (order);	/* We could be slightly more clever with -1 here... */
-}
-
-static inline unsigned long
-find_next_bit(const unsigned long *addr, unsigned long size, unsigned long offset)
-{
-	long mask;
-	int offs;
-	int bit;
-	int pos;
-
-	if (offset >= size)
-		return (size);
-	pos = offset / BITS_PER_LONG;
-	offs = offset % BITS_PER_LONG;
-	bit = BITS_PER_LONG * pos;
-	addr += pos;
-	if (offs) {
-		mask = (*addr) & ~BITMAP_LAST_WORD_MASK(offs);
-		if (mask)
-			return (bit + __ffsl(mask));
-		if (size - bit <= BITS_PER_LONG)
-			return (size);
-		bit += BITS_PER_LONG;
-		addr++;
-	}
-	for (size -= bit; size >= BITS_PER_LONG;
-	    size -= BITS_PER_LONG, bit += BITS_PER_LONG, addr++) {
-		if (*addr == 0)
-			continue;
-		return (bit + __ffsl(*addr));
-	}
-	if (size) {
-		mask = (*addr) & BITMAP_LAST_WORD_MASK(size);
-		if (mask)
-			bit += __ffsl(mask);
-		else
-			bit += size;
-	}
-	return (bit);
-}
-
-static inline unsigned long
-find_first_bit(const unsigned long *addr, unsigned long size)
-{
-        long mask;
-        int bit;
-
-        for (bit = 0; size >= BITS_PER_LONG;
-            size -= BITS_PER_LONG, bit += BITS_PER_LONG, addr++) {
-                if (*addr == 0)
-                        continue;
-                return (bit + __ffsl(*addr));
-        }
-        if (size) {
-                mask = (*addr) & BITMAP_LAST_WORD_MASK(size);
-                if (mask)
-                        bit += __ffsl(mask);
-                else
-                        bit += size;
-        }
-        return (bit);
 }
 
 #endif /* _XGBE_OSDEP_H_ */
