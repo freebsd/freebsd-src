@@ -181,6 +181,64 @@ basic_v6_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "reuse" "cleanup"
+reuse_head()
+{
+	atf_set descr 'Test handling dumb clients that reuse source ports'
+	atf_set require.user root
+}
+
+reuse_body()
+{
+	sctp_init
+
+	j="sctp:reuse"
+	epair=$(vnet_mkepair)
+
+	vnet_mkjail ${j}a ${epair}a
+	vnet_mkjail ${j}b ${epair}b
+
+	jexec ${j}a ifconfig ${epair}a 192.0.2.1/24 up
+	jexec ${j}b ifconfig ${epair}b 192.0.2.2/24 up
+	# Sanity check
+	atf_check -s exit:0 -o ignore \
+	    jexec ${j}a ping -c 1 192.0.2.2
+
+	jexec ${j}a pfctl -e
+	pft_set_rules ${j}a \
+		"block" \
+		"pass in proto sctp to port 1234"
+
+	echo "foo" | jexec ${j}a nc --sctp -N -l 1234 &
+
+	# Wait for the server to start
+	sleep 1
+
+	out=$(jexec ${j}b nc --sctp -N -w 3 -p 1234 192.0.2.1 1234)
+	if [ "$out" != "foo" ]; then
+		atf_fail "SCTP connection failed"
+	fi
+
+	# Now do the same thing again, with the same port numbers
+	jexec ${j}a pfctl -ss -v
+
+	echo "foo" | jexec ${j}a nc --sctp -N -l 1234 &
+
+	# Wait for the server to start
+	sleep 1
+
+	out=$(jexec ${j}b nc --sctp -N -w 3 -p 1234 192.0.2.1 1234)
+	if [ "$out" != "foo" ]; then
+		atf_fail "SCTP connection failed"
+	fi
+	jexec ${j}a pfctl -ss -v
+}
+
+reuse_cleanup()
+{
+	pft_cleanup
+}
+
 atf_test_case "abort_v4" "cleanup"
 abort_v4_head()
 {
@@ -691,6 +749,7 @@ atf_init_test_cases()
 {
 	atf_add_test_case "basic_v4"
 	atf_add_test_case "basic_v6"
+	atf_add_test_case "reuse"
 	atf_add_test_case "abort_v4"
 	atf_add_test_case "abort_v6"
 	atf_add_test_case "nat_v4"
