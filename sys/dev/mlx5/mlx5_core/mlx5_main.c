@@ -1698,7 +1698,6 @@ static int init_one(struct pci_dev *pdev,
 
 	mlx5_pagealloc_init(dev);
 
-	pr_info("%s - MARK BLOCH WAS HERE\n", __func__);
 	err = mlx5_fs_core_alloc(dev);
 	if (err) {
 		mlx5_core_err(dev, "Failed to alloc flow steering\n");
