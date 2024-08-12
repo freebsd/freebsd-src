@@ -87,6 +87,9 @@
 #define HAVE_AVX512VL 1
 #endif
 
+/* backtrace() is available */
+/* #undef HAVE_BACKTRACE */
+
 /* bdevname() is available */
 /* #undef HAVE_BDEVNAME */
 
@@ -110,6 +113,9 @@
 
 /* bdev_max_secure_erase_sectors() is available */
 /* #undef HAVE_BDEV_MAX_SECURE_ERASE_SECTORS */
+
+/* bdev_nr_bytes() is available */
+/* #undef HAVE_BDEV_NR_BYTES */
 
 /* bdev_open_by_path() exists */
 /* #undef HAVE_BDEV_OPEN_BY_PATH */
@@ -343,6 +349,9 @@
 /* sops->evict_inode() exists */
 /* #undef HAVE_EVICT_INODE */
 
+/* Define to 1 if you have the 'execvpe' function. */
+#define HAVE_EXECVPE 1
+
 /* FALLOC_FL_ZERO_RANGE is defined */
 /* #undef HAVE_FALLOC_FL_ZERO_RANGE */
 
@@ -414,6 +423,9 @@
 
 /* Define if the GNU gettext() function is already present or preinstalled. */
 /* #undef HAVE_GETTEXT */
+
+/* Define to 1 if you have the 'gettid' function. */
+/* #undef HAVE_GETTID */
 
 /* iops->get_acl() exists */
 /* #undef HAVE_GET_ACL */
@@ -592,6 +604,9 @@
 /* Define if compiler supports -Winfinite-recursion */
 /* #undef HAVE_KERNEL_INFINITE_RECURSION */
 
+/* kernel defines intptr_t */
+/* #undef HAVE_KERNEL_INTPTR_T */
+
 /* kernel has kernel_neon_* functions */
 /* #undef HAVE_KERNEL_NEON */
 
@@ -651,6 +666,12 @@
 
 /* Define if you have [udev] */
 /* #undef HAVE_LIBUDEV */
+
+/* Define if you have [unwind] */
+/* #undef HAVE_LIBUNWIND */
+
+/* libunwind has unw_get_elf_filename */
+/* #undef HAVE_LIBUNWIND_ELF */
 
 /* Define if you have [uuid] */
 /* #undef HAVE_LIBUUID */
@@ -1176,7 +1197,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.2.4-FreeBSD_g256659204"
+#define ZFS_META_ALIAS "zfs-2.2.5-FreeBSD_g33174af15"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -1185,7 +1206,7 @@
 /* #undef ZFS_META_DATA */
 
 /* Define the maximum compatible kernel version. */
-#define ZFS_META_KVER_MAX "6.8"
+#define ZFS_META_KVER_MAX "6.9"
 
 /* Define the minimum compatible kernel version. */
 #define ZFS_META_KVER_MIN "3.10"
@@ -1206,10 +1227,10 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "FreeBSD_g256659204"
+#define ZFS_META_RELEASE "FreeBSD_g33174af15"
 
 /* Define the project version. */
-#define ZFS_META_VERSION "2.2.4"
+#define ZFS_META_VERSION "2.2.5"
 
 /* count is located in percpu_ref.data */
 /* #undef ZFS_PERCPU_REF_COUNT_IN_DATA */
