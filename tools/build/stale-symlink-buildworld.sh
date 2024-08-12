@@ -11,8 +11,10 @@ PATH="/bin:/usr/bin"; export PATH
 
 : ${ncpu=$(nproc)}
 
+obj_dir_prefix=${MAKEOBJDIRPREFIX:="/usr/obj"}
+
 # check other directories as well
-: ${STALE_SYMLINK_BUILDWORLD_DIRS="/usr/obj"}
+: ${STALE_SYMLINK_BUILDWORLD_DIRS=$obj_dir_prefix}
 
 trap 'rm -f $script' 0
 script=$(mktemp -t stale-symlink)
