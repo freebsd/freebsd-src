@@ -288,6 +288,8 @@ struct rl_q_entry {
 static uma_zone_t rl_entry_zone;
 static smr_t rl_smr;
 
+static void rangelock_free_free(struct rl_q_entry *free);
+
 static void
 rangelock_sys_init(void)
 {
@@ -390,6 +392,26 @@ static bool
 rl_e_is_rlock(const struct rl_q_entry *e)
 {
 	return ((e->rl_q_flags & RL_LOCK_TYPE_MASK) == RL_LOCK_READ);
+}
+
+static void
+rangelock_free_free(struct rl_q_entry *free)
+{
+	struct rl_q_entry *x, *xp;
+	struct thread *td;
+
+	td = curthread;
+	for (x = free; x != NULL; x = xp) {
+		MPASS(!rl_e_is_marked(x));
+		xp = x->rl_q_free;
+		MPASS(!rl_e_is_marked(xp));
+		if (td->td_rlqe == NULL) {
+			smr_synchronize(rl_smr);
+			td->td_rlqe = x;
+		} else {
+			uma_zfree_smr(rl_entry_zone, x);
+		}
+	}
 }
 
 static void
@@ -623,14 +645,12 @@ static struct rl_q_entry *
 rangelock_lock_int(struct rangelock *lock, bool trylock, vm_ooffset_t start,
     vm_ooffset_t end, int locktype)
 {
-	struct rl_q_entry *e, *free, *x, *xp;
-	struct thread *td;
+	struct rl_q_entry *e, *free;
 	void *cookie;
 	enum RL_INSERT_RES res;
 
 	if (rangelock_cheat_lock(lock, locktype, trylock, &cookie))
 		return (cookie);
-	td = curthread;
 	for (res = RL_LOCK_RETRY; res == RL_LOCK_RETRY;) {
 		free = NULL;
 		e = rlqentry_alloc(start, end, locktype);
@@ -643,17 +663,7 @@ rangelock_lock_int(struct rangelock *lock, bool trylock, vm_ooffset_t start,
 			free = e;
 			e = NULL;
 		}
-		for (x = free; x != NULL; x = xp) {
-			MPASS(!rl_e_is_marked(x));
-			xp = x->rl_q_free;
-			MPASS(!rl_e_is_marked(xp));
-			if (td->td_rlqe == NULL) {
-				smr_synchronize(rl_smr);
-				td->td_rlqe = x;
-			} else {
-				uma_zfree_smr(rl_entry_zone, x);
-			}
-		}
+		rangelock_free_free(free);
 	}
 	return (e);
 }
