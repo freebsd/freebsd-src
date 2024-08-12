@@ -23,12 +23,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 31, 2016
+.Dd May 3, 2024
 .Dt URE 4
 .Os
 .Sh NAME
 .Nm ure
-.Nd "RealTek RTL8152/RTL8153 USB to Ethernet controller driver"
+.Nd "RealTek RTL8152/RTL8153/RTL8153B/RTL8156/RTL8156B USB to Ethernet controller driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -88,6 +88,11 @@ modes.
 .It Cm 1000baseTX
 Set 1000baseTX operation over twisted pair.
 The RealTek gigE chips support 1000Mbps in
+.Cm full-duplex
+mode only.
+.It Cm 2500base-T
+Set 2500Base-T operation over twisted pair.
+The RealTek 8156/8156B chips support 2500Mbps in
 .Cm full-duplex
 mode only.
 .El
