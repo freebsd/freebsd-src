@@ -61,16 +61,11 @@ The
 .Nm
 utility extends the size of the file system on the specified special file.
 The following options are available:
-.Bl -tag -width indent
+.Bl -tag -width "-s size"
 .It Fl N
 .Dq Test mode .
 Causes the new file system parameters to be printed out without actually
 enlarging the file system.
-.It Fl y
-Causes
-.Nm
-to assume yes
-as the answer to all operator questions.
 .It Fl s Ar size
 Determines the
 .Ar size
@@ -87,6 +82,11 @@ This value defaults to the size of the raw partition specified in
 (in other words,
 .Nm
 will enlarge the file system to the size of the entire partition).
+.It Fl y
+Causes
+.Nm
+to assume yes
+as the answer to all operator questions.
 .El
 .Sh EXIT STATUS
 Exit status is 0 on success, and >= 1 on errors.
