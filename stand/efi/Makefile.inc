@@ -26,8 +26,8 @@ EFI_TARGET=	efi-app-ia32
 EFI_TARGET=	binary
 .endif
 
-# Arbitrarily set the PE/COFF header timestamps to 1 Jan 2016 00:00:00
+# Arbitrarily set the PE/COFF header timestamps to 1 Jan 2024 00:00:00
 # for build reproducibility.
-SOURCE_DATE_EPOCH?=1451606400
+SOURCE_DATE_EPOCH?=1704067200
 
 .include "../Makefile.inc"
