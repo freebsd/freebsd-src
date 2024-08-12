@@ -481,7 +481,7 @@ done:
 }
 
 /*
- * Probe for a RTL8152/RTL8153 chip.
+ * Probe for a RTL8152/RTL8153/RTL8156 chip.
  */
 static int
 ure_probe(device_t dev)
