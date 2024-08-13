@@ -311,10 +311,9 @@ static void
 toast_rules(struct rules *const rules)
 {
 	struct rulehead *const head = &rules->head;
-	struct rule *rule;
+	struct rule *rule, *rule_next;
 
-	while ((rule = TAILQ_FIRST(head)) != NULL) {
-		TAILQ_REMOVE(head, rule, r_entries);
+	TAILQ_FOREACH_SAFE(rule, head, r_entries, rule_next) {
 		free(rule->uids, M_DO);
 		free(rule->gids, M_DO);
 		free(rule, M_DO);
