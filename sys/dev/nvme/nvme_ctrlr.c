@@ -1588,6 +1588,12 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	return (0);
 }
 
+/*
+ * Called on detach, or on error on attach. The nvme_controller won't be used
+ * again once we return, so we have to tear everything down (so nothing
+ * references this, no callbacks, etc), but don't need to reset all the state
+ * since nvme_controller will be freed soon.
+ */
 void
 nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 {
