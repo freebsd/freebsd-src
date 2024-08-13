@@ -45,6 +45,8 @@
 
 #define MLX5_IPSEC_RESCHED msecs_to_jiffies(1000)
 
+static void mlx5e_if_sa_deinstall_onekey(struct ifnet *ifp, u_int dev_spi,
+    void *priv);
 static int mlx5e_if_sa_deinstall(struct ifnet *ifp, u_int dev_spi, void *priv);
 
 static struct mlx5e_ipsec_sa_entry *to_ipsec_sa_entry(void *x)
@@ -378,6 +380,7 @@ err_fs:
 	mlx5_ipsec_free_sa_ctx(sa_entry);
 err_sa_ctx:
 	kfree(sa_entry->dwork);
+	sa_entry->dwork = NULL;
 err_xfrm:
 	kfree(sa_entry);
 	mlx5_en_err(ifp, "Device failed to offload this state");
@@ -403,7 +406,9 @@ mlx5e_if_sa_newkey(struct ifnet *ifp, void *sav, u_int dev_spi, void **privp)
 	if (error == 0) {
 		*privp = pb;
 	} else {
-		mlx5e_if_sa_deinstall(ifp, dev_spi, pb->priv_in);
+		if (pb->priv_in->dwork != NULL)
+			cancel_delayed_work_sync(&pb->priv_in->dwork->dwork);
+		mlx5e_if_sa_deinstall_onekey(ifp, dev_spi, pb->priv_in);
 		free(pb, M_DEVBUF);
 	}
 	return (error);
