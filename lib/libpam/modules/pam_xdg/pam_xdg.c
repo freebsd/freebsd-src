@@ -108,6 +108,7 @@ _pam_xdg_open(pam_handle_t *pamh, int flags __unused,
 			goto out;
 		}
 	} else {
+		close(rt_dir);
 		/* Check that the already create dir is correctly owned */
 		rv = fstatat(rt_dir_prefix, user, &sb, 0);
 		if (rv == -1) {
