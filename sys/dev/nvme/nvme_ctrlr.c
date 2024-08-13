@@ -1167,7 +1167,7 @@ fail:
 	nvme_sysctl_initialize_ctrlr(ctrlr);
 	config_intrhook_disestablish(&ctrlr->config_hook);
 
-	ctrlr->is_initialized = 1;
+	ctrlr->is_initialized = true;
 	nvme_notify_new_controller(ctrlr);
 	TSEXIT();
 }
@@ -1567,7 +1567,7 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	taskqueue_start_threads(&ctrlr->taskqueue, 2, PI_DISK, "nvme taskq");
 
 	ctrlr->is_resetting = 0;
-	ctrlr->is_initialized = 0;
+	ctrlr->is_initialized = false;
 	ctrlr->notification_sent = 0;
 	TASK_INIT(&ctrlr->reset_task, 0, nvme_ctrlr_reset_task, ctrlr);
 	STAILQ_INIT(&ctrlr->fail_req);

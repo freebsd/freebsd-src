@@ -298,12 +298,13 @@ struct nvme_controller {
 	void				*cons_cookie[NVME_MAX_CONSUMERS];
 
 	uint32_t			is_resetting;
-	uint32_t			is_initialized;
 	uint32_t			notification_sent;
 
 	bool				is_failed;
 	bool				is_dying;
 	bool				isr_warned;
+	bool				is_initialized;
+
 	STAILQ_HEAD(, nvme_request)	fail_req;
 
 	/* Host Memory Buffer */
