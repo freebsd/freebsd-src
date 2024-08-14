@@ -232,7 +232,7 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 }
 
 static void
-nvme_ctrlr_fail(struct nvme_controller *ctrlr)
+nvme_ctrlr_fail(struct nvme_controller *ctrlr, bool admin_also)
 {
 	int i;
 
@@ -242,7 +242,10 @@ nvme_ctrlr_fail(struct nvme_controller *ctrlr)
 	 * a different error, though when we fail, that hardly matters).
 	 */
 	ctrlr->is_failed = true;
-	nvme_qpair_fail(&ctrlr->adminq);
+	if (admin_also) {
+		ctrlr->is_failed_admin = true;
+		nvme_qpair_fail(&ctrlr->adminq);
+	}
 	if (ctrlr->ioq != NULL) {
 		for (i = 0; i < ctrlr->num_io_queues; i++) {
 			nvme_qpair_fail(&ctrlr->ioq[i]);
@@ -415,6 +418,7 @@ nvme_ctrlr_hw_reset(struct nvme_controller *ctrlr)
 
 	TSENTER();
 
+	ctrlr->is_failed_admin = true;
 	nvme_ctrlr_disable_qpairs(ctrlr);
 
 	err = nvme_ctrlr_disable(ctrlr);
@@ -423,6 +427,8 @@ nvme_ctrlr_hw_reset(struct nvme_controller *ctrlr)
 
 	err = nvme_ctrlr_enable(ctrlr);
 out:
+	if (err == 0)
+		ctrlr->is_failed_admin = false;
 
 	TSEXIT();
 	return (err);
@@ -435,11 +441,10 @@ nvme_ctrlr_reset(struct nvme_controller *ctrlr)
 
 	cmpset = atomic_cmpset_32(&ctrlr->is_resetting, 0, 1);
 
-	if (cmpset == 0 || ctrlr->is_failed)
+	if (cmpset == 0)
 		/*
-		 * Controller is already resetting or has failed.  Return
-		 *  immediately since there is no need to kick off another
-		 *  reset in these cases.
+		 * Controller is already resetting.  Return immediately since
+		 * there is no need to kick off another reset.
 		 */
 		return;
 
@@ -1090,7 +1095,7 @@ nvme_ctrlr_start(void *ctrlr_arg, bool resetting)
 		return;
 
 	if (resetting && nvme_ctrlr_identify(ctrlr) != 0) {
-		nvme_ctrlr_fail(ctrlr);
+		nvme_ctrlr_fail(ctrlr, false);
 		return;
 	}
 
@@ -1105,7 +1110,7 @@ nvme_ctrlr_start(void *ctrlr_arg, bool resetting)
 	if (resetting) {
 		old_num_io_queues = ctrlr->num_io_queues;
 		if (nvme_ctrlr_set_num_qpairs(ctrlr) != 0) {
-			nvme_ctrlr_fail(ctrlr);
+			nvme_ctrlr_fail(ctrlr, false);
 			return;
 		}
 
@@ -1123,12 +1128,12 @@ nvme_ctrlr_start(void *ctrlr_arg, bool resetting)
 		nvme_ctrlr_hmb_enable(ctrlr, true, true);
 
 	if (nvme_ctrlr_create_qpairs(ctrlr) != 0) {
-		nvme_ctrlr_fail(ctrlr);
+		nvme_ctrlr_fail(ctrlr, false);
 		return;
 	}
 
 	if (nvme_ctrlr_construct_namespaces(ctrlr) != 0) {
-		nvme_ctrlr_fail(ctrlr);
+		nvme_ctrlr_fail(ctrlr, false);
 		return;
 	}
 
@@ -1148,8 +1153,7 @@ nvme_ctrlr_start_config_hook(void *arg)
 	TSENTER();
 
 	if (nvme_ctrlr_hw_reset(ctrlr) != 0) {
-fail:
-		nvme_ctrlr_fail(ctrlr);
+		nvme_ctrlr_fail(ctrlr, true);
 		config_intrhook_disestablish(&ctrlr->config_hook);
 		return;
 	}
@@ -1162,13 +1166,15 @@ fail:
 	    nvme_ctrlr_construct_io_qpairs(ctrlr) == 0)
 		nvme_ctrlr_start(ctrlr, false);
 	else
-		goto fail;
+		nvme_ctrlr_fail(ctrlr, false);
 
 	nvme_sysctl_initialize_ctrlr(ctrlr);
 	config_intrhook_disestablish(&ctrlr->config_hook);
 
-	ctrlr->is_initialized = true;
-	nvme_notify_new_controller(ctrlr);
+	if (!ctrlr->is_failed) {
+		ctrlr->is_initialized = true;
+		nvme_notify_new_controller(ctrlr);
+	}
 	TSEXIT();
 }
 
@@ -1185,7 +1191,7 @@ nvme_ctrlr_reset_task(void *arg, int pending)
 		nvme_ctrlr_start(ctrlr, true);
 	} else {
 		nvme_ctrlr_devctl_log(ctrlr, "RESET", "event=\"timed_out\"");
-		nvme_ctrlr_fail(ctrlr);
+		nvme_ctrlr_fail(ctrlr, true);
 	}
 
 	atomic_cmpset_32(&ctrlr->is_resetting, 1, 0);
@@ -1612,7 +1618,7 @@ nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 	 */
 	gone = (nvme_mmio_read_4(ctrlr, csts) == NVME_GONE);
 	if (gone)
-		nvme_ctrlr_fail(ctrlr);
+		nvme_ctrlr_fail(ctrlr, true);
 	else
 		nvme_notify_fail_consumers(ctrlr);
 
@@ -1742,7 +1748,9 @@ nvme_ctrlr_suspend(struct nvme_controller *ctrlr)
 	int to = hz;
 
 	/*
-	 * Can't touch failed controllers, so it's already suspended.
+	 * Can't touch failed controllers, so it's already suspended. User will
+	 * need to do an explicit reset to bring it back, if that's even
+	 * possible.
 	 */
 	if (ctrlr->is_failed)
 		return (0);
@@ -1809,7 +1817,7 @@ fail:
 	 * itself, due to questionable APIs.
 	 */
 	nvme_printf(ctrlr, "Failed to reset on resume, failing.\n");
-	nvme_ctrlr_fail(ctrlr);
+	nvme_ctrlr_fail(ctrlr, true);
 	(void)atomic_cmpset_32(&ctrlr->is_resetting, 1, 0);
 	return (0);
 }

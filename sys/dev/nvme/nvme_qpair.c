@@ -1046,6 +1046,7 @@ nvme_qpair_timeout(void *arg)
 	struct nvme_tracker	*tr;
 	sbintime_t		now;
 	bool			idle = true;
+	bool			is_admin = qpair == &ctrlr->adminq;
 	bool			fast;
 	uint32_t		csts;
 	uint8_t			cfs;
@@ -1057,9 +1058,10 @@ nvme_qpair_timeout(void *arg)
 	 * failure processing that races with the qpair timeout will fail
 	 * safely.
 	 */
-	if (qpair->ctrlr->is_failed) {
+	if (is_admin ? qpair->ctrlr->is_failed_admin : qpair->ctrlr->is_failed) {
 		nvme_printf(qpair->ctrlr,
-		    "Failed controller, stopping watchdog timeout.\n");
+		    "%sFailed controller, stopping watchdog timeout.\n",
+		    is_admin ? "Complete " : "");
 		qpair->timer_armed = false;
 		return;
 	}
@@ -1329,6 +1331,7 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 {
 	struct nvme_tracker	*tr;
 	int			err = 0;
+	bool			is_admin = qpair == &qpair->ctrlr->adminq;
 
 	mtx_assert(&qpair->lock, MA_OWNED);
 
@@ -1338,12 +1341,14 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 	/*
 	 * The controller has failed, so fail the request. Note, that this races
 	 * the recovery / timeout code. Since we hold the qpair lock, we know
-	 * it's safe to fail directly. is_failed is set when we fail the controller.
-	 * It is only ever reset in the ioctl reset controller path, which is safe
-	 * to race (for failed controllers, we make no guarantees about bringing
-	 * it out of failed state relative to other commands).
+	 * it's safe to fail directly. is_failed is set when we fail the
+	 * controller.  It is only ever reset in the ioctl reset controller
+	 * path, which is safe to race (for failed controllers, we make no
+	 * guarantees about bringing it out of failed state relative to other
+	 * commands). We try hard to allow admin commands when the entire
+	 * controller hasn't failed, only something related to I/O queues.
 	 */
-	if (qpair->ctrlr->is_failed) {
+	if (is_admin ? qpair->ctrlr->is_failed_admin : qpair->ctrlr->is_failed) {
 		nvme_qpair_manual_complete_request(qpair, req,
 		    NVME_SCT_GENERIC, NVME_SC_ABORTED_BY_REQUEST, 1,
 		    ERROR_PRINT_NONE);
@@ -1410,11 +1415,13 @@ nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 static void
 nvme_qpair_enable(struct nvme_qpair *qpair)
 {
+	bool is_admin __unused = qpair == &qpair->ctrlr->adminq;
+
 	if (mtx_initialized(&qpair->recovery))
 		mtx_assert(&qpair->recovery, MA_OWNED);
 	if (mtx_initialized(&qpair->lock))
 		mtx_assert(&qpair->lock, MA_OWNED);
-	KASSERT(!qpair->ctrlr->is_failed,
+	KASSERT(!(is_admin ? qpair->ctrlr->is_failed_admin : qpair->ctrlr->is_failed),
 	    ("Enabling a failed qpair\n"));
 
 	qpair->recovery_state = RECOVERY_NONE;
