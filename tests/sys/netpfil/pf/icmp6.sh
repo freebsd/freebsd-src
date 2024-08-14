@@ -120,7 +120,9 @@ ttl_exceeded_body()
 	jexec nat pfctl -e
 	pft_set_rules nat \
 	    "nat on ${epair_int}b from 2001:db8:3::/64 -> (${epair_int}b:0)" \
-	    "pass"
+	    "block" \
+	    "pass inet6 proto udp" \
+	    "pass inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv, echoreq }"
 
 	# Sanity checks
 	atf_check -s exit:0 -o ignore \
