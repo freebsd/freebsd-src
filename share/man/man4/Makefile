@@ -135,6 +135,7 @@ MAN=	aac.4 \
 	ds1307.4 \
 	ds3231.4 \
 	${_dtrace_provs} \
+	dummymbuf.4 \
 	dummynet.4 \
 	edsc.4 \
 	ehci.4 \
