@@ -120,6 +120,9 @@ env_setup() {
 	# cloud providers as part of the release.
 	WITH_CLOUDWARE=
 
+	# Set to non-empty to build OCI images as part of the release
+	WITH_OCIIMAGES=
+
 	return 0
 } # env_setup()
 
@@ -195,7 +198,8 @@ env_check() {
 	RELEASE_RMAKEFLAGS="${ARCH_FLAGS} ${RELEASE_FLAGS} \
 		KERNCONF=\"${KERNEL}\" ${CONF_FILES} ${SRCPORTS} \
 		WITH_DVD=${WITH_DVD} WITH_VMIMAGES=${WITH_VMIMAGES} \
-		WITH_CLOUDWARE=${WITH_CLOUDWARE} XZ_THREADS=${XZ_THREADS}"
+		WITH_CLOUDWARE=${WITH_CLOUDWARE} WITH_OCIIMAGES=${WITH_OCIIMAGES} \
+		XZ_THREADS=${XZ_THREADS}"
 
 	return 0
 } # env_check()
@@ -288,6 +292,44 @@ extra_chroot_setup() {
 		fi
 	fi
 
+	if [ ! -z "${WITH_OCIIMAGES}" ]; then
+		# Install buildah and skopeo from ports if the ports tree is available;
+		# otherwise install the pkg.
+		if [ -d ${CHROOTDIR}/usr/ports ]; then
+			# Trick the ports 'run-autotools-fixup' target to do the right
+			# thing.
+			_OSVERSION=$(chroot ${CHROOTDIR} /usr/bin/uname -U)
+			REVISION=$(chroot ${CHROOTDIR} make -C /usr/src/release -V REVISION)
+			BRANCH=$(chroot ${CHROOTDIR} make -C /usr/src/release -V BRANCH)
+			UNAME_r=${REVISION}-${BRANCH}
+			GITUNSETOPTS="CONTRIB CURL CVS GITWEB GUI HTMLDOCS"
+			GITUNSETOPTS="${GITUNSETOPTS} ICONV NLS P4 PERL"
+			GITUNSETOPTS="${GITUNSETOPTS} SEND_EMAIL SUBTREE SVN"
+			GITUNSETOPTS="${GITUNSETOPTS} PCRE PCRE2"
+			PBUILD_FLAGS="OSVERSION=${_OSVERSION} BATCH=yes"
+			PBUILD_FLAGS="${PBUILD_FLAGS} UNAME_r=${UNAME_r}"
+			PBUILD_FLAGS="${PBUILD_FLAGS} OSREL=${REVISION}"
+			PBUILD_FLAGS="${PBUILD_FLAGS} WRKDIRPREFIX=/tmp/ports"
+			PBUILD_FLAGS="${PBUILD_FLAGS} DISTDIR=/tmp/distfiles"
+			for _PORT in sysutils/buildah sysutils/skopeo; do
+				eval chroot ${CHROOTDIR} env ${PBUILD_FLAGS} make -C \
+				     /usr/ports/${_PORT} \
+				     FORCE_PKG_REGISTER=1 deinstall install clean distclean
+			done
+		else
+			eval chroot ${CHROOTDIR} env ASSUME_ALWAYS_YES=yes \
+				pkg install -y sysutils/buildah sysutils/skopeo
+			eval chroot ${CHROOTDIR} env ASSUME_ALWAYS_YES=yes \
+				pkg clean -y
+		fi
+		# Use the vfs storage driver so that this works whether or not
+		# the build directory is on ZFS. The images are small so the
+		# performance difference is negligible.
+		eval chroot ${CHROOTDIR} sed -I .bak -e '/^driver/s/zfs/vfs/' /usr/local/etc/containers/storage.conf
+		# Remove any stray images from previous builds
+		eval chroot ${CHROOTDIR} buildah rmi -af
+	fi
+
 	if [ ! -z "${EMBEDDEDPORTS}" ]; then
 		_OSVERSION=$(chroot ${CHROOTDIR} /usr/bin/uname -U)
 		REVISION=$(chroot ${CHROOTDIR} make -C /usr/src/release -V REVISION)
@@ -323,6 +365,9 @@ chroot_build_target() {
 	fi
 	eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_WMAKEFLAGS} buildworld
 	eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_KMAKEFLAGS} buildkernel
+	if [ ! -z "${WITH_OCIIMAGES}" ]; then
+		eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_WMAKEFLAGS} packages
+	fi
 
 	return 0
 } # chroot_build_target
