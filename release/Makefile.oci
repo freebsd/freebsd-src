@@ -1,0 +1,34 @@
+#
+#
+#
+# Makefile for building OCI container images.
+#
+
+.if defined(WITH_OCIIMAGES) && !empty(WITH_OCIIMAGES)
+OCI_IMAGES= static dynamic minimal
+.endif
+
+oci-install:
+.if defined(WITH_OCIIMAGES) && !empty(WITH_OCIIMAGES)
+	mkdir -p ${DESTDIR}/ociimages
+. for _IMG in ${OCI_IMAGES}
+	cp -p ${.OBJDIR}/container-image-${_IMG}.txz ${DESTDIR}/ociimages
+. endfor
+.endif
+
+OCI_TARGETS=
+OCI_DEPS_static=
+OCI_DEPS_dynamic= container-image-static.txz
+OCI_DEPS_minimal= container-image-dynamic.txz
+
+.for _IMG in ${OCI_IMAGES}
+OCI_TARGETS+= container-image-${_IMG}.txz
+container-image-${_IMG}.txz: ${OCI_DEPS_${_IMG}}
+	sh ${.CURDIR}/scripts/make-oci-image.sh ${.CURDIR} ${REVISION} ${BRANCH} ${TARGET_ARCH} ${_IMG}
+	skopeo copy \
+		containers-storage:localhost/freebsd${REVISION:R}-${_IMG}:latest \
+		oci-archive:${.OBJDIR}/container-image-${_IMG}.tar:freebsd${REVISION:R}-${_IMG}:${REVISION}-${BRANCH}-${TARGET_ARCH}
+	${XZ_CMD} < ${.OBJDIR}/container-image-${_IMG}.tar > ${.OBJDIR}/container-image-${_IMG}.txz
+.endfor
+
+oci-release: ${OCI_TARGETS}

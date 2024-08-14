@@ -7,14 +7,16 @@
 #  memstick: Builds memory stick image (memstick.img)
 #  mini-memstick: Builds minimal memory stick image (mini-memstick.img)
 #  ftp: Sets up FTP distribution area (ftp)
-#  release: Invokes real-release, vm-release, and cloudware-release targets
+#  release: Invokes real-release, vm-release, cloudware-release and oci-release targets
 #  real-release: Build all media and FTP distribution area
 #  vm-release: Build all virtual machine image targets
 #  cloudware-release: Build all cloud hosting provider targets
-#  install: Invokes the release-install and vm-install targets
+#  oci-release: Build all OCI container images
+#  install: Invokes the release-install, vm-install and oci-install targets
 #  release-install: Copies all release installation media into ${DESTDIR}
 #  vm-install: Copies all virtual machine images into ${DESTDIR}
 #  cloud-install: Copies non-uploaded cloud images into ${DESTDIR}
+#  oci-install: Copies all OCI container images into ${DESTDIR}
 #
 # Variables affecting the build process:
 #  WORLDDIR: location of src tree -- must have built world and default kernel
@@ -316,7 +318,7 @@ ftp: packagesystem
 	mkdir -p ftp
 	cp *.txz MANIFEST ftp
 
-release:	real-release vm-release cloudware-release
+release:	real-release vm-release cloudware-release oci-release
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} release-done
 	true
 
@@ -327,7 +329,7 @@ real-release:
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} obj
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${RELEASE_TARGETS}
 
-install:	release-install vm-install .WAIT cloud-install
+install:	release-install vm-install oci-install .WAIT cloud-install
 
 release-install:
 .if defined(DESTDIR) && !empty(DESTDIR)
@@ -347,3 +349,4 @@ release-install:
 
 .include "${.CURDIR}/Makefile.inc1"
 .include "${.CURDIR}/Makefile.vm"
+.include "${.CURDIR}/Makefile.oci"

@@ -1,0 +1,27 @@
+# This is an example showing how to extend the freebsd-minimal OCI image by
+# installing additional packages while keeping the resulting image as small as
+# possible.
+
+# The OS version matching the desired freebsd-minimal image
+ARG version=15.0-CURRENT-amd64
+
+# Select freebsd-minimal as our starting point.
+FROM localhost/freebsd-minimal:${version}
+
+# A list of package(s) to install
+ARG packages
+
+# Install package management tools. We specify 'FreeBSD' as the repository to
+# use for downloading pkg since the freebsd-minimal image has both FreeBSD and
+# FreeBSD-base pkg repo configs installed and FreeBSD-base does not contain the
+# pkg package.
+RUN env ASSUME_ALWAYS_YES=yes pkg bootstrap -r FreeBSD && pkg update
+
+# Install some package(s).
+RUN pkg install -y ${packages}
+
+# Clean up and remove package management overhead. We delete downloaded
+# packages, uninstall pkg and delete the repository metadata downloaded by 'pkg
+# install'.  This retains the record of which packages are installed in the
+# image.
+RUN pkg clean -ay && pkg delete -fy pkg && rm -rf /var/db/pkg/repos
