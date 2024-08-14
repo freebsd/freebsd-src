@@ -327,41 +327,43 @@ static FILE *
 open_config(const char *cfname, pid_t pid[static 1])
 {
 
-	int read_fd = open(cfname, O_RDONLY), write_fd, exec_fd, pipes[2];
-	char *argv[] = { (char*)(uintptr_t)cfname, (char *)(uintptr_t)cfname, NULL }; // DECONST *sigh*
+	int read_fd, write_fd, exec_fd, pipes[2];
+	char *argv[] = { __DECONST(char *, cfname), __DECONST(char *, cfname), NULL };
+	FILE *file;
 
-	// Invalidate the child PID.
+	/* Invalidate the child PID. */
 	*pid = -1;
 
-	// The configuration must be readable.
+	/* The configuration must be readable. */
+	read_fd = open(cfname, O_RDONLY);
 	if (read_fd < 0)
 		err(1, "open(): %s", cfname);
 
-	// Try to open the configuration for execution (to parse its standard output config instead).
+	/* Try to open the configuration for execution (to parse its standard output config instead). */
 	exec_fd = openat(read_fd, "", O_EMPTY_PATH|O_EXEC);
 	if (exec_fd < 0) {
 		if (errno != EACCES)
 			err(1, "openat(): %s", cfname);
 	} else {
-		// Read from the pipe instead of the configuration.
+		/* Read from the pipe instead of the configuration. */
 		close(read_fd);
 		if (pipe(pipes))
 			err(1, "pipe(): %s", cfname);
 		read_fd = pipes[0];
 		write_fd = pipes[1];
 
-		// Run the configuration as child process.
+		/* Run the configuration as child process. */
 		switch ((*pid = fork())) {
-		// Failure to fork is fatal.
+		/* Failure to fork() is fatal. */
 		case -1:
 			err(1, "fork(): %s", cfname);
 			break;
 
-		// Redirect the child's standard output into the pipe.
+		/* Redirect the child's standard output into the pipe. */
 		case 0:
 			close(read_fd);
 			if (write_fd != STDOUT_FILENO) {
-				if ( dup2(write_fd, STDOUT_FILENO) != STDOUT_FILENO )
+				if (dup2(write_fd, STDOUT_FILENO) != STDOUT_FILENO)
 					err(1, "dup2(): %s", cfname);
 				close(write_fd);
 			}
@@ -379,9 +381,9 @@ open_config(const char *cfname, pid_t pid[static 1])
 		}
 	}
 
-	// Wrap a FILE handle around the read-only file descriptor.
-	FILE *file = fdopen(read_fd, "r");
-	if (!file)
+	/* Wrap a FILE handle around the read-only file descriptor. */
+	file = fdopen(read_fd, "r");
+	if (file == NULL)
 		err(1, "fdopen(): %s", cfname);
 
 	return file;
@@ -391,7 +393,7 @@ static void
 parse_config(const char *cfname, int is_stdin)
 {
 	struct cflex cflex = {.cfname = cfname, .error = 0};
-	pid_t child;
+	pid_t child = -1;
 	void *scanner;
 
 	yylex_init_extra(&cflex, &scanner);
@@ -407,14 +409,14 @@ parse_config(const char *cfname, int is_stdin)
 	if (yyparse(scanner) || cflex.error)
 		exit(1);
 	yylex_destroy(scanner);
-	if ( child > 0 ) {
+	if (child > 0) {
 		pid_t exited;
 		int status;
 		do {
 			exited = waitpid(child, &status, 0);
-		} while ( exited < 0 || errno == EINTR );
+		} while (exited < 0 || errno == EINTR);
 		status = WEXITSTATUS(status);
-		if ( status != 0 )
+		if (status != 0)
 			errx(status, "Config child failed with status=%i): %s", status, cfname);
 	}
 }
