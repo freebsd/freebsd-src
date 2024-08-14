@@ -1,3 +1,5 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
 .\"
 .\" Copyright (c) 2015-2016 Kevin Lo <kevlo@FreeBSD.org>
 .\" All rights reserved.
@@ -23,12 +25,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 31, 2016
+.Dd September 3, 2024
 .Dt URE 4
 .Os
 .Sh NAME
 .Nm ure
-.Nd "RealTek RTL8152/RTL8153 USB to Ethernet controller driver"
+.Nd "RealTek RTL8152/RTL8153/RTL8153B/RTL8156/RTL8156B USB to Ethernet controller driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -52,15 +54,20 @@ if_ure_load="YES"
 The
 .Nm
 driver provides support for USB Ethernet adapters based on the RealTek
-RealTek RTL8152 and RTL8153 USB Ethernet controllers.
+RTL8152, RTL8153/RTL8153B, and RTL8156/RTL8156B USB Ethernet controllers,
+as well as USB Ethernet PHYs provided by
+.Xr rgephy 4 .
 .Pp
-NICs based on the RTL8152 are capable of 10 and 100Mbps speeds.
-NICs based on the RTL8153 are capable of 10, 100 and 1000Mbps operation.
+NICs based on the RTL8152 are capable of 10 and 100Mbps.
+NICs based on the RTL8153 or provided by
+.Xr rgephy 4
+are capable of 10, 100, and 1000Mbps.
+NICs based on the RTL8156 are capable of 10, 100, 1000, and 2500Mbps operation.
 .Pp
 The
 .Nm
 driver supports the following media types:
-.Bl -tag -width ".Cm 10baseT/UTP"
+.Bl -tag -width "10baseT/UTP"
 .It Cm autoselect
 Enable auto selection of the media type and options.
 The user can manually override
@@ -86,7 +93,7 @@ or
 .Cm half-duplex
 modes.
 .It Cm 1000baseTX
-Set 1000baseTX operation over twisted pair.
+Set 1000baseTX (Gigabit Ethernet) operation over twisted pair.
 The RealTek gigE chips support 1000Mbps in
 .Cm full-duplex
 mode only.
@@ -94,12 +101,12 @@ mode only.
 .Pp
 The
 .Nm
-driver supports the following media options:
-.Bl -tag -width ".Cm full-duplex"
+driver supports the following media options for 10/100 operation:
+.Bl -tag -width "full-duplex"
 .It Cm full-duplex
-Force full duplex operation.
+Force full-duplex operation.
 .It Cm half-duplex
-Force half duplex operation.
+Force half-duplex operation.
 .El
 .Pp
 For more information on configuring this device, see
