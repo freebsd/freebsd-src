@@ -27,6 +27,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20240813:
+	DMAR is now enabled by default on Intel. If your system crashes in the
+	dmar code on boot, please set 'hw.dmar.enable=0' in /boot/loader.conf
+	and file a bug.
+
 20240729:
 	The build now defaults to WITHOUT_CLEAN - i.e., no automatic clean
 	is performed at the beginning of buildworld or buildkernel.  The
