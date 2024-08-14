@@ -24,6 +24,7 @@ ATF_TESTS_SH+=	altq \
 		macro \
 		map_e \
 		match \
+		mbuf \
 		modulate \
 		names \
 		nat \
