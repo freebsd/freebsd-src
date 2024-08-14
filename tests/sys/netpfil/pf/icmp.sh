@@ -108,7 +108,9 @@ ttl_exceeded_body()
 	jexec nat pfctl -e
 	pft_set_rules nat \
 	    "nat on ${epair_int}b from 198.51.100.0/24 -> (${epair_int}b)" \
-	    "pass"
+	    "block" \
+	    "pass inet proto udp" \
+	    "pass inet proto icmp icmp-type { echoreq }"
 
 	# Sanity checks
 	atf_check -s exit:0 -o ignore \
