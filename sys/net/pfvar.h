@@ -884,21 +884,21 @@ SLIST_HEAD(pf_krule_slist, pf_krule_item);
 
 struct pf_ksrc_node {
 	LIST_ENTRY(pf_ksrc_node) entry;
-	struct pf_addr	 addr;
-	struct pf_addr	 raddr;
+	struct pf_addr		 addr;
+	struct pf_addr		 raddr;
 	struct pf_krule_slist	 match_rules;
-	union pf_krule_ptr rule;
-	struct pfi_kkif	*rkif;
-	counter_u64_t	 bytes[2];
-	counter_u64_t	 packets[2];
-	u_int32_t	 states;
-	u_int32_t	 conn;
-	struct pf_threshold	conn_rate;
-	u_int32_t	 creation;
-	u_int32_t	 expire;
-	sa_family_t	 af;
-	u_int8_t	 ruletype;
-	struct mtx	*lock;
+	union pf_krule_ptr	 rule;
+	struct pfi_kkif		*rkif;
+	counter_u64_t		 bytes[2];
+	counter_u64_t		 packets[2];
+	u_int32_t		 states;
+	u_int32_t		 conn;
+	struct pf_threshold	 conn_rate;
+	u_int32_t		 creation;
+	u_int32_t		 expire;
+	sa_family_t		 af;
+	u_int8_t		 ruletype;
+	struct mtx		*lock;
 };
 #endif
 
