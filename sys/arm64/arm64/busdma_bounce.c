@@ -63,7 +63,9 @@
 enum {
 	BF_COULD_BOUNCE		= 0x01,
 	BF_MIN_ALLOC_COMP	= 0x02,
-	BF_KMEM_ALLOC		= 0x04,
+	BF_KMEM_ALLOC_PAGES	= 0x04,
+	BF_KMEM_ALLOC_CONTIG	= 0x08,
+	BF_KMEM_ALLOC		= BF_KMEM_ALLOC_PAGES | BF_KMEM_ALLOC_CONTIG,
 	BF_COHERENT		= 0x10,
 };
 
@@ -580,14 +582,14 @@ bounce_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		*vaddr = kmem_alloc_attr_domainset(
 		    DOMAINSET_PREF(dmat->common.domain), dmat->alloc_size,
 		    mflags, 0ul, dmat->common.lowaddr, attr);
-		dmat->bounce_flags |= BF_KMEM_ALLOC;
+		dmat->bounce_flags |= BF_KMEM_ALLOC_PAGES;
 	} else {
 		*vaddr = kmem_alloc_contig_domainset(
 		    DOMAINSET_PREF(dmat->common.domain), dmat->alloc_size,
 		    mflags, 0ul, dmat->common.lowaddr,
 		    dmat->alloc_alignment != 0 ? dmat->alloc_alignment : 1ul,
 		    dmat->common.boundary, attr);
-		dmat->bounce_flags |= BF_KMEM_ALLOC;
+		dmat->bounce_flags |= BF_KMEM_ALLOC_CONTIG;
 	}
 	if (*vaddr == NULL) {
 		CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
@@ -856,7 +858,8 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		 * Compute the segment size, and adjust counts.
 		 */
 		sgsize = buflen;
-		if ((map->flags & DMAMAP_FROM_DMAMEM) == 0)
+		if ((map->flags & DMAMAP_FROM_DMAMEM) == 0 ||
+		    (dmat->bounce_flags & BF_KMEM_ALLOC_CONTIG) == 0)
 			sgsize = MIN(sgsize, PAGE_SIZE - (curaddr & PAGE_MASK));
 
 		if (map->pagesneeded != 0 &&
