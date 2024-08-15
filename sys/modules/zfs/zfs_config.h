@@ -189,6 +189,9 @@
 /* blkdev_put() accepts void* as arg 2 */
 /* #undef HAVE_BLKDEV_PUT_HOLDER */
 
+/* struct queue_limits has a features field */
+/* #undef HAVE_BLKDEV_QUEUE_LIMITS_FEATURES */
+
 /* blkdev_reread_part() exists */
 /* #undef HAVE_BLKDEV_REREAD_PART */
 
@@ -227,6 +230,9 @@
 
 /* blk_queue_discard() is available */
 /* #undef HAVE_BLK_QUEUE_DISCARD */
+
+/* backing_dev_info is available through queue gendisk */
+/* #undef HAVE_BLK_QUEUE_DISK_BDI */
 
 /* blk_queue_flag_clear() exists */
 /* #undef HAVE_BLK_QUEUE_FLAG_CLEAR */
@@ -703,6 +709,9 @@
 /* Define to 1 if you have the 'mlockall' function. */
 #define HAVE_MLOCKALL 1
 
+/* page_mapping() is available */
+/* #undef HAVE_MM_PAGE_MAPPING */
+
 /* page_size() is available */
 /* #undef HAVE_MM_PAGE_SIZE */
 
@@ -748,6 +757,9 @@
 /* posix_acl_valid() wants user namespace */
 /* #undef HAVE_POSIX_ACL_VALID_WITH_NS */
 
+/* proc_handler ctl_table arg is const */
+/* #undef HAVE_PROC_HANDLER_CTL_TABLE_CONST */
+
 /* proc_ops structure exists */
 /* #undef HAVE_PROC_OPS_STRUCT */
 
@@ -771,6 +783,9 @@
 
 /* register_shrinker is vararg */
 /* #undef HAVE_REGISTER_SHRINKER_VARARG */
+
+/* register_sysctl_sz exists */
+/* #undef HAVE_REGISTER_SYSCTL_SZ */
 
 /* register_sysctl_table exists */
 /* #undef HAVE_REGISTER_SYSCTL_TABLE */
@@ -1200,7 +1215,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.2.99-623-FreeBSD_g9c56b8ec7"
+#define ZFS_META_ALIAS "zfs-2.2.99-634-FreeBSD_gd2ccc2155"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -1230,7 +1245,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "623-FreeBSD_g9c56b8ec7"
+#define ZFS_META_RELEASE "634-FreeBSD_gd2ccc2155"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.2.99"
