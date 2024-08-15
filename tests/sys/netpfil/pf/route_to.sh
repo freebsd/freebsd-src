@@ -786,6 +786,30 @@ dummynet_double_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "sticky" "cleanup"
+sticky_head()
+{
+	atf_set descr 'Set and retrieve a rule with sticky-address'
+	atf_set require.user root
+}
+
+sticky_body()
+{
+	pft_init
+
+	vnet_mkjail alcatraz
+
+	pft_set_rules alcatraz \
+	    "pass in quick log on n_test_h_rtr route-to (n_srv_h_rtr <change_dst>) sticky-address from any to <dst> keep state"
+
+	jexec alcatraz pfctl -qvvsr
+}
+
+sticky_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4"
@@ -802,4 +826,5 @@ atf_init_test_cases()
 	atf_add_test_case "ifbound_reply_to_rdr_dummynet"
 	atf_add_test_case "dummynet_frag"
 	atf_add_test_case "dummynet_double"
+	atf_add_test_case "sticky"
 }
