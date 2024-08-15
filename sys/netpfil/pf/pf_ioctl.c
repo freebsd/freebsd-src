@@ -129,7 +129,6 @@ static void		 pf_hash_rule_addr(MD5_CTX *, struct pf_rule_addr *);
 static int		 pf_commit_rules(u_int32_t, int, char *);
 static int		 pf_addr_setup(struct pf_kruleset *,
 			    struct pf_addr_wrap *, sa_family_t);
-static void		 pf_addr_copyout(struct pf_addr_wrap *);
 static void		 pf_src_node_copy(const struct pf_ksrc_node *,
 			    struct pf_src_node *);
 #ifdef ALTQ
@@ -1525,7 +1524,7 @@ pf_addr_setup(struct pf_kruleset *ruleset, struct pf_addr_wrap *addr,
 	return (error);
 }
 
-static void
+void
 pf_addr_copyout(struct pf_addr_wrap *addr)
 {
 

@@ -2533,6 +2533,7 @@ int			 pf_ioctl_get_addr(struct pfioc_pooladdr *);
 
 void			 pf_krule_free(struct pf_krule *);
 void			 pf_krule_clear_counters(struct pf_krule *);
+void			 pf_addr_copyout(struct pf_addr_wrap *);
 #endif
 
 /* The fingerprint functions can be linked into userland programs (tcpdump) */
