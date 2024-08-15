@@ -416,7 +416,6 @@ static bool
 nlattr_add_addr_wrap(struct nl_writer *nw, int attrtype, struct pf_addr_wrap *a)
 {
 	int off = nlattr_add_nested(nw, attrtype);
-	int num;
 
 	nlattr_add_in6_addr(nw, PF_AT_ADDR, &a->v.a.addr.v6);
 	nlattr_add_in6_addr(nw, PF_AT_MASK, &a->v.a.mask.v6);
@@ -425,22 +424,10 @@ nlattr_add_addr_wrap(struct nl_writer *nw, int attrtype, struct pf_addr_wrap *a)
 
 	if (a->type == PF_ADDR_DYNIFTL) {
 		nlattr_add_string(nw, PF_AT_IFNAME, a->v.ifname);
-		num = 0;
-		if (a->p.dyn != NULL)
-			num = a->p.dyn->pfid_acnt4 + a->p.dyn->pfid_acnt6;
-		nlattr_add_u32(nw, PF_AT_DYNCNT, num);
+		nlattr_add_u32(nw, PF_AT_DYNCNT, a->p.dyncnt);
 	} else if (a->type == PF_ADDR_TABLE) {
-		struct pfr_ktable *kt;
-
 		nlattr_add_string(nw, PF_AT_TABLENAME, a->v.tblname);
-		num = -1;
-		kt = a->p.tbl;
-		if ((kt->pfrkt_flags & PFR_TFLAG_ACTIVE) &&
-		    kt->pfrkt_root != NULL)
-			kt = kt->pfrkt_root;
-		if (kt->pfrkt_flags & PFR_TFLAG_ACTIVE)
-			num = kt->pfrkt_cnt;
-		nlattr_add_u32(nw, PF_AT_TBLCNT, num);
+		nlattr_add_u32(nw, PF_AT_TBLCNT, a->p.tblcnt);
 	}
 
 	nlattr_set_len(nw, off);
@@ -462,9 +449,13 @@ NL_DECLARE_ATTR_PARSER(rule_addr_parser, nla_p_ruleaddr);
 static bool
 nlattr_add_rule_addr(struct nl_writer *nw, int attrtype, struct pf_rule_addr *r)
 {
+	struct pf_addr_wrap aw = {0};
 	int off = nlattr_add_nested(nw, attrtype);
 
-	nlattr_add_addr_wrap(nw, PF_RAT_ADDR, &r->addr);
+	bcopy(&(r->addr), &aw, sizeof(struct pf_addr_wrap));
+	pf_addr_copyout(&aw);
+
+	nlattr_add_addr_wrap(nw, PF_RAT_ADDR, &aw);
 	nlattr_add_u16(nw, PF_RAT_SRC_PORT, r->port[0]);
 	nlattr_add_u16(nw, PF_RAT_DST_PORT, r->port[1]);
 	nlattr_add_u8(nw, PF_RAT_NEG, r->neg);
