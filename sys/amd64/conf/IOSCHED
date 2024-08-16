@@ -1,2 +1,0 @@
-include "GENERIC"
-options CAM_IOSCHED_DYNAMIC
