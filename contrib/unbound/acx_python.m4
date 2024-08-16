@@ -9,7 +9,7 @@ AC_DEFUN([AC_PYTHON_DEVEL],[
 
         AC_PATH_PROG([PYTHON],[python[$PYTHON_VERSION]])
         if test -z "$PYTHON"; then
-           AC_MSG_ERROR([Cannot find python$PYTHON_VERSION in your system path])
+           AC_MSG_ERROR([Cannot find 'python$PYTHON_VERSION' in your system path. You can use the environment variable 'PYTHON_VERSION=version_number' for an explicit version.])
            PYTHON_VERSION=""
         fi
 

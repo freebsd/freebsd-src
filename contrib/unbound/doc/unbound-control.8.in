@@ -1,4 +1,4 @@
-.TH "unbound-control" "8" "May  8, 2024" "NLnet Labs" "unbound 1.20.0"
+.TH "unbound-control" "8" "Aug 15, 2024" "NLnet Labs" "unbound 1.21.0"
 .\"
 .\" unbound-control.8 -- unbound remote control manual
 .\"
@@ -121,31 +121,38 @@ Remove local data RRs read from stdin of unbound\-control. Input is one name per
 line. For bulk removals.
 .TP
 .B dump_cache
-The contents of the cache is printed in a text format to stdout. You can
-redirect it to a file to store the cache in a file.
+The content of the cache is printed in a text format to stdout.
+You can redirect it to a file to store the cache in a file.
+Not supported in remote Unbounds in multi-process operation.
 .TP
 .B load_cache
-The contents of the cache is loaded from stdin.  Uses the same format as
-dump_cache uses.  Loading the cache with old, or wrong data can result
-in old or wrong data returned to clients.  Loading data into the cache
-in this way is supported in order to aid with debugging.
+The content of the cache is loaded from stdin.
+Uses the same format as dump_cache uses.
+Loading the cache with old, or wrong data can result in old or wrong data
+returned to clients.
+Loading data into the cache in this way is supported in order to aid with
+debugging.
+Not supported in remote Unbounds in multi-process operation.
 .TP
 .B lookup \fIname
 Print to stdout the name servers that would be used to look up the
 name specified.
 .TP
-.B flush \fIname
+.B flush \fR[\fI+c\fR] \fIname
 Remove the name from the cache. Removes the types
 A, AAAA, NS, SOA, CNAME, DNAME, MX, PTR, SRV, NAPTR, SVCB and HTTPS.
 Because that is fast to do. Other record types can be removed using
 .B flush_type
 or
 .B flush_zone\fR.
+.IP
+The '+c' option removes the items also from the cachedb cache. If
+cachedb is in use.
 .TP
-.B flush_type \fIname\fR \fItype
+.B flush_type \fR[\fI+c\fR] \fIname\fR \fItype
 Remove the name, type information from the cache.
 .TP
-.B flush_zone \fIname
+.B flush_zone \fR[\fI+c\fR] \fIname
 Remove all information at or below the name from the cache.
 The rrsets and key entries are removed so that new lookups will be performed.
 This needs to walk and inspect the entire cache, and is a slow operation.
@@ -153,10 +160,10 @@ The entries are set to expired in the implementation of this command (so,
 with serve\-expired enabled, it'll serve that information but schedule a
 prefetch for new information).
 .TP
-.B flush_bogus
+.B flush_bogus \fR[\fI+c\fR]
 Remove all bogus data from the cache.
 .TP
-.B flush_negative
+.B flush_negative \fR[\fI+c\fR]
 Remove all negative data from the cache.  This is nxdomain answers,
 nodata answers and servfail answers.  Also removes bad key entries
 (which could be due to failed lookups) from the dnssec key cache, and
@@ -343,6 +350,41 @@ Remove a list of \fIlocal_data\fR for given view from stdin. Like local_datas_re
 .TP
 .B view_local_datas \fIview\fR
 Add a list of \fIlocal_data\fR for given view from stdin.  Like local_datas.
+.TP
+.B add_cookie_secret <secret>
+Add or replace a cookie secret persistently. <secret> needs to be an 128 bit
+hex string.
+.IP
+Cookie secrets can be either \fIactive\fR or \fIstaging\fR. \fIActive\fR cookie
+secrets are used to create DNS Cookies, but verification of a DNS Cookie
+succeeds with any of the \fIactive\fR or \fIstaging\fR cookie secrets. The
+state of the current cookie secrets can be printed with the
+\fBprint_cookie_secrets\fR command.
+.IP
+When there are no cookie secrets configured yet, the <secret> is added as
+\fIactive\fR. If there is already an \fIactive\fR cookie secret, the <secret>
+is added as \fIstaging\fR or replacing an existing \fIstaging\fR secret.
+.IP
+To "roll" a cookie secret used in an anycast set. The new secret has to be
+added as staging secret to \fBall\fR nodes in the anycast set. When \fBall\fR
+nodes can verify DNS Cookies with the new secret, the new secret can be
+activated with the \fBactivate_cookie_secret\fR command. After \fBall\fR nodes
+have the new secret \fIactive\fR for at least one hour, the previous secret can
+be dropped with the \fBdrop_cookie_secret\fR command.
+.IP
+Persistence is accomplished by writing to a file which if configured with the
+\fBcookie\-secret\-file\fR option in the server section of the config file.
+This is disabled by default, "".
+.TP
+.B drop_cookie_secret
+Drop the \fIstaging\fR cookie secret.
+.TP
+.B activate_cookie_secret
+Make the current \fIstaging\fR cookie secret \fIactive\fR, and the current
+\fIactive\fR cookie secret \fIstaging\fR.
+.TP
+.B print_cookie_secrets
+Show the current configured cookie secrets with their status.
 .SH "EXIT CODE"
 The unbound\-control program exits with status code 1 on error, 0 on success.
 .SH "SET UP"
