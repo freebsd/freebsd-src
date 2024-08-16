@@ -443,6 +443,10 @@ static const STRUCT_USB_HOST_ID ubt_ignore_devs[] =
 	 */
 	{ USB_VPI(USB_VENDOR_INTEL2, 0x0032, 0) },
 	{ USB_VPI(USB_VENDOR_INTEL2, 0x0033, 0) },
+
+	/* MediaTek MT7925 */
+	{ USB_VPI(USB_VENDOR_AZUREWAVE, 0x3602, 0) },
+	{ USB_VPI(USB_VENDOR_AZUREWAVE, 0x3604, 0) },
 };
 
 /* List of supported bluetooth devices */
