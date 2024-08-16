@@ -301,7 +301,6 @@ struct nvme_controller {
 	uint32_t			notification_sent;
 
 	bool				is_failed;
-	bool				is_failed_admin;
 	bool				is_dying;
 	bool				isr_warned;
 	bool				is_initialized;
