@@ -151,7 +151,7 @@
 #define HTTPS_PORT 443
 
 #ifdef USE_WINSOCK
-/* sneakily reuse the the wsa_strerror function, on windows */
+/* sneakily reuse the wsa_strerror function, on windows */
 char* wsa_strerror(int err);
 #endif
 
@@ -183,7 +183,9 @@ static const char DS_TRUST_ANCHOR[] =
 	/* The anchors must start on a new line with ". IN DS and end with \n"[;]
 	 * because the makedist script greps on the source here */
 	/* anchor 20326 is from 2017 */
-". IN DS 20326 8 2 E06D44B80B8F1D39A95C0B0D7C65D08458E880409BBC683457104237C7F8EC8D\n";
+". IN DS 20326 8 2 E06D44B80B8F1D39A95C0B0D7C65D08458E880409BBC683457104237C7F8EC8D\n"
+	/* anchor 38696 is from 2024 */
+". IN DS 38696 8 2 683D2D0ACB8C9B712A1948B27F741219298D0A450D612C483AF444A4C0FB2B16\n";
 
 /** verbosity for this application */
 static int verb = 0;
@@ -805,7 +807,11 @@ TLS_initiate(SSL_CTX* sslctx, int fd, const char* urlname, int use_sni)
 		}
 		/* wants to be called again */
 	}
+#ifdef HAVE_SSL_GET1_PEER_CERTIFICATE
+	x = SSL_get1_peer_certificate(ssl);
+#else
 	x = SSL_get_peer_certificate(ssl);
+#endif
 	if(!x) {
 		if(verb) printf("Server presented no peer certificate\n");
 		SSL_free(ssl);

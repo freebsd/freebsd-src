@@ -78,6 +78,16 @@ expect_refused () {
 	fi
 }
 
+expect_nx_answer () {
+	echo "> check answer for NXDOMAIN"
+	if grep "NXDOMAIN" outfile; then
+		echo "OK"
+	else
+		echo "Not OK"
+		end 1
+	fi
+}
+
 expect_external_answer () {
 	echo "> check external answer"
 	if grep "1.2.3.4" outfile; then
@@ -118,6 +128,26 @@ expect_tag_two_answer () {
 	fi
 }
 
+expect_rpz_one_answer () {
+	echo "> check tag 'one' answer"
+	if grep "11.11.11.11" outfile; then
+		echo "OK"
+	else
+		echo "Not OK"
+		end 1
+	fi
+}
+
+expect_rpz_two_answer () {
+	echo "> check tag 'two' answer"
+	if grep "22.22.22.22" outfile; then
+		echo "OK"
+	else
+		echo "Not OK"
+		end 1
+	fi
+}
+
 # do the test
 
 for i in 4 6; do
@@ -141,6 +171,15 @@ for i in 4 6; do
 
 	query $i $PORT_TAG_3 "local"
 	expect_refused
+
+	query $i $PORT_RPZ_1 "local"
+	expect_rpz_one_answer
+
+	query $i $PORT_RPZ_2 "local"
+	expect_rpz_two_answer
+
+	query $i $PORT_RPZ_NX "local"
+	expect_nx_answer
 
 	query $i $PORT_VIEW_INT "www.internal"
 	expect_internal_answer
@@ -182,6 +221,15 @@ for addr in $INTERFACE_ADDR_1 $INTERFACE_ADDR_2 $INTERFACE_ADDR_3 $INTERFACE_ADD
 
 	query_addr $addr $PORT_TAG_3 "local"
 	expect_refused
+
+	query_addr $addr $PORT_RPZ_1 "local"
+	expect_rpz_one_answer
+
+	query_addr $addr $PORT_RPZ_2 "local"
+	expect_rpz_two_answer
+
+	query_addr $addr $PORT_RPZ_NX "local"
+	expect_nx_answer
 
 	query_addr $addr $PORT_VIEW_INT "www.internal"
 	expect_internal_answer

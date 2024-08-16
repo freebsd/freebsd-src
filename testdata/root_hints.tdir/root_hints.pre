@@ -4,6 +4,8 @@
 # use .tpkg.var.test for in test variable passing
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
+. ../common.sh
+
 # dig 9 ?
 digv=`dig -v 2>&1 | wc -l`
 if test $digv -ne 1; then

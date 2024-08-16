@@ -73,6 +73,7 @@ struct edns_option;
 struct config_file;
 struct comm_point;
 struct comm_reply;
+struct cookie_secrets;
 
 /** number of buckets in parse rrset hash table. Must be power of 2. */
 #define PARSE_TABLE_SIZE 32
@@ -322,12 +323,14 @@ int skip_pkt_rrs(struct sldns_buffer* pkt, int num);
  * @param repinfo: commreply to determine the client address
  * @param now: current time
  * @param region: region to alloc results in (edns option contents)
+ * @param cookie_secrets: the cookie secrets for EDNS COOKIE validation.
  * @return: 0 on success, or an RCODE on error.
  *	RCODE formerr if OPT is badly formatted and so on.
  */
 int parse_edns_from_query_pkt(struct sldns_buffer* pkt, struct edns_data* edns,
 	struct config_file* cfg, struct comm_point* c,
-	struct comm_reply* repinfo, time_t now, struct regional* region);
+	struct comm_reply* repinfo, time_t now, struct regional* region,
+	struct cookie_secrets* cookie_secrets);
 
 /**
  * Calculate hash value for rrset in packet.

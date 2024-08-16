@@ -1,4 +1,4 @@
-# #-- remote-threaded.post --#
+# #-- cookie_file.post --#
 # source the master var file when it's there
 [ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
 # source the test var file when it's there
@@ -6,8 +6,5 @@
 #
 # do your teardown here
 . ../common.sh
-kill_pid $FWD_PID
-# unbound stopped by test (if successful)
-kill $UNBOUND_PID >/dev/null 2>&1
-kill $UNBOUND_PID >/dev/null 2>&1
-exit 0
+kill_from_pidfile "unbound.pid"
+cat unbound.log

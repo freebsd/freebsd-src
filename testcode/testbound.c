@@ -72,23 +72,6 @@ int daemon_main(int argc, char* argv[]);
 /** config files (removed at exit) */
 static struct config_strlist* cfgfiles = NULL;
 
-#ifdef UNBOUND_ALLOC_STATS
-#  define strdup(s) unbound_stat_strdup_log(s, __FILE__, __LINE__, __func__)
-char* unbound_stat_strdup_log(char* s, const char* file, int line,
-	const char* func);
-char* unbound_stat_strdup_log(char* s, const char* file, int line,
-        const char* func) {
-	char* result;
-	size_t len;
-	if(!s) return NULL;
-	len = strlen(s);
-	log_info("%s:%d %s strdup(%u)", file, line, func, (unsigned)len+1);
-	result = unbound_stat_malloc(len+1);
-	memmove(result, s, len+1);
-	return result;
-}
-#endif /* UNBOUND_ALLOC_STATS */
-
 /** give commandline usage for testbound. */
 static void
 testbound_usage(void)

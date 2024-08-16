@@ -45,7 +45,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <stdint.h>
 #include "sldns/str2wire.h"
 #include "sldns/wire2str.h"
 

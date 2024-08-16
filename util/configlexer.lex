@@ -513,6 +513,7 @@ dnstap-log-forwarder-query-messages{COLON}	{
 		YDVAR(1, VAR_DNSTAP_LOG_FORWARDER_QUERY_MESSAGES) }
 dnstap-log-forwarder-response-messages{COLON}	{
 		YDVAR(1, VAR_DNSTAP_LOG_FORWARDER_RESPONSE_MESSAGES) }
+dnstap-sample-rate		{ YDVAR(1, VAR_DNSTAP_SAMPLE_RATE) }
 disable-dnssec-lame-check{COLON} { YDVAR(1, VAR_DISABLE_DNSSEC_LAME_CHECK) }
 ip-ratelimit{COLON}		{ YDVAR(1, VAR_IP_RATELIMIT) }
 ip-ratelimit-cookie{COLON}	{ YDVAR(1, VAR_IP_RATELIMIT_COOKIE) }
@@ -581,6 +582,7 @@ udp-upstream-without-downstream{COLON} { YDVAR(1, VAR_UDP_UPSTREAM_WITHOUT_DOWNS
 tcp-connection-limit{COLON}	{ YDVAR(2, VAR_TCP_CONNECTION_LIMIT) }
 answer-cookie{COLON}		{ YDVAR(1, VAR_ANSWER_COOKIE ) }
 cookie-secret{COLON}		{ YDVAR(1, VAR_COOKIE_SECRET) }
+cookie-secret-file{COLON}	{ YDVAR(1, VAR_COOKIE_SECRET_FILE) }
 edns-client-string{COLON}	{ YDVAR(2, VAR_EDNS_CLIENT_STRING) }
 edns-client-string-opcode{COLON} { YDVAR(1, VAR_EDNS_CLIENT_STRING_OPCODE) }
 nsid{COLON}			{ YDVAR(1, VAR_NSID ) }

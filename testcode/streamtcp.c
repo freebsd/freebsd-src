@@ -471,7 +471,11 @@ send_em(const char* svr, const char* pp2_client, int udp, int usessl,
 			}
 		}
 		if(1) {
+#ifdef HAVE_SSL_GET1_PEER_CERTIFICATE
+			X509* x = SSL_get1_peer_certificate(ssl);
+#else
 			X509* x = SSL_get_peer_certificate(ssl);
+#endif
 			if(!x) printf("SSL: no peer certificate\n");
 			else {
 				X509_print_fp(stdout, x);

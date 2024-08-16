@@ -127,6 +127,7 @@ dir=$name.$$
 result=result.$name
 done=.done-$name
 skip=.skip-$name
+asan_text="SUMMARY: AddressSanitizer"
 success="no"
 if test -x "`which bash`"; then
 	shell="bash"
@@ -199,6 +200,16 @@ if test -f $name.post -a ! -f ../$skip; then
 	if test $? -ne 0; then
 		echo "Warning: $name.post did not exit successfully"
 	fi
+fi
+# Check if there were any AddressSanitizer errors
+# if compiled with -fsanitize=address
+if grep "$asan_text" $result >/dev/null 2>&1; then
+	if test -f ../$done; then
+		rm ../$done
+	fi
+	echo "$name: FAILED (AddressSanitizer)" >> $result
+	echo "$name: FAILED (AddressSanitizer)"
+	success="no"
 fi
 echo "DateRunEnd: "`date "+%s" 2>/dev/null` >> $result
 

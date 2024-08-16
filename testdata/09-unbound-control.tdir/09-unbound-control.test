@@ -73,6 +73,70 @@ control_command () {
 	$PRE/unbound-control $@ > outfile
 }
 
+# Reload the server and check the reload has finished processing
+# when a lot of debug is enabled, a lot of log needs to be printed.
+control_reload () {
+	prelines=`wc -l unbound.log | awk '{print $1;}'`
+	cmd="$1"
+	if test -z "$cmd"; then cmd="reload"; fi
+	control_command -c ub.conf $cmd
+	expect_exit_value 0
+	# see if the reload has completed.
+	lines1=`wc -l unbound.log | awk '{print $1;}'`
+	count=0
+	lines2=`wc -l unbound.log | awk '{print $1;}'`
+	# See if the log finishes up without sleeping too long.
+	while test "$lines1" -ne "$lines2"; do
+		lines1=`wc -l unbound.log | awk '{print $1;}'`
+		# There is no sleep here. The add and compare are a
+		# brief wait.
+		count=`expr "$count" + 1`
+		if test "$count" -gt 30; then
+			break;
+		fi
+		lines2=`wc -l unbound.log | awk '{print $1;}'`
+	done
+	if test "$lines1" -ne "$lines2"; then
+		count=0
+		while test "$lines1" -ne "$lines2"; do
+			tail -1 unbound.log
+			lines1=`wc -l unbound.log | awk '{print $1;}'`
+			sleep 1
+			count=`expr "$count" + 1`
+			if test "$count" -gt 30; then
+				echo "reload is taking too long"
+				exit 1
+			fi
+			lines2=`wc -l unbound.log | awk '{print $1;}'`
+		done
+		if test "$count" -ne "0"; then
+			echo "reload done with $count sec"
+		fi
+	fi
+}
+
+# Reload the server for a clean state
+clean_reload () {
+	echo "> Reloading the server for a clean state"
+	cp main.conf ub.conf
+	control_reload
+}
+
+# Reload the server for a clean state and populate the cache
+clean_reload_and_fill_cache () {
+	clean_reload
+	echo "> Populating the cache"
+	query www.example.com
+	expect_answer "10.20.30.40"
+	if test "$have_threads" = "no"; then
+		# Try to get the answer in all processes' cache.
+		for (( try=0 ; try < num_threads * 2 * 2 ; try++ )) ; do
+			query www.example.com
+			expect_answer "10.20.30.40"
+		done
+	fi
+}
+
 # Dump the cache contents
 # $@: optional options to unbound-control
 cache_dump () {
@@ -111,8 +175,28 @@ fail_in_cache_dump () {
 	fi
 }
 
-# start the test
+# Check if multi-threading or multi-process environment
+have_threads="no"
+if grep "define HAVE_PTHREAD 1" $PRE/config.h; then have_threads="yes"; fi
+if grep "define HAVE_SOLARIS_THREADS 1" $PRE/config.h; then have_threads="yes"; fi
+if grep "define HAVE_WINDOWS_THREADS 1" $PRE/config.h; then have_threads="yes"; fi
+
+# start the test; keep the original conf file around
+cp ub.conf orig.conf
+
+
+# START - thread configuration
+# Do both single thread/process and multi thread/process runs.
+# The number of threads can only go up from the initial configuration between
+# reloads so starting with 1.
+for num_threads in 1 4; do
+
+cp orig.conf ub.conf
+echo "> setting num-threads: $num_threads"
+echo "server: num-threads: $num_threads" >> ub.conf
 cp ub.conf main.conf
+clean_reload
+
 
 teststep "exit value is 1 on usage"
 control_command -h
@@ -132,8 +216,7 @@ expect_exit_value 1
 # local-data element in the server.
 teststep "reload the server"
 echo "server: local-data: 'afterreload. IN A 5.6.7.8'" >> ub.conf
-control_command -c ub.conf reload
-expect_exit_value 0
+control_reload
 query afterreload.
 expect_answer "5.6.7.8"
 
@@ -162,6 +245,9 @@ cp ub.conf bad.conf
 cat conf.spoofed_credentials >> bad.conf
 control_command -c bad.conf verbosity 2
 expect_exit_value 1
+
+teststep "clean reload"
+clean_reload
 
 teststep "create a new local zone"
 control_command -c ub.conf local_zone example.net static
@@ -194,6 +280,76 @@ expect_exit_value 0
 query www.example.net.
 expect_answer "SERVFAIL"
 
+teststep "load local-zones from file"
+control_command -c ub.conf local_zones < local_zones
+expect_exit_value 0
+query localzonefromfile
+expect_answer "REFUSED"
+if test "$have_threads" = "no"; then
+	# Try to see if a process other than the first one
+	# has updated data from stdin.
+	for (( try=0 ; try < num_threads * 2 ; try++ )) ; do
+		query localzonefromfile
+		expect_answer "REFUSED"
+	done
+fi
+
+teststep "load local-data from file"
+control_command -c ub.conf local_datas < local_data
+expect_exit_value 0
+query -t txt localdatafromfile
+expect_answer "local data from file OK"
+if test "$have_threads" = "no"; then
+	# Try to see if a process other than the first one
+	# has updated data from stdin.
+	for (( try=0 ; try < num_threads * 2 ; try++ )) ; do
+		query -t txt localdatafromfile
+		expect_answer "local data from file OK"
+	done
+fi
+
+teststep "load view-local-data from file"
+control_command -c ub.conf view_local_datas testview < view_local_data
+expect_exit_value 0
+control_command -c ub.conf view_list_local_zones testview
+query -t txt viewlocaldatafromfile
+expect_answer "view local data from file OK"
+if test "$have_threads" = "no"; then
+	# Try to see if a process other than the first one
+	# has updated data from stdin.
+	for (( try=0 ; try < num_threads * 2 ; try++ )) ; do
+		query -t txt viewlocaldatafromfile
+		expect_answer "view local data from file OK"
+	done
+fi
+
+teststep "remove local-zone, local-data and view-local-data from file"
+control_command -c ub.conf local_zones_remove < local_zones_remove
+expect_exit_value 0
+control_command -c ub.conf local_datas_remove < local_data_remove
+expect_exit_value 0
+control_command -c ub.conf view_local_datas_remove testview < view_local_data_remove
+expect_exit_value 0
+control_command -c ub.conf list_local_zones
+fail_answer "localzonefromfile"
+fail_answer "local data from file OK"
+expect_answer "otherlocalzone"
+control_command -c ub.conf view_list_local_data testview
+fail_answer "viewlocaldatafromfile"
+
+teststep "flushing"
+control_command -c ub.conf flush www.example.net
+expect_exit_value 0
+control_command -c ub.conf flush_type www.example.net TXT
+expect_exit_value 0
+control_command -c ub.conf flush_zone example.net
+expect_exit_value 0
+
+# START - single thread/process tests only
+if test $num_threads -le 1; then
+
+clean_reload_and_fill_cache
+
 teststep "dump the cache"
 query www.example.com.
 cache_dump -c ub.conf
@@ -208,123 +364,73 @@ expect_exit_value 0
 teststep "load the cache dump"
 cache_load -c ub.conf
 expect_exit_value 0
-query www.example.com.
+query www.example.com. +nordflag
 expect_answer "10.20.30.40"
 
-teststep "load local-zones from file"
-control_command -c ub.conf local_zones < local_zones
-expect_exit_value 0
-query localzonefromfile
-expect_answer "REFUSED"
+else
+	echo ""
+	echo "> skip test parts that need single thread/process"
+fi
+# END - single thread/process tests only
 
-teststep "load local-data from file"
-control_command -c ub.conf local_datas < local_data
-expect_exit_value 0
-query -t txt localdatafromfile
-expect_answer "local data from file OK"
+clean_reload_and_fill_cache
 
-teststep "remove local-zone and local-data from file"
-control_command -c ub.conf local_zones_remove < local_zones_remove
-expect_exit_value 0
-control_command -c ub.conf local_datas_remove < local_data_remove
-expect_exit_value 0
-control_command -c ub.conf list_local_zones
-fail_answer "localzonefromfile"
-fail_answer "local data from file OK"
-expect_answer "otherlocalzone"
+teststep "reload and check cache - should be empty"
+control_reload
+query www.example.com +nordflag
+fail_answer "10.20.30.40"
 
-teststep "flushing"
-control_command -c ub.conf flush www.example.net
-expect_exit_value 0
-control_command -c ub.conf flush_type www.example.net TXT
-expect_exit_value 0
-control_command -c ub.conf flush_zone example.net
-expect_exit_value 0
+clean_reload_and_fill_cache
 
-teststep "reload the server for a clean state and populate the cache"
-cp main.conf ub.conf
-control_command -c ub.conf reload
-expect_exit_value 0
-query www.example.com
-expect_answer "10.20.30.40"
-
-teststep "reload and check cache dump - should be empty"
-control_command -c ub.conf reload
-expect_exit_value 0
-cache_dump -c ub.conf
-expect_exit_value 0
-fail_in_cache_dump "www.example.com.*10.20.30.40"
-fail_in_cache_dump "msg www.example.com. IN A"
-
-query www.example.com
-expect_answer "10.20.30.40"
-
-teststep "reload_keep_cache and check cache dump - should not be empty"
-control_command -c ub.conf reload_keep_cache
-expect_exit_value 0
-cache_dump -c ub.conf
-expect_exit_value 0
-cat cache.dump
-expect_in_cache_dump "www.example.com.*10.20.30.40"
-expect_in_cache_dump "msg www.example.com. IN A"
+teststep "reload_keep_cache and check cache - should not be empty"
+control_reload reload_keep_cache
 query www.example.com +nordflag
 expect_answer "10.20.30.40"
 
+clean_reload_and_fill_cache
+
 teststep "change msg-cache-size and reload_keep_cache - should be empty"
 echo "server: msg-cache-size: 2m" >> ub.conf
-control_command -c ub.conf reload_keep_cache
-expect_exit_value 0
-cache_dump -c ub.conf
-expect_exit_value 0
-fail_in_cache_dump "www.example.com.*10.20.30.40"
-fail_in_cache_dump "msg www.example.com. IN A"
-query www.example.com
-expect_answer "10.20.30.40"
+control_reload reload_keep_cache
+query www.example.com +nordflag
+fail_answer "10.20.30.40"
+
+clean_reload_and_fill_cache
 
 teststep "change rrset-cache-size and reload_keep_cache - should be empty"
 echo "server: rrset-cache-size: 2m" >> ub.conf
-control_command -c ub.conf reload_keep_cache
-expect_exit_value 0
-cache_dump -c ub.conf
-expect_exit_value 0
-fail_in_cache_dump "www.example.com.*10.20.30.40"
-fail_in_cache_dump "msg www.example.com. IN A"
-query www.example.com
-expect_answer "10.20.30.40"
+control_reload reload_keep_cache
+query www.example.com +nordflag
+fail_answer "10.20.30.40"
 
-# See if this part of the test can be enabled, it needs threads for combined
-# output.
-have_threads="no"
-if grep "define HAVE_PTHREAD 1" $PRE/config.h; then have_threads="yes"; fi
-if grep "define HAVE_SOLARIS_THREADS 1" $PRE/config.h; then have_threads="yes"; fi
-if grep "define HAVE_WINDOWS_THREADS 1" $PRE/config.h; then have_threads="yes"; fi
+# START - have_threads tests
+# This part of the test needs threads for combined output.
 if test "$have_threads" = "yes"; then
+
+clean_reload_and_fill_cache
 
 teststep "change num-threads and reload_keep_cache - should be empty"
 echo "server: num-threads: 2" >> ub.conf
-control_command -c ub.conf reload_keep_cache
-expect_exit_value 0
-cache_dump -c ub.conf
-expect_exit_value 0
-fail_in_cache_dump "www.example.com.*10.20.30.40"
-fail_in_cache_dump "msg www.example.com. IN A"
-query www.example.com
-expect_answer "10.20.30.40"
+control_reload reload_keep_cache
+query www.example.com +nordflag
+fail_answer "10.20.30.40"
+
+clean_reload_and_fill_cache
 
 teststep "change minimal-responses and reload_keep_cache - should not be empty"
 echo "server: minimal-responses: no" >> ub.conf
-control_command -c ub.conf reload_keep_cache
-expect_exit_value 0
-cache_dump -c ub.conf
-expect_exit_value 0
-expect_in_cache_dump "www.example.com.*10.20.30.40"
-expect_in_cache_dump "msg www.example.com. IN A"
+control_reload reload_keep_cache
+query www.example.com +nordflag
+expect_answer "10.20.30.40"
 
 else
 	echo ""
 	echo "> skip test parts that need threads, have_threads=no"
-# end of check for have_threads
 fi
+# END - have_threads tests
+
+done
+# END - thread configuration
 
 teststep "now stop the server"
 control_command -c ub.conf stop

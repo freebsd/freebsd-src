@@ -256,7 +256,7 @@ setup_ctx(char* key, char* cert)
 #if HAVE_DECL_SSL_CTX_SET_ECDH_AUTO
 	if (!SSL_CTX_set_ecdh_auto(ctx,1))
 		if(verb>=1) printf("failed to set_ecdh_auto, not enabling ECDHE\n");
-#elif defined(USE_ECDSA)
+#elif defined(USE_ECDSA) && defined(HAVE_SSL_CTX_SET_TMP_ECDH)
 	if(1) {
 		EC_KEY *ecdh = EC_KEY_new_by_curve_name (NID_X9_62_prime256v1);
 		if (!ecdh) {

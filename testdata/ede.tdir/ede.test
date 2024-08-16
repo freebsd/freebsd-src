@@ -5,9 +5,6 @@
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
 
-# DNSSEC failure: Signature Expired or DNSKEY Missing (depending on the servfail configuration)
-dig @127.0.0.1 -p $UNBOUND_PORT servfail.nl > servfail.txt
-
 # DNSSEC failure: key not incepted
 dig @127.0.0.1 -p $UNBOUND_PORT notyetincepted.dnssec-failures.test. TXT +dnssec > sig_notyetincepted.txt
 

@@ -122,8 +122,6 @@ if test $num_responses -gt 2; then
 fi
 
 echo "> cat logfiles"
-cat tap.log
-cat tap.errlog
 cat fwd.log
 echo "> OK"
 exit 0

@@ -7,7 +7,7 @@ if test ! -x "`which unshare 2>&1`"; then
 	skip_test "no unshare (from util-linux package) available, skip test"
 fi
 
-get_random_port 11
+get_random_port 14
 
 PORT_ALLOW=$RND_PORT
 PORT_DENY=$(($RND_PORT + 1))
@@ -18,8 +18,11 @@ PORT_TAG_3=$(($RND_PORT + 5))
 PORT_VIEW_INT=$(($RND_PORT + 6))
 PORT_VIEW_EXT=$(($RND_PORT + 7))
 PORT_VIEW_INTEXT=$(($RND_PORT + 8))
-FORWARD_PORT=$(($RND_PORT + 9))
-STUB_PORT=$(($RND_PORT + 10))
+PORT_RPZ_1=$(($RND_PORT + 9))
+PORT_RPZ_2=$(($RND_PORT + 10))
+PORT_RPZ_NX=$(($RND_PORT + 11))
+FORWARD_PORT=$(($RND_PORT + 12))
+STUB_PORT=$(($RND_PORT + 13))
 
 IPV4_ADDR=192.168.1.1
 IPV6_ADDR=2001:db8::1
@@ -41,6 +44,9 @@ sed \
 	-e 's/@PORT_VIEW_INT\@/'$PORT_VIEW_INT'/' \
 	-e 's/@PORT_VIEW_EXT\@/'$PORT_VIEW_EXT'/' \
 	-e 's/@PORT_VIEW_INTEXT\@/'$PORT_VIEW_INTEXT'/' \
+	-e 's/@PORT_RPZ_1\@/'$PORT_RPZ_1'/' \
+	-e 's/@PORT_RPZ_2\@/'$PORT_RPZ_2'/' \
+	-e 's/@PORT_RPZ_NX\@/'$PORT_RPZ_NX'/' \
 	-e 's/@FORWARD_PORT\@/'$FORWARD_PORT'/' \
 	-e 's/@STUB_PORT\@/'$STUB_PORT'/' \
 	-e 's/@IPV4_ADDR\@/'$IPV4_ADDR'/' \
@@ -63,6 +69,9 @@ echo "PORT_TAG_3=$PORT_TAG_3" >> .tpkg.var.test
 echo "PORT_VIEW_INT=$PORT_VIEW_INT" >> .tpkg.var.test
 echo "PORT_VIEW_EXT=$PORT_VIEW_EXT" >> .tpkg.var.test
 echo "PORT_VIEW_INTEXT=$PORT_VIEW_INTEXT" >> .tpkg.var.test
+echo "PORT_RPZ_1=$PORT_RPZ_1" >> .tpkg.var.test
+echo "PORT_RPZ_2=$PORT_RPZ_2" >> .tpkg.var.test
+echo "PORT_RPZ_NX=$PORT_RPZ_NX" >> .tpkg.var.test
 echo "FORWARD_PORT=$FORWARD_PORT" >> .tpkg.var.test
 echo "STUB_PORT=$STUB_PORT" >> .tpkg.var.test
 echo "IPV4_ADDR=$IPV4_ADDR" >> .tpkg.var.test

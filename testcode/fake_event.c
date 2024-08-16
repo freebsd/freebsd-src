@@ -1655,6 +1655,12 @@ void comm_timer_set(struct comm_timer* timer, struct timeval* tv)
 	timeval_add(&t->tv, &t->runtime->now_tv);
 }
 
+int comm_timer_is_set(struct comm_timer* timer)
+{
+	struct fake_timer* t = (struct fake_timer*)timer;
+	return t->enabled;
+}
+
 void comm_timer_delete(struct comm_timer* timer)
 {
 	struct fake_timer* t = (struct fake_timer*)timer;
@@ -1975,6 +1981,10 @@ http2_get_response_buffer_size(void)
 
 void http2_stream_add_meshstate(struct http2_stream* ATTR_UNUSED(h2_stream),
 	struct mesh_area* ATTR_UNUSED(mesh), struct mesh_state* ATTR_UNUSED(m))
+{
+}
+
+void http2_stream_remove_mesh_state(struct http2_stream* ATTR_UNUSED(h2_stream))
 {
 }
 

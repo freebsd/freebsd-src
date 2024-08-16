@@ -352,6 +352,10 @@ service_init(int r, struct daemon** d, struct config_file** c)
 	daemon_apply_cfg(daemon, cfg);
 
 	if(!r) report_status(SERVICE_START_PENDING, NO_ERROR, 2300);
+	if(!r) {
+		if(!daemon_privileged(daemon))
+			fatal_exit("could not do privileged setup");
+	}
 	if(!(daemon->rc = daemon_remote_create(cfg))) {
 		log_err("could not set up remote-control");
 		daemon_delete(daemon);

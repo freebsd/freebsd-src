@@ -1117,7 +1117,7 @@ static void edns_ede_encode_encodedecode(struct query_info* qinfo,
 	sldns_buffer_skip(pkt, 2 + 2);
 	/* decode */
 	unit_assert(parse_edns_from_query_pkt(pkt, edns, NULL, NULL, NULL, 0,
-		region) == 0);
+		region, NULL) == 0);
 }
 
 static void edns_ede_encode_check(struct edns_data* edns, int* found_ede,
@@ -1252,6 +1252,109 @@ static void edns_ede_answer_encode_test(void)
 	regional_destroy(region);
 }
 
+#include "services/localzone.h"
+/* Utility function that compares two localzone trees */
+static void compare_localzone_trees(struct local_zones* z1,
+	struct local_zones* z2)
+{
+	struct local_zone *node1, *node2;
+	lock_rw_rdlock(&z1->lock);
+	lock_rw_rdlock(&z2->lock);
+	/* size should be the same */
+	unit_assert(z1->ztree.count == z2->ztree.count);
+	for(node1=(struct local_zone*)rbtree_first(&z1->ztree),
+		node2=(struct local_zone*)rbtree_first(&z2->ztree);
+		(rbnode_type*)node1 != RBTREE_NULL &&
+		(rbnode_type*)node2 != RBTREE_NULL;
+		node1=(struct local_zone*)rbtree_next((rbnode_type*)node1),
+		node2=(struct local_zone*)rbtree_next((rbnode_type*)node2)) {
+		int labs;
+		/* the same zone should be at the same nodes */
+		unit_assert(!dname_lab_cmp(
+			node1->name, node1->namelabs,
+			node2->name, node2->namelabs,
+			&labs));
+		/* the zone's parent should be the same on both nodes */
+		unit_assert(
+			(node1->parent == NULL && node2->parent == NULL) ||
+			(node1->parent != NULL && node2->parent != NULL));
+		if(node1->parent) {
+			unit_assert(!dname_lab_cmp(
+				node1->parent->name, node1->parent->namelabs,
+				node2->parent->name, node2->parent->namelabs,
+				&labs));
+		}
+	}
+	lock_rw_unlock(&z1->lock);
+	lock_rw_unlock(&z2->lock);
+}
+
+/* test that zone addition results in the same tree from both the configuration
+ * file and the unbound-control commands */
+static void localzone_parents_test(void)
+{
+	struct local_zones *z1, *z2;
+	size_t i;
+	char* zone_data[] = {
+		"one",
+		"a.b.c.one",
+		"b.c.one",
+		"c.one",
+		"two",
+		"c.two",
+		"b.c.two",
+		"a.b.c.two",
+		"a.b.c.three",
+		"b.c.three",
+		"c.three",
+		"three",
+		"c.four",
+		"b.c.four",
+		"a.b.c.four",
+		"four",
+		"."
+	};
+	unit_show_feature("localzones parent calculation");
+	z1 = local_zones_create();
+	z2 = local_zones_create();
+	/* parse test data */
+	for(i=0; i<sizeof(zone_data)/sizeof(zone_data[0]); i++) {
+		uint8_t* nm;
+		int nmlabs;
+		size_t nmlen;
+		struct local_zone* z;
+
+		/* This is the config way */
+		z = lz_enter_zone(z1, zone_data[i], "always_nxdomain",
+			LDNS_RR_CLASS_IN);
+		(void)z;  /* please compiler when no threading and no lock
+		code; the following line disappears and z stays unused */
+		lock_rw_unlock(&z->lock);
+		lz_init_parents(z1);
+
+		/* This is the unbound-control way */
+		nm = sldns_str2wire_dname(zone_data[i], &nmlen);
+		if(!nm) unit_assert(0);
+		nmlabs = dname_count_size_labels(nm, &nmlen);
+		lock_rw_wrlock(&z2->lock);
+		local_zones_add_zone(z2, nm, nmlen, nmlabs, LDNS_RR_CLASS_IN,
+			local_zone_always_nxdomain);
+		lock_rw_unlock(&z2->lock);
+	}
+	/* The trees should be the same, iterate and check the nodes */
+	compare_localzone_trees(z1, z2);
+
+	/* cleanup */
+	local_zones_delete(z1);
+	local_zones_delete(z2);
+}
+
+/** localzone unit tests */
+static void localzone_test(void)
+{
+	localzone_parents_test();
+}
+
 void unit_show_func(const char* file, const char* func)
 {
 	printf("test %s:%s\n", file, func);
@@ -1325,6 +1428,7 @@ main(int argc, char* argv[])
 	tcpreuse_test();
 	msgparse_test();
 	edns_ede_answer_encode_test();
+	localzone_test();
 #ifdef CLIENT_SUBNET
 	ecs_test();
 #endif /* CLIENT_SUBNET */

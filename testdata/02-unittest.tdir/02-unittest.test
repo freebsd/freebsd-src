@@ -7,57 +7,69 @@
 . ../common.sh
 PRE="../.."
 get_make
-(cd $PRE ; $MAKE unittest; $MAKE lock-verify)
+(cd $PRE ; $MAKE unittest; $MAKE lock-verify; $MAKE unbound-dnstap-socket)
 
 if test -f $PRE/unbound_do_valgrind_in_test; then
-	do_valgrind=yes
+	DO_VALGRIND=yes
 else
-	do_valgrind=no
+	DO_VALGRIND=no
 fi
 VALGRIND_FLAGS="--leak-check=full --show-leak-kinds=all"
 
-if test $do_valgrind = "yes"; then
-	echo "valgrind yes"
-	echo
-	tmpout=/tmp/tmpout.$$
-	if (cd $PRE; valgrind $VALGRIND_FLAGS ./unittest >$tmpout 2>&1); then
-		echo "unit test worked."
+# Run a unit test; it exits on failure
+# $1: the command to start the unit test
+run_unittest () {
+	unit_cmd=$1
+	echo "> testing $unit_cmd"
+	if test $DO_VALGRIND = "yes"; then
+		echo "valgrind yes"
+		echo
+		tmpout=/tmp/tmpout.$$
+		if (cd $PRE; valgrind $VALGRIND_FLAGS ./$unit_cmd >$tmpout 2>&1); then
+			echo "unit test worked."
+		else
+			echo "unit test failed."
+			exit 1
+		fi
+		if grep "All heap blocks were freed -- no leaks are possible" $tmpout; then
+			:  # clean
+		else
+			cat $tmpout
+			echo "Memory leaked in unit test"
+			grep "in use at exit" $tmpout
+			exit 1
+		fi
+		if grep "ERROR SUMMARY: 0 errors from 0 contexts" $tmpout; then
+			:  # clean
+		else
+			cat $tmpout
+			echo "Errors in unit test"
+			grep "ERROR SUMMARY" $tmpout
+			exit 1
+		fi
+		rm -f $tmpout
 	else
-		echo "unit test failed."
-		exit 1
+		# without valgrind
+		if (cd $PRE; ./$unit_cmd); then
+			echo "unit test worked."
+		else
+			echo "unit test failed."
+			exit 1
+		fi
 	fi
-	if grep "All heap blocks were freed -- no leaks are possible" $tmpout; then
-		:  # clean
-	else
-		cat $tmpout
-		echo "Memory leaked in unittest"
-		grep "in use at exit" $tmpout
-		exit 1
+	if test -f $PRE/ublocktrace.0; then
+		if (cd $PRE; ./lock-verify ublocktrace.*); then
+			echo "lock-verify test worked."
+		else
+			echo "lock-verify test failed."
+			exit 1
+		fi
 	fi
-	if grep "ERROR SUMMARY: 0 errors from 0 contexts" $tmpout; then
-		:  # clean
-	else
-		cat $tmpout
-		echo "Errors in unittest"
-		grep "ERROR SUMMARY" $tmpout
-		exit 1
-	fi
-	rm -f $tmpout
-else
-	# without valgrind
-	if (cd $PRE; ./unittest); then
-		echo "unit test worked."
-	else
-		echo "unit test failed."
-		exit 1
-	fi
+}
+
+run_unittest "unittest"
+if grep "define UNBOUND_DEBUG" $PRE/config.h >/dev/null;  then
+	run_unittest "unbound-dnstap-socket -c"
 fi
-if test -f $PRE/ublocktrace.0; then
-	if (cd $PRE; ./lock-verify ublocktrace.*); then
-		echo "lock-verify test worked."
-	else
-		echo "lock-verify test failed."
-		exit 1
-	fi
-fi
+
 exit 0

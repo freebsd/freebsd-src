@@ -1,2 +1,5 @@
 localzonefromfile refuse
 otherlocalzone	static
+localzonefromfile1 static
+localzonefromfile2 static
+localzonefromfile3 static
