@@ -539,6 +539,7 @@ rl_r_validate(struct rangelock *lock, struct rl_q_entry *e, bool trylock,
 {
 	struct rl_q_entry *cur, *next, **prev;
 
+again:
 	prev = &e->rl_q_next;
 	cur = rl_q_load(prev);
 	MPASS(!rl_e_is_marked(cur));	/* nobody can unlock e yet */
@@ -551,9 +552,10 @@ rl_r_validate(struct rangelock *lock, struct rl_q_entry *e, bool trylock,
 			if (rl_q_cas(prev, cur, next)) {
 				cur->rl_q_free = *free;
 				*free = cur;
+				cur = next;
+				continue;
 			}
-			cur = next;
-			continue;
+			goto again;
 		}
 		if (rl_e_is_rlock(cur)) {
 			prev = &cur->rl_q_next;
@@ -583,6 +585,7 @@ rl_w_validate(struct rangelock *lock, struct rl_q_entry *e,
 {
 	struct rl_q_entry *cur, *next, **prev;
 
+again:
 	prev = (struct rl_q_entry **)&lock->head;
 	cur = rl_q_load(prev);
 	MPASS(!rl_e_is_marked(cur));	/* head is not marked */
@@ -595,9 +598,10 @@ rl_w_validate(struct rangelock *lock, struct rl_q_entry *e,
 			if (rl_q_cas(prev, cur, next)) {
 				cur->rl_q_next = *free;
 				*free = cur;
+				cur = next;
+				continue;
 			}
-			cur = next;
-			continue;
+			goto again;
 		}
 		if (cur->rl_q_end <= e->rl_q_start) {
 			prev = &cur->rl_q_next;
@@ -642,9 +646,10 @@ again:
 #endif
 					cur->rl_q_free = *free;
 					*free = cur;
+					cur = next;
+					continue;
 				}
-				cur = next;
-				continue;
+				goto again;
 			}
 		}
 
