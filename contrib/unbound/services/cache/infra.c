@@ -60,6 +60,16 @@
  * can do this number of packets (until those all timeout too) */
 #define TIMEOUT_COUNT_MAX 3
 
+/** Minus 1000 because that is outside of the RTTBAND, so
+ * blacklisted servers stay blacklisted if this is chosen.
+ * If USEFUL_SERVER_TOP_TIMEOUT is below 1000 (configured via RTT_MAX_TIMEOUT,
+ * infra-cache-max-rtt) change it to just above the RTT_BAND. */
+#define STILL_USEFUL_TIMEOUT (				\
+	USEFUL_SERVER_TOP_TIMEOUT < 1000 ||		\
+	USEFUL_SERVER_TOP_TIMEOUT - 1000 <= RTT_BAND	\
+		?RTT_BAND + 1				\
+		:USEFUL_SERVER_TOP_TIMEOUT - 1000)
+
 /** ratelimit value for delegation point */
 int infra_dp_ratelimit = 0;
 
@@ -347,6 +357,7 @@ infra_create(struct config_file* cfg)
 		return NULL;
 	}
 	infra_ip_ratelimit = cfg->ip_ratelimit;
+	infra_ip_ratelimit_cookie = cfg->ip_ratelimit_cookie;
 	infra->client_ip_rates = slabhash_create(cfg->ip_ratelimit_slabs,
 	    INFRA_HOST_STARTSIZE, cfg->ip_ratelimit_size, &ip_rate_sizefunc,
 	    &ip_rate_compfunc, &ip_rate_delkeyfunc, &ip_rate_deldatafunc, NULL);
@@ -398,6 +409,7 @@ infra_adjust(struct infra_cache* infra, struct config_file* cfg)
 	infra->infra_keep_probing = cfg->infra_keep_probing;
 	infra_dp_ratelimit = cfg->ratelimit;
 	infra_ip_ratelimit = cfg->ip_ratelimit;
+	infra_ip_ratelimit_cookie = cfg->ip_ratelimit_cookie;
 	maxmem = cfg->infra_cache_numhosts * (sizeof(struct infra_key)+
 		sizeof(struct infra_data)+INFRA_BYTES_NAME);
 	/* divide cachesize by slabs and multiply by slabs, because if the
@@ -656,7 +668,7 @@ infra_update_tcp_works(struct infra_cache* infra,
 	if(data->rtt.rto >= RTT_MAX_TIMEOUT)
 		/* do not disqualify this server altogether, it is better
 		 * than nothing */
-		data->rtt.rto = RTT_MAX_TIMEOUT-1000;
+		data->rtt.rto = STILL_USEFUL_TIMEOUT;
 	lock_rw_unlock(&e->lock);
 }
 
@@ -796,7 +808,7 @@ infra_get_lame_rtt(struct infra_cache* infra,
 		&& infra->infra_keep_probing) {
 		/* single probe, keep probing */
 		if(*rtt >= USEFUL_SERVER_TOP_TIMEOUT)
-			*rtt = USEFUL_SERVER_TOP_TIMEOUT-1000;
+			*rtt = STILL_USEFUL_TIMEOUT;
 	} else if(host->rtt.rto >= PROBE_MAXRTO && timenow < host->probedelay
 		&& rtt_notimeout(&host->rtt)*4 <= host->rtt.rto) {
 		/* single probe for this domain, and we are not probing */
@@ -804,26 +816,23 @@ infra_get_lame_rtt(struct infra_cache* infra,
 		if(qtype == LDNS_RR_TYPE_A) {
 			if(host->timeout_A >= TIMEOUT_COUNT_MAX)
 				*rtt = USEFUL_SERVER_TOP_TIMEOUT;
-			else	*rtt = USEFUL_SERVER_TOP_TIMEOUT-1000;
+			else	*rtt = STILL_USEFUL_TIMEOUT;
 		} else if(qtype == LDNS_RR_TYPE_AAAA) {
 			if(host->timeout_AAAA >= TIMEOUT_COUNT_MAX)
 				*rtt = USEFUL_SERVER_TOP_TIMEOUT;
-			else	*rtt = USEFUL_SERVER_TOP_TIMEOUT-1000;
+			else	*rtt = STILL_USEFUL_TIMEOUT;
 		} else {
 			if(host->timeout_other >= TIMEOUT_COUNT_MAX)
 				*rtt = USEFUL_SERVER_TOP_TIMEOUT;
-			else	*rtt = USEFUL_SERVER_TOP_TIMEOUT-1000;
+			else	*rtt = STILL_USEFUL_TIMEOUT;
 		}
 	}
 	/* expired entry */
 	if(timenow > host->ttl) {
-
 		/* see if this can be a re-probe of an unresponsive server */
-		/* minus 1000 because that is outside of the RTTBAND, so
-		 * blacklisted servers stay blacklisted if this is chosen */
 		if(host->rtt.rto >= USEFUL_SERVER_TOP_TIMEOUT) {
 			lock_rw_unlock(&e->lock);
-			*rtt = USEFUL_SERVER_TOP_TIMEOUT-1000;
+			*rtt = STILL_USEFUL_TIMEOUT;
 			*lame = 0;
 			*dnsseclame = 0;
 			*reclame = 0;

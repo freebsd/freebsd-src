@@ -955,6 +955,9 @@ void http2_session_add_stream(struct http2_session* h2_session,
 void http2_stream_add_meshstate(struct http2_stream* h2_stream,
 	struct mesh_area* mesh, struct mesh_state* m);
 
+/** Remove mesh state from stream. When the mesh state has been removed. */
+void http2_stream_remove_mesh_state(struct http2_stream* h2_stream);
+
 /**
  * This routine is published for checks and tests, and is only used internally.
  * handle libevent callback for timer comm.

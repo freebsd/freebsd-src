@@ -675,7 +675,7 @@ create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
 	int* reuseport, int transparent, int mss, int nodelay, int freebind,
 	int use_systemd, int dscp)
 {
-	int s;
+	int s = -1;
 	char* err;
 #if defined(SO_REUSEADDR) || defined(SO_REUSEPORT) || defined(IPV6_V6ONLY) || defined(IP_TRANSPARENT) || defined(IP_BINDANY) || defined(IP_FREEBIND) || defined(SO_BINDANY)
 	int on = 1;
