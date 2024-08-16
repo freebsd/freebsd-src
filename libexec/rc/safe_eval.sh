@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 # RCSid:
-#	$Id: safe_eval.sh,v 1.16 2024/08/15 02:28:30 sjg Exp $
+#	$Id: safe_eval.sh,v 1.20 2024/08/16 00:57:58 sjg Exp $
 #
 #	@(#) Copyright (c) 2023-2024 Simon J. Gerraty
 #
@@ -54,9 +54,10 @@ safe_eval_export() {
 # feed all "file" that exist to safe_eval
 #
 safe_dot() {
-    eval ${local:-:} ef ex f
+    eval ${local:-:} ef ex f rc
     ef=
     ex=
+    rc=1
     while :
     do
         case "$1" in
@@ -66,11 +67,20 @@ safe_dot() {
     done
     for f in "$@"
     do
-        test -s $f || continue
+        test -s "$f" -a -f "$f" || continue
+        : check for space or tab in "$f"
+        case "$f" in
+        *[[:space:]]*|*" "*|*"	"*) # we cannot do this efficiently
+            dotted="$dotted $f"
+            safe_eval$ex "$f"
+            rc=$?
+            continue
+            ;;
+        esac
         ef="${ef:+$ef }$f"
         dotted="$dotted $f"
     done
-    test -z "$ef" && return 1
+    test -z "$ef" && return $rc
     safe_eval$ex $ef
     return 0
 }
