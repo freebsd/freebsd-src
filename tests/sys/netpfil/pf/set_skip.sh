@@ -26,6 +26,50 @@
 
 . $(atf_get_srcdir)/utils.subr
 
+atf_test_case "unset" "cleanup"
+unset_head()
+{
+	atf_set descr 'Unset set skip test'
+	atf_set require.user root
+}
+
+unset_body()
+{
+	pft_init
+
+	vnet_mkjail alcatraz
+	jexec alcatraz ifconfig lo0 127.0.0.1/8 up
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz "set skip on lo0" \
+		"block in proto icmp"
+
+	echo "set skip"
+	jexec alcatraz pfctl -v -sI
+
+	jexec alcatraz ifconfig
+	atf_check -s exit:0 -o ignore jexec alcatraz ping -c 1 127.0.0.1
+
+	# Unset the skip on the group
+	pft_set_rules noflush alcatraz \
+	    "block in proto icmp"
+
+	echo "No setskip"
+	jexec alcatraz pfctl -v -sI
+
+	# Do flush states
+	jexec alcatraz pfctl -Fs
+
+	# And now our ping is blocked
+	atf_check -s exit:2 -o ignore jexec alcatraz ping -c 1 127.0.0.1
+
+	jexec alcatraz pfctl -v -sI
+}
+
+unset_cleanup()
+{
+	pft_cleanup
+}
+
 atf_test_case "set_skip_group" "cleanup"
 set_skip_group_head()
 {
@@ -45,8 +89,24 @@ set_skip_group_body()
 	pft_set_rules alcatraz "set skip on foo" \
 		"block in proto icmp"
 
+	echo "set skip"
+	jexec alcatraz pfctl -v -sI
+
 	jexec alcatraz ifconfig
 	atf_check -s exit:0 -o ignore jexec alcatraz ping -c 1 127.0.0.1
+
+	# Unset the skip on the group
+	pft_set_rules noflush alcatraz \
+	    "block in proto icmp"
+
+	# Do flush states
+	jexec alcatraz pfctl -Fs
+
+	# And now our ping is blocked
+	atf_check -s exit:2 -o ignore jexec alcatraz ping -c 1 127.0.0.1
+
+	echo "No setskip"
+	jexec alcatraz pfctl -v -sI
 }
 
 set_skip_group_cleanup()
@@ -163,6 +223,7 @@ pr255852_cleanup()
 
 atf_init_test_cases()
 {
+	atf_add_test_case "unset"
 	atf_add_test_case "set_skip_group"
 	atf_add_test_case "set_skip_group_lo"
 	atf_add_test_case "set_skip_dynamic"

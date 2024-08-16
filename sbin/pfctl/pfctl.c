@@ -394,8 +394,6 @@ pfctl_check_skip_ifaces(char *ifname)
 				continue;
 
 			for (n = h; n != NULL; n = n->next) {
-				if (p->pfik_ifp == NULL)
-					continue;
 				if (strncmp(p->pfik_name, ifname, IFNAMSIZ))
 					continue;
 
@@ -422,9 +420,6 @@ pfctl_adjust_skip_ifaces(struct pfctl *pf)
 
 		for (n = h; n != NULL; n = n->next)
 			PFRB_FOREACH(pp, &skip_b) {
-				if (pp->pfik_ifp == NULL)
-					continue;
-
 				if (strncmp(pp->pfik_name, n->ifname, IFNAMSIZ))
 					continue;
 
@@ -437,7 +432,7 @@ pfctl_adjust_skip_ifaces(struct pfctl *pf)
 	}
 
 	PFRB_FOREACH(p, &skip_b) {
-		if (p->pfik_ifp == NULL || ! (p->pfik_flags & PFI_IFLAG_SKIP))
+		if (! (p->pfik_flags & PFI_IFLAG_SKIP))
 			continue;
 
 		pfctl_set_interface_flags(pf, p->pfik_name, PFI_IFLAG_SKIP, 0);
