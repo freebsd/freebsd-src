@@ -56,6 +56,7 @@ cat > /tmp/$prog.c <<EOF
 #include <fcntl.h>
 #include <libutil.h>
 #include <pthread.h>
+#include <pthread_np.h>
 #include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
@@ -92,10 +93,9 @@ static void *
 calls(void *arg __unused)
 {
 	time_t start;
-	int i;
 
 	start = time(NULL);
-	for (i = 0; time(NULL) - start < 10; i++) {
+	while (time(NULL) - start < 10) {
 		arc4random_buf(r, sizeof(r));
 		alarm(1);
 		syscall(SYS_sigreturn, r);
@@ -176,7 +176,6 @@ cc -o $prog -Wall -Wextra -O0 $prog.c -lpthread || exit 1
 start=`date +%s`
 while [ $((`date +%s` - start)) -lt 300 ]; do
 	./$prog > /dev/null 2>&1
-	date +%T
 done
 rm -f /tmp/$prog /tmp/$ptog.c /tmp/$prog.core
 exit 0
