@@ -329,6 +329,7 @@ udp_send_errno_needs_log(struct sockaddr* addr, socklen_t addrlen)
 		case EACCES:
 			if(verbosity < VERB_ALGO)
 				return 0;
+			break;
 		default:
 			break;
 	}
@@ -2365,11 +2366,11 @@ recv_error:
 #ifndef USE_WINSOCK
 	if(errno == EINTR || errno == EAGAIN)
 		return 1;
-	if(recv_initial) {
 #ifdef ECONNRESET
-		if(errno == ECONNRESET && verbosity < 2)
-			return 0; /* silence reset by peer */
+	if(errno == ECONNRESET && verbosity < 2)
+		return 0; /* silence reset by peer */
 #endif
+	if(recv_initial) {
 #ifdef ECONNREFUSED
 		if(errno == ECONNREFUSED && verbosity < 2)
 			return 0; /* silence reset by peer */
@@ -2396,7 +2397,7 @@ recv_error:
 #endif
 #ifdef ENOTCONN
 		if(errno == ENOTCONN) {
-			log_err_addr("read (in tcp s) failed and this "
+			log_err_addr("read (in tcp initial) failed and this "
 				"could be because TCP Fast Open is "
 				"enabled [--disable-tfo-client "
 				"--disable-tfo-server] but does not "
@@ -2430,8 +2431,9 @@ recv_error:
 		return 1;
 	}
 #endif
-	log_err_addr("read (in tcp s)", sock_strerror(errno),
-		&c->repinfo.remote_addr, c->repinfo.remote_addrlen);
+	log_err_addr((recv_initial?"read (in tcp initial)":"read (in tcp)"),
+		sock_strerror(errno), &c->repinfo.remote_addr,
+		c->repinfo.remote_addrlen);
 	return 0;
 }
 
@@ -3304,6 +3306,13 @@ void http2_stream_add_meshstate(struct http2_stream* h2_stream,
 {
 	h2_stream->mesh = mesh;
 	h2_stream->mesh_state = m;
+}
+
+void http2_stream_remove_mesh_state(struct http2_stream* h2_stream)
+{
+	if(!h2_stream)
+		return;
+	h2_stream->mesh_state = NULL;
 }
 
 /** delete http2 session server. After closing connection. */

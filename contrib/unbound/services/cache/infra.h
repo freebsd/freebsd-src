@@ -234,7 +234,7 @@ struct infra_cache* infra_adjust(struct infra_cache* infra,
 	struct config_file* cfg);
 
 /**
- * Plain find infra data function (used by the the other functions)
+ * Plain find infra data function (used by the other functions)
  * @param infra: infrastructure cache.
  * @param addr: host address.
  * @param addrlen: length of addr.

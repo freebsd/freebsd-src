@@ -701,6 +701,7 @@ dns64_operate(struct module_qstate* qstate, enum module_ev event, int id,
 			iq->state = DNS64_NEW_QUERY;
 			iq->started_no_cache_store = qstate->no_cache_store;
 			qstate->no_cache_store = 1;
+			ATTR_FALLTHROUGH
   			/* fallthrough */
 		case module_event_pass:
 			qstate->ext_state[id] = handle_event_pass(qstate, id);
@@ -1044,8 +1045,8 @@ dns64_get_mem(struct module_env* env, int id)
  */
 static struct module_func_block dns64_block = {
 	"dns64",
-	&dns64_init, &dns64_deinit, &dns64_operate, &dns64_inform_super,
-	&dns64_clear, &dns64_get_mem
+	NULL, NULL, &dns64_init, &dns64_deinit, &dns64_operate,
+	&dns64_inform_super, &dns64_clear, &dns64_get_mem
 };
 
 /**

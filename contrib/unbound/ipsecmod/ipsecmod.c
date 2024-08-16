@@ -615,7 +615,7 @@ ipsecmod_get_mem(struct module_env* env, int id)
  */
 static struct module_func_block ipsecmod_block = {
 	"ipsecmod",
-	&ipsecmod_init, &ipsecmod_deinit, &ipsecmod_operate,
+	NULL, NULL, &ipsecmod_init, &ipsecmod_deinit, &ipsecmod_operate,
 	&ipsecmod_inform_super, &ipsecmod_clear, &ipsecmod_get_mem
 };
 

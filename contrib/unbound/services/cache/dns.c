@@ -96,7 +96,8 @@ store_rrsets(struct module_env* env, struct reply_info* rep, time_t now,
 				struct ub_packed_rrset_key* ck;
 				lock_rw_rdlock(&rep->ref[i].key->entry.lock);
 				/* if deleted rrset, do not copy it */
-				if(rep->ref[i].key->id == 0)
+				if(rep->ref[i].key->id == 0 ||
+					rep->ref[i].id != rep->ref[i].key->id)
 					ck = NULL;
 				else 	ck = packed_rrset_copy_region(
 					rep->ref[i].key, region, now);
@@ -109,14 +110,22 @@ store_rrsets(struct module_env* env, struct reply_info* rep, time_t now,
 			/* no break: also copy key item */
 			/* the line below is matched by gcc regex and silences
 			 * the fallthrough warning */
+			ATTR_FALLTHROUGH
 			/* fallthrough */
 		case 1: /* ref updated, item inserted */
 			rep->rrsets[i] = rep->ref[i].key;
+			/* ref was updated; make sure the message ttl is
+			 * updated to the minimum of the current rrsets. */
+			lock_rw_rdlock(&rep->ref[i].key->entry.lock);
+			/* if deleted, skip ttl update. */
+			if(rep->ref[i].key->id != 0 &&
+				rep->ref[i].id == rep->ref[i].key->id) {
+				ttl = ((struct packed_rrset_data*)
+				    rep->rrsets[i]->entry.data)->ttl;
+				if(ttl < min_ttl) min_ttl = ttl;
+			}
+			lock_rw_unlock(&rep->ref[i].key->entry.lock);
 		}
-		/* if ref was updated make sure the message ttl is updated to
-		 * the minimum of the current rrsets. */
-		ttl = ((struct packed_rrset_data*)rep->rrsets[i]->entry.data)->ttl;
-		if(ttl < min_ttl) min_ttl = ttl;
 	}
 	if(min_ttl < rep->ttl) {
 		rep->ttl = min_ttl;
@@ -337,6 +346,13 @@ find_add_addrs(struct module_env* env, uint16_t qclass,
 			 * not use dns64 translation */
 			neg = msg_cache_lookup(env, ns->name, ns->namelen,
 				LDNS_RR_TYPE_AAAA, qclass, 0, now, 0);
+			/* Because recursion for lookup uses BIT_CD, check
+			 * for that so it stops the recursion lookup, if a
+			 * negative answer is cached. Because the cache uses
+			 * the CD flag for type AAAA. */
+			if(!neg)
+				neg = msg_cache_lookup(env, ns->name, ns->namelen,
+					LDNS_RR_TYPE_AAAA, qclass, BIT_CD, now, 0);
 			if(neg) {
 				delegpt_add_neg_msg(dp, neg);
 				lock_rw_unlock(&neg->entry.lock);
@@ -396,6 +412,13 @@ cache_fill_missing(struct module_env* env, uint16_t qclass,
 			 * not use dns64 translation */
 			neg = msg_cache_lookup(env, ns->name, ns->namelen,
 				LDNS_RR_TYPE_AAAA, qclass, 0, now, 0);
+			/* Because recursion for lookup uses BIT_CD, check
+			 * for that so it stops the recursion lookup, if a
+			 * negative answer is cached. Because the cache uses
+			 * the CD flag for type AAAA. */
+			if(!neg)
+				neg = msg_cache_lookup(env, ns->name, ns->namelen,
+					LDNS_RR_TYPE_AAAA, qclass, BIT_CD, now, 0);
 			if(neg) {
 				delegpt_add_neg_msg(dp, neg);
 				lock_rw_unlock(&neg->entry.lock);

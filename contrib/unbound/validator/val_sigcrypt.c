@@ -623,7 +623,8 @@ enum sec_status
 dnskeyset_verify_rrset(struct module_env* env, struct val_env* ve,
 	struct ub_packed_rrset_key* rrset, struct ub_packed_rrset_key* dnskey,
 	uint8_t* sigalg, char** reason, sldns_ede_code *reason_bogus,
-	sldns_pkt_section section, struct module_qstate* qstate, int* verified)
+	sldns_pkt_section section, struct module_qstate* qstate, int* verified,
+	char* reasonbuf, size_t reasonlen)
 {
 	enum sec_status sec;
 	size_t i, num;
@@ -680,7 +681,8 @@ dnskeyset_verify_rrset(struct module_env* env, struct val_env* ve,
 		verbose(VERB_ALGO, "rrset failed to verify: "
 			"no valid signatures for %d algorithms",
 			(int)algo_needs_num_missing(&needs));
-		algo_needs_reason(env, alg, reason, "no signatures");
+		algo_needs_reason(alg, reason, "no signatures", reasonbuf,
+			reasonlen);
 	} else {
 		verbose(VERB_ALGO, "rrset failed to verify: "
 			"no valid signatures");
@@ -688,17 +690,16 @@ dnskeyset_verify_rrset(struct module_env* env, struct val_env* ve,
 	return sec_status_bogus;
 }
 
-void algo_needs_reason(struct module_env* env, int alg, char** reason, char* s)
+void algo_needs_reason(int alg, char** reason, char* s, char* reasonbuf,
+	size_t reasonlen)
 {
-	char buf[256];
 	sldns_lookup_table *t = sldns_lookup_by_id(sldns_algorithms, alg);
 	if(t&&t->name)
-		snprintf(buf, sizeof(buf), "%s with algorithm %s", s, t->name);
-	else	snprintf(buf, sizeof(buf), "%s with algorithm ALG%u", s,
+		snprintf(reasonbuf, reasonlen, "%s with algorithm %s", s,
+			t->name);
+	else	snprintf(reasonbuf, reasonlen, "%s with algorithm ALG%u", s,
 			(unsigned)alg);
-	*reason = regional_strdup(env->scratch, buf);
-	if(!*reason)
-		*reason = s;
+	*reason = reasonbuf;
 }
 
 enum sec_status

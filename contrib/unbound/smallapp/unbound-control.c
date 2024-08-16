@@ -122,20 +122,27 @@ usage(void)
 	printf("  local_data <RR data...>	add local data, for example\n");
 	printf("				local_data www.example.com A 192.0.2.1\n");
 	printf("  local_data_remove <name>	remove local RR data from name\n");
-	printf("  local_zones, local_zones_remove, local_datas, local_datas_remove\n");
-	printf("  				same, but read list from stdin\n");
+	printf("  local_zones,\n");
+	printf("  local_zones_remove,\n");
+	printf("  local_datas,\n");
+	printf("  local_datas_remove		same, but read list from stdin\n");
 	printf("  				(one entry per line).\n");
 	printf("  dump_cache			print cache to stdout\n");
+	printf("				(not supported in remote unbounds in\n");
+	printf("				multi-process operation)\n");
 	printf("  load_cache			load cache from stdin\n");
+	printf("				(not supported in remote unbounds in\n");
+	printf("				multi-process operation)\n");
 	printf("  lookup <name>			print nameservers for name\n");
-	printf("  flush <name>			flushes common types for name from cache\n");
+	printf("  flush [+c] <name>			flushes common types for name from cache\n");
 	printf("  				types:  A, AAAA, MX, PTR, NS,\n");
 	printf("					SOA, CNAME, DNAME, SRV, NAPTR\n");
-	printf("  flush_type <name> <type>	flush name, type from cache\n");
-	printf("  flush_zone <name>		flush everything at or under name\n");
+	printf("  flush_type [+c] <name> <type>	flush name, type from cache\n");
+	printf("		+c		remove from cachedb too\n");
+	printf("  flush_zone [+c] <name>	flush everything at or under name\n");
 	printf("  				from rr and dnssec caches\n");
-	printf("  flush_bogus			flush all bogus data\n");
-	printf("  flush_negative		flush all negative data\n");
+	printf("  flush_bogus [+c]		flush all bogus data\n");
+	printf("  flush_negative [+c]		flush all negative data\n");
 	printf("  flush_stats 			flush statistics, make zero\n");
 	printf("  flush_requestlist 		drop queries that are worked on\n");
 	printf("  dump_requestlist		show what is worked on by first thread\n");
@@ -179,6 +186,10 @@ usage(void)
 	printf("  rpz_enable zone		Enable the RPZ zone if it had previously\n");
 	printf("  				been disabled\n");
 	printf("  rpz_disable zone		Disable the RPZ zone\n");
+	printf("  add_cookie_secret <secret>	add (or replace) a new cookie secret <secret>\n");
+	printf("  drop_cookie_secret		drop a staging cookie secret\n");
+	printf("  activate_cookie_secret	make a staging cookie secret active\n");
+	printf("  print_cookie_secrets		show all cookie secrets with their status\n");
 	printf("Version %s\n", PACKAGE_VERSION);
 	printf("BSD licensed, see LICENSE in source package for details.\n");
 	printf("Report bugs to %s\n", PACKAGE_BUGREPORT);
@@ -752,7 +763,11 @@ setup_ssl(SSL_CTX* ctx, int fd)
 	/* check authenticity of server */
 	if(SSL_get_verify_result(ssl) != X509_V_OK)
 		ssl_err("SSL verification failed");
+#ifdef HAVE_SSL_GET1_PEER_CERTIFICATE
+	x = SSL_get1_peer_certificate(ssl);
+#else
 	x = SSL_get_peer_certificate(ssl);
+#endif
 	if(!x)
 		ssl_err("Server presented no peer certificate");
 	X509_free(x);

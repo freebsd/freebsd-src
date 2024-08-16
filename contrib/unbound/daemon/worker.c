@@ -160,9 +160,11 @@ worker_mem_report(struct worker* ATTR_UNUSED(worker),
 		+ sizeof(worker->rndstate)
 		+ regional_get_mem(worker->scratchpad)
 		+ sizeof(*worker->env.scratch_buffer)
-		+ sldns_buffer_capacity(worker->env.scratch_buffer)
-		+ forwards_get_mem(worker->env.fwds)
-		+ hints_get_mem(worker->env.hints);
+		+ sldns_buffer_capacity(worker->env.scratch_buffer);
+	if(worker->daemon->env->fwds)
+		log_info("forwards=%u", (unsigned)forwards_get_mem(worker->env.fwds));
+	if(worker->daemon->env->hints)
+		log_info("hints=%u", (unsigned)hints_get_mem(worker->env.hints));
 	if(worker->thread_num == 0)
 		me += acl_list_get_mem(worker->daemon->acl);
 	if(cur_serv) {
@@ -1571,7 +1573,8 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 	if((ret=parse_edns_from_query_pkt(
 			c->buffer, &edns, worker->env.cfg, c, repinfo,
 			(worker->env.now ? *worker->env.now : time(NULL)),
-			worker->scratchpad)) != 0) {
+			worker->scratchpad,
+			worker->daemon->cookie_secrets)) != 0) {
 		struct edns_data reply_edns;
 		verbose(VERB_ALGO, "worker parse edns: formerror.");
 		log_addr(VERB_CLIENT, "from", &repinfo->client_addr,

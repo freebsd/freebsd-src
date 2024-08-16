@@ -42,6 +42,7 @@
 #include "config.h"
 #include <ctype.h>
 #include <stdarg.h>
+#include <errno.h>
 #ifdef HAVE_TIME_H
 #include <time.h>
 #endif
@@ -386,6 +387,7 @@ config_create(void)
 	memset(cfg->cookie_secret, 0, sizeof(cfg->cookie_secret));
 	cfg->cookie_secret_len = 16;
 	init_cookie_secret(cfg->cookie_secret, cfg->cookie_secret_len);
+	cfg->cookie_secret_file = NULL;
 #ifdef USE_CACHEDB
 	if(!(cfg->cachedb_backend = strdup("testframe"))) goto error_exit;
 	if(!(cfg->cachedb_secret = strdup("default"))) goto error_exit;
@@ -769,6 +771,7 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_YNO("dnstap-send-version:", dnstap_send_version)
 	else S_STR("dnstap-identity:", dnstap_identity)
 	else S_STR("dnstap-version:", dnstap_version)
+	else S_NUMBER_OR_ZERO("dnstap-sample-rate:", dnstap_sample_rate)
 	else S_YNO("dnstap-log-resolver-query-messages:",
 		dnstap_log_resolver_query_messages)
 	else S_YNO("dnstap-log-resolver-response-messages:",
@@ -837,6 +840,8 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	{ IS_NUMBER_OR_ZERO; cfg->ipsecmod_max_ttl = atoi(val); }
 	else S_YNO("ipsecmod-strict:", ipsecmod_strict)
 #endif
+	else S_YNO("answer-cookie:", do_answer_cookie)
+	else S_STR("cookie-secret-file:", cookie_secret_file)
 #ifdef USE_CACHEDB
 	else S_YNO("cachedb-no-store:", cachedb_no_store)
 	else S_YNO("cachedb-check-when-serve-expired:", cachedb_check_when_serve_expired)
@@ -1248,6 +1253,7 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_YNO(opt, "dnstap-send-version", dnstap_send_version)
 	else O_STR(opt, "dnstap-identity", dnstap_identity)
 	else O_STR(opt, "dnstap-version", dnstap_version)
+	else O_UNS(opt, "dnstap-sample-rate", dnstap_sample_rate)
 	else O_YNO(opt, "dnstap-log-resolver-query-messages",
 		dnstap_log_resolver_query_messages)
 	else O_YNO(opt, "dnstap-log-resolver-response-messages",
@@ -1333,6 +1339,8 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_LST(opt, "ipsecmod-whitelist", ipsecmod_whitelist)
 	else O_YNO(opt, "ipsecmod-strict", ipsecmod_strict)
 #endif
+	else O_YNO(opt, "answer-cookie", do_answer_cookie)
+	else O_STR(opt, "cookie-secret-file", cookie_secret_file)
 #ifdef USE_CACHEDB
 	else O_STR(opt, "backend", cachedb_backend)
 	else O_STR(opt, "secret-seed", cachedb_secret)
@@ -1718,6 +1726,7 @@ config_delete(struct config_file* cfg)
 	free(cfg->ipsecmod_hook);
 	config_delstrlist(cfg->ipsecmod_whitelist);
 #endif
+	free(cfg->cookie_secret_file);
 #ifdef USE_CACHEDB
 	free(cfg->cachedb_backend);
 	free(cfg->cachedb_secret);
@@ -1772,6 +1781,39 @@ init_outgoing_availports(int* a, int num)
 	}
 }
 
+static int
+extract_port_from_str(const char* str, int max_port) {
+	char* endptr;
+	long int value;
+	if (str == NULL || *str == '\0') {
+		log_err("str: '%s' is invalid", (str?str:"NULL"));
+		return -1;
+	}
+
+	value = strtol(str, &endptr, 10);
+	if ((endptr == str) || (*endptr != '\0'))  {
+		log_err("cannot parse port number '%s'", str);
+		return -1;
+	}
+
+	if (errno == ERANGE) {
+                log_err("overflow occurred when parsing '%s'", str);
+		return -1;
+	}
+
+	if (value == 0 && strcmp(str, "0") != 0) {
+		log_err("cannot parse port number '%s'", str);
+		return -1;
+	}
+
+	if (value < 0 || value >= max_port) {
+		log_err(" '%s' is out of bounds [0, %d)", str, max_port);
+		return -1;
+	}
+
+	return (int)value;
+}
+
 int
 cfg_mark_ports(const char* str, int allow, int* avail, int num)
 {
@@ -1782,53 +1824,45 @@ cfg_mark_ports(const char* str, int allow, int* avail, int num)
 		"options");
 #endif
 	if(!mid) {
-		int port = atoi(str);
-		if(port < 0) {
-			log_err("port number is negative: %d", port);
-			return 0;
-		}
-		if(port == 0 && strcmp(str, "0") != 0) {
-			log_err("cannot parse port number '%s'", str);
+		int port = extract_port_from_str(str, num);
+		if (port < 0) {
+			log_err("Failed to parse the port number");
 			return 0;
 		}
 		if(port < num)
 			avail[port] = (allow?port:0);
 	} else {
-		int i, low, high = atoi(mid+1);
 		char buf[16];
-		if(high < 0) {
-			log_err("port number is negative: %d", high);
+		int i, low;
+		int high = extract_port_from_str(mid+1, num);
+		if (high < 0) {
+			log_err("Failed to parse the port number");
 			return 0;
 		}
-		if(high == 0 && strcmp(mid+1, "0") != 0) {
-			log_err("cannot parse port number '%s'", mid+1);
-			return 0;
-		}
+
 		if( (int)(mid-str)+1 >= (int)sizeof(buf) ) {
 			log_err("cannot parse port number '%s'", str);
 			return 0;
 		}
+
 		if(mid > str)
 			memcpy(buf, str, (size_t)(mid-str));
 		buf[mid-str] = 0;
-		low = atoi(buf);
-		if(low < 0) {
-			log_err("port number is negative: %d", low);
+		low = extract_port_from_str(buf, num);
+		if (low < 0) {
+			log_err("Failed to parse the port number");
 			return 0;
 		}
-		if(low == 0 && strcmp(buf, "0") != 0) {
-			log_err("cannot parse port number '%s'", buf);
+
+		if (low > high) {
+			log_err("Low value is greater than high value");
 			return 0;
 		}
-		if(high > num) {
-			/* Stop very high values from taking a long time. */
-			high = num;
-		}
+
 		for(i=low; i<=high; i++) {
 			if(i < num)
 				avail[i] = (allow?i:0);
 		}
-		return 1;
 	}
 	return 1;
 }

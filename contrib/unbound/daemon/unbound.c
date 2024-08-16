@@ -473,7 +473,11 @@ perform_setup(struct daemon* daemon, struct config_file* cfg, int debug_mode,
 #endif
 #ifdef HAVE_GETPWNAM
 	struct passwd *pwd = NULL;
+#endif
 
+	if(!daemon_privileged(daemon))
+		fatal_exit("could not do privileged setup");
+#ifdef HAVE_GETPWNAM
 	if(cfg->username && cfg->username[0]) {
 		if((pwd = getpwnam(cfg->username)) == NULL)
 			fatal_exit("user '%s' does not exist.", cfg->username);
@@ -550,7 +554,7 @@ perform_setup(struct daemon* daemon, struct config_file* cfg, int debug_mode,
 		 * because that creates privilege escape problems, with the
 		 * pidfile writable by unprivileged users, but used by
 		 * privileged users. */
-		if(cfg->username && cfg->username[0])
+		if(!(cfg->username && cfg->username[0]))
 			checkoldpid(daemon->pidfile, pidinchroot);
 	}
 #endif

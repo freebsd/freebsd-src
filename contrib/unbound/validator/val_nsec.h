@@ -68,6 +68,8 @@ struct key_entry_key;
  * @param reason: string explaining why bogus.
  * @param reason_bogus: relevant EDE code for validation failure.
  * @param qstate: qstate with region.
+ * @param reasonbuf: buffer to use for fail reason string print.
+ * @param reasonlen: length of reasonbuf.
  * @return security status.
  *	SECURE: proved absence of DS.
  *	INSECURE: proved that this was not a delegation point.
@@ -78,7 +80,7 @@ enum sec_status val_nsec_prove_nodata_dsreply(struct module_env* env,
 	struct val_env* ve, struct query_info* qinfo, 
 	struct reply_info* rep, struct key_entry_key* kkey,
 	time_t* proof_ttl, char** reason, sldns_ede_code* reason_bogus,
-	struct module_qstate* qstate);
+	struct module_qstate* qstate, char* reasonbuf, size_t reasonlen);
 
 /** 
  * nsec typemap check, takes an NSEC-type bitmap as argument, checks for type.

@@ -177,7 +177,7 @@ static int
 nsec_verify_rrset(struct module_env* env, struct val_env* ve,
 	struct ub_packed_rrset_key* nsec, struct key_entry_key* kkey,
 	char** reason, sldns_ede_code* reason_bogus,
-	struct module_qstate* qstate)
+	struct module_qstate* qstate, char* reasonbuf, size_t reasonlen)
 {
 	struct packed_rrset_data* d = (struct packed_rrset_data*)
 		nsec->entry.data;
@@ -189,7 +189,8 @@ nsec_verify_rrset(struct module_env* env, struct val_env* ve,
 	if(d->security == sec_status_secure)
 		return 1;
 	d->security = val_verify_rrset_entry(env, ve, nsec, kkey, reason,
-		reason_bogus, LDNS_SECTION_AUTHORITY, qstate, &verified);
+		reason_bogus, LDNS_SECTION_AUTHORITY, qstate, &verified,
+		reasonbuf, reasonlen);
 	if(d->security == sec_status_secure) {
 		rrset_update_sec_status(env->rrset_cache, nsec, *env->now);
 		return 1;
@@ -201,7 +202,8 @@ enum sec_status
 val_nsec_prove_nodata_dsreply(struct module_env* env, struct val_env* ve, 
 	struct query_info* qinfo, struct reply_info* rep, 
 	struct key_entry_key* kkey, time_t* proof_ttl, char** reason,
-	sldns_ede_code* reason_bogus, struct module_qstate* qstate)
+	sldns_ede_code* reason_bogus, struct module_qstate* qstate,
+	char* reasonbuf, size_t reasonlen)
 {
 	struct ub_packed_rrset_key* nsec = reply_find_rrset_section_ns(
 		rep, qinfo->qname, qinfo->qname_len, LDNS_RR_TYPE_NSEC, 
@@ -219,7 +221,7 @@ val_nsec_prove_nodata_dsreply(struct module_env* env, struct val_env* ve,
 	 * 2) this is not a delegation point */
 	if(nsec) {
 		if(!nsec_verify_rrset(env, ve, nsec, kkey, reason,
-			reason_bogus, qstate)) {
+			reason_bogus, qstate, reasonbuf, reasonlen)) {
 			verbose(VERB_ALGO, "NSEC RRset for the "
 				"referral did not verify.");
 			return sec_status_bogus;
@@ -250,7 +252,7 @@ val_nsec_prove_nodata_dsreply(struct module_env* env, struct val_env* ve,
 		if(rep->rrsets[i]->rk.type != htons(LDNS_RR_TYPE_NSEC))
 			continue;
 		if(!nsec_verify_rrset(env, ve, rep->rrsets[i], kkey, reason,
-			reason_bogus, qstate)) {
+			reason_bogus, qstate, reasonbuf, reasonlen)) {
 			verbose(VERB_ALGO, "NSEC for empty non-terminal "
 				"did not verify.");
 			*reason = "NSEC for empty non-terminal "

@@ -391,6 +391,13 @@ void server_stats_obtain(struct worker* worker, struct worker* who,
 	else 	worker_send_cmd(who, worker_cmd_stats_noreset);
 	verbose(VERB_ALGO, "wait for stats reply");
 	if(tube_wait_timeout(worker->cmd, STATS_THREAD_WAIT) == 0) {
+#if defined(HAVE_PTHREAD) && defined(SIZEOF_PTHREAD_T) && defined(SIZEOF_UNSIGNED_LONG)
+#  if SIZEOF_PTHREAD_T == SIZEOF_UNSIGNED_LONG
+		unsigned long pthid = 0;
+		if(verbosity >= VERB_OPS)
+			memcpy(&pthid, &who->thr_id, sizeof(unsigned long));
+#  endif
+#endif
 		verbose(VERB_OPS, "no response from thread %d"
 #ifdef HAVE_GETTID
 			" LWP %u"
@@ -407,7 +414,7 @@ void server_stats_obtain(struct worker* worker, struct worker* who,
 #endif
 #if defined(HAVE_PTHREAD) && defined(SIZEOF_PTHREAD_T) && defined(SIZEOF_UNSIGNED_LONG)
 #  if SIZEOF_PTHREAD_T == SIZEOF_UNSIGNED_LONG
-			, (unsigned long)*((unsigned long*)&who->thr_id)
+			, pthid
 #  endif
 #endif
 			);
