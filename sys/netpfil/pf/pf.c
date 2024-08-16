@@ -8946,6 +8946,14 @@ pf_test6(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb 
 	pd.af = AF_INET6;
 	pd.act.rtableid = -1;
 
+	if (__predict_false(m->m_len < sizeof(struct ip6_hdr)) &&
+	    (m = *m0 = m_pullup(*m0, sizeof(struct ip6_hdr))) == NULL) {
+		DPFPRINTF(PF_DEBUG_URGENT,
+		    ("pf_test6: m_len < sizeof(struct ip6_hdr)"
+		     ", pullup failed\n"));
+		PF_RULES_RUNLOCK();
+		return (PF_DROP);
+	}
 	h = mtod(m, struct ip6_hdr *);
 	off = ((caddr_t)h - m->m_data) + sizeof(struct ip6_hdr);
 
