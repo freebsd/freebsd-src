@@ -126,3 +126,11 @@ int cachedb_is_enabled(struct module_stack* mods, struct module_env* env);
  * @param qstate: query state.
  */
 void cachedb_msg_remove(struct module_qstate* qstate);
+
+/**
+ * Remove message from the cachedb cache, by query info.
+ * @param env: module environment to look up cachedb state.
+ * @param qinfo: the message to remove.
+ */
+void cachedb_msg_remove_qinfo(struct module_env* env,
+	struct query_info* qinfo);

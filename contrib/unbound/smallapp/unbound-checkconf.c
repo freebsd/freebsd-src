@@ -140,10 +140,13 @@ check_mod(struct config_file* cfg, struct module_func_block* fb)
 		fatal_exit("out of memory");
 	if(!edns_known_options_init(&env))
 		fatal_exit("out of memory");
-	if(!(*fb->init)(&env, 0)) {
-		fatal_exit("bad config for %s module", fb->name);
-	}
+	if(fb->startup && !(*fb->startup)(&env, 0))
+		fatal_exit("bad config during startup for %s module", fb->name);
+	if(!(*fb->init)(&env, 0))
+		fatal_exit("bad config during init for %s module", fb->name);
 	(*fb->deinit)(&env, 0);
+	if(fb->destartup)
+		(*fb->destartup)(&env, 0);
 	sldns_buffer_free(env.scratch_buffer);
 	regional_destroy(env.scratch);
 	edns_known_options_delete(&env);

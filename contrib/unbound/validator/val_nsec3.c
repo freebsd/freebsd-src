@@ -1445,7 +1445,7 @@ static int
 list_is_secure(struct module_env* env, struct val_env* ve, 
 	struct ub_packed_rrset_key** list, size_t num,
 	struct key_entry_key* kkey, char** reason, sldns_ede_code *reason_bogus,
-	struct module_qstate* qstate)
+	struct module_qstate* qstate, char* reasonbuf, size_t reasonlen)
 {
 	struct packed_rrset_data* d;
 	size_t i;
@@ -1461,7 +1461,7 @@ list_is_secure(struct module_env* env, struct val_env* ve,
 			continue;
 		d->security = val_verify_rrset_entry(env, ve, list[i], kkey,
 			reason, reason_bogus, LDNS_SECTION_AUTHORITY, qstate,
-			&verified);
+			&verified, reasonbuf, reasonlen);
 		if(d->security != sec_status_secure) {
 			verbose(VERB_ALGO, "NSEC3 did not verify");
 			return 0;
@@ -1476,7 +1476,7 @@ nsec3_prove_nods(struct module_env* env, struct val_env* ve,
 	struct ub_packed_rrset_key** list, size_t num,
 	struct query_info* qinfo, struct key_entry_key* kkey, char** reason,
 	sldns_ede_code* reason_bogus, struct module_qstate* qstate,
-	struct nsec3_cache_table* ct)
+	struct nsec3_cache_table* ct, char* reasonbuf, size_t reasonlen)
 {
 	struct nsec3_filter flt;
 	struct ce_response ce;
@@ -1491,7 +1491,8 @@ nsec3_prove_nods(struct module_env* env, struct val_env* ve,
 		*reason = "no valid NSEC3s";
 		return sec_status_bogus; /* no valid NSEC3s, bogus */
 	}
-	if(!list_is_secure(env, ve, list, num, kkey, reason, reason_bogus, qstate)) {
+	if(!list_is_secure(env, ve, list, num, kkey, reason, reason_bogus,
+		qstate, reasonbuf, reasonlen)) {
 		*reason = "not all NSEC3 records secure";
 		return sec_status_bogus; /* not all NSEC3 records secure */
 	}
