@@ -41,6 +41,7 @@
 
 CONT=/tmp/crossmp8.continue
 N=`sysctl -n hw.ncpu`
+[ $N -gt 32 ] && N=32	# Arbitrary cap
 usermem=`sysctl -n hw.usermem`
 [ `swapinfo | wc -l` -eq 1 ] && usermem=$((usermem/100*80))
 size=$((usermem / 1024 / 1024 / N))
