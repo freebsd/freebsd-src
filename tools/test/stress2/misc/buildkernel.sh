@@ -49,6 +49,7 @@ chmod 0777 $TMPDIR
 log=$mntpoint/log
 
 p=$((`sysctl -n hw.ncpu`+ 1))
+[ $p -gt 32 ] && p=32  # Arbitrary cap
 p=`jot -r 1 1 $p`
 echo "make -j $p buildkernel KERNCONF=GENERIC DESTDIR=$mntpoint" \
     "TARGET=amd64 TARGET_ARCH=amd64"
