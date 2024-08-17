@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 28, 2026
+.Dd August 13, 2026
 .Dt DAEMON 8
 .Os
 .Sh NAME
@@ -32,7 +32,7 @@
 .Nd run detached from the controlling terminal
 .Sh SYNOPSIS
 .Nm
-.Op Fl cfHrS
+.Op Fl cfHrSx
 .Op Fl p Ar child_pidfile
 .Op Fl P Ar supervisor_pidfile
 .Op Fl t Ar title
@@ -195,10 +195,23 @@ and
 .Ev SHELL
 are set accordingly.
 Requires adequate superuser privileges.
+.It Fl x , Fl -execute-only
+Do not supervise the child process when using
+.Fl p .
+This option is useful to run the given program as another user when
+.Xr su 1
+can't be used but a file holding the pid is needed.
+The
+.Ar child_pidfile
+will not be locked and the contents may be silently truncated by
+a concurrent daemon(8) invocation.
 .El
 .Pp
 If any of the options
-.Fl -child-pidfile ,
+.Fl -child-pidfile
+(without
+.Fl -execute-only
+),
 .Fl -output-mask ,
 .Fl -restart ,
 .Fl -restart-delay ,
