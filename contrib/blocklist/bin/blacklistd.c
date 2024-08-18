@@ -395,15 +395,25 @@ rules_flush(void)
 static void
 rules_restore(void)
 {
+	DB *db;
 	struct conf c;
 	struct dbinfo dbi;
 	unsigned int f;
 
-	for (f = 1; state_iterate(state, &c, &dbi, f) == 1; f = 0) {
+	db = state_open(dbfile, O_RDONLY, 0);
+	if (db == NULL) {
+		(*lfun)(LOG_ERR, "Can't open `%s' to restore state (%m)",
+			dbfile);
+		return;
+	}
+	for (f = 1; state_iterate(db, &c, &dbi, f) == 1; f = 0) {
 		if (dbi.id[0] == '\0')
 			continue;
 		(void)run_change("add", &c, dbi.id, sizeof(dbi.id));
+		state_put(state, &c, &dbi);
 	}
+	state_close(db);
+	state_sync(state);
 }
 
 int
