@@ -25,16 +25,22 @@ if [ -z "$pf" ]; then
 	done
 fi
 
+if [ -z "$pf" -a -x "/sbin/iptables" ]; then
+	pf="iptables"
+fi
+
 if [ -z "$pf" ]; then
 	echo "$0: Unsupported packet filter" 1>&2
 	exit 1
 fi
 
 if [ -n "$3" ]; then
+	raw_proto="$3"
 	proto="proto $3"
 fi
 
 if [ -n "$6" ]; then
+	raw_port="$6"
 	port="port $6"
 fi
 
@@ -57,6 +63,7 @@ add)
 		    any port=$6 head port$6 | \
 		    /sbin/ipf -I -f - -s >/dev/null 2>&1 && echo OK
 		;;
+
 	ipfw)
 		# use $ipfw_offset+$port for rule number
 		rule=$(($ipfw_offset + $6))
@@ -69,10 +76,23 @@ add)
 			table"("$tname")" to any dst-port $6 >/dev/null && \
 			echo OK
 		;;
+
+	iptables)
+		if ! /sbin/iptables --list "$2" >/dev/null 2>&1; then
+			/sbin/iptables --new-chain "$2"
+		fi
+		/sbin/iptables --append INPUT --proto "$raw_proto" \
+		    --dport "$raw_port" --jump "$2"
+		/sbin/iptables --append "$2" --proto "$raw_proto" \
+		    --source "$addr/$mask" --dport "$raw_port" --jump DROP
+		echo OK
+		;;
+
 	npf)
 		/sbin/npfctl rule "$2" add block in final $proto from \
 		    "$addr/$mask" to any $port
 		;;
+
 	pf)
 		# if the filtering rule does not exist, create it
 		/sbin/pfctl -a "$2/$6" -sr 2>/dev/null | \
@@ -83,6 +103,7 @@ add)
 		/sbin/pfctl -qa "$2/$6" -t "port$6" -T add "$addr/$mask" && \
 		    /sbin/pfctl -qk "$addr" && echo OK
 		;;
+
 	esac
 	;;
 rem)
@@ -93,17 +114,30 @@ rem)
 		    any port=$6 head port$6 | \
 		    /sbin/ipf -I -r -f - -s >/dev/null 2>&1 && echo OK
 		;;
+
 	ipfw)
 		/sbin/ipfw table "port$6" delete "$addr/$mask" 2>/dev/null && \
 		    echo OK
 		;;
+
+	iptables)
+		if /sbin/iptables --list "$2" >/dev/null 2>&1; then
+			/sbin/iptables --delete "$2" --proto "$raw_proto" \
+			    --source "$addr/$mask" --dport "$raw_port" \
+			    --jump DROP
+		fi
+		echo OK
+		;;
+
 	npf)
 		/sbin/npfctl rule "$2" rem-id "$7"
 		;;
+
 	pf)
 		/sbin/pfctl -qa "$2/$6" -t "port$6" -T delete "$addr/$mask" && \
 		    echo OK
 		;;
+
 	esac
 	;;
 flush)
@@ -111,12 +145,22 @@ flush)
 	ipf)
 		/sbin/ipf -Z -I -Fi -s > /dev/null && echo OK
 		;;
+
 	ipfw)
 		/sbin/ipfw table "port$6" flush 2>/dev/null && echo OK
 		;;
+
+	iptables)
+		if /sbin/iptables --list "$2" >/dev/null 2>&1; then
+			/sbin/iptables --flush "$2"
+		fi
+		echo OK
+		;;
+
 	npf)
 		/sbin/npfctl rule "$2" flush
 		;;
+
 	pf)
 		# dynamically determine which anchors exist
 		for anchor in $(/sbin/pfctl -a "$2" -s Anchors); do
