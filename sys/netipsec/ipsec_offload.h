@@ -64,6 +64,8 @@ extern struct mbuf *(*ipsec_accel_key_setaccelif_p)(struct secasvar *sav);
 extern void (*ipsec_accel_on_ifdown_p)(struct ifnet *ifp);
 extern void (*ipsec_accel_drv_sa_lifetime_update_p)(struct secasvar *sav,
     if_t ifp, u_int drv_spi, uint64_t octets, uint64_t allocs);
+extern int (*ipsec_accel_drv_sa_lifetime_fetch_p)(struct secasvar *sav,
+    if_t ifp, u_int drv_spi, uint64_t *octets, uint64_t *allocs);
 
 #ifdef IPSEC_OFFLOAD
 /*
@@ -191,6 +193,8 @@ struct ipsec_accel_in_tag *ipsec_accel_input_tag_lookup(const struct mbuf *);
 void ipsec_accel_on_ifdown(struct ifnet *ifp);
 void ipsec_accel_drv_sa_lifetime_update(struct secasvar *sav, if_t ifp,
     u_int drv_spi, uint64_t octets, uint64_t allocs);
+int ipsec_accel_drv_sa_lifetime_fetch(struct secasvar *sav,
+    if_t ifp, u_int drv_spi, uint64_t *octets, uint64_t *allocs);
 
 #endif	/* _KERNEL */
 
