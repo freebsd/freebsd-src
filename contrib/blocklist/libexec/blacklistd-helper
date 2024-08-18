@@ -14,10 +14,18 @@ if [ -f "/etc/ipfw-blacklist.rc" ]; then
 	pf="ipfw"
 	. /etc/ipfw-blacklist.rc
 	ipfw_offset=${ipfw_offset:-2000}
+else
+	# ipfilter NetBSD, FreeBSD, Linux
+	for f in /etc/ipf.conf /etc/ipf.rules /etc/netscript/ipfilter.conf; do
+		if [ -f "$f" ]; then
+			pf="ipf"
+			break
+		fi
+	done
 fi
 
 if [ -z "$pf" ]; then
-	for f in npf pf ipf; do
+	for f in npf pf; do
 		if [ -f "/etc/$f.conf" ]; then
 			pf="$f"
 			break
