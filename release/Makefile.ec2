@@ -60,6 +60,7 @@ cw-ec2-portinstall:
 SSMOPTS_${_FL}_${_FS}=	--ssm-name ${SSMPREFIX}/${TARGET_ARCH:S/aarch64/arm64/}/${_FL}/${_FS}/${REVISION}/${BRANCH}
 .endif
 EC2AMILIST+=	ec2ami-${_FL}-${_FS}
+CLEANFILES+=	ec2ami-${_FL}-${_FS}
 ec2ami-${_FL}-${_FS}: cw-ec2-${_FL}-${_FS} ${CW_EC2_PORTINSTALL}
 .if !defined(AWSKEYFILE) || !exists(${AWSKEYFILE})
 	@echo "--------------------------------------------------------------"
