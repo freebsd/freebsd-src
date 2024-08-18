@@ -157,6 +157,8 @@ static struct mbuf *ipsec_accel_key_setaccelif_impl(struct secasvar *sav);
 static void ipsec_accel_on_ifdown_impl(struct ifnet *ifp);
 static void ipsec_accel_drv_sa_lifetime_update_impl(struct secasvar *sav,
     if_t ifp, u_int drv_spi, uint64_t octets, uint64_t allocs);
+static int ipsec_accel_drv_sa_lifetime_fetch_impl(struct secasvar *sav,
+    if_t ifp, u_int drv_spi, uint64_t *octets, uint64_t *allocs);
 static void ipsec_accel_ifdetach_event(void *arg, struct ifnet *ifp);
 
 static void
@@ -177,6 +179,8 @@ ipsec_accel_init(void *arg)
 	ipsec_accel_on_ifdown_p = ipsec_accel_on_ifdown_impl;
 	ipsec_accel_drv_sa_lifetime_update_p =
 	    ipsec_accel_drv_sa_lifetime_update_impl;
+	ipsec_accel_drv_sa_lifetime_fetch_p =
+	    ipsec_accel_drv_sa_lifetime_fetch_impl;
 	pctrie_init(&drv_spi_pctrie);
 	ipsec_accel_ifdetach_event_tag = EVENTHANDLER_REGISTER(
 	    ifnet_departure_event, ipsec_accel_ifdetach_event, NULL,
@@ -200,6 +204,7 @@ ipsec_accel_fini(void *arg)
 	ipsec_accel_key_setaccelif_p = NULL;
 	ipsec_accel_on_ifdown_p = NULL;
 	ipsec_accel_drv_sa_lifetime_update_p = NULL;
+	ipsec_accel_drv_sa_lifetime_fetch_p = NULL;
 	ipsec_accel_sync_imp();
 	clean_unrhdr(drv_spi_unr);	/* avoid panic, should go later */
 	clear_unrhdr(drv_spi_unr);
@@ -1015,6 +1020,30 @@ ipsec_accel_drv_sa_lifetime_update_impl(struct secasvar *sav, if_t ifp,
 out:
 	mtx_unlock(&ipsec_accel_cnt_lock);
 	NET_EPOCH_EXIT(et);
+}
+
+static int
+ipsec_accel_drv_sa_lifetime_fetch_impl(struct secasvar *sav,
+    if_t ifp, u_int drv_spi, uint64_t *octets, uint64_t *allocs)
+{
+	struct ifp_handle_sav *i;
+	int error;
+
+	NET_EPOCH_ASSERT();
+	error = 0;
+
+	mtx_lock(&ipsec_accel_cnt_lock);
+	CK_LIST_FOREACH(i, &sav->accel_ifps, sav_link) {
+		if (i->ifp == ifp && i->drv_spi == drv_spi) {
+			*octets = i->cnt_octets;
+			*allocs = i->cnt_allocs;
+			break;
+		}
+	}
+	if (i == NULL)
+		error = ENOENT;
+	mtx_unlock(&ipsec_accel_cnt_lock);
+	return (error);
 }
 
 static void

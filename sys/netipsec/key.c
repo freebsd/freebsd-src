@@ -112,6 +112,8 @@ struct mbuf *(*ipsec_accel_key_setaccelif_p)(struct secasvar *sav);
 void (*ipsec_accel_on_ifdown_p)(struct ifnet *ifp);
 void (*ipsec_accel_drv_sa_lifetime_update_p)(struct secasvar *sav, if_t ifp,
     u_int drv_spi, uint64_t octets, uint64_t allocs);
+int (*ipsec_accel_drv_sa_lifetime_fetch_p)(struct secasvar *sav, if_t ifp,
+    u_int drv_spi, uint64_t *octets, uint64_t *allocs);
 #endif
 
 #define FULLMASK	0xff
@@ -8989,5 +8991,18 @@ ipsec_accel_drv_sa_lifetime_update(struct secasvar *sav, if_t ifp,
 	p = atomic_load_ptr(&ipsec_accel_drv_sa_lifetime_update_p);
 	if (p != NULL)
 		p(sav, ifp, drv_spi, octets, allocs);
+}
+
+int
+ipsec_accel_drv_sa_lifetime_fetch(struct secasvar *sav,
+    if_t ifp, u_int drv_spi, uint64_t *octets, uint64_t *allocs)
+{
+	int (*p)(struct secasvar *sav, if_t ifp, u_int drv_spi,
+	    uint64_t *octets, uint64_t *allocs);
+
+	p = atomic_load_ptr(&ipsec_accel_drv_sa_lifetime_fetch_p);
+	if (p == NULL)
+		return (EOPNOTSUPP);
+	return (p(sav, ifp, drv_spi, octets, allocs));
 }
 #endif
