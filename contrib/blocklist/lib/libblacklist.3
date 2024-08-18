@@ -89,17 +89,17 @@ argument.
 The
 .Ar action
 parameter can take these values:
-.Bl -tag -width ".Va BLACKLIST_ABUSIVE_BEHAVIOR"
-.It Va BLACKLIST_AUTH_FAIL
+.Bl -tag -width ".Dv BLACKLIST_ABUSIVE_BEHAVIOR"
+.It Dv BLACKLIST_AUTH_FAIL
 There was an unsuccessful authentication attempt.
-.It Va BLACKLIST_AUTH_OK
+.It Dv BLACKLIST_AUTH_OK
 A user successfully authenticated.
-.It Va BLACKLIST_ABUSIVE_BEHAVIOR
+.It Dv BLACKLIST_ABUSIVE_BEHAVIOR
 The sending daemon has detected abusive behavior
 from the remote system.
 The remote address should
 be blocked as soon as possible.
-.It Va BLACKLIST_BAD_USER
+.It Dv BLACKLIST_BAD_USER
 The sending daemon has determined the username
 presented for authentication is invalid.
 The
@@ -108,7 +108,7 @@ daemon compares the username to a configured list of forbidden
 usernames and
 blocks the address immediately if a forbidden username matches.
 (The
-.Ar BLACKLIST_BAD_USER
+.Dv BLACKLIST_BAD_USER
 support is not currently available.)
 .El
 .Pp
