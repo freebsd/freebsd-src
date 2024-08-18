@@ -1,4 +1,4 @@
-/*	$NetBSD: conf.c,v 1.3 2022/11/18 16:01:00 christos Exp $	*/
+/*	$NetBSD: conf.c,v 1.6 2024/02/09 15:15:32 christos Exp $	*/
 
 /*-
  * Copyright (c) 2015 The NetBSD Foundation, Inc.
@@ -33,7 +33,7 @@
 #endif
 
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: conf.c,v 1.3 2022/11/18 16:01:00 christos Exp $");
+__RCSID("$NetBSD: conf.c,v 1.6 2024/02/09 15:15:32 christos Exp $");
 
 #include <stdio.h>
 #ifdef HAVE_LIBUTIL_H
@@ -261,7 +261,7 @@ conf_gethostport(const char *f, size_t l, bool local, struct conf *c,
 		if (debug)
 			(*lfun)(LOG_DEBUG, "%s: host6 %s", __func__, p);
 		if (strcmp(p, "*") != 0) {
-			if (inet_pton(AF_INET6, p, &sin6->sin6_addr) == -1)
+			if (inet_pton(AF_INET6, p, &sin6->sin6_addr) != 1)
 				goto out;
 			sin6->sin6_family = AF_INET6;
 #ifdef HAVE_STRUCT_SOCKADDR_SA_LEN
@@ -269,6 +269,8 @@ conf_gethostport(const char *f, size_t l, bool local, struct conf *c,
 #endif
 			port = &sin6->sin6_port;
 		}
+		if (!*pstr)
+			pstr = "*";
 	} else if (pstr != p || strchr(p, '.') || conf_is_interface(p)) {
 		if (pstr == p)
 			pstr = "*";
@@ -311,7 +313,7 @@ conf_gethostport(const char *f, size_t l, bool local, struct conf *c,
 		*port = htons((in_port_t)c->c_port);
 	return 0;
 out:
-	(*lfun)(LOG_ERR, "%s: %s, %zu: Bad address [%s]", __func__, f, l, pstr);
+	(*lfun)(LOG_ERR, "%s: %s, %zu: Bad address [%s]", __func__, f, l, p);
 	return -1;
 out1:
 	(*lfun)(LOG_ERR, "%s: %s, %zu: Can't specify mask %d with "
@@ -1172,7 +1174,7 @@ conf_parse(const char *f)
 		return;
 	}
 
-	lineno = 1;
+	lineno = 0;
 
 	confset_init(&rc);
 	confset_init(&lc);
