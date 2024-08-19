@@ -2070,11 +2070,11 @@ sockbuf_pushsync(struct sockbuf *sb, struct mbuf *nextrecord)
  * mbuf **mp0 for use in returning the chain.  The uio is then used only for
  * the count in uio_resid.
  */
-int
-soreceive_generic(struct socket *so, struct sockaddr **psa, struct uio *uio,
-    struct mbuf **mp0, struct mbuf **controlp, int *flagsp)
+static int
+soreceive_generic_locked(struct socket *so, struct sockaddr **psa,
+    struct uio *uio, struct mbuf **mp, struct mbuf **controlp, int *flagsp)
 {
-	struct mbuf *m, **mp;
+	struct mbuf *m;
 	int flags, error, offset;
 	ssize_t len;
 	struct protosw *pr = so->so_proto;
@@ -2083,25 +2083,15 @@ soreceive_generic(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	ssize_t orig_resid = uio->uio_resid;
 	bool report_real_len = false;
 
-	mp = mp0;
-	if (psa != NULL)
-		*psa = NULL;
-	if (controlp != NULL)
-		*controlp = NULL;
+	SOCK_IO_RECV_ASSERT_LOCKED(so);
+
+	error = 0;
 	if (flagsp != NULL) {
 		report_real_len = *flagsp & MSG_TRUNC;
 		*flagsp &= ~MSG_TRUNC;
 		flags = *flagsp &~ MSG_EOR;
 	} else
 		flags = 0;
-	if (flags & MSG_OOB)
-		return (soreceive_rcvoob(so, uio, flags));
-	if (mp != NULL)
-		*mp = NULL;
-
-	error = SOCK_IO_RECV_LOCK(so, SBLOCKWAIT(flags));
-	if (error)
-		return (error);
 
 restart:
 	SOCKBUF_LOCK(&so->so_rcv);
@@ -2559,6 +2549,33 @@ dontblock:
 	if (flagsp != NULL)
 		*flagsp |= flags;
 release:
+	return (error);
+}
+
+int
+soreceive_generic(struct socket *so, struct sockaddr **psa, struct uio *uio,
+    struct mbuf **mp, struct mbuf **controlp, int *flagsp)
+{
+	int error, flags;
+
+	if (psa != NULL)
+		*psa = NULL;
+	if (controlp != NULL)
+		*controlp = NULL;
+	if (flagsp != NULL) {
+		flags = *flagsp;
+		if ((flags & MSG_OOB) != 0)
+			return (soreceive_rcvoob(so, uio, flags));
+	} else {
+		flags = 0;
+	}
+	if (mp != NULL)
+		*mp = NULL;
+
+	error = SOCK_IO_RECV_LOCK(so, SBLOCKWAIT(flags));
+	if (error)
+		return (error);
+	error = soreceive_generic_locked(so, psa, uio, mp, controlp, flagsp);
 	SOCK_IO_RECV_UNLOCK(so);
 	return (error);
 }
