@@ -349,12 +349,12 @@ LEND(handle_el2_el1_error64)
 
 /*
  * Usage:
- * uint64_t vmm_enter_guest(struct hypctx *hypctx)
+ * uint64_t vmm_do_call_guest(struct hypctx *hypctx)
  *
  * Expecting:
  * x0 - hypctx address
  */
-ENTRY(vmm_enter_guest)
+ENTRY(VMM_HYP_FUNC(do_call_guest))
 	/* Save hypctx address */
 	msr	tpidr_el2, x0
 
@@ -363,7 +363,7 @@ ENTRY(vmm_enter_guest)
 
 	/* Enter guest */
 	ERET
-END(vmm_enter_guest)
+END(VMM_HYP_FUNC(do_call_guest))
 
 /*
  * Usage:
