@@ -41,6 +41,10 @@
 #define	CNTHCTL_EL1PCTEN	(1 << 0) /* Allow physical counter access */
 #define	CNTHCTL_EL1PCEN		(1 << 1) /* Allow physical timer access */
 /* Valid if HCR_EL2.E2H == 1 */
+#define	CNTHCTL_E2H_EL0PCTEN	(1 << 0) /* Allow EL0 physical counter access */
+#define	CNTHCTL_E2H_EL0VCTEN	(1 << 1) /* Allow EL0 virtual counter access */
+#define	CNTHCTL_E2H_EL0VTEN	(1 << 8)
+#define	CNTHCTL_E2H_EL0PTEN	(1 << 9)
 #define	CNTHCTL_E2H_EL1PCTEN	(1 << 10) /* Allow physical counter access */
 #define	CNTHCTL_E2H_EL1PTEN	(1 << 11) /* Allow physical timer access */
 /* Unconditionally valid */
