@@ -54,9 +54,12 @@ geom_stats_close(void)
 {
 	if (statsfd == -1)
 		return;
-	munmap(statp, npages * pagesize);
-	statp = NULL;
-	close (statsfd);
+	if (statp != NULL) {
+		if (munmap(statp, npages * pagesize) != 0)
+			err(1, "munmap");
+		statp = NULL;
+	}
+	close(statsfd);
 	statsfd = -1;
 }
 
@@ -73,22 +76,18 @@ geom_stats_resync(void)
 	if (error)
 		err(1, "DIOCGMEDIASIZE(" _PATH_DEV DEVSTAT_DEVICE_NAME ")");
 
-	munmap(statp, npages * pagesize);
-	p = mmap(statp, mediasize, PROT_READ, MAP_SHARED, statsfd, 0);
+	if (statp != NULL && munmap(statp, npages * pagesize) != 0)
+		err(1, "munmap");
+	p = mmap(NULL, mediasize, PROT_READ, MAP_SHARED, statsfd, 0);
 	if (p == MAP_FAILED)
-		err(1, "mmap(/dev/devstat):");
-	else {
-		statp = p;
-		npages = mediasize / pagesize;
-	}
+		err(1, "mmap(/dev/devstat)");
+	statp = p;
+	npages = mediasize / pagesize;
 }
 
 int
 geom_stats_open(void)
 {
-	int error;
-	void *p;
-
 	if (statsfd != -1)
 		return (EBUSY);
 	statsfd = open(_PATH_DEV DEVSTAT_DEVICE_NAME, O_RDONLY);
@@ -96,15 +95,6 @@ geom_stats_open(void)
 		return (errno);
 	pagesize = getpagesize();
 	spp = pagesize / sizeof(struct devstat);
-	p = mmap(NULL, pagesize, PROT_READ, MAP_SHARED, statsfd, 0);
-	if (p == MAP_FAILED) {
-		error = errno;
-		close(statsfd);
-		statsfd = -1;
-		errno = error;
-		return (error);
-	}
-	statp = p;
 	npages = 1;
 	geom_stats_resync();
 	return (0);
