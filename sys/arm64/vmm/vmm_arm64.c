@@ -246,12 +246,6 @@ vmmops_modinit(int ipinum)
 		return (ENXIO);
 	}
 
-	/* TODO: Support VHE */
-	if (in_vhe()) {
-		printf("vmm: VHE is unsupported\n");
-		return (ENXIO);
-	}
-
 	if (!vgic_present()) {
 		printf("vmm: No vgic found\n");
 		return (ENODEV);
