@@ -64,6 +64,7 @@ ${PACKAGE}FILES+=	CVE-2019-5597.py \
 			frag-overreplace.py \
 			pfsync_defer.py \
 			pft_ether.py \
+			rdr-srcport.py \
 			utils.subr
 
 ${PACKAGE}FILESMODE_CVE-2019-5597.py=	0555
