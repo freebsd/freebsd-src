@@ -30,6 +30,8 @@ SRCS+=	vmm_arm64.c \
 	vmm_call.S \
 	vmm_handlers.c \
 	vmm_mmu.c \
+	vmm_vhe_exception.S \
+	vmm_vhe.c \
 	vmm_hyp_el2.S
 
 .PATH: ${SRCTOP}/sys/${MACHINE}/vmm/io
