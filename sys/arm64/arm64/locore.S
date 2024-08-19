@@ -134,7 +134,6 @@ virtdone:
 	str	x25, [x0, #BP_KERN_STACK]
 	str	x27, [x0, #BP_KERN_TTBR0]
 	str	x23, [x0, #BP_BOOT_EL]
-	str	x4,  [x0, #BP_HCR_EL2]
 
 #ifdef KASAN
 	/* Save bootparams */
