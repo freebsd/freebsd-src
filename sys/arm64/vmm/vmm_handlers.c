@@ -33,33 +33,81 @@
 #include "arm64.h"
 #include "vmm_handlers.h"
 
-uint64_t
-vmm_read_reg(uint64_t reg)
+/* Read an EL2 register */
+static uint64_t
+vmm_nvhe_read_reg(uint64_t reg)
 {
 	return (vmm_call_hyp(HYP_READ_REGISTER, reg));
 }
 
-uint64_t
-vmm_enter_guest(struct hyp *hyp, struct hypctx *hypctx)
+DEFINE_IFUNC(, uint64_t, vmm_read_reg, (uint64_t reg))
+{
+	if (in_vhe())
+		return (vmm_vhe_read_reg);
+	return (vmm_nvhe_read_reg);
+}
+
+/* Enter the guest */
+static uint64_t
+vmm_nvhe_enter_guest(struct hyp *hyp, struct hypctx *hypctx)
 {
 	return (vmm_call_hyp(HYP_ENTER_GUEST, hyp->el2_addr, hypctx->el2_addr));
 }
 
-void
-vmm_clean_s2_tlbi(void)
+DEFINE_IFUNC(, uint64_t, vmm_enter_guest,
+    (struct hyp *hyp, struct hypctx *hypctx))
+{
+	if (in_vhe())
+		return (vmm_vhe_enter_guest);
+	return (vmm_nvhe_enter_guest);
+}
+
+/* Clean the TLB for all guests */
+static void
+vmm_nvhe_clean_s2_tlbi(void)
 {
 	vmm_call_hyp(HYP_CLEAN_S2_TLBI);
 }
 
-void
-vmm_s2_tlbi_range(uint64_t vttbr, vm_offset_t sva, vm_offset_t eva,
+DEFINE_IFUNC(, void, vmm_clean_s2_tlbi, (void))
+{
+	if (in_vhe())
+		return (vmm_vhe_clean_s2_tlbi);
+	return (vmm_nvhe_clean_s2_tlbi);
+}
+
+/*
+ * Switch to a guest vttbr and clean the TLB for a range of guest
+ * virtual address space.
+ */
+static void
+vmm_nvhe_s2_tlbi_range(uint64_t vttbr, vm_offset_t sva, vm_offset_t eva,
     bool final_only)
 {
 	vmm_call_hyp(HYP_S2_TLBI_RANGE, vttbr, sva, eva, final_only);
 }
 
-void
-vmm_s2_tlbi_all(uint64_t vttbr)
+DEFINE_IFUNC(, void, vmm_s2_tlbi_range,
+    (uint64_t vttbr, vm_offset_t sva, vm_offset_t eva, bool final_only))
+{
+	if (in_vhe())
+		return (vmm_vhe_s2_tlbi_range);
+	return (vmm_nvhe_s2_tlbi_range);
+}
+
+/*
+ * Switch to a guest vttbr and clean the TLB for all the guest
+ * virtual address space.
+ */
+static void
+vmm_nvhe_s2_tlbi_all(uint64_t vttbr)
 {
 	vmm_call_hyp(HYP_S2_TLBI_ALL, vttbr);
+}
+
+DEFINE_IFUNC(, void, vmm_s2_tlbi_all, (uint64_t vttbr))
+{
+	if (in_vhe())
+		return (vmm_vhe_s2_tlbi_all);
+	return (vmm_nvhe_s2_tlbi_all);
 }
