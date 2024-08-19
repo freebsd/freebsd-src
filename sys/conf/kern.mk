@@ -294,6 +294,8 @@ CSTD?=		gnu99
 CFLAGS+=        -std=${CSTD}
 .endif # CSTD
 
+NOSAN_CFLAGS= ${CFLAGS:N-fsanitize*:N-fno-sanitize*:N-fasan-shadow-offset*}
+
 # Please keep this if in sync with bsd.sys.mk
 .if ${LD} != "ld" && (${CC:[1]:H} != ${LD:[1]:H} || ${LD:[1]:T} != "ld")
 # Add -fuse-ld=${LD} if $LD is in a different directory or not called "ld".
