@@ -313,11 +313,15 @@ soeventmtx(struct socket *so, const sb_which which)
 #define	SOCK_IO_SEND_UNLOCK(so)						\
 	soiounlock(&(so)->so_snd_sx)
 #define	SOCK_IO_SEND_OWNED(so)	sx_xlocked(&(so)->so_snd_sx)
+#define	SOCK_IO_SEND_ASSERT_LOCKED(so)					\
+	sx_assert(&(so)->so_snd_sx, SA_XLOCKED)
 #define	SOCK_IO_RECV_LOCK(so, flags)					\
 	soiolock((so), &(so)->so_rcv_sx, (flags))
 #define	SOCK_IO_RECV_UNLOCK(so)						\
 	soiounlock(&(so)->so_rcv_sx)
 #define	SOCK_IO_RECV_OWNED(so)	sx_xlocked(&(so)->so_rcv_sx)
+#define	SOCK_IO_RECV_ASSERT_LOCKED(so)					\
+	sx_assert(&(so)->so_rcv_sx, SA_XLOCKED)
 
 /* do we have to send all at once on a socket? */
 #define	sosendallatonce(so) \
