@@ -39,8 +39,6 @@
 
 struct hypctx;
 
-uint64_t vmm_hyp_enter(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t,
-    uint64_t, uint64_t, uint64_t);
 uint64_t VMM_HYP_FUNC(do_call_guest)(struct hypctx *);
 
 static void
@@ -664,76 +662,4 @@ VMM_HYP_FUNC(s2_tlbi_all)(uint64_t vttbr)
 	/* Switch back t othe host vttbr */
 	WRITE_SPECIALREG(vttbr_el2, host_vttbr);
 	isb();
-}
-
-static int
-vmm_dc_civac(uint64_t start, uint64_t len)
-{
-	size_t line_size, end;
-	uint64_t ctr;
-
-	ctr = READ_SPECIALREG(ctr_el0);
-	line_size = sizeof(int) << CTR_DLINE_SIZE(ctr);
-	end = start + len;
-	dsb(ishst);
-	/* Clean and Invalidate the D-cache */
-	for (; start < end; start += line_size)
-		__asm __volatile("dc	civac, %0" :: "r" (start) : "memory");
-	dsb(ish);
-	return (0);
-}
-
-static int
-vmm_el2_tlbi(uint64_t type, uint64_t start, uint64_t len)
-{
-	uint64_t end, r;
-
-	dsb(ishst);
-	switch (type) {
-	default:
-	case HYP_EL2_TLBI_ALL:
-		__asm __volatile("tlbi	alle2" ::: "memory");
-		break;
-	case HYP_EL2_TLBI_VA:
-		end = TLBI_VA(start + len);
-		start = TLBI_VA(start);
-		for (r = start; r < end; r += TLBI_VA_L3_INCR) {
-			__asm __volatile("tlbi	vae2is, %0" :: "r"(r));
-		}
-		break;
-	}
-	dsb(ish);
-
-	return (0);
-}
-
-uint64_t
-vmm_hyp_enter(uint64_t handle, uint64_t x1, uint64_t x2, uint64_t x3,
-    uint64_t x4, uint64_t x5, uint64_t x6, uint64_t x7)
-{
-	switch (handle) {
-	case HYP_ENTER_GUEST:
-		return (VMM_HYP_FUNC(enter_guest)((struct hyp *)x1,
-		    (struct hypctx *)x2));
-	case HYP_READ_REGISTER:
-		return (VMM_HYP_FUNC(read_reg)(x1));
-	case HYP_CLEAN_S2_TLBI:
-		VMM_HYP_FUNC(clean_s2_tlbi());
-		return (0);
-	case HYP_DC_CIVAC:
-		return (vmm_dc_civac(x1, x2));
-	case HYP_EL2_TLBI:
-		return (vmm_el2_tlbi(x1, x2, x3));
-	case HYP_S2_TLBI_RANGE:
-		VMM_HYP_FUNC(s2_tlbi_range)(x1, x2, x3, x4);
-		return (0);
-	case HYP_S2_TLBI_ALL:
-		VMM_HYP_FUNC(s2_tlbi_all)(x1);
-		return (0);
-	case HYP_CLEANUP:	/* Handled in vmm_hyp_exception.S */
-	default:
-		break;
-	}
-
-	return (0);
 }

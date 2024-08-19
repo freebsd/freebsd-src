@@ -145,29 +145,6 @@
 	b	handle_\name
 .endm
 
-	.section ".vmm_vectors","ax"
-	.align 11
-hyp_init_vectors:
-	vempty		/* Synchronous EL2t */
-	vempty		/* IRQ EL2t */
-	vempty		/* FIQ EL2t */
-	vempty		/* Error EL2t */
-
-	vempty		/* Synchronous EL2h */
-	vempty		/* IRQ EL2h */
-	vempty		/* FIQ EL2h */
-	vempty		/* Error EL2h */
-
-	vector hyp_init	/* Synchronous 64-bit EL1 */
-	vempty		/* IRQ 64-bit EL1 */
-	vempty		/* FIQ 64-bit EL1 */
-	vempty		/* Error 64-bit EL1 */
-
-	vempty		/* Synchronous 32-bit EL1 */
-	vempty		/* IRQ 32-bit EL1 */
-	vempty		/* FIQ 32-bit EL1 */
-	vempty		/* Error 32-bit EL1 */
-
 	.text
 	.align 11
 hyp_vectors:
@@ -190,50 +167,6 @@ hyp_vectors:
 	vempty			/* IRQ 32-bit EL1 */
 	vempty			/* FIQ 32-bit EL1 */
 	vempty			/* Error 32-bit EL1 */
-
-/*
- * Initialize the hypervisor mode with a new exception vector table, translation
- * table and stack.
- *
- * Expecting:
- * x0 - translation tables physical address
- * x1 - stack top virtual address
- * x2 - TCR_EL2 value
- * x3 - SCTLR_EL2 value
- * x4 - VTCR_EL2 value
- */
-LENTRY(handle_hyp_init)
-	/* Install the new exception vectors */
-	adrp	x6, hyp_vectors
-	add	x6, x6, :lo12:hyp_vectors
-	msr	vbar_el2, x6
-	/* Set the stack top address */
-	mov	sp, x1
-	/* Use the host VTTBR_EL2 to tell the host and the guests apart */
-	mov	x9, #VTTBR_HOST
-	msr	vttbr_el2, x9
-	/* Load the base address for the translation tables */
-	msr	ttbr0_el2, x0
-	/* Invalidate the TLB */
-	dsb	ish
-	tlbi	alle2
-	dsb	ishst
-	isb
-	/* Use the same memory attributes as EL1 */
-	mrs	x9, mair_el1
-	msr	mair_el2, x9
-	/* Configure address translation */
-	msr	tcr_el2, x2
-	isb
-	/* Set the system control register for EL2 */
-	msr	sctlr_el2, x3
-	/* Set the Stage 2 translation control register */
-	msr	vtcr_el2, x4
-	/* Return success */
-	mov	x0, #0
-	/* MMU is up and running */
-	ERET
-LEND(handle_hyp_init)
 
 .macro do_world_switch_to_host
 	save_guest_registers
@@ -364,24 +297,3 @@ ENTRY(VMM_HYP_FUNC(do_call_guest))
 	/* Enter guest */
 	ERET
 END(VMM_HYP_FUNC(do_call_guest))
-
-/*
- * Usage:
- * void vmm_cleanup(uint64_t handle, void *hyp_stub_vectors)
- *
- * Expecting:
- * x1 - physical address of hyp_stub_vectors
- */
-LENTRY(vmm_cleanup)
-	/* Restore the stub vectors */
-	msr	vbar_el2, x1
-
-	/* Disable the MMU */
-	dsb	sy
-	mrs	x2, sctlr_el2
-	bic	x2, x2, #SCTLR_EL2_M
-	msr	sctlr_el2, x2
-	isb
-
-	ERET
-LEND(vmm_cleanup)
