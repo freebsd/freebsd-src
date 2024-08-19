@@ -296,8 +296,12 @@ LEND(mpentry_common)
 #endif
 
 /*
- * If we are started in EL2, configure the required hypervisor
- * registers and drop to EL1.
+ * Enter the exception level the kernel will use:
+ *
+ *  - If in EL1 continue in EL1
+ *  - If the CPU supports FEAT_VHE then set HCR_E2H and HCR_TGE and continue
+ *    in EL2
+ *  - Configure EL2 to support running the kernel at EL1 and exit to that
  */
 LENTRY(enter_kernel_el)
 #define	INIT_SCTLR_EL1	(SCTLR_LSMAOE | SCTLR_nTLSMD | SCTLR_EIS | \
@@ -335,12 +339,13 @@ LENTRY(enter_kernel_el)
 	isb
 
 	/* Configure the Hypervisor */
-	ldr	x2, =(HCR_RW | HCR_APK | HCR_API)
+	ldr	x2, =(HCR_RW | HCR_APK | HCR_API | HCR_E2H)
 	msr	hcr_el2, x2
 
 	/* Stash value of HCR_EL2 for later */
 	isb
 	mrs	x4, hcr_el2
+
 
 	/* Load the Virtualization Process ID Register */
 	mrs	x2, midr_el1
@@ -354,40 +359,50 @@ LENTRY(enter_kernel_el)
 	ldr	x2, =INIT_SCTLR_EL1
 	msr	sctlr_el1, x2
 
+	/* Check if the E2H flag is set */
+	tst	x4, #HCR_E2H
+	b.eq	.Lno_vhe
+
 	/*
-	 * On some hardware, e.g., Apple M1, we can't clear E2H, so make sure we
-	 * don't trap to EL2 for SIMD register usage to have at least a
-	 * minimally usable system.
+	 * The kernel will be running in EL2, route exceptions here rather
+	 * than EL1.
 	 */
-	tst	x4, #HCR_E2H
-	mov	x3, #CPTR_RES1	/* HCR_E2H == 0 */
-	mov	x5, #CPTR_FPEN	/* HCR_E2H == 1 */
-	csel	x2, x3, x5, eq
-	msr	cptr_el2, x2
+	orr	x4, x4, #(HCR_TGE)
+	msr	hcr_el2, x4
+	isb
 
-	/* Don't trap to EL2 for CP15 traps */
-	msr	hstr_el2, xzr
+	msr	SCTLR_EL12_REG, x2
+	ldr	x2, =(CPTR_FPEN)
+	ldr	x3, =(CNTHCTL_E2H_EL1PCTEN | CNTHCTL_E2H_EL1PTEN)
+	ldr	x5, =(PSR_DAIF | PSR_M_EL2h)
+	b	.Ldone_vhe
 
-	/* Enable access to the physical timers at EL1 */
-	tst	x4, #HCR_E2H
-	ldr	x3, =(CNTHCTL_EL1PCTEN | CNTHCTL_EL1PCEN)
-	ldr	x5, =(CNTHCTL_E2H_EL1PCTEN | CNTHCTL_E2H_EL1PTEN)
-	csel	x2, x3, x5, eq
-	msr	cnthctl_el2, x2
-
-	/* Set the counter offset to a known value */
-	msr	cntvoff_el2, xzr
-
+.Lno_vhe:
 	/* Hypervisor trap functions */
 	adrp	x2, hyp_stub_vectors
 	add	x2, x2, :lo12:hyp_stub_vectors
 	msr	vbar_el2, x2
 
+	ldr	x2, =(CPTR_RES1)
+	ldr	x3, =(CNTHCTL_EL1PCTEN | CNTHCTL_EL1PCEN)
+	ldr	x5, =(PSR_DAIF | PSR_M_EL1h)
+
+.Ldone_vhe:
+
+	msr	cptr_el2, x2
+	/* Enable access to the physical timers at EL1 */
+	msr	cnthctl_el2, x3
+	/* Set the return PSTATE */
+	msr	spsr_el2, x5
+
+	/* Don't trap to EL2 for CP15 traps */
+	msr	hstr_el2, xzr
+
+	/* Set the counter offset to a known value */
+	msr	cntvoff_el2, xzr
+
 	/* Zero vttbr_el2 so a hypervisor can tell the host and guest apart */
 	msr	vttbr_el2, xzr
-
-	mov	x2, #(PSR_DAIF | PSR_M_EL1h)
-	msr	spsr_el2, x2
 
 	/* Configure GICv3 CPU interface */
 	mrs	x2, id_aa64pfr0_el1
