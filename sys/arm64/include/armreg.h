@@ -231,6 +231,22 @@
 #define	CLIDR_CTYPE_ID		0x3	/* Split instruction and data */
 #define	CLIDR_CTYPE_UNIFIED	0x4	/* Unified */
 
+/* CNTKCTL_EL1 - Counter-timer Kernel Control Register */
+#define	CNTKCTL_EL1		MRS_REG(CNTKCTL_EL0)
+#define	CNTKCTL_EL1_op0		3
+#define	CNTKCTL_EL1_op1		0
+#define	CNTKCTL_EL1_CRn		14
+#define	CNTKCTL_EL1_CRm		1
+#define	CNTKCTL_EL1_op2		0
+
+/* CNTKCTL_EL12 - Counter-timer Kernel Control Register */
+#define	CNTKCTL_EL12		MRS_REG(CNTKCTL_EL0)
+#define	CNTKCTL_EL12_op0	3
+#define	CNTKCTL_EL12_op1	5
+#define	CNTKCTL_EL12_CRn	14
+#define	CNTKCTL_EL12_CRm	1
+#define	CNTKCTL_EL12_op2	0
+
 /* CNTP_CTL_EL0 - Counter-timer Physical Timer Control register */
 #define	CNTP_CTL_EL0		MRS_REG(CNTP_CTL_EL0)
 #define	CNTP_CTL_EL0_op0	3
@@ -265,6 +281,38 @@
 #define	CNTPCT_EL0_CRn		14
 #define	CNTPCT_EL0_CRm		0
 #define	CNTPCT_EL0_op2		1
+
+/* CNTV_CTL_EL0 - Counter-timer Virtual Timer Control register */
+#define	CNTV_CTL_EL0		MRS_REG(CNTV_CTL_EL0)
+#define	CNTV_CTL_EL0_op0	3
+#define	CNTV_CTL_EL0_op1	3
+#define	CNTV_CTL_EL0_CRn	14
+#define	CNTV_CTL_EL0_CRm	3
+#define	CNTV_CTL_EL0_op2	1
+
+/* CNTV_CTL_EL02 - Counter-timer Virtual Timer Control register */
+#define	CNTV_CTL_EL02		MRS_REG(CNTV_CTL_EL02)
+#define	CNTV_CTL_EL02_op0	3
+#define	CNTV_CTL_EL02_op1	5
+#define	CNTV_CTL_EL02_CRn	14
+#define	CNTV_CTL_EL02_CRm	3
+#define	CNTV_CTL_EL02_op2	1
+
+/* CNTV_CVAL_EL0 - Counter-timer Virtual Timer CompareValue register */
+#define	CNTV_CVAL_EL0		MRS_REG(CNTV_CVAL_EL0)
+#define	CNTV_CVAL_EL0_op0	3
+#define	CNTV_CVAL_EL0_op1	3
+#define	CNTV_CVAL_EL0_CRn	14
+#define	CNTV_CVAL_EL0_CRm	3
+#define	CNTV_CVAL_EL0_op2	2
+
+/* CNTV_CVAL_EL02 - Counter-timer Virtual Timer CompareValue register */
+#define	CNTV_CVAL_EL02		MRS_REG(CNTV_CVAL_EL02)
+#define	CNTV_CVAL_EL02_op0	3
+#define	CNTV_CVAL_EL02_op1	5
+#define	CNTV_CVAL_EL02_CRn	14
+#define	CNTV_CVAL_EL02_CRm	3
+#define	CNTV_CVAL_EL02_op2	2
 
 /* CONTEXTIDR_EL1 - Context ID register */
 #define	CONTEXTIDR_EL1		MRS_REG(CONTEXTIDR_EL1)
