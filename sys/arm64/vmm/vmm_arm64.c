@@ -128,20 +128,6 @@ arm_setup_vectors(void *arg)
 	el2_regs = arg;
 	arm64_set_active_vcpu(NULL);
 
-	daif = intr_disable();
-
-	/*
-	 * Install the temporary vectors which will be responsible for
-	 * initializing the VMM when we next trap into EL2.
-	 *
-	 * x0: the exception vector table responsible for hypervisor
-	 * initialization on the next call.
-	 */
-	vmm_call_hyp(vtophys(&vmm_hyp_code));
-
-	/* Create and map the hypervisor stack */
-	stack_top = stack_hyp_va[PCPU_GET(cpuid)] + VMM_STACK_SIZE;
-
 	/*
 	 * Configure the system control register for EL2:
 	 *
@@ -159,9 +145,27 @@ arm_setup_vectors(void *arg)
 	sctlr_el2 |= SCTLR_EL2_WXN;
 	sctlr_el2 &= ~SCTLR_EL2_EE;
 
-	/* Special call to initialize EL2 */
-	vmm_call_hyp(vmmpmap_to_ttbr0(), stack_top, el2_regs->tcr_el2,
-	    sctlr_el2, el2_regs->vtcr_el2);
+	daif = intr_disable();
+
+	if (in_vhe()) {
+		WRITE_SPECIALREG(vtcr_el2, el2_regs->vtcr_el2);
+	} else {
+		/*
+		 * Install the temporary vectors which will be responsible for
+		 * initializing the VMM when we next trap into EL2.
+		 *
+		 * x0: the exception vector table responsible for hypervisor
+		 * initialization on the next call.
+		 */
+		vmm_call_hyp(vtophys(&vmm_hyp_code));
+
+		/* Create and map the hypervisor stack */
+		stack_top = stack_hyp_va[PCPU_GET(cpuid)] + VMM_STACK_SIZE;
+
+		/* Special call to initialize EL2 */
+		vmm_call_hyp(vmmpmap_to_ttbr0(), stack_top, el2_regs->tcr_el2,
+		    sctlr_el2, el2_regs->vtcr_el2);
+	}
 
 	intr_restore(daif);
 }
@@ -280,10 +284,12 @@ vmmops_modinit(int ipinum)
 	}
 	pa_range_bits = pa_range_field >> ID_AA64MMFR0_PARange_SHIFT;
 
-	/* Initialise the EL2 MMU */
-	if (!vmmpmap_init()) {
-		printf("vmm: Failed to init the EL2 MMU\n");
-		return (ENOMEM);
+	if (!in_vhe()) {
+		/* Initialise the EL2 MMU */
+		if (!vmmpmap_init()) {
+			printf("vmm: Failed to init the EL2 MMU\n");
+			return (ENOMEM);
+		}
 	}
 
 	/* Set up the stage 2 pmap callbacks */
@@ -292,55 +298,58 @@ vmmops_modinit(int ipinum)
 	pmap_stage2_invalidate_range = vmm_s2_tlbi_range;
 	pmap_stage2_invalidate_all = vmm_s2_tlbi_all;
 
-	/*
-	 * Create an allocator for the virtual address space used by EL2.
-	 * EL2 code is identity-mapped; the allocator is used to find space for
-	 * VM structures.
-	 */
-	el2_mem_alloc = vmem_create("VMM EL2", 0, 0, PAGE_SIZE, 0, M_WAITOK);
+	if (!in_vhe()) {
+		/*
+		 * Create an allocator for the virtual address space used by
+		 * EL2. EL2 code is identity-mapped; the allocator is used to
+		 * find space for VM structures.
+		 */
+		el2_mem_alloc = vmem_create("VMM EL2", 0, 0, PAGE_SIZE, 0,
+		    M_WAITOK);
 
-	/* Create the mappings for the hypervisor translation table. */
-	hyp_code_len = round_page(&vmm_hyp_code_end - &vmm_hyp_code);
+		/* Create the mappings for the hypervisor translation table. */
+		hyp_code_len = round_page(&vmm_hyp_code_end - &vmm_hyp_code);
 
-	/* We need an physical identity mapping for when we activate the MMU */
-	hyp_code_base = vmm_base = vtophys(&vmm_hyp_code);
-	rv = vmmpmap_enter(vmm_base, hyp_code_len, vmm_base,
-	    VM_PROT_READ | VM_PROT_EXECUTE);
-	MPASS(rv);
+		/* We need an physical identity mapping for when we activate the MMU */
+		hyp_code_base = vmm_base = vtophys(&vmm_hyp_code);
+		rv = vmmpmap_enter(vmm_base, hyp_code_len, vmm_base,
+		    VM_PROT_READ | VM_PROT_EXECUTE);
+		MPASS(rv);
 
-	next_hyp_va = roundup2(vmm_base + hyp_code_len, L2_SIZE);
+		next_hyp_va = roundup2(vmm_base + hyp_code_len, L2_SIZE);
 
-	/* Create a per-CPU hypervisor stack */
-	CPU_FOREACH(cpu) {
-		stack[cpu] = malloc(VMM_STACK_SIZE, M_HYP, M_WAITOK | M_ZERO);
-		stack_hyp_va[cpu] = next_hyp_va;
+		/* Create a per-CPU hypervisor stack */
+		CPU_FOREACH(cpu) {
+			stack[cpu] = malloc(VMM_STACK_SIZE, M_HYP, M_WAITOK | M_ZERO);
+			stack_hyp_va[cpu] = next_hyp_va;
 
-		for (i = 0; i < VMM_STACK_PAGES; i++) {
-			rv = vmmpmap_enter(stack_hyp_va[cpu] + ptoa(i),
-			    PAGE_SIZE, vtophys(stack[cpu] + ptoa(i)),
-			    VM_PROT_READ | VM_PROT_WRITE);
-			MPASS(rv);
+			for (i = 0; i < VMM_STACK_PAGES; i++) {
+				rv = vmmpmap_enter(stack_hyp_va[cpu] + ptoa(i),
+				    PAGE_SIZE, vtophys(stack[cpu] + ptoa(i)),
+				    VM_PROT_READ | VM_PROT_WRITE);
+				MPASS(rv);
+			}
+			next_hyp_va += L2_SIZE;
 		}
-		next_hyp_va += L2_SIZE;
-	}
 
-	el2_regs.tcr_el2 = TCR_EL2_RES1;
-	el2_regs.tcr_el2 |= min(pa_range_bits << TCR_EL2_PS_SHIFT,
-	    TCR_EL2_PS_52BITS);
-	el2_regs.tcr_el2 |= TCR_EL2_T0SZ(64 - EL2_VIRT_BITS);
-	el2_regs.tcr_el2 |= TCR_EL2_IRGN0_WBWA | TCR_EL2_ORGN0_WBWA;
+		el2_regs.tcr_el2 = TCR_EL2_RES1;
+		el2_regs.tcr_el2 |= min(pa_range_bits << TCR_EL2_PS_SHIFT,
+		    TCR_EL2_PS_52BITS);
+		el2_regs.tcr_el2 |= TCR_EL2_T0SZ(64 - EL2_VIRT_BITS);
+		el2_regs.tcr_el2 |= TCR_EL2_IRGN0_WBWA | TCR_EL2_ORGN0_WBWA;
 #if PAGE_SIZE == PAGE_SIZE_4K
-	el2_regs.tcr_el2 |= TCR_EL2_TG0_4K;
+		el2_regs.tcr_el2 |= TCR_EL2_TG0_4K;
 #elif PAGE_SIZE == PAGE_SIZE_16K
-	el2_regs.tcr_el2 |= TCR_EL2_TG0_16K;
+		el2_regs.tcr_el2 |= TCR_EL2_TG0_16K;
 #else
 #error Unsupported page size
 #endif
 #ifdef SMP
-	el2_regs.tcr_el2 |= TCR_EL2_SH0_IS;
+		el2_regs.tcr_el2 |= TCR_EL2_SH0_IS;
 #endif
+	}
 
-	switch (el2_regs.tcr_el2 & TCR_EL2_PS_MASK) {
+	switch (pa_range_bits << TCR_EL2_PS_SHIFT) {
 	case TCR_EL2_PS_32BITS:
 		vmm_max_ipa_bits = 32;
 		break;
@@ -396,36 +405,37 @@ vmmops_modinit(int ipinum)
 
 	smp_rendezvous(NULL, arm_setup_vectors, NULL, &el2_regs);
 
-	/* Add memory to the vmem allocator (checking there is space) */
-	if (vmm_base > (L2_SIZE + PAGE_SIZE)) {
-		/*
-		 * Ensure there is an L2 block before the vmm code to check
-		 * for buffer overflows on earlier data. Include the PAGE_SIZE
-		 * of the minimum we can allocate.
-		 */
-		vmm_base -= L2_SIZE + PAGE_SIZE;
-		vmm_base = rounddown2(vmm_base, L2_SIZE);
+	if (!in_vhe()) {
+		/* Add memory to the vmem allocator (checking there is space) */
+		if (vmm_base > (L2_SIZE + PAGE_SIZE)) {
+			/*
+			 * Ensure there is an L2 block before the vmm code to check
+			 * for buffer overflows on earlier data. Include the PAGE_SIZE
+			 * of the minimum we can allocate.
+			 */
+			vmm_base -= L2_SIZE + PAGE_SIZE;
+			vmm_base = rounddown2(vmm_base, L2_SIZE);
+
+			/*
+			 * Check there is memory before the vmm code to add.
+			 *
+			 * Reserve the L2 block at address 0 so NULL dereference will
+			 * raise an exception.
+			 */
+			if (vmm_base > L2_SIZE)
+				vmem_add(el2_mem_alloc, L2_SIZE, vmm_base - L2_SIZE,
+				    M_WAITOK);
+		}
 
 		/*
-		 * Check there is memory before the vmm code to add.
-		 *
-		 * Reserve the L2 block at address 0 so NULL dereference will
-		 * raise an exception.
+		 * Add the memory after the stacks. There is most of an L2 block
+		 * between the last stack and the first allocation so this should
+		 * be safe without adding more padding.
 		 */
-		if (vmm_base > L2_SIZE)
-			vmem_add(el2_mem_alloc, L2_SIZE, vmm_base - L2_SIZE,
-			    M_WAITOK);
+		if (next_hyp_va < HYP_VM_MAX_ADDRESS - PAGE_SIZE)
+			vmem_add(el2_mem_alloc, next_hyp_va,
+			    HYP_VM_MAX_ADDRESS - next_hyp_va, M_WAITOK);
 	}
-
-	/*
-	 * Add the memory after the stacks. There is most of an L2 block
-	 * between the last stack and the first allocation so this should
-	 * be safe without adding more padding.
-	 */
-	if (next_hyp_va < HYP_VM_MAX_ADDRESS - PAGE_SIZE)
-		vmem_add(el2_mem_alloc, next_hyp_va,
-		    HYP_VM_MAX_ADDRESS - next_hyp_va, M_WAITOK);
-
 	cnthctl_el2 = vmm_read_reg(HYP_REG_CNTHCTL);
 
 	vgic_init();
@@ -439,21 +449,25 @@ vmmops_modcleanup(void)
 {
 	int cpu;
 
-	smp_rendezvous(NULL, arm_teardown_vectors, NULL, NULL);
+	if (!in_vhe()) {
+		smp_rendezvous(NULL, arm_teardown_vectors, NULL, NULL);
 
-	CPU_FOREACH(cpu) {
-		vmmpmap_remove(stack_hyp_va[cpu], VMM_STACK_PAGES * PAGE_SIZE,
-		    false);
+		CPU_FOREACH(cpu) {
+			vmmpmap_remove(stack_hyp_va[cpu],
+			    VMM_STACK_PAGES * PAGE_SIZE, false);
+		}
+
+		vmmpmap_remove(hyp_code_base, hyp_code_len, false);
 	}
-
-	vmmpmap_remove(hyp_code_base, hyp_code_len, false);
 
 	vtimer_cleanup();
 
-	vmmpmap_fini();
+	if (!in_vhe()) {
+		vmmpmap_fini();
 
-	CPU_FOREACH(cpu)
-		free(stack[cpu], M_HYP);
+		CPU_FOREACH(cpu)
+			free(stack[cpu], M_HYP);
+	}
 
 	pmap_clean_stage2_tlbi = NULL;
 	pmap_stage2_invalidate_range = NULL;
@@ -505,8 +519,9 @@ vmmops_init(struct vm *vm, pmap_t pmap)
 	vtimer_vminit(hyp);
 	vgic_vminit(hyp);
 
-	hyp->el2_addr = el2_map_enter((vm_offset_t)hyp, size,
-	    VM_PROT_READ | VM_PROT_WRITE);
+	if (!in_vhe())
+		hyp->el2_addr = el2_map_enter((vm_offset_t)hyp, size,
+		    VM_PROT_READ | VM_PROT_WRITE);
 
 	return (hyp);
 }
@@ -534,8 +549,9 @@ vmmops_vcpu_init(void *vmi, struct vcpu *vcpu1, int vcpuid)
 	vtimer_cpuinit(hypctx);
 	vgic_cpuinit(hypctx);
 
-	hypctx->el2_addr = el2_map_enter((vm_offset_t)hypctx, size,
-	    VM_PROT_READ | VM_PROT_WRITE);
+	if (!in_vhe())
+		hypctx->el2_addr = el2_map_enter((vm_offset_t)hypctx, size,
+		    VM_PROT_READ | VM_PROT_WRITE);
 
 	return (hypctx);
 }
@@ -1124,9 +1140,7 @@ vmmops_run(void *vcpui, register_t pc, pmap_t pmap, struct vm_eventinfo *evinfo)
 		vtimer_sync_hwstate(hypctx);
 
 		/*
-		 * Deactivate the stage2 pmap. vmm_pmap_clean_stage2_tlbi
-		 * depends on this meaning we activate the VM before entering
-		 * the vm again
+		 * Deactivate the stage2 pmap.
 		 */
 		PCPU_SET(curvmpmap, NULL);
 		intr_restore(daif);
@@ -1179,7 +1193,8 @@ vmmops_vcpu_cleanup(void *vcpui)
 	vtimer_cpucleanup(hypctx);
 	vgic_cpucleanup(hypctx);
 
-	vmmpmap_remove(hypctx->el2_addr, el2_hypctx_size(), true);
+	if (!in_vhe())
+		vmmpmap_remove(hypctx->el2_addr, el2_hypctx_size(), true);
 
 	free(hypctx, M_HYP);
 }
@@ -1194,7 +1209,8 @@ vmmops_cleanup(void *vmi)
 
 	smp_rendezvous(NULL, arm_pcpu_vmcleanup, NULL, hyp);
 
-	vmmpmap_remove(hyp->el2_addr, el2_hyp_size(hyp->vm), true);
+	if (!in_vhe())
+		vmmpmap_remove(hyp->el2_addr, el2_hyp_size(hyp->vm), true);
 
 	free(hyp, M_HYP);
 }
