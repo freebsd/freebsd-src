@@ -30,6 +30,7 @@
  */
 
 
+#include <sys/elf_common.h>
 #include <machine/asm.h>
 #include <machine/hypervisor.h>
 
@@ -316,3 +317,5 @@ ENTRY(VMM_HYP_FUNC(do_call_guest))
 	/* Enter guest */
 	ERET
 END(VMM_HYP_FUNC(do_call_guest))
+
+GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)
