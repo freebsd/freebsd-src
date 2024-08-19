@@ -1,0 +1,82 @@
+Index: dist/src/smtpd/pfilter.c
+===================================================================
+RCS file: dist/src/smtpd/pfilter.c
+diff -N dist/src/smtpd/pfilter.c
+--- /dev/null	1 Jan 1970 00:00:00 -0000
++++ dist/src/smtpd/pfilter.c	1 Feb 2018 03:29:09 -0000
+@@ -0,0 +1,19 @@
++#include "pfilter.h"
++#include <stdio.h>	/* for NULL */
++#include <blacklist.h>
++
++static struct blacklist *blstate;
++
++void
++pfilter_notify(int a, int fd)
++{
++	if (blstate == NULL)
++		blstate = blacklist_open();
++	if (blstate == NULL)
++		return;
++	(void)blacklist_r(blstate, a, fd, "smtpd");
++	if (a == 0) {
++		blacklist_close(blstate);
++		blstate = NULL;
++	}
++}
+Index: dist/src/smtpd/pfilter.h
+===================================================================
+RCS file: dist/src/smtpd/pfilter.h
+diff -N dist/src/smtpd/pfilter.h
+--- /dev/null	1 Jan 1970 00:00:00 -0000
++++ dist/src/smtpd/pfilter.h	1 Feb 2018 03:29:09 -0000
+@@ -0,0 +1,2 @@
++
++void pfilter_notify(int, int);
+Index: dist/src/smtpd/smtpd.c
+===================================================================
+RCS file: /cvsroot/src/external/ibm-public/postfix/dist/src/smtpd/smtpd.c,v
+retrieving revision 1.14
+diff -u -r1.14 smtpd.c
+--- dist/src/smtpd/smtpd.c	14 Feb 2017 01:16:48 -0000	1.14
++++ dist/src/smtpd/smtpd.c	1 Feb 2018 03:29:09 -0000
+@@ -1197,6 +1197,8 @@
+ #include <smtpd_milter.h>
+ #include <smtpd_expand.h>
+ 
++#include "pfilter.h"
++
+  /*
+   * Tunable parameters. Make sure that there is some bound on the length of
+   * an SMTP command, so that the mail system stays in control even when a
+@@ -5048,6 +5050,7 @@
+ 	    if (state->error_count >= var_smtpd_hard_erlim) {
+ 		state->reason = REASON_ERROR_LIMIT;
+ 		state->error_mask |= MAIL_ERROR_PROTOCOL;
++		pfilter_notify(1, vstream_fileno(state->client));
+ 		smtpd_chat_reply(state, "421 4.7.0 %s Error: too many errors",
+ 				 var_myhostname);
+ 		break;
+Index: libexec/smtpd/Makefile
+===================================================================
+RCS file: /cvsroot/src/external/ibm-public/postfix/libexec/smtpd/Makefile,v
+retrieving revision 1.6
+diff -u -r1.6 Makefile
+--- libexec/smtpd/Makefile	21 May 2017 15:28:40 -0000	1.6
++++ libexec/smtpd/Makefile	1 Feb 2018 03:29:09 -0000
+@@ -13,11 +13,14 @@
+ SRCS=	smtpd.c smtpd_token.c smtpd_check.c smtpd_chat.c smtpd_state.c \
+ 	smtpd_peer.c smtpd_sasl_proto.c smtpd_sasl_glue.c smtpd_proxy.c \
+ 	smtpd_xforward.c smtpd_dsn_fix.c smtpd_milter.c smtpd_resolve.c \
+-	smtpd_expand.c smtpd_haproxy.c
++	smtpd_expand.c smtpd_haproxy.c pfilter.c
+ 
+ DPADD+= ${LIBPMASTER} ${LIBPMILTER} ${LIBPGLOBAL} ${LIBPDNS} ${LIBPXSASL}
+ LDADD+= ${LIBPMASTER} ${LIBPMILTER} ${LIBPGLOBAL} ${LIBPDNS} ${LIBPXSASL}
+ 
++DPADD+=	${LIBBLACKLIST}
++LDADD+=	-lblacklist
++
+ DPADD+=	${LIBPTLS} ${LIBSSL} ${LIBCRYPTO}
+ LDADD+=	${LIBPTLS} -lssl -lcrypto
+ 
