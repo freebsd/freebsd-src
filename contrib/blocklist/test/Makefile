@@ -1,4 +1,4 @@
-# $NetBSD: Makefile,v 1.3 2015/05/30 22:40:38 christos Exp $
+# $NetBSD: Makefile,v 1.2 2015/01/22 05:03:52 christos Exp $
 
 MKMAN=no
 

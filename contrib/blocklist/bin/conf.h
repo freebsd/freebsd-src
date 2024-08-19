@@ -1,4 +1,4 @@
-/*	$NetBSD: conf.h,v 1.6 2015/01/27 19:40:36 christos Exp $	*/
+/*	$NetBSD: conf.h,v 1.5 2015/01/21 19:24:03 christos Exp $	*/
 
 /*-
  * Copyright (c) 2015 The NetBSD Foundation, Inc.

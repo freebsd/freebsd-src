@@ -1,4 +1,4 @@
-#	$NetBSD: Makefile,v 1.3 2015/01/26 00:18:40 christos Exp $
+#	$NetBSD: Makefile,v 1.2 2015/01/23 21:33:50 christos Exp $
 
 SUBDIR=rc.d
 

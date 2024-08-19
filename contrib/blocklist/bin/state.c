@@ -1,4 +1,4 @@
-/*	$NetBSD: state.c,v 1.19 2016/09/26 19:43:43 christos Exp $	*/
+/*	$NetBSD: state.c,v 1.18 2016/04/04 15:52:56 christos Exp $	*/
 
 /*-
  * Copyright (c) 2015 The NetBSD Foundation, Inc.
@@ -33,7 +33,7 @@
 #endif
 
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: state.c,v 1.19 2016/09/26 19:43:43 christos Exp $");
+__RCSID("$NetBSD: state.c,v 1.18 2016/04/04 15:52:56 christos Exp $");
 
 #include <sys/types.h>
 #include <sys/socket.h>
