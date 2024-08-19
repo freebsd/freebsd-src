@@ -2119,17 +2119,13 @@ create-packages-source:	_pkgbootstrap _repodir .PHONY
 
 create-packages: .PHONY create-packages-world create-packages-kernel create-packages-source
 
-create-source-packages: _pkgbootstrap .PHONY
+create-source-src-package: _pkgbootstrap .PHONY
 	rm -f ${SSTAGEDIR}/*.plist 2>/dev/null || :
 .if !empty(GIT_CMD) && exists(${GIT_CMD}) && exists(${SRCDIR}/.git)
 	@cd ${SRCDIR}; \
 		( echo "@override_prefix /usr/src" ;  \
 		${GIT_CMD} ls-files --recurse-submodules ":!:sys/" ) \
 		> ${SSTAGEDIR}/src.plist
-	@cd ${SRCDIR}; \
-		( echo "@override_prefix /usr/src" ; \
-		${GIT_CMD} ls-files --recurse-submodules "sys/" ) \
-		> ${SSTAGEDIR}/src-sys.plist
 	${SRCDIR}/release/packages/generate-ucl.lua \
 		PKGNAME "src" \
 		PKGGENNAME "src" \
@@ -2141,6 +2137,22 @@ create-source-packages: _pkgbootstrap .PHONY
 		PKG_WWW "${PKG_WWW}" \
 		${SRCDIR}/release/packages/template.ucl \
 		${SSTAGEDIR}/src.ucl
+	${PKG_CMD} -o ABI=${PKG_ABI} \
+		-o OSVERSION="${SRCRELDATE}" \
+		create -f ${PKG_FORMAT} \
+		-M ${SSTAGEDIR}/src.ucl \
+		-p ${SSTAGEDIR}/src.plist \
+		-r ${SRCDIR} \
+		-o ${REPODIR}/${PKG_ABI}/${PKG_OUTPUT_DIR}
+.endif
+
+create-source-src-sys-package: _pkgbootstrap .PHONY
+	rm -f ${SSTAGEDIR}/*.plist 2>/dev/null || :
+.if !empty(GIT_CMD) && exists(${GIT_CMD}) && exists(${SRCDIR}/.git)
+	@cd ${SRCDIR}; \
+		( echo "@override_prefix /usr/src" ; \
+		${GIT_CMD} ls-files --recurse-submodules "sys/" ) \
+		> ${SSTAGEDIR}/src-sys.plist
 	${SRCDIR}/release/packages/generate-ucl.lua \
 		PKGNAME "src-sys" \
 		PKGGENNAME "src" \
@@ -2155,18 +2167,13 @@ create-source-packages: _pkgbootstrap .PHONY
 	${PKG_CMD} -o ABI=${PKG_ABI} \
 		-o OSVERSION="${SRCRELDATE}" \
 		create -f ${PKG_FORMAT} \
-		-M ${SSTAGEDIR}/src.ucl \
-		-p ${SSTAGEDIR}/src.plist \
-		-r ${SRCDIR} \
-		-o ${REPODIR}/${PKG_ABI}/${PKG_OUTPUT_DIR}
-	${PKG_CMD} -o ABI=${PKG_ABI} \
-		-o OSVERSION="${SRCRELDATE}" \
-		create -f ${PKG_FORMAT} \
 		-M ${SSTAGEDIR}/src-sys.ucl \
 		-p ${SSTAGEDIR}/src-sys.plist \
 		-r ${SRCDIR} \
 		-o ${REPODIR}/${PKG_ABI}/${PKG_OUTPUT_DIR}
 .endif
+
+create-source-packages: .PHONY _pkgbootstrap create-source-src-package create-source-src-sys-package
 
 create-world-packages:	_pkgbootstrap .PHONY
 	@rm -f ${WSTAGEDIR}/*.plist 2>/dev/null || :
