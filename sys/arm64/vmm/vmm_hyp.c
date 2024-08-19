@@ -41,7 +41,7 @@ struct hypctx;
 
 uint64_t vmm_hyp_enter(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t,
     uint64_t, uint64_t, uint64_t);
-uint64_t vmm_enter_guest(struct hypctx *);
+uint64_t VMM_HYP_FUNC(do_call_guest)(struct hypctx *);
 
 static void
 vmm_hyp_reg_store(struct hypctx *hypctx, struct hyp *hyp, bool guest)
@@ -496,7 +496,7 @@ vmm_hyp_call_guest(struct hyp *hyp, struct hypctx *hypctx)
 	WRITE_SPECIALREG(mdcr_el2, hypctx->mdcr_el2);
 
 	/* Call into the guest */
-	ret = vmm_enter_guest(hypctx);
+	ret = VMM_HYP_FUNC(do_call_guest)(hypctx);
 
 	WRITE_SPECIALREG(mdcr_el2, host_hypctx.mdcr_el2);
 	isb();
@@ -566,8 +566,20 @@ vmm_hyp_call_guest(struct hyp *hyp, struct hypctx *hypctx)
 	return (ret);
 }
 
-static uint64_t
-vmm_hyp_read_reg(uint64_t reg)
+VMM_STATIC uint64_t
+VMM_HYP_FUNC(enter_guest)(struct hyp *hyp, struct hypctx *hypctx)
+{
+	uint64_t ret;
+
+	do {
+		ret = vmm_hyp_call_guest(hyp, hypctx);
+	} while (ret == EXCP_TYPE_REENTER);
+
+	return (ret);
+}
+
+VMM_STATIC uint64_t
+VMM_HYP_FUNC(read_reg)(uint64_t reg)
 {
 	switch (reg) {
 	case HYP_REG_ICH_VTR:
@@ -579,18 +591,16 @@ vmm_hyp_read_reg(uint64_t reg)
 	return (0);
 }
 
-static int
-vmm_clean_s2_tlbi(void)
+VMM_STATIC void
+VMM_HYP_FUNC(clean_s2_tlbi)(void)
 {
 	dsb(ishst);
 	__asm __volatile("tlbi alle1is");
 	dsb(ish);
-
-	return (0);
 }
 
-static int
-vm_s2_tlbi_range(uint64_t vttbr, vm_offset_t sva, vm_size_t eva,
+VMM_STATIC void
+VMM_HYP_FUNC(s2_tlbi_range)(uint64_t vttbr, vm_offset_t sva, vm_offset_t eva,
     bool final_only)
 {
 	uint64_t end, r, start;
@@ -634,12 +644,10 @@ vm_s2_tlbi_range(uint64_t vttbr, vm_offset_t sva, vm_size_t eva,
 	/* Switch back t othe host vttbr */
 	WRITE_SPECIALREG(vttbr_el2, host_vttbr);
 	isb();
-
-	return (0);
 }
 
-static int
-vm_s2_tlbi_all(uint64_t vttbr)
+VMM_STATIC void
+VMM_HYP_FUNC(s2_tlbi_all)(uint64_t vttbr)
 {
 	uint64_t host_vttbr;
 
@@ -656,8 +664,6 @@ vm_s2_tlbi_all(uint64_t vttbr)
 	/* Switch back t othe host vttbr */
 	WRITE_SPECIALREG(vttbr_el2, host_vttbr);
 	isb();
-
-	return (0);
 }
 
 static int
@@ -705,27 +711,25 @@ uint64_t
 vmm_hyp_enter(uint64_t handle, uint64_t x1, uint64_t x2, uint64_t x3,
     uint64_t x4, uint64_t x5, uint64_t x6, uint64_t x7)
 {
-	uint64_t ret;
-
 	switch (handle) {
 	case HYP_ENTER_GUEST:
-		do {
-			ret = vmm_hyp_call_guest((struct hyp *)x1,
-			    (struct hypctx *)x2);
-		} while (ret == EXCP_TYPE_REENTER);
-		return (ret);
+		return (VMM_HYP_FUNC(enter_guest)((struct hyp *)x1,
+		    (struct hypctx *)x2));
 	case HYP_READ_REGISTER:
-		return (vmm_hyp_read_reg(x1));
+		return (VMM_HYP_FUNC(read_reg)(x1));
 	case HYP_CLEAN_S2_TLBI:
-		return (vmm_clean_s2_tlbi());
+		VMM_HYP_FUNC(clean_s2_tlbi());
+		return (0);
 	case HYP_DC_CIVAC:
 		return (vmm_dc_civac(x1, x2));
 	case HYP_EL2_TLBI:
 		return (vmm_el2_tlbi(x1, x2, x3));
 	case HYP_S2_TLBI_RANGE:
-		return (vm_s2_tlbi_range(x1, x2, x3, x4));
+		VMM_HYP_FUNC(s2_tlbi_range)(x1, x2, x3, x4);
+		return (0);
 	case HYP_S2_TLBI_ALL:
-		return (vm_s2_tlbi_all(x1));
+		VMM_HYP_FUNC(s2_tlbi_all)(x1);
+		return (0);
 	case HYP_CLEANUP:	/* Handled in vmm_hyp_exception.S */
 	default:
 		break;
