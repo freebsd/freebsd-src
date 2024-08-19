@@ -157,6 +157,9 @@ Specify the keyboard layout name with the file name in
 This value only works when loaded with UEFI mode for VNC, and
 used a VNC client that don't support QEMU Extended Key Event
 Message (e.g. TightVNC).
+.It Va pci.enable_bars Ta bool Ta Ta
+Enable and map PCI BARs before executing any guest code.
+This setting is false by default when using a boot ROM and true otherwise.
 .It Va tpm.path Ta string Ta Ta
 Path to the host TPM device.
 This is typically /dev/tpm0.
