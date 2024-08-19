@@ -4641,7 +4641,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, struct pfi_kkif *kif,
 	struct pf_ksrc_node	*nsn = NULL;
 	struct tcphdr		*th = &pd->hdr.tcp;
 	struct pf_state_key	*sk = NULL, *nk = NULL;
-	u_short			 reason;
+	u_short			 reason, transerror;
 	int			 rewrite = 0, hdrlen = 0;
 	int			 tag = -1;
 	int			 asd = 0;
@@ -4653,6 +4653,8 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, struct pfi_kkif *kif,
 	struct pf_kanchor_stackframe	anchor_stack[PF_ANCHOR_STACKSIZE];
 
 	PF_RULES_RASSERT();
+
+	SLIST_INIT(&match_rules);
 
 	if (inp != NULL) {
 		INP_LOCK_ASSERT(inp);
@@ -4722,8 +4724,17 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, struct pfi_kkif *kif,
 	r = TAILQ_FIRST(pf_main_ruleset.rules[PF_RULESET_FILTER].active.ptr);
 
 	/* check packet for BINAT/NAT/RDR */
-	if ((nr = pf_get_translation(pd, m, off, kif, &nsn, &sk,
-	    &nk, saddr, daddr, sport, dport, anchor_stack)) != NULL) {
+	transerror = pf_get_translation(pd, m, off, kif, &nsn, &sk,
+	    &nk, saddr, daddr, sport, dport, anchor_stack, &nr);
+	switch (transerror) {
+	default:
+		/* A translation error occurred. */
+		REASON_SET(&reason, transerror);
+		goto cleanup;
+	case PFRES_MAX:
+		/* No match. */
+		break;
+	case PFRES_MATCH:
 		KASSERT(sk != NULL, ("%s: null sk", __func__));
 		KASSERT(nk != NULL, ("%s: null nk", __func__));
 
@@ -4872,7 +4883,6 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, struct pfi_kkif *kif,
 		pd->nat_rule = nr;
 	}
 
-	SLIST_INIT(&match_rules);
 	while (r != NULL) {
 		pf_counter_u64_add(&r->evaluations, 1);
 		if (pfi_kkif_match(r->kif, kif) == r->ifnot)

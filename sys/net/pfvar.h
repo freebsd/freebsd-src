@@ -2510,11 +2510,12 @@ u_short			 pf_map_addr(u_int8_t, struct pf_krule *,
 			    struct pf_addr *, struct pf_addr *,
 			    struct pfi_kkif **nkif, struct pf_addr *,
 			    struct pf_ksrc_node **);
-struct pf_krule		*pf_get_translation(struct pf_pdesc *, struct mbuf *,
+u_short			 pf_get_translation(struct pf_pdesc *, struct mbuf *,
 			    int, struct pfi_kkif *, struct pf_ksrc_node **,
 			    struct pf_state_key **, struct pf_state_key **,
 			    struct pf_addr *, struct pf_addr *,
-			    uint16_t, uint16_t, struct pf_kanchor_stackframe *);
+			    uint16_t, uint16_t, struct pf_kanchor_stackframe *,
+			    struct pf_krule **);
 
 struct pf_state_key	*pf_state_key_setup(struct pf_pdesc *, struct mbuf *, int,
 			    struct pf_addr *, struct pf_addr *, u_int16_t, u_int16_t);

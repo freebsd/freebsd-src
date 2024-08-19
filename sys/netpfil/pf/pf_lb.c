@@ -591,21 +591,25 @@ done:
 	return (reason);
 }
 
-struct pf_krule *
+u_short
 pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
     struct pfi_kkif *kif, struct pf_ksrc_node **sn,
     struct pf_state_key **skp, struct pf_state_key **nkp,
     struct pf_addr *saddr, struct pf_addr *daddr,
-    uint16_t sport, uint16_t dport, struct pf_kanchor_stackframe *anchor_stack)
+    uint16_t sport, uint16_t dport, struct pf_kanchor_stackframe *anchor_stack,
+    struct pf_krule **rp)
 {
 	struct pf_krule	*r = NULL;
 	struct pf_addr	*naddr;
 	uint16_t	*nportp;
 	uint16_t	 low, high;
+	u_short		 reason;
 
 	PF_RULES_RASSERT();
 	KASSERT(*skp == NULL, ("*skp not NULL"));
 	KASSERT(*nkp == NULL, ("*nkp not NULL"));
+
+	*rp = NULL;
 
 	if (pd->dir == PF_OUT) {
 		r = pf_match_translation(pd, m, off, kif, saddr,
@@ -624,23 +628,23 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 	}
 
 	if (r == NULL)
-		return (NULL);
+		return (PFRES_MAX);
 
 	switch (r->action) {
 	case PF_NONAT:
 	case PF_NOBINAT:
 	case PF_NORDR:
-		return (NULL);
+		return (PFRES_MAX);
 	}
 
 	*skp = pf_state_key_setup(pd, m, off, saddr, daddr, sport, dport);
 	if (*skp == NULL)
-		return (NULL);
+		return (PFRES_MEMORY);
 	*nkp = pf_state_key_clone(*skp);
 	if (*nkp == NULL) {
 		uma_zfree(V_pf_state_key_z, *skp);
 		*skp = NULL;
-		return (NULL);
+		return (PFRES_MEMORY);
 	}
 
 	naddr = &(*nkp)->addr[1];
@@ -664,6 +668,7 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 				    r->rpool.mape.offset,
 				    r->rpool.mape.psidlen,
 				    r->rpool.mape.psid));
+				reason = PFRES_MAPFAILED;
 				goto notrans;
 			}
 		} else if (pf_get_sport(pd->af, pd->proto, r, saddr, sport,
@@ -671,6 +676,7 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 			DPFPRINTF(PF_DEBUG_MISC,
 			    ("pf: NAT proxy port allocation (%u-%u) failed\n",
 			    r->rpool.proxy_port[0], r->rpool.proxy_port[1]));
+			reason = PFRES_MAPFAILED;
 			goto notrans;
 		}
 		break;
@@ -682,8 +688,10 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 #ifdef INET
 				case AF_INET:
 					if (r->rpool.cur->addr.p.dyn->
-					    pfid_acnt4 < 1)
+					    pfid_acnt4 < 1) {
+						reason = PFRES_MAPFAILED;
 						goto notrans;
+					}
 					PF_POOLMASK(naddr,
 					    &r->rpool.cur->addr.p.dyn->
 					    pfid_addr4,
@@ -694,8 +702,10 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 #ifdef INET6
 				case AF_INET6:
 					if (r->rpool.cur->addr.p.dyn->
-					    pfid_acnt6 < 1)
+					    pfid_acnt6 < 1) {
+						reason = PFRES_MAPFAILED;
 						goto notrans;
+					}
 					PF_POOLMASK(naddr,
 					    &r->rpool.cur->addr.p.dyn->
 					    pfid_addr6,
@@ -715,8 +725,10 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 				switch (pd->af) {
 #ifdef INET
 				case AF_INET:
-					if (r->src.addr.p.dyn-> pfid_acnt4 < 1)
+					if (r->src.addr.p.dyn->pfid_acnt4 < 1) {
+						reason = PFRES_MAPFAILED;
 						goto notrans;
+					}
 					PF_POOLMASK(naddr,
 					    &r->src.addr.p.dyn->pfid_addr4,
 					    &r->src.addr.p.dyn->pfid_mask4,
@@ -725,8 +737,10 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 #endif /* INET */
 #ifdef INET6
 				case AF_INET6:
-					if (r->src.addr.p.dyn->pfid_acnt6 < 1)
+					if (r->src.addr.p.dyn->pfid_acnt6 < 1) {
+						reason = PFRES_MAPFAILED;
 						goto notrans;
+					}
 					PF_POOLMASK(naddr,
 					    &r->src.addr.p.dyn->pfid_addr6,
 					    &r->src.addr.p.dyn->pfid_mask6,
@@ -744,7 +758,8 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 		struct pf_state_key_cmp key;
 		uint16_t cut, low, high, nport;
 
-		if (pf_map_addr(pd->af, r, saddr, naddr, NULL, NULL, sn))
+		reason = pf_map_addr(pd->af, r, saddr, naddr, NULL, NULL, sn);
+		if (reason != 0)
 			goto notrans;
 		if ((r->rpool.opts & PF_POOL_TYPEMASK) == PF_POOL_BITMASK)
 			PF_POOLMASK(naddr, naddr, &r->rpool.cur->addr.v.a.mask,
@@ -815,12 +830,13 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 
 		DPFPRINTF(PF_DEBUG_MISC,
 		    ("pf: RDR source port allocation failed\n"));
-		if (0) {
+		reason = PFRES_MAPFAILED;
+		goto notrans;
+
 out:
-			DPFPRINTF(PF_DEBUG_MISC,
-			    ("pf: RDR source port allocation %u->%u\n",
-			    ntohs(sport), ntohs((*nkp)->port[0])));
-		}
+		DPFPRINTF(PF_DEBUG_MISC,
+		    ("pf: RDR source port allocation %u->%u\n",
+		    ntohs(sport), ntohs((*nkp)->port[0])));
 		break;
 	}
 	default:
@@ -828,14 +844,17 @@ out:
 	}
 
 	/* Return success only if translation really happened. */
-	if (bcmp(*skp, *nkp, sizeof(struct pf_state_key_cmp)))
-		return (r);
+	if (bcmp(*skp, *nkp, sizeof(struct pf_state_key_cmp))) {
+		*rp = r;
+		return (PFRES_MATCH);
+	}
 
+	reason = PFRES_MAX;
 notrans:
 	uma_zfree(V_pf_state_key_z, *nkp);
 	uma_zfree(V_pf_state_key_z, *skp);
 	*skp = *nkp = NULL;
 	*sn = NULL;
 
-	return (NULL);
+	return (reason);
 }
