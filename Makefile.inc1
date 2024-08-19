@@ -1994,6 +1994,10 @@ REPODIR?=	${OBJROOT}repo
 PKG_FORMAT?=	tzst
 PKG_REPO_SIGNING_KEY?=	# empty
 PKG_OUTPUT_DIR?=	${PKG_VERSION}
+PKG_ABI_FILE?=	${WSTAGEDIR}/usr/bin/uname
+.if make(create-*-packages*) || make(real-update-packages) || make(real-sign-packages)
+PKG_ABI!=	${PKG_CMD} -o ABI_FILE=${PKG_ABI_FILE} config ABI
+.endif
 
 .ORDER:		stage-packages create-packages
 .ORDER:		create-packages create-world-packages
@@ -2006,12 +2010,6 @@ _pkgbootstrap: .PHONY
 	@env ASSUME_ALWAYS_YES=YES pkg bootstrap
 .endif
 
-#
-# Determine PKG_ABI from newvers.sh if not already set.
-#
-.if !defined(PKG_ABI) && (make(create-world-packages-jobs) || make(create-kernel-packages*) || make(real-update-packages) || make (create-source-packages) || make(sign-packages))
-PKG_ABI=${_TYPE}:${MAJOR_REVISION}:${TARGET_ARCH}
-.endif
 PKG_BIN_VERSION!=${PKG_CMD} --version </dev/null 2>/dev/null |\
     awk -F. '/^[0-9.]+$$/ {print $$1 * 10000 + $$2 * 100 + $$3}'
 .if ${PKG_BIN_VERSION} < 11700
@@ -2021,8 +2019,7 @@ PKG_EXT=	pkg
 .endif
 
 .if !defined(PKG_VERSION_FROM) && make(real-update-packages)
-.if defined(PKG_ABI)
-.if exists(${REPODIR}/${PKG_ABI})
+.if exists(${PKG_ABI_FILE}) && exists(${REPODIR}/${PKG_ABI})
 PKG_VERSION_FROM!=/usr/bin/readlink ${REPODIR}/${PKG_ABI}/latest
 PKG_VERSION_FROM_DIR=	${REPODIR}/${PKG_ABI}/${PKG_VERSION_FROM}
 BRANCH_EXT_FROM=	${PKG_VERSION_FROM:C/.*([[:alpha:]][^\.]*).*/\1/}
@@ -2030,7 +2027,6 @@ BRANCH_EXT_FROM=	${PKG_VERSION_FROM:C/.*([[:alpha:]][^\.]*).*/\1/}
 PKG_VERSION_FROM=
 PKG_VERSION_FROM_DIR=
 BRANCH_EXT_FROM=
-.endif
 .endif
 .endif
 
@@ -2204,7 +2200,7 @@ create-world-package-${pkgname}: .PHONY
 	@if [ "${pkgname}" == "runtime" ]; then \
 		sed -i '' -e "s/%VCS_REVISION%/${VCS_REVISION}/" ${WSTAGEDIR}/${pkgname}.ucl ; \
 	fi
-	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname -o ALLOW_BASE_SHLIBS=yes \
+	${PKG_CMD} -o ABI=${PKG_ABI} -o ALLOW_BASE_SHLIBS=yes \
 		-o OSVERSION="${SRCRELDATE}" \
 		create -f ${PKG_FORMAT} -M ${WSTAGEDIR}/${pkgname}.ucl \
 		-p ${WSTAGEDIR}/${pkgname}.plist \
@@ -2306,7 +2302,7 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 		/name/ { printf("===> Creating %s-", $$2); next } \
 		/version/ {print $$2; next } ' \
 		${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl ; \
-	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname -o ALLOW_BASE_SHLIBS=yes \
+	${PKG_CMD} -o ABI=${PKG_ABI} -o ALLOW_BASE_SHLIBS=yes \
 		-o OSVERSION="${SRCRELDATE}" \
 		create -f ${PKG_FORMAT} \
 		-M ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl \
@@ -2318,20 +2314,22 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 . endfor
 .endif
 
-sign-packages:	_pkgbootstrap .PHONY
+sign-packages:	.PHONY
+	${_+_}@cd ${.CURDIR}; \
+		${MAKE} -f Makefile.inc1 PKG_VERSION=${PKG_VERSION} real-sign-packages
+
+real-sign-packages:	_pkgbootstrap .PHONY
 	printf "version = 2;\n" > ${WSTAGEDIR}/meta
 .if ${PKG_BIN_VERSION} < 11700
 	printf "packing_format = \"${PKG_FORMAT}\";\n" >> ${WSTAGEDIR}/meta
 .endif
-	@[ -L "${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI)/latest" ] && \
-		unlink ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI)/latest ; \
-	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname repo \
-		-o OSVERSION="${SRCRELDATE}" \
+	@[ -L "${REPODIR}/${PKG_ABI}/latest" ] && unlink ${REPODIR}/${PKG_ABI}/latest; \
+	${PKG_CMD} -o ABI=${PKG_ABI} repo -o OSVERSION="${SRCRELDATE}" \
 		-m ${WSTAGEDIR}/meta \
-		-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI)/${PKG_VERSION} \
-		${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI)/${PKG_VERSION} \
+		-o ${REPODIR}/${PKG_ABI}/${PKG_VERSION} \
+		${REPODIR}/${PKG_ABI}/${PKG_VERSION} \
 		${PKG_REPO_SIGNING_KEY} ; \
-	cd ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI); \
+	cd ${REPODIR}/${PKG_ABI}; \
 	ln -s ${PKG_OUTPUT_DIR} latest
 
 #
