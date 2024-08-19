@@ -145,6 +145,8 @@ vmm_hyp_blob.bin				optional vmm		\
 arm64/vmm/vmm_hyp_el2.S				optional vmm		\
 	dependency	vmm_hyp_blob.bin
 arm64/vmm/vmm_mmu.c				optional vmm
+arm64/vmm/vmm_vhe.c				optional vmm
+arm64/vmm/vmm_vhe_exception.S			optional vmm
 arm64/vmm/io/vgic.c				optional vmm
 arm64/vmm/io/vgic_v3.c				optional vmm
 arm64/vmm/io/vgic_if.m				optional vmm
