@@ -600,7 +600,7 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 {
 	struct pf_krule	*r = NULL;
 	struct pf_addr	*naddr;
-	uint16_t	*nport;
+	uint16_t	*nportp;
 	uint16_t	 low, high;
 
 	PF_RULES_RASSERT();
@@ -643,9 +643,8 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 		return (NULL);
 	}
 
-	/* XXX We only modify one side for now. */
 	naddr = &(*nkp)->addr[1];
-	nport = &(*nkp)->port[1];
+	nportp = &(*nkp)->port[1];
 
 	switch (r->action) {
 	case PF_NAT:
@@ -658,7 +657,7 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 		}
 		if (r->rpool.mape.offset > 0) {
 			if (pf_get_mape_sport(pd->af, pd->proto, r, saddr,
-			    sport, daddr, dport, naddr, nport, sn)) {
+			    sport, daddr, dport, naddr, nportp, sn)) {
 				DPFPRINTF(PF_DEBUG_MISC,
 				    ("pf: MAP-E port allocation (%u/%u/%u)"
 				    " failed\n",
@@ -668,7 +667,7 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 				goto notrans;
 			}
 		} else if (pf_get_sport(pd->af, pd->proto, r, saddr, sport,
-		    daddr, dport, naddr, nport, low, high, sn)) {
+		    daddr, dport, naddr, nportp, low, high, sn)) {
 			DPFPRINTF(PF_DEBUG_MISC,
 			    ("pf: NAT proxy port allocation (%u-%u) failed\n",
 			    r->rpool.proxy_port[0], r->rpool.proxy_port[1]));
@@ -742,6 +741,9 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 		}
 		break;
 	case PF_RDR: {
+		struct pf_state_key_cmp key;
+		uint16_t cut, low, high, nport;
+
 		if (pf_map_addr(pd->af, r, saddr, naddr, NULL, NULL, sn))
 			goto notrans;
 		if ((r->rpool.opts & PF_POOL_TYPEMASK) == PF_POOL_BITMASK)
@@ -762,9 +764,63 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 			/* Wrap around if necessary. */
 			if (tmp_nport > 65535)
 				tmp_nport -= 65535;
-			*nport = htons((uint16_t)tmp_nport);
+			nport = htons((uint16_t)tmp_nport);
 		} else if (r->rpool.proxy_port[0])
-			*nport = htons(r->rpool.proxy_port[0]);
+			nport = htons(r->rpool.proxy_port[0]);
+		else
+			nport = dport;
+
+		/*
+		 * Update the destination port.
+		 */
+		*nportp = nport;
+
+		/*
+		 * Do we have a source port conflict in the stack state?  Try to
+		 * modulate the source port if so.  Note that this is racy since
+		 * the state lookup may not find any matches here but will once
+		 * pf_create_state() actually instantiates the state.
+		 */
+		bzero(&key, sizeof(key));
+		key.af = pd->af;
+		key.proto = pd->proto;
+		key.port[0] = sport;
+		PF_ACPY(&key.addr[0], saddr, key.af);
+		key.port[1] = nport;
+		PF_ACPY(&key.addr[1], naddr, key.af);
+
+		if (!pf_find_state_all_exists(&key, PF_OUT))
+			break;
+
+		low = 50001;	/* XXX-MJ PF_NAT_PROXY_PORT_LOW/HIGH */
+		high = 65535;
+		cut = arc4random() % (1 + high - low) + low;
+		for (uint32_t tmp = cut;
+		    tmp <= high && tmp <= UINT16_MAX; tmp++) {
+			key.port[0] = htons(tmp);
+			if (!pf_find_state_all_exists(&key, PF_OUT)) {
+				/* Update the source port. */
+				(*nkp)->port[0] = htons(tmp);
+				goto out;
+			}
+		}
+		for (uint32_t tmp = cut - 1; tmp >= low; tmp--) {
+			key.port[0] = htons(tmp);
+			if (!pf_find_state_all_exists(&key, PF_OUT)) {
+				/* Update the source port. */
+				(*nkp)->port[0] = htons(tmp);
+				goto out;
+			}
+		}
+
+		DPFPRINTF(PF_DEBUG_MISC,
+		    ("pf: RDR source port allocation failed\n"));
+		if (0) {
+out:
+			DPFPRINTF(PF_DEBUG_MISC,
+			    ("pf: RDR source port allocation %u->%u\n",
+			    ntohs(sport), ntohs((*nkp)->port[0])));
+		}
 		break;
 	}
 	default:
