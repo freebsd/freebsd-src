@@ -2566,56 +2566,15 @@ release:
 /*
  * Optimized version of soreceive() for stream (TCP) sockets.
  */
-int
-soreceive_stream(struct socket *so, struct sockaddr **psa, struct uio *uio,
-    struct mbuf **mp0, struct mbuf **controlp, int *flagsp)
+static int
+soreceive_stream_locked(struct socket *so, struct sockbuf *sb,
+    struct sockaddr **psa, struct uio *uio, struct mbuf **mp0,
+    struct mbuf **controlp, int flags)
 {
-	int len = 0, error = 0, flags, oresid;
-	struct sockbuf *sb;
+	int len = 0, error = 0, oresid;
 	struct mbuf *m, *n = NULL;
 
-	/* We only do stream sockets. */
-	if (so->so_type != SOCK_STREAM)
-		return (EINVAL);
-	if (psa != NULL)
-		*psa = NULL;
-	if (flagsp != NULL)
-		flags = *flagsp &~ MSG_EOR;
-	else
-		flags = 0;
-	if (controlp != NULL)
-		*controlp = NULL;
-	if (flags & MSG_OOB)
-		return (soreceive_rcvoob(so, uio, flags));
-	if (mp0 != NULL)
-		*mp0 = NULL;
-
-	sb = &so->so_rcv;
-
-#ifdef KERN_TLS
-	/*
-	 * KTLS store TLS records as records with a control message to
-	 * describe the framing.
-	 *
-	 * We check once here before acquiring locks to optimize the
-	 * common case.
-	 */
-	if (sb->sb_tls_info != NULL)
-		return (soreceive_generic(so, psa, uio, mp0, controlp,
-		    flagsp));
-#endif
-
-	/* Prevent other readers from entering the socket. */
-	error = SOCK_IO_RECV_LOCK(so, SBLOCKWAIT(flags));
-	if (error)
-		return (error);
-#ifdef KERN_TLS
-	if (__predict_false(sb->sb_tls_info != NULL)) {
-		SOCK_IO_RECV_UNLOCK(so);
-		return (soreceive_generic(so, psa, uio, mp0, controlp,
-		    flagsp));
-	}
-#endif
+	SOCK_IO_RECV_ASSERT_LOCKED(so);
 
 	SOCKBUF_LOCK(sb);
 	/* Easy one, no space to copyout anything. */
@@ -2778,6 +2737,62 @@ out:
 	SBLASTRECORDCHK(sb);
 	SBLASTMBUFCHK(sb);
 	SOCKBUF_UNLOCK(sb);
+	return (error);
+}
+
+int
+soreceive_stream(struct socket *so, struct sockaddr **psa, struct uio *uio,
+    struct mbuf **mp0, struct mbuf **controlp, int *flagsp)
+{
+	struct sockbuf *sb;
+	int error, flags;
+
+	sb = &so->so_rcv;
+
+	/* We only do stream sockets. */
+	if (so->so_type != SOCK_STREAM)
+		return (EINVAL);
+	if (psa != NULL)
+		*psa = NULL;
+	if (flagsp != NULL)
+		flags = *flagsp & ~MSG_EOR;
+	else
+		flags = 0;
+	if (controlp != NULL)
+		*controlp = NULL;
+	if (flags & MSG_OOB)
+		return (soreceive_rcvoob(so, uio, flags));
+	if (mp0 != NULL)
+		*mp0 = NULL;
+
+#ifdef KERN_TLS
+	/*
+	 * KTLS store TLS records as records with a control message to
+	 * describe the framing.
+	 *
+	 * We check once here before acquiring locks to optimize the
+	 * common case.
+	 */
+	if (sb->sb_tls_info != NULL)
+		return (soreceive_generic(so, psa, uio, mp0, controlp,
+		    flagsp));
+#endif
+
+	/*
+	 * Prevent other threads from reading from the socket.  This lock may be
+	 * dropped in order to sleep waiting for data to arrive.
+	 */
+	error = SOCK_IO_RECV_LOCK(so, SBLOCKWAIT(flags));
+	if (error)
+		return (error);
+#ifdef KERN_TLS
+	if (__predict_false(sb->sb_tls_info != NULL)) {
+		SOCK_IO_RECV_UNLOCK(so);
+		return (soreceive_generic(so, psa, uio, mp0, controlp,
+		    flagsp));
+	}
+#endif
+	error = soreceive_stream_locked(so, sb, psa, uio, mp0, controlp, flags);
 	SOCK_IO_RECV_UNLOCK(so);
 	return (error);
 }
