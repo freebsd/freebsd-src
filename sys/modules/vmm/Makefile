@@ -44,12 +44,11 @@ CLEANFILES+=	vmm_hyp_blob.elf vmm_hyp_blob.bin
 
 vmm_hyp_exception.o: vmm_hyp_exception.S
 	${CC} -c -x assembler-with-cpp -DLOCORE \
-		${CFLAGS:N-fsanitize*:N-fno-sanitize*:N-mbranch-protection*} \
-	    ${.IMPSRC} -o ${.TARGET} -fpie
+	    ${NOSAN_CFLAGS:N-mbranch-protection*} ${.IMPSRC} -o ${.TARGET} -fpie
 
 vmm_hyp.o: vmm_hyp.c
-	${CC} -c ${CFLAGS:N-fsanitize*:N-fno-sanitize*:N-mbranch-protection*} \
-	    ${.IMPSRC} -o ${.TARGET} -fpie
+	${CC} -c ${NOSAN_CFLAGS:N-mbranch-protection*} ${.IMPSRC} \
+	    -o ${.TARGET} -fpie
 
 vmm_hyp_blob.elf.full:	vmm_hyp_exception.o vmm_hyp.o
 	${LD} -m ${LD_EMULATION} -Bdynamic -L ${SYSDIR}/conf -T ${SYSDIR}/conf/ldscript.arm64 \
@@ -135,14 +134,12 @@ svm_support.o:
 	    ${.IMPSRC} -o ${.TARGET}
 
 hyp_genassym.o: offset.inc
-	${CC} -c ${CFLAGS:N-flto:N-fno-common} -fcommon ${.IMPSRC}
+	${CC} -c ${NOSAN_CFLAGS:N-flto:N-fno-common} -fcommon ${.IMPSRC}
 
 vmx_genassym.o: offset.inc
-	${CC} -c ${CFLAGS:N-flto*:N-fno-common:N-fsanitize*:N-fno-sanitize*} \
-	    -fcommon ${.IMPSRC}
+	${CC} -c ${NOSAN_CFLAGS:N-flto*:N-fno-common} -fcommon ${.IMPSRC}
 
 svm_genassym.o: offset.inc
-	${CC} -c ${CFLAGS:N-flto*:N-fno-common:N-fsanitize*:N-fno-sanitize*} \
-	    -fcommon ${.IMPSRC}
+	${CC} -c ${NOSAN_CFLAGS:N-flto*:N-fno-common} -fcommon ${.IMPSRC}
 
 .include <bsd.kmod.mk>

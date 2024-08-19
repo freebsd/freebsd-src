@@ -81,7 +81,7 @@ arm64/arm64/trap.c				standard
 arm64/arm64/uio_machdep.c			standard
 arm64/arm64/undefined.c				standard
 arm64/arm64/unwind.c				optional ddb | kdtrace_hooks | stack \
-	compile-with "${NORMAL_C:N-fsanitize*:N-fno-sanitize*}"
+	compile-with "${NOSAN_C}"
 arm64/arm64/vfp.c				standard
 arm64/arm64/vm_machdep.c			standard
 
@@ -124,10 +124,10 @@ arm64/vmm/vmm_arm64.c				optional vmm
 arm64/vmm/vmm_reset.c				optional vmm
 arm64/vmm/vmm_call.S				optional vmm
 arm64/vmm/vmm_hyp_exception.S			optional vmm		\
-	compile-with	"${NORMAL_C:N-fsanitize*:N-fno-sanitize*:N-mbranch-protection*} -fpie"		\
+	compile-with "${NOSAN_C:N-mbranch-protection*} -fpie" \
 	no-obj
 arm64/vmm/vmm_hyp.c				optional vmm		\
-	compile-with	"${NORMAL_C:N-fsanitize*:N-fno-sanitize*:N-mbranch-protection*} -fpie"		\
+	compile-with "${NOSAN_C:N-mbranch-protection*} -fpie" \
 	no-obj
 vmm_hyp_blob.elf.full				optional vmm		\
 	dependency	"vmm_hyp.o vmm_hyp_exception.o"			\
