@@ -401,6 +401,19 @@ Install the kernel to the directory
 .Pa ${DISTDIR}/kernel/boot/kernel .
 This target is used while building a release; see
 .Xr release 7 .
+.It Cm packages
+Create a
+.Xr pkg 7
+repository containing packages that can be used to create or upgrade an
+installation of the base system.
+The output repository is placed in the object directory, under
+.Pa repo/${PKG_ABI}
+where
+.Va PKG_ABI
+is the
+.Xr pkg 7
+ABI for the build target, for example,
+.Pa /usr/obj/${SRCDIR}/repo/FreeBSD:15:amd64 .
 .It Cm packagekernel
 Archive the results of
 .Cm distributekernel ,
