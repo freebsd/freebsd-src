@@ -91,7 +91,7 @@ buf_ring_enqueue(struct buf_ring *br, void *buf)
 	do {
 		prod_head = br->br_prod_head;
 		prod_next = prod_head + 1;
-		cons_tail = br->br_cons_tail;
+		cons_tail = atomic_load_acq_32(&br->br_cons_tail);
 
 		if ((int32_t)(cons_tail + br->br_prod_size - prod_next) < 1) {
 			rmb();
@@ -229,7 +229,7 @@ buf_ring_dequeue_sc(struct buf_ring *br)
 		panic("inconsistent list cons_tail=%d cons_head=%d",
 		    br->br_cons_tail, cons_head);
 #endif
-	br->br_cons_tail = cons_next;
+	atomic_store_rel_32(&br->br_cons_tail, cons_next);
 	return (buf);
 }
 
@@ -257,7 +257,7 @@ buf_ring_advance_sc(struct buf_ring *br)
 #ifdef DEBUG_BUFRING
 	br->br_ring[cons_head & mask] = NULL;
 #endif
-	br->br_cons_tail = cons_next;
+	atomic_store_rel_32(&br->br_cons_tail, cons_next);
 }
 
 /*
