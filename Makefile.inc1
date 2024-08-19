@@ -2096,7 +2096,7 @@ create-packages-source:	_pkgbootstrap _repodir .PHONY
 create-packages: .PHONY create-packages-world create-packages-kernel create-packages-source
 
 create-source-src-package: _pkgbootstrap .PHONY
-	rm -f ${SSTAGEDIR}/*.plist 2>/dev/null || :
+	rm -f ${SSTAGEDIR}/src.plist 2>/dev/null || :
 .if !empty(GIT_CMD) && exists(${GIT_CMD}) && exists(${SRCDIR}/.git)
 	@cd ${SRCDIR}; \
 		( echo "@override_prefix /usr/src" ;  \
@@ -2123,7 +2123,7 @@ create-source-src-package: _pkgbootstrap .PHONY
 .endif
 
 create-source-src-sys-package: _pkgbootstrap .PHONY
-	rm -f ${SSTAGEDIR}/*.plist 2>/dev/null || :
+	rm -f ${SSTAGEDIR}/src-sys.plist 2>/dev/null || :
 .if !empty(GIT_CMD) && exists(${GIT_CMD}) && exists(${SRCDIR}/.git)
 	@cd ${SRCDIR}; \
 		( echo "@override_prefix /usr/src" ; \
