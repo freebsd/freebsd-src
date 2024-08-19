@@ -1,4 +1,4 @@
-.\" $NetBSD: blacklistd.8,v 1.23 2020/04/21 13:57:12 christos Exp $
+.\" $NetBSD: blacklistd.8,v 1.3 2024/07/28 12:48:11 bad Exp $
 .\"
 .\" Copyright (c) 2015 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -53,7 +53,7 @@ for notifications from other daemons about successful or failed connection
 attempts.
 If no such file is specified, then it only listens to the socket path
 specified by
-.Ar sockspath
+.Ar sockpath
 or if that is not specified to
 .Pa /var/run/blacklistd.sock .
 Each notification contains an (action, port, protocol, address, owner) tuple
