@@ -183,6 +183,7 @@ hyp_vectors:
 
 
 .macro handle_el2_excp type
+#ifndef VMM_VHE
 	/* Save registers before modifying so we can restore them */
 	str	x9, [sp, #-16]!
 
@@ -193,15 +194,18 @@ hyp_vectors:
 
 	/* We got the exception while the guest was running */
 	ldr	x9, [sp], #16
+#endif /* !VMM_VHE */
 	do_world_switch_to_host
 	mov	x0, \type
 	ret
 
+#ifndef VMM_VHE
 1:
 	/* We got the exception while the host was running */
 	ldr	x9, [sp], #16
 	mov	x0, \type
 	ERET
+#endif /* !VMM_VHE */
 .endm
 
 
@@ -223,6 +227,7 @@ LEND(handle_el2_el2h_error)
 
 
 LENTRY(handle_el2_el1_sync64)
+#ifndef VMM_VHE
 	/* Save registers before modifying so we can restore them */
 	str	x9, [sp, #-16]!
 
@@ -245,7 +250,9 @@ LENTRY(handle_el2_el1_sync64)
 	ldr	lr, [sp], #16
 	ERET
 
-1:	/* Guest exception taken to EL2 */
+1:
+#endif
+	/* Guest exception taken to EL2 */
 	do_world_switch_to_host
 	mov	x0, #EXCP_TYPE_EL1_SYNC
 	ret
