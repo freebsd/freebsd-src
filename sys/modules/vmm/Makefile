@@ -28,6 +28,7 @@ DPSRCS+=	assym.inc
 SRCS+=	vmm_arm64.c \
 	vmm_reset.c \
 	vmm_call.S \
+	vmm_handlers.c \
 	vmm_mmu.c \
 	vmm_hyp_el2.S
 

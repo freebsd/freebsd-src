@@ -122,6 +122,7 @@ arm64/vmm/vmm_instruction_emul.c		optional vmm
 arm64/vmm/vmm_stat.c				optional vmm
 arm64/vmm/vmm_arm64.c				optional vmm
 arm64/vmm/vmm_reset.c				optional vmm
+arm64/vmm/vmm_handlers.c			optional vmm
 arm64/vmm/vmm_call.S				optional vmm
 arm64/vmm/vmm_nvhe_exception.S			optional vmm		\
 	compile-with "${NOSAN_C:N-mbranch-protection*} -fpie" \
