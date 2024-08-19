@@ -1,4 +1,4 @@
-# $NetBSD: README,v 1.8 2017/04/13 17:59:34 christos Exp $
+# $NetBSD: README,v 1.3 2024/02/09 00:53:30 wiz Exp $
 
 This package contains library that can be used by network daemons to
 communicate with a packet filter via a daemon to enforce opening and
@@ -15,7 +15,7 @@ blacklistd=YES in /etc/rc.conf, start it up, and you are all set.
 
 There is also a startup file in etc/rc.d/blacklistd
 
-Patches to various daemons to add blacklisting capabilitiers are in the
+Patches to various daemons to add blacklisting capabilities are in the
 "diff" directory:
     - OpenSSH: diff/ssh.diff [tcp socket example]
     - Bind: diff/named.diff [both tcp and udp]
@@ -24,7 +24,7 @@ Patches to various daemons to add blacklisting capabilitiers are in the
 These patches have been applied to NetBSD-current.
 
 The network daemon (for example sshd) communicates to blacklistd, via
-a unix socket like syslog. The library calls are simple and everything
+a Unix socket like syslog. The library calls are simple and everything
 is handled by the library. In the simplest form the only thing the
 daemon needs to do is to call:
 
@@ -60,11 +60,11 @@ ssh		stream	tcp6		*	*	6	60m
 http		stream	tcp		*	*	6	60m
 
 Here note that owner is * because the connection is done from the
-child ssh socket which runs with user privs. We treat ipv4 connections
+child ssh socket which runs with user privs. We treat IPv4 connections
 differently by maintaining two different rules one for the external
 interface and one from the internal We also register for both tcp
 and tcp6 since those are different listening sockets and addresses;
-we don't bother with ipv6 and separate rules. We use nfail = 6,
+we don't bother with IPv6 and separate rules. We use nfail = 6,
 because ssh allows 3 password attempts per connection, and this
 will let us have 2 connections before blocking. Finally we block
 for an hour; we could block forever too by specifying * in the
@@ -100,7 +100,7 @@ group "internal" on $int_if {
 
 You can use 'blacklistctl dump -a' to list all the current entries
 in the database; the ones that have nfail <c>/<t> where <c>urrent
->= <t>otal, should have an id assosiated with them; this means that
+>= <t>otal, should have an id associated with them; this means that
 there is a packet filter rule added for that entry. For npf, you
 can examine the packet filter dynamic rule entries using 'npfctl
 rule <rulename> list'.  The number of current entries can exceed
