@@ -192,7 +192,7 @@ bootrom_alloc(struct vmctx *ctx, size_t len, int prot, int flags,
 }
 
 int
-bootrom_loadrom(struct vmctx *ctx, const nvlist_t *nvl)
+bootrom_loadrom(struct vmctx *ctx)
 {
 	struct stat sbuf;
 	ssize_t rlen;
@@ -204,9 +204,9 @@ bootrom_loadrom(struct vmctx *ctx, const nvlist_t *nvl)
 	rv = -1;
 	varfd = -1;
 
-	bootrom = get_config_value_node(nvl, "bootrom");
+	bootrom = get_config_value("bootrom");
 	if (bootrom == NULL) {
-		return (-1);
+		return (0);
 	}
 
 	/*
@@ -235,7 +235,7 @@ bootrom_loadrom(struct vmctx *ctx, const nvlist_t *nvl)
 
 	rom_size = sbuf.st_size;
 
-	varfile = get_config_value_node(nvl, "bootvars");
+	varfile = get_config_value("bootvars");
 	var_size = 0;
 	if (varfile != NULL) {
 		varfd = open(varfile, O_RDWR);
@@ -313,4 +313,13 @@ done:
 		close(fd);
 	free(romfile);
 	return (rv);
+}
+
+/*
+ * Are we relying on a bootrom to initialize the guest's CPU context?
+ */
+bool
+bootrom_boot(void)
+{
+	return (get_config_value("bootrom") != NULL);
 }
