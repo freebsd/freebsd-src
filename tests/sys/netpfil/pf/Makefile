@@ -73,6 +73,7 @@ ${PACKAGE}FILES+=	CVE-2019-5597.py \
 			pfsync_defer.py \
 			pft_ether.py \
 			pft_read_ipfix.py \
+			rdr-srcport.py \
 			utils.subr
 
 ${PACKAGE}FILESMODE_CVE-2019-5597.py=	0555
