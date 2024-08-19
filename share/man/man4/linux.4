@@ -61,11 +61,13 @@ under
 .Pa /compat/linux )
 before
 .Pa / .
-For example, when Linux process attempts to open
+For example, when a Linux process attempts to open
 .Pa /etc/passwd ,
-it will really access
+it will first access
 .Pa /compat/linux/etc/passwd ,
-unless the latter does not exist.
+falling back to
+.Pa /etc/passwd
+if the compat path does not exist.
 This is used to make sure Linux processes load Linux shared libraries
 instead of their similarly-named FreeBSD counterparts, and also
 to provide alternative versions of certain other files and virtual
