@@ -131,7 +131,7 @@ static __inline void *
 buf_ring_dequeue_mc(struct buf_ring *br)
 {
 	uint32_t cons_head, cons_next, cons_idx;
-	uint32_t mask;
+	uint32_t prod_tail, mask;
 	void *buf;
 
 	critical_enter();
@@ -139,8 +139,9 @@ buf_ring_dequeue_mc(struct buf_ring *br)
 	do {
 		cons_head = br->br_cons_head;
 		cons_next = cons_head + 1;
+		prod_tail = atomic_load_acq_32(&br->br_prod_tail);
 
-		if (cons_head == br->br_prod_tail) {
+		if (cons_head == prod_tail) {
 			critical_exit();
 			return (NULL);
 		}
@@ -266,29 +267,26 @@ buf_ring_putback_sc(struct buf_ring *br, void *new)
 static __inline void *
 buf_ring_peek(struct buf_ring *br)
 {
-	uint32_t mask;
+	uint32_t cons_head, prod_tail, mask;
 
 #if defined(DEBUG_BUFRING) && defined(_KERNEL)
 	if ((br->br_lock != NULL) && !mtx_owned(br->br_lock))
 		panic("lock not held on single consumer dequeue");
 #endif	
 	mask = br->br_cons_mask;
-	/*
-	 * I believe it is safe to not have a memory barrier
-	 * here because we control cons and tail is worst case
-	 * a lagging indicator so we worst case we might
-	 * return NULL immediately after a buffer has been enqueued
-	 */
-	if (br->br_cons_head == br->br_prod_tail)
+	prod_tail = atomic_load_acq_32(&br->br_prod_tail);
+	cons_head = br->br_cons_head;
+
+	if (cons_head == prod_tail)
 		return (NULL);
 
-	return (br->br_ring[br->br_cons_head & mask]);
+	return (br->br_ring[cons_head & mask]);
 }
 
 static __inline void *
 buf_ring_peek_clear_sc(struct buf_ring *br)
 {
-	uint32_t mask;
+	uint32_t cons_head, prod_tail, mask;
 	void *ret;
 
 #if defined(DEBUG_BUFRING) && defined(_KERNEL)
@@ -297,30 +295,19 @@ buf_ring_peek_clear_sc(struct buf_ring *br)
 #endif	
 
 	mask = br->br_cons_mask;
-	if (br->br_cons_head == br->br_prod_tail)
+	prod_tail = atomic_load_acq_32(&br->br_prod_tail);
+	cons_head = br->br_cons_head;
+
+	if (cons_head == prod_tail)
 		return (NULL);
 
-#if defined(__arm__) || defined(__aarch64__)
-	/*
-	 * The barrier is required there on ARM and ARM64 to ensure, that
-	 * br->br_ring[br->br_cons_head] will not be fetched before the above
-	 * condition is checked.
-	 * Without the barrier, it is possible, that buffer will be fetched
-	 * before the enqueue will put mbuf into br, then, in the meantime, the
-	 * enqueue will update the array and the br_prod_tail, and the
-	 * conditional check will be true, so we will return previously fetched
-	 * (and invalid) buffer.
-	 */
-	atomic_thread_fence_acq();
-#endif
-
-	ret = br->br_ring[br->br_cons_head & mask];
+	ret = br->br_ring[cons_head & mask];
 #ifdef DEBUG_BUFRING
 	/*
 	 * Single consumer, i.e. cons_head will not move while we are
 	 * running, so atomic_swap_ptr() is not necessary here.
 	 */
-	br->br_ring[br->br_cons_head & mask] = NULL;
+	br->br_ring[cons_head & mask] = NULL;
 #endif
 	return (ret);
 }
