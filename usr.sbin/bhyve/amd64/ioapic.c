@@ -33,6 +33,7 @@
 #include <machine/vmm.h>
 #include <vmmapi.h>
 
+#include "bootrom.h"
 #include "ioapic.h"
 #include "pci_emul.h"
 #include "pci_lpc.h"
@@ -72,7 +73,7 @@ ioapic_pci_alloc_irq(struct pci_devinst *pi)
 
 	if (pci_pins == 0)
 		return (-1);
-	if (lpc_bootrom()) {
+	if (bootrom_boot()) {
 		/* For external bootrom use fixed mapping. */
 		return (16 + (4 + pi->pi_slot + pi->pi_lintr.pin) % 8);
 	}

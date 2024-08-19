@@ -525,12 +525,7 @@ do_open(const char *vmname)
 
 	reinit = false;
 
-#ifdef __amd64__
-	romboot = lpc_bootrom() != NULL;
-#else
-	romboot = true;
-#endif
-
+	romboot = bootrom_boot();
 	error = vm_create(vmname);
 	if (error) {
 		if (errno == EEXIST) {
