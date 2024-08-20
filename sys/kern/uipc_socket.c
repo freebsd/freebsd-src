@@ -1920,7 +1920,7 @@ sosend_generic(struct socket *so, struct sockaddr *addr, struct uio *uio,
 {
 	int error;
 
-	error = SOCK_IO_SEND_LOCK(so, 0);
+	error = SOCK_IO_SEND_LOCK(so, SBLOCKWAIT(flags));
 	if (error)
 		return (error);
 	error = sosend_generic_locked(so, addr, uio, top, control, flags, td);
