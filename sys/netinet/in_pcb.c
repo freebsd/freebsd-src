@@ -234,6 +234,12 @@ in_pcbhashseed_init(void)
 VNET_SYSINIT(in_pcbhashseed_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST,
     in_pcbhashseed_init, 0);
 
+VNET_DEFINE_STATIC(int, connect_inaddr_wild) = 1;
+#define	V_connect_inaddr_wild	VNET(connect_inaddr_wild)
+SYSCTL_INT(_net_inet_ip, OID_AUTO, connect_inaddr_wild,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(connect_inaddr_wild), 0,
+    "Allow connecting to INADDR_ANY or INADDR_BROADCAST for connect(2)");
+
 static void in_pcbremhash(struct inpcb *);
 
 /*
@@ -1309,7 +1315,7 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr_in *sin,
 		inp->inp_flowtype = hash_type;
 	}
 #endif
-	if (!CK_STAILQ_EMPTY(&V_in_ifaddrhead)) {
+	if (V_connect_inaddr_wild && !CK_STAILQ_EMPTY(&V_in_ifaddrhead)) {
 		/*
 		 * If the destination address is INADDR_ANY,
 		 * use the primary local address.
