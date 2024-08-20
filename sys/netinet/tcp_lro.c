@@ -595,7 +595,7 @@ tcp_lro_rx_done(struct lro_ctrl *lc)
 static void
 tcp_lro_flush_active(struct lro_ctrl *lc)
 {
-	struct lro_entry *le;
+	struct lro_entry *le, *le_tmp;
 
 	/*
 	 * Walk through the list of le entries, and
@@ -607,7 +607,7 @@ tcp_lro_flush_active(struct lro_ctrl *lc)
 	 * is being freed. This is ok it will just get
 	 * reallocated again like it was new.
 	 */
-	LIST_FOREACH(le, &lc->lro_active, next) {
+	LIST_FOREACH_SAFE(le, &lc->lro_active, next, le_tmp) {
 		if (le->m_head != NULL) {
 			tcp_lro_active_remove(le);
 			tcp_lro_flush(lc, le);
