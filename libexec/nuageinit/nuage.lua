@@ -188,10 +188,7 @@ local function addsshkey(homedir, key)
 		chownak = true
 		dirattrs = lfs.attributes(dotssh_path)
 		if dirattrs == nil then
-			if not lfs.mkdir(dotssh_path) then
-				warnmsg("nuageinit: impossible to create ".. dotssh_path)
-				return
-			end
+			assert(lfs.mkdir(dotssh_path))
 			chowndotssh = true
 			dirattrs = lfs.attributes(homedir)
 		end
