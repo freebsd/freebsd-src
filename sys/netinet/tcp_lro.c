@@ -175,7 +175,7 @@ tcp_lro_init_args(struct lro_ctrl *lc, struct ifnet *ifp,
 {
 	struct lro_entry *le;
 	size_t size;
-	unsigned i, elements;
+	unsigned i;
 
 	lc->lro_bad_csum = 0;
 	lc->lro_queued = 0;
@@ -190,11 +190,7 @@ tcp_lro_init_args(struct lro_ctrl *lc, struct ifnet *ifp,
 	LIST_INIT(&lc->lro_active);
 
 	/* create hash table to accelerate entry lookup */
-	if (lro_entries > lro_mbufs)
-		elements = lro_entries;
-	else
-		elements = lro_mbufs;
-	lc->lro_hash = phashinit_flags(elements, M_LRO, &lc->lro_hashsz,
+	lc->lro_hash = phashinit_flags(lro_entries, M_LRO, &lc->lro_hashsz,
 	    HASH_NOWAIT);
 	if (lc->lro_hash == NULL) {
 		memset(lc, 0, sizeof(*lc));
