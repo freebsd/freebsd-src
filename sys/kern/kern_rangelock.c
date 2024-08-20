@@ -609,6 +609,12 @@ again:
 			continue;
 		}
 		sleepq_lock(&lock->sleepers);
+		/* Reload after sleepq is locked */
+		next = rl_q_load(&cur->rl_q_next);
+		if (rl_e_is_marked(next)) {
+			sleepq_release(&lock->sleepers);
+			goto again;
+		}
 		rangelock_unlock_int(lock, e);
 		if (trylock) {
 			sleepq_release(&lock->sleepers);
