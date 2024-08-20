@@ -875,6 +875,9 @@ _FindLinkIn(struct libalias *la, struct in_addr dst_addr,
 				if (found != NULL)
 					return (found);
 				/* link expired */
+				grp = StartPointIn(la, alias_addr, alias_port, link_type, 0);
+				if (grp == NULL)
+					return (NULL);
 				break;
 			}
 		}
