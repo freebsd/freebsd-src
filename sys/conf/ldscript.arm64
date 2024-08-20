@@ -121,6 +121,7 @@ SECTIONS
   .sdata     : { *(.sdata) }
   _edata  =  .;
   PROVIDE (edata = .);
+  . = ALIGN(16);
   __bss_start = .;
   .sbss      : { *(.sbss) *(.scommon) }
   .bss       :
@@ -128,7 +129,7 @@ SECTIONS
    *(.dynbss)
    *(.bss)
    *(COMMON)
-   . = ALIGN(8);
+   . = ALIGN(16);
    __bss_end = .;
    /* A section for the initial page table, it doesn't need to be in the
       kernel file, however unlike normal .bss entries should not be zeroed
