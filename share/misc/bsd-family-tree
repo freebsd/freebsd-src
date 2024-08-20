@@ -438,23 +438,23 @@ FreeBSD 5.2           |      |                 |                       |
  |   13.1     |       |      |    |               |                    |
  |     |      |       |      |    |               |            DragonFly 6.2.2
  |     |      |       |      |  NetBSD 9.3        |                    |
- |     |      |     macOS    |                OpenBSD 7.2              |
- |     |      |      13      |                    |                    |
- |     |   FreeBSD    |      |                    |                    |
- |     |     12.4     |      |                    |                    |
- |     |              |      |                    |            DragonFly 6.4.0
- |     |              |      |                OpenBSD 7.3              |
- |  FreeBSD           |      |                    |                    |
- |   13.2             |      |                    |                    |
- |     |              |      |                    |                    |
- |     `------.       |      |                    |                    |
- |            |     macOS    |                    |                    |
- |            |      14      |                    |                    |
- |            |       |      |                OpenBSD 7.4              |
- *--FreeBSD   |       |      |                    |                    |
- |   14.0     |       |      |                    |                    |
- |     |      |       |      |                    |                    |
- |     |   FreeBSD    |      |                    |                    |
+ |     |      |     macOS    |    |           OpenBSD 7.2              |
+ |     |      |      13      |    |               |                    |
+ |     |   FreeBSD    |      |    |               |                    |
+ |     |     12.4     |      |    |               |                    |
+ |     |              |      |    |               |            DragonFly 6.4.0
+ |     |              |      |    |           OpenBSD 7.3              |
+ |  FreeBSD           |      |    |               |                    |
+ |   13.2             |      |    |               |                    |
+ |     |              |      |    |               |                    |
+ |     `------.       |      |    |               |                    |
+ |            |     macOS    |    |               |                    |
+ |            |      14      |    |               |                    |
+ |            |       |      |    |           OpenBSD 7.4              |
+ *--FreeBSD   |       |      |    |               |                    |
+ |   14.0     |       |      |    |               |                    |
+ |     |      |       |      |    |               |                    |
+ |     |   FreeBSD    |      | NetBSD 9.4         |                    |
  |     |     13.3     |      |                    |                    |
  |     |              |      *--NetBSD            |                    |
  |     |              |      |   10.0             |                    |
@@ -894,6 +894,7 @@ FreeBSD 14.0		2023-11-20 [FBD]
 FreeBSD 13.3		2024-03-05 [FBD]
 NetBSD 10.0		2024-03-28 [NBD]
 OpenBSD 7.5             2024-04-05 [OBD]
+NetBSD 9.4		2024-04-20 [NBD]
 FreeBSD 14.1		2024-06-04 [FBD]
 
 Bibliography
@@ -959,5 +960,5 @@ original BSD announcements from Usenet or tapes.
 Steven M. Schultz for providing 2.8BSD, 2.10BSD, 2.11BSD manual pages.
 
 --
-Copyright (c) 1997-2012 Wolfram Schneider <wosch@FreeBSD.ORG>
+Copyright (c) 1997-2024 Wolfram Schneider <wosch@FreeBSD.org>
 URL: https://cgit.freebsd.org/src/tree/share/misc/bsd-family-tree
