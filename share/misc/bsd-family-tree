@@ -492,7 +492,7 @@ the announcement in Usenet or if it was available as tape.
 [QCU]  Salus, Peter H. A quarter century of UNIX. ISBN 0201547775, EAN
 	9780201547771
 [SMS]  Steven M. Schultz. 2.11BSD, UNIX for the PDP-11.
-[TUHS] The Unix Historical Society. https://minnie.tuhs.org/Unix_History/.
+[TUHS] The Unix Historical Society. https://minnie.tuhs.org/Unix_History/
 [USE]  Usenet announcement.
 [WRS]  Wind River Systems, Inc.
 [dmr]  Dennis Ritchie, via E-Mail
@@ -941,7 +941,7 @@ FreeBSD Documentation Archive
 URL: https://docs-archive.freebsd.org/doc/
 
 UNIX history graphing project
-URL: https://minnie.tuhs.org/Unix_History/index.html
+URL: https://minnie.tuhs.org/Unix_History/
 
 UNIX history
 URL: https://www.levenez.com/unix/
