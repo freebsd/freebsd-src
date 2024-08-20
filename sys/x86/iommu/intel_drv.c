@@ -422,6 +422,7 @@ dmar_attach(device_t dev)
 	    &unit->reg_rid, RF_ACTIVE);
 	if (unit->regs == NULL) {
 		device_printf(dev, "cannot allocate register window\n");
+		dmar_devs[unit->iommu.unit] = NULL;
 		return (ENOMEM);
 	}
 	unit->hw_ver = dmar_read4(unit, DMAR_VER_REG);
@@ -449,6 +450,7 @@ dmar_attach(device_t dev)
 	error = dmar_alloc_irq(dev, unit, DMAR_INTR_FAULT);
 	if (error != 0) {
 		dmar_release_resources(dev, unit);
+		dmar_devs[unit->iommu.unit] = NULL;
 		return (error);
 	}
 	if (DMAR_HAS_QI(unit)) {
@@ -463,6 +465,7 @@ dmar_attach(device_t dev)
 		error = dmar_alloc_irq(dev, unit, DMAR_INTR_QI);
 		if (error != 0) {
 			dmar_release_resources(dev, unit);
+			dmar_devs[unit->iommu.unit] = NULL;
 			return (error);
 		}
 	}
@@ -496,12 +499,14 @@ dmar_attach(device_t dev)
 	if (error != 0) {
 		DMAR_UNLOCK(unit);
 		dmar_release_resources(dev, unit);
+		dmar_devs[unit->iommu.unit] = NULL;
 		return (error);
 	}
 	error = dmar_inv_ctx_glob(unit);
 	if (error != 0) {
 		DMAR_UNLOCK(unit);
 		dmar_release_resources(dev, unit);
+		dmar_devs[unit->iommu.unit] = NULL;
 		return (error);
 	}
 	if ((unit->hw_ecap & DMAR_ECAP_DI) != 0) {
@@ -509,6 +514,7 @@ dmar_attach(device_t dev)
 		if (error != 0) {
 			DMAR_UNLOCK(unit);
 			dmar_release_resources(dev, unit);
+			dmar_devs[unit->iommu.unit] = NULL;
 			return (error);
 		}
 	}
@@ -517,16 +523,19 @@ dmar_attach(device_t dev)
 	error = dmar_init_fault_log(unit);
 	if (error != 0) {
 		dmar_release_resources(dev, unit);
+		dmar_devs[unit->iommu.unit] = NULL;
 		return (error);
 	}
 	error = dmar_init_qi(unit);
 	if (error != 0) {
 		dmar_release_resources(dev, unit);
+		dmar_devs[unit->iommu.unit] = NULL;
 		return (error);
 	}
 	error = dmar_init_irt(unit);
 	if (error != 0) {
 		dmar_release_resources(dev, unit);
+		dmar_devs[unit->iommu.unit] = NULL;
 		return (error);
 	}
 
@@ -542,6 +551,7 @@ dmar_attach(device_t dev)
 	error = iommu_init_busdma(&unit->iommu);
 	if (error != 0) {
 		dmar_release_resources(dev, unit);
+		dmar_devs[unit->iommu.unit] = NULL;
 		return (error);
 	}
 
@@ -551,6 +561,7 @@ dmar_attach(device_t dev)
 	if (error != 0) {
 		DMAR_UNLOCK(unit);
 		dmar_release_resources(dev, unit);
+		dmar_devs[unit->iommu.unit] = NULL;
 		return (error);
 	}
 	DMAR_UNLOCK(unit);
