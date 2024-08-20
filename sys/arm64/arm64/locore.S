@@ -111,7 +111,7 @@ virtdone:
 	ldr	x15, .Lbss
 	ldr	x14, .Lend
 1:
-	str	xzr, [x15], #8
+	stp	xzr, xzr, [x15], #16
 	cmp	x15, x14
 	b.lo	1b
 
