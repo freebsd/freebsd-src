@@ -2210,8 +2210,6 @@ vlan_capabilities(struct ifvlan *ifv)
 
 	ifp->if_capabilities = cap;
 	ifp->if_capenable = ena;
-	ifp->if_capabilities2 = cap2;
-	ifp->if_capenable2 = ena2;
 	ifp->if_hwassist = hwa;
 
 #ifdef IPSEC_OFFLOAD
@@ -2219,6 +2217,9 @@ vlan_capabilities(struct ifvlan *ifv)
 	ena2 |= mena2 & IFCAP2_BIT(IFCAP2_IPSEC_OFFLOAD);
 	ifp->if_ipsec_accel_m = &vlan_if_ipsec_accel_methods;
 #endif
+
+	ifp->if_capabilities2 = cap2;
+	ifp->if_capenable2 = ena2;
 }
 
 static void
