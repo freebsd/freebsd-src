@@ -596,7 +596,7 @@ again:
 		if (rl_e_is_marked(next)) {
 			next = rl_e_unmark(next);
 			if (rl_q_cas(prev, cur, next)) {
-				cur->rl_q_next = *free;
+				cur->rl_q_free = *free;
 				*free = cur;
 				cur = next;
 				continue;
