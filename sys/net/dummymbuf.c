@@ -117,11 +117,15 @@ SYSCTL_PROC(_net_dummymbuf, OID_AUTO, hits,
  * pfil(9) context
  */
 
+#ifdef INET
 VNET_DEFINE_STATIC(pfil_hook_t,		dmb_pfil_inet_hook);
 #define V_dmb_pfil_inet_hook		VNET(dmb_pfil_inet_hook)
+#endif
 
+#ifdef INET6
 VNET_DEFINE_STATIC(pfil_hook_t,		dmb_pfil_inet6_hook);
 #define V_dmb_pfil_inet6_hook		VNET(dmb_pfil_inet6_hook)
+#endif
 
 VNET_DEFINE_STATIC(pfil_hook_t,		dmb_pfil_ethernet_hook);
 #define V_dmb_pfil_ethernet_hook	VNET(dmb_pfil_ethernet_hook)
@@ -321,6 +325,7 @@ dmb_pfil_mbuf_chk(int pfil_type, struct mbuf **mp, struct ifnet *ifp,
 	return (PFIL_PASS);
 }
 
+#ifdef INET
 static pfil_return_t
 dmb_pfil_inet_mbuf_chk(struct mbuf **mp, struct ifnet *ifp, int flags,
     void *ruleset, struct inpcb *inp)
@@ -328,7 +333,9 @@ dmb_pfil_inet_mbuf_chk(struct mbuf **mp, struct ifnet *ifp, int flags,
 	return (dmb_pfil_mbuf_chk(PFIL_TYPE_IP4, mp, ifp, flags,
 	    ruleset, inp));
 }
+#endif
 
+#ifdef INET6
 static pfil_return_t
 dmb_pfil_inet6_mbuf_chk(struct mbuf **mp, struct ifnet *ifp, int flags,
     void *ruleset, struct inpcb *inp)
@@ -336,6 +343,7 @@ dmb_pfil_inet6_mbuf_chk(struct mbuf **mp, struct ifnet *ifp, int flags,
 	return (dmb_pfil_mbuf_chk(PFIL_TYPE_IP6, mp, ifp, flags,
 	    ruleset, inp));
 }
+#endif
 
 static pfil_return_t
 dmb_pfil_ethernet_mbuf_chk(struct mbuf **mp, struct ifnet *ifp, int flags,
