@@ -977,6 +977,9 @@ device		lagg
 # WireGuard interface.
 device		wg
 
+# dummymbuf – mbuf alteration pfil hooks
+device		dummymbuf
+
 #
 # Internet family options:
 #
