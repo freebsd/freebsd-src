@@ -2423,7 +2423,7 @@ nfsrpc_mknod(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		*tl = vtonfsv34_type(vtyp);
 	}
 	if (nd->nd_flag & (ND_NFSV3 | ND_NFSV4))
-		nfscl_fillsattr(nd, vap, dvp, 0, 0);
+		nfscl_fillsattr(nd, vap, dvp, NFSSATTR_NEWFILE, 0);
 	if ((nd->nd_flag & ND_NFSV3) &&
 	    (vtyp == VCHR || vtyp == VBLK)) {
 		NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
@@ -2645,14 +2645,16 @@ nfsrpc_createv4(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 			if (NFSHASSESSPERSIST(nmp)) {
 				/* Use GUARDED for persistent sessions. */
 				*tl = txdr_unsigned(NFSCREATE_GUARDED);
-				nfscl_fillsattr(nd, vap, dvp, 0, 0);
+				nfscl_fillsattr(nd, vap, dvp, NFSSATTR_NEWFILE,
+				    0);
 			} else {
 				/* Otherwise, use EXCLUSIVE4_1. */
 				*tl = txdr_unsigned(NFSCREATE_EXCLUSIVE41);
 				NFSM_BUILD(tl, u_int32_t *, NFSX_VERF);
 				*tl++ = cverf.lval[0];
 				*tl = cverf.lval[1];
-				nfscl_fillsattr(nd, vap, dvp, 0, 0);
+				nfscl_fillsattr(nd, vap, dvp, NFSSATTR_NEWFILE,
+				    0);
 			}
 		} else {
 			/* NFSv4.0 */
@@ -2663,7 +2665,7 @@ nfsrpc_createv4(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		}
 	} else {
 		*tl = txdr_unsigned(NFSCREATE_UNCHECKED);
-		nfscl_fillsattr(nd, vap, dvp, 0, 0);
+		nfscl_fillsattr(nd, vap, dvp, NFSSATTR_NEWFILE, 0);
 	}
 	NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
 	*tl = txdr_unsigned(NFSV4OPEN_CLAIMNULL);
@@ -3238,7 +3240,7 @@ nfsrpc_mkdir(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		*tl = txdr_unsigned(NFDIR);
 	}
 	(void) nfsm_strtom(nd, name, namelen);
-	nfscl_fillsattr(nd, vap, dvp, NFSSATTR_SIZENEG1, 0);
+	nfscl_fillsattr(nd, vap, dvp, NFSSATTR_SIZENEG1 | NFSSATTR_NEWFILE, 0);
 	if (nd->nd_flag & ND_NFSV4) {
 		NFSGETATTR_ATTRBIT(&attrbits);
 		NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
@@ -8456,18 +8458,18 @@ nfsrpc_createlayout(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		if (NFSHASSESSPERSIST(nmp)) {
 			/* Use GUARDED for persistent sessions. */
 			*tl = txdr_unsigned(NFSCREATE_GUARDED);
-			nfscl_fillsattr(nd, vap, dvp, 0, 0);
+			nfscl_fillsattr(nd, vap, dvp, NFSSATTR_NEWFILE, 0);
 		} else {
 			/* Otherwise, use EXCLUSIVE4_1. */
 			*tl = txdr_unsigned(NFSCREATE_EXCLUSIVE41);
 			NFSM_BUILD(tl, u_int32_t *, NFSX_VERF);
 			*tl++ = cverf.lval[0];
 			*tl = cverf.lval[1];
-			nfscl_fillsattr(nd, vap, dvp, 0, 0);
+			nfscl_fillsattr(nd, vap, dvp, NFSSATTR_NEWFILE, 0);
 		}
 	} else {
 		*tl = txdr_unsigned(NFSCREATE_UNCHECKED);
-		nfscl_fillsattr(nd, vap, dvp, 0, 0);
+		nfscl_fillsattr(nd, vap, dvp, NFSSATTR_NEWFILE, 0);
 	}
 	NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
 	*tl = txdr_unsigned(NFSV4OPEN_CLAIMNULL);
