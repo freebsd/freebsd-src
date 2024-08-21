@@ -62,7 +62,7 @@ tegra_bo_destruct(struct tegra_bo *bo)
 	for (i = 0; i < bo->npages; i++) {
 		m = bo->m[i];
 		vm_page_busy_acquire(m, 0);
-		cdev_pager_free_page(bo->cdev_pager, m);
+		cdev_mgtdev_pager_free_page(bo->cdev_pager, m);
 		m->flags &= ~PG_FICTITIOUS;
 		vm_page_unwire_noq(m);
 		vm_page_free(m);

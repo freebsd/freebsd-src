@@ -436,7 +436,7 @@ retry:
 				continue;
 			if (!vm_page_busy_acquire(page, VM_ALLOC_WAITFAIL))
 				goto retry;
-			cdev_pager_free_page(devobj, page);
+			cdev_mgtdev_pager_free_page(devobj, page);
 		}
 		VM_OBJECT_WUNLOCK(devobj);
 		vm_object_deallocate(devobj);
