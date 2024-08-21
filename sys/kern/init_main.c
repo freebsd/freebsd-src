@@ -347,13 +347,13 @@ mi_startup(void)
 }
 
 static void
-print_caddr_t(void *data)
+print_caddr_t(const void *data)
 {
-	printf("%s", (char *)data);
+	printf("%s", (const char *)data);
 }
 
 static void
-print_version(void *data __unused)
+print_version(const void *data __unused)
 {
 	int len;
 
