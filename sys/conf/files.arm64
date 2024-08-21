@@ -125,13 +125,13 @@ arm64/vmm/vmm_reset.c				optional vmm
 arm64/vmm/vmm_handlers.c			optional vmm
 arm64/vmm/vmm_call.S				optional vmm
 arm64/vmm/vmm_nvhe_exception.S			optional vmm		\
-	compile-with "${NOSAN_C:N-mbranch-protection*} -fpie" \
+	compile-with "${NOSAN_C} -fpie"					\
 	no-obj
 arm64/vmm/vmm_nvhe.c				optional vmm		\
-	compile-with "${NOSAN_C:N-mbranch-protection*} -fpie" \
+	compile-with "${NOSAN_C} -fpie"					\
 	no-obj
 vmm_hyp_blob.elf.full				optional vmm		\
-	dependency	"vmm_nvhe.o vmm_hyp_exception.o"			\
+	dependency	"vmm_nvhe.o vmm_nvhe_exception.o"			\
 	compile-with	"${SYSTEM_LD_BASECMD} -o ${.TARGET} ${.ALLSRC} --defsym=_start='0x0' --defsym=text_start='0x0'"	\
 	no-obj no-implicit-rule
 vmm_hyp_blob.elf				optional vmm		\
