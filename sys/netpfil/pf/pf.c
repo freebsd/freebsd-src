@@ -4365,6 +4365,13 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf **m0)
 	r = TAILQ_FIRST(rules);
 	rm = NULL;
 
+	if (__predict_false(m->m_len < sizeof(struct ether_header)) &&
+	    (m = *m0 = m_pullup(*m0, sizeof(struct ether_header))) == NULL) {
+		DPFPRINTF(PF_DEBUG_URGENT,
+		    ("pf_test_eth_rule: m_len < sizeof(struct ether_header)"
+		     ", pullup failed\n"));
+		return (PF_DROP);
+	}
 	e = mtod(m, struct ether_header *);
 	proto = ntohs(e->ether_type);
 
