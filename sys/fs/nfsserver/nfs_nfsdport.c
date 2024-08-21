@@ -3212,6 +3212,23 @@ nfsv4_sattr(struct nfsrv_descript *nd, vnode_t vp, struct nfsvattr *nvap,
 				nd->nd_repstat = moderet;
 			attrsum += 2 * NFSX_UNSIGNED;
 			break;
+		case NFSATTRBIT_MODEUMASK:
+			NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED);
+			mode = fxdr_unsigned(u_short, *tl++);
+			mask = fxdr_unsigned(u_short, *tl);
+			/*
+			 * If moderet != 0, mode has already been done.
+			 * If vp != NULL, this is not a file object creation.
+			 */
+			if ((nd->nd_flag & ND_NFSV42) == 0)
+				nd->nd_repstat = NFSERR_ATTRNOTSUPP;
+			else if ((mask & ~0777) != 0 || vp != NULL ||
+			    moderet != 0)
+				nd->nd_repstat = NFSERR_INVAL;
+			else
+				nvap->na_mode = (mode & ~mask);
+			attrsum += 2 * NFSX_UNSIGNED;
+			break;
 		default:
 			nd->nd_repstat = NFSERR_ATTRNOTSUPP;
 			/*
