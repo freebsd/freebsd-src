@@ -406,7 +406,7 @@ do {								\
  * any extra precision into the type of 'a' -- 'a' should have type float_t,
  * double_t or long double.  b's type should be no larger than 'a's type.
  * Callers should use these types with scopes as large as possible, to
- * reduce their own extra-precision and efficiciency problems.  In
+ * reduce their own extra-precision and efficiency problems.  In
  * particular, they shouldn't convert back and forth just to call here.
  */
 #ifdef DEBUG
