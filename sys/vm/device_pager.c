@@ -262,13 +262,25 @@ void
 cdev_pager_free_page(vm_object_t object, vm_page_t m)
 {
 
-	VM_OBJECT_ASSERT_WLOCKED(object);
-	if (object->type == OBJT_MGTDEVICE) {
-		KASSERT((m->oflags & VPO_UNMANAGED) == 0, ("unmanaged %p", m));
-		pmap_remove_all(m);
-		(void)vm_page_remove(m);
-	} else if (object->type == OBJT_DEVICE)
+	if (object->type == OBJT_MGTDEVICE)
+		cdev_mgtdev_pager_free_page(object, m);
+	else if (object->type == OBJT_DEVICE)
 		dev_pager_free_page(object, m);
+	else
+		KASSERT(false,
+		    ("Invalid device type obj %p m %p", object, m));
+}
+
+void
+cdev_mgtdev_pager_free_page(vm_object_t object, vm_page_t m)
+{
+
+	VM_OBJECT_ASSERT_WLOCKED(object);
+	KASSERT((object->type == OBJT_MGTDEVICE &&
+	    (m->oflags & VPO_UNMANAGED) == 0),
+	    ("Unmanaged device or page obj %p m %p", object, m));
+	pmap_remove_all(m);
+	(void)vm_page_remove(m);
 }
 
 static void
