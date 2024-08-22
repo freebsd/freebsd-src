@@ -548,12 +548,12 @@ esp_input_cb(struct cryptop *crp)
 		error = EINVAL;
 		goto bad;
 	}
-	ESPSTAT_INC(esps_hist[sav->alg_enc]);
+	ESPSTAT_INC2(esps_hist, sav->alg_enc);
 
 	/* If authentication was performed, check now. */
 	if (esph != NULL) {
 		alen = xform_ah_authsize(esph);
-		AHSTAT_INC(ahs_hist[sav->alg_auth]);
+		AHSTAT_INC2(ahs_hist, sav->alg_auth);
 		if (crp->crp_etype == EBADMSG) {
 			DPRINTF(("%s: authentication hash mismatch for "
 			    "packet in SA %s/%08lx\n", __func__,
@@ -1033,9 +1033,9 @@ esp_output_cb(struct cryptop *crp)
 	free(xd, M_ESP);
 	free(crp->crp_aad, M_ESP);
 	crypto_freereq(crp);
-	ESPSTAT_INC(esps_hist[sav->alg_enc]);
+	ESPSTAT_INC2(esps_hist, sav->alg_enc);
 	if (sav->tdb_authalgxform != NULL)
-		AHSTAT_INC(ahs_hist[sav->alg_auth]);
+		AHSTAT_INC2(ahs_hist, sav->alg_auth);
 
 #ifdef REGRESSION
 	/* Emulate man-in-the-middle attack when ipsec_integrity is TRUE. */

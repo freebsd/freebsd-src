@@ -333,6 +333,88 @@ SDT_PROBE_DECLARE(mib, tcp, count, tcps_tlpresend_bytes);
 
 SDT_PROBE_DECLARE(mib, tcp, count, tcps_rcvghostack);
 SDT_PROBE_DECLARE(mib, tcp, count, tcps_rcvacktooold);
+
+SDT_PROBE_DECLARE(mib, ipsec, count, ips_in_polvio);
+SDT_PROBE_DECLARE(mib, ipsec, count, ips_in_nomem);
+SDT_PROBE_DECLARE(mib, ipsec, count, ips_in_inval);
+SDT_PROBE_DECLARE(mib, ipsec, count, ips_out_polvio);
+SDT_PROBE_DECLARE(mib, ipsec, count, ips_out_nosa);
+SDT_PROBE_DECLARE(mib, ipsec, count, ips_out_nomem);
+SDT_PROBE_DECLARE(mib, ipsec, count, ips_out_noroute);
+SDT_PROBE_DECLARE(mib, ipsec, count, ips_out_inval);
+SDT_PROBE_DECLARE(mib, ipsec, count, ips_out_bundlesa);
+
+SDT_PROBE_DECLARE(mib, ipsec, count, ips_spdcache_hits);
+SDT_PROBE_DECLARE(mib, ipsec, count, ips_spdcache_misses);
+
+SDT_PROBE_DECLARE(mib, ipsec, count, ips_clcopied);
+SDT_PROBE_DECLARE(mib, ipsec, count, ips_mbinserted);
+SDT_PROBE_DECLARE(mib, ipsec, count, ips_input_front);
+SDT_PROBE_DECLARE(mib, ipsec, count, ips_input_middle);
+SDT_PROBE_DECLARE(mib, ipsec, count, ips_input_end);
+
+SDT_PROBE_DECLARE(mib, esp, count, esps_hdrops);
+SDT_PROBE_DECLARE(mib, esp, count, esps_nopf);
+SDT_PROBE_DECLARE(mib, esp, count, esps_notdb);
+SDT_PROBE_DECLARE(mib, esp, count, esps_badkcr);
+SDT_PROBE_DECLARE(mib, esp, count, esps_qfull);
+SDT_PROBE_DECLARE(mib, esp, count, esps_noxform);
+SDT_PROBE_DECLARE(mib, esp, count, esps_badilen);
+SDT_PROBE_DECLARE(mib, esp, count, esps_wrap);
+SDT_PROBE_DECLARE(mib, esp, count, esps_badenc);
+SDT_PROBE_DECLARE(mib, esp, count, esps_badauth);
+SDT_PROBE_DECLARE(mib, esp, count, esps_replay);
+SDT_PROBE_DECLARE(mib, esp, count, esps_input);
+SDT_PROBE_DECLARE(mib, esp, count, esps_output);
+SDT_PROBE_DECLARE(mib, esp, count, esps_invalid);
+SDT_PROBE_DECLARE(mib, esp, count, esps_ibytes);
+SDT_PROBE_DECLARE(mib, esp, count, esps_obytes);
+SDT_PROBE_DECLARE(mib, esp, count, esps_toobig);
+SDT_PROBE_DECLARE(mib, esp, count, esps_pdrops);
+SDT_PROBE_DECLARE(mib, esp, count, esps_crypto);
+SDT_PROBE_DECLARE(mib, esp, count, esps_tunnel);
+SDT_PROBE_DECLARE(mib, esp, count, esps_hist);
+
+SDT_PROBE_DECLARE(mib, ah, count, ahs_hdrops);
+SDT_PROBE_DECLARE(mib, ah, count, ahs_nopf);
+SDT_PROBE_DECLARE(mib, ah, count, ahs_notdb);
+SDT_PROBE_DECLARE(mib, ah, count, ahs_badkcr);
+SDT_PROBE_DECLARE(mib, ah, count, ahs_badauth);
+SDT_PROBE_DECLARE(mib, ah, count, ahs_noxform);
+SDT_PROBE_DECLARE(mib, ah, count, ahs_qfull);
+SDT_PROBE_DECLARE(mib, ah, count, ahs_wrap);
+SDT_PROBE_DECLARE(mib, ah, count, ahs_replay);
+SDT_PROBE_DECLARE(mib, ah, count, ahs_badauthl);
+SDT_PROBE_DECLARE(mib, ah, count, ahs_input);
+SDT_PROBE_DECLARE(mib, ah, count, ahs_output);
+SDT_PROBE_DECLARE(mib, ah, count, ahs_invalid);
+SDT_PROBE_DECLARE(mib, ah, count, ahs_ibytes);
+SDT_PROBE_DECLARE(mib, ah, count, ahs_obytes);
+SDT_PROBE_DECLARE(mib, ah, count, ahs_toobig);
+SDT_PROBE_DECLARE(mib, ah, count, ahs_pdrops);
+SDT_PROBE_DECLARE(mib, ah, count, ahs_crypto);
+SDT_PROBE_DECLARE(mib, ah, count, ahs_tunnel);
+SDT_PROBE_DECLARE(mib, ah, count, ahs_hist);
+
+SDT_PROBE_DECLARE(mib, ipcomp, count, ipcomps_hdrops);
+SDT_PROBE_DECLARE(mib, ipcomp, count, ipcomps_nopf);
+SDT_PROBE_DECLARE(mib, ipcomp, count, ipcomps_notdb);
+SDT_PROBE_DECLARE(mib, ipcomp, count, ipcomps_badkcr);
+SDT_PROBE_DECLARE(mib, ipcomp, count, ipcomps_qfull);
+SDT_PROBE_DECLARE(mib, ipcomp, count, ipcomps_noxform);
+SDT_PROBE_DECLARE(mib, ipcomp, count, ipcomps_wrap);
+SDT_PROBE_DECLARE(mib, ipcomp, count, ipcomps_input);
+SDT_PROBE_DECLARE(mib, ipcomp, count, ipcomps_output);
+SDT_PROBE_DECLARE(mib, ipcomp, count, ipcomps_invalid);
+SDT_PROBE_DECLARE(mib, ipcomp, count, ipcomps_ibytes);
+SDT_PROBE_DECLARE(mib, ipcomp, count, ipcomps_obytes);
+SDT_PROBE_DECLARE(mib, ipcomp, count, ipcomps_toobig);
+SDT_PROBE_DECLARE(mib, ipcomp, count, ipcomps_pdrops);
+SDT_PROBE_DECLARE(mib, ipcomp, count, ipcomps_crypto);
+SDT_PROBE_DECLARE(mib, ipcomp, count, ipcomps_hist);
+SDT_PROBE_DECLARE(mib, ipcomp, count, ipcomps_threshold);
+SDT_PROBE_DECLARE(mib, ipcomp, count, ipcomps_uncompr);
+
 #endif
 
 SDT_PROBE_DECLARE(ip, , , receive);

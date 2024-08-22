@@ -341,6 +341,99 @@ MIB_PROBE_TCP(tcps_tlpresend_bytes);
 
 MIB_PROBE_TCP(tcps_rcvghostack);
 MIB_PROBE_TCP(tcps_rcvacktooold);
+
+#define	MIB_PROBE_IPSEC(name)	SDT_PROBE_DEFINE1(mib, ipsec, count, name, "int")
+
+MIB_PROBE_IPSEC(ips_in_polvio);
+MIB_PROBE_IPSEC(ips_in_nomem);
+MIB_PROBE_IPSEC(ips_in_inval);
+MIB_PROBE_IPSEC(ips_out_polvio);
+MIB_PROBE_IPSEC(ips_out_nosa);
+MIB_PROBE_IPSEC(ips_out_nomem);
+MIB_PROBE_IPSEC(ips_out_noroute);
+MIB_PROBE_IPSEC(ips_out_inval);
+MIB_PROBE_IPSEC(ips_out_bundlesa);
+
+MIB_PROBE_IPSEC(ips_spdcache_hits);
+MIB_PROBE_IPSEC(ips_spdcache_misses);
+
+MIB_PROBE_IPSEC(ips_clcopied);
+MIB_PROBE_IPSEC(ips_mbinserted);
+MIB_PROBE_IPSEC(ips_input_front);
+MIB_PROBE_IPSEC(ips_input_middle);
+MIB_PROBE_IPSEC(ips_input_end);
+
+#define	MIB_PROBE_ESP(name)	SDT_PROBE_DEFINE1(mib, esp, count, name, "int")
+#define	MIB_PROBE2_ESP(name)	SDT_PROBE_DEFINE2(mib, esp, count, name, "int", "int")
+
+MIB_PROBE_ESP(esps_hdrops);
+MIB_PROBE_ESP(esps_nopf);
+MIB_PROBE_ESP(esps_notdb);
+MIB_PROBE_ESP(esps_badkcr);
+MIB_PROBE_ESP(esps_qfull);
+MIB_PROBE_ESP(esps_noxform);
+MIB_PROBE_ESP(esps_badilen);
+MIB_PROBE_ESP(esps_wrap);
+MIB_PROBE_ESP(esps_badenc);
+MIB_PROBE_ESP(esps_badauth);
+MIB_PROBE_ESP(esps_replay);
+MIB_PROBE_ESP(esps_input);
+MIB_PROBE_ESP(esps_output);
+MIB_PROBE_ESP(esps_invalid);
+MIB_PROBE_ESP(esps_ibytes);
+MIB_PROBE_ESP(esps_obytes);
+MIB_PROBE_ESP(esps_toobig);
+MIB_PROBE_ESP(esps_pdrops);
+MIB_PROBE_ESP(esps_crypto);
+MIB_PROBE_ESP(esps_tunnel);
+MIB_PROBE2_ESP(esps_hist);
+
+#define	MIB_PROBE_AH(name)	SDT_PROBE_DEFINE1(mib, ah, count, name, "int")
+#define	MIB_PROBE_AH2(name)	SDT_PROBE_DEFINE2(mib, ah, count, name, "int", "int")
+
+MIB_PROBE_AH(ahs_hdrops);
+MIB_PROBE_AH(ahs_nopf);
+MIB_PROBE_AH(ahs_notdb);
+MIB_PROBE_AH(ahs_badkcr);
+MIB_PROBE_AH(ahs_badauth);
+MIB_PROBE_AH(ahs_noxform);
+MIB_PROBE_AH(ahs_qfull);
+MIB_PROBE_AH(ahs_wrap);
+MIB_PROBE_AH(ahs_replay);
+MIB_PROBE_AH(ahs_badauthl);
+MIB_PROBE_AH(ahs_input);
+MIB_PROBE_AH(ahs_output);
+MIB_PROBE_AH(ahs_invalid);
+MIB_PROBE_AH(ahs_ibytes);
+MIB_PROBE_AH(ahs_obytes);
+MIB_PROBE_AH(ahs_toobig);
+MIB_PROBE_AH(ahs_pdrops);
+MIB_PROBE_AH(ahs_crypto);
+MIB_PROBE_AH(ahs_tunnel);
+MIB_PROBE_AH2(ahs_hist);
+
+#define	MIB_PROBE_IPCOMP(name)	SDT_PROBE_DEFINE1(mib, ipcomp, count, name, "int")
+#define	MIB_PROBE_IPCOMP2(name)	SDT_PROBE_DEFINE2(mib, ipcomp, count, name, "int", "int")
+
+MIB_PROBE_IPCOMP(ipcomps_hdrops);
+MIB_PROBE_IPCOMP(ipcomps_nopf);
+MIB_PROBE_IPCOMP(ipcomps_notdb);
+MIB_PROBE_IPCOMP(ipcomps_badkcr);
+MIB_PROBE_IPCOMP(ipcomps_qfull);
+MIB_PROBE_IPCOMP(ipcomps_noxform);
+MIB_PROBE_IPCOMP(ipcomps_wrap);
+MIB_PROBE_IPCOMP(ipcomps_input);
+MIB_PROBE_IPCOMP(ipcomps_output);
+MIB_PROBE_IPCOMP(ipcomps_invalid);
+MIB_PROBE_IPCOMP(ipcomps_ibytes);
+MIB_PROBE_IPCOMP(ipcomps_obytes);
+MIB_PROBE_IPCOMP(ipcomps_toobig);
+MIB_PROBE_IPCOMP(ipcomps_pdrops);
+MIB_PROBE_IPCOMP(ipcomps_crypto);
+MIB_PROBE_IPCOMP2(ipcomps_hist);
+MIB_PROBE_IPCOMP(ipcomps_threshold);
+MIB_PROBE_IPCOMP(ipcomps_uncompr);
+
 #endif
 
 SDT_PROBE_DEFINE6_XLATE(ip, , , receive,
