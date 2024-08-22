@@ -377,7 +377,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 }
 
 void
-ifunc_init(Elf_Auxinfo aux_info[__min_size(AT_COUNT)] __unused)
+ifunc_init(Elf_Auxinfo *aux_info[__min_size(AT_COUNT)] __unused)
 {
 
 }
