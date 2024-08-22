@@ -535,7 +535,7 @@ end
 
 function menu.autoboot(delay)
 	local x = loader.getenv("loader_menu_timeout_x") or 4
-	local y = loader.getenv("loader_menu_timeout_y") or 23
+	local y = loader.getenv("loader_menu_timeout_y") or 24
 	local endtime = loader.time() + delay
 	local time
 	local last
