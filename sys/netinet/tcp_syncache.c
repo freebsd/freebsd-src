@@ -1730,9 +1730,7 @@ skip_alloc:
 	 * Do a standard 3-way handshake.
 	 */
 	if (syncache_respond(sc, m, TH_SYN|TH_ACK) == 0) {
-		if (V_tcp_syncookies && V_tcp_syncookiesonly && sc != &scs)
-			syncache_free(sc);
-		else if (sc != &scs)
+		if (sc != &scs)
 			syncache_insert(sc, sch);   /* locks and unlocks sch */
 		TCPSTAT_INC(tcps_sndacks);
 		TCPSTAT_INC(tcps_sndtotal);
