@@ -245,6 +245,7 @@ parse_riscv_isa(struct cpu_desc *desc, char *isa, int len)
 	while (i < len) {
 		switch(isa[i]) {
 		case 'a':
+		case 'b':
 		case 'c':
 		case 'd':
 		case 'f':
