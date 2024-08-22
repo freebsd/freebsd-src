@@ -151,9 +151,13 @@ static int
 ppt_attach(device_t dev)
 {
 	struct pptdev *ppt;
+	uint16_t cmd;
 
 	ppt = device_get_softc(dev);
 
+	cmd = pci_read_config(dev, PCIR_COMMAND, 2);
+	cmd &= ~(PCIM_CMD_PORTEN | PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
+	pci_write_config(dev, PCIR_COMMAND, cmd, 2);
 	iommu_remove_device(iommu_host_domain(), pci_get_rid(dev));
 	num_pptdevs++;
 	TAILQ_INSERT_TAIL(&pptdev_list, ppt, next);
@@ -176,7 +180,6 @@ ppt_detach(device_t dev)
 		return (EBUSY);
 	num_pptdevs--;
 	TAILQ_REMOVE(&pptdev_list, ppt, next);
-	pci_disable_busmaster(dev);
 
 	if (iommu_host_domain() != NULL)
 		iommu_add_device(iommu_host_domain(), pci_get_rid(dev));
@@ -376,11 +379,28 @@ ppt_pci_reset(device_t dev)
 	pci_power_reset(dev);
 }
 
+static uint16_t
+ppt_bar_enables(struct pptdev *ppt)
+{
+	struct pci_map *pm;
+	uint16_t cmd;
+
+	cmd = 0;
+	for (pm = pci_first_bar(ppt->dev); pm != NULL; pm = pci_next_bar(pm)) {
+		if (PCI_BAR_IO(pm->pm_value))
+			cmd |= PCIM_CMD_PORTEN;
+		if (PCI_BAR_MEM(pm->pm_value))
+			cmd |= PCIM_CMD_MEMEN;
+	}
+	return (cmd);
+}
+
 int
 ppt_assign_device(struct vm *vm, int bus, int slot, int func)
 {
 	struct pptdev *ppt;
 	int error;
+	uint16_t cmd;
 
 	/* Passing NULL requires the device to be unowned. */
 	error = ppt_find(NULL, bus, slot, func, &ppt);
@@ -392,6 +412,9 @@ ppt_assign_device(struct vm *vm, int bus, int slot, int func)
 	pci_restore_state(ppt->dev);
 	ppt->vm = vm;
 	iommu_add_device(vm_iommu_domain(vm), pci_get_rid(ppt->dev));
+	cmd = pci_read_config(ppt->dev, PCIR_COMMAND, 2);
+	cmd |= PCIM_CMD_BUSMASTEREN | ppt_bar_enables(ppt);
+	pci_write_config(ppt->dev, PCIR_COMMAND, cmd, 2);
 	return (0);
 }
 
@@ -400,11 +423,15 @@ ppt_unassign_device(struct vm *vm, int bus, int slot, int func)
 {
 	struct pptdev *ppt;
 	int error;
+	uint16_t cmd;
 
 	error = ppt_find(vm, bus, slot, func, &ppt);
 	if (error)
 		return (error);
 
+	cmd = pci_read_config(ppt->dev, PCIR_COMMAND, 2);
+	cmd &= ~(PCIM_CMD_PORTEN | PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
+	pci_write_config(ppt->dev, PCIR_COMMAND, cmd, 2);
 	pci_save_state(ppt->dev);
 	ppt_pci_reset(ppt->dev);
 	pci_restore_state(ppt->dev);
