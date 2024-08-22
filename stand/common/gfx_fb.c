@@ -2984,8 +2984,6 @@ build_font_module(vm_offset_t addr)
 
 	fp = file_findfile(NULL, "elf kernel");
 	if (fp == NULL)
-		fp = file_findfile(NULL, "elf64 kernel");
-	if (fp == NULL)
 		panic("can't find kernel file");
 
 	fontp = addr;
@@ -3027,8 +3025,6 @@ build_splash_module(vm_offset_t addr)
 	}
 
 	fp = file_findfile(NULL, "elf kernel");
-	if (fp == NULL)
-		fp = file_findfile(NULL, "elf64 kernel");
 	if (fp == NULL)
 		panic("can't find kernel file");
 

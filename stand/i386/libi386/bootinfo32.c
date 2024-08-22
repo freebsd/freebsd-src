@@ -131,8 +131,6 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
 
     kfp = file_findfile(NULL, "elf kernel");
     if (kfp == NULL)
-      kfp = file_findfile(NULL, "elf32 kernel");
-    if (kfp == NULL)
 	panic("can't find kernel file");
     kernend = 0;	/* fill it in later */
     file_addmetadata(kfp, MODINFOMD_HOWTO, sizeof howto, &howto);
