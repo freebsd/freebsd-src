@@ -48,6 +48,8 @@
 #include <sys/_rwlock.h>
 #include <sys/sysctl.h>
 
+#include <netinet/in_kdtrace.h>
+
 #define	IPSEC_ASSERT(_c,_m) KASSERT(_c, _m)
 
 /*
@@ -295,8 +297,12 @@ VNET_DECLARE(int, crypto_support);
 VNET_DECLARE(int, async_crypto);
 VNET_DECLARE(int, natt_cksum_policy);
 
-#define	IPSECSTAT_INC(name)	\
-    VNET_PCPUSTAT_ADD(struct ipsecstat, ipsec4stat, name, 1)
+#define IPSECSTAT_INC(name)                                               \
+	do {                                                              \
+		MIB_SDT_PROBE1(ipsec, count, name, 1);                    \
+		VNET_PCPUSTAT_ADD(struct ipsecstat, ipsec4stat, name, 1); \
+	} while (0)
+
 #define	V_ip4_esp_trans_deflev	VNET(ip4_esp_trans_deflev)
 #define	V_ip4_esp_net_deflev	VNET(ip4_esp_net_deflev)
 #define	V_ip4_ah_trans_deflev	VNET(ip4_ah_trans_deflev)
