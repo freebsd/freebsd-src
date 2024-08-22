@@ -118,7 +118,6 @@ extern int __isthreaded;
 #undef je_malloc_stats_print
 #undef je_allocm
 #undef je_rallocm
-#undef je_sallocm
 #undef je_dallocm
 #undef je_nallocm
 #define	je_malloc		__malloc
@@ -139,11 +138,6 @@ extern int __isthreaded;
 #define	je_mallctlnametomib	__mallctlnametomib
 #define	je_mallctlbymib		__mallctlbymib
 #define	je_malloc_stats_print	__malloc_stats_print
-#define	je_allocm		__allocm
-#define	je_rallocm		__rallocm
-#define	je_sallocm		__sallocm
-#define	je_dallocm		__dallocm
-#define	je_nallocm		__nallocm
 #define	open			_open
 #define	read			_read
 #define	write			_write
@@ -183,9 +177,19 @@ __weak_reference(__mallctl, mallctl);
 __weak_reference(__mallctlnametomib, mallctlnametomib);
 __weak_reference(__mallctlbymib, mallctlbymib);
 __weak_reference(__malloc_stats_print, malloc_stats_print);
-__weak_reference(__allocm, allocm);
-__weak_reference(__rallocm, rallocm);
-__weak_reference(__sallocm, sallocm);
-__weak_reference(__dallocm, dallocm);
-__weak_reference(__nallocm, nallocm);
+__weak_reference(je_allocm, weak_allocm);
+__weak_reference(je_rallocm, weak_rallocm);
+__weak_reference(je_sallocm, weak_sallocm);
+__weak_reference(je_dallocm, weak_dallocm);
+__weak_reference(je_nallocm, weak_nallocm);
+__sym_compat(__allocm, je_allocm, FBSD_1.3);
+__sym_compat(__rallocm, je_rallocm, FBSD_1.3);
+__sym_compat(__sallocm, je_sallocm, FBSD_1.3);
+__sym_compat(__dallocm, je_dallocm, FBSD_1.3);
+__sym_compat(__nallocm, je_nallocm, FBSD_1.3);
+__sym_compat(allocm, weak_allocm, FBSD_1.3);
+__sym_compat(rallocm, weak_rallocm, FBSD_1.3);
+__sym_compat(sallocm, weak_sallocm, FBSD_1.3);
+__sym_compat(dallocm, weak_dallocm, FBSD_1.3);
+__sym_compat(nallocm, weak_nallocm, FBSD_1.3);
 #endif
