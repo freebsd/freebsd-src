@@ -230,7 +230,7 @@ struct kernel_module
 struct preloaded_file
 {
 	char *f_name;	/* file name */
-	char *f_type; /* verbose file type, eg 'ELF kernel', 'pnptable', etc. */
+	char *f_type; /* verbose file type, eg 'elf kernel', 'pnptable', etc. */
 	char *f_args;	/* arguments for the file */
 	/* metadata that will be placed in the module directory */
 	struct file_metadata *f_metadata;
