@@ -143,7 +143,7 @@ CFLAGS += -mgeneral-regs-only
 CFLAGS += -ffixed-x18
 # Build with BTI+PAC
 CFLAGS += -mbranch-protection=standard
-.if ${LINKER_TYPE} == "lld"
+.if ${LINKER_FEATURES:Mbti-report}
 LDFLAGS += -Wl,-zbti-report=error
 .endif
 # TODO: support outline atomics
