@@ -894,7 +894,7 @@ sctp_sysctl_handle_trace_log_clear(SYSCTL_HANDLER_ARGS)
 		return (error);						\
 	}								\
 	SYSCTL_PROC(_net_inet_sctp, OID_AUTO, mib_name, flags, NULL, 0,	\
-	    sctp_sysctl_handle_##mib_name, "UI", prefix##_DESC)
+	    sctp_sysctl_handle_##mib_name, "IU", prefix##_DESC)
 
 #define SCTP_UINT_SYSCTL_RDTUN(mib_name, var_name, prefix)		\
 	SYSCTL_UINT(_net_inet_sctp, OID_AUTO, mib_name,			\
