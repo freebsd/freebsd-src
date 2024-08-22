@@ -81,8 +81,6 @@
 #include <isa/isareg.h>
 #endif
 
-#define	ELF_KERN_STR	("elf"__XSTRING(__ELF_WORD_SIZE)" kernel")
-
 static MALLOC_DEFINE(M_NEXUSDEV, "nexusdev", "Nexus device");
 
 #define DEVTONX(dev)	((struct nexus_device *)device_get_ivars(dev))
@@ -647,15 +645,11 @@ ram_attach(device_t dev)
 	struct resource *res;
 	rman_res_t length;
 	vm_paddr_t *p;
-	caddr_t kmdp;
 	uint32_t smapsize;
 	int error, rid;
 
 	/* Retrieve the system memory map from the loader. */
-	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp == NULL)
-		kmdp = preload_search_by_type(ELF_KERN_STR);
-	smapbase = (struct bios_smap *)preload_search_info(kmdp,
+	smapbase = (struct bios_smap *)preload_search_info(preload_kmdp,
 	    MODINFO_METADATA | MODINFOMD_SMAP);
 	if (smapbase != NULL) {
 		smapsize = *((u_int32_t *)smapbase - 1);

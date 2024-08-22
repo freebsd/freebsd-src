@@ -213,15 +213,6 @@ fixup_console(void)
 		struct vbe_fb vbe;
 	} *fb = NULL;
 	int size;
-	caddr_t kmdp;
-
-	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf64 kernel");
-	if (kmdp == NULL) {
-		xc_printf("Unable to find kernel metadata\n");
-		return;
-	}
 
 	size = HYPERVISOR_platform_op(&op);
 	if (size < 0) {
@@ -231,7 +222,7 @@ fixup_console(void)
 
 	switch (console->video_type) {
 	case XEN_VGATYPE_VESA_LFB:
-		fb = (__typeof__ (fb))preload_search_info(kmdp,
+		fb = (__typeof__ (fb))preload_search_info(preload_kmdp,
 		    MODINFO_METADATA | MODINFOMD_VBE_FB);
 
 		if (fb == NULL) {
@@ -247,7 +238,7 @@ fixup_console(void)
 		/* FALLTHROUGH */
 	case XEN_VGATYPE_EFI_LFB:
 		if (fb == NULL) {
-			fb = (__typeof__ (fb))preload_search_info(kmdp,
+			fb = (__typeof__ (fb))preload_search_info(preload_kmdp,
 			    MODINFO_METADATA | MODINFOMD_EFI_FB);
 			if (fb == NULL) {
 				xc_printf("No EFI FB in kernel metadata\n");

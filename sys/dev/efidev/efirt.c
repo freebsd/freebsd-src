@@ -167,7 +167,6 @@ efi_init(void)
 	struct efi_map_header *efihdr;
 	struct efi_md *map;
 	struct efi_rt *rtdm;
-	caddr_t kmdp;
 	size_t efisz;
 	int ndesc, rt_disabled;
 
@@ -197,10 +196,7 @@ efi_init(void)
 			printf("EFI config table is not present\n");
 	}
 
-	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf64 kernel");
-	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
+	efihdr = (struct efi_map_header *)preload_search_info(preload_kmdp,
 	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
 	if (efihdr == NULL) {
 		if (bootverbose)

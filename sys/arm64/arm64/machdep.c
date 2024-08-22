@@ -727,11 +727,11 @@ exclude_efi_memreserve(vm_offset_t efi_systbl_phys)
 
 #ifdef FDT
 static void
-try_load_dtb(caddr_t kmdp)
+try_load_dtb(void)
 {
 	vm_offset_t dtbp;
 
-	dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
+	dtbp = MD_FETCH(preload_kmdp, MODINFOMD_DTBP, vm_offset_t);
 #if defined(FDT_DTB_STATIC)
 	/*
 	 * In case the device tree blob was not retrieved (from metadata) try
@@ -893,7 +893,6 @@ initarm(struct arm64_bootparams *abp)
 	char dts_version[255];
 #endif
 	vm_offset_t lastaddr;
-	caddr_t kmdp;
 	bool valid;
 
 	TSRAW(&thread0, TS_ENTER, __func__, NULL);
@@ -902,11 +901,6 @@ initarm(struct arm64_bootparams *abp)
 
 	/* Parse loader or FDT boot parameters. Determine last used address. */
 	lastaddr = parse_boot_param(abp);
-
-	/* Find the kernel address */
-	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf64 kernel");
 
 	identify_cpu(0);
 	identify_hypervisor_smbios();
@@ -929,15 +923,16 @@ initarm(struct arm64_bootparams *abp)
 	PCPU_SET(curthread, &thread0);
 	PCPU_SET(midr, get_midr());
 
-	link_elf_ireloc(kmdp);
+	link_elf_ireloc();
 #ifdef FDT
-	try_load_dtb(kmdp);
+	try_load_dtb();
 #endif
 
-	efi_systbl_phys = MD_FETCH(kmdp, MODINFOMD_FW_HANDLE, vm_paddr_t);
+	efi_systbl_phys = MD_FETCH(preload_kmdp, MODINFOMD_FW_HANDLE,
+	    vm_paddr_t);
 
 	/* Load the physical memory ranges */
-	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
+	efihdr = (struct efi_map_header *)preload_search_info(preload_kmdp,
 	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
 	if (efihdr != NULL)
 		add_efi_map_entries(efihdr);
@@ -955,7 +950,7 @@ initarm(struct arm64_bootparams *abp)
 #endif
 
 	/* Exclude the EFI framebuffer from our view of physical memory. */
-	efifb = (struct efi_fb *)preload_search_info(kmdp,
+	efifb = (struct efi_fb *)preload_search_info(preload_kmdp,
 	    MODINFO_METADATA | MODINFOMD_EFI_FB);
 	if (efifb != NULL)
 		physmem_exclude_region(efifb->fb_addr, efifb->fb_size,
