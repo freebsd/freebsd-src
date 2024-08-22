@@ -169,10 +169,10 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 static void native_clock_source_init(void);
 
 /* Preload data parse function */
-static caddr_t native_parse_preload_data(u_int64_t);
+static void native_parse_preload_data(u_int64_t);
 
 /* Native function to fetch and parse the e820 map */
-static void native_parse_memmap(caddr_t, vm_paddr_t *, int *);
+static void native_parse_memmap(vm_paddr_t *, int *);
 
 /* Default init_ops implementation. */
 struct init_ops init_ops = {
@@ -814,7 +814,7 @@ add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
 }
 
 static void
-native_parse_memmap(caddr_t kmdp, vm_paddr_t *physmap, int *physmap_idx)
+native_parse_memmap(vm_paddr_t *physmap, int *physmap_idx)
 {
 	struct bios_smap *smap;
 	struct efi_map_header *efihdr;
@@ -828,9 +828,9 @@ native_parse_memmap(caddr_t kmdp, vm_paddr_t *physmap, int *physmap_idx)
 	 * ie: an int32_t immediately precedes smap.
 	 */
 
-	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
+	efihdr = (struct efi_map_header *)preload_search_info(preload_kmdp,
 	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
-	smap = (struct bios_smap *)preload_search_info(kmdp,
+	smap = (struct bios_smap *)preload_search_info(preload_kmdp,
 	    MODINFO_METADATA | MODINFOMD_SMAP);
 	if (efihdr == NULL && smap == NULL)
 		panic("No BIOS smap or EFI map info from loader!");
@@ -858,7 +858,7 @@ native_parse_memmap(caddr_t kmdp, vm_paddr_t *physmap, int *physmap_idx)
  * XXX first should be vm_paddr_t.
  */
 static void
-getmemsize(caddr_t kmdp, u_int64_t first)
+getmemsize(u_int64_t first)
 {
 	int i, physmap_idx, pa_indx, da_indx;
 	vm_paddr_t pa, physmap[PHYS_AVAIL_ENTRIES];
@@ -877,7 +877,7 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	bzero(physmap, sizeof(physmap));
 	physmap_idx = 0;
 
-	init_ops.parse_memmap(kmdp, physmap, &physmap_idx);
+	init_ops.parse_memmap(physmap, &physmap_idx);
 	physmap_idx -= 2;
 
 	/*
@@ -1127,10 +1127,9 @@ do_next:
 	TSEXIT();
 }
 
-static caddr_t
+static void
 native_parse_preload_data(u_int64_t modulep)
 {
-	caddr_t kmdp;
 	char *envp;
 #ifdef DDB
 	vm_offset_t ksym_start;
@@ -1139,22 +1138,19 @@ native_parse_preload_data(u_int64_t modulep)
 
 	preload_metadata = (caddr_t)(uintptr_t)(modulep + KERNBASE);
 	preload_bootstrap_relocate(KERNBASE);
-	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf64 kernel");
-	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
-	envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
+	preload_initkmdp(true);
+	boothowto = MD_FETCH(preload_kmdp, MODINFOMD_HOWTO, int);
+	envp = MD_FETCH(preload_kmdp, MODINFOMD_ENVP, char *);
 	if (envp != NULL)
 		envp += KERNBASE;
 	init_static_kenv(envp, 0);
 #ifdef DDB
-	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
-	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
+	ksym_start = MD_FETCH(preload_kmdp, MODINFOMD_SSYM, uintptr_t);
+	ksym_end = MD_FETCH(preload_kmdp, MODINFOMD_ESYM, uintptr_t);
 	db_fetch_ksymtab(ksym_start, ksym_end, 0);
 #endif
-	efi_systbl_phys = MD_FETCH(kmdp, MODINFOMD_FW_HANDLE, vm_paddr_t);
-
-	return (kmdp);
+	efi_systbl_phys = MD_FETCH(preload_kmdp, MODINFOMD_FW_HANDLE,
+	    vm_paddr_t);
 }
 
 static void
@@ -1287,7 +1283,6 @@ amd64_loadaddr(void)
 u_int64_t
 hammer_time(u_int64_t modulep, u_int64_t physfree)
 {
-	caddr_t kmdp;
 	int gsel_tss, x;
 	struct pcpu *pc;
 	uint64_t rsp0;
@@ -1302,9 +1297,10 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 
 	physfree += kernphys;
 
-	kmdp = init_ops.parse_preload_data(modulep);
+	/* Initializes preload_kmdp */
+	init_ops.parse_preload_data(modulep);
 
-	efi_boot = preload_search_info(kmdp, MODINFO_METADATA |
+	efi_boot = preload_search_info(preload_kmdp, MODINFO_METADATA |
 	    MODINFOMD_EFI_MAP) != NULL;
 
 	if (!efi_boot) {
@@ -1350,7 +1346,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 		TUNABLE_INT_FETCH("hw.use_xsave", &use_xsave);
 	}
 
-	link_elf_ireloc(kmdp);
+	link_elf_ireloc();
 
 	/*
 	 * This may be done better later if it gets more high level
@@ -1535,7 +1531,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 		amd64_kdb_init();
 	}
 
-	getmemsize(kmdp, physfree);
+	getmemsize(physfree);
 	init_param2(physmem);
 
 	/* now running on new page tables, configured,and u/iom is accessible */
@@ -1635,19 +1631,15 @@ smap_sysctl_handler(SYSCTL_HANDLER_ARGS)
 {
 	struct bios_smap *smapbase;
 	struct bios_smap_xattr smap;
-	caddr_t kmdp;
 	uint32_t *smapattr;
 	int count, error, i;
 
 	/* Retrieve the system memory map from the loader. */
-	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf64 kernel");
-	smapbase = (struct bios_smap *)preload_search_info(kmdp,
+	smapbase = (struct bios_smap *)preload_search_info(preload_kmdp,
 	    MODINFO_METADATA | MODINFOMD_SMAP);
 	if (smapbase == NULL)
 		return (0);
-	smapattr = (uint32_t *)preload_search_info(kmdp,
+	smapattr = (uint32_t *)preload_search_info(preload_kmdp,
 	    MODINFO_METADATA | MODINFOMD_SMAP_XATTR);
 	count = *((uint32_t *)smapbase - 1) / sizeof(*smapbase);
 	error = 0;
@@ -1672,13 +1664,9 @@ static int
 efi_map_sysctl_handler(SYSCTL_HANDLER_ARGS)
 {
 	struct efi_map_header *efihdr;
-	caddr_t kmdp;
 	uint32_t efisize;
 
-	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf64 kernel");
-	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
+	efihdr = (struct efi_map_header *)preload_search_info(preload_kmdp,
 	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
 	if (efihdr == NULL)
 		return (0);
@@ -1694,13 +1682,8 @@ static int
 efi_arch_sysctl_handler(SYSCTL_HANDLER_ARGS)
 {
 	char *arch;
-	caddr_t kmdp;
 
-	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf64 kernel");
-
-	arch = (char *)preload_search_info(kmdp,
+	arch = (char *)preload_search_info(preload_kmdp,
 	    MODINFO_METADATA | MODINFOMD_EFI_ARCH);
 	if (arch == NULL)
 		return (0);

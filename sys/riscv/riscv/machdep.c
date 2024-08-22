@@ -307,11 +307,11 @@ init_proc0(vm_offset_t kstack)
 
 #ifdef FDT
 static void
-try_load_dtb(caddr_t kmdp)
+try_load_dtb(void)
 {
 	vm_offset_t dtbp;
 
-	dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
+	dtbp = MD_FETCH(preload_kmdp, MODINFOMD_DTBP, vm_offset_t);
 
 #if defined(FDT_DTB_STATIC)
 	/*
@@ -434,34 +434,30 @@ parse_fdt_bootargs(void)
 static vm_offset_t
 parse_metadata(void)
 {
-	caddr_t kmdp;
 	vm_offset_t lastaddr;
 #ifdef DDB
 	vm_offset_t ksym_start, ksym_end;
 #endif
 	char *kern_envp;
 
-	/* Find the kernel address */
-	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf64 kernel");
-	KASSERT(kmdp != NULL, ("No preload metadata found!"));
+	/* Initialize preload_kmdp */
+	preload_initkmdp(true);
 
 	/* Read the boot metadata */
-	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
-	lastaddr = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);
-	kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
+	boothowto = MD_FETCH(preload_kmdp, MODINFOMD_HOWTO, int);
+	lastaddr = MD_FETCH(preload_kmdp, MODINFOMD_KERNEND, vm_offset_t);
+	kern_envp = MD_FETCH(preload_kmdp, MODINFOMD_ENVP, char *);
 	if (kern_envp != NULL)
 		init_static_kenv(kern_envp, 0);
 	else
 		init_static_kenv(static_kenv, sizeof(static_kenv));
 #ifdef DDB
-	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
-	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
+	ksym_start = MD_FETCH(preload_kmdp, MODINFOMD_SSYM, uintptr_t);
+	ksym_end = MD_FETCH(preload_kmdp, MODINFOMD_ESYM, uintptr_t);
 	db_fetch_ksymtab(ksym_start, ksym_end, 0);
 #endif
 #ifdef FDT
-	try_load_dtb(kmdp);
+	try_load_dtb();
 	if (kern_envp == NULL)
 		parse_fdt_bootargs();
 #endif
