@@ -904,7 +904,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
        exit (0);
     }
 
-    ifunc_init(aux);
+    ifunc_init(aux_info);
 
     /*
      * Setup TLS for main thread.  This must be done after the
