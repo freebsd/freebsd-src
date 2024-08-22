@@ -699,7 +699,7 @@ powerpc64_abi_variant_hook(Elf_Auxinfo** aux_info)
 }
 
 void
-ifunc_init(Elf_Auxinfo aux_info[__min_size(AT_COUNT)] __unused)
+ifunc_init(Elf_Auxinfo *aux_info[__min_size(AT_COUNT)] __unused)
 {
 
 }
