@@ -215,7 +215,7 @@ sysctl_net_inet_tcp_syncache_rexmtlimit_check(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_net_inet_tcp_syncache, OID_AUTO, rexmtlimit,
     CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
     &VNET_NAME(tcp_syncache.rexmt_limit), 0,
-    sysctl_net_inet_tcp_syncache_rexmtlimit_check, "UI",
+    sysctl_net_inet_tcp_syncache_rexmtlimit_check, "IU",
     "Limit on SYN/ACK retransmissions");
 
 VNET_DEFINE(int, tcp_sc_rst_sock_fail) = 1;
