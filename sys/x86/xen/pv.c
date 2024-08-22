@@ -94,8 +94,8 @@ uint64_t hammer_time_xen(vm_paddr_t);
 #define MAX_E820_ENTRIES	128
 
 /*--------------------------- Forward Declarations ---------------------------*/
-static caddr_t xen_pvh_parse_preload_data(uint64_t);
-static void pvh_parse_memmap(caddr_t, vm_paddr_t *, int *);
+static void xen_pvh_parse_preload_data(uint64_t);
+static void pvh_parse_memmap(vm_paddr_t *, int *);
 
 /*---------------------------- Extern Declarations ---------------------------*/
 /*
@@ -251,10 +251,9 @@ xen_pvh_parse_symtab(void)
 }
 #endif
 
-static caddr_t
+static void
 xen_pvh_parse_preload_data(uint64_t modulep)
 {
-	caddr_t kmdp;
 	vm_ooffset_t off;
 	vm_paddr_t metadata;
 	char *envp;
@@ -283,14 +282,6 @@ xen_pvh_parse_preload_data(uint64_t modulep)
 			preload_metadata = (caddr_t)(mod[0].paddr +
 			    header->modulep_offset + KERNBASE);
 
-			kmdp = preload_search_by_type("elf kernel");
-			if (kmdp == NULL)
-				kmdp = preload_search_by_type("elf64 kernel");
-			if (kmdp == NULL) {
-				xc_printf("Unable to find kernel\n");
-				HYPERVISOR_shutdown(SHUTDOWN_crash);
-			}
-
 			/*
 			 * Xen has relocated the metadata and the modules, so
 			 * we need to recalculate it's position. This is done
@@ -298,34 +289,32 @@ xen_pvh_parse_preload_data(uint64_t modulep)
 			 * calculating the offset from the real modulep
 			 * position.
 			 */
-			metadata = MD_FETCH(kmdp, MODINFOMD_MODULEP,
-			    vm_paddr_t);
-			off = mod[0].paddr + header->modulep_offset - metadata +
-			    KERNBASE;
+			off = header->modulep_offset;
 		} else {
 			preload_metadata = (caddr_t)(mod[0].paddr + KERNBASE);
-
-			kmdp = preload_search_by_type("elf kernel");
-			if (kmdp == NULL)
-				kmdp = preload_search_by_type("elf64 kernel");
-			if (kmdp == NULL) {
-				xc_printf("Unable to find kernel\n");
-				HYPERVISOR_shutdown(SHUTDOWN_crash);
-			}
-
-			metadata = MD_FETCH(kmdp, MODINFOMD_MODULEP, vm_paddr_t);
-			off = mod[0].paddr + KERNBASE - metadata;
+			off = 0;
 		}
+
+		/* Initialize preload_kmdp */
+		preload_initkmdp(false);
+		if (preload_kmdp == NULL) {
+			xc_printf("Unable to find kernel metadata\n");
+			HYPERVISOR_shutdown(SHUTDOWN_crash);
+		}
+
+		metadata = MD_FETCH(preload_kmdp, MODINFOMD_MODULEP,
+		    vm_paddr_t);
+		off += mod[0].paddr + KERNBASE - metadata;
 
 		preload_bootstrap_relocate(off);
 
-		boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
-		envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
+		boothowto = MD_FETCH(preload_kmdp, MODINFOMD_HOWTO, int);
+		envp = MD_FETCH(preload_kmdp, MODINFOMD_ENVP, char *);
 		if (envp != NULL)
 			envp += off;
 		init_static_kenv(envp, 0);
 
-		if (MD_FETCH(kmdp, MODINFOMD_EFI_MAP, void *) != NULL)
+		if (MD_FETCH(preload_kmdp, MODINFOMD_EFI_MAP, void *) != NULL)
 		    strlcpy(bootmethod, "UEFI", sizeof(bootmethod));
 		else
 		    strlcpy(bootmethod, "BIOS", sizeof(bootmethod));
@@ -340,7 +329,6 @@ xen_pvh_parse_preload_data(uint64_t modulep)
 			boot_parse_cmdline_delim(
 			    (char *)(start_info->cmdline_paddr + KERNBASE),
 			    ", \t\n");
-		kmdp = NULL;
 		strlcpy(bootmethod, "PVH", sizeof(bootmethod));
 	}
 
@@ -357,11 +345,10 @@ xen_pvh_parse_preload_data(uint64_t modulep)
 	xen_pvh_parse_symtab();
 #endif
 	TSEXIT();
-	return (kmdp);
 }
 
 static void
-pvh_parse_memmap_start_info(caddr_t kmdp, vm_paddr_t *physmap,
+pvh_parse_memmap_start_info(vm_paddr_t *physmap,
     int *physmap_idx)
 {
 	const struct hvm_memmap_table_entry * entries;
@@ -391,7 +378,7 @@ pvh_parse_memmap_start_info(caddr_t kmdp, vm_paddr_t *physmap,
 }
 
 static void
-xen_pvh_parse_memmap(caddr_t kmdp, vm_paddr_t *physmap, int *physmap_idx)
+xen_pvh_parse_memmap(vm_paddr_t *physmap, int *physmap_idx)
 {
 	struct xen_memory_map memmap;
 	u_int32_t size;
@@ -416,7 +403,7 @@ xen_pvh_parse_memmap(caddr_t kmdp, vm_paddr_t *physmap, int *physmap_idx)
 }
 
 static void
-pvh_parse_memmap(caddr_t kmdp, vm_paddr_t *physmap, int *physmap_idx)
+pvh_parse_memmap(vm_paddr_t *physmap, int *physmap_idx)
 {
 
 	/*
@@ -425,7 +412,7 @@ pvh_parse_memmap(caddr_t kmdp, vm_paddr_t *physmap, int *physmap_idx)
 	 * Xen and need to use the Xen hypercall.
 	 */
 	if ((start_info->version >= 1) && (start_info->memmap_paddr != 0))
-		pvh_parse_memmap_start_info(kmdp, physmap, physmap_idx);
+		pvh_parse_memmap_start_info(physmap, physmap_idx);
 	else
-		xen_pvh_parse_memmap(kmdp, physmap, physmap_idx);
+		xen_pvh_parse_memmap(physmap, physmap_idx);
 }

@@ -1305,18 +1305,14 @@ vmbus_fb_mmio_res(device_t dev)
 #endif /* aarch64 */
 	rman_res_t fb_start, fb_end, fb_count;
 	int fb_height, fb_width;
-	caddr_t kmdp;
 
 	struct vmbus_softc *sc = device_get_softc(dev);
 	int rid = 0;
 
-	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf64 kernel");
-	efifb = (struct efi_fb *)preload_search_info(kmdp,
+	efifb = (struct efi_fb *)preload_search_info(preload_kmdp,
 	    MODINFO_METADATA | MODINFOMD_EFI_FB);
 #if !defined(__aarch64__)
-	vbefb = (struct vbe_fb *)preload_search_info(kmdp,
+	vbefb = (struct vbe_fb *)preload_search_info(preload_kmdp,
 	    MODINFO_METADATA | MODINFOMD_VBE_FB);
 #endif /* aarch64 */
 	if (efifb != NULL) {

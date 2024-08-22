@@ -44,7 +44,16 @@
  */
 
 vm_offset_t preload_addr_relocate = 0;
-caddr_t preload_metadata;
+caddr_t preload_metadata, preload_kmdp;
+
+void
+preload_initkmdp(bool fatal)
+{
+	preload_kmdp = preload_search_by_type("elf kernel");
+
+	if (preload_kmdp == NULL && fatal)
+		panic("unable to find kernel metadata");
+}
 
 /*
  * Search for the preloaded module (name)
