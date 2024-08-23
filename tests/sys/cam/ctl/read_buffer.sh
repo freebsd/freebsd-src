@@ -28,61 +28,7 @@
 # * Buffer ID other than 0.  We don't support those.
 # * The Mode Specific field.  We don't support it.
 
-load_modules() {
-	if ! kldstat -q -m ctl; then
-		kldload ctl || atf_skip "could not load ctl kernel mod"
-	fi
-	if ! ctladm port -o on -p 0; then
-		atf_skip "could not enable the camsim frontend"
-	fi
-}
-
-find_da_device() {
-	SERIAL=$1
-
-	# Rescan camsim
-	# XXX  camsim doesn't update when creating a new device.  Worse, a
-	# rescan won't look for new devices.  So we must disable/re-enable it.
-	# Worse still, enabling it isn't synchronous, so we need a retry loop
-	# https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=281000
-	retries=5
-	ctladm port -o off -p 0 >/dev/null
-	ctladm port -o on -p 0 >/dev/null
-	while true; do
-
-		# Find the corresponding da device
-		da=`geom disk list | awk -v serial=$SERIAL ' /Geom name:/ { devname=$NF } /ident:/ && $NF ~ serial { print devname; exit } '`
-		if [ -z "$da" ]; then
-			retries=$(( $retries - 1 ))
-			if [ $retries -eq 0 ]; then
-				cat lun-create.txt
-				geom disk list
-				atf_fail "Could not find da device"
-			fi
-			sleep 0.1
-			continue
-		fi
-		break
-	done
-}
-
-# Create a CTL LUN
-create_ramdisk() {
-	atf_check -o save:lun-create.txt ctladm create -b ramdisk -s 1048576
-	atf_check egrep -q "LUN created successfully" lun-create.txt
-	SERIAL=`awk '/Serial Number:/ {print $NF}' lun-create.txt`
-	if [ -z "$SERIAL" ]; then
-		atf_fail "Could not find serial number"
-	fi
-	find_da_device $SERIAL
-}
-
-cleanup() {
-	if [ -e "lun-create.txt" ]; then
-		lun_id=`awk '/LUN ID:/ {print $NF}' lun-create.txt`
-		ctladm remove -b ramdisk -l $lun_id > /dev/null
-	fi
-}
+. $(atf_get_srcdir)/ctl.subr
 
 atf_test_case basic cleanup
 basic_head()
@@ -98,10 +44,10 @@ basic_body()
 	# Write to its buffer
 	cp /etc/passwd input
 	len=`wc -c input | cut -wf 2`
-	atf_check -o ignore sg_write_buffer --mode data --in=input /dev/$da
+	atf_check -o ignore sg_write_buffer --mode data --in=input /dev/$dev
 
 	# Read it back
-	atf_check -o save:output sg_read_buffer --mode data -l $len --raw /dev/$da
+	atf_check -o save:output sg_read_buffer --mode data -l $len --raw /dev/$dev
 
 	# And verify
 	if ! diff -q input output; then
@@ -126,7 +72,7 @@ desc_body()
 {
 	create_ramdisk
 
-	atf_check -o inline:" 00     00 04 00 00\n" sg_read_buffer --hex --mode desc /dev/$da
+	atf_check -o inline:" 00     00 04 00 00\n" sg_read_buffer --hex --mode desc /dev/$dev
 }
 desc_cleanup()
 {
@@ -147,10 +93,10 @@ length_body()
 	# Write to its buffer
 	atf_check -o ignore -e ignore dd if=/dev/random of=input bs=4096 count=1
 	atf_check -o ignore -e ignore dd if=input bs=2048 count=1 of=expected
-	atf_check -o ignore sg_write_buffer --mode data --in=input /dev/$da
+	atf_check -o ignore sg_write_buffer --mode data --in=input /dev/$dev
 
 	# Read it back
-	atf_check -o save:output sg_read_buffer --mode data -l 2048 --raw /dev/$da
+	atf_check -o save:output sg_read_buffer --mode data -l 2048 --raw /dev/$dev
 
 	# And verify
 	if ! diff -q expected output; then
@@ -176,10 +122,10 @@ offset_body()
 	# Write to its buffer
 	atf_check -o ignore -e ignore dd if=/dev/random of=input bs=4096 count=1
 	atf_check -o ignore -e ignore dd if=input iseek=2 bs=512 count=1 of=expected
-	atf_check -o ignore sg_write_buffer --mode data --in=input /dev/$da
+	atf_check -o ignore sg_write_buffer --mode data --in=input /dev/$dev
 
 	# Read it back
-	atf_check -o save:output sg_read_buffer --mode data -l 512 -o 1024 --raw /dev/$da
+	atf_check -o save:output sg_read_buffer --mode data -l 512 -o 1024 --raw /dev/$dev
 
 	# And verify
 	if ! diff -q expected output; then
@@ -203,7 +149,7 @@ uninitialized_body()
 	create_ramdisk
 
 	# Read an uninitialized buffer
-	atf_check -o save:output sg_read_buffer --mode data -l 262144 --raw /dev/$da
+	atf_check -o save:output sg_read_buffer --mode data -l 262144 --raw /dev/$dev
 
 	# And verify
 	atf_check -o ignore -e ignore dd if=/dev/zero bs=262144 count=1 of=expected
