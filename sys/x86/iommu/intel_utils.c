@@ -508,7 +508,6 @@ dmar_barrier_exit(struct dmar_unit *dmar, u_int barrier_id)
 	DMAR_UNLOCK(dmar);
 }
 
-int dmar_batch_coalesce = 100;
 struct timespec dmar_hw_timeout = {
 	.tv_sec = 0,
 	.tv_nsec = 1000000
@@ -547,9 +546,6 @@ dmar_timeout_sysctl(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_INT(_hw_iommu_dmar, OID_AUTO, batch_coalesce, CTLFLAG_RWTUN,
-    &dmar_batch_coalesce, 0,
-    "Number of qi batches between interrupt");
 SYSCTL_PROC(_hw_iommu_dmar, OID_AUTO, timeout,
     CTLTYPE_U64 | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0,
     dmar_timeout_sysctl, "QU",

@@ -878,7 +878,7 @@ dmar_domain_unload_emit_wait(struct dmar_domain *domain,
 
 	if (TAILQ_NEXT(entry, dmamap_link) == NULL)
 		return (true);
-	return (domain->batch_no++ % dmar_batch_coalesce == 0);
+	return (domain->batch_no++ % iommu_qi_batch_coalesce == 0);
 }
 
 void
