@@ -331,6 +331,7 @@ dmar_init_irt(struct dmar_unit *unit)
 		return (0);
 	unit->ir_enabled = 1;
 	TUNABLE_INT_FETCH("hw.dmar.ir", &unit->ir_enabled);
+	TUNABLE_INT_FETCH("hw.iommu.ir", &unit->ir_enabled);
 	if (!unit->ir_enabled)
 		return (0);
 	if (!unit->qi_enabled) {
