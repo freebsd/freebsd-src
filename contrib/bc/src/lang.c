@@ -136,7 +136,7 @@ bc_func_reset(BcFunc* f)
 #endif // BC_ENABLED
 }
 
-#if BC_DEBUG
+#if BC_DEBUG || BC_ENABLE_MEMCHECK
 void
 bc_func_free(void* func)
 {
@@ -155,7 +155,7 @@ bc_func_free(void* func)
 	}
 #endif // BC_ENABLED
 }
-#endif // BC_DEBUG
+#endif // BC_DEBUG || BC_ENABLE_MEMCHECK
 
 void
 bc_array_init(BcVec* a, bool nums)

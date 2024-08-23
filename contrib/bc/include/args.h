@@ -54,7 +54,7 @@
  *                    any.
  */
 void
-bc_args(int argc, char* argv[], bool exit_exprs, BcBigDig* scale,
+bc_args(int argc, const char* argv[], bool exit_exprs, BcBigDig* scale,
         BcBigDig* ibase, BcBigDig* obase);
 
 #if BC_ENABLED

@@ -100,20 +100,29 @@ main(int argc, char* argv[])
 
 	BC_SETJMP_LOCKED(vm, exit);
 
+#if BC_CLANG
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wcast-qual"
+#endif // BC_CLANG
 #if !DC_ENABLED
-	s = bc_main(argc, argv);
+	s = bc_main(argc, (const char**) argv);
 #elif !BC_ENABLED
-	s = dc_main(argc, argv);
+	s = dc_main(argc, (const char**) argv);
 #else
 	// BC_IS_BC uses vm->name, which was set above. So we're good.
-	if (BC_IS_BC) s = bc_main(argc, argv);
-	else s = dc_main(argc, argv);
+	if (BC_IS_BC) s = bc_main(argc, (const char**) argv);
+	else s = dc_main(argc, (const char**) argv);
 #endif
+#if BC_CLANG
+#pragma clang diagnostic pop
+#endif // BC_CLANG
 
-	vm->status = (int) s;
+	vm->status = (sig_atomic_t) s;
 
 exit:
 	BC_SIG_MAYLOCK;
 
-	return vm->status == BC_STATUS_QUIT ? BC_STATUS_SUCCESS : vm->status;
+	s = bc_vm_atexit((BcStatus) vm->status);
+
+	return (int) s;
 }

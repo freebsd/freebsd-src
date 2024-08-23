@@ -29,37 +29,84 @@
  *
  * *****************************************************************************
  *
- * The main procedure of dc.
+ * The entry point for libFuzzer when fuzzing bc.
  *
  */
 
-#if DC_ENABLED
-
+#include <setjmp.h>
 #include <string.h>
 
-#include <dc.h>
+#include <version.h>
+#include <status.h>
+#include <ossfuzz.h>
 #include <vm.h>
+#include <bc.h>
+#include <dc.h>
 
-/**
- * The main function for dc.
- * @param argc  The number of arguments.
- * @param argv  The arguments.
- */
-BcStatus
-dc_main(int argc, const char* argv[])
+uint8_t* bc_fuzzer_data;
+
+/// A boolean about whether we should use -c (false) or -C (true).
+static bool bc_C;
+
+int
+LLVMFuzzerInitialize(int* argc, char*** argv)
 {
-	// All of these just set dc-specific items in BcVm.
+	BC_UNUSED(argc);
 
-	vm->read_ret = BC_INST_POP_EXEC;
-	vm->help = dc_help;
-	vm->sigmsg = dc_sig_msg;
-	vm->siglen = dc_sig_msg_len;
+	if (argv == NULL || *argv == NULL)
+	{
+		bc_C = false;
+	}
+	else
+	{
+		char* name;
 
-	vm->next = dc_lex_token;
-	vm->parse = dc_parse_parse;
-	vm->expr = dc_parse_expr;
+		// Get the basename
+		name = strrchr((*argv)[0], BC_FILE_SEP);
+		name = name == NULL ? (*argv)[0] : name + 1;
 
-	return bc_vm_boot(argc, argv);
+		// Figure out which to use.
+		bc_C = (strcmp(name, "bc_fuzzer_C") == 0);
+	}
+
+	return 0;
 }
 
-#endif // DC_ENABLED
+int
+LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size)
+{
+	BcStatus s;
+
+	// I've already tested empty input, so just ignore.
+	if (Size == 0 || Data[0] == '\0') return 0;
+
+	// Clear the global. This is to ensure a clean start.
+	memset(vm, 0, sizeof(BcVm));
+
+	// Make sure to set the name.
+	vm->name = "bc";
+
+	BC_SIG_LOCK;
+
+	// We *must* do this here. Otherwise, other code could not jump out all of
+	// the way.
+	bc_vec_init(&vm->jmp_bufs, sizeof(sigjmp_buf), BC_DTOR_NONE);
+
+	BC_SETJMP_LOCKED(vm, exit);
+
+	// Create a string with the data.
+	bc_fuzzer_data = bc_vm_malloc(Size + 1);
+	memcpy(bc_fuzzer_data, Data, Size);
+	bc_fuzzer_data[Size] = '\0';
+
+	s = bc_main((int) (bc_fuzzer_args_len - 1),
+	            bc_C ? bc_fuzzer_args_C : bc_fuzzer_args_c);
+
+exit:
+
+	BC_SIG_MAYLOCK;
+
+	free(bc_fuzzer_data);
+
+	return s == BC_STATUS_SUCCESS || s == BC_STATUS_QUIT ? 0 : -1;
+}

@@ -48,7 +48,7 @@
  * @return  A status.
  */
 BcStatus
-dc_main(int argc, char* argv[]);
+dc_main(int argc, const char* argv[]);
 
 // A reference to the dc help text.
 extern const char dc_help[];

@@ -25,7 +25,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.TH "DC" "1" "January 2024" "Gavin D. Howard" "General Commands Manual"
+.TH "DC" "1" "August 2024" "Gavin D. Howard" "General Commands Manual"
 .nh
 .ad l
 .SH Name
@@ -1061,10 +1061,13 @@ handler for, it resets.
 This means that several things happen.
 .PP
 First, any macros that are executing are stopped and popped off the
-stack.
+execution stack.
 The behavior is not unlike that of exceptions in programming languages.
 Then the execution point is set so that any code waiting to execute
 (after all macros returned) is skipped.
+.PP
+However, the stack of values is \f[I]not\f[R] cleared; in interactive
+mode, users can inspect the stack and manipulate it.
 .PP
 Thus, when dc(1) resets, it skips any remaining code waiting to be
 executed.

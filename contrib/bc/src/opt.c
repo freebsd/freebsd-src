@@ -143,8 +143,8 @@ static int
 bc_opt_parseShort(BcOpt* o, const BcOptLong* longopts)
 {
 	int type;
-	char* next;
-	char* option = o->argv[o->optind];
+	const char* next;
+	const char* option = o->argv[o->optind];
 	int ret = -1;
 
 	// Make sure to clear these.
@@ -273,8 +273,8 @@ bc_opt_longoptsMatch(const char* name, const char* option)
  * @param option  The option to find the argument of.
  * @return        A pointer to the argument of the option, or NULL if none.
  */
-static char*
-bc_opt_longoptsArg(char* option)
+static const char*
+bc_opt_longoptsArg(const char* option)
 {
 	// Find the end or equals sign.
 	for (; *option && *option != '='; ++option)
@@ -290,7 +290,7 @@ int
 bc_opt_parse(BcOpt* o, const BcOptLong* longopts)
 {
 	size_t i;
-	char* option;
+	const char* option;
 	bool empty;
 
 	// This just eats empty options.
@@ -332,7 +332,7 @@ bc_opt_parse(BcOpt* o, const BcOptLong* longopts)
 		// If we have a match...
 		if (bc_opt_longoptsMatch(name, option))
 		{
-			char* arg;
+			const char* arg;
 
 			// Get the option char and the argument.
 			o->optopt = longopts[i].val;
@@ -385,7 +385,7 @@ bc_opt_parse(BcOpt* o, const BcOptLong* longopts)
 }
 
 void
-bc_opt_init(BcOpt* o, char* argv[])
+bc_opt_init(BcOpt* o, const char* argv[])
 {
 	o->argv = argv;
 	o->optind = 1;

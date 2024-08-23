@@ -29,37 +29,31 @@
  *
  * *****************************************************************************
  *
- * The main procedure of dc.
+ * File for testing compilation on different platforms.
  *
  */
 
-#if DC_ENABLED
+// This is used by configure.sh to test for OpenBSD.
+#ifdef BC_TEST_OPENBSD
+#ifdef __OpenBSD__
+#error On OpenBSD without _BSD_SOURCE
+#endif // __OpenBSD__
+#endif // BC_TEST_OPENBSD
 
-#include <string.h>
+// This is used by configure.sh to test for FreeBSD.
+#ifdef BC_TEST_FREEBSD
+#ifdef __FreeBSD__
+#error On FreeBSD with _POSIX_C_SOURCE
+#endif // __FreeBSD__
+#endif // BC_TEST_FREEBSD
 
-#include <dc.h>
-#include <vm.h>
+// This is used by configure.sh to test for macOS.
+#ifdef BC_TEST_APPLE
+#ifdef __APPLE__
+#error On macOS without _DARWIN_C_SOURCE
+#endif // __APPLE__
+#endif // BC_TEST_APPLE
 
-/**
- * The main function for dc.
- * @param argc  The number of arguments.
- * @param argv  The arguments.
- */
-BcStatus
-dc_main(int argc, const char* argv[])
-{
-	// All of these just set dc-specific items in BcVm.
+extern int test;
 
-	vm->read_ret = BC_INST_POP_EXEC;
-	vm->help = dc_help;
-	vm->sigmsg = dc_sig_msg;
-	vm->siglen = dc_sig_msg_len;
-
-	vm->next = dc_lex_token;
-	vm->parse = dc_parse_parse;
-	vm->expr = dc_parse_expr;
-
-	return bc_vm_boot(argc, argv);
-}
-
-#endif // DC_ENABLED
+int test;

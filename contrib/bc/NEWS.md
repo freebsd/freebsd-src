@@ -1,5 +1,19 @@
 # News
 
+## 7.0.0
+
+This is a production release to fix three bugs.
+
+The first bug is that `bc`/`dc` will exit on macOS when the terminal is resized.
+
+The second bug is that an array, which should only be a function parameter, was
+accepted as part of larger expressions.
+
+The third bug is that value stack for `dc` was cleared on any error. However,
+this is not how other `dc` behave. To bring `dc` more in line with other
+implementations, this behavior was changed. This change is why this version is a
+new major version.
+
 ## 6.7.6
 
 This is a production release to fix one bug.

@@ -149,7 +149,7 @@ bc_args_redefine(const char* keyword)
 #endif // BC_ENABLED
 
 void
-bc_args(int argc, char* argv[], bool exit_exprs, BcBigDig* scale,
+bc_args(int argc, const char* argv[], bool exit_exprs, BcBigDig* scale,
         BcBigDig* ibase, BcBigDig* obase)
 {
 	int c;
@@ -157,7 +157,7 @@ bc_args(int argc, char* argv[], bool exit_exprs, BcBigDig* scale,
 	bool do_exit = false, version = false;
 	BcOpt opts;
 #if BC_ENABLE_EXTRA_MATH
-	char* seed = NULL;
+	const char* seed = NULL;
 #endif // BC_ENABLE_EXTRA_MATH
 
 	BC_SIG_ASSERT_LOCKED;

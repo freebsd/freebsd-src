@@ -29,37 +29,51 @@
  *
  * *****************************************************************************
  *
- * The main procedure of dc.
+ * Declarations for the OSS-Fuzz build of bc and dc.
  *
  */
 
-#if DC_ENABLED
+#include <stdint.h>
+#include <stdlib.h>
 
-#include <string.h>
+#ifndef BC_OSSFUZZ_H
+#define BC_OSSFUZZ_H
 
-#include <dc.h>
-#include <vm.h>
+/// The number of args in fuzzer arguments, including the NULL terminator.
+extern const size_t bc_fuzzer_args_len;
+
+/// The standard arguments for the bc fuzzer with the -c argument.
+extern const char* bc_fuzzer_args_c[];
+
+/// The standard arguments for the bc fuzzer with the -C argument.
+extern const char* bc_fuzzer_args_C[];
+
+/// The standard arguments for the dc fuzzer with the -c argument.
+extern const char* dc_fuzzer_args_c[];
+
+/// The standard arguments for the dc fuzzer with the -C argument.
+extern const char* dc_fuzzer_args_C[];
+
+/// The data pointer.
+extern uint8_t* bc_fuzzer_data;
 
 /**
- * The main function for dc.
- * @param argc  The number of arguments.
- * @param argv  The arguments.
+ * The function that the fuzzer runs.
+ * @param Data  The data.
+ * @param Size  The number of bytes in @a Data.
+ * @return      0 on success, -1 on error.
+ * @pre         @a Data must not be equal to NULL if @a Size > 0.
  */
-BcStatus
-dc_main(int argc, const char* argv[])
-{
-	// All of these just set dc-specific items in BcVm.
+int
+LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size);
 
-	vm->read_ret = BC_INST_POP_EXEC;
-	vm->help = dc_help;
-	vm->sigmsg = dc_sig_msg;
-	vm->siglen = dc_sig_msg_len;
+/**
+ * The initialization function for the fuzzer.
+ * @param argc  A pointer to the argument count.
+ * @param argv  A pointer to the argument list.
+ * @return      0 on success, -1 on error.
+ */
+int
+LLVMFuzzerInitialize(int* argc, char*** argv);
 
-	vm->next = dc_lex_token;
-	vm->parse = dc_parse_parse;
-	vm->expr = dc_parse_expr;
-
-	return bc_vm_boot(argc, argv);
-}
-
-#endif // DC_ENABLED
+#endif // BC_OSSFUZZ_H

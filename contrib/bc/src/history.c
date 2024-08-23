@@ -264,7 +264,7 @@ bc_history_line(BcHistory* h, BcVec* vec, const char* prompt)
 	errno = EINTR;
 
 	// Get the line.
-	while (line == NULL && len == -1 && errno == EINTR)
+	while (line == NULL && (len == -1 || errno == EINTR))
 	{
 		line = el_gets(h->el, &len);
 		bc_history_use_prompt = false;
