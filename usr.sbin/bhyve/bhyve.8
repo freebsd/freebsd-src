@@ -1166,7 +1166,7 @@ for a virtual machine, use
 .Fl o
 .Ar config.dump=1 :
 .Bd -literal -offset indent
-/usr/sbin/bhyve -c 2 -m 256 -A -H -P \\
+/usr/sbin/bhyve -c 2 -m 256 -H -P \\
   -s 0:0,hostbridge -s 1:0,virtio-net,tap0 \\
   -s 2:0,ahci-hd,./vm0.img \\
   -s 31,lpc -l com1,stdio \\
