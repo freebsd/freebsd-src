@@ -68,7 +68,7 @@ usage() {
 	printf '       [--man3dir=MAN3DIR]\n'
 
 	if [ "$_usage_val" -ne 0 ]; then
-		exit
+		exit "$_usage_val"
 	fi
 
 	printf '\n'
@@ -181,6 +181,8 @@ usage() {
 	printf '        Enable a build appropriate for valgrind. For development only.\n'
 	printf '    -z, --enable-fuzz-mode\n'
 	printf '        Enable fuzzing mode. THIS IS FOR DEVELOPMENT ONLY.\n'
+	printf '    -Z, --enable-ossfuzz-mode\n'
+	printf '        Enable fuzzing mode for OSS-Fuzz. THIS IS FOR DEVELOPMENT ONLY.\n'
 	printf '    --prefix PREFIX\n'
 	printf '        The prefix to install to. Overrides "$PREFIX" if it exists.\n'
 	printf '        If PREFIX is "/usr", install path will be "/usr/bin".\n'
@@ -722,6 +724,7 @@ predefined_build() {
 			all_locales=0
 			library=0
 			fuzz=0
+			ossfuzz=0
 			time_tests=0
 			vg=0
 			memcheck=0
@@ -755,6 +758,7 @@ predefined_build() {
 			all_locales=0
 			library=0
 			fuzz=0
+			ossfuzz=0
 			time_tests=0
 			vg=0
 			memcheck=0
@@ -772,7 +776,8 @@ predefined_build() {
 			dc_default_digit_clamp=0;;
 
 		GDH)
-			CFLAGS="-flto -Weverything -Wno-padded -Wno-unsafe-buffer-usage -Wno-poison-system-directories -Werror -pedantic -std=c11"
+			CFLAGS="-Weverything -Wno-padded -Wno-unsafe-buffer-usage -Wno-poison-system-directories"
+			CFLAGS="$CFLAGS -Wno-switch-default -Werror -pedantic -std=c11"
 			bc_only=0
 			dc_only=0
 			coverage=0
@@ -789,6 +794,7 @@ predefined_build() {
 			all_locales=0
 			library=0
 			fuzz=0
+			ossfuzz=0
 			time_tests=0
 			vg=0
 			memcheck=0
@@ -806,7 +812,8 @@ predefined_build() {
 			dc_default_digit_clamp=1;;
 
 		DBG)
-			CFLAGS="-Weverything -Wno-padded -Wno-unsafe-buffer-usage -Wno-poison-system-directories -Werror -pedantic -std=c11"
+			CFLAGS="-Weverything -Wno-padded -Wno-unsafe-buffer-usage -Wno-poison-system-directories"
+			CFLAGS="$CFLAGS -Wno-switch-default -Werror -pedantic -std=c11"
 			bc_only=0
 			dc_only=0
 			coverage=0
@@ -823,6 +830,7 @@ predefined_build() {
 			all_locales=0
 			library=0
 			fuzz=0
+			ossfuzz=0
 			time_tests=0
 			vg=0
 			memcheck=1
@@ -888,6 +896,7 @@ strip_bin=1
 all_locales=0
 library=0
 fuzz=0
+ossfuzz=0
 time_tests=0
 vg=0
 memcheck=0
@@ -911,7 +920,7 @@ dc_default_digit_clamp=0
 # getopts is a POSIX utility, but it cannot handle long options. Thus, the
 # handling of long options is done by hand, and that's the reason that short and
 # long options cannot be mixed.
-while getopts "abBcdDeEfgGhHik:lMmNO:p:PrS:s:tTvz-" opt; do
+while getopts "abBcdDeEfgGhHik:lMmNO:p:PrS:s:tTvzZ-" opt; do
 
 	case "$opt" in
 		a) library=1 ;;
@@ -944,6 +953,7 @@ while getopts "abBcdDeEfgGhHik:lMmNO:p:PrS:s:tTvz-" opt; do
 		T) strip_bin=0 ;;
 		v) vg=1 ;;
 		z) fuzz=1 ;;
+		Z) ossfuzz=1 ;;
 		-)
 			arg="$1"
 			arg="${arg#--}"
@@ -1070,6 +1080,7 @@ while getopts "abBcdDeEfgGhHik:lMmNO:p:PrS:s:tTvz-" opt; do
 				enable-test-timing) time_tests=1 ;;
 				enable-valgrind) vg=1 ;;
 				enable-fuzz-mode) fuzz=1 ;;
+				enable-ossfuzz-mode) ossfuzz=1 ;;
 				enable-memcheck) memcheck=1 ;;
 				install-all-locales) all_locales=1 ;;
 				help* | bc-only* | dc-only* | coverage* | debug*)
@@ -1320,6 +1331,45 @@ elif [ "$dc_only" -eq 1 ]; then
 
 	tests="test_dc"
 
+elif [ "$ossfuzz" -eq 1 ]; then
+
+	if [ "$bc_only" -ne 0 ] || [ "$dc_only" -ne 0 ]; then
+		usage "An OSS-Fuzz build must build both fuzzers."
+	fi
+
+	bc=1
+	dc=1
+
+	# Expressions *cannot* exit in an OSS-Fuzz build.
+	bc_default_expr_exit=0
+	dc_default_expr_exit=0
+
+	executables="bc_fuzzer and dc_fuzzer"
+
+	karatsuba="@\$(KARATSUBA) 30 0 \$(BC_EXEC)"
+	karatsuba_test="@\$(KARATSUBA) 1 100 \$(BC_EXEC)"
+
+	if [ "$library" -eq 0 ]; then
+		install_prereqs=" install_execs"
+		install_man_prereqs=" install_bc_manpage install_dc_manpage"
+		uninstall_prereqs=" uninstall_bc uninstall_dc"
+		uninstall_man_prereqs=" uninstall_bc_manpage uninstall_dc_manpage"
+	else
+		install_prereqs=" install_library install_bcl_header"
+		install_man_prereqs=" install_bcl_manpage"
+		uninstall_prereqs=" uninstall_library uninstall_bcl_header"
+		uninstall_man_prereqs=" uninstall_bcl_manpage"
+		tests="test_library"
+	fi
+
+	second_target_prereqs="src/bc_fuzzer.o $default_target_prereqs"
+	default_target_prereqs="\$(BC_FUZZER) src/dc_fuzzer.o $default_target_prereqs"
+	default_target_cmd="\$(CXX) \$(CFLAGS) src/dc_fuzzer.o \$(LIB_FUZZING_ENGINE) \$(OBJS) \$(LDFLAGS) -o \$(DC_FUZZER) \&\& ln -sf ./dc_fuzzer_c \$(DC_FUZZER_C)"
+	second_target_cmd="\$(CXX) \$(CFLAGS) src/bc_fuzzer.o \$(LIB_FUZZING_ENGINE) \$(OBJS) \$(LDFLAGS) -o \$(BC_FUZZER) \&\& ln -sf ./bc_fuzzer_c \$(BC_FUZZER_C)"
+
+	default_target="\$(DC_FUZZER) \$(DC_FUZZER_C)"
+	second_target="\$(BC_FUZZER) \$(BC_FUZZER_C)"
+
 else
 
 	bc=1
@@ -1349,8 +1399,12 @@ else
 
 fi
 
+if [ "$fuzz" -ne 0 ] && [ "$ossfuzz" -ne 0 ]; then
+	usage "Fuzzing mode and OSS-Fuzz mode are mutually exclusive"
+fi
+
 # We need specific stuff for fuzzing.
-if [ "$fuzz" -ne 0 ]; then
+if [ "$fuzz" -ne 0 ] || [ "$ossfuzz" -ne 0 ]; then
 	debug=1
 	hist=0
 	nls=0
@@ -1394,7 +1448,6 @@ else
 	COVERAGE_OUTPUT="@printf 'Coverage not generated\\\\n'"
 	COVERAGE_PREREQS=""
 fi
-
 
 # Set some defaults.
 if [ -z "${DESTDIR+set}" ]; then
@@ -1485,8 +1538,8 @@ if [ "$nls" -ne 0 ]; then
 
 	flags="-DBC_ENABLE_NLS=1 -DBC_ENABLED=$bc -DDC_ENABLED=$dc"
 	flags="$flags -DBC_ENABLE_HISTORY=$hist -DBC_ENABLE_LIBRARY=0 -DBC_ENABLE_AFL=0"
-	flags="$flags -DBC_ENABLE_EXTRA_MATH=$extra_math -I$scriptdir/include/"
-	flags="$flags -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700"
+	flags="$flags -DBC_ENABLE_EXTRA_MATH=$extra_math -DBC_ENABLE_OSSFUZZ=0"
+	flags="$flags -I$scriptdir/include/ -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700"
 
 	ccbase=$(basename "$CC")
 
@@ -1494,14 +1547,14 @@ if [ "$nls" -ne 0 ]; then
 		flags="$flags -Wno-unreachable-code"
 	fi
 
-	"$CC" $CPPFLAGS $CFLAGS $flags -c "$scriptdir/src/vm.c" -o "./vm.o" > /dev/null 2>&1
+	"$CC" $CPPFLAGS $CFLAGS $flags -c "$scriptdir/src/vm.c" -E > /dev/null
 
 	err="$?"
 
 	rm -rf "./vm.o"
 
-	# If this errors, it is probably because of building on Windows,
-	# and NLS is not supported on Windows, so disable it.
+	# If this errors, it is probably because of building on Windows or musl,
+	# and NLS is not supported on Windows or musl, so disable it.
 	if [ "$err" -ne 0 ]; then
 		printf 'NLS does not work.\n'
 		if [ $force -eq 0 ]; then
@@ -1514,7 +1567,7 @@ if [ "$nls" -ne 0 ]; then
 		printf 'NLS works.\n\n'
 
 		printf 'Testing gencat...\n'
-		gencat "./en_US.cat" "$scriptdir/locales/en_US.msg" > /dev/null 2>&1
+		gencat "./en_US.cat" "$scriptdir/locales/en_US.msg" > /dev/null
 
 		err="$?"
 
@@ -1587,10 +1640,10 @@ if [ "$hist" -eq 1 ]; then
 	flags="-DBC_ENABLE_HISTORY=1 -DBC_ENABLED=$bc -DDC_ENABLED=$dc"
 	flags="$flags -DBC_ENABLE_NLS=$nls -DBC_ENABLE_LIBRARY=0 -DBC_ENABLE_AFL=0"
 	flags="$flags -DBC_ENABLE_EDITLINE=$editline -DBC_ENABLE_READLINE=$readline"
-	flags="$flags -DBC_ENABLE_EXTRA_MATH=$extra_math -I$scriptdir/include/"
-	flags="$flags -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700"
+	flags="$flags -DBC_ENABLE_EXTRA_MATH=$extra_math -DBC_ENABLE_OSSFUZZ=0"
+	flags="$flags -I$scriptdir/include/ -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700"
 
-	"$CC" $CPPFLAGS $CFLAGS $flags -c "$scriptdir/src/history.c" -o "./history.o" > /dev/null 2>&1
+	"$CC" $CPPFLAGS $CFLAGS $flags -c "$scriptdir/src/history.c" -E > /dev/null
 
 	err="$?"
 
@@ -1660,7 +1713,7 @@ set +e
 printf 'Testing for FreeBSD...\n'
 
 flags="-DBC_TEST_FREEBSD -DBC_ENABLE_AFL=0"
-"$CC" $CPPFLAGS $CFLAGS $flags "-I$scriptdir/include" -E "$scriptdir/src/vm.c" > /dev/null 2>&1
+"$CC" $CPPFLAGS $CFLAGS $flags "-I$scriptdir/include" -E "$scriptdir/scripts/os.c" > /dev/null
 
 err="$?"
 
@@ -1677,7 +1730,7 @@ fi
 printf 'Testing for macOS...\n'
 
 flags="-DBC_TEST_APPLE -DBC_ENABLE_AFL=0"
-"$CC" $CPPFLAGS $CFLAGS $flags "-I$scriptdir/include" -E "$scriptdir/src/vm.c" > /dev/null 2>&1
+"$CC" $CPPFLAGS $CFLAGS $flags "-I$scriptdir/include" -E "$scriptdir/scripts/os.c" > /dev/null
 
 err="$?"
 
@@ -1705,7 +1758,7 @@ fi
 printf 'Testing for OpenBSD...\n'
 
 flags="-DBC_TEST_OPENBSD -DBC_ENABLE_AFL=0"
-"$CC" $CPPFLAGS $CFLAGS $flags "-I$scriptdir/include" -E "$scriptdir/src/vm.c" > /dev/null 2>&1
+"$CC" $CPPFLAGS $CFLAGS $flags "-I$scriptdir/include" -E "$scriptdir/scripts/os.c" > /dev/null
 
 err="$?"
 
@@ -1741,7 +1794,7 @@ GEN_DIR="$scriptdir/gen"
 # These lines set the appropriate targets based on whether `gen/strgen.c` or
 # `gen/strgen.sh` is used.
 GEN="strgen"
-GEN_EXEC_TARGET="\$(HOSTCC) -DBC_ENABLE_AFL=0 -I$scriptdir/include/  \$(HOSTCFLAGS) -o \$(GEN_EXEC) \$(GEN_C)"
+GEN_EXEC_TARGET="\$(HOSTCC) -DBC_ENABLE_AFL=0 -DBC_ENABLE_OSSFUZZ=0 -I$scriptdir/include/ \$(HOSTCFLAGS) -o \$(GEN_EXEC) \$(GEN_C)"
 CLEAN_PREREQS=" clean_gen clean_coverage"
 
 if [ -z "${GEN_HOST+set}" ]; then
@@ -1754,8 +1807,9 @@ else
 	fi
 fi
 
+# The fuzzer files are always unneeded because they'll be built separately.
 manpage_args=""
-unneeded=""
+unneeded="bc_fuzzer.c dc_fuzzer.c"
 headers="\$(HEADERS)"
 
 # This series of if statements figure out what source files are *not* needed.
@@ -1826,6 +1880,14 @@ if [ "$library" -ne 0 ]; then
 
 	fi
 
+elif [ "$ossfuzz" -ne 0 ]; then
+
+	unneeded="$unneeded library.c main.c"
+
+	PC_PATH=""
+	pkg_config_install=""
+	pkg_config_uninstall=""
+
 else
 
 	unneeded="$unneeded library.c"
@@ -1836,9 +1898,10 @@ else
 
 fi
 
-# library.c is not needed under normal circumstances.
+# library.c, bc_fuzzer.c, and dc_fuzzer.c are not needed under normal
+# circumstances.
 if [ "$unneeded" = "" ]; then
-	unneeded="library.c"
+	unneeded="library.c bc_fuzzer.c dc_fuzzer.c"
 fi
 
 # This sets the appropriate manpage for a full build.
@@ -1846,7 +1909,7 @@ if [ "$manpage_args" = "" ]; then
 	manpage_args="A"
 fi
 
-if [ "$vg" -ne 0 ]; then
+if [ "$vg" -ne 0 ] || [ "$ossfuzz" -ne 0 ]; then
 	memcheck=1
 fi
 
@@ -2011,7 +2074,9 @@ contents=$(replace "$contents" "HISTORY" "$hist")
 contents=$(replace "$contents" "EXTRA_MATH" "$extra_math")
 contents=$(replace "$contents" "NLS" "$nls")
 contents=$(replace "$contents" "FUZZ" "$fuzz")
+contents=$(replace "$contents" "OSSFUZZ" "$ossfuzz")
 contents=$(replace "$contents" "MEMCHECK" "$memcheck")
+contents=$(replace "$contents" "LIB_FUZZING_ENGINE" "$LIB_FUZZING_ENGINE")
 
 contents=$(replace "$contents" "BC_LIB_O" "$bc_lib")
 contents=$(replace "$contents" "BC_HELP_O" "$bc_help")
@@ -2115,6 +2180,15 @@ if [ "$dc" -ne 0 ]; then
 	gen_std_tests dc "$extra_math" "$time_tests" $dc_test_exec
 	gen_script_tests dc "$extra_math" "$generate_tests" "$time_tests" $dc_test_exec
 	gen_err_tests dc $dc_test_exec
+fi
+
+if [ "$ossfuzz" -ne 0 ]; then
+
+	printf 'bc_fuzzer_c: $(BC_FUZZER)\n\tln -sf $(BC_FUZZER) bc_fuzzer_c\n' >> Makefile
+	printf 'bc_fuzzer_C: $(BC_FUZZER)\n\tln -sf $(BC_FUZZER) bc_fuzzer_C\n' >> Makefile
+	printf 'dc_fuzzer_c: $(DC_FUZZER)\n\tln -sf $(DC_FUZZER) dc_fuzzer_c\n' >> Makefile
+	printf 'dc_fuzzer_C: $(DC_FUZZER)\n\tln -sf $(DC_FUZZER) dc_fuzzer_C\n' >> Makefile
+
 fi
 
 # Copy the correct manuals to the expected places.

@@ -174,6 +174,65 @@ const BcOptLong bc_args_lopt[] = {
 
 };
 
+#if BC_ENABLE_OSSFUZZ
+
+const char* bc_fuzzer_args_c[] = {
+	"bc",
+	"-lqc",
+	"-e",
+	"seed = 82507683022933941343198991100880559238.7080266844215897551270760113"
+	"4734858017748592704189096562163085637164174146616055338762825421827784"
+	"566630725748836994171142578125",
+	NULL,
+};
+
+const char* dc_fuzzer_args_c[] = {
+	"dc",
+	"-xc",
+	"-e",
+	"82507683022933941343198991100880559238.7080266844215897551270760113"
+	"4734858017748592704189096562163085637164174146616055338762825421827784"
+	"566630725748836994171142578125j",
+	NULL,
+};
+
+const char* bc_fuzzer_args_C[] = {
+	"bc",
+	"-lqC",
+	"-e",
+	"seed = 82507683022933941343198991100880559238.7080266844215897551270760113"
+	"4734858017748592704189096562163085637164174146616055338762825421827784"
+	"566630725748836994171142578125",
+	NULL,
+};
+
+const char* dc_fuzzer_args_C[] = {
+	"dc",
+	"-xC",
+	"-e",
+	"82507683022933941343198991100880559238.7080266844215897551270760113"
+	"4734858017748592704189096562163085637164174146616055338762825421827784"
+	"566630725748836994171142578125j",
+	NULL,
+};
+
+const size_t bc_fuzzer_args_len = sizeof(bc_fuzzer_args_c) / sizeof(char*);
+
+#if BC_C11
+
+_Static_assert(sizeof(bc_fuzzer_args_C) / sizeof(char*) == bc_fuzzer_args_len,
+               "Wrong number of bc fuzzer args");
+
+_Static_assert(sizeof(dc_fuzzer_args_c) / sizeof(char*) == bc_fuzzer_args_len,
+               "Wrong number of dc fuzzer args");
+
+_Static_assert(sizeof(dc_fuzzer_args_C) / sizeof(char*) == bc_fuzzer_args_len,
+               "Wrong number of dc fuzzer args");
+
+#endif // BC_C11
+
+#endif // BC_ENABLE_OSSFUZZ
+
 // clang-format off
 
 /// The default error category strings.

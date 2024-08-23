@@ -2002,7 +2002,8 @@ bc_parse_expr_err(BcParse* p, uint8_t flags, BcParseNext next)
 	BcLexType top, t;
 	size_t nexprs, ops_bgn;
 	uint32_t i, nparens, nrelops;
-	bool pfirst, rprn, done, get_token, assign, bin_last, incdec, can_assign;
+	bool pfirst, rprn, array_last, done, get_token, assign;
+	bool bin_last, incdec, can_assign;
 
 	// One of these *must* be true.
 	assert(!(flags & BC_PARSE_PRINT) || !(flags & BC_PARSE_NEEDVAL));
@@ -2019,6 +2020,7 @@ bc_parse_expr_err(BcParse* p, uint8_t flags, BcParseNext next)
 	// - nrelops is the number of relational operators that appear in the expr.
 	// - nexprs is the number of unused expressions.
 	// - rprn is a right paren encountered last.
+	// - array_last is an array item encountered last.
 	// - done means the expression has been fully parsed.
 	// - get_token is true when a token is needed at the end of an iteration.
 	// - assign is true when an assignment statement was parsed last.
@@ -2030,7 +2032,7 @@ bc_parse_expr_err(BcParse* p, uint8_t flags, BcParseNext next)
 	nparens = nrelops = 0;
 	nexprs = 0;
 	ops_bgn = p->ops.len;
-	rprn = done = get_token = assign = incdec = can_assign = false;
+	rprn = array_last = done = get_token = assign = incdec = can_assign = false;
 	bin_last = true;
 
 	// We want to eat newlines if newlines are not a valid ending token.
@@ -2046,6 +2048,14 @@ bc_parse_expr_err(BcParse* p, uint8_t flags, BcParseNext next)
 	// This is the Shunting-Yard algorithm loop.
 	for (; !done && BC_PARSE_EXPR(t); t = p->l.t)
 	{
+		// Make sure an array expression is not mixed with any others. However,
+		// a right parenthesis may end the expression, so we will need to take
+		// care of that right there.
+		if (BC_ERR(array_last && t != BC_LEX_RPAREN))
+		{
+			bc_parse_err(p, BC_ERR_PARSE_EXPR);
+		}
+
 		switch (t)
 		{
 			case BC_LEX_OP_INC:
@@ -2221,6 +2231,14 @@ bc_parse_expr_err(BcParse* p, uint8_t flags, BcParseNext next)
 					break;
 				}
 
+				// Now that we know the right paren has not ended the
+				// expression, make sure an array expression is not mixed with
+				// any others.
+				if (BC_ERR(array_last))
+				{
+					bc_parse_err(p, BC_ERR_PARSE_EXPR);
+				}
+
 				nparens -= 1;
 				rprn = true;
 				get_token = bin_last = incdec = false;
@@ -2263,6 +2281,7 @@ bc_parse_expr_err(BcParse* p, uint8_t flags, BcParseNext next)
 				bc_parse_name(p, &prev, &can_assign, flags & ~BC_PARSE_NOCALL);
 
 				rprn = (prev == BC_INST_CALL);
+				array_last = (prev == BC_INST_ARRAY);
 				nexprs += 1;
 				flags &= ~(BC_PARSE_ARRAY);
 
