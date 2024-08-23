@@ -55,9 +55,9 @@ void iommu_unmap_pgtbl(struct sf_buf *sf);
 
 extern iommu_haddr_t iommu_high;
 extern int iommu_tbl_pagecnt;
+extern int iommu_qi_batch_coalesce;
 
 SYSCTL_DECL(_hw_iommu);
-SYSCTL_DECL(_hw_iommu_dmar);
 
 struct x86_unit_common;
 

@@ -166,6 +166,8 @@ struct dmar_unit {
 #define	DMAR_BARRIER_RMRR	0
 #define	DMAR_BARRIER_USEQ	1
 
+SYSCTL_DECL(_hw_iommu_dmar);
+
 struct dmar_unit *dmar_find(device_t dev, bool verbose);
 struct dmar_unit *dmar_find_hpet(device_t dev, uint16_t *rid);
 struct dmar_unit *dmar_find_ioapic(u_int apic_id, uint16_t *rid);
@@ -265,7 +267,6 @@ int dmar_map_ioapic_intr(u_int ioapic_id, u_int cpu, u_int vector, bool edge,
 int dmar_unmap_ioapic_intr(u_int ioapic_id, u_int *cookie);
 
 extern int haw;
-extern int dmar_batch_coalesce;
 extern int dmar_rmrr_enable;
 
 static inline uint32_t

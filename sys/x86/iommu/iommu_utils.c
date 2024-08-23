@@ -181,9 +181,14 @@ int iommu_tbl_pagecnt;
 
 SYSCTL_NODE(_hw_iommu, OID_AUTO, dmar, CTLFLAG_RD | CTLFLAG_MPSAFE,
     NULL, "");
-SYSCTL_INT(_hw_iommu_dmar, OID_AUTO, tbl_pagecnt, CTLFLAG_RD,
+SYSCTL_INT(_hw_iommu, OID_AUTO, tbl_pagecnt, CTLFLAG_RD,
     &iommu_tbl_pagecnt, 0,
-    "Count of pages used for DMAR pagetables");
+    "Count of pages used for IOMMU pagetables");
+
+int iommu_qi_batch_coalesce = 100;
+SYSCTL_INT(_hw_iommu, OID_AUTO, batch_coalesce, CTLFLAG_RWTUN,
+    &iommu_qi_batch_coalesce, 0,
+    "Number of qi batches between interrupt");
 
 static struct x86_iommu *x86_iommu;
 
