@@ -178,6 +178,14 @@ disc1: packagesystem
 	    do echo "./usr/freebsd-dist/$${dist} type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG; \
 	done
 .endif
+	(cd ${WORLDDIR}; make list-old-files >> ${.OBJDIR}/${.TARGET}/usr/freebsd-dist/obsolete.files)
+	(cd ${WORLDDIR}; make list-old-libs >> ${.OBJDIR}/${.TARGET}/usr/freebsd-dist/obsolete.files)
+	sed -i '' -e 's/^/.\//g' ${.OBJDIR}/${.TARGET}/usr/freebsd-dist/obsolete.files
+# Build etcupdate tree
+	etcupdate build ${.TARGET}/usr/freebsd-dist/current-tree.tar.bz
+# Generate release file list
+	tar -tf kernel.txz | tail -n +2 | grep -v '^./etc' | sed 's/\/$$//' | sort -o ${.TARGET}/usr/freebsd-dist/new.kernel.files
+	tar -tf base.txz | tail -n +2 | grep -v '^./etc' | sed 's/\/$$//' | sort -o ${.TARGET}/usr/freebsd-dist/new.base.files
 # Set up installation environment
 	ln -fs /tmp/bsdinstall_etc/resolv.conf ${.TARGET}/etc/resolv.conf
 	echo sendmail_enable=\"NONE\" > ${.TARGET}/etc/rc.conf
@@ -215,6 +223,14 @@ bootonly: packagesystem
 	echo "./usr/freebsd-dist type=dir uname=root gname=wheel mode=0755" >> ${.TARGET}/METALOG
 	echo "./usr/freebsd-dist/MANIFEST type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG
 .endif
+	(cd ${WORLDDIR}; make list-old-files >> ${.OBJDIR}/${.TARGET}/usr/freebsd-dist/obsolete.files)
+	(cd ${WORLDDIR}; make list-old-libs >> ${.OBJDIR}/${.TARGET}/usr/freebsd-dist/obsolete.files)
+	sed -i '' -e 's/^/.\//g' ${.OBJDIR}/${.TARGET}/usr/freebsd-dist/obsolete.files
+# Build etcupdate tree
+	etcupdate build ${.TARGET}/usr/freebsd-dist/current-tree.tar.bz
+# Generate release file list
+	tar -tf kernel.txz | tail -n +2 | grep -v '^./etc' | sed 's/\/$$//' | sort -o ${.TARGET}/usr/freebsd-dist/new.kernel.files
+	tar -tf base.txz | tail -n +2 | grep -v '^./etc' | sed 's/\/$$//' | sort -o ${.TARGET}/usr/freebsd-dist/new.base.files
 # Set up installation environment
 	ln -fs /tmp/bsdinstall_etc/resolv.conf ${.TARGET}/etc/resolv.conf
 	echo sendmail_enable=\"NONE\" > ${.TARGET}/etc/rc.conf
@@ -250,6 +266,14 @@ dvd: packagesystem
 	    do echo "./usr/freebsd-dist/$${dist} type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG; \
 	done
 .endif
+	(cd ${WORLDDIR}; make list-old-files >> ${.OBJDIR}/${.TARGET}/usr/freebsd-dist/obsolete.files)
+	(cd ${WORLDDIR}; make list-old-libs >> ${.OBJDIR}/${.TARGET}/usr/freebsd-dist/obsolete.files)
+	sed -i '' -e 's/^/.\//g' ${.OBJDIR}/${.TARGET}/usr/freebsd-dist/obsolete.files
+# Build etcupdate tree
+	etcupdate build ${.TARGET}/usr/freebsd-dist/current-tree.tar.bz
+# Generate release file list
+	tar -tf kernel.txz | tail -n +2 | grep -v '^./etc' | sed 's/\/$$//' | sort -o ${.TARGET}/usr/freebsd-dist/new.kernel.files
+	tar -tf base.txz | tail -n +2 | grep -v '^./etc' | sed 's/\/$$//' | sort -o ${.TARGET}/usr/freebsd-dist/new.base.files
 # Set up installation environment
 	ln -fs /tmp/bsdinstall_etc/resolv.conf ${.TARGET}/etc/resolv.conf
 	echo sendmail_enable=\"NONE\" > ${.TARGET}/etc/rc.conf

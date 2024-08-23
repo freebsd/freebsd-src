@@ -1,0 +1,137 @@
+#!/bin/sh
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+
+: ${TMPDIR=/tmp}
+: ${MNTDIR=/mnt}
+: ${SYSTEM_DIR=$MNTDIR/system}
+: ${RELEASE_DIR=$MNTDIR/repair}
+
+: ${BSDDIALOG_OK=0}
+: ${BSDDIALOG_CANCEL=1}
+
+partitions=$(gpart show -p | grep 'freebsd-ufs' | grep -v diskid |  awk '{ print $3, $4 }')
+pools=$(zpool import | grep pool: | awk '{ print $2, "freebsd-zfs" }')
+exec 5>&1
+parts=$(echo $partitions $pools on | xargs -o bsddialog --backtitle "${OSNAME} Installer" --title "Mount a partition" \
+	--checklist "Select one of the partitions to mount" 0 0 0 2>&1 1>&5)
+
+# Preparing upgrade working directory...
+echo "Preparing upgrade working directory..."
+mount -t tmpfs tmpfs ${MNTDIR}
+mkdir ${SYSTEM_DIR}
+mkdir ${RELEASE_DIR}
+mount -o size=1G -t tmpfs tmpfs ${RELEASE_DIR}
+for part in $parts; do
+	fs=$(echo $partitions $pools | xargs -n 2 | grep $part | awk '{ print $2 }')
+	if [ "$fs" == "freebsd-ufs" ];then
+		mount /dev/$part ${SYSTEM_DIR}
+	elif [ "$fs" == "freebsd-zfs" ]; then
+		zpool import -o altroot=${SYSTEM_DIR} $part
+		zfs mount zroot/ROOT/default
+	fi
+done
+
+# Generating release file lists...
+echo "Generating release file lists..."
+sort -u -o ${TMPDIR}/new.files -m /usr/freebsd-dist/new.kernel.files /usr/freebsd-dist/new.base.files
+
+# Generating system file lists...
+echo "Generating system file lists..."
+(cd ${SYSTEM_DIR}; find .) | sort > ${TMPDIR}/old.files
+
+# Installing added files...
+echo "Installing added files..."
+comm -13 ${TMPDIR}/old.files ${TMPDIR}/new.files > ${TMPDIR}/added.files
+comm -12 /usr/freebsd-dist/new.kernel.files ${TMPDIR}/added.files > ${TMPDIR}/added.kernel.files
+comm -12 /usr/freebsd-dist/new.base.files ${TMPDIR}/added.files > ${TMPDIR}/added.base.files
+tar -xf /usr/freebsd-dist/kernel.txz -T ${TMPDIR}/added.kernel.files -C ${SYSTEM_DIR}
+tar -xf /usr/freebsd-dist/base.txz -T ${TMPDIR}/added.base.files -C ${SYSTEM_DIR}
+
+# Extracting modified files...
+echo "Installing modified files..."
+comm -12 ${TMPDIR}/old.files ${TMPDIR}/new.files > ${TMPDIR}/both.files
+comm -12 /usr/freebsd-dist/new.kernel.files ${TMPDIR}/both.files > ${TMPDIR}/both.kernel.files
+comm -12 /usr/freebsd-dist/new.base.files ${TMPDIR}/both.files > ${TMPDIR}/both.base.files
+tar -xf /usr/freebsd-dist/kernel.txz -T ${TMPDIR}/both.kernel.files -C ${RELEASE_DIR}
+tar -xf /usr/freebsd-dist/base.txz -T ${TMPDIR}/both.base.files -C ${RELEASE_DIR}
+# Installing modified kernel files
+for file in `cat ${TMPDIR}/both.kernel.files`; do
+	if [ -d ${SYSTEM_DIR}/$file -a -f ${RELEASE_DIR}/$file ]; then
+		rm -rf ${SYSTEM_DIR}/$file
+	elif [ -L ${RELEASE_DIR}/$file ]; then
+		rm ${SYSTEM_DIR}/$file
+	fi
+
+	if [ -L ${RELEASE_DIR}/$file ]; then
+		ln -s $(readlink ${RELEASE_DIR}/$file) ${SYSTEM_DIR}/$file
+	elif [ -d ${RELEASE_DIR}/$file ]; then
+		install -d ${RELEASE_DIR}/$file ${SYSTEM_DIR}/$file
+	else
+		install ${RELEASE_DIR}/$file ${SYSTEM_DIR}/$file
+	fi
+done
+# Installing modified base files
+for file in `cat ${TMPDIR}/both.base.files`; do
+	if [ -d ${SYSTEM_DIR}/$file -a -f ${RELEASE_DIR}/$file ]; then
+		rm -rf ${SYSTEM_DIR}/$file
+	elif [ -L ${RELEASE_DIR}/$file ]; then
+		rm ${SYSTEM_DIR}/$file
+	fi
+
+	if [ -L ${RELEASE_DIR}/$file ]; then
+		ln -s $(readlink ${RELEASE_DIR}/$file) ${SYSTEM_DIR}/$file
+	elif [ -d ${RELEASE_DIR}/$file ]; then
+		install -d ${RELEASE_DIR}/$file ${SYSTEM_DIR}/$file
+	else
+		install ${RELEASE_DIR}/$file ${SYSTEM_DIR}/$file
+	fi
+done
+
+# Running etcupdate...
+echo "Running etcupdate..."
+etcupdate -t /usr/freebsd-dist/current-tree.tar.bz -D ${SYSTEM_DIR}
+
+# Running pkg upgrade
+bsddialog --backtitle "${OSNAME} Installer" --title "Upgrade Packages?" --yesno "Would you like to upgrade packages? (Recommended)" 0 0
+if [ $? -eq $BSDDIALOG_OK ]; then
+	mount -t tmpfs tmpfs /usr/local
+	BSDINSTALL_CONFIGCURRENT=1 bsdinstall netconfig
+	TMPDIR=/usr/local pkg bootstrap -fy
+	echo "PKG_DBDIR = \"/usr/local/db/pkg\";" >> /usr/local/etc/pkg.conf
+	echo "PKG_CACHEDIR = \"/usr/local/cache/pkg\";" >> /usr/local/etc/pkg.conf
+	TMPDIR=/usr/local pkg update
+	pkg -c ${SYSTEM_DIR} upgrade
+fi
+
+# Removing old files...
+echo "Removing old files..."
+comm -23 ${TMPDIR}/old.files ${TMPDIR}/new.files > ${TMPDIR}/removed.files.tmp
+comm -12 ${TMPDIR}/removed.files.tmp /usr/freebsd-dist/obsolete.files > ${TMPDIR}/removed.files
+for file in `sort -r ${TMPDIR}/removed.files`; do
+	if [ -d ${SYSTEM_DIR}/$file ]; then
+		rmdir ${SYSTEM_DIR}/$file
+	elif [ -f ${SYSTEM_DIR}/$file ]; then
+		rm ${SYSTEM_DIR}/$file
+	fi
+done
+
+# Upgrade finish
+for part in $parts; do
+	fs=$(echo $partitions $pools | xargs -n 2 | grep $part | awk '{ print $2 }')
+	if [ "$fs" == "freebsd-ufs" ];then
+		umount ${SYSTEM_DIR}
+	elif [ "$fs" == "freebsd-zfs" ]; then
+		zfs unmount $part
+	fi
+done
+bsddialog --backtitle "${OSNAME} Installer" --title "Upgrade Complete" --ok-label "Reboot" --cancel-label "Live System" --yesno "Upgrade of ${OSNAME} complete! Would you like to reboot into the upgraded system now?" 0 0
+case $? in
+$BSDDIALOG_OK)
+	reboot
+	;;
+$BSDDIALOG_CANCEL)
+	exit 0
+	;;
+esac

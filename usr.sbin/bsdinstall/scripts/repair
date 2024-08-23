@@ -1,0 +1,101 @@
+#!/bin/sh
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+
+: ${BSDDIALOG_OK=0}
+
+partitions=$(gpart show -p | grep 'freebsd-ufs' | grep -v diskid |  awk '{ print $3, $4 }')
+pools=$(zpool import | grep pool: | awk '{ print $2, "freebsd-zfs" }')
+
+exec 5>&1
+part=$(echo $partitions $pools | xargs -o bsddialog --backtitle "${OSNAME} Installer" --title "Mount a partition" \
+	--menu "Select one of the partitions to mount" 0 0 0 2>&1 1>&5)
+if [ $? -ne $BSDDIALOG_OK ]; then exit 0; fi
+
+fs=$(echo $partitions $pools | xargs -n 2 | grep $part | awk '{ print $2 }')
+if [ "$fs" == "freebsd-ufs" ]; then
+	mount /dev/$part /mnt
+	exec 5>&1
+	checks=$(bsddialog --backtitle "$OSNAME Installer" --title 'Inspect selected partition' \
+		--checklist 'Choose from the below commands to inspect partition' 0 0 0 \
+		'fsck' 'fsck partition' on \
+		'mtree' 'compare partition mtree with installation media mtree' on \
+		2>&1 1>&5 )
+	retval=$?
+	exec 5>&-
+
+	if [ $retval -ne $BSDDIALOG_OK ]; then
+		exit 1
+	fi
+
+	for check in  $checks; do
+		case "$check" in
+		'fsck')
+			echo "<=== FSCK ===>"
+			echo
+			fsck /dev/$part
+			echo
+			echo
+			;;
+		'mtree')
+			echo "<=== MTREE ===>"
+			echo
+			mtree -e -p /mnt -f /etc/mtree/BSD.root.dist
+			if [ $? -ne 0 ]; then
+				while true; do
+					read -p "Some changes were detected. Would you like to reset to defaults? [y/N] " yn
+					case $yn in
+						[Yy]* ) mtree -eu -p /mnt -f /etc/mtree/BSD.root.dist; break;;
+						[Nn]* ) exit;;
+						* ) ;;
+					esac
+				done
+			fi
+			;;
+		esac
+	done
+elif [ "$fs" == "freebsd-zfs" ]; then
+	mount -t tmpfs tmpfs /mnt
+	zpool import -o altroot=/mnt $part
+	zfs mount zroot/ROOT/default
+	exec 5>&1
+	checks=$(bsddialog --backtitle "$OSNAME Installer" --title 'Inspect selected partition' \
+		--checklist 'Choose from the below commands to inspect partition' 0 0 0 \
+		'scrub' 'zpool scrub pools' on \
+		'mtree' 'compare partition mtree with installation media mtree' on \
+		2>&1 1>&5 )
+	retval=$?
+	exec 5>&-
+
+	if [ $retval -ne $BSDDIALOG_OK ]; then
+		exit 1
+	fi
+
+	for check in  $checks; do
+		case "$check" in
+		'scrub')
+			echo "<=== ZPOOL SCRUB ===>"
+			echo
+			zpool scrub zroot
+			echo
+			echo
+			;;
+		'mtree')
+			echo "<=== MTREE ===>"
+			echo
+			mtree -e -p /mnt -f /etc/mtree/BSD.root.dist
+			if [ $? -ne 0 ]; then
+				while true; do
+					read -p "Some changes were detected. Would you like to reset to defaults? [y/N] " yn
+					case $yn in
+						[Yy]* ) mtree -eu -p /mnt -f /etc/mtree/BSD.root.dist; break;;
+						[Nn]* ) exit;;
+						* ) ;;
+					esac
+				done
+			fi
+			;;
+		esac
+	done
+fi
