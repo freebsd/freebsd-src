@@ -2803,7 +2803,7 @@ bc_program_insertFunc(BcProgram* p, const char* name)
 	return idx;
 }
 
-#if BC_DEBUG
+#if BC_DEBUG || BC_ENABLE_MEMCHECK
 void
 bc_program_free(BcProgram* p)
 {
@@ -2850,7 +2850,7 @@ bc_program_free(BcProgram* p)
 	if (BC_IS_DC) bc_vec_free(&p->tail_calls);
 #endif // DC_ENABLED
 }
-#endif // BC_DEBUG
+#endif // BC_DEBUG || BC_ENABLE_MEMCHECK
 
 void
 bc_program_init(BcProgram* p)
@@ -2977,9 +2977,8 @@ bc_program_reset(BcProgram* p)
 
 	BC_SIG_ASSERT_LOCKED;
 
-	// Pop all but the last execution and all results.
+	// Pop all but the last execution.
 	bc_vec_npop(&p->stack, p->stack.len - 1);
-	bc_vec_popAll(&p->results);
 
 #if DC_ENABLED
 	// We need to pop tail calls too.
@@ -2987,6 +2986,12 @@ bc_program_reset(BcProgram* p)
 #endif // DC_ENABLED
 
 #if BC_ENABLED
+	// Clear the stack if we are in bc. We have to do this in bc because bc's
+	// stack is implicit.
+	//
+	// XXX: We don't do this in dc because other dc implementations don't.
+	if (BC_IS_BC || !BC_I) bc_vec_popAll(&p->results);
+
 	// Clear the globals' stacks.
 	if (BC_G) bc_program_popGlobals(p, true);
 #endif // BC_ENABLED

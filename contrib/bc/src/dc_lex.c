@@ -114,7 +114,9 @@ dc_lex_string(BcLex* l)
 		nls = 0;
 		got_more = false;
 
+#if !BC_ENABLE_OSSFUZZ
 		assert(l->mode != BC_MODE_STDIN || l->buf == vm->buffer.v);
+#endif // !BC_ENABLE_OSSFUZZ
 
 		// This is the meat. As long as we don't run into the NUL byte, and we
 		// have "depth", which means we haven't completely balanced brackets
