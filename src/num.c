@@ -274,6 +274,8 @@ bc_num_nonZeroLen(const BcNum* restrict n)
 	return i + 1;
 }
 
+#if BC_ENABLE_EXTRA_MATH
+
 /**
  * Returns the power of 10 that a number with an absolute value less than 1
  * needs to be multiplied by in order to be greater than 1 or less than -1.
@@ -300,6 +302,8 @@ bc_num_negPow10(const BcNum* restrict n)
 	// limb.
 	return places + (BC_NUM_RDX_VAL(n) - (idx + 1)) * BC_BASE_DIGS;
 }
+
+#endif // BC_ENABLE_EXTRA_MATH
 
 /**
  * Performs a one-limb add with a carry.

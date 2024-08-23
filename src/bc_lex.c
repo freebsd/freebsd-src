@@ -115,7 +115,9 @@ bc_lex_string(BcLex* l)
 		buf = l->buf;
 		got_more = false;
 
+#if !BC_ENABLE_OSSFUZZ
 		assert(vm->mode != BC_MODE_STDIN || buf == vm->buffer.v);
+#endif // !BC_ENABLE_OSSFUZZ
 
 		// Fortunately for us, bc doesn't escape quotes. Instead, the equivalent
 		// is '\q', which makes this loop simpler.

@@ -51,7 +51,7 @@
  * @return  A status.
  */
 BcStatus
-bc_main(int argc, char* argv[]);
+bc_main(int argc, const char* argv[]);
 
 // These are references to the help text, the library text, and the "filename"
 // for the library.
