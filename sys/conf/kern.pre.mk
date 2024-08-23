@@ -17,6 +17,7 @@ _srcconf_included_:
 .include <bsd.own.mk>
 .include <bsd.compiler.mk>
 .include "kern.opts.mk"
+.-include <local.kern.pre.mk>
 
 # The kernel build always occurs in the object directory which is .CURDIR.
 .if ${.MAKE.MODE:Unormal:Mmeta}
