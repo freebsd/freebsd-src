@@ -66,6 +66,9 @@
 #if BC_ENABLE_LIBRARY
 #include <library.h>
 #endif // BC_ENABLE_LIBRARY
+#if BC_ENABLE_OSSFUZZ
+#include <ossfuzz.h>
+#endif // BC_ENABLE_OSSFUZZ
 
 #if !BC_ENABLE_LIBRARY
 
@@ -674,7 +677,7 @@ bc_vm_shutdown(void)
 #endif // BC_ENABLE_HISTORY
 #endif // !BC_ENABLE_LIBRARY
 
-#if BC_DEBUG
+#if BC_DEBUG || BC_ENABLE_MEMCHECK
 #if !BC_ENABLE_LIBRARY
 	bc_vec_free(&vm->env_args);
 	free(vm->env_args_buffer);
@@ -694,7 +697,7 @@ bc_vm_shutdown(void)
 #endif // !BC_ENABLE_LIBRARY
 
 	bc_vm_freeTemps();
-#endif // BC_DEBUG
+#endif // BC_DEBUG || BC_ENABLE_MEMCHECK
 
 #if !BC_ENABLE_LIBRARY
 	// We always want to flush.
@@ -1140,6 +1143,8 @@ err:
 	BC_LONGJMP_CONT(vm);
 }
 
+#if !BC_ENABLE_OSSFUZZ
+
 bool
 bc_vm_readLine(bool clear)
 {
@@ -1275,6 +1280,8 @@ err:
 
 	BC_LONGJMP_CONT(vm);
 }
+
+#endif // BC_ENABLE_OSSFUZZ
 
 bool
 bc_vm_readBuf(bool clear)
@@ -1495,6 +1502,8 @@ bc_vm_exec(void)
 	}
 #endif // BC_ENABLED
 
+	assert(!BC_ENABLE_OSSFUZZ || BC_EXPR_EXIT == 0);
+
 	// If there are expressions to execute...
 	if (vm->exprs.len)
 	{
@@ -1502,7 +1511,11 @@ bc_vm_exec(void)
 		bc_vm_exprs();
 
 		// Sometimes, executing expressions means we need to quit.
-		if (!vm->no_exprs && vm->exit_exprs && BC_EXPR_EXIT) return;
+		if (vm->status != BC_STATUS_SUCCESS ||
+		    (!vm->no_exprs && vm->exit_exprs && BC_EXPR_EXIT))
+		{
+			return;
+		}
 	}
 
 	// Process files.
@@ -1514,6 +1527,8 @@ bc_vm_exec(void)
 		has_file = true;
 #endif // DC_ENABLED
 		bc_vm_file(path);
+
+		if (vm->status != BC_STATUS_SUCCESS) return;
 	}
 
 #if BC_ENABLE_EXTRA_MATH
@@ -1542,12 +1557,25 @@ bc_vm_exec(void)
 	__AFL_INIT();
 #endif // BC_ENABLE_AFL
 
+#if BC_ENABLE_OSSFUZZ
+
+	if (BC_VM_RUN_STDIN(has_file))
+	{
+		// XXX: Yes, this is a hack to run the fuzzer for OSS-Fuzz, but it
+		// works.
+		bc_vm_load("<stdin>", (const char*) bc_fuzzer_data);
+	}
+
+#else // BC_ENABLE_OSSFUZZ
+
 	// Execute from stdin. bc always does.
 	if (BC_VM_RUN_STDIN(has_file)) bc_vm_stdin();
+
+#endif // BC_ENABLE_OSSFUZZ
 }
 
 BcStatus
-bc_vm_boot(int argc, char* argv[])
+bc_vm_boot(int argc, const char* argv[])
 {
 	int ttyin, ttyout, ttyerr;
 	bool tty;
@@ -1739,7 +1767,7 @@ bc_vm_boot(int argc, char* argv[])
 	BC_SIG_LOCK;
 
 	// Exit.
-	return bc_vm_atexit((BcStatus) vm->status);
+	return (BcStatus) vm->status;
 }
 #endif // !BC_ENABLE_LIBRARY
 

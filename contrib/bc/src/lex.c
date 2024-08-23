@@ -79,7 +79,9 @@ bc_lex_comment(BcLex* l)
 		got_more = false;
 
 		// If we are in stdin mode, the buffer must be the one used for stdin.
+#if !BC_ENABLE_OSSFUZZ
 		assert(vm->mode != BC_MODE_STDIN || buf == vm->buffer.v);
+#endif // !BC_ENABLE_OSSFUZZ
 
 		// Find the end of the comment.
 		for (i = l->i; !end; i += !end)
@@ -93,11 +95,13 @@ bc_lex_comment(BcLex* l)
 			// If this is true, we need to request more data.
 			if (BC_ERR(!c || buf[i + 1] == '\0'))
 			{
+#if !BC_ENABLE_OSSFUZZ
 				// Read more, if possible.
 				if (!vm->eof && l->mode != BC_MODE_FILE)
 				{
 					got_more = bc_lex_readLine(l);
 				}
+#endif // !BC_ENABLE_OSSFUZZ
 
 				break;
 			}
@@ -363,11 +367,15 @@ bc_lex_readLine(BcLex* l)
 			break;
 		}
 
+#if !BC_ENABLE_OSSFUZZ
+
 		case BC_MODE_STDIN:
 		{
 			good = bc_vm_readLine(false);
 			break;
 		}
+
+#endif // !BC_ENABLE_OSSFUZZ
 
 #ifdef __GNUC__
 #ifndef __clang__

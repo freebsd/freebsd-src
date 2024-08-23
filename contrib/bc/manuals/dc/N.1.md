@@ -1130,10 +1130,13 @@ the next non-space characters do not match that regex.
 When dc(1) encounters an error or a signal that it has a non-default handler
 for, it resets. This means that several things happen.
 
-First, any macros that are executing are stopped and popped off the stack.
-The behavior is not unlike that of exceptions in programming languages. Then
-the execution point is set so that any code waiting to execute (after all
+First, any macros that are executing are stopped and popped off the execution
+stack. The behavior is not unlike that of exceptions in programming languages.
+Then the execution point is set so that any code waiting to execute (after all
 macros returned) is skipped.
+
+However, the stack of values is *not* cleared; in interactive mode, users can
+inspect the stack and manipulate it.
 
 Thus, when dc(1) resets, it skips any remaining code waiting to be executed.
 Then, if it is interactive mode, and the error was not a fatal error (see the
