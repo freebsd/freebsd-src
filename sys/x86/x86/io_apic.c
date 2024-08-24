@@ -127,18 +127,20 @@ static void	ioapic_reprogram_intpin(struct intsrc *isrc);
 
 static STAILQ_HEAD(,ioapic) ioapic_list = STAILQ_HEAD_INITIALIZER(ioapic_list);
 struct pic ioapic_template = {
-	.pic_register_sources = ioapic_register_sources,
-	.pic_enable_source = ioapic_enable_source,
-	.pic_disable_source = ioapic_disable_source,
-	.pic_eoi_source = ioapic_eoi_source,
-	.pic_enable_intr = ioapic_enable_intr,
-	.pic_disable_intr = ioapic_disable_intr,
-	.pic_source_pending = ioapic_source_pending,
-	.pic_suspend = NULL,
-	.pic_resume = ioapic_resume,
-	.pic_config_intr = ioapic_config_intr,
-	.pic_assign_cpu = ioapic_assign_cpu,
-	.pic_reprogram_pin = ioapic_reprogram_intpin,
+	/* Interrupt controller interface */
+	X86PIC_FUNC(pic_register_sources,	ioapic_register_sources),
+	X86PIC_FUNC(pic_enable_source,		ioapic_enable_source),
+	X86PIC_FUNC(pic_disable_source,		ioapic_disable_source),
+	X86PIC_FUNC(pic_eoi_source,		ioapic_eoi_source),
+	X86PIC_FUNC(pic_enable_intr,		ioapic_enable_intr),
+	X86PIC_FUNC(pic_disable_intr,		ioapic_disable_intr),
+	X86PIC_FUNC(pic_source_pending,		ioapic_source_pending),
+	X86PIC_FUNC(pic_resume,			ioapic_resume),
+	X86PIC_FUNC(pic_config_intr,		ioapic_config_intr),
+	X86PIC_FUNC(pic_assign_cpu,		ioapic_assign_cpu),
+	X86PIC_FUNC(pic_reprogram_pin,		ioapic_reprogram_intpin),
+
+	X86PIC_END
 };
 
 static u_int next_ioapic_base;
