@@ -213,14 +213,14 @@ xen_intr_pic_source_pending(struct intsrc *isrc)
  * Prepare this PIC for system suspension.
  */
 static void
-xen_intr_pic_suspend(struct pic *pic)
+xen_intr_pic_suspend(x86pic_t pic)
 {
 
 	/* Nothing to do on suspend */
 }
 
 static void
-xen_intr_pic_resume(struct pic *pic, bool suspend_cancelled)
+xen_intr_pic_resume(x86pic_t pic, bool suspend_cancelled)
 {
 
 	if (!suspend_cancelled)
