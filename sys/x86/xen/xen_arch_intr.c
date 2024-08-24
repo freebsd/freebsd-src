@@ -213,14 +213,14 @@ xen_intr_pic_source_pending(struct intsrc *isrc)
  * Prepare this PIC for system suspension.
  */
 static void
-xen_intr_pic_suspend(struct pic *pic)
+xen_intr_pic_suspend(x86pic_t pic)
 {
 
 	/* Nothing to do on suspend */
 }
 
 static void
-xen_intr_pic_resume(struct pic *pic, bool suspend_cancelled)
+xen_intr_pic_resume(x86pic_t pic, bool suspend_cancelled)
 {
 
 	if (!suspend_cancelled)
@@ -258,17 +258,20 @@ xen_intr_pic_assign_cpu(struct intsrc *isrc, u_int apic_id)
 /**
  * PIC interface for all event channel port types except physical IRQs.
  */
-static struct pic xen_intr_pic = {
-	.pic_enable_source  = xen_intr_pic_enable_source,
-	.pic_disable_source = xen_intr_pic_disable_source,
-	.pic_eoi_source     = xen_intr_pic_eoi_source,
-	.pic_enable_intr    = xen_intr_pic_enable_intr,
-	.pic_disable_intr   = xen_intr_pic_disable_intr,
-	.pic_source_pending = xen_intr_pic_source_pending,
-	.pic_suspend        = xen_intr_pic_suspend,
-	.pic_resume         = xen_intr_pic_resume,
-	.pic_config_intr    = xen_intr_pic_config_intr,
-	.pic_assign_cpu     = xen_intr_pic_assign_cpu,
+static x86pic_func_t xen_intr_pic = {
+	/* Interrupt controller interface */
+	X86PIC_FUNC(pic_enable_source,		xen_intr_pic_enable_source),
+	X86PIC_FUNC(pic_disable_source,		xen_intr_pic_disable_source),
+	X86PIC_FUNC(pic_eoi_source,		xen_intr_pic_eoi_source),
+	X86PIC_FUNC(pic_enable_intr,		xen_intr_pic_enable_intr),
+	X86PIC_FUNC(pic_disable_intr,		xen_intr_pic_disable_intr),
+	X86PIC_FUNC(pic_source_pending,		xen_intr_pic_source_pending),
+	X86PIC_FUNC(pic_suspend,		xen_intr_pic_suspend),
+	X86PIC_FUNC(pic_resume,			xen_intr_pic_resume),
+	X86PIC_FUNC(pic_config_intr,		xen_intr_pic_config_intr),
+	X86PIC_FUNC(pic_assign_cpu,		xen_intr_pic_assign_cpu),
+
+	X86PIC_END
 };
 
 /******************************* ARCH wrappers *******************************/
