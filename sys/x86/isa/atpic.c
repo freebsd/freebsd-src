@@ -124,9 +124,9 @@ struct atpic_intsrc {
 };
 
 static void atpic_register_sources(x86pic_t pic);
-static void atpic_enable_source(struct intsrc *isrc);
+static void atpic_enable_source(x86pic_t pic, struct intsrc *isrc);
 static void atpic_disable_source(x86pic_t pic, struct intsrc *isrc, int eoi);
-static void atpic_eoi(struct intsrc *isrc);
+static void atpic_eoi(x86pic_t pic, struct intsrc *isrc);
 static void atpic_enable_intr(x86pic_t pic, struct intsrc *isrc);
 static void atpic_disable_intr(x86pic_t pic, struct intsrc *isrc);
 static void atpic_resume(x86pic_t pic, bool suspend_cancelled);
@@ -263,7 +263,7 @@ atpic_register_sources(x86pic_t pic)
 }
 
 static void
-atpic_enable_source(struct intsrc *isrc)
+atpic_enable_source(x86pic_t pic, struct intsrc *isrc)
 {
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
 	struct atpic *ap = X86PIC_PIC(atpic, isrc->is_pic);
@@ -304,7 +304,7 @@ atpic_disable_source(x86pic_t pic, struct intsrc *isrc, int eoi)
 }
 
 static void
-atpic_eoi(struct intsrc *isrc)
+atpic_eoi(x86pic_t pic, struct intsrc *isrc)
 {
 	/* Reference the above comment (atpic_disable_source()) */
 	if (isrc->is_pic == X86PIC_PTR(atpics[MASTER].at_pic)) {
@@ -471,7 +471,7 @@ atpic_startup(void)
 	i8259_init(&atpics[MASTER], 0);
 	i8259_init(&atpics[SLAVE], 1);
 	isrc = &atintrs[ICU_SLAVEID].at_intsrc;
-	atpic_enable_source(isrc);
+	atpic_enable_source(isrc->is_pic, isrc);
 
 	/* Install low-level interrupt handlers for all of our IRQs. */
 	for (i = 0, ai = atintrs; i < NUM_ISA_IRQS; i++, ai++) {

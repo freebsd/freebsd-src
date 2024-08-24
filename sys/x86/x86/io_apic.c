@@ -112,9 +112,9 @@ static void	ioapic_write(volatile ioapic_t *apic, int reg, u_int val);
 static const char *ioapic_bus_string(int bus_type);
 static void	ioapic_print_irq(struct ioapic_intsrc *intpin);
 static void	ioapic_register_sources(x86pic_t pic);
-static void	ioapic_enable_source(struct intsrc *isrc);
+static void	ioapic_enable_source(x86pic_t pic, struct intsrc *isrc);
 static void	ioapic_disable_source(x86pic_t pic, struct intsrc *isrc, int eoi);
-static void	ioapic_eoi_source(struct intsrc *isrc);
+static void	ioapic_eoi_source(x86pic_t pic, struct intsrc *isrc);
 static void	ioapic_enable_intr(x86pic_t pic, struct intsrc *isrc);
 static void	ioapic_disable_intr(x86pic_t pic, struct intsrc *isrc);
 static int	ioapic_source_pending(x86pic_t pic, struct intsrc *isrc);
@@ -260,7 +260,7 @@ ioapic_print_irq(struct ioapic_intsrc *intpin)
 }
 
 static void
-ioapic_enable_source(struct intsrc *isrc)
+ioapic_enable_source(x86pic_t pic, struct intsrc *isrc)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
 	struct ioapic *io = X86PIC_PIC(ioapic, isrc->is_pic);
@@ -298,7 +298,7 @@ ioapic_disable_source(x86pic_t pic, struct intsrc *isrc, int eoi)
 }
 
 static void
-ioapic_eoi_source(struct intsrc *isrc)
+ioapic_eoi_source(x86pic_t pic, struct intsrc *isrc)
 {
 
 	_ioapic_eoi_source(isrc, 0);
