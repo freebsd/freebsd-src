@@ -82,18 +82,18 @@ typedef struct pic *x86pic_t, x86pics_t;
  */
 struct pic {
 	void (*pic_register_sources)(x86pic_t);
-	void (*pic_enable_source)(struct intsrc *);
-	void (*pic_disable_source)(struct intsrc *, int);
-	void (*pic_eoi_source)(struct intsrc *);
-	void (*pic_enable_intr)(struct intsrc *);
-	void (*pic_disable_intr)(struct intsrc *);
-	int (*pic_source_pending)(struct intsrc *);
+	void (*pic_enable_source)(x86pic_t, struct intsrc *);
+	void (*pic_disable_source)(x86pic_t, struct intsrc *, int);
+	void (*pic_eoi_source)(x86pic_t, struct intsrc *);
+	void (*pic_enable_intr)(x86pic_t, struct intsrc *);
+	void (*pic_disable_intr)(x86pic_t, struct intsrc *);
+	int (*pic_source_pending)(x86pic_t, struct intsrc *);
 	void (*pic_suspend)(x86pic_t);
 	void (*pic_resume)(x86pic_t, bool suspend_cancelled);
-	int (*pic_config_intr)(struct intsrc *, enum intr_trigger,
+	int (*pic_config_intr)(x86pic_t, struct intsrc *, enum intr_trigger,
 	    enum intr_polarity);
-	int (*pic_assign_cpu)(struct intsrc *, u_int apic_id);
-	void (*pic_reprogram_pin)(struct intsrc *);
+	int (*pic_assign_cpu)(x86pic_t, struct intsrc *, u_int apic_id);
+	void (*pic_reprogram_pin)(x86pic_t, struct intsrc *);
 	TAILQ_ENTRY(pic) pics;
 };
 
