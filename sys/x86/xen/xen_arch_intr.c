@@ -144,7 +144,7 @@ xen_intr_alloc_irqs(void)
 }
 
 static void
-xen_intr_pic_enable_source(struct intsrc *isrc)
+xen_intr_pic_enable_source(x86pic_t pic, struct intsrc *isrc)
 {
 
 	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
@@ -158,7 +158,7 @@ xen_intr_pic_enable_source(struct intsrc *isrc)
  * \param isrc  The interrupt source to EOI.
  */
 static void
-xen_intr_pic_disable_source(struct intsrc *isrc, int eoi)
+xen_intr_pic_disable_source(x86pic_t pic, struct intsrc *isrc, int eoi)
 {
 
 	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
@@ -167,14 +167,14 @@ xen_intr_pic_disable_source(struct intsrc *isrc, int eoi)
 }
 
 static void
-xen_intr_pic_eoi_source(struct intsrc *isrc)
+xen_intr_pic_eoi_source(x86pic_t pic, struct intsrc *isrc)
 {
 
 	/* Nothing to do on end-of-interrupt */
 }
 
 static void
-xen_intr_pic_enable_intr(struct intsrc *isrc)
+xen_intr_pic_enable_intr(x86pic_t pic, struct intsrc *isrc)
 {
 
 	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
@@ -183,7 +183,7 @@ xen_intr_pic_enable_intr(struct intsrc *isrc)
 }
 
 static void
-xen_intr_pic_disable_intr(struct intsrc *isrc)
+xen_intr_pic_disable_intr(x86pic_t pic, struct intsrc *isrc)
 {
 
 	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
@@ -200,7 +200,7 @@ xen_intr_pic_disable_intr(struct intsrc *isrc)
  * \returns  0 if no events are pending, otherwise non-zero.
  */
 static int
-xen_intr_pic_source_pending(struct intsrc *isrc)
+xen_intr_pic_source_pending(x86pic_t pic, struct intsrc *isrc)
 {
 	/*
 	 * EventChannels are edge triggered and never masked.
@@ -237,8 +237,8 @@ xen_intr_pic_resume(x86pic_t pic, bool suspend_cancelled)
  * \returns  0 if no events are pending, otherwise non-zero.
  */
 static int
-xen_intr_pic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
-    enum intr_polarity pol)
+xen_intr_pic_config_intr(x86pic_t pic, struct intsrc *isrc,
+    enum intr_trigger trig, enum intr_polarity pol)
 {
 	/* Configuration is only possible via the evtchn apis. */
 	return (ENODEV);
@@ -246,7 +246,7 @@ xen_intr_pic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 
 
 static int
-xen_intr_pic_assign_cpu(struct intsrc *isrc, u_int apic_id)
+xen_intr_pic_assign_cpu(x86pic_t pic, struct intsrc *isrc, u_int apic_id)
 {
 
 	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
