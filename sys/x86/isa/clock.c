@@ -89,7 +89,7 @@ static	struct mtx clock_lock;
 static	struct intsrc *i8254_intsrc;
 static	uint16_t i8254_lastcount;
 static	uint16_t i8254_offset;
-static	int	(*i8254_pending)(struct intsrc *);
+static	int	(*i8254_pending)(x86pic_t, struct intsrc *);
 static	int	i8254_ticked;
 
 struct attimer_softc {
@@ -491,7 +491,8 @@ i8254_get_timecount(struct timecounter *tc)
 	    (!i8254_ticked && (clkintr_pending ||
 	    ((count < 20 || (!(flags & PSL_I) &&
 	    count < i8254_max_count / 2u)) &&
-	    i8254_pending != NULL && i8254_pending(i8254_intsrc))))) {
+	    i8254_pending != NULL &&
+	    i8254_pending(i8254_intsrc->is_pic, i8254_intsrc))))) {
 		i8254_ticked = 1;
 		i8254_offset += i8254_max_count;
 	}
