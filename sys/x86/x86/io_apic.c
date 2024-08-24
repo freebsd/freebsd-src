@@ -113,17 +113,18 @@ static const char *ioapic_bus_string(int bus_type);
 static void	ioapic_print_irq(struct ioapic_intsrc *intpin);
 static void	ioapic_register_sources(x86pic_t pic);
 static void	ioapic_enable_source(struct intsrc *isrc);
-static void	ioapic_disable_source(struct intsrc *isrc, int eoi);
+static void	ioapic_disable_source(x86pic_t pic, struct intsrc *isrc, int eoi);
 static void	ioapic_eoi_source(struct intsrc *isrc);
-static void	ioapic_enable_intr(struct intsrc *isrc);
-static void	ioapic_disable_intr(struct intsrc *isrc);
-static int	ioapic_source_pending(struct intsrc *isrc);
-static int	ioapic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
-		    enum intr_polarity pol);
+static void	ioapic_enable_intr(x86pic_t pic, struct intsrc *isrc);
+static void	ioapic_disable_intr(x86pic_t pic, struct intsrc *isrc);
+static int	ioapic_source_pending(x86pic_t pic, struct intsrc *isrc);
+static int	ioapic_config_intr(x86pic_t pic, struct intsrc *isrc,
+		    enum intr_trigger trig, enum intr_polarity pol);
 static void	ioapic_resume(x86pic_t pic, bool suspend_cancelled);
-static int	ioapic_assign_cpu(struct intsrc *isrc, u_int apic_id);
+static int	ioapic_assign_cpu(x86pic_t pic, struct intsrc *isrc,
+		    u_int apic_id);
 static void	ioapic_program_intpin(struct ioapic_intsrc *intpin);
-static void	ioapic_reprogram_intpin(struct intsrc *isrc);
+static void	ioapic_reprogram_intpin(x86pic_t pic, struct intsrc *isrc);
 
 static STAILQ_HEAD(,ioapic) ioapic_list = STAILQ_HEAD_INITIALIZER(ioapic_list);
 struct pic ioapic_template = {
@@ -276,7 +277,7 @@ ioapic_enable_source(struct intsrc *isrc)
 }
 
 static void
-ioapic_disable_source(struct intsrc *isrc, int eoi)
+ioapic_disable_source(x86pic_t pic, struct intsrc *isrc, int eoi)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
 	struct ioapic *io = X86PIC_PIC(ioapic, isrc->is_pic);
@@ -405,7 +406,7 @@ ioapic_program_intpin(struct ioapic_intsrc *intpin)
 }
 
 static void
-ioapic_reprogram_intpin(struct intsrc *isrc)
+ioapic_reprogram_intpin(x86pic_t pic, struct intsrc *isrc)
 {
 
 	mtx_lock_spin(&icu_lock);
@@ -414,7 +415,7 @@ ioapic_reprogram_intpin(struct intsrc *isrc)
 }
 
 static int
-ioapic_assign_cpu(struct intsrc *isrc, u_int apic_id)
+ioapic_assign_cpu(x86pic_t pic, struct intsrc *isrc, u_int apic_id)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
 	struct ioapic *io = X86PIC_PIC(ioapic, isrc->is_pic);
@@ -497,19 +498,19 @@ ioapic_assign_cpu(struct intsrc *isrc, u_int apic_id)
 }
 
 static void
-ioapic_enable_intr(struct intsrc *isrc)
+ioapic_enable_intr(x86pic_t pic, struct intsrc *isrc)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
 
 	if (intpin->io_vector == 0)
-		if (ioapic_assign_cpu(isrc, intr_next_cpu(isrc->is_domain)) != 0)
+		if (ioapic_assign_cpu(pic, isrc, intr_next_cpu(isrc->is_domain)) != 0)
 			panic("Couldn't find an APIC vector for IRQ %d",
 			    intpin->io_irq);
 	apic_enable_vector(intpin->io_cpu, intpin->io_vector);
 }
 
 static void
-ioapic_disable_intr(struct intsrc *isrc)
+ioapic_disable_intr(x86pic_t pic, struct intsrc *isrc)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
 	u_int vector;
@@ -528,7 +529,7 @@ ioapic_disable_intr(struct intsrc *isrc)
 }
 
 static int
-ioapic_source_pending(struct intsrc *isrc)
+ioapic_source_pending(x86pic_t pic, struct intsrc *isrc)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
 
@@ -538,7 +539,7 @@ ioapic_source_pending(struct intsrc *isrc)
 }
 
 static int
-ioapic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
+ioapic_config_intr(x86pic_t pic, struct intsrc *isrc, enum intr_trigger trig,
     enum intr_polarity pol)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
@@ -903,7 +904,7 @@ ioapic_register(ioapic_drv_t io)
 	 */
 	intr_register_pic(X86PIC_PTR(io->io_pic));
 	for (i = 0, pin = io->io_pins; i < io->io_numintr; i++, pin++)
-		ioapic_reprogram_intpin(&pin->io_intsrc);
+		ioapic_reprogram_intpin(X86PIC_PTR(io->io_pic), &pin->io_intsrc);
 }
 
 /*
