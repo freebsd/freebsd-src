@@ -203,10 +203,8 @@ intr_init_sources(void *arg)
 	 * single-threaded at this point in startup so the list of
 	 * PICs shouldn't change.
 	 */
-	TAILQ_FOREACH(pic, &pics, pics) {
-		if (pic->pic_register_sources != NULL)
-			pic->pic_register_sources(pic);
-	}
+	TAILQ_FOREACH(pic, &pics, pics)
+		PIC_REGISTER_SOURCES(pic);
 }
 SYSINIT(intr_init_sources, SI_SUB_INTR, SI_ORDER_FOURTH + 1, intr_init_sources,
     NULL);
@@ -268,8 +266,8 @@ intr_add_handler(struct intsrc *isrc, const char *name, driver_filter_t filter,
 		isrc->is_handlers++;
 		if (isrc->is_handlers == 1) {
 			isrc->is_domain = domain;
-			isrc->is_pic->pic_enable_intr(isrc->is_pic, isrc);
-			isrc->is_pic->pic_enable_source(isrc->is_pic, isrc);
+			PIC_ENABLE_INTR(isrc->is_pic, isrc);
+			PIC_ENABLE_SOURCE(isrc->is_pic, isrc);
 		}
 		sx_xunlock(&intrsrc_lock);
 	}
@@ -288,8 +286,8 @@ intr_remove_handler(void *cookie)
 		sx_xlock(&intrsrc_lock);
 		isrc->is_handlers--;
 		if (isrc->is_handlers == 0) {
-			isrc->is_pic->pic_disable_source(isrc->is_pic, isrc, PIC_NO_EOI);
-			isrc->is_pic->pic_disable_intr(isrc->is_pic, isrc);
+			PIC_DISABLE_SOURCE(isrc->is_pic, isrc, PIC_NO_EOI);
+			PIC_DISABLE_INTR(isrc->is_pic, isrc);
 		}
 		intrcnt_updatename(isrc);
 		sx_xunlock(&intrsrc_lock);
@@ -302,7 +300,7 @@ intr_config_intr(struct intsrc *isrc, enum intr_trigger trig,
     enum intr_polarity pol)
 {
 
-	return (isrc->is_pic->pic_config_intr(isrc->is_pic, isrc, trig, pol));
+	return (PIC_CONFIG_INTR(isrc->is_pic, isrc, trig, pol));
 }
 
 static void
@@ -311,7 +309,7 @@ intr_disable_src(void *arg)
 	struct intsrc *isrc;
 
 	isrc = arg;
-	isrc->is_pic->pic_disable_source(isrc->is_pic, isrc, PIC_EOI);
+	PIC_DISABLE_SOURCE(isrc->is_pic, isrc, PIC_EOI);
 }
 
 static void
@@ -319,7 +317,7 @@ intr_enable_source(void *arg)
 {
 	struct intsrc *isrc = arg;
 
-	isrc->is_pic->pic_enable_source(isrc->is_pic, isrc);
+	PIC_ENABLE_SOURCE(isrc->is_pic, isrc);
 }
 
 static void
@@ -327,7 +325,7 @@ intr_eoi_source(void *arg)
 {
 	struct intsrc *isrc = arg;
 
-	isrc->is_pic->pic_eoi_source(isrc->is_pic, isrc);
+	PIC_EOI_SOURCE(isrc->is_pic, isrc);
 }
 
 void
@@ -360,7 +358,7 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 	 * stray count, and log the condition.
 	 */
 	if (intr_event_handle(ie, frame) != 0) {
-		isrc->is_pic->pic_disable_source(isrc->is_pic, isrc, PIC_EOI);
+		PIC_DISABLE_SOURCE(isrc->is_pic, isrc, PIC_EOI);
 		(*isrc->is_straycount)++;
 		if (*isrc->is_straycount < INTR_STRAY_LOG_MAX)
 			log(LOG_ERR, "stray irq%d\n", vector);
@@ -380,10 +378,8 @@ intr_resume(bool suspend_cancelled)
 	atpic_reset();
 #endif
 	mtx_lock(&intrpic_lock);
-	TAILQ_FOREACH(pic, &pics, pics) {
-		if (pic->pic_resume != NULL)
-			pic->pic_resume(pic, suspend_cancelled);
-	}
+	TAILQ_FOREACH(pic, &pics, pics)
+		PIC_RESUME(pic, suspend_cancelled);
 	mtx_unlock(&intrpic_lock);
 }
 
@@ -393,10 +389,8 @@ intr_suspend(void)
 	struct pic *pic;
 
 	mtx_lock(&intrpic_lock);
-	TAILQ_FOREACH_REVERSE(pic, &pics, pics_head, pics) {
-		if (pic->pic_suspend != NULL)
-			pic->pic_suspend(pic);
-	}
+	TAILQ_FOREACH_REVERSE(pic, &pics, pics_head, pics)
+		PIC_SUSPEND(pic);
 	mtx_unlock(&intrpic_lock);
 }
 
@@ -413,7 +407,7 @@ intr_assign_cpu(void *arg, int cpu)
 	if (mp_ncpus > 1 && cpu != NOCPU) {
 		isrc = arg;
 		sx_xlock(&intrsrc_lock);
-		error = isrc->is_pic->pic_assign_cpu(isrc->is_pic, isrc, cpu_apic_ids[cpu]);
+		error = PIC_ASSIGN_CPU(isrc->is_pic, isrc, cpu_apic_ids[cpu]);
 		if (error == 0)
 			isrc->is_cpu = cpu;
 		sx_xunlock(&intrsrc_lock);
@@ -543,8 +537,7 @@ intr_reprogram(void)
 		is = interrupt_sources[v];
 		if (is == NULL)
 			continue;
-		if (is->is_pic->pic_reprogram_pin != NULL)
-			is->is_pic->pic_reprogram_pin(is->is_pic, is);
+		PIC_REPROGRAM_PIN(is->is_pic, is);
 	}
 	sx_xunlock(&intrsrc_lock);
 }
@@ -761,8 +754,7 @@ intr_balance(void *dummy __unused, int pending __unused)
 		cpu = current_cpu[isrc->is_domain];
 		intr_next_cpu(isrc->is_domain);
 		if (isrc->is_cpu != cpu &&
-		    isrc->is_pic->pic_assign_cpu(isrc->is_pic, isrc,
-		    cpu_apic_ids[cpu]) == 0)
+		    PIC_ASSIGN_CPU(isrc->is_pic, isrc, cpu_apic_ids[cpu]) == 0)
 			isrc->is_cpu = cpu;
 	}
 	sx_xunlock(&intrsrc_lock);
