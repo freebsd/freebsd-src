@@ -144,7 +144,7 @@ xen_intr_alloc_irqs(void)
 }
 
 static void
-xen_intr_pic_enable_source(struct intsrc *isrc)
+xen_intr_pic_enable_source(x86pic_t pic, struct intsrc *isrc)
 {
 
 	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
@@ -167,7 +167,7 @@ xen_intr_pic_disable_source(x86pic_t pic, struct intsrc *isrc, int eoi)
 }
 
 static void
-xen_intr_pic_eoi_source(struct intsrc *isrc)
+xen_intr_pic_eoi_source(x86pic_t pic, struct intsrc *isrc)
 {
 
 	/* Nothing to do on end-of-interrupt */
