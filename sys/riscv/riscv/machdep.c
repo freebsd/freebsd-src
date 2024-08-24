@@ -365,7 +365,7 @@ fake_preload_metadata(struct riscv_bootparams *rvbp)
 	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_NAME);
 	PRELOAD_PUSH_STRING("kernel");
 	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_TYPE);
-	PRELOAD_PUSH_STRING("elf kernel");
+	PRELOAD_PUSH_STRING(preload_kerntype);
 
 	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_ADDR);
 	PRELOAD_PUSH_VALUE(uint32_t, sizeof(vm_offset_t));

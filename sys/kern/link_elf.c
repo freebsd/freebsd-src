@@ -895,9 +895,7 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 	sizeptr = preload_search_info(modptr, MODINFO_SIZE);
 	dynptr = preload_search_info(modptr,
 	    MODINFO_METADATA | MODINFOMD_DYNAMIC);
-	if (type == NULL ||
-	    (strcmp(type, "elf" __XSTRING(__ELF_WORD_SIZE) " module") != 0 &&
-	     strcmp(type, "elf module") != 0))
+	if (type == NULL || strcmp(type, preload_modtype) != 0)
 		return (EFTYPE);
 	if (baseptr == NULL || sizeptr == NULL || dynptr == NULL)
 		return (EINVAL);

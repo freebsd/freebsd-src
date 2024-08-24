@@ -644,15 +644,14 @@ fake_preload_metadata(void) {
 
 	fake_preload[i++] = MODINFO_NAME;
 	fake_preload[i++] = strlen("kernel") + 1;
-	strcpy((char*)&fake_preload[i], "kernel");
+	strcpy((char *)&fake_preload[i], "kernel");
 	/* ['k' 'e' 'r' 'n'] ['e' 'l' '\0' ..] */
 	i += 2;
 
 	fake_preload[i++] = MODINFO_TYPE;
-	fake_preload[i++] = strlen("elf kernel") + 1;
-	strcpy((char*)&fake_preload[i], "elf kernel");
-	/* ['e' 'l' 'f' ' '] ['k' 'e' 'r' 'n'] ['e' 'l' '\0' ..] */
-	i += 3;
+	fake_preload[i++] = strlen(preload_kerntype) + 1;
+	strcpy((char *)&fake_preload[i], preload_kerntype);
+	i += howmany(fake_preload[i - 1], sizeof(uint32_t));
 
 #ifdef __powerpc64__
 	/* Padding -- Fields start on u_long boundaries */
