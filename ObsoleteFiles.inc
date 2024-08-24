@@ -51,6 +51,16 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20240824: sound examples: midi.c moved out of oss/
+OLD_FILES+=share/examples/sound/oss/midi.c
+
+# 20240824: sound examples: Remove ossinit.h and rename basic.c to audio.c
+OLD_FILES+=share/examples/sound/oss/ossinit.h
+OLD_FILES+=share/examples/sound/oss/basic.c
+
+# 20240824: sound examples: Remove ossmidi.h
+OLD_FILES+=share/examples/sound/oss/ossmidi.h
+
 # 20240801: retire ifaddr_byindex
 OLD_FILES+=usr/share/man/man9/ifaddr_byindex.9.gz
 
