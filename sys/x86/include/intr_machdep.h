@@ -136,6 +136,8 @@ enum {
 				((pic)->pic_reprogram_pin((isrc)));	\
 		} while(0)
 
+#define	X86PIC_FUNC(func, impl)	.func = impl
+#define	X86PIC_END
 #define	X86PIC_PIC(type, pic)	((struct type *)(pic))
 #define	X86PIC_PTR(pic)		(&(pic))
 
