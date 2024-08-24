@@ -128,17 +128,17 @@ struct atpic_intsrc {
 };
 
 static void atpic_register_sources(x86pic_t pic);
-static void atpic_enable_source(struct intsrc *isrc);
-static void atpic_disable_source(struct intsrc *isrc, int eoi);
-static void atpic_eoi(struct intsrc *isrc);
-static void atpic_enable_intr(struct intsrc *isrc);
-static void atpic_disable_intr(struct intsrc *isrc);
+static void atpic_enable_source(x86pic_t pic, struct intsrc *isrc);
+static void atpic_disable_source(x86pic_t pic, struct intsrc *isrc, int eoi);
+static void atpic_eoi(x86pic_t pic, struct intsrc *isrc);
+static void atpic_enable_intr(x86pic_t pic, struct intsrc *isrc);
+static void atpic_disable_intr(x86pic_t pic, struct intsrc *isrc);
 static int atpic_vector(struct intsrc *isrc);
 static void atpic_resume(x86pic_t pic, bool suspend_cancelled);
-static int atpic_source_pending(struct intsrc *isrc);
-static int atpic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
-    enum intr_polarity pol);
-static int atpic_assign_cpu(struct intsrc *isrc, u_int apic_id);
+static int atpic_source_pending(x86pic_t pic, struct intsrc *isrc);
+static int atpic_config_intr(x86pic_t pic, struct intsrc *isrc,
+    enum intr_trigger trig, enum intr_polarity pol);
+static int atpic_assign_cpu(x86pic_t pic, struct intsrc *isrc, u_int apic_id);
 static void i8259_init(struct atpic *pic, int slave);
 
 #ifdef DEV_ISA
@@ -268,7 +268,7 @@ atpic_register_sources(x86pic_t pic)
 }
 
 static void
-atpic_enable_source(struct intsrc *isrc)
+atpic_enable_source(x86pic_t pic, struct intsrc *isrc)
 {
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
 	struct atpic *ap = X86PIC_PIC(isrc->is_pic);
@@ -282,7 +282,7 @@ atpic_enable_source(struct intsrc *isrc)
 }
 
 static void
-atpic_disable_source(struct intsrc *isrc, int eoi)
+atpic_disable_source(x86pic_t pic, struct intsrc *isrc, int eoi)
 {
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
 	struct atpic *ap = X86PIC_PIC(isrc->is_pic);
@@ -309,7 +309,7 @@ atpic_disable_source(struct intsrc *isrc, int eoi)
 }
 
 static void
-atpic_eoi(struct intsrc *isrc)
+atpic_eoi(x86pic_t pic, struct intsrc *isrc)
 {
 	/* Reference the above comment (atpic_disable_source()) */
 	if (isrc->is_pic == X86PICP(atpics[MASTER].at_pic)) {
@@ -328,12 +328,12 @@ atpic_eoi(struct intsrc *isrc)
 }
 
 static void
-atpic_enable_intr(struct intsrc *isrc)
+atpic_enable_intr(x86pic_t pic, struct intsrc *isrc)
 {
 }
 
 static void
-atpic_disable_intr(struct intsrc *isrc)
+atpic_disable_intr(x86pic_t pic, struct intsrc *isrc)
 {
 }
 
@@ -347,7 +347,7 @@ atpic_vector(struct intsrc *isrc)
 }
 
 static int
-atpic_source_pending(struct intsrc *isrc)
+atpic_source_pending(x86pic_t pic, struct intsrc *isrc)
 {
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
 	struct atpic *ap = X86PIC_PIC(isrc->is_pic);
@@ -366,7 +366,7 @@ atpic_resume(x86pic_t pic, bool suspend_cancelled)
 }
 
 static int
-atpic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
+atpic_config_intr(x86pic_t pic, struct intsrc *isrc, enum intr_trigger trig,
     enum intr_polarity pol)
 {
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
@@ -422,7 +422,7 @@ atpic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 }
 
 static int
-atpic_assign_cpu(struct intsrc *isrc, u_int apic_id)
+atpic_assign_cpu(x86pic_t pic, struct intsrc *isrc, u_int apic_id)
 {
 
 	/*
@@ -478,12 +478,14 @@ void
 atpic_startup(void)
 {
 	struct atpic_intsrc *ai;
+	struct intsrc *isrc;
 	int i;
 
 	/* Start off with all interrupts disabled. */
 	i8259_init(&atpics[MASTER], 0);
 	i8259_init(&atpics[SLAVE], 1);
-	atpic_enable_source((struct intsrc *)&atintrs[ICU_SLAVEID]);
+	isrc = &atintrs[ICU_SLAVEID].at_intsrc;
+	atpic_enable_source(isrc->is_pic, isrc);
 
 	/* Install low-level interrupt handlers for all of our IRQs. */
 	for (i = 0, ai = atintrs; i < NUM_ISA_IRQS; i++, ai++) {
