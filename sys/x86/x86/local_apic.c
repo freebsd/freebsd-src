@@ -338,7 +338,7 @@ lapic_is_x2apic(void)
 }
 
 static void	lapic_enable(void);
-static void	lapic_resume(struct pic *pic, bool suspend_cancelled);
+static void	lapic_resume(x86pic_t pic, bool suspend_cancelled);
 static void	lapic_timer_oneshot(struct lapic *);
 static void	lapic_timer_oneshot_nointr(struct lapic *, uint32_t);
 static void	lapic_timer_periodic(struct lapic *);
@@ -352,7 +352,11 @@ static int	lapic_et_stop(struct eventtimer *et);
 static u_int	apic_idt_to_irq(u_int apic_id, u_int vector);
 static void	lapic_set_tpr(u_int vector);
 
-struct pic lapic_pic = { .pic_resume = lapic_resume };
+x86pic_func_t lapic_pic = {
+	/* Interrupt controller interface */
+	X86PIC_FUNC(pic_resume,			lapic_resume),
+	X86PIC_END
+};
 
 static uint32_t
 lvt_mode_impl(struct lapic *la, struct lvt *lvt, u_int pin, uint32_t value)
@@ -1062,7 +1066,7 @@ lapic_enable(void)
 
 /* Reset the local APIC on the BSP during resume. */
 static void
-lapic_resume(struct pic *pic, bool suspend_cancelled)
+lapic_resume(x86pic_t pic, bool suspend_cancelled)
 {
 
 	lapic_setup(0);
