@@ -320,9 +320,8 @@ SE_SOUND= \
 SE_DIRS+=	sound/oss
 SE_SOUND_OSS= \
 	README \
-	basic.c \
-	midi.c \
-	ossinit.h
+	audio.c \
+	midi.c
 
 SE_DIRS+=	sunrpc
 SE_SUNRPC=	Makefile
