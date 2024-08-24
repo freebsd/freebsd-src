@@ -359,9 +359,9 @@ fake_preload_metadata(struct arm_boot_params *abp __unused, void *dtb_ptr,
 	strcpy((char*)&fake_preload[i++], "kernel");
 	i += 1;
 	fake_preload[i++] = MODINFO_TYPE;
-	fake_preload[i++] = strlen("elf kernel") + 1;
-	strcpy((char*)&fake_preload[i++], "elf kernel");
-	i += 2;
+	fake_preload[i++] = strlen(preload_kerntype) + 1;
+	strcpy((char*)&fake_preload[i], preload_kerntype);
+	i += howmany(fake_preload[i - 1], sizeof(uint32_t));
 	fake_preload[i++] = MODINFO_ADDR;
 	fake_preload[i++] = sizeof(vm_offset_t);
 	fake_preload[i++] = KERNVIRTADDR;

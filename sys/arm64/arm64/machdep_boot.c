@@ -98,7 +98,7 @@ fake_preload_metadata(void *dtb_ptr, size_t dtb_size)
 	PRELOAD_PUSH_STRING("kernel");
 
 	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_TYPE);
-	PRELOAD_PUSH_STRING("elf kernel");
+	PRELOAD_PUSH_STRING(preload_kerntype);
 
 	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_ADDR);
 	PRELOAD_PUSH_VALUE(uint32_t, sizeof(vm_offset_t));
