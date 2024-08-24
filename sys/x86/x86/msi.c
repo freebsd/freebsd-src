@@ -135,16 +135,16 @@ static int	msi_source_pending(struct intsrc *isrc);
 static int	msi_assign_cpu(struct intsrc *isrc, u_int apic_id);
 
 struct pic msi_pic = {
-	.pic_enable_source = msi_enable_source,
-	.pic_disable_source = msi_disable_source,
-	.pic_eoi_source = msi_eoi_source,
-	.pic_enable_intr = msi_enable_intr,
-	.pic_disable_intr = msi_disable_intr,
-	.pic_source_pending = msi_source_pending,
-	.pic_suspend = NULL,
-	.pic_resume = NULL,
-	.pic_assign_cpu = msi_assign_cpu,
-	.pic_reprogram_pin = NULL,
+	/* Interrupt controller interface */
+	X86PIC_FUNC(pic_enable_source,		msi_enable_source),
+	X86PIC_FUNC(pic_disable_source,		msi_disable_source),
+	X86PIC_FUNC(pic_eoi_source,		msi_eoi_source),
+	X86PIC_FUNC(pic_enable_intr,		msi_enable_intr),
+	X86PIC_FUNC(pic_disable_intr,		msi_disable_intr),
+	X86PIC_FUNC(pic_source_pending,		msi_source_pending),
+	X86PIC_FUNC(pic_assign_cpu,		msi_assign_cpu),
+
+	X86PIC_END
 };
 
 u_int first_msi_irq;
