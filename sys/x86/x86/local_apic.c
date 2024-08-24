@@ -452,7 +452,7 @@ lapic_is_x2apic(void)
 
 static void	lapic_early_mask_vecs(void);
 static void	lapic_enable(void);
-static void	lapic_resume(struct pic *pic, bool suspend_cancelled);
+static void	lapic_resume(x86pic_t pic, bool suspend_cancelled);
 static void	lapic_timer_oneshot(struct lapic *);
 static void	lapic_timer_oneshot_nointr(struct lapic *, uint32_t);
 static void	lapic_timer_periodic(struct lapic *);
@@ -1209,7 +1209,7 @@ lapic_enable(void)
 
 /* Reset the local APIC on the BSP during resume. */
 static void
-lapic_resume(struct pic *pic, bool suspend_cancelled)
+lapic_resume(x86pic_t pic, bool suspend_cancelled)
 {
 
 	lapic_setup(0);
