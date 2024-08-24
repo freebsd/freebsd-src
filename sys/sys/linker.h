@@ -221,6 +221,14 @@ void linker_kldload_unbusy(int flags);
 #endif	/* _KERNEL */
 
 /*
+ * ELF file types
+ */
+#define KERNTYPE_MB	"elf multiboot kernel"
+#define KERNTYPE	"elf kernel"
+#define MODTYPE_OBJ	"elf obj module"
+#define MODTYPE		"elf module"
+
+/*
  * Module information subtypes
  */
 #define MODINFO_END		0x0000		/* End of list */
@@ -273,6 +281,9 @@ void linker_kldload_unbusy(int flags);
  */
 extern vm_offset_t	preload_addr_relocate;
 extern caddr_t		preload_metadata, preload_kmdp;
+extern const char	preload_modtype[];
+extern const char	preload_kerntype[];
+extern const char	preload_modtype_obj[];
 
 extern void *		preload_fetch_addr(caddr_t _mod);
 extern size_t		preload_fetch_size(caddr_t _mod);
