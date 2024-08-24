@@ -515,7 +515,7 @@ attimer_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 		sc->period = first;
 	}
 	if (!sc->intr_en) {
-		i8254_intsrc->is_pic->pic_enable_source(i8254_intsrc);
+		PIC_ENABLE_SOURCE(i8254_intsrc->is_pic, i8254_intsrc);
 		sc->intr_en = 1;
 	}
 	set_i8254_freq(sc->mode, sc->period);
@@ -606,7 +606,7 @@ attimer_attach(device_t dev)
 			return (0);
 		}
 		i8254_intsrc->is_handlers--;
-		i8254_intsrc->is_pic->pic_enable_intr(i8254_intsrc);
+		PIC_ENABLE_INTR(i8254_intsrc->is_pic, i8254_intsrc);
 		sc->et.et_name = "i8254";
 		sc->et.et_flags = ET_FLAGS_PERIODIC;
 		if (!i8254_timecounter)
