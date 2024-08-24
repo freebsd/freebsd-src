@@ -160,7 +160,7 @@ xen_intr_pic_enable_source(struct intsrc *isrc)
  * \param isrc  The interrupt source to EOI.
  */
 static void
-xen_intr_pic_disable_source(struct intsrc *isrc, int eoi)
+xen_intr_pic_disable_source(x86pic_t pic, struct intsrc *isrc, int eoi)
 {
 
 	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
@@ -176,7 +176,7 @@ xen_intr_pic_eoi_source(struct intsrc *isrc)
 }
 
 static void
-xen_intr_pic_enable_intr(struct intsrc *isrc)
+xen_intr_pic_enable_intr(x86pic_t pic, struct intsrc *isrc)
 {
 
 	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
@@ -185,7 +185,7 @@ xen_intr_pic_enable_intr(struct intsrc *isrc)
 }
 
 static void
-xen_intr_pic_disable_intr(struct intsrc *isrc)
+xen_intr_pic_disable_intr(x86pic_t pic, struct intsrc *isrc)
 {
 
 	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
@@ -202,7 +202,7 @@ xen_intr_pic_disable_intr(struct intsrc *isrc)
  * \returns  0 if no events are pending, otherwise non-zero.
  */
 static int
-xen_intr_pic_source_pending(struct intsrc *isrc)
+xen_intr_pic_source_pending(x86pic_t pic, struct intsrc *isrc)
 {
 	/*
 	 * EventChannels are edge triggered and never masked.
@@ -231,7 +231,7 @@ xen_intr_pic_resume(x86pic_t pic, bool suspend_cancelled)
 
 
 static int
-xen_intr_pic_assign_cpu(struct intsrc *isrc, u_int apic_id)
+xen_intr_pic_assign_cpu(x86pic_t pic, struct intsrc *isrc, u_int apic_id)
 {
 
 	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,

@@ -89,17 +89,17 @@ typedef	struct pic		*x86pic_t, x86pics_t;
 struct pic {
 	void (*pic_register_sources)(x86pic_t);
 	void (*pic_enable_source)(struct intsrc *);
-	void (*pic_disable_source)(struct intsrc *, int);
+	void (*pic_disable_source)(x86pic_t, struct intsrc *, int);
 	void (*pic_eoi_source)(struct intsrc *);
-	void (*pic_enable_intr)(struct intsrc *);
-	void (*pic_disable_intr)(struct intsrc *);
-	int (*pic_source_pending)(struct intsrc *);
+	void (*pic_enable_intr)(x86pic_t, struct intsrc *);
+	void (*pic_disable_intr)(x86pic_t, struct intsrc *);
+	int (*pic_source_pending)(x86pic_t, struct intsrc *);
 	void (*pic_suspend)(x86pic_t);
 	void (*pic_resume)(x86pic_t, bool suspend_cancelled);
-	int (*pic_config_intr)(struct intsrc *, enum intr_trigger,
+	int (*pic_config_intr)(x86pic_t, struct intsrc *, enum intr_trigger,
 	    enum intr_polarity);
-	int (*pic_assign_cpu)(struct intsrc *, u_int apic_id);
-	void (*pic_reprogram_pin)(struct intsrc *);
+	int (*pic_assign_cpu)(x86pic_t, struct intsrc *, u_int apic_id);
+	void (*pic_reprogram_pin)(x86pic_t, struct intsrc *);
 	TAILQ_ENTRY(pic) pics;
 };
 
@@ -112,10 +112,10 @@ struct pic {
 #define	PIC_ENABLE_SOURCE(pic, isrc) \
 		((pic)->pic_enable_source((isrc)))
 #define	PIC_DISABLE_SOURCE(pic, isrc, eoi) \
-		((pic)->pic_disable_source((isrc), (eoi)))
+		((pic)->pic_disable_source((pic), (isrc), (eoi)))
 #define	PIC_EOI_SOURCE(pic, isrc)	((pic)->pic_eoi_source((isrc)))
-#define	PIC_ENABLE_INTR(pic, isrc)	((pic)->pic_enable_intr((isrc)))
-#define	PIC_DISABLE_INTR(pic, isrc)	((pic)->pic_disable_intr((isrc)))
+#define	PIC_ENABLE_INTR(pic, isrc)	((pic)->pic_enable_intr((pic), (isrc)))
+#define	PIC_DISABLE_INTR(pic, isrc)	((pic)->pic_disable_intr((pic), (isrc)))
 #define	PIC_SUSPEND(pic) \
 		do {							\
 			if ((pic)->pic_suspend != NULL)			\
@@ -127,14 +127,14 @@ struct pic {
 				((pic)->pic_resume((pic), (cancel)));	\
 		} while(0)
 #define	PIC_CONFIG_INTR(pic, isrc, trigger, polarity) \
-		((pic)->pic_config_intr != NULL ? (pic)->pic_config_intr(\
+		((pic)->pic_config_intr != NULL ? (pic)->pic_config_intr((pic),\
 		    (isrc), (trigger), (polarity)) : ENODEV)
 #define	PIC_ASSIGN_CPU(pic, isrc, apic_id) \
-		((pic)->pic_assign_cpu((isrc), (apic_id)))
+		((pic)->pic_assign_cpu((pic), (isrc), (apic_id)))
 #define	PIC_REPROGRAM_PIN(pic, isrc) \
 		do {							\
 			if ((pic)->pic_reprogram_pin != NULL)		\
-				((pic)->pic_reprogram_pin((isrc)));	\
+				((pic)->pic_reprogram_pin((pic), (isrc))); \
 		} while(0)
 
 #define	X86PIC_FUNC(func, impl)	.func = impl
