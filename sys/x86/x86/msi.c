@@ -135,7 +135,7 @@ static int	msi_source_pending(x86pic_t pic, struct intsrc *isrc);
 static int	msi_assign_cpu(x86pic_t pic, struct intsrc *isrc,
 		    u_int apic_id);
 
-struct pic msi_pic = {
+x86pic_func_t msi_pic = {
 	/* Interrupt controller interface */
 	X86PIC_FUNC(pic_enable_source,		msi_enable_source),
 	X86PIC_FUNC(pic_disable_source,		msi_disable_source),
