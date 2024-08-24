@@ -388,6 +388,7 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 	uint32_t maxrate, minrate, fmts, minchn, maxchn, caps;
 	nvlist_t *di = NULL, *sound4di = NULL, *diinfo = NULL, *cdi = NULL;
 	int err, nchan;
+	char buf[AFMTSTR_LEN];
 
 	di = nvlist_create(0);
 	if (di == NULL) {
@@ -531,10 +532,12 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 		while (f != NULL) {
 			sbuf_printf(&sb, "%s", f->class->name);
 			if (f->desc->type == FEEDER_FORMAT) {
-				sbuf_printf(&sb, "(0x%08x -> 0x%08x)",
-				    f->desc->in, f->desc->out);
+				snd_afmt2str(f->desc->in, buf, sizeof(buf));
+				sbuf_printf(&sb, "(%s -> ", buf);
+				snd_afmt2str(f->desc->out, buf, sizeof(buf));
+				sbuf_printf(&sb, "%s)", buf);
 			} else if (f->desc->type == FEEDER_MATRIX) {
-				sbuf_printf(&sb, "(%d.%d -> %d.%d)",
+				sbuf_printf(&sb, "(%d.%dch -> %d.%dch)",
 				    AFMT_CHANNEL(f->desc->in) -
 				    AFMT_EXTCHANNEL(f->desc->in),
 				    AFMT_EXTCHANNEL(f->desc->in),
@@ -542,15 +545,12 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 				    AFMT_EXTCHANNEL(f->desc->out),
 				    AFMT_EXTCHANNEL(f->desc->out));
 			} else if (f->desc->type == FEEDER_RATE) {
-				sbuf_printf(&sb,
-				    "(0x%08x q:%d %d -> %d)",
-				    f->desc->out,
-				    FEEDER_GET(f, FEEDRATE_QUALITY),
+				sbuf_printf(&sb, "(%d -> %d)",
 				    FEEDER_GET(f, FEEDRATE_SRC),
 				    FEEDER_GET(f, FEEDRATE_DST));
 			} else {
-				sbuf_printf(&sb, "(0x%08x)",
-				    f->desc->out);
+				snd_afmt2str(f->desc->out, buf, sizeof(buf));
+				sbuf_printf(&sb, "(%s)", buf);
 			}
 			sbuf_printf(&sb, " -> ");
 			f = f->parent;
