@@ -72,21 +72,23 @@ typedef void inthand_t(void);
 
 struct intsrc;
 
+typedef	struct pic		*x86pic_t, x86pics_t;
+
 /*
  * Methods that a PIC provides to mask/unmask a given interrupt source,
  * "turn on" the interrupt on the CPU side by setting up an IDT entry, and
  * return the vector associated with this source.
  */
 struct pic {
-	void (*pic_register_sources)(struct pic *);
+	void (*pic_register_sources)(x86pic_t);
 	void (*pic_enable_source)(struct intsrc *);
 	void (*pic_disable_source)(struct intsrc *, int);
 	void (*pic_eoi_source)(struct intsrc *);
 	void (*pic_enable_intr)(struct intsrc *);
 	void (*pic_disable_intr)(struct intsrc *);
 	int (*pic_source_pending)(struct intsrc *);
-	void (*pic_suspend)(struct pic *);
-	void (*pic_resume)(struct pic *, bool suspend_cancelled);
+	void (*pic_suspend)(x86pic_t);
+	void (*pic_resume)(x86pic_t, bool suspend_cancelled);
 	int (*pic_config_intr)(struct intsrc *, enum intr_trigger,
 	    enum intr_polarity);
 	int (*pic_assign_cpu)(struct intsrc *, u_int apic_id);
@@ -144,7 +146,7 @@ enum {
  * or an I/O APIC pointer.
  */
 struct intsrc {
-	struct pic *is_pic;
+	x86pic_t is_pic;
 	struct intr_event *is_event;
 	u_long *is_count;
 	u_long *is_straycount;
@@ -187,7 +189,7 @@ void	intr_disable_all(void);
 void	intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame);
 u_int	intr_next_cpu(int domain);
 struct intsrc *intr_lookup_source(int vector);
-void	intr_register_pic(struct pic *pic);
+void	intr_register_pic(x86pic_t pic);
 int	intr_register_source(unsigned int vector, struct intsrc *isrc);
 int	intr_remove_handler(struct intsrc *isrc, struct intr_handler *handler);
 void	intr_resume(bool suspend_cancelled);
