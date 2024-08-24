@@ -30,8 +30,9 @@
 
 #include <sys/param.h>
 #include <sys/linker.h>
-#include <sys/sndstat.h>
 #include <sys/nv.h>
+#include <sys/sndstat.h>
+#include <sys/soundcard.h>
 
 #include <atf-c.h>
 #include <errno.h>
@@ -59,8 +60,7 @@ ATF_TC_BODY(sndstat_nv, tc)
 	const nvlist_t * const *cdi;
 	struct sndstioc_nv_arg arg;
 	size_t nitems, nchans, i, j;
-	int fd, rc;
-	int pchan, rchan;
+	int fd, rc, pchan, rchan;
 
 	load_dummy();
 
@@ -135,7 +135,6 @@ ATF_TC_BODY(sndstat_nv, tc)
 		}
 #undef NV
 
-		/* XXX Do we need to skip the TC? userdevs won't have this list */
 		if (!nvlist_exists(di[i], SNDST_DSPS_PROVIDER_INFO))
 			continue;
 
@@ -206,9 +205,189 @@ ATF_TC_BODY(sndstat_nv, tc)
 	close(fd);
 }
 
+#define UDEV_PROVIDER	"sndstat_udev"
+#define UDEV_NAMEUNIT	"sndstat_udev"
+#define UDEV_DEVNODE	"sndstat_udev"
+#define UDEV_DESC	"Test Device"
+#define UDEV_PCHAN	1
+#define UDEV_RCHAN	1
+#define UDEV_MIN_RATE	8000
+#define UDEV_MAX_RATE	96000
+#define UDEV_FORMATS	(AFMT_S16_NE | AFMT_S24_NE | AFMT_S32_NE)
+#define UDEV_MIN_CHN	1
+#define UDEV_MAX_CHN	2
+
+ATF_TC(sndstat_udev);
+ATF_TC_HEAD(sndstat_udev, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "/dev/sndstat userdev interface test");
+}
+
+ATF_TC_BODY(sndstat_udev, tc)
+{
+	nvlist_t *nvl, *di, *dichild;
+	const nvlist_t * const *rdi;
+	struct sndstioc_nv_arg arg;
+	const char *str;
+	size_t nitems, i;
+	int fd, rc, pchan, rchan, n;
+
+	load_dummy();
+
+	if ((fd = open("/dev/sndstat", O_RDWR)) < 0)
+		atf_tc_skip("/dev/sndstat not found, load sound(4)");
+
+	nvl = nvlist_create(0);
+	ATF_REQUIRE(nvl != NULL);
+
+	di = nvlist_create(0);
+	ATF_REQUIRE(di != NULL);
+
+	dichild = nvlist_create(0);
+	ATF_REQUIRE(dichild != NULL);
+
+	nvlist_add_string(di, SNDST_DSPS_PROVIDER, UDEV_PROVIDER);
+	nvlist_add_string(di, SNDST_DSPS_NAMEUNIT, UDEV_NAMEUNIT);
+	nvlist_add_string(di, SNDST_DSPS_DESC, UDEV_DESC);
+	nvlist_add_string(di, SNDST_DSPS_DEVNODE, UDEV_DEVNODE);
+	nvlist_add_number(di, SNDST_DSPS_PCHAN, UDEV_PCHAN);
+	nvlist_add_number(di, SNDST_DSPS_RCHAN, UDEV_RCHAN);
+
+	nvlist_add_number(dichild, SNDST_DSPS_INFO_MIN_RATE, UDEV_MIN_RATE);
+	nvlist_add_number(dichild, SNDST_DSPS_INFO_MAX_RATE, UDEV_MAX_RATE);
+	nvlist_add_number(dichild, SNDST_DSPS_INFO_FORMATS, UDEV_FORMATS);
+	nvlist_add_number(dichild, SNDST_DSPS_INFO_MIN_CHN, UDEV_MIN_CHN);
+	nvlist_add_number(dichild, SNDST_DSPS_INFO_MAX_CHN, UDEV_MAX_CHN);
+
+	nvlist_add_nvlist(di, SNDST_DSPS_INFO_PLAY, dichild);
+	nvlist_add_nvlist(di, SNDST_DSPS_INFO_REC, dichild);
+
+	nvlist_append_nvlist_array(nvl, SNDST_DSPS, di);
+	ATF_REQUIRE_EQ(nvlist_error(nvl), 0);
+
+	arg.buf = nvlist_pack(nvl, &arg.nbytes);
+	ATF_REQUIRE_MSG(arg.buf != NULL, "failed to pack nvlist");
+
+	rc = ioctl(fd, SNDSTIOC_ADD_USER_DEVS, &arg);
+	free(arg.buf);
+	ATF_REQUIRE_EQ_MSG(rc, 0, "ioctl(SNDSTIOC_ADD_USER_DEVS) failed");
+
+	nvlist_destroy(di);
+	nvlist_destroy(dichild);
+	nvlist_destroy(nvl);
+
+	/* Read back registered values. */
+	rc = ioctl(fd, SNDSTIOC_REFRESH_DEVS, NULL);
+	ATF_REQUIRE_EQ(rc, 0);
+
+	arg.nbytes = 0;
+	arg.buf = NULL;
+	rc = ioctl(fd, SNDSTIOC_GET_DEVS, &arg);
+	ATF_REQUIRE_EQ_MSG(rc, 0, "ioctl(SNDSTIOC_GET_DEVS#1) failed");
+
+	arg.buf = malloc(arg.nbytes);
+	ATF_REQUIRE(arg.buf != NULL);
+
+	rc = ioctl(fd, SNDSTIOC_GET_DEVS, &arg);
+	ATF_REQUIRE_EQ_MSG(rc, 0, "ioctl(SNDSTIOC_GET_DEVS#2) failed");
+
+	nvl = nvlist_unpack(arg.buf, arg.nbytes, 0);
+	ATF_REQUIRE(nvl != NULL);
+
+	if (nvlist_empty(nvl) || !nvlist_exists(nvl, SNDST_DSPS))
+		atf_tc_skip("no soundcards attached");
+
+	rdi = nvlist_get_nvlist_array(nvl, SNDST_DSPS, &nitems);
+	for (i = 0; i < nitems; i++) {
+#define NV(type, item, var)	do {					\
+	ATF_REQUIRE_MSG(nvlist_exists(rdi[i], SNDST_DSPS_ ## item),	\
+	    "SNDST_DSPS_" #item " does not exist");			\
+	var = nvlist_get_ ## type (rdi[i], SNDST_DSPS_ ## item);	\
+} while (0)
+		/* Search for our device. */
+		NV(string, NAMEUNIT, str);
+		if (strcmp(str, UDEV_NAMEUNIT) == 0)
+			break;
+	}
+	if (i == nitems)
+		atf_tc_fail("userland device %s not found", UDEV_NAMEUNIT);
+
+	NV(string, NAMEUNIT, str);
+	ATF_CHECK(strcmp(str, UDEV_NAMEUNIT) == 0);
+
+	NV(bool, FROM_USER, n);
+	ATF_CHECK(n);
+
+	NV(string, DEVNODE, str);
+	ATF_CHECK(strcmp(str, UDEV_DEVNODE) == 0);
+
+	NV(string, DESC, str);
+	ATF_CHECK(strcmp(str, UDEV_DESC) == 0);
+
+	NV(string, PROVIDER, str);
+	ATF_CHECK(strcmp(str, UDEV_PROVIDER) == 0);
+
+	NV(number, PCHAN, pchan);
+	ATF_CHECK(pchan == UDEV_PCHAN);
+	if (pchan && !nvlist_exists(rdi[i], SNDST_DSPS_INFO_PLAY))
+		atf_tc_fail("playback channel list empty");
+
+	NV(number, RCHAN, rchan);
+	ATF_CHECK(rchan == UDEV_RCHAN);
+	if (rchan && !nvlist_exists(rdi[i], SNDST_DSPS_INFO_REC))
+		atf_tc_fail("recording channel list empty");
+#undef NV
+
+#define NV(type, mode, item, var)	do {				\
+	ATF_REQUIRE_MSG(nvlist_exists(nvlist_get_nvlist(rdi[i],		\
+	    SNDST_DSPS_INFO_ ## mode), SNDST_DSPS_INFO_ ## item),	\
+	    "SNDST_DSPS_INFO_" #item " does not exist");		\
+	var = nvlist_get_ ## type (nvlist_get_nvlist(rdi[i],		\
+	    SNDST_DSPS_INFO_ ## mode), SNDST_DSPS_INFO_ ## item);	\
+} while (0)
+	if (pchan) {
+		NV(number, PLAY, MIN_RATE, n);
+		ATF_CHECK(n == UDEV_MIN_RATE);
+
+		NV(number, PLAY, MAX_RATE, n);
+		ATF_CHECK(n == UDEV_MAX_RATE);
+
+		NV(number, PLAY, FORMATS, n);
+		ATF_CHECK(n == UDEV_FORMATS);
+
+		NV(number, PLAY, MIN_CHN, n);
+		ATF_CHECK(n == UDEV_MIN_CHN);
+
+		NV(number, PLAY, MAX_CHN, n);
+		ATF_CHECK(n == UDEV_MAX_CHN);
+	}
+	if (rchan) {
+		NV(number, REC, MIN_RATE, n);
+		ATF_CHECK(n == UDEV_MIN_RATE);
+
+		NV(number, REC, MAX_RATE, n);
+		ATF_CHECK(n == UDEV_MAX_RATE);
+
+		NV(number, REC, FORMATS, n);
+		ATF_CHECK(n == UDEV_FORMATS);
+
+		NV(number, REC, MIN_CHN, n);
+		ATF_CHECK(n == UDEV_MIN_CHN);
+
+		NV(number, REC, MAX_CHN, n);
+		ATF_CHECK(n == UDEV_MAX_CHN);
+	}
+#undef NV
+
+	free(arg.buf);
+	nvlist_destroy(nvl);
+	close(fd);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, sndstat_nv);
+	ATF_TP_ADD_TC(tp, sndstat_udev);
 
 	return (atf_no_error());
 }
