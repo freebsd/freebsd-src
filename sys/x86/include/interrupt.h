@@ -79,6 +79,7 @@ typedef void inthand_t(void);
 #define	X86PIC_FUNC(func, impl) .func = impl
 #define	X86PIC_END
 typedef struct pic *x86pic_t, x86pics_t;
+typedef struct pic x86pic_func_t;
 
 /*
  * Methods that a PIC provides to mask/unmask a given interrupt source,

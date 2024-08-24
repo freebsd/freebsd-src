@@ -352,7 +352,7 @@ static int	lapic_et_stop(struct eventtimer *et);
 static u_int	apic_idt_to_irq(u_int apic_id, u_int vector);
 static void	lapic_set_tpr(u_int vector);
 
-struct pic lapic_pic = {
+x86pic_func_t lapic_pic = {
 	/* Interrupt controller interface */
 	X86PIC_FUNC(pic_resume,			lapic_resume),
 	X86PIC_END

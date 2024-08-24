@@ -154,7 +154,7 @@ static const device_method_t atpic_methods[] = {
 };
 #endif /* DEV_ISA */
 
-const struct pic atpic_funcs = {
+const x86pic_func_t atpic_funcs = {
 	/* Interrupt controller interface */
 	X86PIC_FUNC(pic_register_sources,	atpic_register_sources),
 	X86PIC_FUNC(pic_enable_source,		atpic_enable_source),

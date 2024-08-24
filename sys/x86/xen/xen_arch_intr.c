@@ -258,7 +258,7 @@ xen_intr_pic_assign_cpu(struct intsrc *isrc, u_int apic_id)
 /**
  * PIC interface for all event channel port types except physical IRQs.
  */
-static struct pic xen_intr_pic = {
+static x86pic_func_t xen_intr_pic = {
 	/* Interrupt controller interface */
 	X86PIC_FUNC(pic_enable_source,		xen_intr_pic_enable_source),
 	X86PIC_FUNC(pic_disable_source,		xen_intr_pic_disable_source),
