@@ -126,9 +126,9 @@ struct msi_intsrc {
 };
 
 static void	msi_create_source(void);
-static void	msi_enable_source(struct intsrc *isrc);
+static void	msi_enable_source(x86pic_t pic, struct intsrc *isrc);
 static void	msi_disable_source(x86pic_t pic, struct intsrc *isrc, int eoi);
-static void	msi_eoi_source(struct intsrc *isrc);
+static void	msi_eoi_source(x86pic_t pic, struct intsrc *isrc);
 static void	msi_enable_intr(x86pic_t pic, struct intsrc *isrc);
 static void	msi_disable_intr(x86pic_t pic, struct intsrc *isrc);
 static int	msi_source_pending(x86pic_t pic, struct intsrc *isrc);
@@ -177,7 +177,7 @@ static u_int msi_last_irq;
 static struct mtx msi_lock;
 
 static void
-msi_enable_source(struct intsrc *isrc)
+msi_enable_source(x86pic_t pic, struct intsrc *isrc)
 {
 }
 
@@ -190,7 +190,7 @@ msi_disable_source(x86pic_t pic, struct intsrc *isrc, int eoi)
 }
 
 static void
-msi_eoi_source(struct intsrc *isrc)
+msi_eoi_source(x86pic_t pic, struct intsrc *isrc)
 {
 
 	lapic_eoi();
