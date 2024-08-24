@@ -48,6 +48,7 @@
 #include "bootstrap.h"
 #include "multiboot.h"
 #include "libi386.h"
+#include "modinfo.h"
 #include <btxv86.h>
 
 #define MULTIBOOT_SUPPORTED_FLAGS \
@@ -256,7 +257,7 @@ multiboot_exec(struct preloaded_file *fp)
 	 *  module 0                 module 1
 	 */
 
-	fp = file_findfile(NULL, "elf kernel");
+	fp = file_findfile(NULL, md_kerntype);
 	if (fp == NULL) {
 		printf("No FreeBSD kernel provided, aborting\n");
 		error = EINVAL;
@@ -324,7 +325,7 @@ multiboot_obj_loadfile(char *filename, uint64_t dest,
 	int			 error, mod_num;
 
 	/* See if there's a multiboot kernel loaded */
-	mfp = file_findfile(NULL, "elf multiboot kernel");
+	mfp = file_findfile(NULL, md_kerntype_mb);
 	if (mfp == NULL)
 		return (EFTYPE);
 
@@ -332,14 +333,14 @@ multiboot_obj_loadfile(char *filename, uint64_t dest,
 	 * We have a multiboot kernel loaded, see if there's a FreeBSD
 	 * kernel loaded also.
 	 */
-	kfp = file_findfile(NULL, "elf kernel");
+	kfp = file_findfile(NULL, md_kerntype);
 	if (kfp == NULL) {
 		/*
 		 * No kernel loaded, this must be it. The kernel has to
 		 * be loaded as a raw file, it will be processed by
 		 * Xen and correctly loaded as an ELF file.
 		 */
-		rfp = file_loadraw(filename, "elf kernel", 0);
+		rfp = file_loadraw(filename, md_kerntype, 0);
 		if (rfp == NULL) {
 			printf(
 			"Unable to load %s as a multiboot payload kernel\n",
