@@ -91,7 +91,7 @@ struct ioapic_intsrc {
 };
 
 struct ioapic {
-	struct pic io_pic;
+	x86pics_t io_pic;
 	u_int io_id:8;			/* logical ID */
 	u_int io_apic_id:8;		/* Id as enumerated by MADT */
 	u_int io_hw_apic_id:8;		/* Content of APIC ID register */
@@ -111,7 +111,7 @@ static u_int	ioapic_read(volatile ioapic_t *apic, int reg);
 static void	ioapic_write(volatile ioapic_t *apic, int reg, u_int val);
 static const char *ioapic_bus_string(int bus_type);
 static void	ioapic_print_irq(struct ioapic_intsrc *intpin);
-static void	ioapic_register_sources(struct pic *pic);
+static void	ioapic_register_sources(x86pic_t pic);
 static void	ioapic_enable_source(struct intsrc *isrc);
 static void	ioapic_disable_source(struct intsrc *isrc, int eoi);
 static void	ioapic_eoi_source(struct intsrc *isrc);
@@ -120,7 +120,7 @@ static void	ioapic_disable_intr(struct intsrc *isrc);
 static int	ioapic_source_pending(struct intsrc *isrc);
 static int	ioapic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 		    enum intr_polarity pol);
-static void	ioapic_resume(struct pic *pic, bool suspend_cancelled);
+static void	ioapic_resume(x86pic_t pic, bool suspend_cancelled);
 static int	ioapic_assign_cpu(struct intsrc *isrc, u_int apic_id);
 static void	ioapic_program_intpin(struct ioapic_intsrc *intpin);
 static void	ioapic_reprogram_intpin(struct intsrc *isrc);
@@ -580,7 +580,7 @@ ioapic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 }
 
 static void
-ioapic_resume(struct pic *pic, bool suspend_cancelled)
+ioapic_resume(x86pic_t pic, bool suspend_cancelled)
 {
 	struct ioapic *io = X86PIC_PIC(ioapic, pic);
 	int i;
@@ -908,7 +908,7 @@ ioapic_register(ioapic_drv_t io)
  * Add interrupt sources for I/O APIC interrupt pins.
  */
 static void
-ioapic_register_sources(struct pic *pic)
+ioapic_register_sources(x86pic_t pic)
 {
 	struct ioapic_intsrc *pin;
 	struct ioapic *io = X86PIC_PIC(ioapic, pic);
