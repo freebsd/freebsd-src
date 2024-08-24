@@ -105,7 +105,7 @@ static MALLOC_DEFINE(M_INTR, "intr", "Interrupt Sources");
 static int	intr_assign_cpu(void *arg, int cpu);
 static void	intr_disable_src(void *arg);
 static void	intr_init(void *__dummy);
-static int	intr_pic_registered(struct pic *pic);
+static int	intr_pic_registered(x86pic_t pic);
 static void	intrcnt_setname(const char *name, int index);
 static void	intrcnt_updatename(struct intsrc *is);
 static void	intrcnt_register(struct intsrc *is);
@@ -123,7 +123,7 @@ static void	intrcnt_register(struct intsrc *is);
  */
 
 static int
-intr_pic_registered(struct pic *pic)
+intr_pic_registered(x86pic_t pic)
 {
 	struct pic *p;
 
@@ -141,7 +141,7 @@ intr_pic_registered(struct pic *pic)
  * 8259As in a system using the APICs) to participate in suspend and resume.
  */
 void
-intr_register_pic(struct pic *pic)
+intr_register_pic(x86pic_t pic)
 {
 
 	mtx_lock(&intrpic_lock);
