@@ -268,8 +268,8 @@ intr_add_handler(struct intsrc *isrc, const char *name, driver_filter_t filter,
 		isrc->is_handlers++;
 		if (isrc->is_handlers == 1) {
 			isrc->is_domain = domain;
-			isrc->is_pic->pic_enable_intr(isrc);
-			isrc->is_pic->pic_enable_source(isrc);
+			isrc->is_pic->pic_enable_intr(isrc->is_pic, isrc);
+			isrc->is_pic->pic_enable_source(isrc->is_pic, isrc);
 		}
 		sx_xunlock(&intrsrc_lock);
 	}
@@ -288,8 +288,8 @@ intr_remove_handler(void *cookie)
 		sx_xlock(&intrsrc_lock);
 		isrc->is_handlers--;
 		if (isrc->is_handlers == 0) {
-			isrc->is_pic->pic_disable_source(isrc, PIC_NO_EOI);
-			isrc->is_pic->pic_disable_intr(isrc);
+			isrc->is_pic->pic_disable_source(isrc->is_pic, isrc, PIC_NO_EOI);
+			isrc->is_pic->pic_disable_intr(isrc->is_pic, isrc);
 		}
 		intrcnt_updatename(isrc);
 		sx_xunlock(&intrsrc_lock);
@@ -302,7 +302,7 @@ intr_config_intr(struct intsrc *isrc, enum intr_trigger trig,
     enum intr_polarity pol)
 {
 
-	return (isrc->is_pic->pic_config_intr(isrc, trig, pol));
+	return (isrc->is_pic->pic_config_intr(isrc->is_pic, isrc, trig, pol));
 }
 
 static void
@@ -311,7 +311,7 @@ intr_disable_src(void *arg)
 	struct intsrc *isrc;
 
 	isrc = arg;
-	isrc->is_pic->pic_disable_source(isrc, PIC_EOI);
+	isrc->is_pic->pic_disable_source(isrc->is_pic, isrc, PIC_EOI);
 }
 
 static void
@@ -319,7 +319,7 @@ intr_enable_source(void *arg)
 {
 	struct intsrc *isrc = arg;
 
-	isrc->is_pic->pic_enable_source(isrc);
+	isrc->is_pic->pic_enable_source(isrc->is_pic, isrc);
 }
 
 static void
@@ -327,7 +327,7 @@ intr_eoi_source(void *arg)
 {
 	struct intsrc *isrc = arg;
 
-	isrc->is_pic->pic_eoi_source(isrc);
+	isrc->is_pic->pic_eoi_source(isrc->is_pic, isrc);
 }
 
 void
@@ -360,7 +360,7 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 	 * stray count, and log the condition.
 	 */
 	if (intr_event_handle(ie, frame) != 0) {
-		isrc->is_pic->pic_disable_source(isrc, PIC_EOI);
+		isrc->is_pic->pic_disable_source(isrc->is_pic, isrc, PIC_EOI);
 		(*isrc->is_straycount)++;
 		if (*isrc->is_straycount < INTR_STRAY_LOG_MAX)
 			log(LOG_ERR, "stray irq%d\n", vector);
@@ -413,7 +413,7 @@ intr_assign_cpu(void *arg, int cpu)
 	if (mp_ncpus > 1 && cpu != NOCPU) {
 		isrc = arg;
 		sx_xlock(&intrsrc_lock);
-		error = isrc->is_pic->pic_assign_cpu(isrc, cpu_apic_ids[cpu]);
+		error = isrc->is_pic->pic_assign_cpu(isrc->is_pic, isrc, cpu_apic_ids[cpu]);
 		if (error == 0)
 			isrc->is_cpu = cpu;
 		sx_xunlock(&intrsrc_lock);
@@ -544,7 +544,7 @@ intr_reprogram(void)
 		if (is == NULL)
 			continue;
 		if (is->is_pic->pic_reprogram_pin != NULL)
-			is->is_pic->pic_reprogram_pin(is);
+			is->is_pic->pic_reprogram_pin(is->is_pic, is);
 	}
 	sx_xunlock(&intrsrc_lock);
 }
@@ -761,7 +761,7 @@ intr_balance(void *dummy __unused, int pending __unused)
 		cpu = current_cpu[isrc->is_domain];
 		intr_next_cpu(isrc->is_domain);
 		if (isrc->is_cpu != cpu &&
-		    isrc->is_pic->pic_assign_cpu(isrc,
+		    isrc->is_pic->pic_assign_cpu(isrc->is_pic, isrc,
 		    cpu_apic_ids[cpu]) == 0)
 			isrc->is_cpu = cpu;
 	}
