@@ -127,7 +127,7 @@ static void	ioapic_program_intpin(struct ioapic_intsrc *intpin);
 static void	ioapic_reprogram_intpin(x86pic_t pic, struct intsrc *isrc);
 
 static STAILQ_HEAD(,ioapic) ioapic_list = STAILQ_HEAD_INITIALIZER(ioapic_list);
-struct pic ioapic_template = {
+x86pic_func_t ioapic_template = {
 	/* Interrupt controller interface */
 	X86PIC_FUNC(pic_register_sources,	ioapic_register_sources),
 	X86PIC_FUNC(pic_enable_source,		ioapic_enable_source),
