@@ -152,16 +152,19 @@ static const device_method_t atpic_methods[] = {
 #endif /* DEV_ISA */
 
 const struct pic atpic_funcs = {
-	.pic_register_sources = atpic_register_sources,
-	.pic_enable_source = atpic_enable_source,
-	.pic_disable_source = atpic_disable_source,
-	.pic_eoi_source = atpic_eoi,
-	.pic_enable_intr = atpic_enable_intr,
-	.pic_disable_intr = atpic_disable_intr,
-	.pic_source_pending = atpic_source_pending,
-	.pic_resume = atpic_resume,
-	.pic_config_intr = atpic_config_intr,
-	.pic_assign_cpu = atpic_assign_cpu,
+	/* Interrupt controller interface */
+	X86PIC_FUNC(pic_register_sources,	atpic_register_sources),
+	X86PIC_FUNC(pic_enable_source,		atpic_enable_source),
+	X86PIC_FUNC(pic_disable_source,		atpic_disable_source),
+	X86PIC_FUNC(pic_eoi_source,		atpic_eoi),
+	X86PIC_FUNC(pic_enable_intr,		atpic_enable_intr),
+	X86PIC_FUNC(pic_disable_intr,		atpic_disable_intr),
+	X86PIC_FUNC(pic_source_pending,		atpic_source_pending),
+	X86PIC_FUNC(pic_resume,			atpic_resume),
+	X86PIC_FUNC(pic_config_intr,		atpic_config_intr),
+	X86PIC_FUNC(pic_assign_cpu,		atpic_assign_cpu),
+
+	X86PIC_END
 };
 
 #ifdef DEV_ISA
