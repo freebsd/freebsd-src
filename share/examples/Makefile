@@ -322,8 +322,7 @@ SE_SOUND_OSS= \
 	README \
 	basic.c \
 	midi.c \
-	ossinit.h \
-	ossmidi.h
+	ossinit.h
 
 SE_DIRS+=	sunrpc
 SE_SUNRPC=	Makefile

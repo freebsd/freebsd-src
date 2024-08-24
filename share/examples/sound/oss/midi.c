@@ -2,6 +2,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2022 Goran Mekić
+ * Copyright (c) 2024 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Christos Margiolis
+ * <christos@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,52 +29,61 @@
  * SUCH DAMAGE.
  */
 
+#include <err.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 
-#include "ossmidi.h"
+#define CMD_MASK	0xF0
+#define CHANNEL_MASK	0x0F
+#define NOTE_ON		0x90
+#define NOTE_OFF	0x80
+#define CTL_CHANGE	0xB0
 
 int
-main()
+main(int argc, char *argv[])
 {
-	midi_event_t event;
-	midi_config_t midi_config;
-	int l = -1;
-	unsigned char raw;
+	int fd;
+	unsigned char raw, type, channel, b1, b2;
 
-	midi_config.device = "/dev/umidi1.0";
-	oss_midi_init(&midi_config);
+	if ((fd = open("/dev/umidi0.0", O_RDWR)) < 0)
+		err(1, "Error opening MIDI device");
 
-	while ((l = read(midi_config.fd, &raw, sizeof(raw))) != -1) {
-		if (!(raw & 0x80)) {
+	for (;;) {
+		if (read(fd, &raw, sizeof(raw)) < sizeof(raw))
+			err(1, "Error reading command byte");
+		if (!(raw & 0x80))
 			continue;
-		}
-		event.type = raw & CMD_MASK;
-		event.channel = raw & CHANNEL_MASK;
-		switch (event.type) {
+
+		type = raw & CMD_MASK;
+		channel = raw & CHANNEL_MASK;
+
+		if (read(fd, &b1, sizeof(b1)) < sizeof(b1))
+			err(1, "Error reading byte 1");
+		if (read(fd, &b2, sizeof(b2)) < sizeof(b2))
+			err(1, "Error reading byte 2");
+
+		switch (type) {
 		case NOTE_ON:
-		case NOTE_OFF:
-		case CONTROLLER_ON:
-			if ((l = read(midi_config.fd, &(event.note), sizeof(event.note))) == -1) {
-				perror("Error reading MIDI note");
-				exit(1);
-			}
-			if ((l = read(midi_config.fd, &(event.velocity), sizeof(event.velocity))) == -1) {
-				perror("Error reading MIDI velocity");
-				exit(1);
-			}
+			printf("Channel %d, note on %d, velocity %d\n",
+			    channel, b1, b2);
 			break;
-		}
-		switch (event.type) {
-		case NOTE_ON:
 		case NOTE_OFF:
-			printf("Channel %d, note %d, velocity %d\n", event.channel, event.note, event.velocity);
+			printf("Channel %d, note off %d, velocity %d\n",
+			    channel, b1, b2);
 			break;
-		case CONTROLLER_ON:
-			printf("Channel %d, controller %d, value %d\n", event.channel, event.controller, event.value);
+		case CTL_CHANGE:
+			printf("Channel %d, controller change %d, value %d\n",
+			    channel, b1, b2);
 			break;
 		default:
-			printf("Unknown event type %d\n", event.type);
+			printf("Unknown event type %d\n", type);
+			break;
 		}
 	}
-	return 0;
+	
+	close(fd);
+
+	return (0);
 }
