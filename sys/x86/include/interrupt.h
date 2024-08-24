@@ -141,6 +141,7 @@ struct pic {
 #define	X86PIC_END
 #define	X86PIC_PIC(type, pic)	((struct type *)(pic))
 #define	X86PICP(pic)		(&(pic))
+typedef	struct pic		x86pic_func_t;
 
 /* Flags for pic_disable_source() */
 enum {
