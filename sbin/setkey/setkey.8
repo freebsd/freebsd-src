@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 31, 2023
+.Dd August 25, 2024
 .Dt SETKEY 8
 .Os
 .\"
@@ -343,6 +343,11 @@ not indication of the optional components.
 Configure NAT-T fragment size.
 .It Fl esn
 Enable Extended Sequence Number extension for this SA.
+.It Fl hwif Ar ifname
+Request hardware offload to the specified interface
+.Ar ifname
+(only).
+By default offload occurs to all capable interfaces.
 .El
 .\"
 .Pp
