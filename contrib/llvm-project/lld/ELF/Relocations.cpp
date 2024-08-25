@@ -459,7 +459,8 @@ private:
 // InputSectionBase.
 class RelocationScanner {
 public:
-  template <class ELFT> void scanSection(InputSectionBase &s);
+  template <class ELFT>
+  void scanSection(InputSectionBase &s, bool isEH = false);
 
 private:
   InputSectionBase *sec;
@@ -1617,10 +1618,11 @@ void RelocationScanner::scan(Relocs<RelTy> rels) {
                       });
 }
 
-template <class ELFT> void RelocationScanner::scanSection(InputSectionBase &s) {
+template <class ELFT>
+void RelocationScanner::scanSection(InputSectionBase &s, bool isEH) {
   sec = &s;
   getter = OffsetGetter(s);
-  const RelsOrRelas<ELFT> rels = s.template relsOrRelas<ELFT>();
+  const RelsOrRelas<ELFT> rels = s.template relsOrRelas<ELFT>(!isEH);
   if (rels.areRelocsCrel())
     scan<ELFT>(rels.crels);
   else if (rels.areRelocsRel())
