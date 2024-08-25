@@ -201,14 +201,14 @@ enum tcp_log_events {
 	TCP_LOG_OUT,		/* Transmit (without other event)    2 */
 	TCP_LOG_RTO,		/* Retransmit timeout                3 */
 	TCP_LOG_SB_WAKE,	/* Awaken socket buffer              4 */
-	TCP_UNUSED_5,	/* Detected bad retransmission       5 */
+	TCP_UNUSED_5,		/* Detected bad retransmission       5 */
 	TCP_LOG_PRR,		/* Doing PRR                         6 */
-	TCP_UNUSED_7,	/* Detected reorder                  7 */
+	TCP_UNUSED_7,		/* Detected reorder                  7 */
 	TCP_LOG_HPTS,		/* Hpts sending a packet             8 */
 	BBR_LOG_BBRUPD,		/* We updated BBR info               9 */
 	BBR_LOG_BBRSND,		/* We did a slot calculation and sending is done 10 */
 	BBR_LOG_ACKCLEAR,	/* A ack clears all outstanding     11 */
-	TCP_UNUSED_12,	/* The tcb had a packet input to it 12 */
+	TCP_UNUSED_12,		/* The tcb had a packet input to it 12 */
 	BBR_LOG_TIMERSTAR,	/* Start a timer                    13 */
 	BBR_LOG_TIMERCANC,	/* Cancel a timer                   14 */
 	BBR_LOG_ENTREC,		/* Entered recovery                 15 */
@@ -245,7 +245,7 @@ enum tcp_log_events {
 	BBR_LOG_REDUCE,		/* old bbr log reduce for 4.1 and earlier 46*/
 	TCP_LOG_RTT,		/* A rtt (in useconds) is being sampled and applied to the srtt algo 47 */
 	BBR_LOG_SETTINGS_CHG,	/* Settings changed for loss response 48 */
-	TCP_UNUSED_49, /* SRTT gaining -- now not used    49 */
+	TCP_UNUSED_49,		/* SRTT gaining -- now not used    49 */
 	TCP_LOG_REASS,		/* Reassembly buffer logging        50 */
 	TCP_HDWR_PACE_SIZE,	/*  TCP pacing size set (rl and rack uses this)  51 */
 	BBR_LOG_HDWR_PACE,	/* TCP Hardware pacing log          52 */
@@ -255,7 +255,7 @@ enum tcp_log_events {
 	TCP_SACK_FILTER_RES,	/* Results of SACK Filter           56 */
 	TCP_UNUSED_57,		/* Sack Attack Detection            57 */
 	TCP_TIMELY_WORK,	/* Logs regarding Timely CC tweaks  58 */
-	TCP_UNUSED_59,	/* User space event data            59 */
+	TCP_UNUSED_59,		/* User space event data            59 */
 	TCP_LOG_SENDFILE,	/* sendfile() logging for TCP connections 60 */
 	TCP_LOG_REQ_T,		/* logging of request tracking      61 */
 	TCP_LOG_ACCOUNTING,	/* Log of TCP Accounting data       62 */
