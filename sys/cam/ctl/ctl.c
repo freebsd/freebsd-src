@@ -4771,7 +4771,7 @@ fail:
 	ctl_tpc_lun_init(lun);
 	if (lun->flags & CTL_LUN_REMOVABLE) {
 		lun->prevent = malloc((CTL_MAX_INITIATORS + 31) / 32 * 4,
-		    M_CTL, M_WAITOK);
+		    M_CTL, M_WAITOK | M_ZERO);
 	}
 
 	/*
