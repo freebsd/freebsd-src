@@ -36,11 +36,11 @@
 #include <machine/md_var.h>
 #include <machine/segments.h>
 #include <machine/specialreg.h>
-
 #include <machine/vmm.h>
 
+#include <dev/vmm/vmm_ktr.h>
+
 #include "vmm_host.h"
-#include "vmm_ktr.h"
 #include "vmm_util.h"
 #include "x86.h"
 
