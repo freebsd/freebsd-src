@@ -15,9 +15,10 @@ CFLAGS+= -I${SRCTOP}/sys/${MACHINE}/vmm
 CFLAGS+= -I${SRCTOP}/sys/${MACHINE}/vmm/io
 
 # generic vmm support
-.PATH: ${SRCTOP}/sys/${MACHINE}/vmm
-SRCS+=	vmm.c		\
-	vmm_dev.c	\
+.PATH: ${SRCTOP}/sys/dev/vmm ${SRCTOP}/sys/${MACHINE}/vmm
+
+SRCS+=	vmm.c			\
+	vmm_dev.c		\
 	vmm_instruction_emul.c	\
 	vmm_stat.c
 

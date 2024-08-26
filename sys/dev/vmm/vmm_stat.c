@@ -26,16 +26,14 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 
-#include <machine/machdep.h>
 #include <machine/vmm.h>
-#include "vmm_stat.h"
+
+#include <dev/vmm/vmm_stat.h>
 
 /*
  * 'vst_num_elems' is the total number of addressable statistic elements
@@ -59,6 +57,9 @@ vmm_stat_register(void *arg)
 
 	/* We require all stats to identify themselves with a description */
 	if (vst->desc == NULL)
+		return;
+
+	if (vst->pred != NULL && !vst->pred())
 		return;
 
 	if (vst_num_elems + vst->nelems >= MAX_VMM_STAT_ELEMS) {
@@ -148,20 +149,3 @@ vmm_stat_desc_copy(int index, char *buf, int bufsize)
 
 	return (EINVAL);
 }
-
-/* global statistics */
-VMM_STAT(VMEXIT_COUNT, "total number of vm exits");
-VMM_STAT(VMEXIT_UNKNOWN, "number of vmexits for the unknown exception");
-VMM_STAT(VMEXIT_WFI, "number of times wfi was intercepted");
-VMM_STAT(VMEXIT_WFE, "number of times wfe was intercepted");
-VMM_STAT(VMEXIT_HVC, "number of times hvc was intercepted");
-VMM_STAT(VMEXIT_MSR, "number of times msr/mrs was intercepted");
-VMM_STAT(VMEXIT_DATA_ABORT, "number of vmexits for a data abort");
-VMM_STAT(VMEXIT_INSN_ABORT, "number of vmexits for an instruction abort");
-VMM_STAT(VMEXIT_UNHANDLED_SYNC, "number of vmexits for an unhandled synchronous exception");
-VMM_STAT(VMEXIT_IRQ, "number of vmexits for an irq");
-VMM_STAT(VMEXIT_FIQ, "number of vmexits for an interrupt");
-VMM_STAT(VMEXIT_BRK, "number of vmexits for a breakpoint exception");
-VMM_STAT(VMEXIT_SS, "number of vmexits for a single-step exception");
-VMM_STAT(VMEXIT_UNHANDLED_EL2, "number of vmexits for an unhandled EL2 exception");
-VMM_STAT(VMEXIT_UNHANDLED, "number of vmexits for an unhandled exception");
