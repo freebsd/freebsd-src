@@ -988,6 +988,10 @@ nvpair_unpack_string_array(bool isbe __unused, nvpair_t *nvp,
 	for (ii = 0; ii < nvp->nvp_nitems; ii++) {
 		len = strnlen(tmp, size - 1) + 1;
 		size -= len;
+		if (tmp[len - 1] != '\0') {
+			ERRNO_SET(EINVAL);
+			return (NULL);
+		}
 		if (size < 0) {
 			ERRNO_SET(EINVAL);
 			return (NULL);
