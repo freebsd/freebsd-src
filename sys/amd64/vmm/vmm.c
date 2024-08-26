@@ -67,10 +67,10 @@
 #include <x86/ifunc.h>
 
 #include <machine/vmm.h>
-#include <machine/vmm_dev.h>
 #include <machine/vmm_instruction_emul.h>
 #include <machine/vmm_snapshot.h>
 
+#include <dev/vmm/vmm_dev.h>
 #include <dev/vmm/vmm_ktr.h>
 
 #include "vmm_ioport.h"

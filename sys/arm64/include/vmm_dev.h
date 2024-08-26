@@ -27,11 +27,6 @@
 #ifndef	_VMM_DEV_H_
 #define	_VMM_DEV_H_
 
-#ifdef _KERNEL
-void	vmmdev_init(void);
-int	vmmdev_cleanup(void);
-#endif
-
 struct vm_memmap {
 	vm_paddr_t	gpa;
 	int		segid;		/* memory segment */

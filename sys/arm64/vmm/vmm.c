@@ -60,10 +60,10 @@
 #include <machine/vm.h>
 #include <machine/vmparam.h>
 #include <machine/vmm.h>
-#include <machine/vmm_dev.h>
 #include <machine/vmm_instruction_emul.h>
 
 #include <dev/pci/pcireg.h>
+#include <dev/vmm/vmm_dev.h>
 #include <dev/vmm/vmm_ktr.h>
 #include <dev/vmm/vmm_stat.h>
 
