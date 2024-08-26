@@ -6075,6 +6075,9 @@ pf_icmp_state_lookup(struct pf_state_key_cmp *key, struct pf_pdesc *pd,
 
 	STATE_LOOKUP(kif, key, direction, *state, pd);
 
+	if ((*state)->state_flags & PFSTATE_SLOPPY)
+		return (-1);
+
 	/* Is this ICMP message flowing in right direction? */
 	if ((*state)->rule.ptr->type &&
 	    (((!inner && (*state)->direction == direction) ||
