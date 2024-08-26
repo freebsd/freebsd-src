@@ -758,7 +758,7 @@ nvlist_descriptors(const nvlist_t *nvl, size_t *nitemsp)
 	int *fds;
 
 	nitems = nvlist_ndescriptors(nvl);
-	fds = nv_malloc(sizeof(fds[0]) * (nitems + 1));
+	fds = nv_calloc(nitems + 1, sizeof(fds[0]));
 	if (fds == NULL)
 		return (NULL);
 	if (nitems > 0)
@@ -1029,6 +1029,10 @@ static bool
 nvlist_check_header(struct nvlist_header *nvlhdrp)
 {
 
+	if (nvlhdrp->nvlh_size > SIZE_MAX - sizeof(nvlhdrp)) {
+		ERRNO_SET(EINVAL);
+		return (false);
+	}
 	if (nvlhdrp->nvlh_magic != NVLIST_HEADER_MAGIC) {
 		ERRNO_SET(EINVAL);
 		return (false);
@@ -1313,7 +1317,7 @@ nvlist_recv(int sock, int flags)
 		goto out;
 
 	if (nfds > 0) {
-		fds = nv_malloc(nfds * sizeof(fds[0]));
+		fds = nv_calloc(nfds, sizeof(fds[0]));
 		if (fds == NULL)
 			goto out;
 		if (fd_recv(sock, fds, nfds) == -1)
