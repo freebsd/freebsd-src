@@ -25,7 +25,8 @@ MDSRCS+= \
 	strspn.S \
 	strcspn.S \
 	strpbrk.c \
-	strsep.c
+	strsep.c \
+	strcat.c
 
 #
 # Add the above functions. Generate an asm file that includes the needed
