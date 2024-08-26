@@ -19,6 +19,7 @@ CFLAGS+= -I${SRCTOP}/sys/${MACHINE}/vmm/io
 
 SRCS+=	vmm.c			\
 	vmm_dev.c		\
+	vmm_dev_machdep.c	\
 	vmm_instruction_emul.c	\
 	vmm_stat.c
 

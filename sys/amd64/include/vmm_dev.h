@@ -31,11 +31,6 @@
 
 struct vm_snapshot_meta;
 
-#ifdef _KERNEL
-void	vmmdev_init(void);
-int	vmmdev_cleanup(void);
-#endif
-
 struct vm_memmap {
 	vm_paddr_t	gpa;
 	int		segid;		/* memory segment */
