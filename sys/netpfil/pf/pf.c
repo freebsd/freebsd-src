@@ -7422,13 +7422,13 @@ pf_test_state_other(struct pf_kstate **state, struct pfi_kkif *kif,
  * h must be at "ipoff" on the mbuf chain.
  */
 void *
-pf_pull_hdr(struct mbuf *m, int off, void *p, int len,
+pf_pull_hdr(const struct mbuf *m, int off, void *p, int len,
     u_short *actionp, u_short *reasonp, sa_family_t af)
 {
 	switch (af) {
 #ifdef INET
 	case AF_INET: {
-		struct ip	*h = mtod(m, struct ip *);
+		const struct ip	*h = mtod(m, struct ip *);
 		u_int16_t	 fragoff = (ntohs(h->ip_off) & IP_OFFMASK) << 3;
 
 		if (fragoff) {
@@ -7451,7 +7451,7 @@ pf_pull_hdr(struct mbuf *m, int off, void *p, int len,
 #endif /* INET */
 #ifdef INET6
 	case AF_INET6: {
-		struct ip6_hdr	*h = mtod(m, struct ip6_hdr *);
+		const struct ip6_hdr	*h = mtod(m, struct ip6_hdr *);
 
 		if (m->m_pkthdr.len < off + len ||
 		    (ntohs(h->ip6_plen) + sizeof(struct ip6_hdr)) <
