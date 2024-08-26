@@ -633,7 +633,7 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 		return (NULL);
 	}
 
-	*skp = pf_state_key_setup(pd, saddr, daddr, sport, dport);
+	*skp = pf_state_key_setup(pd, m, off, saddr, daddr, sport, dport);
 	if (*skp == NULL)
 		return (NULL);
 	*nkp = pf_state_key_clone(*skp);
