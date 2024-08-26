@@ -39,6 +39,7 @@
  */
 
 ENTRY(.rtld_start)
+	.cfi_undefined ra	/* Do not attempt to unwind any further. */
 	mv	s0, a0		/* Put ps_strings in a callee-saved register */
 	mv	s1, sp		/* And the stack pointer */
 
