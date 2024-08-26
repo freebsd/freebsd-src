@@ -195,6 +195,44 @@ nested_label_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "quick" "cleanup"
+quick_head()
+{
+	atf_set descr "Test handling of quick on anchors"
+	atf_set require.user root
+}
+
+quick_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	vnet_mkjail alcatraz ${epair}a
+
+	ifconfig ${epair}b 192.0.2.2/24 up
+	jexec alcatraz ifconfig ${epair}a 192.0.2.1/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.1
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+	    "anchor quick {\n\
+	        pass\n\
+	    }" \
+	    "block"
+
+	# We can still ping because the anchor is 'quick'
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.1
+	jexec alcatraz pfctl -sr -v
+	jexec alcatraz pfctl -ss -v
+}
+
+quick_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "pr183198"
@@ -202,4 +240,5 @@ atf_init_test_cases()
 	atf_add_test_case "nested_anchor"
 	atf_add_test_case "wildcard"
 	atf_add_test_case "nested_label"
+	atf_add_test_case "quick"
 }
