@@ -149,8 +149,56 @@ ttl_exceeded_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "repeat" "cleanup"
+repeat_head()
+{
+	atf_set descr 'Ensure that repeated NDs work'
+	atf_set require.user root
+	atf_set require.progs ndisc6
+}
+
+repeat_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	ifconfig ${epair}a inet6 2001:db8::2/64 up no_dad
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b inet6 2001:db8::1/64 up no_dad
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 2001:db8::1
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+		"block all" \
+		"pass quick inet6 proto ipv6-icmp all icmp6-type neighbrsol keep state (if-bound) ridentifier 1000000107"
+
+	jexec alcatraz pfctl -x loud
+	  ndisc6 -m -n -r 1 2001:db8::1 ${epair}a
+	jexec alcatraz pfctl -ss -vv
+
+	atf_check -s exit:0 -o ignore \
+	  ndisc6 -m -n -r 1 2001:db8::1 ${epair}a
+	jexec alcatraz pfctl -ss -vv
+	atf_check -s exit:0 -o ignore \
+	  ndisc6 -m -n -r 1 2001:db8::1 ${epair}a
+	jexec alcatraz pfctl -ss -vv
+	atf_check -s exit:0 -o ignore \
+	  ndisc6 -m -n -r 1 2001:db8::1 ${epair}a
+	jexec alcatraz pfctl -ss -vv
+}
+
+repeat_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "zero_id"
 	atf_add_test_case "ttl_exceeded"
+	atf_add_test_case "repeat"
 }
