@@ -22,7 +22,8 @@ AARCH64_STRING_FUNCS= \
 # SIMD-enhanced routines not derived from Arm's code
 MDSRCS+= \
 	strcmp.S \
-	strspn.S
+	strspn.S \
+	strcspn.S
 
 #
 # Add the above functions. Generate an asm file that includes the needed
