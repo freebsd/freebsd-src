@@ -767,6 +767,7 @@ vmmdev_destroy(void *arg)
 	struct devmem_softc *dsc;
 	int error __diagused;
 
+	vm_disable_vcpu_creation(sc->vm);
 	error = vcpu_lock_all(sc);
 	KASSERT(error == 0, ("%s: error %d freezing vcpus", __func__, error));
 	vm_unlock_vcpus(sc->vm);
