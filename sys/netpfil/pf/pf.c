@@ -6709,11 +6709,11 @@ pf_test_state_icmp(struct pf_kstate **state, struct pfi_kkif *kif,
 			    pd->dir, kif, virtual_id, virtual_type,
 			    icmp_dir, &iidx, PF_ICMP_MULTI_NONE, 1);
 			if (ret >= 0) {
-				if (ret == PF_DROP && pd->af == AF_INET6 &&
+				if (ret == PF_DROP && pd2.af == AF_INET6 &&
 				    icmp_dir == PF_OUT) {
 					if (*state != NULL)
 						PF_STATE_UNLOCK((*state));
-					ret = pf_icmp_state_lookup(&key, pd,
+					ret = pf_icmp_state_lookup(&key, &pd2,
 					    state, m, off, pd->dir, kif,
 					    virtual_id, virtual_type,
 					    icmp_dir, &iidx, multi, 1);
