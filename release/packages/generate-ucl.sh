@@ -136,7 +136,7 @@ main() {
 		echo 'deps: {' >> ${uclfile}
 		for dep in ${pkgdeps}; do
 			cat <<EOF >> ${uclfile}
-	FreeBSD-${dep}: {
+	${PKG_NAME_PREFIX}-${dep}: {
 		origin: "base",
 		version: "${PKG_VERSION}"
 	}
