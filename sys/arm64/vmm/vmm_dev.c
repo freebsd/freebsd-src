@@ -172,9 +172,7 @@ vmmdev_lookup(const char *name)
 {
 	struct vmmdev_softc *sc;
 
-#ifdef notyet	/* XXX kernel is not compiled with invariants */
 	mtx_assert(&vmmdev_mtx, MA_OWNED);
-#endif
 
 	SLIST_FOREACH(sc, &head, link) {
 		if (strcmp(name, vm_name(sc->vm)) == 0)
