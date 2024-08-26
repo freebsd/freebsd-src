@@ -37,18 +37,17 @@
 #include <sys/malloc.h>
 #include <sys/systm.h>
 
-#include <dev/acpica/acpi_hpet.h>
-
 #include <machine/vmm.h>
 #include <machine/vmm_dev.h>
 #include <machine/vmm_snapshot.h>
+
+#include <dev/acpica/acpi_hpet.h>
+#include <dev/vmm/vmm_ktr.h>
 
 #include "vmm_lapic.h"
 #include "vatpic.h"
 #include "vioapic.h"
 #include "vhpet.h"
-
-#include "vmm_ktr.h"
 
 static MALLOC_DEFINE(M_VHPET, "vhpet", "bhyve virtual hpet");
 

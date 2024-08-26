@@ -54,9 +54,10 @@
 #include <machine/vmm_instruction_emul.h>
 #include <machine/vmm_snapshot.h>
 
+#include <dev/vmm/vmm_ktr.h>
+
 #include "vmm_lapic.h"
 #include "vmm_stat.h"
-#include "vmm_ktr.h"
 #include "vmm_ioport.h"
 #include "vatpic.h"
 #include "vlapic.h"

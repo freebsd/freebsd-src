@@ -64,8 +64,8 @@
 #include <machine/vmm_instruction_emul.h>
 
 #include <dev/pci/pcireg.h>
+#include <dev/vmm/vmm_ktr.h>
 
-#include "vmm_ktr.h"
 #include "vmm_stat.h"
 #include "arm64.h"
 #include "mmu.h"

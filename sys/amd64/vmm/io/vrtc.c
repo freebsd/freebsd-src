@@ -44,7 +44,8 @@
 
 #include <isa/rtc.h>
 
-#include "vmm_ktr.h"
+#include <dev/vmm/vmm_ktr.h>
+
 #include "vatpic.h"
 #include "vioapic.h"
 #include "vrtc.h"

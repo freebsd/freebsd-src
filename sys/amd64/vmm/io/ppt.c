@@ -41,12 +41,12 @@
 #include <dev/pci/pcireg.h>
 
 #include <machine/resource.h>
-
 #include <machine/vmm.h>
 #include <machine/vmm_dev.h>
 
+#include <dev/vmm/vmm_ktr.h>
+
 #include "vmm_lapic.h"
-#include "vmm_ktr.h"
 
 #include "iommu.h"
 #include "ppt.h"
