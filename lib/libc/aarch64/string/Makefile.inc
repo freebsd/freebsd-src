@@ -23,7 +23,9 @@ AARCH64_STRING_FUNCS= \
 MDSRCS+= \
 	strcmp.S \
 	strspn.S \
-	strcspn.S
+	strcspn.S \
+	strpbrk.c \
+	strsep.c
 
 #
 # Add the above functions. Generate an asm file that includes the needed
