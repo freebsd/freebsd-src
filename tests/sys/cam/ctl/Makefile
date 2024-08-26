@@ -4,6 +4,7 @@ TESTSDIR=	${TESTSBASE}/sys/cam/ctl
 
 ${PACKAGE}FILES+=	ctl.subr
 
+ATF_TESTS_SH+=	prevent
 ATF_TESTS_SH+=	read_buffer
 ATF_TESTS_SH+=	start_stop_unit
 
