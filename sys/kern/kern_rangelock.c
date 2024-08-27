@@ -66,7 +66,7 @@
  * trylocks are same as normal locks but do not drain.
  */
 
-static int rangelock_cheat = 0;
+static int rangelock_cheat = 1;
 SYSCTL_INT(_debug, OID_AUTO, rangelock_cheat, CTLFLAG_RWTUN,
     &rangelock_cheat, 0,
     "");
