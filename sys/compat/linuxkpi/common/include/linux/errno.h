@@ -68,5 +68,6 @@
 #define	ENOMEDIUM	532
 #define	ENOSR		533
 #define	ELNRNG		534
+#define	ENAVAIL		535
 
 #endif					/* _LINUXKPI_LINUX_ERRNO_H_ */
