@@ -91,6 +91,7 @@ static int	ixl_sysctl_do_pf_reset(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_do_core_reset(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_do_global_reset(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_queue_interrupt_table(SYSCTL_HANDLER_ARGS);
+static int	ixl_sysctl_debug_queue_int_ctln(SYSCTL_HANDLER_ARGS);
 #ifdef IXL_DEBUG
 static int	ixl_sysctl_qtx_tail_handler(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_qrx_tail_handler(SYSCTL_HANDLER_ARGS);
@@ -2528,6 +2529,12 @@ ixl_add_sysctls_recovery_mode(struct ixl_pf *pf)
 	    OID_AUTO, "queue_interrupt_table",
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 	    pf, 0, ixl_sysctl_queue_interrupt_table, "A", "View MSI-X indices for TX/RX queues");
+
+	SYSCTL_ADD_PROC(ctx, debug_list,
+	    OID_AUTO, "queue_int_ctln",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+	    pf, 0, ixl_sysctl_debug_queue_int_ctln, "A",
+	    "View MSI-X control registers for RX queues");
 }
 
 void
@@ -4899,6 +4906,7 @@ ixl_sysctl_queue_interrupt_table(SYSCTL_HANDLER_ARGS)
 {
 	struct ixl_pf *pf = (struct ixl_pf *)arg1;
 	struct ixl_vsi *vsi = &pf->vsi;
+	struct i40e_hw *hw = vsi->hw;
 	device_t dev = pf->dev;
 	struct sbuf *buf;
 	int error = 0;
@@ -4915,11 +4923,52 @@ ixl_sysctl_queue_interrupt_table(SYSCTL_HANDLER_ARGS)
 	sbuf_cat(buf, "\n");
 	for (int i = 0; i < vsi->num_rx_queues; i++) {
 		rx_que = &vsi->rx_queues[i];
-		sbuf_printf(buf, "(rxq %3d): %d\n", i, rx_que->msix);
+		sbuf_printf(buf,
+		    "(rxq %3d): %d LNKLSTN: %08x QINT_RQCTL: %08x\n",
+		    i, rx_que->msix,
+		    rd32(hw, I40E_PFINT_LNKLSTN(rx_que->msix - 1)),
+		    rd32(hw, I40E_QINT_RQCTL(rx_que->msix - 1)));
 	}
 	for (int i = 0; i < vsi->num_tx_queues; i++) {
 		tx_que = &vsi->tx_queues[i];
-		sbuf_printf(buf, "(txq %3d): %d\n", i, tx_que->msix);
+		sbuf_printf(buf, "(txq %3d): %d QINT_TQCTL: %08x\n",
+		    i, tx_que->msix,
+		    rd32(hw, I40E_QINT_TQCTL(tx_que->msix - 1)));
+	}
+
+	error = sbuf_finish(buf);
+	if (error)
+		device_printf(dev, "Error finishing sbuf: %d\n", error);
+	sbuf_delete(buf);
+
+	return (error);
+}
+
+static int
+ixl_sysctl_debug_queue_int_ctln(SYSCTL_HANDLER_ARGS)
+{
+	struct ixl_pf *pf = (struct ixl_pf *)arg1;
+	struct ixl_vsi *vsi = &pf->vsi;
+	struct i40e_hw *hw = vsi->hw;
+	device_t dev = pf->dev;
+	struct sbuf *buf;
+	int error = 0;
+
+	struct ixl_rx_queue *rx_que = vsi->rx_queues;
+
+	buf = sbuf_new_for_sysctl(NULL, NULL, 128, req);
+	if (!buf) {
+		device_printf(dev, "Could not allocate sbuf for output.\n");
+		return (ENOMEM);
+	}
+
+	sbuf_cat(buf, "\n");
+	for (int i = 0; i < vsi->num_rx_queues; i++) {
+		rx_que = &vsi->rx_queues[i];
+		sbuf_printf(buf,
+		    "(rxq %3d): %d PFINT_DYN_CTLN: %08x\n",
+		    i, rx_que->msix,
+		    rd32(hw, I40E_PFINT_DYN_CTLN(rx_que->msix - 1)));
 	}
 
 	error = sbuf_finish(buf);
