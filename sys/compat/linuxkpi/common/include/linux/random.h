@@ -54,6 +54,15 @@ get_random_int(void)
 	return (val);
 }
 
+static inline uint8_t
+get_random_u8(void)
+{
+	uint8_t val;
+
+	get_random_bytes(&val, sizeof(val));
+	return (val);
+}
+
 #define	get_random_u32() get_random_int()
 
 /*
