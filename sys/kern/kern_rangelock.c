@@ -82,6 +82,24 @@ SYSCTL_INT(_debug, OID_AUTO, rangelock_cheat, CTLFLAG_RWTUN,
 #define	RL_RET_CHEAT_RLOCKED	0x1100
 #define	RL_RET_CHEAT_WLOCKED	0x2200
 
+static void
+rangelock_cheat_drain(struct rangelock *lock)
+{
+	uintptr_t v;
+
+	DROP_GIANT();
+	for (;;) {
+		v = (uintptr_t)atomic_load_ptr(&lock->head);
+		if ((v & RL_CHEAT_DRAINING) == 0)
+			break;
+		sleepq_add(&lock->head, NULL, "ranged1", 0, 0);
+		sleepq_wait(&lock->head, PRI_USER);
+		sleepq_lock(&lock->head);
+	}
+	sleepq_release(&lock->head);
+	PICKUP_GIANT();
+}
+
 static bool
 rangelock_cheat_lock(struct rangelock *lock, int locktype, bool trylock,
     void **cookie)
@@ -99,17 +117,7 @@ drain:
 		}
 		sleepq_lock(&lock->head);
 drain1:
-		DROP_GIANT();
-		for (;;) {
-			v = (uintptr_t)atomic_load_ptr(&lock->head);
-			if ((v & RL_CHEAT_DRAINING) == 0)
-				break;
-			sleepq_add(&lock->head, NULL, "ranged1", 0, 0);
-			sleepq_wait(&lock->head, PRI_USER);
-			sleepq_lock(&lock->head);
-		}
-		sleepq_release(&lock->head);
-		PICKUP_GIANT();
+		rangelock_cheat_drain(lock);
 		return (false);
 	}
 
