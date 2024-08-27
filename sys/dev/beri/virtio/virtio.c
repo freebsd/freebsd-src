@@ -107,12 +107,17 @@ paddr_unmap(void *phys, uint32_t size)
 static inline void
 _vq_record(uint32_t offs, int i, volatile struct vring_desc *vd,
 	struct iovec *iov, int n_iov, uint16_t *flags) {
+	uint32_t len;
+	uint64_t addr;
+
 	if (i >= n_iov)
 		return;
 
-	iov[i].iov_base = paddr_map(offs, be64toh(vd->addr),
-				be32toh(vd->len));
-	iov[i].iov_len = be32toh(vd->len);
+	len = atomic_load_32(&vd->len);
+	addr = atomic_load_64(&vd->addr);
+	iov[i].iov_base = paddr_map(offs, be64toh(addr),
+				be32toh(len));
+	iov[i].iov_len = be32toh(len);
 	if (flags != NULL)
 		flags[i] = be16toh(vd->flags);
 }
