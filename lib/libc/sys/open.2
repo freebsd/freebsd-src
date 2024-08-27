@@ -252,7 +252,7 @@ controlling terminal when it opens a tty device.
 This is the default on
 .Fx ,
 but is present for
-.Tn POSIX
+POSIX
 compatibility.
 The
 .Fn open
@@ -265,7 +265,7 @@ initially opening a TTY.
 This is the default on
 .Fx ,
 but is present for
-.Tn POSIX
+POSIX
 compatibility.
 The initial call to
 .Fn open
@@ -487,7 +487,7 @@ The system file table is full.
 .It Bq Er EMLINK
 .Dv O_NOFOLLOW
 was specified and the target is a symbolic link.
-.Tn POSIX
+POSIX
 specifies a different error for this case; see the note in
 .Sx STANDARDS
 below.
@@ -661,7 +661,7 @@ to
 .Er EMLINK instead of
 .Er ELOOP
 as specified by
-.Tn POSIX
+POSIX
 when
 .Dv O_NOFOLLOW
 is set in flags and the final component of pathname is a symbolic link
@@ -679,7 +679,10 @@ permits searches.
 The present implementation of the
 .Fa openat
 system call is believed to be compatible with
-.St -p1003.1-2017 ,
+.\" .St -p1003.1-2017 ,
+.\" XXX: This should be replaced in the future when an appropriate argument to
+.\" the St macro is available: -p1003.1-2017
+.No IEEE Std 1003.1-2008, 2017 Edition (\\(LqPOSIX.1\\(Rq) ,
 which specifies that behavior for
 .Dv O_SEARCH ,
 in the absence of the flag the implementation checks the current
