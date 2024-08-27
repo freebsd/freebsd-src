@@ -4978,11 +4978,13 @@ kern_copy_file_range(struct thread *td, int infd, off_t *inoffp, int outfd,
 	 * If infp and outfp refer to the same file, the byte ranges cannot
 	 * overlap.
 	 */
-	if (invp == outvp && ((savinoff <= savoutoff && savinoff + len >
-	    savoutoff) || (savinoff > savoutoff && savoutoff + len >
-	    savinoff))) {
-		error = EINVAL;
-		goto out;
+	if (invp == outvp) {
+		if ((savinoff <= savoutoff && savinoff + len > savoutoff) ||
+		    (savinoff > savoutoff && savoutoff + len > savinoff)) {
+			error = EINVAL;
+			goto out;
+		}
+		rangelock_may_recurse(&invp->v_rl);
 	}
 
 	/* Range lock the byte ranges for both invp and outvp. */
