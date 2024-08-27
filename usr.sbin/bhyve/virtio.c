@@ -215,10 +215,15 @@ static inline void
 _vq_record(int i, struct vring_desc *vd, struct vmctx *ctx, struct iovec *iov,
     int n_iov, struct vi_req *reqp)
 {
+	uint32_t len;
+	uint64_t addr;
+
 	if (i >= n_iov)
 		return;
-	iov[i].iov_base = paddr_guest2host(ctx, vd->addr, vd->len);
-	iov[i].iov_len = vd->len;
+	len = atomic_load_32(&vd->len);
+	addr = atomic_load_64(&vd->addr);
+	iov[i].iov_len = len;
+	iov[i].iov_base = paddr_guest2host(ctx, addr, len);
 	if ((vd->flags & VRING_DESC_F_WRITE) == 0)
 		reqp->readable++;
 	else
