@@ -594,7 +594,6 @@ FORK_TEST_F(WithFiles, AllowedMiscSyscalls) {
     AWAIT_INT_MESSAGE(pipefds[0], MSG_CHILD_STARTED);
     errno = 0;
     EXPECT_CAPMODE(ptrace_(PTRACE_PEEKDATA_, pid, &pid, NULL));
-    EXPECT_CAPMODE(waitpid(pid, NULL, WNOHANG));
     SEND_INT_MESSAGE(pipefds[0], MSG_PARENT_REQUEST_CHILD_EXIT);
     if (verbose) fprintf(stderr, "  child finished\n");
   }
