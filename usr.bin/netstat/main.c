@@ -510,6 +510,7 @@ main(int argc, char *argv[])
 #endif
 	if (iflag && !sflag) {
 		xo_open_container("statistics");
+		xo_set_version(NETSTAT_XO_VERSION);
 		intpr(NULL, af);
 		xo_close_container("statistics");
 		xo_finish();
@@ -517,6 +518,7 @@ main(int argc, char *argv[])
 	}
 	if (rflag) {
 		xo_open_container("statistics");
+		xo_set_version(NETSTAT_XO_VERSION);
 		if (sflag) {
 			if (live) {
 				kresolve_list(nl);
@@ -530,6 +532,7 @@ main(int argc, char *argv[])
 	}
 	if (oflag) {
 		xo_open_container("statistics");
+		xo_set_version(NETSTAT_XO_VERSION);
 		nhops_print(fib, af);
 		xo_close_container("statistics");
 		xo_finish();
@@ -537,6 +540,7 @@ main(int argc, char *argv[])
 	}
 	if (Oflag) {
 		xo_open_container("statistics");
+		xo_set_version(NETSTAT_XO_VERSION);
 		nhgrp_print(fib, af);
 		xo_close_container("statistics");
 		xo_finish();
@@ -547,6 +551,7 @@ main(int argc, char *argv[])
 
 	if (gflag) {
 		xo_open_container("statistics");
+		xo_set_version(NETSTAT_XO_VERSION);
 		if (sflag) {
 			if (af == AF_INET || af == AF_UNSPEC)
 				mrt_stats();
@@ -569,6 +574,7 @@ main(int argc, char *argv[])
 
 	if (tp) {
 		xo_open_container("statistics");
+		xo_set_version(NETSTAT_XO_VERSION);
 		printproto(tp, tp->pr_name, &first);
 		if (!first)
 			xo_close_list("socket");
@@ -578,6 +584,7 @@ main(int argc, char *argv[])
 	}
 
 	xo_open_container("statistics");
+	xo_set_version(NETSTAT_XO_VERSION);
 	if (af == AF_INET || af == AF_UNSPEC)
 		for (tp = protox; tp->pr_name; tp++)
 			printproto(tp, tp->pr_name, &first);
