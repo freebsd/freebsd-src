@@ -149,6 +149,18 @@ function product(hfile)
 		printf("\n") > hfile
 }
 
+function palias(hfile)
+{
+	nproducts++
+
+	products[nproducts, 1] = $2;		# vendor name
+	products[nproducts, 2] = $3;		# product id
+	products[nproducts, 3] = $4;		# id
+	if (hfile)
+		printf("#define\tSDIO_DEVICE_ID_%s\tSDIO_DEVICE_ID_%s\n", \
+		  $2, $3) > hfile
+}
+
 function dump_dfile(dfile)
 {
 	printf("\n") > dfile
@@ -241,6 +253,10 @@ while ((getline < srcfile) > 0) {
 	}
 	if ($1 == "product") {
 		product(hfile)
+		continue
+	}
+	if ($1 == "palias") {
+		palias(hfile)
 		continue
 	}
 	if ($0 == "")
