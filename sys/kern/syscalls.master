@@ -157,7 +157,7 @@
 		    int fd
 		);
 	}
-7	AUE_WAIT4	STD {
+7	AUE_WAIT4	STD|CAPENABLED {
 		int wait4(
 		    int pid,
 		    _Out_opt_ int *status,
