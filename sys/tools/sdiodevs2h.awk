@@ -55,7 +55,7 @@ function vendor(hfile)
 	vendors[nvendors, 1] = $2;		# name
 	vendors[nvendors, 2] = $3;		# id
 	if (hfile)
-		printf("#define\tSDIO_VENDOR_%s\t%s\t", vendors[nvendors, 1],
+		printf("#define\tSDIO_VENDOR_ID_%s\t%s\t", vendors[nvendors, 1],
 		    vendors[nvendors, 2]) > hfile
 	i = 3; f = 4;
 
@@ -105,7 +105,7 @@ function product(hfile)
 	products[nproducts, 2] = $3;		# product id
 	products[nproducts, 3] = $4;		# id
 	if (hfile)
-		printf("#define\tSDIO_PRODUCT_%s_%s\t%s\t", \
+		printf("#define\tSDIO_DEVICE_ID_%s_%s\t%s\t", \
 		  products[nproducts, 1], products[nproducts, 2], \
 		  products[nproducts, 3]) > hfile
 
@@ -155,7 +155,7 @@ function dump_dfile(dfile)
 	printf("const struct sdio_knowndev sdio_knowndevs[] = {\n") > dfile
 	for (i = 1; i <= nproducts; i++) {
 		printf("\t{\n") > dfile
-		printf("\t    SDIO_VENDOR_%s, SDIO_PRODUCT_%s_%s,\n",
+		printf("\t    SDIO_VENDOR_ID_%s, SDIO_DEVICE_ID_%s_%s,\n",
 		    products[i, 1], products[i, 1], products[i, 2]) > dfile
 		printf("\t    ") > dfile
 		printf("0") > dfile
@@ -189,7 +189,7 @@ function dump_dfile(dfile)
 	}
 	for (i = 1; i <= nvendors; i++) {
 		printf("\t{\n") > dfile
-		printf("\t    SDIO_VENDOR_%s, 0,\n", vendors[i, 1]) > dfile
+		printf("\t    SDIO_VENDOR_ID_%s, 0,\n", vendors[i, 1]) > dfile
 		printf("\t    SDIO_KNOWNDEV_NOPROD,\n") > dfile
 		printf("\t    \"") > dfile
 		j = 3;
