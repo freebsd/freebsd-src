@@ -31,6 +31,8 @@
 
 #include <sys/cdefs.h>
 
+#define NETSTAT_XO_VERSION "1"
+
 #define	satosin(sa)	((struct sockaddr_in *)(sa))
 #define	satosin6(sa)	((struct sockaddr_in6 *)(sa))
 #define	sin6tosa(sin6)	((struct sockaddr *)(sin6))
