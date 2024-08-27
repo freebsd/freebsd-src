@@ -34,6 +34,7 @@
 #define	_LINUXKPI_LINUX_IF_ETHER_H_
 
 #include <linux/types.h>
+#include <linux/skbuff.h>
 
 #include <net/ethernet.h>
 
@@ -68,5 +69,14 @@ struct ethhdr {
 	uint8_t		h_source[ETH_ALEN];
 	uint16_t	h_proto;
 } __packed;
+
+static inline struct ethhdr *
+eth_hdr(const struct sk_buff *skb)
+{
+	struct ethhdr *hdr;
+
+	hdr = (struct ethhdr *)skb_mac_header(skb);
+	return (hdr);
+}
 
 #endif	/* _LINUXKPI_LINUX_IF_ETHER_H_ */
