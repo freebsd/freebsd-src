@@ -544,7 +544,7 @@ again:
 	cur = rl_q_load(prev);
 	MPASS(!rl_e_is_marked(cur));	/* nobody can unlock e yet */
 	for (;;) {
-		if (cur == NULL || cur->rl_q_start > e->rl_q_end)
+		if (cur == NULL || cur->rl_q_start >= e->rl_q_end)
 			return (RL_LOCK_SUCCESS);
 		next = rl_q_load(&cur->rl_q_next);
 		if (rl_e_is_marked(next)) {
