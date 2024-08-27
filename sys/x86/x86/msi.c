@@ -480,6 +480,7 @@ again:
 	if (error != 0) {
 		for (i = 0; i < count; i++)
 			apic_free_vector(cpu, vector + i, irqs[i]);
+		mtx_unlock(&msi_lock);
 		free(mirqs, M_MSI);
 		return (error);
 	}
