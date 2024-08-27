@@ -54,7 +54,7 @@
 #include <dc.h>
 
 int
-main(int argc, char* argv[])
+main(int argc, const char* argv[])
 {
 	BcStatus s;
 	char* name;
