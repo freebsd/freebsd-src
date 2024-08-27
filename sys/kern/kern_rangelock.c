@@ -752,6 +752,47 @@ rangelock_trywlock(struct rangelock *lock, vm_ooffset_t start, vm_ooffset_t end)
 	return (rangelock_lock_int(lock, true, start, end, RL_LOCK_WRITE));
 }
 
+/*
+ * If the caller asserts that it can obtain the range locks on the
+ * same lock simultaneously, switch to the non-cheat mode.  Cheat mode
+ * cannot handle it, hanging in drain or trylock retries.
+ */
+void
+rangelock_may_recurse(struct rangelock *lock)
+{
+	uintptr_t v, x;
+
+	v = atomic_load_ptr(&lock->head);
+	if ((v & RL_CHEAT_CHEATING) == 0)
+		return;
+
+	sleepq_lock(&lock->head);
+	for (;;) {
+		if ((v & RL_CHEAT_CHEATING) == 0) {
+			sleepq_release(&lock->head);
+			return;
+		}
+
+		/* Cheating and locked, drain. */
+		if ((v & RL_CHEAT_WLOCKED) != 0 ||
+		    (v & ~RL_CHEAT_MASK) >= RL_CHEAT_READER) {
+			x = v | RL_CHEAT_DRAINING;
+			if (atomic_fcmpset_ptr(&lock->head, &v, x) != 0) {
+				rangelock_cheat_drain(lock);
+				return;
+			}
+			continue;
+		}
+
+		/* Cheating and unlocked, clear RL_CHEAT_CHEATING. */
+		x = 0;
+		if (atomic_fcmpset_ptr(&lock->head, &v, x) != 0) {
+			sleepq_release(&lock->head);
+			return;
+		}
+	}
+}
+
 #ifdef INVARIANT_SUPPORT
 void
 _rangelock_cookie_assert(void *cookie, int what, const char *file, int line)

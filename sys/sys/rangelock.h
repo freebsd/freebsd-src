@@ -66,6 +66,7 @@ void	*rangelock_wlock(struct rangelock *lock, vm_ooffset_t start,
 void	*rangelock_trywlock(struct rangelock *lock, vm_ooffset_t start,
     vm_ooffset_t end);
 void	 rangelock_entry_free(struct rl_q_entry *e);
+void	rangelock_may_recurse(struct rangelock *lock);
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
 void	_rangelock_cookie_assert(void *cookie, int what, const char *file,
     int line);
