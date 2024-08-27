@@ -1,5 +1,11 @@
 # News
 
+## 7.0.1
+
+This is a production release that fixes a warning using GCC on FreeBSD.
+
+Other users do ***NOT*** need to upgrade.
+
 ## 7.0.0
 
 This is a production release to fix three bugs.
