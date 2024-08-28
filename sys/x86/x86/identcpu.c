@@ -1388,6 +1388,7 @@ static struct {
 	{ "KVMKVMKVM",		VM_GUEST_KVM },		/* KVM */
 	{ "bhyve bhyve ",	VM_GUEST_BHYVE },	/* bhyve */
 	{ "VBoxVBoxVBox",	VM_GUEST_VBOX },	/* VirtualBox */
+	{ "___ NVMM ___",	VM_GUEST_NVMM },	/* NVMM */
 };
 
 static void
