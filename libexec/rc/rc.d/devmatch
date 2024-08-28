@@ -46,7 +46,7 @@ devmatch_start()
 	if [ -n "$one_nomatch" ]; then
 		list=$(devmatch -p "${one_nomatch}" | sort -u)
 	else
-		sysctl hw.bus.devctl_nomatch_enabled=1
+		sysctl hw.bus.devctl_nomatch_enabled=1 > /dev/null
 		list=$(devmatch | sort -u)
 	fi
 
