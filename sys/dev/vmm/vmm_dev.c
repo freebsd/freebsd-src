@@ -997,7 +997,7 @@ devmem_create_cdev(struct vmmdev_softc *sc, int segid, char *devname)
 
 	vmname = vm_name(sc->vm);
 
-	error = make_dev_p(MAKEDEV_CHECKNAME, &cdev, &devmemsw, NULL,
+	error = make_dev_p(MAKEDEV_CHECKNAME, &cdev, &devmemsw, sc->ucred,
 	    UID_ROOT, GID_WHEEL, 0600, "vmm.io/%s.%s", vmname, devname);
 	if (error)
 		return (error);
