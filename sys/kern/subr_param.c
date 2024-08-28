@@ -158,6 +158,7 @@ static const char *const vm_guest_sysctl_names[] = {
 	[VM_GUEST_BHYVE] = "bhyve",
 	[VM_GUEST_VBOX] = "vbox",
 	[VM_GUEST_PARALLELS] = "parallels",
+	[VM_GUEST_NVMM] = "nvmm",
 	[VM_LAST] = NULL
 };
 CTASSERT(nitems(vm_guest_sysctl_names) - 1 == VM_LAST);
