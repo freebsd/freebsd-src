@@ -89,7 +89,7 @@ rangelock_cheat_drain(struct rangelock *lock)
 
 	DROP_GIANT();
 	for (;;) {
-		v = (uintptr_t)atomic_load_ptr(&lock->head);
+		v = atomic_load_ptr(&lock->head);
 		if ((v & RL_CHEAT_DRAINING) == 0)
 			break;
 		sleepq_add(&lock->head, NULL, "ranged1", 0, 0);
@@ -106,7 +106,7 @@ rangelock_cheat_lock(struct rangelock *lock, int locktype, bool trylock,
 {
 	uintptr_t v, x;
 
-	v = (uintptr_t)atomic_load_ptr(&lock->head);
+	v = atomic_load_ptr(&lock->head);
 	if ((v & RL_CHEAT_CHEATING) == 0)
 		return (false);
 	if ((v & RL_CHEAT_DRAINING) != 0) {
@@ -190,7 +190,7 @@ rangelock_cheat_unlock(struct rangelock *lock, void *cookie)
 {
 	uintptr_t v, x;
 
-	v = (uintptr_t)atomic_load_ptr(&lock->head);
+	v = atomic_load_ptr(&lock->head);
 	if ((v & RL_CHEAT_CHEATING) == 0)
 		return (false);
 
@@ -259,7 +259,7 @@ rangelock_cheat_destroy(struct rangelock *lock)
 {
 	uintptr_t v;
 
-	v = (uintptr_t)atomic_load_ptr(&lock->head);
+	v = atomic_load_ptr(&lock->head);
 	if ((v & RL_CHEAT_CHEATING) == 0)
 		return (false);
 	MPASS(v == RL_CHEAT_CHEATING);
