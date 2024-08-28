@@ -335,9 +335,8 @@ c4iw_stop(struct adapter *sc)
 	if (iwsc) {
 		struct ib_event event = {0};
 
-		device_printf(sc->dev,
-			      "iWARP driver received FATAL ERROR event.\n");
-		iwsc->rdev.flags |= T4_FATAL_ERROR;
+		device_printf(sc->dev, "iWARP driver stopped.\n");
+		iwsc->rdev.flags |= T4_IW_STOPPED;
 		event.event  = IB_EVENT_DEVICE_FATAL;
 		event.device = &iwsc->ibdev;
 		ib_dispatch_event(&event);
@@ -349,6 +348,12 @@ c4iw_stop(struct adapter *sc)
 static int
 c4iw_restart(struct adapter *sc)
 {
+	struct c4iw_dev *iwsc = sc->iwarp_softc;
+
+	if (iwsc) {
+		device_printf(sc->dev, "iWARP driver restarted.\n");
+		iwsc->rdev.flags &= ~T4_IW_STOPPED;
+	}
 	return (0);
 }
 

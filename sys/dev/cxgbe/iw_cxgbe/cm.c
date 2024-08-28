@@ -1089,7 +1089,7 @@ c4iw_so_upcall(struct socket *so, void *arg, int waitflag)
 	 * Wake up any threads waiting in rdma_init()/rdma_fini(),
 	 * with locks held.
 	 */
-	if (so->so_error || (ep->com.dev->rdev.flags & T4_FATAL_ERROR))
+	if (so->so_error || c4iw_stopped(&ep->com.dev->rdev))
 		c4iw_wake_up(&ep->com.wr_wait, -ECONNRESET);
 	add_ep_to_req_list(ep, C4IW_EVENT_SOCKET);
 
@@ -2717,8 +2717,8 @@ c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 
 	CTR3(KTR_IW_CXGBE, "%s: cm_id %p, backlog %s", __func__, cm_id,
 			backlog);
-	if (c4iw_fatal_error(&dev->rdev)) {
-		CTR2(KTR_IW_CXGBE, "%s: cm_id %p, fatal error", __func__,
+	if (c4iw_stopped(&dev->rdev)) {
+		CTR2(KTR_IW_CXGBE, "%s: cm_id %p, stopped", __func__,
 			       cm_id);
 		return -EIO;
 	}
@@ -2830,8 +2830,8 @@ int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp)
 
 	rdev = &ep->com.dev->rdev;
 
-	if (c4iw_fatal_error(rdev)) {
-		CTR3(KTR_IW_CXGBE, "%s:ced1 fatal error %p %s", __func__, ep,
+	if (c4iw_stopped(rdev)) {
+		CTR3(KTR_IW_CXGBE, "%s:ced1 stopped %p %s", __func__, ep,
 					states[ep->com.state]);
 		if (ep->com.state != DEAD) {
 			send_abort(ep);

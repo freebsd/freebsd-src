@@ -256,7 +256,7 @@ static int write_tpt_entry(struct c4iw_rdev *rdev, u32 reset_tpt_entry,
 	u32 stag_idx;
 	static atomic_t key;
 
-	if (c4iw_fatal_error(rdev))
+	if (c4iw_stopped(rdev))
 		return -EIO;
 
 	stag_state = stag_state > 0;
