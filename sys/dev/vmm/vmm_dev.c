@@ -732,11 +732,23 @@ vmmdev_mmap_single(struct cdev *cdev, vm_ooffset_t *offset, vm_size_t mapsize,
 }
 
 static void
-vmmdev_destroy(void *arg)
+vmmdev_destroy(struct vmmdev_softc *sc)
 {
-	struct vmmdev_softc *sc = arg;
 	struct devmem_softc *dsc;
 	int error __diagused;
+
+	/*
+	 * Destroy all cdevs:
+	 *
+	 * - any new operations on the 'cdev' will return an error (ENXIO).
+	 *
+	 * - the 'devmem' cdevs are destroyed before the virtual machine 'cdev'
+	 */
+	SLIST_FOREACH(dsc, &sc->devmem, link) {
+		KASSERT(dsc->cdev != NULL, ("devmem cdev already destroyed"));
+		destroy_dev(dsc->cdev);
+		devmem_destroy(dsc);
+	}
 
 	vm_disable_vcpu_creation(sc->vm);
 	error = vcpu_lock_all(sc);
@@ -769,11 +781,35 @@ vmmdev_destroy(void *arg)
 }
 
 static int
+vmmdev_lookup_and_destroy(const char *name, struct ucred *cred)
+{
+	struct cdev *cdev;
+	struct vmmdev_softc *sc;
+
+	mtx_lock(&vmmdev_mtx);
+	sc = vmmdev_lookup(name);
+	if (sc == NULL || sc->cdev == NULL) {
+		mtx_unlock(&vmmdev_mtx);
+		return (EINVAL);
+	}
+
+	/*
+	 * Setting 'sc->cdev' to NULL is used to indicate that the VM
+	 * is scheduled for destruction.
+	 */
+	cdev = sc->cdev;
+	sc->cdev = NULL;
+	mtx_unlock(&vmmdev_mtx);
+
+	destroy_dev(cdev);
+	vmmdev_destroy(sc);
+
+	return (0);
+}
+
+static int
 sysctl_vmm_destroy(SYSCTL_HANDLER_ARGS)
 {
-	struct devmem_softc *dsc;
-	struct vmmdev_softc *sc;
-	struct cdev *cdev;
 	char *buf;
 	int error, buflen;
 
@@ -785,42 +821,8 @@ sysctl_vmm_destroy(SYSCTL_HANDLER_ARGS)
 	buf = malloc(buflen, M_VMMDEV, M_WAITOK | M_ZERO);
 	strlcpy(buf, "beavis", buflen);
 	error = sysctl_handle_string(oidp, buf, buflen, req);
-	if (error != 0 || req->newptr == NULL)
-		goto out;
-
-	mtx_lock(&vmmdev_mtx);
-	sc = vmmdev_lookup(buf);
-	if (sc == NULL || sc->cdev == NULL) {
-		mtx_unlock(&vmmdev_mtx);
-		error = EINVAL;
-		goto out;
-	}
-
-	/*
-	 * Setting 'sc->cdev' to NULL is used to indicate that the VM
-	 * is scheduled for destruction.
-	 */
-	cdev = sc->cdev;
-	sc->cdev = NULL;
-	mtx_unlock(&vmmdev_mtx);
-
-	/*
-	 * Destroy all cdevs:
-	 *
-	 * - any new operations on the 'cdev' will return an error (ENXIO).
-	 *
-	 * - the 'devmem' cdevs are destroyed before the virtual machine 'cdev'
-	 */
-	SLIST_FOREACH(dsc, &sc->devmem, link) {
-		KASSERT(dsc->cdev != NULL, ("devmem cdev already destroyed"));
-		destroy_dev(dsc->cdev);
-		devmem_destroy(dsc);
-	}
-	destroy_dev(cdev);
-	vmmdev_destroy(sc);
-	error = 0;
-
-out:
+	if (error == 0 && req->newptr != NULL)
+		error = vmmdev_lookup_and_destroy(buf, req->td->td_ucred);
 	free(buf, M_VMMDEV);
 	return (error);
 }
