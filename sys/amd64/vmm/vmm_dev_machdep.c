@@ -59,16 +59,16 @@
 #include "io/vrtc.h"
 
 #ifdef COMPAT_FREEBSD13
-struct vm_stats_old {
+struct vm_stats_13 {
 	int		cpuid;				/* in */
 	int		num_entries;			/* out */
 	struct timeval	tv;
 	uint64_t	statbuf[MAX_VM_STATS];
 };
 
-#define	VM_STATS_OLD	_IOWR('v', IOCNUM_VM_STATS, struct vm_stats_old)
+#define	VM_STATS_13	_IOWR('v', IOCNUM_VM_STATS, struct vm_stats_13)
 
-struct vm_snapshot_meta_old {
+struct vm_snapshot_meta_13 {
 	void *ctx;			/* unused */
 	void *dev_data;
 	const char *dev_name;      /* identify userspace devices */
@@ -79,8 +79,8 @@ struct vm_snapshot_meta_old {
 	enum vm_snapshot_op op;
 };
 
-#define VM_SNAPSHOT_REQ_OLD \
-	_IOWR('v', IOCNUM_SNAPSHOT_REQ, struct vm_snapshot_meta_old)
+#define VM_SNAPSHOT_REQ_13 \
+	_IOWR('v', IOCNUM_SNAPSHOT_REQ, struct vm_snapshot_meta_13)
 
 struct vm_exit_ipi_13 {
 	uint32_t	mode;
@@ -131,14 +131,14 @@ const struct vmmdev_ioctl vmmdev_machdep_ioctls[] = {
 	VMMDEV_IOCTL(VM_UNMAP_PPTDEV_MMIO, VMMDEV_IOCTL_LOCK_ALL_VCPUS),
 #ifdef BHYVE_SNAPSHOT
 #ifdef COMPAT_FREEBSD13
-	VMMDEV_IOCTL(VM_SNAPSHOT_REQ_OLD, VMMDEV_IOCTL_LOCK_ALL_VCPUS),
+	VMMDEV_IOCTL(VM_SNAPSHOT_REQ_13, VMMDEV_IOCTL_LOCK_ALL_VCPUS),
 #endif
 	VMMDEV_IOCTL(VM_SNAPSHOT_REQ, VMMDEV_IOCTL_LOCK_ALL_VCPUS),
 	VMMDEV_IOCTL(VM_RESTORE_TIME, VMMDEV_IOCTL_LOCK_ALL_VCPUS),
 #endif
 
 #ifdef COMPAT_FREEBSD13
-	VMMDEV_IOCTL(VM_STATS_OLD, VMMDEV_IOCTL_LOCK_ONE_VCPU),
+	VMMDEV_IOCTL(VM_STATS_13, VMMDEV_IOCTL_LOCK_ONE_VCPU),
 #endif
 	VMMDEV_IOCTL(VM_INJECT_NMI, VMMDEV_IOCTL_LOCK_ONE_VCPU),
 	VMMDEV_IOCTL(VM_LAPIC_IRQ, VMMDEV_IOCTL_LOCK_ONE_VCPU),
@@ -196,7 +196,7 @@ vmmdev_machdep_ioctl(struct vm *vm, struct vcpu *vcpu, u_long cmd, caddr_t data,
 #ifdef BHYVE_SNAPSHOT
 	struct vm_snapshot_meta *snapshot_meta;
 #ifdef COMPAT_FREEBSD13
-	struct vm_snapshot_meta_old *snapshot_old;
+	struct vm_snapshot_meta_13 *snapshot_13;
 #endif
 #endif
 	int error;
@@ -270,13 +270,13 @@ vmmdev_machdep_ioctl(struct vm *vm, struct vcpu *vcpu, u_long cmd, caddr_t data,
 		}
 		break;
 	}
-	case VM_STATS_OLD: {
-		struct vm_stats_old *vmstats_old;
+	case VM_STATS_13: {
+		struct vm_stats_13 *vmstats_13;
 
-		vmstats_old = (struct vm_stats_old *)data;
-		getmicrotime(&vmstats_old->tv);
-		error = vmm_stat_copy(vcpu, 0, nitems(vmstats_old->statbuf),
-		    &vmstats_old->num_entries, vmstats_old->statbuf);
+		vmstats_13 = (struct vm_stats_13 *)data;
+		getmicrotime(&vmstats_13->tv);
+		error = vmm_stat_copy(vcpu, 0, nitems(vmstats_13->statbuf),
+		    &vmstats_13->num_entries, vmstats_13->statbuf);
 		break;
 	}
 #endif
@@ -502,14 +502,14 @@ vmmdev_machdep_ioctl(struct vm *vm, struct vcpu *vcpu, u_long cmd, caddr_t data,
 		error = vm_snapshot_req(vm, snapshot_meta);
 		break;
 #ifdef COMPAT_FREEBSD13
-	case VM_SNAPSHOT_REQ_OLD:
+	case VM_SNAPSHOT_REQ_13:
 		/*
 		 * The old structure just has an additional pointer at
 		 * the start that is ignored.
 		 */
-		snapshot_old = (struct vm_snapshot_meta_old *)data;
+		snapshot_13 = (struct vm_snapshot_meta_13 *)data;
 		snapshot_meta =
-		    (struct vm_snapshot_meta *)&snapshot_old->dev_data;
+		    (struct vm_snapshot_meta *)&snapshot_13->dev_data;
 		error = vm_snapshot_req(vm, snapshot_meta);
 		break;
 #endif
