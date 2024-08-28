@@ -29,17 +29,17 @@
 #include <dev/vmm/vmm_stat.h>
 
 #if defined(__amd64__) && defined(COMPAT_FREEBSD12)
-struct vm_memseg_fbsd12 {
+struct vm_memseg_12 {
 	int		segid;
 	size_t		len;
 	char		name[64];
 };
-_Static_assert(sizeof(struct vm_memseg_fbsd12) == 80, "COMPAT_FREEBSD12 ABI");
+_Static_assert(sizeof(struct vm_memseg_12) == 80, "COMPAT_FREEBSD12 ABI");
 
-#define	VM_ALLOC_MEMSEG_FBSD12	\
-	_IOW('v', IOCNUM_ALLOC_MEMSEG, struct vm_memseg_fbsd12)
-#define	VM_GET_MEMSEG_FBSD12	\
-	_IOWR('v', IOCNUM_GET_MEMSEG, struct vm_memseg_fbsd12)
+#define	VM_ALLOC_MEMSEG_12	\
+	_IOW('v', IOCNUM_ALLOC_MEMSEG, struct vm_memseg_12)
+#define	VM_GET_MEMSEG_12	\
+	_IOWR('v', IOCNUM_GET_MEMSEG, struct vm_memseg_12)
 #endif
 
 struct devmem_softc {
@@ -339,7 +339,7 @@ static const struct vmmdev_ioctl vmmdev_ioctls[] = {
 	VMMDEV_IOCTL(VM_STATS, VMMDEV_IOCTL_LOCK_ONE_VCPU),
 
 #if defined(__amd64__) && defined(COMPAT_FREEBSD12)
-	VMMDEV_IOCTL(VM_ALLOC_MEMSEG_FBSD12,
+	VMMDEV_IOCTL(VM_ALLOC_MEMSEG_12,
 	    VMMDEV_IOCTL_XLOCK_MEMSEGS | VMMDEV_IOCTL_LOCK_ALL_VCPUS),
 #endif
 	VMMDEV_IOCTL(VM_ALLOC_MEMSEG,
@@ -352,7 +352,7 @@ static const struct vmmdev_ioctl vmmdev_ioctls[] = {
 	    VMMDEV_IOCTL_XLOCK_MEMSEGS | VMMDEV_IOCTL_LOCK_ALL_VCPUS),
 
 #if defined(__amd64__) && defined(COMPAT_FREEBSD12)
-	VMMDEV_IOCTL(VM_GET_MEMSEG_FBSD12, VMMDEV_IOCTL_SLOCK_MEMSEGS),
+	VMMDEV_IOCTL(VM_GET_MEMSEG_12, VMMDEV_IOCTL_SLOCK_MEMSEGS),
 #endif
 	VMMDEV_IOCTL(VM_GET_MEMSEG, VMMDEV_IOCTL_SLOCK_MEMSEGS),
 	VMMDEV_IOCTL(VM_MMAP_GETNEXT, VMMDEV_IOCTL_SLOCK_MEMSEGS),
@@ -489,13 +489,13 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		break;
 	}
 #if defined(__amd64__) && defined(COMPAT_FREEBSD12)
-	case VM_ALLOC_MEMSEG_FBSD12:
+	case VM_ALLOC_MEMSEG_12:
 		error = alloc_memseg(sc, (struct vm_memseg *)data,
-		    sizeof(((struct vm_memseg_fbsd12 *)0)->name));
+		    sizeof(((struct vm_memseg_12 *)0)->name));
 		break;
-	case VM_GET_MEMSEG_FBSD12:
+	case VM_GET_MEMSEG_12:
 		error = get_memseg(sc, (struct vm_memseg *)data,
-		    sizeof(((struct vm_memseg_fbsd12 *)0)->name));
+		    sizeof(((struct vm_memseg_12 *)0)->name));
 		break;
 #endif
 	case VM_ALLOC_MEMSEG:
