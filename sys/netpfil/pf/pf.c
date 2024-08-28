@@ -8828,14 +8828,12 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0,
 		break;
 	}
 
-#ifdef INET6
 	case IPPROTO_ICMPV6: {
 		action = PF_DROP;
 		DPFPRINTF(PF_DEBUG_MISC,
 		    ("pf: dropping IPv4 packet with ICMPv6 payload\n"));
 		goto done;
 	}
-#endif
 
 	default:
 		action = pf_test_state_other(&s, kif, m, &pd);
