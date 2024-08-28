@@ -48,7 +48,7 @@ NO_PKG_UPGRADE="${NO_PKG_UPGRADE:-""}"
 # Config updater - 'etcupdate' is supported.  Set to an empty string to skip.
 CONFIG_UPDATER="${CONFIG_UPDATER:-"etcupdate"}"
 # Flags for etcupdate if used.
-ETCUPDATE_FLAGS="${ETCUPDATE_FLAGS:-"-F"}"
+ETCUPDATE_FLAGS="${ETCUPDATE_FLAGS:-"-BF"}"
 
 
 ########################################################################
