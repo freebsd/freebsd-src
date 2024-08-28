@@ -876,7 +876,8 @@ ipsec_accel_output(struct ifnet *ifp, struct mbuf *m, struct inpcb *inp,
 	}
 
 	i = ipsec_accel_is_accel_sav_ptr(sav, ifp);
-	if (i == NULL)
+	if (i == NULL || (i->flags & (IFP_HS_HANDLED | IFP_HS_REJECTED)) !=
+	    IFP_HS_HANDLED)
 		goto out;
 
 	if ((m->m_pkthdr.csum_flags & CSUM_TSO) == 0) {
