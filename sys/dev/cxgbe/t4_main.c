@@ -2110,21 +2110,30 @@ stop_lld(struct adapter *sc)
 	return (rc);
 }
 
-static int
-t4_suspend(device_t dev)
+int
+suspend_adapter(struct adapter *sc)
 {
-	struct adapter *sc = device_get_softc(dev);
-
-	CH_ALERT(sc, "%s from thread %p.\n", __func__, curthread);
 	stop_adapter(sc);
 	stop_lld(sc);
 #ifdef TCP_OFFLOAD
 	stop_all_uld(sc);
 #endif
 	set_adapter_hwstatus(sc, false);
-	CH_ALERT(sc, "%s end (thread %p).\n", __func__, curthread);
 
 	return (0);
+}
+
+static int
+t4_suspend(device_t dev)
+{
+	struct adapter *sc = device_get_softc(dev);
+	int rc;
+
+	CH_ALERT(sc, "%s from thread %p.\n", __func__, curthread);
+	rc = suspend_adapter(sc);
+	CH_ALERT(sc, "%s end (thread %p).\n", __func__, curthread);
+
+	return (rc);
 }
 
 struct adapter_pre_reset_state {
@@ -2464,20 +2473,28 @@ done:
 	return (rc);
 }
 
-static int
-t4_resume(device_t dev)
+int
+resume_adapter(struct adapter *sc)
 {
-	struct adapter *sc = device_get_softc(dev);
-
-	CH_ALERT(sc, "%s from thread %p.\n", __func__, curthread);
 	restart_adapter(sc);
 	restart_lld(sc);
 #ifdef TCP_OFFLOAD
 	restart_all_uld(sc);
 #endif
+	return (0);
+}
+
+static int
+t4_resume(device_t dev)
+{
+	struct adapter *sc = device_get_softc(dev);
+	int rc;
+
+	CH_ALERT(sc, "%s from thread %p.\n", __func__, curthread);
+	rc = resume_adapter(sc);
 	CH_ALERT(sc, "%s end (thread %p).\n", __func__, curthread);
 
-	return (0);
+	return (rc);
 }
 
 static int
@@ -2512,12 +2529,7 @@ reset_adapter_with_pci_bus_reset(struct adapter *sc)
 static int
 reset_adapter_with_pl_rst(struct adapter *sc)
 {
-	stop_adapter(sc);
-	stop_lld(sc);
-#ifdef TCP_OFFLOAD
-	stop_all_uld(sc);
-#endif
-	set_adapter_hwstatus(sc, false);
+	suspend_adapter(sc);
 
 	/* This is a t4_write_reg without the hw_off_limits check. */
 	MPASS(sc->error_flags & HW_OFF_LIMITS);
@@ -2525,11 +2537,7 @@ reset_adapter_with_pl_rst(struct adapter *sc)
 			  F_PIORSTMODE | F_PIORST | F_AUTOPCIEPAUSE);
 	pause("pl_rst", 1 * hz);		/* Wait 1s for reset */
 
-	restart_adapter(sc);
-	restart_lld(sc);
-#ifdef TCP_OFFLOAD
-	restart_all_uld(sc);
-#endif
+	resume_adapter(sc);
 
 	return (0);
 }
