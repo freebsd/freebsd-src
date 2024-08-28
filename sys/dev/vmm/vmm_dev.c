@@ -42,8 +42,6 @@ _Static_assert(sizeof(struct vm_memseg_fbsd12) == 80, "COMPAT_FREEBSD12 ABI");
 	_IOWR('v', IOCNUM_GET_MEMSEG, struct vm_memseg_fbsd12)
 #endif
 
-static int devmem_create_cdev(const char *vmname, int id, char *devmem);
-
 struct devmem_softc {
 	int	segid;
 	char	*name;
@@ -73,6 +71,7 @@ static MALLOC_DEFINE(M_VMMDEV, "vmmdev", "vmmdev");
 SYSCTL_DECL(_hw_vmm);
 
 static void devmem_destroy(void *arg);
+static int devmem_create_cdev(struct vmmdev_softc *sc, int id, char *devmem);
 
 static int
 vmm_priv_check(struct ucred *ucred)
@@ -287,7 +286,7 @@ alloc_memseg(struct vmmdev_softc *sc, struct vm_memseg *mseg, size_t len)
 		goto done;
 
 	if (VM_MEMSEG_NAME(mseg)) {
-		error = devmem_create_cdev(vm_name(sc->vm), mseg->segid, name);
+		error = devmem_create_cdev(sc, mseg->segid, name);
 		if (error)
 			vm_free_memseg(sc->vm, mseg->segid);
 		else
@@ -989,12 +988,14 @@ static struct cdevsw devmemsw = {
 };
 
 static int
-devmem_create_cdev(const char *vmname, int segid, char *devname)
+devmem_create_cdev(struct vmmdev_softc *sc, int segid, char *devname)
 {
 	struct devmem_softc *dsc;
-	struct vmmdev_softc *sc;
 	struct cdev *cdev;
+	const char *vmname;
 	int error;
+
+	vmname = vm_name(sc->vm);
 
 	error = make_dev_p(MAKEDEV_CHECKNAME, &cdev, &devmemsw, NULL,
 	    UID_ROOT, GID_WHEEL, 0600, "vmm.io/%s.%s", vmname, devname);
@@ -1004,8 +1005,6 @@ devmem_create_cdev(const char *vmname, int segid, char *devname)
 	dsc = malloc(sizeof(struct devmem_softc), M_VMMDEV, M_WAITOK | M_ZERO);
 
 	mtx_lock(&vmmdev_mtx);
-	sc = vmmdev_lookup(vmname);
-	KASSERT(sc != NULL, ("%s: vm %s softc not found", __func__, vmname));
 	if (sc->cdev == NULL) {
 		/* virtual machine is being created or destroyed */
 		mtx_unlock(&vmmdev_mtx);
