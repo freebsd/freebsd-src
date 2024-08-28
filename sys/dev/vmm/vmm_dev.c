@@ -152,7 +152,7 @@ vcpu_unlock_all(struct vmmdev_softc *sc)
 }
 
 static struct vmmdev_softc *
-vmmdev_lookup(const char *name)
+vmmdev_lookup(const char *name, struct ucred *cred)
 {
 	struct vmmdev_softc *sc;
 
@@ -166,7 +166,7 @@ vmmdev_lookup(const char *name)
 	if (sc == NULL)
 		return (NULL);
 
-	if (cr_cansee(curthread->td_ucred, sc->ucred))
+	if (cr_cansee(cred, sc->ucred))
 		return (NULL);
 
 	return (sc);
@@ -786,7 +786,7 @@ vmmdev_lookup_and_destroy(const char *name, struct ucred *cred)
 	struct vmmdev_softc *sc;
 
 	mtx_lock(&vmmdev_mtx);
-	sc = vmmdev_lookup(name);
+	sc = vmmdev_lookup(name, cred);
 	if (sc == NULL || sc->cdev == NULL) {
 		mtx_unlock(&vmmdev_mtx);
 		return (EINVAL);
@@ -860,7 +860,7 @@ vmmdev_create(const char *name, struct ucred *cred)
 	int error;
 
 	mtx_lock(&vmmdev_mtx);
-	sc = vmmdev_lookup(name);
+	sc = vmmdev_lookup(name, cred);
 	mtx_unlock(&vmmdev_mtx);
 	if (sc != NULL)
 		return (EEXIST);
@@ -876,7 +876,7 @@ vmmdev_create(const char *name, struct ucred *cred)
 	 * dropped the lock.
 	 */
 	mtx_lock(&vmmdev_mtx);
-	sc2 = vmmdev_lookup(name);
+	sc2 = vmmdev_lookup(name, cred);
 	if (sc2 != NULL) {
 		mtx_unlock(&vmmdev_mtx);
 		vmmdev_destroy(sc);
