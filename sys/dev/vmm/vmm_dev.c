@@ -838,66 +838,58 @@ static struct cdevsw vmmdevsw = {
 	.d_write	= vmmdev_rw,
 };
 
-static int
-sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
+static struct vmmdev_softc *
+vmmdev_alloc(struct vm *vm, struct ucred *cred)
 {
-	struct vm *vm;
+	struct vmmdev_softc *sc;
+
+	sc = malloc(sizeof(*sc), M_VMMDEV, M_WAITOK | M_ZERO);
+	SLIST_INIT(&sc->devmem);
+	sc->vm = vm;
+	sc->ucred = crhold(cred);
+	return (sc);
+}
+
+static int
+vmmdev_create(const char *name, struct ucred *cred)
+{
 	struct cdev *cdev;
 	struct vmmdev_softc *sc, *sc2;
-	char *buf;
-	int error, buflen;
-
-	error = vmm_priv_check(req->td->td_ucred);
-	if (error)
-		return (error);
-
-	buflen = VM_MAX_NAMELEN + 1;
-	buf = malloc(buflen, M_VMMDEV, M_WAITOK | M_ZERO);
-	strlcpy(buf, "beavis", buflen);
-	error = sysctl_handle_string(oidp, buf, buflen, req);
-	if (error != 0 || req->newptr == NULL)
-		goto out;
+	struct vm *vm;
+	int error;
 
 	mtx_lock(&vmmdev_mtx);
-	sc = vmmdev_lookup(buf);
+	sc = vmmdev_lookup(name);
 	mtx_unlock(&vmmdev_mtx);
-	if (sc != NULL) {
-		error = EEXIST;
-		goto out;
-	}
+	if (sc != NULL)
+		return (EEXIST);
 
-	error = vm_create(buf, &vm);
+	error = vm_create(name, &vm);
 	if (error != 0)
-		goto out;
+		return (error);
 
-	sc = malloc(sizeof(struct vmmdev_softc), M_VMMDEV, M_WAITOK | M_ZERO);
-	sc->ucred = crhold(curthread->td_ucred);
-	sc->vm = vm;
-	SLIST_INIT(&sc->devmem);
+	sc = vmmdev_alloc(vm, cred);
 
 	/*
 	 * Lookup the name again just in case somebody sneaked in when we
 	 * dropped the lock.
 	 */
 	mtx_lock(&vmmdev_mtx);
-	sc2 = vmmdev_lookup(buf);
-	if (sc2 == NULL) {
-		SLIST_INSERT_HEAD(&head, sc, link);
-		sc->flags |= VSC_LINKED;
+	sc2 = vmmdev_lookup(name);
+	if (sc2 != NULL) {
+		mtx_unlock(&vmmdev_mtx);
+		vmmdev_destroy(sc);
+		return (EEXIST);
 	}
+	sc->flags |= VSC_LINKED;
+	SLIST_INSERT_HEAD(&head, sc, link);
 	mtx_unlock(&vmmdev_mtx);
 
-	if (sc2 != NULL) {
-		vmmdev_destroy(sc);
-		error = EEXIST;
-		goto out;
-	}
-
 	error = make_dev_p(MAKEDEV_CHECKNAME, &cdev, &vmmdevsw, sc->ucred,
-	    UID_ROOT, GID_WHEEL, 0600, "vmm/%s", buf);
+	    UID_ROOT, GID_WHEEL, 0600, "vmm/%s", name);
 	if (error != 0) {
 		vmmdev_destroy(sc);
-		goto out;
+		return (error);
 	}
 
 	mtx_lock(&vmmdev_mtx);
@@ -905,7 +897,25 @@ sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
 	sc->cdev->si_drv1 = sc;
 	mtx_unlock(&vmmdev_mtx);
 
-out:
+	return (0);
+}
+
+static int
+sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
+{
+	char *buf;
+	int error, buflen;
+
+	error = vmm_priv_check(req->td->td_ucred);
+	if (error != 0)
+		return (error);
+
+	buflen = VM_MAX_NAMELEN + 1;
+	buf = malloc(buflen, M_VMMDEV, M_WAITOK | M_ZERO);
+	strlcpy(buf, "beavis", buflen);
+	error = sysctl_handle_string(oidp, buf, buflen, req);
+	if (error == 0 && req->newptr != NULL)
+		error = vmmdev_create(buf, req->td->td_ucred);
 	free(buf, M_VMMDEV);
 	return (error);
 }
