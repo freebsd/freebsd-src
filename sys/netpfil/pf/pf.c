@@ -6108,7 +6108,7 @@ pf_icmp_state_lookup(struct pf_state_key_cmp *key, struct pf_pdesc *pd,
 	    PF_IN : PF_OUT) != icmp_dir) {
 		if (V_pf_status.debug >= PF_DEBUG_MISC) {
 			printf("pf: icmp type %d in wrong direction (%d): ",
-			    icmp_dir, pd->dir);
+			    ntohs(type), icmp_dir);
 			pf_print_state(*state);
 			printf("\n");
 		}
