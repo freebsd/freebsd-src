@@ -79,7 +79,7 @@ static int ice_sysctl_fwlog_module_log_severity(SYSCTL_HANDLER_ARGS);
 static int
 ice_reconfig_fw_log(struct ice_softc *sc, struct ice_fwlog_cfg *cfg)
 {
-	enum ice_status status;
+	int status;
 
 	ice_fwlog_init(&sc->hw, cfg);
 
@@ -223,7 +223,7 @@ ice_sysctl_fwlog_register(SYSCTL_HANDLER_ARGS)
 {
 	struct ice_softc *sc = (struct ice_softc *)arg1;
 	struct ice_fwlog_cfg *cfg = &sc->hw.fwlog_cfg;
-	enum ice_status status;
+	int status;
 	int error;
 	u8 enabled;
 

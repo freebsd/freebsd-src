@@ -76,15 +76,15 @@ struct ice_fwlog_cfg {
 
 void ice_fwlog_set_support_ena(struct ice_hw *hw);
 bool ice_fwlog_supported(struct ice_hw *hw);
-enum ice_status ice_fwlog_init(struct ice_hw *hw, struct ice_fwlog_cfg *cfg);
-enum ice_status ice_fwlog_set(struct ice_hw *hw, struct ice_fwlog_cfg *cfg);
-enum ice_status ice_fwlog_get(struct ice_hw *hw, struct ice_fwlog_cfg *cfg);
-enum ice_status
+int ice_fwlog_init(struct ice_hw *hw, struct ice_fwlog_cfg *cfg);
+int ice_fwlog_set(struct ice_hw *hw, struct ice_fwlog_cfg *cfg);
+int ice_fwlog_get(struct ice_hw *hw, struct ice_fwlog_cfg *cfg);
+int
 ice_fwlog_update_modules(struct ice_hw *hw,
 			 struct ice_fwlog_module_entry *entries,
 			 u16 num_entries);
-enum ice_status ice_fwlog_register(struct ice_hw *hw);
-enum ice_status ice_fwlog_unregister(struct ice_hw *hw);
+int ice_fwlog_register(struct ice_hw *hw);
+int ice_fwlog_unregister(struct ice_hw *hw);
 void
 ice_fwlog_event_dump(struct ice_hw *hw, struct ice_aq_desc *desc, void *buf);
 #endif /* _ICE_FWLOG_H_ */
