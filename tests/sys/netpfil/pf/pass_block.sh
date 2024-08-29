@@ -373,6 +373,41 @@ received_on_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "optimize_any" "cleanup"
+optimize_any_head()
+{
+	atf_set descr 'Test known optimizer bug'
+	atf_set require.user root
+}
+
+optimize_any_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+
+	vnet_mkjail alcatraz ${epair}a
+
+	ifconfig ${epair}b 192.0.2.2/24 up
+
+	jexec alcatraz ifconfig ${epair}a 192.0.2.1/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -c 1 -t 1 192.0.2.1
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+	    "block" \
+	    "pass in inet from { any, 192.0.2.3 }"
+
+	atf_check -s exit:0 -o ignore ping -c 1 -t 1 192.0.2.1
+}
+
+optimize_any_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "enable_disable"
@@ -382,4 +417,5 @@ atf_init_test_cases()
 	atf_add_test_case "nested_inline"
 	atf_add_test_case "urpf"
 	atf_add_test_case "received_on"
+	atf_add_test_case "optimize_any"
 }
