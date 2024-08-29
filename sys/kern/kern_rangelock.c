@@ -313,15 +313,8 @@ static struct rl_q_entry *
 rlqentry_alloc(vm_ooffset_t start, vm_ooffset_t end, int flags)
 {
 	struct rl_q_entry *e;
-	struct thread *td;
 
-	td = curthread;
-	if (td->td_rlqe != NULL) {
-		e = td->td_rlqe;
-		td->td_rlqe = NULL;
-	} else {
-		e = uma_zalloc_smr(rl_entry_zone, M_WAITOK);
-	}
+	e = uma_zalloc_smr(rl_entry_zone, M_WAITOK);
 	e->rl_q_next = NULL;
 	e->rl_q_free = NULL;
 	e->rl_q_start = start;
@@ -331,12 +324,6 @@ rlqentry_alloc(vm_ooffset_t start, vm_ooffset_t end, int flags)
 	e->rl_q_owner = curthread;
 #endif
 	return (e);
-}
-
-void
-rangelock_entry_free(struct rl_q_entry *e)
-{
-	uma_zfree_smr(rl_entry_zone, e);
 }
 
 void
@@ -401,19 +388,12 @@ static void
 rangelock_free_free(struct rl_q_entry *free)
 {
 	struct rl_q_entry *x, *xp;
-	struct thread *td;
 
-	td = curthread;
 	for (x = free; x != NULL; x = xp) {
 		MPASS(!rl_e_is_marked(x));
 		xp = x->rl_q_free;
 		MPASS(!rl_e_is_marked(xp));
-		if (td->td_rlqe == NULL) {
-			smr_synchronize(rl_smr);
-			td->td_rlqe = x;
-		} else {
-			uma_zfree_smr(rl_entry_zone, x);
-		}
+		uma_zfree_smr(rl_entry_zone, x);
 	}
 }
 
