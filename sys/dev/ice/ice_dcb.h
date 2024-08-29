@@ -215,64 +215,64 @@ struct ice_dcbx_variables {
 	u32 deftsaassignment;
 };
 
-enum ice_status
+int
 ice_aq_get_lldp_mib(struct ice_hw *hw, u8 bridge_type, u8 mib_type, void *buf,
 		    u16 buf_size, u16 *local_len, u16 *remote_len,
 		    struct ice_sq_cd *cd);
-enum ice_status
+int
 ice_aq_add_delete_lldp_tlv(struct ice_hw *hw, u8 bridge_type, bool add_lldp_tlv,
 			   void *buf, u16 buf_size, u16 tlv_len, u16 *mib_len,
 			   struct ice_sq_cd *cd);
-enum ice_status
+int
 ice_aq_update_lldp_tlv(struct ice_hw *hw, u8 bridge_type, void *buf,
 		       u16 buf_size, u16 old_len, u16 new_len, u16 offset,
 		       u16 *mib_len, struct ice_sq_cd *cd);
-enum ice_status
+int
 ice_aq_dcb_ignore_pfc(struct ice_hw *hw, u8 tcmap, bool request, u8 *tcmap_ret,
 		      struct ice_sq_cd *cd);
-enum ice_status
+int
 ice_aq_get_cee_dcb_cfg(struct ice_hw *hw,
 		       struct ice_aqc_get_cee_dcb_cfg_resp *buff,
 		       struct ice_sq_cd *cd);
-enum ice_status
+int
 ice_aq_query_pfc_mode(struct ice_hw *hw, u8 *pfcmode_ret, struct ice_sq_cd *cd);
-enum ice_status
+int
 ice_aq_set_dcb_parameters(struct ice_hw *hw, bool dcb_enable,
 			  struct ice_sq_cd *cd);
-enum ice_status
+int
 ice_aq_set_pfc_mode(struct ice_hw *hw, u8 pfc_mode, struct ice_sq_cd *cd);
-enum ice_status ice_lldp_to_dcb_cfg(u8 *lldpmib, struct ice_dcbx_cfg *dcbcfg);
+int ice_lldp_to_dcb_cfg(u8 *lldpmib, struct ice_dcbx_cfg *dcbcfg);
 u8 ice_get_dcbx_status(struct ice_hw *hw);
-enum ice_status
+int
 ice_aq_get_dcb_cfg(struct ice_hw *hw, u8 mib_type, u8 bridgetype,
 		   struct ice_dcbx_cfg *dcbcfg);
-enum ice_status ice_get_dcb_cfg(struct ice_port_info *pi);
-enum ice_status ice_set_dcb_cfg(struct ice_port_info *pi);
+int ice_get_dcb_cfg(struct ice_port_info *pi);
+int ice_set_dcb_cfg(struct ice_port_info *pi);
 void ice_get_dcb_cfg_from_mib_change(struct ice_port_info *pi,
 				     struct ice_rq_event_info *event);
-enum ice_status ice_init_dcb(struct ice_hw *hw, bool enable_mib_change);
+int ice_init_dcb(struct ice_hw *hw, bool enable_mib_change);
 void ice_dcb_cfg_to_lldp(u8 *lldpmib, u16 *miblen, struct ice_dcbx_cfg *dcbcfg);
-enum ice_status
+int
 ice_query_port_ets(struct ice_port_info *pi,
 		   struct ice_aqc_port_ets_elem *buf, u16 buf_size,
 		   struct ice_sq_cd *cmd_details);
-enum ice_status
+int
 ice_aq_query_port_ets(struct ice_port_info *pi,
 		      struct ice_aqc_port_ets_elem *buf, u16 buf_size,
 		      struct ice_sq_cd *cd);
-enum ice_status
+int
 ice_update_port_tc_tree_cfg(struct ice_port_info *pi,
 			    struct ice_aqc_port_ets_elem *buf);
-enum ice_status
+int
 ice_aq_stop_lldp(struct ice_hw *hw, bool shutdown_lldp_agent, bool persist,
 		 struct ice_sq_cd *cd);
-enum ice_status
+int
 ice_aq_start_lldp(struct ice_hw *hw, bool persist, struct ice_sq_cd *cd);
-enum ice_status
+int
 ice_aq_start_stop_dcbx(struct ice_hw *hw, bool start_dcbx_agent,
 		       bool *dcbx_agent_status, struct ice_sq_cd *cd);
-enum ice_status ice_cfg_lldp_mib_change(struct ice_hw *hw, bool ena_mib);
-enum ice_status
+int ice_cfg_lldp_mib_change(struct ice_hw *hw, bool ena_mib);
+int
 ice_aq_cfg_lldp_mib_change(struct ice_hw *hw, bool ena_update,
 			   struct ice_sq_cd *cd);
 #endif /* _ICE_DCB_H_ */
