@@ -370,7 +370,10 @@ in6_pcbladdr(struct inpcb *inp, struct sockaddr_in6 *sin6,
 		 */
 		if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr))
 			sin6->sin6_addr = in6addr_loopback;
+	} else if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
+		return (ENETUNREACH);
 	}
+
 	if ((error = prison_remote_ip6(inp->inp_cred, &sin6->sin6_addr)) != 0)
 		return (error);
 

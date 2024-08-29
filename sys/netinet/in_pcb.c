@@ -1338,6 +1338,8 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr_in *sin,
 				faddr = satosin(&CK_STAILQ_FIRST(
 				    &V_in_ifaddrhead)->ia_broadaddr)->sin_addr;
 		}
+	} else if (faddr.s_addr == INADDR_ANY) {
+		return (ENETUNREACH);
 	}
 	if (laddr.s_addr == INADDR_ANY) {
 		error = in_pcbladdr(inp, &faddr, &laddr, cred);
