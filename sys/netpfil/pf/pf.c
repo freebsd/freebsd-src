@@ -5456,7 +5456,7 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 		if (s->state_flags & PFSTATE_SCRUB_TCP &&
 		    pf_normalize_tcp_init(m, off, pd, th, &s->src, &s->dst)) {
 			REASON_SET(&reason, PFRES_MEMORY);
-			goto drop;
+			goto csfailed;
 		}
 		if (s->state_flags & PFSTATE_SCRUB_TCP && s->src.scrub &&
 		    pf_normalize_tcp_stateful(m, off, pd, &reason, th, s,
@@ -5465,13 +5465,13 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 			DPFPRINTF(PF_DEBUG_URGENT,
 			    ("pf_normalize_tcp_stateful failed on first "
 			     "pkt\n"));
-			goto drop;
+			goto csfailed;
 		}
 	} else if (pd->proto == IPPROTO_SCTP) {
 		if (pf_normalize_sctp_init(m, off, pd, &s->src, &s->dst))
-			goto drop;
+			goto csfailed;
 		if (! (pd->sctp_flags & (PFDESC_SCTP_INIT | PFDESC_SCTP_ADD_IP)))
-			goto drop;
+			goto csfailed;
 	}
 	s->direction = pd->dir;
 
