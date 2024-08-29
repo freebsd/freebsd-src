@@ -43,6 +43,7 @@
 #include "ice_controlq.h"
 #include "ice_flex_type.h"
 #include "ice_protocol_type.h"
+#include "ice_sbq_cmd.h"
 #include "ice_vlan_mode.h"
 #include "ice_fwlog.h"
 
@@ -224,6 +225,7 @@ enum ice_mac_type {
 	ICE_MAC_UNKNOWN = 0,
 	ICE_MAC_VF,
 	ICE_MAC_E810,
+	ICE_MAC_E830,
 	ICE_MAC_GENERIC,
 	ICE_MAC_GENERIC_3K,
 	ICE_MAC_GENERIC_3K_E825,
@@ -257,7 +259,9 @@ enum ice_media_type {
 					 ICE_PHY_TYPE_LOW_100G_AUI4_AOC_ACC)
 
 #define ICE_MEDIA_C2M_PHY_TYPE_HIGH_M (ICE_PHY_TYPE_HIGH_100G_CAUI2_AOC_ACC | \
-				       ICE_PHY_TYPE_HIGH_100G_AUI2_AOC_ACC)
+				       ICE_PHY_TYPE_HIGH_100G_AUI2_AOC_ACC | \
+				       ICE_PHY_TYPE_HIGH_200G_AUI4_AOC_ACC | \
+				       ICE_PHY_TYPE_HIGH_200G_AUI8_AOC_ACC)
 
 #define ICE_MEDIA_OPT_PHY_TYPE_LOW_M	(ICE_PHY_TYPE_LOW_1000BASE_SX | \
 					 ICE_PHY_TYPE_LOW_1000BASE_LX | \
@@ -277,6 +281,12 @@ enum ice_media_type {
 					 ICE_PHY_TYPE_LOW_50GBASE_FR | \
 					 ICE_PHY_TYPE_LOW_100GBASE_DR)
 
+#define ICE_MEDIA_OPT_PHY_TYPE_HIGH_M	(ICE_PHY_TYPE_HIGH_200G_SR4 | \
+					 ICE_PHY_TYPE_HIGH_200G_LR4 | \
+					 ICE_PHY_TYPE_HIGH_200G_FR4 | \
+					 ICE_PHY_TYPE_HIGH_200G_DR4 | \
+					 ICE_PHY_TYPE_HIGH_400GBASE_FR8)
+
 #define ICE_MEDIA_BP_PHY_TYPE_LOW_M	(ICE_PHY_TYPE_LOW_1000BASE_KX | \
 					 ICE_PHY_TYPE_LOW_2500BASE_KX | \
 					 ICE_PHY_TYPE_LOW_5GBASE_KR | \
@@ -290,7 +300,8 @@ enum ice_media_type {
 					 ICE_PHY_TYPE_LOW_100GBASE_KR4 | \
 					 ICE_PHY_TYPE_LOW_100GBASE_KR_PAM4)
 
-#define ICE_MEDIA_BP_PHY_TYPE_HIGH_M    ICE_PHY_TYPE_HIGH_100GBASE_KR2_PAM4
+#define ICE_MEDIA_BP_PHY_TYPE_HIGH_M	(ICE_PHY_TYPE_HIGH_100GBASE_KR2_PAM4 | \
+					 ICE_PHY_TYPE_HIGH_200G_KR4_PAM4)
 
 #define ICE_MEDIA_DAC_PHY_TYPE_LOW_M	(ICE_PHY_TYPE_LOW_10G_SFI_DA | \
 					 ICE_PHY_TYPE_LOW_25GBASE_CR | \
@@ -302,6 +313,8 @@ enum ice_media_type {
 					 ICE_PHY_TYPE_LOW_100GBASE_CR_PAM4 | \
 					 ICE_PHY_TYPE_LOW_50GBASE_CP | \
 					 ICE_PHY_TYPE_LOW_100GBASE_CP2)
+
+#define ICE_MEDIA_DAC_PHY_TYPE_HIGH_M	ICE_PHY_TYPE_HIGH_200G_CR4_PAM4
 
 #define ICE_MEDIA_C2C_PHY_TYPE_LOW_M	(ICE_PHY_TYPE_LOW_100M_SGMII | \
 					 ICE_PHY_TYPE_LOW_1G_SGMII | \
@@ -316,7 +329,9 @@ enum ice_media_type {
 					 ICE_PHY_TYPE_LOW_100G_AUI4)
 
 #define ICE_MEDIA_C2C_PHY_TYPE_HIGH_M	(ICE_PHY_TYPE_HIGH_100G_CAUI2 | \
-					 ICE_PHY_TYPE_HIGH_100G_AUI2)
+					 ICE_PHY_TYPE_HIGH_100G_AUI2 | \
+					 ICE_PHY_TYPE_HIGH_200G_AUI4 | \
+					 ICE_PHY_TYPE_HIGH_200G_AUI8)
 
 /* Software VSI types. */
 enum ice_vsi_type {
@@ -504,6 +519,7 @@ struct ice_hw_common_caps {
 	bool dyn_flattening_en;
 	/* Support for OROM update in Recovery Mode */
 	bool orom_recovery_update;
+	bool next_cluster_id_support;
 };
 
 #define ICE_NAC_TOPO_PRIMARY_M	BIT(0)
@@ -557,7 +573,8 @@ enum ice_pcie_bus_speed {
 	ice_pcie_speed_2_5GT	= 0x14,
 	ice_pcie_speed_5_0GT	= 0x15,
 	ice_pcie_speed_8_0GT	= 0x16,
-	ice_pcie_speed_16_0GT	= 0x17
+	ice_pcie_speed_16_0GT	= 0x17,
+	ice_pcie_speed_32_0GT	= 0x18,
 };
 
 /* PCI bus widths */
@@ -938,6 +955,7 @@ struct ice_port_info {
 	u16 sw_id;			/* Initial switch ID belongs to port */
 	u16 pf_vf_num;
 	u8 port_state;
+	u8 loopback_mode;
 #define ICE_SCHED_PORT_STATE_INIT	0x0
 #define ICE_SCHED_PORT_STATE_READY	0x1
 	u8 lport;
@@ -1044,6 +1062,7 @@ enum ice_phy_model {
 	ICE_PHY_UNSUP = -1,
 	ICE_PHY_E810  = 1,
 	ICE_PHY_E822,
+	ICE_PHY_E830,
 };
 
 /* Port hardware description */
@@ -1061,6 +1080,7 @@ struct ice_hw {
 	u64 debug_mask;		/* BITMAP for debug mask */
 	enum ice_mac_type mac_type;
 
+	u16 fw_vsi_num;
 	/* pci info */
 	u16 device_id;
 	u16 vendor_id;
@@ -1097,6 +1117,7 @@ struct ice_hw {
 
 	/* Control Queue info */
 	struct ice_ctl_q_info adminq;
+	struct ice_ctl_q_info sbq;
 	struct ice_ctl_q_info mailboxq;
 	u8 api_branch;		/* API branch version */
 	u8 api_maj_ver;		/* API major version */
@@ -1146,7 +1167,6 @@ struct ice_hw {
 	u32 pkg_seg_id;
 	u32 pkg_sign_type;
 	u32 active_track_id;
-	u8 pkg_has_signing_seg:1;
 	u8 active_pkg_name[ICE_PKG_NAME_SIZE];
 	u8 active_pkg_in_nvm;
 
@@ -1180,6 +1200,7 @@ struct ice_hw {
 	u8 dvm_ena;
 
 	bool subscribable_recipes_supported;
+	bool skip_clear_pf;
 };
 
 /* Statistics collected by each port, VSI, VEB, and S-channel */
@@ -1456,4 +1477,9 @@ struct ice_aq_get_set_rss_lut_params {
 #define ICE_FW_API_AUTO_DROP_MAJ		1
 #define ICE_FW_API_AUTO_DROP_MIN		4
 
+static inline bool
+ice_is_nac_dual(struct ice_hw *hw)
+{
+	return !!(hw->dev_caps.nac_topo.mode & ICE_NAC_TOPO_DUAL_M);
+}
 #endif /* _ICE_TYPE_H_ */
