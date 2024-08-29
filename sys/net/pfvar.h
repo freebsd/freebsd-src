@@ -776,6 +776,7 @@ struct pf_krule {
 	char			 label[PF_RULE_MAX_LABEL_COUNT][PF_RULE_LABEL_SIZE];
 	uint32_t		 ridentifier;
 	char			 ifname[IFNAMSIZ];
+	char			 rcv_ifname[IFNAMSIZ];
 	char			 qname[PF_QNAME_SIZE];
 	char			 pqname[PF_QNAME_SIZE];
 	char			 tagname[PF_TAG_NAME_SIZE];
@@ -792,6 +793,7 @@ struct pf_krule {
 	time_t			*timestamp;
 
 	struct pfi_kkif		*kif;
+	struct pfi_kkif		*rcv_kif;
 	struct pf_kanchor	*anchor;
 	struct pfr_ktable	*overload_tbl;
 

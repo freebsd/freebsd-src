@@ -960,6 +960,8 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 	}
 	print_fromto(&r->src, r->os_fingerprint, &r->dst, r->af, r->proto,
 	    verbose, numeric);
+	if (r->rcv_ifname[0])
+		printf(" received-on %s", r->rcv_ifname);
 	if (r->uid.op)
 		print_ugid(r->uid.op, r->uid.uid[0], r->uid.uid[1], "user",
 		    UID_MAX);
