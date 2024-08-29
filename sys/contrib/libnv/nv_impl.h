@@ -42,6 +42,14 @@ struct nvpair;
 typedef struct nvpair nvpair_t;
 #endif
 
+struct nvlist_header {
+	uint8_t		nvlh_magic;
+	uint8_t		nvlh_version;
+	uint8_t		nvlh_flags;
+	uint64_t	nvlh_descriptors;
+	uint64_t	nvlh_size;
+} __packed;
+
 #define	NV_TYPE_NVLIST_ARRAY_NEXT	254
 #define	NV_TYPE_NVLIST_UP		255
 
