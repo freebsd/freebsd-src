@@ -2889,6 +2889,8 @@ pf_print_state_parts(struct pf_kstate *s,
 			printf("]");
 		}
 		printf(" %u:%u", s->src.state, s->dst.state);
+		if (s->rule.ptr)
+			printf(" @%d", s->rule.ptr->nr);
 	}
 }
 
