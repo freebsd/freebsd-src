@@ -247,7 +247,7 @@ struct thread {
 	struct seltd	*td_sel;	/* Select queue/channel. */
 	struct sleepqueue *td_sleepqueue; /* (k) Associated sleep queue. */
 	struct turnstile *td_turnstile;	/* (k) Associated turnstile. */
-	struct rl_q_entry *td_rlqe;	/* (k) Associated range lock entry. */
+	void		*td_pad1;	/* Available */
 	struct umtx_q   *td_umtxq;	/* (c?) Link for when we're blocked. */
 	lwpid_t		td_tid;		/* (b) Thread ID. */
 	sigqueue_t	td_sigqueue;	/* (c) Sigs arrived, not delivered. */
