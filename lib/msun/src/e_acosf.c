@@ -22,11 +22,17 @@ pi =  3.1415925026e+00, /* 0x40490fda */
 pio2_hi =  1.5707962513e+00; /* 0x3fc90fda */
 static volatile float
 pio2_lo =  7.5497894159e-08; /* 0x33a22168 */
+
+/*
+ * The coefficients for the rational approximation were generated over
+ *  0x1p-12f <= x <= 0.5f.  The maximum error satisfies log2(e) < -30.084.
+ */
 static const float
-pS0 =  1.6666586697e-01,
-pS1 = -4.2743422091e-02,
-pS2 = -8.6563630030e-03,
-qS1 = -7.0662963390e-01;
+pS0 =  1.66666672e-01f, /* 0x3e2aaaab */
+pS1 = -1.19510300e-01f, /* 0xbdf4c1d1 */
+pS2 =  5.47002675e-03f, /* 0x3bb33de9 */
+qS1 = -1.16706085e+00f, /* 0xbf956240 */
+qS2 =  2.90115148e-01f; /* 0x3e9489f9 */
 
 float
 acosf(float x)
@@ -46,13 +52,13 @@ acosf(float x)
 	    if(ix<=0x32800000) return pio2_hi+pio2_lo;/*if|x|<2**-26*/
 	    z = x*x;
 	    p = z*(pS0+z*(pS1+z*pS2));
-	    q = one+z*qS1;
+	    q = one+z*(qS1+z*qS2);
 	    r = p/q;
 	    return pio2_hi - (x - (pio2_lo-x*r));
 	} else  if (hx<0) {		/* x < -0.5 */
 	    z = (one+x)*(float)0.5;
 	    p = z*(pS0+z*(pS1+z*pS2));
-	    q = one+z*qS1;
+	    q = one+z*(qS1+z*qS2);
 	    s = sqrtf(z);
 	    r = p/q;
 	    w = r*s-pio2_lo;
@@ -66,7 +72,7 @@ acosf(float x)
 	    SET_FLOAT_WORD(df,idf&0xfffff000);
 	    c  = (z-df*df)/(s+df);
 	    p = z*(pS0+z*(pS1+z*pS2));
-	    q = one+z*qS1;
+	    q = one+z*(qS1+z*qS2);
 	    r = p/q;
 	    w = r*s+c;
 	    return (float)2.0*(df+w);
