@@ -14,9 +14,8 @@ fsck10.sh		Waiting for fix							20230319
 fsck11.sh		Waiting for fix							20230319
 fsck12.sh		Waiting for fix							20230319
 fsync.sh		panic: Journal overflow						20190208
-fuse.sh			Memory corruption seen in log file kostik734.txt		20141114
-fuse2.sh		Deadlock seen							20121129
-fuse3.sh		Deadlock seen							20141120
+fuse.sh			https://people.freebsd.org/~pho/stress/log/log0546.txt		20240828
+fuse2.sh		https://people.freebsd.org/~pho/stress/log/log0547.txt		20240828
 getrandom.sh		Known DoS issue							20201107
 getrandom2.sh		Known DoS issue							20200302
 gjournal.sh		panic: Journal overflow						20190626
@@ -39,7 +38,7 @@ mlockall2.sh		Unrecoverable OOM killing seen					20190203
 mlockall6.sh		https://people.freebsd.org/~pho/stress/log/log0430.txt		20230403
 mlockall7.sh		Needs further investigation					20210123
 msetdomain.sh		May change policy for random threads to domainset_fixed		20210104
-newfs4.sh		watchdog fired. newbuf						20190225
+newfs4.sh		watchdog fired. newbuf (still seen 20240729)			20190225
 nfs10.sh		Double fault							20151013
 nfs13.sh		mount_nfs hangs in mntref					20191007
 nfs15lockd.sh		panic: Assertion td->td_realucred == td->td_ucred failed ...	20210211
