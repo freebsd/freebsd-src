@@ -118,13 +118,6 @@ MALLOC_DEFINE(M_NVLIST, "nvlist", "kernel nvlist");
 
 #define	NVLIST_HEADER_MAGIC	0x6c
 #define	NVLIST_HEADER_VERSION	0x00
-struct nvlist_header {
-	uint8_t		nvlh_magic;
-	uint8_t		nvlh_version;
-	uint8_t		nvlh_flags;
-	uint64_t	nvlh_descriptors;
-	uint64_t	nvlh_size;
-} __packed;
 
 nvlist_t *
 nvlist_create(int flags)

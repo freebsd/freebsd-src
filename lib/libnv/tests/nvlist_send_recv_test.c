@@ -43,6 +43,9 @@
 
 #include <atf-c.h>
 
+#include <nv_impl.h>
+#include <msgio.h>
+
 #define	ALPHABET	"abcdefghijklmnopqrstuvwxyz"
 #define	fd_is_valid(fd)	(fcntl((fd), F_GETFL) != -1 || errno != EBADF)
 
@@ -542,6 +545,192 @@ ATF_TC_BODY(nvlist_send_recv__send_closed_fd__stream, tc)
 	nvlist_send_recv__send_closed_fd(SOCK_STREAM);
 }
 
+ATF_TC_WITHOUT_HEAD(nvlist_send_recv__overflow_header_size);
+ATF_TC_BODY(nvlist_send_recv__overflow_header_size, tc)
+{
+	nvlist_t *nvl;
+	void *packed;
+	size_t packed_size;
+	struct nvlist_header *header;
+	int fd, socks[2], status;
+	pid_t pid;
+
+#ifdef NO_ASAN
+	atf_tc_skip("This test requires ASAN");
+#endif
+
+	ATF_REQUIRE_EQ(socketpair(PF_UNIX, SOCK_STREAM, 0, socks), 0);
+
+	pid = fork();
+	ATF_REQUIRE(pid >= 0);
+
+	if (pid == 0) {
+		/* Child. */
+		fd = socks[0];
+		close(socks[1]);
+
+		nvl = nvlist_create(0);
+		ATF_REQUIRE(nvl != NULL);
+		ATF_REQUIRE(nvlist_empty(nvl));
+
+		packed = nvlist_pack(nvl, &packed_size);
+		ATF_REQUIRE(packed != NULL);
+		ATF_REQUIRE(packed_size >= sizeof(struct nvlist_header));
+
+		header = (struct nvlist_header *)packed;
+		header->nvlh_size = SIZE_MAX - sizeof(struct nvlist_header) + 2;
+
+		ATF_REQUIRE_EQ(write(fd, packed, packed_size),
+		    (ssize_t)sizeof(struct nvlist_header));
+
+		nvlist_destroy(nvl);
+		free(packed);
+
+		exit(0);
+	} else {
+		/* Parent */
+		fd = socks[1];
+		close(socks[0]);
+
+		errno = 0;
+		nvl = nvlist_recv(fd, 0);
+		ATF_REQUIRE(nvl == NULL);
+
+		/*
+		 * Make sure it has failed on EINVAL, and not on
+		 * errors returned by malloc or recv.
+		 */
+		ATF_REQUIRE(errno == EINVAL);
+
+		ATF_REQUIRE(waitpid(pid, &status, 0) == pid);
+		ATF_REQUIRE(status == 0);
+		close(fd);
+	}
+}
+
+ATF_TC_WITHOUT_HEAD(nvlist_send_recv__invalid_fd_size);
+ATF_TC_BODY(nvlist_send_recv__invalid_fd_size, tc)
+{
+	nvlist_t *nvl;
+	void *packed;
+	size_t packed_size;
+	struct nvlist_header *header;
+	int fd, socks[2], status;
+	pid_t pid;
+
+	ATF_REQUIRE_EQ(socketpair(PF_UNIX, SOCK_STREAM, 0, socks), 0);
+
+	pid = fork();
+	ATF_REQUIRE(pid >= 0);
+
+	if (pid == 0) {
+		/* Child. */
+		fd = socks[0];
+		close(socks[1]);
+
+		nvl = nvlist_create(0);
+		ATF_REQUIRE(nvl != NULL);
+		ATF_REQUIRE(nvlist_empty(nvl));
+
+		nvlist_add_string(nvl, "nvl/string", "test");
+		ATF_REQUIRE_EQ(nvlist_error(nvl), 0);
+
+		packed = nvlist_pack(nvl, &packed_size);
+		ATF_REQUIRE(packed != NULL);
+		ATF_REQUIRE(packed_size >= sizeof(struct nvlist_header));
+
+		header = (struct nvlist_header *)packed;
+		header->nvlh_descriptors = 0x20;
+
+		ATF_REQUIRE_EQ(write(fd, packed, packed_size),
+		    (ssize_t)packed_size);
+
+		nvlist_destroy(nvl);
+		free(packed);
+
+		exit(0);
+	} else {
+		/* Parent */
+		fd = socks[1];
+		close(socks[0]);
+
+		nvl = nvlist_recv(fd, 0);
+		ATF_REQUIRE(nvl == NULL);
+
+		ATF_REQUIRE(waitpid(pid, &status, 0) == pid);
+		ATF_REQUIRE(status == 0);
+	}
+
+	close(fd);
+}
+
+ATF_TC_WITHOUT_HEAD(nvlist_send_recv__overflow_fd_size);
+ATF_TC_BODY(nvlist_send_recv__overflow_fd_size, tc)
+{
+	nvlist_t *nvl;
+	void *packed;
+	size_t packed_size;
+	struct nvlist_header *header;
+	int fd, socks[2], fds[1], status;
+	pid_t pid;
+
+	ATF_REQUIRE_EQ(socketpair(PF_UNIX, SOCK_STREAM, 0, socks), 0);
+
+	pid = fork();
+	ATF_REQUIRE(pid >= 0);
+
+	if (pid == 0) {
+		/* Child. */
+		fd = socks[0];
+		close(socks[1]);
+
+		nvl = nvlist_create(0);
+		ATF_REQUIRE(nvl != NULL);
+		ATF_REQUIRE(nvlist_empty(nvl));
+
+		nvlist_add_string(nvl, "nvl/string", "test");
+		ATF_REQUIRE_EQ(nvlist_error(nvl), 0);
+
+		packed = nvlist_pack(nvl, &packed_size);
+		ATF_REQUIRE(packed != NULL);
+		ATF_REQUIRE(packed_size >= sizeof(struct nvlist_header));
+
+		header = (struct nvlist_header *)packed;
+		header->nvlh_descriptors = 0x4000000000000002;
+
+		ATF_REQUIRE_EQ(write(fd, packed, packed_size),
+		    (ssize_t)packed_size);
+
+		fds[0] = dup(STDERR_FILENO);
+		ATF_REQUIRE(fds[0] >= 0);
+		ATF_REQUIRE_EQ(fd_send(fd, fds, 1), 0);
+
+		nvlist_destroy(nvl);
+		free(packed);
+
+		close(fds[0]);
+		close(fd);
+
+		exit(0);
+	} else {
+		/* Parent */
+		fd = socks[1];
+		close(socks[0]);
+
+		nvl = nvlist_recv(fd, 0);
+		ATF_REQUIRE(nvl == NULL);
+
+		/* Make sure that fd was not parsed by nvlist */
+		ATF_REQUIRE(fd_recv(fd, fds, 1) == 0);
+
+		ATF_REQUIRE(waitpid(pid, &status, 0) == pid);
+		ATF_REQUIRE(status == 0);
+
+		close(fds[0]);
+		close(fd);
+	}
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -551,6 +740,10 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, nvlist_send_recv__send_closed_fd__stream);
 	ATF_TP_ADD_TC(tp, nvlist_send_recv__send_many_fds__dgram);
 	ATF_TP_ADD_TC(tp, nvlist_send_recv__send_many_fds__stream);
+
+	ATF_TP_ADD_TC(tp, nvlist_send_recv__overflow_header_size);
+	ATF_TP_ADD_TC(tp, nvlist_send_recv__invalid_fd_size);
+	ATF_TP_ADD_TC(tp, nvlist_send_recv__overflow_fd_size);
 
 	return (atf_no_error());
 }
