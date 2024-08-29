@@ -445,10 +445,10 @@ ice_bitmap_set(ice_bitmap_t *dst, u16 pos, u16 num_bits)
  * Note that this function assumes it is operating on a bitmap declared using
  * ice_declare_bitmap.
  */
-static inline int
+static inline u16
 ice_bitmap_hweight(ice_bitmap_t *bm, u16 size)
 {
-	int count = 0;
+	u16 count = 0;
 	u16 bit = 0;
 
 	while (size > (bit = ice_find_next_bit(bm, size, bit))) {

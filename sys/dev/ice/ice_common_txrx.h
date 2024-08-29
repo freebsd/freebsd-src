@@ -169,7 +169,7 @@ ice_tso_setup(struct ice_tx_queue *txq, if_pkt_info_t pi)
 	txd->qw1 = htole64(type_cmd_tso_mss);
 
 	txd->tunneling_params = htole32(0);
-	txq->tso++;
+	txq->stats.tso++;
 
 	return ((idx + 1) & (txq->desc_count-1));
 }
