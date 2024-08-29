@@ -30,9 +30,9 @@ jobs:
             cross-bindir: /usr/lib/llvm-18/bin
             pkgs: bmake libarchive-dev clang-18 lld-18
           - os: macos-latest
-            compiler: clang-13
-            cross-bindir: /opt/homebrew/opt/llvm@13/bin
-            pkgs: bmake libarchive llvm@13
+            compiler: clang-18
+            cross-bindir: /opt/homebrew/opt/llvm@18/bin
+            pkgs: bmake libarchive llvm@18
           - target_arch: amd64
             target: amd64
           - target_arch: aarch64
