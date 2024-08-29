@@ -676,7 +676,7 @@
 #define	ESR_EL1_op1			0
 #define	ESR_EL1_CRn			5
 #define	ESR_EL1_CRm			2
-#define	ESR_EL1_op2			1
+#define	ESR_EL1_op2			0
 
 /* ESR_EL12 */
 #define	ESR_EL12_REG			MRS_REG_ALT_NAME(ESR_EL12)
