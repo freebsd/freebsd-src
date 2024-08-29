@@ -137,6 +137,8 @@ struct node_host {
 	struct node_host	*tail;
 };
 
+void	freehostlist(struct node_host *);
+
 struct node_mac {
 	u_int8_t	 mac[ETHER_ADDR_LEN];
 	u_int8_t	 mask[ETHER_ADDR_LEN];

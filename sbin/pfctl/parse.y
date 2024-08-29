@@ -3572,11 +3572,13 @@ toipspec	: TO ipspec			{ $$ = $2; }
 
 host_list	: ipspec optnl			{ $$ = $1; }
 		| host_list comma ipspec optnl	{
-			if ($3 == NULL)
+			if ($1 == NULL) {
+				freehostlist($3);
 				$$ = $1;
-			else if ($1 == NULL)
+			} else if ($3 == NULL) {
+				freehostlist($1);
 				$$ = $3;
-			else {
+			} else {
 				$1->tail->next = $3;
 				$1->tail = $3->tail;
 				$$ = $1;
@@ -6268,6 +6270,12 @@ expand_skip_interface(struct node_if *interfaces)
 		return (1);
 	else
 		return (0);
+}
+
+void
+freehostlist(struct node_host *h)
+{
+	FREE_LIST(struct node_host, h);
 }
 
 #undef FREE_LIST
