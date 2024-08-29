@@ -257,6 +257,7 @@ enum pf_rule_type_t {
 	PF_RT_STATES_TOTAL	= 70, /* u64 */
 	PF_RT_SRC_NODES		= 71, /* u64 */
 	PF_RT_ANCHOR_CALL	= 72, /* string */
+	PF_RT_RCV_IFNAME	= 73, /* string */
 };
 
 enum pf_addrule_type_t {

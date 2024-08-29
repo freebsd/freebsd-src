@@ -1252,6 +1252,7 @@ snl_add_msg_attr_pf_rule(struct snl_writer *nw, uint32_t type, const struct pfct
 
 	snl_add_msg_attr_uid(nw, PF_RT_UID, &r->uid);
 	snl_add_msg_attr_uid(nw, PF_RT_GID, (const struct pf_rule_uid *)&r->gid);
+	snl_add_msg_attr_string(nw, PF_RT_RCV_IFNAME, r->rcv_ifname);
 
 	snl_add_msg_attr_u32(nw, PF_RT_RULE_FLAG, r->rule_flag);
 	snl_add_msg_attr_u8(nw, PF_RT_ACTION, r->action);
@@ -1656,6 +1657,7 @@ static struct snl_attr_parser ap_getrule[] = {
 	{ .type = PF_RT_STATES_TOTAL, .off = _OUT(r.states_tot), .cb = snl_attr_get_uint64 },
 	{ .type = PF_RT_SRC_NODES, .off = _OUT(r.src_nodes), .cb = snl_attr_get_uint64 },
 	{ .type = PF_RT_ANCHOR_CALL, .off = _OUT(anchor_call), .arg = (void*)MAXPATHLEN, .cb = snl_attr_copy_string },
+	{ .type = PF_RT_RCV_IFNAME, .off = _OUT(r.rcv_ifname), .arg = (void*)IFNAMSIZ, .cb = snl_attr_copy_string },
 };
 static struct snl_field_parser fp_getrule[] = {};
 #undef _OUT

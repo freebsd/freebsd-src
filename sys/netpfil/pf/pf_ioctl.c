@@ -603,6 +603,8 @@ pf_free_rule(struct pf_krule *rule)
 		pfr_detach_table(rule->overload_tbl);
 	if (rule->kif)
 		pfi_kkif_unref(rule->kif);
+	if (rule->rcv_kif)
+		pfi_kkif_unref(rule->rcv_kif);
 	pf_kanchor_remove(rule);
 	pf_empty_kpool(&rule->rpool.list);
 
@@ -1306,6 +1308,7 @@ pf_hash_rule_rolling(MD5_CTX *ctx, struct pf_krule *rule)
 	for (int i = 0; i < PF_RULE_MAX_LABEL_COUNT; i++)
 		PF_MD5_UPD_STR(rule, label[i]);
 	PF_MD5_UPD_STR(rule, ifname);
+	PF_MD5_UPD_STR(rule, rcv_ifname);
 	PF_MD5_UPD_STR(rule, match_tagname);
 	PF_MD5_UPD_HTONS(rule, match_tag, x); /* dup? */
 	PF_MD5_UPD_HTONL(rule, os_fingerprint, y);
@@ -2068,7 +2071,7 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 	struct pf_kruleset	*ruleset;
 	struct pf_krule		*tail;
 	struct pf_kpooladdr	*pa;
-	struct pfi_kkif		*kif = NULL;
+	struct pfi_kkif		*kif = NULL, *rcv_kif = NULL;
 	int			 rs_num;
 	int			 error = 0;
 
@@ -2081,6 +2084,8 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 
 	if (rule->ifname[0])
 		kif = pf_kkif_create(M_WAITOK);
+	if (rule->rcv_ifname[0])
+		rcv_kif = pf_kkif_create(M_WAITOK);
 	pf_counter_u64_init(&rule->evaluations, M_WAITOK);
 	for (int i = 0; i < 2; i++) {
 		pf_counter_u64_init(&rule->packets[i], M_WAITOK);
@@ -2142,6 +2147,13 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 		pfi_kkif_ref(rule->kif);
 	} else
 		rule->kif = NULL;
+
+	if (rule->rcv_ifname[0]) {
+		rule->rcv_kif = pfi_kkif_attach(rcv_kif, rule->rcv_ifname);
+		rcv_kif = NULL;
+		pfi_kkif_ref(rule->rcv_kif);
+	} else
+		rule->rcv_kif = NULL;
 
 	if (rule->rtableid > 0 && rule->rtableid >= rt_numfibs)
 		error = EBUSY;
@@ -2242,6 +2254,7 @@ errout:
 	PF_RULES_WUNLOCK();
 	PF_CONFIG_UNLOCK();
 errout_unlocked:
+	pf_kkif_free(rcv_kif);
 	pf_kkif_free(kif);
 	pf_krule_free(rule);
 	return (error);

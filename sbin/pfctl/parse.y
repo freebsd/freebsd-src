@@ -241,6 +241,7 @@ static struct filter_opts {
 #define FOM_FRAGCACHE	0x8000 /* does not exist in OpenBSD */
 	struct node_uid		*uid;
 	struct node_gid		*gid;
+	struct node_if		*rcv;
 	struct {
 		u_int8_t	 b1;
 		u_int8_t	 b2;
@@ -367,7 +368,7 @@ void		 expand_rule(struct pfctl_rule *, struct node_if *,
 		    struct node_host *, struct node_proto *, struct node_os *,
 		    struct node_host *, struct node_port *, struct node_host *,
 		    struct node_port *, struct node_uid *, struct node_gid *,
-		    struct node_icmp *, const char *);
+		    struct node_if *, struct node_icmp *, const char *);
 int		 expand_altq(struct pf_altq *, struct node_if *,
 		    struct node_queue *, struct node_queue_bw bwspec,
 		    struct node_queue_opt *);
@@ -516,7 +517,7 @@ int	parseport(char *, struct range *r, int);
 %token	STICKYADDRESS ENDPI MAXSRCSTATES MAXSRCNODES SOURCETRACK GLOBAL RULE
 %token	MAXSRCCONN MAXSRCCONNRATE OVERLOAD FLUSH SLOPPY PFLOW
 %token	TAGGED TAG IFBOUND FLOATING STATEPOLICY STATEDEFAULTS ROUTE SETTOS
-%token	DIVERTTO DIVERTREPLY BRIDGE_TO
+%token	DIVERTTO DIVERTREPLY BRIDGE_TO RECEIVEDON
 %token	<v.string>		STRING
 %token	<v.number>		NUMBER
 %token	<v.i>			PORTBINARY
@@ -1073,7 +1074,7 @@ anchorrule	: ANCHOR anchorname dir quick interface af proto fromto
 
 			expand_rule(&r, $5, NULL, $7, $8.src_os,
 			    $8.src.host, $8.src.port, $8.dst.host, $8.dst.port,
-			    $9.uid, $9.gid, $9.icmpspec,
+			    $9.uid, $9.gid, $9.rcv, $9.icmpspec,
 			    pf->astack[pf->asd + 1] ? pf->alast->name : $2);
 			free($2);
 			pf->astack[pf->asd + 1] = NULL;
@@ -1096,7 +1097,7 @@ anchorrule	: ANCHOR anchorname dir quick interface af proto fromto
 
 			expand_rule(&r, $3, NULL, $5, $6.src_os,
 			    $6.src.host, $6.src.port, $6.dst.host, $6.dst.port,
-			    0, 0, 0, $2);
+			    0, 0, 0, 0, $2);
 			free($2);
 		}
 		| RDRANCHOR string interface af proto fromto rtable {
@@ -1138,7 +1139,7 @@ anchorrule	: ANCHOR anchorname dir quick interface af proto fromto
 
 			expand_rule(&r, $3, NULL, $5, $6.src_os,
 			    $6.src.host, $6.src.port, $6.dst.host, $6.dst.port,
-			    0, 0, 0, $2);
+			    0, 0, 0, 0, $2);
 			free($2);
 		}
 		| BINATANCHOR string interface af proto fromto rtable {
@@ -1461,7 +1462,7 @@ scrubrule	: scrubaction dir logquick interface af proto fromto scrub_opts
 
 			expand_rule(&r, $4, NULL, $6, $7.src_os,
 			    $7.src.host, $7.src.port, $7.dst.host, $7.dst.port,
-			    NULL, NULL, NULL, "");
+			    NULL, NULL, NULL, NULL, "");
 		}
 		;
 
@@ -1626,7 +1627,7 @@ antispoof	: ANTISPOOF logquick antispoof_ifspc af antispoof_opts {
 				if (h != NULL)
 					expand_rule(&r, j, NULL, NULL, NULL, h,
 					    NULL, NULL, NULL, NULL, NULL,
-					    NULL, "");
+					    NULL, NULL, "");
 
 				if ((i->ifa_flags & IFF_LOOPBACK) == 0) {
 					bzero(&r, sizeof(r));
@@ -1648,7 +1649,7 @@ antispoof	: ANTISPOOF logquick antispoof_ifspc af antispoof_opts {
 					if (h != NULL)
 						expand_rule(&r, NULL, NULL,
 						    NULL, NULL, h, NULL, NULL,
-						    NULL, NULL, NULL, NULL, "");
+						    NULL, NULL, NULL, NULL, NULL, "");
 				} else
 					free(hh);
 			}
@@ -2802,7 +2803,7 @@ pfrule		: action dir logquick interface route af proto fromto
 
 			expand_rule(&r, $4, $5.host, $7, $8.src_os,
 			    $8.src.host, $8.src.port, $8.dst.host, $8.dst.port,
-			    $9.uid, $9.gid, $9.icmpspec, "");
+			    $9.uid, $9.gid, $9.rcv, $9.icmpspec, "");
 		}
 		;
 
@@ -2936,6 +2937,13 @@ filter_opt	: USER uids {
 		| not TAGGED string			{
 			filter_opts.match_tag = $3;
 			filter_opts.match_tag_not = $1;
+		}
+		| RECEIVEDON if_item {
+			if (filter_opts.rcv) {
+				yyerror("cannot respecify received-on");
+				YYERROR;
+			}
+			filter_opts.rcv = $2;
 		}
 		| PROBABILITY probability		{
 			double	p;
@@ -4882,7 +4890,7 @@ natrule		: nataction interface af proto fromto tag tagged rtable
 
 			expand_rule(&r, $2, $9 == NULL ? NULL : $9->host, $4,
 			    $5.src_os, $5.src.host, $5.src.port, $5.dst.host,
-			    $5.dst.port, 0, 0, 0, "");
+			    $5.dst.port, 0, 0, 0, 0, "");
 			free($9);
 		}
 		;
@@ -6034,8 +6042,8 @@ expand_rule(struct pfctl_rule *r,
     struct node_proto *protos, struct node_os *src_oses,
     struct node_host *src_hosts, struct node_port *src_ports,
     struct node_host *dst_hosts, struct node_port *dst_ports,
-    struct node_uid *uids, struct node_gid *gids, struct node_icmp *icmp_types,
-    const char *anchor_call)
+    struct node_uid *uids, struct node_gid *gids, struct node_if *rcv,
+    struct node_icmp *icmp_types, const char *anchor_call)
 {
 	sa_family_t		 af = r->af;
 	int			 added = 0, error = 0;
@@ -6138,6 +6146,10 @@ expand_rule(struct pfctl_rule *r,
 		r->gid.op = gid->op;
 		r->gid.gid[0] = gid->gid[0];
 		r->gid.gid[1] = gid->gid[1];
+		if (rcv) {
+			strlcpy(r->rcv_ifname, rcv->ifname,
+			    sizeof(r->rcv_ifname));
+		}
 		r->type = icmp_type->type;
 		r->code = icmp_type->code;
 
@@ -6381,6 +6393,7 @@ lookup(char *s)
 		{ "rdr-anchor",		RDRANCHOR},
 		{ "realtime",		REALTIME},
 		{ "reassemble",		REASSEMBLE},
+		{ "received-on",	RECEIVEDON},
 		{ "reply-to",		REPLYTO},
 		{ "require-order",	REQUIREORDER},
 		{ "return",		RETURN},
