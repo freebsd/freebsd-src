@@ -42,12 +42,13 @@ fi
 # The directory containing locate subprograms
 : ${LIBEXECDIR:=/usr/libexec}; export LIBEXECDIR
 : ${TMPDIR:=/tmp}; export TMPDIR
-if ! TMPDIR=`mktemp -d $TMPDIR/locateXXXXXXXXXX`; then
+if ! TMPDIR=$(mktemp -d $TMPDIR/locateXXXXXXXXXX); then
 	exit 1
 fi
+tmp=$TMPDIR/_updatedb$$
+trap 'rc=$?; rm -f $tmp; rmdir $TMPDIR; trap - 0; exit $rc' 0 1 2 3 5 10 15
 
 PATH=$LIBEXECDIR:/bin:/usr/bin:$PATH; export PATH
-
 
 : ${mklocatedb:=locate.mklocatedb}	 # make locate database program
 : ${FCODES:=/var/db/locate.database}	 # the database
@@ -87,17 +88,13 @@ if [ -n "$PRUNEDIRS" ]; then
 	done
 fi
 
-tmp=$TMPDIR/_updatedb$$
-trap 'rm -f $tmp; rmdir $TMPDIR' 0 1 2 3 5 10 15
-		
 # search locally
 if $find -s $SEARCHPATHS $excludes -or -print 2>/dev/null |
         $mklocatedb -presort > $tmp
 then
-	if [ -n "$($find $tmp -size -257c -print)" ]; then
+	if ! grep -aq / $tmp; then
 		echo "updatedb: locate database $tmp is empty" >&2
 		exit 1
-	else
-		cat $tmp > $FCODES		# should be cp?
 	fi
+	cat $tmp >$FCODES
 fi
