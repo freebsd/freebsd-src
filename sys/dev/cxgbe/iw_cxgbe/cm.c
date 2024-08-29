@@ -2715,11 +2715,10 @@ c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 	struct listen_port_info *port_info = NULL;
 	int rc = 0;
 
-	CTR3(KTR_IW_CXGBE, "%s: cm_id %p, backlog %s", __func__, cm_id,
+	CTR3(KTR_IW_CXGBE, "%s: cm_id %p, backlog %d", __func__, cm_id,
 			backlog);
 	if (c4iw_stopped(&dev->rdev)) {
-		CTR2(KTR_IW_CXGBE, "%s: cm_id %p, stopped", __func__,
-			       cm_id);
+		CTR2(KTR_IW_CXGBE, "%s: cm_id %p, stopped", __func__, cm_id);
 		return -EIO;
 	}
 	lep = alloc_ep(sizeof(*lep), GFP_KERNEL);
