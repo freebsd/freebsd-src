@@ -365,36 +365,36 @@ print_version(const void *data __unused)
 	printf("%s\n", compiler_version);
 }
 
-SYSINIT(announce, SI_SUB_COPYRIGHT, SI_ORDER_FIRST, print_caddr_t,
+C_SYSINIT(announce, SI_SUB_COPYRIGHT, SI_ORDER_FIRST, print_caddr_t,
     copyright);
-SYSINIT(trademark, SI_SUB_COPYRIGHT, SI_ORDER_SECOND, print_caddr_t,
+C_SYSINIT(trademark, SI_SUB_COPYRIGHT, SI_ORDER_SECOND, print_caddr_t,
     trademark);
-SYSINIT(version, SI_SUB_COPYRIGHT, SI_ORDER_THIRD, print_version, NULL);
+C_SYSINIT(version, SI_SUB_COPYRIGHT, SI_ORDER_THIRD, print_version, NULL);
 
 #ifdef WITNESS
-static char wit_warn[] =
+static const char wit_warn[] =
      "WARNING: WITNESS option enabled, expect reduced performance.\n";
-SYSINIT(witwarn, SI_SUB_COPYRIGHT, SI_ORDER_FOURTH,
+C_SYSINIT(witwarn, SI_SUB_COPYRIGHT, SI_ORDER_FOURTH,
    print_caddr_t, wit_warn);
-SYSINIT(witwarn2, SI_SUB_LAST, SI_ORDER_FOURTH,
+C_SYSINIT(witwarn2, SI_SUB_LAST, SI_ORDER_FOURTH,
    print_caddr_t, wit_warn);
 #endif
 
 #ifdef DIAGNOSTIC
-static char diag_warn[] =
+static const char diag_warn[] =
      "WARNING: DIAGNOSTIC option enabled, expect reduced performance.\n";
-SYSINIT(diagwarn, SI_SUB_COPYRIGHT, SI_ORDER_FIFTH,
+C_SYSINIT(diagwarn, SI_SUB_COPYRIGHT, SI_ORDER_FIFTH,
     print_caddr_t, diag_warn);
-SYSINIT(diagwarn2, SI_SUB_LAST, SI_ORDER_FIFTH,
+C_SYSINIT(diagwarn2, SI_SUB_LAST, SI_ORDER_FIFTH,
     print_caddr_t, diag_warn);
 #endif
 
 #if __SIZEOF_LONG__ == 4
-static char ilp32_warn[] =
+static const char ilp32_warn[] =
     "WARNING: 32-bit kernels are deprecated and may be removed in FreeBSD 15.0.\n";
-SYSINIT(ilp32warn, SI_SUB_COPYRIGHT, SI_ORDER_FIFTH,
+C_SYSINIT(ilp32warn, SI_SUB_COPYRIGHT, SI_ORDER_FIFTH,
     print_caddr_t, ilp32_warn);
-SYSINIT(ilp32warn2, SI_SUB_LAST, SI_ORDER_FIFTH,
+C_SYSINIT(ilp32warn2, SI_SUB_LAST, SI_ORDER_FIFTH,
     print_caddr_t, ilp32_warn);
 #endif
 
