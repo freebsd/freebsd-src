@@ -359,8 +359,8 @@ struct pfi_dynaddr {
 		mtx_unlock(_s->lock);					\
 	} while (0)
 #else
-#define	PF_STATE_LOCK(s)	mtx_lock(s->lock)
-#define	PF_STATE_UNLOCK(s)	mtx_unlock(s->lock)
+#define	PF_STATE_LOCK(s)	mtx_lock((s)->lock)
+#define	PF_STATE_UNLOCK(s)	mtx_unlock((s)->lock)
 #endif
 
 #ifdef INVARIANTS
