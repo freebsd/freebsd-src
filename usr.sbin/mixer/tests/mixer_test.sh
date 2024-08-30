@@ -66,7 +66,8 @@ set_default()
 
 restore_default()
 {
-	test -r "test_mixer_deflt_unit" && mixer -d $(cat test_mixer_deflt_unit)
+	test -r "test_mixer_deflt_unit" &&
+	mixer -d $(cat test_mixer_deflt_unit) || true
 }
 
 atf_test_case o_flag cleanup
