@@ -2664,8 +2664,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 
 		CTR2(KTR_IW_CXGBE, "%s:cc7 %p", __func__, ep);
 		printk(KERN_ERR MOD "%s - cannot find route.\n", __func__);
-		err = EHOSTUNREACH;
-		return err;
+		return -EHOSTUNREACH;
 	}
 
 	if (!(if_getcapenable(nh_ifp) & IFCAP_TOE) ||
