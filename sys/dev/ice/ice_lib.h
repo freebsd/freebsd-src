@@ -1013,7 +1013,6 @@ void ice_init_health_events(struct ice_softc *sc);
 void ice_cfg_pba_num(struct ice_softc *sc);
 int ice_handle_debug_dump_ioctl(struct ice_softc *sc, struct ifdrv *ifd);
 u8 ice_dcb_get_tc_map(const struct ice_dcbx_cfg *dcbcfg);
-void ice_print_dual_nac_info(struct ice_softc *sc);
 void ice_do_dcb_reconfig(struct ice_softc *sc, bool pending_mib);
 int ice_setup_vsi_mirroring(struct ice_vsi *vsi);
 

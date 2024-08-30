@@ -546,8 +546,6 @@ reinit_hw:
 
 	ice_init_device_features(sc);
 
-	ice_print_dual_nac_info(sc);
-
 	/* Keep flag set by default */
 	ice_set_state(&sc->state, ICE_STATE_LINK_ACTIVE_ON_DOWN);
 
@@ -2612,7 +2610,9 @@ ice_rebuild(struct ice_softc *sc)
 	}
 
 	/* Re-enable FW logging. Keep going even if this fails */
-	status = ice_fwlog_set(hw, &hw->fwlog_cfg);
+	status = ICE_SUCCESS;
+	if (hw->pf_id == 0)
+		status = ice_fwlog_set(hw, &hw->fwlog_cfg);
 	if (!status) {
 		/*
 		 * We should have the most updated cached copy of the
@@ -2908,7 +2908,8 @@ ice_init_device_features(struct ice_softc *sc)
 	/* Disable features due to hardware limitations... */
 	if (!hw->func_caps.common_cap.rss_table_size)
 		ice_clear_bit(ICE_FEATURE_RSS, sc->feat_cap);
-	if (!hw->func_caps.common_cap.iwarp || !ice_enable_irdma)
+	if (!hw->func_caps.common_cap.iwarp || !ice_enable_irdma ||
+	    ice_is_e830(hw))
 		ice_clear_bit(ICE_FEATURE_RDMA, sc->feat_cap);
 	if (!hw->func_caps.common_cap.dcb)
 		ice_clear_bit(ICE_FEATURE_DCB, sc->feat_cap);
