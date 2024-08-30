@@ -94,20 +94,20 @@ SYSCTL_ROOT_NODE(OID_AUTO, regression, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Regression test MIB");
 #endif
 
-SYSCTL_STRING(_kern, OID_AUTO, ident, CTLFLAG_RD,
-    kern_ident, 0, "Kernel identifier");
+SYSCTL_CONST_STRING(_kern, OID_AUTO, ident, CTLFLAG_RD,
+    kern_ident, "Kernel identifier");
 
 SYSCTL_INT(_kern, KERN_OSREV, osrevision, CTLFLAG_RD | CTLFLAG_CAPRD,
     SYSCTL_NULL_INT_PTR, BSD, "Operating system revision");
 
-SYSCTL_STRING(_kern, KERN_VERSION, version, CTLFLAG_RD,
-    version, 0, "Kernel version");
+SYSCTL_CONST_STRING(_kern, KERN_VERSION, version, CTLFLAG_RD,
+    version, "Kernel version");
 
-SYSCTL_STRING(_kern, OID_AUTO, compiler_version, CTLFLAG_RD,
-    compiler_version, 0, "Version of compiler used to compile kernel");
+SYSCTL_CONST_STRING(_kern, OID_AUTO, compiler_version, CTLFLAG_RD,
+    compiler_version, "Version of compiler used to compile kernel");
 
-SYSCTL_STRING(_kern, KERN_OSTYPE, ostype, CTLFLAG_RD | CTLFLAG_CAPRD,
-    ostype, 0, "Operating system type");
+SYSCTL_CONST_STRING(_kern, KERN_OSTYPE, ostype, CTLFLAG_RD | CTLFLAG_CAPRD,
+    ostype, "Operating system type");
 
 SYSCTL_INT(_kern, KERN_MAXPROC, maxproc, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &maxproc, 0, "Maximum number of processes");
