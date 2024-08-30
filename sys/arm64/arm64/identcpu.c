@@ -60,7 +60,7 @@ static void print_cpu_caches(struct sbuf *sb, struct cpu_desc *desc);
 static u_long parse_cpu_features_hwcap32(void);
 #endif
 
-char machine[] = "arm64";
+const char machine[] = "arm64";
 
 #ifdef SCTL_MASK32
 extern int adaptive_machine_arch;
