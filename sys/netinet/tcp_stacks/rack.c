@@ -22473,6 +22473,7 @@ nomore:
 		case ENETDOWN:
 			if (TCPS_HAVERCVDSYN(tp->t_state)) {
 				tp->t_softerror = error;
+				error = 0;
 			}
 			/* FALLTHROUGH */
 		default:
