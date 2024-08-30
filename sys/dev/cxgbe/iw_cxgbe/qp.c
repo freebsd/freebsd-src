@@ -138,6 +138,9 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	struct wrqe *wr;
 	u64 sq_bar2_qoffset = 0, rq_bar2_qoffset = 0;
 
+	if (__predict_false(c4iw_stopped(rdev)))
+		return -EIO;
+
 	wq->sq.qid = c4iw_get_qpid(rdev, uctx);
 	if (!wq->sq.qid)
 		return -ENOMEM;
@@ -785,6 +788,8 @@ int c4iw_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 
 	qhp = to_c4iw_qp(ibqp);
 	rdev = &qhp->rhp->rdev;
+	if (__predict_false(c4iw_stopped(rdev)))
+		return -EIO;
 	spin_lock_irqsave(&qhp->lock, flag);
 	if (t4_wq_in_error(&qhp->wq)) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
@@ -920,6 +925,8 @@ int c4iw_post_receive(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 	u16 idx = 0;
 
 	qhp = to_c4iw_qp(ibqp);
+	if (__predict_false(c4iw_stopped(&qhp->rhp->rdev)))
+		return -EIO;
 	spin_lock_irqsave(&qhp->lock, flag);
 	if (t4_wq_in_error(&qhp->wq)) {
 		spin_unlock_irqrestore(&qhp->lock, flag);

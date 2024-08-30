@@ -2611,6 +2611,8 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 
 	CTR2(KTR_IW_CXGBE, "%s:ccB %p", __func__, cm_id);
 
+	if (__predict_false(c4iw_stopped(&dev->rdev)))
+		return -EIO;
 
 	if ((conn_param->ord > c4iw_max_read_depth) ||
 		(conn_param->ird > c4iw_max_read_depth)) {
