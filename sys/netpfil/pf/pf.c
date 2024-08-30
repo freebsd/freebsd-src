@@ -6089,6 +6089,8 @@ pf_icmp_state_lookup(struct pf_state_key_cmp *key, struct pf_pdesc *pd,
 			pf_print_state(*state);
 			printf("\n");
 		}
+		PF_STATE_UNLOCK(*state);
+		*state = NULL;
 		return (PF_DROP);
 	}
 	return (-1);
@@ -6141,15 +6143,16 @@ pf_test_state_icmp(struct pf_kstate **state, int direction, struct pfi_kkif *kif
 		    kif, virtual_id, virtual_type, icmp_dir, &iidx,
 		    PF_ICMP_MULTI_NONE, 0);
 		if (ret >= 0) {
+			MPASS(*state == NULL);
 			if (ret == PF_DROP && pd->af == AF_INET6 &&
 			    icmp_dir == PF_OUT) {
-				if (*state != NULL)
-					PF_STATE_UNLOCK((*state));
 				ret = pf_icmp_state_lookup(&key, pd, state, m, off,
 				    pd->dir, kif, virtual_id, virtual_type,
 				    icmp_dir, &iidx, multi, 0);
-				if (ret >= 0)
+				if (ret >= 0) {
+					MPASS(*state == NULL);
 					return (ret);
+				}
 			} else
 				return (ret);
 		}
@@ -6556,8 +6559,10 @@ pf_test_state_icmp(struct pf_kstate **state, int direction, struct pfi_kkif *kif
 			ret = pf_icmp_state_lookup(&key, &pd2, state, m, off,
 			    pd2.dir, kif, virtual_id, virtual_type,
 			    icmp_dir, &iidx, PF_ICMP_MULTI_NONE, 1);
-			if (ret >= 0)
+			if (ret >= 0) {
+				MPASS(*state == NULL);
 				return (ret);
+			}
 
 			/* translate source/destination address, if necessary */
 			if ((*state)->key[PF_SK_WIRE] !=
@@ -6612,16 +6617,17 @@ pf_test_state_icmp(struct pf_kstate **state, int direction, struct pfi_kkif *kif
 			    pd->dir, kif, virtual_id, virtual_type,
 			    icmp_dir, &iidx, PF_ICMP_MULTI_NONE, 1);
 			if (ret >= 0) {
+				MPASS(*state == NULL);
 				if (ret == PF_DROP && pd2.af == AF_INET6 &&
 				    icmp_dir == PF_OUT) {
-					if (*state != NULL)
-						PF_STATE_UNLOCK((*state));
 					ret = pf_icmp_state_lookup(&key, &pd2,
 					    state, m, off, pd->dir, kif,
 					    virtual_id, virtual_type,
 					    icmp_dir, &iidx, multi, 1);
-					if (ret >= 0)
+					if (ret >= 0) {
+						MPASS(*state == NULL);
 						return (ret);
+					}
 				} else
 					return (ret);
 			}
