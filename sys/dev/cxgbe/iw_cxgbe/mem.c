@@ -621,6 +621,9 @@ struct ib_mr *c4iw_alloc_mr(struct ib_pd *pd,
 	php = to_c4iw_pd(pd);
 	rhp = php->rhp;
 
+	if (__predict_false(c4iw_stopped(&rhp->rdev)))
+		return ERR_PTR(-EIO);
+
 	if (mr_type != IB_MR_TYPE_MEM_REG ||
 	    max_num_sg > t4_max_fr_depth(&rhp->rdev, use_dsgl))
 		return ERR_PTR(-EINVAL);

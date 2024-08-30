@@ -106,6 +106,8 @@ create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	struct wrqe *wr;
 	u64 cq_bar2_qoffset = 0;
 
+	if (__predict_false(c4iw_stopped(rdev)))
+		return -EIO;
 	cq->cqid = c4iw_get_cqid(rdev, uctx);
 	if (!cq->cqid) {
 		ret = -ENOMEM;
@@ -1037,6 +1039,8 @@ int c4iw_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 	unsigned long flag;
 
 	chp = to_c4iw_cq(ibcq);
+	if (__predict_false(c4iw_stopped(chp->cq.rdev)))
+		return -EIO;
 	spin_lock_irqsave(&chp->lock, flag);
 	t4_arm_cq(&chp->cq,
 		  (flags & IB_CQ_SOLICITED_MASK) == IB_CQ_SOLICITED);
