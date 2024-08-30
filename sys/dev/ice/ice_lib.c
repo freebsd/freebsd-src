@@ -11876,44 +11876,6 @@ ice_sysctl_allow_no_fec_mod_in_auto(SYSCTL_HANDLER_ARGS)
 }
 
 /**
- * ice_print_dual_nac_info - Print NAC status/ID information
- * @sc: device softc structure
- *
- * Prints out information about the NAC mode if the device is capable of
- * being part of a system with multiple NACs.
- *
- * @pre Must be called after ice_init_hw() and ice_init_device_features()
- * sometime during driver load.
- */
-void
-ice_print_dual_nac_info(struct ice_softc *sc)
-{
-	struct ice_hw *hw = &sc->hw;
-	device_t dev = sc->dev;
-	bool is_dual_nac, is_primary_nac;
-	u8 cpk_id;
-
-	is_dual_nac = (hw->dev_caps.nac_topo.mode & ICE_NAC_TOPO_DUAL_M);
-	is_primary_nac = (hw->dev_caps.nac_topo.mode & ICE_NAC_TOPO_PRIMARY_M);
-	cpk_id = hw->dev_caps.nac_topo.id;
-
-	if (ice_is_bit_set(sc->feat_cap, ICE_FEATURE_DUAL_NAC)) {
-		log(LOG_INFO, "%s: In %s NAC mode\n",
-		    device_get_nameunit(dev),
-		    is_dual_nac ? "Dual" : "Single");
-
-		if (is_dual_nac) {
-			ice_set_bit(ICE_FEATURE_DUAL_NAC, sc->feat_en);
-			log(LOG_INFO,
-			    "%s: PF is configured in %s mode with IP instance ID %u\n",
-			    device_get_nameunit(dev),
-			    is_primary_nac ? "primary" : "secondary",
-			    cpk_id);
-		}
-	}
-}
-
-/**
  * ice_sysctl_temperature - Retrieve NIC temp via AQ command
  * @oidp: sysctl oid structure
  * @arg1: pointer to private data structure
