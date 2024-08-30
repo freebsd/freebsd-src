@@ -392,7 +392,7 @@ ipsec_accel_sa_newkey_impl(struct secasvar *sav)
 
 	TASK_INIT(&tq->install_task, 0, ipsec_accel_sa_newkey_act, tq);
 	tq->sav = sav;
-	tq->install_vnet = curthread->td_vnet;	/* XXXKIB liveness */
+	tq->install_vnet = curthread->td_vnet;
 	taskqueue_enqueue(ipsec_accel_tq, &tq->install_task);
 }
 
