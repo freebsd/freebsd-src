@@ -271,7 +271,7 @@ void unload(void);
 struct preloaded_file *file_alloc(void);
 struct preloaded_file *file_findfile(const char *name, const char *type);
 struct file_metadata *file_findmetadata(struct preloaded_file *fp, int type);
-struct preloaded_file *file_loadraw(const char *name, char *type, int insert);
+struct preloaded_file *file_loadraw(const char *name, const char *type, int insert);
 void file_discard(struct preloaded_file *fp);
 void file_addmetadata(struct preloaded_file *, int, size_t, void *);
 int file_addmodule(struct preloaded_file *, char *, int,
