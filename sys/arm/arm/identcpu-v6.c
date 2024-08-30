@@ -50,10 +50,10 @@
 #include <machine/cpu.h>
 #include <machine/md_var.h>
 
-char machine[] = "arm";
+const char machine[] = "arm";
 
-SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD | CTLFLAG_CAPRD,
-	machine, 0, "Machine class");
+SYSCTL_CONST_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD | CTLFLAG_CAPRD,
+    machine, "Machine class");
 
 static char cpu_model[64];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD | CTLFLAG_CAPRD,

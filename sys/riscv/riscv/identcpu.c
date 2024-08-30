@@ -60,10 +60,10 @@
 #include <dev/ofw/ofw_bus_subr.h>
 #endif
 
-char machine[] = "riscv";
+const char machine[] = "riscv";
 
-SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD | CTLFLAG_CAPRD, machine, 0,
-    "Machine class");
+SYSCTL_CONST_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD | CTLFLAG_CAPRD,
+    machine, "Machine class");
 
 /* Hardware implementation info. These values may be empty. */
 register_t mvendorid;	/* The CPU's JEDEC vendor ID */
