@@ -512,7 +512,7 @@ putchar(int c, void *arg)
 	if ((flags & TOTTY) && tp != NULL && !KERNEL_PANICKED())
 		tty_putchar(tp, c);
 
-	if ((flags & TOCONS ) && cn_mute) {
+	if ((flags & TOCONS) && cn_mute) {
 		flags &= ~TOCONS;
 		ap->flags = flags;
 	}
