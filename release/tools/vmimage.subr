@@ -52,7 +52,7 @@ vm_install_base() {
 	# Installs the FreeBSD userland/kernel to the virtual machine disk.
 
 	cd ${WORLDDIR} && \
-		make DESTDIR=${DESTDIR} \
+		make DESTDIR=${DESTDIR} ${INSTALLOPTS} \
 		installworld installkernel distribution || \
 		err "\n\nCannot install the base system to ${DESTDIR}."
 
