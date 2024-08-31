@@ -206,6 +206,7 @@ tpm20_init(struct tpm_sc *sc)
 		tpm20_release(sc);
 
 #ifdef TPM_HARVEST
+	random_harvest_register_source(RANDOM_PURE_TPM);
 	TIMEOUT_TASK_INIT(taskqueue_thread, &sc->harvest_task, 0,
 	    tpm20_harvest, sc);
 	taskqueue_enqueue_timeout(taskqueue_thread, &sc->harvest_task, 0);
@@ -222,6 +223,7 @@ tpm20_release(struct tpm_sc *sc)
 #ifdef TPM_HARVEST
 	if (device_is_attached(sc->dev))
 		taskqueue_drain_timeout(taskqueue_thread, &sc->harvest_task);
+	random_harvest_deregister_source(RANDOM_PURE_TPM);
 #endif
 
 	if (sc->buf != NULL)
