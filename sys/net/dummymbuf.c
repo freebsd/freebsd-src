@@ -74,7 +74,7 @@ dmb_sysctl_handle_rules(SYSCTL_HANDLER_ARGS)
 	char **rulesp = (char **)arg1;
 
 	if (req->newptr == NULL) {
-		// read only
+		/* read only */
 		DMB_RULES_SLOCK();
 		arg1 = *rulesp;
 		if (arg1 == NULL) {
@@ -84,10 +84,12 @@ dmb_sysctl_handle_rules(SYSCTL_HANDLER_ARGS)
 		error = sysctl_handle_string(oidp, arg1, arg2, req);
 		DMB_RULES_SUNLOCK();
 	} else {
-		// read and write
+		/* read and write */
 		DMB_RULES_XLOCK();
-		if (*rulesp == NULL)
-			*rulesp = malloc(arg2, M_DUMMYMBUF_RULES, M_WAITOK);
+		if (*rulesp == NULL) {
+			*rulesp = malloc(arg2, M_DUMMYMBUF_RULES,
+			    M_WAITOK | M_ZERO);
+		}
 		arg1 = *rulesp;
 		error = sysctl_handle_string(oidp, arg1, arg2, req);
 		DMB_RULES_XUNLOCK();
@@ -99,8 +101,7 @@ dmb_sysctl_handle_rules(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_net_dummymbuf, OID_AUTO, rules,
     CTLTYPE_STRING | CTLFLAG_MPSAFE | CTLFLAG_RW | CTLFLAG_VNET,
     &VNET_NAME(dmb_rules), RULES_MAXLEN, dmb_sysctl_handle_rules, "A",
-    "{inet | inet6 | ethernet} {in | out} <ifname> <opname>[ <opargs>];"
-    " ...;");
+    "{inet | inet6 | ethernet} {in | out} <ifname> <opname>[<opargs>]; ...;");
 
 /*
  * Statistics
