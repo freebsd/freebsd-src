@@ -55,14 +55,14 @@
 OLD_LIBS+=usr/lib/ossl-modules/fips.so
 
 # 20240824: sound examples: midi.c moved out of oss/
-OLD_FILES+=share/examples/sound/oss/midi.c
+OLD_FILES+=usr/share/examples/sound/oss/midi.c
 
 # 20240824: sound examples: Remove ossinit.h and rename basic.c to audio.c
-OLD_FILES+=share/examples/sound/oss/ossinit.h
-OLD_FILES+=share/examples/sound/oss/basic.c
+OLD_FILES+=usr/share/examples/sound/oss/ossinit.h
+OLD_FILES+=usr/share/examples/sound/oss/basic.c
 
 # 20240824: sound examples: Remove ossmidi.h
-OLD_FILES+=share/examples/sound/oss/ossmidi.h
+OLD_FILES+=usr/share/examples/sound/oss/ossmidi.h
 
 # 20240729: rename quick_exit_test to libc_exit_test
 OLD_FILES+=usr/tests/lib/libc/stdlib/quick_exit_test
