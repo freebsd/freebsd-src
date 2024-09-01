@@ -29,7 +29,8 @@
 #ifndef	_VMM_DEV_H_
 #define	_VMM_DEV_H_
 
-struct vm_snapshot_meta;
+#include <machine/vmm.h>
+#include <machine/vmm_snapshot.h>
 
 struct vm_memmap {
 	vm_paddr_t	gpa;
