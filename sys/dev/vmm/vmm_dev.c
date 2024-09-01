@@ -58,7 +58,6 @@ struct vmmdev_softc {
 	SLIST_HEAD(, devmem_softc) devmem;
 	int		flags;
 };
-#define	VSC_LINKED		0x01
 
 static SLIST_HEAD(, vmmdev_softc) head;
 
@@ -750,6 +749,8 @@ vmmdev_destroy(struct vmmdev_softc *sc)
 	struct devmem_softc *dsc;
 	int error __diagused;
 
+	KASSERT(sc->cdev == NULL, ("%s: cdev not free", __func__));
+
 	/*
 	 * Destroy all cdevs:
 	 *
@@ -759,7 +760,6 @@ vmmdev_destroy(struct vmmdev_softc *sc)
 	 */
 	SLIST_FOREACH(dsc, &sc->devmem, link) {
 		KASSERT(dsc->cdev != NULL, ("devmem cdev already destroyed"));
-		destroy_dev(dsc->cdev);
 		devmem_destroy(dsc);
 	}
 
@@ -775,21 +775,15 @@ vmmdev_destroy(struct vmmdev_softc *sc)
 		free(dsc, M_VMMDEV);
 	}
 
-	if (sc->cdev != NULL)
-		destroy_dev(sc->cdev);
-
 	if (sc->vm != NULL)
 		vm_destroy(sc->vm);
 
 	if (sc->ucred != NULL)
 		crfree(sc->ucred);
 
-	if ((sc->flags & VSC_LINKED) != 0) {
-		sx_xlock(&vmmdev_mtx);
-		SLIST_REMOVE(&head, sc, vmmdev_softc, link);
-		sx_xunlock(&vmmdev_mtx);
-	}
-
+	sx_xlock(&vmmdev_mtx);
+	SLIST_REMOVE(&head, sc, vmmdev_softc, link);
+	sx_xunlock(&vmmdev_mtx);
 	free(sc, M_VMMDEV);
 }
 
@@ -869,50 +863,43 @@ vmmdev_alloc(struct vm *vm, struct ucred *cred)
 static int
 vmmdev_create(const char *name, struct ucred *cred)
 {
+	struct make_dev_args mda;
 	struct cdev *cdev;
-	struct vmmdev_softc *sc, *sc2;
+	struct vmmdev_softc *sc;
 	struct vm *vm;
 	int error;
 
 	sx_xlock(&vmmdev_mtx);
 	sc = vmmdev_lookup(name, cred);
-	sx_xunlock(&vmmdev_mtx);
-	if (sc != NULL)
+	if (sc != NULL) {
+		sx_xunlock(&vmmdev_mtx);
 		return (EEXIST);
+	}
 
 	error = vm_create(name, &vm);
-	if (error != 0)
+	if (error != 0) {
+		sx_xunlock(&vmmdev_mtx);
 		return (error);
-
+	}
 	sc = vmmdev_alloc(vm, cred);
+	SLIST_INSERT_HEAD(&head, sc, link);
 
-	/*
-	 * Lookup the name again just in case somebody sneaked in when we
-	 * dropped the lock.
-	 */
-	sx_xlock(&vmmdev_mtx);
-	sc2 = vmmdev_lookup(name, cred);
-	if (sc2 != NULL) {
+	make_dev_args_init(&mda);
+	mda.mda_devsw = &vmmdevsw;
+	mda.mda_cr = sc->ucred;
+	mda.mda_uid = UID_ROOT;
+	mda.mda_gid = GID_WHEEL;
+	mda.mda_mode = 0600;
+	mda.mda_si_drv1 = sc;
+	mda.mda_flags = MAKEDEV_CHECKNAME | MAKEDEV_WAITOK;
+	error = make_dev_s(&mda, &cdev, "vmm/%s", name);
+	if (error != 0) {
 		sx_xunlock(&vmmdev_mtx);
 		vmmdev_destroy(sc);
-		return (EEXIST);
-	}
-	sc->flags |= VSC_LINKED;
-	SLIST_INSERT_HEAD(&head, sc, link);
-	sx_xunlock(&vmmdev_mtx);
-
-	error = make_dev_p(MAKEDEV_CHECKNAME, &cdev, &vmmdevsw, sc->ucred,
-	    UID_ROOT, GID_WHEEL, 0600, "vmm/%s", name);
-	if (error != 0) {
-		vmmdev_destroy(sc);
 		return (error);
 	}
-
-	sx_xlock(&vmmdev_mtx);
 	sc->cdev = cdev;
-	sc->cdev->si_drv1 = sc;
 	sx_xunlock(&vmmdev_mtx);
-
 	return (0);
 }
 
@@ -1005,39 +992,37 @@ static struct cdevsw devmemsw = {
 static int
 devmem_create_cdev(struct vmmdev_softc *sc, int segid, char *devname)
 {
+	struct make_dev_args mda;
 	struct devmem_softc *dsc;
-	struct cdev *cdev;
-	const char *vmname;
 	int error;
 
-	vmname = vm_name(sc->vm);
-
-	error = make_dev_p(MAKEDEV_CHECKNAME, &cdev, &devmemsw, sc->ucred,
-	    UID_ROOT, GID_WHEEL, 0600, "vmm.io/%s.%s", vmname, devname);
-	if (error)
-		return (error);
+	sx_xlock(&vmmdev_mtx);
 
 	dsc = malloc(sizeof(struct devmem_softc), M_VMMDEV, M_WAITOK | M_ZERO);
-
-	sx_xlock(&vmmdev_mtx);
-	if (sc->cdev == NULL) {
-		/* virtual machine is being created or destroyed */
-		sx_xunlock(&vmmdev_mtx);
-		free(dsc, M_VMMDEV);
-		destroy_dev_sched_cb(cdev, NULL, 0);
-		return (ENODEV);
-	}
-
 	dsc->segid = segid;
 	dsc->name = devname;
-	dsc->cdev = cdev;
 	dsc->sc = sc;
 	SLIST_INSERT_HEAD(&sc->devmem, dsc, link);
+
+	make_dev_args_init(&mda);
+	mda.mda_devsw = &devmemsw;
+	mda.mda_cr = sc->ucred;
+	mda.mda_uid = UID_ROOT;
+	mda.mda_gid = GID_WHEEL;
+	mda.mda_mode = 0600;
+	mda.mda_si_drv1 = dsc;
+	mda.mda_flags = MAKEDEV_CHECKNAME | MAKEDEV_WAITOK;
+	error = make_dev_s(&mda, &dsc->cdev, "vmm.io/%s.%s", vm_name(sc->vm),
+	    devname);
+	if (error != 0) {
+		SLIST_REMOVE(&sc->devmem, dsc, devmem_softc, link);
+		free(dsc->name, M_VMMDEV);
+		free(dsc, M_VMMDEV);
+	}
+
 	sx_xunlock(&vmmdev_mtx);
 
-	/* The 'cdev' is ready for use after 'si_drv1' is initialized */
-	cdev->si_drv1 = dsc;
-	return (0);
+	return (error);
 }
 
 static void
@@ -1045,7 +1030,7 @@ devmem_destroy(void *arg)
 {
 	struct devmem_softc *dsc = arg;
 
-	KASSERT(dsc->cdev, ("%s: devmem cdev already destroyed", __func__));
+	destroy_dev(dsc->cdev);
 	dsc->cdev = NULL;
 	dsc->sc = NULL;
 }
