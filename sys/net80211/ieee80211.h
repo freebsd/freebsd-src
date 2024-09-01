@@ -421,7 +421,7 @@ struct ieee80211_action {
 #define	IEEE80211_ACTION_CAT_BA			3	/* 9.6.4 Block Ack */
 #define	IEEE80211_ACTION_CAT_PUBLIC		4	/* 9.6.7 Public */
 #define	IEEE80211_ACTION_CAT_RADIO_MEASUREMENT	5	/* 9.6.6 Radio Measurement */
-#define	IEEE80211_ACTION_CAT_FAST_BBS_TRANSITION 6	/* 9.6.8 Fast BSS Transition */
+#define	IEEE80211_ACTION_CAT_FAST_BSS_TRANSITION 6	/* 9.6.8 Fast BSS Transition */
 #define	IEEE80211_ACTION_CAT_HT			7	/* 9.6.11 HT */
 #define	IEEE80211_ACTION_CAT_SA_QUERY		8	/* 9.6.9 SA Query */
 #define	IEEE80211_ACTION_CAT_PROTECTED_DUAL_OF_PUBLIC_ACTION 9 /* 9.6.10 Protected Dual of Public Action */
