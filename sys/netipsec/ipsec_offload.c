@@ -97,8 +97,6 @@ struct ifp_handle_sav {
 
 #define	IFP_HS_HANDLED	0x00000001
 #define	IFP_HS_REJECTED	0x00000002
-#define	IFP_HS_INPUT	0x00000004
-#define	IFP_HS_OUTPUT	0x00000008
 #define	IFP_HS_MARKER	0x00000010
 
 static CK_LIST_HEAD(, ifp_handle_sav) ipsec_accel_all_sav_handles;
@@ -405,8 +403,7 @@ ipsec_accel_handle_sav(struct secasvar *sav, struct ifnet *ifp,
 	ihs->drv_spi = drv_spi;
 	ihs->ifdata = priv;
 	ihs->flags = flags;
-	if ((flags & IFP_HS_OUTPUT) != 0)
-		ihs->hdr_ext_size = esp_hdrsiz(sav);
+	ihs->hdr_ext_size = esp_hdrsiz(sav);
 	mtx_lock(&ipsec_accel_sav_tmp);
 	CK_LIST_FOREACH(i, &sav->accel_ifps, sav_link) {
 		if (i->ifp == ifp) {
