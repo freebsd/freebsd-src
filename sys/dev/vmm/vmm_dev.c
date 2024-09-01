@@ -186,10 +186,6 @@ vmmdev_rw(struct cdev *cdev, struct uio *uio, int flags)
 	void *hpa, *cookie;
 	struct vmmdev_softc *sc;
 
-	error = vmm_priv_check(curthread->td_ucred);
-	if (error)
-		return (error);
-
 	sc = vmmdev_lookup2(cdev);
 	if (sc == NULL)
 		return (ENXIO);
@@ -327,6 +323,32 @@ vm_set_register_set(struct vcpu *vcpu, unsigned int count, int *regnum,
 	return (error);
 }
 
+static int
+vmmdev_open(struct cdev *dev, int flags, int fmt, struct thread *td)
+{
+	struct vmmdev_softc *sc;
+	int error;
+
+	sc = vmmdev_lookup2(dev);
+	KASSERT(sc != NULL, ("%s: device not found", __func__));
+
+	/*
+	 * A user can only access VMs that they themselves have created.
+	 */
+	if (td->td_ucred != sc->ucred)
+		return (EPERM);
+
+	/*
+	 * A jail without vmm access shouldn't be able to access vmm device
+	 * files at all, but check here just to be thorough.
+	 */
+	error = vmm_priv_check(td->td_ucred);
+	if (error != 0)
+		return (error);
+
+	return (0);
+}
+
 static const struct vmmdev_ioctl vmmdev_ioctls[] = {
 	VMMDEV_IOCTL(VM_GET_REGISTER, VMMDEV_IOCTL_LOCK_ONE_VCPU),
 	VMMDEV_IOCTL(VM_SET_REGISTER, VMMDEV_IOCTL_LOCK_ONE_VCPU),
@@ -374,10 +396,6 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vcpu *vcpu;
 	const struct vmmdev_ioctl *ioctl;
 	int error, vcpuid;
-
-	error = vmm_priv_check(td->td_ucred);
-	if (error)
-		return (error);
 
 	sc = vmmdev_lookup2(cdev);
 	if (sc == NULL)
@@ -681,10 +699,6 @@ vmmdev_mmap_single(struct cdev *cdev, vm_ooffset_t *offset, vm_size_t mapsize,
 	int error, found, segid;
 	bool sysmem;
 
-	error = vmm_priv_check(curthread->td_ucred);
-	if (error)
-		return (error);
-
 	first = *offset;
 	last = first + mapsize;
 	if ((nprot & PROT_EXEC) || first < 0 || first >= last)
@@ -833,6 +847,7 @@ SYSCTL_PROC(_hw_vmm, OID_AUTO, destroy,
 static struct cdevsw vmmdevsw = {
 	.d_name		= "vmmdev",
 	.d_version	= D_VERSION,
+	.d_open		= vmmdev_open,
 	.d_ioctl	= vmmdev_ioctl,
 	.d_mmap_single	= vmmdev_mmap_single,
 	.d_read		= vmmdev_rw,
