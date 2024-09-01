@@ -441,14 +441,15 @@ TESTS+=		varparse-mod
 TESTS+=		varparse-undef-partial
 TESTS+=		varquote
 
-# for now at least
-.if ${.SHELL:T} == "ksh"
+# some shells have quirks
+_shell := ${.SHELL:U/bin/sh:tA:T}
+.if ${_shell} == "ksh"
 BROKEN_TESTS+= sh-flags
 .endif
 .if ${.MAKE.OS:NDarwin} == ""
 BROKEN_TESTS+= shell-ksh
 .endif
-.if ${.MAKE.OS} == "Linux" && ${.SHELL:tA:T} != "bash"
+.if ${.MAKE.OS} == "Linux" && ${_shell} != "bash"
 .if exists(/etc/os-release)
 distro!= . /etc/os-release && echo $$NAME
 .endif
@@ -465,7 +466,7 @@ BROKEN_TESTS+= \
 	varmod-localtime \
 	varmod-to-separator \
 
-.if ${.SHELL:T} == "bash"
+.if ${_shell} == "bash"
 BROKEN_TESTS+= job-output-null
 .else
 BROKEN_TESTS+= \
@@ -771,7 +772,7 @@ _SED_CMDS+=	-e 's,${UNIT_TESTS:S,.,\\.,g}/,,g'
 .if ${.MAKE.OS:N*BSD} != ""
 _SED_CMDS+=	-e 's,\(Error code\) 255,\1 1,'
 .endif
-.if ${.SHELL:T} == "ksh"
+.if ${_shell} == "ksh"
 _SED_CMDS+=	-e '/^set [+-]v/d'
 .endif
 
