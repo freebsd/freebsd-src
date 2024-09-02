@@ -2066,8 +2066,8 @@ pf_normalize_mss(struct mbuf *m, int off, struct pf_pdesc *pd)
 	return (0);
 }
 
-static int
-pf_scan_sctp(struct mbuf *m, int ipoff, int off, struct pf_pdesc *pd,
+int
+pf_scan_sctp(struct mbuf *m, int off, struct pf_pdesc *pd,
     struct pfi_kkif *kif)
 {
 	struct sctp_chunkhdr ch = { };
@@ -2202,11 +2202,6 @@ pf_normalize_sctp(int dir, struct pfi_kkif *kif, struct mbuf *m, int ipoff,
 	int		 srs;
 
 	PF_RULES_RASSERT();
-
-	/* Unconditionally scan the SCTP packet, because we need to look for
-	 * things like shutdown and asconf chunks. */
-	if (pf_scan_sctp(m, ipoff, off, pd, kif) != PF_PASS)
-		goto sctp_drop;
 
 	r = TAILQ_FIRST(pf_main_ruleset.rules[PF_RULESET_SCRUB].active.ptr);
 	/* Check if there any scrub rules. Lack of scrub rules means enforced
