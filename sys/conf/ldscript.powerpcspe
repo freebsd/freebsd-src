@@ -79,8 +79,20 @@ SECTIONS
   . = ALIGN(4096);
   .got            : { *(.got) }
   .got.plt        : { *(.got.plt) }
-
-
+  .init_array     :
+  {
+    PROVIDE_HIDDEN (__init_array_start = .);
+    KEEP (*(SORT_BY_INIT_PRIORITY(.init_array.*)))
+    KEEP (*(.init_array))
+    PROVIDE_HIDDEN (__init_array_end = .);
+  }
+  .fini_array     :
+  {
+    PROVIDE_HIDDEN (__fini_array_start = .);
+    KEEP (*(SORT_BY_INIT_PRIORITY(.fini_array.*)))
+    KEEP (*(.fini_array))
+    PROVIDE_HIDDEN (__fini_array_end = .);
+  }
   .dynamic        : { *(.dynamic) } :kernel :dynamic
   /* Put .ctors and .dtors next to the .got2 section, so that the pointers
      get relocated with -mrelocatable. Also put in the .fixup pointers.
