@@ -633,7 +633,7 @@ dump_rtsock(struct sockaddr_in6 *addr, int cflag)
 	if (!opts.tflag && !cflag) {
 		char xobuf[200];
 		snprintf(xobuf, sizeof(xobuf),
-		    "{T:/%%-%d.%ds} {T:/%%-%d.%ds} {T:/%%%d.%ds} {T:/%%-9.9s} {T:%%1s} {T:%%5s}\n",
+		    "{T:/%%-%d.%ds} {T:/%%-%d.%ds} {T:/%%%d.%ds} {T:/%%-9.9s} {T:/%%1s} {T:/%%5s}\n",
 		    W_ADDR, W_ADDR, W_LL, W_LL, W_IF, W_IF);
 		xo_emit(xobuf, "Neighbor", "Linklayer Address", "Netif", "Expire", "S", "Flags");
 	}
