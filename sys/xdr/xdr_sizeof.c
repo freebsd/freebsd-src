@@ -95,10 +95,7 @@ x_inline(XDR *xdrs, u_int len)
 		/* Free the earlier space and allocate new area */
 		if (xdrs->x_private)
 			free(xdrs->x_private, M_RPC);
-		if ((xdrs->x_private = (caddr_t) malloc(len, M_RPC, M_WAITOK)) == NULL) {
-			xdrs->x_base = 0;
-			return (NULL);
-		}
+		xdrs->x_private = malloc(len, M_RPC, M_WAITOK);
 		xdrs->x_base = (caddr_t)(uintptr_t) len;
 		xdrs->x_handy += len;
 		return ((int32_t *) xdrs->x_private);
