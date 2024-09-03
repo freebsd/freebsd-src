@@ -954,7 +954,7 @@ nvmft_handle_admin_command(struct nvmft_controller *ctrlr,
 	if (NVMEV(NVME_CC_REG_EN, ctrlr->cc) == 0 &&
 	    cmd->opc != NVME_OPC_FABRICS_COMMANDS) {
 		nvmft_printf(ctrlr,
-		    "Unsupported admin opcode %#x whiled disabled\n", cmd->opc);
+		    "Unsupported admin opcode %#x while disabled\n", cmd->opc);
 		nvmft_send_generic_error(ctrlr->admin, nc,
 		    NVME_SC_COMMAND_SEQUENCE_ERROR);
 		nvmf_free_capsule(nc);

@@ -192,7 +192,7 @@ controller_handle_admin_commands(struct controller *c, handle_command *cb,
 		 */
 		if (NVMEV(NVME_CC_REG_EN, c->cc) == 0 &&
 		    cmd->opc != NVME_OPC_FABRICS_COMMANDS) {
-			warnx("Unsupported admin opcode %#x whiled disabled\n",
+			warnx("Unsupported admin opcode %#x while disabled\n",
 			    cmd->opc);
 			nvmf_send_generic_error(nc,
 			    NVME_SC_COMMAND_SEQUENCE_ERROR);
