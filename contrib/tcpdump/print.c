@@ -434,10 +434,14 @@ pretty_print_packet(netdissect_options *ndo, const struct pcap_pkthdr *h,
 	nd_pop_all_packet_info(ndo);
 
 	/*
-	 * Restore the original snapend, as a printer might have
-	 * changed it.
+	 * Restore the originals snapend and packetp, as a printer
+	 * might have changed them.
+	 *
+	 * XXX - nd_pop_all_packet_info() should have restored the
+	 * original values, but, just in case....
 	 */
 	ndo->ndo_snapend = sp + h->caplen;
+	ndo->ndo_packetp = sp;
 	if (ndo->ndo_Xflag) {
 		/*
 		 * Print the raw packet data in hex and ASCII.
