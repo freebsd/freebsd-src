@@ -3635,11 +3635,8 @@ out:
 		mfi_aen_entry = malloc(sizeof(struct mfi_aen), M_MFIBUF,
 		    M_WAITOK);
 		mtx_lock(&sc->mfi_io_lock);
-		if (mfi_aen_entry != NULL) {
-			mfi_aen_entry->p = curproc;
-			TAILQ_INSERT_TAIL(&sc->mfi_aen_pids, mfi_aen_entry,
-			    aen_link);
-		}
+		mfi_aen_entry->p = curproc;
+		TAILQ_INSERT_TAIL(&sc->mfi_aen_pids, mfi_aen_entry, aen_link);
 		error = mfi_aen_register(sc, l_aen.laen_seq_num,
 		    l_aen.laen_class_locale);
 
