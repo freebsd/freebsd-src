@@ -931,10 +931,6 @@ smmu_init_strtab_2lvl(struct smmu_softc *sc)
 	sz = strtab->num_l1_entries * sizeof(struct l1_desc);
 
 	strtab->l1 = malloc(sz, M_SMMU, M_WAITOK | M_ZERO);
-	if (strtab->l1 == NULL) {
-		contigfree(strtab->vaddr, l1size, M_SMMU);
-		return (ENOMEM);
-	}
 
 	reg = STRTAB_BASE_CFG_FMT_2LVL;
 	reg |= size << STRTAB_BASE_CFG_LOG2SIZE_S;
