@@ -2422,11 +2422,8 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 	q->port = pi;
 	q->adap = sc;
 
-	if ((q->txq[TXQ_ETH].txq_mr = buf_ring_alloc(cxgb_txq_buf_ring_size,
-	    M_DEVBUF, M_WAITOK, &q->lock)) == NULL) {
-		device_printf(sc->dev, "failed to allocate mbuf ring\n");
-		goto err;
-	}
+	q->txq[TXQ_ETH].txq_mr = buf_ring_alloc(cxgb_txq_buf_ring_size,
+	    M_DEVBUF, M_WAITOK, &q->lock);
 	if ((q->txq[TXQ_ETH].txq_ifq = malloc(sizeof(struct ifaltq), M_DEVBUF,
 	    M_NOWAIT | M_ZERO)) == NULL) {
 		device_printf(sc->dev, "failed to allocate ifq\n");

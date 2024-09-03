@@ -2485,9 +2485,7 @@ set_eeprom(struct port_info *pi, const uint8_t *data, int len, int offset)
 	aligned_len = (len + (offset & 3) + 3) & ~3;
 
 	if (aligned_offset != offset || aligned_len != len) {
-		buf = malloc(aligned_len, M_DEVBUF, M_WAITOK|M_ZERO);		   
-		if (!buf)
-			return (ENOMEM);
+		buf = malloc(aligned_len, M_DEVBUF, M_WAITOK | M_ZERO);
 		err = t3_seeprom_read(adapter, aligned_offset, (u32 *)buf);
 		if (!err && aligned_len > 4)
 			err = t3_seeprom_read(adapter,
