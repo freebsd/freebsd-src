@@ -232,9 +232,8 @@
 } while (0)
 
 /*
- * 'start' and 'end' are 0-based bit (runtime) indices. Note that, as for ffs(),
- * the returned index is 1-based, 0 being reserved to indicate that no bits are
- * set.
+ * 'start' is a 0-based bit index.  By contrast, and as for ffs(), the returned
+ * index is 1-based, 0 being reserved to indicate that no bits are set.
  */
 #define	__BIT_FFS_AT(_s, p, start) __extension__ ({			\
 	__size_t __i;							\
