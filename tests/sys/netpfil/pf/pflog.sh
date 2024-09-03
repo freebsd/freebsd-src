@@ -79,7 +79,61 @@ malformed_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "matches" "cleanup"
+matches_head()
+{
+	atf_set descr 'Test the pflog matches keyword'
+	atf_set require.user root
+}
+
+matches_body()
+{
+	pflog_init
+
+	epair=$(vnet_mkepair)
+
+	vnet_mkjail alcatraz ${epair}a
+	jexec alcatraz ifconfig ${epair}a 192.0.2.1/24 up
+
+	ifconfig ${epair}b 192.0.2.2/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 192.0.2.1
+
+	jexec alcatraz pfctl -e
+	jexec alcatraz ifconfig pflog0 up
+	pft_set_rules alcatraz \
+		"match log(matches) inet proto icmp" \
+		"match log(matches) inet from 192.0.2.2" \
+		"pass"
+
+	jexec alcatraz tcpdump -n -e -ttt --immediate-mode -l -U -i pflog0 >> ${PWD}/pflog.txt &
+	sleep 1 # Wait for tcpdump to start
+
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 192.0.2.1
+
+	echo "Rules"
+	jexec alcatraz pfctl -sr -vv
+	echo "States"
+	jexec alcatraz pfctl -ss -vv
+	echo "Log"
+	cat ${PWD}/pflog.txt
+
+	atf_check -o match:".*rule 0/0\(match\): match in on ${epair}a: 192.0.2.2 > 192.0.2.1: ICMP echo request.*" \
+	    cat pflog.txt
+	atf_check -o match:".*rule 1/0\(match\): match in on ${epair}a: 192.0.2.2 > 192.0.2.1: ICMP echo request.*" \
+	    cat pflog.txt
+}
+
+matches_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "malformed"
+	atf_add_test_case "matches"
 }
