@@ -141,19 +141,7 @@ bnxt_mgmt_process_hwrm(struct cdev *dev, u_long cmd, caddr_t data,
 	}
 
 	req = malloc(msg_temp.len_req, M_BNXT, M_WAITOK | M_ZERO);
-	if(!req) {
-		device_printf(softc->dev, "%s:%d Memory allocation failed",
-			      __FUNCTION__, __LINE__);
-		return -ENOMEM;
-	}
-	
 	resp = malloc(msg_temp.len_resp, M_BNXT, M_WAITOK | M_ZERO);
-	if(!resp) {
-		device_printf(softc->dev, "%s:%d Memory allocation failed",
-			      __FUNCTION__, __LINE__);
-		ret = -ENOMEM;
-		goto end;
-	}
 
 	if (copyin((void *)msg_temp.usr_req, req, msg_temp.len_req)) {
 		device_printf(softc->dev, "%s:%d Failed to copy data from user\n",
@@ -173,12 +161,6 @@ bnxt_mgmt_process_hwrm(struct cdev *dev, u_long cmd, caddr_t data,
 			     (num_ind * sizeof(struct dma_info));
 
 		msg2 = malloc(size, M_BNXT, M_WAITOK | M_ZERO);
-		if(!msg2) {
-			device_printf(softc->dev, "%s:%d Memory allocation failed",
-				      __FUNCTION__, __LINE__);
-			ret = -ENOMEM;
-			goto end;
-		}
 
 		if (copyin((void *)mgmt_req.req.hreq, msg2, size)) { 
 			device_printf(softc->dev, "%s:%d Failed to copy"
