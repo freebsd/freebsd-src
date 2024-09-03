@@ -662,13 +662,6 @@ int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
 	plane->funcs = funcs;
 	plane->format_types = malloc(sizeof(uint32_t) * format_count,
 	    DRM_MEM_KMS, M_WAITOK);
-	if (!plane->format_types) {
-		DRM_DEBUG_KMS("out of memory when allocating plane\n");
-		drm_mode_object_put(dev, &plane->base);
-		ret = -ENOMEM;
-		goto out;
-	}
-
 	memcpy(plane->format_types, formats, format_count * sizeof(uint32_t));
 	plane->format_count = format_count;
 	plane->possible_crtcs = possible_crtcs;
@@ -725,8 +718,6 @@ struct drm_display_mode *drm_mode_create(struct drm_device *dev)
 
 	nmode = malloc(sizeof(struct drm_display_mode), DRM_MEM_KMS,
 	    M_WAITOK | M_ZERO);
-	if (!nmode)
-		return NULL;
 
 	if (drm_mode_object_get(dev, &nmode->base, DRM_MODE_OBJECT_MODE)) {
 		free(nmode, DRM_MEM_KMS);
@@ -1009,9 +1000,6 @@ int drm_mode_group_init(struct drm_device *dev, struct drm_mode_group *group)
 
 	group->id_list = malloc(total_objects * sizeof(uint32_t),
 	    DRM_MEM_KMS, M_WAITOK | M_ZERO);
-	if (!group->id_list)
-		return -ENOMEM;
-
 	group->num_crtcs = 0;
 	group->num_connectors = 0;
 	group->num_encoders = 0;
@@ -1997,10 +1985,6 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 		connector_set = malloc(crtc_req->count_connectors *
 					sizeof(struct drm_connector *),
 					DRM_MEM_KMS, M_WAITOK);
-		if (!connector_set) {
-			ret = -ENOMEM;
-			goto out;
-		}
 
 		for (i = 0; i < crtc_req->count_connectors; i++) {
 			set_connectors_ptr = (uint32_t __user *)(unsigned long)crtc_req->set_connectors_ptr;
@@ -2522,11 +2506,6 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 		}
 		clips = malloc(num_clips * sizeof(*clips), DRM_MEM_KMS,
 		    M_WAITOK | M_ZERO);
-		if (!clips) {
-			ret = -ENOMEM;
-			goto out_err1;
-		}
-
 		ret = copy_from_user(clips, clips_ptr,
 				     num_clips * sizeof(*clips));
 		if (ret) {
@@ -2773,15 +2752,10 @@ struct drm_property *drm_property_create(struct drm_device *dev, int flags,
 
 	property = malloc(sizeof(struct drm_property), DRM_MEM_KMS,
 	    M_WAITOK | M_ZERO);
-	if (!property)
-		return NULL;
 
-	if (num_values) {
+	if (num_values)
 		property->values = malloc(sizeof(uint64_t)*num_values, DRM_MEM_KMS,
 		    M_WAITOK | M_ZERO);
-		if (!property->values)
-			goto fail;
-	}
 
 	ret = drm_mode_object_get(dev, &property->base, DRM_MODE_OBJECT_PROPERTY);
 	if (ret)
@@ -2907,9 +2881,6 @@ int drm_property_add_enum(struct drm_property *property, int index,
 
 	prop_enum = malloc(sizeof(struct drm_property_enum), DRM_MEM_KMS,
 	    M_WAITOK | M_ZERO);
-	if (!prop_enum)
-		return -ENOMEM;
-
 	strncpy(prop_enum->name, name, DRM_PROP_NAME_LEN);
 	prop_enum->name[DRM_PROP_NAME_LEN-1] = '\0';
 	prop_enum->value = value;
@@ -3103,9 +3074,6 @@ static struct drm_property_blob *drm_property_create_blob(struct drm_device *dev
 
 	blob = malloc(sizeof(struct drm_property_blob)+length, DRM_MEM_KMS,
 	    M_WAITOK | M_ZERO);
-	if (!blob)
-		return NULL;
-
 	ret = drm_mode_object_get(dev, &blob->base, DRM_MODE_OBJECT_BLOB);
 	if (ret) {
 		free(blob, DRM_MEM_KMS);
@@ -3433,10 +3401,6 @@ int drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 
 	crtc->gamma_store = malloc(gamma_size * sizeof(uint16_t) * 3,
 	    DRM_MEM_KMS, M_WAITOK | M_ZERO);
-	if (!crtc->gamma_store) {
-		crtc->gamma_size = 0;
-		return -ENOMEM;
-	}
 
 	return 0;
 }
@@ -3631,13 +3595,6 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 		mtx_unlock(&dev->event_lock);
 
 		e = malloc(sizeof *e, DRM_MEM_KMS, M_WAITOK | M_ZERO);
-		if (e == NULL) {
-			mtx_lock(&dev->event_lock);
-			file_priv->event_space += sizeof e->event;
-			mtx_unlock(&dev->event_lock);
-			goto out;
-		}
-
 		e->event.base.type = DRM_EVENT_FLIP_COMPLETE;
 		e->event.base.length = sizeof e->event;
 		e->event.user_data = page_flip->user_data;
