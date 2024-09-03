@@ -2138,11 +2138,6 @@ alloc_aiotx_mbuf(struct kaiocb *job, int len)
 			break;
 
 		m = mb_alloc_ext_pgs(M_WAITOK, aiotx_free_pgs);
-		if (m == NULL) {
-			vm_page_unhold_pages(pgs, npages);
-			break;
-		}
-
 		m->m_epg_1st_off = pgoff;
 		m->m_epg_npgs = npages;
 		if (npages == 1) {

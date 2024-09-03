@@ -842,9 +842,6 @@ cxgbei_activate(struct adapter *sc)
 
 	/* per-adapter softc for iSCSI */
 	ci = malloc(sizeof(*ci), M_CXGBE, M_ZERO | M_WAITOK);
-	if (ci == NULL)
-		return (ENOMEM);
-
 	rc = cxgbei_init(sc, ci);
 	if (rc != 0) {
 		free(ci, M_CXGBE);
