@@ -1066,8 +1066,8 @@ vop_stdadvise(struct vop_advise_args *ap)
 {
 	struct vnode *vp;
 	struct bufobj *bo;
+	uintmax_t bstart, bend;
 	daddr_t startn, endn;
-	off_t bstart, bend, start, end;
 	int bsize, error;
 
 	vp = ap->a_vp;
@@ -1099,7 +1099,8 @@ vop_stdadvise(struct vop_advise_args *ap)
 		 */
 		bsize = vp->v_bufobj.bo_bsize;
 		bstart = rounddown(ap->a_start, bsize);
-		bend = roundup(ap->a_end, bsize);
+		bend = ap->a_end;
+		bend = roundup(bend, bsize);
 
 		/*
 		 * Deactivate pages in the specified range from the backing VM
@@ -1108,18 +1109,17 @@ vop_stdadvise(struct vop_advise_args *ap)
 		 * below.
 		 */
 		if (vp->v_object != NULL) {
-			start = trunc_page(bstart);
-			end = round_page(bend);
 			VM_OBJECT_RLOCK(vp->v_object);
-			vm_object_page_noreuse(vp->v_object, OFF_TO_IDX(start),
-			    OFF_TO_IDX(end));
+			vm_object_page_noreuse(vp->v_object,
+			    OFF_TO_IDX(trunc_page(bstart)),
+			    OFF_TO_IDX(round_page(bend)));
 			VM_OBJECT_RUNLOCK(vp->v_object);
 		}
 
 		bo = &vp->v_bufobj;
-		BO_RLOCK(bo);
 		startn = bstart / bsize;
 		endn = bend / bsize;
+		BO_RLOCK(bo);
 		error = bnoreuselist(&bo->bo_clean, bo, startn, endn);
 		if (error == 0)
 			error = bnoreuselist(&bo->bo_dirty, bo, startn, endn);
