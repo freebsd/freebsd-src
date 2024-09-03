@@ -629,12 +629,6 @@ age_attach(device_t dev)
 	/* Create local taskq. */
 	sc->age_tq = taskqueue_create_fast("age_taskq", M_WAITOK,
 	    taskqueue_thread_enqueue, &sc->age_tq);
-	if (sc->age_tq == NULL) {
-		device_printf(dev, "could not create taskqueue.\n");
-		ether_ifdetach(ifp);
-		error = ENXIO;
-		goto fail;
-	}
 	taskqueue_start_threads(&sc->age_tq, 1, PI_NET, "%s taskq",
 	    device_get_nameunit(sc->age_dev));
 
