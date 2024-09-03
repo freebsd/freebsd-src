@@ -201,9 +201,6 @@ pf_set_syncookies(struct pfioc_nv *nv)
 		return (ENOMEM);
 
 	nvlpacked = malloc(nv->len, M_NVLIST, M_WAITOK);
-	if (nvlpacked == NULL)
-		return (ENOMEM);
-
 	error = copyin(nv->data, nvlpacked, nv->len);
 	if (error)
 		ERROUT(error);
