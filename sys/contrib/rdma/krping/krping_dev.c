@@ -174,12 +174,7 @@ krping_write(struct cdev *dev, struct uio *uio, int ioflag)
 	char *cp;
 	krping_t *krpingmsg;
 
-	krpingmsg = malloc(sizeof *krpingmsg, M_DEVBUF, M_WAITOK|M_ZERO);
-	if (!krpingmsg) {
-		uprintf("Could not malloc mem!\n");
-		return ENOMEM;
-	}
-
+	krpingmsg = malloc(sizeof *krpingmsg, M_DEVBUF, M_WAITOK | M_ZERO);
 	cp = krpingmsg->msg;
 	while (uio->uio_resid) {
 		amt = MIN(uio->uio_resid, remain);
