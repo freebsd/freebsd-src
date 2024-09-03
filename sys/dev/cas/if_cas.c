@@ -210,11 +210,6 @@ cas_attach(struct cas_softc *sc)
 	TASK_INIT(&sc->sc_tx_task, 1, cas_tx_task, ifp);
 	sc->sc_tq = taskqueue_create_fast("cas_taskq", M_WAITOK,
 	    taskqueue_thread_enqueue, &sc->sc_tq);
-	if (sc->sc_tq == NULL) {
-		device_printf(sc->sc_dev, "could not create taskqueue\n");
-		error = ENXIO;
-		goto fail_ifnet;
-	}
 	error = taskqueue_start_threads(&sc->sc_tq, 1, PI_NET, "%s taskq",
 	    device_get_nameunit(sc->sc_dev));
 	if (error != 0) {
@@ -467,7 +462,6 @@ cas_attach(struct cas_softc *sc)
 	bus_dma_tag_destroy(sc->sc_pdmatag);
  fail_taskq:
 	taskqueue_free(sc->sc_tq);
- fail_ifnet:
 	if_free(ifp);
 	return (error);
 }
