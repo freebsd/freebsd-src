@@ -116,10 +116,10 @@ struct vop_vector default_vnodeops = {
 	.vop_fsync =		VOP_NULL,
 	.vop_stat =		vop_stdstat,
 	.vop_fdatasync =	vop_stdfdatasync,
-	.vop_getlowvnode = 	vop_stdgetlowvnode,
+	.vop_getlowvnode =	vop_stdgetlowvnode,
 	.vop_getpages =		vop_stdgetpages,
 	.vop_getpages_async =	vop_stdgetpages_async,
-	.vop_getwritemount = 	vop_stdgetwritemount,
+	.vop_getwritemount =	vop_stdgetwritemount,
 	.vop_inactive =		VOP_NULL,
 	.vop_need_inactive =	vop_stdneed_inactive,
 	.vop_ioctl =		vop_stdioctl,
@@ -1090,7 +1090,7 @@ vop_stdadvise(struct vop_advise_args *ap)
 
 		/*
 		 * Round to block boundaries (and later possibly further to
-		 * page boundaries).  Applications cannot reasonably be aware  
+		 * page boundaries).  Applications cannot reasonably be aware
 		 * of the boundaries, and the rounding must be to expand at
 		 * both extremities to cover enough.  It still doesn't cover
 		 * read-ahead.  For partial blocks, this gives unnecessary
