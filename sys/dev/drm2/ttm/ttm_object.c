@@ -282,11 +282,6 @@ int ttm_ref_object_add(struct ttm_object_file *tfile,
 		if (unlikely(ret != 0))
 			return ret;
 		ref = malloc(sizeof(*ref), M_TTM_OBJ_REF, M_WAITOK);
-		if (unlikely(ref == NULL)) {
-			ttm_mem_global_free(mem_glob, sizeof(*ref));
-			return -ENOMEM;
-		}
-
 		ref->hash.key = base->hash.key;
 		ref->obj = base;
 		ref->tfile = tfile;
