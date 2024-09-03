@@ -8589,8 +8589,11 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf *m,
 			struct tcphdr *th = &pd->hdr.tcp;
 
 			if (!pf_pull_hdr(m, *off, th, sizeof(*th), action,
-				reason, AF_INET))
+				reason, AF_INET)) {
+				*action = PF_DROP;
+				REASON_SET(reason, PFRES_SHORT);
 				return (-1);
+			}
 			*hdrlen = sizeof(*th);
 			pd->p_len = pd->tot_len - *off - (th->th_off << 2);
 			pd->sport = &th->th_sport;
@@ -8601,8 +8604,11 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf *m,
 			struct udphdr *uh = &pd->hdr.udp;
 
 			if (!pf_pull_hdr(m, *off, uh, sizeof(*uh), action,
-				reason, AF_INET))
+				reason, AF_INET)) {
+				*action = PF_DROP;
+				REASON_SET(reason, PFRES_SHORT);
 				return (-1);
+			}
 			*hdrlen = sizeof(*uh);
 			if (uh->uh_dport == 0 ||
 			    ntohs(uh->uh_ulen) > m->m_pkthdr.len - *off ||
@@ -8618,6 +8624,8 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf *m,
 		case IPPROTO_SCTP: {
 			if (!pf_pull_hdr(m, *off, &pd->hdr.sctp, sizeof(pd->hdr.sctp),
 			    action, reason, AF_INET)) {
+				*action = PF_DROP;
+				REASON_SET(reason, PFRES_SHORT);
 				return (-1);
 			}
 			*hdrlen = sizeof(pd->hdr.sctp);
@@ -8639,8 +8647,11 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf *m,
 		}
 		case IPPROTO_ICMP: {
 			if (!pf_pull_hdr(m, *off, &pd->hdr.icmp, ICMP_MINLEN,
-				action, reason, AF_INET))
+				action, reason, AF_INET)) {
+				*action = PF_DROP;
+				REASON_SET(reason, PFRES_SHORT);
 				return (-1);
+			}
 			*hdrlen = ICMP_MINLEN;
 			break;
 		}
@@ -8738,8 +8749,11 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf *m,
 			struct tcphdr *th = &pd->hdr.tcp;
 
 			if (!pf_pull_hdr(m, *off, th, sizeof(*th), action,
-				reason, AF_INET6))
+				reason, AF_INET6)) {
+				*action = PF_DROP;
+				REASON_SET(reason, PFRES_SHORT);
 				return (-1);
+			}
 			*hdrlen = sizeof(*th);
 			pd->p_len = pd->tot_len - *off - (th->th_off << 2);
 			pd->sport = &th->th_sport;
@@ -8750,8 +8764,11 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf *m,
 			struct udphdr *uh = &pd->hdr.udp;
 
 			if (!pf_pull_hdr(m, *off, uh, sizeof(*uh), action,
-				reason, AF_INET6))
+				reason, AF_INET6)) {
+				*action = PF_DROP;
+				REASON_SET(reason, PFRES_SHORT);
 				return (-1);
+			}
 			*hdrlen = sizeof(*uh);
 			if (uh->uh_dport == 0 ||
 			    ntohs(uh->uh_ulen) > m->m_pkthdr.len - *off ||
@@ -8767,6 +8784,8 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf *m,
 		case IPPROTO_SCTP: {
 			if (!pf_pull_hdr(m, *off, &pd->hdr.sctp, sizeof(pd->hdr.sctp),
 			    action, reason, AF_INET6)) {
+				*action = PF_DROP;
+				REASON_SET(reason, PFRES_SHORT);
 				return (-1);
 			}
 			*hdrlen = sizeof(pd->hdr.sctp);
@@ -8790,8 +8809,11 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf *m,
 			size_t icmp_hlen = sizeof(struct icmp6_hdr);
 
 			if (!pf_pull_hdr(m, *off, &pd->hdr.icmp6, icmp_hlen,
-				action, reason, AF_INET6))
+				action, reason, AF_INET6)) {
+				*action = PF_DROP;
+				REASON_SET(reason, PFRES_SHORT);
 				return (-1);
+			}
 			/* ICMP headers we look further into to match state */
 			switch (pd->hdr.icmp6.icmp6_type) {
 			case MLD_LISTENER_QUERY:
@@ -8805,8 +8827,11 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf *m,
 			}
 			if (icmp_hlen > sizeof(struct icmp6_hdr) &&
 			    !pf_pull_hdr(m, *off, &pd->hdr.icmp6, icmp_hlen,
-				action, reason, AF_INET6))
+				action, reason, AF_INET6)) {
+				*action = PF_DROP;
+				REASON_SET(reason, PFRES_SHORT);
 				return (-1);
+			}
 			*hdrlen = icmp_hlen;
 			break;
 		}
