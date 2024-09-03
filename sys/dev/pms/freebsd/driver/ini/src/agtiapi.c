@@ -318,13 +318,6 @@ int agtiapi_getdevlist( struct agtiapi_softc *pCard,
                              sizeof(void *) );
   AGTIAPI_PRINTK("agtiapi_getdevlist: portCount %d\n", pCard->portCount);
   devList = malloc(memNeeded1, TEMP2, M_WAITOK); 
-  if (devList == NULL)
-  {
-    AGTIAPI_PRINTK("agtiapi_getdevlist: failed to allocate memory\n");
-    ret_val = IOCTL_CALL_FAIL;
-    agIOCTLPayload->Status = IOCTL_ERR_STATUS_INTERNAL_ERROR;
-    return ret_val;
-  }
   osti_memset(devList, 0,  memNeeded1);
   pPortalData = &pCard->pPortalData[0];
   pDeviceHandleList = (bit8*)devList;
@@ -970,13 +963,8 @@ static int agtiapi_attach( device_t devx )
   }
   else 
   {
-    pmsc->pPortalData = (ag_portal_data_t *)
-                        malloc( sizeof(ag_portal_data_t) * pmsc->portCount,
+    pmsc->pPortalData = malloc( sizeof(ag_portal_data_t) * pmsc->portCount,
                                 M_PMC_MPRT, M_ZERO | M_WAITOK );
-    if (pmsc->pPortalData == NULL)
-    {
-      AGTIAPI_PRINTK( "agtiapi_attach: Portal memory allocation ERROR\n" );
-    }
   }
 
   pPortalData = pmsc->pPortalData;
@@ -1227,32 +1215,14 @@ STATIC agBOOLEAN agtiapi_InitCardHW( struct agtiapi_softc *pmsc )
   pmsc->flags |= AGTIAPI_SYS_INTR_ON;
 
   numVal = sizeof(ag_device_t) * pmsc->devDiscover;
-  pmsc->pDevList =
-    (ag_device_t *)malloc( numVal, M_PMC_MDVT, M_ZERO | M_WAITOK );
-  if( !pmsc->pDevList ) {
-    AGTIAPI_PRINTK( "agtiapi_InitCardHW: kmalloc %d DevList ERROR\n", numVal );
-    panic( "agtiapi_InitCardHW\n" );
-    return AGTIAPI_FAIL;
-  }
+  pmsc->pDevList = malloc( numVal, M_PMC_MDVT, M_ZERO | M_WAITOK );
 
 #ifdef LINUX_PERBI_SUPPORT
   numVal = sizeof(ag_slr_map_t) * pmsc->devDiscover;
-  pmsc->pSLRList =
-    (ag_slr_map_t *)malloc( numVal, M_PMC_MSLR, M_ZERO | M_WAITOK );
-  if( !pmsc->pSLRList ) {
-    AGTIAPI_PRINTK( "agtiapi_InitCardHW: kmalloc %d SLRList ERROR\n", numVal );
-    panic( "agtiapi_InitCardHW SLRL\n" );
-    return AGTIAPI_FAIL;
-  }
+  pmsc->pSLRList = malloc( numVal, M_PMC_MSLR, M_ZERO | M_WAITOK );
 
   numVal = sizeof(ag_tgt_map_t) * pmsc->devDiscover;
-  pmsc->pWWNList =
-    (ag_tgt_map_t *)malloc( numVal, M_PMC_MTGT, M_ZERO | M_WAITOK );
-  if( !pmsc->pWWNList ) {
-    AGTIAPI_PRINTK( "agtiapi_InitCardHW: kmalloc %d WWNList ERROR\n", numVal );
-    panic( "agtiapi_InitCardHW WWNL\n" );
-    return AGTIAPI_FAIL;
-  }
+  pmsc->pWWNList = malloc( numVal, M_PMC_MTGT, M_ZERO | M_WAITOK );
 
   // Get the WWN_to_target_ID mappings from the
   // holding area which contains the input of the
