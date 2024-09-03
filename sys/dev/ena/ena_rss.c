@@ -279,12 +279,9 @@ ena_rss_indir_init(struct ena_adapter *adapter)
 	struct ena_indir *indir = adapter->rss_indir;
 	int rc;
 
-	if (indir == NULL) {
+	if (indir == NULL)
 		adapter->rss_indir = indir = malloc(sizeof(struct ena_indir),
 		    M_DEVBUF, M_WAITOK | M_ZERO);
-		if (indir == NULL)
-			return (ENOMEM);
-	}
 
 	rc = ena_rss_indir_get(adapter, indir->table);
 	if (rc != 0) {
