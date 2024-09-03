@@ -146,8 +146,6 @@ adf_processes_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 		return ENXIO;
 	}
 	prv_data = malloc(sizeof(*prv_data), M_QAT, M_WAITOK | M_ZERO);
-	if (!prv_data)
-		return ENOMEM;
 	INIT_LIST_HEAD(&prv_data->list);
 	error = devfs_set_cdevpriv(prv_data, adf_processes_release);
 	if (error) {
@@ -573,14 +571,8 @@ adf_state_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	int ret = 0;
 
 	prv_data = malloc(sizeof(*prv_data), M_QAT, M_WAITOK | M_ZERO);
-	if (!prv_data)
-		return -ENOMEM;
 	entry_proc_events =
 	    malloc(sizeof(struct entry_proc_events), M_QAT, M_WAITOK | M_ZERO);
-	if (!entry_proc_events) {
-		free(prv_data, M_QAT);
-		return -ENOMEM;
-	}
 	mtx_lock(&mtx);
 	prv_data->cdev = dev;
 	prv_data->cdev->si_drv1 = prv_data;
