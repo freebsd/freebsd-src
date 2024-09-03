@@ -588,11 +588,6 @@ dpaa2_ni_attach(device_t dev)
 	/* Create a taskqueue thread to release new buffers to the pool. */
 	sc->bp_taskq = taskqueue_create(tq_name, M_WAITOK,
 	    taskqueue_thread_enqueue, &sc->bp_taskq);
-	if (sc->bp_taskq == NULL) {
-		device_printf(dev, "%s: failed to allocate task queue: %s\n",
-		    __func__, tq_name);
-		goto close_ni;
-	}
 	taskqueue_start_threads(&sc->bp_taskq, 1, PI_NET, "%s", tq_name);
 
 	/* sc->cleanup_taskq = taskqueue_create("dpaa2_ch cleanup", M_WAITOK, */
@@ -1339,21 +1334,11 @@ dpaa2_ni_setup_tx_flow(device_t dev, struct dpaa2_ni_fq *fq)
 		for (uint64_t j = 0; j < DPAA2_NI_BUFS_PER_TX; j++) {
 			buf = malloc(sizeof(struct dpaa2_buf), M_DPAA2_TXB,
 			    M_WAITOK);
-			if (buf == NULL) {
-				device_printf(dev, "%s: malloc() failed (buf)\n",
-				    __func__);
-				return (ENOMEM);
-			}
 			/* Keep DMA tag and Tx ring linked to the buffer */
 			DPAA2_BUF_INIT_TAGOPT(buf, ch->tx_dmat, tx);
 
 			buf->sgt = malloc(sizeof(struct dpaa2_buf), M_DPAA2_TXB,
 			    M_WAITOK);
-			if (buf->sgt == NULL) {
-				device_printf(dev, "%s: malloc() failed (sgt)\n",
-				    __func__);
-				return (ENOMEM);
-			}
 			/* Link SGT to DMA tag and back to its Tx buffer */
 			DPAA2_BUF_INIT_TAGOPT(buf->sgt, ch->sgt_dmat, buf);
 
