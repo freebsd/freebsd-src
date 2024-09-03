@@ -88,8 +88,6 @@ sdhci_xenon_acpi_attach(device_t dev)
 	memset(&mmc_helper, 0, sizeof(mmc_helper));
 
 	slot = malloc(sizeof(*slot), M_DEVBUF, M_ZERO | M_WAITOK);
-	if (!slot)
-		return (ENOMEM);
 
 	/*
 	 * Don't use regularators.
