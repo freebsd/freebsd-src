@@ -1203,16 +1203,11 @@ sume_probe_riffa_buffer(const struct sume_adapter *adapter,
 {
 	struct riffa_chnl_dir **rp;
 	bus_addr_t hw_addr;
-	int error, ch;
+	int ch;
 	device_t dev = adapter->dev;
 
-	error = ENOMEM;
 	*p = malloc(SUME_RIFFA_CHANNELS * sizeof(struct riffa_chnl_dir *),
 	    M_SUME, M_ZERO | M_WAITOK);
-	if (*p == NULL) {
-		device_printf(dev, "malloc(%s) failed.\n", dir);
-		return (error);
-	}
 
 	rp = *p;
 	/* Allocate the chnl_dir structs themselves. */
@@ -1220,11 +1215,6 @@ sume_probe_riffa_buffer(const struct sume_adapter *adapter,
 		/* One direction. */
 		rp[ch] = malloc(sizeof(struct riffa_chnl_dir), M_SUME,
 		    M_ZERO | M_WAITOK);
-		if (rp[ch] == NULL) {
-			device_printf(dev, "malloc(%s[%d]) riffa_chnl_dir "
-			    "failed.\n", dir, ch);
-			return (error);
-		}
 
 		int err = bus_dma_tag_create(bus_get_dma_tag(dev),
 		    4, 0,
