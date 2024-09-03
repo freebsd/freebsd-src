@@ -1627,12 +1627,6 @@ alc_attach(device_t dev)
 	/* Create local taskq. */
 	sc->alc_tq = taskqueue_create_fast("alc_taskq", M_WAITOK,
 	    taskqueue_thread_enqueue, &sc->alc_tq);
-	if (sc->alc_tq == NULL) {
-		device_printf(dev, "could not create taskqueue.\n");
-		ether_ifdetach(ifp);
-		error = ENXIO;
-		goto fail;
-	}
 	taskqueue_start_threads(&sc->alc_tq, 1, PI_NET, "%s taskq",
 	    device_get_nameunit(sc->alc_dev));
 
