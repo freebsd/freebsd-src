@@ -781,12 +781,6 @@ flex_spi_attach(device_t dev)
 	}
 
 	sc->buf = malloc(sc->erasesize, SECTOR_BUFFER, M_WAITOK);
-	if (sc->buf == NULL) {
-		device_printf(sc->dev, "Unable to set up allocate internal buffer\n");
-		flex_spi_detach(dev);
-		return (ENOMEM);
-	}
-
 	/* Move it to per-flash */
 	sc->disk = disk_alloc();
 	sc->disk->d_open = flex_spi_open;
