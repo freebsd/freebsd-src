@@ -2634,8 +2634,6 @@ uaudio_chan_init(struct uaudio_chan *ch, struct snd_dbuf *b,
 	DPRINTF("Worst case buffer is %d bytes\n", (int)buf_size);
 
 	ch->buf = malloc(buf_size, M_DEVBUF, M_WAITOK | M_ZERO);
-	if (ch->buf == NULL)
-		goto error;
 	if (sndbuf_setup(b, ch->buf, buf_size) != 0)
 		goto error;
 
@@ -3204,31 +3202,27 @@ uaudio_mixer_add_ctl_sub(struct uaudio_softc *sc, struct uaudio_mixer_node *mc)
 	    malloc(sizeof(*p_mc_new), M_USBDEV, M_WAITOK);
 	int ch;
 
-	if (p_mc_new != NULL) {
-		memcpy(p_mc_new, mc, sizeof(*p_mc_new));
-		p_mc_new->next = sc->sc_mixer_root;
-		sc->sc_mixer_root = p_mc_new;
-		sc->sc_mixer_count++;
+	memcpy(p_mc_new, mc, sizeof(*p_mc_new));
+	p_mc_new->next = sc->sc_mixer_root;
+	sc->sc_mixer_root = p_mc_new;
+	sc->sc_mixer_count++;
 
-		/* set default value for all channels */
-		for (ch = 0; ch < p_mc_new->nchan; ch++) {
-			switch (p_mc_new->val_default) {
-			case 1:
-				/* 50% */
-				p_mc_new->wData[ch] = (p_mc_new->maxval + p_mc_new->minval) / 2;
-				break;
-			case 2:
-				/* 100% */
-				p_mc_new->wData[ch] = p_mc_new->maxval;
-				break;
-			default:
-				/* 0% */
-				p_mc_new->wData[ch] = p_mc_new->minval;
-				break;
-			}
+	/* set default value for all channels */
+	for (ch = 0; ch < p_mc_new->nchan; ch++) {
+		switch (p_mc_new->val_default) {
+		case 1:
+			/* 50% */
+			p_mc_new->wData[ch] = (p_mc_new->maxval + p_mc_new->minval) / 2;
+			break;
+		case 2:
+			/* 100% */
+			p_mc_new->wData[ch] = p_mc_new->maxval;
+			break;
+		default:
+			/* 0% */
+			p_mc_new->wData[ch] = p_mc_new->minval;
+			break;
 		}
-	} else {
-		DPRINTF("out of memory\n");
 	}
 }
 
