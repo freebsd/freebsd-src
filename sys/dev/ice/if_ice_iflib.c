@@ -631,12 +631,8 @@ reinit_hw:
 	 */
 	ice_setup_pf_vsi(sc);
 
-	err = ice_alloc_vsi_qmap(&sc->pf_vsi, scctx->isc_ntxqsets_max,
+	ice_alloc_vsi_qmap(&sc->pf_vsi, scctx->isc_ntxqsets_max,
 	    scctx->isc_nrxqsets_max);
-	if (err) {
-		device_printf(dev, "Unable to allocate VSI Queue maps\n");
-		goto free_main_vsi;
-	}
 
 	/* Allocate MSI-X vectors (due to isc_flags IFLIB_SKIP_MSIX) */
 	err = ice_allocate_msix(sc);
@@ -3518,12 +3514,7 @@ ice_setup_mirror_vsi(struct ice_mirr_if *mif)
 	mif->vsi = vsi;
 
 	/* Reserve VSI queue allocation from PF queues */
-	ret = ice_alloc_vsi_qmap(vsi, ICE_DEFAULT_VF_QUEUES, ICE_DEFAULT_VF_QUEUES);
-	if (ret) {
-		device_printf(dev, "%s: Unable to allocate mirror VSI queue maps (%d queues): %s\n",
-		    __func__, ICE_DEFAULT_VF_QUEUES, ice_err_str(ret));
-		goto release_vsi;
-	}
+	ice_alloc_vsi_qmap(vsi, ICE_DEFAULT_VF_QUEUES, ICE_DEFAULT_VF_QUEUES);
 	vsi->num_tx_queues = vsi->num_rx_queues = ICE_DEFAULT_VF_QUEUES;
 
 	/* Assign Tx queues from PF space */
