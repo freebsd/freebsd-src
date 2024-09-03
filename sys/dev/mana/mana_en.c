@@ -921,13 +921,6 @@ mana_init_port_context(struct mana_port_context *apc)
 	apc->rxqs = mallocarray(apc->num_queues, sizeof(struct mana_rxq *),
 	    M_DEVBUF, M_WAITOK | M_ZERO);
 
-	if (!apc->rxqs) {
-		bus_dma_tag_destroy(apc->tx_buf_tag);
-		bus_dma_tag_destroy(apc->rx_buf_tag);
-		apc->rx_buf_tag = NULL;
-		return ENOMEM;
-	}
-
 	return 0;
 }
 
@@ -1156,8 +1149,6 @@ mana_cfg_vport_steering(struct mana_port_context *apc,
 
 	req_buf_size = sizeof(*req) + sizeof(mana_handle_t) * num_entries;
 	req = malloc(req_buf_size, M_DEVBUF, M_WAITOK | M_ZERO);
-	if (!req)
-		return ENOMEM;
 
 	mana_gd_init_req_hdr(&req->hdr, MANA_CONFIG_VPORT_RX, req_buf_size,
 	    sizeof(resp));
@@ -1325,8 +1316,6 @@ mana_create_eq(struct mana_context *ac)
 
 	ac->eqs = mallocarray(gc->max_num_queues, sizeof(struct mana_eq),
 	    M_DEVBUF, M_WAITOK | M_ZERO);
-	if (!ac->eqs)
-		return ENOMEM;
 
 	spec.type = GDMA_EQ;
 	spec.monitor_avl_buf = false;
@@ -2043,8 +2032,6 @@ mana_create_txq(struct mana_port_context *apc, if_t net)
 
 	apc->tx_qp = mallocarray(apc->num_queues, sizeof(struct mana_tx_qp),
 	    M_DEVBUF, M_WAITOK | M_ZERO);
-	if (!apc->tx_qp)
-		return ENOMEM;
 
 	/*  The minimum size of the WQE is 32 bytes, hence
 	 *  MAX_SEND_BUFFERS_PER_QUEUE represents the maximum number of WQEs
@@ -2141,14 +2128,6 @@ mana_create_txq(struct mana_port_context *apc, if_t net)
 		txq->tx_buf_info = malloc(MAX_SEND_BUFFERS_PER_QUEUE *
 		    sizeof(struct mana_send_buf_info),
 		    M_DEVBUF, M_WAITOK | M_ZERO);
-		if (unlikely(txq->tx_buf_info == NULL)) {
-			if_printf(net,
-			    "Failed to allocate tx buf info for SQ %u\n",
-			    txq->gdma_sq->id);
-			err = ENOMEM;
-			goto out;
-		}
-
 
 		snprintf(txq->txq_mtx_name, nitems(txq->txq_mtx_name),
 		    "mana:tx(%d)", i);
@@ -2156,13 +2135,6 @@ mana_create_txq(struct mana_port_context *apc, if_t net)
 
 		txq->txq_br = buf_ring_alloc(4 * MAX_SEND_BUFFERS_PER_QUEUE,
 		    M_DEVBUF, M_WAITOK, &txq->txq_mtx);
-		if (unlikely(txq->txq_br == NULL)) {
-			if_printf(net,
-			    "Failed to allocate buf ring for SQ %u\n",
-			    txq->gdma_sq->id);
-			err = ENOMEM;
-			goto out;
-		}
 
 		/* Allocate taskqueue for deferred send */
 		TASK_INIT(&txq->enqueue_task, 0, mana_xmit_taskfunc, txq);
@@ -2353,9 +2325,6 @@ mana_create_rxq(struct mana_port_context *apc, uint32_t rxq_idx,
 	rxq = malloc(sizeof(*rxq) +
 	    RX_BUFFERS_PER_QUEUE * sizeof(struct mana_recv_buf_oob),
 	    M_DEVBUF, M_WAITOK | M_ZERO);
-	if (!rxq)
-		return NULL;
-
 	rxq->ndev = ndev;
 	rxq->num_rx_buf = RX_BUFFERS_PER_QUEUE;
 	rxq->rxq_idx = rxq_idx;
@@ -2808,12 +2777,6 @@ mana_probe_port(struct mana_context *ac, int port_idx,
 	*ndev_storage = ndev;
 
 	apc = malloc(sizeof(*apc), M_DEVBUF, M_WAITOK | M_ZERO);
-	if (!apc) {
-		mana_err(NULL, "Failed to allocate port context\n");
-		err = ENOMEM;
-		goto free_net;
-	}
-
 	apc->ac = ac;
 	apc->ndev = ndev;
 	apc->max_queues = gc->max_num_queues;
@@ -2892,7 +2855,6 @@ mana_probe_port(struct mana_context *ac, int port_idx,
 
 reset_apc:
 	free(apc, M_DEVBUF);
-free_net:
 	*ndev_storage = NULL;
 	if_printf(ndev, "Failed to probe vPort %d: %d\n", port_idx, err);
 	if_free(ndev);
@@ -2915,9 +2877,6 @@ int mana_probe(struct gdma_dev *gd)
 		return err;
 
 	ac = malloc(sizeof(*ac), M_DEVBUF, M_WAITOK | M_ZERO);
-	if (!ac)
-		return ENOMEM;
-
 	ac->gdma_dev = gd;
 	ac->num_ports = 1;
 	gd->driver_data = ac;

@@ -868,9 +868,6 @@ int mana_gd_create_hwc_queue(struct gdma_dev *gd,
 	int err;
 
 	queue = malloc(sizeof(*queue), M_DEVBUF, M_WAITOK | M_ZERO);
-	if (!queue)
-		return ENOMEM;
-
 	gmi = &queue->mem_info;
 	err = mana_gd_alloc_memory(gc, spec->queue_size, gmi);
 	if (err)
@@ -962,9 +959,6 @@ mana_gd_create_dma_region(struct gdma_dev *gd,
 	}
 
 	req = malloc(req_msg_size, M_DEVBUF, M_WAITOK | M_ZERO);
-	if (!req)
-		return ENOMEM;
-
 	mana_gd_init_req_hdr(&req->hdr, GDMA_CREATE_DMA_REGION,
 	    req_msg_size, sizeof(resp));
 	req->length = length;
@@ -1008,9 +1002,6 @@ mana_gd_create_mana_eq(struct gdma_dev *gd,
 		return EINVAL;
 
 	queue = malloc(sizeof(*queue),  M_DEVBUF, M_WAITOK | M_ZERO);
-	if (!queue)
-		return ENOMEM;
-
 	gmi = &queue->mem_info;
 	err = mana_gd_alloc_memory(gc, spec->queue_size, gmi);
 	if (err)
@@ -1056,9 +1047,6 @@ int mana_gd_create_mana_wq_cq(struct gdma_dev *gd,
 		return EINVAL;
 
 	queue = malloc(sizeof(*queue), M_DEVBUF, M_WAITOK | M_ZERO);
-	if (!queue)
-		return ENOMEM;
-
 	gmi = &queue->mem_info;
 	err = mana_gd_alloc_memory(gc, spec->queue_size, gmi);
 	if (err)
@@ -1480,9 +1468,6 @@ mana_gd_alloc_res_map(uint32_t res_avail,
 
 	r->map =
 	    malloc(n * sizeof(unsigned long), M_DEVBUF, M_WAITOK | M_ZERO);
-	if (!r->map)
-		return ENOMEM;
-
 	r->size = res_avail;
 	mtx_init(&r->lock_spin, lock_name, NULL, MTX_SPIN);
 
@@ -1616,10 +1601,6 @@ mana_gd_setup_irqs(device_t dev)
 
 	gc->irq_contexts = malloc(nvec * sizeof(struct gdma_irq_context),
 	    M_DEVBUF, M_WAITOK | M_ZERO);
-	if (!gc->irq_contexts) {
-		rc = ENOMEM;
-		goto err_setup_irq_release;
-	}
 
 	for (i = 0; i < nvec; i++) {
 		gic = &gc->irq_contexts[i];
