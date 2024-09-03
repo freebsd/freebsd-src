@@ -123,9 +123,6 @@ get_orphan_bundle(int bank,
 
 	orphan_bundle =
 	    malloc(sizeof(*orphan_bundle), M_QAT, M_WAITOK | M_ZERO);
-	if (!orphan_bundle)
-		return ENOMEM;
-
 	csr_base = accel->bar->virt_addr;
 	orphan_bundle->csr_base = csr_base;
 	orphan_bundle->bank = bank;
