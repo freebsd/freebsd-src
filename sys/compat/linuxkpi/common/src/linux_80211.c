@@ -4402,8 +4402,6 @@ lkpi_ieee80211_ifalloc(void)
 	struct ieee80211com *ic;
 
 	ic = malloc(sizeof(*ic), M_LKPI80211, M_WAITOK | M_ZERO);
-	if (ic == NULL)
-		return (NULL);
 
 	/* Setting these happens later when we have device information. */
 	ic->ic_softc = NULL;
@@ -4455,10 +4453,6 @@ linuxkpi_ieee80211_alloc_hw(size_t priv_len, const struct ieee80211_ops *ops)
 
 	/* BSD Specific. */
 	lhw->ic = lkpi_ieee80211_ifalloc();
-	if (lhw->ic == NULL) {
-		ieee80211_free_hw(hw);
-		return (NULL);
-	}
 
 	IMPROVE();
 
