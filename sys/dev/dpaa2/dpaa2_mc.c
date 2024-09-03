@@ -484,8 +484,6 @@ dpaa2_mc_manage_dev(device_t mcdev, device_t dpaa2_dev, uint32_t flags)
 		return (EINVAL);
 
 	di = malloc(sizeof(*di), M_DPAA2_MC, M_WAITOK | M_ZERO);
-	if (!di)
-		return (ENOMEM);
 	di->dpaa2_dev = dpaa2_dev;
 	di->flags = flags;
 	di->owners = 0;
