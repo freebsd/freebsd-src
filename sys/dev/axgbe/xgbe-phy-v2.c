@@ -3482,8 +3482,6 @@ xgbe_phy_init(struct xgbe_prv_data *pdata)
 		return (ret);
 
 	phy_data = malloc(sizeof(*phy_data), M_AXGBE, M_WAITOK | M_ZERO);
-	if (!phy_data)
-		return (-ENOMEM);
 	pdata->phy_data = phy_data;
 
 	phy_data->port_mode = XP_GET_BITS(pdata->pp0, XP_PROP_0, PORT_MODE);
