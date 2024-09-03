@@ -278,8 +278,6 @@ vchiq_prepare_bulk_data(VCHIQ_BULK_T *bulk, VCHI_MEM_HANDLE_T memhandle,
 
 	WARN_ON(memhandle != VCHI_MEM_HANDLE_INVALID);
 	bi = malloc(sizeof(*bi), M_VCPAGELIST, M_WAITOK | M_ZERO);
-	if (bi == NULL)
-		return VCHIQ_ERROR;
 
 	ret = create_pagelist((char __user *)offset, size,
 			(dir == VCHIQ_BULK_RECEIVE)
