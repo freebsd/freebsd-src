@@ -800,8 +800,6 @@ udf_readdir(struct vop_readdir_args *a)
 		 */
 		ncookies = uio->uio_resid / 8;
 		cookies = malloc(sizeof(*cookies) * ncookies, M_TEMP, M_WAITOK);
-		if (cookies == NULL)
-			return (ENOMEM);
 		uiodir.ncookies = ncookies;
 		uiodir.cookies = cookies;
 		uiodir.acookies = 0;
