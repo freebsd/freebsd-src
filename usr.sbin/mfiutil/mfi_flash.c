@@ -129,9 +129,13 @@ flash_adapter(int ac, char **av)
 
 	/* First, ask the firmware to allocate space for the flash file. */
 	mbox_store_word(mbox, sb.st_size);
-	mfi_dcmd_command(fd, MFI_DCMD_FLASH_FW_OPEN, NULL, 0, mbox, 4, &status);
+	if (mfi_dcmd_command(fd, MFI_DCMD_FLASH_FW_OPEN, NULL, 0, mbox, 4, &status) < 0) {
+		error = errno;
+		warn("Failed to allocate flash memory");
+		goto error;
+	}
 	if (status != MFI_STAT_OK) {
-		warnx("Failed to alloc flash memory: %s", mfi_status(status));
+		warnx("Failed to allocate flash memory: %s", mfi_status(status));
 		error = EIO;
 		goto error;
 	}
@@ -148,17 +152,23 @@ flash_adapter(int ac, char **av)
 		nread = read(flash, buf, FLASH_BUF_SIZE);
 		if (nread <= 0 || nread % 1024 != 0) {
 			warnx("Bad read from flash file");
-			mfi_dcmd_command(fd, MFI_DCMD_FLASH_FW_CLOSE, NULL, 0,
-			    NULL, 0, NULL);
+			if (mfi_dcmd_command(fd, MFI_DCMD_FLASH_FW_CLOSE, NULL, 0,
+			    NULL, 0, NULL) < 0) {
+				warn("Failed to discard flash memory");
+			}
 			error = ENXIO;
 			goto error;
 		}
 
 		mbox_store_word(mbox, offset);
-		mfi_dcmd_command(fd, MFI_DCMD_FLASH_FW_DOWNLOAD, buf, nread,
-		    mbox, 4, &status);
+		if (mfi_dcmd_command(fd, MFI_DCMD_FLASH_FW_DOWNLOAD, buf, nread,
+		    mbox, 4, &status) < 0) {
+			error = errno;
+			warn("Failed to download firmware");
+			goto error;
+		}
 		if (status != MFI_STAT_OK) {
-			warnx("Flash download failed: %s", mfi_status(status));
+			warnx("Failed to download firmware: %s", mfi_status(status));
 			mfi_dcmd_command(fd, MFI_DCMD_FLASH_FW_CLOSE, NULL, 0,
 			    NULL, 0, NULL);
 			error = ENXIO;
@@ -171,8 +181,12 @@ flash_adapter(int ac, char **av)
 	/* Kick off the flash. */
 	printf("WARNING: Firmware flash in progress, do not reboot machine... ");
 	fflush(stdout);
-	mfi_dcmd_command(fd, MFI_DCMD_FLASH_FW_FLASH, &dummy, sizeof(dummy),
-	    NULL, 0, &status);
+	if (mfi_dcmd_command(fd, MFI_DCMD_FLASH_FW_FLASH, &dummy, sizeof(dummy),
+	    NULL, 0, &status) < 0) {
+		error = errno;
+		printf("failed:\n\t%s\n", strerror(error));
+		goto error;
+	}
 	if (status != MFI_STAT_OK) {
 		printf("failed:\n\t%s\n", mfi_status(status));
 		error = ENXIO;
