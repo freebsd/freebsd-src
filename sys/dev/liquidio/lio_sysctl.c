@@ -744,9 +744,6 @@ lio_get_regs(SYSCTL_HANDLER_ARGS)
 	regbuf = malloc(sizeof(char) * LIO_REGDUMP_LEN_XXXX, M_DEVBUF,
 			M_WAITOK | M_ZERO);
 
-	if (regbuf == NULL)
-		return (error);
-
 	switch (oct->chip_id) {
 	case LIO_CN23XX_PF_VID:
 		len += lio_cn23xx_pf_read_csr_reg(regbuf, oct);
