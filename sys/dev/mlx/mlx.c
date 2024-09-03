@@ -2077,8 +2077,8 @@ mlx_user_command(struct mlx_softc *sc, struct mlx_usercommand *mu)
 	    goto out;
 	}
 	MLX_IO_UNLOCK(sc);
-	if (((kbuf = malloc(mu->mu_datasize, M_DEVBUF, M_WAITOK)) == NULL) ||
-	    (error = copyin(mu->mu_buf, kbuf, mu->mu_datasize))) {
+	kbuf = malloc(mu->mu_datasize, M_DEVBUF, M_WAITOK);
+	if ((error = copyin(mu->mu_buf, kbuf, mu->mu_datasize))) {
 	    MLX_IO_LOCK(sc);
 	    goto out;
 	}
