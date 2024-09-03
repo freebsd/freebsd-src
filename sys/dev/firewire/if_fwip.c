@@ -304,13 +304,9 @@ fwip_init(void *arg)
 		xferq->psize = MCLBYTES;
 		xferq->queued = 0;
 		xferq->buf = NULL;
-		xferq->bulkxfer = (struct fw_bulkxfer *) malloc(
+		xferq->bulkxfer = malloc(
 			sizeof(struct fw_bulkxfer) * xferq->bnchunk,
 							M_FWIP, M_WAITOK);
-		if (xferq->bulkxfer == NULL) {
-			printf("if_fwip: malloc failed\n");
-			return;
-		}
 		STAILQ_INIT(&xferq->stvalid);
 		STAILQ_INIT(&xferq->stfree);
 		STAILQ_INIT(&xferq->stdma);
