@@ -3897,12 +3897,6 @@ again:
 		    ~BGE_MSIMODE_ONE_SHOT_DISABLE);
 		sc->bge_tq = taskqueue_create_fast("bge_taskq", M_WAITOK,
 		    taskqueue_thread_enqueue, &sc->bge_tq);
-		if (sc->bge_tq == NULL) {
-			device_printf(dev, "could not create taskqueue.\n");
-			ether_ifdetach(ifp);
-			error = ENOMEM;
-			goto fail;
-		}
 		error = taskqueue_start_threads(&sc->bge_tq, 1, PI_NET,
 		    "%s taskq", device_get_nameunit(sc->bge_dev));
 		if (error != 0) {
