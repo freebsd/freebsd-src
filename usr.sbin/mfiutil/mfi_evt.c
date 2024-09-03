@@ -395,7 +395,7 @@ mfi_decode_evt(int fd, struct mfi_evt_detail *detail, int verbose)
 		printf(": ");
 		break;
 	case MR_EVT_ARGS_LD_LBA:
-		printf("VOL %s", volume_name(fd, &detail->args.ld_count.ld));
+		printf("VOL %s", volume_name(fd, &detail->args.ld_lba.ld));
 		if (verbose) {
 			printf(" lba %lld",
 			    (long long)detail->args.ld_lba.lba);
@@ -403,7 +403,7 @@ mfi_decode_evt(int fd, struct mfi_evt_detail *detail, int verbose)
 		printf(": ");
 		break;
 	case MR_EVT_ARGS_LD_OWNER:
-		printf("VOL %s", volume_name(fd, &detail->args.ld_count.ld));
+		printf("VOL %s", volume_name(fd, &detail->args.ld_owner.ld));
 		if (verbose) {
 			printf(" owner changed: prior %d, new %d",
 			    detail->args.ld_owner.pre_owner,
@@ -412,7 +412,7 @@ mfi_decode_evt(int fd, struct mfi_evt_detail *detail, int verbose)
 		printf(": ");
 		break;
 	case MR_EVT_ARGS_LD_LBA_PD_LBA:
-		printf("VOL %s", volume_name(fd, &detail->args.ld_count.ld));
+		printf("VOL %s", volume_name(fd, &detail->args.ld_lba_pd_lba.ld));
 		if (verbose) {
 			printf(" lba %lld, physical drive PD %s lba %lld",
 			    (long long)detail->args.ld_lba_pd_lba.ld_lba,
@@ -431,7 +431,7 @@ mfi_decode_evt(int fd, struct mfi_evt_detail *detail, int verbose)
 		printf(": ");
 		break;
 	case MR_EVT_ARGS_LD_STATE:
-		printf("VOL %s", volume_name(fd, &detail->args.ld_prog.ld));
+		printf("VOL %s", volume_name(fd, &detail->args.ld_state.ld));
 		if (verbose) {
 			printf(" state prior %s new %s",
 			    mfi_ldstate(detail->args.ld_state.prev_state),
@@ -486,7 +486,7 @@ mfi_decode_evt(int fd, struct mfi_evt_detail *detail, int verbose)
 	case MR_EVT_ARGS_PD_STATE:
 		if (verbose) {
 			printf("PD %s state prior %s new %s: ",
-			    pdrive_location(&detail->args.pd_prog.pd),
+			    pdrive_location(&detail->args.pd_state.pd),
 			    mfi_pdstate(detail->args.pd_state.prev_state),
 			    mfi_pdstate(detail->args.pd_state.new_state));
 		}
