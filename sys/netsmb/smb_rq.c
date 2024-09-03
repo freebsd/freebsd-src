@@ -65,8 +65,6 @@ smb_rq_alloc(struct smb_connobj *layer, u_char cmd, struct smb_cred *scred,
 	int error;
 
 	rqp = malloc(sizeof(*rqp), M_SMBRQ, M_WAITOK);
-	if (rqp == NULL)
-		return ENOMEM;
 	error = smb_rq_init(rqp, layer, cmd, scred);
 	rqp->sr_flags |= SMBR_ALLOCED;
 	if (error) {
@@ -377,8 +375,6 @@ smb_t2_alloc(struct smb_connobj *layer, u_short setup, struct smb_cred *scred,
 	int error;
 
 	t2p = malloc(sizeof(*t2p), M_SMBRQ, M_WAITOK);
-	if (t2p == NULL)
-		return ENOMEM;
 	error = smb_t2_init(t2p, layer, setup, scred);
 	t2p->t2_flags |= SMBT2_ALLOCED;
 	if (error) {
