@@ -5395,8 +5395,6 @@ sysctl_devices(SYSCTL_HANDLER_ARGS)
 	 * Populate the return item, careful not to overflow the buffer.
 	 */
 	udev = malloc(sizeof(*udev), M_BUS, M_WAITOK | M_ZERO);
-	if (udev == NULL)
-		return (ENOMEM);
 	udev->dv_handle = (uintptr_t)dev;
 	udev->dv_parent = (uintptr_t)dev->parent;
 	udev->dv_devflags = dev->devflags;
