@@ -525,6 +525,9 @@ cnputc(int c)
 	struct consdev *cn;
 	const char *cp;
 
+	if (cn_mute || c == '\0')
+		return;
+
 #ifdef EARLY_PRINTF
 	if (early_putc != NULL) {
 		if (c == '\n')
@@ -534,8 +537,6 @@ cnputc(int c)
 	}
 #endif
 
-	if (cn_mute || c == '\0')
-		return;
 	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next) {
 		cn = cnd->cnd_cn;
 		if (!kdb_active || !(cn->cn_flags & CN_FLAG_NODEBUG)) {
