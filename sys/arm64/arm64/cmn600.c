@@ -332,9 +332,6 @@ cmn600_create_node(struct cmn600_softc *sc, off_t node_offset,
 	int i;
 
 	node = malloc(sizeof(struct cmn600_node), M_DEVBUF, M_WAITOK);
-	if (node == NULL)
-		return (NULL);
-
 	node->sc = sc;
 	node->nd_offset = node_offset;
 	node->nd_parent = parent;
@@ -399,8 +396,6 @@ cmn600_create_node(struct cmn600_softc *sc, off_t node_offset,
 	node->nd_children = (struct cmn600_node **)mallocarray(
 	    node->nd_child_count, sizeof(struct cmn600_node *), M_DEVBUF,
 	    M_WAITOK);
-	if (node->nd_children == NULL)
-		goto FAIL;
 	for (i = 0; i < node->nd_child_count; i++) {
 		val = node->nd_read8(node, child_offset + (i * 8));
 		node->nd_children[i] = cmn600_create_node(sc, val &
@@ -420,9 +415,6 @@ cmn600_create_node(struct cmn600_softc *sc, off_t node_offset,
 		break;
 	}
 	return (node);
-FAIL:
-	free(node, M_DEVBUF);
-	return (NULL);
 }
 
 static void
