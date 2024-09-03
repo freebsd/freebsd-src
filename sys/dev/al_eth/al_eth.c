@@ -2005,14 +2005,6 @@ al_eth_enable_msix(struct al_eth_adapter *adapter)
 
 	adapter->msix_entries = malloc(msix_vecs*sizeof(*adapter->msix_entries),
 	    M_IFAL, M_ZERO | M_WAITOK);
-
-	if (adapter->msix_entries == NULL) {
-		device_printf_dbg(adapter->dev, "failed to allocate"
-		    " msix_entries %d\n", msix_vecs);
-		rc = ENOMEM;
-		goto exit;
-	}
-
 	/* management vector (GROUP_A) @2*/
 	adapter->msix_entries[AL_ETH_MGMT_IRQ_IDX].entry = 2;
 	adapter->msix_entries[AL_ETH_MGMT_IRQ_IDX].vector = 0;
@@ -2300,9 +2292,6 @@ al_eth_setup_tx_resources(struct al_eth_adapter *adapter, int qid)
 	size = sizeof(struct al_eth_tx_buffer) * tx_ring->sw_count;
 
 	tx_ring->tx_buffer_info = malloc(size, M_IFAL, M_ZERO | M_WAITOK);
-	if (tx_ring->tx_buffer_info == NULL)
-		return (ENOMEM);
-
 	tx_ring->descs_size = tx_ring->hw_count * sizeof(union al_udma_desc);
 	q_params->size = tx_ring->hw_count;
 
@@ -2325,10 +2314,6 @@ al_eth_setup_tx_resources(struct al_eth_adapter *adapter, int qid)
 	mtx_init(&tx_ring->br_mtx, "AlRingMtx", NULL, MTX_DEF);
 	tx_ring->br = buf_ring_alloc(AL_BR_SIZE, M_DEVBUF, M_WAITOK,
 	    &tx_ring->br_mtx);
-	if (tx_ring->br == NULL) {
-		device_printf(dev, "Critical Failure setting up buf ring\n");
-		return (ENOMEM);
-	}
 
 	/* Allocate taskqueues */
 	TASK_INIT(&tx_ring->enqueue_task, 0, al_eth_start_xmit, tx_ring);
@@ -2477,9 +2462,6 @@ al_eth_setup_rx_resources(struct al_eth_adapter *adapter, unsigned int qid)
 	size += 1;
 
 	rx_ring->rx_buffer_info = malloc(size, M_IFAL, M_ZERO | M_WAITOK);
-	if (rx_ring->rx_buffer_info == NULL)
-		return (ENOMEM);
-
 	rx_ring->descs_size = rx_ring->hw_count * sizeof(union al_udma_desc);
 	q_params->size = rx_ring->hw_count;
 
