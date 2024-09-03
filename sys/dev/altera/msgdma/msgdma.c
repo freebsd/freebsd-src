@@ -356,11 +356,6 @@ msgdma_desc_alloc(struct msgdma_softc *sc, struct msgdma_channel *chan,
 	/* Descriptors. */
 	chan->descs = malloc(nsegments * sizeof(struct msgdma_desc *),
 	    M_DEVBUF, (M_WAITOK | M_ZERO));
-	if (chan->descs == NULL) {
-		device_printf(sc->dev,
-		    "%s: Can't allocate memory.\n", __func__);
-		return (-1);
-	}
 	chan->dma_map = malloc(nsegments * sizeof(bus_dmamap_t),
 	    M_DEVBUF, (M_WAITOK | M_ZERO));
 	chan->descs_phys = malloc(nsegments * sizeof(bus_dma_segment_t),
