@@ -2065,12 +2065,6 @@ mpi3mr_cam_attach(struct mpi3mr_softc *sc)
 	mpi3mr_dprint(sc, MPI3MR_XINFO, "Starting CAM Attach\n");
 
 	cam_sc = malloc(sizeof(struct mpi3mr_cam_softc), M_MPI3MR, M_WAITOK|M_ZERO);
-	if (!cam_sc) {
-		mpi3mr_dprint(sc, MPI3MR_ERROR,
-		    "Failed to allocate memory for controller CAM instance\n");
-		return (ENOMEM);
-	}
-
 	cam_sc->maxtargets = sc->facts.max_perids + 1;
 
 	TAILQ_INIT(&cam_sc->tgt_list);
