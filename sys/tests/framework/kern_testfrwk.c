@@ -192,10 +192,6 @@ kerntest_execute(SYSCTL_HANDLER_ARGS)
 	}
 	/* Grab some memory */
 	kte = malloc(sizeof(struct kern_test_entry), M_KTFRWK, M_WAITOK);
-	if (kte == NULL) {
-		error = ENOMEM;
-		goto out;
-	}
 	KTFRWK_LOCK();
 	TAILQ_FOREACH(li, &kfrwk.kfrwk_testlist, next) {
 		if (strcmp(li->name, kt.name) == 0) {
@@ -244,10 +240,6 @@ kern_testframework_register(const char *name, kerntfunc func)
 		return (E2BIG);
 	}
 	te = malloc(sizeof(struct kern_test_list), M_KTFRWK, M_WAITOK);
-	if (te == NULL) {
-		error = ENOMEM;
-		goto out;
-	}
 	KTFRWK_LOCK();
 	/* First does it already exist? */
 	TAILQ_FOREACH(li, &kfrwk.kfrwk_testlist, next) {
