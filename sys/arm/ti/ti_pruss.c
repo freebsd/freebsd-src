@@ -186,9 +186,6 @@ ti_pruss_irq_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	sc = dev->si_drv1;
 
 	irqs = malloc(sizeof(struct ctl), M_DEVBUF, M_WAITOK);
-	if (!irqs)
-	    return (ENOMEM);
-
 	irqs->cnt = sc->tstamps.ctl.cnt;
 	irqs->idx = sc->tstamps.ctl.idx;
 
