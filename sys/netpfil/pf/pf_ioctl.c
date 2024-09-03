@@ -2670,9 +2670,6 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 
 		/* Copy the request in */
 		packed = malloc(nv->len, M_NVLIST, M_WAITOK);
-		if (packed == NULL)
-			ERROUT(ENOMEM);
-
 		error = copyin(nv->data, packed, nv->len);
 		if (error)
 			ERROUT(error);
@@ -2750,9 +2747,6 @@ DIOCGETETHRULES_error:
 			ERROUT(ENOMEM);
 
 		nvlpacked = malloc(nv->len, M_NVLIST, M_WAITOK);
-		if (nvlpacked == NULL)
-			ERROUT(ENOMEM);
-
 		error = copyin(nv->data, nvlpacked, nv->len);
 		if (error)
 			ERROUT(error);
@@ -2850,9 +2844,6 @@ DIOCGETETHRULE_error:
 			ERROUT(ENOMEM);
 
 		nvlpacked = malloc(nv->len, M_NVLIST, M_WAITOK);
-		if (nvlpacked == NULL)
-			ERROUT(ENOMEM);
-
 		error = copyin(nv->data, nvlpacked, nv->len);
 		if (error)
 			ERROUT(error);
@@ -2883,8 +2874,6 @@ DIOCGETETHRULE_error:
 		}
 
 		rule = malloc(sizeof(*rule), M_PFRULE, M_WAITOK);
-		if (rule == NULL)
-			ERROUT(ENOMEM);
 		rule->timestamp = NULL;
 
 		error = pf_nveth_rule_to_keth_rule(nvl, rule);
@@ -2983,9 +2972,6 @@ DIOCADDETHRULE_error:
 			ERROUT(ENOMEM);
 
 		nvlpacked = malloc(nv->len, M_NVLIST, M_WAITOK);
-		if (nvlpacked == NULL)
-			ERROUT(ENOMEM);
-
 		error = copyin(nv->data, nvlpacked, nv->len);
 		if (error)
 			ERROUT(error);
@@ -3061,9 +3047,6 @@ DIOCGETETHRULESETS_error:
 			ERROUT(ENOMEM);
 
 		nvlpacked = malloc(nv->len, M_NVLIST, M_WAITOK);
-		if (nvlpacked == NULL)
-			ERROUT(ENOMEM);
-
 		error = copyin(nv->data, nvlpacked, nv->len);
 		if (error)
 			ERROUT(error);
@@ -3333,9 +3316,6 @@ DIOCADDRULENV_error:
 
 		/* Copy the request in */
 		nvlpacked = malloc(nv->len, M_NVLIST, M_WAITOK);
-		if (nvlpacked == NULL)
-			ERROUT(ENOMEM);
-
 		error = copyin(nv->data, nvlpacked, nv->len);
 		if (error)
 			ERROUT(error);
@@ -6132,9 +6112,6 @@ pf_keepcounters(struct pfioc_nv *nv)
 		ERROUT(ENOMEM);
 
 	nvlpacked = malloc(nv->len, M_NVLIST, M_WAITOK);
-	if (nvlpacked == NULL)
-		ERROUT(ENOMEM);
-
 	error = copyin(nv->data, nvlpacked, nv->len);
 	if (error)
 		ERROUT(error);
@@ -6258,9 +6235,6 @@ pf_killstates_nv(struct pfioc_nv *nv)
 		ERROUT(ENOMEM);
 
 	nvlpacked = malloc(nv->len, M_NVLIST, M_WAITOK);
-	if (nvlpacked == NULL)
-		ERROUT(ENOMEM);
-
 	error = copyin(nv->data, nvlpacked, nv->len);
 	if (error)
 		ERROUT(error);
@@ -6316,9 +6290,6 @@ pf_clearstates_nv(struct pfioc_nv *nv)
 		ERROUT(ENOMEM);
 
 	nvlpacked = malloc(nv->len, M_NVLIST, M_WAITOK);
-	if (nvlpacked == NULL)
-		ERROUT(ENOMEM);
-
 	error = copyin(nv->data, nvlpacked, nv->len);
 	if (error)
 		ERROUT(error);
@@ -6375,9 +6346,6 @@ pf_getstate(struct pfioc_nv *nv)
 		ERROUT(ENOMEM);
 
 	nvlpacked = malloc(nv->len, M_NVLIST, M_WAITOK);
-	if (nvlpacked == NULL)
-		ERROUT(ENOMEM);
-
 	error = copyin(nv->data, nvlpacked, nv->len);
 	if (error)
 		ERROUT(error);
