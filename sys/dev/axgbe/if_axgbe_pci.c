@@ -540,11 +540,6 @@ axgbe_if_attach_pre(if_ctx_t ctx)
 	/* create the workqueue */
 	pdata->dev_workqueue = taskqueue_create("axgbe", M_WAITOK,
 	    taskqueue_thread_enqueue, &pdata->dev_workqueue);
-	if (pdata->dev_workqueue == NULL) {
-		axgbe_error("Unable to allocate workqueue\n");
-		ret = ENOMEM;
-		goto free_channels;
-	}
 	ret = taskqueue_start_threads(&pdata->dev_workqueue, 1, PI_NET,
 	    "axgbe dev taskq");
 	if (ret) {
@@ -560,8 +555,6 @@ axgbe_if_attach_pre(if_ctx_t ctx)
 
 free_task_queue:
 	taskqueue_free(pdata->dev_workqueue);
-
-free_channels:
 	axgbe_free_channels(sc);
 
 release_bus_resource:
