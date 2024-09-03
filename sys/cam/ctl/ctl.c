@@ -2710,12 +2710,6 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		}
 
 		entries = malloc(ooa_hdr->alloc_len, M_CTL, M_WAITOK | M_ZERO);
-		if (entries == NULL) {
-			printf("%s: could not allocate %d bytes for OOA "
-			       "dump\n", __func__, ooa_hdr->alloc_len);
-			retval = ENOMEM;
-			break;
-		}
 
 		mtx_lock(&softc->ctl_lock);
 		if ((ooa_hdr->flags & CTL_OOA_FLAG_ALL_LUNS) == 0 &&
