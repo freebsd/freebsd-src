@@ -918,6 +918,8 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 			printf(" (");
 			if (r->log & PF_LOG_ALL)
 				printf("%sall", count++ ? ", " : "");
+			if (r->log & PF_LOG_MATCHES)
+				printf("%smatches", count++ ? ", " : "");
 			if (r->log & PF_LOG_SOCKET_LOOKUP)
 				printf("%suser", count++ ? ", " : "");
 			if (r->logif)

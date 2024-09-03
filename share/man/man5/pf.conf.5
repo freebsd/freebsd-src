@@ -1684,6 +1684,8 @@ As with
 .Ar log ,
 packets are logged to
 .Xr pflog 4 .
+.It Ar log (matches)
+Used to force logging of this packet on all subsequent matching rules.
 .It Ar log (user)
 Logs the
 .Ux
@@ -3217,7 +3219,7 @@ pf-rule        = action [ ( "in" | "out" ) ]
                  hosts [ filteropt-list ]
 
 logopts        = logopt [ "," logopts ]
-logopt         = "all" | "user" | "to" interface-name
+logopt         = "all" | "matches" | "user" | "to" interface-name
 
 etherfilteropt-list = etherfilteropt-list etherfilteropt | etherfilteropt
 etherfilteropt = "tag" string | "tagged" string | "queue" ( string ) |

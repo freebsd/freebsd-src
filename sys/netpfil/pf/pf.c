@@ -5198,7 +5198,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, struct pfi_kkif *kif,
 					pf_counter_u64_add_protected(&r->bytes[pd->dir == PF_OUT], pd->tot_len);
 					pf_counter_u64_critical_exit();
 					pf_rule_to_actions(r, &pd->act);
-					if (r->log)
+					if (r->log || pd->act.log & PF_LOG_MATCHES)
 						PFLOG_PACKET(kif, m, af,
 						    r->action, PFRES_MATCH, r,
 						    a, ruleset, pd, 1);
@@ -5207,6 +5207,10 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, struct pfi_kkif *kif,
 					*rm = r;
 					*am = a;
 					*rsm = ruleset;
+					if (pd->act.log & PF_LOG_MATCHES)
+						PFLOG_PACKET(kif, m, af,
+						    r->action, PFRES_MATCH, r,
+						    a, ruleset, pd, 1);
 				}
 				if ((*rm)->quick)
 					break;
@@ -5229,7 +5233,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, struct pfi_kkif *kif,
 	/* apply actions for last matching pass/block rule */
 	pf_rule_to_actions(r, &pd->act);
 
-	if (r->log) {
+	if (r->log || pd->act.log & PF_LOG_MATCHES) {
 		if (rewrite)
 			m_copyback(m, off, hdrlen, pd->hdr.any);
 		PFLOG_PACKET(kif, m, af, r->action, reason, r, a, ruleset, pd, 1);

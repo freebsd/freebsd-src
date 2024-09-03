@@ -507,7 +507,7 @@ int	parseport(char *, struct range *r, int);
 %token	REASSEMBLE ANCHOR NATANCHOR RDRANCHOR BINATANCHOR
 %token	SET OPTIMIZATION TIMEOUT LIMIT LOGINTERFACE BLOCKPOLICY FAILPOLICY
 %token	RANDOMID REQUIREORDER SYNPROXY FINGERPRINTS NOSYNC DEBUG SKIP HOSTID
-%token	ANTISPOOF FOR INCLUDE KEEPCOUNTERS SYNCOOKIES L3
+%token	ANTISPOOF FOR INCLUDE KEEPCOUNTERS SYNCOOKIES L3 MATCHES
 %token	ETHER
 %token	BITMASK RANDOM SOURCEHASH ROUNDROBIN STATICPORT PROBABILITY MAPEPORTSET
 %token	ALTQ CBQ CODEL PRIQ HFSC FAIRQ BANDWIDTH TBRSIZE LINKSHARE REALTIME
@@ -3222,6 +3222,7 @@ logopts		: logopt			{ $$ = $1; }
 		;
 
 logopt		: ALL		{ $$.log = PF_LOG_ALL; $$.logif = 0; }
+		| MATCHES		{ $$.log = PF_LOG_MATCHES; $$.logif = 0; }
 		| USER		{ $$.log = PF_LOG_SOCKET_LOOKUP; $$.logif = 0; }
 		| GROUP		{ $$.log = PF_LOG_SOCKET_LOOKUP; $$.logif = 0; }
 		| TO string	{
@@ -6365,6 +6366,7 @@ lookup(char *s)
 		{ "loginterface",	LOGINTERFACE},
 		{ "map-e-portset",	MAPEPORTSET},
 		{ "match",		MATCH},
+		{ "matches",	MATCHES},
 		{ "max",		MAXIMUM},
 		{ "max-mss",		MAXMSS},
 		{ "max-src-conn",	MAXSRCCONN},
