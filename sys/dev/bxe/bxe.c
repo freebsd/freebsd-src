@@ -12197,7 +12197,7 @@ bxe_set_rx_mode(struct bxe_softc *sc)
     if (if_getflags(ifp) & IFF_PROMISC) {
         rx_mode = BXE_RX_MODE_PROMISC;
     } else if ((if_getflags(ifp) & IFF_ALLMULTI) ||
-               ((if_getamcount(ifp) > BXE_MAX_MULTICAST) &&
+               (if_llmaddr_count(ifp) > BXE_MAX_MULTICAST &&
                 CHIP_IS_E1(sc))) {
         rx_mode = BXE_RX_MODE_ALLMULTI;
     } else {

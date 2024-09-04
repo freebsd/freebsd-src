@@ -4388,12 +4388,6 @@ if_getifaddr(if_t ifp)
 }
 
 int
-if_getamcount(if_t ifp)
-{
-	return ((struct ifnet *)ifp)->if_amcount;
-}
-
-int
 if_setsendqready(if_t ifp)
 {
 	IFQ_SET_READY(&((struct ifnet *)ifp)->if_snd);

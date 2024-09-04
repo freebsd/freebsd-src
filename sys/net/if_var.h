@@ -761,7 +761,6 @@ u_int if_foreach_llmaddr(if_t, iflladdr_cb_t, void *);
 u_int if_lladdr_count(if_t);
 u_int if_llmaddr_count(if_t);
 
-int if_getamcount(if_t ifp);
 struct ifaddr * if_getifaddr(if_t ifp);
 
 /* Functions */

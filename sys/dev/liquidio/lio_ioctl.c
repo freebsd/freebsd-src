@@ -481,7 +481,7 @@ lio_get_new_flags(struct ifnet *ifp)
 		 * Accept all multicast addresses if there are more than we
 		 * can handle
 		 */
-		if (if_getamcount(ifp) > LIO_MAX_MULTICAST_ADDR)
+		if (if_llmaddr_count(ifp) > LIO_MAX_MULTICAST_ADDR)
 			f |= LIO_IFFLAG_ALLMULTI;
 	}
 	if (if_getflags(ifp) & IFF_BROADCAST)
