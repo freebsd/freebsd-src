@@ -395,8 +395,8 @@ strftime_ns(char * __restrict s, size_t maxsize, const char * __restrict format,
 	bool seen_percent;
 
 	seen_percent = false;
-	if (asprintf(&newformat, "%s", format) < 0)
-		err(1, "asprintf");
+	if ((newformat = strdup(format)) == NULL)
+		err(1, "strdup");
 	tok = newformat;
 	for (tok = newformat; *tok != '\0'; tok++) {
 		switch (*tok) {
@@ -418,9 +418,9 @@ strftime_ns(char * __restrict s, size_t maxsize, const char * __restrict format,
 				suffix = tok + 1;
 				/*
 				 * Construct a new format string from the
-				 * prefix (i.e., the part of the old fromat
+				 * prefix (i.e., the part of the old format
 				 * from its beginning to the currently handled
-				 * "%N" conversion specification, the
+				 * "%N" conversion specification), the
 				 * nanoseconds, and the suffix (i.e., the part
 				 * of the old format from the next token to the
 				 * end).
