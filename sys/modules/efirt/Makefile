@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/${MACHINE}/${MACHINE}
 .PATH: ${SRCTOP}/sys/dev/efidev
 

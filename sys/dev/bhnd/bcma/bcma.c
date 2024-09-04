@@ -678,7 +678,7 @@ bcma_add_children(device_t bus)
 	bcma_erom = (struct bcma_erom *)erom;
 	while ((error = bcma_erom_next_corecfg(bcma_erom, &corecfg)) == 0) {
 		/* Add the child device */
-		child = BUS_ADD_CHILD(bus, 0, NULL, -1);
+		child = BUS_ADD_CHILD(bus, 0, NULL, DEVICE_UNIT_ANY);
 		if (child == NULL) {
 			error = ENXIO;
 			goto cleanup;

@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2024 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -115,7 +115,9 @@ bc_lex_string(BcLex* l)
 		buf = l->buf;
 		got_more = false;
 
+#if !BC_ENABLE_OSSFUZZ
 		assert(vm->mode != BC_MODE_STDIN || buf == vm->buffer.v);
+#endif // !BC_ENABLE_OSSFUZZ
 
 		// Fortunately for us, bc doesn't escape quotes. Instead, the equivalent
 		// is '\q', which makes this loop simpler.

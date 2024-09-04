@@ -1,4 +1,3 @@
-
 PROG=	tcpreceive
 MAN=
 WARNS?=	3

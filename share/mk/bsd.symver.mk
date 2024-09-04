@@ -44,7 +44,7 @@ _vgen=  ${path}/${VERSION_GEN}
 # Run the symbol maps through the C preprocessor before passing
 # them to the symbol version generator.
 ${VERSION_MAP}: ${VERSION_DEF} ${_vgen} ${SYMBOL_MAPS}
-	cat ${SYMBOL_MAPS} | ${CPP} - - \
+	cat ${SYMBOL_MAPS} | ${CPP} ${CFLAGS} - - \
 	    | awk -v vfile=${VERSION_DEF} -f ${_vgen} > ${.TARGET}
 .endif	# !empty(VERSION_DEF) && !empty(SYMBOL_MAPS)
 .endif  # !target(__<bsd.symver.mk>__)

@@ -2067,7 +2067,7 @@ pmap_growkernel(vm_offset_t addr)
 			 * Install new PT2s page into kernel PT2TAB.
 			 */
 			m = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT |
-			    VM_ALLOC_WIRED | VM_ALLOC_ZERO);
+			    VM_ALLOC_NOFREE | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 			if (m == NULL)
 				panic("%s: no memory to grow kernel", __func__);
 			m->pindex = pte1_index(kernel_vm_end) & ~PT2PG_MASK;

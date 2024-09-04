@@ -39,9 +39,7 @@
 
 struct hypctx;
 
-uint64_t vmm_hyp_enter(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t,
-    uint64_t, uint64_t, uint64_t);
-uint64_t vmm_enter_guest(struct hypctx *);
+uint64_t VMM_HYP_FUNC(do_call_guest)(struct hypctx *);
 
 static void
 vmm_hyp_reg_store(struct hypctx *hypctx, struct hyp *hyp, bool guest)
@@ -51,11 +49,12 @@ vmm_hyp_reg_store(struct hypctx *hypctx, struct hyp *hyp, bool guest)
 	/* Store the guest VFP registers */
 	if (guest) {
 		/* Store the timer registers */
-		hypctx->vtimer_cpu.cntkctl_el1 = READ_SPECIALREG(cntkctl_el1);
+		hypctx->vtimer_cpu.cntkctl_el1 =
+		    READ_SPECIALREG(EL1_REG(CNTKCTL));
 		hypctx->vtimer_cpu.virt_timer.cntx_cval_el0 =
-		    READ_SPECIALREG(cntv_cval_el0);
+		    READ_SPECIALREG(EL0_REG(CNTV_CVAL));
 		hypctx->vtimer_cpu.virt_timer.cntx_ctl_el0 =
-		    READ_SPECIALREG(cntv_ctl_el0);
+		    READ_SPECIALREG(EL0_REG(CNTV_CTL));
 
 		/* Store the GICv3 registers */
 		hypctx->vgic_v3_regs.ich_eisr_el2 =
@@ -221,36 +220,40 @@ vmm_hyp_reg_store(struct hypctx *hypctx, struct hyp *hyp, bool guest)
 	hypctx->tf.tf_spsr = READ_SPECIALREG(spsr_el2);
 	if (guest) {
 		hypctx->tf.tf_esr = READ_SPECIALREG(esr_el2);
+		hypctx->par_el1 = READ_SPECIALREG(par_el1);
 	}
 
 	/* Store the guest special registers */
-	hypctx->elr_el1 = READ_SPECIALREG(elr_el1);
 	hypctx->sp_el0 = READ_SPECIALREG(sp_el0);
 	hypctx->tpidr_el0 = READ_SPECIALREG(tpidr_el0);
 	hypctx->tpidrro_el0 = READ_SPECIALREG(tpidrro_el0);
 	hypctx->tpidr_el1 = READ_SPECIALREG(tpidr_el1);
-	hypctx->vbar_el1 = READ_SPECIALREG(vbar_el1);
 
 	hypctx->actlr_el1 = READ_SPECIALREG(actlr_el1);
-	hypctx->afsr0_el1 = READ_SPECIALREG(afsr0_el1);
-	hypctx->afsr1_el1 = READ_SPECIALREG(afsr1_el1);
-	hypctx->amair_el1 = READ_SPECIALREG(amair_el1);
-	hypctx->contextidr_el1 = READ_SPECIALREG(contextidr_el1);
-	hypctx->cpacr_el1 = READ_SPECIALREG(cpacr_el1);
 	hypctx->csselr_el1 = READ_SPECIALREG(csselr_el1);
-	hypctx->esr_el1 = READ_SPECIALREG(esr_el1);
-	hypctx->far_el1 = READ_SPECIALREG(far_el1);
-	hypctx->mair_el1 = READ_SPECIALREG(mair_el1);
 	hypctx->mdccint_el1 = READ_SPECIALREG(mdccint_el1);
 	hypctx->mdscr_el1 = READ_SPECIALREG(mdscr_el1);
-	hypctx->par_el1 = READ_SPECIALREG(par_el1);
-	hypctx->sctlr_el1 = READ_SPECIALREG(sctlr_el1);
-	hypctx->spsr_el1 = READ_SPECIALREG(spsr_el1);
-	hypctx->tcr_el1 = READ_SPECIALREG(tcr_el1);
-	/* TODO: Support when this is not res0 */
-	hypctx->tcr2_el1 = 0;
-	hypctx->ttbr0_el1 = READ_SPECIALREG(ttbr0_el1);
-	hypctx->ttbr1_el1 = READ_SPECIALREG(ttbr1_el1);
+
+	if (guest_or_nonvhe(guest)) {
+		hypctx->elr_el1 = READ_SPECIALREG(EL1_REG(ELR));
+		hypctx->vbar_el1 = READ_SPECIALREG(EL1_REG(VBAR));
+
+		hypctx->afsr0_el1 = READ_SPECIALREG(EL1_REG(AFSR0));
+		hypctx->afsr1_el1 = READ_SPECIALREG(EL1_REG(AFSR1));
+		hypctx->amair_el1 = READ_SPECIALREG(EL1_REG(AMAIR));
+		hypctx->contextidr_el1 = READ_SPECIALREG(EL1_REG(CONTEXTIDR));
+		hypctx->cpacr_el1 = READ_SPECIALREG(EL1_REG(CPACR));
+		hypctx->esr_el1 = READ_SPECIALREG(EL1_REG(ESR));
+		hypctx->far_el1 = READ_SPECIALREG(EL1_REG(FAR));
+		hypctx->mair_el1 = READ_SPECIALREG(EL1_REG(MAIR));
+		hypctx->sctlr_el1 = READ_SPECIALREG(EL1_REG(SCTLR));
+		hypctx->spsr_el1 = READ_SPECIALREG(EL1_REG(SPSR));
+		hypctx->tcr_el1 = READ_SPECIALREG(EL1_REG(TCR));
+		/* TODO: Support when this is not res0 */
+		hypctx->tcr2_el1 = 0;
+		hypctx->ttbr0_el1 = READ_SPECIALREG(EL1_REG(TTBR0));
+		hypctx->ttbr1_el1 = READ_SPECIALREG(EL1_REG(TTBR1));
+	}
 
 	hypctx->cptr_el2 = READ_SPECIALREG(cptr_el2);
 	hypctx->hcr_el2 = READ_SPECIALREG(hcr_el2);
@@ -264,35 +267,45 @@ vmm_hyp_reg_restore(struct hypctx *hypctx, struct hyp *hyp, bool guest)
 	uint64_t dfr0;
 
 	/* Restore the special registers */
-	WRITE_SPECIALREG(elr_el1, hypctx->elr_el1);
+	WRITE_SPECIALREG(hcr_el2, hypctx->hcr_el2);
+	isb();
+
 	WRITE_SPECIALREG(sp_el0, hypctx->sp_el0);
 	WRITE_SPECIALREG(tpidr_el0, hypctx->tpidr_el0);
 	WRITE_SPECIALREG(tpidrro_el0, hypctx->tpidrro_el0);
 	WRITE_SPECIALREG(tpidr_el1, hypctx->tpidr_el1);
-	WRITE_SPECIALREG(vbar_el1, hypctx->vbar_el1);
 
 	WRITE_SPECIALREG(actlr_el1, hypctx->actlr_el1);
-	WRITE_SPECIALREG(afsr0_el1, hypctx->afsr0_el1);
-	WRITE_SPECIALREG(afsr1_el1, hypctx->afsr1_el1);
-	WRITE_SPECIALREG(amair_el1, hypctx->amair_el1);
-	WRITE_SPECIALREG(contextidr_el1, hypctx->contextidr_el1);
-	WRITE_SPECIALREG(cpacr_el1, hypctx->cpacr_el1);
 	WRITE_SPECIALREG(csselr_el1, hypctx->csselr_el1);
-	WRITE_SPECIALREG(esr_el1, hypctx->esr_el1);
-	WRITE_SPECIALREG(far_el1, hypctx->far_el1);
 	WRITE_SPECIALREG(mdccint_el1, hypctx->mdccint_el1);
 	WRITE_SPECIALREG(mdscr_el1, hypctx->mdscr_el1);
-	WRITE_SPECIALREG(mair_el1, hypctx->mair_el1);
-	WRITE_SPECIALREG(par_el1, hypctx->par_el1);
-	WRITE_SPECIALREG(sctlr_el1, hypctx->sctlr_el1);
-	WRITE_SPECIALREG(tcr_el1, hypctx->tcr_el1);
-	/* TODO: tcr2_el1 */
-	WRITE_SPECIALREG(ttbr0_el1, hypctx->ttbr0_el1);
-	WRITE_SPECIALREG(ttbr1_el1, hypctx->ttbr1_el1);
-	WRITE_SPECIALREG(spsr_el1, hypctx->spsr_el1);
+
+	if (guest_or_nonvhe(guest)) {
+		WRITE_SPECIALREG(EL1_REG(ELR), hypctx->elr_el1);
+		WRITE_SPECIALREG(EL1_REG(VBAR), hypctx->vbar_el1);
+
+		WRITE_SPECIALREG(EL1_REG(AFSR0), hypctx->afsr0_el1);
+		WRITE_SPECIALREG(EL1_REG(AFSR1), hypctx->afsr1_el1);
+		WRITE_SPECIALREG(EL1_REG(AMAIR), hypctx->amair_el1);
+		WRITE_SPECIALREG(EL1_REG(CONTEXTIDR), hypctx->contextidr_el1);
+		WRITE_SPECIALREG(EL1_REG(CPACR), hypctx->cpacr_el1);
+		WRITE_SPECIALREG(EL1_REG(ESR), hypctx->esr_el1);
+		WRITE_SPECIALREG(EL1_REG(FAR), hypctx->far_el1);
+		WRITE_SPECIALREG(EL1_REG(MAIR), hypctx->mair_el1); //
+
+		WRITE_SPECIALREG(EL1_REG(SCTLR), hypctx->sctlr_el1);
+		WRITE_SPECIALREG(EL1_REG(SPSR), hypctx->spsr_el1);
+		WRITE_SPECIALREG(EL1_REG(TCR), hypctx->tcr_el1);
+		/* TODO: tcr2_el1 */
+		WRITE_SPECIALREG(EL1_REG(TTBR0), hypctx->ttbr0_el1);
+		WRITE_SPECIALREG(EL1_REG(TTBR1), hypctx->ttbr1_el1);
+	}
+
+	if (guest) {
+		WRITE_SPECIALREG(par_el1, hypctx->par_el1);
+	}
 
 	WRITE_SPECIALREG(cptr_el2, hypctx->cptr_el2);
-	WRITE_SPECIALREG(hcr_el2, hypctx->hcr_el2);
 	WRITE_SPECIALREG(vpidr_el2, hypctx->vpidr_el2);
 	WRITE_SPECIALREG(vmpidr_el2, hypctx->vmpidr_el2);
 
@@ -413,10 +426,11 @@ vmm_hyp_reg_restore(struct hypctx *hypctx, struct hyp *hyp, bool guest)
 
 	if (guest) {
 		/* Load the timer registers */
-		WRITE_SPECIALREG(cntkctl_el1, hypctx->vtimer_cpu.cntkctl_el1);
-		WRITE_SPECIALREG(cntv_cval_el0,
+		WRITE_SPECIALREG(EL1_REG(CNTKCTL),
+		    hypctx->vtimer_cpu.cntkctl_el1);
+		WRITE_SPECIALREG(EL0_REG(CNTV_CVAL),
 		    hypctx->vtimer_cpu.virt_timer.cntx_cval_el0);
-		WRITE_SPECIALREG(cntv_ctl_el0,
+		WRITE_SPECIALREG(EL0_REG(CNTV_CTL),
 		    hypctx->vtimer_cpu.virt_timer.cntx_ctl_el0);
 		WRITE_SPECIALREG(cnthctl_el2, hyp->vtimer.cnthctl_el2);
 		WRITE_SPECIALREG(cntvoff_el2, hyp->vtimer.cntvoff_el2);
@@ -496,7 +510,7 @@ vmm_hyp_call_guest(struct hyp *hyp, struct hypctx *hypctx)
 	WRITE_SPECIALREG(mdcr_el2, hypctx->mdcr_el2);
 
 	/* Call into the guest */
-	ret = vmm_enter_guest(hypctx);
+	ret = VMM_HYP_FUNC(do_call_guest)(hypctx);
 
 	WRITE_SPECIALREG(mdcr_el2, host_hypctx.mdcr_el2);
 	isb();
@@ -566,8 +580,20 @@ vmm_hyp_call_guest(struct hyp *hyp, struct hypctx *hypctx)
 	return (ret);
 }
 
-static uint64_t
-vmm_hyp_read_reg(uint64_t reg)
+VMM_STATIC uint64_t
+VMM_HYP_FUNC(enter_guest)(struct hyp *hyp, struct hypctx *hypctx)
+{
+	uint64_t ret;
+
+	do {
+		ret = vmm_hyp_call_guest(hyp, hypctx);
+	} while (ret == EXCP_TYPE_REENTER);
+
+	return (ret);
+}
+
+VMM_STATIC uint64_t
+VMM_HYP_FUNC(read_reg)(uint64_t reg)
 {
 	switch (reg) {
 	case HYP_REG_ICH_VTR:
@@ -579,22 +605,27 @@ vmm_hyp_read_reg(uint64_t reg)
 	return (0);
 }
 
-static int
-vmm_clean_s2_tlbi(void)
+VMM_STATIC void
+VMM_HYP_FUNC(clean_s2_tlbi)(void)
 {
 	dsb(ishst);
 	__asm __volatile("tlbi alle1is");
 	dsb(ish);
-
-	return (0);
 }
 
-static int
-vm_s2_tlbi_range(uint64_t vttbr, vm_offset_t sva, vm_size_t eva,
+VMM_STATIC void
+VMM_HYP_FUNC(s2_tlbi_range)(uint64_t vttbr, vm_offset_t sva, vm_offset_t eva,
     bool final_only)
 {
 	uint64_t end, r, start;
 	uint64_t host_vttbr;
+#ifdef VMM_VHE
+	uint64_t host_tcr;
+#endif
+
+#ifdef VMM_VHE
+	dsb(ishst);
+#endif
 
 #define	TLBI_VA_SHIFT			12
 #define	TLBI_VA_MASK			((1ul << 44) - 1)
@@ -606,6 +637,12 @@ vm_s2_tlbi_range(uint64_t vttbr, vm_offset_t sva, vm_size_t eva,
 	host_vttbr = READ_SPECIALREG(vttbr_el2);
 	WRITE_SPECIALREG(vttbr_el2, vttbr);
 	isb();
+
+#ifdef VMM_VHE
+	host_tcr = READ_SPECIALREG(tcr_el2);
+	WRITE_SPECIALREG(tcr_el2, host_tcr & ~HCR_TGE);
+	isb();
+#endif
 
 	/*
 	 * The CPU can cache the stage 1 + 2 combination so we need to ensure
@@ -631,17 +668,24 @@ vm_s2_tlbi_range(uint64_t vttbr, vm_offset_t sva, vm_size_t eva,
 	dsb(ish);
 	isb();
 
-	/* Switch back t othe host vttbr */
+#ifdef VMM_VHE
+	WRITE_SPECIALREG(tcr_el2, host_tcr);
+	isb();
+#endif
+
+	/* Switch back to the host vttbr */
 	WRITE_SPECIALREG(vttbr_el2, host_vttbr);
 	isb();
-
-	return (0);
 }
 
-static int
-vm_s2_tlbi_all(uint64_t vttbr)
+VMM_STATIC void
+VMM_HYP_FUNC(s2_tlbi_all)(uint64_t vttbr)
 {
 	uint64_t host_vttbr;
+
+#ifdef VMM_VHE
+	dsb(ishst);
+#endif
 
 	/* Switch to the guest vttbr */
 	/* TODO: Handle Cortex-A57/A72 erratum 131936 */
@@ -656,80 +700,4 @@ vm_s2_tlbi_all(uint64_t vttbr)
 	/* Switch back t othe host vttbr */
 	WRITE_SPECIALREG(vttbr_el2, host_vttbr);
 	isb();
-
-	return (0);
-}
-
-static int
-vmm_dc_civac(uint64_t start, uint64_t len)
-{
-	size_t line_size, end;
-	uint64_t ctr;
-
-	ctr = READ_SPECIALREG(ctr_el0);
-	line_size = sizeof(int) << CTR_DLINE_SIZE(ctr);
-	end = start + len;
-	dsb(ishst);
-	/* Clean and Invalidate the D-cache */
-	for (; start < end; start += line_size)
-		__asm __volatile("dc	civac, %0" :: "r" (start) : "memory");
-	dsb(ish);
-	return (0);
-}
-
-static int
-vmm_el2_tlbi(uint64_t type, uint64_t start, uint64_t len)
-{
-	uint64_t end, r;
-
-	dsb(ishst);
-	switch (type) {
-	default:
-	case HYP_EL2_TLBI_ALL:
-		__asm __volatile("tlbi	alle2" ::: "memory");
-		break;
-	case HYP_EL2_TLBI_VA:
-		end = TLBI_VA(start + len);
-		start = TLBI_VA(start);
-		for (r = start; r < end; r += TLBI_VA_L3_INCR) {
-			__asm __volatile("tlbi	vae2is, %0" :: "r"(r));
-		}
-		break;
-	}
-	dsb(ish);
-
-	return (0);
-}
-
-uint64_t
-vmm_hyp_enter(uint64_t handle, uint64_t x1, uint64_t x2, uint64_t x3,
-    uint64_t x4, uint64_t x5, uint64_t x6, uint64_t x7)
-{
-	uint64_t ret;
-
-	switch (handle) {
-	case HYP_ENTER_GUEST:
-		do {
-			ret = vmm_hyp_call_guest((struct hyp *)x1,
-			    (struct hypctx *)x2);
-		} while (ret == EXCP_TYPE_REENTER);
-		return (ret);
-	case HYP_READ_REGISTER:
-		return (vmm_hyp_read_reg(x1));
-	case HYP_CLEAN_S2_TLBI:
-		return (vmm_clean_s2_tlbi());
-	case HYP_DC_CIVAC:
-		return (vmm_dc_civac(x1, x2));
-	case HYP_EL2_TLBI:
-		return (vmm_el2_tlbi(x1, x2, x3));
-	case HYP_S2_TLBI_RANGE:
-		return (vm_s2_tlbi_range(x1, x2, x3, x4));
-	case HYP_S2_TLBI_ALL:
-		return (vm_s2_tlbi_all(x1));
-	case HYP_CLEANUP:	/* Handled in vmm_hyp_exception.S */
-	default:
-		break;
-	}
-
-	return (0);
 }

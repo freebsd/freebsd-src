@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 26, 2024
+.Dd July 2, 2024
 .Dt STYLE 9
 .Os
 .Sh NAME
@@ -52,11 +52,17 @@ is silent on an issue.
 
 /* Most single-line comments look like this. */
 
+// Although they may look like this.
+
 /*
  * Multi-line comments look like this.  Make them real sentences.  Fill
  * them so they look like real paragraphs.
  */
 .Ed
+C++ comments may be used in C and C++ code.
+Single-line comments should be consistently either C or C++ within a file.
+Multi-line comments should also be consistently either C or C++, but may differ
+from single-line comments.
 .Pp
 The copyright header should be a multi-line comment, with the first
 line of the comment having a dash after the star like so:
@@ -137,11 +143,6 @@ Leave one blank line before the header files.
 Kernel include files
 .Pa ( sys/*.h )
 come first.
-If
-.In sys/cdefs.h
-is needed for
-.Fn __FBSDID ,
-include it first.
 If either
 .In sys/types.h
 or
@@ -902,6 +903,22 @@ New code should use
 .Fn _Static_assert
 instead of the older
 .Fn CTASSERT .
+.Pp
+.Fn __predict_true
+and
+.Fn __predict_false
+should only be used in frequently executed code when it makes the code
+measurably faster.
+It is wasteful to make predictions for infrequently run code, like subsystem
+initialization.
+When using branch prediction hints, atypical error conditions should use
+.Fn __predict_false
+(document the exceptions).
+Operations that almost always succeed use
+.Fn __predict_true .
+Only use the annotation for the entire if statement, rather than individual clauses.
+Do not add these annotations without empirical evidence of the likelihood of the
+branch.
 .Sh FILES
 .Bl -tag -width indent
 .It Pa /usr/src/tools/build/checkstyle9.pl

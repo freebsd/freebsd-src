@@ -177,7 +177,7 @@ gpio_spi_attach(device_t dev)
 
 	gpio_spi_chip_deactivate(sc, -1);
 
-	device_add_child(dev, "spibus", -1);
+	device_add_child(dev, "spibus", DEVICE_UNIT_ANY);
 	return (bus_generic_attach(dev));
 }
 

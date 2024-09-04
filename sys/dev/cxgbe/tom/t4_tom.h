@@ -76,6 +76,7 @@ enum {
 	TPF_TLS_RX_QUIESCING = (1 << 14), /* RX quiesced for TLS RX startup */
 	TPF_TLS_RX_QUIESCED = (1 << 15), /* RX quiesced for TLS RX startup */
 	TPF_WAITING_FOR_FINAL = (1<< 16), /* waiting for wakeup on final CPL */
+	TPF_IN_TOEP_LIST   = (1 << 17),	/* toep is in the main td->toep_list */
 };
 
 enum {
@@ -210,7 +211,7 @@ struct toepcb {
 	struct tom_data *td;
 	struct inpcb *inp;	/* backpointer to host stack's PCB */
 	u_int flags;		/* miscellaneous flags */
-	TAILQ_ENTRY(toepcb) link; /* toep_list */
+	TAILQ_ENTRY(toepcb) link; /* toep_list or stranded_toep_list */
 	int refcount;
 	struct vnet *vnet;
 	struct vi_info *vi;	/* virtual interface */
@@ -220,6 +221,7 @@ struct toepcb {
 	struct l2t_entry *l2te;	/* L2 table entry used by this connection */
 	struct clip_entry *ce;	/* CLIP table entry used by this tid */
 	int tid;		/* Connection identifier */
+	int incarnation;	/* sc->incarnation when toepcb was allocated */
 
 	/* tx credit handling */
 	u_int tx_total;		/* total tx WR credits (in 16B units) */
@@ -269,6 +271,7 @@ struct synq_entry {
 	struct listen_ctx *lctx;	/* backpointer to listen ctx */
 	struct mbuf *syn;
 	int flags;			/* same as toepcb's tp_flags */
+	TAILQ_ENTRY(synq_entry) link;	/* synqe_list */
 	volatile int ok_to_respond;
 	volatile u_int refcnt;
 	int tid;
@@ -277,6 +280,7 @@ struct synq_entry {
 	uint32_t ts;
 	uint32_t rss_hash;
 	__be16 tcp_opt; /* from cpl_pass_establish */
+	int incarnation;
 	struct toepcb *toep;
 
 	struct conn_params params;
@@ -284,6 +288,7 @@ struct synq_entry {
 
 /* listen_ctx flags */
 #define LCTX_RPL_PENDING 1	/* waiting for a CPL_PASS_OPEN_RPL */
+#define LCTX_SETUP_IN_HW 2	/* stid entry is setup in hardware */
 
 struct listen_ctx {
 	LIST_ENTRY(listen_ctx) link;	/* listen hash linkage */
@@ -329,6 +334,12 @@ struct tom_data {
 	/* toepcb's associated with this TOE device */
 	struct mtx toep_list_lock;
 	TAILQ_HEAD(, toepcb) toep_list;
+	TAILQ_HEAD(, synq_entry) synqe_list;
+	/* List of tids left stranded because hw stopped abruptly. */
+	TAILQ_HEAD(, toepcb) stranded_atids;
+	TAILQ_HEAD(, toepcb) stranded_tids;
+	TAILQ_HEAD(, synq_entry) stranded_synqe;
+	struct task cleanup_stranded_tids;
 
 	struct mtx lctx_hash_lock;
 	LIST_HEAD(, listen_ctx) *listen_hash;
@@ -468,13 +479,14 @@ __be32 calc_options2(struct vi_info *, struct conn_params *);
 uint64_t select_ntuple(struct vi_info *, struct l2t_entry *);
 int negative_advice(int);
 int add_tid_to_history(struct adapter *, u_int);
+void t4_pcb_detach(struct toedev *, struct tcpcb *);
 
 /* t4_connect.c */
 void t4_init_connect_cpl_handlers(void);
 void t4_uninit_connect_cpl_handlers(void);
 int t4_connect(struct toedev *, struct socket *, struct nhop_object *,
     struct sockaddr *);
-void act_open_failure_cleanup(struct adapter *, u_int, u_int);
+void act_open_failure_cleanup(struct adapter *, struct toepcb *, u_int);
 
 /* t4_listen.c */
 void t4_init_listen_cpl_handlers(void);
@@ -489,7 +501,11 @@ int do_abort_req_synqe(struct sge_iq *, const struct rss_header *,
 int do_abort_rpl_synqe(struct sge_iq *, const struct rss_header *,
     struct mbuf *);
 void t4_offload_socket(struct toedev *, void *, struct socket *);
-void synack_failure_cleanup(struct adapter *, int);
+void synack_failure_cleanup(struct adapter *, struct synq_entry *);
+int alloc_stid_tab(struct adapter *);
+void free_stid_tab(struct adapter *);
+void stop_stid_tab(struct adapter *);
+void restart_stid_tab(struct adapter *);
 
 /* t4_cpl_io.c */
 void aiotx_init_toep(struct toepcb *);

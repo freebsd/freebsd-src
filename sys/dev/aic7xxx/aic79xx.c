@@ -8593,7 +8593,7 @@ ahd_loadseq(struct ahd_softc *ahd)
 	if (sg_prefetch_align == 0)
 		sg_prefetch_align = 8;
 	/* Round down to the nearest power of 2. */
-	sg_prefetch_align = 1 << ilog2(sg_prefetch_align);
+	sg_prefetch_align = rounddown_pow_of_two(sg_prefetch_align);
 
 	cacheline_mask = sg_prefetch_align - 1;
 

@@ -335,8 +335,16 @@ static void mbuf_release(struct mbuf *m)
 	KASSERT(ref != NULL, ("Cannot find refcount"));
 	KASSERT(ref->count > 0, ("Invalid reference count"));
 
-	if (--ref->count == 0)
+	if (--ref->count == 0) {
+		/*
+		 * Explicitly free the tag while we hold the tx queue lock.
+		 * This ensures that the tag is deleted promptly in case
+		 * something else is holding extra references to the mbuf chain,
+		 * such as netmap.
+		 */
+		m_tag_delete(m, &ref->tag);
 		m_freem(m);
+	}
 }
 
 static void tag_free(struct m_tag *t)

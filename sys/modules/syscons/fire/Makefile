@@ -1,4 +1,3 @@
-
 .PATH:	${SRCTOP}/sys/dev/syscons/fire
 
 KMOD=	fire_saver

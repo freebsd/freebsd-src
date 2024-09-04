@@ -56,7 +56,6 @@
  * rights to redistribute these changes.
  */
 
-#include <sys/cdefs.h>
 #include "opt_vm.h"
 #include "opt_kstack_pages.h"
 #include "opt_kstack_max_pages.h"
@@ -101,12 +100,14 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_pager.h>
-#include <vm/swap_pager.h>
 #include <vm/vm_phys.h>
 
 #include <machine/cpu.h>
 
-#if VM_NRESERVLEVEL > 0
+#if VM_NRESERVLEVEL > 1
+#define KVA_KSTACK_QUANTUM_SHIFT (VM_LEVEL_1_ORDER + VM_LEVEL_0_ORDER + \
+    PAGE_SHIFT)
+#elif VM_NRESERVLEVEL > 0
 #define KVA_KSTACK_QUANTUM_SHIFT (VM_LEVEL_0_ORDER + PAGE_SHIFT)
 #else
 #define KVA_KSTACK_QUANTUM_SHIFT (8 + PAGE_SHIFT)
@@ -276,6 +277,11 @@ static vm_object_t kstack_alt_object;
 static uma_zone_t kstack_cache;
 static int kstack_cache_size;
 static vmem_t *vmd_kstack_arena[MAXMEMDOM];
+
+static vm_pindex_t vm_kstack_pindex(vm_offset_t ks, int npages);
+static vm_object_t vm_thread_kstack_size_to_obj(int npages);
+static int vm_thread_stack_back(vm_offset_t kaddr, vm_page_t ma[], int npages,
+    int req_class, int domain);
 
 static int
 sysctl_kstack_cache_size(SYSCTL_HANDLER_ARGS)
@@ -574,7 +580,7 @@ vm_thread_dispose(struct thread *td)
  * Uses a non-identity mapping if guard pages are
  * active to avoid pindex holes in the kstack object.
  */
-vm_pindex_t
+static vm_pindex_t
 vm_kstack_pindex(vm_offset_t ks, int kpages)
 {
 	vm_pindex_t pindex = atop(ks - VM_MIN_KERNEL_ADDRESS);
@@ -601,7 +607,7 @@ vm_kstack_pindex(vm_offset_t ks, int kpages)
  * Allocate physical pages, following the specified NUMA policy, to back a
  * kernel stack.
  */
-int
+static int
 vm_thread_stack_back(vm_offset_t ks, vm_page_t ma[], int npages, int req_class,
     int domain)
 {
@@ -640,7 +646,7 @@ cleanup:
 	return (ENOMEM);
 }
 
-vm_object_t
+static vm_object_t
 vm_thread_kstack_size_to_obj(int npages)
 {
 	return (npages == kstack_pages ? kstack_object : kstack_alt_object);
@@ -683,7 +689,7 @@ kstack_cache_init(void *null)
 	vm_size_t kstack_quantum;
 	int domain;
 
-	kstack_object = vm_object_allocate(OBJT_SWAP,
+	kstack_object = vm_object_allocate(OBJT_PHYS,
 	    atop(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS));
 	kstack_cache = uma_zcache_create("kstack_cache",
 	    kstack_pages * PAGE_SIZE, NULL, NULL, NULL, NULL,
@@ -692,7 +698,7 @@ kstack_cache_init(void *null)
 	kstack_cache_size = imax(128, mp_ncpus * 4);
 	uma_zone_set_maxcache(kstack_cache, kstack_cache_size);
 
-	kstack_alt_object = vm_object_allocate(OBJT_SWAP,
+	kstack_alt_object = vm_object_allocate(OBJT_PHYS,
 	    atop(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS));
 
 	kstack_quantum = vm_thread_kstack_import_quantum();
@@ -829,11 +835,4 @@ vm_waitproc(struct proc *p)
 {
 
 	vmspace_exitfree(p);		/* and clean-out the vmspace */
-}
-
-void
-kick_proc0(void)
-{
-
-	wakeup(&proc0);
 }

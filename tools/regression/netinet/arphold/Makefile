@@ -1,4 +1,3 @@
-
 PROG=	arphold
 MAN=
 CFLAGS+=	-Wall

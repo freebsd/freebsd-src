@@ -138,6 +138,8 @@ struct ifnet {
 	int	(*if_requestencap)	/* make link header from request */
 		(struct ifnet *, struct if_encap_req *);
 
+	const struct if_ipsec_accel_methods *if_ipsec_accel_m;
+
 	/* Statistics. */
 	counter_u64_t	if_counters[IFCOUNTERS];
 

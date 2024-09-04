@@ -1,4 +1,3 @@
-
 KMOD=	ng_pipe
 SRCS= 	ng_pipe.c
 

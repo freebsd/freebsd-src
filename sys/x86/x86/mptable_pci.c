@@ -64,14 +64,11 @@ static int
 mptable_hostb_attach(device_t dev)
 {
 
-#ifdef NEW_PCIB
 	mptable_pci_host_res_init(dev);
-#endif
-	device_add_child(dev, "pci", -1);
+	device_add_child(dev, "pci", DEVICE_UNIT_ANY);
 	return (bus_generic_attach(dev));
 }
 
-#ifdef NEW_PCIB
 static int
 mptable_is_isa_range(rman_res_t start, rman_res_t end)
 {
@@ -103,11 +100,9 @@ mptable_hostb_alloc_resource(device_t dev, device_t child, int type, int *rid,
 {
 	struct mptable_hostb_softc *sc;
 
-#ifdef PCI_RES_BUS
 	if (type == PCI_RES_BUS)
 		return (pci_domain_alloc_bus(0, child, rid, start, end, count,
 		    flags));
-#endif
 	sc = device_get_softc(dev);
 	if (type == SYS_RES_IOPORT && start + count - 1 == end) {
 		if (mptable_is_isa_range(start, end)) {
@@ -144,14 +139,11 @@ mptable_hostb_adjust_resource(device_t dev, device_t child,
 {
 	struct mptable_hostb_softc *sc;
 
-#ifdef PCI_RES_BUS
 	if (rman_get_type(r) == PCI_RES_BUS)
 		return (pci_domain_adjust_bus(0, child, r, start, end));
-#endif
 	sc = device_get_softc(dev);
 	return (pcib_host_res_adjust(&sc->sc_host_res, child, r, start, end));
 }
-#endif
 
 static device_method_t mptable_hostb_methods[] = {
 	/* Device interface */
@@ -164,22 +156,11 @@ static device_method_t mptable_hostb_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	legacy_pcib_read_ivar),
 	DEVMETHOD(bus_write_ivar,	legacy_pcib_write_ivar),
-#ifdef NEW_PCIB
 	DEVMETHOD(bus_alloc_resource,	mptable_hostb_alloc_resource),
 	DEVMETHOD(bus_adjust_resource,	mptable_hostb_adjust_resource),
-#else
-	DEVMETHOD(bus_alloc_resource,	legacy_pcib_alloc_resource),
-	DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
-#endif
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	DEVMETHOD(bus_release_resource,	legacy_pcib_release_resource),
 	DEVMETHOD(bus_activate_resource, legacy_pcib_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, legacy_pcib_deactivate_resource),
-#else
-	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
-#endif
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 

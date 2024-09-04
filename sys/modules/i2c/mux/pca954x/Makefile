@@ -1,4 +1,3 @@
-
 .PATH:		${SRCTOP}/sys/dev/iicbus/mux
 
 KMOD=	pca954x

@@ -2,6 +2,7 @@
  * wpa_supplicant - DPP
  * Copyright (c) 2017, Qualcomm Atheros, Inc.
  * Copyright (c) 2018-2020, The Linux Foundation
+ * Copyright (c) 2022, Qualcomm Innovation Center, Inc.
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -23,6 +24,7 @@ void wpas_dpp_remain_on_channel_cb(struct wpa_supplicant *wpa_s,
 				   unsigned int freq, unsigned int duration);
 void wpas_dpp_cancel_remain_on_channel_cb(struct wpa_supplicant *wpa_s,
 					  unsigned int freq);
+void wpas_dpp_tx_wait_expire(struct wpa_supplicant *wpa_s);
 void wpas_dpp_rx_action(struct wpa_supplicant *wpa_s, const u8 *src,
 			const u8 *buf, size_t len, unsigned int freq);
 int wpas_dpp_configurator_sign(struct wpa_supplicant *wpa_s, const char *cmd);
@@ -41,5 +43,8 @@ int wpas_dpp_chirp(struct wpa_supplicant *wpa_s, const char *cmd);
 void wpas_dpp_chirp_stop(struct wpa_supplicant *wpa_s);
 int wpas_dpp_reconfig(struct wpa_supplicant *wpa_s, const char *cmd);
 int wpas_dpp_ca_set(struct wpa_supplicant *wpa_s, const char *cmd);
+int wpas_dpp_conf_set(struct wpa_supplicant *wpa_s, const char *cmd);
+int wpas_dpp_push_button(struct wpa_supplicant *wpa_s, const char *cmd);
+void wpas_dpp_push_button_stop(struct wpa_supplicant *wpa_s);
 
 #endif /* DPP_SUPPLICANT_H */

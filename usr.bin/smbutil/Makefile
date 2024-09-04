@@ -1,4 +1,3 @@
-
 PROG=	smbutil
 PACKAGE=	smbutils
 SRCS=	smbutil.c dumptree.c login.c lookup.c view.c print.c

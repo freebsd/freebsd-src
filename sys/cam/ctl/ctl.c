@@ -2687,12 +2687,6 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		}
 
 		entries = malloc(ooa_hdr->alloc_len, M_CTL, M_WAITOK | M_ZERO);
-		if (entries == NULL) {
-			printf("%s: could not allocate %d bytes for OOA "
-			       "dump\n", __func__, ooa_hdr->alloc_len);
-			retval = ENOMEM;
-			break;
-		}
 
 		mtx_lock(&softc->ctl_lock);
 		if ((ooa_hdr->flags & CTL_OOA_FLAG_ALL_LUNS) == 0 &&
@@ -9304,14 +9298,8 @@ ctl_request_sense(struct ctl_scsiio *ctsio)
 	sense_ptr = (struct scsi_sense_data *)ctsio->kern_data_ptr;
 	ctsio->kern_sg_entries = 0;
 	ctsio->kern_rel_offset = 0;
-
-	/*
-	 * struct scsi_sense_data, which is currently set to 256 bytes, is
-	 * larger than the largest allowed value for the length field in the
-	 * REQUEST SENSE CDB, which is 252 bytes as of SPC-4.
-	 */
-	ctsio->kern_data_len = cdb->length;
-	ctsio->kern_total_len = cdb->length;
+	ctsio->kern_data_len = ctsio->kern_total_len =
+	    MIN(cdb->length, sizeof(*sense_ptr));
 
 	/*
 	 * If we don't have a LUN, we don't have any pending sense.

@@ -1,4 +1,3 @@
-
 PROG=	ul
 
 LIBADD=	tinfow

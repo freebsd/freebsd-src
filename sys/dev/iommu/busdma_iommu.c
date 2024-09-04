@@ -963,7 +963,7 @@ iommu_init_busdma(struct iommu_unit *unit)
 {
 	int error;
 
-	unit->dma_enabled = 1;
+	unit->dma_enabled = 0;
 	error = TUNABLE_INT_FETCH("hw.iommu.dma", &unit->dma_enabled);
 	if (error == 0) /* compatibility */
 		TUNABLE_INT_FETCH("hw.dmar.dma", &unit->dma_enabled);

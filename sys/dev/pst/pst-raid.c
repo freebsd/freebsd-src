@@ -88,7 +88,7 @@ int
 pst_add_raid(struct iop_softc *sc, struct i2o_lct_entry *lct)
 {
     struct pst_softc *psc;
-    device_t child = device_add_child(sc->dev, "pst", -1);
+    device_t child = device_add_child(sc->dev, "pst", DEVICE_UNIT_ANY);
 
     if (!child)
 	return ENOMEM;
@@ -126,11 +126,11 @@ pst_attach(device_t dev)
 
     if (!(psc->info = (struct i2o_bsa_device *)
 	    malloc(sizeof(struct i2o_bsa_device), M_PSTRAID, M_NOWAIT))) {
-	contigfree(reply, PAGE_SIZE, M_PSTIOP);
+	free(reply, M_PSTIOP);
 	return ENOMEM;
     }
     bcopy(reply->result, psc->info, sizeof(struct i2o_bsa_device));
-    contigfree(reply, PAGE_SIZE, M_PSTIOP);
+    free(reply, M_PSTIOP);
 
     if (!(reply = iop_get_util_params(psc->iop, psc->lct->local_tid,
 				      I2O_PARAMS_OPERATION_FIELD_GET,
@@ -148,7 +148,7 @@ pst_attach(device_t dev)
     bpack(ident->vendor, ident->vendor, 16);
     bpack(ident->product, ident->product, 16);
     sprintf(name, "%s %s", ident->vendor, ident->product);
-    contigfree(reply, PAGE_SIZE, M_PSTIOP);
+    free(reply, M_PSTIOP);
 
     bioq_init(&psc->queue);
 

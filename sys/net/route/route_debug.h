@@ -78,33 +78,42 @@ SYSCTL_DECL(_net_route_debug);
  *  This is NOT compiled in by default. Turning it on should NOT seriously impact performance
  * LOG_DEBUG3 - last debug level. Per-item large debug outputs.
  *  This is NOT compiled in by default. All performance bets are off.
- *
  */
 
-#define _output			printf
+#define	_output			printf
 #define	_DEBUG_PASS_MSG(_l)	(DEBUG_VAR_NAME >= (_l))
 
-#define	IF_DEBUG_LEVEL(_l)	if ((DEBUG_MAX_LEVEL >= (_l)) && (__predict_false(DEBUG_VAR_NAME >= (_l))))
+#define	IF_DEBUG_LEVEL(_l)	\
+	if ((DEBUG_MAX_LEVEL >= (_l)) && (__predict_false(DEBUG_VAR_NAME >= (_l))))
 
 /*
  * Logging for events specific for particular family and fib
- * Example: [nhop_neigh] inet.0 find_lle: nhop nh#4/inet/vtnet0/10.0.0.1: mapped to lle NULL
+ * Example: [nhop_neigh] inet.0 find_lle: <message>
  */
-#define	FIB_LOG(_l, _fib, _fam, _fmt, ...)	FIB_LOG_##_l(_l, _fib, _fam, _fmt, ## __VA_ARGS__)
-#define	_FIB_LOG(_l, _fib, _fam, _fmt, ...)	if (_DEBUG_PASS_MSG(_l)) {	\
-	_output("[" DEBUG_PREFIX_NAME "] %s.%u %s: " _fmt "\n", rib_print_family(_fam), _fib, __func__, ##__VA_ARGS__);	\
-}
+#define	FIB_LOG(_l, _fib, _fam, _fmt, ...)				\
+	FIB_LOG_##_l(_l, _fib, _fam, _fmt, ## __VA_ARGS__)
+#define	_FIB_LOG(_l, _fib, _fam, _fmt, ...)				\
+	if (_DEBUG_PASS_MSG(_l)) {					\
+		_output("[" DEBUG_PREFIX_NAME "] %s.%u %s: " _fmt "\n",	\
+		    rib_print_family(_fam), _fib, __func__, ##__VA_ARGS__); \
+	}
 
 /* Same as FIB_LOG, but uses nhop to get fib and family */
-#define FIB_NH_LOG(_l, _nh, _fmt, ...)  FIB_LOG_##_l(_l, nhop_get_fibnum(_nh), nhop_get_upper_family(_nh), _fmt, ## __VA_ARGS__)
+#define	FIB_NH_LOG(_l, _nh, _fmt, ...)					\
+	FIB_LOG_##_l(_l, nhop_get_fibnum(_nh), nhop_get_upper_family(_nh), \
+	    _fmt, ## __VA_ARGS__)
 /* Same as FIB_LOG, but uses rib_head to get fib and family */
-#define FIB_RH_LOG(_l, _rh, _fmt, ...)  FIB_LOG_##_l(_l, (_rh)->rib_fibnum, (_rh)->rib_family, _fmt, ## __VA_ARGS__)
+#define	FIB_RH_LOG(_l, _rh, _fmt, ...)					\
+	FIB_LOG_##_l(_l, (_rh)->rib_fibnum, (_rh)->rib_family, _fmt,	\
+	    ## __VA_ARGS__)
 /* Same as FIB_LOG, but uses nh_control to get fib and family from linked rib */
-#define FIB_CTL_LOG(_l, _ctl, _fmt, ...)  FIB_LOG_##_l(_l, (_ctl)->ctl_rh->rib_fibnum, (_ctl)->ctl_rh->rib_family, _fmt, ## __VA_ARGS__)
+#define	FIB_CTL_LOG(_l, _ctl, _fmt, ...)				\
+	FIB_LOG_##_l(_l, (_ctl)->ctl_rh->rib_fibnum,			\
+	    (_ctl)->ctl_rh->rib_family, _fmt, ## __VA_ARGS__)
 
 /*
  * Generic logging for routing subsystem
- * Example: [nhop_neigh] nhops_update_neigh: L2 prepend update from lle/inet/valid/vtnet0/10.0.0.157
+ * Example: [nhop_neigh] nhops_update_neigh: <message>
  */
 #define	RT_LOG(_l, _fmt, ...)	RT_LOG_##_l(_l, _fmt, ## __VA_ARGS__)
 #define	_RT_LOG(_l, _fmt, ...)	do {					\
@@ -114,7 +123,8 @@ SYSCTL_DECL(_net_route_debug);
 } while (0)
 
 /*
- * Wrapper logic to avoid compiling high levels of debugging messages for production systems.
+ * Wrapper logic to avoid compiling high levels of debugging messages for
+ * production systems.
  */
 #if DEBUG_MAX_LEVEL>=LOG_DEBUG3
 #define	FIB_LOG_LOG_DEBUG3	_FIB_LOG

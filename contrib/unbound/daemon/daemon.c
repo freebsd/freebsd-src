@@ -344,7 +344,7 @@ static int setup_acl_for_ports(struct acl_list* list,
 	return 1;
 }
 
-int 
+int
 daemon_open_shared_ports(struct daemon* daemon)
 {
 	log_assert(daemon);
@@ -444,6 +444,19 @@ daemon_open_shared_ports(struct daemon* daemon)
 	return 1;
 }
 
+int
+daemon_privileged(struct daemon* daemon)
+{
+	daemon->env->cfg = daemon->cfg;
+	daemon->env->alloc = &daemon->superalloc;
+	daemon->env->worker = NULL;
+	if(!modstack_call_startup(&daemon->mods, daemon->cfg->module_conf,
+		daemon->env)) {
+		fatal_exit("failed to startup modules");
+	}
+	return 1;
+}
+
 /**
  * Setup modules. setup module stack.
  * @param daemon: the daemon
@@ -453,11 +466,15 @@ static void daemon_setup_modules(struct daemon* daemon)
 	daemon->env->cfg = daemon->cfg;
 	daemon->env->alloc = &daemon->superalloc;
 	daemon->env->worker = NULL;
-	daemon->env->need_to_validate = 0; /* set by module init below */
-	if(!modstack_setup(&daemon->mods, daemon->cfg->module_conf, 
-		daemon->env)) {
-		fatal_exit("failed to setup modules");
+	if(daemon->mods_inited) {
+		modstack_call_deinit(&daemon->mods, daemon->env);
 	}
+	daemon->env->need_to_validate = 0; /* set by module init below */
+	if(!modstack_call_init(&daemon->mods, daemon->cfg->module_conf,
+		daemon->env)) {
+		fatal_exit("failed to init modules");
+	}
+	daemon->mods_inited = 1;
 	log_edns_known_options(VERB_ALGO, daemon->env);
 }
 
@@ -503,7 +520,10 @@ daemon_clear_allocs(struct daemon* daemon)
 {
 	int i;
 
-	for(i=0; i<daemon->num; i++) {
+	/* daemon->num may be different during reloads (after configuration
+	 * read). Use old_num which has the correct value used to setup the
+	 * worker_allocs */
+	for(i=0; i<daemon->old_num; i++) {
 		alloc_clear(daemon->worker_allocs[i]);
 		free(daemon->worker_allocs[i]);
 	}
@@ -715,6 +735,14 @@ daemon_fork(struct daemon* daemon)
 				   "dnscrypt support");
 #endif
 	}
+	if(daemon->cfg->cookie_secret_file &&
+		daemon->cfg->cookie_secret_file[0]) {
+		if(!(daemon->cookie_secrets = cookie_secrets_create()))
+			fatal_exit("Could not create cookie_secrets: out of memory");
+		if(!cookie_secrets_apply_cfg(daemon->cookie_secrets,
+			daemon->cfg->cookie_secret_file))
+			fatal_exit("Could not setup cookie_secrets");
+	}
 	/* create global local_zones */
 	if(!(daemon->local_zones = local_zones_create()))
 		fatal_exit("Could not create local zones: out of memory");
@@ -858,7 +886,7 @@ daemon_cleanup(struct daemon* daemon)
 	daemon->views = NULL;
 	if(daemon->env->auth_zones)
 		auth_zones_cleanup(daemon->env->auth_zones);
-	/* key cache is cleared by module desetup during next daemon_fork() */
+	/* key cache is cleared by module deinit during next daemon_fork() */
 	daemon_remote_clear(daemon->rc);
 	for(i=0; i<daemon->num; i++)
 		worker_delete(daemon->workers[i]);
@@ -888,7 +916,9 @@ daemon_delete(struct daemon* daemon)
 	size_t i;
 	if(!daemon)
 		return;
-	modstack_desetup(&daemon->mods, daemon->env);
+	modstack_call_deinit(&daemon->mods, daemon->env);
+	modstack_call_destartup(&daemon->mods, daemon->env);
+	modstack_free(&daemon->mods);
 	daemon_remote_delete(daemon->rc);
 	for(i = 0; i < daemon->num_ports; i++)
 		listening_ports_free(daemon->ports[i]);
@@ -907,6 +937,7 @@ daemon_delete(struct daemon* daemon)
 	acl_list_delete(daemon->acl);
 	acl_list_delete(daemon->acl_interface);
 	tcl_list_delete(daemon->tcl);
+	cookie_secrets_delete(daemon->cookie_secrets);
 	listen_desetup_locks();
 	free(daemon->chroot);
 	free(daemon->pidfile);

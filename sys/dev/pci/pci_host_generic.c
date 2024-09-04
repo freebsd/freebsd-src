@@ -416,16 +416,12 @@ int
 pci_host_generic_core_release_resource(device_t dev, device_t child,
     struct resource *res)
 {
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	struct generic_pcie_core_softc *sc;
 
 	sc = device_get_softc(dev);
-#endif
 	switch (rman_get_type(res)) {
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	case PCI_RES_BUS:
 		return (pci_domain_release_bus(sc->ecam, child, res));
-#endif
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
 		return (bus_generic_rman_release_resource(dev, child, res));
@@ -506,22 +502,16 @@ struct resource *
 pci_host_generic_core_alloc_resource(device_t dev, device_t child, int type,
     int *rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	struct generic_pcie_core_softc *sc;
-#endif
 	struct resource *res;
 
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	sc = device_get_softc(dev);
-#endif
 
 	switch (type) {
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	case PCI_RES_BUS:
 		res = pci_domain_alloc_bus(sc->ecam, child, rid, start, end,
 		    count, flags);
 		break;
-#endif
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
 		res = bus_generic_rman_alloc_resource(dev, child, type, rid,
@@ -543,16 +533,12 @@ pci_host_generic_core_alloc_resource(device_t dev, device_t child, int type,
 static int
 generic_pcie_activate_resource(device_t dev, device_t child, struct resource *r)
 {
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	struct generic_pcie_core_softc *sc;
 
 	sc = device_get_softc(dev);
-#endif
 	switch (rman_get_type(r)) {
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	case PCI_RES_BUS:
 		return (pci_domain_activate_bus(sc->ecam, child, r));
-#endif
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
 		return (bus_generic_rman_activate_resource(dev, child, r));
@@ -565,16 +551,12 @@ static int
 generic_pcie_deactivate_resource(device_t dev, device_t child,
     struct resource *r)
 {
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	struct generic_pcie_core_softc *sc;
 
 	sc = device_get_softc(dev);
-#endif
 	switch (rman_get_type(r)) {
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	case PCI_RES_BUS:
 		return (pci_domain_deactivate_bus(sc->ecam, child, r));
-#endif
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
 		return (bus_generic_rman_deactivate_resource(dev, child, r));
@@ -587,17 +569,13 @@ static int
 generic_pcie_adjust_resource(device_t dev, device_t child,
     struct resource *res, rman_res_t start, rman_res_t end)
 {
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	struct generic_pcie_core_softc *sc;
 
 	sc = device_get_softc(dev);
-#endif
 	switch (rman_get_type(res)) {
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	case PCI_RES_BUS:
 		return (pci_domain_adjust_bus(sc->ecam, child, res, start,
 		    end));
-#endif
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
 		return (bus_generic_rman_adjust_resource(dev, child, res,
@@ -619,10 +597,8 @@ generic_pcie_map_resource(device_t dev, device_t child, struct resource *r,
 
 	type = rman_get_type(r);
 	switch (type) {
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	case PCI_RES_BUS:
 		return (EINVAL);
-#endif
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
 		break;
@@ -658,10 +634,8 @@ generic_pcie_unmap_resource(device_t dev, device_t child, struct resource *r,
 
 	type = rman_get_type(r);
 	switch (type) {
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	case PCI_RES_BUS:
 		return (EINVAL);
-#endif
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
 		break;

@@ -1,4 +1,3 @@
-
 ZFSTOP=	${SRCTOP}/sys/contrib/openzfs
 
 .PATH: ${ZFSTOP}/cmd/zdb
@@ -23,7 +22,7 @@ CFLAGS+= \
 	-include ${ZFSTOP}/include/os/freebsd/spl/sys/ccompile.h \
 	-DHAVE_ISSETUGID
 
-LIBADD=	nvpair umem uutil zdb zfs spl avl zutil zpool crypto
+LIBADD=	nvpair umem uutil zdb zfs_core zfs spl avl zutil zpool crypto
 
 CFLAGS.gcc+= -fms-extensions
 # Since there are many asserts in this program, it makes no sense to compile

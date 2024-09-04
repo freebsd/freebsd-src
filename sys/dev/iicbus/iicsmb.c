@@ -135,7 +135,7 @@ iicsmb_identify(driver_t *driver, device_t parent)
 {
 
 	if (device_find_child(parent, "iicsmb", -1) == NULL)
-		BUS_ADD_CHILD(parent, 0, "iicsmb", -1);
+		BUS_ADD_CHILD(parent, 0, "iicsmb", DEVICE_UNIT_ANY);
 }
 
 static int
@@ -152,7 +152,7 @@ iicsmb_attach(device_t dev)
 
 	mtx_init(&sc->lock, "iicsmb", NULL, MTX_DEF);
 
-	sc->smbus = device_add_child(dev, "smbus", -1);
+	sc->smbus = device_add_child(dev, "smbus", DEVICE_UNIT_ANY);
 
 	/* probe and attach the smbus */
 	bus_generic_attach(dev);

@@ -263,6 +263,10 @@ menu.welcome = {
 			menu_entries.boot_envs,
 			menu_entries.chainload,
 			menu_entries.vendor,
+			{
+				entry_type = core.MENU_SEPARATOR,
+			},
+			menu_entries.loader_needs_upgrade,
 		}
 	end,
 	all_entries = {
@@ -411,6 +415,15 @@ menu.welcome = {
 			end,
 			alias = {"l", "L"},
 		},
+		loader_needs_upgrade = {
+			entry_type = core.MENU_SEPARATOR,
+			name = function()
+				return color.highlight("Loader needs to be updated")
+			end,
+			visible = function()
+				return core.loaderTooOld()
+			end
+		},
 		vendor = {
 			entry_type = core.MENU_ENTRY,
 			visible = function()
@@ -522,7 +535,7 @@ end
 
 function menu.autoboot(delay)
 	local x = loader.getenv("loader_menu_timeout_x") or 4
-	local y = loader.getenv("loader_menu_timeout_y") or 23
+	local y = loader.getenv("loader_menu_timeout_y") or 24
 	local endtime = loader.time() + delay
 	local time
 	local last

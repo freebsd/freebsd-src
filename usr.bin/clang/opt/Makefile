@@ -1,4 +1,3 @@
-
 PROG_CXX=	opt
 
 SRCDIR=		llvm/tools/opt

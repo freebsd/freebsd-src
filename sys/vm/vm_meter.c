@@ -189,9 +189,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 				thread_lock(td);
 				switch (TD_GET_STATE(td)) {
 				case TDS_INHIBITED:
-					if (TD_IS_SWAPPED(td))
-						total.t_sw++;
-					else if (TD_IS_SLEEPING(td)) {
+					if (TD_IS_SLEEPING(td)) {
 						if (td->td_priority <= PZERO)
 							total.t_dw++;
 						else

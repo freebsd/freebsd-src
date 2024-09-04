@@ -245,7 +245,8 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 
 			m = PHYS_TO_VM_PAGE(va);
 			if (m != NULL && VM_PAGE_TO_PHYS(m) == 0) {
-				vm_page_init_page(m, va, -1);
+				vm_page_init_page(m, va, -1,
+				    VM_FREEPOOL_DEFAULT);
 				m->order = VM_NFREEORDER + 1; /* invalid */
 				m->pool = VM_NFREEPOOL + 1; /* invalid */
 				pmap_page_set_memattr_noflush(m, mode);

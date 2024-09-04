@@ -63,5 +63,10 @@
 
 #define	bzero(dst, len)	_ssp_bzero(__ssp_var(dstv), dst, __ssp_var(lenv), len)
 
+__BEGIN_DECLS
+__ssp_redirect(void, explicit_bzero, (void *__buf, size_t __len),
+    (__buf, __len));
+__END_DECLS
+
 #endif /* __SSP_FORTIFY_LEVEL > 0 */
 #endif /* _SSP_STRINGS_H_ */

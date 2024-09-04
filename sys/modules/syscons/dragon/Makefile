@@ -1,4 +1,3 @@
-
 .PATH:	${SRCTOP}/sys/dev/syscons/dragon
 
 KMOD=	dragon_saver

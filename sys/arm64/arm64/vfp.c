@@ -216,6 +216,14 @@ vfp_save_state_savectx(struct pcb *pcb)
 	vfp_save_state_common(curthread, pcb);
 }
 
+void
+vfp_save_state_switch(struct thread *td)
+{
+	KASSERT(td != NULL, ("NULL vfp thread"));
+
+	vfp_save_state_common(td, td->td_pcb);
+}
+
 /*
  * Update the VFP state for a forked process or new thread. The PCB will
  * have been copied from the old thread.

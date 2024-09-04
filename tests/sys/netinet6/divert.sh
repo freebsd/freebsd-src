@@ -46,6 +46,10 @@ ipdivert_ip6_output_remote_success_head() {
 
 ipdivert_ip6_output_remote_success_body() {
 
+	if [ "$(atf_config_get ci false)" = "true" ]; then
+		atf_skip "https://bugs.freebsd.org/279975"
+	fi
+
 	ids=65530
 	id=`printf "%x" ${ids}`
 	if [ $$ -gt 65535 ]; then

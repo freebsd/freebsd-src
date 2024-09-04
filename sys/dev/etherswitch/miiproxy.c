@@ -331,7 +331,7 @@ static void
 mdioproxy_identify(driver_t *driver, device_t parent)
 {
 	if (device_find_child(parent, driver->name, -1) == NULL) {
-		BUS_ADD_CHILD(parent, 0, driver->name, -1);
+		BUS_ADD_CHILD(parent, 0, driver->name, DEVICE_UNIT_ANY);
 	}
 }
 
@@ -380,7 +380,7 @@ mii_attach_proxy(device_t dev)
 		return (NULL);
 	}
 
-	miiproxy = device_add_child(dev, miiproxy_driver.name, -1);
+	miiproxy = device_add_child(dev, miiproxy_driver.name, DEVICE_UNIT_ANY);
 	error = bus_generic_attach(dev);
 	if (error != 0) {
 		device_printf(dev, "can't attach miiproxy\n");

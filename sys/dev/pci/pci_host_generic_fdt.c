@@ -170,7 +170,7 @@ pci_host_generic_fdt_attach(device_t dev)
 	if (error != 0)
 		return (error);
 
-	device_add_child(dev, "pci", -1);
+	device_add_child(dev, "pci", DEVICE_UNIT_ANY);
 	return (bus_generic_attach(dev));
 }
 

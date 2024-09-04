@@ -1,4 +1,3 @@
-
 INCSDIR=	${INCLUDEDIR}/bsnmp
 PACKAGE=	bsnmp
 

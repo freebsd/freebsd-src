@@ -233,7 +233,7 @@ void		db_check_interrupt(void);
 void		db_clear_watchpoints(void);
 db_addr_t	db_disasm(db_addr_t loc, bool altfmt);
 				/* instruction disassembler */
-void		db_error(const char *s);
+void		db_error(const char *s) __dead2;
 int		db_expression(db_expr_t *valuep);
 int		db_getc(void);
 int		db_get_variable(db_expr_t *valuep);

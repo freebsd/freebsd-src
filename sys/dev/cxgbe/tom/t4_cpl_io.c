@@ -1393,6 +1393,7 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	case TCPS_FIN_WAIT_2:
 		restore_so_proto(so, inp->inp_vflag & INP_IPV6);
+		t4_pcb_detach(NULL, tp);
 		tcp_twstart(tp);
 		INP_UNLOCK_ASSERT(inp);	 /* safe, we have a ref on the inp */
 		NET_EPOCH_EXIT(et);
@@ -1454,6 +1455,7 @@ do_close_con_rpl(struct sge_iq *iq, const struct rss_header *rss,
 	switch (tp->t_state) {
 	case TCPS_CLOSING:	/* see TCPS_FIN_WAIT_2 in do_peer_close too */
 		restore_so_proto(so, inp->inp_vflag & INP_IPV6);
+		t4_pcb_detach(NULL, tp);
 		tcp_twstart(tp);
 release:
 		INP_UNLOCK_ASSERT(inp);	/* safe, we have a ref on the  inp */
@@ -2125,11 +2127,6 @@ alloc_aiotx_mbuf(struct kaiocb *job, int len)
 			break;
 
 		m = mb_alloc_ext_pgs(M_WAITOK, aiotx_free_pgs);
-		if (m == NULL) {
-			vm_page_unhold_pages(pgs, npages);
-			break;
-		}
-
 		m->m_epg_1st_off = pgoff;
 		m->m_epg_npgs = npages;
 		if (npages == 1) {

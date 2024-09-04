@@ -99,7 +99,7 @@ LDFLAGS+= -Wl,-zretpolineplt
 LDFLAGS.bfd+= -Wl,-znoexecstack
 .if ${MK_BRANCH_PROTECTION} != "no"
 CFLAGS+=  -mbranch-protection=standard
-.if ${MACHINE_ARCH} == "aarch64" && defined(BTI_REPORT_ERROR)
+.if ${LINKER_FEATURES:Mbti-report} && defined(BTI_REPORT_ERROR)
 LDFLAGS+= -Wl,-zbti-report=error
 .endif
 .endif

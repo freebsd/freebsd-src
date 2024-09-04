@@ -84,6 +84,7 @@
 #include <netipsec/ipsec6.h>
 #endif
 #include <netipsec/ipsec_support.h>
+#include <netipsec/ipsec_offload.h>
 #include <netipsec/ah_var.h>
 #include <netipsec/esp_var.h>
 #include <netipsec/ipcomp_var.h>
@@ -110,7 +111,8 @@ static size_t ipsec_get_pmtu(struct secasvar *sav);
 
 #ifdef INET
 static struct secasvar *
-ipsec4_allocsa(struct mbuf *m, struct secpolicy *sp, u_int *pidx, int *error)
+ipsec4_allocsa(struct ifnet *ifp, struct mbuf *m, struct secpolicy *sp,
+    u_int *pidx, int *error)
 {
 	struct secasindex *saidx, tmpsaidx;
 	struct ipsecrequest *isr;
@@ -186,14 +188,15 @@ next:
  * IPsec output logic for IPv4.
  */
 static int
-ipsec4_perform_request(struct mbuf *m, struct secpolicy *sp,
-    struct inpcb *inp, u_int idx)
+ipsec4_perform_request(struct ifnet *ifp, struct mbuf *m, struct secpolicy *sp,
+    struct inpcb *inp, u_int idx, u_long mtu)
 {
 	struct ipsec_ctx_data ctx;
 	union sockaddr_union *dst;
 	struct secasvar *sav;
 	struct ip *ip;
-	int error, i, off;
+	int error, hwassist, i, off;
+	bool accel;
 
 	IPSEC_ASSERT(idx < sp->tcount, ("Wrong IPsec request index %d", idx));
 
@@ -206,9 +209,11 @@ ipsec4_perform_request(struct mbuf *m, struct secpolicy *sp,
 	 * determine next transform. At the end of transform we can
 	 * release reference to SP.
 	 */
-	sav = ipsec4_allocsa(m, sp, &idx, &error);
+	sav = ipsec4_allocsa(ifp, m, sp, &idx, &error);
 	if (sav == NULL) {
 		if (error == EJUSTRETURN) { /* No IPsec required */
+			(void)ipsec_accel_output(ifp, m, inp, sp, NULL,
+			    AF_INET, mtu, &hwassist);
 			key_freesp(&sp);
 			return (error);
 		}
@@ -220,6 +225,30 @@ ipsec4_perform_request(struct mbuf *m, struct secpolicy *sp,
 	IPSEC_INIT_CTX(&ctx, &m, inp, sav, AF_INET, IPSEC_ENC_BEFORE);
 	if ((error = ipsec_run_hhooks(&ctx, HHOOK_TYPE_IPSEC_OUT)) != 0)
 		goto bad;
+
+	hwassist = 0;
+	accel = ipsec_accel_output(ifp, m, inp, sp, sav, AF_INET, mtu,
+	    &hwassist);
+
+	/*
+	 * Do delayed checksums now because we send before
+	 * this is done in the normal processing path.
+	 */
+	if ((m->m_pkthdr.csum_flags & CSUM_DELAY_DATA & ~hwassist) != 0) {
+		in_delayed_cksum(m);
+		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
+	}
+#if defined(SCTP) || defined(SCTP_SUPPORT)
+	if ((m->m_pkthdr.csum_flags & CSUM_SCTP & ~hwassist) != 0) {
+		struct ip *ip;
+
+		ip = mtod(m, struct ip *);
+		sctp_delayed_cksum(m, (uint32_t)(ip->ip_hl << 2));
+		m->m_pkthdr.csum_flags &= ~CSUM_SCTP;
+	}
+#endif
+	if (accel)
+		return (EJUSTRETURN);
 
 	ip = mtod(m, struct ip *);
 	dst = &sav->sah->saidx.dst;
@@ -288,15 +317,16 @@ bad:
 }
 
 int
-ipsec4_process_packet(struct mbuf *m, struct secpolicy *sp,
-    struct inpcb *inp)
+ipsec4_process_packet(struct ifnet *ifp, struct mbuf *m, struct secpolicy *sp,
+    struct inpcb *inp, u_long mtu)
 {
 
-	return (ipsec4_perform_request(m, sp, inp, 0));
+	return (ipsec4_perform_request(ifp, m, sp, inp, 0, mtu));
 }
 
 int
-ipsec4_check_pmtu(struct mbuf *m, struct secpolicy *sp, int forwarding)
+ipsec4_check_pmtu(struct ifnet *ifp, struct mbuf *m, struct secpolicy *sp,
+    int forwarding)
 {
 	struct secasvar *sav;
 	struct ip *ip;
@@ -317,7 +347,7 @@ ipsec4_check_pmtu(struct mbuf *m, struct secpolicy *sp, int forwarding)
 
 setdf:
 	idx = sp->tcount - 1;
-	sav = ipsec4_allocsa(m, sp, &idx, &error);
+	sav = ipsec4_allocsa(ifp, m, sp, &idx, &error);
 	if (sav == NULL) {
 		key_freesp(&sp);
 		/*
@@ -368,7 +398,8 @@ setdf:
 }
 
 static int
-ipsec4_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
+ipsec4_common_output(struct ifnet *ifp, struct mbuf *m, struct inpcb *inp,
+    int forwarding, u_long mtu)
 {
 	struct secpolicy *sp;
 	int error;
@@ -392,27 +423,9 @@ ipsec4_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
 	 * packets, and thus, even if they are forwarded, the replies will
 	 * return back to us.
 	 */
-	if (!forwarding) {
-		/*
-		 * Do delayed checksums now because we send before
-		 * this is done in the normal processing path.
-		 */
-		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
-			in_delayed_cksum(m);
-			m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
-		}
-#if defined(SCTP) || defined(SCTP_SUPPORT)
-		if (m->m_pkthdr.csum_flags & CSUM_SCTP) {
-			struct ip *ip;
 
-			ip = mtod(m, struct ip *);
-			sctp_delayed_cksum(m, (uint32_t)(ip->ip_hl << 2));
-			m->m_pkthdr.csum_flags &= ~CSUM_SCTP;
-		}
-#endif
-	}
 	/* NB: callee frees mbuf and releases reference to SP */
-	error = ipsec4_check_pmtu(m, sp, forwarding);
+	error = ipsec4_check_pmtu(ifp, m, sp, forwarding);
 	if (error != 0) {
 		if (error == EJUSTRETURN)
 			return (0);
@@ -420,7 +433,7 @@ ipsec4_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
 		return (error);
 	}
 
-	error = ipsec4_process_packet(m, sp, inp);
+	error = ipsec4_process_packet(ifp, m, sp, inp, mtu);
 	if (error == EJUSTRETURN) {
 		/*
 		 * We had a SP with a level of 'use' and no SA. We
@@ -440,7 +453,7 @@ ipsec4_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
  * other values - mbuf consumed by IPsec.
  */
 int
-ipsec4_output(struct mbuf *m, struct inpcb *inp)
+ipsec4_output(struct ifnet *ifp, struct mbuf *m, struct inpcb *inp, u_long mtu)
 {
 
 	/*
@@ -451,7 +464,7 @@ ipsec4_output(struct mbuf *m, struct inpcb *inp)
 	if (m_tag_find(m, PACKET_TAG_IPSEC_OUT_DONE, NULL) != NULL)
 		return (0);
 
-	return (ipsec4_common_output(m, inp, 0));
+	return (ipsec4_common_output(ifp, m, inp, 0, mtu));
 }
 
 /*
@@ -471,7 +484,7 @@ ipsec4_forward(struct mbuf *m)
 		m_freem(m);
 		return (EACCES);
 	}
-	return (ipsec4_common_output(m, NULL, 1));
+	return (ipsec4_common_output(NULL /* XXXKIB */, m, NULL, 1, 0));
 }
 #endif
 
@@ -491,7 +504,8 @@ in6_sa_equal_addrwithscope(const struct sockaddr_in6 *sa,
 }
 
 static struct secasvar *
-ipsec6_allocsa(struct mbuf *m, struct secpolicy *sp, u_int *pidx, int *error)
+ipsec6_allocsa(struct ifnet *ifp, struct mbuf *m, struct secpolicy *sp,
+    u_int *pidx, int *error)
 {
 	struct secasindex *saidx, tmpsaidx;
 	struct ipsecrequest *isr;
@@ -579,20 +593,23 @@ next:
  * IPsec output logic for IPv6.
  */
 static int
-ipsec6_perform_request(struct mbuf *m, struct secpolicy *sp,
-    struct inpcb *inp, u_int idx)
+ipsec6_perform_request(struct ifnet *ifp, struct mbuf *m, struct secpolicy *sp,
+    struct inpcb *inp, u_int idx, u_long mtu)
 {
 	struct ipsec_ctx_data ctx;
 	union sockaddr_union *dst;
 	struct secasvar *sav;
 	struct ip6_hdr *ip6;
-	int error, i, off;
+	int error, hwassist, i, off;
+	bool accel;
 
 	IPSEC_ASSERT(idx < sp->tcount, ("Wrong IPsec request index %d", idx));
 
-	sav = ipsec6_allocsa(m, sp, &idx, &error);
+	sav = ipsec6_allocsa(ifp, m, sp, &idx, &error);
 	if (sav == NULL) {
 		if (error == EJUSTRETURN) { /* No IPsec required */
+			(void)ipsec_accel_output(ifp, m, inp, sp, NULL,
+			    AF_INET6, mtu, &hwassist);
 			key_freesp(&sp);
 			return (error);
 		}
@@ -606,6 +623,28 @@ ipsec6_perform_request(struct mbuf *m, struct secpolicy *sp,
 	IPSEC_INIT_CTX(&ctx, &m, inp, sav, AF_INET6, IPSEC_ENC_BEFORE);
 	if ((error = ipsec_run_hhooks(&ctx, HHOOK_TYPE_IPSEC_OUT)) != 0)
 		goto bad;
+
+	hwassist = 0;
+	accel = ipsec_accel_output(ifp, m, inp, sp, sav, AF_INET6, mtu,
+	    &hwassist);
+
+	/*
+	 * Do delayed checksums now because we send before
+	 * this is done in the normal processing path.
+	 */
+	if ((m->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6 & ~hwassist) != 0) {
+		in6_delayed_cksum(m, m->m_pkthdr.len -
+		    sizeof(struct ip6_hdr), sizeof(struct ip6_hdr));
+		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA_IPV6;
+	}
+#if defined(SCTP) || defined(SCTP_SUPPORT)
+	if ((m->m_pkthdr.csum_flags & CSUM_SCTP_IPV6 & ~hwassist) != 0) {
+		sctp_delayed_cksum(m, sizeof(struct ip6_hdr));
+		m->m_pkthdr.csum_flags &= ~CSUM_SCTP_IPV6;
+	}
+#endif
+	if (accel)
+		return (EJUSTRETURN);
 
 	ip6 = mtod(m, struct ip6_hdr *); /* pfil can change mbuf */
 	dst = &sav->sah->saidx.dst;
@@ -671,18 +710,19 @@ bad:
 }
 
 int
-ipsec6_process_packet(struct mbuf *m, struct secpolicy *sp,
-    struct inpcb *inp)
+ipsec6_process_packet(struct ifnet *ifp, struct mbuf *m, struct secpolicy *sp,
+    struct inpcb *inp, u_long mtu)
 {
 
-	return (ipsec6_perform_request(m, sp, inp, 0));
+	return (ipsec6_perform_request(ifp, m, sp, inp, 0, mtu));
 }
 
 /*
  * IPv6 implementation is based on IPv4 implementation.
  */
 int
-ipsec6_check_pmtu(struct mbuf *m, struct secpolicy *sp, int forwarding)
+ipsec6_check_pmtu(struct ifnet *ifp, struct mbuf *m, struct secpolicy *sp,
+    int forwarding)
 {
 	struct secasvar *sav;
 	size_t hlen, pmtu;
@@ -699,7 +739,7 @@ ipsec6_check_pmtu(struct mbuf *m, struct secpolicy *sp, int forwarding)
 		return (0);
 
 	idx = sp->tcount - 1;
-	sav = ipsec6_allocsa(m, sp, &idx, &error);
+	sav = ipsec6_allocsa(ifp, m, sp, &idx, &error);
 	if (sav == NULL) {
 		key_freesp(&sp);
 		/*
@@ -745,7 +785,8 @@ ipsec6_check_pmtu(struct mbuf *m, struct secpolicy *sp, int forwarding)
 }
 
 static int
-ipsec6_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
+ipsec6_common_output(struct ifnet *ifp, struct mbuf *m, struct inpcb *inp,
+    int forwarding, u_long mtu)
 {
 	struct secpolicy *sp;
 	int error;
@@ -761,25 +802,7 @@ ipsec6_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
 		return (0); /* No IPsec required. */
 	}
 
-	if (!forwarding) {
-		/*
-		 * Do delayed checksums now because we send before
-		 * this is done in the normal processing path.
-		 */
-		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6) {
-			in6_delayed_cksum(m, m->m_pkthdr.len -
-			    sizeof(struct ip6_hdr), sizeof(struct ip6_hdr));
-			m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA_IPV6;
-		}
-#if defined(SCTP) || defined(SCTP_SUPPORT)
-		if (m->m_pkthdr.csum_flags & CSUM_SCTP_IPV6) {
-			sctp_delayed_cksum(m, sizeof(struct ip6_hdr));
-			m->m_pkthdr.csum_flags &= ~CSUM_SCTP_IPV6;
-		}
-#endif
-	}
-
-	error = ipsec6_check_pmtu(m, sp, forwarding);
+	error = ipsec6_check_pmtu(ifp, m, sp, forwarding);
 	if (error != 0) {
 		if (error == EJUSTRETURN)
 			return (0);
@@ -788,7 +811,7 @@ ipsec6_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
 	}
 
 	/* NB: callee frees mbuf and releases reference to SP */
-	error = ipsec6_process_packet(m, sp, inp);
+	error = ipsec6_process_packet(ifp, m, sp, inp, mtu);
 	if (error == EJUSTRETURN) {
 		/*
 		 * We had a SP with a level of 'use' and no SA. We
@@ -808,7 +831,7 @@ ipsec6_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
  * other values - mbuf consumed by IPsec.
  */
 int
-ipsec6_output(struct mbuf *m, struct inpcb *inp)
+ipsec6_output(struct ifnet *ifp, struct mbuf *m, struct inpcb *inp, u_long mtu)
 {
 
 	/*
@@ -819,7 +842,7 @@ ipsec6_output(struct mbuf *m, struct inpcb *inp)
 	if (m_tag_find(m, PACKET_TAG_IPSEC_OUT_DONE, NULL) != NULL)
 		return (0);
 
-	return (ipsec6_common_output(m, inp, 0));
+	return (ipsec6_common_output(ifp, m, inp, 0, mtu));
 }
 
 /*
@@ -839,7 +862,7 @@ ipsec6_forward(struct mbuf *m)
 		m_freem(m);
 		return (EACCES);
 	}
-	return (ipsec6_common_output(m, NULL, 1));
+	return (ipsec6_common_output(NULL /* XXXKIB */, m, NULL, 1, 0));
 }
 #endif /* INET6 */
 
@@ -853,6 +876,10 @@ ipsec_process_done(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	struct m_tag *mtag;
 	int error;
 
+	if (sav->state >= SADB_SASTATE_DEAD) {
+		error = ESRCH;
+		goto bad;
+	}
 	saidx = &sav->sah->saidx;
 	switch (saidx->dst.sa.sa_family) {
 #ifdef INET
@@ -916,14 +943,16 @@ ipsec_process_done(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 		case AF_INET:
 			key_freesav(&sav);
 			IPSECSTAT_INC(ips_out_bundlesa);
-			return (ipsec4_perform_request(m, sp, NULL, idx));
+			return (ipsec4_perform_request(NULL, m, sp, NULL,
+			    idx, 0));
 			/* NOTREACHED */
 #endif
 #ifdef INET6
 		case AF_INET6:
 			key_freesav(&sav);
 			IPSEC6STAT_INC(ips_out_bundlesa);
-			return (ipsec6_perform_request(m, sp, NULL, idx));
+			return (ipsec6_perform_request(NULL, m, sp, NULL,
+			    idx, 0));
 			/* NOTREACHED */
 #endif /* INET6 */
 		default:

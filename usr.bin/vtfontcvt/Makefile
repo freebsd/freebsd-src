@@ -1,4 +1,3 @@
-
 PROG=	vtfontcvt
 SRCS=	vtfontcvt.c lz4.c
 MAN8=	vtfontcvt.8

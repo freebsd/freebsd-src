@@ -130,6 +130,7 @@ struct g_part_alias_list {
         { "solaris-home", G_PART_ALIAS_SOLARIS_HOME },
         { "solaris-altsec", G_PART_ALIAS_SOLARIS_ALTSEC },
 	{ "solaris-reserved", G_PART_ALIAS_SOLARIS_RESERVED },
+	{ "u-boot-env", G_PART_ALIAS_U_BOOT_ENV },
 	{ "vmware-reserved", G_PART_ALIAS_VMRESERVED },
 	{ "vmware-vmfs", G_PART_ALIAS_VMFS },
 	{ "vmware-vmkdiag", G_PART_ALIAS_VMKDIAG },

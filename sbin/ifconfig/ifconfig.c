@@ -2144,6 +2144,8 @@ static struct cmd basic_cmds[] = {
 	    setifcapnv),
 	DEF_CMD_SARG("-rxtls",	"-"IFCAP2_RXTLS4_NAME ",-" IFCAP2_RXTLS6_NAME,
 	    setifcapnv),
+	DEF_CMD_SARG("ipsec",	IFCAP2_IPSEC_OFFLOAD_NAME, setifcapnv),
+	DEF_CMD_SARG("-ipsec",	"-"IFCAP2_IPSEC_OFFLOAD_NAME, setifcapnv),
 	DEF_CMD("wol",		IFCAP_WOL,	setifcap),
 	DEF_CMD("-wol",		IFCAP_WOL,	clearifcap),
 	DEF_CMD("wol_ucast",	IFCAP_WOL_UCAST,	setifcap),

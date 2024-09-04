@@ -1,4 +1,3 @@
-
 PACKAGE=	devmatch
 PROG=	devmatch
 MAN=	devmatch.8

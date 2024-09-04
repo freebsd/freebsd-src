@@ -399,7 +399,7 @@ fetchParseURL(const char *URL)
 
 	/* hostname */
 	if (*p == '[') {
-		q = p + 1 + strspn(p + 1, ":0123456789ABCDEFabcdef");
+		q = p + 1 + strspn(p + 1, ":0123456789ABCDEFabcdef.");
 		if (*q++ != ']')
 			goto ouch;
 	} else {
@@ -447,7 +447,10 @@ nohost:
 			goto ouch;
 		}
 		u->doc = doc;
-		while (*p != '\0') {
+		/* fragments are reserved for client-side processing, see
+		 * https://www.rfc-editor.org/rfc/rfc9110.html#section-7.1
+		 */
+		while (*p != '\0' && *p != '#') {
 			if (!isspace((unsigned char)*p)) {
 				*doc++ = *p++;
 			} else {

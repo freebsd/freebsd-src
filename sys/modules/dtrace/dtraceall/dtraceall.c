@@ -63,6 +63,9 @@ MODULE_VERSION(dtraceall, 1);
 /* All the DTrace modules should be dependencies here: */
 MODULE_DEPEND(dtraceall, opensolaris, 1, 1, 1);
 MODULE_DEPEND(dtraceall, dtrace, 1, 1, 1);
+#if defined(AUDIT)
+MODULE_DEPEND(dtraceall, dtaudit, 1, 1, 1);
+#endif
 MODULE_DEPEND(dtraceall, dtmalloc, 1, 1, 1);
 #if defined(NFSCL)
 MODULE_DEPEND(dtraceall, dtnfscl, 1, 1, 1);

@@ -1,4 +1,3 @@
-
 DTC ?= dtc
 CPP ?= cpp
 

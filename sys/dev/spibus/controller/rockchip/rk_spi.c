@@ -332,7 +332,7 @@ rk_spi_attach(device_t dev)
 		goto fail;
 	}
 
-	sc->spibus = device_add_child(dev, "spibus", -1);
+	sc->spibus = device_add_child(dev, "spibus", DEVICE_UNIT_ANY);
 
 	RK_SPI_WRITE_4(sc, RK_SPI_IMR, 0);
 	RK_SPI_WRITE_4(sc, RK_SPI_TXFTLR, sc->fifo_size/2 - 1);

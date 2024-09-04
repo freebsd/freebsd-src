@@ -44,6 +44,7 @@ top=$mntpoint
 export MAKEOBJDIRPREFIX=$top/obj
 export log=$top/buildworld.`date +%Y%m%dT%H%M`
 n=$((`sysctl -n hw.ncpu` + 1))
+[ $n -gt 32 ] && n=32  # Arbitrary cap
 cd $src
 make -j$n buildworld > $log 2>&1 && s=0 ||s=1
 grep  '\*\*\*' $log && s=2

@@ -1,4 +1,3 @@
-
 .include <bsd.compiler.mk>
 
 PROG=	wlanstats

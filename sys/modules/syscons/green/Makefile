@@ -1,4 +1,3 @@
-
 .PATH:	${SRCTOP}/sys/dev/syscons/green
 
 KMOD=	green_saver

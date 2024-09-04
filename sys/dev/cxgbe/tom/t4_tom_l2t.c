@@ -318,18 +318,23 @@ do_l2t_write_rpl2(struct sge_iq *iq, const struct rss_header *rss,
 {
 	struct adapter *sc = iq->adapter;
 	const struct cpl_l2t_write_rpl *rpl = (const void *)(rss + 1);
-	unsigned int tid = GET_TID(rpl);
-	unsigned int idx = tid % L2T_SIZE;
+	const u_int hwidx = GET_TID(rpl) & ~(F_SYNC_WR | V_TID_QID(M_TID_QID));
+	const bool sync = GET_TID(rpl) & F_SYNC_WR;
 
-	if (__predict_false(rpl->status != CPL_ERR_NONE)) {
-		log(LOG_ERR,
-		    "Unexpected L2T_WRITE_RPL (%u) for entry at hw_idx %u\n",
-		    rpl->status, idx);
+	MPASS(iq->abs_id == G_TID_QID(GET_TID(rpl)));
+
+	if (__predict_false(hwidx < sc->vres.l2t.start) ||
+	    __predict_false(hwidx >= sc->vres.l2t.start + sc->vres.l2t.size) ||
+	    __predict_false(rpl->status != CPL_ERR_NONE)) {
+		CH_ERR(sc, "%s: hwidx %u, rpl %u, sync %u; L2T st %u, sz %u\n",
+		       __func__, hwidx, rpl->status, sync, sc->vres.l2t.start,
+		       sc->vres.l2t.size);
 		return (EINVAL);
 	}
 
-	if (tid & F_SYNC_WR) {
-		struct l2t_entry *e = &sc->l2t->l2tab[idx - sc->vres.l2t.start];
+	if (sync) {
+		const u_int idx = hwidx - sc->vres.l2t.start;
+		struct l2t_entry *e = &sc->l2t->l2tab[idx];
 
 		mtx_lock(&e->lock);
 		if (e->state != L2T_STATE_SWITCHING) {
@@ -375,6 +380,10 @@ t4_l2t_get(struct port_info *pi, if_t ifp, struct sockaddr *sa)
 
 	hash = l2_hash(d, sa, if_getindex(ifp));
 	rw_wlock(&d->lock);
+	if (__predict_false(d->l2t_stopped)) {
+		e = NULL;
+		goto done;
+	}
 	for (e = d->l2tab[hash].first; e; e = e->next) {
 		if (l2_cmp(sa, e) == 0 && e->ifp == ifp && e->vlan == vtag &&
 		    e->smt_idx == smt_idx) {
@@ -424,6 +433,8 @@ t4_l2_update(struct toedev *tod, if_t ifp, struct sockaddr *sa,
 
 	hash = l2_hash(d, sa, if_getindex(ifp));
 	rw_rlock(&d->lock);
+	if (__predict_false(d->l2t_stopped))
+		goto done;
 	for (e = d->l2tab[hash].first; e; e = e->next) {
 		if (l2_cmp(sa, e) == 0 && e->ifp == ifp) {
 			mtx_lock(&e->lock);
@@ -434,6 +445,7 @@ t4_l2_update(struct toedev *tod, if_t ifp, struct sockaddr *sa,
 			break;
 		}
 	}
+done:
 	rw_runlock(&d->lock);
 
 	/*

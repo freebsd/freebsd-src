@@ -642,7 +642,7 @@ pnpbios_identify(driver_t *driver, device_t parent)
 	    continue;
 
 	/* Add the device and parse its resources */
-	dev = BUS_ADD_CHILD(parent, ISA_ORDER_PNPBIOS, NULL, -1);
+	dev = BUS_ADD_CHILD(parent, ISA_ORDER_PNPBIOS, NULL, DEVICE_UNIT_ANY);
 	isa_set_vendorid(dev, pd->devid);
 	isa_set_logicalid(dev, pd->devid);
 	/*

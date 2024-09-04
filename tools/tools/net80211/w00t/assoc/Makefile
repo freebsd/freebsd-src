@@ -1,4 +1,3 @@
-
 .include <../Makefile.inc>
 
 PROG=	assoc

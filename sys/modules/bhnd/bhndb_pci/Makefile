@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/bhnd/bhndb
 
 KMOD=	bhndb_pci

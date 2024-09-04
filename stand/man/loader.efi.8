@@ -30,7 +30,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 22, 2023
+.Dd September 3, 2024
 .Dt LOADER.EFI 8
 .Os
 .Sh NAME
@@ -355,43 +355,138 @@ The default location for the ESP mount point is documented in
 The following example shows how to install a new
 .Nm
 on the ESP.
+The exact placement is complicated due to the diversity of
+installations, setups and situations.
+In this section, paths that are all lower case are Unix paths.
+Paths that are all upper case are relative to the ESP mount point,
+though they may appear as lower case on your system because the
+FAT filesystem of the ESP is case insensitive. 
 .Pp
-First, find the partition of type
+Locate the ESP, which has its own partition type of
 .Dq efi :
 .Bd -literal -offset indent
-# gpart list | grep -Ew '(Name|efi)'
-1. Name: nvd0p1
-   type: efi
-2. Name: nvd0p2
-3. Name: nvd0p3
-4. Name: nvd0p4
-1. Name: nvd0
+# gpart show nda0
+=>        40  7501476448  nda0  GPT  (3.5T)
+          40      614400     1  efi  (300M)
+      614440  7500862048     2  freebsd-zfs  (3.5T)
 .Ed
 .Pp
 The name of the ESP on this system is
-.Pa nvd0p1 .
-.Pp
-Second, let's mount the ESP, copy
-.Nm
-to the special location reserved for
-.Fx
-EFI loaders, and unmount once finished:
+.Pa nda0p1 .
+By default, this will be mounted on
+.Pa /boot/efi .
+To check:
 .Bd -literal -offset indent
-# mount_msdosfs /dev/nvd0p1 /boot/efi
-# cp /boot/loader.efi /boot/efi/efi/freebsd/loader.efi
+# mount | grep nda0p1
+/dev/nda0p1 on /boot/efi (msdosfs, local)
+.Ed
+If it's not mounted, you will need to mount it:
+.Bd -literal -offset indent
+# mount -t msdosfs /dev/nda0p1 /boot/efi
+.Ed
+.Pp
+.Xr efibootmgr 8
+reports what we booted from.
+.Bd -literal -offset indent
+# efibootmgr -v
+Boot to FW : false
+BootCurrent: 0001
+Timeout    : 2 seconds
+BootOrder  : 0000, 0001, 0003, 0004, 0005, 0006, 0001, 0008, 000A, 000B, 000C, 000E, 0007
+...
++Boot0001* FreeBSD ZPOOL HD(1,GPT,b5d0f86b-265d-1e1b-18aa-0ed55e1e73bd,0x28,0x96000)/File(\EFI\FREEBSD\LOADER.EFI)
+                            nda0p1:/EFI/FREEBSD/LOADER.EFI /boot/efi//EFI/FREEBSD/LOADER.EFI
+...
+.Ed
+Often there are several options, depending on the BIOS.
+The entry that we booted with is marked with a
+.Sq +
+at the start of the line, as shown above.
+So in this case, this firmware is using
+.Pa /EFI/FREEBSD/LOADER.EFI
+from the ESP.
+Often times it will be the UEFI
+.Dq default
+loader, which varies by architecture.
+.Bl -column -offset indent "Architecture" "Default Path"
+.It Sy Architecture Ta Sy Default Path
+.It amd64 Ta Pa /EFI/BOOT/BOOTX64.EFI
+.It arm Ta Pa /EFI/BOOT/BOOTARM.EFI
+.It arm64 Ta Pa /EFI/BOOT/BOOTAA64.EFI
+.It i386 Ta Pa /EFI/BOOT/BOOTIA32.EFI
+.It riscv Ta Pa /EFI/BOOT/BOOTRISCV64.EFI
+.El
+However, care must be taken: some multiple-boot environments rely on a special
+.Pa bootXXX.efi
+to function.
+Before updating a
+.Pa bootXXX.efi
+file, make sure it is the FreeBSD boot loader before updating it:
+.Bd -literal -offset indent
+# strings /boot/efi/EFI/BOOT/BOOTX64.EFI | grep FreeBSD | grep EFI
+FreeBSD/amd64 EFI loader, Revision 3.0
+.Ed
+.Pp
+.Xr bsdinstall 8
+copies
+.Pa loader.efi
+to the default name if there wasn't one there before.
+Check to see if they are copies before updating (with X64 substituted using the
+above table):
+.Bd -literal -offset indent
+# cmp /boot/efi/EFI/FREEBSD/LOADER.EFI /boot/efi/EFI/BOOT/BOOOTX64.EFI
+.Ed
+Copy the loader:
+.Bd -literal -offset indent
+# cp /boot/loader.efi /boot/efi/EFI/FREEBSD/LOADER.EFI
+.Ed
+replacing the all caps part of the example with the proper path.
+.Pp
+If ESP path was
+.Pa /FREEBSD/LOADER.EFI
+and LOADER.EFI and BOOTX64.EFI were identical in the cmp step,
+copy the loader to the default location:
+.Bd -literal -offset indent
+# cp /boot/loader.efi /boot/efi/EFI/BOOT/BOOTX64.EFI
+.Ed
+.Pp
+Finally, if you mounted the ESP, you may wish to unmount it.
+.Bd -literal -offset indent
 # umount /boot/efi
 .Ed
 .Sh SEE ALSO
 .Xr loader 8 ,
 .Xr uefi 8
 .Sh BUGS
-Systems that do not have a
-.Dv ConOut
-variable set are not conformant with the standard, and likely have unexpected
-results.
-.Pp
 Non-x86 serial console handling is even more confusing and less well documented.
 .Pp
 Sometimes when the serial port speed isn't set, 9600 is used.
 Other times the result is typically 115200 since the speed remains unchanged
 from the default.
+.Pp
+U-Boot implements a subset of the UEFI standard.
+Some versions do not support fetching loader variables, so
+.Pa efibootmgr
+may not work.
+In addition,
+.Pa efibootmgr
+is not supported on armv7 or riscv.
+In these instances, the user has to understand what was booted to update
+it properly (and in most cases, it will be the FreeBSD path and the UEFI default
+so just copy loader.efi there if there are loaders there).
+Typically in these embedded situations, there is only one .efi file (loader.efi
+or a copy of loader.efi).
+The path to this file is typically the default removable path above.
+.Pp
+Managing booting multiple OSes on UEFI varies greatly, so extra caution when
+updating the UEFI default loader.
+.Pp
+The old, now obsolete, boot1.efi was installed as bootx64.efi in
+.Fx 10
+and earlier.
+Since it was quite limited in functionality, we created very small
+ESPs by default.
+A modern loader.efi will not fit.
+However, if the old boot1.efi still works, there's no need to update
+it since it will chain boot /boot/loader.efi from a copy that
+make installworld updates.

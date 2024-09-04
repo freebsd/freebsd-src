@@ -1,6 +1,6 @@
-# $Id: mk-0th.awk,v 1.23 2020/02/02 23:34:34 tom Exp $
+# $Id: mk-0th.awk,v 1.24 2021/03/20 11:44:48 tom Exp $
 ##############################################################################
-# Copyright 2020 Thomas E. Dickey                                            #
+# Copyright 2020,2021 Thomas E. Dickey                                       #
 # Copyright 1998-2010,2012 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -129,8 +129,10 @@ BEGIN	{
 				printf "C_SRC ="
 				if ( $2 == "lib" )
 					found = 1
-				else
+				else if ( $2 == "c++" )
 					found = 2
+				else
+					found = 3
 			}
 			if ( libname == "c++" || libname == "c++w" ) {
 				srcname = sprintf("%s/%s.cc", $3, $1);
@@ -158,6 +160,10 @@ END	{
 			show_list(libname, count_library, list_library);
 			show_list(ticlib, count_ticlib, list_ticlib);
 			show_list(termlib, count_termlib, list_termlib);
+		}
+		else if ( found == 2 )
+		{
+			make_lintlib(libname, "$(C_SRC)");
 		}
 		else
 		{

@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 8, 2024
+.Dd July 5, 2024
 .Dt MOUNTD 8
 .Os
 .Sh NAME
@@ -35,7 +35,7 @@
 mount requests
 .Sh SYNOPSIS
 .Nm
-.Op Fl 2AdelnRrS
+.Op Fl 2AdelNnRrSs
 .Op Fl h Ar bindip
 .Op Fl p Ar port
 .Op Ar exportsfile ...
@@ -98,6 +98,10 @@ to the list.
 Cause all succeeded
 .Nm
 requests to be logged.
+.It Fl N
+Cause
+.Nm
+to execute in the foreground instead of in daemon mode.
 .It Fl n
 Allow non-root mount requests to be served.
 This should only be specified if there are clients such as PC's,
@@ -158,6 +162,13 @@ crashes while an exports load is in progress,
 .Nm
 must be restarted to get the nfsd threads running again, if this
 option is used.
+.It Fl s
+Cause
+.Nm
+to skip automatic binding to localhost for IPv4 and IPv6.
+This option is meaningless unless
+.Fl h
+has also been used.
 .El
 .Pp
 When

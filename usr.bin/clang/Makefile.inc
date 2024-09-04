@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 MK_PIE:=	no	# Explicit libXXX.a references

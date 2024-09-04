@@ -1,4 +1,3 @@
-
 .PATH: ${LIBC_SRCTOP}/db/man
 
 MAN+=	btree.3 dbm.3 dbopen.3 hash.3 mpool.3 recno.3

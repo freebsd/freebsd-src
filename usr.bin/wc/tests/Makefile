@@ -1,4 +1,3 @@
-
 PACKAGE=	tests
 
 ATF_TESTS_SH=	wc_test

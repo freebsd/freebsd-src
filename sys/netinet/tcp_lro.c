@@ -175,7 +175,7 @@ tcp_lro_init_args(struct lro_ctrl *lc, struct ifnet *ifp,
 {
 	struct lro_entry *le;
 	size_t size;
-	unsigned i, elements;
+	unsigned i;
 
 	lc->lro_bad_csum = 0;
 	lc->lro_queued = 0;
@@ -190,11 +190,7 @@ tcp_lro_init_args(struct lro_ctrl *lc, struct ifnet *ifp,
 	LIST_INIT(&lc->lro_active);
 
 	/* create hash table to accelerate entry lookup */
-	if (lro_entries > lro_mbufs)
-		elements = lro_entries;
-	else
-		elements = lro_mbufs;
-	lc->lro_hash = phashinit_flags(elements, M_LRO, &lc->lro_hashsz,
+	lc->lro_hash = phashinit_flags(lro_entries, M_LRO, &lc->lro_hashsz,
 	    HASH_NOWAIT);
 	if (lc->lro_hash == NULL) {
 		memset(lc, 0, sizeof(*lc));
@@ -599,7 +595,7 @@ tcp_lro_rx_done(struct lro_ctrl *lc)
 static void
 tcp_lro_flush_active(struct lro_ctrl *lc)
 {
-	struct lro_entry *le;
+	struct lro_entry *le, *le_tmp;
 
 	/*
 	 * Walk through the list of le entries, and
@@ -611,7 +607,7 @@ tcp_lro_flush_active(struct lro_ctrl *lc)
 	 * is being freed. This is ok it will just get
 	 * reallocated again like it was new.
 	 */
-	LIST_FOREACH(le, &lc->lro_active, next) {
+	LIST_FOREACH_SAFE(le, &lc->lro_active, next, le_tmp) {
 		if (le->m_head != NULL) {
 			tcp_lro_active_remove(le);
 			tcp_lro_flush(lc, le);

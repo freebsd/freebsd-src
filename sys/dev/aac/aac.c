@@ -3785,7 +3785,7 @@ aac_get_bus_info(struct aac_softc *sc)
 			break;
 		}
 
-		child = device_add_child(sc->aac_dev, "aacp", -1);
+		child = device_add_child(sc->aac_dev, "aacp", DEVICE_UNIT_ANY);
 		if (child == NULL) {
 			device_printf(sc->aac_dev,
 			    "device_add_child failed for passthrough bus %d\n",

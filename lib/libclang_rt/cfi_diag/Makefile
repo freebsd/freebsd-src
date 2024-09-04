@@ -1,4 +1,3 @@
-
 .include <bsd.init.mk>
 
 LIB=		clang_rt.cfi_diag-${CRTARCH}

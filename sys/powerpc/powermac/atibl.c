@@ -106,7 +106,7 @@ atibl_identify(driver_t *driver, device_t parent)
 	if (OF_finddevice("mac-io/backlight") == -1)
 		return;
 	if (device_find_child(parent, "backlight", -1) == NULL)
-		device_add_child(parent, "backlight", -1);
+		device_add_child(parent, "backlight", DEVICE_UNIT_ANY);
 }
 
 static int

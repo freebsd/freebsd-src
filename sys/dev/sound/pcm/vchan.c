@@ -768,25 +768,10 @@ vchan_create(struct pcm_channel *parent)
 		    &vchanspd);
 		CHN_LOCK(parent);
 		if (r != 0) {
-			/*
-			 * No saved value, no hint, NOTHING.
-			 *
-			 * Workaround for sb16 running
-			 * poorly at 45k / 49k.
-			 */
-			switch (parent_caps->maxspeed) {
-			case 45000:
-			case 49000:
-				vchanspd = 44100;
-				break;
-			default:
-				vchanspd = VCHAN_DEFAULT_RATE;
-				if (vchanspd > parent_caps->maxspeed)
-					vchanspd = parent_caps->maxspeed;
-				break;
-			}
-			if (vchanspd < parent_caps->minspeed)
-				vchanspd = parent_caps->minspeed;
+			/* No saved value, no hint, NOTHING. */
+			vchanspd = VCHAN_DEFAULT_RATE;
+			RANGE(vchanspd, parent_caps->minspeed,
+			    parent_caps->maxspeed);
 		}
 		save = 1;
 	}
@@ -795,10 +780,7 @@ vchan_create(struct pcm_channel *parent)
 		/*
 		 * Limit the speed between feeder_rate_min <-> feeder_rate_max.
 		 */
-		if (vchanspd < feeder_rate_min)
-			vchanspd = feeder_rate_min;
-		if (vchanspd > feeder_rate_max)
-			vchanspd = feeder_rate_max;
+		RANGE(vchanspd, feeder_rate_min, feeder_rate_max);
 
 		if (feeder_rate_round) {
 			RANGE(vchanspd, parent_caps->minspeed,

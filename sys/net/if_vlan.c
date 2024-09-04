@@ -42,9 +42,9 @@
  * use by the real outgoing interface, and ask it to send them.
  */
 
-#include <sys/cdefs.h>
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_ipsec.h"
 #include "opt_kern_tls.h"
 #include "opt_vlan.h"
 #include "opt_ratelimit.h"
@@ -185,6 +185,7 @@ struct ifvlan {
 	void	*ifv_cookie;
 	int	ifv_pflags;	/* special flags we have set on parent */
 	int	ifv_capenable;
+  	int	ifv_capenable2;
 	int	ifv_encaplen;	/* encapsulation length */
 	int	ifv_mtufudge;	/* MTU fudged by this much */
 	int	ifv_mintu;	/* min transmission unit */
@@ -508,11 +509,6 @@ vlan_growhash(struct ifvlantrunk *trunk, int howmuch)
 		return;
 
 	hash2 = malloc(sizeof(struct ifvlanhead) * n2, M_VLAN, M_WAITOK);
-	if (hash2 == NULL) {
-		printf("%s: out of memory -- hash size not changed\n",
-		    __func__);
-		return;		/* We can live with the old hash table */
-	}
 	for (j = 0; j < n2; j++)
 		CK_SLIST_INIT(&hash2[j]);
 	for (i = 0; i < n; i++)
@@ -1163,14 +1159,6 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len,
 
 	ifv = malloc(sizeof(struct ifvlan), M_VLAN, M_WAITOK | M_ZERO);
 	ifp = ifv->ifv_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		if (!subinterface)
-			ifc_free_unit(ifc, unit);
-		free(ifv, M_VLAN);
-		if (p != NULL)
-			if_rele(p);
-		return (ENOSPC);
-	}
 	CK_SLIST_INIT(&ifv->vlan_mc_listhead);
 	ifp->if_softc = ifv;
 	/*
@@ -1759,6 +1747,7 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t vid,
 	ifv->ifv_mintu = ETHERMIN;
 	ifv->ifv_pflags = 0;
 	ifv->ifv_capenable = -1;
+	ifv->ifv_capenable2 = -1;
 
 	/*
 	 * If the parent supports the VLAN_MTU capability,
@@ -2017,13 +2006,90 @@ vlan_link_state(struct ifnet *ifp)
 	NET_EPOCH_EXIT(et);
 }
 
+#ifdef IPSEC_OFFLOAD
+#define	VLAN_IPSEC_METHOD(exp)				\
+	if_t p;						\
+	struct ifvlan *ifv;				\
+	int error;					\
+							\
+	ifv = ifp->if_softc;				\
+	VLAN_SLOCK();					\
+	if (TRUNK(ifv) != NULL) {			\
+		p = PARENT(ifv);			\
+		if_ref(p);				\
+		error = p->if_ipsec_accel_m->exp;	\
+		if_rele(p);				\
+	} else {					\
+		error = ENXIO;				\
+	}						\
+	VLAN_SUNLOCK();					\
+	return (error);
+
+
+static int
+vlan_if_spdadd(if_t ifp, void *sp, void *inp, void **priv)
+{
+	VLAN_IPSEC_METHOD(if_spdadd(ifp, sp, inp, priv));
+}
+
+static int
+vlan_if_spddel(if_t ifp, void *sp, void *priv)
+{
+	VLAN_IPSEC_METHOD(if_spddel(ifp, sp, priv));
+}
+
+static int
+vlan_if_sa_newkey(if_t ifp, void *sav, u_int drv_spi, void **privp)
+{
+	VLAN_IPSEC_METHOD(if_sa_newkey(ifp, sav, drv_spi, privp));
+}
+
+static int
+vlan_if_sa_deinstall(if_t ifp, u_int drv_spi, void *priv)
+{
+	VLAN_IPSEC_METHOD(if_sa_deinstall(ifp, drv_spi, priv));
+}
+
+static int
+vlan_if_sa_cnt(if_t ifp, void *sa, uint32_t drv_spi, void *priv,
+    struct seclifetime *lt)
+{
+	VLAN_IPSEC_METHOD(if_sa_cnt(ifp, sa, drv_spi, priv, lt));
+}
+
+static int
+vlan_if_ipsec_hwassist(if_t ifp, void *sav, u_int drv_spi,void *priv)
+{
+	if_t trunk;
+
+	NET_EPOCH_ASSERT();
+	trunk = vlan_trunkdev(ifp);
+	if (trunk == NULL)
+		return (0);
+	return (trunk->if_ipsec_accel_m->if_hwassist(trunk, sav,
+	    drv_spi, priv));
+}
+
+static const struct if_ipsec_accel_methods vlan_if_ipsec_accel_methods = {
+	.if_spdadd = vlan_if_spdadd,
+	.if_spddel = vlan_if_spddel,
+	.if_sa_newkey = vlan_if_sa_newkey,
+	.if_sa_deinstall = vlan_if_sa_deinstall,
+	.if_sa_cnt = vlan_if_sa_cnt,
+	.if_hwassist = vlan_if_ipsec_hwassist,
+};
+
+#undef VLAN_IPSEC_METHOD
+#endif	/* IPSEC_OFFLOAD */
+
 static void
 vlan_capabilities(struct ifvlan *ifv)
 {
 	struct ifnet *p;
 	struct ifnet *ifp;
 	struct ifnet_hw_tsomax hw_tsomax;
-	int cap = 0, ena = 0, mena;
+	int cap = 0, ena = 0, mena, cap2 = 0, ena2 = 0;
+	int mena2 __unused;
 	u_long hwa = 0;
 
 	NET_EPOCH_ASSERT();
@@ -2034,6 +2100,7 @@ vlan_capabilities(struct ifvlan *ifv)
 
 	/* Mask parent interface enabled capabilities disabled by user. */
 	mena = p->if_capenable & ifv->ifv_capenable;
+	mena2 = p->if_capenable2 & ifv->ifv_capenable2;
 
 	/*
 	 * If the parent interface can do checksum offloading
@@ -2139,6 +2206,15 @@ vlan_capabilities(struct ifvlan *ifv)
 	ifp->if_capabilities = cap;
 	ifp->if_capenable = ena;
 	ifp->if_hwassist = hwa;
+
+#ifdef IPSEC_OFFLOAD
+	cap2 |= p->if_capabilities2 & IFCAP2_BIT(IFCAP2_IPSEC_OFFLOAD);
+	ena2 |= mena2 & IFCAP2_BIT(IFCAP2_IPSEC_OFFLOAD);
+	ifp->if_ipsec_accel_m = &vlan_if_ipsec_accel_methods;
+#endif
+
+	ifp->if_capabilities2 = cap2;
+	ifp->if_capenable2 = ena2;
 }
 
 static void

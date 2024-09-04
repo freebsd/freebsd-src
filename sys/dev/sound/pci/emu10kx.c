@@ -3226,7 +3226,7 @@ emu_pci_attach(device_t dev)
 
 	func->func = SCF_PCM;
 	func->varinfo = pcminfo;
-	sc->pcm[RT_FRONT] = device_add_child(dev, "pcm", -1);
+	sc->pcm[RT_FRONT] = device_add_child(dev, "pcm", DEVICE_UNIT_ANY);
 	device_set_ivars(sc->pcm[RT_FRONT], func);
 
 	if (!(sc->mch_disabled)) {
@@ -3246,7 +3246,7 @@ emu_pci_attach(device_t dev)
 
 		func->func = SCF_PCM;
 		func->varinfo = pcminfo;
-		sc->pcm[RT_REAR] = device_add_child(dev, "pcm", -1);
+		sc->pcm[RT_REAR] = device_add_child(dev, "pcm", DEVICE_UNIT_ANY);
 		device_set_ivars(sc->pcm[RT_REAR], func);
 		if (sc->has_51) {
 			/* CENTER */
@@ -3265,7 +3265,7 @@ emu_pci_attach(device_t dev)
 
 			func->func = SCF_PCM;
 			func->varinfo = pcminfo;
-			sc->pcm[RT_CENTER] = device_add_child(dev, "pcm", -1);
+			sc->pcm[RT_CENTER] = device_add_child(dev, "pcm", DEVICE_UNIT_ANY);
 			device_set_ivars(sc->pcm[RT_CENTER], func);
 			/* SUB */
 			func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT | M_ZERO);
@@ -3283,7 +3283,7 @@ emu_pci_attach(device_t dev)
 
 			func->func = SCF_PCM;
 			func->varinfo = pcminfo;
-			sc->pcm[RT_SUB] = device_add_child(dev, "pcm", -1);
+			sc->pcm[RT_SUB] = device_add_child(dev, "pcm", DEVICE_UNIT_ANY);
 			device_set_ivars(sc->pcm[RT_SUB], func);
 		}
 		if (sc->has_71) {
@@ -3303,7 +3303,7 @@ emu_pci_attach(device_t dev)
 
 			func->func = SCF_PCM;
 			func->varinfo = pcminfo;
-			sc->pcm[RT_SIDE] = device_add_child(dev, "pcm", -1);
+			sc->pcm[RT_SIDE] = device_add_child(dev, "pcm", DEVICE_UNIT_ANY);
 			device_set_ivars(sc->pcm[RT_SIDE], func);
 		}
 	} /* mch_disabled */
@@ -3324,7 +3324,7 @@ emu_pci_attach(device_t dev)
 
 		func->func = SCF_PCM;
 		func->varinfo = pcminfo;
-		sc->pcm[RT_MCHRECORD] = device_add_child(dev, "pcm", -1);
+		sc->pcm[RT_MCHRECORD] = device_add_child(dev, "pcm", DEVICE_UNIT_ANY);
 		device_set_ivars(sc->pcm[RT_MCHRECORD], func);
 	} /*mch_rec */
 
@@ -3356,7 +3356,7 @@ emu_pci_attach(device_t dev)
 		}
 		func->func = SCF_MIDI;
 		func->varinfo = midiinfo;
-		sc->midi[0] = device_add_child(dev, "midi", -1);
+		sc->midi[0] = device_add_child(dev, "midi", DEVICE_UNIT_ANY);
 		device_set_ivars(sc->midi[0], func);
 	}
 	/* Midi Interface 2: Audigy, Audigy 2 (on AudigyDrive) */
@@ -3378,7 +3378,7 @@ emu_pci_attach(device_t dev)
 
 		func->func = SCF_MIDI;
 		func->varinfo = midiinfo;
-		sc->midi[1] = device_add_child(dev, "midi", -1);
+		sc->midi[1] = device_add_child(dev, "midi", DEVICE_UNIT_ANY);
 		device_set_ivars(sc->midi[1], func);
 	}
 #endif

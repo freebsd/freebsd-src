@@ -49,6 +49,7 @@
 #include <netipsec/ipsec_support.h>
 #include <netipsec/key.h>
 #include <netipsec/key_debug.h>
+#include <netipsec/ipsec_offload.h>
 
 MALLOC_DEFINE(M_IPSEC_INPCB, "inpcbpolicy", "inpcb-resident ipsec policy");
 
@@ -166,18 +167,26 @@ ipsec_init_pcbpolicy(struct inpcb *inp)
 int
 ipsec_delete_pcbpolicy(struct inpcb *inp)
 {
+	struct inpcbpolicy *inp_sp;
 
-	if (inp->inp_sp == NULL)
+	inp_sp = inp->inp_sp;
+	if (inp_sp == NULL)
 		return (0);
-
-	if (inp->inp_sp->sp_in != NULL)
-		key_freesp(&inp->inp_sp->sp_in);
-
-	if (inp->inp_sp->sp_out != NULL)
-		key_freesp(&inp->inp_sp->sp_out);
-
-	free(inp->inp_sp, M_IPSEC_INPCB);
 	inp->inp_sp = NULL;
+
+	if (inp_sp->sp_in != NULL) {
+		if ((inp_sp->flags & INP_INBOUND_POLICY) != 0)
+			ipsec_accel_spddel(inp_sp->sp_in);
+		key_freesp(&inp_sp->sp_in);
+	}
+
+	if (inp_sp->sp_out != NULL) {
+		if ((inp_sp->flags & INP_OUTBOUND_POLICY) != 0)
+			ipsec_accel_spddel(inp_sp->sp_out);
+		key_freesp(&inp_sp->sp_out);
+	}
+
+	free(inp_sp, M_IPSEC_INPCB);
 	return (0);
 }
 
@@ -248,20 +257,26 @@ ipsec_copy_pcbpolicy(struct inpcb *old, struct inpcb *new)
 		if (sp == NULL)
 			return (ENOBUFS);
 		ipsec_setspidx_inpcb(new, &sp->spidx, IPSEC_DIR_INBOUND);
-		if (new->inp_sp->sp_in != NULL)
+		if (new->inp_sp->sp_in != NULL) {
+			ipsec_accel_spddel(new->inp_sp->sp_in);
 			key_freesp(&new->inp_sp->sp_in);
+		}
 		new->inp_sp->sp_in = sp;
 		new->inp_sp->flags |= INP_INBOUND_POLICY;
+		ipsec_accel_spdadd(sp, new);
 	}
 	if (old->inp_sp->flags & INP_OUTBOUND_POLICY) {
 		sp = ipsec_deepcopy_pcbpolicy(old->inp_sp->sp_out);
 		if (sp == NULL)
 			return (ENOBUFS);
 		ipsec_setspidx_inpcb(new, &sp->spidx, IPSEC_DIR_OUTBOUND);
-		if (new->inp_sp->sp_out != NULL)
+		if (new->inp_sp->sp_out != NULL) {
+			ipsec_accel_spddel(new->inp_sp->sp_out);
 			key_freesp(&new->inp_sp->sp_out);
+		}
 		new->inp_sp->sp_out = sp;
 		new->inp_sp->flags |= INP_OUTBOUND_POLICY;
+		ipsec_accel_spdadd(sp, new);
 	}
 	return (0);
 }
@@ -339,8 +354,10 @@ ipsec_set_pcbpolicy(struct inpcb *inp, struct ucred *cred,
 		flags = INP_OUTBOUND_POLICY;
 	}
 	/* Clear old SP and set new SP. */
-	if (*spp != NULL)
+	if (*spp != NULL) {
+		ipsec_accel_spddel(*spp);
 		key_freesp(spp);
+	}
 	*spp = newsp;
 	KEYDBG(IPSEC_DUMP,
 	    printf("%s: new SP(%p)\n", __func__, newsp));
@@ -348,6 +365,7 @@ ipsec_set_pcbpolicy(struct inpcb *inp, struct ucred *cred,
 		inp->inp_sp->flags &= ~flags;
 	else {
 		inp->inp_sp->flags |= flags;
+		ipsec_accel_spdadd(newsp, inp);
 		KEYDBG(IPSEC_DUMP, kdebug_secpolicy(newsp));
 	}
 	INP_WUNLOCK(inp);

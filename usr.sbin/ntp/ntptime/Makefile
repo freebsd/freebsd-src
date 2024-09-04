@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/contrib/ntp/util
 
 PACKAGE=ntp

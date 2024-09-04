@@ -1,4 +1,3 @@
-
 TAP_TESTS_C+=	abs2rel
 TAP_TESTS_C+=	rel2abs
 

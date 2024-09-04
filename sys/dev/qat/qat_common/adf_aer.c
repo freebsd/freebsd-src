@@ -28,17 +28,13 @@ static struct workqueue_struct *device_reset_wq;
 void
 linux_complete_common(struct completion *c, int all)
 {
-	int wakeup_swapper;
-
 	sleepq_lock(c);
 	c->done++;
 	if (all)
-		wakeup_swapper = sleepq_broadcast(c, SLEEPQ_SLEEP, 0, 0);
+		sleepq_broadcast(c, SLEEPQ_SLEEP, 0, 0);
 	else
-		wakeup_swapper = sleepq_signal(c, SLEEPQ_SLEEP, 0, 0);
+		sleepq_signal(c, SLEEPQ_SLEEP, 0, 0);
 	sleepq_release(c);
-	if (wakeup_swapper)
-		kick_proc0();
 }
 
 /* reset dev data */

@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/contrib/com_err
 
 PACKAGE=	kerberos

@@ -1,4 +1,3 @@
-
 .include <bsd.init.mk>
 
 LIB=		clang_rt.xray-profiling-${CRTARCH}

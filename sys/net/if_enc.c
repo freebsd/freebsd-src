@@ -163,10 +163,6 @@ enc_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	sc = malloc(sizeof(struct enc_softc), M_DEVBUF,
 	    M_WAITOK | M_ZERO);
 	ifp = sc->sc_ifp = if_alloc(IFT_ENC);
-	if (ifp == NULL) {
-		free(sc, M_DEVBUF);
-		return (ENOSPC);
-	}
 	if (V_enc_sc != NULL) {
 		if_free(ifp);
 		free(sc, M_DEVBUF);

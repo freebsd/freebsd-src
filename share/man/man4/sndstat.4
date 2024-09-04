@@ -29,7 +29,7 @@
 .\"
 .\" Note: The date here should be updated whenever a non-trivial
 .\" change is made to the manual page.
-.Dd June 5, 2024
+.Dd July 26, 2024
 .Dt SNDSTAT 4
 .Os
 .Sh NAME
@@ -74,13 +74,19 @@ dsps (NVLIST ARRAY): 1
 		max_chn (NUMBER): 2
 	provider_info (NVLIST):
 		unit (NUMBER): 0
+		status (STRING): on hdaa0
 		bitperfect (BOOL): FALSE
 		pvchan (NUMBER): 1
+		pvchanrate (NUMBER): 48000
+		pvchanformat (NUMBER): 0x00000010
 		rvchan (NUMBER): 0
+		rvchanrate (NUMBER): 48000
+		rvchanformat (NUMBER): 0x00000010
 		channel_info (NVLIST_ARRAY): 1
 			name (STRING): pcm0:virtual_play:dsp0.vp0
 			parentchan (STRING): pcm0:play:dsp0.p0
 			unit (NUMBER): 1
+			caps (NUMBER): 0x073200
 			latency (NUMBER): 2
 			rate (NUMBER): 48000
 			format (NUMBER): 0x201000
@@ -169,22 +175,35 @@ provider, there are a number of name/value pairs inside this field:
 .Bl -tag -width ".Dv channel_info"
 .It Dv unit
 Sound card unit.
+.It Dv status
+Status string.
+Usually reports the driver the device is attached on.
 .It Dv bitperfect
 Whether the sound card has bit-perfect mode enabled.
 .It Dv pvchan
 Number of playback virtual channels.
+.It Dv pvchanrate
+Playback virtual channel sample rate.
+.It Dv pvchanformat
+Playback virtual channel format.
 .It Dv rvchan
 Number of recording virtual channels.
+.It Dv rvchanrate
+Recording virtual channel sample rate.
+.It Dv rvchanformat
+Recording virtual channel format.
 .It Dv channel_info
 Channel information.
 There are a number of name/value pairs inside this field:
 .Bl -tag -width ".Dv hwbuf_blkcnt"
 .It Dv name
 Channel name.
-.It Dv parenchan
+.It Dv parentchan
 Parent channel name (e.g., in the case of virtual channels).
 .It Dv unit
 Channel unit.
+.It Dv caps
+OSS capabilities.
 .It Dv latency
 Latency.
 .It Dv rate

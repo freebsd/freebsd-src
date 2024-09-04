@@ -700,7 +700,7 @@ sdhci_card_task(void *arg, int pending __unused)
 			mmccam_start_discovery(slot->sim);
 			SDHCI_UNLOCK(slot);
 #else
-			d = slot->dev = device_add_child(slot->bus, "mmc", -1);
+			d = slot->dev = device_add_child(slot->bus, "mmc", DEVICE_UNIT_ANY);
 			SDHCI_UNLOCK(slot);
 			if (d) {
 				device_set_ivars(d, slot);

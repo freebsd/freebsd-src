@@ -39,6 +39,10 @@
 
 #define	ACPI_HANDLE(dev)	\
     ((dev)->bsddev != NULL ? bsd_acpi_get_handle((dev)->bsddev) : NULL)
+#define	acpi_device_handle(dev)	\
+    ((dev) != NULL ? bsd_acpi_get_handle(dev) : NULL)
+static inline void acpi_dev_put(struct acpi_device *adev) {}
+#define	acpi_handle_debug(handle, fmt, ...)
 
 #endif
 

@@ -1,4 +1,3 @@
-
 PACKAGE=	iscsi
 PROG=		iscsictl
 SRCS=		iscsictl.c periphs.c parse.y token.l y.tab.h

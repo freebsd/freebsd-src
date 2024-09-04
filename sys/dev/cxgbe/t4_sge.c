@@ -2086,9 +2086,17 @@ have_mbuf:
 	}
 
 	if (cpl->vlan_ex) {
-		m0->m_pkthdr.ether_vtag = be16toh(cpl->vlan);
-		m0->m_flags |= M_VLANTAG;
-		rxq->vlan_extraction++;
+		if (sc->flags & IS_VF && sc->vlan_id) {
+			/*
+			 * HW is not setup correctly if extracted vlan_id does
+			 * not match the VF's setting.
+			 */
+			MPASS(be16toh(cpl->vlan) == sc->vlan_id);
+		} else {
+			m0->m_pkthdr.ether_vtag = be16toh(cpl->vlan);
+			m0->m_flags |= M_VLANTAG;
+			rxq->vlan_extraction++;
+		}
 	}
 
 	if (rxq->iq.flags & IQ_RX_TIMESTAMP) {
@@ -2913,6 +2921,10 @@ start_wrq_wr(struct sge_wrq *wrq, int len16, struct wrq_cookie *cookie)
 	MPASS(ndesc > 0 && ndesc <= SGE_MAX_WR_NDESC);
 
 	EQ_LOCK(eq);
+	if (__predict_false((eq->flags & EQ_HW_ALLOCATED) == 0)) {
+		EQ_UNLOCK(eq);
+		return (NULL);
+	}
 
 	if (TAILQ_EMPTY(&wrq->incomplete_wrs) && !STAILQ_EMPTY(&wrq->wr_list))
 		drain_wrq_wr_list(sc, wrq);
@@ -3008,7 +3020,10 @@ commit_wrq_wr(struct sge_wrq *wrq, void *w, struct wrq_cookie *cookie)
 				    F_FW_WR_EQUEQ);
 			}
 
-			ring_eq_db(wrq->adapter, eq, ndesc);
+			if (__predict_true(eq->flags & EQ_HW_ALLOCATED))
+				ring_eq_db(wrq->adapter, eq, ndesc);
+			else
+				IDXINCR(eq->dbidx, ndesc, eq->sidx);
 		} else {
 			MPASS(IDXDIFF(next->pidx, pidx, eq->sidx) == ndesc);
 			next->pidx = pidx;
@@ -3844,6 +3859,8 @@ alloc_ctrlq(struct adapter *sc, int idx)
 
 	if (!(ctrlq->eq.flags & EQ_HW_ALLOCATED)) {
 		MPASS(ctrlq->eq.flags & EQ_SW_ALLOCATED);
+		MPASS(ctrlq->nwr_pending == 0);
+		MPASS(ctrlq->ndesc_needed == 0);
 
 		rc = alloc_eq_hwq(sc, NULL, &ctrlq->eq);
 		if (rc != 0) {
@@ -4220,7 +4237,7 @@ qsize_to_fthresh(int qsize)
 {
 	u_int fthresh;
 
-	fthresh = qsize == 0 ? 0 : fls(qsize - 1);
+	fthresh = qsize == 0 ? 0 : order_base_2(qsize);
 	if (fthresh > X_CIDXFLUSHTHRESH_128)
 		fthresh = X_CIDXFLUSHTHRESH_128;
 
@@ -4546,6 +4563,7 @@ free_wrq(struct adapter *sc, struct sge_wrq *wrq)
 {
 	free_eq(sc, &wrq->eq);
 	MPASS(wrq->nwr_pending == 0);
+	MPASS(wrq->ndesc_needed == 0);
 	MPASS(TAILQ_EMPTY(&wrq->incomplete_wrs));
 	MPASS(STAILQ_EMPTY(&wrq->wr_list));
 	bzero(wrq, sizeof(*wrq));
@@ -4840,6 +4858,9 @@ alloc_ofld_txq(struct vi_info *vi, struct sge_ofld_txq *ofld_txq, int idx)
 	}
 
 	if (!(eq->flags & EQ_HW_ALLOCATED)) {
+		MPASS(eq->flags & EQ_SW_ALLOCATED);
+		MPASS(ofld_txq->wrq.nwr_pending == 0);
+		MPASS(ofld_txq->wrq.ndesc_needed == 0);
 		rc = alloc_eq_hwq(sc, vi, eq);
 		if (rc != 0) {
 			CH_ERR(vi, "failed to create hw ofld_txq%d: %d\n", idx,
@@ -5476,7 +5497,8 @@ write_txpkt_vm_wr(struct adapter *sc, struct sge_txq *txq, struct mbuf *m0)
 		ctrl1 |= F_TXPKT_VLAN_VLD |
 		    V_TXPKT_VLAN(m0->m_pkthdr.ether_vtag);
 		txq->vlan_insertion++;
-	}
+	} else if (sc->vlan_id)
+		ctrl1 |= F_TXPKT_VLAN_VLD | V_TXPKT_VLAN(sc->vlan_id);
 
 	/* CPL header */
 	cpl->ctrl0 = txq->cpl_ctrl0;
@@ -5977,7 +5999,8 @@ write_txpkts_vm_wr(struct adapter *sc, struct sge_txq *txq)
 			ctrl1 |= F_TXPKT_VLAN_VLD |
 			    V_TXPKT_VLAN(m->m_pkthdr.ether_vtag);
 			txq->vlan_insertion++;
-		}
+		} else if (sc->vlan_id)
+			ctrl1 |= F_TXPKT_VLAN_VLD | V_TXPKT_VLAN(sc->vlan_id);
 
 		/* CPL header */
 		cpl->ctrl0 = txq->cpl_ctrl0;

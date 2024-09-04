@@ -164,18 +164,12 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
 	DEVMETHOD(bus_delete_resource,	pci_delete_resource),
 	DEVMETHOD(bus_alloc_resource,	pci_alloc_resource),
-#ifdef PCI_IOV
 	DEVMETHOD(bus_adjust_resource,	pci_adjust_resource),
-#else
-	DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
-#endif
 	DEVMETHOD(bus_release_resource,	pci_release_resource),
 	DEVMETHOD(bus_activate_resource, pci_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, pci_deactivate_resource),
-#ifdef PCI_IOV
 	DEVMETHOD(bus_map_resource,	pci_map_resource),
 	DEVMETHOD(bus_unmap_resource,	pci_unmap_resource),
-#endif
 	DEVMETHOD(bus_child_deleted,	pci_child_deleted),
 	DEVMETHOD(bus_child_detached,	pci_child_detached),
 	DEVMETHOD(bus_child_pnpinfo,	pci_child_pnpinfo_method),
@@ -405,11 +399,9 @@ static int pci_clear_bars;
 SYSCTL_INT(_hw_pci, OID_AUTO, clear_bars, CTLFLAG_RDTUN, &pci_clear_bars, 0,
     "Ignore firmware-assigned resources for BARs.");
 
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 static int pci_clear_buses;
 SYSCTL_INT(_hw_pci, OID_AUTO, clear_buses, CTLFLAG_RDTUN, &pci_clear_buses, 0,
     "Ignore firmware-assigned bus numbers.");
-#endif
 
 static int pci_enable_ari = 1;
 SYSCTL_INT(_hw_pci, OID_AUTO, enable_ari, CTLFLAG_RDTUN, &pci_enable_ari,
@@ -1190,7 +1182,7 @@ vpd_read_elem_data(struct vpd_readstate *vrs, char keyword[2], char **value, int
 	int len;
 
 	len = vpd_read_elem_head(vrs, keyword);
-	if (len > maxlen)
+	if (len < 0 || len > maxlen)
 		return (-1);
 	*value = vpd_read_value(vrs, len);
 
@@ -1211,7 +1203,7 @@ vpd_fixup_cksum(struct vpd_readstate *vrs, char *rvstring, int len)
 }
 
 /* fetch one read-only element and return size of heading + data */
-static size_t
+static int
 next_vpd_ro_elem(struct vpd_readstate *vrs, int maxsize)
 {
 	struct pcicfg_vpd *vpd;
@@ -1245,7 +1237,7 @@ next_vpd_ro_elem(struct vpd_readstate *vrs, int maxsize)
 }
 
 /* fetch one writable element and return size of heading + data */
-static size_t
+static int
 next_vpd_rw_elem(struct vpd_readstate *vrs, int maxsize)
 {
 	struct pcicfg_vpd *vpd;
@@ -3706,7 +3698,6 @@ xhci_early_takeover(device_t self)
 	bus_release_resource(self, SYS_RES_MEMORY, rid, res);
 }
 
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 static void
 pci_reserve_secbus(device_t bus, device_t dev, pcicfgregs *cfg,
     struct resource_list *rl)
@@ -3862,7 +3853,6 @@ pci_alloc_secbus(device_t dev, device_t child, int *rid, rman_res_t start,
 	return (resource_list_alloc(rl, dev, child, PCI_RES_BUS, rid, start,
 	    end, count, flags));
 }
-#endif
 
 static int
 pci_ea_bei_to_rid(device_t dev, int bei)
@@ -4118,13 +4108,11 @@ pci_add_resources(device_t bus, device_t dev, int force, uint32_t prefetchmask)
 			uhci_early_takeover(dev);
 	}
 
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	/*
 	 * Reserve resources for secondary bus ranges behind bridge
 	 * devices.
 	 */
 	pci_reserve_secbus(bus, dev, cfg, rl);
-#endif
 }
 
 static struct pci_devinfo *
@@ -4432,7 +4420,7 @@ pci_add_child(device_t bus, struct pci_devinfo *dinfo)
 {
 	device_t dev;
 
-	dinfo->cfg.dev = dev = device_add_child(bus, NULL, -1);
+	dinfo->cfg.dev = dev = device_add_child(bus, NULL, DEVICE_UNIT_ANY);
 	device_set_ivars(dev, dinfo);
 	resource_list_init(&dinfo->resources);
 	pci_cfg_save(dev, dinfo, 0);
@@ -4470,14 +4458,11 @@ pci_attach_common(device_t dev)
 {
 	struct pci_softc *sc;
 	int busno, domain;
-#ifdef PCI_RES_BUS
 	int rid;
-#endif
 
 	sc = device_get_softc(dev);
 	domain = pcib_get_domain(dev);
 	busno = pcib_get_bus(dev);
-#ifdef PCI_RES_BUS
 	rid = 0;
 	sc->sc_bus = bus_alloc_resource(dev, PCI_RES_BUS, &rid, busno, busno,
 	    1, 0);
@@ -4485,7 +4470,6 @@ pci_attach_common(device_t dev)
 		device_printf(dev, "failed to allocate bus number\n");
 		return (ENXIO);
 	}
-#endif
 	if (bootverbose)
 		device_printf(dev, "domain=%d, physical bus=%d\n",
 		    domain, busno);
@@ -4517,20 +4501,16 @@ pci_attach(device_t dev)
 int
 pci_detach(device_t dev)
 {
-#ifdef PCI_RES_BUS
 	struct pci_softc *sc;
-#endif
 	int error;
 
 	error = bus_generic_detach(dev);
 	if (error)
 		return (error);
-#ifdef PCI_RES_BUS
 	sc = device_get_softc(dev);
 	error = bus_release_resource(dev, PCI_RES_BUS, 0, sc->sc_bus);
 	if (error)
 		return (error);
-#endif
 	return (device_delete_children(dev));
 }
 
@@ -5111,10 +5091,8 @@ pci_child_detached(device_t dev, device_t child)
 		pci_printf(&dinfo->cfg, "Device leaked memory resources\n");
 	if (resource_list_release_active(rl, dev, child, SYS_RES_IOPORT) != 0)
 		pci_printf(&dinfo->cfg, "Device leaked I/O resources\n");
-#ifdef PCI_RES_BUS
 	if (resource_list_release_active(rl, dev, child, PCI_RES_BUS) != 0)
 		pci_printf(&dinfo->cfg, "Device leaked PCI bus numbers\n");
-#endif
 
 	pci_cfg_save(child, dinfo, 1);
 }
@@ -5551,11 +5529,9 @@ pci_alloc_multi_resource(device_t dev, device_t child, int type, int *rid,
 	rl = &dinfo->resources;
 	cfg = &dinfo->cfg;
 	switch (type) {
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	case PCI_RES_BUS:
 		return (pci_alloc_secbus(dev, child, rid, start, end, count,
 		    flags));
-#endif
 	case SYS_RES_IRQ:
 		/*
 		 * Can't alloc legacy interrupt once MSI messages have
@@ -5576,7 +5552,6 @@ pci_alloc_multi_resource(device_t dev, device_t child, int type, int *rid,
 		break;
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
-#ifdef NEW_PCIB
 		/*
 		 * PCI-PCI bridge I/O window resources are not BARs.
 		 * For those allocations just pass the request up the
@@ -5595,7 +5570,6 @@ pci_alloc_multi_resource(device_t dev, device_t child, int type, int *rid,
 				    type, rid, start, end, count, flags));
 			}
 		}
-#endif
 		/* Reserve resources for this BAR if needed. */
 		rle = resource_list_find(rl, type, *rid);
 		if (rle == NULL) {
@@ -5668,7 +5642,6 @@ pci_release_resource(device_t dev, device_t child, struct resource *r)
 	}
 #endif
 
-#ifdef NEW_PCIB
 	/*
 	 * PCI-PCI bridge I/O window resources are not BARs.  For
 	 * those allocations just pass the request up the tree.
@@ -5683,7 +5656,6 @@ pci_release_resource(device_t dev, device_t child, struct resource *r)
 			return (bus_generic_release_resource(dev, child, r));
 		}
 	}
-#endif
 
 	rl = &dinfo->resources;
 	return (resource_list_release(rl, dev, child, r));
@@ -5776,11 +5748,11 @@ pci_deactivate_resource(device_t dev, device_t child, struct resource *r)
 	return (0);
 }
 
-#ifdef PCI_IOV
 int
 pci_adjust_resource(device_t dev, device_t child, struct resource *r,
     rman_res_t start, rman_res_t end)
 {
+#ifdef PCI_IOV
 	struct pci_devinfo *dinfo;
 
 	if (device_get_parent(child) != dev)
@@ -5800,6 +5772,7 @@ pci_adjust_resource(device_t dev, device_t child, struct resource *r,
 
 		/* Fall through for other types of resource allocations. */
 	}
+#endif
 
 	return (bus_generic_adjust_resource(dev, child, r, start, end));
 }
@@ -5808,6 +5781,7 @@ int
 pci_map_resource(device_t dev, device_t child, struct resource *r,
     struct resource_map_request *argsp, struct resource_map *map)
 {
+#ifdef PCI_IOV
 	struct pci_devinfo *dinfo;
 
 	if (device_get_parent(child) != dev)
@@ -5827,6 +5801,7 @@ pci_map_resource(device_t dev, device_t child, struct resource *r,
 
 		/* Fall through for other types of resource allocations. */
 	}
+#endif
 
 	return (bus_generic_map_resource(dev, child, r, argsp, map));
 }
@@ -5835,6 +5810,7 @@ int
 pci_unmap_resource(device_t dev, device_t child, struct resource *r,
     struct resource_map *map)
 {
+#ifdef PCI_IOV
 	struct pci_devinfo *dinfo;
 
 	if (device_get_parent(child) != dev)
@@ -5852,10 +5828,10 @@ pci_unmap_resource(device_t dev, device_t child, struct resource *r,
 
 		/* Fall through for other types of resource allocations. */
 	}
+#endif
 
 	return (bus_generic_unmap_resource(dev, child, r, map));
 }
-#endif
 
 void
 pci_child_deleted(device_t dev, device_t child)

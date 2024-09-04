@@ -506,27 +506,27 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
 
      The seven built-in local variables are:
 
-           _._A_L_L_S_R_C       The list of all sources for this target; also known
-                         as `_>'.
+           _._A_L_L_S_R_C   The list of all sources for this target; also known as
+                     `_>'.
 
-           _._A_R_C_H_I_V_E      The name of the archive file; also known as `_!'.
+           _._A_R_C_H_I_V_E  The name of the archive file; also known as `_!'.
 
-           _._I_M_P_S_R_C       In suffix-transformation rules, the name/path of the
-                         source from which the target is to be transformed
-                         (the "implied" source); also known as `_<'.  It is not
-                         defined in explicit rules.
+           _._I_M_P_S_R_C   In suffix-transformation rules, the name/path of the
+                     source from which the target is to be transformed (the
+                     "implied" source); also known as `_<'.  It is not defined
+                     in explicit rules.
 
-           _._M_E_M_B_E_R       The name of the archive member; also known as `_%'.
+           _._M_E_M_B_E_R   The name of the archive member; also known as `_%'.
 
-           _._O_O_D_A_T_E       The list of sources for this target that were deemed
-                         out-of-date; also known as `_?'.
+           _._O_O_D_A_T_E   The list of sources for this target that were deemed out-
+                     of-date; also known as `_?'.
 
-           _._P_R_E_F_I_X       The name of the target with suffix (if declared in
-                         ..SSUUFFFFIIXXEESS) removed; also known as `_*'.
+           _._P_R_E_F_I_X   The name of the target with suffix (if declared in
+                     ..SSUUFFFFIIXXEESS) removed; also known as `_*'.
 
-           _._T_A_R_G_E_T       The name of the target; also known as `_@'.  For
-                         compatibility with other makes this is an alias for
-                         _._A_R_C_H_I_V_E in archive member rules.
+           _._T_A_R_G_E_T   The name of the target; also known as `_@'.  For
+                     compatibility with other makes this is an alias for
+                     _._A_R_C_H_I_V_E in archive member rules.
 
      The shorter forms (`_>', `_!', `_<', `_%', `_?', `_*', and `_@') are permitted
      for backward compatibility with historical makefiles and legacy POSIX
@@ -756,8 +756,13 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
              Used to create files in a separate directory, see _._O_B_J_D_I_R.
 
      _M_A_K_E___O_B_J_D_I_R___C_H_E_C_K___W_R_I_T_A_B_L_E
-             Used to force a separate directory for the created files, even if
-             that directory is not writable, see _._O_B_J_D_I_R.
+             When true, bbmmaakkee will check that _._O_B_J_D_I_R is writable, and issue a
+             warning if not.
+
+     _M_A_K_E___D_E_B_U_G___O_B_J_D_I_R___C_H_E_C_K___W_R_I_T_A_B_L_E
+             When true and bbmmaakkee is warning about an unwritable _._O_B_J_D_I_R,
+             report the variables listed in _M_A_K_E___P_R_I_N_T___V_A_R___O_N___E_R_R_O_R to help
+             debug.
 
      _M_A_K_E_O_B_J_D_I_R_P_R_E_F_I_X
              Used to create files in a separate directory, see _._O_B_J_D_I_R.
@@ -1016,6 +1021,9 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
           separator is used.  The common escapes (including octal numeric
           codes) work as expected.
 
+     ::tttt  Converts the first character of each word to upper-case, and the
+          rest to lower-case letters.
+
      ::ttuu  Converts the value to upper-case letters.
 
      ::ttWW  Causes subsequent modifiers to treat the value as a single word
@@ -1230,15 +1238,18 @@ DDIIRREECCTTIIVVEESS
      The directives for exporting and unexporting variables are:
 
      ..eexxppoorrtt _v_a_r_i_a_b_l_e ...
-             Export the specified global variable.  If no variable list is
-             provided, all globals are exported except for internal variables
-             (those that start with `.').  This is not affected by the --XX
-             flag, so should be used with caution.  For compatibility with
-             other make programs, eexxppoorrtt _v_a_r_i_a_b_l_e==_v_a_l_u_e (without leading dot)
-             is also accepted.
+             Export the specified global variable.
+
+             For compatibility with other make programs, eexxppoorrtt _v_a_r_i_a_b_l_e==_v_a_l_u_e
+             (without leading dot) is also accepted.
 
              Appending a variable name to _._M_A_K_E_._E_X_P_O_R_T_E_D is equivalent to
              exporting a variable.
+
+     ..eexxppoorrtt--aallll
+             Export all globals except for internal variables (those that
+             start with `.').  This is not affected by the --XX flag, so should
+             be used with caution.
 
      ..eexxppoorrtt--eennvv _v_a_r_i_a_b_l_e ...
              The same as `.export', except that the variable is not appended
@@ -1617,37 +1628,33 @@ SSPPEECCIIAALL TTAARRGGEETTSS
      ..SSHHEELLLL   Sets the shell that bbmmaakkee uses to execute commands.  The sources
               are a set of _f_i_e_l_d==_v_a_l_u_e pairs.
 
-              name            This is the minimal specification, used to
-                              select one of the built-in shell specs; sh, ksh,
-                              and csh.
+              name        This is the minimal specification, used to select
+                          one of the built-in shell specs; sh, ksh, and csh.
 
-              path            Specifies the absolute path to the shell.
+              path        Specifies the absolute path to the shell.
 
-              hasErrCtl       Indicates whether the shell supports exit on
-                              error.
+              hasErrCtl   Indicates whether the shell supports exit on error.
 
-              check           The command to turn on error checking.
+              check       The command to turn on error checking.
 
-              ignore          The command to disable error checking.
+              ignore      The command to disable error checking.
 
-              echo            The command to turn on echoing of commands
-                              executed.
+              echo        The command to turn on echoing of commands executed.
 
-              quiet           The command to turn off echoing of commands
-                              executed.
+              quiet       The command to turn off echoing of commands
+                          executed.
 
-              filter          The output to filter after issuing the quiet
-                              command.  It is typically identical to quiet.
+              filter      The output to filter after issuing the quiet
+                          command.  It is typically identical to quiet.
 
-              errFlag         The flag to pass the shell to enable error
-                              checking.
+              errFlag     The flag to pass the shell to enable error checking.
 
-              echoFlag        The flag to pass the shell to enable command
-                              echoing.
+              echoFlag    The flag to pass the shell to enable command
+                          echoing.
 
-              newline         The string literal to pass the shell that
-                              results in a single newline character when used
-                              outside of any quoting characters.
+              newline     The string literal to pass the shell that results in
+                          a single newline character when used outside of any
+                          quoting characters.
               Example:
 
               .SHELL: name=ksh path=/bin/ksh hasErrCtl=true \
@@ -1780,4 +1787,4 @@ BBUUGGSS
      attempt to suppress a cascade of unnecessary errors, can result in a
      seemingly unexplained `*** Error code 6'
 
-FreeBSD 13.2-RELEASE-p10         March 9, 2024        FreeBSD 13.2-RELEASE-p10
+FreeBSD 14.1-RELEASE             July 1, 2024             FreeBSD 14.1-RELEASE

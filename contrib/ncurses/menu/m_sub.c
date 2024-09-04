@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2009,2010 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -38,12 +38,12 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_sub.c,v 1.15 2020/12/12 00:38:14 tom Exp $")
+MODULE_ID("$Id: m_sub.c,v 1.16 2021/06/17 21:20:30 tom Exp $")
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnmenu  
+|   Facility      :  libnmenu
 |   Function      :  int set_menu_sub(MENU *menu, WINDOW *win)
-|   
+|
 |   Description   :  Sets the subwindow of the menu.
 |
 |   Return Values :  E_OK           - success
@@ -82,9 +82,9 @@ set_menu_sub(MENU *menu, WINDOW *win)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnmenu  
+|   Facility      :  libnmenu
 |   Function      :  WINDOW* menu_sub(const MENU *menu)
-|   
+|
 |   Description   :  Returns a pointer to the subwindow of the menu
 |
 |   Return Values :  NULL on error, otherwise a pointer to the window

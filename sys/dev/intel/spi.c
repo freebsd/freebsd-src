@@ -527,7 +527,7 @@ intelspi_attach(device_t dev)
 
 	intelspi_init(sc);
 
-	device_add_child(dev, "spibus", -1);
+	device_add_child(dev, "spibus", DEVICE_UNIT_ANY);
 
 	return (bus_delayed_attach_children(dev));
 

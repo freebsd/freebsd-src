@@ -51,3 +51,22 @@ int hostapd_parse_ip_addr(const char *txt, struct hostapd_ip_addr *addr)
 
 	return -1;
 }
+
+
+bool hostapd_ip_equal(const struct hostapd_ip_addr *a,
+		      const struct hostapd_ip_addr *b)
+{
+	if (a->af != b->af)
+		return false;
+
+	if (a->af == AF_INET && a->u.v4.s_addr == b->u.v4.s_addr)
+		return true;
+
+#ifdef CONFIG_IPV6
+	if (a->af == AF_INET6 &&
+	    os_memcmp(&a->u.v6, &b->u.v6, sizeof(a->u.v6)) == 0)
+		return true;
+#endif /* CONFIG_IPV6 */
+
+	return false;
+}

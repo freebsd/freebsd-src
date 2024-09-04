@@ -67,13 +67,16 @@ ATF_TC_BODY(test_setinvalidcpu, tc)
 {
 	size_t cpusetsize;
 	cpuset_t *set;
+	int cpu;
+
+	cpu = maxcpuid > 1 ? maxcpuid - 1 : 0;
 
 	cpusetsize = CPU_ALLOC_SIZE(maxcpuid + 1);
 	set = CPU_ALLOC(maxcpuid + 1);
 	ATF_REQUIRE(set != NULL);
 	CPU_ZERO_S(cpusetsize, set);
 	CPU_SET_S(maxcpuid + 1, cpusetsize, set);
-	CPU_SET_S(maxcpuid - 1, cpusetsize, set);
+	CPU_SET_S(cpu, cpusetsize, set);
 	ATF_REQUIRE(sched_setaffinity(0, cpusetsize, set) == 0);
 	CPU_FREE(set);
 
@@ -82,7 +85,7 @@ ATF_TC_BODY(test_setinvalidcpu, tc)
 	ATF_REQUIRE(set != NULL);
 	CPU_ZERO_S(cpusetsize, set);
 	CPU_SET_S(maxcpuid + 1, cpusetsize, set);
-	CPU_SET_S(maxcpuid - 1, cpusetsize, set);
+	CPU_SET_S(cpu, cpusetsize, set);
 	ATF_REQUIRE(cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID,
 	    -1, cpusetsize, set) == -1);
 	ATF_REQUIRE_EQ(errno, EINVAL);

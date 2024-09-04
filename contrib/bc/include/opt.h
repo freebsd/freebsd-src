@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2024 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -47,7 +47,7 @@
 typedef struct BcOpt
 {
 	/// The array of arguments.
-	char** argv;
+	const char** argv;
 
 	/// The index of the current argument.
 	size_t optind;
@@ -59,7 +59,7 @@ typedef struct BcOpt
 	int subopt;
 
 	/// The option argument.
-	char* optarg;
+	const char* optarg;
 
 } BcOpt;
 
@@ -103,7 +103,7 @@ typedef struct BcOptLong
  * @param argv  The array of arguments.
  */
 void
-bc_opt_init(BcOpt* o, char** argv);
+bc_opt_init(BcOpt* o, const char** argv);
 
 /**
  * Parse an option. This returns a value the same way getopt() and getopt_long()

@@ -1,4 +1,3 @@
-
 PACKAGE=	dpv
 
 PROG=		dpv

@@ -1,4 +1,3 @@
-
 PROG_CXX=	llvm-dwarfdump
 
 SRCDIR=		llvm/tools/llvm-dwarfdump

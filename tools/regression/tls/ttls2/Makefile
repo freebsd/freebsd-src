@@ -1,4 +1,3 @@
-
 PROG=	ttls2
 LIBADD= pthread
 MAN=

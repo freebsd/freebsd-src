@@ -164,6 +164,12 @@ if citype == "config-2" then
 		nuage.err("nuageinit: error parsing config-2: meta_data.json: " .. err)
 	end
 	local obj = parser:get_object()
+	if obj.public_keys then
+		local homedir = nuage.adduser(default_user)
+		for _,v in pairs(obj.public_keys) do
+			nuage.addsshkey(homedir, v)
+		end
+	end
 	nuage.sethostname(obj["hostname"])
 
 	-- network
@@ -190,18 +196,27 @@ else
 end
 
 -- deal with user-data
-local f = io.open(path..'/user-data', "r")
+local ud = nil
+local f = nil
+userdatas = { "user-data", "user_data" }
+for _,v in pairs(userdatas) do
+	f = io.open(path..'/' .. v, "r")
+	if f then
+		ud = v
+		break
+	end
+end
 if not f then
 	os.exit(0)
 end
 local line = f:read('*l')
 f:close()
 if line == "#cloud-config" then
-	f = io.open(path.."/user-data")
+	f = io.open(path.."/" .. ud)
 	local obj = yaml.eval(f:read("*a"))
 	f:close()
 	if not obj then
-		nuage.err("nuageinit: error parsing cloud-config file: user-data")
+		nuage.err("nuageinit: error parsing cloud-config file: " .. ud)
 	end
 	if obj.groups then
 		for n,g in pairs(obj.groups) do
@@ -298,7 +313,7 @@ if line == "#cloud-config" then
 		routing:close()
 	end
 else
-	local res,err = os.execute(path..'/user-data')
+	local res,err = os.execute(path..'/' .. ud)
 	if not res then
 		nuage.err("nuageinit: error executing user-data script: ".. err)
 	end

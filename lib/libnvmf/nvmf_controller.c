@@ -425,6 +425,7 @@ nvmf_init_io_controller_data(struct nvmf_qpair *qp, const char *serial,
 
 	uname(&utsname);
 
+	memset(cdata, 0, sizeof(*cdata));
 	_nvmf_init_io_controller_data(qp->nq_cntlid, na->na_params.max_io_qsize,
 	    serial, utsname.sysname, utsname.release, subnqn, nn, ioccsz,
 	    sizeof(struct nvme_completion), cdata);

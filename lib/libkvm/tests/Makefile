@@ -1,4 +1,3 @@
-
 .include <bsd.own.mk>
 
 ATF_TESTS_C+=	kvm_close_test

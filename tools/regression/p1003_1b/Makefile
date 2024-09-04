@@ -1,4 +1,3 @@
-
 PROG=p1003_1b
 
 SRCS=\

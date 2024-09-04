@@ -1519,8 +1519,7 @@ mwl_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 
 	if (k->wk_keyix != IEEE80211_KEYIX_NONE ||
 	    (k->wk_flags & IEEE80211_KEY_GROUP)) {
-		if (!(&vap->iv_nw_keys[0] <= k &&
-		      k < &vap->iv_nw_keys[IEEE80211_WEP_NKID])) {
+		if (!ieee80211_is_key_global(vap, k)) {
 			/* should not happen */
 			DPRINTF(sc, MWL_DEBUG_KEYCACHE,
 				"%s: bogus group key\n", __func__);

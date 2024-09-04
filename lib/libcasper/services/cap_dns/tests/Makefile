@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 ATF_TESTS_C=	dns_test

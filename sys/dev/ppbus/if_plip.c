@@ -216,7 +216,7 @@ lp_identify(driver_t *driver, device_t parent)
 
 	dev = device_find_child(parent, "plip", -1);
 	if (!dev)
-		BUS_ADD_CHILD(parent, 0, "plip", -1);
+		BUS_ADD_CHILD(parent, 0, "plip", DEVICE_UNIT_ANY);
 }
 
 static int
@@ -249,10 +249,6 @@ lp_attach(device_t dev)
 	}
 
 	ifp = lp->sc_ifp = if_alloc(IFT_PARA);
-	if (ifp == NULL) {
-		return (ENOSPC);
-	}
-
 	if_setsoftc(ifp, lp);
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	if_setmtu(ifp, LPMTU);

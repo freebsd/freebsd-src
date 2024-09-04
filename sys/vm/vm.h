@@ -170,7 +170,6 @@ bool swap_reserve_by_cred(vm_ooffset_t incr, struct ucred *cred);
 void swap_reserve_force(vm_ooffset_t incr);
 void swap_release(vm_ooffset_t decr);
 void swap_release_by_cred(vm_ooffset_t decr, struct ucred *cred);
-void swapper(void);
 
 extern struct kva_md_info	kmi;
 #define VA_IS_CLEANMAP(va)					\

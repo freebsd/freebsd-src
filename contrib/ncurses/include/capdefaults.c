@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2000,2008 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -33,11 +33,11 @@
  *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
-/* $Id: capdefaults.c,v 1.15 2020/02/02 23:34:34 tom Exp $ */
+/* $Id: capdefaults.c,v 1.16 2021/09/04 10:52:55 tom Exp $ */
 
     /*
      * Compute obsolete capabilities.  The reason this is an include file is
-     * that the two places where it's needed want the macros to generate
+     * that the two places where it is needed require the macros to generate
      * offsets to different structures.  See the file Caps for explanations of
      * these conversions.
      *

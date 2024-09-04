@@ -1,4 +1,3 @@
-
 PACKAGE=ufs
 PROG=	clri
 MAN=	clri.8

@@ -85,6 +85,8 @@ int wpas_er_wps_nfc_report_handover(struct wpa_supplicant *wpa_s,
 				    const struct wpabuf *sel);
 void wpas_wps_update_ap_info(struct wpa_supplicant *wpa_s,
 			     struct wpa_scan_results *scan_res);
+bool wpas_wps_partner_link_scan_done(struct wpa_supplicant *wpa_s);
+bool wpas_wps_partner_link_overlap_detect(struct wpa_supplicant *wpa_s);
 void wpas_wps_notify_assoc(struct wpa_supplicant *wpa_s, const u8 *bssid);
 int wpas_wps_reenable_networks_pending(struct wpa_supplicant *wpa_s);
 
@@ -142,6 +144,17 @@ static inline int wpas_wps_searching(struct wpa_supplicant *wpa_s)
 static inline void wpas_wps_update_ap_info(struct wpa_supplicant *wpa_s,
 					   struct wpa_scan_results *scan_res)
 {
+}
+
+static inline bool wpas_wps_partner_link_scan_done(struct wpa_supplicant *wpa_s)
+{
+	return true;
+}
+
+static inline bool
+wpas_wps_partner_link_overlap_detect(struct wpa_supplicant *wpa_s)
+{
+	return false;
 }
 
 static inline void wpas_wps_notify_assoc(struct wpa_supplicant *wpa_s,

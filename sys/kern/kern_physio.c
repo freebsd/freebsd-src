@@ -87,12 +87,6 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 		return (EFBIG);
 	}
 
-	/*
-	 * Keep the process UPAGES from being swapped.  Processes swapped
-	 * out while holding pbufs, used by swapper, may lead to deadlock.
-	 */
-	PHOLD(curproc);
-
 	bp = g_alloc_bio();
 	if (uio->uio_segflg != UIO_USERSPACE) {
 		pbuf = NULL;
@@ -209,6 +203,5 @@ doerror:
 	else if (pages)
 		free(pages, M_DEVBUF);
 	g_destroy_bio(bp);
-	PRELE(curproc);
 	return (error);
 }

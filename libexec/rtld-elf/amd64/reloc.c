@@ -499,7 +499,7 @@ reloc_gnu_ifunc(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 uint32_t cpu_feature, cpu_feature2, cpu_stdext_feature, cpu_stdext_feature2;
 
 void
-ifunc_init(Elf_Auxinfo aux_info[__min_size(AT_COUNT)] __unused)
+ifunc_init(Elf_Auxinfo *aux_info[__min_size(AT_COUNT)] __unused)
 {
 	u_int p[4], cpu_high;
 

@@ -1,4 +1,4 @@
-/*	$NetBSD: targ.c,v 1.181 2024/04/27 17:33:47 rillig Exp $	*/
+/*	$NetBSD: targ.c,v 1.184 2024/07/07 09:54:12 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -107,7 +107,7 @@
 #include "dir.h"
 
 /*	"@(#)targ.c	8.2 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: targ.c,v 1.181 2024/04/27 17:33:47 rillig Exp $");
+MAKE_RCSID("$NetBSD: targ.c,v 1.184 2024/07/07 09:54:12 rillig Exp $");
 
 /*
  * All target nodes that appeared on the left-hand side of one of the
@@ -126,23 +126,24 @@ void
 Targ_Init(void)
 {
 	HashTable_Init(&allTargetsByName);
+	SCOPE_INTERNAL = GNode_New("Internal");
+	SCOPE_GLOBAL = GNode_New("Global");
+	SCOPE_CMDLINE = GNode_New("Command");
 }
 
+#ifdef CLEANUP
 void
 Targ_End(void)
 {
-#ifdef CLEANUP
 	GNodeListNode *ln;
-#endif
-	Targ_Stats();
-#ifdef CLEANUP
+
 	Lst_Done(&allTargets);
 	HashTable_Done(&allTargetsByName);
 	for (ln = allNodes.first; ln != NULL; ln = ln->next)
 		GNode_Free(ln->datum);
 	Lst_Done(&allNodes);
-#endif
 }
+#endif
 
 void
 Targ_Stats(void)
@@ -219,6 +220,8 @@ GNode_New(const char *name)
 static void
 GNode_Free(GNode *gn)
 {
+	Var_DeleteAll(gn);
+
 	free(gn->name);
 	free(gn->uname);
 	free(gn->path);
@@ -236,20 +239,6 @@ GNode_Free(GNode *gn)
 	Lst_Done(&gn->order_succ);
 	Lst_Done(&gn->cohorts);
 
-	/*
-	 * Do not free the variables themselves, even though they are owned
-	 * by this node.
-	 *
-	 * XXX: For the nodes that represent targets or sources (and not
-	 * SCOPE_GLOBAL), it should be safe to free the variables as well,
-	 * since each node manages the memory for all its variables itself.
-	 *
-	 * XXX: The GNodes that are only used as variable scopes (SCOPE_CMD,
-	 * SCOPE_GLOBAL, SCOPE_INTERNAL) are not freed at all (see Var_End,
-	 * where they are not mentioned).  These may be freed if their
-	 * variable values are indeed not used anywhere else (see Trace_Init
-	 * for the only suspicious use).
-	 */
 	HashTable_Done(&gn->vars);
 
 	/*

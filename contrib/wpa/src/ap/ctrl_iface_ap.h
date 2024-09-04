@@ -37,4 +37,21 @@ int hostapd_ctrl_iface_pmksa_list_mesh(struct hostapd_data *hapd,
 				       const u8 *addr, char *buf, size_t len);
 void * hostapd_ctrl_iface_pmksa_create_entry(const u8 *aa, char *cmd);
 
+int hostapd_ctrl_iface_disassoc_imminent(struct hostapd_data *hapd,
+					 const char *cmd);
+int hostapd_ctrl_iface_ess_disassoc(struct hostapd_data *hapd,
+				    const char *cmd);
+int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
+				  const char *cmd);
+int hostapd_ctrl_iface_acl_add_mac(struct mac_acl_entry **acl, int *num,
+				   const char *cmd);
+int hostapd_ctrl_iface_acl_del_mac(struct mac_acl_entry **acl, int *num,
+				   const char *txtaddr);
+void hostapd_ctrl_iface_acl_clear_list(struct mac_acl_entry **acl,
+				       int *num);
+int hostapd_ctrl_iface_acl_show_mac(struct mac_acl_entry *acl, int num,
+				    char *buf, size_t buflen);
+int hostapd_disassoc_accept_mac(struct hostapd_data *hapd);
+int hostapd_disassoc_deny_mac(struct hostapd_data *hapd);
+
 #endif /* CTRL_IFACE_AP_H */

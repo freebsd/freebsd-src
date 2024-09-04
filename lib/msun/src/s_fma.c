@@ -222,17 +222,17 @@ fma(double x, double y, double z)
 		case FE_TONEAREST:
 			return (z);
 		case FE_TOWARDZERO:
-			if (x > 0.0 ^ y < 0.0 ^ z < 0.0)
+			if ((x > 0.0) ^ (y < 0.0) ^ (z < 0.0))
 				return (z);
 			else
 				return (nextafter(z, 0));
 		case FE_DOWNWARD:
-			if (x > 0.0 ^ y < 0.0)
+			if ((x > 0.0) ^ (y < 0.0))
 				return (z);
 			else
 				return (nextafter(z, -INFINITY));
 		default:	/* FE_UPWARD */
-			if (x > 0.0 ^ y < 0.0)
+			if ((x > 0.0) ^ (y < 0.0))
 				return (nextafter(z, INFINITY));
 			else
 				return (z);
@@ -260,14 +260,14 @@ fma(double x, double y, double z)
 
 	spread = ex + ey;
 
-	if (r.hi == 0.0) {
+	if (r.hi == 0.0 && xy.lo == 0) {
 		/*
 		 * When the addends cancel to 0, ensure that the result has
 		 * the correct sign.
 		 */
 		fesetround(oround);
 		volatile double vzs = zs; /* XXX gcc CSE bug workaround */
-		return (xy.hi + vzs + ldexp(xy.lo, spread));
+		return (xy.hi + vzs);
 	}
 
 	if (oround != FE_TONEAREST) {

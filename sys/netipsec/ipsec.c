@@ -85,6 +85,7 @@
 #ifdef INET6
 #include <netipsec/ipsec6.h>
 #endif
+#include <netipsec/ipsec_offload.h>
 #include <netipsec/ah_var.h>
 #include <netipsec/esp_var.h>
 #include <netipsec/ipcomp.h>		/*XXX*/
@@ -171,8 +172,6 @@ VNET_DEFINE(int, natt_cksum_policy) = 0;
 FEATURE(ipsec, "Internet Protocol Security (IPsec)");
 FEATURE(ipsec_natt, "UDP Encapsulation of IPsec ESP Packets ('NAT-T')");
 
-SYSCTL_DECL(_net_inet_ipsec);
-
 /* net.inet.ipsec */
 SYSCTL_PROC(_net_inet_ipsec, IPSECCTL_DEF_POLICY, def_policy,
     CTLTYPE_INT | CTLFLAG_VNET | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
@@ -255,8 +254,6 @@ VNET_DEFINE(int, ip6_ipsec_ecn) = 0;	/* ECN ignore(-1)/forbidden(0)/allowed(1) *
 
 VNET_DEFINE_STATIC(int, ip6_filtertunnel) = 0;
 #define	V_ip6_filtertunnel	VNET(ip6_filtertunnel)
-
-SYSCTL_DECL(_net_inet6_ipsec6);
 
 /* net.inet6.ipsec6 */
 SYSCTL_PROC(_net_inet6_ipsec6, IPSECCTL_DEF_POLICY, def_policy,
@@ -636,8 +633,16 @@ int
 ipsec4_in_reject(const struct mbuf *m, struct inpcb *inp)
 {
 	struct secpolicy *sp;
+#ifdef IPSEC_OFFLOAD
+	struct ipsec_accel_in_tag *tag;
+#endif
 	int result;
 
+#ifdef IPSEC_OFFLOAD
+	tag = ipsec_accel_input_tag_lookup(m);
+	if (tag != NULL)
+		return (0);
+#endif
 	sp = ipsec4_getpolicy(m, inp, IPSEC_DIR_INBOUND, 0);
 	result = ipsec_in_reject(sp, inp, m);
 	key_freesp(&sp);
@@ -802,8 +807,16 @@ int
 ipsec6_in_reject(const struct mbuf *m, struct inpcb *inp)
 {
 	struct secpolicy *sp;
+#ifdef IPSEC_OFFLOAD
+	struct ipsec_accel_in_tag *tag;
+#endif
 	int result;
 
+#ifdef IPSEC_OFFLOAD
+	tag = ipsec_accel_input_tag_lookup(m);
+	if (tag != NULL)
+		return (0);
+#endif
 	sp = ipsec6_getpolicy(m, inp, IPSEC_DIR_INBOUND, 0);
 	result = ipsec_in_reject(sp, inp, m);
 	key_freesp(&sp);

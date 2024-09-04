@@ -42,6 +42,12 @@
 #ifndef _LKPI_SRC_LINUX_80211_H
 #define _LKPI_SRC_LINUX_80211_H
 
+#include "opt_wlan.h"
+
+#if defined(IEEE80211_DEBUG) && !defined(LINUXKPI_DEBUG_80211)
+#define	LINUXKPI_DEBUG_80211
+#endif
+
 /* #define	LINUXKPI_DEBUG_80211 */
 
 #ifndef	D80211_TODO
@@ -159,6 +165,7 @@ struct lkpi_sta {
 struct lkpi_vif {
         TAILQ_ENTRY(lkpi_vif)	lvif_entry;
 	struct ieee80211vap	iv_vap;
+	eventhandler_tag	lvif_ifllevent;
 
 	struct mtx		mtx;
 	struct wireless_dev	wdev;

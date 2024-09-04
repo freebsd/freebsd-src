@@ -98,18 +98,16 @@ linux_msleep_interruptible(unsigned int ms)
 static int
 wake_up_task(struct task_struct *task, unsigned int state)
 {
-	int ret, wakeup_swapper;
+	int ret;
 
-	ret = wakeup_swapper = 0;
+	ret = 0;
 	sleepq_lock(task);
 	if ((atomic_read(&task->state) & state) != 0) {
 		set_task_state(task, TASK_WAKING);
-		wakeup_swapper = sleepq_signal(task, SLEEPQ_SLEEP, 0, 0);
+		sleepq_signal(task, SLEEPQ_SLEEP, 0, 0);
 		ret = 1;
 	}
 	sleepq_release(task);
-	if (wakeup_swapper)
-		kick_proc0();
 	return (ret);
 }
 
@@ -268,11 +266,6 @@ linux_wait_event_common(wait_queue_head_t *wqh, wait_queue_t *wq, int timeout,
 
 	task = current;
 
-	/*
-	 * Our wait queue entry is on the stack - make sure it doesn't
-	 * get swapped out while we sleep.
-	 */
-	PHOLD(task->task_thread->td_proc);
 	sleepq_lock(task);
 	if (atomic_read(&task->state) != TASK_WAKING) {
 		ret = linux_add_to_sleepqueue(task, task, "wevent", timeout,
@@ -281,7 +274,6 @@ linux_wait_event_common(wait_queue_head_t *wqh, wait_queue_t *wq, int timeout,
 		sleepq_release(task);
 		ret = 0;
 	}
-	PRELE(task->task_thread->td_proc);
 
 	if (lock != NULL)
 		spin_lock_irq(lock);
@@ -336,13 +328,9 @@ linux_schedule_timeout(int timeout)
 static void
 wake_up_sleepers(void *wchan)
 {
-	int wakeup_swapper;
-
 	sleepq_lock(wchan);
-	wakeup_swapper = sleepq_signal(wchan, SLEEPQ_SLEEP, 0, 0);
+	sleepq_signal(wchan, SLEEPQ_SLEEP, 0, 0);
 	sleepq_release(wchan);
-	if (wakeup_swapper)
-		kick_proc0();
 }
 
 #define	bit_to_wchan(word, bit)	((void *)(((uintptr_t)(word) << 6) | (bit)))

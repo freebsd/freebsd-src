@@ -132,7 +132,7 @@ qpi_probe_pcib(device_t dev, int bus)
 		return (ENXIO);
 	}
 
-	child = BUS_ADD_CHILD(dev, 0, "pcib", -1);
+	child = BUS_ADD_CHILD(dev, 0, "pcib", DEVICE_UNIT_ANY);
 	if (child == NULL)
 		panic("%s: failed to add pci bus %d", device_get_nameunit(dev),
 		    bus);
@@ -226,7 +226,7 @@ static int
 qpi_pcib_attach(device_t dev)
 {
 
-	device_add_child(dev, "pci", -1);
+	device_add_child(dev, "pci", DEVICE_UNIT_ANY);
 	return (bus_generic_attach(dev));
 }
 
@@ -246,7 +246,6 @@ qpi_pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	}
 }
 
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 static struct resource *
 qpi_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
@@ -258,7 +257,6 @@ qpi_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
 	    count, flags));
 }
-#endif
 
 static int
 qpi_pcib_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr,
@@ -280,18 +278,11 @@ static device_method_t qpi_pcib_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	qpi_pcib_read_ivar),
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	DEVMETHOD(bus_alloc_resource,	qpi_pcib_alloc_resource),
 	DEVMETHOD(bus_adjust_resource,	legacy_pcib_adjust_resource),
 	DEVMETHOD(bus_release_resource,	legacy_pcib_release_resource),
 	DEVMETHOD(bus_activate_resource, legacy_pcib_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, legacy_pcib_deactivate_resource),
-#else
-	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
-#endif
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 

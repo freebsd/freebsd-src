@@ -558,14 +558,7 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	d->lock = snd_mtxcreate(device_get_nameunit(dev), "sound cdev");
 	cv_init(&d->cv, device_get_nameunit(dev));
 	PCM_ACQUIRE_QUICK(d);
-#if 0
-	/*
-	 * d->flags should be cleared by the allocator of the softc.
-	 * We cannot clear this field here because several devices set
-	 * this flag before calling pcm_register().
-	 */
-	d->flags = 0;
-#endif
+
 	i = 0;
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "vpc", &i) != 0 || i != 0)

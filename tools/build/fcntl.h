@@ -29,13 +29,6 @@
 
 #include_next <fcntl.h>
 
-/*
- * On FreeBSD fcntl.h indirectly brings in cdefs.h. On Linux with musl, it does
- * not. Unconditionally inlude it here since there's no harm in including it
- * multiple times since we use __BEGIN_DECLS and __END_DECLS from it below.
- */
-#include <sys/cdefs.h>
-
 struct spacectl_range {
 	off_t	r_offset;
 	off_t	r_len;

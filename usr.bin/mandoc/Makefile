@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 MANDOCDIR=	${SRCTOP}/contrib/mandoc

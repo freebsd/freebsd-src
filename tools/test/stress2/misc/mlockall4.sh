@@ -26,7 +26,7 @@
 # SUCH DAMAGE.
 #
 
-# mlockall(2) / nullfs(5) scenario causes:
+# mlockall(2) / nullfs(4) scenario causes:
 # http://people.freebsd.org/~pho/stress/log/kostik619.txt
 # kern/182661, fixed in r256211.
 

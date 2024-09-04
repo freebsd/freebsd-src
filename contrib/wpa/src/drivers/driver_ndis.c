@@ -1248,7 +1248,7 @@ static int wpa_driver_ndis_add_pmkid(void *priv,
 	prev = NULL;
 	entry = drv->pmkid;
 	while (entry) {
-		if (os_memcmp(entry->bssid, bssid, ETH_ALEN) == 0)
+		if (ether_addr_equal(entry->bssid, bssid))
 			break;
 		prev = entry;
 		entry = entry->next;
@@ -1293,7 +1293,7 @@ static int wpa_driver_ndis_remove_pmkid(void *priv,
 	entry = drv->pmkid;
 	prev = NULL;
 	while (entry) {
-		if (os_memcmp(entry->bssid, bssid, ETH_ALEN) == 0 &&
+		if (ether_addr_equal(entry->bssid, bssid) &&
 		    os_memcmp(entry->pmkid, pmkid, 16) == 0) {
 			if (prev)
 				prev->next = entry->next;
@@ -1434,7 +1434,7 @@ static int wpa_driver_ndis_get_associnfo(struct wpa_driver_ndis_data *drv)
 	pos = (char *) &b->Bssid[0];
 	for (i = 0; i < b->NumberOfItems; i++) {
 		NDIS_WLAN_BSSID_EX *bss = (NDIS_WLAN_BSSID_EX *) pos;
-		if (os_memcmp(drv->bssid, bss->MacAddress, ETH_ALEN) == 0 &&
+		if (ether_addr_equal(drv->bssid, bss->MacAddress) &&
 		    bss->IELength > sizeof(NDIS_802_11_FIXED_IEs)) {
 			data.assoc_info.beacon_ies =
 				((u8 *) bss->IEs) +
@@ -1477,7 +1477,7 @@ static void wpa_driver_ndis_poll_timeout(void *eloop_ctx, void *timeout_ctx)
 		}
 	} else {
 		/* Connected */
-		if (os_memcmp(drv->bssid, bssid, ETH_ALEN) != 0) {
+		if (!ether_addr_equal(drv->bssid, bssid)) {
 			os_memcpy(drv->bssid, bssid, ETH_ALEN);
 			wpa_driver_ndis_get_associnfo(drv);
 			wpa_supplicant_event(drv->ctx, EVENT_ASSOC, NULL);

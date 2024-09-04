@@ -1,4 +1,3 @@
-
 PROG=	camdd
 SRCS=	camdd.c
 SDIR=	${SRCTOP}/sys

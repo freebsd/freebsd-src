@@ -615,12 +615,9 @@ superio_detect(device_t dev, bool claim, struct siosc *sc)
 	if (superio_table[i].descr != NULL) {
 		device_set_desc(dev, superio_table[i].descr);
 	} else if (sc->vendor == SUPERIO_VENDOR_ITE) {
-		char descr[64];
-
-		snprintf(descr, sizeof(descr),
+		device_set_descf(dev,
 		    "ITE IT%4x SuperIO (revision 0x%02x)",
 		    sc->devid, sc->revid);
-		device_set_desc_copy(dev, descr);
 	}
 	return (0);
 }
@@ -688,7 +685,7 @@ superio_add_known_child(device_t dev, superio_dev_type_t type, uint8_t ldn)
 	struct superio_devinfo *dinfo;
 	device_t child;
 
-	child = BUS_ADD_CHILD(dev, 0, NULL, -1);
+	child = BUS_ADD_CHILD(dev, 0, NULL, DEVICE_UNIT_ANY);
 	if (child == NULL) {
 		device_printf(dev, "failed to add child for ldn %d, type %s\n",
 		    ldn, devtype_to_str(type));

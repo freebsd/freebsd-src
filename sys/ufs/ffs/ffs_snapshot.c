@@ -222,6 +222,15 @@ ffs_snapshot(struct mount *mp, char *snapfile)
 	ump = VFSTOUFS(mp);
 	fs = ump->um_fs;
 	sn = NULL;
+	/*
+	 * At the moment, filesystems using gjournal cannot support
+	 * taking snapshots.
+	 */
+	if ((mp->mnt_flag & MNT_GJOURNAL) != 0) {
+		vfs_mount_error(mp, "%s: Snapshots are not yet supported when "
+		    "using gjournal", fs->fs_fsmnt);
+		return (EOPNOTSUPP);
+	}
 	MNT_ILOCK(mp);
 	flag = mp->mnt_flag;
 	MNT_IUNLOCK(mp);

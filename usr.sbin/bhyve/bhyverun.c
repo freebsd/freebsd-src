@@ -413,7 +413,8 @@ fbsdrun_addcpu(int vcpuid)
 
 	CPU_SET_ATOMIC(vcpuid, &cpumask);
 
-	vm_suspend_cpu(vi->vcpu);
+	error = vm_suspend_cpu(vi->vcpu);
+	assert(error == 0);
 
 	error = pthread_create(&thr, NULL, fbsdrun_start_thread, vi);
 	assert(error == 0);
@@ -524,12 +525,7 @@ do_open(const char *vmname)
 
 	reinit = false;
 
-#ifdef __amd64__
-	romboot = lpc_bootrom() != NULL;
-#else
-	romboot = true;
-#endif
-
+	romboot = bootrom_boot();
 	error = vm_create(vmname);
 	if (error) {
 		if (errno == EEXIST) {

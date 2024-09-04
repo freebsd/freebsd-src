@@ -26,7 +26,7 @@
 # SUCH DAMAGE.
 #
 
-# procfs(5) test scenario.
+# procfs(4) test scenario.
 # "panic: wchan 0xc10a4f68 has no wmesg" seen
 
 [ `id -u ` -ne 0 ] && echo "Must be root!" && exit 1

@@ -1539,9 +1539,14 @@ ieee80211_parse_rsn(struct ieee80211vap *vap, const uint8_t *frm,
 		rsn->rsn_keymgmt = RSN_ASE_8021X_PSK;
 
 	/* optional RSN capabilities */
-	if (len > 2)
+	if (len >= 2) {
 		rsn->rsn_caps = le16dec(frm);
-	/* XXXPMKID */
+		frm += 2, len -= 2;
+	}
+
+	/* XXX PMK Count / PMKID */
+
+	/* XXX Group Cipher Management Suite */
 
 	return 0;
 }
@@ -1812,7 +1817,7 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 				 * XXX check if the beacon we recv'd gives
 				 * us what we need and suppress the probe req
 				 */
-				ieee80211_probe_curchan(vap, 1);
+				ieee80211_probe_curchan(vap, true);
 				ic->ic_flags_ext &= ~IEEE80211_FEXT_PROBECHAN;
 			}
 			ieee80211_add_scan(vap, ic->ic_curchan, &scan, wh,

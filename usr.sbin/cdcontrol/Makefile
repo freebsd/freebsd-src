@@ -1,4 +1,3 @@
-
 PROG= cdcontrol
 
 LIBADD=	edit

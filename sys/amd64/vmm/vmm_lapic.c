@@ -33,8 +33,9 @@
 #include <x86/specialreg.h>
 #include <x86/apicreg.h>
 
+#include <dev/vmm/vmm_ktr.h>
+
 #include <machine/vmm.h>
-#include "vmm_ktr.h"
 #include "vmm_lapic.h"
 #include "vlapic.h"
 

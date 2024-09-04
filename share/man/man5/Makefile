@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 #MISSING: dump.5 plot.5
@@ -35,6 +34,7 @@ MAN=	acct.5 \
 	nsmb.conf.5 \
 	nsswitch.conf.5 \
 	os-release.5 \
+	p9fs.5 \
 	passwd.5 \
 	pbm.5 \
 	periodic.conf.5 \

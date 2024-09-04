@@ -560,7 +560,7 @@ mlx_startup(struct mlx_softc *sc)
 		dr->ms_sectors = 63;
 		dr->ms_cylinders = dr->ms_size / (255 * 63);
 	    }
-	    dr->ms_disk =  device_add_child(sc->mlx_dev, /*"mlxd"*/NULL, -1);
+	    dr->ms_disk =  device_add_child(sc->mlx_dev, /*"mlxd"*/NULL, DEVICE_UNIT_ANY);
 	    if (dr->ms_disk == 0)
 		device_printf(sc->mlx_dev, "device_add_child failed\n");
 	    device_set_ivars(dr->ms_disk, dr);
@@ -2075,8 +2075,8 @@ mlx_user_command(struct mlx_softc *sc, struct mlx_usercommand *mu)
 	    goto out;
 	}
 	MLX_IO_UNLOCK(sc);
-	if (((kbuf = malloc(mu->mu_datasize, M_DEVBUF, M_WAITOK)) == NULL) ||
-	    (error = copyin(mu->mu_buf, kbuf, mu->mu_datasize))) {
+	kbuf = malloc(mu->mu_datasize, M_DEVBUF, M_WAITOK);
+	if ((error = copyin(mu->mu_buf, kbuf, mu->mu_datasize))) {
 	    MLX_IO_LOCK(sc);
 	    goto out;
 	}

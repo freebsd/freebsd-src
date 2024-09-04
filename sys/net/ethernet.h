@@ -40,7 +40,6 @@
 /*
  * Ethernet-specific mbuf flags.
  */
-#define	M_HASFCS	M_PROTO5	/* FCS included at end of frame */
 #define	M_BRIDGE_INJECT	M_PROTO6	/* if_bridge-injected frame */
 
 /*

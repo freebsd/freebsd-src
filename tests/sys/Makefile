@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 TESTSDIR=		${TESTSBASE}/sys
@@ -31,6 +30,7 @@ TESTS_SUBDIRS+=		netpfil
 TESTS_SUBDIRS+=		opencrypto
 TESTS_SUBDIRS+=		posixshm
 TESTS_SUBDIRS+=		ses
+TESTS_SUBDIRS+=		sound
 TESTS_SUBDIRS+=		sys
 TESTS_SUBDIRS+=		vfs
 TESTS_SUBDIRS+=		vm

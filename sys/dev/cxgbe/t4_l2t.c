@@ -73,7 +73,8 @@ t4_alloc_l2e(struct l2t_data *d)
 	struct l2t_entry *end, *e, **p;
 
 	rw_assert(&d->lock, RA_WLOCKED);
-
+	if (__predict_false(d->l2t_stopped))
+		return (NULL);
 	if (!atomic_load_acq_int(&d->nfree))
 		return (NULL);
 
@@ -291,7 +292,10 @@ t4_l2t_alloc_switching(struct adapter *sc, uint16_t vlan, uint8_t port,
 	int rc;
 
 	rw_wlock(&d->lock);
-	e = find_or_alloc_l2e(d, vlan, port, eth_addr);
+	if (__predict_false(d->l2t_stopped))
+		e = NULL;
+	else
+		e = find_or_alloc_l2e(d, vlan, port, eth_addr);
 	if (e) {
 		if (atomic_load_acq_int(&e->refcnt) == 0) {
 			mtx_lock(&e->lock);    /* avoid race with t4_l2t_free */
@@ -333,6 +337,7 @@ t4_init_l2t(struct adapter *sc, int flags)
 		return (ENOMEM);
 
 	d->l2t_size = l2t_size;
+	d->l2t_stopped = false;
 	d->rover = d->l2tab;
 	atomic_store_rel_int(&d->nfree, l2t_size);
 	rw_init(&d->lock, "L2T");
@@ -353,8 +358,9 @@ t4_init_l2t(struct adapter *sc, int flags)
 }
 
 int
-t4_free_l2t(struct l2t_data *d)
+t4_free_l2t(struct adapter *sc)
 {
+	struct l2t_data *d = sc->l2t;
 	int i;
 
 	for (i = 0; i < d->l2t_size; i++)
@@ -366,17 +372,46 @@ t4_free_l2t(struct l2t_data *d)
 }
 
 int
+t4_stop_l2t(struct adapter *sc)
+{
+	struct l2t_data *d = sc->l2t;
+
+	rw_wlock(&d->lock);
+	d->l2t_stopped = true;
+	rw_wunlock(&d->lock);
+
+	return (0);
+}
+
+int
+t4_restart_l2t(struct adapter *sc)
+{
+	struct l2t_data *d = sc->l2t;
+
+	rw_wlock(&d->lock);
+	d->l2t_stopped = false;
+	rw_wunlock(&d->lock);
+
+	return (0);
+}
+
+int
 do_l2t_write_rpl(struct sge_iq *iq, const struct rss_header *rss,
     struct mbuf *m)
 {
+	struct adapter *sc = iq->adapter;
 	const struct cpl_l2t_write_rpl *rpl = (const void *)(rss + 1);
-	unsigned int tid = GET_TID(rpl);
-	unsigned int idx = tid % L2T_SIZE;
+	const u_int hwidx = GET_TID(rpl) & ~(F_SYNC_WR | V_TID_QID(M_TID_QID));
+	const bool sync = GET_TID(rpl) & F_SYNC_WR;
 
-	if (__predict_false(rpl->status != CPL_ERR_NONE)) {
-		log(LOG_ERR,
-		    "Unexpected L2T_WRITE_RPL (%u) for entry at hw_idx %u\n",
-		    rpl->status, idx);
+	MPASS(iq->abs_id == G_TID_QID(GET_TID(rpl)));
+
+	if (__predict_false(hwidx < sc->vres.l2t.start) ||
+	    __predict_false(hwidx >= sc->vres.l2t.start + sc->vres.l2t.size) ||
+	    __predict_false(rpl->status != CPL_ERR_NONE)) {
+		CH_ERR(sc, "%s: hwidx %u, rpl %u, sync %u; L2T st %u, sz %u\n",
+		       __func__, hwidx, rpl->status, sync, sc->vres.l2t.start,
+		       sc->vres.l2t.size);
 		return (EINVAL);
 	}
 

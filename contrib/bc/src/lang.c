@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2024 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -136,7 +136,7 @@ bc_func_reset(BcFunc* f)
 #endif // BC_ENABLED
 }
 
-#if BC_DEBUG
+#if BC_DEBUG || BC_ENABLE_MEMCHECK
 void
 bc_func_free(void* func)
 {
@@ -155,7 +155,7 @@ bc_func_free(void* func)
 	}
 #endif // BC_ENABLED
 }
-#endif // BC_DEBUG
+#endif // BC_DEBUG || BC_ENABLE_MEMCHECK
 
 void
 bc_array_init(BcVec* a, bool nums)

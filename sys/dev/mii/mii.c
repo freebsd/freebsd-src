@@ -407,7 +407,7 @@ mii_attach(device_t dev, device_t *miibus, if_t ifp,
 		ivars->ifmedia_upd = ifmedia_upd;
 		ivars->ifmedia_sts = ifmedia_sts;
 		ivars->mii_flags = flags;
-		*miibus = device_add_child(dev, "miibus", -1);
+		*miibus = device_add_child(dev, "miibus", DEVICE_UNIT_ANY);
 		if (*miibus == NULL) {
 			rv = ENXIO;
 			goto fail;
@@ -496,7 +496,7 @@ mii_attach(device_t dev, device_t *miibus, if_t ifp,
 		if (args == NULL)
 			goto skip;
 		bcopy((char *)&ma, (char *)args, sizeof(ma));
-		phy = device_add_child(*miibus, NULL, -1);
+		phy = device_add_child(*miibus, NULL, DEVICE_UNIT_ANY);
 		if (phy == NULL) {
 			free(args, M_DEVBUF);
 			goto skip;

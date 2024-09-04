@@ -17,7 +17,6 @@
 #include "eloop.h"
 #include "common/ieee802_11_defs.h"
 #include "l2_packet/l2_packet.h"
-#include "p2p/p2p.h"
 
 #include "common.h"
 #ifndef _BYTE_ORDER
@@ -82,7 +81,7 @@ struct atheros_driver_data {
 };
 
 static int atheros_sta_deauth(void *priv, const u8 *own_addr, const u8 *addr,
-			      u16 reason_code);
+			      u16 reason_code, int link_id);
 static int atheros_set_privacy(void *priv, int enabled);
 
 static const char * athr_get_ioctl_name(int op)
@@ -587,7 +586,7 @@ atheros_set_key(void *priv, struct wpa_driver_set_key_params *params)
 
 static int
 atheros_get_seqnum(const char *ifname, void *priv, const u8 *addr, int idx,
-		   u8 *seq)
+		   int link_id, u8 *seq)
 {
 	struct atheros_driver_data *drv = priv;
 	struct ieee80211req_key wk;
@@ -633,12 +632,12 @@ atheros_get_seqnum(const char *ifname, void *priv, const u8 *addr, int idx,
 
 
 static int
-atheros_flush(void *priv)
+atheros_flush(void *priv, int link_id)
 {
 	u8 allsta[IEEE80211_ADDR_LEN];
 	os_memset(allsta, 0xff, IEEE80211_ADDR_LEN);
 	return atheros_sta_deauth(priv, NULL, allsta,
-				  IEEE80211_REASON_AUTH_LEAVE);
+				  IEEE80211_REASON_AUTH_LEAVE, -1);
 }
 
 
@@ -660,7 +659,7 @@ atheros_read_sta_driver_data(void *priv, struct hostap_sta_driver_data *data,
 			 &stats, sizeof(stats))) {
 		wpa_printf(MSG_DEBUG, "%s: Failed to fetch STA stats (addr "
 			   MACSTR ")", __func__, MAC2STR(addr));
-		if (os_memcmp(addr, drv->acct_mac, ETH_ALEN) == 0) {
+		if (ether_addr_equal(addr, drv->acct_mac)) {
 			os_memcpy(data, &drv->acct_data, sizeof(*data));
 			return 0;
 		}
@@ -757,7 +756,7 @@ atheros_set_opt_ie(void *priv, const u8 *ie, size_t ie_len)
 
 static int
 atheros_sta_deauth(void *priv, const u8 *own_addr, const u8 *addr,
-		   u16 reason_code)
+		   u16 reason_code, int link_id)
 {
 	struct atheros_driver_data *drv = priv;
 	struct ieee80211req_mlme mlme;
@@ -893,7 +892,7 @@ static void atheros_raw_receive(void *ctx, const u8 *src_addr, const u8 *buf,
 	}
 
 	if (stype == WLAN_FC_STYPE_ACTION &&
-	    (os_memcmp(drv->own_addr, mgmt->bssid, ETH_ALEN) == 0 ||
+	    (ether_addr_equal(drv->own_addr, mgmt->bssid) ||
 	     is_broadcast_ether_addr(mgmt->bssid))) {
 		os_memset(&event, 0, sizeof(event));
 		event.rx_mgmt.frame = buf;
@@ -902,7 +901,7 @@ static void atheros_raw_receive(void *ctx, const u8 *src_addr, const u8 *buf,
 		return;
 	}
 
-	if (os_memcmp(drv->own_addr, mgmt->bssid, ETH_ALEN) != 0) {
+	if (!ether_addr_equal(drv->own_addr, mgmt->bssid)) {
 		wpa_printf(MSG_DEBUG, "%s: BSSID does not match - ignore",
 			   __func__);
 		return;
@@ -914,14 +913,16 @@ static void atheros_raw_receive(void *ctx, const u8 *src_addr, const u8 *buf,
 			break;
 		ielen = len - (IEEE80211_HDRLEN + sizeof(mgmt->u.assoc_req));
 		iebuf = mgmt->u.assoc_req.variable;
-		drv_event_assoc(drv->hapd, mgmt->sa, iebuf, ielen, 0);
+		drv_event_assoc(drv->hapd, mgmt->sa, iebuf, ielen, NULL, 0,
+				NULL, -1, 0);
 		break;
 	case WLAN_FC_STYPE_REASSOC_REQ:
 		if (len < IEEE80211_HDRLEN + sizeof(mgmt->u.reassoc_req))
 			break;
 		ielen = len - (IEEE80211_HDRLEN + sizeof(mgmt->u.reassoc_req));
 		iebuf = mgmt->u.reassoc_req.variable;
-		drv_event_assoc(drv->hapd, mgmt->sa, iebuf, ielen, 1);
+		drv_event_assoc(drv->hapd, mgmt->sa, iebuf, ielen, NULL, 0,
+				NULL, -1, 1);
 		break;
 	case WLAN_FC_STYPE_AUTH:
 		if (len < IEEE80211_HDRLEN + sizeof(mgmt->u.auth))
@@ -1223,9 +1224,9 @@ atheros_new_sta(struct atheros_driver_data *drv, u8 addr[IEEE80211_ADDR_LEN])
 		ielen += 2;
 
 no_ie:
-	drv_event_assoc(hapd, addr, iebuf, ielen, 0);
+	drv_event_assoc(hapd, addr, iebuf, ielen, NULL, 0, NULL, -1, 0);
 
-	if (os_memcmp(addr, drv->acct_mac, ETH_ALEN) == 0) {
+	if (ether_addr_equal(addr, drv->acct_mac)) {
 		/* Cached accounting data is not valid anymore. */
 		os_memset(drv->acct_mac, 0, ETH_ALEN);
 		os_memset(&drv->acct_data, 0, sizeof(drv->acct_data));
@@ -1645,7 +1646,7 @@ atheros_wireless_event_init(struct atheros_driver_data *drv)
 
 static int
 atheros_send_eapol(void *priv, const u8 *addr, const u8 *data, size_t data_len,
-		   int encrypt, const u8 *own_addr, u32 flags)
+		   int encrypt, const u8 *own_addr, u32 flags, int link_id)
 {
 	struct atheros_driver_data *drv = priv;
 	unsigned char buf[3000];
@@ -1965,7 +1966,7 @@ static int atheros_set_ap(void *priv, struct wpa_driver_ap_params *params)
 static int atheros_send_mgmt(void *priv, const u8 *frm, size_t data_len,
 			     int noack, unsigned int freq,
 			     const u16 *csa_offs, size_t csa_offs_len,
-			     int no_encrypt, unsigned int wait)
+			     int no_encrypt, unsigned int wait, int link_id)
 {
 	struct atheros_driver_data *drv = priv;
 	u8 buf[1510];

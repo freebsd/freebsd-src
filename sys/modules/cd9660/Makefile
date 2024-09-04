@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/fs/cd9660
 
 KMOD=	cd9660

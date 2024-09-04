@@ -94,8 +94,8 @@ static u_long  rtm_inits;
 static uid_t	uid;
 static int	defaultfib;
 static int	numfibs;
-static char	domain[MAXHOSTNAMELEN + 1];
-static bool	domain_initialized;
+static char	domain_storage[MAXHOSTNAMELEN + 1];
+static const char	*domain;
 static char	rt_line[NI_MAXHOST];
 static char	net_line[MAXHOSTNAMELEN + 1];
 
@@ -581,14 +581,16 @@ routename(struct sockaddr *sa)
 	const char *cp;
 	int n;
 
-	if (!domain_initialized) {
-		domain_initialized = true;
-		if (gethostname(domain, MAXHOSTNAMELEN) == 0 &&
-		    (cp = strchr(domain, '.'))) {
-			domain[MAXHOSTNAMELEN] = '\0';
-			(void)strcpy(domain, cp + 1);
-		} else
-			domain[0] = '\0';
+	if (domain == NULL) {
+		if (gethostname(domain_storage,
+		    sizeof(domain_storage) - 1) == 0 &&
+		    (cp = strchr(domain_storage, '.')) != NULL) {
+			domain_storage[sizeof(domain_storage) - 1] = '\0';
+			domain = cp + 1;
+		} else {
+			domain_storage[0] = '\0';
+			domain = domain_storage;
+		}
 	}
 
 	/* If the address is zero-filled, use "default". */

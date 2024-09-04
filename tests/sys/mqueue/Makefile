@@ -1,4 +1,3 @@
-
 TESTSDIR=	${TESTSBASE}/sys/mqueue
 
 ATF_TESTS_SH=	mqueue_test

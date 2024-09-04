@@ -166,6 +166,7 @@ struct ieee802_1x_kay_ctx {
 	int (*delete_transmit_sa)(void *ctx, struct transmit_sa *sa);
 	int (*enable_transmit_sa)(void *ctx, struct transmit_sa *sa);
 	int (*disable_transmit_sa)(void *ctx, struct transmit_sa *sa);
+	int (*set_offload)(void *ctx, u8 offload);
 };
 
 struct ieee802_1x_kay {
@@ -206,6 +207,7 @@ struct ieee802_1x_kay {
 	bool is_key_server;
 	bool is_obliged_key_server;
 	char if_name[IFNAMSIZ];
+	u8 macsec_offload;
 
 	unsigned int macsec_csindex;  /* MACsec cipher suite table index */
 	int mka_algindex;  /* MKA alg table index */
@@ -240,7 +242,8 @@ u64 mka_sci_u64(struct ieee802_1x_mka_sci *sci);
 struct ieee802_1x_kay *
 ieee802_1x_kay_init(struct ieee802_1x_kay_ctx *ctx, enum macsec_policy policy,
 		    bool macsec_replay_protect, u32 macsec_replay_window,
-		    u16 port, u8 priority, const char *ifname, const u8 *addr);
+		    u8 macsec_offload, u16 port, u8 priority,
+		    u32 macsec_csindex, const char *ifname, const u8 *addr);
 void ieee802_1x_kay_deinit(struct ieee802_1x_kay *kay);
 
 struct ieee802_1x_mka_participant *

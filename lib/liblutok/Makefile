@@ -1,4 +1,3 @@
-
 LIB_CXX=	lutok
 INTERNALLIB=
 

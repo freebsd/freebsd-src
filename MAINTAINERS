@@ -54,7 +54,7 @@ contrib/pjdfstest	asomers,ngie,pjd,#test	Pre-commit review requested.
 etc/mail	gshapiro	Pre-commit review requested.  Keep in sync with -STABLE.
 etc/sendmail	gshapiro	Pre-commit review requested.  Keep in sync with -STABLE.
 fetch		des	Pre-commit review requested, email only.
-fusefs(5)	asomers	Pre-commit review requested.
+fusefs(4)	asomers	Pre-commit review requested.
 geli		pjd	Pre-commit review requested (both sys/geom/eli/ and sbin/geom/class/eli/).
 iwm(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 iwn(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
@@ -121,7 +121,7 @@ libvmmapi	jhb	Pre-commit review requested via #bhyve
 			phabricator group.
 usr.sbin/bhyve*	jhb	Pre-commit review requested via #bhyve
 			phabricator group.
-autofs(5)	trasz	Pre-commit review recommended.
+autofs(4)	trasz	Pre-commit review recommended.
 iscsi(4)	trasz	Pre-commit review recommended.
 rctl(8)		trasz	Pre-commit review recommended.
 sys/dev/ofw	nwhitehorn	Pre-commit review recommended.

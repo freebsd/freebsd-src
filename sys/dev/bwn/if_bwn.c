@@ -2987,11 +2987,7 @@ bwn_dma_ringsetup(struct bwn_mac *mac, int controller_index,
 	return (dr);
 
 fail2:
-	if (dr->dr_txhdr_cache != NULL) {
-		contigfree(dr->dr_txhdr_cache,
-		    (dr->dr_numslots / BWN_TX_SLOTS_PER_FRAME) *
-		    BWN_MAXTXHDRSIZE, M_DEVBUF);
-	}
+	free(dr->dr_txhdr_cache, M_DEVBUF);
 fail1:
 	free(dr->dr_meta, M_DEVBUF);
 fail0:
@@ -3009,11 +3005,7 @@ bwn_dma_ringfree(struct bwn_dma_ring **dr)
 	bwn_dma_free_descbufs(*dr);
 	bwn_dma_free_ringmemory(*dr);
 
-	if ((*dr)->dr_txhdr_cache != NULL) {
-		contigfree((*dr)->dr_txhdr_cache,
-		    ((*dr)->dr_numslots / BWN_TX_SLOTS_PER_FRAME) *
-		    BWN_MAXTXHDRSIZE, M_DEVBUF);
-	}
+	free((*dr)->dr_txhdr_cache, M_DEVBUF);
 	free((*dr)->dr_meta, M_DEVBUF);
 	free(*dr, M_DEVBUF);
 

@@ -833,18 +833,15 @@ void	vn_seqc_write_end(struct vnode *vp);
 #define	vn_seqc_consistent(vp, seq)	seqc_consistent(&(vp)->v_seqc, seq)
 
 #define	vn_rangelock_unlock(vp, cookie)					\
-	rangelock_unlock(&(vp)->v_rl, (cookie), VI_MTX(vp))
-#define	vn_rangelock_unlock_range(vp, cookie, start, end)		\
-	rangelock_unlock_range(&(vp)->v_rl, (cookie), (start), (end), 	\
-	    VI_MTX(vp))
+	rangelock_unlock(&(vp)->v_rl, (cookie))
 #define	vn_rangelock_rlock(vp, start, end)				\
-	rangelock_rlock(&(vp)->v_rl, (start), (end), VI_MTX(vp))
+	rangelock_rlock(&(vp)->v_rl, (start), (end))
 #define	vn_rangelock_tryrlock(vp, start, end)				\
-	rangelock_tryrlock(&(vp)->v_rl, (start), (end), VI_MTX(vp))
+	rangelock_tryrlock(&(vp)->v_rl, (start), (end))
 #define	vn_rangelock_wlock(vp, start, end)				\
-	rangelock_wlock(&(vp)->v_rl, (start), (end), VI_MTX(vp))
+	rangelock_wlock(&(vp)->v_rl, (start), (end))
 #define	vn_rangelock_trywlock(vp, start, end)				\
-	rangelock_trywlock(&(vp)->v_rl, (start), (end), VI_MTX(vp))
+	rangelock_trywlock(&(vp)->v_rl, (start), (end))
 
 #define	vn_irflag_read(vp)	atomic_load_short(&(vp)->v_irflag)
 void	vn_irflag_set_locked(struct vnode *vp, short toset);

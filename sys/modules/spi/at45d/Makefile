@@ -1,4 +1,3 @@
-
 .PATH:	${SRCTOP}/sys/dev/flash
 
 KMOD=	at45d

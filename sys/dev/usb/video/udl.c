@@ -423,7 +423,7 @@ udl_attach(device_t dev)
 	sc->sc_fb_info.fb_priv = sc;
 	sc->sc_fb_info.setblankmode = &udl_fb_setblankmode;
 
-	sc->sc_fbdev = device_add_child(dev, "fbd", -1);
+	sc->sc_fbdev = device_add_child(dev, "fbd", DEVICE_UNIT_ANY);
 	if (sc->sc_fbdev == NULL)
 		goto detach;
 	if (device_probe_and_attach(sc->sc_fbdev) != 0)

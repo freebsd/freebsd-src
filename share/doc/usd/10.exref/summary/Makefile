@@ -1,4 +1,3 @@
-
 DOC=		summary
 SRCS=		ex.summary
 USE_TBL=

@@ -1262,12 +1262,13 @@ verify_dnskey(struct module_env* env, struct val_env* ve,
         struct trust_anchor* tp, struct ub_packed_rrset_key* rrset,
 	struct module_qstate* qstate)
 {
+	char reasonbuf[256];
 	char* reason = NULL;
 	uint8_t sigalg[ALGO_NEEDS_MAX+1];
 	int downprot = env->cfg->harden_algo_downgrade;
 	enum sec_status sec = val_verify_DNSKEY_with_TA(env, ve, rrset,
 		tp->ds_rrset, tp->dnskey_rrset, downprot?sigalg:NULL, &reason,
-		NULL, qstate);
+		NULL, qstate, reasonbuf, sizeof(reasonbuf));
 	/* sigalg is ignored, it returns algorithms signalled to exist, but
 	 * in 5011 there are no other rrsets to check.  if downprot is
 	 * enabled, then it checks that the DNSKEY is signed with all

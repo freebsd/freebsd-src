@@ -315,13 +315,6 @@ dmar_ir_free_irte(struct dmar_unit *unit, u_int cookie)
 	return (0);
 }
 
-static u_int
-clp2(u_int v)
-{
-
-	return (powerof2(v) ? v : 1 << fls(v));
-}
-
 int
 dmar_init_irt(struct dmar_unit *unit)
 {
@@ -339,7 +332,7 @@ dmar_init_irt(struct dmar_unit *unit)
 	     "QI disabled, disabling interrupt remapping\n");
 		return (0);
 	}
-	unit->irte_cnt = clp2(num_io_irqs);
+	unit->irte_cnt = roundup_pow_of_two(num_io_irqs);
 	unit->irt = kmem_alloc_contig(unit->irte_cnt * sizeof(dmar_irte_t),
 	    M_ZERO | M_WAITOK, 0, iommu_high, PAGE_SIZE, 0,
 	    DMAR_IS_COHERENT(unit) ?

@@ -830,7 +830,7 @@ void ice_free_bar(device_t dev, struct ice_bar_info *bar);
 void ice_set_ctrlq_len(struct ice_hw *hw);
 void ice_release_vsi(struct ice_vsi *vsi);
 struct ice_vsi *ice_alloc_vsi(struct ice_softc *sc, enum ice_vsi_type type);
-int  ice_alloc_vsi_qmap(struct ice_vsi *vsi, const int max_tx_queues,
+void ice_alloc_vsi_qmap(struct ice_vsi *vsi, const int max_tx_queues,
 		       const int max_rx_queues);
 void ice_free_vsi_qmaps(struct ice_vsi *vsi);
 int  ice_initialize_vsi(struct ice_vsi *vsi);

@@ -27,7 +27,7 @@
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 /*
- * ASSERTION: Verify that argN (1..7) variables are properly remapped.
+ * ASSERTION: Verify that argN (1..6) variables are properly remapped.
  */
 
 BEGIN
@@ -44,13 +44,12 @@ ERROR
 }
 
 test:::sdttest
-/arg0 != 1 || arg1 != 2 || arg2 != 3 || arg3 != 4 || arg4 != 5 || arg5 != 6 ||
-    arg6 != 7/
+/arg0 != 1 || arg1 != 2 || arg2 != 3 || arg3 != 4 || arg4 != 5 || arg5 != 6/
 {
 	printf("sdt arg mismatch\n\n");
-	printf("args are  : %d, %d, %d, %d, %d, %d, %d\n", arg0, arg1, arg2,
-	    arg3, arg4, arg5, arg6);
-	printf("should be : 1, 2, 3, 4, 5, 6, 7\n");
+	printf("args are  : %d, %d, %d, %d, %d, %d\n", arg0, arg1, arg2,
+	    arg3, arg4, arg5);
+	printf("should be : 1, 2, 3, 4, 5, 6\n");
 	exit(1);
 }
 

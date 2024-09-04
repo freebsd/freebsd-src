@@ -1,7 +1,7 @@
 wpa_supplicant
 ==============
 
-Copyright (c) 2003-2022, Jouni Malinen <j@w1.fi> and contributors
+Copyright (c) 2003-2024, Jouni Malinen <j@w1.fi> and contributors
 All Rights Reserved.
 
 This program is licensed under the BSD license (the one with
@@ -442,7 +442,9 @@ drivers:
   nl80211 = Linux nl80211/cfg80211
   wext = Linux wireless extensions (generic)
   wired = wpa_supplicant wired Ethernet driver
+  macsec_linux = MACsec Ethernet driver for Linux
   roboswitch = wpa_supplicant Broadcom switch driver
+  none = no driver (RADIUS server/WPS ER only)
   bsd = BSD 802.11 support (Atheros, etc.)
   ndis = Windows NDIS driver
 

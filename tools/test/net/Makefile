@@ -1,4 +1,3 @@
-
 PROGS=	listen connect
 MAN=
 

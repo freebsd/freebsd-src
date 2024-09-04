@@ -121,8 +121,6 @@ struct cubic {
 	uint64_t	undo_W_max;
 	uint64_t	undo_W_est;
 	uint64_t	undo_cwnd_epoch;
-	/* Number of congestion events experienced */
-	uint64_t	num_cong_events;
 	uint32_t css_baseline_minrtt;
 	uint32_t css_current_round_minrtt;
 	uint32_t css_lastround_minrtt;

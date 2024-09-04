@@ -203,17 +203,17 @@ fmal(long double x, long double y, long double z)
 		case FE_TONEAREST:
 			return (z);
 		case FE_TOWARDZERO:
-			if (x > 0.0 ^ y < 0.0 ^ z < 0.0)
+			if ((x > 0.0) ^ (y < 0.0) ^ (z < 0.0))
 				return (z);
 			else
 				return (nextafterl(z, 0));
 		case FE_DOWNWARD:
-			if (x > 0.0 ^ y < 0.0)
+			if ((x > 0.0) ^ (y < 0.0))
 				return (z);
 			else
 				return (nextafterl(z, -INFINITY));
 		default:	/* FE_UPWARD */
-			if (x > 0.0 ^ y < 0.0)
+			if ((x > 0.0) ^ (y < 0.0))
 				return (nextafterl(z, INFINITY));
 			else
 				return (z);
@@ -241,14 +241,14 @@ fmal(long double x, long double y, long double z)
 
 	spread = ex + ey;
 
-	if (r.hi == 0.0) {
+	if (r.hi == 0.0 && xy.lo == 0) {
 		/*
 		 * When the addends cancel to 0, ensure that the result has
 		 * the correct sign.
 		 */
 		fesetround(oround);
 		volatile long double vzs = zs; /* XXX gcc CSE bug workaround */
-		return (xy.hi + vzs + ldexpl(xy.lo, spread));
+		return (xy.hi + vzs);
 	}
 
 	if (oround != FE_TONEAREST) {

@@ -1,4 +1,3 @@
-
 PROG_CXX=	lli
 
 SRCDIR=		llvm/tools/lli

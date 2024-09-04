@@ -194,7 +194,6 @@ cfi_fmtsize(uint32_t sz)
 int
 cfi_probe(device_t dev)
 {
-	char desc[80];
 	struct cfi_softc *sc;
 	char *vend_str;
 	int error;
@@ -279,9 +278,7 @@ cfi_probe(device_t dev)
 	if (error)
 		goto out;
 
-	snprintf(desc, sizeof(desc), "%s - %s", vend_str,
-	    cfi_fmtsize(sc->sc_size));
-	device_set_desc_copy(dev, desc);
+	device_set_descf(dev, "%s - %s", vend_str, cfi_fmtsize(sc->sc_size));
 
  out:
 	bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_rid, sc->sc_res);
@@ -448,7 +445,7 @@ cfi_attach(device_t dev)
 	}
 #endif
 
-	device_add_child(dev, "cfid", -1);
+	device_add_child(dev, "cfid", DEVICE_UNIT_ANY);
 	bus_generic_attach(dev);
 
 	return (0);

@@ -24,6 +24,7 @@ extern bool data_digests;
 extern bool header_digests;
 extern bool flow_control_disable;
 extern bool kernel_io;
+extern uint32_t maxh2cdata;
 
 /* controller.c */
 void	controller_handle_admin_commands(struct controller *c,

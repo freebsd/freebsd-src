@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020-2021,2023 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -42,7 +42,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_instr.c,v 1.24 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_instr.c,v 1.26 2023/06/03 12:37:04 tom Exp $")
 
 NCURSES_EXPORT(int)
 winnstr(WINDOW *win, char *str, int n)
@@ -66,7 +66,6 @@ winnstr(WINDOW *win, char *str, int n)
 	    cchar_t *cell = &(text[col]);
 	    attr_t attrs;
 	    NCURSES_PAIRS_T pair;
-	    mbstate_t state;
 	    char *tmp;
 
 	    if (!isWidecExt(*cell)) {
@@ -79,11 +78,12 @@ winnstr(WINDOW *win, char *str, int n)
 		    bool done = FALSE;
 
 		    if (getcchar(cell, wch, &attrs, &pair, 0) == OK) {
+			mbstate_t state;
 			size_t n3;
 
 			init_mb(state);
 			n3 = wcstombs(0, wch, (size_t) 0);
-			if (!isEILSEQ(n3) && (n3 != 0)) {
+			if (!isEILSEQ(n3) && (n3 != 0) && (n3 <= MB_LEN_MAX)) {
 			    size_t need = n3 + 10 + (size_t) i;
 			    int have = (int) n3 + i;
 

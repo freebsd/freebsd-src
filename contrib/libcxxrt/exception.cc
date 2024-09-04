@@ -1434,6 +1434,19 @@ extern "C" void __cxa_call_unexpected(void*exception)
 }
 
 /**
+ * ABI function, called when an object destructor exits due to an
+ * exception during stack unwinding.
+ *
+ * This function does not return.
+ */
+extern "C" void __cxa_call_terminate(void *exception) throw()
+{
+	std::terminate();
+	// Should not be reached.
+	abort();
+}
+
+/**
  * ABI function, returns the adjusted pointer to the exception object.
  */
 extern "C" void *__cxa_get_exception_ptr(void *exceptionObject)

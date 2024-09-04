@@ -1,4 +1,3 @@
-
 BRSSL_CFLAGS+= -DNO_STDIO
 
 .include "Makefile.inc"

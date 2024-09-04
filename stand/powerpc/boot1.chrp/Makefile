@@ -1,4 +1,3 @@
-
 .include <bsd.init.mk>
 
 PROG=           boot1.elf
@@ -6,7 +5,7 @@ NEWVERSWHAT=    "Open Firmware boot block" ${MACHINE_ARCH}
 INSTALLFLAGS=   -b
 
 FILES=		boot1.hfs
-SRCS=		boot1.c ashldi3.c syncicache.c
+SRCS=		boot1.c ashldi3.c syncicache.c memset.c
 
 CFLAGS+=-I${LDRSRC}
 # Load boot1.elf below kernel.

@@ -1,6 +1,5 @@
-'\" t
 .\"***************************************************************************
-.\" Copyright 2018-2019,2020 Thomas E. Dickey                                *
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
 .\" Copyright 1998-2010,2015 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,21 +27,22 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: mitem_new.3x,v 1.19 2020/10/18 00:37:03 tom Exp $
-.TH mitem_new 3X ""
+.\" $Id: mitem_new.3x,v 1.36 2024/03/16 15:35:01 tom Exp $
+.TH mitem_new 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
 \fBnew_item\fP,
-\fBfree_item\fR \- create and destroy menu items
+\fBfree_item\fP \-
+create and destroy menu items
 .SH SYNOPSIS
-\fB#include <menu.h>\fR
-.sp
-\fBITEM *new_item(const char *\fP\fIname\fP\fB, const char *\fP\fIdescription\fP\fB);\fP
-.br
-\fBint free_item(ITEM *\fP\fIitem\fP\fB);\fP
-.br
+.nf
+\fB#include <menu.h>
+.PP
+\fBITEM *new_item(const char *\fIname\fP, const char *\fIdescription\fP);
+\fBint free_item(ITEM *\fIitem\fP);
+.fi
 .SH DESCRIPTION
-The function \fBnew_item\fR allocates a new item and initializes it from the
-\fBname\fR and \fBdescription\fR pointers.
+The function \fBnew_item\fP allocates a new item and initializes it from the
+\fBname\fP and \fBdescription\fP pointers.
 Please notice that the item stores
 only the pointers to the name and description.
 Those pointers must be valid
@@ -50,12 +50,12 @@ during the lifetime of the item.
 So you should be very careful with names
 or descriptions allocated on the stack of some routines.
 .br
-The function \fBfree_item\fR de-allocates an item.
+The function \fBfree_item\fP de-allocates an item.
 Please notice that it
 is the responsibility of the application to release the memory for the
 name or the description of the item.
 .SH RETURN VALUE
-The function \fBnew_item\fR returns \fBNULL\fR on error.
+The function \fBnew_item\fP returns \fBNULL\fP on error.
 It sets \fBerrno\fP according to the function's failure:
 .TP 5
 .B E_BAD_ARGUMENT
@@ -64,7 +64,7 @@ Routine detected an incorrect or out-of-range argument.
 .B E_SYSTEM_ERROR
 System error occurred, e.g., malloc failure.
 .PP
-The function \fBfree_item\fR returns one of the following:
+The function \fBfree_item\fP returns one of the following:
 .TP 5
 .B E_OK
 The routine succeeded.
@@ -76,12 +76,7 @@ Routine detected an incorrect or out-of-range argument.
 Item is connected to a menu.
 .TP 5
 .B E_SYSTEM_ERROR
-System error occurred (see \fBerrno\fR(3)).
-.SH SEE ALSO
-\fBcurses\fR(3X), \fBmenu\fR(3X).
-.SH NOTES
-The header file \fB<menu.h>\fR automatically includes the header file
-\fB<curses.h>\fR.
+System error occurred (see \fBerrno\fP(3)).
 .SH PORTABILITY
 These routines emulate the System V menu library.
 They were not supported on
@@ -89,3 +84,6 @@ Version 7 or BSD versions.
 .SH AUTHORS
 Juergen Pfeifer.
 Manual pages and adaptation for new curses by Eric S. Raymond.
+.SH SEE ALSO
+\fB\%curses\fP(3X),
+\fB\%menu\fP(3X)

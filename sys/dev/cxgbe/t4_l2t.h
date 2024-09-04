@@ -35,8 +35,6 @@
 #define V_SYNC_WR(x) ((x) << S_SYNC_WR)
 #define F_SYNC_WR    V_SYNC_WR(1)
 
-enum { L2T_SIZE = 4096 };     /* # of L2T entries */
-
 enum {
 	L2T_STATE_VALID,	/* entry is up to date */
 	L2T_STATE_STALE,	/* entry may be used but needs revalidation */
@@ -64,7 +62,7 @@ struct l2t_entry {
 	uint32_t addr[4];		/* next hop IP or IPv6 address */
 	uint32_t iqid;			/* iqid for reply to write_l2e */
 	struct sge_wrq *wrq;		/* queue to use for write_l2e */
-	if_t ifp;		/* outgoing interface */
+	if_t ifp;			/* outgoing interface */
 	uint16_t smt_idx;		/* SMT index */
 	uint16_t vlan;			/* VLAN TCI (id: 0-11, prio: 13-15) */
 	struct l2t_entry *first;	/* start of hash chain */
@@ -81,6 +79,7 @@ struct l2t_entry {
 struct l2t_data {
 	struct rwlock lock;
 	u_int l2t_size;
+	bool l2t_stopped;
 	volatile int nfree;	/* number of free entries */
 	struct l2t_entry *rover;/* starting point for next allocation */
 	struct l2t_entry l2tab[];
@@ -88,14 +87,14 @@ struct l2t_data {
 
 
 int t4_init_l2t(struct adapter *, int);
-int t4_free_l2t(struct l2t_data *);
+int t4_free_l2t(struct adapter *);
+int t4_stop_l2t(struct adapter *);
+int t4_restart_l2t(struct adapter *);
 struct l2t_entry *t4_alloc_l2e(struct l2t_data *);
 struct l2t_entry *t4_l2t_alloc_switching(struct adapter *, uint16_t, uint8_t,
     uint8_t *);
 struct l2t_entry *t4_l2t_alloc_tls(struct adapter *, struct sge_txq *,
     void *, int *, uint16_t, uint8_t, uint8_t *);
-int t4_l2t_set_switching(struct adapter *, struct l2t_entry *, uint16_t,
-    uint8_t, uint8_t *);
 int t4_write_l2e(struct l2t_entry *, int);
 int do_l2t_write_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);
 

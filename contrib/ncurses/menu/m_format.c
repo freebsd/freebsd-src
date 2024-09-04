@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2010,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -38,7 +38,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_format.c,v 1.21 2020/12/12 00:38:02 tom Exp $")
+MODULE_ID("$Id: m_format.c,v 1.22 2021/03/27 23:46:29 tom Exp $")
 
 #define minimum(a,b) ((a)<(b) ? (a): (b))
 
@@ -59,7 +59,6 @@ MODULE_ID("$Id: m_format.c,v 1.21 2020/12/12 00:38:02 tom Exp $")
 MENU_EXPORT(int)
 set_menu_format(MENU *menu, int rows, int cols)
 {
-  int total_rows, total_cols;
 
   T((T_CALLED("set_menu_format(%p,%d,%d)"), (void *)menu, rows, cols));
 
@@ -68,6 +67,8 @@ set_menu_format(MENU *menu, int rows, int cols)
 
   if (menu)
     {
+      int total_rows, total_cols;
+
       if (menu->status & _POSTED)
 	RETURN(E_POSTED);
 

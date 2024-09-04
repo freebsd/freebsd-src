@@ -522,8 +522,6 @@ do_qXfer_threads_read(void)
 				sbuf_cat(&ctx.qXfer.sb, "Blocked");
 			else if (TD_IS_SLEEPING(ctx.iter))
 				sbuf_cat(&ctx.qXfer.sb, "Sleeping");
-			else if (TD_IS_SWAPPED(ctx.iter))
-				sbuf_cat(&ctx.qXfer.sb, "Swapped");
 			else if (TD_AWAITING_INTR(ctx.iter))
 				sbuf_cat(&ctx.qXfer.sb, "IthreadWait");
 			else if (TD_IS_SUSPENDED(ctx.iter))

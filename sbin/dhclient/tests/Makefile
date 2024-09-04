@@ -1,4 +1,3 @@
-
 .PATH:	${.CURDIR:H}
 
 ATF_TESTS_SH=	pcp

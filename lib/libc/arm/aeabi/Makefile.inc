@@ -1,4 +1,3 @@
-
 .PATH: ${LIBC_SRCTOP}/arm/aeabi
 
 SRCS+=	aeabi_atexit.c		\

@@ -1,4 +1,3 @@
-
 PROG=	who
 PACKAGE=	acct
 

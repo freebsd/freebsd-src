@@ -234,9 +234,9 @@ des_crypt_1_svc(desargs *argp, struct svc_req *rqstp)
 	 * getting ECB mode.
 	 */
 #ifdef BROKEN_DES
-	if (_my_crypt != &_arcfour_crypt && argp->des_mode == CBC) {
+	if (_my_crypt != &_arcfour_crypt && argp->des_mode == CBC_DES) {
 #else
-	if (_my_crypt != &_arcfour_crypt && argp->des_mode == ECB) {
+	if (_my_crypt != &_arcfour_crypt && argp->des_mode == ECB_DES) {
 #endif
 		int			i;
 		char			*dptr;

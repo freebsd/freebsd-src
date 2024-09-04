@@ -275,7 +275,7 @@ int compute_password_element(EAP_PWD_group *grp, u16 num,
 	    crypto_bignum_sub(prime, y, y) < 0 ||
 	    crypto_bignum_to_bin(y, x_y + MAX_ECC_PRIME_LEN,
 				 MAX_ECC_PRIME_LEN, primebytelen) < 0) {
-		wpa_printf(MSG_DEBUG, "SAE: Could not solve y");
+		wpa_printf(MSG_DEBUG, "EAP-pwd: Could not solve y");
 		goto fail;
 	}
 
@@ -356,9 +356,19 @@ int compute_keys(EAP_PWD_group *grp, const struct crypto_bignum *k,
 		return -1;
 	}
 	eap_pwd_h_update(hash, (const u8 *) ciphersuite, sizeof(u32));
-	crypto_bignum_to_bin(peer_scalar, cruft, order_len, order_len);
+	if (crypto_bignum_to_bin(peer_scalar, cruft, order_len,
+				 order_len) < 0) {
+		os_free(cruft);
+		return -1;
+	}
+
 	eap_pwd_h_update(hash, cruft, order_len);
-	crypto_bignum_to_bin(server_scalar, cruft, order_len, order_len);
+	if (crypto_bignum_to_bin(server_scalar, cruft, order_len,
+				 order_len) < 0) {
+		os_free(cruft);
+		return -1;
+	}
+
 	eap_pwd_h_update(hash, cruft, order_len);
 	eap_pwd_h_final(hash, &session_id[1]);
 
@@ -368,7 +378,12 @@ int compute_keys(EAP_PWD_group *grp, const struct crypto_bignum *k,
 		os_free(cruft);
 		return -1;
 	}
-	crypto_bignum_to_bin(k, cruft, prime_len, prime_len);
+
+	if (crypto_bignum_to_bin(k, cruft, prime_len, prime_len) < 0) {
+		os_free(cruft);
+		return -1;
+	}
+
 	eap_pwd_h_update(hash, cruft, prime_len);
 	os_free(cruft);
 	eap_pwd_h_update(hash, confirm_peer, SHA256_MAC_LEN);

@@ -1,4 +1,3 @@
-
 LIB=	kvm
 
 PACKAGE=	runtime

@@ -157,7 +157,7 @@ ofw_gpiobus_add_fdt_child(device_t bus, const char *drvname, phandle_t child)
 	/*
 	 * Set up the GPIO child and OFW bus layer devinfo and add it to bus.
 	 */
-	childdev = device_add_child(bus, drvname, -1);
+	childdev = device_add_child(bus, drvname, DEVICE_UNIT_ANY);
 	if (childdev == NULL)
 		return (NULL);
 	dinfo = ofw_gpiobus_setup_devinfo(bus, childdev, child);

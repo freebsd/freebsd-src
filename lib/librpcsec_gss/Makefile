@@ -1,4 +1,3 @@
-
 PACKAGE=lib${LIB}
 LIB=	rpcsec_gss
 SHLIB_MAJOR= 1

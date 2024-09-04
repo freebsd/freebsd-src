@@ -222,6 +222,10 @@ static counter_u64_t vnode_skipped_requeues;
 SYSCTL_COUNTER_U64(_vfs_vnode_stats, OID_AUTO, skipped_requeues, CTLFLAG_RD, &vnode_skipped_requeues,
     "Number of times LRU requeue was skipped due to lock contention");
 
+static __read_mostly bool vnode_can_skip_requeue;
+SYSCTL_BOOL(_vfs_vnode_param, OID_AUTO, can_skip_requeue, CTLFLAG_RW,
+    &vnode_can_skip_requeue, 0, "Is LRU requeue skippable");
+
 static u_long deferred_inact;
 SYSCTL_ULONG(_vfs, OID_AUTO, deferred_inact, CTLFLAG_RD,
     &deferred_inact, 0, "Number of times inactive processing was deferred");
@@ -2176,8 +2180,6 @@ freevnode(struct vnode *vp)
 	VNASSERT(bo->bo_dirty.bv_cnt == 0, vp, ("dirtybufcnt not 0"));
 	VNASSERT(pctrie_is_empty(&bo->bo_dirty.bv_root), vp,
 	    ("dirty blk trie not empty"));
-	VNASSERT(TAILQ_EMPTY(&vp->v_rl.rl_waiters), vp,
-	    ("Dangling rangelock waiters"));
 	VNASSERT((vp->v_iflag & (VI_DOINGINACT | VI_OWEINACT)) == 0, vp,
 	    ("Leaked inactivation"));
 	VI_UNLOCK(vp);
@@ -3207,6 +3209,16 @@ reassignbuf(struct buf *bp)
 	    bp, bp->b_vp, bp->b_flags);
 
 	BO_LOCK(bo);
+	if ((bo->bo_flag & BO_NONSTERILE) == 0) {
+		/*
+		 * Coordinate with getblk's unlocked lookup.  Make
+		 * BO_NONSTERILE visible before the first reassignbuf produces
+		 * any side effect.  This could be outside the bo lock if we
+		 * used a separate atomic flag field.
+		 */
+		bo->bo_flag |= BO_NONSTERILE;
+		atomic_thread_fence_rel();
+	}
 	buf_vlist_remove(bp);
 
 	/*
@@ -3825,31 +3837,41 @@ vdbatch_process(struct vdbatch *vd)
 	 * lock contention, where vnode_list_mtx becomes the primary bottleneck
 	 * if multiple CPUs get here (one real-world example is highly parallel
 	 * do-nothing make , which will stat *tons* of vnodes). Since it is
-	 * quasi-LRU (read: not that great even if fully honoured) just dodge
-	 * the problem. Parties which don't like it are welcome to implement
-	 * something better.
+	 * quasi-LRU (read: not that great even if fully honoured) provide an
+	 * option to just dodge the problem. Parties which don't like it are
+	 * welcome to implement something better.
 	 */
-	critical_enter();
-	if (mtx_trylock(&vnode_list_mtx)) {
-		for (i = 0; i < VDBATCH_SIZE; i++) {
-			vp = vd->tab[i];
-			vd->tab[i] = NULL;
-			TAILQ_REMOVE(&vnode_list, vp, v_vnodelist);
-			TAILQ_INSERT_TAIL(&vnode_list, vp, v_vnodelist);
-			MPASS(vp->v_dbatchcpu != NOCPU);
-			vp->v_dbatchcpu = NOCPU;
-		}
-		mtx_unlock(&vnode_list_mtx);
-	} else {
-		counter_u64_add(vnode_skipped_requeues, 1);
+	if (vnode_can_skip_requeue) {
+		if (!mtx_trylock(&vnode_list_mtx)) {
+			counter_u64_add(vnode_skipped_requeues, 1);
+			critical_enter();
+			for (i = 0; i < VDBATCH_SIZE; i++) {
+				vp = vd->tab[i];
+				vd->tab[i] = NULL;
+				MPASS(vp->v_dbatchcpu != NOCPU);
+				vp->v_dbatchcpu = NOCPU;
+			}
+			vd->index = 0;
+			critical_exit();
+			return;
 
-		for (i = 0; i < VDBATCH_SIZE; i++) {
-			vp = vd->tab[i];
-			vd->tab[i] = NULL;
-			MPASS(vp->v_dbatchcpu != NOCPU);
-			vp->v_dbatchcpu = NOCPU;
 		}
+		/* fallthrough to locked processing */
+	} else {
+		mtx_lock(&vnode_list_mtx);
 	}
+
+	mtx_assert(&vnode_list_mtx, MA_OWNED);
+	critical_enter();
+	for (i = 0; i < VDBATCH_SIZE; i++) {
+		vp = vd->tab[i];
+		vd->tab[i] = NULL;
+		TAILQ_REMOVE(&vnode_list, vp, v_vnodelist);
+		TAILQ_INSERT_TAIL(&vnode_list, vp, v_vnodelist);
+		MPASS(vp->v_dbatchcpu != NOCPU);
+		vp->v_dbatchcpu = NOCPU;
+	}
+	mtx_unlock(&vnode_list_mtx);
 	vd->index = 0;
 	critical_exit();
 }
@@ -3970,7 +3992,7 @@ vdrop(struct vnode *vp)
 	vdropl(vp);
 }
 
-static void __always_inline
+static __always_inline void
 vdropl_impl(struct vnode *vp, bool enqueue)
 {
 

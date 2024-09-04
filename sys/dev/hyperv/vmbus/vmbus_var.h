@@ -74,6 +74,9 @@ struct vmbus_pcpu_data {
 	uint32_t		vcpuid;		/* virtual cpuid */
 	int			event_flags_cnt;/* # of event flags */
 	struct vmbus_evtflags	*event_flags;	/* event flags from host */
+#if defined(__x86_64__)
+	void			*cpu_mem;	/* For Hyper-V tlb hypercall */
+#endif
 
 	/* Rarely used fields */
 	struct taskqueue	*event_tq;	/* event taskq */
@@ -124,10 +127,8 @@ struct vmbus_softc {
 
 	struct intr_config_hook	vmbus_intrhook;
 
-#ifdef NEW_PCIB
 	/* The list of usable MMIO ranges for PCIe pass-through */
 	struct pcib_host_resources vmbus_mmio_res;
-#endif
 
 #if defined(__aarch64__)
 	struct resource *ires;
@@ -215,8 +216,6 @@ void    vmbus_synic_setup1(void *xsc);
 void    vmbus_synic_teardown1(void);
 int     vmbus_setup_intr1(struct vmbus_softc *sc);
 void    vmbus_intr_teardown1(struct vmbus_softc *sc);
-
-DPCPU_DECLARE(void *, hv_pcpu_mem);
 
 extern uint32_t hv_max_vp_index;
 

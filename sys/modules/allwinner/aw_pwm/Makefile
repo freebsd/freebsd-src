@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/pwm/controller/allwinner
 
 KMOD=	aw_pwm

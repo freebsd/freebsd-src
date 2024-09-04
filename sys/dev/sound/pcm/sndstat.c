@@ -323,46 +323,36 @@ sndstat_write(struct cdev *i_dev, struct uio *buf, int flag)
 }
 
 static void
-sndstat_get_caps(struct snddev_info *d, bool play, uint32_t *min_rate,
+sndstat_get_caps(struct snddev_info *d, int dir, uint32_t *min_rate,
     uint32_t *max_rate, uint32_t *fmts, uint32_t *minchn, uint32_t *maxchn)
 {
 	struct pcm_channel *c;
-	int dir;
-
-	dir = play ? PCMDIR_PLAY : PCMDIR_REC;
-
-	if (play && d->pvchancount > 0) {
-		*min_rate = *max_rate = d->pvchanrate;
-		*fmts = AFMT_ENCODING(d->pvchanformat);
-		*minchn = *maxchn = AFMT_CHANNEL(d->pvchanformat);
-		return;
-	} else if (!play && d->rvchancount > 0) {
-		*min_rate = *max_rate = d->rvchanrate;
-		*fmts = AFMT_ENCODING(d->rvchanformat);
-		*minchn = *maxchn = AFMT_CHANNEL(d->rvchanformat);
-		return;
-	}
+	struct pcmchan_caps *caps;
+	int i;
 
 	*fmts = 0;
 	*min_rate = UINT32_MAX;
 	*max_rate = 0;
 	*minchn = UINT32_MAX;
 	*maxchn = 0;
+
 	CHN_FOREACH(c, d, channels.pcm) {
-		struct pcmchan_caps *caps;
-		int i;
-
-		if (c->direction != dir || (c->flags & CHN_F_VIRTUAL) != 0)
+		if (c->direction != dir)
 			continue;
-
 		CHN_LOCK(c);
 		caps = chn_getcaps(c);
-		*min_rate = min(caps->minspeed, *min_rate);
-		*max_rate = max(caps->maxspeed, *max_rate);
 		for (i = 0; caps->fmtlist[i]; i++) {
 			*fmts |= AFMT_ENCODING(caps->fmtlist[i]);
 			*minchn = min(AFMT_CHANNEL(caps->fmtlist[i]), *minchn);
 			*maxchn = max(AFMT_CHANNEL(caps->fmtlist[i]), *maxchn);
+		}
+		if ((c->flags & CHN_F_EXCLUSIVE) ||
+		    (pcm_getflags(d->dev) & SD_F_BITPERFECT)) {
+			*min_rate = min(*min_rate, caps->minspeed);
+			*max_rate = max(*max_rate, caps->maxspeed);
+		} else {
+			*min_rate = min(*min_rate, feeder_rate_min);
+			*max_rate = max(*max_rate, feeder_rate_max);
 		}
 		CHN_UNLOCK(c);
 	}
@@ -395,9 +385,10 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 	struct pcm_channel *c;
 	struct pcm_feeder *f;
 	struct sbuf sb;
-	uint32_t maxrate, minrate, fmts, minchn, maxchn;
+	uint32_t maxrate, minrate, fmts, minchn, maxchn, caps;
 	nvlist_t *di = NULL, *sound4di = NULL, *diinfo = NULL, *cdi = NULL;
 	int err, nchan;
+	char buf[AFMTSTR_LEN];
 
 	di = nvlist_create(0);
 	if (di == NULL) {
@@ -422,8 +413,8 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 	nvlist_add_number(di, SNDST_DSPS_PCHAN, d->playcount);
 	nvlist_add_number(di, SNDST_DSPS_RCHAN, d->reccount);
 	if (d->playcount > 0) {
-		sndstat_get_caps(d, true, &minrate, &maxrate, &fmts, &minchn,
-		    &maxchn);
+		sndstat_get_caps(d, PCMDIR_PLAY, &minrate, &maxrate, &fmts,
+		    &minchn, &maxchn);
 		nvlist_add_number(di, "pminrate", minrate);
 		nvlist_add_number(di, "pmaxrate", maxrate);
 		nvlist_add_number(di, "pfmts", fmts);
@@ -435,8 +426,8 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 			nvlist_move_nvlist(di, SNDST_DSPS_INFO_PLAY, diinfo);
 	}
 	if (d->reccount > 0) {
-		sndstat_get_caps(d, false, &minrate, &maxrate, &fmts, &minchn,
-		    &maxchn);
+		sndstat_get_caps(d, PCMDIR_REC, &minrate, &maxrate, &fmts,
+		    &minchn, &maxchn);
 		nvlist_add_number(di, "rminrate", minrate);
 		nvlist_add_number(di, "rmaxrate", maxrate);
 		nvlist_add_number(di, "rfmts", fmts);
@@ -450,10 +441,19 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 
 	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_UNIT,
 			device_get_unit(d->dev)); // XXX: I want signed integer here
+	nvlist_add_string(sound4di, SNDST_DSPS_SOUND4_STATUS, d->status);
 	nvlist_add_bool(
 	    sound4di, SNDST_DSPS_SOUND4_BITPERFECT, d->flags & SD_F_BITPERFECT);
 	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_PVCHAN, d->pvchancount);
+	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_PVCHANRATE,
+	    d->pvchanrate);
+	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_PVCHANFORMAT,
+	    d->pvchanformat);
 	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_RVCHAN, d->rvchancount);
+	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_RVCHANRATE,
+	    d->rvchanrate);
+	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_RVCHANFORMAT,
+	    d->rvchanformat);
 
 	nchan = 0;
 	CHN_FOREACH(c, d, channels.pcm) {
@@ -466,10 +466,17 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 			goto done;
 		}
 
+		CHN_LOCK(c);
+
+		caps = PCM_CAP_REALTIME | PCM_CAP_MMAP | PCM_CAP_TRIGGER |
+		    ((c->flags & CHN_F_VIRTUAL) ? PCM_CAP_VIRTUAL : 0) |
+		    ((c->direction == PCMDIR_PLAY) ? PCM_CAP_OUTPUT : PCM_CAP_INPUT);
+
 		nvlist_add_string(cdi, SNDST_DSPS_SOUND4_CHAN_NAME, c->name);
 		nvlist_add_string(cdi, SNDST_DSPS_SOUND4_CHAN_PARENTCHAN,
 		    c->parentchannel != NULL ? c->parentchannel->name : "");
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_UNIT, nchan++);
+		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_CAPS, caps);
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_LATENCY,
 		    c->latency);
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_RATE, c->speed);
@@ -511,8 +518,13 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_SWBUF_READY,
 		    sndbuf_getready(c->bufsoft));
 
-		sbuf_printf(&sb, "[%s",
-		    (c->direction == PCMDIR_REC) ? "hardware" : "userland");
+		if (c->parentchannel != NULL) {
+			sbuf_printf(&sb, "[%s", (c->direction == PCMDIR_REC) ?
+			    c->parentchannel->name : "userland");
+		} else {
+			sbuf_printf(&sb, "[%s", (c->direction == PCMDIR_REC) ?
+			    "hardware" : "userland");
+		}
 		sbuf_printf(&sb, " -> ");
 		f = c->feeder;
 		while (f->source != NULL)
@@ -520,10 +532,12 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 		while (f != NULL) {
 			sbuf_printf(&sb, "%s", f->class->name);
 			if (f->desc->type == FEEDER_FORMAT) {
-				sbuf_printf(&sb, "(0x%08x -> 0x%08x)",
-				    f->desc->in, f->desc->out);
+				snd_afmt2str(f->desc->in, buf, sizeof(buf));
+				sbuf_printf(&sb, "(%s -> ", buf);
+				snd_afmt2str(f->desc->out, buf, sizeof(buf));
+				sbuf_printf(&sb, "%s)", buf);
 			} else if (f->desc->type == FEEDER_MATRIX) {
-				sbuf_printf(&sb, "(%d.%d -> %d.%d)",
+				sbuf_printf(&sb, "(%d.%dch -> %d.%dch)",
 				    AFMT_CHANNEL(f->desc->in) -
 				    AFMT_EXTCHANNEL(f->desc->in),
 				    AFMT_EXTCHANNEL(f->desc->in),
@@ -531,21 +545,25 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 				    AFMT_EXTCHANNEL(f->desc->out),
 				    AFMT_EXTCHANNEL(f->desc->out));
 			} else if (f->desc->type == FEEDER_RATE) {
-				sbuf_printf(&sb,
-				    "(0x%08x q:%d %d -> %d)",
-				    f->desc->out,
-				    FEEDER_GET(f, FEEDRATE_QUALITY),
+				sbuf_printf(&sb, "(%d -> %d)",
 				    FEEDER_GET(f, FEEDRATE_SRC),
 				    FEEDER_GET(f, FEEDRATE_DST));
 			} else {
-				sbuf_printf(&sb, "(0x%08x)",
-				    f->desc->out);
+				snd_afmt2str(f->desc->out, buf, sizeof(buf));
+				sbuf_printf(&sb, "(%s)", buf);
 			}
 			sbuf_printf(&sb, " -> ");
 			f = f->parent;
 		}
-		sbuf_printf(&sb, "%s]",
-		    (c->direction == PCMDIR_REC) ? "userland" : "hardware");
+		if (c->parentchannel != NULL) {
+			sbuf_printf(&sb, "%s]", (c->direction == PCMDIR_REC) ?
+			    "userland" : c->parentchannel->name);
+		} else {
+			sbuf_printf(&sb, "%s]", (c->direction == PCMDIR_REC) ?
+			    "userland" : "hardware");
+		}
+
+		CHN_UNLOCK(c);
 
 		sbuf_finish(&sb);
 		nvlist_add_string(cdi, SNDST_DSPS_SOUND4_CHAN_FEEDERCHAIN,
@@ -1240,6 +1258,8 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 		KASSERT(c->bufhard != NULL && c->bufsoft != NULL,
 		    ("hosed pcm channel setup"));
 
+		CHN_LOCK(c);
+
 		sbuf_printf(s, "\n\t");
 
 		sbuf_printf(s, "%s[%s]: ",
@@ -1296,8 +1316,13 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 		sbuf_printf(s, "channel flags=0x%b", c->flags, CHN_F_BITS);
 		sbuf_printf(s, "\n\t");
 
-		sbuf_printf(s, "{%s}",
-		    (c->direction == PCMDIR_REC) ? "hardware" : "userland");
+		if (c->parentchannel != NULL) {
+			sbuf_printf(s, "{%s}", (c->direction == PCMDIR_REC) ?
+			    c->parentchannel->name : "userland");
+		} else {
+			sbuf_printf(s, "{%s}", (c->direction == PCMDIR_REC) ?
+			    "hardware" : "userland");
+		}
 		sbuf_printf(s, " -> ");
 		f = c->feeder;
 		while (f->source != NULL)
@@ -1329,8 +1354,15 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 			sbuf_printf(s, " -> ");
 			f = f->parent;
 		}
-		sbuf_printf(s, "{%s}",
-		    (c->direction == PCMDIR_REC) ? "userland" : "hardware");
+		if (c->parentchannel != NULL) {
+			sbuf_printf(s, "{%s}", (c->direction == PCMDIR_REC) ?
+			    "userland" : c->parentchannel->name);
+		} else {
+			sbuf_printf(s, "{%s}", (c->direction == PCMDIR_REC) ?
+			    "userland" : "hardware");
+		}
+
+		CHN_UNLOCK(c);
 	}
 
 	return (0);

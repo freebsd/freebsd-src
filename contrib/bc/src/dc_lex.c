@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2024 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -114,7 +114,9 @@ dc_lex_string(BcLex* l)
 		nls = 0;
 		got_more = false;
 
+#if !BC_ENABLE_OSSFUZZ
 		assert(l->mode != BC_MODE_STDIN || l->buf == vm->buffer.v);
+#endif // !BC_ENABLE_OSSFUZZ
 
 		// This is the meat. As long as we don't run into the NUL byte, and we
 		// have "depth", which means we haven't completely balanced brackets

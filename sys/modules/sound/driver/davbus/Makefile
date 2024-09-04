@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/sound/macio
 
 KMOD=	snd_davbus

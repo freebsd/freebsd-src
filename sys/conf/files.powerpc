@@ -20,6 +20,49 @@ contrib/openzfs/module/icp/asm-ppc64/sha2/sha512-p8.S		optional zfs compile-with
 contrib/openzfs/module/icp/asm-ppc64/sha2/sha256-ppc.S		optional zfs compile-with "${ZFS_S}"
 contrib/openzfs/module/icp/asm-ppc64/sha2/sha512-ppc.S		optional zfs compile-with "${ZFS_S}"
 
+# openssl ppc common files
+crypto/openssl/ossl_ppc.c	optional	ossl powerpc64 | ossl powerpc64le
+
+# openssl assembly files (powerpc64le)
+crypto/openssl/powerpc64le/aes-ppc.S			optional	ossl powerpc64le
+crypto/openssl/powerpc64le/aesp8-ppc.S			optional	ossl powerpc64le
+crypto/openssl/powerpc64le/chacha-ppc.S			optional	ossl powerpc64le
+crypto/openssl/powerpc64le/ecp_nistz256-ppc64.S		optional	ossl powerpc64le
+crypto/openssl/powerpc64le/ghashp8-ppc.S		optional	ossl powerpc64le
+crypto/openssl/powerpc64le/keccak1600-ppc64.S		optional	ossl powerpc64le
+crypto/openssl/powerpc64le/poly1305-ppc.S		optional	ossl powerpc64le
+crypto/openssl/powerpc64le/poly1305-ppcfp.S		optional	ossl powerpc64le
+crypto/openssl/powerpc64le/ppc-mont.S			optional	ossl powerpc64le
+crypto/openssl/powerpc64le/ppc.S			optional	ossl powerpc64le
+crypto/openssl/powerpc64le/ppccpuid.S			optional	ossl powerpc64le
+crypto/openssl/powerpc64le/sha1-ppc.S			optional	ossl powerpc64le
+crypto/openssl/powerpc64le/sha256-ppc.S			optional	ossl powerpc64le
+crypto/openssl/powerpc64le/sha256p8-ppc.S		optional	ossl powerpc64le
+crypto/openssl/powerpc64le/sha512-ppc.S			optional	ossl powerpc64le
+crypto/openssl/powerpc64le/sha512p8-ppc.S		optional	ossl powerpc64le
+crypto/openssl/powerpc64le/vpaes-ppc.S			optional	ossl powerpc64le
+crypto/openssl/powerpc64le/x25519-ppc64.S		optional	ossl powerpc64le
+
+# openssl assembly files (powerpc64)
+crypto/openssl/powerpc64/aes-ppc.S			optional	ossl powerpc64
+crypto/openssl/powerpc64/aesp8-ppc.S			optional	ossl powerpc64
+crypto/openssl/powerpc64/chacha-ppc.S			optional	ossl powerpc64
+crypto/openssl/powerpc64/ecp_nistz256-ppc64.S		optional	ossl powerpc64
+crypto/openssl/powerpc64/ghashp8-ppc.S			optional	ossl powerpc64
+crypto/openssl/powerpc64/keccak1600-ppc64.S		optional	ossl powerpc64
+crypto/openssl/powerpc64/poly1305-ppc.S			optional	ossl powerpc64
+crypto/openssl/powerpc64/poly1305-ppcfp.S		optional	ossl powerpc64
+crypto/openssl/powerpc64/ppc-mont.S			optional	ossl powerpc64
+crypto/openssl/powerpc64/ppc.S				optional	ossl powerpc64
+crypto/openssl/powerpc64/ppccpuid.S			optional	ossl powerpc64
+crypto/openssl/powerpc64/sha1-ppc.S			optional	ossl powerpc64
+crypto/openssl/powerpc64/sha256-ppc.S			optional	ossl powerpc64
+crypto/openssl/powerpc64/sha256p8-ppc.S			optional	ossl powerpc64
+crypto/openssl/powerpc64/sha512-ppc.S			optional	ossl powerpc64
+crypto/openssl/powerpc64/sha512p8-ppc.S			optional	ossl powerpc64
+crypto/openssl/powerpc64/vpaes-ppc.S			optional	ossl powerpc64
+crypto/openssl/powerpc64/x25519-ppc64.S			optional	ossl powerpc64
+
 cddl/compat/opensolaris/kern/opensolaris_atomic.c			optional zfs powerpc | dtrace powerpc | zfs powerpcspe | dtrace powerpcspe compile-with "${ZFS_C}"
 cddl/dev/dtrace/powerpc/dtrace_asm.S		optional dtrace compile-with "${DTRACE_S}"
 cddl/dev/dtrace/powerpc/dtrace_subr.c		optional dtrace compile-with "${DTRACE_C}"
@@ -336,6 +379,7 @@ powerpc/powerpc/platform.c	standard
 powerpc/powerpc/platform_if.m	standard
 powerpc/powerpc/ptrace_machdep.c	standard
 powerpc/powerpc/sc_machdep.c	optional	sc
+powerpc/powerpc/sdt_machdep.c	optional	powerpc64 kdtrace_hooks
 powerpc/powerpc/setjmp.S	standard
 powerpc/powerpc/sigcode32.S	optional	powerpc | powerpcspe | compat_freebsd32
 powerpc/powerpc/sigcode64.S	optional	powerpc64 | powerpc64le

@@ -167,8 +167,7 @@ opal_nvram_detach(device_t dev)
 
 	if (sc->sc_cdev != NULL)
 		destroy_dev(sc->sc_cdev);
-	if (sc->sc_buf != NULL)
-		contigfree(sc->sc_buf, NVRAM_BUFSIZE, M_DEVBUF);
+	free(sc->sc_buf, M_DEVBUF);
 
 	mtx_destroy(&sc->sc_mtx);
 

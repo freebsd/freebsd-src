@@ -1,4 +1,3 @@
-
 .PATH:		${SRCTOP}/contrib/hyperv/tools/scripts
 
 BINDIR=		${LIBEXECDIR}/hyperv

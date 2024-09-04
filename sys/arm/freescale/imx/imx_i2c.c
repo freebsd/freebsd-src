@@ -413,7 +413,7 @@ i2c_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	sc->iicbus = device_add_child(dev, "iicbus", -1);
+	sc->iicbus = device_add_child(dev, "iicbus", DEVICE_UNIT_ANY);
 	if (sc->iicbus == NULL) {
 		device_printf(dev, "could not add iicbus child");
 		return (ENXIO);

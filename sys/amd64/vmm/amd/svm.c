@@ -54,9 +54,10 @@
 #include <machine/vmm_instruction_emul.h>
 #include <machine/vmm_snapshot.h>
 
+#include <dev/vmm/vmm_ktr.h>
+
 #include "vmm_lapic.h"
 #include "vmm_stat.h"
-#include "vmm_ktr.h"
 #include "vmm_ioport.h"
 #include "vatpic.h"
 #include "vlapic.h"
@@ -2259,8 +2260,8 @@ svm_cleanup(void *vmi)
 {
 	struct svm_softc *sc = vmi;
 
-	contigfree(sc->iopm_bitmap, SVM_IO_BITMAP_SIZE, M_SVM);
-	contigfree(sc->msr_bitmap, SVM_MSR_BITMAP_SIZE, M_SVM);
+	free(sc->iopm_bitmap, M_SVM);
+	free(sc->msr_bitmap, M_SVM);
 	free(sc, M_SVM);
 }
 

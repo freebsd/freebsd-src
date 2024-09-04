@@ -1,4 +1,4 @@
-/*	$NetBSD: for.c,v 1.179 2024/04/01 12:33:27 rillig Exp $	*/
+/*	$NetBSD: for.c,v 1.182 2024/06/07 18:57:30 rillig Exp $	*/
 
 /*
  * Copyright (c) 1992, The Regents of the University of California.
@@ -58,7 +58,7 @@
 #include "make.h"
 
 /*	"@(#)for.c	8.1 (Berkeley) 6/6/93"	*/
-MAKE_RCSID("$NetBSD: for.c,v 1.179 2024/04/01 12:33:27 rillig Exp $");
+MAKE_RCSID("$NetBSD: for.c,v 1.182 2024/06/07 18:57:30 rillig Exp $");
 
 
 typedef struct ForLoop {
@@ -156,7 +156,8 @@ ForLoop_ParseVarnames(ForLoop *f, const char **pp)
 		cpp_skip_whitespace(&p);
 		if (*p == '\0') {
 			Parse_Error(PARSE_FATAL, "missing `in' in for");
-			f->vars.len = 0;
+			while (f->vars.len > 0)
+				free(*(char **)Vector_Pop(&f->vars));
 			return;
 		}
 
@@ -166,7 +167,8 @@ ForLoop_ParseVarnames(ForLoop *f, const char **pp)
 				    "invalid character '%c' "
 				    "in .for loop variable name",
 				    p[len]);
-				f->vars.len = 0;
+				while (f->vars.len > 0)
+					free(*(char **)Vector_Pop(&f->vars));
 				return;
 			}
 		}
@@ -195,7 +197,7 @@ ForLoop_ParseItems(ForLoop *f, const char *p)
 
 	cpp_skip_whitespace(&p);
 
-	items = Var_Subst(p, SCOPE_GLOBAL, VARE_WANTRES);
+	items = Var_Subst(p, SCOPE_GLOBAL, VARE_EVAL);
 	/* TODO: handle errors */
 
 	f->items = Substring_Words(items, false);
@@ -330,23 +332,6 @@ ExprLen(const char *s, const char *e)
 }
 
 /*
- * The .for loop substitutes the items as ${:U<value>...}, which means
- * that characters that break this syntax must be backslash-escaped.
- */
-static bool
-NeedsEscapes(Substring value, char endc)
-{
-	const char *p;
-
-	for (p = value.start; p != value.end; p++) {
-		if (*p == ':' || *p == '$' || *p == '\\' || *p == endc ||
-		    *p == '\n')
-			return true;
-	}
-	return false;
-}
-
-/*
  * While expanding the body of a .for loop, write the item as a ${:U...}
  * expression, escaping characters as needed.  The result is later unescaped
  * by ApplyModifier_Defined.
@@ -356,11 +341,6 @@ AddEscaped(Buffer *cmds, Substring item, char endc)
 {
 	const char *p;
 	char ch;
-
-	if (!NeedsEscapes(item, endc)) {
-		Buf_AddRange(cmds, item.start, item.end);
-		return;
-	}
 
 	for (p = item.start; p != item.end;) {
 		ch = *p;

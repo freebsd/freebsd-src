@@ -348,8 +348,10 @@ tpm_crb_mem_handler(struct vcpu *vcpu __unused, const int dir,
 			pthread_mutex_lock(&crb->mutex);
 			tpm_crb_mmiocpy(&start, val, size);
 
-			if (!start.start || crb->regs.ctrl_start.start)
+			if (!start.start || crb->regs.ctrl_start.start) {
+				pthread_mutex_unlock(&crb->mutex);
 				break;
+			}
 
 			crb->regs.ctrl_start.start = true;
 

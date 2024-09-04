@@ -205,7 +205,7 @@ e6000sw_identify(driver_t *driver, device_t parent)
 {
 
 	if (device_find_child(parent, "e6000sw", -1) == NULL)
-		BUS_ADD_CHILD(parent, 0, "e6000sw", -1);
+		BUS_ADD_CHILD(parent, 0, "e6000sw", DEVICE_UNIT_ANY);
 }
 
 static int
@@ -454,8 +454,6 @@ e6000sw_init_interface(e6000sw_softc_t *sc, int port)
 	snprintf(name, IFNAMSIZ, "%sport", device_get_nameunit(sc->dev));
 
 	sc->ifp[port] = if_alloc(IFT_ETHER);
-	if (sc->ifp[port] == NULL)
-		return (ENOMEM);
 	if_setsoftc(sc->ifp[port], sc);
 	if_setflagbits(sc->ifp[port], IFF_UP | IFF_BROADCAST |
 	    IFF_DRV_RUNNING | IFF_SIMPLEX, 0);

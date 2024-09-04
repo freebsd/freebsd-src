@@ -67,12 +67,15 @@ int dragonfly_get_random_qr_qnr(const struct crypto_bignum *prime,
 		}
 
 		res = crypto_bignum_legendre(tmp, prime);
-		if (res == 1 && !(*qr))
+		if (res == 1 && !(*qr)) {
 			*qr = tmp;
-		else if (res == -1 && !(*qnr))
+		} else if (res == -1 && !(*qnr)) {
 			*qnr = tmp;
-		else
+		} else {
 			crypto_bignum_deinit(tmp, 0);
+			if (res == -2)
+				break;
+		}
 	}
 
 	if (*qr && *qnr)

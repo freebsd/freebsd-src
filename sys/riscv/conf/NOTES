@@ -17,6 +17,9 @@ options 	KDTRACE_HOOKS		# Kernel DTrace hooks
 options 	DDB_CTF			# Kernel ELF linker loads CTF data
 options 	RACCT_DEFAULT_TO_DISABLED # Set kern.racct.enable=0 by default
 
+# Enable detailed accounting by the PV entry allocator.
+options 	PV_STATS
+
 # RISC-V SBI console
 device		rcons
 

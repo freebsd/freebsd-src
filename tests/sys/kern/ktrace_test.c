@@ -33,6 +33,7 @@
 #include <sys/ktrace.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
+#include <sys/syscall.h>
 #include <sys/sysent.h>
 #include <sys/time.h>
 #include <sys/uio.h>
@@ -86,6 +87,16 @@ child_fail_require(const char *file, int line, const char *fmt, ...)
 	_exit(32);
 }
 
+static void *
+xmalloc(size_t size)
+{
+	void *p;
+
+	p = malloc(size);
+	ATF_REQUIRE(p != NULL);
+	return (p);
+}
+
 /*
  * Determine sysdecode ABI based on proc's ABI in sv_flags.
  */
@@ -105,36 +116,47 @@ syscallabi(u_int sv_flags)
 	return (SYSDECODE_ABI_UNKNOWN);
 }
 
-/*
- * Start tracing capability violations and notify child that it can execute.
- * Return @numv capability violations from child in @v.
- */
-static void
-cap_trace_child(int cpid, struct ktr_cap_fail *v, int numv)
+static int
+trace_child(int cpid, int facility, int status)
 {
-	struct ktr_header header;
-	int error, fd, i;
+	int error, fd;
 
 	ATF_REQUIRE((fd = open("ktrace.out",
-	    O_RDONLY | O_CREAT | O_TRUNC)) != -1);
-	ATF_REQUIRE(ktrace("ktrace.out", KTROP_SET,
-	    KTRFAC_CAPFAIL, cpid) != -1);
+	    O_RDONLY | O_CREAT | O_TRUNC, 0600)) != -1);
+	ATF_REQUIRE_MSG(ktrace("ktrace.out", KTROP_SET, facility, cpid) != -1,
+	    "ktrace failed: %s", strerror(errno));
 	/* Notify child that we've starting tracing. */
 	ATF_REQUIRE(kill(cpid, SIGUSR1) != -1);
 	/* Wait for child to raise violation and exit. */
 	ATF_REQUIRE(waitpid(cpid, &error, 0) != -1);
 	ATF_REQUIRE(WIFEXITED(error));
-	ATF_REQUIRE_EQ(WEXITSTATUS(error), 0);
+	ATF_REQUIRE_EQ(WEXITSTATUS(error), status);
+	return (fd);
+}
+
+/*
+ * Start tracing capability violations and notify child that it can execute.
+ * Return @numv capability violations from child in @v.
+ */
+static void
+cap_trace_child(pid_t cpid, struct ktr_cap_fail *v, int numv)
+{
+	struct ktr_header header;
+	ssize_t n;
+	int fd;
+
+	fd = trace_child(cpid, KTRFAC_CAPFAIL, 0);
+
 	/* Read ktrace header and ensure violation occurred. */
-	for (i = 0; i < numv; ++i) {
-		ATF_REQUIRE((error = read(fd, &header, sizeof(header))) != -1);
-		ATF_REQUIRE_EQ(error, sizeof(header));
+	for (int i = 0; i < numv; ++i) {
+		ATF_REQUIRE((n = read(fd, &header, sizeof(header))) != -1);
+		ATF_REQUIRE_EQ(n, sizeof(header));
 		ATF_REQUIRE_EQ(header.ktr_len, sizeof(*v));
 		ATF_REQUIRE_EQ(header.ktr_pid, cpid);
 		/* Read the capability violation. */
-		ATF_REQUIRE((error = read(fd, v + i,
+		ATF_REQUIRE((n = read(fd, v + i,
 		    sizeof(*v))) != -1);
-		ATF_REQUIRE_EQ(error, sizeof(*v));
+		ATF_REQUIRE_EQ(n, sizeof(*v));
 	}
 	ATF_REQUIRE(close(fd) != -1);
 }
@@ -301,7 +323,11 @@ ATF_TC_BODY(ktrace__cap_signal, tc)
  * Test if opening a socket with a restricted protocol is reported
  * as a protocol violation.
  */
-ATF_TC_WITHOUT_HEAD(ktrace__cap_proto);
+ATF_TC(ktrace__cap_proto);
+ATF_TC_HEAD(ktrace__cap_proto, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
 ATF_TC_BODY(ktrace__cap_proto, tc)
 {
 	struct ktr_cap_fail violation;
@@ -507,6 +533,78 @@ ATF_TC_BODY(ktrace__cap_shm_open, tc)
 	ATF_REQUIRE_STREQ(violation.cap_data.cap_path, "/ktrace_shm");
 }
 
+/*
+ * Make sure that ktrace is disabled upon exec of a setuid binary.
+ */
+ATF_TC(ktrace__setuid_exec);
+ATF_TC_HEAD(ktrace__setuid_exec, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "unprivileged");
+}
+ATF_TC_BODY(ktrace__setuid_exec, tc)
+{
+	struct ktr_header header;
+	struct ktr_syscall *syscall;
+	sigset_t set = { };
+	off_t off, off1;
+	ssize_t n;
+	pid_t pid;
+	int error, fd;
+
+	/* Block SIGUSR1 so child does not terminate. */
+	ATF_REQUIRE(sigaddset(&set, SIGUSR1) != -1);
+	ATF_REQUIRE(sigprocmask(SIG_BLOCK, &set, NULL) != -1);
+
+	ATF_REQUIRE((pid = fork()) != -1);
+	if (pid == 0) {
+		/* Wait until ktrace has started. */
+		CHILD_REQUIRE(sigwait(&set, &error) != -1);
+		CHILD_REQUIRE_EQ(error, SIGUSR1);
+
+		execve("/usr/bin/su", (char *[]){ "su", "whoami", NULL }, NULL);
+		_exit(0);
+	}
+
+	fd = trace_child(pid, KTRFAC_SYSCALL, 1);
+
+	n = read(fd, &header, sizeof(header));
+	ATF_REQUIRE(n >= 0);
+	ATF_REQUIRE_EQ((size_t)n, sizeof(header));
+	ATF_REQUIRE_EQ(header.ktr_pid, pid);
+	ATF_REQUIRE(header.ktr_len >= (int)sizeof(*syscall));
+
+	syscall = xmalloc(header.ktr_len);
+	n = read(fd, syscall, header.ktr_len);
+	ATF_REQUIRE(n >= 0);
+	ATF_REQUIRE_EQ(n, header.ktr_len);
+	if (syscall->ktr_code == SYS_sigwait) {
+		free(syscall);
+
+		/* Skip the sigwait() syscall. */
+		n = read(fd, &header, sizeof(header));
+		ATF_REQUIRE(n >= 0);
+		ATF_REQUIRE_EQ((size_t)n, sizeof(header));
+		ATF_REQUIRE_EQ(header.ktr_pid, pid);
+		ATF_REQUIRE(header.ktr_len >= (int)sizeof(*syscall));
+
+		syscall = xmalloc(header.ktr_len);
+		n = read(fd, syscall, header.ktr_len);
+		ATF_REQUIRE(n >= 0);
+		ATF_REQUIRE_EQ(n, header.ktr_len);
+	}
+	ATF_REQUIRE_EQ(syscall->ktr_code, SYS_execve);
+	free(syscall);
+
+	/* su is setuid root, so this should have been the last entry. */
+	off = lseek(fd, 0, SEEK_CUR);
+	ATF_REQUIRE(off != -1);
+	off1 = lseek(fd, 0, SEEK_END);
+	ATF_REQUIRE(off1 != -1);
+	ATF_REQUIRE_EQ(off, off1);
+
+	ATF_REQUIRE(close(fd) == 0);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, ktrace__cap_not_capable);
@@ -518,5 +616,6 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, ktrace__cap_namei);
 	ATF_TP_ADD_TC(tp, ktrace__cap_cpuset);
 	ATF_TP_ADD_TC(tp, ktrace__cap_shm_open);
+	ATF_TP_ADD_TC(tp, ktrace__setuid_exec);
 	return (atf_no_error());
 }

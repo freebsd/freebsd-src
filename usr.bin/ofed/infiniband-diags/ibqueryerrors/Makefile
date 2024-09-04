@@ -1,4 +1,3 @@
-
 PROG=	ibqueryerrors
 SRCS=	ibqueryerrors.c
 LIBADD=	ibnetdisc

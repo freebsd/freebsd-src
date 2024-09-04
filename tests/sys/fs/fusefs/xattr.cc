@@ -350,7 +350,7 @@ TEST_F(Listxattr, enotsup)
  * On Linux, however, the file system is supposed to return ERANGE if an
  * insufficiently large buffer is passed to listxattr(2).
  *
- * fusefs(5) must guarantee the usual FreeBSD behavior.
+ * fusefs(4) must guarantee the usual FreeBSD behavior.
  */
 TEST_F(Listxattr, erange)
 {

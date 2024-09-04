@@ -1,4 +1,3 @@
-
 .PATH:  ${SRCTOP}/sys/dev/ntb/test
 
 KMOD	= ntb_tool

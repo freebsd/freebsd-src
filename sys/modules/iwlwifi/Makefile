@@ -1,4 +1,3 @@
-
 DEVIWLWIFIDIR=	${SRCTOP}/sys/contrib/dev/iwlwifi
 
 .PATH: ${DEVIWLWIFIDIR}

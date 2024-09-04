@@ -200,7 +200,6 @@ lio_probe(device_t dev)
 	uint16_t	device_id;
 	uint16_t	subdevice_id;
 	uint8_t		revision_id;
-	char		device_ver[256];
 
 	vendor_id = pci_get_vendor(dev);
 	if (vendor_id != PCI_VENDOR_ID_CAVIUM)
@@ -216,9 +215,8 @@ lio_probe(device_t dev)
 		    (device_id == tbl->device_id) &&
 		    (subdevice_id == tbl->subdevice_id) &&
 		    (revision_id == tbl->revision_id)) {
-			sprintf(device_ver, "%s, Version - %s",
-				lio_strings[tbl->index], LIO_VERSION);
-			device_set_desc_copy(dev, device_ver);
+			device_set_descf(dev, "%s, Version - %s",
+			    lio_strings[tbl->index], LIO_VERSION);
 			return (BUS_PROBE_DEFAULT);
 		}
 
@@ -1329,11 +1327,6 @@ lio_setup_nic_devices(struct octeon_device *octeon_dev)
 
 		ifp = if_alloc(IFT_ETHER);
 
-		if (ifp == NULL) {
-			lio_dev_err(octeon_dev, "Device allocation failed\n");
-			goto setup_nic_dev_fail;
-		}
-
 		lio = malloc(sizeof(struct lio), M_DEVBUF, M_NOWAIT | M_ZERO);
 
 		if (lio == NULL) {
@@ -1861,10 +1854,6 @@ lio_setup_rx_oom_poll_fn(if_t ifp)
 	rx_status_tq->tq = taskqueue_create("lio_rx_oom_status", M_WAITOK,
 					    taskqueue_thread_enqueue,
 					    &rx_status_tq->tq);
-	if (rx_status_tq->tq == NULL) {
-		lio_dev_err(oct, "unable to create lio rx oom status tq\n");
-		return (-1);
-	}
 
 	TIMEOUT_TASK_INIT(rx_status_tq->tq, &rx_status_tq->work, 0,
 			  lio_poll_check_rx_oom_status, (void *)rx_status_tq);

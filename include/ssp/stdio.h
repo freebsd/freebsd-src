@@ -37,6 +37,24 @@
 #include <ssp/ssp.h>
 
 __BEGIN_DECLS
+#if __SSP_FORTIFY_LEVEL > 0
+#if __POSIX_VISIBLE
+__ssp_redirect_raw(char *, ctermid, ctermid, (char *__buf), (__buf),
+    __buf != NULL, __ssp_bos, L_ctermid);
+#if __BSD_VISIBLE
+__ssp_redirect_raw(char *, ctermid_r, ctermid_r, (char *__buf), (__buf),
+    __buf != NULL, __ssp_bos, L_ctermid);
+#endif /* __BSD_VISIBLE */
+#endif /* __POSIX_VISIBLE */
+__ssp_redirect(size_t, fread, (void *__restrict __buf, size_t __len,
+    size_t __nmemb, FILE *__restrict __fp), (__buf, __len, __nmemb, __fp));
+__ssp_redirect(size_t, fread_unlocked, (void *__restrict __buf, size_t __len,
+    size_t __nmemb, FILE *__restrict __fp), (__buf, __len, __nmemb, __fp));
+__ssp_redirect(char *, gets_s, (char *__buf, rsize_t __len), (__buf, __len));
+__ssp_redirect_raw(char *, tmpnam, tmpnam, (char *__buf), (__buf), 1,
+    __ssp_bos, L_tmpnam);
+#endif
+
 int __sprintf_chk(char *__restrict, int, size_t, const char *__restrict, ...)
     __printflike(4, 5);
 int __vsprintf_chk(char *__restrict, int, size_t, const char *__restrict,

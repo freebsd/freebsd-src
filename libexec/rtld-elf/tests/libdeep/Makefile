@@ -1,4 +1,3 @@
-
 SHLIB?=		deep
 SHLIB_MAJOR=	0
 

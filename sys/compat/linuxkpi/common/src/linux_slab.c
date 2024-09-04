@@ -207,6 +207,17 @@ linux_kmem_cache_destroy(struct linux_kmem_cache *c)
 	free(c, M_KMALLOC);
 }
 
+void *
+lkpi___kmalloc(size_t size, gfp_t flags)
+{
+	size_t _s;
+
+	/* sizeof(struct llist_node) is used for kfree_async(). */
+	_s = MAX(size, sizeof(struct llist_node));
+
+	return (malloc(_s, M_KMALLOC, linux_check_m_flags(flags)));
+}
+
 struct lkpi_kmalloc_ctx {
 	size_t size;
 	gfp_t flags;

@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 SCRIPTS=etcupdate.sh

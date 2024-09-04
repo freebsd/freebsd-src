@@ -88,6 +88,8 @@ void debugfs_remove_recursive(struct dentry *dentry);
 
 #define DEFINE_DEBUGFS_ATTRIBUTE(__fops, __get, __set, __fmt) \
 	DEFINE_SIMPLE_ATTRIBUTE(__fops, __get, __set, __fmt)
+#define DEFINE_DEBUGFS_ATTRIBUTE_SIGNED(__fops, __get, __set, __fmt) \
+	DEFINE_SIMPLE_ATTRIBUTE_SIGNED(__fops, __get, __set, __fmt)
 
 void debugfs_create_bool(const char *name, umode_t mode, struct dentry *parent,
     bool *value);

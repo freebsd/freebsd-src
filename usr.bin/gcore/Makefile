@@ -1,4 +1,3 @@
-
 PROG=	gcore
 SRCS=	elfcore.c gcore.c
 LIBADD=	sbuf util

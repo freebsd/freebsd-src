@@ -292,7 +292,7 @@ arm_gic_add_children(device_t dev)
 		ofw_bus_reg_to_rl(dev, child, sc->addr_cells,
 		    sc->size_cells, &dinfo->rl);
 
-		cdev = device_add_child(dev, NULL, -1);
+		cdev = device_add_child(dev, NULL, DEVICE_UNIT_ANY);
 		if (cdev == NULL) {
 			device_printf(dev, "<%s>: device_add_child failed\n",
 			    dinfo->obdinfo.obd_name);

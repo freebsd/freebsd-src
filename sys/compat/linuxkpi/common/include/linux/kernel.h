@@ -50,7 +50,6 @@
 #include <linux/minmax.h>
 #include <linux/stringify.h>
 #include <linux/errno.h>
-#include <linux/sched.h>
 #include <linux/types.h>
 #include <linux/typecheck.h>
 #include <linux/jiffies.h>

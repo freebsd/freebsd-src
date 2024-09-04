@@ -1,4 +1,3 @@
-
 .include <bsd.own.mk>
 
 ATF_TESTS_C+=		btowc_test

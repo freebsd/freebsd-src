@@ -32,12 +32,13 @@
 #include <machine/vmm.h>
 #include <machine/vmm_instruction_emul.h>
 
+#include <dev/vmm/vmm_ktr.h>
+
 #include "vatpic.h"
 #include "vatpit.h"
 #include "vpmtmr.h"
 #include "vrtc.h"
 #include "vmm_ioport.h"
-#include "vmm_ktr.h"
 
 #define	MAX_IOPORTS		1280
 

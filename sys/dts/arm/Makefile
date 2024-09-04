@@ -1,4 +1,3 @@
-
 DTS!=ls ${.CURDIR}/*.dts
 
 all: test-dts

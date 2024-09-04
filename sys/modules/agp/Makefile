@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/agp
 
 KMOD=	agp

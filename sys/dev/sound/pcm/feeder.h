@@ -58,10 +58,10 @@ u_int32_t snd_fmtbestbit(u_int32_t fmt, u_int32_t *fmts);
 u_int32_t snd_fmtbestchannel(u_int32_t fmt, u_int32_t *fmts);
 u_int32_t snd_fmtbest(u_int32_t fmt, u_int32_t *fmts);
 
-int chn_addfeeder(struct pcm_channel *c, struct feeder_class *fc,
+int feeder_add(struct pcm_channel *c, struct feeder_class *fc,
     struct pcm_feederdesc *desc);
-int chn_removefeeder(struct pcm_channel *c);
-struct pcm_feeder *chn_findfeeder(struct pcm_channel *c, u_int32_t type);
+void feeder_remove(struct pcm_channel *c);
+struct pcm_feeder *feeder_find(struct pcm_channel *c, u_int32_t type);
 void feeder_printchain(struct pcm_feeder *head);
 int feeder_chain(struct pcm_channel *);
 

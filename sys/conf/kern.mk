@@ -143,6 +143,9 @@ CFLAGS += -mgeneral-regs-only
 CFLAGS += -ffixed-x18
 # Build with BTI+PAC
 CFLAGS += -mbranch-protection=standard
+.if ${LINKER_FEATURES:Mbti-report}
+LDFLAGS += -Wl,-zbti-report=error
+.endif
 # TODO: support outline atomics
 CFLAGS += -mno-outline-atomics
 INLINE_LIMIT?=	8000
@@ -293,6 +296,8 @@ CSTD?=		gnu99
 .else # CSTD
 CFLAGS+=        -std=${CSTD}
 .endif # CSTD
+
+NOSAN_CFLAGS= ${CFLAGS:N-fsanitize*:N-fno-sanitize*:N-fasan-shadow-offset*}
 
 # Please keep this if in sync with bsd.sys.mk
 .if ${LD} != "ld" && (${CC:[1]:H} != ${LD:[1]:H} || ${LD:[1]:T} != "ld")

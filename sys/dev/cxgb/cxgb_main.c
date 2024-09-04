@@ -1011,11 +1011,6 @@ cxgb_port_attach(device_t dev)
 
 	/* Allocate an ifnet object and set it up */
 	ifp = p->ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(dev, "Cannot allocate ifnet\n");
-		return (ENOMEM);
-	}
-	
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	if_setinitfn(ifp, cxgb_init);
 	if_setsoftc(ifp, p);
@@ -2477,9 +2472,7 @@ set_eeprom(struct port_info *pi, const uint8_t *data, int len, int offset)
 	aligned_len = (len + (offset & 3) + 3) & ~3;
 
 	if (aligned_offset != offset || aligned_len != len) {
-		buf = malloc(aligned_len, M_DEVBUF, M_WAITOK|M_ZERO);		   
-		if (!buf)
-			return (ENOMEM);
+		buf = malloc(aligned_len, M_DEVBUF, M_WAITOK | M_ZERO);
 		err = t3_seeprom_read(adapter, aligned_offset, (u32 *)buf);
 		if (!err && aligned_len > 4)
 			err = t3_seeprom_read(adapter,

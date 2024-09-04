@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2010,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -33,12 +33,12 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_stat.c,v 1.17 2020/12/11 22:05:24 tom Exp $")
+MODULE_ID("$Id: fld_stat.c,v 1.18 2021/06/17 21:20:30 tom Exp $")
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  int set_field_status(FIELD *field, bool status)
-|   
+|
 |   Description   :  Set or clear the 'changed' indication flag for that
 |                    field's primary buffer.
 |
@@ -60,11 +60,11 @@ set_field_status(FIELD *field, bool status)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  bool field_status(const FIELD *field)
-|   
+|
 |   Description   :  Retrieve the value of the 'changed' indication flag
-|                    for that field's primary buffer. 
+|                    for that field's primary buffer.
 |
 |   Return Values :  TRUE  - buffer has been changed
 |                    FALSE - buffer has not been changed

@@ -1,4 +1,3 @@
-
 BINDIR?=	/usr/sbin
 
 NO_WCAST_ALIGN=

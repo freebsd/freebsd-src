@@ -1,4 +1,3 @@
-
 .PATH:	${SRCTOP}/sys/dev/acpica
 
 KMOD=	acpi_video

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2018-2020,2021 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -33,7 +33,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_driver.c,v 1.133 2020/12/12 00:36:42 tom Exp $")
+MODULE_ID("$Id: frm_driver.c,v 1.135 2021/09/01 23:34:01 tom Exp $")
 
 /*----------------------------------------------------------------------------
   This is the core module of the form library. It contains the majority
@@ -217,10 +217,10 @@ static FIELD_CELL myZEROS;
 static void
 check_pos(FORM *form, int lineno)
 {
-  int y, x;
-
   if (form && form->w)
     {
+      int y, x;
+
       getyx(form->w, y, x);
       if (y != form->currow || x != form->curcol)
 	{
@@ -265,10 +265,11 @@ static int
 wide_winsnstr(WINDOW *w, const cchar_t *s, int n)
 {
   int code = ERR;
-  int y, x;
 
   while (n-- > 0)
     {
+      int y, x;
+
       getyx(w, y, x);
       if ((code = wins_wch(w, s++)) != OK)
 	break;
@@ -511,7 +512,6 @@ Buffer_To_Window(const FIELD *field, WINDOW *win)
 {
   int width, height;
   int y, x;
-  int len;
   int row;
   FIELD_CELL *pBuffer;
 
@@ -525,6 +525,8 @@ Buffer_To_Window(const FIELD *field, WINDOW *win)
        row < height;
        row++, pBuffer += width)
     {
+      int len;
+
       if ((len = (int)(After_End_Of_Data(pBuffer, width) - pBuffer)) > 0)
 	{
 	  wmove(win, row, 0);
@@ -706,8 +708,6 @@ Field_Grown(FIELD *field, int amount)
 	   * realloc().
 	   */
 	  int i, j;
-	  FIELD_CELL *old_bp;
-	  FIELD_CELL *new_bp;
 
 	  result = TRUE;	/* allow sharing of recovery on failure */
 
@@ -715,8 +715,9 @@ Field_Grown(FIELD *field, int amount)
 	  field->buf = newbuf;
 	  for (i = 0; i <= field->nbuf; i++)
 	    {
-	      new_bp = Address_Of_Nth_Buffer(field, i);
-	      old_bp = oldbuf + i * (1 + old_buflen);
+	      FIELD_CELL *new_bp = Address_Of_Nth_Buffer(field, i);
+	      FIELD_CELL *old_bp = oldbuf + i * (1 + old_buflen);
+
 	      for (j = 0; j < old_buflen; ++j)
 		new_bp[j] = old_bp[j];
 	      while (j < new_buflen)
@@ -917,11 +918,12 @@ _nc_Refresh_Current_Field(FORM *form)
       else
 	{
 	  /* A multi-line, i.e. vertical scrolling field */
-	  int row_after_bottom, first_modified_row, first_unmodified_row;
+	  int first_modified_row, first_unmodified_row;
 
 	  if (field->drows > field->rows)
 	    {
-	      row_after_bottom = form->toprow + field->rows;
+	      int row_after_bottom = form->toprow + field->rows;
+
 	      if (form->currow < form->toprow)
 		{
 		  form->toprow = form->currow;
@@ -1005,7 +1007,6 @@ Perform_Justification(FIELD *field, WINDOW *win)
 {
   FIELD_CELL *bp;
   int len;
-  int col = 0;
 
   bp = (Field_Has_Option(field, O_NO_LEFT_STRIP)
 	? field->buf
@@ -1014,6 +1015,8 @@ Perform_Justification(FIELD *field, WINDOW *win)
 
   if (len > 0)
     {
+      int col = 0;
+
       assert(win && (field->drows == 1));
 
       if (field->cols - len >= 0)
@@ -1240,7 +1243,6 @@ Synchronize_Linked_Fields(FIELD *field)
 {
   FIELD *linked_field;
   int res = E_OK;
-  int syncres;
 
   if (!field)
     return (E_BAD_ARGUMENT);
@@ -1252,6 +1254,8 @@ Synchronize_Linked_Fields(FIELD *field)
        (linked_field != field) && (linked_field != 0);
        linked_field = linked_field->link)
     {
+      int syncres;
+
       if (((syncres = Synchronize_Field(linked_field)) != E_OK) &&
 	  (res == E_OK))
 	res = syncres;
@@ -1276,7 +1280,6 @@ _nc_Synchronize_Attributes(FIELD *field)
 {
   FORM *form;
   int res = E_OK;
-  WINDOW *formwin;
 
   T((T_CALLED("_nc_Synchronize_Attributes(%p)"), (void *)field));
 
@@ -1303,7 +1306,8 @@ _nc_Synchronize_Attributes(FIELD *field)
 	    }
 	  else
 	    {
-	      formwin = Get_Form_Window(form);
+	      WINDOW *formwin = Get_Form_Window(form);
+
 	      copywin(form->w, formwin,
 		      0, 0,
 		      field->frow, field->fcol,
@@ -2422,7 +2426,6 @@ Insert_String(FORM *form, int row, FIELD_CELL *txt, int len)
   int datalen = (int)(After_End_Of_Data(bp, field->dcols) - bp);
   int freelen = field->dcols - datalen;
   int requiredlen = len + 1;
-  FIELD_CELL *split;
   int result = E_REQUEST_DENIED;
 
   if (freelen >= requiredlen)
@@ -2431,7 +2434,7 @@ Insert_String(FORM *form, int row, FIELD_CELL *txt, int len)
       myINSNSTR(form->w, txt, len);
       wmove(form->w, row, len);
       myINSNSTR(form->w, &myBLANK, 1);
-      return E_OK;
+      result = E_OK;
     }
   else
     {
@@ -2447,6 +2450,8 @@ Insert_String(FORM *form, int row, FIELD_CELL *txt, int len)
 
       if (row < (field->drows - 1))
 	{
+	  FIELD_CELL *split;
+
 	  split =
 	    After_Last_Whitespace_Character(bp,
 					    (int)(Get_Start_Of_Data(bp
@@ -2470,8 +2475,8 @@ Insert_String(FORM *form, int row, FIELD_CELL *txt, int len)
 	      return E_OK;
 	    }
 	}
-      return (result);
     }
+  return (result);
 }
 
 /*---------------------------------------------------------------------------
@@ -3551,7 +3556,7 @@ Upper_Neighbor_Field(FIELD *field)
 |   Function      :  static FIELD *Down_Neighbor_Field(FIELD * field)
 |
 |   Description   :  Because of the row-major nature of sorting the fields,
-|                    it's more difficult to define what the down neighbor
+|                    it is more difficult to define what the down neighbor
 |                    field really means. We define that it must be on a
 |                    'next' line (cyclic order!) and is the leftmost
 |                    field laying on the right side of the given field. If
@@ -4474,14 +4479,13 @@ form_driver(FORM *form, int c)
 		}
 	      else if (wenclose(sub, event.y, event.x))
 		{		/* Inside the area we try to find the hit item */
-		  int i;
-
 		  ry = event.y;
 		  rx = event.x;
 		  if (wmouse_trafo(sub, &ry, &rx, FALSE))
 		    {
 		      int min_field = form->page[form->curpage].pmin;
 		      int max_field = form->page[form->curpage].pmax;
+		      int i;
 
 		      for (i = min_field; i <= max_field; ++i)
 			{
@@ -4676,14 +4680,13 @@ form_driver_w(FORM *form, int type, wchar_t c)
 		}
 	      else if (wenclose(sub, event.y, event.x))
 		{		/* Inside the area we try to find the hit item */
-		  int i;
-
 		  ry = event.y;
 		  rx = event.x;
 		  if (wmouse_trafo(sub, &ry, &rx, FALSE))
 		    {
 		      int min_field = form->page[form->curpage].pmin;
 		      int max_field = form->page[form->curpage].pmax;
+		      int i;
 
 		      for (i = min_field; i <= max_field; ++i)
 			{

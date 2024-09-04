@@ -18,7 +18,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_kern_tls.h"
@@ -536,10 +535,6 @@ lagg_clone_create(struct if_clone *ifc, char *name, size_t len,
 
 	sc = malloc(sizeof(*sc), M_LAGG, M_WAITOK | M_ZERO);
 	ifp = sc->sc_ifp = if_alloc(if_type);
-	if (ifp == NULL) {
-		free(sc, M_LAGG);
-		return (ENOSPC);
-	}
 	LAGG_SX_INIT(sc);
 
 	mtx_init(&sc->sc_mtx, "lagg-mtx", NULL, MTX_DEF);
@@ -643,8 +638,8 @@ lagg_clone_destroy(struct if_clone *ifc, struct ifnet *ifp, uint32_t flags)
 
 	switch (ifp->if_type) {
 	case IFT_ETHER:
-		ifmedia_removeall(&sc->sc_media);
 		ether_ifdetach(ifp);
+		ifmedia_removeall(&sc->sc_media);
 		break;
 	case IFT_INFINIBAND:
 		infiniband_ifdetach(ifp);

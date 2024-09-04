@@ -1,10 +1,10 @@
-
 .PATH: ${.CURDIR:H}
 
 SRCS=	zfs_defs.c
 OBJS=	zfs_defs.o
 WARNS?=	1
 
+FORTIFY_SOURCE=	0
 
 CFLAGS+= -DIN_BASE -D__KERNEL__ -D_KERNEL -I. -I${.CURDIR}
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include

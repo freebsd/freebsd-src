@@ -393,6 +393,7 @@ static const struct {
 	{ HDA_CODEC_INTELGMLK1, 0,	"Intel Gemini Lake" },
 	{ HDA_CODEC_INTELICLK, 0,	"Intel Ice Lake" },
 	{ HDA_CODEC_INTELTGLK, 0,	"Intel Tiger Lake" },
+	{ HDA_CODEC_INTELTGLKH, 0,	"Intel Tiger Lake-H" },
 	{ HDA_CODEC_INTELALLK, 0,	"Intel Alder Lake" },
 	{ HDA_CODEC_SII1390, 0,		"Silicon Image SiI1390" },
 	{ HDA_CODEC_SII1392, 0,		"Silicon Image SiI1392" },
@@ -520,7 +521,7 @@ hdacc_attach(device_t dev)
 		codec->fgs[n].subsystem_id = hda_command(dev,
 		    HDA_CMD_GET_SUBSYSTEM_ID(0, i));
 		hdacc_unlock(codec);
-		codec->fgs[n].dev = child = device_add_child(dev, NULL, -1);
+		codec->fgs[n].dev = child = device_add_child(dev, NULL, DEVICE_UNIT_ANY);
 		if (child == NULL) {
 			device_printf(dev, "Failed to add function device\n");
 			continue;

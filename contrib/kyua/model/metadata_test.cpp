@@ -315,6 +315,8 @@ ATF_TEST_CASE_BODY(to_properties)
     props["allowed_platforms"] = "";
     props["custom.foo"] = "bar";
     props["description"] = "";
+    props["execenv"] = "";
+    props["execenv_jail_params"] = "";
     props["has_cleanup"] = "false";
     props["is_exclusive"] = "false";
     props["required_configs"] = "";
@@ -406,7 +408,8 @@ ATF_TEST_CASE_BODY(output__defaults)
     std::ostringstream str;
     str << model::metadata_builder().build();
     ATF_REQUIRE_EQ("metadata{allowed_architectures='', allowed_platforms='', "
-                   "description='', has_cleanup='false', is_exclusive='false', "
+                   "description='', execenv='', execenv_jail_params='', "
+                   "has_cleanup='false', is_exclusive='false', "
                    "required_configs='', "
                    "required_disk_space='0', required_files='', "
                    "required_memory='0', "
@@ -428,7 +431,8 @@ ATF_TEST_CASE_BODY(output__some_values)
         .build();
     ATF_REQUIRE_EQ(
         "metadata{allowed_architectures='abc', allowed_platforms='', "
-        "description='', has_cleanup='false', is_exclusive='true', "
+        "description='', execenv='', execenv_jail_params='', "
+        "has_cleanup='false', is_exclusive='true', "
         "required_configs='', "
         "required_disk_space='0', required_files='bar foo', "
         "required_memory='1.00K', "

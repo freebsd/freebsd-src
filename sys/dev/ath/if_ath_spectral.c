@@ -112,13 +112,6 @@ ath_spectral_attach(struct ath_softc *sc)
 
 	ss = malloc(sizeof(struct ath_spectral_state),
 	    M_TEMP, M_WAITOK | M_ZERO);
-
-	if (ss == NULL) {
-		device_printf(sc->sc_dev, "%s: failed to alloc memory\n",
-		    __func__);
-		return (-ENOMEM);
-	}
-
 	sc->sc_spectral = ss;
 
 	(void) ath_hal_spectral_get_config(sc->sc_ah, &ss->spectral_state);

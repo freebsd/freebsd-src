@@ -1,4 +1,4 @@
-/*	$NetBSD: cond.c,v 1.363 2024/04/23 22:51:28 rillig Exp $	*/
+/*	$NetBSD: cond.c,v 1.366 2024/07/06 21:21:09 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -91,7 +91,7 @@
 #include "dir.h"
 
 /*	"@(#)cond.c	8.2 (Berkeley) 1/2/94"	*/
-MAKE_RCSID("$NetBSD: cond.c,v 1.363 2024/04/23 22:51:28 rillig Exp $");
+MAKE_RCSID("$NetBSD: cond.c,v 1.366 2024/07/06 21:21:09 rillig Exp $");
 
 /*
  * Conditional expressions conform to this grammar:
@@ -222,8 +222,8 @@ ParseWord(const char **pp, bool doEval)
 			break;
 		if (ch == '$') {
 			VarEvalMode emode = doEval
-			    ? VARE_UNDEFERR
-			    : VARE_PARSE_ONLY;
+			    ? VARE_EVAL_DEFINED
+			    : VARE_PARSE;
 			/*
 			 * TODO: make Var_Parse complain about undefined
 			 * variables.
@@ -396,9 +396,9 @@ CondParser_StringExpr(CondParser *par, const char *start,
 	const char *p;
 	bool atStart;		/* true means an expression outside quotes */
 
-	emode = doEval && quoted ? VARE_WANTRES
-	    : doEval ? VARE_UNDEFERR
-	    : VARE_PARSE_ONLY;
+	emode = doEval && quoted ? VARE_EVAL
+	    : doEval ? VARE_EVAL_DEFINED
+	    : VARE_PARSE;
 
 	p = par->p;
 	atStart = p == start;
@@ -651,8 +651,7 @@ CondParser_FuncCallEmpty(CondParser *par, bool doEval, Token *out_token)
 		return false;
 
 	p--;			/* Make p[1] point to the '('. */
-	val = Var_Parse(&p, SCOPE_CMDLINE,
-	    doEval ? VARE_WANTRES : VARE_PARSE_ONLY);
+	val = Var_Parse(&p, SCOPE_CMDLINE, doEval ? VARE_EVAL : VARE_PARSE);
 	/* TODO: handle errors */
 
 	if (val.str == var_Error)
@@ -736,8 +735,10 @@ CondParser_ComparisonOrLeaf(CondParser *par, bool doEval)
 	arg = ParseWord(&p, doEval);
 	assert(arg[0] != '\0');
 
-	if (*p == '=' || *p == '!' || *p == '<' || *p == '>')
+	if (*p == '=' || *p == '!' || *p == '<' || *p == '>') {
+		free(arg);
 		return CondParser_Comparison(par, doEval);
+	}
 	par->p = p;
 
 	/*
@@ -779,7 +780,7 @@ CondParser_Token(CondParser *par, bool doEval)
 		par->p++;
 		if (par->p[0] == '|')
 			par->p++;
-		else if (opts.strict) {
+		else {
 			Parse_Error(PARSE_FATAL, "Unknown operator '|'");
 			par->printedError = true;
 			return TOK_ERROR;
@@ -790,7 +791,7 @@ CondParser_Token(CondParser *par, bool doEval)
 		par->p++;
 		if (par->p[0] == '&')
 			par->p++;
-		else if (opts.strict) {
+		else {
 			Parse_Error(PARSE_FATAL, "Unknown operator '&'");
 			par->printedError = true;
 			return TOK_ERROR;

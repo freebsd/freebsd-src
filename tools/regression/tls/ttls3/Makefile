@@ -1,4 +1,3 @@
-
 all: ttls3
 
 LDFLAGS=-shared -Bsymbolic --allow-shlib-undefined

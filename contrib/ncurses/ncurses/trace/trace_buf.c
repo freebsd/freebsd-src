@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2023 Thomas E. Dickey                                     *
  * Copyright 1998-2011,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -36,7 +36,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: trace_buf.c,v 1.21 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: trace_buf.c,v 1.22 2023/06/24 13:37:25 tom Exp $")
 
 #ifdef TRACE
 
@@ -104,7 +104,11 @@ _nc_trace_buf(int bufnum, size_t want)
 NCURSES_EXPORT(char *)
 _nc_trace_bufcat(int bufnum, const char *value)
 {
-    char *buffer = _nc_trace_alloc(bufnum, (size_t) 0);
+    char *buffer;
+
+    if (value == NULL)
+	value = "";
+    buffer = _nc_trace_alloc(bufnum, (size_t) 0);
     if (buffer != 0) {
 	size_t have = strlen(buffer);
 	size_t need = strlen(value) + have;

@@ -617,9 +617,9 @@ __elfN(map_insert)(const struct image_params *imgp, vm_map_t map,
 	return (KERN_SUCCESS);
 }
 
-static int __elfN(load_section)(const struct image_params *imgp,
-    vm_ooffset_t offset, caddr_t vmaddr, size_t memsz, size_t filsz,
-    vm_prot_t prot)
+static int
+__elfN(load_section)(const struct image_params *imgp, vm_ooffset_t offset,
+    caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot)
 {
 	struct sf_buf *sf;
 	size_t map_len;
@@ -1158,8 +1158,10 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	maxalign = PAGE_SIZE;
 	maxsalign = PAGE_SIZE * 1024;
 	for (i = MAXPAGESIZES - 1; i > 0; i--) {
-		if (pagesizes[i] > maxsalign)
+		if (pagesizes[i] > maxsalign) {
 			maxsalign = pagesizes[i];
+			break;
+		}
 	}
 
 	mapsz = 0;
@@ -1360,8 +1362,12 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	if ((map->flags & MAP_ASLR) != 0) {
 		maxv1 = maxv / 2 + addr / 2;
 		error = __CONCAT(rnd_, __elfN(base))(map, addr, maxv1,
-		    (MAXPAGESIZES > 1 && pagesizes[1] != 0) ?
-		    pagesizes[1] : pagesizes[0], &anon_loc);
+#if VM_NRESERVLEVEL > 0
+		    pagesizes[VM_NRESERVLEVEL] != 0 ?
+		    /* Align anon_loc to the largest superpage size. */
+		    pagesizes[VM_NRESERVLEVEL] :
+#endif
+		    pagesizes[0], &anon_loc);
 		if (error != 0)
 			goto ret;
 		map->anon_loc = anon_loc;

@@ -368,7 +368,6 @@ struct uaudio_softc_child {
 };
 
 struct uaudio_softc {
-	struct sbuf sc_sndstat;
 	struct sndcard_func sc_sndcard_func;
 	struct uaudio_chan sc_rec_chan[UAUDIO_MAX_CHILD];
 	struct uaudio_chan sc_play_chan[UAUDIO_MAX_CHILD];
@@ -391,7 +390,6 @@ struct uaudio_softc {
 	uint8_t	sc_mixer_iface_index;
 	uint8_t	sc_mixer_iface_no;
 	uint8_t	sc_mixer_chan;
-	uint8_t	sc_sndstat_valid:1;
 	uint8_t	sc_uq_audio_swap_lr:1;
 	uint8_t	sc_uq_au_inp_async:1;
 	uint8_t	sc_uq_au_no_xu:1;
@@ -1127,7 +1125,7 @@ uaudio_attach(device_t dev)
 		    sc->sc_child[i].mix_info == 0)
 			continue;
 		sc->sc_child[i].pcm_device =
-		    device_add_child(dev, "pcm", -1);
+		    device_add_child(dev, "pcm", DEVICE_UNIT_ANY);
 
 		if (sc->sc_child[i].pcm_device == NULL) {
 			DPRINTF("out of memory\n");
@@ -1293,8 +1291,6 @@ uaudio_detach(device_t dev)
 	if (bus_generic_detach(dev) != 0) {
 		DPRINTF("detach failed!\n");
 	}
-	sbuf_delete(&sc->sc_sndstat);
-	sc->sc_sndstat_valid = 0;
 
 	umidi_detach(dev);
 
@@ -2149,15 +2145,6 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 		if (rate > chan->pcm_cap.maxspeed || chan->pcm_cap.maxspeed == 0)
 			chan->pcm_cap.maxspeed = rate;
 
-		if (sc->sc_sndstat_valid != 0) {
-			sbuf_printf(&sc->sc_sndstat, "\n\t"
-			    "mode %d.%d:(%s) %dch, %dbit, %s, %dHz",
-			    curidx, alt_index,
-			    (ep_dir == UE_DIR_IN) ? "input" : "output",
-				    channels, p_fmt->bPrecision,
-				    p_fmt->description, rate);
-		}
-
 	next_ep:
 		sed.v1 = NULL;
 		ed1 = NULL;
@@ -2230,9 +2217,6 @@ uaudio_chan_fill_info(struct uaudio_softc *sc, struct usb_device *udev)
 	if (channels == 0)
 		channels = channels_max;
 
-	if (sbuf_new(&sc->sc_sndstat, NULL, 4096, SBUF_AUTOEXTEND))
-		sc->sc_sndstat_valid = 1;
-
 	/* try to search for a valid config */
 
 	for (x = channels; x; x--) {
@@ -2263,8 +2247,6 @@ uaudio_chan_fill_info(struct uaudio_softc *sc, struct usb_device *udev)
 		if (x == (channels + 1))
 			x--;
 	}
-	if (sc->sc_sndstat_valid)
-		sbuf_finish(&sc->sc_sndstat);
 }
 
 static void
@@ -2705,8 +2687,6 @@ uaudio_chan_init(struct uaudio_chan *ch, struct snd_dbuf *b,
 	DPRINTF("Worst case buffer is %d bytes\n", (int)buf_size);
 
 	ch->buf = malloc(buf_size, M_DEVBUF, M_WAITOK | M_ZERO);
-	if (ch->buf == NULL)
-		goto error;
 	if (sndbuf_setup(b, ch->buf, buf_size) != 0)
 		goto error;
 
@@ -3274,31 +3254,27 @@ uaudio_mixer_add_ctl_sub(struct uaudio_softc *sc, struct uaudio_mixer_node *mc)
 	    malloc(sizeof(*p_mc_new), M_USBDEV, M_WAITOK);
 	int ch;
 
-	if (p_mc_new != NULL) {
-		memcpy(p_mc_new, mc, sizeof(*p_mc_new));
-		p_mc_new->next = sc->sc_mixer_root;
-		sc->sc_mixer_root = p_mc_new;
-		sc->sc_mixer_count++;
+	memcpy(p_mc_new, mc, sizeof(*p_mc_new));
+	p_mc_new->next = sc->sc_mixer_root;
+	sc->sc_mixer_root = p_mc_new;
+	sc->sc_mixer_count++;
 
-		/* set default value for all channels */
-		for (ch = 0; ch < p_mc_new->nchan; ch++) {
-			switch (p_mc_new->val_default) {
-			case 1:
-				/* 50% */
-				p_mc_new->wData[ch] = (p_mc_new->maxval + p_mc_new->minval) / 2;
-				break;
-			case 2:
-				/* 100% */
-				p_mc_new->wData[ch] = p_mc_new->maxval;
-				break;
-			default:
-				/* 0% */
-				p_mc_new->wData[ch] = p_mc_new->minval;
-				break;
-			}
+	/* set default value for all channels */
+	for (ch = 0; ch < p_mc_new->nchan; ch++) {
+		switch (p_mc_new->val_default) {
+		case 1:
+			/* 50% */
+			p_mc_new->wData[ch] = (p_mc_new->maxval + p_mc_new->minval) / 2;
+			break;
+		case 2:
+			/* 100% */
+			p_mc_new->wData[ch] = p_mc_new->maxval;
+			break;
+		default:
+			/* 0% */
+			p_mc_new->wData[ch] = p_mc_new->minval;
+			break;
 		}
-	} else {
-		DPRINTF("out of memory\n");
 	}
 }
 

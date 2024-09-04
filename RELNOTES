@@ -10,6 +10,16 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+822ca3276345:
+	byacc was updated to 20240109.
+
+21817992b331:
+	ncurses was updated to 6.5.
+
+1687d77197c0:
+	Filesystem manual pages have been moved to section four.
+	Please check ports you are maintaining for crossreferences.
+
 8aac90f18aef:
 	new MAC/do policy and mdo(1) utility which enables a user to
 	become another user without the requirement of setuid root.

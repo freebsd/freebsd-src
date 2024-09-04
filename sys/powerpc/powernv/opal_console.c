@@ -567,7 +567,7 @@ opalcons_attach(device_t dev)
 			free(dinfo, M_DEVBUF);
 			continue;
 		}
-		cdev = device_add_child(dev, NULL, -1);
+		cdev = device_add_child(dev, NULL, DEVICE_UNIT_ANY);
 		if (cdev == NULL) {
 			device_printf(dev, "<%s>: device_add_child failed\n",
 			    dinfo->obd_name);

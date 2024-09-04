@@ -33,6 +33,7 @@ struct http_cert {
 	size_t num_othername;
 	struct http_logo *logo;
 	size_t num_logo;
+	const char *url;
 };
 
 int soap_init_client(struct http_ctx *ctx, const char *address,

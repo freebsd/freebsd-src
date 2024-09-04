@@ -1,4 +1,3 @@
-
 .PATH:		${SRCTOP}/sys/dev/ichiic
 KMOD		= ig4
 SRCS		= acpi_if.h device_if.h bus_if.h iicbus_if.h pci_if.h \

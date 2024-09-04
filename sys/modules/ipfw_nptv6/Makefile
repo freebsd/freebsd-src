@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/netpfil/ipfw/nptv6
 
 KMOD=	ipfw_nptv6

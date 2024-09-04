@@ -91,7 +91,7 @@ qatUtilsMemFreeNUMA(void *ptr)
 		    "QatUtilsMemAlignedFree: Detected corrupted data: memory leak!\n");
 		return;
 	}
-	contigfree(memInfo->mAllocMemPtr, memInfo->mSize, M_QAT);
+	free(memInfo->mAllocMemPtr, M_QAT);
 }
 
 CpaStatus

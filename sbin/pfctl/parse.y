@@ -5388,6 +5388,10 @@ filter_consistent(struct pfctl_rule *r, int anchor_call)
 			problems++;
 		}
 	}
+	if (r->rpool.opts & PF_POOL_STICKYADDR && !r->keep_state) {
+		yyerror("'sticky-address' requires 'keep state'");
+		problems++;
+	}
 	return (-problems);
 }
 

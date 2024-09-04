@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 7, 2024
+.Dd July 26, 2024
 .Dt DIFF 1
 .Os
 .Sh NAME
@@ -52,6 +52,7 @@
 .Op Fl -ignore-space-change
 .Op Fl -initial-tab
 .Op Fl -minimal
+.Op Fl -no-dereference
 .Op Fl -no-ignore-file-name-case
 .Op Fl -normal
 .Op Fl -rcs
@@ -83,6 +84,7 @@
 .Op Fl -ignore-space-change
 .Op Fl -initial-tab
 .Op Fl -minimal
+.Op Fl -no-dereference
 .Op Fl -no-ignore-file-name-case
 .Op Fl -normal
 .Op Fl -paginate
@@ -110,6 +112,7 @@
 .Op Fl -ignore-space-change
 .Op Fl -initial-tab
 .Op Fl -minimal
+.Op Fl -no-dereference
 .Op Fl -no-ignore-file-name-case
 .Op Fl -normal
 .Op Fl -paginate
@@ -139,6 +142,7 @@
 .Op Fl -ignore-space-change
 .Op Fl -initial-tab
 .Op Fl -minimal
+.Op Fl -no-dereference
 .Op Fl -no-ignore-file-name-case
 .Op Fl -normal
 .Op Fl -paginate
@@ -171,6 +175,7 @@
 .Op Fl -initial-tab
 .Op Fl -minimal
 .Op Fl -new-file
+.Op Fl -no-dereference
 .Op Fl -no-ignore-file-name-case
 .Op Fl -normal
 .Op Fl -paginate
@@ -197,10 +202,11 @@
 .Op Fl aBbditwW
 .Op Fl -color Ns = Ns Ar when
 .Op Fl -expand-tabs
-.Op Fl -ignore-all-blanks
+.Op Fl -ignore-all-space
 .Op Fl -ignore-blank-lines
 .Op Fl -ignore-case
 .Op Fl -minimal
+.Op Fl -no-dereference
 .Op Fl -no-ignore-file-name-case
 .Op Fl -strip-trailing-cr
 .Op Fl -suppress-common-lines
@@ -463,7 +469,7 @@ output adds character(s) to the front of each line which may screw up
 the indentation of the original source lines and make the output listing
 difficult to interpret.
 This option will preserve the original source's indentation.
-.It Fl w -ignore-all-blanks
+.It Fl w -ignore-all-space
 Is similar to
 .Fl b -ignore-space-change
 but causes whitespace (blanks and tabs) to be totally ignored.
@@ -497,6 +503,8 @@ lines from FILE2
 .El
 .It Fl -ignore-file-name-case
 ignore case when comparing file names
+.It Fl -no-dereference
+do not follow symbolic links
 .It Fl -no-ignore-file-name-case
 do not ignore case when comparing file names (default)
 .It Fl -normal

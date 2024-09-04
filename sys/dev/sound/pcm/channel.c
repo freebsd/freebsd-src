@@ -1164,8 +1164,8 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	struct pcm_channel *c;
 	struct feeder_class *fc;
 	struct snd_dbuf *b, *bs;
-	char *dirs, *devname, buf[CHN_NAMELEN];
-	int i, ret, direction, rpnum, *pnum, max, type, unit;
+	char *dirs, buf[CHN_NAMELEN];
+	int i, direction, *pnum, max, type, unit;
 
 	PCM_BUSYASSERT(d);
 	PCM_LOCKASSERT(d);
@@ -1203,148 +1203,106 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 		device_printf(d->dev,
 		    "%s(): invalid channel direction: %d\n",
 		    __func__, dir);
-		goto out1;
+		return (NULL);
+	}
+
+	if (*pnum >= max) {
+		device_printf(d->dev, "%s(): cannot allocate more channels "
+		    "(max=%d)\n", __func__, max);
+		return (NULL);
 	}
 
 	unit = 0;
-
-	if (*pnum >= max || unit >= max) {
-		device_printf(d->dev, "%s(): unit=%d or pnum=%d >= than "
-		    "max=%d\n", __func__, unit, *pnum, max);
-		goto out1;
-	}
-
-	rpnum = 0;
-
 	CHN_FOREACH(c, d, channels.pcm) {
 		if (c->type != type)
 			continue;
 		unit++;
 		if (unit >= max) {
-			device_printf(d->dev,
-			    "%s(): chan=%d >= max=%d\n", __func__, unit, max);
-			goto out1;
+			device_printf(d->dev, "%s(): cannot allocate more "
+			    "channels for type=%d (max=%d)\n",
+			    __func__, type, max);
+			return (NULL);
 		}
-		rpnum++;
-	}
-
-	if (*pnum != rpnum) {
-		device_printf(d->dev,
-		    "%s(): pnum screwed: dirs=%s pnum=%d rpnum=%d\n",
-		    __func__, dirs, *pnum, rpnum);
-		goto out1;
 	}
 
 	PCM_UNLOCK(d);
 	b = NULL;
 	bs = NULL;
+
 	c = malloc(sizeof(*c), M_DEVBUF, M_WAITOK | M_ZERO);
 	c->methods = kobj_create(cls, M_DEVBUF, M_WAITOK | M_ZERO);
+	chn_lockinit(c, dir);
+	CHN_INIT(c, children);
+	CHN_INIT(c, children.busy);
+	c->direction = direction;
 	c->type = type;
 	c->unit = unit;
+	c->format = SND_FORMAT(AFMT_U8, 1, 0);
+	c->speed = DSP_DEFAULT_SPEED;
 	c->pid = -1;
+	c->latency = -1;
+	c->timeout = 1;
 	strlcpy(c->comm, CHN_COMM_UNUSED, sizeof(c->comm));
 	c->parentsnddev = d;
 	c->parentchannel = parent;
 	c->dev = d->dev;
 	c->trigger = PCMTRIG_STOP;
-	chn_lockinit(c, dir);
-	devname = dsp_unit2name(buf, sizeof(buf), c);
-	if (devname == NULL) {
-		ret = EINVAL;
-		device_printf(d->dev, "%s(): failed to create channel name",
-		    __func__);
-		goto out2;
-	}
+
 	snprintf(c->name, sizeof(c->name), "%s:%s:%s",
-	    device_get_nameunit(c->dev), dirs, devname);
-
-	CHN_INIT(c, children);
-	CHN_INIT(c, children.busy);
-	c->latency = -1;
-	c->timeout = 1;
-
-	ret = ENOMEM;
-	b = sndbuf_create(c->dev, c->name, "primary", c);
-	if (b == NULL) {
-		device_printf(d->dev, "%s(): failed to create hardware buffer\n",
-		    __func__);
-		goto out2;
-	}
-	bs = sndbuf_create(c->dev, c->name, "secondary", c);
-	if (bs == NULL) {
-		device_printf(d->dev, "%s(): failed to create software buffer\n",
-		    __func__);
-		goto out2;
-	}
-
-	CHN_LOCK(c);
-
-	ret = EINVAL;
-	fc = feeder_getclass(NULL);
-	if (fc == NULL) {
-		device_printf(d->dev, "%s(): failed to get feeder class\n",
-		    __func__);
-		goto out2;
-	}
-	if (chn_addfeeder(c, fc, NULL)) {
-		device_printf(d->dev, "%s(): failed to add feeder\n", __func__);
-		goto out2;
-	}
-
-	/*
-	 * XXX - sndbuf_setup() & sndbuf_resize() expect to be called
-	 *	 with the channel unlocked because they are also called
-	 *	 from driver methods that don't know about locking
-	 */
-	CHN_UNLOCK(c);
-	sndbuf_setup(bs, NULL, 0);
-	CHN_LOCK(c);
-	c->bufhard = b;
-	c->bufsoft = bs;
-	c->flags = 0;
-	c->feederflags = 0;
-	c->sm = NULL;
-	c->format = SND_FORMAT(AFMT_U8, 1, 0);
-	c->speed = DSP_DEFAULT_SPEED;
+	    device_get_nameunit(c->dev), dirs,
+	    dsp_unit2name(buf, sizeof(buf), c));
 
 	c->matrix = *feeder_matrix_id_map(SND_CHN_MATRIX_1_0);
 	c->matrix.id = SND_CHN_MATRIX_PCMCHANNEL;
 
-	for (i = 0; i < SND_CHN_T_MAX; i++) {
+	for (i = 0; i < SND_CHN_T_MAX; i++)
 		c->volume[SND_VOL_C_MASTER][i] = SND_VOL_0DB_MASTER;
-	}
 
 	c->volume[SND_VOL_C_MASTER][SND_CHN_T_VOL_0DB] = SND_VOL_0DB_MASTER;
 	c->volume[SND_VOL_C_PCM][SND_CHN_T_VOL_0DB] = chn_vol_0db_pcm;
 
-	memset(c->muted, 0, sizeof(c->muted));
-
-	chn_vpc_reset(c, SND_VOL_C_PCM, 1);
-
-	ret = ENODEV;
-	CHN_UNLOCK(c); /* XXX - Unlock for CHANNEL_INIT() malloc() call */
-	c->devinfo = CHANNEL_INIT(c->methods, devinfo, b, c, direction);
 	CHN_LOCK(c);
-	if (c->devinfo == NULL) {
-		device_printf(d->dev, "%s(): NULL devinfo\n", __func__);
-		goto out2;
+	chn_vpc_reset(c, SND_VOL_C_PCM, 1);
+	CHN_UNLOCK(c);
+
+	fc = feeder_getclass(NULL);
+	if (fc == NULL) {
+		device_printf(d->dev, "%s(): failed to get feeder class\n",
+		    __func__);
+		goto fail;
+	}
+	if (feeder_add(c, fc, NULL)) {
+		device_printf(d->dev, "%s(): failed to add feeder\n", __func__);
+		goto fail;
 	}
 
-	ret = ENOMEM;
+	b = sndbuf_create(c->dev, c->name, "primary", c);
+	bs = sndbuf_create(c->dev, c->name, "secondary", c);
+	if (b == NULL || bs == NULL) {
+		device_printf(d->dev, "%s(): failed to create %s buffer\n",
+		    __func__, b == NULL ? "hardware" : "software");
+		goto fail;
+	}
+	c->bufhard = b;
+	c->bufsoft = bs;
+
+	c->devinfo = CHANNEL_INIT(c->methods, devinfo, b, c, direction);
+	if (c->devinfo == NULL) {
+		device_printf(d->dev, "%s(): CHANNEL_INIT() failed\n", __func__);
+		goto fail;
+	}
+
 	if ((sndbuf_getsize(b) == 0) && ((c->flags & CHN_F_VIRTUAL) == 0)) {
 		device_printf(d->dev, "%s(): hardware buffer's size is 0\n",
 		    __func__);
-		goto out2;
+		goto fail;
 	}
-
-	ret = 0;
-	c->direction = direction;
 
 	sndbuf_setfmt(b, c->format);
 	sndbuf_setspd(b, c->speed);
 	sndbuf_setfmt(bs, c->format);
 	sndbuf_setspd(bs, c->speed);
+	sndbuf_setup(bs, NULL, 0);
 
 	/**
 	 * @todo Should this be moved somewhere else?  The primary buffer
@@ -1355,40 +1313,32 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 		bs->sl = sndbuf_getmaxsize(bs);
 		bs->shadbuf = malloc(bs->sl, M_DEVBUF, M_NOWAIT);
 		if (bs->shadbuf == NULL) {
-			ret = ENOMEM;
 			device_printf(d->dev, "%s(): failed to create shadow "
 			    "buffer\n", __func__);
-			goto out2;
+			goto fail;
 		}
-	}
-out2:
-	if (CHN_LOCKOWNED(c))
-		CHN_UNLOCK(c);
-	if (ret) {
-		if (c->devinfo) {
-			if (CHANNEL_FREE(c->methods, c->devinfo))
-				sndbuf_free(b);
-		}
-		if (bs)
-			sndbuf_destroy(bs);
-		if (b)
-			sndbuf_destroy(b);
-		CHN_LOCK(c);
-		c->flags |= CHN_F_DEAD;
-		chn_lockdestroy(c);
-
-		PCM_LOCK(d);
-
-		kobj_delete(c->methods, M_DEVBUF);
-		free(c, M_DEVBUF);
-
-		return (NULL);
 	}
 
 	PCM_LOCK(d);
 
 	return (c);
-out1:
+
+fail:
+	feeder_remove(c);
+	if (c->devinfo && CHANNEL_FREE(c->methods, c->devinfo))
+		sndbuf_free(b);
+	if (bs)
+		sndbuf_destroy(bs);
+	if (b)
+		sndbuf_destroy(b);
+	CHN_LOCK(c);
+	chn_lockdestroy(c);
+
+	kobj_delete(c->methods, M_DEVBUF);
+	free(c, M_DEVBUF);
+
+	PCM_LOCK(d);
+
 	return (NULL);
 }
 
@@ -1405,8 +1355,7 @@ chn_kill(struct pcm_channel *c)
 		chn_trigger(c, PCMTRIG_ABORT);
 		CHN_UNLOCK(c);
 	}
-	while (chn_removefeeder(c) == 0)
-		;
+	feeder_remove(c);
 	if (CHANNEL_FREE(c->methods, c->devinfo))
 		sndbuf_free(b);
 	sndbuf_destroy(bs);
@@ -2298,7 +2247,7 @@ chn_syncstate(struct pcm_channel *c)
 		else
 			bass = ((bass & 0x7f) + ((bass >> 8) & 0x7f)) >> 1;
 
-		f = chn_findfeeder(c, FEEDER_EQ);
+		f = feeder_find(c, FEEDER_EQ);
 		if (f != NULL) {
 			if (FEEDER_SET(f, FEEDEQ_TREBLE, treble) != 0)
 				device_printf(c->dev,

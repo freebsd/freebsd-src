@@ -2292,10 +2292,6 @@ qlnx_init_ifnet(device_t dev, qlnx_host_t *ha)
         if_t		ifp;
 
         ifp = ha->ifp = if_alloc(IFT_ETHER);
-
-        if (ifp == NULL)
-                panic("%s: cannot if_alloc()\n", device_get_nameunit(dev));
-
         if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 
 	device_id = pci_get_device(ha->pci_dev);
@@ -7059,8 +7055,17 @@ qlnx_set_rx_mode(qlnx_host_t *ha)
 {
 	int	rc = 0;
 	uint8_t	filter;
+	const struct ifnet *ifp = ha->ifp;
+	struct sockaddr_dl *sdl;
 
-	rc = qlnx_set_ucast_rx_mac(ha, ECORE_FILTER_REPLACE, ha->primary_mac);
+	if (ifp->if_type == IFT_ETHER && ifp->if_addr != NULL &&
+			ifp->if_addr->ifa_addr != NULL) {
+		sdl = (struct sockaddr_dl *) ifp->if_addr->ifa_addr;
+
+		rc = qlnx_set_ucast_rx_mac(ha, ECORE_FILTER_REPLACE, LLADDR(sdl));
+	} else {
+		rc = qlnx_set_ucast_rx_mac(ha, ECORE_FILTER_REPLACE, ha->primary_mac);
+	}
         if (rc)
                 return rc;
 

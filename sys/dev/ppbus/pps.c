@@ -78,7 +78,7 @@ ppsidentify(driver_t *driver, device_t parent)
 
 	dev = device_find_child(parent, PPS_NAME, -1);
 	if (!dev)
-		BUS_ADD_CHILD(parent, 0, PPS_NAME, -1);
+		BUS_ADD_CHILD(parent, 0, PPS_NAME, DEVICE_UNIT_ANY);
 }
 
 static int

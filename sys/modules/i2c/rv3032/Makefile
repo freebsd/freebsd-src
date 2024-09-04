@@ -1,4 +1,3 @@
-
 .PATH:	${SRCTOP}/sys/dev/iicbus/rtc
 KMOD=	rv3032
 SRCS=	rv3032.c

@@ -612,6 +612,7 @@ struct ispsoftc {
 #define	ISP_CFG_16GB		0x8000	/* force 16Gb connection (26XX only) */
 #define	ISP_CFG_32GB		0x10000	/* force 32Gb connection (27XX only) */
 #define	ISP_CFG_64GB		0x20000	/* force 64Gb connection (28XX only) */
+#define	ISP_CFG_FWLOAD_FORCE	0x40000 /* Prefer ispfw(4) even if older */
 
 /*
  * For each channel, the outer layers should know what role that channel
