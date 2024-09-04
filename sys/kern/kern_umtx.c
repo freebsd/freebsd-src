@@ -4292,8 +4292,7 @@ __umtx_op_sem2_wake(struct thread *td, struct _umtx_op_args *uap,
 #define	USHM_OBJ_UMTX(o)						\
     ((struct umtx_shm_obj_list *)(&(o)->umtx_data))
 
-#define	USHMF_REG_LINKED	0x0001
-#define	USHMF_OBJ_LINKED	0x0002
+#define	USHMF_LINKED		0x0001
 struct umtx_shm_reg {
 	TAILQ_ENTRY(umtx_shm_reg) ushm_reg_link;
 	LIST_ENTRY(umtx_shm_reg) ushm_obj_link;
@@ -4353,7 +4352,7 @@ umtx_shm_find_reg_locked(const struct umtx_key *key)
 			KASSERT(reg->ushm_key.type == TYPE_SHM, ("TYPE_USHM"));
 			KASSERT(reg->ushm_refcnt > 0,
 			    ("reg %p refcnt 0 onlist", reg));
-			KASSERT((reg->ushm_flags & USHMF_REG_LINKED) != 0,
+			KASSERT((reg->ushm_flags & USHMF_LINKED) != 0,
 			    ("reg %p not linked", reg));
 			reg->ushm_refcnt++;
 			return (reg);
@@ -4393,14 +4392,11 @@ umtx_shm_unref_reg_locked(struct umtx_shm_reg *reg, bool force)
 	reg->ushm_refcnt--;
 	res = reg->ushm_refcnt == 0;
 	if (res || force) {
-		if ((reg->ushm_flags & USHMF_REG_LINKED) != 0) {
+		if ((reg->ushm_flags & USHMF_LINKED) != 0) {
 			TAILQ_REMOVE(&umtx_shm_registry[reg->ushm_key.hash],
 			    reg, ushm_reg_link);
-			reg->ushm_flags &= ~USHMF_REG_LINKED;
-		}
-		if ((reg->ushm_flags & USHMF_OBJ_LINKED) != 0) {
 			LIST_REMOVE(reg, ushm_obj_link);
-			reg->ushm_flags &= ~USHMF_OBJ_LINKED;
+			reg->ushm_flags &= ~USHMF_LINKED;
 		}
 	}
 	return (res);
@@ -4493,7 +4489,7 @@ umtx_shm_create_reg(struct thread *td, const struct umtx_key *key,
 	TAILQ_INSERT_TAIL(&umtx_shm_registry[key->hash], reg, ushm_reg_link);
 	LIST_INSERT_HEAD(USHM_OBJ_UMTX(key->info.shared.object), reg,
 	    ushm_obj_link);
-	reg->ushm_flags = USHMF_REG_LINKED | USHMF_OBJ_LINKED;
+	reg->ushm_flags = USHMF_LINKED;
 	mtx_unlock(&umtx_shm_lock);
 	*res = reg;
 	return (0);
