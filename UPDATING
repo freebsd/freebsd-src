@@ -12,6 +12,20 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20240904:
+	13.4-RC2-p1	SA-24:09.libnv
+			SA-24:11.ctl
+			SA-24:12.bhyve
+			SA-24:14.umtx
+
+	Multiple vulnerabilities in libnv [SA-24:09.libnv]
+
+	Multiple issues in ctl(4) CAM Target Layer [SA-24:11.ctl]
+
+	bhyve(8) privileged guest escape via USB controller [SA-24:12.bhyve]
+
+	umtx Kernel panic or Use-After-Free [SA-24:14.umtx]
+
 20240218:
 	MFC of 713db49d06de changed 'struct ieee80211vap' internals in net80211.
 	Given we do not have enough spares and the struct is allocated by
