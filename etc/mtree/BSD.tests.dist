@@ -791,6 +791,10 @@
         ..
         compat32
         ..
+        cam
+            ctl
+            ..
+        ..
         devrandom
         ..
         dtrace
