@@ -4920,8 +4920,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, struct pfi_kkif *kif,
 		break;
 #ifdef INET
 	case IPPROTO_ICMP:
-		if (pd->af != AF_INET)
-			break;
+		MPASS(af == AF_INET);
 		icmptype = pd->hdr.icmp.icmp_type;
 		icmpcode = pd->hdr.icmp.icmp_code;
 		state_icmp = pf_icmp_mapping(pd, icmptype,
@@ -4937,8 +4936,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, struct pfi_kkif *kif,
 #endif /* INET */
 #ifdef INET6
 	case IPPROTO_ICMPV6:
-		if (af != AF_INET6)
-			break;
+		MPASS(af == AF_INET6);
 		icmptype = pd->hdr.icmp6.icmp6_type;
 		icmpcode = pd->hdr.icmp6.icmp6_code;
 		state_icmp = pf_icmp_mapping(pd, icmptype,
