@@ -235,10 +235,10 @@ uart_cpu_acpi_dbg2(struct uart_devinfo *di)
 
 	error = ENXIO;
 
-	dbg2_dev = (ACPI_DBG2_DEVICE *)((vm_offset_t)dbg2 + dbg2->InfoOffset);
+	dbg2_dev = (ACPI_DBG2_DEVICE *)((uintptr_t)dbg2 + dbg2->InfoOffset);
 	found = false;
-	while ((vm_offset_t)dbg2_dev + dbg2_dev->Length <=
-	    (vm_offset_t)dbg2 + dbg2->Header.Length) {
+	while ((uintptr_t)dbg2_dev + dbg2_dev->Length <=
+	    (uintptr_t)dbg2 + dbg2->Header.Length) {
 		if (dbg2_dev->PortType != ACPI_DBG2_SERIAL_PORT)
 			goto next;
 
@@ -252,7 +252,7 @@ uart_cpu_acpi_dbg2(struct uart_devinfo *di)
 
 		class = cd->cd_class;
 		base_address = (ACPI_GENERIC_ADDRESS *)
-		    ((vm_offset_t)dbg2_dev + dbg2_dev->BaseAddressOffset);
+		    ((uintptr_t)dbg2_dev + dbg2_dev->BaseAddressOffset);
 
 		error = uart_cpu_acpi_init_devinfo(di, class, base_address);
 		if (error == 0) {
@@ -262,7 +262,7 @@ uart_cpu_acpi_dbg2(struct uart_devinfo *di)
 
 next:
 		dbg2_dev = (ACPI_DBG2_DEVICE *)
-		    ((vm_offset_t)dbg2_dev + dbg2_dev->Length);
+		    ((uintptr_t)dbg2_dev + dbg2_dev->Length);
 	}
 	if (!found)
 		goto out;
