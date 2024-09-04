@@ -249,7 +249,7 @@ private:
         if (Precedence > prec::Conditional && Precedence < prec::Relational)
           return false;
       }
-      if (Prev.is(TT_ConditionalExpr))
+      if (Prev.isOneOf(tok::question, tok::colon) && !Style.isProto())
         SeenTernaryOperator = true;
       updateParameterCount(Left, CurrentToken);
       if (Style.Language == FormatStyle::LK_Proto) {
@@ -831,7 +831,7 @@ private:
         }
         // An arrow after an ObjC method expression is not a lambda arrow.
         if (CurrentToken->is(TT_ObjCMethodExpr) && CurrentToken->Next &&
-            CurrentToken->Next->is(TT_TrailingReturnArrow)) {
+            CurrentToken->Next->is(TT_LambdaArrow)) {
           CurrentToken->Next->overwriteFixedType(TT_Unknown);
         }
         Left->MatchingParen = CurrentToken;
@@ -1769,8 +1769,10 @@ private:
       }
       break;
     case tok::arrow:
-      if (Tok->Previous && Tok->Previous->is(tok::kw_noexcept))
+      if (Tok->isNot(TT_LambdaArrow) && Tok->Previous &&
+          Tok->Previous->is(tok::kw_noexcept)) {
         Tok->setType(TT_TrailingReturnArrow);
+      }
       break;
     case tok::equal:
       // In TableGen, there must be a value after "=";
@@ -2056,11 +2058,11 @@ private:
             TT_LambdaLSquare, TT_LambdaLBrace, TT_AttributeMacro, TT_IfMacro,
             TT_ForEachMacro, TT_TypenameMacro, TT_FunctionLBrace,
             TT_ImplicitStringLiteral, TT_InlineASMBrace, TT_FatArrow,
-            TT_NamespaceMacro, TT_OverloadedOperator, TT_RegexLiteral,
-            TT_TemplateString, TT_ObjCStringLiteral, TT_UntouchableMacroFunc,
-            TT_StatementAttributeLikeMacro, TT_FunctionLikeOrFreestandingMacro,
-            TT_ClassLBrace, TT_EnumLBrace, TT_RecordLBrace, TT_StructLBrace,
-            TT_UnionLBrace, TT_RequiresClause,
+            TT_LambdaArrow, TT_NamespaceMacro, TT_OverloadedOperator,
+            TT_RegexLiteral, TT_TemplateString, TT_ObjCStringLiteral,
+            TT_UntouchableMacroFunc, TT_StatementAttributeLikeMacro,
+            TT_FunctionLikeOrFreestandingMacro, TT_ClassLBrace, TT_EnumLBrace,
+            TT_RecordLBrace, TT_StructLBrace, TT_UnionLBrace, TT_RequiresClause,
             TT_RequiresClauseInARequiresExpression, TT_RequiresExpression,
             TT_RequiresExpressionLParen, TT_RequiresExpressionLBrace,
             TT_BracedListLBrace)) {
@@ -2246,7 +2248,7 @@ private:
       Contexts.back().IsExpression = true;
     } else if (Current.is(TT_TrailingReturnArrow)) {
       Contexts.back().IsExpression = false;
-    } else if (Current.is(Keywords.kw_assert)) {
+    } else if (Current.isOneOf(TT_LambdaArrow, Keywords.kw_assert)) {
       Contexts.back().IsExpression = Style.Language == FormatStyle::LK_Java;
     } else if (Current.Previous &&
                Current.Previous->is(TT_CtorInitializerColon)) {
@@ -2381,7 +2383,7 @@ private:
       AutoFound = true;
     } else if (Current.is(tok::arrow) &&
                Style.Language == FormatStyle::LK_Java) {
-      Current.setType(TT_TrailingReturnArrow);
+      Current.setType(TT_LambdaArrow);
     } else if (Current.is(tok::arrow) && Style.isVerilog()) {
       // The implication operator.
       Current.setType(TT_BinaryOperator);
@@ -2874,6 +2876,8 @@ private:
     // Search for unexpected tokens.
     for (auto *Prev = BeforeRParen; Prev != LParen; Prev = Prev->Previous) {
       if (Prev->is(tok::r_paren)) {
+        if (Prev->is(TT_CastRParen))
+          return false;
         Prev = Prev->MatchingParen;
         if (!Prev)
           return false;
@@ -3276,7 +3280,7 @@ private:
       }
       if (Current->is(TT_JsComputedPropertyName))
         return prec::Assignment;
-      if (Current->is(TT_TrailingReturnArrow))
+      if (Current->is(TT_LambdaArrow))
         return prec::Comma;
       if (Current->is(TT_FatArrow))
         return prec::Assignment;
@@ -4200,7 +4204,7 @@ unsigned TokenAnnotator::splitPenalty(const AnnotatedLine &Line,
   }
   if (Right.is(TT_PointerOrReference))
     return 190;
-  if (Right.is(TT_TrailingReturnArrow))
+  if (Right.is(TT_LambdaArrow))
     return 110;
   if (Left.is(tok::equal) && Right.is(tok::l_brace))
     return 160;
@@ -4467,10 +4471,8 @@ bool TokenAnnotator::spaceRequiredBetween(const AnnotatedLine &Line,
   }
   if (Left.is(tok::colon))
     return Left.isNot(TT_ObjCMethodExpr);
-  if (Left.is(tok::coloncolon)) {
-    return Right.is(tok::star) && Right.is(TT_PointerOrReference) &&
-           Style.PointerAlignment != FormatStyle::PAS_Left;
-  }
+  if (Left.is(tok::coloncolon))
+    return false;
   if (Left.is(tok::less) || Right.isOneOf(tok::greater, tok::less)) {
     if (Style.Language == FormatStyle::LK_TextProto ||
         (Style.Language == FormatStyle::LK_Proto &&
@@ -4580,8 +4582,14 @@ bool TokenAnnotator::spaceRequiredBetween(const AnnotatedLine &Line,
     if (!BeforeLeft)
       return false;
     if (BeforeLeft->is(tok::coloncolon)) {
-      return Left.is(tok::star) &&
-             Style.PointerAlignment != FormatStyle::PAS_Right;
+      if (Left.isNot(tok::star))
+        return false;
+      assert(Style.PointerAlignment != FormatStyle::PAS_Right);
+      if (!Right.startsSequence(tok::identifier, tok::r_paren))
+        return true;
+      assert(Right.Next);
+      const auto *LParen = Right.Next->MatchingParen;
+      return !LParen || LParen->isNot(TT_FunctionTypeLParen);
     }
     return !BeforeLeft->isOneOf(tok::l_paren, tok::l_square);
   }
@@ -5274,9 +5282,10 @@ bool TokenAnnotator::spaceRequiredBefore(const AnnotatedLine &Line,
     return false;
   }
 
-  if (Right.is(TT_TrailingReturnArrow) || Left.is(TT_TrailingReturnArrow))
+  if (Right.isOneOf(TT_TrailingReturnArrow, TT_LambdaArrow) ||
+      Left.isOneOf(TT_TrailingReturnArrow, TT_LambdaArrow)) {
     return true;
-
+  }
   if (Left.is(tok::comma) && Right.isNot(TT_OverloadedOperatorLParen) &&
       // In an unexpanded macro call we only find the parentheses and commas
       // in a line; the commas and closing parenthesis do not require a space.
@@ -6294,8 +6303,8 @@ bool TokenAnnotator::canBreakBefore(const AnnotatedLine &Line,
   return Left.isOneOf(tok::comma, tok::coloncolon, tok::semi, tok::l_brace,
                       tok::kw_class, tok::kw_struct, tok::comment) ||
          Right.isMemberAccess() ||
-         Right.isOneOf(TT_TrailingReturnArrow, tok::lessless, tok::colon,
-                       tok::l_square, tok::at) ||
+         Right.isOneOf(TT_TrailingReturnArrow, TT_LambdaArrow, tok::lessless,
+                       tok::colon, tok::l_square, tok::at) ||
          (Left.is(tok::r_paren) &&
           Right.isOneOf(tok::identifier, tok::kw_const)) ||
          (Left.is(tok::l_paren) && Right.isNot(tok::r_paren)) ||
