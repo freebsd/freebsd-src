@@ -660,7 +660,6 @@ u_int if_lladdr_count(if_t);
 u_int if_llmaddr_count(if_t);
 bool if_maddr_empty(if_t);
 
-int if_getamcount(const if_t ifp);
 struct ifaddr * if_getifaddr(const if_t ifp);
 typedef u_int if_addr_cb_t(void *, struct ifaddr *, u_int);
 u_int if_foreach_addr_type(if_t ifp, int type, if_addr_cb_t cb, void *cb_arg);

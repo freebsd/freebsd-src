@@ -4784,12 +4784,6 @@ if_getifaddr(const if_t ifp)
 }
 
 int
-if_getamcount(const if_t ifp)
-{
-	return (ifp->if_amcount);
-}
-
-int
 if_setsendqready(if_t ifp)
 {
 	IFQ_SET_READY(&ifp->if_snd);
