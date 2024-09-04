@@ -660,7 +660,7 @@ pci_xhci_init_ep(struct pci_xhci_dev_emu *dev, int epid)
 	devep = &dev->eps[epid];
 	pstreams = XHCI_EPCTX_0_MAXP_STREAMS_GET(ep_ctx->dwEpCtx0);
 	if (pstreams > 0) {
-		DPRINTF(("init_ep %d with pstreams %d", epid, pstreams));
+		DPRINTF(("init_ep %d with pstreams %u", epid, pstreams));
 		assert(devep->ep_sctx_trbs == NULL);
 
 		devep->ep_sctx = XHCI_GADDR(dev->xsc, ep_ctx->qwEpCtx2 &
@@ -1202,7 +1202,7 @@ pci_xhci_find_stream(struct pci_xhci_softc *sc, struct xhci_endp_ctx *ep,
 	}
 
 	/* only support primary stream */
-	if (streamid > devep->ep_MaxPStreams)
+	if (streamid >= devep->ep_MaxPStreams)
 		return (XHCI_TRB_ERROR_STREAM_TYPE);
 
 	sctx = (struct xhci_stream_ctx *)XHCI_GADDR(sc, ep->qwEpCtx2 & ~0xFUL) +
