@@ -9525,6 +9525,9 @@ pf_test6(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb 
 			break;
 		}
 
+		if ((pd.hdr.tcp.th_flags & TH_ACK) && pd.p_len == 0)
+			use_2nd_queue = 1;
+
 		action = pf_normalize_tcp(kif, m, 0, off, h, &pd);
 		if (action == PF_DROP)
 			goto done;
@@ -9701,7 +9704,7 @@ done:
 		} else {
 			if (s != NULL)
 				pd.pf_mtag->qid_hash = pf_state_hash(s);
-			if (pd.tos & IPTOS_LOWDELAY)
+			if (use_2nd_queue || (pd.tos & IPTOS_LOWDELAY))
 				pd.pf_mtag->qid = pd.act.pqid;
 			else
 				pd.pf_mtag->qid = pd.act.qid;
