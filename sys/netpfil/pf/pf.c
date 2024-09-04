@@ -376,6 +376,10 @@ static struct pf_kstate	*pf_find_state(struct pfi_kkif *,
 			    const struct pf_state_key_cmp *, u_int);
 static int		 pf_src_connlimit(struct pf_kstate **);
 static int		 pf_match_rcvif(struct mbuf *, struct pf_krule *);
+static void		 pf_counters_inc(int,
+			    struct pf_pdesc *, struct pfi_kkif *,
+			    struct pf_kstate *, struct pf_krule *,
+			    struct pf_krule *);
 static void		 pf_overload_task(void *v, int pending);
 static u_short		 pf_insert_src_node(struct pf_ksrc_node **,
 			    struct pf_krule *, struct pf_addr *, sa_family_t);
@@ -8849,6 +8853,85 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf *m,
 	return (0);
 }
 
+static void
+pf_counters_inc(int action, struct pf_pdesc *pd,
+    struct pfi_kkif *kif, struct pf_kstate *s,
+    struct pf_krule *r, struct pf_krule *a)
+{
+	struct pf_krule		*tr, *nr;
+	int			 dir = pd->dir;
+	int			 dirndx;
+
+	pf_counter_u64_critical_enter();
+	pf_counter_u64_add_protected(
+	    &kif->pfik_bytes[pd->af == AF_INET6][dir == PF_OUT][action != PF_PASS],
+	    pd->tot_len);
+	pf_counter_u64_add_protected(
+	    &kif->pfik_packets[pd->af == AF_INET6][dir == PF_OUT][action != PF_PASS],
+	    1);
+
+	if (action == PF_PASS || r->action == PF_DROP) {
+		dirndx = (dir == PF_OUT);
+		pf_counter_u64_add_protected(&r->packets[dirndx], 1);
+		pf_counter_u64_add_protected(&r->bytes[dirndx], pd->tot_len);
+		pf_update_timestamp(r);
+
+		if (a != NULL) {
+			pf_counter_u64_add_protected(&a->packets[dirndx], 1);
+			pf_counter_u64_add_protected(&a->bytes[dirndx], pd->tot_len);
+		}
+		if (s != NULL) {
+			struct pf_krule_item	*ri;
+
+			if (s->nat_rule.ptr != NULL) {
+				pf_counter_u64_add_protected(&s->nat_rule.ptr->packets[dirndx],
+				    1);
+				pf_counter_u64_add_protected(&s->nat_rule.ptr->bytes[dirndx],
+				    pd->tot_len);
+			}
+			if (s->src_node != NULL) {
+				counter_u64_add(s->src_node->packets[dirndx],
+				    1);
+				counter_u64_add(s->src_node->bytes[dirndx],
+				    pd->tot_len);
+			}
+			if (s->nat_src_node != NULL) {
+				counter_u64_add(s->nat_src_node->packets[dirndx],
+				    1);
+				counter_u64_add(s->nat_src_node->bytes[dirndx],
+				    pd->tot_len);
+			}
+			dirndx = (dir == s->direction) ? 0 : 1;
+			s->packets[dirndx]++;
+			s->bytes[dirndx] += pd->tot_len;
+
+			SLIST_FOREACH(ri, &s->match_rules, entry) {
+				pf_counter_u64_add_protected(&ri->r->packets[dirndx], 1);
+				pf_counter_u64_add_protected(&ri->r->bytes[dirndx], pd->tot_len);
+			}
+		}
+		tr = r;
+		nr = (s != NULL) ? s->nat_rule.ptr : pd->nat_rule;
+		if (nr != NULL && r == &V_pf_default_rule)
+			tr = nr;
+		if (tr->src.addr.type == PF_ADDR_TABLE)
+			pfr_update_stats(tr->src.addr.p.tbl,
+			    (s == NULL) ? pd->src :
+			    &s->key[(s->direction == PF_IN)]->
+				addr[(s->direction == PF_OUT)],
+			    pd->af, pd->tot_len, dir == PF_OUT,
+			    r->action == PF_PASS, tr->src.neg);
+		if (tr->dst.addr.type == PF_ADDR_TABLE)
+			pfr_update_stats(tr->dst.addr.p.tbl,
+			    (s == NULL) ? pd->dst :
+			    &s->key[(s->direction == PF_IN)]->
+				addr[(s->direction == PF_IN)],
+			    pd->af, pd->tot_len, dir == PF_OUT,
+			    r->action == PF_PASS, tr->dst.neg);
+	}
+	pf_counter_u64_critical_exit();
+}
+
 #ifdef INET
 int
 pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0,
@@ -8859,11 +8942,11 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0,
 	struct mbuf		*m = *m0;
 	struct ip		*h = NULL;
 	struct m_tag		*mtag;
-	struct pf_krule		*a = NULL, *r = &V_pf_default_rule, *tr, *nr;
+	struct pf_krule		*a = NULL, *r = &V_pf_default_rule;
 	struct pf_kstate	*s = NULL;
 	struct pf_kruleset	*ruleset = NULL;
 	struct pf_pdesc		 pd;
-	int			 off, hdrlen, dirndx, use_2nd_queue = 0;
+	int			 off, hdrlen, use_2nd_queue = 0;
 	uint16_t		 tag;
 	uint8_t			 rt;
 
@@ -9257,71 +9340,7 @@ done:
 		}
 	}
 
-	pf_counter_u64_critical_enter();
-	pf_counter_u64_add_protected(&kif->pfik_bytes[0][dir == PF_OUT][action != PF_PASS],
-	    pd.tot_len);
-	pf_counter_u64_add_protected(&kif->pfik_packets[0][dir == PF_OUT][action != PF_PASS],
-	    1);
-
-	if (action == PF_PASS || r->action == PF_DROP) {
-		dirndx = (dir == PF_OUT);
-		pf_counter_u64_add_protected(&r->packets[dirndx], 1);
-		pf_counter_u64_add_protected(&r->bytes[dirndx], pd.tot_len);
-		pf_update_timestamp(r);
-
-		if (a != NULL) {
-			pf_counter_u64_add_protected(&a->packets[dirndx], 1);
-			pf_counter_u64_add_protected(&a->bytes[dirndx], pd.tot_len);
-		}
-		if (s != NULL) {
-			struct pf_krule_item	*ri;
-
-			if (s->nat_rule.ptr != NULL) {
-				pf_counter_u64_add_protected(&s->nat_rule.ptr->packets[dirndx],
-				    1);
-				pf_counter_u64_add_protected(&s->nat_rule.ptr->bytes[dirndx],
-				    pd.tot_len);
-			}
-			if (s->src_node != NULL) {
-				counter_u64_add(s->src_node->packets[dirndx],
-				    1);
-				counter_u64_add(s->src_node->bytes[dirndx],
-				    pd.tot_len);
-			}
-			if (s->nat_src_node != NULL) {
-				counter_u64_add(s->nat_src_node->packets[dirndx],
-				    1);
-				counter_u64_add(s->nat_src_node->bytes[dirndx],
-				    pd.tot_len);
-			}
-			dirndx = (dir == s->direction) ? 0 : 1;
-			s->packets[dirndx]++;
-			s->bytes[dirndx] += pd.tot_len;
-			SLIST_FOREACH(ri, &s->match_rules, entry) {
-				pf_counter_u64_add_protected(&ri->r->packets[dirndx], 1);
-				pf_counter_u64_add_protected(&ri->r->bytes[dirndx], pd.tot_len);
-			}
-		}
-		tr = r;
-		nr = (s != NULL) ? s->nat_rule.ptr : pd.nat_rule;
-		if (nr != NULL && r == &V_pf_default_rule)
-			tr = nr;
-		if (tr->src.addr.type == PF_ADDR_TABLE)
-			pfr_update_stats(tr->src.addr.p.tbl,
-			    (s == NULL) ? pd.src :
-			    &s->key[(s->direction == PF_IN)]->
-				addr[(s->direction == PF_OUT)],
-			    pd.af, pd.tot_len, dir == PF_OUT,
-			    r->action == PF_PASS, tr->src.neg);
-		if (tr->dst.addr.type == PF_ADDR_TABLE)
-			pfr_update_stats(tr->dst.addr.p.tbl,
-			    (s == NULL) ? pd.dst :
-			    &s->key[(s->direction == PF_IN)]->
-				addr[(s->direction == PF_IN)],
-			    pd.af, pd.tot_len, dir == PF_OUT,
-			    r->action == PF_PASS, tr->dst.neg);
-	}
-	pf_counter_u64_critical_exit();
+	pf_counters_inc(action, &pd, kif, s, r, a);
 
 	switch (action) {
 	case PF_SYNPROXY_DROP:
@@ -9376,11 +9395,11 @@ pf_test6(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb 
 	struct mbuf		*m = *m0, *n = NULL;
 	struct m_tag		*mtag;
 	struct ip6_hdr		*h = NULL;
-	struct pf_krule		*a = NULL, *r = &V_pf_default_rule, *tr, *nr;
+	struct pf_krule		*a = NULL, *r = &V_pf_default_rule;
 	struct pf_kstate	*s = NULL;
 	struct pf_kruleset	*ruleset = NULL;
 	struct pf_pdesc		 pd;
-	int			 off, hdrlen, dirndx, use_2nd_queue = 0;
+	int			 off, hdrlen, use_2nd_queue = 0;
 	uint16_t		 tag;
 	uint8_t			 rt;
 
@@ -9726,61 +9745,7 @@ done:
 		}
 	}
 
-	pf_counter_u64_critical_enter();
-	pf_counter_u64_add_protected(&kif->pfik_bytes[1][dir == PF_OUT][action != PF_PASS],
-	    pd.tot_len);
-	pf_counter_u64_add_protected(&kif->pfik_packets[1][dir == PF_OUT][action != PF_PASS],
-	    1);
-
-	if (action == PF_PASS || r->action == PF_DROP) {
-		dirndx = (dir == PF_OUT);
-		pf_counter_u64_add_protected(&r->packets[dirndx], 1);
-		pf_counter_u64_add_protected(&r->bytes[dirndx], pd.tot_len);
-		if (a != NULL) {
-			pf_counter_u64_add_protected(&a->packets[dirndx], 1);
-			pf_counter_u64_add_protected(&a->bytes[dirndx], pd.tot_len);
-		}
-		if (s != NULL) {
-			if (s->nat_rule.ptr != NULL) {
-				pf_counter_u64_add_protected(&s->nat_rule.ptr->packets[dirndx],
-				    1);
-				pf_counter_u64_add_protected(&s->nat_rule.ptr->bytes[dirndx],
-				    pd.tot_len);
-			}
-			if (s->src_node != NULL) {
-				counter_u64_add(s->src_node->packets[dirndx],
-				    1);
-				counter_u64_add(s->src_node->bytes[dirndx],
-				    pd.tot_len);
-			}
-			if (s->nat_src_node != NULL) {
-				counter_u64_add(s->nat_src_node->packets[dirndx],
-				    1);
-				counter_u64_add(s->nat_src_node->bytes[dirndx],
-				    pd.tot_len);
-			}
-			dirndx = (dir == s->direction) ? 0 : 1;
-			s->packets[dirndx]++;
-			s->bytes[dirndx] += pd.tot_len;
-		}
-		tr = r;
-		nr = (s != NULL) ? s->nat_rule.ptr : pd.nat_rule;
-		if (nr != NULL && r == &V_pf_default_rule)
-			tr = nr;
-		if (tr->src.addr.type == PF_ADDR_TABLE)
-			pfr_update_stats(tr->src.addr.p.tbl,
-			    (s == NULL) ? pd.src :
-			    &s->key[(s->direction == PF_IN)]->addr[0],
-			    pd.af, pd.tot_len, dir == PF_OUT,
-			    r->action == PF_PASS, tr->src.neg);
-		if (tr->dst.addr.type == PF_ADDR_TABLE)
-			pfr_update_stats(tr->dst.addr.p.tbl,
-			    (s == NULL) ? pd.dst :
-			    &s->key[(s->direction == PF_IN)]->addr[1],
-			    pd.af, pd.tot_len, dir == PF_OUT,
-			    r->action == PF_PASS, tr->dst.neg);
-	}
-	pf_counter_u64_critical_exit();
+	pf_counters_inc(action, &pd, kif, s, r, a);
 
 	switch (action) {
 	case PF_SYNPROXY_DROP:
