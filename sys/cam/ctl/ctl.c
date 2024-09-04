@@ -7514,20 +7514,19 @@ ctl_report_supported_opcodes(struct ctl_scsiio *ctsio)
 	case RSO_OPTIONS_OC_SA:
 		if ((ctl_cmd_table[opcode].flags & CTL_CMD_FLAG_SA5) == 0 ||
 		    service_action >= 32) {
-			ctl_set_invalid_field(/*ctsio*/ ctsio,
-					      /*sks_valid*/ 1,
-					      /*command*/ 1,
-					      /*field*/ 2,
-					      /*bit_valid*/ 1,
-					      /*bit*/ 2);
-			ctl_done((union ctl_io *)ctsio);
-			return (CTL_RETVAL_COMPLETE);
+			goto invalid;
 		}
-		/* FALLTHROUGH */
+		total_len = sizeof(struct scsi_report_supported_opcodes_one) + 32;
+		break;
 	case RSO_OPTIONS_OC_ASA:
+		if ((ctl_cmd_table[opcode].flags & CTL_CMD_FLAG_SA5) != 0 &&
+		    service_action >= 32) {
+			goto invalid;
+		}
 		total_len = sizeof(struct scsi_report_supported_opcodes_one) + 32;
 		break;
 	default:
+invalid:
 		ctl_set_invalid_field(/*ctsio*/ ctsio,
 				      /*sks_valid*/ 1,
 				      /*command*/ 1,
