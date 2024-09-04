@@ -9,6 +9,9 @@
 
 #include <linux/etherdevice.h>
 #include <linux/timekeeping.h>
+#if defined(__FreeBSD__)
+#include <linux/delay.h>
+#endif
 
 #include "mt7615.h"
 #include "../dma.h"
