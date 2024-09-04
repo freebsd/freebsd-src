@@ -4333,8 +4333,17 @@ umtx_shm_reg_delfree_tq(void *context __unused, int pending __unused)
 static struct task umtx_shm_reg_delfree_task =
     TASK_INITIALIZER(0, umtx_shm_reg_delfree_tq, NULL);
 
-static struct umtx_shm_reg *
-umtx_shm_find_reg_locked(const struct umtx_key *key)
+/*
+ * Returns 0 if a SHM with the passed key is found in the registry, in which
+ * case it is returned through 'oreg'.  Otherwise, returns an error among ESRCH
+ * (no corresponding SHM; ESRCH was chosen for compatibility, ENOENT would have
+ * been preferable) or EOVERFLOW (there is a corresponding SHM, but reference
+ * count would overflow, so can't return it), in which case '*oreg' is left
+ * unchanged.
+ */
+static int
+umtx_shm_find_reg_locked(const struct umtx_key *key,
+    struct umtx_shm_reg **const oreg)
 {
 	struct umtx_shm_reg *reg;
 	struct umtx_shm_reg_head *reg_head;
@@ -4354,22 +4363,34 @@ umtx_shm_find_reg_locked(const struct umtx_key *key)
 			    ("reg %p refcnt 0 onlist", reg));
 			KASSERT((reg->ushm_flags & USHMF_LINKED) != 0,
 			    ("reg %p not linked", reg));
+			/*
+			 * Don't let overflow happen, just deny a new reference
+			 * (this is additional protection against some reference
+			 * count leak, which is known not to be the case at the
+			 * time of this writing).
+			 */
+			if (__predict_false(reg->ushm_refcnt == UINT_MAX))
+				return (EOVERFLOW);
 			reg->ushm_refcnt++;
-			return (reg);
+			*oreg = reg;
+			return (0);
 		}
 	}
-	return (NULL);
+	return (ESRCH);
 }
 
-static struct umtx_shm_reg *
-umtx_shm_find_reg(const struct umtx_key *key)
+/*
+ * Calls umtx_shm_find_reg_unlocked() under the 'umtx_shm_lock'.
+ */
+static int
+umtx_shm_find_reg(const struct umtx_key *key, struct umtx_shm_reg **const oreg)
 {
-	struct umtx_shm_reg *reg;
+	int error;
 
 	mtx_lock(&umtx_shm_lock);
-	reg = umtx_shm_find_reg_locked(key);
+	error = umtx_shm_find_reg_locked(key, oreg);
 	mtx_unlock(&umtx_shm_lock);
-	return (reg);
+	return (error);
 }
 
 static void
@@ -4469,11 +4490,18 @@ umtx_shm_create_reg(struct thread *td, const struct umtx_key *key,
 	struct ucred *cred;
 	int error;
 
-	reg = umtx_shm_find_reg(key);
-	if (reg != NULL) {
-		*res = reg;
-		return (0);
+	error = umtx_shm_find_reg(key, res);
+	if (error != ESRCH) {
+		/*
+		 * Either no error occured, and '*res' was filled, or EOVERFLOW
+		 * was returned, indicating a reference count limit, and we
+		 * won't create a duplicate registration.  In both cases, we are
+		 * done.
+		 */
+		return (error);
 	}
+	/* No entry, we will create one. */
+
 	cred = td->td_ucred;
 	if (!chgumtxcnt(cred->cr_ruidinfo, 1, lim_cur(td, RLIMIT_UMTXP)))
 		return (ENOMEM);
@@ -4487,12 +4515,20 @@ umtx_shm_create_reg(struct thread *td, const struct umtx_key *key,
 		return (error);
 	}
 	mtx_lock(&umtx_shm_lock);
-	reg1 = umtx_shm_find_reg_locked(key);
-	if (reg1 != NULL) {
+	/* Re-lookup as 'umtx_shm_lock' has been temporarily released. */
+	error = umtx_shm_find_reg_locked(key, &reg1);
+	switch (error) {
+	case 0:
 		mtx_unlock(&umtx_shm_lock);
 		umtx_shm_free_reg(reg);
 		*res = reg1;
 		return (0);
+	case ESRCH:
+		break;
+	default:
+		mtx_unlock(&umtx_shm_lock);
+		umtx_shm_free_reg(reg);
+		return (error);
 	}
 	TAILQ_INSERT_TAIL(&umtx_shm_registry[key->hash], reg, ushm_reg_link);
 	LIST_INSERT_HEAD(USHM_OBJ_UMTX(key->info.shared.object), reg,
@@ -4563,13 +4599,9 @@ umtx_shm(struct thread *td, void *addr, u_int flags)
 	if (error != 0)
 		return (error);
 	KASSERT(key.shared == 1, ("non-shared key"));
-	if ((flags & UMTX_SHM_CREAT) != 0) {
-		error = umtx_shm_create_reg(td, &key, &reg);
-	} else {
-		reg = umtx_shm_find_reg(&key);
-		if (reg == NULL)
-			error = ESRCH;
-	}
+	error = (flags & UMTX_SHM_CREAT) != 0 ?
+	    umtx_shm_create_reg(td, &key, &reg) :
+	    umtx_shm_find_reg(&key, &reg);
 	umtx_key_release(&key);
 	if (error != 0)
 		return (error);
