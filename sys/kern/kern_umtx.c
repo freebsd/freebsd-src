@@ -4359,7 +4359,7 @@ umtx_shm_find_reg_locked(const struct umtx_key *key,
 		    reg->ushm_key.info.shared.offset ==
 		    key->info.shared.offset) {
 			KASSERT(reg->ushm_key.type == TYPE_SHM, ("TYPE_USHM"));
-			KASSERT(reg->ushm_refcnt > 0,
+			KASSERT(reg->ushm_refcnt != 0,
 			    ("reg %p refcnt 0 onlist", reg));
 			KASSERT((reg->ushm_flags & USHMF_LINKED) != 0,
 			    ("reg %p not linked", reg));
@@ -4407,7 +4407,7 @@ static bool
 umtx_shm_unref_reg_locked(struct umtx_shm_reg *reg, bool linked_ref)
 {
 	mtx_assert(&umtx_shm_lock, MA_OWNED);
-	KASSERT(reg->ushm_refcnt > 0, ("ushm_reg %p refcnt 0", reg));
+	KASSERT(reg->ushm_refcnt != 0, ("ushm_reg %p refcnt 0", reg));
 
 	if (linked_ref) {
 		if ((reg->ushm_flags & USHMF_LINKED) == 0)
