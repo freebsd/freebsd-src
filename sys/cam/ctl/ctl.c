@@ -5586,7 +5586,7 @@ ctl_read_buffer(struct ctl_scsiio *ctsio)
 	} else {
 		if (lun->write_buffer == NULL) {
 			lun->write_buffer = malloc(CTL_WRITE_BUFFER_SIZE,
-			    M_CTL, M_WAITOK);
+			    M_CTL, M_WAITOK | M_ZERO);
 		}
 		ctsio->kern_data_ptr = lun->write_buffer + buffer_offset;
 	}
@@ -5627,7 +5627,7 @@ ctl_write_buffer(struct ctl_scsiio *ctsio)
 
 	if (lun->write_buffer == NULL) {
 		lun->write_buffer = malloc(CTL_WRITE_BUFFER_SIZE,
-		    M_CTL, M_WAITOK);
+			    M_CTL, M_WAITOK | M_ZERO);
 	}
 
 	/*
