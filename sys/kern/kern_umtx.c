@@ -4383,39 +4383,49 @@ umtx_shm_free_reg(struct umtx_shm_reg *reg)
 }
 
 static bool
-umtx_shm_unref_reg_locked(struct umtx_shm_reg *reg, bool force)
+umtx_shm_unref_reg_locked(struct umtx_shm_reg *reg, bool linked_ref)
 {
-	bool res;
-
 	mtx_assert(&umtx_shm_lock, MA_OWNED);
 	KASSERT(reg->ushm_refcnt > 0, ("ushm_reg %p refcnt 0", reg));
-	reg->ushm_refcnt--;
-	res = reg->ushm_refcnt == 0;
-	if (res || force) {
-		if ((reg->ushm_flags & USHMF_LINKED) != 0) {
-			TAILQ_REMOVE(&umtx_shm_registry[reg->ushm_key.hash],
-			    reg, ushm_reg_link);
-			LIST_REMOVE(reg, ushm_obj_link);
-			reg->ushm_flags &= ~USHMF_LINKED;
-		}
+
+	if (linked_ref) {
+		if ((reg->ushm_flags & USHMF_LINKED) == 0)
+			/*
+			 * The reference tied to USHMF_LINKED has already been
+			 * released concurrently.
+			 */
+			return (false);
+
+		TAILQ_REMOVE(&umtx_shm_registry[reg->ushm_key.hash], reg,
+		    ushm_reg_link);
+		LIST_REMOVE(reg, ushm_obj_link);
+		reg->ushm_flags &= ~USHMF_LINKED;
 	}
-	return (res);
+
+	reg->ushm_refcnt--;
+	return (reg->ushm_refcnt == 0);
 }
 
 static void
-umtx_shm_unref_reg(struct umtx_shm_reg *reg, bool force)
+umtx_shm_unref_reg(struct umtx_shm_reg *reg, bool linked_ref)
 {
 	vm_object_t object;
 	bool dofree;
 
-	if (force) {
+	if (linked_ref) {
+		/*
+		 * Note: This may be executed multiple times on the same
+		 * shared-memory VM object in presence of concurrent callers
+		 * because 'umtx_shm_lock' is not held all along in umtx_shm()
+		 * and here.
+		 */
 		object = reg->ushm_obj->shm_object;
 		VM_OBJECT_WLOCK(object);
 		vm_object_set_flag(object, OBJ_UMTXDEAD);
 		VM_OBJECT_WUNLOCK(object);
 	}
 	mtx_lock(&umtx_shm_lock);
-	dofree = umtx_shm_unref_reg_locked(reg, force);
+	dofree = umtx_shm_unref_reg_locked(reg, linked_ref);
 	mtx_unlock(&umtx_shm_lock);
 	if (dofree)
 		umtx_shm_free_reg(reg);
@@ -4468,7 +4478,6 @@ umtx_shm_create_reg(struct thread *td, const struct umtx_key *key,
 	if (!chgumtxcnt(cred->cr_ruidinfo, 1, lim_cur(td, RLIMIT_UMTXP)))
 		return (ENOMEM);
 	reg = uma_zalloc(umtx_shm_reg_zone, M_WAITOK | M_ZERO);
-	reg->ushm_refcnt = 1;
 	bcopy(key, &reg->ushm_key, sizeof(*key));
 	reg->ushm_obj = shm_alloc(td->td_ucred, O_RDWR, false);
 	reg->ushm_cred = crhold(cred);
@@ -4485,11 +4494,17 @@ umtx_shm_create_reg(struct thread *td, const struct umtx_key *key,
 		*res = reg1;
 		return (0);
 	}
-	reg->ushm_refcnt++;
 	TAILQ_INSERT_TAIL(&umtx_shm_registry[key->hash], reg, ushm_reg_link);
 	LIST_INSERT_HEAD(USHM_OBJ_UMTX(key->info.shared.object), reg,
 	    ushm_obj_link);
 	reg->ushm_flags = USHMF_LINKED;
+	/*
+	 * This is one reference for the registry and the list of shared
+	 * mutexes referenced by the VM object containing the lock pointer, and
+	 * another for the caller, which it will free after use.  So, one of
+	 * these is tied to the presence of USHMF_LINKED.
+	 */
+	reg->ushm_refcnt = 2;
 	mtx_unlock(&umtx_shm_lock);
 	*res = reg;
 	return (0);
