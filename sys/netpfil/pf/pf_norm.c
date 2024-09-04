@@ -2269,9 +2269,8 @@ sctp_drop:
 
 #ifdef INET
 void
-pf_scrub_ip(struct mbuf **m0, struct pf_pdesc *pd)
+pf_scrub_ip(struct mbuf *m, struct pf_pdesc *pd)
 {
-	struct mbuf		*m = *m0;
 	struct ip		*h = mtod(m, struct ip *);
 
 	/* Clear IP_DF if no-df was requested */
@@ -2313,9 +2312,8 @@ pf_scrub_ip(struct mbuf **m0, struct pf_pdesc *pd)
 
 #ifdef INET6
 void
-pf_scrub_ip6(struct mbuf **m0, struct pf_pdesc *pd)
+pf_scrub_ip6(struct mbuf *m, struct pf_pdesc *pd)
 {
-	struct mbuf		*m = *m0;
 	struct ip6_hdr		*h = mtod(m, struct ip6_hdr *);
 
 	/* Enforce a minimum ttl, may cause endless packet loops */
