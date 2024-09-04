@@ -5673,21 +5673,24 @@ ctl_write_buffer(struct ctl_scsiio *ctsio)
 		return (CTL_RETVAL_COMPLETE);
 	}
 
+	if (lun->write_buffer == NULL) {
+		lun->write_buffer = malloc(CTL_WRITE_BUFFER_SIZE,
+		    M_CTL, M_WAITOK);
+	}
+
 	/*
-	 * If we've got a kernel request that hasn't been malloced yet,
-	 * malloc it and tell the caller the data buffer is here.
+	 * If this kernel request hasn't started yet, initialize the data
+	 * buffer to the correct region of the LUN's write buffer.  Note that
+	 * this doesn't set CTL_FLAG_ALLOCATED since this points into a
+	 * persistent buffer belonging to the LUN rather than a buffer
+	 * dedicated to this request.
 	 */
-	if ((ctsio->io_hdr.flags & CTL_FLAG_ALLOCATED) == 0) {
-		if (lun->write_buffer == NULL) {
-			lun->write_buffer = malloc(CTL_WRITE_BUFFER_SIZE,
-			    M_CTL, M_WAITOK);
-		}
+	if (ctsio->kern_data_ptr == NULL) {
 		ctsio->kern_data_ptr = lun->write_buffer + buffer_offset;
 		ctsio->kern_data_len = len;
 		ctsio->kern_total_len = len;
 		ctsio->kern_rel_offset = 0;
 		ctsio->kern_sg_entries = 0;
-		ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 		ctsio->be_move_done = ctl_config_move_done;
 		ctl_datamove((union ctl_io *)ctsio);
 
