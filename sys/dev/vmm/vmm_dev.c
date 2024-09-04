@@ -332,12 +332,6 @@ vmmdev_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 	KASSERT(sc != NULL, ("%s: device not found", __func__));
 
 	/*
-	 * A user can only access VMs that they themselves have created.
-	 */
-	if (td->td_ucred != sc->ucred)
-		return (EPERM);
-
-	/*
 	 * A jail without vmm access shouldn't be able to access vmm device
 	 * files at all, but check here just to be thorough.
 	 */
