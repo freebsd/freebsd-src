@@ -136,16 +136,16 @@ grep_tree(char **argv)
 	/* This switch effectively initializes 'fts_flags' */
 	switch(linkbehave) {
 	case LINK_EXPLICIT:
-		fts_flags = FTS_COMFOLLOW;
+		fts_flags = FTS_COMFOLLOW | FTS_PHYSICAL;
 		break;
 	case LINK_SKIP:
 		fts_flags = FTS_PHYSICAL;
 		break;
 	default:
-		fts_flags = FTS_LOGICAL;
+		fts_flags = FTS_LOGICAL | FTS_NOSTAT;
 	}
 
-	fts_flags |= FTS_NOSTAT | FTS_NOCHDIR;
+	fts_flags |= FTS_NOCHDIR;
 
 	fts = fts_open((argv[0] == NULL) ?
 	    __DECONST(char * const *, wd) : argv, fts_flags, NULL);
@@ -154,15 +154,13 @@ grep_tree(char **argv)
 	while (errno = 0, (p = fts_read(fts)) != NULL) {
 		switch (p->fts_info) {
 		case FTS_DNR:
-			/* FALLTHROUGH */
 		case FTS_ERR:
+		case FTS_NS:
 			file_err = true;
 			if(!sflag)
-				warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
+				warnc(p->fts_errno, "%s", p->fts_path);
 			break;
 		case FTS_D:
-			/* FALLTHROUGH */
-		case FTS_DP:
 			if (dexclude || dinclude)
 				if (!dir_matching(p->fts_name) ||
 				    !dir_matching(p->fts_path))
@@ -172,6 +170,17 @@ grep_tree(char **argv)
 			/* Print a warning for recursive directory loop */
 			warnx("warning: %s: recursive directory loop",
 			    p->fts_path);
+			break;
+		case FTS_DP:
+			break;
+		case FTS_SL:
+			/*
+			 * Skip symlinks for LINK_EXPLICIT and
+			 * LINK_SKIP.  Note that due to FTS_COMFOLLOW,
+			 * symlinks on the command line are followed
+			 * for LINK_EXPLICIT and not reported as
+			 * symlinks.
+			 */
 			break;
 		default:
 			/* Check for file exclusion/inclusion */
