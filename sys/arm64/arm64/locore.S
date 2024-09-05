@@ -747,7 +747,7 @@ LENTRY(build_l2_block_pagetable)
 
 	/* Build the L2 block entry */
 	orr	x12, x7, #L2_BLOCK
-	orr	x12, x12, #(ATTR_DEFAULT)
+	orr	x12, x12, #(ATTR_AF | ATTR_SH(ATTR_SH_IS))
 	orr	x12, x12, #(ATTR_S1_UXN)
 #ifdef __ARM_FEATURE_BTI_DEFAULT
 	orr	x12, x12, #(ATTR_S1_GP)
@@ -823,7 +823,7 @@ LENTRY(build_l3_page_pagetable)
 
 	/* Build the L3 page entry */
 	orr	x12, x7, #L3_PAGE
-	orr	x12, x12, #(ATTR_DEFAULT)
+	orr	x12, x12, #(ATTR_AF | ATTR_SH(ATTR_SH_IS))
 	orr	x12, x12, #(ATTR_S1_UXN)
 #ifdef __ARM_FEATURE_BTI_DEFAULT
 	orr	x12, x12, #(ATTR_S1_GP)
