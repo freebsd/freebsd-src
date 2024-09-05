@@ -2240,7 +2240,7 @@ pfr_detach_table(struct pfr_ktable *kt)
 
 int
 pfr_pool_get(struct pfr_ktable *kt, int *pidx, struct pf_addr *counter,
-    sa_family_t af)
+    sa_family_t af, pf_addr_filter_func_t filter)
 {
 	struct pf_addr		 addr, cur, mask, umask_addr;
 	union sockaddr_union	 uaddr, umask;
@@ -2299,6 +2299,10 @@ _next_block:
 
 	if (!KENTRY_NETWORK(ke)) {
 		/* this is a single IP address - no possible nested block */
+		if (filter && filter(af, &addr)) {
+			idx++;
+			goto _next_block;
+		}
 		PF_ACPY(counter, &addr, af);
 		*pidx = idx;
 		pfr_kstate_counter_add(&kt->pfrkt_match, 1);
@@ -2319,12 +2323,15 @@ _next_block:
 		/* no need to check KENTRY_RNF_ROOT() here */
 		if (ke2 == ke) {
 			/* lookup return the same block - perfect */
+			if (filter && filter(af, &addr))
+				goto _next_entry;
 			PF_ACPY(counter, &addr, af);
 			*pidx = idx;
 			pfr_kstate_counter_add(&kt->pfrkt_match, 1);
 			return (0);
 		}
 
+_next_entry:
 		/* we need to increase the counter past the nested block */
 		pfr_prepare_network(&umask, AF_INET, ke2->pfrke_net);
 		pfr_sockaddr_to_pf_addr(&umask, &umask_addr);
