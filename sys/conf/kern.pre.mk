@@ -309,7 +309,7 @@ FBT_CFLAGS+=	-I$S/cddl/dev/fbt/x86
 FBT_C=		${CC} -c ${FBT_CFLAGS}		${WERROR} ${.IMPSRC}
 
 .if ${MK_CTF} != "no"
-NORMAL_CTFCONVERT=	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+NORMAL_CTFCONVERT=	/sys/conf/ctf_with_clang_plugin ${.IMPSRC} ${.TARGET}
 .elif ${MAKE_VERSION} >= 5201111300
 NORMAL_CTFCONVERT=
 .else
