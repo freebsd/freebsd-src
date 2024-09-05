@@ -2396,6 +2396,8 @@
 #define	TCR_EL1_CRm			0
 #define	TCR_EL1_op2			2
 /* Bits 63:59 are reserved */
+#define	TCR_DS_SHIFT		59
+#define	TCR_DS			(UL(1) << TCR_DS_SHIFT)
 #define	TCR_TCMA1_SHIFT		58
 #define	TCR_TCMA1		(UL(1) << TCR_TCMA1_SHIFT)
 #define	TCR_TCMA0_SHIFT		57
