@@ -12,6 +12,13 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20240419:
+	Clang, llvm, lld, lldb, compiler-rt, libc++, libunwind and openmp have
+	been upgraded to 18.1.6. It is important that you run `make delete-old`
+	as described in the COMMON ITEMS section, otherwise several libc++
+	headers that are obsolete and need to be removed can cause compilation
+	errors in C++ programs.
+
 20240415:
 	MFC e0f3dc82727f: If you have an arm64 system that uses ACPI, you will
 	need to update your loader.efi in the ESP when you update past this
