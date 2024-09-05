@@ -945,8 +945,9 @@ tcr:
 #error Unsupported page size
 #endif
 
-	.quad (TCR_TxSZ(64 - VIRT_BITS) | TCR_TG | \
-	    TCR_CACHE_ATTRS | TCR_SMP_ATTRS)
+	.quad (TCR_TxSZ(64 - VIRT_BITS) | TCR_TG |			\
+	    TCR_SH1_IS | TCR_ORGN1_WBWA | TCR_IRGN1_WBWA |		\
+	    TCR_SH0_IS | TCR_ORGN0_WBWA | TCR_IRGN0_WBWA)
 sctlr_set:
 	/* Bits to set */
 	.quad (SCTLR_LSMAOE | SCTLR_nTLSMD | SCTLR_UCI | SCTLR_SPAN | \

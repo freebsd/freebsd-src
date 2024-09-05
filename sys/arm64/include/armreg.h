@@ -2543,14 +2543,6 @@
 #define	TCR_T0SZ(x)		((x) << TCR_T0SZ_SHIFT)
 #define	TCR_TxSZ(x)		(TCR_T1SZ(x) | TCR_T0SZ(x))
 
-#define	TCR_CACHE_ATTRS	((TCR_IRGN0_WBWA | TCR_IRGN1_WBWA) |\
-				(TCR_ORGN0_WBWA | TCR_ORGN1_WBWA))
-#ifdef SMP
-#define	TCR_SMP_ATTRS	(TCR_SH0_IS | TCR_SH1_IS)
-#else
-#define	TCR_SMP_ATTRS	0
-#endif
-
 /* TCR_EL12 */
 #define	TCR_EL12_REG			MRS_REG_ALT_NAME(TCR_EL12)
 #define	TCR_EL12_op0			3
