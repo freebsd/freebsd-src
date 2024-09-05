@@ -24,8 +24,8 @@
  *
  */
 
-#include <sys/cdefs.h>
 #include <sys/stat.h>
+#include <sys/utsname.h>
 
 #include <errno.h>
 #include <grp.h>
@@ -130,9 +130,47 @@ lua_getpid(lua_State *L)
 	return 1;
 }
 
+static int
+lua_uname(lua_State *L)
+{
+	struct utsname name;
+	int error, n;
+
+	n = lua_gettop(L);
+	luaL_argcheck(L, n == 0, 1, "too many arguments");
+
+	error = uname(&name);
+	if (error != 0) {
+		error = errno;
+		lua_pushnil(L);
+		lua_pushstring(L, strerror(error));
+		lua_pushinteger(L, error);
+		return (3);
+	}
+
+	lua_newtable(L);
+#define	setkv(f) do {			\
+	lua_pushstring(L, name.f);	\
+	lua_setfield(L, -2, #f);	\
+} while (0)
+	setkv(sysname);
+	setkv(nodename);
+	setkv(release);
+	setkv(version);
+	setkv(machine);
+#undef setkv
+
+	return (1);
+}
+
 #define REG_SIMPLE(n)	{ #n, lua_ ## n }
 static const struct luaL_Reg sys_statlib[] = {
 	REG_SIMPLE(chmod),
+	{ NULL, NULL },
+};
+
+static const struct luaL_Reg sys_utsnamelib[] = {
+	REG_SIMPLE(uname),
 	{ NULL, NULL },
 };
 
@@ -147,6 +185,13 @@ int
 luaopen_posix_sys_stat(lua_State *L)
 {
 	luaL_newlib(L, sys_statlib);
+	return 1;
+}
+
+int
+luaopen_posix_sys_utsname(lua_State *L)
+{
+	luaL_newlib(L, sys_utsnamelib);
 	return 1;
 }
 
