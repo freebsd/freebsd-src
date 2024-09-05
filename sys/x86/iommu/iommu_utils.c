@@ -190,12 +190,60 @@ SYSCTL_INT(_hw_iommu, OID_AUTO, batch_coalesce, CTLFLAG_RWTUN,
     &iommu_qi_batch_coalesce, 0,
     "Number of qi batches between interrupt");
 
-static struct x86_iommu *x86_iommu;
+static struct iommu_unit *
+x86_no_iommu_find(device_t dev, bool verbose)
+{
+	return (NULL);
+}
+
+static int
+x86_no_iommu_alloc_msi_intr(device_t src, u_int *cookies, u_int count)
+{
+	return (EOPNOTSUPP);
+}
+
+static int
+x86_no_iommu_map_msi_intr(device_t src, u_int cpu, u_int vector,
+    u_int cookie, uint64_t *addr, uint32_t *data)
+{
+	return (EOPNOTSUPP);
+}
+
+static int
+x86_no_iommu_unmap_msi_intr(device_t src, u_int cookie)
+{
+	return (0);
+}
+
+static int
+x86_no_iommu_map_ioapic_intr(u_int ioapic_id, u_int cpu, u_int vector,
+    bool edge, bool activehi, int irq, u_int *cookie, uint32_t *hi,
+    uint32_t *lo)
+{
+	return (EOPNOTSUPP);
+}
+
+static int
+x86_no_iommu_unmap_ioapic_intr(u_int ioapic_id, u_int *cookie)
+{
+	return (0);
+}
+
+static struct x86_iommu x86_no_iommu = {
+	.find = x86_no_iommu_find,
+	.alloc_msi_intr = x86_no_iommu_alloc_msi_intr,
+	.map_msi_intr = x86_no_iommu_map_msi_intr,
+	.unmap_msi_intr = x86_no_iommu_unmap_msi_intr,
+	.map_ioapic_intr = x86_no_iommu_map_ioapic_intr,
+	.unmap_ioapic_intr = x86_no_iommu_unmap_ioapic_intr,
+};
+
+static struct x86_iommu *x86_iommu = &x86_no_iommu;
 
 void
 set_x86_iommu(struct x86_iommu *x)
 {
-	MPASS(x86_iommu == NULL);
+	MPASS(x86_iommu == &x86_no_iommu);
 	x86_iommu = x;
 }
 
