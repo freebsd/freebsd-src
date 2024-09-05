@@ -12,6 +12,13 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20240419:
+	Clang, llvm, lld, lldb, compiler-rt, libc++, libunwind and openmp have
+	been upgraded to 18.1.6. It is important that you run `make delete-old`
+	as described in the COMMON ITEMS section, otherwise several libc++
+	headers that are obsolete and need to be removed can cause compilation
+	errors in C++ programs.
+
 20240218:
 	MFC of 713db49d06de changed 'struct ieee80211vap' internals in net80211.
 	Given we do not have enough spares and the struct is allocated by
