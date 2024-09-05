@@ -1581,7 +1581,6 @@ al_eth_rx_recv_work(void *arg, int pending)
 {
 	struct al_eth_ring *rx_ring = arg;
 	struct mbuf *mbuf;
-	struct lro_entry *queued;
 	unsigned int qid = rx_ring->ring_id;
 	struct al_eth_pkt *hal_pkt = &rx_ring->hal_pkt;
 	uint16_t next_to_clean = rx_ring->next_to_clean;
@@ -1672,10 +1671,7 @@ al_eth_rx_recv_work(void *arg, int pending)
 		    "%s: not filling rx queue %d\n", __func__, qid);
 	}
 
-	while (((queued = LIST_FIRST(&rx_ring->lro.lro_active)) != NULL)) {
-		LIST_REMOVE(queued, next);
-		tcp_lro_flush(&rx_ring->lro, queued);
-	}
+	tcp_lro_flush_all(&rx_ring->lro);
 
 	if (napi != 0) {
 		rx_ring->enqueue_is_running = 0;
