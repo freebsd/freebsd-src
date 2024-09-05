@@ -57,7 +57,7 @@
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <machine/smp.h>
-#include <machine/intr.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 
 #include <arm64/cavium/thunder_pcie_common.h>
 #include <arm64/cavium/thunder_pcie_pem.h>

@@ -49,7 +49,7 @@
 #include <vm/pmap.h>
 
 #if defined(__aarch64__)
-#include <arm64/include/intr.h>
+#include <arm64/include/a_bikeshed_string_for_sed_to_target.h>
 #endif
 #include <machine/atomic.h>
 #include <machine/bus.h>
@@ -64,7 +64,7 @@
 #include <dev/pci/pcib_private.h>
 #include "pcib_if.h"
 #if defined(__i386__) || defined(__amd64__)
-#include <machine/intr_machdep.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 #include <x86/apicreg.h>
 #include <x86/apicvar.h>
 #endif

@@ -34,7 +34,7 @@
 #include <sys/proc.h>
 #include <sys/rman.h>
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 
 #include <dev/fdt/fdt_intr.h>
 #include <dev/ofw/openfirm.h>

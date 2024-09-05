@@ -57,7 +57,7 @@
 #else
 #include <dev/hyperv/vmbus/x86/hyperv_machdep.h>
 #include <dev/hyperv/vmbus/x86/hyperv_reg.h>
-#include <machine/intr_machdep.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 #include <x86/include/apicvar.h>
 #endif
 #include <machine/metadata.h>

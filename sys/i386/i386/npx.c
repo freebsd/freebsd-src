@@ -65,7 +65,7 @@
 #include <machine/ucontext.h>
 #include <x86/ifunc.h>
 
-#include <machine/intr_machdep.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 
 #ifdef DEV_ISA
 #include <isa/isavar.h>

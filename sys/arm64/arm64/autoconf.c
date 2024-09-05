@@ -43,7 +43,7 @@
 #include <sys/cons.h>
 #include <sys/kernel.h>
 
-#include <machine/intr.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 
 static void	configure_first(void *);
 static void	configure(void *);

@@ -37,6 +37,7 @@
 
 #include <sys/param.h>
 #include <sys/interrupt.h>
+#include <sys/intrtab.h>
 
 typedef	irqreturn_t	(*irq_handler_t)(int, void *);
 
@@ -131,11 +132,12 @@ static inline int
 irq_set_affinity_hint(int vector, const cpumask_t *mask)
 {
 	int error;
+	struct intr_event *event = intr2event(intrtab_lookup(vector));
 
 	if (mask != NULL)
-		error = intr_setaffinity(vector, CPU_WHICH_IRQ, mask);
+		error = intr_setaffinity(event, CPU_WHICH_IRQ, mask);
 	else
-		error = intr_setaffinity(vector, CPU_WHICH_IRQ, cpuset_root);
+		error = intr_setaffinity(event, CPU_WHICH_IRQ, cpuset_root);
 
 	return (-error);
 }

@@ -52,7 +52,7 @@
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 
 #include <arm/broadcom/bcm2835/bcm2835_mbox.h>
 #include <arm/broadcom/bcm2835/bcm2835_mbox_prop.h>

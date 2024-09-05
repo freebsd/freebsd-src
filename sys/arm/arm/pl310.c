@@ -38,7 +38,7 @@
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <machine/intr.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 
 #include <machine/bus.h>
 #include <machine/pl310.h>

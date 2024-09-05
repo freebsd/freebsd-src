@@ -47,7 +47,7 @@
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/systm.h>
-#include <machine/intr_machdep.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 
 #define	ELCR_PORT	0x4d0
 #define	ELCR_MASK(irq)	(1 << (irq))

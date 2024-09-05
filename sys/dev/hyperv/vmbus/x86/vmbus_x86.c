@@ -52,7 +52,7 @@
 #include <machine/metadata.h>
 #include <machine/md_var.h>
 #include <machine/resource.h>
-#include <machine/intr_machdep.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 #include <contrib/dev/acpica/include/acpi.h>
 #include <dev/acpica/acpivar.h>
 

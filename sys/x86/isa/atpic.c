@@ -38,6 +38,7 @@
 #include <sys/asan.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
+#include <sys/intrtab.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
@@ -45,7 +46,7 @@
 
 #include <machine/cpufunc.h>
 #include <machine/frame.h>
-#include <machine/intr_machdep.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 #include <machine/md_var.h>
 #include <machine/resource.h>
 #include <machine/segments.h>
@@ -100,7 +101,6 @@ inthand_t
 			.pic_eoi_source = (eoi),			\
 			.pic_enable_intr = atpic_enable_intr,		\
 			.pic_disable_intr = atpic_disable_intr,		\
-			.pic_vector = atpic_vector,			\
 			.pic_source_pending = atpic_source_pending,	\
 			.pic_resume = atpic_resume,			\
 			.pic_config_intr = atpic_config_intr,		\
@@ -174,6 +174,8 @@ static struct atpic_intsrc atintrs[] = {
 
 CTASSERT(nitems(atintrs) == NUM_ISA_IRQS);
 
+static struct resource *isa_intrs;
+
 static __inline void
 _atpic_eoi_master(struct intsrc *isrc)
 {
@@ -227,15 +229,17 @@ atpic_register_sources(struct pic *pic)
 	 */
 	if (ap != &atpics[MASTER])
 		return;
+	if (isa_intrs == NULL)
+		return;
 	for (i = 0; i < NUM_ISA_IRQS; i++)
-		if (intr_lookup_source(i) != NULL)
+		if (intrtab_lookup(i) != NULL)
 			return;
 
 	/* Loop through all interrupt sources and add them. */
 	for (i = 0, ai = atintrs; i < NUM_ISA_IRQS; i++, ai++) {
 		if (i == ICU_SLAVEID)
 			continue;
-		intr_register_source(&ai->at_intsrc);
+		intr_register_source(isa_intrs, i, &ai->at_intsrc);
 	}
 }
 
@@ -512,8 +516,13 @@ atpic_init(void *dummy __unused)
 	    intr_register_pic(&atpics[1].at_pic) != 0)
 		panic("Unable to register ATPICs");
 
-	if (num_io_irqs == 0)
-		num_io_irqs = NUM_ISA_IRQS;
+	isa_intrs = intrtab_alloc_intr(NULL, NUM_ISA_IRQS);
+	if (isa_intrs == NULL)
+		panic("%s(): failed reserving interrupts", __func__);
+	if (rman_get_start(isa_intrs) != 0) {
+		intrtab_release_intr(isa_intrs);
+		isa_intrs = NULL;
+	}
 }
 SYSINIT(atpic_init, SI_SUB_INTR, SI_ORDER_FOURTH, atpic_init, NULL);
 

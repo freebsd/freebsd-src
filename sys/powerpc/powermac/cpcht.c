@@ -43,7 +43,7 @@
 #include <dev/pci/pcireg.h>
 
 #include <machine/bus.h>
-#include <machine/intr_machdep.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 #include <machine/md_var.h>
 #include <machine/openpicreg.h>
 #include <machine/openpicvar.h>

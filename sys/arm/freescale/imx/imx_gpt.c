@@ -37,7 +37,7 @@
 #include <sys/timeet.h>
 #include <sys/timetc.h>
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 #include <machine/machdep.h> /* For arm_set_delay */
 
 #include <dev/ofw/openfirm.h>

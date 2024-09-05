@@ -153,7 +153,7 @@
 #include <vm/uma.h>
 
 #include <machine/asan.h>
-#include <machine/intr_machdep.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 #include <x86/apicvar.h>
 #include <x86/ifunc.h>
 #include <machine/cpu.h>

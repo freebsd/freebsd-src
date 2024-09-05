@@ -54,7 +54,7 @@
 
 #include <machine/bus.h>
 #include <machine/endian.h>
-#include <machine/intr_machdep.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 #include <machine/resource.h>
 
 #include <dev/ofw/ofw_bus.h>

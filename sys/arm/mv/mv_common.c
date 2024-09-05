@@ -46,7 +46,7 @@
 #include <machine/bus.h>
 #include <machine/fdt.h>
 #include <machine/vmparam.h>
-#include <machine/intr.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>

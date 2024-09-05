@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2003 John Baldwin <jhb@FreeBSD.org>
+ * Copyright © 2023 Elliott Mitchell
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,23 +25,58 @@
  * SUCH DAMAGE.
  */
 
-#ifndef __MACHINE_INTR_MACHDEP_H__
-#define	__MACHINE_INTR_MACHDEP_H__
+#ifndef _SYS_INTRTAB_H_
+#define _SYS_INTRTAB_H_
 
-#include <x86/intr_machdep.h>
+#include <sys/cdefs.h>
+
+#include <sys/types.h>
+#include <sys/queue.h>
+#include <sys/rman.h>
+
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 
 /*
- * The following data structure holds per-cpu data, and is placed just
- * above the top of the space used for the NMI and MC# stacks.
+ * Initialize the interrupt table
+ *
+ * newmgr: used to ensure ownership of allocated interrupt numbers.
  */
-struct nmi_pcpu {
-	register_t	np_pcpu;
-	register_t	__padding;	/* pad to 16 bytes */
-};
+extern void	intrtab_setup(struct rman *newmgr);
 
-#define	DBLFAULT_STACK_SIZE	PAGE_SIZE
-#define	NMI_STACK_SIZE		PAGE_SIZE
-#define	MCE_STACK_SIZE		PAGE_SIZE
-#define	DBG_STACK_SIZE		PAGE_SIZE
+/*
+ * Initialize interrupt table internals
+ *
+ * Call after intrtab_setup() to intialize the internals to an operational
+ * state.
+ */
+extern void	intrtab_init(void);
 
-#endif	/* !__MACHINE_INTR_MACHDEP_H__ */
+/*
+ * Allocate a block of interrupt numbers
+ */
+extern struct resource *intrtab_alloc_intr(device_t dev, u_int count);
+
+/*
+ * Release a block of interrupt numbers
+ */
+extern void	intrtab_release_intr(struct resource *res);
+
+/*
+ * Set the interrupt associated with an interrupt number
+ *
+ * res: resource indicating ownership of interrupt number.
+ * intr: interrupt number to modify.
+ * new: pointer to new interrupt.
+ * old: pointer to existing interrupt (ensure consistency).
+ */
+extern int	intrtab_set(struct resource *res, u_int intr, interrupt_t *new,
+    const interrupt_t *const old) __result_use_check;
+
+/*
+ * Lookup an interrupt number
+ *
+ * intr: interrupt number to lookup.
+ */
+extern interrupt_t *intrtab_lookup(u_int intr) __pure;
+
+#endif

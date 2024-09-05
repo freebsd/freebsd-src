@@ -276,7 +276,7 @@ intr_event_update(struct intr_event *ie)
 }
 
 int
-intr_event_create(struct intr_event **event, void *source, int flags, u_int irq,
+intr_event_create(struct intr_event **event, void *source, int flags,
     void (*pre_ithread)(void *), void (*post_ithread)(void *),
     void (*post_filter)(void *), int (*assign_cpu)(void *, int),
     const char *fmt, ...)
@@ -294,7 +294,7 @@ intr_event_create(struct intr_event **event, void *source, int flags, u_int irq,
 	ie->ie_post_filter = post_filter;
 	ie->ie_assign_cpu = assign_cpu;
 	ie->ie_flags = flags;
-	ie->ie_irq = irq;
+	ie->ie_irq = -1;
 	ie->ie_cpu = NOCPU;
 	CK_SLIST_INIT(&ie->ie_handlers);
 	mtx_init(&ie->ie_lock, "intr event", NULL, MTX_DEF);
@@ -427,25 +427,9 @@ intr_event_bind_ithread_cpuset(struct intr_event *ie, cpuset_t *cs)
 	return (ENODEV);
 }
 
-static struct intr_event *
-intr_lookup(int irq)
-{
-	struct intr_event *ie;
-
-	mtx_lock(&event_lock);
-	TAILQ_FOREACH(ie, &event_list, ie_list)
-		if (ie->ie_irq == irq &&
-		    (ie->ie_flags & IE_SOFT) == 0 &&
-		    CK_SLIST_FIRST(&ie->ie_handlers) != NULL)
-			break;
-	mtx_unlock(&event_lock);
-	return (ie);
-}
-
 int
-intr_setaffinity(int irq, int mode, const void *m)
+intr_setaffinity(struct intr_event *ie, int mode, const void *m)
 {
-	struct intr_event *ie;
 	const cpuset_t *mask;
 	int cpu, n;
 
@@ -464,7 +448,6 @@ intr_setaffinity(int irq, int mode, const void *m)
 			cpu = n;
 		}
 	}
-	ie = intr_lookup(irq);
 	if (ie == NULL)
 		return (ESRCH);
 	switch (mode) {
@@ -480,9 +463,8 @@ intr_setaffinity(int irq, int mode, const void *m)
 }
 
 int
-intr_getaffinity(int irq, int mode, void *m)
+intr_getaffinity(struct intr_event *ie, int mode, void *m)
 {
-	struct intr_event *ie;
 	struct thread *td;
 	struct proc *p;
 	cpuset_t *mask;
@@ -490,7 +472,6 @@ intr_getaffinity(int irq, int mode, void *m)
 	int error;
 
 	mask = m;
-	ie = intr_lookup(irq);
 	if (ie == NULL)
 		return (ESRCH);
 
@@ -817,13 +798,11 @@ intr_handler_barrier(struct intr_handler *handler)
  * Do not use in BSD code.
  */
 void
-_intr_drain(int irq)
+_intr_drain(struct intr_event *ie)
 {
-	struct intr_event *ie;
 	struct intr_thread *ithd;
 	struct thread *td;
 
-	ie = intr_lookup(irq);
 	if (ie == NULL)
 		return;
 	if (ie->ie_thread == NULL)
@@ -1046,10 +1025,11 @@ swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
 		if (!(ie->ie_flags & IE_SOFT))
 			return (EINVAL);
 	} else {
-		error = intr_event_create(&ie, NULL, IE_SOFT, 0,
+		error = intr_event_create(&ie, NULL, IE_SOFT,
 		    NULL, NULL, NULL, swi_assign_cpu, "swi%d:", pri);
 		if (error)
 			return (error);
+		ie->ie_irq = 0;
 		if (eventp != NULL)
 			*eventp = ie;
 	}

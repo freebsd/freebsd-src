@@ -34,7 +34,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 
-#include <machine/intr.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>

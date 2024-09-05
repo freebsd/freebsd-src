@@ -44,7 +44,7 @@
 #include <machine/cpu.h>
 #include <machine/smp.h>
 #include <machine/fdt.h>
-#include <machine/intr.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 #include <machine/platformvar.h>
 
 #include <arm/altera/socfpga/socfpga_mp.h>

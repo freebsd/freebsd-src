@@ -33,6 +33,7 @@
 #include <dev/mlx5/mlx5_accel/ipsec.h>
 
 #include <sys/eventhandler.h>
+#include <sys/intrtab.h>
 #include <sys/sockio.h>
 #include <machine/atomic.h>
 
@@ -2534,7 +2535,8 @@ mlx5e_open_channels(struct mlx5e_priv *priv)
 
 			CPU_ZERO(&cpuset);
 			CPU_SET(cpu, &cpuset);
-			intr_setaffinity(irq, CPU_WHICH_INTRHANDLER, &cpuset);
+			intr_setaffinity(intr2event(intrtab_lookup(irq)),
+			    CPU_WHICH_INTRHANDLER, &cpuset);
 		}
 	}
 	free(cparam, M_MLX5EN);

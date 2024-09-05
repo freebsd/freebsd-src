@@ -59,7 +59,7 @@
 
 #include <machine/cpu.h>
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 
 #include "pcib_if.h"
 #include "acpi_bus_if.h"

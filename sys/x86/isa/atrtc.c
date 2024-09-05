@@ -50,7 +50,7 @@
 #include <isa/isareg.h>
 #include <isa/isavar.h>
 #endif
-#include <machine/intr_machdep.h>
+#include <machine/a_bikeshed_string_for_sed_to_target.h>
 #include "clock_if.h"
 #ifdef DEV_ACPI
 #include <contrib/dev/acpica/include/acpi.h>

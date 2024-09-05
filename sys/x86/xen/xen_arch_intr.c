@@ -38,6 +38,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/interrupt.h>
+#include <sys/intrtab.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
@@ -117,7 +118,7 @@ static MALLOC_DEFINE(M_XENINTR, "xen_intr", "Xen Interrupt Services");
  */
 static struct mtx	xen_intr_x86_lock;
 
-static u_int		first_evtchn_irq;
+static struct resource	*intrs;
 
 static u_int		xen_intr_auto_vector_count;
 
@@ -137,10 +138,9 @@ void
 xen_intr_alloc_irqs(void)
 {
 
-	if (num_io_irqs > UINT_MAX - NR_EVENT_CHANNELS)
+	intrs = intrtab_alloc_intr(NULL, NR_EVENT_CHANNELS);
+	if (intrs == NULL)
 		panic("IRQ allocation overflow (num_msi_irqs too high?)");
-	first_evtchn_irq = num_io_irqs;
-	num_io_irqs += NR_EVENT_CHANNELS;
 }
 
 static void
@@ -189,24 +189,6 @@ xen_intr_pic_disable_intr(struct intsrc *isrc)
 	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
 	    "xi_arch MUST be at top of xenisrc for x86");
 	xen_intr_disable_intr((struct xenisrc *)isrc);
-}
-
-/**
- * Determine the global interrupt vector number for
- * a Xen interrupt source.
- *
- * \param isrc  The interrupt source to query.
- *
- * \return  The vector number corresponding to the given interrupt source.
- */
-static int
-xen_intr_pic_vector(struct intsrc *isrc)
-{
-
-	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
-	    "xi_arch MUST be at top of xenisrc for x86");
-
-	return (((struct xenisrc *)isrc)->xi_arch.vector);
 }
 
 /**
@@ -282,7 +264,6 @@ static struct pic xen_intr_pic = {
 	.pic_eoi_source     = xen_intr_pic_eoi_source,
 	.pic_enable_intr    = xen_intr_pic_enable_intr,
 	.pic_disable_intr   = xen_intr_pic_disable_intr,
-	.pic_vector         = xen_intr_pic_vector,
 	.pic_source_pending = xen_intr_pic_source_pending,
 	.pic_suspend        = xen_intr_pic_suspend,
 	.pic_resume         = xen_intr_pic_resume,
@@ -345,17 +326,16 @@ xen_arch_intr_alloc(void)
 		return (NULL);
 	}
 
-	vector = first_evtchn_irq + xen_intr_auto_vector_count;
+	vector = rman_get_start(intrs) + xen_intr_auto_vector_count;
 	xen_intr_auto_vector_count++;
 
-	KASSERT((intr_lookup_source(vector) == NULL),
+	KASSERT((intrtab_lookup(vector) == NULL),
 	    ("Trying to use an already allocated vector"));
 
 	mtx_unlock(&xen_intr_x86_lock);
 	isrc = malloc(sizeof(*isrc), M_XENINTR, M_WAITOK | M_ZERO);
 	isrc->xi_arch.intsrc.is_pic = &xen_intr_pic;
-	isrc->xi_arch.vector = vector;
-	error = intr_register_source(&isrc->xi_arch.intsrc);
+	error = intr_register_source(intrs, vector, &isrc->xi_arch.intsrc);
 	if (error != 0)
 		panic("%s(): failed registering interrupt %u, error=%d\n",
 		    __func__, vector, error);
