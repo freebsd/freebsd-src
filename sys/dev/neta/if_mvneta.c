@@ -3000,8 +3000,6 @@ mvneta_rx_queue(struct mvneta_softc *sc, int q, int npkt)
 	struct mvneta_rx_desc *r;
 	struct mvneta_buf *rxbuf;
 	struct mbuf *m;
-	struct lro_ctrl *lro;
-	struct lro_entry *queued;
 	void *pktbuf;
 	int i, pktlen, processed, ndma;
 
@@ -3115,11 +3113,7 @@ rx_lro:
 	/*
 	 * Flush any outstanding LRO work
 	 */
-	lro = &rx->lro;
-	while (__predict_false((queued = LIST_FIRST(&lro->lro_active)) != NULL)) {
-		LIST_REMOVE(LIST_FIRST((&lro->lro_active)), next);
-		tcp_lro_flush(lro, queued);
-	}
+	tcp_lro_flush_all(&rx->lro);
 }
 
 STATIC void
