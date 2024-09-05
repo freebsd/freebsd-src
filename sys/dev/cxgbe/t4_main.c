@@ -1920,6 +1920,9 @@ t4_detach_common(device_t dev)
 static inline int
 stop_adapter(struct adapter *sc)
 {
+	struct port_info *pi;
+	int i;
+
 	if (atomic_testandset_int(&sc->error_flags, ilog2(ADAP_STOPPED))) {
 		CH_ALERT(sc, "%s from %p, flags 0x%08x,0x%08x, EALREADY\n",
 			 __func__, curthread, sc->flags, sc->error_flags);
@@ -1927,7 +1930,24 @@ stop_adapter(struct adapter *sc)
 	}
 	CH_ALERT(sc, "%s from %p, flags 0x%08x,0x%08x\n", __func__, curthread,
 		 sc->flags, sc->error_flags);
-	return (t4_shutdown_adapter(sc));
+	t4_shutdown_adapter(sc);
+	for_each_port(sc, i) {
+		pi = sc->port[i];
+		PORT_LOCK(pi);
+		if (pi->up_vis > 0 && pi->link_cfg.link_ok) {
+			/*
+			 * t4_shutdown_adapter has already shut down all the
+			 * PHYs but it also disables interrupts and DMA so there
+			 * won't be a link interrupt.  Update the state manually
+			 * if the link was up previously and inform the kernel.
+			 */
+			pi->link_cfg.link_ok = false;
+			t4_os_link_changed(pi);
+		}
+		PORT_UNLOCK(pi);
+	}
+
+	return (0);
 }
 
 static inline int
@@ -2020,20 +2040,6 @@ stop_lld(struct adapter *sc)
 	for_each_port(sc, i) {
 		pi = sc->port[i];
 		pi->vxlan_tcam_entry = false;
-
-		PORT_LOCK(pi);
-		if (pi->up_vis > 0) {
-			/*
-			 * t4_shutdown_adapter has already shut down all the
-			 * PHYs but it also disables interrupts and DMA so there
-			 * won't be a link interrupt.  So we update the state
-			 * manually and inform the kernel.
-			 */
-			pi->link_cfg.link_ok = false;
-			t4_os_link_changed(pi);
-		}
-		PORT_UNLOCK(pi);
-
 		for_each_vi(pi, j, vi) {
 			vi->xact_addr_filt = -1;
 			mtx_lock(&vi->tick_mtx);
