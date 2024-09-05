@@ -60,7 +60,7 @@ BOOL svc_start(void)
 	// This call is blocking. A new thread is created which will launch
 	// the svc_main() function
 	if ((rc = StartServiceCtrlDispatcher(ste)) == 0) {
-		pcap_fmt_errmsg_for_win32_err(string, sizeof (string),
+		pcapint_fmt_errmsg_for_win32_err(string, sizeof (string),
 		    GetLastError(), "StartServiceCtrlDispatcher() failed");
 		rpcapd_log(LOGPRIO_ERROR, "%s", string);
 	}

@@ -1,6 +1,4 @@
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include <stdlib.h>
 #include <string.h>
@@ -190,7 +188,9 @@ static int ifprint(pcap_if_t *d)
 {
   pcap_addr_t *a;
   char ipv4_buf[INET_ADDRSTRLEN];
+#ifdef INET6
   char ipv6_buf[INET6_ADDRSTRLEN];
+#endif
   const char *sep;
   int status = 1; /* success */
 
@@ -256,7 +256,7 @@ static int ifprint(pcap_if_t *d)
     if (a->addr != NULL)
       switch(a->addr->sa_family) {
       case AF_INET:
-        printf("\tAddress Family: AF_INET\n");
+        printf("\tAddress Family: AF_INET (%d)\n", a->addr->sa_family);
         if (a->addr)
           printf("\t\tAddress: %s\n",
             inet_ntop(AF_INET,
@@ -280,7 +280,7 @@ static int ifprint(pcap_if_t *d)
         break;
 #ifdef INET6
       case AF_INET6:
-        printf("\tAddress Family: AF_INET6\n");
+        printf("\tAddress Family: AF_INET6 (%d)\n", a->addr->sa_family);
         if (a->addr)
           printf("\t\tAddress: %s\n",
             inet_ntop(AF_INET6,
