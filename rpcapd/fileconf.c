@@ -31,9 +31,7 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "ftmacros.h"
 
@@ -323,7 +321,7 @@ void fileconf_read(void)
 				// it.
 				//
 				*ptr++ = '\0';
-				result = pcap_strlcpy(activelist[num_active_clients].address, address, sizeof(activelist[num_active_clients].address));
+				result = pcapint_strlcpy(activelist[num_active_clients].address, address, sizeof(activelist[num_active_clients].address));
 				if (result >= sizeof(activelist[num_active_clients].address))
 				{
 					//
@@ -336,9 +334,9 @@ void fileconf_read(void)
 					continue;
 				}
 				if (strcmp(port, "DEFAULT") == 0) // the user choose a custom port
-					result = pcap_strlcpy(activelist[num_active_clients].port, RPCAP_DEFAULT_NETPORT_ACTIVE, sizeof(activelist[num_active_clients].port));
+					result = pcapint_strlcpy(activelist[num_active_clients].port, RPCAP_DEFAULT_NETPORT_ACTIVE, sizeof(activelist[num_active_clients].port));
 				else
-					result = pcap_strlcpy(activelist[num_active_clients].port, port, sizeof(activelist[num_active_clients].port));
+					result = pcapint_strlcpy(activelist[num_active_clients].port, port, sizeof(activelist[num_active_clients].port));
 				if (result >= sizeof(activelist[num_active_clients].address))
 				{
 					//
@@ -398,7 +396,7 @@ void fileconf_read(void)
 					// The list is not empty, so prepend
 					// a comma before adding this host.
 					//
-					result = pcap_strlcat(hostlist, ",", sizeof(hostlist));
+					result = pcapint_strlcat(hostlist, ",", sizeof(hostlist));
 					if (result >= sizeof(hostlist))
 					{
 						//
@@ -414,7 +412,7 @@ void fileconf_read(void)
 						continue;
 					}
 				}
-				result = pcap_strlcat(hostlist, host, sizeof(hostlist));
+				result = pcapint_strlcat(hostlist, host, sizeof(hostlist));
 				if (result >= sizeof(hostlist))
 				{
 					//
@@ -507,13 +505,13 @@ int fileconf_save(const char *savefile)
 		fprintf(fp, "# Hosts which are allowed to connect to this server (passive mode)\n");
 		fprintf(fp, "# Format: PassiveClient = <name or address>\n\n");
 
-		pcap_strlcpy(temphostlist, hostlist, sizeof (temphostlist));
+		pcapint_strlcpy(temphostlist, hostlist, sizeof (temphostlist));
 
-		token = pcap_strtok_r(temphostlist, RPCAP_HOSTLIST_SEP, &lasts);
+		token = pcapint_strtok_r(temphostlist, RPCAP_HOSTLIST_SEP, &lasts);
 		while(token != NULL)
 		{
 			fprintf(fp, "%s = %s\n", PARAM_PASSIVECLIENT, token);
-			token = pcap_strtok_r(NULL, RPCAP_HOSTLIST_SEP, &lasts);
+			token = pcapint_strtok_r(NULL, RPCAP_HOSTLIST_SEP, &lasts);
 		}
 
 

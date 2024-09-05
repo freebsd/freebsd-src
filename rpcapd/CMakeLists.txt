@@ -1,3 +1,4 @@
+message(STATUS "Running rpcapd/CMakeLists.txt")
 if(UNIX)
   check_function_exists(crypt HAVE_CRYPT_IN_SYSTEM_LIBRARIES)
   if(HAVE_CRYPT_IN_SYSTEM_LIBRARIES)
@@ -82,34 +83,8 @@ if(WIN32 OR ((CMAKE_USE_PTHREADS_INIT OR PTHREADS_FOUND) AND HAVE_CRYPT))
   # architectures for the OS on which we're doing the build.
   #
   if(APPLE AND "${CMAKE_OSX_ARCHITECTURES}" STREQUAL "")
-    #
-    # Get the major version of Darwin.
-    #
-    string(REGEX MATCH "^([0-9]+)" SYSTEM_VERSION_MAJOR "${CMAKE_SYSTEM_VERSION}")
-
-    if(SYSTEM_VERSION_MAJOR EQUAL 9)
-      #
-      # Leopard.  Build for 32-bit x86 and 32-bit PowerPC, with
-      # 32-bit x86 first.
-      #
-      set(OSX_PROGRAM_ARCHITECTURES "i386;ppc")
-    elseif(SYSTEM_VERSION_MAJOR EQUAL 10)
-      #
-      # Snow Leopard.  Build for x86-64 and 32-bit x86, with
-      # x86-64 first.
-      #
-      set(OSX_PROGRAM_ARCHITECTURES "x86_64;i386")
-    else()
-      #
-      # Post-Snow Leopard.  Build only for x86-64.
-      # XXX - update if and when Apple adds ARM-based Macs.
-      # (You're on your own for iOS etc.)
-      #
-      set(OSX_PROGRAM_ARCHITECTURES "x86_64")
-    endif()
-
     set_target_properties(rpcapd PROPERTIES
-      OSX_ARCHITECTURES "${OSX_PROGRAM_ARCHITECTURES}")
+      OSX_ARCHITECTURES "${OSX_EXECUTABLE_ARCHITECTURES}")
   endif()
 
   if(WIN32)

@@ -95,22 +95,22 @@ and filter part of libpcap to be run on a remote system.
 Rpcapd can run in two modes: passive mode (default) and active mode.
 .LP
 In passive mode, the client (e.g., a network sniffer) connects to
-.BR rpcapd .
+.IR rpcapd .
 The client then sends the appropriate commands to
-.B rpcapd
+.I rpcapd
 to start the capture.
 .LP
 In active mode,
-.B rpcapd
+.I rpcapd
 tries to establish a connection toward the client
 (e.g., a network sniffer). The client then sends the appropriate commands
 to rpcapd to start the capture.
 .LP
 Active mode is useful in case
-.B rpcapd
+.I rpcapd
 is run behind a firewall and
 cannot receive connections from the external world. In this case,
-.B rpcapd
+.I rpcapd
 can be configured to establish the connection to a given host,
 which has to be configured in order to wait for that connection. After
 establishing the connection, the protocol continues its job in almost
@@ -119,18 +119,19 @@ the same way in both active and passive mode.
 .LP
 The user can create a configuration file in the same directory as the
 executable, and put the configuration commands in there. In order for
-.B rpcapd
+.I rpcapd
 to execute the commands, it needs to be restarted on Win32, i.e.
 the configuration file is parsed only at the beginning. The UNIX
 version of
-.B rpcapd
+.I rpcapd
 will reread the configuration file upon receiving a
-HUP signal. In that case, all the existing connections remain in place,
+.B HUP
+signal. In that case, all the existing connections remain in place,
 while the new connections will be created according to the new parameters.
 .LP
 In case a user does not want to create the configuration file manually,
 they can launch
-.B rpcapd
+.I rpcapd
 with the desired flags plus
 .BR "-s filename" .
 Rpcapd will parse all the parameters and save them into the specified
@@ -139,7 +140,7 @@ configuration file.
 .LP
 The remote daemon is installed automatically when installing WinPcap.
 The installation process places the
-.B rpcapd
+.I rpcapd
 executable file into the WinPcap folder.
 This file can be executed either from the command line, or as a service.
 For instance, the installation process updates the list of available
@@ -157,7 +158,7 @@ flag.
 .SH Starting rpcapd on Win32
 .LP
 The
-.B rpcapd
+.I rpcapd
 executable can be launched directly, i.e.  it can run in the
 foreground as well (not as a daemon/service).  The procedure is quite
 simple: you have to invoke the executable from the command line with all
@@ -168,7 +169,7 @@ start in the foreground.
 .SH Installing rpcapd on Unix-like systems
 TBD
 .SH Starting rpcapd on Unix-like systems
-.B rpcapd
+.I rpcapd
 needs sufficient privileges to perform packet capture, e.g.
 run as root or be owned by root and have suid set. Most operating
 systems provide more elegant solutions when run as user than the
@@ -200,8 +201,7 @@ and the
 .B rpcapd.inetd.conf
 entry has been added to
 .BR inetd.conf (@MAN_FILE_FORMATS@),
-the rpcapd service can be enabled by telling
-.B inetd
+the rpcapd service can be enabled by telling inetd
 to reread its configuration file.
 .LP
 If your system supports
@@ -210,8 +210,7 @@ and the
 .B rpcapd.xinetd.conf
 entry has been added to
 .BR xinetd.conf (@MAN_FILE_FORMATS@),
-the rpcapd service can be enabled by telling
-.B xinetd
+the rpcapd service can be enabled by telling xinetd
 to reread its configuration file.
 .SH OPTIONS
 .TP
@@ -220,20 +219,20 @@ Bind to the IP address specified by
 .I address
 (either numeric or literal).
 By default,
-.B rpcapd
+.I rpcapd
 binds to all local IPv4 and IPv6 addresses.
 .TP
 .BI \-p " port"
 Bind to the port specified by
 .IR port .
 By default,
-.B rpcapd
+.I rpcapd
 binds to port 2002.
 .TP
 .B \-4
 Listen only on IPv4 addresses.
 By default,
-.B rpcapd
+.I rpcapd
 listens on both IPv4 and IPv6 addresses.
 .TP
 .BI \-l " host_list"
@@ -246,8 +245,9 @@ We suggest that you use host names rather than literal IP addresses
 in order to avoid problems with different address families.
 .TP
 .B \-n
-Permit NULL authentication (usually used with
-.BR \-l ).
+Permit NULL authentication (usually used with the
+.B \-l
+flag).
 .TP
 .BI \-a " host" , "port"
 Run in active mode, connecting to host
@@ -262,8 +262,8 @@ is omitted, the default port (2003) is used.
 Run in active mode only; by default, if
 .B \-a
 is specified,
-.B rpcapd
-it accepts passive connections as well.
+.I rpcapd
+accepts passive connections as well.
 .TP
 .B \-d
 Run in daemon mode (UNIX only) or as a service (Win32 only).
@@ -293,7 +293,7 @@ and ignore all flags specified on the command line.
 Print this help screen.
 .LP
 If
-.B rpcapd
+.I rpcapd
 was compiled with SSL support, the following options are also
 available:
 .TP
@@ -304,14 +304,12 @@ Require that SSL be used on connections.
 With SSL enabled, XXX - I'm not sure how *fetching* the list of
 compression mechanisms does anything to compression.
 .TP
-.B \-S
-.I ssl_keyfile
+.BI \-S " ssl_keyfile"
 With SSL enabled, use
 .I ssl_keyfile
 as the SSL key file.
 .TP
-.B \-X
-.I ssl_certfile
+.BI \-X " ssl_certfile"
 With SSL enabled, use
 .I ssl_certfile
 as the SSL certificate file.
