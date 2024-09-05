@@ -1228,6 +1228,7 @@ typedef void		pfsync_clear_states_t(u_int32_t, const char *);
 typedef int		pfsync_defer_t(struct pf_kstate *, struct mbuf *);
 typedef void		pfsync_detach_ifnet_t(struct ifnet *);
 typedef void		pflow_export_state_t(const struct pf_kstate *);
+typedef bool		pf_addr_filter_func_t(const sa_family_t, const struct pf_addr *);
 
 VNET_DECLARE(pfsync_state_import_t *, pfsync_state_import_ptr);
 #define V_pfsync_state_import_ptr	VNET(pfsync_state_import_ptr)
@@ -2429,7 +2430,8 @@ void	pfr_cleanup(void);
 int	pfr_match_addr(struct pfr_ktable *, struct pf_addr *, sa_family_t);
 void	pfr_update_stats(struct pfr_ktable *, struct pf_addr *, sa_family_t,
 	    u_int64_t, int, int, int);
-int	pfr_pool_get(struct pfr_ktable *, int *, struct pf_addr *, sa_family_t);
+int	pfr_pool_get(struct pfr_ktable *, int *, struct pf_addr *, sa_family_t,
+	    pf_addr_filter_func_t);
 void	pfr_dynaddr_update(struct pfr_ktable *, struct pfi_dynaddr *);
 struct pfr_ktable *
 	pfr_attach_table(struct pf_kruleset *, char *);

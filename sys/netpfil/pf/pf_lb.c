@@ -71,6 +71,7 @@ static int pf_get_sport(sa_family_t, uint8_t, struct pf_krule *,
     struct pf_addr *, uint16_t, struct pf_addr *, uint16_t, struct pf_addr *,
     uint16_t *, uint16_t, uint16_t, struct pf_ksrc_node **,
     struct pf_udp_mapping **);
+static bool		 pf_islinklocal(const sa_family_t, const struct pf_addr *);
 
 #define mix(a,b,c) \
 	do {					\
@@ -401,6 +402,14 @@ failed:
 	return (1);					/* none available */
 }
 
+static bool
+pf_islinklocal(const sa_family_t af, const struct pf_addr *addr)
+{
+	if (af == AF_INET6 && IN6_IS_ADDR_LINKLOCAL(&addr->v6))
+		return (true);
+	return (false);
+}
+
 static int
 pf_get_mape_sport(sa_family_t af, u_int8_t proto, struct pf_krule *r,
     struct pf_addr *saddr, uint16_t sport, struct pf_addr *daddr,
@@ -585,11 +594,11 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 
 		if (rpool->cur->addr.type == PF_ADDR_TABLE) {
 			if (!pfr_pool_get(rpool->cur->addr.p.tbl,
-			    &rpool->tblidx, &rpool->counter, af))
+			    &rpool->tblidx, &rpool->counter, af, NULL))
 				goto get_addr;
 		} else if (rpool->cur->addr.type == PF_ADDR_DYNIFTL) {
 			if (!pfr_pool_get(rpool->cur->addr.p.dyn->pfid_kt,
-			    &rpool->tblidx, &rpool->counter, af))
+			    &rpool->tblidx, &rpool->counter, af, pf_islinklocal))
 				goto get_addr;
 		} else if (pf_match_addr(0, raddr, rmask, &rpool->counter, af))
 			goto get_addr;
@@ -602,7 +611,7 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 		if (rpool->cur->addr.type == PF_ADDR_TABLE) {
 			rpool->tblidx = -1;
 			if (pfr_pool_get(rpool->cur->addr.p.tbl,
-			    &rpool->tblidx, &rpool->counter, af)) {
+			    &rpool->tblidx, &rpool->counter, af, NULL)) {
 				/* table contains no address of type 'af' */
 				if (rpool->cur != acur)
 					goto try_next;
@@ -612,7 +621,7 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 		} else if (rpool->cur->addr.type == PF_ADDR_DYNIFTL) {
 			rpool->tblidx = -1;
 			if (pfr_pool_get(rpool->cur->addr.p.dyn->pfid_kt,
-			    &rpool->tblidx, &rpool->counter, af)) {
+			    &rpool->tblidx, &rpool->counter, af, pf_islinklocal)) {
 				/* table contains no address of type 'af' */
 				if (rpool->cur != acur)
 					goto try_next;
