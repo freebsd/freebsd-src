@@ -241,6 +241,8 @@
 #define	 VTCR_EL2_PS_42BIT	(0x3UL << VTCR_EL2_PS_SHIFT)
 #define	 VTCR_EL2_PS_44BIT	(0x4UL << VTCR_EL2_PS_SHIFT)
 #define	 VTCR_EL2_PS_48BIT	(0x5UL << VTCR_EL2_PS_SHIFT)
+#define	VTCR_EL2_DS_SHIFT	32
+#define	VTCR_EL2_DS		(0x1UL << VTCR_EL2_DS_SHIFT)
 
 /* VTTBR_EL2 - Virtualization Translation Table Base Register */
 #define	VTTBR_VMID_MASK		0xffff000000000000
