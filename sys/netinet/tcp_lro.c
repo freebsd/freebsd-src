@@ -83,6 +83,7 @@ static MALLOC_DEFINE(M_LRO, "LRO", "LRO control structures");
 static void	tcp_lro_rx_done(struct lro_ctrl *lc);
 static int	tcp_lro_rx_common(struct lro_ctrl *lc, struct mbuf *m,
 		    uint32_t csum, bool use_hash);
+static void	tcp_lro_flush(struct lro_ctrl *lc, struct lro_entry *le);
 
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, lro,  CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TCP LRO");
@@ -1104,7 +1105,7 @@ again:
 	}
 }
 
-void
+static void
 tcp_lro_flush(struct lro_ctrl *lc, struct lro_entry *le)
 {
 
