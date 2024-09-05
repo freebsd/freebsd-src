@@ -904,33 +904,13 @@ vm_phys_alloc_npages(int domain, int pool, int npages, vm_page_t ma[])
 }
 
 /*
- * Allocate a contiguous, power of two-sized set of physical pages
- * from the free lists.
- *
- * The free page queues must be locked.
- */
-vm_page_t
-vm_phys_alloc_pages(int domain, int pool, int order)
-{
-	vm_page_t m;
-	int freelist;
-
-	for (freelist = 0; freelist < VM_NFREELIST; freelist++) {
-		m = vm_phys_alloc_freelist_pages(domain, freelist, pool, order);
-		if (m != NULL)
-			return (m);
-	}
-	return (NULL);
-}
-
-/*
  * Allocate a contiguous, power of two-sized set of physical pages from the
  * specified free list.  The free list must be specified using one of the
  * manifest constants VM_FREELIST_*.
  *
  * The free page queues must be locked.
  */
-vm_page_t
+static vm_page_t
 vm_phys_alloc_freelist_pages(int domain, int freelist, int pool, int order)
 {
 	struct vm_freelist *alt, *fl;
@@ -983,6 +963,26 @@ vm_phys_alloc_freelist_pages(int domain, int freelist, int pool, int order)
 				return (m);
 			}
 		}
+	}
+	return (NULL);
+}
+
+/*
+ * Allocate a contiguous, power of two-sized set of physical pages
+ * from the free lists.
+ *
+ * The free page queues must be locked.
+ */
+vm_page_t
+vm_phys_alloc_pages(int domain, int pool, int order)
+{
+	vm_page_t m;
+	int freelist;
+
+	for (freelist = 0; freelist < VM_NFREELIST; freelist++) {
+		m = vm_phys_alloc_freelist_pages(domain, freelist, pool, order);
+		if (m != NULL)
+			return (m);
 	}
 	return (NULL);
 }
