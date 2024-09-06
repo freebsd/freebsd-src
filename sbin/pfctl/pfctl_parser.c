@@ -488,6 +488,8 @@ print_pool(struct pfctl_pool *pool, u_int16_t p1, u_int16_t p2,
 	}
 	if (pool->opts & PF_POOL_STICKYADDR)
 		printf(" sticky-address");
+	if (pool->opts & PF_POOL_ENDPI)
+		printf(" endpoint-independent");
 	if (id == PF_NAT && p1 == 0 && p2 == 0)
 		printf(" static-port");
 	if (pool->mape.offset > 0)
