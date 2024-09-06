@@ -1,4 +1,4 @@
-    1  13:30:12.871661 00:23:54:c2:57:02 > 01:80:c2:00:00:0e, ethertype LLDP (0x88cc), length 302: LLDP, length 288
+    1  2016-12-30 13:30:12.871661 00:23:54:c2:57:02 > 01:80:c2:00:00:0e, ethertype LLDP (0x88cc), length 302: LLDP, length 288
 	Chassis ID TLV (1), length 7
 	  Subtype MAC address (4): 00:23:54:c2:57:02
 	  0x0000:  0400 2354 c257 02
@@ -51,7 +51,7 @@
 	  0x0020:  636f 6d2f 2e77 656c 6c2d 6b6e 6f77 6e2f
 	  0x0030:  6d75 642f 7631 2f76 6f6d 6974 7632 2e30
 	End TLV (0), length 0
-    2  13:30:42.880485 00:23:54:c2:57:02 > 01:80:c2:00:00:0e, ethertype LLDP (0x88cc), length 302: LLDP, length 288
+    2  2016-12-30 13:30:42.880485 00:23:54:c2:57:02 > 01:80:c2:00:00:0e, ethertype LLDP (0x88cc), length 302: LLDP, length 288
 	Chassis ID TLV (1), length 7
 	  Subtype MAC address (4): 00:23:54:c2:57:02
 	  0x0000:  0400 2354 c257 02

@@ -1,27 +1,27 @@
-    1  12:21:09.940811 IP (tos 0xa0, ttl 64, id 10670, offset 0, flags [DF], proto TCP (6), length 60)
+    1  2013-08-28 12:21:09.940811 IP (tos 0xa0, ttl 64, id 10670, offset 0, flags [DF], proto TCP (6), length 60)
     172.16.1.101.62224 > 172.16.1.51.6633: Flags [S], cksum 0x6dd0 (correct), seq 2446711727, win 2048, options [mss 1460,nop,wscale 0,nop,nop,TS val 0 ecr 0], length 0
-    2  12:21:09.940894 IP (tos 0xa0, ttl 64, id 0, offset 0, flags [DF], proto TCP (6), length 40)
+    2  2013-08-28 12:21:09.940894 IP (tos 0xa0, ttl 64, id 0, offset 0, flags [DF], proto TCP (6), length 40)
     172.16.1.51.6633 > 172.16.1.101.62224: Flags [R.], cksum 0xda97 (correct), seq 0, ack 2446711728, win 0, length 0
-    3  12:21:13.928916 IP (tos 0xa0, ttl 64, id 10673, offset 0, flags [DF], proto TCP (6), length 60)
+    3  2013-08-28 12:21:13.928916 IP (tos 0xa0, ttl 64, id 10673, offset 0, flags [DF], proto TCP (6), length 60)
     172.16.1.101.62221 > 172.16.1.51.6633: Flags [S], cksum 0xa14c (correct), seq 2619186670, win 2048, options [mss 1460,nop,wscale 0,nop,nop,TS val 0 ecr 0], length 0
-    4  12:21:13.929013 IP (tos 0x0, ttl 64, id 0, offset 0, flags [DF], proto TCP (6), length 60)
+    4  2013-08-28 12:21:13.929013 IP (tos 0x0, ttl 64, id 0, offset 0, flags [DF], proto TCP (6), length 60)
     172.16.1.51.6633 > 172.16.1.101.62221: Flags [S.], cksum 0x5ae7 (incorrect -> 0x3c7c), seq 3998019188, ack 2619186671, win 14480, options [mss 1460,nop,nop,TS val 2256457959 ecr 0,nop,wscale 7], length 0
-    5  12:21:13.930368 IP (tos 0xa0, ttl 64, id 10674, offset 0, flags [DF], proto TCP (6), length 52)
+    5  2013-08-28 12:21:13.930368 IP (tos 0xa0, ttl 64, id 10674, offset 0, flags [DF], proto TCP (6), length 52)
     172.16.1.101.62221 > 172.16.1.51.6633: Flags [.], cksum 0x956f (correct), seq 1, ack 1, win 2920, options [nop,nop,TS val 0 ecr 2256457959], length 0
-    6  12:21:13.930613 IP (tos 0xa0, ttl 64, id 10675, offset 0, flags [DF], proto TCP (6), length 60)
+    6  2013-08-28 12:21:13.930613 IP (tos 0xa0, ttl 64, id 10675, offset 0, flags [DF], proto TCP (6), length 60)
     172.16.1.101.62221 > 172.16.1.51.6633: Flags [P.], cksum 0xb6f9 (correct), seq 1:9, ack 1, win 2920, options [nop,nop,TS val 0 ecr 2256457959], length 8: OpenFlow
 	version 1.0, type HELLO, length 8, xid 0x000cdd51
-    7  12:21:13.930635 IP (tos 0x0, ttl 64, id 16028, offset 0, flags [DF], proto TCP (6), length 52)
+    7  2013-08-28 12:21:13.930635 IP (tos 0x0, ttl 64, id 16028, offset 0, flags [DF], proto TCP (6), length 52)
     172.16.1.51.6633 > 172.16.1.101.62221: Flags [.], cksum 0x5adf (incorrect -> 0xa05b), seq 1, ack 9, win 114, options [nop,nop,TS val 2256457961 ecr 0], length 0
-    8  12:21:13.955911 IP (tos 0x0, ttl 64, id 16029, offset 0, flags [DF], proto TCP (6), length 60)
+    8  2013-08-28 12:21:13.955911 IP (tos 0x0, ttl 64, id 16029, offset 0, flags [DF], proto TCP (6), length 60)
     172.16.1.51.6633 > 172.16.1.101.62221: Flags [P.], cksum 0x5ae7 (incorrect -> 0x9f29), seq 1:9, ack 9, win 114, options [nop,nop,TS val 2256457986 ecr 0], length 8: OpenFlow
 	version 1.0, type HELLO, length 8, xid 0x00000001
-    9  12:21:13.963832 IP (tos 0x0, ttl 64, id 16030, offset 0, flags [DF], proto TCP (6), length 60)
+    9  2013-08-28 12:21:13.963832 IP (tos 0x0, ttl 64, id 16030, offset 0, flags [DF], proto TCP (6), length 60)
     172.16.1.51.6633 > 172.16.1.101.62221: Flags [P.], cksum 0x5ae7 (incorrect -> 0x9f13), seq 9:17, ack 9, win 114, options [nop,nop,TS val 2256457994 ecr 0], length 8: OpenFlow
 	version 1.0, type FEATURES_REQUEST, length 8, xid 0x00000002
-   10  12:21:13.964871 IP (tos 0xa0, ttl 64, id 10676, offset 0, flags [DF], proto TCP (6), length 52)
+   10  2013-08-28 12:21:13.964871 IP (tos 0xa0, ttl 64, id 10676, offset 0, flags [DF], proto TCP (6), length 52)
     172.16.1.101.62221 > 172.16.1.51.6633: Flags [.], cksum 0x9544 (correct), seq 9, ack 17, win 2912, options [nop,nop,TS val 0 ecr 2256457986], length 0
-   11  12:21:13.972093 IP (tos 0xa0, ttl 64, id 10679, offset 0, flags [DF], proto TCP (6), length 468)
+   11  2013-08-28 12:21:13.972093 IP (tos 0xa0, ttl 64, id 10679, offset 0, flags [DF], proto TCP (6), length 468)
     172.16.1.101.62221 > 172.16.1.51.6633: Flags [P.], cksum 0xcacf (correct), seq 9:425, ack 17, win 2920, options [nop,nop,TS val 0 ecr 2256457986], length 416: OpenFlow
 	version 1.0, type FEATURES_REPLY, length 416, xid 0x00000002
 	 dpid 0x000100255cab0c07, n_buffers 544, n_tables 11
@@ -83,26 +83,26 @@
 	   advertised 0x00000000
 	   supported 0x00000000
 	   peer 0x00000000
-   12  12:21:13.979465 IP (tos 0x0, ttl 64, id 16031, offset 0, flags [DF], proto TCP (6), length 136)
+   12  2013-08-28 12:21:13.979465 IP (tos 0x0, ttl 64, id 16031, offset 0, flags [DF], proto TCP (6), length 136)
     172.16.1.51.6633 > 172.16.1.101.62221: Flags [P.], cksum 0x5b33 (incorrect -> 0x9b62), seq 17:101, ack 425, win 122, options [nop,nop,TS val 2256458010 ecr 0], length 84: OpenFlow
 	version 1.0, type SET_CONFIG, length 12, xid 0x00000003
 	 flags FRAG_NORMAL, miss_send_len 65535
 	version 1.0, type FLOW_MOD, length 72, xid 0x00000004
 	 cookie 0x0000000000000000, command DELETE, out_port NONE, flags 0x0000
-   13  12:21:13.983645 IP (tos 0x0, ttl 64, id 16032, offset 0, flags [DF], proto TCP (6), length 60)
+   13  2013-08-28 12:21:13.983645 IP (tos 0x0, ttl 64, id 16032, offset 0, flags [DF], proto TCP (6), length 60)
     172.16.1.51.6633 > 172.16.1.101.62221: Flags [P.], cksum 0x5ae7 (incorrect -> 0x9ceb), seq 101:109, ack 425, win 122, options [nop,nop,TS val 2256458014 ecr 0], length 8: OpenFlow
 	version 1.0, type BARRIER_REQUEST, length 8, xid 0x00000005
-   14  12:21:13.984861 IP (tos 0xa0, ttl 64, id 10680, offset 0, flags [DF], proto TCP (6), length 52)
+   14  2013-08-28 12:21:13.984861 IP (tos 0xa0, ttl 64, id 10680, offset 0, flags [DF], proto TCP (6), length 52)
     172.16.1.101.62221 > 172.16.1.51.6633: Flags [.], cksum 0x932f (correct), seq 425, ack 109, win 2912, options [nop,nop,TS val 1 ecr 2256458010], length 0
-   15  12:21:13.985088 IP (tos 0xa0, ttl 64, id 10681, offset 0, flags [DF], proto TCP (6), length 60)
+   15  2013-08-28 12:21:13.985088 IP (tos 0xa0, ttl 64, id 10681, offset 0, flags [DF], proto TCP (6), length 60)
     172.16.1.101.62221 > 172.16.1.51.6633: Flags [P.], cksum 0x91f7 (correct), seq 425:433, ack 109, win 2920, options [nop,nop,TS val 1 ecr 2256458010], length 8: OpenFlow
 	version 1.0, type BARRIER_REPLY, length 8, xid 0x00000005
-   16  12:21:13.986563 IP (tos 0x0, ttl 64, id 16033, offset 0, flags [DF], proto TCP (6), length 72)
+   16  2013-08-28 12:21:13.986563 IP (tos 0x0, ttl 64, id 16033, offset 0, flags [DF], proto TCP (6), length 72)
     172.16.1.51.6633 > 172.16.1.101.62221: Flags [P.], cksum 0x5af3 (incorrect -> 0x9ba7), seq 109:129, ack 433, win 122, options [nop,nop,TS val 2256458017 ecr 1], length 20: OpenFlow
 	version 1.0, type STATS_REQUEST, length 12, xid 0x00000006
 	 type DESC, flags 0x0000
 	version 1.0, type BARRIER_REQUEST, length 8, xid 0x00000007
-   17  12:21:13.988086 IP (tos 0xa0, ttl 64, id 10682, offset 0, flags [DF], proto TCP (6), length 1120)
+   17  2013-08-28 12:21:13.988086 IP (tos 0xa0, ttl 64, id 10682, offset 0, flags [DF], proto TCP (6), length 1120)
     172.16.1.101.62221 > 172.16.1.51.6633: Flags [P.], cksum 0x7324 (correct), seq 433:1501, ack 129, win 2912, options [nop,nop,TS val 1 ecr 2256458017], length 1068: OpenFlow
 	version 1.0, type STATS_REPLY, length 1068, xid 0x00000006
 	 type DESC, flags 0x0000
@@ -111,21 +111,21 @@
 	  sw_desc 'OS-F3PA Ver. V4.0.1.0'
 	  serial_num 'Y1252CFA0000S4068C8N004'
 	  dp_desc 'PFS1'
-   18  12:21:14.028020 IP (tos 0x0, ttl 64, id 16034, offset 0, flags [DF], proto TCP (6), length 52)
+   18  2013-08-28 12:21:14.028020 IP (tos 0x0, ttl 64, id 16034, offset 0, flags [DF], proto TCP (6), length 52)
     172.16.1.51.6633 > 172.16.1.101.62221: Flags [.], cksum 0x5adf (incorrect -> 0x998b), seq 129, ack 1501, win 139, options [nop,nop,TS val 2256458059 ecr 1], length 0
-   19  12:21:14.029070 IP (tos 0xa0, ttl 64, id 10686, offset 0, flags [DF], proto TCP (6), length 60)
+   19  2013-08-28 12:21:14.029070 IP (tos 0xa0, ttl 64, id 10686, offset 0, flags [DF], proto TCP (6), length 60)
     172.16.1.101.62221 > 172.16.1.51.6633: Flags [P.], cksum 0x8da6 (correct), seq 1501:1509, ack 129, win 2920, options [nop,nop,TS val 1 ecr 2256458017], length 8: OpenFlow
 	version 1.0, type BARRIER_REPLY, length 8, xid 0x00000007
-   20  12:21:14.029095 IP (tos 0x0, ttl 64, id 16035, offset 0, flags [DF], proto TCP (6), length 52)
+   20  2013-08-28 12:21:14.029095 IP (tos 0x0, ttl 64, id 16035, offset 0, flags [DF], proto TCP (6), length 52)
     172.16.1.51.6633 > 172.16.1.101.62221: Flags [.], cksum 0x5adf (incorrect -> 0x9982), seq 129, ack 1509, win 139, options [nop,nop,TS val 2256458060 ecr 1], length 0
-   21  12:21:14.029852 IP (tos 0x0, ttl 64, id 16036, offset 0, flags [DF], proto TCP (6), length 84)
+   21  2013-08-28 12:21:14.029852 IP (tos 0x0, ttl 64, id 16036, offset 0, flags [DF], proto TCP (6), length 84)
     172.16.1.51.6633 > 172.16.1.101.62221: Flags [P.], cksum 0x5aff (incorrect -> 0x95e2), seq 129:161, ack 1509, win 139, options [nop,nop,TS val 2256458060 ecr 1], length 32: OpenFlow
 	version 1.0, type QUEUE_GET_CONFIG_REQUEST, length 12, xid 0x00000008
 	 port 1
 	version 1.0, type QUEUE_GET_CONFIG_REQUEST, length 12, xid 0x00000009
 	 port 2
 	version 1.0, type BARRIER_REQUEST, length 8, xid 0x0000000a
-   22  12:21:14.030813 IP (tos 0xa0, ttl 64, id 10687, offset 0, flags [DF], proto TCP (6), length 196)
+   22  2013-08-28 12:21:14.030813 IP (tos 0xa0, ttl 64, id 10687, offset 0, flags [DF], proto TCP (6), length 196)
     172.16.1.101.62221 > 172.16.1.51.6633: Flags [P.], cksum 0x8b77 (correct), seq 1509:1653, ack 161, win 2900, options [nop,nop,TS val 1 ecr 2256458060], length 144: OpenFlow
 	version 1.0, type QUEUE_GET_CONFIG_REPLY, length 144, xid 0x00000008
 	 port 1
@@ -145,9 +145,9 @@
 	   property NONE, len 8
 	  queue_id 7, len 16
 	   property NONE, len 8
-   23  12:21:14.070016 IP (tos 0x0, ttl 64, id 16037, offset 0, flags [DF], proto TCP (6), length 52)
+   23  2013-08-28 12:21:14.070016 IP (tos 0x0, ttl 64, id 16037, offset 0, flags [DF], proto TCP (6), length 52)
     172.16.1.51.6633 > 172.16.1.101.62221: Flags [.], cksum 0x5adf (incorrect -> 0x9899), seq 161, ack 1653, win 155, options [nop,nop,TS val 2256458101 ecr 1], length 0
-   24  12:21:14.071040 IP (tos 0xa0, ttl 64, id 10688, offset 0, flags [DF], proto TCP (6), length 204)
+   24  2013-08-28 12:21:14.071040 IP (tos 0xa0, ttl 64, id 10688, offset 0, flags [DF], proto TCP (6), length 204)
     172.16.1.101.62221 > 172.16.1.51.6633: Flags [P.], cksum 0x89a4 (correct), seq 1653:1805, ack 161, win 2920, options [nop,nop,TS val 1 ecr 2256458060], length 152: OpenFlow
 	version 1.0, type QUEUE_GET_CONFIG_REPLY, length 144, xid 0x00000009
 	 port 2
@@ -168,9 +168,9 @@
 	  queue_id 7, len 16
 	   property NONE, len 8
 	version 1.0, type BARRIER_REPLY, length 8, xid 0x0000000a
-   25  12:21:14.071062 IP (tos 0x0, ttl 64, id 16038, offset 0, flags [DF], proto TCP (6), length 52)
+   25  2013-08-28 12:21:14.071062 IP (tos 0x0, ttl 64, id 16038, offset 0, flags [DF], proto TCP (6), length 52)
     172.16.1.51.6633 > 172.16.1.101.62221: Flags [.], cksum 0x5adf (incorrect -> 0x97ef), seq 161, ack 1805, win 172, options [nop,nop,TS val 2256458102 ecr 1], length 0
-   26  12:21:14.071697 IP (tos 0x0, ttl 64, id 16039, offset 0, flags [DF], proto TCP (6), length 100)
+   26  2013-08-28 12:21:14.071697 IP (tos 0x0, ttl 64, id 16039, offset 0, flags [DF], proto TCP (6), length 100)
     172.16.1.51.6633 > 172.16.1.101.62221: Flags [P.], cksum 0x5b0f (incorrect -> 0x9424), seq 161:209, ack 1805, win 172, options [nop,nop,TS val 2256458102 ecr 1], length 48: OpenFlow
 	version 1.0, type STATS_REQUEST, length 20, xid 0x0000000b
 	 type QUEUE, flags 0x0000
@@ -179,14 +179,14 @@
 	 type QUEUE, flags 0x0000
 	 port_no 2, queue_id ALL
 	version 1.0, type BARRIER_REQUEST, length 8, xid 0x0000000d
-   27  12:21:14.073035 IP (tos 0xa0, ttl 64, id 10689, offset 0, flags [DF], proto TCP (6), length 96)
+   27  2013-08-28 12:21:14.073035 IP (tos 0xa0, ttl 64, id 10689, offset 0, flags [DF], proto TCP (6), length 96)
     172.16.1.101.62221 > 172.16.1.51.6633: Flags [P.], cksum 0x8b9c (correct), seq 1805:1849, ack 209, win 2892, options [nop,nop,TS val 1 ecr 2256458102], length 44: OpenFlow
 	version 1.0, type STATS_REPLY, length 44, xid 0x0000000b
 	 type QUEUE, flags 0x0001 (MORE)
 	  port_no 1, queue_id 0, tx_bytes 18446744073709551615, tx_packets 18446744073709551615, tx_errors 18446744073709551615
-   28  12:21:14.113015 IP (tos 0x0, ttl 64, id 16040, offset 0, flags [DF], proto TCP (6), length 52)
+   28  2013-08-28 12:21:14.113015 IP (tos 0x0, ttl 64, id 16040, offset 0, flags [DF], proto TCP (6), length 52)
     172.16.1.51.6633 > 172.16.1.101.62221: Flags [.], cksum 0x5adf (incorrect -> 0x9769), seq 209, ack 1849, win 172, options [nop,nop,TS val 2256458144 ecr 1], length 0
-   29  12:21:14.114014 IP (tos 0xa0, ttl 64, id 10690, offset 0, flags [DF], proto TCP (6), length 744)
+   29  2013-08-28 12:21:14.114014 IP (tos 0xa0, ttl 64, id 10690, offset 0, flags [DF], proto TCP (6), length 744)
     172.16.1.101.62221 > 172.16.1.51.6633: Flags [P.], cksum 0x72af (correct), seq 1849:2541, ack 209, win 2920, options [nop,nop,TS val 1 ecr 2256458102], length 692: OpenFlow
 	version 1.0, type STATS_REPLY, length 44, xid 0x0000000b
 	 type QUEUE, flags 0x0001 (MORE)
@@ -238,9 +238,9 @@
 	version 1.0, type STATS_REPLY, length 12, xid 0x0000000c
 	 type QUEUE, flags 0x0000
 	version 1.0, type BARRIER_REPLY, length 8, xid 0x0000000d
-   30  12:21:14.114038 IP (tos 0x0, ttl 64, id 16041, offset 0, flags [DF], proto TCP (6), length 52)
+   30  2013-08-28 12:21:14.114038 IP (tos 0x0, ttl 64, id 16041, offset 0, flags [DF], proto TCP (6), length 52)
     172.16.1.51.6633 > 172.16.1.101.62221: Flags [.], cksum 0x5adf (incorrect -> 0x94a3), seq 209, ack 2541, win 189, options [nop,nop,TS val 2256458145 ecr 1], length 0
-   31  12:21:14.116167 IP (tos 0x0, ttl 64, id 16042, offset 0, flags [DF], proto TCP (6), length 700)
+   31  2013-08-28 12:21:14.116167 IP (tos 0x0, ttl 64, id 16042, offset 0, flags [DF], proto TCP (6), length 700)
     172.16.1.51.6633 > 172.16.1.101.62221: Flags [P.], cksum 0x5d67 (incorrect -> 0xa5e9), seq 209:857, ack 2541, win 189, options [nop,nop,TS val 2256458147 ecr 1], length 648: OpenFlow
 	version 1.0, type FLOW_MOD, length 80, xid 0x0000000e
 	 match in_port 1
@@ -275,16 +275,16 @@
 	 cookie 0x0000000000000008, command ADD, priority 25800, buffer_id NONE, flags 0x0005 (SEND_FLOW_REM, EMERG)
 	 action type OUTPUT, len 8, port 4
 	version 1.0, type BARRIER_REQUEST, length 8, xid 0x00000016
-   32  12:21:14.125259 IP (tos 0xa0, ttl 64, id 10691, offset 0, flags [DF], proto TCP (6), length 60)
+   32  2013-08-28 12:21:14.125259 IP (tos 0xa0, ttl 64, id 10691, offset 0, flags [DF], proto TCP (6), length 60)
     172.16.1.101.62221 > 172.16.1.51.6633: Flags [P.], cksum 0x862d (correct), seq 2541:2549, ack 857, win 2920, options [nop,nop,TS val 1 ecr 2256458147], length 8: OpenFlow
 	version 1.0, type BARRIER_REPLY, length 8, xid 0x00000016
-   33  12:21:14.127411 IP (tos 0x0, ttl 64, id 16043, offset 0, flags [DF], proto TCP (6), length 116)
+   33  2013-08-28 12:21:14.127411 IP (tos 0x0, ttl 64, id 16043, offset 0, flags [DF], proto TCP (6), length 116)
     172.16.1.51.6633 > 172.16.1.101.62221: Flags [P.], cksum 0x5b1f (incorrect -> 0x6ef4), seq 857:921, ack 2549, win 189, options [nop,nop,TS val 2256458158 ecr 1], length 64: OpenFlow
 	version 1.0, type STATS_REQUEST, length 56, xid 0x00000017
 	 type FLOW, flags 0x0000
 	 table_id ALL, out_port NONE
 	version 1.0, type BARRIER_REQUEST, length 8, xid 0x00000018
-   34  12:21:14.128774 IP (tos 0xa0, ttl 64, id 10692, offset 0, flags [DF], proto TCP (6), length 160)
+   34  2013-08-28 12:21:14.128774 IP (tos 0xa0, ttl 64, id 10692, offset 0, flags [DF], proto TCP (6), length 160)
     172.16.1.101.62221 > 172.16.1.51.6633: Flags [P.], cksum 0x0485 (correct), seq 2549:2657, ack 921, win 2912, options [nop,nop,TS val 1 ecr 2256458158], length 108: OpenFlow
 	version 1.0, type STATS_REPLY, length 108, xid 0x00000017
 	 type FLOW, flags 0x0001 (MORE)
@@ -292,9 +292,9 @@
 	  match in_port 3
 	  duration_sec 0, duration_nsec 0, priority 24300, idle_timeout 0, hard_timeout 0, cookie 0x0000000000000003, packet_count 0, byte_count 0
 	  action type OUTPUT, len 8, port 4
-   35  12:21:14.168017 IP (tos 0x0, ttl 64, id 16044, offset 0, flags [DF], proto TCP (6), length 52)
+   35  2013-08-28 12:21:14.168017 IP (tos 0x0, ttl 64, id 16044, offset 0, flags [DF], proto TCP (6), length 52)
     172.16.1.51.6633 > 172.16.1.101.62221: Flags [.], cksum 0x5adf (incorrect -> 0x9131), seq 921, ack 2657, win 189, options [nop,nop,TS val 2256458199 ecr 1], length 0
-   36  12:21:14.168997 IP (tos 0xa0, ttl 64, id 10693, offset 0, flags [DF], proto TCP (6), length 828)
+   36  2013-08-28 12:21:14.168997 IP (tos 0xa0, ttl 64, id 10693, offset 0, flags [DF], proto TCP (6), length 828)
     172.16.1.101.62221 > 172.16.1.51.6633: Flags [P.], cksum 0x1544 (correct), seq 2657:3433, ack 921, win 2920, options [nop,nop,TS val 1 ecr 2256458158], length 776: OpenFlow
 	version 1.0, type STATS_REPLY, length 108, xid 0x00000017
 	 type FLOW, flags 0x0001 (MORE)
@@ -341,23 +341,23 @@
 	version 1.0, type STATS_REPLY, length 12, xid 0x00000017
 	 type FLOW, flags 0x0000
 	version 1.0, type BARRIER_REPLY, length 8, xid 0x00000018
-   37  12:21:14.169020 IP (tos 0x0, ttl 64, id 16045, offset 0, flags [DF], proto TCP (6), length 52)
+   37  2013-08-28 12:21:14.169020 IP (tos 0x0, ttl 64, id 16045, offset 0, flags [DF], proto TCP (6), length 52)
     172.16.1.51.6633 > 172.16.1.101.62221: Flags [.], cksum 0x5adf (incorrect -> 0x8e18), seq 921, ack 3433, win 205, options [nop,nop,TS val 2256458200 ecr 1], length 0
-   38  12:21:14.169616 IP (tos 0x0, ttl 64, id 16046, offset 0, flags [DF], proto TCP (6), length 72)
+   38  2013-08-28 12:21:14.169616 IP (tos 0x0, ttl 64, id 16046, offset 0, flags [DF], proto TCP (6), length 72)
     172.16.1.51.6633 > 172.16.1.101.62221: Flags [P.], cksum 0x5af3 (incorrect -> 0x8b90), seq 921:941, ack 3433, win 205, options [nop,nop,TS val 2256458200 ecr 1], length 20: OpenFlow
 	version 1.0, type STATS_REQUEST, length 12, xid 0x00000019
 	 type TABLE, flags 0x0000
 	version 1.0, type BARRIER_REQUEST, length 8, xid 0x0000001a
-   39  12:21:14.170981 IP (tos 0xa0, ttl 64, id 10694, offset 0, flags [DF], proto TCP (6), length 128)
+   39  2013-08-28 12:21:14.170981 IP (tos 0xa0, ttl 64, id 10694, offset 0, flags [DF], proto TCP (6), length 128)
     172.16.1.101.62221 > 172.16.1.51.6633: Flags [P.], cksum 0xe84a (correct), seq 3433:3509, ack 941, win 2912, options [nop,nop,TS val 1 ecr 2256458200], length 76: OpenFlow
 	version 1.0, type STATS_REPLY, length 76, xid 0x00000019
 	 type TABLE, flags 0x0001 (MORE)
 	 table_id 0, name 'Normal 1 Flow Table'
 	  wildcards 0x003820ff (IN_PORT, DL_VLAN, DL_SRC, DL_DST, DL_TYPE, NW_PROTO, TP_SRC, TP_DST, DL_VLAN_PCP, NW_TOS)
 	  max_entries 5632, active_count 3, lookup_count 18446744073709551615, matched_count 18446744073709551615
-   40  12:21:14.210016 IP (tos 0x0, ttl 64, id 16047, offset 0, flags [DF], proto TCP (6), length 52)
+   40  2013-08-28 12:21:14.210016 IP (tos 0x0, ttl 64, id 16047, offset 0, flags [DF], proto TCP (6), length 52)
     172.16.1.51.6633 > 172.16.1.101.62221: Flags [.], cksum 0x5adf (incorrect -> 0x8d8f), seq 941, ack 3509, win 205, options [nop,nop,TS val 2256458241 ecr 1], length 0
-   41  12:21:14.210954 IP (tos 0xa0, ttl 64, id 10695, offset 0, flags [DF], proto TCP (6), length 832)
+   41  2013-08-28 12:21:14.210954 IP (tos 0xa0, ttl 64, id 10695, offset 0, flags [DF], proto TCP (6), length 832)
     172.16.1.101.62221 > 172.16.1.51.6633: Flags [P.], cksum 0x198c (correct), seq 3509:4289, ack 941, win 2920, options [nop,nop,TS val 1 ecr 2256458200], length 780: OpenFlow
 	version 1.0, type STATS_REPLY, length 76, xid 0x00000019
 	 type TABLE, flags 0x0001 (MORE)
@@ -412,17 +412,17 @@
 	version 1.0, type STATS_REPLY, length 12, xid 0x00000019
 	 type TABLE, flags 0x0000
 	version 1.0, type BARRIER_REPLY, length 8, xid 0x0000001a
-   42  12:21:14.210982 IP (tos 0x0, ttl 64, id 16048, offset 0, flags [DF], proto TCP (6), length 52)
+   42  2013-08-28 12:21:14.210982 IP (tos 0x0, ttl 64, id 16048, offset 0, flags [DF], proto TCP (6), length 52)
     172.16.1.51.6633 > 172.16.1.101.62221: Flags [.], cksum 0x5adf (incorrect -> 0x8a72), seq 941, ack 4289, win 222, options [nop,nop,TS val 2256458241 ecr 1], length 0
-   43  12:21:14.486208 IP (tos 0x0, ttl 64, id 16049, offset 0, flags [DF], proto TCP (6), length 52)
+   43  2013-08-28 12:21:14.486208 IP (tos 0x0, ttl 64, id 16049, offset 0, flags [DF], proto TCP (6), length 52)
     172.16.1.51.6633 > 172.16.1.101.62221: Flags [F.], cksum 0x5adf (incorrect -> 0x895d), seq 941, ack 4289, win 222, options [nop,nop,TS val 2256458517 ecr 1], length 0
-   44  12:21:14.489079 IP (tos 0xa0, ttl 64, id 10696, offset 0, flags [DF], proto TCP (6), length 52)
+   44  2013-08-28 12:21:14.489079 IP (tos 0xa0, ttl 64, id 10696, offset 0, flags [DF], proto TCP (6), length 52)
     172.16.1.101.62221 > 172.16.1.51.6633: Flags [.], cksum 0x7ed2 (correct), seq 4289, ack 942, win 2920, options [nop,nop,TS val 2 ecr 2256458517], length 0
-   45  12:21:14.489301 IP (tos 0xa0, ttl 64, id 10697, offset 0, flags [DF], proto TCP (6), length 52)
+   45  2013-08-28 12:21:14.489301 IP (tos 0xa0, ttl 64, id 10697, offset 0, flags [DF], proto TCP (6), length 52)
     172.16.1.101.62221 > 172.16.1.51.6633: Flags [F.], cksum 0x7ed1 (correct), seq 4289, ack 942, win 2920, options [nop,nop,TS val 2 ecr 2256458517], length 0
-   46  12:21:14.489341 IP (tos 0x0, ttl 64, id 0, offset 0, flags [DF], proto TCP (6), length 52)
+   46  2013-08-28 12:21:14.489341 IP (tos 0x0, ttl 64, id 0, offset 0, flags [DF], proto TCP (6), length 52)
     172.16.1.51.6633 > 172.16.1.101.62221: Flags [.], cksum 0x8958 (correct), seq 942, ack 4290, win 222, options [nop,nop,TS val 2256458520 ecr 2], length 0
-   47  12:21:20.463722 IP (tos 0xa0, ttl 64, id 10710, offset 0, flags [DF], proto TCP (6), length 60)
+   47  2013-08-28 12:21:20.463722 IP (tos 0xa0, ttl 64, id 10710, offset 0, flags [DF], proto TCP (6), length 60)
     172.16.1.101.62216 > 172.16.1.51.6633: Flags [S], cksum 0xf0a4 (correct), seq 2928426028, win 2048, options [mss 1460,nop,wscale 0,nop,nop,TS val 0 ecr 0], length 0
-   48  12:21:20.463750 IP (tos 0xa0, ttl 64, id 0, offset 0, flags [DF], proto TCP (6), length 40)
+   48  2013-08-28 12:21:20.463750 IP (tos 0xa0, ttl 64, id 0, offset 0, flags [DF], proto TCP (6), length 40)
     172.16.1.51.6633 > 172.16.1.101.62216: Flags [R.], cksum 0x5d6c (correct), seq 0, ack 2928426029, win 0, length 0

@@ -1,4 +1,4 @@
-    1  00:48:32.630923 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 60)
+    1  2008-06-14 00:48:32.630923 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 60)
     10.0.0.1 > 224.0.0.10: 
 	EIGRP v2, opcode: Hello (5), chksum: 0xee68, Flags: [none]
 	seq: 0x00000000, ack: 0x00000000, VRID: 0, AS: 100, length: 20
@@ -6,7 +6,7 @@
 	    holdtime: 15s, k1 1, k2 0, k3 1, k4 0, k5 0
 	  Software Version TLV (0x0004), length: 8
 	    IOS version: 12.4, EIGRP version 1.2
-    2  00:48:36.963186 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 60)
+    2  2008-06-14 00:48:36.963186 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 60)
     10.0.0.2 > 224.0.0.10: 
 	EIGRP v2, opcode: Hello (5), chksum: 0xee68, Flags: [none]
 	seq: 0x00000000, ack: 0x00000000, VRID: 0, AS: 100, length: 20
@@ -14,7 +14,7 @@
 	    holdtime: 15s, k1 1, k2 0, k3 1, k4 0, k5 0
 	  Software Version TLV (0x0004), length: 8
 	    IOS version: 12.4, EIGRP version 1.2
-    3  00:48:37.431201 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 60)
+    3  2008-06-14 00:48:37.431201 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 60)
     10.0.0.1 > 224.0.0.10: 
 	EIGRP v2, opcode: Hello (5), chksum: 0xee68, Flags: [none]
 	seq: 0x00000000, ack: 0x00000000, VRID: 0, AS: 100, length: 20
@@ -22,7 +22,7 @@
 	    holdtime: 15s, k1 1, k2 0, k3 1, k4 0, k5 0
 	  Software Version TLV (0x0004), length: 8
 	    IOS version: 12.4, EIGRP version 1.2
-    4  00:48:41.271439 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 60)
+    4  2008-06-14 00:48:41.271439 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 60)
     10.0.0.2 > 224.0.0.10: 
 	EIGRP v2, opcode: Hello (5), chksum: 0xee68, Flags: [none]
 	seq: 0x00000000, ack: 0x00000000, VRID: 0, AS: 100, length: 20
@@ -30,7 +30,7 @@
 	    holdtime: 15s, k1 1, k2 0, k3 1, k4 0, k5 0
 	  Software Version TLV (0x0004), length: 8
 	    IOS version: 12.4, EIGRP version 1.2
-    5  00:48:42.243480 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 60)
+    5  2008-06-14 00:48:42.243480 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 60)
     10.0.0.1 > 224.0.0.10: 
 	EIGRP v2, opcode: Hello (5), chksum: 0xee68, Flags: [none]
 	seq: 0x00000000, ack: 0x00000000, VRID: 0, AS: 100, length: 20
@@ -38,7 +38,7 @@
 	    holdtime: 15s, k1 1, k2 0, k3 1, k4 0, k5 0
 	  Software Version TLV (0x0004), length: 8
 	    IOS version: 12.4, EIGRP version 1.2
-    6  00:48:46.179719 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 60)
+    6  2008-06-14 00:48:46.179719 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 60)
     10.0.0.2 > 224.0.0.10: 
 	EIGRP v2, opcode: Hello (5), chksum: 0xee68, Flags: [none]
 	seq: 0x00000000, ack: 0x00000000, VRID: 0, AS: 100, length: 20
@@ -46,7 +46,7 @@
 	    holdtime: 15s, k1 1, k2 0, k3 1, k4 0, k5 0
 	  Software Version TLV (0x0004), length: 8
 	    IOS version: 12.4, EIGRP version 1.2
-    7  00:48:46.875749 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 60)
+    7  2008-06-14 00:48:46.875749 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 60)
     10.0.0.1 > 224.0.0.10: 
 	EIGRP v2, opcode: Hello (5), chksum: 0xee68, Flags: [none]
 	seq: 0x00000000, ack: 0x00000000, VRID: 0, AS: 100, length: 20
@@ -54,62 +54,62 @@
 	    holdtime: 15s, k1 1, k2 0, k3 1, k4 0, k5 0
 	  Software Version TLV (0x0004), length: 8
 	    IOS version: 12.4, EIGRP version 1.2
-    8  00:48:48.687842 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 68)
+    8  2008-06-14 00:48:48.687842 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 68)
     10.0.0.1 > 224.0.0.10: 
 	EIGRP v2, opcode: Update (1), chksum: 0x7876, Flags: [none]
 	seq: 0x00000034, ack: 0x00000000, VRID: 0, AS: 100, length: 28
 	  IP Internal routes TLV (0x0102), length: 28
 	    IPv4 prefix:     192.168.4.0/24, nexthop: self
 	      delay 42949672 ms, bandwidth 256000 Kbps, mtu 1500, hop 2, reliability 255, load 1
-    9  00:48:48.699874 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 40)
+    9  2008-06-14 00:48:48.699874 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 40)
     10.0.0.2 > 10.0.0.1: 
 	EIGRP v2, opcode: Hello (5), chksum: 0xfd62, Flags: [none]
 	seq: 0x00000000, ack: 0x00000034, VRID: 0, AS: 100, length: 0
-   10  00:48:48.711870 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 68)
+   10  2008-06-14 00:48:48.711870 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 68)
     10.0.0.2 > 224.0.0.10: 
 	EIGRP v2, opcode: Query (3), chksum: 0x5f7e, Flags: [none]
 	seq: 0x0000002e, ack: 0x00000000, VRID: 0, AS: 100, length: 28
 	  IP Internal routes TLV (0x0102), length: 28
 	    IPv4 prefix:     192.168.4.0/24, nexthop: self
 	      delay 42949672 ms, bandwidth 0 Kbps, mtu 1500, hop 0, reliability 0, load 0
-   11  00:48:48.723843 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 40)
+   11  2008-06-14 00:48:48.723843 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 40)
     10.0.0.1 > 10.0.0.2: 
 	EIGRP v2, opcode: Hello (5), chksum: 0xfd68, Flags: [none]
 	seq: 0x00000000, ack: 0x0000002e, VRID: 0, AS: 100, length: 0
-   12  00:48:48.735845 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 68)
+   12  2008-06-14 00:48:48.735845 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 68)
     10.0.0.1 > 224.0.0.10: 
 	EIGRP v2, opcode: Query (3), chksum: 0x5f75, Flags: [none]
 	seq: 0x00000037, ack: 0x00000000, VRID: 0, AS: 100, length: 28
 	  IP Internal routes TLV (0x0102), length: 28
 	    IPv4 prefix:     192.168.4.0/24, nexthop: self
 	      delay 42949672 ms, bandwidth 0 Kbps, mtu 1500, hop 0, reliability 0, load 0
-   13  00:48:48.747867 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 40)
+   13  2008-06-14 00:48:48.747867 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 40)
     10.0.0.2 > 10.0.0.1: 
 	EIGRP v2, opcode: Hello (5), chksum: 0xfd5f, Flags: [none]
 	seq: 0x00000000, ack: 0x00000037, VRID: 0, AS: 100, length: 0
-   14  00:48:48.795866 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 68)
+   14  2008-06-14 00:48:48.795866 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 68)
     10.0.0.2 > 10.0.0.1: 
 	EIGRP v2, opcode: Reply (4), chksum: 0x5f44, Flags: [none]
 	seq: 0x00000030, ack: 0x00000037, VRID: 0, AS: 100, length: 28
 	  IP Internal routes TLV (0x0102), length: 28
 	    IPv4 prefix:     192.168.4.0/24, nexthop: self
 	      delay 42949672 ms, bandwidth 0 Kbps, mtu 1500, hop 0, reliability 0, load 0
-   15  00:48:48.807846 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 40)
+   15  2008-06-14 00:48:48.807846 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 40)
     10.0.0.1 > 10.0.0.2: 
 	EIGRP v2, opcode: Hello (5), chksum: 0xfd66, Flags: [none]
 	seq: 0x00000000, ack: 0x00000030, VRID: 0, AS: 100, length: 0
-   16  00:48:49.119868 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 68)
+   16  2008-06-14 00:48:49.119868 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 68)
     10.0.0.1 > 10.0.0.2: 
 	EIGRP v2, opcode: Reply (4), chksum: 0x5f46, Flags: [none]
 	seq: 0x00000039, ack: 0x00000030, VRID: 0, AS: 100, length: 28
 	  IP Internal routes TLV (0x0102), length: 28
 	    IPv4 prefix:     192.168.4.0/24, nexthop: self
 	      delay 42949672 ms, bandwidth 0 Kbps, mtu 1500, hop 0, reliability 0, load 0
-   17  00:48:49.131907 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 40)
+   17  2008-06-14 00:48:49.131907 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 40)
     10.0.0.2 > 10.0.0.1: 
 	EIGRP v2, opcode: Hello (5), chksum: 0xfd5d, Flags: [none]
 	seq: 0x00000000, ack: 0x00000039, VRID: 0, AS: 100, length: 0
-   18  00:48:50.547977 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 60)
+   18  2008-06-14 00:48:50.547977 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 60)
     10.0.0.2 > 224.0.0.10: 
 	EIGRP v2, opcode: Hello (5), chksum: 0xee68, Flags: [none]
 	seq: 0x00000000, ack: 0x00000000, VRID: 0, AS: 100, length: 20
@@ -117,7 +117,7 @@
 	    holdtime: 15s, k1 1, k2 0, k3 1, k4 0, k5 0
 	  Software Version TLV (0x0004), length: 8
 	    IOS version: 12.4, EIGRP version 1.2
-   19  00:48:51.268008 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 60)
+   19  2008-06-14 00:48:51.268008 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 60)
     10.0.0.1 > 224.0.0.10: 
 	EIGRP v2, opcode: Hello (5), chksum: 0xee68, Flags: [none]
 	seq: 0x00000000, ack: 0x00000000, VRID: 0, AS: 100, length: 20
@@ -125,7 +125,7 @@
 	    holdtime: 15s, k1 1, k2 0, k3 1, k4 0, k5 0
 	  Software Version TLV (0x0004), length: 8
 	    IOS version: 12.4, EIGRP version 1.2
-   20  00:48:55.308281 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 60)
+   20  2008-06-14 00:48:55.308281 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 60)
     10.0.0.2 > 224.0.0.10: 
 	EIGRP v2, opcode: Hello (5), chksum: 0xee68, Flags: [none]
 	seq: 0x00000000, ack: 0x00000000, VRID: 0, AS: 100, length: 20
@@ -133,7 +133,7 @@
 	    holdtime: 15s, k1 1, k2 0, k3 1, k4 0, k5 0
 	  Software Version TLV (0x0004), length: 8
 	    IOS version: 12.4, EIGRP version 1.2
-   21  00:48:56.076302 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 60)
+   21  2008-06-14 00:48:56.076302 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 60)
     10.0.0.1 > 224.0.0.10: 
 	EIGRP v2, opcode: Hello (5), chksum: 0xee68, Flags: [none]
 	seq: 0x00000000, ack: 0x00000000, VRID: 0, AS: 100, length: 20

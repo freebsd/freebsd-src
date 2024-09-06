@@ -1,4 +1,4 @@
-    1  16:11:54.505352 IP (tos 0x0, ttl 64, id 60713, offset 0, flags [DF], proto TCP (6), length 562)
+    1  2015-01-30 16:11:54.505352 IP (tos 0x0, ttl 64, id 60713, offset 0, flags [DF], proto TCP (6), length 562)
     109.74.202.168.6653 > 88.150.169.52.4756: Flags [P.], seq 3422281781:3422282291, ack 774258090, win 252, options [nop,nop,TS val 590230876 ecr 50526785], length 510: OpenFlow
 	version 1.0, type VENDOR, length 24, xid 0x0000001a, vendor 0x005c16c7 (Big Switch Networks)
 	 subtype SET_IP_MASK, index 1, mask 255.0.14.0

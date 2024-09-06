@@ -12,7 +12,7 @@ if (!($TCPDUMP = $ENV{TCPDUMP_BIN})) {
         # XXX - assume, for now, a Visual Studio debug build, so that
         # tcpdump is in the Debug subdirectory.
         #
-        $TCPDUMP = "Debug\\tcpdump"
+        $TCPDUMP = "Debug\\tcpdump.exe"
     } else {
         $TCPDUMP = "./tcpdump"
     }
@@ -66,6 +66,7 @@ unshift(@INC, $testsdir);
 
 $passedcount = 0;
 $failedcount = 0;
+$skippedcount = 0;
 #
 my $failureoutput=$origdir . "/tests/failure-outputs.txt";
 
@@ -97,8 +98,8 @@ sub runtest {
     my $coredump = false;
     my $status = 0;
     my $linecount = 0;
-    my $rawstderrlog = "tests/NEW/${outputbase}.raw.stderr";
-    my $stderrlog = "tests/NEW/${outputbase}.stderr";
+    my $rawstderrlog = "${newdir}/${outputbase}.raw.stderr";
+    my $stderrlog = "${newdir}/${outputbase}.stderr";
     my $diffstat = 0;
     my $errdiffstat = 0;
 
@@ -107,7 +108,16 @@ sub runtest {
     #
     # Furthermore, on Windows, fc can't read the standard input, so we
     # can't do it as a pipeline in any case.
-    $r = system "$TCPDUMP -# -n -r $input $options >tests/NEW/${outputbase} 2>${rawstderrlog}";
+    if (index($options, "SPECIAL_t") != -1) {
+        # Hack to keep specific time options for tcp-handshake-micro-t, etc.
+        # -t, -tt, etc.
+        $options =~ s/ SPECIAL_t//;
+    } else {
+        # No specific time option, use -tttt
+        $options .= " -tttt";
+    }
+    $r = system "$TCPDUMP -# -n -r $input $options >${newdir}/${outputbase} 2>${rawstderrlog}";
+
     if($r != 0) {
         #
         # Something other than "tcpdump opened the file, read it, and
@@ -117,7 +127,7 @@ sub runtest {
         # wrote out, so it shows up when we diff the expected output
         # with it.
         #
-        open(OUTPUT, ">>"."tests/NEW/$outputbase") || die "fail to open $outputbase\n";
+        open(OUTPUT, ">>"."${newdir}/$outputbase") || die "fail to open $outputbase\n";
         if($r == -1) {
             # failed to start due to error.
             $status = $!;
@@ -225,10 +235,12 @@ sub runtest {
         #
         if ($^O eq 'MSWin32') {
             my $winoutput = File::Spec->canonpath($output);
-            $r = system "fc /lb1000 /t /1 $winoutput tests\\NEW\\$outputbase >tests\\DIFF\\$outputbase.diff";
+            my $winnewdir = File::Spec->canonpath($newdir);
+            my $windiffdir = File::Spec->canonpath($diffdir);
+            $r = system "fc /lb1000 /t /1 $winoutput ${winnewdir}\\$outputbase >${windiffdir}\\$outputbase.diff";
             $diffstat = $r >> 8;
         } else {
-            $r = system "diff $diff_flags $output tests/NEW/$outputbase >tests/DIFF/$outputbase.diff";
+            $r = system "diff $diff_flags $output ${newdir}/$outputbase >${diffdir}/$outputbase.diff";
             $diffstat = WEXITSTATUS($r);
         }
     }
@@ -257,11 +269,12 @@ sub runtest {
         #
         if ($^O eq 'MSWin32') {
             my $winoutput = File::Spec->canonpath($output);
+            my $windiffdir = File::Spec->canonpath($diffdir);
             my $canonstderrlog = File::Spec->canonpath($stderrlog);
-            $nr = system "fc /lb1000 /t /1 $winoutput.stderr $canonstderrlog >tests\DIFF\$outputbase.stderr.diff";
+            $nr = system "fc /lb1000 /t /1 $winoutput.stderr $canonstderrlog >${windiffdir}\\$outputbase.stderr.diff";
             $errdiffstat = $nr >> 8;
         } else {
-            $nr = system "diff $output.stderr $stderrlog >tests/DIFF/$outputbase.stderr.diff";
+            $nr = system "diff $output.stderr $stderrlog >${diffdir}/$outputbase.stderr.diff";
             $errdiffstat = WEXITSTATUS($nr);
         }
         if($r == 0) {
@@ -286,7 +299,7 @@ sub runtest {
             printf "    %-40s: passed with error messages:\n", $name;
             showfile($stderrlog);
         }
-        unlink "tests/DIFF/$outputbase.diff";
+        unlink "${diffdir}/$outputbase.diff";
         return 0;
     }
     # must have failed!
@@ -294,14 +307,15 @@ sub runtest {
     open FOUT, '>>tests/failure-outputs.txt';
     printf FOUT "\nFailed test: $name\n\n";
     close FOUT;
-    if(-f "tests/DIFF/$outputbase.diff") {
+    if(-f "${diffdir}/$outputbase.diff") {
         #
         # XXX - just do this directly in Perl?
         #
         if ($^O eq 'MSWin32') {
-            system "type tests\\DIFF\\$outputbase.diff >> tests\\failure-outputs.txt";
+            my $windiffdir = File::Spec->canonpath($diffdir);
+            system "type ${windiffdir}\\$outputbase.diff >> tests\\failure-outputs.txt";
         } else {
-            system "cat tests/DIFF/$outputbase.diff >> tests/failure-outputs.txt";
+            system "cat ${diffdir}/$outputbase.diff >> tests/failure-outputs.txt";
         }
     }
 
@@ -369,6 +383,7 @@ sub loadconfighash {
     } else {
         $have_fptype = "HAVE_FPTYPE2";
     }
+    printf "$TCPDUMP --fp-type => %s\n", $have_fptype;
     $main::confighhash->{$have_fptype} = 1;
 
     # and check whether this is OpenBSD, as one test fails in OpenBSD
@@ -406,11 +421,13 @@ sub runOneComplexTest {
 
     if(!$foundit) {
         printf "    %-40s: skipped (%s not set)\n", $name, $configset;
+        $skippedcount++;
         return 0;
     }
 
     if(!$unfoundit) {
         printf "    %-40s: skipped (%s set)\n", $name, $configunset;
+        $skippedcount++;
         return 0;
     }
 
@@ -495,6 +512,7 @@ if(scalar(@ARGV) == 0) {
 
 # exit with number of failing tests.
 print "------------------------------------------------\n";
+printf("%4u tests skipped\n",$skippedcount);
 printf("%4u tests failed\n",$failedcount);
 printf("%4u tests passed\n",$passedcount);
 

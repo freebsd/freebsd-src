@@ -1,4 +1,4 @@
-    1  12:26:12.631155 IP6 (hlim 255, next-header ICMPv6 (58) payload length: 176) fe80::b299:28ff:fec8:d66c > ff02::1: [icmp6 sum ok] ICMP6, router advertisement, length 176
+    1  2012-04-13 12:26:12.631155 IP6 (hlim 255, next-header ICMPv6 (58) payload length: 176) fe80::b299:28ff:fec8:d66c > ff02::1: [icmp6 sum ok] ICMP6, router advertisement, length 176
 	hop limit 64, Flags [home agent], pref medium, router lifetime 15s, reachable time 0ms, retrans timer 0ms
 	  prefix info option (3), length 32 (4): 2222:3333:4444:5555:6600::/72, Flags [onlink, auto], valid time 2592000s, pref. time 604800s
 	    0x0000:  48c0 0027 8d00 0009 3a80 0000 0000 2222
@@ -20,7 +20,7 @@
 	    0x0000:  0000 0000 1388
 	  homeagent information option (8), length 8 (1):  preference 50001, lifetime 15
 	    0x0000:  0000 c351 000f
-    2  04:54:07.748985 IP6 (hlim 1, next-header Options (0) payload length: 36) fe80::215:17ff:fecc:e546 > ff02::16: HBH (rtalert: 0x0000) (padn) [icmp6 sum ok] ICMP6, multicast listener report v2, 1 group record(s) [gaddr ff02::db8:1122:3344 to_ex { }]
-    3  04:54:23.519360 IP6 (hlim 1, next-header Options (0) payload length: 36) fe80::b2a8:6eff:fe0c:d4e8 > ff02::1: HBH (rtalert: 0x0000) (padn) [icmp6 sum ok] ICMP6, multicast listener query v2 [max resp delay=10000] [gaddr :: robustness=2 qqi=60]
-    4  04:54:26.160995 IP6 (hlim 1, next-header Options (0) payload length: 96) fe80::215:17ff:fecc:e546 > ff02::16: HBH (rtalert: 0x0000) (padn) [icmp6 sum ok] ICMP6, multicast listener report v2, 4 group record(s) [gaddr ff02::db8:1122:3344 is_ex { }] [gaddr ff02::1:ffcc:e546 is_ex { }] [gaddr ff02::1:ffa7:10ad is_ex { }] [gaddr ff02::1:ff00:2 is_ex { }]
-    5  04:54:41.057031 IP6 (hlim 1, next-header Options (0) payload length: 36) fe80::215:17ff:fecc:e546 > ff02::16: HBH (rtalert: 0x0000) (padn) [icmp6 sum ok] ICMP6, multicast listener report v2, 1 group record(s) [gaddr ff02::db8:1122:3344 to_in { }]
+    2  2013-01-19 04:54:07.748985 IP6 (hlim 1, next-header Options (0) payload length: 36) fe80::215:17ff:fecc:e546 > ff02::16: HBH (rtalert: 0x0000) (padn) [icmp6 sum ok] ICMP6, multicast listener report v2, 1 group record(s) [gaddr ff02::db8:1122:3344 to_ex { }]
+    3  2013-01-19 04:54:23.519360 IP6 (hlim 1, next-header Options (0) payload length: 36) fe80::b2a8:6eff:fe0c:d4e8 > ff02::1: HBH (rtalert: 0x0000) (padn) [icmp6 sum ok] ICMP6, multicast listener query v2 [max resp delay=10000] [gaddr :: robustness=2 qqi=60]
+    4  2013-01-19 04:54:26.160995 IP6 (hlim 1, next-header Options (0) payload length: 96) fe80::215:17ff:fecc:e546 > ff02::16: HBH (rtalert: 0x0000) (padn) [icmp6 sum ok] ICMP6, multicast listener report v2, 4 group record(s) [gaddr ff02::db8:1122:3344 is_ex { }] [gaddr ff02::1:ffcc:e546 is_ex { }] [gaddr ff02::1:ffa7:10ad is_ex { }] [gaddr ff02::1:ff00:2 is_ex { }]
+    5  2013-01-19 04:54:41.057031 IP6 (hlim 1, next-header Options (0) payload length: 36) fe80::215:17ff:fecc:e546 > ff02::16: HBH (rtalert: 0x0000) (padn) [icmp6 sum ok] ICMP6, multicast listener report v2, 1 group record(s) [gaddr ff02::db8:1122:3344 to_in { }]

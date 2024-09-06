@@ -1,7 +1,7 @@
-    1  06:04:18.845147 SLARP (length: 20), keepalive: mineseen=0x00000001, yourseen=0x00000000, reliability=0xffff, link uptime=1d0h1m32s
-    2  06:04:28.773147 SLARP (length: 20), request
-    3  06:04:28.792147 SLARP (length: 20), reply 15.0.0.1/255.255.255.252
-    4  06:04:28.865147 SLARP (length: 20), keepalive: mineseen=0x00000001, yourseen=0x00000000, reliability=0xffff, link uptime=1d0h1m42s
-    5  06:04:30.999147 SLARP (length: 20), keepalive: mineseen=0x00000001, yourseen=0x00000001, reliability=0xffff, link uptime=1d4h41m19s
-    6  06:04:38.869147 SLARP (length: 20), keepalive: mineseen=0x00000002, yourseen=0x00000001, reliability=0xffff, link uptime=1d0h1m52s
-    7  06:04:41.003147 SLARP (length: 20), keepalive: mineseen=0x00000002, yourseen=0x00000002, reliability=0xffff, link uptime=1d4h41m29s
+    1  2013-01-29 06:04:18.845147 SLARP (length: 20), keepalive: mineseen=0x00000001, yourseen=0x00000000, reliability=0xffff, link uptime=1d0h1m32s
+    2  2013-01-29 06:04:28.773147 SLARP (length: 20), request
+    3  2013-01-29 06:04:28.792147 SLARP (length: 20), reply 15.0.0.1/255.255.255.252
+    4  2013-01-29 06:04:28.865147 SLARP (length: 20), keepalive: mineseen=0x00000001, yourseen=0x00000000, reliability=0xffff, link uptime=1d0h1m42s
+    5  2013-01-29 06:04:30.999147 SLARP (length: 20), keepalive: mineseen=0x00000001, yourseen=0x00000001, reliability=0xffff, link uptime=1d4h41m19s
+    6  2013-01-29 06:04:38.869147 SLARP (length: 20), keepalive: mineseen=0x00000002, yourseen=0x00000001, reliability=0xffff, link uptime=1d0h1m52s
+    7  2013-01-29 06:04:41.003147 SLARP (length: 20), keepalive: mineseen=0x00000002, yourseen=0x00000002, reliability=0xffff, link uptime=1d4h41m29s

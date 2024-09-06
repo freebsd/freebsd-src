@@ -1,4 +1,4 @@
-    1  22:52:17.872968 IP (tos 0x0, ttl 255, id 70, offset 0, flags [none], proto UDP (17), length 167)
+    1  2008-08-01 22:52:17.872968 IP (tos 0x0, ttl 255, id 70, offset 0, flags [none], proto UDP (17), length 167)
     10.0.0.1.1645 > 10.0.0.100.1812: RADIUS, length: 139
 	Access-Request (1), id: 0x05, Authenticator: ecfe3d2fe4473ec6299095ee46aedf77
 	  NAS-IP-Address Attribute (4), length: 6, Value: 10.0.0.1
@@ -12,7 +12,7 @@
 	  EAP-Message Attribute (79), length: 19, Value: Response (2), id 0, len 17
 		 Type Identity (1), Identity: John.McGuirk
 	  Message-Authenticator Attribute (80), length: 18, Value: (....$..p.Q1o.x.
-    2  22:52:17.875771 IP (tos 0x0, ttl 64, id 0, offset 0, flags [DF], proto UDP (17), length 137)
+    2  2008-08-01 22:52:17.875771 IP (tos 0x0, ttl 64, id 0, offset 0, flags [DF], proto UDP (17), length 137)
     10.0.0.100.1812 > 10.0.0.1.1645: RADIUS, length: 109
 	Access-Challenge (11), id: 0x05, Authenticator: f050649184625d36f14c9075b7a48b83
 	  Framed-IP-Address Attribute (8), length: 6, Value: NAS Select
@@ -23,7 +23,7 @@
 		 Type MD5-challenge (4)
 	  Message-Authenticator Attribute (80), length: 18, Value: ...<.(.X.13..t4.
 	  State Attribute (24), length: 18, Value: ..../.0$.s..1..w
-    3  22:52:17.916736 IP (tos 0x0, ttl 255, id 71, offset 0, flags [none], proto UDP (17), length 202)
+    3  2008-08-01 22:52:17.916736 IP (tos 0x0, ttl 255, id 71, offset 0, flags [none], proto UDP (17), length 202)
     10.0.0.1.1645 > 10.0.0.100.1812: RADIUS, length: 174
 	Access-Request (1), id: 0x06, Authenticator: 6a6f38e6dae830304d2333e5d5364643
 	  NAS-IP-Address Attribute (4), length: 6, Value: 10.0.0.1
@@ -38,7 +38,7 @@
 	  EAP-Message Attribute (79), length: 36, Value: Response (2), id 1, len 34
 		 Type MD5-challenge (4)
 	  Message-Authenticator Attribute (80), length: 18, Value: '&.q1.....Ojb..8
-    4  22:52:17.916850 IP (tos 0x0, ttl 64, id 0, offset 0, flags [DF], proto UDP (17), length 125)
+    4  2008-08-01 22:52:17.916850 IP (tos 0x0, ttl 64, id 0, offset 0, flags [DF], proto UDP (17), length 125)
     10.0.0.100.1812 > 10.0.0.1.1645: RADIUS, length: 97
 	Access-Accept (2), id: 0x06, Authenticator: fbba6a784c7decb314caf0f27944a37b
 	  Framed-IP-Address Attribute (8), length: 6, Value: NAS Select

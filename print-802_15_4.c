@@ -22,9 +22,7 @@
 
 /* \summary: IEEE 802.15.4 printer */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
@@ -250,7 +248,7 @@ static const char *p_mlme_short_names[] = {
 	"TVWS PHY Operating Mode Description IE",	/* 0x2b */
 	"TVWS Device Capabilities IE",			/* 0x2c */
 	"TVWS Device Category IE",			/* 0x2d */
-	"TVWS Device Identiication IE",			/* 0x2e */
+	"TVWS Device Identification IE",		/* 0x2e */
 	"TVWS Device Location IE",			/* 0x2f */
 	"TVWS Channel Information Query IE",		/* 0x30 */
 	"TVWS Channel Information Source IE",		/* 0x31 */
@@ -418,7 +416,7 @@ static const char *mac_c_names[] = {
 #define FC_ADDRESSING_MODE_LONG         0x03
 
 /*
- * IEEE 802.15.4 CRC 16 function. This is using CCITT polynomical of 0x1021,
+ * IEEE 802.15.4 CRC 16 function. This is using the CCITT polynomial of 0x1021,
  * but the initial value is 0, and the bits are reversed for both in and out.
  * See section 7.2.10 of 802.15.4-2015 for more information.
  */
@@ -470,7 +468,7 @@ ieee802_15_4_reverse32(uint32_t x)
 }
 
 /*
- * IEEE 802.15.4 CRC 32 function. This is using ANSI X3.66-1979 polynomical of
+ * IEEE 802.15.4 CRC 32 function. This is using the ANSI X3.66-1979 polynomial of
  * 0x04C11DB7, but the initial value is 0, and the bits are reversed for both
  * in and out. See section 7.2.10 of 802.15.4-2015 for more information.
  */
@@ -1299,11 +1297,11 @@ ieee802_15_4_print_mlme_ie_list(netdissect_options *ndo,
 		ND_PRINT("] ");
 		p += sub_ie_len;
 		ie_len -= 2 + sub_ie_len;
-	} while (ie_len > 0);
+	} while (ie_len != 0);
 }
 
 /*
- * Multiplexd IE (802.15.9) parsing and printing.
+ * Multiplexed IE (802.15.9) parsing and printing.
  *
  * Returns number of bytes consumed from packet or -1 in case of error.
  */
@@ -1502,7 +1500,7 @@ ieee802_15_4_print_payload_ie_list(netdissect_options *ndo,
 		if (group_id == 0xf) {
 			break;
 		}
-	} while (caplen > 0);
+	} while (caplen != 0);
 	return len;
 }
 
@@ -1664,7 +1662,7 @@ ieee802_15_4_print_command_data(netdissect_options *ndo,
 			return caplen;
 		}
 		break;
-	case 0x03: /* Diassociation Notification command */
+	case 0x03: /* Disassociation Notification command */
 		if (caplen != 1) {
 			ND_PRINT("Invalid Disassociation Notification command length");
 			return -1;
@@ -2038,19 +2036,19 @@ ieee802_15_4_std_frames(netdissect_options *ndo,
 	}
 
 	switch (security_level) {
-	case 0: /*FALLTHOUGH */
+	case 0: /*FALLTHROUGH */
 	case 4:
 		miclen = 0;
 		break;
-	case 1: /*FALLTHOUGH */
+	case 1: /*FALLTHROUGH */
 	case 5:
 		miclen = 4;
 		break;
-	case 2: /*FALLTHOUGH */
+	case 2: /*FALLTHROUGH */
 	case 6:
 		miclen = 8;
 		break;
-	case 3: /*FALLTHOUGH */
+	case 3: /*FALLTHROUGH */
 	case 7:
 		miclen = 16;
 		break;
@@ -2360,19 +2358,19 @@ ieee802_15_4_mp_frame(netdissect_options *ndo,
 	}
 
 	switch (security_level) {
-	case 0: /*FALLTHOUGH */
+	case 0: /*FALLTHROUGH */
 	case 4:
 		miclen = 0;
 		break;
-	case 1: /*FALLTHOUGH */
+	case 1: /*FALLTHROUGH */
 	case 5:
 		miclen = 4;
 		break;
-	case 2: /*FALLTHOUGH */
+	case 2: /*FALLTHROUGH */
 	case 6:
 		miclen = 8;
 		break;
-	case 3: /*FALLTHOUGH */
+	case 3: /*FALLTHROUGH */
 	case 7:
 		miclen = 16;
 		break;

@@ -1,4 +1,4 @@
-    1  06:44:23.446332 IS-IS, length 49
+    1  2015-05-20 06:44:23.446332 IS-IS, length 49
 	L2 LSP, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  lsp-id: 1280.9201.7082.00-00, seq: 0x0000023f, lifetime:     0s
 	  chksum: 0x0000 (unverified), PDU length: 49, Flags: [ L2 IS ]

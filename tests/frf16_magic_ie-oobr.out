@@ -1,2 +1,2 @@
-    1  [Error converting time] FRF.16 Control, Flags [Begin, End, Control], Unknown Message (0x00), length 262144
+    1  2038-01-01 00:00:00.000000 FRF.16 Control, Flags [Begin, End, Control], Unknown Message (0x00), length 262144
 	IE Magic Number (3), length 3: [IE data length 1 != 4] (invalid) [|mfr]

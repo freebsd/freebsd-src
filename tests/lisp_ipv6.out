@@ -1,4 +1,4 @@
-    1  19:37:39.175900 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto UDP (17), length 168)
+    1  2015-08-21 19:37:39.175900 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto UDP (17), length 168)
     192.168.0.105.4342 > 127.0.0.1.4342: LISP-Map-Register, flags [I-xTR-ID-Present, M-Want-Map-Notify],
     2 record(s), Authentication SHA1,
     Authentication-Data: 0x0000:  4bbb 9614 a67a 8604 0407 7995 4537 1906
@@ -11,7 +11,7 @@
           Priority/Weight 1/100, Multicast Priority/Weight 1/100, flags [none],
     xTR-ID: 0x0000:  9787 ad75 3caf 58a7 13fa 6920 e6d2 7a8f
     SITE-ID: 0
-    2  19:37:42.169026 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto UDP (17), length 144)
+    2  2015-08-21 19:37:42.169026 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto UDP (17), length 144)
     192.168.0.105.4342 > 127.0.0.1.4342: LISP-Map-Notify, flags [none],
     2 record(s), Authentication SHA1,
     Authentication-Data: 0x0000:  4bbb 9614 a67a 8604 0407 7995 4537 1906

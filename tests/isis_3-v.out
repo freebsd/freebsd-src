@@ -1,4 +1,4 @@
-    1  03:09:19.132065 IS-IS, length 1497
+    1  2008-06-18 03:09:19.132065 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 4444.4444.4444,  holding time: 30s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497
@@ -16,7 +16,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 163
-    2  03:09:28.034396 IS-IS, length 1497
+    2  2008-06-18 03:09:28.034396 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 4444.4444.4444,  holding time: 30s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497
@@ -34,7 +34,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 163
-    3  03:09:37.751013 IS-IS, length 1497
+    3  2008-06-18 03:09:37.751013 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 4444.4444.4444,  holding time: 30s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497
@@ -52,7 +52,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 163
-    4  03:09:45.397723 IS-IS, length 1497
+    4  2008-06-18 03:09:45.397723 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 3333.3333.3333,  holding time: 30s, Flags: [Level 2 only]
 	  lan-id:    3333.3333.3333.01, Priority: 64, PDU length: 1497
@@ -70,7 +70,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 163
-    5  03:09:45.405675 IS-IS, length 1497
+    5  2008-06-18 03:09:45.405675 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 4444.4444.4444,  holding time: 30s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497
@@ -90,7 +90,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 155
-    6  03:09:46.391559 IS-IS, length 1497
+    6  2008-06-18 03:09:46.391559 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 3333.3333.3333,  holding time: 30s, Flags: [Level 2 only]
 	  lan-id:    3333.3333.3333.01, Priority: 64, PDU length: 1497
@@ -110,7 +110,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 155
-    7  03:09:46.435536 IS-IS, length 1497
+    7  2008-06-18 03:09:46.435536 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 4444.4444.4444,  holding time: 10s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497
@@ -130,7 +130,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 155
-    8  03:09:46.483537 IS-IS, length 100
+    8  2008-06-18 03:09:46.483537 IS-IS, length 100
 	L2 LSP, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  lsp-id: 4444.4444.4444.00-00, seq: 0x0000000a, lifetime:  1199s
 	  chksum: 0xf252 (correct), PDU length: 100, Flags: [ L2 IS ]
@@ -150,7 +150,7 @@
 	    IPv4 Internal Reachability TLV #128, length: 24
 	      IPv4 prefix:       10.0.20.0/30, Distribution: up, Metric: 10, Internal
 	      IPv4 prefix:    192.168.20.0/24, Distribution: up, Metric: 20, Internal
-    9  03:09:46.523538 IS-IS, length 52
+    9  2008-06-18 03:09:46.523538 IS-IS, length 52
 	L2 LSP, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  lsp-id: 4444.4444.4444.01-00, seq: 0x00000003, lifetime:  1199s
 	  chksum: 0x7ef7 (correct), PDU length: 52, Flags: [ L2 IS ]
@@ -158,7 +158,7 @@
 	      IsNotVirtual
 	      IS Neighbor: 4444.4444.4444.00, Default Metric: 0, Internal
 	      IS Neighbor: 3333.3333.3333.00, Default Metric: 0, Internal
-   10  03:09:46.527565 IS-IS, length 100
+   10  2008-06-18 03:09:46.527565 IS-IS, length 100
 	L2 LSP, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  lsp-id: 3333.3333.3333.00-00, seq: 0x00000009, lifetime:  1199s
 	  chksum: 0x24b1 (correct), PDU length: 100, Flags: [ L2 IS ]
@@ -178,7 +178,7 @@
 	    IPv4 Internal Reachability TLV #128, length: 24
 	      IPv4 prefix:       10.0.10.0/30, Distribution: up, Metric: 10, Internal
 	      IPv4 prefix:    192.168.10.0/24, Distribution: up, Metric: 20, Internal
-   11  03:09:47.379619 IS-IS, length 1497
+   11  2008-06-18 03:09:47.379619 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 3333.3333.3333,  holding time: 30s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497
@@ -198,7 +198,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 155
-   12  03:09:49.489915 IS-IS, length 1497
+   12  2008-06-18 03:09:49.489915 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 4444.4444.4444,  holding time: 10s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497
@@ -218,7 +218,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 155
-   13  03:09:51.603842 IS-IS, length 83
+   13  2008-06-18 03:09:51.603842 IS-IS, length 83
 	L2 CSNP, hlen: 33, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id:    4444.4444.4444.00, PDU length: 83
 	  start lsp-id: 0000.0000.0000.00-00
@@ -227,7 +227,7 @@
 	      lsp-id: 3333.3333.3333.00-00, seq: 0x00000009, lifetime:  1192s, chksum: 0x24b1
 	      lsp-id: 4444.4444.4444.00-00, seq: 0x0000000a, lifetime:  1194s, chksum: 0xf252
 	      lsp-id: 4444.4444.4444.01-00, seq: 0x00000003, lifetime:  1194s, chksum: 0x7ef7
-   14  03:09:52.198066 IS-IS, length 1497
+   14  2008-06-18 03:09:52.198066 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 4444.4444.4444,  holding time: 10s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497
@@ -247,7 +247,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 155
-   15  03:09:55.122266 IS-IS, length 1497
+   15  2008-06-18 03:09:55.122266 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 4444.4444.4444,  holding time: 10s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497
@@ -267,7 +267,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 155
-   16  03:09:55.810338 IS-IS, length 1497
+   16  2008-06-18 03:09:55.810338 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 3333.3333.3333,  holding time: 30s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497
@@ -287,7 +287,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 155
-   17  03:09:57.764230 IS-IS, length 1497
+   17  2008-06-18 03:09:57.764230 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 4444.4444.4444,  holding time: 10s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497
@@ -307,7 +307,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 155
-   18  03:10:00.424404 IS-IS, length 1497
+   18  2008-06-18 03:10:00.424404 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 4444.4444.4444,  holding time: 10s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497
@@ -327,7 +327,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 155
-   19  03:10:00.640404 IS-IS, length 83
+   19  2008-06-18 03:10:00.640404 IS-IS, length 83
 	L2 CSNP, hlen: 33, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id:    4444.4444.4444.00, PDU length: 83
 	  start lsp-id: 0000.0000.0000.00-00
@@ -336,7 +336,7 @@
 	      lsp-id: 3333.3333.3333.00-00, seq: 0x00000009, lifetime:  1183s, chksum: 0x24b1
 	      lsp-id: 4444.4444.4444.00-00, seq: 0x0000000a, lifetime:  1185s, chksum: 0xf252
 	      lsp-id: 4444.4444.4444.01-00, seq: 0x00000003, lifetime:  1185s, chksum: 0x7ef7
-   20  03:10:03.466787 IS-IS, length 1497
+   20  2008-06-18 03:10:03.466787 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 4444.4444.4444,  holding time: 10s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497
@@ -356,7 +356,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 155
-   21  03:10:04.680689 IS-IS, length 1497
+   21  2008-06-18 03:10:04.680689 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 3333.3333.3333,  holding time: 30s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497
@@ -376,7 +376,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 155
-   22  03:10:06.176744 IS-IS, length 1497
+   22  2008-06-18 03:10:06.176744 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 4444.4444.4444,  holding time: 10s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497
@@ -396,7 +396,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 155
-   23  03:10:08.712904 IS-IS, length 1497
+   23  2008-06-18 03:10:08.712904 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 4444.4444.4444,  holding time: 10s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497
@@ -416,7 +416,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 155
-   24  03:10:09.744957 IS-IS, length 83
+   24  2008-06-18 03:10:09.744957 IS-IS, length 83
 	L2 CSNP, hlen: 33, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id:    4444.4444.4444.00, PDU length: 83
 	  start lsp-id: 0000.0000.0000.00-00
@@ -425,7 +425,7 @@
 	      lsp-id: 3333.3333.3333.00-00, seq: 0x00000009, lifetime:  1174s, chksum: 0x24b1
 	      lsp-id: 4444.4444.4444.00-00, seq: 0x0000000a, lifetime:  1176s, chksum: 0xf252
 	      lsp-id: 4444.4444.4444.01-00, seq: 0x00000003, lifetime:  1176s, chksum: 0x7ef7
-   25  03:10:12.005093 IS-IS, length 1497
+   25  2008-06-18 03:10:12.005093 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 4444.4444.4444,  holding time: 10s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497
@@ -445,7 +445,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 155
-   26  03:10:14.177364 IS-IS, length 1497
+   26  2008-06-18 03:10:14.177364 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 3333.3333.3333,  holding time: 30s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497
@@ -465,7 +465,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 155
-   27  03:10:15.273296 IS-IS, length 1497
+   27  2008-06-18 03:10:15.273296 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 4444.4444.4444,  holding time: 10s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497
@@ -485,7 +485,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 155
-   28  03:10:17.569439 IS-IS, length 83
+   28  2008-06-18 03:10:17.569439 IS-IS, length 83
 	L2 CSNP, hlen: 33, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id:    4444.4444.4444.00, PDU length: 83
 	  start lsp-id: 0000.0000.0000.00-00
@@ -494,7 +494,7 @@
 	      lsp-id: 3333.3333.3333.00-00, seq: 0x00000009, lifetime:  1166s, chksum: 0x24b1
 	      lsp-id: 4444.4444.4444.00-00, seq: 0x0000000a, lifetime:  1168s, chksum: 0xf252
 	      lsp-id: 4444.4444.4444.01-00, seq: 0x00000003, lifetime:  1168s, chksum: 0x7ef7
-   29  03:10:17.921457 IS-IS, length 1497
+   29  2008-06-18 03:10:17.921457 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 4444.4444.4444,  holding time: 10s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497
@@ -514,7 +514,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 155
-   30  03:10:20.435834 IS-IS, length 1497
+   30  2008-06-18 03:10:20.435834 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 4444.4444.4444,  holding time: 10s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497
@@ -534,7 +534,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 155
-   31  03:10:23.353792 IS-IS, length 1497
+   31  2008-06-18 03:10:23.353792 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 4444.4444.4444,  holding time: 10s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497
@@ -554,7 +554,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 155
-   32  03:10:23.801837 IS-IS, length 1497
+   32  2008-06-18 03:10:23.801837 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 3333.3333.3333,  holding time: 30s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497
@@ -574,7 +574,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 155
-   33  03:10:26.172156 IS-IS, length 1497
+   33  2008-06-18 03:10:26.172156 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 4444.4444.4444,  holding time: 10s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497
@@ -594,7 +594,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 155
-   34  03:10:27.132249 IS-IS, length 83
+   34  2008-06-18 03:10:27.132249 IS-IS, length 83
 	L2 CSNP, hlen: 33, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id:    4444.4444.4444.00, PDU length: 83
 	  start lsp-id: 0000.0000.0000.00-00
@@ -603,7 +603,7 @@
 	      lsp-id: 3333.3333.3333.00-00, seq: 0x00000009, lifetime:  1157s, chksum: 0x24b1
 	      lsp-id: 4444.4444.4444.00-00, seq: 0x0000000a, lifetime:  1159s, chksum: 0xf252
 	      lsp-id: 4444.4444.4444.01-00, seq: 0x00000003, lifetime:  1159s, chksum: 0x7ef7
-   35  03:10:29.004368 IS-IS, length 1497
+   35  2008-06-18 03:10:29.004368 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 4444.4444.4444,  holding time: 10s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497
@@ -623,7 +623,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 155
-   36  03:10:31.588532 IS-IS, length 1497
+   36  2008-06-18 03:10:31.588532 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 4444.4444.4444,  holding time: 10s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497
@@ -643,7 +643,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 155
-   37  03:10:33.592669 IS-IS, length 1497
+   37  2008-06-18 03:10:33.592669 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 3333.3333.3333,  holding time: 30s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497
@@ -663,7 +663,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 155
-   38  03:10:34.622453 IS-IS, length 1497
+   38  2008-06-18 03:10:34.622453 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 4444.4444.4444,  holding time: 10s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497
@@ -683,7 +683,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 155
-   39  03:10:36.668812 IS-IS, length 83
+   39  2008-06-18 03:10:36.668812 IS-IS, length 83
 	L2 CSNP, hlen: 33, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id:    4444.4444.4444.00, PDU length: 83
 	  start lsp-id: 0000.0000.0000.00-00
@@ -692,7 +692,7 @@
 	      lsp-id: 3333.3333.3333.00-00, seq: 0x00000009, lifetime:  1147s, chksum: 0x24b1
 	      lsp-id: 4444.4444.4444.00-00, seq: 0x0000000a, lifetime:  1149s, chksum: 0xf252
 	      lsp-id: 4444.4444.4444.01-00, seq: 0x00000003, lifetime:  1149s, chksum: 0x7ef7
-   40  03:10:37.556868 IS-IS, length 1497
+   40  2008-06-18 03:10:37.556868 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 4444.4444.4444,  holding time: 10s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497
@@ -712,7 +712,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 155
-   41  03:10:40.893119 IS-IS, length 1497
+   41  2008-06-18 03:10:40.893119 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 4444.4444.4444,  holding time: 10s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497
@@ -732,7 +732,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 155
-   42  03:10:43.139065 IS-IS, length 1497
+   42  2008-06-18 03:10:43.139065 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 3333.3333.3333,  holding time: 30s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497
@@ -752,7 +752,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 155
-   43  03:10:44.147031 IS-IS, length 1497
+   43  2008-06-18 03:10:44.147031 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 4444.4444.4444,  holding time: 10s, Flags: [Level 2 only]
 	  lan-id:    4444.4444.4444.01, Priority: 64, PDU length: 1497

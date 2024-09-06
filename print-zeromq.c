@@ -26,10 +26,9 @@
  */
 
 /* \summary: ZeroMQ Message Transport Protocol (ZMTP) printer */
+/* specification: https://rfc.zeromq.org/spec/13/ */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
@@ -41,6 +40,18 @@
  * hex and ASCII under a single "-v" flag.
  */
 #define VBYTES 128
+
+static const struct tok flags_bm[] = {
+	{ 0x01, "MORE"  },
+	{ 0x02, "R1" },
+	{ 0x04, "R2" },
+	{ 0x08, "R3" },
+	{ 0x10, "R4" },
+	{ 0x20, "R5" },
+	{ 0x40, "R6" },
+	{ 0x80, "R7" },
+	{ 0, NULL }
+};
 
 /*
  * Below is an excerpt from the "13/ZMTP" specification:
@@ -104,16 +115,7 @@ zmtp1_print_frame(netdissect_options *ndo, const u_char *cp, const u_char *ep)
 	if (ndo->ndo_vflag) {
 		uint64_t body_len_printed = ND_MIN(body_len_captured, body_len_declared);
 
-		ND_PRINT(" (%s|%s|%s|%s|%s|%s|%s|%s)",
-			flags & 0x80 ? "MBZ" : "-",
-			flags & 0x40 ? "MBZ" : "-",
-			flags & 0x20 ? "MBZ" : "-",
-			flags & 0x10 ? "MBZ" : "-",
-			flags & 0x08 ? "MBZ" : "-",
-			flags & 0x04 ? "MBZ" : "-",
-			flags & 0x02 ? "MBZ" : "-",
-			flags & 0x01 ? "MORE" : "-");
-
+		ND_PRINT(" (%s)", bittok2str(flags_bm, "none", flags));
 		if (ndo->ndo_vflag == 1)
 			body_len_printed = ND_MIN(VBYTES + 1, body_len_printed);
 		if (body_len_printed > 1) {

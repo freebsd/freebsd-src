@@ -1,4 +1,4 @@
-    1  [Error converting time] UI 22! Pad! IS-IS, length 262138
+    1  2038-01-01 00:00:00.000000 UI 22! Pad! IS-IS, length 262138
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 224 (224)
 	  source-id: fe02.0000.d0f9,  holding time: 3928s, Flags: [unknown circuit type 0x00]
 	  lan-id:    1000.4101.0000.88, Priority: 127, PDU length: 44959

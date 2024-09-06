@@ -1,2 +1,2 @@
-    1  14:46:11.554753 PPPoE  [ses 0x17] LCP, Echo-Request (0x09), id 106, length 14
-    2  14:46:12.322723 PPPoE  [ses 0x3b] LCP, Echo-Request (0x09), id 103, length 14
+    1  2013-05-17 14:46:11.554753 PPPoE  [ses 0x17] LCP, Echo-Request (0x09), id 106, length 14
+    2  2013-05-17 14:46:12.322723 PPPoE  [ses 0x3b] LCP, Echo-Request (0x09), id 103, length 14

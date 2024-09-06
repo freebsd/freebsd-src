@@ -1,4 +1,4 @@
-    1  03:27:54.123192 IS-IS, length 1497
+    1  2008-06-18 03:27:54.123192 IS-IS, length 1497
 	L1 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 3333.3333.3333,  holding time: 10s, Flags: [unknown circuit type 0x21]
 	  lan-id:    3333.5a33.3333.02, Priority: 64, PDU length: 1497

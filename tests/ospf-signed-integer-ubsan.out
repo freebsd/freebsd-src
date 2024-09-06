@@ -1,0 +1,3 @@
+    1  2022-03-20 15:39:26.444985 IP6 (class 0xe0, hlim 1, next-header AH (51) payload length: 532) fe80::1 > fe80::2: AH(length=4(24-bytes),spi=0x00000100,seq=0x1e,icv=0x0a6ab0b271917e05f7a01c58): OSPFv3, LS-Update, length 508
+	Router-ID 1.1.1.108, Area 11.234.210.1, Instance 1
+		  Bogus length 0 < header (20) [|ospf3]

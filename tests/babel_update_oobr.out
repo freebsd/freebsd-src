@@ -1,125 +1,125 @@
-    1  19:46:40.000128 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O^O^O^O^O^DM-2M-!M-1M-1M-1M-1M-1M-1M-1M-1M-,.M-0^Vn [|krb]
-    2  21:47:44.000000 IP 10.0.0.1 > 0.234.154.214: ip-proto-17
-    3  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.179.24191:  v4 be KDC_REQUEST: ^O^O^O^O^O^DM-2 .*^C@>M-z}M-uM-tM-+M-_M-{S^PM-=OM-^Y [|krb]
-    4  00:00:00.8454143 58:5e:0a:02:f4:0a > 02:8e:00:50:6a:e1, ethertype Unknown (0xb104), length 262144: 
+    1  1970-01-13 19:46:40.000128 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O^O^O^O^O^DM-2M-!M-1M-1M-1M-1M-1M-1M-1M-1M-,.M-0^Vn [|kerberos]
+    2  1970-06-19 21:47:44.000000 IP 10.0.0.1 > 0.234.154.214: ip-proto-17
+    3  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.179.24191: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O^DM-2 .*^C@>M-z}M-uM-tM-+M-_M-{S^PM-=OM-^Y [|kerberos]
+    4  1970-01-01 00:00:00.8454143 58:5e:0a:02:f4:0a > 02:8e:00:50:6a:e1, ethertype Unknown (0xb104), length 262144: 
 	0x0000:  020f 0f0f 0f0f 0f0f 0f0f 04b2 a1b1 b1b1  ................
 	0x0010:  b1b1 b1b1 b158 5e0a 02f4 0ab1 0402 0f0f  .....X^.........
 	0x0020:  ff80 0f0f 0f0f 0f00 80a1 00b2 b2b2 b20d  ................
 	0x0030:  0d3a 3400 0001 00                        .:4....
-    5  20:26:40.2097152 IP 6.3.218.255.6379 > 0.1.31.99.639: Flags [S.UW], seq 2751463404:2751463426, ack 1006637056, win 45746, urg 25778, length 22: RESP [|resp]
-    6  20:27:12.000000 IP 6.3.208.255.6379 > 0.1.31.99.639: Flags [S.UW], seq 2751463404:2751463426, ack 1006640128, win 45746, urg 25778, length 22: RESP "M-2M-2M-2M-2M-2M-7dM-2M-2M-2M-2M-2" [|resp]
-    7  20:27:12.000000 IP 208.21.10.1.654 > 31.99.100.232.80:  aodv rrep 34  prefix 4 hops 11
+    5  1970-03-17 20:26:40.2097152 IP 6.3.218.255.6379 > 0.1.31.99.52759: Flags [S.UW], seq 2751463404:2751463426, ack 1006637056, win 45746, urg 25778, length 22: RESP [|resp]
+    6  1970-03-17 20:27:12.000000 IP 6.3.208.255.6379 > 0.1.31.99.52759: Flags [S.UW], seq 2751463404:2751463426, ack 1006640128, win 45746, urg 25778, length 22: RESP "M-2M-2M-2M-2M-2M-7dM-2M-2M-2M-2M-2" [|resp]
+    7  1970-03-17 20:27:12.000000 IP 208.21.10.1.654 > 31.99.100.232.80:  aodv rrep 34  prefix 4 hops 11
 	dst 237.34.38.84 dseq 32203525 src 232.11.2.0 67108864 ms
 	ext 0 0
-    8  00:08:32.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O^O^O^O^O^DM-WM-WM-WM-WM-WM-WM-W.@ 680min  [|krb]
-    9  00:02:54.000000 IP 10.0.253.1.88 > 0.234.154.214.24073:  v4 be KDC_REQUEST: .M-^?M-^?^AM-^@M-^?M-^@M-V@M-WM-WM-sM-WM-WM-WM-WM-W 880min ^VM-^H [|krb]
-   10  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?.d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|krb]
-   11  09:18:56.000000 IP 10.0.0.1.88 > 0.234.154.214.24073:  v4 be KDC_REQUEST: .M-^?M-^?^AM-^@M-^?M-^@M-V@M-WM-WM-sM-WM-WM-WM-WM-W 880min ^VM-^H [|krb]
-   12  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?.d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|krb]
-   13  09:18:56.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-W^CM-!^B@^D 0min ^P.^VM-^H [|krb]
-   14  00:00:00.000000 IP 10.0.242.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O'^O^O@@.@^Qjp^J@ 1070min .X^^J^B [|krb]
-   15  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O^U.@^O^D^O^O^O^O^O^O^O^O^O^O^O^O [|krb]
-   16  00:00:00.000000 IP 10.0.222.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O^DM-2 .M-g^C@>M-y}M-uM-tM-+M-` 680min  [|krb]
-   17  00:00:00.000000 01:01:ed:83:e3:ff > 02:8e:00:50:6d:e1, ethertype Unknown (0x0700), length 262144: 
+    8  1970-01-01 00:08:32.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O^O^O^O^O^DM-WM-WM-WM-WM-WM-WM-W.@ 680min  [|kerberos]
+    9  1970-01-01 00:02:54.000000 IP 10.0.253.1.88 > 0.234.154.214.24073: kerberos v4 be KDC_REQUEST: .M-^?M-^?^AM-^@M-^?M-^@M-V@M-WM-WM-sM-WM-WM-WM-WM-W 880min ^VM-^H [|kerberos]
+   10  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?.d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|kerberos]
+   11  1971-01-24 09:18:56.000000 IP 10.0.0.1.88 > 0.234.154.214.24073: kerberos v4 be KDC_REQUEST: .M-^?M-^?^AM-^@M-^?M-^@M-V@M-WM-WM-sM-WM-WM-WM-WM-W 880min ^VM-^H [|kerberos]
+   12  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?.d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|kerberos]
+   13  1971-01-24 09:18:56.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-W^CM-!^B@^D 0min ^P.^VM-^H [|kerberos]
+   14  1970-01-01 00:00:00.000000 IP 10.0.242.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O'^O^O@@.@^Qjp^J@ 1070min .X^^J^B [|kerberos]
+   15  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O^U.@^O^D^O^O^O^O^O^O^O^O^O^O^O^O [|kerberos]
+   16  1970-01-01 00:00:00.000000 IP 10.0.222.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O^DM-2 .M-g^C@>M-y}M-uM-tM-+M-` 680min  [|kerberos]
+   17  1970-01-01 00:00:00.000000 01:01:ed:83:e3:ff > 02:8e:00:50:6d:e1, ethertype Unknown (0x0700), length 262144: 
 	0x0000:  4508 8834 d940 4000 4011 4a70 0a00 0001  E..4.@@.@.Jp....
 	0x0010:  00ea 9ad6 0058 5e0a 02f4 0ab1 0402 0f0f  .....X^.........
 	0x0020:  0f0f 0f0f 0f0f 0f04 b2a1 b1b1 b1b1 b1b1  ................
 	0x0030:  b1b1 b100 b016 6e                        ......n
-   18  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O^U.@ ^D^R^O^O^O^O^O^O^O^O^O^O^O [|krb]
-   19  00:00:00.000000 IP 10.0.255.127.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O^DM-2 .M-g^C@>M-z}M-uM-tM-^\M-`^VM-^?^?M-=OM-^Y [|krb]
-   20  00:00:00.8454143 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O.^B^O^O^O^O^DM-2M-!M-1M-1M-1M-1M-1M-1M-1M-1M-1M-^@M-0^VM-^H [|krb]
-   21  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?M-^@^D^O^O^O^O^O^P.M-^?M-^?^O^O^O@^VM-^H [|krb]
-   22  00:34:08.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-#M-^?M-^?d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|krb]
-   23  09:18:56.000000 IP 0.0.1.0 > 234.154.214.0: ip-proto-106
-   24  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?M-^@^D^O^O^O^O^O^P.M-^?M-^?^O^O^O@^VM-^H [|krb]
-   25  00:34:08.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-^@M-^?M-^?M-^?^CM-!^B@^D 0min ^P.^VM-^H [|krb]
-   26  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O^O^O^O^O^DM-WM-WM-WM-WM-WM-WM-W.@ 680min  [|krb]
-   27  00:02:54.000000 IP 10.0.253.1.8280 > 0.234.154.214.24073: UDP, bad length 60652 > 32792
-   28  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?.d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|krb]
-   29  09:18:56.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-W^CM-!^B@^D 0min ^P.^VM-^H [|krb]
-   30  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O'^O^O@@.@^Qjp^J@ 1070min .X^^J^B [|krb]
-   31  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 le APPL_REQUEST_MUTUAL: (unknown)
-   32  00:00:00.000000 01:00:01:00:00:00 > 02:8e:00:50:6a:e1, ethertype Unknown (0x08e8), length 262144: 
+   18  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O^U.@ ^D^R^O^O^O^O^O^O^O^O^O^O^O [|kerberos]
+   19  1970-01-01 00:00:00.000000 IP 10.0.255.127.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O^DM-2 .M-g^C@>M-z}M-uM-tM-^\M-`^VM-^?^?M-=OM-^Y [|kerberos]
+   20  1970-01-01 00:00:00.8454143 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O.^B^O^O^O^O^DM-2M-!M-1M-1M-1M-1M-1M-1M-1M-1M-1M-^@M-0^VM-^H [|kerberos]
+   21  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?M-^@^D^O^O^O^O^O^P.M-^?M-^?^O^O^O@^VM-^H [|kerberos]
+   22  1970-01-01 00:34:08.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O.^DM-#M-^?M-^?d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|kerberos]
+   23  1971-01-24 09:18:56.000000 IP 0.0.1.0 > 234.154.214.0: ip-proto-106
+   24  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?M-^@^D^O^O^O^O^O^P.M-^?M-^?^O^O^O@^VM-^H [|kerberos]
+   25  1970-01-01 00:34:08.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O.^DM-^@M-^?M-^?M-^?^CM-!^B@^D 0min ^P.^VM-^H [|kerberos]
+   26  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O^O^O^O^O^DM-WM-WM-WM-WM-WM-WM-W.@ 680min  [|kerberos]
+   27  1970-01-01 00:02:54.000000 IP 10.0.253.1.8280 > 0.234.154.214.24073: UDP, bad length 60652 > 32792
+   28  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?.d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|kerberos]
+   29  1971-01-24 09:18:56.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-W^CM-!^B@^D 0min ^P.^VM-^H [|kerberos]
+   30  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O'^O^O@@.@^Qjp^J@ 1070min .X^^J^B [|kerberos]
+   31  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 le APPL_REQUEST_MUTUAL: (unknown)
+   32  1970-01-01 00:00:00.000000 01:00:01:00:00:00 > 02:8e:00:50:6a:e1, ethertype Unknown (0x08e8), length 262144: 
 	0x0000:  4408 8034 d92b 4000 4011 3b70 0a00 0001  D..4.+@.@.;p....
 	0x0010:  00ea 9ad6 0058 5e0a 02f4 0ab1 0402 ffff  .....X^.........
 	0x0020:  ff7f 80ff 80d6 00c3 0880 34d9 4040 0040  ..........4.@@.@
 	0x0030:  114a 700a 0016 88                        .Jp....
-   33  00:02:54.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: .M-oM-^?M-^?@M-^?M-^@M-V M-WM-WM-WM-WM-WM-WM-WM-W 0min ^VM-^H [|krb]
-   34  [Error converting time] IP 10.0.0.1.88 > 0.234.154.210.24073:  v4 be KDC_REQUEST: .M-^?M-^?^AM-^@M-^?M-^@M-V@M-WM-WM-sM-WM-WM-WM-WM-W 880min ^VM-^H [|krb]
-   35  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?.d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|krb]
-   36  09:18:56.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-WM-^?M-!^B^O^O^P@M-^?M-^?^O^O^O [|krb]
-   37  00:34:08.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-#M-^?M-^?d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|krb]
-   38  09:18:56.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-W^CM-!^B@^D 0min ^P.^VM-^H [|krb]
-   39  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: 
-   40  00:34:08.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-^@M-^?M-^?M-^?^CM-!^B@^D 0min ^P.^VM-^H [|krb]
-   41  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: 
-   42  00:02:54.000000 IP 10.0.253.1.88 > 0.234.154.214.24073:  v4 be KDC_REQUEST: .M-^?M-^?^AM-^@M-^?M-^@M-V@M-WM-WM-sM-WM-WM-WM-WM-W 880min ^VM-^H [|krb]
-   43  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?.d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|krb]
-   44  09:18:56.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-W^CM-!^B@^D 0min ^P.^VM-^H [|krb]
-   45  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O'^O^O@@.@^Qjp^J@ 1070min .X^^J^B [|krb]
-   46  00:00:00.000000 IP 64.0.0.1.88 > 0.234.154.214.24074:  v4 le APPL_REQUEST_MUTUAL: (unknown)
-   47  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: M-^?M-^?M-^?^?M-^@M-^?M-^@M-V.M-C^HM-^@4M-Y@@@@^QJp^J [|krb]
-   48  00:02:54.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: .M-oM-^?M-^?@M-^?M-^@M-V 75min ^O^O^O^O^O^O^O^O.^VM-^H [|krb]
-   49  09:18:56.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-W^CM-!^B@^D 0min ^P.^VM-^H [|krb]
-   50  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?M-^@^D^O^O^O^O^O^P.M-^?M-^?^O^O^O@^VM-^H [|krb]
-   51  00:34:08.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-^@M-^?M-^?M-^?^CM-!^B@^D 0min ^P.^VM-^H [|krb]
-   52  18:12:16.000000 IP 208.21.42.58.6697 > 110.228.104.254.30952: babel 2 (2056) (invalid)
-   53  00:00:07.008320 IP 208.21.2.184.1512 > 10.1.1.99.496:  auto-rp candidate-advert Hold 16m16s RP 1.235.99.5 PIMv? [rsvd=0xe8] 4.0.0.31/0 bidir,255.0.0.0/33[rsvd=0x14] [|cisco_autorp]
-   54  [Error converting time] IP 41.0.0.1.88 > 32.235.154.214.24074:  v4 be KDC_REQUEST: M-h^AM-p.PQM-a^QM-x^CM-P^U^BM-8^J^AM-kc^EM-h^K^B@^D [|krb]
-   55  00:00:00.000000 IP 208.21.2.184.1512 > 10.1.1.99.496:  auto-rp candidate-advert Hold 16m16s RP 1.235.99.5 PIMv? [rsvd=0xe8] 4.0.100.177/0 bidir,!172.0.176.22/177[rsvd=0xb0] [|cisco_autorp]
-   56  00:00:00.000000 IP 208.21.2.184.1512 > 10.1.1.99.496:  auto-rp candidate-advert Hold 16m16s RP 1.235.99.5 PIMv? [rsvd=0xe8] 4.0.0.31/0 bidir,255.0.3.0/33[rsvd=0x14] [|cisco_autorp]
-   57  [Error converting time] IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O.^O^O^O^O^O^DM-2M-!M-1@ 885min M-,.M-0^Vn [|krb]
-   58  00:00:00.000000 IP 208.20.225.184.1512 > 10.1.1.99.496:  auto-rp candidate-advert Hold 16m16s RP 1.235.99.5 PIMv? [rsvd=0xe8] 4.0.0.0/0 bidir,0.0.0.0/0 [|cisco_autorp]
-   59  00:08:32.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O^O^O^O^O^DM-WM-WM-WM-WM-WM-WM-W.@ 680min  [|krb]
-   60  00:02:54.000000 IP 10.0.253.1.88 > 0.234.154.214.24073:  v4 be KDC_REQUEST: .M-^?M-^?^AM-^@M-^?M-^@M-V@M-WM-WM-sM-WM-WM-WM-WM-W 880min ^VM-^H [|krb]
-   61  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?.d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|krb]
-   62  09:18:56.000000 IP 10.0.0.1.88 > 0.234.154.214.24073:  v4 be KDC_REQUEST: .M-^?M-^?^AM-^@M-^?M-^@M-V@M-WM-WM-sM-WM-WM-WM-WM-W 880min ^VM-^H [|krb]
-   63  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?.d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|krb]
-   64  09:18:56.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-W^CM-!^B@^D 0min ^P.^VM-^H [|krb]
-   65  00:00:00.000000 IP 10.0.242.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O'^O^O@@.@^Qjp^J@ 1070min .X^^J^B [|krb]
-   66  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O^U.@^O^D^O^O^O^O^O^O^O^O^O^O^O^O [|krb]
-   67  00:00:00.000000 IP 10.0.222.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O^DM-2 .M-g^C@>M-y}M-uM-tM-+M-` 680min  [|krb]
-   68  00:00:00.000000 01:01:ed:83:e3:ff > 02:8e:00:50:6d:e1, ethertype Unknown (0x0700), length 262144: 
+   33  1970-01-01 00:02:54.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: .M-oM-^?M-^?@M-^?M-^@M-V M-WM-WM-WM-WM-WM-WM-WM-W 0min ^VM-^H [|kerberos]
+   34  2038-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.210.24073: kerberos v4 be KDC_REQUEST: .M-^?M-^?^AM-^@M-^?M-^@M-V@M-WM-WM-sM-WM-WM-WM-WM-W 880min ^VM-^H [|kerberos]
+   35  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?.d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|kerberos]
+   36  1971-01-24 09:18:56.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-WM-^?M-!^B^O^O^P@M-^?M-^?^O^O^O [|kerberos]
+   37  1970-01-01 00:34:08.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O.^DM-#M-^?M-^?d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|kerberos]
+   38  1971-01-24 09:18:56.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-W^CM-!^B@^D 0min ^P.^VM-^H [|kerberos]
+   39  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos
+   40  1970-01-01 00:34:08.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O.^DM-^@M-^?M-^?M-^?^CM-!^B@^D 0min ^P.^VM-^H [|kerberos]
+   41  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos
+   42  1970-01-01 00:02:54.000000 IP 10.0.253.1.88 > 0.234.154.214.24073: kerberos v4 be KDC_REQUEST: .M-^?M-^?^AM-^@M-^?M-^@M-V@M-WM-WM-sM-WM-WM-WM-WM-W 880min ^VM-^H [|kerberos]
+   43  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?.d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|kerberos]
+   44  1971-01-24 09:18:56.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-W^CM-!^B@^D 0min ^P.^VM-^H [|kerberos]
+   45  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O'^O^O@@.@^Qjp^J@ 1070min .X^^J^B [|kerberos]
+   46  1970-01-01 00:00:00.000000 IP 64.0.0.1.88 > 0.234.154.214.24074: kerberos v4 le APPL_REQUEST_MUTUAL: (unknown)
+   47  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: M-^?M-^?M-^?^?M-^@M-^?M-^@M-V.M-C^HM-^@4M-Y@@@@^QJp^J [|kerberos]
+   48  1970-01-01 00:02:54.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: .M-oM-^?M-^?@M-^?M-^@M-V 75min ^O^O^O^O^O^O^O^O.^VM-^H [|kerberos]
+   49  1971-01-24 09:18:56.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-W^CM-!^B@^D 0min ^P.^VM-^H [|kerberos]
+   50  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?M-^@^D^O^O^O^O^O^P.M-^?M-^?^O^O^O@^VM-^H [|kerberos]
+   51  1970-01-01 00:34:08.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O.^DM-^@M-^?M-^?M-^?^CM-!^B@^D 0min ^P.^VM-^H [|kerberos]
+   52  1970-01-01 18:12:16.000000 IP 208.21.42.58.6697 > 110.228.104.254.30952: babel 2 (2056) (invalid)
+   53  1970-01-01 00:00:07.008320 IP 208.21.2.184.1512 > 10.1.1.99.496:  auto-rp candidate-advert Hold 16m16s RP 1.235.99.5 PIMv? [rsvd=0xe8] 4.0.0.31/0 bidir,255.0.0.0/33[rsvd=0x14] [|cisco_autorp]
+   54  2038-01-01 00:00:00.000000 IP 41.0.0.1.88 > 32.235.154.214.24074: kerberos v4 be KDC_REQUEST: M-h^AM-p.PQM-a^QM-x^CM-P^U^BM-8^J^AM-kc^EM-h^K^B@^D [|kerberos]
+   55  1970-01-01 00:00:00.000000 IP 208.21.2.184.1512 > 10.1.1.99.496:  auto-rp candidate-advert Hold 16m16s RP 1.235.99.5 PIMv? [rsvd=0xe8] 4.0.100.177/0 bidir,!172.0.176.22/177[rsvd=0xb0] [|cisco_autorp]
+   56  1970-01-01 00:00:00.000000 IP 208.21.2.184.1512 > 10.1.1.99.496:  auto-rp candidate-advert Hold 16m16s RP 1.235.99.5 PIMv? [rsvd=0xe8] 4.0.0.31/0 bidir,255.0.3.0/33[rsvd=0x14] [|cisco_autorp]
+   57  2038-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O.^O^O^O^O^O^DM-2M-!M-1@ 885min M-,.M-0^Vn [|kerberos]
+   58  1970-01-01 00:00:00.000000 IP 208.20.225.184.1512 > 10.1.1.99.496:  auto-rp candidate-advert Hold 16m16s RP 1.235.99.5 PIMv? [rsvd=0xe8] 4.0.0.0/0 bidir,0.0.0.0/0 [|cisco_autorp]
+   59  1970-01-01 00:08:32.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O^O^O^O^O^DM-WM-WM-WM-WM-WM-WM-W.@ 680min  [|kerberos]
+   60  1970-01-01 00:02:54.000000 IP 10.0.253.1.88 > 0.234.154.214.24073: kerberos v4 be KDC_REQUEST: .M-^?M-^?^AM-^@M-^?M-^@M-V@M-WM-WM-sM-WM-WM-WM-WM-W 880min ^VM-^H [|kerberos]
+   61  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?.d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|kerberos]
+   62  1971-01-24 09:18:56.000000 IP 10.0.0.1.88 > 0.234.154.214.24073: kerberos v4 be KDC_REQUEST: .M-^?M-^?^AM-^@M-^?M-^@M-V@M-WM-WM-sM-WM-WM-WM-WM-W 880min ^VM-^H [|kerberos]
+   63  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?.d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|kerberos]
+   64  1971-01-24 09:18:56.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-W^CM-!^B@^D 0min ^P.^VM-^H [|kerberos]
+   65  1970-01-01 00:00:00.000000 IP 10.0.242.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O'^O^O@@.@^Qjp^J@ 1070min .X^^J^B [|kerberos]
+   66  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O^U.@^O^D^O^O^O^O^O^O^O^O^O^O^O^O [|kerberos]
+   67  1970-01-01 00:00:00.000000 IP 10.0.222.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O^DM-2 .M-g^C@>M-y}M-uM-tM-+M-` 680min  [|kerberos]
+   68  1970-01-01 00:00:00.000000 01:01:ed:83:e3:ff > 02:8e:00:50:6d:e1, ethertype Unknown (0x0700), length 262144: 
 	0x0000:  4508 8834 d940 4000 4011 4a70 0a00 0001  E..4.@@.@.Jp....
 	0x0010:  00ea 9ad6 0058 5e0a 02f4 0ab1 0402 0f0f  .....X^.........
 	0x0020:  0f0f 0f0f 0f0f 0f04 b2a1 b1b1 b1b1 b1b1  ................
 	0x0030:  b1b1 b100 b016 6e                        ......n
-   69  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O^U.@ ^D^R^O^O^O^O^O^O^O^O^O^O^O [|krb]
-   70  00:00:00.000000 IP 10.0.255.127.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O^DM-2 .M-g^C@>M-z}M-uM-tM-^\M-`^VM-^?^?M-=OM-^Y [|krb]
-   71  00:00:00.8454143 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O.^B^O^O^O^O^DM-2M-!M-1M-1M-1M-1M-1M-1M-1M-1M-1M-^@M-0^VM-^H [|krb]
-   72  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?M-^@^D^O^O^O^O^O^P.M-^?M-^?^O^O^O@^VM-^H [|krb]
-   73  00:34:08.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-#M-^?M-^?d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|krb]
-   74  09:18:56.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-W^CM-!^B@^D 0min ^P.^VM-^H [|krb]
-   75  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?M-^@^D^O^O^O^O^O^P.M-^?M-^?^O^O^O@^VM-^H [|krb]
-   76  00:34:08.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-^@M-^?M-^?M-^?^CM-!^B@^D 0min ^P.^VM-^H [|krb]
-   77  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O^O^O^O^O^DM-WM-WM-WM-WM-WM-WM-W.@ 680min  [|krb]
-   78  00:02:54.000000 IP 10.0.253.1.88 > 0.234.154.214.24073:  v4 be KDC_REQUEST: .M-^?M-^?^AM-^@M-^?M-^@M-V@M-WM-WM-sM-WM-WM-WM-WM-W 880min ^VM-^H [|krb]
-   79  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?.d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|krb]
-   80  09:18:56.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-W^CM-!^B@^D 0min ^P.^VM-^H [|krb]
-   81  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O'^O^O@@.@^Qjp^J@ 1070min .X^^J^B [|krb]
-   82  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 le APPL_REQUEST_MUTUAL: (unknown)
-   83  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: M-^?M-^?M-^?^?M-^@M-^?M-^@M-V.M-C^HM-^@4M-Y@@@@^QJp^J [|krb]
-   84  00:02:54.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: .M-oM-^?M-^?@M-^?M-^@M-V M-WM-WM-WM-WM-WM-WM-WM-W 0min ^VM-^H [|krb]
-   85  [Error converting time] IP 10.0.0.1.88 > 0.234.154.210.24073:  v4 be KDC_REQUEST: .M-^?M-^?^AM-^@M-^?M-^@M-V@M-WM-WM-sM-WM-WM-WM-WM-W 880min ^VM-^H [|krb]
-   86  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?.d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|krb]
-   87  09:18:56.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-WM-^?M-!^B^O^O^P@M-^?M-^?^O^O^O [|krb]
-   88  00:34:08.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-#M-^?M-^?d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|krb]
-   89  09:18:56.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-W^CM-!^B@^D 0min ^P.^VM-^H [|krb]
-   90  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: 
-   91  00:34:08.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-^@M-^?M-^?M-^?^CM-!^B@^D 0min ^P.^VM-^H [|krb]
-   92  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: 
-   93  00:02:54.000000 IP 10.0.253.1.88 > 0.234.154.214.24073:  v4 be KDC_REQUEST: .M-^?M-^?^AM-^@M-^?M-^@M-V@M-WM-WM-sM-WM-WM-WM-WM-W 880min ^VM-^H [|krb]
-   94  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?.d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|krb]
-   95  09:18:56.000002 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-W^CM-!^B@^D 0min ^P.^VM-^H [|krb]
-   96  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O'^O^O@@.@^Qjp^J@ 1070min .X^^J^B [|krb]
-   97  00:00:00.000000 IP 64.0.0.1.88 > 0.234.154.214.24074:  v4 le APPL_REQUEST_MUTUAL: (unknown)
-   98  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: M-^?M-^?M-^?^?M-^@M-^?M-^@M-V.M-C^HM-^@4M-Y@@@@^QJp^J [|krb]
-   99  00:02:54.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: .M-oM-^?M-^?@M-^?M-^@M-V 75min ^O^O^O^O^O^O^O^O.^VM-^H [|krb]
-  100  09:18:56.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-W^CM-!^B@^D 0min ^P.^VM-^H [|krb]
-  101  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?M-^@^D^O^O^O^O^O^P.M-^?M-^?^O^O^O@^VM-^H [|krb]
-  102  00:34:08.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-^@M-^?M-^?M-^?^CM-!^B@^D 0min ^P.^VM-^H [|krb]
-  103  00:00:00.000000 IP 10.0.253.1.88 > 0.234.154.214.24073:  v4 be KDC_REQUEST: .M-^?M-^?^AM-^@M-^?M-^@M-V@M-WM-WM-sM-WM-WM-WM-WM-W 880min ^VM-^H [|krb]
-  104  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?.d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|krb]
-  105  09:18:56.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-W^CM-!^B@^D 0min ^P.^VM-^H [|krb]
-  106  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 be KDC_REQUEST: ^O^O'^O^O@@.@^Qjp^J@ 1070min .X^^J^B [|krb]
-  107  00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074:  v4 le APPL_REQUEST_MUTUAL: (unknown)
+   69  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O^U.@ ^D^R^O^O^O^O^O^O^O^O^O^O^O [|kerberos]
+   70  1970-01-01 00:00:00.000000 IP 10.0.255.127.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O^DM-2 .M-g^C@>M-z}M-uM-tM-^\M-`^VM-^?^?M-=OM-^Y [|kerberos]
+   71  1970-01-01 00:00:00.8454143 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O.^B^O^O^O^O^DM-2M-!M-1M-1M-1M-1M-1M-1M-1M-1M-1M-^@M-0^VM-^H [|kerberos]
+   72  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?M-^@^D^O^O^O^O^O^P.M-^?M-^?^O^O^O@^VM-^H [|kerberos]
+   73  1970-01-01 00:34:08.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O.^DM-#M-^?M-^?d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|kerberos]
+   74  1971-01-24 09:18:56.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-W^CM-!^B@^D 0min ^P.^VM-^H [|kerberos]
+   75  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?M-^@^D^O^O^O^O^O^P.M-^?M-^?^O^O^O@^VM-^H [|kerberos]
+   76  1970-01-01 00:34:08.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O.^DM-^@M-^?M-^?M-^?^CM-!^B@^D 0min ^P.^VM-^H [|kerberos]
+   77  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O^O^O^O^O^DM-WM-WM-WM-WM-WM-WM-W.@ 680min  [|kerberos]
+   78  1970-01-01 00:02:54.000000 IP 10.0.253.1.88 > 0.234.154.214.24073: kerberos v4 be KDC_REQUEST: .M-^?M-^?^AM-^@M-^?M-^@M-V@M-WM-WM-sM-WM-WM-WM-WM-W 880min ^VM-^H [|kerberos]
+   79  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?.d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|kerberos]
+   80  1971-01-24 09:18:56.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-W^CM-!^B@^D 0min ^P.^VM-^H [|kerberos]
+   81  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O'^O^O@@.@^Qjp^J@ 1070min .X^^J^B [|kerberos]
+   82  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 le APPL_REQUEST_MUTUAL: (unknown)
+   83  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: M-^?M-^?M-^?^?M-^@M-^?M-^@M-V.M-C^HM-^@4M-Y@@@@^QJp^J [|kerberos]
+   84  1970-01-01 00:02:54.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: .M-oM-^?M-^?@M-^?M-^@M-V M-WM-WM-WM-WM-WM-WM-WM-W 0min ^VM-^H [|kerberos]
+   85  2038-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.210.24073: kerberos v4 be KDC_REQUEST: .M-^?M-^?^AM-^@M-^?M-^@M-V@M-WM-WM-sM-WM-WM-WM-WM-W 880min ^VM-^H [|kerberos]
+   86  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?.d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|kerberos]
+   87  1971-01-24 09:18:56.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-WM-^?M-!^B^O^O^P@M-^?M-^?^O^O^O [|kerberos]
+   88  1970-01-01 00:34:08.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O.^DM-#M-^?M-^?d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|kerberos]
+   89  1971-01-24 09:18:56.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-W^CM-!^B@^D 0min ^P.^VM-^H [|kerberos]
+   90  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos
+   91  1970-01-01 00:34:08.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O.^DM-^@M-^?M-^?M-^?^CM-!^B@^D 0min ^P.^VM-^H [|kerberos]
+   92  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos
+   93  1970-01-01 00:02:54.000000 IP 10.0.253.1.88 > 0.234.154.214.24073: kerberos v4 be KDC_REQUEST: .M-^?M-^?^AM-^@M-^?M-^@M-V@M-WM-WM-sM-WM-WM-WM-WM-W 880min ^VM-^H [|kerberos]
+   94  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?.d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|kerberos]
+   95  1971-01-24 09:18:56.000002 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-W^CM-!^B@^D 0min ^P.^VM-^H [|kerberos]
+   96  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O'^O^O@@.@^Qjp^J@ 1070min .X^^J^B [|kerberos]
+   97  1970-01-01 00:00:00.000000 IP 64.0.0.1.88 > 0.234.154.214.24074: kerberos v4 le APPL_REQUEST_MUTUAL: (unknown)
+   98  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: M-^?M-^?M-^?^?M-^@M-^?M-^@M-V.M-C^HM-^@4M-Y@@@@^QJp^J [|kerberos]
+   99  1970-01-01 00:02:54.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: .M-oM-^?M-^?@M-^?M-^@M-V 75min ^O^O^O^O^O^O^O^O.^VM-^H [|kerberos]
+  100  1971-01-24 09:18:56.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-W^CM-!^B@^D 0min ^P.^VM-^H [|kerberos]
+  101  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?M-^@^D^O^O^O^O^O^P.M-^?M-^?^O^O^O@^VM-^H [|kerberos]
+  102  1970-01-01 00:34:08.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O.^DM-^@M-^?M-^?M-^?^CM-!^B@^D 0min ^P.^VM-^H [|kerberos]
+  103  1970-01-01 00:00:00.000000 IP 10.0.253.1.88 > 0.234.154.214.24073: kerberos v4 be KDC_REQUEST: .M-^?M-^?^AM-^@M-^?M-^@M-V@M-WM-WM-sM-WM-WM-WM-WM-W 880min ^VM-^H [|kerberos]
+  104  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O^O7M-^@M-^?.d^O^O^O^O^O^O^O^O^O^O^O^O@^VM-^H [|kerberos]
+  105  1971-01-24 09:18:56.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O^O^O.^DM-2M-!^BM-W^CM-!^B@^D 0min ^P.^VM-^H [|kerberos]
+  106  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 be KDC_REQUEST: ^O^O'^O^O@@.@^Qjp^J@ 1070min .X^^J^B [|kerberos]
+  107  1970-01-01 00:00:00.000000 IP 10.0.0.1.88 > 0.234.154.214.24074: kerberos v4 le APPL_REQUEST_MUTUAL: (unknown)

@@ -1,4 +1,4 @@
-    1  21:27:42.171514 IP (tos 0x0, ttl 254, id 0, offset 0, flags [none], proto RSVP (46), length 268, options (RA))
+    1  2000-03-03 21:27:42.171514 IP (tos 0x0, ttl 254, id 0, offset 0, flags [none], proto RSVP (46), length 268, options (RA))
     10.31.0.1 > 10.33.0.1: 
 	RSVPv1 Path Message (1), Flags: [none], length: 244, ttl: 254, checksum: 0x0ca3
 	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16

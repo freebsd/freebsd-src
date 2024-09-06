@@ -1,0 +1,227 @@
+    1  2022-03-20 13:29:37.678220 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto TCP (6), length 4748)
+    127.0.0.1.540 > 127.0.0.1.179: Flags [S], cksum 0xf1a8 (correct), seq 0:4708, win 8192, length 4708: BGP [|bgp]
+	Update Message (2), length: 154
+	  Origin (1), length: 1, Flags [T]: Incomplete
+	  AS Path (2), length: 0, Flags [T]: empty
+	  Multi Exit Discriminator (4), length: 4, Flags [O]: 0
+	  Local Preference (5), length: 4, Flags [T]: 4456548
+	  Extended Community (16), length: 8, Flags [OT]: 
+	    target (0x0002), Flags [none]: 18826:630 (= 0.0.2.118)
+	  Cluster List (10), length: 4, Flags [O]: 172.17.0.0
+	  Originator ID (9), length: 4, Flags [O]: 172.17.0.5
+	  Multi-Protocol Reach NLRI (14), length: 81, Flags [OE]: 
+	    AFI: IPv4 (1), SAFI: labeled VPN Unicast (128)
+	    nexthop: RD: 0:0 (= 0.0.0.0), 172.145.0.5, nh-length: 12, no SNPA
+	      RD: 18826:630 (= 0.0.2.118), 172.17.30.208/28, label:1027 (bottom)
+	      RD: 18826:630 (= 0.0.2.118), 172.17.30.224/28, label:1027 (bottom)
+	    (illegal prefix length)
+	Update Message (2), length: 105
+	  Origin (1), length: 1, Flags [T]: Incomplete
+	  AS Path (2), length: 0, Flags [T]: empty
+	  Multi Exit Discriminator (4), length: 4, Flags [O]: 0
+	  Local Preference (5), length: 4, Flags [T]: 100
+	  Extended Community (16), length: 8, Flags [OT]: 
+	    target (0x0002), Flags [none]: 18826:620 (= 0.0.2.108)
+	  Cluster List (10), length: 37, Flags [O]: invalid len
+	  Unknown Attribute (73), length: 138 [path attrs too short]
+	Update Message (2), length: 154
+	  Origin (1), length: 1, Flags [T]: Incomplete
+	  AS Path (2), length: 0, Flags [T]: empty
+	  Multi Exit Discriminator (4), length: 4, Flags [O]: 0
+	  Local Preference (5), length: 4, Flags [T]: 100
+	  Extended Community (16), length: 8, Flags [OT]: 
+	    target (0x0002), Flags [none]: 18826:640 (= 0.0.2.128)
+	  Cluster List (10), length: 4, Flags [O]: 172.17.0.0
+	  Originator ID (9), length: 4, Flags [O]: 172.17.0.5
+	  Multi-Protocol Reach NLRI (14), length: 81, Flags [OE]: 
+	    AFI: IPv4 (1), SAFI: labeled VPN Unicast (128)
+	    nexthop: RD: 0:0 (= 0.0.0.0), 172.17.0.5, nh-length: 12, no SNPA
+	      RD: 18826:640 (= 0.0.2.128), 172.17.33.64/28, label:1028 (bottom)
+	      RD: 18826:640 (= 0.0.2.128), 172.17.33.80/28, label:1028 (bottom)
+	      RD: 18826:640 (= 0.0.2.128), 172.84.34.0/28, label:132100 (bottom)
+	      RD: 18826:549 (= 0.0.2.37), 0.17.34.16/28, label:1028 (bottom)
+	Update Message (2), length: 202
+	  Withdrawn routes:
+	    0.0.0.0/0
+	    (illegal prefix length) [|bgp] [|bgp]
+	Update Message (2), length: 106
+	  Origin (1), length: 1, Flags [T]: Incomplete
+	  AS Path (2), length: 0, Flags [T]: empty
+	  Attribute Set (128), length: 3, Flags [O]:  [|bgp] [|bgp]
+	Update Message (2), length: 172
+	  Origin (1), length: 1, Flags [T]: Incomplete
+	  AS Path (2), length: 4, Flags [T]: 64520 
+	  Multi Exit Discriminator (4), length: 4, Flags [O]: 131
+	  Unknown Attribute (113), length: 16, Flags [T]: 
+	    no Attribute 113 decoder
+	    0x0000:  ffff ffff ffff ffff ffff ffff ffff ffff
+	  Unknown Attribute (75), length: 2
+	    no Attribute 75 decoder
+	    0x0000:  0000
+	  Unknown Attribute (47), length: 64
+	    no Attribute 47 decoder
+	    0x0000:  0101 0040 0206 0201 0001 0000 4003 04c0
+	    0x0010:  0002 02c0 2018 0001 0000 0000 0001 0000
+	    0x0020:  0001 0001 0000 0000 0001 0000 0002 20cb
+	    0x0030:  0071 0cff ffff ffff ffff ffff ffff ffff
+	  Reserved for development (255), length: 65280, Flags [OTPE+f]:  [path attrs too short] [|bgp]
+	Update Message (2), length: 75
+	  Origin (1), length: 1, Flags [T]: IGP
+	  AS Path (2), length: 6, Flags [T]: 65536 
+	  Next Hop (3), length: 4, Flags [T]: 192.0.2.2
+	  Large Community (32), length: 24, Flags [OT]: 
+	    65536:0:1, 65536:1:0
+	  Updated routes:
+	    203.0.113.15/32
+	Update Message (2), length: 87
+	  Origin (1), length: 1, Flags [T]: IGP
+	  AS Path (2), length: 6, Flags [T]: 65536 
+	  Next Hop (3), length: 4, Flags [T]: 5.12.0.0
+	  Unknown Attribute (100), length: 192, Flags [+1]:  [path attrs too short]
+	  Updated routes:
+	    0.0.0.0/0
+	    (illegal prefix length) [|bgp]
+	Update Message (2), length: 105
+	  Origin (1), length: 1, Flags [T]: Incomplete
+	  AS Path (2), length: 0, Flags [T]: empty
+	  Multi Exit Discriminator (4), length: 4, Flags [O]: 0
+	  Local Preference (5), length: 4, Flags [T]: 100
+	  Extended Community (16), length: 8, Flags [OT]: 
+	    target (0x0002), Flags [none]: 18826:620 (= 0.0.2.108)
+	  Cluster List (10), length: 37, Flags [O]: invalid len
+	  Unknown Attribute (73), length: 138 [path attrs too short]
+	Update Message (2), length: 154
+	  Origin (1), length: 1, Flags [T]: Incomplete
+	  AS Path (2), length: 0, Flags [T]: empty
+	  Multi Exit Discriminator (4), length: 4, Flags [O]: 0
+	  Local Preference (5), length: 4, Flags [T]: 100
+	  Extended Community (16), length: 8, Flags [OT]: 
+	    target (0x0002), Flags [none]: 18826:640 (= 0.0.2.128)
+	  Cluster List (10), length: 4, Flags [O]: 172.17.0.0
+	  Originator ID (9), length: 4, Flags [O]: 172.17.0.5
+	  Multi-Protocol Reach NLRI (14), length: 81, Flags [OE]: 
+	    AFI: IPv4 (1), SAFI: labeled VPN Unicast (128)
+	    nexthop: RD: 0:0 (= 0.0.0.0), 172.17.0.5, nh-length: 12, no SNPA
+	      RD: 18826:640 (= 0.0.2.128), 172.17.33.64/28, label:1028 (bottom)
+	      RD: 18826:640 (= 0.0.2.128), 172.17.33.80/28, label:1028 (bottom)
+	      RD: 18826:640 (= 0.0.2.128), 172.84.34.0/28, label:132100 (bottom)
+	      RD: 18826:549 (= 0.0.2.37), 0.17.34.16/28, label:1028 (bottom)
+	Update Message (2), length: 202
+	  Withdrawn routes:
+	    0.0.0.0/0
+	    (illegal prefix length) [|bgp] [|bgp]
+	Update Message (2), length: 106
+	  Origin (1), length: 1, Flags [T]: Incomplete
+	  AS Path (2), length: 0, Flags [T]: empty
+	  Attribute Set (128), length: 3, Flags [O]:  [|bgp] [|bgp]
+	Update Message (2), length: 172
+	  Origin (1), length: 1, Flags [T]: Incomplete
+	  AS Path (2), length: 4, Flags [T]: 64520 
+	  Multi Exit Discriminator (4), length: 4, Flags [O]: 131
+	  Unknown Attribute (113), length: 16, Flags [T]: 
+	    no Attribute 113 decoder
+	    0x0000:  ffff ffff ffff ffff ffff ffff ffff ffff
+	  Unknown Attribute (75), length: 2
+	    no Attribute 75 decoder
+	    0x0000:  0000
+	  Unknown Attribute (47), length: 64
+	    no Attribute 47 decoder
+	    0x0000:  0101 0040 0206 0201 0001 0000 4003 04c0
+	    0x0010:  0002 02c0 2018 0001 0000 0000 0001 0000
+	    0x0020:  0001 0001 0000 0000 0001 0000 0002 20cb
+	    0x0030:  0071 0cff ffff ffff ffff ffff ffff ffff
+	  Reserved for development (255), length: 65280, Flags [OTPE+f]:  [path attrs too short] [|bgp]
+	Update Message (2), length: 75
+	  Origin (1), length: 1, Flags [T]: IGP
+	  AS Path (2), length: 6, Flags [T]: 65536 
+	  Next Hop (3), length: 4, Flags [T]: 192.0.2.2
+	  Large Community (32), length: 24, Flags [OT]: 
+	    65536:0:1, 65536:1:0
+	  Updated routes:
+	    203.0.113.15/32
+	Update Message (2), length: 87
+	  Origin (1), length: 1, Flags [T]: IGP
+	  AS Path (2), length: 6, Flags [T]: 65536 
+	  Next Hop (3), length: 4, Flags [T]: 5.12.0.0
+	  Unknown Attribute (100), length: 192, Flags [+1]:  [path attrs too short]
+	  Updated routes:
+	    0.0.0.0/0
+	    (illegal prefix length) [|bgp]
+	Update Message (2), length: 106
+	  Origin (1), length: 1, Flags [T]: Incomplete
+	  AS Path (2), length: 0, Flags [T]: empty
+	  Multi Exit Discriminator (4), length: 4, Flags [O]: 0
+	  Local Preference (5), length: 4, Flags [T]: 100
+	  Extended Community (16), length: 8, Flags [OT]: 
+	    target (0x0002), Flags [none]: 18826:610 (= 0.0.2.98)
+	  Cluster List (10), length: 40, Flags [O]: 24.120.4.0, 0.0.0.41, 24.120.4.1, 64.15.19.0, 1.1.0.0, 2.188.24.32, 45.0.0.0, 2.189.24.32, 45.1.64.14, 61.0.2.1
+	  Large Community (32), length: 0, Flags [E]: invalid len
+	  Unknown Attribute (21), length: 24 [path attrs too short] [|bgp]
+	Update Message (2), length: 100
+	  Unknown Attribute (0), length: 0
+	    no Attribute 0 decoder
+	  Reserved for development (255), length: 255 [path attrs too short] [|bgp]
+	Update Message (2), length: 95
+	  Origin (1), length: 1, Flags [T]: IGP
+	  AS Path (2), length: 0, Flags [T]: empty
+	  Local Preference (5), length: 4, Flags [T]: 100
+	  Extended Community (16), length: 8, Flags [OT]: 
+	    target (0x0002), Flags [none]: 1:1 (= 0.0.0.1)
+	  PMSI Tunnel (22), length: 17, Flags [OT]: 
+	    Tunnel-type RSVP-TE P2MP LSP (1), Flags [none], MPLS Label 0
+	      Extended-Tunnel-ID 10.0.0.4, P2MP-ID 0x00008173
+	  Multi-Protocol Reach NLRI (14), length: 23, Flags [OE]: 
+	    AFI: IPv4 (1), SAFI: Multicast VPN (5)
+	    nexthop: 10.0.0.4, nh-length: 4
+	    8 SNPA
+	      1 bytes
+	      0 bytes
+	      0 bytes
+	      0 bytes
+	      1 bytes
+	      0 bytes
+	      1 bytes
+	      0 bytes
+	      Route-Type: Unknown (181), length: 0 [|bgp] [|bgp]
+	Update Message (2), length: 106
+	  Origin (1), length: 1, Flags [T]: Incomplete
+	  AS Path (2), length: 0, Flags [T]: empty
+	  Multi Exit Discriminator (4), length: 4, Flags [O]: 0
+	  Local Preference (5), length: 4, Flags [T]: 100
+	  Extended Community (16), length: 8, Flags [OT]: 
+	    target (0x0002), Flags [none]: 18826:610 (= 0.0.2.98)
+	  Cluster List (10), length: 40, Flags [O]: 24.120.4.0, 0.0.0.41, 24.120.4.1, 64.15.19.0, 1.1.0.0, 2.188.24.32, 45.0.0.0, 2.189.24.32, 45.1.64.14, 61.0.2.1
+	  Large Community (32), length: 0, Flags [E]: invalid len
+	  Unknown Attribute (21), length: 24 [path attrs too short] [|bgp]
+	Update Message (2), length: 100
+	  Unknown Attribute (0), length: 0
+	    no Attribute 0 decoder
+	  Reserved for development (255), length: 255 [path attrs too short] [|bgp]
+	Update Message (2), length: 95
+	  Origin (1), length: 1, Flags [T]: IGP
+	  AS Path (2), length: 0, Flags [T]: empty
+	  Local Preference (5), length: 4, Flags [T]: 100
+	  Extended Community (16), length: 8, Flags [OT]: 
+	    target (0x0002), Flags [none]: 1:1 (= 0.0.0.1)
+	  PMSI Tunnel (22), length: 17, Flags [OT]: 
+	    Tunnel-type RSVP-TE P2MP LSP (1), Flags [none], MPLS Label 0
+	      Extended-Tunnel-ID 10.0.0.4, P2MP-ID 0x00008173
+	  Multi-Protocol Reach NLRI (14), length: 23, Flags [OE]: 
+	    AFI: IPv4 (1), SAFI: Multicast VPN (5)
+	    nexthop: 10.0.0.4, nh-length: 4
+	    8 SNPA
+	      1 bytes
+	      0 bytes
+	      0 bytes
+	      0 bytes
+	      1 bytes
+	      0 bytes
+	      0 bytes
+	      1 bytes
+	      Route-Type: Unknown (0), length: 0
+	      Route-Type: Intra-AS Segment-Leaf (4), length: 255
+	Update Message (2), length: 30
+	  Multi-Protocol Unreach NLRI (15), length: 3, Flags [OE]: 
+	    AFI: IPv4 (1), SAFI: labeled VPN Unicast (128)
+	      End-of-Rib Marker (empty NLRI)
+[|BGP Unknown Message Type]

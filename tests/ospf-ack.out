@@ -1,0 +1,9 @@
+    1  2022-11-02 21:01:51.417510 IP (tos 0xc0, ttl 1, id 7082, offset 0, flags [DF], proto OSPF (89), length 84)
+    1.0.1.2 > 224.0.0.5: OSPFv2, LS-Ack, length 64
+	Router-ID 2.2.2.2, Area 0.0.0.1, Authentication Type: none (0)
+	  Advertising Router 1.1.1.1, seq 0x80000002, age 46s, length 16
+	    Router LSA (1), LSA-ID: 1.1.1.1
+	    Options: [External, Demand Circuit]
+	  Advertising Router 1.1.1.1, seq 0x80000001, age 43s, length 8
+	    Summary LSA (3), LSA-ID: 1.0.0.0
+	    Options: [External, Demand Circuit]

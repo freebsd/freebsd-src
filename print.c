@@ -25,9 +25,7 @@
  *	Seth Webster <swebster@sst.ll.mit.edu>
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include <stdlib.h>
 #include <string.h>
@@ -264,9 +262,7 @@ static int	ndo_printf(netdissect_options *ndo,
 void
 init_print(netdissect_options *ndo, uint32_t localnet, uint32_t mask)
 {
-
 	init_addrtoname(ndo, localnet, mask);
-	init_checksum();
 }
 
 if_printer
@@ -323,12 +319,22 @@ get_if_printer(int type)
 	return printer;
 }
 
+#ifdef ENABLE_INSTRUMENT_FUNCTIONS
+extern int profile_func_level;
+static int pretty_print_packet_level = -1;
+#endif
+
 void
 pretty_print_packet(netdissect_options *ndo, const struct pcap_pkthdr *h,
 		    const u_char *sp, u_int packets_captured)
 {
 	u_int hdrlen = 0;
 	int invalid_header = 0;
+
+#ifdef ENABLE_INSTRUMENT_FUNCTIONS
+	if (pretty_print_packet_level == -1)
+		pretty_print_packet_level = profile_func_level;
+#endif
 
 	if (ndo->ndo_packet_number)
 		ND_PRINT("%5u  ", packets_captured);
@@ -418,6 +424,10 @@ pretty_print_packet(netdissect_options *ndo, const struct pcap_pkthdr *h,
 		nd_print_trunc(ndo);
 		/* Print the full packet */
 		ndo->ndo_ll_hdr_len = 0;
+#ifdef ENABLE_INSTRUMENT_FUNCTIONS
+		/* truncation => reassignment */
+		profile_func_level = pretty_print_packet_level;
+#endif
 		break;
 	}
 	hdrlen = ndo->ndo_ll_hdr_len;
@@ -431,10 +441,14 @@ pretty_print_packet(netdissect_options *ndo, const struct pcap_pkthdr *h,
 	nd_pop_all_packet_info(ndo);
 
 	/*
-	 * Restore the original snapend, as a printer might have
-	 * changed it.
+	 * Restore the originals snapend and packetp, as a printer
+	 * might have changed them.
+	 *
+	 * XXX - nd_pop_all_packet_info() should have restored the
+	 * original values, but, just in case....
 	 */
 	ndo->ndo_snapend = sp + h->caplen;
+	ndo->ndo_packetp = sp;
 	if (ndo->ndo_Xflag) {
 		/*
 		 * Print the raw packet data in hex and ASCII.

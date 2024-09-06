@@ -1,2 +1,2 @@
-    1  00:09:41.000000 IP (tos 0x0, ttl 255, id 158, offset 0, flags [DF], proto UDP (17), length 37, bad cksum d7e0 (->9cf8)!)
+    1  1970-01-01 00:09:41.000000 IP (tos 0x0, ttl 255, id 158, offset 0, flags [DF], proto UDP (17), length 37, bad cksum d7e0 (->9cf8)!)
     208.21.2.184.1512 > 10.1.1.99.53: udp/rtp, length 9 < 12

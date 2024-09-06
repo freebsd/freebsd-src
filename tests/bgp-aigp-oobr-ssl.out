@@ -1,4 +1,4 @@
-    1  00:00:00.000000 00:18:74:2e:00:00 > 00:19:07:a8:fc:00, ethertype IPv4 (0x0800), length 65535: (tos 0xc0, ttl 254, id 654, offset 0, flags [none], proto TCP (6), length 65521)
+    1  1970-01-01 00:00:00.000000 00:18:74:2e:00:00 > 00:19:07:a8:fc:00, ethertype IPv4 (0x0800), length 65535: (tos 0xc0, ttl 254, id 654, offset 0, flags [none], proto TCP (6), length 65521)
     172.17.0.0.179 > 172.17.128.3.50651: Flags [.], cksum 0xc80b (incorrect -> 0x9361), seq 2419237172:2419302629, ack 1593006533, win 31761, options [md5 shared secret not supplied with -M, can't check - 02f77f975463199362b9fbfb089a2e56,eol], length 65457: BGP
 	Update Message (2), length: 106
 	  Origin (1), length: 1, Flags [T]: Incomplete

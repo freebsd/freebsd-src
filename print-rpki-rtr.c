@@ -19,9 +19,7 @@
 
 /* specification: RFC 6810 */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
@@ -178,24 +176,24 @@ rpki_rtr_pdu_print(netdissect_options *ndo, const u_char *tptr, const u_int len,
     const rpki_rtr_pdu *pdu_header;
     u_int pdu_type, pdu_len, hexdump;
     const u_char *msg;
+    uint8_t pdu_ver;
 
-    /* Protocol Version */
-    if (GET_U_1(tptr) != 0) {
+    if (len < sizeof(rpki_rtr_pdu)) {
+	ND_PRINT("(%u bytes is too few to decode)", len);
+	goto invalid;
+    }
+    pdu_header = (const rpki_rtr_pdu *)tptr;
+    pdu_ver = GET_U_1(pdu_header->version);
+    if (pdu_ver != 0) {
 	/* Skip the rest of the input buffer because even if this is
 	 * a well-formed PDU of a future RPKI-Router protocol version
 	 * followed by a well-formed PDU of RPKI-Router protocol
 	 * version 0, there is no way to know exactly how to skip the
 	 * current PDU.
 	 */
-	ND_PRINT("%sRPKI-RTRv%u (unknown)", indent_string(8), GET_U_1(tptr));
+	ND_PRINT("%sRPKI-RTRv%u (unknown)", indent_string(8), pdu_ver);
 	return len;
     }
-    if (len < sizeof(rpki_rtr_pdu)) {
-	ND_PRINT("(%u bytes is too few to decode)", len);
-	goto invalid;
-    }
-    ND_TCHECK_LEN(tptr, sizeof(rpki_rtr_pdu));
-    pdu_header = (const rpki_rtr_pdu *)tptr;
     pdu_type = GET_U_1(pdu_header->pdu_type);
     pdu_len = GET_BE_U_4(pdu_header->length);
     /* Do not check bounds with pdu_len yet, do it in the case blocks
@@ -206,7 +204,7 @@ rpki_rtr_pdu_print(netdissect_options *ndo, const u_char *tptr, const u_int len,
 
     ND_PRINT("%sRPKI-RTRv%u, %s PDU (%u), length: %u",
 	   indent_string(8),
-	   GET_U_1(pdu_header->version),
+	   pdu_ver,
 	   tok2str(rpki_rtr_pdu_values, "Unknown", pdu_type),
 	   pdu_type, pdu_len);
     if (pdu_len < sizeof(rpki_rtr_pdu) || pdu_len > len)
@@ -291,13 +289,12 @@ rpki_rtr_pdu_print(netdissect_options *ndo, const u_char *tptr, const u_int len,
 	    /* Do not test for the "Length of Error Text" data element yet. */
 	    if (pdu_len < tlen + 4)
 		goto invalid;
-	    ND_TCHECK_LEN(tptr, tlen + 4);
-	    /* Safe up to and including the "Length of Encapsulated PDU"
-	     * data element, more data elements may be present.
-	     */
 	    pdu = (const rpki_rtr_pdu_error_report *)tptr;
 	    encapsulated_pdu_length = GET_BE_U_4(pdu->encapsulated_pdu_length);
 	    tlen += 4;
+	    /* Safe up to and including the "Length of Encapsulated PDU"
+	     * data element, more data elements may be present.
+	     */
 
 	    error_code = GET_BE_U_2(pdu->pdu_header.u.error_code);
 	    ND_PRINT("%sError code: %s (%u), Encapsulated PDU length: %u",
@@ -322,8 +319,7 @@ rpki_rtr_pdu_print(netdissect_options *ndo, const u_char *tptr, const u_int len,
 		    goto invalid;
 		if (! recurse) {
 		    ND_TCHECK_LEN(tptr, tlen + encapsulated_pdu_length);
-		}
-		else {
+		} else {
 		    ND_PRINT("%s-----encapsulated PDU-----", indent_string(indent+4));
 		    rpki_rtr_pdu_print(ndo, tptr + tlen,
 			encapsulated_pdu_length, 0, indent + 2);
@@ -333,16 +329,14 @@ rpki_rtr_pdu_print(netdissect_options *ndo, const u_char *tptr, const u_int len,
 
 	    if (pdu_len < tlen + 4)
 		goto invalid;
-	    ND_TCHECK_LEN(tptr, tlen + 4);
-	    /* Safe up to and including the "Length of Error Text" data element,
-	     * one more data element may be present.
-	     */
-
 	    /*
 	     * Extract, trail-zero and print the Error message.
 	     */
 	    text_length = GET_BE_U_4(tptr + tlen);
 	    tlen += 4;
+	    /* Safe up to and including the "Length of Error Text" data element,
+	     * one more data element may be present.
+	     */
 
 	    if (text_length) {
 		if (pdu_len < tlen + text_length)

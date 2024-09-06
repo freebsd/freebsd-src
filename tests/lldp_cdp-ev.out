@@ -1,4 +1,4 @@
-    1  03:00:34.141848 00:18:ba:98:68:8f > 01:00:0c:cc:cc:cc, 802.3, length 374: LLC, dsap SNAP (0xaa) Individual, ssap SNAP (0xaa) Command, ctrl 0x03: oui Cisco (0x00000c), pid CDP (0x2000), length 366: CDPv2, ttl: 180s, checksum: 0x0bea (unverified), length 366
+    1  2010-10-02 03:00:34.141848 00:18:ba:98:68:8f > 01:00:0c:cc:cc:cc, 802.3, length 374: LLC, dsap SNAP (0xaa) Individual, ssap SNAP (0xaa) Command, ctrl 0x03: oui Cisco (0x00000c), pid CDP (0x2000), length 366: CDPv2, ttl: 180s, checksum: 0x0bea (unverified), length 366
 	Device-ID (0x01), value length: 2 bytes: 'S1'
 	Version String (0x05), value length: 190 bytes: 
 	  Cisco IOS Software, C3560 Software (C3560-ADVIPSERVICESK9-M), Version 12.2(44)SE, RELEASE SOFTWARE (fc1)
@@ -17,7 +17,7 @@
 	Management Addresses (0x16), value length: 13 bytes: IPv4 (1) 0.0.0.0
 	unknown field type (0x1a), value length: 12 bytes: 
 	  0x0000:  0000 0001 0000 0000 ffff ffff
-    2  03:00:39.208974 00:19:2f:a7:b2:8d > 01:00:0c:cc:cc:cc, 802.3, length 378: LLC, dsap SNAP (0xaa) Individual, ssap SNAP (0xaa) Command, ctrl 0x03: oui Cisco (0x00000c), pid CDP (0x2000), length 370: CDPv2, ttl: 180s, checksum: 0x971d (unverified), length 370
+    2  2010-10-02 03:00:39.208974 00:19:2f:a7:b2:8d > 01:00:0c:cc:cc:cc, 802.3, length 378: LLC, dsap SNAP (0xaa) Individual, ssap SNAP (0xaa) Command, ctrl 0x03: oui Cisco (0x00000c), pid CDP (0x2000), length 370: CDPv2, ttl: 180s, checksum: 0x971d (unverified), length 370
 	Device-ID (0x01), value length: 2 bytes: 'S2'
 	Version String (0x05), value length: 190 bytes: 
 	  Cisco IOS Software, C3560 Software (C3560-ADVIPSERVICESK9-M), Version 12.2(44)SE, RELEASE SOFTWARE (fc1)
@@ -36,7 +36,7 @@
 	Management Addresses (0x16), value length: 13 bytes: IPv4 (1) 0.0.0.0
 	unknown field type (0x1a), value length: 12 bytes: 
 	  0x0000:  0000 0001 0000 0000 ffff ffff
-    3  03:00:41.163180 00:19:2f:a7:b2:8d > 01:80:c2:00:00:0e, ethertype LLDP (0x88cc), length 296: LLDP, length 282
+    3  2010-10-02 03:00:41.163180 00:19:2f:a7:b2:8d > 01:80:c2:00:00:0e, ethertype LLDP (0x88cc), length 296: LLDP, length 282
 	Chassis ID TLV (1), length 7
 	  Subtype MAC address (4): 00:19:2f:a7:b2:8d
 	Port ID TLV (2), length 13
@@ -58,7 +58,7 @@
 	    PMD autoneg capability [10BASE-T hdx, Sym PAUSE for fdx, Asym and Sym PAUSE for fdx, 1000BASE-{X LX SX CX} fdx, 1000BASE-T hdx] (0xc036)
 	    MAU type 100BASETX fdx (0x0010)
 	End TLV (0), length 0
-    4  03:00:42.629578 00:18:ba:98:68:8f > 01:80:c2:00:00:0e, ethertype LLDP (0x88cc), length 287: LLDP, length 273
+    4  2010-10-02 03:00:42.629578 00:18:ba:98:68:8f > 01:80:c2:00:00:0e, ethertype LLDP (0x88cc), length 287: LLDP, length 273
 	Chassis ID TLV (1), length 7
 	  Subtype MAC address (4): 00:18:ba:98:68:8f
 	Port ID TLV (2), length 7
@@ -80,7 +80,7 @@
 	    PMD autoneg capability [Sym PAUSE for fdx, Asym and Sym PAUSE for fdx, 1000BASE-{X LX SX CX} fdx, 1000BASE-T hdx] (0x0036)
 	    MAU type 100BASETX fdx (0x0010)
 	End TLV (0), length 0
-    5  03:01:10.968978 00:19:2f:a7:b2:8d > 01:80:c2:00:00:0e, ethertype LLDP (0x88cc), length 296: LLDP, length 282
+    5  2010-10-02 03:01:10.968978 00:19:2f:a7:b2:8d > 01:80:c2:00:00:0e, ethertype LLDP (0x88cc), length 296: LLDP, length 282
 	Chassis ID TLV (1), length 7
 	  Subtype MAC address (4): 00:19:2f:a7:b2:8d
 	Port ID TLV (2), length 13
@@ -102,7 +102,7 @@
 	    PMD autoneg capability [10BASE-T hdx, Sym PAUSE for fdx, Asym and Sym PAUSE for fdx, 1000BASE-{X LX SX CX} fdx, 1000BASE-T hdx] (0xc036)
 	    MAU type 100BASETX fdx (0x0010)
 	End TLV (0), length 0
-    6  03:01:12.333563 00:18:ba:98:68:8f > 01:80:c2:00:00:0e, ethertype LLDP (0x88cc), length 287: LLDP, length 273
+    6  2010-10-02 03:01:12.333563 00:18:ba:98:68:8f > 01:80:c2:00:00:0e, ethertype LLDP (0x88cc), length 287: LLDP, length 273
 	Chassis ID TLV (1), length 7
 	  Subtype MAC address (4): 00:18:ba:98:68:8f
 	Port ID TLV (2), length 7
@@ -124,7 +124,7 @@
 	    PMD autoneg capability [Sym PAUSE for fdx, Asym and Sym PAUSE for fdx, 1000BASE-{X LX SX CX} fdx, 1000BASE-T hdx] (0x0036)
 	    MAU type 100BASETX fdx (0x0010)
 	End TLV (0), length 0
-    7  03:01:34.144187 00:18:ba:98:68:8f > 01:00:0c:cc:cc:cc, 802.3, length 374: LLC, dsap SNAP (0xaa) Individual, ssap SNAP (0xaa) Command, ctrl 0x03: oui Cisco (0x00000c), pid CDP (0x2000), length 366: CDPv2, ttl: 180s, checksum: 0x0be9 (unverified), length 366
+    7  2010-10-02 03:01:34.144187 00:18:ba:98:68:8f > 01:00:0c:cc:cc:cc, 802.3, length 374: LLC, dsap SNAP (0xaa) Individual, ssap SNAP (0xaa) Command, ctrl 0x03: oui Cisco (0x00000c), pid CDP (0x2000), length 366: CDPv2, ttl: 180s, checksum: 0x0be9 (unverified), length 366
 	Device-ID (0x01), value length: 2 bytes: 'S1'
 	Version String (0x05), value length: 190 bytes: 
 	  Cisco IOS Software, C3560 Software (C3560-ADVIPSERVICESK9-M), Version 12.2(44)SE, RELEASE SOFTWARE (fc1)
@@ -143,7 +143,7 @@
 	Management Addresses (0x16), value length: 13 bytes: IPv4 (1) 0.0.0.0
 	unknown field type (0x1a), value length: 12 bytes: 
 	  0x0000:  0000 0001 0000 0000 ffff ffff
-    8  03:01:39.211811 00:19:2f:a7:b2:8d > 01:00:0c:cc:cc:cc, 802.3, length 378: LLC, dsap SNAP (0xaa) Individual, ssap SNAP (0xaa) Command, ctrl 0x03: oui Cisco (0x00000c), pid CDP (0x2000), length 370: CDPv2, ttl: 180s, checksum: 0x971c (unverified), length 370
+    8  2010-10-02 03:01:39.211811 00:19:2f:a7:b2:8d > 01:00:0c:cc:cc:cc, 802.3, length 378: LLC, dsap SNAP (0xaa) Individual, ssap SNAP (0xaa) Command, ctrl 0x03: oui Cisco (0x00000c), pid CDP (0x2000), length 370: CDPv2, ttl: 180s, checksum: 0x971c (unverified), length 370
 	Device-ID (0x01), value length: 2 bytes: 'S2'
 	Version String (0x05), value length: 190 bytes: 
 	  Cisco IOS Software, C3560 Software (C3560-ADVIPSERVICESK9-M), Version 12.2(44)SE, RELEASE SOFTWARE (fc1)
@@ -162,7 +162,7 @@
 	Management Addresses (0x16), value length: 13 bytes: IPv4 (1) 0.0.0.0
 	unknown field type (0x1a), value length: 12 bytes: 
 	  0x0000:  0000 0001 0000 0000 ffff ffff
-    9  03:01:40.932913 00:19:2f:a7:b2:8d > 01:80:c2:00:00:0e, ethertype LLDP (0x88cc), length 296: LLDP, length 282
+    9  2010-10-02 03:01:40.932913 00:19:2f:a7:b2:8d > 01:80:c2:00:00:0e, ethertype LLDP (0x88cc), length 296: LLDP, length 282
 	Chassis ID TLV (1), length 7
 	  Subtype MAC address (4): 00:19:2f:a7:b2:8d
 	Port ID TLV (2), length 13
@@ -184,7 +184,7 @@
 	    PMD autoneg capability [10BASE-T hdx, Sym PAUSE for fdx, Asym and Sym PAUSE for fdx, 1000BASE-{X LX SX CX} fdx, 1000BASE-T hdx] (0xc036)
 	    MAU type 100BASETX fdx (0x0010)
 	End TLV (0), length 0
-   10  03:01:42.087510 00:18:ba:98:68:8f > 01:80:c2:00:00:0e, ethertype LLDP (0x88cc), length 287: LLDP, length 273
+   10  2010-10-02 03:01:42.087510 00:18:ba:98:68:8f > 01:80:c2:00:00:0e, ethertype LLDP (0x88cc), length 287: LLDP, length 273
 	Chassis ID TLV (1), length 7
 	  Subtype MAC address (4): 00:18:ba:98:68:8f
 	Port ID TLV (2), length 7
@@ -206,7 +206,7 @@
 	    PMD autoneg capability [Sym PAUSE for fdx, Asym and Sym PAUSE for fdx, 1000BASE-{X LX SX CX} fdx, 1000BASE-T hdx] (0x0036)
 	    MAU type 100BASETX fdx (0x0010)
 	End TLV (0), length 0
-   11  03:02:10.693795 00:19:2f:a7:b2:8d > 01:80:c2:00:00:0e, ethertype LLDP (0x88cc), length 296: LLDP, length 282
+   11  2010-10-02 03:02:10.693795 00:19:2f:a7:b2:8d > 01:80:c2:00:00:0e, ethertype LLDP (0x88cc), length 296: LLDP, length 282
 	Chassis ID TLV (1), length 7
 	  Subtype MAC address (4): 00:19:2f:a7:b2:8d
 	Port ID TLV (2), length 13
@@ -228,7 +228,7 @@
 	    PMD autoneg capability [10BASE-T hdx, Sym PAUSE for fdx, Asym and Sym PAUSE for fdx, 1000BASE-{X LX SX CX} fdx, 1000BASE-T hdx] (0xc036)
 	    MAU type 100BASETX fdx (0x0010)
 	End TLV (0), length 0
-   12  03:02:11.900774 00:18:ba:98:68:8f > 01:80:c2:00:00:0e, ethertype LLDP (0x88cc), length 287: LLDP, length 273
+   12  2010-10-02 03:02:11.900774 00:18:ba:98:68:8f > 01:80:c2:00:00:0e, ethertype LLDP (0x88cc), length 287: LLDP, length 273
 	Chassis ID TLV (1), length 7
 	  Subtype MAC address (4): 00:18:ba:98:68:8f
 	Port ID TLV (2), length 7

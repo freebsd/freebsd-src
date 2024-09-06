@@ -1,23 +1,23 @@
-    1  15:42:42.968288 IP6 (class 0xc0, hlim 1, next-header UDP (17) payload length: 26) fe80::5054:ff:fe85:5da9.6696 > ff02::1:6.6696: [udp sum ok] babel 2 (14)
+    1  2014-03-04 15:42:42.968288 IP6 (class 0xc0, hlim 1, next-header UDP (17) payload length: 26) fe80::5054:ff:fe85:5da9.6696 > ff02::1:6.6696: [udp sum ok] babel 2 (14)
 	Hello seqno 58805 interval 4.00s sub-timestamp 2222.954827s
-    2  15:42:46.255938 IP6 (class 0xc0, hlim 1, next-header UDP (17) payload length: 52) fe80::5054:ff:fe23:4567.6696 > ff02::1:6.6696: [udp sum ok] babel 2 (40)
+    2  2014-03-04 15:42:46.255938 IP6 (class 0xc0, hlim 1, next-header UDP (17) payload length: 52) fe80::5054:ff:fe23:4567.6696 > ff02::1:6.6696: [udp sum ok] babel 2 (40)
 	Hello seqno 15585 interval 4.00s sub-timestamp 94.665527s
 	IHU fe80::5054:ff:fe85:5da9 rxcost 96 interval 12.00s sub-timestamp 2222.954827s|91.378052s
-    3  15:42:46.465555 IP6 (class 0xc0, hlim 1, next-header UDP (17) payload length: 52) fe80::5054:ff:fe85:5da9.6696 > ff02::1:6.6696: [udp sum ok] babel 2 (40)
+    3  2014-03-04 15:42:46.465555 IP6 (class 0xc0, hlim 1, next-header UDP (17) payload length: 52) fe80::5054:ff:fe85:5da9.6696 > ff02::1:6.6696: [udp sum ok] babel 2 (40)
 	Hello seqno 58806 interval 4.00s sub-timestamp 2226.449854s
 	IHU fe80::5054:ff:fe23:4567 rxcost 96 interval 12.00s sub-timestamp 90.173759s|2222.137366s
-    4  15:42:49.741156 IP6 (class 0xc0, hlim 1, next-header UDP (17) payload length: 26) fe80::5054:ff:fe85:5da9.6696 > ff02::1:6.6696: [udp sum ok] babel 2 (14)
+    4  2014-03-04 15:42:49.741156 IP6 (class 0xc0, hlim 1, next-header UDP (17) payload length: 26) fe80::5054:ff:fe85:5da9.6696 > ff02::1:6.6696: [udp sum ok] babel 2 (14)
 	Hello seqno 58807 interval 4.00s sub-timestamp 2229.725353s
-    5  15:42:50.547169 IP6 (class 0xc0, hlim 1, next-header UDP (17) payload length: 26) fe80::5054:ff:fe23:4567.6696 > ff02::1:6.6696: [udp sum ok] babel 2 (14)
+    5  2014-03-04 15:42:50.547169 IP6 (class 0xc0, hlim 1, next-header UDP (17) payload length: 26) fe80::5054:ff:fe23:4567.6696 > ff02::1:6.6696: [udp sum ok] babel 2 (14)
 	Hello seqno 15586 interval 4.00s sub-timestamp 98.956759s
-    6  15:42:54.148744 IP6 (class 0xc0, hlim 1, next-header UDP (17) payload length: 26) fe80::5054:ff:fe23:4567.6696 > ff02::1:6.6696: [udp sum ok] babel 2 (14)
+    6  2014-03-04 15:42:54.148744 IP6 (class 0xc0, hlim 1, next-header UDP (17) payload length: 26) fe80::5054:ff:fe23:4567.6696 > ff02::1:6.6696: [udp sum ok] babel 2 (14)
 	Hello seqno 15587 interval 4.00s sub-timestamp 102.558329s
-    7  15:42:54.624767 IP6 (class 0xc0, hlim 1, next-header UDP (17) payload length: 26) fe80::5054:ff:fe85:5da9.6696 > ff02::1:6.6696: [udp sum ok] babel 2 (14)
+    7  2014-03-04 15:42:54.624767 IP6 (class 0xc0, hlim 1, next-header UDP (17) payload length: 26) fe80::5054:ff:fe85:5da9.6696 > ff02::1:6.6696: [udp sum ok] babel 2 (14)
 	Hello seqno 58808 interval 4.00s sub-timestamp 2234.612063s
-    8  15:42:58.082419 IP6 (class 0xc0, hlim 1, next-header UDP (17) payload length: 52) fe80::5054:ff:fe23:4567.6696 > ff02::1:6.6696: [udp sum ok] babel 2 (40)
+    8  2014-03-04 15:42:58.082419 IP6 (class 0xc0, hlim 1, next-header UDP (17) payload length: 52) fe80::5054:ff:fe23:4567.6696 > ff02::1:6.6696: [udp sum ok] babel 2 (40)
 	Hello seqno 15588 interval 4.00s sub-timestamp 106.492002s
 	IHU fe80::5054:ff:fe85:5da9 rxcost 96 interval 12.00s sub-timestamp 2234.612063s|103.034525s
-    9  15:42:59.287088 IP6 (class 0xc0, hlim 1, next-header UDP (17) payload length: 88) fe80::5054:ff:fe85:5da9.6696 > ff02::1:6.6696: [udp sum ok] babel 2 (76)
+    9  2014-03-04 15:42:59.287088 IP6 (class 0xc0, hlim 1, next-header UDP (17) payload length: 88) fe80::5054:ff:fe85:5da9.6696 > ff02::1:6.6696: [udp sum ok] babel 2 (76)
 	Hello seqno 58809 interval 4.00s sub-timestamp 2239.274046s
 	IHU fe80::5054:ff:fe23:4567 rxcost 96 interval 12.00s sub-timestamp 98.956759s|2230.863572s
 	Next Hop 192.168.42.1

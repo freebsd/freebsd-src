@@ -1,4 +1,4 @@
-    1  05:02:44.326635 IP (tos 0x10, ttl 128, id 0, offset 0, flags [none], proto UDP (17), length 328)
+    1  2013-08-05 05:02:44.326635 IP (tos 0x10, ttl 128, id 0, offset 0, flags [none], proto UDP (17), length 328)
     0.0.0.0.68 > 255.255.255.255.67: [udp sum ok] BOOTP/DHCP, Request from 08:00:27:46:e8:84, length 300, xid 0x85bfaf7d, secs 31, Flags [none] (0x0000)
 	  Client-Ethernet-Address 08:00:27:46:e8:84
 	  Vendor-rfc1048 Extensions
@@ -10,7 +10,7 @@
 	      YS (41), NTP (42), MTU (26), Unknown (119)
 	      Default-Gateway (3), Classless-Static-Route (121), Classless-Static-Route-Microsoft (249), Unknown (252)
 	      NTP (42)
-    2  05:02:46.292912 LLDP, length 87
+    2  2013-08-05 05:02:46.292912 LLDP, length 87
 	Chassis ID TLV (1), length 7
 	  Subtype MAC address (4): 08:00:27:42:ba:59
 	  0x0000:  0408 0027 42ba 59
@@ -44,7 +44,7 @@
 	     Value    : 0  0  1  0  1  1  0  0  
 	  0x0000:  0080 c20b 0434
 	End TLV (0), length 0
-    3  05:02:48.297042 LLDP, length 87
+    3  2013-08-05 05:02:48.297042 LLDP, length 87
 	Chassis ID TLV (1), length 7
 	  Subtype MAC address (4): 08:00:27:42:ba:59
 	  0x0000:  0408 0027 42ba 59
@@ -78,7 +78,7 @@
 	     Value    : 0  0  1  0  1  1  0  0  
 	  0x0000:  0080 c20b 0434
 	End TLV (0), length 0
-    4  05:02:50.018990 LLDP, length 87
+    4  2013-08-05 05:02:50.018990 LLDP, length 87
 	Chassis ID TLV (1), length 7
 	  Subtype MAC address (4): 08:00:27:0d:f1:3c
 	  0x0000:  0408 0027 0df1 3c
@@ -112,7 +112,7 @@
 	     Value    : 0  0  1  0  1  1  0  0  
 	  0x0000:  0080 c20b 0434
 	End TLV (0), length 0
-    5  05:02:52.038011 LLDP, length 87
+    5  2013-08-05 05:02:52.038011 LLDP, length 87
 	Chassis ID TLV (1), length 7
 	  Subtype MAC address (4): 08:00:27:0d:f1:3c
 	  0x0000:  0408 0027 0df1 3c

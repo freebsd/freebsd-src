@@ -39,7 +39,6 @@ AC_DEFUN(AC_LBL_C_INIT_BEFORE_CC,
 [
     AC_BEFORE([$0], [AC_LBL_C_INIT])
     AC_BEFORE([$0], [AC_PROG_CC])
-    AC_BEFORE([$0], [AC_LBL_FIXINCLUDES])
     AC_BEFORE([$0], [AC_LBL_DEVEL])
     AC_ARG_WITH(gcc, [  --without-gcc           don't use gcc])
     $1=""
@@ -94,9 +93,7 @@ dnl	LBL_CFLAGS
 dnl
 AC_DEFUN(AC_LBL_C_INIT,
 [
-    AC_BEFORE([$0], [AC_LBL_FIXINCLUDES])
     AC_BEFORE([$0], [AC_LBL_DEVEL])
-    AC_BEFORE([$0], [AC_LBL_SHLIBS_INIT])
     if test "$GCC" = yes ; then
 	    #
 	    # -Werror forces warnings to be errors.
@@ -211,6 +208,29 @@ AC_DEFUN(AC_LBL_C_INIT,
 ])
 
 dnl
+dnl Save the values of various variables that affect compilation and
+dnl linking, and that we don't ourselves modify persistently; done
+dnl before a test involving compiling or linking is done, so that we
+dnl can restore those variables after the test is done.
+dnl
+AC_DEFUN(AC_LBL_SAVE_CHECK_STATE,
+[
+	save_CFLAGS="$CFLAGS"
+	save_LIBS="$LIBS"
+	save_LDFLAGS="$LDFLAGS"
+])
+
+dnl
+dnl Restore the values of variables saved by AC_LBL_SAVE_CHECK_STATE.
+dnl
+AC_DEFUN(AC_LBL_RESTORE_CHECK_STATE,
+[
+	CFLAGS="$save_CFLAGS"
+	LIBS="$save_LIBS"
+	LDFLAGS="$save_LDFLAGS"
+])
+
+dnl
 dnl Check whether the compiler option specified as the second argument
 dnl is supported by the compiler and, if so, add it to the macro
 dnl specified as the first argument
@@ -244,7 +264,7 @@ AC_DEFUN(AC_LBL_CHECK_COMPILER_OPT,
 	#    https://www.postgresql.org/message-id/2192993.1591682589%40sss.pgh.pa.us
 	#
 	# This may, as per those two messages, be fixed in autoconf 2.70,
-	# but we only require 2.64 or newer for now.
+	# but we only require 2.69 or newer for now.
 	#
 	AC_COMPILE_IFELSE(
 	    [AC_LANG_SOURCE([[int main(void) { return 0; }]])],
@@ -443,7 +463,9 @@ dnl	LIBS
 dnl	LBL_LIBS
 dnl
 AC_DEFUN(AC_LBL_LIBPCAP,
-    [AC_REQUIRE([AC_LBL_LIBRARY_NET])
+[
+    AC_REQUIRE([AC_PROG_EGREP])
+    AC_REQUIRE([AC_LBL_LIBRARY_NET])
     dnl
     dnl save a copy before locating libpcap.a
     dnl
@@ -480,9 +502,9 @@ AC_DEFUN(AC_LBL_LIBPCAP,
         AC_MSG_CHECKING(for local pcap library)
         lastdir=FAIL
         places=`ls $srcdir/.. | sed -e 's,/$,,' -e "s,^,$srcdir/../," | \
-            egrep '/libpcap-[[0-9]]+\.[[0-9]]+(\.[[0-9]]*)?([[ab]][[0-9]]*|-PRE-GIT|rc.)?$'`
+            $EGREP '/libpcap-[[0-9]]+\.[[0-9]]+(\.[[0-9]]*)?([[ab]][[0-9]]*|-PRE-GIT|rc.)?$'`
         places2=`ls .. | sed -e 's,/$,,' -e "s,^,../," | \
-            egrep '/libpcap-[[0-9]]+\.[[0-9]]+(\.[[0-9]]*)?([[ab]][[0-9]]*|-PRE-GIT|rc.)?$'`
+            $EGREP '/libpcap-[[0-9]]+\.[[0-9]]+(\.[[0-9]]*)?([[ab]][[0-9]]*|-PRE-GIT|rc.)?$'`
         for dir in $places $srcdir/../libpcap ../libpcap $srcdir/libpcap $places2 ; do
             basedir=`echo $dir | sed -e 's/[[ab]][[0-9]]*$//' | \
                 sed -e 's/-PRE-GIT$//' `
@@ -518,7 +540,6 @@ AC_DEFUN(AC_LBL_LIBPCAP,
         # We didn't find a local libpcap.
         # Look for an installed pkg-config.
         #
-        AC_PATH_TOOL(PKG_CONFIG, pkg-config)
         if test -n "$PKG_CONFIG" ; then
             #
             # We have it.  Are there .pc files for libpcap?
@@ -600,6 +621,59 @@ AC_DEFUN(AC_LBL_LIBPCAP,
                         # ignore those values.
                         #
                         _broken_apple_pcap_config=yes
+
+                        #
+                        # Furthermore:
+                        #
+                        # macOS Sonoma's libpcap includes stub versions
+                        # of the remote-capture APIs.  They are exported
+                        # as "weakly linked symbols".
+                        #
+                        # Xcode 15 offers only a macOS Sonoma SDK, which
+                        # has a .tbd file for libpcap that claims it
+                        # includes those APIs.  (Newer versions of macOS
+                        # don't provide the system shared libraries,
+                        # they only provide the dyld shared cache
+                        # containing those libraries, so the OS provides
+                        # SDKs that include a .tbd file to use when
+                        # linking.)
+                        #
+                        # This means that AC_CHECK_FUNCS() will think
+                        # that the remote-capture APIs are present,
+                        # including pcap_open() and
+                        # pcap_findalldevs_ex().
+                        #
+                        # However, they are *not* present in macOS
+                        # Ventura and earlier, which means that building
+                        # on Ventura with Xcode 15 produces executables
+                        # that fail to start because one of those APIs
+                        # isn't found in the system libpcap.
+                        #
+                        # Protecting calls to those APIs with
+                        # __builtin_available() does not appear to
+                        # prevent this, for some unknown reason, and it
+                        # doesn't even allow the program to compile with
+                        # versions of Xcode prior to Xcode 15, as the
+                        # pcap.h file doesn't specify minimum OS
+                        # versions for those functions.
+                        #
+                        # Given all that, and given that the versions of
+                        # the remote-capture APIs in Sonoma are stubs
+                        # that always fail, there doesn't seem to be any
+                        # point in checking for pcap_open() if we're
+                        # linking against the Apple libpcap.
+                        #
+                        # However, if we're *not* linking against the
+                        # Apple libpcap, we should check for it, so that
+                        # we can use it if it's present.
+                        #
+                        # We know this is macOS and that we're using
+                        # the system-provided pcap-config to find
+                        # libpcap, so we know it'll be the system
+                        # libpcap, and note that we should not search
+                        # for remote-capture APIs.
+                        #
+                        _dont_check_for_remote_apis=yes
                         ;;
 
                     solaris*)
@@ -673,7 +747,7 @@ AC_DEFUN(AC_LBL_LIBPCAP,
                 #
                 AC_CHECK_LIB(pcap, main, libpcap="-lpcap")
                 if test $libpcap = FAIL ; then
-                    AC_MSG_ERROR(see the INSTALL doc for more info)
+                    AC_MSG_ERROR(see the INSTALL.md file for more info)
                 fi
                 dnl
                 dnl Some versions of Red Hat Linux put "pcap.h" in
@@ -765,7 +839,7 @@ AC_DEFUN(AC_LBL_LIBPCAP,
             # statically linked, and provide only the direct
             # dependencies with --static-pcap-only.
             #
-            if grep -s -q "static-pcap-only" "$PCAP_CONFIG"
+            if grep "static-pcap-only" "$PCAP_CONFIG" >/dev/null 2>&1
             then
                 static_opt="--static-pcap-only"
             else
@@ -780,9 +854,9 @@ AC_DEFUN(AC_LBL_LIBPCAP,
             # Make sure it has a pcap.h file.
             #
             places=`ls $srcdir/.. | sed -e 's,/$,,' -e "s,^,$srcdir/../," | \
-                egrep '/libpcap-[[0-9]]*.[[0-9]]*(.[[0-9]]*)?([[ab]][[0-9]]*)?$'`
+                $EGREP '/libpcap-[[0-9]]*.[[0-9]]*(.[[0-9]]*)?([[ab]][[0-9]]*)?$'`
             places2=`ls .. | sed -e 's,/$,,' -e "s,^,../," | \
-                egrep '/libpcap-[[0-9]]*.[[0-9]]*(.[[0-9]]*)?([[ab]][[0-9]]*)?$'`
+                $EGREP '/libpcap-[[0-9]]*.[[0-9]]*(.[[0-9]]*)?([[ab]][[0-9]]*)?$'`
             pcapH=FAIL
             if test -r $local_pcap_dir/pcap.h; then
                 pcapH=$local_pcap_dir
@@ -795,7 +869,7 @@ AC_DEFUN(AC_LBL_LIBPCAP,
             fi
 
             if test $pcapH = FAIL ; then
-                AC_MSG_ERROR(cannot find pcap.h: see INSTALL)
+                AC_MSG_ERROR(cannot find pcap.h: see the INSTALL.md file)
             fi
 
             #
@@ -857,8 +931,10 @@ AC_DEFUN(AC_LBL_LIBPCAP,
     AC_CHECK_FUNC(pcap_loop,,
     [
         AC_MSG_ERROR(
-[This is a bug, please follow the guidelines in CONTRIBUTING.md and include the
-config.log file in your report.  If you have downloaded libpcap from
+[
+1. Do you try to build a 32-bit tcpdump with a 64-bit libpcap or vice versa?
+2. This is a bug, please follow the guidelines in CONTRIBUTING.md and include
+the config.log file in your report.  If you have downloaded libpcap from
 tcpdump.org, and built it yourself, please also include the config.log
 file from the libpcap source directory, the Makefile from the libpcap
 source directory, and the output of the make process for libpcap, as
@@ -868,96 +944,6 @@ able to fix it, without that information, as we have not been able to
 reproduce this problem ourselves.])
     ])
 ])
-
-dnl
-dnl If using gcc, make sure we have ANSI ioctl definitions
-dnl
-dnl usage:
-dnl
-dnl	AC_LBL_FIXINCLUDES
-dnl
-AC_DEFUN(AC_LBL_FIXINCLUDES,
-    [if test "$GCC" = yes ; then
-	    AC_MSG_CHECKING(for ANSI ioctl definitions)
-	    AC_CACHE_VAL(ac_cv_lbl_gcc_fixincludes,
-		AC_TRY_COMPILE(
-		    [/*
-		     * This generates a "duplicate case value" when fixincludes
-		     * has not be run.
-		     */
-#		include <sys/types.h>
-#		include <sys/time.h>
-#		include <sys/ioctl.h>
-#		ifdef HAVE_SYS_IOCCOM_H
-#		include <sys/ioccom.h>
-#		endif],
-		    [switch (0) {
-		    case _IO('A', 1):;
-		    case _IO('B', 1):;
-		    }],
-		    ac_cv_lbl_gcc_fixincludes=yes,
-		    ac_cv_lbl_gcc_fixincludes=no))
-	    AC_MSG_RESULT($ac_cv_lbl_gcc_fixincludes)
-	    if test $ac_cv_lbl_gcc_fixincludes = no ; then
-		    # Don't cache failure
-		    unset ac_cv_lbl_gcc_fixincludes
-		    AC_MSG_ERROR(see the INSTALL for more info)
-	    fi
-    fi])
-
-dnl
-dnl Checks to see if union wait is used with WEXITSTATUS()
-dnl
-dnl usage:
-dnl
-dnl	AC_LBL_UNION_WAIT
-dnl
-dnl results:
-dnl
-dnl	DECLWAITSTATUS (defined)
-dnl
-AC_DEFUN(AC_LBL_UNION_WAIT,
-    [AC_MSG_CHECKING(if union wait is used)
-    AC_CACHE_VAL(ac_cv_lbl_union_wait,
-	AC_TRY_COMPILE([
-#	include <sys/types.h>
-#	include <sys/wait.h>],
-	    [int status;
-	    u_int i = WEXITSTATUS(status);
-	    u_int j = waitpid(0, &status, 0);],
-	    ac_cv_lbl_union_wait=no,
-	    ac_cv_lbl_union_wait=yes))
-    AC_MSG_RESULT($ac_cv_lbl_union_wait)
-    if test $ac_cv_lbl_union_wait = yes ; then
-	    AC_DEFINE(DECLWAITSTATUS,union wait,[type for wait])
-    else
-	    AC_DEFINE(DECLWAITSTATUS,int,[type for wait])
-    fi])
-
-dnl
-dnl Checks to see if -R is used
-dnl
-dnl usage:
-dnl
-dnl	AC_LBL_HAVE_RUN_PATH
-dnl
-dnl results:
-dnl
-dnl	ac_cv_lbl_have_run_path (yes or no)
-dnl
-AC_DEFUN(AC_LBL_HAVE_RUN_PATH,
-    [AC_MSG_CHECKING(for ${CC-cc} -R)
-    AC_CACHE_VAL(ac_cv_lbl_have_run_path,
-	[echo 'main(){}' > conftest.c
-	${CC-cc} -o conftest conftest.c -R/a1/b2/c3 >conftest.out 2>&1
-	if test ! -s conftest.out ; then
-		ac_cv_lbl_have_run_path=yes
-	else
-		ac_cv_lbl_have_run_path=no
-	fi
-	rm -f -r conftest*])
-    AC_MSG_RESULT($ac_cv_lbl_have_run_path)
-    ])
 
 dnl
 dnl Check whether a given format can be used to print 64-bit integers
@@ -1031,6 +1017,7 @@ AC_DEFUN(AC_LBL_DEVEL,
 		    AC_LBL_CHECK_COMPILER_OPT($1, -Wcast-qual)
 		    AC_LBL_CHECK_COMPILER_OPT($1, -Wmissing-prototypes)
 		    AC_LBL_CHECK_COMPILER_OPT($1, -Wmissing-variable-declarations)
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wnull-pointer-subtraction)
 		    AC_LBL_CHECK_COMPILER_OPT($1, -Wold-style-definition)
 		    AC_LBL_CHECK_COMPILER_OPT($1, -Wpedantic)
 		    AC_LBL_CHECK_COMPILER_OPT($1, -Wpointer-arith)
@@ -1038,7 +1025,10 @@ AC_DEFUN(AC_LBL_DEVEL,
 		    AC_LBL_CHECK_COMPILER_OPT($1, -Wshadow)
 		    AC_LBL_CHECK_COMPILER_OPT($1, -Wsign-compare)
 		    AC_LBL_CHECK_COMPILER_OPT($1, -Wstrict-prototypes)
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wundef)
 		    AC_LBL_CHECK_COMPILER_OPT($1, -Wunreachable-code-return)
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wunused-but-set-parameter)
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wunused-but-set-variable)
 		    AC_LBL_CHECK_COMPILER_OPT($1, -Wused-but-marked-unused)
 		    AC_LBL_CHECK_COMPILER_OPT($1, -Wwrite-strings)
 	    fi
@@ -1130,11 +1120,11 @@ dnl
 dnl AC_LBL_LIBRARY_NET
 dnl
 dnl This test is for network applications that need socket() and
-dnl gethostbyname() -ish functions.  Under Solaris, those applications
+dnl gethostbyaddr() -ish functions.  Under Solaris, those applications
 dnl need to link with "-lsocket -lnsl".  Under IRIX, they need to link
 dnl with "-lnsl" but should *not* link with "-lsocket" because
 dnl libsocket.a breaks a number of things (for instance:
-dnl gethostbyname() under IRIX 5.2, and snoop sockets under most
+dnl gethostbyaddr() under IRIX 5.2, and snoop sockets under most
 dnl versions of IRIX).
 dnl
 dnl Unfortunately, many application developers are not aware of this,
@@ -1162,16 +1152,16 @@ dnl statically and happen to have a libresolv.a lying around (and no
 dnl libnsl.a).
 dnl
 AC_DEFUN(AC_LBL_LIBRARY_NET, [
-    # Most operating systems have gethostbyname() in the default searched
+    # Most operating systems have gethostbyaddr() in the default searched
     # libraries (i.e. libc):
     # Some OSes (eg. Solaris) place it in libnsl
     # Some strange OSes (SINIX) have it in libsocket:
-    AC_SEARCH_LIBS(gethostbyname, nsl socket resolv)
+    AC_SEARCH_LIBS(gethostbyaddr, network nsl socket resolv)
     # Unfortunately libsocket sometimes depends on libnsl and
     # AC_SEARCH_LIBS isn't up to the task of handling dependencies like this.
-    if test "$ac_cv_search_gethostbyname" = "no"
+    if test "$ac_cv_search_gethostbyaddr" = "no"
     then
-	AC_CHECK_LIB(socket, gethostbyname,
+	AC_CHECK_LIB(socket, gethostbyaddr,
                      LIBS="-lsocket -lnsl $LIBS", , -lnsl)
     fi
     AC_SEARCH_LIBS(socket, socket, ,
@@ -1242,3 +1232,266 @@ AC_DEFUN(AC_LBL_SSLEAY,
 		incdir="-I$1/include"
 	fi
 ])
+
+m4_ifndef([AC_CONFIG_MACRO_DIRS], [m4_defun([_AM_CONFIG_MACRO_DIRS], [])m4_defun([AC_CONFIG_MACRO_DIRS], [_AM_CONFIG_MACRO_DIRS($@)])])
+dnl pkg.m4 - Macros to locate and utilise pkg-config.   -*- Autoconf -*-
+dnl serial 11 (pkg-config-0.29)
+dnl
+dnl Copyright © 2004 Scott James Remnant <scott@netsplit.com>.
+dnl Copyright © 2012-2015 Dan Nicholson <dbn.lists@gmail.com>
+dnl
+dnl This program is free software; you can redistribute it and/or modify
+dnl it under the terms of the GNU General Public License as published by
+dnl the Free Software Foundation; either version 2 of the License, or
+dnl (at your option) any later version.
+dnl
+dnl This program is distributed in the hope that it will be useful, but
+dnl WITHOUT ANY WARRANTY; without even the implied warranty of
+dnl MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+dnl General Public License for more details.
+dnl
+dnl You should have received a copy of the GNU General Public License
+dnl along with this program; if not, write to the Free Software
+dnl Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+dnl 02111-1307, USA.
+dnl
+dnl As a special exception to the GNU General Public License, if you
+dnl distribute this file as part of a program that contains a
+dnl configuration script generated by Autoconf, you may include it under
+dnl the same distribution terms that you use for the rest of that
+dnl program.
+
+dnl PKG_PREREQ(MIN-VERSION)
+dnl -----------------------
+dnl Since: 0.29
+dnl
+dnl Verify that the version of the pkg-config macros are at least
+dnl MIN-VERSION. Unlike PKG_PROG_PKG_CONFIG, which checks the user's
+dnl installed version of pkg-config, this checks the developer's version
+dnl of pkg.m4 when generating configure.
+dnl
+dnl To ensure that this macro is defined, also add:
+dnl m4_ifndef([PKG_PREREQ],
+dnl     [m4_fatal([must install pkg-config 0.29 or later before running autoconf/autogen])])
+dnl
+dnl See the "Since" comment for each macro you use to see what version
+dnl of the macros you require.
+m4_defun([PKG_PREREQ],
+[m4_define([PKG_MACROS_VERSION], [0.29])
+m4_if(m4_version_compare(PKG_MACROS_VERSION, [$1]), -1,
+    [m4_fatal([pkg.m4 version $1 or higher is required but ]PKG_MACROS_VERSION[ found])])
+])dnl PKG_PREREQ
+
+dnl PKG_PROG_PKG_CONFIG([MIN-VERSION])
+dnl ----------------------------------
+dnl Since: 0.16
+dnl
+dnl Search for the pkg-config tool and set the PKG_CONFIG variable to
+dnl first found in the path. Checks that the version of pkg-config found
+dnl is at least MIN-VERSION. If MIN-VERSION is not specified, 0.17.0 is
+dnl used since that's the first version where --static was supported.
+AC_DEFUN([PKG_PROG_PKG_CONFIG],
+[m4_pattern_forbid([^_?PKG_[A-Z_]+$])
+m4_pattern_allow([^PKG_CONFIG(_(PATH|LIBDIR|SYSROOT_DIR|ALLOW_SYSTEM_(CFLAGS|LIBS)))?$])
+m4_pattern_allow([^PKG_CONFIG_(DISABLE_UNINSTALLED|TOP_BUILD_DIR|DEBUG_SPEW)$])
+AC_ARG_VAR([PKG_CONFIG], [path to pkg-config utility])
+AC_ARG_VAR([PKG_CONFIG_PATH], [directories to add to pkg-config's search path])
+AC_ARG_VAR([PKG_CONFIG_LIBDIR], [path overriding pkg-config's built-in search path])
+
+if test "x$ac_cv_env_PKG_CONFIG_set" != "xset"; then
+	AC_PATH_TOOL([PKG_CONFIG], [pkg-config])
+fi
+if test -n "$PKG_CONFIG"; then
+	_pkg_min_version=m4_default([$1], [0.17.0])
+	AC_MSG_CHECKING([pkg-config is at least version $_pkg_min_version])
+	if $PKG_CONFIG --atleast-pkgconfig-version $_pkg_min_version; then
+		AC_MSG_RESULT([yes])
+	else
+		AC_MSG_RESULT([no])
+		PKG_CONFIG=""
+	fi
+fi[]dnl
+])dnl PKG_PROG_PKG_CONFIG
+
+dnl PKG_CHECK_EXISTS(MODULE, [ACTION-IF-FOUND], [ACTION-IF-NOT-FOUND])
+dnl -------------------------------------------------------------------
+dnl Since: 0.18
+dnl
+dnl Check to see whether a particular module exists. Similar to
+dnl PKG_CHECK_MODULE(), but does not set variables or print errors.
+AC_DEFUN([PKG_CHECK_EXISTS],
+[
+if test -n "$PKG_CONFIG" && \
+    AC_RUN_LOG([$PKG_CONFIG --exists --print-errors "$1"]); then
+  m4_default([$2], [:])
+m4_ifvaln([$3], [else
+  $3])dnl
+fi])
+
+dnl _PKG_CONFIG_WITH_FLAGS([VARIABLE], [FLAGS], [MODULE])
+dnl ---------------------------------------------
+dnl Internal wrapper calling pkg-config via PKG_CONFIG and, if
+dnl pkg-config fails, reporting the error and quitting.
+m4_define([_PKG_CONFIG_WITH_FLAGS],
+[if test ! -n "$$1"; then
+    $1=`$PKG_CONFIG $2 "$3" 2>/dev/null`
+    if test "x$?" != "x0"; then
+        #
+        # That failed - report an error.
+        # Re-run the command, telling pkg-config to print an error
+        # message, capture the error message, and report it.
+        # This causes the configuration script to fail, as it means
+        # the script is almost certainly doing something wrong.
+        #
+        _PKG_SHORT_ERRORS_SUPPORTED
+	if test $_pkg_short_errors_supported = yes; then
+	    _pkg_error_string=`$PKG_CONFIG --short-errors --print-errors $2 "$3" 2>&1`
+	else
+	    _pkg_error_string=`$PKG_CONFIG --print-errors $2 "$3" 2>&1`
+	fi
+        AC_MSG_ERROR([$PKG_CONFIG $2 "$3" failed: $_pkg_error_string])
+    fi
+ fi[]dnl
+])dnl _PKG_CONFIG_WITH_FLAGS
+
+
+dnl _PKG_CONFIG([VARIABLE], [FLAGS], [MODULE])
+dnl ---------------------------------------------
+dnl Internal wrapper calling pkg-config via PKG_CONFIG and setting
+dnl pkg_failed based on the result.
+m4_define([_PKG_CONFIG],
+[if test -n "$$1"; then
+    pkg_cv_[]$1="$$1"
+ elif test -n "$PKG_CONFIG"; then
+    PKG_CHECK_EXISTS([$3],
+                     [pkg_cv_[]$1=`$PKG_CONFIG $2 "$3" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes ],
+		     [pkg_failed=yes])
+ else
+    pkg_failed=untried
+fi[]dnl
+])dnl _PKG_CONFIG
+
+dnl _PKG_SHORT_ERRORS_SUPPORTED
+dnl ---------------------------
+dnl Internal check to see if pkg-config supports short errors.
+AC_DEFUN([_PKG_SHORT_ERRORS_SUPPORTED],
+[
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi[]dnl
+])dnl _PKG_SHORT_ERRORS_SUPPORTED
+
+
+dnl PKG_CHECK_MODULE(VARIABLE-PREFIX, MODULE, [ACTION-IF-FOUND],
+dnl   [ACTION-IF-NOT-FOUND])
+dnl --------------------------------------------------------------
+dnl Since: 0.4.0
+AC_DEFUN([PKG_CHECK_MODULE],
+[
+AC_MSG_CHECKING([for $2 with pkg-config])
+if test -n "$PKG_CONFIG"; then
+    AC_ARG_VAR([$1][_CFLAGS], [C compiler flags for $2, overriding pkg-config])dnl
+    AC_ARG_VAR([$1][_LIBS], [linker flags for $2, overriding pkg-config])dnl
+    AC_ARG_VAR([$1][_LIBS_STATIC], [static-link linker flags for $2, overriding pkg-config])dnl
+
+    if AC_RUN_LOG([$PKG_CONFIG --exists --print-errors "$2"]); then
+	#
+	# The package was found, so try to get its C flags and
+	# libraries.
+	#
+        AC_MSG_RESULT([found])
+	_PKG_CONFIG_WITH_FLAGS([$1][_CFLAGS], [--cflags], [$2])
+	_PKG_CONFIG_WITH_FLAGS([$1][_LIBS], [--libs], [$2])
+	_PKG_CONFIG_WITH_FLAGS([$1][_LIBS_STATIC], [--libs --static], [$2])
+        m4_default([$3], [:])
+    else
+        AC_MSG_RESULT([not found])
+        m4_default([$4], [:])
+    fi
+else
+    # No pkg-config, so obviously not found with pkg-config.
+    AC_MSG_RESULT([pkg-config not found])
+    m4_default([$4], [:])
+fi
+])dnl PKG_CHECK_MODULE
+
+
+dnl PKG_CHECK_MODULE_STATIC(VARIABLE-PREFIX, MODULE, [ACTION-IF-FOUND],
+dnl   [ACTION-IF-NOT-FOUND])
+dnl ---------------------------------------------------------------------
+dnl Since: 0.29
+dnl
+dnl Checks for existence of MODULE and gathers its build flags with
+dnl static libraries enabled. Sets VARIABLE-PREFIX_CFLAGS from --cflags
+dnl and VARIABLE-PREFIX_LIBS from --libs.
+AC_DEFUN([PKG_CHECK_MODULE_STATIC],
+[
+_save_PKG_CONFIG=$PKG_CONFIG
+PKG_CONFIG="$PKG_CONFIG --static"
+PKG_CHECK_MODULE($@)
+PKG_CONFIG=$_save_PKG_CONFIG[]dnl
+])dnl PKG_CHECK_MODULE_STATIC
+
+
+dnl PKG_INSTALLDIR([DIRECTORY])
+dnl -------------------------
+dnl Since: 0.27
+dnl
+dnl Substitutes the variable pkgconfigdir as the location where a module
+dnl should install pkg-config .pc files. By default the directory is
+dnl $libdir/pkgconfig, but the default can be changed by passing
+dnl DIRECTORY. The user can override through the --with-pkgconfigdir
+dnl parameter.
+AC_DEFUN([PKG_INSTALLDIR],
+[m4_pushdef([pkg_default], [m4_default([$1], ['${libdir}/pkgconfig'])])
+m4_pushdef([pkg_description],
+    [pkg-config installation directory @<:@]pkg_default[@:>@])
+AC_ARG_WITH([pkgconfigdir],
+    [AS_HELP_STRING([--with-pkgconfigdir], pkg_description)],,
+    [with_pkgconfigdir=]pkg_default)
+AC_SUBST([pkgconfigdir], [$with_pkgconfigdir])
+m4_popdef([pkg_default])
+m4_popdef([pkg_description])
+])dnl PKG_INSTALLDIR
+
+
+dnl PKG_NOARCH_INSTALLDIR([DIRECTORY])
+dnl --------------------------------
+dnl Since: 0.27
+dnl
+dnl Substitutes the variable noarch_pkgconfigdir as the location where a
+dnl module should install arch-independent pkg-config .pc files. By
+dnl default the directory is $datadir/pkgconfig, but the default can be
+dnl changed by passing DIRECTORY. The user can override through the
+dnl --with-noarch-pkgconfigdir parameter.
+AC_DEFUN([PKG_NOARCH_INSTALLDIR],
+[m4_pushdef([pkg_default], [m4_default([$1], ['${datadir}/pkgconfig'])])
+m4_pushdef([pkg_description],
+    [pkg-config arch-independent installation directory @<:@]pkg_default[@:>@])
+AC_ARG_WITH([noarch-pkgconfigdir],
+    [AS_HELP_STRING([--with-noarch-pkgconfigdir], pkg_description)],,
+    [with_noarch_pkgconfigdir=]pkg_default)
+AC_SUBST([noarch_pkgconfigdir], [$with_noarch_pkgconfigdir])
+m4_popdef([pkg_default])
+m4_popdef([pkg_description])
+])dnl PKG_NOARCH_INSTALLDIR
+
+
+dnl PKG_CHECK_VAR(VARIABLE, MODULE, CONFIG-VARIABLE,
+dnl [ACTION-IF-FOUND], [ACTION-IF-NOT-FOUND])
+dnl -------------------------------------------
+dnl Since: 0.28
+dnl
+dnl Retrieves the value of the pkg-config variable for the given module.
+AC_DEFUN([PKG_CHECK_VAR],
+[
+AC_ARG_VAR([$1], [value of $3 for $2, overriding pkg-config])dnl
+
+_PKG_CONFIG([$1], [--variable="][$3]["], [$2])
+AS_VAR_COPY([$1], [pkg_cv_][$1])
+
+AS_VAR_IF([$1], [""], [$5], [$4])dnl
+])dnl PKG_CHECK_VAR

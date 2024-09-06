@@ -1,4 +1,4 @@
-    1  12:36:55.841195 IS-IS, length 495
+    1  2019-08-22 12:36:55.841195 IS-IS, length 495
 	L2 LSP, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  lsp-id: 0192.0168.0001.00-00, seq: 0x0000000b, lifetime:  1196s
 	  chksum: 0xc074 (correct), PDU length: 495, Flags: [ L2 IS ]

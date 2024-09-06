@@ -1,4 +1,4 @@
-    1  00:00:00.000000 08:00:27:2c:25:1e > 09:00:2b:00:00:05, 802.3, length 1495: LLC, dsap OSI (0xfe) Individual, ssap OSI (0xfe) Command, ctrl 0x03: OSI NLPID IS-IS (0x83): length 1492
+    1  1970-01-01 00:00:00.000000 08:00:27:2c:25:1e > 09:00:2b:00:00:05, 802.3, length 1495: LLC, dsap OSI (0xfe) Individual, ssap OSI (0xfe) Command, ctrl 0x03: OSI NLPID IS-IS (0x83): length 1492
 	p2p IIH, hlen: 20, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 1 (1)
 	0x0000:  8314 0100 1101 0001
 	  source-id: 8888.8888.8888, holding time: 30s, Flags: [Level 1 only]

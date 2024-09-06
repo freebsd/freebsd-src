@@ -1,4 +1,4 @@
-    1  00:00:00.000000 c2:02:73:fe:00:00 > 01:00:5e:00:00:0a, ethertype IPv4 (0x0800), length 65535: (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 65521)
+    1  1970-01-01 00:00:00.000000 c2:02:73:fe:00:00 > 01:00:5e:00:00:0a, ethertype IPv4 (0x0800), length 65535: (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto EIGRP (88), length 65521)
     10.0.0.2 > 224.0.0.10: 
 	EIGRP v2, opcode: Hello (5), chksum: 0xee68, Flags: [none]
 	seq: 0x00000000, ack: 0x00000000, VRID: 0, AS: 100, length: 65481

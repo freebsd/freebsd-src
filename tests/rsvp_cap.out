@@ -1,4 +1,4 @@
-    1  12:22:52.874485 IP (tos 0xc0, ttl 1, id 44443, offset 0, flags [none], proto RSVP (46), length 60)
+    1  2019-08-22 12:22:52.874485 IP (tos 0xc0, ttl 1, id 44443, offset 0, flags [none], proto RSVP (46), length 60)
     10.0.57.5 > 10.0.57.7: 
 	RSVPv1 Hello Message (20), Flags: [Refresh reduction capable], length: 40, ttl: 1, checksum: 0x7d4d
 	  Hello Object (22) Flags: [reject if unknown], Class-Type: Hello Request (1), length: 12

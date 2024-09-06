@@ -1,4 +1,4 @@
-    1  07:21:26.812466 IP (tos 0x0, ttl 64, id 14630, offset 0, flags [DF], proto TCP (6), length 427)
+    1  2016-10-27 07:21:26.812466 IP (tos 0x0, ttl 64, id 14630, offset 0, flags [DF], proto TCP (6), length 427)
     192.0.2.2.46605 > 192.0.2.3.179: Flags [P.], cksum 0x232f (correct), seq 1293104091:1293104466, ack 4093754554, win 457, options [nop,nop,TS val 68367 ecr 68367], length 375: BGP
 	Update Message (2), length: 75
 	  Origin (1), length: 1, Flags [T]: IGP

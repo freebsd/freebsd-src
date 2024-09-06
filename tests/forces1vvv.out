@@ -1,4 +1,4 @@
-    1  12:23:04.260400 IP (tos 0x2,ECT(0), ttl 64, id 4, offset 0, flags [DF], proto SCTP (132), length 380)
+    1  2011-03-03 12:23:04.260400 IP (tos 0x2,ECT(0), ttl 64, id 4, offset 0, flags [DF], proto SCTP (132), length 380)
     150.140.254.202.57077 > 211.129.72.8.6704: sctp[ForCES HP]
 	1) [DATA] (B)(E) [TSN: 1048037094] [SID: 0] [SSEQ 1] [PPID 0x0] 
 	ForCES Query Response 
@@ -35,7 +35,7 @@
                0x0100:  0000 0012 0000 0001 0000 0016 0000 0013
                0x0110:  0000 0001
                ]
-    2  12:23:04.726175 IP (tos 0x0, ttl 46, id 0, offset 0, flags [DF], proto SCTP (132), length 72)
+    2  2011-03-03 12:23:04.726175 IP (tos 0x0, ttl 46, id 0, offset 0, flags [DF], proto SCTP (132), length 72)
     211.129.72.8.6706 > 150.140.254.202.48316: sctp[ForCES LP]
 	1) [DATA] (B)(E) [TSN: 18398476] [SID: 0] [SSEQ 0] [PPID 0x0] 
 	ForCES HeartBeat 
@@ -46,10 +46,10 @@
 	  Standalone(0x0), StartofTransaction(0x0)
 	  Extra flags: rsv(b5-7) 0x0 rsv(b13-31) 0x0
 
-    3  12:23:04.726228 IP (tos 0x2,ECT(0), ttl 64, id 1, offset 0, flags [DF], proto SCTP (132), length 48)
+    3  2011-03-03 12:23:04.726228 IP (tos 0x2,ECT(0), ttl 64, id 1, offset 0, flags [DF], proto SCTP (132), length 48)
     150.140.254.202.48316 > 211.129.72.8.6706: sctp[ForCES LP]
 	1) [SACK] [cum ack 18398476] [a_rwnd 57320] [#gap acks 0] [#dup tsns 0] 
-    4  12:23:04.728649 IP (tos 0x0, ttl 46, id 3, offset 0, flags [DF], proto SCTP (132), length 100)
+    4  2011-03-03 12:23:04.728649 IP (tos 0x0, ttl 46, id 3, offset 0, flags [DF], proto SCTP (132), length 100)
     211.129.72.8.6704 > 150.140.254.202.57077: sctp[ForCES HP]
 	1) [DATA] (B)(E) [TSN: 167996938] [SID: 0] [SSEQ 2] [PPID 0x0] 
 	ForCES Query 
@@ -66,7 +66,7 @@
             Pathdata: Flags 0x0 ID count 1
             ID#01: 1
 
-    5  12:23:04.733639 IP (tos 0x0, ttl 46, id 4, offset 0, flags [DF], proto SCTP (132), length 112)
+    5  2011-03-03 12:23:04.733639 IP (tos 0x0, ttl 46, id 4, offset 0, flags [DF], proto SCTP (132), length 112)
     211.129.72.8.6704 > 150.140.254.202.57077: sctp[ForCES HP]
 	1) [DATA] (B)(E) [TSN: 167996939] [SID: 0] [SSEQ 3] [PPID 0x0] 
 	ForCES Config 
@@ -87,10 +87,10 @@
                [
                0x0000:  0000 0001
                ]
-    6  12:23:04.733672 IP (tos 0x2,ECT(0), ttl 64, id 5, offset 0, flags [DF], proto SCTP (132), length 48)
+    6  2011-03-03 12:23:04.733672 IP (tos 0x2,ECT(0), ttl 64, id 5, offset 0, flags [DF], proto SCTP (132), length 48)
     150.140.254.202.57077 > 211.129.72.8.6704: sctp[ForCES HP]
 	1) [SACK] [cum ack 167996939] [a_rwnd 57228] [#gap acks 0] [#dup tsns 0] 
-    7  12:23:04.734755 IP (tos 0x0, ttl 46, id 5, offset 0, flags [DF], proto SCTP (132), length 112)
+    7  2011-03-03 12:23:04.734755 IP (tos 0x0, ttl 46, id 5, offset 0, flags [DF], proto SCTP (132), length 112)
     211.129.72.8.6704 > 150.140.254.202.57077: sctp[ForCES HP]
 	1) [DATA] (B)(E) [TSN: 167996940] [SID: 0] [SSEQ 4] [PPID 0x0] 
 	ForCES Config 
@@ -111,7 +111,7 @@
                [
                0x0000:  0000 0001
                ]
-    8  12:23:04.736911 IP (tos 0x0, ttl 46, id 6, offset 0, flags [DF], proto SCTP (132), length 112)
+    8  2011-03-03 12:23:04.736911 IP (tos 0x0, ttl 46, id 6, offset 0, flags [DF], proto SCTP (132), length 112)
     211.129.72.8.6704 > 150.140.254.202.57077: sctp[ForCES HP]
 	1) [DATA] (B)(E) [TSN: 167996941] [SID: 0] [SSEQ 5] [PPID 0x0] 
 	ForCES Config 
@@ -132,10 +132,10 @@
                [
                0x0000:  0000 0001
                ]
-    9  12:23:04.736980 IP (tos 0x2,ECT(0), ttl 64, id 6, offset 0, flags [DF], proto SCTP (132), length 48)
+    9  2011-03-03 12:23:04.736980 IP (tos 0x2,ECT(0), ttl 64, id 6, offset 0, flags [DF], proto SCTP (132), length 48)
     150.140.254.202.57077 > 211.129.72.8.6704: sctp[ForCES HP]
 	1) [SACK] [cum ack 167996941] [a_rwnd 57100] [#gap acks 0] [#dup tsns 0] 
-   10  12:23:04.740959 IP (tos 0x0, ttl 46, id 7, offset 0, flags [DF], proto SCTP (132), length 112)
+   10  2011-03-03 12:23:04.740959 IP (tos 0x0, ttl 46, id 7, offset 0, flags [DF], proto SCTP (132), length 112)
     211.129.72.8.6704 > 150.140.254.202.57077: sctp[ForCES HP]
 	1) [DATA] (B)(E) [TSN: 167996942] [SID: 0] [SSEQ 6] [PPID 0x0] 
 	ForCES Config 
@@ -156,19 +156,19 @@
                [
                0x0000:  0000 0001
                ]
-   11  12:24:26.948354 IP (tos 0x0, ttl 46, id 110, offset 0, flags [DF], proto SCTP (132), length 48)
+   11  2011-03-03 12:24:26.948354 IP (tos 0x0, ttl 46, id 110, offset 0, flags [DF], proto SCTP (132), length 48)
     211.129.72.8.6706 > 150.140.254.202.48316: sctp[ForCES LP]
 	1) [SACK] [cum ack 1830592459] [a_rwnd 55272] [#gap acks 0] [#dup tsns 0] 
-   12  12:24:26.973201 IP (tos 0x2,ECT(0), ttl 64, id 90, offset 0, flags [DF], proto SCTP (132), length 80)
+   12  2011-03-03 12:24:26.973201 IP (tos 0x2,ECT(0), ttl 64, id 90, offset 0, flags [DF], proto SCTP (132), length 80)
     150.140.254.202.57077 > 211.129.72.8.6704: sctp[ForCES HP]
 	1) [HB REQ] 
-   13  12:24:27.282739 IP (tos 0x0, ttl 46, id 111, offset 0, flags [DF], proto SCTP (132), length 80)
+   13  2011-03-03 12:24:27.282739 IP (tos 0x0, ttl 46, id 111, offset 0, flags [DF], proto SCTP (132), length 80)
     211.129.72.8.6704 > 150.140.254.202.57077: sctp[ForCES HP]
 	1) [HB REQ] 
-   14  12:24:27.282783 IP (tos 0x2,ECT(0), ttl 64, id 91, offset 0, flags [DF], proto SCTP (132), length 80)
+   14  2011-03-03 12:24:27.282783 IP (tos 0x2,ECT(0), ttl 64, id 91, offset 0, flags [DF], proto SCTP (132), length 80)
     150.140.254.202.57077 > 211.129.72.8.6704: sctp[ForCES HP]
 	1) [HB ACK] 
-   15  12:24:27.354881 IP (tos 0x2,ECT(0), ttl 64, id 111, offset 0, flags [DF], proto SCTP (132), length 72)
+   15  2011-03-03 12:24:27.354881 IP (tos 0x2,ECT(0), ttl 64, id 111, offset 0, flags [DF], proto SCTP (132), length 72)
     150.140.254.202.48316 > 211.129.72.8.6706: sctp[ForCES LP]
 	1) [DATA] (B)(E) [TSN: 1830592460] [SID: 0] [SSEQ 30] [PPID 0x0] 
 	ForCES HeartBeat 
@@ -179,10 +179,10 @@
 	  Standalone(0x0), StartofTransaction(0x0)
 	  Extra flags: rsv(b5-7) 0x0 rsv(b13-31) 0x0
 
-   16  12:24:27.372769 IP (tos 0x0, ttl 46, id 112, offset 0, flags [DF], proto SCTP (132), length 80)
+   16  2011-03-03 12:24:27.372769 IP (tos 0x0, ttl 46, id 112, offset 0, flags [DF], proto SCTP (132), length 80)
     211.129.72.8.6704 > 150.140.254.202.57077: sctp[ForCES HP]
 	1) [HB ACK] 
-   17  12:24:27.759030 IP (tos 0x0, ttl 46, id 111, offset 0, flags [DF], proto SCTP (132), length 72)
+   17  2011-03-03 12:24:27.759030 IP (tos 0x0, ttl 46, id 111, offset 0, flags [DF], proto SCTP (132), length 72)
     211.129.72.8.6706 > 150.140.254.202.48316: sctp[ForCES LP]
 	1) [DATA] (B)(E) [TSN: 18398553] [SID: 0] [SSEQ 77] [PPID 0x0] 
 	ForCES HeartBeat 
@@ -193,7 +193,7 @@
 	  Standalone(0x0), StartofTransaction(0x0)
 	  Extra flags: rsv(b5-7) 0x0 rsv(b13-31) 0x0
 
-   18  12:24:44.777986 IP (tos 0x0, ttl 46, id 148, offset 0, flags [DF], proto SCTP (132), length 72)
+   18  2011-03-03 12:24:44.777986 IP (tos 0x0, ttl 46, id 148, offset 0, flags [DF], proto SCTP (132), length 72)
     211.129.72.8.6706 > 150.140.254.202.48316: sctp[ForCES LP]
 	1) [DATA] (B)(E) [TSN: 18398573] [SID: 0] [SSEQ 97] [PPID 0x0] 
 	ForCES HeartBeat 
@@ -204,9 +204,9 @@
 	  Standalone(0x0), StartofTransaction(0x0)
 	  Extra flags: rsv(b5-7) 0x0 rsv(b13-31) 0x0
 
-   19  12:24:44.963122 IP (tos 0x0, ttl 46, id 149, offset 0, flags [DF], proto SCTP (132), length 48)
+   19  2011-03-03 12:24:44.963122 IP (tos 0x0, ttl 46, id 149, offset 0, flags [DF], proto SCTP (132), length 48)
     211.129.72.8.6706 > 150.140.254.202.48316: sctp[ForCES LP]
 	1) [SACK] [cum ack 1830592477] [a_rwnd 55272] [#gap acks 0] [#dup tsns 0] 
-   20  12:24:44.978321 IP (tos 0x2,ECT(0), ttl 64, id 147, offset 0, flags [DF], proto SCTP (132), length 48)
+   20  2011-03-03 12:24:44.978321 IP (tos 0x2,ECT(0), ttl 64, id 147, offset 0, flags [DF], proto SCTP (132), length 48)
     150.140.254.202.48316 > 211.129.72.8.6706: sctp[ForCES LP]
 	1) [SACK] [cum ack 18398573] [a_rwnd 56144] [#gap acks 0] [#dup tsns 0] 

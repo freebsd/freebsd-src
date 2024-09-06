@@ -1,4 +1,4 @@
-    1  17:19:33.663606 CFMv0 unknown (204), MD Level 0, length 168
+    1  2014-11-24 17:19:33.663606 CFMv0 unknown (204), MD Level 0, length 168
 	First TLV offset 52
 	  0x0000:  a300 0000 0080 0000 0000 0000 0000 0000
 	  0x0010:  0000 00aa 6873 54d7 060b 003c 0000 003c
@@ -10,12 +10,12 @@
 	Port status TLV (0x02), length 26, Status: Unknown (0)
 	Unknown TLV (0x37), length 4101
 		 packet is too short
-    2  23:52:05.672232 IP (tos 0x10, ttl 62, id 64806, offset 0, flags [DF], proto TCP (6), length 52)
+    2  2014-12-18 23:52:05.672232 IP (tos 0x10, ttl 62, id 64806, offset 0, flags [DF], proto TCP (6), length 52)
     204.9.51.132.50079 > 204.9.54.80.22: Flags [.], cksum 0x8611 (incorrect -> 0xa678), ack 1819218606, win 4094, options [nop,nop,TS val 941371775 ecr 4294967242], length 0
-    3  17:19:33.684826 IP (tos 0x10, ttl 62, id 62920, offset 0, flags [DF], proto TCP (6), length 52, bad cksum 4504 (->451a)!)
+    3  2014-11-24 17:19:33.684826 IP (tos 0x10, ttl 62, id 62920, offset 0, flags [DF], proto TCP (6), length 52, bad cksum 4504 (->451a)!)
     204.9.51.132.50079 > 204.243.53.80.22: Flags [.], cksum 0x858b (incorrect -> 0x66a1), ack 2339312418, win 4092, options [nop,nop,TS val 941371913 ecr 1340592084], length 0
-    4  17:19:33.703499 IP (tos 0x0, ttl 64, id 63178, offset 0, flags [DF], proto TCP (6), length 52, bad cksum 3e8c (->438c)!)
+    4  2014-11-24 17:19:33.703499 IP (tos 0x0, ttl 64, id 63178, offset 0, flags [DF], proto TCP (6), length 52, bad cksum 3e8c (->438c)!)
     204.9.64.80.55936 > 204.9.40.10.443: Flags [.], cksum 0x0594 (incorrect -> 0x7767), ack 3587398274, win 1040, options [nop,nop,TS val 647770294 ecr 2364779354], length 0
-    5  17:19:33.703625 IP (tos 0x0, ttl 64, id 36752, offset 0, flags [DF], proto TCP (6), length 399, bad cksum a46b (->a474)!)
+    5  2014-11-24 17:19:33.703625 IP (tos 0x0, ttl 64, id 36752, offset 0, flags [DF], proto TCP (6), length 399, bad cksum a46b (->a474)!)
     204.0.55.10.323 > 204.9.54.80.55936: Flags [P.], cksum 0xc9b6 (incorrect -> 0x8900), seq 3589495407:3589495754, ack 370428050, win 1040, options [nop,nop,TS val 2364757411 ecr 3084508609], length 347
 	RPKI-RTRv177 (unknown)

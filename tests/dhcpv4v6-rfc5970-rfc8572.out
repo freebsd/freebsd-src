@@ -1,0 +1,76 @@
+    1  2022-03-25 13:35:23.334910 IP6 (flowlabel 0x03f85, hlim 1, next-header UDP (17) payload length: 80) fe80::200:1ff:fe01:0.546 > ff02::1:2.547: [udp sum ok] dhcp6 solicit (xid=6aebe6 (vendor-specific-info) (client-ID hwaddr/time type 1 time 701530515 000001010000) (option-request SZTP-redirect DNS-search-list DNS-server) (elapsed-time 703) (IA_NA IAID:16842752 T1:3600 T2:5400))
+    2  2022-03-25 13:35:45.614434 IP6 (flowlabel 0x03f85, hlim 1, next-header UDP (17) payload length: 80) fe80::200:1ff:fe01:0.546 > ff02::1:2.547: [udp sum ok] dhcp6 solicit (xid=aca407 (vendor-specific-info) (client-ID hwaddr/time type 1 time 701530515 000001010000) (option-request SZTP-redirect DNS-search-list DNS-server) (elapsed-time 0) (IA_NA IAID:16842752 T1:3600 T2:5400))
+    3  2022-03-25 13:35:45.618584 IP6 (flowlabel 0xe612c, hlim 64, next-header UDP (17) payload length: 281) fe80::cc0d:b4ff:fe8a:3384.547 > fe80::200:1ff:fe01:0.546: [udp sum ok] dhcp6 advertise (xid=aca407 (IA_NA IAID:16842752 T1:0 T2:0 (IA_ADDR 1234:5678::4 pltime:18000 vltime:28800)) (client-ID hwaddr/time type 1 time 701530515 000001010000) (server-ID hwaddr/time type 1 time 701530524 ce0db48a3384) (SZTP-redirect https://sztp1.download.com,https://sztp2.download.com:8080,https://10.10.0.0,https://10.10.0.0:8000,https://[2001:4860:4860::8888]:8080) (DNS-search-list aristanetworks.com.) (DNS-server 1234:5678::2))
+    4  2022-03-25 13:35:46.635774 IP6 (flowlabel 0x03f85, hlim 1, next-header UDP (17) payload length: 126) fe80::200:1ff:fe01:0.546 > ff02::1:2.547: [udp sum ok] dhcp6 request (xid=5f98e6 (vendor-specific-info) (client-ID hwaddr/time type 1 time 701530515 000001010000) (server-ID hwaddr/time type 1 time 701530524 ce0db48a3384) (option-request SZTP-redirect DNS-search-list DNS-server) (elapsed-time 0) (IA_NA IAID:16842752 T1:3600 T2:5400 (IA_ADDR 1234:5678::4 pltime:7200 vltime:7500)))
+    5  2022-03-25 13:35:46.638223 IP6 (flowlabel 0xe612c, hlim 64, next-header UDP (17) payload length: 281) fe80::cc0d:b4ff:fe8a:3384.547 > fe80::200:1ff:fe01:0.546: [udp sum ok] dhcp6 reply (xid=5f98e6 (IA_NA IAID:16842752 T1:0 T2:0 (IA_ADDR 1234:5678::4 pltime:7200 vltime:28800)) (client-ID hwaddr/time type 1 time 701530515 000001010000) (server-ID hwaddr/time type 1 time 701530524 ce0db48a3384) (SZTP-redirect https://sztp1.download.com,https://sztp2.download.com:8080,https://10.10.0.0,https://10.10.0.0:8000,https://[2001:4860:4860::8888]:8080) (DNS-search-list aristanetworks.com.) (DNS-server 1234:5678::2))
+    6  2022-03-25 13:56:39.000073 IP (tos 0x10, ttl 128, id 0, offset 0, flags [none], proto UDP (17), length 328)
+    0.0.0.0.68 > 255.255.255.255.67: [udp sum ok] BOOTP/DHCP, Request from 00:00:44:01:00:00, length 300, xid 0x796a827d, Flags [none] (0x0000)
+	  Client-Ethernet-Address 00:00:44:01:00:00
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Discover
+	    Parameter-Request (55), length 10: 
+	      MTU (26), Subnet-Mask (1), BR (28), Default-Gateway (3)
+	      Domain-Name (15), Domain-Name-Server (6), LOG (7), Hostname (12)
+	      SZTP-Redirect (143), Classless-Static-Route (121)
+	    Vendor-Class (60), length 6: "Arista"
+	    Client-ID (61), length 6: "^@D^A^@^@"
+    7  2022-03-25 13:56:40.003200 IP (tos 0x10, ttl 128, id 0, offset 0, flags [none], proto UDP (17), length 469)
+    10.10.0.2.67 > 10.10.0.4.68: [udp sum ok] BOOTP/DHCP, Reply, length 441, xid 0x796a827d, Flags [none] (0x0000)
+	  Your-IP 10.10.0.4
+	  Client-Ethernet-Address 00:00:44:01:00:00
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Offer
+	    Server-ID (54), length 4: 10.10.0.2
+	    Lease-Time (51), length 4: 28800
+	    MTU (26), length 2: 1500
+	    Subnet-Mask (1), length 4: 255.255.0.0
+	    Default-Gateway (3), length 4: 10.10.0.1
+	    Domain-Name (15), length 18: "aristanetworks.com"
+	    Domain-Name-Server (6), length 4: 10.10.0.1
+	    SZTP-Redirect (143), length 141: 
+		    length 26: "https://sztp1.download.com"
+		    length 31: "https://sztp2.download.com:8080"
+		    length 17: "https://10.10.0.0"
+		    length 22: "https://10.10.0.0:8000"
+		    length 35: "https://[2001:4860:4860::8888]:8080"
+    8  2022-03-25 13:56:40.003500 IP (tos 0x10, ttl 128, id 0, offset 0, flags [none], proto UDP (17), length 328)
+    0.0.0.0.68 > 255.255.255.255.67: [udp sum ok] BOOTP/DHCP, Request from 00:00:44:01:00:00, length 300, xid 0x796a827d, Flags [none] (0x0000)
+	  Client-Ethernet-Address 00:00:44:01:00:00
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Request
+	    Server-ID (54), length 4: 10.10.0.2
+	    Requested-IP (50), length 4: 10.10.0.4
+	    Parameter-Request (55), length 10: 
+	      MTU (26), Subnet-Mask (1), BR (28), Default-Gateway (3)
+	      Domain-Name (15), Domain-Name-Server (6), LOG (7), Hostname (12)
+	      SZTP-Redirect (143), Classless-Static-Route (121)
+	    Vendor-Class (60), length 6: "Arista"
+	    Client-ID (61), length 6: "^@D^A^@^@"
+    9  2022-03-25 13:56:40.005894 IP (tos 0x10, ttl 128, id 0, offset 0, flags [none], proto UDP (17), length 469)
+    10.10.0.2.67 > 10.10.0.4.68: [udp sum ok] BOOTP/DHCP, Reply, length 441, xid 0x796a827d, Flags [none] (0x0000)
+	  Your-IP 10.10.0.4
+	  Client-Ethernet-Address 00:00:44:01:00:00
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: ACK
+	    Server-ID (54), length 4: 10.10.0.2
+	    Lease-Time (51), length 4: 28800
+	    MTU (26), length 2: 1500
+	    Subnet-Mask (1), length 4: 255.255.0.0
+	    Default-Gateway (3), length 4: 10.10.0.1
+	    Domain-Name (15), length 18: "aristanetworks.com"
+	    Domain-Name-Server (6), length 4: 10.10.0.1
+	    SZTP-Redirect (143), length 141: 
+		    length 26: "https://sztp1.download.com"
+		    length 31: "https://sztp2.download.com:8080"
+		    length 17: "https://10.10.0.0"
+		    length 22: "https://10.10.0.0:8000"
+		    length 35: "https://[2001:4860:4860::8888]:8080"
+   10  2022-03-28 14:15:10.112658 IP6 (flowlabel 0x03f85, hlim 1, next-header UDP (17) payload length: 80) fe80::200:1ff:fe01:0.546 > ff02::1:2.547: [udp sum ok] dhcp6 solicit (xid=28792a (vendor-specific-info) (client-ID hwaddr/time type 1 time 701792102 000001010000) (option-request Bootfile-URL DNS-search-list DNS-server) (elapsed-time 754) (IA_NA IAID:16842752 T1:3600 T2:5400))
+   11  2022-03-28 14:15:33.148466 IP6 (flowlabel 0x1570c, hlim 64, next-header UDP (17) payload length: 157) fe80::40d3:61ff:fe62:3810.547 > fe80::200:1ff:fe01:0.546: [udp sum ok] dhcp6 advertise (xid=654242 (IA_NA IAID:16842752 T1:0 T2:0 (IA_ADDR 1234:5678::4 pltime:18000 vltime:28800)) (client-ID hwaddr/time type 1 time 701792102 000001010000) (server-ID hwaddr/time type 1 time 701792110 42d361623810) (Bootfile-URL my-startup-config) (DNS-search-list aristanetworks.com.) (DNS-server 1234:5678::2))
+   12  2022-03-28 14:15:34.152941 IP6 (flowlabel 0x03f85, hlim 1, next-header UDP (17) payload length: 126) fe80::200:1ff:fe01:0.546 > ff02::1:2.547: [udp sum ok] dhcp6 request (xid=becafa (vendor-specific-info) (client-ID hwaddr/time type 1 time 701792102 000001010000) (server-ID hwaddr/time type 1 time 701792110 42d361623810) (option-request Bootfile-URL DNS-search-list DNS-server) (elapsed-time 0) (IA_NA IAID:16842752 T1:3600 T2:5400 (IA_ADDR 1234:5678::4 pltime:7200 vltime:7500)))
+   13  2022-03-28 14:15:34.156427 IP6 (flowlabel 0x1570c, hlim 64, next-header UDP (17) payload length: 157) fe80::40d3:61ff:fe62:3810.547 > fe80::200:1ff:fe01:0.546: [udp sum ok] dhcp6 reply (xid=becafa (IA_NA IAID:16842752 T1:0 T2:0 (IA_ADDR 1234:5678::4 pltime:7200 vltime:28800)) (client-ID hwaddr/time type 1 time 701792102 000001010000) (server-ID hwaddr/time type 1 time 701792110 42d361623810) (Bootfile-URL my-startup-config) (DNS-search-list aristanetworks.com.) (DNS-server 1234:5678::2))
+   14  2022-04-06 08:08:32.009292 IP6 (flowlabel 0x09903, hlim 1, next-header UDP (17) payload length: 138) fe80::200:44ff:fe01:0.546 > ff02::1:2.547: [udp sum ok] dhcp6 inf-req (xid=b5fcf (vendor-specific-info) (client-ID hwaddr type 1 000044010000) (option-request Bootfile-URL DNS-search-list DNS-server) (elapsed-time 331) (user-class Arista;Test-Dhcpv6Discover;4.21.XX))

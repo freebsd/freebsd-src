@@ -1,4 +1,4 @@
-    1  13:30:12.871661 00:23:54:c2:57:02 > 01:80:c2:00:00:0e, ethertype LLDP (0x88cc), length 302: LLDP, length 288
+    1  2016-12-30 13:30:12.871661 00:23:54:c2:57:02 > 01:80:c2:00:00:0e, ethertype LLDP (0x88cc), length 302: LLDP, length 288
 	Chassis ID TLV (1), length 7
 	  Subtype MAC address (4): 00:23:54:c2:57:02
 	Port ID TLV (2), length 7
@@ -29,7 +29,7 @@
 	  MUD-URL Subtype (1)
 	  MUD-URL=https://imright.mud.example.com/.well-known/mud/v1/vomitv2.0
 	End TLV (0), length 0
-    2  13:30:42.880485 00:23:54:c2:57:02 > 01:80:c2:00:00:0e, ethertype LLDP (0x88cc), length 302: LLDP, length 288
+    2  2016-12-30 13:30:42.880485 00:23:54:c2:57:02 > 01:80:c2:00:00:0e, ethertype LLDP (0x88cc), length 302: LLDP, length 288
 	Chassis ID TLV (1), length 7
 	  Subtype MAC address (4): 00:23:54:c2:57:02
 	Port ID TLV (2), length 7

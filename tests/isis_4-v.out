@@ -1,4 +1,4 @@
-    1  03:40:38.691154 IS-IS, length 1499
+    1  2008-06-18 03:40:38.691154 IS-IS, length 1499
 	p2p IIH, hlen: 20, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 1111.1111.1111, holding time: 30s, Flags: [Level 1, Level 2]
 	  circuit-id: 0x00, PDU length: 1499
@@ -18,7 +18,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 169
-    2  03:40:46.923618 IS-IS, length 1499
+    2  2008-06-18 03:40:46.923618 IS-IS, length 1499
 	p2p IIH, hlen: 20, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 1111.1111.1111, holding time: 30s, Flags: [Level 1, Level 2]
 	  circuit-id: 0x00, PDU length: 1499
@@ -38,7 +38,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 169
-    3  03:41:55.844926 IS-IS, length 1499
+    3  2008-06-18 03:41:55.844926 IS-IS, length 1499
 	p2p IIH, hlen: 20, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 2222.2222.2222, holding time: 30s, Flags: [Level 1, Level 2]
 	  circuit-id: 0x00, PDU length: 1499
@@ -58,7 +58,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 169
-    4  03:42:05.288417 IS-IS, length 1499
+    4  2008-06-18 03:42:05.288417 IS-IS, length 1499
 	p2p IIH, hlen: 20, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 2222.2222.2222, holding time: 30s, Flags: [Level 1, Level 2]
 	  circuit-id: 0x00, PDU length: 1499
@@ -78,7 +78,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 169
-    5  03:42:06.296448 IS-IS, length 1499
+    5  2008-06-18 03:42:06.296448 IS-IS, length 1499
 	p2p IIH, hlen: 20, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 1111.1111.1111, holding time: 30s, Flags: [Level 1, Level 2]
 	  circuit-id: 0x00, PDU length: 1499
@@ -98,7 +98,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 169
-    6  03:42:06.308456 IS-IS, length 1499
+    6  2008-06-18 03:42:06.308456 IS-IS, length 1499
 	p2p IIH, hlen: 20, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 2222.2222.2222, holding time: 30s, Flags: [Level 1, Level 2]
 	  circuit-id: 0x00, PDU length: 1499
@@ -118,7 +118,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 169
-    7  03:42:06.320445 IS-IS, length 1499
+    7  2008-06-18 03:42:06.320445 IS-IS, length 1499
 	p2p IIH, hlen: 20, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 1111.1111.1111, holding time: 30s, Flags: [Level 1, Level 2]
 	  circuit-id: 0x00, PDU length: 1499
@@ -138,7 +138,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 169
-    8  03:42:06.332472 IS-IS, length 1499
+    8  2008-06-18 03:42:06.332472 IS-IS, length 1499
 	p2p IIH, hlen: 20, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 2222.2222.2222, holding time: 30s, Flags: [Level 1, Level 2]
 	  circuit-id: 0x00, PDU length: 1499
@@ -158,7 +158,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 169
-    9  03:42:06.392476 IS-IS, length 74
+    9  2008-06-18 03:42:06.392476 IS-IS, length 74
 	L1 LSP, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  lsp-id: 1111.1111.1111.00-00, seq: 0x00000007, lifetime:  1200s
 	  chksum: 0x1da8 (correct), PDU length: 74, Flags: [ L2 IS ]
@@ -175,7 +175,7 @@
 	    IS Reachability TLV #2, length: 12
 	      IsNotVirtual
 	      IS Neighbor: 2222.2222.2222.00, Default Metric: 10, Internal
-   10  03:42:06.392492 IS-IS, length 74
+   10  2008-06-18 03:42:06.392492 IS-IS, length 74
 	L2 LSP, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  lsp-id: 1111.1111.1111.00-00, seq: 0x00000007, lifetime:  1200s
 	  chksum: 0x378e (correct), PDU length: 74, Flags: [ L2 IS ]
@@ -192,7 +192,7 @@
 	      IS Neighbor: 2222.2222.2222.00, Default Metric: 10, Internal
 	    IPv4 Internal Reachability TLV #128, length: 12
 	      IPv4 prefix:        10.0.0.0/30, Distribution: up, Metric: 10, Internal
-   11  03:42:06.392512 IS-IS, length 74
+   11  2008-06-18 03:42:06.392512 IS-IS, length 74
 	L1 LSP, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  lsp-id: 2222.2222.2222.00-00, seq: 0x00000005, lifetime:  1200s
 	  chksum: 0x4382 (correct), PDU length: 74, Flags: [ L2 IS ]
@@ -209,7 +209,7 @@
 	    IS Reachability TLV #2, length: 12
 	      IsNotVirtual
 	      IS Neighbor: 1111.1111.1111.00, Default Metric: 10, Internal
-   12  03:42:06.392528 IS-IS, length 74
+   12  2008-06-18 03:42:06.392528 IS-IS, length 74
 	L2 LSP, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  lsp-id: 2222.2222.2222.00-00, seq: 0x00000006, lifetime:  1200s
 	  chksum: 0xf4cf (correct), PDU length: 74, Flags: [ L2 IS ]
@@ -226,7 +226,7 @@
 	      IS Neighbor: 1111.1111.1111.00, Default Metric: 10, Internal
 	    IPv4 Internal Reachability TLV #128, length: 12
 	      IPv4 prefix:        10.0.0.0/30, Distribution: up, Metric: 10, Internal
-   13  03:42:06.824491 IS-IS, length 67
+   13  2008-06-18 03:42:06.824491 IS-IS, length 67
 	L1 CSNP, hlen: 33, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id:    2222.2222.2222.00, PDU length: 67
 	  start lsp-id: 0000.0000.0000.00-00
@@ -234,7 +234,7 @@
 	    LSP entries TLV #9, length: 32
 	      lsp-id: 1111.1111.1111.00-00, seq: 0x00000007, lifetime:  1198s, chksum: 0x1da8
 	      lsp-id: 2222.2222.2222.00-00, seq: 0x00000005, lifetime:  1199s, chksum: 0x4382
-   14  03:42:06.824497 IS-IS, length 67
+   14  2008-06-18 03:42:06.824497 IS-IS, length 67
 	L1 CSNP, hlen: 33, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id:    1111.1111.1111.00, PDU length: 67
 	  start lsp-id: 0000.0000.0000.00-00
@@ -242,7 +242,7 @@
 	    LSP entries TLV #9, length: 32
 	      lsp-id: 1111.1111.1111.00-00, seq: 0x00000007, lifetime:  1199s, chksum: 0x1da8
 	      lsp-id: 2222.2222.2222.00-00, seq: 0x00000005, lifetime:  1198s, chksum: 0x4382
-   15  03:42:06.824524 IS-IS, length 67
+   15  2008-06-18 03:42:06.824524 IS-IS, length 67
 	L2 CSNP, hlen: 33, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id:    1111.1111.1111.00, PDU length: 67
 	  start lsp-id: 0000.0000.0000.00-00
@@ -250,7 +250,7 @@
 	    LSP entries TLV #9, length: 32
 	      lsp-id: 1111.1111.1111.00-00, seq: 0x00000007, lifetime:  1199s, chksum: 0x378e
 	      lsp-id: 2222.2222.2222.00-00, seq: 0x00000006, lifetime:  1198s, chksum: 0xf4cf
-   16  03:42:06.824546 IS-IS, length 67
+   16  2008-06-18 03:42:06.824546 IS-IS, length 67
 	L2 CSNP, hlen: 33, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id:    2222.2222.2222.00, PDU length: 67
 	  start lsp-id: 0000.0000.0000.00-00
@@ -258,27 +258,27 @@
 	    LSP entries TLV #9, length: 32
 	      lsp-id: 1111.1111.1111.00-00, seq: 0x00000007, lifetime:  1198s, chksum: 0x378e
 	      lsp-id: 2222.2222.2222.00-00, seq: 0x00000006, lifetime:  1199s, chksum: 0xf4cf
-   17  03:42:07.400507 IS-IS, length 35
+   17  2008-06-18 03:42:07.400507 IS-IS, length 35
 	L1 PSNP, hlen: 17, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id:    1111.1111.1111.00, PDU length: 35
 	    LSP entries TLV #9, length: 16
 	      lsp-id: 2222.2222.2222.00-00, seq: 0x00000005, lifetime:  1197s, chksum: 0x4382
-   18  03:42:07.400542 IS-IS, length 35
+   18  2008-06-18 03:42:07.400542 IS-IS, length 35
 	L2 PSNP, hlen: 17, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id:    1111.1111.1111.00, PDU length: 35
 	    LSP entries TLV #9, length: 16
 	      lsp-id: 2222.2222.2222.00-00, seq: 0x00000006, lifetime:  1198s, chksum: 0xf4cf
-   19  03:42:07.412515 IS-IS, length 35
+   19  2008-06-18 03:42:07.412515 IS-IS, length 35
 	L1 PSNP, hlen: 17, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id:    2222.2222.2222.00, PDU length: 35
 	    LSP entries TLV #9, length: 16
 	      lsp-id: 1111.1111.1111.00-00, seq: 0x00000007, lifetime:  1197s, chksum: 0x1da8
-   20  03:42:07.412530 IS-IS, length 35
+   20  2008-06-18 03:42:07.412530 IS-IS, length 35
 	L2 PSNP, hlen: 17, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id:    2222.2222.2222.00, PDU length: 35
 	    LSP entries TLV #9, length: 16
 	      lsp-id: 1111.1111.1111.00-00, seq: 0x00000007, lifetime:  1198s, chksum: 0x378e
-   21  03:42:14.728981 IS-IS, length 1499
+   21  2008-06-18 03:42:14.728981 IS-IS, length 1499
 	p2p IIH, hlen: 20, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 2222.2222.2222, holding time: 30s, Flags: [Level 1, Level 2]
 	  circuit-id: 0x00, PDU length: 1499
@@ -298,7 +298,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 169
-   22  03:42:15.388991 IS-IS, length 1499
+   22  2008-06-18 03:42:15.388991 IS-IS, length 1499
 	p2p IIH, hlen: 20, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 1111.1111.1111, holding time: 30s, Flags: [Level 1, Level 2]
 	  circuit-id: 0x00, PDU length: 1499
@@ -318,7 +318,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 169
-   23  03:42:22.370484 IS-IS, length 1499
+   23  2008-06-18 03:42:22.370484 IS-IS, length 1499
 	p2p IIH, hlen: 20, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 2222.2222.2222, holding time: 30s, Flags: [Level 1, Level 2]
 	  circuit-id: 0x00, PDU length: 1499
@@ -338,7 +338,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 169
-   24  03:42:24.054556 IS-IS, length 1499
+   24  2008-06-18 03:42:24.054556 IS-IS, length 1499
 	p2p IIH, hlen: 20, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 1111.1111.1111, holding time: 30s, Flags: [Level 1, Level 2]
 	  circuit-id: 0x00, PDU length: 1499
@@ -358,7 +358,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 169
-   25  03:42:31.379023 IS-IS, length 1499
+   25  2008-06-18 03:42:31.379023 IS-IS, length 1499
 	p2p IIH, hlen: 20, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 2222.2222.2222, holding time: 30s, Flags: [Level 1, Level 2]
 	  circuit-id: 0x00, PDU length: 1499
@@ -378,7 +378,7 @@
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 169
-   26  03:42:31.955027 IS-IS, length 1499
+   26  2008-06-18 03:42:31.955027 IS-IS, length 1499
 	p2p IIH, hlen: 20, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 1111.1111.1111, holding time: 30s, Flags: [Level 1, Level 2]
 	  circuit-id: 0x00, PDU length: 1499

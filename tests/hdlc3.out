@@ -1,38 +1,38 @@
-    1  05:49:22.124228 SLARP (length: 20), keepalive: mineseen=0x00000005, yourseen=0x00000002, reliability=0xffff, link uptime=0d2h12m5s
-    2  05:49:23.540326 SLARP (length: 20), keepalive: mineseen=0x00000003, yourseen=0x00000005, reliability=0xffff, link uptime=0d6h51m44s
-    3  05:49:32.128791 SLARP (length: 20), keepalive: mineseen=0x00000006, yourseen=0x00000003, reliability=0xffff, link uptime=0d2h12m15s
-    4  05:49:33.544915 SLARP (length: 20), keepalive: mineseen=0x00000004, yourseen=0x00000006, reliability=0xffff, link uptime=0d6h51m54s
-    5  05:49:42.125345 SLARP (length: 20), keepalive: mineseen=0x00000007, yourseen=0x00000004, reliability=0xffff, link uptime=0d2h12m25s
-    6  05:49:43.541446 SLARP (length: 20), keepalive: mineseen=0x00000005, yourseen=0x00000007, reliability=0xffff, link uptime=0d6h52m4s
-    7  05:49:44.645486 IP 10.0.0.1 > 10.0.0.2: ICMP echo request, id 0, seq 0, length 80
-    8  05:49:44.653532 IP 10.0.0.2 > 10.0.0.1: ICMP echo reply, id 0, seq 0, length 80
-    9  05:49:44.661487 IP 10.0.0.1 > 10.0.0.2: ICMP echo request, id 0, seq 1, length 80
-   10  05:49:44.670583 IP 10.0.0.2 > 10.0.0.1: ICMP echo reply, id 0, seq 1, length 80
-   11  05:49:44.674770 IP 10.0.0.1 > 10.0.0.2: ICMP echo request, id 0, seq 2, length 80
-   12  05:49:44.678783 IP 10.0.0.2 > 10.0.0.1: ICMP echo reply, id 0, seq 2, length 80
-   13  05:49:44.682765 IP 10.0.0.1 > 10.0.0.2: ICMP echo request, id 0, seq 3, length 80
-   14  05:49:44.686781 IP 10.0.0.2 > 10.0.0.1: ICMP echo reply, id 0, seq 3, length 80
-   15  05:49:44.690764 IP 10.0.0.1 > 10.0.0.2: ICMP echo request, id 0, seq 4, length 80
-   16  05:49:44.694784 IP 10.0.0.2 > 10.0.0.1: ICMP echo reply, id 0, seq 4, length 80
-   17  05:49:47.569649 unknown CHDLC protocol (0x2000)
-   18  05:49:52.125913 SLARP (length: 20), keepalive: mineseen=0x00000008, yourseen=0x00000005, reliability=0xffff, link uptime=0d2h12m35s
-   19  05:49:53.542016 SLARP (length: 20), keepalive: mineseen=0x00000006, yourseen=0x00000008, reliability=0xffff, link uptime=0d6h52m14s
-   20  05:49:58.851666 unknown CHDLC protocol (0x2000)
-   21  05:50:02.122511 SLARP (length: 20), keepalive: mineseen=0x00000009, yourseen=0x00000006, reliability=0xffff, link uptime=0d2h12m45s
-   22  05:50:03.539930 SLARP (length: 20), keepalive: mineseen=0x00000007, yourseen=0x00000009, reliability=0xffff, link uptime=0d6h52m24s
-   23  05:50:12.116381 SLARP (length: 20), keepalive: mineseen=0x0000000a, yourseen=0x00000007, reliability=0xffff, link uptime=0d2h12m55s
-   24  05:50:13.543315 SLARP (length: 20), keepalive: mineseen=0x00000008, yourseen=0x0000000a, reliability=0xffff, link uptime=0d6h52m34s
-   25  05:50:22.116941 SLARP (length: 20), keepalive: mineseen=0x0000000b, yourseen=0x00000008, reliability=0xffff, link uptime=0d2h13m5s
-   26  05:50:23.543977 SLARP (length: 20), keepalive: mineseen=0x00000009, yourseen=0x0000000b, reliability=0xffff, link uptime=0d6h52m44s
-   27  05:50:32.120474 SLARP (length: 20), keepalive: mineseen=0x0000000c, yourseen=0x00000009, reliability=0xffff, link uptime=0d2h13m15s
-   28  05:50:33.541608 SLARP (length: 20), keepalive: mineseen=0x0000000a, yourseen=0x0000000c, reliability=0xffff, link uptime=0d6h52m54s
-   29  05:50:42.118134 SLARP (length: 20), keepalive: mineseen=0x0000000d, yourseen=0x0000000a, reliability=0xffff, link uptime=0d2h13m25s
-   30  05:50:43.542253 SLARP (length: 20), keepalive: mineseen=0x0000000b, yourseen=0x0000000d, reliability=0xffff, link uptime=0d6h53m4s
-   31  05:50:47.557374 unknown CHDLC protocol (0x2000)
-   32  05:50:52.117660 SLARP (length: 20), keepalive: mineseen=0x0000000e, yourseen=0x0000000b, reliability=0xffff, link uptime=0d2h13m35s
-   33  05:50:53.549777 SLARP (length: 20), keepalive: mineseen=0x0000000c, yourseen=0x0000000e, reliability=0xffff, link uptime=0d6h53m14s
-   34  05:50:58.855194 unknown CHDLC protocol (0x2000)
-   35  05:51:02.115388 SLARP (length: 20), keepalive: mineseen=0x0000000f, yourseen=0x0000000c, reliability=0xffff, link uptime=0d2h13m45s
-   36  05:51:03.543470 SLARP (length: 20), keepalive: mineseen=0x0000000d, yourseen=0x0000000f, reliability=0xffff, link uptime=0d6h53m24s
-   37  05:51:12.116015 SLARP (length: 20), keepalive: mineseen=0x00000010, yourseen=0x0000000d, reliability=0xffff, link uptime=0d2h13m55s
-   38  05:51:13.544106 SLARP (length: 20), keepalive: mineseen=0x0000000e, yourseen=0x00000010, reliability=0xffff, link uptime=0d6h53m34s
+    1  2008-06-16 05:49:22.124228 SLARP (length: 20), keepalive: mineseen=0x00000005, yourseen=0x00000002, reliability=0xffff, link uptime=0d2h12m5s
+    2  2008-06-16 05:49:23.540326 SLARP (length: 20), keepalive: mineseen=0x00000003, yourseen=0x00000005, reliability=0xffff, link uptime=0d6h51m44s
+    3  2008-06-16 05:49:32.128791 SLARP (length: 20), keepalive: mineseen=0x00000006, yourseen=0x00000003, reliability=0xffff, link uptime=0d2h12m15s
+    4  2008-06-16 05:49:33.544915 SLARP (length: 20), keepalive: mineseen=0x00000004, yourseen=0x00000006, reliability=0xffff, link uptime=0d6h51m54s
+    5  2008-06-16 05:49:42.125345 SLARP (length: 20), keepalive: mineseen=0x00000007, yourseen=0x00000004, reliability=0xffff, link uptime=0d2h12m25s
+    6  2008-06-16 05:49:43.541446 SLARP (length: 20), keepalive: mineseen=0x00000005, yourseen=0x00000007, reliability=0xffff, link uptime=0d6h52m4s
+    7  2008-06-16 05:49:44.645486 IP 10.0.0.1 > 10.0.0.2: ICMP echo request, id 0, seq 0, length 80
+    8  2008-06-16 05:49:44.653532 IP 10.0.0.2 > 10.0.0.1: ICMP echo reply, id 0, seq 0, length 80
+    9  2008-06-16 05:49:44.661487 IP 10.0.0.1 > 10.0.0.2: ICMP echo request, id 0, seq 1, length 80
+   10  2008-06-16 05:49:44.670583 IP 10.0.0.2 > 10.0.0.1: ICMP echo reply, id 0, seq 1, length 80
+   11  2008-06-16 05:49:44.674770 IP 10.0.0.1 > 10.0.0.2: ICMP echo request, id 0, seq 2, length 80
+   12  2008-06-16 05:49:44.678783 IP 10.0.0.2 > 10.0.0.1: ICMP echo reply, id 0, seq 2, length 80
+   13  2008-06-16 05:49:44.682765 IP 10.0.0.1 > 10.0.0.2: ICMP echo request, id 0, seq 3, length 80
+   14  2008-06-16 05:49:44.686781 IP 10.0.0.2 > 10.0.0.1: ICMP echo reply, id 0, seq 3, length 80
+   15  2008-06-16 05:49:44.690764 IP 10.0.0.1 > 10.0.0.2: ICMP echo request, id 0, seq 4, length 80
+   16  2008-06-16 05:49:44.694784 IP 10.0.0.2 > 10.0.0.1: ICMP echo reply, id 0, seq 4, length 80
+   17  2008-06-16 05:49:47.569649 unknown CHDLC protocol (0x2000)
+   18  2008-06-16 05:49:52.125913 SLARP (length: 20), keepalive: mineseen=0x00000008, yourseen=0x00000005, reliability=0xffff, link uptime=0d2h12m35s
+   19  2008-06-16 05:49:53.542016 SLARP (length: 20), keepalive: mineseen=0x00000006, yourseen=0x00000008, reliability=0xffff, link uptime=0d6h52m14s
+   20  2008-06-16 05:49:58.851666 unknown CHDLC protocol (0x2000)
+   21  2008-06-16 05:50:02.122511 SLARP (length: 20), keepalive: mineseen=0x00000009, yourseen=0x00000006, reliability=0xffff, link uptime=0d2h12m45s
+   22  2008-06-16 05:50:03.539930 SLARP (length: 20), keepalive: mineseen=0x00000007, yourseen=0x00000009, reliability=0xffff, link uptime=0d6h52m24s
+   23  2008-06-16 05:50:12.116381 SLARP (length: 20), keepalive: mineseen=0x0000000a, yourseen=0x00000007, reliability=0xffff, link uptime=0d2h12m55s
+   24  2008-06-16 05:50:13.543315 SLARP (length: 20), keepalive: mineseen=0x00000008, yourseen=0x0000000a, reliability=0xffff, link uptime=0d6h52m34s
+   25  2008-06-16 05:50:22.116941 SLARP (length: 20), keepalive: mineseen=0x0000000b, yourseen=0x00000008, reliability=0xffff, link uptime=0d2h13m5s
+   26  2008-06-16 05:50:23.543977 SLARP (length: 20), keepalive: mineseen=0x00000009, yourseen=0x0000000b, reliability=0xffff, link uptime=0d6h52m44s
+   27  2008-06-16 05:50:32.120474 SLARP (length: 20), keepalive: mineseen=0x0000000c, yourseen=0x00000009, reliability=0xffff, link uptime=0d2h13m15s
+   28  2008-06-16 05:50:33.541608 SLARP (length: 20), keepalive: mineseen=0x0000000a, yourseen=0x0000000c, reliability=0xffff, link uptime=0d6h52m54s
+   29  2008-06-16 05:50:42.118134 SLARP (length: 20), keepalive: mineseen=0x0000000d, yourseen=0x0000000a, reliability=0xffff, link uptime=0d2h13m25s
+   30  2008-06-16 05:50:43.542253 SLARP (length: 20), keepalive: mineseen=0x0000000b, yourseen=0x0000000d, reliability=0xffff, link uptime=0d6h53m4s
+   31  2008-06-16 05:50:47.557374 unknown CHDLC protocol (0x2000)
+   32  2008-06-16 05:50:52.117660 SLARP (length: 20), keepalive: mineseen=0x0000000e, yourseen=0x0000000b, reliability=0xffff, link uptime=0d2h13m35s
+   33  2008-06-16 05:50:53.549777 SLARP (length: 20), keepalive: mineseen=0x0000000c, yourseen=0x0000000e, reliability=0xffff, link uptime=0d6h53m14s
+   34  2008-06-16 05:50:58.855194 unknown CHDLC protocol (0x2000)
+   35  2008-06-16 05:51:02.115388 SLARP (length: 20), keepalive: mineseen=0x0000000f, yourseen=0x0000000c, reliability=0xffff, link uptime=0d2h13m45s
+   36  2008-06-16 05:51:03.543470 SLARP (length: 20), keepalive: mineseen=0x0000000d, yourseen=0x0000000f, reliability=0xffff, link uptime=0d6h53m24s
+   37  2008-06-16 05:51:12.116015 SLARP (length: 20), keepalive: mineseen=0x00000010, yourseen=0x0000000d, reliability=0xffff, link uptime=0d2h13m55s
+   38  2008-06-16 05:51:13.544106 SLARP (length: 20), keepalive: mineseen=0x0000000e, yourseen=0x00000010, reliability=0xffff, link uptime=0d6h53m34s

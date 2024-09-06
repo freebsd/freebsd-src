@@ -1,0 +1,13 @@
+    1  2014-03-18 20:12:03.342266 IP (tos 0x0, ttl 128, id 23023, offset 0, flags [DF], proto TCP (6), length 645)
+    10.21.11.94.80 > 10.114.101.120.5767: Flags [P.], cksum 0xbdc4 (correct), seq 908588050:908588655, ack 2693707125, win 63750, length 605: HTTP, length: 605
+	HTTP/1.1 200 OK
+	Date: Tue, 18 Mar 2014 19:12:05 GMT
+	Server: Microsoft-IIS/6.0
+	Cache-Control:no-cache
+	X-Powered-By: ASP.NET
+	X-AspNet-Version: 4.0.30319
+	Cache-Control: private, max-age=0
+	Content-Type: text/xml; charset=utf-8
+	Content-Length: 351
+	
+	<?xml version="1.0" encoding="utf-8"?><soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"><soap:Body><WaitForResponse xmlns="http://tempuri.org/"><WaitForResult>Hello World</WaitForResult></WaitForResponse></soap:Body></soap:Envelope>

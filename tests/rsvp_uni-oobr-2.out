@@ -1,4 +1,4 @@
-    1  12:56:45.3980395268 IP (tos 0x2,ECT(0), ttl 248, id 0, offset 0, flags [none], proto RSVP (46), length 54312, bad cksum 3743 (->3051)!)
+    1  1970-01-01 12:56:45.3980395268 IP (tos 0x2,ECT(0), ttl 248, id 0, offset 0, flags [none], proto RSVP (46), length 54312, bad cksum 3743 (->3051)!)
     54.35.78.33 > 58.16.0.0: 
 	RSVPv1 Hello Message (20), Flags: [Refresh reduction capable], length: 65527, ttl: 15, checksum: 0x0902
 	  Generalized UNI Object (229) Flags: [ignore and forward if unknown], Class-Type: 1 (1), length: 12

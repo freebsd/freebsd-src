@@ -1,4 +1,4 @@
-    1  14:28:38.018637 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 134
+    1  2012-05-01 14:28:38.018637 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 134
 	port-role Root, CIST root-id 0000.00:1f:27:b4:7d:80, CIST ext-pathcost 200000
 	CIST regional-root-id 8000.00:16:46:b5:8c:80, CIST port-id 8012,
 	message-age 1.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
@@ -11,7 +11,7 @@
 	MSTI 2, Flags [Learn, Forward, Agreement, Topology change ACK], port-role Root
 		MSTI regional-root-id 8002.00:16:46:b5:8c:80, pathcost 200000
 		MSTI bridge-prio 8, port-prio 8, hops 20
-    2  14:28:39.688658 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward, Agreement], length 134
+    2  2012-05-01 14:28:39.688658 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward, Agreement], length 134
 	port-role Designated, CIST root-id 0000.00:1f:27:b4:7d:80, CIST ext-pathcost 200000
 	CIST regional-root-id 8000.00:16:46:b5:8c:80, CIST port-id 800f,
 	message-age 1.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
@@ -24,7 +24,7 @@
 	MSTI 2, Flags [Learn, Forward, Agreement, Topology change ACK], port-role Designated
 		MSTI regional-root-id 8002.00:16:46:b5:8c:80, pathcost 0
 		MSTI bridge-prio 8, port-prio 8, hops 20
-    3  14:28:40.034939 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 134
+    3  2012-05-01 14:28:40.034939 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 134
 	port-role Root, CIST root-id 0000.00:1f:27:b4:7d:80, CIST ext-pathcost 200000
 	CIST regional-root-id 8000.00:16:46:b5:8c:80, CIST port-id 8012,
 	message-age 1.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
@@ -37,7 +37,7 @@
 	MSTI 2, Flags [Learn, Forward, Agreement, Topology change ACK], port-role Root
 		MSTI regional-root-id 8002.00:16:46:b5:8c:80, pathcost 200000
 		MSTI bridge-prio 8, port-prio 8, hops 20
-    4  14:28:41.701562 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward, Agreement], length 134
+    4  2012-05-01 14:28:41.701562 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward, Agreement], length 134
 	port-role Designated, CIST root-id 0000.00:1f:27:b4:7d:80, CIST ext-pathcost 200000
 	CIST regional-root-id 8000.00:16:46:b5:8c:80, CIST port-id 800f,
 	message-age 1.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
@@ -50,7 +50,7 @@
 	MSTI 2, Flags [Learn, Forward, Agreement, Topology change ACK], port-role Designated
 		MSTI regional-root-id 8002.00:16:46:b5:8c:80, pathcost 0
 		MSTI bridge-prio 8, port-prio 8, hops 20
-    5  14:28:42.047598 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 134
+    5  2012-05-01 14:28:42.047598 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 134
 	port-role Root, CIST root-id 0000.00:1f:27:b4:7d:80, CIST ext-pathcost 200000
 	CIST regional-root-id 8000.00:16:46:b5:8c:80, CIST port-id 8012,
 	message-age 1.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
@@ -63,7 +63,7 @@
 	MSTI 2, Flags [Learn, Forward, Agreement, Topology change ACK], port-role Root
 		MSTI regional-root-id 8002.00:16:46:b5:8c:80, pathcost 200000
 		MSTI bridge-prio 8, port-prio 8, hops 20
-    6  14:28:43.714422 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward, Agreement], length 134
+    6  2012-05-01 14:28:43.714422 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward, Agreement], length 134
 	port-role Designated, CIST root-id 0000.00:1f:27:b4:7d:80, CIST ext-pathcost 200000
 	CIST regional-root-id 8000.00:16:46:b5:8c:80, CIST port-id 800f,
 	message-age 1.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
@@ -76,7 +76,7 @@
 	MSTI 2, Flags [Learn, Forward, Agreement, Topology change ACK], port-role Designated
 		MSTI regional-root-id 8002.00:16:46:b5:8c:80, pathcost 0
 		MSTI bridge-prio 8, port-prio 8, hops 20
-    7  14:28:44.060628 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 134
+    7  2012-05-01 14:28:44.060628 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 134
 	port-role Root, CIST root-id 0000.00:1f:27:b4:7d:80, CIST ext-pathcost 200000
 	CIST regional-root-id 8000.00:16:46:b5:8c:80, CIST port-id 8012,
 	message-age 1.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
@@ -89,7 +89,7 @@
 	MSTI 2, Flags [Learn, Forward, Agreement, Topology change ACK], port-role Root
 		MSTI regional-root-id 8002.00:16:46:b5:8c:80, pathcost 200000
 		MSTI bridge-prio 8, port-prio 8, hops 20
-    8  14:28:45.727298 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward, Agreement], length 134
+    8  2012-05-01 14:28:45.727298 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward, Agreement], length 134
 	port-role Designated, CIST root-id 0000.00:1f:27:b4:7d:80, CIST ext-pathcost 200000
 	CIST regional-root-id 8000.00:16:46:b5:8c:80, CIST port-id 800f,
 	message-age 1.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
@@ -102,7 +102,7 @@
 	MSTI 2, Flags [Learn, Forward, Agreement, Topology change ACK], port-role Designated
 		MSTI regional-root-id 8002.00:16:46:b5:8c:80, pathcost 0
 		MSTI bridge-prio 8, port-prio 8, hops 20
-    9  14:28:46.073429 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 134
+    9  2012-05-01 14:28:46.073429 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 134
 	port-role Root, CIST root-id 0000.00:1f:27:b4:7d:80, CIST ext-pathcost 200000
 	CIST regional-root-id 8000.00:16:46:b5:8c:80, CIST port-id 8012,
 	message-age 1.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
@@ -115,7 +115,7 @@
 	MSTI 2, Flags [Learn, Forward, Agreement, Topology change ACK], port-role Root
 		MSTI regional-root-id 8002.00:16:46:b5:8c:80, pathcost 200000
 		MSTI bridge-prio 8, port-prio 8, hops 20
-   10  14:28:47.740170 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward, Agreement], length 134
+   10  2012-05-01 14:28:47.740170 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward, Agreement], length 134
 	port-role Designated, CIST root-id 0000.00:1f:27:b4:7d:80, CIST ext-pathcost 200000
 	CIST regional-root-id 8000.00:16:46:b5:8c:80, CIST port-id 800f,
 	message-age 1.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s

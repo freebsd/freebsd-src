@@ -1,0 +1,19 @@
+    1  2038-01-01 00:00:00.000000 unknown PPP protocol (0x7e80): IPCP, Conf-Request (0x01), id 0, length 48
+	encoded length 45 (=Option(s) length 41)
+	0x0000:  8021 0100 002d
+	  unknown Option (0x66), length 4
+	    0x0000:  006c
+	  unknown Option (0x72), length 8
+	    0x0000:  0055 00d4 c3b2
+	  unknown Option (0xa1), length 2
+	  IP-Comp Option (0x02), length 32: IP Header Compression (0x61):
+	    TCP Space 514, non-TCP Space 514, maxPeriod 514, maxTime 514, maxHdr 52702
+	      Suboptions, length 18
+		Enhanced RTP-Compression Suboption #2, length 1
+		RTP-Compression Suboption #1, length 1
+		RTP-Compression Suboption #1, length 1
+		RTP-Compression Suboption #1, length 1
+		RTP-Compression Suboption #1, length 1
+		RTP-Compression Suboption #1, length 1
+		RTP-Compression Suboption #1, length 1
+		RTP-Compression Suboption #1, length 10 [remaining options length 27 < 32] (invalid)

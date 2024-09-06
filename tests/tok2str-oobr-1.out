@@ -1,4 +1,4 @@
-    1  15:16:31.074315 00:0c:29:31:85:a5 > 00:0c:29:ac:b9:50, ethertype IPv4 (0x0800), length 321: (tos 0xc0, ttl 254, id 20061, offset 0, flags [none], proto TCP (6), length 307)
+    1  2013-12-06 15:16:31.074315 00:0c:29:31:85:a5 > 00:0c:29:ac:b9:50, ethertype IPv4 (0x0800), length 321: (tos 0xc0, ttl 254, id 20061, offset 0, flags [none], proto TCP (6), length 307)
     10.0.0.4.179 > 10.0.0.2.64588: Flags [P.], cksum 0x707c (incorrect -> 0x6883), seq 786752827:786753082, ack 3829861902, win 16357, options [nop,nop,TS val 6993003 ecr 4502201], length 255: BGP
 	Update Message (2), length: 100
 	  Origin (1), length: 1, Flags [T]: IGP

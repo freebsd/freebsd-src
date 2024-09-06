@@ -1,887 +1,887 @@
-    1  14:05:53.740897 AoE length 18, Ver 1, Flags: [none]
+    1  2014-05-04 14:05:53.740897 AoE length 18, Ver 1, Flags: [none]
 	Major: 0xffff, Minor: 0xff, Command: Query Config Information, Tag: 0x00000000
 	Buffer Count: 0, Firmware Version: 0, Sector Count: 0, AoE: 0, CCmd: read config string
-    2  14:05:57.521114 AoE length 46, Ver 1, Flags: [none]
+    2  2014-05-04 14:05:57.521114 AoE length 46, Ver 1, Flags: [none]
 	Major: 0xffff, Minor: 0xff, Command: Query Config Information, Tag: 0x00000000
 	Buffer Count: 0, Firmware Version: 0, Sector Count: 0, AoE: 0, CCmd: read config string
-    3  14:06:15.673311 AoE length 18, Ver 0
-    4  14:06:15.676287 AoE length 46, Ver 1, Flags: [none]
+    3  2014-05-04 14:06:15.673311 AoE length 18, Ver 0
+    4  2014-05-04 14:06:15.676287 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0001cd4a
 	AFlags: [none], Err/Feature: 0, Sector Count: 1, Cmd/Status: 236
 	lba0: 0, lba1: 0, lba2: 0, lba3: 160, lba4: 0, lba5: 0
 	Data: 24 bytes
-    5  14:06:15.676394 AoE length 534, Ver 1, Flags: [Response]
+    5  2014-05-04 14:06:15.676394 AoE length 534, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0001cd4a
 	AFlags: [none], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 0, lba1: 0, lba2: 0, lba3: 160, lba4: 0, lba5: 0
 	Data: 512 bytes
-    6  14:06:15.703380 AoE length 46, Ver 1, Flags: [none]
+    6  2014-05-04 14:06:15.703380 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0002cd63
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 0, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-    7  14:06:15.703405 AoE length 46, Ver 1, Flags: [none]
+    7  2014-05-04 14:06:15.703405 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0003cd63
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 2, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-    8  14:06:15.703414 AoE length 46, Ver 1, Flags: [none]
+    8  2014-05-04 14:06:15.703414 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0004cd63
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 4, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-    9  14:06:15.703423 AoE length 46, Ver 1, Flags: [none]
+    9  2014-05-04 14:06:15.703423 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0005cd64
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 6, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   10  14:06:15.703499 AoE length 1046, Ver 1, Flags: [Response]
+   10  2014-05-04 14:06:15.703499 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0002cd63
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 0, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   11  14:06:15.703606 AoE length 1046, Ver 1, Flags: [Response]
+   11  2014-05-04 14:06:15.703606 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0003cd63
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 2, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   12  14:06:15.703650 AoE length 1046, Ver 1, Flags: [Response]
+   12  2014-05-04 14:06:15.703650 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0004cd63
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 4, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   13  14:06:15.703690 AoE length 1046, Ver 1, Flags: [Response]
+   13  2014-05-04 14:06:15.703690 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0005cd64
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 6, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   14  14:06:15.708883 AoE length 46, Ver 1, Flags: [none]
+   14  2014-05-04 14:06:15.708883 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0006cd68
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 8, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   15  14:06:15.708910 AoE length 46, Ver 1, Flags: [none]
+   15  2014-05-04 14:06:15.708910 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0007cd68
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 10, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   16  14:06:15.708917 AoE length 46, Ver 1, Flags: [none]
+   16  2014-05-04 14:06:15.708917 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0008cd68
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 12, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   17  14:06:15.708924 AoE length 46, Ver 1, Flags: [none]
+   17  2014-05-04 14:06:15.708924 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0009cd68
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 14, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   18  14:06:15.708978 AoE length 1046, Ver 1, Flags: [Response]
+   18  2014-05-04 14:06:15.708978 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0006cd68
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 8, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   19  14:06:15.709048 AoE length 1046, Ver 1, Flags: [Response]
+   19  2014-05-04 14:06:15.709048 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0007cd68
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 10, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   20  14:06:15.709089 AoE length 1046, Ver 1, Flags: [Response]
+   20  2014-05-04 14:06:15.709089 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0008cd68
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 12, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   21  14:06:15.709134 AoE length 1046, Ver 1, Flags: [Response]
+   21  2014-05-04 14:06:15.709134 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0009cd68
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 14, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   22  14:06:15.715637 AoE length 46, Ver 1, Flags: [none]
+   22  2014-05-04 14:06:15.715637 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x000acd71
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 0, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   23  14:06:15.715702 AoE length 1046, Ver 1, Flags: [Response]
+   23  2014-05-04 14:06:15.715702 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x000acd71
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 0, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   24  14:06:15.716249 AoE length 46, Ver 1, Flags: [none]
+   24  2014-05-04 14:06:15.716249 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x000bcd71
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 2, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   25  14:06:15.716266 AoE length 46, Ver 1, Flags: [none]
+   25  2014-05-04 14:06:15.716266 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x000ccd71
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 4, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   26  14:06:15.716274 AoE length 46, Ver 1, Flags: [none]
+   26  2014-05-04 14:06:15.716274 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x000dcd71
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 6, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   27  14:06:15.716281 AoE length 1046, Ver 1, Flags: [Response]
+   27  2014-05-04 14:06:15.716281 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x000bcd71
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 2, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   28  14:06:15.716340 AoE length 1046, Ver 1, Flags: [Response]
+   28  2014-05-04 14:06:15.716340 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x000ccd71
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 4, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   29  14:06:15.716402 AoE length 1046, Ver 1, Flags: [Response]
+   29  2014-05-04 14:06:15.716402 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x000dcd71
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 6, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   30  14:06:15.721716 AoE length 46, Ver 1, Flags: [none]
+   30  2014-05-04 14:06:15.721716 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x000ecd74
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 24, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   31  14:06:15.721739 AoE length 46, Ver 1, Flags: [none]
+   31  2014-05-04 14:06:15.721739 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x000fcd74
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 26, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   32  14:06:15.721747 AoE length 46, Ver 1, Flags: [none]
+   32  2014-05-04 14:06:15.721747 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0010cd74
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 28, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   33  14:06:15.721773 AoE length 1046, Ver 1, Flags: [Response]
+   33  2014-05-04 14:06:15.721773 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x000ecd74
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 24, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   34  14:06:15.721846 AoE length 1046, Ver 1, Flags: [Response]
+   34  2014-05-04 14:06:15.721846 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x000fcd74
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 26, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   35  14:06:15.721905 AoE length 1046, Ver 1, Flags: [Response]
+   35  2014-05-04 14:06:15.721905 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0010cd74
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 28, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   36  14:06:15.722515 AoE length 46, Ver 1, Flags: [none]
+   36  2014-05-04 14:06:15.722515 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0011cd74
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 30, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   37  14:06:15.722542 AoE length 1046, Ver 1, Flags: [Response]
+   37  2014-05-04 14:06:15.722542 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0011cd74
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 30, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   38  14:06:15.725905 AoE length 46, Ver 1, Flags: [none]
+   38  2014-05-04 14:06:15.725905 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0012cd7b
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 8, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   39  14:06:15.725931 AoE length 46, Ver 1, Flags: [none]
+   39  2014-05-04 14:06:15.725931 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0013cd7b
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 10, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   40  14:06:15.725938 AoE length 46, Ver 1, Flags: [none]
+   40  2014-05-04 14:06:15.725938 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0014cd7b
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 12, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   41  14:06:15.725945 AoE length 46, Ver 1, Flags: [none]
+   41  2014-05-04 14:06:15.725945 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0015cd7b
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 14, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   42  14:06:15.725966 AoE length 1046, Ver 1, Flags: [Response]
+   42  2014-05-04 14:06:15.725966 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0012cd7b
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 8, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   43  14:06:15.726039 AoE length 1046, Ver 1, Flags: [Response]
+   43  2014-05-04 14:06:15.726039 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0013cd7b
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 10, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   44  14:06:15.726099 AoE length 1046, Ver 1, Flags: [Response]
+   44  2014-05-04 14:06:15.726099 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0014cd7b
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 12, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   45  14:06:15.726174 AoE length 1046, Ver 1, Flags: [Response]
+   45  2014-05-04 14:06:15.726174 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0015cd7b
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 14, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   46  14:06:15.747546 AoE length 46, Ver 1, Flags: [none]
+   46  2014-05-04 14:06:15.747546 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0016cd8f
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 56, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   47  14:06:15.747569 AoE length 46, Ver 1, Flags: [none]
+   47  2014-05-04 14:06:15.747569 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0017cd8f
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 58, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   48  14:06:15.747578 AoE length 46, Ver 1, Flags: [none]
+   48  2014-05-04 14:06:15.747578 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0018cd8f
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 60, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   49  14:06:15.747587 AoE length 46, Ver 1, Flags: [none]
+   49  2014-05-04 14:06:15.747587 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0019cd8f
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 62, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   50  14:06:15.747599 AoE length 1046, Ver 1, Flags: [Response]
+   50  2014-05-04 14:06:15.747599 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0016cd8f
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 56, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   51  14:06:15.747693 AoE length 1046, Ver 1, Flags: [Response]
+   51  2014-05-04 14:06:15.747693 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0017cd8f
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 58, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   52  14:06:15.747746 AoE length 1046, Ver 1, Flags: [Response]
+   52  2014-05-04 14:06:15.747746 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0018cd8f
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 60, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   53  14:06:15.747795 AoE length 1046, Ver 1, Flags: [Response]
+   53  2014-05-04 14:06:15.747795 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0019cd8f
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 62, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   54  14:06:15.749550 AoE length 46, Ver 1, Flags: [none]
+   54  2014-05-04 14:06:15.749550 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Query Config Information, Tag: 0x00000000
 	Buffer Count: 0, Firmware Version: 0, Sector Count: 0, AoE: 0, CCmd: read config string
-   55  14:06:15.749585 AoE length 18, Ver 1, Flags: [Response]
+   55  2014-05-04 14:06:15.749585 AoE length 18, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Query Config Information, Tag: 0x00000000
 	Buffer Count: 16, Firmware Version: 16405, Sector Count: 2, AoE: 1, CCmd: read config string
-   56  14:06:15.753713 AoE length 46, Ver 1, Flags: [none]
+   56  2014-05-04 14:06:15.753713 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x001acd97
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 120, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   57  14:06:15.753731 AoE length 46, Ver 1, Flags: [none]
+   57  2014-05-04 14:06:15.753731 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x001bcd97
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 122, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   58  14:06:15.753740 AoE length 46, Ver 1, Flags: [none]
+   58  2014-05-04 14:06:15.753740 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x001ccd97
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 124, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   59  14:06:15.753749 AoE length 46, Ver 1, Flags: [none]
+   59  2014-05-04 14:06:15.753749 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x001dcd97
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 126, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   60  14:06:15.753871 AoE length 1046, Ver 1, Flags: [Response]
+   60  2014-05-04 14:06:15.753871 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x001acd97
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 120, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   61  14:06:15.753967 AoE length 1046, Ver 1, Flags: [Response]
+   61  2014-05-04 14:06:15.753967 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x001bcd97
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 122, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   62  14:06:15.754040 AoE length 1046, Ver 1, Flags: [Response]
+   62  2014-05-04 14:06:15.754040 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x001ccd97
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 124, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   63  14:06:15.754092 AoE length 1046, Ver 1, Flags: [Response]
+   63  2014-05-04 14:06:15.754092 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x001dcd97
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 126, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   64  14:06:15.850804 AoE length 46, Ver 1, Flags: [none]
+   64  2014-05-04 14:06:15.850804 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Query Config Information, Tag: 0x00000000
 	Buffer Count: 0, Firmware Version: 0, Sector Count: 0, AoE: 0, CCmd: read config string
-   65  14:06:15.850900 AoE length 18, Ver 1, Flags: [Response]
+   65  2014-05-04 14:06:15.850900 AoE length 18, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Query Config Information, Tag: 0x00000000
 	Buffer Count: 16, Firmware Version: 16405, Sector Count: 2, AoE: 1, CCmd: read config string
-   66  14:06:15.853891 AoE length 46, Ver 1, Flags: [none]
+   66  2014-05-04 14:06:15.853891 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x001ecdfb
 	AFlags: [none], Err/Feature: 0, Sector Count: 1, Cmd/Status: 236
 	lba0: 0, lba1: 0, lba2: 0, lba3: 160, lba4: 0, lba5: 0
 	Data: 24 bytes
-   67  14:06:15.853967 AoE length 534, Ver 1, Flags: [Response]
+   67  2014-05-04 14:06:15.853967 AoE length 534, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x001ecdfb
 	AFlags: [none], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 0, lba1: 0, lba2: 0, lba3: 160, lba4: 0, lba5: 0
 	Data: 512 bytes
-   68  14:06:53.920254 AoE length 18, Ver 1, Flags: [none]
+   68  2014-05-04 14:06:53.920254 AoE length 18, Ver 1, Flags: [none]
 	Major: 0xffff, Minor: 0xff, Command: Query Config Information, Tag: 0x00000000
 	Buffer Count: 0, Firmware Version: 0, Sector Count: 0, AoE: 0, CCmd: read config string
-   69  14:06:57.052891 AoE length 46, Ver 1, Flags: [none]
+   69  2014-05-04 14:06:57.052891 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x001f6eeb
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 8, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   70  14:06:57.052931 AoE length 1046, Ver 1, Flags: [Response]
+   70  2014-05-04 14:06:57.052931 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x001f6eeb
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 8, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   71  14:06:57.054276 AoE length 46, Ver 1, Flags: [none]
+   71  2014-05-04 14:06:57.054276 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00206eeb
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 10, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   72  14:06:57.054293 AoE length 46, Ver 1, Flags: [none]
+   72  2014-05-04 14:06:57.054293 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00216eeb
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 12, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   73  14:06:57.054301 AoE length 46, Ver 1, Flags: [none]
+   73  2014-05-04 14:06:57.054301 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00226eeb
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 14, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   74  14:06:57.054308 AoE length 1046, Ver 1, Flags: [Response]
+   74  2014-05-04 14:06:57.054308 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00206eeb
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 10, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   75  14:06:57.054376 AoE length 1046, Ver 1, Flags: [Response]
+   75  2014-05-04 14:06:57.054376 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00216eeb
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 12, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   76  14:06:57.054439 AoE length 1046, Ver 1, Flags: [Response]
+   76  2014-05-04 14:06:57.054439 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00226eeb
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 14, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   77  14:06:57.058307 AoE length 46, Ver 1, Flags: [none]
+   77  2014-05-04 14:06:57.058307 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00236ef0
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 0, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   78  14:06:57.058370 AoE length 1046, Ver 1, Flags: [Response]
+   78  2014-05-04 14:06:57.058370 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00236ef0
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 0, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   79  14:06:57.058498 AoE length 46, Ver 1, Flags: [none]
+   79  2014-05-04 14:06:57.058498 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00246ef0
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 2, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   80  14:06:57.058512 AoE length 46, Ver 1, Flags: [none]
+   80  2014-05-04 14:06:57.058512 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00256ef0
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 4, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   81  14:06:57.058520 AoE length 46, Ver 1, Flags: [none]
+   81  2014-05-04 14:06:57.058520 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00266ef0
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 6, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   82  14:06:57.058523 AoE length 1046, Ver 1, Flags: [Response]
+   82  2014-05-04 14:06:57.058523 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00246ef0
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 2, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   83  14:06:57.058578 AoE length 1046, Ver 1, Flags: [Response]
+   83  2014-05-04 14:06:57.058578 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00256ef0
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 4, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   84  14:06:57.058628 AoE length 1046, Ver 1, Flags: [Response]
+   84  2014-05-04 14:06:57.058628 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00266ef0
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 6, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   85  14:06:57.061880 AoE length 46, Ver 1, Flags: [none]
+   85  2014-05-04 14:06:57.061880 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00276ef3
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 24, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   86  14:06:57.061904 AoE length 46, Ver 1, Flags: [none]
+   86  2014-05-04 14:06:57.061904 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00286ef3
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 26, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   87  14:06:57.061915 AoE length 46, Ver 1, Flags: [none]
+   87  2014-05-04 14:06:57.061915 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00296ef3
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 28, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   88  14:06:57.061926 AoE length 46, Ver 1, Flags: [none]
+   88  2014-05-04 14:06:57.061926 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x002a6ef3
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 30, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   89  14:06:57.061929 AoE length 1046, Ver 1, Flags: [Response]
+   89  2014-05-04 14:06:57.061929 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00276ef3
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 24, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   90  14:06:57.062001 AoE length 1046, Ver 1, Flags: [Response]
+   90  2014-05-04 14:06:57.062001 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00286ef3
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 26, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   91  14:06:57.062056 AoE length 1046, Ver 1, Flags: [Response]
+   91  2014-05-04 14:06:57.062056 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00296ef3
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 28, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   92  14:06:57.062107 AoE length 1046, Ver 1, Flags: [Response]
+   92  2014-05-04 14:06:57.062107 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x002a6ef3
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 30, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   93  14:06:57.065273 AoE length 46, Ver 1, Flags: [none]
+   93  2014-05-04 14:06:57.065273 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x002b6ef7
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 56, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   94  14:06:57.065339 AoE length 1046, Ver 1, Flags: [Response]
+   94  2014-05-04 14:06:57.065339 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x002b6ef7
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 56, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   95  14:06:57.065573 AoE length 46, Ver 1, Flags: [none]
+   95  2014-05-04 14:06:57.065573 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x002c6ef7
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 58, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   96  14:06:57.065596 AoE length 46, Ver 1, Flags: [none]
+   96  2014-05-04 14:06:57.065596 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x002d6ef7
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 60, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   97  14:06:57.065606 AoE length 46, Ver 1, Flags: [none]
+   97  2014-05-04 14:06:57.065606 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x002e6ef7
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 62, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-   98  14:06:57.065617 AoE length 1046, Ver 1, Flags: [Response]
+   98  2014-05-04 14:06:57.065617 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x002c6ef7
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 58, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-   99  14:06:57.065682 AoE length 1046, Ver 1, Flags: [Response]
+   99  2014-05-04 14:06:57.065682 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x002d6ef7
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 60, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  100  14:06:57.065729 AoE length 1046, Ver 1, Flags: [Response]
+  100  2014-05-04 14:06:57.065729 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x002e6ef7
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 62, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  101  14:06:57.071854 AoE length 46, Ver 1, Flags: [none]
+  101  2014-05-04 14:06:57.071854 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x002f6efa
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 120, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  102  14:06:57.071890 AoE length 46, Ver 1, Flags: [none]
+  102  2014-05-04 14:06:57.071890 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00306efa
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 122, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  103  14:06:57.071904 AoE length 46, Ver 1, Flags: [none]
+  103  2014-05-04 14:06:57.071904 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00316efa
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 124, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  104  14:06:57.071925 AoE length 46, Ver 1, Flags: [none]
+  104  2014-05-04 14:06:57.071925 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00326efa
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 126, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  105  14:06:57.071940 AoE length 1046, Ver 1, Flags: [Response]
+  105  2014-05-04 14:06:57.071940 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x002f6efa
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 120, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  106  14:06:57.072013 AoE length 1046, Ver 1, Flags: [Response]
+  106  2014-05-04 14:06:57.072013 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00306efa
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 122, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  107  14:06:57.072061 AoE length 1046, Ver 1, Flags: [Response]
+  107  2014-05-04 14:06:57.072061 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00316efa
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 124, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  108  14:06:57.072105 AoE length 1046, Ver 1, Flags: [Response]
+  108  2014-05-04 14:06:57.072105 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00326efa
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 126, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  109  14:06:57.076203 AoE length 46, Ver 1, Flags: [none]
+  109  2014-05-04 14:06:57.076203 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00336f01
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 2, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  110  14:06:57.077847 AoE length 1046, Ver 1, Flags: [Response]
+  110  2014-05-04 14:06:57.077847 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00336f01
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 2, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  111  14:06:57.081156 AoE length 46, Ver 1, Flags: [none]
+  111  2014-05-04 14:06:57.081156 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00346f07
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 4, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  112  14:06:57.081195 AoE length 1046, Ver 1, Flags: [Response]
+  112  2014-05-04 14:06:57.081195 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00346f07
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 4, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  113  14:06:57.083668 AoE length 46, Ver 1, Flags: [none]
+  113  2014-05-04 14:06:57.083668 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00356f09
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 18, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  114  14:06:57.083691 AoE length 46, Ver 1, Flags: [none]
+  114  2014-05-04 14:06:57.083691 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00366f09
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 20, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  115  14:06:57.083702 AoE length 46, Ver 1, Flags: [none]
+  115  2014-05-04 14:06:57.083702 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00376f09
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 22, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  116  14:06:57.083711 AoE length 46, Ver 1, Flags: [none]
+  116  2014-05-04 14:06:57.083711 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00386f09
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 24, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  117  14:06:57.083718 AoE length 1046, Ver 1, Flags: [Response]
+  117  2014-05-04 14:06:57.083718 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00356f09
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 18, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  118  14:06:57.083729 AoE length 46, Ver 1, Flags: [none]
+  118  2014-05-04 14:06:57.083729 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00396f09
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 26, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  119  14:06:57.083738 AoE length 46, Ver 1, Flags: [none]
+  119  2014-05-04 14:06:57.083738 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x003a6f09
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 28, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  120  14:06:57.083746 AoE length 46, Ver 1, Flags: [none]
+  120  2014-05-04 14:06:57.083746 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x003b6f0a
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 30, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  121  14:06:57.083754 AoE length 46, Ver 1, Flags: [none]
+  121  2014-05-04 14:06:57.083754 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x003c6f0a
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 32, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  122  14:06:57.083800 AoE length 1046, Ver 1, Flags: [Response]
+  122  2014-05-04 14:06:57.083800 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00366f09
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 20, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  123  14:06:57.083848 AoE length 1046, Ver 1, Flags: [Response]
+  123  2014-05-04 14:06:57.083848 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00376f09
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 22, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  124  14:06:57.083892 AoE length 1046, Ver 1, Flags: [Response]
+  124  2014-05-04 14:06:57.083892 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00386f09
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 24, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  125  14:06:57.083937 AoE length 1046, Ver 1, Flags: [Response]
+  125  2014-05-04 14:06:57.083937 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00396f09
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 26, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  126  14:06:57.083980 AoE length 1046, Ver 1, Flags: [Response]
+  126  2014-05-04 14:06:57.083980 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x003a6f09
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 28, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  127  14:06:57.084021 AoE length 1046, Ver 1, Flags: [Response]
+  127  2014-05-04 14:06:57.084021 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x003b6f0a
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 30, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  128  14:06:57.084099 AoE length 1046, Ver 1, Flags: [Response]
+  128  2014-05-04 14:06:57.084099 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x003c6f0a
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 32, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  129  14:06:57.093630 AoE length 46, Ver 1, Flags: [none]
+  129  2014-05-04 14:06:57.093630 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x003d6f0f
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 34, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  130  14:06:57.093647 AoE length 46, Ver 1, Flags: [none]
+  130  2014-05-04 14:06:57.093647 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x003e6f12
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 16, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  131  14:06:57.093654 AoE length 46, Ver 1, Flags: [none]
+  131  2014-05-04 14:06:57.093654 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x003f6f12
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 36, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  132  14:06:57.093668 AoE length 1046, Ver 1, Flags: [Response]
+  132  2014-05-04 14:06:57.093668 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x003d6f0f
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 34, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  133  14:06:57.093724 AoE length 1046, Ver 1, Flags: [Response]
+  133  2014-05-04 14:06:57.093724 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x003e6f12
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 16, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  134  14:06:57.093764 AoE length 1046, Ver 1, Flags: [Response]
+  134  2014-05-04 14:06:57.093764 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x003f6f12
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 36, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  135  14:06:57.093850 AoE length 46, Ver 1, Flags: [none]
+  135  2014-05-04 14:06:57.093850 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00406f12
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 38, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  136  14:06:57.093861 AoE length 46, Ver 1, Flags: [none]
+  136  2014-05-04 14:06:57.093861 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00416f12
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 40, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  137  14:06:57.093867 AoE length 1046, Ver 1, Flags: [Response]
+  137  2014-05-04 14:06:57.093867 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00406f12
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 38, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  138  14:06:57.093869 AoE length 46, Ver 1, Flags: [none]
+  138  2014-05-04 14:06:57.093869 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00426f13
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 42, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  139  14:06:57.093903 AoE length 46, Ver 1, Flags: [none]
+  139  2014-05-04 14:06:57.093903 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00436f13
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 44, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  140  14:06:57.093912 AoE length 46, Ver 1, Flags: [none]
+  140  2014-05-04 14:06:57.093912 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00446f13
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 46, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  141  14:06:57.093916 AoE length 1046, Ver 1, Flags: [Response]
+  141  2014-05-04 14:06:57.093916 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00416f12
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 40, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  142  14:06:57.093954 AoE length 1046, Ver 1, Flags: [Response]
+  142  2014-05-04 14:06:57.093954 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00426f13
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 42, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  143  14:06:57.093994 AoE length 1046, Ver 1, Flags: [Response]
+  143  2014-05-04 14:06:57.093994 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00436f13
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 44, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  144  14:06:57.094032 AoE length 1046, Ver 1, Flags: [Response]
+  144  2014-05-04 14:06:57.094032 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00446f13
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 46, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  145  14:06:57.096275 AoE length 46, Ver 1, Flags: [none]
+  145  2014-05-04 14:06:57.096275 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00456f15
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 48, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  146  14:06:57.096306 AoE length 1046, Ver 1, Flags: [Response]
+  146  2014-05-04 14:06:57.096306 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00456f15
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 48, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  147  14:06:57.096357 AoE length 1046, Ver 1, Flags: [none]
+  147  2014-05-04 14:06:57.096357 AoE length 1046, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00466f16
 	AFlags: [Ext48, Write], Err/Feature: 0, Sector Count: 2, Cmd/Status: 52
 	lba0: 2, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  148  14:06:57.096390 AoE length 46, Ver 1, Flags: [Response]
+  148  2014-05-04 14:06:57.096390 AoE length 46, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00466f16
 	AFlags: [Ext48, Write], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 2, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  149  14:06:57.118256 AoE length 46, Ver 1, Flags: [none]
+  149  2014-05-04 14:06:57.118256 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Query Config Information, Tag: 0x00000000
 	Buffer Count: 0, Firmware Version: 0, Sector Count: 0, AoE: 0, CCmd: read config string
-  150  14:06:57.118328 AoE length 18, Ver 1, Flags: [Response]
+  150  2014-05-04 14:06:57.118328 AoE length 18, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Query Config Information, Tag: 0x00000000
 	Buffer Count: 16, Firmware Version: 16405, Sector Count: 2, AoE: 1, CCmd: read config string
-  151  14:06:57.632737 AoE length 46, Ver 1, Flags: [none]
+  151  2014-05-04 14:06:57.632737 AoE length 46, Ver 1, Flags: [none]
 	Major: 0xffff, Minor: 0xff, Command: Query Config Information, Tag: 0x00000000
 	Buffer Count: 0, Firmware Version: 0, Sector Count: 0, AoE: 0, CCmd: read config string
-  152  14:06:57.632837 AoE length 18, Ver 1, Flags: [Response]
+  152  2014-05-04 14:06:57.632837 AoE length 18, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Query Config Information, Tag: 0x00000000
 	Buffer Count: 16, Firmware Version: 16405, Sector Count: 2, AoE: 1, CCmd: read config string
-  153  14:07:27.139035 AoE length 1046, Ver 1, Flags: [none]
+  153  2014-05-04 14:07:27.139035 AoE length 1046, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0047e470
 	AFlags: [Ext48, Write], Err/Feature: 0, Sector Count: 2, Cmd/Status: 52
 	lba0: 4, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  154  14:07:27.139134 AoE length 46, Ver 1, Flags: [Response]
+  154  2014-05-04 14:07:27.139134 AoE length 46, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x0047e470
 	AFlags: [Ext48, Write], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 4, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  155  14:07:54.080263 AoE length 18, Ver 1, Flags: [none]
+  155  2014-05-04 14:07:54.080263 AoE length 18, Ver 1, Flags: [none]
 	Major: 0xffff, Minor: 0xff, Command: Query Config Information, Tag: 0x00000000
 	Buffer Count: 0, Firmware Version: 0, Sector Count: 0, AoE: 0, CCmd: read config string
-  156  14:07:57.841818 AoE length 46, Ver 1, Flags: [none]
+  156  2014-05-04 14:07:57.841818 AoE length 46, Ver 1, Flags: [none]
 	Major: 0xffff, Minor: 0xff, Command: Query Config Information, Tag: 0x00000000
 	Buffer Count: 0, Firmware Version: 0, Sector Count: 0, AoE: 0, CCmd: read config string
-  157  14:07:57.841915 AoE length 18, Ver 1, Flags: [Response]
+  157  2014-05-04 14:07:57.841915 AoE length 18, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Query Config Information, Tag: 0x00000000
 	Buffer Count: 16, Firmware Version: 16405, Sector Count: 2, AoE: 1, CCmd: read config string
-  158  14:08:54.240271 AoE length 18, Ver 1, Flags: [none]
+  158  2014-05-04 14:08:54.240271 AoE length 18, Ver 1, Flags: [none]
 	Major: 0xffff, Minor: 0xff, Command: Query Config Information, Tag: 0x00000000
 	Buffer Count: 0, Firmware Version: 0, Sector Count: 0, AoE: 0, CCmd: read config string
-  159  14:08:57.950989 AoE length 46, Ver 1, Flags: [none]
+  159  2014-05-04 14:08:57.950989 AoE length 46, Ver 1, Flags: [none]
 	Major: 0xffff, Minor: 0xff, Command: Query Config Information, Tag: 0x00000000
 	Buffer Count: 0, Firmware Version: 0, Sector Count: 0, AoE: 0, CCmd: read config string
-  160  14:08:57.951090 AoE length 18, Ver 1, Flags: [Response]
+  160  2014-05-04 14:08:57.951090 AoE length 18, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Query Config Information, Tag: 0x00000000
 	Buffer Count: 16, Firmware Version: 16405, Sector Count: 2, AoE: 1, CCmd: read config string
-  161  14:08:58.897872 AoE length 46, Ver 1, Flags: [none]
+  161  2014-05-04 14:08:58.897872 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00484ae0
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 14, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  162  14:08:58.897935 AoE length 1046, Ver 1, Flags: [Response]
+  162  2014-05-04 14:08:58.897935 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00484ae0
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 14, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  163  14:08:58.901128 AoE length 46, Ver 1, Flags: [none]
+  163  2014-05-04 14:08:58.901128 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00494ae2
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 2, Cmd/Status: 36
 	lba0: 12, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  164  14:08:58.901198 AoE length 1046, Ver 1, Flags: [Response]
+  164  2014-05-04 14:08:58.901198 AoE length 1046, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00494ae2
 	AFlags: [Ext48], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 12, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  165  14:09:03.999471 AoE length 1046, Ver 1, Flags: [none]
+  165  2014-05-04 14:09:03.999471 AoE length 1046, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x004a5ecd
 	AFlags: [Ext48, Write], Err/Feature: 0, Sector Count: 2, Cmd/Status: 52
 	lba0: 76, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  166  14:09:03.999585 AoE length 46, Ver 1, Flags: [Response]
+  166  2014-05-04 14:09:03.999585 AoE length 46, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x004a5ecd
 	AFlags: [Ext48, Write], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 76, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  167  14:09:03.999609 AoE length 1046, Ver 1, Flags: [none]
+  167  2014-05-04 14:09:03.999609 AoE length 1046, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x004b5ecd
 	AFlags: [Ext48, Write], Err/Feature: 0, Sector Count: 2, Cmd/Status: 52
 	lba0: 48, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  168  14:09:03.999677 AoE length 46, Ver 1, Flags: [Response]
+  168  2014-05-04 14:09:03.999677 AoE length 46, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x004b5ecd
 	AFlags: [Ext48, Write], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 48, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  169  14:09:03.999710 AoE length 1046, Ver 1, Flags: [none]
+  169  2014-05-04 14:09:03.999710 AoE length 1046, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x004c5ecd
 	AFlags: [Ext48, Write], Err/Feature: 0, Sector Count: 2, Cmd/Status: 52
 	lba0: 12, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  170  14:09:03.999741 AoE length 46, Ver 1, Flags: [Response]
+  170  2014-05-04 14:09:03.999741 AoE length 46, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x004c5ecd
 	AFlags: [Ext48, Write], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 12, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  171  14:09:03.999795 AoE length 1046, Ver 1, Flags: [none]
+  171  2014-05-04 14:09:03.999795 AoE length 1046, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x004d5ecd
 	AFlags: [Ext48, Write], Err/Feature: 0, Sector Count: 2, Cmd/Status: 52
 	lba0: 14, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  172  14:09:03.999845 AoE length 46, Ver 1, Flags: [Response]
+  172  2014-05-04 14:09:03.999845 AoE length 46, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x004d5ecd
 	AFlags: [Ext48, Write], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 14, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  173  14:09:03.999907 AoE length 1046, Ver 1, Flags: [none]
+  173  2014-05-04 14:09:03.999907 AoE length 1046, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x004e5ecd
 	AFlags: [Ext48, Write], Err/Feature: 0, Sector Count: 2, Cmd/Status: 52
 	lba0: 16, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  174  14:09:03.999957 AoE length 46, Ver 1, Flags: [Response]
+  174  2014-05-04 14:09:03.999957 AoE length 46, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x004e5ecd
 	AFlags: [Ext48, Write], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 16, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  175  14:09:04.000663 AoE length 1046, Ver 1, Flags: [none]
+  175  2014-05-04 14:09:04.000663 AoE length 1046, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x004f5ecd
 	AFlags: [Ext48, Write], Err/Feature: 0, Sector Count: 2, Cmd/Status: 52
 	lba0: 18, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  176  14:09:04.000720 AoE length 46, Ver 1, Flags: [Response]
+  176  2014-05-04 14:09:04.000720 AoE length 46, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x004f5ecd
 	AFlags: [Ext48, Write], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 18, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  177  14:09:04.000776 AoE length 1046, Ver 1, Flags: [none]
+  177  2014-05-04 14:09:04.000776 AoE length 1046, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00505ecd
 	AFlags: [Ext48, Write], Err/Feature: 0, Sector Count: 2, Cmd/Status: 52
 	lba0: 2, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  178  14:09:04.000799 AoE length 46, Ver 1, Flags: [Response]
+  178  2014-05-04 14:09:04.000799 AoE length 46, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00505ecd
 	AFlags: [Ext48, Write], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 2, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  179  14:09:04.000839 AoE length 1046, Ver 1, Flags: [none]
+  179  2014-05-04 14:09:04.000839 AoE length 1046, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00515ecd
 	AFlags: [Ext48, Write], Err/Feature: 0, Sector Count: 2, Cmd/Status: 52
 	lba0: 4, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  180  14:09:04.000860 AoE length 46, Ver 1, Flags: [Response]
+  180  2014-05-04 14:09:04.000860 AoE length 46, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00515ecd
 	AFlags: [Ext48, Write], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 4, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  181  14:09:04.005498 AoE length 1046, Ver 1, Flags: [none]
+  181  2014-05-04 14:09:04.005498 AoE length 1046, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00525ed2
 	AFlags: [Ext48, Write], Err/Feature: 0, Sector Count: 2, Cmd/Status: 52
 	lba0: 2, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 1024 bytes
-  182  14:09:04.005578 AoE length 46, Ver 1, Flags: [Response]
+  182  2014-05-04 14:09:04.005578 AoE length 46, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00525ed2
 	AFlags: [Ext48, Write], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 2, lba1: 0, lba2: 0, lba3: 0, lba4: 0, lba5: 0
 	Data: 24 bytes
-  183  14:09:04.095771 AoE length 46, Ver 1, Flags: [none]
+  183  2014-05-04 14:09:04.095771 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Query Config Information, Tag: 0x00000000
 	Buffer Count: 0, Firmware Version: 0, Sector Count: 0, AoE: 0, CCmd: read config string
-  184  14:09:04.095832 AoE length 18, Ver 1, Flags: [Response]
+  184  2014-05-04 14:09:04.095832 AoE length 18, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Query Config Information, Tag: 0x00000000
 	Buffer Count: 16, Firmware Version: 16405, Sector Count: 2, AoE: 1, CCmd: read config string
-  185  14:09:04.097287 AoE length 46, Ver 1, Flags: [none]
+  185  2014-05-04 14:09:04.097287 AoE length 46, Ver 1, Flags: [none]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00535f2f
 	AFlags: [none], Err/Feature: 0, Sector Count: 1, Cmd/Status: 236
 	lba0: 0, lba1: 0, lba2: 0, lba3: 160, lba4: 0, lba5: 0
 	Data: 24 bytes
-  186  14:09:04.097327 AoE length 534, Ver 1, Flags: [Response]
+  186  2014-05-04 14:09:04.097327 AoE length 534, Ver 1, Flags: [Response]
 	Major: 0x0014, Minor: 0x00, Command: Issue ATA Command, Tag: 0x00535f2f
 	AFlags: [none], Err/Feature: 0, Sector Count: 0, Cmd/Status: 64
 	lba0: 0, lba1: 0, lba2: 0, lba3: 160, lba4: 0, lba5: 0

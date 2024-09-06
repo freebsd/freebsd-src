@@ -1,4 +1,4 @@
-    1  13:28:51.311277 IP6 (class 0xc0, hlim 1, next-header OSPF (89) payload length: 88) fe80::20c:29ff:fe9e:c1b2 > ff02::5: OSPFv3, Hello, length 88
+    1  2014-02-20 13:28:51.311277 IP6 (class 0xc0, hlim 1, next-header OSPF (89) payload length: 88) fe80::20c:29ff:fe9e:c1b2 > ff02::5: OSPFv3, Hello, length 88
 	Router-ID 10.10.10.2, Backbone Area
 	Options [V6, External, Router, Authentication Trailer]
 	  Hello Timer 10s, Dead Timer 40s, Interface-ID 0.0.0.2, Priority 1

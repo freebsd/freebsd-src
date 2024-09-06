@@ -1,24 +1,24 @@
-    1  22:26:23.800723 Q.922, invalid address
-    2  22:26:23.937975 UI 00! Q.922, hdr-len 4, DLCI 5769024, Flags [none], NLPID unknown (0x11), length 41: 
+    1  2007-03-13 22:26:23.800723 Q.922, invalid address
+    2  2007-03-13 22:26:23.937975 UI 00! Q.922, hdr-len 4, DLCI 5769024, Flags [none], NLPID unknown (0x11), length 41: 
 	0x0000:  886b 68                                  .kh [|fr]
-    3  22:26:23.938313 Q.922, invalid address
-    4  22:26:23.939938 UI 00! Q.922, hdr-len 4, DLCI 5769024, Flags [none], NLPID unknown (0x14), length 160: 
+    3  2007-03-13 22:26:23.938313 Q.922, invalid address
+    4  2007-03-13 22:26:23.939938 UI 00! Q.922, hdr-len 4, DLCI 5769024, Flags [none], NLPID unknown (0x14), length 160: 
 	0x0000:  a530 b0                                  .0. [|fr]
-    5  22:26:23.940187 Q.922, invalid address
-    6  22:26:23.941938 UI 00! Q.922, hdr-len 4, DLCI 5801792, Flags [none], NLPID unknown (0x11), length 179: 
+    5  2007-03-13 22:26:23.940187 Q.922, invalid address
+    6  2007-03-13 22:26:23.941938 UI 00! Q.922, hdr-len 4, DLCI 5801792, Flags [none], NLPID unknown (0x11), length 179: 
 	0x0000:  886b 68                                  .kh [|fr]
-    7  22:26:23.942187 Q.922, invalid address
-    8  22:26:23.944938 UI 00! Q.922, hdr-len 4, DLCI 5769024, Flags [none], NLPID unknown (0x14), length 30: 
+    7  2007-03-13 22:26:23.942187 Q.922, invalid address
+    8  2007-03-13 22:26:23.944938 UI 00! Q.922, hdr-len 4, DLCI 5769024, Flags [none], NLPID unknown (0x14), length 30: 
 	0x0000:  a530 b0                                  .0. [|fr]
-    9  22:26:23.945312 Q.922, invalid address
-   10  22:26:23.946188 UI 00! Q.922, hdr-len 4, DLCI 1856, Flags [none], NLPID unknown (0x11), length 85: 
+    9  2007-03-13 22:26:23.945312 Q.922, invalid address
+   10  2007-03-13 22:26:23.946188 UI 00! Q.922, hdr-len 4, DLCI 1856, Flags [none], NLPID unknown (0x11), length 85: 
 	0x0000:  886b 68                                  .kh [|fr]
-   11  22:26:23.946562 Q.922, invalid address
-   12  22:26:23.949189 Q.922, invalid address
-   13  22:26:23.949813 UI 00! Q.922, hdr-len 4, DLCI 526144, Flags [none], NLPID unknown (0x14), length 46: 
+   11  2007-03-13 22:26:23.946562 Q.922, invalid address
+   12  2007-03-13 22:26:23.949189 Q.922, invalid address
+   13  2007-03-13 22:26:23.949813 UI 00! Q.922, hdr-len 4, DLCI 526144, Flags [none], NLPID unknown (0x14), length 46: 
 	0x0000:  a530 b0                                  .0. [|fr]
-   14  22:26:23.950187 Q.922, invalid address
-   15  22:26:24.634000 UI 2c! Pad! Q.922, hdr-len 2, DLCI 288, Flags [none], NLPID NULL (0x00), length 24: 
+   14  2007-03-13 22:26:23.950187 Q.922, invalid address
+   15  2007-03-13 22:26:24.634000 UI 2c! Pad! Q.922, hdr-len 2, DLCI 288, Flags [none], NLPID NULL (0x00), length 24: 
 	0x0000:  1188 6b68                                ..kh [|fr]
-   16  22:26:24.634098 Q.922, invalid address
-   17  22:26:24.634151 UI 2c! Pad! Q.933, CCITT, codeset 0 [|q.933]
+   16  2007-03-13 22:26:24.634098 Q.922, invalid address
+   17  2007-03-13 22:26:24.634151 UI 2c! Pad! Q.933, CCITT, codeset 0 [|q.933]

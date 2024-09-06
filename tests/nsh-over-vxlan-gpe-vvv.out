@@ -1,4 +1,4 @@
-    1  14:19:08.994912 IP (tos 0x0, ttl 64, id 16419, offset 0, flags [DF], proto UDP (17), length 92)
+    1  2016-02-21 14:19:08.994912 IP (tos 0x0, ttl 64, id 16419, offset 0, flags [DF], proto UDP (17), length 92)
     127.0.0.1.4790 > 127.0.0.1.4790: [udp sum ok] VXLAN-GPE, flags [IP], vni 16777215
     NSH, ver 0, flags [O], TTL 0, length 6, md type 2, next-protocol IPv4, service-path-id 0xffffff, service-index 0xff
         TLV Class 1, Type 2, Len 1

@@ -1,68 +1,68 @@
-    1  10:39:19.323246 DTPv1, length 31
+    1  2009-12-16 10:39:19.323246 DTPv1, length 31
 	Domain (0x0001) TLV, length 10, cisco
 	Status (0x0002) TLV, length 5, 0x81
 	DTP type (0x0003) TLV, length 5, 0xa5
 	Neighbor (0x0004) TLV, length 10, 00:1f:6d:96:ec:04
-    2  10:39:20.329871 DTPv1, length 31
+    2  2009-12-16 10:39:20.329871 DTPv1, length 31
 	Domain (0x0001) TLV, length 10, cisco
 	Status (0x0002) TLV, length 5, 0x81
 	DTP type (0x0003) TLV, length 5, 0xa5
 	Neighbor (0x0004) TLV, length 10, 00:1f:6d:96:ec:04
-    3  10:39:21.327398 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:1f:6d:96:ec:00.8004, length 42
+    3  2009-12-16 10:39:21.327398 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:1f:6d:96:ec:00.8004, length 42
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:1f:6d:96:ec:00, root-pathcost 0, port-role Designated
-    4  10:39:21.327411 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:1f:6d:96:ec:00.8004, length 36
+    4  2009-12-16 10:39:21.327411 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:1f:6d:96:ec:00.8004, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:1f:6d:96:ec:00, root-pathcost 0, port-role Designated
-    5  10:39:21.327491 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8005.00:1f:6d:96:ec:00.8004, length 42
+    5  2009-12-16 10:39:21.327491 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8005.00:1f:6d:96:ec:00.8004, length 42
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8005.00:1f:6d:96:ec:00, root-pathcost 0, port-role Designated
-    6  10:39:22.324853 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:1f:6d:96:ec:00.8004, length 42
+    6  2009-12-16 10:39:22.324853 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:1f:6d:96:ec:00.8004, length 42
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:1f:6d:96:ec:00, root-pathcost 0, port-role Designated
-    7  10:39:22.324865 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:1f:6d:96:ec:00.8004, length 36
+    7  2009-12-16 10:39:22.324865 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:1f:6d:96:ec:00.8004, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:1f:6d:96:ec:00, root-pathcost 0, port-role Designated
-    8  10:39:22.324957 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8005.00:1f:6d:96:ec:00.8004, length 42
+    8  2009-12-16 10:39:22.324957 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8005.00:1f:6d:96:ec:00.8004, length 42
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8005.00:1f:6d:96:ec:00, root-pathcost 0, port-role Designated
-    9  10:39:24.337449 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:1f:6d:96:ec:00.8004, length 42
+    9  2009-12-16 10:39:24.337449 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:1f:6d:96:ec:00.8004, length 42
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:1f:6d:96:ec:00, root-pathcost 0, port-role Designated
-   10  10:39:24.337461 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:1f:6d:96:ec:00.8004, length 36
+   10  2009-12-16 10:39:24.337461 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:1f:6d:96:ec:00.8004, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:1f:6d:96:ec:00, root-pathcost 0, port-role Designated
-   11  10:39:24.337682 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8005.00:1f:6d:96:ec:00.8004, length 42
+   11  2009-12-16 10:39:24.337682 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8005.00:1f:6d:96:ec:00.8004, length 42
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8005.00:1f:6d:96:ec:00, root-pathcost 0, port-role Designated
-   12  10:39:26.327771 VTPv1, Message Summary advertisement (0x01), length 77
+   12  2009-12-16 10:39:26.327771 VTPv1, Message Summary advertisement (0x01), length 77
 	Domain name: cisco, Followers: 0
 	  Config Rev 2, Updater 155.1.37.7, Timestamp 0x39333033 0x30313030 0x30393030, MD5 digest: fb393cf67014e50aa79c7c5b193f6fe1
-   13  10:39:26.350710 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:1f:6d:96:ec:00.8004, length 42
+   13  2009-12-16 10:39:26.350710 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:1f:6d:96:ec:00.8004, length 42
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:1f:6d:96:ec:00, root-pathcost 0, port-role Designated
-   14  10:39:26.350718 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:1f:6d:96:ec:00.8004, length 36
+   14  2009-12-16 10:39:26.350718 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:1f:6d:96:ec:00.8004, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:1f:6d:96:ec:00, root-pathcost 0, port-role Designated
-   15  10:39:26.350937 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8005.00:1f:6d:96:ec:00.8004, length 42
+   15  2009-12-16 10:39:26.350937 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8005.00:1f:6d:96:ec:00.8004, length 42
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8005.00:1f:6d:96:ec:00, root-pathcost 0, port-role Designated
-   16  10:39:28.363914 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:1f:6d:96:ec:00.8004, length 42
+   16  2009-12-16 10:39:28.363914 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:1f:6d:96:ec:00.8004, length 42
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:1f:6d:96:ec:00, root-pathcost 0, port-role Designated
-   17  10:39:28.363959 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:1f:6d:96:ec:00.8004, length 36
+   17  2009-12-16 10:39:28.363959 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:1f:6d:96:ec:00.8004, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:1f:6d:96:ec:00, root-pathcost 0, port-role Designated
-   18  10:39:28.364082 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8005.00:1f:6d:96:ec:00.8004, length 42
+   18  2009-12-16 10:39:28.364082 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8005.00:1f:6d:96:ec:00.8004, length 42
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8005.00:1f:6d:96:ec:00, root-pathcost 0, port-role Designated
-   19  10:39:30.377262 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:1f:6d:96:ec:00.8004, length 42
+   19  2009-12-16 10:39:30.377262 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:1f:6d:96:ec:00.8004, length 42
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:1f:6d:96:ec:00, root-pathcost 0, port-role Designated
-   20  10:39:30.377278 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:1f:6d:96:ec:00.8004, length 36
+   20  2009-12-16 10:39:30.377278 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:1f:6d:96:ec:00.8004, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:1f:6d:96:ec:00, root-pathcost 0, port-role Designated
-   21  10:39:30.377337 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8005.00:1f:6d:96:ec:00.8004, length 42
+   21  2009-12-16 10:39:30.377337 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8005.00:1f:6d:96:ec:00.8004, length 42
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8005.00:1f:6d:96:ec:00, root-pathcost 0, port-role Designated
-   22  10:39:30.696256 Loopback, skipCount 0, Reply, receipt number 0, data (40 octets)
+   22  2009-12-16 10:39:30.696256 Loopback, skipCount 0, Reply, receipt number 0, data (40 octets)

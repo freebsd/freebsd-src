@@ -1,4 +1,4 @@
-    1  14:12:10.230949 IP (tos 0x0, ttl 64, id 58037, offset 0, flags [DF], proto UDP (17), length 100)
+    1  2017-06-19 14:12:10.230949 IP (tos 0x0, ttl 64, id 58037, offset 0, flags [DF], proto UDP (17), length 100)
     192.168.100.2.58054 > 192.168.100.1.123: NTPv4, Client, length 72
 	Leap indicator:  (0), Stratum 0 (unspecified), poll 0 (1s), precision 32
 	Root Delay: 0.000000, Root dispersion: 0.000000, Reference-ID: (unspec)
@@ -10,7 +10,7 @@
 	    Originator - Transmit Timestamp: 2763234513.007738396 (1987-07-25T21:08:33Z)
 	Key id: 8
 	Authentication: 57ea530f6d74350cc5286bfec1ab8ca747c73584
-    2  14:12:10.231082 IP (tos 0xb8, ttl 64, id 24722, offset 0, flags [DF], proto UDP (17), length 80)
+    2  2017-06-19 14:12:10.231082 IP (tos 0xb8, ttl 64, id 24722, offset 0, flags [DF], proto UDP (17), length 80)
     192.168.100.1.123 > 192.168.100.2.58054: NTPv4, Server, length 52
 	Leap indicator: clock unsynchronized (192), Stratum 0 (unspecified), poll 3 (8s), precision -23
 	Root Delay: 0.000000, Root dispersion: 0.001373, Reference-ID: (unspec)
@@ -21,7 +21,7 @@
 	    Originator - Receive Timestamp:  +943635816.508276721
 	    Originator - Transmit Timestamp: +943635816.508335651
 	Key id: 0
-    3  14:19:18.494390 IP (tos 0x0, ttl 64, id 5777, offset 0, flags [DF], proto UDP (17), length 100)
+    3  2017-06-19 14:19:18.494390 IP (tos 0x0, ttl 64, id 5777, offset 0, flags [DF], proto UDP (17), length 100)
     192.168.100.2.42818 > 192.168.100.1.123: NTPv4, Client, length 72
 	Leap indicator:  (0), Stratum 0 (unspecified), poll 0 (1s), precision 32
 	Root Delay: 0.000000, Root dispersion: 0.000000, Reference-ID: (unspec)
@@ -33,7 +33,7 @@
 	    Originator - Transmit Timestamp: -777343293.366267130
 	Key id: 8
 	Authentication: 8b7e640979156264f3faa5ae979656dd86502431
-    4  14:19:18.494589 IP (tos 0x0, ttl 64, id 64601, offset 0, flags [DF], proto UDP (17), length 100)
+    4  2017-06-19 14:19:18.494589 IP (tos 0x0, ttl 64, id 64601, offset 0, flags [DF], proto UDP (17), length 100)
     192.168.100.1.123 > 192.168.100.2.42818: NTPv4, Server, length 72
 	Leap indicator:  (0), Stratum 2 (secondary reference), poll 0 (1s), precision -23
 	Root Delay: 0.155502, Root dispersion: 0.001571, Reference-ID: 0x0a051b0a
@@ -45,7 +45,7 @@
 	    Originator - Transmit Timestamp: +777343294.386980899
 	Key id: 8
 	Authentication: 629990a7fc22cc8467dd88b7af2d220dbe3287d6
-    5  14:22:54.488500 IP (tos 0x0, ttl 64, id 31502, offset 0, flags [DF], proto UDP (17), length 76)
+    5  2017-06-19 14:22:54.488500 IP (tos 0x0, ttl 64, id 31502, offset 0, flags [DF], proto UDP (17), length 76)
     192.168.100.2.53144 > 192.168.100.1.123: NTPv4, Client, length 48
 	Leap indicator: clock unsynchronized (192), Stratum 0 (unspecified), poll 3 (8s), precision -6
 	Root Delay: 1.000000, Root dispersion: 1.000000, Reference-ID: (unspec)
@@ -55,7 +55,7 @@
 	  Transmit Timestamp:   3706870974.488488492 (2017-06-19T14:22:54Z)
 	    Originator - Receive Timestamp:  0.000000000
 	    Originator - Transmit Timestamp: 3706870974.488488492 (2017-06-19T14:22:54Z)
-    6  14:22:54.488761 IP (tos 0x0, ttl 64, id 456, offset 0, flags [DF], proto UDP (17), length 76)
+    6  2017-06-19 14:22:54.488761 IP (tos 0x0, ttl 64, id 456, offset 0, flags [DF], proto UDP (17), length 76)
     192.168.100.1.123 > 192.168.100.2.53144: NTPv4, Server, length 48
 	Leap indicator:  (0), Stratum 2 (secondary reference), poll 3 (8s), precision -23
 	Root Delay: 0.155456, Root dispersion: 0.001007, Reference-ID: 0x0a051b0a
@@ -65,7 +65,7 @@
 	  Transmit Timestamp:   3706870974.488665335 (2017-06-19T14:22:54Z)
 	    Originator - Receive Timestamp:  +0.000052081
 	    Originator - Transmit Timestamp: +0.000176842
-    7  14:47:12.800853 IP (tos 0xc0, ttl 64, id 4575, offset 0, flags [DF], proto UDP (17), length 96)
+    7  2017-06-19 14:47:12.800853 IP (tos 0xc0, ttl 64, id 4575, offset 0, flags [DF], proto UDP (17), length 96)
     192.168.100.2.123 > 192.168.100.1.123: NTPv4, Client, length 68
 	Leap indicator: clock unsynchronized (192), Stratum 0 (unspecified), poll 6 (64s), precision -25
 	Root Delay: 0.000000, Root dispersion: 0.000000, Reference-ID: (unspec)
@@ -77,7 +77,7 @@
 	    Originator - Transmit Timestamp: 3706872432.800841171 (2017-06-19T14:47:12Z)
 	Key id: 8
 	Authentication: d5378a09c04da845732097104348843a
-    8  14:47:12.800979 IP (tos 0xb8, ttl 64, id 6653, offset 0, flags [DF], proto UDP (17), length 96)
+    8  2017-06-19 14:47:12.800979 IP (tos 0xb8, ttl 64, id 6653, offset 0, flags [DF], proto UDP (17), length 96)
     192.168.100.1.123 > 192.168.100.2.123: NTPv4, Server, length 68
 	Leap indicator:  (0), Stratum 2 (secondary reference), poll 6 (64s), precision -23
 	Root Delay: 0.116577, Root dispersion: 0.001739, Reference-ID: 0x0a0ba0ee

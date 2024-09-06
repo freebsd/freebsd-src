@@ -1,4 +1,4 @@
-    1  11:07:03.786633 IP (tos 0xc0, ttl 64, id 35063, offset 0, flags [none], proto TCP (6), length 182)
+    1  2014-07-23 11:07:03.786633 IP (tos 0xc0, ttl 64, id 35063, offset 0, flags [none], proto TCP (6), length 182)
     172.16.20.5.59631 > 172.16.20.3.179: Flags [P.], cksum 0xe112 (correct), seq 3923783171:3923783301, ack 3341773693, win 16384, options [nop,nop,TS val 32734022 ecr 32695671], length 130: BGP
 	Update Message (2), length: 100
 	  Origin (1), length: 1, Flags [T]: Incomplete

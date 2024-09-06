@@ -1,4 +1,4 @@
-    1  00:13:30.597291 IP (tos 0x0, ttl 253, id 23654, offset 0, flags [none], proto UDP (17), length 1316)
+    1  2011-04-02 00:13:30.597291 IP (tos 0x0, ttl 253, id 23654, offset 0, flags [none], proto UDP (17), length 1316)
     15.184.1.76.40948 > 15.184.3.9.6343: sFlowv5, IPv4 agent 15.184.8.4, agent-id 2, seqnum 204720, uptime 2612972293, samples 7, length 1288
 	expanded counter sample (4), length 172, seqnum 87096, type 0, idx 55, records 2
 	    enterprise 0, Generic counter (1) length 88
@@ -84,7 +84,7 @@
 	      align errors 0, fcs errors 0, single collision 0, multiple collision 0, test error 0
 	      deferred 0, late collision 0, excessive collision 0, mac trans error 0
 	      carrier error 0, frames too long 0, mac receive errors 0, symbol errors 0
-    2  00:13:30.675288 IP (tos 0x0, ttl 253, id 12208, offset 0, flags [none], proto UDP (17), length 1316)
+    2  2011-04-02 00:13:30.675288 IP (tos 0x0, ttl 253, id 12208, offset 0, flags [none], proto UDP (17), length 1316)
     15.184.1.195.4942 > 15.184.3.9.6343: sFlowv5, IPv4 agent 15.184.1.195, agent-id 1, seqnum 10499682, uptime 12973660, samples 7, length 1288
 	expanded counter sample (4), length 172, seqnum 2007195, type 0, idx 1, records 2
 	    enterprise 0, Generic counter (1) length 88
@@ -170,7 +170,7 @@
 	      align errors 0, fcs errors 0, single collision 0, multiple collision 0, test error 0
 	      deferred 0, late collision 0, excessive collision 0, mac trans error 0
 	      carrier error 0, frames too long 0, mac receive errors 0, symbol errors 0
-    3  00:13:30.676474 IP (tos 0x0, ttl 253, id 12209, offset 0, flags [none], proto UDP (17), length 1316)
+    3  2011-04-02 00:13:30.676474 IP (tos 0x0, ttl 253, id 12209, offset 0, flags [none], proto UDP (17), length 1316)
     15.184.1.195.4942 > 15.184.3.9.6343: sFlowv5, IPv4 agent 15.184.1.195, agent-id 1, seqnum 10499683, uptime 12973661, samples 7, length 1288
 	expanded counter sample (4), length 172, seqnum 2007114, type 0, idx 8, records 2
 	    enterprise 0, Generic counter (1) length 88
@@ -256,7 +256,7 @@
 	      align errors 0, fcs errors 0, single collision 0, multiple collision 0, test error 0
 	      deferred 0, late collision 0, excessive collision 0, mac trans error 0
 	      carrier error 0, frames too long 0, mac receive errors 0, symbol errors 0
-    4  00:13:30.677640 IP (tos 0x0, ttl 253, id 12210, offset 0, flags [none], proto UDP (17), length 1316)
+    4  2011-04-02 00:13:30.677640 IP (tos 0x0, ttl 253, id 12210, offset 0, flags [none], proto UDP (17), length 1316)
     15.184.1.195.4942 > 15.184.3.9.6343: sFlowv5, IPv4 agent 15.184.1.195, agent-id 1, seqnum 10499684, uptime 12973663, samples 7, length 1288
 	expanded counter sample (4), length 172, seqnum 2007174, type 0, idx 15, records 2
 	    enterprise 0, Generic counter (1) length 88
@@ -342,7 +342,7 @@
 	      align errors 0, fcs errors 0, single collision 0, multiple collision 0, test error 0
 	      deferred 0, late collision 0, excessive collision 0, mac trans error 0
 	      carrier error 0, frames too long 0, mac receive errors 0, symbol errors 0
-    5  00:13:30.678795 IP (tos 0x0, ttl 253, id 12211, offset 0, flags [none], proto UDP (17), length 1316)
+    5  2011-04-02 00:13:30.678795 IP (tos 0x0, ttl 253, id 12211, offset 0, flags [none], proto UDP (17), length 1316)
     15.184.1.195.4942 > 15.184.3.9.6343: sFlowv5, IPv4 agent 15.184.1.195, agent-id 1, seqnum 10499685, uptime 12973664, samples 7, length 1288
 	expanded counter sample (4), length 172, seqnum 2007104, type 0, idx 22, records 2
 	    enterprise 0, Generic counter (1) length 88
@@ -428,7 +428,7 @@
 	      align errors 0, fcs errors 2, single collision 0, multiple collision 0, test error 0
 	      deferred 0, late collision 0, excessive collision 0, mac trans error 0
 	      carrier error 0, frames too long 0, mac receive errors 0, symbol errors 0
-    6  00:13:30.815569 IP (tos 0x0, ttl 253, id 12212, offset 0, flags [none], proto UDP (17), length 1136)
+    6  2011-04-02 00:13:30.815569 IP (tos 0x0, ttl 253, id 12212, offset 0, flags [none], proto UDP (17), length 1136)
     15.184.1.195.4942 > 15.184.3.9.6343: sFlowv5, IPv4 agent 15.184.1.195, agent-id 1, seqnum 10499686, uptime 12973800, samples 6, length 1108
 	expanded counter sample (4), length 172, seqnum 2007268, type 0, idx 29, records 2
 	    enterprise 0, Generic counter (1) length 88
@@ -502,7 +502,7 @@
 	      align errors 0, fcs errors 0, single collision 0, multiple collision 0, test error 0
 	      deferred 0, late collision 0, excessive collision 0, mac trans error 0
 	      carrier error 0, frames too long 0, mac receive errors 0, symbol errors 0
-    7  00:13:30.898050 IP (tos 0x0, ttl 253, id 23656, offset 0, flags [none], proto UDP (17), length 236)
+    7  2011-04-02 00:13:30.898050 IP (tos 0x0, ttl 253, id 23656, offset 0, flags [none], proto UDP (17), length 236)
     15.184.1.76.40948 > 15.184.3.9.6343: sFlowv5, IPv4 agent 15.184.8.4, agent-id 2, seqnum 204721, uptime 2612972594, samples 1, length 208
 	expanded counter sample (4), length 172, seqnum 87243, type 0, idx 105, records 2
 	    enterprise 0, Generic counter (1) length 88
@@ -516,7 +516,7 @@
 	      align errors 0, fcs errors 6, single collision 0, multiple collision 0, test error 0
 	      deferred 0, late collision 0, excessive collision 0, mac trans error 0
 	      carrier error 0, frames too long 0, mac receive errors 0, symbol errors 4
-    8  00:13:30.939511 IP (tos 0x0, ttl 253, id 27097, offset 0, flags [none], proto UDP (17), length 1316)
+    8  2011-04-02 00:13:30.939511 IP (tos 0x0, ttl 253, id 27097, offset 0, flags [none], proto UDP (17), length 1316)
     15.184.1.194.3099 > 15.184.3.9.6343: sFlowv5, IPv4 agent 15.184.1.194, agent-id 1, seqnum 10354082, uptime 15617401, samples 7, length 1288
 	expanded counter sample (4), length 172, seqnum 2007459, type 0, idx 1, records 2
 	    enterprise 0, Generic counter (1) length 88
@@ -602,7 +602,7 @@
 	      align errors 0, fcs errors 0, single collision 0, multiple collision 0, test error 0
 	      deferred 0, late collision 0, excessive collision 0, mac trans error 0
 	      carrier error 0, frames too long 0, mac receive errors 0, symbol errors 0
-    9  00:13:30.940681 IP (tos 0x0, ttl 253, id 27098, offset 0, flags [none], proto UDP (17), length 1316)
+    9  2011-04-02 00:13:30.940681 IP (tos 0x0, ttl 253, id 27098, offset 0, flags [none], proto UDP (17), length 1316)
     15.184.1.194.3099 > 15.184.3.9.6343: sFlowv5, IPv4 agent 15.184.1.194, agent-id 1, seqnum 10354083, uptime 15617403, samples 7, length 1288
 	expanded counter sample (4), length 172, seqnum 2008394, type 0, idx 8, records 2
 	    enterprise 0, Generic counter (1) length 88
@@ -688,7 +688,7 @@
 	      align errors 0, fcs errors 2, single collision 0, multiple collision 0, test error 0
 	      deferred 0, late collision 0, excessive collision 0, mac trans error 0
 	      carrier error 0, frames too long 0, mac receive errors 0, symbol errors 0
-   10  00:13:30.941851 IP (tos 0x0, ttl 253, id 27099, offset 0, flags [none], proto UDP (17), length 1316)
+   10  2011-04-02 00:13:30.941851 IP (tos 0x0, ttl 253, id 27099, offset 0, flags [none], proto UDP (17), length 1316)
     15.184.1.194.3099 > 15.184.3.9.6343: sFlowv5, IPv4 agent 15.184.1.194, agent-id 1, seqnum 10354084, uptime 15617404, samples 7, length 1288
 	expanded counter sample (4), length 172, seqnum 2009508, type 0, idx 15, records 2
 	    enterprise 0, Generic counter (1) length 88
@@ -774,7 +774,7 @@
 	      align errors 0, fcs errors 0, single collision 0, multiple collision 0, test error 0
 	      deferred 0, late collision 0, excessive collision 0, mac trans error 0
 	      carrier error 0, frames too long 0, mac receive errors 0, symbol errors 0
-   11  00:13:30.942980 IP (tos 0x0, ttl 253, id 27100, offset 0, flags [none], proto UDP (17), length 1316)
+   11  2011-04-02 00:13:30.942980 IP (tos 0x0, ttl 253, id 27100, offset 0, flags [none], proto UDP (17), length 1316)
     15.184.1.194.3099 > 15.184.3.9.6343: sFlowv5, IPv4 agent 15.184.1.194, agent-id 1, seqnum 10354085, uptime 15617405, samples 7, length 1288
 	expanded counter sample (4), length 172, seqnum 2006231, type 0, idx 22, records 2
 	    enterprise 0, Generic counter (1) length 88
@@ -860,7 +860,7 @@
 	      align errors 0, fcs errors 0, single collision 0, multiple collision 0, test error 0
 	      deferred 0, late collision 0, excessive collision 0, mac trans error 0
 	      carrier error 0, frames too long 0, mac receive errors 0, symbol errors 0
-   12  00:13:31.135140 IP (tos 0x0, ttl 63, id 0, offset 0, flags [DF], proto UDP (17), length 488)
+   12  2011-04-02 00:13:31.135140 IP (tos 0x0, ttl 63, id 0, offset 0, flags [DF], proto UDP (17), length 488)
     15.184.4.165.49408 > 15.184.3.9.6343: sFlowv5, IPv4 agent 15.184.4.165, agent-id 100, seqnum 304697, uptime 568980408, samples 1, length 460
 	counter sample (2), length 424, seqnum 304697, type 2, idx 1, records 6
 	    enterprise 0, Unknown (2001) length 68
@@ -895,9 +895,9 @@
 		0x0010:  3437 6b32 3638 3935 3431 5355 4530 3331
 		0x0020:  3437 4b32 0000 0003 0000 0002 0000 000e
 		0x0030:  322e 362e 3138 2d31 3934 2e65 6c35 0000
-   13  00:13:31.467318 IP (tos 0x0, ttl 254, id 0, offset 0, flags [none], proto UDP (17), length 100)
+   13  2011-04-02 00:13:31.467318 IP (tos 0x0, ttl 254, id 0, offset 0, flags [none], proto UDP (17), length 100)
     168.87.240.2.40000 > 15.184.3.9.6343: sFlow version 327681 packet not supported
-   14  00:13:31.475115 IP (tos 0x0, ttl 255, id 16476, offset 0, flags [none], proto UDP (17), length 1316)
+   14  2011-04-02 00:13:31.475115 IP (tos 0x0, ttl 255, id 16476, offset 0, flags [none], proto UDP (17), length 1316)
     15.184.3.1.41024 > 15.184.3.9.6343: sFlowv5, IPv4 agent 15.184.1.129, agent-id 2, seqnum 211306, uptime 2441326183, samples 7, length 1288
 	expanded counter sample (4), length 172, seqnum 81390, type 0, idx 56, records 2
 	    enterprise 0, Generic counter (1) length 88
@@ -983,7 +983,7 @@
 	      align errors 0, fcs errors 0, single collision 0, multiple collision 0, test error 0
 	      deferred 0, late collision 0, excessive collision 0, mac trans error 0
 	      carrier error 0, frames too long 0, mac receive errors 0, symbol errors 0
-   15  00:13:31.635326 IP (tos 0x0, ttl 255, id 16477, offset 0, flags [none], proto UDP (17), length 596)
+   15  2011-04-02 00:13:31.635326 IP (tos 0x0, ttl 255, id 16477, offset 0, flags [none], proto UDP (17), length 596)
     15.184.3.1.41024 > 15.184.3.9.6343: sFlowv5, IPv4 agent 15.184.1.129, agent-id 2, seqnum 211307, uptime 2441326343, samples 3, length 568
 	expanded counter sample (4), length 172, seqnum 81390, type 0, idx 40, records 2
 	    enterprise 0, Generic counter (1) length 88
@@ -1021,7 +1021,7 @@
 	      align errors 0, fcs errors 0, single collision 0, multiple collision 0, test error 0
 	      deferred 0, late collision 0, excessive collision 0, mac trans error 0
 	      carrier error 0, frames too long 0, mac receive errors 0, symbol errors 0
-   16  00:13:31.666518 IP (tos 0x0, ttl 254, id 50953, offset 0, flags [none], proto UDP (17), length 956)
+   16  2011-04-02 00:13:31.666518 IP (tos 0x0, ttl 254, id 50953, offset 0, flags [none], proto UDP (17), length 956)
     168.87.240.3.50340 > 15.184.3.9.6343: sFlowv5, IPv4 agent 15.184.1.129, agent-id 6, seqnum 444098, uptime 127118529, samples 5, length 928
 	expanded counter sample (4), length 172, seqnum 147400, type 0, idx 60, records 2
 	    enterprise 0, Generic counter (1) length 88
@@ -1083,7 +1083,7 @@
 	      align errors 0, fcs errors 0, single collision 0, multiple collision 0, test error 0
 	      deferred 0, late collision 0, excessive collision 0, mac trans error 0
 	      carrier error 0, frames too long 0, mac receive errors 0, symbol errors 0
-   17  00:13:31.850000 IP (tos 0x0, ttl 253, id 27101, offset 0, flags [none], proto UDP (17), length 1136)
+   17  2011-04-02 00:13:31.850000 IP (tos 0x0, ttl 253, id 27101, offset 0, flags [none], proto UDP (17), length 1136)
     15.184.1.194.3099 > 15.184.3.9.6343: sFlowv5, IPv4 agent 15.184.1.194, agent-id 1, seqnum 10354086, uptime 15618312, samples 6, length 1108
 	expanded counter sample (4), length 172, seqnum 2007421, type 0, idx 29, records 2
 	    enterprise 0, Generic counter (1) length 88
@@ -1157,7 +1157,7 @@
 	      align errors 0, fcs errors 0, single collision 0, multiple collision 0, test error 0
 	      deferred 0, late collision 0, excessive collision 0, mac trans error 0
 	      carrier error 0, frames too long 0, mac receive errors 0, symbol errors 0
-   18  00:13:32.153315 IP (tos 0x0, ttl 62, id 0, offset 0, flags [DF], proto UDP (17), length 452)
+   18  2011-04-02 00:13:32.153315 IP (tos 0x0, ttl 62, id 0, offset 0, flags [DF], proto UDP (17), length 452)
     15.184.13.248.50229 > 15.184.3.9.6343: sFlowv5, IPv4 agent 15.184.13.52, agent-id 100, seqnum 26626, uptime 798762000, samples 1, length 424
 	counter sample (2), length 388, seqnum 26626, type 2, idx 1, records 6
 	    enterprise 0, Unknown (2001) length 36
@@ -1190,15 +1190,15 @@
 		0x0010:  3431 3036 3630 5355 4530 3337 3130 4646
 		0x0020:  0000 0003 0000 0002 0000 000e 322e 362e
 		0x0030:  3138 2d31 3934 2e65 6c35 0000
-   19  00:13:32.190770 IP (tos 0x0, ttl 254, id 0, offset 0, flags [none], proto UDP (17), length 100)
+   19  2011-04-02 00:13:32.190770 IP (tos 0x0, ttl 254, id 0, offset 0, flags [none], proto UDP (17), length 100)
     168.87.240.1.40000 > 15.184.3.9.6343: sFlow version 327681 packet not supported
-   20  00:13:32.190783 IP (tos 0x0, ttl 254, id 0, offset 0, flags [none], proto UDP (17), length 148)
+   20  2011-04-02 00:13:32.190783 IP (tos 0x0, ttl 254, id 0, offset 0, flags [none], proto UDP (17), length 148)
     168.87.240.1.40000 > 15.184.3.9.6343: sFlow version 327682 packet not supported
-   21  00:13:32.193594 IP (tos 0x0, ttl 254, id 8886, offset 0, flags [none], proto UDP (17), length 100)
+   21  2011-04-02 00:13:32.193594 IP (tos 0x0, ttl 254, id 8886, offset 0, flags [none], proto UDP (17), length 100)
     168.87.240.1.40000 > 15.184.3.9.6343: sFlow version 327681 packet not supported
-   22  00:13:32.467378 IP (tos 0x0, ttl 254, id 0, offset 0, flags [none], proto UDP (17), length 148)
+   22  2011-04-02 00:13:32.467378 IP (tos 0x0, ttl 254, id 0, offset 0, flags [none], proto UDP (17), length 148)
     168.87.240.2.40000 > 15.184.3.9.6343: sFlow version 327682 packet not supported
-   23  00:13:32.667301 IP (tos 0x0, ttl 254, id 50954, offset 0, flags [none], proto UDP (17), length 596)
+   23  2011-04-02 00:13:32.667301 IP (tos 0x0, ttl 254, id 50954, offset 0, flags [none], proto UDP (17), length 596)
     168.87.240.3.50340 > 15.184.3.9.6343: sFlowv5, IPv4 agent 15.184.1.129, agent-id 6, seqnum 444099, uptime 127119529, samples 3, length 568
 	expanded counter sample (4), length 172, seqnum 147400, type 0, idx 65, records 2
 	    enterprise 0, Generic counter (1) length 88
@@ -1236,7 +1236,7 @@
 	      align errors 0, fcs errors 0, single collision 0, multiple collision 0, test error 0
 	      deferred 0, late collision 0, excessive collision 0, mac trans error 0
 	      carrier error 0, frames too long 0, mac receive errors 0, symbol errors 0
-   24  00:13:32.675174 IP (tos 0x0, ttl 253, id 12213, offset 0, flags [none], proto UDP (17), length 1316)
+   24  2011-04-02 00:13:32.675174 IP (tos 0x0, ttl 253, id 12213, offset 0, flags [none], proto UDP (17), length 1316)
     15.184.1.195.4942 > 15.184.3.9.6343: sFlowv5, IPv4 agent 15.184.1.195, agent-id 1, seqnum 10499687, uptime 12975660, samples 7, length 1288
 	expanded counter sample (4), length 172, seqnum 2007196, type 0, idx 1, records 2
 	    enterprise 0, Generic counter (1) length 88
@@ -1322,7 +1322,7 @@
 	      align errors 0, fcs errors 0, single collision 0, multiple collision 0, test error 0
 	      deferred 0, late collision 0, excessive collision 0, mac trans error 0
 	      carrier error 0, frames too long 0, mac receive errors 0, symbol errors 0
-   25  00:13:32.676361 IP (tos 0x0, ttl 253, id 12214, offset 0, flags [none], proto UDP (17), length 1316)
+   25  2011-04-02 00:13:32.676361 IP (tos 0x0, ttl 253, id 12214, offset 0, flags [none], proto UDP (17), length 1316)
     15.184.1.195.4942 > 15.184.3.9.6343: sFlowv5, IPv4 agent 15.184.1.195, agent-id 1, seqnum 10499688, uptime 12975661, samples 7, length 1288
 	expanded counter sample (4), length 172, seqnum 2007115, type 0, idx 8, records 2
 	    enterprise 0, Generic counter (1) length 88
@@ -1408,7 +1408,7 @@
 	      align errors 0, fcs errors 0, single collision 0, multiple collision 0, test error 0
 	      deferred 0, late collision 0, excessive collision 0, mac trans error 0
 	      carrier error 0, frames too long 0, mac receive errors 0, symbol errors 0
-   26  00:13:32.677515 IP (tos 0x0, ttl 253, id 12215, offset 0, flags [none], proto UDP (17), length 1316)
+   26  2011-04-02 00:13:32.677515 IP (tos 0x0, ttl 253, id 12215, offset 0, flags [none], proto UDP (17), length 1316)
     15.184.1.195.4942 > 15.184.3.9.6343: sFlowv5, IPv4 agent 15.184.1.195, agent-id 1, seqnum 10499689, uptime 12975663, samples 7, length 1288
 	expanded counter sample (4), length 172, seqnum 2007175, type 0, idx 15, records 2
 	    enterprise 0, Generic counter (1) length 88
@@ -1494,7 +1494,7 @@
 	      align errors 0, fcs errors 0, single collision 0, multiple collision 0, test error 0
 	      deferred 0, late collision 0, excessive collision 0, mac trans error 0
 	      carrier error 0, frames too long 0, mac receive errors 0, symbol errors 0
-   27  00:13:32.678699 IP (tos 0x0, ttl 253, id 12216, offset 0, flags [none], proto UDP (17), length 1316)
+   27  2011-04-02 00:13:32.678699 IP (tos 0x0, ttl 253, id 12216, offset 0, flags [none], proto UDP (17), length 1316)
     15.184.1.195.4942 > 15.184.3.9.6343: sFlowv5, IPv4 agent 15.184.1.195, agent-id 1, seqnum 10499690, uptime 12975664, samples 7, length 1288
 	expanded counter sample (4), length 172, seqnum 2007105, type 0, idx 22, records 2
 	    enterprise 0, Generic counter (1) length 88
@@ -1580,7 +1580,7 @@
 	      align errors 0, fcs errors 2, single collision 0, multiple collision 0, test error 0
 	      deferred 0, late collision 0, excessive collision 0, mac trans error 0
 	      carrier error 0, frames too long 0, mac receive errors 0, symbol errors 0
-   28  00:13:32.815939 IP (tos 0x0, ttl 253, id 12217, offset 0, flags [none], proto UDP (17), length 1136)
+   28  2011-04-02 00:13:32.815939 IP (tos 0x0, ttl 253, id 12217, offset 0, flags [none], proto UDP (17), length 1136)
     15.184.1.195.4942 > 15.184.3.9.6343: sFlowv5, IPv4 agent 15.184.1.195, agent-id 1, seqnum 10499691, uptime 12975801, samples 6, length 1108
 	expanded counter sample (4), length 172, seqnum 2007269, type 0, idx 29, records 2
 	    enterprise 0, Generic counter (1) length 88
@@ -1654,7 +1654,7 @@
 	      align errors 0, fcs errors 0, single collision 0, multiple collision 0, test error 0
 	      deferred 0, late collision 0, excessive collision 0, mac trans error 0
 	      carrier error 0, frames too long 0, mac receive errors 0, symbol errors 0
-   29  00:13:32.939517 IP (tos 0x0, ttl 253, id 27102, offset 0, flags [none], proto UDP (17), length 1316)
+   29  2011-04-02 00:13:32.939517 IP (tos 0x0, ttl 253, id 27102, offset 0, flags [none], proto UDP (17), length 1316)
     15.184.1.194.3099 > 15.184.3.9.6343: sFlowv5, IPv4 agent 15.184.1.194, agent-id 1, seqnum 10354087, uptime 15619401, samples 7, length 1288
 	expanded counter sample (4), length 172, seqnum 2007460, type 0, idx 1, records 2
 	    enterprise 0, Generic counter (1) length 88
@@ -1740,7 +1740,7 @@
 	      align errors 0, fcs errors 0, single collision 0, multiple collision 0, test error 0
 	      deferred 0, late collision 0, excessive collision 0, mac trans error 0
 	      carrier error 0, frames too long 0, mac receive errors 0, symbol errors 0
-   30  00:13:32.940683 IP (tos 0x0, ttl 253, id 27103, offset 0, flags [none], proto UDP (17), length 1316)
+   30  2011-04-02 00:13:32.940683 IP (tos 0x0, ttl 253, id 27103, offset 0, flags [none], proto UDP (17), length 1316)
     15.184.1.194.3099 > 15.184.3.9.6343: sFlowv5, IPv4 agent 15.184.1.194, agent-id 1, seqnum 10354088, uptime 15619403, samples 7, length 1288
 	expanded counter sample (4), length 172, seqnum 2008395, type 0, idx 8, records 2
 	    enterprise 0, Generic counter (1) length 88

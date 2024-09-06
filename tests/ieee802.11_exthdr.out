@@ -1,26 +1,26 @@
-    1  12:59:13.707778 10016360us tsft 1.0 Mb/s 2412 MHz 11b -22dBm signal -86dBm noise antenna 1 [bit 32] Probe Request (omus) [1.0 2.0 5.5 11.0 6.0 9.0 12.0 18.0 Mbit]
-    2  12:59:13.709844 10018922us tsft 1.0 Mb/s 2412 MHz 11b -19dBm signal -86dBm noise antenna 0 [bit 32] Acknowledgment RA:90:a4:de:c0:46:0a 
-    3  12:59:13.709900 10017245us tsft 1.0 Mb/s -86dBm noise 27dBm tx power [bit 15] Probe Response (omus) [1.0* 2.0* 5.5* 11.0* 6.0 9.0 12.0 18.0 Mbit] CH: 1
-    4  12:59:13.776703 10085301us tsft 1.0 Mb/s 2412 MHz 11b -19dBm signal -86dBm noise antenna 1 [bit 32] Probe Request (omus) [1.0 2.0 5.5 11.0 6.0 9.0 12.0 18.0 Mbit]
-    5  12:59:13.778624 10087718us tsft 1.0 Mb/s 2412 MHz 11b -18dBm signal -86dBm noise antenna 0 [bit 32] Acknowledgment RA:90:a4:de:c0:46:0a 
-    6  12:59:13.778675 10086042us tsft 1.0 Mb/s -86dBm noise 27dBm tx power [bit 15] Probe Response (omus) [1.0* 2.0* 5.5* 11.0* 6.0 9.0 12.0 18.0 Mbit] CH: 1
-    7  12:59:13.975746 10284358us tsft 1.0 Mb/s 2412 MHz 11b -61dBm signal -86dBm noise antenna 1 [bit 32] Probe Request (omus) [1.0 2.0 5.5 11.0 6.0 9.0 12.0 18.0 Mbit]
-    8  12:59:13.979112 10288217us tsft 1.0 Mb/s 2412 MHz 11b -46dBm signal -86dBm noise antenna 0 [bit 32] Acknowledgment RA:90:a4:de:c0:46:0a 
-    9  12:59:13.979161 10286542us tsft 1.0 Mb/s -86dBm noise 27dBm tx power [bit 15] Probe Response (omus) [1.0* 2.0* 5.5* 11.0* 6.0 9.0 12.0 18.0 Mbit] CH: 1
-   10  12:59:14.042750 10351366us tsft 1.0 Mb/s 2412 MHz 11b -70dBm signal -86dBm noise antenna 1 [bit 32] Probe Request (omus) [1.0 2.0 5.5 11.0 6.0 9.0 12.0 18.0 Mbit]
-   11  12:59:14.044659 10353769us tsft 1.0 Mb/s 2412 MHz 11b -57dBm signal -86dBm noise antenna 0 [bit 32] Acknowledgment RA:90:a4:de:c0:46:0a 
-   12  12:59:14.044709 10352092us tsft 1.0 Mb/s -86dBm noise 27dBm tx power [bit 15] Probe Response (omus) [1.0* 2.0* 5.5* 11.0* 6.0 9.0 12.0 18.0 Mbit] CH: 1
-   13  12:59:14.109749 10418368us tsft 1.0 Mb/s 2412 MHz 11b -67dBm signal -86dBm noise antenna 1 [bit 32] Probe Request (omus) [1.0 2.0 5.5 11.0 6.0 9.0 12.0 18.0 Mbit]
-   14  12:59:14.111814 10420929us tsft 1.0 Mb/s 2412 MHz 11b -73dBm signal -86dBm noise antenna 0 [bit 32] Acknowledgment RA:90:a4:de:c0:46:0a 
-   15  12:59:14.111863 10419253us tsft 1.0 Mb/s -86dBm noise 27dBm tx power [bit 15] Probe Response (omus) [1.0* 2.0* 5.5* 11.0* 6.0 9.0 12.0 18.0 Mbit] CH: 1
-   16  12:59:14.176747 10485371us tsft 1.0 Mb/s 2412 MHz 11b -72dBm signal -86dBm noise antenna 1 [bit 32] Probe Request (omus) [1.0 2.0 5.5 11.0 6.0 9.0 12.0 18.0 Mbit]
-   17  12:59:14.180160 10489278us tsft 1.0 Mb/s 2412 MHz 11b -74dBm signal -86dBm noise antenna 0 [bit 32] Acknowledgment RA:90:a4:de:c0:46:0a 
-   18  12:59:14.180208 10487602us tsft 1.0 Mb/s -86dBm noise 27dBm tx power [bit 15] Probe Response (omus) [1.0* 2.0* 5.5* 11.0* 6.0 9.0 12.0 18.0 Mbit] CH: 1
-   19  12:59:17.029726 13338508us tsft 1.0 Mb/s 2412 MHz 11b -14dBm signal -86dBm noise antenna 1 [bit 32] Authentication (Open System)-1: Successful
-   20  12:59:17.030941 13340215us tsft 1.0 Mb/s 2412 MHz 11b -17dBm signal -86dBm noise antenna 0 [bit 32] Acknowledgment RA:90:a4:de:c0:46:0a 
-   21  12:59:17.030994 13339435us tsft 1.0 Mb/s -86dBm noise 27dBm tx power [bit 15] Authentication (Open System)-2: 
-   22  12:59:17.033234 13341999us tsft 1.0 Mb/s 2412 MHz 11b -18dBm signal -86dBm noise antenna 1 [bit 32] Assoc Request (omus) [1.0 2.0 5.5 11.0 6.0 9.0 12.0 18.0 Mbit]
-   23  12:59:17.037186 13346458us tsft 1.0 Mb/s 2412 MHz 11b -18dBm signal -86dBm noise antenna 0 [bit 32] Acknowledgment RA:90:a4:de:c0:46:0a 
-   24  12:59:17.037247 13344925us tsft 1.0 Mb/s -86dBm noise 27dBm tx power [bit 15] Assoc Response AID(1) :: Successful
-   25  12:59:17.046672 13355433us tsft 2412 MHz 11n -22dBm signal -86dBm noise antenna 1 19.5 Mb/s MCS 2 20 MHz long GI [bit 32] 
-   26  12:59:17.145990 13454791us tsft 2412 MHz 11n -21dBm signal -86dBm noise antenna 1 52.0 Mb/s MCS 11 20 MHz long GI [bit 32] 
+    1  2013-04-17 12:59:13.707778 10016360us tsft 1.0 Mb/s 2412 MHz 11b -22dBm signal -86dBm noise antenna 1 [bit 32] Probe Request (omus) [1.0 2.0 5.5 11.0 6.0 9.0 12.0 18.0 Mbit]
+    2  2013-04-17 12:59:13.709844 10018922us tsft 1.0 Mb/s 2412 MHz 11b -19dBm signal -86dBm noise antenna 0 [bit 32] Acknowledgment RA:90:a4:de:c0:46:0a 
+    3  2013-04-17 12:59:13.709900 10017245us tsft 1.0 Mb/s -86dBm noise 27dBm tx power [bit 15] Probe Response (omus) [1.0* 2.0* 5.5* 11.0* 6.0 9.0 12.0 18.0 Mbit] CH: 1
+    4  2013-04-17 12:59:13.776703 10085301us tsft 1.0 Mb/s 2412 MHz 11b -19dBm signal -86dBm noise antenna 1 [bit 32] Probe Request (omus) [1.0 2.0 5.5 11.0 6.0 9.0 12.0 18.0 Mbit]
+    5  2013-04-17 12:59:13.778624 10087718us tsft 1.0 Mb/s 2412 MHz 11b -18dBm signal -86dBm noise antenna 0 [bit 32] Acknowledgment RA:90:a4:de:c0:46:0a 
+    6  2013-04-17 12:59:13.778675 10086042us tsft 1.0 Mb/s -86dBm noise 27dBm tx power [bit 15] Probe Response (omus) [1.0* 2.0* 5.5* 11.0* 6.0 9.0 12.0 18.0 Mbit] CH: 1
+    7  2013-04-17 12:59:13.975746 10284358us tsft 1.0 Mb/s 2412 MHz 11b -61dBm signal -86dBm noise antenna 1 [bit 32] Probe Request (omus) [1.0 2.0 5.5 11.0 6.0 9.0 12.0 18.0 Mbit]
+    8  2013-04-17 12:59:13.979112 10288217us tsft 1.0 Mb/s 2412 MHz 11b -46dBm signal -86dBm noise antenna 0 [bit 32] Acknowledgment RA:90:a4:de:c0:46:0a 
+    9  2013-04-17 12:59:13.979161 10286542us tsft 1.0 Mb/s -86dBm noise 27dBm tx power [bit 15] Probe Response (omus) [1.0* 2.0* 5.5* 11.0* 6.0 9.0 12.0 18.0 Mbit] CH: 1
+   10  2013-04-17 12:59:14.042750 10351366us tsft 1.0 Mb/s 2412 MHz 11b -70dBm signal -86dBm noise antenna 1 [bit 32] Probe Request (omus) [1.0 2.0 5.5 11.0 6.0 9.0 12.0 18.0 Mbit]
+   11  2013-04-17 12:59:14.044659 10353769us tsft 1.0 Mb/s 2412 MHz 11b -57dBm signal -86dBm noise antenna 0 [bit 32] Acknowledgment RA:90:a4:de:c0:46:0a 
+   12  2013-04-17 12:59:14.044709 10352092us tsft 1.0 Mb/s -86dBm noise 27dBm tx power [bit 15] Probe Response (omus) [1.0* 2.0* 5.5* 11.0* 6.0 9.0 12.0 18.0 Mbit] CH: 1
+   13  2013-04-17 12:59:14.109749 10418368us tsft 1.0 Mb/s 2412 MHz 11b -67dBm signal -86dBm noise antenna 1 [bit 32] Probe Request (omus) [1.0 2.0 5.5 11.0 6.0 9.0 12.0 18.0 Mbit]
+   14  2013-04-17 12:59:14.111814 10420929us tsft 1.0 Mb/s 2412 MHz 11b -73dBm signal -86dBm noise antenna 0 [bit 32] Acknowledgment RA:90:a4:de:c0:46:0a 
+   15  2013-04-17 12:59:14.111863 10419253us tsft 1.0 Mb/s -86dBm noise 27dBm tx power [bit 15] Probe Response (omus) [1.0* 2.0* 5.5* 11.0* 6.0 9.0 12.0 18.0 Mbit] CH: 1
+   16  2013-04-17 12:59:14.176747 10485371us tsft 1.0 Mb/s 2412 MHz 11b -72dBm signal -86dBm noise antenna 1 [bit 32] Probe Request (omus) [1.0 2.0 5.5 11.0 6.0 9.0 12.0 18.0 Mbit]
+   17  2013-04-17 12:59:14.180160 10489278us tsft 1.0 Mb/s 2412 MHz 11b -74dBm signal -86dBm noise antenna 0 [bit 32] Acknowledgment RA:90:a4:de:c0:46:0a 
+   18  2013-04-17 12:59:14.180208 10487602us tsft 1.0 Mb/s -86dBm noise 27dBm tx power [bit 15] Probe Response (omus) [1.0* 2.0* 5.5* 11.0* 6.0 9.0 12.0 18.0 Mbit] CH: 1
+   19  2013-04-17 12:59:17.029726 13338508us tsft 1.0 Mb/s 2412 MHz 11b -14dBm signal -86dBm noise antenna 1 [bit 32] Authentication (Open System)-1: Successful
+   20  2013-04-17 12:59:17.030941 13340215us tsft 1.0 Mb/s 2412 MHz 11b -17dBm signal -86dBm noise antenna 0 [bit 32] Acknowledgment RA:90:a4:de:c0:46:0a 
+   21  2013-04-17 12:59:17.030994 13339435us tsft 1.0 Mb/s -86dBm noise 27dBm tx power [bit 15] Authentication (Open System)-2: 
+   22  2013-04-17 12:59:17.033234 13341999us tsft 1.0 Mb/s 2412 MHz 11b -18dBm signal -86dBm noise antenna 1 [bit 32] Assoc Request (omus) [1.0 2.0 5.5 11.0 6.0 9.0 12.0 18.0 Mbit]
+   23  2013-04-17 12:59:17.037186 13346458us tsft 1.0 Mb/s 2412 MHz 11b -18dBm signal -86dBm noise antenna 0 [bit 32] Acknowledgment RA:90:a4:de:c0:46:0a 
+   24  2013-04-17 12:59:17.037247 13344925us tsft 1.0 Mb/s -86dBm noise 27dBm tx power [bit 15] Assoc Response AID(1) :: Successful
+   25  2013-04-17 12:59:17.046672 13355433us tsft 2412 MHz 11n -22dBm signal -86dBm noise antenna 1 19.5 Mb/s MCS 2 20 MHz long GI [bit 32] 
+   26  2013-04-17 12:59:17.145990 13454791us tsft 2412 MHz 11n -21dBm signal -86dBm noise antenna 1 52.0 Mb/s MCS 11 20 MHz long GI [bit 32] 

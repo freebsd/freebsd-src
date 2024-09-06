@@ -21,6 +21,6 @@ $testlist = [
         output => 'lmp-v-fptype2.out',
         args   => '-T lmp -v'
     },
-    ];
+];
 
 1;

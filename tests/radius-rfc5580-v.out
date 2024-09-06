@@ -1,4 +1,4 @@
-    1  18:33:42.683243 IP (tos 0x0, ttl 64, id 39176, offset 0, flags [none], proto UDP (17), length 211)
+    1  2018-10-04 18:33:42.683243 IP (tos 0x0, ttl 64, id 39176, offset 0, flags [none], proto UDP (17), length 211)
     127.0.0.1.38167 > 127.0.0.1.1812: RADIUS, length: 183
 	Access-Request (1), id: 0x02, Authenticator: c670215681da366d666794ca6abdb54b
 	  Operator-Name Attribute (126), length: 18, Value: [TADIG] namespace TADIG

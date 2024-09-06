@@ -94,9 +94,7 @@
  *  +-> +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 #include "netdissect.h"
@@ -129,12 +127,12 @@ enum {
 };
 
 static const struct tok lisp_type [] = {
-	{ 0, "LISP-Reserved"			},
-	{ 1, "LISP-Map-Request"			},
-	{ 2, "LISP-Map-Reply"			},
-	{ 3, "LISP-Map-Register"		},
-	{ 4, "LISP-Map-Notify"			},
-	{ 8, "LISP-Encapsulated-Contol-Message" },
+	{ 0, "LISP-Reserved"			 },
+	{ 1, "LISP-Map-Request"			 },
+	{ 2, "LISP-Map-Reply"			 },
+	{ 3, "LISP-Map-Register"		 },
+	{ 4, "LISP-Map-Notify"			 },
+	{ 8, "LISP-Encapsulated-Control-Message" },
 	{ 0, NULL }
 };
 

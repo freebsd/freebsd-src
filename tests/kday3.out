@@ -1,19 +1,19 @@
-    1  02:25:41.663606 IP (tos 0x10, ttl 64, id 63177, offset 0, flags [DF], proto TCP (6), length 168)
+    1  2014-11-25 02:25:41.663606 IP (tos 0x10, ttl 64, id 63177, offset 0, flags [DF], proto TCP (6), length 168)
     204.9.54.80.22 > 204.9.51.132.50079: Flags [P.], cksum 0x0282 (incorrect -> 0x3217), seq 1819218606:1819218722, ack 1238485076, win 1039, options [nop,nop,TS val 1340592078 ecr 941371882], length 116
-    2  17:19:33.672232 IP6, wrong link-layer encapsulation (invalid)
-    3  17:19:33.684826 IP (tos 0x10, ttl 62, id 62920, offset 0, flags [DF], proto TCP (6), length 52, bad cksum 4504 (->451a)!)
+    2  2014-11-24 17:19:33.672232 IP  [version 6 != 4] (invalid)
+    3  2014-11-24 17:19:33.684826 IP (tos 0x10, ttl 62, id 62920, offset 0, flags [DF], proto TCP (6), length 52, bad cksum 4504 (->451a)!)
     204.9.51.132.50079 > 204.243.53.80.22: Flags [.], cksum 0x858b (incorrect -> 0x85a1), ack 1819218722, win 4092, options [nop,nop,TS val 941371913 ecr 1340592084], length 0
-    4  17:19:33.703499 IP (tos 0x0, ttl 64, id 63178, offset 0, flags [DF], proto TCP (6), length 52, bad cksum 3e8c (->438c)!)
+    4  2014-11-24 17:19:33.703499 IP (tos 0x0, ttl 64, id 63178, offset 0, flags [DF], proto TCP (6), length 52, bad cksum 3e8c (->438c)!)
     204.9.64.80.55936 > 204.9.40.10.443: Flags [.], cksum 0x0594 (incorrect -> 0x7767), ack 3587398274, win 1040, options [nop,nop,TS val 647770294 ecr 2364779354], length 0
-    5  17:19:33.703625 IP (tos 0x0, ttl 64, id 36752, offset 0, flags [DF], proto TCP (6), length 399, bad cksum a46b (->a474)!)
+    5  2014-11-24 17:19:33.703625 IP (tos 0x0, ttl 64, id 36752, offset 0, flags [DF], proto TCP (6), length 399, bad cksum a46b (->a474)!)
     204.0.55.10.323 > 204.9.54.80.55936: Flags [P.], cksum 0xc9b6 (incorrect -> 0x0cf1), seq 3589495407:3589495754, ack 370428050, win 1040, options [nop,nop,TS val 2381534627 ecr 3084508609], length 347
 	RPKI-RTRv177 (unknown)
-    6  23:52:05.672232 IP (tos 0x10, ttl 62, id 64806, offset 0, flags [DF], proto TCP (6), length 52)
+    6  2014-12-18 23:52:05.672232 IP (tos 0x10, ttl 62, id 64806, offset 0, flags [DF], proto TCP (6), length 52)
     204.9.51.132.50079 > 204.9.54.80.22: Flags [.], cksum 0x8611 (incorrect -> 0xa678), ack 0, win 4094, options [nop,nop,TS val 941371775 ecr 4294967242], length 0
-    7  17:19:33.684826 IP (tos 0x10, ttl 62, id 62920, offset 0, flags [DF], proto TCP (6), length 52, bad cksum 4504 (->451a)!)
+    7  2014-11-24 17:19:33.684826 IP (tos 0x10, ttl 62, id 62920, offset 0, flags [DF], proto TCP (6), length 52, bad cksum 4504 (->451a)!)
     204.9.51.132.50079 > 204.243.53.80.22: Flags [.], cksum 0x858b (incorrect -> 0x85a1), ack 1, win 4092, options [nop,nop,TS val 941371913 ecr 1340592084], length 0
-    8  17:19:33.703499 IP (tos 0x0, ttl 64, id 63178, offset 0, flags [DF], proto TCP (6), length 52, bad cksum 3e8c (->438c)!)
+    8  2014-11-24 17:19:33.703499 IP (tos 0x0, ttl 64, id 63178, offset 0, flags [DF], proto TCP (6), length 52, bad cksum 3e8c (->438c)!)
     204.9.64.80.55936 > 204.9.40.10.443: Flags [.], cksum 0x0594 (incorrect -> 0x8d67), ack 1, win 1040, options [nop,nop,TS val 647770294 ecr 2364773722], length 0
-    9  17:19:33.703625 IP (tos 0x0, ttl 64, id 36752, offset 0, flags [DF], proto TCP (6), length 399, bad cksum a46b (->a474)!)
+    9  2014-11-24 17:19:33.703625 IP (tos 0x0, ttl 64, id 36752, offset 0, flags [DF], proto TCP (6), length 399, bad cksum a46b (->a474)!)
     204.0.55.10.323 > 204.9.54.80.55936: Flags [P.], cksum 0xc9b6 (incorrect -> 0xa6b3), seq 0:347, ack 1, win 1040, options [nop,nop,TS val 2364757411 ecr 3084508609], length 347
 	RPKI-RTRv177 (unknown)
