@@ -2951,8 +2951,10 @@ DIOCGETETHRULES_error:
 		NET_EPOCH_ENTER(et);
 		PF_RULES_RUNLOCK();
 		nvl = pf_keth_rule_to_nveth_rule(rule);
-		if (pf_keth_anchor_nvcopyout(rs, rule, nvl))
+		if (pf_keth_anchor_nvcopyout(rs, rule, nvl)) {
+			NET_EPOCH_EXIT(et);
 			ERROUT(EBUSY);
+		}
 		NET_EPOCH_EXIT(et);
 		if (nvl == NULL)
 			ERROUT(ENOMEM);
