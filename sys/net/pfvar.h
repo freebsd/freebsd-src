@@ -2642,12 +2642,9 @@ void			 pf_rule_to_actions(struct pf_krule *,
 			    struct pf_rule_actions *);
 int			 pf_normalize_mss(struct mbuf *m, int off,
 			    struct pf_pdesc *pd);
-#ifdef INET
-void	pf_scrub_ip(struct mbuf *, struct pf_pdesc *);
-#endif	/* INET */
-#ifdef INET6
-void	pf_scrub_ip6(struct mbuf *, struct pf_pdesc *);
-#endif	/* INET6 */
+#if defined(INET) || defined(INET6)
+void	pf_scrub(struct mbuf *, struct pf_pdesc *);
+#endif
 
 struct pfi_kkif		*pf_kkif_create(int);
 void			 pf_kkif_free(struct pfi_kkif *);
