@@ -2019,6 +2019,8 @@ static struct cmd basic_cmds[] = {
 	DEF_CMD_ARG("descr",			setifdescr),
 	DEF_CMD("-description",	0,		unsetifdescr),
 	DEF_CMD("-descr",	0,		unsetifdescr),
+	DEF_CMD("allmulti",	IFF_PALLMULTI,	setifflags),
+	DEF_CMD("-allmulti",	IFF_PALLMULTI,	clearifflags),
 	DEF_CMD("promisc",	IFF_PPROMISC,	setifflags),
 	DEF_CMD("-promisc",	IFF_PPROMISC,	clearifflags),
 	DEF_CMD("add",		IFF_UP,		notealias),
