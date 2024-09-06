@@ -1,3 +1,4 @@
+SUBDIR+=	libfreebsd
 SUBDIR+=	libhash
 SUBDIR+=	libjail
 SUBDIR+=	libucl
