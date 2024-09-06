@@ -35,7 +35,6 @@
 #include "lauxlib.h"
 #include "lfs.h"
 #include "lposix.h"
-#include "lua_ucl.h"
 
 /*
 ** these libs are loaded by lua.c and are readily available to any Lua
@@ -60,7 +59,6 @@ static const luaL_Reg loadedlibs[] = {
   {"posix.sys.stat", luaopen_posix_sys_stat},
   {"posix.sys.utsname", luaopen_posix_sys_utsname},
   {"posix.unistd", luaopen_posix_unistd},
-  {"ucl", luaopen_ucl},
   {NULL, NULL}
 };
 
