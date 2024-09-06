@@ -9221,7 +9221,7 @@ done:
 		REASON_SET(&reason, PFRES_MEMORY);
 	}
 
-	pf_scrub_ip(m, &pd);
+	pf_scrub(m, &pd);
 	if (pd.proto == IPPROTO_TCP && pd.act.max_mss)
 		pf_normalize_mss(m, off, &pd);
 
@@ -9676,7 +9676,7 @@ done:
 		REASON_SET(&reason, PFRES_MEMORY);
 	}
 
-	pf_scrub_ip6(m, &pd);
+	pf_scrub(m, &pd);
 	if (pd.proto == IPPROTO_TCP && pd.act.max_mss)
 		pf_normalize_mss(m, off, &pd);
 

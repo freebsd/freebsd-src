@@ -2267,14 +2267,20 @@ sctp_drop:
 	return (PF_DROP);
 }
 
-#ifdef INET
+#if defined(INET) || defined(INET6)
 void
-pf_scrub_ip(struct mbuf *m, struct pf_pdesc *pd)
+pf_scrub(struct mbuf *m, struct pf_pdesc *pd)
 {
+
 	struct ip		*h = mtod(m, struct ip *);
+#ifdef INET6
+	struct ip6_hdr		*h6 = mtod(m, struct ip6_hdr *);
+#endif
 
 	/* Clear IP_DF if no-df was requested */
-	if (pd->act.flags & PFSTATE_NODF && h->ip_off & htons(IP_DF)) {
+	if (pd->af == AF_INET && pd->act.flags & PFSTATE_NODF &&
+	    h->ip_off & htons(IP_DF))
+	{
 		u_int16_t ip_off = h->ip_off;
 
 		h->ip_off &= htons(~IP_DF);
@@ -2282,48 +2288,44 @@ pf_scrub_ip(struct mbuf *m, struct pf_pdesc *pd)
 	}
 
 	/* Enforce a minimum ttl, may cause endless packet loops */
-	if (pd->act.min_ttl && h->ip_ttl < pd->act.min_ttl) {
+	if (pd->af == AF_INET && pd->act.min_ttl &&
+	    h->ip_ttl < pd->act.min_ttl) {
 		u_int16_t ip_ttl = h->ip_ttl;
 
 		h->ip_ttl = pd->act.min_ttl;
 		h->ip_sum = pf_cksum_fixup(h->ip_sum, ip_ttl, h->ip_ttl, 0);
 	}
-
+#ifdef INET6
+	/* Enforce a minimum ttl, may cause endless packet loops */
+	if (pd->af == AF_INET6 && pd->act.min_ttl &&
+	    h6->ip6_hlim < pd->act.min_ttl)
+		h6->ip6_hlim = pd->act.min_ttl;
+#endif
 	/* Enforce tos */
 	if (pd->act.flags & PFSTATE_SETTOS) {
-		u_int16_t	ov, nv;
+		if (pd->af == AF_INET) {
+			u_int16_t	ov, nv;
 
-		ov = *(u_int16_t *)h;
-		h->ip_tos = pd->act.set_tos | (h->ip_tos & IPTOS_ECN_MASK);
-		nv = *(u_int16_t *)h;
+			ov = *(u_int16_t *)h;
+			h->ip_tos = pd->act.set_tos | (h->ip_tos & IPTOS_ECN_MASK);
+			nv = *(u_int16_t *)h;
 
-		h->ip_sum = pf_cksum_fixup(h->ip_sum, ov, nv, 0);
+			h->ip_sum = pf_cksum_fixup(h->ip_sum, ov, nv, 0);
+#ifdef INET6
+		} else if (pd->af == AF_INET6) {
+			h6->ip6_flow &= IPV6_FLOWLABEL_MASK | IPV6_VERSION_MASK;
+			h6->ip6_flow |= htonl((pd->act.set_tos | IPV6_ECN(h6)) << 20);
+#endif
+		}
 	}
 
 	/* random-id, but not for fragments */
-	if (pd->act.flags & PFSTATE_RANDOMID && !(h->ip_off & ~htons(IP_DF))) {
+	if (pd->af == AF_INET &&
+	    pd->act.flags & PFSTATE_RANDOMID && !(h->ip_off & ~htons(IP_DF))) {
 		uint16_t ip_id = h->ip_id;
 
 		ip_fillid(h);
 		h->ip_sum = pf_cksum_fixup(h->ip_sum, ip_id, h->ip_id, 0);
-	}
-}
-#endif /* INET */
-
-#ifdef INET6
-void
-pf_scrub_ip6(struct mbuf *m, struct pf_pdesc *pd)
-{
-	struct ip6_hdr		*h = mtod(m, struct ip6_hdr *);
-
-	/* Enforce a minimum ttl, may cause endless packet loops */
-	if (pd->act.min_ttl && h->ip6_hlim < pd->act.min_ttl)
-		h->ip6_hlim = pd->act.min_ttl;
-
-	/* Enforce tos. Set traffic class bits */
-	if (pd->act.flags & PFSTATE_SETTOS) {
-		h->ip6_flow &= IPV6_FLOWLABEL_MASK | IPV6_VERSION_MASK;
-		h->ip6_flow |= htonl((pd->act.set_tos | IPV6_ECN(h)) << 20);
 	}
 }
 #endif
