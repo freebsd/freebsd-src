@@ -162,7 +162,7 @@ struct if_data {
 #define	IFF_STICKYARP	0x100000	/* (n) sticky ARP */
 #define	IFF_DYING	0x200000	/* (n) interface is winding down */
 #define	IFF_RENAMING	0x400000	/* (n) interface is being renamed */
-#define	IFF_SPARE	0x800000
+#define	IFF_PALLMULTI	0x800000	/* (n) user-requested allmulti mode */
 #define	IFF_NETLINK_1	0x1000000	/* (n) used by netlink */
 
 /*
