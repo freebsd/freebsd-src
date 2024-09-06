@@ -171,7 +171,7 @@ boundaries, particularly if
 causes a TZif file to contain explicit entries for
 .RI pre- hi
 transitions rather than concisely representing them
-with an extended POSIX.1-2017 TZ string.
+with a proleptic TZ string.
 Also see the
 .B "\*-b slim"
 option for another way to shrink output size.
@@ -181,10 +181,10 @@ Generate redundant trailing explicit transitions for timestamps
 that occur less than
 .I hi
 seconds since the Epoch, even though the transitions could be
-more concisely represented via the extended POSIX.1-2017 TZ string.
+more concisely represented via the proleptic TZ string.
 This option does not affect the represented timestamps.
 Although it accommodates nonstandard TZif readers
-that ignore the extended POSIX.1-2017 TZ string,
+that ignore the proleptic TZ string,
 it increases the size of the altered output files.
 .TP
 .BI "\*-t " file
@@ -245,10 +245,10 @@ for
 .PP
 The output file does not contain all the information about the
 long-term future of a timezone, because the future cannot be summarized as
-an extended POSIX.1-2017 TZ string.  For example, as of 2023 this problem
+a proleptic TZ string.  For example, as of 2023 this problem
 occurs for Morocco's daylight-saving rules, as these rules are based
 on predictions for when Ramadan will be observed, something that
-an extended POSIX.1-2017 TZ string cannot represent.
+a proleptic TZ string cannot represent.
 .PP
 The output contains data that may not be handled properly by client
 code designed for older
@@ -558,12 +558,14 @@ begin the field with a minus sign if time must be subtracted from UT.
 .TP
 .B RULES
 The name of the rules that apply in the timezone or,
-alternatively, a field in the same format as a rule-line SAVE column,
+alternatively, a field in the same format as a rule-line
+.B SAVE
+field,
 giving the amount of time to be added to local standard time
 and whether the resulting time is standard or daylight saving.
-If this field is
+Standard time applies if this field is
 .B \*-
-then standard time always applies.
+or for timestamps occurring before any rule takes effect.
 When an amount of time is given, only the sum of standard time and
 this amount matters.
 .TP
@@ -571,9 +573,13 @@ this amount matters.
 The format for time zone abbreviations.
 The pair of characters
 .B %s
-is used to show where the
-.q "variable part"
-of the time zone abbreviation goes.
+shows where to put the time zone abbreviation's variable part,
+which is taken from the
+.B LETTER/S
+field of the corresponding rule;
+any timestamps that precede the earliest rule use the
+.B LETTER/S
+of the earliest standard-time rule (which in this case must exist).
 Alternatively, a format can use the pair of characters
 .B %z
 to stand for the UT offset in the form
@@ -663,7 +669,7 @@ Rule	US	1967	1973	-	Apr	lastSun	2:00	1:00	D
 .ta \w'# Zone\0\0'u +\w'America/Menominee\0\0'u +\w'STDOFF\0\0'u +\w'RULES\0\0'u +\w'FORMAT\0\0'u
 # Zone	NAME	STDOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Menominee	\*-5:00	\*-	EST	1973 Apr 29 2:00
-	\*-6:00	US	C%sT
+		\*-6:00	US	C%sT
 .sp
 .in
 .fi
@@ -767,16 +773,16 @@ or
 if the leap second time given by the other fields should be interpreted as
 local (wall clock) time.
 .PP
-Rolling leap seconds were implemented back when it was not
-clear whether common practice was rolling or stationary,
-with concerns that one would see
+Rolling leap seconds would let one see
 Times Square ball drops where there'd be a
 .q "3... 2... 1... leap... Happy New Year"
 countdown, placing the leap second at
 midnight New York time rather than midnight UTC.
-However, this countdown style does not seem to have caught on,
-which means rolling leap seconds are not used in practice;
-also, they are not supported if the
+Although stationary leap seconds are the common practice,
+rolling leap seconds can be useful in specialized applications
+like SMPTE timecodes that may prefer to put leap second
+discontinuities at the end of a local broadcast day.
+However, rolling leap seconds are not supported if the
 .B \*-r
 option is used.
 .PP

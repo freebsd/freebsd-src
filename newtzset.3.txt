@@ -12,6 +12,11 @@ SYNOPSIS
 
        void tzset(void);
 
+       /* Optional and obsolescent:  */
+       extern char *tzname[];
+       extern long timezone;
+       extern int daylight;
+
        cc ... -ltz
 
 DESCRIPTION
@@ -88,12 +93,11 @@ DESCRIPTION
                      standard  to  daylight  saving time occurs and the second
                      date describes when the change back happens.   Each  time
                      field  describes  when, in current local time, the change
-                     to  the  other  time  is  made.   As  an   extension   to
-                     POSIX.1-2017,  daylight saving is assumed to be in effect
-                     all year if  it  begins  January  1  at  00:00  and  ends
-                     December 31 at 24:00 plus the difference between daylight
-                     saving  and  standard  time, leaving no room for standard
-                     time in the calendar.
+                     to the other time is made.  Daylight saving is assumed to
+                     be in effect all year if it begins January 1 at 00:00 and
+                     ends December 31 at 24:00  plus  the  difference  between
+                     daylight  saving  and  standard time, leaving no room for
+                     standard time in the calendar.
 
                      The format of date is one of the following:
 
@@ -114,15 +118,13 @@ DESCRIPTION
                             is  the  first  week in which the d'th day occurs.
                             Day zero is Sunday.
 
-                     The time has  the  same  format  as  offset  except  that
-                     POSIX.1-2017  does not allow a leading sign ("-" or "+").
-                     As an extension to POSIX.1-2017, the hours part  of  time
-                     can  range from -167 through 167; this allows for unusual
-                     rules such as "the Saturday before the  first  Sunday  of
-                     March".  The default, if time is not given, is 02:00:00.
+                     The time has the same format as offset  except  that  the
+                     hours  part of time can range from -167 through 167; this
+                     allows for unusual rules such as "the Saturday before the
+                     first Sunday of March".  The  default,  if  time  is  not
+                     given, is 02:00:00.
 
-       Here are some examples of TZ values that directly specify the timezone;
-       they use some of the extensions to POSIX.1-2017.
+       Here are some examples of TZ values that directly specify the timezone.
 
        EST5   stands  for  US  Eastern Standard Time (EST), 5 hours behind UT,
               without daylight saving.
@@ -183,6 +185,14 @@ DESCRIPTION
        getenv fails, tzset acts like tzalloc(nullptr); if the implied call  to
        tzalloc fails, tzset falls back on UT.
 
+       As  a  side  effect, the tzset function sets some external variables if
+       the platform defines them.  It sets tzname[0] and tzname[1] to pointers
+       to strings that are time zone abbreviations to be  used  with  standard
+       and  daylight  saving  time, respectively.  It also sets timezone to be
+       the number of seconds that standard time is west of the Prime Meridian,
+       and daylight to be zero if daylight saving time  is  never  in  effect,
+       non-zero otherwise.
+
 RETURN VALUE
        If  successful,  the  tzalloc function returns a nonnull pointer to the
        newly allocated object.  Otherwise, it returns a null pointer and  sets
@@ -208,6 +218,16 @@ FILES
        /usr/share/zoneinfo/GMT0 if present.
 
 SEE ALSO
-       getenv(3), newctime(3), newstrftime(3), time(2), tzfile(5)
+       getenv(3), newctime(3), newstrftime(3), time(2), tzfile(5).
+
+NOTES
+       Portable code should not rely on the contents of the external variables
+       tzname, timezone and daylight as their contents are unspecified (and do
+       not make sense  in  general)  when  a  geographical  TZ  is  used.   In
+       multithreaded applications behavior is undefined if one thread accesses
+       one  of  these  variables while another thread invokes tzset.  A future
+       version of POSIX is planned to  remove  these  variables;  callers  can
+       instead  use  the  tm_gmtoff  and  tm_zone members of struct tm, or use
+       strftime with "%z" or "%Z".
 
 Time Zone Database                                                 newtzset(3)

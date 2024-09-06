@@ -26,9 +26,9 @@ DESCRIPTION
        which are then copied into the array.  The characters depend on the
        values of zero or more members of *timeptr as specified by brackets in
        the description.  If a bracketed member name is followed by "+",
-       strftime can use the named member even though POSIX.1-2017 does not
+       strftime can use the named member even though POSIX.1-2024 does not
        list it; if the name is followed by "-", strftime ignores the member
-       even though POSIX.1-2017 lists it which means portable code should set
+       even though POSIX.1-2024 lists it which means portable code should set
        it.  For portability, *timeptr should be initialized as if by a
        successful call to gmtime, localtime, mktime, timegm, or similar
        functions.
@@ -48,7 +48,7 @@ DESCRIPTION
 
        %c     is   replaced   by   the  locale's  appropriate  date  and  time
               representation.  [tm_year, tm_yday,  tm_mon,  tm_mday,  tm_wday,
-              tm_hour, tm_min, tm_sec, tm_gmtoff+, tm_zone+, tm_isdst-].
+              tm_hour, tm_min, tm_sec, tm_gmtoff, tm_zone, tm_isdst-].
 
        %D     is equivalent to %m/%d/%y.  [tm_year, tm_mon, tm_mday]
 
@@ -139,7 +139,7 @@ DESCRIPTION
 
        %X     is  replaced  by  the  locale's appropriate time representation.
               [tm_year-,  tm_yday-,  tm_mon-,  tm_mday-,  tm_wday-,   tm_hour,
-              tm_min, tm_sec, tm_gmtoff+, tm_zone+, tm_isdst-].
+              tm_min, tm_sec, tm_gmtoff, tm_zone, tm_isdst-].
 
        %x     is  replaced  by  the  locale's appropriate date representation.
               [tm_year, tm_yday, tm_mon, tm_mday, tm_wday, tm_hour-,  tm_min-,
@@ -152,7 +152,7 @@ DESCRIPTION
               [00,99].  [tm_year]
 
        %Z     is  replaced  by  the  time  zone  abbreviation, or by the empty
-              string if this is not determinable.  [tm_zone+, tm_isdst-]
+              string if this is not determinable.  [tm_zone, tm_isdst-]
 
        %z     is replaced by the offset from the Prime Meridian in the  format
               +HHMM  or  -HHMM (ISO 8601) as appropriate, with positive values
@@ -161,7 +161,7 @@ DESCRIPTION
               -0000 is used when the time is Universal Time but local time  is
               indeterminate;  by  convention  this is used for locations while
               uninhabited, and corresponds to a zero offset when the time zone
-              abbreviation begins with "-".  [tm_gmtoff+, tm_zone+, tm_isdst-]
+              abbreviation begins with "-".  [tm_gmtoff, tm_zone+, tm_isdst-]
 
        %%     is replaced by a single %.
 
@@ -171,7 +171,7 @@ DESCRIPTION
 
        As a side effect, strftime also behaves as if tzset were called.   This
        is  for compatibility with older platforms, as required by POSIX; it is
-       not needed for tzset's own use.
+       not needed for strftime's own use.
 
 RETURN VALUE
        If the conversion is successful, strftime returns the number  of  bytes
@@ -194,7 +194,7 @@ ERRORS
               since the Epoch cannot be represented in a time_t.
 
 SEE ALSO
-       date(1), getenv(3), newctime(3), newtzset(3), time(2), tzfile(5)
+       date(1), getenv(3), newctime(3), newtzset(3), time(2), tzfile(5).
 
 BUGS
        There is no conversion specification for the phase of the moon.

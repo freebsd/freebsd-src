@@ -7,16 +7,16 @@ NAME
 SYNOPSIS
        #include <time.h>
 
-       extern char *tzname[]; /* (optional) */
-
        [[deprecated]] char *ctime(time_t const *clock);
 
+       /* Only in POSIX.1-2017 and earlier.  */
        char *ctime_r(time_t const *clock, char *buf);
 
        double difftime(time_t time1, time_t time0);
 
        [[deprecated]] char *asctime(struct tm const *tm);
 
+       /* Only in POSIX.1-2017 and earlier.  */
        char *asctime_r(struct tm const *restrict tm,
            char *restrict result);
 
@@ -68,9 +68,7 @@ DESCRIPTION
        The localtime and gmtime functions return pointers to "tm" structures,
        described below.  The localtime function corrects for the time zone and
        any time zone adjustments (such as Daylight Saving Time in the United
-       States).  After filling in the "tm" structure, localtime sets the
-       tm_isdst'th element of tzname to a pointer to a string that's the time
-       zone abbreviation to be used with localtime's return value.
+       States).
 
        The gmtime function converts to Coordinated Universal Time.
 
@@ -96,15 +94,22 @@ DESCRIPTION
        set to represent the specified calendar time, but with their values
        forced to their normal ranges; the final value of tm_mday is not set
        until tm_mon and tm_year are determined.  The mktime function returns
-       the specified calendar time; If the calendar time cannot be
-       represented, it returns -1.
+       the specified calendar time.  If the calendar time cannot be
+       represented, it returns -1 without updating the structure.  To
+       distinguish failure from a valid -1 return, you can set tm_wday or
+       tm_yday to a negative value before calling mktime; if that value is
+       still negative when mktime returns, the calendar time could not be
+       represented.
 
        The difftime function returns the difference between two calendar
        times, (time1 - time0), expressed in seconds.
 
        The ctime_r, localtime_r, gmtime_r, and asctime_r functions are like
        their unsuffixed counterparts, except that they accept an additional
-       argument specifying where to store the result if successful.
+       argument specifying where to store the result if successful.  The
+       ctime_r and asctime_r functions are present only on systems supporting
+       POSIX.1-2017 and earlier, as they are removed in POSIX.1-2024 and user
+       code can define these functions with other meanings.
 
        The localtime_rz and mktime_z functions are like their unsuffixed
        counterparts, except that they accept an extra initial zone argument
@@ -136,11 +141,17 @@ DESCRIPTION
        The field's name is derived from Greenwich Mean Time, a precursor of
        UT.
 
-       In struct tm the tm_zone and tm_gmtoff fields exist, and are filled in,
-       only if arrangements to do so were made when the library containing
-       these functions was created.  Similarly, the tzname variable is
-       optional; also, there is no guarantee that tzname will continue to
-       exist in this form in future releases of this code.
+       In platforms conforming to POSIX.1-2024 the struct tm the tm_zone and
+       tm_gmtoff fields exist, and are filled in.  For localtime_rz and
+       mktime_rz the storage lifetime of the strings addressed by tm_zone
+       extends until the corresponding timezone_t object is freed via tzfree.
+       For the other functions the lifetime extends until the TZ environment
+       variable changes state and tzset is then called.
+
+       As a side effect, the ctime, localtime and mktime functions also behave
+       as if tzset were called.  The ctime_r and localtime_r functions might
+       (or might not) also behave this way.  This is for compatibility with
+       older platforms, as required by POSIX.
 
 FILES
        /etc/localtime                  local timezone file
@@ -152,16 +163,12 @@ FILES
        /usr/share/zoneinfo/GMT0 if present.
 
 SEE ALSO
-       getenv(3), newstrftime(3), newtzset(3), time(2), tzfile(5)
+       getenv(3), newstrftime(3), newtzset(3), time(2), tzfile(5).
 
 NOTES
        The return values of asctime, ctime, gmtime, and localtime point to
-       static data overwritten by each call.  The tzname variable (once set)
-       and the tm_zone field of a returned struct tm both point to an array of
-       characters that can be freed or overwritten by later calls to the
-       functions localtime, tzfree, and tzset, if these functions affect the
-       timezone information that specifies the abbreviation in question.  The
-       remaining functions and data are thread-safe.
+       static data overwritten by each call.  The remaining functions and data
+       are thread-safe.
 
        The asctime, asctime_r, ctime, and ctime_r functions behave strangely
        for years before 1000 or after 9999.  The 1989 and 1999 editions of the

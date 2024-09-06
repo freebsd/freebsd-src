@@ -15,6 +15,14 @@ tzset \- initialize time conversion information
 .PP
 .B void tzset(void);
 .PP
+/\(** Optional and obsolescent:  \(**/
+.br
+.B extern char *tzname[];
+.br
+.B extern long timezone;
+.br
+.B extern int daylight;
+.PP
 .B cc ... \*-ltz
 .fi
 .SH DESCRIPTION
@@ -165,7 +173,7 @@ describes when the change back happens.  Each
 .I time
 field describes when, in current local time, the change to the other
 time is made.
-As an extension to POSIX.1-2017, daylight saving is assumed to be in effect
+Daylight saving is assumed to be in effect
 all year if it begins January 1 at 00:00 and ends December 31 at
 24:00 plus the difference between daylight saving and standard time,
 leaving no room for standard time in the calendar.
@@ -212,11 +220,7 @@ The
 .I time
 has the same format as
 .I offset
-except that POSIX.1-2017 does not allow a leading sign (\c
-.q "\*-"
-or
-.q "+" ).
-As an extension to POSIX.1-2017, the hours part of
+except that the hours part of
 .I time
 can range from \-167 through 167; this allows for unusual rules such
 as
@@ -229,8 +233,7 @@ is not given, is
 .LP
 Here are some examples of
 .I TZ
-values that directly specify the timezone; they use some of the
-extensions to POSIX.1-2017.
+values that directly specify the timezone.
 .TP
 .B EST5
 stands for US Eastern Standard
@@ -346,6 +349,22 @@ if the implied call to
 fails,
 .B tzset
 falls back on UT.
+.PP
+As a side effect, the
+.B tzset
+function sets some external variables if the platform defines them.
+It sets
+.BR tzname [0]
+and
+.BR tzname [1]
+to pointers to strings that are time zone abbreviations to be used with
+standard and daylight saving time, respectively.
+It also sets
+.B timezone
+to be the number of seconds that standard time is west of the Prime Meridian,
+and
+.B daylight
+to be zero if daylight saving time is never in effect, non-zero otherwise.
 .SH "RETURN VALUE"
 If successful, the
 .B tzalloc
@@ -384,8 +403,29 @@ and
 If /usr/share/zoneinfo/GMT is absent,
 UTC leap seconds are loaded from /usr/share/zoneinfo/GMT0 if present.
 .SH SEE ALSO
-getenv(3),
-newctime(3),
-newstrftime(3),
-time(2),
-tzfile(5)
+.BR getenv (3),
+.BR newctime (3),
+.BR newstrftime (3),
+.BR time (2),
+.BR tzfile (5).
+.SH NOTES
+Portable code should not rely on the contents of the external variables
+.BR tzname ,
+.B timezone
+and
+.B daylight
+as their contents are unspecified (and do not make sense in general)
+when a geographical TZ is used.
+In multithreaded applications behavior is undefined if one thread accesses
+one of these variables while another thread invokes
+.BR tzset .
+A future version of POSIX is planned to remove these variables;
+callers can instead use the
+.I tm_gmtoff
+and
+.I tm_zone
+members of
+.B struct tm,
+or use
+.B strftime
+with "%z" or "%Z".
