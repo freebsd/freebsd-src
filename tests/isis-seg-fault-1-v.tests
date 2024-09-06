@@ -18,6 +18,6 @@ $testlist = [
         output => 'isis-seg-fault-1-v.out',
         args   => '-v'
     },
-    ];
+];
 
 1;

@@ -1,4 +1,4 @@
-    1  00:00:00.000000 00:18:74:2e:00:00 > 00:19:07:a8:fc:00, ethertype IPv4 (0x0800), length 1295: (tos 0xc0, ttl 254, id 696, offset 0, flags [none], proto TCP (6), length 1281)
+    1  1970-01-01 00:00:00.000000 00:18:74:2e:00:00 > 00:19:07:a8:fc:00, ethertype IPv4 (0x0800), length 1295: (tos 0xc0, ttl 254, id 696, offset 0, flags [none], proto TCP (6), length 1281)
     172.17.0.0.179 > 172.17.0.3.50651: Flags [.], cksum 0x1edf (incorrect -> 0x45d1), seq 2419279130:2419280347, ack 1593006533, win 31761, options [md5 e751e2ba0a9a57c4b1914eaaa1abbd79,eol], length 1217: BGP
 	Update Message (2), length: 106
 	  Origin (1), length: 1, Flags [T]: Incomplete
@@ -144,7 +144,7 @@
 	    0x0000:  0001 800c 0000 0000 0000 0000 ac11 0005
 	    0x0010:  0074 0040 2100 0049 8a00 0002 62ac 1121
 	    0x0020:  20
-    2  00:00:00.000000 00:18:74:2e:00:00 > 00:19:07:a8:fc:00, ethertype IPv4 (0x0800), length 897: (tos 0xc0, ttl 254, id 697, offset 0, flags [none], proto TCP (6), length 883)
+    2  1970-01-01 00:00:00.000000 00:18:74:2e:00:00 > 00:19:07:a8:fc:00, ethertype IPv4 (0x0800), length 897: (tos 0xc0, ttl 254, id 697, offset 0, flags [none], proto TCP (6), length 883)
     172.17.0.0.179 > 172.17.0.3.50651: Flags [P.], cksum 0xe2ab (correct), seq 1216:2035, ack 1, win 31761, options [md5 0b82e9255cf2e845365aae9b7e70555e,eol], length 819: BGP [|bgp]
 	Update Message (2), length: 105
 	  Origin (1), length: 1, Flags [T]: Incomplete
@@ -219,10 +219,10 @@
 	    0x0010:  0074 0040 0100 0049 8a00 0003 2aac 111e
 	    0x0020:  c0 [|bgp]
 [|BGP Update]
-    3  00:00:00.000000 00:18:74:2e:00:61 > 00:19:07:a8:fc:00, ethertype IPv4 (0x0800), length 1293: (tos 0xc0, ttl 254, id 698, offset 0, flags [none], proto TCP (6), length 1279)
+    3  1970-01-01 00:00:00.000000 00:18:74:2e:00:61 > 00:19:07:a8:fc:00, ethertype IPv4 (0x0800), length 1293: (tos 0xc0, ttl 254, id 698, offset 0, flags [none], proto TCP (6), length 1279)
     172.17.0.0.179 > 172.17.0.3.50651: Flags [.], cksum 0x2643 (incorrect -> 0x7d5b), seq 1998:3213, ack 1, win 31761, options [md5 4acfb1877b3726db7a34342ce97845fb,eol], length 1215: BGP
 [|BGP Update]
-    4  00:00:00.000000 00:18:74:2e:00:00 > 00:19:07:a8:fc:00, ethertype IPv4 (0x0800), length 65549: (tos 0xc0, ttl 254, id 699, offset 0, flags [none], proto TCP (6), length 65521, bad cksum 5e07 (->c65)!)
+    4  1970-01-01 00:00:00.000000 00:18:74:2e:00:00 > 00:19:07:a8:fc:00, ethertype IPv4 (0x0800), length 65549: (tos 0xc0, ttl 254, id 699, offset 0, flags [none], proto TCP (6), length 65521, bad cksum 5e07 (->c65)!)
     172.17.0.0.179 > 172.17.85.3.50651: Flags [P.], cksum 0x2e84 (incorrect -> 0x75f7), seq 2419283368:2419348825, ack 1593006533, win 31761, options [md5 d044dbb15adad00232bad51aa84a6f4c,eol], length 65457: BGP [|bgp]
 	Update Message (2), length: 154
 	  Origin (1), length: 1, Flags [T]: Incomplete

@@ -1,8 +1,8 @@
-    1  00:00:00.000000 IP 192.1.2.23 > 192.1.2.45: ESP(spi=0x12345678,seq=0x1), length 116: IP 192.0.2.1 > 192.0.1.1: ICMP echo request, id 28416, seq 1280, length 64
-    2  00:00:00.000000 IP 192.1.2.23 > 192.1.2.45: ESP(spi=0x12345678,seq=0x2), length 116: IP 192.0.2.1 > 192.0.1.1: ICMP echo request, id 28416, seq 1536, length 64
-    3  00:00:00.000000 IP 192.1.2.23 > 192.1.2.45: ESP(spi=0x12345678,seq=0x3), length 116: IP 192.0.2.1 > 192.0.1.1: ICMP echo request, id 28416, seq 1792, length 64
-    4  00:00:00.000000 IP 192.1.2.23 > 192.1.2.45: ESP(spi=0x12345678,seq=0x4), length 116: IP 192.0.2.1 > 192.0.1.1: ICMP echo request, id 28416, seq 2048, length 64
-    5  00:00:00.000000 IP 192.1.2.23 > 192.1.2.45: ESP(spi=0x12345678,seq=0x5), length 116: IP 192.0.2.1 > 192.0.1.1: ICMP echo request, id 28416, seq 2304, length 64
-    6  00:00:00.000000 IP 192.1.2.23 > 192.1.2.45: ESP(spi=0x12345678,seq=0x6), length 116: IP 192.0.2.1 > 192.0.1.1: ICMP echo request, id 28416, seq 2560, length 64
-    7  00:00:00.000000 IP 192.1.2.23 > 192.1.2.45: ESP(spi=0x12345678,seq=0x7), length 116: IP 192.0.2.1 > 192.0.1.1: ICMP echo request, id 28416, seq 2816, length 64
-    8  00:00:00.000000 IP 192.1.2.23 > 192.1.2.45: ESP(spi=0x12345678,seq=0x8), length 116: IP 192.0.2.1 > 192.0.1.1: ICMP echo request, id 28416, seq 3072, length 64
+    1  1970-01-01 00:00:00.000000 IP 192.1.2.23 > 192.1.2.45: ESP(spi=0x12345678,seq=0x1), length 116: IP 192.0.2.1 > 192.0.1.1: ICMP echo request, id 28416, seq 1280, length 64
+    2  1970-01-01 00:00:00.000000 IP 192.1.2.23 > 192.1.2.45: ESP(spi=0x12345678,seq=0x2), length 116: IP 192.0.2.1 > 192.0.1.1: ICMP echo request, id 28416, seq 1536, length 64
+    3  1970-01-01 00:00:00.000000 IP 192.1.2.23 > 192.1.2.45: ESP(spi=0x12345678,seq=0x3), length 116: IP 192.0.2.1 > 192.0.1.1: ICMP echo request, id 28416, seq 1792, length 64
+    4  1970-01-01 00:00:00.000000 IP 192.1.2.23 > 192.1.2.45: ESP(spi=0x12345678,seq=0x4), length 116: IP 192.0.2.1 > 192.0.1.1: ICMP echo request, id 28416, seq 2048, length 64
+    5  1970-01-01 00:00:00.000000 IP 192.1.2.23 > 192.1.2.45: ESP(spi=0x12345678,seq=0x5), length 116: IP 192.0.2.1 > 192.0.1.1: ICMP echo request, id 28416, seq 2304, length 64
+    6  1970-01-01 00:00:00.000000 IP 192.1.2.23 > 192.1.2.45: ESP(spi=0x12345678,seq=0x6), length 116: IP 192.0.2.1 > 192.0.1.1: ICMP echo request, id 28416, seq 2560, length 64
+    7  1970-01-01 00:00:00.000000 IP 192.1.2.23 > 192.1.2.45: ESP(spi=0x12345678,seq=0x7), length 116: IP 192.0.2.1 > 192.0.1.1: ICMP echo request, id 28416, seq 2816, length 64
+    8  1970-01-01 00:00:00.000000 IP 192.1.2.23 > 192.1.2.45: ESP(spi=0x12345678,seq=0x8), length 116: IP 192.0.2.1 > 192.0.1.1: ICMP echo request, id 28416, seq 3072, length 64

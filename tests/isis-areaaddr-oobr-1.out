@@ -1,4 +1,4 @@
-    1  00:00:00.000000 c2:02:29:98:00:00 > 01:80:c2:00:00:15, 802.3, length 103: LLC, dsap OSI (0xfe) Individual, ssap OSI (0xfe) Command, ctrl 0x03: OSI NLPID IS-IS (0x83): length 100
+    1  1970-01-01 00:00:00.000000 c2:02:29:98:00:00 > 01:80:c2:00:00:15, 802.3, length 103: LLC, dsap OSI (0xfe) Individual, ssap OSI (0xfe) Command, ctrl 0x03: OSI NLPID IS-IS (0x83): length 100
 	L2 LSP, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 1 (1)
 	0x0000:  831b 0100 1401 0001
 	  lsp-id: 0100.1401.0001.00-14, seq: 0x01000100, lifetime:   256s

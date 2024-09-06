@@ -1,4 +1,4 @@
-    1  09:38:18.352570 IP (tos 0x10, ttl 128, id 0, offset 0, flags [none], proto UDP (17), length 328)
+    1  2014-11-28 09:38:18.352570 IP (tos 0x10, ttl 128, id 0, offset 0, flags [none], proto UDP (17), length 328)
     0.0.0.0.68 > 255.255.255.255.67: BOOTP/DHCP, Request from 00:0c:29:1f:74:06, length 300, xid 0x6e32864, Flags [none]
 	  Client-Ethernet-Address 00:0c:29:1f:74:06
 	  Vendor-rfc1048 Extensions
@@ -12,7 +12,7 @@
 	      instance#1: "subopt1", length 7
 	      instance#2: "subopt2-123456789", length 17
 	      instance#3: "subopt3-12", length 10
-    2  09:38:18.384572 IP (tos 0x0, ttl 64, id 0, offset 0, flags [none], proto UDP (17), length 308)
+    2  2014-11-28 09:38:18.384572 IP (tos 0x0, ttl 64, id 0, offset 0, flags [none], proto UDP (17), length 308)
     192.168.1.1.67 > 192.168.1.4.68: BOOTP/DHCP, Reply, length 280, xid 0x6e32864, Flags [none]
 	  Your-IP 192.168.1.4
 	  Client-Ethernet-Address 00:0c:29:1f:74:06
@@ -25,7 +25,7 @@
 	    Default-Gateway (3), length 4: 192.168.1.1
 	    Domain-Name-Server (6), length 4: 192.168.1.1
 	    Domain-Name (15), length 4: "Home"
-    3  09:38:18.384572 IP (tos 0x10, ttl 128, id 0, offset 0, flags [none], proto UDP (17), length 332)
+    3  2014-11-28 09:38:18.384572 IP (tos 0x10, ttl 128, id 0, offset 0, flags [none], proto UDP (17), length 332)
     0.0.0.0.68 > 255.255.255.255.67: BOOTP/DHCP, Request from 00:0c:29:1f:74:06, length 304, xid 0x6e32864, Flags [none]
 	  Client-Ethernet-Address 00:0c:29:1f:74:06
 	  Vendor-rfc1048 Extensions
@@ -40,7 +40,7 @@
 	      instance#1: "subopt1", length 7
 	      instance#2: "subopt2-123456789", length 17
 	      instance#3: "subopt3-12", length 10
-    4  09:38:18.464577 IP (tos 0x0, ttl 64, id 0, offset 0, flags [none], proto UDP (17), length 308)
+    4  2014-11-28 09:38:18.464577 IP (tos 0x0, ttl 64, id 0, offset 0, flags [none], proto UDP (17), length 308)
     192.168.1.1.67 > 192.168.1.4.68: BOOTP/DHCP, Reply, length 280, xid 0x6e32864, Flags [none]
 	  Your-IP 192.168.1.4
 	  Client-Ethernet-Address 00:0c:29:1f:74:06

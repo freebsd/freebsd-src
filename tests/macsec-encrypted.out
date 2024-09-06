@@ -1,4 +1,4 @@
-    1  14:23:56.503006 2e:b7:3f:39:95:c3 > 3e:6f:f3:74:23:7c, ethertype 802.1AE MACsec (0x88e5), length 130: an 0, pn 72, flags ECI, sci 2eb73f3995c30001, 
+    1  2016-04-22 14:23:56.503006 2e:b7:3f:39:95:c3 > 3e:6f:f3:74:23:7c, ethertype 802.1AE MACsec (0x88e5), length 130: an 0, pn 72, flags ECI, sci 2eb73f3995c30001, 
 	0x0000:  50c6 8aab f682 2b69 adc7 f4bc a4d8 af67  P.....+i.......g
 	0x0010:  5437 64c9 b927 4dcb 49f5 7641 d6ee 5aaa  T7d..'M.I.vA..Z.
 	0x0020:  34b1 1748 4565 fb62 d328 810d b6ce 99b3  4..HEe.b.(......

@@ -122,7 +122,7 @@ Debug build.
 In the CMakeSettings.json tab, change cmakeCommandArgs to include
 
 ```
--DPacket_ROOT={path-to-sdk}
+-DPCAP_ROOT={path-to-sdk}
 ```
 
 where `{path-to-sdk}` is the path of the directory containing the Npcap or
@@ -147,7 +147,7 @@ Choose which configuration type to build, if you don't want the default
 Debug build.
 
 Scroll down to "Cmake variables and cache", scroll through the list
-looking for the entry for Packet_ROOT, and either type in the path of
+looking for the entry for PCAP_ROOT, and either type in the path of
 the directory containing the Npcap or WinPcap SDK or use the "Browse..."
 button to browse for that directory.
 
@@ -160,6 +160,8 @@ you can build with Build > "Build All".
 Building from the command line
 ------------------------------
 
+### Visual Studio 2017 ###
+
 Start the appropriate Native Tools command line prompt.
 
 Change to the directory into which you want to build tcpdump, possibly
@@ -169,19 +171,46 @@ of the tcpdump source directory.
 Run the command
 
 ```
-cmake "-DPacket_ROOT={path-to-sdk}" -G {generator} {path-to-tcpdump-source}
+cmake "-DPCAP_ROOT={path-to-sdk}" -G {generator} {path-to-tcpdump-source}
 ```
 
 `{path-to-sdk}` is the path of the directory containing the Npcap or
 WinPcap SDK.
 
-`{generator}` is the string "Visual Studio N YYYY", where `N` is the
-version of Visual Studio and `YYYY` is the year number for that version;
-if you are building a 64-bit version of tcpdump, `YYYY` must be followed
-by a space and "Win64".  For example, to build a 32-bit version of
-tcpdump with Visual Studio 2017, `{generator}` would be "Visual Studio
-15 2017" and to build a 64-bit version of tcpdump with Visual Studio
-2017, `{generator}` would be "Visual Studio 15 2017 Win64".
+`{generator}` is the string "Visual Studio 15 2017" to build a 32-bit
+version of tcpdump or the string "Visual Studio 15 2017 Win64" to build
+a 64-bit version of tcpdump.
+
+`{path-to-tcpdump-source}` is the pathname of the top-level source
+directory for tcpdump.
+
+Run the command
+
+```
+msbuild /m /nologo /p:Configuration={configuration} tcpdump.sln
+```
+
+where `{configuration}` can be "Release", "Debug", or "RelWithDebInfo".
+
+### Visual Studio 2019 ###
+
+Start the appropriate Native Tools command line prompt.
+
+Change to the directory into which you want to build tcpdump, possibly
+after creating it first.  One choice is to create it as a subdirectory
+of the tcpdump source directory.
+
+Run the command
+
+```
+cmake "-DPCAP_ROOT={path-to-sdk}" -G "Visual Studio 16 2019" {platform} {path-to-tcpdump-source}
+```
+
+`{path-to-sdk}` is the path of the directory containing the Npcap or
+WinPcap SDK.
+
+`{platform}` is `-A Win32` to build a 32-bit version of tcpdump or `-A
+x64` to build a 64-bit version of tcpdump.
 
 `{path-to-tcpdump-source}` is the pathname of the top-level source
 directory for tcpdump.

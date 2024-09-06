@@ -32,16 +32,7 @@
 
 /* specification: RFC 2407, RFC 2408, RFC 5996 */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
-
-/* The functions from print-esp.c used in this file are only defined when both
- * OpenSSL and evp.h are detected. Employ the same preprocessor device here.
- */
-#ifndef HAVE_OPENSSL_EVP_H
-#undef HAVE_LIBCRYPTO
-#endif
 
 #include "netdissect-stdinc.h"
 
@@ -1828,14 +1819,16 @@ ikev1_d_print(netdissect_options *ndo, u_char tpay _U_,
 	ND_PRINT(" spilen=%u", spi_size);
 	num_spi = GET_BE_U_2(p->num_spi);
 	ND_PRINT(" nspi=%u", num_spi);
-	ND_PRINT(" spi=");
 	q = (const uint8_t *)(p + 1);
-	for (i = 0; i < num_spi; i++) {
-		if (i != 0)
-			ND_PRINT(",");
-		if (!rawprint(ndo, (const uint8_t *)q, spi_size))
-			goto trunc;
-		q += spi_size;
+	if (spi_size) {
+		ND_PRINT(" spi=");
+		for (i = 0; i < num_spi; i++) {
+			if (i != 0)
+				ND_PRINT(",");
+			if (!rawprint(ndo, (const uint8_t *)q, spi_size))
+				goto trunc;
+			q += spi_size;
+		}
 	}
 	return q;
 trunc:

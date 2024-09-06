@@ -1,3 +1,3 @@
-    1  12:44:48.8388608 LLDP, length 262130
+    1  1972-01-29 12:44:48.8388608 LLDP, length 262130
 	Organization specific TLV (127), length 4: OUI IEEE 802.3 Private (0x00120f)
 	  Max frame size Subtype (4) [|lldp]

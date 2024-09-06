@@ -37,9 +37,7 @@
  * draft-ietf-babel-source-specific-0
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 

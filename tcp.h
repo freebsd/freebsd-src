@@ -139,6 +139,9 @@ struct tcphdr {
 #ifndef NFS_PORT
 #define NFS_PORT		2049
 #endif
+#ifndef REDIS_PORT
+#define REDIS_PORT		6379
+#endif
 #ifndef OPENFLOW_PORT_OLD
 #define OPENFLOW_PORT_OLD	6633
 #endif
@@ -153,7 +156,4 @@ struct tcphdr {
 #endif
 #ifndef BEEP_PORT
 #define BEEP_PORT		10288
-#endif
-#ifndef REDIS_PORT
-#define REDIS_PORT		6379
 #endif

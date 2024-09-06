@@ -1,4 +1,4 @@
-    1  15:15:01.278565 IP6 :: > ff02::1:ff76:6c14: ICMP6, neighbor solicitation, who has fe80::20c:29ff:fe76:6c14, length 24
-    2  15:15:01.279230 IP6 version error: 0 != 6
-    3  15:15:02.391170 IP6 :: > ff02::1:ff76:6c14: ICMP6, neighbor solicitation, who has 1111:2222:3333:4444:20c:29ff:fe76:6c14, length 24
-    4  15:15:02.391739 IP6 version error: 0 != 6
+    1  2013-11-08 15:15:01.278565 IP6 :: > ff02::1:ff76:6c14: ICMP6, neighbor solicitation, who has fe80::20c:29ff:fe76:6c14, length 24
+    2  2013-11-08 15:15:01.279230 IP6  [version 0 != 6] (invalid)
+    3  2013-11-08 15:15:02.391170 IP6 :: > ff02::1:ff76:6c14: ICMP6, neighbor solicitation, who has 1111:2222:3333:4444:20c:29ff:fe76:6c14, length 24
+    4  2013-11-08 15:15:02.391739 IP6  [version 0 != 6] (invalid)

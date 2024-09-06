@@ -1,4 +1,4 @@
-    1  00:00:00.000000 00:80:ad:91:d8:6f > 00:0b:64:00:10:72, ethertype IPv4 (0x0800), length 725: (tos 0x0, ttl 128, id 35978, offset 0, flags [none], proto UDP (17), length 711)
+    1  1970-01-01 00:00:00.000000 00:80:ad:91:d8:6f > 00:0b:64:00:10:72, ethertype IPv4 (0x0800), length 725: (tos 0x0, ttl 128, id 35978, offset 0, flags [none], proto UDP (17), length 711)
     168.152.32.1.701 > 168.152.32.39.701: [udp sum ok] 
 	LMPv1, msg-type: Config, Flags: [Control Channel Down], length: 257
 	  Data Link Object (12), Class-Type: IPv4 (1) Flags: [non-negotiable], length: 516

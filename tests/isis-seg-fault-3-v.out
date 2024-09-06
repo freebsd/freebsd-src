@@ -1,4 +1,4 @@
-    1  03:42:06.392492 IS-IS, length 131146
+    1  2008-06-18 03:42:06.392492 IS-IS, length 131146
 	L2 LSP, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  lsp-id: 1111.1111.1111.00-00, seq: 0x00000007, lifetime:  1200s
 	  chksum: 0x378e (correct), PDU length: 74, Flags: [ L2 IS ]

@@ -1,2 +1,2 @@
-    1  07:49:20.11534339 IP6 (class 0x50, flowlabel 0x0002c, hlim 0, next-header ICMPv6 (58) payload length: 7168) 4f:f829:c:1a1a:1a1a:1a1a:1a37:0 > 16:0:400:0:64fb:9303:f293:8200: ICMP6, mobile router advertisement, length 7168, id 0x9393 [|icmp6]
+    1  2014-04-27 07:49:20.11534339 IP6 (class 0x50, flowlabel 0x0002c, hlim 0, next-header ICMPv6 (58) payload length: 7168) 4f:f829:c:1a1a:1a1a:1a1a:1a37:0 > 16:0:400:0:64fb:9303:f293:8200: ICMP6, mobile router advertisement, length 7168, id 0x9393 [|icmp6]
     2  [Invalid header: caplen==0, len==0]

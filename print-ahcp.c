@@ -29,9 +29,7 @@
 
 /* Based on draft-chroboczek-ahcp-00 and source code of ahcpd-0.53 */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 

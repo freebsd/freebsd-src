@@ -1,4 +1,4 @@
-    1  10:13:57.562886 MPLS (label 100704, tc 7, [S], ttl 255)
+    1  2004-06-14 10:13:57.562886 MPLS (label 100704, tc 7, [S], ttl 255)
 	IP (tos 0x0, ttl 64, id 40269, offset 0, flags [none], proto UDP (17), length 88)
     12.4.4.4.4529 > 127.0.0.1.3503: [udp sum ok] 
 	LSP-PINGv1, msg-type: MPLS Echo Request (1), length: 60
@@ -15,7 +15,7 @@
 	      0x0010:  0000 0010
 	    0x0000:  0003 0014 0c01 0101 0000 5372 0c04 0404
 	    0x0010:  0c04 0404 0000 0010
-    2  10:13:57.563663 IP (tos 0xc0, ttl 62, id 50634, offset 0, flags [none], proto UDP (17), length 60)
+    2  2004-06-14 10:13:57.563663 IP (tos 0xc0, ttl 62, id 50634, offset 0, flags [none], proto UDP (17), length 60)
     10.20.0.1.3503 > 12.4.4.4.4529: [udp sum ok] 
 	LSP-PINGv1, msg-type: MPLS Echo Reply (2), length: 32
 	  reply-mode: Reply via an IPv4/IPv6 UDP packet (2)
@@ -23,7 +23,7 @@
 	  Return Subcode: (0)
 	  Sender Handle: 0x00000000, Sequence: 1
 	  Sender Timestamp: 1087208037.000131030 (1934-06-15T10:13:57Z) Receiver Timestamp: 1087208037.000131348 (1934-06-15T10:13:57Z)
-    3  10:13:58.572787 MPLS (label 100704, tc 7, [S], ttl 255)
+    3  2004-06-14 10:13:58.572787 MPLS (label 100704, tc 7, [S], ttl 255)
 	IP (tos 0x0, ttl 64, id 40271, offset 0, flags [none], proto UDP (17), length 88)
     12.4.4.4.4529 > 127.0.0.1.3503: [udp sum ok] 
 	LSP-PINGv1, msg-type: MPLS Echo Request (1), length: 60
@@ -40,7 +40,7 @@
 	      0x0010:  0000 0010
 	    0x0000:  0003 0014 0c01 0101 0000 5372 0c04 0404
 	    0x0010:  0c04 0404 0000 0010
-    4  10:13:58.585727 IP (tos 0xc0, ttl 62, id 50635, offset 0, flags [none], proto UDP (17), length 60)
+    4  2004-06-14 10:13:58.585727 IP (tos 0xc0, ttl 62, id 50635, offset 0, flags [none], proto UDP (17), length 60)
     10.20.0.1.3503 > 12.4.4.4.4529: [udp sum ok] 
 	LSP-PINGv1, msg-type: MPLS Echo Reply (2), length: 32
 	  reply-mode: Reply via an IPv4/IPv6 UDP packet (2)
@@ -48,7 +48,7 @@
 	  Return Subcode: (0)
 	  Sender Handle: 0x00000000, Sequence: 2
 	  Sender Timestamp: 1087208038.000133345 (1934-06-15T10:13:58Z) Receiver Timestamp: 1087208038.000136480 (1934-06-15T10:13:58Z)
-    5  10:13:59.572866 MPLS (label 100704, tc 7, [S], ttl 255)
+    5  2004-06-14 10:13:59.572866 MPLS (label 100704, tc 7, [S], ttl 255)
 	IP (tos 0x0, ttl 64, id 40273, offset 0, flags [none], proto UDP (17), length 88)
     12.4.4.4.4529 > 127.0.0.1.3503: [udp sum ok] 
 	LSP-PINGv1, msg-type: MPLS Echo Request (1), length: 60
@@ -65,7 +65,7 @@
 	      0x0010:  0000 0010
 	    0x0000:  0003 0014 0c01 0101 0000 5372 0c04 0404
 	    0x0010:  0c04 0404 0000 0010
-    6  10:13:59.573713 IP (tos 0xc0, ttl 62, id 50637, offset 0, flags [none], proto UDP (17), length 60)
+    6  2004-06-14 10:13:59.573713 IP (tos 0xc0, ttl 62, id 50637, offset 0, flags [none], proto UDP (17), length 60)
     10.20.0.1.3503 > 12.4.4.4.4529: [udp sum ok] 
 	LSP-PINGv1, msg-type: MPLS Echo Reply (2), length: 32
 	  reply-mode: Reply via an IPv4/IPv6 UDP packet (2)
@@ -73,7 +73,7 @@
 	  Return Subcode: (0)
 	  Sender Handle: 0x00000000, Sequence: 3
 	  Sender Timestamp: 1087208039.000133363 (1934-06-15T10:13:59Z) Receiver Timestamp: 1087208039.000133684 (1934-06-15T10:13:59Z)
-    7  10:14:00.572959 MPLS (label 100704, tc 7, [S], ttl 255)
+    7  2004-06-14 10:14:00.572959 MPLS (label 100704, tc 7, [S], ttl 255)
 	IP (tos 0x0, ttl 64, id 40275, offset 0, flags [none], proto UDP (17), length 88)
     12.4.4.4.4529 > 127.0.0.1.3503: [udp sum ok] 
 	LSP-PINGv1, msg-type: MPLS Echo Request (1), length: 60
@@ -90,7 +90,7 @@
 	      0x0010:  0000 0010
 	    0x0000:  0003 0014 0c01 0101 0000 5372 0c04 0404
 	    0x0010:  0c04 0404 0000 0010
-    8  10:14:00.573746 IP (tos 0xc0, ttl 62, id 50638, offset 0, flags [none], proto UDP (17), length 60)
+    8  2004-06-14 10:14:00.573746 IP (tos 0xc0, ttl 62, id 50638, offset 0, flags [none], proto UDP (17), length 60)
     10.20.0.1.3503 > 12.4.4.4.4529: [udp sum ok] 
 	LSP-PINGv1, msg-type: MPLS Echo Reply (2), length: 32
 	  reply-mode: Reply via an IPv4/IPv6 UDP packet (2)
@@ -98,7 +98,7 @@
 	  Return Subcode: (0)
 	  Sender Handle: 0x00000000, Sequence: 4
 	  Sender Timestamp: 1087208040.000133384 (1934-06-15T10:14:00Z) Receiver Timestamp: 1087208040.000133697 (1934-06-15T10:14:00Z)
-    9  10:14:01.573010 MPLS (label 100704, tc 7, [S], ttl 255)
+    9  2004-06-14 10:14:01.573010 MPLS (label 100704, tc 7, [S], ttl 255)
 	IP (tos 0x0, ttl 64, id 40278, offset 0, flags [none], proto UDP (17), length 88)
     12.4.4.4.4529 > 127.0.0.1.3503: [udp sum ok] 
 	LSP-PINGv1, msg-type: MPLS Echo Request (1), length: 60
@@ -115,7 +115,7 @@
 	      0x0010:  0000 0010
 	    0x0000:  0003 0014 0c01 0101 0000 5372 0c04 0404
 	    0x0010:  0c04 0404 0000 0010
-   10  10:14:01.573838 IP (tos 0xc0, ttl 62, id 50641, offset 0, flags [none], proto UDP (17), length 60)
+   10  2004-06-14 10:14:01.573838 IP (tos 0xc0, ttl 62, id 50641, offset 0, flags [none], proto UDP (17), length 60)
     10.20.0.1.3503 > 12.4.4.4.4529: [udp sum ok] 
 	LSP-PINGv1, msg-type: MPLS Echo Reply (2), length: 32
 	  reply-mode: Reply via an IPv4/IPv6 UDP packet (2)

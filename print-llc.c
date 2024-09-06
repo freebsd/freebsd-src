@@ -24,9 +24,7 @@
 
 /* \summary: IEEE 802.2 LLC printer */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 

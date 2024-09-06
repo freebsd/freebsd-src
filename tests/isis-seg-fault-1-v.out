@@ -1,4 +1,4 @@
-    1  03:09:46.435536 IS-IS, length 1497
+    1  2008-06-18 03:09:46.435536 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 4444.0444.4444,  holding time: 10s, Flags: [Level 2 only]
 	  lan-id:    6344.4444.4444.01, Priority: 64, PDU length: 1497

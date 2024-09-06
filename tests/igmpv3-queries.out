@@ -1,6 +1,6 @@
-    1  15:00:15.623411 IP 192.2.0.2 > 224.0.0.1: igmp query v3
-    2  15:00:46.624005 IP 192.2.0.2 > 224.0.0.1: igmp query v3 [max resp time 51m12s]
-    3  15:02:08.783452 IP 192.2.0.2 > 224.0.0.1: igmp query v3 [max resp time 51m12s]
-    4  15:02:39.784134 IP 192.2.0.2 > 224.0.0.1: igmp query v3 [max resp time 1.0s]
-    5  15:02:47.181879 IP 192.2.0.2 > 224.0.0.1: igmp query v3 [max resp time 1.0s]
-    6  15:03:18.182026 IP 192.2.0.2 > 224.0.0.1: igmp query v3 [max resp time 1.0s]
+    1  2012-02-25 15:00:15.623411 IP 192.2.0.2 > 224.0.0.1: igmp query v3
+    2  2012-02-25 15:00:46.624005 IP 192.2.0.2 > 224.0.0.1: igmp query v3 [max resp time 51m12s]
+    3  2012-02-25 15:02:08.783452 IP 192.2.0.2 > 224.0.0.1: igmp query v3 [max resp time 51m12s]
+    4  2012-02-25 15:02:39.784134 IP 192.2.0.2 > 224.0.0.1: igmp query v3 [max resp time 1.0s]
+    5  2012-02-25 15:02:47.181879 IP 192.2.0.2 > 224.0.0.1: igmp query v3 [max resp time 1.0s]
+    6  2012-02-25 15:03:18.182026 IP 192.2.0.2 > 224.0.0.1: igmp query v3 [max resp time 1.0s]

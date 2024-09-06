@@ -79,6 +79,7 @@ lmp		lmp.pcap		lmp.out -T lmp
 
 # MPLS tests
 mpls-ldp-hello	mpls-ldp-hello.pcap	mpls-ldp-hello.out -v
+ldp-common-session ldp-common-session.pcap ldp-common-session.out -v
 ldp_infloop	ldp-infinite-loop.pcap	ldp_infloop.out
 lspping-fec-ldp    lspping-fec-ldp.pcap lspping-fec-ldp.out
 lspping-fec-ldp-v  lspping-fec-ldp.pcap lspping-fec-ldp-v.out -v
@@ -92,15 +93,16 @@ mpls-over-udp  mpls-over-udp.pcap  mpls-over-udp.out
 mpls-over-udp-v  mpls-over-udp.pcap  mpls-over-udp-v.out -v
 
 # OSPF tests
-# In printf_z.tests:
-# ospf-gmpls
-# ospf-nssa-bitnt
-# ospf3_ah-vv
-# ospf3_bc-vv
-# ospf3_mp-vv
-# ospf3_nbma-vv
-# ospf2-seg-fault-1-v (fuzzed pcap)
+ospf-gmpls	ospf-gmpls.pcap				ospf-gmpls.out		-v
+ospf-nssa-bitnt	ospf-nssa-bitnt.pcap			ospf-nssa-bitnt.out	-v
+ospf-ack	ospf-ack.pcap				ospf-ack.out		-v
+ospf3_ah-vv	OSPFv3_with_AH.pcap			ospf3_ah-vv.out		-v -v
 ospf3_auth-vv	ospf3_auth.pcapng			ospf3_auth-vv.out	-v -v
+ospf3_bc-vv	OSPFv3_broadcast_adjacency.pcap		ospf3_bc-vv.out		-v -v
+ospf3_mp-vv	OSPFv3_multipoint_adjacencies.pcap	ospf3_mp-vv.out		-v -v
+ospf3_nbma-vv	OSPFv3_NBMA_adjacencies.pcap		ospf3_nbma-vv.out	-v -v
+# fuzzed pcap
+ospf2-seg-fault-1-v  ospf2-seg-fault-1.pcapng  ospf2-seg-fault-1-v.out  -v
 
 # IKEv2 tests
 ikev2four	ikev2four.pcap		ikev2four.out	-v
@@ -153,6 +155,9 @@ babel_auth      babel_auth.pcap        babel_auth.out  -v
 babel_pad1      babel_pad1.pcap        babel_pad1.out
 babel_rtt       babel_rtt.pcap         babel_rtt.out   -v
 babel_rfc6126bis  babel_rfc6126bis.pcap  babel_rfc6126bis.out     -v
+
+# PPP tests
+ppp_error_hexdump ppp_error_hexdump.pcap ppp_error_hexdump.out -vv
 
 # PPPoE tests
 pppoe           pppoe.pcap             pppoe.out
@@ -216,6 +221,7 @@ dhcpv6-ntp-server	dhcpv6-ntp-server.pcap	dhcpv6-ntp-server.out	-v
 dhcpv6-sip-server-d	dhcpv6-sip-server-d.pcap	dhcpv6-sip-server-d.out -v
 dhcpv6-domain-list	dhcpv6-domain-list.pcap	dhcpv6-domain-list.out	-v
 dhcpv6-mud	dhcpv6-mud.pcap		dhcpv6-mud.out -vv
+dhcpv6-rfc6355-duid-uuid dhcpv6-rfc6355-duid-uuid.pcap dhcpv6-rfc6355-duid-uuid.out -v
 
 # ZeroMQ/PGM tests
 # ZMTP/1.0 over TCP
@@ -264,14 +270,15 @@ of10_7050sx_bsn-oobr of10_7050sx_bsn-oobr.pcap of10_7050sx_bsn-oobr.out -v
 of13_ericsson		of13_ericsson.pcapng	of13_ericsson.out
 of13_ericsson-v		of13_ericsson.pcapng	of13_ericsson-v.out	-v
 of13_ericsson-vv	of13_ericsson.pcapng	of13_ericsson-vv.out	-vv
+of10_inv_OFPST_FLOW-v	of10_inv_OFPST_FLOW.pcap	of10_inv_OFPST_FLOW-v.out -v
+of10_inv_QUEUE_GET_CONFIG_REPLY-vv	of10_inv_QUEUE_GET_CONFIG_REPLY.pcap	of10_inv_QUEUE_GET_CONFIG_REPLY-vv.out	-vv
 
 # GeoNetworking and CALM FAST tests
-geonet-calm-fast	geonet_and_calm_fast.pcap	geonet_and_calm_fast.out	-vv
+geonet_v0_and_calm_fast	geonet_v0_and_calm_fast.pcap	geonet_v0_and_calm_fast.out	-vv
 
 # M3UA tests
 m3ua isup.pcap isup.out
-# In printf_z.tests:
-# m3ua-vv
+m3ua-vv isup.pcap isupvv.out -vv
 
 # NFLOG test case
 nflog-e nflog.pcap nflog-e.out -e
@@ -298,6 +305,14 @@ dns_udp_8053-T dns_udp_8053.pcap dns_udp_8053-T.out -vv -T domain
 # DNSSEC from https://bugzilla.redhat.com/show_bug.cgi?id=205842, -vv exposes EDNS DO
 dnssec-vv	dnssec.pcap		dnssec-vv.out		-vv
 
+#IPv4 tests
+ipv4_invalid_length ipv4_invalid_length.pcap ipv4_invalid_length.out -v
+ipv4_invalid_hdr_length ipv4_invalid_hdr_length.pcap ipv4_invalid_hdr_length.out -v
+ipv4_invalid_total_length ipv4_invalid_total_length.pcap ipv4_invalid_total_length.out -v
+ipv4_tcp_http_xml ipv4_tcp_http_xml.pcap ipv4_tcp_http_xml.out -v
+ipv4_invalid_total_length_2 ipv4_invalid_total_length_2.pcap ipv4_invalid_total_length_2.out -v
+ipv4_tcp_http_xml_tso ipv4_tcp_http_xml_tso.pcap ipv4_tcp_http_xml_tso.out -v
+
 #IPv6 tests
 ipv6-bad-version	ipv6-bad-version.pcap	ipv6-bad-version.out
 ipv6-routing-header	ipv6-routing-header.pcap	ipv6-routing-header.out -v
@@ -306,6 +321,13 @@ ipv6-srh-insert-cksum	ipv6-srh-insert-cksum.pcap	ipv6-srh-insert-cksum.out -v
 ipv6-srh-ipproto-ether-v ipv6-srh-ipproto-ether.pcap ipv6-srh-ipproto-ether-v.out -v
 ipv6-srh-ipproto-ether-ev ipv6-srh-ipproto-ether.pcap ipv6-srh-ipproto-ether-ev.out -ev
 ipv6-too-long-jumbo	ipv6-too-long-jumbo.pcap	ipv6-too-long-jumbo.out -v
+ipv6_jumbogram_1	ipv6_jumbogram_1.pcap	ipv6_jumbogram_1.out -ev
+ipv6_invalid_length ipv6_invalid_length.pcap ipv6_invalid_length.out
+ipv6_invalid_length_2 ipv6_invalid_length_2.pcap ipv6_invalid_length_2.out -v
+ipv6_jumbogram_invalid_length ipv6_jumbogram_invalid_length.pcap ipv6_jumbogram_invalid_length.out -v
+ipv6_39_byte_header ipv6_39_byte_header.pcap ipv6_39_byte_header.out -v
+ipv6_missing_jumbo_payload_option ipv6_missing_jumbo_payload_option.pcap ipv6_missing_jumbo_payload_option.out
+ipv6_frag6_negative_len ipv6_frag6_negative_len.pcap ipv6_frag6_negative_len.out -v
 
 # Loopback/CTP test case
 loopback	loopback.pcap		loopback.out
@@ -355,8 +377,7 @@ isis-seg-fault-3-v isis-seg-fault-3.pcapng isis-seg-fault-3-v.out -v
 isis_sid	isis_sid.pcap			isis_sid.out	-v
 
 # RSVP tests
-# In printf_z.tests:
-# rsvp_infloop-v
+rsvp_infloop-v	rsvp-infinite-loop.pcap		rsvp_infloop-v.out	-v
 rsvp_cap	rsvp_cap.pcap			rsvp_cap.out		-v
 # fuzzed pcap
 rsvp-inf-loop-2-v rsvp-inf-loop-2.pcapng	rsvp-inf-loop-2-v.out -v
@@ -368,8 +389,7 @@ hdlc3	HDLC.pcap		hdlc3.out
 hdlc4	hdlc_slarp.pcapng	hdlc4.out
 
 # DECnet test case
-# In printf_z.tests:
-# decnet
+decnet		DECnet_Phone.pcap	decnet.out
 
 # RADIUS tests
 radius-v	RADIUS.pcap	radius-v.out	-v
@@ -378,7 +398,7 @@ radius-rfc4675	RADIUS-RFC4675.pcap	radius-rfc4675-v.out	-v
 radius-rfc5176	RADIUS-RFC5176.pcap	radius-rfc5176-v.out	-v
 radius-port1700	RADIUS-port1700.pcap	radius-port1700-v.out	-v
 radius-rfc5176-2	RADIUS-RFC5176-2.pcap	radius-rfc5176-2-v.out	-v
-radius-rfc5447	RADIUS-RFC5447.pcap	radius-rfc5447-v.out	-v
+radius_rfc5447_invalid_length radius_rfc5447_invalid_length.pcap radius_rfc5447_invalid_length-v.out -v
 radius-rfc5580	RADIUS-RFC5580.pcap	radius-rfc5580-v.out	-v
 
 # link-level protocols
@@ -408,7 +428,7 @@ aoe_1-v		AoE_Linux.pcap		aoe_1-v.out	-v
 # Geneve tests
 geneve-vv	geneve.pcap		geneve-vv.out	-vv
 geneve-vni	geneve.pcap		geneve-vni.out	geneve 0xb
-geneve-tcp	geneve.pcap		geneve-tcp.out	"geneve && tcp"
+geneve-tcp	geneve.pcap		geneve-tcp.out	geneve and tcp
 
 # DHCP tests
 dhcp-rfc3004	dhcp-rfc3004.pcap	dhcp-rfc3004-v.out	-v
@@ -565,7 +585,7 @@ hoobr_juniper		hoobr_juniper.pcap		hoobr_juniper.out
 hoobr_juniper2		hoobr_juniper2.pcap		hoobr_juniper2.out
 hoobr_juniper3		hoobr_juniper3.pcap		hoobr_juniper3.out
 hoobr_juniper4		hoobr_juniper4.pcap		hoobr_juniper4.out
-hoobr_parse_field	hoobr_parse_field.pcap		hoobr_parse_field.out
+hoobr_zephyr_parse_field hoobr_zephyr_parse_field.pcap	hoobr_zephyr_parse_field.out
 hoobr_chdlc_print	hoobr_chdlc_print.pcap		hoobr_chdlc_print.out
 hoobr_lookup_nsap	hoobr_lookup_nsap.pcap		hoobr_lookup_nsap.out
 hoobr_rt6_print		hoobr_rt6_print.pcap		hoobr_rt6_print.out
@@ -590,16 +610,14 @@ icmp-cksum-oobr-3	icmp-cksum-oobr-3.pcapng	icmp-cksum-oobr-3.out	-vvv -e
 icmp-cksum-oobr-4	icmp-cksum-oobr-4.pcapng	icmp-cksum-oobr-4.out	-vvv -e
 tok2str-oobr-1		tok2str-oobr-1.pcap		tok2str-oobr-1.out	-vvv -e
 tok2str-oobr-2		tok2str-oobr-2.pcap		tok2str-oobr-2.out	-vvv -e
-# In printf_z.tests:
-#eigrp-tlv-oobr
+eigrp-tlv-oobr		eigrp-tlv-oobr.pcap		eigrp-tlv-oobr.out	-vvv -e
 zephyr-oobr		zephyr-oobr.pcap		zephyr-oobr.out		-vvv -e
 isakmp-no-none-np	isakmp-no-none-np.pcapng	isakmp-no-none-np.out	-vvv -e
 telnet-iac-check-oobr	telnet-iac-check-oobr.pcap	telnet-iac-check-oobr.out	-vvv -e
 resp_4_infiniteloop	resp_4_infiniteloop.pcapng	resp_4_infiniteloop.out	-vvv -e
 dns_fwdptr		dns_fwdptr.pcap			dns_fwdptr.out		-vvv -e
-# In printf_z.tests:
-# isis-areaaddr-oobr-1
-# isis-areaaddr-oobr-2
+isis-areaaddr-oobr-1	isis-areaaddr-oobr-1.pcap	isis-areaaddr-oobr-1.out		-vvv -e
+isis-areaaddr-oobr-2	isis-areaaddr-oobr-2.pcap	isis-areaaddr-oobr-2.out		-vvv -e
 isis-extd-ipreach-oobr	isis-extd-ipreach-oobr.pcap	isis-extd-ipreach-oobr.out		-vvv -e
 lldp-infinite-loop-1	lldp-infinite-loop-1.pcap	lldp-infinite-loop-1.out		-vvv -e
 lldp-infinite-loop-2	lldp-infinite-loop-2.pcap	lldp-infinite-loop-2.out		-vvv -e
@@ -617,8 +635,7 @@ juniper_es_oobr		juniper_es_oobr.pcap		juniper_es_oobr.out	-vvv -e
 
 # bad packets from Yannick Formaggio
 l2tp-avp-overflow	l2tp-avp-overflow.pcap		l2tp-avp-overflow.out	-v
-# In printf_z.tests:
-# pktap-heap-overflow
+pktap-heap-overflow	pktap-heap-overflow.pcap	pktap-heap-overflow.out	-v
 wb-oobr			wb-oobr.pcap			wb-oobr.out	-v
 
 # bad packets from Bhargava Shastry
@@ -749,6 +766,7 @@ macsec-short-valid   macsec-short-valid.pcap   macsec-short-valid.out   -e
 # NFS tests
 # fuzzed pcap
 nfs-write-verf-cookie nfs-write-verf-cookie.pcapng nfs-write-verf-cookie.out -vv
+nfs_large_credentials_length nfs_large_credentials_length.pcap nfs_large_credentials_length.out
 
 # NFS fuzzed
 nfs-seg-fault-1  nfs-seg-fault-1.pcapng  nfs-seg-fault-1.out
@@ -759,26 +777,19 @@ nfs-cannot-pad-32-bit nfs-cannot-pad-32-bit.pcap nfs-cannot-pad-32-bit.out
 #
 # See http://marc.info/?l=tcpdump-workers&m=95552439022555
 #
-# In printf_z.tests:
-# dns-zlip-1
-# dns-zlip-2
-# dns-zlip-3
+dns-zlip-1		dns-zlip-1.pcap		dns-zlip-1.out
+dns-zlip-2		dns-zlip-2.pcap		dns-zlip-2.out
+dns-zlip-3		dns-zlip-3.pcap		dns-zlip-3.out
 
 # NTP tests
 ntp			ntp.pcap		ntp.out
 ntp-v			ntp.pcap		ntp-v.out		-v
 ntp-time		ntp-time.pcap		ntp-time.out
 ntp-time--v		ntp-time.pcap		ntp-time--v.out		-v
-ntp-time--vv		ntp-time.pcap		ntp-time--vv.out	-vv
-ntp-time--vvv		ntp-time.pcap		ntp-time--vvv.out	-vvv
 ntp-control		ntp-control.pcap	ntp-control.out
 ntp-control--v		ntp-control.pcap	ntp-control--v.out	-v
-ntp-control--vv		ntp-control.pcap	ntp-control--vv.out	-vv
-ntp-control--vvv	ntp-control.pcap	ntp-control--vvv.out	-vvv
 ntp-mode7		ntp-mode7.pcap		ntp-mode7.out
 ntp-mode7--v		ntp-mode7.pcap		ntp-mode7--v.out	-v
-ntp-mode7--vv		ntp-mode7.pcap		ntp-mode7--vv.out	-vv
-ntp-mode7--vvv		ntp-mode7.pcap		ntp-mode7--vvv.out	-vvv
 
 # RX/AFS
 rx			afs.pcap		rx.out
@@ -811,6 +822,8 @@ bfd-multihop	bfd-multihop.pcap	bfd-multihop.out
 bfd-multihop-v	bfd-multihop.pcap	bfd-multihop-v.out	-v
 bfd-lag		bfd-lag.pcap		bfd-lag.out
 bfd-lag-v	bfd-lag.pcap		bfd-lag-v.out		-v
+# BFD with source port 49152
+bfd_source_port_49152 bfd_source_port_49152.pcap bfd_source_port_49152.out -v
 
 # Arista Vendor Specific Tests
 arista-ether             arista_ether.pcap        arista_ether.out
@@ -821,14 +834,14 @@ arista-ether-ev          arista_ether.pcap        arista_ether-ev.out      -ev
 huge-tipc-messages	huge-tipc-messages.pcap	huge-tipc-messages.out
 
 # CVE-2018-10105 bad packets from Luis Rocha
-# In printf_z.tests:
-# sflow_print-segv
+sflow_print-segv sflow_print-segv.pcap sflow_print-segv.out -v
 # two more in smb.tests
 
 #ptp tests
 ptp         ptp.pcap    ptp.out
 ptp_ethernet	ptp_ethernet.pcap	ptp_ethernet.out	-e
 ptp_corrections	ptp_corrections.pcap	ptp_corrections.out
+ptp_v2_1	ptp_v2_1.pcap		ptp_v2_1.out
 
 # bad packets from Jason Xiaole
 ldp_tlv_print-oobr ldp_tlv_print-oobr.pcap ldp_tlv_print-oobr.out -v
@@ -855,3 +868,14 @@ lsp-ping-timestamp	lsp-ping-timestamp.pcap		lsp-ping-timestamp.out	-vv
 
 # lwres with "extra" bytes
 lwres_with_extra lwres_with_extra.pcap lwres_with_extra.out
+
+# DHCP ZTP(RFC5970) and SZTP(RFC8572) tests
+dhcpv4v6-rfc5970-rfc8572 dhcpv4v6-rfc5970-rfc8572.pcap dhcpv4v6-rfc5970-rfc8572.out -vv
+dhcpv6-rfc8415-duid-type2 dhcpv6-rfc8415-duid-type2.pcap dhcpv6-rfc8415-duid-type2.out -v
+
+# Undefined behavior tests
+ip-snmp-leftshift-unsigned ip-snmp-leftshift-unsigned.pcap ip-snmp-leftshift-unsigned.out
+ip6-snmp-oid-unsigned ip6-snmp-oid-unsigned.pcap ip6-snmp-oid-unsigned.out
+lwres-pointer-arithmetic-ub lwres-pointer-arithmetic-ub.pcap lwres-pointer-arithmetic-ub.out
+ospf-signed-integer-ubsan       ospf-signed-integer-ubsan.pcap          ospf-signed-integer-ubsan.out -vv
+bgp-ub bgp-ub.pcap bgp-ub.out -v

@@ -1,102 +1,102 @@
-    1  05:52:16.041638 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+    1  2008-06-19 05:52:16.041638 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.30.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=active group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=100 auth="cisco"
-    2  05:52:17.053757 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+    2  2008-06-19 05:52:17.053757 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.20.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=standby group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=100 auth="cisco"
-    3  05:52:19.049810 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+    3  2008-06-19 05:52:19.049810 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.30.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=active group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=100 auth="cisco"
-    4  05:52:20.053952 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+    4  2008-06-19 05:52:20.053952 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.20.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=standby group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=100 auth="cisco"
-    5  05:52:22.058588 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+    5  2008-06-19 05:52:22.058588 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.30.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=active group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=100 auth="cisco"
-    6  05:52:22.826625 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+    6  2008-06-19 05:52:22.826625 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.30.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=active group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=100 auth="cisco"
-    7  05:52:23.030764 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+    7  2008-06-19 05:52:23.030764 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.20.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=standby group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=100 auth="cisco"
-    8  05:52:23.278711 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 44)
+    8  2008-06-19 05:52:23.278711 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 44)
     192.168.0.20.1985 > 224.0.0.2.1985: HSRPv0-unknown (3) 16: state=initial group=2  [|hsrp]
-    9  05:52:25.050768 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+    9  2008-06-19 05:52:25.050768 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.30.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=active group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=100 auth="cisco"
-   10  05:52:26.042314 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   10  2008-06-19 05:52:26.042314 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.20.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=standby group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=100 auth="cisco"
-   11  05:52:28.050368 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   11  2008-06-19 05:52:28.050368 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.30.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=active group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=100 auth="cisco"
-   12  05:52:29.059037 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   12  2008-06-19 05:52:29.059037 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.20.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=standby group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=100 auth="cisco"
-   13  05:52:31.026541 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   13  2008-06-19 05:52:31.026541 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.30.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=active group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=100 auth="cisco"
-   14  05:52:32.042652 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   14  2008-06-19 05:52:32.042652 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.20.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=standby group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=100 auth="cisco"
-   15  05:52:32.346611 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   15  2008-06-19 05:52:32.346611 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.30.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=active group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=100 auth="cisco"
-   16  05:52:34.051285 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   16  2008-06-19 05:52:34.051285 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.30.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=active group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=100 auth="cisco"
-   17  05:52:35.043436 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   17  2008-06-19 05:52:35.043436 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.20.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=standby group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=100 auth="cisco"
-   18  05:52:36.726243 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 44)
+   18  2008-06-19 05:52:36.726243 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 44)
     192.168.0.10.1985 > 224.0.0.2.1985: HSRPv0-unknown (3) 16: state=initial group=2  [|hsrp]
-   19  05:52:37.054900 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   19  2008-06-19 05:52:37.054900 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.30.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=active group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=100 auth="cisco"
-   20  05:52:37.059547 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 44)
+   20  2008-06-19 05:52:37.059547 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 44)
     192.168.0.10.1985 > 224.0.0.2.1985: HSRPv0-unknown (3) 16: state=initial group=2  [|hsrp]
-   21  05:52:37.067529 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 44)
+   21  2008-06-19 05:52:37.067529 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 44)
     192.168.0.10.1985 > 224.0.0.2.1985: HSRPv0-unknown (3) 16: state=initial group=3  [|hsrp]
-   22  05:52:37.075537 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   22  2008-06-19 05:52:37.075537 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.10.1985 > 224.0.0.2.1985: HSRPv0-coup 20: state=listen group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=200 auth="cisco"
-   23  05:52:37.078911 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 44)
+   23  2008-06-19 05:52:37.078911 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 44)
     192.168.0.30.1985 > 224.0.0.2.1985: HSRPv0-unknown (3) 16: state=initial group=2  [|hsrp]
-   24  05:52:37.083532 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 44)
+   24  2008-06-19 05:52:37.083532 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 44)
     192.168.0.20.1985 > 224.0.0.2.1985: HSRPv0-unknown (3) 16: state=initial group=2  [|hsrp]
-   25  05:52:37.083576 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 44)
+   25  2008-06-19 05:52:37.083576 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 44)
     192.168.0.10.1985 > 224.0.0.2.1985: HSRPv0-unknown (3) 16: state=initial group=3  [|hsrp]
-   26  05:52:37.086910 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   26  2008-06-19 05:52:37.086910 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.30.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=speak group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=100 auth="cisco"
-   27  05:52:37.091536 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   27  2008-06-19 05:52:37.091536 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.10.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=active group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=200 auth="cisco"
-   28  05:52:40.043736 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   28  2008-06-19 05:52:40.043736 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.10.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=active group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=200 auth="cisco"
-   29  05:52:40.095073 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   29  2008-06-19 05:52:40.095073 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.30.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=speak group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=100 auth="cisco"
-   30  05:52:43.059900 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   30  2008-06-19 05:52:43.059900 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.10.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=active group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=200 auth="cisco"
-   31  05:52:43.111241 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   31  2008-06-19 05:52:43.111241 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.30.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=speak group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=100 auth="cisco"
-   32  05:52:46.060051 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   32  2008-06-19 05:52:46.060051 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.10.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=active group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=200 auth="cisco"
-   33  05:52:46.103419 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   33  2008-06-19 05:52:46.103419 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.30.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=speak group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=100 auth="cisco"
-   34  05:52:46.436087 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   34  2008-06-19 05:52:46.436087 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.10.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=active group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=200 auth="cisco"
-   35  05:52:47.079471 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   35  2008-06-19 05:52:47.079471 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.30.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=standby group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=100 auth="cisco"
-   36  05:52:49.060238 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   36  2008-06-19 05:52:49.060238 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.10.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=active group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=200 auth="cisco"
-   37  05:52:50.104235 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   37  2008-06-19 05:52:50.104235 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.30.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=standby group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=100 auth="cisco"
-   38  05:52:52.044538 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   38  2008-06-19 05:52:52.044538 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.10.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=active group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=200 auth="cisco"
-   39  05:52:53.088415 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   39  2008-06-19 05:52:53.088415 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.30.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=standby group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=100 auth="cisco"
-   40  05:52:55.056012 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   40  2008-06-19 05:52:55.056012 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.10.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=active group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=200 auth="cisco"
-   41  05:52:55.856040 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   41  2008-06-19 05:52:55.856040 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.10.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=active group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=200 auth="cisco"
-   42  05:52:56.104001 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   42  2008-06-19 05:52:56.104001 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.30.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=standby group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=100 auth="cisco"
-   43  05:52:58.064776 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   43  2008-06-19 05:52:58.064776 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.10.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=active group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=200 auth="cisco"
-   44  05:52:59.088780 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   44  2008-06-19 05:52:59.088780 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.30.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=standby group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=100 auth="cisco"
-   45  05:53:01.064366 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   45  2008-06-19 05:53:01.064366 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.10.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=active group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=200 auth="cisco"
-   46  05:53:02.112360 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   46  2008-06-19 05:53:02.112360 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.30.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=standby group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=100 auth="cisco"
-   47  05:53:04.056567 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   47  2008-06-19 05:53:04.056567 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.10.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=active group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=200 auth="cisco"
-   48  05:53:04.104537 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 44)
+   48  2008-06-19 05:53:04.104537 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 44)
     192.168.0.20.1985 > 224.0.0.2.1985: HSRPv0-unknown (3) 16: state=initial group=2  [|hsrp]
-   49  05:53:04.432502 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 44)
+   49  2008-06-19 05:53:04.432502 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 44)
     192.168.0.30.1985 > 224.0.0.2.1985: HSRPv0-unknown (3) 16: state=initial group=2  [|hsrp]
-   50  05:53:05.121142 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   50  2008-06-19 05:53:05.121142 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.30.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=standby group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=100 auth="cisco"
-   51  05:53:05.321235 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
+   51  2008-06-19 05:53:05.321235 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [none], proto UDP (17), length 48)
     192.168.0.10.1985 > 224.0.0.2.1985: HSRPv0-hello 20: state=active group=1 addr=192.168.0.1 hellotime=3s holdtime=10s priority=200 auth="cisco"

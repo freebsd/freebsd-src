@@ -1,4 +1,4 @@
-    1  11:15:30.259144 UDLDv1, Code Probe message (1), Flags [RT] (0x01), length 80
+    1  2008-06-20 11:15:30.259144 UDLDv1, Code Probe message (1), Flags [RT] (0x01), length 80
 	Checksum 0x3956 (unverified)
 	Device-ID TLV (0x0001) TLV, length 15, FOC1031Z7JG
 	Port-ID TLV (0x0002) TLV, length 9, Gi0/1

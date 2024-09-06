@@ -1,2 +1,2 @@
-    1  19:37:40.000000 IP 182.181.202.230.52750 > 83.253.102.83.63764: Flags [S], seq 3757264999, win 8192, options [mss 1452,nop,wscale 2,nop,nop,scps[bad opt]]
-    2  19:42:39.000000 IP 182.181.158.21.53052 > 83.253.102.83.30122: Flags [S], seq 2824624414, win 8192, options [mss 1452,nop,wscale 2,nop,nop,scps[bad opt]]
+    1  2016-06-24 19:37:40.000000 IP 182.181.202.230.52750 > 83.253.102.83.63764: Flags [S], seq 3757264999, win 8192, options [mss 1452,nop,wscale 2,nop,nop,scps[bad opt]]
+    2  2016-06-24 19:42:39.000000 IP 182.181.158.21.53052 > 83.253.102.83.30122: Flags [S], seq 2824624414, win 8192, options [mss 1452,nop,wscale 2,nop,nop,scps[bad opt]]

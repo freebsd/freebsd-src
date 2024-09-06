@@ -1,25 +1,25 @@
-    1  13:19:44.964471 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
-    2  13:19:46.966286 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
-    3  13:19:48.968104 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
-    4  13:19:50.968841 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
-    5  13:19:52.969919 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
-    6  13:19:54.971627 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
-    7  13:19:56.973555 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
-    8  13:19:58.974590 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
-    9  13:20:00.976152 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
-   10  13:20:02.977225 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
-   11  13:20:04.978131 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
-   12  13:20:06.979284 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
-   13  13:20:08.980357 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
-   14  13:20:10.981246 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
-   15  13:20:12.982792 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
-   16  13:20:14.984471 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
-   17  13:20:16.985513 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
-   18  13:20:18.987468 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
-   19  13:20:20.988197 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
-   20  13:20:22.989416 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
-   21  13:20:24.990564 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
-   22  13:20:26.992430 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
-   23  13:20:28.993313 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
-   24  13:20:30.994755 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
-   25  13:20:32.996159 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
+    1  2012-10-04 13:19:44.964471 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
+    2  2012-10-04 13:19:46.966286 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
+    3  2012-10-04 13:19:48.968104 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
+    4  2012-10-04 13:19:50.968841 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
+    5  2012-10-04 13:19:52.969919 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
+    6  2012-10-04 13:19:54.971627 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
+    7  2012-10-04 13:19:56.973555 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
+    8  2012-10-04 13:19:58.974590 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
+    9  2012-10-04 13:20:00.976152 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
+   10  2012-10-04 13:20:02.977225 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
+   11  2012-10-04 13:20:04.978131 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
+   12  2012-10-04 13:20:06.979284 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
+   13  2012-10-04 13:20:08.980357 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
+   14  2012-10-04 13:20:10.981246 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
+   15  2012-10-04 13:20:12.982792 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
+   16  2012-10-04 13:20:14.984471 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
+   17  2012-10-04 13:20:16.985513 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
+   18  2012-10-04 13:20:18.987468 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
+   19  2012-10-04 13:20:20.988197 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
+   20  2012-10-04 13:20:22.989416 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
+   21  2012-10-04 13:20:24.990564 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
+   22  2012-10-04 13:20:26.992430 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
+   23  2012-10-04 13:20:28.993313 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
+   24  2012-10-04 13:20:30.994755 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205
+   25  2012-10-04 13:20:32.996159 STP 802.1aq, Rapid STP, CIST Flags [Learn, Forward], length 205

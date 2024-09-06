@@ -1,18 +1,18 @@
-    1  12:57:25.106171 IP6 (hlim 1, next-header UDP (17) payload length: 32) fe80::218:f3ff:fea9:914e.8231 > ff02::11.8231: [udp sum ok] hncp (24)
+    1  2016-07-27 12:57:25.106171 IP6 (hlim 1, next-header UDP (17) payload length: 32) fe80::218:f3ff:fea9:914e.8231 > ff02::11.8231: [udp sum ok] hncp (24)
 	Node endpoint (12) NID: 31:da:78:d2 EPID: 03000000
 	Network state (12) hash: 2ae5f77255200bcc
-    2  12:57:25.109340 IP6 (hlim 64, next-header UDP (17) payload length: 12) fe80::21e:64ff:fe23:4d34.8231 > fe80::218:f3ff:fea9:914e.8231: [udp sum ok] hncp (4)
+    2  2016-07-27 12:57:25.109340 IP6 (hlim 64, next-header UDP (17) payload length: 12) fe80::21e:64ff:fe23:4d34.8231 > fe80::218:f3ff:fea9:914e.8231: [udp sum ok] hncp (4)
 	Request network state (4)
-    3  12:57:25.121767 IP6 (hlim 64, next-header UDP (17) payload length: 80) fe80::218:f3ff:fea9:914e.8231 > fe80::21e:64ff:fe23:4d34.8231: [udp sum ok] hncp (72)
+    3  2016-07-27 12:57:25.121767 IP6 (hlim 64, next-header UDP (17) payload length: 80) fe80::218:f3ff:fea9:914e.8231 > fe80::21e:64ff:fe23:4d34.8231: [udp sum ok] hncp (72)
 	Node endpoint (12) NID: 31:da:78:d2 EPID: 03000000
 	Network state (12) hash: 2ae5f77255200bcc
 	Node state (24) NID: 31:da:78:d2 seqno: 19 160.088s hash: 800088c8e0714638
 	Node state (24) NID: 61:69:ed:63 seqno: 12 969.681s hash: 011fffa1da966148
-    4  12:57:25.125076 IP6 (hlim 64, next-header UDP (17) payload length: 16) fe80::21e:64ff:fe23:4d34.8231 > fe80::218:f3ff:fea9:914e.8231: [udp sum ok] hncp (8)
+    4  2016-07-27 12:57:25.125076 IP6 (hlim 64, next-header UDP (17) payload length: 16) fe80::21e:64ff:fe23:4d34.8231 > fe80::218:f3ff:fea9:914e.8231: [udp sum ok] hncp (8)
 	Request node state (8) NID: 31:da:78:d2
-    5  12:57:25.126709 IP6 (hlim 64, next-header UDP (17) payload length: 16) fe80::21e:64ff:fe23:4d34.8231 > fe80::218:f3ff:fea9:914e.8231: [udp sum ok] hncp (8)
+    5  2016-07-27 12:57:25.126709 IP6 (hlim 64, next-header UDP (17) payload length: 16) fe80::21e:64ff:fe23:4d34.8231 > fe80::218:f3ff:fea9:914e.8231: [udp sum ok] hncp (8)
 	Request node state (8) NID: 61:69:ed:63
-    6  12:57:25.130480 IP6 (hlim 64, next-header UDP (17) payload length: 332) fe80::218:f3ff:fea9:914e.8231 > fe80::21e:64ff:fe23:4d34.8231: [udp sum ok] hncp (324)
+    6  2016-07-27 12:57:25.130480 IP6 (hlim 64, next-header UDP (17) payload length: 332) fe80::218:f3ff:fea9:914e.8231 > fe80::21e:64ff:fe23:4d34.8231: [udp sum ok] hncp (324)
 	Node endpoint (12) NID: 31:da:78:d2 EPID: 03000000
 	Node state (312) NID: 31:da:78:d2 seqno: 19 160.105s hash: 800088c8e0714638
 		Peer (16) Peer-NID: 61:69:ed:63 Peer-EPID: 01000000 Local-EPID: 01000000
@@ -30,7 +30,7 @@
 		Node-Address (24) EPID: 03000000 IP Address: 10.0.101.27
 		Node-Address (24) EPID: 03000000 IP Address: fd1f:f88c:e207:dbbc::1b
 		Node-Name (23) IP-Address: 10.0.101.27 Name: "r1"
-    7  12:57:25.131144 IP6 (hlim 64, next-header UDP (17) payload length: 564) fe80::218:f3ff:fea9:914e.8231 > fe80::21e:64ff:fe23:4d34.8231: [udp sum ok] hncp (556)
+    7  2016-07-27 12:57:25.131144 IP6 (hlim 64, next-header UDP (17) payload length: 564) fe80::218:f3ff:fea9:914e.8231 > fe80::21e:64ff:fe23:4d34.8231: [udp sum ok] hncp (556)
 	Node endpoint (12) NID: 31:da:78:d2 EPID: 03000000
 	Node state (544) NID: 61:69:ed:63 seqno: 12 969.699s hash: 011fffa1da966148
 		Peer (16) Peer-NID: 31:da:78:d2 Peer-EPID: 01000000 Local-EPID: 01000000

@@ -1,5 +1,5 @@
-    1  13:56:28.053206 IP truncated-ip - 38 bytes missing! (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto TCP (6), length 309)
-    127.0.0.1.179 > 127.0.0.1.80: Flags [S], seq 0:269, win 8192, length 269: BGP
+    1  2017-09-06 13:56:28.053206 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto TCP (6), length 271)
+    127.0.0.1.179 > 127.0.0.1.59631: Flags [P.], cksum 0xe5c1 (correct), seq 0:231, ack 0, win 8192, length 231: BGP
 	Update Message (2), length: 231
 	  Withdrawn routes:
 	    8.2.0.0/24   Path Id: 20

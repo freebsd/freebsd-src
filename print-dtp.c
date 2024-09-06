@@ -17,9 +17,7 @@
 
 /* \summary: Dynamic Trunking Protocol (DTP) printer */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
@@ -84,7 +82,7 @@ dtp_print(netdissect_options *ndo, const u_char *tptr, u_int length)
 
         /* infinite loop check */
         if (len < 4 || len > length) {
-            ND_PRINT("[invalid TLV length %u]", len);
+            ND_PRINT("[TLV length %u]", len);
             goto invalid;
         }
 

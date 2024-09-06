@@ -1,4 +1,4 @@
-    1  12:40:42.226395 IP6 (class 0xc0, hlim 1, next-header UDP (17) payload length: 436) fe80::b299:28ff:ffc8:d646.6696 > ff02::59:0:0:1:6.6696: [bad udp cksum 0x2997 -> 0xbbd2!] babel 2 (424)
+    1  2012-06-06 12:40:42.226395 IP6 (class 0xc0, hlim 1, next-header UDP (17) payload length: 436) fe80::b299:28ff:ffc8:d646.6696 > ff02::59:0:0:1:6.6696: [bad udp cksum 0x2997 -> 0xbbd2!] babel 2 (424)
 	Hello (Unicast) seqno 58134 interval 4.00s sub-unknown-0x08 sub-pad1 sub-pad1 sub-unknown-0x04 sub-unknown-0x30 sub-diversity 2-2 (bogus) sub-diversity 2-2 (bogus) sub-diversity 2-48 (bogus) (invalid)
 	Unknown message type 48
 	Unknown message type 223
@@ -8,7 +8,7 @@
 	Pad 1
 	Pad 1
 	HMAC  (invalid)
-    2  12:57:25.130480 IP6 (hlim 57, next-header UDP (17) payload length: 332) fe80::218:f3ff:ffa9:914e.8231 > fe80::21e:64ff:fe23:4d34.8231: [bad udp cksum 0xbd4b -> 0x0e98!] hncp (324)
+    2  2016-07-27 12:57:25.130480 IP6 (hlim 57, next-header UDP (17) payload length: 332) fe80::218:f3ff:ffa9:914e.8231 > fe80::21e:64ff:fe23:4d34.8231: [bad udp cksum 0xbd4b -> 0x0e98!] hncp (324)
 	Node endpoint (12) NID: 31:da:78:d2 EPID: 03000000
 	Node state (312) NID: 31:da:78:d2 seqno: 19 160.105s hash: 800088c8e0714638
 		Peer (16) Peer-NID: 61:69:ed:63 Peer-EPID: 01000000 Local-EPID: 01000000
@@ -36,7 +36,7 @@
 		Node-Address (24) EPID: 01000000 IP Address: ::2100:0:ffff:a00:6302
 		Node-Address (24) EPID: 01000000 IP Address: fd1f:f88c:e207::f3ff
 		 [|hncp]
-    3  12:57:25.131144 IP6 (hlim 64, next-header UDP (17) payload length: 564) fe80::218:f3ff:fea9:914e.8231 > fe80::21e:64ff:fe23:4d34.8231: [bad udp cksum 0xe65a -> 0x7725!] hncp (556)
+    3  2016-07-27 12:57:25.131144 IP6 (hlim 64, next-header UDP (17) payload length: 564) fe80::218:f3ff:fea9:914e.8231 > fe80::21e:64ff:fe23:4d34.8231: [bad udp cksum 0xe65a -> 0x7725!] hncp (556)
 	Node endpoint (12) NID: 31:10:00:00 EPID: 00000000
 	Node state (544) NID: 61:69:ed:63 seqno: 12 969.699s hash: 011fffa1da966148
 		Peer (16) Peer-NID: 31:da:78:d2 Peer-EPID: 01000000 Local-EPID: 01000000

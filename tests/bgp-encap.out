@@ -1,4 +1,4 @@
-    1  12:59:23.482812 IP (tos 0xc0, ttl 255, id 48945, offset 0, flags [none], proto TCP (6), length 156)
+    1  2019-08-29 12:59:23.482812 IP (tos 0xc0, ttl 255, id 48945, offset 0, flags [none], proto TCP (6), length 156)
     10.0.14.4.179 > 10.0.14.1.63656: Flags [P.], cksum 0xa26f (correct), seq 123918763:123918867, ack 3762271638, win 16384, options [nop,nop,TS val 2163155192 ecr 2226825164], length 104: BGP
 	Update Message (2), length: 104
 	  Origin (1), length: 1, Flags [T]: IGP

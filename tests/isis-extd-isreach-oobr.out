@@ -1,11 +1,11 @@
-    1  08:33:04.1056259 OSI NLPID 0xfe unknown, length: 262140
+    1  2014-04-24 08:33:04.1056259 OSI NLPID 0xfe unknown, length: 262140
 	0x0000:  fe7f 4a01 0066 0002 00ff ffff f200 0000
 	0x0010:  00c6 0000 007f e6ff 00e6 6800 0000
-    2  06:59:12.1058307 unknown CHDLC protocol (0xfafe)
-    3  22:59:12.1056259 OSI NLPID 0xfe unknown, length: 262140
+    2  2014-04-24 06:59:12.1058307 unknown CHDLC protocol (0xfafe)
+    3  1986-08-31 22:59:12.1056259 OSI NLPID 0xfe unknown, length: 262140
 	0x0000:  fe7f 4a01 f165 0002 0000 0000 0000 0000
 	0x0010:  00c6 0000 007f e6ff 00e6 6800 0000
-    4  19:08:48.2149389571 IS-IS, length 262139
+    4  2033-06-13 19:08:48.2149389571 IS-IS, length 262139
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 3801.0101.0101,  holding time: 257s, Flags: [unknown circuit type 0x00]
 	  lan-id:    0101.0101.0100.00, Priority: 1, PDU length: 257

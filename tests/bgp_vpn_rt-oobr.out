@@ -1,4 +1,4 @@
-    1  19:35:54.131862 IP (tos 0xc, ttl 254, id 21263, offset 0, flags [rsvd], proto TCP (6), length 60165, bad cksum 8e15 (->9eb8)!)
+    1  1975-05-06 19:35:54.131862 IP (tos 0xc, ttl 254, id 21263, offset 0, flags [rsvd], proto TCP (6), length 60165, bad cksum 8e15 (->9eb8)!)
     241.0.128.19.179 > 239.8.0.1.0: Flags [none], seq 2146695561:2146755682, win 56026, options [unknown-161,eol], length 60121: BGP
 	Update Message (2), length: 45
 	  Withdrawn routes:

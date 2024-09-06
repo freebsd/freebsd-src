@@ -39,9 +39,6 @@
 /* Define to 1 if you have the `EVP_DecryptInit_ex' function. */
 #cmakedefine HAVE_EVP_DECRYPTINIT_EX 1
 
-/* Define to 1 if you have the <fcntl.h> header file. */
-#cmakedefine HAVE_FCNTL_H 1
-
 /* Define to 1 if you have the `fork' function. */
 #cmakedefine HAVE_FORK 1
 
@@ -60,7 +57,7 @@
 /* Define to 1 if you have the `cap-ng' library (-lcap-ng). */
 #cmakedefine HAVE_LIBCAP_NG 1
 
-/* Define to 1 if you have the `crypto' library (-lcrypto). */
+/* Define to 1 if you have a usable `crypto' library (-lcrypto). */
 #cmakedefine HAVE_LIBCRYPTO 1
 
 /* Define to 1 if you have the `rpc' library (-lrpc). */
@@ -74,9 +71,6 @@
 
 /* Define to 1 if you have the `openat' function. */
 #cmakedefine HAVE_OPENAT 1
-
-/* Define to 1 if you have the <openssl/evp.h> header file. */
-#cmakedefine HAVE_OPENSSL_EVP_H 1
 
 /* define if the OS provides AF_INET6 and struct in6_addr */
 #cmakedefine HAVE_OS_IPV6_SUPPORT 1
@@ -245,6 +239,12 @@
 
 /* Define to the version of this package. */
 #cmakedefine PACKAGE_VERSION "@PACKAGE_VERSION@"
+
+/* The size of `time_t', as computed by sizeof. */
+#cmakedefine SIZEOF_TIME_T @SIZEOF_TIME_T@
+
+/* The size of `void *', as computed by sizeof. */
+#cmakedefine SIZEOF_VOID_P @SIZEOF_VOID_P@
 
 /* Define to 1 if you have the ANSI C header files. */
 #cmakedefine STDC_HEADERS 1

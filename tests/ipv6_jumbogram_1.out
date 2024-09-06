@@ -1,0 +1,1 @@
+    1  2022-08-01 09:09:55.627421 00:12:3f:ae:22:f7 > 00:13:c4:c7:84:f0, ethertype IPv6 (0x86dd), length 65590: (hlim 227, next-header Options (0) payload length: 0) 2200::244:212:3fff:feae:22f7 > 2200::240:2:0:0:4: HBH (jumbo: 65536)  [icmp6 sum ok] ICMP6, echo request, id 4576, seq 51486

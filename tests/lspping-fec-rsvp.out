@@ -1,10 +1,10 @@
-    1  10:13:57.562886 MPLS (label 100704, tc 7, [S], ttl 255) IP 12.4.4.4.4529 > 127.0.0.1.3503: LSP-PINGv1, MPLS Echo Request, seq 1, length: 60
-    2  10:13:57.563663 IP 10.20.0.1.3503 > 12.4.4.4.4529: LSP-PINGv1, MPLS Echo Reply, seq 1, length: 32
-    3  10:13:58.572787 MPLS (label 100704, tc 7, [S], ttl 255) IP 12.4.4.4.4529 > 127.0.0.1.3503: LSP-PINGv1, MPLS Echo Request, seq 2, length: 60
-    4  10:13:58.585727 IP 10.20.0.1.3503 > 12.4.4.4.4529: LSP-PINGv1, MPLS Echo Reply, seq 2, length: 32
-    5  10:13:59.572866 MPLS (label 100704, tc 7, [S], ttl 255) IP 12.4.4.4.4529 > 127.0.0.1.3503: LSP-PINGv1, MPLS Echo Request, seq 3, length: 60
-    6  10:13:59.573713 IP 10.20.0.1.3503 > 12.4.4.4.4529: LSP-PINGv1, MPLS Echo Reply, seq 3, length: 32
-    7  10:14:00.572959 MPLS (label 100704, tc 7, [S], ttl 255) IP 12.4.4.4.4529 > 127.0.0.1.3503: LSP-PINGv1, MPLS Echo Request, seq 4, length: 60
-    8  10:14:00.573746 IP 10.20.0.1.3503 > 12.4.4.4.4529: LSP-PINGv1, MPLS Echo Reply, seq 4, length: 32
-    9  10:14:01.573010 MPLS (label 100704, tc 7, [S], ttl 255) IP 12.4.4.4.4529 > 127.0.0.1.3503: LSP-PINGv1, MPLS Echo Request, seq 5, length: 60
-   10  10:14:01.573838 IP 10.20.0.1.3503 > 12.4.4.4.4529: LSP-PINGv1, MPLS Echo Reply, seq 5, length: 32
+    1  2004-06-14 10:13:57.562886 MPLS (label 100704, tc 7, [S], ttl 255) IP 12.4.4.4.4529 > 127.0.0.1.3503: LSP-PINGv1, MPLS Echo Request, seq 1, length: 60
+    2  2004-06-14 10:13:57.563663 IP 10.20.0.1.3503 > 12.4.4.4.4529: LSP-PINGv1, MPLS Echo Reply, seq 1, length: 32
+    3  2004-06-14 10:13:58.572787 MPLS (label 100704, tc 7, [S], ttl 255) IP 12.4.4.4.4529 > 127.0.0.1.3503: LSP-PINGv1, MPLS Echo Request, seq 2, length: 60
+    4  2004-06-14 10:13:58.585727 IP 10.20.0.1.3503 > 12.4.4.4.4529: LSP-PINGv1, MPLS Echo Reply, seq 2, length: 32
+    5  2004-06-14 10:13:59.572866 MPLS (label 100704, tc 7, [S], ttl 255) IP 12.4.4.4.4529 > 127.0.0.1.3503: LSP-PINGv1, MPLS Echo Request, seq 3, length: 60
+    6  2004-06-14 10:13:59.573713 IP 10.20.0.1.3503 > 12.4.4.4.4529: LSP-PINGv1, MPLS Echo Reply, seq 3, length: 32
+    7  2004-06-14 10:14:00.572959 MPLS (label 100704, tc 7, [S], ttl 255) IP 12.4.4.4.4529 > 127.0.0.1.3503: LSP-PINGv1, MPLS Echo Request, seq 4, length: 60
+    8  2004-06-14 10:14:00.573746 IP 10.20.0.1.3503 > 12.4.4.4.4529: LSP-PINGv1, MPLS Echo Reply, seq 4, length: 32
+    9  2004-06-14 10:14:01.573010 MPLS (label 100704, tc 7, [S], ttl 255) IP 12.4.4.4.4529 > 127.0.0.1.3503: LSP-PINGv1, MPLS Echo Request, seq 5, length: 60
+   10  2004-06-14 10:14:01.573838 IP 10.20.0.1.3503 > 12.4.4.4.4529: LSP-PINGv1, MPLS Echo Reply, seq 5, length: 32

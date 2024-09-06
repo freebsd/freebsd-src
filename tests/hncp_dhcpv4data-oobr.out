@@ -1,4 +1,4 @@
-    1  [Error converting time] IP truncated-ip - 231 bytes missing! (tos 0x12,ECT(0), ttl 48, id 21323, offset 0, flags [+, DF, rsvd], proto UDP (17), length 296, bad cksum 8e0f (->cd08)!)
+    1  2038-01-01 00:00:00.000000 IP [total length 296 > length 65] (invalid) (tos 0x12,ECT(0), ttl 48, id 21323, offset 0, flags [+, DF, rsvd], proto UDP (17), length 296, bad cksum 8e0f (->cd08)!)
     1.2.7.0.1812 > 128.253.0.96.8231: hncp (268)
 	DHCPv4-Data (6)
 		DNS-server (98) (invalid)

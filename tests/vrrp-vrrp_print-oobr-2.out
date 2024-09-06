@@ -1,20 +1,20 @@
-    1  04:20:20.000534 IP (tos 0x2,ECT(0), ttl 35, id 48399, offset 0, flags [+, DF, rsvd], proto VRRP (112), length 39, bad cksum 7f (->c1ae)!)
+    1  1970-07-14 04:20:20.000534 IP (tos 0x2,ECT(0), ttl 35, id 48399, offset 0, flags [+, DF, rsvd], proto VRRP (112), length 39, bad cksum 7f (->c1ae)!)
     0.3.2.148 > 54.0.0.16: VRRPv3, Advertisement, (ttl 35), vrid 255, prio 17, intvl 269cs, length 19, addrs(3): [|vrrp]
-    2  07:06:53.912788 IP (tos 0x2,ECT(0), ttl 35, id 40207, offset 0, flags [+, DF, rsvd], proto VRRP (112), length 39, bad cksum 7e (->e1b5)!)
+    2  1970-09-26 07:06:53.912788 IP (tos 0x2,ECT(0), ttl 35, id 40207, offset 0, flags [+, DF, rsvd], proto VRRP (112), length 39, bad cksum 7e (->e1b5)!)
     255.251.2.148 > 54.0.0.16: VRRPv3, Advertisement, (ttl 35), vrid 255, prio 17, intvl 2304cs, length 19, addrs(3): [|vrrp]
-    3  07:06:53.912788 IP (tos 0x2,ECT(0), ttl 35, id 40207, offset 0, flags [+, DF, rsvd], proto VRRP (112), length 39, bad cksum 597f (->e1ae)!)
+    3  1970-09-26 07:06:53.912788 IP (tos 0x2,ECT(0), ttl 35, id 40207, offset 0, flags [+, DF, rsvd], proto VRRP (112), length 39, bad cksum 597f (->e1ae)!)
     0.3.2.148 > 54.0.0.16: VRRPv3, Advertisement, (ttl 35), vrid 255, prio 17, intvl 256cs, length 19, addrs(3): [|vrrp]
-    4  07:06:53.912788 IP (tos 0x2,ECT(0), ttl 35, id 40207, offset 0, flags [+, DF, rsvd], proto VRRP (112), length 39, bad cksum 7f (->e154)!)
+    4  1970-09-26 07:06:53.912788 IP (tos 0x2,ECT(0), ttl 35, id 40207, offset 0, flags [+, DF, rsvd], proto VRRP (112), length 39, bad cksum 7f (->e154)!)
     0.3.2.148 > 54.90.0.16: VRRPv3, Advertisement, (ttl 35), vrid 255, prio 17, intvl 256cs, length 19, addrs(3): [|vrrp]
-    5  07:06:53.912788 IP (tos 0x2,ECT(0), ttl 35, id 40207, offset 0, flags [+, DF, rsvd], proto VRRP (112), length 39, bad cksum 7f (->e1ae)!)
+    5  1970-09-26 07:06:53.912788 IP (tos 0x2,ECT(0), ttl 35, id 40207, offset 0, flags [+, DF, rsvd], proto VRRP (112), length 39, bad cksum 7f (->e1ae)!)
     0.3.2.148 > 54.0.0.16: VRRPv3, Advertisement, (ttl 35), vrid 0, prio 4, intvl 2304cs, length 19, addrs:
-    6  07:06:53.912788 IP (tos 0x2,ECT(0), ttl 35, id 48399, offset 0, flags [+, DF, rsvd], proto VRRP (112), length 39, bad cksum 7f (->c1ae)!)
+    6  1970-09-26 07:06:53.912788 IP (tos 0x2,ECT(0), ttl 35, id 48399, offset 0, flags [+, DF, rsvd], proto VRRP (112), length 39, bad cksum 7f (->c1ae)!)
     0.3.2.148 > 54.0.0.16: VRRPv3, Advertisement, (ttl 35), vrid 255, prio 17, intvl 256cs, length 19, addrs(3): [|vrrp]
-    7  07:06:53.912788 IP (tos 0x2,ECT(0), ttl 35, id 40207, offset 0, flags [+, DF, rsvd], proto VRRP (112), length 39, bad cksum 7f (->e1ae)!)
+    7  1970-09-26 07:06:53.912788 IP (tos 0x2,ECT(0), ttl 35, id 40207, offset 0, flags [+, DF, rsvd], proto VRRP (112), length 39, bad cksum 7f (->e1ae)!)
     0.3.2.148 > 54.0.0.16: VRRPv3, Advertisement, (ttl 35), vrid 255, prio 17, intvl 256cs, length 19, addrs(3): [|vrrp]
-    8  07:06:53.912788 IP (tos 0x2,ECT(0), ttl 34, id 40207, offset 0, flags [+, DF, rsvd], proto VRRP (112), length 27, bad cksum 7f (->e260)!)
+    8  1970-09-26 07:06:53.912788 IP (tos 0x2,ECT(0), ttl 34, id 40207, offset 0, flags [+, DF, rsvd], proto VRRP (112), length 27, bad cksum 7f (->e260)!)
     0.3.2.148 > 54.90.0.16: VRRPv3, Advertisement, (ttl 34), vrid 255, prio 17, intvl 256cs, length 7 [|vrrp]
-    9  07:06:53.912788 IP (tos 0x2,ECT(0), ttl 35, id 40207, offset 0, flags [+, DF, rsvd], proto VRRP (112), length 39, bad cksum 7f (->17af)!)
+    9  1970-09-26 07:06:53.912788 IP (tos 0x2,ECT(0), ttl 35, id 40207, offset 0, flags [+, DF, rsvd], proto VRRP (112), length 39, bad cksum 7f (->17af)!)
     0.3.2.148 > 0.0.0.16: VRRPv3, Advertisement, (ttl 35), vrid 0, prio 4, intvl 2304cs, length 19, addrs:
-   10  07:06:53.912788 IP (tos 0x2,ECT(0), ttl 35, id 48399, offset 0, flags [+, DF, rsvd], proto VRRP (112), length 39, bad cksum 7f (->2e8a)!)
+   10  1970-09-26 07:06:53.912788 IP (tos 0x2,ECT(0), ttl 35, id 48399, offset 0, flags [+, DF, rsvd], proto VRRP (112), length 39, bad cksum 7f (->2e8a)!)
     242.242.242.242 > 242.242.242.242: VRRPv15, unknown type (2), (ttl 35)

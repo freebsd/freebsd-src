@@ -78,10 +78,10 @@ struct udphdr {
 #define SNMPTRAP_PORT			162	/*XXX*/
 #endif
 #ifndef PTP_EVENT_PORT
-#define PTP_EVENT_PORT			319 /* IANA */
+#define PTP_EVENT_PORT			319	/* IANA */
 #endif
 #ifndef PTP_GENERAL_PORT
-#define PTP_GENERAL_PORT	        320 /* IANA */
+#define PTP_GENERAL_PORT		320	/* IANA */
 #endif
 #ifndef CISCO_AUTORP_PORT
 #define CISCO_AUTORP_PORT		496	/*XXX*/
@@ -110,7 +110,7 @@ struct udphdr {
 #ifndef LDP_PORT
 #define LDP_PORT			646
 #endif
-#ifndef AQDV_PORT
+#ifndef AODV_PORT
 #define AODV_PORT			654	/*XXX*/
 #endif
 #ifndef OLSR_PORT
@@ -152,7 +152,7 @@ struct udphdr {
 #ifndef ZEPHYR_SRV_PORT
 #define ZEPHYR_SRV_PORT			2103	/*XXX*/
 #endif
-#ifndef ZEPHYR_CLI_PORT
+#ifndef ZEPHYR_CLT_PORT
 #define ZEPHYR_CLT_PORT			2104	/*XXX*/
 #endif
 #ifndef VAT_PORT
@@ -160,9 +160,6 @@ struct udphdr {
 #endif
 #ifndef MPLS_LSP_PING_PORT
 #define MPLS_LSP_PING_PORT		3503	/* draft-ietf-mpls-lsp-ping-02.txt */
-#endif
-#ifndef BCM_LI_PORT
-#define BCM_LI_PORT			49152   /* SDK default */
 #endif
 #ifndef BFD_CONTROL_PORT
 #define BFD_CONTROL_PORT		3784	/* RFC 5881 */
@@ -247,4 +244,7 @@ struct udphdr {
 #endif
 #ifndef SOMEIP_PORT
 #define SOMEIP_PORT			30490	/* https://www.autosar.org/standards/foundation */
+#endif
+#ifndef BCM_LI_PORT
+#define BCM_LI_PORT			49152	/* SDK default */
 #endif

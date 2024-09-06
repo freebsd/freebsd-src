@@ -122,7 +122,7 @@ $testlist = [
     {
         config_set   => 'ENABLE_SMB',
         name => 'smb_data_print-segv',
-        input => 'smb_data_print-segv.pcapng',
+        input => 'smb_data_print-segv.pcap',
         output => 'smb_data_print-segv.out',
         args   => '-vv',
     },
@@ -130,11 +130,11 @@ $testlist = [
     {
         config_unset   => 'ENABLE_SMB',
         name => 'smb_data_print-segv-nosmb',
-        input => 'smb_data_print-segv.pcapng',
+        input => 'smb_data_print-segv.pcap',
         output => 'smb_data_print-segv-nosmb.out',
         args   => '-vv',
     },
 
-    ];
+];
 
 1;

@@ -1,42 +1,42 @@
-    1  11:44:05.787073 STP 802.1d, Config, Flags [none], bridge-id 8001.00:19:06:ea:b8:80.8005, length 35
+    1  2008-06-18 11:44:05.787073 STP 802.1d, Config, Flags [none], bridge-id 8001.00:19:06:ea:b8:80.8005, length 35
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0
-    2  11:44:07.794807 STP 802.1d, Config, Flags [none], bridge-id 8001.00:19:06:ea:b8:80.8005, length 35
+    2  2008-06-18 11:44:07.794807 STP 802.1d, Config, Flags [none], bridge-id 8001.00:19:06:ea:b8:80.8005, length 35
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0
-    3  11:44:09.797264 STP 802.1d, Config, Flags [none], bridge-id 8001.00:19:06:ea:b8:80.8005, length 35
+    3  2008-06-18 11:44:09.797264 STP 802.1d, Config, Flags [none], bridge-id 8001.00:19:06:ea:b8:80.8005, length 35
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0
-    4  11:44:11.802411 STP 802.1d, Config, Flags [none], bridge-id 8001.00:19:06:ea:b8:80.8005, length 35
+    4  2008-06-18 11:44:11.802411 STP 802.1d, Config, Flags [none], bridge-id 8001.00:19:06:ea:b8:80.8005, length 35
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0
-    5  11:44:13.807350 STP 802.1d, Config, Flags [none], bridge-id 8001.00:19:06:ea:b8:80.8005, length 35
+    5  2008-06-18 11:44:13.807350 STP 802.1d, Config, Flags [none], bridge-id 8001.00:19:06:ea:b8:80.8005, length 35
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0
-    6  11:44:15.812636 STP 802.1d, Config, Flags [none], bridge-id 8001.00:19:06:ea:b8:80.8005, length 35
+    6  2008-06-18 11:44:15.812636 STP 802.1d, Config, Flags [none], bridge-id 8001.00:19:06:ea:b8:80.8005, length 35
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0
-    7  11:44:17.820778 STP 802.1d, Config, Flags [none], bridge-id 8001.00:19:06:ea:b8:80.8005, length 35
+    7  2008-06-18 11:44:17.820778 STP 802.1d, Config, Flags [none], bridge-id 8001.00:19:06:ea:b8:80.8005, length 35
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0
-    8  11:44:19.822950 STP 802.1d, Config, Flags [none], bridge-id 8001.00:19:06:ea:b8:80.8005, length 35
+    8  2008-06-18 11:44:19.822950 STP 802.1d, Config, Flags [none], bridge-id 8001.00:19:06:ea:b8:80.8005, length 35
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0
-    9  11:44:21.828161 STP 802.1d, Config, Flags [none], bridge-id 8001.00:19:06:ea:b8:80.8005, length 35
+    9  2008-06-18 11:44:21.828161 STP 802.1d, Config, Flags [none], bridge-id 8001.00:19:06:ea:b8:80.8005, length 35
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0
-   10  11:44:23.832784 STP 802.1d, Config, Flags [none], bridge-id 8001.00:19:06:ea:b8:80.8005, length 35
+   10  2008-06-18 11:44:23.832784 STP 802.1d, Config, Flags [none], bridge-id 8001.00:19:06:ea:b8:80.8005, length 35
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0
-   11  11:44:25.838004 STP 802.1d, Config, Flags [none], bridge-id 8001.00:19:06:ea:b8:80.8005, length 35
+   11  2008-06-18 11:44:25.838004 STP 802.1d, Config, Flags [none], bridge-id 8001.00:19:06:ea:b8:80.8005, length 35
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0
-   12  11:44:27.846419 STP 802.1d, Config, Flags [none], bridge-id 8001.00:19:06:ea:b8:80.8005, length 35
+   12  2008-06-18 11:44:27.846419 STP 802.1d, Config, Flags [none], bridge-id 8001.00:19:06:ea:b8:80.8005, length 35
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0
-   13  11:44:29.848169 STP 802.1d, Config, Flags [none], bridge-id 8001.00:19:06:ea:b8:80.8005, length 35
+   13  2008-06-18 11:44:29.848169 STP 802.1d, Config, Flags [none], bridge-id 8001.00:19:06:ea:b8:80.8005, length 35
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0
-   14  11:44:31.853665 STP 802.1d, Config, Flags [none], bridge-id 8001.00:19:06:ea:b8:80.8005, length 35
+   14  2008-06-18 11:44:31.853665 STP 802.1d, Config, Flags [none], bridge-id 8001.00:19:06:ea:b8:80.8005, length 35
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0

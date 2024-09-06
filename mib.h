@@ -765,13 +765,13 @@ _icmpInParmProbs_obj = {
 	"icmpInParmProbs", 5, 0,
 	NULL, &_icmpInTimeExcds_obj
 },
-_icmpInSrcQuenchs_obj = {
-	"icmpInSrcQuenchs", 6, 0,
+_icmpInSrcQuenches_obj = {
+	"icmpInSrcQuenches", 6, 0,
 	NULL, &_icmpInParmProbs_obj
 },
 _icmpInRedirects_obj = {
 	"icmpInRedirects", 7, 0,
-	NULL, &_icmpInSrcQuenchs_obj
+	NULL, &_icmpInSrcQuenches_obj
 },
 _icmpInEchos_obj = {
 	"icmpInEchos", 8, 0,
@@ -817,13 +817,13 @@ _icmpOutParmProbs_obj = {
 	"icmpOutParmProbs", 18, 0,
 	NULL, &_icmpOutTimeExcds_obj
 },
-_icmpOutSrcQuenchs_obj = {
-	"icmpOutSrcQuenchs", 19, 0,
+_icmpOutSrcQuenches_obj = {
+	"icmpOutSrcQuenches", 19, 0,
 	NULL, &_icmpOutParmProbs_obj
 },
 _icmpOutRedirects_obj = {
 	"icmpOutRedirects", 20, 0,
-	NULL, &_icmpOutSrcQuenchs_obj
+	NULL, &_icmpOutSrcQuenches_obj
 },
 _icmpOutEchos_obj = {
 	"icmpOutEchos", 21, 0,

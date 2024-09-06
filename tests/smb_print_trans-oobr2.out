@@ -1,4 +1,4 @@
-    1  15:17:28.958610 IP (tos 0x0, ttl 128, id 14471, offset 0, flags [none], proto UDP (17), length 207)
+    1  2004-03-23 15:17:28.958610 IP (tos 0x0, ttl 128, id 14471, offset 0, flags [none], proto UDP (17), length 207)
     192.168.1.249.138 > 192.168.1.255.138: 
 >>> NBT UDP PACKET(138) Res=0x110E ID=0x891D IP=192 (0xc0).168 (0xa8).1 (0x1).249 (0xf9) Port=138 (0x8a) Length=165 (0xa5) Res2=0x0
 SourceName=DJP95S0J        NameType=0x00 (Workstation)

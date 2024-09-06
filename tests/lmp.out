@@ -1,18 +1,18 @@
-    1  14:20:20.060006 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Begin Verify Message, length: 56
-    2  14:20:20.061756 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Hello Message, length: 28
-    3  14:20:20.062080 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Config NACK Message, length: 56
-    4  14:20:20.062335 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Config ACK Message, length: 48
-    5  14:20:20.062578 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Config Message, length: 40
-    6  14:20:20.062787 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Link Summary ACK Message, length: 16
-    7  14:20:20.063397 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Link Summary NACK Message, length: 96
-    8  14:20:20.063628 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Begin Verify ACK Message, length: 40
-    9  14:20:20.063845 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Begin Verify NACK Message, length: 32
-   10  14:20:20.064049 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 End Verify Message, length: 24
-   11  14:20:20.064259 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 End Verify ACK Message, length: 24
-   12  14:20:20.064464 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Test Message, length: 24
-   13  14:20:20.064669 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Test Status Failure Message, length: 24
-   14  14:20:20.064873 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Test Status ACK Message, length: 24
-   15  14:20:20.065080 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Channel Status ACK Message, length: 16
-   16  14:20:20.065317 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Channel Status Request Message, length: 36
-   17  14:20:20.065542 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Channel Status Message, length: 44
-   18  14:20:20.065749 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Channel Status Response Message, length: 36
+    1  2004-04-26 14:20:20.060006 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Begin Verify Message, length: 56
+    2  2004-04-26 14:20:20.061756 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Hello Message, length: 28
+    3  2004-04-26 14:20:20.062080 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Config NACK Message, length: 56
+    4  2004-04-26 14:20:20.062335 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Config ACK Message, length: 48
+    5  2004-04-26 14:20:20.062578 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Config Message, length: 40
+    6  2004-04-26 14:20:20.062787 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Link Summary ACK Message, length: 16
+    7  2004-04-26 14:20:20.063397 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Link Summary NACK Message, length: 96
+    8  2004-04-26 14:20:20.063628 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Begin Verify ACK Message, length: 40
+    9  2004-04-26 14:20:20.063845 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Begin Verify NACK Message, length: 32
+   10  2004-04-26 14:20:20.064049 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 End Verify Message, length: 24
+   11  2004-04-26 14:20:20.064259 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 End Verify ACK Message, length: 24
+   12  2004-04-26 14:20:20.064464 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Test Message, length: 24
+   13  2004-04-26 14:20:20.064669 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Test Status Failure Message, length: 24
+   14  2004-04-26 14:20:20.064873 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Test Status ACK Message, length: 24
+   15  2004-04-26 14:20:20.065080 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Channel Status ACK Message, length: 16
+   16  2004-04-26 14:20:20.065317 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Channel Status Request Message, length: 36
+   17  2004-04-26 14:20:20.065542 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Channel Status Message, length: 44
+   18  2004-04-26 14:20:20.065749 IP 10.0.12.1.49998 > 10.0.12.2.49998: LMPv1 Channel Status Response Message, length: 36

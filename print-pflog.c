@@ -21,9 +21,7 @@
 
 /* \summary: *BSD/Darwin packet filter log file printer */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
@@ -37,7 +35,7 @@ static const struct tok pf_reasons[] = {
 	{ PFRES_MATCH,		"0(match)" },
 	{ PFRES_BADOFF,		"1(bad-offset)" },
 	{ PFRES_FRAG,		"2(fragment)" },
-	{ PFRES_NORM,		"3(short)" },
+	{ PFRES_SHORT,		"3(short)" },
 	{ PFRES_NORM,		"4(normalize)" },
 	{ PFRES_MEMORY,		"5(memory)" },
 	{ PFRES_TS,		"6(bad-timestamp)" },
@@ -106,8 +104,8 @@ pflog_print(netdissect_options *ndo, const struct pfloghdr *hdr)
 	uint32_t rulenr, subrulenr;
 
 	ndo->ndo_protocol = "pflog";
-	rulenr = GET_BE_U_4(&hdr->rulenr);
-	subrulenr = GET_BE_U_4(&hdr->subrulenr);
+	rulenr = GET_BE_U_4(hdr->rulenr);
+	subrulenr = GET_BE_U_4(hdr->subrulenr);
 	if (subrulenr == (uint32_t)-1)
 		ND_PRINT("rule %u/", rulenr);
 	else {
@@ -117,9 +115,9 @@ pflog_print(netdissect_options *ndo, const struct pfloghdr *hdr)
 	}
 
 	ND_PRINT("%s: %s %s on ",
-	    tok2str(pf_reasons, "unkn(%u)", GET_U_1(&hdr->reason)),
-	    tok2str(pf_actions, "unkn(%u)", GET_U_1(&hdr->action)),
-	    tok2str(pf_directions, "unkn(%u)", GET_U_1(&hdr->dir)));
+	    tok2str(pf_reasons, "unkn(%u)", GET_U_1(hdr->reason)),
+	    tok2str(pf_actions, "unkn(%u)", GET_U_1(hdr->action)),
+	    tok2str(pf_directions, "unkn(%u)", GET_U_1(hdr->dir)));
 	nd_printjnp(ndo, (const u_char*)hdr->ifname, PFLOG_IFNAMSIZ);
 	ND_PRINT(": ");
 }
@@ -142,14 +140,14 @@ pflog_if_print(netdissect_options *ndo, const struct pcap_pkthdr *h,
 		return;
 	}
 
-#define MIN_PFLOG_HDRLEN	45
 	hdr = (const struct pfloghdr *)p;
-	if (GET_U_1(&hdr->length) < MIN_PFLOG_HDRLEN) {
+	hdrlen = GET_U_1(hdr->length);
+	if (hdrlen < MIN_PFLOG_HDRLEN) {
 		ND_PRINT("[pflog: invalid header length!]");
-		ndo->ndo_ll_hdr_len += GET_U_1(&hdr->length);	/* XXX: not really */
+		ndo->ndo_ll_hdr_len += hdrlen;	/* XXX: not really */
 		return;
 	}
-	hdrlen = roundup2(hdr->length, 4);
+	hdrlen = roundup2(hdrlen, 4);
 
 	if (caplen < hdrlen) {
 		nd_print_trunc(ndo);
@@ -163,7 +161,7 @@ pflog_if_print(netdissect_options *ndo, const struct pcap_pkthdr *h,
 		pflog_print(ndo, hdr);
 
 	/* skip to the real packet */
-	af = GET_U_1(&hdr->af);
+	af = GET_U_1(hdr->af);
 	length -= hdrlen;
 	caplen -= hdrlen;
 	p += hdrlen;

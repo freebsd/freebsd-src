@@ -1,0 +1,1 @@
+    1  1975-11-02 10:29:20.131862 IP6 (class 0x50, flowlabel 0x00073, hlim 28, next-header Fragment (44) payload length: 0) 7fff:ffff:c3b2:a102:1305:80:38:2949 > 9675:86dd:7300:2c:1c7f:ffff:ffc3:b2a1: frag (0x80000074:1280|[length < 0] (invalid))

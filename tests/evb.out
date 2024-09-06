@@ -1,25 +1,25 @@
-    1  12:01:13.213268 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 102
+    1  2013-08-05 12:01:13.213268 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 102
 	port-role Designated, CIST root-id 8000.08:00:27:0d:f1:3c, CIST ext-pathcost 0
 	CIST regional-root-id 8000.08:00:27:0d:f1:3c, CIST port-id 8003,
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	v3len 64, MCID Name Default, rev 0,
 		digest ac36177f50283cd4b83821d8ab26de62, CIST int-root-pathcost 0,
 	CIST bridge-id 8000.08:00:27:0d:f1:3c, CIST remaining-hops 20
-    2  12:01:15.217887 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 102
+    2  2013-08-05 12:01:15.217887 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 102
 	port-role Designated, CIST root-id 8000.08:00:27:0d:f1:3c, CIST ext-pathcost 0
 	CIST regional-root-id 8000.08:00:27:0d:f1:3c, CIST port-id 8003,
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	v3len 64, MCID Name Default, rev 0,
 		digest ac36177f50283cd4b83821d8ab26de62, CIST int-root-pathcost 0,
 	CIST bridge-id 8000.08:00:27:0d:f1:3c, CIST remaining-hops 20
-    3  12:01:17.219431 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 102
+    3  2013-08-05 12:01:17.219431 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 102
 	port-role Designated, CIST root-id 8000.08:00:27:0d:f1:3c, CIST ext-pathcost 0
 	CIST regional-root-id 8000.08:00:27:0d:f1:3c, CIST port-id 8003,
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	v3len 64, MCID Name Default, rev 0,
 		digest ac36177f50283cd4b83821d8ab26de62, CIST int-root-pathcost 0,
 	CIST bridge-id 8000.08:00:27:0d:f1:3c, CIST remaining-hops 20
-    4  12:01:18.990089 LLDP, length 103
+    4  2013-08-05 12:01:18.990089 LLDP, length 103
 	Chassis ID TLV (1), length 7
 	  Subtype MAC address (4): 08:00:27:0d:f1:3c
 	  0x0000:  0408 0027 0df1 3c
@@ -60,84 +60,84 @@
 	    SCID: 1, SVID: 1
 	  0x0000:  0080 c20e 0000 00a7 0010 01
 	End TLV (0), length 0
-    5  12:01:19.223125 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 102
+    5  2013-08-05 12:01:19.223125 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 102
 	port-role Designated, CIST root-id 8000.08:00:27:0d:f1:3c, CIST ext-pathcost 0
 	CIST regional-root-id 8000.08:00:27:0d:f1:3c, CIST port-id 8003,
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	v3len 64, MCID Name Default, rev 0,
 		digest ac36177f50283cd4b83821d8ab26de62, CIST int-root-pathcost 0,
 	CIST bridge-id 8000.08:00:27:0d:f1:3c, CIST remaining-hops 20
-    6  12:01:21.227595 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 102
+    6  2013-08-05 12:01:21.227595 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 102
 	port-role Designated, CIST root-id 8000.08:00:27:0d:f1:3c, CIST ext-pathcost 0
 	CIST regional-root-id 8000.08:00:27:0d:f1:3c, CIST port-id 8003,
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	v3len 64, MCID Name Default, rev 0,
 		digest ac36177f50283cd4b83821d8ab26de62, CIST int-root-pathcost 0,
 	CIST bridge-id 8000.08:00:27:0d:f1:3c, CIST remaining-hops 20
-    7  12:01:23.231290 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 102
+    7  2013-08-05 12:01:23.231290 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 102
 	port-role Designated, CIST root-id 8000.08:00:27:0d:f1:3c, CIST ext-pathcost 0
 	CIST regional-root-id 8000.08:00:27:0d:f1:3c, CIST port-id 8003,
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	v3len 64, MCID Name Default, rev 0,
 		digest ac36177f50283cd4b83821d8ab26de62, CIST int-root-pathcost 0,
 	CIST bridge-id 8000.08:00:27:0d:f1:3c, CIST remaining-hops 20
-    8  12:01:25.236051 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 102
+    8  2013-08-05 12:01:25.236051 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 102
 	port-role Designated, CIST root-id 8000.08:00:27:0d:f1:3c, CIST ext-pathcost 0
 	CIST regional-root-id 8000.08:00:27:0d:f1:3c, CIST port-id 8003,
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	v3len 64, MCID Name Default, rev 0,
 		digest ac36177f50283cd4b83821d8ab26de62, CIST int-root-pathcost 0,
 	CIST bridge-id 8000.08:00:27:0d:f1:3c, CIST remaining-hops 20
-    9  12:01:27.238244 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 102
+    9  2013-08-05 12:01:27.238244 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 102
 	port-role Designated, CIST root-id 8000.08:00:27:0d:f1:3c, CIST ext-pathcost 0
 	CIST regional-root-id 8000.08:00:27:0d:f1:3c, CIST port-id 8003,
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	v3len 64, MCID Name Default, rev 0,
 		digest ac36177f50283cd4b83821d8ab26de62, CIST int-root-pathcost 0,
 	CIST bridge-id 8000.08:00:27:0d:f1:3c, CIST remaining-hops 20
-   10  12:01:29.241008 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 102
+   10  2013-08-05 12:01:29.241008 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 102
 	port-role Designated, CIST root-id 8000.08:00:27:0d:f1:3c, CIST ext-pathcost 0
 	CIST regional-root-id 8000.08:00:27:0d:f1:3c, CIST port-id 8003,
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	v3len 64, MCID Name Default, rev 0,
 		digest ac36177f50283cd4b83821d8ab26de62, CIST int-root-pathcost 0,
 	CIST bridge-id 8000.08:00:27:0d:f1:3c, CIST remaining-hops 20
-   11  12:01:31.244494 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 102
+   11  2013-08-05 12:01:31.244494 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 102
 	port-role Designated, CIST root-id 8000.08:00:27:0d:f1:3c, CIST ext-pathcost 0
 	CIST regional-root-id 8000.08:00:27:0d:f1:3c, CIST port-id 8003,
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	v3len 64, MCID Name Default, rev 0,
 		digest ac36177f50283cd4b83821d8ab26de62, CIST int-root-pathcost 0,
 	CIST bridge-id 8000.08:00:27:0d:f1:3c, CIST remaining-hops 20
-   12  12:01:33.248395 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 102
+   12  2013-08-05 12:01:33.248395 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 102
 	port-role Designated, CIST root-id 8000.08:00:27:0d:f1:3c, CIST ext-pathcost 0
 	CIST regional-root-id 8000.08:00:27:0d:f1:3c, CIST port-id 8003,
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	v3len 64, MCID Name Default, rev 0,
 		digest ac36177f50283cd4b83821d8ab26de62, CIST int-root-pathcost 0,
 	CIST bridge-id 8000.08:00:27:0d:f1:3c, CIST remaining-hops 20
-   13  12:01:35.252201 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 102
+   13  2013-08-05 12:01:35.252201 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 102
 	port-role Designated, CIST root-id 8000.08:00:27:0d:f1:3c, CIST ext-pathcost 0
 	CIST regional-root-id 8000.08:00:27:0d:f1:3c, CIST port-id 8003,
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	v3len 64, MCID Name Default, rev 0,
 		digest ac36177f50283cd4b83821d8ab26de62, CIST int-root-pathcost 0,
 	CIST bridge-id 8000.08:00:27:0d:f1:3c, CIST remaining-hops 20
-   14  12:01:37.254802 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 102
+   14  2013-08-05 12:01:37.254802 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 102
 	port-role Designated, CIST root-id 8000.08:00:27:0d:f1:3c, CIST ext-pathcost 0
 	CIST regional-root-id 8000.08:00:27:0d:f1:3c, CIST port-id 8003,
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	v3len 64, MCID Name Default, rev 0,
 		digest ac36177f50283cd4b83821d8ab26de62, CIST int-root-pathcost 0,
 	CIST bridge-id 8000.08:00:27:0d:f1:3c, CIST remaining-hops 20
-   15  12:01:39.258570 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 102
+   15  2013-08-05 12:01:39.258570 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 102
 	port-role Designated, CIST root-id 8000.08:00:27:0d:f1:3c, CIST ext-pathcost 0
 	CIST regional-root-id 8000.08:00:27:0d:f1:3c, CIST port-id 8003,
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	v3len 64, MCID Name Default, rev 0,
 		digest ac36177f50283cd4b83821d8ab26de62, CIST int-root-pathcost 0,
 	CIST bridge-id 8000.08:00:27:0d:f1:3c, CIST remaining-hops 20
-   16  12:01:41.260454 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 102
+   16  2013-08-05 12:01:41.260454 STP 802.1s, Rapid STP, CIST Flags [Learn, Forward], length 102
 	port-role Designated, CIST root-id 8000.08:00:27:0d:f1:3c, CIST ext-pathcost 0
 	CIST regional-root-id 8000.08:00:27:0d:f1:3c, CIST port-id 8003,
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s

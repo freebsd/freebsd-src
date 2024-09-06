@@ -8,9 +8,7 @@
 
 /* \summary: SMB/CIFS printer */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
@@ -414,7 +412,8 @@ print_negprot(netdissect_options *ndo,
 	smb_fdata(ndo, words + 1, f1, ND_MIN(words + 1 + wct * 2, maxbuf),
 	    unicodestr);
     else
-	smb_data_print(ndo, words + 1, ND_MIN(wct * 2, ND_BYTES_BETWEEN(maxbuf, words + 1)));
+	smb_data_print(ndo, words + 1,
+                       ND_MIN(wct * 2, ND_BYTES_BETWEEN(words + 1, maxbuf)));
 
     bcc = GET_LE_U_2(data);
     ND_PRINT("smb_bcc=%u\n", bcc);
@@ -424,7 +423,7 @@ print_negprot(netdissect_options *ndo,
                                              maxbuf), unicodestr);
 	else
 	    smb_data_print(ndo, data + 2,
-                           ND_MIN(GET_LE_U_2(data), ND_BYTES_BETWEEN(maxbuf, data + 2)));
+                           ND_MIN(GET_LE_U_2(data), ND_BYTES_BETWEEN(data + 2, maxbuf)));
     }
 }
 
@@ -454,7 +453,8 @@ print_sesssetup(netdissect_options *ndo,
 	smb_fdata(ndo, words + 1, f1, ND_MIN(words + 1 + wct * 2, maxbuf),
 	    unicodestr);
     else
-	smb_data_print(ndo, words + 1, ND_MIN(wct * 2, ND_BYTES_BETWEEN(maxbuf, words + 1)));
+	smb_data_print(ndo, words + 1,
+                       ND_MIN(wct * 2, ND_BYTES_BETWEEN(words + 1, maxbuf)));
 
     bcc = GET_LE_U_2(data);
     ND_PRINT("smb_bcc=%u\n", bcc);
@@ -464,7 +464,7 @@ print_sesssetup(netdissect_options *ndo,
                                              maxbuf), unicodestr);
 	else
 	    smb_data_print(ndo, data + 2,
-                           ND_MIN(GET_LE_U_2(data), ND_BYTES_BETWEEN(maxbuf, data + 2)));
+                           ND_MIN(GET_LE_U_2(data), ND_BYTES_BETWEEN(data + 2, maxbuf)));
     }
 }
 
@@ -499,7 +499,7 @@ print_lockingandx(netdissect_options *ndo,
                                              maxbuf), unicodestr);
 	else
 	    smb_data_print(ndo, data + 2,
-                           ND_MIN(GET_LE_U_2(data), ND_BYTES_BETWEEN(maxbuf, data + 2)));
+                           ND_MIN(GET_LE_U_2(data), ND_BYTES_BETWEEN(data + 2, maxbuf)));
     }
 }
 
@@ -871,7 +871,8 @@ print_smb(netdissect_options *ndo,
 	    } else {
 		if (bcc > 0) {
 		    ND_PRINT("smb_buf[]=\n");
-		    smb_data_print(ndo, data + 2, ND_MIN(bcc, ND_BYTES_BETWEEN(maxbuf, data + 2)));
+		    smb_data_print(ndo, data + 2,
+                                   ND_MIN(bcc, ND_BYTES_BETWEEN(data + 2, maxbuf)));
 		}
 	    }
 	}
@@ -1194,7 +1195,8 @@ nbt_udp137_print(netdissect_options *ndo,
 		} else {
 		    if (p >= maxbuf)
 		        goto out;
-		    smb_data_print(ndo, p, ND_MIN(rdlen, length - ND_BYTES_BETWEEN(p, data)));
+		    smb_data_print(ndo, p,
+                                   ND_MIN(rdlen, length - ND_BYTES_BETWEEN(data, p)));
 		    p += rdlen;
 		}
 	    }

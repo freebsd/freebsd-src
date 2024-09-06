@@ -1,4 +1,4 @@
-    1  04:38:13.000000 01:01:01:01:01:01 > 02:02:02:02:02:02, ethertype MPLS unicast (0x8847), length 130: MPLS (label 16006, tc 0, [S], ttl 255)
+    1  2012-10-02 04:38:13.000000 01:01:01:01:01:01 > 02:02:02:02:02:02, ethertype MPLS unicast (0x8847), length 130: MPLS (label 16006, tc 0, [S], ttl 255)
 	(tos 0x0, ttl 1, id 32770, offset 0, flags [DF, rsvd], proto UDP (17), length 112, options (RA), bad cksum a4cc (->a4cb)!)
     192.168.0.1.3503 > 127.0.0.1.3503: [bad udp cksum 0x8397 -> 0x3f6d!] 
 	LSP-PINGv1, msg-type: MPLS Echo Request (1), length: 80

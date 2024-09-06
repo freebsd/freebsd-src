@@ -1,4 +1,4 @@
-    1  07:51:47.389652 IP (tos 0xc0, ttl 64, id 60775, offset 0, flags [DF], proto TCP (6), length 460)
+    1  2021-09-23 07:51:47.389652 IP (tos 0xc0, ttl 64, id 60775, offset 0, flags [DF], proto TCP (6), length 460)
     192.168.10.249.36890 > 192.168.10.252.179: Flags [P.], cksum 0x87a4 (correct), seq 2387217692:2387218100, ack 685497494, win 229, options [nop,nop,TS val 7136044 ecr 4011453153], length 408: BGP
 	Update Message (2), length: 67
 	  Origin (1), length: 1, Flags [T]: Incomplete

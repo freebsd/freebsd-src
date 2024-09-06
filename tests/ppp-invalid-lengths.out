@@ -1,4 +1,4 @@
-    1  20:31:09.16721442 IPCP, Conf-Nack (0x03), id 128, length 58454
+    1  1970-04-08 20:31:09.16721442 IPCP, Conf-Nack (0x03), id 128, length 58454
 	encoded length 8451 (=Option(s) length 8447)
 	  IP-Comp Option (0x02), length 218: IP Header Compression (0x61):
 	    TCP Space 24929, non-TCP Space 24929, maxPeriod 25441, maxTime 24929, maxHdr 24953

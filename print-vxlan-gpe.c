@@ -25,9 +25,7 @@
 
 /* specification: draft-ietf-nvo3-vxlan-gpe-10 */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 

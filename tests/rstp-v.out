@@ -1,90 +1,90 @@
-    1  11:50:35.352170 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
+    1  2008-08-10 11:50:35.352170 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0, port-role Designated
-    2  11:50:37.214151 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
+    2  2008-08-10 11:50:37.214151 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0, port-role Designated
-    3  11:50:39.227534 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
+    3  2008-08-10 11:50:39.227534 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0, port-role Designated
-    4  11:50:41.240343 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
+    4  2008-08-10 11:50:41.240343 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0, port-role Designated
-    5  11:50:43.253615 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
+    5  2008-08-10 11:50:43.253615 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0, port-role Designated
-    6  11:50:45.266889 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
+    6  2008-08-10 11:50:45.266889 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0, port-role Designated
-    7  11:50:47.280508 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
+    7  2008-08-10 11:50:47.280508 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0, port-role Designated
-    8  11:50:49.293428 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
+    8  2008-08-10 11:50:49.293428 STP 802.1w, Rapid STP, Flags [Proposal], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0, port-role Designated
-    9  11:50:51.306707 STP 802.1w, Rapid STP, Flags [Proposal, Learn], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
+    9  2008-08-10 11:50:51.306707 STP 802.1w, Rapid STP, Flags [Proposal, Learn], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0, port-role Designated
-   10  11:50:53.320006 STP 802.1w, Rapid STP, Flags [Proposal, Learn], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
+   10  2008-08-10 11:50:53.320006 STP 802.1w, Rapid STP, Flags [Proposal, Learn], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0, port-role Designated
-   11  11:50:55.333257 STP 802.1w, Rapid STP, Flags [Proposal, Learn], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
+   11  2008-08-10 11:50:55.333257 STP 802.1w, Rapid STP, Flags [Proposal, Learn], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0, port-role Designated
-   12  11:50:57.346887 STP 802.1w, Rapid STP, Flags [Proposal, Learn], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
+   12  2008-08-10 11:50:57.346887 STP 802.1w, Rapid STP, Flags [Proposal, Learn], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0, port-role Designated
-   13  11:50:59.359867 STP 802.1w, Rapid STP, Flags [Proposal, Learn], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
+   13  2008-08-10 11:50:59.359867 STP 802.1w, Rapid STP, Flags [Proposal, Learn], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0, port-role Designated
-   14  11:51:01.373086 STP 802.1w, Rapid STP, Flags [Proposal, Learn], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
+   14  2008-08-10 11:51:01.373086 STP 802.1w, Rapid STP, Flags [Proposal, Learn], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0, port-role Designated
-   15  11:51:03.386550 STP 802.1w, Rapid STP, Flags [Proposal, Learn], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
+   15  2008-08-10 11:51:03.386550 STP 802.1w, Rapid STP, Flags [Proposal, Learn], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0, port-role Designated
-   16  11:51:05.365396 STP 802.1w, Rapid STP, Flags [Topology change, Learn, Forward], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
+   16  2008-08-10 11:51:05.365396 STP 802.1w, Rapid STP, Flags [Topology change, Learn, Forward], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0, port-role Designated
-   17  11:51:05.399631 STP 802.1w, Rapid STP, Flags [Topology change, Learn, Forward], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
+   17  2008-08-10 11:51:05.399631 STP 802.1w, Rapid STP, Flags [Topology change, Learn, Forward], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0, port-role Designated
-   18  11:51:07.413269 STP 802.1w, Rapid STP, Flags [Topology change, Learn, Forward], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
+   18  2008-08-10 11:51:07.413269 STP 802.1w, Rapid STP, Flags [Topology change, Learn, Forward], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0, port-role Designated
-   19  11:51:09.426184 STP 802.1w, Rapid STP, Flags [Learn, Forward], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
+   19  2008-08-10 11:51:09.426184 STP 802.1w, Rapid STP, Flags [Learn, Forward], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0, port-role Designated
-   20  11:51:11.439472 STP 802.1w, Rapid STP, Flags [Learn, Forward], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
+   20  2008-08-10 11:51:11.439472 STP 802.1w, Rapid STP, Flags [Learn, Forward], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0, port-role Designated
-   21  11:51:13.452762 STP 802.1w, Rapid STP, Flags [Learn, Forward], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
+   21  2008-08-10 11:51:13.452762 STP 802.1w, Rapid STP, Flags [Learn, Forward], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0, port-role Designated
-   22  11:51:15.466142 STP 802.1w, Rapid STP, Flags [Learn, Forward], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
+   22  2008-08-10 11:51:15.466142 STP 802.1w, Rapid STP, Flags [Learn, Forward], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0, port-role Designated
-   23  11:51:17.479631 STP 802.1w, Rapid STP, Flags [Learn, Forward], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
+   23  2008-08-10 11:51:17.479631 STP 802.1w, Rapid STP, Flags [Learn, Forward], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0, port-role Designated
-   24  11:51:19.492583 STP 802.1w, Rapid STP, Flags [Learn, Forward], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
+   24  2008-08-10 11:51:19.492583 STP 802.1w, Rapid STP, Flags [Learn, Forward], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0, port-role Designated
-   25  11:51:21.505865 STP 802.1w, Rapid STP, Flags [Learn, Forward], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
+   25  2008-08-10 11:51:21.505865 STP 802.1w, Rapid STP, Flags [Learn, Forward], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0, port-role Designated
-   26  11:51:23.519148 STP 802.1w, Rapid STP, Flags [Learn, Forward], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
+   26  2008-08-10 11:51:23.519148 STP 802.1w, Rapid STP, Flags [Learn, Forward], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0, port-role Designated
-   27  11:51:25.532418 STP 802.1w, Rapid STP, Flags [Learn, Forward], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
+   27  2008-08-10 11:51:25.532418 STP 802.1w, Rapid STP, Flags [Learn, Forward], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0, port-role Designated
-   28  11:51:27.546083 STP 802.1w, Rapid STP, Flags [Learn, Forward], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
+   28  2008-08-10 11:51:27.546083 STP 802.1w, Rapid STP, Flags [Learn, Forward], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0, port-role Designated
-   29  11:51:29.559090 STP 802.1w, Rapid STP, Flags [Learn, Forward], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
+   29  2008-08-10 11:51:29.559090 STP 802.1w, Rapid STP, Flags [Learn, Forward], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0, port-role Designated
-   30  11:51:31.572240 STP 802.1w, Rapid STP, Flags [Learn, Forward], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
+   30  2008-08-10 11:51:31.572240 STP 802.1w, Rapid STP, Flags [Learn, Forward], bridge-id 8001.00:19:06:ea:b8:80.800c, length 36
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
 	root-id 8001.00:19:06:ea:b8:80, root-pathcost 0, port-role Designated

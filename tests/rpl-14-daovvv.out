@@ -1,1 +1,1 @@
-    1  16:04:20.568260 IP6 (hlim 64, next-header ICMPv6 (58) payload length: 24) fe80::216:3eff:fe11:3424 > ff02::1: [icmp6 sum ok] ICMP6, RPL, (CLR)Destination Advertisement Object [dagid:7061:6e64:6f72:6120:6973:2066:756e:a6c,seq:1,instance:1,Dagid,flags:40]
+    1  2014-01-05 16:04:20.568260 IP6 (hlim 64, next-header ICMPv6 (58) payload length: 24) fe80::216:3eff:fe11:3424 > ff02::1: [icmp6 sum ok] ICMP6, RPL, (CLR)Destination Advertisement Object [dagid:7061:6e64:6f72:6120:6973:2066:756e:a6c,seq:1,instance:1,Dagid,flags:40]

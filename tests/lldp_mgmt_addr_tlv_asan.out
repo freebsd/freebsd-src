@@ -1,7 +1,7 @@
-    1  18:21:27.2686979 LLDP, length 262130
+    1  2014-05-14 18:21:27.2686979 LLDP, length 262130
 	Management Address TLV (8), length 15
 	  Management Address length 6, AFI Reserved (0), no AF printer !
 	  Unknown Interface Numbering (10): 666137427 [|lldp]
-    2  14:02:40.1109776 00:00:00:a0:d4:c3 > 06:04:e8:03:00:02, ethertype Unknown (0xb2a1), length 262144: 
+    2  1970-01-08 14:02:40.1109776 00:00:00:a0:d4:c3 > 06:04:e8:03:00:02, ethertype Unknown (0xb2a1), length 262144: 
 	0x0000:  0200 efff e5ff 804f 006e 0026 0000 0000  .......O.n.&....
 	0x0010:  01                                       .

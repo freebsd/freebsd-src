@@ -1,4 +1,4 @@
-    1  00:00:00.000000 IP (tos 0x0, ttl 64, id 0, offset 0, flags [none], proto UDP (17), length 536, bad cksum 0 (->f48e)!)
+    1  1970-01-02 00:00:00.000000 IP (tos 0x0, ttl 64, id 0, offset 0, flags [none], proto UDP (17), length 536, bad cksum 0 (->f48e)!)
     192.1.2.45.500 > 192.1.2.23.500: isakmp 2.0 msgid 00000000: parent_sa ikev2_init[I]:
     (sa[C]: len=240
         (p: #1 protoid=isakmp transform=4 len=40

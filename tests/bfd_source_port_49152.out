@@ -1,0 +1,8 @@
+    1  2023-03-20 09:58:19.559328 IP (tos 0xe0, ttl 255, id 40257, offset 0, flags [DF], proto UDP (17), length 52)
+    11.11.11.2.49152 > 11.11.11.1.3784: BFDv1, length: 24
+	Control, State Up, Flags: [Control Plane Independent], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (300 ms Detection time), BFD Length: 24
+	My Discriminator: 0x80000001, Your Discriminator: 0x80000001
+	  Desired min Tx Interval:     100 ms
+	  Required min Rx Interval:    100 ms
+	  Required min Echo Interval:    0 ms

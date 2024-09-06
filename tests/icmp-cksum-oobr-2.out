@@ -1,4 +1,4 @@
-    1  10:13:29.331681 IP (0x0021), length 244: truncated-ip - 32768 bytes missing! (tos 0x0, ttl 254, id 59168, offset 0, flags [DF], proto ICMP (1), length 33008, bad cksum 7ade (->fabd)!)
+    1  2004-06-14 10:13:29.331681 IP (0x0021), length 244: [total length 33008 > length 240] (invalid) (tos 0x0, ttl 254, id 59168, offset 0, flags [DF], proto ICMP (1), length 33008, bad cksum 7ade (->fabd)!)
     10.4.0.34 > 12.4.4.4: ICMP time exceeded in-transit, length 32988
 	(tos 0x0, ttl 1, id 42321, offset 0, flags [none], proto UDP (17), length 40)
     12.4.4.4.42315 > 12.1.1.1.33440: [bad udp cksum 0x1000 -> 0xbad0!] UDP, length 12

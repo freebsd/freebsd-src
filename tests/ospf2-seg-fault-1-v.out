@@ -1,4 +1,4 @@
-    1  19:35:00.904198 IP (tos 0xc0, ttl 1, id 4106, offset 0, flags [none], proto OSPF (89), length 172)
+    1  2003-09-08 19:35:00.904198 IP (tos 0xc0, ttl 1, id 4106, offset 0, flags [none], proto OSPF (89), length 172)
     40.35.1.2 > 224.0.0.5: OSPFv2, LS-Update, length 152
 	Router-ID 10.255.245.35, Backbone Area, Authentication Type: none (0), 1 LSA
 	  LSA #1

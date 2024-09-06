@@ -1,3 +1,3 @@
-    1  06:56:17.131350 IP 250.15.128.19.68 > 249.251.157.8.63246: BOOTP/DHCP, unknown (0x00), length 8085
+    1  1973-09-21 06:56:17.131350 IP 250.15.128.19.68 > 249.251.157.8.63246: BOOTP/DHCP, unknown (0x00), length 8085
     2  [Invalid header: caplen==0, len==0]
-    3  [Error converting time] IP 0.0.0.0.0 > 0.0.0.0.7004:  rx abort (539)
+    3  2038-01-01 00:00:00.000000 IP 0.0.0.0.0 > 0.0.0.0.7004:  rx abort (539)

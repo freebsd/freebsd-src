@@ -35,17 +35,12 @@
  * FOR A PARTICULAR PURPOSE.
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
 #include <sys/stat.h>
 
-#ifdef HAVE_FCNTL_H
-#include <fcntl.h>
-#endif
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -172,6 +167,23 @@ nd_printn(netdissect_options *ndo,
 }
 
 /*
+ * Print a counted filename (or other ASCII string), part of
+ * the packet buffer, filtering out non-printable characters.
+ * Stop if truncated (via GET_U_1/longjmp) or after n bytes,
+ * whichever is first.
+ * The suffix comes from: j:longJmp, n:after N bytes.
+ */
+void
+nd_printjn(netdissect_options *ndo, const u_char *s, u_int n)
+{
+	while (n > 0) {
+		fn_print_char(ndo, GET_U_1(s));
+		n--;
+		s++;
+	}
+}
+
+/*
  * Print a null-padded filename (or other ASCII string), part of
  * the packet buffer, filtering out non-printable characters.
  * Stop if truncated (via GET_U_1/longjmp) or after n bytes or before
@@ -197,17 +209,17 @@ nd_printjnp(netdissect_options *ndo, const u_char *s, u_int n)
  * Print the timestamp .FRAC part (Microseconds/nanoseconds)
  */
 static void
-ts_frac_print(netdissect_options *ndo, long usec)
+ts_frac_print(netdissect_options *ndo, const struct timeval *tv)
 {
 #ifdef HAVE_PCAP_SET_TSTAMP_PRECISION
 	switch (ndo->ndo_tstamp_precision) {
 
 	case PCAP_TSTAMP_PRECISION_MICRO:
-		ND_PRINT(".%06u", (unsigned)usec);
+		ND_PRINT(".%06u", (unsigned)tv->tv_usec);
 		break;
 
 	case PCAP_TSTAMP_PRECISION_NANO:
-		ND_PRINT(".%09u", (unsigned)usec);
+		ND_PRINT(".%09u", (unsigned)tv->tv_usec);
 		break;
 
 	default:
@@ -215,7 +227,7 @@ ts_frac_print(netdissect_options *ndo, long usec)
 		break;
 	}
 #else
-	ND_PRINT(".%06u", (unsigned)usec);
+	ND_PRINT(".%06u", (unsigned)tv->tv_usec);
 #endif
 }
 
@@ -225,23 +237,22 @@ ts_frac_print(netdissect_options *ndo, long usec)
  *   if date_flag == WITH_DATE print YY:MM:DD before HH:MM:SS.FRAC
  */
 static void
-ts_date_hmsfrac_print(netdissect_options *ndo, long sec, long usec,
+ts_date_hmsfrac_print(netdissect_options *ndo, const struct timeval *tv,
 		      enum date_flag date_flag, enum time_flag time_flag)
 {
-	time_t Time = sec;
 	struct tm *tm;
 	char timebuf[32];
 	const char *timestr;
 
-	if ((unsigned)sec & 0x80000000) {
-		ND_PRINT("[Error converting time]");
+	if (tv->tv_sec < 0) {
+		ND_PRINT("[timestamp < 1970-01-01 00:00:00 UTC]");
 		return;
 	}
 
 	if (time_flag == LOCAL_TIME)
-		tm = localtime(&Time);
+		tm = localtime(&tv->tv_sec);
 	else
-		tm = gmtime(&Time);
+		tm = gmtime(&tv->tv_sec);
 
 	if (date_flag == WITH_DATE) {
 		timestr = nd_format_time(timebuf, sizeof(timebuf),
@@ -252,22 +263,22 @@ ts_date_hmsfrac_print(netdissect_options *ndo, long sec, long usec,
 	}
 	ND_PRINT("%s", timestr);
 
-	ts_frac_print(ndo, usec);
+	ts_frac_print(ndo, tv);
 }
 
 /*
  * Print the timestamp - Unix timeval style, as SECS.FRAC.
  */
 static void
-ts_unix_print(netdissect_options *ndo, long sec, long usec)
+ts_unix_print(netdissect_options *ndo, const struct timeval *tv)
 {
-	if ((unsigned)sec & 0x80000000) {
-		ND_PRINT("[Error converting time]");
+	if (tv->tv_sec < 0) {
+		ND_PRINT("[timestamp < 1970-01-01 00:00:00 UTC]");
 		return;
 	}
 
-	ND_PRINT("%u", (unsigned)sec);
-	ts_frac_print(ndo, usec);
+	ND_PRINT("%u", (unsigned)tv->tv_sec);
+	ts_frac_print(ndo, tv);
 }
 
 /*
@@ -285,8 +296,7 @@ ts_print(netdissect_options *ndo,
 	switch (ndo->ndo_tflag) {
 
 	case 0: /* Default */
-		ts_date_hmsfrac_print(ndo, tvp->tv_sec, tvp->tv_usec,
-				      WITHOUT_DATE, LOCAL_TIME);
+		ts_date_hmsfrac_print(ndo, tvp, WITHOUT_DATE, LOCAL_TIME);
 		ND_PRINT(" ");
 		break;
 
@@ -294,7 +304,7 @@ ts_print(netdissect_options *ndo,
 		break;
 
 	case 2: /* Unix timeval style */
-		ts_unix_print(ndo, tvp->tv_sec, tvp->tv_usec);
+		ts_unix_print(ndo, tvp);
 		ND_PRINT(" ");
 		break;
 
@@ -325,8 +335,7 @@ ts_print(netdissect_options *ndo,
 			netdissect_timevalsub(tvp, &tv_ref, &tv_result, nano_prec);
 
 		ND_PRINT((negative_offset ? "-" : " "));
-		ts_date_hmsfrac_print(ndo, tv_result.tv_sec, tv_result.tv_usec,
-				      WITHOUT_DATE, UTC_TIME);
+		ts_date_hmsfrac_print(ndo, &tv_result, WITHOUT_DATE, UTC_TIME);
 		ND_PRINT(" ");
 
                 if (ndo->ndo_tflag == 3)
@@ -334,8 +343,7 @@ ts_print(netdissect_options *ndo,
 		break;
 
 	case 4: /* Date + Default */
-		ts_date_hmsfrac_print(ndo, tvp->tv_sec, tvp->tv_usec,
-				      WITH_DATE, LOCAL_TIME);
+		ts_date_hmsfrac_print(ndo, tvp, WITH_DATE, LOCAL_TIME);
 		ND_PRINT(" ");
 		break;
 	}
@@ -814,11 +822,10 @@ print_txt_line(netdissect_options *ndo, const char *prefix,
 
 	/*
 	 * All printable ASCII, but no line ending after that point
-	 * in the buffer; treat this as if it were truncated.
+	 * in the buffer.
 	 */
 	linelen = idx - startidx;
 	ND_PRINT("%s%.*s", prefix, (int)linelen, pptr + startidx);
-	nd_print_trunc(ndo);
 	return (0);
 
 print:

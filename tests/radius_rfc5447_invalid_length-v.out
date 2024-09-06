@@ -1,4 +1,4 @@
-    1  13:47:25.180847 IP (tos 0x0, ttl 64, id 47488, offset 0, flags [none], proto UDP (17), length 84)
+    1  2018-08-02 13:47:25.180847 IP (tos 0x0, ttl 64, id 47488, offset 0, flags [none], proto UDP (17), length 84)
     127.0.0.1.55520 > 127.0.0.1.1812: RADIUS, length: 56
 	Access-Request (1), id: 0x4f, Authenticator: 5bec15a7f3ac1590f65629a9f979c340
 	  User-Name Attribute (1), length: 7, Value: luser

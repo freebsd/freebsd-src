@@ -1,4 +1,4 @@
-    1  14:20:20.060006 IP (tos 0x0, ttl 1, id 44530, offset 0, flags [none], proto UDP (17), length 84)
+    1  2004-04-26 14:20:20.060006 IP (tos 0x0, ttl 1, id 44530, offset 0, flags [none], proto UDP (17), length 84)
     10.0.12.1.49998 > 10.0.12.2.49998: 
 	LMPv1, msg-type: Begin Verify, Flags: [none], length: 56
 	  Link ID Object (3), Class-Type: IPv4 Local (1) Flags: [non-negotiable], length: 8
@@ -15,14 +15,14 @@
 	    Verify Transport Mechanism: 32768 (0x8000)
 	    Transmission Rate: 0.001 Mbps
 	    Wavelength: 8
-    2  14:20:20.061756 IP (tos 0x0, ttl 1, id 44531, offset 0, flags [none], proto UDP (17), length 56)
+    2  2004-04-26 14:20:20.061756 IP (tos 0x0, ttl 1, id 44531, offset 0, flags [none], proto UDP (17), length 56)
     10.0.12.1.49998 > 10.0.12.2.49998: 
 	LMPv1, msg-type: Hello, Flags: [none], length: 28
 	  Control Channel ID Object (1), Class-Type: Local (1) Flags: [non-negotiable], length: 8
 	    Control Channel ID: 1 (0x00000001)
 	  Hello Object (7), Class-Type: 1 (1) Flags: [non-negotiable], length: 12
 	    Tx Seq: 50, Rx Seq: 60
-    3  14:20:20.062080 IP (tos 0x0, ttl 1, id 44532, offset 0, flags [none], proto UDP (17), length 84)
+    3  2004-04-26 14:20:20.062080 IP (tos 0x0, ttl 1, id 44532, offset 0, flags [none], proto UDP (17), length 84)
     10.0.12.1.49998 > 10.0.12.2.49998: 
 	LMPv1, msg-type: Config NACK, Flags: [none], length: 56
 	  Control Channel ID Object (1), Class-Type: Local (1) Flags: [non-negotiable], length: 8
@@ -38,7 +38,7 @@
 	  Configuration Object (6), Class-Type: 1 (1) Flags: [negotiable], length: 8
 	    Hello Interval: 5
 	    Hello Dead Interval: 15
-    4  14:20:20.062335 IP (tos 0x0, ttl 1, id 44533, offset 0, flags [none], proto UDP (17), length 76)
+    4  2004-04-26 14:20:20.062335 IP (tos 0x0, ttl 1, id 44533, offset 0, flags [none], proto UDP (17), length 76)
     10.0.12.1.49998 > 10.0.12.2.49998: 
 	LMPv1, msg-type: Config ACK, Flags: [none], length: 48
 	  Control Channel ID Object (1), Class-Type: Local (1) Flags: [non-negotiable], length: 8
@@ -51,7 +51,7 @@
 	    Message ID Ack: 3 (0x00000003)
 	  Node ID Object (2), Class-Type: Remote (2) Flags: [non-negotiable], length: 8
 	    Node ID: 10.0.50.2 (0x0a003202)
-    5  14:20:20.062578 IP (tos 0x0, ttl 1, id 44534, offset 0, flags [none], proto UDP (17), length 68)
+    5  2004-04-26 14:20:20.062578 IP (tos 0x0, ttl 1, id 44534, offset 0, flags [none], proto UDP (17), length 68)
     10.0.12.1.49998 > 10.0.12.2.49998: 
 	LMPv1, msg-type: Config, Flags: [none], length: 40
 	  Control Channel ID Object (1), Class-Type: Local (1) Flags: [non-negotiable], length: 8
@@ -63,12 +63,12 @@
 	  Configuration Object (6), Class-Type: 1 (1) Flags: [negotiable], length: 8
 	    Hello Interval: 5
 	    Hello Dead Interval: 15
-    6  14:20:20.062787 IP (tos 0x0, ttl 1, id 44535, offset 0, flags [none], proto UDP (17), length 44)
+    6  2004-04-26 14:20:20.062787 IP (tos 0x0, ttl 1, id 44535, offset 0, flags [none], proto UDP (17), length 44)
     10.0.12.1.49998 > 10.0.12.2.49998: 
 	LMPv1, msg-type: Link Summary ACK, Flags: [none], length: 16
 	  Message ID Object (5), Class-Type: 2 (2) Flags: [non-negotiable], length: 8
 	    Message ID Ack: 1 (0x00000001)
-    7  14:20:20.063397 IP (tos 0x0, ttl 1, id 44536, offset 0, flags [none], proto UDP (17), length 124)
+    7  2004-04-26 14:20:20.063397 IP (tos 0x0, ttl 1, id 44536, offset 0, flags [none], proto UDP (17), length 124)
     10.0.12.1.49998 > 10.0.12.2.49998: 
 	LMPv1, msg-type: Link Summary NACK, Flags: [none], length: 96
 	  Message ID Object (5), Class-Type: 2 (2) Flags: [non-negotiable], length: 8
@@ -97,7 +97,7 @@
 	      Max Reservable Bandwidth: 10325.547 Mbps
 	    Subobject, Type: Wavelength (2), Length: 8
 	      Wavelength: 353
-    8  14:20:20.063628 IP (tos 0x0, ttl 1, id 44537, offset 0, flags [none], proto UDP (17), length 68)
+    8  2004-04-26 14:20:20.063628 IP (tos 0x0, ttl 1, id 44537, offset 0, flags [none], proto UDP (17), length 68)
     10.0.12.1.49998 > 10.0.12.2.49998: 
 	LMPv1, msg-type: Begin Verify ACK, Flags: [none], length: 40
 	  Link ID Object (3), Class-Type: IPv4 Local (1) Flags: [non-negotiable], length: 8
@@ -109,7 +109,7 @@
 	    Verify Transport Response: 100
 	  Verify ID Object (10), Class-Type: 1 (1) Flags: [non-negotiable], length: 8
 	    Verify ID: 5
-    9  14:20:20.063845 IP (tos 0x0, ttl 1, id 44538, offset 0, flags [none], proto UDP (17), length 60)
+    9  2004-04-26 14:20:20.063845 IP (tos 0x0, ttl 1, id 44538, offset 0, flags [none], proto UDP (17), length 60)
     10.0.12.1.49998 > 10.0.12.2.49998: 
 	LMPv1, msg-type: Begin Verify NACK, Flags: [none], length: 32
 	  Link ID Object (3), Class-Type: IPv4 Local (1) Flags: [non-negotiable], length: 8
@@ -118,47 +118,47 @@
 	    Message ID Ack: 3 (0x00000003)
 	  Error Code Object (20), Class-Type: 1 (1) Flags: [non-negotiable], length: 8
 	    Error Code: Link Verification Procedure Not supported, Unwilling to verify, Unsupported verification transport mechanism
-   10  14:20:20.064049 IP (tos 0x0, ttl 1, id 44539, offset 0, flags [none], proto UDP (17), length 52)
+   10  2004-04-26 14:20:20.064049 IP (tos 0x0, ttl 1, id 44539, offset 0, flags [none], proto UDP (17), length 52)
     10.0.12.1.49998 > 10.0.12.2.49998: 
 	LMPv1, msg-type: End Verify, Flags: [none], length: 24
 	  Message ID Object (5), Class-Type: 1 (1) Flags: [non-negotiable], length: 8
 	    Message ID: 3 (0x00000003)
 	  Verify ID Object (10), Class-Type: 1 (1) Flags: [non-negotiable], length: 8
 	    Verify ID: 5
-   11  14:20:20.064259 IP (tos 0x0, ttl 1, id 44540, offset 0, flags [none], proto UDP (17), length 52)
+   11  2004-04-26 14:20:20.064259 IP (tos 0x0, ttl 1, id 44540, offset 0, flags [none], proto UDP (17), length 52)
     10.0.12.1.49998 > 10.0.12.2.49998: 
 	LMPv1, msg-type: End Verify ACK, Flags: [none], length: 24
 	  Message ID Object (5), Class-Type: 2 (2) Flags: [non-negotiable], length: 8
 	    Message ID Ack: 3 (0x00000003)
 	  Verify ID Object (10), Class-Type: 1 (1) Flags: [non-negotiable], length: 8
 	    Verify ID: 5
-   12  14:20:20.064464 IP (tos 0x0, ttl 1, id 44541, offset 0, flags [none], proto UDP (17), length 52)
+   12  2004-04-26 14:20:20.064464 IP (tos 0x0, ttl 1, id 44541, offset 0, flags [none], proto UDP (17), length 52)
     10.0.12.1.49998 > 10.0.12.2.49998: 
 	LMPv1, msg-type: Test, Flags: [none], length: 24
 	  Interface ID Object (4), Class-Type: IPv4 Local (1) Flags: [non-negotiable], length: 8
 	    IPv4 Link ID: 1.0.0.0 (0x01000000)
 	  Verify ID Object (10), Class-Type: 1 (1) Flags: [non-negotiable], length: 8
 	    Verify ID: 5
-   13  14:20:20.064669 IP (tos 0x0, ttl 1, id 44542, offset 0, flags [none], proto UDP (17), length 52)
+   13  2004-04-26 14:20:20.064669 IP (tos 0x0, ttl 1, id 44542, offset 0, flags [none], proto UDP (17), length 52)
     10.0.12.1.49998 > 10.0.12.2.49998: 
 	LMPv1, msg-type: Test Status Failure, Flags: [none], length: 24
 	  Message ID Object (5), Class-Type: 1 (1) Flags: [non-negotiable], length: 8
 	    Message ID: 1 (0x00000001)
 	  Verify ID Object (10), Class-Type: 1 (1) Flags: [non-negotiable], length: 8
 	    Verify ID: 5
-   14  14:20:20.064873 IP (tos 0x0, ttl 1, id 44543, offset 0, flags [none], proto UDP (17), length 52)
+   14  2004-04-26 14:20:20.064873 IP (tos 0x0, ttl 1, id 44543, offset 0, flags [none], proto UDP (17), length 52)
     10.0.12.1.49998 > 10.0.12.2.49998: 
 	LMPv1, msg-type: Test Status ACK, Flags: [none], length: 24
 	  Message ID Object (5), Class-Type: 2 (2) Flags: [non-negotiable], length: 8
 	    Message ID Ack: 1 (0x00000001)
 	  Verify ID Object (10), Class-Type: 1 (1) Flags: [non-negotiable], length: 8
 	    Verify ID: 5
-   15  14:20:20.065080 IP (tos 0x0, ttl 1, id 44544, offset 0, flags [none], proto UDP (17), length 44)
+   15  2004-04-26 14:20:20.065080 IP (tos 0x0, ttl 1, id 44544, offset 0, flags [none], proto UDP (17), length 44)
     10.0.12.1.49998 > 10.0.12.2.49998: 
 	LMPv1, msg-type: Channel Status ACK, Flags: [none], length: 16
 	  Message ID Object (5), Class-Type: 2 (2) Flags: [non-negotiable], length: 8
 	    Message ID Ack: 3 (0x00000003)
-   16  14:20:20.065317 IP (tos 0x0, ttl 1, id 44545, offset 0, flags [none], proto UDP (17), length 64)
+   16  2004-04-26 14:20:20.065317 IP (tos 0x0, ttl 1, id 44545, offset 0, flags [none], proto UDP (17), length 64)
     10.0.12.1.49998 > 10.0.12.2.49998: 
 	LMPv1, msg-type: Channel Status Request, Flags: [none], length: 36
 	  Link ID Object (3), Class-Type: IPv4 Local (1) Flags: [non-negotiable], length: 8
@@ -168,7 +168,7 @@
 	  Channel Status Request Object (14), Class-Type: IPv4 (1) Flags: [non-negotiable], length: 12
 	    Interface ID: 2.0.0.0 (0x02000000)
 	    Interface ID: 2.0.0.0 (0x02000000)
-   17  14:20:20.065542 IP (tos 0x0, ttl 1, id 44546, offset 0, flags [none], proto UDP (17), length 72)
+   17  2004-04-26 14:20:20.065542 IP (tos 0x0, ttl 1, id 44546, offset 0, flags [none], proto UDP (17), length 72)
     10.0.12.1.49998 > 10.0.12.2.49998: 
 	LMPv1, msg-type: Channel Status, Flags: [none], length: 44
 	  Link ID Object (3), Class-Type: IPv4 Local (1) Flags: [non-negotiable], length: 8
@@ -184,7 +184,7 @@
 		    Active: Allocated (1)
 		    Direction: Receive (0)
 		    Channel Status: Signal Degraded (2)
-   18  14:20:20.065749 IP (tos 0x0, ttl 1, id 44547, offset 0, flags [none], proto UDP (17), length 64)
+   18  2004-04-26 14:20:20.065749 IP (tos 0x0, ttl 1, id 44547, offset 0, flags [none], proto UDP (17), length 64)
     10.0.12.1.49998 > 10.0.12.2.49998: 
 	LMPv1, msg-type: Channel Status Response, Flags: [none], length: 36
 	  Message ID Object (5), Class-Type: 2 (2) Flags: [non-negotiable], length: 8

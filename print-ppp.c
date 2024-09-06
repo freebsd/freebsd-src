@@ -31,11 +31,11 @@
  * o BAP support
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
+
+#include <stdlib.h>
 
 #ifdef __bsdi__
 #include <net/slcompress.h>
@@ -194,7 +194,7 @@ static const char *lcpconfopts[] = {
 	"deprecated(12)",	/* used to be a Multi-Link-Procedure*/
 	"Call-Back",		/* (13) */
 	"deprecated(14)",	/* used to be a Connect-Time */
-	"deprecated(15)",	/* used to be a Compund-Frames */
+	"deprecated(15)",	/* used to be a Compound-Frames */
 	"deprecated(16)",	/* used to be a Nominal-Data-Encap */
 	"MRRU",			/* (17) */
 	"12-Bit seq #",		/* (18) */
@@ -700,7 +700,6 @@ print_lcp_config_options(netdissect_options *ndo,
 			ND_PRINT(" (length bogus, should be >= 3)");
 			return 0;
 		}
-		ND_PRINT(": ");
 		ND_PRINT(": Callback Operation %s (%u)",
                        tok2str(ppp_callback_values, "Unknown", GET_U_1(p + 2)),
                        GET_U_1(p + 2));
@@ -859,7 +858,7 @@ handle_chap(netdissect_options *ndo,
 	 * don't know which flavor of CHAP (i.e. CHAP-MD5, MS-CHAPv1,
 	 * MS-CHAPv2) is used at this point, we can't decode packet
 	 * specifically to each algorithms. Instead, we simply decode
-	 * the GCD (Gratest Common Denominator) for all algorithms.
+	 * the GCD (Greatest Common Denominator) for all algorithms.
 	 */
 	switch (code) {
 	case CHAP_CHAL:
@@ -1131,7 +1130,7 @@ print_ipcp_config_options(netdissect_options *ndo,
 			print_unknown_data(ndo, p + 2, "\n\t    ", len - 2);
 		break;
 	}
-	if (ndo->ndo_vflag > 1)
+	if (ndo->ndo_vflag > 1 && ND_TTEST_LEN(p + 2, len - 2))
 		print_unknown_data(ndo, p + 2, "\n\t    ", len - 2); /* exclude TLV header */
 	return len;
 
@@ -1363,7 +1362,6 @@ ppp_hdlc(netdissect_options *ndo,
 	u_char *b, *t, c;
 	const u_char *s;
 	u_int i, proto;
-	const void *sb, *se;
 
 	if (caplen == 0)
 		return;
@@ -1371,9 +1369,11 @@ ppp_hdlc(netdissect_options *ndo,
         if (length == 0)
                 return;
 
-	b = (u_char *)nd_malloc(ndo, caplen);
-	if (b == NULL)
-		return;
+	b = (u_char *)malloc(caplen);
+	if (b == NULL) {
+		(*ndo->ndo_error)(ndo, S_ERR_ND_MEM_ALLOC,
+			"%s: malloc", __func__);
+	}
 
 	/*
 	 * Unescape all the data into a temporary, private, buffer.
@@ -1394,13 +1394,15 @@ ppp_hdlc(netdissect_options *ndo,
 	}
 
 	/*
-	 * Change the end pointer, so bounds checks work.
-	 * Change the pointer to packet data to help debugging.
+	 * Switch to the output buffer for dissection, and save it
+	 * on the buffer stack so it can be freed; our caller must
+	 * pop it when done.
 	 */
-	sb = ndo->ndo_packetp;
-	se = ndo->ndo_snapend;
-	ndo->ndo_packetp = b;
-	ndo->ndo_snapend = t;
+	if (!nd_push_buffer(ndo, b, b, (u_int)(t - b))) {
+		free(b);
+		(*ndo->ndo_error)(ndo, S_ERR_ND_MEM_ALLOC,
+			"%s: can't push buffer on buffer stack", __func__);
+	}
 	length = ND_BYTES_AVAILABLE_AFTER(b);
 
         /* now lets guess about the payload codepoint format */
@@ -1442,13 +1444,11 @@ ppp_hdlc(netdissect_options *ndo,
         }
 
 cleanup:
-	ndo->ndo_packetp = sb;
-	ndo->ndo_snapend = se;
+	nd_pop_packet_info(ndo);
         return;
 
 trunc:
-	ndo->ndo_packetp = sb;
-	ndo->ndo_snapend = se;
+	nd_pop_packet_info(ndo);
 	nd_print_trunc(ndo);
 }
 

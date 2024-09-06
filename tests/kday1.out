@@ -1,1 +1,1 @@
-    1  10:23:33.663606 IP6, wrong link-layer encapsulation (invalid)
+    1  2022-11-15 10:23:33.663606 IP  [version 6 != 4] (invalid)

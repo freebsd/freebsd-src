@@ -1,4 +1,4 @@
-    1  00:20:33.149225750 IP (tos 0x0, ttl 254, id 40207, offset 0, flags [+, DF, rsvd], proto TCP (6), length 296, bad cksum 8e15 (->3eaa)!)
+    1  1992-08-06 00:20:33.149225750 IP (tos 0x0, ttl 254, id 40207, offset 0, flags [+, DF, rsvd], proto TCP (6), length 296, bad cksum 8e15 (->3eaa)!)
     241.0.32.19.179 > 239.0.0.1.0: Flags [none], seq 2146695561:2146695813, win 56026, options [unknown-161,eol], length 252: BGP
 	Update Message (2), length: 45
 	  Withdrawn routes:

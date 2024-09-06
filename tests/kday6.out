@@ -1,4 +1,4 @@
-    1  07:25:56.663614 FRF.16 Frag, seq 693, Flags [Begin], UI e8! IS-IS, length 262137
+    1  1970-01-01 07:25:56.663614 FRF.16 Frag, seq 693, Flags [Begin], UI e8! IS-IS, length 262137
 	L1 LSP, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 131 (131)
 	  lsp-id: 8383.8383.834f.00-60, seq: 0x06418fcc, lifetime: 33667s
 	  chksum: 0x0900 (unverified), PDU length: 33667, Flags: [ Overload bit set, expense ATT bit set, L1 IS ]

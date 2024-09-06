@@ -1,0 +1,1 @@
+    1  2022-08-01 09:09:55.627421 IP6 (hlim 227, next-header Options (0) payload length: 0) 2200::244:212:3fff:feae:22f7 > 2200::240:2:0:0:4: HBH (jumbo: 65537)  [header+payload length 65577 > length 65576] (invalid) ICMP6, echo request, id 4576, seq 51486

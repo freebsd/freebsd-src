@@ -1,4 +1,4 @@
-    1  15:54:23.344158 IP (tos 0x0, ttl 10, id 0, offset 0, flags [none], proto UDP (17), length 61)
+    1  1970-01-06 15:54:23.344158 IP (tos 0x0, ttl 10, id 0, offset 0, flags [none], proto UDP (17), length 61)
     192.85.1.2.1024 > 192.0.0.1.3784: BFDv1, length: 33
 	Control, State Down, Flags: [Authentication Present], Diagnostic: No Diagnostic (0x00)
 	Detection Timer Multiplier: 5 (5000 ms Detection time), BFD Length: 33
@@ -8,7 +8,7 @@
 	  Required min Echo Interval:    0 ms
 	Authentication: Simple Password (1), length: 9
 	  Auth Key ID: 2, Password: secret
-    2  15:54:23.544158 IP (tos 0x0, ttl 10, id 1, offset 0, flags [none], proto UDP (17), length 61)
+    2  1970-01-06 15:54:23.544158 IP (tos 0x0, ttl 10, id 1, offset 0, flags [none], proto UDP (17), length 61)
     192.85.1.2.1024 > 192.0.0.1.3784: BFDv1, length: 33
 	Control, State Down, Flags: [Authentication Present], Diagnostic: No Diagnostic (0x00)
 	Detection Timer Multiplier: 5 (5000 ms Detection time), BFD Length: 33
@@ -18,7 +18,7 @@
 	  Required min Echo Interval:    0 ms
 	Authentication: Simple Password (1), length: 9
 	  Auth Key ID: 2, Password: secret
-    3  15:54:23.744158 IP (tos 0x0, ttl 10, id 2, offset 0, flags [none], proto UDP (17), length 61)
+    3  1970-01-06 15:54:23.744158 IP (tos 0x0, ttl 10, id 2, offset 0, flags [none], proto UDP (17), length 61)
     192.85.1.2.1024 > 192.0.0.1.3784: BFDv1, length: 33
 	Control, State Down, Flags: [Authentication Present], Diagnostic: No Diagnostic (0x00)
 	Detection Timer Multiplier: 5 (5000 ms Detection time), BFD Length: 33
@@ -28,7 +28,7 @@
 	  Required min Echo Interval:    0 ms
 	Authentication: Simple Password (1), length: 9
 	  Auth Key ID: 2, Password: secret
-    4  15:54:23.944158 IP (tos 0x0, ttl 10, id 3, offset 0, flags [none], proto UDP (17), length 61)
+    4  1970-01-06 15:54:23.944158 IP (tos 0x0, ttl 10, id 3, offset 0, flags [none], proto UDP (17), length 61)
     192.85.1.2.1024 > 192.0.0.1.3784: BFDv1, length: 33
 	Control, State Down, Flags: [Authentication Present], Diagnostic: No Diagnostic (0x00)
 	Detection Timer Multiplier: 5 (5000 ms Detection time), BFD Length: 33
@@ -38,7 +38,7 @@
 	  Required min Echo Interval:    0 ms
 	Authentication: Simple Password (1), length: 9
 	  Auth Key ID: 2, Password: secret
-    5  15:54:24.144158 IP (tos 0x0, ttl 10, id 4, offset 0, flags [none], proto UDP (17), length 61)
+    5  1970-01-06 15:54:24.144158 IP (tos 0x0, ttl 10, id 4, offset 0, flags [none], proto UDP (17), length 61)
     192.85.1.2.1024 > 192.0.0.1.3784: BFDv1, length: 33
 	Control, State Down, Flags: [Authentication Present], Diagnostic: No Diagnostic (0x00)
 	Detection Timer Multiplier: 5 (5000 ms Detection time), BFD Length: 33
@@ -48,7 +48,7 @@
 	  Required min Echo Interval:    0 ms
 	Authentication: Simple Password (1), length: 9
 	  Auth Key ID: 2, Password: secret
-    6  15:54:24.344158 IP (tos 0x0, ttl 10, id 5, offset 0, flags [none], proto UDP (17), length 61)
+    6  1970-01-06 15:54:24.344158 IP (tos 0x0, ttl 10, id 5, offset 0, flags [none], proto UDP (17), length 61)
     192.85.1.2.1024 > 192.0.0.1.3784: BFDv1, length: 33
 	Control, State Down, Flags: [Authentication Present], Diagnostic: No Diagnostic (0x00)
 	Detection Timer Multiplier: 5 (5000 ms Detection time), BFD Length: 33
@@ -58,7 +58,7 @@
 	  Required min Echo Interval:    0 ms
 	Authentication: Simple Password (1), length: 9
 	  Auth Key ID: 2, Password: secret
-    7  15:54:24.544158 IP (tos 0x0, ttl 10, id 6, offset 0, flags [none], proto UDP (17), length 61)
+    7  1970-01-06 15:54:24.544158 IP (tos 0x0, ttl 10, id 6, offset 0, flags [none], proto UDP (17), length 61)
     192.85.1.2.1024 > 192.0.0.1.3784: BFDv1, length: 33
 	Control, State Down, Flags: [Authentication Present], Diagnostic: No Diagnostic (0x00)
 	Detection Timer Multiplier: 5 (5000 ms Detection time), BFD Length: 33
@@ -68,7 +68,7 @@
 	  Required min Echo Interval:    0 ms
 	Authentication: Simple Password (1), length: 9
 	  Auth Key ID: 2, Password: secret
-    8  15:54:24.744158 IP (tos 0x0, ttl 10, id 7, offset 0, flags [none], proto UDP (17), length 61)
+    8  1970-01-06 15:54:24.744158 IP (tos 0x0, ttl 10, id 7, offset 0, flags [none], proto UDP (17), length 61)
     192.85.1.2.1024 > 192.0.0.1.3784: BFDv1, length: 33
 	Control, State Down, Flags: [Authentication Present], Diagnostic: No Diagnostic (0x00)
 	Detection Timer Multiplier: 5 (5000 ms Detection time), BFD Length: 33
@@ -78,7 +78,7 @@
 	  Required min Echo Interval:    0 ms
 	Authentication: Simple Password (1), length: 9
 	  Auth Key ID: 2, Password: secret
-    9  15:54:24.944158 IP (tos 0x0, ttl 10, id 8, offset 0, flags [none], proto UDP (17), length 61)
+    9  1970-01-06 15:54:24.944158 IP (tos 0x0, ttl 10, id 8, offset 0, flags [none], proto UDP (17), length 61)
     192.85.1.2.1024 > 192.0.0.1.3784: BFDv1, length: 33
 	Control, State Down, Flags: [Authentication Present], Diagnostic: No Diagnostic (0x00)
 	Detection Timer Multiplier: 5 (5000 ms Detection time), BFD Length: 33
@@ -88,7 +88,7 @@
 	  Required min Echo Interval:    0 ms
 	Authentication: Simple Password (1), length: 9
 	  Auth Key ID: 2, Password: secret
-   10  15:54:25.144158 IP (tos 0x0, ttl 10, id 9, offset 0, flags [none], proto UDP (17), length 61)
+   10  1970-01-06 15:54:25.144158 IP (tos 0x0, ttl 10, id 9, offset 0, flags [none], proto UDP (17), length 61)
     192.85.1.2.1024 > 192.0.0.1.3784: BFDv1, length: 33
 	Control, State Down, Flags: [Authentication Present], Diagnostic: No Diagnostic (0x00)
 	Detection Timer Multiplier: 5 (5000 ms Detection time), BFD Length: 33
@@ -98,7 +98,7 @@
 	  Required min Echo Interval:    0 ms
 	Authentication: Simple Password (1), length: 9
 	  Auth Key ID: 2, Password: secret
-   11  15:54:25.344158 IP (tos 0x0, ttl 10, id 10, offset 0, flags [none], proto UDP (17), length 61)
+   11  1970-01-06 15:54:25.344158 IP (tos 0x0, ttl 10, id 10, offset 0, flags [none], proto UDP (17), length 61)
     192.85.1.2.1024 > 192.0.0.1.3784: BFDv1, length: 33
 	Control, State Down, Flags: [Authentication Present], Diagnostic: No Diagnostic (0x00)
 	Detection Timer Multiplier: 5 (5000 ms Detection time), BFD Length: 33
@@ -108,7 +108,7 @@
 	  Required min Echo Interval:    0 ms
 	Authentication: Simple Password (1), length: 9
 	  Auth Key ID: 2, Password: secret
-   12  15:54:25.544158 IP (tos 0x0, ttl 10, id 11, offset 0, flags [none], proto UDP (17), length 61)
+   12  1970-01-06 15:54:25.544158 IP (tos 0x0, ttl 10, id 11, offset 0, flags [none], proto UDP (17), length 61)
     192.85.1.2.1024 > 192.0.0.1.3784: BFDv1, length: 33
 	Control, State Down, Flags: [Authentication Present], Diagnostic: No Diagnostic (0x00)
 	Detection Timer Multiplier: 5 (5000 ms Detection time), BFD Length: 33
@@ -118,7 +118,7 @@
 	  Required min Echo Interval:    0 ms
 	Authentication: Simple Password (1), length: 9
 	  Auth Key ID: 2, Password: secret
-   13  15:54:25.744158 IP (tos 0x0, ttl 10, id 12, offset 0, flags [none], proto UDP (17), length 61)
+   13  1970-01-06 15:54:25.744158 IP (tos 0x0, ttl 10, id 12, offset 0, flags [none], proto UDP (17), length 61)
     192.85.1.2.1024 > 192.0.0.1.3784: BFDv1, length: 33
 	Control, State Down, Flags: [Authentication Present], Diagnostic: No Diagnostic (0x00)
 	Detection Timer Multiplier: 5 (5000 ms Detection time), BFD Length: 33
@@ -128,7 +128,7 @@
 	  Required min Echo Interval:    0 ms
 	Authentication: Simple Password (1), length: 9
 	  Auth Key ID: 2, Password: secret
-   14  15:54:25.944158 IP (tos 0x0, ttl 10, id 13, offset 0, flags [none], proto UDP (17), length 61)
+   14  1970-01-06 15:54:25.944158 IP (tos 0x0, ttl 10, id 13, offset 0, flags [none], proto UDP (17), length 61)
     192.85.1.2.1024 > 192.0.0.1.3784: BFDv1, length: 33
 	Control, State Down, Flags: [Authentication Present], Diagnostic: No Diagnostic (0x00)
 	Detection Timer Multiplier: 5 (5000 ms Detection time), BFD Length: 33
@@ -138,7 +138,7 @@
 	  Required min Echo Interval:    0 ms
 	Authentication: Simple Password (1), length: 9
 	  Auth Key ID: 2, Password: secret
-   15  15:54:26.144158 IP (tos 0x0, ttl 10, id 14, offset 0, flags [none], proto UDP (17), length 61)
+   15  1970-01-06 15:54:26.144158 IP (tos 0x0, ttl 10, id 14, offset 0, flags [none], proto UDP (17), length 61)
     192.85.1.2.1024 > 192.0.0.1.3784: BFDv1, length: 33
 	Control, State Down, Flags: [Authentication Present], Diagnostic: No Diagnostic (0x00)
 	Detection Timer Multiplier: 5 (5000 ms Detection time), BFD Length: 33
