@@ -2825,7 +2825,7 @@ do_opt(char **cpp, char **endcpp, struct exportlist *ep, struct grouplist *grp,
 {
 	char *cpoptarg, *cpoptend;
 	char *cp, *endcp, *cpopt, savedc, savedc2;
-	int allflag, usedarg;
+	int allflag, usedarg, fnd_equal;
 
 	savedc2 = '\0';
 	cpopt = *cpp;
@@ -2836,14 +2836,18 @@ do_opt(char **cpp, char **endcpp, struct exportlist *ep, struct grouplist *grp,
 	while (cpopt && *cpopt) {
 		allflag = 1;
 		usedarg = -2;
+		fnd_equal = 0;
 		if ((cpoptend = strchr(cpopt, ','))) {
 			*cpoptend++ = '\0';
-			if ((cpoptarg = strchr(cpopt, '=')))
+			if ((cpoptarg = strchr(cpopt, '='))) {
 				*cpoptarg++ = '\0';
+				fnd_equal = 1;
+			}
 		} else {
-			if ((cpoptarg = strchr(cpopt, '=')))
+			if ((cpoptarg = strchr(cpopt, '='))) {
 				*cpoptarg++ = '\0';
-			else {
+				fnd_equal = 1;
+			} else {
 				*cp = savedc;
 				nextfield(&cp, &endcp);
 				**endcpp = '\0';
@@ -2856,6 +2860,10 @@ do_opt(char **cpp, char **endcpp, struct exportlist *ep, struct grouplist *grp,
 			}
 		}
 		if (!strcmp(cpopt, "ro") || !strcmp(cpopt, "o")) {
+			if (fnd_equal == 1) {
+				syslog(LOG_ERR, "= after op: %s", cpopt);
+				return (1);
+			}
 			*exflagsp |= MNT_EXRDONLY;
 		} else if (cpoptarg && (!strcmp(cpopt, "maproot") ||
 		    !(allflag = strcmp(cpopt, "mapall")) ||
@@ -2894,15 +2902,31 @@ do_opt(char **cpp, char **endcpp, struct exportlist *ep, struct grouplist *grp,
 			usedarg++;
 			opt_flags |= OP_NET;
 		} else if (!strcmp(cpopt, "alldirs")) {
+			if (fnd_equal == 1) {
+				syslog(LOG_ERR, "= after op: %s", cpopt);
+				return (1);
+			}
 			opt_flags |= OP_ALLDIRS;
 		} else if (!strcmp(cpopt, "public")) {
+			if (fnd_equal == 1) {
+				syslog(LOG_ERR, "= after op: %s", cpopt);
+				return (1);
+			}
 			*exflagsp |= MNT_EXPUBLIC;
 		} else if (!strcmp(cpopt, "webnfs")) {
+			if (fnd_equal == 1) {
+				syslog(LOG_ERR, "= after op: %s", cpopt);
+				return (1);
+			}
 			*exflagsp |= (MNT_EXPUBLIC|MNT_EXRDONLY|MNT_EXPORTANON);
 			opt_flags |= OP_MAPALL;
 		} else if (cpoptarg && !strcmp(cpopt, "index")) {
 			ep->ex_indexfile = strdup(cpoptarg);
 		} else if (!strcmp(cpopt, "quiet")) {
+			if (fnd_equal == 1) {
+				syslog(LOG_ERR, "= after op: %s", cpopt);
+				return (1);
+			}
 			opt_flags |= OP_QUIET;
 		} else if (cpoptarg && !strcmp(cpopt, "sec")) {
 			if (parsesec(cpoptarg, ep))
@@ -2910,10 +2934,22 @@ do_opt(char **cpp, char **endcpp, struct exportlist *ep, struct grouplist *grp,
 			opt_flags |= OP_SEC;
 			usedarg++;
 		} else if (!strcmp(cpopt, "tls")) {
+			if (fnd_equal == 1) {
+				syslog(LOG_ERR, "= after op: %s", cpopt);
+				return (1);
+			}
 			*exflagsp |= MNT_EXTLS;
 		} else if (!strcmp(cpopt, "tlscert")) {
+			if (fnd_equal == 1) {
+				syslog(LOG_ERR, "= after op: %s", cpopt);
+				return (1);
+			}
 			*exflagsp |= (MNT_EXTLS | MNT_EXTLSCERT);
 		} else if (!strcmp(cpopt, "tlscertuser")) {
+			if (fnd_equal == 1) {
+				syslog(LOG_ERR, "= after op: %s", cpopt);
+				return (1);
+			}
 			*exflagsp |= (MNT_EXTLS | MNT_EXTLSCERT |
 			    MNT_EXTLSCERTUSER);
 		} else {
