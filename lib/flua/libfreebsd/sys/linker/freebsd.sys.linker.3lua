@@ -1,0 +1,67 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2024, Baptiste Daroussin <bapt@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd September 6, 2024
+.Dt FREEBSD.SYS.LINKER 3lua
+.Os
+.Sh NAME
+.Nm freebsd.sys.linker
+.Nd Lua binding to
+.Fx 's
+Linker functions
+.Sh SYNOPSIS
+.Bd -literal
+local linker = require('freebsd.sys.linker')
+.Ed
+.Pp
+.Bl -tag -width XXXX -compact
+.It Dv fileid, err, errno = linker.kldload(name)
+.It Dv ok, err, errno = linker.kldunload(fileid|name)
+.El
+.Sh DESCRIPTION
+The
+.Nm
+module is a binding to the
+.Fx 's
+linker functions.
+List of functions:
+.Bl -tag -width XXXX
+.It Dv fileid, err = freebsd.sys.linker.kldload(name)
+Load the kernel module named
+.Fa name
+and return the identifier
+.Pq fileid
+as an interger.
+.It Dv ok, err, errno = freebsd.sys.linker.kldunload(fileid|name)
+Unload the kernel module identifier either by
+.Fa name
+as a string, or
+.Fa fileid
+as an integer.
+.El
+.Sh SEE ALSO
+.Xr kldload 2 ,
+.Xr kldunload 2
