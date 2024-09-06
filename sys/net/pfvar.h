@@ -1254,7 +1254,7 @@ void			pf_state_export(struct pf_state_export *,
 /* pflog */
 struct pf_kruleset;
 struct pf_pdesc;
-typedef int pflog_packet_t(struct pfi_kkif *, struct mbuf *, sa_family_t,
+typedef int pflog_packet_t(struct pfi_kkif *, struct mbuf *,
     uint8_t, u_int8_t, struct pf_krule *, struct pf_krule *, struct pf_kruleset *,
     struct pf_pdesc *, int);
 extern pflog_packet_t		*pflog_packet_ptr;
