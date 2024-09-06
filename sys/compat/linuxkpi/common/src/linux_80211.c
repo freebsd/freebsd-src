@@ -348,7 +348,7 @@ lkpi_lsta_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN],
 
 	sta->deflink.smps_mode = IEEE80211_SMPS_OFF;
 	sta->deflink.bandwidth = IEEE80211_STA_RX_BW_20;
-	sta->deflink.rx_nss = 0;
+	sta->deflink.rx_nss = 1;
 
 	ht_rx_nss = 0;
 #if defined(LKPI_80211_HT)
