@@ -1385,7 +1385,7 @@ again:
 
 int
 pf_normalize_tcp(struct pfi_kkif *kif, struct mbuf *m, int ipoff,
-    int off, void *h, struct pf_pdesc *pd)
+    int off, struct pf_pdesc *pd)
 {
 	struct pf_krule	*r, *rm = NULL;
 	struct tcphdr	*th = &pd->hdr.tcp;
@@ -2193,7 +2193,7 @@ pf_scan_sctp(struct mbuf *m, int off, struct pf_pdesc *pd,
 
 int
 pf_normalize_sctp(int dir, struct pfi_kkif *kif, struct mbuf *m, int ipoff,
-    int off, void *h, struct pf_pdesc *pd)
+    int off, struct pf_pdesc *pd)
 {
 	struct pf_krule	*r, *rm = NULL;
 	struct sctphdr	*sh = &pd->hdr.sctp;
