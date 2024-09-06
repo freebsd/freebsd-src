@@ -40,6 +40,9 @@
 
 #include <sys/pcpu.h>
 
+/* On x86 Xen is probed very early, so this is simply xen_domain() */
+#define xen_domain_early() xen_domain()
+
 /* If non-zero, the hypervisor has been configured to use a direct vector */
 extern int xen_vector_callback_enabled;
 
