@@ -2456,8 +2456,8 @@ ${_bt}-usr.sbin/kldxref: ${_bt_libelf_depend}
 # 13.0-CURRENT cycle, thus needs to be built on -older releases and stable
 # branches.
 .if ${BOOTSTRAPPING} < 1300059
-${_bt}-libexec/flua: ${_bt}-lib/liblua ${_bt}-lib/libucl
-_flua= lib/liblua lib/libucl libexec/flua
+${_bt}-libexec/flua: ${_bt}-lib/liblua
+_flua= lib/liblua libexec/flua
 .endif
 
 # r245440 mtree -N support added
@@ -3178,7 +3178,8 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		lib/libutil lib/libpjdlog ${_lib_libypclnt} lib/libz lib/msun \
 		lib/libxo \
 		${_secure_lib_libcrypto} ${_secure_lib_libssl} \
-		${_lib_libldns} ${_secure_lib_libssh}
+		${_lib_libldns} ${_secure_lib_libssh} \
+		lib/libucl
 
 .if ${MK_DIALOG} != "no"
 _prebuild_libs+= gnu/lib/libdialog
