@@ -9,16 +9,16 @@ asctime, ctime, difftime, gmtime, localtime, mktime \- convert date and time
 .el .ds - \-
 .B #include <time.h>
 .PP
-.BR "extern char *tzname[];" " /\(** (optional) \(**/"
-.PP
 .B [[deprecated]] char *ctime(time_t const *clock);
 .PP
+/* Only in POSIX.1-2017 and earlier.  */
 .B char *ctime_r(time_t const *clock, char *buf);
 .PP
 .B double difftime(time_t time1, time_t time0);
 .PP
 .B [[deprecated]] char *asctime(struct tm const *tm);
 .PP
+/* Only in POSIX.1-2017 and earlier.  */
 .B "char *asctime_r(struct tm const *restrict tm,"
 .B "    char *restrict result);"
 .PP
@@ -112,17 +112,6 @@ The
 function
 corrects for the time zone and any time zone adjustments
 (such as Daylight Saving Time in the United States).
-After filling in the
-.q "tm"
-structure,
-.B localtime
-sets the
-.BR tm_isdst 'th
-element of
-.B tzname
-to a pointer to a string that's the time zone abbreviation to be used with
-.BR localtime 's
-return value.
 .PP
 The
 .B gmtime
@@ -191,9 +180,19 @@ are determined.
 The
 .B mktime
 function
-returns the specified calendar time;
+returns the specified calendar time.
 If the calendar time cannot be represented,
-it returns \-1.
+it returns \-1 without updating the structure.
+To distinguish failure from a valid \-1 return,
+you can set
+.B tm_wday
+or
+.B tm_yday
+to a negative value before calling
+.BR mktime ;
+if that value is still negative when
+.B mktime
+returns, the calendar time could not be represented.
 .PP
 The
 .B difftime
@@ -213,6 +212,13 @@ and
 functions
 are like their unsuffixed counterparts, except that they accept an
 additional argument specifying where to store the result if successful.
+The
+.B ctime_r
+and
+.B asctime_r
+functions are present only on systems supporting POSIX.1-2017 and earlier,
+as they are removed in POSIX.1-2024 and user code can define these
+functions with other meanings.
 .PP
 The
 .B localtime_rz
@@ -275,21 +281,43 @@ from UT, with positive values indicating east
 of the Prime Meridian.
 The field's name is derived from Greenwich Mean Time, a precursor of UT.
 .PP
-In
+In platforms conforming to POSIX.1-2024 the
 .B "struct tm"
 the
 .B tm_zone
 and
 .B tm_gmtoff
-fields exist, and are filled in, only if arrangements to do
-so were made when the library containing these functions was
-created.
-Similarly, the
-.B tzname
-variable is optional; also, there is no guarantee that
-.B tzname
-will
-continue to exist in this form in future releases of this code.
+fields exist, and are filled in.
+For
+.B localtime_rz
+and
+.B mktime_rz
+the storage lifetime of the strings addressed by
+.B tm_zone
+extends until the corresponding
+.B timezone_t
+object is freed via
+.BR tzfree .
+For the other functions the lifetime extends until the
+.I TZ
+environment variable changes state and
+.B tzset
+is then called.
+.PP
+As a side effect, the
+.BR ctime ,
+.B localtime
+and
+.B mktime
+functions also behave as if
+.B tzset
+were called.
+The
+.B ctime_r
+and
+.B localtime_r
+functions might (or might not) also behave this way.
+This is for compatibility with older platforms, as required by POSIX.
 .SH FILES
 .ta \w'/usr/share/zoneinfo/posixrules\0\0'u
 /etc/localtime	local timezone file
@@ -303,11 +331,11 @@ continue to exist in this form in future releases of this code.
 If /usr/share/zoneinfo/GMT is absent,
 UTC leap seconds are loaded from /usr/share/zoneinfo/GMT0 if present.
 .SH SEE ALSO
-getenv(3),
-newstrftime(3),
-newtzset(3),
-time(2),
-tzfile(5)
+.BR getenv (3),
+.BR newstrftime (3),
+.BR newtzset (3),
+.BR time (2),
+.BR tzfile (5).
 .SH NOTES
 The return values of
 .BR asctime ,
@@ -317,20 +345,6 @@ and
 .B localtime
 point to static data
 overwritten by each call.
-The
-.B tzname
-variable (once set) and the
-.B tm_zone
-field of a returned
-.B "struct tm"
-both point to an array of characters that
-can be freed or overwritten by later calls to the functions
-.BR localtime ,
-.BR tzfree ,
-and
-.BR tzset ,
-if these functions affect the timezone information that specifies the
-abbreviation in question.
 The remaining functions and data are thread-safe.
 .PP
 The

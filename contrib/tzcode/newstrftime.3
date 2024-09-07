@@ -91,11 +91,11 @@ as specified by brackets in the description.
 If a bracketed member name is followed by
 .q + ,
 .B strftime
-can use the named member even though POSIX.1-2017 does not list it;
+can use the named member even though POSIX.1-2024 does not list it;
 if the name is followed by
 .q \*- ,
 .B strftime
-ignores the member even though POSIX.1-2017 lists it
+ignores the member even though POSIX.1-2024 lists it
 which means portable code should set it.
 For portability,
 .BI * timeptr
@@ -137,8 +137,8 @@ is replaced by the locale's appropriate date and time representation.
 .IR tm_hour ,
 .IR tm_min ,
 .IR tm_sec ,
-.IR tm_gmtoff +,
-.IR tm_zone +,
+.IR tm_gmtoff ,
+.IR tm_zone ,
 .IR tm_isdst \*-].
 .TP
 %D
@@ -326,8 +326,8 @@ is replaced by the locale's appropriate time representation.
 .IR tm_hour ,
 .IR tm_min ,
 .IR tm_sec ,
-.IR tm_gmtoff +,
-.IR tm_zone +,
+.IR tm_gmtoff ,
+.IR tm_zone ,
 .IR tm_isdst \*-].
 .TP
 %x
@@ -355,7 +355,7 @@ is replaced by the year without century as a decimal number [00,99].
 %Z
 is replaced by the time zone abbreviation,
 or by the empty string if this is not determinable.
-.RI [ tm_zone +,
+.RI [ tm_zone ,
 .IR tm_isdst \*-]
 .TP
 %z
@@ -369,7 +369,7 @@ but local time is indeterminate; by convention this is used for
 locations while uninhabited, and corresponds to a zero offset when the
 time zone abbreviation begins with
 .q "\*-" .
-.RI [ tm_gmtoff +,
+.RI [ tm_gmtoff ,
 .IR tm_zone +,
 .IR tm_isdst \*-]
 .TP
@@ -398,7 +398,7 @@ also behaves as if
 were called.
 This is for compatibility with older platforms, as required by POSIX;
 it is not needed for
-.BR tzset 's
+.BR strftime 's
 own use.
 .SH "RETURN VALUE"
 If the conversion is successful,
@@ -428,11 +428,11 @@ conversion and the number of seconds since the Epoch cannot be represented
 in a
 .c time_t .
 .SH SEE ALSO
-date(1),
-getenv(3),
-newctime(3),
-newtzset(3),
-time(2),
-tzfile(5)
+.BR date (1),
+.BR getenv (3),
+.BR newctime (3),
+.BR newtzset (3),
+.BR time (2),
+.BR tzfile (5).
 .SH BUGS
 There is no conversion specification for the phase of the moon.

@@ -20,12 +20,6 @@ REPORT_BUGS_TO=tz@iana.org
 #	Korn Shell <http://www.kornshell.com/>
 #	MirBSD Korn Shell <http://www.mirbsd.org/mksh.htm>
 #
-# For portability to Solaris 10 /bin/sh (supported by Oracle through
-# January 2027) this script avoids some POSIX features and common
-# extensions, such as $(...), $((...)), ! CMD, unquoted ^, ${#ID},
-# ${ID##PAT}, ${ID%%PAT}, and $10.  Although some of these constructs
-# work sometimes, it's simpler to avoid them entirely.
-#
 # This script also uses several features of POSIX awk.
 # If your host lacks awk, or has an old awk that does not conform to POSIX,
 # you can use any of the following free programs instead:
@@ -45,20 +39,12 @@ set -f
 
 # Specify default values for environment variables if they are unset.
 : ${AWK=awk}
-: ${PWD=`pwd`}
 : ${TZDIR=$PWD}
 
 # Output one argument as-is to standard output, with trailing newline.
 # Safer than 'echo', which can mishandle '\' or leading '-'.
 say() {
   printf '%s\n' "$1"
-}
-
-# Check for awk POSIX compliance.
-($AWK -v x=y 'BEGIN { exit 123 }') <>/dev/null >&0 2>&0
-[ $? = 123 ] || {
-  say >&2 "$0: Sorry, your '$AWK' program is not POSIX compatible."
-  exit 1
 }
 
 coord=
@@ -117,8 +103,7 @@ then
 else
   doselect() {
     # Field width of the prompt numbers.
-    print_nargs_length="BEGIN {print length(\"$#\");}"
-    select_width=`$AWK "$print_nargs_length"`
+    select_width=${##}
 
     select_i=
 
@@ -129,14 +114,14 @@ else
 	select_i=0
 	for select_word
 	do
-	  select_i=`$AWK "BEGIN { print $select_i + 1 }"`
+	  select_i=$(($select_i + 1))
 	  printf >&2 "%${select_width}d) %s\\n" $select_i "$select_word"
 	done;;
       *[!0-9]*)
 	echo >&2 'Please enter a number in range.';;
       *)
 	if test 1 -le $select_i && test $select_i -le $#; then
-	  shift `$AWK "BEGIN { print $select_i - 1 }"`
+	  shift $(($select_i - 1))
 	  select_result=$1
 	  break
 	fi
@@ -170,7 +155,7 @@ do
   esac
 done
 
-shift `$AWK "BEGIN { print $OPTIND - 1 }"`
+shift $(($OPTIND - 1))
 case $# in
 0) ;;
 *) say >&2 "$0: $1: unknown argument"; exit 1
@@ -178,11 +163,13 @@ esac
 
 # translit=true to try transliteration.
 # This is false if U+12345 CUNEIFORM SIGN URU TIMES KI has length 1
-# which means awk (and presumably the shell) do not need transliteration.
-if $AWK 'BEGIN { u12345 = "\360\222\215\205"; exit length(u12345) == 1 }'; then
-  translit=true
-else
-  translit=false
+# which means the shell and (presumably) awk do not need transliteration.
+# It is true if the byte string has some other length in characters, or
+# if this is a POSIX.1-2017 or earlier shell that does not support $'...'.
+CUNEIFORM_SIGN_URU_TIMES_KI=$'\360\222\215\205'
+if test ${#CUNEIFORM_SIGN_URU_TIMES_KI} = 1
+then translit=false
+else translit=true
 fi
 
 # Read into shell variable $1 the contents of file $2.
@@ -192,10 +179,10 @@ fi
 # if that does not work, fall back on 'cat'.
 read_file() {
   { $translit && {
-    eval "$1=\`(iconv -f UTF-8 -t //TRANSLIT) 2>/dev/null <\"\$2\"\`" ||
-    eval "$1=\`(iconv -f UTF-8) 2>/dev/null <\"\$2\"\`"
+    eval "$1=\$( (iconv -f UTF-8 -t //TRANSLIT) 2>/dev/null <\"\$2\")" ||
+    eval "$1=\$( (iconv -f UTF-8) 2>/dev/null <\"\$2\")"
   }; } ||
-  eval "$1=\`cat <\"\$2\"\`" || {
+  eval "$1=\$(cat <\"\$2\")" || {
     say >&2 "$0: time zone files are not set up correctly"
     exit 1
   }
@@ -403,7 +390,7 @@ while
     echo >&2 \
       'Please select a continent, ocean, "coord", "TZ", "time", or "now".'
 
-    quoted_continents=`
+    quoted_continents=$(
       $AWK '
 	function handle_entry(entry) {
 	  entry = substr(entry, 1, index(entry, "/") - 1)
@@ -433,12 +420,12 @@ while
       sort -u |
       tr '\n' ' '
       echo ''
-    `
+    )
 
     eval '
       doselect '"$quoted_continents"' \
 	"coord - I want to use geographical coordinates." \
-	"TZ - I want to specify the timezone using a POSIX.1-2017 TZ string." \
+	"TZ - I want to specify the timezone using a proleptic TZ string." \
 	"time - I know local time already." \
 	"now - Like \"time\", but configure only for timestamps from now on."
       continent=$select_result
@@ -462,16 +449,17 @@ while
 
   case $continent in
   TZ)
-    # Ask the user for a POSIX.1-2017 TZ string.  Check that it conforms.
+    # Ask the user for a proleptic TZ string.  Check that it conforms.
     check_POSIX_TZ_string='
       BEGIN {
 	tz = substr(ARGV[1], 2)
 	ARGV[1] = ""
 	tzname = ("(<[[:alnum:]+-][[:alnum:]+-][[:alnum:]+-]+>" \
 		  "|[[:alpha:]][[:alpha:]][[:alpha:]]+)")
-	time = ("(2[0-4]|[0-1]?[0-9])" \
-		"(:[0-5][0-9](:[0-5][0-9])?)?")
-	offset = "[-+]?" time
+	sign = "[-+]?"
+	hhmm = "(:[0-5][0-9](:[0-5][0-9])?)?"
+	offset = sign "(2[0-4]|[0-1]?[0-9])" hhmm
+	time = sign "(16[0-7]|(1[0-5]|[0-9]?)[0-9])" hhmm
 	mdate = "M([1-9]|1[0-2])\\.[1-5]\\.[0-6]"
 	jdate = ("((J[1-9]|[0-9]|J?[1-9][0-9]" \
 		 "|J?[1-2][0-9][0-9])|J?3[0-5][0-9]|J?36[0-5])")
@@ -492,7 +480,7 @@ while
       read tz
       $AWK "$check_POSIX_TZ_string" ="$tz"
     do
-      say >&2 "'$tz' is not a conforming POSIX.1-2017 timezone string."
+      say >&2 "'$tz' is not a conforming POSIX proleptic TZ string."
     done
     TZ_for_date=$tz;;
   *)
@@ -507,14 +495,14 @@ while
 	  '74 degrees 3 minutes west.'
 	read coord
       esac
-      distance_table=`
+      distance_table=$(
 	$AWK \
 	  "$output_distances_or_times" \
 	  ="$coord" ="$TZ_COUNTRY_TABLE" ="$TZ_ZONE_TABLE" |
 	sort -n |
 	$AWK "{print} NR == $location_limit { exit }"
-      `
-      regions=`
+      )
+      regions=$(
 	$AWK '
 	  BEGIN {
 	    distance_table = substr(ARGV[1], 2)
@@ -526,13 +514,13 @@ while
 	    }
 	  }
 	' ="$distance_table"
-      `
+      )
       echo >&2 'Please select one of the following timezones,'
       echo >&2 'listed roughly in increasing order' \
 	"of distance from $coord".
       doselect $regions
       region=$select_result
-      tz=`
+      tz=$(
 	$AWK '
 	  BEGIN {
 	    distance_table = substr(ARGV[1], 2)
@@ -546,22 +534,22 @@ while
 	    }
 	  }
 	' ="$distance_table" ="$region"
-      `;;
+      );;
     *)
       case $continent in
       now|time)
 	minute_format='%a %b %d %H:%M'
-	old_minute=`TZ=UTC0 date +"$minute_format"`
+	old_minute=$(TZ=UTC0 date +"$minute_format")
 	for i in 1 2 3
 	do
-	  time_table_command=`
+	  time_table_command=$(
 	    $AWK \
 	      -v output_times=1 \
 	      "$output_distances_or_times" \
 	      = = ="$TZ_ZONE_TABLE"
-	  `
-	  time_table=`eval "$time_table_command"`
-	  new_minute=`TZ=UTC0 date +"$minute_format"`
+	  )
+	  time_table=$(eval "$time_table_command")
+	  new_minute=$(TZ=UTC0 date +"$minute_format")
 	  case $old_minute in
 	  "$new_minute") break
 	  esac
@@ -569,11 +557,11 @@ while
 	done
 	echo >&2 "The system says Universal Time is $new_minute."
 	echo >&2 "Assuming that's correct, what is the local time?"
-	sorted_table=`say "$time_table" | sort -k2n -k2,5 -k1n` || {
+	sorted_table=$(say "$time_table" | sort -k2n -k2,5 -k1n) || {
 	  say >&2 "$0: cannot sort time table"
 	  exit 1
 	}
-	eval doselect `
+	eval doselect $(
 	  $AWK '
 	    BEGIN {
 	      sorted_table = substr(ARGV[1], 2)
@@ -590,10 +578,10 @@ while
 	      }
 	    }
 	  ' ="$sorted_table"
-	`
+	)
 	time=$select_result
 	continent_re='^'
-	zone_table=`
+	zone_table=$(
 	  $AWK '
 	    BEGIN {
 	      time = substr(ARGV[1], 2)
@@ -609,13 +597,13 @@ while
 	      }
 	    }
 	  ' ="$time" ="$time_table"
-	`
-	countries=`
+	)
+	countries=$(
 	  $AWK \
 	    "$output_country_list" \
 	    ="$continent_re" ="$TZ_COUNTRY_TABLE" ="$zone_table" |
 	  sort -f
-	`
+	)
 	;;
       *)
 	continent_re="^$continent/"
@@ -623,16 +611,16 @@ while
       esac
 
       # Get list of names of countries in the continent or ocean.
-      countries=`
+      countries=$(
 	$AWK \
 	  "$output_country_list" \
 	  ="$continent_re" ="$TZ_COUNTRY_TABLE" ="$zone_table" |
 	sort -f
-      `
+      )
       # If all zone table entries have comments, and there are
       # at most 22 entries, asked based on those comments.
       # This fits the prompt onto old-fashioned 24-line screens.
-      regions=`
+      regions=$(
 	$AWK '
 	  BEGIN {
 	    TZ_ZONE_TABLE = substr(ARGV[1], 2)
@@ -653,7 +641,7 @@ while
 		print comment[i]
 	  }
 	' ="$zone_table"
-      `
+      )
 
       # If there's more than one country, ask the user which one.
       case $countries in
@@ -669,7 +657,7 @@ while
 
 
       # Get list of timezones in the country.
-      regions=`
+      regions=$(
 	$AWK '
 	  BEGIN {
 	    country = substr(ARGV[1], 2)
@@ -696,7 +684,7 @@ while
 	    }
 	  }
 	' ="$country" ="$TZ_COUNTRY_TABLE" ="$zone_table"
-      `
+      )
 
       # If there's more than one region, ask the user which one.
       case $regions in
@@ -707,7 +695,7 @@ while
       esac
 
       # Determine tz from country and region.
-      tz=`
+      tz=$(
 	$AWK '
 	  BEGIN {
 	    country = substr(ARGV[1], 2)
@@ -735,7 +723,7 @@ while
 	    }
 	  }
 	' ="$country" ="$region" ="$TZ_COUNTRY_TABLE" ="$zone_table"
-      `
+      )
     esac
 
     # Make sure the corresponding zoneinfo file exists.
@@ -754,14 +742,11 @@ while
   extra_info=
   for i in 1 2 3 4 5 6 7 8
   do
-    TZdate=`LANG=C TZ="$TZ_for_date" date`
-    UTdate=`LANG=C TZ=UTC0 date`
-    if $AWK '
-	  function getsecs(d) {
-	    return match(d, /.*:[0-5][0-9]/) ? substr(d, RLENGTH - 1, 2) : ""
-	  }
-	  BEGIN { exit getsecs(ARGV[1]) != getsecs(ARGV[2]) }
-       ' ="$TZdate" ="$UTdate"
+    TZdate=$(LANG=C TZ="$TZ_for_date" date)
+    UTdate=$(LANG=C TZ=UTC0 date)
+    TZsecsetc=${TZdate##*[0-5][0-9]:}
+    UTsecsetc=${UTdate##*[0-5][0-9]:}
+    if test "${TZsecsetc%%[!0-9]*}" = "${UTsecsetc%%[!0-9]*}"
     then
       extra_info="
 Selected time is now:	$TZdate.
@@ -801,7 +786,7 @@ done
 
 case $SHELL in
 *csh) file=.login line="setenv TZ '$tz'";;
-*)    file=.profile line="TZ='$tz'; export TZ"
+*)    file=.profile line="export TZ='$tz'"
 esac
 
 test -t 1 && say >&2 "

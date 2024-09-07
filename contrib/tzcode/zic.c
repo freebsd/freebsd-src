@@ -472,7 +472,7 @@ size_overflow(void)
   memory_exhausted(_("size overflow"));
 }
 
-ATTRIBUTE_REPRODUCIBLE static ptrdiff_t
+ATTRIBUTE_PURE_114833 static ptrdiff_t
 size_sum(size_t a, size_t b)
 {
 #ifdef ckd_add
@@ -486,7 +486,7 @@ size_sum(size_t a, size_t b)
   size_overflow();
 }
 
-ATTRIBUTE_REPRODUCIBLE static ptrdiff_t
+ATTRIBUTE_PURE_114833 static ptrdiff_t
 size_product(ptrdiff_t nitems, ptrdiff_t itemsize)
 {
 #ifdef ckd_mul
@@ -501,7 +501,7 @@ size_product(ptrdiff_t nitems, ptrdiff_t itemsize)
   size_overflow();
 }
 
-ATTRIBUTE_REPRODUCIBLE static ptrdiff_t
+ATTRIBUTE_PURE_114833 static ptrdiff_t
 align_to(ptrdiff_t size, ptrdiff_t alignment)
 {
   size_t lo_bits = alignment - 1, sum = size_sum(size, lo_bits);
@@ -525,7 +525,7 @@ memcheck(void *ptr)
 	return ptr;
 }
 
-ATTRIBUTE_MALLOC static void *
+static void *
 emalloc(size_t size)
 {
   return memcheck(malloc(size));
@@ -537,7 +537,7 @@ erealloc(void *ptr, size_t size)
   return memcheck(realloc(ptr, size));
 }
 
-ATTRIBUTE_MALLOC static char *
+static char *
 estrdup(char const *str)
 {
   return memcheck(strdup(str));
@@ -1475,7 +1475,7 @@ relname(char const *target, char const *linkname)
 /* Return true if A and B must have the same parent dir if A and B exist.
    Return false if this is not necessarily true (though it might be true).
    Keep it simple, and do not inspect the file system.  */
-static bool
+ATTRIBUTE_PURE_114833 static bool
 same_parent_dirs(char const *a, char const *b)
 {
   for (; *a == *b; a++, b++)
@@ -3034,10 +3034,10 @@ rule_cmp(struct rule const *a, struct rule const *b)
 	return a->r_dayofmonth - b->r_dayofmonth;
 }
 
-/* Store into RESULT a POSIX.1-2017 TZ string that represent the future
+/* Store into RESULT a proleptic TZ string that represent the future
    predictions for the zone ZPFIRST with ZONECOUNT entries.  Return a
    compatibility indicator (a TZDB release year) if successful, a
-   negative integer if no such TZ string exissts.  */
+   negative integer if no such TZ string exists.  */
 static int
 stringzone(char *result, struct zone const *zpfirst, ptrdiff_t zonecount)
 {
@@ -3229,8 +3229,7 @@ outzone(const struct zone *zpfirst, ptrdiff_t zonecount)
 	if (noise) {
 		if (!*envvar)
 			warning("%s %s",
-				_("no POSIX.1-2017 environment variable"
-				  " for zone"),
+				_("no proleptic TZ string for zone"),
 				zpfirst->z_name);
 		else if (compat != 0) {
 			/* Circa-COMPAT clients, and earlier clients, might
@@ -3494,7 +3493,7 @@ outzone(const struct zone *zpfirst, ptrdiff_t zonecount)
 	if (do_extend) {
 		/*
 		** If we're extending the explicitly listed observations for
-		** 400 years because we can't fill the POSIX.1-2017 TZ field,
+		** 400 years because we can't fill the proleptic TZ field,
 		** check whether we actually ended up explicitly listing
 		** observations through that period.  If there aren't any
 		** near the end of the 400-year period, add a redundant
@@ -3679,7 +3678,7 @@ lowerit(char a)
 }
 
 /* case-insensitive equality */
-ATTRIBUTE_REPRODUCIBLE static bool
+ATTRIBUTE_PURE_114833 static bool
 ciequal(register const char *ap, register const char *bp)
 {
 	while (lowerit(*ap) == lowerit(*bp++))
@@ -3688,7 +3687,7 @@ ciequal(register const char *ap, register const char *bp)
 	return false;
 }
 
-ATTRIBUTE_REPRODUCIBLE static bool
+ATTRIBUTE_PURE_114833 static bool
 itsabbr(register const char *abbr, register const char *word)
 {
 	if (lowerit(*abbr) != lowerit(*word))
@@ -3704,7 +3703,7 @@ itsabbr(register const char *abbr, register const char *word)
 
 /* Return true if ABBR is an initial prefix of WORD, ignoring ASCII case.  */
 
-ATTRIBUTE_REPRODUCIBLE static bool
+ATTRIBUTE_PURE_114833 static bool
 ciprefix(char const *abbr, char const *word)
 {
   do
@@ -3814,7 +3813,7 @@ time_overflow(void)
   exit(EXIT_FAILURE);
 }
 
-ATTRIBUTE_REPRODUCIBLE static zic_t
+ATTRIBUTE_PURE_114833 static zic_t
 oadd(zic_t t1, zic_t t2)
 {
 #ifdef ckd_add
@@ -3828,7 +3827,7 @@ oadd(zic_t t1, zic_t t2)
   time_overflow();
 }
 
-ATTRIBUTE_REPRODUCIBLE static zic_t
+ATTRIBUTE_PURE_114833 static zic_t
 tadd(zic_t t1, zic_t t2)
 {
 #ifdef ckd_add
