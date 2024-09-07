@@ -192,6 +192,7 @@ __DEFAULT_YES_OPTIONS = \
     WIRELESS \
     WPA_SUPPLICANT_EAPOL \
     ZFS \
+    ZFS_TESTS \
     LOADER_ZFS \
     ZONEINFO
 
@@ -459,6 +460,11 @@ MK_OFED_EXTRA:=	no
 
 .if ${MK_TESTS} == "no"
 MK_DTRACE_TESTS:= no
+MK_ZFS_TESTS:= no
+.endif
+
+.if ${MK_ZFS} == "no"
+MK_ZFS_TESTS:=	no
 .endif
 
 .if ${MK_TESTS_SUPPORT} == "no"
