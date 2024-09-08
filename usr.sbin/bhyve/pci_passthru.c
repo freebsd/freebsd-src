@@ -38,6 +38,7 @@
 
 #include <dev/io/iodev.h>
 #include <dev/pci/pcireg.h>
+#include <dev/vmm/vmm_mem.h>
 
 #include <vm/vm.h>
 

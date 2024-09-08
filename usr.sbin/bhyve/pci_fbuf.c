@@ -29,6 +29,7 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 
+#include <dev/vmm/vmm_mem.h>
 #include <machine/vmm.h>
 #include <machine/vmm_snapshot.h>
 #include <vmmapi.h>
