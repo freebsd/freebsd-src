@@ -3437,7 +3437,7 @@ tryagain:
 		/*
 		 * If an '@' is found and the domain name matches, search for
 		 * the name with dns stripped off.
-		 * Mixed case alpahbetics will match for the domain name, but
+		 * Mixed case alphabetics will match for the domain name, but
 		 * all upper case will not.
 		 */
 		if (cnt == 0 && i < len && i > 0 &&
