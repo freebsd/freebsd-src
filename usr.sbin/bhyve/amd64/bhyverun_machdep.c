@@ -91,6 +91,7 @@ bhyve_usage(int code)
 	    "       -K: PS2 keyboard layout\n"
 	    "       -l: LPC device configuration\n"
 	    "       -m: memory size\n"
+	    "       -n: NUMA domain specification\n"
 	    "       -o: set config 'var' to 'value'\n"
 	    "       -P: vmexit from the guest on pause\n"
 	    "       -p: pin 'vcpu' to 'hostcpu'\n"
@@ -117,9 +118,9 @@ bhyve_optparse(int argc, char **argv)
 	int c;
 
 #ifdef BHYVE_SNAPSHOT
-	optstr = "aehuwxACDHIPSWYk:f:o:p:G:c:s:m:l:K:U:r:";
+	optstr = "aehuwxACDHIPSWYk:f:o:p:G:c:s:m:n:l:K:U:r:";
 #else
-	optstr = "aehuwxACDHIPSWYk:f:o:p:G:c:s:m:l:K:U:";
+	optstr = "aehuwxACDHIPSWYk:f:o:p:G:c:s:m:n:l:K:U:";
 #endif
 	while ((c = getopt(argc, argv, optstr)) != -1) {
 		switch (c) {
@@ -193,6 +194,15 @@ bhyve_optparse(int argc, char **argv)
 			break;
 		case 'm':
 			set_config_value("memory.size", optarg);
+			break;
+		case 'n':
+			if (bhyve_numa_parse(optarg) != 0)
+				errx(EX_USAGE,
+				    "invalid NUMA configuration "
+				    "'%s'",
+				    optarg);
+			if (!get_config_bool("acpi_tables"))
+				errx(EX_USAGE, "NUMA emulation requires ACPI");
 			break;
 		case 'o':
 			if (!bhyve_parse_config_option(optarg)) {
