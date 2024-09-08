@@ -15,8 +15,8 @@
 02) Download the latest OpenSSL tarball and signature from the official
     website (https://www.openssl.org/source/).
 
-    $ (cd .. && fetch https://github.com/openssl/openssl/releases/download/openssl-3.0.15/openssl-3.0.15.tar.gz)
-    $ (cd .. && fetch https://github.com/openssl/openssl/releases/download/openssl-3.0.15/openssl-3.0.15.tar.gz.asc)
+    $ (cd .. && fetch https://github.com/openssl/openssl/releases/download/openssl-X.Y.Z/openssl-X.Y.Z.tar.gz)
+    $ (cd .. && fetch https://github.com/openssl/openssl/releases/download/openssl-X.Y.Z/openssl-X.Y.Z.tar.gz.asc)
 
 03) Verify the signature:
 
