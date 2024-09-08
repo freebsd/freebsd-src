@@ -1320,6 +1320,7 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 		 * Just set default values to some of the important ones.
 		 */
 		if (nap != NULL) {
+			VATTR_NULL(&nap->na_vattr);
 			nap->na_type = VREG;
 			nap->na_mode = 0;
 			nap->na_rdev = (NFSDEV_T)0;
