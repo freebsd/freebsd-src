@@ -30,7 +30,8 @@
 #include <dev/vmm/vmm_mem.h>
 #include <dev/vmm/vmm_stat.h>
 
-#if defined(__amd64__) && defined(COMPAT_FREEBSD12)
+#ifdef __amd64__
+#ifdef COMPAT_FREEBSD12
 struct vm_memseg_12 {
 	int		segid;
 	size_t		len;
@@ -42,7 +43,22 @@ _Static_assert(sizeof(struct vm_memseg_12) == 80, "COMPAT_FREEBSD12 ABI");
 	_IOW('v', IOCNUM_ALLOC_MEMSEG, struct vm_memseg_12)
 #define	VM_GET_MEMSEG_12	\
 	_IOWR('v', IOCNUM_GET_MEMSEG, struct vm_memseg_12)
-#endif
+#endif /* COMPAT_FREEBSD12 */
+#ifdef COMPAT_FREEBSD14
+struct vm_memseg_14 {
+	int		segid;
+	size_t		len;
+	char		name[VM_MAX_SUFFIXLEN + 1];
+};
+_Static_assert(sizeof(struct vm_memseg_14) == (VM_MAX_SUFFIXLEN + 1 + 16),
+    "COMPAT_FREEBSD14 ABI");
+
+#define	VM_ALLOC_MEMSEG_14	\
+	_IOW('v', IOCNUM_ALLOC_MEMSEG, struct vm_memseg_14)
+#define	VM_GET_MEMSEG_14	\
+	_IOWR('v', IOCNUM_GET_MEMSEG, struct vm_memseg_14)
+#endif /* COMPAT_FREEBSD14 */
+#endif /* __amd64__ */
 
 struct devmem_softc {
 	int	segid;
@@ -257,7 +273,8 @@ get_memseg(struct vmmdev_softc *sc, struct vm_memseg *mseg, size_t len)
 }
 
 static int
-alloc_memseg(struct vmmdev_softc *sc, struct vm_memseg *mseg, size_t len)
+alloc_memseg(struct vmmdev_softc *sc, struct vm_memseg *mseg, size_t len,
+    struct domainset *domainset)
 {
 	char *name;
 	int error;
@@ -278,8 +295,7 @@ alloc_memseg(struct vmmdev_softc *sc, struct vm_memseg *mseg, size_t len)
 		if (error)
 			goto done;
 	}
-
-	error = vm_alloc_memseg(sc->vm, mseg->segid, mseg->len, sysmem);
+	error = vm_alloc_memseg(sc->vm, mseg->segid, mseg->len, sysmem, domainset);
 	if (error)
 		goto done;
 
@@ -294,6 +310,20 @@ done:
 	free(name, M_VMMDEV);
 	return (error);
 }
+
+#if defined(__amd64__) && \
+    (defined(COMPAT_FREEBSD14) || defined(COMPAT_FREEBSD12))
+/*
+ * Translate pre-15.0 memory segment identifiers into their 15.0 counterparts.
+ */
+static void
+adjust_segid(struct vm_memseg *mseg)
+{
+	if (mseg->segid != VM_SYSMEM) {
+		mseg->segid += (VM_BOOTROM - 1);
+	}
+}
+#endif
 
 static int
 vm_get_register_set(struct vcpu *vcpu, unsigned int count, int *regnum,
@@ -353,10 +383,16 @@ static const struct vmmdev_ioctl vmmdev_ioctls[] = {
 	VMMDEV_IOCTL(VM_STATS, VMMDEV_IOCTL_LOCK_ONE_VCPU),
 	VMMDEV_IOCTL(VM_STAT_DESC, 0),
 
-#if defined(__amd64__) && defined(COMPAT_FREEBSD12)
+#ifdef __amd64__
+#ifdef COMPAT_FREEBSD12
 	VMMDEV_IOCTL(VM_ALLOC_MEMSEG_12,
 	    VMMDEV_IOCTL_XLOCK_MEMSEGS | VMMDEV_IOCTL_LOCK_ALL_VCPUS),
 #endif
+#ifdef COMPAT_FREEBSD14
+	VMMDEV_IOCTL(VM_ALLOC_MEMSEG_14,
+	    VMMDEV_IOCTL_XLOCK_MEMSEGS | VMMDEV_IOCTL_LOCK_ALL_VCPUS),
+#endif
+#endif /* __amd64__ */
 	VMMDEV_IOCTL(VM_ALLOC_MEMSEG,
 	    VMMDEV_IOCTL_XLOCK_MEMSEGS | VMMDEV_IOCTL_LOCK_ALL_VCPUS),
 	VMMDEV_IOCTL(VM_MMAP_MEMSEG,
@@ -366,9 +402,14 @@ static const struct vmmdev_ioctl vmmdev_ioctls[] = {
 	VMMDEV_IOCTL(VM_REINIT,
 	    VMMDEV_IOCTL_XLOCK_MEMSEGS | VMMDEV_IOCTL_LOCK_ALL_VCPUS),
 
-#if defined(__amd64__) && defined(COMPAT_FREEBSD12)
+#ifdef __amd64__
+#if defined(COMPAT_FREEBSD12)
 	VMMDEV_IOCTL(VM_GET_MEMSEG_12, VMMDEV_IOCTL_SLOCK_MEMSEGS),
 #endif
+#ifdef COMPAT_FREEBSD14
+	VMMDEV_IOCTL(VM_GET_MEMSEG_14, VMMDEV_IOCTL_SLOCK_MEMSEGS),
+#endif
+#endif /* __amd64__ */
 	VMMDEV_IOCTL(VM_GET_MEMSEG, VMMDEV_IOCTL_SLOCK_MEMSEGS),
 	VMMDEV_IOCTL(VM_MMAP_GETNEXT, VMMDEV_IOCTL_SLOCK_MEMSEGS),
 
@@ -388,6 +429,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vmmdev_softc *sc;
 	struct vcpu *vcpu;
 	const struct vmmdev_ioctl *ioctl;
+	struct vm_memseg *mseg;
 	int error, vcpuid;
 
 	sc = vmmdev_lookup2(cdev);
@@ -499,20 +541,77 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		error = vm_munmap_memseg(sc->vm, mu->gpa, mu->len);
 		break;
 	}
-#if defined(__amd64__) && defined(COMPAT_FREEBSD12)
+#ifdef __amd64__
+#ifdef COMPAT_FREEBSD12
 	case VM_ALLOC_MEMSEG_12:
-		error = alloc_memseg(sc, (struct vm_memseg *)data,
-		    sizeof(((struct vm_memseg_12 *)0)->name));
+		mseg = (struct vm_memseg *)data;
+
+		adjust_segid(mseg);
+		error = alloc_memseg(sc, mseg,
+		    sizeof(((struct vm_memseg_12 *)0)->name), NULL);
 		break;
 	case VM_GET_MEMSEG_12:
-		error = get_memseg(sc, (struct vm_memseg *)data,
+		mseg = (struct vm_memseg *)data;
+
+		adjust_segid(mseg);
+		error = get_memseg(sc, mseg,
 		    sizeof(((struct vm_memseg_12 *)0)->name));
 		break;
-#endif
-	case VM_ALLOC_MEMSEG:
-		error = alloc_memseg(sc, (struct vm_memseg *)data,
-		    sizeof(((struct vm_memseg *)0)->name));
+#endif /* COMPAT_FREEBSD12 */
+#ifdef COMPAT_FREEBSD14
+	case VM_ALLOC_MEMSEG_14:
+		mseg = (struct vm_memseg *)data;
+
+		adjust_segid(mseg);
+		error = alloc_memseg(sc, mseg,
+		    sizeof(((struct vm_memseg_14 *)0)->name), NULL);
 		break;
+	case VM_GET_MEMSEG_14:
+		mseg = (struct vm_memseg *)data;
+
+		adjust_segid(mseg);
+		error = get_memseg(sc, mseg,
+		    sizeof(((struct vm_memseg_14 *)0)->name));
+		break;
+#endif /* COMPAT_FREEBSD14 */
+#endif /* __amd64__ */
+	case VM_ALLOC_MEMSEG: {
+		domainset_t *mask;
+		struct domainset *domainset, domain;
+
+		domainset = NULL;
+		mseg = (struct vm_memseg *)data;
+		if (mseg->ds_policy != DOMAINSET_POLICY_INVALID && mseg->ds_mask != NULL) {
+			if (mseg->ds_mask_size < sizeof(domainset_t) ||
+			    mseg->ds_mask_size > DOMAINSET_MAXSIZE / NBBY) {
+				error = ERANGE;
+				break;
+			}
+			memset(&domain, 0, sizeof(domain));
+			mask = malloc(mseg->ds_mask_size, M_VMMDEV, M_WAITOK);
+			error = copyin(mseg->ds_mask, mask, mseg->ds_mask_size);
+			if (error) {
+				free(mask, M_VMMDEV);
+				break;
+			}
+			error = domainset_populate(&domain, mask, mseg->ds_policy,
+			    mseg->ds_mask_size);
+			if (error) {
+				free(mask, M_VMMDEV);
+				break;
+			}
+			domainset = domainset_create(&domain);
+			if (domainset == NULL) {
+				error = EINVAL;
+				free(mask, M_VMMDEV);
+				break;
+			}
+			free(mask, M_VMMDEV);
+		}
+		error = alloc_memseg(sc, mseg, sizeof(mseg->name), domainset);
+
+		break;
+	}
 	case VM_GET_MEMSEG:
 		error = get_memseg(sc, (struct vm_memseg *)data,
 		    sizeof(((struct vm_memseg *)0)->name));

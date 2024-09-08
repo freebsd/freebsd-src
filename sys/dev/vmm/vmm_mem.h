@@ -8,6 +8,27 @@
 #ifndef _DEV_VMM_MEM_H_
 #define	_DEV_VMM_MEM_H_
 
+/* Maximum number of NUMA domains in a guest. */
+#define VM_MAXMEMDOM 8
+#define VM_MAXSYSMEM VM_MAXMEMDOM
+
+/*
+ * Identifiers for memory segments.
+ * Each guest NUMA domain is represented by a single system
+ * memory segment from [VM_SYSMEM, VM_MAXSYSMEM).
+ * The remaining identifiers can be used to create devmem segments.
+ */
+enum {
+        VM_SYSMEM = 0,
+        VM_BOOTROM = VM_MAXSYSMEM,
+        VM_FRAMEBUFFER,
+        VM_PCIROM,
+        VM_MEMSEG_END
+};
+
+#define	VM_MAX_MEMSEGS	VM_MEMSEG_END
+#define	VM_MAX_MEMMAPS	(VM_MAX_MEMSEGS * 2)
+
 #ifdef _KERNEL
 
 #include <sys/types.h>
@@ -31,9 +52,6 @@ struct vm_mem_map {
 	int		flags;
 };
 
-#define	VM_MAX_MEMSEGS	4
-#define	VM_MAX_MEMMAPS	8
-
 struct vm_mem {
 	struct vm_mem_map	mem_maps[VM_MAX_MEMMAPS];
 	struct vm_mem_seg	mem_segs[VM_MAX_MEMSEGS];
@@ -55,7 +73,8 @@ void vm_assert_memseg_xlocked(struct vm *vm);
 int vm_mmap_memseg(struct vm *vm, vm_paddr_t gpa, int segid, vm_ooffset_t off,
     size_t len, int prot, int flags);
 int vm_munmap_memseg(struct vm *vm, vm_paddr_t gpa, size_t len);
-int vm_alloc_memseg(struct vm *vm, int ident, size_t len, bool sysmem);
+int vm_alloc_memseg(struct vm *vm, int ident, size_t len, bool sysmem,
+    struct domainset *obj_domainset);
 void vm_free_memseg(struct vm *vm, int ident);
 
 /*

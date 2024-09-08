@@ -40,7 +40,7 @@
  * API version for out-of-tree consumers like grub-bhyve for making compile
  * time decisions.
  */
-#define	VMMAPI_VERSION	0200	/* 2 digit major followed by 2 digit minor */
+#define	VMMAPI_VERSION	0300	/* 2 digit major followed by 2 digit minor */
 
 struct iovec;
 struct vcpu;
@@ -63,18 +63,6 @@ enum vm_mmap_style {
  */
 #define	VM_MEM_F_INCORE	0x01	/* include guest memory in core file */
 #define	VM_MEM_F_WIRED	0x02	/* guest memory is wired */
-
-/*
- * Identifiers for memory segments:
- * - vm_setup_memory() uses VM_SYSMEM for the system memory segment.
- * - the remaining identifiers can be used to create devmem segments.
- */
-enum {
-	VM_SYSMEM,
-	VM_BOOTROM,
-	VM_FRAMEBUFFER,
-	VM_PCIROM,
-};
 
 __BEGIN_DECLS
 /*
