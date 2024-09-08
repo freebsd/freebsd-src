@@ -1952,14 +1952,14 @@ and/or ports.
 	chmod, chflags, chown and chgrp now affect symlinks in -R mode as
 	defined in symlink(7); previously symlinks were silently ignored.
 
-20150415:
-	The const qualifier has been removed from iconv(3) to comply with
-	POSIX.  The ports tree is aware of this from r384038 onwards.
-
 20150416:
 	Libraries specified by LIBADD in Makefiles must have a corresponding
 	DPADD_<lib> variable to ensure correct dependencies.  This is now
 	enforced in src.libnames.mk.
+
+20150415:
+	The const qualifier has been removed from iconv(3) to comply with
+	POSIX.  The ports tree is aware of this from r384038 onwards.
 
 20150324:
 	From legacy ata(4) driver was removed support for SATA controllers
