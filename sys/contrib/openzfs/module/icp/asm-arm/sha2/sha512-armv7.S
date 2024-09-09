@@ -21,8 +21,11 @@
 
 #if defined(__arm__)
 
-#define	__ARM_ARCH__      7
-#define	__ARM_MAX_ARCH__  7
+#ifndef __ARM_ARCH
+# define __ARM_ARCH__	7
+#else
+# define __ARM_ARCH__	__ARM_ARCH
+#endif
 
 #ifndef __KERNEL__
 # define VFP_ABI_PUSH	vstmdb	sp!,{d8-d15}
@@ -490,6 +493,7 @@ zfs_sha512_block_armv7:
 #endif
 .size	zfs_sha512_block_armv7,.-zfs_sha512_block_armv7
 
+#if __ARM_ARCH__ >= 7
 .arch	armv7-a
 .fpu	neon
 
@@ -1819,4 +1823,5 @@ zfs_sha512_block_neon:
 	VFP_ABI_POP
 	bx	lr				@ .word	0xe12fff1e
 .size	zfs_sha512_block_neon,.-zfs_sha512_block_neon
-#endif
+#endif // #if __ARM_ARCH__ >= 7
+#endif // #if defined(__arm__)
