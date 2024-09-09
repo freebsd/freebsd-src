@@ -1,5 +1,10 @@
 .include <src.lua.mk>
 
+SUBDIR+=	libfreebsd
+SUBDIR+=	libhash
+SUBDIR+=	libjail
+SUBDIR+=	libucl
+
 LUASRC?=	${SRCTOP}/contrib/lua/src
 .PATH: ${LUASRC}
 
