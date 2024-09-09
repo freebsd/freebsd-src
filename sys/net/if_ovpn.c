@@ -379,7 +379,7 @@ ovpn_has_peers(struct ovpn_softc *sc)
 }
 
 static void
-ovpn_rele_so(struct ovpn_softc *sc, struct ovpn_kpeer *peer)
+ovpn_rele_so(struct ovpn_softc *sc)
 {
 	bool has_peers;
 
@@ -489,7 +489,7 @@ ovpn_peer_release_ref(struct ovpn_kpeer *peer, bool locked)
 		ovpn_free_kkey_dir(peer->keys[i].decrypt);
 	}
 
-	ovpn_rele_so(sc, peer);
+	ovpn_rele_so(sc);
 
 	callout_stop(&peer->ping_send);
 	callout_stop(&peer->ping_rcv);
