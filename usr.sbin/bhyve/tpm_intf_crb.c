@@ -337,6 +337,10 @@ tpm_crb_mem_handler(struct vcpu *vcpu __unused, const int dir,
 
 			break;
 		}
+		case offsetof(struct tpm_crb_regs, int_enable):
+			/* No interrupt support. Ignore writes to int_enable. */
+			break;
+
 		case offsetof(struct tpm_crb_regs, ctrl_start): {
 			union tpm_crb_reg_ctrl_start start;
 
