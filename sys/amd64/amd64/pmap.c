@@ -11468,7 +11468,7 @@ pmap_pkru_deassign_all(pmap_t pmap)
 static bool
 pmap_pkru_same(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, pt_entry_t *pte)
 {
-	struct pmap_pkru_range *next_ppr, *ppr;
+	struct pmap_pkru_range *ppr;
 	vm_offset_t va;
 	u_int keyidx;
 
@@ -11480,20 +11480,14 @@ pmap_pkru_same(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, pt_entry_t *pte)
 	    sva >= VM_MAXUSER_ADDRESS)
 		return (true);
 	MPASS(eva <= VM_MAXUSER_ADDRESS);
-	ppr = rangeset_lookup(&pmap->pm_pkru, sva);
-	if (ppr == NULL) {
-		ppr = rangeset_next(&pmap->pm_pkru, sva);
-		return (ppr == NULL ||
-		    ppr->pkru_rs_el.re_start >= eva);
-	}
+	ppr = rangeset_containing(&pmap->pm_pkru, sva);
+	if (ppr == NULL)
+		return (rangeset_empty(&pmap->pm_pkru, sva, eva));
 	keyidx = ppr->pkru_keyidx;
 	while ((va = ppr->pkru_rs_el.re_end) < eva) {
-		next_ppr = rangeset_next(&pmap->pm_pkru, va);
-		if (next_ppr == NULL ||
-		    va != next_ppr->pkru_rs_el.re_start ||
-		    keyidx != next_ppr->pkru_keyidx)
+		if ((ppr = rangeset_beginning(&pmap->pm_pkru, va)) == NULL ||
+		    keyidx != ppr->pkru_keyidx)
 			return (false);
-		ppr = next_ppr;
 	}
 	*pte |= X86_PG_PKU(keyidx);
 	return (true);
@@ -11509,7 +11503,7 @@ pmap_pkru_get(pmap_t pmap, vm_offset_t va)
 	    (cpu_stdext_feature2 & CPUID_STDEXT2_PKU) == 0 ||
 	    va >= VM_MAXUSER_ADDRESS)
 		return (0);
-	ppr = rangeset_lookup(&pmap->pm_pkru, va);
+	ppr = rangeset_containing(&pmap->pm_pkru, va);
 	if (ppr != NULL)
 		return (X86_PG_PKU(ppr->pkru_keyidx));
 	return (0);
