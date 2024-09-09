@@ -9370,7 +9370,7 @@ pmap_bti_deassign_all(pmap_t pmap)
 static bool
 pmap_bti_same(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, pt_entry_t *pte)
 {
-	struct rs_el *next_rs, *rs;
+	struct rs_el *rs;
 	vm_offset_t va;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
@@ -9388,18 +9388,12 @@ pmap_bti_same(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, pt_entry_t *pte)
 	if (pmap->pm_bti == NULL)
 		return (true);
 	PMAP_ASSERT_STAGE1(pmap);
-	rs = rangeset_lookup(pmap->pm_bti, sva);
-	if (rs == NULL) {
-		rs = rangeset_next(pmap->pm_bti, sva);
-		return (rs == NULL ||
-			rs->re_start >= eva);
-	}
+	rs = rangeset_containing(pmap->pm_bti, sva);
+	if (rs == NULL)
+		return (rangeset_empty(pmap->pm_bti, sva, eva));
 	while ((va = rs->re_end) < eva) {
-		next_rs = rangeset_next(pmap->pm_bti, va);
-		if (next_rs == NULL ||
-		    va != next_rs->re_start)
+		if ((rs = rangeset_beginning(pmap->pm_bti, va)) == NULL)
 			return (false);
-		rs = next_rs;
 	}
 	*pte |= ATTR_S1_GP;
 	return (true);
@@ -9415,7 +9409,8 @@ pmap_pte_bti(pmap_t pmap, vm_offset_t va)
 		return (0);
 	if (pmap == kernel_pmap)
 		return (ATTR_KERN_GP);
-	if (pmap->pm_bti != NULL && rangeset_lookup(pmap->pm_bti, va) != NULL)
+	if (pmap->pm_bti != NULL &&
+	    rangeset_containing(pmap->pm_bti, va) != NULL)
 		return (ATTR_S1_GP);
 	return (0);
 }
