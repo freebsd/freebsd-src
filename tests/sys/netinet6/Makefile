@@ -17,7 +17,23 @@ ATF_TESTS_SH=		exthdr \
 			ndp \
 			proxy_ndp
 
-TEST_METADATA.output6+=	required_programs="python"
+TEST_METADATA.divert+=	execenv="jail"		\
+			execenv_jail_params="vnet allow.raw_sockets"
+TEST_METADATA.exthdr+=	execenv="jail"		\
+			execenv_jail_params="vnet allow.raw_sockets"
+TEST_METADATA.forward6+= execenv="jail"		\
+			execenv_jail_params="vnet allow.raw_sockets"
+TEST_METADATA.ndp+=	execenv="jail"		\
+			execenv_jail_params="vnet allow.raw_sockets"
+TEST_METADATA.output6+=	execenv="jail"		\
+			execenv_jail_params="vnet allow.raw_sockets" \
+			required_programs="python"
+TEST_METADATA.proxy_ndp+= execenv="jail"		\
+			execenv_jail_params="vnet allow.raw_sockets"
+TEST_METADATA.redirect+= execenv="jail"		\
+			execenv_jail_params="vnet allow.raw_sockets"
+TEST_METADATA.scapyi386+= execenv="jail"		\
+			execenv_jail_params="vnet allow.raw_sockets"
 
 ${PACKAGE}FILES+=	exthdr.py \
 			mld.py \
