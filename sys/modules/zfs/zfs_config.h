@@ -1215,7 +1215,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.2.99-634-FreeBSD_gd2ccc2155"
+#define ZFS_META_ALIAS "zfs-2.2.99-693-FreeBSD_gb10992582"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -1224,7 +1224,7 @@
 /* #undef ZFS_META_DATA */
 
 /* Define the maximum compatible kernel version. */
-#define ZFS_META_KVER_MAX "6.9"
+#define ZFS_META_KVER_MAX "6.10"
 
 /* Define the minimum compatible kernel version. */
 #define ZFS_META_KVER_MIN "3.10"
@@ -1245,7 +1245,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "634-FreeBSD_gd2ccc2155"
+#define ZFS_META_RELEASE "693-FreeBSd_gb10992582"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.2.99"
