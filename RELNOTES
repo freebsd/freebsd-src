@@ -10,6 +10,21 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+e962b37bf0ff:
+	When running bhyve(8) guests with a boot ROM, i.e., bhyveload(8) is not
+	used, bhyve now assumes that the boot ROM will enable PCI BAR decoding.
+	This is incompatible with some boot ROMs, particularly outdated builds
+	of edk2-bhyve.  To restore the old behavior, add
+	"pci.enable_bars='true'" to your bhyve configuration.
+
+	Note in particular that the uefi-edk2-bhyve package has been renamed
+	to edk2-bhyve.
+
+43caa2e805c2:
+	amd64 bhyve(8)'s "lpc.bootrom" and "lpc.bootvars" options are
+	deprecated.  Use the top-level "bootrom" and "bootvars" options
+	instead.
+
 822ca3276345:
 	byacc was updated to 20240109.
 
