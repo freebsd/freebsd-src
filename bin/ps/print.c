@@ -277,7 +277,7 @@ state(KINFO *k, VARENT *ve __unused)
 	return (buf);
 }
 
-#define	scalepri(x)	((x) - PZERO)
+#define	scalepri(x)	((x) - PUSER)
 
 char *
 pri(KINFO *k, VARENT *ve __unused)
