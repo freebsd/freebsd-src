@@ -435,7 +435,7 @@ PCI 16550 serial device.
 .It Cm lpc
 LPC PCI-ISA bridge with COM1, COM2, COM3, and COM4 16550 serial ports,
 a boot ROM, and,
-optionally, a fwcfg type, and the debug/test device.
+optionally, a TPM module, a fwcfg type, and the debug/test device.
 The LPC bridge emulation can only be configured on bus 0.
 .It Cm fbuf
 Raw framebuffer device attached to VNC server.
@@ -636,16 +636,25 @@ access is appropriately restricted.
 .Sm on
 .El
 .Pp
-Emulate a TPM device. The argument
-.Ar path
-needs to point to a valid TPM device path, i.e.
-.Pa /dev/tpm0 .
-.Pp
+Emulate a TPM device.
 Supported options for
 .Ar type :
 .Bl -tag -width 10n
 .It Cm passthru
-pass a physical TPM device through to the guest
+Use a physical TPM device.
+The argument
+.Ar path
+needs to point to a valid TPM device path, i.e.
+.Pa /dev/tpm0 .
+.It Cm swtpm
+Connect to a running
+.Cm swtpm
+instance.
+The argument
+.Ar path
+needs to point to a UNIX domain socket that a
+.Cm swtpm
+process is listening on.
 .El
 .Pp
 The
@@ -655,7 +664,8 @@ are:
 .It Cm version= Ns Ar version
 Version of the TPM device according to the TCG specification.
 Defaults to
-.Cm 2.0
+.Cm 2.0 ,
+which is the only version currently supported.
 .El
 .Ss Boot ROM device backends
 .Sm off
