@@ -160,15 +160,6 @@ Message (e.g. TightVNC).
 .It Va pci.enable_bars Ta bool Ta Ta
 Enable and map PCI BARs before executing any guest code.
 This setting is false by default when using a boot ROM and true otherwise.
-.It Va tpm.path Ta string Ta Ta
-Path to the host TPM device.
-This is typically /dev/tpm0.
-.It Va tpm.type Ta string Ta Ta
-Type of the TPM device passed to the guest.
-Currently, only "passthru" is supported.
-.It Va tpm.version Ta string Ta 2.0 Ta
-Version of the TPM device according to the TCG specification.
-Currently, only version 2.0 is supported.
 .It Va rtc.use_localtime Ta bool Ta true Ta
 The real time clock uses the local time of the host.
 If this is set to false, the real time clock uses UTC.
@@ -288,9 +279,8 @@ Intel e82545 network interface.
 VGA framebuffer device attached to VNC server.
 .It Li lpc
 LPC PCI-ISA bridge with COM1-COM4 16550 serial ports,
-a boot ROM,
-an optional fwcfg type,
-and an optional debug/test device.
+a boot ROM, and, optionally, a TPM module, a fwcfg type,
+and a debug/test device.
 This device must be configured on bus 0.
 .It Li hda
 High Definition audio controller.
@@ -601,6 +591,37 @@ This value is required for the Intel GOP driver to work properly.
 .It Va subvendor Ta 0
 .It Va subdevice Ta 0
 .El
+.El
+.Ss TPM Device Settings
+The TPM device stores its configuration under a top-level
+.Va tpm
+node rather than under the LPC TPM device's node.
+Only one TPM device is supported.
+The following nodes are available under
+.Va tpm :
+.Bl -column "tpm.version" "Format" "Default"
+.It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
+.It Va tpm.path Ta string Ta Ta
+Path to the TPM backend.
+Depending on the
+.Va tpm.type ,
+this is either the host TPM device, typically
+.Pa /dev/tpm0 ,
+or any UNIX domain socket on which a
+.Cm swtpm
+process is listening.
+.It Va tpm.type Ta string Ta Ta
+Type of the TPM device passed to the guest.
+This can be either
+.Dq passthru
+to use the host TPM devices, or
+.Dq swtpm
+to connect to a running
+.Cm swtpm
+process.
+.It Va tpm.version Ta string Ta 2.0 Ta
+Version of the TPM device according to the TCG specification.
+Currently, only version 2.0 is supported.
 .El
 .Ss NVMe Controller Settings
 Each NVMe controller supports a single storage device.
