@@ -4,8 +4,17 @@
 #
 # stale-symlink-buildworld.sh - check for stale symlinks on a FreeBSD system
 #
-# You can run the script before or after `make installworld'
+# The purpose of this script is to detect stale symlinks, report them to
+# stderr and exit with a non-zero status. All other cases are ignored,
+# such as no symlinks, missing directories, permission problems, etc.
 #
+# You can run the script before or after `make installworld', or any other
+# make targets thats installs files.
+#
+# You can also check your local ports with:
+#    
+#   env STALE_SYMLINK_BUILDWORLD_DIRS=/usr/local ./stale-symlink-buildworld.sh
+
 
 PATH="/bin:/usr/bin"; export PATH
 
