@@ -117,7 +117,7 @@ dev/iommu/busdma_iommu.c			optional iommu
 dev/iommu/iommu_gas.c				optional iommu
 
 arm64/vmm/vmm.c					optional vmm
-arm64/vmm/vmm_dev.c				optional vmm
+arm64/vmm/vmm_dev_machdep.c			optional vmm
 arm64/vmm/vmm_instruction_emul.c		optional vmm
 arm64/vmm/vmm_arm64.c				optional vmm
 arm64/vmm/vmm_reset.c				optional vmm
