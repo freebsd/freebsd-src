@@ -217,6 +217,7 @@ SRCS+=	zfeature_common.c \
 	zfs_fletcher_superscalar4.c \
 	zfs_namecheck.c \
 	zfs_prop.c \
+	zfs_valstr.c \
 	zpool_prop.c \
 	zprop_common.c
 
@@ -237,6 +238,7 @@ SRCS+=	abd.c \
 	bqueue.c \
 	dataset_kstats.c \
 	ddt.c \
+	ddt_log.c \
 	ddt_stats.c \
 	ddt_zap.c \
 	dmu.c \
@@ -389,6 +391,7 @@ CFLAGS.gcc+= -Wno-pointer-to-int-cast
 
 CFLAGS.abd.c= -Wno-cast-qual
 CFLAGS.ddt.c= -Wno-cast-qual
+CFLAGS.ddt_log.c= -Wno-cast-qual -Wno-pointer-arith
 CFLAGS.ddt_zap.c= -Wno-cast-qual
 CFLAGS.dmu.c= -Wno-cast-qual
 CFLAGS.dmu_traverse.c= -Wno-cast-qual

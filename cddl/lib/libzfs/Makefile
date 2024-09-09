@@ -63,9 +63,9 @@ KERNEL_C = \
         zfs_fletcher_superscalar4.c \
         zfs_namecheck.c \
         zfs_prop.c \
+        zfs_valstr.c \
         zpool_prop.c \
         zprop_common.c
-
 
 ARCH_C =
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
@@ -92,6 +92,7 @@ CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include/os/freebsd
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/os/freebsd
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libshare
+CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libzpool/include
 CFLAGS+= -I${SRCTOP}/sys/contrib/ck/include
 CFLAGS+= -I${SRCTOP}/sys
 CFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/include
