@@ -173,8 +173,15 @@ clean_dep   lib/libc        statfs        c
 # 20240308  0ee0ae237324    Remove pointless MD syscall(2)
 # 20240308  7b3836c28188    Remove pointless MD syscall(2)
 if [ ${MACHINE} != i386 ]; then
-	clean_dep   lib/libsys  syscall S ".*/syscall\.S"
-	clean_dep   lib/libc    syscall S ".*/syscall\.S"
+	libcompats=
+	for libcompat in $ALL_libcompats; do
+		if [ $MACHINE = amd64 ] && [ $libcompat = 32 ]; then
+			continue
+		fi
+		libcompats="${libcompats+$libcompats }$libcompat"
+	done
+	ALL_libcompats="$libcompats" clean_dep   lib/libsys  syscall S ".*/syscall\.S"
+	ALL_libcompats="$libcompats" clean_dep   lib/libc    syscall S ".*/syscall\.S"
 fi
 
 # 20240416  2fda3ab0ac19    WITH_NVME: Remove from broken
