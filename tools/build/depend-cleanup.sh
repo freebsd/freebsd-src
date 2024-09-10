@@ -185,4 +185,4 @@ if [ -f "$OBJTOP"/rescue/rescue/rescue.mk ] && \
 fi
 
 # 20240910  e2df9bb44109
-clean_dep   cddl/lib/libzpool abd_os c
+clean_dep   cddl/lib/libzpool abd_os c "linux/zfs/abd_os\.c"
