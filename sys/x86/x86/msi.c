@@ -480,6 +480,7 @@ again:
 	if (error != 0) {
 		for (i = 0; i < count; i++)
 			apic_free_vector(cpu, vector + i, irqs[i]);
+		mtx_unlock(&msi_lock);
 		free(mirqs, M_MSI);
 		return (error);
 	}
@@ -554,7 +555,9 @@ msi_release(int *irqs, int count)
 		KASSERT(msi->msi_first == first, ("message not in group"));
 		KASSERT(msi->msi_dev == first->msi_dev, ("owner mismatch"));
 #ifdef IOMMU
+		mtx_unlock(&msi_lock);
 		iommu_unmap_msi_intr(first->msi_dev, msi->msi_remap_cookie);
+		mtx_lock(&msi_lock);
 #endif
 		msi->msi_first = NULL;
 		msi->msi_dev = NULL;

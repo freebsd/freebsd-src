@@ -81,10 +81,11 @@ C Library</a> (used in
 title="Berkeley Software Distribution">BSD</abbr></a>,
 <a href="https://netbsd.org">Net<abbr>BSD</abbr></a>,
 <a href="https://www.openbsd.org">Open<abbr>BSD</abbr></a>,
-<a href="https://www.chromium.org/chromium-os/">Chromium OS</a>,
+<a href="https://www.chromium.org/chromium-os/">ChromiumOS</a>,
 <a href="https://cygwin.com">Cygwin</a>,
 <a href="https://mariadb.org">MariaDB</a>,
 <a href="https://en.wikipedia.org/wiki/MINIX">MINIX</a>,
+<a href="https://musl.libc.org">musl libc</a>,
 <a href="https://www.mysql.com">MySQL</a>,
 <a href="https://en.wikipedia.org/wiki/WebOS"><abbr
 title="Web Operating System">webOS</abbr></a>,
@@ -112,9 +113,9 @@ eastern time but with different <abbr>DST</abbr> rules in 1975;
 and other entries represent smaller regions like Starke County,
 Indiana, which switched from central to eastern time in 1991
 and switched back in 2006.
-To use the database on an extended <a
+To use the database on a <a
 href="https://en.wikipedia.org/wiki/POSIX"><abbr
-title="Portable Operating System Interface">POSIX</abbr>.1-2017</a>
+title="Portable Operating System Interface">POSIX</abbr>.1-2024</a>
 implementation set the <code><abbr>TZ</abbr></code>
 environment variable to the location's full name,
 e.g., <code><abbr>TZ</abbr>="America/New_York"</code>.</p>
@@ -192,9 +193,10 @@ After obtaining the code and data files, see the
 <code>README</code> file for what to do next.
 The code lets you compile the <code><abbr>tz</abbr></code> source files into
 machine-readable binary files, one for each location. The binary files
-are in a special timezone information format (<dfn><abbr>TZif</abbr></dfn>)
-specified by <a href="https://datatracker.ietf.org/doc/html/8536">Internet
-<abbr>RFC</abbr> 8536</a>.
+are in a special format specified by
+<a href="https://datatracker.ietf.org/doc/html/8536">The
+Time Zone Information Format (<abbr>TZif</abbr>)</a>
+(Internet <abbr title="Request For Comments">RFC</abbr> 8536).
 The code also lets
 you read a <abbr>TZif</abbr> file and interpret timestamps for that
 location.</p>
@@ -205,13 +207,11 @@ location.</p>
 <p>
 The <code><abbr>tz</abbr></code> code and data
 are by no means authoritative. If you find errors, please
-send changes to <a href="mailto:tz@iana.org"><code>tz@iana.org</code></a>,
-the time zone mailing list. You can also <a
-href="https://mm.icann.org/mailman/listinfo/tz">subscribe</a> to it
-and browse the <a
-href="https://mm.icann.org/pipermail/tz/">archive of old
-messages</a>.
-<a href="https://tzdata-meta.timtimeonline.com/">Metadata for mailing list
+email changes to <a href="mailto:tz@iana.org"><code>tz@iana.org</code></a>,
+the time zone mailing list. See
+<a href="https://lists.iana.org/postorius/lists/tz.iana.org/">the mailing
+list's main page</a> to subscribe or to browse its archive of old messages.
+<a href="https://tzdata-meta.timtimeonline.com">Metadata for mailing list
 discussions</a> and corresponding data changes can be
 generated <a href="https://github.com/timparenti/tzdata-meta">automatically</a>.
 </p>
@@ -226,7 +226,7 @@ the process by tailoring the generic instructions in
 the <code><abbr>tz</abbr> README</code> file and installing the latest
 data yourself. System-specific instructions for installing the
 latest <code><abbr>tz</abbr></code> data have also been published
-for <a href="https://developer.ibm.com/articles/au-aix-olson-time-zone/"><abbr>AIX</abbr></a>,
+for <a href="https://www.ibm.com/support/pages/aix-time-zone-olson-tzdata-updates"><abbr>AIX</abbr></a>,
 <a
 href="https://source.android.com/devices/tech/config/timezone-rules">Android</a>,
 <a
@@ -248,7 +248,7 @@ with lines terminated by <a href="https://en.wikipedia.org/wiki/Newline"><abbr
 title="linefeed">LF</abbr></a>,
 which can be modified by common text editors such
 as <a href="https://www.gnu.org/software/emacs/">GNU Emacs</a>,
-<a href="https://wiki.gnome.org/Apps/Gedit">gedit</a>, and
+<a href="https://gedit-technology.github.io/apps/gedit/">gedit</a>, and
 <a href="https://www.vim.org">vim</a>.
 Specialized source-file editing can be done via the
 <a href="https://packagecontrol.io/packages/zoneinfo">Sublime
@@ -261,8 +261,8 @@ Studio Code</a>.
 <p>
 For further information about updates, please see
 <a href="https://datatracker.ietf.org/doc/html/rfc6557">Procedures for
-Maintaining the Time Zone Database</a> (Internet <abbr
-title="Request For Comments">RFC</abbr> 6557). More detail can be
+Maintaining the Time Zone Database</a> (Internet <abbr>RFC</abbr> 6557).
+More detail can be
 found in <a href="theory.html">Theory and pragmatics of the
 <code><abbr>tz</abbr></code> code and data</a>.
 <a href="https://a0.github.io/a0-tzmigration/">A0 TimeZone Migration</a>
@@ -400,7 +400,7 @@ variant <a href="https://datatracker.ietf.org/doc/html/rfc6321">xCal</a>
 title="Extensible Markup Language">XML</abbr></a> format, and a variant
 <a href="https://datatracker.ietf.org/doc/html/rfc7265">jCal</a>
 (Internet <abbr>RFC</abbr> 7265)
-uses <a href="https://www.json.org"><abbr
+uses <a href="https://www.json.org/json-en.html"><abbr
 title="JavaScript Object Notation">JSON</abbr></a> format.</li>
 </ul>
 </section>
@@ -413,7 +413,7 @@ distributions you can generally work around compatibility problems by
 running the command <code>make rearguard_tarballs</code> and compiling
 from the resulting tarballs instead.</p>
 <ul>
-<li><a href="https://sourceforge.net/projects/vzic/">Vzic</a> is a <a
+<li><a href="https://github.com/libical/vzic">Vzic</a> is a <a
 href="https://en.wikipedia.org/wiki/C_(programming_language)">C</a>
 program that compiles
 <code><abbr>tz</abbr></code> source into iCalendar-compatible VTIMEZONE files.
@@ -440,11 +440,9 @@ transition in the <code><abbr>tz</abbr></code> database.</li>
 <li>The <a href="https://howardhinnant.github.io/date/tz.html">Time Zone
 Database Parser</a> is a
 <a href="https://en.wikipedia.org/wiki/C++">C++</a> parser and
-runtime library with <a
-href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0355r7.html">API</a>
-adopted by
-<a href="https://en.wikipedia.org/wiki/C++20">C++20</a>,
-the current iteration of the C++ standard.
+runtime library with a <a
+href="https://en.cppreference.com/w/cpp/chrono"><code>std::chrono</code> API</a>
+that is a standard part of C++.
 It is freely available under the
 <abbr title="Massachusetts Institute of Technology">MIT</abbr> license.</li>
 <li><a id="ICU" href="https://icu.unicode.org">International Components for
@@ -467,8 +465,8 @@ freely available under the <abbr>MIT</abbr> license.</li>
 <li>The <a
 href="https://www.oracle.com/java/technologies/javase/tzupdater-readme.html">TZUpdater
 tool</a> compiles <code><abbr>tz</abbr></code> source into the format used by
-<a href="https://openjdk.java.net/">OpenJDK</a> and
-<a href="https://jdk.java.net/">Oracle JDK</a>.
+<a href="https://openjdk.org">OpenJDK</a> and
+<a href="https://jdk.java.net">Oracle JDK</a>.
 Although its source code is proprietary, its executable is available under the
 <a href="https://www.oracle.com/a/tech/docs/tzupdater-lic.html">Java SE
 Timezone Updater License Agreement</a>.</li>
@@ -490,7 +488,7 @@ are alternatives to TZUpdater. IANA Updater's license is unclear;
 ZIUpdater is licensed under the <abbr>GPL</abbr>.</li>
 <li><a href="https://github.com/MenoData/Time4A">Time4A: Advanced date and
 time library for Android</a> and
-<a href="https://github.com/MenoData/Time4J/">Time4J: Advanced date,
+<a href="https://github.com/MenoData/Time4J">Time4J: Advanced date,
 time and interval library for Java</a> compile
 <code><abbr>tz</abbr></code> source into a binary format.
 Time4A is available under the Apache License and Time4J is
@@ -516,7 +514,7 @@ many of which also support runtimes lacking the <code>timeZone</code> option.
 href="https://github.com/formatjs/date-time-format-timezone"><code>Intl.DateTimeFormat</code>
 timezone polyfill</a>
 is freely available under a <abbr>BSD</abbr>-style license.</li>
-<li>The <a href="https://date-fns.org/">date-fns</a>
+<li>The <a href="https://date-fns.org">date-fns</a>
 library manipulates timezone-aware timestamps in browsers and
 in <a href="https://nodejs.org/en/">Node.js</a>.
 It is freely available under the <abbr>MIT</abbr> license.</li>
@@ -552,9 +550,9 @@ objects</a> let programs access an abstract view of
 <code><abbr>tzdb</abbr></code> data, and are designed to replace <a
 href="https://codeofmatt.com/javascript-date-type-is-horribly-broken/">JavaScript's
 problematic <code>Date</code> objects</a> when working with dates and times.
-<li><a href="https://github.com/JuliaTime/">JuliaTime</a> contains a
+<li><a href="https://github.com/JuliaTime">JuliaTime</a> contains a
 compiler from <code><abbr>tz</abbr></code> source into
-<a href="https://julialang.org/">Julia</a>. It is freely available
+<a href="https://julialang.org">Julia</a>. It is freely available
 under the <abbr>MIT</abbr> license.</li>
 <li><a href="https://github.com/pavkam/tzdb"><abbr>TZDB</abbr> &ndash;
 <abbr>IANA</abbr> Time Zone Database for Delphi/<abbr
@@ -565,7 +563,7 @@ as compiled by <a href="https://en.wikipedia.org/wiki/Delphi_(IDE)">Delphi</a>
 and <a
 href="https://en.wikipedia.org/wiki/Free_Pascal"><abbr>FPC</abbr></a>.
 It is freely available under a <abbr>BSD</abbr>-style license.</li>
-<li><a href="http://pytz.sourceforge.net">pytz &ndash; World Timezone
+<li><a href="https://pythonhosted.org/pytz/">pytz &ndash; World Timezone
 Definitions for Python</a> compiles <code><abbr>tz</abbr></code> source into
 <a href="https://www.python.org">Python</a>.
 It is freely available under a <abbr>BSD</abbr>-style license.
@@ -621,11 +619,11 @@ License.</li>
 <a href="https://github.com/nayarsystems/posix_tz_db"><code>posix_tz_db</code>
 package</a> contains Python code
 to generate <abbr>CSV</abbr> and <abbr>JSON</abbr> tables that map
-<code><abbr>tz</abbr></code> settings to POSIX.1-2017-like approximations.
+<code><abbr>tz</abbr></code> settings to proleptic TZ approximations.
 For example, it maps <code>"Africa/Cairo"</code>
 to <code>"EET-2EEST,M4.5.5/0,M10.5.4/24"</code>,
 an approximation valid for Cairo timestamps from 2023 on.
-This can help porting to platforms that support only POSIX.1-2017.
+This can help porting to platforms that support only proleptic TZ.
 The package is freely available under the MIT license.</li>
 <li><a href="https://github.com/derickr/timelib">Timelib</a> is a C
 library that reads <abbr>TZif</abbr> files and converts
@@ -649,7 +647,7 @@ that represent <code><abbr>tzdb</abbr></code> timezones.
 Python is freely available under the
 <a href="https://docs.python.org/3/license.html">Python Software Foundation
 License</a>.
-A companion <a id="pypi-tzdata" href="https://pypi.org/">PyPI</a> module
+A companion <a id="pypi-tzdata" href="https://pypi.org">PyPI</a> module
 <a href="https://pypi.org/project/tzdata/"><code>tzdata</code></a>
 supplies TZif data if the underlying system data cannot be found;
 it is freely available under the Apache License.</li>
@@ -897,9 +895,10 @@ summarizes and cites historical <abbr>DST</abbr> regulations.</dd>
 href="https://www.ptb.de/cms/en/fachabteilungen/abt4/fb-44/ag-441/realisation-of-legal-time-in-germany.html">Realisation
 of Legal Time in Germany</a>.</dd>
 <dt>Israel</dt>
-<dd>The Interior Ministry periodically issues <a
-href="ftp://ftp.cs.huji.ac.il/pub/tz/announcements"
-hreflang="he">announcements (in Hebrew)</a>.</dd>
+<dd><a
+href="https://tz.cs.huji.ac.il">Israel Timezone Files</a>
+lists official time-change announcements and laws since 1940,
+almost all in Hebrew.</dd>
 <dt>Malaysia</dt>
 <dd>See Singapore <a href="#Singapore">below</a>.</dd>
 <dt>Mexico</dt>
@@ -1081,6 +1080,20 @@ In practice the two configurations also agree for timestamps before
 1972 even though the historical situation is messy, partly because
 neither <abbr>UTC</abbr> nor <abbr>TAI</abbr>
 is well-defined for sufficiently old timestamps.</li>
+<li><a href="https://kb.meinbergglobal.com/kb/time_sync/ntp/configuration/ntp_leap_second_file">The
+<abbr>NTP</abbr> Leap Second File</a> covers the text file
+<code>leap-seconds.list</code>, which lists the currently known leap seconds.
+The <abbr>IERS</abbr> maintains this file, and a copy is distributed by
+<code><abbr>tzdb</abbr></code> for use by <abbr>NTP</abbr> implementations like
+<a href="https://www.ntp.org">classic
+<code><abbr title="Network Time Protocol Daemon">ntpd</abbr></code></a>
+and <a href="https://ntpsec.org">NTPsec</a>.
+The <code><abbr>tz</abbr></code> database also distributes leap second
+information in a differently-formatted <code>leapseconds</code> text file,
+as well as in the "<code>right</code>" configuration in binary form; for
+example, <code>right/UTC</code> can be used
+by <a href="https://chrony-project.org"><code>chrony</code></a>,
+another <abbr>NTP</abbr> implementation.</li>
 <li><a href="https://developers.google.com/time/smear">Leap Smear</a>
 discusses how to gradually adjust <abbr>POSIX</abbr> clocks near a
 leap second so that they disagree with <abbr>UTC</abbr> by at most a
@@ -1088,7 +1101,7 @@ half second, even though every <abbr>POSIX</abbr> minute has exactly
 sixty seconds. This approach works with the default <code><abbr>tz</abbr></code>
 "<code>posix</code>" configuration, is <a
 href="http://bk1.ntp.org/ntp-stable/README.leapsmear">supported</a> by
-the <abbr>NTP</abbr> reference implementation, <a
+the abovementioned <abbr>NTP</abbr> implementations, <a
 href="https://github.com/google/unsmear">supports</a> conversion between
 <abbr>UTC</abbr> and smeared <abbr>POSIX</abbr> timestamps, and is used by major
 cloud service providers. However, according to
@@ -1111,11 +1124,18 @@ without Leap Seconds</a> gives pointers on this
 contentious issue.
 The General Conference on Weights and Measures
 <a href="https://www.bipm.org/en/cgpm-2022/resolution-4">decided in 2022</a>
-to discontinue the use of leap seconds by 2035, replacing them with an
-as-yet-undetermined scheme some time after the year 2135.
+to discontinue the use of leap seconds by 2035, and requested that no
+discontinuous adjustments be made to UTC for at least a century.
 The World Radiocommunication Conference <a
 href="https://www.itu.int/dms_pub/itu-r/opb/act/R-ACT-WRC.15-2023-PDF-E.pdf">resolved
 in 2023</a> to cooperate with this process.
+<a href="https://www.preprints.org/manuscript/202406.0043/v1">A proposal
+to change the leap-second adjustments to Coordinated Universal Time</a>
+(doi:<a href="https://doi.org/10.1088/1681-7575/ad6266">10.1088/1681-7575/ad6266</a>)
+would replace leap seconds with 13-second leap smears occurring once per
+decade until 2100, with leap smears after that gradually increasing in size.
+However, there is still no consensus on whether this is the best way
+to replace leap seconds.
 </li>
 </ul>
 </section>
@@ -1153,9 +1173,12 @@ headers.</li>
 <li>
 <a href="https://datatracker.ietf.org/doc/html/rfc3339">Date and Time
 on the Internet: Timestamps</a> (Internet <abbr>RFC</abbr> 3339)
-specifies an <abbr>ISO</abbr> 8601
-profile for use in new Internet
-protocols.</li>
+specifies an <abbr>ISO</abbr> 8601 profile for use in new Internet protocols.
+An extension, <a href="https://datatracker.ietf.org/doc/html/rfc9557">Date
+and Time on the Internet: Timestamps with Additional Information</a>
+(Internet <abbr>RFC</abbr> 9557) extends this profile
+to let you specify the <code><abbr>tzdb</abbr></code> timezone of a timestamp
+via suffixes like "<code>[Asia/Tokyo]</code>".
 <li>
 <a href="https://web.archive.org/web/20190130042457/https://www.hackcraft.net/web/datetime/">Date &amp; Time
 Formats on the Web</a> surveys web- and Internet-oriented date and time
@@ -1173,8 +1196,8 @@ unfortunately some of these abbreviations were merely the database maintainers'
 inventions, and these have been removed when possible.</li>
 <li>Numeric time zone abbreviations typically count hours east of
 <abbr>UT</abbr>, e.g., +09 for Japan and
-&minus;10 for Hawaii. However, the <abbr>POSIX</abbr>
-<code><abbr>TZ</abbr></code> environment variable uses the opposite convention.
+&minus;10 for Hawaii. However, <abbr>POSIX</abbr> proleptic
+<code><abbr>TZ</abbr></code> settings use the opposite convention.
 For example, one might use <code><abbr>TZ</abbr>="<abbr
 title="Japan Standard Time">JST</abbr>-9"</code> and
 <code><abbr>TZ</abbr>="<abbr title="Hawaii Standard Time">HST</abbr>10"</code>

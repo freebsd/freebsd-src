@@ -89,11 +89,12 @@ run()
 # $1 directory
 # $2 source filename w/o extension
 # $3 source extension
+# $4 optional regex for egrep -w
 clean_dep()
 {
 	for libcompat in "" $ALL_libcompats; do
 		dirprfx=${libcompat:+obj-lib${libcompat}/}
-		if egrep -qw "$2\.$3" "$OBJTOP"/$dirprfx$1/.depend.$2.*o 2>/dev/null; then
+		if egrep -qw "${4:-$2\.$3}" "$OBJTOP"/$dirprfx$1/.depend.$2.*o 2>/dev/null; then
 			echo "Removing stale ${libcompat:+lib${libcompat} }dependencies and objects for $2.$3"
 			run rm -f \
 			    "$OBJTOP"/$dirprfx$1/.depend.$2.* \
@@ -172,13 +173,23 @@ clean_dep   lib/libc        statfs        c
 # 20240308  0ee0ae237324    Remove pointless MD syscall(2)
 # 20240308  7b3836c28188    Remove pointless MD syscall(2)
 if [ ${MACHINE} != i386 ]; then
-	clean_dep   lib/libsys  syscall S
-	clean_dep   lib/libc    syscall S
+	libcompats=
+	for libcompat in $ALL_libcompats; do
+		if [ $MACHINE = amd64 ] && [ $libcompat = 32 ]; then
+			continue
+		fi
+		libcompats="${libcompats+$libcompats }$libcompat"
+	done
+	ALL_libcompats="$libcompats" clean_dep   lib/libsys  syscall S ".*/syscall\.S"
+	ALL_libcompats="$libcompats" clean_dep   lib/libc    syscall S ".*/syscall\.S"
 fi
 
 # 20240416  2fda3ab0ac19    WITH_NVME: Remove from broken
 if [ -f "$OBJTOP"/rescue/rescue/rescue.mk ] && \
-    grep -q -v 'nvme_util.o' "$OBJTOP"/rescue/rescue/rescue.mk; then
+    ! grep -q 'nvme_util.o' "$OBJTOP"/rescue/rescue/rescue.mk; then
 	echo "removing rescue.mk without nvme_util.o"
-	rm -f "$OBJTOP"/rescue/rescue/rescue.mk
+	run rm -f "$OBJTOP"/rescue/rescue/rescue.mk
 fi
+
+# 20240910  e2df9bb44109
+clean_dep   cddl/lib/libzpool abd_os c "linux/zfs/abd_os\.c"

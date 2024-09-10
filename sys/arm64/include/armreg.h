@@ -2444,6 +2444,8 @@
 #define	TCR_EL1_CRm			0
 #define	TCR_EL1_op2			2
 /* Bits 63:59 are reserved */
+#define	TCR_DS_SHIFT		59
+#define	TCR_DS			(UL(1) << TCR_DS_SHIFT)
 #define	TCR_TCMA1_SHIFT		58
 #define	TCR_TCMA1		(UL(1) << TCR_TCMA1_SHIFT)
 #define	TCR_TCMA0_SHIFT		57
@@ -2540,14 +2542,6 @@
 #define	TCR_T0SZ_MASK		(UL(0x3f) << TCR_T0SZ_SHIFT)
 #define	TCR_T0SZ(x)		((x) << TCR_T0SZ_SHIFT)
 #define	TCR_TxSZ(x)		(TCR_T1SZ(x) | TCR_T0SZ(x))
-
-#define	TCR_CACHE_ATTRS	((TCR_IRGN0_WBWA | TCR_IRGN1_WBWA) |\
-				(TCR_ORGN0_WBWA | TCR_ORGN1_WBWA))
-#ifdef SMP
-#define	TCR_SMP_ATTRS	(TCR_SH0_IS | TCR_SH1_IS)
-#else
-#define	TCR_SMP_ATTRS	0
-#endif
 
 /* TCR_EL12 */
 #define	TCR_EL12_REG			MRS_REG_ALT_NAME(TCR_EL12)

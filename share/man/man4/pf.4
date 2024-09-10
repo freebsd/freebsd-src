@@ -26,7 +26,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 20, 2023
+.Dd September 6, 2024
 .Dt PF 4
 .Os
 .Sh NAME
@@ -80,17 +80,35 @@ The following
 tunables are available.
 .Bl -tag -width indent
 .It Va net.pf.states_hashsize
-Size of hash tables that store states.
+Size of hash table that stores states.
 Should be power of 2.
 Default value is 131072.
 .It Va net.pf.source_nodes_hashsize
-Size of hash table that store source nodes.
+Size of hash table that stores source nodes.
+Should be power of 2.
+Default value is 32768.
+.It Va net.pf.rule_tag_hashsize
+Size of the hash table that stores tags.
+.It Va net.pf.udpendpoint_hashsize
+Size of hash table that store UDP endpoint mappings.
 Should be power of 2.
 Default value is 32768.
 .It Va net.pf.default_to_drop
 This value overrides
 .Cd "options PF_DEFAULT_TO_DROP"
 from kernel configuration file.
+.It Va net.pf.filter_local
+This tells
+.Nm
+to also filter on the loopback output hook.
+This is typically used to allow redirect rules to adjust the source address.
+.It Va net.pf.request_maxcount
+The maximum number of items in a single ioctl call.
+.It Va net.pf.rdr_srcport_rewrite_tries
+The maximum number of times to try and find a free source port when handling
+redirects.
+Such rules are typically applied to external traffic, so an exhaustive search
+may be too expensive.
 .El
 .Pp
 Read only

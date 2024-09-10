@@ -69,6 +69,7 @@
 static struct mtx ipsec_accel_sav_tmp;
 static struct unrhdr *drv_spi_unr;
 static struct mtx ipsec_accel_cnt_lock;
+static struct taskqueue *ipsec_accel_tq;
 
 struct ipsec_accel_install_newkey_tq {
 	struct secasvar *sav;
@@ -97,8 +98,6 @@ struct ifp_handle_sav {
 
 #define	IFP_HS_HANDLED	0x00000001
 #define	IFP_HS_REJECTED	0x00000002
-#define	IFP_HS_INPUT	0x00000004
-#define	IFP_HS_OUTPUT	0x00000008
 #define	IFP_HS_MARKER	0x00000010
 
 static CK_LIST_HEAD(, ifp_handle_sav) ipsec_accel_all_sav_handles;
@@ -168,6 +167,11 @@ ipsec_accel_init(void *arg)
 	mtx_init(&ipsec_accel_cnt_lock, "ipascn", MTX_DEF, 0);
 	drv_spi_unr = new_unrhdr(IPSEC_ACCEL_DRV_SPI_MIN,
 	    IPSEC_ACCEL_DRV_SPI_MAX, &ipsec_accel_sav_tmp);
+	ipsec_accel_tq = taskqueue_create("ipsec_offload", M_WAITOK,
+	    taskqueue_thread_enqueue, &ipsec_accel_tq);
+	(void)taskqueue_start_threads(&ipsec_accel_tq,
+	    1 /* Must be single-threaded */, PWAIT,
+	    "ipsec_offload");
 	ipsec_accel_sa_newkey_p = ipsec_accel_sa_newkey_impl;
 	ipsec_accel_forget_sav_p = ipsec_accel_forget_sav_impl;
 	ipsec_accel_spdadd_p = ipsec_accel_spdadd_impl;
@@ -209,6 +213,8 @@ ipsec_accel_fini(void *arg)
 	clean_unrhdr(drv_spi_unr);	/* avoid panic, should go later */
 	clear_unrhdr(drv_spi_unr);
 	delete_unrhdr(drv_spi_unr);
+	taskqueue_drain_all(ipsec_accel_tq);
+	taskqueue_free(ipsec_accel_tq);
 	mtx_destroy(&ipsec_accel_sav_tmp);
 	mtx_destroy(&ipsec_accel_cnt_lock);
 }
@@ -346,7 +352,7 @@ ipsec_accel_sa_newkey_act(void *context, int pending)
 		/*
 		 * If ipsec_accel_forget_sav() raced with us and set
 		 * the flag, do its work.  Its task cannot execute in
-		 * parallel since taskqueue_thread is single-threaded.
+		 * parallel since ipsec_accel taskqueue is single-threaded.
 		 */
 		if ((sav->accel_flags & SADB_KEY_ACCEL_DEINST) != 0) {
 			tqf = (void *)sav->accel_forget_tq;
@@ -386,8 +392,8 @@ ipsec_accel_sa_newkey_impl(struct secasvar *sav)
 
 	TASK_INIT(&tq->install_task, 0, ipsec_accel_sa_newkey_act, tq);
 	tq->sav = sav;
-	tq->install_vnet = curthread->td_vnet;	/* XXXKIB liveness */
-	taskqueue_enqueue(taskqueue_thread, &tq->install_task);
+	tq->install_vnet = curthread->td_vnet;
+	taskqueue_enqueue(ipsec_accel_tq, &tq->install_task);
 }
 
 static int
@@ -405,8 +411,7 @@ ipsec_accel_handle_sav(struct secasvar *sav, struct ifnet *ifp,
 	ihs->drv_spi = drv_spi;
 	ihs->ifdata = priv;
 	ihs->flags = flags;
-	if ((flags & IFP_HS_OUTPUT) != 0)
-		ihs->hdr_ext_size = esp_hdrsiz(sav);
+	ihs->hdr_ext_size = esp_hdrsiz(sav);
 	mtx_lock(&ipsec_accel_sav_tmp);
 	CK_LIST_FOREACH(i, &sav->accel_ifps, sav_link) {
 		if (i->ifp == ifp) {
@@ -511,7 +516,7 @@ ipsec_accel_forget_sav_impl(struct secasvar *sav)
 	TASK_INIT(&tq->forget_task, 0, ipsec_accel_forget_sav_act, tq);
 	tq->forget_vnet = curthread->td_vnet;
 	tq->sav = sav;
-	taskqueue_enqueue(taskqueue_thread, &tq->forget_task);
+	taskqueue_enqueue(ipsec_accel_tq, &tq->forget_task);
 }
 
 static void
@@ -699,7 +704,7 @@ ipsec_accel_spdadd_impl(struct secpolicy *sp, struct inpcb *inp)
 		in_pcbref(inp);
 	TASK_INIT(&tq->adddel_task, 0, ipsec_accel_spdadd_act, sp);
 	key_addref(sp);
-	taskqueue_enqueue(taskqueue_thread, &tq->adddel_task);
+	taskqueue_enqueue(ipsec_accel_tq, &tq->adddel_task);
 }
 
 static void
@@ -754,7 +759,7 @@ ipsec_accel_spddel_impl(struct secpolicy *sp)
 	tq->adddel_vnet = curthread->td_vnet;
 	TASK_INIT(&tq->adddel_task, 0, ipsec_accel_spddel_act, sp);
 	key_addref(sp);
-	taskqueue_enqueue(taskqueue_thread, &tq->adddel_task);
+	taskqueue_enqueue(ipsec_accel_tq, &tq->adddel_task);
 }
 
 static void
@@ -876,7 +881,8 @@ ipsec_accel_output(struct ifnet *ifp, struct mbuf *m, struct inpcb *inp,
 	}
 
 	i = ipsec_accel_is_accel_sav_ptr(sav, ifp);
-	if (i == NULL)
+	if (i == NULL || (i->flags & (IFP_HS_HANDLED | IFP_HS_REJECTED)) !=
+	    IFP_HS_HANDLED)
 		goto out;
 
 	if ((m->m_pkthdr.csum_flags & CSUM_TSO) == 0) {
@@ -1126,7 +1132,7 @@ ipsec_accel_sa_lifetime_op_impl(struct secasvar *sav,
 static void
 ipsec_accel_sync_imp(void)
 {
-	taskqueue_drain_all(taskqueue_thread);
+	taskqueue_drain_all(ipsec_accel_tq);
 }
 
 static struct mbuf *

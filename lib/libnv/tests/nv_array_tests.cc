@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2015 Mariusz Zaborski <oshogbo@FreeBSD.org>
- * All rights reserved.
+ * Copyright (c) 2015-2024 Mariusz Zaborski <oshogbo@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,6 +26,7 @@
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/nv.h>
+#include <sys/mman.h>
 #include <sys/socket.h>
 
 #include <atf-c++.hpp>
@@ -1161,6 +1161,58 @@ ATF_TEST_CASE_BODY(nvlist_nvlist_array__pack)
 	free(packed);
 }
 
+
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_string_array_nonull__pack);
+ATF_TEST_CASE_BODY(nvlist_string_array_nonull__pack)
+{
+	nvlist_t *testnvl, *unpacked;
+	const char *somestr[3] = { "a", "b", "XXX" };
+	uint8_t *packed, *twopages, *dataptr, *secondpage;
+	size_t packed_size, page_size;
+	bool found;
+
+	page_size = sysconf(_SC_PAGESIZE);
+	testnvl = nvlist_create(0);
+	ATF_REQUIRE(testnvl != NULL);
+	ATF_REQUIRE_EQ(nvlist_error(testnvl), 0);
+	nvlist_add_string_array(testnvl, "nvl/string", somestr,
+	    nitems(somestr));
+	ATF_REQUIRE_EQ(nvlist_error(testnvl), 0);
+
+	packed = (uint8_t *)nvlist_pack(testnvl, &packed_size);
+	ATF_REQUIRE(packed != NULL);
+
+	twopages = (uint8_t *)mmap(NULL, page_size * 2, PROT_READ | PROT_WRITE,
+	    MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	ATF_REQUIRE(twopages != MAP_FAILED);
+	dataptr = &twopages[page_size - packed_size];
+	secondpage = &twopages[page_size];
+
+	memset(twopages, 'A', page_size * 2);
+
+	mprotect(secondpage, page_size, PROT_NONE);
+	memcpy(dataptr, packed, packed_size);
+
+	found = false;
+	for (size_t i = 0; i < packed_size - 3; i++) {
+		if (dataptr[i] == 'X' && dataptr[i + 1] == 'X' &&
+		    dataptr[i + 2] == 'X' && dataptr[i + 3] == '\0') {
+			dataptr[i + 3] = 'X';
+			found = true;
+			break;
+		}
+	}
+	ATF_REQUIRE(found == true);
+
+	unpacked = nvlist_unpack(dataptr, packed_size, 0);
+	ATF_REQUIRE(unpacked == NULL);
+
+	nvlist_destroy(testnvl);
+	free(packed);
+	munmap(twopages, page_size * 2);
+}
+
+
 ATF_INIT_TEST_CASES(tp)
 {
 
@@ -1190,5 +1242,7 @@ ATF_INIT_TEST_CASES(tp)
 	ATF_ADD_TEST_CASE(tp, nvlist_descriptor_array__pack)
 	ATF_ADD_TEST_CASE(tp, nvlist_string_array__pack)
 	ATF_ADD_TEST_CASE(tp, nvlist_nvlist_array__pack)
+
+	ATF_ADD_TEST_CASE(tp, nvlist_string_array_nonull__pack)
 }
 

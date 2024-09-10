@@ -159,7 +159,7 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
  */
 #define	RDONLY		0x00000200 /* lookup with read-only semantics */
 #define	ISRESTARTED	0x00000400 /* restarted namei */
-/* UNUSED		0x00000800 */
+#define	IGNOREWHITEOUT	0x00000800 /* ignore whiteouts, e.g. when checking if a dir is empty */
 #define	ISWHITEOUT	0x00001000 /* found whiteout */
 #define	DOWHITEOUT	0x00002000 /* do whiteouts */
 #define	WILLBEDIR	0x00004000 /* new files will be dirs; allow trailing / */

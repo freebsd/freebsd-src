@@ -111,8 +111,6 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 #define	 ATTR_S2_MEMATTR_WT		0xa
 #define	 ATTR_S2_MEMATTR_WB		0xf
 
-#define	ATTR_DEFAULT	(ATTR_AF | ATTR_SH(ATTR_SH_IS))
-
 #define	ATTR_DESCR_MASK		3
 #define	ATTR_DESCR_VALID	1
 #define	ATTR_DESCR_TYPE_MASK	2

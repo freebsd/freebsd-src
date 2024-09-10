@@ -57,6 +57,7 @@ CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include/os/freebsd
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/os/freebsd
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libzfs
+CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libzpool/include
 CFLAGS+= -I${SRCTOP}/sys
 CFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/include
 CFLAGS+= -include ${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/spl/sys/ccompile.h

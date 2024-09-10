@@ -107,7 +107,7 @@ typedef struct zio_checksum_info {
 #include "skein_zfs.c"
 
 #ifdef HAS_ZSTD_ZFS
-extern int zfs_zstd_decompress(void *s_start, void *d_start, size_t s_len,
+extern int zfs_zstd_decompress_buf(void *s_start, void *d_start, size_t s_len,
     size_t d_len, int n);
 #endif
 
@@ -191,7 +191,7 @@ static zio_compress_info_t zio_compress_table[ZIO_COMPRESS_FUNCTIONS] = {
 	{NULL,			zle_decompress,		64,	"zle"},
 	{NULL,			lz4_decompress,		0,	"lz4"},
 #ifdef HAS_ZSTD_ZFS
-	{NULL,			zfs_zstd_decompress, ZIO_ZSTD_LEVEL_DEFAULT, "zstd"}
+	{NULL,			zfs_zstd_decompress_buf, ZIO_ZSTD_LEVEL_DEFAULT, "zstd"}
 #endif
 };
 

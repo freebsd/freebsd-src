@@ -1213,6 +1213,7 @@ zvol_queue_limits_convert(zvol_queue_limits_t *limits,
 	qlimits->io_opt = limits->zql_io_opt;
 	qlimits->physical_block_size = limits->zql_physical_block_size;
 	qlimits->max_discard_sectors = limits->zql_max_discard_sectors;
+	qlimits->max_hw_discard_sectors = limits->zql_max_discard_sectors;
 	qlimits->discard_granularity = limits->zql_discard_granularity;
 #ifdef HAVE_BLKDEV_QUEUE_LIMITS_FEATURES
 	qlimits->features =
@@ -1251,7 +1252,6 @@ zvol_alloc_non_blk_mq(struct zvol_state_os *zso, zvol_queue_limits_t *limits)
 
 	zso->zvo_disk->minors = ZVOL_MINORS;
 	zso->zvo_queue = zso->zvo_disk->queue;
-	zvol_queue_limits_apply(limits, zso->zvo_queue);
 #elif defined(HAVE_BLK_ALLOC_DISK_2ARG)
 	struct queue_limits qlimits;
 	zvol_queue_limits_convert(limits, &qlimits);
@@ -1261,13 +1261,10 @@ zvol_alloc_non_blk_mq(struct zvol_state_os *zso, zvol_queue_limits_t *limits)
 		return (1);
 	}
 
-#ifndef HAVE_BLKDEV_QUEUE_LIMITS_FEATURES
-	blk_queue_set_write_cache(zso->zvo_queue, B_TRUE);
-#endif
-
 	zso->zvo_disk = disk;
 	zso->zvo_disk->minors = ZVOL_MINORS;
 	zso->zvo_queue = zso->zvo_disk->queue;
+
 #else
 	zso->zvo_queue = blk_alloc_queue(NUMA_NO_NODE);
 	if (zso->zvo_queue == NULL)
@@ -1361,7 +1358,7 @@ zvol_alloc_blk_mq(zvol_state_t *zv, zvol_queue_limits_t *limits)
  * request queue and generic disk structures for the block device.
  */
 static zvol_state_t *
-zvol_alloc(dev_t dev, const char *name)
+zvol_alloc(dev_t dev, const char *name, uint64_t volblocksize)
 {
 	zvol_state_t *zv;
 	struct zvol_state_os *zso;
@@ -1381,6 +1378,7 @@ zvol_alloc(dev_t dev, const char *name)
 	zso = kmem_zalloc(sizeof (struct zvol_state_os), KM_SLEEP);
 	zv->zv_zso = zso;
 	zv->zv_volmode = volmode;
+	zv->zv_volblocksize = volblocksize;
 
 	list_link_init(&zv->zv_next);
 	mutex_init(&zv->zv_state_lock, NULL, MUTEX_DEFAULT, NULL);
@@ -1670,7 +1668,8 @@ zvol_os_create_minor(const char *name)
 	if (error)
 		goto out_dmu_objset_disown;
 
-	zv = zvol_alloc(MKDEV(zvol_major, minor), name);
+	zv = zvol_alloc(MKDEV(zvol_major, minor), name,
+	    doi->doi_data_block_size);
 	if (zv == NULL) {
 		error = SET_ERROR(EAGAIN);
 		goto out_dmu_objset_disown;
@@ -1680,7 +1679,6 @@ zvol_os_create_minor(const char *name)
 	if (dmu_objset_is_snapshot(os))
 		zv->zv_flags |= ZVOL_RDONLY;
 
-	zv->zv_volblocksize = doi->doi_data_block_size;
 	zv->zv_volsize = volsize;
 	zv->zv_objset = os;
 

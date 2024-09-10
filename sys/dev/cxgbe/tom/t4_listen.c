@@ -1494,18 +1494,20 @@ found:
 		synqe->tid = tid;
 		synqe->syn = m;
 		m = NULL;
+		mtx_lock(&td->toep_list_lock);
+		TAILQ_INSERT_TAIL(&td->synqe_list, synqe, link);
+		mtx_unlock(&td->toep_list_lock);
 
 		if (send_synack(sc, synqe, opt0, opt2, tid) != 0) {
 			remove_tid(sc, tid, ntids);
 			m = synqe->syn;
 			synqe->syn = NULL;
+			mtx_lock(&td->toep_list_lock);
+			TAILQ_REMOVE(&td->synqe_list, synqe, link);
+			mtx_unlock(&td->toep_list_lock);
 			NET_EPOCH_EXIT(et);
 			REJECT_PASS_ACCEPT_REQ(true);
 		}
-
-		mtx_lock(&td->toep_list_lock);
-		TAILQ_INSERT_TAIL(&td->synqe_list, synqe, link);
-		mtx_unlock(&td->toep_list_lock);
 		CTR6(KTR_CXGBE,
 		    "%s: stid %u, tid %u, synqe %p, opt0 %#016lx, opt2 %#08x",
 		    __func__, stid, tid, synqe, be64toh(opt0), be32toh(opt2));

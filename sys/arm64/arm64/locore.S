@@ -86,6 +86,7 @@ ENTRY(_start)
 	 * x27 = TTBR0 table
 	 * x26 = Kernel L1 table
 	 * x24 = TTBR1 table
+	 * x22 = PTE shareability attributes
 	 */
 
 	/* Enable the mmu */
@@ -134,6 +135,10 @@ virtdone:
 	str	x25, [x0, #BP_KERN_STACK]
 	str	x27, [x0, #BP_KERN_TTBR0]
 	str	x23, [x0, #BP_BOOT_EL]
+
+	/* Set this before it's used in kasan_init_early */
+	adrp	x1, pmap_sh_attr
+	str	x22, [x1, :lo12:pmap_sh_attr]
 
 #ifdef KASAN
 	/* Save bootparams */
@@ -477,6 +482,30 @@ LENTRY(create_pagetables)
 	b.lo	1b
 
 	/*
+	 * Find the shareability attribute we should use. If FEAT_LPA2 is
+	 * enabled then the shareability field is moved from the page table
+	 * to tcr_el1 and the bits in the page table are reused by the
+	 * address field.
+	 */
+#if PAGE_SIZE == PAGE_SIZE_4K
+#define	LPA2_MASK	ID_AA64MMFR0_TGran4_MASK
+#define	LPA2_VAL	ID_AA64MMFR0_TGran4_LPA2
+#elif PAGE_SIZE == PAGE_SIZE_16K
+#define	LPA2_MASK	ID_AA64MMFR0_TGran16_MASK
+#define	LPA2_VAL	ID_AA64MMFR0_TGran16_LPA2
+#else
+#error Unsupported page size
+#endif
+	mrs	x6, id_aa64mmfr0_el1
+	mov	x7, LPA2_VAL
+	and	x6, x6, LPA2_MASK
+	cmp	x6, x7
+	ldr	x22, =(ATTR_SH(ATTR_SH_IS))
+	csel	x22, xzr, x22, eq
+#undef LPA2_MASK
+#undef LPA2_VAL
+
+	/*
 	 * Build the TTBR1 maps.
 	 */
 
@@ -747,11 +776,13 @@ LENTRY(build_l2_block_pagetable)
 
 	/* Build the L2 block entry */
 	orr	x12, x7, #L2_BLOCK
-	orr	x12, x12, #(ATTR_DEFAULT)
+	orr	x12, x12, #(ATTR_AF)
 	orr	x12, x12, #(ATTR_S1_UXN)
 #ifdef __ARM_FEATURE_BTI_DEFAULT
 	orr	x12, x12, #(ATTR_S1_GP)
 #endif
+	/* Set the shareability attribute */
+	orr	x12, x12, x22
 
 	/* Only use the output address bits */
 	lsr	x9, x9, #L2_SHIFT
@@ -823,11 +854,13 @@ LENTRY(build_l3_page_pagetable)
 
 	/* Build the L3 page entry */
 	orr	x12, x7, #L3_PAGE
-	orr	x12, x12, #(ATTR_DEFAULT)
+	orr	x12, x12, #(ATTR_AF)
 	orr	x12, x12, #(ATTR_S1_UXN)
 #ifdef __ARM_FEATURE_BTI_DEFAULT
 	orr	x12, x12, #(ATTR_S1_GP)
 #endif
+	/* Set the shareability attribute */
+	orr	x12, x12, x22
 
 	/* Only use the output address bits */
 	lsr	x9, x9, #L3_SHIFT
@@ -886,6 +919,13 @@ LENTRY(start_mmu)
 	 * to 1 only if the ASIDBits field equals 0b0010.
 	 */
 	ldr	x2, tcr
+
+	/* If x22 contains a non-zero value then LPA2 is not implemented */
+	cbnz	x22, .Lno_lpa2
+	ldr	x3, =(TCR_DS)
+	orr	x2, x2, x3
+.Lno_lpa2:
+
 	mrs	x3, id_aa64mmfr0_el1
 
 	/* Copy the bottom 3 bits from id_aa64mmfr0_el1 into TCR.IPS */
@@ -945,8 +985,9 @@ tcr:
 #error Unsupported page size
 #endif
 
-	.quad (TCR_TxSZ(64 - VIRT_BITS) | TCR_TG | \
-	    TCR_CACHE_ATTRS | TCR_SMP_ATTRS)
+	.quad (TCR_TxSZ(64 - VIRT_BITS) | TCR_TG |			\
+	    TCR_SH1_IS | TCR_ORGN1_WBWA | TCR_IRGN1_WBWA |		\
+	    TCR_SH0_IS | TCR_ORGN0_WBWA | TCR_IRGN0_WBWA)
 sctlr_set:
 	/* Bits to set */
 	.quad (SCTLR_LSMAOE | SCTLR_nTLSMD | SCTLR_UCI | SCTLR_SPAN | \

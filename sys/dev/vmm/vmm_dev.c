@@ -325,17 +325,7 @@ vm_set_register_set(struct vcpu *vcpu, unsigned int count, int *regnum,
 static int
 vmmdev_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
-	struct vmmdev_softc *sc;
 	int error;
-
-	sc = vmmdev_lookup2(dev);
-	KASSERT(sc != NULL, ("%s: device not found", __func__));
-
-	/*
-	 * A user can only access VMs that they themselves have created.
-	 */
-	if (td->td_ucred != sc->ucred)
-		return (EPERM);
 
 	/*
 	 * A jail without vmm access shouldn't be able to access vmm device

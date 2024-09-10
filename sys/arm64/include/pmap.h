@@ -127,6 +127,8 @@ extern struct pmap	kernel_pmap_store;
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
 
+extern pt_entry_t pmap_sh_attr;
+
 /*
  * Macros to test if a mapping is mappable with an L1 Section mapping
  * or an L2 Large Page mapping.

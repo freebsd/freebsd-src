@@ -1322,6 +1322,7 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 		 * Just set default values to some of the important ones.
 		 */
 		if (nap != NULL) {
+			VATTR_NULL(&nap->na_vattr);
 			nap->na_type = VREG;
 			nap->na_mode = 0;
 			nap->na_rdev = (NFSDEV_T)0;
@@ -3437,7 +3438,7 @@ tryagain:
 		/*
 		 * If an '@' is found and the domain name matches, search for
 		 * the name with dns stripped off.
-		 * Mixed case alpahbetics will match for the domain name, but
+		 * Mixed case alphabetics will match for the domain name, but
 		 * all upper case will not.
 		 */
 		if (cnt == 0 && i < len && i > 0 &&

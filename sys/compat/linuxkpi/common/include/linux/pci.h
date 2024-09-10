@@ -36,6 +36,7 @@
 #define	CONFIG_PCI_MSI
 
 #include <linux/types.h>
+#include <linux/device/driver.h>
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -274,24 +275,8 @@ extern spinlock_t pci_lock;
 
 #define	__devexit_p(x)	x
 
-#define module_pci_driver(_driver)					\
-									\
-static inline int							\
-_pci_init(void)								\
-{									\
-									\
-	return (linux_pci_register_driver(&_driver));			\
-}									\
-									\
-static inline void							\
-_pci_exit(void)								\
-{									\
-									\
-	linux_pci_unregister_driver(&_driver);				\
-}									\
-									\
-module_init(_pci_init);							\
-module_exit(_pci_exit)
+#define	module_pci_driver(_drv)						\
+    module_driver(_drv, linux_pci_register_driver, linux_pci_unregister_driver)
 
 struct msi_msg {
 	uint32_t			data;

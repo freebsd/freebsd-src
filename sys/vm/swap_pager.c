@@ -491,7 +491,7 @@ static daddr_t swp_pager_meta_build(vm_object_t, vm_pindex_t, daddr_t,
 static void swp_pager_meta_free(vm_object_t, vm_pindex_t, vm_pindex_t,
     vm_size_t *);
 static void swp_pager_meta_transfer(vm_object_t src, vm_object_t dst,
-    vm_pindex_t pindex, vm_pindex_t count, vm_size_t *freed);
+    vm_pindex_t pindex, vm_pindex_t count);
 static void swp_pager_meta_free_all(vm_object_t);
 static daddr_t swp_pager_meta_lookup(vm_object_t, vm_pindex_t);
 
@@ -530,6 +530,59 @@ swblk_trie_free(struct pctrie *ptree, void *node)
 }
 
 PCTRIE_DEFINE(SWAP, swblk, p, swblk_trie_alloc, swblk_trie_free);
+
+static struct swblk *
+swblk_lookup(vm_object_t object, vm_pindex_t pindex)
+{
+	return (SWAP_PCTRIE_LOOKUP(&object->un_pager.swp.swp_blks,
+	    rounddown(pindex, SWAP_META_PAGES)));
+}
+
+static struct swblk *
+swblk_start(vm_object_t object, vm_pindex_t pindex)
+{
+	return (SWAP_PCTRIE_LOOKUP_GE(&object->un_pager.swp.swp_blks,
+	    rounddown(pindex, SWAP_META_PAGES)));
+}
+
+static struct swblk *
+swblk_next(vm_object_t object, struct swblk *sb)
+{
+	return (swblk_start(object, sb->p + SWAP_META_PAGES));
+}
+
+static struct swblk *
+swblk_start_limit(vm_object_t object, vm_pindex_t pindex, vm_pindex_t limit)
+{
+	struct swblk *sb = swblk_start(object, pindex);
+	if (sb != NULL && sb->p < limit)
+		return (sb);
+	return (NULL);
+}
+
+static struct swblk *
+swblk_next_limit(vm_object_t object, struct swblk *sb, vm_pindex_t limit)
+{
+	return (swblk_start_limit(object, sb->p + SWAP_META_PAGES, limit));
+}
+
+static void
+swblk_lookup_remove(vm_object_t object, struct swblk *sb)
+{
+	SWAP_PCTRIE_REMOVE(&object->un_pager.swp.swp_blks, sb->p);
+}
+
+static int
+swblk_lookup_insert(vm_object_t object, struct swblk *sb)
+{
+	return (SWAP_PCTRIE_INSERT(&object->un_pager.swp.swp_blks, sb));
+}
+
+static bool
+swblk_is_empty(vm_object_t object)
+{
+	return (pctrie_is_empty(&object->un_pager.swp.swp_blks));
+}
 
 /*
  * SWP_SIZECHECK() -	update swap_pager_full indication
@@ -1084,8 +1137,7 @@ swap_pager_copy(vm_object_t srcobject, vm_object_t dstobject,
 	/*
 	 * Transfer source to destination.
 	 */
-	swp_pager_meta_transfer(srcobject, dstobject, offset, dstobject->size,
-	    NULL);
+	swp_pager_meta_transfer(srcobject, dstobject, offset, dstobject->size);
 
 	/*
 	 * Free left over swap blocks in source.
@@ -1218,8 +1270,7 @@ swap_pager_unswapped(vm_page_t m)
 	}
 	swap_pager_unswapped_acct(m);
 
-	sb = SWAP_PCTRIE_LOOKUP(&m->object->un_pager.swp.swp_blks,
-	    rounddown(m->pindex, SWAP_META_PAGES));
+	sb = swblk_lookup(m->object, m->pindex);
 	if (sb == NULL)
 		return;
 	range.start = sb->d[m->pindex % SWAP_META_PAGES];
@@ -1777,18 +1828,17 @@ u_long
 swap_pager_swapped_pages(vm_object_t object)
 {
 	struct swblk *sb;
-	vm_pindex_t pi;
 	u_long res;
 	int i;
 
 	VM_OBJECT_ASSERT_LOCKED(object);
 
-	if (pctrie_is_empty(&object->un_pager.swp.swp_blks))
+	if (swblk_is_empty(object))
 		return (0);
 
-	for (res = 0, pi = 0; (sb = SWAP_PCTRIE_LOOKUP_GE(
-	    &object->un_pager.swp.swp_blks, pi)) != NULL;
-	    pi = sb->p + SWAP_META_PAGES) {
+	res = 0;
+	for (sb = swblk_start(object, 0); sb != NULL;
+	    sb = swblk_next(object, sb)) {
 		for (i = 0; i < SWAP_META_PAGES; i++) {
 			if (sb->d[i] != SWAPBLK_NONE)
 				res++;
@@ -1835,16 +1885,14 @@ swap_pager_swapoff_object(struct swdevt *sp, vm_object_t object)
 		if (i == SWAP_META_PAGES) {
 			pi = sb->p + SWAP_META_PAGES;
 			if (sb_empty) {
-				SWAP_PCTRIE_REMOVE(
-				    &object->un_pager.swp.swp_blks, sb->p);
+				swblk_lookup_remove(object, sb);
 				uma_zfree(swblk_zone, sb);
 			}
 			i = 0;
 		}
 
 		if (i == 0) {
-			sb = SWAP_PCTRIE_LOOKUP_GE(
-			    &object->un_pager.swp.swp_blks, pi);
+			sb = swblk_start(object, pi);
 			if (sb == NULL)
 				break;
 			sb_empty = true;
@@ -2020,7 +2068,7 @@ swp_pager_free_empty_swblk(vm_object_t object, struct swblk *sb)
 {
 
 	if (swp_pager_swblk_empty(sb, 0, SWAP_META_PAGES)) {
-		SWAP_PCTRIE_REMOVE(&object->un_pager.swp.swp_blks, sb->p);
+		swblk_lookup_remove(object, sb);
 		uma_zfree(swblk_zone, sb);
 	}
 }
@@ -2050,7 +2098,7 @@ swp_pager_meta_build(vm_object_t object, vm_pindex_t pindex, daddr_t swapblk,
 	VM_OBJECT_ASSERT_WLOCKED(object);
 
 	rdpi = rounddown(pindex, SWAP_META_PAGES);
-	sb = SWAP_PCTRIE_LOOKUP(&object->un_pager.swp.swp_blks, rdpi);
+	sb = swblk_lookup(object, rdpi);
 	if (sb == NULL) {
 		if (swapblk == SWAPBLK_NONE)
 			return (SWAPBLK_NONE);
@@ -2079,8 +2127,7 @@ swp_pager_meta_build(vm_object_t object, vm_pindex_t pindex, daddr_t swapblk,
 			} else
 				uma_zwait(swblk_zone);
 			VM_OBJECT_WLOCK(object);
-			sb = SWAP_PCTRIE_LOOKUP(&object->un_pager.swp.swp_blks,
-			    rdpi);
+			sb = swblk_lookup(object, rdpi);
 			if (sb != NULL)
 				/*
 				 * Somebody swapped out a nearby page,
@@ -2090,8 +2137,7 @@ swp_pager_meta_build(vm_object_t object, vm_pindex_t pindex, daddr_t swapblk,
 				goto allocated;
 		}
 		for (;;) {
-			error = SWAP_PCTRIE_INSERT(
-			    &object->un_pager.swp.swp_blks, sb);
+			error = swblk_lookup_insert(object, sb);
 			if (error == 0) {
 				if (atomic_cmpset_int(&swpctrie_zone_exhausted,
 				    1, 0))
@@ -2113,8 +2159,7 @@ swp_pager_meta_build(vm_object_t object, vm_pindex_t pindex, daddr_t swapblk,
 			} else
 				uma_zwait(swpctrie_zone);
 			VM_OBJECT_WLOCK(object);
-			sb1 = SWAP_PCTRIE_LOOKUP(&object->un_pager.swp.swp_blks,
-			    rdpi);
+			sb1 = swblk_lookup(object, rdpi);
 			if (sb1 != NULL) {
 				uma_zfree(swblk_zone, sb);
 				sb = sb1;
@@ -2142,53 +2187,42 @@ allocated:
 }
 
 /*
- * SWP_PAGER_META_TRANSFER() - free a range of blocks in the srcobject's swap
- * metadata, or transfer it into dstobject.
+ * SWP_PAGER_META_TRANSFER() - transfer a range of blocks in the srcobject's
+ * swap metadata into dstobject.
  *
  *	This routine will free swap metadata structures as they are cleaned
  *	out.
  */
 static void
 swp_pager_meta_transfer(vm_object_t srcobject, vm_object_t dstobject,
-    vm_pindex_t pindex, vm_pindex_t count, vm_size_t *moved)
+    vm_pindex_t pindex, vm_pindex_t count)
 {
 	struct page_range range;
 	struct swblk *sb;
 	daddr_t blk;
-	vm_page_t m;
 	vm_pindex_t offset, last;
-	vm_size_t mc;
 	int i, limit, start;
 
 	VM_OBJECT_ASSERT_WLOCKED(srcobject);
-	MPASS(moved == NULL || dstobject == NULL);
+	VM_OBJECT_ASSERT_WLOCKED(dstobject);
 
-	mc = 0;
-	m = NULL;
-	if (count == 0 || pctrie_is_empty(&srcobject->un_pager.swp.swp_blks))
-		goto out;
+	if (count == 0 || swblk_is_empty(srcobject))
+		return;
 
 	swp_pager_init_freerange(&range);
 	offset = pindex;
 	last = pindex + count;
-	for (;;) {
-		sb = SWAP_PCTRIE_LOOKUP_GE(&srcobject->un_pager.swp.swp_blks,
-		    rounddown(pindex, SWAP_META_PAGES));
-		if (sb == NULL || sb->p >= last)
-			break;
-		start = pindex > sb->p ? pindex - sb->p : 0;
-		limit = last - sb->p < SWAP_META_PAGES ? last - sb->p :
-		    SWAP_META_PAGES;
+	sb = swblk_start_limit(srcobject, pindex, last);
+	start = (sb != NULL && sb->p < pindex) ? pindex - sb->p : 0;
+	for (; sb != NULL;
+	    sb = swblk_start_limit(srcobject, pindex, last), start = 0) {
+		limit = MIN(last - sb->p, SWAP_META_PAGES);
 		for (i = start; i < limit; i++) {
-			blk = sb->d[i];
-			if (blk == SWAPBLK_NONE)
+			if (sb->d[i] == SWAPBLK_NONE)
 				continue;
-			if (dstobject == NULL ||
-			    (blk = swp_pager_meta_build(dstobject,
-			    sb->p + i - offset, blk, true),
-			    blk != sb->d[i] && blk != SWAPBLK_NONE))
-				swp_pager_update_freerange(&range, sb->d[i]);
-			else if (blk == sb->d[i]) {
+			blk = swp_pager_meta_build(dstobject,
+			    sb->p + i - offset, sb->d[i], true);
+			if (blk == sb->d[i]) {
 				/*
 				 * Destination has no swapblk and is not
 				 * resident, so transfer source.
@@ -2197,30 +2231,20 @@ swp_pager_meta_transfer(vm_object_t srcobject, vm_object_t dstobject,
 				 */
 				VM_OBJECT_WUNLOCK(srcobject);
 				swp_pager_meta_build(dstobject,
-				    sb->p + i - offset, blk, false);
+				    sb->p + i - offset, sb->d[i], false);
 				VM_OBJECT_WLOCK(srcobject);
-			}
-			if (moved != NULL) {
-				m = (m != NULL && m->pindex == sb->p + i - 1) ?
-				    vm_page_next(m) :
-				    vm_page_lookup(srcobject, sb->p + i);
-				if (m == NULL || vm_page_none_valid(m))
-					mc++;
-			}
+			} else if (blk != SWAPBLK_NONE)
+				swp_pager_update_freerange(&range, sb->d[i]);
 			sb->d[i] = SWAPBLK_NONE;
 		}
 		pindex = sb->p + SWAP_META_PAGES;
 		if (swp_pager_swblk_empty(sb, 0, start) &&
 		    swp_pager_swblk_empty(sb, limit, SWAP_META_PAGES)) {
-			SWAP_PCTRIE_REMOVE(&srcobject->un_pager.swp.swp_blks,
-			    sb->p);
+			swblk_lookup_remove(srcobject, sb);
 			uma_zfree(swblk_zone, sb);
 		}
 	}
 	swp_pager_freeswapspace(&range);
-out:
-	if (moved != NULL)
-		*moved = mc;
 }
 
 /*
@@ -2237,7 +2261,51 @@ static void
 swp_pager_meta_free(vm_object_t object, vm_pindex_t pindex, vm_pindex_t count,
     vm_size_t *freed)
 {
-	swp_pager_meta_transfer(object, NULL, pindex, count, freed);
+	struct page_range range;
+	struct swblk *sb;
+	vm_page_t m;
+	vm_pindex_t last;
+	vm_size_t fc;
+	int i, limit, start;
+
+	VM_OBJECT_ASSERT_WLOCKED(object);
+
+	fc = 0;
+	m = NULL;
+	if (count == 0 || swblk_is_empty(object))
+		goto out;
+
+	swp_pager_init_freerange(&range);
+	last = pindex + count;
+	sb = swblk_start_limit(object, pindex, last);
+	start = (sb != NULL && sb->p < pindex) ? pindex - sb->p : 0;
+	for (; sb != NULL;
+	    sb = swblk_start_limit(object, pindex, last), start = 0) {
+		limit = MIN(last - sb->p, SWAP_META_PAGES);
+		for (i = start; i < limit; i++) {
+			if (sb->d[i] == SWAPBLK_NONE)
+				continue;
+			swp_pager_update_freerange(&range, sb->d[i]);
+			if (freed != NULL) {
+				m = (m != NULL && m->pindex == sb->p + i - 1) ?
+				    vm_page_next(m) :
+				    vm_page_lookup(object, sb->p + i);
+				if (m == NULL || vm_page_none_valid(m))
+					fc++;
+			}
+			sb->d[i] = SWAPBLK_NONE;
+		}
+		pindex = sb->p + SWAP_META_PAGES;
+		if (swp_pager_swblk_empty(sb, 0, start) &&
+		    swp_pager_swblk_empty(sb, limit, SWAP_META_PAGES)) {
+			swblk_lookup_remove(object, sb);
+			uma_zfree(swblk_zone, sb);
+		}
+	}
+	swp_pager_freeswapspace(&range);
+out:
+	if (freed != NULL)
+		*freed = fc;
 }
 
 static void
@@ -2296,19 +2364,16 @@ swp_pager_meta_lookup(vm_object_t object, vm_pindex_t pindex)
 	KASSERT((object->flags & OBJ_SWAP) != 0,
 	    ("Lookup object not swappable"));
 
-	sb = SWAP_PCTRIE_LOOKUP(&object->un_pager.swp.swp_blks,
-	    rounddown(pindex, SWAP_META_PAGES));
+	sb = swblk_lookup(object, pindex);
 	if (sb == NULL)
 		return (SWAPBLK_NONE);
 	return (sb->d[pindex % SWAP_META_PAGES]);
 }
 
 /*
- * Returns the least page index which is greater than or equal to the
- * parameter pindex and for which there is a swap block allocated.
- * Returns object's size if the object's type is not swap or if there
- * are no allocated swap blocks for the object after the requested
- * pindex.
+ * Returns the least page index which is greater than or equal to the parameter
+ * pindex and for which there is a swap block allocated.  Returns OBJ_MAX_SIZE
+ * if are no allocated swap blocks for the object after the requested pindex.
  */
 vm_pindex_t
 swap_pager_find_least(vm_object_t object, vm_pindex_t pindex)
@@ -2316,24 +2381,15 @@ swap_pager_find_least(vm_object_t object, vm_pindex_t pindex)
 	struct swblk *sb;
 	int i;
 
-	VM_OBJECT_ASSERT_LOCKED(object);
-	MPASS((object->flags & OBJ_SWAP) != 0);
-
-	if (pctrie_is_empty(&object->un_pager.swp.swp_blks))
-		return (object->size);
-	sb = SWAP_PCTRIE_LOOKUP_GE(&object->un_pager.swp.swp_blks,
-	    rounddown(pindex, SWAP_META_PAGES));
-	if (sb == NULL)
-		return (object->size);
+	if ((sb = swblk_start(object, pindex)) == NULL)
+		return (OBJ_MAX_SIZE);
 	if (sb->p < pindex) {
 		for (i = pindex % SWAP_META_PAGES; i < SWAP_META_PAGES; i++) {
 			if (sb->d[i] != SWAPBLK_NONE)
 				return (sb->p + i);
 		}
-		sb = SWAP_PCTRIE_LOOKUP_GE(&object->un_pager.swp.swp_blks,
-		    roundup(pindex, SWAP_META_PAGES));
-		if (sb == NULL)
-			return (object->size);
+		if ((sb = swblk_next(object, sb)) == NULL)
+			return (OBJ_MAX_SIZE);
 	}
 	for (i = 0; i < SWAP_META_PAGES; i++) {
 		if (sb->d[i] != SWAPBLK_NONE)
@@ -2345,7 +2401,7 @@ swap_pager_find_least(vm_object_t object, vm_pindex_t pindex)
 	 * doesn't map any blocks.
 	 */
 	MPASS(0);
-	return (object->size);
+	return (OBJ_MAX_SIZE);
 }
 
 /*
@@ -2797,11 +2853,8 @@ vmspace_swap_count(struct vmspace *vmspace)
 			goto unlock;
 		pi = OFF_TO_IDX(cur->offset);
 		e = pi + OFF_TO_IDX(cur->end - cur->start);
-		for (;; pi = sb->p + SWAP_META_PAGES) {
-			sb = SWAP_PCTRIE_LOOKUP_GE(
-			    &object->un_pager.swp.swp_blks, pi);
-			if (sb == NULL || sb->p >= e)
-				break;
+		for (sb = swblk_start_limit(object, pi, e);
+		    sb != NULL; sb = swblk_next_limit(object, sb, e)) {
 			for (i = 0; i < SWAP_META_PAGES; i++) {
 				if (sb->p + i < e &&
 				    sb->d[i] != SWAPBLK_NONE)

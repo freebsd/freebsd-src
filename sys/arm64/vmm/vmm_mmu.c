@@ -294,7 +294,7 @@ vmmpmap_enter(vm_offset_t va, vm_size_t size, vm_paddr_t pa, vm_prot_t prot)
 	KASSERT((size & PAGE_MASK) == 0,
 	    ("%s: Mapping is not page-sized", __func__));
 
-	l3e = ATTR_DEFAULT | L3_PAGE;
+	l3e = ATTR_AF | ATTR_SH(ATTR_SH_IS) | L3_PAGE;
 	/* This bit is res1 at EL2 */
 	l3e |= ATTR_S1_AP(ATTR_S1_AP_USER);
 	/* Only normal memory is used at EL2 */

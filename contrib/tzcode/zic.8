@@ -156,7 +156,7 @@ causes a TZif file to contain explicit entries for
 .Em pre-
 .Ar hi
 transitions rather than concisely representing them
-with an extended POSIX.1-2017 TZ string.
+with a proleptic TZ string.
 Also see the
 .Fl b Cm slim
 option for another way to shrink output size.
@@ -165,10 +165,10 @@ Generate redundant trailing explicit transitions for timestamps
 that occur less than
 .Ar hi
 seconds since the Epoch, even though the transitions could be
-more concisely represented via the extended POSIX.1-2017 TZ string.
+more concisely represented via the proleptic TZ string.
 This option does not affect the represented timestamps.
 Although it accommodates nonstandard TZif readers
-that ignore the extended POSIX.1-2017 TZ string,
+that ignore the proleptic TZ string,
 it increases the size of the altered output files.
 .It Fl t Ar file
 When creating local time information, put the configuration link in
@@ -227,11 +227,10 @@ for
 .It
 The output file does not contain all the information about the
 long-term future of a timezone, because the future cannot be summarized as
-an extended POSIX.1-2017 TZ string.
-For example, as of 2023 this problem
+a proleptic TZ string.  For example, as of 2023 this problem
 occurs for Morocco's daylight-saving rules, as these rules are based
 on predictions for when Ramadan will be observed, something that
-an extended POSIX.1-2017 TZ string cannot represent.
+a proleptic TZ string cannot represent.
 .It
 The output contains data that may not be handled properly by client
 code designed for older
@@ -535,21 +534,27 @@ fields of rule lines, except without suffix letters;
 begin the field with a minus sign if time must be subtracted from UT.
 .It RULES
 The name of the rules that apply in the timezone or,
-alternatively, a field in the same format as a rule-line SAVE column,
+alternatively, a field in the same format as a rule-line
+.Ar SAVE
+field,
 giving the amount of time to be added to local standard time
 and whether the resulting time is standard or daylight saving.
-If this field is
-.Ql \-
-then standard time always applies.
+Standard time applies if this field is
+.Ql \*-
+or for timestamps occurring before any rule takes effect.
 When an amount of time is given, only the sum of standard time and
 this amount matters.
 .It FORMAT
 The format for time zone abbreviations.
 The pair of characters
 .Ql %s
-is used to show where the
-.Dq "variable part"
-of the time zone abbreviation goes.
+shows where to put the time zone abbreviation's variable part,
+which is taken from the
+.Ar LETTER/S
+field of the corresponding rule;
+any timestamps that precede the earliest rule use the
+.Ar LETTER/S
+of the earliest standard-time rule (which in this case must exist).
 Alternatively, a format can use the pair of characters
 .Ql %z
 to stand for the UT offset in the form
@@ -633,13 +638,12 @@ that would otherwise take effect in the next
 seconds is instead assumed to take effect simultaneously.
 For example:
 .Bd -literal -offset indent
-# Rule	NAME	FROM	TO	\*-	IN	ON	AT	SAVE	LETTER/S
+# Rule	NAME	FROM	TO	-	IN	ON	AT	SAVE	LETTER/S
 Rule	US	1967	2006	-	Oct	lastSun	2:00	0	S
 Rule	US	1967	1973	-	Apr	lastSun	2:00	1:00	D
-
-# Zone\0\0NAME	STDOFF	RULES	FORMAT	[UNTIL]
-Zone\0\0America/Menominee	\*-5:00	\*-	EST	1973 Apr 29 2:00
-	\*-6:00	US	C%sT
+# Zone	NAME	STDOFF	RULES	FORMAT	[UNTIL]
+Zone	America/Menominee	-5:00	-	EST	1973 Apr 29 2:00
+		-6:00	US	C%sT
 .Ed
 Here, an incorrect reading would be there were two clock changes on 1973-04-29,
 the first from 02:00 EST (\-05) to 01:00 CST (\-06),
@@ -730,16 +734,16 @@ or
 if the leap second time given by the other fields should be interpreted as
 local (wall clock) time.
 .Pp
-Rolling leap seconds were implemented back when it was not
-clear whether common practice was rolling or stationary,
-with concerns that one would see
+Rolling leap seconds would let one see
 Times Square ball drops where there'd be a
 .Dq "3... 2... 1... leap... Happy New Year"
 countdown, placing the leap second at
 midnight New York time rather than midnight UTC.
-However, this countdown style does not seem to have caught on,
-which means rolling leap seconds are not used in practice;
-also, they are not supported if the
+Although stationary leap seconds are the common practice,
+rolling leap seconds can be useful in specialized applications
+like SMPTE timecodes that may prefer to put leap second
+discontinuities at the end of a local broadcast day.
+However, rolling leap seconds are not supported if the
 .Fl r
 option is used.
 .Pp

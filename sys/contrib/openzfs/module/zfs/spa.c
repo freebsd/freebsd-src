@@ -366,21 +366,15 @@ spa_prop_add(spa_t *spa, const char *propname, nvlist_t *outnvl)
 
 int
 spa_prop_get_nvlist(spa_t *spa, char **props, unsigned int n_props,
-    nvlist_t **outnvl)
+    nvlist_t *outnvl)
 {
 	int err = 0;
 
 	if (props == NULL)
 		return (0);
 
-	if (*outnvl == NULL) {
-		err = nvlist_alloc(outnvl, NV_UNIQUE_NAME, KM_SLEEP);
-		if (err)
-			return (err);
-	}
-
 	for (unsigned int i = 0; i < n_props && err == 0; i++) {
-		err = spa_prop_add(spa, props[i], *outnvl);
+		err = spa_prop_add(spa, props[i], outnvl);
 	}
 
 	return (err);
@@ -406,7 +400,7 @@ spa_prop_add_user(nvlist_t *nvl, const char *propname, char *strval,
  * Get property values from the spa configuration.
  */
 static void
-spa_prop_get_config(spa_t *spa, nvlist_t **nvp)
+spa_prop_get_config(spa_t *spa, nvlist_t *nv)
 {
 	vdev_t *rvd = spa->spa_root_vdev;
 	dsl_pool_t *pool = spa->spa_dsl_pool;
@@ -428,48 +422,48 @@ spa_prop_get_config(spa_t *spa, nvlist_t **nvp)
 		size += metaslab_class_get_space(spa_dedup_class(spa));
 		size += metaslab_class_get_space(spa_embedded_log_class(spa));
 
-		spa_prop_add_list(*nvp, ZPOOL_PROP_NAME, spa_name(spa), 0, src);
-		spa_prop_add_list(*nvp, ZPOOL_PROP_SIZE, NULL, size, src);
-		spa_prop_add_list(*nvp, ZPOOL_PROP_ALLOCATED, NULL, alloc, src);
-		spa_prop_add_list(*nvp, ZPOOL_PROP_FREE, NULL,
+		spa_prop_add_list(nv, ZPOOL_PROP_NAME, spa_name(spa), 0, src);
+		spa_prop_add_list(nv, ZPOOL_PROP_SIZE, NULL, size, src);
+		spa_prop_add_list(nv, ZPOOL_PROP_ALLOCATED, NULL, alloc, src);
+		spa_prop_add_list(nv, ZPOOL_PROP_FREE, NULL,
 		    size - alloc, src);
-		spa_prop_add_list(*nvp, ZPOOL_PROP_CHECKPOINT, NULL,
+		spa_prop_add_list(nv, ZPOOL_PROP_CHECKPOINT, NULL,
 		    spa->spa_checkpoint_info.sci_dspace, src);
 
-		spa_prop_add_list(*nvp, ZPOOL_PROP_FRAGMENTATION, NULL,
+		spa_prop_add_list(nv, ZPOOL_PROP_FRAGMENTATION, NULL,
 		    metaslab_class_fragmentation(mc), src);
-		spa_prop_add_list(*nvp, ZPOOL_PROP_EXPANDSZ, NULL,
+		spa_prop_add_list(nv, ZPOOL_PROP_EXPANDSZ, NULL,
 		    metaslab_class_expandable_space(mc), src);
-		spa_prop_add_list(*nvp, ZPOOL_PROP_READONLY, NULL,
+		spa_prop_add_list(nv, ZPOOL_PROP_READONLY, NULL,
 		    (spa_mode(spa) == SPA_MODE_READ), src);
 
 		cap = (size == 0) ? 0 : (alloc * 100 / size);
-		spa_prop_add_list(*nvp, ZPOOL_PROP_CAPACITY, NULL, cap, src);
+		spa_prop_add_list(nv, ZPOOL_PROP_CAPACITY, NULL, cap, src);
 
-		spa_prop_add_list(*nvp, ZPOOL_PROP_DEDUPRATIO, NULL,
+		spa_prop_add_list(nv, ZPOOL_PROP_DEDUPRATIO, NULL,
 		    ddt_get_pool_dedup_ratio(spa), src);
-		spa_prop_add_list(*nvp, ZPOOL_PROP_BCLONEUSED, NULL,
+		spa_prop_add_list(nv, ZPOOL_PROP_BCLONEUSED, NULL,
 		    brt_get_used(spa), src);
-		spa_prop_add_list(*nvp, ZPOOL_PROP_BCLONESAVED, NULL,
+		spa_prop_add_list(nv, ZPOOL_PROP_BCLONESAVED, NULL,
 		    brt_get_saved(spa), src);
-		spa_prop_add_list(*nvp, ZPOOL_PROP_BCLONERATIO, NULL,
+		spa_prop_add_list(nv, ZPOOL_PROP_BCLONERATIO, NULL,
 		    brt_get_ratio(spa), src);
 
-		spa_prop_add_list(*nvp, ZPOOL_PROP_DEDUP_TABLE_SIZE, NULL,
+		spa_prop_add_list(nv, ZPOOL_PROP_DEDUP_TABLE_SIZE, NULL,
 		    ddt_get_ddt_dsize(spa), src);
 
-		spa_prop_add_list(*nvp, ZPOOL_PROP_HEALTH, NULL,
+		spa_prop_add_list(nv, ZPOOL_PROP_HEALTH, NULL,
 		    rvd->vdev_state, src);
 
 		version = spa_version(spa);
 		if (version == zpool_prop_default_numeric(ZPOOL_PROP_VERSION)) {
-			spa_prop_add_list(*nvp, ZPOOL_PROP_VERSION, NULL,
+			spa_prop_add_list(nv, ZPOOL_PROP_VERSION, NULL,
 			    version, ZPROP_SRC_DEFAULT);
 		} else {
-			spa_prop_add_list(*nvp, ZPOOL_PROP_VERSION, NULL,
+			spa_prop_add_list(nv, ZPOOL_PROP_VERSION, NULL,
 			    version, ZPROP_SRC_LOCAL);
 		}
-		spa_prop_add_list(*nvp, ZPOOL_PROP_LOAD_GUID,
+		spa_prop_add_list(nv, ZPOOL_PROP_LOAD_GUID,
 		    NULL, spa_load_guid(spa), src);
 	}
 
@@ -479,62 +473,62 @@ spa_prop_get_config(spa_t *spa, nvlist_t **nvp)
 		 * when opening pools before this version freedir will be NULL.
 		 */
 		if (pool->dp_free_dir != NULL) {
-			spa_prop_add_list(*nvp, ZPOOL_PROP_FREEING, NULL,
+			spa_prop_add_list(nv, ZPOOL_PROP_FREEING, NULL,
 			    dsl_dir_phys(pool->dp_free_dir)->dd_used_bytes,
 			    src);
 		} else {
-			spa_prop_add_list(*nvp, ZPOOL_PROP_FREEING,
+			spa_prop_add_list(nv, ZPOOL_PROP_FREEING,
 			    NULL, 0, src);
 		}
 
 		if (pool->dp_leak_dir != NULL) {
-			spa_prop_add_list(*nvp, ZPOOL_PROP_LEAKED, NULL,
+			spa_prop_add_list(nv, ZPOOL_PROP_LEAKED, NULL,
 			    dsl_dir_phys(pool->dp_leak_dir)->dd_used_bytes,
 			    src);
 		} else {
-			spa_prop_add_list(*nvp, ZPOOL_PROP_LEAKED,
+			spa_prop_add_list(nv, ZPOOL_PROP_LEAKED,
 			    NULL, 0, src);
 		}
 	}
 
-	spa_prop_add_list(*nvp, ZPOOL_PROP_GUID, NULL, spa_guid(spa), src);
+	spa_prop_add_list(nv, ZPOOL_PROP_GUID, NULL, spa_guid(spa), src);
 
 	if (spa->spa_comment != NULL) {
-		spa_prop_add_list(*nvp, ZPOOL_PROP_COMMENT, spa->spa_comment,
+		spa_prop_add_list(nv, ZPOOL_PROP_COMMENT, spa->spa_comment,
 		    0, ZPROP_SRC_LOCAL);
 	}
 
 	if (spa->spa_compatibility != NULL) {
-		spa_prop_add_list(*nvp, ZPOOL_PROP_COMPATIBILITY,
+		spa_prop_add_list(nv, ZPOOL_PROP_COMPATIBILITY,
 		    spa->spa_compatibility, 0, ZPROP_SRC_LOCAL);
 	}
 
 	if (spa->spa_root != NULL)
-		spa_prop_add_list(*nvp, ZPOOL_PROP_ALTROOT, spa->spa_root,
+		spa_prop_add_list(nv, ZPOOL_PROP_ALTROOT, spa->spa_root,
 		    0, ZPROP_SRC_LOCAL);
 
 	if (spa_feature_is_enabled(spa, SPA_FEATURE_LARGE_BLOCKS)) {
-		spa_prop_add_list(*nvp, ZPOOL_PROP_MAXBLOCKSIZE, NULL,
+		spa_prop_add_list(nv, ZPOOL_PROP_MAXBLOCKSIZE, NULL,
 		    MIN(zfs_max_recordsize, SPA_MAXBLOCKSIZE), ZPROP_SRC_NONE);
 	} else {
-		spa_prop_add_list(*nvp, ZPOOL_PROP_MAXBLOCKSIZE, NULL,
+		spa_prop_add_list(nv, ZPOOL_PROP_MAXBLOCKSIZE, NULL,
 		    SPA_OLD_MAXBLOCKSIZE, ZPROP_SRC_NONE);
 	}
 
 	if (spa_feature_is_enabled(spa, SPA_FEATURE_LARGE_DNODE)) {
-		spa_prop_add_list(*nvp, ZPOOL_PROP_MAXDNODESIZE, NULL,
+		spa_prop_add_list(nv, ZPOOL_PROP_MAXDNODESIZE, NULL,
 		    DNODE_MAX_SIZE, ZPROP_SRC_NONE);
 	} else {
-		spa_prop_add_list(*nvp, ZPOOL_PROP_MAXDNODESIZE, NULL,
+		spa_prop_add_list(nv, ZPOOL_PROP_MAXDNODESIZE, NULL,
 		    DNODE_MIN_SIZE, ZPROP_SRC_NONE);
 	}
 
 	if ((dp = list_head(&spa->spa_config_list)) != NULL) {
 		if (dp->scd_path == NULL) {
-			spa_prop_add_list(*nvp, ZPOOL_PROP_CACHEFILE,
+			spa_prop_add_list(nv, ZPOOL_PROP_CACHEFILE,
 			    "none", 0, ZPROP_SRC_LOCAL);
 		} else if (strcmp(dp->scd_path, spa_config_path) != 0) {
-			spa_prop_add_list(*nvp, ZPOOL_PROP_CACHEFILE,
+			spa_prop_add_list(nv, ZPOOL_PROP_CACHEFILE,
 			    dp->scd_path, 0, ZPROP_SRC_LOCAL);
 		}
 	}
@@ -544,19 +538,13 @@ spa_prop_get_config(spa_t *spa, nvlist_t **nvp)
  * Get zpool property values.
  */
 int
-spa_prop_get(spa_t *spa, nvlist_t **nvp)
+spa_prop_get(spa_t *spa, nvlist_t *nv)
 {
 	objset_t *mos = spa->spa_meta_objset;
 	zap_cursor_t zc;
 	zap_attribute_t za;
 	dsl_pool_t *dp;
-	int err;
-
-	if (*nvp == NULL) {
-		err = nvlist_alloc(nvp, NV_UNIQUE_NAME, KM_SLEEP);
-		if (err)
-			return (err);
-	}
+	int err = 0;
 
 	dp = spa_get_dsl(spa);
 	dsl_pool_config_enter(dp, FTAG);
@@ -565,7 +553,7 @@ spa_prop_get(spa_t *spa, nvlist_t **nvp)
 	/*
 	 * Get properties from the spa config.
 	 */
-	spa_prop_get_config(spa, nvp);
+	spa_prop_get_config(spa, nv);
 
 	/* If no pool property object, no more prop to get. */
 	if (mos == NULL || spa->spa_pool_props_object == 0)
@@ -610,7 +598,7 @@ spa_prop_get(spa_t *spa, nvlist_t **nvp)
 				intval = za.za_first_integer;
 			}
 
-			spa_prop_add_list(*nvp, prop, strval, intval, src);
+			spa_prop_add_list(nv, prop, strval, intval, src);
 
 			if (strval != NULL)
 				kmem_free(strval, ZFS_MAX_DATASET_NAME_LEN);
@@ -627,10 +615,10 @@ spa_prop_get(spa_t *spa, nvlist_t **nvp)
 				break;
 			}
 			if (prop != ZPOOL_PROP_INVAL) {
-				spa_prop_add_list(*nvp, prop, strval, 0, src);
+				spa_prop_add_list(nv, prop, strval, 0, src);
 			} else {
 				src = ZPROP_SRC_LOCAL;
-				spa_prop_add_user(*nvp, za.za_name, strval,
+				spa_prop_add_user(nv, za.za_name, strval,
 				    src);
 			}
 			kmem_free(strval, za.za_num_integers);
@@ -644,11 +632,9 @@ spa_prop_get(spa_t *spa, nvlist_t **nvp)
 out:
 	mutex_exit(&spa->spa_props_lock);
 	dsl_pool_config_exit(dp, FTAG);
-	if (err && err != ENOENT) {
-		nvlist_free(*nvp);
-		*nvp = NULL;
+
+	if (err && err != ENOENT)
 		return (err);
-	}
 
 	return (0);
 }
@@ -1040,16 +1026,34 @@ spa_change_guid_sync(void *arg, dmu_tx_t *tx)
  * online when we do this, or else any vdevs that weren't present
  * would be orphaned from our pool.  We are also going to issue a
  * sysevent to update any watchers.
+ *
+ * The GUID of the pool will be changed to the value pointed to by guidp.
+ * The GUID may not be set to the reserverd value of 0.
+ * The new GUID will be generated if guidp is NULL.
  */
 int
-spa_change_guid(spa_t *spa)
+spa_change_guid(spa_t *spa, const uint64_t *guidp)
 {
-	int error;
 	uint64_t guid;
+	int error;
 
 	mutex_enter(&spa->spa_vdev_top_lock);
 	mutex_enter(&spa_namespace_lock);
-	guid = spa_generate_guid(NULL);
+
+	if (guidp != NULL) {
+		guid = *guidp;
+		if (guid == 0) {
+			error = SET_ERROR(EINVAL);
+			goto out;
+		}
+
+		if (spa_guid_exists(guid, 0)) {
+			error = SET_ERROR(EEXIST);
+			goto out;
+		}
+	} else {
+		guid = spa_generate_guid(NULL);
+	}
 
 	error = dsl_sync_task(spa->spa_name, spa_change_guid_check,
 	    spa_change_guid_sync, &guid, 5, ZFS_SPACE_CHECK_RESERVED);
@@ -1068,6 +1072,7 @@ spa_change_guid(spa_t *spa)
 		spa_event_notify(spa, NULL, NULL, ESC_ZFS_POOL_REGUID);
 	}
 
+out:
 	mutex_exit(&spa_namespace_lock);
 	mutex_exit(&spa->spa_vdev_top_lock);
 
@@ -7602,8 +7607,10 @@ spa_vdev_attach(spa_t *spa, uint64_t guid, nvlist_t *nvroot, int replacing,
 	 * The new device cannot have a higher alignment requirement
 	 * than the top-level vdev.
 	 */
-	if (newvd->vdev_ashift > oldvd->vdev_top->vdev_ashift)
-		return (spa_vdev_exit(spa, newrootvd, txg, ENOTSUP));
+	if (newvd->vdev_ashift > oldvd->vdev_top->vdev_ashift) {
+		return (spa_vdev_exit(spa, newrootvd, txg,
+		    ZFS_ERR_ASHIFT_MISMATCH));
+	}
 
 	/*
 	 * RAIDZ-expansion-specific checks.

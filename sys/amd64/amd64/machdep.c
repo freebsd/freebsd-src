@@ -1382,7 +1382,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	 */
 	for (x = 0; x < NGDT; x++) {
 		if (x != GPROC0_SEL && x != (GPROC0_SEL + 1) &&
-		    x != GUSERLDT_SEL && x != (GUSERLDT_SEL) + 1)
+		    x != GUSERLDT_SEL && x != (GUSERLDT_SEL + 1))
 			ssdtosd(&gdt_segs[x], &gdt[x]);
 	}
 	gdt_segs[GPROC0_SEL].ssd_base = (uintptr_t)&pc->pc_common_tss;

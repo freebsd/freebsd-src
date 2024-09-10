@@ -55,6 +55,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	own packages.  If you use pkgbase, you should install the relevant
 	packages: FreeBSD-cron, FreeBSD-lp, or FreeBSD-ntp.
 
+20240406:
+	Clang, llvm, lld, lldb, compiler-rt, libc++, libunwind and openmp have
+	been upgraded to 18.1.6. It is important that you run `make delete-old`
+	as described in the COMMON ITEMS section, otherwise several libc++
+	headers that are obsolete and need to be removed can cause compilation
+	errors in C++ programs.
+
 20240205:
 	For dynamically linked programs, system calls are now made from
 	libsys rather than libc.  No change in linkage is required as
@@ -2015,6 +2022,8 @@ COMMON ITEMS:
 	make -DALWAYS_CHECK_MAKE buildkernel KERNCONF=YOUR_KERNEL_HERE
 	make -DALWAYS_CHECK_MAKE installkernel KERNCONF=YOUR_KERNEL_HERE
 
+	If you are running kernel modules from ports, see FOOTNOTE [1].
+
 	To test a kernel once
 	---------------------
 	If you just want to boot a kernel once (because you are not sure
@@ -2031,8 +2040,7 @@ COMMON ITEMS:
 	<make sure you have good level 0 dumps>
 	make buildworld
 	make buildkernel KERNCONF=YOUR_KERNEL_HERE
-	make installkernel KERNCONF=YOUR_KERNEL_HERE
-							[1]
+	make installkernel KERNCONF=YOUR_KERNEL_HERE	[1]
 	<reboot in single user>				[3]
 	etcupdate -p					[5]
 	make installworld
@@ -2050,7 +2058,7 @@ COMMON ITEMS:
 	<make sure you have good level 0 dumps>
 	<boot into -stable>
 	make buildworld
-	make buildkernel KERNCONF=YOUR_KERNEL_HERE
+	make buildkernel KERNCONF=YOUR_KERNEL_HERE	[1]
 	<maybe newfs current's root partition>
 	<mount current's root partition on directory ${CURRENT_ROOT}>
 	make installworld DESTDIR=${CURRENT_ROOT} -DDB_FROM_SRC
@@ -2069,8 +2077,7 @@ COMMON ITEMS:
 	<make sure you have good level 0 dumps>
 	make buildworld					[9]
 	make buildkernel KERNCONF=YOUR_KERNEL_HERE	[8]
-	make installkernel KERNCONF=YOUR_KERNEL_HERE
-							[1]
+	make installkernel KERNCONF=YOUR_KERNEL_HERE	[1]
 	<reboot in single user>				[3]
 	etcupdate -p					[5]
 	make installworld
@@ -2090,8 +2097,10 @@ COMMON ITEMS:
 	messages there.  If in doubt, please track -stable which has
 	much fewer pitfalls.
 
-	[1] If you have third party modules, such as vmware, you should disable
-	them at this point so they don't crash your system on
+FOOTNOTES:
+
+	[1] If you have third party modules, such as drm-kmod or vmware, you
+	should disable them at this point so they don't crash your system on
 	reboot. Alternatively, you should rebuild all the modules you have in
 	your system and install them as well.  If you are running -current, you
 	should seriously consider placing all sources to all the modules for

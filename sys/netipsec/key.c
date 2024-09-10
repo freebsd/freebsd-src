@@ -8713,6 +8713,9 @@ key_vnet_destroy(void *arg __unused)
 	}
 	SAHTREE_WUNLOCK();
 
+	/* Wait for async work referencing this VNET to finish. */
+	ipsec_accel_sync();
+
 	key_freesah_flushed(&sahdrainq);
 	hashdestroy(V_sphashtbl, M_IPSEC_SP, V_sphash_mask);
 	hashdestroy(V_savhashtbl, M_IPSEC_SA, V_savhash_mask);

@@ -1048,6 +1048,27 @@ gcm_128_cleanup()
 	ovpn_cleanup
 }
 
+atf_test_case "destroy_unused" "cleanup"
+destroy_unused_head()
+{
+	atf_set descr 'Destroy an if_ovpn interface before it is used'
+	atf_set require.user root
+}
+
+destroy_unused_body()
+{
+	ovpn_init
+
+	intf=$(ifconfig ovpn create)
+	atf_check -s exit:0 \
+	    ifconfig ${intf} destroy
+}
+
+destroy_unused_cleanup()
+{
+	ovpn_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "4in4"
@@ -1062,4 +1083,5 @@ atf_init_test_cases()
 	atf_add_test_case "ra"
 	atf_add_test_case "chacha"
 	atf_add_test_case "gcm_128"
+	atf_add_test_case "destroy_unused"
 }

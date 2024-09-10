@@ -72,10 +72,10 @@ static int sdhci_debug = 0;
 SYSCTL_INT(_hw_sdhci, OID_AUTO, debug, CTLFLAG_RWTUN, &sdhci_debug, 0,
     "Debug level");
 u_int sdhci_quirk_clear = 0;
-SYSCTL_INT(_hw_sdhci, OID_AUTO, quirk_clear, CTLFLAG_RWTUN, &sdhci_quirk_clear,
+SYSCTL_UINT(_hw_sdhci, OID_AUTO, quirk_clear, CTLFLAG_RWTUN, &sdhci_quirk_clear,
     0, "Mask of quirks to clear");
 u_int sdhci_quirk_set = 0;
-SYSCTL_INT(_hw_sdhci, OID_AUTO, quirk_set, CTLFLAG_RWTUN, &sdhci_quirk_set, 0,
+SYSCTL_UINT(_hw_sdhci, OID_AUTO, quirk_set, CTLFLAG_RWTUN, &sdhci_quirk_set, 0,
     "Mask of quirks to set");
 
 #define	RD1(slot, off)	SDHCI_READ_1((slot)->bus, (slot), (off))

@@ -103,6 +103,13 @@ static int rfb_debug = 0;
 #define AUTH_FAILED_UNAUTH	1
 #define AUTH_FAILED_ERROR	2
 
+struct pixfmt {
+	bool		adjust_pixels;
+	uint8_t		red_shift;
+	uint8_t		green_shift;
+	uint8_t		blue_shift;
+};
+
 struct rfb_softc {
 	int		sfd;
 	pthread_t	tid;
@@ -131,14 +138,20 @@ struct rfb_softc {
 	atomic_bool	pending;
 	atomic_bool	update_all;
 	atomic_bool	input_detected;
+	atomic_bool	update_pixfmt;
 
 	pthread_mutex_t mtx;
+	pthread_mutex_t pixfmt_mtx;
 	pthread_cond_t  cond;
 
 	int		hw_crc;
 	uint32_t	*crc;		/* WxH crc cells */
 	uint32_t	*crc_tmp;	/* buffer to store single crc row */
 	int		crc_width, crc_height;
+
+	struct pixfmt	pixfmt;		/* owned by the write thread */
+	struct pixfmt	new_pixfmt;	/* managed with pixfmt_mtx */
+	uint32_t	*pixrow;
 };
 
 struct rfb_pixfmt {
@@ -178,6 +191,10 @@ struct rfb_pixfmt_msg {
 #define	RFB_MAX_WIDTH			2000
 #define	RFB_MAX_HEIGHT			1200
 #define	RFB_ZLIB_BUFSZ			RFB_MAX_WIDTH*RFB_MAX_HEIGHT*4
+
+#define PIXEL_RED_SHIFT		16
+#define PIXEL_GREEN_SHIFT	8
+#define PIXEL_BLUE_SHIFT	0
 
 /* percentage changes to screen before sending the entire screen */
 #define	RFB_SEND_ALL_THRESH		25
@@ -261,9 +278,9 @@ rfb_send_server_init_msg(int cfd)
 	sinfo.pixfmt.red_max = htons(255);
 	sinfo.pixfmt.green_max = htons(255);
 	sinfo.pixfmt.blue_max = htons(255);
-	sinfo.pixfmt.red_shift = 16;
-	sinfo.pixfmt.green_shift = 8;
-	sinfo.pixfmt.blue_shift = 0;
+	sinfo.pixfmt.red_shift = PIXEL_RED_SHIFT;
+	sinfo.pixfmt.green_shift = PIXEL_GREEN_SHIFT;
+	sinfo.pixfmt.blue_shift = PIXEL_BLUE_SHIFT;
 	sinfo.pixfmt.pad[0] = 0;
 	sinfo.pixfmt.pad[1] = 0;
 	sinfo.pixfmt.pad[2] = 0;
@@ -318,9 +335,67 @@ static void
 rfb_recv_set_pixfmt_msg(struct rfb_softc *rc __unused, int cfd)
 {
 	struct rfb_pixfmt_msg pixfmt_msg;
+	uint8_t red_shift, green_shift, blue_shift;
+	uint16_t red_max, green_max, blue_max;
+	bool adjust_pixels = true;
 
 	(void)stream_read(cfd, (uint8_t *)&pixfmt_msg + 1,
 	    sizeof(pixfmt_msg) - 1);
+
+	/*
+	 * The framebuffer is fixed at 32 bit and orders the colors
+	 * as RGB bytes. However, some VNC clients request a different
+	 * ordering. We will still require the same bit depth and size
+	 * but allow the colors to be shifted when sent to the client.
+	 */
+	if (pixfmt_msg.pixfmt.bpp != 32 || pixfmt_msg.pixfmt.truecolor != 1) {
+		WPRINTF(("rfb: pixfmt unsupported bitdepth bpp: %d "
+			 "truecolor: %d",
+			 pixfmt_msg.pixfmt.bpp, pixfmt_msg.pixfmt.truecolor));
+		return;
+	}
+
+	red_max = ntohs(pixfmt_msg.pixfmt.red_max);
+	green_max = ntohs(pixfmt_msg.pixfmt.green_max);
+	blue_max = ntohs(pixfmt_msg.pixfmt.blue_max);
+
+	/* Check for valid max values */
+	if (red_max != 255 || green_max != 255 || blue_max != 255) {
+		WPRINTF(("rfb: pixfmt unsupported max values "
+			 "r: %d g: %d b: %d",
+			 red_max, green_max, blue_max));
+		return;
+	}
+
+	red_shift = pixfmt_msg.pixfmt.red_shift;
+	green_shift = pixfmt_msg.pixfmt.green_shift;
+	blue_shift = pixfmt_msg.pixfmt.blue_shift;
+
+	/* Check shifts are 8 bit aligned */
+	if ((red_shift & 0x7) != 0 ||
+	    (green_shift & 0x7) != 0 ||
+	    (blue_shift & 0x7) != 0) {
+		WPRINTF(("rfb: pixfmt unsupported shift values "
+			 "r: %d g: %d b: %d",
+			 red_shift, green_shift, blue_shift));
+		return;
+	}
+
+	if (red_shift == PIXEL_RED_SHIFT &&
+	    green_shift == PIXEL_GREEN_SHIFT &&
+	    blue_shift == PIXEL_BLUE_SHIFT) {
+		adjust_pixels = false;
+	}
+
+	pthread_mutex_lock(&rc->pixfmt_mtx);
+	rc->new_pixfmt.red_shift = red_shift;
+	rc->new_pixfmt.green_shift = green_shift;
+	rc->new_pixfmt.blue_shift = blue_shift;
+	rc->new_pixfmt.adjust_pixels = adjust_pixels;
+	pthread_mutex_unlock(&rc->pixfmt_mtx);
+
+	/* Notify the write thread to update */
+	rc->update_pixfmt = true;
 }
 
 static void
@@ -388,6 +463,30 @@ rfb_send_update_header(struct rfb_softc *rc __unused, int cfd, int numrects)
 	    sizeof(struct rfb_srvr_updt_msg));
 }
 
+static uint32_t *
+rfb_adjust_pixels(struct rfb_softc *rc, uint32_t *gcptr, int width)
+{
+	uint32_t *pixelp;
+	uint32_t red, green, blue;
+	int i;
+
+	/* If no pixel adjustment needed, send in server format */
+	if (!rc->pixfmt.adjust_pixels) {
+		return (gcptr);
+	}
+
+	for (i = 0, pixelp = rc->pixrow; i < width; i++, pixelp++, gcptr++) {
+		red = (*gcptr >> 16) & 0xFF;
+		green = (*gcptr >> 8) & 0xFF;
+		blue = (*gcptr & 0xFF);
+		*pixelp = (red << rc->pixfmt.red_shift) |
+			  (green << rc->pixfmt.green_shift) |
+			  (blue << rc->pixfmt.blue_shift);
+	}
+
+	return (rc->pixrow);
+}
+
 static int
 rfb_send_rect(struct rfb_softc *rc, int cfd, struct bhyvegc_image *gc,
               int x, int y, int w, int h)
@@ -395,8 +494,8 @@ rfb_send_rect(struct rfb_softc *rc, int cfd, struct bhyvegc_image *gc,
 	struct rfb_srvr_rect_hdr srect_hdr;
 	unsigned long zlen;
 	ssize_t nwrite, total;
-	int err;
-	uint32_t *p;
+	int err, width;
+	uint32_t *p, *pixelp;
 	uint8_t *zbufp;
 
 	/*
@@ -409,6 +508,7 @@ rfb_send_rect(struct rfb_softc *rc, int cfd, struct bhyvegc_image *gc,
 	srect_hdr.width = htons(w);
 	srect_hdr.height = htons(h);
 
+	width = w;
 	h = y + h;
 	w *= sizeof(uint32_t);
 	if (rc->enc_zlib_ok) {
@@ -416,7 +516,8 @@ rfb_send_rect(struct rfb_softc *rc, int cfd, struct bhyvegc_image *gc,
 		rc->zstream.total_in = 0;
 		rc->zstream.total_out = 0;
 		for (p = &gc->data[y * gc->width + x]; y < h; y++) {
-			rc->zstream.next_in = (Bytef *)p;
+			pixelp = rfb_adjust_pixels(rc, p, width);
+			rc->zstream.next_in = (Bytef *)pixelp;
 			rc->zstream.avail_in = w;
 			rc->zstream.next_out = (Bytef *)zbufp;
 			rc->zstream.avail_out = RFB_ZLIB_BUFSZ + 16 -
@@ -452,7 +553,8 @@ doraw:
 	total = 0;
 	zbufp = rc->zbuf;
 	for (p = &gc->data[y * gc->width + x]; y < h; y++) {
-		memcpy(zbufp, p, w);
+		pixelp = rfb_adjust_pixels(rc, p, width);
+		memcpy(zbufp, pixelp, w);
 		zbufp += w;
 		total += w;
 		p += gc->width;
@@ -490,6 +592,11 @@ rfb_send_all(struct rfb_softc *rc, int cfd, struct bhyvegc_image *gc)
 	                      sizeof(struct rfb_srvr_updt_msg));
 	if (nwrite <= 0)
 		return (nwrite);
+
+	if (rc->pixfmt.adjust_pixels) {
+		return (rfb_send_rect(rc, cfd, gc, 0, 0,
+				gc->width, gc->height));
+	}
 
 	/* Rectangle header */
 	srect_hdr.x = 0;
@@ -546,6 +653,14 @@ doraw:
 #define	PIXCELL_SHIFT	5
 #define	PIXCELL_MASK	0x1F
 
+static void
+rfb_set_pixel_adjustment(struct rfb_softc *rc)
+{
+	pthread_mutex_lock(&rc->pixfmt_mtx);
+	rc->pixfmt = rc->new_pixfmt;
+	pthread_mutex_unlock(&rc->pixfmt_mtx);
+}
+
 static int
 rfb_send_screen(struct rfb_softc *rc, int cfd)
 {
@@ -572,6 +687,10 @@ rfb_send_screen(struct rfb_softc *rc, int cfd)
 	/* Updates require a preceding update request */
 	if (atomic_exchange(&rc->pending, false) == false)
 		goto done;
+
+	if (atomic_exchange(&rc->update_pixfmt, false) == true) {
+		rfb_set_pixel_adjustment(rc);
+	}
 
 	console_refresh();
 	gc_image = console_get_image();
@@ -1157,6 +1276,12 @@ rfb_init(const char *hostname, int port, int wait, const char *password)
 
 	rc->password = password;
 
+	rc->pixrow = malloc(RFB_MAX_WIDTH * sizeof(uint32_t));
+	if (rc->pixrow == NULL) {
+		EPRINTLN("rfb: failed to allocate memory for pixrow buffer");
+		goto error;
+	}
+
 	snprintf(servname, sizeof(servname), "%d", port ? port : 5900);
 
 	if (!hostname || strlen(hostname) == 0)
@@ -1208,6 +1333,7 @@ rfb_init(const char *hostname, int port, int wait, const char *password)
 		pthread_cond_init(&rc->cond, NULL);
 	}
 
+	pthread_mutex_init(&rc->pixfmt_mtx, NULL);
 	pthread_create(&rc->tid, NULL, rfb_thr, rc);
 	pthread_set_name_np(rc->tid, "rfb");
 
@@ -1223,12 +1349,15 @@ rfb_init(const char *hostname, int port, int wait, const char *password)
 	return (0);
 
  error:
+	if (rc->pixfmt_mtx)
+		pthread_mutex_destroy(&rc->pixfmt_mtx);
 	if (ai != NULL)
 		freeaddrinfo(ai);
 	if (rc->sfd != -1)
 		close(rc->sfd);
 	free(rc->crc);
 	free(rc->crc_tmp);
+	free(rc->pixrow);
 	free(rc);
 	return (-1);
 }

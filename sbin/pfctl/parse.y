@@ -326,6 +326,7 @@ static struct pool_opts {
 	int			 marker;
 #define POM_TYPE		0x01
 #define POM_STICKYADDRESS	0x02
+#define POM_ENDPI		0x04
 	u_int8_t		 opts;
 	int			 type;
 	int			 staticport;
@@ -512,7 +513,7 @@ int	parseport(char *, struct range *r, int);
 %token	UPPERLIMIT QUEUE PRIORITY QLIMIT HOGS BUCKETS RTABLE TARGET INTERVAL
 %token	DNPIPE DNQUEUE RIDENTIFIER
 %token	LOAD RULESET_OPTIMIZATION PRIO
-%token	STICKYADDRESS MAXSRCSTATES MAXSRCNODES SOURCETRACK GLOBAL RULE
+%token	STICKYADDRESS ENDPI MAXSRCSTATES MAXSRCNODES SOURCETRACK GLOBAL RULE
 %token	MAXSRCCONN MAXSRCCONNRATE OVERLOAD FLUSH SLOPPY PFLOW
 %token	TAGGED TAG IFBOUND FLOATING STATEPOLICY STATEDEFAULTS ROUTE SETTOS
 %token	DIVERTTO DIVERTREPLY BRIDGE_TO
@@ -4593,6 +4594,14 @@ pool_opt	: BITMASK	{
 			pool_opts.marker |= POM_STICKYADDRESS;
 			pool_opts.opts |= PF_POOL_STICKYADDR;
 		}
+		| ENDPI {
+			if (pool_opts.marker & POM_ENDPI) {
+				yyerror("endpoint-independent cannot be redefined");
+				YYERROR;
+			}
+			pool_opts.marker |= POM_ENDPI;
+			pool_opts.opts |= PF_POOL_ENDPI;
+		}
 		| MAPEPORTSET number '/' number '/' number {
 			if (pool_opts.mape.offset) {
 				yyerror("map-e-portset cannot be redefined");
@@ -6299,6 +6308,7 @@ lookup(char *s)
 		{ "dnqueue",		DNQUEUE},
 		{ "drop",		DROP},
 		{ "dup-to",		DUPTO},
+		{ "endpoint-independent", ENDPI},
 		{ "ether",		ETHER},
 		{ "fail-policy",	FAILPOLICY},
 		{ "fairq",		FAIRQ},

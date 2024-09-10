@@ -502,6 +502,11 @@ iommu_find(device_t dev, bool verbose)
 }
 
 void
+iommu_unit_pre_instantiate_ctx(struct iommu_unit *unit)
+{
+}
+
+void
 iommu_domain_unload_entry(struct iommu_map_entry *entry, bool free,
     bool cansleep __unused)
 {

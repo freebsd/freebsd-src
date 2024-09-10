@@ -1,0 +1,94 @@
+# vim: filetype=sh
+
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# Copyright (c) 2024 Axcient
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS DOCUMENTATION IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+# IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+# OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+# IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+# NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+# THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+load_modules() {
+	if ! kldstat -q -m ctl; then
+		kldload ctl || atf_skip "could not load ctl kernel mod"
+	fi
+	if ! ctladm port -o on -p 0; then
+		atf_skip "could not enable the camsim frontend"
+	fi
+}
+
+find_device() {
+	LUN=$1
+
+	# Rescan camsim
+	# XXX  camsim doesn't update when creating a new device.  Worse, a
+	# rescan won't look for new devices.  So we must disable/re-enable it.
+	# Worse still, enabling it isn't synchronous, so we need a retry loop
+	# https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=281000
+	retries=5
+	ctladm port -o off -p 0 >/dev/null
+	ctladm port -o on -p 0 >/dev/null
+	HEXLUN=`printf %x $LUN`
+	while true; do
+		dev=`camcontrol devlist | awk -v lun=$HEXLUN '/FREEBSD CTL/ && $9==lun {split($10, fields, /[,]/); print fields[1];}' | sed 's:[()]::'`
+		if [ -z "$dev" -o ! -c /dev/$dev ]; then
+			retries=$(( $retries - 1 ))
+			if [ $retries -eq 0 ]; then
+				cat lun-create.txt
+				camcontrol devlist
+				atf_fail "Could not find GEOM device"
+			fi
+			sleep 0.1
+			continue
+		fi
+		break
+	done
+	# Ensure that it's actually ready.  camcontrol may report the disk's
+	# ident before it's actually ready to receive commands.  Maybe that's
+	# because all of the GEOM providers must probe it?
+	while true; do
+		dd if=/dev/$dev bs=4096 count=1 of=/dev/null >/dev/null 2>/dev/null && break
+		retries=$(( $retries - 1 ))
+		if [ $retries -eq 0 ]; then
+			atf_fail "Device never became ready"
+		fi
+		sleep 0.1
+	done
+}
+
+# Create a CTL LUN
+create_ramdisk() {
+	EXTRA_ARGS=$*
+
+	atf_check -o save:lun-create.txt ctladm create -b ramdisk -s 1048576 $EXTRA_ARGS
+	atf_check egrep -q "LUN created successfully" lun-create.txt
+	LUN=`awk '/LUN ID:/ {print $NF}' lun-create.txt`
+	if [ -z "$LUN" ]; then
+		atf_fail "Could not find LUN id"
+	fi
+	find_device $LUN
+}
+
+cleanup() {
+	if [ -e "lun-create.txt" ]; then
+		lun_id=`awk '/LUN ID:/ {print $NF}' lun-create.txt`
+		ctladm remove -b ramdisk -l $lun_id > /dev/null
+	fi
+}
