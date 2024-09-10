@@ -1439,14 +1439,16 @@ m_apply(struct mbuf *m, int off, int len,
 	KASSERT(off >= 0, ("m_apply, negative off %d", off));
 	KASSERT(len >= 0, ("m_apply, negative len %d", len));
 	while (off > 0) {
-		KASSERT(m != NULL, ("m_apply, offset > size of mbuf chain"));
+		KASSERT(m != NULL, ("m_apply, offset > size of mbuf chain "
+		    "(%d extra)", off));
 		if (off < m->m_len)
 			break;
 		off -= m->m_len;
 		m = m->m_next;
 	}
 	while (len > 0) {
-		KASSERT(m != NULL, ("m_apply, offset > size of mbuf chain"));
+		KASSERT(m != NULL, ("m_apply, length > size of mbuf chain "
+		    "(%d extra)", len));
 		count = min(m->m_len - off, len);
 		rval = m_apply_one(m, off, count, f, arg);
 		if (rval)
