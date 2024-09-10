@@ -182,3 +182,6 @@ if [ -f "$OBJTOP"/rescue/rescue/rescue.mk ] && \
 	echo "removing rescue.mk without nvme_util.o"
 	rm -f "$OBJTOP"/rescue/rescue/rescue.mk
 fi
+
+# 20240910  e2df9bb44109
+clean_dep   cddl/lib/libzpool abd_os c
