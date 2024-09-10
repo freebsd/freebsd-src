@@ -117,6 +117,7 @@ void ktruser(int, void *);
 void ktrcaprights(cap_rights_t *);
 void ktritimerval(struct itimerval *it);
 void ktrsockaddr(struct sockaddr *);
+void ktrsplice(struct splice *);
 void ktrstat(struct stat *);
 void ktrstruct(char *, size_t);
 void ktrcapfail(struct ktr_cap_fail *);
@@ -1936,6 +1937,14 @@ ktrsockaddr(struct sockaddr *sa)
 }
 
 void
+ktrsplice(struct splice *sp)
+{
+	printf("struct splice { fd=%d, max=%#jx, idle=%jd.%06jd }\n",
+	    sp->sp_fd, (uintmax_t)sp->sp_max, (intmax_t)sp->sp_idle.tv_sec,
+	    (intmax_t)sp->sp_idle.tv_usec);
+}
+
+void
 ktrstat(struct stat *statp)
 {
 	char mode[12], timestr[PATH_MAX + 4];
@@ -2123,6 +2132,13 @@ ktrstruct(char *buf, size_t buflen)
 		memcpy(set, data, datalen);
 		ktrbitset(name, set, datalen);
 		free(set);
+	} else if (strcmp(name, "splice") == 0) {
+		struct splice sp;
+
+		if (datalen != sizeof(sp))
+			goto invalid;
+		memcpy(&sp, data, datalen);
+		ktrsplice(&sp);
 	} else {
 #ifdef SYSDECODE_HAVE_LINUX
 		if (ktrstruct_linux(name, data, datalen) == false)
