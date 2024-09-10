@@ -178,7 +178,7 @@ fi
 
 # 20240416  2fda3ab0ac19    WITH_NVME: Remove from broken
 if [ -f "$OBJTOP"/rescue/rescue/rescue.mk ] && \
-    grep -q -v 'nvme_util.o' "$OBJTOP"/rescue/rescue/rescue.mk; then
+    ! grep -q 'nvme_util.o' "$OBJTOP"/rescue/rescue/rescue.mk; then
 	echo "removing rescue.mk without nvme_util.o"
 	run rm -f "$OBJTOP"/rescue/rescue/rescue.mk
 fi
