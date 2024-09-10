@@ -83,6 +83,7 @@ static int	 opt_4;		/* Show IPv4 sockets */
 static int	 opt_6;		/* Show IPv6 sockets */
 static int	 opt_C;		/* Show congestion control */
 static int	 opt_c;		/* Show connected sockets */
+static int	 opt_I;		/* Show spliced socket addresses */
 static int	 opt_i;		/* Show inp_gencnt */
 static int	 opt_j;		/* Show specified jail */
 static int	 opt_L;		/* Don't show IPv4 or IPv6 loopback sockets */
@@ -133,6 +134,7 @@ struct sock {
 	RB_ENTRY(sock) pcb_tree;
 	kvaddr_t socket;
 	kvaddr_t pcb;
+	kvaddr_t splice_socket;
 	uint64_t inp_gencnt;
 	int shown;
 	int vflag;
@@ -767,6 +769,7 @@ gather_inet(int proto)
 		if ((faddr = calloc(1, sizeof *faddr)) == NULL)
 			err(1, "malloc()");
 		sock->socket = so->xso_so;
+		sock->splice_socket = so->so_splice_so;
 		sock->proto = proto;
 		sock->inp_gencnt = xip->inp_gencnt;
 		if (xip->inp_vflag & INP_IPV4) {
@@ -1202,6 +1205,25 @@ displaysock(struct sock *s, int pos)
 		default:
 			abort();
 		}
+		if (opt_I) {
+			if (s->splice_socket != 0) {
+				struct sock *sp;
+
+				sp = RB_FIND(socks_t, &socks, &(struct sock)
+				    { .socket = s->splice_socket });
+				if (sp != NULL) {
+					while (pos < offset)
+						pos += xprintf(" ");
+					pos += printaddr(&sp->laddr->address);
+				} else {
+					while (pos < offset)
+						pos += xprintf(" ");
+					pos += xprintf("??");
+					offset += opt_w ? 46 : 22;
+				}
+			}
+			offset += opt_w ? 46 : 22;
+		}
 		if (opt_i) {
 			if (s->proto == IPPROTO_TCP ||
 			    s->proto == IPPROTO_UDP) {
@@ -1308,6 +1330,8 @@ display(void)
 		    "USER", "COMMAND", "PID", "FD", "PROTO",
 		    opt_w ? 45 : 21, "LOCAL ADDRESS",
 		    opt_w ? 45 : 21, "FOREIGN ADDRESS");
+		if (opt_I)
+			printf(" %-*s", opt_w ? 45 : 21, "SPLICE ADDRESS");
 		if (opt_i)
 			printf(" %-8s", "ID");
 		if (opt_U)
@@ -1431,7 +1455,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: sockstat [-46CciLlnqSsUuvw] [-j jid] [-p ports] [-P protocols]\n");
+    "usage: sockstat [-46CcIiLlnqSsUuvw] [-j jid] [-p ports] [-P protocols]\n");
 	exit(1);
 }
 
@@ -1446,7 +1470,7 @@ main(int argc, char *argv[])
 	int o, i;
 
 	opt_j = -1;
-	while ((o = getopt(argc, argv, "46Ccij:Llnp:P:qSsUuvw")) != -1)
+	while ((o = getopt(argc, argv, "46CcIij:Llnp:P:qSsUuvw")) != -1)
 		switch (o) {
 		case '4':
 			opt_4 = 1;
@@ -1459,6 +1483,9 @@ main(int argc, char *argv[])
 			break;
 		case 'c':
 			opt_c = 1;
+			break;
+		case 'I':
+			opt_I = 1;
 			break;
 		case 'i':
 			opt_i = 1;
