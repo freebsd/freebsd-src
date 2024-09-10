@@ -123,6 +123,7 @@ struct uidinfo {
 	long	ui_ptscnt;		/* (b) number of pseudo-terminals */
 	long	ui_kqcnt;		/* (b) number of kqueues */
 	long	ui_umtxcnt;		/* (b) number of shared umtxs */
+	long	ui_pipecnt;		/* (b) consumption of pipe buffers */
 	uid_t	ui_uid;			/* (a) uid */
 	u_int	ui_ref;			/* (b) reference count */
 #ifdef	RACCT
@@ -144,6 +145,7 @@ int	 chgsbsize(struct uidinfo *uip, u_int *hiwat, u_int to,
 	    rlim_t maxval);
 int	 chgptscnt(struct uidinfo *uip, int diff, rlim_t maxval);
 int	 chgumtxcnt(struct uidinfo *uip, int diff, rlim_t maxval);
+int	 chgpipecnt(struct uidinfo *uip, int diff, rlim_t max);
 int	 kern_proc_setrlimit(struct thread *td, struct proc *p, u_int which,
 	    struct rlimit *limp);
 struct plimit

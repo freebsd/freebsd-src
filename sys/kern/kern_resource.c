@@ -1610,3 +1610,10 @@ chgumtxcnt(struct uidinfo *uip, int diff, rlim_t max)
 
 	return (chglimit(uip, &uip->ui_umtxcnt, diff, max, "umtxcnt"));
 }
+
+int
+chgpipecnt(struct uidinfo *uip, int diff, rlim_t max)
+{
+
+	return (chglimit(uip, &uip->ui_pipecnt, diff, max, "pipecnt"));
+}
