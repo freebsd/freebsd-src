@@ -74,7 +74,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: debug.sh,v 1.35 2024/02/03 19:04:47 sjg Exp $
+#	$Id: debug.sh,v 1.40 2024/09/09 20:06:00 sjg Exp $
 #
 #	@(#) Copyright (c) 1994-2024 Simon J. Gerraty
 #
@@ -93,11 +93,37 @@ _DEBUG_SH=:
 
 Myname=${Myname:-`basename $0 .sh`}
 
+# We want to use local if we can
+# if isposix-shell.sh has been sourced isPOSIX_SHELL will be set
+# as will local
+case "$local" in
+local|:) ;;
+*)
+	if (echo ${PATH%:*}) > /dev/null 2>&1; then
+		local=local
+	else
+		local=:
+	fi
+	;;
+esac
+
 DEBUGGING=
 DEBUG_DO=:
 DEBUG_SKIP=
 export DEBUGGING DEBUG_DO DEBUG_SKIP
 
+##
+# _debugOn match first
+#
+# Actually turn on tracing, set $DEBUG_ON=$match
+#
+# If we have included hooks.sh $_HOOKS_SH will be set
+# and if $first (the first arg to DebugOn) is suitable as a variable
+# name we will run ${first}_debugOn_hooks.
+#
+# We disable tracing for hooks_run itself but functions can trace
+# if they want based on DEBUG_DO
+#
 _debugOn() {
 	DEBUG_OFF=
 	DEBUG_DO=
@@ -105,11 +131,36 @@ _debugOn() {
 	DEBUG_X=-x
 	set -x
 	DEBUG_ON=$1
+	case "$_HOOKS_SH,$2" in
+	,*|:,|:,*[${CASE_CLASS_NEG:-!}A-Za-z0-9_]*) ;;
+	*)	# avoid noise from hooks_run
+		set +x
+		hooks_run ${2}_debugOn_hooks
+		set -x
+		;;
+	esac
 }
 
+##
+# _debugOff match $DEBUG_ON $first
+#
+# Actually turn off tracing, set $DEBUG_OFF=$match
+#
+# If we have included hooks.sh $_HOOKS_SH will be set
+# and if $first (the first arg to DebugOff) is suitable as a variable
+# name we will run ${first}_debugOff_hooks.
+#
+# We do hooks_run after turning off tracing, but before resetting
+# DEBUG_DO so functions can trace if they want
+#
 _debugOff() {
 	DEBUG_OFF=$1
 	set +x
+	case "$_HOOKS_SH,$3" in
+	,*|:,|:,*[${CASE_CLASS_NEG:-!}A-Za-z0-9_]*) ;;
+	*)	hooks_run ${3}_debugOff_hooks;;
+	esac
+	set +x			# just to be sure
 	DEBUG_ON=$2
 	DEBUG_DO=:
 	DEBUG_SKIP=
@@ -120,16 +171,30 @@ DebugEcho() {
 	$DEBUG_DO echo "$@"
 }
 
+##
+# Debugging
+#
+# return 0 if we are debugging.
+#
 Debugging() {
 	test "$DEBUG_SKIP"
 }
 
+##
+# DebugLog message
+#
+# Outout message with timestamp if we are debugging
+#
 DebugLog() {
 	$DEBUG_SKIP return 0
 	echo `date '+@ %s [%Y-%m-%d %H:%M:%S %Z]'` "$@"
 }
 
-# something hard to miss when wading through huge -x output
+##
+# DebugTrace message
+#
+# Something hard to miss when wading through huge -x output
+#
 DebugTrace() {
 	$DEBUG_SKIP return 0
 	set +x
@@ -139,8 +204,13 @@ DebugTrace() {
 	set -x
 }
 
-# Turn on debugging if appropriate
+##
+# DebugOn [-e] [-o] match ...
+#
+# Turn on debugging if any $match is found in $DEBUG_SH.
+#
 DebugOn() {
+	eval ${local:-:} _e _match _off _rc
 	_rc=0			# avoid problems with set -e
 	_off=:
 	while :
@@ -170,14 +240,14 @@ DebugOn() {
 		*,!$_e,*|*,!$Myname:$_e,*)
 			# only turn it off if it was on
 			_rc=0
-			$DEBUG_DO _debugOff $_e $DEBUG_ON
+			$DEBUG_DO _debugOff $_e $DEBUG_ON $1
 			break
 			;;
 		*,$_e,*|*,$Myname:$_e,*)
 			# only turn it on if it was off
 			_rc=0
 			_match=$_e
-			$DEBUG_SKIP _debugOn $_e
+			$DEBUG_SKIP _debugOn $_e $1
 			break
 			;;
 		esac
@@ -185,7 +255,7 @@ DebugOn() {
 	if test -z "$_off$_match"; then
 		# off unless explicit match, but
 		# only turn it off if it was on
-		$DEBUG_DO _debugOff $_e $DEBUG_ON
+		$DEBUG_DO _debugOff $_e $DEBUG_ON $1
 	fi
 	DEBUGGING=$DEBUG_SKIP	# backwards compatability
 	$DEBUG_DO set -x	# back on if needed
@@ -193,11 +263,20 @@ DebugOn() {
 	return $_rc
 }
 
+##
+# DebugOff [-e] [-o] [rc=$?] match ...
+#
 # Only turn debugging off if one of our args was the reason it
 # was turned on.
+#
 # We normally return 0, but caller can pass rc=$? as first arg
 # so that we preserve the status of last statement.
+#
+# The options '-e' and '-o' are ignored, they just make it easier to
+# keep DebugOn and DebugOff lines in sync.
+#
 DebugOff() {
+	eval ${local:-:} _e _rc
 	case ",${DEBUG_SH:-$DEBUG}," in
 	*,[Dd]ebug,*) ;;
 	*) $DEBUG_DO set +x;;		# reduce the noise
@@ -216,7 +295,7 @@ DebugOff() {
 		: $_e==$DEBUG_OFF DEBUG_OFF
 		case "$DEBUG_OFF" in
 		"")	break;;
-		$_e)	_debugOn $DEBUG_ON; return $_rc;;
+		$_e)	_debugOn $DEBUG_ON $1; return $_rc;;
 		esac
 	done
 	for _e in $*
@@ -224,7 +303,7 @@ DebugOff() {
 		: $_e==$DEBUG_ON DEBUG_ON
 		case "$DEBUG_ON" in
 		"")	break;;
-		$_e)	_debugOff; return $_rc;;
+		$_e)	_debugOff "" "" $1; return $_rc;;
 		esac
 	done
 	DEBUGGING=$DEBUG_SKIP	# backwards compatability
@@ -237,6 +316,7 @@ _TTY=${_TTY:-`test -t 0 && tty`}; export _TTY
 
 # override this if you like
 _debugShell() {
+	test "x$_TTY" != x || return 0
 	{
 		echo DebugShell "$@"
 		echo "Type 'exit' to continue..."
@@ -247,6 +327,7 @@ _debugShell() {
 # Run an interactive shell if appropriate
 # Note: you can use $DEBUG_SKIP DebugShell ... to skip unless debugOn
 DebugShell() {
+	eval ${local:-:} _e
 	case "$_TTY%${DEBUG_INTERACTIVE}" in
 	*%|%*) return 0;;	# no tty or no spec
 	esac
