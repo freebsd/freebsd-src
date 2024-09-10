@@ -1844,7 +1844,7 @@ run_rc_script()
 				  trap "echo Script $_file running >&2" 29
 				  set $_arg; . $_file )
 			fi
-			DebugOff $_file $_file:$_arg rc:${_file##*/} rc:${_file##*/}:$_arg ${_file##*/} ${_file##*/}:$_arg
+			DebugOff rc=$? $_file $_file:$_arg rc:${_file##*/} rc:${_file##*/}:$_arg ${_file##*/} ${_file##*/}:$_arg
 		fi
 		;;
 	esac
@@ -2769,7 +2769,18 @@ $_DEBUG_SH vdot /libexec/debug.sh
 # safe_eval.sh are not found.
 if ! have DebugOn; then
 	DebugOn() { return 0; }
-	DebugOff() { return 0; }
+	DebugOff() {
+		local _rc=0
+		while :
+		do
+			case "$1" in
+			-[eo]) shift;; # ignore it
+			rc=*) eval "_$1"; shift;;
+			*) break;;
+			esac
+		done
+		return $_rc
+	}
 fi
 if ! have save_dot; then
 	safe_dot() { dot "$@"; }
