@@ -136,6 +136,7 @@ struct pipepair {
 	struct pipe	pp_wpipe;
 	struct mtx	pp_mtx;
 	struct label	*pp_label;
+	struct ucred	*pp_owner;	/* to dec pipe usage count */
 };
 
 #define PIPE_MTX(pipe)		(&(pipe)->pipe_pair->pp_mtx)
