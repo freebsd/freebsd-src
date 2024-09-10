@@ -28,13 +28,18 @@
  */
 
 #include <sys/types.h>
+#include <sys/socket.h>
 
 #include <machine/vmm.h>
 #include <machine/vmm_snapshot.h>
 
+#include <netinet/in.h>
+
+#include <arpa/inet.h>
 #include <assert.h>
 #include <capsicum_helpers.h>
 #include <err.h>
+#include <netdb.h>
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -49,6 +54,7 @@
 
 struct ttyfd {
 	bool	opened;
+	bool	is_socket;
 	int	rfd;		/* fd for reading */
 	int	wfd;		/* fd for writing, may be == rfd */
 };
@@ -70,8 +76,16 @@ struct uart_softc {
 	pthread_mutex_t mtx;
 };
 
+struct uart_socket_softc {
+	struct uart_softc *softc;
+	void (*drain)(int, enum ev_type, void *);
+	void *arg;
+};
+
 static bool uart_stdio;		/* stdio in use for i/o */
 static struct termios tio_stdio_orig;
+
+static void uart_tcp_disconnect(struct uart_softc *);
 
 static void
 ttyclose(void)
@@ -97,20 +111,22 @@ ttyopen(struct ttyfd *tf)
 }
 
 static int
-ttyread(struct ttyfd *tf)
+ttyread(struct ttyfd *tf, uint8_t *ret)
 {
-	unsigned char rb;
+	uint8_t rb;
+	int len;
 
-	if (read(tf->rfd, &rb, 1) == 1)
-		return (rb);
-	else
-		return (-1);
+	len = read(tf->rfd, &rb, 1);
+	if (ret && len == 1)
+		*ret = rb;
+
+	return (len);
 }
 
-static void
+static int
 ttywrite(struct ttyfd *tf, unsigned char wb)
 {
-	(void)write(tf->wfd, &wb, 1);
+	return (write(tf->wfd, &wb, 1));
 }
 
 static bool
@@ -179,14 +195,24 @@ rxfifo_putchar(struct uart_softc *sc, uint8_t ch)
 void
 uart_rxfifo_drain(struct uart_softc *sc, bool loopback)
 {
-	int ch;
+	uint8_t ch;
+	int len;
 
 	if (loopback) {
-		(void)ttyread(&sc->tty);
+		if (ttyread(&sc->tty, &ch) == 0 && sc->tty.is_socket)
+			uart_tcp_disconnect(sc);
 	} else {
-		while (rxfifo_available(sc) &&
-		    ((ch = ttyread(&sc->tty)) != -1))
+		while (rxfifo_available(sc)) {
+			len = ttyread(&sc->tty, &ch);
+			if (len <= 0) {
+				/* read returning 0 means disconnected. */
+				if (len == 0 && sc->tty.is_socket)
+					uart_tcp_disconnect(sc);
+				break;
+			}
+
 			rxfifo_putchar(sc, ch);
+		}
 	}
 }
 
@@ -196,7 +222,9 @@ uart_rxfifo_putchar(struct uart_softc *sc, uint8_t ch, bool loopback)
 	if (loopback) {
 		return (rxfifo_putchar(sc, ch));
 	} else if (sc->tty.opened) {
-		ttywrite(&sc->tty, ch);
+		/* write returning -1 means disconnected. */
+		if (ttywrite(&sc->tty, ch) == -1 && sc->tty.is_socket)
+			uart_tcp_disconnect(sc);
 		return (0);
 	} else {
 		/* Drop on the floor. */
@@ -258,6 +286,62 @@ done:
 	return (ret);
 }
 #endif
+
+/*
+ * Listen on the TCP port, wait for a connection, then accept it.
+ */
+static void
+uart_tcp_listener(int fd, enum ev_type type __unused, void *arg)
+{
+	const static char tcp_error_msg[] = "Socket already connected\n";
+	struct uart_socket_softc *socket_softc = (struct uart_socket_softc *)
+	    arg;
+	struct uart_softc *sc = socket_softc->softc;
+	int conn_fd;
+
+	conn_fd = accept(fd, NULL, NULL);
+	if (conn_fd == -1)
+		goto clean;
+
+	if (fcntl(conn_fd, F_SETFL, O_NONBLOCK) != 0)
+		goto clean;
+
+	pthread_mutex_lock(&sc->mtx);
+
+	if (sc->tty.opened) {
+		(void)send(conn_fd, tcp_error_msg, sizeof(tcp_error_msg), 0);
+		pthread_mutex_unlock(&sc->mtx);
+		goto clean;
+	} else {
+		sc->tty.rfd = sc->tty.wfd = conn_fd;
+		sc->tty.opened = true;
+		sc->mev = mevent_add(sc->tty.rfd, EVF_READ, socket_softc->drain,
+		    socket_softc->arg);
+	}
+
+	pthread_mutex_unlock(&sc->mtx);
+	return;
+
+clean:
+	if (conn_fd != -1)
+		close(conn_fd);
+}
+
+/*
+ * When a connection-oriented protocol disconnects, this handler is used to
+ * clean it up.
+ *
+ * Note that this function is a helper, so the caller is responsible for
+ * locking the softc.
+ */
+static void
+uart_tcp_disconnect(struct uart_softc *sc)
+{
+	mevent_delete_close(sc->mev);
+	sc->mev = NULL;
+	sc->tty.opened = false;
+	sc->tty.rfd = sc->tty.wfd = -1;
+}
 
 static int
 uart_stdio_backend(struct uart_softc *sc)
@@ -324,6 +408,108 @@ uart_tty_backend(struct uart_softc *sc, const char *path)
 	return (0);
 }
 
+/*
+ * Listen on the address and add it to the kqueue.
+ *
+ * If a connection is established (e.g., the TCP handler is triggered),
+ * replace the handler with the connected handler.
+ */
+static int
+uart_tcp_backend(struct uart_softc *sc, const char *path,
+    void (*drain)(int, enum ev_type, void *), void *arg)
+{
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_t rights;
+	cap_ioctl_t cmds[] = { TIOCGETA, TIOCSETA, TIOCGWINSZ };
+#endif
+	int bind_fd = -1;
+	char addr[256], port[6];
+	int domain;
+	struct addrinfo hints, *src_addr = NULL;
+	struct uart_socket_softc *socket_softc = NULL;
+
+	if (sscanf(path, "tcp=[%255[^]]]:%5s", addr, port) == 2) {
+		domain = AF_INET6;
+	} else if (sscanf(path, "tcp=%255[^:]:%5s", addr, port) == 2) {
+		domain = AF_INET;
+	} else {
+		warnx("Invalid number of parameter");
+		goto clean;
+	}
+
+	bind_fd = socket(domain, SOCK_STREAM, 0);
+	if (bind_fd < 0)
+		goto clean;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = domain;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV | AI_PASSIVE;
+
+	if (getaddrinfo(addr, port, &hints, &src_addr) != 0) {
+		warnx("Invalid address %s:%s", addr, port);
+		goto clean;
+	}
+
+	if (bind(bind_fd, src_addr->ai_addr, src_addr->ai_addrlen) == -1) {
+		warn(
+		    "bind(%s:%s)",
+		    addr, port);
+		goto clean;
+	}
+
+	freeaddrinfo(src_addr);
+	src_addr = NULL;
+
+	if (fcntl(bind_fd, F_SETFL, O_NONBLOCK) == -1)
+		goto clean;
+
+	if (listen(bind_fd, 1) == -1) {
+		warnx("listen(%s:%s)", addr, port);
+		goto clean;
+	}
+
+	/*
+	 * Set the connection softc structure, which includes both the softc
+	 * and the drain function provided by the frontend.
+	 */
+	if ((socket_softc = calloc(sizeof(struct uart_socket_softc), 1)) ==
+	    NULL)
+		goto clean;
+
+	sc->tty.is_socket = true;
+
+	socket_softc->softc = sc;
+	socket_softc->drain = drain;
+	socket_softc->arg = arg;
+
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_init(&rights, CAP_EVENT, CAP_ACCEPT, CAP_RECV, CAP_SEND,
+	    CAP_FCNTL, CAP_IOCTL);
+	if (caph_rights_limit(bind_fd, &rights) == -1)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+	if (caph_ioctls_limit(bind_fd, cmds, nitems(cmds)) == -1)
+		errx(EX_OSERR, "Unable to apply ioctls for sandbox");
+	if (caph_fcntls_limit(bind_fd, CAP_FCNTL_SETFL) == -1)
+		errx(EX_OSERR, "Unable to apply fcntls for sandbox");
+#endif
+
+	if ((sc->mev = mevent_add(bind_fd, EVF_READ, uart_tcp_listener,
+	    socket_softc)) == NULL)
+		goto clean;
+
+	return (0);
+
+clean:
+	if (bind_fd != -1)
+		close(bind_fd);
+	if (socket_softc != NULL)
+		free(socket_softc);
+	if (src_addr)
+		freeaddrinfo(src_addr);
+	return (-1);
+}
+
 struct uart_softc *
 uart_init(void)
 {
@@ -344,9 +530,16 @@ uart_tty_open(struct uart_softc *sc, const char *path,
 
 	if (strcmp("stdio", path) == 0)
 		retval = uart_stdio_backend(sc);
+	else if (strncmp("tcp", path, 3) == 0)
+		retval = uart_tcp_backend(sc, path, drain, arg);
 	else
 		retval = uart_tty_backend(sc, path);
-	if (retval == 0) {
+
+	/*
+	 * A connection-oriented protocol should wait for a connection,
+	 * so it may not listen to anything during initialization.
+	 */
+	if (retval == 0 && !sc->tty.is_socket) {
 		ttyopen(&sc->tty);
 		sc->mev = mevent_add(sc->tty.rfd, EVF_READ, drain, arg);
 		assert(sc->mev != NULL);
