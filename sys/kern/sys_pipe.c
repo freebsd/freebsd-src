@@ -375,6 +375,7 @@ pipe_paircreate(struct thread *td, struct pipepair **p_pp)
 #endif
 	rpipe = &pp->pp_rpipe;
 	wpipe = &pp->pp_wpipe;
+	pp->pp_owner = crhold(td->td_ucred);
 
 	knlist_init_mtx(&rpipe->pipe_sel.si_note, PIPE_MTX(rpipe));
 	knlist_init_mtx(&wpipe->pipe_sel.si_note, PIPE_MTX(wpipe));
@@ -408,6 +409,7 @@ pipe_paircreate(struct thread *td, struct pipepair **p_pp)
 fail:
 	knlist_destroy(&rpipe->pipe_sel.si_note);
 	knlist_destroy(&wpipe->pipe_sel.si_note);
+	crfree(pp->pp_owner);
 #ifdef MAC
 	mac_pipe_destroy(pp);
 #endif
@@ -574,9 +576,20 @@ retry:
 	size = round_page(size);
 	buffer = (caddr_t) vm_map_min(pipe_map);
 
+	if (!chgpipecnt(cpipe->pipe_pair->pp_owner->cr_ruidinfo,
+	    size, lim_cur(curthread, RLIMIT_PIPEBUF))) {
+		if (cpipe->pipe_buffer.buffer == NULL &&
+		    size > SMALL_PIPE_SIZE) {
+			size = SMALL_PIPE_SIZE;
+			goto retry;
+		}
+		return (ENOMEM);
+	}
+
 	error = vm_map_find(pipe_map, NULL, 0, (vm_offset_t *)&buffer, size, 0,
 	    VMFS_ANY_SPACE, VM_PROT_RW, VM_PROT_RW, 0);
 	if (error != KERN_SUCCESS) {
+		chgpipecnt(cpipe->pipe_pair->pp_owner->cr_ruidinfo, -size, 0);
 		if (cpipe->pipe_buffer.buffer == NULL &&
 		    size > SMALL_PIPE_SIZE) {
 			size = SMALL_PIPE_SIZE;
@@ -1645,6 +1658,8 @@ pipe_free_kmem(struct pipe *cpipe)
 
 	if (cpipe->pipe_buffer.buffer != NULL) {
 		atomic_subtract_long(&amountpipekva, cpipe->pipe_buffer.size);
+		chgpipecnt(cpipe->pipe_pair->pp_owner->cr_uidinfo,
+		    -cpipe->pipe_buffer.size, 0);
 		vm_map_remove(pipe_map,
 		    (vm_offset_t)cpipe->pipe_buffer.buffer,
 		    (vm_offset_t)cpipe->pipe_buffer.buffer + cpipe->pipe_buffer.size);
@@ -1731,6 +1746,7 @@ pipeclose(struct pipe *cpipe)
 	 */
 	if (ppipe->pipe_present == PIPE_FINALIZED) {
 		PIPE_UNLOCK(cpipe);
+		crfree(cpipe->pipe_pair->pp_owner);
 #ifdef MAC
 		mac_pipe_destroy(pp);
 #endif
