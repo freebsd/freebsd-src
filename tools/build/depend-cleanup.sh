@@ -180,7 +180,7 @@ fi
 if [ -f "$OBJTOP"/rescue/rescue/rescue.mk ] && \
     grep -q -v 'nvme_util.o' "$OBJTOP"/rescue/rescue/rescue.mk; then
 	echo "removing rescue.mk without nvme_util.o"
-	rm -f "$OBJTOP"/rescue/rescue/rescue.mk
+	run rm -f "$OBJTOP"/rescue/rescue/rescue.mk
 fi
 
 # 20240910  e2df9bb44109
