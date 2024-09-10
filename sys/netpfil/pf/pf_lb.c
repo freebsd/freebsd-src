@@ -370,7 +370,7 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
     struct pf_addr *naddr, struct pfi_kkif **nkif, struct pf_addr *init_addr,
     struct pf_ksrc_node **sn)
 {
-	u_short			 reason = 0;
+	u_short			 reason = PFRES_MATCH;
 	struct pf_kpool		*rpool = &r->rpool;
 	struct pf_addr		*raddr = NULL, *rmask = NULL;
 	struct pf_srchash	*sh = NULL;
@@ -828,10 +828,15 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 			}
 		}
 
+		/*
+		 * We failed to find a match.  Push on ahead anyway, let
+		 * pf_state_insert() be the arbiter of whether the state
+		 * conflict is tolerable.  In particular, with TCP connections
+		 * the state may be reused if the TCP state is terminal.
+		 */
 		DPFPRINTF(PF_DEBUG_MISC,
 		    ("pf: RDR source port allocation failed\n"));
-		reason = PFRES_MAPFAILED;
-		goto notrans;
+		break;
 
 out:
 		DPFPRINTF(PF_DEBUG_MISC,
