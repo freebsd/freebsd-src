@@ -1968,7 +1968,7 @@ dump_ddt_log(ddt_t *ddt)
 		if (count == 0)
 			continue;
 
-		printf(DMU_POOL_DDT_LOG ": %lu log entries\n",
+		printf(DMU_POOL_DDT_LOG ": %" PRIu64 " log entries\n",
 		    zio_checksum_table[ddt->ddt_checksum].ci_name, n, count);
 
 		if (dump_opt['D'] < 4)
