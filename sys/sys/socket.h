@@ -37,6 +37,7 @@
 #include <sys/cdefs.h>
 #include <sys/_types.h>
 #include <sys/_iovec.h>
+#include <sys/_timeval.h>
 #include <machine/_align.h>
 
 /*
@@ -175,6 +176,7 @@ typedef	__uintptr_t	uintptr_t;
 #endif
 
 #if __BSD_VISIBLE
+#define	SO_SPLICE	0x1023		/* splice data to other socket */
 #define	SO_TS_REALTIME_MICRO	0	/* microsecond resolution, realtime */
 #define	SO_TS_BINTIME		1	/* sub-nanosecond resolution, realtime */
 #define	SO_TS_REALTIME		2	/* nanosecond resolution, realtime */
@@ -673,6 +675,16 @@ struct mmsghdr {
 	struct msghdr	msg_hdr;		/* message header */
 	ssize_t		msg_len;		/* message length */
 };
+
+/*
+ * Structure used for manipulating splice option.
+ */
+struct splice {
+	int	sp_fd;			/* drain socket file descriptor */
+	off_t	sp_max;			/* if set, maximum bytes to splice */
+	struct timeval sp_idle;		/* idle timeout */
+};
+
 #endif /* __BSD_VISIBLE */
 
 #ifndef	_KERNEL

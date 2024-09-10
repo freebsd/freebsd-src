@@ -27,7 +27,7 @@
 .\"
 .\"     @(#)getsockopt.2	8.4 (Berkeley) 5/2/95
 .\"
-.Dd February 8, 2021
+.Dd July 8, 2024
 .Dt GETSOCKOPT 2
 .Os
 .Sh NAME
@@ -193,6 +193,7 @@ The following options are recognized in
 .It Dv SO_MAX_PACING_RATE Ta "set the maximum transmit rate in bytes per second for the socket"
 .It Dv SO_NO_OFFLOAD Ta "disables protocol offloads"
 .It Dv SO_NO_DDP Ta "disables direct data placement offload"
+.It Dv SO_SPLICE Ta "splice two sockets together"
 .El
 .Pp
 .Dv SO_DEBUG
@@ -553,6 +554,56 @@ DDP is an offload supported by Chelsio network adapters that permits
 reassembled TCP data streams to be received via zero-copy in
 user-supplied buffers using
 .Xr aio_read 2 .
+.Pp
+.Dv SO_SPLICE ,
+when passed to
+.Fn setsockopt ,
+splices two sockets together using the following
+.Fa optval :
+.Bd -literal
+struct so_splice {
+	int sp_fd;
+	off_t sp_max;
+	struct timeval sp_idle;
+};
+.Ed
+.Pp
+Data received on
+.Fa s
+will automatically be transmitted from the socket specified in
+.Fa sp_fd
+without any intervention by userspace.
+Splicing is a one-way operation; a given pair of sockets may be
+spliced in one or both directions.
+Currently only connected
+.Xr tcp 4
+sockets may be spliced together.
+If
+.Fa sp_max
+is greater than zero, the socket pair will automatically be unspliced
+once that number of bytes have been transmitted.
+If
+.Fa sp_idle
+is non-zero, the socket pair will automatically be unspliced once the
+specified amount of time has elapsed since the initial call to
+.Fn setsockopt .
+If
+.Fa sp_fd
+is -1, the socket will be unspliced immediately.
+.Pp
+When passed to
+.Fn getsockopt ,
+the
+.Dv SO_SPLICE
+option returns a 64-bit integer containing the number of bytes transmitted by
+the most recent splice.
+That is, while the socket is spliced, the value returned will be the number
+of bytes spliced so far.
+When unsplicing, this value is saved and is returned until the socket is closed
+or spliced again.
+For example, if a splice transmits 100 bytes and is then unspliced, a subsequent
+.Nm getsockopt
+call will return 100 until the socket is spliced again.
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
@@ -620,5 +671,14 @@ and
 .Fn setsockopt
 system calls appeared in
 .Bx 4.2 .
+The
+.Dv SO_SPLICE
+option originated in
+.Ox 4.9
+and first appeared in
+.Fx 15.0 .
+The
+.Fx
+implementation aims to be source-compatible.
 .Sh BUGS
 Several of the socket options should be handled at lower levels of the system.

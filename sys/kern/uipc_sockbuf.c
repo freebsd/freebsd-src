@@ -510,6 +510,32 @@ sowakeup(struct socket *so, const sb_which which)
 	SOCK_BUF_UNLOCK_ASSERT(so, which);
 }
 
+static void
+splice_push(struct socket *so)
+{
+	struct so_splice *sp;
+
+	SOCK_RECVBUF_LOCK_ASSERT(so);
+
+	sp = so->so_splice;
+	mtx_lock(&sp->mtx);
+	SOCK_RECVBUF_UNLOCK(so);
+	so_splice_dispatch(sp);
+}
+
+static void
+splice_pull(struct socket *so)
+{
+	struct so_splice *sp;
+
+	SOCK_SENDBUF_LOCK_ASSERT(so);
+
+	sp = so->so_splice_back;
+	mtx_lock(&sp->mtx);
+	SOCK_SENDBUF_UNLOCK(so);
+	so_splice_dispatch(sp);
+}
+
 /*
  * Do we need to notify the other side when I/O is possible?
  */
@@ -524,7 +550,9 @@ void
 sorwakeup_locked(struct socket *so)
 {
 	SOCK_RECVBUF_LOCK_ASSERT(so);
-	if (sb_notify(&so->so_rcv))
+	if (so->so_rcv.sb_flags & SB_SPLICED)
+		splice_push(so);
+	else if (sb_notify(&so->so_rcv))
 		sowakeup(so, SO_RCV);
 	else
 		SOCK_RECVBUF_UNLOCK(so);
@@ -534,7 +562,9 @@ void
 sowwakeup_locked(struct socket *so)
 {
 	SOCK_SENDBUF_LOCK_ASSERT(so);
-	if (sb_notify(&so->so_snd))
+	if (so->so_snd.sb_flags & SB_SPLICED)
+		splice_pull(so);
+	else if (sb_notify(&so->so_snd))
 		sowakeup(so, SO_SND);
 	else
 		SOCK_SENDBUF_UNLOCK(so);
