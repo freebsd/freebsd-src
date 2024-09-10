@@ -102,8 +102,13 @@ This tells
 .Nm
 to also filter on the loopback output hook.
 This is typically used to allow redirect rules to adjust the source address.
-.It net.pf.request_maxcount
+.It Va net.pf.request_maxcount
 The maximum number of items in a single ioctl call.
+.It Va net.pf.rdr_srcport_rewrite_tries
+The maximum number of times to try and find a free source port when handling
+redirects.
+Such rules are typically applied to external traffic, so an exhaustive search
+may be too expensive.
 .El
 .Pp
 Read only
