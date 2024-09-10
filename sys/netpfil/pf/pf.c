@@ -8415,6 +8415,12 @@ pf_test_eth(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0,
 	if (m->m_flags & M_SKIP_FIREWALL)
 		return (PF_PASS);
 
+	if (__predict_false(! M_WRITABLE(*m0))) {
+		m = *m0 = m_unshare(*m0, M_NOWAIT);
+		if (*m0 == NULL)
+			return (PF_DROP);
+	}
+
 	/* Stateless! */
 	return (pf_test_eth_rule(dir, kif, m0));
 }
@@ -8551,6 +8557,12 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0,
 	if (m->m_flags & M_SKIP_FIREWALL) {
 		PF_RULES_RUNLOCK();
 		return (PF_PASS);
+	}
+
+	if (__predict_false(! M_WRITABLE(*m0))) {
+		m = *m0 = m_unshare(*m0, M_NOWAIT);
+		if (*m0 == NULL)
+			return (PF_DROP);
 	}
 
 	memset(&pd, 0, sizeof(pd));
@@ -9145,6 +9157,12 @@ pf_test6(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb 
 		*m0 = NULL;
 		icmp6_error(m, ICMP6_PACKET_TOO_BIG, 0, IN6_LINKMTU(ifp));
 		return (PF_DROP);
+	}
+
+	if (__predict_false(! M_WRITABLE(*m0))) {
+		m = *m0 = m_unshare(*m0, M_NOWAIT);
+		if (*m0 == NULL)
+			return (PF_DROP);
 	}
 
 	memset(&pd, 0, sizeof(pd));
