@@ -55,15 +55,6 @@
 999:
 .endm
 
-.macro pid_in_context_idr label
-	adrp	x9, arm64_pid_in_contextidr
-	ldr	x10, [x9, :lo12:arm64_pid_in_contextidr]
-	cbz	x10, \label
-	ldr	x9, [x1, #TD_PROC]
-	ldr	x10, [x9, #PR_PID]
-	msr	contextidr_el1, x10
-.endm
-
 /*
  * void cpu_throw(struct thread *old, struct thread *new)
  */
@@ -75,12 +66,8 @@ ENTRY(cpu_throw)
 	ldr	x4, [x0, #TD_PCB]
 	ldr	w5, [x4, #PCB_FLAGS]
 	clear_step_flag w5, x6
-
 1:
-	/* debug/trace: set CONTEXTIDR_EL1 to current PID, if enabled */
-	pid_in_context_idr 2f
 
-2:
 #ifdef VFP
 	/* Backup the new thread pointer around a call to C code */
 	mov	x19, x1
@@ -160,10 +147,6 @@ ENTRY(cpu_switch)
 	mov	x20, x1
 	mov	x21, x2
 
-	/* debug/trace: set CONTEXTIDR_EL1 to current PID, if enabled */
-	pid_in_context_idr 0f
-
-0:
 #ifdef VFP
 	bl	vfp_save_state_switch
 	mov	x0, x20

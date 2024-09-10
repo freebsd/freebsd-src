@@ -30,7 +30,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
-#include <sys/sysctl.h>
 #include <sys/sysproto.h>
 
 #include <vm/vm.h>
@@ -81,8 +80,3 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 
 	return (error);
 }
-
-bool arm64_pid_in_contextidr = false;
-SYSCTL_BOOL(_machdep, OID_AUTO, pid_in_contextidr, CTLFLAG_RW,
-    &arm64_pid_in_contextidr, false,
-    "Save PID into CONTEXTIDR_EL1 register on context switch");
