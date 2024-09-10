@@ -649,7 +649,7 @@ bpf_movein(struct uio *uio, int linktype, struct ifnet *ifp, struct mbuf **mp,
 	if (len < hlen || len - hlen > ifp->if_mtu)
 		return (EMSGSIZE);
 
-	/* Allocate a mbuf for our write, since m_get2 fails if len >= to MJUMPAGESIZE, use m_getjcl for bigger buffers */
+	/* Allocate a mbuf, up to MJUM16BYTES bytes, for our write. */
 	m = m_get3(len, M_WAITOK, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (EIO);
