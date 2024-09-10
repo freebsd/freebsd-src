@@ -2038,7 +2038,7 @@ PKG_EXT=	pkg
 .if exists(${PKG_ABI_FILE}) && exists(${REPODIR}/${PKG_ABI})
 PKG_VERSION_FROM!=/usr/bin/readlink ${REPODIR}/${PKG_ABI}/latest
 PKG_VERSION_FROM_DIR=	${REPODIR}/${PKG_ABI}/${PKG_VERSION_FROM}
-BRANCH_EXT_FROM=	${PKG_VERSION_FROM:C/.*([[:alpha:]][^\.]*).*/\1/}
+BRANCH_EXT_FROM=	${PKG_VERSION_FROM:C/^[^[:alpha:]]+p?([[:alpha:]]*)[0-9]+$/\1/}
 .else
 PKG_VERSION_FROM=
 PKG_VERSION_FROM_DIR=
@@ -2079,7 +2079,7 @@ real-update-packages: stage-packages .PHONY
 	    continue; \
 	  fi ; \
 	  newsum=$$(pkg query -F ${REPODIR}/${PKG_ABI}/${PKG_VERSION}/$${newpkgname} '%X') ; \
-	  if [ "${BRANCH_EXT_FROM}" == "${BRANCH_EXT}" -a "$${oldsum}" == "$${newsum}" ]; then \
+	  if [ "${BRANCH_EXT_FROM}" == "${BRANCH_EXT:C/[0-9]+$//}" -a "$${oldsum}" == "$${newsum}" ]; then \
 	   echo "==> Keeping old ${PKG_NAME_PREFIX}-$${pkgname}-${PKG_VERSION_FROM}.${PKG_EXT}" ; \
 	   rm ${REPODIR}/${PKG_ABI}/${PKG_VERSION}/$${newpkgname} ; \
 	   cp $${pkg} ${REPODIR}/${PKG_ABI}/${PKG_VERSION} ; \
