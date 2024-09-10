@@ -66,6 +66,7 @@ static struct login_res {
     { "swapuse",         login_getcapsize, RLIMIT_SWAP    },
     { "kqueues",         login_getcapsize, RLIMIT_KQUEUES },
     { "umtxp",           login_getcapnum,  RLIMIT_UMTXP   },
+    { "pipebuf",         login_getcapnum,  RLIMIT_PIPEBUF },
     { NULL,              0,                0              }
 };
 
