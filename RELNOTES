@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+a1da7dc1cdad:
+	The SO_SPLICE socket option was added.  It allows TCP connections to
+	be spliced together, enabling proxy-like functionality without the
+	need to copy data in and out of user memory.
+
 e962b37bf0ff:
 	When running bhyve(8) guests with a boot ROM, i.e., bhyveload(8) is not
 	used, bhyve now assumes that the boot ROM will enable PCI BAR decoding.
