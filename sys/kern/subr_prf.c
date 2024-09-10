@@ -426,7 +426,7 @@ prf_putchar(int c, int flags, int pri)
 		msgbuftrigger = 1;
 	}
 
-	if ((flags & TOCONS) && (!cn_mute)){
+	if ((flags & TOCONS) && (!cn_mute)) {
 		if ((!KERNEL_PANICKED()) && (constty != NULL))
 			msgbuf_addchar(&consmsgbuf, c);
 
@@ -444,7 +444,7 @@ prf_putbuf(char *bufr, int flags, int pri)
 		msgbuftrigger = 1;
 	}
 
-	if ((flags & TOCONS) && (!cn_mute)){
+	if ((flags & TOCONS) && (!cn_mute)) {
 		if ((!KERNEL_PANICKED()) && (constty != NULL))
 			msgbuf_addstr(&consmsgbuf, -1,
 			    bufr, /*filter_cr*/ 0);
