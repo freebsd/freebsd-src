@@ -277,11 +277,18 @@ svm_modinit(int ipinum)
 }
 
 static void
+svm_modsuspend(void)
+{
+
+	return;
+}
+
+static void
 svm_modresume(void)
 {
 
 	svm_enable(NULL);
-}		
+}
 
 #ifdef BHYVE_SNAPSHOT
 void
