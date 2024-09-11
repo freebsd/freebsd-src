@@ -114,11 +114,21 @@ l1:	movl	$(3<<3),%eax
 	andl	$~CR0_PG,%eax
 	movl	%eax,%cr0
 
+	movl	$MSR_EFER,%ecx
+	rdmsr
+	andl	$~EFER_LME,%eax
+	wrmsr
+
 	movl	%cr4,%eax
 	orl	$CR4_LA57,%eax
 	movl	%eax,%cr4
 
 	movl	%edi,%cr3
+
+	rdmsr
+	orl	$EFER_LME,%eax
+	wrmsr
+
 	movl	%ebp,%cr0
 	jmp	1f
 
