@@ -6471,7 +6471,7 @@ pf_check_in(struct mbuf **m, struct ifnet *ifp, int flags,
 
 	CURVNET_ASSERT_SET();
 
-	chk = pf_test(PF_IN, flags, ifp, m, inp, NULL);
+	chk = pf_test(AF_INET, PF_IN, flags, ifp, m, inp, NULL);
 
 	return (pf_check_return(chk, m));
 }
@@ -6484,7 +6484,7 @@ pf_check_out(struct mbuf **m, struct ifnet *ifp, int flags,
 
 	CURVNET_ASSERT_SET();
 
-	chk = pf_test(PF_OUT, flags, ifp, m, inp, NULL);
+	chk = pf_test(AF_INET, PF_OUT, flags, ifp, m, inp, NULL);
 
 	return (pf_check_return(chk, m));
 }
@@ -6504,7 +6504,7 @@ pf_check6_in(struct mbuf **m, struct ifnet *ifp, int flags,
 	 * order to support scoped addresses. In order to support stateful
 	 * filtering we have change this to lo0 as it is the case in IPv4.
 	 */
-	chk = pf_test6(PF_IN, flags, (*m)->m_flags & M_LOOP ? V_loif : ifp,
+	chk = pf_test(AF_INET6, PF_IN, flags, (*m)->m_flags & M_LOOP ? V_loif : ifp,
 	    m, inp, NULL);
 
 	return (pf_check_return(chk, m));
@@ -6518,7 +6518,7 @@ pf_check6_out(struct mbuf **m, struct ifnet *ifp, int flags,
 
 	CURVNET_ASSERT_SET();
 
-	chk = pf_test6(PF_OUT, flags, ifp, m, inp, NULL);
+	chk = pf_test(AF_INET6, PF_OUT, flags, ifp, m, inp, NULL);
 
 	return (pf_check_return(chk, m));
 }
