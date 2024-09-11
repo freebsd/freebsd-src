@@ -57,7 +57,7 @@
 #define	CPTR_RES1		0x000033ff
 #define	CPTR_TFP		0x00000400
 /* Valid if HCR_EL2.E2H == 1 */
-#define	CPTR_FPEN		0x00300000
+#define	CPTR_E2H_FPEN		0x00300000
 /* Unconditionally valid */
 #define	CPTR_TTA		0x00100000
 #define	CPTR_TCPAC		0x80000000
