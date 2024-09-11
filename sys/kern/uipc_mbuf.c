@@ -1280,8 +1280,6 @@ m_copyback(struct mbuf *m0, int off, int len, c_caddr_t cp)
 
 	if (m0 == NULL)
 		return;
-
-	MPASS(M_WRITABLE(m0));
 	while (off > (mlen = m->m_len)) {
 		off -= mlen;
 		totlen += mlen;
