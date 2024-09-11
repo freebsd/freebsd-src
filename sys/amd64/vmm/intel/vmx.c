@@ -649,11 +649,19 @@ vmx_enable(void *arg __unused)
 }
 
 static void
+vmx_modsuspend(void)
+{
+
+	if (vmxon_enabled[curcpu])
+		vmx_disable(NULL);
+}
+
+static void
 vmx_modresume(void)
 {
 
 	if (vmxon_enabled[curcpu])
-		vmxon(&vmxon_region[curcpu * PAGE_SIZE]);
+		vmx_enable(NULL);
 }
 
 static int
@@ -4271,6 +4279,7 @@ vmx_restore_tsc(void *vcpui, uint64_t offset)
 const struct vmm_ops vmm_ops_intel = {
 	.modinit	= vmx_modinit,
 	.modcleanup	= vmx_modcleanup,
+	.modsuspend	= vmx_modsuspend,
 	.modresume	= vmx_modresume,
 	.init		= vmx_init,
 	.run		= vmx_run,

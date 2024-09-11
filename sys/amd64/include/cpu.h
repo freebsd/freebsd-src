@@ -70,7 +70,8 @@ extern char	btext[];
 extern char	_end[];
 extern char	etext[];
 
-/* Resume hook for VMM. */
+/* Suspend and resume hook for VMM. */
+extern	void (*vmm_suspend_p)(void);
 extern	void (*vmm_resume_p)(void);
 
 void	cpu_halt(void);
