@@ -1611,7 +1611,7 @@ struct pf_pdesc {
 	struct pf_rule_actions	act;
 
 	u_int32_t	 p_len;		/* total length of payload */
-	u_int32_t	 rh_cnt;	/* Route header count */
+	u_int32_t	 badopts;	/* v4 options or v6 routing headers */
 
 	u_int16_t	*ip_sum;
 	u_int16_t	*proto_sum;
