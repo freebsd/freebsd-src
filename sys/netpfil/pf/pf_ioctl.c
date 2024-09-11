@@ -6442,6 +6442,8 @@ pf_eth_check_in(struct mbuf **m, struct ifnet *ifp, int flags,
 {
 	int chk;
 
+	CURVNET_ASSERT_SET();
+
 	chk = pf_test_eth(PF_IN, flags, ifp, m, inp);
 
 	return (pf_check_return(chk, m));
@@ -6452,6 +6454,8 @@ pf_eth_check_out(struct mbuf **m, struct ifnet *ifp, int flags,
     void *ruleset __unused, struct inpcb *inp)
 {
 	int chk;
+
+	CURVNET_ASSERT_SET();
 
 	chk = pf_test_eth(PF_OUT, flags, ifp, m, inp);
 
@@ -6465,6 +6469,8 @@ pf_check_in(struct mbuf **m, struct ifnet *ifp, int flags,
 {
 	int chk;
 
+	CURVNET_ASSERT_SET();
+
 	chk = pf_test(PF_IN, flags, ifp, m, inp, NULL);
 
 	return (pf_check_return(chk, m));
@@ -6475,6 +6481,8 @@ pf_check_out(struct mbuf **m, struct ifnet *ifp, int flags,
     void *ruleset __unused,  struct inpcb *inp)
 {
 	int chk;
+
+	CURVNET_ASSERT_SET();
 
 	chk = pf_test(PF_OUT, flags, ifp, m, inp, NULL);
 
@@ -6489,15 +6497,15 @@ pf_check6_in(struct mbuf **m, struct ifnet *ifp, int flags,
 {
 	int chk;
 
+	CURVNET_ASSERT_SET();
+
 	/*
 	 * In case of loopback traffic IPv6 uses the real interface in
 	 * order to support scoped addresses. In order to support stateful
 	 * filtering we have change this to lo0 as it is the case in IPv4.
 	 */
-	CURVNET_SET(ifp->if_vnet);
 	chk = pf_test6(PF_IN, flags, (*m)->m_flags & M_LOOP ? V_loif : ifp,
 	    m, inp, NULL);
-	CURVNET_RESTORE();
 
 	return (pf_check_return(chk, m));
 }
@@ -6508,9 +6516,9 @@ pf_check6_out(struct mbuf **m, struct ifnet *ifp, int flags,
 {
 	int chk;
 
-	CURVNET_SET(ifp->if_vnet);
+	CURVNET_ASSERT_SET();
+
 	chk = pf_test6(PF_OUT, flags, ifp, m, inp, NULL);
-	CURVNET_RESTORE();
 
 	return (pf_check_return(chk, m));
 }
