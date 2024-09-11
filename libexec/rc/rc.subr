@@ -2782,6 +2782,6 @@ if ! have DebugOn; then
 		return $_rc
 	}
 fi
-if ! have save_dot; then
+if ! have safe_dot; then
 	safe_dot() { dot "$@"; }
 fi
