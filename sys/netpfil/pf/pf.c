@@ -121,8 +121,6 @@
 SDT_PROVIDER_DEFINE(pf);
 SDT_PROBE_DEFINE4(pf, ip, test, done, "int", "int", "struct pf_krule *",
     "struct pf_kstate *");
-SDT_PROBE_DEFINE4(pf, ip, test6, done, "int", "int", "struct pf_krule *",
-    "struct pf_kstate *");
 SDT_PROBE_DEFINE5(pf, ip, state, lookup, "struct pfi_kkif *",
     "struct pf_state_key_cmp *", "int", "struct pf_pdesc *",
     "struct pf_kstate *");
@@ -583,6 +581,19 @@ pf_addr_cmp(struct pf_addr *a, struct pf_addr *b, sa_family_t af)
 		panic("%s: unknown address family %u", __func__, af);
 	}
 	return (0);
+}
+
+static bool
+pf_is_loopback(sa_family_t af, struct pf_addr *addr)
+{
+	switch (af) {
+	case AF_INET:
+		return IN_LOOPBACK(ntohl(addr->v4.s_addr));
+	case AF_INET6:
+		return IN6_IS_ADDR_LOOPBACK(&addr->v6);
+	default:
+		panic("Unknown af %d", af);
+	}
 }
 
 static void
@@ -7906,7 +7917,8 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 		goto bad;
 
 	if (pd->dir == PF_IN) {
-		if (pf_test(PF_OUT, PFIL_FWD, ifp, &m0, inp, &pd->act) != PF_PASS)
+		if (pf_test(AF_INET, PF_OUT, PFIL_FWD, ifp, &m0, inp,
+		    &pd->act) != PF_PASS)
 			goto bad;
 		else if (m0 == NULL)
 			goto done;
@@ -8156,7 +8168,8 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 		goto bad;
 
 	if (pd->dir == PF_IN) {
-		if (pf_test6(PF_OUT, PFIL_FWD, ifp, &m0, inp, &pd->act) != PF_PASS)
+		if (pf_test(AF_INET6, PF_OUT, PFIL_FWD, ifp, &m0, inp,
+		    &pd->act) != PF_PASS)
 			goto bad;
 		else if (m0 == NULL)
 			goto done;
@@ -8586,6 +8599,9 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf *m,
 		pd->tot_len = ntohs(h->ip_len);
 		pd->act.rtableid = -1;
 
+		if (h->ip_hl > 5)	/* has options */
+			pd->rh_cnt++;
+
 		/* fragments not reassembled handled later */
 		if (h->ip_off & htons(IP_MF | IP_OFFMASK))
 			return (0);
@@ -8756,6 +8772,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf *m,
 		*hdrlen = ICMP_MINLEN;
 		break;
 	}
+#ifdef INET6
 	case IPPROTO_ICMPV6: {
 		size_t icmp_hlen = sizeof(struct icmp6_hdr);
 
@@ -8786,6 +8803,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf *m,
 		*hdrlen = icmp_hlen;
 		break;
 	}
+#endif
 	}
 	return (0);
 }
@@ -8869,15 +8887,16 @@ pf_counters_inc(int action, struct pf_pdesc *pd,
 	pf_counter_u64_critical_exit();
 }
 
-#ifdef INET
+#if defined(INET) || defined(INET6)
 int
-pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0,
+pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0,
     struct inpcb *inp, struct pf_rule_actions *default_actions)
 {
 	struct pfi_kkif		*kif;
 	u_short			 action, reason = 0;
 	struct mbuf		*m = *m0;
 	struct ip		*h = NULL;
+	struct ip6_hdr		*h6 = NULL;
 	struct m_tag		*mtag;
 	struct pf_krule		*a = NULL, *r = &V_pf_default_rule;
 	struct pf_kstate	*s = NULL;
@@ -8886,6 +8905,7 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0,
 	int			 off, hdrlen, use_2nd_queue = 0;
 	uint16_t		 tag;
 	uint8_t			 rt;
+	uint8_t			 ttl;
 
 	PF_RULES_RLOCK_TRACKER;
 	KASSERT(dir == PF_IN || dir == PF_OUT, ("%s: bad direction %d\n", __func__, dir));
@@ -8920,26 +8940,68 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0,
 			return (PF_DROP);
 	}
 
-	if (__predict_false(m->m_len < sizeof(struct ip)) &&
-	    (m = *m0 = m_pullup(*m0, sizeof(struct ip))) == NULL) {
-		DPFPRINTF(PF_DEBUG_URGENT,
-		    ("pf_test: m_len < sizeof(struct ip), pullup failed\n"));
-		PF_RULES_RUNLOCK();
-		return (PF_DROP);
-	}
-
 	memset(&pd, 0, sizeof(pd));
 	pd.dir = dir;
 
-	if (pf_normalize_ip(m0, kif, &reason, &pd) != PF_PASS) {
-		/* We do IP header normalization and packet reassembly here */
-		action = PF_DROP;
-		goto done;
-	}
-	m = *m0;	/* pf_normalize messes with m0 */
-	h = mtod(m, struct ip *);
+	switch (af) {
+#ifdef INET
+	case AF_INET:
+		if (__predict_false(m->m_len < sizeof(struct ip)) &&
+		    (m = *m0 = m_pullup(*m0, sizeof(struct ip))) == NULL) {
+			DPFPRINTF(PF_DEBUG_URGENT,
+			    ("pf_test: m_len < sizeof(struct ip), pullup failed\n"));
+			PF_RULES_RUNLOCK();
+			return (PF_DROP);
+		}
 
-	if (pf_setup_pdesc(AF_INET, dir, &pd, m, &action, &reason, kif, &a, &r,
+		if (pf_normalize_ip(m0, kif, &reason, &pd) != PF_PASS) {
+			/* We do IP header normalization and packet reassembly here */
+			action = PF_DROP;
+			goto done;
+		}
+		m = *m0;	/* pf_normalize messes with m0 */
+		h = mtod(m, struct ip *);
+		ttl = h->ip_ttl;
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		/*
+		 * If we end up changing IP addresses (e.g. binat) the stack may get
+		 * confused and fail to send the icmp6 packet too big error. Just send
+		 * it here, before we do any NAT.
+		 */
+		if (dir == PF_OUT && pflags & PFIL_FWD && IN6_LINKMTU(ifp) < pf_max_frag_size(m)) {
+			PF_RULES_RUNLOCK();
+			*m0 = NULL;
+			icmp6_error(m, ICMP6_PACKET_TOO_BIG, 0, IN6_LINKMTU(ifp));
+			return (PF_DROP);
+		}
+
+		if (__predict_false(m->m_len < sizeof(struct ip6_hdr)) &&
+		    (m = *m0 = m_pullup(*m0, sizeof(struct ip6_hdr))) == NULL) {
+			DPFPRINTF(PF_DEBUG_URGENT,
+			    ("pf_test6: m_len < sizeof(struct ip6_hdr)"
+			     ", pullup failed\n"));
+			PF_RULES_RUNLOCK();
+			return (PF_DROP);
+		}
+
+		/* We do IP header normalization and packet reassembly here */
+		if (pf_normalize_ip6(m0, kif, &reason, &pd) != PF_PASS) {
+			action = PF_DROP;
+			goto done;
+		}
+		m = *m0;	/* pf_normalize messes with m0 */
+		h6 = mtod(m, struct ip6_hdr *);
+		ttl = h6->ip6_hlim;
+		break;
+#endif
+	default:
+		panic("Unknown af %d", af);
+	}
+
+	if (pf_setup_pdesc(af, dir, &pd, m, &action, &reason, kif, &a, &r,
 		&ruleset, &off, &hdrlen, default_actions) == -1) {
 		if (action != PF_PASS)
 			pd.act.log |= PF_LOG_FORCE;
@@ -9000,15 +9062,35 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0,
 			m_tag_delete(m, mtag);
 	}
 
-	/* handle fragments that didn't get reassembled by normalization */
-	if (h->ip_off & htons(IP_MF | IP_OFFMASK)) {
-		action = pf_test_fragment(&r, kif, m, &pd, &a, &ruleset);
-		goto done;
+	switch (af) {
+#ifdef INET
+	case AF_INET:
+		/* handle fragments that didn't get reassembled by normalization */
+		if (h->ip_off & htons(IP_MF | IP_OFFMASK)) {
+			action = pf_test_fragment(&r, kif, m, &pd, &a, &ruleset);
+			goto done;
+		}
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		/*
+		 * we do not support jumbogram.  if we keep going, zero ip6_plen
+		 * will do something bad, so drop the packet for now.
+		 */
+		if (htons(h6->ip6_plen) == 0) {
+			action = PF_DROP;
+			REASON_SET(&reason, PFRES_NORM);	/*XXX*/
+			goto done;
+		}
+		break;
+#endif
+	default:
+		panic("Unknown af %d", af);
 	}
 
-	switch (h->ip_p) {
+	switch (pd.proto) {
 	case IPPROTO_TCP: {
-
 		/* Respond to SYN with a syncookie. */
 		if ((pd.hdr.tcp.th_flags & (TH_SYN|TH_ACK|TH_RST)) == TH_SYN &&
 		    pd.dir == PF_IN && pf_synflood_check(&pd)) {
@@ -9036,14 +9118,14 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0,
 			    pd.dir == PF_IN) {
 				struct mbuf *msyn;
 
-				msyn = pf_syncookie_recreate_syn(h->ip_ttl, off,
+				msyn = pf_syncookie_recreate_syn(ttl, off,
 				    &pd);
 				if (msyn == NULL) {
 					action = PF_DROP;
 					break;
 				}
 
-				action = pf_test(dir, pflags, ifp, &msyn, inp,
+				action = pf_test(af, dir, pflags, ifp, &msyn, inp,
 				    &pd.act);
 				m_freem(msyn);
 				if (action != PF_PASS)
@@ -9101,6 +9183,12 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0,
 	}
 
 	case IPPROTO_ICMP: {
+		if (af != AF_INET) {
+			action = PF_DROP;
+			DPFPRINTF(PF_DEBUG_MISC,
+			    ("dropping IPv6 packet with ICMPv4 payload"));
+			goto done;
+		}
 		action = pf_test_state_icmp(&s, kif, m, off, &pd, &reason);
 		if (action == PF_PASS) {
 			if (V_pfsync_update_state_ptr != NULL)
@@ -9114,10 +9202,22 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0,
 	}
 
 	case IPPROTO_ICMPV6: {
-		action = PF_DROP;
-		DPFPRINTF(PF_DEBUG_MISC,
-		    ("pf: dropping IPv4 packet with ICMPv6 payload\n"));
-		goto done;
+		if (af != AF_INET6) {
+			action = PF_DROP;
+			DPFPRINTF(PF_DEBUG_MISC,
+			    ("pf: dropping IPv4 packet with ICMPv6 payload\n"));
+			goto done;
+		}
+		action = pf_test_state_icmp(&s, kif, m, off, &pd, &reason);
+		if (action == PF_PASS) {
+			if (V_pfsync_update_state_ptr != NULL)
+				V_pfsync_update_state_ptr(s);
+			r = s->rule.ptr;
+			a = s->anchor.ptr;
+		} else if (s == NULL)
+			action = pf_test_rule(&r, &s, kif, m, off, &pd,
+			    &a, &ruleset, inp, hdrlen);
+		break;
 	}
 
 	default:
@@ -9135,13 +9235,14 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0,
 
 done:
 	PF_RULES_RUNLOCK();
-	if (action == PF_PASS && h->ip_hl > 5 &&
+
+	if (action == PF_PASS && pd.rh_cnt &&
 	    !((s && s->state_flags & PFSTATE_ALLOWOPTS) || r->allow_opts)) {
 		action = PF_DROP;
 		REASON_SET(&reason, PFRES_IPOPTIONS);
 		pd.act.log = PF_LOG_FORCE;
 		DPFPRINTF(PF_DEBUG_MISC,
-		    ("pf: dropping packet with ip options\n"));
+		    ("pf: dropping packet with dangerous headers\n"));
 	}
 
 	if (s) {
@@ -9193,7 +9294,10 @@ done:
 			else
 				pd.pf_mtag->qid = pd.act.qid;
 			/* Add hints for ecn. */
-			pd.pf_mtag->hdr = h;
+			if (af == AF_INET)
+				pd.pf_mtag->hdr = h;
+			else
+				pd.pf_mtag->hdr = h6;
 		}
 	}
 #endif /* ALTQ */
@@ -9207,11 +9311,11 @@ done:
 	    pd.proto == IPPROTO_UDP) && s != NULL && s->nat_rule.ptr != NULL &&
 	    (s->nat_rule.ptr->action == PF_RDR ||
 	    s->nat_rule.ptr->action == PF_BINAT) &&
-	    IN_LOOPBACK(ntohl(pd.dst->v4.s_addr)))
+	    pf_is_loopback(af, pd.dst))
 		m->m_flags |= M_SKIP_FIREWALL;
 
-	if (__predict_false(ip_divert_ptr != NULL) && action == PF_PASS &&
-	    r->divert.port && !PACKET_LOOPED(&pd)) {
+	if (af == AF_INET && __predict_false(ip_divert_ptr != NULL) &&
+	    action == PF_PASS && r->divert.port && !PACKET_LOOPED(&pd)) {
 		mtag = m_tag_alloc(MTAG_PF_DIVERT, 0,
 		    sizeof(struct pf_divert_mtag), M_NOWAIT | M_ZERO);
 		if (mtag != NULL) {
@@ -9252,6 +9356,10 @@ done:
 			    ("pf: failed to allocate divert tag\n"));
 		}
 	}
+	/* XXX: Anybody working on it?! */
+	if (af == AF_INET6 && r->divert.port)
+		printf("pf: divert(9) is not supported for IPv6\n");
+
 	/* this flag will need revising if the pkt is forwarded */
 	if (pd.pf_mtag)
 		pd.pf_mtag->flags &= ~PF_MTAG_FLAG_PACKET_LOOPED;
@@ -9291,9 +9399,23 @@ done:
 		*m0 = NULL;
 		break;
 	default:
-		/* pf_route() returns unlocked. */
 		if (rt) {
-			pf_route(m0, r, kif->pfik_ifp, s, &pd, inp);
+			switch (af) {
+#ifdef INET
+			case AF_INET:
+				/* pf_route() returns unlocked. */
+				pf_route(m0, r, kif->pfik_ifp, s, &pd, inp);
+				break;
+#endif
+#ifdef INET6
+			case AF_INET6:
+				/* pf_route6() returns unlocked. */
+				pf_route6(m0, r, kif->pfik_ifp, s, &pd, inp);
+				break;
+#endif
+			default:
+				panic("Unknown af %d", af);
+			}
 			goto out;
 		}
 		if (pf_dummynet(&pd, s, r, m0) != 0) {
@@ -9315,422 +9437,16 @@ done:
 	if (s)
 		PF_STATE_UNLOCK(s);
 
-out:
-	pf_sctp_multihome_delayed(&pd, off, kif, s, action);
-
-	return (action);
-}
-#endif /* INET */
-
 #ifdef INET6
-int
-pf_test6(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb *inp,
-    struct pf_rule_actions *default_actions)
-{
-	struct pfi_kkif		*kif;
-	u_short			 action, reason = 0;
-	struct mbuf		*m = *m0, *n = NULL;
-	struct m_tag		*mtag;
-	struct ip6_hdr		*h = NULL;
-	struct pf_krule		*a = NULL, *r = &V_pf_default_rule;
-	struct pf_kstate	*s = NULL;
-	struct pf_kruleset	*ruleset = NULL;
-	struct pf_pdesc		 pd;
-	int			 off, hdrlen, use_2nd_queue = 0;
-	uint16_t		 tag;
-	uint8_t			 rt;
-
-	PF_RULES_RLOCK_TRACKER;
-	KASSERT(dir == PF_IN || dir == PF_OUT, ("%s: bad direction %d\n", __func__, dir));
-	M_ASSERTPKTHDR(m);
-
-	if (!V_pf_status.running)
-		return (PF_PASS);
-
-	PF_RULES_RLOCK();
-
-	kif = (struct pfi_kkif *)ifp->if_pf_kif;
-	if (__predict_false(kif == NULL)) {
-		DPFPRINTF(PF_DEBUG_URGENT,
-		    ("pf_test6: kif == NULL, if_xname %s\n", ifp->if_xname));
-		PF_RULES_RUNLOCK();
-		return (PF_DROP);
-	}
-	if (kif->pfik_flags & PFI_IFLAG_SKIP) {
-		PF_RULES_RUNLOCK();
-		return (PF_PASS);
-	}
-
-	if (m->m_flags & M_SKIP_FIREWALL) {
-		PF_RULES_RUNLOCK();
-		return (PF_PASS);
-	}
-
-	/*
-	 * If we end up changing IP addresses (e.g. binat) the stack may get
-	 * confused and fail to send the icmp6 packet too big error. Just send
-	 * it here, before we do any NAT.
-	 */
-	if (dir == PF_OUT && pflags & PFIL_FWD && IN6_LINKMTU(ifp) < pf_max_frag_size(m)) {
-		PF_RULES_RUNLOCK();
-		*m0 = NULL;
-		icmp6_error(m, ICMP6_PACKET_TOO_BIG, 0, IN6_LINKMTU(ifp));
-		return (PF_DROP);
-	}
-
-	if (__predict_false(! M_WRITABLE(*m0))) {
-		m = *m0 = m_unshare(*m0, M_NOWAIT);
-		if (*m0 == NULL)
-			return (PF_DROP);
-	}
-
-	if (__predict_false(m->m_len < sizeof(struct ip6_hdr)) &&
-	    (m = *m0 = m_pullup(*m0, sizeof(struct ip6_hdr))) == NULL) {
-		DPFPRINTF(PF_DEBUG_URGENT,
-		    ("pf_test6: m_len < sizeof(struct ip6_hdr)"
-		     ", pullup failed\n"));
-		PF_RULES_RUNLOCK();
-		return (PF_DROP);
-	}
-
-	memset(&pd, 0, sizeof(pd));
-	pd.dir = dir;
-
-	/* We do IP header normalization and packet reassembly here */
-	if (pf_normalize_ip6(m0, kif, &reason, &pd) != PF_PASS) {
-		action = PF_DROP;
-		goto done;
-	}
-	m = *m0;	/* pf_normalize messes with m0 */
-	h = mtod(m, struct ip6_hdr *);
-	off = ((caddr_t)h - m->m_data) + sizeof(struct ip6_hdr);
-
-	if (pf_setup_pdesc(AF_INET6, dir, &pd, m, &action, &reason, kif, &a, &r,
-		&ruleset, &off, &hdrlen, default_actions) == -1) {
-		if (action != PF_PASS)
-			pd.act.log |= PF_LOG_FORCE;
-		goto done;
-	}
-
-	if (pd.pf_mtag != NULL && (pd.pf_mtag->flags & PF_MTAG_FLAG_ROUTE_TO)) {
-		pd.pf_mtag->flags &= ~PF_MTAG_FLAG_ROUTE_TO;
-
-		ifp = ifnet_byindexgen(pd.pf_mtag->if_index,
-		    pd.pf_mtag->if_idxgen);
-		if (ifp == NULL || ifp->if_flags & IFF_DYING) {
-			PF_RULES_RUNLOCK();
-			m_freem(*m0);
-			*m0 = NULL;
-			return (PF_PASS);
-		}
-		PF_RULES_RUNLOCK();
-		nd6_output_ifp(ifp, ifp, m,
-                    (struct sockaddr_in6 *)&pd.pf_mtag->dst, NULL);
-		*m0 = NULL;
-		return (PF_PASS);
-	}
-
-	if (ip_dn_io_ptr != NULL && pd.pf_mtag != NULL &&
-	    pd.pf_mtag->flags & PF_MTAG_FLAG_DUMMYNET) {
-		pf_dummynet_flag_remove(m, pd.pf_mtag);
-		/* Dummynet re-injects packets after they've
-		 * completed their delay. We've already
-		 * processed them, so pass unconditionally. */
-		PF_RULES_RUNLOCK();
-		return (PF_PASS);
-	}
-
-	/*
-	 * we do not support jumbogram.  if we keep going, zero ip6_plen
-	 * will do something bad, so drop the packet for now.
-	 */
-	if (htons(h->ip6_plen) == 0) {
-		action = PF_DROP;
-		REASON_SET(&reason, PFRES_NORM);	/*XXX*/
-		goto done;
-	}
-
-	/* if there's no routing header, use unmodified mbuf for checksumming */
-	if (!n)
-		n = m;
-
-	switch (pd.proto) {
-	case IPPROTO_TCP: {
-		/* Respond to SYN with a syncookie. */
-		if ((pd.hdr.tcp.th_flags & (TH_SYN|TH_ACK|TH_RST)) == TH_SYN &&
-		    pd.dir == PF_IN && pf_synflood_check(&pd)) {
-			pf_syncookie_send(m, off, &pd);
-			action = PF_DROP;
-			break;
-		}
-
-		if ((pd.hdr.tcp.th_flags & TH_ACK) && pd.p_len == 0)
-			use_2nd_queue = 1;
-
-		action = pf_normalize_tcp(kif, m, 0, off, &pd);
-		if (action == PF_DROP)
-			goto done;
-		action = pf_test_state_tcp(&s, kif, m, off, &pd, &reason);
-		if (action == PF_PASS) {
-			if (V_pfsync_update_state_ptr != NULL)
-				V_pfsync_update_state_ptr(s);
-			r = s->rule.ptr;
-			a = s->anchor.ptr;
-		} else if (s == NULL) {
-			/* Validate remote SYN|ACK, re-create original SYN if
-			 * valid. */
-			if ((pd.hdr.tcp.th_flags & (TH_SYN|TH_ACK|TH_RST)) ==
-			    TH_ACK && pf_syncookie_validate(&pd) &&
-			    pd.dir == PF_IN) {
-				struct mbuf *msyn;
-
-				msyn = pf_syncookie_recreate_syn(h->ip6_hlim,
-				    off, &pd);
-				if (msyn == NULL) {
-					action = PF_DROP;
-					break;
-				}
-
-				action = pf_test6(dir, pflags, ifp, &msyn, inp,
-				    &pd.act);
-				m_freem(msyn);
-				if (action != PF_PASS)
-					break;
-
-				action = pf_test_state_tcp(&s, kif, m, off,
-				    &pd, &reason);
-				if (action != PF_PASS || s == NULL) {
-					action = PF_DROP;
-					break;
-				}
-
-				s->src.seqhi = ntohl(pd.hdr.tcp.th_ack) - 1;
-				s->src.seqlo = ntohl(pd.hdr.tcp.th_seq) - 1;
-				pf_set_protostate(s, PF_PEER_SRC, PF_TCPS_PROXY_DST);
-
-				action = pf_synproxy(&pd, &s, &reason);
-				break;
-			} else {
-				action = pf_test_rule(&r, &s, kif, m, off, &pd,
-				    &a, &ruleset, inp, hdrlen);
-			}
-		}
-		break;
-	}
-
-	case IPPROTO_UDP: {
-		action = pf_test_state_udp(&s, kif, m, off, &pd);
-		if (action == PF_PASS) {
-			if (V_pfsync_update_state_ptr != NULL)
-				V_pfsync_update_state_ptr(s);
-			r = s->rule.ptr;
-			a = s->anchor.ptr;
-		} else if (s == NULL)
-			action = pf_test_rule(&r, &s, kif, m, off, &pd,
-			    &a, &ruleset, inp, hdrlen);
-		break;
-	}
-
-	case IPPROTO_SCTP: {
-		action = pf_normalize_sctp(dir, kif, m, 0, off, &pd);
-		if (action == PF_DROP)
-			goto done;
-		action = pf_test_state_sctp(&s, kif, m, off, &pd,
-		    &reason);
-		if (action == PF_PASS) {
-			if (V_pfsync_update_state_ptr != NULL)
-				V_pfsync_update_state_ptr(s);
-			r = s->rule.ptr;
-			a = s->anchor.ptr;
-		} else if (s == NULL) {
-			action = pf_test_rule(&r, &s, kif, m, off,
-			    &pd, &a, &ruleset, inp, hdrlen);
-		}
-		break;
-	}
-
-	case IPPROTO_ICMP: {
-		action = PF_DROP;
-		DPFPRINTF(PF_DEBUG_MISC,
-		    ("pf: dropping IPv6 packet with ICMPv4 payload\n"));
-		goto done;
-	}
-
-	case IPPROTO_ICMPV6: {
-		action = pf_test_state_icmp(&s, kif, m, off, &pd, &reason);
-		if (action == PF_PASS) {
-			if (V_pfsync_update_state_ptr != NULL)
-				V_pfsync_update_state_ptr(s);
-			r = s->rule.ptr;
-			a = s->anchor.ptr;
-		} else if (s == NULL)
-			action = pf_test_rule(&r, &s, kif, m, off, &pd,
-			    &a, &ruleset, inp, hdrlen);
-		break;
-	}
-
-	default:
-		action = pf_test_state_other(&s, kif, m, &pd);
-		if (action == PF_PASS) {
-			if (V_pfsync_update_state_ptr != NULL)
-				V_pfsync_update_state_ptr(s);
-			r = s->rule.ptr;
-			a = s->anchor.ptr;
-		} else if (s == NULL)
-			action = pf_test_rule(&r, &s, kif, m, off, &pd,
-			    &a, &ruleset, inp, hdrlen);
-		break;
-	}
-
-done:
-	PF_RULES_RUNLOCK();
-	if (n != m) {
-		m_freem(n);
-		n = NULL;
-	}
-
-	/* handle dangerous IPv6 extension headers. */
-	if (action == PF_PASS && pd.rh_cnt &&
-	    !((s && s->state_flags & PFSTATE_ALLOWOPTS) || r->allow_opts)) {
-		action = PF_DROP;
-		REASON_SET(&reason, PFRES_IPOPTIONS);
-		pd.act.log = r->log;
-		DPFPRINTF(PF_DEBUG_MISC,
-		    ("pf: dropping packet with dangerous v6 headers\n"));
-	}
-
-	if (s) {
-		uint8_t log = pd.act.log;
-		memcpy(&pd.act, &s->act, sizeof(struct pf_rule_actions));
-		pd.act.log |= log;
-		tag = s->tag;
-		rt = s->rt;
-	} else {
-		tag = r->tag;
-		rt = r->rt;
-	}
-
-	if (tag > 0 && pf_tag_packet(m, &pd, tag)) {
-		action = PF_DROP;
-		REASON_SET(&reason, PFRES_MEMORY);
-	}
-
-	pf_scrub(m, &pd);
-	if (pd.proto == IPPROTO_TCP && pd.act.max_mss)
-		pf_normalize_mss(m, off, &pd);
-
-	if (pd.act.rtableid >= 0)
-		M_SETFIB(m, pd.act.rtableid);
-
-	if (pd.act.flags & PFSTATE_SETPRIO) {
-		if (pd.tos & IPTOS_LOWDELAY)
-			use_2nd_queue = 1;
-		if (vlan_set_pcp(m, pd.act.set_prio[use_2nd_queue])) {
-			action = PF_DROP;
-			REASON_SET(&reason, PFRES_MEMORY);
-			pd.act.log = PF_LOG_FORCE;
-			DPFPRINTF(PF_DEBUG_MISC,
-			    ("pf: failed to allocate 802.1q mtag\n"));
-		}
-	}
-
-#ifdef ALTQ
-	if (action == PF_PASS && pd.act.qid) {
-		if (pd.pf_mtag == NULL &&
-		    ((pd.pf_mtag = pf_get_mtag(m)) == NULL)) {
-			action = PF_DROP;
-			REASON_SET(&reason, PFRES_MEMORY);
-		} else {
-			if (s != NULL)
-				pd.pf_mtag->qid_hash = pf_state_hash(s);
-			if (use_2nd_queue || (pd.tos & IPTOS_LOWDELAY))
-				pd.pf_mtag->qid = pd.act.pqid;
-			else
-				pd.pf_mtag->qid = pd.act.qid;
-			/* Add hints for ecn. */
-			pd.pf_mtag->hdr = h;
-		}
-	}
-#endif /* ALTQ */
-
-	if (dir == PF_IN && action == PF_PASS && (pd.proto == IPPROTO_TCP ||
-	    pd.proto == IPPROTO_UDP) && s != NULL && s->nat_rule.ptr != NULL &&
-	    (s->nat_rule.ptr->action == PF_RDR ||
-	    s->nat_rule.ptr->action == PF_BINAT) &&
-	    IN6_IS_ADDR_LOOPBACK(&pd.dst->v6))
-		m->m_flags |= M_SKIP_FIREWALL;
-
-	/* XXX: Anybody working on it?! */
-	if (r->divert.port)
-		printf("pf: divert(9) is not supported for IPv6\n");
-
-	if (pd.act.log) {
-		struct pf_krule		*lr;
-		struct pf_krule_item	*ri;
-
-		if (s != NULL && s->nat_rule.ptr != NULL &&
-		    s->nat_rule.ptr->log & PF_LOG_ALL)
-			lr = s->nat_rule.ptr;
-		else
-			lr = r;
-
-		if (pd.act.log & PF_LOG_FORCE || lr->log & PF_LOG_ALL)
-			PFLOG_PACKET(kif, m, action, reason, lr, a, ruleset,
-			    &pd, (s == NULL));
-		if (s) {
-			SLIST_FOREACH(ri, &s->match_rules, entry)
-				if (ri->r->log & PF_LOG_ALL)
-					PFLOG_PACKET(kif, m, action, reason,
-					    ri->r, a, ruleset, &pd, 0);
-		}
-	}
-
-	pf_counters_inc(action, &pd, kif, s, r, a);
-
-	switch (action) {
-	case PF_SYNPROXY_DROP:
-		m_freem(*m0);
-	case PF_DEFER:
-		*m0 = NULL;
-		action = PF_PASS;
-		break;
-	case PF_DROP:
-		m_freem(*m0);
-		*m0 = NULL;
-		break;
-	default:
-		/* pf_route6() returns unlocked. */
-		if (rt) {
-			pf_route6(m0, r, kif->pfik_ifp, s, &pd, inp);
-			goto out;
-		}
-		if (pf_dummynet(&pd, s, r, m0) != 0) {
-			action = PF_DROP;
-			REASON_SET(&reason, PFRES_MEMORY);
-		}
-		break;
-	}
-
-	if (s && action != PF_DROP) {
-		if (!s->if_index_in && dir == PF_IN)
-			s->if_index_in = ifp->if_index;
-		else if (!s->if_index_out && dir == PF_OUT)
-			s->if_index_out = ifp->if_index;
-	}
-
-	if (s)
-		PF_STATE_UNLOCK(s);
-
 	/* If reassembled packet passed, create new fragments. */
-	if (action == PF_PASS && *m0 && dir == PF_OUT &&
+	if (af == AF_INET6 && action == PF_PASS && *m0 && dir == PF_OUT &&
 	    (mtag = m_tag_find(m, PACKET_TAG_PF_REASSEMBLED, NULL)) != NULL)
 		action = pf_refragment6(ifp, m0, mtag, pflags & PFIL_FWD);
+#endif
 
 out:
-	SDT_PROBE4(pf, ip, test6, done, action, reason, r, s);
-
 	pf_sctp_multihome_delayed(&pd, off, kif, s, action);
 
 	return (action);
 }
-#endif /* INET6 */
+#endif /* INET || INET6 */

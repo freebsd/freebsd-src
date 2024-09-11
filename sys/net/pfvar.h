@@ -2361,16 +2361,16 @@ int				pf_setup_pdesc(sa_family_t, int,
 
 int	pf_test_eth(int, int, struct ifnet *, struct mbuf **, struct inpcb *);
 int	pf_scan_sctp(struct mbuf *, int, struct pf_pdesc *, struct pfi_kkif *);
-#ifdef INET
-int	pf_test(int, int, struct ifnet *, struct mbuf **, struct inpcb *,
+#if defined(INET) || defined(INET6)
+int	pf_test(sa_family_t, int, int, struct ifnet *, struct mbuf **, struct inpcb *,
 	    struct pf_rule_actions *);
+#endif
+#ifdef INET
 int	pf_normalize_ip(struct mbuf **, struct pfi_kkif *, u_short *,
 	    struct pf_pdesc *);
 #endif /* INET */
 
 #ifdef INET6
-int	pf_test6(int, int, struct ifnet *, struct mbuf **, struct inpcb *,
-	    struct pf_rule_actions *);
 int	pf_normalize_ip6(struct mbuf **, struct pfi_kkif *, u_short *,
 	    struct pf_pdesc *);
 void	pf_poolmask(struct pf_addr *, struct pf_addr*,
