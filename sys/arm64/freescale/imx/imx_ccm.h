@@ -25,14 +25,28 @@
  * SUCH DAMAGE.
  */
 
-#ifndef	IMX6_CCM_CLK_H
-#define	IMX6_CCM_CLK_H
+#ifndef	IMX8_CCM_H
+#define	IMX8_CCM_H
 
 #include <dev/clk/clk.h>
 #include <dev/clk/clk_div.h>
 #include <dev/clk/clk_fixed.h>
 #include <dev/clk/clk_gate.h>
 #include <dev/clk/clk_link.h>
+
+int imx_ccm_attach(device_t);
+int imx_ccm_detach(device_t);
+
+struct imx_ccm_softc {
+	device_t		dev;
+	struct resource		*mem_res;
+	struct clkdom		*clkdom;
+	struct mtx		mtx;
+	struct imx_clk		*clks;
+	int			nclks;
+};
+
+DECLARE_CLASS(imx_ccm_driver);
 
 enum imx_clk_type {
 	IMX_CLK_UNDEFINED = 0,
@@ -207,4 +221,4 @@ struct imx_clk {
 	},								\
 }
 
-#endif
+#endif	/* IMX8_CCM_H */
