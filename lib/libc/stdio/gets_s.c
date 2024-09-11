@@ -84,7 +84,8 @@ _gets_s(char *buf, rsize_t n)
 				/* throw the error after lock released prior to exit */
 				__throw_constraint_handler_s("gets_s : end of buffer", E2BIG);
 				signal = 0;
-			}
+				}
+		}
 	}
 
 	*s = 0;
