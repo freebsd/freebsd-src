@@ -47,31 +47,40 @@
 static inline char *
 _gets_s(char *buf, rsize_t n)
 {
-	int c;
+	int c, signal;
 	char *s;
+	/* This modifications prevents error qhen the user type exactly N - 1
+ 	 * Character in stdin buffer and press  <ENTER> key ('\n')
+   	 */
 
-	ORIENT(stdin, -1);
-	for (s = buf, n--; (c = __sgetc(stdin)) != '\n' && n > 0 ; n--) {
+	/* This prevents various alert via __throw_constraint_handler_s() if 
+ 	 * the user type more than N - 1 characters, when functions flush stdin
+  	 * buffer
+   	 */
+	signal = 1;
+	ORIENT(stdin,-1);
+	for (s = buf, n--; (c = __sgetc(stdin)) != '\n' ;) {
 		if (c == EOF) {
 			if (s == buf) {
 				return (NULL);
 			} else
 				break;
-		} else
-			*s++ = c;
+		} else {
+			if ( n ) {
+				*s++ = c;
+				n --;
+			} else 
+				if ( signal ) {
+				/*
+ 	 			* If end of buffer reached, discard until \n or eof.
+	 			* Then throw an error.
+	 			*/
+				/* throw the error after lock released prior to exit */
+				__throw_constraint_handler_s("gets_s : end of buffer", E2BIG);
+				signal = 0;
+			}
 	}
 
-	/*
- 	 * If end of buffer reached, discard until \n or eof.
-	 * Then throw an error.
-	 */
-	if (n == 0) {
-		/* discard */
-		while ((c = __sgetc(stdin)) != '\n' && c != EOF);
-		/* throw the error after lock released prior to exit */
-		__throw_constraint_handler_s("gets_s : end of buffer", E2BIG);
-		return (NULL);
-	}
 	*s = 0;
 	return (buf);
 }
