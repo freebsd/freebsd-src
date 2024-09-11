@@ -202,6 +202,9 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 
 	intr_suspend();
 
+	if (vmm_suspend_p != NULL)
+		vmm_suspend_p();
+
 	pcb = &susppcbs[0]->sp_pcb;
 	if (savectx(pcb)) {
 		fpususpend(susppcbs[0]->sp_fpususpend);

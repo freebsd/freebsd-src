@@ -232,6 +232,7 @@ vmmops_panic(void)
 
 DEFINE_VMMOPS_IFUNC(int, modinit, (int ipinum))
 DEFINE_VMMOPS_IFUNC(int, modcleanup, (void))
+DEFINE_VMMOPS_IFUNC(void, modsuspend, (void))
 DEFINE_VMMOPS_IFUNC(void, modresume, (void))
 DEFINE_VMMOPS_IFUNC(void *, init, (struct vm *vm, struct pmap *pmap))
 DEFINE_VMMOPS_IFUNC(int, run, (void *vcpui, register_t rip, struct pmap *pmap,
@@ -452,6 +453,7 @@ vmm_init(void)
 	if (error)
 		return (error);
 
+	vmm_suspend_p = vmmops_modsuspend;
 	vmm_resume_p = vmmops_modresume;
 
 	return (vmmops_modinit(vmm_ipinum));
@@ -479,6 +481,7 @@ vmm_handler(module_t mod, int what, void *arg)
 		if (vmm_is_hw_supported()) {
 			error = vmmdev_cleanup();
 			if (error == 0) {
+				vmm_suspend_p = NULL;
 				vmm_resume_p = NULL;
 				iommu_cleanup();
 				if (vmm_ipinum != IPI_AST)

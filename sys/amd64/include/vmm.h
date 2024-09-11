@@ -170,6 +170,7 @@ struct vm_eventinfo {
 
 typedef int	(*vmm_init_func_t)(int ipinum);
 typedef int	(*vmm_cleanup_func_t)(void);
+typedef void	(*vmm_suspend_func_t)(void);
 typedef void	(*vmm_resume_func_t)(void);
 typedef void *	(*vmi_init_func_t)(struct vm *vm, struct pmap *pmap);
 typedef int	(*vmi_run_func_t)(void *vcpui, register_t rip,
@@ -194,6 +195,7 @@ typedef int	(*vmi_restore_tsc_t)(void *vcpui, uint64_t now);
 struct vmm_ops {
 	vmm_init_func_t		modinit;	/* module wide initialization */
 	vmm_cleanup_func_t	modcleanup;
+	vmm_resume_func_t	modsuspend;
 	vmm_resume_func_t	modresume;
 
 	vmi_init_func_t		init;		/* vm-specific initialization */

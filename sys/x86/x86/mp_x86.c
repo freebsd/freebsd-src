@@ -1591,6 +1591,11 @@ cpususpend_handler(void)
 
 	mtx_assert(&smp_ipi_mtx, MA_NOTOWNED);
 
+#ifdef __amd64__
+	if (vmm_suspend_p)
+		vmm_suspend_p();
+#endif
+
 	cpu = PCPU_GET(cpuid);
 
 #ifdef XENHVM
