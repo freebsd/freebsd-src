@@ -1029,7 +1029,7 @@ static bool
 nvlist_check_header(struct nvlist_header *nvlhdrp)
 {
 
-	if (nvlhdrp->nvlh_size > SIZE_MAX - sizeof(nvlhdrp)) {
+	if (nvlhdrp->nvlh_size > SIZE_MAX - sizeof(*nvlhdrp)) {
 		ERRNO_SET(EINVAL);
 		return (false);
 	}
