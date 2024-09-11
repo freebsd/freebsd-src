@@ -2115,7 +2115,7 @@ stop_tom_l2t(struct adapter *sc)
 	for (i = 0; i < d->l2t_size; i++) {
 		e = &d->l2tab[i];
 		mtx_lock(&e->lock);
-		if (e->state == L2T_STATE_VALID)
+		if (e->state == L2T_STATE_VALID || e->state == L2T_STATE_STALE)
 			e->state = L2T_STATE_RESOLVING;
 		/*
 		 * stop_atids is going to clean up _all_ atids in use, including
