@@ -151,10 +151,10 @@ static struct pf_fragment *pf_fillup_fragment(struct pf_fragment_cmp *,
 		    struct pf_frent *, u_short *);
 static struct mbuf *pf_join_fragment(struct pf_fragment *);
 #ifdef INET
-static int	pf_reassemble(struct mbuf **, struct ip *, int, u_short *);
+static int	pf_reassemble(struct mbuf **, int, u_short *);
 #endif	/* INET */
 #ifdef INET6
-static int	pf_reassemble6(struct mbuf **, struct ip6_hdr *,
+static int	pf_reassemble6(struct mbuf **,
 		    struct ip6_frag *, uint16_t, uint16_t, u_short *);
 #endif	/* INET6 */
 
@@ -741,9 +741,10 @@ pf_join_fragment(struct pf_fragment *frag)
 
 #ifdef INET
 static int
-pf_reassemble(struct mbuf **m0, struct ip *ip, int dir, u_short *reason)
+pf_reassemble(struct mbuf **m0, int dir, u_short *reason)
 {
 	struct mbuf		*m = *m0;
+	struct ip		*ip = mtod(m, struct ip *);
 	struct pf_frent		*frent;
 	struct pf_fragment	*frag;
 	struct pf_fragment_cmp	key;
@@ -814,10 +815,11 @@ pf_reassemble(struct mbuf **m0, struct ip *ip, int dir, u_short *reason)
 
 #ifdef INET6
 static int
-pf_reassemble6(struct mbuf **m0, struct ip6_hdr *ip6, struct ip6_frag *fraghdr,
+pf_reassemble6(struct mbuf **m0, struct ip6_frag *fraghdr,
     uint16_t hdrlen, uint16_t extoff, u_short *reason)
 {
 	struct mbuf		*m = *m0;
+	struct ip6_hdr		*ip6 = mtod(m, struct ip6_hdr *);
 	struct pf_frent		*frent;
 	struct pf_fragment	*frag;
 	struct pf_fragment_cmp	 key;
@@ -1170,7 +1172,7 @@ pf_normalize_ip(struct mbuf **m0, struct pfi_kkif *kif, u_short *reason,
 		 * Might return a completely reassembled mbuf, or NULL */
 		PF_FRAG_LOCK();
 		DPFPRINTF(("reass frag %d @ %d-%d\n", h->ip_id, fragoff, max));
-		verdict = pf_reassemble(m0, h, pd->dir, reason);
+		verdict = pf_reassemble(m0, pd->dir, reason);
 		PF_FRAG_UNLOCK();
 
 		if (verdict != PF_PASS)
@@ -1360,7 +1362,7 @@ again:
 	off += sizeof(frag);
 
 	/* Returns PF_DROP or *m0 is NULL or completely reassembled mbuf. */
-	if (pf_reassemble6(m0, h, &frag, off, extoff, reason) != PF_PASS)
+	if (pf_reassemble6(m0, &frag, off, extoff, reason) != PF_PASS)
 		return (PF_DROP);
 	m = *m0;
 	if (m == NULL)
