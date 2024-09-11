@@ -8600,7 +8600,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf *m,
 		pd->act.rtableid = -1;
 
 		if (h->ip_hl > 5)	/* has options */
-			pd->rh_cnt++;
+			pd->badopts++;
 
 		/* fragments not reassembled handled later */
 		if (h->ip_off & htons(IP_MF | IP_OFFMASK))
@@ -8643,7 +8643,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf *m,
 			case IPPROTO_ROUTING: {
 				struct ip6_rthdr rthdr;
 
-				if (pd->rh_cnt++) {
+				if (pd->badopts++) {
 					DPFPRINTF(PF_DEBUG_MISC,
 					    ("pf: IPv6 more than one rthdr"));
 					*action = PF_DROP;
@@ -9236,7 +9236,7 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 done:
 	PF_RULES_RUNLOCK();
 
-	if (action == PF_PASS && pd.rh_cnt &&
+	if (action == PF_PASS && pd.badopts &&
 	    !((s && s->state_flags & PFSTATE_ALLOWOPTS) || r->allow_opts)) {
 		action = PF_DROP;
 		REASON_SET(&reason, PFRES_IPOPTIONS);
