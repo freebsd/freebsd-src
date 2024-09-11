@@ -2091,6 +2091,11 @@ stop_lld(struct adapter *sc)
 			TXQ_UNLOCK(wrq);
 			quiesce_wrq(wrq);
 		}
+
+		if (pi->flags & HAS_TRACEQ) {
+			pi->flags &= ~HAS_TRACEQ;
+			sc->traceq = -1;
+		}
 	}
 	if (sc->flags & FULL_INIT_DONE) {
 		/* Firmware event queue */
