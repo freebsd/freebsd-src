@@ -590,6 +590,7 @@ arm64/cavium/thunder_pcie_pem_fdt.c		optional soc_cavm_thunderx pci fdt
 arm64/cavium/thunder_pcie_common.c		optional soc_cavm_thunderx pci
 
 # i.MX8 Clock support
+arm64/freescale/imx/imx_ccm.c			optional fdt soc_freescale_imx8
 arm64/freescale/imx/imx8mq_ccm.c		optional fdt soc_freescale_imx8
 arm64/freescale/imx/clk/imx_clk_gate.c		optional fdt soc_freescale_imx8
 arm64/freescale/imx/clk/imx_clk_mux.c		optional fdt soc_freescale_imx8
