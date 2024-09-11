@@ -54,7 +54,7 @@ _gets_s(char *buf, rsize_t n)
    	 */
 
 	/* This prevents various alert via __throw_constraint_handler_s() if 
- 	 * the user type more than N - 1 characters, when functions flush stdin
+ 	 * the user type more than N - 1 characters, when function flush stdin
   	 * buffer
    	 */
 	signal = 1;
