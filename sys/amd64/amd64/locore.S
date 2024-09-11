@@ -93,9 +93,10 @@ ENTRY(btext)
 ENTRY(la57_trampoline)
 	movq	%rsp,%r11
 	movq	%rbx,%r10
+	movq	%rbp,%r9
 	leaq	la57_trampoline_end(%rip),%rsp
 
-	movq	%cr0,%rdx
+	movq	%cr0,%rbp
 	lgdtq	la57_trampoline_gdt_desc(%rip)
 
 	pushq	$(2<<3)
@@ -109,7 +110,7 @@ ENTRY(la57_trampoline)
 l1:	movl	$(3<<3),%eax
 	movl	%eax,%ss
 
-	movl	%edx,%eax
+	movl	%ebp,%eax
 	andl	$~CR0_PG,%eax
 	movl	%eax,%cr0
 
@@ -118,7 +119,7 @@ l1:	movl	$(3<<3),%eax
 	movl	%eax,%cr4
 
 	movl	%edi,%cr3
-	movl	%edx,%cr0
+	movl	%ebp,%cr0
 	jmp	1f
 
 1:	pushl	$(1<<3)
@@ -128,6 +129,7 @@ l1:	movl	$(3<<3),%eax
 
 l2:	movq	%r11,%rsp
 	movq	%r10,%rbx
+	movq	%r9,%rbp
 	retq
 	.p2align 4,0
 ENTRY(la57_trampoline_gdt_desc)
