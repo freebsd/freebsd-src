@@ -49,11 +49,13 @@ _gets_s(char *buf, rsize_t n)
 {
 	int c, signal;
 	char *s;
-	/* This modifications prevents error qhen the user type exactly N - 1
+	/* 
+ 	 * This modifications prevents error qhen the user type exactly N - 1
  	 * Character in stdin buffer and press  <ENTER> key ('\n')
    	 */
 
-	/* This prevents various alert via __throw_constraint_handler_s() if 
+	/* 
+ 	 * This prevents various alert via __throw_constraint_handler_s() if 
  	 * the user type more than N - 1 characters, when function flush stdin
   	 * buffer
    	 */
@@ -66,11 +68,15 @@ _gets_s(char *buf, rsize_t n)
 			} else
 				break;
 		} else {
-			if ( n ) {
+			/*
+   			 * This prevents strange behavior when user types EXATLY N - 1
+			 * character into the stdin buffer
+    			*/
+			if ( n ) {	// if n > 0
 				*s++ = c;
 				n --;
 			} else 
-				if ( signal ) {
+				if ( signal == 1 ) {
 				/*
  	 			* If end of buffer reached, discard until \n or eof.
 	 			* Then throw an error.
