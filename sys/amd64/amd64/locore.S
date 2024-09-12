@@ -91,11 +91,12 @@ ENTRY(btext)
 
 /* la57_trampoline(%rdi pml5) */
 ENTRY(la57_trampoline)
-	movq	%rsp,%r11
-	movq	%rbx,%r10
-	movq	%rbp,%r9
-	movq	%cr4,%r8
-	orl	$CR4_LA57,%r8d
+	movq	%rsp,lst(%rip)
+	movq	%rbx,lst+8(%rip)
+	movq	%rbp,lst+0x10(%rip)
+	movq	%cr4,%rax
+	orq	$CR4_LA57,%rax
+	movq	%rax,lst+0x18(%rip)
 	leaq	la57_trampoline_end(%rip),%rsp
 
 	movq	%cr0,%rbp
@@ -143,12 +144,14 @@ l1:	movl	$(3<<3),%eax
 	lretl
 	.code64
 
-l2:	movq	%r11,%rsp
-	movq	%r10,%rbx
-	movq	%r9,%rbp
-	movq	%r8,%cr4
+l2:	movq	lst(%rip),%rsp
+	movq	lst+8(%rip),%rbx
+	movq	lst+0x10(%rip),%rbp
+	movq	lst+0x18(%rip),%rax
+	movq	%rax,%cr4
 	retq
 	.p2align 4,0
+lst:	.quad	0,0,0,0
 ENTRY(la57_trampoline_gdt_desc)
 	.word	la57_trampoline_end - la57_trampoline_gdt
 	.long	0, 0		/* filled by pmap_bootstrap_la57 */
