@@ -182,12 +182,10 @@ linux_alloc_kmem(gfp_t flags, unsigned int order)
 	size_t size = ((size_t)PAGE_SIZE) << order;
 	void *addr;
 
-	if ((flags & GFP_DMA32) == 0) {
-		addr = kmem_malloc(size, flags & GFP_NATIVE_MASK);
-	} else {
-		addr = kmem_alloc_contig(size, flags & GFP_NATIVE_MASK, 0,
-		    BUS_SPACE_MAXADDR_32BIT, PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
-	}
+	addr = kmem_alloc_contig(size, flags & GFP_NATIVE_MASK, 0,
+	    ((flags & GFP_DMA32) == 0) ? -1UL : BUS_SPACE_MAXADDR_32BIT,
+	    PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
+
 	return ((vm_offset_t)addr);
 }
 
