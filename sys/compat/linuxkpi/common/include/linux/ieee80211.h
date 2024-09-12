@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2020-2023 The FreeBSD Foundation
+ * Copyright (c) 2020-2024 The FreeBSD Foundation
  *
  * This software was developed by Björn Zeeb under sponsorship from
  * the FreeBSD Foundation.
@@ -33,6 +33,7 @@
 #include <net80211/ieee80211.h>
 
 #include <asm/unaligned.h>
+#include <linux/kernel.h>
 #include <linux/bitops.h>
 #include <linux/if_ether.h>
 
@@ -125,8 +126,9 @@ enum wlan_ht_cap_sm_ps {
 	WLAN_HT_CAP_SM_PS_DISABLED,
 };
 
-#define	WLAN_MAX_KEY_LEN			32 /* TODO FIXME brcmfmac */
-#define	WLAN_PMKID_LEN				16 /* TODO FIXME brcmfmac */
+#define	WLAN_MAX_KEY_LEN			32
+#define	WLAN_PMKID_LEN				16
+#define	WLAN_PMK_LEN_SUITE_B_192		48
 
 #define	WLAN_KEY_LEN_WEP40			5
 #define	WLAN_KEY_LEN_WEP104			13
@@ -178,6 +180,7 @@ enum ieee80211_min_mpdu_start_spacing {
 #define	IEEE80211_STYPE_CTS			IEEE80211_FC0_SUBTYPE_CTS
 #define	IEEE80211_STYPE_RTS			IEEE80211_FC0_SUBTYPE_RTS
 #define	IEEE80211_STYPE_ACTION			IEEE80211_FC0_SUBTYPE_ACTION
+#define	IEEE80211_STYPE_DATA			IEEE80211_FC0_SUBTYPE_DATA
 #define	IEEE80211_STYPE_QOS_DATA		IEEE80211_FC0_SUBTYPE_QOS_DATA
 #define	IEEE80211_STYPE_QOS_NULLFUNC		IEEE80211_FC0_SUBTYPE_QOS_NULL
 #define	IEEE80211_STYPE_QOS_CFACK		0xd0	/* XXX-BZ reserved? */
@@ -277,6 +280,8 @@ enum ieee80211_ac_numbers {
 #define	IEEE80211_HT_MCS_MASK_LEN		10
 
 #define	IEEE80211_MLD_MAX_NUM_LINKS		15
+#define	IEEE80211_MLD_CAP_OP_TID_TO_LINK_MAP_NEG_SUPP		0x0060
+#define	IEEE80211_MLD_CAP_OP_TID_TO_LINK_MAP_NEG_SUPP_SAME	1
 
 struct ieee80211_mcs_info {
 	uint8_t		rx_mask[IEEE80211_HT_MCS_MASK_LEN];
@@ -328,6 +333,7 @@ enum ieee80211_chanctx_change_flags {
 	IEEE80211_CHANCTX_CHANGE_RX_CHAINS	= BIT(2),
 	IEEE80211_CHANCTX_CHANGE_WIDTH		= BIT(3),
 	IEEE80211_CHANCTX_CHANGE_CHANNEL	= BIT(4),
+	IEEE80211_CHANCTX_CHANGE_PUNCTURING	= BIT(5),
 };
 
 enum ieee80211_frame_release_type {
@@ -543,6 +549,7 @@ struct ieee80211_mgmt {
 				} wnm_timing_msr;
 			} u;
 		} action;
+		DECLARE_FLEX_ARRAY(uint8_t, body);
 	} u;
 };
 
@@ -567,6 +574,8 @@ struct ieee80211_rts {		/* net80211::ieee80211_frame_rts */
 
 #define	IEEE80211_SEQ_TO_SN(_seqn)	(((_seqn) & IEEE80211_SEQ_SEQ_MASK) >> \
 					    IEEE80211_SEQ_SEQ_SHIFT)
+#define	IEEE80211_SN_TO_SEQ(_sn)	(((_sn) << IEEE80211_SEQ_SEQ_SHIFT) & \
+					    IEEE80211_SEQ_SEQ_MASK)
 
 /* Time unit (TU) to .. See net80211: IEEE80211_DUR_TU */
 #define	TU_TO_JIFFIES(_tu)	(usecs_to_jiffies(_tu) * 1024)
@@ -640,10 +649,10 @@ struct ieee80211_trigger {
 /* Table 9-29c-Trigger Type subfield encoding */
 enum {
 	IEEE80211_TRIGGER_TYPE_BASIC		= 0x0,
+	IEEE80211_TRIGGER_TYPE_MU_BAR		= 0x2,
 #if 0
 	/* Not seen yet. */
 	BFRP					= 0x1,
-	MU-BAR					= 0x2,
 	MU-RTS					= 0x3,
 	BSRP					= 0x4,
 	GCR MU-BAR				= 0x5,
@@ -653,6 +662,12 @@ enum {
 #endif
 	IEEE80211_TRIGGER_TYPE_MASK		= 0xf
 };
+
+#define	IEEE80211_TRIGGER_ULBW_MASK		0xc0000
+#define	IEEE80211_TRIGGER_ULBW_20MHZ		0x0
+#define	IEEE80211_TRIGGER_ULBW_40MHZ		0x1
+#define	IEEE80211_TRIGGER_ULBW_80MHZ		0x2
+#define	IEEE80211_TRIGGER_ULBW_160_80P80MHZ	0x3
 
 /* 802.11-2020, Figure 9-687-Control field format; 802.11ax-2021 */
 #define	IEEE80211_TWT_CONTROL_NEG_TYPE_BROADCAST	BIT(3)
@@ -694,11 +709,49 @@ struct ieee80211_bssid_index {
 	int	bssid_index;
 };
 
-enum ieee80211_reg_ap_power {
+enum ieee80211_ap_reg_power {
+	IEEE80211_REG_UNSET_AP,
 	IEEE80211_REG_LPI_AP,
 	IEEE80211_REG_SP_AP,
 	IEEE80211_REG_VLP_AP,
 };
+
+/*
+ * 802.11ax-2021, Table 9-277-Meaning of Maximum Transmit Power Count subfield
+ * if Maximum Transmit Power Interpretation subfield is 1 or 3
+ */
+#define	IEEE80211_MAX_NUM_PWR_LEVEL		8
+
+/*
+ * 802.11ax-2021, Table 9-275a-Maximum Transmit Power Interpretation subfield
+ * encoding (4) * Table E-12-Regulatory Info subfield encoding in the
+ * United States (2)
+ */
+#define	IEEE80211_TPE_MAX_IE_NUM		8
+
+/* 802.11ax-2021, 9.4.2.161 Transmit Power Envelope element */
+struct ieee80211_tx_pwr_env {
+	uint8_t		tx_power_info;
+	uint8_t		tx_power[IEEE80211_MAX_NUM_PWR_LEVEL];
+};
+
+/* 802.11ax-2021, Figure 9-617-Transmit Power Information field format */
+/* These are field masks (3bit/3bit/2bit). */
+#define	IEEE80211_TX_PWR_ENV_INFO_COUNT		0x07
+#define	IEEE80211_TX_PWR_ENV_INFO_INTERPRET	0x38
+#define	IEEE80211_TX_PWR_ENV_INFO_CATEGORY	0xc0
+
+/*
+ * 802.11ax-2021, Table 9-275a-Maximum Transmit Power Interpretation subfield
+ * encoding
+ */
+enum ieee80211_tx_pwr_interpretation_subfield_enc {
+	IEEE80211_TPE_LOCAL_EIRP,
+	IEEE80211_TPE_LOCAL_EIRP_PSD,
+	IEEE80211_TPE_REG_CLIENT_EIRP,
+	IEEE80211_TPE_REG_CLIENT_EIRP_PSD,
+};
+
 
 /* net80211: IEEE80211_IS_CTL() */
 static __inline bool
