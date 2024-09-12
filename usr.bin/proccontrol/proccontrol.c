@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+#include <sys/param.h>
 #include <sys/procctl.h>
 #include <err.h>
 #include <stdbool.h>
@@ -35,9 +35,9 @@
 #include <string.h>
 #include <unistd.h>
 
-enum {
-	MODE_ASLR,
+enum mode {
 	MODE_INVALID,
+	MODE_ASLR,
 	MODE_TRACE,
 	MODE_TRAPCAP,
 	MODE_PROTMAX,
@@ -50,6 +50,26 @@ enum {
 #ifdef PROC_LA_CTL
 	MODE_LA57,
 	MODE_LA48,
+#endif
+};
+
+static const struct {
+	enum mode mode;
+	const char *name;
+} modes[] = {
+	{ MODE_ASLR,		"aslr" },
+	{ MODE_TRACE,		"trace" },
+	{ MODE_TRAPCAP,		"trapcap" },
+	{ MODE_PROTMAX,		"protmax" },
+	{ MODE_STACKGAP, 	"stackgap" },
+	{ MODE_NO_NEW_PRIVS,	"nonewprivs" },
+	{ MODE_WXMAP,		"wxmap" },
+#ifdef PROC_KPTI_CTL
+	{ MODE_KPTI, 		"kpti" },
+#endif
+#ifdef PROC_LA_CTL
+	{ MODE_LA57,		"la57" },
+	{ MODE_LA48,		"la48" },
 #endif
 };
 
@@ -67,17 +87,6 @@ str2pid(const char *str)
 	return (res);
 }
 
-#ifdef PROC_KPTI_CTL
-#define	KPTI_USAGE "|kpti"
-#else
-#define	KPTI_USAGE
-#endif
-#ifdef PROC_LA_CTL
-#define	LA_USAGE "|la48|la57"
-#else
-#define	LA_USAGE
-#endif
-
 static void __dead2
 usage(void)
 {
@@ -85,10 +94,10 @@ usage(void)
 	fprintf(stderr, "    proccontrol -m mode -s (enable|disable) "
 	    "(-p pid | command)\n");
 	fprintf(stderr, "    proccontrol -m mode -q [-p pid]\n");
-	fprintf(stderr, "Modes: "
-	    "aslr|protmax|trace|trapcap|stackgap|nonewprivs|wxmap"
-	    KPTI_USAGE LA_USAGE
-	    "\n");
+	fprintf(stderr, "Modes: ");
+	for (size_t i = 0; i < nitems(modes); i++)
+		fprintf(stderr, "%s%s", i == 0 ? "" : "|", modes[i].name);
+	fprintf(stderr, "\n");
 	exit(1);
 }
 
@@ -106,31 +115,15 @@ main(int argc, char *argv[])
 	while ((ch = getopt(argc, argv, "m:qs:p:")) != -1) {
 		switch (ch) {
 		case 'm':
-			if (strcmp(optarg, "aslr") == 0)
-				mode = MODE_ASLR;
-			else if (strcmp(optarg, "protmax") == 0)
-				mode = MODE_PROTMAX;
-			else if (strcmp(optarg, "trace") == 0)
-				mode = MODE_TRACE;
-			else if (strcmp(optarg, "trapcap") == 0)
-				mode = MODE_TRAPCAP;
-			else if (strcmp(optarg, "stackgap") == 0)
-				mode = MODE_STACKGAP;
-			else if (strcmp(optarg, "nonewprivs") == 0)
-				mode = MODE_NO_NEW_PRIVS;
-			else if (strcmp(optarg, "wxmap") == 0)
-				mode = MODE_WXMAP;
-#ifdef PROC_KPTI_CTL
-			else if (strcmp(optarg, "kpti") == 0)
-				mode = MODE_KPTI;
-#endif
-#ifdef PROC_LA_CTL
-			else if (strcmp(optarg, "la57") == 0)
-				mode = MODE_LA57;
-			else if (strcmp(optarg, "la48") == 0)
-				mode = MODE_LA48;
-#endif
-			else
+			if (mode != MODE_INVALID)
+				usage();
+			for (size_t i = 0; i < nitems(modes); i++) {
+				if (strcmp(optarg, modes[i].name) == 0) {
+					mode = modes[i].mode;
+					break;
+				}
+			}
+			if (mode == MODE_INVALID)
 				usage();
 			break;
 		case 's':
