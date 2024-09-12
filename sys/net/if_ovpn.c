@@ -511,6 +511,7 @@ ovpn_new_peer(struct ifnet *ifp, const nvlist_t *nvl)
 	int fd;
 	uint32_t peerid;
 	int ret = 0;
+	bool setcb = false;
 
 	if (nvl == NULL)
 		return (EINVAL);
@@ -631,6 +632,7 @@ ovpn_new_peer(struct ifnet *ifp, const nvlist_t *nvl)
 		 * we're destroying the ifp.
 		 */
 		soref(sc->so);
+		setcb = true;
 	}
 
 	/* Insert the peer into the list. */
@@ -638,9 +640,11 @@ ovpn_new_peer(struct ifnet *ifp, const nvlist_t *nvl)
 	sc->peercount++;
 
 	OVPN_WUNLOCK(sc);
-	ret = udp_set_kernel_tunneling(sc->so, ovpn_udp_input, NULL, sc);
-	MPASS(ret == 0 || ret == EBUSY);
-	ret = 0;
+
+	if (setcb) {
+		ret = udp_set_kernel_tunneling(sc->so, ovpn_udp_input, NULL, sc);
+		MPASS(ret == 0);
+	}
 
 	goto done;
 
