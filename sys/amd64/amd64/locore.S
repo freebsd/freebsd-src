@@ -94,6 +94,8 @@ ENTRY(la57_trampoline)
 	movq	%rsp,%r11
 	movq	%rbx,%r10
 	movq	%rbp,%r9
+	movq	%cr4,%r8
+	orl	$CR4_LA57,%r8d
 	leaq	la57_trampoline_end(%rip),%rsp
 
 	movq	%cr0,%rbp
@@ -109,6 +111,10 @@ ENTRY(la57_trampoline)
 
 l1:	movl	$(3<<3),%eax
 	movl	%eax,%ss
+
+	movl	%cr4,%eax
+	andl	$~(CR4_PGE | CR4_PCIDE),%eax
+	movl	%eax,%cr4
 
 	movl	%ebp,%eax
 	andl	$~CR0_PG,%eax
@@ -140,6 +146,7 @@ l1:	movl	$(3<<3),%eax
 l2:	movq	%r11,%rsp
 	movq	%r10,%rbx
 	movq	%r9,%rbp
+	movq	%r8,%cr4
 	retq
 	.p2align 4,0
 ENTRY(la57_trampoline_gdt_desc)
