@@ -379,7 +379,7 @@ FBSD_1.7 {
 };
 
 FBSD_1.8 {
-	 kcmp;
+	kcmp;
 };
 
 FBSDprivate_1.0 {
