@@ -2598,3 +2598,4 @@ static moduledata_t ovpn_mod = {
 
 DECLARE_MODULE(if_ovpn, ovpn_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_VERSION(if_ovpn, 1);
+MODULE_DEPEND(if_ovpn, crypto, 1, 1, 1);
