@@ -89,7 +89,7 @@
  * The number of PHYSSEG entries must be one greater than the number
  * of phys_avail entries because the phys_avail entry that spans the
  * largest physical address that is accessible by ISA DMA is split
- * into two PHYSSEG entries. 
+ * into two PHYSSEG entries.
  */
 #define	VM_PHYSSEG_MAX		63
 

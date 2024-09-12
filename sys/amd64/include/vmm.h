@@ -124,7 +124,7 @@ enum x2apic_state {
 /*
  * The VM name has to fit into the pathname length constraints of devfs,
  * governed primarily by SPECNAMELEN.  The length is the total number of
- * characters in the full path, relative to the mount point and not 
+ * characters in the full path, relative to the mount point and not
  * including any leading '/' characters.
  * A prefix and a suffix are added to the name specified by the user.
  * The prefix is usually "vmm/" or "vmm.io/", but can be a few characters
@@ -465,7 +465,7 @@ struct vm_copyinfo {
 /*
  * Set up 'copyinfo[]' to copy to/from guest linear address space starting
  * at 'gla' and 'len' bytes long. The 'prot' should be set to PROT_READ for
- * a copyin or PROT_WRITE for a copyout. 
+ * a copyin or PROT_WRITE for a copyout.
  *
  * retval	is_fault	Interpretation
  *   0		   0		Success

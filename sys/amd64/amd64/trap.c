@@ -723,7 +723,7 @@ trap_pfault(struct trapframe *frame, bool usermode, int *signo, int *ucode)
 		 * Due to both processor errata and lazy TLB invalidation when
 		 * access restrictions are removed from virtual pages, memory
 		 * accesses that are allowed by the physical mapping layer may
-		 * nonetheless cause one spurious page fault per virtual page. 
+		 * nonetheless cause one spurious page fault per virtual page.
 		 * When the thread is executing a "no faulting" section that
 		 * is bracketed by vm_fault_{disable,enable}_pagefaults(),
 		 * every page fault is treated as a spurious page fault,
