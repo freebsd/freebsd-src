@@ -87,9 +87,11 @@ _gets_s(char *buf, rsize_t n)
 				}
 		}
 	}
-
 	*s = 0;
-	return (buf);
+	if (n == 0)
+		return (NULL);
+	else
+		return (buf);
 }
 
 /* ISO/IEC 9899:2011 K.3.7.4.1 */
