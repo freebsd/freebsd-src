@@ -151,7 +151,7 @@ l2:	movq	%r11,%rsp
 	.p2align 4,0
 ENTRY(la57_trampoline_gdt_desc)
 	.word	la57_trampoline_end - la57_trampoline_gdt
-	.long	0		/* filled by pmap_bootstrap_la57 */
+	.long	0, 0		/* filled by pmap_bootstrap_la57 */
 	.p2align 4,0
 ENTRY(la57_trampoline_gdt)
 	.long	0x00000000	/* null desc */
