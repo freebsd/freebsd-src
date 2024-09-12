@@ -346,7 +346,7 @@ rtc_to_secs(struct vrtc *vrtc)
 
 	/*
 	 * Ignore 'rtc->dow' because some guests like Linux don't bother
-	 * setting it at all while others like OpenBSD/i386 set it incorrectly. 
+	 * setting it at all while others like OpenBSD/i386 set it incorrectly.
 	 *
 	 * clock_ct_to_ts() does not depend on 'ct.dow' anyways so ignore it.
 	 */

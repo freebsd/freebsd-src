@@ -137,7 +137,7 @@ ept_dump(uint64_t *ptp, int nlevels)
 
 		if (ptpval == 0)
 			continue;
-		
+
 		for (t = 0; t < tabs; t++)
 			printf("\t");
 		printf("%3d 0x%016lx\n", i, ptpval);

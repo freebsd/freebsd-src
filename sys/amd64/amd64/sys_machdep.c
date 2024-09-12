@@ -311,7 +311,7 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		error = copyout(&pcb->pcb_fsbase, uap->parms,
 		    sizeof(pcb->pcb_fsbase));
 		break;
-		
+
 	case AMD64_SET_FSBASE:
 		error = copyin(uap->parms, &a64base, sizeof(a64base));
 		if (error == 0) {

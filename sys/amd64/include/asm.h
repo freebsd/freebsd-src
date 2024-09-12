@@ -92,7 +92,7 @@
 
 #define	END(x)		.size x, . - x; .cfi_endproc
 /*
- * WEAK_REFERENCE(): create a weak reference alias from sym. 
+ * WEAK_REFERENCE(): create a weak reference alias from sym.
  * The macro is not a general asm macro that takes arbitrary names,
  * but one that takes only C names. It does the non-null name
  * translation inside the macro.

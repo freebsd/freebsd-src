@@ -3665,7 +3665,7 @@ vmx_setcap(void *vcpui, int type, int val)
 		vlapic = vm_lapic(vcpu->vcpu);
 		vlapic->ipi_exit = val;
 		break;
-	case VM_CAP_MASK_HWINTR:		
+	case VM_CAP_MASK_HWINTR:
 		retval = 0;
 		break;
 	default:
