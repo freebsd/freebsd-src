@@ -303,7 +303,7 @@ struct ieee80211_bss_conf {
 	int16_t					txpower;
 	uint32_t				basic_rates;
 	int					mcast_rate[NUM_NL80211_BANDS];
-	enum ieee80211_reg_ap_power 		power_type;
+	enum ieee80211_ap_reg_power 		power_type;
 	struct cfg80211_bitrate_mask		beacon_tx_rate;
 	struct mac80211_fils_discovery		fils_discovery;
 	struct ieee80211_chanctx_conf		*chanctx_conf;
