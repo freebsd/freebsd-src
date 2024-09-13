@@ -260,8 +260,9 @@ e6000sw_probe(device_t dev)
 		 */
 		resource_int_value(device_get_name(sc->dev),
 		    device_get_unit(sc->dev), "is8190", &is_6190);
-	resource_int_value(device_get_name(sc->dev),
-		device_get_unit(sc->dev), "is6190x", &is_6190x);
+	if (resource_int_value(device_get_name(sc->dev),
+		device_get_unit(sc->dev), "is6190x", &is_6190x) != 0)
+		return;
 	if (is_6190 !=0 && is_6190x != 0)
 		if (bootverbose)
 			device_printf(dev, "Cannot configure conflicting variants\n");
