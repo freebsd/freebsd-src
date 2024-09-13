@@ -491,8 +491,8 @@ struct pf_rule {
 #define PF_SKIP_AF		2
 #define PF_SKIP_PROTO		3
 #define PF_SKIP_SRC_ADDR	4
-#define PF_SKIP_SRC_PORT	5
-#define PF_SKIP_DST_ADDR	6
+#define PF_SKIP_DST_ADDR	5
+#define PF_SKIP_SRC_PORT	6
 #define PF_SKIP_DST_PORT	7
 #define PF_SKIP_COUNT		8
 	union pf_rule_ptr	 skip[PF_SKIP_COUNT];

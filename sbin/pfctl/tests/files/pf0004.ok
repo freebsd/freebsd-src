@@ -15,48 +15,48 @@ block drop in proto tcp from any port >= 80 to any port 1024:2048
 block drop in inet proto tcp from 10.0.0.0/8 port = ssh to 192.168.0.0/16 port = ircd
 block drop in inet proto tcp from 10.0.0.0/8 port = ssh to 192.168.0.0/16 port = 6668
 block drop in inet proto tcp from 10.0.0.0/8 port = ssh to 192.168.0.0/16 port 6669:65535
-block drop in inet proto tcp from 10.0.0.0/8 port = ssh to 12.34.56.78 port = ircd
-block drop in inet proto tcp from 10.0.0.0/8 port = ssh to 12.34.56.78 port = 6668
-block drop in inet proto tcp from 10.0.0.0/8 port = ssh to 12.34.56.78 port 6669:65535
 block drop in inet proto tcp from 10.0.0.0/8 port = ftp to 192.168.0.0/16 port = ircd
 block drop in inet proto tcp from 10.0.0.0/8 port = ftp to 192.168.0.0/16 port = 6668
 block drop in inet proto tcp from 10.0.0.0/8 port = ftp to 192.168.0.0/16 port 6669:65535
+block drop in inet proto tcp from 10.0.0.0/8 port = ssh to 12.34.56.78 port = ircd
+block drop in inet proto tcp from 10.0.0.0/8 port = ssh to 12.34.56.78 port = 6668
+block drop in inet proto tcp from 10.0.0.0/8 port = ssh to 12.34.56.78 port 6669:65535
 block drop in inet proto tcp from 10.0.0.0/8 port = ftp to 12.34.56.78 port = ircd
 block drop in inet proto tcp from 10.0.0.0/8 port = ftp to 12.34.56.78 port = 6668
 block drop in inet proto tcp from 10.0.0.0/8 port = ftp to 12.34.56.78 port 6669:65535
 block drop in inet proto tcp from 172.16.0.0/12 port = ssh to 192.168.0.0/16 port = ircd
 block drop in inet proto tcp from 172.16.0.0/12 port = ssh to 192.168.0.0/16 port = 6668
 block drop in inet proto tcp from 172.16.0.0/12 port = ssh to 192.168.0.0/16 port 6669:65535
-block drop in inet proto tcp from 172.16.0.0/12 port = ssh to 12.34.56.78 port = ircd
-block drop in inet proto tcp from 172.16.0.0/12 port = ssh to 12.34.56.78 port = 6668
-block drop in inet proto tcp from 172.16.0.0/12 port = ssh to 12.34.56.78 port 6669:65535
 block drop in inet proto tcp from 172.16.0.0/12 port = ftp to 192.168.0.0/16 port = ircd
 block drop in inet proto tcp from 172.16.0.0/12 port = ftp to 192.168.0.0/16 port = 6668
 block drop in inet proto tcp from 172.16.0.0/12 port = ftp to 192.168.0.0/16 port 6669:65535
+block drop in inet proto tcp from 172.16.0.0/12 port = ssh to 12.34.56.78 port = ircd
+block drop in inet proto tcp from 172.16.0.0/12 port = ssh to 12.34.56.78 port = 6668
+block drop in inet proto tcp from 172.16.0.0/12 port = ssh to 12.34.56.78 port 6669:65535
 block drop in inet proto tcp from 172.16.0.0/12 port = ftp to 12.34.56.78 port = ircd
 block drop in inet proto tcp from 172.16.0.0/12 port = ftp to 12.34.56.78 port = 6668
 block drop in inet proto tcp from 172.16.0.0/12 port = ftp to 12.34.56.78 port 6669:65535
 block drop in inet proto udp from 10.0.0.0/8 port = ssh to 192.168.0.0/16 port = 6667
 block drop in inet proto udp from 10.0.0.0/8 port = ssh to 192.168.0.0/16 port = 6668
 block drop in inet proto udp from 10.0.0.0/8 port = ssh to 192.168.0.0/16 port 6669:65535
-block drop in inet proto udp from 10.0.0.0/8 port = ssh to 12.34.56.78 port = 6667
-block drop in inet proto udp from 10.0.0.0/8 port = ssh to 12.34.56.78 port = 6668
-block drop in inet proto udp from 10.0.0.0/8 port = ssh to 12.34.56.78 port 6669:65535
 block drop in inet proto udp from 10.0.0.0/8 port = ftp to 192.168.0.0/16 port = 6667
 block drop in inet proto udp from 10.0.0.0/8 port = ftp to 192.168.0.0/16 port = 6668
 block drop in inet proto udp from 10.0.0.0/8 port = ftp to 192.168.0.0/16 port 6669:65535
+block drop in inet proto udp from 10.0.0.0/8 port = ssh to 12.34.56.78 port = 6667
+block drop in inet proto udp from 10.0.0.0/8 port = ssh to 12.34.56.78 port = 6668
+block drop in inet proto udp from 10.0.0.0/8 port = ssh to 12.34.56.78 port 6669:65535
 block drop in inet proto udp from 10.0.0.0/8 port = ftp to 12.34.56.78 port = 6667
 block drop in inet proto udp from 10.0.0.0/8 port = ftp to 12.34.56.78 port = 6668
 block drop in inet proto udp from 10.0.0.0/8 port = ftp to 12.34.56.78 port 6669:65535
 block drop in inet proto udp from 172.16.0.0/12 port = ssh to 192.168.0.0/16 port = 6667
 block drop in inet proto udp from 172.16.0.0/12 port = ssh to 192.168.0.0/16 port = 6668
 block drop in inet proto udp from 172.16.0.0/12 port = ssh to 192.168.0.0/16 port 6669:65535
-block drop in inet proto udp from 172.16.0.0/12 port = ssh to 12.34.56.78 port = 6667
-block drop in inet proto udp from 172.16.0.0/12 port = ssh to 12.34.56.78 port = 6668
-block drop in inet proto udp from 172.16.0.0/12 port = ssh to 12.34.56.78 port 6669:65535
 block drop in inet proto udp from 172.16.0.0/12 port = ftp to 192.168.0.0/16 port = 6667
 block drop in inet proto udp from 172.16.0.0/12 port = ftp to 192.168.0.0/16 port = 6668
 block drop in inet proto udp from 172.16.0.0/12 port = ftp to 192.168.0.0/16 port 6669:65535
+block drop in inet proto udp from 172.16.0.0/12 port = ssh to 12.34.56.78 port = 6667
+block drop in inet proto udp from 172.16.0.0/12 port = ssh to 12.34.56.78 port = 6668
+block drop in inet proto udp from 172.16.0.0/12 port = ssh to 12.34.56.78 port 6669:65535
 block drop in inet proto udp from 172.16.0.0/12 port = ftp to 12.34.56.78 port = 6667
 block drop in inet proto udp from 172.16.0.0/12 port = ftp to 12.34.56.78 port = 6668
 block drop in inet proto udp from 172.16.0.0/12 port = ftp to 12.34.56.78 port 6669:65535

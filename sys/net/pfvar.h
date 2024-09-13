@@ -1619,6 +1619,8 @@ struct pf_pdesc {
 					 * state code. Easier than tags */
 #define PFDESC_TCP_NORM	0x0001		/* TCP shall be statefully scrubbed */
 #define PFDESC_IP_REAS	0x0002		/* IP frags would've been reassembled */
+	u_int16_t	 virtual_proto;
+#define PF_VPROTO_FRAGMENT	256
 	sa_family_t	 af;
 	u_int8_t	 proto;
 	u_int8_t	 tos;
