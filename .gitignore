@@ -63,8 +63,10 @@ CMakeCache.txt
 CMakeFiles/
 DartConfiguration.tcl
 cmake.tmp/
+cmake-*/
 .vs/
 .vscode/
+.idea/
 
 doc/html/*.html
 doc/man/*.1

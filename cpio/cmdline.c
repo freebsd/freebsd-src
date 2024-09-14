@@ -308,17 +308,22 @@ again:
  * Returns NULL if no error, otherwise returns error string for display.
  *
  */
-const char *
-owner_parse(const char *spec, int *uid, int *gid)
+int
+owner_parse(const char *spec, struct cpio_owner *owner, const char **errmsg)
 {
 	static char errbuff[128];
 	const char *u, *ue, *g;
 
-	*uid = -1;
-	*gid = -1;
+	owner->uid = -1;
+	owner->gid = -1;
 
-	if (spec[0] == '\0')
-		return ("Invalid empty user/group spec");
+	owner->uname = NULL;
+	owner->gname = NULL;
+
+	if (spec[0] == '\0') {
+		*errmsg = "Invalid empty user/group spec";
+		return (-1);
+	}
 
 	/*
 	 * Split spec into [user][:.][group]
@@ -347,23 +352,29 @@ owner_parse(const char *spec, int *uid, int *gid)
 
 		user = (char *)malloc(ue - u + 1);
 		if (user == NULL)
-			return ("Couldn't allocate memory");
+			goto alloc_error;
 		memcpy(user, u, ue - u);
 		user[ue - u] = '\0';
 		if ((pwent = getpwnam(user)) != NULL) {
-			*uid = pwent->pw_uid;
+			owner->uid = pwent->pw_uid;
+			owner->uname = strdup(pwent->pw_name);
+			if (owner->uname == NULL) {
+				free(user);
+				goto alloc_error;
+			}
 			if (*ue != '\0')
-				*gid = pwent->pw_gid;
+				owner->gid = pwent->pw_gid;
 		} else {
 			char *end;
 			errno = 0;
-			*uid = (int)strtoul(user, &end, 10);
+			owner->uid = (int)strtoul(user, &end, 10);
 			if (errno || *end != '\0') {
 				snprintf(errbuff, sizeof(errbuff),
 				    "Couldn't lookup user ``%s''", user);
 				errbuff[sizeof(errbuff) - 1] = '\0';
 				free(user);
-				return (errbuff);
+				*errmsg = errbuff;
+				return (-1);
 			}
 		}
 		free(user);
@@ -372,18 +383,28 @@ owner_parse(const char *spec, int *uid, int *gid)
 	if (*g != '\0') {
 		struct group *grp;
 		if ((grp = getgrnam(g)) != NULL) {
-			*gid = grp->gr_gid;
+			owner->gid = grp->gr_gid;
+			owner->gname = strdup(grp->gr_name);
+			if (owner->gname == NULL) {
+				free(owner->uname);
+				owner->uname = NULL;
+				goto alloc_error;
+			}
 		} else {
 			char *end;
 			errno = 0;
-			*gid = (int)strtoul(g, &end, 10);
+			owner->gid = (int)strtoul(g, &end, 10);
 			if (errno || *end != '\0') {
 				snprintf(errbuff, sizeof(errbuff),
 				    "Couldn't lookup group ``%s''", g);
 				errbuff[sizeof(errbuff) - 1] = '\0';
-				return (errbuff);
+				*errmsg = errbuff;
+				return (-1);
 			}
 		}
 	}
-	return (NULL);
+	return (0);
+alloc_error:
+	*errmsg = "Couldn't allocate memory";
+	return (-1);
 }

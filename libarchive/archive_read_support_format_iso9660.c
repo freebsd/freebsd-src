@@ -402,6 +402,9 @@ static int	isJolietSVD(struct iso9660 *, const unsigned char *);
 static int	isSVD(struct iso9660 *, const unsigned char *);
 static int	isEVD(struct iso9660 *, const unsigned char *);
 static int	isPVD(struct iso9660 *, const unsigned char *);
+static int	isRootDirectoryRecord(const unsigned char *);
+static int	isValid723Integer(const unsigned char *);
+static int	isValid733Integer(const unsigned char *);
 static int	next_cache_entry(struct archive_read *, struct iso9660 *,
 		    struct file_info **);
 static int	next_entry_seek(struct archive_read *, struct iso9660 *,
@@ -773,8 +776,9 @@ isSVD(struct iso9660 *iso9660, const unsigned char *h)
 
 	/* Read Root Directory Record in Volume Descriptor. */
 	p = h + SVD_root_directory_record_offset;
-	if (p[DR_length_offset] != 34)
+	if (!isRootDirectoryRecord(p)) {
 		return (0);
+	}
 
 	return (48);
 }
@@ -851,8 +855,9 @@ isEVD(struct iso9660 *iso9660, const unsigned char *h)
 
 	/* Read Root Directory Record in Volume Descriptor. */
 	p = h + PVD_root_directory_record_offset;
-	if (p[DR_length_offset] != 34)
+	if (!isRootDirectoryRecord(p)) {
 		return (0);
+	}
 
 	return (48);
 }
@@ -882,21 +887,43 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 	if (!isNull(iso9660, h, PVD_reserved2_offset, PVD_reserved2_size))
 		return (0);
 
+	/* Volume space size must be encoded according to 7.3.3 */
+	if (!isValid733Integer(h + PVD_volume_space_size_offset)) {
+		return (0);
+	}
+	volume_block = archive_le32dec(h + PVD_volume_space_size_offset);
+	if (volume_block <= SYSTEM_AREA_BLOCK+4)
+		return (0);
+
 	/* Reserved field must be 0. */
 	if (!isNull(iso9660, h, PVD_reserved3_offset, PVD_reserved3_size))
 		return (0);
 
+	/* Volume set size must be encoded according to 7.2.3 */
+	if (!isValid723Integer(h + PVD_volume_set_size_offset)) {
+		return (0);
+	}
+
+	/* Volume sequence number must be encoded according to 7.2.3 */
+	if (!isValid723Integer(h + PVD_volume_sequence_number_offset)) {
+		return (0);
+	}
+
 	/* Logical block size must be > 0. */
 	/* I've looked at Ecma 119 and can't find any stronger
 	 * restriction on this field. */
+	if (!isValid723Integer(h + PVD_logical_block_size_offset)) {
+		return (0);
+	}
 	logical_block_size =
 	    archive_le16dec(h + PVD_logical_block_size_offset);
 	if (logical_block_size <= 0)
 		return (0);
 
-	volume_block = archive_le32dec(h + PVD_volume_space_size_offset);
-	if (volume_block <= SYSTEM_AREA_BLOCK+4)
+	/* Path Table size must be encoded according to 7.3.3 */
+	if (!isValid733Integer(h + PVD_path_table_size_offset)) {
 		return (0);
+	}
 
 	/* File structure version must be 1 for ISO9660/ECMA119. */
 	if (h[PVD_file_structure_version_offset] != 1)
@@ -935,8 +962,9 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 
 	/* Read Root Directory Record in Volume Descriptor. */
 	p = h + PVD_root_directory_record_offset;
-	if (p[DR_length_offset] != 34)
+	if (!isRootDirectoryRecord(p)) {
 		return (0);
+	}
 
 	if (!iso9660->primary.location) {
 		iso9660->logical_block_size = logical_block_size;
@@ -949,6 +977,51 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 	}
 
 	return (48);
+}
+
+static int
+isRootDirectoryRecord(const unsigned char *p) {
+	int flags;
+
+	/* ECMA119/ISO9660 requires that the root directory record be _exactly_ 34 bytes.
+	 * However, we've seen images that have root directory records up to 68 bytes. */
+	if (p[DR_length_offset] < 34 || p[DR_length_offset] > 68) {
+		return (0);
+	}
+
+	/* The root directory location must be a 7.3.3 32-bit integer. */
+	if (!isValid733Integer(p + DR_extent_offset)) {
+		return (0);
+	}
+
+	/* The root directory size must be a 7.3.3 integer. */
+	if (!isValid733Integer(p + DR_size_offset)) {
+		return (0);
+	}
+
+	/* According to the standard, certain bits must be one or zero:
+	 * Bit 1: must be 1 (this is a directory)
+	 * Bit 2: must be 0 (not an associated file)
+	 * Bit 3: must be 0 (doesn't use extended attribute record)
+	 * Bit 7: must be 0 (final directory record for this file)
+	 */
+	flags = p[DR_flags_offset];
+	if ((flags & 0x8E) != 0x02) {
+		return (0);
+	}
+
+	/* Volume sequence number must be a 7.2.3 integer. */
+	if (!isValid723Integer(p + DR_volume_sequence_number_offset)) {
+		return (0);
+	}
+
+	/* Root directory name is a single zero byte... */
+	if (p[DR_name_len_offset] != 1 || p[DR_name_offset] != 0) {
+		return (0);
+	}
+
+	/* Nothing looked wrong, so let's accept it. */
+	return (1);
 }
 
 static int
@@ -1212,7 +1285,7 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 			}
 		}
 		if (iso9660->utf16be_previous_path == NULL) {
-			iso9660->utf16be_previous_path = malloc(UTF16_NAME_MAX);
+			iso9660->utf16be_previous_path = calloc(1, UTF16_NAME_MAX);
 			if (iso9660->utf16be_previous_path == NULL) {
 				archive_set_error(&a->archive, ENOMEM,
 				    "No memory");
@@ -3033,7 +3106,7 @@ heap_add_entry(struct archive_read *a, struct heap_queue *heap,
 			return (ARCHIVE_FATAL);
 		}
 		new_pending_files = (struct file_info **)
-		    malloc(new_size * sizeof(new_pending_files[0]));
+		    calloc(new_size, sizeof(new_pending_files[0]));
 		if (new_pending_files == NULL) {
 			archive_set_error(&a->archive,
 			    ENOMEM, "Out of memory");
@@ -3127,6 +3200,32 @@ toi(const void *p, int n)
 	return (0);
 }
 
+/*
+ * ECMA119/ISO9660 stores multi-byte integers in one of
+ * three different formats:
+ *  * Little-endian (specified in section 7.2.1 and 7.3.1)
+ *  * Big-endian (specified in section 7.2.2 and 7.3.2)
+ *  * Both (specified in section 7.2.3 and 7.3.3)
+ *
+ * For values that follow section 7.2.3 (16-bit) or 7.3.3 (32-bit), we
+ * can check that the little-endian and big-endian forms agree with
+ * each other.  This helps us avoid trying to decode files that are
+ * not really ISO images.
+ */
+static int
+isValid723Integer(const unsigned char *p) {
+	return (p[0] == p[3] && p[1] == p[2]);
+}
+
+static int
+isValid733Integer(const unsigned char *p)
+{
+	return (p[0] == p[7]
+		&& p[1] == p[6]
+		&& p[2] == p[5]
+		&& p[3] == p[4]);
+}
+
 static time_t
 isodate7(const unsigned char *v)
 {
@@ -3164,7 +3263,7 @@ isodate17(const unsigned char *v)
 	tm.tm_year = (v[0] - '0') * 1000 + (v[1] - '0') * 100
 	    + (v[2] - '0') * 10 + (v[3] - '0')
 	    - 1900;
-	tm.tm_mon = (v[4] - '0') * 10 + (v[5] - '0');
+	tm.tm_mon = (v[4] - '0') * 10 + (v[5] - '0') - 1;
 	tm.tm_mday = (v[6] - '0') * 10 + (v[7] - '0');
 	tm.tm_hour = (v[8] - '0') * 10 + (v[9] - '0');
 	tm.tm_min = (v[10] - '0') * 10 + (v[11] - '0');

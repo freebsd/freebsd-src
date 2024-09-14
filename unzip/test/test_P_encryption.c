@@ -26,7 +26,7 @@
 #include "test.h"
 
 /* Test P arg - password protected */
-DEFINE_TEST(test_P)
+DEFINE_TEST(test_P_encryption)
 {
 	const char *reffile = "test_encrypted.zip";
 	int r;

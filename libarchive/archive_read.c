@@ -1382,7 +1382,7 @@ __archive_read_filter_ahead(struct archive_read_filter *filter,
 		if (filter->client_avail <= 0) {
 			if (filter->end_of_file) {
 				if (avail != NULL)
-					*avail = 0;
+					*avail = filter->avail;
 				return (NULL);
 			}
 			bytes_read = (filter->vtable->read)(filter,

@@ -520,6 +520,7 @@ setup_xattr(struct archive_read_disk *a,
 	if (size == -1) {
 		archive_set_error(&a->archive, errno,
 		    "Couldn't read extended attribute");
+		free(value);
 		return (ARCHIVE_WARN);
 	}
 

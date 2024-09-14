@@ -25,7 +25,7 @@
  */
 #include "test.h"
 
-/* Test n arg - don't overrite existing files */
+/* Test n arg - don't overwrite existing files */
 DEFINE_TEST(test_n)
 {
 	const char *reffile = "test_basic.zip";

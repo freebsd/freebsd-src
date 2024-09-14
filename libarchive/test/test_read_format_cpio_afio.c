@@ -65,15 +65,6 @@ static unsigned char archive[] = {
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 };
 
-/*
- * XXX This must be removed when we use int64_t for uid.
- */
-static int
-uid_size(void)
-{
-	return (sizeof(uid_t));
-}
-
 DEFINE_TEST(test_read_format_cpio_afio)
 {
 	unsigned char *p;
@@ -106,8 +97,7 @@ DEFINE_TEST(test_read_format_cpio_afio)
 	 */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt(17, archive_entry_size(ae));
-	if (uid_size() > 4)
-		assertEqualInt(65536, archive_entry_uid(ae));
+	assertEqualInt(65536, archive_entry_uid(ae));
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
 	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 	assertA(archive_filter_code(a, 0) == ARCHIVE_FILTER_NONE);
@@ -116,4 +106,22 @@ DEFINE_TEST(test_read_format_cpio_afio)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	free(p);
+}
+
+// From OSS Fuzz Issue 70019:
+static unsigned char archive2[] = "070727bbbBbbbBabbbbbbcbcbbbbbbm726f777f777ffffffff518402ffffbbbabDDDDDDDDD7c7Ddd7DDDDnDDDdDDDB7777s77777777777C7727:";
+
+DEFINE_TEST(test_read_format_cpio_afio_broken)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, archive2, sizeof(archive2)));
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
+	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_FILTER_NONE);
+	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_CPIO_AFIO_LARGE);
+	archive_read_free(a);
 }

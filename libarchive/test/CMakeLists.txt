@@ -15,6 +15,7 @@ IF(ENABLE_TEST)
     test_acl_platform_posix1e.c
     test_acl_posix1e.c
     test_acl_text.c
+    test_ar_mode.c
     test_archive_api_feature.c
     test_archive_clear_error.c
     test_archive_cmdline.c
@@ -24,6 +25,7 @@ IF(ENABLE_TEST)
     test_archive_match_path.c
     test_archive_match_time.c
     test_archive_pathmatch.c
+    test_archive_read.c
     test_archive_read_add_passphrase.c
     test_archive_read_close_twice.c
     test_archive_read_close_twice_open_fd.c
@@ -130,6 +132,7 @@ IF(ENABLE_TEST)
     test_read_format_gtar_lzma.c
     test_read_format_gtar_sparse.c
     test_read_format_gtar_sparse_skip_entry.c
+    test_read_format_huge_rpm.c
     test_read_format_iso_Z.c
     test_read_format_iso_multi_extent.c
     test_read_format_iso_xorriso.c
@@ -164,6 +167,7 @@ IF(ENABLE_TEST)
     test_read_format_tar_empty_pax.c
     test_read_format_tar_filename.c
     test_read_format_tar_invalid_pax_size.c
+    test_read_format_tar_pax_large_attr.c
     test_read_format_tbz.c
     test_read_format_tgz.c
     test_read_format_tlz.c
@@ -287,6 +291,7 @@ IF(ENABLE_TEST)
     test_write_format_zip_file_zip64.c
     test_write_format_zip_large.c
     test_write_format_zip_stream.c
+    test_write_format_zip_windows_path.c
     test_write_format_zip_zip64.c
     test_write_open_memory.c
     test_write_read_format_zip.c

@@ -439,9 +439,9 @@ archive_read_format_ar_read_header(struct archive_read *a,
 	if ((header_data = __archive_read_ahead(a, 60, NULL)) == NULL)
 		/* Broken header. */
 		return (ARCHIVE_EOF);
-	
+
 	unconsumed = 60;
-	
+
 	ret = _ar_read_header(a, entry, ar, (const char *)header_data, &unconsumed);
 
 	if (unconsumed)
@@ -458,7 +458,6 @@ ar_parse_common_header(struct ar *ar, struct archive_entry *entry,
 	uint64_t n;
 
 	/* Copy remaining header */
-	archive_entry_set_filetype(entry, AE_IFREG);
 	archive_entry_set_mtime(entry,
 	    (time_t)ar_atol10(h + AR_date_offset, AR_date_size), 0L);
 	archive_entry_set_uid(entry,
@@ -467,6 +466,7 @@ ar_parse_common_header(struct ar *ar, struct archive_entry *entry,
 	    (gid_t)ar_atol10(h + AR_gid_offset, AR_gid_size));
 	archive_entry_set_mode(entry,
 	    (mode_t)ar_atol8(h + AR_mode_offset, AR_mode_size));
+	archive_entry_set_filetype(entry, AE_IFREG);
 	n = ar_atol10(h + AR_size_offset, AR_size_size);
 
 	ar->entry_offset = 0;

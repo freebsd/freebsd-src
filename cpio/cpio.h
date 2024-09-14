@@ -94,8 +94,14 @@ struct cpio {
 	char		 *ppbuff;
 };
 
-const char *owner_parse(const char *, int *, int *);
+struct cpio_owner {
+        int uid;
+        int gid;
+        char *uname;
+        char *gname;
+};
 
+int owner_parse(const char *, struct cpio_owner *, const char **);
 
 /* Fake short equivalents for long options that otherwise lack them. */
 enum {

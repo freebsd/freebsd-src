@@ -25,7 +25,7 @@
  */
 #include "test.h"
 
-/* Test non existant file */
+/* Test non existent file */
 DEFINE_TEST(test_not_exist)
 {
 	int r;

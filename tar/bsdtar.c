@@ -43,6 +43,9 @@
 #ifdef HAVE_LANGINFO_H
 #include <langinfo.h>
 #endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
 #ifdef HAVE_LOCALE_H
 #include <locale.h>
 #endif

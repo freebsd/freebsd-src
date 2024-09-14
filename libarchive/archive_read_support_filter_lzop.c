@@ -291,7 +291,8 @@ consume_header(struct archive_read_filter *self)
 		if (p == NULL)
 			goto truncated;
 		len = archive_be32dec(p);
-		__archive_read_filter_consume(self->upstream, len + 4 + 4);
+		__archive_read_filter_consume(self->upstream,
+		    (int64_t)len + 4 + 4);
 	}
 	state->flags = flags;
 	state->in_stream = 1;

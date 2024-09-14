@@ -234,6 +234,7 @@ yes(const char *fmt, ...)
 	char buff[32];
 	char *p;
 	ssize_t l;
+	int read_fd = 2; /* stderr */
 
 	va_list ap;
 	va_start(ap, fmt);
@@ -242,7 +243,24 @@ yes(const char *fmt, ...)
 	fprintf(stderr, " (y/N)? ");
 	fflush(stderr);
 
-	l = read(2, buff, sizeof(buff) - 1);
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/* To be resilient when stdin is a pipe, bsdtar prefers to read from
+	 * stderr.  On Windows, stderr cannot be read. The nearest "piping
+	 * resilient" equivalent is reopening the console input handle.
+	 */
+	read_fd = _open("CONIN$", O_RDONLY);
+	if (read_fd < 0) {
+	  fprintf(stderr, "Keyboard read failed\n");
+	  exit(1);
+	}
+#endif
+
+	l = read(read_fd, buff, sizeof(buff) - 1);
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	_close(read_fd);
+#endif
+
 	if (l < 0) {
 	  fprintf(stderr, "Keyboard read failed\n");
 	  exit(1);

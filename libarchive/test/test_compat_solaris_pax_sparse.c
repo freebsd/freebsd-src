@@ -60,7 +60,7 @@ test_compat_solaris_pax_sparse_1(void)
 	assertEqualInt(0100644, archive_entry_mode(ae));
 
 	/* Verify the sparse information. */
-	failure("This sparse file should have tree data blocks");
+	failure("This sparse file should have three data blocks");
 	assertEqualInt(3, archive_entry_sparse_reset(ae));
 	assertEqualInt(ARCHIVE_OK,
 	    archive_entry_sparse_next(ae, &offset, &length));

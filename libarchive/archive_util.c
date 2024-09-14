@@ -280,7 +280,8 @@ __archive_mktempx(const char *tmpdir, wchar_t *template)
 			if (archive_wstring_append_from_mbs(&temp_name, tmpdir,
 			    strlen(tmpdir)) < 0)
 				goto exit_tmpfile;
-			if (temp_name.s[temp_name.length-1] != L'/')
+			if (temp_name.length == 0 ||
+			    temp_name.s[temp_name.length-1] != L'/')
 				archive_wstrappend_wchar(&temp_name, L'/');
 		}
 
@@ -454,7 +455,7 @@ get_tempdir(struct archive_string *temppath)
                 tmp = "/tmp";
 #endif
 	archive_strcpy(temppath, tmp);
-	if (temppath->s[temppath->length-1] != '/')
+	if (temppath->length == 0 || temppath->s[temppath->length-1] != '/')
 		archive_strappend_char(temppath, '/');
 	return (ARCHIVE_OK);
 }
@@ -477,7 +478,8 @@ __archive_mktemp(const char *tmpdir)
 			goto exit_tmpfile;
 	} else {
 		archive_strcpy(&temp_name, tmpdir);
-		if (temp_name.s[temp_name.length-1] != '/')
+		if (temp_name.length == 0 ||
+		    temp_name.s[temp_name.length-1] != '/')
 			archive_strappend_char(&temp_name, '/');
 	}
 #ifdef O_TMPFILE
@@ -538,7 +540,7 @@ __archive_mktempx(const char *tmpdir, char *template)
 				goto exit_tmpfile;
 		} else
 			archive_strcpy(&temp_name, tmpdir);
-		if (temp_name.s[temp_name.length-1] == '/') {
+		if (temp_name.length > 0 && temp_name.s[temp_name.length-1] == '/') {
 			temp_name.s[temp_name.length-1] = '\0';
 			temp_name.length --;
 		}

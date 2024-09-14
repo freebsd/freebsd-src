@@ -942,7 +942,9 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 
 		while (entry != NULL) {
 			write_file(bsdtar, a, entry);
-			archive_entry_free(entry);
+			if (entry != spare_entry) {
+				archive_entry_free(entry);
+			}
 			entry = spare_entry;
 			spare_entry = NULL;
 		}

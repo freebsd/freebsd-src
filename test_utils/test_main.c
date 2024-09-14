@@ -121,6 +121,8 @@
 #define access _access
 #undef chdir
 #define chdir _chdir
+#undef chmod
+#define chmod _chmod
 #endif
 #ifndef fileno
 #define fileno _fileno
@@ -217,7 +219,8 @@ my_CreateSymbolicLinkA(const char *linkname, const char *target,
 	static BOOLEAN (WINAPI *f)(LPCSTR, LPCSTR, DWORD);
 	DWORD attrs;
 	static int set;
-	int ret, tmpflags, llen, tlen;
+	int ret, tmpflags;
+	size_t llen, tlen;
 	int flags = 0;
 	char *src, *tgt, *p;
 	if (!set) {
@@ -3877,9 +3880,9 @@ main(int argc, char **argv)
 	static const int limit = sizeof(tests) / sizeof(tests[0]);
 	int test_set[sizeof(tests) / sizeof(tests[0])];
 	int i = 0, j = 0, tests_run = 0, tests_failed = 0, option;
-	int testprogdir_len;
+	size_t testprogdir_len;
 #ifdef PROGRAM
-	int tmp2_len;
+	size_t tmp2_len;
 #endif
 	time_t now;
 	struct tm *tmptr;
@@ -4083,7 +4086,7 @@ main(int argc, char **argv)
 
 	{
 		char *testprg;
-		int testprg_len;
+		size_t testprg_len;
 #if defined(_WIN32) && !defined(__CYGWIN__)
 		/* Command.com sometimes rejects '/' separators. */
 		testprg = strdup(testprogfile);

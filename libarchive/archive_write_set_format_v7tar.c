@@ -241,7 +241,7 @@ archive_write_v7tar_header(struct archive_write *a, struct archive_entry *entry)
 	/* Only regular files (not hardlinks) have data. */
 	if (archive_entry_hardlink(entry) != NULL ||
 	    archive_entry_symlink(entry) != NULL ||
-	    !(archive_entry_filetype(entry) == AE_IFREG))
+	    archive_entry_filetype(entry) != AE_IFREG)
 		archive_entry_set_size(entry, 0);
 
 	if (AE_IFDIR == archive_entry_filetype(entry)) {

@@ -1955,6 +1955,8 @@ tree_dir_next_windows(struct tree *t, const wchar_t *pattern)
 				t->visit_type = r != 0 ? r : TREE_ERROR_DIR;
 				return (t->visit_type);
 			}
+			/* Top stack item needs a regular visit. */
+			t->current = t->stack;
 			t->findData = &t->_findData;
 			pattern = NULL;
 		} else if (!FindNextFileW(t->d, &t->_findData)) {

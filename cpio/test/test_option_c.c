@@ -119,9 +119,9 @@ DEFINE_TEST(test_option_c)
 	assert(is_octal(e, 76)); /* Entire header is octal digits. */
 	assertEqualMem(e + 0, "070707", 6); /* Magic */
 	assert(is_octal(e + 6, 6)); /* dev */
-	dev = from_octal(e + 6, 6);
+	dev = (int)from_octal(e + 6, 6);
 	assert(is_octal(e + 12, 6)); /* ino */
-	ino = from_octal(e + 12, 6);
+	ino = (int)from_octal(e + 12, 6);
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	/* Group members bits and others bits do not work. */
 	assertEqualMem(e + 18, "100666", 6); /* Mode */
@@ -129,10 +129,10 @@ DEFINE_TEST(test_option_c)
 	assertEqualMem(e + 18, "100644", 6); /* Mode */
 #endif
 	if (uid < 0)
-		uid = from_octal(e + 24, 6);
+		uid = (int)from_octal(e + 24, 6);
 	assertEqualInt(from_octal(e + 24, 6), uid); /* uid */
 	assert(is_octal(e + 30, 6)); /* gid */
-	gid = from_octal(e + 30, 6);
+	gid = (int)from_octal(e + 30, 6);
 	assertEqualMem(e + 36, "000001", 6); /* nlink */
 	failure("file entries should not have rdev set (dev field was 0%o)",
 	    dev);

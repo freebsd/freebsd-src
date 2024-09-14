@@ -132,15 +132,16 @@ main(int argc, char *argv[])
 	static char buff[16384];
 	struct cpio _cpio; /* Allocated on stack. */
 	struct cpio *cpio;
+	struct cpio_owner owner;
 	const char *errmsg;
 	char *tptr;
-	int uid, gid;
 	int opt, t;
 
 	cpio = &_cpio;
 	memset(cpio, 0, sizeof(*cpio));
 	cpio->buff = buff;
 	cpio->buff_size = sizeof(buff);
+
 
 #if defined(HAVE_SIGACTION) && defined(SIGPIPE)
 	{ /* Ignore SIGPIPE signals. */
@@ -161,7 +162,9 @@ main(int argc, char *argv[])
 #endif
 
 	cpio->uid_override = -1;
+	cpio->uname_override = NULL;
 	cpio->gid_override = -1;
+	cpio->gname_override = NULL;
 	cpio->argv = argv;
 	cpio->argc = argc;
 	cpio->mode = '\0';
@@ -320,21 +323,21 @@ main(int argc, char *argv[])
 			cpio->quiet = 1;
 			break;
 		case 'R': /* GNU cpio, also --owner */
-			/* TODO: owner_parse should return uname/gname
-			 * also; use that to set [ug]name_override. */
-			errmsg = owner_parse(cpio->argument, &uid, &gid);
-			if (errmsg) {
+			errmsg = NULL;
+			if (owner_parse(cpio->argument, &owner, &errmsg) != 0) {
+				if (!errmsg)
+					errmsg = "Error parsing owner";
 				lafe_warnc(-1, "%s", errmsg);
 				usage();
 			}
-			if (uid != -1) {
-				cpio->uid_override = uid;
-				cpio->uname_override = NULL;
-			}
-			if (gid != -1) {
-				cpio->gid_override = gid;
-				cpio->gname_override = NULL;
-			}
+			if (owner.uid != -1)
+				cpio->uid_override = owner.uid;
+			if (owner.uname != NULL)
+				cpio->uname_override = owner.uname;
+			if (owner.gid != -1)
+				cpio->gid_override = owner.gid;
+			if (owner.gname != NULL)
+				cpio->gname_override = owner.gname;
 			break;
 		case 'r': /* POSIX 1997 */
 			cpio->option_rename = 1;
@@ -439,11 +442,14 @@ main(int argc, char *argv[])
 	}
 
 	archive_match_free(cpio->matching);
-	free_cache(cpio->gname_cache);
 	free_cache(cpio->uname_cache);
+	free(cpio->uname_override);
+	free_cache(cpio->gname_cache);
+	free(cpio->gname_override);
 	archive_read_close(cpio->archive_read_disk);
 	archive_read_free(cpio->archive_read_disk);
 	free(cpio->destdir);
+
 	passphrase_free(cpio->ppbuff);
 	return (cpio->return_value);
 }
@@ -728,14 +734,14 @@ file_to_archive(struct cpio *cpio, const char *srcpath)
 		return (r);
 	}
 
-	if (cpio->uid_override >= 0) {
+	if (cpio->uid_override >= 0)
 		archive_entry_set_uid(entry, cpio->uid_override);
+	if (cpio->gname_override != NULL)
 		archive_entry_set_uname(entry, cpio->uname_override);
-	}
-	if (cpio->gid_override >= 0) {
+	if (cpio->gid_override >= 0)
 		archive_entry_set_gid(entry, cpio->gid_override);
+	if (cpio->gname_override != NULL)
 		archive_entry_set_gname(entry, cpio->gname_override);
-	}
 
 	/*
 	 * Generate a destination path for this entry.
@@ -1015,8 +1021,12 @@ mode_in(struct cpio *cpio)
 			fprintf(stderr, ".");
 		if (cpio->uid_override >= 0)
 			archive_entry_set_uid(entry, cpio->uid_override);
+		if (cpio->uname_override != NULL)
+			archive_entry_set_uname(entry, cpio->uname_override);
 		if (cpio->gid_override >= 0)
 			archive_entry_set_gid(entry, cpio->gid_override);
+		if (cpio->gname_override != NULL)
+			archive_entry_set_gname(entry, cpio->gname_override);
 		r = archive_write_header(ext, entry);
 		if (r != ARCHIVE_OK) {
 			fprintf(stderr, "%s: %s\n",

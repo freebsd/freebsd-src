@@ -76,7 +76,7 @@ static int	is_nfs4_flags(const char *start, const char *end,
 		    int *result);
 static int	is_nfs4_perms(const char *start, const char *end,
 		    int *result);
-static void	next_field(const char **p, const char **start,
+static void	next_field(const char **p, size_t *l, const char **start,
 		    const char **end, char *sep);
 static void	append_entry(char **p, const char *prefix, int type,
 		    int tag, int flags, const char *name, int perm, int id);
@@ -1620,6 +1620,13 @@ int
 archive_acl_from_text_l(struct archive_acl *acl, const char *text,
     int want_type, struct archive_string_conv *sc)
 {
+	return archive_acl_from_text_nl(acl, text, strlen(text), want_type, sc);
+}
+
+int
+archive_acl_from_text_nl(struct archive_acl *acl, const char *text,
+    size_t length, int want_type, struct archive_string_conv *sc)
+{
 	struct {
 		const char *start;
 		const char *end;
@@ -1649,7 +1656,7 @@ archive_acl_from_text_l(struct archive_acl *acl, const char *text,
 	ret = ARCHIVE_OK;
 	types = 0;
 
-	while (text != NULL &&  *text != '\0') {
+	while (text != NULL && length > 0 && *text != '\0') {
 		/*
 		 * Parse the fields out of the next entry,
 		 * advance 'text' to start of next entry.
@@ -1657,7 +1664,7 @@ archive_acl_from_text_l(struct archive_acl *acl, const char *text,
 		fields = 0;
 		do {
 			const char *start, *end;
-			next_field(&text, &start, &end, &sep);
+			next_field(&text, &length, &start, &end, &sep);
 			if (fields < numfields) {
 				field[fields].start = start;
 				field[fields].end = end;
@@ -2047,7 +2054,7 @@ is_nfs4_flags(const char *start, const char *end, int *permset)
 }
 
 /*
- * Match "[:whitespace:]*(.*)[:whitespace:]*[:,\n]".  *wp is updated
+ * Match "[:whitespace:]*(.*)[:whitespace:]*[:,\n]".  *p is updated
  * to point to just after the separator.  *start points to the first
  * character of the matched text and *end just after the last
  * character of the matched identifier.  In particular *end - *start
@@ -2055,42 +2062,42 @@ is_nfs4_flags(const char *start, const char *end, int *permset)
  * whitespace.
  */
 static void
-next_field(const char **p, const char **start,
+next_field(const char **p, size_t *l, const char **start,
     const char **end, char *sep)
 {
 	/* Skip leading whitespace to find start of field. */
-	while (**p == ' ' || **p == '\t' || **p == '\n') {
+	while (*l > 0 && (**p == ' ' || **p == '\t' || **p == '\n')) {
 		(*p)++;
+		(*l)--;
 	}
 	*start = *p;
 
-	/* Scan for the separator. */
-	while (**p != '\0' && **p != ',' && **p != ':' && **p != '\n' &&
-	    **p != '#') {
+	/* Locate end of field, trim trailing whitespace if necessary */
+	while (*l > 0 && **p != ' ' && **p != '\t' && **p != '\n' && **p != ',' && **p != ':' && **p != '#') {
 		(*p)++;
+		(*l)--;
+	}
+	*end = *p;
+
+	/* Scan for the separator. */
+	while (*l > 0 && **p != ',' && **p != ':' && **p != '\n' && **p != '#') {
+		(*p)++;
+		(*l)--;
 	}
 	*sep = **p;
 
-	/* Locate end of field, trim trailing whitespace if necessary */
-	if (*p == *start) {
-		*end = *p;
-	} else {
-		*end = *p - 1;
-		while (**end == ' ' || **end == '\t' || **end == '\n') {
-			(*end)--;
-		}
-		(*end)++;
-	}
-
 	/* Handle in-field comments */
 	if (*sep == '#') {
-		while (**p != '\0' && **p != ',' && **p != '\n') {
+		while (*l > 0 && **p != ',' && **p != '\n') {
 			(*p)++;
+			(*l)--;
 		}
 		*sep = **p;
 	}
 
-	/* Adjust scanner location. */
-	if (**p != '\0')
+	/* Skip separator. */
+	if (*l > 0) {
 		(*p)++;
+		(*l)--;
+	}
 }

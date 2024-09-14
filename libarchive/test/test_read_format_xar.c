@@ -860,3 +860,34 @@ DEFINE_TEST(test_read_format_xar)
         verify(archive12, sizeof(archive12), verify12, NULL, GZIP);
 	verifyB(archive13, sizeof(archive13));
 }
+
+DEFINE_TEST(test_read_format_xar_duplicate_filename_node)
+{
+	static const char *reffiles[] =
+	{
+		"test_read_format_xar_duplicate_filename_node.xar",
+		NULL
+	};
+	struct archive_entry *ae;
+	struct archive *a;
+	int r;
+
+	extract_reference_files(reffiles);
+	assert((a = archive_read_new()) != NULL);
+	assertA(0 == archive_read_support_filter_all(a));
+
+	r = archive_read_support_format_xar(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("xar reading not fully supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		return;
+	}
+
+	assertA(0 == archive_read_open_filenames(a, reffiles, 10240));
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualString("File", archive_entry_pathname(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}

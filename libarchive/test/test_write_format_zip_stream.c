@@ -82,6 +82,7 @@ DEFINE_TEST(test_write_format_zip_stream)
 	const char *file_name = "file";
 
 #ifndef HAVE_ZLIB_H
+	zip_version = 10;
 	zip_compression = 0;
 #endif
 

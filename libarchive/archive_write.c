@@ -132,12 +132,17 @@ archive_write_set_bytes_per_block(struct archive *_a, int bytes_per_block)
 	struct archive_write *a = (struct archive_write *)_a;
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_set_bytes_per_block");
+
+	if (bytes_per_block < 0) {
+		// Do nothing if the bytes_per_block is negative
+		return 0;
+	}
 	a->bytes_per_block = bytes_per_block;
 	return (ARCHIVE_OK);
 }
 
 /*
- * Get the current block size.  -1 if it has never been set.
+ * Get the current block size.
  */
 int
 archive_write_get_bytes_per_block(struct archive *_a)
@@ -145,6 +150,10 @@ archive_write_get_bytes_per_block(struct archive *_a)
 	struct archive_write *a = (struct archive_write *)_a;
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_ANY, "archive_write_get_bytes_per_block");
+	if (a->bytes_per_block < 0) {
+		// Don't return a negative value
+		return 1;
+	}
 	return (a->bytes_per_block);
 }
 

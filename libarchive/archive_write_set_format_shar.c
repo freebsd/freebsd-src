@@ -209,6 +209,10 @@ archive_write_shar_header(struct archive_write *a, struct archive_entry *entry)
 	if (archive_entry_filetype(entry) != AE_IFDIR) {
 		/* Try to create the dir. */
 		p = strdup(name);
+		if (p == NULL) {
+			archive_set_error(&a->archive, ENOMEM, "Out of memory");
+			return (ARCHIVE_FATAL);
+		}
 		pp = strrchr(p, '/');
 		/* If there is a / character, try to create the dir. */
 		if (pp != NULL) {
@@ -291,6 +295,10 @@ archive_write_shar_header(struct archive_write *a, struct archive_entry *entry)
 			free(shar->last_dir);
 
 			shar->last_dir = strdup(name);
+			if (shar->last_dir == NULL) {
+				archive_set_error(&a->archive, ENOMEM, "Out of memory");
+				return (ARCHIVE_FATAL);
+			}
 			/* Trim a trailing '/'. */
 			pp = strrchr(shar->last_dir, '/');
 			if (pp != NULL && pp[1] == '\0')

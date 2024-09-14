@@ -33,7 +33,12 @@
 DEFINE_TEST(test_I)
 {
 	const char *reffile = "test_I.zip";
-	const char *lang;
+#if !defined(_WIN32) || defined(__CYGWIN__)
+	const char *envstr = "env LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 "
+	    "LC_CTYPE=en_US.UTF-8";
+#else
+	const char *envstr = "";
+#endif
 	int r;
 
 #if HAVE_SETLOCALE
@@ -45,18 +50,12 @@ DEFINE_TEST(test_I)
 	skipping("setlocale() not available on this system.");
 #endif
 
-	lang = getenv("LANG");
-	setenv("LANG", "en_US.UTF-8", 1);
 	extract_reference_file(reffile);
-	r = systemf("%s -I UTF-8 %s >test.out 2>test.err", testprog, reffile);
+	r = systemf("%s %s -I UTF-8 %s >test.out 2>test.err", envstr, testprog,
+	    reffile);
 	assertEqualInt(0, r);
 	assertNonEmptyFile("test.out");
 	assertEmptyFile("test.err");
 
 	assertTextFileContents("Hello, World!\n", "Γειά σου Κόσμε.txt");
-
-	if (lang == NULL)
-		unsetenv("LANG");
-	else
-		setenv("LANG", lang, 1);
 }

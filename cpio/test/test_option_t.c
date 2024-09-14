@@ -33,7 +33,7 @@ DEFINE_TEST(test_option_t)
 	char *p;
 	int r;
 	time_t mtime;
-	char date[32];
+	char date[48];
 	char date2[32];
 	struct tm *tmptr;
 #if defined(HAVE_LOCALTIME_R) || defined(HAVE_LOCALTIME_S)
@@ -89,6 +89,7 @@ DEFINE_TEST(test_option_t)
 	mtime = 1;
 #ifdef HAVE_LOCALE_H
 	setlocale(LC_ALL, "");
+	setlocale(LC_TIME, "");
 #endif
 #if defined(HAVE_LOCALTIME_S)
         tmptr = localtime_s(&tmbuf, &mtime) ? NULL : &tmbuf;
@@ -99,10 +100,10 @@ DEFINE_TEST(test_option_t)
 #endif
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	strftime(date2, sizeof(date2)-1, "%b %d  %Y", tmptr);
-	_snprintf(date, sizeof(date)-1, "%12.12s file", date2);
+	_snprintf(date, sizeof(date)-1, "%12s file", date2);
 #else
 	strftime(date2, sizeof(date2)-1, "%b %e  %Y", tmptr);
-	snprintf(date, sizeof(date)-1, "%12.12s file", date2);
+	snprintf(date, sizeof(date)-1, "%12s file", date2);
 #endif
 	assertEqualMem(p + 42, date, strlen(date));
 	free(p);

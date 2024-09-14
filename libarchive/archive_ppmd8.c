@@ -671,7 +671,7 @@ static CTX_PTR CreateSuccessors(CPpmd8 *p, Bool skip, CPpmd_State *s1, CTX_PTR c
     upState.Freq = (Byte)(1 + ((2 * cf <= s0) ? (5 * cf > s0) : ((cf + 2 * s0 - 3) / s0)));
   }
 
-  do
+  while (numPs != 0)
   {
     /* Create Child */
     CTX_PTR c1; /* = AllocContext(p); */
@@ -692,8 +692,7 @@ static CTX_PTR CreateSuccessors(CPpmd8 *p, Bool skip, CPpmd_State *s1, CTX_PTR c
     SetSuccessor(ps[--numPs], REF(c1));
     c = c1;
   }
-  while (numPs != 0);
-  
+
   return c;
 }
 
