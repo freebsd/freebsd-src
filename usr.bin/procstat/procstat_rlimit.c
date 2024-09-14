@@ -63,6 +63,7 @@ static struct {
 	{"swapuse",          "B  "},
 	{"kqueues",          "   "},
 	{"umtxp",            "   "},
+	{"pipebuf",          "B  "},
 };
 
 _Static_assert(nitems(rlimit_param) == RLIM_NLIMITS,
