@@ -47,13 +47,9 @@ extern const char *panicstr;	/* panic message */
  *
  * DEBUG_POISON_POINTER(obj->ptr);
  * ....
- * if (obj->ptr != NULL) // traps with kasan, does not trap otherwise
- * ....
- * if (obj->ptr->field) // traps with and without kasan
+ * if (obj->ptr->field) // traps
  */
 #ifdef	INVARIANTS
-
-#include <sys/asan.h>
 
 extern caddr_t poisoned_buf;
 #define DEBUG_POISON_POINTER_VALUE poisoned_buf
