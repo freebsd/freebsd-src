@@ -71,24 +71,8 @@ if_enc_init()
 	fi
 }
 
-ipfw_init()
-{
-	if ! kldstat -q -m ipfw; then
-		atf_skip "This test requires ipfw"
-	fi
-}
-
-assert_ipfw_is_off()
-{
-	if kldstat -q -m ipfw; then
-		atf_skip "This test is for the case when ipfw is not loaded"
-	fi
-}
-
 build_test_network()
 {
-	local ipfwon=$1
-
 	alan=$(vnet_mkepair)
 	awan=$(vnet_mkepair)
 	bwan=$(vnet_mkepair)
@@ -98,7 +82,6 @@ build_test_network()
 	vnet_mkjail a ${alan}a
 	jexec a ifconfig ${alan}a 1.0.0.11/24 up
 	jexec a route add default 1.0.0.1
-	test $ipfwon && jexec a ipfw add 65534 allow all from any to any
 
 	# host agw
 	vnet_mkjail agw ${alan}b ${awan}a
@@ -106,14 +89,12 @@ build_test_network()
 	jexec agw ifconfig ${awan}a 2.0.0.22/24 up
 	jexec agw route add default 2.0.0.1
 	jexec agw sysctl net.inet.ip.forwarding=1
-	test $ipfwon && jexec agw ipfw add 65534 allow all from any to any
 
 	# host wan
 	vnet_mkjail wan ${awan}b ${bwan}b
 	jexec wan ifconfig ${awan}b 2.0.0.1/24 up
 	jexec wan ifconfig ${bwan}b 3.0.0.1/24 up
 	jexec wan sysctl net.inet.ip.forwarding=1
-	test $ipfwon && jexec wan ipfw add 65534 allow all from any to any
 
 	# host bgw
 	vnet_mkjail bgw ${bwan}a ${blan}b
@@ -121,13 +102,11 @@ build_test_network()
 	jexec bgw ifconfig ${blan}b 4.0.0.1/24 up
 	jexec bgw route add default 3.0.0.1
 	jexec bgw sysctl net.inet.ip.forwarding=1
-	test $ipfwon && jexec bgw ipfw add 65534 allow all from any to any
 
 	# host b
 	vnet_mkjail b ${blan}a
 	jexec b ifconfig ${blan}a 4.0.0.44/24 up
 	jexec b route add default 4.0.0.1
-	test $ipfwon && jexec b ipfw add 65534 allow all from any to any
 
 	# Office A VPN setup
 	echo '
@@ -146,23 +125,19 @@ build_test_network()
 	' | jexec bgw setkey -c
 }
 
-atf_test_case "ipfwoff_ip4_pfil_in_after_stripping" "cleanup"
-ipfwoff_ip4_pfil_in_after_stripping_head()
+atf_test_case "ip4_pfil_in_after_stripping" "cleanup"
+ip4_pfil_in_after_stripping_head()
 {
-	atf_set descr 'Test that pf pulls up mbuf if m_len==0 after stripping the outer header, with ipfw disabled'
+	atf_set descr 'Test that pf pulls up mbuf if m_len==0 after stripping the outer header'
 	atf_set require.user root
 	atf_set require.progs nc
 }
-ipfwoff_ip4_pfil_in_after_stripping_body()
+ip4_pfil_in_after_stripping_body()
 {
-	local ipfwon
-
 	pft_init
 	if_enc_init
-	test "$1" == "ipfwon" && ipfwon="yes"
-	test $ipfwon && ipfw_init || assert_ipfw_is_off
 
-	build_test_network $ipfwon
+	build_test_network
 
 	# Sanity check
 	atf_check -s exit:0 -o ignore jexec a ping -c3 4.0.0.44
@@ -192,29 +167,12 @@ ipfwoff_ip4_pfil_in_after_stripping_body()
 	jexec b kill -KILL $nc_pid	# in a fail case the catcher may listen forever
 	atf_check_equal "$spell" "$(cat ./receiver)"
 }
-ipfwoff_ip4_pfil_in_after_stripping_cleanup()
-{
-	pft_cleanup
-}
-
-atf_test_case "ipfwon_ip4_pfil_in_after_stripping" "cleanup"
-ipfwon_ip4_pfil_in_after_stripping_head()
-{
-	atf_set descr 'Test that pf pulls up mbuf if m_len==0 after stripping the outer header, with ipfw enabled'
-	atf_set require.user root
-	atf_set require.progs nc
-}
-ipfwon_ip4_pfil_in_after_stripping_body()
-{
-	ipfwoff_ip4_pfil_in_after_stripping_body "ipfwon"
-}
-ipfwon_ip4_pfil_in_after_stripping_cleanup()
+ip4_pfil_in_after_stripping_cleanup()
 {
 	pft_cleanup
 }
 
 atf_init_test_cases()
 {
-	atf_add_test_case "ipfwoff_ip4_pfil_in_after_stripping"
-	atf_add_test_case "ipfwon_ip4_pfil_in_after_stripping"
+	atf_add_test_case "ip4_pfil_in_after_stripping"
 }
