@@ -27,9 +27,7 @@ static const char copyright[] _U_ =
 The Regents of the University of California.  All rights reserved.\n";
 #endif
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include <pcap.h>
 #include <stdio.h>
@@ -252,10 +250,10 @@ main(int argc, char **argv)
 		case 'g':
 #ifdef BDEBUG
 			++gflag;
+			break;
 #else
 			error("libpcap and filtertest not built with optimizer debugging enabled");
 #endif
-			break;
 
 		case 'F':
 			infile = optarg;
@@ -272,12 +270,10 @@ main(int argc, char **argv)
 
 			case 0:
 				error("invalid netmask %s", optarg);
-				break;
 
 			case -1:
 				error("invalid netmask %s: %s", optarg,
 				    pcap_strerror(errno));
-				break;
 
 			case 1:
 				netmask = addr;
