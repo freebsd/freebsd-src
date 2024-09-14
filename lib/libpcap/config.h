@@ -183,7 +183,7 @@
 #define PACKAGE_NAME "pcap"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "pcap 1.10.4"
+#define PACKAGE_STRING "pcap 1.10.5"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "pcap"
@@ -192,7 +192,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.10.4"
+#define PACKAGE_VERSION "1.10.5"
 
 /* target host supports netmap */
 #define PCAP_SUPPORT_NETMAP 1
