@@ -30,29 +30,29 @@
 .Os
 .Sh NAME
 .Nm jail.conf
-.Nd configuration file for
-.Xr jail 8
+.Nd configuration file for system jails
 .Sh DESCRIPTION
-A
+The
+.Nm
+file consists of one or more jail definitions statements for use by the
 .Xr jail 8
-configuration file consists of one or more jail definitions statements,
-and parameter or variable statements within those jail definitions.
-A jail definition statement looks something like a C compound statement.
-A parameter statement looks like a C assignment,
-including a terminating semicolon.
+management program.
+A jail definition statement consists of a single word, the name of the jail,
+an opening curly brace, a list of at least two parameter assignments,
+and a closing curly brace.
+A parameter assignment consists of a single word, the parameter name,
+an equals sign, a value enclosed in double quotes, and a terminating semicolon.
 .Pp
-The general syntax of a jail definition is:
-.Bd -literal -offset indent
-jailname {
-	parameter = "value";
-	parameter = "value";
-	...
-}
+The syntax of a jail definition is as follows:
+.Bd -unfilled
+. Ar jailname Cm \&{
+.Bd -unfilled -offset indent -compact
+.Ar parameter Cm = Qq Ar value ;
+\&...
+.Ed
+.Cm \&}
 .Ed
 .Pp
-Each jail is required to have a
-.Va name
-at the front of its definition.
 This is used by
 .Xr jail 8
 to specify a jail on the command line and report the jail status,
