@@ -51,6 +51,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20240914 libpcap upgrade from 1.10.4 to 1.10.5
+OLD_FILES+=contrib/libpcap/pcap-haiku.cpp
+OLD_FILES+=contrib/libpcap/pcap-rpcap-int.h
+OLD_FILES+=contrib/libpcap/pcap-usb-linux-common.c
+
 # 20240827: retire fips.so
 OLD_LIBS+=usr/lib/ossl-modules/fips.so
 
