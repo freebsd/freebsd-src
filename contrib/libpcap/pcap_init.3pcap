@@ -17,7 +17,7 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.TH PCAP_INIT 3PCAP "4 May 2022"
+.TH PCAP_INIT 3PCAP "30 November 2023"
 .SH NAME
 pcap_init \- initialize the library
 .SH SYNOPSIS
@@ -40,7 +40,14 @@ int pcap_init(unsigned int opts, char *errbuf);
 is used to initialize the Packet Capture library.
 .I opts
 specifies options for the library;
-currently, the options are:
+.I errbuf
+is a buffer large enough to hold at least
+.B PCAP_ERRBUF_SIZE
+chars.
+.PP
+Currently, the options that can be specified in
+.I opts
+are:
 .TP
 .B PCAP_CHAR_ENC_LOCAL
 Treat all strings supplied as arguments, and return all strings to the
@@ -87,10 +94,6 @@ If
 is returned,
 .I errbuf
 is filled in with an appropriate error message.
-.I errbuf
-is assumed to be able to hold at least
-.B PCAP_ERRBUF_SIZE
-chars.
 .SH BACKWARD COMPATIBILITY
 This function became available in libpcap release 1.9.0.  In previous
 releases, on Windows, all strings supplied as arguments, and all strings

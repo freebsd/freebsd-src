@@ -45,7 +45,7 @@ struct active_pars
 {
 	char address[MAX_LINE + 1];	// keeps the network address (either numeric or literal) to of the active client
 	char port[MAX_LINE + 1];	// keeps the network port to bind to
-	int ai_family;			// address faimly to use
+	int ai_family;			// address family to use
 };
 
 extern char hostlist[MAX_HOST_LIST + 1];	//!< Keeps the list of the hosts that are allowed to connect to this server
