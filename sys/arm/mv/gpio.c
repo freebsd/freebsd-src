@@ -528,9 +528,6 @@ mv_gpio_intr_handler(device_t dev, int pin)
 
 	MV_GPIO_ASSERT_LOCKED();
 
-#ifdef INTR_SOLO
-	isrc.isrc_filter = NULL;
-#endif
 	isrc.isrc_event = sc->gpio_events[pin];
 
 	if (isrc.isrc_event == NULL ||

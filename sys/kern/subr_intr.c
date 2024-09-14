@@ -389,204 +389,13 @@ intr_isrc_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
 	if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
 		isrc_increment_count(isrc);
 
-#ifdef INTR_SOLO
-	if (isrc->isrc_filter != NULL) {
-		int error;
-		error = isrc->isrc_filter(isrc->isrc_arg, tf);
-		PIC_POST_FILTER(isrc->isrc_dev, isrc);
-		if (error == FILTER_HANDLED)
-			return (0);
-	} else
-#endif
-	if (isrc->isrc_event != NULL) {
-		if (intr_event_handle(isrc->isrc_event, tf) == 0)
-			return (0);
-	}
+	if (intr_event_handle(isrc->isrc_event, tf) == 0)
+		return (0);
 
 	if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
 		isrc_increment_straycount(isrc);
 	return (EINVAL);
 }
-
-/*
- *  Alloc unique interrupt number (resource handle) for interrupt source.
- *
- *  There could be various strategies how to allocate free interrupt number
- *  (resource handle) for new interrupt source.
- *
- *  1. Handles are always allocated forward, so handles are not recycled
- *     immediately. However, if only one free handle left which is reused
- *     constantly...
- */
-static inline int
-isrc_alloc_irq(struct intr_irqsrc *isrc)
-{
-	u_int irq;
-
-	mtx_assert(&isrc_table_lock, MA_OWNED);
-
-	if (irq_next_free >= intr_nirq)
-		return (ENOSPC);
-
-	for (irq = irq_next_free; irq < intr_nirq; irq++) {
-		if (irq_sources[irq] == NULL)
-			goto found;
-	}
-	for (irq = 0; irq < irq_next_free; irq++) {
-		if (irq_sources[irq] == NULL)
-			goto found;
-	}
-
-	irq_next_free = intr_nirq;
-	return (ENOSPC);
-
-found:
-	isrc->isrc_irq = irq;
-	irq_sources[irq] = isrc;
-
-	irq_next_free = irq + 1;
-	if (irq_next_free >= intr_nirq)
-		irq_next_free = 0;
-	return (0);
-}
-
-/*
- *  Free unique interrupt number (resource handle) from interrupt source.
- */
-static inline int
-isrc_free_irq(struct intr_irqsrc *isrc)
-{
-
-	mtx_assert(&isrc_table_lock, MA_OWNED);
-
-	if (isrc->isrc_irq >= intr_nirq)
-		return (EINVAL);
-	if (irq_sources[isrc->isrc_irq] != isrc)
-		return (EINVAL);
-
-	irq_sources[isrc->isrc_irq] = NULL;
-	isrc->isrc_irq = INTR_IRQ_INVALID;	/* just to be safe */
-
-	/*
-	 * If we are recovering from the state irq_sources table is full,
-	 * then the following allocation should check the entire table. This
-	 * will ensure maximum separation of allocation order from release
-	 * order.
-	 */
-	if (irq_next_free >= intr_nirq)
-		irq_next_free = 0;
-
-	return (0);
-}
-
-/*
- *  Initialize interrupt source and register it into global interrupt table.
- */
-int
-intr_isrc_register(struct intr_irqsrc *isrc, device_t dev, u_int flags,
-    const char *fmt, ...)
-{
-	int error;
-	va_list ap;
-
-	bzero(isrc, sizeof(struct intr_irqsrc));
-	isrc->isrc_dev = dev;
-	isrc->isrc_irq = INTR_IRQ_INVALID;	/* just to be safe */
-	isrc->isrc_flags = flags;
-
-	va_start(ap, fmt);
-	vsnprintf(isrc->isrc_name, INTR_ISRC_NAMELEN, fmt, ap);
-	va_end(ap);
-
-	mtx_lock(&isrc_table_lock);
-	error = isrc_alloc_irq(isrc);
-	if (error != 0) {
-		mtx_unlock(&isrc_table_lock);
-		return (error);
-	}
-	/*
-	 * Setup interrupt counters, but not for IPI sources. Those are setup
-	 * later and only for used ones (up to INTR_IPI_COUNT) to not exhaust
-	 * our counter pool.
-	 */
-	if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
-		isrc_setup_counters(isrc);
-	mtx_unlock(&isrc_table_lock);
-	return (0);
-}
-
-/*
- *  Deregister interrupt source from global interrupt table.
- */
-int
-intr_isrc_deregister(struct intr_irqsrc *isrc)
-{
-	int error;
-
-	mtx_lock(&isrc_table_lock);
-	if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
-		isrc_release_counters(isrc);
-	error = isrc_free_irq(isrc);
-	mtx_unlock(&isrc_table_lock);
-	return (error);
-}
-
-#ifdef SMP
-/*
- *  A support function for a PIC to decide if provided ISRC should be inited
- *  on given cpu. The logic of INTR_ISRCF_BOUND flag and isrc_cpu member of
- *  struct intr_irqsrc is the following:
- *
- *     If INTR_ISRCF_BOUND is set, the ISRC should be inited only on cpus
- *     set in isrc_cpu. If not, the ISRC should be inited on every cpu and
- *     isrc_cpu is kept consistent with it. Thus isrc_cpu is always correct.
- */
-bool
-intr_isrc_init_on_cpu(struct intr_irqsrc *isrc, u_int cpu)
-{
-
-	if (isrc->isrc_handlers == 0)
-		return (false);
-	if ((isrc->isrc_flags & (INTR_ISRCF_PPI | INTR_ISRCF_IPI)) == 0)
-		return (false);
-	if (isrc->isrc_flags & INTR_ISRCF_BOUND)
-		return (CPU_ISSET(cpu, &isrc->isrc_cpu));
-
-	CPU_SET(cpu, &isrc->isrc_cpu);
-	return (true);
-}
-#endif
-
-#ifdef INTR_SOLO
-/*
- *  Setup filter into interrupt source.
- */
-static int
-iscr_setup_filter(struct intr_irqsrc *isrc, const char *name,
-    intr_irq_filter_t *filter, void *arg, void **cookiep)
-{
-
-	if (filter == NULL)
-		return (EINVAL);
-
-	mtx_lock(&isrc_table_lock);
-	/*
-	 * Make sure that we do not mix the two ways
-	 * how we handle interrupt sources.
-	 */
-	if (isrc->isrc_filter != NULL || isrc->isrc_event != NULL) {
-		mtx_unlock(&isrc_table_lock);
-		return (EBUSY);
-	}
-	isrc->isrc_filter = filter;
-	isrc->isrc_arg = arg;
-	isrc_update_name(isrc, name);
-	mtx_unlock(&isrc_table_lock);
-
-	*cookiep = isrc;
-	return (0);
-}
-#endif
 
 /*
  *  Interrupt source pre_ithread method for MI interrupt framework.
@@ -667,52 +476,193 @@ intr_isrc_assign_cpu(void *arg, int cpu)
 static int
 isrc_event_create(struct intr_irqsrc *isrc)
 {
-	struct intr_event *ie;
 	int error;
 
-	error = intr_event_create(&ie, isrc, 0, isrc->isrc_irq,
+	error = intr_event_create(&isrc->isrc_event, isrc, 0, INTR_IRQ_INVALID,
 	    intr_isrc_pre_ithread, intr_isrc_post_ithread, intr_isrc_post_filter,
 	    intr_isrc_assign_cpu, "%s:", isrc->isrc_name);
+
+	return (error);
+}
+
+/*
+ *  Destroy interrupt event for interrupt source.
+ */
+static int
+isrc_event_destroy(struct intr_irqsrc *isrc)
+{
+	int rc;
+
+	MPASS(isrc->isrc_event != NULL);
+	MPASS(isrc->isrc_event->ie_irq >= intr_nirq);
+
+	rc = intr_event_destroy(isrc->isrc_event);
+	if (rc == 0)
+		isrc->isrc_event = NULL;
+
+	return (rc);
+}
+
+/*
+ *  Alloc unique interrupt number (resource handle) for interrupt source.
+ *
+ *  There could be various strategies how to allocate free interrupt number
+ *  (resource handle) for new interrupt source.
+ *
+ *  1. Handles are always allocated forward, so handles are not recycled
+ *     immediately. However, if only one free handle left which is reused
+ *     constantly...
+ */
+static inline int
+isrc_alloc_irq(struct intr_irqsrc *isrc)
+{
+	u_int irq;
+
+	mtx_assert(&isrc_table_lock, MA_OWNED);
+
+	if (irq_next_free >= intr_nirq)
+		return (ENOSPC);
+
+	for (irq = irq_next_free; irq < intr_nirq; irq++) {
+		if (irq_sources[irq] == NULL)
+			goto found;
+	}
+	for (irq = 0; irq < irq_next_free; irq++) {
+		if (irq_sources[irq] == NULL)
+			goto found;
+	}
+
+	irq_next_free = intr_nirq;
+	return (ENOSPC);
+
+found:
+	isrc->isrc_event->ie_irq = irq;
+	irq_sources[irq] = isrc;
+
+	irq_next_free = irq + 1;
+	if (irq_next_free >= intr_nirq)
+		irq_next_free = 0;
+	return (0);
+}
+
+/*
+ *  Free unique interrupt number (resource handle) from interrupt source.
+ */
+static inline int
+isrc_free_irq(struct intr_irqsrc *isrc)
+{
+
+	mtx_assert(&isrc_table_lock, MA_OWNED);
+	MPASS(isrc->isrc_event != NULL);
+
+	if (isrc->isrc_event->ie_irq >= intr_nirq)
+		return (0);
+
+	if (irq_sources[isrc->isrc_event->ie_irq] == isrc)
+		irq_sources[isrc->isrc_event->ie_irq] = NULL;
+	isrc->isrc_event->ie_irq = INTR_IRQ_INVALID;	/* just to be safe */
+
+	/*
+	 * If we are recovering from the state irq_sources table is full,
+	 * then the following allocation should check the entire table. This
+	 * will ensure maximum separation of allocation order from release
+	 * order.
+	 */
+	if (irq_next_free >= intr_nirq)
+		irq_next_free = 0;
+
+	return (0);
+}
+
+/*
+ *  Initialize interrupt source and register it into global interrupt table.
+ */
+int
+intr_isrc_register(struct intr_irqsrc *isrc, device_t dev, u_int flags,
+    const char *fmt, ...)
+{
+	int error;
+	va_list ap;
+
+	bzero(isrc, sizeof(struct intr_irqsrc));
+	isrc->isrc_dev = dev;
+	isrc->isrc_flags = flags;
+
+	va_start(ap, fmt);
+	vsnprintf(isrc->isrc_name, INTR_ISRC_NAMELEN, fmt, ap);
+	va_end(ap);
+
+	error = isrc_event_create(isrc);
 	if (error)
 		return (error);
 
 	mtx_lock(&isrc_table_lock);
-	/*
-	 * Make sure that we do not mix the two ways
-	 * how we handle interrupt sources. Let contested event wins.
-	 */
-#ifdef INTR_SOLO
-	if (isrc->isrc_filter != NULL || isrc->isrc_event != NULL) {
-#else
-	if (isrc->isrc_event != NULL) {
-#endif
+	error = isrc_alloc_irq(isrc);
+	if (error != 0) {
+		int rc;
 		mtx_unlock(&isrc_table_lock);
-		intr_event_destroy(ie);
-		return (isrc->isrc_event != NULL ? EBUSY : 0);
+		if ((rc = intr_event_destroy(isrc->isrc_event)) != 0)
+			printf("ERROR: %s(): intr_event_destroy() rc = %d!\n",
+			    __func__, rc);
+		return (error);
 	}
-	isrc->isrc_event = ie;
+	/*
+	 * Setup interrupt counters, but not for IPI sources. Those are setup
+	 * later and only for used ones (up to INTR_IPI_COUNT) to not exhaust
+	 * our counter pool.
+	 */
+	if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
+		isrc_setup_counters(isrc);
 	mtx_unlock(&isrc_table_lock);
-
 	return (0);
 }
-#ifdef notyet
+
 /*
- *  Destroy interrupt event for interrupt source.
+ *  Deregister interrupt source from global interrupt table.
  */
-static void
-isrc_event_destroy(struct intr_irqsrc *isrc)
+int
+intr_isrc_deregister(struct intr_irqsrc *isrc)
 {
-	struct intr_event *ie;
+	int error;
 
 	mtx_lock(&isrc_table_lock);
-	ie = isrc->isrc_event;
-	isrc->isrc_event = NULL;
+	if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
+		isrc_release_counters(isrc);
+	error = isrc_free_irq(isrc);
 	mtx_unlock(&isrc_table_lock);
 
-	if (ie != NULL)
-		intr_event_destroy(ie);
+	if (error != 0)
+		return (error);
+
+	return (isrc_event_destroy(isrc));
+}
+
+#ifdef SMP
+/*
+ *  A support function for a PIC to decide if provided ISRC should be inited
+ *  on given cpu. The logic of INTR_ISRCF_BOUND flag and isrc_cpu member of
+ *  struct intr_irqsrc is the following:
+ *
+ *     If INTR_ISRCF_BOUND is set, the ISRC should be inited only on cpus
+ *     set in isrc_cpu. If not, the ISRC should be inited on every cpu and
+ *     isrc_cpu is kept consistent with it. Thus isrc_cpu is always correct.
+ */
+bool
+intr_isrc_init_on_cpu(struct intr_irqsrc *isrc, u_int cpu)
+{
+
+	if (isrc->isrc_handlers == 0)
+		return (false);
+	if ((isrc->isrc_flags & (INTR_ISRCF_PPI | INTR_ISRCF_IPI)) == 0)
+		return (false);
+	if (isrc->isrc_flags & INTR_ISRCF_BOUND)
+		return (CPU_ISSET(cpu, &isrc->isrc_cpu));
+
+	CPU_SET(cpu, &isrc->isrc_cpu);
+	return (true);
 }
 #endif
+
 /*
  *  Add handler to interrupt source.
  */
@@ -722,12 +672,6 @@ isrc_add_handler(struct intr_irqsrc *isrc, const char *name,
     enum intr_type flags, void **cookiep)
 {
 	int error;
-
-	if (isrc->isrc_event == NULL) {
-		error = isrc_event_create(isrc);
-		if (error)
-			return (error);
-	}
 
 	error = intr_event_add_handler(isrc->isrc_event, name, filter, handler,
 	    arg, intr_priority(flags), flags, cookiep);
@@ -1078,34 +1022,9 @@ intr_setup_irq(device_t dev, struct resource *res, driver_filter_t filt,
 	data = rman_get_virtual(res);
 	name = device_get_nameunit(dev);
 
-#ifdef INTR_SOLO
-	/*
-	 * Standard handling is done through MI interrupt framework. However,
-	 * some interrupts could request solely own special handling. This
-	 * non standard handling can be used for interrupt controllers without
-	 * handler (filter only), so in case that interrupt controllers are
-	 * chained, MI interrupt framework is called only in leaf controller.
-	 *
-	 * Note that root interrupt controller routine is served as well,
-	 * however in intr_irq_handler(), i.e. main system dispatch routine.
-	 */
-	if (flags & INTR_SOLO && hand != NULL) {
-		debugf("irq %u cannot solo on %s\n", irq, name);
-		return (EINVAL);
-	}
-
-	if (flags & INTR_SOLO) {
-		error = iscr_setup_filter(isrc, name, (intr_irq_filter_t *)filt,
-		    arg, cookiep);
-		debugf("irq %u setup filter error %d on %s\n", isrc->isrc_irq, error,
-		    name);
-	} else
-#endif
-		{
-		error = isrc_add_handler(isrc, name, filt, hand, arg, flags,
-		    cookiep);
-		debugf("irq %u add handler error %d on %s\n", isrc->isrc_irq, error, name);
-	}
+	error = isrc_add_handler(isrc, name, filt, hand, arg, flags, cookiep);
+	debugf("irq %u add handler error %d on %s\n", isrc->isrc_event->ie_irq,
+	    error, name);
 	if (error != 0)
 		return (error);
 
@@ -1140,22 +1059,6 @@ intr_teardown_irq(device_t dev, struct resource *res, void *cookie)
 
 	data = rman_get_virtual(res);
 
-#ifdef INTR_SOLO
-	if (isrc->isrc_filter != NULL) {
-		if (isrc != cookie)
-			return (EINVAL);
-
-		mtx_lock(&isrc_table_lock);
-		isrc->isrc_filter = NULL;
-		isrc->isrc_arg = NULL;
-		isrc->isrc_handlers = 0;
-		PIC_DISABLE_INTR(isrc->isrc_dev, isrc);
-		PIC_TEARDOWN_INTR(isrc->isrc_dev, isrc, res, data);
-		isrc_update_name(isrc, NULL);
-		mtx_unlock(&isrc_table_lock);
-		return (0);
-	}
-#endif
 	if (isrc != intr_handler_source(cookie))
 		return (EINVAL);
 
@@ -1187,17 +1090,6 @@ intr_describe_irq(device_t dev, struct resource *res, void *cookie,
 	isrc = intr_map_get_isrc(res_id);
 	if (isrc == NULL || isrc->isrc_handlers == 0)
 		return (EINVAL);
-#ifdef INTR_SOLO
-	if (isrc->isrc_filter != NULL) {
-		if (isrc != cookie)
-			return (EINVAL);
-
-		mtx_lock(&isrc_table_lock);
-		isrc_update_name(isrc, descr);
-		mtx_unlock(&isrc_table_lock);
-		return (0);
-	}
-#endif
 	error = intr_event_describe_handler(isrc->isrc_event, cookie, descr);
 	if (error == 0) {
 		mtx_lock(&isrc_table_lock);
@@ -1221,10 +1113,6 @@ intr_bind_irq(device_t dev, struct resource *res, int cpu)
 	isrc = intr_map_get_isrc(res_id);
 	if (isrc == NULL || isrc->isrc_handlers == 0)
 		return (EINVAL);
-#ifdef INTR_SOLO
-	if (isrc->isrc_filter != NULL)
-		return (intr_isrc_assign_cpu(isrc, cpu));
-#endif
 	return (intr_event_bind(isrc->isrc_event, cpu));
 }
 
@@ -1277,8 +1165,7 @@ intr_irq_shuffle(void *arg __unused)
 		    isrc->isrc_flags & (INTR_ISRCF_PPI | INTR_ISRCF_IPI))
 			continue;
 
-		if (isrc->isrc_event != NULL &&
-		    isrc->isrc_flags & INTR_ISRCF_BOUND &&
+		if (isrc->isrc_flags & INTR_ISRCF_BOUND &&
 		    isrc->isrc_event->ie_cpu != CPU_FFS(&isrc->isrc_cpu) - 1)
 			panic("%s: CPU inconsistency", __func__);
 
