@@ -1,3 +1,6 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\"
 .\" Copyright (c) 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
@@ -50,11 +53,10 @@ privilege to set kernel state.
 The state to be retrieved or set is described using a
 .Dq Management Information Base
 .Pq Dq MIB
-style name, described as a dotted set of
-components.
+style name, described as a dotted set of components.
 .Pp
 The following options are available:
-.Bl -tag -width indent
+.Bl -tag -width "-f filename"
 .It Fl A
 Equivalent to
 .Fl o a
@@ -202,77 +204,77 @@ String and integer values can be set using
 .Nm .
 .Bl -column security.bsd.unprivileged_read_msgbuf integerxxx
 .It Sy "Name	Type	Changeable"
-.It "kern.ostype	string	no"
-.It "kern.osrelease	string	no"
-.It "kern.osrevision	integer	no"
-.It "kern.version	string	no"
-.It "kern.maxvnodes	integer	yes"
-.It "kern.maxproc	integer	no"
-.It "kern.maxprocperuid	integer	yes"
-.It "kern.maxfiles	integer	yes"
-.It "kern.maxfilesperproc	integer	yes"
-.It "kern.argmax	integer	no"
-.It "kern.securelevel	integer	raise only"
-.It "kern.hostname	string	yes"
-.It "kern.hostid	integer	yes"
-.It "kern.clockrate	struct	no"
-.It "kern.posix1version	integer	no"
-.It "kern.ngroups	integer	no"
-.It "kern.job_control	integer	no"
-.It "kern.saved_ids	integer	no"
-.It "kern.boottime	struct	no"
-.It "kern.domainname	string	yes"
-.It "kern.filedelay	integer	yes"
-.It "kern.dirdelay	integer	yes"
-.It "kern.metadelay	integer	yes"
-.It "kern.osreldate	integer	no"
-.It "kern.bootfile	string	yes"
-.It "kern.corefile	string	yes"
-.It "kern.logsigexit	integer	yes"
-.It "security.bsd.suser_enabled	integer	yes"
-.It "security.bsd.see_other_uids	integer	yes"
-.It "security.bsd.see_other_gids	integer	yes"
-.It "security.bsd.see_jail_proc	integer	yes"
-.It "security.bsd.unprivileged_proc_debug	integer	yes"
-.It "security.bsd.unprivileged_read_msgbuf	integer	yes"
-.It "vm.loadavg	struct	no"
-.It "hw.machine	string	no"
-.It "hw.model	string	no"
-.It "hw.ncpu	integer	no"
-.It "hw.byteorder	integer	no"
-.It "hw.physmem	integer	no"
-.It "hw.usermem	integer	no"
-.It "hw.pagesize	integer	no"
-.It "hw.floatingpoint	integer	no"
-.It "hw.machine_arch	string	no"
-.It "hw.realmem	integer	no"
-.It "machdep.adjkerntz	integer	yes"
-.It "machdep.disable_rtc_set	integer	yes"
-.It "machdep.guessed_bootdev	string	no"
-.It "user.cs_path	string	no"
-.It "user.bc_base_max	integer	no"
-.It "user.bc_dim_max	integer	no"
-.It "user.bc_scale_max	integer	no"
-.It "user.bc_string_max	integer	no"
-.It "user.coll_weights_max	integer	no"
-.It "user.expr_nest_max	integer	no"
-.It "user.line_max	integer	no"
-.It "user.re_dup_max	integer	no"
-.It "user.posix2_version	integer	no"
-.It "user.posix2_c_bind	integer	no"
-.It "user.posix2_c_dev	integer	no"
-.It "user.posix2_char_term	integer	no"
-.It "user.posix2_fort_dev	integer	no"
-.It "user.posix2_fort_run	integer	no"
-.It "user.posix2_localedef	integer	no"
-.It "user.posix2_sw_dev	integer	no"
-.It "user.posix2_upe	integer	no"
-.It "user.stream_max	integer	no"
-.It "user.tzname_max	integer	no"
-.It "user.localbase	string	no"
+.It Va "kern.ostype	string	no"
+.It Va "kern.osrelease	string	no"
+.It Va "kern.osrevision	integer	no"
+.It Va "kern.version	string	no"
+.It Va "kern.maxvnodes	integer	yes"
+.It Va "kern.maxproc	integer	no"
+.It Va "kern.maxprocperuid	integer	yes"
+.It Va "kern.maxfiles	integer	yes"
+.It Va "kern.maxfilesperproc	integer	yes"
+.It Va "kern.argmax	integer	no"
+.It Va "kern.securelevel	integer	raise only"
+.It Va "kern.hostname	string	yes"
+.It Va "kern.hostid	integer	yes"
+.It Va "kern.clockrate	struct	no"
+.It Va "kern.posix1version	integer	no"
+.It Va "kern.ngroups	integer	no"
+.It Va "kern.job_control	integer	no"
+.It Va "kern.saved_ids	integer	no"
+.It Va "kern.boottime	struct	no"
+.It Va "kern.domainname	string	yes"
+.It Va "kern.filedelay	integer	yes"
+.It Va "kern.dirdelay	integer	yes"
+.It Va "kern.metadelay	integer	yes"
+.It Va "kern.osreldate	integer	no"
+.It Va "kern.bootfile	string	yes"
+.It Va "kern.corefile	string	yes"
+.It Va "kern.logsigexit	integer	yes"
+.It Va "security.bsd.suser_enabled	integer	yes"
+.It Va "security.bsd.see_other_uids	integer	yes"
+.It Va "security.bsd.see_other_gids	integer	yes"
+.It Va "security.bsd.see_jail_proc	integer	yes"
+.It Va "security.bsd.unprivileged_proc_debug	integer	yes"
+.It Va "security.bsd.unprivileged_read_msgbuf	integer	yes"
+.It Va "vm.loadavg	struct	no"
+.It Va "hw.machine	string	no"
+.It Va "hw.model	string	no"
+.It Va "hw.ncpu	integer	no"
+.It Va "hw.byteorder	integer	no"
+.It Va "hw.physmem	integer	no"
+.It Va "hw.usermem	integer	no"
+.It Va "hw.pagesize	integer	no"
+.It Va "hw.floatingpoint	integer	no"
+.It Va "hw.machine_arch	string	no"
+.It Va "hw.realmem	integer	no"
+.It Va "machdep.adjkerntz	integer	yes"
+.It Va "machdep.disable_rtc_set	integer	yes"
+.It Va "machdep.guessed_bootdev	string	no"
+.It Va "user.cs_path	string	no"
+.It Va "user.bc_base_max	integer	no"
+.It Va "user.bc_dim_max	integer	no"
+.It Va "user.bc_scale_max	integer	no"
+.It Va "user.bc_string_max	integer	no"
+.It Va "user.coll_weights_max	integer	no"
+.It Va "user.expr_nest_max	integer	no"
+.It Va "user.line_max	integer	no"
+.It Va "user.re_dup_max	integer	no"
+.It Va "user.posix2_version	integer	no"
+.It Va "user.posix2_c_bind	integer	no"
+.It Va "user.posix2_c_dev	integer	no"
+.It Va "user.posix2_char_term	integer	no"
+.It Va "user.posix2_fort_dev	integer	no"
+.It Va "user.posix2_fort_run	integer	no"
+.It Va "user.posix2_localedef	integer	no"
+.It Va "user.posix2_sw_dev	integer	no"
+.It Va "user.posix2_upe	integer	no"
+.It Va "user.stream_max	integer	no"
+.It Va "user.tzname_max	integer	no"
+.It Va "user.localbase	string	no"
 .El
 .Sh FILES
-.Bl -tag -width ".In netinet/icmp_var.h" -compact
+.Bl -tag -width "<netinet/icmp_var.h>" -compact
 .It In sys/sysctl.h
 definitions for top level identifiers, second level kernel and hardware
 identifiers, and user level identifiers
@@ -296,20 +298,20 @@ definitions for fourth level UDP identifiers
 For example, to retrieve the maximum number of processes allowed
 in the system, one would use the following request:
 .Pp
-.Dl "sysctl kern.maxproc"
+.Dl Va "sysctl kern.maxproc"
 .Pp
 To set the maximum number of processes allowed
 per uid to 1000, one would use the following request:
 .Pp
-.Dl "sysctl kern.maxprocperuid=1000"
+.Dl Va "sysctl kern.maxprocperuid=1000"
 .Pp
 Information about the system clock rate may be obtained with:
 .Pp
-.Dl "sysctl kern.clockrate"
+.Dl Va "sysctl kern.clockrate"
 .Pp
 Information about the load average history may be obtained with:
 .Pp
-.Dl "sysctl vm.loadavg"
+.Dl Va "sysctl vm.loadavg"
 .Pp
 More variables than these exist, and the best and likely only place
 to search for their deeper meaning is undoubtedly the source where
