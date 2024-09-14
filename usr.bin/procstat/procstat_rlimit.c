@@ -47,7 +47,7 @@
 static struct {
 	const char *name;
 	const char *suffix;
-} rlimit_param[15] = {
+} rlimit_param[] = {
 	{"cputime",          "sec"},
 	{"filesize",         "B  "},
 	{"datasize",         "B  "},
@@ -65,9 +65,8 @@ static struct {
 	{"umtxp",            "   "},
 };
 
-#if RLIM_NLIMITS > 15
-#error "Resource limits have grown. Add new entries to rlimit_param[]."
-#endif
+_Static_assert(nitems(rlimit_param) == RLIM_NLIMITS,
+    "Resource limits have grown. Add new entries to rlimit_param[].");
 
 static const char *
 humanize_rlimit(int indx, rlim_t limit)
