@@ -212,20 +212,18 @@ update_entry(struct adapter *sc, struct l2t_entry *e, uint8_t *lladdr,
 
 		e->state = L2T_STATE_STALE;
 
-	} else {
+	} else if (e->state == L2T_STATE_RESOLVING ||
+	    e->state == L2T_STATE_FAILED ||
+	    memcmp(e->dmac, lladdr, ETHER_ADDR_LEN)) {
 
-		if (e->state == L2T_STATE_RESOLVING ||
-		    e->state == L2T_STATE_FAILED ||
-		    memcmp(e->dmac, lladdr, ETHER_ADDR_LEN)) {
+		/* unresolved -> resolved; or dmac changed */
 
-			/* unresolved -> resolved; or dmac changed */
-
-			memcpy(e->dmac, lladdr, ETHER_ADDR_LEN);
-			e->vlan = vtag;
-			t4_write_l2e(e, 1);
-		}
+		memcpy(e->dmac, lladdr, ETHER_ADDR_LEN);
+		e->vlan = vtag;
+		if (t4_write_l2e(e, 1) == 0)
+			e->state = L2T_STATE_VALID;
+	} else
 		e->state = L2T_STATE_VALID;
-	}
 }
 
 static int
@@ -291,7 +289,10 @@ again:
 			mtx_unlock(&e->lock);
 			goto again;
 		}
-		arpq_enqueue(e, wr);
+		if (adapter_stopped(sc))
+			free(wr, M_CXGBE);
+		else
+			arpq_enqueue(e, wr);
 		mtx_unlock(&e->lock);
 
 		if (resolve_entry(sc, e) == EWOULDBLOCK)
