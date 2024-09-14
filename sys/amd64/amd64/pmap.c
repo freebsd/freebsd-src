@@ -2227,7 +2227,7 @@ pmap_bootstrap_la57(void *arg __unused)
 	 * entering all existing kernel mappings into level 5 table.
 	 */
 	v_pml5[pmap_pml5e_index(UPT_MAX_ADDRESS)] = KPML4phys | X86_PG_V |
-	    X86_PG_RW | X86_PG_A | X86_PG_M | pg_g;
+	    X86_PG_RW | X86_PG_A | X86_PG_M;
 
 	/*
 	 * Add pml5 entry for 1:1 trampoline mapping after LA57 is turned on.
