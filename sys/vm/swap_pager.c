@@ -2199,9 +2199,11 @@ swp_pager_meta_transfer(vm_object_t srcobject, vm_object_t dstobject,
 {
 	struct page_range range;
 	struct swblk *sb;
-	daddr_t blk;
+	daddr_t blk, d[SWAP_META_PAGES];
 	vm_pindex_t offset, last;
-	int i, limit, start;
+	int d_mask, i, limit, start;
+	_Static_assert(8 * sizeof(d_mask) >= SWAP_META_PAGES,
+	    "d_mask not big enough");
 
 	VM_OBJECT_ASSERT_WLOCKED(srcobject);
 	VM_OBJECT_ASSERT_WLOCKED(dstobject);
@@ -2210,39 +2212,50 @@ swp_pager_meta_transfer(vm_object_t srcobject, vm_object_t dstobject,
 		return;
 
 	swp_pager_init_freerange(&range);
+	d_mask = 0;
 	offset = pindex;
 	last = pindex + count;
 	sb = swblk_start_limit(srcobject, pindex, last);
 	start = (sb != NULL && sb->p < pindex) ? pindex - sb->p : 0;
 	for (; sb != NULL;
 	    sb = swblk_start_limit(srcobject, pindex, last), start = 0) {
-		limit = MIN(last - sb->p, SWAP_META_PAGES);
+		pindex = sb->p;
+		MPASS(d_mask == 0);
+		limit = MIN(last - pindex, SWAP_META_PAGES);
 		for (i = start; i < limit; i++) {
 			if (sb->d[i] == SWAPBLK_NONE)
 				continue;
 			blk = swp_pager_meta_build(dstobject,
-			    sb->p + i - offset, sb->d[i], true);
+			    pindex + i - offset, sb->d[i], true);
 			if (blk == sb->d[i]) {
 				/*
-				 * Destination has no swapblk and is not
-				 * resident, so transfer source.
-				 * swp_pager_meta_build() failed memory
-				 * allocation already, likely to sleep in retry.
+				 * Failed memory allocation stopped transfer;
+				 * save this block for transfer with lock
+				 * released.
 				 */
-				VM_OBJECT_WUNLOCK(srcobject);
-				swp_pager_meta_build(dstobject,
-				    sb->p + i - offset, sb->d[i], false);
-				VM_OBJECT_WLOCK(srcobject);
+				d[i] = blk;
+				d_mask |= 1 << i;
 			} else if (blk != SWAPBLK_NONE)
 				swp_pager_update_freerange(&range, sb->d[i]);
 			sb->d[i] = SWAPBLK_NONE;
 		}
-		pindex = sb->p + SWAP_META_PAGES;
 		if (swp_pager_swblk_empty(sb, 0, start) &&
 		    swp_pager_swblk_empty(sb, limit, SWAP_META_PAGES)) {
 			swblk_lookup_remove(srcobject, sb);
 			uma_zfree(swblk_zone, sb);
 		}
+		if (d_mask != 0) {
+			/* Finish block transfer, with the lock released. */
+			VM_OBJECT_WUNLOCK(srcobject);
+			do {
+				i = ffs(d_mask) - 1;
+				swp_pager_meta_build(dstobject,
+				    pindex + i - offset, d[i], false);
+				d_mask &= ~(1 << i);
+			} while (d_mask != 0);
+			VM_OBJECT_WLOCK(srcobject);
+		}
+		pindex += SWAP_META_PAGES;
 	}
 	swp_pager_freeswapspace(&range);
 }
