@@ -103,6 +103,7 @@
 #include <sys/stat.h>
 #include <sys/malloc.h>
 #include <sys/poll.h>
+#include <sys/priv.h>
 #include <sys/selinfo.h>
 #include <sys/signalvar.h>
 #include <sys/syscallsubr.h>
@@ -206,6 +207,7 @@ static int pipeallocfail;
 static int piperesizefail;
 static int piperesizeallowed = 1;
 static long pipe_mindirect = PIPE_MINDIRECT;
+static int pipebuf_reserv = 2;
 
 SYSCTL_LONG(_kern_ipc, OID_AUTO, maxpipekva, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
 	   &maxpipekva, 0, "Pipe KVA limit");
@@ -219,6 +221,9 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, piperesizefail, CTLFLAG_RD,
 	  &piperesizefail, 0, "Pipe resize failures");
 SYSCTL_INT(_kern_ipc, OID_AUTO, piperesizeallowed, CTLFLAG_RW,
 	  &piperesizeallowed, 0, "Pipe resizing allowed");
+SYSCTL_INT(_kern_ipc, OID_AUTO, pipebuf_reserv, CTLFLAG_RW,
+    &pipebuf_reserv, 0,
+    "Superuser-reserved percentage of the pipe buffers space");
 
 static void pipeinit(void *dummy __unused);
 static void pipeclose(struct pipe *cpipe);
@@ -586,8 +591,22 @@ retry:
 		return (ENOMEM);
 	}
 
-	error = vm_map_find(pipe_map, NULL, 0, (vm_offset_t *)&buffer, size, 0,
-	    VMFS_ANY_SPACE, VM_PROT_RW, VM_PROT_RW, 0);
+	vm_map_lock(pipe_map);
+	if (priv_check(curthread, PRIV_PIPEBUF) != 0 &&
+	    (vm_map_max(pipe_map) - vm_map_min(pipe_map)) *
+	    (100 - pipebuf_reserv) / 100 < pipe_map->size + size) {
+		vm_map_unlock(pipe_map);
+		if (cpipe->pipe_buffer.buffer == NULL &&
+		    size > SMALL_PIPE_SIZE) {
+			size = SMALL_PIPE_SIZE;
+			pipefragretry++;
+			goto retry;
+		}
+		return (ENOMEM);
+	}
+	error = vm_map_find_locked(pipe_map, NULL, 0, (vm_offset_t *)&buffer,
+	    size, 0, VMFS_ANY_SPACE, VM_PROT_RW, VM_PROT_RW, 0);
+	vm_map_unlock(pipe_map);
 	if (error != KERN_SUCCESS) {
 		chgpipecnt(cpipe->pipe_pair->pp_owner->cr_ruidinfo, -size, 0);
 		if (cpipe->pipe_buffer.buffer == NULL &&
