@@ -2008,6 +2008,8 @@ KSTAGEDIR?=	${OBJTOP}/kernelstage
 SSTAGEDIR?=	${OBJTOP}/sourcestage
 REPODIR?=	${OBJROOT}repo
 PKG_FORMAT?=	tzst
+PKG_LEVEL?=	-1
+PKG_CLEVEL?=	${"${PKG_FORMAT:Mtar}" != "":?:-l ${PKG_LEVEL}}
 PKG_REPO_SIGNING_KEY?=	# empty
 PKG_OUTPUT_DIR?=	${PKG_VERSION}
 PKG_ABI_FILE?=	${WSTAGEDIR}/usr/bin/uname
@@ -2155,7 +2157,7 @@ create-source-src-package: _pkgbootstrap .PHONY
 		${SSTAGEDIR}/src.ucl
 	${PKG_CMD} -o ABI=${PKG_ABI} \
 		-o OSVERSION="${SRCRELDATE}" \
-		create -f ${PKG_FORMAT} \
+		create -f ${PKG_FORMAT} ${PKG_CLEVEL} \
 		-M ${SSTAGEDIR}/src.ucl \
 		-p ${SSTAGEDIR}/src.plist \
 		-r ${SRCDIR} \
@@ -2182,7 +2184,7 @@ create-source-src-sys-package: _pkgbootstrap .PHONY
 		${SSTAGEDIR}/src-sys.ucl
 	${PKG_CMD} -o ABI=${PKG_ABI} \
 		-o OSVERSION="${SRCRELDATE}" \
-		create -f ${PKG_FORMAT} \
+		create -f ${PKG_FORMAT} ${PKG_CLEVEL} \
 		-M ${SSTAGEDIR}/src-sys.ucl \
 		-p ${SSTAGEDIR}/src-sys.plist \
 		-r ${SRCDIR} \
@@ -2225,7 +2227,8 @@ create-world-package-${pkgname}: .PHONY
 	fi
 	${PKG_CMD} -o ABI=${PKG_ABI} -o ALLOW_BASE_SHLIBS=yes \
 		-o OSVERSION="${SRCRELDATE}" \
-		create -f ${PKG_FORMAT} -M ${WSTAGEDIR}/${pkgname}.ucl \
+		create -f ${PKG_FORMAT} ${PKG_CLEVEL} \
+		-M ${WSTAGEDIR}/${pkgname}.ucl \
 		-p ${WSTAGEDIR}/${pkgname}.plist \
 		-r ${WSTAGEDIR} \
 		-o ${REPODIR}/${PKG_ABI}/${PKG_OUTPUT_DIR}
@@ -2255,7 +2258,7 @@ create-dtb-package:
 		${KSTAGEDIR}/${DISTDIR}/dtb.ucl ; \
 	${PKG_CMD} -o ABI=${PKG_ABI} -o ALLOW_BASE_SHLIBS=yes \
 		-o OSVERSION="${SRCRELDATE}" \
-		create -f ${PKG_FORMAT} \
+		create -f ${PKG_FORMAT} ${PKG_CLEVEL} \
 		-M ${KSTAGEDIR}/${DISTDIR}/dtb.ucl \
 		-p ${KSTAGEDIR}/${DISTDIR}/dtb.plist \
 		-r ${KSTAGEDIR}/${DISTDIR} \
@@ -2287,7 +2290,7 @@ create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap
 		${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl ; \
 	${PKG_CMD} -o ABI=${PKG_ABI} -o ALLOW_BASE_SHLIBS=yes \
 		-o OSVERSION="${SRCRELDATE}" \
-		create -f ${PKG_FORMAT} \
+		create -f ${PKG_FORMAT} ${PKG_CLEVEL} \
 		-M ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl \
 		-p ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.plist \
 		-r ${KSTAGEDIR}/${DISTDIR} \
@@ -2327,7 +2330,7 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 		${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl ; \
 	${PKG_CMD} -o ABI=${PKG_ABI} -o ALLOW_BASE_SHLIBS=yes \
 		-o OSVERSION="${SRCRELDATE}" \
-		create -f ${PKG_FORMAT} \
+		create -f ${PKG_FORMAT} ${PKG_CLEVEL} \
 		-M ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl \
 		-p ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.plist \
 		-r ${KSTAGEDIR}/kernel.${_kernel} \
