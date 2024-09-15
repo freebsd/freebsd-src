@@ -2635,7 +2635,8 @@ softdep_mount(struct vnode *devvp,
 
 	if ((fs->fs_flags & FS_SUJ) &&
 	    (error = journal_mount(mp, fs, cred)) != 0) {
-		printf("Failed to start journal: %d\n", error);
+		printf("%s: failed to start journal: %d\n",
+		    mp->mnt_stat.f_mntonname, error);
 		softdep_unmount(mp);
 		return (error);
 	}
