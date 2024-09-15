@@ -102,6 +102,17 @@ $BSDDIALOG_OK)	# Install
 	fi
 	;;
 $BSDDIALOG_CANCEL)	# Live System
+	bsddialog --backtitle "$OSNAME Installer" --title 'Bootstrap pkg' --yesno 'Would you like to bootstrap pkg?' 0 0
+	if [ $? -eq $BSDDIALOG_OK ]; then
+		BSDINSTALL_CONFIGCURRENT=1 bsdinstall netconfig
+		if [ -z "$(mount | grep 'tmpfs on /usr/local')" ]; then mount -o size=700M -t tmpfs tmpfs /usr/local/; fi
+		TMPDIR=/usr/local pkg bootstrap -fy
+		if [ $? -ne 0 ]; then exit 1; fi
+		echo "PKG_DBDIR = \"/usr/local/db/pkg\";" >> /usr/local/etc/pkg.conf
+		echo "PKG_CACHEDIR = \"/usr/local/cache/pkg\";" >> /usr/local/etc/pkg.conf
+		TMPDIR=/usr/local pkg update
+		bsddialog --backtitle "$OSNAME Installer" --title 'Successfully bootstrapped pkg' --msgbox 'pkg is successfully bootstrapped. Exiting to live system.' 0 40
+	fi
 	exit 0
 	;;
 $BSDDIALOG_EXTRA)	# Shell
