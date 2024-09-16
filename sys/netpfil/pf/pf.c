@@ -8462,12 +8462,16 @@ pf_dummynet_route(struct pf_pdesc *pd, struct pf_kstate *s,
 }
 
 static int
-pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf *m,
+pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
     u_short *action, u_short *reason, struct pfi_kkif *kif, struct pf_krule **a,
     struct pf_krule **r, struct pf_kstate **s, struct pf_kruleset **ruleset,
     int *off, int *hdrlen, struct inpcb *inp,
     struct pf_rule_actions *default_actions)
 {
+	struct mbuf *m = *m0;
+
+	memset(pd, 0, sizeof(*pd));
+	pd->dir = dir;
 
 	TAILQ_INIT(&pd->sctp_multihome_jobs);
 	if (default_actions != NULL)
@@ -8485,6 +8489,22 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf *m,
 #ifdef INET
 	case AF_INET: {
 		struct ip *h;
+
+		if (__predict_false(m->m_len < sizeof(struct ip)) &&
+		    (m = *m0 = m_pullup(*m0, sizeof(struct ip))) == NULL) {
+			DPFPRINTF(PF_DEBUG_URGENT,
+			    ("pf_test: m_len < sizeof(struct ip), pullup failed\n"));
+			*action = PF_DROP;
+			REASON_SET(reason, PFRES_SHORT);
+			return (-1);
+		}
+
+		if (pf_normalize_ip(m0, kif, reason, pd) != PF_PASS) {
+			/* We do IP header normalization and packet reassembly here */
+			*action = PF_DROP;
+			return (-1);
+		}
+		m = *m0;
 
 		h = mtod(m, struct ip *);
 		*off = h->ip_hl << 2;
@@ -8532,6 +8552,23 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf *m,
 	case AF_INET6: {
 		struct ip6_hdr *h;
 		int terminal = 0;
+
+		if (__predict_false(m->m_len < sizeof(struct ip6_hdr)) &&
+		    (m = *m0 = m_pullup(*m0, sizeof(struct ip6_hdr))) == NULL) {
+			DPFPRINTF(PF_DEBUG_URGENT,
+			    ("pf_test6: m_len < sizeof(struct ip6_hdr)"
+			     ", pullup failed\n"));
+			*action = PF_DROP;
+			REASON_SET(reason, PFRES_SHORT);
+			return (-1);
+		}
+
+		/* We do IP header normalization and packet reassembly here */
+		if (pf_normalize_ip6(m0, kif, reason, pd) != PF_PASS) {
+			*action = PF_DROP;
+			return (-1);
+		}
+		m = *m0;
 
 		h = mtod(m, struct ip6_hdr *);
 		pd->src = (struct pf_addr *)&h->ip6_src;
@@ -8855,78 +8892,50 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 		return (PF_PASS);
 	}
 
+#ifdef INET6
+	/*
+	 * If we end up changing IP addresses (e.g. binat) the stack may get
+	 * confused and fail to send the icmp6 packet too big error. Just send
+	 * it here, before we do any NAT.
+	 */
+	if (af == AF_INET6 && dir == PF_OUT && pflags & PFIL_FWD &&
+	    IN6_LINKMTU(ifp) < pf_max_frag_size(m)) {
+		PF_RULES_RUNLOCK();
+		*m0 = NULL;
+		icmp6_error(m, ICMP6_PACKET_TOO_BIG, 0, IN6_LINKMTU(ifp));
+		return (PF_DROP);
+	}
+#endif
+
 	if (__predict_false(! M_WRITABLE(*m0))) {
 		m = *m0 = m_unshare(*m0, M_NOWAIT);
 		if (*m0 == NULL)
 			return (PF_DROP);
 	}
 
-	memset(&pd, 0, sizeof(pd));
-	pd.dir = dir;
+	if (pf_setup_pdesc(af, dir, &pd, m0, &action, &reason, kif, &a, &r,
+		&s, &ruleset, &off, &hdrlen, inp, default_actions) == -1) {
+		if (action != PF_PASS)
+			pd.act.log |= PF_LOG_FORCE;
+		goto done;
+	}
+	m = *m0;
 
 	switch (af) {
 #ifdef INET
 	case AF_INET:
-		if (__predict_false(m->m_len < sizeof(struct ip)) &&
-		    (m = *m0 = m_pullup(*m0, sizeof(struct ip))) == NULL) {
-			DPFPRINTF(PF_DEBUG_URGENT,
-			    ("pf_test: m_len < sizeof(struct ip), pullup failed\n"));
-			PF_RULES_RUNLOCK();
-			return (PF_DROP);
-		}
-
-		if (pf_normalize_ip(m0, kif, &reason, &pd) != PF_PASS) {
-			/* We do IP header normalization and packet reassembly here */
-			action = PF_DROP;
-			goto done;
-		}
-		m = *m0;	/* pf_normalize messes with m0 */
 		h = mtod(m, struct ip *);
 		ttl = h->ip_ttl;
 		break;
 #endif
 #ifdef INET6
 	case AF_INET6:
-		/*
-		 * If we end up changing IP addresses (e.g. binat) the stack may get
-		 * confused and fail to send the icmp6 packet too big error. Just send
-		 * it here, before we do any NAT.
-		 */
-		if (dir == PF_OUT && pflags & PFIL_FWD && IN6_LINKMTU(ifp) < pf_max_frag_size(m)) {
-			PF_RULES_RUNLOCK();
-			*m0 = NULL;
-			icmp6_error(m, ICMP6_PACKET_TOO_BIG, 0, IN6_LINKMTU(ifp));
-			return (PF_DROP);
-		}
-
-		if (__predict_false(m->m_len < sizeof(struct ip6_hdr)) &&
-		    (m = *m0 = m_pullup(*m0, sizeof(struct ip6_hdr))) == NULL) {
-			DPFPRINTF(PF_DEBUG_URGENT,
-			    ("pf_test6: m_len < sizeof(struct ip6_hdr)"
-			     ", pullup failed\n"));
-			PF_RULES_RUNLOCK();
-			return (PF_DROP);
-		}
-
-		/* We do IP header normalization and packet reassembly here */
-		if (pf_normalize_ip6(m0, kif, &reason, &pd) != PF_PASS) {
-			action = PF_DROP;
-			goto done;
-		}
-		m = *m0;	/* pf_normalize messes with m0 */
 		h6 = mtod(m, struct ip6_hdr *);
 		ttl = h6->ip6_hlim;
 		break;
 #endif
 	default:
 		panic("Unknown af %d", af);
-	}
-
-	if (pf_setup_pdesc(af, dir, &pd, m, &action, &reason, kif, &a, &r,
-		&s, &ruleset, &off, &hdrlen, inp, default_actions) == -1) {
-		if (action != PF_PASS)
-			pd.act.log |= PF_LOG_FORCE;
-		goto done;
 	}
 
 	if (pd.pf_mtag != NULL && (pd.pf_mtag->flags & PF_MTAG_FLAG_ROUTE_TO)) {
