@@ -2263,6 +2263,7 @@ pmap_bootstrap_la57(void *arg __unused)
 	ssdtosyssd(&gdt_segs[GPROC0_SEL],
 	    (struct system_segment_descriptor *)&__pcpu[0].pc_gdt[GPROC0_SEL]);
 	ltr(GSEL(GPROC0_SEL, SEL_KPL));
+	lidt(&r_idt);
 
 	if (bootverbose)
 		printf("LA57 trampoline returned, CR4 %#lx\n", rcr4());
