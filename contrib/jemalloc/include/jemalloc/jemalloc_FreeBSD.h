@@ -39,7 +39,11 @@
 #  define JEMALLOC_TLS_MODEL	__attribute__((tls_model("initial-exec")))
 #endif
 #ifdef __amd64__
+#ifdef _USE_LG_VADDR_WIDE
+#  define LG_VADDR		64
+#else
 #  define LG_VADDR		48
+#endif
 #  define LG_SIZEOF_PTR		3
 #  define JEMALLOC_TLS_MODEL	__attribute__((tls_model("initial-exec")))
 #endif

@@ -1,0 +1,5 @@
+Disallow programs to use more than 48 address bits on amd64.
+Incompatible with LA57 mode.
+Enabling this option might result in a slight reduction in memory
+consumption for jemalloc metadata, but also requires disabling LA57
+(if hardware supports it).
