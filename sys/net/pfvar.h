@@ -2352,12 +2352,6 @@ VNET_DECLARE(struct pf_krule,		 pf_default_rule);
 extern void			 pf_addrcpy(struct pf_addr *, struct pf_addr *,
 				    sa_family_t);
 void				pf_free_rule(struct pf_krule *);
-int				pf_setup_pdesc(sa_family_t, int,
-				    struct pf_pdesc *, struct mbuf *,
-				    u_short *, u_short *, struct pfi_kkif *,
-				    struct pf_krule **, struct pf_krule **,
-				    struct pf_kruleset **, int *, int *,
-				    struct pf_rule_actions *);
 
 int	pf_test_eth(int, int, struct ifnet *, struct mbuf **, struct inpcb *);
 int	pf_scan_sctp(struct mbuf *, int, struct pf_pdesc *, struct pfi_kkif *);
