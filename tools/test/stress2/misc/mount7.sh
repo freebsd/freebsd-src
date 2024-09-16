@@ -28,6 +28,14 @@
 
 # Another parallel mount(8) test scenario
 
+# Seen:
+#  UID   PID  PPID C PRI NI   VSZ  RSS MWCHAN  STAT TT     TIME COMMAND
+#  0 37225 99871 1  32  0 13280 3116 sdstart D+    0  0:00.04 mount /dev/md21 /mnt21
+#  0 37236 99550 9  68  0 13280 3112 sdstart D+    0  0:00.04 mount /dev/md19 /mnt19
+
+# https://people.freebsd.org/~pho/stress/log/log0549.txt
+# Fixed by kib@ in 4b273a7fb9e6
+
 . ../default.cfg
 
 mounts=15
