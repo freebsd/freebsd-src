@@ -48,6 +48,7 @@
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
+#include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/uio.h>
 
@@ -316,7 +317,7 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 	case AMD64_SET_FSBASE:
 		error = copyin(uap->parms, &a64base, sizeof(a64base));
 		if (error == 0) {
-			if (a64base < VM_MAXUSER_ADDRESS) {
+			if (a64base < curproc->p_sysent->sv_maxuser) {
 				set_pcb_flags(pcb, PCB_FULL_IRET);
 				pcb->pcb_fsbase = a64base;
 				td->td_frame->tf_fs = _ufssel;
@@ -334,7 +335,7 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 	case AMD64_SET_GSBASE:
 		error = copyin(uap->parms, &a64base, sizeof(a64base));
 		if (error == 0) {
-			if (a64base < VM_MAXUSER_ADDRESS) {
+			if (a64base < curproc->p_sysent->sv_maxuser) {
 				set_pcb_flags(pcb, PCB_FULL_IRET);
 				pcb->pcb_gsbase = a64base;
 				td->td_frame->tf_gs = _ugssel;
