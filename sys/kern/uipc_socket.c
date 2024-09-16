@@ -3951,7 +3951,9 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 			}
 			if (error)
 				goto bad;
+#ifdef KTRACE
 			ktrsplice(&splice);
+#endif
 
 			error = splice_init();
 			if (error != 0)
