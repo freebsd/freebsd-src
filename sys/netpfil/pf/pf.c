@@ -8555,7 +8555,7 @@ pf_dummynet_route(struct pf_pdesc *pd, struct pf_kstate *s,
 	return (0);
 }
 
-int
+static int
 pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf *m,
     u_short *action, u_short *reason, struct pfi_kkif *kif, struct pf_krule **a,
     struct pf_krule **r, struct pf_kruleset **ruleset, int *off, int *hdrlen,
