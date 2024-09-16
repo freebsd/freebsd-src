@@ -8,6 +8,7 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 : ${BSDDIALOG_HELP=2}
 : ${BSDDIALOG_EXTRA=3}
 : ${BSDDIALOG_ESC=5}
+: ${BSDDIALOG_RIGHT1=9}
 : ${BSDDIALOG_ERROR=255}
 
 kbdcontrol -d >/dev/null 2>&1
@@ -60,7 +61,7 @@ if [ -f /etc/installerconfig ]; then
 	exit 
 fi
 
-bsddialog --backtitle "${OSNAME} Installer" --title "Welcome" --extra-button --extra-label "Shell" --ok-label "Install" --cancel-label "Live System" --yesno "Welcome to ${OSNAME}! Would you like to begin an installation or use the live system?" 0 0
+bsddialog --backtitle "${OSNAME} Installer" --title "Welcome" --extra-button --extra-label "Shell" --ok-label "Install" --cancel-label "Live System" --right1-button "Repair" --yesno "Welcome to ${OSNAME}! Would you like to begin an installation or use the live system?" 0 0
 
 case $? in
 $BSDDIALOG_OK)	# Install
@@ -106,6 +107,13 @@ $BSDDIALOG_CANCEL)	# Live System
 	;;
 $BSDDIALOG_EXTRA)	# Shell
 	clear
+	echo "When finished, type 'exit' to return to the installer."
+	/bin/sh
+	. "$0"
+	;;
+$BSDDIALOG_RIGHT1)	# Repair
+	bsdinstall repair
+	echo "Selected partition is mounted at /mnt."
 	echo "When finished, type 'exit' to return to the installer."
 	/bin/sh
 	. "$0"
