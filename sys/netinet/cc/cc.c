@@ -449,15 +449,14 @@ newreno_cc_after_idle(struct cc_var *ccv)
 }
 
 /*
- * Perform any necessary tasks before we enter congestion recovery.
- */
-void
-newreno_cc_cong_signal(struct cc_var *ccv, ccsignal_t type)
+ * Get a new congestion window size on a multiplicative decrease event.
+ * */
+u_int
+newreno_cc_cwnd_on_multiplicative_decrease(struct cc_var *ccv, uint32_t mss)
 {
-	uint32_t cwin, factor, mss, pipe;
+	uint32_t cwin, factor;
 
 	cwin = CCV(ccv, snd_cwnd);
-	mss = tcp_fixed_maxseg(ccv->tp);
 	/*
 	 * Other TCP congestion controls use newreno_cong_signal(), but
 	 * with their own private cc_data. Make sure the cc_data is used
@@ -465,12 +464,24 @@ newreno_cc_cong_signal(struct cc_var *ccv, ccsignal_t type)
 	 */
 	factor = V_newreno_beta;
 
+	return max(((uint64_t)cwin * (uint64_t)factor) / (100ULL * (uint64_t)mss), 2) * mss;
+}
+
+/*
+ * Perform any necessary tasks before we enter congestion recovery.
+ */
+void
+newreno_cc_cong_signal(struct cc_var *ccv, ccsignal_t type)
+{
+	uint32_t cwin, mss, pipe;
+
+	mss = tcp_fixed_maxseg(ccv->tp);
+
 	/* Catch algos which mistakenly leak private signal types. */
 	KASSERT((type & CC_SIGPRIVMASK) == 0,
 	    ("%s: congestion signal type 0x%08x is private\n", __func__, type));
 
-	cwin = max(((uint64_t)cwin * (uint64_t)factor) / (100ULL * (uint64_t)mss),
-	    2) * mss;
+	cwin = newreno_cc_cwnd_on_multiplicative_decrease(ccv, mss);
 
 	switch (type) {
 	case CC_NDUPACK:
@@ -506,78 +517,109 @@ newreno_cc_cong_signal(struct cc_var *ccv, ccsignal_t type)
 	}
 }
 
+u_int
+newreno_cc_cwnd_in_cong_avoid(struct cc_var *ccv)
+{
+	u_int cw = CCV(ccv, snd_cwnd);
+	u_int incr = CCV(ccv, t_maxseg);
+
+	KASSERT(cw > CCV(ccv, snd_ssthresh),
+		("congestion control state not in congestion avoidance\n"));
+
+	/*
+	 * Regular in-order ACK, open the congestion window.
+	 * The congestion control state we're in is congestion avoidance.
+	 *
+	 * Check if ABC (RFC 3465) is enabled.
+	 * cong avoid: cwnd > ssthresh
+	 *
+	 * cong avoid and ABC (RFC 3465):
+	 *   Grow cwnd linearly by maxseg per RTT for each
+	 *   cwnd worth of ACKed data.
+	 *
+	 * cong avoid without ABC (RFC 5681):
+	 *   Grow cwnd linearly by approximately maxseg per RTT using
+	 *   maxseg^2 / cwnd per ACK as the increment.
+	 *   If cwnd > maxseg^2, fix the cwnd increment at 1 byte to
+	 *   avoid capping cwnd.
+	 */
+	if (V_tcp_do_rfc3465) {
+		if (ccv->flags & CCF_ABC_SENTAWND)
+			ccv->flags &= ~CCF_ABC_SENTAWND;
+		else
+			incr = 0;
+	} else
+		incr = max((incr * incr / cw), 1);
+	/* ABC is on by default, so incr equals 0 frequently. */
+	if (incr > 0)
+		return min(cw + incr, TCP_MAXWIN << CCV(ccv, snd_scale));
+	else
+		return cw;
+}
+
+u_int
+newreno_cc_cwnd_in_slow_start(struct cc_var *ccv)
+{
+	u_int cw = CCV(ccv, snd_cwnd);
+	u_int incr = CCV(ccv, t_maxseg);
+
+	KASSERT(cw <= CCV(ccv, snd_ssthresh),
+		("congestion control state not in slow start\n"));
+
+	/*
+	 * Regular in-order ACK, open the congestion window.
+	 * The congestion control state we're in is slow start.
+	 *
+	 * slow start: cwnd <= ssthresh
+	 *
+	 * slow start and ABC (RFC 3465):
+	 *   Grow cwnd exponentially by the amount of data
+	 *   ACKed capping the max increment per ACK to
+	 *   (abc_l_var * maxseg) bytes.
+	 *
+	 * slow start without ABC (RFC 5681):
+	 *   Grow cwnd exponentially by maxseg per ACK.
+	 */
+	if (V_tcp_do_rfc3465) {
+		/*
+		 * In slow-start with ABC enabled and no RTO in sight?
+		 * (Must not use abc_l_var > 1 if slow starting after
+		 * an RTO. On RTO, snd_nxt = snd_una, so the
+		 * snd_nxt == snd_max check is sufficient to
+		 * handle this).
+		 *
+		 * XXXLAS: Find a way to signal SS after RTO that
+		 * doesn't rely on tcpcb vars.
+		 */
+		uint16_t abc_val;
+
+		if (ccv->flags & CCF_USE_LOCAL_ABC)
+			abc_val = ccv->labc;
+		else
+			abc_val = V_tcp_abc_l_var;
+		if (CCV(ccv, snd_nxt) == CCV(ccv, snd_max))
+			incr = min(ccv->bytes_this_ack,
+			           ccv->nsegs * abc_val * CCV(ccv, t_maxseg));
+		else
+			incr = min(ccv->bytes_this_ack, CCV(ccv, t_maxseg));
+	}
+	/* ABC is on by default, so incr equals 0 frequently. */
+	if (incr > 0)
+		return min(cw + incr, TCP_MAXWIN << CCV(ccv, snd_scale));
+	else
+		return cw;
+}
+
 void
 newreno_cc_ack_received(struct cc_var *ccv, ccsignal_t type)
 {
 	if (type == CC_ACK && !IN_RECOVERY(CCV(ccv, t_flags)) &&
 	    (ccv->flags & CCF_CWND_LIMITED)) {
-		u_int cw = CCV(ccv, snd_cwnd);
-		u_int incr = CCV(ccv, t_maxseg);
-
-		/*
-		 * Regular in-order ACK, open the congestion window.
-		 * Method depends on which congestion control state we're
-		 * in (slow start or cong avoid) and if ABC (RFC 3465) is
-		 * enabled.
-		 *
-		 * slow start: cwnd <= ssthresh
-		 * cong avoid: cwnd > ssthresh
-		 *
-		 * slow start and ABC (RFC 3465):
-		 *   Grow cwnd exponentially by the amount of data
-		 *   ACKed capping the max increment per ACK to
-		 *   (abc_l_var * maxseg) bytes.
-		 *
-		 * slow start without ABC (RFC 5681):
-		 *   Grow cwnd exponentially by maxseg per ACK.
-		 *
-		 * cong avoid and ABC (RFC 3465):
-		 *   Grow cwnd linearly by maxseg per RTT for each
-		 *   cwnd worth of ACKed data.
-		 *
-		 * cong avoid without ABC (RFC 5681):
-		 *   Grow cwnd linearly by approximately maxseg per RTT using
-		 *   maxseg^2 / cwnd per ACK as the increment.
-		 *   If cwnd > maxseg^2, fix the cwnd increment at 1 byte to
-		 *   avoid capping cwnd.
-		 */
-		if (cw > CCV(ccv, snd_ssthresh)) {
-			if (V_tcp_do_rfc3465) {
-				if (ccv->flags & CCF_ABC_SENTAWND)
-					ccv->flags &= ~CCF_ABC_SENTAWND;
-				else
-					incr = 0;
-			} else
-				incr = max((incr * incr / cw), 1);
-		} else if (V_tcp_do_rfc3465) {
-			/*
-			 * In slow-start with ABC enabled and no RTO in sight?
-			 * (Must not use abc_l_var > 1 if slow starting after
-			 * an RTO. On RTO, snd_nxt = snd_una, so the
-			 * snd_nxt == snd_max check is sufficient to
-			 * handle this).
-			 *
-			 * XXXLAS: Find a way to signal SS after RTO that
-			 * doesn't rely on tcpcb vars.
-			 */
-			uint16_t abc_val;
-
-			if (ccv->flags & CCF_USE_LOCAL_ABC)
-				abc_val = ccv->labc;
-			else
-				abc_val = V_tcp_abc_l_var;
-			if (CCV(ccv, snd_nxt) == CCV(ccv, snd_max))
-				incr = min(ccv->bytes_this_ack,
-				    ccv->nsegs * abc_val *
-				    CCV(ccv, t_maxseg));
-			else
-				incr = min(ccv->bytes_this_ack, CCV(ccv, t_maxseg));
-
+		if (CCV(ccv, snd_cwnd) > CCV(ccv, snd_ssthresh)) {
+			CCV(ccv, snd_cwnd) = newreno_cc_cwnd_in_cong_avoid(ccv);
+		} else {
+			CCV(ccv, snd_cwnd) = newreno_cc_cwnd_in_slow_start(ccv);
 		}
-		/* ABC is on by default, so incr equals 0 frequently. */
-		if (incr > 0)
-			CCV(ccv, snd_cwnd) = min(cw + incr,
-			    TCP_MAXWIN << CCV(ccv, snd_scale));
 	}
 }
 
