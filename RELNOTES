@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+0aabcd75dbc2:
+	EC2 AMIs no longer generate RSA host keys by default for SSH.  RSA
+	host key generation can be re-enabled by setting sshd_rsa_enable="YES"
+	in /etc/rc.conf if it is necessary to support very old SSH clients.
+
 a1da7dc1cdad:
 	The SO_SPLICE socket option was added.  It allows TCP connections to
 	be spliced together, enabling proxy-like functionality without the
