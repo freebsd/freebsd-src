@@ -164,6 +164,10 @@ CFLAGS.bzipfs.c+= -I${SRCTOP}/contrib/bzip2  -DBZ_NO_STDIO -DBZ_NO_COMPRESS
 .PATH: ${SYSDIR}/libkern
 SRCS+=  explicit_bzero.c crc32_libkern.c
 
+# Bits from GELI which are reused elsewhere
+.PATH: ${SYSDIR}/geom/eli
+SRCS+=	g_eli_hmac.c pkcs5v2.c
+
 # Maybe GELI
 .if ${MK_LOADER_GELI} == "yes"
 .include "${SASRC}/geli/Makefile.inc"
