@@ -80,6 +80,7 @@ struct kt {
 	{ "nooption",	NOOPTION },
 	{ "nooptions",	NOOPTION },
 	{ "include",	INCLUDE },
+	{ "includeoptions", INCLUDEOPTIONS },
 	{ "files", 	FILES },
 	{ 0, 0 },
 };

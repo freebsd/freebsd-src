@@ -33,7 +33,7 @@
 .Nd build system configuration files
 .Sh SYNOPSIS
 .Nm
-.Op Fl CVgp
+.Op Fl CVgpv
 .Op Fl I Ar path
 .Op Fl d Ar destdir
 .Op Fl s Ar srcdir
@@ -99,6 +99,8 @@ file.
 This option makes sense only if
 .Cd "options INCLUDE_CONFIG_FILE"
 entry was present in your configuration file.
+.It Fl v
+Turns on verbose output.
 .It Ar SYSTEM_NAME
 Specify the name of the system configuration file
 containing device specifications, configuration options
