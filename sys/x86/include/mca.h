@@ -46,6 +46,11 @@ struct mca_record {
 
 #ifdef _KERNEL
 
+typedef void (*mca_decode_func)(void *, const struct mca_record *);
+
+int	mca_register_decode_func(mca_decode_func func, void *aux);
+int	mca_deregister_decode_func(mca_decode_func func);
+
 void	cmc_intr(void);
 void	mca_init(void);
 void	mca_intr(void);
