@@ -369,7 +369,8 @@ end
 function core.loadEntropy()
 	if core.isUEFIBoot() then
 		if (loader.getenv("entropy_efi_seed") or "no"):lower() == "yes" then
-			loader.perform("efi-seed-entropy")
+			local seedsize = loader.getenv("entropy_efi_seed_size") or "2048"
+			loader.perform("efi-seed-entropy " .. seedsize)
 		end
 	end
 end
