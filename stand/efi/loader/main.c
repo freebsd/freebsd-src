@@ -57,6 +57,9 @@
 #include <bootstrap.h>
 #include <smbios.h>
 
+#include <dev/random/fortuna.h>
+#include <geom/eli/pkcs5v2.h>
+
 #include "efizfs.h"
 #include "framebuffer.h"
 
@@ -1250,11 +1253,27 @@ command_seed_entropy(int argc, char *argv[])
 {
 	EFI_STATUS status;
 	EFI_RNG_PROTOCOL *rng;
-	unsigned int size = 2048;
+	unsigned int size_efi = RANDOM_FORTUNA_DEFPOOLSIZE * RANDOM_FORTUNA_NPOOLS;
+	unsigned int size = RANDOM_FORTUNA_DEFPOOLSIZE * RANDOM_FORTUNA_NPOOLS;
+	void *buf_efi;
 	void *buf;
 
 	if (argc > 1) {
-		size = strtol(argv[1], NULL, 0);
+		size_efi = strtol(argv[1], NULL, 0);
+
+		/* Don't *compress* the entropy we get from EFI. */
+		if (size_efi > size)
+			size = size_efi;
+
+		/*
+		 * If the amount of entropy we get from EFI is less than the
+		 * size of a single Fortuna pool -- i.e. not enough to ensure
+		 * that Fortuna is safely seeded -- don't expand it since we
+		 * don't want to trick Fortuna into thinking that it has been
+		 * safely seeded when it has not.
+		 */
+		if (size_efi < RANDOM_FORTUNA_DEFPOOLSIZE)
+			size = size_efi;
 	}
 
 	status = BS->LocateProtocol(&rng_guid, NULL, (VOID **)&rng);
@@ -1268,20 +1287,34 @@ command_seed_entropy(int argc, char *argv[])
 		return (CMD_ERROR);
 	}
 
+	if ((buf_efi = malloc(size_efi)) == NULL) {
+		free(buf);
+		command_errmsg = "out of memory";
+		return (CMD_ERROR);
+	}
+
 	TSENTER2("rng->GetRNG");
-	status = rng->GetRNG(rng, NULL, size, (UINT8 *)buf);
+	status = rng->GetRNG(rng, NULL, size_efi, (UINT8 *)buf_efi);
 	TSEXIT();
 	if (status != EFI_SUCCESS) {
+		free(buf_efi);
 		free(buf);
 		command_errmsg = "GetRNG failed";
 		return (CMD_ERROR);
 	}
+	if (size_efi < size)
+		pkcs5v2_genkey_raw(buf, size, "", 0, buf_efi, size_efi, 1);
+	else
+		memcpy(buf, buf_efi, size);
 
 	if (file_addbuf("efi_rng_seed", "boot_entropy_platform", size, buf) != 0) {
+		free(buf_efi);
 		free(buf);
 		return (CMD_ERROR);
 	}
 
+	explicit_bzero(buf_efi, size_efi);
+	free(buf_efi);
 	free(buf);
 	return (CMD_OK);
 }
