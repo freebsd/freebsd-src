@@ -1538,7 +1538,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		 */
 		if (sc->sc_flags & SCF_ECN_MASK) {
 			sc->sc_flags &= ~SCF_ECN_MASK;
-			sc->sc_flags = tcp_ecn_syncache_add(tcp_get_flags(th), iptos);
+			sc->sc_flags |= tcp_ecn_syncache_add(tcp_get_flags(th), iptos);
 		}
 #ifdef MAC
 		/*
