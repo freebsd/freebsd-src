@@ -1267,7 +1267,9 @@ command_seed_entropy(int argc, char *argv[])
 		return (CMD_ERROR);
 	}
 
+	TSENTER2("rng->GetRNG");
 	status = rng->GetRNG(rng, NULL, size, (UINT8 *)buf);
+	TSEXIT();
 	if (status != EFI_SUCCESS) {
 		free(buf);
 		command_errmsg = "GetRNG failed";
