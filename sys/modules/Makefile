@@ -680,6 +680,7 @@ _irdma=		irdma
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "arm" || \
 	${MACHINE_CPUARCH} == "riscv"
 .if !empty(OPT_FDT)
+_allwinner=	allwinner
 _if_cgem=	if_cgem
 .endif
 .endif
@@ -713,7 +714,6 @@ _hyperv=  hyperv
 _vf_i2c=	vf_i2c
 
 .if !empty(OPT_FDT)
-_allwinner=	allwinner
 _dwwdt=		dwwdt
 _enetc=		enetc
 _felix=		felix
