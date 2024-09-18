@@ -99,8 +99,6 @@ static MALLOC_DEFINE(M_MCA, "MCA", "Machine Check Architecture");
 static volatile int mca_count;	/* Number of records stored. */
 static int mca_banks;		/* Number of per-CPU register banks. */
 static int mca_maxcount = -1;	/* Limit on records stored. (-1 = unlimited) */
-static mca_decode_func mca_func;
-static void *mca_decode_arg;
 
 static SYSCTL_NODE(_hw, OID_AUTO, mca, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "Machine Check Architecture");
@@ -423,50 +421,6 @@ mca_mute(const struct mca_record *rec)
 	return (0);
 }
 
-/*
- * Pass mca_record to a memory controller driver so that it can decode
- * the address and possibly do some more work.
- */
-static void
-mca_decode_record(const struct mca_record *rec)
-{
-
-	if (mca_func != NULL)
-		mca_func(mca_decode_arg, rec);
-}
-
-int
-mca_register_decode_func(mca_decode_func func, void *aux)
-{
-	int error;
-
-	if (func == NULL)
-		return (EINVAL);
-
-	error = 0;
-	mtx_lock_spin(&mca_lock);
-	if (mca_func != NULL)
-		error = EEXIST;
-
-	if (error == 0) {
-		mca_func = func;
-		mca_decode_arg = aux;
-	}
-
-	mtx_unlock_spin(&mca_lock);
-	return (error);
-}
-
-int
-mca_deregister_decode_func(mca_decode_func func)
-{
-	if (func == NULL || func != mca_func)
-		return (EINVAL);
-
-	mca_func = NULL;
-	return (0);
-}
-
 /* Dump details about a single machine check. */
 static void
 mca_log(const struct mca_record *rec)
@@ -659,8 +613,6 @@ mca_log(const struct mca_record *rec)
 	}
 	if (rec->mr_status & MC_STATUS_MISCV)
 		printf("MCA: Misc 0x%llx\n", (long long)rec->mr_misc);
-
-	mca_decode_record(rec);
 }
 
 static bool
