@@ -120,6 +120,30 @@ typedef struct BcHistory
 extern const char bc_history_editrc[];
 extern const size_t bc_history_editrc_len;
 
+#ifdef __APPLE__
+
+/**
+ * Returns true if the line is a valid line, false otherwise.
+ * @param line  The line.
+ * @param len   The length of the line.
+ * @return      True if the line is valid, false otherwise.
+ */
+#define BC_HISTORY_INVALID_LINE(line, len) \
+	((line) == NULL && ((len) == -1 || errno == EINTR))
+
+#else // __APPLE__
+
+/**
+ * Returns true if the line is a valid line, false otherwise.
+ * @param line  The line.
+ * @param len   The length of the line.
+ * @return      True if the line is valid, false otherwise.
+ */
+#define BC_HISTORY_INVALID_LINE(line, len) \
+	((line) == NULL && (len) == -1 && errno == EINTR)
+
+#endif // __APPLE__
+
 #else // BC_ENABLE_EDITLINE
 
 #if BC_ENABLE_READLINE
