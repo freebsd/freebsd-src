@@ -33,10 +33,10 @@
 #include <sys/stat.h>
 
 #include <errno.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <fcntl.h>
 #include <ssp/ssp.h>
 #include "un-namespace.h"
 #include "libc_private.h"
@@ -146,13 +146,14 @@ realpath1(const char *path, char *resolved)
 				return (NULL);
 			}
 			slen = readlink(resolved, symlink, sizeof(symlink));
-			if (slen <= 0 || slen >= (ssize_t)sizeof(symlink)) {
-				if (slen < 0)
-					; /* keep errno from readlink(2) call */
-				else if (slen == 0)
-					errno = ENOENT;
-				else
-					errno = ENAMETOOLONG;
+			if (slen < 0)
+				return (NULL);
+			if (slen == 0) {
+				errno = ENOENT;
+				return (NULL);
+			}
+			if ((size_t)slen >= sizeof(symlink)) {
+				errno = ENAMETOOLONG;
 				return (NULL);
 			}
 			symlink[slen] = '\0';
@@ -173,7 +174,7 @@ realpath1(const char *path, char *resolved)
 			 */
 			if (p != NULL) {
 				if (symlink[slen - 1] != '/') {
-					if (slen + 1 >= (ssize_t)sizeof(symlink)) {
+					if ((size_t)slen + 1 >= sizeof(symlink)) {
 						errno = ENAMETOOLONG;
 						return (NULL);
 					}
