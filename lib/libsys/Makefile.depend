@@ -2,13 +2,10 @@
 
 DIRDEPS = \
 	include \
-	include/rpc \
-	include/rpcsvc \
+	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libcompiler_rt \
-	lib/libsys \
 	usr.bin/awk.host \
-	usr.bin/yacc.host \
 
 
 .include <dirdeps.mk>
