@@ -55,6 +55,7 @@
 #include <crypto/rijndael/rijndael-api-fst.h>
 #include <crypto/sha2/sha256.h>
 
+#include <dev/random/fortuna.h>
 #include <dev/random/hash.h>
 #include <dev/random/randomdev.h>
 #include <dev/random/random_harvestq.h>
@@ -260,8 +261,8 @@ random_sources_feed(void)
 	 * stuck for a few seconds with random_kthread gradually collecting a
 	 * small chunk of entropy every 1 / RANDOM_KTHREAD_HZ seconds.
 	 *
-	 * The value 64 below is RANDOM_FORTUNA_DEFPOOLSIZE, i.e. chosen to
-	 * fill Fortuna's pools in the default configuration.  With another
+	 * We collect RANDOM_FORTUNA_DEFPOOLSIZE bytes per pool, i.e. enough
+	 * to fill Fortuna's pools in the default configuration.  With another
 	 * PRNG or smaller pools for Fortuna, we might collect more entropy
 	 * than needed to fill the pools, but this is harmless; alternatively,
 	 * a different PRNG, larger pools, or fast entropy sources which are
@@ -271,8 +272,8 @@ random_sources_feed(void)
 	 * try again for a large amount of entropy.
 	 */
 	if (!p_random_alg_context->ra_seeded())
-		npools = howmany(p_random_alg_context->ra_poolcount * 64,
-		    sizeof(entropy));
+		npools = howmany(p_random_alg_context->ra_poolcount *
+		    RANDOM_FORTUNA_DEFPOOLSIZE, sizeof(entropy));
 
 	/*
 	 * Step over all of live entropy sources, and feed their output
