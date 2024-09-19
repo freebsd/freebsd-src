@@ -527,12 +527,12 @@ void ixgbe_init_mbx_params_vf(struct ixgbe_hw *hw)
 
 static s32 ixgbe_check_for_bit_pf(struct ixgbe_hw *hw, u32 mask, s32 index)
 {
-	u32 mbvficr = IXGBE_READ_REG(hw, IXGBE_MBVFICR(index));
+	u32 pfmbicr = IXGBE_READ_REG(hw, IXGBE_PFMBICR(index));
 	s32 ret_val = IXGBE_ERR_MBX;
 
-	if (mbvficr & mask) {
+	if (pfmbicr & mask) {
 		ret_val = IXGBE_SUCCESS;
-		IXGBE_WRITE_REG(hw, IXGBE_MBVFICR(index), mask);
+		IXGBE_WRITE_REG(hw, IXGBE_PFMBICR(index), mask);
 	}
 
 	return ret_val;
@@ -547,13 +547,13 @@ static s32 ixgbe_check_for_bit_pf(struct ixgbe_hw *hw, u32 mask, s32 index)
  **/
 static s32 ixgbe_check_for_msg_pf(struct ixgbe_hw *hw, u16 vf_number)
 {
+	u32 vf_shift = IXGBE_PFMBICR_SHIFT(vf_number);
+	s32 index = IXGBE_PFMBICR_INDEX(vf_number);
 	s32 ret_val = IXGBE_ERR_MBX;
-	s32 index = IXGBE_MBVFICR_INDEX(vf_number);
-	u32 vf_bit = vf_number % 16;
 
 	DEBUGFUNC("ixgbe_check_for_msg_pf");
 
-	if (!ixgbe_check_for_bit_pf(hw, IXGBE_MBVFICR_VFREQ_VF1 << vf_bit,
+	if (!ixgbe_check_for_bit_pf(hw, IXGBE_PFMBICR_VFREQ_VF1 << vf_shift,
 				    index)) {
 		ret_val = IXGBE_SUCCESS;
 		hw->mbx.stats.reqs++;
@@ -571,13 +571,13 @@ static s32 ixgbe_check_for_msg_pf(struct ixgbe_hw *hw, u16 vf_number)
  **/
 static s32 ixgbe_check_for_ack_pf(struct ixgbe_hw *hw, u16 vf_number)
 {
+	u32 vf_shift = IXGBE_PFMBICR_SHIFT(vf_number);
+	s32 index = IXGBE_PFMBICR_INDEX(vf_number);
 	s32 ret_val = IXGBE_ERR_MBX;
-	s32 index = IXGBE_MBVFICR_INDEX(vf_number);
-	u32 vf_bit = vf_number % 16;
 
 	DEBUGFUNC("ixgbe_check_for_ack_pf");
 
-	if (!ixgbe_check_for_bit_pf(hw, IXGBE_MBVFICR_VFACK_VF1 << vf_bit,
+	if (!ixgbe_check_for_bit_pf(hw, IXGBE_PFMBICR_VFACK_VF1 << vf_shift,
 				    index)) {
 		ret_val = IXGBE_SUCCESS;
 		hw->mbx.stats.acks++;
@@ -595,22 +595,22 @@ static s32 ixgbe_check_for_ack_pf(struct ixgbe_hw *hw, u16 vf_number)
  **/
 static s32 ixgbe_check_for_rst_pf(struct ixgbe_hw *hw, u16 vf_number)
 {
-	u32 reg_offset = (vf_number < 32) ? 0 : 1;
-	u32 vf_shift = vf_number % 32;
-	u32 vflre = 0;
+	u32 vf_shift = IXGBE_PFVFLRE_SHIFT(vf_number);
+	u32 index = IXGBE_PFVFLRE_INDEX(vf_number);
 	s32 ret_val = IXGBE_ERR_MBX;
+	u32 vflre = 0;
 
 	DEBUGFUNC("ixgbe_check_for_rst_pf");
 
 	switch (hw->mac.type) {
 	case ixgbe_mac_82599EB:
-		vflre = IXGBE_READ_REG(hw, IXGBE_VFLRE(reg_offset));
+		vflre = IXGBE_READ_REG(hw, IXGBE_PFVFLRE(index));
 		break;
 	case ixgbe_mac_X550:
 	case ixgbe_mac_X550EM_x:
 	case ixgbe_mac_X550EM_a:
 	case ixgbe_mac_X540:
-		vflre = IXGBE_READ_REG(hw, IXGBE_VFLREC(reg_offset));
+		vflre = IXGBE_READ_REG(hw, IXGBE_PFVFLREC(index));
 		break;
 	default:
 		break;
@@ -618,7 +618,7 @@ static s32 ixgbe_check_for_rst_pf(struct ixgbe_hw *hw, u16 vf_number)
 
 	if (vflre & (1 << vf_shift)) {
 		ret_val = IXGBE_SUCCESS;
-		IXGBE_WRITE_REG(hw, IXGBE_VFLREC(reg_offset), (1 << vf_shift));
+		IXGBE_WRITE_REG(hw, IXGBE_PFVFLREC(index), (1 << vf_shift));
 		hw->mbx.stats.rsts++;
 	}
 
