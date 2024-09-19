@@ -1832,7 +1832,7 @@ enum {
 /* VFRE bitmask */
 #define IXGBE_VFRE_ENABLE_ALL	0xFFFFFFFF
 
-#define IXGBE_VF_INIT_TIMEOUT	200 /* Number of retries to clear RSTI */
+#define IXGBE_VF_INIT_TIMEOUT	10000 /* Number of retries to clear RSTI */
 
 /* RDHMPN and TDHMPN bitmasks */
 #define IXGBE_RDHMPN_RDICADDR		0x007FF800
