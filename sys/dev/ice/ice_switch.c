@@ -4292,8 +4292,6 @@ ice_replay_vsi_fltr(struct ice_hw *hw, struct ice_port_info *pi,
 		if (!itr->vsi_list_info ||
 		    !ice_is_bit_set(itr->vsi_list_info->vsi_map, vsi_handle))
 			continue;
-		/* Clearing it so that the logic can add it back */
-		ice_clear_bit(vsi_handle, itr->vsi_list_info->vsi_map);
 		f_entry.fltr_info.vsi_handle = vsi_handle;
 		f_entry.fltr_info.fltr_act = ICE_FWD_TO_VSI;
 		/* update the src in case it is VSI num */
