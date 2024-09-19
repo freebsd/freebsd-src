@@ -471,6 +471,7 @@ extern struct mtx_padalign pa_lock[];
 
 #include <sys/kassert.h>
 #include <machine/atomic.h>
+struct pctrie_iter;
 
 /*
  * Each pageable resident page falls into one of five lists:
@@ -642,6 +643,7 @@ void vm_page_deactivate_noreuse(vm_page_t);
 void vm_page_dequeue(vm_page_t m);
 void vm_page_dequeue_deferred(vm_page_t m);
 vm_page_t vm_page_find_least(vm_object_t, vm_pindex_t);
+vm_page_t vm_page_iter_lookup_ge(struct pctrie_iter *, vm_pindex_t);
 void vm_page_free_invalid(vm_page_t);
 vm_page_t vm_page_getfake(vm_paddr_t paddr, vm_memattr_t memattr);
 void vm_page_initfake(vm_page_t m, vm_paddr_t paddr, vm_memattr_t memattr);
@@ -651,6 +653,9 @@ int vm_page_insert (vm_page_t, vm_object_t, vm_pindex_t);
 void vm_page_invalid(vm_page_t m);
 void vm_page_launder(vm_page_t m);
 vm_page_t vm_page_lookup(vm_object_t, vm_pindex_t);
+void vm_page_iter_init(struct pctrie_iter *, vm_object_t);
+void vm_page_iter_limit_init(struct pctrie_iter *, vm_object_t, vm_pindex_t);
+vm_page_t vm_page_iter_lookup(struct pctrie_iter *, vm_pindex_t);
 vm_page_t vm_page_lookup_unlocked(vm_object_t, vm_pindex_t);
 vm_page_t vm_page_next(vm_page_t m);
 void vm_page_pqbatch_drain(void);
