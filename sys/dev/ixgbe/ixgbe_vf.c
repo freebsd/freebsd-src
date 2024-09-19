@@ -223,11 +223,11 @@ s32 ixgbe_reset_hw_vf(struct ixgbe_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	if (msgbuf[0] != (IXGBE_VF_RESET | IXGBE_VT_MSGTYPE_ACK) &&
-	    msgbuf[0] != (IXGBE_VF_RESET | IXGBE_VT_MSGTYPE_NACK))
+	if (msgbuf[0] != (IXGBE_VF_RESET | IXGBE_VT_MSGTYPE_SUCCESS) &&
+	    msgbuf[0] != (IXGBE_VF_RESET | IXGBE_VT_MSGTYPE_FAILURE))
 		return IXGBE_ERR_INVALID_MAC_ADDR;
 
-	if (msgbuf[0] == (IXGBE_VF_RESET | IXGBE_VT_MSGTYPE_ACK))
+	if (msgbuf[0] == (IXGBE_VF_RESET | IXGBE_VT_MSGTYPE_SUCCESS))
 		memcpy(hw->mac.perm_addr, addr, IXGBE_ETH_LENGTH_OF_ADDRESS);
 
 	hw->mac.mc_filter_type = msgbuf[IXGBE_VF_MC_TYPE_WORD];
@@ -356,9 +356,9 @@ s32 ixgbe_set_rar_vf(struct ixgbe_hw *hw, u32 index, u8 *addr, u32 vmdq,
 
 	msgbuf[0] &= ~IXGBE_VT_MSGTYPE_CTS;
 
-	/* if nacked the address was rejected, use "perm_addr" */
+	/* if we had failure, the address was rejected, use "perm_addr" */
 	if (!ret_val &&
-	    (msgbuf[0] == (IXGBE_VF_SET_MAC_ADDR | IXGBE_VT_MSGTYPE_NACK))) {
+	    (msgbuf[0] == (IXGBE_VF_SET_MAC_ADDR | IXGBE_VT_MSGTYPE_FAILURE))) {
 		ixgbe_get_mac_addr_vf(hw, hw->mac.addr);
 		return IXGBE_ERR_MBX;
 	}
@@ -447,7 +447,7 @@ s32 ixgbevf_update_xcast_mode(struct ixgbe_hw *hw, int xcast_mode)
 		return err;
 
 	msgbuf[0] &= ~IXGBE_VT_MSGTYPE_CTS;
-	if (msgbuf[0] == (IXGBE_VF_UPDATE_XCAST_MODE | IXGBE_VT_MSGTYPE_NACK))
+	if (msgbuf[0] == (IXGBE_VF_UPDATE_XCAST_MODE | IXGBE_VT_MSGTYPE_FAILURE))
 		return IXGBE_ERR_FEATURE_NOT_SUPPORTED;
 	return IXGBE_SUCCESS;
 }
@@ -470,7 +470,7 @@ s32 ixgbe_get_link_state_vf(struct ixgbe_hw *hw, bool *link_state)
 
 	err = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf, 2);
 
-	if (err || (msgbuf[0] & IXGBE_VT_MSGTYPE_NACK)) {
+	if (err || (msgbuf[0] & IXGBE_VT_MSGTYPE_FAILURE)) {
 		ret_val = IXGBE_ERR_MBX;
 	} else {
 		ret_val = IXGBE_SUCCESS;
@@ -503,10 +503,10 @@ s32 ixgbe_set_vfta_vf(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 	msgbuf[0] |= vlan_on << IXGBE_VT_MSGINFO_SHIFT;
 
 	ret_val = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf, 2);
-	if (!ret_val && (msgbuf[0] & IXGBE_VT_MSGTYPE_ACK))
+	if (!ret_val && (msgbuf[0] & IXGBE_VT_MSGTYPE_SUCCESS))
 		return IXGBE_SUCCESS;
 
-	return ret_val | (msgbuf[0] & IXGBE_VT_MSGTYPE_NACK);
+	return ret_val | (msgbuf[0] & IXGBE_VT_MSGTYPE_FAILURE);
 }
 
 /**
@@ -571,7 +571,7 @@ s32 ixgbevf_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr)
 	if (!ret_val) {
 		msgbuf[0] &= ~IXGBE_VT_MSGTYPE_CTS;
 
-		if (msgbuf[0] == (msgbuf_chk | IXGBE_VT_MSGTYPE_NACK))
+		if (msgbuf[0] == (msgbuf_chk | IXGBE_VT_MSGTYPE_FAILURE))
 			return IXGBE_ERR_OUT_OF_MEM;
 	}
 
@@ -674,8 +674,10 @@ s32 ixgbe_check_mac_link_vf(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 		goto out;
 
 	if (!(in_msg & IXGBE_VT_MSGTYPE_CTS)) {
-		/* msg is not CTS and is NACK we must have lost CTS status */
-		if (in_msg & IXGBE_VT_MSGTYPE_NACK)
+		/* msg is not CTS and is FAILURE,
+		 * we must have lost CTS status.
+		 */
+		if (in_msg & IXGBE_VT_MSGTYPE_FAILURE)
 			ret_val = -1;
 		goto out;
 	}
@@ -713,7 +715,7 @@ s32 ixgbevf_rlpml_set_vf(struct ixgbe_hw *hw, u16 max_size)
 	if (retval)
 		return retval;
 	if ((msgbuf[0] & IXGBE_VF_SET_LPE) &&
-	    (msgbuf[0] & IXGBE_VT_MSGTYPE_NACK))
+	    (msgbuf[0] & IXGBE_VT_MSGTYPE_FAILURE))
 		return IXGBE_ERR_MBX;
 
 	return 0;
@@ -739,7 +741,7 @@ int ixgbevf_negotiate_api_version(struct ixgbe_hw *hw, int api)
 		msg[0] &= ~IXGBE_VT_MSGTYPE_CTS;
 
 		/* Store value and return 0 on success */
-		if (msg[0] == (IXGBE_VF_API_NEGOTIATE | IXGBE_VT_MSGTYPE_ACK)) {
+		if (msg[0] == (IXGBE_VF_API_NEGOTIATE | IXGBE_VT_MSGTYPE_SUCCESS)) {
 			hw->api_version = api;
 			return 0;
 		}
@@ -775,11 +777,11 @@ int ixgbevf_get_queues(struct ixgbe_hw *hw, unsigned int *num_tcs,
 		msg[0] &= ~IXGBE_VT_MSGTYPE_CTS;
 
 		/*
-		 * if we we didn't get an ACK there must have been
+		 * if we we didn't get a SUCCESS there must have been
 		 * some sort of mailbox error so we should treat it
 		 * as such
 		 */
-		if (msg[0] != (IXGBE_VF_GET_QUEUES | IXGBE_VT_MSGTYPE_ACK))
+		if (msg[0] != (IXGBE_VF_GET_QUEUES | IXGBE_VT_MSGTYPE_SUCCESS))
 			return IXGBE_ERR_MBX;
 
 		/* record and validate values from message */
