@@ -187,14 +187,16 @@ vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index)
 {
 	return (VM_RADIX_PCTRIE_REMOVE_LOOKUP(&rtree->rt_trie, index));
 }
-
+ 
 /*
- * Reclaim all the interior nodes from the radix tree.
+ * Reclaim all the interior nodes of the trie, and invoke the callback
+ * on all the pages, in order.
  */
 static __inline void
-vm_radix_reclaim_allnodes(struct vm_radix *rtree)
+vm_radix_reclaim_callback(struct vm_radix *rtree,
+    void (*page_cb)(vm_page_t, void *), void *arg)
 {
-	VM_RADIX_PCTRIE_RECLAIM(&rtree->rt_trie);
+	VM_RADIX_PCTRIE_RECLAIM_CALLBACK(&rtree->rt_trie, page_cb, arg);
 }
 
 /*
