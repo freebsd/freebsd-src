@@ -56,8 +56,8 @@ vm_radix_is_empty(struct vm_radix *rtree)
 	return (pctrie_is_empty(&rtree->rt_trie));
 }
 
-PCTRIE_DEFINE_SMR(VM_RADIX, vm_page, pindex, vm_radix_node_alloc, vm_radix_node_free,
-    vm_radix_smr);
+PCTRIE_DEFINE_SMR(VM_RADIX, vm_page, pindex, vm_radix_node_alloc,
+    vm_radix_node_free, vm_radix_smr);
 
 /*
  * Inserts the key-value pair into the trie.
@@ -112,6 +112,49 @@ vm_radix_lookup_unlocked(struct vm_radix *rtree, vm_pindex_t index)
 }
 
 /*
+ * Initialize an iterator for vm_radix.
+ */
+static __inline void
+vm_radix_iter_init(struct pctrie_iter *pages, struct vm_radix *rtree)
+{
+	pctrie_iter_init(pages, &rtree->rt_trie);
+}
+
+/*
+ * Initialize an iterator for vm_radix.
+ */
+static __inline void
+vm_radix_iter_limit_init(struct pctrie_iter *pages, struct vm_radix *rtree,
+    vm_pindex_t limit)
+{
+	pctrie_iter_limit_init(pages, &rtree->rt_trie, limit);
+}
+
+/*
+ * Returns the value stored at the index.
+ * Requires that access be externally synchronized by a lock.
+ *
+ * If the index is not present, NULL is returned.
+ */
+static __inline vm_page_t
+vm_radix_iter_lookup(struct pctrie_iter *pages, vm_pindex_t index)
+{
+	return (VM_RADIX_PCTRIE_ITER_LOOKUP(pages, index));
+}
+
+/*
+ * Returns the value stored 'stride' steps beyond the current position.
+ * Requires that access be externally synchronized by a lock.
+ *
+ * If the index is not present, NULL is returned.
+ */
+static __inline vm_page_t
+vm_radix_iter_stride(struct pctrie_iter *pages, int stride)
+{
+	return (VM_RADIX_PCTRIE_ITER_STRIDE(pages, stride));
+}
+
+/*
  * Returns the page with the least pindex that is greater than or equal to the
  * specified pindex, or NULL if there are no such pages.
  *
@@ -146,12 +189,86 @@ vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index)
 }
 
 /*
- * Remove and free all the nodes from the radix tree.
+ * Reclaim all the interior nodes from the radix tree.
  */
 static __inline void
 vm_radix_reclaim_allnodes(struct vm_radix *rtree)
 {
 	VM_RADIX_PCTRIE_RECLAIM(&rtree->rt_trie);
+}
+
+/*
+ * Initialize an iterator pointing to the page with the least pindex that is
+ * greater than or equal to the specified pindex, or NULL if there are no such
+ * pages.  Return the page.
+ *
+ * Requires that access be externally synchronized by a lock.
+ */
+static __inline vm_page_t
+vm_radix_iter_lookup_ge(struct pctrie_iter *pages, vm_pindex_t index)
+{
+	return (VM_RADIX_PCTRIE_ITER_LOOKUP_GE(pages, index));
+}
+
+/*
+ * Update the iterator to point to the page with the least pindex that is 'jump'
+ * or more greater than or equal to the current pindex, or NULL if there are no
+ * such pages.  Return the page.
+ *
+ * Requires that access be externally synchronized by a lock.
+ */
+static __inline vm_page_t
+vm_radix_iter_jump(struct pctrie_iter *pages, vm_pindex_t jump)
+{
+	return (VM_RADIX_PCTRIE_ITER_JUMP_GE(pages, jump));
+}
+
+/*
+ * Update the iterator to point to the page with the least pindex that is one or
+ * more greater than the current pindex, or NULL if there are no such pages.
+ * Return the page.
+ *
+ * Requires that access be externally synchronized by a lock.
+ */
+static __inline vm_page_t
+vm_radix_iter_step(struct pctrie_iter *pages)
+{
+	return (VM_RADIX_PCTRIE_ITER_STEP_GE(pages));
+}
+
+/*
+ * Update the iterator to point to the page with the pindex that is one greater
+ * than the current pindex, or NULL if there is no such page.  Return the page.
+ *
+ * Requires that access be externally synchronized by a lock.
+ */
+static __inline vm_page_t
+vm_radix_iter_next(struct pctrie_iter *pages)
+{
+	return (VM_RADIX_PCTRIE_ITER_NEXT(pages));
+}
+
+/*
+ * Update the iterator to point to the page with the pindex that is one less
+ * than the current pindex, or NULL if there is no such page.  Return the page.
+ *
+ * Requires that access be externally synchronized by a lock.
+ */
+static __inline vm_page_t
+vm_radix_iter_prev(struct pctrie_iter *pages)
+{
+	return (VM_RADIX_PCTRIE_ITER_PREV(pages));
+}
+
+/*
+ * Return the current page.
+ *
+ * Requires that access be externally synchronized by a lock.
+ */
+static __inline vm_page_t
+vm_radix_iter_page(struct pctrie_iter *pages)
+{
+	return (VM_RADIX_PCTRIE_ITER_VALUE(pages));
 }
 
 /*
