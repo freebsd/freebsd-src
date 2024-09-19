@@ -179,7 +179,7 @@ struct netmap_mem_d {
 	/* list of all existing allocators, sorted by nm_id */
 	struct netmap_mem_d *prev, *next;
 
-	struct netmap_mem_ops *ops;
+	const struct netmap_mem_ops *ops;
 
 	struct netmap_obj_params params[NETMAP_POOLS_NR];
 
@@ -533,7 +533,7 @@ static struct netmap_obj_params netmap_min_priv_params[NETMAP_POOLS_NR] = {
  * running in netmap mode.
  * Virtual (VALE) ports will have each its own allocator.
  */
-extern struct netmap_mem_ops netmap_mem_global_ops; /* forward */
+extern const struct netmap_mem_ops netmap_mem_global_ops; /* forward */
 struct netmap_mem_d nm_mem = {	/* Our memory allocator. */
 	.pools = {
 		[NETMAP_IF_POOL] = {
@@ -1670,7 +1670,7 @@ error:
  */
 static void *
 _netmap_mem_private_new(size_t size, struct netmap_obj_params *p, int grp_id,
-		struct netmap_mem_ops *ops, uint64_t memtotal, int *perr)
+		const struct netmap_mem_ops *ops, uint64_t memtotal, int *perr)
 {
 	struct netmap_mem_d *d = NULL;
 	int i, err = 0;
@@ -2177,7 +2177,7 @@ netmap_mem2_deref(struct netmap_mem_d *nmd, struct netmap_adapter *na)
 
 }
 
-struct netmap_mem_ops netmap_mem_global_ops = {
+const struct netmap_mem_ops netmap_mem_global_ops = {
 	.nmd_get_lut = netmap_mem2_get_lut,
 	.nmd_get_info = netmap_mem2_get_info,
 	.nmd_ofstophys = netmap_mem2_ofstophys,
