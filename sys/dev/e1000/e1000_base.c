@@ -137,7 +137,7 @@ void e1000_power_down_phy_copper_base(struct e1000_hw *hw)
 		return;
 
 	/* If the management interface is not enabled, then power down */
-	if (phy->ops.check_reset_block(hw))
+	if (!(e1000_enable_mng_pass_thru(hw) || phy->ops.check_reset_block(hw)))
 		e1000_power_down_phy_copper(hw);
 }
 
