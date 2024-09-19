@@ -513,6 +513,7 @@
  */
 #define	PRIV_KMEM_READ		680	/* Open mem/kmem for reading. */
 #define	PRIV_KMEM_WRITE		681	/* Open mem/kmem for writing. */
+#define	PRIV_PROC_MEM_WRITE	682	/* Open /proc/<pid>/mem for writing. */
 
 /*
  * Kernel debugger privileges.
