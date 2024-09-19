@@ -12,6 +12,14 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20240919:
+	13.4-RELEASE-p1 SA-24:15.bhyve
+			SA-24:16.libnv
+
+	Fix bhyve(8) out-of-bounds read access via XHCI emulation [SA-24:15.bhyve]
+
+	Fix integer overflow in libnv [SA-24:16.libnv]
+
 20240917:
 	13.4-RELEASE.
 
