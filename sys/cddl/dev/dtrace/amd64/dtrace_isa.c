@@ -32,6 +32,8 @@
 #include <sys/stack.h>
 #include <sys/pcpu.h>
 
+#include <cddl/dev/dtrace/dtrace_cddl.h>
+
 #include <machine/frame.h>
 #include <machine/md_var.h>
 #include <machine/stack.h>
@@ -355,6 +357,7 @@ zero:
 uint64_t
 dtrace_getarg(int arg, int aframes)
 {
+	struct thread *td;
 	uintptr_t val;
 	struct amd64_frame *fp = (struct amd64_frame *)dtrace_getfp();
 	uintptr_t *stack;
@@ -366,56 +369,38 @@ dtrace_getarg(int arg, int aframes)
 	 */
 	int inreg = 5;
 
-	for (i = 1; i <= aframes; i++) {
-		fp = fp->f_frame;
+	/*
+	 * Did we arrive here via dtrace_invop()?  We can simply fetch arguments
+	 * from the trap frame if so.
+	 */
+	td = curthread;
+	if (td->t_dtrace_trapframe != NULL) {
+		struct trapframe *tf = td->t_dtrace_trapframe;
 
-		if (roundup2(fp->f_retaddr, 16) ==
-		    (long)dtrace_invop_callsite) {
-			/*
-			 * In the case of amd64, we will use the pointer to the
-			 * regs structure that was pushed when we took the
-			 * trap.  To get this structure, we must increment
-			 * beyond the frame structure, and then again beyond
-			 * the calling RIP stored in dtrace_invop().  If the
-			 * argument that we're seeking is passed on the stack,
-			 * we'll pull the true stack pointer out of the saved
-			 * registers and decrement our argument by the number
-			 * of arguments passed in registers; if the argument
-			 * we're seeking is passed in registers, we can just
-			 * load it directly.
-			 */
-			struct trapframe *tf = (struct trapframe *)&fp[1];
-
-			if (arg <= inreg) {
-				switch (arg) {
-				case 0:
-					stack = (uintptr_t *)&tf->tf_rdi;
-					break;
-				case 1:
-					stack = (uintptr_t *)&tf->tf_rsi;
-					break;
-				case 2:
-					stack = (uintptr_t *)&tf->tf_rdx;
-					break;
-				case 3:
-					stack = (uintptr_t *)&tf->tf_rcx;
-					break;
-				case 4:
-					stack = (uintptr_t *)&tf->tf_r8;
-					break;
-				case 5:
-					stack = (uintptr_t *)&tf->tf_r9;
-					break;
-				}
-				arg = 0;
-			} else {
-				stack = (uintptr_t *)(tf->tf_rsp);
-				arg -= inreg;
+		if (arg <= inreg) {
+			switch (arg) {
+			case 0:
+				return (tf->tf_rdi);
+			case 1:
+				return (tf->tf_rsi);
+			case 2:
+				return (tf->tf_rdx);
+			case 3:
+				return (tf->tf_rcx);
+			case 4:
+				return (tf->tf_r8);
+			case 5:
+				return (tf->tf_r9);
 			}
-			goto load;
 		}
 
+		arg -= inreg;
+		stack = (uintptr_t *)tf->tf_rsp;
+		goto load;
 	}
+
+	for (i = 1; i <= aframes; i++)
+		fp = fp->f_frame;
 
 	/*
 	 * We know that we did not come through a trap to get into
