@@ -3825,6 +3825,14 @@ socksetup(struct peer *pe)
 	if (pe->pe_serv == NULL)
 		pe->pe_serv = "syslog";
 	error = getaddrinfo(pe->pe_name, pe->pe_serv, &hints, &res0);
+	if (error == EAI_NONAME && pe->pe_name == NULL && SecureMode > 1) {
+		/*
+		 * If we're in secure mode, we won't open inet sockets anyway.
+		 * This failure can arise legitimately when running in a jail
+		 * without networking.
+		 */
+		return (0);
+	}
 	if (error) {
 		char *msgbuf;
 
