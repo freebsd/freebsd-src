@@ -62,16 +62,16 @@
  * @var ice_rc_version
  * @brief driver release candidate version number
  */
-const char ice_driver_version[] = "1.42.5-k";
+const char ice_driver_version[] = "1.43.2-k";
 const uint8_t ice_major_version = 1;
-const uint8_t ice_minor_version = 42;
-const uint8_t ice_patch_version = 5;
+const uint8_t ice_minor_version = 43;
+const uint8_t ice_patch_version = 2;
 const uint8_t ice_rc_version = 0;
 
 #define PVIDV(vendor, devid, name) \
-	PVID(vendor, devid, name " - 1.42.5-k")
+	PVID(vendor, devid, name " - 1.43.2-k")
 #define PVIDV_OEM(vendor, devid, svid, sdevid, revid, name) \
-	PVID_OEM(vendor, devid, svid, sdevid, revid, name " - 1.42.5-k")
+	PVID_OEM(vendor, devid, svid, sdevid, revid, name " - 1.43.2-k")
 
 /**
  * @var ice_vendor_info_array

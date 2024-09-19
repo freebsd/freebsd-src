@@ -84,6 +84,7 @@ static int ice_if_i2c_req(if_ctx_t ctx, struct ifi2creq *req);
 static int ice_if_suspend(if_ctx_t ctx);
 static int ice_if_resume(if_ctx_t ctx);
 static bool ice_if_needs_restart(if_ctx_t ctx, enum iflib_restart_event event);
+static void ice_init_link(struct ice_softc *sc);
 static int ice_setup_mirror_vsi(struct ice_mirr_if *mif);
 static int ice_wire_mirror_intrs(struct ice_mirr_if *mif);
 static void ice_free_irqvs_subif(struct ice_mirr_if *mif);
@@ -833,9 +834,8 @@ ice_if_attach_post(if_ctx_t ctx)
 	/* Get DCBX/LLDP state and start DCBX agent */
 	ice_init_dcb_setup(sc);
 
-	/* Setup link configuration parameters */
-	ice_init_link_configuration(sc);
-	ice_update_link_status(sc, true);
+	/* Setup link, if PHY FW is ready */
+	ice_init_link(sc);
 
 	/* Configure interrupt causes for the administrative interrupt */
 	ice_configure_misc_interrupts(sc);
@@ -2136,6 +2136,18 @@ ice_poll_for_media_avail(struct ice_softc *sc)
 	struct ice_hw *hw = &sc->hw;
 	struct ice_port_info *pi = hw->port_info;
 
+	/* E830 only: There's no interrupt for when the PHY FW has finished loading,
+	 * so poll for the status in the media task here if it's previously
+	 * been detected that it's still loading.
+	 */
+	if (ice_is_e830(hw) &&
+	    ice_test_state(&sc->state, ICE_STATE_PHY_FW_INIT_PENDING)) {
+		if (rd32(hw, GL_MNG_FWSM) & GL_MNG_FWSM_FW_LOADING_M)
+			ice_clear_state(&sc->state, ICE_STATE_PHY_FW_INIT_PENDING);
+		else
+			return;
+	}
+
 	if (ice_test_state(&sc->state, ICE_STATE_NO_MEDIA)) {
 		pi->phy.get_link_info = true;
 		ice_get_link_status(pi, &sc->link_up);
@@ -2705,11 +2717,11 @@ ice_rebuild(struct ice_softc *sc)
 	if (hw->port_info->qos_cfg.is_sw_lldp)
 		ice_add_rx_lldp_filter(sc);
 
-	/* Refresh link status */
+	/* Apply previous link settings and refresh link status, if PHY
+	 * FW is ready.
+	 */
 	ice_clear_state(&sc->state, ICE_STATE_LINK_STATUS_REPORTED);
-	sc->hw.port_info->phy.get_link_info = true;
-	ice_get_link_status(sc->hw.port_info, &sc->link_up);
-	ice_update_link_status(sc, true);
+	ice_init_link(sc);
 
 	/* RDMA interface will be restarted by the stack re-init */
 
@@ -2795,12 +2807,23 @@ ice_handle_reset_event(struct ice_softc *sc)
 	 * resetting.
 	 */
 	IFLIB_CTX_UNLOCK(sc);
+
+#define ICE_EMPR_ADDL_WAIT_MSEC_SLOW		20000
+	if ((ice_is_e830(hw) || ice_is_e825c(hw)) &&
+	    (((rd32(hw, GLGEN_RSTAT) & GLGEN_RSTAT_RESET_TYPE_M) >>
+	         GLGEN_RSTAT_RESET_TYPE_S) == ICE_RESET_EMPR))
+			ice_msec_pause(ICE_EMPR_ADDL_WAIT_MSEC_SLOW);
+
 	status = ice_check_reset(hw);
 	IFLIB_CTX_LOCK(sc);
 	if (status) {
 		device_printf(dev, "Device never came out of reset, err %s\n",
 			      ice_status_str(status));
+
 		ice_set_state(&sc->state, ICE_STATE_RESET_FAILED);
+		ice_clear_state(&sc->state, ICE_STATE_RESET_PFR_REQ);
+		ice_clear_state(&sc->state, ICE_STATE_PREPARED_FOR_RESET);
+		device_printf(dev, "Reset failed; please reload the device driver\n");
 		return;
 	}
 
@@ -2888,16 +2911,8 @@ ice_init_device_features(struct ice_softc *sc)
 	if (ice_is_e810(hw))
 		ice_set_bit(ICE_FEATURE_PHY_STATISTICS, sc->feat_en);
 
-	/* Set capabilities based on device */
-	switch (hw->device_id) {
-	case ICE_DEV_ID_E825C_BACKPLANE:
-	case ICE_DEV_ID_E825C_QSFP:
-	case ICE_DEV_ID_E825C_SFP:
+	if (ice_is_e825c(hw))
 		ice_set_bit(ICE_FEATURE_DUAL_NAC, sc->feat_cap);
-		break;
-	default:
-		break;
-	}
 	/* Disable features due to hardware limitations... */
 	if (!hw->func_caps.common_cap.rss_table_size)
 		ice_clear_bit(ICE_FEATURE_RSS, sc->feat_cap);
@@ -3301,6 +3316,38 @@ ice_if_needs_restart(if_ctx_t ctx, enum iflib_restart_event event)
 	default:
 		return true;
 	}
+}
+
+/**
+ * ice_init_link - Do link configuration and link status reporting
+ * @sc: driver private structure
+ *
+ * Contains an extra check that skips link config when an E830 device
+ * does not have the "FW_LOADING"/"PHYBUSY" bit set in GL_MNG_FWSM set.
+ */
+static void
+ice_init_link(struct ice_softc *sc)
+{
+	struct ice_hw *hw = &sc->hw;
+	device_t dev = sc->dev;
+
+	/* Check if FW is ready before setting up link; defer setup to the
+	 * admin task if it isn't.
+	 */
+	if (ice_is_e830(hw) &&
+	    (rd32(hw, GL_MNG_FWSM) & GL_MNG_FWSM_FW_LOADING_M)) {
+		ice_set_state(&sc->state, ICE_STATE_PHY_FW_INIT_PENDING);
+		device_printf(dev,
+		    "Link initialization is blocked by PHY FW initialization.\n");
+		device_printf(dev,
+		    "Link initialization will continue after PHY FW initialization completes.\n");
+		/* Do not access PHY config while PHY FW is busy initializing */
+	} else {
+		ice_clear_state(&sc->state, ICE_STATE_PHY_FW_INIT_PENDING);
+		ice_init_link_configuration(sc);
+		ice_update_link_status(sc, true);
+	}
+
 }
 
 extern struct if_txrx ice_subif_txrx;

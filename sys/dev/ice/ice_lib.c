@@ -3308,7 +3308,8 @@ ice_sysctl_advertise_speed(SYSCTL_HANDLER_ARGS)
 
 	pi->phy.curr_user_speed_req = sysctl_speeds;
 
-	if (!ice_test_state(&sc->state, ICE_STATE_LINK_ACTIVE_ON_DOWN) && !sc->link_up)
+	if (!ice_test_state(&sc->state, ICE_STATE_LINK_ACTIVE_ON_DOWN) &&
+	    !sc->link_up && !(if_getflags(sc->ifp) & IFF_UP))
 		return 0;
 
 	/* Apply settings requested by user */
@@ -6246,11 +6247,12 @@ ice_sysctl_dump_state_flags(SYSCTL_HANDLER_ARGS)
 "\n\t     0x20000 - Resources"					\
 "\n\t     0x40000 - ACL"					\
 "\n\t     0x80000 - PTP"					\
-"\n\t    0x100000 - Admin Queue messages"			\
-"\n\t    0x200000 - Admin Queue descriptors"			\
-"\n\t    0x400000 - Admin Queue descriptor buffers"		\
-"\n\t    0x800000 - Admin Queue commands"			\
-"\n\t   0x1000000 - Parser"					\
+"\n\t   ..."							\
+"\n\t   0x1000000 - Admin Queue messages"			\
+"\n\t   0x2000000 - Admin Queue descriptors"			\
+"\n\t   0x4000000 - Admin Queue descriptor buffers"		\
+"\n\t   0x8000000 - Admin Queue commands"			\
+"\n\t  0x10000000 - Parser"					\
 "\n\t   ..."							\
 "\n\t  0x80000000 - (Reserved for user)"			\
 "\n\t"								\
@@ -9493,15 +9495,28 @@ ice_init_link_configuration(struct ice_softc *sc)
 	struct ice_port_info *pi = sc->hw.port_info;
 	struct ice_hw *hw = &sc->hw;
 	device_t dev = sc->dev;
-	int status;
+	int status, retry_count = 0;
 
+retry:
 	pi->phy.get_link_info = true;
 	status = ice_get_link_status(pi, &sc->link_up);
+
 	if (status) {
-		device_printf(dev,
-		    "%s: ice_get_link_status failed; status %s, aq_err %s\n",
-		    __func__, ice_status_str(status),
-		    ice_aq_str(hw->adminq.sq_last_status));
+		if (hw->adminq.sq_last_status == ICE_AQ_RC_EAGAIN) {
+			retry_count++;
+			ice_debug(hw, ICE_DBG_LINK,
+			    "%s: ice_get_link_status failed with EAGAIN, attempt %d\n",
+			    __func__, retry_count);
+			if (retry_count < ICE_LINK_AQ_MAX_RETRIES) {
+				ice_msec_pause(ICE_LINK_RETRY_DELAY);
+				goto retry;
+			}
+		} else {
+			device_printf(dev,
+			    "%s: ice_get_link_status failed; status %s, aq_err %s\n",
+			    __func__, ice_status_str(status),
+			    ice_aq_str(hw->adminq.sq_last_status));
+		}
 		return;
 	}
 

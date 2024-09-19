@@ -1052,6 +1052,8 @@ ice_state_to_str(enum ice_state state)
 		return "DO_CREATE_MIRR_INTFC";
 	case ICE_STATE_DO_DESTROY_MIRR_INTFC:
 		return "DO_DESTROY_MIRR_INTFC";
+	case ICE_STATE_PHY_FW_INIT_PENDING:
+		return "PHY_FW_INIT_PENDING";
 	case ICE_STATE_LAST:
 		return NULL;
 	}

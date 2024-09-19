@@ -879,16 +879,35 @@ static u16 ice_clean_sq(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 	struct ice_ctl_q_ring *sq = &cq->sq;
 	u16 ntc = sq->next_to_clean;
 	struct ice_aq_desc *desc;
+	u32 head;
 
 	desc = ICE_CTL_Q_DESC(*sq, ntc);
 
-	while (rd32(hw, cq->sq.head) != ntc) {
-		ice_debug(hw, ICE_DBG_AQ_MSG, "ntc %d head %d.\n", ntc, rd32(hw, cq->sq.head));
+	head = rd32(hw, sq->head);
+	if (head >= sq->count) {
+		ice_debug(hw, ICE_DBG_AQ_MSG,
+			  "Read head value (%d) exceeds allowed range.\n",
+			  head);
+		return 0;
+	}
+
+	while (head != ntc) {
+		ice_debug(hw, ICE_DBG_AQ_MSG,
+			  "ntc %d head %d.\n",
+			  ntc, head);
 		ice_memset(desc, 0, sizeof(*desc), ICE_DMA_MEM);
 		ntc++;
 		if (ntc == sq->count)
 			ntc = 0;
 		desc = ICE_CTL_Q_DESC(*sq, ntc);
+
+		head = rd32(hw, sq->head);
+		if (head >= sq->count) {
+			ice_debug(hw, ICE_DBG_AQ_MSG,
+				  "Read head value (%d) exceeds allowed range.\n",
+				  head);
+			return 0;
+		}
 	}
 
 	sq->next_to_clean = ntc;
