@@ -107,14 +107,14 @@ static inline void
 ixgbe_send_vf_ack(struct ixgbe_softc *sc, struct ixgbe_vf *vf, u32 msg)
 {
 	msg &= IXGBE_VT_MSG_MASK;
-	ixgbe_send_vf_msg(sc, vf, msg | IXGBE_VT_MSGTYPE_ACK);
+	ixgbe_send_vf_msg(sc, vf, msg | IXGBE_VT_MSGTYPE_SUCCESS);
 }
 
 static inline void
 ixgbe_send_vf_nack(struct ixgbe_softc *sc, struct ixgbe_vf *vf, u32 msg)
 {
 	msg &= IXGBE_VT_MSG_MASK;
-	ixgbe_send_vf_msg(sc, vf, msg | IXGBE_VT_MSGTYPE_NACK);
+	ixgbe_send_vf_msg(sc, vf, msg | IXGBE_VT_MSGTYPE_FAILURE);
 }
 
 static inline void
@@ -362,9 +362,9 @@ ixgbe_vf_reset_msg(struct ixgbe_softc *sc, struct ixgbe_vf *vf, uint32_t *msg)
 	if (ixgbe_validate_mac_addr(vf->ether_addr) == 0) {
 		ixgbe_set_rar(&sc->hw, vf->rar_index, vf->ether_addr,
 		    vf->pool, true);
-		ack = IXGBE_VT_MSGTYPE_ACK;
+		ack = IXGBE_VT_MSGTYPE_SUCCESS;
 	} else
-		ack = IXGBE_VT_MSGTYPE_NACK;
+		ack = IXGBE_VT_MSGTYPE_FAILURE;
 
 	ixgbe_vf_enable_transmit(sc, vf);
 	ixgbe_vf_enable_receive(sc, vf);
@@ -556,7 +556,7 @@ ixgbe_vf_get_queues(struct ixgbe_softc *sc, struct ixgbe_vf *vf, uint32_t *msg)
 		return;
 	}
 
-	resp[0] = IXGBE_VF_GET_QUEUES | IXGBE_VT_MSGTYPE_ACK |
+	resp[0] = IXGBE_VF_GET_QUEUES | IXGBE_VT_MSGTYPE_SUCCESS |
 	    IXGBE_VT_MSGTYPE_CTS;
 
 	num_queues = ixgbe_vf_queues(sc->iov_mode);
