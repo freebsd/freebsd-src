@@ -396,6 +396,16 @@ enum ice_rx_dtype {
 #define ICE_I2C_MAX_RETRIES		10
 
 /*
+ * The Get Link Status AQ command and other link commands can return
+ * EAGAIN, indicating that the FW Link Management engine is busy.
+ * Define the number of times that the driver should retry sending these
+ * commands and the amount of time it should wait between those retries
+ * (in milliseconds) here.
+ */
+#define ICE_LINK_AQ_MAX_RETRIES		10
+#define ICE_LINK_RETRY_DELAY		17
+
+/*
  * The Start LLDP Agent AQ command will fail if it's sent too soon after
  * the LLDP agent is stopped. The period between the stop and start
  * commands must currently be at least 2 seconds.
@@ -698,6 +708,7 @@ enum ice_state {
 	ICE_STATE_FIRST_INIT_LINK,
 	ICE_STATE_DO_CREATE_MIRR_INTFC,
 	ICE_STATE_DO_DESTROY_MIRR_INTFC,
+	ICE_STATE_PHY_FW_INIT_PENDING,
 	/* This entry must be last */
 	ICE_STATE_LAST,
 };
