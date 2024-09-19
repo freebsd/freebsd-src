@@ -12,6 +12,17 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20240919:
+	14.1-RELEASE-p5 EN-24:16.pf
+			SA-24:15.bhyve
+			SA-24:16.libnv
+
+	Fix incorrect ICMPv6 state handling in pf [EN-24:16.pf]
+
+	Fix bhyve(8) out-of-bounds read access via XHCI emulation [SA-24:15.bhyve]
+
+	Fix integer overflow in libnv [SA-24:16.libnv]
+
 20240904:
 	14.1-RELEASE-p4 EN-24:15.calendar
 			SA-24:09.libnv
