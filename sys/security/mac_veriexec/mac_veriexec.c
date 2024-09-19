@@ -435,6 +435,7 @@ mac_veriexec_priv_check(struct ucred *cred, int priv)
 	error = 0;
 	switch (priv) {
 	case PRIV_KMEM_WRITE:
+	case PRIV_PROC_MEM_WRITE:
 	case PRIV_VERIEXEC_CONTROL:
 		/*
 		 * Do not allow writing to memory or manipulating veriexec,
