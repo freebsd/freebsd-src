@@ -5750,7 +5750,7 @@ iflib_register(if_ctx_t ctx)
 
 	CTX_LOCK_INIT(ctx);
 	STATE_LOCK_INIT(ctx, device_get_nameunit(ctx->ifc_dev));
-	ifp = ctx->ifc_ifp = if_alloc(IFT_ETHER);
+	ifp = ctx->ifc_ifp = if_alloc_dev(IFT_ETHER, dev);
 
 	/*
 	 * Initialize our context's device specific methods
