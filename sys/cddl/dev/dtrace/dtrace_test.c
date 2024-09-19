@@ -106,4 +106,3 @@ dtrace_test_modevent(module_t mod, int type, void *data)
 
 DEV_MODULE(dtrace_test, dtrace_test_modevent, NULL);
 MODULE_VERSION(dtrace_test, 1);
-MODULE_DEPEND(dtrace_test, dtraceall, 1, 1, 1);
