@@ -60,10 +60,10 @@
 #define IXGBE_PFMAILBOX_PFU	0x00000008 /* PF owns the mailbox buffer */
 #define IXGBE_PFMAILBOX_RVFU	0x00000010 /* Reset VFU - used when VF stuck */
 
-#define IXGBE_MBVFICR_VFREQ_MASK	0x0000FFFF /* bits for VF messages */
-#define IXGBE_MBVFICR_VFREQ_VF1		0x00000001 /* bit for VF 1 message */
-#define IXGBE_MBVFICR_VFACK_MASK	0xFFFF0000 /* bits for VF acks */
-#define IXGBE_MBVFICR_VFACK_VF1		0x00010000 /* bit for VF 1 ack */
+#define IXGBE_PFMBICR_VFREQ_MASK	0x0000FFFF /* bits for VF messages */
+#define IXGBE_PFMBICR_VFREQ_VF1		0x00000001 /* bit for VF 1 message */
+#define IXGBE_PFMBICR_VFACK_MASK	0xFFFF0000 /* bits for VF acks */
+#define IXGBE_PFMBICR_VFACK_VF1		0x00010000 /* bit for VF 1 ack */
 
 
 /* If it's a IXGBE_VF_* msg then it originates in the VF and is sent to the
