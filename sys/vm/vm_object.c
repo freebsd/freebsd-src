@@ -877,47 +877,49 @@ vm_object_backing_collapse_wait(vm_object_t object)
 }
 
 /*
+ *	vm_object_terminate_single_page removes a pageable page from the object,
+ *	and removes it from the paging queues and frees it, if it is not wired.
+ *	It is invoked via callback from vm_object_terminate_pages.
+ */
+static void
+vm_object_terminate_single_page(vm_page_t p, void *objectv)
+{
+	vm_object_t object __diagused = objectv;
+
+	vm_page_assert_unbusied(p);
+	KASSERT(p->object == object &&
+	    (p->ref_count & VPRC_OBJREF) != 0,
+	    ("%s: page %p is inconsistent", __func__, p));
+	p->object = NULL;
+	if (vm_page_drop(p, VPRC_OBJREF) == VPRC_OBJREF) {
+		VM_CNT_INC(v_pfree);
+		vm_page_free(p);
+	}
+}
+
+/*
  *	vm_object_terminate_pages removes any remaining pageable pages
  *	from the object and resets the object to an empty state.
  */
 static void
 vm_object_terminate_pages(vm_object_t object)
 {
-	vm_page_t p, p_next;
-
 	VM_OBJECT_ASSERT_WLOCKED(object);
 
 	/*
-	 * Free any remaining pageable pages.  This also removes them from the
-	 * paging queues.  However, don't free wired pages, just remove them
-	 * from the object.  Rather than incrementally removing each page from
-	 * the object, the page and object are reset to any empty state. 
-	 */
-	TAILQ_FOREACH_SAFE(p, &object->memq, listq, p_next) {
-		vm_page_assert_unbusied(p);
-		KASSERT(p->object == object &&
-		    (p->ref_count & VPRC_OBJREF) != 0,
-		    ("vm_object_terminate_pages: page %p is inconsistent", p));
-
-		p->object = NULL;
-		if (vm_page_drop(p, VPRC_OBJREF) == VPRC_OBJREF) {
-			VM_CNT_INC(v_pfree);
-			vm_page_free(p);
-		}
-	}
-
-	/*
 	 * If the object contained any pages, then reset it to an empty state.
-	 * None of the object's fields, including "resident_page_count", were
-	 * modified by the preceding loop.
+	 * Rather than incrementally removing each page from the object, the
+	 * page and object are reset to any empty state.
 	 */
-	if (object->resident_page_count != 0) {
-		vm_radix_reclaim_allnodes(&object->rtree);
-		TAILQ_INIT(&object->memq);
-		object->resident_page_count = 0;
-		if (object->type == OBJT_VNODE)
-			vdrop(object->handle);
-	}
+	if (object->resident_page_count == 0)
+		return;
+
+	vm_radix_reclaim_callback(&object->rtree,
+	    vm_object_terminate_single_page, object);
+	TAILQ_INIT(&object->memq);
+	object->resident_page_count = 0;
+	if (object->type == OBJT_VNODE)
+		vdrop(object->handle);
 }
 
 /*
