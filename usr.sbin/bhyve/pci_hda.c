@@ -787,6 +787,11 @@ hda_corb_run(struct hda_softc *sc)
 	int err;
 
 	corb->wp = hda_get_reg_by_offset(sc, HDAC_CORBWP);
+	if (corb->wp >= corb->size) {
+		DPRINTF("Invalid HDAC_CORBWP %u >= size %u", corb->wp,
+		    corb->size);
+		return (-1);
+	}
 
 	while (corb->rp != corb->wp && corb->run) {
 		corb->rp++;
