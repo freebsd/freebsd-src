@@ -57,8 +57,6 @@ options 	SOC_BCM2836
 options 	SOC_BRCM_BCM2837
 options 	SOC_MV_ARMADA38X
 options 	SOC_MV_ARMADAXP
-options 	SOC_TI_AM335X
-options 	SOC_OMAP4
 
 options 	SCHED_ULE		# ULE scheduler
 options 	SMP			# Enable multiple cores
@@ -168,9 +166,6 @@ device		zy7_qspi		# Xilinx Zynq QSPI controller
 device		pwm
 
 # Watchdog support
-# If we don't enable the watchdog driver, the BeagleBone could potentially
-# reboot automatically because the boot loader might have enabled the
-# watchdog.
 device		imxwdt			# Watchdog. WARNING: can't be disabled!!!
 device		aw_wdog			# Allwinner Watchdog
 
