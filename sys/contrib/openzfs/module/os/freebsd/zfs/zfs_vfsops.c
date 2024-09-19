@@ -102,7 +102,7 @@ static struct zfs_jailparam zfs_jailparam0 = {
 static int zfs_jailparam_slot;
 
 SYSCTL_JAIL_PARAM_SYS_NODE(zfs, CTLFLAG_RW, "Jail ZFS parameters");
-SYSCTL_JAIL_PARAM(_zfs, mount_snapshot, CTLTYPE_INT | CTLFLAG_RW, "B",
+SYSCTL_JAIL_PARAM(_zfs, mount_snapshot, CTLTYPE_INT | CTLFLAG_RW, "I",
 	"Allow mounting snapshots in the .zfs directory for unjailed datasets");
 
 SYSCTL_NODE(_vfs_zfs, OID_AUTO, version, CTLFLAG_RD, 0, "ZFS versions");
