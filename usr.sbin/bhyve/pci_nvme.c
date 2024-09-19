@@ -1398,7 +1398,7 @@ nvme_opc_get_log_page(struct pci_nvme_softc* sc, struct nvme_command* command,
 	logsize *= sizeof(uint32_t);
 	logoff  = ((uint64_t)(command->cdw13) << 32) | command->cdw12;
 
-	DPRINTF("%s log page %u len %u", __func__, logpage, logsize);
+	DPRINTF("%s log page %u offset %lu len %u", __func__, logpage, logoff, logsize);
 
 	switch (logpage) {
 	case NVME_LOG_ERROR:
@@ -1410,7 +1410,7 @@ nvme_opc_get_log_page(struct pci_nvme_softc* sc, struct nvme_command* command,
 
 		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, command->prp1,
 		    command->prp2, (uint8_t *)&sc->err_log + logoff,
-		    MIN(logsize - logoff, sizeof(sc->err_log)),
+		    MIN(logsize, sizeof(sc->err_log) - logoff),
 		    NVME_COPY_TO_PRP);
 		break;
 	case NVME_LOG_HEALTH_INFORMATION:
@@ -1433,7 +1433,7 @@ nvme_opc_get_log_page(struct pci_nvme_softc* sc, struct nvme_command* command,
 
 		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, command->prp1,
 		    command->prp2, (uint8_t *)&sc->health_log + logoff,
-		    MIN(logsize - logoff, sizeof(sc->health_log)),
+		    MIN(logsize, sizeof(sc->health_log) - logoff),
 		    NVME_COPY_TO_PRP);
 		break;
 	case NVME_LOG_FIRMWARE_SLOT:
@@ -1445,7 +1445,7 @@ nvme_opc_get_log_page(struct pci_nvme_softc* sc, struct nvme_command* command,
 
 		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, command->prp1,
 		    command->prp2, (uint8_t *)&sc->fw_log + logoff,
-		    MIN(logsize - logoff, sizeof(sc->fw_log)),
+		    MIN(logsize, sizeof(sc->fw_log) - logoff),
 		    NVME_COPY_TO_PRP);
 		break;
 	case NVME_LOG_CHANGED_NAMESPACE:
@@ -1457,7 +1457,7 @@ nvme_opc_get_log_page(struct pci_nvme_softc* sc, struct nvme_command* command,
 
 		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, command->prp1,
 		    command->prp2, (uint8_t *)&sc->ns_log + logoff,
-		    MIN(logsize - logoff, sizeof(sc->ns_log)),
+		    MIN(logsize, sizeof(sc->ns_log) - logoff),
 		    NVME_COPY_TO_PRP);
 		memset(&sc->ns_log, 0, sizeof(sc->ns_log));
 		break;
