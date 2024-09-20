@@ -148,7 +148,6 @@ u64 ixgbe_get_supported_physical_layer(struct ixgbe_hw *hw);
 s32 ixgbe_enable_rx_dma(struct ixgbe_hw *hw, u32 regval);
 s32 ixgbe_disable_sec_rx_path(struct ixgbe_hw *hw);
 s32 ixgbe_enable_sec_rx_path(struct ixgbe_hw *hw);
-s32 ixgbe_mng_fw_enabled(struct ixgbe_hw *hw);
 s32 ixgbe_reinit_fdir_tables_82599(struct ixgbe_hw *hw);
 s32 ixgbe_init_fdir_signature_82599(struct ixgbe_hw *hw, u32 fdirctrl);
 s32 ixgbe_init_fdir_perfect_82599(struct ixgbe_hw *hw, u32 fdirctrl,
