@@ -222,6 +222,12 @@
 /* Define to 1 if you have the `aug_get_machine' function. */
 #undef HAVE_AUG_GET_MACHINE
 
+/* Define to 1 if you have the `auth_hostok' function. */
+#undef HAVE_AUTH_HOSTOK
+
+/* Define to 1 if you have the `auth_timeok' function. */
+#undef HAVE_AUTH_TIMEOK
+
 /* Define to 1 if you have the `b64_ntop' function. */
 #undef HAVE_B64_NTOP
 
@@ -510,6 +516,12 @@
 
 /* Define to 1 if you have the `EVP_DigestInit_ex' function. */
 #undef HAVE_EVP_DIGESTINIT_EX
+
+/* Define to 1 if you have the `EVP_DigestSign' function. */
+#undef HAVE_EVP_DIGESTSIGN
+
+/* Define to 1 if you have the `EVP_DigestVerify' function. */
+#undef HAVE_EVP_DIGESTVERIFY
 
 /* Define to 1 if you have the `EVP_MD_CTX_cleanup' function. */
 #undef HAVE_EVP_MD_CTX_CLEANUP

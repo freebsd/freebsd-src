@@ -1,4 +1,4 @@
-/*	$OpenBSD: sshbuf.h,v 1.28 2022/12/02 04:40:27 djm Exp $	*/
+/*	$OpenBSD: sshbuf.h,v 1.29 2024/08/15 00:51:51 djm Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -23,6 +23,7 @@
 #include <stdio.h>
 #ifdef WITH_OPENSSL
 # include <openssl/bn.h>
+# include <openssl/evp.h>
 # ifdef OPENSSL_HAS_ECC
 #  include <openssl/ec.h>
 # endif /* OPENSSL_HAS_ECC */
@@ -223,6 +224,7 @@ int	sshbuf_get_ec(struct sshbuf *buf, EC_POINT *v, const EC_GROUP *g);
 int	sshbuf_get_eckey(struct sshbuf *buf, EC_KEY *v);
 int	sshbuf_put_ec(struct sshbuf *buf, const EC_POINT *v, const EC_GROUP *g);
 int	sshbuf_put_eckey(struct sshbuf *buf, const EC_KEY *v);
+int	sshbuf_put_ec_pkey(struct sshbuf *buf, EVP_PKEY *pkey);
 # endif /* OPENSSL_HAS_ECC */
 #endif /* WITH_OPENSSL */
 

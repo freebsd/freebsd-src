@@ -1,4 +1,4 @@
-/* $OpenBSD: mux.c,v 1.101 2023/11/23 03:37:05 dtucker Exp $ */
+/* $OpenBSD: mux.c,v 1.102 2024/07/25 22:40:08 djm Exp $ */
 /*
  * Copyright (c) 2002-2008 Damien Miller <djm@openbsd.org>
  *
@@ -201,8 +201,8 @@ mux_master_session_cleanup_cb(struct ssh *ssh, int cid, int force, void *unused)
 			fatal_f("channel %d missing control channel %d",
 			    c->self, c->ctl_chan);
 		c->ctl_chan = -1;
-		cc->remote_id = 0;
-		cc->have_remote_id = 0;
+		cc->ctl_child_id = 0;
+		cc->have_ctl_child_id = 0;
 		chan_rcvd_oclose(ssh, cc);
 	}
 	channel_cancel_cleanup(ssh, c->self);
@@ -217,12 +217,12 @@ mux_master_control_cleanup_cb(struct ssh *ssh, int cid, int force, void *unused)
 	debug3_f("entering for channel %d", cid);
 	if (c == NULL)
 		fatal_f("channel_by_id(%i) == NULL", cid);
-	if (c->have_remote_id) {
-		if ((sc = channel_by_id(ssh, c->remote_id)) == NULL)
+	if (c->have_ctl_child_id) {
+		if ((sc = channel_by_id(ssh, c->ctl_child_id)) == NULL)
 			fatal_f("channel %d missing session channel %u",
-			    c->self, c->remote_id);
-		c->remote_id = 0;
-		c->have_remote_id = 0;
+			    c->self, c->ctl_child_id);
+		c->ctl_child_id = 0;
+		c->have_ctl_child_id = 0;
 		sc->ctl_chan = -1;
 		if (sc->type != SSH_CHANNEL_OPEN &&
 		    sc->type != SSH_CHANNEL_OPENING) {
@@ -418,7 +418,7 @@ mux_master_process_new_session(struct ssh *ssh, u_int rid,
 	    new_fd[0], new_fd[1], new_fd[2]);
 
 	/* XXX support multiple child sessions in future */
-	if (c->have_remote_id) {
+	if (c->have_ctl_child_id) {
 		debug2_f("session already open");
 		reply_error(reply, MUX_S_FAILURE, rid,
 		    "Multiple sessions not supported");
@@ -463,8 +463,8 @@ mux_master_process_new_session(struct ssh *ssh, u_int rid,
 	    CHAN_EXTENDED_WRITE, "client-session", CHANNEL_NONBLOCK_STDIO);
 
 	nc->ctl_chan = c->self;		/* link session -> control channel */
-	c->remote_id = nc->self;	/* link control -> session channel */
-	c->have_remote_id = 1;
+	c->ctl_child_id = nc->self;	/* link control -> session channel */
+	c->have_ctl_child_id = 1;
 
 	if (cctx->want_tty && escape_char != 0xffffffff) {
 		channel_register_filter(ssh, nc->self,
@@ -1003,7 +1003,7 @@ mux_master_process_stdio_fwd(struct ssh *ssh, u_int rid,
 	debug3_f("got fds stdin %d, stdout %d", new_fd[0], new_fd[1]);
 
 	/* XXX support multiple child sessions in future */
-	if (c->have_remote_id) {
+	if (c->have_ctl_child_id) {
 		debug2_f("session already open");
 		reply_error(reply, MUX_S_FAILURE, rid,
 		    "Multiple sessions not supported");
@@ -1035,8 +1035,8 @@ mux_master_process_stdio_fwd(struct ssh *ssh, u_int rid,
 	free(chost);
 
 	nc->ctl_chan = c->self;		/* link session -> control channel */
-	c->remote_id = nc->self;	/* link control -> session channel */
-	c->have_remote_id = 1;
+	c->ctl_child_id = nc->self;	/* link control -> session channel */
+	c->have_ctl_child_id = 1;
 
 	debug2_f("channel_new: %d control %d", nc->self, nc->ctl_chan);
 

@@ -23,7 +23,9 @@
  * Stub functions for portability.  From LibreSSL with some adaptations.
  */
 
+#ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
+#endif
 
 #include <signal.h>
 

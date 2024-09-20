@@ -234,7 +234,8 @@ DESCRIPTION
              and passed to the master process.  Valid commands are: M-bM-^@M-^\checkM-bM-^@M-^]
              (check that the master process is running), M-bM-^@M-^\forwardM-bM-^@M-^] (request
              forwardings without command execution), M-bM-^@M-^\cancelM-bM-^@M-^] (cancel
-             forwardings), M-bM-^@M-^\exitM-bM-^@M-^] (request the master to exit), and M-bM-^@M-^\stopM-bM-^@M-^]
+             forwardings), M-bM-^@M-^\proxyM-bM-^@M-^] (connect to a running multiplexing master
+             in proxy mode), M-bM-^@M-^\exitM-bM-^@M-^] (request the master to exit), and M-bM-^@M-^\stopM-bM-^@M-^]
              (request the master to stop accepting further multiplexing
              requests).
 
@@ -1016,4 +1017,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 7.5                      June 27, 2024                     OpenBSD 7.5
+OpenBSD 7.5                      July 18, 2024                     OpenBSD 7.5

@@ -319,12 +319,14 @@ DESCRIPTION
 
      -t ecdsa | ecdsa-sk | ed25519 | ed25519-sk | rsa
              Specifies the type of key to create.  The possible values are
-             M-bM-^@M-^\ecdsaM-bM-^@M-^], M-bM-^@M-^\ecdsa-skM-bM-^@M-^], M-bM-^@M-^\ed25519M-bM-^@M-^], M-bM-^@M-^\ed25519-skM-bM-^@M-^], or M-bM-^@M-^\rsaM-bM-^@M-^].
+             M-bM-^@M-^\ecdsaM-bM-^@M-^], M-bM-^@M-^\ecdsa-skM-bM-^@M-^], M-bM-^@M-^\ed25519 (the default),M-bM-^@M-^] M-bM-^@M-^\ed25519-skM-bM-^@M-^], or
+             M-bM-^@M-^\rsaM-bM-^@M-^].
 
              This flag may also be used to specify the desired signature type
              when signing certificates using an RSA CA key.  The available RSA
              signature variants are M-bM-^@M-^\ssh-rsaM-bM-^@M-^] (SHA1 signatures, not
-             recommended), M-bM-^@M-^\rsa-sha2-256M-bM-^@M-^], and M-bM-^@M-^\rsa-sha2-512M-bM-^@M-^] (the default).
+             recommended), M-bM-^@M-^\rsa-sha2-256M-bM-^@M-^], and M-bM-^@M-^\rsa-sha2-512M-bM-^@M-^] (the default for
+             RSA keys).
 
      -U      When used in combination with -s or -Y sign, this option
              indicates that a CA key resides in a ssh-agent(1).  See the
@@ -904,4 +906,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 7.5                      June 17, 2024                     OpenBSD 7.5
+OpenBSD 7.5                     August 17, 2024                    OpenBSD 7.5

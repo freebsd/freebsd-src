@@ -40,7 +40,9 @@ DESCRIPTION
              The keywords are M-bM-^@M-^\addrM-bM-^@M-^], M-bM-^@M-^\userM-bM-^@M-^], M-bM-^@M-^\hostM-bM-^@M-^], M-bM-^@M-^\laddrM-bM-^@M-^], M-bM-^@M-^\lportM-bM-^@M-^], and
              M-bM-^@M-^\rdomainM-bM-^@M-^] and correspond to source address, user, resolved source
              host name, local address, local port number and routing domain
-             respectively.
+             respectively.  Additionally the M-bM-^@M-^\invalid-userM-bM-^@M-^] flag (which does
+             not take a value argument) may be specified to simulate a
+             connection from an unrecognised username.
 
      -c host_certificate_file
              Specifies a path to a certificate file to identify sshd during
@@ -682,4 +684,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 7.5                      June 17, 2024                     OpenBSD 7.5
+OpenBSD 7.5                   September 15, 2024                   OpenBSD 7.5

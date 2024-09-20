@@ -12706,7 +12706,7 @@ printf "%s\n" "#define SSH_TUN_OPENBSD 1" >>confdefs.h
 
 printf "%s\n" "#define SYSLOG_R_SAFE_IN_SIGHAND 1" >>confdefs.h
 
-	TEST_MALLOC_OPTIONS="AFGJPRX"
+	TEST_MALLOC_OPTIONS="SJRU"
 	;;
 *-*-solaris*)
 	if test "x$withval" != "xno" ; then
@@ -13316,6 +13316,9 @@ EOD
 
 printf "%s\n" "#define BROKEN_SETVBUF 1" >>confdefs.h
 
+	;;
+*-*-gnu*)
+					CPPFLAGS="$CPPFLAGS -D_XOPEN_SOURCE=600 -D_BSD_SOURCE -D_DEFAULT_SOURCE -D_GNU_SOURCE"
 	;;
 esac
 
@@ -15875,6 +15878,18 @@ rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
 CFLAGS="$SAVED_CFLAGS"
 
 
+ac_fn_c_check_func "$LINENO" "auth_hostok" "ac_cv_func_auth_hostok"
+if test "x$ac_cv_func_auth_hostok" = xyes
+then :
+  printf "%s\n" "#define HAVE_AUTH_HOSTOK 1" >>confdefs.h
+
+fi
+ac_fn_c_check_func "$LINENO" "auth_timeok" "ac_cv_func_auth_timeok"
+if test "x$ac_cv_func_auth_timeok" = xyes
+then :
+  printf "%s\n" "#define HAVE_AUTH_TIMEOK 1" >>confdefs.h
+
+fi
 ac_fn_c_check_func "$LINENO" "Blowfish_initstate" "ac_cv_func_Blowfish_initstate"
 if test "x$ac_cv_func_Blowfish_initstate" = xyes
 then :
@@ -18943,6 +18958,18 @@ ac_fn_c_check_func "$LINENO" "DSA_generate_parameters_ex" "ac_cv_func_DSA_genera
 if test "x$ac_cv_func_DSA_generate_parameters_ex" = xyes
 then :
   printf "%s\n" "#define HAVE_DSA_GENERATE_PARAMETERS_EX 1" >>confdefs.h
+
+fi
+ac_fn_c_check_func "$LINENO" "EVP_DigestSign" "ac_cv_func_EVP_DigestSign"
+if test "x$ac_cv_func_EVP_DigestSign" = xyes
+then :
+  printf "%s\n" "#define HAVE_EVP_DIGESTSIGN 1" >>confdefs.h
+
+fi
+ac_fn_c_check_func "$LINENO" "EVP_DigestVerify" "ac_cv_func_EVP_DigestVerify"
+if test "x$ac_cv_func_EVP_DigestVerify" = xyes
+then :
+  printf "%s\n" "#define HAVE_EVP_DIGESTVERIFY 1" >>confdefs.h
 
 fi
 ac_fn_c_check_func "$LINENO" "EVP_DigestFinal_ex" "ac_cv_func_EVP_DigestFinal_ex"
