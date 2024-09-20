@@ -1113,8 +1113,8 @@ run_rc_command()
 
 		delete)
 			_files=
-			for _file in $(sysrc -lEs "$name"); do
-				_out=$(sysrc -Fif $_file "$rcvar") && _files="$_files $_file"
+			for _file in $(/usr/sbin/sysrc -lEs "$name"); do
+				_out=$(/usr/sbin/sysrc -Fif $_file "$rcvar") && _files="$_files $_file"
 			done
 			/usr/sbin/sysrc -x "$rcvar" && echo "$rcvar deleted in ${_files# }"
 				# delete file in rc.conf.d if desired and empty.
