@@ -37,12 +37,26 @@
 .In sys/param.h
 .In sys/vnode.h
 .Ft int
-.Fn VOP_GETATTR "struct vnode *vp" "struct vattr *vap" "struct ucred *cred"
+.Fo VOP_GETATTR
+.Fa struct vnode *vp
+.Fa flags
+.Fa struct vattr *vap
+.Fa struct ucred *cred
+.Fc
 .Ft int
-.Fn VOP_SETATTR "struct vnode *vp" "struct vattr *vap" "struct ucred *cred"
+.Fo VOP_SETATTR
+.Fa struct vnode *vp
+.Fa struct vattr *vap
+.Fa struct ucred *cred
+.Fc
 .Ft int
-.Fn VOP_STAT "struct vnode *vp" "struct stat *sb" "struct ucred *active_cred" \
-"struct ucred *file_cred"
+.Fo VOP_STAT
+.Fa struct vnode *vp
+.Fa struct stat *sb
+.Fa flags
+.Fa struct ucred *active_cred
+.Fa struct ucred *file_cred
+.Fc
 .Sh DESCRIPTION
 These entry points manipulate various attributes of a file or directory,
 including file permissions, owner, group, size,
