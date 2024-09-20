@@ -171,7 +171,7 @@ bool ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw)
 	case ixgbe_media_type_fiber_fixed:
 	case ixgbe_media_type_fiber_qsfp:
 	case ixgbe_media_type_fiber:
-		/* flow control autoneg black list */
+		/* flow control autoneg block list */
 		switch (hw->device_id) {
 		case IXGBE_DEV_ID_X550EM_A_SFP:
 		case IXGBE_DEV_ID_X550EM_A_SFP_N:
@@ -1146,10 +1146,10 @@ s32 ixgbe_stop_adapter_generic(struct ixgbe_hw *hw)
 	msec_delay(2);
 
 	/*
-	 * Prevent the PCI-E bus from hanging by disabling PCI-E master
+	 * Prevent the PCI-E bus from hanging by disabling PCI-E primary
 	 * access and verify no pending requests
 	 */
-	return ixgbe_disable_pcie_master(hw);
+	return ixgbe_disable_pcie_primary(hw);
 }
 
 /**
@@ -3208,32 +3208,32 @@ static u32 ixgbe_pcie_timeout_poll(struct ixgbe_hw *hw)
 }
 
 /**
- * ixgbe_disable_pcie_master - Disable PCI-express master access
+ * ixgbe_disable_pcie_primary - Disable PCI-express primary access
  * @hw: pointer to hardware structure
  *
- * Disables PCI-Express master access and verifies there are no pending
- * requests. IXGBE_ERR_MASTER_REQUESTS_PENDING is returned if master disable
- * bit hasn't caused the master requests to be disabled, else IXGBE_SUCCESS
- * is returned signifying master requests disabled.
+ * Disables PCI-Express primary access and verifies there are no pending
+ * requests. IXGBE_ERR_PRIMARY_REQUESTS_PENDING is returned if primary disable
+ * bit hasn't caused the primary requests to be disabled, else IXGBE_SUCCESS
+ * is returned signifying primary requests disabled.
  **/
-s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw)
+s32 ixgbe_disable_pcie_primary(struct ixgbe_hw *hw)
 {
 	s32 status = IXGBE_SUCCESS;
 	u32 i, poll;
 	u16 value;
 
-	DEBUGFUNC("ixgbe_disable_pcie_master");
+	DEBUGFUNC("ixgbe_disable_pcie_primary");
 
 	/* Always set this bit to ensure any future transactions are blocked */
 	IXGBE_WRITE_REG(hw, IXGBE_CTRL, IXGBE_CTRL_GIO_DIS);
 
-	/* Exit if master requests are blocked */
+	/* Exit if primary requests are blocked */
 	if (!(IXGBE_READ_REG(hw, IXGBE_STATUS) & IXGBE_STATUS_GIO) ||
 	    IXGBE_REMOVED(hw->hw_addr))
 		goto out;
 
-	/* Poll for master request bit to clear */
-	for (i = 0; i < IXGBE_PCI_MASTER_DISABLE_TIMEOUT; i++) {
+	/* Poll for primary request bit to clear */
+	for (i = 0; i < IXGBE_PCI_PRIMARY_DISABLE_TIMEOUT; i++) {
 		usec_delay(100);
 		if (!(IXGBE_READ_REG(hw, IXGBE_STATUS) & IXGBE_STATUS_GIO))
 			goto out;
@@ -3241,13 +3241,13 @@ s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw)
 
 	/*
 	 * Two consecutive resets are required via CTRL.RST per datasheet
-	 * 5.2.5.3.2 Master Disable.  We set a flag to inform the reset routine
-	 * of this need.  The first reset prevents new master requests from
+	 * 5.2.5.3.2 Primary Disable.  We set a flag to inform the reset routine
+	 * of this need. The first reset prevents new primary requests from
 	 * being issued by our device.  We then must wait 1usec or more for any
 	 * remaining completions from the PCIe bus to trickle in, and then reset
 	 * again to clear out any effects they may have had on our device.
 	 */
-	DEBUGOUT("GIO Master Disable bit didn't clear - requesting resets\n");
+	DEBUGOUT("GIO Primary Disable bit didn't clear - requesting resets\n");
 	hw->mac.flags |= IXGBE_FLAGS_DOUBLE_RESET_REQUIRED;
 
 	if (hw->mac.type >= ixgbe_mac_X550)
@@ -3269,7 +3269,7 @@ s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw)
 
 	ERROR_REPORT1(IXGBE_ERROR_POLLING,
 		     "PCIe transaction pending bit also did not clear.\n");
-	status = IXGBE_ERR_MASTER_REQUESTS_PENDING;
+	status = IXGBE_ERR_PRIMARY_REQUESTS_PENDING;
 
 out:
 	return status;

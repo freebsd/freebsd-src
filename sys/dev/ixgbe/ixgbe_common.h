@@ -118,7 +118,7 @@ s32 ixgbe_setup_fc_generic(struct ixgbe_hw *hw);
 s32 ixgbe_validate_mac_addr(u8 *mac_addr);
 s32 ixgbe_acquire_swfw_sync(struct ixgbe_hw *hw, u32 mask);
 void ixgbe_release_swfw_sync(struct ixgbe_hw *hw, u32 mask);
-s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw);
+s32 ixgbe_disable_pcie_primary(struct ixgbe_hw *hw);
 
 s32 prot_autoc_read_generic(struct ixgbe_hw *hw, bool *, u32 *reg_val);
 s32 prot_autoc_write_generic(struct ixgbe_hw *hw, u32 reg_val, bool locked);
