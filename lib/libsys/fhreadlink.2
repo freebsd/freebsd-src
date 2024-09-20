@@ -36,7 +36,6 @@
 .In sys/mount.h
 .Ft int
 .Fn fhreadlink "fhandle_t *fhp" "char *buf" "size_t bufsize"
-.Fc
 .Sh DESCRIPTION
 The
 .Fn fhreadlink
@@ -85,7 +84,6 @@ extends outside the process's allocated address space.
 The file handle
 .Fa fhp
 is no longer valid
-.El
 .El
 .Sh SEE ALSO
 .Xr fhstat 2 ,
