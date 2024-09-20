@@ -8,6 +8,8 @@
 #
 # This file is sorted in git log order (newest commits first).
 
+# style and whitespace fixes for bpf
+1baf6164e4d671ca1547a3096d8ce8fe69ed4e5c
 # whitespace fixes in sys/mman.h
 b5c95c93fdd47c0764219b8bf293ce54369caf27
 # sort OptionalObsoleteFiles.inc blocks
