@@ -47,12 +47,13 @@
 
 int
 vsnprintf_l(char * __restrict str, size_t n, locale_t locale, 
-		const char * __restrict fmt, __va_list ap)
+    const char * __restrict fmt, __va_list ap)
 {
+	FILE f = FAKE_FILE;
 	size_t on;
+	int serrno = errno;
 	int ret;
 	char dummy[2];
-	FILE f = FAKE_FILE;
 	FIX_LOCALE(locale);
 
 	on = n;
@@ -73,7 +74,7 @@ vsnprintf_l(char * __restrict str, size_t n, locale_t locale,
 	f._flags = __SWR | __SSTR;
 	f._bf._base = f._p = (unsigned char *)str;
 	f._bf._size = f._w = n;
-	ret = __vfprintf(&f, locale, fmt, ap);
+	ret = __vfprintf(&f, locale, serrno, fmt, ap);
 	if (on > 0)
 		*f._p = '\0';
 	return (ret);

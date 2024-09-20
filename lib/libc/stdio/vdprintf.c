@@ -46,6 +46,7 @@ vdprintf(int fd, const char * __restrict fmt, va_list ap)
 {
 	FILE f = FAKE_FILE;
 	unsigned char buf[BUFSIZ];
+	int serrno = errno;
 	int ret;
 
 	if (fd > SHRT_MAX) {
@@ -62,7 +63,7 @@ vdprintf(int fd, const char * __restrict fmt, va_list ap)
 	f._bf._base = buf;
 	f._bf._size = sizeof(buf);
 
-	if ((ret = __vfprintf(&f, __get_locale(), fmt, ap)) < 0)
+	if ((ret = __vfprintf(&f, __get_locale(), serrno, fmt, ap)) < 0)
 		return (ret);
 
 	return (__fflush(&f) ? EOF : ret);
