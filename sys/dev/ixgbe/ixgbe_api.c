@@ -904,7 +904,7 @@ s32 ixgbe_validate_eeprom_checksum(struct ixgbe_hw *hw, u16 *checksum_val)
 }
 
 /**
- * ixgbe_eeprom_update_checksum - Updates the EEPROM checksum
+ * ixgbe_update_eeprom_checksum - Updates the EEPROM checksum
  * @hw: pointer to hardware structure
  **/
 s32 ixgbe_update_eeprom_checksum(struct ixgbe_hw *hw)

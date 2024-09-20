@@ -3866,14 +3866,15 @@ s32 ixgbe_set_vmdq_generic(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
 }
 
 /**
+ * ixgbe_set_vmdq_san_mac_generic - Associate default VMDq pool index with
+ * a rx address
+ * @hw: pointer to hardware struct
+ * @vmdq: VMDq pool index
+ *
  * This function should only be involved in the IOV mode.
  * In IOV mode, Default pool is next pool after the number of
  * VFs advertized and not 0.
  * MPSAR table needs to be updated for SAN_MAC RAR [hw->mac.san_mac_rar_index]
- *
- * ixgbe_set_vmdq_san_mac - Associate default VMDq pool index with a rx address
- * @hw: pointer to hardware struct
- * @vmdq: VMDq pool index
  **/
 s32 ixgbe_set_vmdq_san_mac_generic(struct ixgbe_hw *hw, u32 vmdq)
 {
@@ -4880,7 +4881,7 @@ static const u8 ixgbe_emc_therm_limit[4] = {
 };
 
 /**
- * ixgbe_get_thermal_sensor_data - Gathers thermal sensor data
+ * ixgbe_get_thermal_sensor_data_generic - Gathers thermal sensor data
  * @hw: pointer to hardware structure
  *
  * Returns the thermal sensor data structure
