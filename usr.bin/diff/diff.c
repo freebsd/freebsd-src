@@ -276,7 +276,12 @@ main(int argc, char **argv)
 		case 'q':
 			if (FORMAT_MISMATCHED(D_BRIEF))
 				conflicting_format();
-			diff_format = D_BRIEF;
+			if (diff_format == D_BRIEF) {
+				diff_format = D_QUIET;
+			/* If already D_QUIET, avoid getting more verbose. */
+			} else if (diff_format != D_QUIET) {
+				diff_format = D_BRIEF;
+			}
 			break;
 		case 'S':
 			start = optarg;
@@ -474,8 +479,10 @@ main(int argc, char **argv)
 			if (stat(argv[1], &stb2) == -1)
 				err(2, "%s", argv[1]);
 		}
-		print_status(diffreg(argv[0], argv[1], dflags, 1), argv[0],
-		    argv[1], "");
+
+		if (diff_format != D_QUIET)
+			print_status(diffreg(argv[0], argv[1], dflags, 1),
+			    argv[0], argv[1], "");
 	}
 	if (fflush(stdout) != 0)
 		err(2, "stdout");
