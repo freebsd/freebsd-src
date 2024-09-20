@@ -880,6 +880,7 @@ ixgbe_if_attach_pre(if_ctx_t ctx)
 	struct ixgbe_hw *hw;
 	int             error = 0;
 	u32             ctrl_ext;
+	size_t i;
 
 	INIT_DEBUGOUT("ixgbe_attach: begin");
 
@@ -929,8 +930,11 @@ ixgbe_if_attach_pre(if_ctx_t ctx)
 		goto err_pci;
 	}
 
-	if (hw->mbx.ops.init_params)
-		hw->mbx.ops.init_params(hw);
+	/* 82598 Does not support SR-IOV, initialize everything else */
+	if (hw->mac.type >= ixgbe_mac_82599_vf) {
+		for (i = 0; i < sc->num_vfs; i++)
+			hw->mbx.ops[i].init_params(hw);
+	}
 
 	hw->allow_unsupported_sfp = allow_unsupported_sfp;
 
