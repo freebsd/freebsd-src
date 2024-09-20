@@ -100,7 +100,7 @@ ixgbe_send_vf_msg(struct ixgbe_softc *sc, struct ixgbe_vf *vf, u32 msg)
 	if (vf->flags & IXGBE_VF_CTS)
 		msg |= IXGBE_VT_MSGTYPE_CTS;
 
-	sc->hw.mbx.ops.write(&sc->hw, &msg, 1, vf->pool);
+	sc->hw.mbx.ops[0].write(&sc->hw, &msg, 1, vf->pool);
 }
 
 static inline void
@@ -374,7 +374,7 @@ ixgbe_vf_reset_msg(struct ixgbe_softc *sc, struct ixgbe_vf *vf, uint32_t *msg)
 	resp[0] = IXGBE_VF_RESET | ack | IXGBE_VT_MSGTYPE_CTS;
 	bcopy(vf->ether_addr, &resp[1], ETHER_ADDR_LEN);
 	resp[3] = hw->mac.mc_filter_type;
-	hw->mbx.ops.write(hw, resp, IXGBE_VF_PERMADDR_MSG_LEN, vf->pool);
+	hw->mbx.ops[0].write(hw, resp, IXGBE_VF_PERMADDR_MSG_LEN, vf->pool);
 } /* ixgbe_vf_reset_msg */
 
 
@@ -565,7 +565,7 @@ ixgbe_vf_get_queues(struct ixgbe_softc *sc, struct ixgbe_vf *vf, uint32_t *msg)
 	resp[IXGBE_VF_TRANS_VLAN] = (vf->default_vlan != 0);
 	resp[IXGBE_VF_DEF_QUEUE] = 0;
 
-	hw->mbx.ops.write(hw, resp, IXGBE_VF_GET_QUEUES_RESP_LEN, vf->pool);
+	hw->mbx.ops[0].write(hw, resp, IXGBE_VF_GET_QUEUES_RESP_LEN, vf->pool);
 } /* ixgbe_vf_get_queues */
 
 
@@ -582,7 +582,7 @@ ixgbe_process_vf_msg(if_ctx_t ctx, struct ixgbe_vf *vf)
 
 	hw = &sc->hw;
 
-	error = hw->mbx.ops.read(hw, msg, IXGBE_VFMAILBOX_SIZE, vf->pool);
+	error = hw->mbx.ops[0].read(hw, msg, IXGBE_VFMAILBOX_SIZE, vf->pool);
 
 	if (error != 0)
 		return;
@@ -643,13 +643,13 @@ ixgbe_handle_mbx(void *context)
 		vf = &sc->vfs[i];
 
 		if (vf->flags & IXGBE_VF_ACTIVE) {
-			if (hw->mbx.ops.check_for_rst(hw, vf->pool) == 0)
+			if (hw->mbx.ops[0].check_for_rst(hw, vf->pool) == 0)
 				ixgbe_process_vf_reset(sc, vf);
 
-			if (hw->mbx.ops.check_for_msg(hw, vf->pool) == 0)
+			if (hw->mbx.ops[0].check_for_msg(hw, vf->pool) == 0)
 				ixgbe_process_vf_msg(ctx, vf);
 
-			if (hw->mbx.ops.check_for_ack(hw, vf->pool) == 0)
+			if (hw->mbx.ops[0].check_for_ack(hw, vf->pool) == 0)
 				ixgbe_process_vf_ack(sc, vf);
 		}
 	}
