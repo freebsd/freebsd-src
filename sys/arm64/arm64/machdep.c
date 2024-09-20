@@ -889,7 +889,7 @@ initarm(struct arm64_bootparams *abp)
 	boot_el = abp->boot_el;
 	hcr_el2 = abp->hcr_el2;
 
-	/* Parse loader or FDT boot parametes. Determine last used address. */
+	/* Parse loader or FDT boot parameters. Determine last used address. */
 	lastaddr = parse_boot_param(abp);
 
 	/* Find the kernel address */
