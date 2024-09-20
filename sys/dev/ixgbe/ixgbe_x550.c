@@ -799,14 +799,8 @@ s32 ixgbe_init_ops_X550EM_a(struct ixgbe_hw *hw)
 	/* Start with generic X550EM init */
 	ret_val = ixgbe_init_ops_X550EM(hw);
 
-	if (hw->device_id == IXGBE_DEV_ID_X550EM_A_SGMII ||
-	    hw->device_id == IXGBE_DEV_ID_X550EM_A_SGMII_L) {
-		mac->ops.read_iosf_sb_reg = ixgbe_read_iosf_sb_reg_x550;
-		mac->ops.write_iosf_sb_reg = ixgbe_write_iosf_sb_reg_x550;
-	} else {
-		mac->ops.read_iosf_sb_reg = ixgbe_read_iosf_sb_reg_x550a;
-		mac->ops.write_iosf_sb_reg = ixgbe_write_iosf_sb_reg_x550a;
-	}
+	mac->ops.read_iosf_sb_reg = ixgbe_read_iosf_sb_reg_x550;
+	mac->ops.write_iosf_sb_reg = ixgbe_write_iosf_sb_reg_x550;
 	mac->ops.acquire_swfw_sync = ixgbe_acquire_swfw_sync_X550a;
 	mac->ops.release_swfw_sync = ixgbe_release_swfw_sync_X550a;
 
@@ -1285,72 +1279,6 @@ s32 ixgbe_put_phy_token(struct ixgbe_hw *hw)
 
 	DEBUGOUT("Put PHY Token host interface command failed");
 	return IXGBE_ERR_FW_RESP_INVALID;
-}
-
-/**
- * ixgbe_write_iosf_sb_reg_x550a - Writes a value to specified register
- * of the IOSF device
- * @hw: pointer to hardware structure
- * @reg_addr: 32 bit PHY register to write
- * @device_type: 3 bit device type
- * @data: Data to write to the register
- **/
-s32 ixgbe_write_iosf_sb_reg_x550a(struct ixgbe_hw *hw, u32 reg_addr,
-				  u32 device_type, u32 data)
-{
-	struct ixgbe_hic_internal_phy_req write_cmd;
-	s32 status;
-	UNREFERENCED_1PARAMETER(device_type);
-
-	memset(&write_cmd, 0, sizeof(write_cmd));
-	write_cmd.hdr.cmd = FW_INT_PHY_REQ_CMD;
-	write_cmd.hdr.buf_len = FW_INT_PHY_REQ_LEN;
-	write_cmd.hdr.checksum = FW_DEFAULT_CHECKSUM;
-	write_cmd.port_number = hw->bus.lan_id;
-	write_cmd.command_type = FW_INT_PHY_REQ_WRITE;
-	write_cmd.address = IXGBE_CPU_TO_BE16(reg_addr);
-	write_cmd.write_data = IXGBE_CPU_TO_BE32(data);
-
-	status = ixgbe_host_interface_command(hw, (u32 *)&write_cmd,
-					      sizeof(write_cmd),
-					      IXGBE_HI_COMMAND_TIMEOUT, false);
-
-	return status;
-}
-
-/**
- * ixgbe_read_iosf_sb_reg_x550a - Reads specified register of the IOSF device
- * @hw: pointer to hardware structure
- * @reg_addr: 32 bit PHY register to write
- * @device_type: 3 bit device type
- * @data: Pointer to read data from the register
- **/
-s32 ixgbe_read_iosf_sb_reg_x550a(struct ixgbe_hw *hw, u32 reg_addr,
-				 u32 device_type, u32 *data)
-{
-	union {
-		struct ixgbe_hic_internal_phy_req cmd;
-		struct ixgbe_hic_internal_phy_resp rsp;
-	} hic;
-	s32 status;
-	UNREFERENCED_1PARAMETER(device_type);
-
-	memset(&hic, 0, sizeof(hic));
-	hic.cmd.hdr.cmd = FW_INT_PHY_REQ_CMD;
-	hic.cmd.hdr.buf_len = FW_INT_PHY_REQ_LEN;
-	hic.cmd.hdr.checksum = FW_DEFAULT_CHECKSUM;
-	hic.cmd.port_number = hw->bus.lan_id;
-	hic.cmd.command_type = FW_INT_PHY_REQ_READ;
-	hic.cmd.address = IXGBE_CPU_TO_BE16(reg_addr);
-
-	status = ixgbe_host_interface_command(hw, (u32 *)&hic.cmd,
-					      sizeof(hic.cmd),
-					      IXGBE_HI_COMMAND_TIMEOUT, true);
-
-	/* Extract the register value from the response. */
-	*data = IXGBE_BE32_TO_CPU(hic.rsp.read_data);
-
-	return status;
 }
 
 /**
