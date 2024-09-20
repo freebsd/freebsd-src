@@ -211,7 +211,7 @@ __tcp_set_flags(struct tcphdr *th, uint16_t flags)
 #define	TCP_CONGESTION		64	/* get/set congestion control algorithm */
 #define	TCP_CCALGOOPT		65	/* get/set cc algorithm specific options */
 #define	TCP_MAXUNACKTIME	68	/* maximum time without making progress (sec) */
-#define	TCP_MAXPEAKRATE		69	/* maximum peak rate allowed (kbps) */
+					/* unused; was TCP_MAXPEAKRATE */
 #define	TCP_IDLE_REDUCE		70	/* Reduce cwnd on idle input */
 #define	TCP_REMOTE_UDP_ENCAPS_PORT 71	/* Enable TCP over UDP tunneling via the specified port */
 #define	TCP_DELACK		72	/* socket option for delayed ack */
@@ -233,57 +233,53 @@ __tcp_set_flags(struct tcphdr *th, uint16_t flags)
 /* Options for Rack and BBR */
 #define	TCP_REUSPORT_LB_NUMA	1026	/* set listen socket numa domain */
 #define	TCP_RACK_MBUF_QUEUE	1050	/* Do we allow mbuf queuing if supported */
-#define	TCP_RACK_PROP		1051	/* Not used */
+					/* unused; was TCP_RACK_PROP */
 #define	TCP_RACK_TLP_REDUCE 	1052	/* RACK TLP cwnd reduction (bool) */
-#define	TCP_RACK_PACE_REDUCE 	1053	/* RACK Pacingv reduction factor (divisor) */
+					/* unused; was TCP_RACK_PACE_REDUCE */
 #define	TCP_RACK_PACE_MAX_SEG	1054	/* Max TSO size we will send  */
 #define	TCP_RACK_PACE_ALWAYS	1055	/* Use the always pace method */
-#define	TCP_RACK_PROP_RATE	1056	/* Not used */
+					/* unused; was TCP_RACK_PROP_RATE */
 #define	TCP_RACK_PRR_SENDALOT	1057	/* Allow PRR to send more than one seg */
 #define	TCP_RACK_MIN_TO		1058	/* Minimum time between rack t-o's in ms */
-#define	TCP_RACK_EARLY_RECOV	1059	/* Not used */
+					/* unused; was TCP_RACK_EARLY_RECOV */
 #define	TCP_RACK_EARLY_SEG	1060	/* If early recovery max segments */
 #define	TCP_RACK_REORD_THRESH	1061	/* RACK reorder threshold (shift amount) */
 #define	TCP_RACK_REORD_FADE	1062	/* Does reordering fade after ms time */
 #define	TCP_RACK_TLP_THRESH	1063	/* RACK TLP theshold i.e. srtt+(srtt/N) */
 #define	TCP_RACK_PKT_DELAY	1064	/* RACK added ms i.e. rack-rtt + reord + N */
-#define	TCP_RACK_TLP_INC_VAR	1065	/* Does TLP include rtt variance in t-o */
+					/* unused; was TCP_RACK_TLP_INC_VAR */
+					/* unused */
 #define	TCP_BBR_IWINTSO		1067	/* Initial TSO window for BBRs first sends */
-#define	TCP_BBR_RECFORCE	1068	/* Enter recovery force out a segment disregard pacer no longer valid */
+					/* unused; was TCP_BBR_RECFORCE */
 #define	TCP_BBR_STARTUP_PG	1069	/* Startup pacing gain */
 #define	TCP_BBR_DRAIN_PG	1070	/* Drain pacing gain */
-#define	TCP_BBR_RWND_IS_APP	1071	/* Rwnd limited is considered app limited */
+					/* unused; was TCP_BBR_RWND_IS_APP */
 #define	TCP_BBR_PROBE_RTT_INT	1072	/* How long in useconds between probe-rtt */
-#define	TCP_BBR_ONE_RETRAN	1073	/* Is only one segment allowed out during retran */
+					/* unused; was TCP_BBR_ONE_RETRAN */
 #define	TCP_BBR_STARTUP_LOSS_EXIT 1074	/* Do we exit a loss during startup if not 20% incr */
-#define	TCP_BBR_USE_LOWGAIN	1075	/* lower the gain in PROBE_BW enable */
-#define	TCP_BBR_LOWGAIN_THRESH	1076	/* Unused after 2.3 morphs to TSLIMITS >= 2.3 */
+					/* unused; was TCP_BBR_USE_LOWGAIN */
 #define	TCP_BBR_TSLIMITS	1076	/* Do we use experimental Timestamp limiting for our algo */
-#define	TCP_BBR_LOWGAIN_HALF	1077	/* Unused after 2.3 */
 #define	TCP_BBR_PACE_OH		1077	/* Reused in 4.2 for pacing overhead setting */
-#define	TCP_BBR_LOWGAIN_FD	1078	/* Unused after 2.3 */
-#define	TCP_BBR_HOLD_TARGET	1078	/* For 4.3 on */
+					/* unused; was TCP_BBR_HOLD_TARGET */
 #define	TCP_BBR_USEDEL_RATE	1079	/* Enable use of delivery rate for loss recovery */
 #define	TCP_BBR_MIN_RTO		1080	/* Min RTO in milliseconds */
 #define	TCP_BBR_MAX_RTO		1081	/* Max RTO in milliseconds */
-#define	TCP_BBR_REC_OVER_HPTS	1082	/* Recovery override htps settings 0/1/3 */
-#define	TCP_BBR_UNLIMITED	1083	/* Not used before 2.3 and morphs to algorithm >= 2.3 */
+					/* unused; was TCP_BBR_REC_OVER_HPTS */
 #define	TCP_BBR_ALGORITHM	1083	/* What measurement algo does BBR use netflix=0, google=1 */
-#define	TCP_BBR_DRAIN_INC_EXTRA	1084	/* Does the 3/4 drain target include the extra gain */
-#define	TCP_BBR_STARTUP_EXIT_EPOCH 1085	/* what epoch gets us out of startup */
+					/* unused; was TCP_BBR_DRAIN_INC_EXTRA */
+					/* unused; was TCP_BBR_STARTUP_EXIT_EPOCH */
 #define	TCP_BBR_PACE_PER_SEC	1086
 #define	TCP_BBR_PACE_DEL_TAR	1087
 #define	TCP_BBR_PACE_SEG_MAX	1088
 #define	TCP_BBR_PACE_SEG_MIN	1089
 #define	TCP_BBR_PACE_CROSS	1090
-#define	TCP_RACK_IDLE_REDUCE_HIGH 1092	/* Reduce the highest cwnd seen to IW on idle */
-#define	TCP_RACK_MIN_PACE	1093	/* Do we enforce rack min pace time */
-#define	TCP_RACK_MIN_PACE_SEG	1094	/* If so what is the seg threshould */
-#define	TCP_RACK_GP_INCREASE	1094	/* After 4.1 its the GP increase in older rack */
+					/* unused */
+					/* unused; was TCP_RACK_IDLE_REDUCE_HIGH */
+					/* unused; was TCP_RACK_MIN_PACE */
+					/* unused; was TCP_RACK_GP_INCREASE */
 #define	TCP_RACK_TLP_USE	1095
-#define	TCP_BBR_ACK_COMP_ALG	1096	/* Not used */
 #define	TCP_BBR_TMR_PACE_OH	1096	/* Recycled in 4.2 */
-#define	TCP_BBR_EXTRA_GAIN	1097
+					/* unused; was TCP_BBR_EXTRA_GAIN */
 #define	TCP_RACK_DO_DETECTION	1097	/* Recycle of extra gain for rack, attack detection */
 #define	TCP_BBR_RACK_RTT_USE	1098	/* what RTT should we use 0, 1, or 2? */
 #define	TCP_BBR_RETRAN_WTSO	1099
@@ -302,7 +298,6 @@ __tcp_set_flags(struct tcphdr *th, uint16_t flags)
 #define	TCP_BBR_POLICER_DETECT	1111	/* Turn on/off google mode policer detection */
 #define	TCP_BBR_RACK_INIT_RATE	1112	/* Set an initial pacing rate for when we have no b/w in kbits per sec */
 #define	TCP_RACK_RR_CONF	1113	/* Rack rapid recovery configuration control*/
-#define	TCP_RACK_CHEAT_NOT_CONF_RATE TCP_RACK_RR_CONF
 #define	TCP_RACK_GP_INCREASE_CA	1114	/* GP increase for Congestion Avoidance */
 #define	TCP_RACK_GP_INCREASE_SS	1115	/* GP increase for Slow Start */
 #define	TCP_RACK_GP_INCREASE_REC 1116	/* GP increase for Recovery */
@@ -325,7 +320,7 @@ __tcp_set_flags(struct tcphdr *th, uint16_t flags)
 #define	TCP_REC_ABC_VAL		1134	/* Do we use the ABC value for recovery or the override one from sysctl  */
 #define	TCP_RACK_MEASURE_CNT	1135	/* How many measurements are required in GP pacing */
 #define	TCP_DEFER_OPTIONS	1136	/* Defer options until the proper number of measurements occur, does not defer TCP_RACK_MEASURE_CNT */
-#define	TCP_FAST_RSM_HACK	1137	/* Not used in modern stacks */
+					/* unused; was TCP_FAST_RSM_HACK */
 #define	TCP_RACK_PACING_BETA	1138	/* Changing the beta for pacing */
 #define	TCP_RACK_PACING_BETA_ECN 1139	/* Changing the beta for ecn with pacing */
 #define	TCP_RACK_TIMER_SLOP	1140	/* Set or get the timer slop used */
