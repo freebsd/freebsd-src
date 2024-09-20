@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.396 2024/06/17 08:30:29 djm Exp $
-.Dd $Mdocdate: June 17 2024 $
+.\" $OpenBSD: ssh_config.5,v 1.402 2024/09/09 14:41:21 naddy Exp $
+.Dd $Mdocdate: September 9 2024 $
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -1182,7 +1182,12 @@ to unknown options that appear before it.
 Include the specified configuration file(s).
 Multiple pathnames may be specified and each pathname may contain
 .Xr glob 7
-wildcards and, for user configurations, shell-like
+wildcards,
+tokens as described in the
+.Sx TOKENS
+section, environment variables as described in the
+.Sx ENVIRONMENT VARIABLES
+section and, for user configurations, shell-like
 .Sq ~
 references to user home directories.
 Wildcards will be expanded and processed in lexical order.
@@ -1262,7 +1267,7 @@ and
 .It Cm KexAlgorithms
 Specifies the permitted KEX (Key Exchange) algorithms that will be used and
 their preference order.
-The selected algorithm will the the first algorithm in this list that
+The selected algorithm will be the first algorithm in this list that
 the server also supports.
 Multiple algorithms must be comma-separated.
 .Pp
@@ -1281,7 +1286,8 @@ default set.
 .Pp
 The default is:
 .Bd -literal -offset indent
-sntrup761x25519-sha512@openssh.com,
+sntrup761x25519-sha512,sntrup761x25519-sha512@openssh.com,
+mlkem768x25519-sha256,
 curve25519-sha256,curve25519-sha256@libssh.org,
 ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
 diffie-hellman-group-exchange-sha256,
@@ -1382,8 +1388,8 @@ DEBUG and DEBUG1 are equivalent.
 DEBUG2 and DEBUG3 each specify higher levels of verbose output.
 .It Cm LogVerbose
 Specify one or more overrides to LogLevel.
-An override consists of a pattern lists that matches the source file, function
-and line number to force detailed logging for.
+An override consists of one or more pattern lists that matches the
+source file, function and line number to force detailed logging for.
 For example, an override pattern of:
 .Bd -literal -offset indent
 kex.c:*:1000,*:kex_exchange_identification():*,packet.c:*
@@ -2270,6 +2276,7 @@ The local username.
 .Cm ControlPath ,
 .Cm IdentityAgent ,
 .Cm IdentityFile ,
+.Cm Include ,
 .Cm KnownHostsCommand ,
 .Cm LocalForward ,
 .Cm Match exec ,
@@ -2318,6 +2325,7 @@ The keywords
 .Cm ControlPath ,
 .Cm IdentityAgent ,
 .Cm IdentityFile ,
+.Cm Include ,
 .Cm KnownHostsCommand ,
 and
 .Cm UserKnownHostsFile

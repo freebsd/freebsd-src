@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_file.c,v 1.11 2024/01/11 01:45:58 djm Exp $ */
+/* 	$OpenBSD: test_file.c,v 1.12 2024/08/15 00:52:23 djm Exp $ */
 /*
  * Regress test for sshkey.h key management API
  *
@@ -271,11 +271,12 @@ sshkey_file_tests(void)
 #ifndef OPENSSL_IS_BORINGSSL /* lacks EC_POINT_point2bn() */
 	a = load_bignum("ecdsa_1.param.priv");
 	b = load_bignum("ecdsa_1.param.pub");
-	c = EC_POINT_point2bn(EC_KEY_get0_group(k1->ecdsa),
-	    EC_KEY_get0_public_key(k1->ecdsa), POINT_CONVERSION_UNCOMPRESSED,
-	    NULL, NULL);
+	c = EC_POINT_point2bn(EC_KEY_get0_group(EVP_PKEY_get0_EC_KEY(k1->pkey)),
+	    EC_KEY_get0_public_key(EVP_PKEY_get0_EC_KEY(k1->pkey)),
+	    POINT_CONVERSION_UNCOMPRESSED, NULL, NULL);
 	ASSERT_PTR_NE(c, NULL);
-	ASSERT_BIGNUM_EQ(EC_KEY_get0_private_key(k1->ecdsa), a);
+	ASSERT_BIGNUM_EQ(
+	    EC_KEY_get0_private_key(EVP_PKEY_get0_EC_KEY(k1->pkey)), a);
 	ASSERT_BIGNUM_EQ(b, c);
 	BN_free(a);
 	BN_free(b);

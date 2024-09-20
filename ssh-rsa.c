@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-rsa.c,v 1.79 2023/03/05 05:34:09 dtucker Exp $ */
+/* $OpenBSD: ssh-rsa.c,v 1.80 2024/08/15 00:51:51 djm Exp $ */
 /*
  * Copyright (c) 2000, 2003 Markus Friedl <markus@openbsd.org>
  *
@@ -36,23 +36,18 @@
 
 #include "openbsd-compat/openssl-compat.h"
 
-static int openssh_RSA_verify(int, u_char *, size_t, u_char *, size_t, RSA *);
-
 static u_int
-ssh_rsa_size(const struct sshkey *key)
+ssh_rsa_size(const struct sshkey *k)
 {
-	const BIGNUM *rsa_n;
-
-	if (key->rsa == NULL)
+	if (k->pkey == NULL)
 		return 0;
-	RSA_get0_key(key->rsa, &rsa_n, NULL, NULL);
-	return BN_num_bits(rsa_n);
+	return EVP_PKEY_bits(k->pkey);
 }
 
 static int
 ssh_rsa_alloc(struct sshkey *k)
 {
-	if ((k->rsa = RSA_new()) == NULL)
+	if ((k->pkey = EVP_PKEY_new()) == NULL)
 		return SSH_ERR_ALLOC_FAIL;
 	return 0;
 }
@@ -60,29 +55,16 @@ ssh_rsa_alloc(struct sshkey *k)
 static void
 ssh_rsa_cleanup(struct sshkey *k)
 {
-	RSA_free(k->rsa);
-	k->rsa = NULL;
+	EVP_PKEY_free(k->pkey);
+	k->pkey = NULL;
 }
 
 static int
 ssh_rsa_equal(const struct sshkey *a, const struct sshkey *b)
 {
-	const BIGNUM *rsa_e_a, *rsa_n_a;
-	const BIGNUM *rsa_e_b, *rsa_n_b;
-
-	if (a->rsa == NULL || b->rsa == NULL)
+	if (a->pkey == NULL || b->pkey == NULL)
 		return 0;
-	RSA_get0_key(a->rsa, &rsa_n_a, &rsa_e_a, NULL);
-	RSA_get0_key(b->rsa, &rsa_n_b, &rsa_e_b, NULL);
-	if (rsa_e_a == NULL || rsa_e_b == NULL)
-		return 0;
-	if (rsa_n_a == NULL || rsa_n_b == NULL)
-		return 0;
-	if (BN_cmp(rsa_e_a, rsa_e_b) != 0)
-		return 0;
-	if (BN_cmp(rsa_n_a, rsa_n_b) != 0)
-		return 0;
-	return 1;
+	return EVP_PKEY_cmp(a->pkey, b->pkey) == 1;
 }
 
 static int
@@ -91,10 +73,14 @@ ssh_rsa_serialize_public(const struct sshkey *key, struct sshbuf *b,
 {
 	int r;
 	const BIGNUM *rsa_n, *rsa_e;
+	const RSA *rsa;
 
-	if (key->rsa == NULL)
+	if (key->pkey == NULL)
 		return SSH_ERR_INVALID_ARGUMENT;
-	RSA_get0_key(key->rsa, &rsa_n, &rsa_e, NULL);
+	if ((rsa = EVP_PKEY_get0_RSA(key->pkey)) == NULL)
+		return SSH_ERR_LIBCRYPTO_ERROR;
+
+	RSA_get0_key(rsa, &rsa_n, &rsa_e, NULL);
 	if ((r = sshbuf_put_bignum2(b, rsa_e)) != 0 ||
 	    (r = sshbuf_put_bignum2(b, rsa_n)) != 0)
 		return r;
@@ -108,10 +94,13 @@ ssh_rsa_serialize_private(const struct sshkey *key, struct sshbuf *b,
 {
 	int r;
 	const BIGNUM *rsa_n, *rsa_e, *rsa_d, *rsa_iqmp, *rsa_p, *rsa_q;
+	const RSA *rsa;
 
-	RSA_get0_key(key->rsa, &rsa_n, &rsa_e, &rsa_d);
-	RSA_get0_factors(key->rsa, &rsa_p, &rsa_q);
-	RSA_get0_crt_params(key->rsa, NULL, NULL, &rsa_iqmp);
+	if ((rsa = EVP_PKEY_get0_RSA(key->pkey)) == NULL)
+		return SSH_ERR_LIBCRYPTO_ERROR;
+	RSA_get0_key(rsa, &rsa_n, &rsa_e, &rsa_d);
+	RSA_get0_factors(rsa, &rsa_p, &rsa_q);
+	RSA_get0_crt_params(rsa, NULL, NULL, &rsa_iqmp);
 
 	if (!sshkey_is_cert(key)) {
 		/* Note: can't reuse ssh_rsa_serialize_public: e, n vs. n, e */
@@ -131,28 +120,36 @@ ssh_rsa_serialize_private(const struct sshkey *key, struct sshbuf *b,
 static int
 ssh_rsa_generate(struct sshkey *k, int bits)
 {
-	RSA *private = NULL;
-	BIGNUM *f4 = NULL;
+	EVP_PKEY_CTX *ctx = NULL;
+	EVP_PKEY *res = NULL;
+
 	int ret = SSH_ERR_INTERNAL_ERROR;
 
 	if (bits < SSH_RSA_MINIMUM_MODULUS_SIZE ||
 	    bits > SSHBUF_MAX_BIGNUM * 8)
 		return SSH_ERR_KEY_LENGTH;
-	if ((private = RSA_new()) == NULL || (f4 = BN_new()) == NULL) {
+
+	if ((ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL)) == NULL) {
 		ret = SSH_ERR_ALLOC_FAIL;
 		goto out;
 	}
-	if (!BN_set_word(f4, RSA_F4) ||
-	    !RSA_generate_key_ex(private, bits, f4, NULL)) {
+	if (EVP_PKEY_keygen_init(ctx) <= 0) {
 		ret = SSH_ERR_LIBCRYPTO_ERROR;
 		goto out;
 	}
-	k->rsa = private;
-	private = NULL;
+	if (EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, bits) <= 0) {
+		ret = SSH_ERR_KEY_LENGTH;
+		goto out;
+	}
+	if (EVP_PKEY_keygen(ctx, &res) <= 0 || res == NULL) {
+		ret = SSH_ERR_LIBCRYPTO_ERROR;
+		goto out;
+	}
+	/* success */
+	k->pkey = res;
 	ret = 0;
  out:
-	RSA_free(private);
-	BN_free(f4);
+	EVP_PKEY_CTX_free(ctx);
 	return ret;
 }
 
@@ -162,21 +159,33 @@ ssh_rsa_copy_public(const struct sshkey *from, struct sshkey *to)
 	const BIGNUM *rsa_n, *rsa_e;
 	BIGNUM *rsa_n_dup = NULL, *rsa_e_dup = NULL;
 	int r = SSH_ERR_INTERNAL_ERROR;
+	const RSA *rsa_from;
+	RSA *rsa_to = NULL;
 
-	RSA_get0_key(from->rsa, &rsa_n, &rsa_e, NULL);
+	if ((rsa_from = EVP_PKEY_get0_RSA(from->pkey)) == NULL ||
+	    (rsa_to = RSA_new()) == NULL)
+		return SSH_ERR_LIBCRYPTO_ERROR;
+
+	RSA_get0_key(rsa_from, &rsa_n, &rsa_e, NULL);
 	if ((rsa_n_dup = BN_dup(rsa_n)) == NULL ||
 	    (rsa_e_dup = BN_dup(rsa_e)) == NULL) {
 		r = SSH_ERR_ALLOC_FAIL;
 		goto out;
 	}
-	if (!RSA_set0_key(to->rsa, rsa_n_dup, rsa_e_dup, NULL)) {
+	if (!RSA_set0_key(rsa_to, rsa_n_dup, rsa_e_dup, NULL)) {
 		r = SSH_ERR_LIBCRYPTO_ERROR;
 		goto out;
 	}
 	rsa_n_dup = rsa_e_dup = NULL; /* transferred */
+
+	if (EVP_PKEY_set1_RSA(to->pkey, rsa_to) != 1) {
+		r = SSH_ERR_LIBCRYPTO_ERROR;
+		goto out;
+	}
 	/* success */
 	r = 0;
  out:
+	RSA_free(rsa_to);
 	BN_clear_free(rsa_n_dup);
 	BN_clear_free(rsa_e_dup);
 	return r;
@@ -188,25 +197,34 @@ ssh_rsa_deserialize_public(const char *ktype, struct sshbuf *b,
 {
 	int ret = SSH_ERR_INTERNAL_ERROR;
 	BIGNUM *rsa_n = NULL, *rsa_e = NULL;
+	RSA *rsa = NULL;
+
+	if ((rsa = RSA_new()) == NULL)
+		return SSH_ERR_LIBCRYPTO_ERROR;
 
 	if (sshbuf_get_bignum2(b, &rsa_e) != 0 ||
 	    sshbuf_get_bignum2(b, &rsa_n) != 0) {
 		ret = SSH_ERR_INVALID_FORMAT;
 		goto out;
 	}
-	if (!RSA_set0_key(key->rsa, rsa_n, rsa_e, NULL)) {
+	if (!RSA_set0_key(rsa, rsa_n, rsa_e, NULL)) {
 		ret = SSH_ERR_LIBCRYPTO_ERROR;
 		goto out;
 	}
 	rsa_n = rsa_e = NULL; /* transferred */
+	if (EVP_PKEY_set1_RSA(key->pkey, rsa) != 1) {
+		ret = SSH_ERR_LIBCRYPTO_ERROR;
+		goto out;
+	}
 	if ((ret = sshkey_check_rsa_length(key, 0)) != 0)
 		goto out;
 #ifdef DEBUG_PK
-	RSA_print_fp(stderr, key->rsa, 8);
+	RSA_print_fp(stderr, rsa, 8);
 #endif
 	/* success */
 	ret = 0;
  out:
+	RSA_free(rsa);
 	BN_clear_free(rsa_n);
 	BN_clear_free(rsa_e);
 	return ret;
@@ -219,13 +237,25 @@ ssh_rsa_deserialize_private(const char *ktype, struct sshbuf *b,
 	int r;
 	BIGNUM *rsa_n = NULL, *rsa_e = NULL, *rsa_d = NULL;
 	BIGNUM *rsa_iqmp = NULL, *rsa_p = NULL, *rsa_q = NULL;
+	BIGNUM *rsa_dmp1 = NULL, *rsa_dmq1 = NULL;
+	RSA *rsa = NULL;
 
-	/* Note: can't reuse ssh_rsa_deserialize_public: e, n vs. n, e */
-	if (!sshkey_is_cert(key)) {
+	if (sshkey_is_cert(key)) {
+		/* sshkey_private_deserialize already has pubkey from cert */
+		if ((rsa = EVP_PKEY_get1_RSA(key->pkey)) == NULL) {
+			r = SSH_ERR_LIBCRYPTO_ERROR;
+			goto out;
+		}
+	} else {
+		if ((rsa = RSA_new()) == NULL) {
+			r = SSH_ERR_LIBCRYPTO_ERROR;
+			goto out;
+		}
+		/* Note: can't reuse ssh_rsa_deserialize_public: e,n vs. n,e */
 		if ((r = sshbuf_get_bignum2(b, &rsa_n)) != 0 ||
 		    (r = sshbuf_get_bignum2(b, &rsa_e)) != 0)
 			goto out;
-		if (!RSA_set0_key(key->rsa, rsa_n, rsa_e, NULL)) {
+		if (!RSA_set0_key(rsa, rsa_n, rsa_e, NULL)) {
 			r = SSH_ERR_LIBCRYPTO_ERROR;
 			goto out;
 		}
@@ -236,33 +266,46 @@ ssh_rsa_deserialize_private(const char *ktype, struct sshbuf *b,
 	    (r = sshbuf_get_bignum2(b, &rsa_p)) != 0 ||
 	    (r = sshbuf_get_bignum2(b, &rsa_q)) != 0)
 		goto out;
-	if (!RSA_set0_key(key->rsa, NULL, NULL, rsa_d)) {
+	if ((r = ssh_rsa_complete_crt_parameters(rsa_d, rsa_p, rsa_q,
+	    rsa_iqmp, &rsa_dmp1, &rsa_dmq1)) != 0)
+		goto out;
+	if (!RSA_set0_key(rsa, NULL, NULL, rsa_d)) {
 		r = SSH_ERR_LIBCRYPTO_ERROR;
 		goto out;
 	}
 	rsa_d = NULL; /* transferred */
-	if (!RSA_set0_factors(key->rsa, rsa_p, rsa_q)) {
+	if (!RSA_set0_factors(rsa, rsa_p, rsa_q)) {
 		r = SSH_ERR_LIBCRYPTO_ERROR;
 		goto out;
 	}
 	rsa_p = rsa_q = NULL; /* transferred */
-	if ((r = sshkey_check_rsa_length(key, 0)) != 0)
-		goto out;
-	if ((r = ssh_rsa_complete_crt_parameters(key, rsa_iqmp)) != 0)
-		goto out;
-	if (RSA_blinding_on(key->rsa, NULL) != 1) {
+	if (!RSA_set0_crt_params(rsa, rsa_dmp1, rsa_dmq1, rsa_iqmp)) {
 		r = SSH_ERR_LIBCRYPTO_ERROR;
 		goto out;
 	}
+	rsa_dmp1 = rsa_dmq1 = rsa_iqmp = NULL;
+	if (RSA_blinding_on(rsa, NULL) != 1) {
+		r = SSH_ERR_LIBCRYPTO_ERROR;
+		goto out;
+	}
+	if (EVP_PKEY_set1_RSA(key->pkey, rsa) != 1) {
+		r = SSH_ERR_LIBCRYPTO_ERROR;
+		goto out;
+	}
+	if ((r = sshkey_check_rsa_length(key, 0)) != 0)
+		goto out;
 	/* success */
 	r = 0;
  out:
+	RSA_free(rsa);
 	BN_clear_free(rsa_n);
 	BN_clear_free(rsa_e);
 	BN_clear_free(rsa_d);
 	BN_clear_free(rsa_p);
 	BN_clear_free(rsa_q);
 	BN_clear_free(rsa_iqmp);
+	BN_clear_free(rsa_dmp1);
+	BN_clear_free(rsa_dmq1);
 	return r;
 }
 
@@ -317,45 +360,23 @@ rsa_hash_id_from_keyname(const char *alg)
 	return -1;
 }
 
-static int
-rsa_hash_alg_nid(int type)
-{
-	switch (type) {
-	case SSH_DIGEST_SHA1:
-		return NID_sha1;
-	case SSH_DIGEST_SHA256:
-		return NID_sha256;
-	case SSH_DIGEST_SHA512:
-		return NID_sha512;
-	default:
-		return -1;
-	}
-}
-
 int
-ssh_rsa_complete_crt_parameters(struct sshkey *key, const BIGNUM *iqmp)
+ssh_rsa_complete_crt_parameters(const BIGNUM *rsa_d, const BIGNUM *rsa_p,
+    const BIGNUM *rsa_q, const BIGNUM *rsa_iqmp, BIGNUM **rsa_dmp1,
+    BIGNUM **rsa_dmq1)
 {
-	const BIGNUM *rsa_p, *rsa_q, *rsa_d;
 	BIGNUM *aux = NULL, *d_consttime = NULL;
-	BIGNUM *rsa_dmq1 = NULL, *rsa_dmp1 = NULL, *rsa_iqmp = NULL;
 	BN_CTX *ctx = NULL;
 	int r;
 
-	if (key == NULL || key->rsa == NULL ||
-	    sshkey_type_plain(key->type) != KEY_RSA)
-		return SSH_ERR_INVALID_ARGUMENT;
-
-	RSA_get0_key(key->rsa, NULL, NULL, &rsa_d);
-	RSA_get0_factors(key->rsa, &rsa_p, &rsa_q);
-
+	*rsa_dmq1 = *rsa_dmp1 = NULL;
 	if ((ctx = BN_CTX_new()) == NULL)
 		return SSH_ERR_ALLOC_FAIL;
 	if ((aux = BN_new()) == NULL ||
-	    (rsa_dmq1 = BN_new()) == NULL ||
-	    (rsa_dmp1 = BN_new()) == NULL)
+	    (*rsa_dmq1 = BN_new()) == NULL ||
+	    (*rsa_dmp1 = BN_new()) == NULL)
 		return SSH_ERR_ALLOC_FAIL;
-	if ((d_consttime = BN_dup(rsa_d)) == NULL ||
-	    (rsa_iqmp = BN_dup(iqmp)) == NULL) {
+	if ((d_consttime = BN_dup(rsa_d)) == NULL) {
 		r = SSH_ERR_ALLOC_FAIL;
 		goto out;
 	}
@@ -363,25 +384,17 @@ ssh_rsa_complete_crt_parameters(struct sshkey *key, const BIGNUM *iqmp)
 	BN_set_flags(d_consttime, BN_FLG_CONSTTIME);
 
 	if ((BN_sub(aux, rsa_q, BN_value_one()) == 0) ||
-	    (BN_mod(rsa_dmq1, d_consttime, aux, ctx) == 0) ||
+	    (BN_mod(*rsa_dmq1, d_consttime, aux, ctx) == 0) ||
 	    (BN_sub(aux, rsa_p, BN_value_one()) == 0) ||
-	    (BN_mod(rsa_dmp1, d_consttime, aux, ctx) == 0)) {
+	    (BN_mod(*rsa_dmp1, d_consttime, aux, ctx) == 0)) {
 		r = SSH_ERR_LIBCRYPTO_ERROR;
 		goto out;
 	}
-	if (!RSA_set0_crt_params(key->rsa, rsa_dmp1, rsa_dmq1, rsa_iqmp)) {
-		r = SSH_ERR_LIBCRYPTO_ERROR;
-		goto out;
-	}
-	rsa_dmp1 = rsa_dmq1 = rsa_iqmp = NULL; /* transferred */
 	/* success */
 	r = 0;
  out:
 	BN_clear_free(aux);
 	BN_clear_free(d_consttime);
-	BN_clear_free(rsa_dmp1);
-	BN_clear_free(rsa_dmq1);
-	BN_clear_free(rsa_iqmp);
 	BN_CTX_free(ctx);
 	return r;
 }
@@ -393,11 +406,10 @@ ssh_rsa_sign(struct sshkey *key,
     const u_char *data, size_t datalen,
     const char *alg, const char *sk_provider, const char *sk_pin, u_int compat)
 {
-	const BIGNUM *rsa_n;
-	u_char digest[SSH_DIGEST_MAX_LENGTH], *sig = NULL;
-	size_t slen = 0;
-	u_int hlen, len;
-	int nid, hash_alg, ret = SSH_ERR_INTERNAL_ERROR;
+	u_char *sig = NULL;
+	size_t diff, len = 0;
+	int slen = 0;
+	int hash_alg, ret = SSH_ERR_INTERNAL_ERROR;
 	struct sshbuf *b = NULL;
 
 	if (lenp != NULL)
@@ -409,41 +421,28 @@ ssh_rsa_sign(struct sshkey *key,
 		hash_alg = SSH_DIGEST_SHA1;
 	else
 		hash_alg = rsa_hash_id_from_keyname(alg);
-	if (key == NULL || key->rsa == NULL || hash_alg == -1 ||
+
+	if (key == NULL || key->pkey == NULL || hash_alg == -1 ||
 	    sshkey_type_plain(key->type) != KEY_RSA)
 		return SSH_ERR_INVALID_ARGUMENT;
-	RSA_get0_key(key->rsa, &rsa_n, NULL, NULL);
-	if (BN_num_bits(rsa_n) < SSH_RSA_MINIMUM_MODULUS_SIZE)
-		return SSH_ERR_KEY_LENGTH;
-	slen = RSA_size(key->rsa);
+	slen = EVP_PKEY_size(key->pkey);
 	if (slen <= 0 || slen > SSHBUF_MAX_BIGNUM)
 		return SSH_ERR_INVALID_ARGUMENT;
+	if (EVP_PKEY_bits(key->pkey) < SSH_RSA_MINIMUM_MODULUS_SIZE)
+		return SSH_ERR_KEY_LENGTH;
 
-	/* hash the data */
-	nid = rsa_hash_alg_nid(hash_alg);
-	if ((hlen = ssh_digest_bytes(hash_alg)) == 0)
-		return SSH_ERR_INTERNAL_ERROR;
-	if ((ret = ssh_digest_memory(hash_alg, data, datalen,
-	    digest, sizeof(digest))) != 0)
+	if ((ret = sshkey_pkey_digest_sign(key->pkey, hash_alg, &sig, &len,
+	    data, datalen)) < 0)
 		goto out;
-
-	if ((sig = malloc(slen)) == NULL) {
-		ret = SSH_ERR_ALLOC_FAIL;
-		goto out;
-	}
-
-	if (RSA_sign(nid, digest, hlen, sig, &len, key->rsa) != 1) {
-		ret = SSH_ERR_LIBCRYPTO_ERROR;
-		goto out;
-	}
-	if (len < slen) {
-		size_t diff = slen - len;
+	if (len < (size_t)slen) {
+		diff = slen - len;
 		memmove(sig + diff, sig, len);
 		explicit_bzero(sig, diff);
-	} else if (len > slen) {
+	} else if (len > (size_t)slen) {
 		ret = SSH_ERR_INTERNAL_ERROR;
 		goto out;
 	}
+
 	/* encode signature */
 	if ((b = sshbuf_new()) == NULL) {
 		ret = SSH_ERR_ALLOC_FAIL;
@@ -464,7 +463,6 @@ ssh_rsa_sign(struct sshkey *key,
 		*lenp = len;
 	ret = 0;
  out:
-	explicit_bzero(digest, sizeof(digest));
 	freezero(sig, slen);
 	sshbuf_free(b);
 	return ret;
@@ -476,19 +474,17 @@ ssh_rsa_verify(const struct sshkey *key,
     const u_char *data, size_t dlen, const char *alg, u_int compat,
     struct sshkey_sig_details **detailsp)
 {
-	const BIGNUM *rsa_n;
 	char *sigtype = NULL;
 	int hash_alg, want_alg, ret = SSH_ERR_INTERNAL_ERROR;
-	size_t len = 0, diff, modlen, hlen;
+	size_t len = 0, diff, modlen, rsasize;
 	struct sshbuf *b = NULL;
 	u_char digest[SSH_DIGEST_MAX_LENGTH], *osigblob, *sigblob = NULL;
 
-	if (key == NULL || key->rsa == NULL ||
+	if (key == NULL || key->pkey == NULL ||
 	    sshkey_type_plain(key->type) != KEY_RSA ||
 	    sig == NULL || siglen == 0)
 		return SSH_ERR_INVALID_ARGUMENT;
-	RSA_get0_key(key->rsa, &rsa_n, NULL, NULL);
-	if (BN_num_bits(rsa_n) < SSH_RSA_MINIMUM_MODULUS_SIZE)
+	if (EVP_PKEY_bits(key->pkey) < SSH_RSA_MINIMUM_MODULUS_SIZE)
 		return SSH_ERR_KEY_LENGTH;
 
 	if ((b = sshbuf_from(sig, siglen)) == NULL)
@@ -524,7 +520,7 @@ ssh_rsa_verify(const struct sshkey *key,
 		goto out;
 	}
 	/* RSA_verify expects a signature of RSA_size */
-	modlen = RSA_size(key->rsa);
+	modlen = EVP_PKEY_size(key->pkey);
 	if (len > modlen) {
 		ret = SSH_ERR_KEY_BITS_MISMATCH;
 		goto out;
@@ -540,140 +536,21 @@ ssh_rsa_verify(const struct sshkey *key,
 		explicit_bzero(sigblob, diff);
 		len = modlen;
 	}
-	if ((hlen = ssh_digest_bytes(hash_alg)) == 0) {
-		ret = SSH_ERR_INTERNAL_ERROR;
+
+	rsasize = EVP_PKEY_size(key->pkey);
+	if (rsasize <= 0 || rsasize > SSHBUF_MAX_BIGNUM ||
+	    len == 0 || len > rsasize) {
+		ret = SSH_ERR_INVALID_ARGUMENT;
 		goto out;
 	}
-	if ((ret = ssh_digest_memory(hash_alg, data, dlen,
-	    digest, sizeof(digest))) != 0)
-		goto out;
+	ret = sshkey_pkey_digest_verify(key->pkey, hash_alg, data, dlen,
+	    sigblob, len);
 
-	ret = openssh_RSA_verify(hash_alg, digest, hlen, sigblob, len,
-	    key->rsa);
  out:
 	freezero(sigblob, len);
 	free(sigtype);
 	sshbuf_free(b);
 	explicit_bzero(digest, sizeof(digest));
-	return ret;
-}
-
-/*
- * See:
- * http://www.rsasecurity.com/rsalabs/pkcs/pkcs-1/
- * ftp://ftp.rsasecurity.com/pub/pkcs/pkcs-1/pkcs-1v2-1.asn
- */
-
-/*
- * id-sha1 OBJECT IDENTIFIER ::= { iso(1) identified-organization(3)
- *	oiw(14) secsig(3) algorithms(2) 26 }
- */
-static const u_char id_sha1[] = {
-	0x30, 0x21, /* type Sequence, length 0x21 (33) */
-	0x30, 0x09, /* type Sequence, length 0x09 */
-	0x06, 0x05, /* type OID, length 0x05 */
-	0x2b, 0x0e, 0x03, 0x02, 0x1a, /* id-sha1 OID */
-	0x05, 0x00, /* NULL */
-	0x04, 0x14  /* Octet string, length 0x14 (20), followed by sha1 hash */
-};
-
-/*
- * See http://csrc.nist.gov/groups/ST/crypto_apps_infra/csor/algorithms.html
- * id-sha256 OBJECT IDENTIFIER ::= { joint-iso-itu-t(2) country(16) us(840)
- *      organization(1) gov(101) csor(3) nistAlgorithm(4) hashAlgs(2)
- *      id-sha256(1) }
- */
-static const u_char id_sha256[] = {
-	0x30, 0x31, /* type Sequence, length 0x31 (49) */
-	0x30, 0x0d, /* type Sequence, length 0x0d (13) */
-	0x06, 0x09, /* type OID, length 0x09 */
-	0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, /* id-sha256 */
-	0x05, 0x00, /* NULL */
-	0x04, 0x20  /* Octet string, length 0x20 (32), followed by sha256 hash */
-};
-
-/*
- * See http://csrc.nist.gov/groups/ST/crypto_apps_infra/csor/algorithms.html
- * id-sha512 OBJECT IDENTIFIER ::= { joint-iso-itu-t(2) country(16) us(840)
- *      organization(1) gov(101) csor(3) nistAlgorithm(4) hashAlgs(2)
- *      id-sha256(3) }
- */
-static const u_char id_sha512[] = {
-	0x30, 0x51, /* type Sequence, length 0x51 (81) */
-	0x30, 0x0d, /* type Sequence, length 0x0d (13) */
-	0x06, 0x09, /* type OID, length 0x09 */
-	0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03, /* id-sha512 */
-	0x05, 0x00, /* NULL */
-	0x04, 0x40  /* Octet string, length 0x40 (64), followed by sha512 hash */
-};
-
-static int
-rsa_hash_alg_oid(int hash_alg, const u_char **oidp, size_t *oidlenp)
-{
-	switch (hash_alg) {
-	case SSH_DIGEST_SHA1:
-		*oidp = id_sha1;
-		*oidlenp = sizeof(id_sha1);
-		break;
-	case SSH_DIGEST_SHA256:
-		*oidp = id_sha256;
-		*oidlenp = sizeof(id_sha256);
-		break;
-	case SSH_DIGEST_SHA512:
-		*oidp = id_sha512;
-		*oidlenp = sizeof(id_sha512);
-		break;
-	default:
-		return SSH_ERR_INVALID_ARGUMENT;
-	}
-	return 0;
-}
-
-static int
-openssh_RSA_verify(int hash_alg, u_char *hash, size_t hashlen,
-    u_char *sigbuf, size_t siglen, RSA *rsa)
-{
-	size_t rsasize = 0, oidlen = 0, hlen = 0;
-	int ret, len, oidmatch, hashmatch;
-	const u_char *oid = NULL;
-	u_char *decrypted = NULL;
-
-	if ((ret = rsa_hash_alg_oid(hash_alg, &oid, &oidlen)) != 0)
-		return ret;
-	ret = SSH_ERR_INTERNAL_ERROR;
-	hlen = ssh_digest_bytes(hash_alg);
-	if (hashlen != hlen) {
-		ret = SSH_ERR_INVALID_ARGUMENT;
-		goto done;
-	}
-	rsasize = RSA_size(rsa);
-	if (rsasize <= 0 || rsasize > SSHBUF_MAX_BIGNUM ||
-	    siglen == 0 || siglen > rsasize) {
-		ret = SSH_ERR_INVALID_ARGUMENT;
-		goto done;
-	}
-	if ((decrypted = malloc(rsasize)) == NULL) {
-		ret = SSH_ERR_ALLOC_FAIL;
-		goto done;
-	}
-	if ((len = RSA_public_decrypt(siglen, sigbuf, decrypted, rsa,
-	    RSA_PKCS1_PADDING)) < 0) {
-		ret = SSH_ERR_LIBCRYPTO_ERROR;
-		goto done;
-	}
-	if (len < 0 || (size_t)len != hlen + oidlen) {
-		ret = SSH_ERR_INVALID_FORMAT;
-		goto done;
-	}
-	oidmatch = timingsafe_bcmp(decrypted, oid, oidlen) == 0;
-	hashmatch = timingsafe_bcmp(decrypted + oidlen, hash, hlen) == 0;
-	if (!oidmatch || !hashmatch) {
-		ret = SSH_ERR_SIGNATURE_INVALID;
-		goto done;
-	}
-	ret = 0;
-done:
-	freezero(decrypted, rsasize);
 	return ret;
 }
 

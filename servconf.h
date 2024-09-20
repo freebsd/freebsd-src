@@ -1,4 +1,4 @@
-/* $OpenBSD: servconf.h,v 1.165 2024/06/12 22:36:00 djm Exp $ */
+/* $OpenBSD: servconf.h,v 1.168 2024/09/15 01:18:26 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -77,6 +77,7 @@ struct per_source_penalty {
 	int	penalty_grace;
 	int	penalty_authfail;
 	int	penalty_noauth;
+	int	penalty_refuseconnection;
 	int	penalty_max;
 	int	penalty_min;
 };
@@ -248,11 +249,14 @@ typedef struct {
 	int	unused_connection_timeout;
 
 	char   *sshd_session_path;
+
+	int	refuse_connection;
 }       ServerOptions;
 
 /* Information about the incoming connection as used by Match */
 struct connection_info {
 	const char *user;
+	int user_invalid;
 	const char *host;	/* possibly resolved hostname */
 	const char *address;	/* remote address */
 	const char *laddress;	/* local address */

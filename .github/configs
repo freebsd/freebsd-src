@@ -187,7 +187,7 @@ case "$config" in
 	LIBCRYPTOFLAGS="--without-openssl"
 	TEST_TARGET=t-exec
 	;;
-    valgrind-[1-5]|valgrind-unit)
+    valgrind-[1-4]|valgrind-unit)
 	# rlimit sandbox and FORTIFY_SOURCE confuse Valgrind.
 	CONFIGFLAGS="--without-sandbox --without-hardening"
 	CONFIGFLAGS="$CONFIGFLAGS --with-cppflags=-D_FORTIFY_SOURCE=0"
@@ -197,10 +197,9 @@ case "$config" in
 	# Valgrind slows things down enough that the agent timeout test
 	# won't reliably pass, and the unit tests run longer than allowed
 	# by github so split into separate tests.
-	tests2="integrity try-ciphers"
+	tests2="integrity try-ciphers rekey"
 	tests3="krl forward-control sshsig agent-restrict kextype sftp"
 	tests4="cert-userkey cert-hostkey kextype sftp-perm keygen-comment percent"
-	tests5="rekey"
 	case "$config" in
 	    valgrind-1)
 		# All tests except agent-timeout (which is flaky under valgrind),
@@ -219,9 +218,6 @@ case "$config" in
 		;;
 	    valgrind-4)
 		LTESTS="${tests4}"
-		;;
-	    valgrind-5)
-		LTESTS="${tests5}"
 		;;
 	    valgrind-unit)
 		TEST_TARGET="unit USE_VALGRIND=1"

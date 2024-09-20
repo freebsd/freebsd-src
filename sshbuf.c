@@ -1,4 +1,4 @@
-/*	$OpenBSD: sshbuf.c,v 1.19 2022/12/02 04:40:27 djm Exp $	*/
+/*	$OpenBSD: sshbuf.c,v 1.23 2024/08/14 15:42:18 tobias Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -57,6 +57,7 @@ sshbuf_check_sanity(const struct sshbuf *buf)
 	SSHBUF_TELL("sanity");
 	if (__predict_false(buf == NULL ||
 	    (!buf->readonly && buf->d != buf->cd) ||
+	    buf->parent == buf ||
 	    buf->refcount < 1 || buf->refcount > SSHBUF_REFS_MAX ||
 	    buf->cd == NULL ||
 	    buf->max_size > SSHBUF_SIZE_MAX ||
@@ -93,7 +94,7 @@ sshbuf_new(void)
 {
 	struct sshbuf *ret;
 
-	if ((ret = calloc(sizeof(*ret), 1)) == NULL)
+	if ((ret = calloc(1, sizeof(*ret))) == NULL)
 		return NULL;
 	ret->alloc = SSHBUF_SIZE_INIT;
 	ret->max_size = SSHBUF_SIZE_MAX;
@@ -113,7 +114,7 @@ sshbuf_from(const void *blob, size_t len)
 	struct sshbuf *ret;
 
 	if (blob == NULL || len > SSHBUF_SIZE_MAX ||
-	    (ret = calloc(sizeof(*ret), 1)) == NULL)
+	    (ret = calloc(1, sizeof(*ret))) == NULL)
 		return NULL;
 	ret->alloc = ret->size = ret->max_size = len;
 	ret->readonly = 1;
@@ -132,7 +133,8 @@ sshbuf_set_parent(struct sshbuf *child, struct sshbuf *parent)
 	if ((r = sshbuf_check_sanity(child)) != 0 ||
 	    (r = sshbuf_check_sanity(parent)) != 0)
 		return r;
-	if (child->parent != NULL && child->parent != parent)
+	if ((child->parent != NULL && child->parent != parent) ||
+	    child == parent)
 		return SSH_ERR_INTERNAL_ERROR;
 	child->parent = parent;
 	child->parent->refcount++;
@@ -179,16 +181,14 @@ sshbuf_free(struct sshbuf *buf)
 		return;
 
 	/*
-	 * If we are a child, the free our parent to decrement its reference
+	 * If we are a child, then free our parent to decrement its reference
 	 * count and possibly free it.
 	 */
 	sshbuf_free(buf->parent);
 	buf->parent = NULL;
 
-	if (!buf->readonly) {
-		explicit_bzero(buf->d, buf->alloc);
-		free(buf->d);
-	}
+	if (!buf->readonly)
+		freezero(buf->d, buf->alloc);
 	freezero(buf, sizeof(*buf));
 }
 

@@ -6,6 +6,10 @@ master :
 [![Fuzzing Status](https://oss-fuzz-build-logs.storage.googleapis.com/badges/openssh.svg)](https://bugs.chromium.org/p/oss-fuzz/issues/list?sort=-opened&can=1&q=proj:openssh)
 [![Coverity Status](https://scan.coverity.com/projects/21341/badge.svg)](https://scan.coverity.com/projects/openssh-portable)
 
+9.8 :
+[![C/C++ CI](https://github.com/openssh/openssh-portable/actions/workflows/c-cpp.yml/badge.svg?branch=V_9_8)](https://github.com/openssh/openssh-portable/actions/workflows/c-cpp.yml?query=branch:V_9_8)
+[![C/C++ CI self-hosted](https://github.com/openssh/openssh-portable-selfhosted/actions/workflows/selfhosted.yml/badge.svg?branch=V_9_8)](https://github.com/openssh/openssh-portable-selfhosted/actions/workflows/selfhosted.yml?query=branch:V_9_8)
+
 9.7 :
 [![C/C++ CI](https://github.com/openssh/openssh-portable/actions/workflows/c-cpp.yml/badge.svg?branch=V_9_7)](https://github.com/openssh/openssh-portable/actions/workflows/c-cpp.yml?query=branch:V_9_7)
 [![C/C++ CI self-hosted](https://github.com/openssh/openssh-portable-selfhosted/actions/workflows/selfhosted.yml/badge.svg?branch=V_9_7)](https://github.com/openssh/openssh-portable-selfhosted/actions/workflows/selfhosted.yml?query=branch:V_9_7)

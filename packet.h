@@ -1,4 +1,4 @@
-/* $OpenBSD: packet.h,v 1.98 2024/05/17 06:42:04 jsg Exp $ */
+/* $OpenBSD: packet.h,v 1.99 2024/08/15 00:51:51 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -20,6 +20,7 @@
 
 #ifdef WITH_OPENSSL
 # include <openssl/bn.h>
+# include <openssl/evp.h>
 # ifdef OPENSSL_HAS_ECC
 #  include <openssl/ec.h>
 # else /* OPENSSL_HAS_ECC */
@@ -32,6 +33,7 @@
 # define EC_KEY		void
 # define EC_GROUP	void
 # define EC_POINT	void
+# define EVP_PKEY	void
 #endif /* WITH_OPENSSL */
 
 #include <signal.h>
@@ -191,6 +193,7 @@ int	sshpkt_put_string(struct ssh *ssh, const void *v, size_t len);
 int	sshpkt_put_cstring(struct ssh *ssh, const void *v);
 int	sshpkt_put_stringb(struct ssh *ssh, const struct sshbuf *v);
 int	sshpkt_put_ec(struct ssh *ssh, const EC_POINT *v, const EC_GROUP *g);
+int	sshpkt_put_ec_pkey(struct ssh *ssh, EVP_PKEY *pkey);
 int	sshpkt_put_bignum2(struct ssh *ssh, const BIGNUM *v);
 
 int	sshpkt_get(struct ssh *ssh, void *valp, size_t len);
@@ -213,6 +216,7 @@ const u_char	*sshpkt_ptr(struct ssh *, size_t *lenp);
 # undef EC_KEY
 # undef EC_GROUP
 # undef EC_POINT
+# undef EVP_PKEY
 #elif !defined(OPENSSL_HAS_ECC)
 # undef EC_KEY
 # undef EC_GROUP
