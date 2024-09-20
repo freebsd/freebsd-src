@@ -12,6 +12,8 @@
 49066283a4c1fc5c9d6c4cbee00cc941f4b09792
 # bin/ps whitespace cleanup
 ad94fb48d8bda7cfaec68b3c7897594991b474bc
+# style and whitespace fixes for bpf
+f97d0c91eefc8568a11ad47f910cdd9dc7826a72
 # sort OptionalObsoleteFiles.inc blocks
 e027fb0ee8d767f577a1c6f73506128beb6384ef
 084cbd8c7283952d68f2c40e27e900fe0af5d97e
