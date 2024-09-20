@@ -713,7 +713,7 @@ s32 ixgbe_read_pba_string_generic(struct ixgbe_hw *hw, u8 *pba_num,
 		return ret_val;
 	}
 
-	if (length == 0xFFFF || length == 0) {
+	if (length == 0xFFFF || length == 0 || length > hw->eeprom.word_size) {
 		DEBUGOUT("NVM PBA number section invalid length\n");
 		return IXGBE_ERR_PBA_SECTION;
 	}
