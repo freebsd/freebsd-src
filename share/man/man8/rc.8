@@ -30,7 +30,7 @@
 .\"
 .\"     @(#)rc.8	8.2 (Berkeley) 12/11/93
 .\"
-.Dd June 1, 2023
+.Dd September 20, 2024
 .Dt RC 8
 .Os
 .Sh NAME
@@ -445,18 +445,6 @@ If
 .Cm autoboot
 is not set, when going from single-user to multi-user mode for example,
 the script does not do anything.
-.Pp
-The
-.Pa /etc/rc.d/local
-script can execute scripts from multiple
-.Nm rc.d/
-directories.
-The default location includes
-.Pa /usr/local/etc/rc.d/ ,
-but these may be overridden with the
-.Va local_startup
-.Xr rc.conf 5
-variable.
 .Pp
 The
 .Pa /etc/rc.d/serial
