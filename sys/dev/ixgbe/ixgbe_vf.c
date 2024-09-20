@@ -49,8 +49,6 @@
  **/
 s32 ixgbe_init_ops_vf(struct ixgbe_hw *hw)
 {
-	u16 i;
-
 	/* MAC */
 	hw->mac.ops.init_hw = ixgbe_init_hw_vf;
 	hw->mac.ops.reset_hw = ixgbe_reset_hw_vf;
@@ -84,8 +82,7 @@ s32 ixgbe_init_ops_vf(struct ixgbe_hw *hw)
 	hw->mac.max_tx_queues = 1;
 	hw->mac.max_rx_queues = 1;
 
-	for (i = 0; i < 64; i++)
-		hw->mbx.ops[i].init_params = ixgbe_init_mbx_params_vf;
+	hw->mbx.ops.init_params = ixgbe_init_mbx_params_vf;
 
 	return IXGBE_SUCCESS;
 }
@@ -188,7 +185,6 @@ s32 ixgbe_reset_hw_vf(struct ixgbe_hw *hw)
 
 	/* reset the api version */
 	hw->api_version = ixgbe_mbox_api_10;
-	ixgbe_init_mbx_params_vf(hw);
 
 	DEBUGOUT("Issuing a function level reset to MAC\n");
 
@@ -198,7 +194,7 @@ s32 ixgbe_reset_hw_vf(struct ixgbe_hw *hw)
 	msec_delay(50);
 
 	/* we cannot reset while the RSTI / RSTD bits are asserted */
-	while (!mbx->ops[0].check_for_rst(hw, 0) && timeout) {
+	while (!mbx->ops.check_for_rst(hw, 0) && timeout) {
 		timeout--;
 		usec_delay(5);
 	}
@@ -213,7 +209,7 @@ s32 ixgbe_reset_hw_vf(struct ixgbe_hw *hw)
 	mbx->timeout = IXGBE_VF_MBX_INIT_TIMEOUT;
 
 	msgbuf[0] = IXGBE_VF_RESET;
-	ixgbe_write_mbx(hw, msgbuf, 1, 0);
+	mbx->ops.write_posted(hw, msgbuf, 1, 0);
 
 	msec_delay(10);
 
@@ -222,8 +218,8 @@ s32 ixgbe_reset_hw_vf(struct ixgbe_hw *hw)
 	 * also set up the mc_filter_type which is piggy backed
 	 * on the mac address in word 3
 	 */
-	ret_val = ixgbe_poll_mbx(hw, msgbuf,
-				 IXGBE_VF_PERMADDR_MSG_LEN, 0);
+	ret_val = mbx->ops.read_posted(hw, msgbuf,
+			IXGBE_VF_PERMADDR_MSG_LEN, 0);
 	if (ret_val)
 		return ret_val;
 
@@ -328,12 +324,13 @@ static s32 ixgbe_mta_vector(struct ixgbe_hw *hw, u8 *mc_addr)
 static s32 ixgbevf_write_msg_read_ack(struct ixgbe_hw *hw, u32 *msg,
 				      u32 *retmsg, u16 size)
 {
-	s32 retval = ixgbe_write_mbx(hw, msg, size, 0);
+	struct ixgbe_mbx_info *mbx = &hw->mbx;
+	s32 retval = mbx->ops.write_posted(hw, msg, size, 0);
 
 	if (retval)
 		return retval;
 
-	return ixgbe_poll_mbx(hw, retmsg, size, 0);
+	return mbx->ops.read_posted(hw, retmsg, size, 0);
 }
 
 /**
@@ -383,6 +380,7 @@ s32 ixgbe_update_mc_addr_list_vf(struct ixgbe_hw *hw, u8 *mc_addr_list,
 				 u32 mc_addr_count, ixgbe_mc_addr_itr next,
 				 bool clear)
 {
+	struct ixgbe_mbx_info *mbx = &hw->mbx;
 	u32 msgbuf[IXGBE_VFMAILBOX_SIZE];
 	u16 *vector_list = (u16 *)&msgbuf[1];
 	u32 vector;
@@ -414,7 +412,7 @@ s32 ixgbe_update_mc_addr_list_vf(struct ixgbe_hw *hw, u8 *mc_addr_list,
 		vector_list[i] = (u16)vector;
 	}
 
-	return ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf, IXGBE_VFMAILBOX_SIZE);
+	return mbx->ops.write_posted(hw, msgbuf, IXGBE_VFMAILBOX_SIZE, 0);
 }
 
 /**
@@ -436,7 +434,6 @@ s32 ixgbevf_update_xcast_mode(struct ixgbe_hw *hw, int xcast_mode)
 			return IXGBE_ERR_FEATURE_NOT_SUPPORTED;
 		/* Fall through */
 	case ixgbe_mbox_api_13:
-	case ixgbe_mbox_api_15:
 		break;
 	default:
 		return IXGBE_ERR_FEATURE_NOT_SUPPORTED;
@@ -611,13 +608,12 @@ s32 ixgbe_check_mac_link_vf(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
 	struct ixgbe_mac_info *mac = &hw->mac;
 	s32 ret_val = IXGBE_SUCCESS;
-	u32 in_msg = 0;
 	u32 links_reg;
-
+	u32 in_msg = 0;
 	UNREFERENCED_1PARAMETER(autoneg_wait_to_complete);
 
 	/* If we were hit with a reset drop the link */
-	if (!mbx->ops[0].check_for_rst(hw, 0) || !mbx->timeout)
+	if (!mbx->ops.check_for_rst(hw, 0) || !mbx->timeout)
 		mac->get_link_status = true;
 
 	if (!mac->get_link_status)
@@ -674,22 +670,21 @@ s32 ixgbe_check_mac_link_vf(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 	/* if the read failed it could just be a mailbox collision, best wait
 	 * until we are called again and don't report an error
 	 */
-	if (ixgbe_read_mbx(hw, &in_msg, 1, 0)) {
-		if (hw->api_version >= ixgbe_mbox_api_15)
-			mac->get_link_status = false;
+	if (mbx->ops.read(hw, &in_msg, 1, 0))
 		goto out;
-	}
 
 	if (!(in_msg & IXGBE_VT_MSGTYPE_CTS)) {
-		/* msg is not CTS and is FAILURE we must have lost CTS status */
+		/* msg is not CTS and is FAILURE,
+		 * we must have lost CTS status.
+		 */
 		if (in_msg & IXGBE_VT_MSGTYPE_FAILURE)
-			ret_val = IXGBE_ERR_MBX;
+			ret_val = -1;
 		goto out;
 	}
 
 	/* the pf is talking, if we timed out in the past we reinit */
 	if (!mbx->timeout) {
-		ret_val = IXGBE_ERR_TIMEOUT;
+		ret_val = -1;
 		goto out;
 	}
 
@@ -768,7 +763,6 @@ int ixgbevf_get_queues(struct ixgbe_hw *hw, unsigned int *num_tcs,
 	case ixgbe_mbox_api_11:
 	case ixgbe_mbox_api_12:
 	case ixgbe_mbox_api_13:
-	case ixgbe_mbox_api_15:
 		break;
 	default:
 		return 0;

@@ -4178,6 +4178,35 @@ struct ixgbe_phy_info {
 
 #include "ixgbe_mbx.h"
 
+struct ixgbe_mbx_operations {
+	void (*init_params)(struct ixgbe_hw *hw);
+	s32  (*read)(struct ixgbe_hw *, u32 *, u16,  u16);
+	s32  (*write)(struct ixgbe_hw *, u32 *, u16, u16);
+	s32  (*read_posted)(struct ixgbe_hw *, u32 *, u16,  u16);
+	s32  (*write_posted)(struct ixgbe_hw *, u32 *, u16, u16);
+	s32  (*check_for_msg)(struct ixgbe_hw *, u16);
+	s32  (*check_for_ack)(struct ixgbe_hw *, u16);
+	s32  (*check_for_rst)(struct ixgbe_hw *, u16);
+};
+
+struct ixgbe_mbx_stats {
+	u32 msgs_tx;
+	u32 msgs_rx;
+
+	u32 acks;
+	u32 reqs;
+	u32 rsts;
+};
+
+struct ixgbe_mbx_info {
+	struct ixgbe_mbx_operations ops;
+	struct ixgbe_mbx_stats stats;
+	u32 timeout;
+	u32 usec_delay;
+	u32 v2p_mailbox;
+	u16 size;
+};
+
 struct ixgbe_hw {
 	u8 IOMEM *hw_addr;
 	void *back;
@@ -4248,9 +4277,6 @@ struct ixgbe_hw {
 #define IXGBE_ERR_FDIR_CMD_INCOMPLETE		-38
 #define IXGBE_ERR_FW_RESP_INVALID		-39
 #define IXGBE_ERR_TOKEN_RETRY			-40
-#define IXGBE_ERR_MBX				-41
-#define IXGBE_ERR_MBX_NOMSG			-42
-#define IXGBE_ERR_TIMEOUT			-43
 
 #define IXGBE_NOT_IMPLEMENTED			0x7FFFFFFF
 
