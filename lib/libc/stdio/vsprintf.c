@@ -41,23 +41,25 @@
 static char sccsid[] = "@(#)vsprintf.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-#include <stdio.h>
+#include <errno.h>
 #include <limits.h>
+#include <stdio.h>
 #include "local.h"
 #include "xlocale_private.h"
 
 int
 vsprintf_l(char * __restrict str, locale_t locale,
-		const char * __restrict fmt, __va_list ap)
+    const char * __restrict fmt, __va_list ap)
 {
-	int ret;
 	FILE f = FAKE_FILE;
+	int serrno = errno;
+	int ret;
 	FIX_LOCALE(locale);
 
 	f._flags = __SWR | __SSTR;
 	f._bf._base = f._p = (unsigned char *)str;
 	f._bf._size = f._w = INT_MAX;
-	ret = __vfprintf(&f, locale, fmt, ap);
+	ret = __vfprintf(&f, locale, serrno, fmt, ap);
 	*f._p = 0;
 	return (ret);
 }
