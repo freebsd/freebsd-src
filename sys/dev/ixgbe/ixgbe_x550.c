@@ -355,8 +355,7 @@ static s32 ixgbe_identify_phy_x550em(struct ixgbe_hw *hw)
 		/* set up for CS4227 usage */
 		ixgbe_setup_mux_ctl(hw);
 		ixgbe_check_cs4227(hw);
-		/* Fallthrough */
-
+		return ixgbe_identify_sfp_module_X550em(hw);
 	case IXGBE_DEV_ID_X550EM_A_SFP_N:
 		return ixgbe_identify_sfp_module_X550em(hw);
 		break;
@@ -1869,7 +1868,9 @@ s32 ixgbe_get_link_capabilities_X550em(struct ixgbe_hw *hw,
 					break;
 				}
 			}
-			/* fall through */
+			*speed = IXGBE_LINK_SPEED_10GB_FULL |
+				 IXGBE_LINK_SPEED_1GB_FULL;
+			break;
 		default:
 			*speed = IXGBE_LINK_SPEED_10GB_FULL |
 				 IXGBE_LINK_SPEED_1GB_FULL;
@@ -3589,7 +3590,9 @@ u64 ixgbe_get_supported_physical_layer_X550em(struct ixgbe_hw *hw)
 				break;
 			}
 		}
-		/* fall through */
+		physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_KR |
+				 IXGBE_PHYSICAL_LAYER_1000BASE_KX;
+		break;
 	case ixgbe_phy_x550em_xfi:
 		physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_KR |
 				 IXGBE_PHYSICAL_LAYER_1000BASE_KX;
