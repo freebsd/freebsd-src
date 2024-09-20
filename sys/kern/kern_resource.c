@@ -1513,6 +1513,18 @@ uifree(struct uidinfo *uip)
 	if (uip->ui_vmsize != 0)
 		printf("freeing uidinfo: uid = %d, swapuse = %lld\n",
 		    uip->ui_uid, (unsigned long long)uip->ui_vmsize);
+	if (uip->ui_ptscnt != 0)
+		printf("freeing uidinfo: uid = %d, ptscnt = %ld\n",
+		    uip->ui_uid, uip->ui_ptscnt);
+	if (uip->ui_kqcnt != 0)
+		printf("freeing uidinfo: uid = %d, kqcnt = %ld\n",
+		    uip->ui_uid, uip->ui_kqcnt);
+	if (uip->ui_umtxcnt != 0)
+		printf("freeing uidinfo: uid = %d, umtxcnt = %ld\n",
+		    uip->ui_uid, uip->ui_umtxcnt);
+	if (uip->ui_pipecnt != 0)
+		printf("freeing uidinfo: uid = %d, pipecnt = %ld\n",
+		    uip->ui_uid, uip->ui_pipecnt);
 	free(uip, M_UIDINFO);
 }
 
