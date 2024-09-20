@@ -337,6 +337,8 @@ fd_modified(struct filedesc *fdp, int fd, seqc_t seqc)
 }
 #endif
 
+int	proc_nfiles(struct proc *p);
+
 /* cdir/rdir/jdir manipulation functions. */
 struct pwddesc *pdcopy(struct pwddesc *pdp);
 void	pdescfree(struct thread *td);
