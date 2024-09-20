@@ -456,7 +456,7 @@ bpf_peers_present(struct bpf_if *bpf)
 		bpf_mtap2((_ifp)->if_bpf,(_data),(_dlen),(_m));	\
 	}							\
 } while (0)
-#endif
+#endif /* _KERNEL */
 
 /*
  * Number of scratch memory words (for BPF_LD|BPF_MEM and BPF_ST).
