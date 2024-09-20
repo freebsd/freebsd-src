@@ -4242,35 +4242,38 @@ static s32 ixgbe_acquire_swfw_sync_X550a(struct ixgbe_hw *hw, u32 mask)
 
 	DEBUGFUNC("ixgbe_acquire_swfw_sync_X550a");
 
-	while (--retries) {
-		status = IXGBE_SUCCESS;
-		if (hmask)
-			status = ixgbe_acquire_swfw_sync_X540(hw, hmask);
-		if (status) {
-			DEBUGOUT1("Could not acquire SWFW semaphore, Status = %d\n",
-				  status);
-			return status;
-		}
-		if (!(mask & IXGBE_GSSR_TOKEN_SM))
-			return IXGBE_SUCCESS;
+	status = IXGBE_SUCCESS;
+	if (hmask)
+		status = ixgbe_acquire_swfw_sync_X540(hw, hmask);
 
+	if (status) {
+		DEBUGOUT1("Could not acquire SWFW semaphore, Status = %d\n", status);
+		return status;
+	}
+
+	if (!(mask & IXGBE_GSSR_TOKEN_SM))
+		return IXGBE_SUCCESS;
+
+	while (--retries) {
 		status = ixgbe_get_phy_token(hw);
-		if (status == IXGBE_ERR_TOKEN_RETRY)
-			DEBUGOUT1("Could not acquire PHY token, Status = %d\n",
-				  status);
 
 		if (status == IXGBE_SUCCESS)
 			return IXGBE_SUCCESS;
 
-		if (hmask)
-			ixgbe_release_swfw_sync_X540(hw, hmask);
-
 		if (status != IXGBE_ERR_TOKEN_RETRY) {
-			DEBUGOUT1("Unable to retry acquiring the PHY token, Status = %d\n",
-				  status);
+			DEBUGOUT1("Retry acquiring the PHY token failed, Status = %d\n", status);
+			if (hmask)
+				ixgbe_release_swfw_sync_X540(hw, hmask);
 			return status;
 		}
+
+		if (status == IXGBE_ERR_TOKEN_RETRY)
+			DEBUGOUT1("Could not acquire PHY token, Status = %d\n",
+				  status);
 	}
+
+	if (hmask)
+		ixgbe_release_swfw_sync_X540(hw, hmask);
 
 	DEBUGOUT1("Semaphore acquisition retries failed!: PHY ID = 0x%08X\n",
 		  hw->phy.id);
