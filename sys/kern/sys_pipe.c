@@ -1677,7 +1677,7 @@ pipe_free_kmem(struct pipe *cpipe)
 
 	if (cpipe->pipe_buffer.buffer != NULL) {
 		atomic_subtract_long(&amountpipekva, cpipe->pipe_buffer.size);
-		chgpipecnt(cpipe->pipe_pair->pp_owner->cr_uidinfo,
+		chgpipecnt(cpipe->pipe_pair->pp_owner->cr_ruidinfo,
 		    -cpipe->pipe_buffer.size, 0);
 		vm_map_remove(pipe_map,
 		    (vm_offset_t)cpipe->pipe_buffer.buffer,
