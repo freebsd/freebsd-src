@@ -173,7 +173,7 @@ struct bpf_dltlist32 {
 #define	BIOCSETFNR32	_IOW('B', 130, struct bpf_program32)
 #endif
 
-#define BPF_LOCK()	   sx_xlock(&bpf_sx)
+#define BPF_LOCK()		sx_xlock(&bpf_sx)
 #define BPF_UNLOCK()		sx_xunlock(&bpf_sx)
 #define BPF_LOCK_ASSERT()	sx_assert(&bpf_sx, SA_XLOCKED)
 /*
@@ -641,7 +641,10 @@ bpf_movein(struct uio *uio, int linktype, struct ifnet *ifp, struct mbuf **mp,
 	if (len < hlen || len - hlen > ifp->if_mtu)
 		return (EMSGSIZE);
 
-	/* Allocate a mbuf for our write, since m_get2 fails if len >= to MJUMPAGESIZE, use m_getjcl for bigger buffers */
+	/*
+	 * Allocate a mbuf for our write, since m_get2 fails if len >= to
+	 * MJUMPAGESIZE, use m_getjcl for bigger buffers
+	 */
 	if (len < MJUMPAGESIZE)
 		m = m_get2(len, M_WAITOK, MT_DATA, M_PKTHDR);
 	else if (len <= MJUM9BYTES)
@@ -1019,7 +1022,7 @@ bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 	d->bd_state = BPF_IDLE;
 	while (d->bd_hbuf_in_use) {
 		error = mtx_sleep(&d->bd_hbuf_in_use, &d->bd_lock,
-		    PRINET|PCATCH, "bd_hbuf", 0);
+		    PRINET | PCATCH, "bd_hbuf", 0);
 		if (error != 0) {
 			BPFD_UNLOCK(d);
 			return (error);
@@ -1062,7 +1065,7 @@ bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 			BPFD_UNLOCK(d);
 			return (EWOULDBLOCK);
 		}
-		error = msleep(d, &d->bd_lock, PRINET|PCATCH,
+		error = msleep(d, &d->bd_lock, PRINET | PCATCH,
 		     "bpf", d->bd_rtout);
 		if (error == EINTR || error == ERESTART) {
 			BPFD_UNLOCK(d);
@@ -2129,7 +2132,7 @@ bpfpoll(struct cdev *dev, int events, struct thread *td)
 
 	if (devfs_get_cdevpriv((void **)&d) != 0 || d->bd_bif == NULL)
 		return (events &
-		    (POLLHUP|POLLIN|POLLRDNORM|POLLOUT|POLLWRNORM));
+		    (POLLHUP | POLLIN | POLLRDNORM | POLLOUT | POLLWRNORM));
 
 	/*
 	 * Refresh PID associated with this descriptor.
@@ -3039,7 +3042,7 @@ bpf_stats_sysctl(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSINIT(bpfdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE,bpf_drvinit,NULL);
+SYSINIT(bpfdev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, bpf_drvinit, NULL);
 
 #else /* !DEV_BPF && !NETGRAPH_BPF */
 
@@ -3087,13 +3090,13 @@ bpfdetach(struct ifnet *ifp)
 u_int
 bpf_filter(const struct bpf_insn *pc, u_char *p, u_int wirelen, u_int buflen)
 {
-	return -1;	/* "no filter" behaviour */
+	return (-1);	/* "no filter" behaviour */
 }
 
 int
 bpf_validate(const struct bpf_insn *f, int len)
 {
-	return 0;		/* false */
+	return (0);	/* false */
 }
 
 #endif /* !DEV_BPF && !NETGRAPH_BPF */

@@ -57,7 +57,7 @@ typedef	u_int64_t bpf_u_int64;
  * BPF_ALIGNMENT.
  */
 #define BPF_ALIGNMENT sizeof(long)
-#define BPF_WORDALIGN(x) (((x)+(BPF_ALIGNMENT-1))&~(BPF_ALIGNMENT-1))
+#define BPF_WORDALIGN(x) (((x) + (BPF_ALIGNMENT - 1)) & ~(BPF_ALIGNMENT - 1))
 
 #define BPF_MAXINSNS 512
 #define BPF_MAXBUFSIZE 0x80000
@@ -369,8 +369,8 @@ struct bpf_insn {
 /*
  * Macros for insn array initializers.
  */
-#define BPF_STMT(code, k) { (u_short)(code), 0, 0, k }
-#define BPF_JUMP(code, k, jt, jf) { (u_short)(code), jt, jf, k }
+#define BPF_STMT(code, k)		{ (u_short)(code), 0, 0, k }
+#define BPF_JUMP(code, k, jt, jf)	{ (u_short)(code), jt, jf, k }
 
 /*
  * Structure to retrieve available DLTs for the interface.
@@ -416,20 +416,20 @@ struct bpf_if_ext {
 	struct bpfd_list	bif_dlist;	/* descriptor list */
 };
 
-void	 bpf_bufheld(struct bpf_d *d);
-int	 bpf_validate(const struct bpf_insn *, int);
-void	 bpf_tap(struct bpf_if *, u_char *, u_int);
-void	 bpf_mtap(struct bpf_if *, struct mbuf *);
-void	 bpf_mtap2(struct bpf_if *, void *, u_int, struct mbuf *);
-void	 bpfattach(struct ifnet *, u_int, u_int);
-void	 bpfattach2(struct ifnet *, u_int, u_int, struct bpf_if **);
-void	 bpfdetach(struct ifnet *);
+void	bpf_bufheld(struct bpf_d *d);
+int	bpf_validate(const struct bpf_insn *, int);
+void	bpf_tap(struct bpf_if *, u_char *, u_int);
+void	bpf_mtap(struct bpf_if *, struct mbuf *);
+void	bpf_mtap2(struct bpf_if *, void *, u_int, struct mbuf *);
+void	bpfattach(struct ifnet *, u_int, u_int);
+void	bpfattach2(struct ifnet *, u_int, u_int, struct bpf_if **);
+void	bpfdetach(struct ifnet *);
 #ifdef VIMAGE
-int	 bpf_get_bp_params(struct bpf_if *, u_int *, u_int *);
+int	bpf_get_bp_params(struct bpf_if *, u_int *, u_int *);
 #endif
 
-void	 bpfilterattach(int);
-u_int	 bpf_filter(const struct bpf_insn *, u_char *, u_int, u_int);
+void	bpfilterattach(int);
+u_int	bpf_filter(const struct bpf_insn *, u_char *, u_int, u_int);
 
 static __inline bool
 bpf_peers_present(struct bpf_if *bpf)
@@ -440,21 +440,21 @@ bpf_peers_present(struct bpf_if *bpf)
 	return (!CK_LIST_EMPTY(&ext->bif_dlist));
 }
 
-#define	BPF_TAP(_ifp,_pkt,_pktlen) do {				\
-	if (bpf_peers_present((_ifp)->if_bpf))			\
-		bpf_tap((_ifp)->if_bpf, (_pkt), (_pktlen));	\
+#define BPF_TAP(_ifp, _pkt, _pktlen) do {				\
+	if (bpf_peers_present((_ifp)->if_bpf))				\
+		bpf_tap((_ifp)->if_bpf, (_pkt), (_pktlen));		\
 } while (0)
-#define	BPF_MTAP(_ifp,_m) do {					\
-	if (bpf_peers_present((_ifp)->if_bpf)) {		\
-		M_ASSERTVALID(_m);				\
-		bpf_mtap((_ifp)->if_bpf, (_m));			\
-	}							\
+#define BPF_MTAP(_ifp, _m) do {						\
+	if (bpf_peers_present((_ifp)->if_bpf)) {			\
+		M_ASSERTVALID(_m);					\
+		bpf_mtap((_ifp)->if_bpf, (_m));				\
+	}								\
 } while (0)
-#define	BPF_MTAP2(_ifp,_data,_dlen,_m) do {			\
-	if (bpf_peers_present((_ifp)->if_bpf)) {		\
-		M_ASSERTVALID(_m);				\
-		bpf_mtap2((_ifp)->if_bpf,(_data),(_dlen),(_m));	\
-	}							\
+#define BPF_MTAP2(_ifp, _data, _dlen, _m) do {				\
+	if (bpf_peers_present((_ifp)->if_bpf)) {			\
+		M_ASSERTVALID(_m);					\
+		bpf_mtap2((_ifp)->if_bpf, (_data), (_dlen), (_m));	\
+	}								\
 } while (0)
 #endif /* _KERNEL */
 
