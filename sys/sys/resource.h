@@ -192,6 +192,9 @@ int	getrlimit(int, struct rlimit *);
 int	getrusage(int, struct rusage *);
 int	setpriority(int, int, int);
 int	setrlimit(int, const struct rlimit *);
+#if __BSD_VISIBLE
+int	getrlimitusage(unsigned which, int flags, rlim_t *res);
+#endif
 __END_DECLS
 
 #endif	/* _KERNEL */
