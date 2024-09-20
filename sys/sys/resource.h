@@ -173,6 +173,9 @@ struct loadavg {
 #define	CP_IDLE		4
 #define	CPUSTATES	5
 
+/* getrlimitusage flags */
+#define	GETRLIMITUSAGE_EUID	0x0001
+
 #endif	/* __BSD_VISIBLE */
 
 #ifdef _KERNEL

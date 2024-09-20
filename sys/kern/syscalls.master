@@ -3347,5 +3347,12 @@
 		    uintptr_t idx2
 		);
 	}
+589	AUE_NULL	STD|CAPENABLED {
+		int getrlimitusage(
+		    u_int which,
+		    int flags,
+		    _Out_ rlim_t *res
+		);
+	}
 
 ; vim: syntax=off
