@@ -595,6 +595,7 @@ retry:
 	if (priv_check(curthread, PRIV_PIPEBUF) != 0 && maxpipekva / 100 *
 	    (100 - pipebuf_reserv) < amountpipekva + size) {
 		vm_map_unlock(pipe_map);
+		chgpipecnt(cpipe->pipe_pair->pp_owner->cr_ruidinfo, -size, 0);
 		if (cpipe->pipe_buffer.buffer == NULL &&
 		    size > SMALL_PIPE_SIZE) {
 			size = SMALL_PIPE_SIZE;
