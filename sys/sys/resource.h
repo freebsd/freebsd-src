@@ -129,7 +129,7 @@ struct __wrusage {
  */
 
 #ifdef _RLIMIT_IDENT
-static const char *rlimit_ident[RLIM_NLIMITS] = {
+static const char *rlimit_ident[] = {
 	"cpu",
 	"fsize",
 	"data",
@@ -145,6 +145,7 @@ static const char *rlimit_ident[RLIM_NLIMITS] = {
 	"swap",
 	"kqueues",
 	"umtx",
+	"pipebuf",
 };
 #endif
 
