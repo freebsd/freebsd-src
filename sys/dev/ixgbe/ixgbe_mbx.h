@@ -35,7 +35,7 @@
 #ifndef _IXGBE_MBX_H_
 #define _IXGBE_MBX_H_
 
-#include "ixgbe_type.h"
+struct ixgbe_hw;
 
 struct ixgbe_mbx_operations {
 	void (*init_params)(struct ixgbe_hw *hw);
