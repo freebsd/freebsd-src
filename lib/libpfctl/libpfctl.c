@@ -1337,8 +1337,12 @@ pfctl_clear_rules(int dev, const char *anchorname)
 
 	ret = ioctl(dev, DIOCXBEGIN, &trans);
 	if (ret != 0)
-		return (ret);
-	return ioctl(dev, DIOCXCOMMIT, &trans);
+		return (errno);
+	ret = ioctl(dev, DIOCXCOMMIT, &trans);
+	if (ret != 0)
+		return (errno);
+
+	return (0);
 }
 
 int
@@ -1372,9 +1376,14 @@ pfctl_clear_nat(int dev, const char *anchorname)
 
 	ret = ioctl(dev, DIOCXBEGIN, &trans);
 	if (ret != 0)
-		return (ret);
-	return ioctl(dev, DIOCXCOMMIT, &trans);
+		return (errno);
+	ret = ioctl(dev, DIOCXCOMMIT, &trans);
+	if (ret != 0)
+		return (errno);
+
+	return (0);
 }
+
 int
 pfctl_clear_eth_rules(int dev, const char *anchorname)
 {
@@ -1396,8 +1405,12 @@ pfctl_clear_eth_rules(int dev, const char *anchorname)
 
 	ret = ioctl(dev, DIOCXBEGIN, &trans);
 	if (ret != 0)
-		return (ret);
-	return ioctl(dev, DIOCXCOMMIT, &trans);
+		return (errno);
+	ret = ioctl(dev, DIOCXCOMMIT, &trans);
+	if (ret != 0)
+		return (errno);
+
+	return (0);
 }
 
 static int
@@ -1451,7 +1464,10 @@ pfctl_set_syncookies(int dev, const struct pfctl_syncookies *s)
 	ret = ioctl(dev, DIOCSETSYNCOOKIES, &nv);
 
 	free(nv.data);
-	return (ret);
+	if (ret != 0)
+		return (errno);
+
+	return (0);
 }
 
 int
@@ -1559,7 +1575,7 @@ pfctl_table_set_addrs(int dev, struct pfr_table *tbl, struct pfr_addr
 	io.pfrio_size = size;
 	io.pfrio_size2 = (size2 != NULL) ? *size2 : 0;
 	if (ioctl(dev, DIOCRSETADDRS, &io))
-		return (-1);
+		return (errno);
 	if (nadd != NULL)
 		*nadd = io.pfrio_nadd;
 	if (ndel != NULL)
@@ -1587,7 +1603,7 @@ int pfctl_table_get_addrs(int dev, struct pfr_table *tbl, struct pfr_addr *addr,
 	io.pfrio_esize = sizeof(*addr);
 	io.pfrio_size = *size;
 	if (ioctl(dev, DIOCRGETADDRS, &io))
-		return (-1);
+		return (errno);
 	*size = io.pfrio_size;
 	return (0);
 }
