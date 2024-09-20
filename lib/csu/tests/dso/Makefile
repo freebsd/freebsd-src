@@ -1,4 +1,3 @@
-
 .PATH: ${.CURDIR:H}
 SHLIB=		h_csu
 SHLIB_NAME=	libh_csu.so

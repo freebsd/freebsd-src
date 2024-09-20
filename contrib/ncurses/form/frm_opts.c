@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2012,2013 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -33,12 +33,12 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_opts.c,v 1.20 2020/12/12 00:37:00 tom Exp $")
+MODULE_ID("$Id: frm_opts.c,v 1.21 2021/06/17 21:20:30 tom Exp $")
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  int set_form_opts(FORM *form, Form_Options opts)
-|   
+|
 |   Description   :  Turns on the named options and turns off all the
 |                    remaining options for that form.
 |
@@ -61,9 +61,9 @@ set_form_opts(FORM *form, Form_Options opts)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  Form_Options form_opts(const FORM *)
-|   
+|
 |   Description   :  Retrieves the current form options.
 |
 |   Return Values :  The option flags.
@@ -76,13 +76,13 @@ form_opts(const FORM *form)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  int form_opts_on(FORM *form, Form_Options opts)
-|   
-|   Description   :  Turns on the named options; no other options are 
+|
+|   Description   :  Turns on the named options; no other options are
 |                    changed.
 |
-|   Return Values :  E_OK            - success 
+|   Return Values :  E_OK            - success
 |                    E_BAD_ARGUMENT  - invalid options
 +--------------------------------------------------------------------------*/
 FORM_EXPORT(int)
@@ -101,13 +101,13 @@ form_opts_on(FORM *form, Form_Options opts)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  int form_opts_off(FORM *form, Form_Options opts)
-|   
-|   Description   :  Turns off the named options; no other options are 
+|
+|   Description   :  Turns off the named options; no other options are
 |                    changed.
 |
-|   Return Values :  E_OK            - success 
+|   Return Values :  E_OK            - success
 |                    E_BAD_ARGUMENT  - invalid options
 +--------------------------------------------------------------------------*/
 FORM_EXPORT(int)

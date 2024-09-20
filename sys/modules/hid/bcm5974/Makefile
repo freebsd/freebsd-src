@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/hid
 
 KMOD=	bcm5974

@@ -1,4 +1,3 @@
-
 SUBDIR=	intel_ipw \
 	intel_iwi \
 	intel_iwlwififw \

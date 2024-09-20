@@ -775,7 +775,7 @@ mfi_attach(struct mfi_softc *sc)
 	    &sc->mfi_keep_deleted_volumes, 0,
 	    "Don't detach the mfid device for a busy volume that is deleted");
 
-	device_add_child(sc->mfi_dev, "mfip", -1);
+	device_add_child(sc->mfi_dev, "mfip", DEVICE_UNIT_ANY);
 	bus_generic_attach(sc->mfi_dev);
 
 	/* Start the timeout watchdog */
@@ -3633,11 +3633,8 @@ out:
 		mfi_aen_entry = malloc(sizeof(struct mfi_aen), M_MFIBUF,
 		    M_WAITOK);
 		mtx_lock(&sc->mfi_io_lock);
-		if (mfi_aen_entry != NULL) {
-			mfi_aen_entry->p = curproc;
-			TAILQ_INSERT_TAIL(&sc->mfi_aen_pids, mfi_aen_entry,
-			    aen_link);
-		}
+		mfi_aen_entry->p = curproc;
+		TAILQ_INSERT_TAIL(&sc->mfi_aen_pids, mfi_aen_entry, aen_link);
 		error = mfi_aen_register(sc, l_aen.laen_seq_num,
 		    l_aen.laen_class_locale);
 

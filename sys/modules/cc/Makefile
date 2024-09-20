@@ -1,4 +1,3 @@
-
 SUBDIR=	cc_newreno \
 	cc_cubic \
 	cc_dctcp \

@@ -132,7 +132,7 @@ vmbus_et_identify(driver_t *driver, device_t parent)
 	    hyperv_tc64 == NULL)
 		return;
 
-	device_add_child(parent, VMBUS_ET_NAME, -1);
+	device_add_child(parent, VMBUS_ET_NAME, DEVICE_UNIT_ANY);
 }
 
 static int

@@ -202,7 +202,7 @@ main(int argc, char **argv)
 
 	f = open(oss_dev, O_WRONLY);
 	if (f < 0)
-		errx(1, "Failed to open '%s'", oss_dev);
+		err(1, "Failed to open '%s'", oss_dev);
 
 	c = 1;				/* mono */
 	if (ioctl(f, SOUND_PCM_WRITE_CHANNELS, &c) != 0)

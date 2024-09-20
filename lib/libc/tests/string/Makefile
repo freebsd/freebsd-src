@@ -1,4 +1,3 @@
-
 # ensure libc functions are tested, not clang's builtins
 CFLAGS+=	-fno-builtin
 
@@ -12,6 +11,7 @@ ATF_TESTS_C+=		flsll_test
 ATF_TESTS_C+=		memccpy_test
 ATF_TESTS_C+=		memcmp_test
 ATF_TESTS_C+=		memrchr_test
+ATF_TESTS_C+=		memset2_test
 ATF_TESTS_C+=		memset_s_test
 ATF_TESTS_C+=		strncmp_test
 ATF_TESTS_C+=		stpncpy_test
@@ -45,6 +45,7 @@ NETBSD_ATF_TESTS_C+=	strpbrk_test
 NETBSD_ATF_TESTS_C+=	strrchr_test
 NETBSD_ATF_TESTS_C+=	swab_test
 
+SRCS.memset2_test=	memset_test.c
 SRCS.strcmp2_test=	strcmp_test.c
 SRCS.strerror2_test=	strerror_test.c
 

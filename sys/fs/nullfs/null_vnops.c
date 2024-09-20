@@ -528,7 +528,7 @@ null_setattr(struct vop_setattr_args *ap)
 		}
 	}
 
-	return (null_bypass((struct vop_generic_args *)ap));
+	return (null_bypass(&ap->a_gen));
 }
 
 /*
@@ -539,7 +539,7 @@ null_stat(struct vop_stat_args *ap)
 {
 	int error;
 
-	if ((error = null_bypass((struct vop_generic_args *)ap)) != 0)
+	if ((error = null_bypass(&ap->a_gen)) != 0)
 		return (error);
 
 	ap->a_sb->st_dev = ap->a_vp->v_mount->mnt_stat.f_fsid.val[0];
@@ -551,7 +551,7 @@ null_getattr(struct vop_getattr_args *ap)
 {
 	int error;
 
-	if ((error = null_bypass((struct vop_generic_args *)ap)) != 0)
+	if ((error = null_bypass(&ap->a_gen)) != 0)
 		return (error);
 
 	ap->a_vap->va_fsid = ap->a_vp->v_mount->mnt_stat.f_fsid.val[0];
@@ -584,7 +584,7 @@ null_access(struct vop_access_args *ap)
 			break;
 		}
 	}
-	return (null_bypass((struct vop_generic_args *)ap));
+	return (null_bypass(&ap->a_gen));
 }
 
 static int
@@ -610,7 +610,7 @@ null_accessx(struct vop_accessx_args *ap)
 			break;
 		}
 	}
-	return (null_bypass((struct vop_generic_args *)ap));
+	return (null_bypass(&ap->a_gen));
 }
 
 /*

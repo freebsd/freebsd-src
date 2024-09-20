@@ -1,4 +1,3 @@
-
 PACKAGE=	games
 
 PROG=	grdc

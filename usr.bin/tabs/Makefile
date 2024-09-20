@@ -1,4 +1,3 @@
-
 PROG=	tabs
 
 LIBADD=	tinfow

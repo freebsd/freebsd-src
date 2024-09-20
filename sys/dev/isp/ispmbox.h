@@ -890,6 +890,10 @@ typedef struct {
 #define	PDB2400_CLASS2		0x0010
 #define	PDB2400_ADDR_VALID	0x0002
 
+/*
+ * For NVMe, the state is the high nibble.  For FCP, the state is the low
+ * nibble.  This appears to have changed with the 9.x firmware.
+ */
 #define	PDB2400_STATE_PLOGI_PEND	0x03
 #define	PDB2400_STATE_PLOGI_DONE	0x04
 #define	PDB2400_STATE_PRLI_PEND		0x05
@@ -897,6 +901,8 @@ typedef struct {
 #define	PDB2400_STATE_PORT_UNAVAIL	0x07
 #define	PDB2400_STATE_PRLO_PEND		0x09
 #define	PDB2400_STATE_LOGO_PEND		0x0B
+#define	PDB2400_STATE_FCP_MASK		0x0f
+#define	PDB2400_STATE_NVME_SHIFT	4
 
 /*
  * Common elements from the above two structures that are actually useful to us.

@@ -22,13 +22,12 @@ static enum chan_allowed allow_channel(struct hostapd_hw_modes *mode,
 				       unsigned int *flags)
 {
 	int i;
-	bool is_6ghz = op_class >= 131 && op_class <= 136;
+	bool is_6ghz = is_6ghz_op_class(op_class);
 
 	for (i = 0; i < mode->num_channels; i++) {
 		bool chan_is_6ghz;
 
-		chan_is_6ghz = mode->channels[i].freq >= 5935 &&
-			mode->channels[i].freq <= 7115;
+		chan_is_6ghz = is_6ghz_freq(mode->channels[i].freq);
 		if (is_6ghz == chan_is_6ghz && mode->channels[i].chan == chan)
 			break;
 	}
@@ -103,10 +102,7 @@ static enum chan_allowed verify_80mhz(struct hostapd_hw_modes *mode,
 		    NOT_ALLOWED)
 			return NOT_ALLOWED;
 
-		if ((i == 0 && !(flags & HOSTAPD_CHAN_VHT_10_70)) ||
-		    (i == 1 && !(flags & HOSTAPD_CHAN_VHT_30_50)) ||
-		    (i == 2 && !(flags & HOSTAPD_CHAN_VHT_50_30)) ||
-		    (i == 3 && !(flags & HOSTAPD_CHAN_VHT_70_10)))
+		if (!(flags & HOSTAPD_CHAN_VHT_80MHZ_SUBCHANNEL))
 			return NOT_ALLOWED;
 
 		if (flags & HOSTAPD_CHAN_NO_IR)
@@ -175,18 +171,75 @@ static enum chan_allowed verify_160mhz(struct hostapd_hw_modes *mode,
 		    NOT_ALLOWED)
 			return NOT_ALLOWED;
 
-		if ((i == 0 && !(flags & HOSTAPD_CHAN_VHT_10_150)) ||
-		    (i == 1 && !(flags & HOSTAPD_CHAN_VHT_30_130)) ||
-		    (i == 2 && !(flags & HOSTAPD_CHAN_VHT_50_110)) ||
-		    (i == 3 && !(flags & HOSTAPD_CHAN_VHT_70_90)) ||
-		    (i == 4 && !(flags & HOSTAPD_CHAN_VHT_90_70)) ||
-		    (i == 5 && !(flags & HOSTAPD_CHAN_VHT_110_50)) ||
-		    (i == 6 && !(flags & HOSTAPD_CHAN_VHT_130_30)) ||
-		    (i == 7 && !(flags & HOSTAPD_CHAN_VHT_150_10)))
+		if (!(flags & HOSTAPD_CHAN_VHT_80MHZ_SUBCHANNEL) ||
+		    !(flags & HOSTAPD_CHAN_VHT_160MHZ_SUBCHANNEL))
 			return NOT_ALLOWED;
 
 		if (flags & HOSTAPD_CHAN_NO_IR)
 			no_ir = 1;
+	}
+
+	if (no_ir)
+		return NO_IR;
+
+	return ALLOWED;
+}
+
+
+static int get_center_320mhz(struct hostapd_hw_modes *mode, u8 channel,
+			     const u8 *center_channels, size_t num_chan)
+{
+	unsigned int i;
+
+	if (mode->mode != HOSTAPD_MODE_IEEE80211A || !mode->is_6ghz)
+		return 0;
+
+	for (i = 0; i < num_chan; i++) {
+		/*
+		* In 320 MHz, the bandwidth "spans" 60 channels (e.g., 65-125),
+		* so the center channel is 30 channels away from the start/end.
+		*/
+		if (channel >= center_channels[i] - 30 &&
+		    channel <= center_channels[i] + 30)
+			return center_channels[i];
+	}
+
+	return 0;
+}
+
+
+static enum chan_allowed verify_320mhz(struct hostapd_hw_modes *mode,
+				       u8 op_class, u8 channel)
+{
+	u8 center_chan;
+	unsigned int i;
+	bool no_ir = false;
+	const u8 *center_channels;
+	size_t num_chan;
+	const u8 center_channels_6ghz[] = { 31, 63, 95, 127, 159, 191 };
+
+	center_channels = center_channels_6ghz;
+	num_chan = ARRAY_SIZE(center_channels_6ghz);
+
+	center_chan = get_center_320mhz(mode, channel, center_channels,
+					num_chan);
+	if (!center_chan)
+		return NOT_ALLOWED;
+
+	/* Check all the channels are available */
+	for (i = 0; i < 16; i++) {
+		unsigned int flags;
+		u8 adj_chan = center_chan - 30 + i * 4;
+
+		if (allow_channel(mode, op_class, adj_chan, &flags) ==
+		    NOT_ALLOWED)
+			return NOT_ALLOWED;
+
+		if (!(flags & HOSTAPD_CHAN_EHT_320MHZ_SUBCHANNEL))
+			return NOT_ALLOWED;
+
+		if (flags & HOSTAPD_CHAN_NO_IR)
+			no_ir = true;
 	}
 
 	if (no_ir)
@@ -237,6 +290,13 @@ enum chan_allowed verify_channel(struct hostapd_hw_modes *mode, u8 op_class,
 		 * result and use only the 80 MHz specific version.
 		 */
 		res2 = res = verify_80mhz(mode, op_class, channel);
+	} else if (bw == BW320) {
+		/*
+		 * channel is a center channel and as such, not necessarily a
+		 * valid 20 MHz channels. Override earlier allow_channel()
+		 * result and use only the 320 MHz specific version.
+		 */
+		res2= res = verify_320mhz(mode, op_class, channel);
 	}
 
 	if (res == NOT_ALLOWED || res2 == NOT_ALLOWED)
@@ -260,6 +320,7 @@ static int wpas_op_class_supported(struct wpa_supplicant *wpa_s,
 	int z;
 	int freq2 = 0;
 	int freq5 = 0;
+	bool freq6 = false;
 
 	mode = get_mode(wpa_s->hw.modes, wpa_s->hw.num_modes, op_class->mode,
 			is_6ghz_op_class(op_class->op_class));
@@ -274,7 +335,9 @@ static int wpas_op_class_supported(struct wpa_supplicant *wpa_s,
 
 			if (f == 0)
 				break; /* end of list */
-			if (f > 4000 && f < 6000)
+			if (is_6ghz_freq(f))
+				freq6 = true;
+			else if (f > 4000 && f < 6000)
 				freq5 = 1;
 			else if (f > 2400 && f < 2500)
 				freq2 = 1;
@@ -283,8 +346,11 @@ static int wpas_op_class_supported(struct wpa_supplicant *wpa_s,
 		/* No frequencies specified, can use anything hardware supports.
 		 */
 		freq2 = freq5 = 1;
+		freq6 = true;
 	}
 
+	if (is_6ghz_op_class(op_class->op_class) && !freq6)
+		return 0;
 	if (op_class->op_class >= 115 && op_class->op_class <= 130 && !freq5)
 		return 0;
 	if (op_class->op_class >= 81 && op_class->op_class <= 84 && !freq2)
@@ -462,6 +528,7 @@ size_t wpas_supp_op_class_ie(struct wpa_supplicant *wpa_s,
 	u8 op, current, chan;
 	u8 *ie_len;
 	size_t res;
+	bool op128 = false, op130 = false, op133 = false, op135 = false;
 
 	/*
 	 * Determine the current operating class correct mode based on
@@ -470,8 +537,9 @@ size_t wpas_supp_op_class_ie(struct wpa_supplicant *wpa_s,
 	 * or used.
 	 */
 	if (wpas_sta_secondary_channel_offset(bss, &current, &chan) < 0 &&
-	    ieee80211_freq_to_channel_ext(bss->freq, 0, CHANWIDTH_USE_HT,
-					  &current, &chan) == NUM_HOSTAPD_MODES)
+	    ieee80211_freq_to_channel_ext(bss->freq, 0,
+					  CONF_OPER_CHWIDTH_USE_HT, &current,
+					  &chan) == NUM_HOSTAPD_MODES)
 		return 0;
 
 	/*
@@ -488,8 +556,50 @@ size_t wpas_supp_op_class_ie(struct wpa_supplicant *wpa_s,
 	wpabuf_put_u8(buf, current);
 
 	for (op = 0; global_op_class[op].op_class; op++) {
-		if (wpas_op_class_supported(wpa_s, ssid, &global_op_class[op]))
-			wpabuf_put_u8(buf, global_op_class[op].op_class);
+		bool supp;
+		u8 op_class = global_op_class[op].op_class;
+
+		supp = wpas_op_class_supported(wpa_s, ssid,
+					       &global_op_class[op]);
+		if (!supp)
+			continue;
+		switch (op_class) {
+		case 128:
+			op128 = true;
+			break;
+		case 130:
+			op130 = true;
+			break;
+		case 133:
+			op133 = true;
+			break;
+		case 135:
+			op135 = true;
+			break;
+		}
+		if (is_80plus_op_class(op_class))
+			continue;
+
+		/* Add a 1-octet operating class to the Operating Class field */
+		wpabuf_put_u8(buf, global_op_class[op].op_class);
+	}
+
+	/* Add the 2-octet operating classes (i.e., 80+80 MHz cases), if any */
+	if ((op128 && op130) || (op133 && op135)) {
+		/* Operating Class Duple Sequence field */
+
+		/* Zero Delimiter */
+		wpabuf_put_u8(buf, 0);
+
+		/* Operating Class Duple List */
+		if (op128 && op130) {
+			wpabuf_put_u8(buf, 130);
+			wpabuf_put_u8(buf, 128);
+		}
+		if (op133 && op135) {
+			wpabuf_put_u8(buf, 135);
+			wpabuf_put_u8(buf, 133);
+		}
 	}
 
 	*ie_len = wpabuf_len(buf) - 2;

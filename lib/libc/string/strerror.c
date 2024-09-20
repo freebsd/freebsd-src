@@ -38,6 +38,8 @@
 #include <string.h>
 #include <stdio.h>
 
+#include <ssp/ssp.h>
+
 #include "errlst.h"
 #include "../locale/xlocale_private.h"
 #include "libc_private.h"
@@ -114,7 +116,7 @@ __strerror_rl(int errnum, char *strerrbuf, size_t buflen, locale_t locale)
 }
 
 int
-strerror_r(int errnum, char *strerrbuf, size_t buflen)
+__ssp_real(strerror_r)(int errnum, char *strerrbuf, size_t buflen)
 {
 	return (__strerror_rl(errnum, strerrbuf, buflen, __get_locale()));
 }

@@ -48,7 +48,7 @@ POSIX-compatible systems that are known to work:
 * FreeBSD
 * OpenBSD
 * NetBSD
-* Mac OSX
+* macOS
 * Solaris* (as long as the Solaris version supports POSIX 2008)
 * AIX
 * HP-UX* (except for history)
@@ -347,6 +347,8 @@ that is because it is more robust. See the [benchmarks][19].
 Below is a non-comprehensive list of extensions that this `bc` and `dc` have
 that all others do not.
 
+* **The `!` operator has higher precedence than the `!` operator in other `bc`
+  implementations.**
 * An extended math library. (See [here][30] for more information.)
 * A command-line prompt.
 * Turning on and off digit clamping. (Digit clamping is about how to treat
@@ -427,7 +429,7 @@ Other projects based on this bc are:
 * [FreeBSD `bc`][23]. While the `bc` in FreeBSD is kept up-to-date, it is better
   to [report bugs there][24], as well as [submit patches][25], and the
   maintainers of the package will contact me if necessary.
-* [Mac OSX `bc`][35]. Any bugs in that `bc` should be reported to me, but do
+* [macOS `bc`][35]. Any bugs in that `bc` should be reported to me, but do
   expect bugs because the version is old.
 * [Android Open Source `bc`][32]. Any bugs in that `bc` can be reported here.
 

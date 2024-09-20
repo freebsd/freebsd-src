@@ -43,6 +43,7 @@
 #define UTIL_EDNS_H
 
 #include "util/storage/dnstree.h"
+#include "util/locks.h"
 
 struct edns_data;
 struct config_file;
@@ -73,6 +74,31 @@ struct edns_string_addr {
 	uint8_t* string;
 	/** length of string */
 	size_t string_len;
+};
+
+#define UNBOUND_COOKIE_HISTORY_SIZE 2
+#define UNBOUND_COOKIE_SECRET_SIZE 16
+
+typedef struct cookie_secret cookie_secret_type;
+struct cookie_secret {
+	/** cookie secret */
+	uint8_t cookie_secret[UNBOUND_COOKIE_SECRET_SIZE];
+};
+
+/**
+ * The cookie secrets from the cookie-secret-file.
+ */
+struct cookie_secrets {
+	/** lock on the structure, in case there are modifications
+	 * from remote control, this avoids race conditions. */
+	lock_basic_type lock;
+
+	/** how many cookies are there in the cookies array */
+	size_t cookie_count;
+
+	/* keep track of the last `UNBOUND_COOKIE_HISTORY_SIZE`
+	 * cookies as per rfc requirement .*/
+	cookie_secret_type cookie_secrets[UNBOUND_COOKIE_HISTORY_SIZE];
 };
 
 enum edns_cookie_val_status {
@@ -164,5 +190,64 @@ void edns_cookie_server_write(uint8_t* buf, const uint8_t* secret, int v4,
 enum edns_cookie_val_status edns_cookie_server_validate(const uint8_t* cookie,
 	size_t cookie_len, const uint8_t* secret, size_t secret_len, int v4,
 	const uint8_t* hash_input, uint32_t now);
+
+/**
+ * Create the cookie secrets structure.
+ * @return the structure or NULL on failure.
+ */
+struct cookie_secrets* cookie_secrets_create(void);
+
+/**
+ * Delete the cookie secrets.
+ * @param cookie_secrets: the cookie secrets.
+ */
+void cookie_secrets_delete(struct cookie_secrets* cookie_secrets);
+
+/**
+ * Apply configuration to cookie secrets, read them from file.
+ * @param cookie_secrets: the cookie secrets structure.
+ * @param cookie_secret_file: the file name, it is read.
+ * @return false on failure.
+ */
+int cookie_secrets_apply_cfg(struct cookie_secrets* cookie_secrets,
+	char* cookie_secret_file);
+
+/**
+ * Validate the cookie secrets, try all of them.
+ * @param cookie: pointer to the cookie data.
+ * @param cookie_len: the length of the cookie data.
+ * @param cookie_secrets: struct of cookie secrets.
+ * @param v4: if the client IP is v4 or v6.
+ * @param hash_input: pointer to the hash input for validation. It needs to be:
+ *	Client Cookie | Version | Reserved | Timestamp | Client-IP
+ * @param now: the current time.
+ * return edns_cookie_val_status with the cookie validation status i.e.,
+ *	<=0 for invalid, else valid.
+ */
+enum edns_cookie_val_status cookie_secrets_server_validate(
+	const uint8_t* cookie, size_t cookie_len,
+	struct cookie_secrets* cookie_secrets, int v4,
+	const uint8_t* hash_input, uint32_t now);
+
+/**
+ * Add a cookie secret. If there are no secrets yet, the secret will become
+ * the active secret. Otherwise it will become the staging secret.
+ * Active secrets are used to both verify and create new DNS Cookies.
+ * Staging secrets are only used to verify DNS Cookies. Caller has to lock.
+ */
+void add_cookie_secret(struct cookie_secrets* cookie_secrets, uint8_t* secret,
+	size_t secret_len);
+
+/**
+ * Makes the staging cookie secret active and the active secret staging.
+ * Caller has to lock.
+ */
+void activate_cookie_secret(struct cookie_secrets* cookie_secrets);
+
+/**
+ * Drop a cookie secret. Drops the staging secret. An active secret will not
+ * be dropped. Caller has to lock.
+ */
+void drop_cookie_secret(struct cookie_secrets* cookie_secrets);
 
 #endif

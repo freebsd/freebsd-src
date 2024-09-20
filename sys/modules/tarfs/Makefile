@@ -1,4 +1,3 @@
-
 .PATH: ${.CURDIR:H:H}/fs/tarfs
 
 KMOD=	tarfs

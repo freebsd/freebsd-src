@@ -148,6 +148,54 @@ keepcounters_body()
 	    jexec alcatraz pfctl -s r -v
 }
 
+atf_test_case "4G" "cleanup"
+4G_head()
+{
+	atf_set descr 'Test keepcounter for values above 32 bits'
+	atf_set require.user root
+}
+
+4G_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	ifconfig ${epair}a 192.0.2.1/24 up
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+	jexec alcatraz nc -l 1234 >/dev/null &
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+		"pass all"
+
+	# Now pass more than 4GB of data
+	dd if=/dev/zero bs=1k count=4M | nc -N 192.0.2.2 1234
+
+	bytes=$(jexec alcatraz pfctl -s r -v | awk '/Bytes:/ { print $7; }')
+	if [ $bytes -lt 4000000000 ];
+	then
+		atf_fail "Expected to see > 4GB"
+	fi
+
+	# Set new rules, keeping counters
+	pft_set_rules noflush alcatraz \
+		"set keepcounters" \
+		"pass all"
+
+	bytes=$(jexec alcatraz pfctl -s r -v | awk '/Bytes:/ { print $7; }')
+	if [ $bytes -lt 4000000000 ];
+	then
+		atf_fail "Expected to see > 4GB after rule reload"
+	fi
+}
+
+4G_cleanup()
+{
+	pft_cleanup
+}
+
 keepcounters_cleanup()
 {
 	pft_cleanup
@@ -157,4 +205,5 @@ atf_init_test_cases()
 {
 	atf_add_test_case "get_clear"
 	atf_add_test_case "keepcounters"
+	atf_add_test_case "4G"
 }

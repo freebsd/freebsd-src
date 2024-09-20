@@ -426,31 +426,21 @@ ice_setup_pf_vsi(struct ice_softc *sc)
  * all queues for this VSI are not yet assigned an index and thus,
  * not ready for use.
  *
- * Returns an error code on failure.
  */
-int
+void
 ice_alloc_vsi_qmap(struct ice_vsi *vsi, const int max_tx_queues,
 		   const int max_rx_queues)
 {
-	struct ice_softc *sc = vsi->sc;
 	int i;
 
 	MPASS(max_tx_queues > 0);
 	MPASS(max_rx_queues > 0);
 
 	/* Allocate Tx queue mapping memory */
-	if (!(vsi->tx_qmap =
-	      (u16 *) malloc(sizeof(u16) * max_tx_queues, M_ICE, M_WAITOK))) {
-		device_printf(sc->dev, "Unable to allocate Tx qmap memory\n");
-		return (ENOMEM);
-	}
+	vsi->tx_qmap = malloc(sizeof(u16) * max_tx_queues, M_ICE, M_WAITOK);
 
 	/* Allocate Rx queue mapping memory */
-	if (!(vsi->rx_qmap =
-	      (u16 *) malloc(sizeof(u16) * max_rx_queues, M_ICE, M_WAITOK))) {
-		device_printf(sc->dev, "Unable to allocate Rx qmap memory\n");
-		goto free_tx_qmap;
-	}
+	vsi->rx_qmap = malloc(sizeof(u16) * max_rx_queues, M_ICE, M_WAITOK);
 
 	/* Mark every queue map as invalid to start with */
 	for (i = 0; i < max_tx_queues; i++) {
@@ -459,14 +449,6 @@ ice_alloc_vsi_qmap(struct ice_vsi *vsi, const int max_tx_queues,
 	for (i = 0; i < max_rx_queues; i++) {
 		vsi->rx_qmap[i] = ICE_INVALID_RES_IDX;
 	}
-
-	return 0;
-
-free_tx_qmap:
-	free(vsi->tx_qmap, M_ICE);
-	vsi->tx_qmap = NULL;
-
-	return (ENOMEM);
 }
 
 /**

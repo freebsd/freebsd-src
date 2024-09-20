@@ -1,4 +1,3 @@
-
 .include "${SRCTOP}/lib/clang/lldb.pre.mk"
 
 PACKAGE=	lldb

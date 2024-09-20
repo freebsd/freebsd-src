@@ -166,7 +166,7 @@ mvs_attach(device_t dev)
 	}
 	/* Attach all channels on this controller */
 	for (unit = 0; unit < ctlr->channels; unit++) {
-		child = device_add_child(dev, "mvsch", -1);
+		child = device_add_child(dev, "mvsch", DEVICE_UNIT_ANY);
 		if (child == NULL)
 			device_printf(dev, "failed to add channel device\n");
 		else
@@ -372,7 +372,7 @@ mvs_release_resource(device_t dev, device_t child, struct resource *r)
 		rman_release_resource(r);
 		return (0);
 	case SYS_RES_IRQ:
-		if (rid != ATA_IRQ_RID)
+		if (rman_get_rid(r) != ATA_IRQ_RID)
 			return ENOENT;
 		return (0);
 	}

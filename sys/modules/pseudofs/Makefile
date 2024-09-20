@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/fs/pseudofs
 
 KMOD=	pseudofs

@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/security/mac_pimd
 
 KMOD=	mac_pimd

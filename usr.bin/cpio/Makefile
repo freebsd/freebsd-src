@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 _LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive

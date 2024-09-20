@@ -83,8 +83,11 @@ Elf_Addr reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
 	__asm __volatile("mv    gp, %0" :: "r"(old1));			\
 })
 
+extern unsigned long elf_hwcap;
 #define	call_ifunc_resolver(ptr) \
-	(((Elf_Addr (*)(void))ptr)())
+	(((Elf_Addr (*)(unsigned long, unsigned long, unsigned long,	\
+	    unsigned long, unsigned long, unsigned long, unsigned long,	\
+	    unsigned long))ptr)(elf_hwcap, 0, 0, 0, 0, 0, 0, 0))
 
 /*
  * TLS

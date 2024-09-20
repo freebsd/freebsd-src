@@ -36,18 +36,14 @@
 #include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/smp.h>
-#ifdef NEW_PCIB
 #include <sys/rman.h>
-#endif
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
 #include <dev/pci/pcivar.h>
-#ifdef NEW_PCIB
 #include <dev/pci/pcib_private.h>
-#endif
 #include <x86/apicreg.h>
 #include <x86/legacyvar.h>
 #include <x86/mptable.h>
@@ -56,9 +52,7 @@
 #include <x86/apicvar.h>
 #include <machine/md_var.h>
 #include <machine/pc/bios.h>
-#ifdef NEW_PCIB
 #include <machine/resource.h>
-#endif
 #include <machine/specialreg.h>
 
 /* string defined by the Intel MP Spec as identifying the MP table */
@@ -199,10 +193,8 @@ static void	mptable_setup_cpus_handler(u_char *entry, void *arg __unused);
 static void	mptable_register(void *dummy);
 static int	mptable_setup_local(void);
 static int	mptable_setup_io(void);
-#ifdef NEW_PCIB
 static void	mptable_walk_extended_table(
     mptable_extended_entry_handler *handler, void *arg);
-#endif
 static void	mptable_walk_table(mptable_entry_handler *handler, void *arg);
 static int	search_for_sig(u_int32_t target, int count);
 
@@ -504,7 +496,6 @@ mptable_walk_table(mptable_entry_handler *handler, void *arg)
 	}
 }
 
-#ifdef NEW_PCIB
 /*
  * Call the handler routine for each entry in the MP config extended
  * table.
@@ -523,7 +514,6 @@ mptable_walk_extended_table(mptable_extended_entry_handler *handler, void *arg)
 		entry = (ext_entry_ptr)((char *)entry + entry->length);
 	}
 }
-#endif
 
 static void
 mptable_probe_cpus_handler(u_char *entry, void *arg)
@@ -1178,7 +1168,6 @@ mptable_pci_route_interrupt(device_t pcib, device_t dev, int pin)
 	return (args.vector);
 }
 
-#ifdef NEW_PCIB
 struct host_res_args {
 	struct mptable_hostb_softc *sc;
 	device_t dev;
@@ -1306,4 +1295,3 @@ mptable_pci_host_res_init(device_t pcib)
 		panic("failed to init hostb resources");
 	mptable_walk_extended_table(mptable_host_res_handler, &args);
 }
-#endif

@@ -1,4 +1,3 @@
-
 PACKAGE=	tests
 
 ATF_TESTS_SH+=	grep_freebsd_test

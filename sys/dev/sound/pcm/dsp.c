@@ -52,7 +52,6 @@ struct dsp_cdevpriv {
 	struct pcm_channel *rdch;
 	struct pcm_channel *wrch;
 	struct pcm_channel *volch;
-	int simplex;
 };
 
 static int dsp_mmap_allow_prot_exec = 0;
@@ -142,52 +141,8 @@ dsp_destroy_dev(device_t dev)
 }
 
 static void
-getchns(struct dsp_cdevpriv *priv, uint32_t prio)
+dsp_lock_chans(struct dsp_cdevpriv *priv, uint32_t prio)
 {
-	struct snddev_info *d;
-	struct pcm_channel *ch;
-	uint32_t flags;
-
-	if (priv->simplex) {
-		d = priv->sc;
-		if (!PCM_REGISTERED(d))
-			return;
-		PCM_LOCK(d);
-		PCM_WAIT(d);
-		PCM_ACQUIRE(d);
-		/*
-		 * Note: order is important -
-		 *       pcm flags -> prio query flags -> wild guess
-		 */
-		ch = NULL;
-		flags = pcm_getflags(d->dev);
-		if (flags & SD_F_PRIO_WR) {
-			ch = priv->rdch;
-		} else if (flags & SD_F_PRIO_RD) {
-			ch = priv->wrch;
-		} else if (prio & SD_F_PRIO_WR) {
-			ch = priv->rdch;
-			flags |= SD_F_PRIO_WR;
-		} else if (prio & SD_F_PRIO_RD) {
-			ch = priv->wrch;
-			flags |= SD_F_PRIO_RD;
-		} else if (priv->wrch != NULL) {
-			ch = priv->rdch;
-			flags |= SD_F_PRIO_WR;
-		} else if (priv->rdch != NULL) {
-			ch = priv->wrch;
-			flags |= SD_F_PRIO_RD;
-		}
-		pcm_setflags(d->dev, flags);
-		if (ch != NULL) {
-			CHN_LOCK(ch);
-			chn_ref(ch, -1);
-			chn_release(ch);
-		}
-		PCM_RELEASE(d);
-		PCM_UNLOCK(d);
-	}
-
 	if (priv->rdch != NULL && (prio & SD_F_PRIO_RD))
 		CHN_LOCK(priv->rdch);
 	if (priv->wrch != NULL && (prio & SD_F_PRIO_WR))
@@ -195,7 +150,7 @@ getchns(struct dsp_cdevpriv *priv, uint32_t prio)
 }
 
 static void
-relchns(struct dsp_cdevpriv *priv, uint32_t prio)
+dsp_unlock_chans(struct dsp_cdevpriv *priv, uint32_t prio)
 {
 	if (priv->rdch != NULL && (prio & SD_F_PRIO_RD))
 		CHN_UNLOCK(priv->rdch);
@@ -332,28 +287,14 @@ skip:
 	priv = NULL;
 }
 
-#define DSP_FIXUP_ERROR()		do {				\
-	prio = pcm_getflags(d->dev);					\
-	if (!DSP_F_VALID(flags))					\
-		error = EINVAL;						\
-	if (!DSP_F_DUPLEX(flags) &&					\
-	    ((DSP_F_READ(flags) && d->reccount == 0) ||			\
-	    (DSP_F_WRITE(flags) && d->playcount == 0)))			\
-		error = ENOTSUP;					\
-	else if (!DSP_F_DUPLEX(flags) && (prio & SD_F_SIMPLEX) &&	\
-	    ((DSP_F_READ(flags) && (prio & SD_F_PRIO_WR)) ||		\
-	    (DSP_F_WRITE(flags) && (prio & SD_F_PRIO_RD))))		\
-		error = EBUSY;						\
-} while (0)
-
 static int
 dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
 	struct dsp_cdevpriv *priv;
-	struct pcm_channel *rdch, *wrch;
+	struct pcm_channel *rdch, *wrch, *ch;
 	struct snddev_info *d;
-	uint32_t fmt, spd, prio;
-	int error, rderror, wrerror;
+	uint32_t fmt, spd;
+	int error, rderror, wrerror, dir;
 
 	/* Kind of impossible.. */
 	if (i_dev == NULL || td == NULL)
@@ -368,7 +309,6 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	priv->rdch = NULL;
 	priv->wrch = NULL;
 	priv->volch = NULL;
-	priv->simplex = (pcm_getflags(d->dev) & SD_F_SIMPLEX) ? 1 : 0;
 
 	error = devfs_set_cdevpriv(priv, dsp_close);
 	if (error != 0)
@@ -381,7 +321,42 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	PCM_WAIT(d);
 
 	error = 0;
-	DSP_FIXUP_ERROR();
+	if (!DSP_F_VALID(flags))
+		error = EINVAL;
+	else if (!DSP_F_DUPLEX(flags) &&
+	    ((DSP_F_READ(flags) && d->reccount == 0) ||
+	    (DSP_F_WRITE(flags) && d->playcount == 0)))
+		error = ENOTSUP;
+	if (pcm_getflags(d->dev) & SD_F_SIMPLEX) {
+		if (DSP_F_DUPLEX(flags)) {
+			/*
+			 * If no channels are opened yet, and we request
+			 * DUPLEX, limit to playback only, otherwise open one
+			 * channel in a direction that already exists.
+			 */
+			if (CHN_EMPTY(d, channels.pcm.opened)) {
+				if (d->playcount > 0)
+					flags &= ~FREAD;
+				else if (d->reccount > 0)
+					flags &= ~FWRITE;
+			} else {
+				ch = CHN_FIRST(d, channels.pcm.opened);
+				if (ch->direction == PCMDIR_PLAY)
+					flags &= ~FREAD;
+				else if (ch->direction == PCMDIR_REC)
+					flags &= ~FWRITE;
+			}
+		} else if (!CHN_EMPTY(d, channels.pcm.opened)) {
+			/*
+			 * If we requested SIMPLEX, make sure we do not open a
+			 * channel in the opposite direction.
+			 */
+			ch = CHN_FIRST(d, channels.pcm.opened);
+			dir = DSP_F_READ(flags) ? PCMDIR_REC : PCMDIR_PLAY;
+			if (ch->direction != dir)
+				error = ENOTSUP;
+		}
+	}
 	if (error != 0) {
 		PCM_UNLOCK(d);
 		PCM_GIANT_EXIT(d);
@@ -533,18 +508,18 @@ dsp_io_ops(struct dsp_cdevpriv *priv, struct uio *buf)
 
 	runpid = buf->uio_td->td_proc->p_pid;
 
-	getchns(priv, prio);
+	dsp_lock_chans(priv, prio);
 
 	if (*ch == NULL || !((*ch)->flags & CHN_F_BUSY)) {
 		if (priv->rdch != NULL || priv->wrch != NULL)
-			relchns(priv, prio);
+			dsp_unlock_chans(priv, prio);
 		PCM_GIANT_EXIT(d);
 		return (EBADF);
 	}
 
 	if (((*ch)->flags & (CHN_F_MMAP | CHN_F_DEAD)) ||
 	    (((*ch)->flags & CHN_F_RUNNING) && (*ch)->pid != runpid)) {
-		relchns(priv, prio);
+		dsp_unlock_chans(priv, prio);
 		PCM_GIANT_EXIT(d);
 		return (EINVAL);
 	} else if (!((*ch)->flags & CHN_F_RUNNING)) {
@@ -563,7 +538,7 @@ dsp_io_ops(struct dsp_cdevpriv *priv, struct uio *buf)
 
 	CHN_BROADCAST(&(*ch)->cv);
 
-	relchns(priv, prio);
+	dsp_unlock_chans(priv, prio);
 
 	PCM_GIANT_LEAVE(d);
 
@@ -799,7 +774,6 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 		return (ret);
 	}
 
-	getchns(priv, 0);
 	rdch = priv->rdch;
 	wrch = priv->wrch;
 
@@ -1858,7 +1832,7 @@ dsp_poll(struct cdev *i_dev, int events, struct thread *td)
 
 	ret = 0;
 
-	getchns(priv, SD_F_PRIO_RD | SD_F_PRIO_WR);
+	dsp_lock_chans(priv, SD_F_PRIO_RD | SD_F_PRIO_WR);
 	wrch = priv->wrch;
 	rdch = priv->rdch;
 
@@ -1874,7 +1848,7 @@ dsp_poll(struct cdev *i_dev, int events, struct thread *td)
 			ret |= chn_poll(rdch, e, td);
 	}
 
-	relchns(priv, SD_F_PRIO_RD | SD_F_PRIO_WR);
+	dsp_unlock_chans(priv, SD_F_PRIO_RD | SD_F_PRIO_WR);
 
 	PCM_GIANT_LEAVE(d);
 
@@ -1936,7 +1910,7 @@ dsp_mmap_single(struct cdev *i_dev, vm_ooffset_t *offset,
 
 	PCM_GIANT_ENTER(d);
 
-	getchns(priv, SD_F_PRIO_RD | SD_F_PRIO_WR);
+	dsp_lock_chans(priv, SD_F_PRIO_RD | SD_F_PRIO_WR);
 	wrch = priv->wrch;
 	rdch = priv->rdch;
 
@@ -1945,7 +1919,7 @@ dsp_mmap_single(struct cdev *i_dev, vm_ooffset_t *offset,
 	    (*offset  + size) > sndbuf_getallocsize(c->bufsoft) ||
 	    (wrch != NULL && (wrch->flags & CHN_F_MMAP_INVALID)) ||
 	    (rdch != NULL && (rdch->flags & CHN_F_MMAP_INVALID))) {
-		relchns(priv, SD_F_PRIO_RD | SD_F_PRIO_WR);
+		dsp_unlock_chans(priv, SD_F_PRIO_RD | SD_F_PRIO_WR);
 		PCM_GIANT_EXIT(d);
 		return (EINVAL);
 	}
@@ -1956,7 +1930,7 @@ dsp_mmap_single(struct cdev *i_dev, vm_ooffset_t *offset,
 		rdch->flags |= CHN_F_MMAP;
 
 	*offset = (uintptr_t)sndbuf_getbufofs(c->bufsoft, *offset);
-	relchns(priv, SD_F_PRIO_RD | SD_F_PRIO_WR);
+	dsp_unlock_chans(priv, SD_F_PRIO_RD | SD_F_PRIO_WR);
 	*object = vm_pager_allocate(OBJT_DEVICE, i_dev,
 	    size, nprot, *offset, curthread->td_ucred);
 
@@ -2047,6 +2021,7 @@ dsp_oss_audioinfo_unavail(oss_audioinfo *ai, int unit)
 	ai->dev = unit;
 	snprintf(ai->name, sizeof(ai->name), "pcm%d (unavailable)", unit);
 	ai->pid = -1;
+	strlcpy(ai->cmd, CHN_COMM_UNUSED, sizeof(ai->cmd));
 	ai->card_number = unit;
 	ai->port_number = unit;
 	ai->mixer_dev = -1;
@@ -2132,8 +2107,9 @@ dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai, bool ex)
 	ai->dev = unit;
 	strlcpy(ai->name, device_get_desc(d->dev), sizeof(ai->name));
 	ai->pid = -1;
-	ai->card_number = -1;
-	ai->port_number = -1;
+	strlcpy(ai->cmd, CHN_COMM_UNKNOWN, sizeof(ai->cmd));
+	ai->card_number = unit;
+	ai->port_number = unit;
 	ai->mixer_dev = (d->mixer_dev != NULL) ? unit : -1;
 	ai->legacy_device = unit;
 	snprintf(ai->devnode, sizeof(ai->devnode), "/dev/dsp%d", unit);
@@ -2157,9 +2133,13 @@ dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai, bool ex)
 		/*
 		 * Skip physical channels if we are servicing SNDCTL_AUDIOINFO,
 		 * or VCHANs if we are servicing SNDCTL_AUDIOINFO_EX.
+		 *
+		 * For SNDCTL_AUDIOINFO do not skip the physical channels if
+		 * there are no VCHANs.
 		 */
 		if ((ex && (ch->flags & CHN_F_VIRTUAL) != 0) ||
-		    (!ex && (ch->flags & CHN_F_VIRTUAL) == 0)) {
+		    ((!ex && (ch->flags & CHN_F_VIRTUAL) == 0) &&
+		    (d->pvchancount > 0 || d->rvchancount > 0))) {
 			CHN_UNLOCK(ch);
 			continue;
 		}
@@ -2190,13 +2170,22 @@ dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai, bool ex)
 		else
 			ai->iformats |= fmts;
 
-		ai->min_rate = min(ai->min_rate, caps->minspeed);
-		ai->max_rate = max(ai->max_rate, caps->maxspeed);
+		if (ex || (pcm_getflags(d->dev) & SD_F_BITPERFECT)) {
+			ai->min_rate = min(ai->min_rate, caps->minspeed);
+			ai->max_rate = max(ai->max_rate, caps->maxspeed);
+		} else {
+			ai->min_rate = min(ai->min_rate, feeder_rate_min);
+			ai->max_rate = max(ai->max_rate, feeder_rate_max);
+		}
 		ai->min_channels = min(ai->min_channels, minch);
 		ai->max_channels = max(ai->max_channels, maxch);
 
 		CHN_UNLOCK(ch);
 	}
+	if (ai->min_rate == INT_MAX)
+		ai->min_rate = 0;
+	if (ai->min_channels == INT_MAX)
+		ai->min_channels = 0;
 
 	PCM_UNLOCK(d);
 
@@ -2317,14 +2306,8 @@ dsp_oss_engineinfo(struct cdev *i_dev, oss_audioinfo *ai)
 			else
 				ai->busy = (ch->direction == PCMDIR_PLAY) ? OPEN_WRITE : OPEN_READ;
 
-			/**
-			 * @note
-			 * @c cmd - OSSv4 docs: "Only supported under Linux at
-			 *    this moment." Cop-out, I know, but I'll save
-			 *    running around in the process table for later.
-			 *    Is there a risk of leaking information?
-			 */
 			ai->pid = ch->pid;
+			strlcpy(ai->cmd, ch->comm, sizeof(ai->cmd));
 
 			/*
 			 * These flags stolen from SNDCTL_DSP_GETCAPS handler.
@@ -2341,13 +2324,7 @@ dsp_oss_engineinfo(struct cdev *i_dev, oss_audioinfo *ai)
 
 			/*
 			 * Collect formats supported @b natively by the
-			 * device.  Also determine min/max channels.  (I.e.,
-			 * mono, stereo, or both?)
-			 *
-			 * If any channel is stereo, maxch = 2;
-			 * if all channels are stereo, minch = 2, too;
-			 * if any channel is mono, minch = 1;
-			 * and if all channels are mono, maxch = 1.
+			 * device.  Also determine min/max channels.
 			 */
 			minch = INT_MAX;
 			maxch = 0;
@@ -2375,20 +2352,20 @@ dsp_oss_engineinfo(struct cdev *i_dev, oss_audioinfo *ai)
 			 *    should normally not use this field for any
 			 *    purpose."
 			 */
-			ai->card_number = -1;
+			ai->card_number = unit;
 			/**
 			 * @todo @c song_name - depends first on
 			 *          SNDCTL_[GS]ETSONG @todo @c label - depends
 			 *          on SNDCTL_[GS]ETLABEL
 			 * @todo @c port_number - routing information?
 			 */
-			ai->port_number = -1;
+			ai->port_number = unit;
 			ai->mixer_dev = (d->mixer_dev != NULL) ? unit : -1;
 			/**
 			 * @note
 			 * @c legacy_device - OSSv4 docs:  "Obsolete."
 			 */
-			ai->legacy_device = -1;
+			ai->legacy_device = unit;
 			snprintf(ai->devnode, sizeof(ai->devnode), "/dev/dsp%d", unit);
 			ai->enabled = device_is_attached(d->dev) ? 1 : 0;
 			/**
@@ -2401,8 +2378,15 @@ dsp_oss_engineinfo(struct cdev *i_dev, oss_audioinfo *ai)
 			 * @todo @c handle - haven't decided how to generate
 			 *       this yet; bus, vendor, device IDs?
 			 */
-			ai->min_rate = caps->minspeed;
-			ai->max_rate = caps->maxspeed;
+
+			if ((ch->flags & CHN_F_EXCLUSIVE) ||
+			    (pcm_getflags(d->dev) & SD_F_BITPERFECT)) {
+				ai->min_rate = caps->minspeed;
+				ai->max_rate = caps->maxspeed;
+			} else {
+				ai->min_rate = feeder_rate_min;
+				ai->max_rate = feeder_rate_max;
+			}
 
 			ai->min_channels = minch;
 			ai->max_channels = maxch;

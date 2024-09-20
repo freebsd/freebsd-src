@@ -768,7 +768,7 @@ X_ip_mrouter_done(void)
 	 * Wait for all epoch sections to complete to ensure
 	 * V_ip_mrouter = NULL is visible to others.
 	 */
-	epoch_wait_preempt(net_epoch_preempt);
+	NET_EPOCH_WAIT();
 
 	/* Stop and drain task queue */
 	taskqueue_block(V_task_queue);

@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/nlm ${SRCTOP}/sys/rpc
 KMOD=	nfslockd
 SRCS=	vnode_if.h \

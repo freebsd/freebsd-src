@@ -722,7 +722,9 @@ mountmsdosfs(struct vnode *odevvp, struct mount *mp)
 		}
 	}
 
-	clusters = (pmp->pm_fatsize / pmp->pm_fatmult) * pmp->pm_fatdiv ;
+	clusters = (pmp->pm_fatsize / pmp->pm_fatmult) * pmp->pm_fatdiv;
+	if (clusters >= (CLUST_RSRVD & pmp->pm_fatmask))
+		clusters = CLUST_RSRVD & pmp->pm_fatmask;
 	if (pmp->pm_maxcluster >= clusters) {
 #ifdef MSDOSFS_DEBUG
 		printf("Warning: number of clusters (%ld) exceeds FAT "

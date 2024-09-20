@@ -143,6 +143,8 @@ static const pci_vendor_info_t bnxt_vendor_info_array[] =
 	"Broadcom BCM57508 NetXtreme-E 10Gb/25Gb/50Gb/100Gb/200Gb Ethernet"),
     PVID(BROADCOM_VENDOR_ID, BCM57504,
 	"Broadcom BCM57504 NetXtreme-E 10Gb/25Gb/50Gb/100Gb/200Gb Ethernet"),
+    PVID(BROADCOM_VENDOR_ID, BCM57504_NPAR,
+	"Broadcom BCM57504 NetXtreme-E Ethernet Partition"),
     PVID(BROADCOM_VENDOR_ID, BCM57502,
 	"Broadcom BCM57502 NetXtreme-E 10Gb/25Gb/50Gb/100Gb/200Gb Ethernet"),
     PVID(BROADCOM_VENDOR_ID, NETXTREME_C_VF1,
@@ -2087,6 +2089,7 @@ bnxt_attach_pre(if_ctx_t ctx)
 	case BCM57414_NPAR2:
 	case BCM57416_NPAR1:
 	case BCM57416_NPAR2:
+	case BCM57504_NPAR:
 		softc->flags |= BNXT_FLAG_NPAR;
 		break;
 	case NETXTREME_C_VF1:
@@ -2170,6 +2173,7 @@ bnxt_attach_pre(if_ctx_t ctx)
 
 	if ((softc->ver_info->chip_num == BCM57508) ||
 	    (softc->ver_info->chip_num == BCM57504) ||
+	    (softc->ver_info->chip_num == BCM57504_NPAR) ||
 	    (softc->ver_info->chip_num == BCM57502))
 		softc->flags |= BNXT_FLAG_CHIP_P5;
 

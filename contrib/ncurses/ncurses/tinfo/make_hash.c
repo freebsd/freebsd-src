@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2018-2020,2024 Thomas E. Dickey                                *
  * Copyright 2009-2013,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -44,7 +44,7 @@
 
 #include <ctype.h>
 
-MODULE_ID("$Id: make_hash.c,v 1.33 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: make_hash.c,v 1.34 2024/03/02 19:35:40 tom Exp $")
 
 /*
  *	_nc_make_hash_table()
@@ -250,7 +250,7 @@ main(int argc, char **argv)
     struct user_table_entry *name_table = typeCalloc(struct
 						     user_table_entry, tablesize);
     HashValue *hash_table = typeCalloc(HashValue, HASHTABSIZE);
-    const char *root_name = "";
+    const char *root_name;
     int column = 0;
     int bigstring = 0;
     unsigned n;

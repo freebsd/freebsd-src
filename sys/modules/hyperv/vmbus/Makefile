@@ -1,4 +1,3 @@
-
 .PATH:	${SRCTOP}/sys/dev/hyperv/vmbus \
 	${SRCTOP}/sys/dev/hyperv/vmbus/${MACHINE_CPUARCH} \
 	${SRCTOP}/sys/dev/hyperv/vmbus/x86

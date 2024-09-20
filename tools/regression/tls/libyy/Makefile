@@ -1,4 +1,3 @@
-
 SHLIB_NAME=	libyy.so
 
 SRCS=	yy.c

@@ -1,4 +1,4 @@
-/*	$NetBSD: hash.c,v 1.74 2023/12/19 19:33:39 rillig Exp $	*/
+/*	$NetBSD: hash.c,v 1.79 2024/07/07 09:37:00 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -74,7 +74,7 @@
 #include "make.h"
 
 /*	"@(#)hash.c	8.1 (Berkeley) 6/6/93"	*/
-MAKE_RCSID("$NetBSD: hash.c,v 1.74 2023/12/19 19:33:39 rillig Exp $");
+MAKE_RCSID("$NetBSD: hash.c,v 1.79 2024/07/07 09:37:00 rillig Exp $");
 
 /*
  * The ratio of # entries to # buckets at which we rebuild the table to
@@ -114,7 +114,6 @@ static HashEntry *
 HashTable_Find(HashTable *t, Substring key, unsigned int h)
 {
 	HashEntry *he;
-	unsigned int chainlen = 0;
 	size_t keyLen = Substring_Length(key);
 
 #ifdef DEBUG_HASH_LOOKUP
@@ -123,15 +122,11 @@ HashTable_Find(HashTable *t, Substring key, unsigned int h)
 #endif
 
 	for (he = t->buckets[h & t->bucketsMask]; he != NULL; he = he->next) {
-		chainlen++;
 		if (he->hash == h &&
 		    strncmp(he->key, key.start, keyLen) == 0 &&
 		    he->key[keyLen] == '\0')
 			break;
 	}
-
-	if (chainlen > t->maxchain)
-		t->maxchain = chainlen;
 
 	return he;
 }
@@ -149,7 +144,6 @@ HashTable_Init(HashTable *t)
 	t->bucketsSize = n;
 	t->numEntries = 0;
 	t->bucketsMask = n - 1;
-	t->maxchain = 0;
 }
 
 /*
@@ -205,6 +199,20 @@ HashTable_FindValueBySubstringHash(HashTable *t, Substring key, unsigned int h)
 	return he != NULL ? he->value : NULL;
 }
 
+static unsigned
+HashTable_MaxChain(const HashTable *t)
+{
+	unsigned b, cl, max_cl = 0;
+	for (b = 0; b < t->bucketsSize; b++) {
+		const HashEntry *he = t->buckets[b];
+		for (cl = 0; he != NULL; he = he->next)
+			cl++;
+		if (cl > max_cl)
+			max_cl = cl;
+	}
+	return max_cl;
+}
+
 /*
  * Make the hash table larger. Any bucket numbers from the old table become
  * invalid; the hash values stay valid though.
@@ -238,8 +246,7 @@ HashTable_Enlarge(HashTable *t)
 	t->bucketsMask = newMask;
 	t->buckets = newBuckets;
 	DEBUG4(HASH, "HashTable_Enlarge: %p size=%d entries=%d maxchain=%d\n",
-	    (void *)t, t->bucketsSize, t->numEntries, t->maxchain);
-	t->maxchain = 0;
+	    (void *)t, t->bucketsSize, t->numEntries, HashTable_MaxChain(t));
 }
 
 /*
@@ -288,24 +295,19 @@ void
 HashTable_DeleteEntry(HashTable *t, HashEntry *he)
 {
 	HashEntry **ref = &t->buckets[he->hash & t->bucketsMask];
-	HashEntry *p;
 
-	for (; (p = *ref) != NULL; ref = &p->next) {
-		if (p == he) {
-			*ref = p->next;
-			free(p);
-			t->numEntries--;
-			return;
-		}
-	}
-	abort();
+	for (; *ref != he; ref = &(*ref)->next)
+		continue;
+	*ref = he->next;
+	free(he);
+	t->numEntries--;
 }
 
 /*
- * Return the next entry in the hash table, or NULL if the end of the table
- * is reached.
+ * Place the next entry from the hash table in hi->entry, or return false if
+ * the end of the table is reached.
  */
-HashEntry *
+bool
 HashIter_Next(HashIter *hi)
 {
 	HashTable *t = hi->table;
@@ -318,16 +320,16 @@ HashIter_Next(HashIter *hi)
 
 	while (he == NULL) {	/* find the next nonempty chain */
 		if (hi->nextBucket >= bucketsSize)
-			return NULL;
+			return false;
 		he = buckets[hi->nextBucket++];
 	}
 	hi->entry = he;
-	return he;
+	return true;
 }
 
 void
-HashTable_DebugStats(HashTable *t, const char *name)
+HashTable_DebugStats(const HashTable *t, const char *name)
 {
-	DEBUG4(HASH, "HashTable %s: size=%u numEntries=%u maxchain=%u\n",
-	    name, t->bucketsSize, t->numEntries, t->maxchain);
+	DEBUG4(HASH, "HashTable \"%s\": size=%u entries=%u maxchain=%u\n",
+	    name, t->bucketsSize, t->numEntries, HashTable_MaxChain(t));
 }

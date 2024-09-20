@@ -1,4 +1,3 @@
-
 .include <kmod.opts.mk>
 
 .PATH: ${SRCTOP}/sys/geom/uzip ${SRCTOP}/sys/net

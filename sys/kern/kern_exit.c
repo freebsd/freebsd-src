@@ -1330,6 +1330,18 @@ loop_locked:
 			return (0);
 		}
 
+		/*
+		 * When running in capsicum(4) mode, make wait(2) ignore
+		 * processes created with pdfork(2).  This is because one can
+		 * disown them - by passing their process descriptor to another
+		 * process - which means it needs to be prevented from touching
+		 * them afterwards.
+		 */
+		if (IN_CAPABILITY_MODE(td) && p->p_procdesc != NULL) {
+			PROC_UNLOCK(p);
+			continue;
+		}
+
 		nfound++;
 		PROC_LOCK_ASSERT(p, MA_OWNED);
 

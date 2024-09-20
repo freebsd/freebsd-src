@@ -1993,8 +1993,15 @@ out:
 	return (result);
 }
 
+#if VM_NRESERVLEVEL <= 1
 static const int aslr_pages_rnd_64[2] = {0x1000, 0x10};
 static const int aslr_pages_rnd_32[2] = {0x100, 0x4};
+#elif VM_NRESERVLEVEL == 2
+static const int aslr_pages_rnd_64[3] = {0x1000, 0x1000, 0x10};
+static const int aslr_pages_rnd_32[3] = {0x100, 0x100, 0x4};
+#else
+#error "Unsupported VM_NRESERVLEVEL"
+#endif
 
 static int cluster_anon = 1;
 SYSCTL_INT(_vm, OID_AUTO, cluster_anon, CTLFLAG_RW,
@@ -2190,9 +2197,23 @@ again:
 			 * Find space for allocation, including
 			 * gap needed for later randomization.
 			 */
-			pidx = MAXPAGESIZES > 1 && pagesizes[1] != 0 &&
-			    (find_space == VMFS_SUPER_SPACE || find_space ==
-			    VMFS_OPTIMAL_SPACE) ? 1 : 0;
+			pidx = 0;
+#if VM_NRESERVLEVEL > 0
+			if ((find_space == VMFS_SUPER_SPACE ||
+			    find_space == VMFS_OPTIMAL_SPACE) &&
+			    pagesizes[VM_NRESERVLEVEL] != 0) {
+				/*
+				 * Do not pointlessly increase the space that
+				 * is requested from vm_map_findspace().
+				 * pmap_align_superpage() will only change a
+				 * mapping's alignment if that mapping is at
+				 * least a superpage in size.
+				 */
+				pidx = VM_NRESERVLEVEL;
+				while (pidx > 0 && length < pagesizes[pidx])
+					pidx--;
+			}
+#endif
 			gap = vm_map_max(map) > MAP_32BIT_MAX_ADDR &&
 			    (max_addr == 0 || max_addr > MAP_32BIT_MAX_ADDR) ?
 			    aslr_pages_rnd_64[pidx] : aslr_pages_rnd_32[pidx];
@@ -2247,8 +2268,15 @@ again:
 		rv = vm_map_insert(map, object, offset, *addr, *addr + length,
 		    prot, max, cow);
 	}
-	if (rv == KERN_SUCCESS && update_anon)
-		map->anon_loc = *addr + length;
+
+	/*
+	 * Update the starting address for clustered anonymous memory mappings
+	 * if a starting address was not previously defined or an ASLR restart
+	 * placed an anonymous memory mapping at a lower address.
+	 */
+	if (update_anon && rv == KERN_SUCCESS && (map->anon_loc == 0 ||
+	    *addr < map->anon_loc))
+		map->anon_loc = *addr;
 done:
 	vm_map_unlock(map);
 	return (rv);
@@ -2649,6 +2677,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 	vm_offset_t start;
 	vm_page_t p, p_start;
 	vm_pindex_t mask, psize, threshold, tmpidx;
+	int psind;
 
 	if ((prot & (VM_PROT_READ | VM_PROT_EXECUTE)) == 0 || object == NULL)
 		return;
@@ -2703,13 +2732,17 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 				p_start = p;
 			}
 			/* Jump ahead if a superpage mapping is possible. */
-			if (p->psind > 0 && ((addr + ptoa(tmpidx)) &
-			    (pagesizes[p->psind] - 1)) == 0) {
-				mask = atop(pagesizes[p->psind]) - 1;
-				if (tmpidx + mask < psize &&
-				    vm_page_ps_test(p, PS_ALL_VALID, NULL)) {
-					p += mask;
-					threshold += mask;
+			for (psind = p->psind; psind > 0; psind--) {
+				if (((addr + ptoa(tmpidx)) &
+				    (pagesizes[psind] - 1)) == 0) {
+					mask = atop(pagesizes[psind]) - 1;
+					if (tmpidx + mask < psize &&
+					    vm_page_ps_test(p, psind,
+					    PS_ALL_VALID, NULL)) {
+						p += mask;
+						threshold += mask;
+						break;
+					}
 				}
 			}
 		} else if (p_start != NULL) {
@@ -4040,9 +4073,6 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 		if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) != 0 ||
 		    entry->object.vm_object != NULL)
 			pmap_map_delete(map->pmap, entry->start, entry->end);
-
-		if (entry->end == map->anon_loc)
-			map->anon_loc = entry->start;
 
 		/*
 		 * Delete the entry only after removing all pmap

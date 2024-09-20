@@ -1,4 +1,3 @@
-
 PROG=	mt
 LIBADD=	mt
 

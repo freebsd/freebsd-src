@@ -1,4 +1,3 @@
-
 all: regtables
 
 PROG=	mkregtable

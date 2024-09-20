@@ -41,6 +41,7 @@
 CONT=/tmp/crossmp3.continue
 if [ $# -eq 0 ]; then
 	N=`sysctl -n hw.ncpu`
+	[ $N -gt 32 ] && N=32  # Arbitrary cap
 	usermem=`sysctl -n hw.usermem`
 	[ `sysctl -n vm.swap_total` -eq 0 ] && usermem=$((usermem / 2))
 	size=$((usermem / 1024 / 1024 / N))

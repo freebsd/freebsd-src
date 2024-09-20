@@ -185,7 +185,7 @@ ofw_iicbus_attach(device_t dev)
 			continue;
 		}
 
-		childdev = device_add_child(dev, NULL, -1);
+		childdev = device_add_child(dev, NULL, DEVICE_UNIT_ANY);
 		resource_list_init(&dinfo->opd_dinfo.rl);
 		ofw_bus_intr_to_rl(childdev, child,
 					&dinfo->opd_dinfo.rl, NULL);

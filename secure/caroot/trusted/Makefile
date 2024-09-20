@@ -1,4 +1,3 @@
-
 BINDIR=		/usr/share/certs/trusted
 
 TRUSTED_CERTS!=	echo ${.CURDIR}/*.pem 2> /dev/null || true

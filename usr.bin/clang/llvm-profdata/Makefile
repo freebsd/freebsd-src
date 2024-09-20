@@ -1,4 +1,3 @@
-
 PROG_CXX=	llvm-profdata
 
 SRCDIR=		llvm/tools/llvm-profdata

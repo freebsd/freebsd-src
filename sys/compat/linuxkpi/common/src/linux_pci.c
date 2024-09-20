@@ -755,7 +755,8 @@ _lkpi_pci_iomap(struct pci_dev *pdev, int bar, int mmio_size __unused)
 }
 
 void *
-linuxkpi_pci_iomap(struct pci_dev *pdev, int mmio_bar, int mmio_size)
+linuxkpi_pci_iomap_range(struct pci_dev *pdev, int mmio_bar,
+    unsigned long mmio_off, unsigned long mmio_size)
 {
 	struct resource *res;
 
@@ -765,17 +766,32 @@ linuxkpi_pci_iomap(struct pci_dev *pdev, int mmio_bar, int mmio_size)
 	/* This is a FreeBSD extension so we can use bus_*(). */
 	if (pdev->want_iomap_res)
 		return (res);
-	return ((void *)rman_get_bushandle(res));
+	MPASS(mmio_off < rman_get_size(res));
+	return ((void *)(rman_get_bushandle(res) + mmio_off));
+}
+
+void *
+linuxkpi_pci_iomap(struct pci_dev *pdev, int mmio_bar, int mmio_size)
+{
+	return (linuxkpi_pci_iomap_range(pdev, mmio_bar, 0, mmio_size));
 }
 
 void
 linuxkpi_pci_iounmap(struct pci_dev *pdev, void *res)
 {
 	struct pci_mmio_region *mmio, *p;
+	bus_space_handle_t bh = (bus_space_handle_t)res;
 
 	TAILQ_FOREACH_SAFE(mmio, &pdev->mmio, next, p) {
-		if (res != (void *)rman_get_bushandle(mmio->res))
-			continue;
+		if (pdev->want_iomap_res) {
+			if (res != mmio->res)
+				continue;
+		} else {
+			if (bh <  rman_get_bushandle(mmio->res) ||
+			    bh >= rman_get_bushandle(mmio->res) +
+				  rman_get_size(mmio->res))
+				continue;
+		}
 		bus_release_resource(pdev->dev.bsddev,
 		    mmio->type, mmio->rid, mmio->res);
 		TAILQ_REMOVE(&pdev->mmio, mmio, next);
@@ -976,10 +992,10 @@ linux_pci_register_driver(struct pci_driver *pdrv)
 {
 	devclass_t dc;
 
-	dc = devclass_find("pci");
+	pdrv->isdrm = strcmp(pdrv->name, "drmn") == 0;
+	dc = pdrv->isdrm ? devclass_create("vgapci") : devclass_find("pci");
 	if (dc == NULL)
 		return (-ENXIO);
-	pdrv->isdrm = false;
 	return (_linux_pci_register_driver(pdrv, dc));
 }
 
@@ -1166,7 +1182,7 @@ linux_pci_unregister_driver(struct pci_driver *pdrv)
 {
 	devclass_t bus;
 
-	bus = devclass_find("pci");
+	bus = devclass_find(pdrv->isdrm ? "vgapci" : "pci");
 
 	spin_lock(&pci_lock);
 	list_del(&pdrv->node);

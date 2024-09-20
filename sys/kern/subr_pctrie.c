@@ -198,7 +198,6 @@ pctrie_root_store(struct pctrie *ptree, struct pctrie_node *node,
 static __inline bool
 pctrie_isleaf(struct pctrie_node *node)
 {
-
 	return (((uintptr_t)node & PCTRIE_ISLEAF) != 0);
 }
 
@@ -217,8 +216,16 @@ pctrie_toleaf(uint64_t *val)
 static __inline uint64_t *
 pctrie_toval(struct pctrie_node *node)
 {
-
 	return ((uint64_t *)((uintptr_t)node & ~PCTRIE_FLAGS));
+}
+
+/*
+ * Returns the associated pointer extracted from node and field offset.
+ */
+static __inline void *
+pctrie_toptr(struct pctrie_node *node, int keyoff)
+{
+	return ((void *)(((uintptr_t)node & ~PCTRIE_FLAGS) - keyoff));
 }
 
 /*
@@ -792,14 +799,14 @@ pctrie_remove_lookup(struct pctrie *ptree, uint64_t index,
 }
 
 /*
- * Prune all the leaves of 'node' before its first non-leaf child, make child
- * zero of 'node' point up to 'parent', make 'node' into 'parent' and that
- * non-leaf child into 'node'.  Repeat until a node has been stripped of all
- * children, and mark it for freeing, returning its parent.
+ * Walk the subtrie rooted at *pnode in order, invoking callback on leaves and
+ * using the leftmost child pointer for path reversal, until an interior node
+ * is stripped of all children, and returned for deallocation, with *pnode left
+ * pointing to the parent of that node.
  */
-static struct pctrie_node *
-pctrie_reclaim_prune(struct pctrie_node **pnode,
-    struct pctrie_node *parent)
+static __always_inline struct pctrie_node *
+pctrie_reclaim_prune(struct pctrie_node **pnode, struct pctrie_node *parent,
+    pctrie_cb_t callback, int keyoff, void *arg)
 {
 	struct pctrie_node *child, *node;
 	int slot;
@@ -812,8 +819,11 @@ pctrie_reclaim_prune(struct pctrie_node **pnode,
 		    PCTRIE_UNSERIALIZED);
 		pctrie_node_store(&node->pn_child[slot], PCTRIE_NULL,
 		    PCTRIE_UNSERIALIZED);
-		if (pctrie_isleaf(child))
+		if (pctrie_isleaf(child)) {
+			if (callback != NULL)
+				callback(pctrie_toptr(child, keyoff), arg);
 			continue;
+		}
 		/* Climb one level down the trie. */
 		pctrie_node_store(&node->pn_child[0], parent,
 		    PCTRIE_UNSERIALIZED);
@@ -827,8 +837,9 @@ pctrie_reclaim_prune(struct pctrie_node **pnode,
 /*
  * Recover the node parent from its first child and continue pruning.
  */
-struct pctrie_node *
-pctrie_reclaim_resume(struct pctrie_node **pnode)
+static __always_inline struct pctrie_node *
+pctrie_reclaim_resume_compound(struct pctrie_node **pnode,
+    pctrie_cb_t callback, int keyoff, void *arg)
 {
 	struct pctrie_node *parent, *node;
 
@@ -839,24 +850,55 @@ pctrie_reclaim_resume(struct pctrie_node **pnode)
 	parent = pctrie_node_load(&node->pn_child[0], NULL,
 	    PCTRIE_UNSERIALIZED);
 	pctrie_node_store(&node->pn_child[0], PCTRIE_NULL, PCTRIE_UNSERIALIZED);
-	return (pctrie_reclaim_prune(pnode, parent));
+	return (pctrie_reclaim_prune(pnode, parent, callback, keyoff, arg));
 }
 
 /*
  * Find the trie root, and start pruning with a NULL parent.
  */
-struct pctrie_node *
-pctrie_reclaim_begin(struct pctrie_node **pnode,
-    struct pctrie *ptree)
+static __always_inline struct pctrie_node *
+pctrie_reclaim_begin_compound(struct pctrie_node **pnode,
+    struct pctrie *ptree,
+    pctrie_cb_t callback, int keyoff, void *arg)
 {
 	struct pctrie_node *node;
 
 	node = pctrie_root_load(ptree, NULL, PCTRIE_UNSERIALIZED);
 	pctrie_root_store(ptree, PCTRIE_NULL, PCTRIE_UNSERIALIZED);
-	if (pctrie_isleaf(node))
+	if (pctrie_isleaf(node)) {
+		if (callback != NULL && node != PCTRIE_NULL)
+			callback(pctrie_toptr(node, keyoff), arg);
 		return (NULL);
+	}
 	*pnode = node;
-	return (pctrie_reclaim_prune(pnode, NULL));
+	return (pctrie_reclaim_prune(pnode, NULL, callback, keyoff, arg));
+}
+
+struct pctrie_node *
+pctrie_reclaim_resume(struct pctrie_node **pnode)
+{
+	return (pctrie_reclaim_resume_compound(pnode, NULL, 0, NULL));
+}
+
+struct pctrie_node *
+pctrie_reclaim_begin(struct pctrie_node **pnode, struct pctrie *ptree)
+{
+	return (pctrie_reclaim_begin_compound(pnode, ptree, NULL, 0, NULL));
+}
+
+struct pctrie_node *
+pctrie_reclaim_resume_cb(struct pctrie_node **pnode,
+    pctrie_cb_t callback, int keyoff, void *arg)
+{
+	return (pctrie_reclaim_resume_compound(pnode, callback, keyoff, arg));
+}
+
+struct pctrie_node *
+pctrie_reclaim_begin_cb(struct pctrie_node **pnode, struct pctrie *ptree,
+    pctrie_cb_t callback, int keyoff, void *arg)
+{
+	return (pctrie_reclaim_begin_compound(pnode, ptree,
+	    callback, keyoff, arg));
 }
 
 /*

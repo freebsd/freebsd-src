@@ -46,6 +46,8 @@
 #define	DEFAULT_SCHEMA_NAME	"DEFAULT"
 #define	REQUIRED_SCHEMA_NAME	"REQUIRED"
 
+#define	VF_VLAN_TRUNK		4096
+
 /*
  * Because each PF device is expected to expose a unique set of possible
  * configurations, the SR-IOV infrastructure dynamically queries the PF

@@ -1,4 +1,3 @@
-
 SCRIPTS=spkrtest.sh
 MAN=	spkrtest.8
 

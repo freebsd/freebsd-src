@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 6, 2024
+.Dd July 13, 2024
 .Dt TCP_FUNCTIONS 9
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@
 .Ft int
 .Fn register_tcp_functions_as_name "struct tcp_function_block *blk" \
 "const char *name" "int wait"
+.Ft int
 .Fn register_tcp_functions_as_names "struct tcp_function_block *blk" \
 "int wait" "const char *names[]" "int *num_names"
 .Ft int
@@ -112,6 +113,7 @@ argument.
 The
 .Fa num_names
 argument provides a pointer to the number of names.
+This number must not exceed TCP_FUNCTION_NAME_NUM_MAX.
 This function will either succeed in registering all of the names in the array,
 or none of the names in the array.
 On failure, the
@@ -328,8 +330,11 @@ must be prepared to wait until all connections have stopped using the
 specified TCP stack.
 .Sh ERRORS
 The
-.Fn register_tcp_functions
-function will fail if:
+.Fn register_tcp_functions ,
+.Fn register_tcp_functions_as_name ,
+and
+.Fn register_tcp_functions_as_names
+functions will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 Any of the members of the
@@ -338,7 +343,19 @@ argument are set incorrectly.
 .It Bq Er ENOMEM
 The function could not allocate memory for its internal data.
 .It Bq Er EALREADY
-A function block is already registered with the same name.
+The
+.Fa blk
+is already registered or a function block is already registered with the same
+name.
+.El
+Additionally,
+.Fn register_tcp_functions_as_names
+will fail if:
+.Bl -tag -width Er
+.It Bq Er E2BIG
+The number of names pointed to by the
+.Fa num_names
+argument is larger than TCP_FUNCTION_NAME_NUM_MAX.
 .El
 The
 .Fn deregister_tcp_functions

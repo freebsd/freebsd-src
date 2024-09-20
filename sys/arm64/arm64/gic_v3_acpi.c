@@ -406,7 +406,7 @@ gic_v3_add_children(ACPI_SUBTABLE_HEADER *entry, void *arg)
 			return;
 		}
 
-		child = device_add_child(dev, "its", -1);
+		child = device_add_child(dev, "its", DEVICE_UNIT_ANY);
 		if (child == NULL) {
 			free(di, M_GIC_V3);
 			return;

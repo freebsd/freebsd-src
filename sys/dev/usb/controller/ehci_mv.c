@@ -213,7 +213,7 @@ mv_ehci_attach(device_t self)
 		goto error;
 	}
 
-	sc->sc_bus.bdev = device_add_child(self, "usbus", -1);
+	sc->sc_bus.bdev = device_add_child(self, "usbus", DEVICE_UNIT_ANY);
 	if (!sc->sc_bus.bdev) {
 		device_printf(self, "Could not add USB device\n");
 		goto error;

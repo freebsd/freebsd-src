@@ -839,8 +839,8 @@ main(int argc, char *argv[])
 			continue;
 		/*
 		 * Skip files that generate errors like .debug, .symbol and .pkgsave
-		 * by generally skipping all files not ending with ".ko" or that have
-		 * no dots in the name (like kernel).
+		 * by generally skipping all files which neither end with ".ko"
+		 * nor have no dots in the name (like kernel).
 		 */
 		dot = strrchr(p->fts_name, '.');
 		if (dot != NULL && strcmp(dot, ".ko") != 0)

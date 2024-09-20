@@ -39,6 +39,7 @@ extern "C" {
 #include "engine/atf_list.hpp"
 #include "engine/atf_result.hpp"
 #include "engine/exceptions.hpp"
+#include "engine/execenv/execenv.hpp"
 #include "model/test_case.hpp"
 #include "model/test_program.hpp"
 #include "model/test_result.hpp"
@@ -54,6 +55,7 @@ extern "C" {
 #include "utils/stream.hpp"
 
 namespace config = utils::config;
+namespace execenv = engine::execenv;
 namespace fs = utils::fs;
 namespace process = utils::process;
 
@@ -190,7 +192,11 @@ engine::atf_interface::exec_test(const model::test_program& test_program,
 
     args.push_back(F("-r%s") % (control_directory / result_name));
     args.push_back(test_case_name);
-    process::exec(test_program.absolute_path(), args);
+
+    auto e = execenv::get(test_program, test_case_name);
+    e->init();
+    e->exec(args);
+    __builtin_unreachable();
 }
 
 
@@ -219,7 +225,10 @@ engine::atf_interface::exec_cleanup(
     }
 
     args.push_back(F("%s:cleanup") % test_case_name);
-    process::exec(test_program.absolute_path(), args);
+
+    auto e = execenv::get(test_program, test_case_name);
+    e->exec(args);
+    __builtin_unreachable();
 }
 
 

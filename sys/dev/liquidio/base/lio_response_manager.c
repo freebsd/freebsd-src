@@ -59,10 +59,6 @@ lio_setup_response_list(struct octeon_device *oct)
 	ctq = &oct->dma_comp_tq;
 	ctq->tq = taskqueue_create("lio_dma_comp", M_WAITOK,
 				   taskqueue_thread_enqueue, &ctq->tq);
-	if (ctq->tq == NULL) {
-		lio_dev_err(oct, "failed to create wq thread\n");
-		return (-ENOMEM);
-	}
 
 	TIMEOUT_TASK_INIT(ctq->tq, &ctq->work, 0, lio_poll_req_completion,
 			  (void *)ctq);

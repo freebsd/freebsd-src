@@ -1,3 +1,135 @@
+2024-07-13  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* cleanup redundant differences from NetBSD make
+	o parse.c: no longer uses mmap
+	o var.c: check __STDC_VERSION__ not __STDC__
+
+2024-07-12  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* Apply some patches from NetBSD pkgsrc to reduce divergence
+	o meta.c: requires sys/select.h if available
+	o var.c: ensure SIZE_MAX has a value
+	o util.c: ensure SA_RESTART is defined
+
+	* configure.in: use *ksh* rather than just *ksh to match
+	ksh shell specification.
+
+	* unit-tests/Makefile: expand BROKEN_TESTS for ksh and
+	mksh in particular
+
+2024-07-11  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240711
+	Merge with NetBSD make, pick up
+	o compat.c: allow Compat_RunCommand to also handle very long
+	commands by writing to a temp file when needed.
+	o main.c: extract the temp file logic recently added to Cmd_Exec
+	to Cmd_Argv so it can be leveraged by Compat_RunCommand.
+
+2024-07-09  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240709
+	Merge with NetBSD make, pick up
+	o error out on parse/evaluation errors in shell commands
+	o var.c: error out on syntax errors in ':M' and ':N' modifiers
+
+2024-07-07  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240707
+	Merge with NetBSD make, pick up
+	o only generate code for cleanup functions in CLEANUP mode
+	o hash.c: don't track hash table chain lengths during lookup
+	unless debugging
+	o main.c: move initialization of variable scopes to targ.c
+	o var.c: remove Var_End as it is now unnecessary
+
+2024-07-06  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240706
+	Merge with NetBSD make, pick up
+	o reduce lint comments about ARGSUSED
+	o cond.c: error out on conditions containing the operators '&' and '|'
+	o str.c: error out on a matching malformed matching pattern '[['
+	o var.c: in error messages, distinguish parsing from evaluating
+	in error messages for anonymous variables, log the value
+	error out on unclosed expressions during parse time
+
+2024-07-04  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240704
+	Merge with NetBSD make, pick up
+	o add more context information to error messages
+	o main.c: on error, print the targets to be made
+	add detailed exit status to message for failed sub-commands
+	o var.c: error out on the "Bad modifier" error message
+
+2024-07-01  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240701
+	Merge with NetBSD make, pick up
+	o var.c: add :tt for Title case
+
+2024-06-30  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* configure.in: 20240630 further refine check for whether
+	TZ=Europe/Berlin works
+
+	* VERSION (_MAKE_VERSION): 20240630
+	Merge with NetBSD make, pick up
+	o job.c: reduce use of UNCONST
+	o main.c: add detailed exit status to message for failed sub-commands
+	o var.c: error out on some more syntax errors
+	add more context to "returned non-zero status" message
+
+2024-06-25  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240625
+	Merge with NetBSD make, pick up
+	o job.c: ensure shellPath is always duped, avoid upsetting free()
+
+2024-06-16  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240616
+	Merge with NetBSD make, pick up
+	o clean up collection of context information for error messages
+	o in warnings, move the word "warning" to the front
+	o var.c: throw an error on attempt to override an internal
+	read-only variable
+
+2024-06-10  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240610
+	Merge with NetBSD make, pick up
+	o for.c: remove redundant shortcut for building the .for loop body
+
+2024-06-02  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240602
+	Merge with NetBSD make, pick up
+	o rename some VarEvalMode constants to better match debug names.
+	o var.c: avoid out-of-bounds read when parsing indirect modifiers.
+
+2024-06-01  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240601
+	Merge with NetBSD make, pick up
+	o add .export-all rather than allow .export with no argument
+	which can happen accidentally.
+	o if lua is available, run check-expect.lua after unit-tests
+	o main.c: use snprintf rather than strncpy
+	fix memory leak when purging realpath cache.
+
+2024-05-28  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240528
+	Merge with NetBSD make, pick up
+	o fix a number of memory leaks
+	o replace magic numbers with POSIX FILENO constants
+	o hash.c: remove dead code from HashTable_DeleteEntry
+	o main.c: when complaining about unusable .OBJDIR
+	call PrintOnError if MAKE_DEBUG_OBJDIR_CHECK_WRITABLE is true.
+	o parse.c: use fewer technical terms in debug message for dependency
+
 2024-05-20  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* VERSION (_MAKE_VERSION):

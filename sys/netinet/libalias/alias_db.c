@@ -868,8 +868,18 @@ _FindLinkIn(struct libalias *la, struct in_addr dst_addr,
 	case 0:
 		LIST_FOREACH(lnk, &grp->full, all.in) {
 			if (lnk->dst_addr.s_addr == dst_addr.s_addr &&
-			    lnk->dst_port == dst_port)
-				return (UseLink(la, lnk));
+			    lnk->dst_port == dst_port) {
+				struct alias_link *found;
+
+				found = UseLink(la, lnk);
+				if (found != NULL)
+					return (found);
+				/* link expired */
+				grp = StartPointIn(la, alias_addr, alias_port, link_type, 0);
+				if (grp == NULL)
+					return (NULL);
+				break;
+			}
 		}
 		break;
 	case LINK_UNKNOWN_DEST_PORT:

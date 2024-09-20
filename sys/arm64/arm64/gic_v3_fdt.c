@@ -339,7 +339,7 @@ gic_v3_ofw_bus_attach(device_t dev)
 			/* Should not have any interrupts, so don't add any */
 
 			/* Add newbus device for this FDT node */
-			child = device_add_child(dev, NULL, -1);
+			child = device_add_child(dev, NULL, DEVICE_UNIT_ANY);
 			if (!child) {
 				if (bootverbose) {
 					device_printf(dev,

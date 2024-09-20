@@ -124,7 +124,7 @@ u_int	cpu_power_eax;		/* 06H: Power management leaf, %eax */
 u_int	cpu_power_ebx;		/* 06H: Power management leaf, %ebx */
 u_int	cpu_power_ecx;		/* 06H: Power management leaf, %ecx */
 u_int	cpu_power_edx;		/* 06H: Power management leaf, %edx */
-char machine[] = MACHINE;
+const char machine[] = MACHINE;
 
 SYSCTL_UINT(_hw, OID_AUTO, via_feature_rng, CTLFLAG_RD,
     &via_feature_rng, 0,
@@ -158,8 +158,8 @@ sysctl_hw_machine(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_hw, HW_MACHINE, machine, CTLTYPE_STRING | CTLFLAG_RD |
     CTLFLAG_CAPRD | CTLFLAG_MPSAFE, NULL, 0, sysctl_hw_machine, "A", "Machine class");
 #else
-SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD | CTLFLAG_CAPRD,
-    machine, 0, "Machine class");
+SYSCTL_CONST_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD | CTLFLAG_CAPRD,
+    machine, "Machine class");
 #endif
 
 char cpu_model[128];
@@ -1370,6 +1370,7 @@ static struct {
 	{ "KVMKVMKVM",		VM_GUEST_KVM },		/* KVM */
 	{ "bhyve bhyve ",	VM_GUEST_BHYVE },	/* bhyve */
 	{ "VBoxVBoxVBox",	VM_GUEST_VBOX },	/* VirtualBox */
+	{ "___ NVMM ___",	VM_GUEST_NVMM },	/* NVMM */
 };
 
 static void

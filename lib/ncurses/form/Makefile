@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 .include "${.CURDIR:H}/config.mk"
 

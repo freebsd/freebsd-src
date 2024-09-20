@@ -322,30 +322,30 @@ error_response(struct module_qstate* qstate, int id, int rcode)
 
 /**
  * Hash the query name, type, class and dbacess-secret into lookup buffer.
- * @param qstate: query state with query info
- * 	and env->cfg with secret.
+ * @param qinfo: query info
+ * @param env: with env->cfg with secret.
  * @param buf: returned buffer with hash to lookup
  * @param len: length of the buffer.
  */
 static void
-calc_hash(struct module_qstate* qstate, char* buf, size_t len)
+calc_hash(struct query_info* qinfo, struct module_env* env, char* buf,
+	size_t len)
 {
 	uint8_t clear[1024];
 	size_t clen = 0;
 	uint8_t hash[CACHEDB_HASHSIZE/8];
 	const char* hex = "0123456789ABCDEF";
-	const char* secret = qstate->env->cfg->cachedb_secret;
+	const char* secret = env->cfg->cachedb_secret;
 	size_t i;
 
 	/* copy the hash info into the clear buffer */
-	if(clen + qstate->qinfo.qname_len < sizeof(clear)) {
-		memmove(clear+clen, qstate->qinfo.qname,
-			qstate->qinfo.qname_len);
-		clen += qstate->qinfo.qname_len;
+	if(clen + qinfo->qname_len < sizeof(clear)) {
+		memmove(clear+clen, qinfo->qname, qinfo->qname_len);
+		clen += qinfo->qname_len;
 	}
 	if(clen + 4 < sizeof(clear)) {
-		uint16_t t = htons(qstate->qinfo.qtype);
-		uint16_t c = htons(qstate->qinfo.qclass);
+		uint16_t t = htons(qinfo->qtype);
+		uint16_t c = htons(qinfo->qclass);
 		memmove(clear+clen, &t, 2);
 		memmove(clear+clen+2, &c, 2);
 		clen += 4;
@@ -645,7 +645,7 @@ cachedb_extcache_lookup(struct module_qstate* qstate, struct cachedb_env* ie,
 	int* msg_expired)
 {
 	char key[(CACHEDB_HASHSIZE/8)*2+1];
-	calc_hash(qstate, key, sizeof(key));
+	calc_hash(&qstate->qinfo, qstate->env, key, sizeof(key));
 
 	/* call backend to fetch data for key into scratch buffer */
 	if( !(*ie->backend->lookup)(qstate->env, ie, key,
@@ -672,7 +672,7 @@ static void
 cachedb_extcache_store(struct module_qstate* qstate, struct cachedb_env* ie)
 {
 	char key[(CACHEDB_HASHSIZE/8)*2+1];
-	calc_hash(qstate, key, sizeof(key));
+	calc_hash(&qstate->qinfo, qstate->env, key, sizeof(key));
 
 	/* prepare data in scratch buffer */
 	if(!prep_data(qstate, qstate->env->scratch_buffer))
@@ -745,6 +745,10 @@ cachedb_intcache_store(struct module_qstate* qstate, int msg_expired)
 		 * going to be now-3 seconds. Making it expired
 		 * in the cache. */
 		set_msg_ttl(qstate->return_msg, (time_t)-3);
+		/* The expired entry does not get checked by the validator
+		 * and we need a validation value for it. */
+		if(qstate->env->cfg->cachedb_check_when_serve_expired)
+			qstate->return_msg->rep->security = sec_status_insecure;
 	}
 	(void)dns_cache_store(qstate->env, &qstate->qinfo,
 		qstate->return_msg->rep, 0, qstate->prefetch_leeway, 0,
@@ -979,7 +983,7 @@ cachedb_get_mem(struct module_env* env, int id)
  */
 static struct module_func_block cachedb_block = {
 	"cachedb",
-	&cachedb_init, &cachedb_deinit, &cachedb_operate,
+	NULL, NULL, &cachedb_init, &cachedb_deinit, &cachedb_operate,
 	&cachedb_inform_super, &cachedb_clear, &cachedb_get_mem
 };
 
@@ -1004,20 +1008,25 @@ cachedb_is_enabled(struct module_stack* mods, struct module_env* env)
 
 void cachedb_msg_remove(struct module_qstate* qstate)
 {
-	char key[(CACHEDB_HASHSIZE/8)*2+1];
-	int id = modstack_find(qstate->env->modstack, "cachedb");
-	struct cachedb_env* ie = (struct cachedb_env*)qstate->env->modinfo[id];
+	cachedb_msg_remove_qinfo(qstate->env, &qstate->qinfo);
+}
 
-	log_query_info(VERB_ALGO, "cachedb msg remove", &qstate->qinfo);
-	calc_hash(qstate, key, sizeof(key));
-	sldns_buffer_clear(qstate->env->scratch_buffer);
-	sldns_buffer_write_u32(qstate->env->scratch_buffer, 0);
-	sldns_buffer_flip(qstate->env->scratch_buffer);
+void cachedb_msg_remove_qinfo(struct module_env* env, struct query_info* qinfo)
+{
+	char key[(CACHEDB_HASHSIZE/8)*2+1];
+	int id = modstack_find(env->modstack, "cachedb");
+	struct cachedb_env* ie = (struct cachedb_env*)env->modinfo[id];
+
+	log_query_info(VERB_ALGO, "cachedb msg remove", qinfo);
+	calc_hash(qinfo, env, key, sizeof(key));
+	sldns_buffer_clear(env->scratch_buffer);
+	sldns_buffer_write_u32(env->scratch_buffer, 0);
+	sldns_buffer_flip(env->scratch_buffer);
 
 	/* call backend */
-	(*ie->backend->store)(qstate->env, ie, key,
-		sldns_buffer_begin(qstate->env->scratch_buffer),
-		sldns_buffer_limit(qstate->env->scratch_buffer),
+	(*ie->backend->store)(env, ie, key,
+		sldns_buffer_begin(env->scratch_buffer),
+		sldns_buffer_limit(env->scratch_buffer),
 		0);
 }
 #endif /* USE_CACHEDB */

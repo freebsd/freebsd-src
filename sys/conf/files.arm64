@@ -68,6 +68,7 @@ arm64/arm64/ptrauth.c				standard \
 	compile-with	"${NORMAL_C:N-mbranch-protection*} -mbranch-protection=bti"
 arm64/arm64/pmap.c				standard
 arm64/arm64/ptrace_machdep.c			standard
+arm64/arm64/sdt_machdep.c			optional kdtrace_hooks
 arm64/arm64/sigtramp.S				standard
 arm64/arm64/stack_machdep.c			optional ddb | stack
 arm64/arm64/strcmp.S				standard
@@ -80,7 +81,7 @@ arm64/arm64/trap.c				standard
 arm64/arm64/uio_machdep.c			standard
 arm64/arm64/undefined.c				standard
 arm64/arm64/unwind.c				optional ddb | kdtrace_hooks | stack \
-	compile-with "${NORMAL_C:N-fsanitize*:N-fno-sanitize*}"
+	compile-with "${NOSAN_C}"
 arm64/arm64/vfp.c				standard
 arm64/arm64/vm_machdep.c			standard
 
@@ -118,18 +119,18 @@ dev/iommu/iommu_gas.c				optional iommu
 arm64/vmm/vmm.c					optional vmm
 arm64/vmm/vmm_dev.c				optional vmm
 arm64/vmm/vmm_instruction_emul.c		optional vmm
-arm64/vmm/vmm_stat.c				optional vmm
 arm64/vmm/vmm_arm64.c				optional vmm
 arm64/vmm/vmm_reset.c				optional vmm
+arm64/vmm/vmm_handlers.c			optional vmm
 arm64/vmm/vmm_call.S				optional vmm
-arm64/vmm/vmm_hyp_exception.S			optional vmm		\
-	compile-with	"${NORMAL_C:N-fsanitize*:N-fno-sanitize*:N-mbranch-protection*} -fpie"		\
+arm64/vmm/vmm_nvhe_exception.S			optional vmm		\
+	compile-with "${NOSAN_C} -fpie"					\
 	no-obj
-arm64/vmm/vmm_hyp.c				optional vmm		\
-	compile-with	"${NORMAL_C:N-fsanitize*:N-fno-sanitize*:N-mbranch-protection*} -fpie"		\
+arm64/vmm/vmm_nvhe.c				optional vmm		\
+	compile-with "${NOSAN_C} -fpie"					\
 	no-obj
 vmm_hyp_blob.elf.full				optional vmm		\
-	dependency	"vmm_hyp.o vmm_hyp_exception.o"			\
+	dependency	"vmm_nvhe.o vmm_nvhe_exception.o"			\
 	compile-with	"${SYSTEM_LD_BASECMD} -o ${.TARGET} ${.ALLSRC} --defsym=_start='0x0' --defsym=text_start='0x0'"	\
 	no-obj no-implicit-rule
 vmm_hyp_blob.elf				optional vmm		\
@@ -143,10 +144,14 @@ vmm_hyp_blob.bin				optional vmm		\
 arm64/vmm/vmm_hyp_el2.S				optional vmm		\
 	dependency	vmm_hyp_blob.bin
 arm64/vmm/vmm_mmu.c				optional vmm
+arm64/vmm/vmm_vhe.c				optional vmm
+arm64/vmm/vmm_vhe_exception.S			optional vmm
 arm64/vmm/io/vgic.c				optional vmm
 arm64/vmm/io/vgic_v3.c				optional vmm
 arm64/vmm/io/vgic_if.m				optional vmm
 arm64/vmm/io/vtimer.c				optional vmm
+dev/vmm/vmm_dev.c				optional vmm
+dev/vmm/vmm_stat.c				optional vmm
 
 crypto/armv8/armv8_crypto.c			optional armv8crypto
 armv8_crypto_wrap.o				optional armv8crypto	\
@@ -382,7 +387,11 @@ dev/ipmi/ipmi.c					optional ipmi
 dev/ipmi/ipmi_acpi.c				optional ipmi acpi
 dev/ipmi/ipmi_bt.c				optional ipmi
 dev/ipmi/ipmi_kcs.c				optional ipmi
+dev/ipmi/ipmi_pci.c				optional ipmi pci
+dev/ipmi/ipmi_smbios.c				optional ipmi
+dev/ipmi/ipmi_smbus.c				optional ipmi smbus
 dev/ipmi/ipmi_smic.c				optional ipmi
+dev/ipmi/ipmi_ssif.c				optional ipmi smbus
 
 dev/mailbox/arm/arm_doorbell.c			optional fdt arm_doorbell
 dev/mbox/mbox_if.m				optional soc_brcm_bcm2837

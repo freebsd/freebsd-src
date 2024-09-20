@@ -337,8 +337,7 @@ __tcp_set_flags(struct tcphdr *th, uint16_t flags)
 #define TCP_RACK_PACING_DIVISOR 1146 /* Pacing divisor given to rate-limit code for burst sizing */
 #define TCP_RACK_PACE_MIN_SEG 1147	/* Pacing min seg size rack will use */
 #define TCP_RACK_DGP_IN_REC 1148	/* Do we use full DGP in recovery? */
-#define TCP_POLICER_DETECT 1149 	/* Do we apply a thresholds to rack to detect and compensate for policers? */
-#define TCP_RXT_CLAMP TCP_POLICER_DETECT
+/* #define TCP_POLICER_DETECT 1149 	not used */
 #define TCP_HYBRID_PACING   1150	/* Hybrid pacing enablement */
 #define TCP_PACING_DND	    1151	/* When pacing with rr_config=3 can sacks disturb us */
 #define TCP_SS_EEXIT        1152	/* Do we do early exit from slowtart if no  b/w growth */
@@ -348,7 +347,7 @@ __tcp_set_flags(struct tcphdr *th, uint16_t flags)
 #define TCP_REC_IS_DYN      1156	/* Do we allow timely to change recovery multiplier? */
 #define TCP_SIDECHAN_DIS    1157	/* Disable/enable the side-channel */
 #define TCP_FILLCW_RATE_CAP 1158	/* Set a cap for DGP's fillcw */
-#define TCP_POLICER_MSS     1159	/* Policer MSS requirement */
+/* #define TCP_POLICER_MSS     1159	not used */
 #define TCP_STACK_SPEC_INFO 1160	/* Get stack specific information (if present) */
 #define RACK_CSPR_IS_FCC    1161
 #define TCP_GP_USE_LTBW     1162	/* how we use lt_bw 0=not, 1=min, 2=max */

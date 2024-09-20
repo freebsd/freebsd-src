@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2018-2020,2021 Thomas E. Dickey                                *
  * Copyright 2017 Free Software Foundation, Inc.                            *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -34,12 +34,21 @@
 /*
  * Common type definitions and macros for new_pair.c, lib_color.c
  *
- * $Id: new_pair.h,v 1.11 2020/04/11 16:43:47 tom Exp $
+ * $Id: new_pair.h,v 1.13 2021/09/24 17:52:01 tom Exp $
  */
 
 #ifndef NEW_PAIR_H
 #define NEW_PAIR_H 1
 /* *INDENT-OFF* */
+
+#include <ncurses_cfg.h>
+#include <ncurses_dll.h>
+
+#include <sys/types.h>
+
+#undef SCREEN
+#define SCREEN struct screen
+SCREEN;
 
 #define LIMIT_TYPED(n,t) \
 	(t)(((n) > MAX_OF_TYPE(t)) \

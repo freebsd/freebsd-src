@@ -359,7 +359,7 @@ def run_dpp_handover_client(handover, alt=False):
     summary("NFC Handover Request message for DPP: " + str(message))
 
     if handover.peer_crn is not None and not alt:
-        summary("NFC handover request from peer was already received - do not send own")
+        summary("NFC handover request from peer was already received - do not send own[1]")
         return
     if handover.client:
         summary("Use already started handover client")
@@ -382,7 +382,8 @@ def run_dpp_handover_client(handover, alt=False):
         handover.client = client
 
     if handover.peer_crn is not None and not alt:
-        summary("NFC handover request from peer was already received - do not send own")
+        summary("NFC handover request from peer was already received - do not send own[2] (except alt)")
+        run_client_alt(handover, alt)
         return
 
     summary("Sending handover request")
@@ -876,6 +877,11 @@ def llcp_worker(llc, try_alt):
     if init_on_touch:
         summary("Starting handover client (init_on_touch)")
         dpp_handover_client(handover)
+        summary("llcp_worker init_on_touch processing completed: try_own={} hs_sent={} no_alt_proposal={} start_client_alt={}".format(handover.try_own, handover.hs_sent, handover.no_alt_proposal, handover.start_client_alt))
+        if handover.start_client_alt and not handover.hs_sent:
+            summary("Try alternative handover request before exiting llcp_worker")
+            handover.start_client_alt = False
+            dpp_handover_client(handover, alt=True)
         summary("Exiting llcp_worker thread (init_on_touch)")
         return
 

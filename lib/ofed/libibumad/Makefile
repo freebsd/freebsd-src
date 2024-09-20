@@ -1,4 +1,3 @@
-
 _spath=	${SRCTOP}/contrib/ofed/libibumad
 .PATH: ${_spath}
 

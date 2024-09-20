@@ -1,4 +1,3 @@
-
 PACKAGE=	FreeBSD-rdma
 
 SUBDIR= \

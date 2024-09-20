@@ -175,6 +175,30 @@ rb_replace_node_cached(struct rb_node *old, struct rb_node *new,
 		root->rb_leftmost = new;
 }
 
+static inline struct rb_node *
+rb_add_cached(struct rb_node *node, struct rb_root_cached *tree,
+    bool (*less)(struct rb_node *, const struct rb_node *))
+{
+	struct rb_node **link = &tree->rb_root.rb_node;
+	struct rb_node *parent = NULL;
+	bool leftmost = true;
+
+	while (*link != NULL) {
+		parent = *link;
+		if (less(node, parent)) {
+			link = &RB_LEFT(parent, __entry);
+		} else {
+			link = &RB_RIGHT(parent, __entry);
+			leftmost = false;
+		}
+	}
+
+	rb_link_node(node, parent, link);
+	rb_insert_color_cached(node, tree, leftmost);
+
+	return (leftmost ? node : NULL);
+}
+
 #undef RB_ROOT
 #define RB_ROOT		(struct rb_root) { NULL }
 #define	RB_ROOT_CACHED	(struct rb_root_cached) { RB_ROOT, NULL }

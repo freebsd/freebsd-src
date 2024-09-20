@@ -444,7 +444,7 @@ struct ld {
 #endif
 
 #ifdef STRUCT_RETURN
-static inline __always_inline void
+static __always_inline void
 k_logl(long double x, struct ld *rp)
 #else
 long double

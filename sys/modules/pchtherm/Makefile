@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/intel
 KMOD=   pchtherm
 SRCS=   pchtherm.c

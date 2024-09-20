@@ -180,6 +180,7 @@ struct acpi_dev_present_ctx {
 	const char *hid;
 	const char *uid;
 	int64_t hrv;
+	struct acpi_device *dev;
 };
 
 static ACPI_STATUS
@@ -187,6 +188,7 @@ acpi_dev_present_cb(ACPI_HANDLE handle, UINT32 level, void *context,
     void **result)
 {
 	ACPI_DEVICE_INFO *devinfo;
+	struct acpi_device *dev;
 	struct acpi_dev_present_ctx *match = context;
 	bool present = false;
 	UINT32 sta, hrv;
@@ -230,6 +232,11 @@ acpi_dev_present_cb(ACPI_HANDLE handle, UINT32 level, void *context,
 			return (AE_OK);
 	}
 
+	dev = acpi_get_device(handle);
+	if (dev == NULL)
+		return (AE_OK);
+	match->dev = dev;
+
 	return (AE_ERROR);
 }
 
@@ -247,6 +254,24 @@ lkpi_acpi_dev_present(const char *hid, const char *uid, int64_t hrv)
 	    ACPI_UINT32_MAX, acpi_dev_present_cb, NULL, &match, NULL);
 
 	return (rv == AE_ERROR);
+}
+
+struct acpi_device *
+lkpi_acpi_dev_get_first_match_dev(const char *hid, const char *uid,
+    int64_t hrv)
+{
+	struct acpi_dev_present_ctx match;
+	int rv;
+
+	match.hid = hid;
+	match.uid = uid;
+	match.hrv = hrv;
+	match.dev = NULL;
+
+	rv = AcpiWalkNamespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
+	    ACPI_UINT32_MAX, acpi_dev_present_cb, NULL, &match, NULL);
+
+	return (rv == AE_ERROR ? match.dev : NULL);
 }
 
 static void
@@ -320,6 +345,13 @@ bool
 lkpi_acpi_dev_present(const char *hid, const char *uid, int64_t hrv)
 {
 	return (false);
+}
+
+struct acpi_device *
+lkpi_acpi_dev_get_first_match_dev(const char *hid, const char *uid,
+    int64_t hrv)
+{
+	return (NULL);
 }
 
 #endif	/* !DEV_ACPI */

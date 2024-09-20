@@ -96,12 +96,6 @@ ath_lna_div_attach(struct ath_softc *sc)
 
 	ss = malloc(sizeof(struct if_ath_ant_comb_state),
 	    M_TEMP, M_WAITOK | M_ZERO);
-	if (ss == NULL) {
-		device_printf(sc->sc_dev, "%s: failed to allocate\n",
-		    __func__);
-		/* Don't fail at this point */
-		return (0);
-	}
 
 	/* Fetch the hardware configuration */
 	OS_MEMZERO(&div_ant_conf, sizeof(div_ant_conf));

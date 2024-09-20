@@ -46,7 +46,7 @@ x86_init_fdt(void)
 	void *dtbp, *mdp;
 	int error;
 
-	if (OF_install(OFW_FDT, 0) == FALSE) {
+	if (!OF_install(OFW_FDT, 0)) {
 		error = ENXIO;
 		goto out;
 	}

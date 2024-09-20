@@ -1,4 +1,3 @@
-
 .PATH:	${SRCTOP}/sys/dev/iicbus/gpio/
 KMOD	= pcf8574
 SRCS	= pcf8574.c

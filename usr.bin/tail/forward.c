@@ -379,7 +379,8 @@ follow(file_info_t *files, enum STYLE style, off_t off)
 				    sb2.st_dev != file->st.st_dev ||
 				    sb2.st_nlink == 0) {
 					show(file);
-					fclose(file->fp);
+					if (file->fp != NULL)
+						fclose(file->fp);
 					file->fp = ftmp;
 					memcpy(&file->st, &sb2,
 					    sizeof(struct stat));

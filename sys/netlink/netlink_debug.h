@@ -46,12 +46,16 @@ SYSCTL_DECL(_net_netlink_debug);
  * Logging for events specific for particular process
  * Example: [nl_domain] PID 4834 fdump_sa: unsupported family: 45
  */
-#define	NL_RAW_PID_LOG(_l, _pid, _fmt, ...)	NL_RAW_PID_LOG_##_l(_l, _pid, _fmt, ## __VA_ARGS__)
-#define	_NL_RAW_PID_LOG(_l, _pid, _fmt, ...)	if (_DEBUG_PASS_MSG(_l)) {	\
-	_output("[" DEBUG_PREFIX_NAME "] PID %u %s: " _fmt "\n", _pid, __func__, ##__VA_ARGS__); \
-}
+#define	NL_RAW_PID_LOG(_l, _pid, _fmt, ...)		\
+	NL_RAW_PID_LOG_##_l(_l, _pid, _fmt, ## __VA_ARGS__)
+#define	_NL_RAW_PID_LOG(_l, _pid, _fmt, ...)		\
+	if (_DEBUG_PASS_MSG(_l)) {			\
+		_output("[" DEBUG_PREFIX_NAME "] PID %u %s: " _fmt "\n", _pid, \
+		    __func__, ##__VA_ARGS__);		\
+	}
 
-#define	NLP_LOG(_l, _nlp, _fmt, ...)	NL_RAW_PID_LOG_##_l(_l, nlp_get_pid(_nlp), _fmt, ## __VA_ARGS__)
+#define	NLP_LOG(_l, _nlp, _fmt, ...)			\
+	NL_RAW_PID_LOG_##_l(_l, nlp_get_pid(_nlp), _fmt, ## __VA_ARGS__)
 
 #if DEBUG_MAX_LEVEL>=LOG_DEBUG3
 #define	NL_RAW_PID_LOG_LOG_DEBUG3	_NL_RAW_PID_LOG
@@ -77,7 +81,5 @@ SYSCTL_DECL(_net_netlink_debug);
 #define	NL_RAW_PID_LOG_LOG_ERR         _NL_RAW_PID_LOG
 #define	NL_RAW_PID_LOG_LOG_WARNING	_NL_RAW_PID_LOG
 
-
-
-#endif
-#endif
+#endif	/* _KERNEL */
+#endif	/* !_NETLINK_NETLINK_DEBUG_H_ */

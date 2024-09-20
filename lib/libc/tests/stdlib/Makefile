@@ -1,9 +1,9 @@
-
 .include <src.opts.mk>
 
 ATF_TESTS_C+=		clearenv_test
 ATF_TESTS_C+=		dynthr_test
 ATF_TESTS_C+=		heapsort_test
+ATF_TESTS_C+=		libc_exit_test
 ATF_TESTS_C+=		mergesort_test
 ATF_TESTS_C+=		qsort_test
 .if ${COMPILER_TYPE} == "clang"
@@ -12,7 +12,6 @@ ATF_TESTS_C+=		qsort_b_test
 ATF_TESTS_C+=		qsort_r_compat_test
 ATF_TESTS_C+=		qsort_r_test
 ATF_TESTS_C+=		qsort_s_test
-ATF_TESTS_C+=		quick_exit_test
 ATF_TESTS_C+=		set_constraint_handler_s_test
 ATF_TESTS_C+=		strfmon_test
 ATF_TESTS_C+=		tsearch_test
@@ -76,6 +75,7 @@ LDFLAGS.$t+=	-L${LIBNETBSD_OBJDIR}
 LIBADD.${t}+=	netbsd util
 .endfor
 
+LIBADD.libc_exit_test+=		pthread
 LIBADD.strtod_test+=		m
 
 SUBDIR+=	dynthr_mod

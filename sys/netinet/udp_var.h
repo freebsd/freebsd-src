@@ -120,7 +120,7 @@ struct udpcb {
 	void 		*u_tun_ctx;	/* Tunneling callback context. */
 };
 
-#define	intoudpcb(ip)	__containerof((inp), struct udpcb, u_inpcb)
+#define	intoudpcb(ip)	__containerof((ip), struct udpcb, u_inpcb)
 #define	sotoudpcb(so)	(intoudpcb(sotoinpcb(so)))
 
 VNET_PCPUSTAT_DECLARE(struct udpstat, udpstat);

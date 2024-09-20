@@ -464,7 +464,7 @@ rtld_cpuid_count(int idx, int cnt, u_int *p)
 }
 
 void
-ifunc_init(Elf_Auxinfo aux_info[__min_size(AT_COUNT)] __unused)
+ifunc_init(Elf_Auxinfo *aux_info[__min_size(AT_COUNT)] __unused)
 {
 	u_int p[4], cpu_high;
 	int cpuid_supported;

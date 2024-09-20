@@ -167,11 +167,6 @@ t4_cloner_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	}
 
 	ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		rc = ENOMEM;
-		goto done;
-	}
-
 	/* Note that if_xname is identical to the nexus nameunit */
 	if_initname(ifp, name, -1);
 	if_setdname(ifp, t4_cloner_name);

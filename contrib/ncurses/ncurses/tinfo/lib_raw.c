@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020-2023,2024 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -50,7 +50,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_raw.c,v 1.26 2020/11/21 22:07:48 tom Exp $")
+MODULE_ID("$Id: lib_raw.c,v 1.30 2024/03/30 15:54:17 tom Exp $")
 
 #if HAVE_SYS_TERMIO_H
 #include <sys/termio.h>		/* needed for ISC */
@@ -116,8 +116,8 @@ NCURSES_SP_NAME(raw) (NCURSES_SP_DCL0)
 	    KbdSetStatus(&kbdinfo, 0);
 #endif
 	    if (SP_PARM) {
-		SP_PARM->_raw = TRUE;
-		SP_PARM->_cbreak = 1;
+		IsRaw(SP_PARM) = TRUE;
+		IsCbreak(SP_PARM) = 1;
 	    }
 	    termp->Nttyb = buf;
 	}
@@ -151,7 +151,6 @@ NCURSES_SP_NAME(cbreak) (NCURSES_SP_DCL0)
 #ifdef TERMIOS
 	buf.c_lflag &= (unsigned) ~ICANON;
 	buf.c_iflag &= (unsigned) ~ICRNL;
-	buf.c_lflag |= ISIG;
 	buf.c_cc[VMIN] = 1;
 	buf.c_cc[VTIME] = 0;
 #elif defined(EXP_WIN32_DRIVER)
@@ -163,7 +162,7 @@ NCURSES_SP_NAME(cbreak) (NCURSES_SP_DCL0)
 	result = NCURSES_SP_NAME(_nc_set_tty_mode) (NCURSES_SP_ARGx &buf);
 	if (result == OK) {
 	    if (SP_PARM) {
-		SP_PARM->_cbreak = 1;
+		IsCbreak(SP_PARM) = 1;
 	    }
 	    termp->Nttyb = buf;
 	}
@@ -255,8 +254,8 @@ NCURSES_SP_NAME(noraw) (NCURSES_SP_DCL0)
 	    KbdSetStatus(&kbdinfo, 0);
 #endif
 	    if (SP_PARM) {
-		SP_PARM->_raw = FALSE;
-		SP_PARM->_cbreak = 0;
+		IsRaw(SP_PARM) = FALSE;
+		IsCbreak(SP_PARM) = 0;
 	    }
 	    termp->Nttyb = buf;
 	}
@@ -298,7 +297,7 @@ NCURSES_SP_NAME(nocbreak) (NCURSES_SP_DCL0)
 	result = NCURSES_SP_NAME(_nc_set_tty_mode) (NCURSES_SP_ARGx &buf);
 	if (result == OK) {
 	    if (SP_PARM) {
-		SP_PARM->_cbreak = 0;
+		IsCbreak(SP_PARM) = 0;
 	    }
 	    termp->Nttyb = buf;
 	}
@@ -395,3 +394,46 @@ intrflush(WINDOW *win GCC_UNUSED, bool flag)
     return NCURSES_SP_NAME(intrflush) (CURRENT_SCREEN, win, flag);
 }
 #endif
+
+#if NCURSES_EXT_FUNCS
+/* *INDENT-OFF* */
+
+/*
+ * SCREEN is always opaque, but nl/raw/cbreak/echo set properties in it.
+ * As an extension, provide a way to query the properties.
+ *
+ * There are other properties which could be queried, e.g., filter, keypad,
+ * use_env, use_meta, but these particular properties are saved/restored within
+ * the wgetnstr() and wgetn_wstr() functions, which requires that the higher
+ * level curses library knows about the internal state of the lower level
+ * terminfo library.
+ */
+
+#define is_TEST(show,what) \
+    NCURSES_EXPORT(int) \
+    NCURSES_SP_NAME(show) (NCURSES_SP_DCL0) \
+    { \
+	return ((SP_PARM != NULL) ? (what(SP_PARM) ? 1 : 0) : -1); \
+    }
+
+is_TEST(is_nl, IsNl)
+is_TEST(is_raw, IsRaw)
+is_TEST(is_cbreak, IsCbreak)
+is_TEST(is_echo, IsEcho)
+
+#if NCURSES_SP_FUNCS
+#undef is_TEST
+#define is_TEST(show) \
+    NCURSES_EXPORT(int) \
+    show(void) \
+    { \
+	return NCURSES_SP_NAME(show) (CURRENT_SCREEN); \
+    }
+is_TEST(is_nl)
+is_TEST(is_raw)
+is_TEST(is_cbreak)
+is_TEST(is_echo)
+#endif
+
+/* *INDENT-ON* */
+#endif /* extensions */

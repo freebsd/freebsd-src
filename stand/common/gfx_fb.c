@@ -87,6 +87,7 @@
 #include <teken.h>
 #include <gfx_fb.h>
 #include <sys/font.h>
+#include <sys/splash.h>
 #include <sys/linker.h>
 #include <sys/module.h>
 #include <sys/stdint.h>
@@ -3005,5 +3006,52 @@ build_font_module(vm_offset_t addr)
 
 	/* Looks OK so far; populate control structure */
 	file_addmetadata(fp, MODINFOMD_FONT, sizeof(fontp), &fontp);
+	return (addr);
+}
+
+vm_offset_t
+build_splash_module(vm_offset_t addr)
+{
+	struct preloaded_file *fp;
+	struct splash_info si;
+	const char *splash;
+	png_t png;
+	uint64_t splashp;
+	int error;
+
+	/* We can't load first */
+	if ((file_findfile(NULL, NULL)) == NULL) {
+		printf("Can not load splash module: %s\n",
+		    "the kernel is not loaded");
+		return (addr);
+	}
+
+	fp = file_findfile(NULL, "elf kernel");
+	if (fp == NULL)
+		fp = file_findfile(NULL, "elf64 kernel");
+	if (fp == NULL)
+		panic("can't find kernel file");
+
+	splash = getenv("splash");
+	if (splash == NULL)
+		return (addr);
+
+	/* Parse png */
+	if ((error = png_open(&png, splash)) != PNG_NO_ERROR) {
+		return (addr);
+	}
+
+	si.si_width = png.width;
+	si.si_height = png.height;
+	si.si_depth = png.bpp;
+	splashp = addr;
+	addr += archsw.arch_copyin(&si, addr, sizeof (struct splash_info));
+	addr = roundup2(addr, 8);
+
+	/* Copy the bitmap. */
+	addr += archsw.arch_copyin(png.image, addr, png.png_datalen);
+
+	printf("Loading splash ok\n");
+	file_addmetadata(fp, MODINFOMD_SPLASH, sizeof(splashp), &splashp);
 	return (addr);
 }

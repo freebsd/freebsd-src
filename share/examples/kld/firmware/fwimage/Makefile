@@ -1,4 +1,3 @@
-
 PACKAGE=examples
 FILESDIR=${SHAREDIR}/examples/kld/fwimage
 KMOD=	beastie

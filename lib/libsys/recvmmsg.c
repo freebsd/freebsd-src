@@ -32,11 +32,12 @@
 #include <errno.h>
 #include <poll.h>
 #include <stddef.h>
+#include <ssp/ssp.h>
 #include "libc_private.h"
 
 ssize_t
-recvmmsg(int s, struct mmsghdr *__restrict msgvec, size_t vlen, int flags,
-    const struct timespec *__restrict timeout)
+__ssp_real(recvmmsg)(int s, struct mmsghdr *__restrict msgvec, size_t vlen,
+    int flags, const struct timespec *__restrict timeout)
 {
 	struct pollfd pfd[1];
 	size_t i, rcvd;

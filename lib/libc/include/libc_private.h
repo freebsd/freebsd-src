@@ -190,7 +190,7 @@ typedef enum {
 	PJT_MAX
 } pjt_index_t;
 
-typedef int (*pthread_func_t)(void);
+typedef void (*pthread_func_t)(void);
 typedef pthread_func_t pthread_func_entry_t[2];
 
 extern pthread_func_entry_t __thr_jtable[];
@@ -199,7 +199,7 @@ void	__set_error_selector(int *(*arg)(void));
 int	_pthread_mutex_init_calloc_cb_stub(pthread_mutex_t *mutex,
 	    void *(calloc_cb)(__size_t, __size_t));
 
-typedef int (*interpos_func_t)(void);
+typedef void (*interpos_func_t)(void);
 interpos_func_t *__libc_interposing_slot(int interposno);
 extern interpos_func_t __libc_interposing[] __hidden;
 interpos_func_t *__libsys_interposing_slot(int interposno);

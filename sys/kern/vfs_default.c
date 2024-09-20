@@ -1240,7 +1240,7 @@ vop_stdunset_text(struct vop_unset_text_args *ap)
 	__assert_unreachable();
 }
 
-static int __always_inline
+static __always_inline int
 vop_stdadd_writecount_impl(struct vop_add_writecount_args *ap, bool handle_msync)
 {
 	struct vnode *vp;

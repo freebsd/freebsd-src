@@ -318,7 +318,9 @@ void	ixl_disable_queue(struct i40e_hw *, int);
 void	ixl_enable_intr0(struct i40e_hw *);
 void	ixl_disable_intr0(struct i40e_hw *);
 void	ixl_nvm_version_str(struct i40e_hw *hw, struct sbuf *buf);
-void	ixl_stat_update48(struct i40e_hw *, u32, u32, bool,
+void    ixl_stat_update64(struct i40e_hw *, u32, bool,
+			u64 *, u64 *);
+void	ixl_stat_update48(struct i40e_hw *, u32, bool,
 		    u64 *, u64 *);
 void	ixl_stat_update32(struct i40e_hw *, u32, bool,
 		    u64 *, u64 *);

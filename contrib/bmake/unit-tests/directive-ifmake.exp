@@ -11,5 +11,5 @@ make: "directive-ifmake.mk" line 82: ok
 make: don't know how to make !edge (continuing)
 
 Stop.
-make: stopped in unit-tests
+make: stopped making "first second late-target !edge" in unit-tests
 exit status 1

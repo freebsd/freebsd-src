@@ -1,4 +1,3 @@
-
 VOLUME=		psd/06.Clang
 SRCS=		Clang.ms
 MACROS=		-ms

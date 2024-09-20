@@ -28,7 +28,7 @@
 
 [ `id -u ` -ne 0 ] && echo "Must be root!" && exit 1
 
-# Demonstrate rename(2) cache problem for tmpfs(5). Fixed in r226987.
+# Demonstrate rename(2) cache problem for tmpfs(4). Fixed in r226987.
 # Variation of rename6.sh
 
 . ../default.cfg

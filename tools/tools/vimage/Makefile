@@ -1,4 +1,3 @@
-
 PROG=	vimage
 LIBADD=	jail
 

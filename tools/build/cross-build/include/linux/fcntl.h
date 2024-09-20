@@ -44,3 +44,10 @@
 #include "__unused_workaround_end.h"
 
 #include <sys/file.h>
+
+/*
+ * On FreeBSD fcntl.h indirectly brings in cdefs.h. On Linux with musl, it does
+ * not. It's needed in our fcntl.h for the cross build since we use
+ * __BEGIN_DECLS and __END_DECLS from it there.
+ */
+#include <sys/cdefs.h>

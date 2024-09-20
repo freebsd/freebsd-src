@@ -1,4 +1,3 @@
-
 # machine-independent net sources
 .PATH: ${LIBC_SRCTOP}/net
 

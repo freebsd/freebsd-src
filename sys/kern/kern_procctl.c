@@ -337,7 +337,7 @@ reap_kill_sched(struct reap_kill_tracker_head *tracker, struct proc *p2)
 		PROC_UNLOCK(p2);
 		return;
 	}
-	_PHOLD_LITE(p2);
+	_PHOLD(p2);
 	PROC_UNLOCK(p2);
 	t = malloc(sizeof(struct reap_kill_tracker), M_TEMP, M_WAITOK);
 	t->parent = p2;
@@ -463,7 +463,7 @@ reap_kill_subtree_once(struct thread *td, struct proc *p, struct proc *reaper,
 			} else {
 				PROC_LOCK(p2);
 				if ((p2->p_flag2 & P2_WEXIT) == 0) {
-					_PHOLD_LITE(p2);
+					_PHOLD(p2);
 					p2->p_flag2 |= P2_REAPKILLED;
 					PROC_UNLOCK(p2);
 					w->target = p2;
@@ -573,17 +573,7 @@ reap_kill(struct thread *td, struct proc *p, void *data)
 		w.rk = rk;
 		w.error = &error;
 		TASK_INIT(&w.t, 0, reap_kill_proc_work, &w);
-
-		/*
-		 * Prevent swapout, since w, ksi, and possibly rk, are
-		 * allocated on the stack.  We sleep in
-		 * reap_kill_subtree_once() waiting for task to
-		 * complete single-threading.
-		 */
-		PHOLD(td->td_proc);
-
 		reap_kill_subtree(td, p, reaper, &w);
-		PRELE(td->td_proc);
 		crfree(w.cr);
 	}
 	PROC_LOCK(p);

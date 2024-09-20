@@ -679,6 +679,20 @@ local_cb:
 void
 smp_masked_invltlb(pmap_t pmap, smp_invl_cb_t curcpu_cb)
 {
+	if (invlpgb_works && pmap == kernel_pmap) {
+		invlpgb(INVLPGB_GLOB, 0, 0);
+
+		/*
+		 * TLBSYNC syncs only against INVLPGB executed on the
+		 * same CPU.  Since current thread is pinned by
+		 * caller, we do not need to enter critical section to
+		 * prevent migration.
+		 */
+		tlbsync();
+		sched_unpin();
+		return;
+	}
+
 	smp_targeted_tlb_shootdown(pmap, 0, 0, curcpu_cb, invl_op_tlb);
 #ifdef COUNT_XINVLTLB_HITS
 	ipi_global++;
@@ -688,6 +702,13 @@ smp_masked_invltlb(pmap_t pmap, smp_invl_cb_t curcpu_cb)
 void
 smp_masked_invlpg(vm_offset_t addr, pmap_t pmap, smp_invl_cb_t curcpu_cb)
 {
+	if (invlpgb_works && pmap == kernel_pmap) {
+		invlpgb(INVLPGB_GLOB | INVLPGB_VA | trunc_page(addr), 0, 0);
+		tlbsync();
+		sched_unpin();
+		return;
+	}
+
 	smp_targeted_tlb_shootdown(pmap, addr, 0, curcpu_cb, invl_op_pg);
 #ifdef COUNT_XINVLTLB_HITS
 	ipi_page++;
@@ -698,6 +719,39 @@ void
 smp_masked_invlpg_range(vm_offset_t addr1, vm_offset_t addr2, pmap_t pmap,
     smp_invl_cb_t curcpu_cb)
 {
+	if (invlpgb_works && pmap == kernel_pmap) {
+		vm_offset_t va;
+		uint64_t cnt, total;
+
+		addr1 = trunc_page(addr1);
+		addr2 = round_page(addr2);
+		total = atop(addr2 - addr1);
+		for (va = addr1; total > 0;) {
+			if ((va & PDRMASK) != 0 || total < NPDEPG) {
+				cnt = atop(NBPDR - (va & PDRMASK));
+				if (cnt > total)
+					cnt = total;
+				if (cnt > invlpgb_maxcnt + 1)
+					cnt = invlpgb_maxcnt + 1;
+				invlpgb(INVLPGB_GLOB | INVLPGB_VA | va, 0,
+				    cnt - 1);
+				va += ptoa(cnt);
+				total -= cnt;
+			} else {
+				cnt = total / NPTEPG;
+				if (cnt > invlpgb_maxcnt + 1)
+					cnt = invlpgb_maxcnt + 1;
+				invlpgb(INVLPGB_GLOB | INVLPGB_VA | va, 0,
+				    INVLPGB_2M_CNT | (cnt - 1));
+				va += cnt << PDRSHIFT;
+				total -= cnt * NPTEPG;
+			}
+		}
+		tlbsync();
+		sched_unpin();
+		return;
+	}
+
 	smp_targeted_tlb_shootdown(pmap, addr1, addr2, curcpu_cb,
 	    invl_op_pgrng);
 #ifdef COUNT_XINVLTLB_HITS

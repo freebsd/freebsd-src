@@ -362,8 +362,8 @@ captive_long_body()
 	# ICMP should still work, because we don't redirect it.
 	atf_check -s exit:0 -o ignore ping -c 1 -t 1 198.51.100.2
 
-	jexec gw /usr/sbin/inetd -p gw.pid $(atf_get_srcdir)/echo_inetd.conf
-	jexec srv /usr/sbin/inetd -p srv.pid $(atf_get_srcdir)/daytime_inetd.conf
+	jexec gw /usr/sbin/inetd -p ${PWD}/gw.pid $(atf_get_srcdir)/echo_inetd.conf
+	jexec srv /usr/sbin/inetd -p ${PWD}/srv.pid $(atf_get_srcdir)/daytime_inetd.conf
 
 	echo foo | nc -N 198.51.100.2 13
 

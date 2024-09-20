@@ -369,7 +369,7 @@ vga_pci_attach(device_t dev)
 	bus_generic_probe(dev);
 
 	/* Always create a drmn child for now to make it easier on drm. */
-	device_add_child(dev, "drmn", -1);
+	device_add_child(dev, "drmn", DEVICE_UNIT_ANY);
 	bus_generic_attach(dev);
 
 	if (vga_pci_is_boot_display(dev))

@@ -656,11 +656,6 @@ vr_attach(device_t dev)
 
 	/* Allocate ifnet structure. */
 	ifp = sc->vr_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(dev, "couldn't allocate ifnet structure\n");
-		error = ENOSPC;
-		goto fail;
-	}
 	if_setsoftc(ifp, sc);
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);

@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/arm/ti/am335x
 
 KMOD=	am335x_ehrpwm

@@ -49,4 +49,9 @@ _get_curthread(void)
 	return (_tcb_get()->tcb_thread);
 }
 
+static __inline void
+_thr_resolve_machdep(void)
+{
+}
+
 #endif /* _PTHREAD_MD_H_ */

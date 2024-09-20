@@ -1,4 +1,3 @@
-
 .include <bsd.init.mk>
 
 MAN=	loader.conf.lua.5 \

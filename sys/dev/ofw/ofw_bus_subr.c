@@ -641,7 +641,7 @@ ofw_bus_intr_to_rl(device_t dev, phandle_t node,
 	phandle_t iparent;
 	uint32_t icells, *intr;
 	int err, i, irqnum, nintr, rid;
-	boolean_t extended;
+	bool extended;
 
 	nintr = OF_getencprop_alloc_multi(node, "interrupts",  sizeof(*intr),
 	    (void **)&intr);
@@ -707,7 +707,7 @@ ofw_bus_intr_by_rid(device_t dev, phandle_t node, int wanted_rid,
 	phandle_t iparent;
 	uint32_t icells, *intr;
 	int err, i, nintr, rid;
-	boolean_t extended;
+	bool extended;
 
 	nintr = OF_getencprop_alloc_multi(node, "interrupts",  sizeof(*intr),
 	    (void **)&intr);

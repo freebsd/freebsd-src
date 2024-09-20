@@ -2067,7 +2067,7 @@ pmap_growkernel(vm_offset_t addr)
 			 * Install new PT2s page into kernel PT2TAB.
 			 */
 			m = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT |
-			    VM_ALLOC_WIRED | VM_ALLOC_ZERO);
+			    VM_ALLOC_NOFREE | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 			if (m == NULL)
 				panic("%s: no memory to grow kernel", __func__);
 			m->pindex = pte1_index(kernel_vm_end) & ~PT2PG_MASK;
@@ -3364,7 +3364,7 @@ pmap_change_pte1(pmap_t pmap, pt1_entry_t *pte1p, vm_offset_t va,
 		 * will be affected by the broken mapping, disable interrupts
 		 * until the mapping change is completed.
 		 */
-		cspr = disable_interrupts(PSR_I | PSR_F);
+		cspr = disable_interrupts(PSR_I);
 		pte1_clear(pte1p);
 		pmap_tlb_flush_pte1(pmap, va, npte1);
 		pte1_store(pte1p, npte1);
@@ -3389,7 +3389,7 @@ pmap_change_pte1(pmap_t pmap, pt1_entry_t *pte1p, vm_offset_t va,
 		 * mappings. It's absolutely safe in UP case when interrupts
 		 * are disabled.
 		 */
-		cspr = disable_interrupts(PSR_I | PSR_F);
+		cspr = disable_interrupts(PSR_I);
 		pte1_clear(pte1p);
 		pmap_tlb_flush_pte1(pmap, va, npte1);
 		pte1_store(pte1p, npte1);

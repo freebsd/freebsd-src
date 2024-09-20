@@ -1,4 +1,3 @@
-
 # Use the following command to build local debug version of dynamic
 # linker:
 # make DEBUG_FLAGS=-g WITHOUT_TESTS=yes all

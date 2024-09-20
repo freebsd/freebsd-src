@@ -89,6 +89,10 @@
 
 #define	__printf(a,b)			__printflike(a,b)
 
+#define __diag_push()
+#define __diag_pop()
+#define __diag_ignore_all(...)
+
 #define	barrier()			__asm__ __volatile__("": : :"memory")
 
 #define	lower_32_bits(n)		((u32)(n))

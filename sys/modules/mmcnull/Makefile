@@ -1,4 +1,3 @@
-
 .PATH: ${.CURDIR}/../../dev/mmcnull
 
 KMOD=	mmcnull

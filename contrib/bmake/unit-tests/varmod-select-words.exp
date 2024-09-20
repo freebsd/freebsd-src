@@ -1,4 +1,4 @@
-make: Bad modifier ":[]" for variable "LIST"
+make: in target "mod-squarebrackets-0-star-at": while evaluating variable "LIST" with value "one two three four five six": Bad modifier ":[]"
 LIST:[]="" is an error
 LIST:[0]="one two three four five six"
 LIST:[0x0]="one two three four five six"
@@ -37,17 +37,17 @@ REALLYSPACE=" "
 REALLYSPACE:[1]="" == "" ?
 REALLYSPACE:[*]:[1]=" " == " " ?
 LIST:[1]="one"
-make: Bad modifier ":[1.]" for variable "LIST"
+make: in target "mod-squarebrackets-n": while evaluating variable "LIST" with value "one two three four five six": Bad modifier ":[1.]"
 LIST:[1.]="" is an error
-make: Bad modifier ":[1]." for variable "LIST"
+make: in target "mod-squarebrackets-n": while evaluating variable "LIST" with value "one two three four five six": Bad modifier ":[1]."
 LIST:[1].="}" is an error
 LIST:[2]="two"
 LIST:[6]="six"
 LIST:[7]=""
 LIST:[999]=""
-make: Bad modifier ":[-]" for variable "LIST"
+make: in target "mod-squarebrackets-n": while evaluating variable "LIST" with value "one two three four five six": Bad modifier ":[-]"
 LIST:[-]="" is an error
-make: Bad modifier ":[--]" for variable "LIST"
+make: in target "mod-squarebrackets-n": while evaluating variable "LIST" with value "one two three four five six": Bad modifier ":[--]"
 LIST:[--]="" is an error
 LIST:[-1]="six"
 LIST:[-2]="five"
@@ -67,22 +67,22 @@ LIST:[*]:C/ /,/:[2]=""
 LIST:[*]:C/ /,/:[*]:[2]=""
 LIST:[*]:C/ /,/:[@]:[2]="three"
 LONGLIST:[012..0x12]="10 11 12 13 14 15 16 17 18"
-make: Bad modifier ":[1.]" for variable "LIST"
+make: in target "mod-squarebrackets-start-end": while evaluating variable "LIST" with value "one two three four five six": Bad modifier ":[1.]"
 LIST:[1.]="" is an error
-make: Bad modifier ":[1..]" for variable "LIST"
+make: in target "mod-squarebrackets-start-end": while evaluating variable "LIST" with value "one two three four five six": Bad modifier ":[1..]"
 LIST:[1..]="" is an error
-make: Bad modifier ":[1.. ]" for variable "LIST"
+make: in target "mod-squarebrackets-start-end": while evaluating variable "LIST" with value "one two three four five six": Bad modifier ":[1.. ]"
 LIST:[1.. ]="" is an error
 LIST:[1..1]="one"
-make: Bad modifier ":[1..1.]" for variable "LIST"
+make: in target "mod-squarebrackets-start-end": while evaluating variable "LIST" with value "one two three four five six": Bad modifier ":[1..1.]"
 LIST:[1..1.]="" is an error
 LIST:[1..2]="one two"
 LIST:[2..1]="two one"
 LIST:[3..-2]="three four five"
 LIST:[-4..4]="three four"
-make: Bad modifier ":[0..1]" for variable "LIST"
+make: in target "mod-squarebrackets-start-end": while evaluating variable "LIST" with value "one two three four five six": Bad modifier ":[0..1]"
 LIST:[0..1]="" is an error
-make: Bad modifier ":[-1..0]" for variable "LIST"
+make: in target "mod-squarebrackets-start-end": while evaluating variable "LIST" with value "one two three four five six": Bad modifier ":[-1..0]"
 LIST:[-1..0]="" is an error
 LIST:[-1..1]="six five four three two one"
 LIST:[0..0]="one two three four five six"
@@ -97,7 +97,7 @@ LIST:[${ONE}]="one"
 LIST:[${MINUSONE}]="six"
 LIST:[${STAR}]="one two three four five six"
 LIST:[${AT}]="one two three four five six"
-make: Bad modifier ":[${EMPTY" for variable "LIST"
+make: in target "mod-squarebrackets-nested": while evaluating variable "LIST" with value "one two three four five six": Bad modifier ":[${EMPTY"
 LIST:[${EMPTY}]="" is an error
 LIST:[${LONGLIST:[21]:S/2//}]="one"
 LIST:[${LIST:[#]}]="six"
@@ -123,4 +123,4 @@ LIST:tw:C/ /,/g="one two three four five six"
 LIST:tw:C/ /,/1g="one two three four five six"
 LIST:tw:tW:C/ /,/="one,two three four five six"
 LIST:tW:tw:C/ /,/="one two three four five six"
-exit status 0
+exit status 2

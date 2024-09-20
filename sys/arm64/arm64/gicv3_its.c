@@ -158,7 +158,6 @@ struct its_dev {
 	struct lpi_chunk	lpis;
 	/* Virtual address of ITT */
 	void			*itt;
-	size_t			itt_size;
 };
 
 /*
@@ -1412,7 +1411,7 @@ its_device_get(device_t dev, device_t child, u_int nvecs)
 	struct gicv3_its_softc *sc;
 	struct its_dev *its_dev;
 	vmem_addr_t irq_base;
-	size_t esize;
+	size_t esize, itt_size;
 
 	sc = device_get_softc(dev);
 
@@ -1450,8 +1449,8 @@ its_device_get(device_t dev, device_t child, u_int nvecs)
 	 * Allocate ITT for this device.
 	 * PA has to be 256 B aligned. At least two entries for device.
 	 */
-	its_dev->itt_size = roundup2(MAX(nvecs, 2) * esize, 256);
-	its_dev->itt = contigmalloc_domainset(its_dev->itt_size,
+	itt_size = roundup2(MAX(nvecs, 2) * esize, 256);
+	its_dev->itt = contigmalloc_domainset(itt_size,
 	    M_GICV3_ITS, sc->sc_ds, M_NOWAIT | M_ZERO, 0,
 	    LPI_INT_TRANS_TAB_MAX_ADDR, LPI_INT_TRANS_TAB_ALIGN, 0);
 	if (its_dev->itt == NULL) {
@@ -1462,7 +1461,7 @@ its_device_get(device_t dev, device_t child, u_int nvecs)
 
 	/* Make sure device sees zeroed ITT. */
 	if ((sc->sc_its_flags & ITS_FLAGS_CMDQ_FLUSH) != 0)
-		cpu_dcache_wb_range(its_dev->itt, its_dev->itt_size);
+		cpu_dcache_wb_range(its_dev->itt, itt_size);
 
 	mtx_lock_spin(&sc->sc_its_dev_lock);
 	TAILQ_INSERT_TAIL(&sc->sc_its_dev_list, its_dev, entry);
@@ -1494,7 +1493,7 @@ its_device_release(device_t dev, struct its_dev *its_dev)
 
 	/* Free ITT */
 	KASSERT(its_dev->itt != NULL, ("Invalid ITT in valid ITS device"));
-	contigfree(its_dev->itt, its_dev->itt_size, M_GICV3_ITS);
+	free(its_dev->itt, M_GICV3_ITS);
 
 	/* Free the IRQ allocation */
 	vmem_free(sc->sc_irq_alloc, its_dev->lpis.lpi_base,

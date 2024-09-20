@@ -1,4 +1,3 @@
-
 DOC=	viapwh
 SRCS=	vi.apwh.ms
 

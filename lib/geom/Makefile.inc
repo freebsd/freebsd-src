@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 SHLIBDIR=${GEOM_CLASS_DIR}

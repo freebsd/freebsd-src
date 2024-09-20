@@ -536,7 +536,7 @@ ipfclose(dev_t dev, int flags)
 /*
  * ipfread/ipflog
  * both of these must operate with at least splnet() lest they be
- * called during packet processing and cause an inconsistancy to appear in
+ * called during packet processing and cause an inconsistency to appear in
  * the filter lists.
  */
 #ifdef __FreeBSD__
@@ -579,7 +579,7 @@ static int ipfread(dev, uio, ioflag)
 /*
  * ipfwrite
  * both of these must operate with at least splnet() lest they be
- * called during packet processing and cause an inconsistancy to appear in
+ * called during packet processing and cause an inconsistency to appear in
  * the filter lists.
  */
 #ifdef __FreeBSD__

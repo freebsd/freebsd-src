@@ -68,9 +68,7 @@ struct cardbus_devinfo
 struct cardbus_softc 
 {
 	device_t	sc_dev;
-#ifdef PCI_RES_BUS
 	struct resource *sc_bus;
-#endif
 };
 
 /*

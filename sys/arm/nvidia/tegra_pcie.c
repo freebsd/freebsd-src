@@ -1565,7 +1565,7 @@ tegra_pcib_attach(device_t dev)
 	if (rv != 0)
 		 goto out;
 #endif
-	device_add_child(dev, "pci", -1);
+	device_add_child(dev, "pci", DEVICE_UNIT_ANY);
 
 	return (bus_generic_attach(dev));
 

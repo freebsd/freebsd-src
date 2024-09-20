@@ -1,4 +1,3 @@
-
 PROG=	ruptime
 
 PACKAGE=rcmds

@@ -1,4 +1,3 @@
-
 SHLIB_NAME=	dynthr_mod.so
 SHLIBDIR=	${TESTSDIR}
 SRCS=		dynthr_mod.c

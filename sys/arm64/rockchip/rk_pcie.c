@@ -1353,7 +1353,7 @@ rk_pcie_attach(device_t dev)
 	APB_WR4(sc, PCIE_RC_CONFIG_LCS, val);
 
 	DELAY(250000);
-	device_add_child(dev, "pci", -1);
+	device_add_child(dev, "pci", DEVICE_UNIT_ANY);
 	return (bus_generic_attach(dev));
 
 out_full:

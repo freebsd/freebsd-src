@@ -34,6 +34,8 @@
 # https://people.freebsd.org/~pho/stress/log/kostik1017.txt
 # Fixed by r322175
 
+# Seen with p=513: Threads stuck in "ffsrca"
+
 . ../default.cfg
 
 gigs=9
@@ -62,6 +64,7 @@ cd $mntpoint/src
 export MAKEOBJDIRPREFIX=$mntpoint/obj
 
 p=$((`sysctl -n hw.ncpu`+ 1))
+[ $p -gt 32 ] && p=32  # Temporary work around
 timeout 10m \
     make -i -j $p buildworld  DESTDIR=$mntpoint TARGET=amd64 \
     TARGET_ARCH=amd64 > /dev/null

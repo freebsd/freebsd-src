@@ -1,4 +1,3 @@
-
 TESTSDIR=	${TESTSBASE}/usr.bin/bmake/sysmk/t1/2
 
 TESTS_SUBDIRS=	1

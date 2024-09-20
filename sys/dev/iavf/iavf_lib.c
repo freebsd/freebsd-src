@@ -511,7 +511,7 @@ iavf_get_vsi_res_from_vf_res(struct iavf_sc *sc)
 
 	for (int i = 0; i < sc->vf_res->num_vsis; i++) {
 		/* XXX: We only use the first VSI we find */
-		if (sc->vf_res->vsi_res[i].vsi_type == IAVF_VSI_SRIOV)
+		if (sc->vf_res->vsi_res[i].vsi_type == VIRTCHNL_VSI_SRIOV)
 			sc->vsi_res = &sc->vf_res->vsi_res[i];
 	}
 	if (!sc->vsi_res) {

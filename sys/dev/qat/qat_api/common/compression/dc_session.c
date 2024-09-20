@@ -151,7 +151,8 @@ dcCompHwBlockPopulate(sal_compression_service_t *pService,
 	}
 
 	/* Set delay match mode */
-	if (CPA_TRUE == pService->comp_device_data.enableDmm) {
+	if (ICP_QAT_HW_COMPRESSION_DELAYED_MATCH_ENABLED ==
+	    pService->comp_device_data.enableDmm) {
 		dmm = ICP_QAT_HW_COMPRESSION_DELAYED_MATCH_ENABLED;
 	} else {
 		dmm = ICP_QAT_HW_COMPRESSION_DELAYED_MATCH_DISABLED;
@@ -282,7 +283,8 @@ dcCompHwBlockPopulateGen4(sal_compression_service_t *pService,
 		hw_comp_lower_csr.hash_update =
 		    ICP_QAT_HW_COMP_20_SKIP_HASH_UPDATE_DONT_ALLOW;
 		hw_comp_lower_csr.edmm =
-		    (CPA_TRUE == pService->comp_device_data.enableDmm) ?
+		    (ICP_QAT_HW_COMPRESSION_DELAYED_MATCH_ENABLED ==
+			pService->comp_device_data.enableDmm) ?
 		    ICP_QAT_HW_COMP_20_EXTENDED_DELAY_MATCH_MODE_EDMM_ENABLED :
 		    ICP_QAT_HW_COMP_20_EXTENDED_DELAY_MATCH_MODE_EDMM_DISABLED;
 

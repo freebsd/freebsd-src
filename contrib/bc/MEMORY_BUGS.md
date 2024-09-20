@@ -23,6 +23,13 @@ existed in.
 
   The first version without this bug is `6.0.2`.
 
+* In versions `3.0.0` until `6.7.5` (inclusive) of `bc` and `dc`, there is a
+  possible out-of-bounds read when there is an error flushing `stdout` on exit
+  because such an error would cause `bc` and `dc` to attempt to use a `jmp_buf`
+  when none exists.
+
+  The first version without this bug is `6.7.6`.
+
 * In versions `5.0.0` until `6.0.4` (inclusive) of `bc`, there is an
   out-of-bounds access if a non-local (non-`auto`) variable is set to a string
   with `asciify()`, then the function is redefined with a use of the same

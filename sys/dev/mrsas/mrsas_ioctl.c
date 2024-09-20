@@ -462,13 +462,6 @@ mrsas_user_command(struct mrsas_softc *sc, struct mfi_ioc_passthru *ioc)
 		kern_sge[0].length = 0;
 	} else {
 		ioctl_temp_data_mem = malloc(ioc->buf_size, M_MRSAS, M_WAITOK);
-		if (ioctl_temp_data_mem == NULL) {
-			device_printf(sc->mrsas_dev, "Could not allocate "
-			    "%d memory for temporary passthrough ioctl\n",
-			    ioc->buf_size);
-		ret = ENOMEM;
-		goto out;
-		}
 
 		/* Copy in data from user space */
 		ret = copyin(ioc->buf, ioctl_temp_data_mem, ioc->buf_size);
@@ -483,12 +476,6 @@ mrsas_user_command(struct mrsas_softc *sc, struct mfi_ioc_passthru *ioc)
 		 */
 		passcmd = malloc(sizeof(struct mrsas_passthru_cmd), M_MRSAS,
 		    M_WAITOK);
-		if (passcmd == NULL) {
-			device_printf(sc->mrsas_dev, "Could not allocate "
-			    "memory for temporary passthrough cb struct\n");
-			ret = ENOMEM;
-			goto out;
-		}
 		passcmd->complete = 0;
 		passcmd->sc = sc;
 		passcmd->cmd = cmd;

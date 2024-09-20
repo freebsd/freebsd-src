@@ -1,4 +1,3 @@
-
 LIB=	pam_ftpusers
 SRCS=	pam_ftpusers.c
 MAN=	pam_ftpusers.8

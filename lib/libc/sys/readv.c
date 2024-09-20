@@ -33,13 +33,13 @@
 #include <sys/syscall.h>
 #include <sys/uio.h>
 #include <unistd.h>
+#include <ssp/ssp.h>
 #include "libc_private.h"
 
 __weak_reference(__sys_readv, __readv);
 
-#pragma weak readv
-ssize_t
-readv(int fd, const struct iovec *iov, int iovcnt)
+ssize_t __weak_symbol
+__ssp_real(readv)(int fd, const struct iovec *iov, int iovcnt)
 {
 	return (INTERPOS_SYS(readv, fd, iov, iovcnt));
 }

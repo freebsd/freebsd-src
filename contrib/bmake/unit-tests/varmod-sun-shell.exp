@@ -1,12 +1,12 @@
-make: "echo word; false" returned non-zero status
+make: "varmod-sun-shell.mk" line 17: warning: while evaluating variable "echo word; (exit 13)" with value "echo word; (exit 13)": Command "echo word; (exit 13)" exited with status 13
 Global: _ = # (empty)
-Var_Parse: ${echo word; ${:Ufalse}:L:sh} (eval-keep-dollar-and-undefined)
-Evaluating modifier ${echo word; false:L} on value "" (eval-keep-dollar-and-undefined, undefined)
-Result of ${echo word; false:L} is "echo word; false" (eval-keep-dollar-and-undefined, defined)
-Evaluating modifier ${echo word; false:s...} on value "echo word; false" (eval-keep-dollar-and-undefined, defined)
-Capturing the output of command "echo word; false"
-make: "echo word; false" returned non-zero status
-Result of ${echo word; false:sh} is "word" (eval-keep-dollar-and-undefined, defined)
+Var_Parse: ${echo word; ${:U(exit 13)}:L:sh} (eval-keep-dollar-and-undefined)
+Evaluating modifier ${echo word; (exit 13):L} on value "" (eval-keep-dollar-and-undefined, undefined)
+Result of ${echo word; (exit 13):L} is "echo word; (exit 13)" (eval-keep-dollar-and-undefined, defined)
+Evaluating modifier ${echo word; (exit 13):s...} on value "echo word; (exit 13)" (eval-keep-dollar-and-undefined, defined)
+Capturing the output of command "echo word; (exit 13)"
+make: "varmod-sun-shell.mk" line 24: warning: while evaluating variable "echo word; (exit 13)" with value "echo word; (exit 13)": Command "echo word; (exit 13)" exited with status 13
+Result of ${echo word; (exit 13):sh} is "word" (eval-keep-dollar-and-undefined, defined)
 Global: _ = word
 Global: .MAKEFLAGS =  -r -k -d v -d
 Global: .MAKEFLAGS =  -r -k -d v -d 0

@@ -84,7 +84,6 @@ int
 isa_dma_init(int chan, u_int bouncebufsize, int flag)
 {
 	void *buf;
-	int contig;
 
 #ifdef DIAGNOSTIC
 	if (chan & ~VALID_DMA_MASK)
@@ -98,13 +97,11 @@ isa_dma_init(int chan, u_int bouncebufsize, int flag)
 			free(buf, M_DEVBUF);
 			buf = NULL;
 		}
-		contig = 0;
 	}
 
 	if (buf == NULL) {
 		buf = contigmalloc(bouncebufsize, M_DEVBUF, flag, 0ul, 0xfffffful,
 			   1ul, chan & 4 ? 0x20000ul : 0x10000ul);
-		contig = 1;
 	}
 
 	if (buf == NULL)
@@ -120,10 +117,7 @@ isa_dma_init(int chan, u_int bouncebufsize, int flag)
 	 * XXX: the same driver.
 	 */
 	if (dma_bouncebuf[chan] != NULL) {
-		if (contig)
-			contigfree(buf, bouncebufsize, M_DEVBUF);
-		else
-			free(buf, M_DEVBUF);
+		free(buf, M_DEVBUF);
 		mtx_unlock(&isa_dma_lock);
 		return (0);
 	}

@@ -7,6 +7,7 @@
  */
 
 #include "includes.h"
+#include <termios.h>
 
 #include "common.h"
 #include "crypto/sha1.h"
@@ -14,6 +15,7 @@
 
 int main(int argc, char *argv[])
 {
+	struct termios term;
 	unsigned char psk[32];
 	int i;
 	char *ssid, *passphrase, buf[64], *pos;
@@ -31,9 +33,26 @@ int main(int argc, char *argv[])
 	if (argc > 2) {
 		passphrase = argv[2];
 	} else {
+		bool ctrl_echo;
+
 		fprintf(stderr, "# reading passphrase from stdin\n");
+		if (tcgetattr(STDIN_FILENO, &term) < 0) {
+			perror("tcgetattr");
+			return 1;
+		}
+		ctrl_echo = term.c_lflag & ECHO;
+		term.c_lflag &= ~ECHO;
+		if (ctrl_echo && tcsetattr(STDIN_FILENO, TCSANOW, &term) < 0) {
+			perror("tcsetattr:error disabling echo");
+			return 1;
+		}
 		if (fgets(buf, sizeof(buf), stdin) == NULL) {
 			fprintf(stderr, "Failed to read passphrase\n");
+			return 1;
+		}
+		term.c_lflag |= ECHO;
+		if (ctrl_echo && tcsetattr(STDIN_FILENO, TCSANOW, &term) < 0) {
+			perror("tcsetattr:error enabling echo");
 			return 1;
 		}
 		buf[sizeof(buf) - 1] = '\0';
@@ -58,7 +77,11 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	pbkdf2_sha1(passphrase, (u8 *) ssid, os_strlen(ssid), 4096, psk, 32);
+	if (pbkdf2_sha1(passphrase, (u8 *) ssid, os_strlen(ssid), 4096, psk, 32)
+	    != 0) {
+		fprintf(stderr, "Error in pbkdf2_sha1()\n");
+		return 1;
+	}
 
 	printf("network={\n");
 	printf("\tssid=\"%s\"\n", ssid);

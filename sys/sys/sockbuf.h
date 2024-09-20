@@ -128,7 +128,8 @@ struct sockbuf {
 			struct	mbuf *sb_mtls;	/*  TLS mbuf chain */
 			struct	mbuf *sb_mtlstail; /* last mbuf in TLS chain */
 			uint64_t sb_tls_seqno;	/* TLS seqno */
-			struct	ktls_session *sb_tls_info; /* TLS state */
+			/* TLS state, locked by sockbuf and sock I/O mutexes. */
+			struct	ktls_session *sb_tls_info;
 		};
 		/*
 		 * PF_UNIX/SOCK_DGRAM

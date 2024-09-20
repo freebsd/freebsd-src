@@ -10,5 +10,5 @@ Global: .MAKEFLAGS =  -r -k -d v -d 0
 make: "directive.mk" line 40: Invalid line 'target-without-colon'
 make: "directive.mk" line 43: Invalid line 'target-without-colon another-target'
 make: Fatal errors encountered -- cannot continue
-make: stopped in unit-tests
+make: stopped making ".target" in unit-tests
 exit status 1

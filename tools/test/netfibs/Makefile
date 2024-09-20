@@ -1,4 +1,3 @@
-
 PROG=	reflect
 MAN=
 

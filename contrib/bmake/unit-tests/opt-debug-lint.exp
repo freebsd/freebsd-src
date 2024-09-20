@@ -2,9 +2,9 @@ make: "opt-debug-lint.mk" line 21: Variable "X" is undefined
 make: "opt-debug-lint.mk" line 21: Malformed conditional ($X)
 make: "opt-debug-lint.mk" line 45: Variable "UNDEF" is undefined
 make: "opt-debug-lint.mk" line 45: Malformed conditional (${UNDEF})
-make: "opt-debug-lint.mk" line 67: while evaluating variable "value": Missing delimiter ':' after modifier "L"
-make: "opt-debug-lint.mk" line 67: while evaluating variable "value": Missing delimiter ':' after modifier "P"
-make: "opt-debug-lint.mk" line 76: while evaluating variable "value": Unknown modifier "${"
+make: "opt-debug-lint.mk" line 67: while evaluating variable "value" with value "value": Missing delimiter ':' after modifier "L"
+make: "opt-debug-lint.mk" line 67: while evaluating variable "value" with value "value": Missing delimiter ':' after modifier "P"
+make: "opt-debug-lint.mk" line 76: while evaluating variable "value" with value "": Unknown modifier "${"
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

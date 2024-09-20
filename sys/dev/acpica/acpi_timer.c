@@ -74,11 +74,6 @@ static void	acpi_timer_suspend_handler(struct timecounter *);
 static u_int	acpi_timer_get_timecount(struct timecounter *tc);
 static u_int	acpi_timer_get_timecount_safe(struct timecounter *tc);
 static int	acpi_timer_sysctl_freq(SYSCTL_HANDLER_ARGS);
-static void	acpi_timer_boot_test(void);
-
-static int	acpi_timer_test(void);
-static int	acpi_timer_test_enabled = 0;
-TUNABLE_INT("hw.acpi.timer_test_enabled", &acpi_timer_test_enabled);
 
 static device_method_t acpi_timer_methods[] = {
     DEVMETHOD(device_identify,	acpi_timer_identify),
@@ -159,7 +154,7 @@ acpi_timer_identify(driver_t *driver, device_t parent)
 static int
 acpi_timer_probe(device_t dev)
 {
-    int i, j, rid, rtype;
+    int rid, rtype;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -192,30 +187,10 @@ acpi_timer_probe(device_t dev)
 	acpi_timer_timecounter.tc_counter_mask = 0x00ffffff;
     acpi_timer_timecounter.tc_frequency = acpi_timer_frequency;
     acpi_timer_timecounter.tc_flags = TC_FLAGS_SUSPEND_SAFE;
-    if (testenv("debug.acpi.timer_test"))
-	acpi_timer_boot_test();
 
-    /*
-     * If all tests of the counter succeed, use the ACPI-fast method.  If
-     * at least one failed, default to using the safe routine, which reads
-     * the timer multiple times to get a consistent value before returning.
-     */
-    j = 0;
-    if (bootverbose)
-	printf("ACPI timer:");
-    for (i = 0; i < 10; i++)
-	j += acpi_timer_test();
-    if (bootverbose)
-	printf(" -> %d\n", j);
-    if (j == 10) {
-	acpi_timer_timecounter.tc_name = "ACPI-fast";
-	acpi_timer_timecounter.tc_get_timecount = acpi_timer_get_timecount;
-	acpi_timer_timecounter.tc_quality = 900;
-    } else {
-	acpi_timer_timecounter.tc_name = "ACPI-safe";
-	acpi_timer_timecounter.tc_get_timecount = acpi_timer_get_timecount_safe;
-	acpi_timer_timecounter.tc_quality = 850;
-    }
+    acpi_timer_timecounter.tc_name = "ACPI-fast";
+    acpi_timer_timecounter.tc_get_timecount = acpi_timer_get_timecount;
+    acpi_timer_timecounter.tc_quality = 900;
     tc_init(&acpi_timer_timecounter);
 
     device_set_descf(dev, "%d-bit timer at %u.%06uMHz",
@@ -368,108 +343,3 @@ SYSCTL_PROC(_machdep, OID_AUTO, acpi_timer_freq,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0,
     acpi_timer_sysctl_freq, "I",
     "ACPI timer frequency");
-
-/*
- * Some ACPI timers are known or believed to suffer from implementation
- * problems which can lead to erroneous values being read.  This function
- * tests for consistent results from the timer and returns 1 if it believes
- * the timer is consistent, otherwise it returns 0.
- *
- * It appears the cause is that the counter is not latched to the PCI bus
- * clock when read:
- *
- * ] 20. ACPI Timer Errata
- * ]
- * ]   Problem: The power management timer may return improper result when
- * ]   read. Although the timer value settles properly after incrementing,
- * ]   while incrementing there is a 3nS window every 69.8nS where the
- * ]   timer value is indeterminate (a 4.2% chance that the data will be
- * ]   incorrect when read). As a result, the ACPI free running count up
- * ]   timer specification is violated due to erroneous reads.  Implication:
- * ]   System hangs due to the "inaccuracy" of the timer when used by
- * ]   software for time critical events and delays.
- * ]
- * ] Workaround: Read the register twice and compare.
- * ] Status: This will not be fixed in the PIIX4 or PIIX4E, it is fixed
- * ] in the PIIX4M.
- */
-#define N 2000
-static int
-acpi_timer_test(void)
-{
-    uint32_t last, this;
-    int delta, max, max2, min, n;
-    register_t s;
-
-    /* Skip the test based on the hw.acpi.timer_test_enabled tunable. */
-    if (!acpi_timer_test_enabled)
-	return (1);
-
-    TSENTER();
-
-    min = INT32_MAX;
-    max = max2 = 0;
-
-    /* Test the timer with interrupts disabled to get accurate results. */
-    s = intr_disable();
-    last = acpi_timer_read();
-    for (n = 0; n < N; n++) {
-	this = acpi_timer_read();
-	delta = acpi_TimerDelta(this, last);
-	if (delta > max) {
-	    max2 = max;
-	    max = delta;
-	} else if (delta > max2)
-	    max2 = delta;
-	if (delta < min)
-	    min = delta;
-	last = this;
-    }
-    intr_restore(s);
-
-    delta = max2 - min;
-    if ((max - min > 8 || delta > 3) && vm_guest == VM_GUEST_NO)
-	n = 0;
-    else if (min < 0 || max == 0 || max2 == 0)
-	n = 0;
-    else
-	n = 1;
-    if (bootverbose)
-	printf(" %d/%d", n, delta);
-
-    TSEXIT();
-
-    return (n);
-}
-#undef N
-
-/*
- * Test harness for verifying ACPI timer behaviour.
- * Boot with debug.acpi.timer_test set to invoke this.
- */
-static void
-acpi_timer_boot_test(void)
-{
-    uint32_t u1, u2, u3;
-
-    u1 = acpi_timer_read();
-    u2 = acpi_timer_read();
-    u3 = acpi_timer_read();
-
-    device_printf(acpi_timer_dev, "timer test in progress, reboot to quit.\n");
-    for (;;) {
-	/*
-	 * The failure case is where u3 > u1, but u2 does not fall between
-	 * the two, ie. it contains garbage.
-	 */
-	if (u3 > u1) {
-	    if (u2 < u1 || u2 > u3)
-		device_printf(acpi_timer_dev,
-			      "timer is not monotonic: 0x%08x,0x%08x,0x%08x\n",
-			      u1, u2, u3);
-	}
-	u1 = u2;
-	u2 = u3;
-	u3 = acpi_timer_read();
-    }
-}

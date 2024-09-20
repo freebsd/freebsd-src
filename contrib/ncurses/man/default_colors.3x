@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2019,2020 Thomas E. Dickey                                *
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
 .\" Copyright 2000-2011,2016 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -29,21 +29,29 @@
 .\"
 .\" Author: Thomas E. Dickey 1997,1999,2000,2005
 .\"
-.\" $Id: default_colors.3x,v 1.31 2020/12/19 21:38:37 tom Exp $
-.TH default_colors 3X ""
-.ie \n(.g .ds `` \(lq
-.el       .ds `` ``
-.ie \n(.g .ds '' \(rq
-.el       .ds '' ''
+.\" $Id: default_colors.3x,v 1.52 2024/04/13 22:17:22 tom Exp $
+.TH default_colors 3X 2024-04-13 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
 .SH NAME
-\fBuse_default_colors\fR,
-\fBassume_default_colors\fR \- use terminal's default colors
+\fB\%use_default_colors\fP,
+\fB\%assume_default_colors\fP \-
+use terminal's default colors in \fIcurses\fP
 .SH SYNOPSIS
-\fB#include <curses.h>\fP
-.sp
-\fBint use_default_colors(void);\fP
-.br
-\fBint assume_default_colors(int \fP\fIfg\fP\fB, int \fP\fIbg\fP\fB);\fP
+.nf
+\fB#include <curses.h>
+.PP
+\fBint use_default_colors(void);
+\fBint assume_default_colors(int \fIfg\fP, int \fIbg\fP);
+.fi
 .SH DESCRIPTION
 The \fBuse_default_colors\fP and \fBassume_default_colors\fP
 functions are extensions to the curses library.
@@ -57,7 +65,8 @@ Some applications are designed to work with the default background,
 using colors only for text.
 For example, there are several implementations of the \fBls\fP program
 which use colors to denote different file types or permissions.
-These \*(``color ls\*('' programs do not necessarily modify the background color,
+These \*(``color ls\*('' programs do not necessarily
+modify the background color,
 typically using only the \fBsetaf\fP terminfo capability to set the
 foreground color.
 Full-screen applications that use default colors can achieve similar
@@ -84,9 +93,9 @@ The following are equivalent:
 .I assume_default_colors(\-1,\-1);
 .RE
 .PP
-These are ncurses extensions.
+These are \fI\%ncurses\fP extensions.
 For other curses implementations, color
-number \-1 does not mean anything, just as for ncurses before a
+number \-1 does not mean anything, just as for \fI\%ncurses\fP before a
 successful call of \fBuse_default_colors\fP or \fBassume_default_colors\fP.
 .PP
 Other curses implementations do not allow an application to modify color pair 0.
@@ -97,7 +106,7 @@ If your application does not use either
 .B use_default_colors
 or
 .B assume_default_colors
-ncurses will paint a white foreground (text) with black background
+\fI\%ncurses\fP will paint a white foreground (text) with black background
 for color pair 0.
 .SH RETURN VALUE
 These functions return the integer \fBERR\fP upon failure
@@ -107,10 +116,10 @@ the \fBorig_pair\fP or \fBorig_colors\fP capability.
 If the \fBinitialize_pair\fP capability is not found, this causes an
 error as well.
 .SH NOTES
-Associated with this extension, the \fBinit_pair\fR function accepts
+Associated with this extension, the \fBinit_pair\fP function accepts
 negative arguments to specify default foreground or background colors.
 .PP
-The \fBuse_default_colors\fP function was added to support \fIded\fP.
+The \fBuse_default_colors\fP function was added to support \fBded\fP.
 This is a full-screen application which uses curses to manage only part
 of the screen.
 The bottom portion of the screen, which is of adjustable
@@ -131,14 +140,14 @@ a different problem: support for applications which would use
 environment variables and other configuration to bypass curses'
 notion of the terminal's default colors, setting specific values.
 .SH PORTABILITY
-These routines are specific to ncurses.
+These routines are specific to \fI\%ncurses\fP.
 They were not supported on
 Version 7, BSD or System V implementations.
 It is recommended that
 any code depending on them be conditioned using NCURSES_VERSION.
-.SH SEE ALSO
-\fBded\fP(1),
-\fBcurs_color\fR(3X).
-.SH AUTHOR
+.SH AUTHORS
 Thomas Dickey (from an analysis of the requirements for color xterm
 for XFree86 3.1.2C, February 1996).
+.SH SEE ALSO
+\fB\%ded\fP(1),
+\fB\%curs_color\fP(3X)

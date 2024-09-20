@@ -29,6 +29,7 @@
 
 #ifdef _KERNEL
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
+struct ifnet;
 struct mbuf;
 struct inpcb;
 struct tcphdr;
@@ -58,7 +59,7 @@ int ipsec4_in_reject(const struct mbuf *, struct inpcb *);
 int ipsec4_input(struct mbuf *, int, int);
 int ipsec4_forward(struct mbuf *);
 int ipsec4_pcbctl(struct inpcb *, struct sockopt *);
-int ipsec4_output(struct mbuf *, struct inpcb *);
+int ipsec4_output(struct ifnet *, struct mbuf *, struct inpcb *, u_long);
 int ipsec4_capability(struct mbuf *, u_int);
 int ipsec4_ctlinput(ipsec_ctlinput_param_t);
 #endif /* INET */
@@ -68,7 +69,7 @@ int ipsec6_input(struct mbuf *, int, int);
 int ipsec6_in_reject(const struct mbuf *, struct inpcb *);
 int ipsec6_forward(struct mbuf *);
 int ipsec6_pcbctl(struct inpcb *, struct sockopt *);
-int ipsec6_output(struct mbuf *, struct inpcb *);
+int ipsec6_output(struct ifnet *, struct mbuf *, struct inpcb *, u_long);
 int ipsec6_capability(struct mbuf *, u_int);
 int ipsec6_ctlinput(ipsec_ctlinput_param_t);
 #endif /* INET6 */
@@ -77,7 +78,8 @@ struct ipsec_methods {
 	int	(*input)(struct mbuf *, int, int);
 	int	(*check_policy)(const struct mbuf *, struct inpcb *);
 	int	(*forward)(struct mbuf *);
-	int	(*output)(struct mbuf *, struct inpcb *);
+	int	(*output)(struct ifnet *, struct mbuf *, struct inpcb *,
+		    u_long);
 	int	(*pcbctl)(struct inpcb *, struct sockopt *);
 	size_t	(*hdrsize)(struct inpcb *);
 	int	(*capability)(struct mbuf *, u_int);
@@ -187,8 +189,8 @@ int ipsec_kmod_input(struct ipsec_support * const, struct mbuf *, int, int);
 int ipsec_kmod_check_policy(struct ipsec_support * const, struct mbuf *,
     struct inpcb *);
 int ipsec_kmod_forward(struct ipsec_support * const, struct mbuf *);
-int ipsec_kmod_output(struct ipsec_support * const, struct mbuf *,
-    struct inpcb *);
+int ipsec_kmod_output(struct ipsec_support * const, struct ifnet *,
+    struct mbuf *, struct inpcb *, u_long);
 int ipsec_kmod_pcbctl(struct ipsec_support * const, struct inpcb *,
     struct sockopt *);
 int ipsec_kmod_capability(struct ipsec_support * const, struct mbuf *, u_int);

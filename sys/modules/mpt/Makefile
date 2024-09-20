@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/mpt
 
 KMOD=	mpt

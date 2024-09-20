@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/kgssapi ${SRCTOP}/sys/rpc/rpcsec_gss
 KMOD=	kgssapi
 

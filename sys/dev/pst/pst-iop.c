@@ -136,7 +136,7 @@ iop_attach(void *arg)
 		   ident->vendor, ident->product);
 	    printf("pstiop: description=<%.16s> revision=<%.8s>\n",
 		   ident->description, ident->revision);
-	    contigfree(reply, PAGE_SIZE, M_PSTIOP);
+	    free(reply, M_PSTIOP);
 	}
 #endif
 
@@ -317,18 +317,18 @@ iop_get_lct(struct iop_softc *sc)
     msg->sgl.phys_addr[0] = vtophys(reply);
 
     if (iop_queue_wait_msg(sc, mfa, (struct i2o_basic_message *)msg)) {
-	contigfree(reply, ALLOCSIZE, M_PSTIOP);
+	free(reply, M_PSTIOP);
 	return 0;
     }
     if (!(sc->lct = malloc(reply->table_size * sizeof(struct i2o_lct_entry),
 			   M_PSTIOP, M_NOWAIT | M_ZERO))) {
-	contigfree(reply, ALLOCSIZE, M_PSTIOP);
+	free(reply, M_PSTIOP);
 	return 0;
     }
     bcopy(&reply->entry[0], sc->lct,
 	  reply->table_size * sizeof(struct i2o_lct_entry));
     sc->lct_count = reply->table_size;
-    contigfree(reply, ALLOCSIZE, M_PSTIOP);
+    free(reply, M_PSTIOP);
     return 1;
 }
 
@@ -374,10 +374,10 @@ iop_get_util_params(struct iop_softc *sc, int target, int operation, int group)
 
     if (iop_queue_wait_msg(sc, mfa, (struct i2o_basic_message *)msg) ||
 	reply->error_info_size) {
-	contigfree(reply, PAGE_SIZE, M_PSTIOP);
+	free(reply, M_PSTIOP);
 	reply = NULL;
     }
-    contigfree(param, PAGE_SIZE, M_PSTIOP);
+    free(param, M_PSTIOP);
     return reply;
 }
 

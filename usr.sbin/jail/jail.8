@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 16, 2024
+.Dd August 12, 2024
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -656,6 +656,18 @@ The super-user is enabled by default.
 .It Va allow.extattr
 Allow privileged process in the jail to manipulate filesystem extended
 attributes in the system namespace.
+.It Va allow.adjtime
+Allow privileged process in the jail to slowly adjusting global operating system
+time.
+For example through utilities like
+.Xr ntpd 8 .
+.It Va allow.settime
+Allow privileged process in the jail to set global operating system data
+and time.
+For example through utilities like
+.Xr date 1 .
+This permission includes also
+.Va allow.adjtime .
 .El
 .El
 .Pp
@@ -776,6 +788,14 @@ the jail cannot perform any sysvmsg-related system calls.
 Allow access to SYSV IPC semaphore and shared memory primitives, in the
 same manner as
 .Va sysvmsg .
+.It Va zfs.mount_snapshot
+Allow jailed users to access the contents of ZFS snapshots under the
+filesystem's
+.Pa .zfs
+directory.
+If
+.Va allow.mount.zfs
+is set, the snapshots may also be mounted.
 .El
 .Pp
 There are pseudo-parameters that are not passed to the kernel, but are
@@ -853,8 +873,13 @@ are set to the target login's default values.
 is set to the target login.
 .Ev TERM
 is imported from the current environment.
+.Ev PATH
+is set to "/bin:/usr/bin".
 The environment variables from the login class capability database for the
 target login are also set.
+If a user is specified (as with
+.Va exec.jail_user ) ,
+commands are run from that (possibly jailed) user's directory.
 .It Va exec.jail_user
 The user to run commands as, when running in the jail environment.
 The default is to run the commands as the current user.
@@ -1408,6 +1433,7 @@ appears relative to its creator's own
 This is by virtue of the child jail being created in the chrooted
 environment of the first jail.
 .Sh SEE ALSO
+.Xr date 1 ,
 .Xr killall 1 ,
 .Xr lsvfs 1 ,
 .Xr newaliases 1 ,
@@ -1415,6 +1441,9 @@ environment of the first jail.
 .Xr pkill 1 ,
 .Xr ps 1 ,
 .Xr quota 1 ,
+.Xr adjtime 2 ,
+.Xr clock_settime 2 ,
+.Xr ntp_adjtime 2 ,
 .Xr jail_set 2 ,
 .Xr devfs 4 ,
 .Xr fdescfs 4 ,
@@ -1436,6 +1465,7 @@ environment of the first jail.
 .Xr mount 8 ,
 .Xr mountd 8 ,
 .Xr nfsd 8 ,
+.Xr ntpd 8 ,
 .Xr reboot 8 ,
 .Xr rpcbind 8 ,
 .Xr sendmail 8 ,

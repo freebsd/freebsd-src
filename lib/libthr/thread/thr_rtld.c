@@ -220,19 +220,19 @@ _thr_rtld_init(void)
 	struct RtldLockInfo	li;
 	struct pthread		*curthread;
 	ucontext_t *uc;
-	long dummy = -1;
 	int uc_len;
+	char dummy[2] = {};
 
 	curthread = _get_curthread();
 
 	/* force to resolve _umtx_op PLT */
-	_umtx_op_err((struct umtx *)&dummy, UMTX_OP_WAKE, 1, 0, 0);
+	_umtx_op_err(&dummy, UMTX_OP_WAKE, 1, 0, 0);
 	
 	/* force to resolve errno() PLT */
 	__error();
 
 	/* force to resolve memcpy PLT */
-	memcpy(&dummy, &dummy, sizeof(dummy));
+	memcpy(&dummy[0], &dummy[1], 1);
 
 	mprotect(NULL, 0, 0);
 	_rtld_get_stack_prot();
@@ -275,6 +275,9 @@ _thr_rtld_init(void)
 	_thr_signal_unblock(curthread);
 	_thr_signal_block_check_fast();
 	_thr_signal_block_setup(curthread);
+
+	/* resolve machine depended functions, if any */
+	_thr_resolve_machdep();
 
 	uc_len = __getcontextx_size();
 	uc = alloca(uc_len);

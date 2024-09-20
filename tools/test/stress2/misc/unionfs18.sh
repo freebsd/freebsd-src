@@ -6,7 +6,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
 
-# Simple unionfs(8) + tmpfs test
+# Simple unionfs(4) + tmpfs(4) test
 
 # "rmdir: d2: Directory not empty" seen.
 

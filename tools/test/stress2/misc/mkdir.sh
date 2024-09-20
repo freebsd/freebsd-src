@@ -44,6 +44,7 @@ mdconfig -a -t swap -s 100m -u $mdstart
 [ $# -eq 1 ] && flags="$@" || flags="-Un"
 echo "newfs $flags /dev/md$mdstart"
 newfs $flags /dev/md$mdstart > /dev/null
+[ "$flags" = "" ] && tunefs -n disable md$mdstart
 mount /dev/md$mdstart $mntpoint
 set +e
 

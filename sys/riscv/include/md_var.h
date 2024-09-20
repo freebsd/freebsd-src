@@ -44,6 +44,7 @@ extern u_int mmu_caps;
 /* Supervisor-mode extension support */
 extern bool has_sstc;
 extern bool has_sscofpmf;
+extern bool has_svpbmt;
 
 struct dumperinfo;
 struct minidumpstate;

@@ -148,3 +148,26 @@ END {
                 printf("ARGV[%d] is %s\n", i, ARGV[i])
 }' >foo2
 diff foo1 foo2 || echo 'BAD: T.argv delete ARGV[2]'
+
+# deleting ARGV used to trigger a use-after-free crash when awk
+# iterates over it to read files.
+echo >foo1
+echo >foo2
+echo >foo3
+
+$awk 'BEGIN {
+	delete ARGV
+	ARGV[0] = "awk"
+	ARGV[1] = "/dev/null"
+	ARGC = 2
+} {
+	# this should not be executed
+	print "FILENAME: " FILENAME
+	fflush()
+}' foo1 foo2 foo3 >foo4
+
+awkstatus=$?
+diff /dev/null foo4
+if [ $? -ne 0 ] || [ $awkstatus -ne 0 ]; then
+	echo 'BAD: T.argv delete ARGV'
+fi

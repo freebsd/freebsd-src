@@ -265,11 +265,6 @@ ffs_rawread_main(struct vnode *vp,
 	resid = uio->uio_resid;
 	offset = uio->uio_offset;
 
-	/*
-	 * keep the process from being swapped
-	 */
-	PHOLD(td->td_proc);
-
 	error = 0;
 	nerror = 0;
 
@@ -389,7 +384,6 @@ ffs_rawread_main(struct vnode *vp,
 
 	if (error == 0)
 		error = nerror;
-	PRELE(td->td_proc);
 	uio->uio_iov->iov_base = udata;
 	uio->uio_resid = resid;
 	uio->uio_offset = offset;

@@ -58,12 +58,12 @@
 ENTRY(_setjmp)
 	ldr	r1, .L_setjmp_magic
 
-#if !defined(_STANDALONE) && __ARM_ARCH >= 6 && !defined(SOFTFLOAT_FOR_GCC)
+#if !defined(_STANDALONE) && !defined(SOFTFLOAT_FOR_GCC)
 	add	r2, r0, #(_JB_REG_D8 * 4)
 	vstmia	r2, {d8-d15}
 	vmrs	r2, fpscr
 	str	r2, [r0, #(_JB_REG_FPSCR * 4)]
-#endif /* !_STANDALONE && __ARM_ARCH >= 6 */
+#endif /* !_STANDALONE && !SOFTFLOAT_FOR_GCC */
 
 	str	r1, [r0]
 
@@ -91,12 +91,12 @@ ENTRY(_longjmp)
 	teq	ip, r2				/* magic correct? */
 	bne	botch				/*   no, botch */
 
-#if !defined(_STANDALONE) && __ARM_ARCH >= 6 && !defined(SOFTFLOAT_FOR_GCC)
+#if !defined(_STANDALONE) && !defined(SOFTFLOAT_FOR_GCC)
 	add	ip, r0, #(_JB_REG_D8 * 4)
 	vldmia	ip, {d8-d15}
 	ldr	ip, [r0, #(_JB_REG_FPSCR * 4)]
 	vmsr	fpscr, ip
-#endif /* !_STANDALONE && __ARM_ARCH >= 6 */
+#endif /* !_STANDALONE && !SOFTFLOAT_FOR_GCC */
 
 	add	r0, r0, #(_JB_REG_R4 * 4)
        	/* Restore integer registers */

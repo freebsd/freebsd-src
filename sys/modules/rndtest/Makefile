@@ -1,4 +1,3 @@
-
 .PATH:	${SRCTOP}/sys/dev/rndtest
 KMOD	= rndtest
 SRCS	= rndtest.c

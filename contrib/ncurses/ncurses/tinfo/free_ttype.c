@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020-2022,2023 Thomas E. Dickey                                *
  * Copyright 1999-2011,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -43,12 +43,12 @@
 
 #include <tic.h>
 
-MODULE_ID("$Id: free_ttype.c,v 1.19 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: free_ttype.c,v 1.22 2023/04/22 15:12:57 tom Exp $")
 
 static void
 really_free_termtype(TERMTYPE2 *ptr, bool freeStrings)
 {
-    T(("_nc_free_termtype(%s)", ptr->term_names));
+    T(("really_free_termtype(%s) %d", ptr->term_names, freeStrings));
 
     if (freeStrings) {
 	FreeIfNeeded(ptr->str_table);
@@ -66,13 +66,19 @@ really_free_termtype(TERMTYPE2 *ptr, bool freeStrings)
     _nc_free_entry(_nc_head, ptr);
 }
 
-/*
- * This entrypoint is used by tack 1.07
- */
 NCURSES_EXPORT(void)
 _nc_free_termtype(TERMTYPE *ptr)
 {
     really_free_termtype((TERMTYPE2 *) ptr, !NCURSES_EXT_NUMBERS);
+}
+
+/*
+ * These similar entrypoints are not used outside of ncurses.
+ */
+NCURSES_EXPORT(void)
+_nc_free_termtype1(TERMTYPE *ptr)
+{
+    really_free_termtype((TERMTYPE2 *) ptr, TRUE);
 }
 
 #if NCURSES_EXT_NUMBERS

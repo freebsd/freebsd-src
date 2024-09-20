@@ -146,7 +146,6 @@ TARGET_TRIPLE_ABI?=	unknown
 TARGET_TRIPLE?=	${TARGET_ARCH:S/amd64/x86_64/}-${TARGET_TRIPLE_ABI}-freebsd${OS_REVISION}
 KNOWN_ARCHES?=	aarch64/arm64 \
 		amd64 \
-		armv6/arm \
 		armv7/arm \
 		i386 \
 		powerpc \
@@ -576,17 +575,23 @@ MAJOR_REVISION=	${_REVISION:R}
 _PKG_REVISION=	${_REVISION}
 _STRTIMENOW=	%Y%m%d%H%M%S
 _TIMENOW=	${_STRTIMENOW:gmtime}
+BRANCH_EXT=
 .if ${_BRANCH:MCURRENT*} || ${_BRANCH:MSTABLE*} || ${_BRANCH:MPRERELEASE*}
 _PKG_REVISION=	${MAJOR_REVISION}
-EXTRA_REVISION=	.snap${_TIMENOW}
+BRANCH_EXT=	snap
+EXTRA_REVISION=	.${BRANCH_EXT}${_TIMENOW}
 .elif ${_BRANCH:MALPHA*}
-EXTRA_REVISION=	.a${_BRANCH:C/ALPHA([0-9]+).*/\1/}.${_TIMENOW}
+BRANCH_EXT=	a${_BRANCH:C/ALPHA([0-9]+).*/\1/}
+EXTRA_REVISION=	.${BRANCH_EXT}.${_TIMENOW}
 .elif ${_BRANCH:MBETA*}
-EXTRA_REVISION=	.b${_BRANCH:C/BETA([0-9]+).*/\1/}.${_TIMENOW}
+BRANCH_EXT=	b${_BRANCH:C/BETA([0-9]+).*/\1/}
+EXTRA_REVISION=	.${BRANCH_EXT}.${_TIMENOW}
 .elif ${_BRANCH:MRC*}
-EXTRA_REVISION=	.rc${_BRANCH:C/RC([0-9]+).*/\1/}.${_TIMENOW}
+BRANCH_EXT=	rc${_BRANCH:C/RC([0-9]+).*/\1/}
+EXTRA_REVISION=	.${BRANCH_EXT}.${_TIMENOW}
 .elif ${_BRANCH:M*-p*}
-EXTRA_REVISION=	p${_BRANCH:C/.*-p([0-9]+$)/\1/}
+BRANCH_EXT=	p${_BRANCH:C/.*-p([0-9]+$)/\1/}
+EXTRA_REVISION=	${BRANCH_EXT}
 .endif
 PKG_VERSION:=	${_PKG_REVISION}${EXTRA_REVISION:C/[[:space:]]//g}
 .endif
@@ -1236,10 +1241,18 @@ WMAKE_TGTS+=	build${libcompat}
 .endif
 WMAKE_TGTS+=	everything
 
-# record buildworld time in seconds
+# record buildworld / install time in seconds
 .if make(buildworld)
 _BUILDWORLD_START!= date '+%s'
 .export _BUILDWORLD_START
+.endif
+.if make(reinstall) || make(restage)
+_INSTALLWORLD_START!= date '+%s'
+.export _INSTALLWORLD_START
+.endif
+.if make(*installkernel*)
+_INSTALLKERNEL_START!= date '+%s'
+.export _INSTALLKERNEL_START
 .endif
 
 buildworld: buildworld_prologue ${WMAKE_TGTS} buildworld_epilogue .PHONY
@@ -1308,11 +1321,11 @@ kernel-toolchain: ${KERNEL_TOOLCHAIN_TGTS} .PHONY
 installcheck: _installcheck_world _installcheck_kernel .PHONY
 _installcheck_world: .PHONY
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Install check world"
+	@echo ">>> Install check world started on `LC_ALL=C date`"
 	@echo "--------------------------------------------------------------"
 _installcheck_kernel: .PHONY
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Install check kernel"
+	@echo ">>> Install check kernel started on `LC_ALL=C date`"
 	@echo "--------------------------------------------------------------"
 
 #
@@ -1636,6 +1649,8 @@ restage reinstall: .MAKE .PHONY
 .endfor
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing everything completed on `LC_ALL=C date`"
+	@seconds=$$(($$(date '+%s') - ${_INSTALLWORLD_START})); \
+	  echo ">>> Install world completed in $$seconds seconds, ncpu: $$(${_ncpu_cmd})${.MAKE.JOBS:S/^/, make -j/}"
 	@echo "--------------------------------------------------------------"
 
 redistribute: .MAKE .PHONY
@@ -1868,6 +1883,9 @@ reinstallkernel reinstallkernel.debug: _installcheck_kernel .PHONY
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing kernel ${INSTALLKERNEL} completed on $$(LC_ALL=C date)"
 	@echo "--------------------------------------------------------------"
+	@seconds=$$(($$(date '+%s') - ${_INSTALLKERNEL_START})); \
+	  echo ">>> Install kernel(s) ${INSTALLKERNEL} completed in $$seconds seconds, ncpu: $$(${_ncpu_cmd})${.MAKE.JOBS:S/^/, make -j/}"
+	@echo "--------------------------------------------------------------"
 .endif
 .if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
 .for _kernel in ${BUILDKERNELS:[2..-1]}
@@ -1882,6 +1900,9 @@ reinstallkernel reinstallkernel.debug: _installcheck_kernel .PHONY
 	@echo ">>> Installing kernel ${_kernel} completed on $$(LC_ALL=C date)"
 	@echo "--------------------------------------------------------------"
 .endfor
+	@seconds=$$(($$(date '+%s') - ${_INSTALLKERNEL_START})); \
+	  echo ">>> Install kernel(s) ${BUILDKERNELS} completed in $$seconds seconds, ncpu: $$(${_ncpu_cmd})${.MAKE.JOBS:S/^/, make -j/}"
+	@echo "--------------------------------------------------------------"
 .endif
 
 distributekernel distributekernel.debug: .PHONY
@@ -1989,6 +2010,10 @@ REPODIR?=	${OBJROOT}repo
 PKG_FORMAT?=	tzst
 PKG_REPO_SIGNING_KEY?=	# empty
 PKG_OUTPUT_DIR?=	${PKG_VERSION}
+PKG_ABI_FILE?=	${WSTAGEDIR}/usr/bin/uname
+.if make(create-*-packages*) || make(real-update-packages) || make(real-sign-packages)
+PKG_ABI!=	${PKG_CMD} -o ABI_FILE=${PKG_ABI_FILE} config ABI
+.endif
 
 .ORDER:		stage-packages create-packages
 .ORDER:		create-packages create-world-packages
@@ -2001,12 +2026,6 @@ _pkgbootstrap: .PHONY
 	@env ASSUME_ALWAYS_YES=YES pkg bootstrap
 .endif
 
-#
-# Determine PKG_ABI from newvers.sh if not already set.
-#
-.if !defined(PKG_ABI) && (make(create-world-packages-jobs) || make(create-kernel-packages*) || make(real-update-packages) || make (create-source-packages) || make(sign-packages))
-PKG_ABI=${_TYPE}:${MAJOR_REVISION}:${TARGET_ARCH}
-.endif
 PKG_BIN_VERSION!=${PKG_CMD} --version </dev/null 2>/dev/null |\
     awk -F. '/^[0-9.]+$$/ {print $$1 * 10000 + $$2 * 100 + $$3}'
 .if ${PKG_BIN_VERSION} < 11700
@@ -2016,14 +2035,14 @@ PKG_EXT=	pkg
 .endif
 
 .if !defined(PKG_VERSION_FROM) && make(real-update-packages)
-.if defined(PKG_ABI)
-.if exists(${REPODIR}/${PKG_ABI})
+.if exists(${PKG_ABI_FILE}) && exists(${REPODIR}/${PKG_ABI})
 PKG_VERSION_FROM!=/usr/bin/readlink ${REPODIR}/${PKG_ABI}/latest
 PKG_VERSION_FROM_DIR=	${REPODIR}/${PKG_ABI}/${PKG_VERSION_FROM}
+BRANCH_EXT_FROM=	${PKG_VERSION_FROM:C/.*([[:alpha:]][^\.]*).*/\1/}
 .else
 PKG_VERSION_FROM=
 PKG_VERSION_FROM_DIR=
-.endif
+BRANCH_EXT_FROM=
 .endif
 .endif
 
@@ -2060,7 +2079,7 @@ real-update-packages: stage-packages .PHONY
 	    continue; \
 	  fi ; \
 	  newsum=$$(pkg query -F ${REPODIR}/${PKG_ABI}/${PKG_VERSION}/$${newpkgname} '%X') ; \
-	  if [ "$${oldsum}" == "$${newsum}" ]; then \
+	  if [ "${BRANCH_EXT_FROM}" == "${BRANCH_EXT}" -a "$${oldsum}" == "$${newsum}" ]; then \
 	   echo "==> Keeping old ${PKG_NAME_PREFIX}-$${pkgname}-${PKG_VERSION_FROM}.${PKG_EXT}" ; \
 	   rm ${REPODIR}/${PKG_ABI}/${PKG_VERSION}/$${newpkgname} ; \
 	   cp $${pkg} ${REPODIR}/${PKG_ABI}/${PKG_VERSION} ; \
@@ -2116,17 +2135,13 @@ create-packages-source:	_pkgbootstrap _repodir .PHONY
 
 create-packages: .PHONY create-packages-world create-packages-kernel create-packages-source
 
-create-source-packages: _pkgbootstrap .PHONY
-	rm -f ${SSTAGEDIR}/*.plist 2>/dev/null || :
+create-source-src-package: _pkgbootstrap .PHONY
+	rm -f ${SSTAGEDIR}/src.plist 2>/dev/null || :
 .if !empty(GIT_CMD) && exists(${GIT_CMD}) && exists(${SRCDIR}/.git)
 	@cd ${SRCDIR}; \
 		( echo "@override_prefix /usr/src" ;  \
 		${GIT_CMD} ls-files --recurse-submodules ":!:sys/" ) \
 		> ${SSTAGEDIR}/src.plist
-	@cd ${SRCDIR}; \
-		( echo "@override_prefix /usr/src" ; \
-		${GIT_CMD} ls-files --recurse-submodules "sys/" ) \
-		> ${SSTAGEDIR}/src-sys.plist
 	${SRCDIR}/release/packages/generate-ucl.lua \
 		PKGNAME "src" \
 		PKGGENNAME "src" \
@@ -2138,6 +2153,22 @@ create-source-packages: _pkgbootstrap .PHONY
 		PKG_WWW "${PKG_WWW}" \
 		${SRCDIR}/release/packages/template.ucl \
 		${SSTAGEDIR}/src.ucl
+	${PKG_CMD} -o ABI=${PKG_ABI} \
+		-o OSVERSION="${SRCRELDATE}" \
+		create -f ${PKG_FORMAT} \
+		-M ${SSTAGEDIR}/src.ucl \
+		-p ${SSTAGEDIR}/src.plist \
+		-r ${SRCDIR} \
+		-o ${REPODIR}/${PKG_ABI}/${PKG_OUTPUT_DIR}
+.endif
+
+create-source-src-sys-package: _pkgbootstrap .PHONY
+	rm -f ${SSTAGEDIR}/src-sys.plist 2>/dev/null || :
+.if !empty(GIT_CMD) && exists(${GIT_CMD}) && exists(${SRCDIR}/.git)
+	@cd ${SRCDIR}; \
+		( echo "@override_prefix /usr/src" ; \
+		${GIT_CMD} ls-files --recurse-submodules "sys/" ) \
+		> ${SSTAGEDIR}/src-sys.plist
 	${SRCDIR}/release/packages/generate-ucl.lua \
 		PKGNAME "src-sys" \
 		PKGGENNAME "src" \
@@ -2152,18 +2183,13 @@ create-source-packages: _pkgbootstrap .PHONY
 	${PKG_CMD} -o ABI=${PKG_ABI} \
 		-o OSVERSION="${SRCRELDATE}" \
 		create -f ${PKG_FORMAT} \
-		-M ${SSTAGEDIR}/src.ucl \
-		-p ${SSTAGEDIR}/src.plist \
-		-r ${SRCDIR} \
-		-o ${REPODIR}/${PKG_ABI}/${PKG_OUTPUT_DIR}
-	${PKG_CMD} -o ABI=${PKG_ABI} \
-		-o OSVERSION="${SRCRELDATE}" \
-		create -f ${PKG_FORMAT} \
 		-M ${SSTAGEDIR}/src-sys.ucl \
 		-p ${SSTAGEDIR}/src-sys.plist \
 		-r ${SRCDIR} \
 		-o ${REPODIR}/${PKG_ABI}/${PKG_OUTPUT_DIR}
 .endif
+
+create-source-packages: .PHONY _pkgbootstrap create-source-src-package create-source-src-sys-package
 
 create-world-packages:	_pkgbootstrap .PHONY
 	@rm -f ${WSTAGEDIR}/*.plist 2>/dev/null || :
@@ -2197,7 +2223,7 @@ create-world-package-${pkgname}: .PHONY
 	@if [ "${pkgname}" == "runtime" ]; then \
 		sed -i '' -e "s/%VCS_REVISION%/${VCS_REVISION}/" ${WSTAGEDIR}/${pkgname}.ucl ; \
 	fi
-	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname -o ALLOW_BASE_SHLIBS=yes \
+	${PKG_CMD} -o ABI=${PKG_ABI} -o ALLOW_BASE_SHLIBS=yes \
 		-o OSVERSION="${SRCRELDATE}" \
 		create -f ${PKG_FORMAT} -M ${WSTAGEDIR}/${pkgname}.ucl \
 		-p ${WSTAGEDIR}/${pkgname}.plist \
@@ -2299,7 +2325,7 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 		/name/ { printf("===> Creating %s-", $$2); next } \
 		/version/ {print $$2; next } ' \
 		${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl ; \
-	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname -o ALLOW_BASE_SHLIBS=yes \
+	${PKG_CMD} -o ABI=${PKG_ABI} -o ALLOW_BASE_SHLIBS=yes \
 		-o OSVERSION="${SRCRELDATE}" \
 		create -f ${PKG_FORMAT} \
 		-M ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl \
@@ -2311,20 +2337,22 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 . endfor
 .endif
 
-sign-packages:	_pkgbootstrap .PHONY
+sign-packages:	.PHONY
+	${_+_}@cd ${.CURDIR}; \
+		${MAKE} -f Makefile.inc1 PKG_VERSION=${PKG_VERSION} real-sign-packages
+
+real-sign-packages:	_pkgbootstrap .PHONY
 	printf "version = 2;\n" > ${WSTAGEDIR}/meta
 .if ${PKG_BIN_VERSION} < 11700
 	printf "packing_format = \"${PKG_FORMAT}\";\n" >> ${WSTAGEDIR}/meta
 .endif
-	@[ -L "${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI)/latest" ] && \
-		unlink ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI)/latest ; \
-	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname repo \
-		-o OSVERSION="${SRCRELDATE}" \
+	@[ -L "${REPODIR}/${PKG_ABI}/latest" ] && unlink ${REPODIR}/${PKG_ABI}/latest; \
+	${PKG_CMD} -o ABI=${PKG_ABI} repo -o OSVERSION="${SRCRELDATE}" \
 		-m ${WSTAGEDIR}/meta \
-		-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI)/${PKG_VERSION} \
-		${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI)/${PKG_VERSION} \
+		-o ${REPODIR}/${PKG_ABI}/${PKG_VERSION} \
+		${REPODIR}/${PKG_ABI}/${PKG_VERSION} \
 		${PKG_REPO_SIGNING_KEY} ; \
-	cd ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI); \
+	cd ${REPODIR}/${PKG_ABI}; \
 	ln -s ${PKG_OUTPUT_DIR} latest
 
 #

@@ -279,9 +279,10 @@ iter_filter_unsuitable(struct iter_env* iter_env, struct module_env* env,
 		name, namelen, qtype, &lame, &dnsseclame, &reclame,
 		&rtt, now)) {
 		log_addr(VERB_ALGO, "servselect", &a->addr, a->addrlen);
-		verbose(VERB_ALGO, "   rtt=%d%s%s%s%s", rtt,
+		verbose(VERB_ALGO, "   rtt=%d%s%s%s%s%s", rtt,
 			lame?" LAME":"",
 			dnsseclame?" DNSSEC_LAME":"",
+			a->dnsseclame?" ADDR_DNSSEC_LAME":"",
 			reclame?" REC_LAME":"",
 			a->lame?" ADDR_LAME":"");
 		if(lame)

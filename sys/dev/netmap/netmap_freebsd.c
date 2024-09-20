@@ -612,10 +612,6 @@ nm_os_vi_persist(const char *name, if_t *ret)
 	eaddr[5] = (uint8_t)unit;
 
 	ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		nm_prerr("if_alloc failed");
-		return ENOMEM;
-	}
 	if_initname(ifp, name, IF_DUNIT_NONE);
 	if_setflags(ifp, IFF_UP | IFF_SIMPLEX | IFF_MULTICAST);
 	if_setinitfn(ifp, (void *)nm_vi_dummy);
@@ -864,16 +860,12 @@ nm_os_pt_memdev_iounmap(struct ptnetmap_memdev *ptn_dev)
 static int
 ptn_memdev_probe(device_t dev)
 {
-	char desc[256];
-
 	if (pci_get_vendor(dev) != PTNETMAP_PCI_VENDOR_ID)
 		return (ENXIO);
 	if (pci_get_device(dev) != PTNETMAP_PCI_DEVICE_ID)
 		return (ENXIO);
 
-	snprintf(desc, sizeof(desc), "%s PCI adapter",
-			PTNETMAP_MEMDEV_NAME);
-	device_set_desc_copy(dev, desc);
+	device_set_descf(dev, "%s PCI adapter", PTNETMAP_MEMDEV_NAME);
 
 	return (BUS_PROBE_DEFAULT);
 }

@@ -424,6 +424,8 @@ extern vm_offset_t virtual_end;
 extern vm_paddr_t dmaplimit;
 extern int pmap_pcid_enabled;
 extern int invpcid_works;
+extern int invlpgb_works;
+extern int invlpgb_maxcnt;
 extern int pmap_pcid_invlpg_workaround;
 extern int pmap_pcid_invlpg_workaround_uena;
 

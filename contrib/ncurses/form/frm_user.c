@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2004,2010 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -33,12 +33,12 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_user.c,v 1.18 2020/12/12 01:05:20 tom Exp $")
+MODULE_ID("$Id: frm_user.c,v 1.19 2021/06/17 21:20:30 tom Exp $")
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  int set_form_userptr(FORM *form, void *usrptr)
-|   
+|
 |   Description   :  Set the pointer that is reserved in any form to store
 |                    application relevant information.
 |
@@ -54,9 +54,9 @@ set_form_userptr(FORM *form, void *usrptr)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  void *form_userptr(const FORM *form)
-|   
+|
 |   Description   :  Return the pointer that is reserved in any form to
 |                    store application relevant information.
 |

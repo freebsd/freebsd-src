@@ -42,6 +42,7 @@ vd_blank_t		vt_fb_blank;
 vd_bitblt_text_t	vt_fb_bitblt_text;
 vd_invalidate_text_t	vt_fb_invalidate_text;
 vd_bitblt_bmp_t		vt_fb_bitblt_bitmap;
+vd_bitblt_argb_t	vt_fb_bitblt_argb;
 vd_drawrect_t		vt_fb_drawrect;
 vd_setpixel_t		vt_fb_setpixel;
 vd_postswitch_t		vt_fb_postswitch;

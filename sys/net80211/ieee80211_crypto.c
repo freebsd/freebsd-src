@@ -62,8 +62,8 @@ static int
 null_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 	ieee80211_keyix *keyix, ieee80211_keyix *rxkeyix)
 {
-	if (!(&vap->iv_nw_keys[0] <= k &&
-	     k < &vap->iv_nw_keys[IEEE80211_WEP_NKID])) {
+
+	if (!ieee80211_is_key_global(vap, k)) {
 		/*
 		 * Not in the global key table, the driver should handle this
 		 * by allocating a slot in the h/w key table/cache.  In
@@ -606,9 +606,9 @@ ieee80211_crypto_get_key_wepidx(const struct ieee80211vap *vap,
     const struct ieee80211_key *k)
 {
 
-	if (k >= &vap->iv_nw_keys[0] &&
-	    k <  &vap->iv_nw_keys[IEEE80211_WEP_NKID])
+	if (ieee80211_is_key_global(vap, k)) {
 		return (k - vap->iv_nw_keys);
+	}
 	return (-1);
 }
 
@@ -618,11 +618,11 @@ ieee80211_crypto_get_key_wepidx(const struct ieee80211vap *vap,
 uint8_t
 ieee80211_crypto_get_keyid(struct ieee80211vap *vap, struct ieee80211_key *k)
 {
-	if (k >= &vap->iv_nw_keys[0] &&
-	    k <  &vap->iv_nw_keys[IEEE80211_WEP_NKID])
+	if (ieee80211_is_key_global(vap, k)) {
 		return (k - vap->iv_nw_keys);
-	else
-		return (0);
+	}
+
+	return (0);
 }
 
 struct ieee80211_key *

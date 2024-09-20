@@ -279,6 +279,22 @@ int fptr_whitelist_mod_init(int (*fptr)(struct module_env* env, int id));
 int fptr_whitelist_mod_deinit(void (*fptr)(struct module_env* env, int id));
 
 /**
+ * Check function pointer whitelist for module startup call values.
+ *
+ * @param fptr: function pointer to check.
+ * @return false if not in whitelist.
+ */
+int fptr_whitelist_mod_startup(int (*fptr)(struct module_env* env, int id));
+
+/**
+ * Check function pointer whitelist for module destartup call values.
+ *
+ * @param fptr: function pointer to check.
+ * @return false if not in whitelist.
+ */
+int fptr_whitelist_mod_destartup(void (*fptr)(struct module_env* env, int id));
+
+/**
  * Check function pointer whitelist for module operate call values.
  *
  * @param fptr: function pointer to check.

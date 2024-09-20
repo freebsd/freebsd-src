@@ -947,7 +947,8 @@ parse_packet(sldns_buffer* pkt, struct msg_parse* msg, struct regional* region)
 static int
 parse_edns_options_from_query(uint8_t* rdata_ptr, size_t rdata_len,
 	struct edns_data* edns, struct config_file* cfg, struct comm_point* c,
-	struct comm_reply* repinfo, uint32_t now, struct regional* region)
+	struct comm_reply* repinfo, uint32_t now, struct regional* region,
+	struct cookie_secrets* cookie_secrets)
 {
 	/* To respond with a Keepalive option, the client connection must have
 	 * received one message with a TCP Keepalive EDNS option, and that
@@ -1070,13 +1071,24 @@ parse_edns_options_from_query(uint8_t* rdata_ptr, size_t rdata_len,
 					&((struct sockaddr_in6*)&repinfo->remote_addr)->sin6_addr, 16);
 			}
 
-			cookie_val_status = edns_cookie_server_validate(
-				rdata_ptr, opt_len, cfg->cookie_secret,
-				cfg->cookie_secret_len, cookie_is_v4,
-				server_cookie, now);
+			if(cfg->cookie_secret_file &&
+				cfg->cookie_secret_file[0]) {
+				/* Loop over the active and staging cookies. */
+				cookie_val_status =
+					cookie_secrets_server_validate(
+					rdata_ptr, opt_len, cookie_secrets,
+					cookie_is_v4, server_cookie, now);
+			} else {
+				/* Use the cookie option value to validate. */
+				cookie_val_status = edns_cookie_server_validate(
+					rdata_ptr, opt_len, cfg->cookie_secret,
+					cfg->cookie_secret_len, cookie_is_v4,
+					server_cookie, now);
+			}
+			if(cookie_val_status == COOKIE_STATUS_VALID_RENEW)
+				edns->cookie_valid = 1;
 			switch(cookie_val_status) {
 			case COOKIE_STATUS_VALID:
-			case COOKIE_STATUS_VALID_RENEW:
 				edns->cookie_valid = 1;
 				/* Reuse cookie */
 				if(!edns_opt_list_append(
@@ -1091,13 +1103,30 @@ parse_edns_options_from_query(uint8_t* rdata_ptr, size_t rdata_len,
 				break;
 			case COOKIE_STATUS_CLIENT_ONLY:
 				edns->cookie_client = 1;
+				ATTR_FALLTHROUGH
 				/* fallthrough */
+			case COOKIE_STATUS_VALID_RENEW:
 			case COOKIE_STATUS_FUTURE:
 			case COOKIE_STATUS_EXPIRED:
 			case COOKIE_STATUS_INVALID:
 			default:
-				edns_cookie_server_write(server_cookie,
-					cfg->cookie_secret, cookie_is_v4, now);
+				if(cfg->cookie_secret_file &&
+					cfg->cookie_secret_file[0]) {
+					if(!cookie_secrets)
+						break;
+					lock_basic_lock(&cookie_secrets->lock);
+					if(cookie_secrets->cookie_count < 1) {
+						lock_basic_unlock(&cookie_secrets->lock);
+						break;
+					}
+					edns_cookie_server_write(server_cookie,
+						cookie_secrets->cookie_secrets[0].cookie_secret,
+						cookie_is_v4, now);
+					lock_basic_unlock(&cookie_secrets->lock);
+				} else {
+					edns_cookie_server_write(server_cookie,
+						cfg->cookie_secret, cookie_is_v4, now);
+				}
 				if(!edns_opt_list_append(&edns->opt_list_out,
 					LDNS_EDNS_COOKIE, 24, server_cookie,
 					region)) {
@@ -1239,7 +1268,8 @@ skip_pkt_rrs(sldns_buffer* pkt, int num)
 int 
 parse_edns_from_query_pkt(sldns_buffer* pkt, struct edns_data* edns,
 	struct config_file* cfg, struct comm_point* c,
-	struct comm_reply* repinfo, time_t now, struct regional* region)
+	struct comm_reply* repinfo, time_t now, struct regional* region,
+	struct cookie_secrets* cookie_secrets)
 {
 	size_t rdata_len;
 	uint8_t* rdata_ptr;
@@ -1285,7 +1315,7 @@ parse_edns_from_query_pkt(sldns_buffer* pkt, struct edns_data* edns,
 	rdata_ptr = sldns_buffer_current(pkt);
 	/* ignore rrsigs */
 	return parse_edns_options_from_query(rdata_ptr, rdata_len, edns, cfg,
-		c, repinfo, now, region);
+		c, repinfo, now, region, cookie_secrets);
 }
 
 void

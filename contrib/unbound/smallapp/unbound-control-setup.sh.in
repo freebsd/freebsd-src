@@ -104,6 +104,10 @@ while getopts 'd:hr' arg; do
 done
 shift $((OPTIND - 1))
 
+if ! openssl >/dev/null 2>&1; then
+    echo "$0 requires openssl to be installed for keys/certificates generation." >&2
+    exit 1
+fi
 
 echo "setup in directory $DESTDIR"
 cd "$DESTDIR"

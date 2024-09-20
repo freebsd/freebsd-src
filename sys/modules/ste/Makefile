@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/ste
 
 KMOD=	if_ste

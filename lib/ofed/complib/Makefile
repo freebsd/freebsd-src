@@ -1,4 +1,3 @@
-
 _spath=	${SRCTOP}/contrib/ofed/opensm/complib
 .PATH: ${_spath}
 

@@ -1,4 +1,3 @@
-
 KMOD		=  ciss
 .PATH:		${SRCTOP}/sys/dev/${KMOD}
 SRCS		=  ciss.c

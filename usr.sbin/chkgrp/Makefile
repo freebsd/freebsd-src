@@ -1,4 +1,3 @@
-
 PROG=	chkgrp
 MAN=	chkgrp.8
 

@@ -64,6 +64,7 @@
 #include <sys/kthread.h>
 #include <sys/unistd.h>
 #include <sys/selinfo.h>
+#include <sys/sx.h>
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_snd.h"
@@ -90,10 +91,6 @@
 #define LOOKUP_OPEN	(1)
 #define LOOKUP_CLOSE	(2)
 
-#define PCMMKMINOR(u, d, c) \
-	    ((((c) & 0xff) << 16) | (((u) & 0x0f) << 4) | ((d) & 0x0f))
-#define MIDIMKMINOR(u, d, c) PCMMKMINOR(u, d, c)
-#define MIDIUNIT(y) ((dev2unit(y) >> 4) & 0x0f)
 #define MIDIDEV(y) (dev2unit(y) & 0x0f)
 
 /* These are the entries to the sequencer driver. */
@@ -566,12 +563,10 @@ seq_addunit(void)
 	if (scp->mapper == NULL)
 		goto err;
 
-	scp->seqdev = make_dev(&seq_cdevsw,
-	    MIDIMKMINOR(scp->unit, SND_DEV_SEQ, 0), UID_ROOT,
-	    GID_WHEEL, 0666, "sequencer%d", scp->unit);
+	scp->seqdev = make_dev(&seq_cdevsw, SND_DEV_SEQ, UID_ROOT, GID_WHEEL,
+	    0666, "sequencer%d", scp->unit);
 
-	scp->musicdev = make_dev(&seq_cdevsw,
-	    MIDIMKMINOR(scp->unit, SND_DEV_MUSIC, 0), UID_ROOT,
+	scp->musicdev = make_dev(&seq_cdevsw, SND_DEV_MUSIC, UID_ROOT,
 	    GID_WHEEL, 0666, "music%d", scp->unit);
 
 	if (scp->seqdev == NULL || scp->musicdev == NULL)
@@ -751,9 +746,11 @@ mseq_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	 * Mark this device busy.
 	 */
 
+	midistat_lock();
 	mtx_lock(&scp->seq_lock);
 	if (scp->busy) {
 		mtx_unlock(&scp->seq_lock);
+		midistat_unlock();
 		SEQ_DEBUG(2, printf("seq_open: unit %d is busy.\n", scp->unit));
 		return EBUSY;
 	}
@@ -768,14 +765,15 @@ mseq_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	 * Enumerate the available midi devices
 	 */
 	scp->midi_number = 0;
-	scp->maxunits = midimapper_open(scp->mapper, &scp->mapper_cookie);
+	scp->maxunits = midimapper_open_locked(scp->mapper, &scp->mapper_cookie);
 
 	if (scp->maxunits == 0)
 		SEQ_DEBUG(2, printf("seq_open: no midi devices\n"));
 
 	for (i = 0; i < scp->maxunits; i++) {
 		scp->midis[scp->midi_number] =
-		    midimapper_fetch_synth(scp->mapper, scp->mapper_cookie, i);
+		    midimapper_fetch_synth_locked(scp->mapper,
+		    scp->mapper_cookie, i);
 		if (scp->midis[scp->midi_number]) {
 			if (SYNTH_OPEN(scp->midis[scp->midi_number], scp,
 				scp->fflags) != 0)
@@ -787,6 +785,7 @@ mseq_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 			}
 		}
 	}
+	midistat_unlock();
 
 	timer_setvals(scp, 60, 100);
 

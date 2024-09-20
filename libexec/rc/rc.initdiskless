@@ -204,7 +204,7 @@ handle_remount() { # $1 = mount point
 }
 
 # Create a generic memory disk.
-# The 'auto' parameter will attempt to use tmpfs(5), falls back to md(4).
+# The 'auto' parameter will attempt to use tmpfs(4), falls back to md(4).
 # $1 is size in 512-byte sectors, $2 is the mount point.
 mount_md() {
     if [ ${o_verbose} -gt 0 ] ; then

@@ -1,4 +1,3 @@
-
 PACKAGE=runtime
 PROG=	dmesg
 MAN=	dmesg.8

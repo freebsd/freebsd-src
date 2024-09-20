@@ -43,6 +43,7 @@
 #include <geom/geom.h>
 
 #include "nvme_private.h"
+#include "nvme_linux.h"
 
 static void		nvme_bio_child_inbed(struct bio *parent, int bio_error);
 static void		nvme_bio_child_done(void *arg,
@@ -93,6 +94,18 @@ nvme_ns_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 	case DIOCGSECTORSIZE:
 		*(u_int *)arg = nvme_ns_get_sector_size(ns);
 		break;
+	/* Linux Compatible (see nvme_linux.h) */
+	case NVME_IOCTL_ID:
+		td->td_retval[0] = ns->id;
+		return (0);
+
+	case NVME_IOCTL_ADMIN_CMD:
+	case NVME_IOCTL_IO_CMD: {
+		struct nvme_passthru_cmd *npc = (struct nvme_passthru_cmd *)arg;
+
+		return (nvme_ctrlr_linux_passthru_cmd(ctrlr, npc, ns->id, true,
+		    cmd == NVME_IOCTL_ADMIN_CMD));
+	}
 	default:
 		return (ENOTTY);
 	}
@@ -610,7 +623,6 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 		return (ENXIO);
 	ns->cdev->si_drv2 = make_dev_alias(ns->cdev, "%sns%d",
 	    device_get_nameunit(ctrlr->dev), ns->id);
-
 	ns->cdev->si_flags |= SI_UNMAPPED;
 
 	return (0);
@@ -620,8 +632,9 @@ void
 nvme_ns_destruct(struct nvme_namespace *ns)
 {
 
-	if (ns->cdev->si_drv2 != NULL)
-		destroy_dev(ns->cdev->si_drv2);
-	if (ns->cdev != NULL)
+	if (ns->cdev != NULL) {
+		if (ns->cdev->si_drv2 != NULL)
+			destroy_dev(ns->cdev->si_drv2);
 		destroy_dev(ns->cdev);
+	}
 }

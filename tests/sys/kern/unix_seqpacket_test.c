@@ -1197,6 +1197,9 @@ ATF_TC_BODY(random_eor_and_waitall, tc)
 	size_t off;
 	int fd[2], eor;
 
+	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
+		atf_tc_skip("https://bugs.freebsd.org/279354");
+
 	arc4random_buf(params.seed, sizeof(params.seed));
 	printf("Using seed:");
 	for (u_int i = 0; i < (u_int)sizeof(params.seed)/sizeof(u_short); i++)

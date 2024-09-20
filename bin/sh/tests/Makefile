@@ -1,4 +1,3 @@
-
 .include <bsd.own.mk>
 
 TESTS_SUBDIRS+=	builtins

@@ -1,4 +1,3 @@
-
 SRCS+=	exec.c \
 	start.S
 

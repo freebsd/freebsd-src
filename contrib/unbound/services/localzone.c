@@ -242,7 +242,7 @@ lz_enter_zone_dname(struct local_zones* zones, uint8_t* nm, size_t len,
 }
 
 /** enter a new zone */
-static struct local_zone*
+struct local_zone*
 lz_enter_zone(struct local_zones* zones, const char* name, const char* type,
 	uint16_t dclass)
 {
@@ -983,40 +983,43 @@ lz_enter_overrides(struct local_zones* zones, struct config_file* cfg)
 	return 1;
 }
 
-/** setup parent pointers, so that a lookup can be done for closest match */
-static void
-init_parents(struct local_zones* zones)
+/* return closest parent in the tree, NULL if none */
+static struct local_zone* find_closest_parent(struct local_zone* curr,
+	struct local_zone* prev)
 {
-        struct local_zone* node, *prev = NULL, *p;
-        int m;
-	lock_rw_wrlock(&zones->lock);
-        RBTREE_FOR(node, struct local_zone*, &zones->ztree) {
-		lock_rw_wrlock(&node->lock);
-                node->parent = NULL;
-                if(!prev || prev->dclass != node->dclass) {
-                        prev = node;
-			lock_rw_unlock(&node->lock);
-                        continue;
-                }
-                (void)dname_lab_cmp(prev->name, prev->namelabs, node->name,
-                        node->namelabs, &m); /* we know prev is smaller */
-                /* sort order like: . com. bla.com. zwb.com. net. */
-                /* find the previous, or parent-parent-parent */
-                for(p = prev; p; p = p->parent)
-                        /* looking for name with few labels, a parent */
-                        if(p->namelabs <= m) {
-                                /* ==: since prev matched m, this is closest*/
-                                /* <: prev matches more, but is not a parent,
-                                 * this one is a (grand)parent */
-                                node->parent = p;
-                                break;
-                        }
-                prev = node;
+	struct local_zone* p;
+	int m;
+	if(!prev || prev->dclass != curr->dclass) return NULL;
+	(void)dname_lab_cmp(prev->name, prev->namelabs, curr->name,
+		curr->namelabs, &m); /* we know prev is smaller */
+	/* sort order like: . com. bla.com. zwb.com. net. */
+	/* find the previous, or parent-parent-parent */
+	for(p = prev; p; p = p->parent) {
+		/* looking for name with few labels, a parent */
+		if(p->namelabs <= m) {
+			/* ==: since prev matched m, this is closest*/
+			/* <: prev matches more, but is not a parent,
+			    * this one is a (grand)parent */
+			return p;
+		}
+	}
+	return NULL;
+}
 
+/** setup parent pointers, so that a lookup can be done for closest match */
+void
+lz_init_parents(struct local_zones* zones)
+{
+	struct local_zone* node, *prev = NULL;
+	lock_rw_wrlock(&zones->lock);
+	RBTREE_FOR(node, struct local_zone*, &zones->ztree) {
+		lock_rw_wrlock(&node->lock);
+		node->parent = find_closest_parent(node, prev);
+		prev = node;
 		if(node->override_tree)
 			addr_tree_init_parents(node->override_tree);
 		lock_rw_unlock(&node->lock);
-        }
+	}
 	lock_rw_unlock(&zones->lock);
 }
 
@@ -1036,7 +1039,7 @@ lz_setup_implicit(struct local_zones* zones, struct config_file* cfg)
 	int nmlabs = 0;
 	int match = 0; /* number of labels match count */
 
-	init_parents(zones); /* to enable local_zones_lookup() */
+	lz_init_parents(zones); /* to enable local_zones_lookup() */
 	for(p = cfg->local_data; p; p = p->next) {
 		uint8_t* rr_name;
 		uint16_t rr_class, rr_type;
@@ -1202,7 +1205,7 @@ local_zones_apply_cfg(struct local_zones* zones, struct config_file* cfg)
 	}
 
 	/* setup parent ptrs for lookup during data entry */
-	init_parents(zones);
+	lz_init_parents(zones);
 	/* insert local zone tags */
 	if(!lz_enter_zone_tags(zones, cfg)) {
 		return 0;
@@ -2028,7 +2031,9 @@ struct local_zone* local_zones_add_zone(struct local_zones* zones,
 	uint8_t* name, size_t len, int labs, uint16_t dclass,
 	enum localzone_type tp)
 {
+	int exact;
 	/* create */
+	struct local_zone *prev;
 	struct local_zone* z = local_zone_create(name, len, labs, tp, dclass);
 	if(!z) {
 		free(name);
@@ -2037,10 +2042,12 @@ struct local_zone* local_zones_add_zone(struct local_zones* zones,
 	lock_rw_wrlock(&z->lock);
 
 	/* find the closest parent */
-	z->parent = local_zones_find(zones, name, len, labs, dclass);
+	prev = local_zones_find_le(zones, name, len, labs, dclass, &exact);
+	if(!exact)
+		z->parent = find_closest_parent(z, prev);
 
 	/* insert into the tree */
-	if(!rbtree_insert(&zones->ztree, &z->node)) {
+	if(exact||!rbtree_insert(&zones->ztree, &z->node)) {
 		/* duplicate entry! */
 		lock_rw_unlock(&z->lock);
 		local_zone_delete(z);

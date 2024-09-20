@@ -1526,10 +1526,10 @@ rsu_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 	struct rsu_softc *sc = vap->iv_ic->ic_softc;
 	int is_checked = 0;
 
-	if (&vap->iv_nw_keys[0] <= k &&
-	    k < &vap->iv_nw_keys[IEEE80211_WEP_NKID]) {
+	if (ieee80211_is_key_global(vap, k)) {
 		*keyix = ieee80211_crypto_get_key_wepidx(vap, k);
 	} else {
+		/* Note: assumes this is a pairwise key */
 		if (vap->iv_opmode != IEEE80211_M_STA) {
 			*keyix = 0;
 			/* TODO: obtain keyix from node id */
@@ -1570,8 +1570,7 @@ rsu_process_key(struct ieee80211vap *vap, const struct ieee80211_key *k,
 	}
 
 	/* Handle group keys. */
-	if (&vap->iv_nw_keys[0] <= k &&
-	    k < &vap->iv_nw_keys[IEEE80211_WEP_NKID]) {
+	if (ieee80211_is_key_global(vap, k)) {
 		KASSERT(k->wk_keyix < nitems(sc->group_keys),
 		    ("keyix %u > %zu\n", k->wk_keyix, nitems(sc->group_keys)));
 

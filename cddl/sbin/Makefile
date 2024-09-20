@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 SUBDIR.${MK_TESTS}+= tests

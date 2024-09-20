@@ -159,11 +159,6 @@ lio_init_instr_queue(struct octeon_device *oct, union octeon_txpciq txpciq,
 	db_tq = &oct->check_db_tq[iq_no];
 	db_tq->tq = taskqueue_create("lio_check_db_timeout", M_WAITOK,
 				     taskqueue_thread_enqueue, &db_tq->tq);
-	if (db_tq->tq == NULL) {
-		lio_dev_err(oct, "check db wq create failed for iq %d\n",
-			    iq_no);
-		return (1);
-	}
 
 	TIMEOUT_TASK_INIT(db_tq->tq, &db_tq->work, 0, lio_check_db_timeout,
 			  (void *)db_tq);
@@ -179,10 +174,6 @@ lio_init_instr_queue(struct octeon_device *oct, union octeon_txpciq txpciq,
 	oct->instr_queue[iq_no]->br =
 		buf_ring_alloc(LIO_BR_SIZE, M_DEVBUF, M_WAITOK,
 			       &oct->instr_queue[iq_no]->enq_lock);
-	if (oct->instr_queue[iq_no]->br == NULL) {
-		lio_dev_err(oct, "Critical Failure setting up buf ring\n");
-		return (1);
-	}
 
 	return (0);
 }

@@ -1,4 +1,3 @@
-
 .PATH:  ${SRCTOP}/sys/dev/hyperv/storvsc \
 	${SRCTOP}/sys/dev/hyperv/vmbus \
 

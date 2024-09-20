@@ -159,11 +159,10 @@ ocv_verify_tx_params(const u8 *oci_ie, size_t oci_ie_len,
 	}
 
 	/*
-	 * When using a 160 or 80+80 MHz channel to transmit, verify that we use
+	 * When using an 80+80 MHz channel to transmit, verify that we use
 	 * the same segments as the receiver by comparing frequency segment 1.
 	 */
-	if ((ci->chanwidth == CHAN_WIDTH_160 ||
-	     ci->chanwidth == CHAN_WIDTH_80P80) &&
+	if (ci->chanwidth == CHAN_WIDTH_80P80 &&
 	    tx_seg1_idx != oci.seg1_idx) {
 		os_snprintf(ocv_errorstr, sizeof(ocv_errorstr),
 			    "frequency segment 1 mismatch in received OCI (we use %d but receiver is using %d)",

@@ -1,4 +1,3 @@
-
 PACKAGE=lp
 PROG=	lptest
 

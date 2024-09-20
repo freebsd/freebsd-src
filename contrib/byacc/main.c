@@ -1,4 +1,4 @@
-/* $Id: main.c,v 1.73 2021/08/08 20:39:34 tom Exp $ */
+/* $Id: main.c,v 1.74 2023/05/11 07:51:36 tom Exp $ */
 
 #include <signal.h>
 #if !defined(_WIN32) || defined(__MINGW32__)
@@ -563,8 +563,8 @@ static char *
 alloc_file_name(size_t len, const char *suffix)
 {
     char *result = TMALLOC(char, len + strlen(suffix) + 1);
-    if (result == 0)
-	no_space();
+    if (result == NULL)
+	on_error();
     strcpy(result, file_prefix);
     strcpy(result + len, suffix);
     return result;

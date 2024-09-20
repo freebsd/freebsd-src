@@ -978,7 +978,7 @@ vtcon_ctrl_poll(struct vtcon_softc *sc,
 	 */
 	VTCON_CTRL_TX_LOCK(sc);
 	KASSERT(virtqueue_empty(vq),
-	    ("%s: virtqueue is not emtpy", __func__));
+	    ("%s: virtqueue is not empty", __func__));
 	error = virtqueue_enqueue(vq, control, &sg, sg.sg_nseg, 0);
 	if (error == 0) {
 		virtqueue_notify(vq);
@@ -1366,7 +1366,7 @@ vtcon_port_out(struct vtcon_port *port, void *buf, int bufsize)
 
 	vq = port->vtcport_outvq;
 	KASSERT(virtqueue_empty(vq),
-	    ("%s: port %p out virtqueue not emtpy", __func__, port));
+	    ("%s: port %p out virtqueue not empty", __func__, port));
 
 	sglist_init(&sg, 2, segs);
 	error = sglist_append(&sg, buf, bufsize);

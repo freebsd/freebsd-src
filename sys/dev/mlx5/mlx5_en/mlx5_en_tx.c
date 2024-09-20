@@ -30,6 +30,7 @@
 
 #include <dev/mlx5/mlx5_en/en.h>
 #include <machine/atomic.h>
+#include <dev/mlx5/mlx5_accel/ipsec.h>
 
 static inline bool
 mlx5e_do_send_cqe_inline(struct mlx5e_sq *sq)
@@ -743,6 +744,8 @@ top:
 
 	/* get pointer to mbuf */
 	mb = *mbp;
+
+	mlx5e_accel_ipsec_handle_tx(mb, wqe);
 
 	/* Send a copy of the frame to the BPF listener, if any */
 	if (ifp != NULL)

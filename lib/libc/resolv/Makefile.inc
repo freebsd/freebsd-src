@@ -1,4 +1,3 @@
-
 # resolv sources
 .PATH: ${LIBC_SRCTOP}/resolv
 

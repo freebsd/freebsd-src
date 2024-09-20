@@ -1,4 +1,3 @@
-
 .PATH:	${SRCTOP}/sys/dev/syscons/plasma
 
 KMOD=	plasma_saver

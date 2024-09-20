@@ -73,7 +73,7 @@ foo_identify(driver_t *driver, device_t parent)
 	retrieve_device_information;
 	if (devices matches one of your supported devices &&
 	    not already in device tree) {
-		child = BUS_ADD_CHILD(parent, 0, "foo", -1);
+		child = BUS_ADD_CHILD(parent, 0, "foo", DEVICE_UNIT_ANY);
 		bus_set_resource(child, SYS_RES_IOPORT, 0, FOO_IOADDR, 1);
 	}
 }

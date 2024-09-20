@@ -75,17 +75,18 @@
 static void usage(char* argv[])
 {
 	printf("usage: %s [options]\n", argv[0]);
-	printf(" 	Listen to dnstap messages\n");
+	printf("	Listen to dnstap messages\n");
 	printf("stdout has dnstap log, stderr has verbose server log\n");
-	printf("-u <socketpath> listen to unix socket with this file name\n");
-	printf("-s <serverip[@port]> listen for TCP on the IP and port\n");
-	printf("-t <serverip[@port]> listen for TLS on IP and port\n");
-	printf("-x <server.key> server key file for TLS service\n");
-	printf("-y <server.pem> server cert file for TLS service\n");
-	printf("-z <verify.pem> cert file to verify client connections\n");
-	printf("-l 		long format for DNS printout\n");
-	printf("-v 		more verbose log output\n");
-	printf("-h 		this help text\n");
+	printf("-u <socketpath>		listen to unix socket with this file name\n");
+	printf("-s <serverip[@port]>	listen for TCP on the IP and port\n");
+	printf("-t <serverip[@port]>	listen for TLS on IP and port\n");
+	printf("-x <server.key>		server key file for TLS service\n");
+	printf("-y <server.pem>		server cert file for TLS service\n");
+	printf("-z <verify.pem>		cert file to verify client connections\n");
+	printf("-l			long format for DNS printout\n");
+	printf("-v			more verbose log output\n");
+	printf("-c			internal unit test and exit\n");
+	printf("-h			this help text\n");
 	exit(1);
 }
 
@@ -100,6 +101,14 @@ struct main_tap_data {
 	struct ub_event_base* base;
 	/** the list of accept sockets */
 	struct tap_socket_list* acceptlist;
+};
+
+/* list of data */
+struct tap_data_list {
+	/** next in list */
+	struct tap_data_list* next;
+	/** the data */
+	struct tap_data* d;
 };
 
 /** tap callback variables */
@@ -128,6 +137,10 @@ struct tap_data {
 	uint8_t* frame;
 	/** length of this frame */
 	size_t len;
+	/** back pointer to the tap_data_list entry;
+	 * used to NULL the forward pointer to this data
+	 * when this data is freed. */
+	struct tap_data_list* data_list;
 };
 
 /** list of sockets */
@@ -156,7 +169,88 @@ struct tap_socket {
 	char* ip;
 	/** for a TLS socket, the tls context */
 	SSL_CTX* sslctx;
+	/** dumb way to deal with memory leaks:
+	 * tap_data was only freed on errors and not during exit leading to
+	 * false positives when testing for memory leaks. */
+	struct tap_data_list* data_list;
 };
+
+/** try to delete tail entries from the list if all of them have no data */
+static void tap_data_list_try_to_free_tail(struct tap_data_list* list)
+{
+	struct tap_data_list* current = list;
+	log_assert(!list->d);
+	if(!list->next) /* we are the last, we can't remove ourselves */
+		return;
+	list = list->next;
+	while(list) {
+		if(list->d) /* a tail entry still has data; return */
+			return;
+		list = list->next;
+	}
+	/* keep the next */
+	list = current->next;
+	/* the tail will be removed; but not ourselves */
+	current->next = NULL;
+	while(list) {
+		current = list;
+		list = list->next;
+		free(current);
+	}
+}
+
+/** delete the tap structure */
+static void tap_data_free(struct tap_data* data, int free_tail)
+{
+	if(!data)
+		return;
+	if(data->ev) {
+		ub_event_del(data->ev);
+		ub_event_free(data->ev);
+	}
+#ifdef HAVE_SSL
+	SSL_free(data->ssl);
+#endif
+	sock_close(data->fd);
+	free(data->id);
+	free(data->frame);
+	if(data->data_list) {
+		data->data_list->d = NULL;
+		if(free_tail)
+			tap_data_list_try_to_free_tail(data->data_list);
+	}
+	free(data);
+}
+
+/** insert tap_data in the tap_data_list */
+static int tap_data_list_insert(struct tap_data_list** liststart,
+	struct tap_data* d)
+{
+	struct tap_data_list* entry = (struct tap_data_list*)
+		malloc(sizeof(*entry));
+	if(!entry)
+		return 0;
+	entry->next = *liststart;
+	entry->d = d;
+	d->data_list = entry;
+	*liststart = entry;
+	return 1;
+}
+
+/** delete the tap_data_list and free any remaining tap_data */
+static void tap_data_list_delete(struct tap_data_list* list)
+{
+	struct tap_data_list* e = list, *next;
+	while(e) {
+		next = e->next;
+		if(e->d) {
+			tap_data_free(e->d, 0);
+			e->d = NULL;
+		}
+		free(e);
+		e = next;
+	}
+}
 
 /** del the tap event */
 static void tap_socket_delev(struct tap_socket* s)
@@ -173,7 +267,7 @@ static void tap_socket_close(struct tap_socket* s)
 {
 	if(!s) return;
 	if(s->fd == -1) return;
-	close(s->fd);
+	sock_close(s->fd);
 	s->fd = -1;
 }
 
@@ -184,6 +278,7 @@ static void tap_socket_delete(struct tap_socket* s)
 #ifdef HAVE_SSL
 	SSL_CTX_free(s->sslctx);
 #endif
+	tap_data_list_delete(s->data_list);
 	ub_event_free(s->ev);
 	free(s->socketpath);
 	free(s->ip);
@@ -728,27 +823,12 @@ static ssize_t tap_receive(struct tap_data* data, void* buf, size_t len)
 	return receive_bytes(data, data->fd, buf, len);
 }
 
-/** delete the tap structure */
-static void tap_data_free(struct tap_data* data)
-{
-	ub_event_del(data->ev);
-	ub_event_free(data->ev);
-#ifdef HAVE_SSL
-	SSL_free(data->ssl);
-#endif
-	close(data->fd);
-	free(data->id);
-	free(data->frame);
-	free(data);
-}
-
 /** reply with ACCEPT control frame to bidirectional client,
  * returns 0 on error */
 static int reply_with_accept(struct tap_data* data)
 {
 #ifdef USE_DNSTAP
 	/* len includes the escape and framelength */
-	int r;
 	size_t len = 0;
 	void* acceptframe = fstrm_create_control_frame_accept(
 		DNSTAP_CONTENT_TYPE, &len);
@@ -759,6 +839,8 @@ static int reply_with_accept(struct tap_data* data)
 
 	fd_set_block(data->fd);
 	if(data->ssl) {
+#ifdef HAVE_SSL
+		int r;
 		if((r=SSL_write(data->ssl, acceptframe, len)) <= 0) {
 			int r2;
 			if((r2=SSL_get_error(data->ssl, r)) == SSL_ERROR_ZERO_RETURN)
@@ -769,6 +851,7 @@ static int reply_with_accept(struct tap_data* data)
 			free(acceptframe);
 			return 0;
 		}
+#endif
 	} else {
 		if(send(data->fd, acceptframe, len, 0) == -1) {
 			log_err("send failed: %s", sock_strerror(errno));
@@ -804,6 +887,7 @@ static int reply_with_finish(struct tap_data* data)
 
 	fd_set_block(data->fd);
 	if(data->ssl) {
+#ifdef HAVE_SSL
 		int r;
 		if((r=SSL_write(data->ssl, finishframe, len)) <= 0) {
 			int r2;
@@ -815,6 +899,7 @@ static int reply_with_finish(struct tap_data* data)
 			free(finishframe);
 			return 0;
 		}
+#endif
 	} else {
 		if(send(data->fd, finishframe, len, 0) == -1) {
 			log_err("send failed: %s", sock_strerror(errno));
@@ -842,7 +927,11 @@ static int tap_check_peer(struct tap_data* data)
 	if((SSL_get_verify_mode(data->ssl)&SSL_VERIFY_PEER)) {
 		/* verification */
 		if(SSL_get_verify_result(data->ssl) == X509_V_OK) {
+#ifdef HAVE_SSL_GET1_PEER_CERTIFICATE
+			X509* x = SSL_get1_peer_certificate(data->ssl);
+#else
 			X509* x = SSL_get_peer_certificate(data->ssl);
+#endif
 			if(!x) {
 				if(verbosity) log_info("SSL connection %s"
 					" failed no certificate", data->id);
@@ -864,7 +953,11 @@ static int tap_check_peer(struct tap_data* data)
 #endif
 			X509_free(x);
 		} else {
+#ifdef HAVE_SSL_GET1_PEER_CERTIFICATE
+			X509* x = SSL_get1_peer_certificate(data->ssl);
+#else
 			X509* x = SSL_get_peer_certificate(data->ssl);
+#endif
 			if(x) {
 				if(verbosity)
 					log_cert(VERB_ALGO, "peer certificate", x);
@@ -906,7 +999,7 @@ static int tap_handshake(struct tap_data* data)
 			return 0;
 		} else if(r == 0) {
 			/* closed */
-			tap_data_free(data);
+			tap_data_free(data, 1);
 			return 0;
 		} else if(want == SSL_ERROR_SYSCALL) {
 			/* SYSCALL and errno==0 means closed uncleanly */
@@ -924,7 +1017,7 @@ static int tap_handshake(struct tap_data* data)
 			if(!silent)
 				log_err("SSL_handshake syscall: %s",
 					strerror(errno));
-			tap_data_free(data);
+			tap_data_free(data, 1);
 			return 0;
 		} else {
 			unsigned long err = ERR_get_error();
@@ -934,7 +1027,7 @@ static int tap_handshake(struct tap_data* data)
 				verbose(VERB_OPS, "ssl handshake failed "
 					"from %s", data->id);
 			}
-			tap_data_free(data);
+			tap_data_free(data, 1);
 			return 0;
 		}
 	}
@@ -942,7 +1035,7 @@ static int tap_handshake(struct tap_data* data)
 	data->ssl_handshake_done = 1;
 	if(!tap_check_peer(data)) {
 		/* closed */
-		tap_data_free(data);
+		tap_data_free(data, 1);
 		return 0;
 	}
 	return 1;
@@ -968,7 +1061,7 @@ void dtio_tap_callback(int ATTR_UNUSED(fd), short ATTR_UNUSED(bits), void* arg)
 		if(verbosity>=4) log_info("s recv %d", (int)ret);
 		if(ret == 0) {
 			/* closed or error */
-			tap_data_free(data);
+			tap_data_free(data, 1);
 			return;
 		} else if(ret == -1) {
 			/* continue later */
@@ -990,7 +1083,7 @@ void dtio_tap_callback(int ATTR_UNUSED(fd), short ATTR_UNUSED(bits), void* arg)
 			data->frame = calloc(1, data->len);
 			if(!data->frame) {
 				log_err("out of memory");
-				tap_data_free(data);
+				tap_data_free(data, 1);
 				return;
 			}
 		}
@@ -1003,7 +1096,7 @@ void dtio_tap_callback(int ATTR_UNUSED(fd), short ATTR_UNUSED(bits), void* arg)
 		if(verbosity>=4) log_info("f recv %d", (int)r);
 		if(r == 0) {
 			/* closed or error */
-			tap_data_free(data);
+			tap_data_free(data, 1);
 			return;
 		} else if(r == -1) {
 			/* continue later */
@@ -1028,13 +1121,13 @@ void dtio_tap_callback(int ATTR_UNUSED(fd), short ATTR_UNUSED(bits), void* arg)
 		data->is_bidirectional = 1;
 		if(verbosity) log_info("bidirectional stream");
 		if(!reply_with_accept(data)) {
-			tap_data_free(data);
+			tap_data_free(data, 1);
 			return;
 		}
 	} else if(data->len >= 4 && sldns_read_uint32(data->frame) ==
 		FSTRM_CONTROL_FRAME_STOP && data->is_bidirectional) {
 		if(!reply_with_finish(data)) {
-			tap_data_free(data);
+			tap_data_free(data, 1);
 			return;
 		}
 	}
@@ -1046,7 +1139,6 @@ void dtio_tap_callback(int ATTR_UNUSED(fd), short ATTR_UNUSED(bits), void* arg)
 	data->len = 0;
 	data->len_done = 0;
 	data->data_done = 0;
-
 }
 
 /** callback for main listening file descriptor */
@@ -1129,6 +1221,8 @@ void dtio_mainfdcallback(int fd, short ATTR_UNUSED(bits), void* arg)
 		&dtio_tap_callback, data);
 	if(!data->ev) fatal_exit("could not ub_event_new");
 	if(ub_event_add(data->ev, NULL) != 0) fatal_exit("could not ub_event_add");
+	if(!tap_data_list_insert(&tap_sock->data_list, data))
+		fatal_exit("could not tap_data_list_insert");
 }
 
 /** setup local accept sockets */
@@ -1243,6 +1337,114 @@ setup_and_run(struct config_strlist_head* local_list,
 	free(maindata);
 }
 
+/* internal unit tests */
+static int internal_unittest()
+{
+	/* unit test tap_data_list_try_to_free_tail() */
+#define unit_tap_datas_max 5
+	struct tap_data* datas[unit_tap_datas_max];
+	struct tap_data_list* list;
+	struct tap_socket* socket = calloc(1, sizeof(*socket));
+	size_t i = 0;
+	log_assert(socket);
+	log_assert(unit_tap_datas_max>2); /* needed for the test */
+	for(i=0; i<unit_tap_datas_max; i++) {
+		datas[i] = calloc(1, sizeof(struct tap_data));
+		log_assert(datas[i]);
+		log_assert(tap_data_list_insert(&socket->data_list, datas[i]));
+	}
+	/* sanity base check */
+	list = socket->data_list;
+	for(i=0; list; i++) list = list->next;
+	log_assert(i==unit_tap_datas_max);
+
+	/* Free the last data, tail cannot be erased */
+	list = socket->data_list;
+	while(list->next) list = list->next;
+	free(list->d);
+	list->d = NULL;
+	tap_data_list_try_to_free_tail(list);
+	list = socket->data_list;
+	for(i=0; list; i++) list = list->next;
+	log_assert(i==unit_tap_datas_max);
+
+	/* Free the third to last data, tail cannot be erased */
+	list = socket->data_list;
+	for(i=0; i<unit_tap_datas_max-3; i++) list = list->next;
+	free(list->d);
+	list->d = NULL;
+	tap_data_list_try_to_free_tail(list);
+	list = socket->data_list;
+	for(i=0; list; i++) list = list->next;
+	log_assert(i==unit_tap_datas_max);
+
+	/* Free the second to last data, try to remove tail from the third
+	 * again, tail (last 2) should be removed */
+	list = socket->data_list;
+	for(i=0; i<unit_tap_datas_max-2; i++) list = list->next;
+	free(list->d);
+	list->d = NULL;
+	list = socket->data_list;
+	while(list->d) list = list->next;
+	tap_data_list_try_to_free_tail(list);
+	list = socket->data_list;
+	for(i=0; list; i++) list = list->next;
+	log_assert(i==unit_tap_datas_max-2);
+
+	/* Free all the remaining data, try to remove tail from the start,
+	 * only the start should remain */
+	list = socket->data_list;
+	while(list) {
+		free(list->d);
+		list->d = NULL;
+		list = list->next;
+	}
+	tap_data_list_try_to_free_tail(socket->data_list);
+	list = socket->data_list;
+	for(i=0; list; i++) list = list->next;
+	log_assert(i==1);
+
+	/* clean up */
+	tap_data_list_delete(socket->data_list);
+	free(socket);
+
+	/* Start again. Add two elements */
+	socket = calloc(1, sizeof(*socket));
+	log_assert(socket);
+	for(i=0; i<2; i++) {
+		datas[i] = calloc(1, sizeof(struct tap_data));
+		log_assert(datas[i]);
+		log_assert(tap_data_list_insert(&socket->data_list, datas[i]));
+	}
+	/* sanity base check */
+	list = socket->data_list;
+	for(i=0; list; i++) list = list->next;
+	log_assert(i==2);
+
+	/* Free the last data, tail cannot be erased */
+	list = socket->data_list;
+	while(list->next) list = list->next;
+	free(list->d);
+	list->d = NULL;
+	tap_data_list_try_to_free_tail(list);
+	list = socket->data_list;
+	for(i=0; list; i++) list = list->next;
+	log_assert(i==2);
+
+	/* clean up */
+	tap_data_list_delete(socket->data_list);
+	free(socket);
+
+	if(log_get_lock()) {
+		lock_basic_destroy((lock_basic_type*)log_get_lock());
+	}
+	checklock_stop();
+#ifdef USE_WINSOCK
+	WSACleanup();
+#endif
+	return 0;
+}
+
 /** getopt global, in case header files fail to declare it. */
 extern int optind;
 /** getopt global, in case header files fail to declare it. */
@@ -1293,7 +1495,7 @@ int main(int argc, char** argv)
 #endif
 
 	/* command line options */
-	while( (c=getopt(argc, argv, "hls:t:u:vx:y:z:")) != -1) {
+	while( (c=getopt(argc, argv, "hcls:t:u:vx:y:z:")) != -1) {
 		switch(c) {
 			case 'u':
 				if(!cfg_strlist_append(&local_list,
@@ -1329,6 +1531,12 @@ int main(int argc, char** argv)
 			case 'v':
 				verbosity++;
 				break;
+			case 'c':
+#ifndef UNBOUND_DEBUG
+				fatal_exit("-c option needs compilation with "
+					"--enable-debug");
+#endif
+				return internal_unittest();
 			case 'h':
 			case '?':
 			default:
@@ -1365,6 +1573,9 @@ int main(int argc, char** argv)
 	config_delstrlist(tcp_list.first);
 	config_delstrlist(tls_list.first);
 
+	if(log_get_lock()) {
+		lock_basic_destroy((lock_basic_type*)log_get_lock());
+	}
 	checklock_stop();
 #ifdef USE_WINSOCK
 	WSACleanup();

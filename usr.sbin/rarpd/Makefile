@@ -1,4 +1,3 @@
-
 PROG=	rarpd
 MAN=	rarpd.8
 

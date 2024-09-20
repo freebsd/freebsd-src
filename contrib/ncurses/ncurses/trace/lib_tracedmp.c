@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2023 Thomas E. Dickey                                     *
  * Copyright 1998-2012,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -40,7 +40,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_tracedmp.c,v 1.36 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_tracedmp.c,v 1.37 2023/06/24 15:49:45 tom Exp $")
 
 #ifdef TRACE
 
@@ -71,9 +71,9 @@ _tracedump(const char *name, WINDOW *win)
     if (++width + 1 > (int) my_length) {
 	my_length = (unsigned) (2 * (width + 1));
 	my_buffer = typeRealloc(char, my_length, my_buffer);
-	if (my_buffer == 0)
-	    return;
     }
+    if (my_buffer == 0)
+	return;
 
     for (n = 0; n <= win->_maxy; ++n) {
 	char *ep = my_buffer;

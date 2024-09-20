@@ -1331,16 +1331,17 @@ callout_init(struct callout *c, int mpsafe)
 void
 _callout_init_lock(struct callout *c, struct lock_object *lock, int flags)
 {
-	bzero(c, sizeof *c);
-	c->c_lock = lock;
+	KASSERT(lock != NULL, ("%s: no lock", __func__));
 	KASSERT((flags & ~(CALLOUT_RETURNUNLOCKED | CALLOUT_SHAREDLOCK)) == 0,
-	    ("callout_init_lock: bad flags %d", flags));
-	KASSERT(lock != NULL || (flags & CALLOUT_RETURNUNLOCKED) == 0,
-	    ("callout_init_lock: CALLOUT_RETURNUNLOCKED with no lock"));
-	KASSERT(lock == NULL || !(LOCK_CLASS(lock)->lc_flags & LC_SLEEPABLE),
+	    ("%s: bad flags %d", __func__, flags));
+	KASSERT(!(LOCK_CLASS(lock)->lc_flags & LC_SLEEPABLE),
 	    ("%s: callout %p has sleepable lock", __func__, c));
-	c->c_iflags = flags & (CALLOUT_RETURNUNLOCKED | CALLOUT_SHAREDLOCK);
-	c->c_cpu = cc_default_cpu;
+
+	*c = (struct callout ){
+		.c_lock = lock,
+		.c_iflags = flags,
+		.c_cpu = cc_default_cpu,
+	};
 }
 
 static int

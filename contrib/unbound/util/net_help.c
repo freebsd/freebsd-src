@@ -47,6 +47,7 @@
 #ifdef HAVE_NETIOAPI_H
 #include <netioapi.h>
 #endif
+#include <ctype.h>
 #include "util/net_help.h"
 #include "util/log.h"
 #include "util/data/dname.h"
@@ -862,6 +863,20 @@ addr_is_ip4mapped(struct sockaddr_storage* addr, socklen_t addrlen)
 	return (memcmp(s, map_prefix, 12) == 0);
 }
 
+int addr_is_ip6linklocal(struct sockaddr_storage* addr, socklen_t addrlen)
+{
+	const uint8_t prefix[2] = {0xfe, 0x80};
+	int af = (int)((struct sockaddr_in6*)addr)->sin6_family;
+	void* sin6addr = &((struct sockaddr_in6*)addr)->sin6_addr;
+	uint8_t start[2];
+	if(af != AF_INET6 || addrlen<(socklen_t)sizeof(struct sockaddr_in6))
+		return 0;
+	/* Put the first 10 bits of sin6addr in start, match fe80::/10. */
+	memmove(start, sin6addr, 2);
+	start[1] &= 0xc0;
+	return memcmp(start, prefix, 2) == 0;
+}
+
 int addr_is_broadcast(struct sockaddr_storage* addr, socklen_t addrlen)
 {
 	int af = (int)((struct sockaddr_in*)addr)->sin_family;
@@ -1206,7 +1221,7 @@ listen_sslctx_setup_2(void* ctxt)
 	if(!SSL_CTX_set_ecdh_auto(ctx,1)) {
 		log_crypto_err("Error in SSL_CTX_ecdh_auto, not enabling ECDHE");
 	}
-#elif defined(USE_ECDSA)
+#elif defined(USE_ECDSA) && defined(HAVE_SSL_CTX_SET_TMP_ECDH)
 	if(1) {
 		EC_KEY *ecdh = EC_KEY_new_by_curve_name (NID_X9_62_prime256v1);
 		if (!ecdh) {
@@ -1857,3 +1872,42 @@ sock_close(int socket)
 	closesocket(socket);
 }
 #  endif /* USE_WINSOCK */
+
+ssize_t
+hex_ntop(uint8_t const *src, size_t srclength, char *target, size_t targsize)
+{
+	static char hexdigits[] = {
+		'0', '1', '2', '3', '4', '5', '6', '7',
+		'8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
+	};
+	size_t i;
+
+	if (targsize < srclength * 2 + 1) {
+		return -1;
+	}
+
+	for (i = 0; i < srclength; ++i) {
+		*target++ = hexdigits[src[i] >> 4U];
+		*target++ = hexdigits[src[i] & 0xfU];
+	}
+	*target = '\0';
+	return 2 * srclength;
+}
+
+ssize_t
+hex_pton(const char* src, uint8_t* target, size_t targsize)
+{
+	uint8_t *t = target;
+	if(strlen(src) % 2 != 0 || strlen(src)/2 > targsize) {
+		return -1;
+	}
+	while(*src) {
+		if(!isxdigit((unsigned char)src[0]) ||
+			!isxdigit((unsigned char)src[1]))
+			return -1;
+		*t++ = sldns_hexdigit_to_int(src[0]) * 16 +
+			sldns_hexdigit_to_int(src[1]) ;
+		src += 2;
+	}
+	return t-target;
+}

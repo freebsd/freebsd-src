@@ -122,8 +122,8 @@ struct mps_ident {
 	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS2208" },
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2308_1,
 	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS2308" },
-	// Add Customer specific vender/subdevice id before generic
-	// (0xffff) vender/subdevice id.
+	// Add Customer specific vendor/subdevice id before generic
+	// (0xffff) vendor/subdevice id.
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2308_2,
 	    0x8086, 0x3516, 0, "Intel(R) Integrated RAID Module RMS25JB080" },
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2308_2,

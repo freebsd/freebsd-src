@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2019-2020,2021 Thomas E. Dickey                                *
+.\" Copyright 2019-2023,2024 Thomas E. Dickey                                *
 .\" Copyright 2008-2010,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,73 +27,80 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_memleaks.3x,v 1.11 2021/01/02 23:47:51 tom Exp $
-.TH curs_memleaks 3X ""
-.ie \n(.g .ds `` \(lq
-.el       .ds `` ``
-.ie \n(.g .ds '' \(rq
-.el       .ds '' ''
-.na
-.hy 0
+.\" $Id: curs_memleaks.3x,v 1.35 2024/03/16 15:35:01 tom Exp $
+.TH curs_memleaks 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
 .SH NAME
-\fBexit_curses\fP,
-\fBexit_terminfo\fP \- \fBcurses\fR memory-leak checking
-.ad
-.hy
+\fB\%exit_curses\fP,
+\fB\%exit_terminfo\fP \-
+check for memory leaks in \fIcurses\fR
 .SH SYNOPSIS
-\fB#include <curses.h>\fR
-.br
-\fBvoid exit_curses(int \fP\fIcode\fP\fB);\fR
-.sp
-\fB#include <term.h>\fR
-.br
-\fBvoid exit_terminfo(int \fP\fIcode\fP\fB);\fR
-.sp
-/* deprecated (intentionally not declared in curses.h or term.h) */
-.br
-\fBvoid _nc_freeall(void);\fR
-.br
-\fBvoid _nc_free_and_exit(int \fP\fIcode\fP\fB);\fR
-.br
-\fBvoid _nc_free_tinfo(int \fP\fIcode\fP\fB);\fR
+.nf
+\fB#include <curses.h>
+\fBvoid exit_curses(int \fIcode\fP);
+.PP
+\fB#include <term.h>
+\fBvoid exit_terminfo(int \fIcode\fP);
+.PP
+\fI/* deprecated (intentionally not declared in curses.h or term.h) */
+\fBvoid _nc_freeall(void);
+\fBvoid _nc_free_and_exit(int \fIcode\fP);
+\fBvoid _nc_free_tinfo(int \fIcode\fP);
+.fi
 .SH DESCRIPTION
-These functions are used to simplify analysis of memory leaks in the ncurses
-library.
+These functions are used to simplify analysis of memory leaks in the
+\fI\%ncurses\fP library.
 .PP
 Any implementation of curses must not free the memory associated with
-a screen, since (even after calling \fBendwin\fP(3X)), it must be available
-for use in the next call to \fBrefresh\fP(3X).
+a screen, since (even after calling \fB\%endwin\fP(3X)), it must be available
+for use in the next call to \fB\%refresh\fP(3X).
 There are also chunks of memory held for performance reasons.
 That makes it hard to analyze curses applications for memory leaks.
-When using the specially configured debugging version of the ncurses library,
+When using the specially configured debugging version of the
+\fI\%ncurses\fP library,
 applications can call functions which free those chunks of memory,
 simplifying the process of memory-leak checking.
 .PP
 Some of the functions are named with a \*(``_nc_\*('' prefix
 because they are not intended for use in the non-debugging library:
 .TP 5
-\fB_nc_freeall\fP
-This frees (almost) all of the memory allocated by ncurses.
+\fB\%_nc_freeall\fP
+This frees (almost) all of the memory allocated by \fI\%ncurses\fP.
 .TP 5
-\fB_nc_free_and_exit\fP
-This frees the memory allocated by ncurses (like \fB_nc_freeall\fP),
+\fB\%_nc_free_and_exit\fP
+This frees the memory allocated by \fI\%ncurses\fP
+(like \fB\%_nc_freeall\fP),
 and exits the program.
-It is preferred over \fB_nc_freeall\fP since some of that memory
+It is preferred over \fB\%_nc_freeall\fP since some of that memory
 may be required to keep the application running.
 Simply exiting (with the given exit-code) is safer.
 .TP 5
-\fB_nc_free_tinfo\fP
+\fB\%_nc_free_tinfo\fP
 Use this function if only the low-level terminfo functions (and
 corresponding library) are used.
-Like \fB_nc_free_and_exit\fP, it exits the program after freeing memory.
+Like \fB\%_nc_free_and_exit\fP, it exits the program after freeing memory.
 .PP
 The functions prefixed \*(``_nc\*('' are normally not available;
 they must be configured into the library
-at build time using the \fB\-\-disable-leaks\fP option.
+at build time using the \fB\%\-\-disable-leaks\fP option.
 That compiles-in code that frees memory that normally would not be freed.
 .PP
-The \fBexit_curses\fP and \fBexit_terminfo\fP functions
-call \fB_nc_free_and_exit\fP and \fB_nc_free_tinfo\fP if
+The \fB\%exit_curses\fP and \fB\%exit_terminfo\fP functions
+call \fB\%_nc_free_and_exit\fP and \fB\%_nc_free_tinfo\fP if
 the library is configured to support memory-leak checking.
 If the library is not configured to support memory-leak checking,
 they simply call \fBexit\fP.
@@ -102,5 +109,23 @@ These functions do not return a value.
 .SH PORTABILITY
 These functions are not part of X/Open Curses;
 nor do other implementations of curses provide a similar feature.
+.PP
+In any implementation of X/Open Curses, an application can free part
+of the memory allocated by curses:
+.bP
+The portable part of \fB\%exit_curses\fP can be freed using \fB\%delscreen\fP,
+passing the \fISCREEN\fP pointer returned by \fB\%newterm\fP.
+.IP
+In some implementations, there is a global variable \fBsp\fP
+which could be used, e.g., if the screen were only initialized
+using \fB\%initscr\fP.
+.bP
+The portable part of \fB\%exit_terminfo\fP can be freed
+using \fB\%del_curterm\fP.
+.IP
+In this case, there is a global variable \fB\%cur_term\fP which can be
+used as parameter.
 .SH SEE ALSO
-\fBcurses\fR(3X).
+\fB\%curses\fP(3X),
+\fB\%curs_initscr\fP(3X),
+\fB\%curs_terminfo\fP(3X)

@@ -1,4 +1,3 @@
-
 PROG?=		ldd
 SRCS=		ldd.c
 

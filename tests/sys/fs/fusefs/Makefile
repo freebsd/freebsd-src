@@ -1,4 +1,3 @@
-
 .include <bsd.compiler.mk>
 
 PACKAGE=	tests

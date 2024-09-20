@@ -310,11 +310,11 @@
     ..
     netinet6
     ..
+    netipsec
+    ..
     netlink
         route
         ..
-    ..
-    netipsec
     ..
     netpfil
         pf

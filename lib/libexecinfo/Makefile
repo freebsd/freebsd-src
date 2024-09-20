@@ -1,4 +1,3 @@
-
 PACKAGE=lib${LIB}
 
 .include <src.opts.mk>

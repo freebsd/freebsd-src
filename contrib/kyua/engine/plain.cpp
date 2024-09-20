@@ -34,6 +34,7 @@ extern "C" {
 
 #include <cstdlib>
 
+#include "engine/execenv/execenv.hpp"
 #include "model/test_case.hpp"
 #include "model/test_program.hpp"
 #include "model/test_result.hpp"
@@ -47,6 +48,7 @@ extern "C" {
 #include "utils/sanity.hpp"
 
 namespace config = utils::config;
+namespace execenv = engine::execenv;
 namespace fs = utils::fs;
 namespace process = utils::process;
 
@@ -104,7 +106,11 @@ engine::plain_interface::exec_test(
     }
 
     process::args_vector args;
-    process::exec(test_program.absolute_path(), args);
+
+    auto e = execenv::get(test_program, test_case_name);
+    e->init();
+    e->exec(args);
+    __builtin_unreachable();
 }
 
 

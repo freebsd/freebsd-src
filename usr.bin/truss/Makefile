@@ -1,4 +1,3 @@
-
 PROG=	truss
 SRCS=	main.c setup.c syscalls.c
 

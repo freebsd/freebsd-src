@@ -59,10 +59,10 @@
 #include <dev/ofw/ofw_bus_subr.h>
 #endif
 
-char machine[] = "riscv";
+const char machine[] = "riscv";
 
-SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD | CTLFLAG_CAPRD, machine, 0,
-    "Machine class");
+SYSCTL_CONST_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD | CTLFLAG_CAPRD,
+    machine, "Machine class");
 
 /* Hardware implementation info. These values may be empty. */
 register_t mvendorid;	/* The CPU's JEDEC vendor ID */
@@ -74,6 +74,7 @@ u_int mmu_caps;
 /* Supervisor-mode extension support. */
 bool __read_frequently has_sstc;
 bool __read_frequently has_sscofpmf;
+bool has_svpbmt;
 
 struct cpu_desc {
 	const char	*cpu_mvendor_name;
@@ -244,6 +245,7 @@ parse_riscv_isa(struct cpu_desc *desc, char *isa, int len)
 	while (i < len) {
 		switch(isa[i]) {
 		case 'a':
+		case 'b':
 		case 'c':
 		case 'd':
 		case 'f':
@@ -414,6 +416,7 @@ update_global_capabilities(u_int cpu, struct cpu_desc *desc)
 	/* Supervisor-mode extension support. */
 	UPDATE_CAP(has_sstc, (desc->smode_extensions & SV_SSTC) != 0);
 	UPDATE_CAP(has_sscofpmf, (desc->smode_extensions & SV_SSCOFPMF) != 0);
+	UPDATE_CAP(has_svpbmt, (desc->smode_extensions & SV_SVPBMT) != 0);
 
 #undef UPDATE_CAP
 }

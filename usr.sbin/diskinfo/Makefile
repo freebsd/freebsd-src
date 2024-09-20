@@ -1,4 +1,3 @@
-
 PROG=	diskinfo
 MAN=	diskinfo.8
 

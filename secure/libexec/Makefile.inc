@@ -1,4 +1,3 @@
-
 BINDIR?=	/usr/libexec
 PACKAGE=	ssh
 

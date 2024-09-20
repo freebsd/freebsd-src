@@ -449,27 +449,6 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 #endif
 	}
 
-#if defined(IPSEC) || defined(IPSEC_SUPPORT)
-	/*
-	 * IPSec checking which handles several cases.
-	 * FAST IPSEC: We re-injected the packet.
-	 * XXX: need scope argument.
-	 */
-	if (IPSEC_ENABLED(ipv6)) {
-		m = mb_unmapped_to_ext(m);
-		if (m == NULL) {
-			IP6STAT_INC(ip6s_odropped);
-			error = ENOBUFS;
-			goto bad;
-		}
-		if ((error = IPSEC_OUTPUT(ipv6, m, inp)) != 0) {
-			if (error == EINPROGRESS)
-				error = 0;
-			goto done;
-		}
-	}
-#endif /* IPSEC */
-
 	/* Source address validation. */
 	ip6 = mtod(m, struct ip6_hdr *);
 	if (IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_src) &&
@@ -805,6 +784,27 @@ nonh6lookup:
 	 */
 	KASSERT((ifp != NULL), ("output interface must not be NULL"));
 	KASSERT((origifp != NULL), ("output address interface must not be NULL"));
+
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
+	/*
+	 * IPSec checking which handles several cases.
+	 * FAST IPSEC: We re-injected the packet.
+	 * XXX: need scope argument.
+	 */
+	if (IPSEC_ENABLED(ipv6)) {
+		m = mb_unmapped_to_ext(m);
+		if (m == NULL) {
+			IP6STAT_INC(ip6s_odropped);
+			error = ENOBUFS;
+			goto bad;
+		}
+		if ((error = IPSEC_OUTPUT(ipv6, ifp, m, inp, mtu)) != 0) {
+			if (error == EINPROGRESS)
+				error = 0;
+			goto done;
+		}
+	}
+#endif /* IPSEC */
 
 	if ((flags & IPV6_FORWARDING) == 0) {
 		/* XXX: the FORWARDING flag can be set for mrouting. */

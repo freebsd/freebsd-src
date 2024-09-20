@@ -1,4 +1,3 @@
-
 PROG=	auxinfo
 MAN=
 

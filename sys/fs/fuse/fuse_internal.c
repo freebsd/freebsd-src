@@ -282,12 +282,12 @@ fuse_internal_cache_attrs(struct vnode *vp, struct fuse_attr *attr,
 			 * dirty writes!  That's a server bug.
 			 */
 			if (fuse_libabi_geq(data, 7, 23)) {
-				msg = "writeback cache incoherent!."
+				msg = "writeback cache incoherent!  "
 				    "To prevent data corruption, disable "
 				    "the writeback cache according to your "
 				    "FUSE server's documentation.";
 			} else {
-				msg = "writeback cache incoherent!."
+				msg = "writeback cache incoherent!  "
 				    "To prevent data corruption, disable "
 				    "the writeback cache by setting "
 				    "vfs.fusefs.data_cache_mode to 0 or 1.";

@@ -1,4 +1,3 @@
-
 .PATH:	${SRCTOP}/sys/dev/ncthwm
 KMOD=	ncthwm
 SRCS=	ncthwm.c

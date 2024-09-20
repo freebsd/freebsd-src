@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 20, 2024
+.Dd June 10, 2024
 .Dt KTRACE 1
 .Os
 .Sh NAME
@@ -48,8 +48,13 @@ The
 utility enables kernel trace logging for the specified processes.
 Kernel trace data is logged to the file
 .Pa ktrace.out .
-The kernel operations that are traced include system calls, namei
-translations, signal processing, and
+The kernel operations that are traced include system calls
+.Pq see Xr intro 2 ,
+file system path lookups
+.Pq Xr namei 9 ,
+signal processing
+.Pq Xr sigaction 2 ,
+and
 .Tn I/O .
 .Pp
 Once tracing is enabled on a process, trace data will be logged until
@@ -119,7 +124,9 @@ trace page faults
 trace
 .Tn I/O
 .It Cm n
-trace namei translations
+trace
+.Xr namei 9
+translations
 .It Cm p
 trace capability check failures
 .It Cm s
@@ -197,9 +204,12 @@ Disable tracing of all user-owned processes:
 .Xr dtrace 1 ,
 .Xr kdump 1 ,
 .Xr truss 1 ,
+.Xr intro 2 ,
 .Xr ktrace 2 ,
+.Xr sigaction 2 ,
 .Xr utrace 2 ,
-.Xr capsicum 4
+.Xr capsicum 4 ,
+.Xr namei 9
 .Sh HISTORY
 The
 .Nm

@@ -26,7 +26,7 @@
 # SUCH DAMAGE.
 #
 
-# mkfifo(2), poll(2) with tmpfs(5) scenario.
+# mkfifo(2), poll(2) with tmpfs(4) scenario.
 
 . ../default.cfg
 [ `id -u ` -ne 0 ] && echo "Must be root!" && exit 1

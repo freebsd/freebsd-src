@@ -90,7 +90,7 @@ imcsmb_attach(device_t dev)
 	sc->regs = device_get_ivars(dev);
 
 	/* Create the smbus child */
-	sc->smbus = device_add_child(dev, "smbus", -1);
+	sc->smbus = device_add_child(dev, "smbus", DEVICE_UNIT_ANY);
 	if (sc->smbus == NULL) {
 		/* Nothing has been allocated, so there's no cleanup. */
 		device_printf(dev, "Child smbus not added\n");

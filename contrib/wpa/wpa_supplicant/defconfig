@@ -101,6 +101,9 @@ CONFIG_EAP_MSCHAPV2=y
 
 # EAP-TLS
 CONFIG_EAP_TLS=y
+# Enable EAP-TLSv1.3 support by default (currently disabled unless explicitly
+# enabled in network configuration)
+#CONFIG_EAP_TLSV1_3=y
 
 # EAL-PEAP
 CONFIG_EAP_PEAP=y
@@ -203,8 +206,14 @@ CONFIG_SMARTCARD=y
 # Support VHT overrides (disable VHT, mask MCS rates, etc.)
 #CONFIG_VHT_OVERRIDES=y
 
+# Support HE overrides
+#CONFIG_HE_OVERRIDES=y
+
 # Development testing
 #CONFIG_EAPOL_TEST=y
+
+# Support IPv6
+CONFIG_IPV6=y
 
 # Select control interface backend for external programs, e.g, wpa_cli:
 # unix = UNIX domain sockets (default for Linux/*BSD)
@@ -247,6 +256,9 @@ CONFIG_CTRL_IFACE=y
 
 # Simultaneous Authentication of Equals (SAE), WPA3-Personal
 CONFIG_SAE=y
+
+# SAE Public Key, WPA3-Personal
+#CONFIG_SAE_PK=y
 
 # Disable scan result processing (ap_scan=1) to save code size by about 1 kB.
 # This can be used if ap_scan=1 mode is never enabled.
@@ -389,6 +401,22 @@ CONFIG_CTRL_IFACE_DBUS_INTRO=y
 # amount of memory/flash.
 #CONFIG_DYNAMIC_EAP_METHODS=y
 
+# Dynamic library loading
+
+# Add the ability to configure libraries to load at compile time.
+# If set, these disable dynamic configuration.
+#CONFIG_PKCS11_ENGINE_PATH - pkcs11_engine library location.
+#CONFIG_PKCS11_MODULE_PATH - pkcs11_module library location.
+#CONFIG_OPENSC_ENGINE_PATH - opensc_engine library location.
+#
+# Prevent library loading at runtime
+#CONFIG_NO_PKCS11_ENGINE_PATH=y # prevents loading pkcs11_engine library.
+#CONFIG_NO_PKCS11_MODULE_PATH=y # prevents loading pkcs11_module library.
+# CONFIG_NO_OPENSC_ENGINE_PATH=y # prevents loading opensc_engine library.
+
+# Prevents loading EAP libraries at runtime
+#CONFIG_NO_LOAD_DYNAMIC_EAP=y
+
 # IEEE Std 802.11r-2008 (Fast BSS Transition) for station mode
 CONFIG_IEEE80211R=y
 
@@ -473,6 +501,16 @@ CONFIG_DEBUG_SYSLOG=y
 
 # IEEE 802.11ac (Very High Throughput) support (mainly for AP mode)
 CONFIG_IEEE80211AC=y
+
+# IEEE 802.11ax HE support (mainly for AP mode)
+CONFIG_IEEE80211AX=y
+
+# IEEE 802.11be EHT support (mainly for AP mode)
+# CONFIG_IEEE80211AX is mandatory for setting CONFIG_IEEE80211BE.
+# Note: This is experimental and work in progress. The definitions are still
+# subject to change and this should not be expected to interoperate with the
+# final IEEE 802.11be version.
+#CONFIG_IEEE80211BE=y
 
 # Wireless Network Management (IEEE Std 802.11v-2011)
 # Note: This is experimental and not complete implementation.
@@ -633,3 +671,18 @@ CONFIG_DPP2=y
 # design is still subject to change. As such, this should not yet be enabled in
 # production use.
 #CONFIG_PASN=y
+
+# Disable support for Radio Measurement (IEEE 802.11k) and supported operating
+# class indication. Removing these is not recommended since they can help the
+# AP manage the network and STA steering.
+#CONFIG_NO_RRM=y
+
+# Disable support for Robust AV streaming for consumer and enterprise Wi-Fi
+# applications; IEEE Std 802.11-2020, 4.3.24; SCS, MSCS, QoS Management
+#CONFIG_NO_ROBUST_AV=y
+
+# Disable support for WMM admission control
+#CONFIG_NO_WMM_AC=y
+
+# Wi-Fi Aware unsynchronized service discovery (NAN USD)
+#CONFIG_NAN_USD=y

@@ -79,7 +79,7 @@ class OpenNoOpenSupport: public FuseTest {
 };
 
 /* 
- * fusefs(5) does not support I/O on device nodes (neither does UFS).  But it
+ * fusefs(4) does not support I/O on device nodes (neither does UFS).  But it
  * shouldn't crash
  */
 TEST_F(Open, chr)

@@ -591,7 +591,7 @@ ktrprocexec(struct proc *p)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	kiop = p->p_ktrioparms;
-	if (kiop == NULL || priv_check_cred(kiop->cr, PRIV_DEBUG_DIFFCRED))
+	if (kiop == NULL || priv_check_cred(kiop->cr, PRIV_DEBUG_DIFFCRED) == 0)
 		return (NULL);
 
 	mtx_lock(&ktrace_mtx);

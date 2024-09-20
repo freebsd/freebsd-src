@@ -1,4 +1,3 @@
-
 PROG_CXX=	llvm-mca
 
 SRCDIR=		llvm/tools/llvm-mca

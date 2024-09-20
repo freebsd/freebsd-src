@@ -24,8 +24,8 @@ not very secure. As such, use of WPS may not be suitable for
 environments that require secure network access without chance for
 allowing outsiders to gain access during the setup phase.
 
-WPS uses following terms to describe the entities participating in the
-network setup:
+WPS uses the following terms to describe the entities participating
+in the network setup:
 - access point: the WLAN access point
 - Registrar: a device that control a network and can authorize
   addition of new devices); this may be either in the AP ("internal
@@ -55,21 +55,21 @@ wpa_supplicant configuration
 
 WPS is an optional component that needs to be enabled in
 wpa_supplicant build configuration (.config). Here is an example
-configuration that includes WPS support and Linux nl80211 -based
+configuration that includes WPS support and Linux nl80211-based
 driver interface:
 
 CONFIG_DRIVER_NL80211=y
 CONFIG_WPS=y
 
 If you want to enable WPS external registrar (ER) functionality, you
-will also need to add following line:
+will also need to add the following line:
 
 CONFIG_WPS_ER=y
 
-Following parameter can be used to enable support for NFC config method:
+The following parameter can be used to enable support for NFC config
+method:
 
 CONFIG_WPS_NFC=y
-
 
 WPS needs the Universally Unique IDentifier (UUID; see RFC 4122) for
 the device. This is configured in the runtime configuration for
@@ -89,7 +89,6 @@ restarting wpa_supplicant), wpa_supplicant will need to be configured
 to allow configuration file updates:
 
 update_config=1
-
 
 
 External operations
@@ -118,7 +117,6 @@ entered at the Registrar to complete WPS registration. At that point,
 the client will be enrolled with credentials needed to connect to the
 AP to access the network.
 
-
 If the client device does not have a display that could show the
 random PIN, a hardcoded PIN that is printed on a label can be
 used. wpa_supplicant is notified this with a control interface
@@ -134,7 +132,6 @@ interface, an optional timeout parameter can be used to specify
 expiration timeout for the PIN in seconds. For example:
 
 wpa_cli wps_pin any 12345670 300
-
 
 If a random PIN is needed for a user interface, "wpa_cli wps_pin get"
 can be used to generate a new PIN without starting WPS negotiation.
@@ -153,7 +150,6 @@ wpa_cli wps_pbc
 At this point, the AP/Registrar has two minutes to complete WPS
 negotiation which will generate a new WPA PSK in the same way as the
 PIN method described above.
-
 
 If the client wants to operate in the Registrar role to learn the
 current AP configuration and optionally, to configure an AP,
@@ -218,7 +214,8 @@ option. When this is used, an external program is responsible for
 processing the credential attributes and updating wpa_supplicant
 configuration based on them.
 
-Following control interface messages are sent out for external programs:
+The following control interface messages are sent out for external
+programs:
 
 WPS-CRED-RECEIVED  <hexdump of Credential attribute(s)>
 For example:
@@ -236,7 +233,7 @@ can be either over a wired or wireless connection).
 Separate wpa_supplicant process can be started for WPS ER
 operations. A special "none" driver can be used in such a case to
 indicate that no local network interface is actually controlled. For
-example, following command could be used to start the ER:
+example, the following command could be used to start the ER:
 
 wpa_supplicant -Dnone -c er.conf -ieth0
 
@@ -244,7 +241,6 @@ Sample er.conf:
 
 ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=admin
 device_name=WPS External Registrar
-
 
 wpa_cli commands for ER functionality:
 
@@ -275,7 +271,6 @@ wps_er_config <UUID|BSSID> <AP PIN> <new SSID> <auth> <encr> <new key>
 <auth> must be one of the following: OPEN WPAPSK WPA2PSK
 <encr> must be one of the following: NONE WEP TKIP CCMP
 
-
 wps_er_pbc <Enrollee UUID|MAC address>
 - accept an Enrollee PBC using External Registrar
 
@@ -284,7 +279,6 @@ wps_er_pin <Enrollee UUID|"any"|MAC address> <PIN> [Enrollee MAC address]
 - if Enrollee UUID is not known, "any" can be used to add a wildcard PIN
 - if the MAC address of the enrollee is known, it should be configured
   to allow the AP to advertise list of authorized enrollees
-
 
 WPS ER events:
 

@@ -129,7 +129,7 @@ static const char *help_msg[] = {
 	"\t-I RE, --ignore-matching-lines=RE: ignore changes whose line matches RE.",
 	"\t-i, --ignore-case: do a case-insensitive comparison.",
 	"\t-t, --expand-tabs: expand tabs to spaces.",
-	"\t-W, --ignore-all-spaces: ignore all spaces.",
+	"\t-W, --ignore-all-space: ignore all whitespace.",
 	"\t--speed-large-files: assume large file with scattered changes.",
 	"\t--strip-trailing-cr: strip trailing carriage return.",
 	"\t--ignore-file-name-case: ignore case of file names.",

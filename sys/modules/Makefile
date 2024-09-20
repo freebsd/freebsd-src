@@ -1,4 +1,3 @@
-
 SYSDIR?=${SRCTOP}/sys
 .include "${SYSDIR}/conf/kern.opts.mk"
 
@@ -101,6 +100,7 @@ SUBDIR=	\
 	${_dpdk_lpm4} \
 	${_dpdk_lpm6} \
 	${_dpms} \
+	dummymbuf \
 	dummynet \
 	${_dwwdt} \
 	${_e6000sw} \
@@ -305,6 +305,7 @@ SUBDIR=	\
 	otus \
 	${_otusfw} \
 	ow \
+	p9fs \
 	${_padlock} \
 	${_padlock_rng} \
 	${_pchtherm} \
@@ -442,8 +443,7 @@ SUBDIR+=	dtrace
 SUBDIR+=	opensolaris
 .endif
 
-.if ${MACHINE_ARCH} != "i386" && ${MACHINE_CPUARCH} != "arm" && \
-    ${MACHINE_ARCH} != "powerpc" && ${MACHINE_ARCH} != "powerpcspe"
+.if !${MACHINE_ABI:Mlong32}
 _bnxt=		bnxt
 .endif
 
@@ -577,7 +577,8 @@ _vmware=	vmware
 .endif
 
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
-    ${MACHINE_CPUARCH} == "i386" || ${MACHINE_ARCH} == "armv7"
+    ${MACHINE_CPUARCH} == "i386" || ${MACHINE_ARCH} == "armv7" || \
+	${MACHINE_ARCH:Mpowerpc64*} != ""
 _ossl=		ossl
 .endif
 

@@ -1,4 +1,3 @@
-
 LOADER_NET_SUPPORT?=	yes
 LOADER_MSDOS_SUPPORT?=	yes
 LOADER_UFS_SUPPORT?=	yes
@@ -105,6 +104,11 @@ LDFLAGS+=	-Wl,-T${LDSCRIPT},-Bsymbolic,-znotext -pie
 .if ${LINKER_TYPE} == "bfd" && ${LINKER_VERSION} >= 23400
 LDFLAGS+=	-Wl,--no-dynamic-linker
 .endif
+
+# When lld is using multiple threads, which it does by default, it can
+# result in non-reproducible output with the custom linker script. Work
+# around this by disabling threading.
+LDFLAGS.lld+=	-Wl,--threads=1
 
 CLEANFILES+=	${LOADER}.efi
 

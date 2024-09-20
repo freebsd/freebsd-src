@@ -349,8 +349,7 @@ acpi_alloc_wakeup_handler(void *wakepages[ACPI_WAKEPAGES])
 
 freepages:
 	for (i = 0; i < ACPI_WAKEPAGES; i++)
-		if (wakepages[i] != NULL)
-			contigfree(wakepages[i], PAGE_SIZE, M_DEVBUF);
+		free(wakepages[i], M_DEVBUF);
 	return (NULL);
 }
 

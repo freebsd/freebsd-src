@@ -1,4 +1,4 @@
-# $NetBSD: directive-for-empty.mk,v 1.3 2023/11/19 21:47:52 rillig Exp $
+# $NetBSD: directive-for-empty.mk,v 1.4 2024/05/31 07:13:12 rillig Exp $
 #
 # Tests for .for loops containing conditions of the form 'empty(var:...)'.
 #
@@ -26,23 +26,23 @@
 
 # In conditions, the function call to 'empty' does not look like an
 # expression, therefore it is not replaced.  Since there is no global variable
-# named 'i', this expression makes for a leaky abstraction.  If the .for
+# named 'i', this condition makes for a leaky abstraction.  If the .for
 # variables were real variables, calling 'empty' would work on them as well.
 .for i in 11 12 13
 # Asking for an empty iteration variable does not make sense as the .for loop
 # splits the iteration items into words, and such a word cannot be empty.
-.  if empty(i)
-# expect+3: Missing argument for ".error"
-# expect+2: Missing argument for ".error"
-# expect+1: Missing argument for ".error"
-.    error			# due to the leaky abstraction
+.  if !empty(i)
+.    error			# not reached, due to the leaky abstraction
 .  endif
-# The typical way of using 'empty' with variables from .for loops is pattern
-# matching using the modifiers ':M' or ':N'.
+# The typical way of mistakenly using 'empty' with variables from .for loops
+# is pattern matching using the modifiers ':M' or ':N'.
 .  if !empty(i:M*2*)
-.    if ${i} != "12"
-.      error
-.    endif
+.    error
+.  endif
+# Instead of the 'empty' function, the variables from .for loops can be
+# queried using conditions of the form '${var:...} != ""'.
+.  if $i == "12" && ${i:M*2*} != "12"
+.    error
 .  endif
 .endfor
 
@@ -122,3 +122,5 @@ CPPFLAGS+=	-Dmacro="${empty(i):?empty:not-empty}"
 
 # TODO: Add code that demonstrates the current interaction between variables
 #  from .for loops and the modifiers mentioned above.
+
+all:

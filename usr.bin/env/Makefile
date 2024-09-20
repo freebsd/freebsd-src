@@ -1,4 +1,3 @@
-
 PACKAGE=	runtime
 PROG=	env
 SRCS=	env.c envopts.c

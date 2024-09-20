@@ -596,6 +596,12 @@ lzc_get_holds(const char *snapname, nvlist_t **holdsp)
 	return (lzc_ioctl(ZFS_IOC_GET_HOLDS, snapname, NULL, holdsp));
 }
 
+int
+lzc_get_props(const char *poolname, nvlist_t **props)
+{
+	return (lzc_ioctl(ZFS_IOC_POOL_GET_PROPS, poolname, NULL, props));
+}
+
 static unsigned int
 max_pipe_buffer(int infd)
 {
@@ -1616,6 +1622,26 @@ lzc_pool_checkpoint_discard(const char *pool)
 	nvlist_t *args = fnvlist_alloc();
 
 	error = lzc_ioctl(ZFS_IOC_POOL_DISCARD_CHECKPOINT, pool, args, &result);
+
+	fnvlist_free(args);
+	fnvlist_free(result);
+
+	return (error);
+}
+
+/*
+ * Load the requested data type for the specified pool.
+ */
+int
+lzc_pool_prefetch(const char *pool, zpool_prefetch_type_t type)
+{
+	int error;
+	nvlist_t *result = NULL;
+	nvlist_t *args = fnvlist_alloc();
+
+	fnvlist_add_int32(args, ZPOOL_PREFETCH_TYPE, type);
+
+	error = lzc_ioctl(ZFS_IOC_POOL_PREFETCH, pool, args, &result);
 
 	fnvlist_free(args);
 	fnvlist_free(result);

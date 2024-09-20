@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2023 Thomas E. Dickey                                     *
  * Copyright 2000-2012,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -38,7 +38,7 @@
 #include <curses.priv.h>
 #include <tic.h>
 
-MODULE_ID("$Id: strings.c,v 1.10 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: strings.c,v 1.11 2023/05/27 20:13:10 tom Exp $")
 
 /****************************************************************************
  * Useful string functions (especially for mvcur)
@@ -95,7 +95,7 @@ _nc_str_null(string_desc * dst, size_t len)
  * Copy a descriptor
  */
 NCURSES_EXPORT(string_desc *)
-_nc_str_copy(string_desc * dst, string_desc * src)
+_nc_str_copy(string_desc * dst, const string_desc * const src)
 {
     *dst = *src;
     return dst;

@@ -65,7 +65,13 @@ end
 -- message on failure.
 function try_include(module)
 	if module:sub(1, 1) ~= "/" then
-		module = loader.lua_path .. "/" .. module
+		local lua_path = loader.lua_path
+		-- XXX Temporary compat shim; this should be removed once the
+		-- loader.lua_path export has sufficiently spread.
+		if lua_path == nil then
+			lua_path = "/boot/lua"
+		end
+		module = lua_path .. "/" .. module
 		-- We only attempt to append an extension if an absolute path
 		-- wasn't specified.  This assumes that the caller either wants
 		-- to treat this like it would require() and specify just the
@@ -534,6 +540,27 @@ function core.nextConsoleChoice()
 			loader.setenv("boot_serial", "YES")
 		end
 	end
+end
+
+-- Sanity check the boot loader revision
+-- Loaders with version 3.0 have everything that we need without backwards
+-- compatible hacks. Warn users that still have old versions to upgrade so
+-- that we can remove the backwards compatible hacks in the future since
+-- they have been there a long time.
+local loader_major = 3
+
+function core.loaderTooOld()
+	return loader.version == nil or loader.version < loader_major * 1000
+end
+
+if core.loaderTooOld() then
+	print("**********************************************************************")
+	print("**********************************************************************")
+	print("*****                                                            *****")
+	print("*****           BOOT LOADER IS TOO OLD. PLEASE UPGRADE.          *****")
+	print("*****                                                            *****")
+	print("**********************************************************************")
+	print("**********************************************************************")
 end
 
 recordDefaults()

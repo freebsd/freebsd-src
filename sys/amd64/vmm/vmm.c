@@ -67,12 +67,13 @@
 #include <x86/ifunc.h>
 
 #include <machine/vmm.h>
-#include <machine/vmm_dev.h>
 #include <machine/vmm_instruction_emul.h>
 #include <machine/vmm_snapshot.h>
 
+#include <dev/vmm/vmm_dev.h>
+#include <dev/vmm/vmm_ktr.h>
+
 #include "vmm_ioport.h"
-#include "vmm_ktr.h"
 #include "vmm_host.h"
 #include "vmm_mem.h"
 #include "vmm_util.h"
@@ -295,6 +296,29 @@ SYSCTL_UINT(_hw_vmm, OID_AUTO, maxcpu, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
 static void vm_free_memmap(struct vm *vm, int ident);
 static bool sysmem_mapping(struct vm *vm, struct mem_map *mm);
 static void vcpu_notify_event_locked(struct vcpu *vcpu, bool lapic_intr);
+
+/* global statistics */
+VMM_STAT(VCPU_MIGRATIONS, "vcpu migration across host cpus");
+VMM_STAT(VMEXIT_COUNT, "total number of vm exits");
+VMM_STAT(VMEXIT_EXTINT, "vm exits due to external interrupt");
+VMM_STAT(VMEXIT_HLT, "number of times hlt was intercepted");
+VMM_STAT(VMEXIT_CR_ACCESS, "number of times %cr access was intercepted");
+VMM_STAT(VMEXIT_RDMSR, "number of times rdmsr was intercepted");
+VMM_STAT(VMEXIT_WRMSR, "number of times wrmsr was intercepted");
+VMM_STAT(VMEXIT_MTRAP, "number of monitor trap exits");
+VMM_STAT(VMEXIT_PAUSE, "number of times pause was intercepted");
+VMM_STAT(VMEXIT_INTR_WINDOW, "vm exits due to interrupt window opening");
+VMM_STAT(VMEXIT_NMI_WINDOW, "vm exits due to nmi window opening");
+VMM_STAT(VMEXIT_INOUT, "number of times in/out was intercepted");
+VMM_STAT(VMEXIT_CPUID, "number of times cpuid was intercepted");
+VMM_STAT(VMEXIT_NESTED_FAULT, "vm exits due to nested page fault");
+VMM_STAT(VMEXIT_INST_EMUL, "vm exits for instruction emulation");
+VMM_STAT(VMEXIT_UNKNOWN, "number of vm exits for unknown reason");
+VMM_STAT(VMEXIT_ASTPENDING, "number of times astpending at exit");
+VMM_STAT(VMEXIT_REQIDLE, "number of times idle requested at exit");
+VMM_STAT(VMEXIT_USERSPACE, "number of vm exits handled in userspace");
+VMM_STAT(VMEXIT_RENDEZVOUS, "number of times rendezvous pending at exit");
+VMM_STAT(VMEXIT_EXCEPTION, "number of vm exits due to exceptions");
 
 /*
  * Upper limit on vm_maxcpu.  Limited by use of uint16_t types for CPU

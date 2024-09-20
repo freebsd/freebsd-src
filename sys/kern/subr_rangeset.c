@@ -232,18 +232,19 @@ rangeset_remove(struct rangeset *rs, uint64_t start, uint64_t end)
 	return (rangeset_remove_pred(rs, start, end, rangeset_true_pred));
 }
 
+static void
+rangeset_remove_leaf(struct rs_el *r, void *rsv)
+{
+	struct rangeset *rs = rsv;
+
+	rs->rs_free_data(rs->rs_data_ctx, r);
+}
+
 void
 rangeset_remove_all(struct rangeset *rs)
 {
-	struct rs_el *r;
-
-	for (;;) {
-		r = RANGESET_PCTRIE_LOOKUP_GE(&rs->rs_trie, 0);
-		if (r == NULL)
-			break;
-		RANGESET_PCTRIE_REMOVE(&rs->rs_trie, r->re_start);
-		rs->rs_free_data(rs->rs_data_ctx, r);
-	}
+	RANGESET_PCTRIE_RECLAIM_CALLBACK(&rs->rs_trie,
+	    rangeset_remove_leaf, rs);
 }
 
 void *

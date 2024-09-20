@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2010,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -40,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_window.c,v 1.31 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_window.c,v 1.32 2021/10/23 23:06:24 tom Exp $")
 
 NCURSES_EXPORT(void)
 _nc_synchook(WINDOW *win)
@@ -130,7 +130,7 @@ wsyncdown(WINDOW *win)
 {
     T((T_CALLED("wsyncdown(%p)"), (void *) win));
 
-    if (win && win->_parent) {
+    if (win != NULL && win->_parent != NULL) {
 	WINDOW *pp = win->_parent;
 	int y;
 
@@ -187,7 +187,7 @@ dupwin(WINDOW *win)
 	SCREEN *sp = _nc_screen_of(win);
 #endif
 	_nc_lock_global(curses);
-	if (win->_flags & _ISPAD) {
+	if (IS_PAD(win)) {
 	    nwin = NCURSES_SP_NAME(newpad) (NCURSES_SP_ARGx
 					    win->_maxy + 1,
 					    win->_maxx + 1);
@@ -238,7 +238,7 @@ dupwin(WINDOW *win)
 	    nwin->_regtop = win->_regtop;
 	    nwin->_regbottom = win->_regbottom;
 
-	    if (win->_flags & _ISPAD)
+	    if (IS_PAD(win))
 		nwin->_pad = win->_pad;
 
 	    linesize = (unsigned) (win->_maxx + 1) * sizeof(NCURSES_CH_T);

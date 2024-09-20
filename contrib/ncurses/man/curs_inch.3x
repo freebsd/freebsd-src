@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright 2018-2019,2020 Thomas E. Dickey                                *
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
 .\" Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,54 +28,66 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_inch.3x,v 1.25 2020/10/18 00:25:23 tom Exp $
-.TH curs_inch 3X ""
-.ie \n(.g .ds `` \(lq
-.el       .ds `` ``
-.ie \n(.g .ds '' \(rq
-.el       .ds '' ''
+.\" $Id: curs_inch.3x,v 1.51 2024/04/20 21:20:07 tom Exp $
+.TH curs_inch 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.
 .de bP
 .ie n  .IP \(bu 4
 .el    .IP \(bu 2
 ..
 .SH NAME
-\fBinch\fR,
-\fBwinch\fR,
-\fBmvinch\fR,
-\fBmvwinch\fR \- get a character and attributes from a \fBcurses\fR window
+\fB\%inch\fP,
+\fB\%winch\fP,
+\fB\%mvinch\fP,
+\fB\%mvwinch\fP \-
+get a \fIcurses\fR character from a window
 .SH SYNOPSIS
-\fB#include <curses.h>\fR
-.sp
-\fBchtype inch(void);\fR
-.br
-\fBchtype winch(WINDOW *\fP\fIwin\fP\fB);\fR
-.sp
-\fBchtype mvinch(int \fP\fIy\fP\fB, int \fP\fIx\fP\fB);\fR
-.br
-\fBchtype mvwinch(WINDOW *\fP\fIwin\fP\fB, int \fP\fIy\fP\fB, int \fP\fIx\fP\fB);\fR
-.br
+.nf
+\fB#include <curses.h>
+.PP
+\fBchtype inch(void);
+\fBchtype winch(WINDOW *\fIwin\fP);
+.PP
+\fBchtype mvinch(int \fIy\fP, int \fIx\fP);
+\fBchtype mvwinch(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP);
+.fi
 .SH DESCRIPTION
-These routines return the character, of type \fBchtype\fR, at the current
+These routines return the character, of type \fBchtype\fP, at the current
 position in the named window.
 If any attributes are set for that position,
 their values are OR'ed into the value returned.
 Constants defined in
-\fB<curses.h>\fR can be used with the \fB&\fR (logical AND) operator to
+\fB<curses.h>\fP can be used with the \fB&\fP (logical AND) operator to
 extract the character or attributes alone.
 .
 .SS Attributes
-The following bit-masks may be AND-ed with characters returned by \fBwinch\fR.
-.
+The following bit masks may be AND-ed with characters returned by \fBwinch\fP.
+.PP
 .TS
-l l .
-\fBA_CHARTEXT\fR	Bit-mask to extract character
-\fBA_ATTRIBUTES\fR	Bit-mask to extract attributes
-\fBA_COLOR\fR	Bit-mask to extract color-pair field information
+Lb Lb
+Lb Lx.
+Name	Description
+_
+A_CHARTEXT	Extract character
+A_ATTRIBUTES	Extract attributes
+A_COLOR	Extract color pair information
 .TE
 .SH RETURN VALUE
-Functions with a \*(``mv\*('' prefix first perform a cursor movement using
-\fBwmove\fP, and return an error if the position is outside the window,
-or if the window pointer is null.
+Functions prefixed with \*(``mv\*('' first perform cursor movement and
+fail if the position
+.RI ( y ,
+.IR x )
+is outside the window boundaries.
 .PP
 The \fBwinch\fP function does not return an error if the window contains
 characters larger than 8-bits (255).
@@ -83,7 +95,7 @@ Only the low-order 8 bits of the character are used by \fBwinch\fP.
 .SH NOTES
 Note that all of these routines may be macros.
 .SH PORTABILITY
-These functions are described in the XSI Curses standard, Issue 4.
+These functions are described in X/Open Curses, Issue 4.
 .PP
 Very old systems (before standardization) provide a different function
 with the same name:
@@ -100,20 +112,17 @@ could be combined with characters in the window.
 Reflecting this improvement, the function was altered to return the
 character combined with all video attributes in a \fBchtype\fP value.
 .PP
-X/Open Curses does not specify 
+X/Open Curses does not specify
 the size and layout of attributes, color and character values in
 \fBchtype\fP; it is implementation-dependent.
 This implementation uses 8 bits for character values.
 An application using more bits, e.g., a Unicode value,
 should use the wide-character equivalents to these functions.
 .SH SEE ALSO
-.TP 5
-\fBcurses\fR(3X)
-gives an overview of the WINDOW and \fBchtype\fP data types.
-.TP 5
-\fBcurs_attr\fR(3X)
-goes into more detail, pointing out portability problems and
-constraints on the use of \fBchtype\fP for returning window information.
-.TP 5
-\fBcurs_in_wch\fR(3X)
-describes comparable functions for the wide-character (ncursesw) library.
+\fB\%curs_in_wch\fP(3X) describes comparable functions of the
+.I \%ncurses
+library in its wide-character configuration
+.RI ( \%ncursesw ).
+.PP
+\fB\%curses\fP(3X),
+\fB\%curs_instr\fP(3X)

@@ -115,7 +115,7 @@ SipHash24_TestVectors(void)
 	for (i = 0; i < 16; ++i)
 		k[i] = i;
 
-	/* Step through differnet length. */
+	/* Step through different lengths */
 	for (i = 0; i < MAXLEN; ++i) {
 		in[i] = i;
 
@@ -124,14 +124,14 @@ SipHash24_TestVectors(void)
 		SipHash_Update(&ctx, in, i);
 		SipHash_Final(out, &ctx);
 
-		if (memcmp(out, vectors[i], 8))
+		if (memcmp(out, vectors[i], 8)) {
+			fail++;
 #if 0
 			printf("%i: test vector failed\n", i);
-		else
+		} else {
 			printf("%i: test vector correct\n", i);
-#else
-			fail++;
 #endif
+		}
 	}
 
 	return ((fail == 0));

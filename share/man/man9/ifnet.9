@@ -75,8 +75,6 @@
 .\"
 .Ss "Interface Address Functions"
 .Ft "struct ifaddr *"
-.Fn ifaddr_byindex "u_short idx"
-.Ft "struct ifaddr *"
 .Fn ifa_ifwithaddr "struct sockaddr *addr"
 .Ft "struct ifaddr *"
 .Fn ifa_ifwithdstaddr "struct sockaddr *addr" "int fib"
@@ -196,8 +194,6 @@ address
 .Xr link_addr 3 )
 describing the link layer implemented by the interface (if any)
 is accessed by the
-.Fn ifaddr_byindex
-function or
 .Va if_addr
 structure.
 (Some trivial interfaces do not provide any link layer addresses;
@@ -1183,9 +1179,7 @@ structure to be the first element in that list.
 (A pointer to
 this address structure is saved in the
 .Vt ifnet
-structure and is accessed by the
-.Fn ifaddr_byindex
-function.)
+structure.)
 The
 .Fa ifp
 must have been allocated by
@@ -1501,10 +1495,6 @@ point-to-point, only an interface address whose remote address is
 precisely
 .Fa addr
 will be returned.
-.Pp
-.Fn ifaddr_byindex
-returns the link-level address of the interface with the given index
-.Fa idx .
 .Pp
 All of these functions return a null pointer if no such address can be
 found.

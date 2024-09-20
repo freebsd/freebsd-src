@@ -714,7 +714,7 @@ tegra_i2c_attach(device_t dev)
 	}
 
 	/* Attach the iicbus. */
-	sc->iicbus = device_add_child(dev, "iicbus", -1);
+	sc->iicbus = device_add_child(dev, "iicbus", DEVICE_UNIT_ANY);
 	if (sc->iicbus == NULL) {
 		device_printf(dev, "Could not allocate iicbus instance.\n");
 		rv = ENXIO;

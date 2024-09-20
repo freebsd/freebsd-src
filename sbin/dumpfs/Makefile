@@ -1,4 +1,3 @@
-
 PACKAGE=ufs
 PROG=	dumpfs
 WARNS?=	2

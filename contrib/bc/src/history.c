@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2024 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -264,7 +264,7 @@ bc_history_line(BcHistory* h, BcVec* vec, const char* prompt)
 	errno = EINTR;
 
 	// Get the line.
-	while (line == NULL && len == -1 && errno == EINTR)
+	while (line == NULL && (len == -1 || errno == EINTR))
 	{
 		line = el_gets(h->el, &len);
 		bc_history_use_prompt = false;

@@ -1222,7 +1222,7 @@ in_ifscrub_all(void)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa, *nifa;
-	struct ifaliasreq ifr;
+	struct ifreq ifr;
 
 	IFNET_RLOCK();
 	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
@@ -1237,9 +1237,7 @@ in_ifscrub_all(void)
 			 * cleanly remove addresses and everything attached.
 			 */
 			bzero(&ifr, sizeof(ifr));
-			ifr.ifra_addr = *ifa->ifa_addr;
-			if (ifa->ifa_dstaddr)
-			ifr.ifra_broadaddr = *ifa->ifa_dstaddr;
+			ifr.ifr_addr = *ifa->ifa_addr;
 			(void)in_control(NULL, SIOCDIFADDR, (caddr_t)&ifr,
 			    ifp, NULL);
 		}

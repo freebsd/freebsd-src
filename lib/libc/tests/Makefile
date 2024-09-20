@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 SUBDIR=		tls_dso
@@ -13,6 +12,7 @@ TESTS_SUBDIRS+=	nss
 TESTS_SUBDIRS+=	regex
 TESTS_SUBDIRS+=	resolv
 TESTS_SUBDIRS+=	rpc
+TESTS_SUBDIRS+=	secure
 TESTS_SUBDIRS+=	setjmp
 TESTS_SUBDIRS+=	stdio
 TESTS_SUBDIRS+=	stdlib

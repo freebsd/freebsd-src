@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 #MISSING: eqnchar.7 ms.7 term.7

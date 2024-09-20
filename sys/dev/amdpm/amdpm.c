@@ -214,7 +214,7 @@ amdpm_attach(device_t dev)
 	mtx_init(&amdpm_sc->lock, device_get_nameunit(dev), "amdpm", MTX_DEF);
 
 	/* Allocate a new smbus device */
-	amdpm_sc->smbus = device_add_child(dev, "smbus", -1);
+	amdpm_sc->smbus = device_add_child(dev, "smbus", DEVICE_UNIT_ANY);
 	if (!amdpm_sc->smbus) {
 		amdpm_detach(dev);
 		return (EINVAL);

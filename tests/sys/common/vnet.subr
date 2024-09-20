@@ -11,11 +11,32 @@ unlist_interface()
 	sed -i "" /^$1\$/d created_interfaces.lst
 }
 
+_vnet_check_req()
+{
+	type=$1
+
+	if kldstat -q -n if_${type}.ko; then
+		return
+	fi
+
+	if ! kldload -n -q if_${type}; then
+		atf_skip "if_${type}.ko is required to run this test."
+		return
+	fi
+}
+
 vnet_init()
 {
 	if [ "`sysctl -i -n kern.features.vimage`" != 1 ]; then
 		atf_skip "This test requires VIMAGE"
 	fi
+
+	# Check if we can create if_epair or if_bridge interfaces.
+	# We may be running in a jail already, unable to load modules.
+	# If so, skip this test because it very likely (but not certainly)
+	# wants at least one of those
+	_vnet_check_req epair
+	_vnet_check_req bridge
 }
 
 vnet_mkepair()

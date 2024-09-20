@@ -1,4 +1,3 @@
-
 PACKAGE=	kerberos-lib
 
 LIB=	hdb

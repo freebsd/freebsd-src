@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2013,2014 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -44,7 +44,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_slkrefr.c,v 1.31 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_slkrefr.c,v 1.32 2021/09/04 10:54:35 tom Exp $")
 
 #ifdef USE_TERM_DRIVER
 #define NumLabels    InfoOf(SP_PARM).numlabels
@@ -113,7 +113,7 @@ slk_intern_refresh(SCREEN *sp)
 		    wmove(slk->win, SLK_LINES(fmt) - 1, slk->ent[i].ent_x);
 		    (void) wattrset(slk->win, (int) AttrOf(slk->attr));
 		    waddstr(slk->win, slk->ent[i].form_text);
-		    /* if we simulate SLK's, it's looking much more
+		    /* if we simulate SLK's, it is looking much more
 		       natural to use the current ATTRIBUTE also
 		       for the label window */
 		    (void) wattrset(slk->win, (int) WINDOW_ATTRS(StdScreen(sp)));

@@ -1,4 +1,3 @@
-
 MAN=
 
 WARNS?=	2

@@ -327,18 +327,15 @@ unionfs_domount(struct mount *mp)
 	 * unionfs_lock()) and the mountpoint's busy count.  Without this,
 	 * unmount will lock the covered vnode lock (directly through the
 	 * covered vnode) and wait for the busy count to drain, while a
-	 * concurrent lookup will increment the busy count and then lock
+	 * concurrent lookup will increment the busy count and then may lock
 	 * the covered vnode lock (indirectly through unionfs_lock()).
 	 *
-	 * Note that we can't yet use this facility for the 'below' case
-	 * in which the upper vnode is the covered vnode, because that would
-	 * introduce a different LOR in which the cross-mount lookup would
-	 * effectively hold the upper vnode lock before acquiring the lower
-	 * vnode lock, while an unrelated lock operation would still acquire
-	 * the lower vnode lock before the upper vnode lock, which is the
-	 * order unionfs currently requires.
+	 * Note that this is only needed for the 'below' case in which the
+	 * upper vnode is also the covered vnode, because unionfs_lock()
+	 * only locks the upper vnode as long as both lower and upper vnodes
+	 * are present (which they will always be for the unionfs mount root).
 	 */
-	if (!below) {
+	if (below) {
 		vn_lock(mp->mnt_vnodecovered, LK_EXCLUSIVE | LK_RETRY | LK_CANRECURSE);
 		mp->mnt_vnodecovered->v_vflag |= VV_CROSSLOCK;
 		VOP_UNLOCK(mp->mnt_vnodecovered);

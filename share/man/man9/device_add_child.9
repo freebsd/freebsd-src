@@ -51,7 +51,7 @@ arguments specify the name and unit number of the device.
 If the name is unknown then the caller should pass
 .Dv NULL .
 If the unit is unknown then the caller should pass
-.Dv -1
+.Dv DEVICE_UNIT_ANY
 and the system will choose the next available unit number.
 .Pp
 The name of the device is used to determine which drivers might be
@@ -70,7 +70,7 @@ be specified as the device name.
 .Pp
 Normally unit numbers will be chosen automatically by the system and a
 unit number of
-.Dv -1
+.Dv DEVICE_UNIT_ANY
 should be given.
 When a specific unit number is desired (e.g.,\& for wiring a particular
 piece of hardware to a pre-configured unit number), that unit should

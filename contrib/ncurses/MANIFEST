@@ -33,6 +33,7 @@
 ./Ada95/include/ncurses_defs
 ./Ada95/make-tar.sh
 ./Ada95/mk-1st.awk
+./Ada95/mk-pkg.awk
 ./Ada95/package/AdaCurses-doc.spec
 ./Ada95/package/AdaCurses.spec
 ./Ada95/package/debian/compat
@@ -342,7 +343,7 @@
 ./doc/html/announce.html
 ./doc/html/hackguide.html
 ./doc/html/index.html
-./doc/html/man/adacurses6-config.1.html
+./doc/html/man/adacursesw6-config.1.html
 ./doc/html/man/captoinfo.1m.html
 ./doc/html/man/clear.1.html
 ./doc/html/man/curs_add_wch.3x.html
@@ -463,7 +464,7 @@
 ./doc/html/man/mitem_value.3x.html
 ./doc/html/man/mitem_visible.3x.html
 ./doc/html/man/ncurses.3x.html
-./doc/html/man/ncurses6-config.1.html
+./doc/html/man/ncursesw6-config.1.html
 ./doc/html/man/new_pair.3x.html
 ./doc/html/man/panel.3x.html
 ./doc/html/man/resizeterm.3x.html
@@ -553,6 +554,7 @@
 ./include/edit_cfg.sh
 ./include/hashed_db.h
 ./include/headers
+./include/nc_access.h
 ./include/nc_alloc.h
 ./include/nc_mingw.h
 ./include/nc_panel.h
@@ -670,7 +672,7 @@
 ./man/keyok.3x
 ./man/legacy_coding.3x
 ./man/make_sed.sh
-./man/man_db.renames
+./man/man_db.renames.in
 ./man/manhtml.aliases
 ./man/manhtml.externs
 ./man/manlinks.sed
@@ -768,6 +770,7 @@
 ./misc/makellib
 ./misc/menu.def
 ./misc/menu.ref
+./misc/ncu2openbsd
 ./misc/ncurses-config.in
 ./misc/ncurses.def
 ./misc/ncurses.ref
@@ -899,6 +902,7 @@
 ./ncurses/new_pair.h
 ./ncurses/report_hashing.c
 ./ncurses/report_offsets.c
+./ncurses/term.priv.h
 ./ncurses/tinfo/MKcaptab.awk
 ./ncurses/tinfo/MKcaptab.sh
 ./ncurses/tinfo/MKcodes.awk
@@ -1108,6 +1112,7 @@
 ./test/color_content.c
 ./test/color_name.h
 ./test/color_set.c
+./test/combine.c
 ./test/configure
 ./test/configure.in
 ./test/demo_altkeys.c
@@ -1212,15 +1217,19 @@
 ./test/test_addstr.c
 ./test/test_addwstr.c
 ./test/test_arrays.c
+./test/test_delwin.c
+./test/test_endwin.c
 ./test/test_get_wstr.c
 ./test/test_getstr.c
 ./test/test_instr.c
 ./test/test_inwstr.c
+./test/test_mouse.c
 ./test/test_opaque.c
 ./test/test_setupterm.c
 ./test/test_sgr.c
 ./test/test_termattrs.c
 ./test/test_tparm.c
+./test/test_unget_wch.c
 ./test/test_vid_puts.c
 ./test/test_vidputs.c
 ./test/testaddch.c

@@ -1,4 +1,3 @@
-
 .PATH: ${.CURDIR:H}/common
 
 OBJS+=		crtsavres.o

@@ -3,14 +3,14 @@ false
 *** Error code 1 (continuing)
 
 Stop.
-make: stopped in unit-tests
+make: stopped making "direct" in unit-tests
 exited 1
 
 direct jobs
 false
 *** [direct] Error code 1
 
-make: stopped in unit-tests
+make: stopped making "direct" in unit-tests
 exited 1
 
 indirect compat
@@ -19,14 +19,14 @@ false
 `indirect' not remade because of errors.
 
 Stop.
-make: stopped in unit-tests
+make: stopped making "indirect" in unit-tests
 exited 1
 
 indirect jobs
 false
 *** [direct] Error code 1
 
-make: stopped in unit-tests
+make: stopped making "indirect" in unit-tests
 exited 1
 
 exit status 0

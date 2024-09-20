@@ -91,6 +91,10 @@
         ..
         usr.sbin
             dtrace
+                amd64
+                    arrays
+                    ..
+                ..
                 common
                     aggs
                     ..
@@ -269,10 +273,6 @@
                     ustack
                     ..
                 ..
-                amd64
-                    arrays
-                    ..
-                ..
             ..
             zfsd
             ..
@@ -371,6 +371,8 @@
             resolv
             ..
             rpc
+            ..
+            secure
             ..
             setjmp
             ..
@@ -835,6 +837,8 @@
                     etalon
                     ..
                 ..
+                virstor
+                ..
             ..
         ..
         kern
@@ -1197,11 +1201,11 @@
         ..
         tsort
         ..
-        units
-        ..
         unifdef
         ..
         uniq
+        ..
+        units
         ..
         unzip
         ..
@@ -1223,6 +1227,8 @@
     usr.sbin
         chown
         ..
+        ctladm
+        ..
         daemon
         ..
         etcupdate
@@ -1234,6 +1240,8 @@
         jail
         ..
         makefs
+        ..
+        mixer
         ..
         newsyslog
         ..

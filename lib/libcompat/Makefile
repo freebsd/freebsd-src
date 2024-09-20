@@ -1,4 +1,3 @@
-
 PACKAGE=lib${LIB}
 LIB=	compat
 CFLAGS+=-I${SRCTOP}/lib/libc/locale

@@ -1,4 +1,3 @@
-
 SCRIPTS=generic.sh
 SCRIPTSNAME=alias
 

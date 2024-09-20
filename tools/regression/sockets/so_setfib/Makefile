@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 PROG=	so_setfib

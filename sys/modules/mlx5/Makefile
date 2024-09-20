@@ -1,21 +1,25 @@
 .PATH:	${SRCTOP}/sys/dev/mlx5/mlx5_core \
 	${SRCTOP}/sys/dev/mlx5/mlx5_lib \
-	${SRCTOP}/sys/dev/mlx5/mlx5_fpga
+	${SRCTOP}/sys/dev/mlx5/mlx5_fpga \
+	${SRCTOP}/sys/dev/mlx5/mlx5_accel
 
 KMOD=mlx5
 SRCS= \
 mlx5_alloc.c \
+mlx5_aso.c \
 mlx5_cmd.c \
+mlx5_crypto.c \
 mlx5_cq.c \
 mlx5_diag_cnt.c \
 mlx5_diagnostics.c \
 mlx5_eq.c \
 mlx5_eswitch.c \
-mlx5_fc_cmd.c \
+mlx5_fs_chains.c \
 mlx5_fs_cmd.c \
-mlx5_fs_tcp.c \
-mlx5_fs_tree.c \
+mlx5_fs_core.c \
 mlx5_fs_counters.c \
+mlx5_fs_ft_pool.c \
+mlx5_fs_tcp.c \
 mlx5_fw.c \
 mlx5_fwdump.c \
 mlx5_health.c \
@@ -36,7 +40,11 @@ mlx5_uar.c \
 mlx5_vport.c \
 mlx5_vsc.c \
 mlx5_wq.c \
-mlx5_gid.c
+mlx5_gid.c \
+mlx5_ipsec_fs.c \
+mlx5_ipsec_offload.c \
+mlx5_ipsec.c \
+mlx5_ipsec_rxtx.c
 SRCS+=	${LINUXKPI_GENSRCS}
 SRCS+=	opt_inet.h opt_inet6.h opt_rss.h opt_ratelimit.h
 

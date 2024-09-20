@@ -49,8 +49,8 @@ static __inline void
 __mbk(void)
 {
 
-	__asm __volatile("lock; addl $0,%%fs:%0"
-	    : "+m" (*(u_int *)__OFFSETOF_MONITORBUF) : : "memory", "cc");
+	__asm __volatile("lock; addl $0,%%fs:%c0"
+	    : : "i" (__OFFSETOF_MONITORBUF) : "memory", "cc");
 }
 
 static __inline void

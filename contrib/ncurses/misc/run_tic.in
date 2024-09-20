@@ -1,7 +1,7 @@
 #!@SHELL@
-# $Id: run_tic.in,v 1.38 2020/02/15 15:30:53 tom Exp $
+# $Id: run_tic.in,v 1.40 2022/07/16 19:37:03 tom Exp $
 ##############################################################################
-# Copyright 2019,2020 Thomas E. Dickey                                       #
+# Copyright 2019-2020,2022 Thomas E. Dickey                                  #
 # Copyright 2000-2012,2017 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -42,21 +42,20 @@ echo "** Building terminfo database, please wait..."
 # The script is designed to be run from the misc/Makefile as
 #	make install.data
 
-: ${suffix:=@EXEEXT@}
-: ${DESTDIR:=@DESTDIR@}
-: ${prefix:=@prefix@}
-: ${exec_prefix:=@exec_prefix@}
-: ${bindir:=@bindir@}
-: ${top_srcdir:=@top_srcdir@}
-: ${srcdir:=@srcdir@}
-: ${datarootdir:=@datarootdir@}
-: ${datadir:=@datadir@}
-: ${TIC_PATH:=@TIC@}
-: ${ticdir:=@TERMINFO@}
-: ${source:=@TERMINFO_SRC@}
-: ${LN_S:="@LN_S@"}
-: ${cross_compiling:=no}
-: ${ext_funcs:=@NCURSES_EXT_FUNCS@}
+: "${suffix:=@EXEEXT@}"
+: "${DESTDIR:=@DESTDIR@}"
+: "${prefix:=@prefix@}"
+: "${exec_prefix:=@exec_prefix@}"
+: "${bindir:=@bindir@}"
+: "${top_srcdir:=@top_srcdir@}"
+: "${srcdir:=@srcdir@}"
+: "${datarootdir:=@datarootdir@}"
+: "${datadir:=@datadir@}"
+: "${TIC_PATH:=@TIC@}"
+: "${ticdir:=@TERMINFO@}"
+: "${source:=@TERMINFO_SRC@}"
+: "${cross_compiling:=no}"
+: "${ext_funcs:=@NCURSES_EXT_FUNCS@}"
 
 test -z "${DESTDIR}" && DESTDIR=
 
@@ -118,7 +117,7 @@ TICDIR=`echo "$TERMINFO" | sed -e 's%/share/\([^/]*\)$%/lib/\1%'`
 PARENT=`echo "$TERMINFO" | sed -e 's%/[^/]*$%%'`
 if test -n "$PARENT"
 then
-	test -d $PARENT || mkdir -p $PARENT
+	mkdir -p "$PARENT"
 fi
 
 # Remove the old terminfo stuff; we don't care if it existed before, and it
@@ -127,7 +126,7 @@ fi
 # the directory is actually a symbolic link.
 if test -d "$TERMINFO"
 then
-	( cd "$TERMINFO" && rm -fr ? 2>/dev/null )
+	( cd "$TERMINFO" && rm -fr ./? 2>/dev/null )
 elif test -f "$TERMINFO.db"
 then
 	( rm -f "$TERMINFO.db" 2>/dev/null )
@@ -183,9 +182,9 @@ if test "$TICDIR" != "$TERMINFO" ; then
 	( rm -f "$TICDIR" 2>/dev/null )
 	if ( cd "$TICDIR" 2>/dev/null )
 	then
-		cd "$TICDIR"
+		cd "$TICDIR" || exit
 		TICDIR=`pwd`
-		if test "$TICDIR "!= "$TERMINFO "; then
+		if test "$TICDIR " != "$TERMINFO "; then
 			# Well, we tried.  Some systems lie to us, so the
 			# installer will have to double-check.
 			echo "Verify if $TICDIR and $TERMINFO are the same."
@@ -193,7 +192,7 @@ if test "$TICDIR" != "$TERMINFO" ; then
 			echo "Otherwise, remove $TICDIR and link it to $TERMINFO."
 		fi
 	else
-		cd ${DESTDIR}$prefix
+		cd ${DESTDIR}$prefix || exit
 		# Construct a symbolic link that only assumes $ticdir has the
 		# same $prefix as the other installed directories.
 		RELATIVE=`echo $ticdir|sed -e 's%^'$prefix'/%%'`

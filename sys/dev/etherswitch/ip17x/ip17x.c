@@ -84,7 +84,7 @@ static void
 ip17x_identify(driver_t *driver, device_t parent)
 {
 	if (device_find_child(parent, "ip17x", -1) == NULL)
-	    BUS_ADD_CHILD(parent, 0, "ip17x", -1);
+	    BUS_ADD_CHILD(parent, 0, "ip17x", DEVICE_UNIT_ANY);
 }
 
 static int
@@ -172,12 +172,6 @@ ip17x_attach_phys(struct ip17x_softc *sc)
 		sc->phyport[phy] = port;
 		sc->portphy[port] = phy;
 		sc->ifp[port] = if_alloc(IFT_ETHER);
-		if (sc->ifp[port] == NULL) {
-			device_printf(sc->sc_dev, "couldn't allocate ifnet structure\n");
-			err = ENOMEM;
-			break;
-		}
-
 		if_setsoftc(sc->ifp[port], sc);
 		if_setflags(sc->ifp[port], IFF_UP | IFF_BROADCAST |
 		    IFF_DRV_RUNNING | IFF_SIMPLEX);

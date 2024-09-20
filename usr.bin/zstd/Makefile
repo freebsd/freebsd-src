@@ -1,4 +1,3 @@
-
 PROG=	zstd
 SRCS=	\
 	benchfn.c \

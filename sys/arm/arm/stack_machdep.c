@@ -69,8 +69,6 @@ stack_save_td(struct stack *st, struct thread *td)
 	struct unwind_state state;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	KASSERT(!TD_IS_SWAPPED(td),
-	    ("stack_save_td: thread %p is swapped", td));
 
 	if (TD_IS_RUNNING(td))
 		return (EOPNOTSUPP);

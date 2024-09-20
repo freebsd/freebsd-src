@@ -1,4 +1,4 @@
-/*	$NetBSD: compat.c,v 1.255 2024/04/20 10:18:55 rillig Exp $	*/
+/*	$NetBSD: compat.c,v 1.260 2024/07/11 20:09:16 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -94,7 +94,7 @@
 #include "pathnames.h"
 
 /*	"@(#)compat.c	8.2 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: compat.c,v 1.255 2024/04/20 10:18:55 rillig Exp $");
+MAKE_RCSID("$NetBSD: compat.c,v 1.260 2024/07/11 20:09:16 sjg Exp $");
 
 static GNode *curTarg = NULL;
 static pid_t compatChild;
@@ -203,6 +203,24 @@ UseShell(const char *cmd MAKE_ATTR_UNUSED)
 #endif
 }
 
+static int
+Compat_Spawn(const char **av)
+{
+	int pid = vfork();
+	if (pid < 0)
+		Fatal("Could not fork");
+
+	if (pid == 0) {
+#ifdef USE_META
+		if (useMeta)
+			meta_compat_child();
+#endif
+		(void)execvp(av[0], (char *const *)UNCONST(av));
+		execDie("exec", av[0]);
+	}
+	return pid;
+}
+
 /*
  * Execute the next command for a target. If the command returns an error,
  * the node's made field is set to ERROR and creation stops.
@@ -225,21 +243,20 @@ Compat_RunCommand(const char *cmdp, GNode *gn, StringListNode *ln)
 	volatile bool errCheck;	/* Check errors */
 	WAIT_T reason;		/* Reason for child's death */
 	WAIT_T status;		/* Description of child's death */
-	pid_t cpid;		/* Child actually found */
 	pid_t retstat;		/* Result of wait */
-	const char **volatile av; /* Argument vector for thing to exec */
+	const char **av;	/* Arguments for the child process */
 	char **volatile mav;	/* Copy of the argument vector for freeing */
 	bool useShell;		/* True if command should be executed using a
 				 * shell */
-	const char *volatile cmd = cmdp;
+	const char *cmd = cmdp;
+	char cmd_file[MAXPATHLEN];
+	size_t cmd_len;
 
 	silent = (gn->type & OP_SILENT) != OP_NONE;
 	errCheck = !(gn->type & OP_IGNORE);
 	doIt = false;
 
-	EvalStack_Push(gn->name, NULL, NULL);
-	cmdStart = Var_Subst(cmd, gn, VARE_WANTRES);
-	EvalStack_Pop();
+	cmdStart = Var_SubstInTarget(cmd, gn);
 	/* TODO: handle errors */
 
 	if (cmdStart[0] == '\0') {
@@ -264,11 +281,13 @@ Compat_RunCommand(const char *cmdp, GNode *gn, StringListNode *ln)
 			 * usual '$$'.
 			 */
 			Lst_Append(&endNode->commands, cmdStart);
-			return true;
+			goto register_command;
 		}
 	}
 	if (strcmp(cmdStart, "...") == 0) {
 		gn->type |= OP_SAVE_CMDS;
+	register_command:
+		Parse_RegisterCommand(cmdStart);
 		return true;
 	}
 
@@ -288,7 +307,7 @@ Compat_RunCommand(const char *cmdp, GNode *gn, StringListNode *ln)
 	while (ch_isspace(*cmd))
 		cmd++;
 	if (cmd[0] == '\0')
-		return true;
+		goto register_command;
 
 	useShell = UseShell(cmd);
 
@@ -298,24 +317,24 @@ Compat_RunCommand(const char *cmdp, GNode *gn, StringListNode *ln)
 	}
 
 	if (!doIt && !GNode_ShouldExecute(gn))
-		return true;
+		goto register_command;
 
 	DEBUG1(JOB, "Execute: '%s'\n", cmd);
 
-	if (useShell && shellPath == NULL)
-		Shell_Init();		/* we need shellPath */
+	cmd_len = strlen(cmd);
+	if (cmd_len > MAKE_CMDLEN_LIMIT)
+		useShell = true;
+	else
+		cmd_file[0] = '\0';
 
 	if (useShell) {
 		static const char *shargv[5];
 
-		/* The following work for any of the builtin shell specs. */
-		int shargc = 0;
-		shargv[shargc++] = shellPath;
-		if (errCheck && shellErrFlag != NULL)
-			shargv[shargc++] = shellErrFlag;
-		shargv[shargc++] = DEBUG(SHELL) ? "-xc" : "-c";
-		shargv[shargc++] = cmd;
-		shargv[shargc] = NULL;
+		if (Cmd_Argv(cmd, cmd_len, shargv, 5,
+			cmd_file, sizeof(cmd_file),
+			(errCheck && shellErrFlag != NULL),
+			DEBUG(SHELL)) < 0)
+			Fatal("cannot run \"%s\"", cmd);
 		av = shargv;
 		bp = NULL;
 		mav = NULL;
@@ -333,19 +352,7 @@ Compat_RunCommand(const char *cmdp, GNode *gn, StringListNode *ln)
 
 	Var_ReexportVars(gn);
 
-	compatChild = cpid = vfork();
-	if (cpid < 0)
-		Fatal("Could not fork");
-
-	if (cpid == 0) {
-#ifdef USE_META
-		if (useMeta)
-			meta_compat_child();
-#endif
-		(void)execvp(av[0], (char *const *)UNCONST(av));
-		execDie("exec", av[0]);
-	}
-
+	compatChild = Compat_Spawn(av);
 	free(mav);
 	free(bp);
 
@@ -355,11 +362,11 @@ Compat_RunCommand(const char *cmdp, GNode *gn, StringListNode *ln)
 
 #ifdef USE_META
 	if (useMeta)
-		meta_compat_parent(cpid);
+		meta_compat_parent(compatChild);
 #endif
 
 	/* The child is off and running. Now all we can do is wait... */
-	while ((retstat = wait(&reason)) != cpid) {
+	while ((retstat = wait(&reason)) != compatChild) {
 		if (retstat > 0)
 			JobReapChild(retstat, reason, false); /* not ours? */
 		if (retstat == -1 && errno != EINTR)
@@ -420,6 +427,8 @@ Compat_RunCommand(const char *cmdp, GNode *gn, StringListNode *ln)
 	}
 
 	free(cmdStart);
+	if (cmd_file[0] != '\0')
+		unlink(cmd_file);
 	compatChild = 0;
 	if (compatSigno != 0) {
 		bmake_signal(compatSigno, SIG_DFL);

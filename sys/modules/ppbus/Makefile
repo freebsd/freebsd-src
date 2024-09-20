@@ -1,4 +1,3 @@
-
 .PATH:	${SRCTOP}/sys/dev/ppbus
 KMOD=	ppbus
 SRCS=	bus_if.h device_if.h ppbus_if.h ppbus_if.c \

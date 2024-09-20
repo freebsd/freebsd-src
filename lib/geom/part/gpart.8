@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 26, 2023
+.Dd September 2, 2024
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -1007,6 +1007,11 @@ for GPT.
 A illumos/Solaris partition dedicated to reserved space.
 The scheme-specific type is
 .Qq Li "!6a945a3b-1dd2-11b2-99a6-080020736631"
+for GPT.
+.It Cm u-boot-env
+A raw partition dedicated to U-Boot for storing its environment.
+The scheme-specific type is
+.Qq Li "!3de21764-95bd-54bd-a5c3-4abe786f38a8"
 for GPT.
 .It Cm vmware-vmfs
 A partition that contains a VMware File System (VMFS).

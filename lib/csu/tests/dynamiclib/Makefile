@@ -1,4 +1,3 @@
-
 .PATH: ${.CURDIR:H}
 CFLAGS+=	-DDSO_BASE
 DPADD+=		${.OBJDIR:H}/dso/libh_csu.so

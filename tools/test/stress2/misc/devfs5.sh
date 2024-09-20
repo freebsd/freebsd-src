@@ -30,7 +30,7 @@
 [ `id -u ` -ne 0 ] && echo "Must be root!" && exit 1
 
 # Test scenario for https://reviews.freebsd.org/D20411
-# Add devfs(5) support for VOP_MKDIR(9) and VOP_RMDIR(9)
+# Add devfs(4) support for VOP_MKDIR(9) and VOP_RMDIR(9)
 
 . ../default.cfg
 

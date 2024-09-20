@@ -1,4 +1,3 @@
-
 VOLUME=		smm/08.sendmailop
 SRCS=		op.me
 MACROS=		-me

@@ -1,4 +1,3 @@
-
 PROG=	mkkfont
 MAN1=
 

@@ -1,5 +1,4 @@
 .\" Copyright (c) 2019 The FreeBSD Foundation, Inc.
-.\" All rights reserved.
 .\"
 .\" This documentation was written by
 .\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
@@ -26,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 5, 2023
+.Dd August 23, 2024
 .Dt PROCCONTROL 1
 .Os
 .Sh NAME
@@ -35,9 +34,12 @@
 .Sh SYNOPSIS
 .Nm
 .Fl m Ar mode
-.Op Fl s Ar control
-.Op Fl q
+.Fl s Ar control
 .Fl p Ar pid | command
+.Nm
+.Fl m Ar mode
+.Fl q
+.Op Fl p Ar pid | command
 .Sh DESCRIPTION
 The
 .Nm

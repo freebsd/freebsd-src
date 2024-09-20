@@ -114,14 +114,6 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, syncookies_only, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_syncookiesonly), 0,
     "Use only TCP SYN cookies");
 
-VNET_DEFINE_STATIC(int, functions_inherit_listen_socket_stack) = 1;
-#define V_functions_inherit_listen_socket_stack \
-    VNET(functions_inherit_listen_socket_stack)
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, functions_inherit_listen_socket_stack,
-    CTLFLAG_VNET | CTLFLAG_RW,
-    &VNET_NAME(functions_inherit_listen_socket_stack), 0,
-    "Inherit listen socket's stack");
-
 #ifdef TCP_OFFLOAD
 #define ADDED_BY_TOE(sc) ((sc)->sc_tod != NULL)
 #endif
@@ -215,7 +207,7 @@ sysctl_net_inet_tcp_syncache_rexmtlimit_check(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_net_inet_tcp_syncache, OID_AUTO, rexmtlimit,
     CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
     &VNET_NAME(tcp_syncache.rexmt_limit), 0,
-    sysctl_net_inet_tcp_syncache_rexmtlimit_check, "UI",
+    sysctl_net_inet_tcp_syncache_rexmtlimit_check, "IU",
     "Limit on SYN/ACK retransmissions");
 
 VNET_DEFINE(int, tcp_sc_rst_sock_fail) = 1;
@@ -777,7 +769,6 @@ done:
 static struct socket *
 syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 {
-	struct tcp_function_block *blk;
 	struct inpcb *inp = NULL;
 	struct socket *so;
 	struct tcpcb *tp;
@@ -802,7 +793,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		goto allocfail;
 	}
 	inp = sotoinpcb(so);
-	if ((tp = tcp_newtcpcb(inp)) == NULL) {
+	if ((tp = tcp_newtcpcb(inp, sototcpcb(lso))) == NULL) {
 		in_pcbfree(inp);
 		sodealloc(so);
 		goto allocfail;
@@ -912,37 +903,6 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	tp->t_port = sc->sc_port;
 	tcp_rcvseqinit(tp);
 	tcp_sendseqinit(tp);
-	blk = sototcpcb(lso)->t_fb;
-	if (V_functions_inherit_listen_socket_stack && blk != tp->t_fb) {
-		/*
-		 * Our parents t_fb was not the default,
-		 * we need to release our ref on tp->t_fb and
-		 * pickup one on the new entry.
-		 */
-		struct tcp_function_block *rblk;
-		void *ptr = NULL;
-
-		rblk = find_and_ref_tcp_fb(blk);
-		KASSERT(rblk != NULL,
-		    ("cannot find blk %p out of syncache?", blk));
-
-		if (rblk->tfb_tcp_fb_init == NULL ||
-		    (*rblk->tfb_tcp_fb_init)(tp, &ptr) == 0) {
-			/* Release the old stack */
-			if (tp->t_fb->tfb_tcp_fb_fini != NULL)
-				(*tp->t_fb->tfb_tcp_fb_fini)(tp, 0);
-			refcount_release(&tp->t_fb->tfb_refcnt);
-			/* Now set in all the pointers */
-			tp->t_fb = rblk;
-			tp->t_fb_ptr = ptr;
-		} else {
-			/*
-			 * Initialization failed. Release the reference count on
-			 * the looked up default stack.
-			 */
-			refcount_release(&rblk->tfb_refcnt);
-		}
-	}
 	tp->snd_wl1 = sc->sc_irs;
 	tp->snd_max = tp->iss + 1;
 	tp->snd_nxt = tp->iss + 1;
@@ -1053,6 +1013,7 @@ allocfail:
 	return (NULL);
 
 abort:
+	tcp_discardcb(tp);
 	in_pcbfree(inp);
 	sodealloc(so);
 	if ((s = tcp_log_addrs(&sc->sc_inc, NULL, NULL, NULL))) {
@@ -1759,9 +1720,7 @@ skip_alloc:
 	 * Do a standard 3-way handshake.
 	 */
 	if (syncache_respond(sc, m, TH_SYN|TH_ACK) == 0) {
-		if (V_tcp_syncookies && V_tcp_syncookiesonly && sc != &scs)
-			syncache_free(sc);
-		else if (sc != &scs)
+		if (sc != &scs)
 			syncache_insert(sc, sch);   /* locks and unlocks sch */
 		TCPSTAT_INC(tcps_sndacks);
 		TCPSTAT_INC(tcps_sndtotal);

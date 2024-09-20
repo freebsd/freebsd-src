@@ -184,7 +184,11 @@ static struct ctladm_opts option_table[] = {
 	{"modify", CTLADM_CMD_MODIFY, CTLADM_ARG_NONE, "b:l:o:s:"},
 	{"nvlist", CTLADM_CMD_NVLIST, CTLADM_ARG_NONE, "vx"},
 	{"nvterminate", CTLADM_CMD_NVTERMINATE, CTLADM_ARG_NONE, "ac:h:"},
+#if (__FreeBSD_version < 1600000)
 	{"port", CTLADM_CMD_PORT, CTLADM_ARG_NONE, "lo:O:d:crp:qt:w:W:x"},
+#else
+	{"port", CTLADM_CMD_PORT, CTLADM_ARG_NONE, "o:O:d:crp:t:w:W:"},
+#endif
 	{"portlist", CTLADM_CMD_PORTLIST, CTLADM_ARG_NONE, "f:ilp:qvx"},
 	{"prin", CTLADM_CMD_PRES_IN, CTLADM_ARG_NEED_TL, "a:"},
 	{"prout", CTLADM_CMD_PRES_OUT, CTLADM_ARG_NEED_TL, "a:k:r:s:"},
@@ -397,7 +401,9 @@ static struct ctladm_opts cctl_fe_table[] = {
 static int
 cctl_port(int fd, int argc, char **argv, char *combinedopt)
 {
+	char result_buf[1024];
 	int c;
+	uint64_t created_port = -1;
 	int32_t targ_port = -1;
 	int retval = 0;
 	int wwnn_set = 0, wwpn_set = 0;
@@ -408,7 +414,9 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 	char *driver = NULL;
 	nvlist_t *option_list;
 	ctl_port_type port_type = CTL_PORT_NONE;
+#if (__FreeBSD_version < 1600000)
 	int quiet = 0, xml = 0;
+#endif
 
 	option_list = nvlist_create(0);
 	if (option_list == NULL)
@@ -416,12 +424,22 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch (c) {
+#if (__FreeBSD_version < 1600000)
 		case 'l':
+			warnx("ctladm port -l is deprecated.  "
+			    "Use ctladm portlist instead");
 			if (port_mode != CCTL_PORT_MODE_NONE)
 				goto bailout_badarg;
 
 			port_mode = CCTL_PORT_MODE_LIST;
 			break;
+		case 'q':
+			quiet = 1;
+			break;
+		case 'x':
+			xml = 1;
+			break;
+#endif
 		case 'c':
 			port_mode = CCTL_PORT_MODE_CREATE;
 			break;
@@ -481,9 +499,6 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 		case 'p':
 			targ_port = strtol(optarg, NULL, 0);
 			break;
-		case 'q':
-			quiet = 1;
-			break;
 		case 't': {
 			ctladm_optret optret;
 			ctladm_cmdargs argnum;
@@ -527,9 +542,6 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 			wwpn = strtoull(optarg, NULL, 0);
 			wwpn_set = 1;
 			break;
-		case 'x':
-			xml = 1;
-			break;
 		}
 	}
 
@@ -561,6 +573,7 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 	entry.targ_port = targ_port;
 
 	switch (port_mode) {
+#if (__FreeBSD_version < 1600000)
 	case CCTL_PORT_MODE_LIST: {
 		char opts[] = "xq";
 		char argx[] = "-x";
@@ -577,21 +590,19 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 		cctl_portlist(fd, argcx, argvx, opts);
 		break;
 	}
+#endif
 	case CCTL_PORT_MODE_REMOVE:
-		if (targ_port == -1) {
-			warnx("%s: -r requires -p", __func__);
-			retval = 1;
-			goto bailout;
-		}
-		/* FALLTHROUGH */
 	case CCTL_PORT_MODE_CREATE: {
 		bzero(&req, sizeof(req));
 		strlcpy(req.driver, driver, sizeof(req.driver));
+		req.result = result_buf;
+		req.result_len = sizeof(result_buf);
 
 		if (port_mode == CCTL_PORT_MODE_REMOVE) {
 			req.reqtype = CTL_REQ_REMOVE;
-			nvlist_add_stringf(option_list, "port_id", "%d",
-			    targ_port);
+			if (targ_port != -1)
+				nvlist_add_stringf(option_list, "port_id", "%d",
+				    targ_port);
 		} else
 			req.reqtype = CTL_REQ_CREATE;
 
@@ -619,6 +630,20 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 			warnx("warning: %s", req.error_str);
 			break;
 		case CTL_LUN_OK:
+			if (port_mode == CCTL_PORT_MODE_CREATE) {
+				req.result_nvl = nvlist_unpack(result_buf, req.result_len, 0);
+				if (req.result_nvl == NULL) {
+					warnx("error unpacking result nvlist");
+					break;
+				}
+				created_port = nvlist_get_number(req.result_nvl, "port_id");
+				printf("Port created successfully\n"
+				    "frontend: %s\n"
+				    "port:     %ju\n", driver,
+				    (uintmax_t) created_port);
+				nvlist_destroy(req.result_nvl);
+			} else
+				printf("Port destroyed successfully\n");
 			break;
 		default:
 			warnx("unknown status: %d", req.status);
@@ -667,7 +692,7 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 		fprintf(stdout, "Front End Ports disabled\n");
 		break;
 	default:
-		warnx("%s: one of -l, -o or -w/-W must be specified", __func__);
+		warnx("%s: one of -c, -r, -o or -w/-W must be specified", __func__);
 		retval = 1;
 		goto bailout;
 		break;
@@ -4256,7 +4281,6 @@ usage(int error)
 "port options:\n"
 "-c                       : create new ioctl or iscsi frontend port\n"
 "-d                       : specify ioctl or iscsi frontend type\n"
-"-l                       : list frontend ports\n"
 "-o on|off                : turn frontend ports on or off\n"
 "-O pp|vp                 : create new frontend port using pp and/or vp\n"
 "-w wwnn                  : set WWNN for one frontend\n"
@@ -4264,8 +4288,6 @@ usage(int error)
 "-t port_type             : specify fc, scsi, ioctl, internal frontend type\n"
 "-p targ_port             : specify target port number\n"
 "-r                       : remove frontend port\n" 
-"-q                       : omit header in list output\n"
-"-x                       : output port list in XML format\n"
 "portlist options:\n"
 "-f frontend              : specify frontend type\n"
 "-i                       : report target and initiators addresses\n"
@@ -4446,7 +4468,7 @@ main(int argc, char **argv)
 		if (fd == -1 && errno == ENOENT) {
 			saved_errno = errno;
 			retval = kldload("ctl");
-			if (retval != -1)
+			if (retval != -1 || errno == EEXIST)
 				fd = open(device, O_RDWR);
 			else
 				errno = saved_errno;

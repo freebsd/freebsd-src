@@ -63,7 +63,7 @@ void HO(void);
 void end_term(void);
 #endif
 
-#define	TEXT_ROWS	24
+#define	TEXT_ROWS	25
 #define	TEXT_COLS	80
 
 static tf_bell_t	efi_cons_bell;

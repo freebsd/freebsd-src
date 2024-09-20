@@ -154,7 +154,6 @@ options 	BOOT_TAG=\"\"
 # size for both BOOT_TAG and the assocated tunable.
 options 	BOOT_TAG_SZ=32
 
-options 	GEOM_BDE		# Disk encryption.
 options 	GEOM_CACHE		# Disk cache.
 options 	GEOM_CONCAT		# Disk concatenation.
 options 	GEOM_ELI		# Disk encryption.
@@ -977,6 +976,9 @@ device		lagg
 
 # WireGuard interface.
 device		wg
+
+# dummymbuf – mbuf alteration pfil hooks
+device		dummymbuf
 
 #
 # Internet family options:
@@ -2391,16 +2393,6 @@ options 	SW_WATCHDOG
 #
 options 	DEADLKRES
 
-#
-# Disable swapping of stack pages.  This option removes all
-# code which actually performs swapping, so it's not possible to turn
-# it back on at run-time.
-#
-# This is sometimes usable for systems which don't have any swap space
-# (see also sysctl "vm.disable_swapspace_pageouts")
-#
-#options 	NO_SWAPPING
-
 # Set the number of sf_bufs to allocate. sf_bufs are virtual buffers
 # for sendfile(2) that are used to map file VM pages, and normally
 # default to a quantity that is roughly 16*MAXUSERS+512. You would
@@ -2434,8 +2426,8 @@ device		virtio_blk	# VirtIO Block device
 device		virtio_console	# VirtIO Console device
 device		virtio_gpu	# VirtIO GPU device
 device		virtio_random	# VirtIO Entropy device
-device		virtio_scmi	# VirtIO SCSI device
-device		virtio_scsi	# VirtIO SCMI device
+device		virtio_scmi	# VirtIO SCMI device
+device		virtio_scsi	# VirtIO SCSI device
 
 #####################################################################
 # HID support
@@ -2874,3 +2866,6 @@ device		xz		# xz_embedded LZMA de-compression library
 
 # Kernel support for stats(3).
 options 	STATS
+
+# File system monitoring
+device		filemon		# file monitoring for make(1) meta-mode

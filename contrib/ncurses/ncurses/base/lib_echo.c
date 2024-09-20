@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2023 Thomas E. Dickey                                     *
  * Copyright 1998-2000,2009 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -45,7 +45,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_echo.c,v 1.9 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_echo.c,v 1.10 2023/04/29 18:57:12 tom Exp $")
 
 NCURSES_EXPORT(int)
 NCURSES_SP_NAME(echo) (NCURSES_SP_DCL0)
@@ -53,7 +53,7 @@ NCURSES_SP_NAME(echo) (NCURSES_SP_DCL0)
     T((T_CALLED("echo(%p)"), (void *) SP_PARM));
     if (0 == SP_PARM)
 	returnCode(ERR);
-    SP_PARM->_echo = TRUE;
+    IsEcho(SP_PARM) = TRUE;
     returnCode(OK);
 }
 
@@ -71,7 +71,7 @@ NCURSES_SP_NAME(noecho) (NCURSES_SP_DCL0)
     T((T_CALLED("noecho(%p)"), (void *) SP_PARM));
     if (0 == SP_PARM)
 	returnCode(ERR);
-    SP_PARM->_echo = FALSE;
+    IsEcho(SP_PARM) = FALSE;
     returnCode(OK);
 }
 

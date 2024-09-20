@@ -3,6 +3,7 @@
 KMOD=	linuxkpi_video
 SRCS=	linux_hdmi.c \
 	linux_aperture.c \
+	linux_cmdline.c \
 	linuxkpi_videokmod.c
 
 SRCS+=	${LINUXKPI_GENSRCS}

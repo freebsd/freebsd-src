@@ -1,6 +1,5 @@
-'\" t
 .\"***************************************************************************
-.\" Copyright 2018-2019,2020 Thomas E. Dickey                                *
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
 .\" Copyright 1998-2006,2010 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,41 +27,41 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_win.3x,v 1.18 2020/10/18 00:00:32 tom Exp $
-.TH form_win 3X ""
+.\" $Id: form_win.3x,v 1.35 2024/03/16 15:35:01 tom Exp $
+.TH form_win 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
-\fBform_win\fR \- make and break form window and subwindow associations
+\fBform_win\fP \-
+make and break form window and subwindow associations
 .SH SYNOPSIS
-\fB#include <form.h>\fR
-.sp
-\fBint set_form_win(FORM *\fP\fIform\fP\fB, WINDOW *\fP\fIwin\fP\fB);\fP
-.br
-\fBWINDOW *form_win(const FORM *\fP\fIform\fP\fB);\fP
-.sp
-\fBint set_form_sub(FORM *\fP\fIform\fP\fB, WINDOW *\fP\fIsub\fP\fB);\fP
-.br
-\fBWINDOW *form_sub(const FORM *\fP\fIform\fP\fB);\fP
-.sp
-\fBint scale_form(const FORM *\fP\fIform\fP\fB, int *\fP\fIrows\fP\fB, int *\fP\fIcolumns\fP\fB);\fP
-.br
+.nf
+\fB#include <form.h>
+.PP
+\fBint set_form_win(FORM *\fIform\fP, WINDOW *\fIwin\fP);
+\fBWINDOW *form_win(const FORM *\fIform\fP);
+.PP
+\fBint set_form_sub(FORM *\fIform\fP, WINDOW *\fIsub\fP);
+\fBWINDOW *form_sub(const FORM *\fIform\fP);
+.PP
+\fBint scale_form(const FORM *\fIform\fP, int *\fIrows\fP, int *\fIcolumns\fP);
+.fi
 .SH DESCRIPTION
-Every form has an associated pair of \fBcurses\fR windows.
+Every form has an associated pair of \fBcurses\fP windows.
 The form window
 displays any title and border associated with the window; the form subwindow
 displays the items of the form that are currently available for selection.
 .PP
 The first four functions get and set those windows.
 It is not necessary to set
-either window; by default, the driver code uses \fBstdscr\fR for both.
+either window; by default, the driver code uses \fBstdscr\fP for both.
 .PP
-In the \fBset_\fR functions, window argument of \fBNULL\fR is treated as though
-it were \fBstsdcr\fR.  A form argument of \fBNULL\fR is treated as a request
+In the \fBset_\fP functions, window argument of \fBNULL\fP is treated as though
+it were \fBstsdcr\fP.  A form argument of \fBNULL\fP is treated as a request
 to change the system default form window or subwindow.
 .PP
-The function \fBscale_form\fR returns the minimum size required for the
-subwindow of \fIform\fR.
+The function \fBscale_form\fP returns the minimum size required for the
+subwindow of \fIform\fP.
 .SH RETURN VALUE
-Routines that return pointers return \fBNULL\fR on error.
+Routines that return pointers return \fBNULL\fP on error.
 Routines that return
 an integer return one of the following error codes:
 .TP 5
@@ -70,7 +69,7 @@ an integer return one of the following error codes:
 The routine succeeded.
 .TP 5
 .B E_SYSTEM_ERROR
-System error occurred (see \fBerrno\fR(3)).
+System error occurred (see \fBerrno\fP(3)).
 .TP 5
 .B E_BAD_ARGUMENT
 Routine detected an incorrect or out-of-range argument.
@@ -80,13 +79,6 @@ The form has already been posted.
 .TP 5
 .B E_NOT_CONNECTED
 No items are connected to the form.
-.SH SEE ALSO
-\fBcurses\fR(3X),
-\fBcurs_variables\fR(3X),
-\fBform\fR(3X).
-.SH NOTES
-The header file \fB<form.h>\fR automatically includes the header file
-\fB<curses.h>\fR.
 .SH PORTABILITY
 These routines emulate the System V forms library.
 They were not supported on
@@ -94,3 +86,7 @@ Version 7 or BSD versions.
 .SH AUTHORS
 Juergen Pfeifer.
 Manual pages and adaptation for new curses by Eric S. Raymond.
+.SH SEE ALSO
+\fB\%curses\fP(3X),
+\fB\%curs_variables\fP(3X),
+\fB\%form\fP(3X)

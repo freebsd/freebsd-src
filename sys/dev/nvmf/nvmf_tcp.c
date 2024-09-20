@@ -138,7 +138,7 @@ static void	tcp_free_qpair(struct nvmf_qpair *nq);
 SYSCTL_NODE(_kern_nvmf, OID_AUTO, tcp, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "TCP transport");
 static u_int tcp_max_transmit_data = 256 * 1024;
-SYSCTL_UINT(_kern_nvmf_tcp, OID_AUTO, max_c2hdata, CTLFLAG_RWTUN,
+SYSCTL_UINT(_kern_nvmf_tcp, OID_AUTO, max_transmit_data, CTLFLAG_RWTUN,
     &tcp_max_transmit_data, 0,
     "Maximum size of data payload in a transmitted PDU");
 
@@ -623,10 +623,7 @@ mbuf_copyto_io(struct mbuf *m, u_int skip, u_int len,
 	while (len != 0) {
 		MPASS((m->m_flags & M_EXTPG) == 0);
 
-		todo = m->m_len - skip;
-		if (todo > len)
-			todo = len;
-
+		todo = min(m->m_len - skip, len);
 		memdesc_copyback(&io->io_mem, io_offset, todo, mtodo(m, skip));
 		skip = 0;
 		io_offset += todo;
@@ -1000,9 +997,7 @@ nvmf_tcp_handle_r2t(struct nvmf_tcp_qpair *qp, struct nvmf_tcp_rxpdu *pdu)
 		struct mbuf *m;
 		uint32_t sent, todo;
 
-		todo = data_len;
-		if (todo > qp->max_tx_data)
-			todo = qp->max_tx_data;
+		todo = min(data_len, qp->max_tx_data);
 		m = nvmf_tcp_command_buffer_mbuf(cb, data_offset, todo, &sent,
 		    todo < data_len);
 		tcp_send_h2c_pdu(qp, r2t->cccid, r2t->ttag, data_offset, m,
@@ -1455,13 +1450,13 @@ tcp_allocate_qpair(bool controller,
 	qp->header_digests = params->tcp.header_digests;
 	qp->data_digests = params->tcp.data_digests;
 	qp->maxr2t = params->tcp.maxr2t;
-	qp->maxh2cdata = params->tcp.maxh2cdata;
+	if (controller)
+		qp->maxh2cdata = params->tcp.maxh2cdata;
 	qp->max_tx_data = tcp_max_transmit_data;
 	if (!controller) {
-		if (qp->max_tx_data > params->tcp.maxh2cdata)
-			qp->max_tx_data = params->tcp.maxh2cdata;
+		qp->max_tx_data = min(qp->max_tx_data, params->tcp.maxh2cdata);
+		qp->max_icd = params->tcp.max_icd;
 	}
-	qp->max_icd = params->tcp.max_icd;
 
 	if (controller) {
 		/* Use the SUCCESS flag if SQ flow control is disabled. */
@@ -1469,7 +1464,7 @@ tcp_allocate_qpair(bool controller,
 
 		/* NB: maxr2t is 0's based. */
 		qp->num_ttags = MIN((u_int)UINT16_MAX + 1,
-		    (uint64_t)params->qsize * (uint64_t)qp->maxr2t + 1);
+		    (uint64_t)params->qsize * ((uint64_t)qp->maxr2t + 1));
 		qp->open_ttags = mallocarray(qp->num_ttags,
 		    sizeof(*qp->open_ttags), M_NVMF_TCP, M_WAITOK | M_ZERO);
 	}
@@ -1558,6 +1553,7 @@ tcp_free_qpair(struct nvmf_qpair *nq)
 		for (u_int i = 0; i < qp->num_ttags; i++) {
 			cb = qp->open_ttags[i];
 			if (cb != NULL) {
+				cb->tc->active_r2ts--;
 				cb->error = ECONNABORTED;
 				tcp_release_command_buffer(cb);
 			}
@@ -1569,6 +1565,10 @@ tcp_free_qpair(struct nvmf_qpair *nq)
 	TAILQ_FOREACH_SAFE(cb, &qp->rx_buffers.head, link, ncb) {
 		tcp_remove_command_buffer(&qp->rx_buffers, cb);
 		mtx_unlock(&qp->rx_buffers.lock);
+#ifdef INVARIANTS
+		if (cb->tc != NULL)
+			cb->tc->pending_r2ts--;
+#endif
 		cb->error = ECONNABORTED;
 		tcp_release_command_buffer(cb);
 		mtx_lock(&qp->rx_buffers.lock);

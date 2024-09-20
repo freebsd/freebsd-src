@@ -2051,7 +2051,8 @@ select_id(struct outside_network* outnet, struct pending* pend,
 }
 
 /** return true is UDP connect error needs to be logged */
-static int udp_connect_needs_log(int err)
+static int udp_connect_needs_log(int err, struct sockaddr_storage* addr,
+	socklen_t addrlen)
 {
 	switch(err) {
 	case ECONNREFUSED:
@@ -2075,6 +2076,15 @@ static int udp_connect_needs_log(int err)
 		if(verbosity >= VERB_ALGO)
 			return 1;
 		return 0;
+	case EINVAL:
+		/* Stop 'Invalid argument for fe80::/10' addresses appearing
+		 * in the logs, at low verbosity. They cannot be sent to. */
+		if(addr_is_ip6linklocal(addr, addrlen)) {
+			if(verbosity >= VERB_ALGO)
+				return 1;
+			return 0;
+		}
+		break;
 	default:
 		break;
 	}
@@ -2141,7 +2151,8 @@ select_ifport(struct outside_network* outnet, struct pending* pend,
 				/* connect() to the destination */
 				if(connect(fd, (struct sockaddr*)&pend->addr,
 					pend->addrlen) < 0) {
-					if(udp_connect_needs_log(errno)) {
+					if(udp_connect_needs_log(errno,
+						&pend->addr, pend->addrlen)) {
 						log_err_addr("udp connect failed",
 							strerror(errno), &pend->addr,
 							pend->addrlen);
@@ -3455,7 +3466,10 @@ outnet_serviced_query(struct outside_network* outnet,
 			timenow = *env->now;
 			if(!infra_ratelimit_inc(env->infra_cache, zone,
 				zonelen, timenow, env->cfg->ratelimit_backoff,
-				&qstate->qinfo, qstate->reply)) {
+				&qstate->qinfo,
+				qstate->mesh_info->reply_list
+					?&qstate->mesh_info->reply_list->query_reply
+					:NULL)) {
 				/* Can we pass through with slip factor? */
 				if(env->cfg->ratelimit_factor == 0 ||
 					ub_random_max(env->rnd,

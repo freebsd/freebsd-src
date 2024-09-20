@@ -1,4 +1,3 @@
-
 PACKAGE=	rdma
 PROG=	ibv_srq_pingpong
 MAN=	ibv_srq_pingpong.1

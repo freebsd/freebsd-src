@@ -1,4 +1,4 @@
-make: "cond-token-string.mk" line 15: while evaluating "${:Uvalue:Z}"": Unknown modifier "Z"
+make: "cond-token-string.mk" line 15: while evaluating "${:Uvalue:Z}"" with value "value": Unknown modifier "Z"
 make: "cond-token-string.mk" line 15: Malformed conditional ("" != "${:Uvalue:Z}")
 make: "cond-token-string.mk" line 25: xvalue is not defined.
 make: "cond-token-string.mk" line 32: Malformed conditional (x${:Uvalue} == "")
@@ -17,5 +17,5 @@ CondParser_Eval: ("${VAR}")
 CondParser_Eval: "quoted" == quoted
 Comparing "quoted" == "quoted"
 make: Fatal errors encountered -- cannot continue
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 exit status 1

@@ -1,4 +1,3 @@
-
 SUBDIR=	gensnmptree	\
 	bsnmpd		\
 	modules		\

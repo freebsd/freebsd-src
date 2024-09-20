@@ -1,7 +1,11 @@
-make: "cond-op-and.mk" line 37: Malformed conditional (0 || (${DEF} && ${UNDEF}))
-make: "cond-op-and.mk" line 42: Malformed conditional (0 || (${UNDEF} && ${UNDEF}))
-make: "cond-op-and.mk" line 45: Malformed conditional (0 || (!${UNDEF} && ${UNDEF}))
-make: "cond-op-and.mk" line 75: Malformed conditional (0 &&& 0)
+make: "cond-op-and.mk" line 36: Malformed conditional (0 || (${DEF} && ${UNDEF}))
+make: "cond-op-and.mk" line 41: Malformed conditional (0 || (${UNDEF} && ${UNDEF}))
+make: "cond-op-and.mk" line 44: Malformed conditional (0 || (!${UNDEF} && ${UNDEF}))
+make: "cond-op-and.mk" line 60: Unknown operator '&'
+make: "cond-op-and.mk" line 66: Unknown operator '&'
+make: "cond-op-and.mk" line 72: Unknown operator '&'
+make: "cond-op-and.mk" line 78: Unknown operator '&'
+make: "cond-op-and.mk" line 87: Unknown operator '&'
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

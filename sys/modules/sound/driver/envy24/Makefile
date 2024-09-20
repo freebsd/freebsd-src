@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/sound/pci
 
 KMOD=	snd_envy24

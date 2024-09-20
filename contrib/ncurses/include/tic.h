@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2018-2022,2023 Thomas E. Dickey                                *
  * Copyright 1998-2012,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -34,7 +34,7 @@
  ****************************************************************************/
 
 /*
- * $Id: tic.h,v 1.81 2020/02/02 23:34:34 tom Exp $
+ * $Id: tic.h,v 1.87 2023/04/22 13:37:21 tom Exp $
  *	tic.h - Global variables and structures for the terminfo compiler.
  */
 
@@ -135,8 +135,7 @@ extern "C" {
 #define DEBUG_LEVEL(n)	((n) << TRACE_SHIFT)
 
 #define set_trace_level(n) \
-	_nc_tracing &= DEBUG_LEVEL(MAX_DEBUG_LEVEL) \
-		     + DEBUG_LEVEL(MAX_DEBUG_LEVEL) - 1, \
+	_nc_tracing &= TRACE_MAXIMUM, \
 	_nc_tracing |= DEBUG_LEVEL(n)
 
 #ifdef TRACE
@@ -302,11 +301,11 @@ extern NCURSES_EXPORT_VAR(long) _nc_start_line;
 
 /* comp_error.c: warning & abort messages */
 extern NCURSES_EXPORT(const char *) _nc_get_source (void);
-extern NCURSES_EXPORT(void) _nc_err_abort (const char *const,...) GCC_PRINTFLIKE(1,2) GCC_NORETURN;
+extern GCC_NORETURN NCURSES_EXPORT(void) _nc_err_abort (const char *const,...) GCC_PRINTFLIKE(1,2);
 extern NCURSES_EXPORT(void) _nc_get_type (char *name);
 extern NCURSES_EXPORT(void) _nc_set_source (const char *const);
 extern NCURSES_EXPORT(void) _nc_set_type (const char *const);
-extern NCURSES_EXPORT(void) _nc_syserr_abort (const char *const,...) GCC_PRINTFLIKE(1,2) GCC_NORETURN;
+extern GCC_NORETURN NCURSES_EXPORT(void) _nc_syserr_abort (const char *const,...) GCC_PRINTFLIKE(1,2);
 extern NCURSES_EXPORT(void) _nc_warning (const char *const,...) GCC_PRINTFLIKE(1,2);
 extern NCURSES_EXPORT_VAR(bool) _nc_suppress_warnings;
 
@@ -337,7 +336,8 @@ extern NCURSES_EXPORT_VAR(const struct tinfo_fkeys) _nc_tinfo_fkeys[];
 
 extern NCURSES_EXPORT_VAR(int) _nc_tparm_err;
 
-extern NCURSES_EXPORT(int) _nc_tparm_analyze(const char *, char **, int *);
+extern NCURSES_EXPORT(int) _nc_tparm_analyze(TERMINAL *, const char *, char **, int *);
+extern NCURSES_EXPORT(void) _nc_reset_tparm(TERMINAL *);
 
 /* lib_trace.c */
 extern NCURSES_EXPORT_VAR(unsigned) _nc_tracing;
@@ -346,6 +346,14 @@ extern NCURSES_EXPORT(const char *) _nc_visbuf2 (int, const char *);
 
 /* lib_tputs.c */
 extern NCURSES_EXPORT_VAR(int) _nc_nulls_sent;	/* Add one for every null sent */
+
+/* comp_expand.c: expand string into readable form */
+extern NCURSES_EXPORT(char *) _nc_tic_expand (const char *, bool, int);
+
+/* comp_hash.c: name lookup */
+extern NCURSES_EXPORT(struct name_table_entry const *) _nc_find_entry
+	(const char *, const HashValue *);
+extern NCURSES_EXPORT(const HashValue *) _nc_get_hash_table (bool);
 
 /* comp_main.c: compiler main */
 extern const char * _nc_progname;
@@ -360,31 +368,6 @@ extern NCURSES_EXPORT(void) _nc_last_db(void);
 extern NCURSES_EXPORT(int) _nc_tic_written (void);
 
 #endif /* NCURSES_INTERNALS */
-
-/*
- * These entrypoints were used by tack before 1.08.
- */
-
-#undef  NCURSES_TACK_1_08
-#ifdef  NCURSES_INTERNALS
-#define NCURSES_TACK_1_08 /* nothing */
-#else
-#define NCURSES_TACK_1_08 GCC_DEPRECATED("upgrade to tack 1.08")
-#endif
-
-/* comp_hash.c: name lookup */
-extern NCURSES_EXPORT(struct name_table_entry const *) _nc_find_entry
-	(const char *, const HashValue *) NCURSES_TACK_1_08;
-extern NCURSES_EXPORT(const HashValue *) _nc_get_hash_table (bool) NCURSES_TACK_1_08;
-
-/* comp_scan.c: lexical analysis */
-extern NCURSES_EXPORT(void) _nc_reset_input (FILE *, char *) NCURSES_TACK_1_08;
-
-/* comp_expand.c: expand string into readable form */
-extern NCURSES_EXPORT(char *) _nc_tic_expand (const char *, bool, int) NCURSES_TACK_1_08;
-
-/* comp_scan.c: decode string from readable form */
-extern NCURSES_EXPORT(int) _nc_trans_string (char *, char *) NCURSES_TACK_1_08;
 
 #endif /* NCURSES_TERM_ENTRY_H_incl */
 

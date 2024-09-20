@@ -1,4 +1,3 @@
-
 SCRIPTS= sysrc
 
 MAN= sysrc.8

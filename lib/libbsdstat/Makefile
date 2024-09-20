@@ -1,4 +1,3 @@
-
 PACKAGE=	lib${LIB}
 LIB=	bsdstat
 SHLIB_MAJOR=	1

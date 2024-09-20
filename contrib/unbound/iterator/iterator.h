@@ -55,6 +55,9 @@ struct rbtree_type;
 
 /** max number of targets spawned for a query and its subqueries */
 #define MAX_TARGET_COUNT	64
+/** max number of upstream queries for a query and its subqueries, it is
+ * never reset. */
+#define MAX_GLOBAL_QUOTA	128
 /** max number of target lookups per qstate, per delegation point */
 #define MAX_DP_TARGET_COUNT	16
 /** max number of nxdomains allowed for target lookups for a query and
@@ -248,6 +251,9 @@ enum target_count_variables {
 	TARGET_COUNT_QUERIES,
 	/** Number of nxdomain responses encountered. */
 	TARGET_COUNT_NX,
+	/** Global quota on number of queries to upstream servers per
+	 * client request, that is never reset. */
+	TARGET_COUNT_GLOBAL_QUOTA,
 
 	/** This should stay last here, it is used for the allocation */
 	TARGET_COUNT_MAX,

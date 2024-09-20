@@ -1,1 +1,4 @@
+level 1: variable 0, env 1
+level 2: variable 1, env 2
+level 3: variable 2, env 3
 exit status 0

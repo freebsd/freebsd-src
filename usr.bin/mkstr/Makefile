@@ -1,4 +1,3 @@
-
 PROG=	mkstr
 
 WARNS?=	2

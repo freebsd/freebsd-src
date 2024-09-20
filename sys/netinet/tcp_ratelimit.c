@@ -1298,6 +1298,12 @@ tcp_rl_ifnet_departure(void *arg __unused, struct ifnet *ifp)
 	NET_EPOCH_EXIT(et);
 }
 
+void
+tcp_rl_release_ifnet(struct ifnet *ifp)
+{
+	tcp_rl_ifnet_departure(NULL, ifp);
+}
+
 static void
 tcp_rl_shutdown(void *arg __unused, int howto __unused)
 {

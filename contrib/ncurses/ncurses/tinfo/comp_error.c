@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2020,2023 Thomas E. Dickey                                *
  * Copyright 1998-2012,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -42,7 +42,7 @@
 
 #include <tic.h>
 
-MODULE_ID("$Id: comp_error.c,v 1.40 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: comp_error.c,v 1.44 2023/06/15 20:27:02 tom Exp $")
 
 NCURSES_EXPORT_VAR(bool) _nc_suppress_warnings = FALSE;
 NCURSES_EXPORT_VAR(int) _nc_curr_line = 0; /* current line # in input */
@@ -60,8 +60,15 @@ _nc_get_source(void)
 NCURSES_EXPORT(void)
 _nc_set_source(const char *const name)
 {
-    FreeIfNeeded(SourceName);
-    SourceName = strdup(name);
+    if (name == NULL) {
+	free(SourceName);
+	SourceName = NULL;
+    } else if (SourceName == NULL) {
+	SourceName = strdup(name);
+    } else if (strcmp(name, SourceName)) {
+	free(SourceName);
+	SourceName = strdup(name);
+    }
 }
 
 NCURSES_EXPORT(void)
@@ -95,9 +102,9 @@ static NCURSES_INLINE void
 where_is_problem(void)
 {
     fprintf(stderr, "\"%s\"", SourceName ? SourceName : "?");
-    if (_nc_curr_line >= 0)
+    if (_nc_curr_line > 0)
 	fprintf(stderr, ", line %d", _nc_curr_line);
-    if (_nc_curr_col >= 0)
+    if (_nc_curr_col > 0)
 	fprintf(stderr, ", col %d", _nc_curr_col);
     if (TermType != 0 && TermType[0] != '\0')
 	fprintf(stderr, ", terminal '%s'", TermType);
@@ -148,9 +155,7 @@ _nc_syserr_abort(const char *const fmt, ...)
     /* If we're debugging, try to show where the problem occurred - this
      * will dump core.
      */
-#ifndef USE_ROOT_ENVIRON
-    if (getuid() != ROOT_UID)
-#endif
+    if (_nc_env_access())
 	abort();
 #endif
     /* Dumping core in production code is not a good idea.

@@ -1,0 +1,96 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2024, Juniper Networks, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd August 1, 2024
+.Dt VERIEXEC 4
+.Os
+.Sh NAME
+.Nm veriexec
+.Nd the veriexec device
+.Sh SYNOPSIS
+.In dev/veriexec/veriexec_ioctl.h
+.Sh DESCRIPTION
+The
+.Nm
+device is used by
+.Xr veriexec 8
+to query and modify the state of
+.Xr mac_veriexec 4 .
+.Pp
+Once
+.Xr mac_veriexec 4
+is active, only a process which is marked as
+.Ql trusted
+(normally only
+.Xr veriexec 8 )
+is able to more than the
+.Dv VERIEXEC_GETSTATE
+ioctl.
+.Sh IOCTLS
+The supported ioctls are described below.
+.Bl -tag
+.It Dv VERIEXEC_SIGNED_LOAD Vt struct verified_exec_params
+Pass file information to
+.Xr mac_veriexec 4 .
+.Bd -literal
+struct verified_exec_params  {
+	unsigned char flags;
+	char fp_type[VERIEXEC_FPTYPELEN];	/* type of fingerprint */
+	char file[MAXPATHLEN];
+	unsigned char fingerprint[MAXFINGERPRINTLEN];
+};
+.Ed
+.It Dv VERIEXEC_LABEL_LOAD Vt struct verified_exec_label_params
+Pass file information and a label to
+.Xr mac_veriexec 4 .
+.Bd -literal
+struct verified_exec_label_params  {
+	struct verified_exec_params params;
+	char label[MAXLABELLEN];
+};
+.Ed
+.It Dv VERIEXEC_ACTIVE
+.It Dv VERIEXEC_DEBUG_OFF
+.It Dv VERIEXEC_DEBUG_ON Vt int level
+.It Dv VERIEXEC_ENFORCE
+.It Dv VERIEXEC_GETSTATE
+.It Dv VERIEXEC_GETVERSION
+.It Dv VERIEXEC_LOCK
+.It Dv VERIEXEC_VERIFIED_FILE Vt int fd
+Rarely needed.
+Tells
+.Xr mac_veriexec 4
+that the file associated with
+.Va fd
+is verified.
+.El
+.Sh HISTORY
+A
+.Nm
+device first appeared in
+.Nx .
+It was added to
+.Fx 13.1 .

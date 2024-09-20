@@ -35,9 +35,10 @@ __RCSID("$NetBSD: wcscpy.c,v 1.1 2000/12/23 23:14:36 itojun Exp $");
 #endif /* LIBC_SCCS and not lint */
 #endif
 #include <wchar.h>
+#include <ssp/ssp.h>
 
 wchar_t *
-wcscpy(wchar_t * __restrict s1, const wchar_t * __restrict s2)
+__ssp_real(wcscpy)(wchar_t * __restrict s1, const wchar_t * __restrict s2)
 {
 	wchar_t *cp;
 

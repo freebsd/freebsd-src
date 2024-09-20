@@ -52,7 +52,7 @@ mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 
 kldstat | grep -q tmpfs.ko || loaded=1
 mount -t tmpfs tmpfs $mntpoint
-echo "Testing tmpfs(5)"
+echo "Testing tmpfs(4)"
 cp $diskimage $mntpoint
 /tmp/sendfile5 $mntpoint/$file
 umount $mntpoint
@@ -68,7 +68,7 @@ umount $mntpoint
 mdconfig -d -u $mdstart
 
 mount -t nullfs $dir $mntpoint
-echo "Testing nullfs(5)"
+echo "Testing nullfs(4)"
 /tmp/sendfile5 $mntpoint/$file
 umount $mntpoint
 

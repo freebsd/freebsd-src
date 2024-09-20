@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2009,2010 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -35,11 +35,11 @@
  ****************************************************************************/
 
 /* p_new.c
- * Creation of a new panel 
+ * Creation of a new panel
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_new.c,v 1.22 2020/12/26 18:25:48 tom Exp $")
+MODULE_ID("$Id: p_new.c,v 1.24 2021/10/23 15:12:06 tom Exp $")
 
 #ifdef TRACE
 static char *stdscr_id;
@@ -117,7 +117,7 @@ new_panel(WINDOW *win)
     (void)root_panel(NCURSES_SP_ARG);
   assert(_nc_stdscr_pseudo_panel);
 
-  if (!(win->_flags & _ISPAD) && (pan = AllocPanel("new_panel")))
+  if ((pan = AllocPanel("new_panel")) != NULL)
     {
       pan->win = win;
       pan->above = (PANEL *)0;

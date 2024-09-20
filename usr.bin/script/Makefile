@@ -1,4 +1,3 @@
-
 PROG=	script
 
 LIBADD=	util

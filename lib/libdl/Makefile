@@ -1,4 +1,3 @@
-
 PACKAGE=clibs
 LIB=dl
 SHLIB_MAJOR=1

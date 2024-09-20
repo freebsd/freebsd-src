@@ -51,6 +51,41 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20240827: retire fips.so
+OLD_LIBS+=usr/lib/ossl-modules/fips.so
+
+# 20240824: sound examples: midi.c moved out of oss/
+OLD_FILES+=usr/share/examples/sound/oss/midi.c
+
+# 20240824: sound examples: Remove ossinit.h and rename basic.c to audio.c
+OLD_FILES+=usr/share/examples/sound/oss/ossinit.h
+OLD_FILES+=usr/share/examples/sound/oss/basic.c
+
+# 20240824: sound examples: Remove ossmidi.h
+OLD_FILES+=usr/share/examples/sound/oss/ossmidi.h
+
+# 20240729: rename quick_exit_test to libc_exit_test
+OLD_FILES+=usr/tests/lib/libc/stdlib/quick_exit_test
+
+# 20240729: retire ifaddr_byindex
+OLD_FILES+=usr/share/man/man9/ifaddr_byindex.9.gz
+
+# 20240729: remove MD5(9)
+OLD_FILES+=usr/share/man/man9/MD5.9.gz
+OLD_FILES+=usr/share/man/man9/MD5Init.9.gz
+OLD_FILES+=usr/share/man/man9/MD5Transform.9.gz
+
+# 20240726: deprecate contigfree(9)
+OLD_FILES+=usr/share/man/man9/contigfree.9.gz
+
+# 20240721: retire vm_page_alloc_freelist
+OLD_FILES+=usr/share/man/man9/vm_page_alloc_freelist.9.gz
+OLD_FILES+=usr/share/man/man9/vm_page_alloc_freelist_domain.9.gz
+
+# 20240716: retire mergemaster
+OLD_FILES+=usr/sbin/mergemaster
+OLD_FILES+=usr/share/man/man8/mergemaster.8.gz
+
 # 20240527: csh: Remove hardlink /.cshrc
 OLD_FILES+=.cshrc
 
@@ -82,6 +117,7 @@ OLD_DIRS+=var/db/portsnap
 # 20240507: remove gbde
 OLD_FILES+=boot/kernel/geom_bde.ko
 OLD_FILES+=etc/rc.d/gbde
+OLD_FILES+=rescue/gbde
 OLD_FILES+=sbin/gbde
 OLD_FILES+=usr/share/man/man4/gbde.4.gz
 OLD_FILES+=usr/share/man/man8/gbde.8.gz
@@ -542,6 +578,9 @@ OLD_FILES+=usr/include/c++/v1/setjmp.h
 # 20240321: remove empty /usr/libdata/gcc directory
 OLD_DIRS+=usr/libdata/gcc
 
+# 20240315: stop installing CAM.4 link to scsi.4
+OLD_FILES+=usr/share/man/man4/CAM.4.gz
+
 # 20240307: Improperly installed awk tests removed
 OLD_FILES+=usr/tests/usr.bin/awk/bugs-fixed/missing-precision.ok
 OLD_FILES+=usr/tests/usr.bin/awk/bugs-fixed/negative-nf.ok
@@ -554,11 +593,15 @@ OLD_FILES+=usr/tests/usr.bin/awk/bugs-fixed/system-status.ok2
 # 20240211: caroot bundle updated
 OLD_FILES+=usr/share/certs/trusted/Security_Communication_Root_CA.pem
 
+# 20240202: remove obsolete share/examples/IPv6/USAGE
+OLD_FILES+=usr/share/examples/IPv6/USAGE
+OLD_DIRS+=usr/share/examples/IPv6
+
 # 20240122: callout_async_drain() removed
 OLD_FILES+=usr/share/man/man9/callout_async_drain.9.gz
 
 # 20240114: Removal of geom_map(4)
-OLD_FILES+=usr/share/man/man4/geom_map.4
+OLD_FILES+=usr/share/man/man4/geom_map.4.gz
 
 # 20240112: remove pmap_init2()
 OLD_FILES+=usr/share/man/man9/pmap_init2.9.gz
@@ -1037,9 +1080,9 @@ OLD_FILES+=usr/tests/lib/googletest/gmock_main/gmock-matchers_test
 OLD_FILES+=usr/tests/lib/googletest/gtest_main/googletest-linked-ptr-test
 
 # 20230807: Removal of the ath(4) AHB bus-frontend for MIPS
-OLD_FILES+=usr/share/man/man4/ath_ahb.4
-OLD_FILES+=usr/share/man/man4/ath_pci.4
-OLD_FILES+=usr/share/man/man4/if_ath_pci.4
+OLD_FILES+=usr/share/man/man4/ath_ahb.4.gz
+OLD_FILES+=usr/share/man/man4/ath_pci.4.gz
+OLD_FILES+=usr/share/man/man4/if_ath_pci.4.gz
 
 # 20230803: Removal of support for cloning pseudo interfaces from iflib(9)
 OLD_FILES+=usr/include/net/iflib_private.h
@@ -1062,6 +1105,9 @@ OLD_FILES+=usr/include/machine/swi.h
 
 # 20230714: gsignal
 OLD_FILES+=usr/share/man/man9/gsignal.9.gz
+
+# 20230704: kinst dtrace tests moved to common
+OLD_DIRS+=usr/tests/cddl/usr.sbin/dtrace/amd64/kinst
 
 # 20230626: Only install sys/dev/nvme/nvme.h to /usr/include
 OLD_FILES+=usr/include/dev/nvme/nvme_private.h
@@ -2070,8 +2116,8 @@ OLD_FILES+=usr/include/netinet/tcp_debug.h
 
 # 20221213: remove sync serial drivers and utilities
 OLD_FILES+=sbin/sconfig
-OLD_FILES+=usr/share/man/man4/ce.4
-OLD_FILES+=usr/share/man/man4/cp.4
+OLD_FILES+=usr/share/man/man4/ce.4.gz
+OLD_FILES+=usr/share/man/man4/cp.4.gz
 OLD_FILES+=usr/share/man/man8/sconfig.8.gz
 
 # 20221202: remove trpt(8)
@@ -3706,11 +3752,6 @@ OLD_FILES+=usr/share/man/man4/ng_h4.4.gz
 
 # 20210923: rename boot(9) to kern_reboot(9)
 OLD_FILES+=usr/share/man/man9/boot.9.gz
-
-# 20210922: Old mixer(8) tests removed
-OLD_FILES+=usr/tests/usr.sbin/mixer/Kyuafile
-OLD_FILES+=usr/tests/usr.sbin/mixer/mixer_test
-OLD_DIRS+=usr/tests/usr.sbin/mixer
 
 # 20210921: remove cloudabi
 OLD_FILES+=usr/share/man/man4/cloudabi.4.gz
@@ -12515,8 +12556,8 @@ OLD_DIRS+=usr/lib/clang/3.9.1/lib
 OLD_DIRS+=usr/lib/clang/3.9.1
 # 20170226: SVR4 compatibility removed
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
-OLD_FILES+=usr/share/man/man4/streams.4
-OLD_FILES+=usr/share/man/man4/svr4.4
+OLD_FILES+=usr/share/man/man4/streams.4.gz
+OLD_FILES+=usr/share/man/man4/svr4.4.gz
 .endif
 # 20170219: OpenPAM RADULA upgrade removed the libpam tests
 OLD_FILES+=usr/tests/lib/libpam/Kyuafile

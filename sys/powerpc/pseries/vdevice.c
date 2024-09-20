@@ -145,7 +145,7 @@ vdevice_attach(device_t dev)
 
 		ofw_bus_intr_to_rl(dev, child, &dinfo->mdi_resources, NULL);
 
-                cdev = device_add_child(dev, NULL, -1);
+                cdev = device_add_child(dev, NULL, DEVICE_UNIT_ANY);
                 if (cdev == NULL) {
                         device_printf(dev, "<%s>: device_add_child failed\n",
                             dinfo->mdi_obdinfo.obd_name);

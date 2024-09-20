@@ -37,8 +37,8 @@
 
 SDT_PROVIDER_DEFINE(test);
 
-SDT_PROBE_DEFINE7(test, , , sdttest, "int", "int", "int", "int", "int",
-    "int", "int");
+SDT_PROBE_DEFINE6(test, , , sdttest, "int", "int", "int", "int", "int",
+    "int");
 
 /*
  * These are variables that the DTrace test suite references in the
@@ -68,7 +68,7 @@ dtrace_test_sdttest(SYSCTL_HANDLER_ARGS)
 	else if (val == 0)
 		return (0);
 
-	SDT_PROBE7(test, , , sdttest, 1, 2, 3, 4, 5, 6, 7);
+	SDT_PROBE6(test, , , sdttest, 1, 2, 3, 4, 5, 6);
 
 	return (error);
 }

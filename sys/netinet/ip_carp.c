@@ -516,7 +516,7 @@ static int
 carp_input(struct mbuf **mp, int *offp, int proto)
 {
 	struct mbuf *m = *mp;
-	struct ip *ip = mtod(m, struct ip *);
+	struct ip *ip;
 	struct vrrpv3_header *vh;
 	int iplen;
 	int minlen;
@@ -532,9 +532,6 @@ carp_input(struct mbuf **mp, int *offp, int proto)
 		return (IPPROTO_DONE);
 	}
 
-	iplen = ip->ip_hl << 2;
-	totlen = ntohs(ip->ip_len);
-
 	/* Ensure we have enough header to figure out the version. */
 	if (m->m_pkthdr.len < iplen + sizeof(*vh)) {
 		CARPSTATS_INC(carps_badlen);
@@ -545,14 +542,15 @@ carp_input(struct mbuf **mp, int *offp, int proto)
 		return (IPPROTO_DONE);
 	}
 
-	if (iplen + sizeof(*vh) < m->m_len) {
+	if (m->m_len < iplen + sizeof(*vh)) {
 		if ((m = m_pullup(m, iplen + sizeof(*vh))) == NULL) {
 			CARPSTATS_INC(carps_hdrops);
 			CARP_DEBUG("%s():%d: pullup failed\n", __func__, __LINE__);
 			return (IPPROTO_DONE);
 		}
-		ip = mtod(m, struct ip *);
 	}
+	ip = mtod(m, struct ip *);
+	totlen = ntohs(ip->ip_len);
 	vh = (struct vrrpv3_header *)((char *)ip + iplen);
 
 	switch (vh->vrrp_version) {
@@ -581,7 +579,7 @@ carp_input(struct mbuf **mp, int *offp, int proto)
 		return (IPPROTO_DONE);
 	}
 
-	if (iplen + minlen < m->m_len) {
+	if (m->m_len < iplen + minlen) {
 		if ((m = m_pullup(m, iplen + minlen)) == NULL) {
 			CARPSTATS_INC(carps_hdrops);
 			CARP_DEBUG("%s():%d: pullup failed\n", __func__, __LINE__);
@@ -596,15 +594,13 @@ carp_input(struct mbuf **mp, int *offp, int proto)
 		struct carp_header *ch;
 
 		/* verify the CARP checksum */
-		m->m_data += iplen;
-		if (in_cksum(m, totlen - iplen)) {
+		if (in_cksum_skip(m, totlen, iplen)) {
 			CARPSTATS_INC(carps_badsum);
 			CARP_DEBUG("%s: checksum failed on %s\n", __func__,
 			    if_name(m->m_pkthdr.rcvif));
 			m_freem(m);
 			break;
 		}
-		m->m_data -= iplen;
 		ch = (struct carp_header *)((char *)ip + iplen);
 		carp_input_c(m, ch, AF_INET, ip->ip_ttl);
 		break;
@@ -689,7 +685,7 @@ carp6_input(struct mbuf **mp, int *offp, int proto)
 		return (IPPROTO_DONE);
 	}
 
-	if (sizeof (*ip6) + minlen < m->m_len) {
+	if (m->m_len < sizeof(*ip6) + minlen) {
 		if ((m = m_pullup(m, sizeof(*ip6) + minlen)) == NULL) {
 			CARPSTATS_INC(carps_hdrops);
 			CARP_DEBUG("%s():%d: pullup failed\n", __func__, __LINE__);
@@ -704,15 +700,14 @@ carp6_input(struct mbuf **mp, int *offp, int proto)
 		struct carp_header *ch;
 
 		/* verify the CARP checksum */
-		m->m_data += *offp;
-		if (in_cksum(m, sizeof(struct carp_header))) {
+		if (in_cksum_skip(m, *offp + sizeof(struct carp_header),
+		    *offp)) {
 			CARPSTATS_INC(carps_badsum);
 			CARP_DEBUG("%s: checksum failed, on %s\n", __func__,
 			    if_name(m->m_pkthdr.rcvif));
 			m_freem(m);
 			break;
 		}
-		m->m_data -= *offp;
 		ch = (struct carp_header *)((char *)ip6 + sizeof(*ip6));
 		carp_input_c(m, ch, AF_INET6, ip6->ip6_hlim);
 		break;

@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/ata
 
 KMOD=	ataisa

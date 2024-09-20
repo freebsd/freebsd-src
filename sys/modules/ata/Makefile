@@ -1,4 +1,3 @@
-
 SUBDIR = atacore
 SUBDIR += ataisa
 SUBDIR += atapci 

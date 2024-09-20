@@ -58,6 +58,8 @@
 #include <sys/systm.h>
 #include <sys/unistd.h>
 
+#include <vm/vm_param.h>
+
 SYSCTL_ROOT_NODE(0, sysctl, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Sysctl internal magic");
 SYSCTL_ROOT_NODE(CTL_KERN, kern, CTLFLAG_RW | CTLFLAG_CAPRD | CTLFLAG_MPSAFE, 0,
@@ -92,20 +94,20 @@ SYSCTL_ROOT_NODE(OID_AUTO, regression, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Regression test MIB");
 #endif
 
-SYSCTL_STRING(_kern, OID_AUTO, ident, CTLFLAG_RD,
-    kern_ident, 0, "Kernel identifier");
+SYSCTL_CONST_STRING(_kern, OID_AUTO, ident, CTLFLAG_RD,
+    kern_ident, "Kernel identifier");
 
 SYSCTL_INT(_kern, KERN_OSREV, osrevision, CTLFLAG_RD | CTLFLAG_CAPRD,
     SYSCTL_NULL_INT_PTR, BSD, "Operating system revision");
 
-SYSCTL_STRING(_kern, KERN_VERSION, version, CTLFLAG_RD,
-    version, 0, "Kernel version");
+SYSCTL_CONST_STRING(_kern, KERN_VERSION, version, CTLFLAG_RD,
+    version, "Kernel version");
 
-SYSCTL_STRING(_kern, OID_AUTO, compiler_version, CTLFLAG_RD,
-    compiler_version, 0, "Version of compiler used to compile kernel");
+SYSCTL_CONST_STRING(_kern, OID_AUTO, compiler_version, CTLFLAG_RD,
+    compiler_version, "Version of compiler used to compile kernel");
 
-SYSCTL_STRING(_kern, KERN_OSTYPE, ostype, CTLFLAG_RD | CTLFLAG_CAPRD,
-    ostype, 0, "Operating system type");
+SYSCTL_CONST_STRING(_kern, KERN_OSTYPE, ostype, CTLFLAG_RD | CTLFLAG_CAPRD,
+    ostype, "Operating system type");
 
 SYSCTL_INT(_kern, KERN_MAXPROC, maxproc, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &maxproc, 0, "Maximum number of processes");
@@ -180,10 +182,14 @@ sysctl_kern_arnd(SYSCTL_HANDLER_ARGS)
 {
 	char buf[256];
 	size_t len;
+	int error;
 
 	len = MIN(req->oldlen, sizeof(buf));
 	read_random(buf, len);
-	return (SYSCTL_OUT(req, buf, len));
+
+	error = SYSCTL_OUT(req, buf, len);
+	explicit_bzero(buf, len);
+	return (error);
 }
 
 SYSCTL_PROC(_kern, KERN_ARND, arandom,
@@ -242,7 +248,11 @@ SYSCTL_PROC(_hw, HW_USERMEM, usermem,
 SYSCTL_LONG(_hw, OID_AUTO, availpages, CTLFLAG_RD, &physmem, 0,
     "Amount of physical memory (in pages)");
 
-u_long pagesizes[MAXPAGESIZES] = { PAGE_SIZE };
+#if VM_NRESERVLEVEL > 0
+_Static_assert(MAXPAGESIZES > VM_NRESERVLEVEL, "MAXPAGESIZES is too small");
+#endif
+
+u_long __read_mostly pagesizes[MAXPAGESIZES] = { PAGE_SIZE };
 
 static int
 sysctl_hw_pagesizes(SYSCTL_HANDLER_ARGS)
@@ -454,10 +464,10 @@ SYSCTL_PROC(_kern, KERN_SECURELVL, securelevel,
 
 #ifdef INCLUDE_CONFIG_FILE
 /* Actual kernel configuration options. */
-extern char kernconfstring[];
+extern const char kernconfstring[];
 
-SYSCTL_STRING(_kern, OID_AUTO, conftxt, CTLFLAG_RD,
-    kernconfstring, 0, "Kernel configuration file");
+SYSCTL_CONST_STRING(_kern, OID_AUTO, conftxt, CTLFLAG_RD,
+    kernconfstring, "Kernel configuration file");
 #endif
 
 static int

@@ -71,7 +71,7 @@
 #define	PROC_ASSERT_TRACEREQ(p)	MPASS(((p)->p_flag2 & P2_PTRACEREQ) != 0)
 
 /*
- * Functions implemented using PROC_ACTION():
+ * Functions implemented below:
  *
  * proc_read_regs(proc, regs)
  *	Get the current user-visible register set from the process
@@ -96,43 +96,32 @@
  *	Arrange for the process to trap after executing a single instruction.
  */
 
-#define	PROC_ACTION(action) do {					\
-	int error;							\
-									\
-	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);			\
-	if ((td->td_proc->p_flag & P_INMEM) == 0)			\
-		error = EIO;						\
-	else								\
-		error = (action);					\
-	return (error);							\
-} while (0)
-
 int
 proc_read_regs(struct thread *td, struct reg *regs)
 {
-
-	PROC_ACTION(fill_regs(td, regs));
+	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	return (fill_regs(td, regs));
 }
 
 int
 proc_write_regs(struct thread *td, struct reg *regs)
 {
-
-	PROC_ACTION(set_regs(td, regs));
+	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	return (set_regs(td, regs));
 }
 
 int
 proc_read_dbregs(struct thread *td, struct dbreg *dbregs)
 {
-
-	PROC_ACTION(fill_dbregs(td, dbregs));
+	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	return (fill_dbregs(td, dbregs));
 }
 
 int
 proc_write_dbregs(struct thread *td, struct dbreg *dbregs)
 {
-
-	PROC_ACTION(set_dbregs(td, dbregs));
+	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	return (set_dbregs(td, dbregs));
 }
 
 /*
@@ -142,15 +131,15 @@ proc_write_dbregs(struct thread *td, struct dbreg *dbregs)
 int
 proc_read_fpregs(struct thread *td, struct fpreg *fpregs)
 {
-
-	PROC_ACTION(fill_fpregs(td, fpregs));
+	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	return (fill_fpregs(td, fpregs));
 }
 
 int
 proc_write_fpregs(struct thread *td, struct fpreg *fpregs)
 {
-
-	PROC_ACTION(set_fpregs(td, fpregs));
+	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	return (set_fpregs(td, fpregs));
 }
 
 static struct regset *
@@ -295,51 +284,51 @@ proc_write_regset(struct thread *td, int note, struct iovec *iov)
 int
 proc_read_regs32(struct thread *td, struct reg32 *regs32)
 {
-
-	PROC_ACTION(fill_regs32(td, regs32));
+	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	return (fill_regs32(td, regs32));
 }
 
 int
 proc_write_regs32(struct thread *td, struct reg32 *regs32)
 {
-
-	PROC_ACTION(set_regs32(td, regs32));
+	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	return (set_regs32(td, regs32));
 }
 
 int
 proc_read_dbregs32(struct thread *td, struct dbreg32 *dbregs32)
 {
-
-	PROC_ACTION(fill_dbregs32(td, dbregs32));
+	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	return (fill_dbregs32(td, dbregs32));
 }
 
 int
 proc_write_dbregs32(struct thread *td, struct dbreg32 *dbregs32)
 {
-
-	PROC_ACTION(set_dbregs32(td, dbregs32));
+	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	return (set_dbregs32(td, dbregs32));
 }
 
 int
 proc_read_fpregs32(struct thread *td, struct fpreg32 *fpregs32)
 {
-
-	PROC_ACTION(fill_fpregs32(td, fpregs32));
+	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	return (fill_fpregs32(td, fpregs32));
 }
 
 int
 proc_write_fpregs32(struct thread *td, struct fpreg32 *fpregs32)
 {
-
-	PROC_ACTION(set_fpregs32(td, fpregs32));
+	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	return (set_fpregs32(td, fpregs32));
 }
 #endif
 
 int
 proc_sstep(struct thread *td)
 {
-
-	PROC_ACTION(ptrace_single_step(td));
+	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	return (ptrace_single_step(td));
 }
 
 int

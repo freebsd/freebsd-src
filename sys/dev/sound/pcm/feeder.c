@@ -39,7 +39,6 @@
 static MALLOC_DEFINE(M_FEEDER, "feeder", "pcm feeder");
 
 #define MAXFEEDERS 	256
-#undef FEEDER_DEBUG
 
 struct feedertab_entry {
 	SLIST_ENTRY(feedertab_entry) link;
@@ -232,7 +231,7 @@ feeder_getclass(struct pcm_feederdesc *desc)
 }
 
 int
-chn_addfeeder(struct pcm_channel *c, struct feeder_class *fc, struct pcm_feederdesc *desc)
+feeder_add(struct pcm_channel *c, struct feeder_class *fc, struct pcm_feederdesc *desc)
 {
 	struct pcm_feeder *nf;
 
@@ -249,22 +248,20 @@ chn_addfeeder(struct pcm_channel *c, struct feeder_class *fc, struct pcm_feederd
 	return 0;
 }
 
-int
-chn_removefeeder(struct pcm_channel *c)
+void
+feeder_remove(struct pcm_channel *c)
 {
 	struct pcm_feeder *f;
 
-	if (c->feeder == NULL)
-		return -1;
-	f = c->feeder;
-	c->feeder = c->feeder->source;
-	feeder_destroy(f);
-
-	return 0;
+	while (c->feeder != NULL) {
+		f = c->feeder;
+		c->feeder = c->feeder->source;
+		feeder_destroy(f);
+	}
 }
 
 struct pcm_feeder *
-chn_findfeeder(struct pcm_channel *c, u_int32_t type)
+feeder_find(struct pcm_channel *c, u_int32_t type)
 {
 	struct pcm_feeder *f;
 

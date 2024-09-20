@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2020,2021 Thomas E. Dickey                                *
+ * Copyright 2018-2023,2024 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -85,7 +85,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_mouse.c,v 1.192 2021/02/14 00:17:09 tom Exp $")
+MODULE_ID("$Id: lib_mouse.c,v 1.200 2024/02/17 21:13:01 tom Exp $")
 
 #include <tic.h>
 
@@ -380,7 +380,7 @@ handle_sysmouse(int sig GCC_UNUSED)
 }
 #endif /* USE_SYSMOUSE */
 
-#ifndef USE_TERM_DRIVER
+#if !defined(USE_TERM_DRIVER) || defined(EXP_WIN32_DRIVER)
 #define xterm_kmous "\033[M"
 
 static void
@@ -419,13 +419,22 @@ init_xterm_mouse(SCREEN *sp)
     } else {
 	int code = tigetnum("XM");
 	switch (code) {
+#ifdef EXP_XTERM_1005
+	case 1005:
+	    /* see "xterm+sm+1005" */
+	    sp->_mouse_xtermcap = "\033[?1005;1000%?%p1%{1}%=%th%el%;";
+	    sp->_mouse_format = MF_XTERM_1005;
+	    break;
+#endif
 	case 1006:
+	    /* see "xterm+sm+1006" */
+	    sp->_mouse_xtermcap = "\033[?1006;1000%?%p1%{1}%=%th%el%;";
+	    sp->_mouse_format = MF_SGR1006;
 	    break;
 	default:
-	    code = 1000;
+	    sp->_mouse_xtermcap = "\033[?1000%?%p1%{1}%=%th%el%;";
 	    break;
 	}
-	sp->_mouse_xtermcap = "\033[?1000%?%p1%{1}%=%th%el%;";
     }
 }
 #endif
@@ -433,6 +442,9 @@ init_xterm_mouse(SCREEN *sp)
 static void
 enable_xterm_mouse(SCREEN *sp, int enable)
 {
+    TPUTS_TRACE(enable
+		? "xterm mouse initialization"
+		: "xterm mouse deinitialization");
 #if USE_EMX_MOUSE
     sp->_emxmouse_activated = enable;
 #else
@@ -440,6 +452,18 @@ enable_xterm_mouse(SCREEN *sp, int enable)
 #endif
     sp->_mouse_active = enable;
 }
+
+#if defined(USE_TERM_DRIVER)
+static void
+enable_win32_mouse(SCREEN *sp, int enable)
+{
+#if defined(EXP_WIN32_DRIVER)
+    enable_xterm_mouse(sp, enable);
+#else
+    sp->_mouse_active = enable;
+#endif
+}
+#endif
 
 #if USE_GPM_SUPPORT
 static bool
@@ -732,7 +756,8 @@ initialize_mousetype(SCREEN *sp)
 
 #ifdef USE_TERM_DRIVER
     CallDriver(sp, td_initmouse);
-#else
+#endif
+#if !defined(USE_TERM_DRIVER) || defined(EXP_WIN32_DRIVER)
     /* we know how to recognize mouse events under "xterm" */
     if (NonEmpty(key_mouse)) {
 	init_xterm_mouse(sp);
@@ -751,13 +776,15 @@ _nc_mouse_init(SCREEN *sp)
 {
     bool result = FALSE;
 
+    T((T_CALLED("_nc_mouse_init(%p)"), (void *) sp));
+
     if (sp != 0) {
 	if (!sp->_mouse_initialized) {
 	    int i;
 
 	    sp->_mouse_initialized = TRUE;
 
-	    TR(MY_TRACE, ("_nc_mouse_init() called"));
+	    TR(MY_TRACE, ("set _mouse_initialized"));
 
 	    sp->_mouse_eventp = FirstEV(sp);
 	    for (i = 0; i < EV_MAX; i++)
@@ -765,11 +792,11 @@ _nc_mouse_init(SCREEN *sp)
 
 	    initialize_mousetype(sp);
 
-	    T(("_nc_mouse_init() set mousetype to %d", sp->_mouse_type));
+	    T(("set _mouse_type to %d", sp->_mouse_type));
 	}
 	result = sp->_mouse_initialized;
     }
-    return result;
+    returnCode(result);
 }
 
 /*
@@ -960,6 +987,17 @@ handle_wheel(SCREEN *sp, MEVENT * eventp, int button, int wheel)
 	PRESS_POSITION(3);
 	break;
     default:
+	/*
+	 * case 3 is sent when the mouse buttons are released.
+	 *
+	 * If the terminal uses xterm mode 1003, a continuous series of
+	 * button-release events is sent as the mouse moves around the screen,
+	 * or as the wheel mouse is rotated.
+	 *
+	 * Return false in this case, so that when running in X10 mode, we will
+	 * recalculate bstate.
+	 */
+	eventp->bstate = REPORT_MOUSE_POSITION;
 	result = FALSE;
 	break;
     }
@@ -1065,12 +1103,7 @@ decode_xterm_X10(SCREEN *sp, MEVENT * eventp)
     int res;
     bool result;
 
-# if USE_PTHREADS_EINTR
-#  if USE_WEAK_SYMBOLS
-    if ((pthread_self) && (pthread_kill) && (pthread_equal))
-#  endif
-	_nc_globals.read_thread = pthread_self();
-# endif
+    _nc_set_read_thread(TRUE);
     for (grabbed = 0; grabbed < MAX_KBUF; grabbed += (size_t) res) {
 
 	/* For VIO mouse we add extra bit 64 to disambiguate button-up. */
@@ -1084,9 +1117,7 @@ decode_xterm_X10(SCREEN *sp, MEVENT * eventp)
 	if (res == -1)
 	    break;
     }
-#if USE_PTHREADS_EINTR
-    _nc_globals.read_thread = 0;
-#endif
+    _nc_set_read_thread(FALSE);
     kbuf[MAX_KBUF] = '\0';
 
     TR(TRACE_IEVENT,
@@ -1120,12 +1151,7 @@ decode_xterm_1005(SCREEN *sp, MEVENT * eventp)
     coords[0] = 0;
     coords[1] = 0;
 
-# if USE_PTHREADS_EINTR
-#  if USE_WEAK_SYMBOLS
-    if ((pthread_self) && (pthread_kill) && (pthread_equal))
-#  endif
-	_nc_globals.read_thread = pthread_self();
-# endif
+    _nc_set_read_thread(TRUE);
     for (grabbed = 0; grabbed < limit;) {
 	int res;
 
@@ -1158,9 +1184,7 @@ decode_xterm_1005(SCREEN *sp, MEVENT * eventp)
 		break;
 	}
     }
-#if USE_PTHREADS_EINTR
-    _nc_globals.read_thread = 0;
-#endif
+    _nc_set_read_thread(FALSE);
 
     TR(TRACE_IEVENT,
        ("_nc_mouse_inline sees the following xterm data: %s",
@@ -1204,12 +1228,7 @@ read_SGR(SCREEN *sp, SGR_DATA * result)
     int marker = 1;
 
     memset(result, 0, sizeof(*result));
-# if USE_PTHREADS_EINTR
-#  if USE_WEAK_SYMBOLS
-    if ((pthread_self) && (pthread_kill) && (pthread_equal))
-#  endif
-	_nc_globals.read_thread = pthread_self();
-# endif
+    _nc_set_read_thread(TRUE);
 
     do {
 	int res;
@@ -1274,9 +1293,7 @@ read_SGR(SCREEN *sp, SGR_DATA * result)
 	}
 	++grabbed;
     } while (!isFinal(ch));
-#if USE_PTHREADS_EINTR
-    _nc_globals.read_thread = 0;
-#endif
+    _nc_set_read_thread(FALSE);
 
     kbuf[++grabbed] = 0;
     TR(TRACE_IEVENT,
@@ -1389,11 +1406,14 @@ _nc_mouse_inline(SCREEN *sp)
 static void
 mouse_activate(SCREEN *sp, int on)
 {
+    T((T_CALLED("mouse_activate(%p,%s)"),
+       (void *) SP_PARM, on ? "on" : "off"));
+
     if (!on && !sp->_mouse_initialized)
-	return;
+	returnVoid;
 
     if (!_nc_mouse_init(sp))
-	return;
+	returnVoid;
 
     if (on) {
 	sp->_mouse_bstate = 0;
@@ -1402,7 +1422,6 @@ mouse_activate(SCREEN *sp, int on)
 #if NCURSES_EXT_FUNCS
 	    NCURSES_SP_NAME(keyok) (NCURSES_SP_ARGx KEY_MOUSE, on);
 #endif
-	    TPUTS_TRACE("xterm mouse initialization");
 	    enable_xterm_mouse(sp, 1);
 	    break;
 #if USE_GPM_SUPPORT
@@ -1421,25 +1440,28 @@ mouse_activate(SCREEN *sp, int on)
 #endif
 #ifdef USE_TERM_DRIVER
 	case M_TERM_DRIVER:
-	    sp->_mouse_active = TRUE;
+	    enable_win32_mouse(sp, TRUE);
 	    break;
 #endif
 	case M_NONE:
-	    return;
+	    returnVoid;
+	default:
+	    T(("unexpected mouse mode"));
+	    break;
 	}
 	/* Make runtime binding to cut down on object size of applications that
 	 * do not use the mouse (e.g., 'clear').
 	 */
-	sp->_mouse_event = _nc_mouse_event;
+	/* *INDENT-EQLS* */
+	sp->_mouse_event  = _nc_mouse_event;
 	sp->_mouse_inline = _nc_mouse_inline;
-	sp->_mouse_parse = _nc_mouse_parse;
+	sp->_mouse_parse  = _nc_mouse_parse;
 	sp->_mouse_resume = _nc_mouse_resume;
-	sp->_mouse_wrap = _nc_mouse_wrap;
+	sp->_mouse_wrap   = _nc_mouse_wrap;
     } else {
 
 	switch (sp->_mouse_type) {
 	case M_XTERM:
-	    TPUTS_TRACE("xterm mouse deinitialization");
 	    enable_xterm_mouse(sp, 0);
 	    break;
 #if USE_GPM_SUPPORT
@@ -1455,14 +1477,18 @@ mouse_activate(SCREEN *sp, int on)
 #endif
 #ifdef USE_TERM_DRIVER
 	case M_TERM_DRIVER:
-	    sp->_mouse_active = FALSE;
+	    enable_win32_mouse(sp, FALSE);
 	    break;
 #endif
 	case M_NONE:
-	    return;
+	    returnVoid;
+	default:
+	    T(("unexpected mouse mode"));
+	    break;
 	}
     }
     NCURSES_SP_NAME(_nc_flush) (NCURSES_SP_ARG);
+    returnVoid;
 }
 
 /**************************************************************************
@@ -1560,7 +1586,7 @@ _nc_mouse_parse(SCREEN *sp, int runcount)
 		if (changed) {
 		    merge = FALSE;
 		    for (b = 1; b <= MAX_BUTTONS; ++b) {
-			if ((sp->_mouse_mask & MASK_CLICK(b))
+			if ((sp->_mouse_mask2 & MASK_CLICK(b))
 			    && (ep->bstate & MASK_PRESS(b))) {
 			    next->bstate &= ~MASK_RELEASE(b);
 			    next->bstate |= MASK_CLICK(b);
@@ -1641,7 +1667,7 @@ _nc_mouse_parse(SCREEN *sp, int runcount)
 		&& (next->bstate & BUTTON_CLICKED)) {
 		merge = FALSE;
 		for (b = 1; b <= MAX_BUTTONS; ++b) {
-		    if ((sp->_mouse_mask & MASK_DOUBLE_CLICK(b))
+		    if ((sp->_mouse_mask2 & MASK_DOUBLE_CLICK(b))
 			&& (ep->bstate & MASK_CLICK(b))
 			&& (next->bstate & MASK_CLICK(b))) {
 			next->bstate &= ~MASK_CLICK(b);
@@ -1659,7 +1685,7 @@ _nc_mouse_parse(SCREEN *sp, int runcount)
 		&& (next->bstate & BUTTON_CLICKED)) {
 		merge = FALSE;
 		for (b = 1; b <= MAX_BUTTONS; ++b) {
-		    if ((sp->_mouse_mask & MASK_TRIPLE_CLICK(b))
+		    if ((sp->_mouse_mask2 & MASK_TRIPLE_CLICK(b))
 			&& (ep->bstate & MASK_DOUBLE_CLICK(b))
 			&& (next->bstate & MASK_CLICK(b))) {
 			next->bstate &= ~MASK_CLICK(b);
@@ -1719,7 +1745,8 @@ _nc_mouse_parse(SCREEN *sp, int runcount)
 #endif /* TRACE */
 
     /* after all this, do we have a valid event? */
-    return ValidEvent(PREV(first_invalid));
+    ep = PREV(first_invalid);
+    return ValidEvent(ep) && ((ep->bstate & sp->_mouse_mask) != 0);
 }
 
 static void
@@ -1963,10 +1990,24 @@ wenclose(const WINDOW *win, int y, int x)
 
     if (win != 0) {
 	y -= win->_yoffset;
-	result = ((win->_begy <= y &&
-		   win->_begx <= x &&
-		   (win->_begx + win->_maxx) >= x &&
-		   (win->_begy + win->_maxy) >= y) ? TRUE : FALSE);
+	if (IS_PAD(win)) {
+	    if (win->_pad._pad_y >= 0 &&
+		win->_pad._pad_x >= 0 &&
+		win->_pad._pad_top >= 0 &&
+		win->_pad._pad_left >= 0 &&
+		win->_pad._pad_right >= 0 &&
+		win->_pad._pad_bottom >= 0) {
+		result = ((win->_pad._pad_top <= y &&
+			   win->_pad._pad_left <= x &&
+			   win->_pad._pad_right >= x &&
+			   win->_pad._pad_bottom >= y) ? TRUE : FALSE);
+	    }
+	} else {
+	    result = ((win->_begy <= y &&
+		       win->_begx <= x &&
+		       (win->_begx + win->_maxx) >= x &&
+		       (win->_begy + win->_maxy) >= y) ? TRUE : FALSE);
+	}
     }
     returnBool(result);
 }
@@ -2035,6 +2076,7 @@ wmouse_trafo(const WINDOW *win, int *pY, int *pX, bool to_screen)
 	int y = *pY;
 	int x = *pX;
 
+	T(("transform input %d,%d", y, x));
 	if (to_screen) {
 	    y += win->_begy + win->_yoffset;
 	    x += win->_begx;
@@ -2050,6 +2092,7 @@ wmouse_trafo(const WINDOW *win, int *pY, int *pX, bool to_screen)
 	if (result) {
 	    *pX = x;
 	    *pY = y;
+	    T(("output transform %d,%d", y, x));
 	}
     }
     returnBool(result);

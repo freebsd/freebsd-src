@@ -334,6 +334,10 @@ class VnetTestTemplate(BaseTest):
     NEED_ROOT: bool = True
     TOPOLOGY = {}
 
+    def _require_default_modules(self):
+        libc.kldload("if_epair.ko")
+        self.require_module("if_epair")
+
     def _get_vnet_handler(self, vnet_alias: str):
         handler_name = "{}_handler".format(vnet_alias)
         return getattr(self, handler_name, None)
@@ -451,6 +455,8 @@ class VnetTestTemplate(BaseTest):
     def setup_method(self, _method):
         """Sets up all the required topology and handlers for the given test"""
         super().setup_method(_method)
+        self._require_default_modules()
+
         # TestIP6Output.test_output6_pktinfo[ipandif]
         topology_id = get_topology_id(self.test_id)
         topology = self.TOPOLOGY

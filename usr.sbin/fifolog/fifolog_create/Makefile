@@ -1,4 +1,3 @@
-
 PROG=	fifolog_create
 
 CFLAGS+= -I${.CURDIR:H}/lib

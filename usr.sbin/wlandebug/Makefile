@@ -1,4 +1,3 @@
-
 PROG=	wlandebug
 MAN=	wlandebug.8
 

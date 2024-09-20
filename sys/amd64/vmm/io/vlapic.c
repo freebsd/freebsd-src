@@ -43,12 +43,12 @@
 
 #include <machine/clock.h>
 #include <machine/smp.h>
-
 #include <machine/vmm.h>
 #include <machine/vmm_snapshot.h>
 
+#include <dev/vmm/vmm_ktr.h>
+
 #include "vmm_lapic.h"
-#include "vmm_ktr.h"
 #include "vmm_stat.h"
 
 #include "vlapic.h"

@@ -1487,6 +1487,12 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 
 	finishidentcpu();	/* Final stage of CPU initialization */
 
+	invlpgb_works = (amd_extended_feature_extensions &
+	    AMDFEID_INVLPGB) != 0;
+	TUNABLE_INT_FETCH("vm.pmap.invlpgb_works", &invlpgb_works);
+	if (invlpgb_works)
+		invlpgb_maxcnt = cpu_procinfo3 & AMDID_INVLPGB_MAXCNT;
+
 	/*
 	 * Initialize the clock before the console so that console
 	 * initialization can use DELAY().

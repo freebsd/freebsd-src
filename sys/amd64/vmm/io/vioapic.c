@@ -42,7 +42,8 @@
 #include <machine/vmm.h>
 #include <machine/vmm_snapshot.h>
 
-#include "vmm_ktr.h"
+#include <dev/vmm/vmm_ktr.h>
+
 #include "vmm_lapic.h"
 #include "vlapic.h"
 #include "vioapic.h"

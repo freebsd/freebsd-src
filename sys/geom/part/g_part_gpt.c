@@ -223,6 +223,7 @@ static struct uuid gpt_uuid_solaris_var = GPT_ENT_TYPE_SOLARIS_VAR;
 static struct uuid gpt_uuid_solaris_home = GPT_ENT_TYPE_SOLARIS_HOME;
 static struct uuid gpt_uuid_solaris_altsec = GPT_ENT_TYPE_SOLARIS_ALTSEC;
 static struct uuid gpt_uuid_solaris_reserved = GPT_ENT_TYPE_SOLARIS_RESERVED;
+static struct uuid gpt_uuid_u_boot_env = GPT_ENT_TYPE_U_BOOT_ENV;
 static struct uuid gpt_uuid_unused = GPT_ENT_TYPE_UNUSED;
 static struct uuid gpt_uuid_vmfs = GPT_ENT_TYPE_VMFS;
 static struct uuid gpt_uuid_vmkdiag = GPT_ENT_TYPE_VMKDIAG;
@@ -295,6 +296,7 @@ static struct g_part_uuid_alias {
 	{ &gpt_uuid_solaris_home,	G_PART_ALIAS_SOLARIS_HOME,	 0 },
 	{ &gpt_uuid_solaris_altsec,	G_PART_ALIAS_SOLARIS_ALTSEC,	 0 },
 	{ &gpt_uuid_solaris_reserved,	G_PART_ALIAS_SOLARIS_RESERVED,	 0 },
+	{ &gpt_uuid_u_boot_env,		G_PART_ALIAS_U_BOOT_ENV,	 0 },
 	{ &gpt_uuid_vmfs,		G_PART_ALIAS_VMFS,		 0 },
 	{ &gpt_uuid_vmkdiag,		G_PART_ALIAS_VMKDIAG,		 0 },
 	{ &gpt_uuid_vmreserved,		G_PART_ALIAS_VMRESERVED,	 0 },

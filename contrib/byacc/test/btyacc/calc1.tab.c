@@ -150,7 +150,7 @@ INTERVAL vreg[26];
 #ifndef YYSTYPE_IS_DECLARED
 #define YYSTYPE_IS_DECLARED 1
 #line 31 "calc1.y"
-typedef union
+typedef union YYSTYPE
 {
 	int ival;
 	double dval;

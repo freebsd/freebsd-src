@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.74 2021/01/23 20:42:08 tom Exp $
+# $Id: Makefile.in,v 1.79 2021/11/06 23:36:12 tom Exp $
 ##############################################################################
 # Copyright 2018-2020,2021 Thomas E. Dickey                                  #
 # Copyright 1998-2016,2017 Free Software Foundation, Inc.                    #
@@ -76,13 +76,29 @@ INSTALL_DATA	= @INSTALL_DATA@
 PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
 
 ################################################################################
+
+@MAKE_PHONY@.PHONY :	all
+@MAKE_PHONY@.PHONY :	check
+@MAKE_PHONY@.PHONY :	clean
+@MAKE_PHONY@.PHONY :	depend
+@MAKE_PHONY@.PHONY :	distclean
+@MAKE_PHONY@.PHONY :	install
+@MAKE_PHONY@.PHONY :	install.data
+@MAKE_PHONY@.PHONY :	install.libs
+@MAKE_PHONY@.PHONY :	libs
+@MAKE_PHONY@.PHONY :	mostlyclean
+@MAKE_PHONY@.PHONY :	realclean
+@MAKE_PHONY@.PHONY :	sources
+@MAKE_PHONY@.PHONY :	uninstall
+@MAKE_PHONY@.PHONY :	uninstall.data
+@MAKE_PHONY@.PHONY :	uninstall.libs
+
 all \
+depend \
 sources ::
 
 @MAKE_DATABASE@all \
-@MAKE_DATABASE@sources :: terminfo.tmp 
-
-depend :
+@MAKE_DATABASE@sources :: terminfo.tmp
 
 @MAKE_DATABASE@install :: @MISC_INSTALL_DATA@
 
@@ -131,8 +147,8 @@ install.libs :: $(DESTDIR)$(bindir) ncurses-config
 # directory during this rule:
 @MAKE_PC_FILES@install \
 @MAKE_PC_FILES@install.libs :: pc-files
-@MAKE_PC_FILES@	@$(SHELL) -c 'case "x$(DESTDIR)$(PKG_CONFIG_LIBDIR)" in \
-@MAKE_PC_FILES@		(x/*) \
+@MAKE_PC_FILES@	@$(SHELL) -c 'case "x$(PKG_CONFIG_LIBDIR)" in \
+@MAKE_PC_FILES@		x/*) \
 @MAKE_PC_FILES@			mkdir -p $(DESTDIR)$(PKG_CONFIG_LIBDIR); \
 @MAKE_PC_FILES@			for name in $(PC_FILES); do \
 @MAKE_PC_FILES@				test -f $$name || continue; \
@@ -140,7 +156,7 @@ install.libs :: $(DESTDIR)$(bindir) ncurses-config
 @MAKE_PC_FILES@				$(INSTALL_DATA) $$name $(DESTDIR)$(PKG_CONFIG_LIBDIR)/$$name; \
 @MAKE_PC_FILES@			done \
 @MAKE_PC_FILES@			;; \
-@MAKE_PC_FILES@		(*) \
+@MAKE_PC_FILES@		*) \
 @MAKE_PC_FILES@			echo "...skip actual install: no destination was given" ; \
 @MAKE_PC_FILES@			;; \
 @MAKE_PC_FILES@		esac'
@@ -177,7 +193,7 @@ uninstall.data :
 uninstall.libs :
 	-rm -f $(DESTDIR)$(bindir)/$(NCURSES_CONFIG)
 @MAKE_PC_FILES@	@$(SHELL) -c 'case x$(DESTDIR)$(PKG_CONFIG_LIBDIR) in \
-@MAKE_PC_FILES@	(x/*) \
+@MAKE_PC_FILES@	x/*) \
 @MAKE_PC_FILES@		for name in $(PC_FILES); do \
 @MAKE_PC_FILES@			test -f $$name || continue; \
 @MAKE_PC_FILES@			echo uninstalling $$name; \

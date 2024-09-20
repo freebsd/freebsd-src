@@ -1,7 +1,7 @@
 #!@SHELL@
-# $Id: ncurses-config.in,v 1.46 2021/01/23 23:47:46 tom Exp $
+# $Id: ncurses-config.in,v 1.52 2022/07/26 21:36:28 tom Exp $
 ##############################################################################
-# Copyright 2018-2020,2021 Thomas E. Dickey                                  #
+# Copyright 2018-2021,2022 Thomas E. Dickey                                  #
 # Copyright 2006-2015,2017 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -98,10 +98,10 @@ fi
 # are standard library directories (i.e., the linker is supposed to search
 # those directories).
 #
-# There is no portable way to find the list of standard library directories. 
+# There is no portable way to find the list of standard library directories.
 # Require a POSIX shell anyway, to keep this simple.
 lib_flags=
-for opt in -L$libdir @LDFLAGS@ @EXTRA_PKG_LDFLAGS@ $LIBS
+for opt in -L$libdir @EXTRA_PKG_LDFLAGS@ $LIBS
 do
 	case $opt in
 	-specs*) # ignore linker specs-files which were used to build library
@@ -110,8 +110,14 @@ do
 	-Wl,-z,*) # ignore flags used to manipulate shared image
 		continue
 		;;
+	-Wl,--dynamic-linker*) # ignore ELF interpreter
+		continue
+		;;
+	-Wl,--as-needed|-Wl,--build-id=*|-Wl,-dT,*|-Wl,-T,*)
+		continue
+		;;
 	-L*)
-		lib_check=${opt##-L} 
+		lib_check=`echo "x$opt" | sed -e 's/^.-L//'`
 		[ -d "$lib_check" ] || continue
 		case "$lib_check" in
 		@LD_SEARCHPATH@) # skip standard libdir
@@ -167,7 +173,7 @@ do
 	lib_flags="$lib_flags $opt"
 done
 
-[ $# = 0 ] && exec @SHELL@ $0 --error
+[ $# = 0 ] && exec @SHELL@ "$0" --error
 
 while [ $# -gt 0 ]; do
 	case "$1" in
@@ -198,7 +204,7 @@ ENDECHO
 			[ -n "$OPTS" ] && OPTS="$OPTS "
 			OPTS="${OPTS}${opt}"
 		done
-		printf "%s\n" "$OPTS"
+		printf '%s\n' "$OPTS"
 		;;
 	--libs-only-L)
 		OPTS=
@@ -211,7 +217,7 @@ ENDECHO
 				;;
 			esac
 		done
-		printf "%s\n" "$OPTS"
+		printf '%s\n' "$OPTS"
 		;;
 	--libs-only-l)
 		OPTS=
@@ -224,7 +230,7 @@ ENDECHO
 				;;
 			esac
 		done
-		printf "%s\n" "$OPTS"
+		printf '%s\n' "$OPTS"
 		;;
 	--libs-only-other)
 		OPTS=
@@ -239,7 +245,7 @@ ENDECHO
 				;;
 			esac
 		done
-		printf "%s\n" "$OPTS"
+		printf '%s\n' "$OPTS"
 		;;
 	# identification
 	--version)
@@ -265,7 +271,7 @@ ENDECHO
 		elif [ "${includedir}" != /usr/include ]; then
 			INCS="${includedir}"
 		fi
-		echo $INCS
+		echo "$INCS"
 		;;
 	--libdir)
 		echo "${libdir}"
@@ -285,7 +291,7 @@ ENDECHO
 	# general info
 	--help)
 		cat <<ENDHELP
-Usage: `basename $0` [options]
+Usage: `basename "$0"` [options]
 
 Options:
   --prefix           echos the package-prefix of ${THIS}
@@ -315,7 +321,7 @@ Options:
 ENDHELP
 		;;
 	--error|*)
-		@SHELL@ $0 --help 1>&2
+		@SHELL@ "$0" --help 1>&2
 		exit 1
 		;;
 	esac

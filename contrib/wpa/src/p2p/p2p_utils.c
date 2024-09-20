@@ -508,7 +508,7 @@ void p2p_copy_channels(struct p2p_channels *dst,
 		return;
 	}
 
-	for (i = 0, j = 0; i < P2P_MAX_REG_CLASSES; i++) {
+	for (i = 0, j = 0; i < src->reg_classes; i++) {
 		if (is_6ghz_op_class(src->reg_class[i].reg_class))
 			continue;
 		os_memcpy(&dst->reg_class[j], &src->reg_class[i],
@@ -519,14 +519,14 @@ void p2p_copy_channels(struct p2p_channels *dst,
 }
 
 
-int p2p_remove_6ghz_channels(unsigned int *pref_freq_list, int size)
+int p2p_remove_6ghz_channels(struct weighted_pcl *pref_freq_list, int size)
 {
 	int i;
 
 	for (i = 0; i < size; i++) {
-		if (is_6ghz_freq(pref_freq_list[i])) {
+		if (is_6ghz_freq(pref_freq_list[i].freq)) {
 			wpa_printf(MSG_DEBUG, "P2P: Remove 6 GHz channel %d",
-				   pref_freq_list[i]);
+				   pref_freq_list[i].freq);
 			size--;
 			os_memmove(&pref_freq_list[i], &pref_freq_list[i + 1],
 				   (size - i) * sizeof(pref_freq_list[0]));
@@ -534,4 +534,80 @@ int p2p_remove_6ghz_channels(unsigned int *pref_freq_list, int size)
 		}
 	}
 	return i;
+}
+
+
+/**
+ * p2p_pref_freq_allowed - Based on the flags set, check if the preferred
+ * frequency is allowed
+ * @freq_list: Weighted preferred channel list
+ * @go: Whether the local device is the group owner
+ * Returns: Whether the preferred frequency is allowed
+ */
+bool p2p_pref_freq_allowed(const struct weighted_pcl *freq_list, bool go)
+{
+	if (freq_list->flag & WEIGHTED_PCL_EXCLUDE)
+		return false;
+	if (!(freq_list->flag & WEIGHTED_PCL_CLI) && !go)
+		return false;
+	if (!(freq_list->flag & WEIGHTED_PCL_GO) && go)
+		return false;
+	return true;
+}
+
+
+static int p2p_check_pref_channel(int channel, u8 op_class,
+				  const struct weighted_pcl *freq_list,
+				  unsigned int num_channels, bool go)
+{
+	unsigned int i;
+
+	/* If the channel is present in the preferred channel list, check if it
+	 * has appropriate flags for the role.
+	 */
+	for (i = 0; i < num_channels; i++) {
+		if (p2p_channel_to_freq(op_class, channel) !=
+		    (int) freq_list[i].freq)
+			continue;
+		if (!p2p_pref_freq_allowed(&freq_list[i], go))
+			return -1;
+		break;
+	}
+
+	return 0;
+}
+
+
+void p2p_pref_channel_filter(const struct p2p_channels *p2p_chan,
+			     const struct weighted_pcl *freq_list,
+			     unsigned int num_channels,
+			     struct p2p_channels *res, bool go)
+{
+	size_t i, j;
+
+	os_memset(res, 0, sizeof(*res));
+
+	for (i = 0; i < p2p_chan->reg_classes; i++) {
+		const struct p2p_reg_class *reg = &p2p_chan->reg_class[i];
+		struct p2p_reg_class *res_reg = &res->reg_class[i];
+
+		if (num_channels > 0) {
+			for (j = 0; j < reg->channels; j++) {
+				if (p2p_check_pref_channel(reg->channel[j],
+							   reg->reg_class,
+							   freq_list,
+							   num_channels,
+							   go) < 0)
+					continue;
+
+				res_reg->channel[res_reg->channels++] =
+					reg->channel[j];
+			}
+		}
+
+		if (res_reg->channels == 0)
+			continue;
+		res->reg_classes++;
+		res_reg->reg_class = reg->reg_class;
+	}
 }

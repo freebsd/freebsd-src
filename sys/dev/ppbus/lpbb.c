@@ -63,7 +63,7 @@ lpbb_identify(driver_t *driver, device_t parent)
 
 	dev = device_find_child(parent, "lpbb", -1);
 	if (!dev)
-		BUS_ADD_CHILD(parent, 0, "lpbb", -1);
+		BUS_ADD_CHILD(parent, 0, "lpbb", DEVICE_UNIT_ANY);
 }
 
 static int
@@ -85,7 +85,7 @@ lpbb_attach(device_t dev)
 	device_t bitbang;
 
 	/* add generic bit-banging code */
-	bitbang = device_add_child(dev, "iicbb", -1);
+	bitbang = device_add_child(dev, "iicbb", DEVICE_UNIT_ANY);
 	device_probe_and_attach(bitbang);
 
 	return (0);

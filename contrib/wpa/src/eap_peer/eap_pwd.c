@@ -666,7 +666,10 @@ eap_pwd_perform_commit_exchange(struct eap_sm *sm, struct eap_pwd_data *data,
 	 * sufficiently smaller than the prime or order might need pre-pending
 	 * with zeros.
 	 */
-	crypto_bignum_to_bin(data->my_scalar, scalar, order_len, order_len);
+	if (crypto_bignum_to_bin(data->my_scalar, scalar, order_len,
+				 order_len) < 0)
+		goto fin;
+
 	if (crypto_ec_point_to_bin(data->grp->group, data->my_element, element,
 				   element + prime_len) != 0) {
 		wpa_printf(MSG_INFO, "EAP-PWD (peer): point assignment fail");
@@ -742,7 +745,9 @@ eap_pwd_perform_confirm_exchange(struct eap_sm *sm, struct eap_pwd_data *data,
 	 * zero the memory each time because this is mod prime math and some
 	 * value may start with a few zeros and the previous one did not.
 	 */
-	crypto_bignum_to_bin(data->k, cruft, prime_len, prime_len);
+	if (crypto_bignum_to_bin(data->k, cruft, prime_len, prime_len) < 0)
+		goto fin;
+
 	eap_pwd_h_update(hash, cruft, prime_len);
 
 	/* server element: x, y */
@@ -755,7 +760,10 @@ eap_pwd_perform_confirm_exchange(struct eap_sm *sm, struct eap_pwd_data *data,
 	eap_pwd_h_update(hash, cruft, prime_len * 2);
 
 	/* server scalar */
-	crypto_bignum_to_bin(data->server_scalar, cruft, order_len, order_len);
+	if (crypto_bignum_to_bin(data->server_scalar, cruft, order_len,
+				 order_len) < 0)
+		goto fin;
+
 	eap_pwd_h_update(hash, cruft, order_len);
 
 	/* my element: x, y */
@@ -768,7 +776,10 @@ eap_pwd_perform_confirm_exchange(struct eap_sm *sm, struct eap_pwd_data *data,
 	eap_pwd_h_update(hash, cruft, prime_len * 2);
 
 	/* my scalar */
-	crypto_bignum_to_bin(data->my_scalar, cruft, order_len, order_len);
+	if (crypto_bignum_to_bin(data->my_scalar, cruft, order_len,
+				 order_len) < 0)
+		goto fin;
+
 	eap_pwd_h_update(hash, cruft, order_len);
 
 	/* the ciphersuite */
@@ -796,7 +807,9 @@ eap_pwd_perform_confirm_exchange(struct eap_sm *sm, struct eap_pwd_data *data,
 		goto fin;
 
 	/* k */
-	crypto_bignum_to_bin(data->k, cruft, prime_len, prime_len);
+	if (crypto_bignum_to_bin(data->k, cruft, prime_len, prime_len) < 0)
+		goto fin;
+
 	eap_pwd_h_update(hash, cruft, prime_len);
 
 	/* my element */
@@ -809,7 +822,10 @@ eap_pwd_perform_confirm_exchange(struct eap_sm *sm, struct eap_pwd_data *data,
 	eap_pwd_h_update(hash, cruft, prime_len * 2);
 
 	/* my scalar */
-	crypto_bignum_to_bin(data->my_scalar, cruft, order_len, order_len);
+	if (crypto_bignum_to_bin(data->my_scalar, cruft, order_len,
+				 order_len) < 0)
+		goto fin;
+
 	eap_pwd_h_update(hash, cruft, order_len);
 
 	/* server element: x, y */
@@ -822,7 +838,10 @@ eap_pwd_perform_confirm_exchange(struct eap_sm *sm, struct eap_pwd_data *data,
 	eap_pwd_h_update(hash, cruft, prime_len * 2);
 
 	/* server scalar */
-	crypto_bignum_to_bin(data->server_scalar, cruft, order_len, order_len);
+	if (crypto_bignum_to_bin(data->server_scalar, cruft, order_len,
+				 order_len) < 0)
+		goto fin;
+
 	eap_pwd_h_update(hash, cruft, order_len);
 
 	/* the ciphersuite */

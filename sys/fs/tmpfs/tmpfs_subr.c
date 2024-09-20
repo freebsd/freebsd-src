@@ -428,7 +428,7 @@ sysctl_mem_percent(SYSCTL_HANDLER_ARGS)
 	if ((unsigned) percent > 100)
 		return (EINVAL);
 
-	*(long *)arg1 = percent;
+	*(int *)arg1 = percent;
 	tmpfs_set_reserve_from_percent();
 	return (0);
 }

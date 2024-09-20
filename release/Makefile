@@ -14,6 +14,7 @@
 #  install: Invokes the release-install and vm-install targets
 #  release-install: Copies all release installation media into ${DESTDIR}
 #  vm-install: Copies all virtual machine images into ${DESTDIR}
+#  cloud-install: Copies non-uploaded cloud images into ${DESTDIR}
 #
 # Variables affecting the build process:
 #  WORLDDIR: location of src tree -- must have built world and default kernel
@@ -122,7 +123,7 @@ base.txz:
 	sh ${WORLDDIR}/usr.sbin/etcupdate/etcupdate.sh extract -B \
 	    -m "${MAKE}" -M "TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}" \
 	    -s ${WORLDDIR} -d "${.OBJDIR}/${DISTDIR}/base/var/db/etcupdate" \
-	    ${NO_ROOT:D-N}
+	    -L /dev/null ${NO_ROOT:D-N}
 .if defined(NO_ROOT)
 	echo "./var/db/etcupdate type=dir uname=root gname=wheel mode=0755" >> ${.OBJDIR}/${DISTDIR}/base.meta
 	sed -n 's,^\.,./var/db/etcupdate/current,p' ${.OBJDIR}/${DISTDIR}/base/var/db/etcupdate/current/METALOG \
@@ -326,7 +327,7 @@ real-release:
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} obj
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${RELEASE_TARGETS}
 
-install:	release-install vm-install
+install:	release-install vm-install .WAIT cloud-install
 
 release-install:
 .if defined(DESTDIR) && !empty(DESTDIR)

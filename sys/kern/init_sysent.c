@@ -67,7 +67,7 @@ struct sysent sysent[] = {
 	{ .sy_narg = AS(write_args), .sy_call = (sy_call_t *)sys_write, .sy_auevent = AUE_WRITE, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 4 = write */
 	{ .sy_narg = AS(open_args), .sy_call = (sy_call_t *)sys_open, .sy_auevent = AUE_OPEN_RWTC, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 5 = open */
 	{ .sy_narg = AS(close_args), .sy_call = (sy_call_t *)sys_close, .sy_auevent = AUE_CLOSE, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 6 = close */
-	{ .sy_narg = AS(wait4_args), .sy_call = (sy_call_t *)sys_wait4, .sy_auevent = AUE_WAIT4, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 7 = wait4 */
+	{ .sy_narg = AS(wait4_args), .sy_call = (sy_call_t *)sys_wait4, .sy_auevent = AUE_WAIT4, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 7 = wait4 */
 	{ compat(AS(ocreat_args),creat), .sy_auevent = AUE_CREAT, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 8 = old creat */
 	{ .sy_narg = AS(link_args), .sy_call = (sy_call_t *)sys_link, .sy_auevent = AUE_LINK, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 9 = link */
 	{ .sy_narg = AS(unlink_args), .sy_call = (sy_call_t *)sys_unlink, .sy_auevent = AUE_UNLINK, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 10 = unlink */

@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/random
 
 KMOD=	padlock_rng

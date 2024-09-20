@@ -729,7 +729,7 @@ get_cyclecount(void)
 #define cpu_spinwait()		/* nothing */
 #define	cpu_lock_delay()	DELAY(1)
 
-#define ARM_NVEC		8
+#define ARM_NVEC		7
 #define ARM_VEC_ALL		0xffffffff
 
 extern vm_offset_t vector_page;

@@ -275,7 +275,7 @@ acpi_video_identify(driver_t *driver, device_t parent)
 {
 
 	if (device_find_child(parent, "acpi_video", -1) == NULL)
-		device_add_child(parent, "acpi_video", -1);
+		device_add_child(parent, "acpi_video", DEVICE_UNIT_ANY);
 }
 
 static int

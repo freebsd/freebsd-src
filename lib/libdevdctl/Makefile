@@ -1,4 +1,3 @@
-
 LIB_CXX=	devdctl
 INCS=	consumer.h		\
 	event.h			\

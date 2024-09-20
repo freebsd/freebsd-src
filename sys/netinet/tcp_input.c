@@ -202,6 +202,11 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, insecure_rst, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_insecure_rst), 0,
     "Follow RFC793 instead of RFC5961 criteria for accepting RST packets");
 
+VNET_DEFINE(int, tcp_insecure_ack) = 0;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, insecure_ack, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(tcp_insecure_ack), 0,
+    "Follow RFC793 criteria for validating SEG.ACK");
+
 VNET_DEFINE(int, tcp_recvspace) = 1024*64;
 #define	V_tcp_recvspace	VNET(tcp_recvspace)
 SYSCTL_INT(_net_inet_tcp, TCPCTL_RECVSPACE, recvspace, CTLFLAG_VNET | CTLFLAG_RW,
@@ -2203,10 +2208,7 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 				}
 			} else {
 				TCPSTAT_INC(tcps_badrst);
-				/* Send challenge ACK. */
-				tcp_respond(tp, mtod(m, void *), th, m,
-				    tp->rcv_nxt, tp->snd_nxt, TH_ACK);
-				tp->last_ack_sent = tp->rcv_nxt;
+				tcp_send_challenge_ack(tp, th, m);
 				m = NULL;
 			}
 		}
@@ -2228,10 +2230,7 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 			rstreason = BANDLIM_UNLIMITED;
 		} else {
 			tcp_ecn_input_syn_sent(tp, thflags, iptos);
-			/* Send challenge ACK. */
-			tcp_respond(tp, mtod(m, void *), th, m, tp->rcv_nxt,
-			    tp->snd_nxt, TH_ACK);
-			tp->last_ack_sent = tp->rcv_nxt;
+			tcp_send_challenge_ack(tp, th, m);
 			m = NULL;
 		}
 		goto drop;
@@ -2438,6 +2437,42 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 	/*
 	 * Ack processing.
 	 */
+	if (SEQ_GEQ(tp->snd_una, tp->iss + (TCP_MAXWIN << tp->snd_scale))) {
+		/* Checking SEG.ACK against ISS is definitely redundant. */
+		tp->t_flags2 |= TF2_NO_ISS_CHECK;
+	}
+	if (!V_tcp_insecure_ack) {
+		tcp_seq seq_min;
+		bool ghost_ack_check;
+
+		if (tp->t_flags2 & TF2_NO_ISS_CHECK) {
+			/* Check for too old ACKs (RFC 5961, Section 5.2). */
+			seq_min = tp->snd_una - tp->max_sndwnd;
+			ghost_ack_check = false;
+		} else {
+			if (SEQ_GT(tp->iss + 1, tp->snd_una - tp->max_sndwnd)) {
+				/* Checking for ghost ACKs is stricter. */
+				seq_min = tp->iss + 1;
+				ghost_ack_check = true;
+			} else {
+				/*
+				 * Checking for too old ACKs (RFC 5961,
+				 * Section 5.2) is stricter.
+				 */
+				seq_min = tp->snd_una - tp->max_sndwnd;
+				ghost_ack_check = false;
+			}
+		}
+		if (SEQ_LT(th->th_ack, seq_min)) {
+			if (ghost_ack_check)
+				TCPSTAT_INC(tcps_rcvghostack);
+			else
+				TCPSTAT_INC(tcps_rcvacktooold);
+			tcp_send_challenge_ack(tp, th, m);
+			m = NULL;
+			goto drop;
+		}
+	}
 	switch (tp->t_state) {
 	/*
 	 * In SYN_RECEIVED state, the ack ACKs our SYN, so enter
@@ -3979,6 +4014,8 @@ tcp_mss(struct tcpcb *tp, int offer)
 		tp->t_tsomax = cap.tsomax;
 		tp->t_tsomaxsegcount = cap.tsomaxsegcount;
 		tp->t_tsomaxsegsize = cap.tsomaxsegsize;
+		if (cap.ipsec_tso)
+			tp->t_flags2 |= TF2_IPSEC_TSO;
 	}
 }
 

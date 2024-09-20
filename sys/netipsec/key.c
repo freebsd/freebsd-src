@@ -83,6 +83,7 @@
 #include <netipsec/key.h>
 #include <netipsec/keysock.h>
 #include <netipsec/key_debug.h>
+#include <netipsec/ipsec_offload.h>
 
 #include <netipsec/ipsec.h>
 #ifdef INET6
@@ -90,11 +91,30 @@
 #endif
 
 #include <netipsec/xform.h>
+#include <netipsec/ipsec_offload.h>
 #include <machine/in_cksum.h>
 #include <machine/stdarg.h>
 
 /* randomness */
 #include <sys/random.h>
+
+#ifdef IPSEC_OFFLOAD
+void (*ipsec_accel_sa_newkey_p)(struct secasvar *sav);
+void (*ipsec_accel_forget_sav_p)(struct secasvar *sav);
+void (*ipsec_accel_spdadd_p)(struct secpolicy *sp, struct inpcb *inp);
+void (*ipsec_accel_spddel_p)(struct secpolicy *sp);
+int (*ipsec_accel_sa_lifetime_op_p)(struct secasvar *sav,
+    struct seclifetime *lft_c, if_t ifp, enum IF_SA_CNT_WHICH op,
+    struct rm_priotracker *sahtree_trackerp);
+void (*ipsec_accel_sync_p)(void);
+bool (*ipsec_accel_is_accel_sav_p)(struct secasvar *sav);
+struct mbuf *(*ipsec_accel_key_setaccelif_p)(struct secasvar *sav);
+void (*ipsec_accel_on_ifdown_p)(struct ifnet *ifp);
+void (*ipsec_accel_drv_sa_lifetime_update_p)(struct secasvar *sav, if_t ifp,
+    u_int drv_spi, uint64_t octets, uint64_t allocs);
+int (*ipsec_accel_drv_sa_lifetime_fetch_p)(struct secasvar *sav, if_t ifp,
+    u_int drv_spi, uint64_t *octets, uint64_t *allocs);
+#endif
 
 #define FULLMASK	0xff
 #define	_BITS(bytes)	((bytes) << 3)
@@ -391,6 +411,9 @@ static const int minsize[] = {
 	[SADB_X_EXT_SA_REPLAY] = sizeof(struct sadb_x_sa_replay),
 	[SADB_X_EXT_NEW_ADDRESS_SRC] = sizeof(struct sadb_address),
 	[SADB_X_EXT_NEW_ADDRESS_DST] = sizeof(struct sadb_address),
+	[SADB_X_EXT_LFT_CUR_SW_OFFL] = sizeof(struct sadb_lifetime),
+	[SADB_X_EXT_LFT_CUR_HW_OFFL] = sizeof(struct sadb_lifetime),
+	[SADB_X_EXT_IF_HW_OFFL] = sizeof(struct sadb_x_if_hw_offl),
 };
 _Static_assert(nitems(minsize) == SADB_EXT_MAX + 1, "minsize size mismatch");
 
@@ -424,6 +447,9 @@ static const int maxsize[] = {
 	[SADB_X_EXT_SA_REPLAY] = sizeof(struct sadb_x_sa_replay),
 	[SADB_X_EXT_NEW_ADDRESS_SRC] = 0,
 	[SADB_X_EXT_NEW_ADDRESS_DST] = 0,
+	[SADB_X_EXT_LFT_CUR_SW_OFFL] = sizeof(struct sadb_lifetime),
+	[SADB_X_EXT_LFT_CUR_HW_OFFL] = sizeof(struct sadb_lifetime),
+	[SADB_X_EXT_IF_HW_OFFL] = sizeof(struct sadb_x_if_hw_offl),
 };
 _Static_assert(nitems(maxsize) == SADB_EXT_MAX + 1, "maxsize size mismatch");
 
@@ -622,7 +648,6 @@ static struct callout key_timer;
 
 static void key_unlink(struct secpolicy *);
 static void key_detach(struct secpolicy *);
-static struct secpolicy *key_do_allocsp(struct secpolicyindex *spidx, u_int dir);
 static struct secpolicy *key_getsp(struct secpolicyindex *);
 static struct secpolicy *key_getspbyid(u_int32_t);
 static struct mbuf *key_gather_mbuf(struct mbuf *,
@@ -662,7 +687,7 @@ static int key_updateaddresses(struct socket *, struct mbuf *,
     const struct sadb_msghdr *, struct secasvar *, struct secasindex *);
 
 static struct mbuf *key_setdumpsa(struct secasvar *, u_int8_t,
-	u_int8_t, u_int32_t, u_int32_t);
+	u_int8_t, u_int32_t, u_int32_t, struct rm_priotracker *);
 static struct mbuf *key_setsadbmsg(u_int8_t, u_int16_t, u_int8_t,
 	u_int32_t, pid_t, u_int16_t);
 static struct mbuf *key_setsadbsa(struct secasvar *);
@@ -1228,6 +1253,11 @@ key_freesp(struct secpolicy **spp)
 	KEYDBG(IPSEC_DATA, kdebug_secpolicy(sp));
 
 	*spp = NULL;
+#ifdef IPSEC_OFFLOAD
+	KASSERT(CK_LIST_EMPTY(&sp->accel_ifps),
+	    ("key_freesp: sp %p still offloaded", sp));
+	free(__DECONST(char *, sp->accel_ifname), M_IPSEC_MISC);
+#endif
 	while (sp->tcount > 0)
 		ipsec_delisr(sp->req[--sp->tcount]);
 	free(sp, M_IPSEC_SP);
@@ -1241,6 +1271,7 @@ key_unlink(struct secpolicy *sp)
 	SPTREE_WUNLOCK();
 	if (SPDCACHE_ENABLED())
 		spdcache_clear();
+	ipsec_accel_sync();
 	key_freesp(&sp);
 }
 
@@ -1259,6 +1290,7 @@ key_detach(struct secpolicy *sp)
 		return;
 	}
 	sp->state = IPSEC_SPSTATE_DEAD;
+	ipsec_accel_spddel(sp);
 	TAILQ_REMOVE(&V_sptree[sp->spidx.dir], sp, chain);
 	V_spd_size--;
 	LIST_REMOVE(sp, idhash);
@@ -1286,6 +1318,7 @@ done:
 	newsp->state = IPSEC_SPSTATE_ALIVE;
 	V_spd_size++;
 	V_sp_genid++;
+	ipsec_accel_spdadd(newsp, NULL);
 }
 
 /*
@@ -1330,6 +1363,7 @@ key_register_ifnet(struct secpolicy **spp, u_int count)
 		 */
 		LIST_INSERT_HEAD(SPHASH_HASH(spp[i]->id), spp[i], idhash);
 		spp[i]->state = IPSEC_SPSTATE_IFNET;
+		ipsec_accel_spdadd(spp[i], NULL);
 	}
 	SPTREE_WUNLOCK();
 	/*
@@ -1358,6 +1392,7 @@ key_unregister_ifnet(struct secpolicy **spp, u_int count)
 		if (spp[i]->state != IPSEC_SPSTATE_IFNET)
 			continue;
 		spp[i]->state = IPSEC_SPSTATE_DEAD;
+		ipsec_accel_spddel(spp[i]);
 		TAILQ_REMOVE(&V_sptree_ifnet[spp[i]->spidx.dir],
 		    spp[i], chain);
 		V_spd_size--;
@@ -1366,6 +1401,7 @@ key_unregister_ifnet(struct secpolicy **spp, u_int count)
 	SPTREE_WUNLOCK();
 	if (SPDCACHE_ENABLED())
 		spdcache_clear();
+	ipsec_accel_sync();
 
 	for (i = 0; i < count; i++) {
 		m = key_setdumpsp(spp[i], SADB_X_SPDDELETE, 0, 0);
@@ -1425,6 +1461,7 @@ key_unlinksav(struct secasvar *sav)
 	/* Unlink from SPI hash */
 	LIST_REMOVE(sav, spihash);
 	sav->state = SADB_SASTATE_DEAD;
+	ipsec_accel_forget_sav(sav);
 	sah = sav->sah;
 	SAHTREE_WUNLOCK();
 	key_freesav(&sav);
@@ -1822,6 +1859,9 @@ key_sp2msg(struct secpolicy *sp, void *request, size_t *len)
 	size_t xlen, ilen;
 	caddr_t p;
 	int error, i;
+#ifdef IPSEC_OFFLOAD
+	struct sadb_x_if_hw_offl *xif;
+#endif
 
 	IPSEC_ASSERT(sp != NULL, ("null policy"));
 
@@ -1877,6 +1917,18 @@ key_sp2msg(struct secpolicy *sp, void *request, size_t *len)
 		}
 	}
 	xpl->sadb_x_policy_len = PFKEY_UNIT64(xlen);
+#ifdef IPSEC_OFFLOAD
+	if (error == 0 && sp->accel_ifname != NULL) {
+		xif = (struct sadb_x_if_hw_offl *)(xpl + 1);
+		bzero(xif, sizeof(*xif));
+		xif->sadb_x_if_hw_offl_len = PFKEY_UNIT64(sizeof(*xif));
+		xif->sadb_x_if_hw_offl_exttype = SADB_X_EXT_IF_HW_OFFL;
+		xif->sadb_x_if_hw_offl_flags = 0;
+		strncpy(xif->sadb_x_if_hw_offl_if, sp->accel_ifname,
+		    sizeof(xif->sadb_x_if_hw_offl_if));
+		xlen += sizeof(*xif);
+	}
+#endif
 	if (error == 0)
 		*len = xlen;
 	else
@@ -2089,6 +2141,27 @@ key_spdadd(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	newsp->lifetime = lft ? lft->sadb_lifetime_addtime : 0;
 	newsp->validtime = lft ? lft->sadb_lifetime_usetime : 0;
 	bcopy(&spidx, &newsp->spidx, sizeof(spidx));
+#ifdef IPSEC_OFFLOAD
+	if (!SADB_CHECKHDR(mhp, SADB_X_EXT_IF_HW_OFFL) &&
+	    !SADB_CHECKLEN(mhp, SADB_X_EXT_IF_HW_OFFL)) {
+		struct sadb_x_if_hw_offl *xof;
+
+		xof = (struct sadb_x_if_hw_offl *)mhp->ext[
+		    SADB_X_EXT_IF_HW_OFFL];
+		newsp->accel_ifname = malloc(sizeof(xof->sadb_x_if_hw_offl_if),
+		    M_IPSEC_MISC, M_NOWAIT);
+		if (newsp->accel_ifname == NULL) {
+			ipseclog((LOG_DEBUG, "%s: cannot alloc accel_ifname.\n",
+			    __func__));
+			key_freesp(&newsp);
+			return (key_senderror(so, m, error));
+		}
+		strncpy(__DECONST(char *, newsp->accel_ifname),
+		    xof->sadb_x_if_hw_offl_if,
+		    sizeof(xof->sadb_x_if_hw_offl_if));
+	}
+
+#endif
 
 	SPTREE_WLOCK();
 	if ((newsp->id = key_getnewspid()) == 0) {
@@ -2096,6 +2169,7 @@ key_spdadd(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 			key_detach(oldsp);
 		SPTREE_WUNLOCK();
 		if (oldsp != NULL) {
+			ipsec_accel_sync();
 			key_freesp(&oldsp); /* first for key_detach */
 			IPSEC_ASSERT(oldsp != NULL, ("null oldsp: refcount bug"));
 			key_freesp(&oldsp); /* second for our reference */
@@ -2110,6 +2184,7 @@ key_spdadd(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	key_insertsp(newsp);
 	SPTREE_WUNLOCK();
 	if (oldsp != NULL) {
+		ipsec_accel_sync();
 		key_freesp(&oldsp); /* first for key_detach */
 		IPSEC_ASSERT(oldsp != NULL, ("null oldsp: refcount bug"));
 		key_freesp(&oldsp); /* second for our reference */
@@ -2291,6 +2366,7 @@ key_spddelete(struct socket *so, struct mbuf *m,
 	KEYDBG(KEY_STAMP,
 	    printf("%s: SP(%p)\n", __func__, sp));
 	KEYDBG(KEY_DATA, kdebug_secpolicy(sp));
+	ipsec_accel_spddel(sp);
 	key_unlink(sp);
 	key_freesp(&sp);
 
@@ -2562,6 +2638,7 @@ key_spdflush(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	 */
 	TAILQ_FOREACH(sp, &drainq, chain) {
 		sp->state = IPSEC_SPSTATE_DEAD;
+		ipsec_accel_spddel(sp);
 		LIST_REMOVE(sp, idhash);
 	}
 	V_sp_genid++;
@@ -2765,6 +2842,10 @@ key_getspreqmsglen(struct secpolicy *sp)
 
 		tlen += PFKEY_ALIGN8(len);
 	}
+#ifdef IPSEC_OFFLOAD
+	if (sp->accel_ifname != NULL)
+		tlen += sizeof(struct sadb_x_if_hw_offl);
+#endif
 	return (tlen);
 }
 
@@ -3006,6 +3087,32 @@ key_newsav(const struct sadb_msghdr *mhp, struct secasindex *saidx,
 	sav->state = SADB_SASTATE_LARVAL;
 	sav->pid = (pid_t)mhp->msg->sadb_msg_pid;
 	SAV_INITREF(sav);
+#ifdef IPSEC_OFFLOAD
+	CK_LIST_INIT(&sav->accel_ifps);
+	sav->accel_forget_tq = 0;
+	sav->accel_lft_sw = uma_zalloc_pcpu(ipsec_key_lft_zone,
+	    M_NOWAIT | M_ZERO);
+	if (sav->accel_lft_sw == NULL) {
+		*errp = ENOBUFS;
+		goto done;
+	}
+	if (!SADB_CHECKHDR(mhp, SADB_X_EXT_IF_HW_OFFL) &&
+	    !SADB_CHECKLEN(mhp, SADB_X_EXT_IF_HW_OFFL)) {
+		struct sadb_x_if_hw_offl *xof;
+
+		xof = (struct sadb_x_if_hw_offl *)mhp->ext[
+		    SADB_X_EXT_IF_HW_OFFL];
+		sav->accel_ifname = malloc(sizeof(xof->sadb_x_if_hw_offl_if),
+		    M_IPSEC_MISC, M_NOWAIT);
+		if (sav->accel_ifname == NULL) {
+			*errp = ENOBUFS;
+			goto done;
+		}
+		strncpy(__DECONST(char *, sav->accel_ifname),
+		    xof->sadb_x_if_hw_offl_if,
+		    sizeof(xof->sadb_x_if_hw_offl_if));
+	}
+#endif
 again:
 	sah = key_getsah(saidx);
 	if (sah == NULL) {
@@ -3069,9 +3176,10 @@ again:
 		SAH_ADDREF(sah);
 	}
 	/* Link SAV with SAH */
-	if (sav->state == SADB_SASTATE_MATURE)
+	if (sav->state == SADB_SASTATE_MATURE) {
 		TAILQ_INSERT_HEAD(&sah->savtree_alive, sav, chain);
-	else
+		ipsec_accel_sa_newkey(sav);
+	} else
 		TAILQ_INSERT_HEAD(&sah->savtree_larval, sav, chain);
 	/* Add SAV into SPI hash */
 	LIST_INSERT_HEAD(SAVHASH_HASH(sav->spi), sav, spihash);
@@ -3086,6 +3194,13 @@ done:
 			}
 			if (sav->lft_c != NULL)
 				uma_zfree_pcpu(ipsec_key_lft_zone, sav->lft_c);
+#ifdef IPSEC_OFFLOAD
+			if (sav->accel_lft_sw != NULL)
+				uma_zfree_pcpu(ipsec_key_lft_zone,
+				    sav->accel_lft_sw);
+			free(__DECONST(char *, sav->accel_ifname),
+			    M_IPSEC_MISC);
+#endif
 			free(sav, M_IPSEC_SA), sav = NULL;
 		}
 		if (sah != NULL)
@@ -3154,6 +3269,10 @@ key_delsav(struct secasvar *sav)
 	    ("attempt to free non DEAD SA %p", sav));
 	IPSEC_ASSERT(sav->refcnt == 0, ("reference count %u > 0",
 	    sav->refcnt));
+#ifdef IPSEC_OFFLOAD
+	KASSERT(CK_LIST_EMPTY(&sav->accel_ifps),
+	    ("key_unlinksav: sav %p still offloaded", sav));
+#endif
 
 	/*
 	 * SA must be unlinked from the chain and hashtbl.
@@ -3166,6 +3285,11 @@ key_delsav(struct secasvar *sav)
 		free(sav->lock, M_IPSEC_MISC);
 		uma_zfree_pcpu(ipsec_key_lft_zone, sav->lft_c);
 	}
+#ifdef IPSEC_OFFLOAD
+	/* XXXKIB should this be moved to key_cleansav()? */
+	uma_zfree_pcpu(ipsec_key_lft_zone, sav->accel_lft_sw);
+	free(__DECONST(char *, sav->accel_ifname), M_IPSEC_MISC);
+#endif
 	free(sav, M_IPSEC_SA);
 }
 
@@ -3589,7 +3713,7 @@ fail:
  */
 static struct mbuf *
 key_setdumpsa(struct secasvar *sav, uint8_t type, uint8_t satype,
-    uint32_t seq, uint32_t pid)
+    uint32_t seq, uint32_t pid, struct rm_priotracker *sahtree_trackerp)
 {
 	struct seclifetime lft_c;
 	struct mbuf *result = NULL, *tres = NULL, *m;
@@ -3605,8 +3729,15 @@ key_setdumpsa(struct secasvar *sav, uint8_t type, uint8_t satype,
 		SADB_X_EXT_NAT_T_SPORT, SADB_X_EXT_NAT_T_DPORT,
 		SADB_X_EXT_NAT_T_OAI, SADB_X_EXT_NAT_T_OAR,
 		SADB_X_EXT_NAT_T_FRAG,
+#ifdef IPSEC_OFFLOAD
+		SADB_X_EXT_LFT_CUR_SW_OFFL, SADB_X_EXT_LFT_CUR_HW_OFFL,
+		SADB_X_EXT_IF_HW_OFFL,
+#endif
 	};
 	uint32_t replay_count;
+#ifdef IPSEC_OFFLOAD
+	int error;
+#endif
 
 	SECASVAR_RLOCK_TRACKER;
 
@@ -3753,6 +3884,44 @@ key_setdumpsa(struct secasvar *sav, uint8_t type, uint8_t satype,
 		case SADB_X_EXT_NAT_T_FRAG:
 			/* We do not (yet) support those. */
 			continue;
+#ifdef IPSEC_OFFLOAD
+		case SADB_X_EXT_LFT_CUR_SW_OFFL:
+			if (!ipsec_accel_is_accel_sav(sav))
+				continue;
+			SAV_ADDREF(sav);
+			error = ipsec_accel_sa_lifetime_op(sav, &lft_c,
+			    NULL, IF_SA_CNT_TOTAL_SW_VAL, sahtree_trackerp);
+			if (error != 0) {
+				m = NULL;
+				goto fail;
+			}
+			m = key_setlifetime(&lft_c, dumporder[i]);
+			if (m == NULL)
+				goto fail;
+			key_freesav(&sav);
+			if (sav == NULL) {
+				m_freem(m);
+				goto fail;
+			}
+			break;
+		case SADB_X_EXT_LFT_CUR_HW_OFFL:
+			if (!ipsec_accel_is_accel_sav(sav))
+				continue;
+			memset(&lft_c, 0, sizeof(lft_c));
+			lft_c.bytes = sav->accel_hw_octets;
+			lft_c.allocations = sav->accel_hw_allocs;
+			m = key_setlifetime(&lft_c, dumporder[i]);
+			if (m == NULL)
+				goto fail;
+			break;
+		case SADB_X_EXT_IF_HW_OFFL:
+			if (!ipsec_accel_is_accel_sav(sav))
+				continue;
+			m = ipsec_accel_key_setaccelif(sav);
+			if (m == NULL)
+				continue;	/* benigh */
+			break;
+#endif
 
 		case SADB_EXT_ADDRESS_PROXY:
 		case SADB_EXT_IDENTITY_SRC:
@@ -4503,6 +4672,7 @@ key_flush_spd(time_t now)
 		V_spd_size--;
 		LIST_REMOVE(sp, idhash);
 		sp->state = IPSEC_SPSTATE_DEAD;
+		ipsec_accel_spddel(sp);
 		sp = nextsp;
 	}
 	V_sp_genid++;
@@ -4626,6 +4796,7 @@ key_flush_sad(time_t now)
 		TAILQ_REMOVE(&sav->sah->savtree_larval, sav, chain);
 		LIST_REMOVE(sav, spihash);
 		sav->state = SADB_SASTATE_DEAD;
+		ipsec_accel_forget_sav(sav);
 		sav = nextsav;
 	}
 	/* Unlink all SAs with expired HARD lifetime */
@@ -4642,6 +4813,7 @@ key_flush_sad(time_t now)
 		TAILQ_REMOVE(&sav->sah->savtree_alive, sav, chain);
 		LIST_REMOVE(sav, spihash);
 		sav->state = SADB_SASTATE_DEAD;
+		ipsec_accel_forget_sav(sav);
 		sav = nextsav;
 	}
 	/* Mark all SAs with expired SOFT lifetime as DYING */
@@ -5240,6 +5412,30 @@ key_updateaddresses(struct socket *so, struct mbuf *m,
 	/* Clone SA's content into newsav */
 	SAV_INITREF(newsav);
 	bcopy(sav, newsav, offsetof(struct secasvar, chain));
+#ifdef IPSEC_OFFLOAD
+	CK_LIST_INIT(&newsav->accel_ifps);
+	newsav->accel_forget_tq = 0;
+	newsav->accel_lft_sw = uma_zalloc_pcpu(ipsec_key_lft_zone,
+	    M_NOWAIT | M_ZERO);
+	if (newsav->accel_lft_sw == NULL) {
+		error = ENOBUFS;
+		goto fail;
+	}
+	if (sav->accel_ifname != NULL) {
+		struct sadb_x_if_hw_offl xof;
+
+		newsav->accel_ifname = malloc(sizeof(xof.sadb_x_if_hw_offl_if),
+		    M_IPSEC_MISC, M_NOWAIT);
+		if (newsav->accel_ifname == NULL) {
+			error = ENOBUFS;
+			goto fail;
+		}
+		strncpy(__DECONST(char *, sav->accel_ifname),
+		    newsav->accel_ifname,
+		    sizeof(xof.sadb_x_if_hw_offl_if));
+	}
+#endif
+
 	/*
 	 * We create new NAT-T config if it is needed.
 	 * Old NAT-T config will be freed by key_cleansav() when
@@ -5270,6 +5466,7 @@ key_updateaddresses(struct socket *so, struct mbuf *m,
 	TAILQ_REMOVE(&sav->sah->savtree_alive, sav, chain);
 	LIST_REMOVE(sav, spihash);
 	sav->state = SADB_SASTATE_DEAD;
+	ipsec_accel_forget_sav(sav);
 
 	/*
 	 * Link new SA with SAH. Keep SAs ordered by
@@ -5327,6 +5524,10 @@ fail:
 	if (isnew != 0)
 		key_freesah(&sah);
 	if (newsav != NULL) {
+#ifdef IPSEC_OFFLOAD
+		uma_zfree_pcpu(ipsec_key_lft_zone, newsav->accel_lft_sw);
+		free(__DECONST(char *, newsav->accel_ifname), M_IPSEC_MISC);
+#endif
 		if (newsav->natt != NULL)
 			free(newsav->natt, M_IPSEC_MISC);
 		free(newsav, M_IPSEC_SA);
@@ -5541,6 +5742,7 @@ key_update(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	KEYDBG(KEY_STAMP,
 	    printf("%s: SA(%p)\n", __func__, sav));
 	KEYDBG(KEY_DATA, kdebug_secasv(sav));
+	ipsec_accel_sa_newkey(sav);
 	key_freesav(&sav);
 
     {
@@ -5693,6 +5895,7 @@ key_add(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	KEYDBG(KEY_STAMP,
 	    printf("%s: return SA(%p)\n", __func__, sav));
 	KEYDBG(KEY_DATA, kdebug_secasv(sav));
+	ipsec_accel_sa_newkey(sav);
 	/*
 	 * If SADB_ADD was in response to SADB_ACQUIRE, we need to schedule
 	 * ACQ for deletion.
@@ -6197,6 +6400,7 @@ key_delete_all(struct socket *so, struct mbuf *m,
 	/* Unlink all queued SAs from SPI hash */
 	TAILQ_FOREACH(sav, &drainq, chain) {
 		sav->state = SADB_SASTATE_DEAD;
+		ipsec_accel_forget_sav(sav);
 		LIST_REMOVE(sav, spihash);
 	}
 	SAHTREE_WUNLOCK();
@@ -6265,6 +6469,7 @@ key_delete_xform(const struct xformsw *xsp)
 	/* Unlink all queued SAs from SPI hash */
 	TAILQ_FOREACH(sav, &drainq, chain) {
 		sav->state = SADB_SASTATE_DEAD;
+		ipsec_accel_forget_sav(sav);
 		LIST_REMOVE(sav, spihash);
 	}
 	SAHTREE_WUNLOCK();
@@ -6373,7 +6578,7 @@ key_get(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 
 	/* create new sadb_msg to reply. */
 	n = key_setdumpsa(sav, SADB_GET, satype, mhp->msg->sadb_msg_seq,
-	    mhp->msg->sadb_msg_pid);
+	    mhp->msg->sadb_msg_pid, NULL);
 
 	key_freesav(&sav);
 	if (!n)
@@ -7615,9 +7820,11 @@ key_flush(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 			 */
 			TAILQ_FOREACH(sav, &sah->savtree_larval, chain) {
 				sav->state = SADB_SASTATE_DEAD;
+				ipsec_accel_forget_sav(sav);
 			}
 			TAILQ_FOREACH(sav, &sah->savtree_alive, chain) {
 				sav->state = SADB_SASTATE_DEAD;
+				ipsec_accel_forget_sav(sav);
 			}
 		}
 		SAHTREE_WUNLOCK();
@@ -7639,10 +7846,12 @@ key_flush(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 			TAILQ_FOREACH(sav, &sah->savtree_larval, chain) {
 				LIST_REMOVE(sav, spihash);
 				sav->state = SADB_SASTATE_DEAD;
+				ipsec_accel_forget_sav(sav);
 			}
 			TAILQ_FOREACH(sav, &sah->savtree_alive, chain) {
 				LIST_REMOVE(sav, spihash);
 				sav->state = SADB_SASTATE_DEAD;
+				ipsec_accel_forget_sav(sav);
 			}
 			/* Add SAH into flushq */
 			TAILQ_INSERT_HEAD(&flushq, sah, chain);
@@ -7706,6 +7915,7 @@ key_dump(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 
 	/* count sav entries to be sent to the userland. */
 	cnt = 0;
+	IFNET_RLOCK();
 	SAHTREE_RLOCK();
 	TAILQ_FOREACH(sah, &V_sahtree, chain) {
 		if (mhp->msg->sadb_msg_satype != SADB_SATYPE_UNSPEC &&
@@ -7720,6 +7930,7 @@ key_dump(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 
 	if (cnt == 0) {
 		SAHTREE_RUNLOCK();
+		IFNET_RUNLOCK();
 		return key_senderror(so, m, ENOENT);
 	}
 
@@ -7732,30 +7943,34 @@ key_dump(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 		/* map proto to satype */
 		if ((satype = key_proto2satype(sah->saidx.proto)) == 0) {
 			SAHTREE_RUNLOCK();
+			IFNET_RUNLOCK();
 			ipseclog((LOG_DEBUG, "%s: there was invalid proto in "
 			    "SAD.\n", __func__));
 			return key_senderror(so, m, EINVAL);
 		}
 		TAILQ_FOREACH(sav, &sah->savtree_larval, chain) {
 			n = key_setdumpsa(sav, SADB_DUMP, satype,
-			    --cnt, mhp->msg->sadb_msg_pid);
+			    --cnt, mhp->msg->sadb_msg_pid, &sahtree_tracker);
 			if (n == NULL) {
 				SAHTREE_RUNLOCK();
+				IFNET_RUNLOCK();
 				return key_senderror(so, m, ENOBUFS);
 			}
 			key_sendup_mbuf(so, n, KEY_SENDUP_ONE);
 		}
 		TAILQ_FOREACH(sav, &sah->savtree_alive, chain) {
 			n = key_setdumpsa(sav, SADB_DUMP, satype,
-			    --cnt, mhp->msg->sadb_msg_pid);
+			    --cnt, mhp->msg->sadb_msg_pid, &sahtree_tracker);
 			if (n == NULL) {
 				SAHTREE_RUNLOCK();
+				IFNET_RUNLOCK();
 				return key_senderror(so, m, ENOBUFS);
 			}
 			key_sendup_mbuf(so, n, KEY_SENDUP_ONE);
 		}
 	}
 	SAHTREE_RUNLOCK();
+	IFNET_RUNLOCK();
 	m_freem(m);
 	return (0);
 }
@@ -8176,6 +8391,11 @@ key_align(struct mbuf *m, struct sadb_msghdr *mhp)
 		case SADB_X_EXT_SA_REPLAY:
 		case SADB_X_EXT_NEW_ADDRESS_SRC:
 		case SADB_X_EXT_NEW_ADDRESS_DST:
+#ifdef IPSEC_OFFLOAD
+		case SADB_X_EXT_LFT_CUR_SW_OFFL:
+		case SADB_X_EXT_LFT_CUR_HW_OFFL:
+		case SADB_X_EXT_IF_HW_OFFL:
+#endif
 			/* duplicate check */
 			/*
 			 * XXX Are there duplication payloads of either
@@ -8484,9 +8704,11 @@ key_vnet_destroy(void *arg __unused)
 		sah->state = SADB_SASTATE_DEAD;
 		TAILQ_FOREACH(sav, &sah->savtree_larval, chain) {
 			sav->state = SADB_SASTATE_DEAD;
+			ipsec_accel_forget_sav(sav);
 		}
 		TAILQ_FOREACH(sav, &sah->savtree_alive, chain) {
 			sav->state = SADB_SASTATE_DEAD;
+			ipsec_accel_forget_sav(sav);
 		}
 	}
 	SAHTREE_WUNLOCK();
@@ -8634,6 +8856,32 @@ key_setkey(struct seckey *src, uint16_t exttype)
 	return m;
 }
 
+#ifdef IPSEC_OFFLOAD
+struct mbuf *
+key_setaccelif(const char *ifname)
+{
+	struct mbuf *m = NULL;
+	struct sadb_x_if_hw_offl *p;
+	int len = PFKEY_ALIGN8(sizeof(*p));
+
+	m = m_get2(len, M_NOWAIT, MT_DATA, 0);
+	if (m == NULL)
+		return (m);
+	m_align(m, len);
+	m->m_len = len;
+	p = mtod(m, struct sadb_x_if_hw_offl *);
+
+	bzero(p, len);
+	p->sadb_x_if_hw_offl_len = PFKEY_UNIT64(len);
+	p->sadb_x_if_hw_offl_exttype = SADB_X_EXT_IF_HW_OFFL;
+	p->sadb_x_if_hw_offl_flags = 0;
+	strncpy(p->sadb_x_if_hw_offl_if, ifname,
+	    sizeof(p->sadb_x_if_hw_offl_if));
+
+	return (m);
+}
+#endif
+
 /*
  * Take one of the kernel's lifetime data structures and convert it
  * into a PF_KEY structure within an mbuf, suitable for sending up to
@@ -8709,3 +8957,52 @@ comp_algorithm_lookup(int alg)
 			return (supported_calgs[i].xform);
 	return (NULL);
 }
+
+void
+ipsec_sahtree_runlock(struct rm_priotracker *sahtree_trackerp)
+{
+	rm_runlock(&sahtree_lock, sahtree_trackerp);
+}
+
+void
+ipsec_sahtree_rlock(struct rm_priotracker *sahtree_trackerp)
+{
+	rm_rlock(&sahtree_lock, sahtree_trackerp);
+}
+
+#ifdef IPSEC_OFFLOAD
+void
+ipsec_accel_on_ifdown(struct ifnet *ifp)
+{
+	void (*p)(struct ifnet *ifp);
+
+	p = atomic_load_ptr(&ipsec_accel_on_ifdown_p);
+	if (p != NULL)
+		p(ifp);
+}
+
+void
+ipsec_accel_drv_sa_lifetime_update(struct secasvar *sav, if_t ifp,
+    u_int drv_spi, uint64_t octets, uint64_t allocs)
+{
+	void (*p)(struct secasvar *sav, if_t ifp, u_int drv_spi,
+	    uint64_t octets, uint64_t allocs);
+
+	p = atomic_load_ptr(&ipsec_accel_drv_sa_lifetime_update_p);
+	if (p != NULL)
+		p(sav, ifp, drv_spi, octets, allocs);
+}
+
+int
+ipsec_accel_drv_sa_lifetime_fetch(struct secasvar *sav,
+    if_t ifp, u_int drv_spi, uint64_t *octets, uint64_t *allocs)
+{
+	int (*p)(struct secasvar *sav, if_t ifp, u_int drv_spi,
+	    uint64_t *octets, uint64_t *allocs);
+
+	p = atomic_load_ptr(&ipsec_accel_drv_sa_lifetime_fetch_p);
+	if (p == NULL)
+		return (EOPNOTSUPP);
+	return (p(sav, ifp, drv_spi, octets, allocs));
+}
+#endif

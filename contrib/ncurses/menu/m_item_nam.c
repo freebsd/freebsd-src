@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2004,2010 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -38,12 +38,12 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_item_nam.c,v 1.18 2020/12/12 00:38:08 tom Exp $")
+MODULE_ID("$Id: m_item_nam.c,v 1.19 2021/06/17 21:20:30 tom Exp $")
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnmenu  
+|   Facility      :  libnmenu
 |   Function      :  char *item_name(const ITEM *item)
-|   
+|
 |   Description   :  Return name of menu item
 |
 |   Return Values :  See above; returns NULL if item is invalid
@@ -56,9 +56,9 @@ item_name(const ITEM *item)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnmenu  
+|   Facility      :  libnmenu
 |   Function      :  char *item_description(const ITEM *item)
-|   
+|
 |   Description   :  Returns description of item
 |
 |   Return Values :  See above; Returns NULL if item is invalid

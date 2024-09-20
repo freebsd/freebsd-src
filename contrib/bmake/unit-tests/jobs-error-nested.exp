@@ -2,14 +2,14 @@ make -f jobs-error-nested.mk nested
 false
 *** [nested] Error code 1
 
-make: stopped in unit-tests
+make: stopped making "nested" in unit-tests
 make: 1 error
 
-make: stopped in unit-tests
+make: stopped making "nested" in unit-tests
 *** [all] Error code 2
 
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 make: 1 error
 
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 exit status 2

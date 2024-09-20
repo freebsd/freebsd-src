@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2023 Thomas E. Dickey                                     *
  * Copyright 2001-2008,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -35,7 +35,7 @@
 
 #include <ctype.h>
 
-MODULE_ID("$Id: varargs.c,v 1.12 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: varargs.c,v 1.13 2023/06/24 13:41:46 tom Exp $")
 
 #ifdef TRACE
 
@@ -59,18 +59,16 @@ typedef enum {
 NCURSES_EXPORT(char *)
 _nc_varargs(const char *fmt, va_list ap)
 {
-    static char dummy[] = "";
-
     char buffer[BUFSIZ];
     const char *param;
     int n;
 
     if (fmt == 0 || *fmt == '\0')
-	return dummy;
+	return NULL;
     if (MyLength == 0)
 	MyBuffer = typeMalloc(char, MyLength = BUFSIZ);
     if (MyBuffer == 0)
-	return dummy;
+	return NULL;
     *MyBuffer = '\0';
 
     while (*fmt != '\0') {
@@ -185,7 +183,7 @@ _nc_varargs(const char *fmt, va_list ap)
 	}
     }
 
-    return (MyBuffer ? MyBuffer : dummy);
+    return (MyBuffer ? MyBuffer : NULL);
 }
 #else
 EMPTY_MODULE(_nc_varargs)

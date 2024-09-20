@@ -1,7 +1,7 @@
 .\"-
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.\" Copyright (c) 2024 Alexander Ziaee <concussious@runbox.com>
+.\" Copyright (c) 2024 Alexander Ziaee. Ohio.
 .\"
 .Dd April 17, 2024
 .Dt "NETWORKING" 7
@@ -92,10 +92,3 @@ will need to be escaped for
 commonly using
 .Ql \e ,
 see the manual page for your shell for more details.
-.Pp
-Currently
-.Ql Ic service netif restart
-does not restart routing.
-A common workaround is to issue
-.Ql Ic service netif restart && service routing restart
-instead.

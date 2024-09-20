@@ -27,6 +27,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "cli/main.hpp"
+#include "os/freebsd/main.hpp"
 
 
 /// Program entry point.
@@ -46,5 +47,7 @@
 int
 main(const int argc, const char* const* const argv)
 {
+    freebsd::main(argc, argv);
+
     return cli::main(argc, argv);
 }

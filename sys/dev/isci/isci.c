@@ -235,7 +235,7 @@ isci_detach(device_t device)
 			sci_pool_get(controller->unmap_buffer_pool, unmap_buffer);
 			if (unmap_buffer == NULL)
 				break;
-			contigfree(unmap_buffer, PAGE_SIZE, M_ISCI);
+			free(unmap_buffer, M_ISCI);
 		}
 	}
 

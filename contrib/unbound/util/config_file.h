@@ -592,6 +592,8 @@ struct config_file {
 	char* dnstap_identity;
 	/** dnstap "version", package version is used if "". */
 	char* dnstap_version;
+	/** dnstap sample rate */
+	int dnstap_sample_rate;
 
 	/** true to log dnstap RESOLVER_QUERY message events */
 	int dnstap_log_resolver_query_messages;
@@ -748,6 +750,8 @@ struct config_file {
 	uint8_t cookie_secret[40];
 	/** cookie secret length */
 	size_t  cookie_secret_len;
+	/** path to cookie secret store */
+	char* cookie_secret_file;
 
 	/* ipset module */
 #ifdef USE_IPSET

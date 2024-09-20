@@ -64,6 +64,7 @@ static char			*mod_searchmodule(char *name, struct mod_depend *verinfo);
 static char *			mod_searchmodule_pnpinfo(const char *bus, const char *pnpinfo);
 static void			file_insert_tail(struct preloaded_file *mp);
 static void			file_remove(struct preloaded_file *fp);
+static void			file_remove_tail(struct preloaded_file *fp);
 struct file_metadata*		metadata_next(struct file_metadata *base_mp, int type);
 static void			moduledir_readhints(struct moduledir *mdp);
 static void			moduledir_rebuild(void);
@@ -876,7 +877,7 @@ mod_loadkld(const char *kldname, int argc, char *argv[])
 		file_insert_tail(fp);	/* Add to the list of loaded files */
 		if (file_load_dependencies(fp) != 0) {
 			err = ENOENT;
-			file_remove(fp);
+			file_remove_tail(fp);
 			loadaddr = loadaddr_saved;
 			fp = NULL;
 			break;
@@ -1637,23 +1638,43 @@ file_insert_tail(struct preloaded_file *fp)
  * Remove module from the chain
  */
 static void
-file_remove(struct preloaded_file *fp)
+file_remove_impl(struct preloaded_file *fp, bool keep_tail)
 {
-	struct preloaded_file   *cm;
+	struct preloaded_file   *cm, *next;
 
 	if (preloaded_files == NULL)
 		return;
 
+	if (keep_tail)
+		next = fp->f_next;
+	else
+		next = NULL;
+
 	if (preloaded_files == fp) {
-		preloaded_files = fp->f_next;
+		preloaded_files = next;
 		return;
         }
+
         for (cm = preloaded_files; cm->f_next != NULL; cm = cm->f_next) {
 		if (cm->f_next == fp) {
-			cm->f_next = fp->f_next;
+			cm->f_next = next;
 			return;
 		}
 	}
+}
+
+static void
+file_remove(struct preloaded_file *fp)
+{
+
+	file_remove_impl(fp, true);
+}
+
+static void
+file_remove_tail(struct preloaded_file *fp)
+{
+
+	file_remove_impl(fp, false);
 }
 
 static char *

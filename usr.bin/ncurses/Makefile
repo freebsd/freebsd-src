@@ -19,11 +19,11 @@ CFLAGS+=	-I${NCURSES_DIR}/progs \
 		-I${OBJTOP}/lib/ncurses/tinfo \
 		-I${.CURDIR}
 LIBADD=	tinfow
-CLEANFILES=	termsort.c
+CLEANFILES=	termsort.h
 
-termsort.c: MKtermsort.sh
+termsort.h: MKtermsort.sh
 	sh ${NCURSES_DIR}/progs/MKtermsort.sh ${AWK} ${NCURSES_DIR}/include/Caps > ${.TARGET}
-dump_entry.c: termsort.c
+dump_entry.c: termsort.h
 
 LINKS.tic=	${BINDIR}/tic ${BINDIR}/captoinfo \
 	${BINDIR}/tic ${BINDIR}/infotocap

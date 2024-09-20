@@ -1,4 +1,3 @@
-
 .PATH:		${SRCTOP}/tests
 KYUAFILE=	yes
 

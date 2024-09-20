@@ -1,4 +1,3 @@
-
 BEARSSL?= ${SRCTOP}/contrib/bearssl
 BEARSSL_SRC= ${BEARSSL}/src
 BEARSSL_TOOLS= ${BEARSSL}/tools

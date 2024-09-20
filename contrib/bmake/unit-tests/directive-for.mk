@@ -1,4 +1,4 @@
-# $NetBSD: directive-for.mk,v 1.25 2024/04/20 10:18:55 rillig Exp $
+# $NetBSD: directive-for.mk,v 1.27 2024/07/06 10:14:35 rillig Exp $
 #
 # Tests for the .for directive.
 #
@@ -132,31 +132,31 @@ EXPANSION${plus}=	value
 # variable values have been replaced with expressions of the form ${:U...},
 # which are not interpreted as code anymore.
 .for path in a:\ a:\file.txt d:\\ d:\\file.txt
+# expect+3: a:\ a:\file.txt
+# expect+2: d:\\
+# expect+1: d:\\file.txt
 .  info ${path}
 .endfor
-# expect-2: a:\ a:\file.txt
-# expect-3: d:\\
-# expect-4: d:\\file.txt
 
 
 # Ensure that braces and parentheses are properly escaped by the .for loop.
 # Each line must print the same word 3 times.
 # See ForLoop_SubstBody.
 .for v in ( [ { ) ] } (()) [[]] {{}} )( ][ }{
+# expect+12: ( ( (
+# expect+11: [ [ [
+# expect+10: { { {
+# expect+9: ) ) )
+# expect+8: ] ] ]
+# expect+7: } } }
+# expect+6: (()) (()) (())
+# expect+5: [[]] [[]] [[]]
+# expect+4: {{}} {{}} {{}}
+# expect+3: )( )( )(
+# expect+2: ][ ][ ][
+# expect+1: }{ }{ }{
 .  info $v ${v} $(v)
 .endfor
-# expect-02: ( ( (
-# expect-03: [ [ [
-# expect-04: { { {
-# expect-05: ) ) )
-# expect-06: ] ] ]
-# expect-07: } } }
-# expect-08: (()) (()) (())
-# expect-09: [[]] [[]] [[]]
-# expect-10: {{}} {{}} {{}}
-# expect-11: )( )( )(
-# expect-12: ][ ][ ][
-# expect-13: }{ }{ }{
 
 # Before 2023-05-09, the variable names could contain arbitrary characters,
 # except for whitespace, allowing for creative side effects, as usual for
@@ -206,13 +206,13 @@ INDIRECT=	${DIRECT}
 # XXX: A parse error or evaluation error in the items of the .for loop
 # should skip the whole loop.  As of 2023-05-09, the loop is expanded as
 # usual.
-# expect+1: while evaluating "${:Uword2:Z}-after word3": Unknown modifier "Z"
+# expect+1: while evaluating "${:Uword2:Z}-after word3" with value "word2": Unknown modifier "Z"
 .for var in word1 before-${:Uword2:Z}-after word3
+# expect+3: XXX: Should not reach word1
+# expect+2: XXX: Should not reach before--after
+# expect+1: XXX: Should not reach word3
 .  info XXX: Should not reach ${var}
 .endfor
-# expect-2: XXX: Should not reach word1
-# expect-3: XXX: Should not reach before--after
-# expect-4: XXX: Should not reach word3
 
 
 # An empty list of variables to the left of the 'in' is a parse error.
@@ -315,6 +315,6 @@ INDIRECT=	${DIRECT}
 # Back then, the .newline variable didn't exist, therefore it was unlikely
 # that a newline ever occurred.
 .for var in a${.newline}b${.newline}c
+# expect+1: newline-item=(a)
 .  info newline-item=(${var})
 .endfor
-# expect-2: newline-item=(a)

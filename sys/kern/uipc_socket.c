@@ -1656,8 +1656,8 @@ out:
  * counts if EINTR/ERESTART are returned.  Data and control buffers are freed
  * on return.
  */
-int
-sosend_generic(struct socket *so, struct sockaddr *addr, struct uio *uio,
+static int
+sosend_generic_locked(struct socket *so, struct sockaddr *addr, struct uio *uio,
     struct mbuf *top, struct mbuf *control, int flags, struct thread *td)
 {
 	long space;
@@ -1673,6 +1673,9 @@ sosend_generic(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	tls = NULL;
 	tls_rtype = TLS_RLTYPE_APP;
 #endif
+
+	SOCK_IO_SEND_ASSERT_LOCKED(so);
+
 	if (uio != NULL)
 		resid = uio->uio_resid;
 	else if ((top->m_flags & M_PKTHDR) != 0)
@@ -1702,10 +1705,6 @@ sosend_generic(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	if (control != NULL)
 		clen = control->m_len;
 
-	error = SOCK_IO_SEND_LOCK(so, SBLOCKWAIT(flags));
-	if (error)
-		goto out;
-
 #ifdef KERN_TLS
 	tls_send_flag = 0;
 	tls = ktls_hold(so->so_snd.sb_tls_info);
@@ -1728,7 +1727,7 @@ sosend_generic(struct socket *so, struct sockaddr *addr, struct uio *uio,
 
 		if (resid == 0 && !ktls_permit_empty_frames(tls)) {
 			error = EINVAL;
-			goto release;
+			goto out;
 		}
 	}
 #endif
@@ -1739,13 +1738,13 @@ restart:
 		if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
 			SOCKBUF_UNLOCK(&so->so_snd);
 			error = EPIPE;
-			goto release;
+			goto out;
 		}
 		if (so->so_error) {
 			error = so->so_error;
 			so->so_error = 0;
 			SOCKBUF_UNLOCK(&so->so_snd);
-			goto release;
+			goto out;
 		}
 		if ((so->so_state & SS_ISCONNECTED) == 0) {
 			/*
@@ -1759,7 +1758,7 @@ restart:
 				if (!(resid == 0 && clen != 0)) {
 					SOCKBUF_UNLOCK(&so->so_snd);
 					error = ENOTCONN;
-					goto release;
+					goto out;
 				}
 			} else if (addr == NULL) {
 				SOCKBUF_UNLOCK(&so->so_snd);
@@ -1767,7 +1766,7 @@ restart:
 					error = ENOTCONN;
 				else
 					error = EDESTADDRREQ;
-				goto release;
+				goto out;
 			}
 		}
 		space = sbspace(&so->so_snd);
@@ -1777,7 +1776,7 @@ restart:
 		    clen > so->so_snd.sb_hiwat) {
 			SOCKBUF_UNLOCK(&so->so_snd);
 			error = EMSGSIZE;
-			goto release;
+			goto out;
 		}
 		if (space < resid + clen &&
 		    (atomic || space < so->so_snd.sb_lowat || space < clen)) {
@@ -1785,12 +1784,12 @@ restart:
 			    (flags & (MSG_NBIO | MSG_DONTWAIT)) != 0) {
 				SOCKBUF_UNLOCK(&so->so_snd);
 				error = EWOULDBLOCK;
-				goto release;
+				goto out;
 			}
 			error = sbwait(so, SO_SND);
 			SOCKBUF_UNLOCK(&so->so_snd);
 			if (error)
-				goto release;
+				goto out;
 			goto restart;
 		}
 		SOCKBUF_UNLOCK(&so->so_snd);
@@ -1835,7 +1834,7 @@ restart:
 					    ((flags & MSG_EOR) ? M_EOR : 0));
 				if (top == NULL) {
 					error = EFAULT; /* only possible error */
-					goto release;
+					goto out;
 				}
 				space -= resid - uio->uio_resid;
 				resid = uio->uio_resid;
@@ -1899,12 +1898,10 @@ restart:
 			control = NULL;
 			top = NULL;
 			if (error)
-				goto release;
+				goto out;
 		} while (resid && space > 0);
 	} while (resid);
 
-release:
-	SOCK_IO_SEND_UNLOCK(so);
 out:
 #ifdef KERN_TLS
 	if (tls != NULL)
@@ -1914,6 +1911,20 @@ out:
 		m_freem(top);
 	if (control != NULL)
 		m_freem(control);
+	return (error);
+}
+
+int
+sosend_generic(struct socket *so, struct sockaddr *addr, struct uio *uio,
+    struct mbuf *top, struct mbuf *control, int flags, struct thread *td)
+{
+	int error;
+
+	error = SOCK_IO_SEND_LOCK(so, SBLOCKWAIT(flags));
+	if (error)
+		return (error);
+	error = sosend_generic_locked(so, addr, uio, top, control, flags, td);
+	SOCK_IO_SEND_UNLOCK(so);
 	return (error);
 }
 
@@ -2070,11 +2081,11 @@ sockbuf_pushsync(struct sockbuf *sb, struct mbuf *nextrecord)
  * mbuf **mp0 for use in returning the chain.  The uio is then used only for
  * the count in uio_resid.
  */
-int
-soreceive_generic(struct socket *so, struct sockaddr **psa, struct uio *uio,
-    struct mbuf **mp0, struct mbuf **controlp, int *flagsp)
+static int
+soreceive_generic_locked(struct socket *so, struct sockaddr **psa,
+    struct uio *uio, struct mbuf **mp, struct mbuf **controlp, int *flagsp)
 {
-	struct mbuf *m, **mp;
+	struct mbuf *m;
 	int flags, error, offset;
 	ssize_t len;
 	struct protosw *pr = so->so_proto;
@@ -2083,25 +2094,15 @@ soreceive_generic(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	ssize_t orig_resid = uio->uio_resid;
 	bool report_real_len = false;
 
-	mp = mp0;
-	if (psa != NULL)
-		*psa = NULL;
-	if (controlp != NULL)
-		*controlp = NULL;
+	SOCK_IO_RECV_ASSERT_LOCKED(so);
+
+	error = 0;
 	if (flagsp != NULL) {
 		report_real_len = *flagsp & MSG_TRUNC;
 		*flagsp &= ~MSG_TRUNC;
 		flags = *flagsp &~ MSG_EOR;
 	} else
 		flags = 0;
-	if (flags & MSG_OOB)
-		return (soreceive_rcvoob(so, uio, flags));
-	if (mp != NULL)
-		*mp = NULL;
-
-	error = SOCK_IO_RECV_LOCK(so, SBLOCKWAIT(flags));
-	if (error)
-		return (error);
 
 restart:
 	SOCKBUF_LOCK(&so->so_rcv);
@@ -2559,6 +2560,33 @@ dontblock:
 	if (flagsp != NULL)
 		*flagsp |= flags;
 release:
+	return (error);
+}
+
+int
+soreceive_generic(struct socket *so, struct sockaddr **psa, struct uio *uio,
+    struct mbuf **mp, struct mbuf **controlp, int *flagsp)
+{
+	int error, flags;
+
+	if (psa != NULL)
+		*psa = NULL;
+	if (controlp != NULL)
+		*controlp = NULL;
+	if (flagsp != NULL) {
+		flags = *flagsp;
+		if ((flags & MSG_OOB) != 0)
+			return (soreceive_rcvoob(so, uio, flags));
+	} else {
+		flags = 0;
+	}
+	if (mp != NULL)
+		*mp = NULL;
+
+	error = SOCK_IO_RECV_LOCK(so, SBLOCKWAIT(flags));
+	if (error)
+		return (error);
+	error = soreceive_generic_locked(so, psa, uio, mp, controlp, flagsp);
 	SOCK_IO_RECV_UNLOCK(so);
 	return (error);
 }
@@ -2566,67 +2594,22 @@ release:
 /*
  * Optimized version of soreceive() for stream (TCP) sockets.
  */
-int
-soreceive_stream(struct socket *so, struct sockaddr **psa, struct uio *uio,
-    struct mbuf **mp0, struct mbuf **controlp, int *flagsp)
+static int
+soreceive_stream_locked(struct socket *so, struct sockbuf *sb,
+    struct sockaddr **psa, struct uio *uio, struct mbuf **mp0,
+    struct mbuf **controlp, int flags)
 {
-	int len = 0, error = 0, flags, oresid;
-	struct sockbuf *sb;
+	int len = 0, error = 0, oresid;
 	struct mbuf *m, *n = NULL;
 
-	/* We only do stream sockets. */
-	if (so->so_type != SOCK_STREAM)
-		return (EINVAL);
-	if (psa != NULL)
-		*psa = NULL;
-	if (flagsp != NULL)
-		flags = *flagsp &~ MSG_EOR;
-	else
-		flags = 0;
-	if (controlp != NULL)
-		*controlp = NULL;
-	if (flags & MSG_OOB)
-		return (soreceive_rcvoob(so, uio, flags));
-	if (mp0 != NULL)
-		*mp0 = NULL;
-
-	sb = &so->so_rcv;
-
-#ifdef KERN_TLS
-	/*
-	 * KTLS store TLS records as records with a control message to
-	 * describe the framing.
-	 *
-	 * We check once here before acquiring locks to optimize the
-	 * common case.
-	 */
-	if (sb->sb_tls_info != NULL)
-		return (soreceive_generic(so, psa, uio, mp0, controlp,
-		    flagsp));
-#endif
-
-	/* Prevent other readers from entering the socket. */
-	error = SOCK_IO_RECV_LOCK(so, SBLOCKWAIT(flags));
-	if (error)
-		return (error);
-	SOCKBUF_LOCK(sb);
-
-#ifdef KERN_TLS
-	if (sb->sb_tls_info != NULL) {
-		SOCKBUF_UNLOCK(sb);
-		SOCK_IO_RECV_UNLOCK(so);
-		return (soreceive_generic(so, psa, uio, mp0, controlp,
-		    flagsp));
-	}
-#endif
+	SOCK_IO_RECV_ASSERT_LOCKED(so);
 
 	/* Easy one, no space to copyout anything. */
-	if (uio->uio_resid == 0) {
-		error = EINVAL;
-		goto out;
-	}
+	if (uio->uio_resid == 0)
+		return (EINVAL);
 	oresid = uio->uio_resid;
 
+	SOCKBUF_LOCK(sb);
 	/* We will never ever get anything unless we are or were connected. */
 	if (!(so->so_state & (SS_ISCONNECTED|SS_ISDISCONNECTED))) {
 		error = ENOTCONN;
@@ -2780,6 +2763,62 @@ out:
 	SBLASTRECORDCHK(sb);
 	SBLASTMBUFCHK(sb);
 	SOCKBUF_UNLOCK(sb);
+	return (error);
+}
+
+int
+soreceive_stream(struct socket *so, struct sockaddr **psa, struct uio *uio,
+    struct mbuf **mp0, struct mbuf **controlp, int *flagsp)
+{
+	struct sockbuf *sb;
+	int error, flags;
+
+	sb = &so->so_rcv;
+
+	/* We only do stream sockets. */
+	if (so->so_type != SOCK_STREAM)
+		return (EINVAL);
+	if (psa != NULL)
+		*psa = NULL;
+	if (flagsp != NULL)
+		flags = *flagsp & ~MSG_EOR;
+	else
+		flags = 0;
+	if (controlp != NULL)
+		*controlp = NULL;
+	if (flags & MSG_OOB)
+		return (soreceive_rcvoob(so, uio, flags));
+	if (mp0 != NULL)
+		*mp0 = NULL;
+
+#ifdef KERN_TLS
+	/*
+	 * KTLS store TLS records as records with a control message to
+	 * describe the framing.
+	 *
+	 * We check once here before acquiring locks to optimize the
+	 * common case.
+	 */
+	if (sb->sb_tls_info != NULL)
+		return (soreceive_generic(so, psa, uio, mp0, controlp,
+		    flagsp));
+#endif
+
+	/*
+	 * Prevent other threads from reading from the socket.  This lock may be
+	 * dropped in order to sleep waiting for data to arrive.
+	 */
+	error = SOCK_IO_RECV_LOCK(so, SBLOCKWAIT(flags));
+	if (error)
+		return (error);
+#ifdef KERN_TLS
+	if (__predict_false(sb->sb_tls_info != NULL)) {
+		SOCK_IO_RECV_UNLOCK(so);
+		return (soreceive_generic(so, psa, uio, mp0, controlp,
+		    flagsp));
+	}
+#endif
+	error = soreceive_stream_locked(so, sb, psa, uio, mp0, controlp, flags);
 	SOCK_IO_RECV_UNLOCK(so);
 	return (error);
 }
@@ -4279,6 +4318,7 @@ sotoxsocket(struct socket *so, struct xsocket *xso)
 	xso->so_error = so->so_error;
 	xso->so_uid = so->so_cred->cr_uid;
 	xso->so_pgid = so->so_sigio ? so->so_sigio->sio_pgid : 0;
+	SOCK_LOCK(so);
 	if (SOLISTENING(so)) {
 		xso->so_qlen = so->sol_qlen;
 		xso->so_incqlen = so->sol_incqlen;
@@ -4291,6 +4331,7 @@ sotoxsocket(struct socket *so, struct xsocket *xso)
 		sbtoxsockbuf(&so->so_snd, &xso->so_snd);
 		sbtoxsockbuf(&so->so_rcv, &xso->so_rcv);
 	}
+	SOCK_UNLOCK(so);
 }
 
 int

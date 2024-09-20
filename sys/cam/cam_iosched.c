@@ -48,6 +48,8 @@
 
 #include <ddb/ddb.h>
 
+#include <geom/geom_disk.h>
+
 static MALLOC_DEFINE(M_CAMSCHED, "CAM I/O Scheduler",
     "CAM I/O Scheduler buffers");
 
@@ -271,6 +273,9 @@ struct iop_stats {
 	sbintime_t      emvar;
 	sbintime_t      sd;		/* Last computed sd */
 
+	uint64_t	too_long;	/* Number of I/Os greater than bad lat threshold */
+	sbintime_t	bad_latency;	/* Latency threshold */
+
 	uint32_t	state_flags;
 #define IOP_RATE_LIMITED		1u
 
@@ -311,6 +316,8 @@ struct control_loop {
 struct cam_iosched_softc {
 	struct bio_queue_head bio_queue;
 	struct bio_queue_head trim_queue;
+	const struct disk *disk;
+	cam_iosched_schedule_t schedfnc;
 				/* scheduler flags < 16, user flags >= 16 */
 	uint32_t	flags;
 	int		sort_io_queue;
@@ -615,7 +622,7 @@ cam_iosched_ticker(void *arg)
 	cam_iosched_limiter_tick(&isc->write_stats);
 	cam_iosched_limiter_tick(&isc->trim_stats);
 
-	cam_iosched_schedule(isc, isc->periph);
+	isc->schedfnc(isc->periph);
 
 	/*
 	 * isc->load is an EMA of the pending I/Os at each tick. The number of
@@ -755,7 +762,7 @@ cam_iosched_cl_maybe_steer(struct control_loop *clp)
 #ifdef CAM_IOSCHED_DYNAMIC
 static void
 cam_iosched_io_metric_update(struct cam_iosched_softc *isc,
-    sbintime_t sim_latency, int cmd, size_t size);
+    sbintime_t sim_latency, const struct bio *bp);
 #endif
 
 static inline bool
@@ -856,6 +863,7 @@ cam_iosched_iop_stats_init(struct cam_iosched_softc *isc, struct iop_stats *ios)
 	ios->total = 0;
 	ios->ema = 0;
 	ios->emvar = 0;
+	ios->bad_latency = SBT_1S / 2;	/* Default to 500ms */
 	ios->softc = isc;
 	cam_iosched_limiter_init(ios);
 }
@@ -1046,6 +1054,15 @@ cam_iosched_iop_stats_sysctl_init(struct cam_iosched_softc *isc, struct iop_stat
 	    OID_AUTO, "errs", CTLFLAG_RD,
 	    &ios->errs, 0,
 	    "# of transactions completed with an error");
+	SYSCTL_ADD_U64(ctx, n,
+	    OID_AUTO, "too_long", CTLFLAG_RD,
+	    &ios->too_long, 0,
+	    "# of transactions completed took too long");
+	SYSCTL_ADD_PROC(ctx, n,
+	    OID_AUTO, "bad_latency",
+	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
+	    &ios->bad_latency, 0, cam_iosched_sbintime_sysctl, "A",
+	    "Threshold for counting transactions that took too long (in us)");
 
 	SYSCTL_ADD_PROC(ctx, n,
 	    OID_AUTO, "limiter",
@@ -1140,37 +1157,42 @@ cam_iosched_cl_sysctl_fini(struct control_loop *clp)
  * sizeof struct cam_iosched_softc.
  */
 int
-cam_iosched_init(struct cam_iosched_softc **iscp, struct cam_periph *periph)
+cam_iosched_init(struct cam_iosched_softc **iscp, struct cam_periph *periph,
+    const struct disk *dp, cam_iosched_schedule_t schedfnc)
 {
+	struct cam_iosched_softc *isc;
 
-	*iscp = malloc(sizeof(**iscp), M_CAMSCHED, M_NOWAIT | M_ZERO);
-	if (*iscp == NULL)
+	isc = malloc(sizeof(*isc), M_CAMSCHED, M_NOWAIT | M_ZERO);
+	if (isc == NULL)
 		return ENOMEM;
+	isc->disk = dp;
+	isc->schedfnc = schedfnc;
 #ifdef CAM_IOSCHED_DYNAMIC
 	if (iosched_debug)
-		printf("CAM IOSCHEDULER Allocating entry at %p\n", *iscp);
+		printf("CAM IOSCHEDULER Allocating entry at %p\n", isc);
 #endif
-	(*iscp)->sort_io_queue = -1;
-	bioq_init(&(*iscp)->bio_queue);
-	bioq_init(&(*iscp)->trim_queue);
+	isc->sort_io_queue = -1;
+	bioq_init(&isc->bio_queue);
+	bioq_init(&isc->trim_queue);
 #ifdef CAM_IOSCHED_DYNAMIC
 	if (do_dynamic_iosched) {
-		bioq_init(&(*iscp)->write_queue);
-		(*iscp)->read_bias = default_read_bias;
-		(*iscp)->current_read_bias = 0;
-		(*iscp)->quanta = min(hz, 200);
-		cam_iosched_iop_stats_init(*iscp, &(*iscp)->read_stats);
-		cam_iosched_iop_stats_init(*iscp, &(*iscp)->write_stats);
-		cam_iosched_iop_stats_init(*iscp, &(*iscp)->trim_stats);
-		(*iscp)->trim_stats.max = 1;	/* Trims are special: one at a time for now */
-		(*iscp)->last_time = sbinuptime();
-		callout_init_mtx(&(*iscp)->ticker, cam_periph_mtx(periph), 0);
-		(*iscp)->periph = periph;
-		cam_iosched_cl_init(&(*iscp)->cl, *iscp);
-		callout_reset(&(*iscp)->ticker, hz / (*iscp)->quanta, cam_iosched_ticker, *iscp);
-		(*iscp)->flags |= CAM_IOSCHED_FLAG_CALLOUT_ACTIVE;
+		bioq_init(&isc->write_queue);
+		isc->read_bias = default_read_bias;
+		isc->current_read_bias = 0;
+		isc->quanta = min(hz, 200);
+		cam_iosched_iop_stats_init(isc, &isc->read_stats);
+		cam_iosched_iop_stats_init(isc, &isc->write_stats);
+		cam_iosched_iop_stats_init(isc, &isc->trim_stats);
+		isc->trim_stats.max = 1;	/* Trims are special: one at a time for now */
+		isc->last_time = sbinuptime();
+		callout_init_mtx(&isc->ticker, cam_periph_mtx(periph), 0);
+		isc->periph = periph;
+		cam_iosched_cl_init(&isc->cl, isc);
+		callout_reset(&isc->ticker, hz / isc->quanta, cam_iosched_ticker, isc);
+		isc->flags |= CAM_IOSCHED_FLAG_CALLOUT_ACTIVE;
 	}
 #endif
+	*iscp = isc;
 
 	return 0;
 }
@@ -1788,8 +1810,8 @@ cam_iosched_bio_complete(struct cam_iosched_softc *isc, struct bio *bp,
 		
 		sim_latency = cam_iosched_sbintime_t(done_ccb->ccb_h.qos.periph_data);
 		
-		cam_iosched_io_metric_update(isc, sim_latency,
-		    bp->bio_cmd, bp->bio_bcount);
+		cam_iosched_io_metric_update(isc, sim_latency, bp);
+
 		/*
 		 * Debugging code: allow callbacks to the periph driver when latency max
 		 * is exceeded. This can be useful for triggering external debugging actions.
@@ -1797,7 +1819,6 @@ cam_iosched_bio_complete(struct cam_iosched_softc *isc, struct bio *bp,
 		if (isc->latfcn && isc->max_lat != 0 && sim_latency > isc->max_lat)
 			isc->latfcn(isc->latarg, sim_latency, bp);
 	}
-		
 #endif
 	return retval;
 }
@@ -1910,11 +1931,47 @@ static sbintime_t latencies[LAT_BUCKETS - 1] = {
 	BUCKET_BASE << 18	/* 5,242,880us */
 };
 
+#define CAM_IOSCHED_DEVD_MSG_SIZE	256
+
 static void
-cam_iosched_update(struct iop_stats *iop, sbintime_t sim_latency)
+cam_iosched_devctl_outlier(struct iop_stats *iop, sbintime_t sim_latency,
+    const struct bio *bp)
+{
+	daddr_t lba = bp->bio_pblkno;
+	daddr_t cnt = bp->bio_bcount / iop->softc->disk->d_sectorsize;
+	char *sbmsg;
+	struct sbuf sb;
+
+	sbmsg = malloc(CAM_IOSCHED_DEVD_MSG_SIZE, M_CAMSCHED, M_NOWAIT);
+	if (sbmsg == NULL)
+		return;
+	sbuf_new(&sb, sbmsg, CAM_IOSCHED_DEVD_MSG_SIZE, SBUF_FIXEDLEN);
+
+	sbuf_printf(&sb, "device=%s%d lba=%jd blocks=%jd latency=%jd",
+	    iop->softc->periph->periph_name,
+	    iop->softc->periph->unit_number,
+	    lba, cnt, sbttons(sim_latency));
+	if (sbuf_finish(&sb) == 0)
+		devctl_notify("CAM", "iosched", "latency", sbuf_data(&sb));
+	sbuf_delete(&sb);
+	free(sbmsg, M_CAMSCHED);
+}
+
+static void
+cam_iosched_update(struct iop_stats *iop, sbintime_t sim_latency,
+    const struct bio *bp)
 {
 	sbintime_t y, deltasq, delta;
 	int i;
+
+	/*
+	 * Simple threshold: count the number of events that excede the
+	 * configured threshold.
+	 */
+	if (sim_latency > iop->bad_latency) {
+		cam_iosched_devctl_outlier(iop, sim_latency, bp);
+		iop->too_long++;
+	}
 
 	/*
 	 * Keep counts for latency. We do it by power of two buckets.
@@ -1993,18 +2050,17 @@ cam_iosched_update(struct iop_stats *iop, sbintime_t sim_latency)
 
 static void
 cam_iosched_io_metric_update(struct cam_iosched_softc *isc,
-    sbintime_t sim_latency, int cmd, size_t size)
+    sbintime_t sim_latency, const struct bio *bp)
 {
-	/* xxx Do we need to scale based on the size of the I/O ? */
-	switch (cmd) {
+	switch (bp->bio_cmd) {
 	case BIO_READ:
-		cam_iosched_update(&isc->read_stats, sim_latency);
+		cam_iosched_update(&isc->read_stats, sim_latency, bp);
 		break;
 	case BIO_WRITE:
-		cam_iosched_update(&isc->write_stats, sim_latency);
+		cam_iosched_update(&isc->write_stats, sim_latency, bp);
 		break;
 	case BIO_DELETE:
-		cam_iosched_update(&isc->trim_stats, sim_latency);
+		cam_iosched_update(&isc->trim_stats, sim_latency, bp);
 		break;
 	default:
 		break;

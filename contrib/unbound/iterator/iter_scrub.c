@@ -367,6 +367,47 @@ type_allowed_in_additional_section(uint16_t tp)
 	return 0;
 }
 
+/** Shorten RRset */
+static void
+shorten_rrset(sldns_buffer* pkt, struct rrset_parse* rrset, int count)
+{
+	/* The too large NS RRset is shortened. This is so that too large
+	 * content does not overwhelm the cache. It may make the rrset
+	 * bogus if it was signed, and then the domain is not resolved any
+	 * more, that is okay, the NS RRset was too large. During a referral
+	 * it can be shortened and then the first part of the list could
+	 * be used to resolve. The scrub continues to disallow glue for the
+	 * removed nameserver RRs and removes that too. Because the glue
+	 * is not marked as okay, since the RRs have been removed here. */
+	int i;
+	struct rr_parse* rr = rrset->rr_first, *prev = NULL;
+	if(!rr)
+		return;
+	for(i=0; i<count; i++) {
+		prev = rr;
+		rr = rr->next;
+		if(!rr)
+			return; /* The RRset is already short. */
+	}
+	if(verbosity >= VERB_QUERY
+		&& rrset->dname_len <= LDNS_MAX_DOMAINLEN) {
+		uint8_t buf[LDNS_MAX_DOMAINLEN+1];
+		dname_pkt_copy(pkt, buf, rrset->dname);
+		log_nametypeclass(VERB_QUERY, "normalize: shorten RRset:", buf,
+			rrset->type, ntohs(rrset->rrset_class));
+	}
+	/* remove further rrs */
+	rrset->rr_last = prev;
+	rrset->rr_count = count;
+	while(rr) {
+		rrset->size -= rr->size;
+		rr = rr->next;
+	}
+	if(rrset->rr_last)
+		rrset->rr_last->next = NULL;
+	else	rrset->rr_first = NULL;
+}
+
 /**
  * This routine normalizes a response. This includes removing "irrelevant"
  * records from the answer and additional sections and (re)synthesizing
@@ -387,6 +428,7 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 	uint8_t* sname = qinfo->qname;
 	size_t snamelen = qinfo->qname_len;
 	struct rrset_parse* rrset, *prev, *nsset=NULL;
+	int cname_length = 0; /* number of CNAMEs, or DNAMEs */
 
 	if(FLAGS_GET_RCODE(msg->flags) != LDNS_RCODE_NOERROR &&
 		FLAGS_GET_RCODE(msg->flags) != LDNS_RCODE_NXDOMAIN)
@@ -401,6 +443,16 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 	prev = NULL;
 	rrset = msg->rrset_first;
 	while(rrset && rrset->section == LDNS_SECTION_ANSWER) {
+		if(cname_length > 11 /* env->cfg.iter_scrub_cname */) {
+			/* Too many CNAMEs, or DNAMEs, from the authority
+			 * server, scrub down the length to something
+			 * shorter. This deletes everything after the limit
+			 * is reached. The iterator is going to look up
+			 * the content one by one anyway. */
+			remove_rrset("normalize: removing because too many cnames:",
+				pkt, msg, prev, &rrset);
+			continue;
+		}
 		if(rrset->type == LDNS_RR_TYPE_DNAME && 
 			pkt_strict_sub(pkt, sname, rrset->dname)) {
 			/* check if next rrset is correct CNAME. else,
@@ -420,6 +472,7 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 					"too long");
 				return 0;
 			}
+			cname_length++;
 			if(nx && nx->type == LDNS_RR_TYPE_CNAME && 
 			   dname_pkt_compare(pkt, sname, nx->dname) == 0) {
 				/* check next cname */
@@ -460,6 +513,7 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 		if(rrset->type == LDNS_RR_TYPE_CNAME) {
 			struct rrset_parse* nx = rrset->rrset_all_next;
 			uint8_t* oldsname = sname;
+			cname_length++;
 			/* see if the next one is a DNAME, if so, swap them */
 			if(nx && nx->section == LDNS_SECTION_ANSWER &&
 				nx->type == LDNS_RR_TYPE_DNAME &&
@@ -507,6 +561,10 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 					LDNS_SECTION_ANSWER &&
 					dname_pkt_compare(pkt, oldsname,
 					rrset->dname) == 0) {
+					if(rrset->type == LDNS_RR_TYPE_NS &&
+						rrset->rr_count > 20 /* env->cfg->iter_scrub_ns */) {
+						shorten_rrset(pkt, rrset, 20 /* env->cfg->iter_scrub_ns */);
+					}
 					prev = rrset;
 					rrset = rrset->rrset_all_next;
 				}
@@ -520,6 +578,11 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 			remove_rrset("normalize: removing irrelevant RRset:", 
 				pkt, msg, prev, &rrset);
 			continue;
+		}
+
+		if(rrset->type == LDNS_RR_TYPE_NS &&
+			rrset->rr_count > 20 /* env->cfg->iter_scrub_ns */) {
+			shorten_rrset(pkt, rrset, 20 /* env->cfg->iter_scrub_ns */);
 		}
 
 		/* Mark the additional names from relevant rrset as OK. */
@@ -577,6 +640,25 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 				remove_rrset("normalize: removing irrelevant "
 					"RRset:", pkt, msg, prev, &rrset);
 				continue;
+			}
+			if(rrset->rr_count > 20 /* env->cfg->iter_scrub_ns */) {
+				/* If this is not a referral, and the NS RRset
+				 * is signed, then remove it entirely, so
+				 * that when it becomes bogus it does not
+				 * make the message that is otherwise fine
+				 * into a bogus message. */
+				if(!(msg->an_rrsets == 0 &&
+					FLAGS_GET_RCODE(msg->flags) ==
+					LDNS_RCODE_NOERROR &&
+					!soa_in_auth(msg) &&
+					!(msg->flags & BIT_AA)) &&
+					rrset->rrsig_count != 0) {
+					remove_rrset("normalize: removing too large NS "
+						"RRset:", pkt, msg, prev, &rrset);
+					continue;
+				} else {
+					shorten_rrset(pkt, rrset, 20 /* env->cfg->iter_scrub_ns */);
+				}
 			}
 		}
 		/* if this is type DS and we query for type DS we just got

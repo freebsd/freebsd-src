@@ -219,22 +219,12 @@ ksz8995ma_attach_phys(struct ksz8995ma_softc *sc)
 		sc->ifpport[phy] = port;
 		sc->portphy[port] = phy;
 		sc->ifp[port] = if_alloc(IFT_ETHER);
-		if (sc->ifp[port] == NULL) {
-			device_printf(sc->sc_dev, "couldn't allocate ifnet structure\n");
-			err = ENOMEM;
-			break;
-		}
-
 		sc->ifp[port]->if_softc = sc;
 		sc->ifp[port]->if_flags |= IFF_UP | IFF_BROADCAST |
 		    IFF_DRV_RUNNING | IFF_SIMPLEX;
 		if_initname(sc->ifp[port], name, port);
 		sc->miibus[port] = malloc(sizeof(device_t), M_KSZ8995MA,
 		    M_WAITOK | M_ZERO);
-		if (sc->miibus[port] == NULL) {
-			err = ENOMEM;
-			goto failed;
-		}
 		err = mii_attach(sc->sc_dev, sc->miibus[port], sc->ifp[port],
 		    ksz8995ma_ifmedia_upd, ksz8995ma_ifmedia_sts, \
 		    BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY, 0);
@@ -311,12 +301,6 @@ ksz8995ma_attach(device_t dev)
 	sc->portphy = malloc(sizeof(int) * sc->numports, M_KSZ8995MA,
 	    M_WAITOK | M_ZERO);
 
-	if (sc->ifp == NULL || sc->ifname == NULL || sc->miibus == NULL ||
-	    sc->portphy == NULL) {
-		err = ENOMEM;
-		goto failed;
-	}
-
 	/*
 	 * Attach the PHYs and complete the bus enumeration.
 	 */
@@ -345,14 +329,10 @@ ksz8995ma_attach(device_t dev)
 	return (0);
 
 failed:
-	if (sc->portphy != NULL)
-		free(sc->portphy, M_KSZ8995MA);
-	if (sc->miibus != NULL)
-		free(sc->miibus, M_KSZ8995MA);
-	if (sc->ifname != NULL)
-		free(sc->ifname, M_KSZ8995MA);
-	if (sc->ifp != NULL)
-		free(sc->ifp, M_KSZ8995MA);
+	free(sc->portphy, M_KSZ8995MA);
+	free(sc->miibus, M_KSZ8995MA);
+	free(sc->ifname, M_KSZ8995MA);
+	free(sc->ifp, M_KSZ8995MA);
 
 	return (err);
 }

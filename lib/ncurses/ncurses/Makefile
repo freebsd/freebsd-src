@@ -1,4 +1,3 @@
-
 PACKAGE=	clibs
 SHLIBDIR?=	/lib
 

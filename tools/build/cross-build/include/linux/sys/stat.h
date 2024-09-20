@@ -58,5 +58,13 @@
 #define S_ISTXT S_ISVTX
 #endif
 
+#ifndef DEFFILEMODE
+#define DEFFILEMODE (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
+#endif
+
+#ifndef ALLPERMS
+#define ALLPERMS (S_ISUID | S_ISGID | S_ISTXT | S_IRWXU | S_IRWXG | S_IRWXO)
+#endif
+
 /* This include is needed for OpenZFS bootstrap */
 #include <sys/mount.h>

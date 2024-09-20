@@ -48,7 +48,7 @@ if_bnxt_load="YES"
 The
 .Nm
 driver provides support for various NICs based on the Broadcom BCM57301/2/4,
-and BCM57402/4/6 Ethernet controller chips.
+BCM57402/4/6, and BCM57502/4/8 Ethernet controller chips.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
@@ -102,6 +102,12 @@ Broadcom BCM57416 NetXtreme-E Partition
 Broadcom BCM57417 NetXtreme-E Ethernet Partition
 .It
 Broadcom BCM57454 NetXtreme-E 10Gb/25Gb/40Gb/50Gb/100Gb Ethernet
+.It
+Broadcom BCM57502 NetXtreme-E 10Gb/25Gb/50Gb/100Gb/200Gb Ethernet
+.It
+Broadcom BCM57504 NetXtreme-E 10Gb/25Gb/50Gb/100Gb/200Gb Ethernet
+.It
+Broadcom BCM57508 NetXtreme-E 10Gb/25Gb/50Gb/100Gb/200Gb Ethernet
 .El
 .Sh SYSCTL VARIABLES
 These variables must be set before loading the driver, either via

@@ -101,6 +101,11 @@ struct if_clone_addreq_v2 {
 #define	IFC_F_SYSSPACE	0x04	/* Cloner callback: params pointer is in kernel memory */
 #define	IFC_F_FORCE	0x08	/* Deletion flag: force interface deletion */
 #define	IFC_F_CREATE	0x10	/* Creation flag: indicate creation request */
+#define	IFC_F_LIMITUNIT	0x20	/* Creation flag: the unit number is limited */
+
+_Static_assert(offsetof(struct if_clone_addreq, destroy_f) ==
+    offsetof(struct if_clone_addreq_v2, destroy_f),
+    "destroy_f in if_clone_addreq and if_clone_addreq_v2 are at different offset");
 
 struct if_clone	*ifc_attach_cloner(const char *name, struct if_clone_addreq *req);
 void ifc_detach_cloner(struct if_clone *ifc);

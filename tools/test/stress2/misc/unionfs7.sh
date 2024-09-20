@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 #
 
-# unionfs(8) test
+# unionfs(4) test
 
 # "unionfs_get_node_status: 0xfffffe018f356770 is not exclusive locked but
 # should be" seen.

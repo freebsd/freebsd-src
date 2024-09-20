@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2020,2021 Thomas E. Dickey                                *
+ * Copyright 2018-2022,2023 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -83,8 +83,8 @@
 
 /*
  * The average overhead of a full optimization computation in character
- * transmission times.  If it's too high, the algorithm will be a bit
- * over-biased toward using cup rather than local motions; if it's too
+ * transmission times.  If it is too high, the algorithm will be a bit
+ * over-biased toward using cup rather than local motions; if it is too
  * low, the algorithm may spend more time than is strictly optimal
  * looking for non-cup motions.  Profile the optimizer using the `t'
  * command of the exerciser (see below), and round to the nearest integer.
@@ -98,7 +98,7 @@
 
 /*
  * LONG_DIST is the distance we consider to be just as costly to move over as a
- * cup sequence is to emit.  In other words, it's the length of a cup sequence
+ * cup sequence is to emit.  In other words, it is the length of a cup sequence
  * adjusted for average computation overhead.  The magic number is the length
  * of "\033[yy;xxH", the typical cup sequence these days.
  */
@@ -148,7 +148,7 @@
  *	int		_rep_cost;	// cost of (repeat_char)
  *
  * The USE_HARD_TABS switch controls whether it is reliable to use tab/backtabs
- * for local motions.  On many systems, it's not, due to uncertainties about
+ * for local motions.  On many systems, it is not, due to uncertainties about
  * tab delays and whether or not tabs will be expanded in raw mode.  If you
  * have parm_right_cursor, tab motions don't win you a lot anyhow.
  */
@@ -160,7 +160,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_mvcur.c,v 1.155 2021/02/06 13:53:41 tom Exp $")
+MODULE_ID("$Id: lib_mvcur.c,v 1.161 2023/09/16 16:29:02 tom Exp $")
 
 #define WANT_CHAR(sp, y, x) NewScreen(sp)->_line[y].text[x]	/* desired state */
 
@@ -232,14 +232,33 @@ NCURSES_SP_NAME(_nc_msec_cost) (NCURSES_SP_DCLx const char *const cap, int affcn
 	    /* extract padding, either mandatory or required */
 	    if (cp[0] == '$' && cp[1] == '<' && strchr(cp, '>')) {
 		float number = 0.0;
+		int state = 0;
 
 		for (cp += 2; *cp != '>'; cp++) {
-		    if (isdigit(UChar(*cp)))
-			number = number * 10 + (float) (*cp - '0');
-		    else if (*cp == '*')
-			number *= (float) affcnt;
-		    else if (*cp == '.' && (*++cp != '>') && isdigit(UChar(*cp)))
-			number += (float) ((*cp - '0') / 10.0);
+		    if (isdigit(UChar(*cp))) {
+			switch (state) {
+			case 0:
+			    number = number * 10 + (float) (*cp - '0');
+			    break;
+			case 2:
+			    number += (float) ((*cp - '0') / 10.0);
+			    ++state;
+			    break;
+			}
+		    } else if (*cp == '*') {
+			/* padding is always a suffix */
+			if (state < 4) {
+			    number *= (float) affcnt;
+			    state = 4;
+			}
+		    } else if (*cp == '.') {
+			/* a single decimal point is allowed */
+			state = (state == 0) ? 2 : 3;
+		    }
+		    if (number > MAX_DELAY_MSECS) {
+			number = MAX_DELAY_MSECS;
+			break;
+		    }
 		}
 
 #if NCURSES_NO_PADDING
@@ -432,8 +451,8 @@ NCURSES_SP_NAME(_nc_mvcur_init) (NCURSES_SP_DCL0)
 					   1);
     SP_PARM->_hpa_ch_cost = NormalizedCost(TIPARM_1(column_address, 23), 1);
     SP_PARM->_cuf_ch_cost = NormalizedCost(TIPARM_1(parm_right_cursor, 23), 1);
-    SP_PARM->_inline_cost = min(SP_PARM->_cup_ch_cost,
-				min(SP_PARM->_hpa_ch_cost,
+    SP_PARM->_inline_cost = Min(SP_PARM->_cup_ch_cost,
+				Min(SP_PARM->_hpa_ch_cost,
 				    SP_PARM->_cuf_ch_cost));
 
     /*
@@ -470,11 +489,11 @@ NCURSES_EXPORT(void)
 NCURSES_SP_NAME(_nc_mvcur_wrap) (NCURSES_SP_DCL0)
 /* wrap up cursor-addressing mode */
 {
-    /* leave cursor at screen bottom */
-    TINFO_MVCUR(NCURSES_SP_ARGx -1, -1, screen_lines(SP_PARM) - 1, 0);
-
     if (!SP_PARM || !IsTermInfo(SP_PARM))
 	return;
+
+    /* leave cursor at screen bottom */
+    TINFO_MVCUR(NCURSES_SP_ARGx -1, -1, screen_lines(SP_PARM) - 1, 0);
 
     /* set cursor to normal mode */
     if (SP_PARM->_cursor != -1) {
@@ -675,7 +694,7 @@ relative_move(NCURSES_SP_DCLx
 		 * and the time the structure WANT_CHAR would access has been
 		 * updated.
 		 */
-		if (ovw) {
+		if (ovw && to_y >= 0) {
 		    int i;
 
 		    for (i = 0; i < n; i++) {
@@ -690,7 +709,7 @@ relative_move(NCURSES_SP_DCLx
 			}
 		    }
 		}
-		if (ovw) {
+		if (ovw && to_y >= 0) {
 		    int i;
 
 		    for (i = 0; i < n; i++)
@@ -760,7 +779,7 @@ relative_move(NCURSES_SP_DCLx
 #endif /* !NO_OPTIMIZE */
 
 /*
- * With the machinery set up above, it's conceivable that
+ * With the machinery set up above, it is conceivable that
  * onscreen_mvcur could be modified into a recursive function that does
  * an alpha-beta search of motion space, as though it were a chess
  * move tree, with the weight function being boolean and the search

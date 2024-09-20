@@ -1048,7 +1048,7 @@ tegra_xhci_attach(device_t dev)
 	strlcpy(xsc->sc_vendor, "Nvidia", sizeof(xsc->sc_vendor));
 
 	/* Add USB bus device. */
-	xsc->sc_bus.bdev = device_add_child(sc->dev, "usbus", -1);
+	xsc->sc_bus.bdev = device_add_child(sc->dev, "usbus", DEVICE_UNIT_ANY);
 	if (xsc->sc_bus.bdev == NULL) {
 		device_printf(sc->dev, "Could not add USB device\n");
 		rv = ENXIO;

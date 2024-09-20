@@ -600,7 +600,7 @@ retry:
 			continue;
 		if (vm_page_busy_acquire(m, VM_ALLOC_WAITFAIL) == 0)
 			goto retry;
-		cdev_pager_free_page(gmap->map->mem, m);
+		cdev_mgtdev_pager_free_page(gmap->map->mem, m);
 	}
 	VM_OBJECT_WUNLOCK(gmap->map->mem);
 

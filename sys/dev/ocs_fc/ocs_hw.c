@@ -11214,7 +11214,7 @@ target_wqe_timer_nop_cb(ocs_hw_t *hw, int32_t status, uint8_t *mqe, void *arg)
 		getmicrouptime(&cur_time);
 		timevalsub(&cur_time, &io->submit_time);
 		if (cur_time.tv_sec > io->wqe_timeout) {
-			ocs_log_info(hw->os, "IO timeout xri=0x%x tag=0x%x type=%d elasped time:%u\n",
+			ocs_log_info(hw->os, "IO timeout xri=0x%x tag=0x%x type=%d elapsed time:%u\n",
 				     io->indicator, io->reqtag, io->type, cur_time.tv_sec);
 
 			/* remove from active_wqe list so won't try to abort again */

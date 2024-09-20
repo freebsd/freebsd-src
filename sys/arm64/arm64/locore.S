@@ -67,19 +67,6 @@ ENTRY(_start)
 	/* Enter the kernel exception level */
 	bl	enter_kernel_el
 
-	/*
-	 * Disable the MMU. We may have entered the kernel with it on and
-	 * will need to update the tables later. If this has been set up
-	 * with anything other than a VA == PA map then this will fail,
-	 * but in this case the code to find where we are running from
-	 * would have also failed.
-	 */
-	dsb	sy
-	mrs	x2, sctlr_el1
-	bic	x2, x2, SCTLR_M
-	msr	sctlr_el1, x2
-	isb
-
 	/* Set the context id */
 	msr	contextidr_el1, xzr
 
@@ -124,7 +111,7 @@ virtdone:
 	ldr	x15, .Lbss
 	ldr	x14, .Lend
 1:
-	str	xzr, [x15], #8
+	stp	xzr, xzr, [x15], #16
 	cmp	x15, x14
 	b.lo	1b
 
@@ -147,7 +134,6 @@ virtdone:
 	str	x25, [x0, #BP_KERN_STACK]
 	str	x27, [x0, #BP_KERN_TTBR0]
 	str	x23, [x0, #BP_BOOT_EL]
-	str	x4,  [x0, #BP_HCR_EL2]
 
 #ifdef KASAN
 	/* Save bootparams */
@@ -310,33 +296,56 @@ LEND(mpentry_common)
 #endif
 
 /*
- * If we are started in EL2, configure the required hypervisor
- * registers and drop to EL1.
+ * Enter the exception level the kernel will use:
+ *
+ *  - If in EL1 continue in EL1
+ *  - If the CPU supports FEAT_VHE then set HCR_E2H and HCR_TGE and continue
+ *    in EL2
+ *  - Configure EL2 to support running the kernel at EL1 and exit to that
  */
 LENTRY(enter_kernel_el)
+#define	INIT_SCTLR_EL1	(SCTLR_LSMAOE | SCTLR_nTLSMD | SCTLR_EIS | \
+    SCTLR_TSCXT | SCTLR_EOS)
 	mrs	x23, CurrentEL
 	and	x23, x23, #(CURRENTEL_EL_MASK)
 	cmp	x23, #(CURRENTEL_EL_EL2)
 	b.eq	1f
-	ret
-1:
-	/*
-	 * Disable the MMU. If the HCR_EL2.E2H field is set we will clear it
-	 * which may break address translation.
+
+	ldr	x2, =INIT_SCTLR_EL1
+	msr	sctlr_el1, x2
+	/* SCTLR_EOS is set so eret is a context synchronizing event so we
+	 * need an isb here to ensure it's observed by later instructions,
+	 * but don't need it in the eret below.
 	 */
+	isb
+
+	/* Ensure SPSR_EL1 and pstate are in sync. The only wat to set the
+	 * latter is to set the former and return from an exception with eret.
+	 */
+	mov	x2, #(PSR_DAIF | PSR_M_EL1h)
+	msr	spsr_el1, x2
+	msr	elr_el1, lr
+	eret
+
+1:
 	dsb	sy
-	mrs	x2, sctlr_el2
-	bic	x2, x2, SCTLR_M
+	/*
+	 * Set just the reserved bits in sctlr_el2. This will disable the
+	 * MMU which may have broken the kernel if we enter the kernel in
+	 * EL2, e.g. when using VHE.
+	 */
+	ldr	x2, =(SCTLR_EL2_RES1 | SCTLR_EL2_EIS | SCTLR_EL2_EOS)
 	msr	sctlr_el2, x2
 	isb
 
 	/* Configure the Hypervisor */
-	ldr	x2, =(HCR_RW | HCR_APK | HCR_API)
+	ldr	x2, =(HCR_RW | HCR_APK | HCR_API | HCR_E2H)
 	msr	hcr_el2, x2
 
 	/* Stash value of HCR_EL2 for later */
 	isb
 	mrs	x4, hcr_el2
+
 
 	/* Load the Virtualization Process ID Register */
 	mrs	x2, midr_el1
@@ -346,50 +355,61 @@ LENTRY(enter_kernel_el)
 	mrs	x2, mpidr_el1
 	msr	vmpidr_el2, x2
 
-	/* Set the bits that need to be 1 in sctlr_el1 */
-	ldr	x2, .Lsctlr_res1
+	/* Set the initial sctlr_el1 */
+	ldr	x2, =INIT_SCTLR_EL1
 	msr	sctlr_el1, x2
 
-	/*
-	 * On some hardware, e.g., Apple M1, we can't clear E2H, so make sure we
-	 * don't trap to EL2 for SIMD register usage to have at least a
-	 * minimally usable system.
-	 */
+	/* Check if the E2H flag is set */
 	tst	x4, #HCR_E2H
-	mov	x3, #CPTR_RES1	/* HCR_E2H == 0 */
-	mov	x5, #CPTR_FPEN	/* HCR_E2H == 1 */
-	csel	x2, x3, x5, eq
-	msr	cptr_el2, x2
+	b.eq	.Lno_vhe
 
-	/* Don't trap to EL2 for CP15 traps */
-	msr	hstr_el2, xzr
+	/*
+	 * The kernel will be running in EL2, route exceptions here rather
+	 * than EL1.
+	 */
+	orr	x4, x4, #(HCR_TGE)
+	msr	hcr_el2, x4
+	isb
 
-	/* Enable access to the physical timers at EL1 */
-	mrs	x2, cnthctl_el2
-	orr	x2, x2, #(CNTHCTL_EL1PCTEN | CNTHCTL_EL1PCEN)
-	msr	cnthctl_el2, x2
+	msr	SCTLR_EL12_REG, x2
+	ldr	x2, =(CPTR_FPEN)
+	ldr	x3, =(CNTHCTL_E2H_EL1PCTEN | CNTHCTL_E2H_EL1PTEN)
+	ldr	x5, =(PSR_DAIF | PSR_M_EL2h)
+	b	.Ldone_vhe
 
-	/* Set the counter offset to a known value */
-	msr	cntvoff_el2, xzr
-
+.Lno_vhe:
 	/* Hypervisor trap functions */
 	adrp	x2, hyp_stub_vectors
 	add	x2, x2, :lo12:hyp_stub_vectors
 	msr	vbar_el2, x2
 
+	ldr	x2, =(CPTR_RES1)
+	ldr	x3, =(CNTHCTL_EL1PCTEN | CNTHCTL_EL1PCEN)
+	ldr	x5, =(PSR_DAIF | PSR_M_EL1h)
+
+.Ldone_vhe:
+
+	msr	cptr_el2, x2
+	/* Enable access to the physical timers at EL1 */
+	msr	cnthctl_el2, x3
+	/* Set the return PSTATE */
+	msr	spsr_el2, x5
+
+	/* Don't trap to EL2 for CP15 traps */
+	msr	hstr_el2, xzr
+
+	/* Set the counter offset to a known value */
+	msr	cntvoff_el2, xzr
+
 	/* Zero vttbr_el2 so a hypervisor can tell the host and guest apart */
 	msr	vttbr_el2, xzr
-
-	mov	x2, #(PSR_DAIF | PSR_M_EL1h)
-	msr	spsr_el2, x2
 
 	/* Configure GICv3 CPU interface */
 	mrs	x2, id_aa64pfr0_el1
 	/* Extract GIC bits from the register */
 	ubfx	x2, x2, #ID_AA64PFR0_GIC_SHIFT, #ID_AA64PFR0_GIC_BITS
-	/* GIC[3:0] == 0001 - GIC CPU interface via special regs. supported */
-	cmp	x2, #(ID_AA64PFR0_GIC_CPUIF_EN >> ID_AA64PFR0_GIC_SHIFT)
-	b.ne	2f
+	/* GIC[3:0] != 0000 - GIC CPU interface via special regs. supported */
+	cbz	x2, 2f
 
 	mrs	x2, icc_sre_el2
 	orr	x2, x2, #ICC_SRE_EL2_EN	/* Enable access from insecure EL1 */
@@ -402,10 +422,7 @@ LENTRY(enter_kernel_el)
 	isb
 
 	eret
-
-	.align 3
-.Lsctlr_res1:
-	.quad SCTLR_RES1
+#undef INIT_SCTLR_EL1
 LEND(enter_kernel_el)
 
 /*

@@ -1372,11 +1372,6 @@ atse_attach(device_t dev)
 
 	/* Setup interface. */
 	ifp = sc->atse_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(dev, "if_alloc() failed\n");
-		error = ENOSPC;
-		goto err;
-	}
 	if_setsoftc(ifp, sc);
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);

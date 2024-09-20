@@ -343,32 +343,6 @@ ld_utrace_log(int event, void *handle, void *mapbase, size_t mapsize,
 	utrace(&ut, sizeof(ut));
 }
 
-enum {
-	LD_BIND_NOW = 0,
-	LD_PRELOAD,
-	LD_LIBMAP,
-	LD_LIBRARY_PATH,
-	LD_LIBRARY_PATH_FDS,
-	LD_LIBMAP_DISABLE,
-	LD_BIND_NOT,
-	LD_DEBUG,
-	LD_ELF_HINTS_PATH,
-	LD_LOADFLTR,
-	LD_LIBRARY_PATH_RPATH,
-	LD_PRELOAD_FDS,
-	LD_DYNAMIC_WEAK,
-	LD_TRACE_LOADED_OBJECTS,
-	LD_UTRACE,
-	LD_DUMP_REL_PRE,
-	LD_DUMP_REL_POST,
-	LD_TRACE_LOADED_OBJECTS_PROGNAME,
-	LD_TRACE_LOADED_OBJECTS_FMT1,
-	LD_TRACE_LOADED_OBJECTS_FMT2,
-	LD_TRACE_LOADED_OBJECTS_ALL,
-	LD_SHOW_AUXV,
-	LD_STATIC_TLS_EXTRA,
-};
-
 struct ld_env_var_desc {
 	const char * const n;
 	const char *val;
@@ -401,9 +375,10 @@ static struct ld_env_var_desc ld_env_vars[] = {
 	LD_ENV_DESC(TRACE_LOADED_OBJECTS_ALL, false),
 	LD_ENV_DESC(SHOW_AUXV, false),
 	LD_ENV_DESC(STATIC_TLS_EXTRA, false),
+	LD_ENV_DESC(NO_DL_ITERATE_PHDR_AFTER_FORK, false),
 };
 
-static const char *
+const char *
 ld_get_env_var(int idx)
 {
 	return (ld_env_vars[idx].val);
@@ -929,7 +904,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
        exit (0);
     }
 
-    ifunc_init(aux);
+    ifunc_init(aux_info);
 
     /*
      * Setup TLS for main thread.  This must be done after the

@@ -61,6 +61,23 @@ struct module_stack {
 void modstack_init(struct module_stack* stack);
 
 /**
+ * Free the stack of modules
+ * @param stack: stack that frees up memory.
+ */
+void modstack_free(struct module_stack* stack);
+
+/**
+ * Initialises modules and assignes ids. Calls module_startup().
+ * @param stack: Expected empty, filled according to module_conf
+ * @param module_conf: string what modules to initialize
+ * @param env: module environment which is inited by the modules.
+ *	environment should have a superalloc, cfg,
+ * @return on false a module init failed.
+ */
+int modstack_call_startup(struct module_stack* stack, const char* module_conf,
+	struct module_env* env);
+
+/**
  * Read config file module settings and set up the modfunc block
  * @param stack: the stack of modules (empty before call). 
  * @param module_conf: string what modules to insert.
@@ -83,24 +100,31 @@ struct module_func_block* module_factory(const char** str);
 const char** module_list_avail(void);
 
 /**
- * Setup modules. Assigns ids and calls module_init.
- * @param stack: if not empty beforehand, it will be desetup()ed.
- *	It is then modstack_configged().
- * @param module_conf: string what modules to insert.
+ * Init modules. Calls module_init().
+ * @param stack: It is modstack_setupped().
+ * @param module_conf: module ordering to check against the ordering in stack.
+ *	fails on changed ordering.
  * @param env: module environment which is inited by the modules.
  *	environment should have a superalloc, cfg,
  *	env.need_to_validate is set by the modules.
  * @return on false a module init failed.
  */
-int modstack_setup(struct module_stack* stack, const char* module_conf,
+int modstack_call_init(struct module_stack* stack, const char* module_conf,
 	struct module_env* env);
 
 /**
- * Desetup the modules, deinit, delete.
+ * Deinit the modules.
  * @param stack: made empty.
  * @param env: module env for module deinit() calls.
  */
-void modstack_desetup(struct module_stack* stack, struct module_env* env);
+void modstack_call_deinit(struct module_stack* stack, struct module_env* env);
+
+/**
+ * Destartup the modules, close, delete.
+ * @param stack: made empty.
+ * @param env: module env for module destartup() calls.
+ */
+void modstack_call_destartup(struct module_stack* stack, struct module_env* env);
 
 /**
  * Find index of module by name.

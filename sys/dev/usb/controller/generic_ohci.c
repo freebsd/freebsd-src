@@ -141,7 +141,7 @@ generic_ohci_attach(device_t dev)
 		err = ENXIO;
 		goto error;
 	}
-	sc->ohci_sc.sc_bus.bdev = device_add_child(dev, "usbus", -1);
+	sc->ohci_sc.sc_bus.bdev = device_add_child(dev, "usbus", DEVICE_UNIT_ANY);
 	if (sc->ohci_sc.sc_bus.bdev == 0) {
 		err = ENXIO;
 		goto error;

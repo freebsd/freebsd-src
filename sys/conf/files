@@ -1760,7 +1760,7 @@ dev/hid/hgame.c			optional hgame
 dev/hid/hid.c			optional hid
 dev/hid/hid_if.m		optional hid
 dev/hid/hidbus.c		optional hidbus
-dev/hid/hidmap.c		optional hidmap
+dev/hid/hidmap.c		optional hidmap | hms
 dev/hid/hidquirk.c		optional hid
 dev/hid/hidraw.c		optional hidraw
 dev/hid/hkbd.c			optional hkbd
@@ -3444,6 +3444,7 @@ dev/virtio/balloon/virtio_balloon.c	optional	virtio_balloon
 dev/virtio/block/virtio_blk.c		optional	virtio_blk
 dev/virtio/console/virtio_console.c	optional	virtio_console
 dev/virtio/gpu/virtio_gpu.c		optional	virtio_gpu
+dev/virtio/p9fs/virtio_p9fs.c		optional	virtio_p9fs
 dev/virtio/random/virtio_random.c	optional	virtio_random
 dev/virtio/scmi/virtio_scmi.c		optional	virtio_scmi
 dev/virtio/scsi/virtio_scsi.c		optional	virtio_scsi
@@ -3593,6 +3594,12 @@ fs/nfsserver/nfs_nfsdcache.c	optional nfsd inet
 fs/nullfs/null_subr.c		optional nullfs
 fs/nullfs/null_vfsops.c		optional nullfs
 fs/nullfs/null_vnops.c		optional nullfs
+fs/p9fs/p9_client.c		optional p9fs
+fs/p9fs/p9_protocol.c		optional p9fs
+fs/p9fs/p9_transport.c		optional p9fs
+fs/p9fs/p9fs_subr.c		optional p9fs
+fs/p9fs/p9fs_vfsops.c		optional p9fs
+fs/p9fs/p9fs_vnops.c		optional p9fs
 fs/procfs/procfs.c		optional procfs
 fs/procfs/procfs_dbregs.c	optional procfs
 fs/procfs/procfs_fpregs.c	optional procfs
@@ -3804,7 +3811,7 @@ kern/kern_idle.c		standard
 kern/kern_intr.c		standard
 kern/kern_jail.c		standard
 kern/kern_kcov.c		optional kcov			\
-	compile-with "${NORMAL_C:N-fsanitize*} ${NORMAL_C:M-fsanitize=kernel-memory}"
+	compile-with "${NOSAN_C} ${MSAN_CFLAGS}"
 kern/kern_khelp.c		standard
 kern/kern_kthread.c		standard
 kern/kern_ktr.c			optional ktr
@@ -3872,7 +3879,7 @@ kern/stack_protector.c		standard \
 kern/subr_acl_nfs4.c		optional ufs_acl | zfs
 kern/subr_acl_posix1e.c		optional ufs_acl
 kern/subr_asan.c		optional kasan \
-	compile-with "${NORMAL_C:N-fsanitize*:N-fstack-protector*}"
+	compile-with "${NOSAN_C:N-fstack-protector*}"
 kern/subr_autoconf.c		standard
 kern/subr_blist.c		standard
 kern/subr_boot.c		standard
@@ -3884,10 +3891,10 @@ kern/subr_clock.c		standard
 kern/subr_compressor.c		standard \
 	compile-with "${NORMAL_C} -I$S/contrib/zstd/lib/freebsd"
 kern/subr_coverage.c		optional coverage \
-	compile-with "${NORMAL_C:N-fsanitize*:N-fno-sanitize*}"
+	compile-with "${NOSAN_C}"
 kern/subr_counter.c		standard
 kern/subr_csan.c		optional kcsan \
-	compile-with "${NORMAL_C:N-fsanitize*:N-fstack-protector*}"
+	compile-with "${NOSAN_C:N-fstack-protector*}"
 kern/subr_devstat.c		standard
 kern/subr_disk.c		standard
 kern/subr_early.c		standard
@@ -3907,7 +3914,7 @@ kern/subr_mchain.c		optional libmchain
 kern/subr_memdesc.c		standard
 kern/subr_module.c		standard
 kern/subr_msan.c		optional kmsan \
-	compile-with "${NORMAL_C:N-fsanitize*:N-fno-sanitize*:N-fstack-protector*}"
+	compile-with "${NOSAN_C:N-fstack-protector*}"
 kern/subr_msgbuf.c		standard
 kern/subr_param.c		standard
 kern/subr_pcpu.c		standard
@@ -4144,6 +4151,7 @@ net/bpf_jitter.c		optional bpf_jitter
 net/bpf_filter.c		optional bpf | netgraph_bpf
 net/bpf_zerocopy.c		optional bpf
 net/bridgestp.c			optional bridge | if_bridge
+net/dummymbuf.c			optional dummymbuf
 net/ieee8023ad_lacp.c		optional lagg
 net/if.c			standard
 net/ifq.c			standard
@@ -4457,6 +4465,8 @@ netipsec/ipsec.c		optional ipsec inet | ipsec inet6
 netipsec/ipsec_input.c		optional ipsec inet | ipsec inet6
 netipsec/ipsec_mbuf.c		optional ipsec inet | ipsec inet6
 netipsec/ipsec_mod.c		optional ipsec inet | ipsec inet6
+netipsec/ipsec_offload.c	optional ipsec ipsec_offload inet | \
+	ipsec ipsec_offload inet6
 netipsec/ipsec_output.c		optional ipsec inet | ipsec inet6
 netipsec/ipsec_pcb.c		optional ipsec inet | ipsec inet6 | \
 	ipsec_support inet | ipsec_support inet6
@@ -4943,6 +4953,8 @@ dev/mlx5/mlx5_core/mlx5_alloc.c			optional mlx5 pci	\
 	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_cmd.c			optional mlx5 pci	\
 	compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_crypto.c		optional mlx5 pci	\
+	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_cq.c			optional mlx5 pci	\
 	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_diag_cnt.c		optional mlx5 pci	\
@@ -4953,15 +4965,17 @@ dev/mlx5/mlx5_core/mlx5_eq.c			optional mlx5 pci	\
 	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_eswitch.c		optional mlx5 pci	\
 	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_fc_cmd.c		optional mlx5 pci	\
+dev/mlx5/mlx5_core/mlx5_fs_chains.c		optional mlx5 pci	\
 	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_fs_cmd.c		optional mlx5 pci	\
 	compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_fs_core.c		optional mlx5 pci	\
+	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_fs_counters.c		optional mlx5 pci	\
 	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_fs_tcp.c		optional mlx5 pci	\
+dev/mlx5/mlx5_core/mlx5_fs_ft_pool.c		optional mlx5 pci	\
 	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_fs_tree.c		optional mlx5 pci	\
+dev/mlx5/mlx5_core/mlx5_fs_tcp.c		optional mlx5 pci	\
 	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_fw.c			optional mlx5 pci	\
 	compile-with "${OFED_C}"
@@ -5003,7 +5017,17 @@ dev/mlx5/mlx5_core/mlx5_vsc.c			optional mlx5 pci	\
 	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_wq.c			optional mlx5 pci	\
 	compile-with "${OFED_C}"
+dev/mlx5/mlx5_lib/mlx5_aso.c			optional mlx5 pci	\
+	compile-with "${OFED_C}"
 dev/mlx5/mlx5_lib/mlx5_gid.c			optional mlx5 pci	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_accel/mlx5_ipsec_fs.c		optional mlx5 pci	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_accel/mlx5_ipsec_offload.c	optional mlx5 pci	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_accel/mlx5_ipsec.c		optional mlx5 pci	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_accel/mlx5_ipsec_rxtx.c		optional mlx5 pci	\
 	compile-with "${OFED_C}"
 
 dev/mlx5/mlx5_en/mlx5_en_dim.c			optional mlx5en pci inet inet6	\
@@ -5257,8 +5281,7 @@ vm/vm_pager.c			standard
 vm/vm_phys.c			standard
 vm/vm_radix.c			standard
 vm/vm_reserv.c			standard
-vm/vm_swapout.c			optional !NO_SWAPPING
-vm/vm_swapout_dummy.c		optional NO_SWAPPING
+vm/vm_swapout.c			optional racct
 vm/vm_unix.c			standard
 vm/vnode_pager.c		standard
 xen/features.c			optional xenhvm

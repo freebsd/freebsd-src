@@ -1,4 +1,3 @@
-
 .PATH:  ${.CURDIR}/../../../../sys/dev/ath/ath_hal
 
 PROG=	ath_ee_9287_print

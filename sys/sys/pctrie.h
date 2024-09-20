@@ -36,6 +36,8 @@
 
 #ifdef _KERNEL
 
+typedef void (*pctrie_cb_t)(void *ptr, void *arg);
+
 #define	PCTRIE_DEFINE_SMR(name, type, field, allocfn, freefn, smr)	\
     PCTRIE_DEFINE(name, type, field, allocfn, freefn)			\
 									\
@@ -218,6 +220,25 @@ name##_PCTRIE_RECLAIM(struct pctrie *ptree)				\
 		freefn(ptree, freenode);				\
 }									\
 									\
+/*									\
+ * While reclaiming all internal trie nodes, invoke callback(leaf, arg)	\
+ * on every leaf in the trie, in order.					\
+ */									\
+static __inline __unused void						\
+name##_PCTRIE_RECLAIM_CALLBACK(struct pctrie *ptree,			\
+    void (*typed_cb)(struct type *, void *), void *arg)			\
+{									\
+	struct pctrie_node *freenode, *node;				\
+	pctrie_cb_t callback = (pctrie_cb_t)typed_cb;			\
+									\
+	for (freenode = pctrie_reclaim_begin_cb(&node, ptree,		\
+	    callback, __offsetof(struct type, field), arg);		\
+	    freenode != NULL;						\
+	    freenode = pctrie_reclaim_resume_cb(&node,			\
+	    callback, __offsetof(struct type, field), arg))		\
+		freefn(ptree, freenode);				\
+}									\
+									\
 static __inline __unused struct type *					\
 name##_PCTRIE_REPLACE(struct pctrie *ptree, struct type *ptr)		\
 {									\
@@ -269,6 +290,11 @@ uint64_t	*pctrie_lookup_unlocked(struct pctrie *ptree, uint64_t key,
 struct pctrie_node *pctrie_reclaim_begin(struct pctrie_node **pnode,
 		    struct pctrie *ptree);
 struct pctrie_node *pctrie_reclaim_resume(struct pctrie_node **pnode);
+struct pctrie_node *pctrie_reclaim_begin_cb(struct pctrie_node **pnode,
+		    struct pctrie *ptree,
+		    pctrie_cb_t callback, int keyoff, void *arg);
+struct pctrie_node *pctrie_reclaim_resume_cb(struct pctrie_node **pnode,
+		    pctrie_cb_t callback, int keyoff, void *arg);
 uint64_t	*pctrie_remove_lookup(struct pctrie *ptree, uint64_t index,
 		    struct pctrie_node **killnode);
 uint64_t	*pctrie_replace(struct pctrie *ptree, uint64_t *newval);

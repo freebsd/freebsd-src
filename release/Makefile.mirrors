@@ -53,6 +53,11 @@ STAGE_TARGETS+=		vm-images-stage
 VM_DIR=			${TLD}/VM-IMAGES/${REVISION}-${BRANCH}/${TARGET_ARCH}
 .endif
 
+.if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE)
+STAGE_TARGETS+=		ci-images-stage
+CI_DIR=			${TLD}/CI-IMAGES/${REVISION}-${BRANCH}/${TARGET_ARCH}
+.endif
+
 CLEANFILES+=		${STAGE_TARGETS}
 CHECKSUM_FILES?=	SHA512 SHA256
 SNAP_SUFFIX!=		echo ${_SNAP_SUFFIX:S,^-,,1} | tr -d ' '
@@ -185,14 +190,6 @@ vm-images-stage:
 	mkdir -p ${VM_DIR}/Latest
 	mkdir -p ${VM_DIR}/${BUILDDATE}
 . for VMFORMAT in ${VMFORMATS}
-	cd ${RELEASEDIR}/vmimages && \
-		mv ${OSRELEASE}.${VMFORMAT}.xz \
-		${OSRELEASE}-${SNAP_SUFFIX}.${VMFORMAT}.xz
-	cp -p ${RELEASEDIR}/vmimages/${OSRELEASE}-${SNAP_SUFFIX}.${VMFORMAT}.xz \
-		${VM_DIR}/${BUILDDATE}/${OSRELEASE}-${SNAP_SUFFIX}.${VMFORMAT}.xz
-	cd ${VM_DIR}/Latest && \
-		ln -s ../${BUILDDATE}/${OSRELEASE}-${SNAP_SUFFIX}.${VMFORMAT}.xz \
-		${OSRELEASE}.${VMFORMAT}.xz
 .  for FS in ${VMFSLIST}
 	cd ${RELEASEDIR}/vmimages && \
 		mv ${OSRELEASE}-${FS}.${VMFORMAT}.xz \
@@ -204,6 +201,24 @@ vm-images-stage:
 		${OSRELEASE}-${FS}.${VMFORMAT}.xz
 .  endfor
 . endfor
+. if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE)
+.  for CW in ${CLOUDWARE}
+.   if ${CW} == BASIC-CLOUDINIT
+.    for VMFORMAT in ${${CW}_FORMAT}
+.     for FS in ${${CW}_FSLIST}
+	cd ${RELEASEDIR}/vmimages && \
+		mv ${OSRELEASE}-${CW}.${FS}.${VMFORMAT}.xz \
+		${OSRELEASE}-${CW}-${SNAP_SUFFIX}.${FS}.${VMFORMAT}.xz
+	cp -p ${RELEASEDIR}/vmimages/${OSRELEASE}-${CW}-${SNAP_SUFFIX}.${FS}.${VMFORMAT}.xz \
+		${VM_DIR}/${BUILDDATE}/${OSRELEASE}-${CW}-${SNAP_SUFFIX}.${FS}.${VMFORMAT}.xz
+	cd ${VM_DIR}/Latest && \
+		ln -s ../${BUILDDATE}/${OSRELEASE}-${CW}-${SNAP_SUFFIX}.${FS}.${VMFORMAT}.xz \
+		${OSRELEASE}-${CW}.${FS}.${VMFORMAT}.xz
+.     endfor
+.    endfor
+.   endif
+.  endfor
+. endif
 	cd ${RELEASEDIR}/vmimages && rm -f CHECKSUM.*
 . for CHECKSUM in ${CHECKSUM_FILES}
 	cd ${RELEASEDIR}/vmimages && \
@@ -220,16 +235,81 @@ vm-images-stage:
 . endif
 	mkdir -p ${VM_DIR}/Latest
 . for VMFORMAT in ${VMFORMATS}
-	cp -p ${RELEASEDIR}/vmimages/${OSRELEASE}.${VMFORMAT}.xz \
-		${VM_DIR}/Latest/${OSRELEASE}.${VMFORMAT}.xz
 .  for FS in ${VMFSLIST}
 	cp -p ${RELEASEDIR}/vmimages/${OSRELEASE}-${FS}.${VMFORMAT}.xz \
 		${VM_DIR}/Latest/${OSRELEASE}-${FS}.${VMFORMAT}.xz
 .  endfor
 . endfor
+. if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE)
+.  for CW in ${CLOUDWARE}
+.   if ${CW} == BASIC-CLOUDINIT
+.    for VMFORMAT in ${${CW}_FORMAT}
+.     for FS in ${${CW}_FSLIST}
+	cp -p ${RELEASEDIR}/vmimages/${OSRELEASE}-${CW}.${FS}.${VMFORMAT}.xz \
+		${VM_DIR}/Latest/${OSRELEASE}-${CW}.${FS}.${VMFORMAT}.xz
+.     endfor
+.    endfor
+.   endif
+.  endfor
+. endif
 . for CHECKSUM in ${CHECKSUM_FILES}
 	cp -p ${RELEASEDIR}/vmimages/CHECKSUM.${CHECKSUM} \
 		${VM_DIR}/Latest/CHECKSUM.${CHECKSUM}
+. endfor
+.endif
+
+ci-images-stage:
+	mkdir -p ${CI_DIR}
+.if defined(SNAPSHOT) && !empty(SNAPSHOT)
+. if exists(${CI_DIR}/Latest)
+	rm -rf ${CI_DIR}/Latest
+. endif
+	mkdir -p ${CI_DIR}/Latest
+	mkdir -p ${CI_DIR}/${BUILDDATE}
+. for CW in ${CLOUDWARE}
+.  if ${CW} == BASIC-CI
+.   for VMFORMAT in ${${CW}_FORMAT}
+.    for FS in ${${CW}_FSLIST}
+	cd ${RELEASEDIR}/ciimages && \
+		mv ${OSRELEASE}-${CW}-${FS}.${VMFORMAT}.xz \
+		${OSRELEASE}-${CW}-${SNAP_SUFFIX}.${FS}.${VMFORMAT}.xz
+	cp -p ${RELEASEDIR}/ciimages/${OSRELEASE}-${CW}-${SNAP_SUFFIX}.${FS}.${VMFORMAT}.xz \
+		${CI_DIR}/${BUILDDATE}/${OSRELEASE}-${CW}-${SNAP_SUFFIX}.${FS}.${VMFORMAT}.xz
+	cd ${CI_DIR}/Latest && \
+		ln -s ../${BUILDDATE}/${OSRELEASE}-${CW}-${SNAP_SUFFIX}.${FS}.${VMFORMAT}.xz \
+		${OSRELEASE}-${CW}.${FS}.${VMFORMAT}.xz
+.    endfor
+.   endfor
+.  endif
+. endfor
+	cd ${RELEASEDIR}/ciimages && rm -f CHECKSUM.*
+. for CHECKSUM in ${CHECKSUM_FILES}
+	cd ${RELEASEDIR}/ciimages && \
+		${CHECKSUM:tl} ${OSRELEASE}* > CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX}
+	cp -p ${RELEASEDIR}/ciimages/CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX} \
+		${CI_DIR}/${BUILDDATE}/CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX}
+	cd ${CI_DIR}/Latest && \
+		ln -s ../${BUILDDATE}/CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX} \
+		CHECKSUM.${CHECKSUM}
+. endfor
+.else # not snapshot
+. if exists(${CI_DIR}/Latest)
+	rm -rf ${CI_DIR}/Latest
+. endif
+	mkdir -p ${CI_DIR}/Latest
+. for CW in ${CLOUDWARE}
+.  if ${CW} == BASIC-CI
+.   for VMFORMAT in ${${CW}_FORMAT}
+.    for FS in ${${CW}_FSLIST}
+	cp -p ${RELEASEDIR}/ciimages/${OSRELEASE}-${CW}-${FS}.${VMFORMAT}.xz \
+		${CI_DIR}/Latest/${OSRELEASE}-${CW}.${FS}.${VMFORMAT}.xz
+.    endfor
+.   endfor
+.  endif
+. endfor
+. for CHECKSUM in ${CHECKSUM_FILES}
+	cp -p ${RELEASEDIR}/ciimages/CHECKSUM.${CHECKSUM} \
+		${CI_DIR}/Latest/CHECKSUM.${CHECKSUM}
 . endfor
 .endif
 

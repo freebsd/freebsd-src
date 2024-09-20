@@ -1,4 +1,3 @@
-
 PACKAGE=	yp
 PROG=	yppoll
 MAN=	yppoll.8

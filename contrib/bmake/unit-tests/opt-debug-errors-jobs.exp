@@ -7,7 +7,7 @@ echo '3   spaces'; false
 	echo '3   spaces'; false
 *** [fail-spaces] Error code 1
 
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 echo \  indented; false
   indented
 
@@ -17,7 +17,7 @@ echo \  indented; false
 	echo \  indented; false
 *** [fail-escaped-space] Error code 1
 
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 echo 'line1
 line2'; false
 line1
@@ -31,7 +31,7 @@ line2
 line2'; false
 *** [fail-newline] Error code 1
 
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 echo 'line1 line2'; false
 line1 line2
 
@@ -41,7 +41,7 @@ line1 line2
 	echo 'line1 line2'; false
 *** [fail-multiline] Error code 1
 
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 echo	'word1'							 'word2'; false
 word1 word2
 
@@ -51,7 +51,7 @@ word1 word2
 	echo	'word1'							 'word2'; false
 *** [fail-multiline-intention] Error code 1
 
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 
 *** Failed target: fail-vars
 *** In directory: <curdir>
@@ -60,5 +60,5 @@ make: stopped in unit-tests
 	=> @false c-compiler flag1 -macro="several words"
 *** [fail-vars] Error code 1
 
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 exit status 1

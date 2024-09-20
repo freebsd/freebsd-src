@@ -184,7 +184,7 @@ vegas_cb_init(struct cc_var *ccv, void *ptr)
 {
 	struct vegas *vegas_data;
 
-	INP_WLOCK_ASSERT(tptoinpcb(ccv->ccvc.tcp));
+	INP_WLOCK_ASSERT(tptoinpcb(ccv->tp));
 	if (ptr == NULL) {
 		vegas_data = malloc(sizeof(struct vegas), M_CC_MEM, M_NOWAIT);
 		if (vegas_data == NULL)

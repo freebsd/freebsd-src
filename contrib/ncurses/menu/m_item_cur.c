@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2004,2010 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -38,12 +38,12 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_item_cur.c,v 1.21 2020/12/12 00:38:02 tom Exp $")
+MODULE_ID("$Id: m_item_cur.c,v 1.22 2021/06/17 21:20:30 tom Exp $")
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnmenu  
+|   Facility      :  libnmenu
 |   Function      :  int set_current_item(MENU *menu, const ITEM *item)
-|   
+|
 |   Description   :  Make the item the current item
 |
 |   Return Values :  E_OK                - success
@@ -82,9 +82,9 @@ set_current_item(MENU *menu, ITEM *item)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnmenu  
+|   Facility      :  libnmenu
 |   Function      :  ITEM *current_item(const MENU *menu)
-|   
+|
 |   Description   :  Return the menus current item
 |
 |   Return Values :  Item pointer or NULL if failure
@@ -97,9 +97,9 @@ current_item(const MENU *menu)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnmenu  
+|   Facility      :  libnmenu
 |   Function      :  int item_index(const ITEM *)
-|   
+|
 |   Description   :  Return the logical index of this item.
 |
 |   Return Values :  The index or ERR if this is an invalid item pointer

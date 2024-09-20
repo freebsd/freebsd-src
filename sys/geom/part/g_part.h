@@ -103,6 +103,7 @@ enum g_part_alias {
 	G_PART_ALIAS_SOLARIS_HOME,	/* A Solaris /home partition entry. */
 	G_PART_ALIAS_SOLARIS_ALTSEC,	/* A Solaris alternate sector partition entry. */
 	G_PART_ALIAS_SOLARIS_RESERVED,	/* A Solaris reserved partition entry. */
+	G_PART_ALIAS_U_BOOT_ENV,	/* A U-Boot environment partition entry. */
 	G_PART_ALIAS_VMFS,		/* A VMware VMFS partition entry */
 	G_PART_ALIAS_VMKDIAG,		/* A VMware vmkDiagnostic partition entry */
 	G_PART_ALIAS_VMRESERVED,	/* A VMware reserved partition entry */

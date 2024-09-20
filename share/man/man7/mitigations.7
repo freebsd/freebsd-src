@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 1, 2024
+.Dd July 23, 2024
 .Dt MITIGATIONS 7
 .Os
 .Sh NAME
@@ -275,6 +275,8 @@ headers.
 .Fx
 world builds can set
 .Va FORTIFY_SOURCE
+in the environment or
+.Pa /etc/src-env.conf
 to provide a default value for
 .Va _FORTIFY_SOURCE .
 When enabled,

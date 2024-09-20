@@ -1,4 +1,3 @@
-
 TESTPGM?=TestProgramNotSpecifed
 
 all:

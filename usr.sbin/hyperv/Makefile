@@ -1,4 +1,3 @@
-
 .include <bsd.own.mk>
 
 SUBDIR= \

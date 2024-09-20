@@ -1,4 +1,3 @@
-
 PROG_CXX=	clang-format
 MAN=
 

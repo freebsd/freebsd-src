@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020-2021,2024 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -91,14 +91,14 @@
 #include <transform.h>
 #include <tty_settings.h>
 
-#if HAVE_GETTTYNAM && HAVE_TTYENT_H
+#if HAVE_GETTTYNAM
 #include <ttyent.h>
 #endif
 #ifdef NeXT
 char *ttyname(int fd);
 #endif
 
-MODULE_ID("$Id: tset.c,v 1.125 2020/09/05 22:54:47 tom Exp $")
+MODULE_ID("$Id: tset.c,v 1.135 2024/04/20 22:20:41 tom Exp $")
 
 #ifndef environ
 extern char **environ;
@@ -108,7 +108,7 @@ const char *_nc_progname = "tset";
 
 #define LOWERCASE(c) ((isalpha(UChar(c)) && isupper(UChar(c))) ? tolower(UChar(c)) : (c))
 
-static void exit_error(void) GCC_NORETURN;
+static GCC_NORETURN void exit_error(void);
 
 static int
 CaselessCmp(const char *a, const char *b)
@@ -122,7 +122,7 @@ CaselessCmp(const char *a, const char *b)
     return LOWERCASE(*a) - LOWERCASE(*b);
 }
 
-static void
+static GCC_NORETURN void
 exit_error(void)
 {
     restore_tty_settings();
@@ -132,7 +132,7 @@ exit_error(void)
     /* NOTREACHED */
 }
 
-static void
+static GCC_NORETURN void
 err(const char *fmt, ...)
 {
     va_list ap;
@@ -144,7 +144,7 @@ err(const char *fmt, ...)
     /* NOTREACHED */
 }
 
-static void
+static GCC_NORETURN void
 failed(const char *msg)
 {
     char temp[BUFSIZ];
@@ -167,7 +167,6 @@ static const char *
 askuser(const char *dflt)
 {
     static char answer[256];
-    char *p;
 
     /* We can get recalled; if so, don't continue uselessly. */
     clearerr(stdin);
@@ -176,7 +175,10 @@ askuser(const char *dflt)
 	exit_error();
 	/* NOTREACHED */
     }
+
     for (;;) {
+	char *p;
+
 	if (dflt)
 	    (void) fprintf(stderr, "Terminal type? [%s] ", dflt);
 	else
@@ -543,12 +545,14 @@ get_termcap_entry(int fd, char *userarg)
     int errret;
     char *p;
     const char *ttype;
+#if HAVE_PATH_TTYS
 #if HAVE_GETTTYNAM
     struct ttyent *t;
 #else
     FILE *fp;
 #endif
     char *ttypath;
+#endif /* HAVE_PATH_TTYS */
 
     (void) fd;
 
@@ -561,6 +565,7 @@ get_termcap_entry(int fd, char *userarg)
     if ((ttype = getenv("TERM")) != 0)
 	goto map;
 
+#if HAVE_PATH_TTYS
     if ((ttypath = ttyname(fd)) != 0) {
 	p = _nc_basename(ttypath);
 #if HAVE_GETTTYNAM
@@ -598,6 +603,7 @@ get_termcap_entry(int fd, char *userarg)
 	}
 #endif /* HAVE_GETTTYNAM */
     }
+#endif /* HAVE_PATH_TTYS */
 
     /* If still undefined, use "unknown". */
     ttype = "unknown";
@@ -773,7 +779,7 @@ main(int argc, char **argv)
     bool opt_w = FALSE;		/* set window-size */
     TTY mode, oldmode;
 
-    my_fd = STDERR_FILENO;
+    _nc_progname = _nc_rootname(*argv);
     obsolete(argv);
     noinit = noset = quiet = Sflag = sflag = showterm = 0;
     while ((ch = getopt(argc, argv, "a:cd:e:Ii:k:m:p:qQrSsVw")) != -1) {
@@ -832,7 +838,6 @@ main(int argc, char **argv)
 	}
     }
 
-    _nc_progname = _nc_rootname(*argv);
     argc -= optind;
     argv += optind;
 
@@ -854,7 +859,7 @@ main(int argc, char **argv)
 
     if (same_program(_nc_progname, PROG_RESET)) {
 	reset_start(stderr, TRUE, FALSE);
-	reset_tty_settings(my_fd, &mode);
+	reset_tty_settings(my_fd, &mode, noset);
     } else {
 	reset_start(stderr, FALSE, TRUE);
     }
@@ -864,7 +869,11 @@ main(int argc, char **argv)
     if (!noset) {
 #if HAVE_SIZECHANGE
 	if (opt_w) {
-	    set_window_size(my_fd, &lines, &columns);
+	    NCURSES_INT2 my_rows = lines;
+	    NCURSES_INT2 my_cols = columns;
+	    set_window_size(my_fd, &my_rows, &my_cols);
+	    lines = my_rows;
+	    columns = my_cols;
 	}
 #endif
 	if (opt_c) {
@@ -873,9 +882,13 @@ main(int argc, char **argv)
 
 	    if (!noinit) {
 		if (send_init_strings(my_fd, &oldmode)) {
+		    const char *name;
+
 		    (void) putc('\r', stderr);
 		    (void) fflush(stderr);
-		    (void) napms(1000);		/* Settle the terminal. */
+		    if (IsRealTty(my_fd, name)) {
+			(void) napms(1000);	/* Settle the terminal. */
+		    }
 		}
 	    }
 

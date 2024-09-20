@@ -1,4 +1,3 @@
-
 PACKAGE=	tests
 
 TESTSDIR=	${TESTSBASE}/usr.bin/bmake/suffixes/src_wild2

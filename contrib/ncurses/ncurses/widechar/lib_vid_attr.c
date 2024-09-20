@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2018-2020,2023 Thomas E. Dickey                                *
  * Copyright 2002-2014,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -37,7 +37,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_vid_attr.c,v 1.30 2020/05/27 23:54:31 tom Exp $")
+MODULE_ID("$Id: lib_vid_attr.c,v 1.31 2023/04/28 20:59:34 tom Exp $")
 
 #define doPut(mode) \
 	TPUTS_TRACE(#mode); \
@@ -181,6 +181,7 @@ NCURSES_SP_NAME(vid_puts) (NCURSES_SP_DCLx
 		    TurnOff(A_ITALIC, exit_italics_mode);
 		}
 #endif
+		(void) turn_off;
 	    }
 	    previous_attr &= ALL_BUT_COLOR;
 	    previous_pair = 0;
@@ -212,6 +213,7 @@ NCURSES_SP_NAME(vid_puts) (NCURSES_SP_DCLx
 	    } else if (turn_off & A_ITALIC) {
 		TurnOff(A_ITALIC, exit_italics_mode);
 	    }
+	    (void) turn_off;
 	}
 #endif
 	SetColorsIf((color_pair != 0) || fix_pair0, previous_attr, previous_pair);

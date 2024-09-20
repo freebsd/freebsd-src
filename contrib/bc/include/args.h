@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2024 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -54,7 +54,7 @@
  *                    any.
  */
 void
-bc_args(int argc, char* argv[], bool exit_exprs, BcBigDig* scale,
+bc_args(int argc, const char* argv[], bool exit_exprs, BcBigDig* scale,
         BcBigDig* ibase, BcBigDig* obase);
 
 #if BC_ENABLED

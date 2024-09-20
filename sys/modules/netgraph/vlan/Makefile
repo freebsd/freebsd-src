@@ -1,4 +1,3 @@
-
 KMOD=	ng_vlan
 SRCS=	ng_vlan.c
 

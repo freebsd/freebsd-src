@@ -353,9 +353,8 @@ static inline ssize_t
 simple_read_from_buffer(void __user *dest, size_t read_size, loff_t *ppos,
     void *orig, size_t buf_size)
 {
-	void *read_pos = ((char *) orig) + *ppos;
+	void *p, *read_pos = ((char *) orig) + *ppos;
 	size_t buf_remain = buf_size - *ppos;
-	ssize_t num_read;
 
 	if (buf_remain < 0 || buf_remain > buf_size)
 		return -EINVAL;
@@ -363,18 +362,23 @@ simple_read_from_buffer(void __user *dest, size_t read_size, loff_t *ppos,
 	if (read_size > buf_remain)
 		read_size = buf_remain;
 
-	/* copy_to_user returns number of bytes NOT read */
-	num_read = read_size - copy_to_user(dest, read_pos, read_size);
-	if (num_read == 0)
-		return -EFAULT;
-	*ppos += num_read;
+	/*
+	 * XXX At time of commit only debugfs consumers could be
+	 * identified.  If others will use this function we may
+	 * have to revise this: normally we would call copy_to_user()
+	 * here but lindebugfs will return the result and the
+	 * copyout is done elsewhere for us.
+	 */
+	p = memcpy(dest, read_pos, read_size);
+	if (p != NULL)
+		*ppos += read_size;
 
-	return (num_read);
+	return (read_size);
 }
 
 MALLOC_DECLARE(M_LSATTR);
 
-#define DEFINE_SIMPLE_ATTRIBUTE(__fops, __get, __set, __fmt)		\
+#define	__DEFINE_SIMPLE_ATTRIBUTE(__fops, __get, __set, __fmt, __wrfunc)\
 static inline int							\
 __fops ## _open(struct inode *inode, struct file *filp)			\
 {									\
@@ -385,9 +389,14 @@ static const struct file_operations __fops = {				\
 	.open	 = __fops ## _open,					\
 	.release = simple_attr_release,					\
 	.read	 = simple_attr_read,					\
-	.write	 = simple_attr_write,					\
+	.write	 = __wrfunc,						\
 	.llseek	 = no_llseek						\
 }
+
+#define	DEFINE_SIMPLE_ATTRIBUTE(fops, get, set, fmt)			\
+	__DEFINE_SIMPLE_ATTRIBUTE(fops, get, set, fmt, simple_attr_write)
+#define	DEFINE_SIMPLE_ATTRIBUTE_SIGNED(fops, get, set, fmt)		\
+	__DEFINE_SIMPLE_ATTRIBUTE(fops, get, set, fmt, simple_attr_write_signed)
 
 int simple_attr_open(struct inode *inode, struct file *filp,
     int (*get)(void *, uint64_t *), int (*set)(void *, uint64_t),
@@ -398,5 +407,8 @@ int simple_attr_release(struct inode *inode, struct file *filp);
 ssize_t simple_attr_read(struct file *filp, char *buf, size_t read_size, loff_t *ppos);
 
 ssize_t simple_attr_write(struct file *filp, const char *buf, size_t write_size, loff_t *ppos);
+
+ssize_t simple_attr_write_signed(struct file *filp, const char *buf,
+	    size_t write_size, loff_t *ppos);
 
 #endif /* _LINUXKPI_LINUX_FS_H_ */

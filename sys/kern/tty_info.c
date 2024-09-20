@@ -369,12 +369,8 @@ tty_info(struct tty *tp)
 	kstacks_val = atomic_load_int(&tty_info_kstacks);
 	print_kstacks = (kstacks_val != STACK_SBUF_FMT_NONE);
 
-	if (print_kstacks) {
-		if (TD_IS_SWAPPED(td))
-			sterr = ENOENT;
-		else
-			sterr = stack_save_td(&stack, td);
-	}
+	if (print_kstacks)
+		sterr = stack_save_td(&stack, td);
 #endif
 	thread_unlock(td);
 	if (p->p_state == PRS_NEW || p->p_state == PRS_ZOMBIE)

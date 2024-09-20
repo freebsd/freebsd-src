@@ -50,6 +50,7 @@ mkdir $TMPDIR
 chmod 0777 $TMPDIR
 
 p=$((`sysctl -n hw.ncpu`+ 1))
+[ $p -gt 16 ] && p=16  # Arbitrary cap
 [ `sysctl -n vm.swap_total` -gt 0 ] && p=$((p * 4))
 p=`jot -r 1 1 $p`
 echo "make -i -j $p buildworld  DESTDIR=$mntpoint TARGET=amd64 "\

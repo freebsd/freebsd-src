@@ -51,7 +51,7 @@ basic_body()
 
 	vnet_mkjail alcatraz ${epair}b
 	jexec alcatraz ifconfig ${epair}b 192.0.2.1/24 up
-	jexec alcatraz /usr/sbin/inetd -p inetd-alcatraz.pid \
+	jexec alcatraz /usr/sbin/inetd -p ${PWD}/inetd-alcatraz.pid \
 	    $(atf_get_srcdir)/echo_inetd.conf
 
 	ifconfig ${epair}a 192.0.2.2/24 up
@@ -81,7 +81,7 @@ basic_body()
 
 basic_cleanup()
 {
-	rm -f inetd-alcatraz.pid
+	rm -f ${PWD}/inetd-alcatraz.pid
 	pft_cleanup
 }
 
@@ -100,7 +100,7 @@ basic_v6_body()
 
 	vnet_mkjail alcatraz ${epair}b
 	jexec alcatraz ifconfig ${epair}b inet6 2001:db8::1/64 up no_dad
-	jexec alcatraz /usr/sbin/inetd -p inetd-alcatraz.pid \
+	jexec alcatraz /usr/sbin/inetd -p ${PWD}/inetd-alcatraz.pid \
 	    $(atf_get_srcdir)/echo_inetd.conf
 
 	ifconfig ${epair}a inet6 2001:db8::2/64 up no_dad
@@ -130,7 +130,6 @@ basic_v6_body()
 
 basic_v6_cleanup()
 {
-	rm -f inetd-alcatraz.pid
 	pft_cleanup
 }
 
@@ -157,7 +156,7 @@ forward_body()
 
 	jexec srv ifconfig ${epair_out}b 198.51.100.2/24 up
 	jexec srv route add default 198.51.100.1
-	jexec srv /usr/sbin/inetd -p inetd-alcatraz.pid \
+	jexec srv /usr/sbin/inetd -p ${PWD}/inetd-alcatraz.pid \
 	    $(atf_get_srcdir)/echo_inetd.conf
 
 	ifconfig ${epair_in}a 192.0.2.2/24 up
@@ -181,7 +180,6 @@ forward_body()
 
 forward_cleanup()
 {
-	rm -f inetd-alcatraz.pid
 	pft_cleanup
 }
 
@@ -208,7 +206,7 @@ forward_v6_body()
 
 	jexec srv ifconfig ${epair_out}b inet6 2001:db8:1::2/64 up no_dad
 	jexec srv route -6 add default 2001:db8:1::1
-	jexec srv /usr/sbin/inetd -p inetd-alcatraz.pid \
+	jexec srv /usr/sbin/inetd -p ${PWD}/inetd-alcatraz.pid \
 	    $(atf_get_srcdir)/echo_inetd.conf
 
 	ifconfig ${epair_in}a inet6 2001:db8::2/64 up no_dad
@@ -232,7 +230,6 @@ forward_v6_body()
 
 forward_v6_cleanup()
 {
-	rm -f inetd-alcatraz.pid
 	pft_cleanup
 }
 
@@ -440,7 +437,7 @@ port_reuse_body()
 	vnet_mkjail alcatraz ${epair}b
 	vnet_mkjail singsing
 	jexec alcatraz ifconfig ${epair}b 192.0.2.1/24 up
-	jexec alcatraz /usr/sbin/inetd -p ${HOME}/inetd-alcatraz.pid \
+	jexec alcatraz /usr/sbin/inetd -p ${PWD}/inetd-alcatraz.pid \
 	    $(atf_get_srcdir)/echo_inetd.conf
 
 	ifconfig ${epair}a 192.0.2.2/24 up

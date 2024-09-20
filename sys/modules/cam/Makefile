@@ -1,4 +1,3 @@
-
 S=	${SRCTOP}/sys
 
 .PATH: $S/cam $S/cam/scsi $S/cam/ata $S/cam/nvme $S/dev/nvme

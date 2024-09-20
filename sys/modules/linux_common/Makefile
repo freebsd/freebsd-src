@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/compat/linux
 .if ${MACHINE_CPUARCH} == "amd64"
 .PATH: ${SRCTOP}/sys/x86/linux

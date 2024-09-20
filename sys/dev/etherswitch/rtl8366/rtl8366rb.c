@@ -134,7 +134,7 @@ rtl8366rb_identify(driver_t *driver, device_t parent)
 	struct iicbus_ivar *devi;
 
 	if (device_find_child(parent, "rtl8366rb", -1) == NULL) {
-		child = BUS_ADD_CHILD(parent, 0, "rtl8366rb", -1);
+		child = BUS_ADD_CHILD(parent, 0, "rtl8366rb", DEVICE_UNIT_ANY);
 		devi = IICBUS_IVAR(child);
 		devi->addr = RTL8366_IIC_ADDR;
 	}
@@ -238,12 +238,6 @@ rtl8366rb_attach(device_t dev)
 	/* PHYs need an interface, so we generate a dummy one */
 	for (i = 0; i < sc->numphys; i++) {
 		sc->ifp[i] = if_alloc(IFT_ETHER);
-		if (sc->ifp[i] == NULL) {
-			device_printf(dev, "couldn't allocate ifnet structure\n");
-			err = ENOMEM;
-			break;
-		}
-
 		if_setsoftc(sc->ifp[i], sc);
 		if_setflagbits(sc->ifp[i], IFF_UP | IFF_BROADCAST | IFF_DRV_RUNNING
 			| IFF_SIMPLEX, 0);

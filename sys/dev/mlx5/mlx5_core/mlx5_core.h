@@ -163,4 +163,14 @@ enum {
 u8 mlx5_get_nic_state(struct mlx5_core_dev *dev);
 void mlx5_set_nic_state(struct mlx5_core_dev *dev, u8 state);
 
+/************************************************ TESTTEST********************************************/
+static inline int mlx5_init_fs(struct mlx5_core_dev *dev)
+{
+	return 0;
+}
+
+static inline int mlx5_cleanup_fs(struct mlx5_core_dev *dev)
+{
+	return 0;
+}
 #endif /* __MLX5_CORE_H__ */

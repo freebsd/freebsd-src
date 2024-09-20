@@ -1,4 +1,3 @@
-
 PROG =	rpc.rwalld
 SRCS =	rwalld.c
 MAN =	rpc.rwalld.8

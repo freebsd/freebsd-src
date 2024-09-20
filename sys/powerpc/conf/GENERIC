@@ -174,12 +174,15 @@ device		uhci		# UHCI PCI->USB interface
 device		ohci		# OHCI PCI->USB interface
 device		ehci		# EHCI PCI->USB interface
 device		usb		# USB Bus (required)
+device		usbhid		# USB HID Transport
 device		uhid		# "Human Interface Devices"
-device		ukbd		# Keyboard
+device		hkbd		# HID Keyboard
+device		ukbd		# USB Keyboard
 options 	KBD_INSTALL_CDEV # install a CDEV entry in /dev
 device		ulpt		# Printer
 device		umass		# Disks/Mass storage - Requires scbus and da0
-device		ums		# Mouse
+device		hms		# HID Mouse
+device		ums		# USB Mouse
 device		atp		# Apple USB touchpad
 device		urio		# Diamond Rio 500 MP3 player
 # USB Ethernet
@@ -235,3 +238,4 @@ device		virtio_balloon		# VirtIO Memory Balloon device
 # HID support
 options 	HID_DEBUG		# enable debug msgs
 device		hid			# Generic HID support
+device		hidbus			# Generic HID Bus

@@ -1,4 +1,3 @@
-
 PROG=	w
 SRCS=	fmt.c pr_time.c proc_compare.c w.c
 MAN=	w.1 uptime.1

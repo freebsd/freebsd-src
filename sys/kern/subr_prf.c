@@ -904,7 +904,7 @@ handle_sign:
 			else if (hflag)
 				num = (short)va_arg(ap, int);
 			else if (cflag)
-				num = (char)va_arg(ap, int);
+				num = (signed char)va_arg(ap, int);
 			else
 				num = va_arg(ap, int);
 number:

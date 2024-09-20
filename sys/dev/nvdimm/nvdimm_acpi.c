@@ -109,7 +109,7 @@ nvdimm_root_create_devs(device_t dev, ACPI_TABLE_NFIT *nfitbl)
 		if (dimm_handle == NULL)
 			continue;
 
-		child = BUS_ADD_CHILD(dev, 100, "nvdimm", -1);
+		child = BUS_ADD_CHILD(dev, 100, "nvdimm", DEVICE_UNIT_ANY);
 		if (child == NULL) {
 			device_printf(dev, "failed to create nvdimm\n");
 			return (ENXIO);

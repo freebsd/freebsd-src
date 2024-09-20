@@ -93,13 +93,9 @@ static int	looutput(struct ifnet *ifp, struct mbuf *m,
 		    const struct sockaddr *dst, struct route *ro);
 
 VNET_DEFINE(struct ifnet *, loif);	/* Used externally */
-
-#ifdef VIMAGE
 VNET_DEFINE_STATIC(struct if_clone *, lo_cloner);
 #define	V_lo_cloner		VNET(lo_cloner)
-#endif
 
-static struct if_clone *lo_cloner;
 static const char loname[] = "lo";
 
 static int
@@ -127,9 +123,6 @@ lo_clone_create(struct if_clone *ifc, char *name, size_t len,
 	struct ifnet *ifp;
 
 	ifp = if_alloc(IFT_LOOP);
-	if (ifp == NULL)
-		return (ENOSPC);
-
 	if_initname(ifp, loname, ifd->unit);
 	ifp->if_mtu = LOMTU;
 	ifp->if_flags = IFF_LOOPBACK | IFF_MULTICAST;
@@ -141,8 +134,6 @@ lo_clone_create(struct if_clone *ifc, char *name, size_t len,
 	ifp->if_hwassist = LO_CSUM_FEATURES | LO_CSUM_FEATURES6;
 	if_attach(ifp);
 	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));
-	if (V_loif == NULL)
-		V_loif = ifp;
 	*ifpp = ifp;
 
 	return (0);
@@ -156,12 +147,9 @@ vnet_loif_init(const void *unused __unused)
 		.destroy_f = lo_clone_destroy,
 		.flags = IFC_F_AUTOUNIT,
 	};
-	lo_cloner = ifc_attach_cloner(loname, &req);
-#ifdef VIMAGE
-	V_lo_cloner = lo_cloner;
-#endif
+	V_lo_cloner = ifc_attach_cloner(loname, &req);
 	struct ifc_data ifd = { .unit = 0 };
-	ifc_create_ifp(loname, &ifd, NULL);
+	ifc_create_ifp(loname, &ifd, &V_loif);
 }
 VNET_SYSINIT(vnet_loif_init, SI_SUB_PSEUDO, SI_ORDER_ANY,
     vnet_loif_init, NULL);

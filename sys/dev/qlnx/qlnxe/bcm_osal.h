@@ -102,24 +102,6 @@ extern void qlnx_vf_flr_update(void *p_hwfn);
 
 #ifndef QLNX_RDMA
 
-static __inline unsigned long
-roundup_pow_of_two(unsigned long x)
-{
-	return (1UL << flsl(x - 1));
-}
-
-static __inline int
-is_power_of_2(unsigned long n)
-{
-	return (n == roundup_pow_of_two(n));
-}
-
-static __inline unsigned long
-rounddown_pow_of_two(unsigned long x)
-{
-	return (1UL << (flsl(x) - 1));
-}
-
 #define max_t(type, val1, val2) \
 	((type)(val1) > (type)(val2) ? (type)(val1) : (val2))
 #define min_t(type, val1, val2) \

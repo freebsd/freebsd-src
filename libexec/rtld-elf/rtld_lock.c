@@ -463,6 +463,7 @@ _rtld_atfork_pre(int *locks)
 
 	if (locks == NULL)
 		return;
+	bzero(ls, sizeof(ls));
 
 	/*
 	 * Warning: this did not worked well with the rtld compat
@@ -472,7 +473,8 @@ _rtld_atfork_pre(int *locks)
 	 * _rtld_atfork_pre() must provide the working implementation
 	 * of the locks anyway, and libthr locks are fine.
 	 */
-	wlock_acquire(rtld_phdr_lock, &ls[0]);
+	if (ld_get_env_var(LD_NO_DL_ITERATE_PHDR_AFTER_FORK) == NULL)
+		wlock_acquire(rtld_phdr_lock, &ls[0]);
 	wlock_acquire(rtld_bind_lock, &ls[1]);
 
 	/* XXXKIB: I am really sorry for this. */
@@ -492,5 +494,6 @@ _rtld_atfork_post(int *locks)
 	ls[0].lockstate = locks[2];
 	ls[1].lockstate = locks[0];
 	lock_release(rtld_bind_lock, &ls[1]);
-	lock_release(rtld_phdr_lock, &ls[0]);
+	if (ld_get_env_var(LD_NO_DL_ITERATE_PHDR_AFTER_FORK) == NULL)
+		lock_release(rtld_phdr_lock, &ls[0]);
 }

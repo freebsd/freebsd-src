@@ -1,4 +1,3 @@
-
 PACKAGE=	tests
 
 ATF_TESTS_SH=	tail_test

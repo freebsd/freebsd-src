@@ -254,8 +254,6 @@
             ..
             FreeBSD_version
             ..
-            IPv6
-            ..
             bhyve
             ..
             bootforth

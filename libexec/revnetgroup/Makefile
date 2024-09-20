@@ -1,4 +1,3 @@
-
 PROG=	revnetgroup
 SRCS=	revnetgroup.c hash.c parse_netgroup.c
 

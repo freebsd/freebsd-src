@@ -10,7 +10,7 @@ sinclude(dnscrypt/dnscrypt.m4)
 
 # must be numbers. ac_defun because of later processing
 m4_define([VERSION_MAJOR],[1])
-m4_define([VERSION_MINOR],[20])
+m4_define([VERSION_MINOR],[21])
 m4_define([VERSION_MICRO],[0])
 AC_INIT([unbound],m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]),[unbound-bugs@nlnetlabs.nl or https://github.com/NLnetLabs/unbound/issues],[unbound])
 AC_SUBST(UNBOUND_VERSION_MAJOR, [VERSION_MAJOR])
@@ -18,7 +18,7 @@ AC_SUBST(UNBOUND_VERSION_MINOR, [VERSION_MINOR])
 AC_SUBST(UNBOUND_VERSION_MICRO, [VERSION_MICRO])
 
 LIBUNBOUND_CURRENT=9
-LIBUNBOUND_REVISION=27
+LIBUNBOUND_REVISION=28
 LIBUNBOUND_AGE=1
 # 1.0.0 had 0:12:0
 # 1.0.1 had 0:13:0
@@ -113,6 +113,7 @@ LIBUNBOUND_AGE=1
 # 1.19.2 had 9:25:1
 # 1.19.3 had 9:26:1
 # 1.20.0 had 9:27:1
+# 1.21.0 had 9:28:1
 
 #   Current  -- the number of the binary API that we're implementing
 #   Revision -- which iteration of the implementation of the binary
@@ -338,6 +339,8 @@ AC_MSG_RESULT($ac_cv_c_weak_attribute)
 if test $ac_cv_c_weak_attribute = yes; then
   AC_DEFINE(HAVE_ATTR_WEAK, 1, [Whether the C compiler accepts the "weak" attribute])
   AC_DEFINE(ATTR_WEAK, [__attribute__((weak))], [apply the weak attribute to a symbol])
+else
+  AC_DEFINE(ATTR_WEAK,[], [apply the weak attribute to a symbol])
 fi
 ])dnl End of CHECK_WEAK_ATTRIBUTE
 
@@ -359,10 +362,53 @@ AC_MSG_RESULT($ac_cv_c_noreturn_attribute)
 if test $ac_cv_c_noreturn_attribute = yes; then
   AC_DEFINE(HAVE_ATTR_NORETURN, 1, [Whether the C compiler accepts the "noreturn" attribute])
   AC_DEFINE(ATTR_NORETURN, [__attribute__((__noreturn__))], [apply the noreturn attribute to a function that exits the program])
+else
+  AC_DEFINE(ATTR_NORETURN,[], [apply the noreturn attribute to a function that exits the program])
 fi
 ])dnl End of CHECK_NORETURN_ATTRIBUTE
 
 CHECK_NORETURN_ATTRIBUTE
+
+AC_DEFUN([CHECK_FALLTHROUGH_ATTRIBUTE],
+[AC_REQUIRE([AC_PROG_CC])
+AC_MSG_CHECKING(whether the C compiler (${CC-cc}) accepts the "fallthrough" attribute)
+BAKCFLAGS="$CFLAGS"
+CFLAGS="$CFLAGS -Werror"
+AC_CACHE_VAL(ac_cv_c_fallthrough_attribute,
+[ac_cv_c_fallthrough_attribute=no
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[ #include <stdio.h>
+void f(int x) {
+	int y = 0;
+	switch(x) {
+	case 1:
+		y = 1;
+		__attribute__((fallthrough));
+		/* fallthrough */
+	case 2:
+		y++;
+		break;
+	case 3:
+		y = 3;
+		break;
+	}
+	printf("%d", y);
+}
+]], [[
+   f(1);
+]])],[ac_cv_c_fallthrough_attribute="yes"],[ac_cv_c_fallthrough_attribute="no"])
+])
+CFLAGS="$BAKCFLAGS"
+
+AC_MSG_RESULT($ac_cv_c_fallthrough_attribute)
+if test $ac_cv_c_fallthrough_attribute = yes; then
+  AC_DEFINE(HAVE_ATTR_FALLTHROUGH, 1, [Whether the C compiler accepts the "fallthrough" attribute])
+  AC_DEFINE(ATTR_FALLTHROUGH, [__attribute__((fallthrough));], [apply the fallthrough attribute.])
+else
+  AC_DEFINE(ATTR_FALLTHROUGH,[], [apply the fallthrough attribute.])
+fi
+])dnl End of CHECK_FALLTHROUGH_ATTRIBUTE
+
+CHECK_FALLTHROUGH_ATTRIBUTE
 
 if test "$srcdir" != "."; then
 	CPPFLAGS="$CPPFLAGS -I$srcdir"
@@ -943,7 +989,7 @@ else
 	AC_MSG_RESULT([no])
 fi
 AC_CHECK_HEADERS([openssl/conf.h openssl/engine.h openssl/bn.h openssl/dh.h openssl/dsa.h openssl/rsa.h openssl/core_names.h openssl/param_build.h],,, [AC_INCLUDES_DEFAULT])
-AC_CHECK_FUNCS([OPENSSL_config EVP_sha1 EVP_sha256 EVP_sha512 FIPS_mode EVP_default_properties_is_fips_enabled EVP_MD_CTX_new OpenSSL_add_all_digests OPENSSL_init_crypto EVP_cleanup ENGINE_cleanup ERR_load_crypto_strings CRYPTO_cleanup_all_ex_data ERR_free_strings RAND_cleanup DSA_SIG_set0 EVP_dss1 EVP_DigestVerify EVP_aes_256_cbc EVP_EncryptInit_ex HMAC_Init_ex CRYPTO_THREADID_set_callback EVP_MAC_CTX_set_params OSSL_PARAM_BLD_new BIO_set_callback_ex])
+AC_CHECK_FUNCS([OPENSSL_config EVP_sha1 EVP_sha256 EVP_sha512 FIPS_mode EVP_default_properties_is_fips_enabled EVP_MD_CTX_new OpenSSL_add_all_digests OPENSSL_init_crypto EVP_cleanup ENGINE_cleanup ERR_load_crypto_strings CRYPTO_cleanup_all_ex_data ERR_free_strings RAND_cleanup DSA_SIG_set0 EVP_dss1 EVP_DigestVerify EVP_aes_256_cbc EVP_EncryptInit_ex HMAC_Init_ex CRYPTO_THREADID_set_callback EVP_MAC_CTX_set_params OSSL_PARAM_BLD_new BIO_set_callback_ex SSL_CTX_set_tmp_ecdh])
 
 # these check_funcs need -lssl
 BAKLIBS="$LIBS"
@@ -1180,8 +1226,17 @@ case "$enable_ecdsa" in
       ;;
     *)
       if test $USE_NSS = "no" -a $USE_NETTLE = "no"; then
-	      AC_CHECK_FUNC(ECDSA_sign, [], [AC_MSG_ERROR([OpenSSL does not support ECDSA: please upgrade or rerun with --disable-ecdsa])])
-	      AC_CHECK_FUNC(SHA384_Init, [], [AC_MSG_ERROR([OpenSSL does not support SHA384: please upgrade or rerun with --disable-ecdsa])])
+	      AC_CHECK_FUNC(EVP_PKEY_fromdata, [
+	          # with EVP_PKEY_fromdata, check if EC is not disabled
+	          AC_CHECK_DECL([OPENSSL_NO_EC], [AC_MSG_ERROR([OpenSSL does not support ECDSA: please upgrade or rerun with --disable-ecdsa])
+		  ], [], [AC_INCLUDES_DEFAULT
+#include <openssl/evp.h>
+		  ])
+		], [
+		  # without EVP_PKEY_fromdata, older openssl, check for support
+		  AC_CHECK_FUNC(ECDSA_sign, [], [AC_MSG_ERROR([OpenSSL does not support ECDSA: please upgrade or rerun with --disable-ecdsa])])
+		  AC_CHECK_FUNC(SHA384_Init, [], [AC_MSG_ERROR([OpenSSL does not support SHA384: please upgrade or rerun with --disable-ecdsa])])
+		])
 	      AC_CHECK_DECLS([NID_X9_62_prime256v1, NID_secp384r1], [], [AC_MSG_ERROR([OpenSSL does not support the ECDSA curves: please upgrade or rerun with --disable-ecdsa])], [AC_INCLUDES_DEFAULT
 #include <openssl/evp.h>
 	      ])
@@ -1921,15 +1976,17 @@ case "$enable_ipset" in
 		IPSET_OBJ="ipset.lo"
 		AC_SUBST(IPSET_OBJ)
 
-		# mnl
-		AC_ARG_WITH(libmnl, AS_HELP_STRING([--with-libmnl=path],[specify explicit path for libmnl.]),
+		# BSD's pf
+		AC_CHECK_HEADERS([net/pfvar.h], [], [
+		    # mnl
+		    AC_ARG_WITH(libmnl, AS_HELP_STRING([--with-libmnl=path],[specify explicit path for libmnl.]),
 			[ ],[ withval="yes" ])
-		found_libmnl="no"
-		AC_MSG_CHECKING(for libmnl)
-		if test x_$withval = x_ -o x_$withval = x_yes; then
+		    found_libmnl="no"
+		    AC_MSG_CHECKING(for libmnl)
+		    if test x_$withval = x_ -o x_$withval = x_yes; then
 			withval="/usr/local /opt/local /usr/lib /usr/pkg /usr/sfw /usr"
-		fi
-		for dir in $withval ; do
+		    fi
+		    for dir in $withval ; do
 			if test -f "$dir/include/libmnl/libmnl.h" -o -f "$dir/include/libmnl/libmnl/libmnl.h"; then
 				found_libmnl="yes"
 				dnl assume /usr is in default path.
@@ -1947,10 +2004,14 @@ case "$enable_ipset" in
 				LIBS="$LIBS -lmnl"
 				break;
 			fi
-		done
-		if test x_$found_libmnl != x_yes; then
-			AC_MSG_ERROR([Could not find libmnl, libmnl.h])
-		fi
+		    done
+		    if test x_$found_libmnl != x_yes; then
+			  AC_MSG_ERROR([Could not find libmnl, libmnl.h])
+		    fi
+		], [
+		  #include <netinet/in.h>
+		  #include <net/if.h>
+		])
 		;;
     no|*)
     	# nothing
@@ -2268,6 +2329,7 @@ struct sockaddr_storage;
 #  define calloc(n,s) unbound_stat_calloc_log(n, s, __FILE__, __LINE__, __func__)
 #  define free(p) unbound_stat_free_log(p, __FILE__, __LINE__, __func__)
 #  define realloc(p,s) unbound_stat_realloc_log(p, s, __FILE__, __LINE__, __func__)
+#  define strdup(s) unbound_stat_strdup_log(s, __FILE__, __LINE__, __func__)
 void *unbound_stat_malloc(size_t size);
 void *unbound_stat_calloc(size_t nmemb, size_t size);
 void unbound_stat_free(void *ptr);
@@ -2280,6 +2342,8 @@ void unbound_stat_free_log(void *ptr, const char* file, int line,
 	const char* func);
 void *unbound_stat_realloc_log(void *ptr, size_t size, const char* file,
 	int line, const char* func);
+char *unbound_stat_strdup_log(const char *s, const char* file, int line,
+	const char* func);
 #elif defined(UNBOUND_ALLOC_LITE)
 #  include "util/alloc.h"
 #endif /* UNBOUND_ALLOC_LITE and UNBOUND_ALLOC_STATS */

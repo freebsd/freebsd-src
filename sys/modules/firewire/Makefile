@@ -1,4 +1,3 @@
-
 SUBDIR=	firewire \
 	fwe \
 	fwip \

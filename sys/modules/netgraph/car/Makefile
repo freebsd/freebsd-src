@@ -1,4 +1,3 @@
-
 KMOD=	ng_car
 SRCS= 	ng_car.c
 

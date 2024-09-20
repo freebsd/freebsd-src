@@ -1,4 +1,3 @@
-
 PACKAGE=	vt-data
 
 .PATH:	${SRCTOP}/contrib/spleen

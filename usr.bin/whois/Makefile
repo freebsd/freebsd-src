@@ -1,4 +1,3 @@
-
 PROG=	whois
 
 .if defined(SOCKS)

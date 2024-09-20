@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2023 Thomas E. Dickey                                     *
  * Copyright 2007-2008,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -36,7 +36,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_key_name.c,v 1.5 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_key_name.c,v 1.6 2023/06/03 12:15:34 tom Exp $")
 
 #define MyData _nc_globals.key_name
 
@@ -46,17 +46,22 @@ key_name(wchar_t c)
     cchar_t my_cchar;
     wchar_t *my_wchars;
     size_t len;
+    NCURSES_CONST char *result = NULL;
 
     memset(&my_cchar, 0, sizeof(my_cchar));
     my_cchar.chars[0] = c;
     my_cchar.chars[1] = L'\0';
 
     my_wchars = wunctrl(&my_cchar);
+    /*
+     * wunctrl() could return a wide character rather than just a "printable"
+     * representation.  Check for that and return a corresponding multibyte
+     * character string.
+     */
     len = wcstombs(MyData, my_wchars, sizeof(MyData) - 1);
-    if (isEILSEQ(len) || (len == 0)) {
-	return 0;
+    if (!isEILSEQ(len) && (len != 0) && (len <= MB_LEN_MAX)) {
+	MyData[len] = '\0';
+	result = MyData;
     }
-
-    MyData[len] = '\0';
-    return MyData;
+    return result;
 }

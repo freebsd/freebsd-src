@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 CONFDIR=	/etc/rc.d

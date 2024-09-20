@@ -31,7 +31,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 30, 2023
+.Dd August 3, 2024
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -432,6 +432,17 @@ branch of the
 MIB, which can also be read or modified with
 .Xr sysctl 8 .
 .Bl -tag -width ".Va v6pmtud_blackhole_mss"
+.It Va ack_war_timewindow , ack_war_cnt
+The challenge ACK throttling algorithm defined in RFC 5961 limits
+the number of challenge ACKs sent per TCP connection to
+.Va ack_war_cnt
+during the time interval specified in milliseconds by
+.Va ack_war_timewindow .
+Setting
+.Va ack_war_timewindow
+or
+.Va ack_war_cnt
+to zero disables challenge ACK throttling.
 .It Va always_keepalive
 Assume that
 .Dv SO_KEEPALIVE
@@ -611,11 +622,6 @@ Defaults to 60 seconds.
 List of available TCP function blocks (TCP stacks).
 .It Va functions_default
 The default TCP function block (TCP stack).
-.It Va functions_inherit_listen_socket_stack
-Determines whether to inherit listen socket's TCP stack or use the current
-system default TCP stack, as defined by
-.Va functions_default .
-Default is true.
 .It Va hostcache
 The TCP host cache is used to cache connection details and metrics to
 improve future performance of connections between the same hosts.
@@ -698,6 +704,9 @@ Use criteria defined in RFC793 instead of RFC5961 for accepting RST segments.
 Default is false.
 .It Va insecure_syn
 Use criteria defined in RFC793 instead of RFC5961 for accepting SYN segments.
+Default is false.
+.It Va insecure_ack
+Use criteria defined in RFC793 for validating SEG.ACK.
 Default is false.
 .It Va isn_reseed_interval
 The interval (in seconds) specifying how often the secret data used in
@@ -1074,6 +1083,13 @@ when trying to use a TCP function block that is not available;
 .%A "D. Black"
 .%T "The Addition of Explicit Congestion Notification (ECN) to IP"
 .%O "RFC 3168"
+.Re
+.Rs
+.%A "A. Ramaiah"
+.%A "R. Stewart"
+.%A "M. Dalal"
+.%T "Improving TCP's Robustness to Blind In-Window Attacks"
+.%O "RFC 5961"
 .Re
 .Sh HISTORY
 The

@@ -7778,7 +7778,8 @@ static void auth_zone_log(uint8_t* name, enum verbosity_value level,
 static int zonemd_dnssec_verify_rrset(struct auth_zone* z,
 	struct module_env* env, struct module_stack* mods,
 	struct ub_packed_rrset_key* dnskey, struct auth_data* node,
-	struct auth_rrset* rrset, char** why_bogus, uint8_t* sigalg)
+	struct auth_rrset* rrset, char** why_bogus, uint8_t* sigalg,
+	char* reasonbuf, size_t reasonlen)
 {
 	struct ub_packed_rrset_key pk;
 	enum sec_status sec;
@@ -7808,7 +7809,7 @@ static int zonemd_dnssec_verify_rrset(struct auth_zone* z,
 			"zonemd: verify %s RRset with DNSKEY", typestr);
 	}
 	sec = dnskeyset_verify_rrset(env, ve, &pk, dnskey, sigalg, why_bogus, NULL,
-		LDNS_SECTION_ANSWER, NULL, &verified);
+		LDNS_SECTION_ANSWER, NULL, &verified, reasonbuf, reasonlen);
 	if(sec == sec_status_secure) {
 		return 1;
 	}
@@ -7851,7 +7852,8 @@ static int nsec3_of_param_has_type(struct auth_rrset* nsec3, int algo,
 static int zonemd_check_dnssec_absence(struct auth_zone* z,
 	struct module_env* env, struct module_stack* mods,
 	struct ub_packed_rrset_key* dnskey, struct auth_data* apex,
-	char** reason, char** why_bogus, uint8_t* sigalg)
+	char** reason, char** why_bogus, uint8_t* sigalg, char* reasonbuf,
+	size_t reasonlen)
 {
 	struct auth_rrset* nsec = NULL;
 	if(!apex) {
@@ -7863,7 +7865,7 @@ static int zonemd_check_dnssec_absence(struct auth_zone* z,
 		struct ub_packed_rrset_key pk;
 		/* dnssec verify the NSEC */
 		if(!zonemd_dnssec_verify_rrset(z, env, mods, dnskey, apex,
-			nsec, why_bogus, sigalg)) {
+			nsec, why_bogus, sigalg, reasonbuf, reasonlen)) {
 			*reason = "DNSSEC verify failed for NSEC RRset";
 			return 0;
 		}
@@ -7906,7 +7908,7 @@ static int zonemd_check_dnssec_absence(struct auth_zone* z,
 		}
 		/* dnssec verify the NSEC3 */
 		if(!zonemd_dnssec_verify_rrset(z, env, mods, dnskey, match,
-			nsec3, why_bogus, sigalg)) {
+			nsec3, why_bogus, sigalg, reasonbuf, reasonlen)) {
 			*reason = "DNSSEC verify failed for NSEC3 RRset";
 			return 0;
 		}
@@ -7928,7 +7930,7 @@ static int zonemd_check_dnssec_soazonemd(struct auth_zone* z,
 	struct module_env* env, struct module_stack* mods,
 	struct ub_packed_rrset_key* dnskey, struct auth_data* apex,
 	struct auth_rrset* zonemd_rrset, char** reason, char** why_bogus,
-	uint8_t* sigalg)
+	uint8_t* sigalg, char* reasonbuf, size_t reasonlen)
 {
 	struct auth_rrset* soa;
 	if(!apex) {
@@ -7941,12 +7943,12 @@ static int zonemd_check_dnssec_soazonemd(struct auth_zone* z,
 		return 0;
 	}
 	if(!zonemd_dnssec_verify_rrset(z, env, mods, dnskey, apex, soa,
-		why_bogus, sigalg)) {
+		why_bogus, sigalg, reasonbuf, reasonlen)) {
 		*reason = "DNSSEC verify failed for SOA RRset";
 		return 0;
 	}
 	if(!zonemd_dnssec_verify_rrset(z, env, mods, dnskey, apex,
-		zonemd_rrset, why_bogus, sigalg)) {
+		zonemd_rrset, why_bogus, sigalg, reasonbuf, reasonlen)) {
 		*reason = "DNSSEC verify failed for ZONEMD RRset";
 		return 0;
 	}
@@ -8014,6 +8016,7 @@ auth_zone_verify_zonemd_with_key(struct auth_zone* z, struct module_env* env,
 	struct module_stack* mods, struct ub_packed_rrset_key* dnskey,
 	int is_insecure, char** result, uint8_t* sigalg)
 {
+	char reasonbuf[256];
 	char* reason = NULL, *why_bogus = NULL;
 	struct auth_data* apex = NULL;
 	struct auth_rrset* zonemd_rrset = NULL;
@@ -8042,7 +8045,8 @@ auth_zone_verify_zonemd_with_key(struct auth_zone* z, struct module_env* env,
 	} else if(!zonemd_rrset && dnskey && !is_insecure) {
 		/* fetch, DNSSEC verify, and check NSEC/NSEC3 */
 		if(!zonemd_check_dnssec_absence(z, env, mods, dnskey, apex,
-			&reason, &why_bogus, sigalg)) {
+			&reason, &why_bogus, sigalg, reasonbuf,
+			sizeof(reasonbuf))) {
 			auth_zone_zonemd_fail(z, env, reason, why_bogus, result);
 			return;
 		}
@@ -8050,7 +8054,8 @@ auth_zone_verify_zonemd_with_key(struct auth_zone* z, struct module_env* env,
 	} else if(zonemd_rrset && dnskey && !is_insecure) {
 		/* check DNSSEC verify of SOA and ZONEMD */
 		if(!zonemd_check_dnssec_soazonemd(z, env, mods, dnskey, apex,
-			zonemd_rrset, &reason, &why_bogus, sigalg)) {
+			zonemd_rrset, &reason, &why_bogus, sigalg, reasonbuf,
+			sizeof(reasonbuf))) {
 			auth_zone_zonemd_fail(z, env, reason, why_bogus, result);
 			return;
 		}
@@ -8107,6 +8112,8 @@ auth_zone_verify_zonemd_with_key(struct auth_zone* z, struct module_env* env,
  * @param why_bogus: if the routine fails, returns the failure reason.
  * @param keystorage: where to store the ub_packed_rrset_key that is created
  * 	on success. A pointer to it is returned on success.
+ * @param reasonbuf: buffer to use for fail reason string print.
+ * @param reasonlen: length of reasonbuf.
  * @return the dnskey RRset, reference to zone data and keystorage, or
  * 	NULL on failure.
  */
@@ -8114,7 +8121,8 @@ static struct ub_packed_rrset_key*
 zonemd_get_dnskey_from_anchor(struct auth_zone* z, struct module_env* env,
 	struct module_stack* mods, struct trust_anchor* anchor,
 	int* is_insecure, char** why_bogus,
-	struct ub_packed_rrset_key* keystorage)
+	struct ub_packed_rrset_key* keystorage, char* reasonbuf,
+	size_t reasonlen)
 {
 	struct auth_data* apex;
 	struct auth_rrset* dnskey_rrset;
@@ -8150,7 +8158,8 @@ zonemd_get_dnskey_from_anchor(struct auth_zone* z, struct module_env* env,
 	auth_zone_log(z->name, VERB_QUERY,
 		"zonemd: verify DNSKEY RRset with trust anchor");
 	sec = val_verify_DNSKEY_with_TA(env, ve, keystorage, anchor->ds_rrset,
-		anchor->dnskey_rrset, NULL, why_bogus, NULL, NULL);
+		anchor->dnskey_rrset, NULL, why_bogus, NULL, NULL, reasonbuf,
+		reasonlen);
 	regional_free_all(env->scratch);
 	if(sec == sec_status_secure) {
 		/* success */
@@ -8173,7 +8182,8 @@ static struct ub_packed_rrset_key*
 auth_zone_verify_zonemd_key_with_ds(struct auth_zone* z,
 	struct module_env* env, struct module_stack* mods,
 	struct ub_packed_rrset_key* ds, int* is_insecure, char** why_bogus,
-	struct ub_packed_rrset_key* keystorage, uint8_t* sigalg)
+	struct ub_packed_rrset_key* keystorage, uint8_t* sigalg,
+	char* reasonbuf, size_t reasonlen)
 {
 	struct auth_data* apex;
 	struct auth_rrset* dnskey_rrset;
@@ -8209,7 +8219,7 @@ auth_zone_verify_zonemd_key_with_ds(struct auth_zone* z,
 	keystorage->rk.rrset_class = htons(z->dclass);
 	auth_zone_log(z->name, VERB_QUERY, "zonemd: verify zone DNSKEY with DS");
 	sec = val_verify_DNSKEY_with_DS(env, ve, keystorage, ds, sigalg,
-		why_bogus, NULL, NULL);
+		why_bogus, NULL, NULL, reasonbuf, reasonlen);
 	regional_free_all(env->scratch);
 	if(sec == sec_status_secure) {
 		/* success */
@@ -8235,6 +8245,7 @@ void auth_zonemd_dnskey_lookup_callback(void* arg, int rcode, sldns_buffer* buf,
 {
 	struct auth_zone* z = (struct auth_zone*)arg;
 	struct module_env* env;
+	char reasonbuf[256];
 	char* reason = NULL, *ds_bogus = NULL, *typestr="DNSKEY";
 	struct ub_packed_rrset_key* dnskey = NULL, *ds = NULL;
 	int is_insecure = 0, downprot;
@@ -8346,7 +8357,8 @@ void auth_zonemd_dnskey_lookup_callback(void* arg, int rcode, sldns_buffer* buf,
 	if(!reason && !is_insecure && !dnskey && ds) {
 		dnskey = auth_zone_verify_zonemd_key_with_ds(z, env,
 			&env->mesh->mods, ds, &is_insecure, &ds_bogus,
-			&keystorage, downprot?sigalg:NULL);
+			&keystorage, downprot?sigalg:NULL, reasonbuf,
+			sizeof(reasonbuf));
 		if(!dnskey && !is_insecure && !reason)
 			reason = "DNSKEY verify with DS failed";
 	}
@@ -8354,6 +8366,7 @@ void auth_zonemd_dnskey_lookup_callback(void* arg, int rcode, sldns_buffer* buf,
 	if(reason) {
 		auth_zone_zonemd_fail(z, env, reason, ds_bogus, NULL);
 		lock_rw_unlock(&z->lock);
+		regional_free_all(env->scratch);
 		return;
 	}
 
@@ -8438,6 +8451,7 @@ zonemd_lookup_dnskey(struct auth_zone* z, struct module_env* env)
 void auth_zone_verify_zonemd(struct auth_zone* z, struct module_env* env,
 	struct module_stack* mods, char** result, int offline, int only_online)
 {
+	char reasonbuf[256];
 	char* reason = NULL, *why_bogus = NULL;
 	struct trust_anchor* anchor = NULL;
 	struct ub_packed_rrset_key* dnskey = NULL;
@@ -8472,7 +8486,8 @@ void auth_zone_verify_zonemd(struct auth_zone* z, struct module_env* env,
 		}
 		/* equal to trustanchor, no need for online lookups */
 		dnskey = zonemd_get_dnskey_from_anchor(z, env, mods, anchor,
-			&is_insecure, &why_bogus, &keystorage);
+			&is_insecure, &why_bogus, &keystorage, reasonbuf,
+			sizeof(reasonbuf));
 		lock_basic_unlock(&anchor->lock);
 		if(!dnskey && !reason && !is_insecure) {
 			reason = "verify DNSKEY RRset with trust anchor failed";
@@ -8498,6 +8513,7 @@ void auth_zone_verify_zonemd(struct auth_zone* z, struct module_env* env,
 
 	if(reason) {
 		auth_zone_zonemd_fail(z, env, reason, why_bogus, result);
+		regional_free_all(env->scratch);
 		return;
 	}
 

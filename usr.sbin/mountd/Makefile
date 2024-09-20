@@ -1,4 +1,3 @@
-
 PROG=	mountd
 SRCS=	mountd.c getmntopts.c
 MAN=	exports.5 netgroup.5 mountd.8

@@ -126,9 +126,6 @@ struct snd_mixer;
 
 #define SD_F_PRIO_RD		0x10000000
 #define SD_F_PRIO_WR		0x20000000
-#define SD_F_PRIO_SET		(SD_F_PRIO_RD | SD_F_PRIO_WR)
-#define SD_F_DIR_SET		0x40000000
-#define SD_F_TRANSIENT		0xf0000000
 
 #define SD_F_BITS		"\020"					\
 				"\001SIMPLEX"				\
@@ -146,8 +143,7 @@ struct snd_mixer;
 				"\015EQ_BYPASSED"			\
 				"\016EQ_PC"				\
 				"\035PRIO_RD"				\
-				"\036PRIO_WR"				\
-				"\037DIR_SET"
+				"\036PRIO_WR"
 
 #define PCM_ALIVE(x)		((x) != NULL && (x)->lock != NULL &&	\
 				 !((x)->flags & SD_F_DYING))
@@ -162,7 +158,6 @@ struct snd_mixer;
 /* many variables should be reduced to a range. Here define a macro */
 #define RANGE(var, low, high) (var) = \
 	(((var)<(low))? (low) : ((var)>(high))? (high) : (var))
-#define DSP_BUFFSIZE (8192)
 
 /* make figuring out what a format is easier. got AFMT_STEREO already */
 #define AFMT_32BIT (AFMT_S32_LE | AFMT_S32_BE | AFMT_U32_LE | AFMT_U32_BE)
@@ -242,21 +237,11 @@ enum {
 
 #define DSP_DEFAULT_SPEED	8000
 
-#define ON		1
-#define OFF		0
-
 extern int pcm_veto_load;
 extern int snd_unit;
 extern int snd_verbose;
 extern devclass_t pcm_devclass;
 extern struct unrhdr *pcmsg_unrhdr;
-
-/*
- * some macros for debugging purposes
- * DDB/DEB to enable/disable debugging stuff
- * BVDDB   to enable debugging when bootverbose
- */
-#define BVDDB(x) if (bootverbose) x
 
 #ifndef DEB
 #define DEB(x)

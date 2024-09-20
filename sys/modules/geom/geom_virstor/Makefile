@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/geom/virstor
 
 KMOD=	geom_virstor

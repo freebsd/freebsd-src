@@ -181,7 +181,7 @@ static void
 free_ddp_rcv_buffer(struct toepcb *toep, struct ddp_rcv_buffer *drb)
 {
 	t4_free_page_pods(&drb->prsv);
-	contigfree(drb->buf, drb->len, M_CXGBE);
+	free(drb->buf, M_CXGBE);
 	free(drb, M_CXGBE);
 	counter_u64_add(toep->ofld_rxq->ddp_buffer_free, 1);
 	free_toepcb(toep);
@@ -242,7 +242,7 @@ alloc_ddp_rcv_buffer(struct toepcb *toep, int how)
 
 	error = t4_alloc_page_pods_for_rcvbuf(&td->pr, drb);
 	if (error != 0) {
-		contigfree(drb->buf, drb->len, M_CXGBE);
+		free(drb->buf, M_CXGBE);
 		free(drb, M_CXGBE);
 		return (NULL);
 	}
@@ -250,7 +250,7 @@ alloc_ddp_rcv_buffer(struct toepcb *toep, int how)
 	error = t4_write_page_pods_for_rcvbuf(sc, toep->ctrlq, toep->tid, drb);
 	if (error != 0) {
 		t4_free_page_pods(&drb->prsv);
-		contigfree(drb->buf, drb->len, M_CXGBE);
+		free(drb->buf, M_CXGBE);
 		free(drb, M_CXGBE);
 		return (NULL);
 	}

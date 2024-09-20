@@ -1,6 +1,5 @@
-'\" t
 .\"***************************************************************************
-.\" Copyright 2018,2020 Thomas E. Dickey                                     *
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
 .\" Copyright 1998-2010,2015 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,32 +27,28 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_userptr.3x,v 1.16 2020/10/18 00:39:49 tom Exp $
-.TH menu_userptr 3X ""
+.\" $Id: menu_userptr.3x,v 1.33 2024/03/16 15:35:01 tom Exp $
+.TH menu_userptr 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
 \fBset_menu_userptr\fP,
-\fBmenu_userptr\fR \- associate application data with a menu item
+\fBmenu_userptr\fP \-
+associate application data with a menu item
 .SH SYNOPSIS
-\fB#include <menu.h>\fR
-.sp
-\fBint set_menu_userptr(MENU *\fP\fImenu\fP\fB, void *\fP\fIuserptr\fP\fB);\fP
-.br
-\fBvoid *menu_userptr(const MENU *\fP\fImenu\fP\fB);\fP
-.br
+.nf
+\fB#include <menu.h>
+.PP
+\fBint set_menu_userptr(MENU *\fImenu\fP, void *\fIuserptr\fP);
+\fBvoid *menu_userptr(const MENU *\fImenu\fP);
+.fi
 .SH DESCRIPTION
 Every menu and every menu item has a field that can be used to hold
 application-specific data (that is, the menu-driver code leaves it alone).
 These functions get and set the menu user pointer field.
 .SH RETURN VALUE
-\fBmenu_userptr\fR returns a pointer (which may be \fBNULL\fR).
+\fBmenu_userptr\fP returns a pointer (which may be \fBNULL\fP).
 It does not set \fBerrno\fP.
 .PP
 \fBset_menu_userptr\fP returns \fBE_OK\fP (success).
-.SH SEE ALSO
-\fBcurses\fR(3X), \fBmenu\fR(3X).
-.SH NOTES
-The header file \fB<menu.h>\fR automatically includes the header file
-\fB<curses.h>\fR.
 .SH PORTABILITY
 These routines emulate the System V menu library.
 They were not supported on
@@ -64,3 +59,6 @@ We chose not to leave it as a char pointer for SVr4 compatibility.
 .SH AUTHORS
 Juergen Pfeifer.
 Manual pages and adaptation for new curses by Eric S. Raymond.
+.SH SEE ALSO
+\fB\%curses\fP(3X),
+\fB\%menu\fP(3X)

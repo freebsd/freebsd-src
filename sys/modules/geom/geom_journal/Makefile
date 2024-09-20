@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/geom/journal
 
 KMOD=	geom_journal

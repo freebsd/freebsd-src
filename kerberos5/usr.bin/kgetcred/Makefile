@@ -1,4 +1,3 @@
-
 PACKAGE=	kerberos
 
 PROG=	kgetcred

@@ -117,11 +117,6 @@ adf_attach(device_t dev)
 	}
 	/* Allocate and configure device configuration structure */
 	hw_data = malloc(sizeof(*hw_data), M_QAT_4XXXVF, M_WAITOK | M_ZERO);
-	if (!hw_data) {
-		ret = -ENOMEM;
-		goto out_err;
-	}
-
 	accel_dev->hw_device = hw_data;
 	adf_init_hw_data_4xxxiov(accel_dev->hw_device);
 	accel_pci_dev->revid = pci_get_revid(dev);

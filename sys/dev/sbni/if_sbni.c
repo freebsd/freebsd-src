@@ -212,7 +212,7 @@ sbni_probe(struct sbni_softc *sc)
 /*
  * Install interface into kernel networking data structures
  */
-int
+void
 sbni_attach(struct sbni_softc *sc, int unit, struct sbni_flags flags)
 {
 	if_t ifp;
@@ -220,8 +220,6 @@ sbni_attach(struct sbni_softc *sc, int unit, struct sbni_flags flags)
 	uint64_t baudrate;
    
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL)
-		return (ENOMEM);
 	sbni_outb(sc, CSR0, 0);
 	set_initial_values(sc, flags);
 
@@ -250,7 +248,6 @@ sbni_attach(struct sbni_softc *sc, int unit, struct sbni_flags flags)
 		printf("auto\n");
 	else
 		printf("%d (fixed)\n", sc->cur_rxl_index);
-	return (0);
 }
 
 void

@@ -3138,6 +3138,28 @@ out:
 }
 
 /*
+ * Release a page table page reference after a failed attempt to create a
+ * mapping.
+ */
+static void
+pmap_abort_ptp(pmap_t pmap, vm_offset_t va, vm_page_t pdpg)
+{
+	struct spglist free;
+
+	SLIST_INIT(&free);
+	if (pmap_unwire_ptp(pmap, va, pdpg, &free)) {
+		/*
+		 * Although "va" is not mapped, paging-
+		 * structure caches could nonetheless have
+		 * entries that refer to the freed page table
+		 * pages.  Invalidate those entries.
+		 */
+		pmap_invalidate_page(pmap, va);
+		vm_page_free_pages_toq(&free, true);
+	}
+}
+
+/*
  * Tries to create a read- and/or execute-only 2MB page mapping.  Returns true
  * if successful.  Returns false if (1) a page table page cannot be allocated
  * without sleeping, (2) a mapping already exists at the specified virtual
@@ -3246,12 +3268,15 @@ pmap_enter_l3e(pmap_t pmap, vm_offset_t va, pml3_entry_t newpde, u_int flags,
 	uwptpg = NULL;
 	if ((newpde & PG_W) != 0 && pmap != kernel_pmap) {
 		uwptpg = vm_page_alloc_noobj(VM_ALLOC_WIRED);
-		if (uwptpg == NULL)
+		if (uwptpg == NULL) {
+			pmap_abort_ptp(pmap, va, pdpg);
 			return (KERN_RESOURCE_SHORTAGE);
+		}
 		uwptpg->pindex = pmap_l3e_pindex(va);
 		if (pmap_insert_pt_page(pmap, uwptpg)) {
 			vm_page_unwire_noq(uwptpg);
 			vm_page_free(uwptpg);
+			pmap_abort_ptp(pmap, va, pdpg);
 			return (KERN_RESOURCE_SHORTAGE);
 		}
 		pmap_resident_count_inc(pmap, 1);
@@ -3264,17 +3289,7 @@ pmap_enter_l3e(pmap_t pmap, vm_offset_t va, pml3_entry_t newpde, u_int flags,
 		 * Abort this mapping if its PV entry could not be created.
 		 */
 		if (!pmap_pv_insert_l3e(pmap, va, newpde, flags, lockp)) {
-			SLIST_INIT(&free);
-			if (pmap_unwire_ptp(pmap, va, pdpg, &free)) {
-				/*
-				 * Although "va" is not mapped, paging-
-				 * structure caches could nonetheless have
-				 * entries that refer to the freed page table
-				 * pages.  Invalidate those entries.
-				 */
-				pmap_invalidate_page(pmap, va);
-				vm_page_free_pages_toq(&free, true);
-			}
+			pmap_abort_ptp(pmap, va, pdpg);
 			if (uwptpg != NULL) {
 				mt = pmap_remove_pt_page(pmap, va);
 				KASSERT(mt == uwptpg,
@@ -3565,7 +3580,7 @@ mmu_radix_growkernel(vm_offset_t addr)
 		if ((be64toh(*l2e) & PG_V) == 0) {
 			/* We need a new PDP entry */
 			nkpg = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT |
-			    VM_ALLOC_WIRED | VM_ALLOC_ZERO);
+			    VM_ALLOC_NOFREE | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 			if (nkpg == NULL)
 				panic("pmap_growkernel: no memory to grow kernel");
 			nkpg->pindex = kernel_vm_end >> L2_PAGE_SIZE_SHIFT;
@@ -3583,8 +3598,8 @@ mmu_radix_growkernel(vm_offset_t addr)
 			continue;
 		}
 
-		nkpg = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED |
-		    VM_ALLOC_ZERO);
+		nkpg = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT |
+		    VM_ALLOC_NOFREE | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 		if (nkpg == NULL)
 			panic("pmap_growkernel: no memory to grow kernel");
 		nkpg->pindex = pmap_l3e_pindex(kernel_vm_end);

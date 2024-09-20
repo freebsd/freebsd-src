@@ -27,10 +27,7 @@
 #ifndef	_VMM_DEV_H_
 #define	_VMM_DEV_H_
 
-#ifdef _KERNEL
-void	vmmdev_init(void);
-int	vmmdev_cleanup(void);
-#endif
+#include <machine/vmm.h>
 
 struct vm_memmap {
 	vm_paddr_t	gpa;

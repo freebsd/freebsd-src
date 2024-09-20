@@ -125,7 +125,7 @@ ieee80211_radiotap_vattach(struct ieee80211vap *vap)
 void
 ieee80211_radiotap_vdetach(struct ieee80211vap *vap)
 {
-	/* NB: bpfattach is called by ether_ifdetach and claims all taps */
+	/* NB: bpfdetach is called by ether_ifdetach and claims all taps */
 }
 
 static void

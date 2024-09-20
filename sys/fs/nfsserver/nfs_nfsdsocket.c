@@ -797,7 +797,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 					!LIST_EMPTY(&clp->lc_deleg))
 					nfsrv_writestable(clp->lc_id,
 					    clp->lc_idlen, NFSNST_REVOKE, p);
-				    nfsrv_cleanclient(clp, p);
+				    nfsrv_cleanclient(clp, p, false, NULL);
 				    nfsrv_freedeleglist(&clp->lc_deleg);
 				    nfsrv_freedeleglist(&clp->lc_olddeleg);
 				    LIST_REMOVE(clp, lc_hash);

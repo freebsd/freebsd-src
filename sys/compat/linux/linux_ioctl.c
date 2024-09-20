@@ -83,6 +83,8 @@
 
 #include <cam/scsi/scsi_sg.h>
 
+#include <dev/nvme/nvme_linux.h>
+
 #define	DEFINE_LINUX_IOCTL_SET(shortname, SHORTNAME)		\
 static linux_ioctl_function_t linux_ioctl_ ## shortname;	\
 static struct linux_ioctl_handler shortname ## _handler = {	\
@@ -108,6 +110,9 @@ DEFINE_LINUX_IOCTL_SET(v4l2, VIDEO2);
 DEFINE_LINUX_IOCTL_SET(fbsd_usb, FBSD_LUSB);
 DEFINE_LINUX_IOCTL_SET(evdev, EVDEV);
 DEFINE_LINUX_IOCTL_SET(kcov, KCOV);
+#ifndef COMPAT_LINUX32
+DEFINE_LINUX_IOCTL_SET(nvme, NVME);
+#endif
 
 #undef DEFINE_LINUX_IOCTL_SET
 
@@ -3530,6 +3535,36 @@ linux_ioctl_kcov(struct thread *td, struct linux_ioctl_args *args)
 		error = sys_ioctl(td, (struct ioctl_args *)args);
 	return (error);
 }
+
+#ifndef COMPAT_LINUX32
+static int
+linux_ioctl_nvme(struct thread *td, struct linux_ioctl_args *args)
+{
+
+	/*
+	 * The NVMe drivers for namespace and controller implement these
+	 * commands using their native format. All the others are not
+	 * implemented yet.
+	 */
+	switch (args->cmd & 0xffff) {
+	case LINUX_NVME_IOCTL_ID:
+		args->cmd = NVME_IOCTL_ID;
+		break;
+	case LINUX_NVME_IOCTL_RESET:
+		args->cmd = NVME_IOCTL_RESET;
+		break;
+	case LINUX_NVME_IOCTL_ADMIN_CMD:
+		args->cmd = NVME_IOCTL_ADMIN_CMD;
+		break;
+	case LINUX_NVME_IOCTL_IO_CMD:
+		args->cmd = NVME_IOCTL_IO_CMD;
+		break;
+	default:
+		return (ENODEV);
+	}
+	return (sys_ioctl(td, (struct ioctl_args *)args));
+}
+#endif
 
 /*
  * main ioctl syscall function

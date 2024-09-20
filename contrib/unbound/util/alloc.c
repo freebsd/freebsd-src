@@ -466,6 +466,18 @@ void *unbound_stat_realloc(void *ptr, size_t size)
 	memcpy(res+8, &mem_special, sizeof(mem_special));
 	return res+16;
 }
+/** strdup with stats */
+char *unbound_stat_strdup(const char* s)
+{
+	size_t len;
+	char* res;
+	if(!s) return NULL;
+	len = strlen(s);
+	res = unbound_stat_malloc(len+1);
+	if(!res) return NULL;
+	memmove(res, s, len+1);
+	return res;
+}
 
 /** log to file where alloc was done */
 void *unbound_stat_malloc_log(size_t size, const char* file, int line,
@@ -505,6 +517,15 @@ void *unbound_stat_realloc_log(void *ptr, size_t size, const char* file,
 	log_info("%s:%d %s realloc(%p, %u)", file, line, func, 
 		ptr, (unsigned)size);
 	return unbound_stat_realloc(ptr, size);
+}
+
+/** log to file where strdup was done */
+char *unbound_stat_strdup_log(const char *s, const char* file, int line,
+	const char* func)
+{
+	log_info("%s:%d %s strdup size %u", file, line, func,
+		(s?(unsigned)strlen(s)+1:0));
+	return unbound_stat_strdup(s);
 }
 
 #endif /* UNBOUND_ALLOC_STATS */

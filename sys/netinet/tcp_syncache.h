@@ -127,7 +127,9 @@ struct tcp_syncache {
 	u_int	cache_limit;
 	u_int	rexmt_limit;
 	uint32_t hash_secret;
+#ifdef VIMAGE
 	struct vnet *vnet;
+#endif
 	struct syncookie_secret secret;
 	struct mtx pause_mtx;
 	struct callout pause_co;

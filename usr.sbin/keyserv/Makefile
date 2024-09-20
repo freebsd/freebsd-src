@@ -1,4 +1,3 @@
-
 PROG=	keyserv
 MAN=	keyserv.8
 SRCS=	keyserv.c setkey.c crypt_svc.c crypt_server.c crypt.h

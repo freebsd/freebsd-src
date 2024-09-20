@@ -59,7 +59,7 @@ __weak_reference(_pthread_rwlock_timedwrlock, pthread_rwlock_timedwrlock);
 static int init_static(struct pthread *thread, pthread_rwlock_t *rwlock);
 static int init_rwlock(pthread_rwlock_t *rwlock, pthread_rwlock_t *rwlock_out);
 
-static int __always_inline
+static __always_inline int
 check_and_init_rwlock(pthread_rwlock_t *rwlock, pthread_rwlock_t *rwlock_out)
 {
 	if (__predict_false(*rwlock == THR_PSHARED_PTR ||

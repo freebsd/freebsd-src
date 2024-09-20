@@ -326,12 +326,6 @@ ae_attach(device_t dev)
 		goto fail;
 
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(dev, "could not allocate ifnet structure.\n");
-		error = ENXIO;
-		goto fail;
-	}
-
 	if_setsoftc(ifp, sc);
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
@@ -368,12 +362,6 @@ ae_attach(device_t dev)
 	 */
 	sc->tq = taskqueue_create_fast("ae_taskq", M_WAITOK,
             taskqueue_thread_enqueue, &sc->tq);
-	if (sc->tq == NULL) {
-		device_printf(dev, "could not create taskqueue.\n");
-		ether_ifdetach(ifp);
-		error = ENXIO;
-		goto fail;
-	}
 	taskqueue_start_threads(&sc->tq, 1, PI_NET, "%s taskq",
 	    device_get_nameunit(sc->dev));
 

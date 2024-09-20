@@ -1,7 +1,7 @@
 #!/bin/sh
-# $Id: csort,v 1.3 2020/02/02 23:34:34 tom Exp $
+# $Id: csort,v 1.4 2021/09/04 15:55:29 tom Exp $
 ##############################################################################
-# Copyright 2020 Thomas E. Dickey                                            #
+# Copyright 2020,2021 Thomas E. Dickey                                       #
 # Copyright 2002 Free Software Foundation, Inc.                              #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -34,4 +34,4 @@ LANG=C;		export LANG
 LANGUAGE=C;	export LANGUAGE
 LC_ALL=C;	export LC_ALL
 LC_CTYPE=C;	export LC_CTYPE
-sort $*
+sort "$@"

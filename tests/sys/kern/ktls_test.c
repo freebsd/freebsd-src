@@ -2812,7 +2812,7 @@ ATF_TC_BODY(ktls_listening_socket, tc)
 	    TLS_MINOR_VER_THREE, (uint64_t)random(), &en);
 	ATF_REQUIRE_ERRNO(ENOTCONN,
 	    setsockopt(s, IPPROTO_TCP, TCP_TXTLS_ENABLE, &en, sizeof(en)) != 0);
-	ATF_REQUIRE_ERRNO(EINVAL,
+	ATF_REQUIRE_ERRNO(ENOTCONN,
 	    setsockopt(s, IPPROTO_TCP, TCP_RXTLS_ENABLE, &en, sizeof(en)) != 0);
 	ATF_REQUIRE(close(s) == 0);
 }

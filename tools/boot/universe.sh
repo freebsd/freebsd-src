@@ -3,7 +3,7 @@
 #
 # Full list of all arches we don't build.
 #
-#	powerpc/powerpcspe arm/armv6
+#	powerpc/powerpcspe
 #
 # This script is expected to be run in stand (though you could run it anywhere
 # in the tree). It does a full clean build. For stand you can do all the archs in

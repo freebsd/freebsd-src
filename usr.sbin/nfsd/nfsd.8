@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 16, 2024
+.Dd July 5, 2024
 .Dt NFSD 8
 .Os
 .Sh NAME
@@ -34,7 +34,7 @@
 NFS server
 .Sh SYNOPSIS
 .Nm
-.Op Fl ardute
+.Op Fl arduteN
 .Op Fl n Ar num_servers
 .Op Fl h Ar bindip
 .Op Fl p Ar pnfs_setup
@@ -216,6 +216,10 @@ Serve TCP NFS clients.
 Serve UDP NFS clients.
 .It Fl e
 Ignored; included for backward compatibility.
+.It Fl N
+Cause
+.Nm
+to execute in the foreground instead of in daemon mode.
 .El
 .Pp
 For example,

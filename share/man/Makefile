@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 # XXX MISSING:	man3f

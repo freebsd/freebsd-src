@@ -1,5 +1,42 @@
 ChangeLog for hostapd
 
+2024-07-20 - v2.11
+	* Wi-Fi Easy Connect
+	  - add support for DPP release 3
+	  - allow Configurator parameters to be provided during config exchange
+	* HE/IEEE 802.11ax/Wi-Fi 6
+	  - various fixes
+	* EHT/IEEE 802.11be/Wi-Fi 7
+	  - add preliminary support
+	* SAE: add support for fetching the password from a RADIUS server
+	* support OpenSSL 3.0 API changes
+	* support background radar detection and CAC with some additional
+	  drivers
+	* support RADIUS ACL/PSK check during 4-way handshake (wpa_psk_radius=3)
+	* EAP-SIM/AKA: support IMSI privacy
+	* improve 4-way handshake operations
+	  - use Secure=1 in message 3 during PTK rekeying
+	* OCV: do not check Frequency Segment 1 Channel Number for 160 MHz cases
+	  to avoid interoperability issues
+	* support new SAE AKM suites with variable length keys
+	* support new AKM for 802.1X/EAP with SHA384
+	* extend PASN support for secure ranging
+	* FT: Use SHA256 to derive PMKID for AKM 00-0F-AC:3 (FT-EAP)
+	  - this is based on additional details being added in the IEEE 802.11
+	    standard
+	  - the new implementation is not backwards compatible
+	* improved ACS to cover additional channel types/bandwidths
+	* extended Multiple BSSID support
+	* fix beacon protection with FT protocol (incorrect BIGTK was provided)
+	* support unsynchronized service discovery (USD)
+	* add preliminary support for RADIUS/TLS
+	* add support for explicit SSID protection in 4-way handshake
+	  (a mitigation for CVE-2023-52424; disabled by default for now, can be
+	  enabled with ssid_protection=1)
+	* fix SAE H2E rejected groups validation to avoid downgrade attacks
+	* use stricter validation for some RADIUS messages
+	* a large number of other fixes, cleanup, and extensions
+
 2022-01-16 - v2.10
 	* SAE changes
 	  - improved protection against side channel attacks

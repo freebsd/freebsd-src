@@ -328,7 +328,7 @@ aw_mmc_helper_cd_handler(device_t dev, bool present)
 			if (__predict_false(aw_mmc_debug & AW_MMC_DEBUG_CARD))
 				device_printf(sc->aw_dev, "Card inserted\n");
 
-			sc->child = device_add_child(sc->aw_dev, "mmc", -1);
+			sc->child = device_add_child(sc->aw_dev, "mmc", DEVICE_UNIT_ANY);
 			AW_MMC_UNLOCK(sc);
 			if (sc->child) {
 				device_set_ivars(sc->child, sc);

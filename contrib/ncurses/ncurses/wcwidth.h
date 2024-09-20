@@ -59,6 +59,16 @@
  * Latest version: http://www.cl.cam.ac.uk/~mgk25/ucs/wcwidth.c
  */
 
+#ifndef _WCWIDTH_H_incl
+#define _WCWIDTH_H_incl 1
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include <ncurses_cfg.h>
+#include <ncurses_dll.h>
+
 #include <wchar.h>
 
 struct interval {
@@ -187,7 +197,7 @@ NCURSES_EXPORT(int) mk_wcwidth(wchar_t ucs)
 
   /* if we arrive here, ucs is not a combining or C0/C1 control character */
 
-  return 1 + 
+  return 1 +
     (ucs >= 0x1100 &&
      (ucs <= 0x115f ||                    /* Hangul Jamo init. consonants */
       ucs == 0x2329 || ucs == 0x232a ||
@@ -310,3 +320,9 @@ NCURSES_EXPORT(int) mk_wcswidth_cjk(const wchar_t *pwcs, size_t n)
 
   return width;
 }
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* _WCWIDTH_H_incl 1 */

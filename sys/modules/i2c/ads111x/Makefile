@@ -1,4 +1,3 @@
-
 .PATH:		${SRCTOP}/sys/dev/iicbus/adc
 
 KMOD=	ads111x

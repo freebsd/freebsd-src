@@ -759,6 +759,8 @@ unit-tests/varmod-to-one-word.exp
 unit-tests/varmod-to-one-word.mk
 unit-tests/varmod-to-separator.exp
 unit-tests/varmod-to-separator.mk
+unit-tests/varmod-to-title.exp
+unit-tests/varmod-to-title.mk
 unit-tests/varmod-to-upper.exp
 unit-tests/varmod-to-upper.mk
 unit-tests/varmod-undefined.exp

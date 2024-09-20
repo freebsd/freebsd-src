@@ -1,7 +1,7 @@
 .\"-
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.\" Copyright (c) 2018-2023, Juniper Networks, Inc.
+.\" Copyright (c) 2018-2024, Juniper Networks, Inc.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 .\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd August 8, 2023
+.Dd August 1, 2024
 .Dt VERIEXEC 8
 .Os
 .Sh NAME
@@ -97,7 +97,7 @@ The possible states
 are:
 .Bl -tag -width enforce
 .It Ar loaded
-set automatically when first
+set automatically when the first
 .Pa manifest
 has been loaded.
 .It Ar active
@@ -137,10 +137,11 @@ The manifest contains a mapping of relative pathnames to fingerprints
 with optional flags.
 For example:
 .Bd -literal -offset indent
-sbin/veriexec sha256=f22136...c0ff71 no_ptrace
+sbin/veriexec sha256=f22136...c0ff71 no_ptrace trusted
 usr/bin/python sha256=5944d9...876525 indirect
 sbin/somedaemon sha256=77fc2f...63f5687 label=mod1/val1,mod2/val2
 .Ed
+.Pp
 The supported flags are:
 .Bl -tag -width indirect
 .It Ql indirect
@@ -149,16 +150,31 @@ but can be used as an interpreter for example via:
 .Bd -literal -offset indent
 #!/usr/bin/python
 .Ed
+.It Ql no_fips
+If the system has a notion of running in FIPS mode,
+a file marked with this flag will not be allowed to
+exec.
 .It Ql no_ptrace
 do not allow running executable under a debugger.
 Useful for any application critical to the security state of system.
+.It Ql trusted
+this flag is required for a process to use
+.Xr veriexec 4
+to interact with
+.Xr mac_veriexec 4 .
+Generally only
+.Nm
+should need this flag.
+Implies
+.Ql no_ptrace .
+
 .El
 .Pp
 The
 .Ql label
 argument allows associating a
 .Xr maclabel 7
-with the executable.
+with a file.
 Neither
 .Nm
 nor
@@ -167,10 +183,60 @@ nor
 pay any attention to the content of the label
 they are provided for the use of other
 .Xr mac 4
-modules.
+modules or indeed other applications.
+.Sh EXAMPLES
+Load the manifest for a
+.Xr tarfs 5
+package mounted on
+.Pa /mnt
+and be strict about enforcing certificate validity:
+.Bd -literal -offset indent
+# veriexec -S -C /mnt /mnt/manifest
+
+.Ed
+.Nm
+will look for a detatched signature that it recognizes, such as
+.Pa manifest.asc
+(OpenPGP) or
+.Pa manifest.*sig
+(X.509).
+In the case of an X.509 signature we also need a matching certificate chain
+.Pa manifest.*certs .
+In either case there needs to be a suitable trust anchor in the trust store.
+.Pp
+We can now activate:
+.Bd -literal -offset indent
+# veriexec -z active
+
+.Ed
+Any user can check if
+.Xr mac_veriexec 4
+is
+.Ql active :
+.Bd -literal -offset indent
+$ veriexec -i active
+
+.Ed
+Any user can check that
+.Pa /mnt/bin/app
+is verified:
+.Bd -literal -offset indent
+$ veriexec -x /mnt/bin/app
+
+.Ed
+If it is not, we will get an Authentiaction error,
+but unless
+.Xr mac_veriexec 4
+is enforcing we would still be able to run it.
+.Sh NOTES
+It is only safe to set
+.Xr mac_veriexec 4
+to
+.Ql enforce
+state, if sufficient manifests have been loaded
+to cover all the applications that might need to be run.
 .Sh HISTORY
 The Verified Exec system first appeared in
 .Nx .
-This utility derives from the one found in Junos.
-The key difference is the requirement that manifest files
-be digitally signed.
+This utility derives from the one found in Junos,
+which requires that manifest files be digitally signed.

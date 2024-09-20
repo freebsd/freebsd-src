@@ -1,4 +1,3 @@
-
 .include <bsd.own.mk>
 
 HV_KVP_DAEMON_DISTDIR?= ${SRCTOP}/contrib/hyperv/tools

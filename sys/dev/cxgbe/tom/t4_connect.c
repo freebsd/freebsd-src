@@ -110,15 +110,23 @@ done:
 }
 
 void
-act_open_failure_cleanup(struct adapter *sc, u_int atid, u_int status)
+act_open_failure_cleanup(struct adapter *sc, struct toepcb *toep, u_int status)
 {
-	struct toepcb *toep = lookup_atid(sc, atid);
 	struct inpcb *inp = toep->inp;
 	struct toedev *tod = &toep->td->tod;
 	struct epoch_tracker et;
+	struct tom_data *td = sc->tom_softc;
 
-	free_atid(sc, atid);
-	toep->tid = -1;
+	if (toep->tid >= 0) {
+		free_atid(sc, toep->tid);
+		toep->tid = -1;
+		mtx_lock(&td->toep_list_lock);
+		if (toep->flags & TPF_IN_TOEP_LIST) {
+			toep->flags &= ~TPF_IN_TOEP_LIST;
+			TAILQ_REMOVE(&td->toep_list, toep, link);
+		}
+		mtx_unlock(&td->toep_list_lock);
+	}
 
 	CURVNET_SET(toep->vnet);
 	if (status != EAGAIN)
@@ -158,7 +166,7 @@ do_act_open_rpl(struct sge_iq *iq, const struct rss_header *rss,
 		release_tid(sc, GET_TID(cpl), toep->ctrlq);
 
 	rc = act_open_rpl_status_to_errno(status);
-	act_open_failure_cleanup(sc, atid, rc);
+	act_open_failure_cleanup(sc, toep, rc);
 
 	return (0);
 }
@@ -233,6 +241,7 @@ t4_connect(struct toedev *tod, struct socket *so, struct nhop_object *nh,
     struct sockaddr *nam)
 {
 	struct adapter *sc = tod->tod_softc;
+	struct tom_data *td;
 	struct toepcb *toep = NULL;
 	struct wrqe *wr = NULL;
 	if_t rt_ifp = nh->nh_ifp;
@@ -379,6 +388,12 @@ t4_connect(struct toedev *tod, struct socket *so, struct nhop_object *nh,
 	}
 
 	offload_socket(so, toep);
+	/* Add the TOE PCB to the active list */
+	td = toep->td;
+	mtx_lock(&td->toep_list_lock);
+	TAILQ_INSERT_TAIL(&td->toep_list, toep, link);
+	toep->flags |= TPF_IN_TOEP_LIST;
+	mtx_unlock(&td->toep_list_lock);
 	NET_EPOCH_ENTER(et);
 	rc = t4_l2t_send(sc, wr, toep->l2te);
 	NET_EPOCH_EXIT(et);

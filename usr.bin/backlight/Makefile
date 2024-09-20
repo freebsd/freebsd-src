@@ -1,4 +1,3 @@
-
 PROG=	backlight
 MAN=	backlight.8
 

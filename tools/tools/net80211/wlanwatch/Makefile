@@ -1,4 +1,3 @@
-
 PROG=	wlanwatch
 BINDIR=	/usr/local/bin
 MAN=

@@ -1,7 +1,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.\" Copyright (c) 2018-2023 Gavin D. Howard and contributors.
+.\" Copyright (c) 2018-2024 Gavin D. Howard and contributors.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions are met:
@@ -25,17 +25,17 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.TH "BCL" "3" "February 2023" "Gavin D. Howard" "Libraries Manual"
+.TH "BCL" "3" "January 2024" "Gavin D. Howard" "Libraries Manual"
 .nh
 .ad l
 .SH NAME
-bcl - library of arbitrary precision decimal arithmetic
+bcl \- library of arbitrary precision decimal arithmetic
 .SH SYNOPSIS
 .SS Use
 \f[I]#include <bcl.h>\f[R]
 .PP
-Link with \f[I]-lbcl\f[R], and on POSIX systems, \f[I]-lpthread\f[R] is
-also required.
+Link with \f[I]\-lbcl\f[R], and on POSIX systems, \f[I]\-lpthread\f[R]
+is also required.
 .SS Setup
 These items allow clients to set up bcl(3).
 .PP
@@ -104,7 +104,7 @@ These items allow clients to handle errors.
 \f[B]BclError bcl_err(BclNumber\f[R] \f[I]n\f[R]\f[B]);\f[R]
 .SS Numbers
 These items allow clients to manipulate and query the
-arbitrary-precision numbers managed by bcl(3).
+arbitrary\-precision numbers managed by bcl(3).
 .PP
 \f[B]typedef struct { size_t i; } BclNumber;\f[R]
 .PP
@@ -223,8 +223,8 @@ These items are miscellaneous.
 \f[I]s\f[R]\f[B]);\f[R]
 .PP
 \f[B]BclNumber bcl_dup(BclNumber\f[R] \f[I]s\f[R]\f[B]);\f[R]
-.SS Pseudo-Random Number Generator
-These items allow clients to manipulate the seeded pseudo-random number
+.SS Pseudo\-Random Number Generator
+These items allow clients to manipulate the seeded pseudo\-random number
 generator in bcl(3).
 .PP
 \f[B]#define BCL_SEED_ULONGS\f[R]
@@ -265,8 +265,8 @@ size_t\f[R] \f[I]places\f[R]\f[B]);\f[R]
 \f[B]BclRandInt bcl_rand_bounded(BclRandInt\f[R]
 \f[I]bound\f[R]\f[B]);\f[R]
 .SH DESCRIPTION
-bcl(3) is a library that implements arbitrary-precision decimal math, as
-standardized by POSIX
+bcl(3) is a library that implements arbitrary\-precision decimal math,
+as standardized by POSIX
 (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html) in
 bc(1).
 .PP
@@ -361,7 +361,7 @@ a fatal error occurs.
 .PP
 If activated, clients do not need to check for fatal errors.
 .PP
-This value is \f[I]thread-local\f[R]; it applies to just the thread it
+This value is \f[I]thread\-local\f[R]; it applies to just the thread it
 is read on.
 .PP
 The default is \f[B]false\f[R].
@@ -375,7 +375,7 @@ If \f[I]abrt\f[R] is \f[B]true\f[R], bcl(3) will cause a
 \f[B]SIGABRT\f[R] on fatal errors after the call.
 .RS
 .PP
-This value is \f[I]thread-local\f[R]; it applies to just the thread it
+This value is \f[I]thread\-local\f[R]; it applies to just the thread it
 is set on.
 .PP
 If activated, clients do not need to check for fatal errors.
@@ -384,11 +384,11 @@ If activated, clients do not need to check for fatal errors.
 \f[B]bool bcl_leadingZeroes(\f[R]\f[I]void\f[R]\f[B])\f[R]
 Queries and returns the state of whether leading zeroes are added to
 strings returned by \f[B]bcl_string()\f[R] when numbers are greater than
-\f[B]-1\f[R], less than \f[B]1\f[R], and not equal to \f[B]0\f[R].
+\f[B]\-1\f[R], less than \f[B]1\f[R], and not equal to \f[B]0\f[R].
 If \f[B]true\f[R] is returned, then leading zeroes will be added.
 .RS
 .PP
-This value is \f[I]thread-local\f[R]; it applies to just the thread it
+This value is \f[I]thread\-local\f[R]; it applies to just the thread it
 is read on.
 .PP
 The default is \f[B]false\f[R].
@@ -396,13 +396,13 @@ The default is \f[B]false\f[R].
 .TP
 \f[B]void bcl_setLeadingZeroes(bool\f[R] \f[I]leadingZeroes\f[R]\f[B])\f[R]
 Sets the state of whether leading zeroes are added to strings returned
-by \f[B]bcl_string()\f[R] when numbers are greater than \f[B]-1\f[R],
+by \f[B]bcl_string()\f[R] when numbers are greater than \f[B]\-1\f[R],
 less than \f[B]1\f[R], and not equal to \f[B]0\f[R].
 If \f[I]leadingZeroes\f[R] is \f[B]true\f[R], leading zeroes will be
 added to strings returned by \f[B]bcl_string()\f[R].
 .RS
 .PP
-This value is \f[I]thread-local\f[R]; it applies to just the thread it
+This value is \f[I]thread\-local\f[R]; it applies to just the thread it
 is set on.
 .RE
 .TP
@@ -426,7 +426,7 @@ while with clamping on and an \f[B]ibase\f[R] of \f[B]3\f[R], the string
 \[lq]AB\[rq] would be equal to \f[B]3\[ha]1*2+3\[ha]0*2\f[R], which is
 \f[B]3\f[R] times \f[B]2\f[R] plus \f[B]2\f[R], or \f[B]8\f[R].
 .PP
-This value is \f[I]thread-local\f[R]; it applies to just the thread it
+This value is \f[I]thread\-local\f[R]; it applies to just the thread it
 is read on.
 .PP
 The default is \f[B]true\f[R].
@@ -439,12 +439,12 @@ For more information, see the
 \f[B]bcl_digitClamp(\f[R]\f[I]void\f[R]\f[B])\f[R] function.
 .RS
 .PP
-This value is \f[I]thread-local\f[R]; it applies to just the thread it
+This value is \f[I]thread\-local\f[R]; it applies to just the thread it
 is set on.
 .RE
 .TP
 \f[B]void bcl_gc(\f[R]\f[I]void\f[R]\f[B])\f[R]
-Garbage collects cached instances of arbitrary-precision numbers.
+Garbage collects cached instances of arbitrary\-precision numbers.
 This only frees the memory of numbers that are \f[I]not\f[R] in use, so
 it is safe to call at any time.
 .SS Contexts
@@ -578,9 +578,9 @@ There must be a valid current context.
 All procedures in this section require a valid current context.
 .TP
 \f[B]BclNumber\f[R]
-A handle to an arbitrary-precision number.
+A handle to an arbitrary\-precision number.
 The actual number type is not exposed; the \f[B]BclNumber\f[R] handle is
-the only way clients can refer to instances of arbitrary-precision
+the only way clients can refer to instances of arbitrary\-precision
 numbers.
 .TP
 \f[B]BclNumber bcl_num_create(\f[R]\f[I]void\f[R]\f[B])\f[R]
@@ -650,7 +650,7 @@ Parses a number string according to the current context\[cq]s
 \f[B]ibase\f[R] and returns the resulting number.
 .RS
 .PP
-\f[I]val\f[R] must be non-\f[B]NULL\f[R] and a valid string.
+\f[I]val\f[R] must be non\-\f[B]NULL\f[R] and a valid string.
 See \f[B]BCL_ERROR_PARSE_INVALID_STR\f[R] in the \f[B]ERRORS\f[R]
 section for more information.
 .PP
@@ -933,7 +933,7 @@ Possible errors include:
 .TP
 \f[B]BclNumber bcl_mod(BclNumber\f[R] \f[I]a\f[R]\f[B], BclNumber\f[R] \f[I]b\f[R]\f[B])\f[R]
 Divides \f[I]a\f[R] by \f[I]b\f[R] to the \f[I]scale\f[R] of the current
-context, computes the modulus \f[B]a-(a/b)*b\f[R], and returns the
+context, computes the modulus \f[B]a\-(a/b)*b\f[R], and returns the
 modulus.
 .RS
 .PP
@@ -960,7 +960,7 @@ Possible errors include:
 .TP
 \f[B]BclNumber bcl_mod_keep(BclNumber\f[R] \f[I]a\f[R]\f[B], BclNumber\f[R] \f[I]b\f[R]\f[B])\f[R]
 Divides \f[I]a\f[R] by \f[I]b\f[R] to the \f[I]scale\f[R] of the current
-context, computes the modulus \f[B]a-(a/b)*b\f[R], and returns the
+context, computes the modulus \f[B]a\-(a/b)*b\f[R], and returns the
 modulus.
 .RS
 .PP
@@ -985,7 +985,7 @@ Possible errors include:
 Calculates \f[I]a\f[R] to the power of \f[I]b\f[R] to the
 \f[I]scale\f[R] of the current context.
 \f[I]b\f[R] must be an integer, but can be negative.
-If it is negative, \f[I]a\f[R] must be non-zero.
+If it is negative, \f[I]a\f[R] must be non\-zero.
 .RS
 .PP
 \f[I]b\f[R] must be an integer.
@@ -1021,7 +1021,7 @@ Possible errors include:
 Calculates \f[I]a\f[R] to the power of \f[I]b\f[R] to the
 \f[I]scale\f[R] of the current context.
 \f[I]b\f[R] must be an integer, but can be negative.
-If it is negative, \f[I]a\f[R] must be non-zero.
+If it is negative, \f[I]a\f[R] must be non\-zero.
 .RS
 .PP
 \f[I]b\f[R] must be an integer.
@@ -1354,10 +1354,11 @@ Possible errors include:
 .IP \[bu] 2
 \f[B]BCL_ERROR_FATAL_ALLOC_ERR\f[R]
 .RE
-.SS Pseudo-Random Number Generator
-The pseudo-random number generator in bcl(3) is a \f[I]seeded\f[R] PRNG.
+.SS Pseudo\-Random Number Generator
+The pseudo\-random number generator in bcl(3) is a \f[I]seeded\f[R]
+PRNG.
 Given the same seed twice, it will produce the same sequence of
-pseudo-random numbers twice.
+pseudo\-random numbers twice.
 .PP
 By default, bcl(3) attempts to seed the PRNG with data from
 \f[B]/dev/urandom\f[R].
@@ -1384,7 +1385,7 @@ their name consume the given \f[B]BclNumber\f[R] arguments that are not
 given to pointer arguments.
 See the \f[B]Consumption and Propagation\f[R] subsection below.
 .PP
-The following items allow clients to use the pseudo-random number
+The following items allow clients to use the pseudo\-random number
 generator.
 All procedures require a valid current context.
 .TP
@@ -1414,7 +1415,7 @@ This is done by generating as many random numbers as necessary,
 multiplying them by certain exponents, and adding them all together.
 .RS
 .PP
-\f[I]a\f[R] must be an integer and non-negative.
+\f[I]a\f[R] must be an integer and non\-negative.
 .PP
 \f[I]a\f[R] is consumed; it cannot be used after the call.
 See the \f[B]Consumption and Propagation\f[R] subsection below.
@@ -1447,7 +1448,7 @@ This is done by generating as many random numbers as necessary,
 multiplying them by certain exponents, and adding them all together.
 .RS
 .PP
-\f[I]a\f[R] must be an integer and non-negative.
+\f[I]a\f[R] must be an integer and non\-negative.
 .PP
 This procedure requires a valid current context.
 .PP
@@ -1490,7 +1491,7 @@ decimal digits after the radix (decimal point).
 There are no limits on \f[I]a\f[R] or \f[I]places\f[R].
 .RS
 .PP
-\f[I]a\f[R] must be an integer and non-negative.
+\f[I]a\f[R] must be an integer and non\-negative.
 .PP
 \f[I]a\f[R] is consumed; it cannot be used after the call.
 See the \f[B]Consumption and Propagation\f[R] subsection below.
@@ -1518,7 +1519,7 @@ decimal digits after the radix (decimal point).
 There are no limits on \f[I]a\f[R] or \f[I]places\f[R].
 .RS
 .PP
-\f[I]a\f[R] must be an integer and non-negative.
+\f[I]a\f[R] must be an integer and non\-negative.
 .PP
 This procedure requires a valid current context.
 .PP
@@ -1670,8 +1671,8 @@ A negative number was given as an argument to a parameter that cannot
 accept negative numbers, such as for square roots.
 .TP
 \f[B]BCL_ERROR_MATH_NON_INTEGER\f[R]
-A non-integer was given as an argument to a parameter that cannot accept
-non-integer numbers, such as for the second parameter of
+A non\-integer was given as an argument to a parameter that cannot
+accept non\-integer numbers, such as for the second parameter of
 \f[B]bcl_num_pow()\f[R].
 .TP
 \f[B]BCL_ERROR_MATH_OVERFLOW\f[R]
@@ -1686,7 +1687,7 @@ An invalid number string was passed to a parsing function.
 .RS
 .PP
 A valid number string can only be one radix (period).
-In addition, any lowercase ASCII letters, symbols, or non-ASCII
+In addition, any lowercase ASCII letters, symbols, or non\-ASCII
 characters are invalid.
 It is allowed for the first character to be a dash.
 In that case, the number is considered to be negative.
@@ -1706,7 +1707,7 @@ of the current \f[B]ibase\f[R].
 For example, if \f[B]ibase\f[R] is \f[B]16\f[R] and bcl(3) is given the
 number string \f[B]FFeA\f[R], the resulting decimal number will be
 \f[B]2550000000000\f[R], and if bcl(3) is given the number string
-\f[B]10e-4\f[R], the resulting decimal number will be \f[B]0.0016\f[R].
+\f[B]10e\-4\f[R], the resulting decimal number will be \f[B]0.0016\f[R].
 .RE
 .TP
 \f[B]BCL_ERROR_FATAL_ALLOC_ERR\f[R]
@@ -1739,12 +1740,12 @@ It is highly recommended that client libraries do \f[I]not\f[R] activate
 this behavior.
 .RE
 .SH ATTRIBUTES
-bcl(3) is \f[I]MT-Safe\f[R]: it is safe to call any functions from more
+bcl(3) is \f[I]MT\-Safe\f[R]: it is safe to call any functions from more
 than one thread.
 However, is is \f[I]not\f[R] safe to pass any data between threads
 except for strings returned by \f[B]bcl_string()\f[R].
 .PP
-bcl(3) is not \f[I]async-signal-safe\f[R].
+bcl(3) is not \f[I]async\-signal\-safe\f[R].
 It was not possible to make bcl(3) safe with signals and also make it
 safe with multiple threads.
 If it is necessary to be able to interrupt bcl(3), spawn a separate
@@ -1798,31 +1799,31 @@ Set at \f[B]BC_BASE_POW\f[R].
 .TP
 \f[B]BC_SCALE_MAX\f[R]
 The maximum \f[B]scale\f[R].
-Set at \f[B]BC_OVERFLOW_MAX-1\f[R].
+Set at \f[B]BC_OVERFLOW_MAX\-1\f[R].
 .TP
 \f[B]BC_NUM_MAX\f[R]
 The maximum length of a number (in decimal digits), which includes
 digits after the decimal point.
-Set at \f[B]BC_OVERFLOW_MAX-1\f[R].
+Set at \f[B]BC_OVERFLOW_MAX\-1\f[R].
 .TP
 \f[B]BC_RAND_MAX\f[R]
 The maximum integer (inclusive) returned by the \f[B]bcl_rand_int()\f[R]
 function.
-Set at \f[B]2\[ha]BC_LONG_BIT-1\f[R].
+Set at \f[B]2\[ha]BC_LONG_BIT\-1\f[R].
 .TP
 Exponent
 The maximum allowable exponent (positive or negative).
 Set at \f[B]BC_OVERFLOW_MAX\f[R].
 .PP
-These limits are meant to be effectively non-existent; the limits are so
-large (at least on 64-bit machines) that there should not be any point
-at which they become a problem.
+These limits are meant to be effectively non\-existent; the limits are
+so large (at least on 64\-bit machines) that there should not be any
+point at which they become a problem.
 In fact, memory should be exhausted before these limits should be hit.
 .SH SEE ALSO
 bc(1) and dc(1)
 .SH STANDARDS
 bcl(3) is compliant with the arithmetic defined in the IEEE Std
-1003.1-2017 (\[lq]POSIX.1-2017\[rq]) specification at
+1003.1\-2017 (\[lq]POSIX.1\-2017\[rq]) specification at
 https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html for
 bc(1).
 .PP

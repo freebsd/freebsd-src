@@ -1,4 +1,3 @@
-
 PROG=	athkey
 
 SRCS=	athkey.c

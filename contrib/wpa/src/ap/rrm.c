@@ -334,6 +334,53 @@ static void hostapd_handle_nei_report_req(struct hostapd_data *hapd,
 }
 
 
+static void hostapd_link_mesr_rep_timeout_handler(void *eloop_data,
+						  void *user_ctx)
+{
+	struct hostapd_data *hapd = eloop_data;
+
+	wpa_printf(MSG_DEBUG,
+		   "RRM: Link measurement request (token %u) timed out",
+		   hapd->link_measurement_req_token);
+	hapd->link_mesr_req_active = 0;
+}
+
+
+static void hostapd_handle_link_mesr_report(struct hostapd_data *hapd,
+					    const u8 *buf, size_t len)
+{
+	const struct ieee80211_mgmt *mgmt = (const struct ieee80211_mgmt *) buf;
+	const struct rrm_link_measurement_report *report;
+	const u8 *pos, *end;
+	char report_msg[2 * 8 + 1];
+
+	end = buf + len;
+	pos = mgmt->u.action.u.rrm.variable;
+	report = (const struct rrm_link_measurement_report *) (pos - 1);
+	if (end - (const u8 *) report < (int) sizeof(*report))
+		return;
+
+	if (!hapd->link_mesr_req_active ||
+	    (hapd->link_measurement_req_token != report->dialog_token)) {
+		wpa_printf(MSG_INFO,
+			   "Unexpected Link measurement report, token %u",
+			   report->dialog_token);
+		return;
+	}
+
+	hapd->link_mesr_req_active = 0;
+	eloop_cancel_timeout(hostapd_link_mesr_rep_timeout_handler, hapd, NULL);
+
+	report_msg[0] = '\0';
+	if (wpa_snprintf_hex(report_msg, sizeof(report_msg),
+			     pos, end - pos) < 0)
+		return;
+
+	wpa_msg(hapd->msg_ctx, MSG_INFO, LINK_MSR_RESP_RX MACSTR " %u %s",
+		MAC2STR(mgmt->sa), report->dialog_token, report_msg);
+}
+
+
 void hostapd_handle_radio_measurement(struct hostapd_data *hapd,
 				      const u8 *buf, size_t len)
 {
@@ -355,6 +402,9 @@ void hostapd_handle_radio_measurement(struct hostapd_data *hapd,
 		break;
 	case WLAN_RRM_NEIGHBOR_REPORT_REQUEST:
 		hostapd_handle_nei_report_req(hapd, buf, len);
+		break;
+	case WLAN_RRM_LINK_MEASUREMENT_REPORT:
+		hostapd_handle_link_mesr_report(hapd, buf, len);
 		break;
 	default:
 		wpa_printf(MSG_DEBUG, "RRM action %u is not supported",
@@ -563,6 +613,7 @@ void hostapd_clean_rrm(struct hostapd_data *hapd)
 	hapd->lci_req_active = 0;
 	eloop_cancel_timeout(hostapd_range_rep_timeout_handler, hapd, NULL);
 	hapd->range_req_active = 0;
+	eloop_cancel_timeout(hostapd_link_mesr_rep_timeout_handler, hapd, NULL);
 }
 
 
@@ -671,4 +722,74 @@ void hostapd_rrm_beacon_req_tx_status(struct hostapd_data *hapd,
 	wpa_msg(hapd->msg_ctx, MSG_INFO, BEACON_REQ_TX_STATUS MACSTR
 		" %u ack=%d", MAC2STR(mgmt->da),
 		mgmt->u.action.u.rrm.dialog_token, ok);
+}
+
+
+int hostapd_send_link_measurement_req(struct hostapd_data *hapd, const u8 *addr)
+{
+	struct wpabuf *buf;
+	struct sta_info *sta;
+	int ret;
+
+	wpa_printf(MSG_DEBUG, "Request Link Measurement: dest addr " MACSTR,
+		   MAC2STR(addr));
+
+	if (!(hapd->iface->drv_rrm_flags &
+	      WPA_DRIVER_FLAGS_TX_POWER_INSERTION)) {
+		wpa_printf(MSG_INFO,
+			   "Request Link Measurement: the driver does not support TX power insertion");
+		return -1;
+	}
+
+	sta = ap_get_sta(hapd, addr);
+	if (!sta || !(sta->flags & WLAN_STA_AUTHORIZED)) {
+		wpa_printf(MSG_INFO,
+			   "Request Link Measurement: specied STA is not connected");
+		return -1;
+	}
+
+	if (!(sta->rrm_enabled_capa[0] & WLAN_RRM_CAPS_LINK_MEASUREMENT)) {
+		wpa_printf(MSG_INFO,
+			   "Request Link Measurement: destination STA does not support link measurement");
+		return -1;
+	}
+
+	if (hapd->link_mesr_req_active) {
+		wpa_printf(MSG_DEBUG,
+			   "Request Link Measurement: request already in process - overriding");
+		hapd->link_mesr_req_active = 0;
+		eloop_cancel_timeout(hostapd_link_mesr_rep_timeout_handler,
+				     hapd, NULL);
+	}
+
+	/* Action + Action type + token + Tx Power used + Max Tx Power = 5 */
+	buf = wpabuf_alloc(5);
+	if (!buf)
+		return -1;
+
+	hapd->link_measurement_req_token++;
+	if (!hapd->link_measurement_req_token)
+		hapd->link_measurement_req_token++;
+
+	wpabuf_put_u8(buf, WLAN_ACTION_RADIO_MEASUREMENT);
+	wpabuf_put_u8(buf, WLAN_RRM_LINK_MEASUREMENT_REQUEST);
+	wpabuf_put_u8(buf, hapd->link_measurement_req_token);
+	/* NOTE: The driver is expected to fill the Tx Power Used and Max Tx
+	 * Power */
+	wpabuf_put_u8(buf, 0);
+	wpabuf_put_u8(buf, 0);
+
+	ret = hostapd_drv_send_action(hapd, hapd->iface->freq, 0, addr,
+				      wpabuf_head(buf), wpabuf_len(buf));
+	wpabuf_free(buf);
+	if (ret < 0)
+		return ret;
+
+	hapd->link_mesr_req_active = 1;
+
+	eloop_register_timeout(HOSTAPD_RRM_REQUEST_TIMEOUT, 0,
+			       hostapd_link_mesr_rep_timeout_handler, hapd,
+			       NULL);
+
+	return hapd->link_measurement_req_token;
 }

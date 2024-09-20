@@ -1,4 +1,3 @@
-
 PROG=   setpmac
 MAN=	setpmac.8
 

@@ -81,12 +81,12 @@ accel_fs_tcp_set_ipv6_flow(struct mlx5_flow_spec *spec, struct inpcb *inp)
 #endif
 
 void
-mlx5e_accel_fs_del_inpcb(struct mlx5_flow_rule *rule)
+mlx5e_accel_fs_del_inpcb(struct mlx5_flow_handle *rule)
 {
-	mlx5_del_flow_rule(&rule);
+	mlx5_del_flow_rules(&rule);
 }
 
-struct mlx5_flow_rule *
+struct mlx5_flow_handle *
 mlx5e_accel_fs_add_inpcb(struct mlx5e_priv *priv,
     struct inpcb *inp, uint32_t tirn, uint32_t flow_tag,
     uint16_t vlan_id)
@@ -96,18 +96,17 @@ mlx5e_accel_fs_add_inpcb(struct mlx5e_priv *priv,
 #if defined(INET) || defined(INET6)
 	struct mlx5e_accel_fs_tcp *fs_tcp = &priv->fts.accel_tcp;
 #endif
-	struct mlx5_flow_rule *flow;
+	struct mlx5_flow_handle *flow;
 	struct mlx5_flow_spec *spec;
-	struct mlx5_flow_act flow_act = {
-		.actions = MLX5_FLOW_ACT_ACTIONS_FLOW_TAG,
-		.flow_tag = flow_tag,
-	};
+	struct mlx5_flow_act flow_act = {};
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
 		return (ERR_PTR(-ENOMEM));
 
 	spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
+	spec->flow_context.flags = FLOW_CONTEXT_HAS_TAG;
+	spec->flow_context.flow_tag = flow_tag;
 
 	INP_RLOCK(inp);
 	/* Set VLAN ID to match, if any. */
@@ -160,13 +159,9 @@ mlx5e_accel_fs_add_inpcb(struct mlx5e_priv *priv,
 
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_TIR;
 	dest.tir_num = tirn;
+	flow_act.action = MLX5_FLOW_RULE_FWD_ACTION_DEST;
 
-	flow = mlx5_add_flow_rule(ft->t, spec->match_criteria_enable,
-	    spec->match_criteria,
-	    spec->match_value,
-	    MLX5_FLOW_RULE_FWD_ACTION_DEST,
-	    &flow_act,
-	    &dest);
+	flow = mlx5_add_flow_rules(ft->t, spec, &flow_act, &dest, 1);
 out:
 	kvfree(spec);
 	return (flow);
@@ -175,18 +170,18 @@ out:
 static int
 accel_fs_tcp_add_default_rule(struct mlx5e_priv *priv, int type)
 {
-	static u32 match_criteria[MLX5_ST_SZ_DW(fte_match_param)];
-	static u32 match_value[MLX5_ST_SZ_DW(fte_match_param)];
+	static struct mlx5_flow_spec spec = {};
 	struct mlx5_flow_destination dest = {};
 	struct mlx5e_accel_fs_tcp *fs_tcp;
-	struct mlx5_flow_rule *rule;
+	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_act flow_act = {
-		.actions = MLX5_FLOW_ACT_ACTIONS_FLOW_TAG,
-		.flow_tag = MLX5_FS_DEFAULT_FLOW_TAG,
+		.action = MLX5_FLOW_RULE_FWD_ACTION_DEST,
 	};
 
 	fs_tcp = &priv->fts.accel_tcp;
 
+	spec.flow_context.flags = FLOW_CONTEXT_HAS_TAG;
+	spec.flow_context.flow_tag = MLX5_FS_DEFAULT_FLOW_TAG;
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 
 	/*
@@ -197,10 +192,11 @@ accel_fs_tcp_add_default_rule(struct mlx5e_priv *priv, int type)
 	 * of flow tables.
 	 */
 	dest.ft = (type == MLX5E_ACCEL_FS_TCP_NUM_TYPES - 1) ?
-	    priv->fts.vlan.t : fs_tcp->tables[type + 1].t;
+		  ((priv->fts.ipsec_ft) ? priv->fts.ipsec_ft : priv->fts.vlan.t)  :
+		  fs_tcp->tables[type + 1].t;
 
-	rule = mlx5_add_flow_rule(fs_tcp->tables[type].t, 0, match_criteria, match_value,
-	    MLX5_FLOW_RULE_FWD_ACTION_DEST, &flow_act, &dest);
+	rule = mlx5_add_flow_rules(fs_tcp->tables[type].t, &spec, &flow_act,
+				   &dest, 1);
 	if (IS_ERR(rule))
 		return (PTR_ERR(rule));
 
@@ -317,11 +313,13 @@ static int
 accel_fs_tcp_create_table(struct mlx5e_priv *priv, int type)
 {
 	struct mlx5e_flow_table *ft = &priv->fts.accel_tcp.tables[type];
+	struct mlx5_flow_table_attr ft_attr = {};
 	int err;
 
 	ft->num_groups = 0;
-	ft->t = mlx5_create_flow_table(priv->fts.accel_tcp.ns, 0, "tcp",
-	    MLX5E_ACCEL_FS_TCP_TABLE_SIZE);
+	ft_attr.max_fte = MLX5E_ACCEL_FS_TCP_TABLE_SIZE;
+	ft_attr.level = type;
+	ft->t = mlx5_create_flow_table(priv->fts.accel_tcp.ns, &ft_attr);
 	if (IS_ERR(ft->t)) {
 		err = PTR_ERR(ft->t);
 		ft->t = NULL;
@@ -365,7 +363,7 @@ mlx5e_accel_fs_tcp_destroy(struct mlx5e_priv *priv)
 		return;
 
 	for (i = 0; i < MLX5E_ACCEL_FS_TCP_NUM_TYPES; i++) {
-		mlx5_del_flow_rule(&priv->fts.accel_tcp.default_rules[i]);
+		mlx5_del_flow_rules(&priv->fts.accel_tcp.default_rules[i]);
 		accel_fs_tcp_destroy_table(priv, i);
 	}
 }
@@ -402,7 +400,7 @@ mlx5e_accel_fs_tcp_create(struct mlx5e_priv *priv)
 
 err_destroy_rules:
 	while (i--)
-		mlx5_del_flow_rule(&priv->fts.accel_tcp.default_rules[i]);
+		mlx5_del_flow_rules(&priv->fts.accel_tcp.default_rules[i]);
 	i = MLX5E_ACCEL_FS_TCP_NUM_TYPES;
 
 err_destroy_tables:

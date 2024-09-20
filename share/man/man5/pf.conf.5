@@ -27,7 +27,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd June 6, 2024
+.Dd June 24, 2024
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -1400,9 +1400,14 @@ or
 .Xr udp 4
 connections; implicitly in the case of
 .Ar nat
-rules and explicitly in the case of
+rules and both implicitly and explicitly in the case of
 .Ar rdr
 rules.
+A
+.Ar rdr
+rule may cause the source port to be modified if doing so avoids a conflict
+with an existing connection.
+A random source port in the range 50001-65535 is chosen in this case.
 Port numbers are never translated with a
 .Ar binat
 rule.

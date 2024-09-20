@@ -35,7 +35,6 @@
 
 #include <sys/taskqueue.h>
 
-#ifdef NEW_PCIB
 /*
  * Data structure and routines that Host to PCI bridge drivers can use
  * to restrict allocations for child devices to ranges decoded by the
@@ -58,7 +57,6 @@ struct resource *pcib_host_res_alloc(struct pcib_host_resources *hr,
 int		pcib_host_res_adjust(struct pcib_host_resources *hr,
 		    device_t dev, struct resource *r, rman_res_t start,
 		    rman_res_t end);
-#endif
 
 /*
  * Export portions of generic PCI:PCI bridge support so that it can be
@@ -66,7 +64,6 @@ int		pcib_host_res_adjust(struct pcib_host_resources *hr,
  */
 DECLARE_CLASS(pcib_driver);
 
-#ifdef NEW_PCIB
 #define	WIN_IO		0x1
 #define	WIN_MEM		0x2
 #define	WIN_PMEM	0x4
@@ -83,18 +80,15 @@ struct pcib_window {
 	int		step;		/* log_2 of window granularity */
 	const char	*name;
 };
-#endif
 
 struct pcib_secbus {
 	u_int		sec;
 	u_int		sub;
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	device_t	dev;
 	struct rman	rman;
 	struct resource	*res;
 	const char	*name;
 	int		sub_reg;
-#endif
 };
 
 /*
@@ -116,18 +110,9 @@ struct pcib_softc
     u_int	domain;		/* domain number */
     u_int	pribus;		/* primary bus number */
     struct pcib_secbus bus;	/* secondary bus numbers */
-#ifdef NEW_PCIB
     struct pcib_window io;	/* I/O port window */
     struct pcib_window mem;	/* memory window */
     struct pcib_window pmem;	/* prefetchable memory window */
-#else
-    pci_addr_t	pmembase;	/* base address of prefetchable memory */
-    pci_addr_t	pmemlimit;	/* topmost address of prefetchable memory */
-    pci_addr_t	membase;	/* base address of memory window */
-    pci_addr_t	memlimit;	/* topmost address of memory window */
-    uint32_t	iobase;		/* base address of port window */
-    uint32_t	iolimit;	/* topmost address of port window */
-#endif
     uint16_t	bridgectl;	/* bridge control register */
     uint16_t	pcie_link_sta;
     uint16_t	pcie_slot_sta;
@@ -153,7 +138,6 @@ typedef uint32_t pci_read_config_fn(int d, int b, int s, int f, int reg,
 
 int		host_pcib_get_busno(pci_read_config_fn read_config, int bus,
     int slot, int func, uint8_t *busnum);
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 struct resource *pci_domain_alloc_bus(int domain, device_t dev, int *rid,
 		    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags);
 int		pci_domain_adjust_bus(int domain, device_t dev,
@@ -170,14 +154,11 @@ struct resource *pcib_alloc_subbus(struct pcib_secbus *bus, device_t child,
 void		pcib_free_secbus(device_t dev, struct pcib_secbus *bus);
 void		pcib_setup_secbus(device_t dev, struct pcib_secbus *bus,
     int min_count);
-#endif
 int		pcib_attach(device_t dev);
 int		pcib_attach_child(device_t dev);
 void		pcib_attach_common(device_t dev);
 void		pcib_bridge_init(device_t dev);	
-#ifdef NEW_PCIB
 const char	*pcib_child_name(device_t child);
-#endif
 int		pcib_detach(device_t dev);
 int		pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result);
 int		pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value);

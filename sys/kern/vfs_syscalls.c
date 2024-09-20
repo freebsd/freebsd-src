@@ -2151,7 +2151,8 @@ kern_accessat(struct thread *td, int fd, const char *path,
 	struct nameidata nd;
 	int error;
 
-	if ((flag & ~(AT_EACCESS | AT_RESOLVE_BENEATH | AT_EMPTY_PATH)) != 0)
+	if ((flag & ~(AT_EACCESS | AT_RESOLVE_BENEATH | AT_EMPTY_PATH |
+	    AT_SYMLINK_NOFOLLOW)) != 0)
 		return (EINVAL);
 	if (amode != F_OK && (amode & ~(R_OK | W_OK | X_OK)) != 0)
 		return (EINVAL);
@@ -2171,8 +2172,8 @@ kern_accessat(struct thread *td, int fd, const char *path,
 	} else
 		usecred = cred;
 	AUDIT_ARG_VALUE(amode);
-	NDINIT_ATRIGHTS(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF |
-	    AUDITVNODE1 | at2cnpflags(flag, AT_RESOLVE_BENEATH |
+	NDINIT_ATRIGHTS(&nd, LOOKUP, LOCKSHARED | LOCKLEAF |
+	    AUDITVNODE1 | at2cnpflags(flag, AT_RESOLVE_BENEATH | AT_SYMLINK_NOFOLLOW |
 	    AT_EMPTY_PATH), pathseg, path, fd, &cap_fstat_rights);
 	if ((error = namei(&nd)) != 0)
 		goto out;
@@ -4977,11 +4978,13 @@ kern_copy_file_range(struct thread *td, int infd, off_t *inoffp, int outfd,
 	 * If infp and outfp refer to the same file, the byte ranges cannot
 	 * overlap.
 	 */
-	if (invp == outvp && ((savinoff <= savoutoff && savinoff + len >
-	    savoutoff) || (savinoff > savoutoff && savoutoff + len >
-	    savinoff))) {
-		error = EINVAL;
-		goto out;
+	if (invp == outvp) {
+		if ((savinoff <= savoutoff && savinoff + len > savoutoff) ||
+		    (savinoff > savoutoff && savoutoff + len > savinoff)) {
+			error = EINVAL;
+			goto out;
+		}
+		rangelock_may_recurse(&invp->v_rl);
 	}
 
 	/* Range lock the byte ranges for both invp and outvp. */

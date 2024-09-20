@@ -1,4 +1,3 @@
-
 PACKAGE=	tests
 
 TESTSDIR=	${TESTSBASE}/usr.bin/bmake/execution/joberr

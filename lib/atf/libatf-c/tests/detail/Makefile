@@ -1,4 +1,3 @@
-
 .include <bsd.init.mk>
 
 TESTSDIR=	${TESTSBASE}/lib/atf/libatf-c/detail

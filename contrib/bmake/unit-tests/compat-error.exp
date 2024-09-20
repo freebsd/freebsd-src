@@ -9,7 +9,7 @@ false 'fail2' '${.TARGET}' '$${.TARGET}'
 : Making success3 out of nothing.
 
 Stop.
-make: stopped in unit-tests
+make: stopped making "success1 fail1 success2 fail2 success3" in unit-tests
 .ERROR target: <fail1>
 .ERROR command: <>
 exit status 1

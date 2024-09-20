@@ -91,6 +91,10 @@ struct linux_kmem_cache;
 #define	ZERO_SIZE_PTR		((void *)16)
 #define ZERO_OR_NULL_PTR(x)	((x) == NULL || (x) == ZERO_SIZE_PTR)
 
+extern void *lkpi_kmalloc(size_t size, gfp_t flags);
+void *lkpi___kmalloc(size_t size, gfp_t flags);
+#define	__kmalloc(_s, _f)	lkpi___kmalloc(_s, _f)
+
 static inline gfp_t
 linux_check_m_flags(gfp_t flags)
 {
@@ -104,13 +108,6 @@ linux_check_m_flags(gfp_t flags)
 
 	/* mask away LinuxKPI specific flags */
 	return (flags & GFP_NATIVE_MASK);
-}
-
-static inline void *
-__kmalloc(size_t size, gfp_t flags)
-{
-	return (malloc(MAX(size, sizeof(struct llist_node)), M_KMALLOC,
-	    linux_check_m_flags(flags)));
 }
 
 static inline void *
@@ -212,13 +209,37 @@ kfree_sensitive(const void *ptr)
 	zfree(__DECONST(void *, ptr), M_KMALLOC);
 }
 
+static inline void *
+kvrealloc(const void *ptr, size_t oldsize, size_t newsize, gfp_t flags)
+{
+	void *newptr;
+
+	if (newsize <= oldsize)
+		return (__DECONST(void *, ptr));
+
+	newptr = kvmalloc(newsize, flags);
+	if (newptr != NULL) {
+		memcpy(newptr, ptr, oldsize);
+		kvfree(ptr);
+	}
+
+	return (newptr);
+}
+
 static inline size_t
 ksize(const void *ptr)
 {
 	return (malloc_usable_size(ptr));
 }
 
-extern void *lkpi_kmalloc(size_t size, gfp_t flags);
+static inline size_t
+kmalloc_size_roundup(size_t size)
+{
+	if (unlikely(size == 0 || size == SIZE_MAX))
+		return (size);
+	return (malloc_size(size));
+}
+
 extern struct linux_kmem_cache *linux_kmem_cache_create(const char *name,
     size_t size, size_t align, unsigned flags, linux_kmem_ctor_t *ctor);
 extern void *lkpi_kmem_cache_alloc(struct linux_kmem_cache *, gfp_t);

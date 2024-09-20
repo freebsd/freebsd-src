@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 PROG=		xregs_sig

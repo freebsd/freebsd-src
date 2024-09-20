@@ -824,6 +824,11 @@ char	ieee80211_channel_type_char(const struct ieee80211_channel *c);
 #define	ieee80211_get_home_channel(_ic)		((_ic)->ic_bsschan)
 #define	ieee80211_get_vap_desired_channel(_iv)	((_iv)->iv_des_chan)
 
+bool	ieee80211_is_key_global(const struct ieee80211vap *vap,
+	    const struct ieee80211_key *key);
+bool	ieee80211_is_key_unicast(const struct ieee80211vap *vap,
+	    const struct ieee80211_key *key);
+
 void	ieee80211_radiotap_attach(struct ieee80211com *,
 	    struct ieee80211_radiotap_header *th, int tlen,
 		uint32_t tx_radiotap,

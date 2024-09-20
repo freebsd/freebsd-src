@@ -1,4 +1,3 @@
-
 SUBDIR=	
 
 # Do we have the TCP_HHOOK symbol defined? If not, there is no point in

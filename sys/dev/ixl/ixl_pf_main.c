@@ -91,6 +91,7 @@ static int	ixl_sysctl_do_pf_reset(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_do_core_reset(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_do_global_reset(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_queue_interrupt_table(SYSCTL_HANDLER_ARGS);
+static int	ixl_sysctl_debug_queue_int_ctln(SYSCTL_HANDLER_ARGS);
 #ifdef IXL_DEBUG
 static int	ixl_sysctl_qtx_tail_handler(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_qrx_tail_handler(SYSCTL_HANDLER_ARGS);
@@ -2109,45 +2110,37 @@ ixl_update_stats_counters(struct ixl_pf *pf)
 	ixl_stat_update32(hw, I40E_GLPRT_ILLERRC(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->illegal_bytes, &nsd->illegal_bytes);
-	ixl_stat_update48(hw, I40E_GLPRT_GORCH(hw->port),
-			   I40E_GLPRT_GORCL(hw->port),
+	ixl_stat_update48(hw, I40E_GLPRT_GORCL(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->eth.rx_bytes, &nsd->eth.rx_bytes);
-	ixl_stat_update48(hw, I40E_GLPRT_GOTCH(hw->port),
-			   I40E_GLPRT_GOTCL(hw->port),
+	ixl_stat_update48(hw, I40E_GLPRT_GOTCL(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->eth.tx_bytes, &nsd->eth.tx_bytes);
 	ixl_stat_update32(hw, I40E_GLPRT_RDPC(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->eth.rx_discards,
 			   &nsd->eth.rx_discards);
-	ixl_stat_update48(hw, I40E_GLPRT_UPRCH(hw->port),
-			   I40E_GLPRT_UPRCL(hw->port),
+	ixl_stat_update48(hw, I40E_GLPRT_UPRCL(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->eth.rx_unicast,
 			   &nsd->eth.rx_unicast);
-	ixl_stat_update48(hw, I40E_GLPRT_UPTCH(hw->port),
-			   I40E_GLPRT_UPTCL(hw->port),
+	ixl_stat_update48(hw, I40E_GLPRT_UPTCL(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->eth.tx_unicast,
 			   &nsd->eth.tx_unicast);
-	ixl_stat_update48(hw, I40E_GLPRT_MPRCH(hw->port),
-			   I40E_GLPRT_MPRCL(hw->port),
+	ixl_stat_update48(hw, I40E_GLPRT_MPRCL(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->eth.rx_multicast,
 			   &nsd->eth.rx_multicast);
-	ixl_stat_update48(hw, I40E_GLPRT_MPTCH(hw->port),
-			   I40E_GLPRT_MPTCL(hw->port),
+	ixl_stat_update48(hw, I40E_GLPRT_MPTCL(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->eth.tx_multicast,
 			   &nsd->eth.tx_multicast);
-	ixl_stat_update48(hw, I40E_GLPRT_BPRCH(hw->port),
-			   I40E_GLPRT_BPRCL(hw->port),
+	ixl_stat_update48(hw, I40E_GLPRT_BPRCL(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->eth.rx_broadcast,
 			   &nsd->eth.rx_broadcast);
-	ixl_stat_update48(hw, I40E_GLPRT_BPTCH(hw->port),
-			   I40E_GLPRT_BPTCL(hw->port),
+	ixl_stat_update48(hw, I40E_GLPRT_BPTCL(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->eth.tx_broadcast,
 			   &nsd->eth.tx_broadcast);
@@ -2191,62 +2184,48 @@ ixl_update_stats_counters(struct ixl_pf *pf)
 		vsi->shared->isc_pause_frames = 1;
 
 	/* Packet size stats rx */
-	ixl_stat_update48(hw, I40E_GLPRT_PRC64H(hw->port),
-			   I40E_GLPRT_PRC64L(hw->port),
+	ixl_stat_update48(hw, I40E_GLPRT_PRC64L(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->rx_size_64, &nsd->rx_size_64);
-	ixl_stat_update48(hw, I40E_GLPRT_PRC127H(hw->port),
-			   I40E_GLPRT_PRC127L(hw->port),
+	ixl_stat_update48(hw, I40E_GLPRT_PRC127L(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->rx_size_127, &nsd->rx_size_127);
-	ixl_stat_update48(hw, I40E_GLPRT_PRC255H(hw->port),
-			   I40E_GLPRT_PRC255L(hw->port),
+	ixl_stat_update48(hw, I40E_GLPRT_PRC255L(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->rx_size_255, &nsd->rx_size_255);
-	ixl_stat_update48(hw, I40E_GLPRT_PRC511H(hw->port),
-			   I40E_GLPRT_PRC511L(hw->port),
+	ixl_stat_update48(hw, I40E_GLPRT_PRC511L(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->rx_size_511, &nsd->rx_size_511);
-	ixl_stat_update48(hw, I40E_GLPRT_PRC1023H(hw->port),
-			   I40E_GLPRT_PRC1023L(hw->port),
+	ixl_stat_update48(hw, I40E_GLPRT_PRC1023L(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->rx_size_1023, &nsd->rx_size_1023);
-	ixl_stat_update48(hw, I40E_GLPRT_PRC1522H(hw->port),
-			   I40E_GLPRT_PRC1522L(hw->port),
+	ixl_stat_update48(hw, I40E_GLPRT_PRC1522L(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->rx_size_1522, &nsd->rx_size_1522);
-	ixl_stat_update48(hw, I40E_GLPRT_PRC9522H(hw->port),
-			   I40E_GLPRT_PRC9522L(hw->port),
+	ixl_stat_update48(hw, I40E_GLPRT_PRC9522L(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->rx_size_big, &nsd->rx_size_big);
 
 	/* Packet size stats tx */
-	ixl_stat_update48(hw, I40E_GLPRT_PTC64H(hw->port),
-			   I40E_GLPRT_PTC64L(hw->port),
+	ixl_stat_update48(hw, I40E_GLPRT_PTC64L(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->tx_size_64, &nsd->tx_size_64);
-	ixl_stat_update48(hw, I40E_GLPRT_PTC127H(hw->port),
-			   I40E_GLPRT_PTC127L(hw->port),
+	ixl_stat_update48(hw, I40E_GLPRT_PTC127L(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->tx_size_127, &nsd->tx_size_127);
-	ixl_stat_update48(hw, I40E_GLPRT_PTC255H(hw->port),
-			   I40E_GLPRT_PTC255L(hw->port),
+	ixl_stat_update48(hw, I40E_GLPRT_PTC255L(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->tx_size_255, &nsd->tx_size_255);
-	ixl_stat_update48(hw, I40E_GLPRT_PTC511H(hw->port),
-			   I40E_GLPRT_PTC511L(hw->port),
+	ixl_stat_update48(hw, I40E_GLPRT_PTC511L(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->tx_size_511, &nsd->tx_size_511);
-	ixl_stat_update48(hw, I40E_GLPRT_PTC1023H(hw->port),
-			   I40E_GLPRT_PTC1023L(hw->port),
+	ixl_stat_update48(hw, I40E_GLPRT_PTC1023L(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->tx_size_1023, &nsd->tx_size_1023);
-	ixl_stat_update48(hw, I40E_GLPRT_PTC1522H(hw->port),
-			   I40E_GLPRT_PTC1522L(hw->port),
+	ixl_stat_update48(hw, I40E_GLPRT_PTC1522L(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->tx_size_1522, &nsd->tx_size_1522);
-	ixl_stat_update48(hw, I40E_GLPRT_PTC9522H(hw->port),
-			   I40E_GLPRT_PTC9522L(hw->port),
+	ixl_stat_update48(hw, I40E_GLPRT_PTC9522L(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->tx_size_big, &nsd->tx_size_big);
 
@@ -2256,9 +2235,29 @@ ixl_update_stats_counters(struct ixl_pf *pf)
 	ixl_stat_update32(hw, I40E_GLPRT_RFC(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->rx_fragments, &nsd->rx_fragments);
+
+	u64 rx_roc;
 	ixl_stat_update32(hw, I40E_GLPRT_ROC(hw->port),
 			   pf->stat_offsets_loaded,
-			   &osd->rx_oversize, &nsd->rx_oversize);
+			   &osd->rx_oversize, &rx_roc);
+
+	/*
+	 * Read from RXERR1 register to get the count for the packets
+	 * larger than RX MAX and include that in total rx_oversize count.
+	 *
+	 * Also need to add BIT(7) to hw->port value while indexing
+	 * I40E_GL_RXERR1 register as indexes 0..127 are for VFs when
+	 * SR-IOV is enabled. Indexes 128..143 are for PFs.
+	 */
+	u64 rx_err1;
+	ixl_stat_update64(hw,
+			   I40E_GL_RXERR1L(hw->pf_id + BIT(7)),
+			   pf->stat_offsets_loaded,
+			   &osd->rx_err1,
+			   &rx_err1);
+
+	nsd->rx_oversize = rx_roc + rx_err1;
+
 	ixl_stat_update32(hw, I40E_GLPRT_RJC(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->rx_jabber, &nsd->rx_jabber);
@@ -2305,37 +2304,29 @@ ixl_update_eth_stats(struct ixl_vsi *vsi)
 			   vsi->stat_offsets_loaded,
 			   &oes->rx_discards, &es->rx_discards);
 
-	ixl_stat_update48(hw, I40E_GLV_GORCH(stat_idx),
-			   I40E_GLV_GORCL(stat_idx),
+	ixl_stat_update48(hw, I40E_GLV_GORCL(stat_idx),
 			   vsi->stat_offsets_loaded,
 			   &oes->rx_bytes, &es->rx_bytes);
-	ixl_stat_update48(hw, I40E_GLV_UPRCH(stat_idx),
-			   I40E_GLV_UPRCL(stat_idx),
+	ixl_stat_update48(hw, I40E_GLV_UPRCL(stat_idx),
 			   vsi->stat_offsets_loaded,
 			   &oes->rx_unicast, &es->rx_unicast);
-	ixl_stat_update48(hw, I40E_GLV_MPRCH(stat_idx),
-			   I40E_GLV_MPRCL(stat_idx),
+	ixl_stat_update48(hw, I40E_GLV_MPRCL(stat_idx),
 			   vsi->stat_offsets_loaded,
 			   &oes->rx_multicast, &es->rx_multicast);
-	ixl_stat_update48(hw, I40E_GLV_BPRCH(stat_idx),
-			   I40E_GLV_BPRCL(stat_idx),
+	ixl_stat_update48(hw, I40E_GLV_BPRCL(stat_idx),
 			   vsi->stat_offsets_loaded,
 			   &oes->rx_broadcast, &es->rx_broadcast);
 
-	ixl_stat_update48(hw, I40E_GLV_GOTCH(stat_idx),
-			   I40E_GLV_GOTCL(stat_idx),
+	ixl_stat_update48(hw, I40E_GLV_GOTCL(stat_idx),
 			   vsi->stat_offsets_loaded,
 			   &oes->tx_bytes, &es->tx_bytes);
-	ixl_stat_update48(hw, I40E_GLV_UPTCH(stat_idx),
-			   I40E_GLV_UPTCL(stat_idx),
+	ixl_stat_update48(hw, I40E_GLV_UPTCL(stat_idx),
 			   vsi->stat_offsets_loaded,
 			   &oes->tx_unicast, &es->tx_unicast);
-	ixl_stat_update48(hw, I40E_GLV_MPTCH(stat_idx),
-			   I40E_GLV_MPTCL(stat_idx),
+	ixl_stat_update48(hw, I40E_GLV_MPTCL(stat_idx),
 			   vsi->stat_offsets_loaded,
 			   &oes->tx_multicast, &es->tx_multicast);
-	ixl_stat_update48(hw, I40E_GLV_BPTCH(stat_idx),
-			   I40E_GLV_BPTCL(stat_idx),
+	ixl_stat_update48(hw, I40E_GLV_BPTCL(stat_idx),
 			   vsi->stat_offsets_loaded,
 			   &oes->tx_broadcast, &es->tx_broadcast);
 	vsi->stat_offsets_loaded = true;
@@ -2409,28 +2400,56 @@ ixl_vsi_reset_stats(struct ixl_vsi *vsi)
 }
 
 /**
- * Read and update a 48 bit stat from the hw
+ * Helper function for reading and updating 48/64 bit stats from the hw
  *
  * Since the device stats are not reset at PFReset, they likely will not
  * be zeroed when the driver starts.  We'll save the first values read
  * and use them as offsets to be subtracted from the raw values in order
  * to report stats that count from zero.
  **/
-void
-ixl_stat_update48(struct i40e_hw *hw, u32 hireg, u32 loreg,
-	bool offset_loaded, u64 *offset, u64 *stat)
+static void
+_ixl_stat_update_helper(struct i40e_hw *hw, u32 reg,
+	bool offset_loaded, u64 mask, u64 *offset, u64 *stat)
 {
-	u64 new_data;
-
-	new_data = rd64(hw, loreg);
+	u64 new_data = rd64(hw, reg);
 
 	if (!offset_loaded)
 		*offset = new_data;
 	if (new_data >= *offset)
 		*stat = new_data - *offset;
 	else
-		*stat = (new_data + ((u64)1 << 48)) - *offset;
-	*stat &= 0xFFFFFFFFFFFFULL;
+		*stat = (new_data + mask) - *offset + 1;
+	*stat &= mask;
+}
+
+/**
+ * Read and update a 48 bit stat from the hw
+ **/
+void
+ixl_stat_update48(struct i40e_hw *hw, u32 reg,
+	bool offset_loaded, u64 *offset, u64 *stat)
+{
+	_ixl_stat_update_helper(hw,
+		reg,
+		offset_loaded,
+		0xFFFFFFFFFFFFULL,
+		offset,
+		stat);
+}
+
+/**
+ * ixl_stat_update64 - read and update a 64 bit stat from the chip.
+ **/
+void
+ixl_stat_update64(struct i40e_hw *hw, u32 reg,
+			       bool offset_loaded, u64 *offset, u64 *stat)
+{
+	_ixl_stat_update_helper(hw,
+		reg,
+		offset_loaded,
+		0xFFFFFFFFFFFFFFFFULL,
+		offset,
+		stat);
 }
 
 /**
@@ -2510,6 +2529,12 @@ ixl_add_sysctls_recovery_mode(struct ixl_pf *pf)
 	    OID_AUTO, "queue_interrupt_table",
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 	    pf, 0, ixl_sysctl_queue_interrupt_table, "A", "View MSI-X indices for TX/RX queues");
+
+	SYSCTL_ADD_PROC(ctx, debug_list,
+	    OID_AUTO, "queue_int_ctln",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+	    pf, 0, ixl_sysctl_debug_queue_int_ctln, "A",
+	    "View MSI-X control registers for RX queues");
 }
 
 void
@@ -4881,6 +4906,7 @@ ixl_sysctl_queue_interrupt_table(SYSCTL_HANDLER_ARGS)
 {
 	struct ixl_pf *pf = (struct ixl_pf *)arg1;
 	struct ixl_vsi *vsi = &pf->vsi;
+	struct i40e_hw *hw = vsi->hw;
 	device_t dev = pf->dev;
 	struct sbuf *buf;
 	int error = 0;
@@ -4897,11 +4923,52 @@ ixl_sysctl_queue_interrupt_table(SYSCTL_HANDLER_ARGS)
 	sbuf_cat(buf, "\n");
 	for (int i = 0; i < vsi->num_rx_queues; i++) {
 		rx_que = &vsi->rx_queues[i];
-		sbuf_printf(buf, "(rxq %3d): %d\n", i, rx_que->msix);
+		sbuf_printf(buf,
+		    "(rxq %3d): %d LNKLSTN: %08x QINT_RQCTL: %08x\n",
+		    i, rx_que->msix,
+		    rd32(hw, I40E_PFINT_LNKLSTN(rx_que->msix - 1)),
+		    rd32(hw, I40E_QINT_RQCTL(rx_que->msix - 1)));
 	}
 	for (int i = 0; i < vsi->num_tx_queues; i++) {
 		tx_que = &vsi->tx_queues[i];
-		sbuf_printf(buf, "(txq %3d): %d\n", i, tx_que->msix);
+		sbuf_printf(buf, "(txq %3d): %d QINT_TQCTL: %08x\n",
+		    i, tx_que->msix,
+		    rd32(hw, I40E_QINT_TQCTL(tx_que->msix - 1)));
+	}
+
+	error = sbuf_finish(buf);
+	if (error)
+		device_printf(dev, "Error finishing sbuf: %d\n", error);
+	sbuf_delete(buf);
+
+	return (error);
+}
+
+static int
+ixl_sysctl_debug_queue_int_ctln(SYSCTL_HANDLER_ARGS)
+{
+	struct ixl_pf *pf = (struct ixl_pf *)arg1;
+	struct ixl_vsi *vsi = &pf->vsi;
+	struct i40e_hw *hw = vsi->hw;
+	device_t dev = pf->dev;
+	struct sbuf *buf;
+	int error = 0;
+
+	struct ixl_rx_queue *rx_que = vsi->rx_queues;
+
+	buf = sbuf_new_for_sysctl(NULL, NULL, 128, req);
+	if (!buf) {
+		device_printf(dev, "Could not allocate sbuf for output.\n");
+		return (ENOMEM);
+	}
+
+	sbuf_cat(buf, "\n");
+	for (int i = 0; i < vsi->num_rx_queues; i++) {
+		rx_que = &vsi->rx_queues[i];
+		sbuf_printf(buf,
+		    "(rxq %3d): %d PFINT_DYN_CTLN: %08x\n",
+		    i, rx_que->msix,
+		    rd32(hw, I40E_PFINT_DYN_CTLN(rx_que->msix - 1)));
 	}
 
 	error = sbuf_finish(buf);

@@ -1,4 +1,3 @@
-
 # locale sources
 .PATH: ${LIBC_SRCTOP}/${LIBC_ARCH}/locale ${LIBC_SRCTOP}/locale
 

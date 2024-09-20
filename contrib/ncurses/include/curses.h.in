@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2018-2023,2024 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -33,10 +33,39 @@
  *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
-/* $Id: curses.h.in,v 1.269 2020/08/17 14:14:12 tom Exp $ */
+/* $Id: curses.h.in,v 1.282 2024/01/19 11:50:07 tom Exp $ */
 
 #ifndef __NCURSES_H
 #define __NCURSES_H
+
+/*
+ The symbols beginning NCURSES_ or USE_ are configuration choices.
+ A few of the former can be overridden by applications at compile-time.
+ Most of the others correspond to configure-script options (or checks
+ by the configure-script for features of the system on which it is built).
+
+ These symbols can be overridden by applications at compile-time:
+ NCURSES_NOMACROS suppresses macro definitions in favor of functions
+ NCURSES_WATTR_MACROS suppresses wattr_* macro definitions
+ NCURSES_WIDECHAR is an alternative for declaring wide-character functions.
+
+ These symbols are used only when building ncurses:
+ NCURSES_ATTR_T
+ NCURSES_FIELD_INTERNALS
+ NCURSES_INTERNALS
+
+ These symbols are set by the configure script:
+ NCURSES_ENABLE_STDBOOL_H
+ NCURSES_EXPANDED
+ NCURSES_EXT_COLORS
+ NCURSES_EXT_FUNCS
+ NCURSES_EXT_PUTWIN
+ NCURSES_NO_PADDING
+ NCURSES_OSPEED_COMPAT
+ NCURSES_PATHSEP
+ NCURSES_REENTRANT
+ NCURSES_SIGWINCH
+ */
 
 #define CURSES 1
 #define CURSES_H 1
@@ -60,8 +89,20 @@
  */
 #include <ncurses_dll.h>
 
+/*
+ * Extra headers.
+ */
 #if @HAVE_STDINT_H@
 #include <stdint.h>
+#endif
+
+#ifdef __cplusplus
+#else
+#if @HAVE_STDNORETURN_H@
+#include <stdnoreturn.h>
+#undef GCC_NORETURN
+#define GCC_NORETURN _Noreturn
+#endif
 #endif
 
 /*
@@ -128,6 +169,19 @@
  */
 #ifndef NCURSES_REENTRANT
 #define NCURSES_REENTRANT @cf_cv_enable_reentrant@
+#endif
+
+/*
+ * KEY_RESIZE is an extended feature that relies upon the SIGWINCH handler
+ * in ncurses.
+ */
+#if @NCURSES_EXT_FUNCS@
+#ifndef NCURSES_SIGWINCH
+#define NCURSES_SIGWINCH @cf_cv_enable_sigwinch@
+#endif
+#else
+#undef NCURSES_SIGWINCH
+#define NCURSES_SIGWINCH 0
 #endif
 
 /*
@@ -391,7 +445,14 @@ extern NCURSES_EXPORT_VAR(chtype) acs_map[];
  */
 #define _NEWINDEX	-1
 
+#ifdef NCURSES_INTERNALS
+#undef SCREEN
+#define SCREEN struct screen
+SCREEN;
+#else
 typedef struct screen  SCREEN;
+#endif
+
 typedef struct _win_st WINDOW;
 
 typedef	chtype	attr_t;		/* ...must be at least as wide as chtype */
@@ -510,14 +571,10 @@ struct _win_st
 
 /*
  * We cannot define these in ncurses_cfg.h, since they require parameters to be
- * passed (that is non-portable).  If you happen to be using gcc with warnings
- * enabled, define
- *	GCC_PRINTF
- *	GCC_SCANF
- * to improve checking of calls to printw(), etc.
+ * passed (that is non-portable).
  */
 #ifndef GCC_PRINTFLIKE
-#if defined(GCC_PRINTF) && !defined(printf)
+#ifndef printf
 #define GCC_PRINTFLIKE(fmt,var) __attribute__((format(printf,fmt,var)))
 #else
 #define GCC_PRINTFLIKE(fmt,var) /*nothing*/
@@ -525,7 +582,7 @@ struct _win_st
 #endif
 
 #ifndef GCC_SCANFLIKE
-#if defined(GCC_SCANF) && !defined(scanf)
+#ifndef scanf
 #define GCC_SCANFLIKE(fmt,var)  __attribute__((format(scanf,fmt,var)))
 #else
 #define GCC_SCANFLIKE(fmt,var)  /*nothing*/
@@ -773,10 +830,14 @@ extern NCURSES_EXPORT(void) use_tioctl (bool);				/* implemented */
 extern NCURSES_EXPORT(int) vidattr (chtype);				/* implemented */
 extern NCURSES_EXPORT(int) vidputs (chtype, NCURSES_OUTC);		/* implemented */
 extern NCURSES_EXPORT(int) vline (chtype, int);				/* generated */
-extern NCURSES_EXPORT(int) vwprintw (WINDOW *, const char *,va_list) GCC_DEPRECATED(use vw_printw);	/* implemented */
-extern NCURSES_EXPORT(int) vw_printw (WINDOW *, const char *,va_list);	/* implemented */
-extern NCURSES_EXPORT(int) vwscanw (WINDOW *, const char *,va_list) GCC_DEPRECATED(use vw_scanw);	/* implemented */
-extern NCURSES_EXPORT(int) vw_scanw (WINDOW *, const char *,va_list);	/* implemented */
+extern NCURSES_EXPORT(int) vwprintw (WINDOW *, const char *, va_list) GCC_DEPRECATED(use vw_printw)	/* implemented */
+		GCC_PRINTFLIKE(2,0);
+extern NCURSES_EXPORT(int) vw_printw (WINDOW *, const char *, va_list)	/* implemented */
+		GCC_PRINTFLIKE(2,0);	
+extern NCURSES_EXPORT(int) vwscanw (WINDOW *, const char *, va_list) GCC_DEPRECATED(use vw_scanw)	/* implemented */
+		GCC_SCANFLIKE(2,0);
+extern NCURSES_EXPORT(int) vw_scanw (WINDOW *, const char *, va_list)	/* implemented */
+		GCC_SCANFLIKE(2,0);
 extern NCURSES_EXPORT(int) waddch (WINDOW *, const chtype);		/* implemented */
 extern NCURSES_EXPORT(int) waddchnstr (WINDOW *,const chtype *,int);	/* implemented */
 extern NCURSES_EXPORT(int) waddchstr (WINDOW *,const chtype *);		/* generated */
@@ -849,6 +910,8 @@ extern NCURSES_EXPORT(char *) tparm (const char *, NCURSES_TPARM_ARG,NCURSES_TPA
 #endif
 
 extern NCURSES_EXPORT(char *) tiparm (const char *, ...);		/* special */
+extern NCURSES_EXPORT(char *) tiparm_s (int, int, const char *, ...);	/* special */
+extern NCURSES_EXPORT(int) tiscan_s (int *, int *, const char *);	/* special */
 
 /*
  * These functions are not in X/Open, but we use them in macro definitions:
@@ -878,11 +941,9 @@ extern NCURSES_EXPORT(int) getpary (const WINDOW *);			/* generated */
 #define NCURSES_EXT_FUNCS @NCURSES_PATCH@
 typedef int (*NCURSES_WINDOW_CB)(WINDOW *, void *);
 typedef int (*NCURSES_SCREEN_CB)(SCREEN *, void *);
-extern NCURSES_EXPORT(bool) is_term_resized (int, int);
-extern NCURSES_EXPORT(char *) keybound (int, int);
-extern NCURSES_EXPORT(const char *) curses_version (void);
 extern NCURSES_EXPORT(int) alloc_pair (int, int);
 extern NCURSES_EXPORT(int) assume_default_colors (int, int);
+extern NCURSES_EXPORT(const char *) curses_version (void);
 extern NCURSES_EXPORT(int) define_key (const char *, int);
 extern NCURSES_EXPORT(int) extended_color_content(int, int *, int *, int *);
 extern NCURSES_EXPORT(int) extended_pair_content(int, int *, int *);
@@ -892,20 +953,31 @@ extern NCURSES_EXPORT(int) free_pair (int);
 extern NCURSES_EXPORT(int) get_escdelay (void);
 extern NCURSES_EXPORT(int) init_extended_color(int, int, int, int);
 extern NCURSES_EXPORT(int) init_extended_pair(int, int, int);
+extern NCURSES_EXPORT(int) is_cbreak(void);
+extern NCURSES_EXPORT(int) is_echo(void);
+extern NCURSES_EXPORT(int) is_nl(void);
+extern NCURSES_EXPORT(int) is_raw(void);
+extern NCURSES_EXPORT(bool) is_term_resized (int, int);
 extern NCURSES_EXPORT(int) key_defined (const char *);
+extern NCURSES_EXPORT(char *) keybound (int, int);
 extern NCURSES_EXPORT(int) keyok (int, bool);
+extern NCURSES_EXPORT(void) nofilter(void);
 extern NCURSES_EXPORT(void) reset_color_pairs (void);
 extern NCURSES_EXPORT(int) resize_term (int, int);
 extern NCURSES_EXPORT(int) resizeterm (int, int);
 extern NCURSES_EXPORT(int) set_escdelay (int);
 extern NCURSES_EXPORT(int) set_tabsize (int);
 extern NCURSES_EXPORT(int) use_default_colors (void);
-extern NCURSES_EXPORT(int) use_extended_names (bool);
 extern NCURSES_EXPORT(int) use_legacy_coding (int);
 extern NCURSES_EXPORT(int) use_screen (SCREEN *, NCURSES_SCREEN_CB, void *);
 extern NCURSES_EXPORT(int) use_window (WINDOW *, NCURSES_WINDOW_CB, void *);
 extern NCURSES_EXPORT(int) wresize (WINDOW *, int, int);
-extern NCURSES_EXPORT(void) nofilter(void);
+
+#if @NCURSES_XNAMES@
+#undef  NCURSES_XNAMES
+#define NCURSES_XNAMES @NCURSES_XNAMES@
+extern NCURSES_EXPORT(int) use_extended_names (bool);
+#endif
 
 /*
  * These extensions provide access to information stored in the WINDOW even
@@ -1020,20 +1092,24 @@ extern NCURSES_EXPORT(void) NCURSES_SP_NAME(use_tioctl) (SCREEN*, bool); /* impl
 extern NCURSES_EXPORT(int) NCURSES_SP_NAME(vidattr) (SCREEN*, chtype);	/* implemented:SP_FUNC */
 extern NCURSES_EXPORT(int) NCURSES_SP_NAME(vidputs) (SCREEN*, chtype, NCURSES_SP_OUTC); /* implemented:SP_FUNC */
 #if @NCURSES_EXT_FUNCS@
-extern NCURSES_EXPORT(char *) NCURSES_SP_NAME(keybound) (SCREEN*, int, int);	/* implemented:EXT_SP_FUNC */
 extern NCURSES_EXPORT(int) NCURSES_SP_NAME(alloc_pair) (SCREEN*, int, int); /* implemented:EXT_SP_FUNC */
 extern NCURSES_EXPORT(int) NCURSES_SP_NAME(assume_default_colors) (SCREEN*, int, int);	/* implemented:EXT_SP_FUNC */
 extern NCURSES_EXPORT(int) NCURSES_SP_NAME(define_key) (SCREEN*, const char *, int);	/* implemented:EXT_SP_FUNC */
 extern NCURSES_EXPORT(int) NCURSES_SP_NAME(extended_color_content) (SCREEN*, int, int *, int *, int *);	/* implemented:EXT_SP_FUNC */
 extern NCURSES_EXPORT(int) NCURSES_SP_NAME(extended_pair_content) (SCREEN*, int, int *, int *);	/* implemented:EXT_SP_FUNC */
 extern NCURSES_EXPORT(int) NCURSES_SP_NAME(extended_slk_color) (SCREEN*, int);	/* implemented:EXT_SP_FUNC */
-extern NCURSES_EXPORT(int) NCURSES_SP_NAME(get_escdelay) (SCREEN*);	/* implemented:EXT_SP_FUNC */
 extern NCURSES_EXPORT(int) NCURSES_SP_NAME(find_pair) (SCREEN*, int, int); /* implemented:EXT_SP_FUNC */
 extern NCURSES_EXPORT(int) NCURSES_SP_NAME(free_pair) (SCREEN*, int); /* implemented:EXT_SP_FUNC */
+extern NCURSES_EXPORT(int) NCURSES_SP_NAME(get_escdelay) (SCREEN*);	/* implemented:EXT_SP_FUNC */
 extern NCURSES_EXPORT(int) NCURSES_SP_NAME(init_extended_color) (SCREEN*, int, int, int, int);	/* implemented:EXT_SP_FUNC */
 extern NCURSES_EXPORT(int) NCURSES_SP_NAME(init_extended_pair) (SCREEN*, int, int, int);	/* implemented:EXT_SP_FUNC */
+extern NCURSES_EXPORT(int) NCURSES_SP_NAME(is_cbreak) (SCREEN*);	/* implemented:EXT_SP_FUNC */
+extern NCURSES_EXPORT(int) NCURSES_SP_NAME(is_echo) (SCREEN*);	/* implemented:EXT_SP_FUNC */
+extern NCURSES_EXPORT(int) NCURSES_SP_NAME(is_nl) (SCREEN*);	/* implemented:EXT_SP_FUNC */
+extern NCURSES_EXPORT(int) NCURSES_SP_NAME(is_raw) (SCREEN*);	/* implemented:EXT_SP_FUNC */
 extern NCURSES_EXPORT(bool) NCURSES_SP_NAME(is_term_resized) (SCREEN*, int, int);	/* implemented:EXT_SP_FUNC */
 extern NCURSES_EXPORT(int) NCURSES_SP_NAME(key_defined) (SCREEN*, const char *);	/* implemented:EXT_SP_FUNC */
+extern NCURSES_EXPORT(char *) NCURSES_SP_NAME(keybound) (SCREEN*, int, int);	/* implemented:EXT_SP_FUNC */
 extern NCURSES_EXPORT(int) NCURSES_SP_NAME(keyok) (SCREEN*, int, bool);	/* implemented:EXT_SP_FUNC */
 extern NCURSES_EXPORT(void) NCURSES_SP_NAME(nofilter) (SCREEN*); /* implemented */	/* implemented:EXT_SP_FUNC */
 extern NCURSES_EXPORT(void) NCURSES_SP_NAME(reset_color_pairs) (SCREEN*); /* implemented:EXT_SP_FUNC */

@@ -68,6 +68,7 @@
 #include <getopt.h>
 
 static int	debug = 0;
+static int	nofork = 0;
 
 #define	NFSD_STABLERESTART	"/var/db/nfs-stablerestart"
 #define	NFSD_STABLEBACKUP	"/var/db/nfs-stablerestart.bak"
@@ -170,10 +171,10 @@ main(int argc, char **argv)
 	nfsdcnt = DEFNFSDCNT;
 	unregister = reregister = tcpflag = maxsock = 0;
 	bindanyflag = udpflag = connect_type_cnt = bindhostc = 0;
-	getopt_shortopts = "ah:n:rdtuep:m:V:";
+	getopt_shortopts = "ah:n:rdtuep:m:V:N";
 	getopt_usage =
 	    "usage:\n"
-	    "  nfsd [-ardtue] [-h bindip]\n"
+	    "  nfsd [-ardtueN] [-h bindip]\n"
 	    "       [-n numservers] [--minthreads #] [--maxthreads #]\n"
 	    "       [-p/--pnfs dsserver0:/dsserver0-mounted-on-dir,...,"
 	    "dsserverN:/dsserverN-mounted-on-dir] [-m mirrorlevel]\n"
@@ -229,6 +230,9 @@ main(int argc, char **argv)
 				errx(1, "Mirror level out of range 2<-->%d",
 				    NFSDEV_MAXMIRRORS);
 			nfsdargs.mirrorcnt = i;
+			break;
+		case 'N':
+			nofork = 1;
 			break;
 		case 0:
 			lopt = longopts[longindex].name;
@@ -411,7 +415,7 @@ main(int argc, char **argv)
 		}
 		exit (0);
 	}
-	if (debug == 0) {
+	if (debug == 0 && nofork == 0) {
 		daemon(0, 0);
 		(void)signal(SIGHUP, SIG_IGN);
 		(void)signal(SIGINT, SIG_IGN);

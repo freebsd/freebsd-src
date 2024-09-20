@@ -295,7 +295,7 @@ cdg_cb_init(struct cc_var *ccv, void *ptr)
 {
 	struct cdg *cdg_data;
 
-	INP_WLOCK_ASSERT(tptoinpcb(ccv->ccvc.tcp));
+	INP_WLOCK_ASSERT(tptoinpcb(ccv->tp));
 	if (ptr == NULL) {
 		cdg_data = malloc(sizeof(struct cdg), M_CC_MEM, M_NOWAIT);
 		if (cdg_data == NULL)

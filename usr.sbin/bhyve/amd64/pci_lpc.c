@@ -104,7 +104,7 @@ lpc_device_parse(const char *opts)
 			if (romfile == NULL) {
 				errx(4, "invalid bootrom option \"%s\"", opts);
 			}
-			set_config_value("lpc.bootrom", romfile);
+			set_config_value("bootrom", romfile);
 
 			varfile = strsep(&str, ",");
 			if (varfile == NULL) {
@@ -112,7 +112,7 @@ lpc_device_parse(const char *opts)
 				goto done;
 			}
 			if (strchr(varfile, '=') == NULL) {
-				set_config_value("lpc.bootvars", varfile);
+				set_config_value("bootvars", varfile);
 			} else {
 				/* varfile doesn't exist, it's another config
 				 * option */
@@ -183,13 +183,6 @@ lpc_print_supported_devices(void)
 }
 
 const char *
-lpc_bootrom(void)
-{
-
-	return (get_config_value("lpc.bootrom"));
-}
-
-const char *
 lpc_fwcfg(void)
 {
 	return (get_config_value("lpc.fwcfg"));
@@ -256,14 +249,6 @@ lpc_init(struct vmctx *ctx)
 	const char *backend, *name;
 	char *node_name;
 	int unit, error;
-	const nvlist_t *nvl;
-
-	nvl = find_config_node("lpc");
-	if (nvl != NULL && nvlist_exists(nvl, "bootrom")) {
-		error = bootrom_loadrom(ctx, nvl);
-		if (error)
-			return (error);
-	}
 
 	/* COM1 and COM2 */
 	for (unit = 0; unit < LPC_UART_NUM; unit++) {

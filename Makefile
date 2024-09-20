@@ -521,9 +521,6 @@ worlds: .PHONY
 # Don't build rarely used, semi-supported architectures unless requested.
 #
 .if defined(EXTRA_TARGETS)
-# armv6's importance has waned enough to make building it the exception rather
-# than the rule.
-EXTRA_ARCHES_arm=	armv6
 # powerpcspe excluded from main list until clang fixed
 EXTRA_ARCHES_powerpc=	powerpcspe
 .endif
@@ -535,8 +532,7 @@ TARGET_ARCHES_${target}= ${MACHINE_ARCH_LIST_${target}}
 
 .if defined(USE_GCC_TOOLCHAINS)
 TOOLCHAINS_amd64=	amd64-gcc12
-TOOLCHAINS_arm=		armv6-gcc12 armv7-gcc12
-TOOLCHAIN_armv7=	armv7-gcc12
+TOOLCHAINS_arm=		armv7-gcc12
 TOOLCHAINS_arm64=	aarch64-gcc12
 TOOLCHAINS_i386=	i386-gcc12
 TOOLCHAINS_powerpc=	powerpc-gcc12 powerpc64-gcc12

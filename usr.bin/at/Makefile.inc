@@ -1,4 +1,3 @@
-
 LOCKFILE = .lockfile
 ATSPOOL_DIR=/var/at/spool
 ATJOB_DIR=/var/at/jobs

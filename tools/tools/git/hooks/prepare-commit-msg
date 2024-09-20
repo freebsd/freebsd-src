@@ -38,7 +38,7 @@ outfile=$(mktemp /tmp/freebsd-git-commit.XXXXXXXX)
 
 cat >$outfile <<EOF
 $(awk '1;/^#$/{exit}' $1)
-#                                                         72 columns --|
+#                                   50 columns --|        72 columns --|
 #
 # Uncomment and complete these metadata fields, as appropriate:
 #

@@ -148,9 +148,7 @@ ENTRY(cpu_switch)
 	mov	x21, x2
 
 #ifdef VFP
-	/* Load the pcb address */
-	mov	x1, x4
-	bl	vfp_save_state
+	bl	vfp_save_state_switch
 	mov	x0, x20
 #else
 	mov	x0, x1

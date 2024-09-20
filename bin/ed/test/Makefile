@@ -1,4 +1,3 @@
-
 SHELL=	/bin/sh
 ED=	${.OBJDIR}/ed
 

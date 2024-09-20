@@ -298,11 +298,14 @@ struct nvme_controller {
 	void				*cons_cookie[NVME_MAX_CONSUMERS];
 
 	uint32_t			is_resetting;
-	uint32_t			is_initialized;
 	uint32_t			notification_sent;
 
 	bool				is_failed;
+	bool				is_failed_admin;
 	bool				is_dying;
+	bool				isr_warned;
+	bool				is_initialized;
+
 	STAILQ_HEAD(, nvme_request)	fail_req;
 
 	/* Host Memory Buffer */
@@ -417,9 +420,6 @@ void	nvme_qpair_submit_request(struct nvme_qpair *qpair,
 				  struct nvme_request *req);
 void	nvme_qpair_reset(struct nvme_qpair *qpair);
 void	nvme_qpair_fail(struct nvme_qpair *qpair);
-void	nvme_qpair_manual_complete_request(struct nvme_qpair *qpair,
-					   struct nvme_request *req,
-                                           uint32_t sct, uint32_t sc);
 
 void	nvme_admin_qpair_enable(struct nvme_qpair *qpair);
 void	nvme_admin_qpair_disable(struct nvme_qpair *qpair);

@@ -1,4 +1,3 @@
-
 SCRIPTS=auto \
 	adduser \
 	bootconfig \

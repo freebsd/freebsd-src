@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2020,2023 Thomas E. Dickey                                *
  * Copyright 2002-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -40,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_ins_wch.c,v 1.25 2020/12/05 20:04:59 tom Exp $")
+MODULE_ID("$Id: lib_ins_wch.c,v 1.29 2023/11/21 21:53:28 tom Exp $")
 
 /*
  * Insert the given character, updating the current location to simplify
@@ -109,9 +109,12 @@ wins_nwstr(WINDOW *win, const wchar_t *wstr, int n)
        (void *) win, _nc_viswbufn(wstr, n), n));
 
     if (win != 0
-	&& wstr != 0) {
-	if (n < 1)
+	&& wstr != 0
+	&& n != 0) {
+
+	if (n < 0) {
 	    n = INT_MAX;
+	}
 	code = OK;
 
 	if (n > 0) {
@@ -120,7 +123,7 @@ wins_nwstr(WINDOW *win, const wchar_t *wstr, int n)
 	    NCURSES_SIZE_T oy = win->_cury;
 	    NCURSES_SIZE_T ox = win->_curx;
 
-	    for (cp = wstr; (*cp != L'\0') && ((cp - wstr) < n); cp++) {
+	    for (cp = wstr; ((cp - wstr) < n) && (*cp != L'\0'); cp++) {
 		int len = _nc_wacs_width(*cp);
 
 		if ((len >= 0 && len != 1) || !is7bits(*cp)) {

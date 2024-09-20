@@ -1,4 +1,3 @@
-
 PACKAGE=	runtime
 EXPAT=		${SRCTOP}/contrib/expat
 

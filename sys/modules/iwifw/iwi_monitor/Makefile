@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/contrib/dev/iwi
 
 KMOD=	iwi_monitor

@@ -33,6 +33,7 @@
 #include <dev/mlx5/mlx5_fpga/core.h>
 #include <dev/mlx5/mlx5_core/mlx5_core.h>
 #include <dev/mlx5/mlx5_core/eswitch.h>
+#include <dev/mlx5/mlx5_accel/ipsec.h>
 
 #ifdef  RSS
 #include <net/rss_config.h>
@@ -165,6 +166,8 @@ static const char *eqe_type_str(u8 type)
 		return "MLX5_EVENT_TYPE_CODING_DCBX_CHANGE_EVENT";
 	case MLX5_EVENT_TYPE_CODING_GENERAL_NOTIFICATION_EVENT:
 		return "MLX5_EVENT_TYPE_CODING_GENERAL_NOTIFICATION_EVENT";
+	case MLX5_EVENT_TYPE_OBJECT_CHANGE:
+		return "MLX5_EVENT_TYPE_OBJECT_CHANGE";
 	default:
 		return "Unrecognized event";
 	}
@@ -370,6 +373,10 @@ static int mlx5_eq_int(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 			mlx5_temp_warning_event(dev, eqe);
 			break;
 
+		case MLX5_EVENT_TYPE_OBJECT_CHANGE:
+			mlx5_object_change_event(dev, eqe);
+			break;
+
 		default:
 			mlx5_core_warn(dev, "Unhandled event 0x%x on EQ 0x%x\n",
 				       eqe->type, eq->eqn);
@@ -570,6 +577,10 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 		async_event_mask |= (1ull <<
 		    MLX5_EVENT_TYPE_CODING_GENERAL_NOTIFICATION_EVENT);
 	}
+
+	if (mlx5_ipsec_device_caps(dev) & MLX5_IPSEC_CAP_PACKET_OFFLOAD)
+		async_event_mask |=
+			(1ull << MLX5_EVENT_TYPE_OBJECT_CHANGE);
 
 	err = mlx5_create_map_eq(dev, &table->cmd_eq, MLX5_EQ_VEC_CMD,
 				 MLX5_NUM_CMD_EQE, 1ull << MLX5_EVENT_TYPE_CMD);

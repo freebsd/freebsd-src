@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2020,2021 Thomas E. Dickey                                *
+ * Copyright 2018-2022,2023 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -52,12 +52,12 @@
 #include <termcap.h>		/* ospeed */
 #include <tic.h>
 
-MODULE_ID("$Id: lib_tputs.c,v 1.107 2021/04/03 18:45:53 tom Exp $")
+MODULE_ID("$Id: lib_tputs.c,v 1.111 2023/09/16 16:05:15 tom Exp $")
 
 NCURSES_EXPORT_VAR(char) PC = 0;              /* used by termcap library */
 NCURSES_EXPORT_VAR(NCURSES_OSPEED) ospeed = 0;        /* used by termcap library */
 
-NCURSES_EXPORT_VAR(int) _nc_nulls_sent = 0;   /* used by 'tack' program */
+NCURSES_EXPORT_VAR(int) _nc_nulls_sent = 0;
 
 #if NCURSES_NO_PADDING
 NCURSES_EXPORT(void)
@@ -88,6 +88,9 @@ NCURSES_EXPORT(int)
 NCURSES_SP_NAME(delay_output) (NCURSES_SP_DCLx int ms)
 {
     T((T_CALLED("delay_output(%p,%d)"), (void *) SP_PARM, ms));
+
+    if (ms > MAX_DELAY_MSECS)
+	ms = MAX_DELAY_MSECS;
 
     if (!HasTInfoTerminal(SP_PARM))
 	returnCode(ERR);
@@ -128,9 +131,8 @@ NCURSES_SP_NAME(_nc_flush) (NCURSES_SP_DCL0)
 			   SP_PARM->out_buffer));
 	if (SP_PARM->out_inuse) {
 	    char *buf = SP_PARM->out_buffer;
-	    size_t amount = SP->out_inuse;
+	    size_t amount = SP_PARM->out_inuse;
 
-	    SP->out_inuse = 0;
 	    TR(TRACE_CHARPUT, ("flushing %ld/%ld bytes",
 			       (unsigned long) amount, _nc_outchars));
 	    while (amount) {
@@ -155,6 +157,8 @@ NCURSES_SP_NAME(_nc_flush) (NCURSES_SP_DCL0)
 	TR(TRACE_CHARPUT, ("flushing stdout"));
 	fflush(stdout);
     }
+    if (SP_PARM != 0)
+	SP_PARM->out_inuse = 0;
     returnVoid;
 }
 
@@ -276,8 +280,8 @@ NCURSES_SP_NAME(tputs) (NCURSES_SP_DCLx
 			NCURSES_SP_OUTC outc)
 {
     NCURSES_SP_OUTC my_outch = GetOutCh();
-    bool always_delay;
-    bool normal_delay;
+    bool always_delay = FALSE;
+    bool normal_delay = FALSE;
     int number;
 #if BSD_TPUTS
     int trailpad;
@@ -305,32 +309,30 @@ NCURSES_SP_NAME(tputs) (NCURSES_SP_DCLx
     }
 #endif /* TRACE */
 
-    if (SP_PARM != 0 && !HasTInfoTerminal(SP_PARM))
-	return ERR;
-
     if (!VALID_STRING(string))
 	return ERR;
 
-    if (
+    if (SP_PARM != 0 && HasTInfoTerminal(SP_PARM)) {
+	if (
 #if NCURSES_SP_FUNCS
-	   (SP_PARM != 0 && SP_PARM->_term == 0)
+	       (SP_PARM != 0 && SP_PARM->_term == 0)
 #else
-	   cur_term == 0
+	       cur_term == 0
 #endif
-	) {
-	always_delay = FALSE;
-	normal_delay = TRUE;
-    } else {
-	always_delay = (string == bell) || (string == flash_screen);
-	normal_delay =
-	    !xon_xoff
-	    && padding_baud_rate
+	    ) {
+	    always_delay = FALSE;
+	    normal_delay = TRUE;
+	} else {
+	    always_delay = (string == bell) || (string == flash_screen);
+	    normal_delay =
+		!xon_xoff
+		&& padding_baud_rate
 #if NCURSES_NO_PADDING
-	    && !GetNoPadding(SP_PARM)
+		&& !GetNoPadding(SP_PARM)
 #endif
-	    && (_nc_baudrate(ospeed) >= padding_baud_rate);
+		&& (_nc_baudrate(ospeed) >= padding_baud_rate);
+	}
     }
-
 #if BSD_TPUTS
     /*
      * This ugly kluge deals with the fact that some ancient BSD programs

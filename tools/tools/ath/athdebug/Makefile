@@ -1,4 +1,3 @@
-
 PROG=	athdebug
 
 .include <../Makefile.inc>

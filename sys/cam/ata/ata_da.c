@@ -1834,13 +1834,6 @@ adaregister(struct cam_periph *periph, void *arg)
 	announce_buf = softc->announce_temp;
 	bzero(announce_buf, ADA_ANNOUNCETMP_SZ);
 
-	if (cam_iosched_init(&softc->cam_iosched, periph) != 0) {
-		printf("adaregister: Unable to probe new device. "
-		       "Unable to allocate iosched memory\n");
-		free(softc, M_DEVBUF);
-		return(CAM_REQ_CMP_ERR);
-	}
-
 	periph->softc = softc;
 	xpt_path_inq(&softc->cpi, periph->path);
 
@@ -1901,8 +1894,6 @@ adaregister(struct cam_periph *periph, void *arg)
 	} else {
 		softc->flags |= ADA_FLAG_ROTATING;
 	}
-	cam_iosched_set_sort_queue(softc->cam_iosched,
-	    (softc->flags & ADA_FLAG_ROTATING) ? -1 : 0);
 	softc->disk = disk_alloc();
 	adasetgeom(softc, cgd);
 	softc->disk->d_devstat = devstat_new_entry(periph->periph_name,
@@ -1921,6 +1912,17 @@ adaregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_name = "ada";
 	softc->disk->d_drv1 = periph;
 	softc->disk->d_unit = periph->unit_number;
+
+	if (cam_iosched_init(&softc->cam_iosched, periph, softc->disk,
+	    adaschedule) != 0) {
+		printf("adaregister: Unable to probe new device. "
+		       "Unable to allocate iosched memory\n");
+		free(softc, M_DEVBUF);
+		return(CAM_REQ_CMP_ERR);
+	}
+	cam_iosched_set_sort_queue(softc->cam_iosched,
+	    (softc->flags & ADA_FLAG_ROTATING) ? -1 : 0);
+
 	cam_periph_lock(periph);
 
 	dp = &softc->params;

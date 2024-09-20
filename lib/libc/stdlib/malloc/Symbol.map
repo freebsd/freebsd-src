@@ -23,11 +23,6 @@ FBSD_1.3 {
 	sallocx;
 	dallocx;
 	nallocx;
-	allocm;
-	rallocm;
-	sallocm;
-	dallocm;
-	nallocm;
 	__malloc;
 	__calloc;
 	__realloc;
@@ -40,11 +35,6 @@ FBSD_1.3 {
 	__sallocx;
 	__dallocx;
 	__nallocx;
-	__allocm;
-	__rallocm;
-	__sallocm;
-	__dallocm;
-	__nallocm;
 };
 
 FBSD_1.4 {
