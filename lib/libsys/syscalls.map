@@ -801,4 +801,6 @@ FBSDprivate_1.0 {
 	__sys_timerfd_settime;
 	_kcmp;
 	__sys_kcmp;
+	_getrlimitusage;
+	__sys_getrlimitusage;
 };
