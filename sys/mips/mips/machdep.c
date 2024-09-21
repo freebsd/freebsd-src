@@ -101,9 +101,9 @@
 
 #define	BOOTINFO_DEBUG	0
 
-char machine[] = "mips";
-SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD | CTLFLAG_CAPRD,
-    machine, 0, "Machine class");
+const char machine[] = "mips";
+SYSCTL_CONST_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD | CTLFLAG_CAPRD,
+    machine, "Machine class");
 
 char cpu_model[80];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, cpu_model, 0, "Machine model");
