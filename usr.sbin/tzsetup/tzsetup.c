@@ -877,19 +877,19 @@ main(int argc, char **argv)
 		else
 			strlcpy(path_zonetab, dztpath, sizeof(path_zonetab));
 		strcpy(path_iso3166, _PATH_ISO3166);
-		strcpy(path_zoneinfo, _PATH_ZONEINFO);
 		strcpy(path_localtime, _PATH_LOCALTIME);
 		strcpy(path_db, _PATH_DB);
 		strcpy(path_wall_cmos_clock, _PATH_WALL_CMOS_CLOCK);
 	} else {
 		sprintf(path_zonetab, "%s/%s", chrootenv, _PATH_ZONETAB);
 		sprintf(path_iso3166, "%s/%s", chrootenv, _PATH_ISO3166);
-		sprintf(path_zoneinfo, "%s/%s", chrootenv, _PATH_ZONEINFO);
 		sprintf(path_localtime, "%s/%s", chrootenv, _PATH_LOCALTIME);
 		sprintf(path_db, "%s/%s", chrootenv, _PATH_DB);
 		sprintf(path_wall_cmos_clock, "%s/%s", chrootenv,
 		    _PATH_WALL_CMOS_CLOCK);
 	}
+	/* Symlink target is the same regardless of chroot */
+	strcpy(path_zoneinfo, _PATH_ZONEINFO);
 
 	/* Override the user-supplied umask. */
 	(void)umask(S_IWGRP | S_IWOTH);
