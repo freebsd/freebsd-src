@@ -290,11 +290,11 @@ When enabled,
 enables extra bounds checking in various functions that accept buffers to be
 written into.
 These functions currently have extra bounds checking support:
-.Bl -column -offset indent "snprintf" "memmove" "strncpy" "vsnprintf" "readlink"
-.It bcopy    Ta bzero    Ta fgets     Ta getcwd    Ta gets
-.It memcpy   Ta memmove  Ta memset    Ta read      Ta readlink
-.It snprintf Ta sprintf  Ta stpcpy    Ta stpncpy   Ta strcat
-.It strcpy   Ta strncat  Ta strncpy   Ta vsnprintf Ta vsprintf
+.Bl -column -offset indent "snprintf()" "memmove()" "strncpy()" "vsnprintf()" "readlink()"
+.It Fn bcopy Ta Fn bzero Ta Fn fgets Ta Fn getcwd Ta Fn gets
+.It Fn memcpy Ta Fn memmove Ta Fn memset Ta Fn read Ta Fn readlink
+.It Fn snprintf Ta Fn sprintf Ta Fn stpcpy Ta Fn stpncpy Ta Fn strcat
+.It Fn strcpy Ta Fn strncat Ta Fn strncpy Ta Fn vsnprintf Ta Fn vsprintf
 .El
 .Pp
 .Dq FORTIFY_SOURCE
