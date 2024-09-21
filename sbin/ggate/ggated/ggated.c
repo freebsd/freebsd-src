@@ -64,7 +64,7 @@
 struct ggd_connection {
 	off_t		 c_mediasize;
 	unsigned	 c_sectorsize;
-	unsigned	 c_flags;	/* flags (RO/RW) */
+	int		 c_flags;	/* flags (RO/RW) */
 	int		 c_diskfd;
 	int		 c_sendfd;
 	int		 c_recvfd;
@@ -85,11 +85,18 @@ struct ggd_request {
 #define	r_length	r_hdr.gh_length
 #define	r_error		r_hdr.gh_error
 
+#define EFLAGS_RDONLY	0x0000
+#define EFLAGS_WRONLY	0x0001
+#define EFLAGS_RDWR	0x0002
+#define EFLAGS_ACCMODE	0x0003
+#define EFLAGS_DIRECT	0x0004
+#define EFLAGS_NODIRECT	0x0008
+
 struct ggd_export {
 	char		*e_path;	/* path to device/file */
 	in_addr_t	 e_ip;		/* remote IP address */
 	in_addr_t	 e_mask;	/* IP mask */
-	unsigned	 e_flags;	/* flags (RO/RW) */
+	int		 e_flags;	/* flags (WO/RO/RW/DIRECT/NODIRECT) */
 	SLIST_ENTRY(ggd_export) e_next;
 };
 
@@ -146,20 +153,61 @@ countmask(unsigned m)
 	return (mask);
 }
 
+static int
+parse_flags(const char *flagsstr, int lineno)
+{
+	char *flagscpy;
+	char *word, *brkf;
+	int access_flags = -1;
+	int direct_flags = 0;
+
+	flagscpy = strdup(flagsstr);
+	if (flagscpy == NULL) {
+		g_gate_xlog("Not enough memory.");
+	}
+
+	for (word = strtok_r(flagscpy, ",", &brkf);
+	     word != NULL;
+	     word = strtok_r(NULL, ",", &brkf)) {
+		if (strcasecmp("ro", word) == 0 ||
+		    strcasecmp("rd", word) == 0) {
+			access_flags = EFLAGS_RDONLY;
+		} else if (strcasecmp("wo", word) == 0) {
+			access_flags = EFLAGS_WRONLY;
+		} else if (strcasecmp("rw", word) == 0) {
+			access_flags = EFLAGS_RDWR;
+		} else if (strcasecmp("direct", word) == 0) {
+			direct_flags = EFLAGS_DIRECT;
+		} else if (strcasecmp("nodirect", word) == 0) {
+			direct_flags = EFLAGS_NODIRECT;
+		} else {
+			g_gate_xlog("Invalid value (%s) in flags field at "
+                            "line %u.", word, lineno);
+		}
+	}
+	free(flagscpy);
+	if (access_flags == -1) {
+		g_gate_xlog("Invalid value (%s) in flags field at "
+		    "line %u.", flagsstr, lineno);
+	}
+	return (direct_flags | access_flags);
+}
+
 static void
 line_parse(char *line, unsigned lineno)
 {
 	struct ggd_export *ex;
-	char *word, *path, *sflags;
-	unsigned flags, i, vmask;
+	char *word, *path, *sflags, *brkl;
+	unsigned i, vmask;
+	int flags;
 	in_addr_t ip, mask;
 
 	ip = mask = flags = vmask = 0;
 	path = NULL;
 	sflags = NULL;
 
-	for (i = 0, word = strtok(line, " \t"); word != NULL;
-	    i++, word = strtok(NULL, " \t")) {
+	for (i = 0, word = strtok_r(line, " \t", &brkl); word != NULL;
+	    i++, word = strtok_r(NULL, " \t", &brkl)) {
 		switch (i) {
 		case 0: /* IP address or host name */
 			ip = g_gate_str2ip(strsep(&word, "/"));
@@ -185,17 +233,7 @@ line_parse(char *line, unsigned lineno)
 			mask = countmask(vmask);
 			break;
 		case 1:	/* flags */
-			if (strcasecmp("rd", word) == 0 ||
-			    strcasecmp("ro", word) == 0) {
-				flags = O_RDONLY;
-			} else if (strcasecmp("wo", word) == 0) {
-				flags = O_WRONLY;
-			} else if (strcasecmp("rw", word) == 0) {
-				flags = O_RDWR;
-			} else {
-				g_gate_xlog("Invalid value in flags field at "
-				    "line %u.", lineno);
-			}
+			flags = parse_flags(word, lineno);
 			sflags = word;
 			break;
 		case 2:	/* path */
@@ -306,13 +344,16 @@ exports_check(struct ggd_export *ex, struct g_gate_cinit *cinit,
     struct ggd_connection *conn)
 {
 	char ipmask[32]; /* 32 == strlen("xxx.xxx.xxx.xxx/xxx.xxx.xxx.xxx")+1 */
-	int error = 0, flags;
+	int error = 0, flags, access_flags, direct_flags = 0;
 
 	strlcpy(ipmask, ip2str(ex->e_ip), sizeof(ipmask));
 	strlcat(ipmask, "/", sizeof(ipmask));
 	strlcat(ipmask, ip2str(ex->e_mask), sizeof(ipmask));
+
+	access_flags = ex->e_flags & EFLAGS_ACCMODE;
+
 	if ((cinit->gc_flags & GGATE_FLAG_RDONLY) != 0) {
-		if (ex->e_flags == O_WRONLY) {
+		if (access_flags == EFLAGS_WRONLY) {
 			g_gate_log(LOG_WARNING, "Read-only access requested, "
 			    "but %s (%s) is exported write-only.", ex->e_path,
 			    ipmask);
@@ -321,7 +362,7 @@ exports_check(struct ggd_export *ex, struct g_gate_cinit *cinit,
 			conn->c_flags |= GGATE_FLAG_RDONLY;
 		}
 	} else if ((cinit->gc_flags & GGATE_FLAG_WRONLY) != 0) {
-		if (ex->e_flags == O_RDONLY) {
+		if (access_flags == EFLAGS_RDONLY) {
 			g_gate_log(LOG_WARNING, "Write-only access requested, "
 			    "but %s (%s) is exported read-only.", ex->e_path,
 			    ipmask);
@@ -330,24 +371,41 @@ exports_check(struct ggd_export *ex, struct g_gate_cinit *cinit,
 			conn->c_flags |= GGATE_FLAG_WRONLY;
 		}
 	} else {
-		if (ex->e_flags == O_RDONLY) {
+		if (access_flags == EFLAGS_RDONLY) {
 			g_gate_log(LOG_WARNING, "Read-write access requested, "
 			    "but %s (%s) is exported read-only.", ex->e_path,
 			    ipmask);
 			return (EPERM);
-		} else if (ex->e_flags == O_WRONLY) {
+		} else if (access_flags == EFLAGS_WRONLY) {
 			g_gate_log(LOG_WARNING, "Read-write access requested, "
 			    "but %s (%s) is exported write-only.", ex->e_path,
 			    ipmask);
 			return (EPERM);
 		}
 	}
+
+	if ((cinit->gc_flags & GGATE_FLAG_DIRECT) != 0) {
+		if (ex->e_flags & EFLAGS_NODIRECT) {
+			g_gate_log(LOG_WARNING, "Direct IO requested, "
+			    "but %s (%s) is exported NODIRECT.", ex->e_path,
+			    ipmask);
+		} else {
+			conn->c_flags |= GGATE_FLAG_DIRECT;
+			direct_flags = O_DIRECT;
+		}
+	}
+
+	if (ex->e_flags & EFLAGS_DIRECT) {
+		direct_flags = O_DIRECT;
+	}
+
 	if ((conn->c_flags & GGATE_FLAG_RDONLY) != 0)
 		flags = O_RDONLY;
 	else if ((conn->c_flags & GGATE_FLAG_WRONLY) != 0)
 		flags = O_WRONLY;
 	else
 		flags = O_RDWR;
+	flags |= direct_flags;
 	if (conn->c_diskfd != -1) {
 		if (strcmp(conn->c_path, ex->e_path) != 0) {
 			g_gate_log(LOG_ERR, "old %s and new %s: "
