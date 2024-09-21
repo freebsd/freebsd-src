@@ -98,7 +98,7 @@ parameter is implicitly set to the name in the jail definition.
 .Ss String format
 Parameter values, including jail names, can be single tokens or quoted
 strings.
-A token is any sequence of characters that aren't considered special in
+A token is any sequence of characters that are not considered special in
 the syntax of the configuration file (such as a semicolon or
 whitespace).
 If a value contains anything more than letters, numbers, dots, dashes
@@ -146,7 +146,7 @@ definition.
 .Pp
 Variable substitution is done on a per-jail basis, even when that
 substitution is for a parameter defined in a wildcard section.
-This is useful for wildcard parameters based on e.g. a jail's name.
+This is useful for wildcard parameters based on e.g., a jail's name.
 .Pp
 Later definitions in the configuration file supersede earlier ones, so a
 wildcard section placed before (above) a jail definition defines
@@ -196,7 +196,7 @@ shell formats:
 #  This is a shell style comment.
 .Ed
 .Pp
-Comments are legal wherever whitespace is allowed, i.e. anywhere except
+Comments are legal wherever whitespace is allowed, i.e., anywhere except
 in the middle of a string or a token.
 .Sh FILES
 .Bl -tag -width "indent" -compact
