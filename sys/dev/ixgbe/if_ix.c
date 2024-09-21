@@ -1151,7 +1151,7 @@ ixgbe_if_attach_post(if_ctx_t ctx)
 		callout_init(&sc->fw_mode_timer, true);
 
 		/* Start the task */
-		callout_reset(&sc->fw_mode_timer, hz, ixgbe_fw_mode_timer, 0);
+		callout_reset(&sc->fw_mode_timer, hz, ixgbe_fw_mode_timer, sc);
 	}
 
 	return (0);
