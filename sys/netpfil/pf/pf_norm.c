@@ -1210,24 +1210,24 @@ pf_normalize_ip(struct mbuf **m0, struct pfi_kkif *kif, u_short *reason,
 #ifdef INET6
 int
 pf_normalize_ip6(struct mbuf **m0, struct pfi_kkif *kif,
-    u_short *reason, struct pf_pdesc *pd)
+    int off, u_short *reason, struct pf_pdesc *pd)
 {
-	struct mbuf		*m = *m0;
+	struct mbuf		*m;
 	struct pf_krule		*r;
-	struct ip6_hdr		*h = mtod(m, struct ip6_hdr *);
-	int			 extoff;
-	int			 off;
-	struct ip6_ext		 ext;
-	struct ip6_opt		 opt;
 	struct ip6_frag		 frag;
-	u_int32_t		 plen;
-	int			 optend;
-	int			 ooff;
-	u_int8_t		 proto;
-	int			 terminal;
+	int			 extoff;
+	uint32_t		 jumbolen;
+	uint8_t			 nxt;
 	bool			 scrub_compat;
 
 	PF_RULES_RASSERT();
+
+again:
+	m = *m0;
+
+	if (pf_walk_header6(m, &nxt, &off, &extoff, &jumbolen, reason)
+	    != PF_PASS)
+		return (PF_DROP);
 
 	r = TAILQ_FIRST(pf_main_ruleset.rules[PF_RULESET_SCRUB].active.ptr);
 	/*
@@ -1247,16 +1247,14 @@ pf_normalize_ip6(struct mbuf **m0, struct pfi_kkif *kif,
 			r = r->skip[PF_SKIP_DIR];
 		else if (r->af && r->af != AF_INET6)
 			r = r->skip[PF_SKIP_AF];
-#if 0 /* header chain! */
-		else if (r->proto && r->proto != h->ip6_nxt)
+		else if (r->proto && r->proto != pd->proto)
 			r = r->skip[PF_SKIP_PROTO];
-#endif
 		else if (PF_MISMATCHAW(&r->src.addr,
-		    (struct pf_addr *)&h->ip6_src, AF_INET6,
+		    (struct pf_addr *)&pd->src, AF_INET6,
 		    r->src.neg, kif, M_GETFIB(m)))
 			r = r->skip[PF_SKIP_SRC_ADDR];
 		else if (PF_MISMATCHAW(&r->dst.addr,
-		    (struct pf_addr *)&h->ip6_dst, AF_INET6,
+		    (struct pf_addr *)&pd->dst, AF_INET6,
 		    r->dst.neg, NULL, M_GETFIB(m)))
 			r = r->skip[PF_SKIP_DST_ADDR];
 		else
@@ -1276,112 +1274,29 @@ pf_normalize_ip6(struct mbuf **m0, struct pfi_kkif *kif,
 		pf_rule_to_actions(r, &pd->act);
 	}
 
-	/* Check for illegal packets */
-	if (sizeof(struct ip6_hdr) + IPV6_MAXPACKET < m->m_pkthdr.len)
-		goto drop;
-
-again:
-	h = mtod(m, struct ip6_hdr *);
-	plen = ntohs(h->ip6_plen);
-	/* jumbo payload option not supported */
-	if (plen == 0)
-		goto drop;
-
-	extoff = 0;
-	off = sizeof(struct ip6_hdr);
-	proto = h->ip6_nxt;
-	terminal = 0;
-	do {
-		switch (proto) {
-		case IPPROTO_FRAGMENT:
-			goto fragment;
-			break;
-		case IPPROTO_AH:
-		case IPPROTO_ROUTING:
-		case IPPROTO_DSTOPTS:
-			if (!pf_pull_hdr(m, off, &ext, sizeof(ext), NULL,
-			    NULL, AF_INET6))
-				goto shortpkt;
-			extoff = off;
-			if (proto == IPPROTO_AH)
-				off += (ext.ip6e_len + 2) * 4;
-			else
-				off += (ext.ip6e_len + 1) * 8;
-			proto = ext.ip6e_nxt;
-			break;
-		case IPPROTO_HOPOPTS:
-			if (!pf_pull_hdr(m, off, &ext, sizeof(ext), NULL,
-			    NULL, AF_INET6))
-				goto shortpkt;
-			extoff = off;
-			optend = off + (ext.ip6e_len + 1) * 8;
-			ooff = off + sizeof(ext);
-			do {
-				if (!pf_pull_hdr(m, ooff, &opt.ip6o_type,
-				    sizeof(opt.ip6o_type), NULL, NULL,
-				    AF_INET6))
-					goto shortpkt;
-				if (opt.ip6o_type == IP6OPT_PAD1) {
-					ooff++;
-					continue;
-				}
-				if (!pf_pull_hdr(m, ooff, &opt, sizeof(opt),
-				    NULL, NULL, AF_INET6))
-					goto shortpkt;
-				if (ooff + sizeof(opt) + opt.ip6o_len > optend)
-					goto drop;
-				if (opt.ip6o_type == IP6OPT_JUMBO)
-					goto drop;
-				ooff += sizeof(opt) + opt.ip6o_len;
-			} while (ooff < optend);
-
-			off = optend;
-			proto = ext.ip6e_nxt;
-			break;
-		default:
-			terminal = 1;
-			break;
-		}
-	} while (!terminal);
-
-	if (sizeof(struct ip6_hdr) + plen > m->m_pkthdr.len)
-		goto shortpkt;
-
-	return (PF_PASS);
-
- fragment:
-	if (pd->flags & PFDESC_IP_REAS)
+	if (!pf_pull_hdr(m, off, &frag, sizeof(frag), NULL, reason, AF_INET6))
 		return (PF_DROP);
-	if (sizeof(struct ip6_hdr) + plen > m->m_pkthdr.len)
-		goto shortpkt;
-
-	if (!pf_pull_hdr(m, off, &frag, sizeof(frag), NULL, NULL, AF_INET6))
-		goto shortpkt;
 
 	/* Offset now points to data portion. */
 	off += sizeof(frag);
 
-	/* Returns PF_DROP or *m0 is NULL or completely reassembled mbuf. */
-	if (pf_reassemble6(m0, &frag, off, extoff, reason) != PF_PASS)
-		return (PF_DROP);
-	m = *m0;
-	if (m == NULL)
-		return (PF_DROP);
+	if (nxt == IPPROTO_FRAGMENT) {
+		if (pd->flags & PFDESC_IP_REAS)
+			return (PF_DROP);
 
-	pd->flags |= PFDESC_IP_REAS;
-	goto again;
+		/* Returns PF_DROP or *m0 is NULL or completely reassembled
+		 * mbuf. */
+		if (pf_reassemble6(m0, &frag, off, extoff, reason) != PF_PASS)
+			return (PF_DROP);
 
- shortpkt:
-	REASON_SET(reason, PFRES_SHORT);
-	if (r != NULL && r->log)
-		PFLOG_PACKET(kif, m, PF_DROP, *reason, r, NULL, NULL, pd, 1);
-	return (PF_DROP);
+		pd->flags |= PFDESC_IP_REAS;
+		m = *m0;
+		if (m == NULL)
+			return (PF_DROP);
+		goto again;
+	}
 
- drop:
-	REASON_SET(reason, PFRES_NORM);
-	if (r != NULL && r->log)
-		PFLOG_PACKET(kif, m, PF_DROP, *reason, r, NULL, NULL, pd, 1);
-	return (PF_DROP);
+	return (PF_PASS);
 }
 #endif /* INET6 */
 

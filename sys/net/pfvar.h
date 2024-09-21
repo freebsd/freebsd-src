@@ -2361,8 +2361,10 @@ int	pf_normalize_ip(struct mbuf **, struct pfi_kkif *, u_short *,
 #endif /* INET */
 
 #ifdef INET6
-int	pf_normalize_ip6(struct mbuf **, struct pfi_kkif *, u_short *,
-	    struct pf_pdesc *);
+int	pf_walk_header6(struct mbuf *, uint8_t *, int *, int *, uint32_t *,
+	    u_short *);
+int	pf_normalize_ip6(struct mbuf **, struct pfi_kkif *, int,
+	    u_short *, struct pf_pdesc *);
 void	pf_poolmask(struct pf_addr *, struct pf_addr*,
 	    struct pf_addr *, struct pf_addr *, sa_family_t);
 void	pf_addr_inc(struct pf_addr *, sa_family_t);
