@@ -37,7 +37,7 @@
  *  Driver version:
  *********************************************************************/
 static const char em_driver_version[] = "7.7.8-fbsd";
-static const char igb_driver_version[] = "2.5.19-fbsd";
+static const char igb_driver_version[] = "2.5.28-fbsd";
 
 /*********************************************************************
  *  PCI Device ID Table
