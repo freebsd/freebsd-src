@@ -29,6 +29,7 @@
 #ifndef _GGATE_H_
 #define	_GGATE_H_
 
+#include <geom/gate/g_gate.h>
 #include <sys/endian.h>
 #include <stdarg.h>
 
@@ -42,8 +43,8 @@
 #define	GGATE_MAGIC		"GEOM_GATE       "
 #define	GGATE_VERSION		0
 
-#define	GGATE_FLAG_RDONLY	0x0001
-#define	GGATE_FLAG_WRONLY	0x0002
+#define	GGATE_FLAG_RDONLY	G_GATE_FLAG_READONLY
+#define	GGATE_FLAG_WRONLY	G_GATE_FLAG_WRITEONLY
 /*
  * If neither the GGATE_FLAG_SEND nor the GGATE_FLAG_RECV flag is
  * set - this is initial connection.
@@ -52,6 +53,8 @@
  */
 #define	GGATE_FLAG_SEND		0x0004
 #define	GGATE_FLAG_RECV		0x0008
+
+#define	GGATE_FLAG_DIRECT	0x0010
 
 #define	GGATE_CMD_READ		0
 #define	GGATE_CMD_WRITE		1

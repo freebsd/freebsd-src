@@ -85,10 +85,51 @@ An alternate location for the exports file.
 .Pp
 The format of an exports file is as follows:
 .Bd -literal -offset indent
-1.2.3.4		RO	/dev/cd0
-1.2.3.0/24	RW	/tmp/test.img
-hostname	WO	/tmp/image
+1.2.3.4		RO		/dev/cd0
+1.2.3.0/24	RW		/tmp/test.img
+hostname	WO		/tmp/image
+hostname	RW,DIRECT	/tmp/direct-image
+hostname	RW,NODIRECT	/tmp/nodirect-image
 .Ed
+.Pp
+The first colunm specifies the ip, network with netmask, or the hostname
+that the export applies to.
+.Pp
+The next column is the access flags that apply to the export
+.Bl -tag -width ".Cm NODIRECT"
+.It Cm RO
+Read-Only the path specified will be exported to the client read only.
+.It Cm WO
+Write-Only the path specified will be exported to the client write only.
+.It Cm RW
+Read-Write the path specified will be exported to the client read-write.
+.It Cm DIRECT
+The path specified will always be opened with O_DIRECT for clients.
+.It Cm NODIRECT
+The path specified will never be opened with O_DIRECT for clients.
+.El
+.Pp
+The final column specifies the path to export.
+.Pp
+Files are opened with the least common flags between the client and the
+server.  A client may request read or write only to a read-write export
+and the server will honor the client request and open the file in the
+requested mode.  A client requesting greater access than permissions listed
+in the file will be rejected.
+.Pp
+DIRECT and NODIRECT are used to coerce the use of the O_DIRECT flag to
+.Xr open 2 when the specified path is opened. If DIRECT is specified the
+path is always opened with O_DIRECT. If NODIRECT is specified the path is
+never opened with O_DIRECT. DIRECT access limits the cache effects of
+IO operaions on the file.  This has the effect of having clients accessing
+exports to not impact the cache of the local machine, however it
+will cause greater IO utilization to the devices on which the files reside.
+.Pp
+If neither is specified the server will use
+the preference specified by the client, with the default to not use O_DIRECT.
+If the client specifies a preference against the server's configuration the
+client preference will be silently ignored.
+.Pp
 .Sh FILES
 .Bl -tag -width ".Pa /var/run/ggated.pid" -compact
 .It Pa /var/run/ggated.pid
@@ -104,13 +145,18 @@ should be called with the
 .Fl v
 option.
 .Sh EXAMPLES
-Export CD-ROM device and a file:
+Export CD-ROM device, a file, and a file with
+.Dv O_DIRECT
+option:
 .Bd -literal -offset indent
 # echo "1.2.3.0/24 RO /dev/cd0" > /etc/gg.exports
 # echo "client RW /image" >> /etc/gg.exports
+# echo "client RW,DIRECT /image2" >> /etc/gg.exports
+# echo "client RW,NODIRECT /image3" >> /etc/gg.exports
 # ggated
 .Ed
 .Sh SEE ALSO
+.Xr open 2 ,
 .Xr geom 4 ,
 .Xr ggatec 8 ,
 .Xr ggatel 8

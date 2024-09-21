@@ -43,7 +43,6 @@
 #include <sys/stat.h>
 #include <sys/syslog.h>
 
-#include <geom/gate/g_gate.h>
 #include "ggate.h"
 
 
@@ -52,6 +51,7 @@ static enum { UNSET, CREATE, DESTROY, LIST, RESCUE } action = UNSET;
 static const char *path = NULL;
 static int unit = G_GATE_UNIT_AUTO;
 static unsigned flags = 0;
+static int direct_flag = 0;
 static int force = 0;
 static unsigned sectorsize = 0;
 static unsigned timeout = G_GATE_TIMEOUT;
@@ -60,24 +60,30 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: %s create [-v] [-o <ro|wo|rw>] "
+	fprintf(stderr, "usage: %s create [-v] [-o option] ... "
 	    "[-s sectorsize] [-t timeout] [-u unit] <path>\n", getprogname());
-	fprintf(stderr, "       %s rescue [-v] [-o <ro|wo|rw>] <-u unit> "
+	fprintf(stderr, "       %s rescue [-v] [-o option] ... <-u unit> "
 	    "<path>\n", getprogname());
 	fprintf(stderr, "       %s destroy [-f] <-u unit>\n", getprogname());
 	fprintf(stderr, "       %s list [-v] [-u unit]\n", getprogname());
+	fprintf(stderr, "          option = {ro, wo, rw, direct}\n");
 	exit(EXIT_FAILURE);
 }
 
 static int
 g_gate_openflags(unsigned ggflags)
 {
+	int openflags = O_RDWR;
 
 	if ((ggflags & G_GATE_FLAG_READONLY) != 0)
-		return (O_RDONLY);
+		openflags = O_RDONLY;
 	else if ((ggflags & G_GATE_FLAG_WRITEONLY) != 0)
-		return (O_WRONLY);
-	return (O_RDWR);
+		openflags = O_WRONLY;
+
+	if (direct_flag)
+		openflags |= O_DIRECT;
+
+	return (openflags);
 }
 
 static void
@@ -248,6 +254,8 @@ main(int argc, char *argv[])
 				flags = G_GATE_FLAG_WRITEONLY;
 			else if (strcasecmp("rw", optarg) == 0)
 				flags = 0;
+			else if (strcasecmp("direct", optarg) == 0)
+				direct_flag = 1;
 			else {
 				errx(EXIT_FAILURE,
 				    "Invalid argument for '-o' option.");
