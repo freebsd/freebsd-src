@@ -200,6 +200,26 @@ s32 ixgbe_check_for_rst(struct ixgbe_hw *hw, u16 mbx_id)
 }
 
 /**
+ * ixgbe_clear_mbx - Clear Mailbox Memory
+ * @hw: pointer to the HW structure
+ * @mbx_id: id of mailbox to write
+ *
+ * Set VFMBMEM of given VF to 0x0.
+ **/
+s32 ixgbe_clear_mbx(struct ixgbe_hw *hw, u16 mbx_id)
+{
+	struct ixgbe_mbx_info *mbx = &hw->mbx;
+	s32 ret_val = IXGBE_ERR_CONFIG;
+
+	DEBUGFUNC("ixgbe_clear_mbx");
+
+	if (mbx->ops[mbx_id].clear)
+		ret_val = mbx->ops[mbx_id].clear(hw, mbx_id);
+
+	return ret_val;
+}
+
+/**
  * ixgbe_poll_for_msg - Wait for message notification
  * @hw: pointer to the HW structure
  * @mbx_id: id of mailbox to write
@@ -658,6 +678,7 @@ void ixgbe_init_mbx_params_vf(struct ixgbe_hw *hw)
 	mbx->ops[0].check_for_msg = ixgbe_check_for_msg_vf;
 	mbx->ops[0].check_for_ack = ixgbe_check_for_ack_vf;
 	mbx->ops[0].check_for_rst = ixgbe_check_for_rst_vf;
+	mbx->ops[0].clear = NULL;
 
 	mbx->stats.msgs_tx = 0;
 	mbx->stats.msgs_rx = 0;
@@ -1055,6 +1076,27 @@ static s32 ixgbe_read_mbx_pf(struct ixgbe_hw *hw, u32 *msg, u16 size,
 }
 
 /**
+ * ixgbe_clear_mbx_pf - Clear Mailbox Memory
+ * @hw: pointer to the HW structure
+ * @vf_id: the VF index
+ *
+ * Set VFMBMEM of given VF to 0x0.
+ **/
+static s32 ixgbe_clear_mbx_pf(struct ixgbe_hw *hw, u16 vf_id)
+{
+	u16 mbx_size = hw->mbx.size;
+	u16 i;
+
+	if (vf_id > 63)
+		return IXGBE_ERR_PARAM;
+
+	for (i = 0; i < mbx_size; ++i)
+		IXGBE_WRITE_REG_ARRAY(hw, IXGBE_PFMBMEM(vf_id), i, 0x0);
+
+	return IXGBE_SUCCESS;
+}
+
+/**
  * ixgbe_init_mbx_params_pf_id - set initial values for pf mailbox
  * @hw: pointer to the HW structure
  * @vf_id: the VF index
@@ -1072,6 +1114,7 @@ void ixgbe_init_mbx_params_pf_id(struct ixgbe_hw *hw, u16 vf_id)
 	mbx->ops[vf_id].check_for_msg = ixgbe_check_for_msg_pf;
 	mbx->ops[vf_id].check_for_ack = ixgbe_check_for_ack_pf;
 	mbx->ops[vf_id].check_for_rst = ixgbe_check_for_rst_pf;
+	mbx->ops[vf_id].clear = ixgbe_clear_mbx_pf;
 }
 
 /**
@@ -1147,6 +1190,7 @@ void ixgbe_upgrade_mbx_params_pf(struct ixgbe_hw *hw, u16 vf_id)
 	mbx->ops[vf_id].check_for_msg = ixgbe_check_for_msg_pf;
 	mbx->ops[vf_id].check_for_ack = ixgbe_check_for_ack_pf;
 	mbx->ops[vf_id].check_for_rst = ixgbe_check_for_rst_pf;
+	mbx->ops[vf_id].clear = ixgbe_clear_mbx_pf;
 
 	mbx->stats.msgs_tx = 0;
 	mbx->stats.msgs_rx = 0;

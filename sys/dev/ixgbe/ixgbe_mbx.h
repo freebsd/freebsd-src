@@ -195,6 +195,7 @@ s32 ixgbe_write_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size, u16 mbx_id);
 s32 ixgbe_check_for_msg(struct ixgbe_hw *hw, u16 mbx_id);
 s32 ixgbe_check_for_ack(struct ixgbe_hw *hw, u16 mbx_id);
 s32 ixgbe_check_for_rst(struct ixgbe_hw *hw, u16 mbx_id);
+s32 ixgbe_clear_mbx(struct ixgbe_hw *hw, u16 vf_number);
 void ixgbe_init_mbx_params_vf(struct ixgbe_hw *hw);
 void ixgbe_upgrade_mbx_params_vf(struct ixgbe_hw *hw);
 void ixgbe_init_mbx_params_pf(struct ixgbe_hw *hw);
