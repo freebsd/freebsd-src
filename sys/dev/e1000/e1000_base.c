@@ -162,7 +162,8 @@ void e1000_rx_fifo_flush_base(struct e1000_hw *hw)
 	rfctl |= E1000_RFCTL_IPV6_EX_DIS;
 	E1000_WRITE_REG(hw, E1000_RFCTL, rfctl);
 
-	if (!(E1000_READ_REG(hw, E1000_MANC) & E1000_MANC_RCV_TCO_EN))
+	if (hw->mac.type != e1000_82575 ||
+	    !(E1000_READ_REG(hw, E1000_MANC) & E1000_MANC_RCV_TCO_EN))
 		return;
 
 	/* Disable all Rx queues */
