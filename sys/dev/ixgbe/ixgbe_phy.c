@@ -1487,6 +1487,11 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 				hw->phy.type = ixgbe_phy_sfp_intel;
 				break;
 			default:
+				if (cable_tech & IXGBE_SFF_DA_PASSIVE_CABLE)
+					hw->phy.type = ixgbe_phy_sfp_passive_unknown;
+				else if (cable_tech & IXGBE_SFF_DA_ACTIVE_CABLE)
+					hw->phy.type = ixgbe_phy_sfp_active_unknown;
+				else
 				hw->phy.type = ixgbe_phy_sfp_unknown;
 				break;
 			}
@@ -1495,10 +1500,6 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 		/* Allow any DA cable vendor */
 		if (cable_tech & (IXGBE_SFF_DA_PASSIVE_CABLE |
 			IXGBE_SFF_DA_ACTIVE_CABLE)) {
-			if (cable_tech & IXGBE_SFF_DA_PASSIVE_CABLE)
-				hw->phy.type = ixgbe_phy_sfp_passive_unknown;
-			else if (cable_tech & IXGBE_SFF_DA_ACTIVE_CABLE)
-				hw->phy.type = ixgbe_phy_sfp_active_unknown;
 			status = IXGBE_SUCCESS;
 			goto out;
 		}
