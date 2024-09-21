@@ -291,6 +291,7 @@ enum intr_trigger {
 };
 
 enum intr_polarity {
+	INTR_POLARITY_INVALID = -1,
 	INTR_POLARITY_CONFORM = 0,
 	INTR_POLARITY_HIGH = 1,
 	INTR_POLARITY_LOW = 2
