@@ -1134,6 +1134,19 @@ s32 ixgbe_set_vlvf(struct ixgbe_hw *hw, u32 vlan, u32 vind, bool vlan_on,
 }
 
 /**
+ * ixgbe_toggle_txdctl - Toggle VF's queues
+ * @hw: pointer to hardware structure
+ * @vind: VMDq pool index
+ *
+ * Enable and disable each queue in VF.
+ */
+s32 ixgbe_toggle_txdctl(struct ixgbe_hw *hw, u32 vind)
+{
+	return ixgbe_call_func(hw, hw->mac.ops.toggle_txdctl, (hw,
+			       vind), IXGBE_NOT_IMPLEMENTED);
+}
+
+/**
  * ixgbe_fc_enable - Enable flow control
  * @hw: pointer to hardware structure
  *
@@ -1417,15 +1430,15 @@ s32 ixgbe_bypass_rw(struct ixgbe_hw *hw, u32 cmd, u32 *status)
 
 /**
  * ixgbe_bypass_valid_rd - Verify valid return from bit-bang.
+ * @hw: pointer to hardware structure
+ * @in_reg: The register cmd for the bit-bang read.
+ * @out_reg: The register returned from a bit-bang read.
  *
  * If we send a write we can't be sure it took until we can read back
  * that same register.  It can be a problem as some of the fields may
  * for valid reasons change inbetween the time wrote the register and
  * we read it again to verify.  So this function check everything we
  * can check and then assumes it worked.
- *
- * @u32 in_reg - The register cmd for the bit-bang read.
- * @u32 out_reg - The register returned from a bit-bang read.
  **/
 bool ixgbe_bypass_valid_rd(struct ixgbe_hw *hw, u32 in_reg, u32 out_reg)
 {

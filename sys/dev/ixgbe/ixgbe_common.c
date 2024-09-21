@@ -133,6 +133,7 @@ s32 ixgbe_init_ops_generic(struct ixgbe_hw *hw)
 	mac->ops.init_uta_tables = NULL;
 	mac->ops.enable_rx = ixgbe_enable_rx_generic;
 	mac->ops.disable_rx = ixgbe_disable_rx_generic;
+	mac->ops.toggle_txdctl = ixgbe_toggle_txdctl_generic;
 
 	/* Flow Control */
 	mac->ops.fc_enable = ixgbe_fc_enable_generic;
@@ -4138,6 +4139,62 @@ s32 ixgbe_clear_vfta_generic(struct ixgbe_hw *hw)
 	return IXGBE_SUCCESS;
 }
 
+
+/**
+ * ixgbe_toggle_txdctl_generic - Toggle VF's queues
+ * @hw: pointer to hardware structure
+ * @vf_number: VF index
+ *
+ * Enable and disable each queue in VF.
+ */
+s32 ixgbe_toggle_txdctl_generic(struct ixgbe_hw *hw, u32 vf_number)
+{
+	u8  queue_count, i;
+	u32 offset, reg;
+
+	if (vf_number > 63)
+		return IXGBE_ERR_PARAM;
+
+	/*
+	 * Determine number of queues by checking
+	 * number of virtual functions
+	 */
+	reg = IXGBE_READ_REG(hw, IXGBE_GCR_EXT);
+	switch (reg & IXGBE_GCR_EXT_VT_MODE_MASK) {
+	case IXGBE_GCR_EXT_VT_MODE_64:
+		queue_count = 2;
+		break;
+	case IXGBE_GCR_EXT_VT_MODE_32:
+		queue_count = 4;
+		break;
+	case IXGBE_GCR_EXT_VT_MODE_16:
+		queue_count = 8;
+		break;
+	default:
+		return IXGBE_ERR_CONFIG;
+	}
+
+	/* Toggle queues */
+	for (i = 0; i < queue_count; ++i) {
+		/* Calculate offset of current queue */
+		offset = queue_count * vf_number + i;
+
+		/* Enable queue */
+		reg = IXGBE_READ_REG(hw, IXGBE_PVFTXDCTL(offset));
+		reg |= IXGBE_TXDCTL_ENABLE;
+		IXGBE_WRITE_REG(hw, IXGBE_PVFTXDCTL(offset), reg);
+		IXGBE_WRITE_FLUSH(hw);
+
+		/* Disable queue */
+		reg = IXGBE_READ_REG(hw, IXGBE_PVFTXDCTL(offset));
+		reg &= ~IXGBE_TXDCTL_ENABLE;
+		IXGBE_WRITE_REG(hw, IXGBE_PVFTXDCTL(offset), reg);
+		IXGBE_WRITE_FLUSH(hw);
+	}
+
+	return IXGBE_SUCCESS;
+}
+
 /**
  * ixgbe_need_crosstalk_fix - Determine if we need to do cross talk fix
  * @hw: pointer to hardware structure
@@ -5151,15 +5208,14 @@ s32 ixgbe_bypass_rw_generic(struct ixgbe_hw *hw, u32 cmd, u32 *status)
 
 /**
  * ixgbe_bypass_valid_rd_generic - Verify valid return from bit-bang.
+ * @in_reg: The register cmd for the bit-bang read.
+ * @out_reg: The register returned from a bit-bang read.
  *
  * If we send a write we can't be sure it took until we can read back
  * that same register.  It can be a problem as some of the fields may
  * for valid reasons change inbetween the time wrote the register and
  * we read it again to verify.  So this function check everything we
  * can check and then assumes it worked.
- *
- * @u32 in_reg - The register cmd for the bit-bang read.
- * @u32 out_reg - The register returned from a bit-bang read.
  **/
 bool ixgbe_bypass_valid_rd_generic(u32 in_reg, u32 out_reg)
 {
@@ -5210,7 +5266,7 @@ bool ixgbe_bypass_valid_rd_generic(u32 in_reg, u32 out_reg)
  * ixgbe_bypass_set_generic - Set a bypass field in the FW CTRL Regiter.
  *
  * @hw: pointer to hardware structure
- * @cmd: The control word we are setting.
+ * @ctrl: The control word we are setting.
  * @event: The event we are setting in the FW.  This also happens to
  *	    be the mask for the event we are setting (handy)
  * @action: The action we set the event to in the FW. This is in a
@@ -5395,6 +5451,103 @@ void ixgbe_get_etk_id(struct ixgbe_hw *hw, struct ixgbe_nvm_version *nvm_ver)
 	}
 }
 
+/**
+ * ixgbe_get_nvm_version - Return version of NVM and its components
+ *
+ * @hw: pointer to hardware structure
+ * @nvm_ver: pointer to output structure
+ *
+ * irrelevant component fields will return 0, read errors will return 0xff
+ **/
+void ixgbe_get_nvm_version(struct ixgbe_hw *hw,
+			struct ixgbe_nvm_version *nvm_ver)
+{
+	u16 word, phy_ver;
+
+	DEBUGFUNC("ixgbe_get_nvm_version");
+
+	memset(nvm_ver, 0, sizeof(struct ixgbe_nvm_version));
+
+	/* eeprom version is mac-type specific */
+	switch (hw->mac.type) {
+	case ixgbe_mac_82598EB:
+		/* version of eeprom section */
+		if (ixgbe_read_eeprom(hw, NVM_EEP_OFFSET_82598, &word))
+			word = NVM_VER_INVALID;
+		nvm_ver->nvm_major = ((word & NVM_EEP_MAJOR_MASK)
+				      >> NVM_EEP_MAJ_SHIFT);
+		nvm_ver->nvm_minor = ((word & NVM_EEP_MINOR_MASK)
+				      >> NVM_EEP_MIN_SHIFT);
+		nvm_ver->nvm_id = (word & NVM_EEP_ID_MASK);
+		break;
+	case ixgbe_mac_X540:
+		/* version of eeprom section */
+		if (ixgbe_read_eeprom(hw, NVM_EEP_OFFSET_X540, &word))
+			word = NVM_VER_INVALID;
+		nvm_ver->nvm_major = ((word & NVM_EEP_MAJOR_MASK)
+				      >> NVM_EEP_MAJ_SHIFT);
+		nvm_ver->nvm_minor = ((word & NVM_EEP_MINOR_MASK)
+				      >> NVM_EEP_MIN_SHIFT);
+		nvm_ver->nvm_id = (word & NVM_EEP_ID_MASK);
+		break;
+
+	case ixgbe_mac_X550:
+	case ixgbe_mac_X550EM_x:
+	case ixgbe_mac_X550EM_a:
+		/* version of eeprom section */
+		if (ixgbe_read_eeprom(hw, NVM_EEP_OFFSET_X540, &word))
+			word = NVM_VER_INVALID;
+		nvm_ver->nvm_major = ((word & NVM_EEP_MAJOR_MASK)
+				      >> NVM_EEP_MAJ_SHIFT);
+		nvm_ver->nvm_minor = (word & NVM_EEP_X550_MINOR_MASK);
+
+		break;
+	default:
+		break;
+	}
+
+	/* phy version is mac-type specific */
+	switch (hw->mac.type) {
+	case ixgbe_mac_X540:
+	case ixgbe_mac_X550:
+	case ixgbe_mac_X550EM_x:
+	case ixgbe_mac_X550EM_a:
+		/* intel phy firmware version */
+		if (ixgbe_read_eeprom(hw, NVM_EEP_PHY_OFF_X540, &word))
+			word = NVM_VER_INVALID;
+		nvm_ver->phy_fw_maj = ((word & NVM_PHY_MAJOR_MASK)
+				       >> NVM_PHY_MAJ_SHIFT);
+		nvm_ver->phy_fw_min = ((word & NVM_PHY_MINOR_MASK)
+				       >> NVM_PHY_MIN_SHIFT);
+		nvm_ver->phy_fw_id = (word & NVM_PHY_ID_MASK);
+		break;
+	default:
+		break;
+	}
+
+	ixgbe_get_etk_id(hw, nvm_ver);
+
+	/* devstarter image */
+	if (ixgbe_read_eeprom(hw, NVM_DS_OFFSET, &word))
+		word = NVM_VER_INVALID;
+	nvm_ver->devstart_major = ((word & NVM_DS_MAJOR_MASK) >> NVM_DS_SHIFT);
+	nvm_ver->devstart_minor = (word & NVM_DS_MINOR_MASK);
+
+	/* OEM customization word */
+	if (ixgbe_read_eeprom(hw, NVM_OEM_OFFSET, &nvm_ver->oem_specific))
+		nvm_ver->oem_specific = NVM_VER_INVALID;
+
+	/* vendor (not intel) phy firmware version */
+	if (ixgbe_get_phy_firmware_version(hw, &phy_ver))
+		phy_ver = NVM_VER_INVALID;
+	nvm_ver->phy_vend_maj = ((phy_ver & NVM_PHYVEND_MAJOR_MASK)
+				 >> NVM_PHYVEND_SHIFT);
+	nvm_ver->phy_vend_min = (phy_ver & NVM_PHYVEND_MINOR_MASK);
+
+	/* Option Rom may or may not be present.  Start with pointer */
+	ixgbe_get_orom_version(hw, nvm_ver);
+	return;
+}
 
 /**
  * ixgbe_dcb_get_rtrup2tc_generic - read rtrup2tc reg

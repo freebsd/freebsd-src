@@ -202,6 +202,10 @@
 #define IXGBE_FLA_X550EM_x	IXGBE_FLA
 #define IXGBE_FLA_X550EM_a	0x15F68
 #define IXGBE_FLA_BY_MAC(_hw)	IXGBE_BY_MAC((_hw), FLA)
+#define IXGBE_FLA_FL_SIZE_SHIFT_X540	17
+#define IXGBE_FLA_FL_SIZE_SHIFT_X550	12
+#define IXGBE_FLA_FL_SIZE_MASK_X540	(0x7 << IXGBE_FLA_FL_SIZE_SHIFT_X540)
+#define IXGBE_FLA_FL_SIZE_MASK_X550	(0x7 << IXGBE_FLA_FL_SIZE_SHIFT_X550)
 
 #define IXGBE_EEMNGCTL	0x10110
 #define IXGBE_EEMNGDATA	0x10114
@@ -284,6 +288,41 @@
 #define IXGBE_I2C_CLK_OE_N_EN_BY_MAC(_hw) IXGBE_BY_MAC((_hw), I2C_CLK_OE_N_EN)
 #define IXGBE_I2C_CLOCK_STRETCHING_TIMEOUT	500
 
+/* NVM component version fields */
+#define NVM_VERSZ_LONG	64
+#define NVM_VERSZ_SHORT	32
+#define NVM_VER_LONG \
+	"DS_%x.%x NVM_%x.%02x.%x PHY_%x.%02x.%x OEM_%04x EtkId_%x OR_%x.%x.%x\n"
+#define NVM_VER_SHORT1	"%02x.%02x %x %x.%x.%x\n"
+#define NVM_VER_SHORT2	"%02x.%02x.%x %x.%02x.%x %x %x.%x.%x\n"
+
+#define NVM_EEP_MAJOR_MASK	0xF000
+#define NVM_EEP_MINOR_MASK	0xFF0
+#define NVM_EEP_ID_MASK		0xF
+#define NVM_EEP_MAJ_SHIFT	12
+#define NVM_EEP_MIN_SHIFT	4
+
+#define NVM_EEP_OFFSET_82598	0x2A
+#define NVM_EEP_OFFSET_X540	0x18
+#define NVM_EEP_X550_MINOR_MASK	0xFF
+#define NVM_EEP_PHY_OFF_X540	0x19
+#define NVM_PHY_MAJOR_MASK	0xF000
+#define NVM_PHY_MINOR_MASK	0xFF0
+#define NVM_PHY_ID_MASK		0xF
+#define NVM_PHY_MAJ_SHIFT	12
+#define NVM_PHY_MIN_SHIFT	4
+
+#define NVM_DS_OFFSET		0x29
+#define NVM_DS_MAJOR_MASK	0xF000
+#define NVM_DS_MINOR_MASK	0xF
+#define NVM_DS_SHIFT		12
+
+#define NVM_OEM_OFFSET		0x2A
+
+#define NVM_PHYVEND_MAJOR_MASK	0xFF00
+#define NVM_PHYVEND_MINOR_MASK	0xFF
+#define NVM_PHYVEND_SHIFT	8
+
 #define IXGBE_I2C_THERMAL_SENSOR_ADDR	0xF8
 #define IXGBE_EMC_INTERNAL_DATA		0x00
 #define IXGBE_EMC_INTERNAL_THERM_LIMIT	0x20
@@ -344,6 +383,16 @@ struct ixgbe_nvm_version {
 	u16 or_build;
 	u8  or_patch;
 
+	u8  phy_fw_maj;
+	u16 phy_fw_min;
+	u8  phy_fw_id;
+
+	u8  devstart_major;
+	u8  devstart_minor;
+	u16 oem_specific;
+
+	u8  phy_vend_maj;
+	u8  phy_vend_min;
 };
 
 /* Interrupt Registers */
@@ -1443,6 +1492,7 @@ struct ixgbe_dmac_config {
 #define IXGBE_BARCTRL_FLSIZE		0x0700
 #define IXGBE_BARCTRL_FLSIZE_SHIFT	8
 #define IXGBE_BARCTRL_CSRSIZE		0x2000
+#define IXGBE_BARCTRL_CSRSIZE_SHIFT	13
 
 /* RSCCTL Bit Masks */
 #define IXGBE_RSCCTL_RSCEN	0x01
@@ -3414,6 +3464,7 @@ struct ixgbe_adv_tx_context_desc {
 #define IXGBE_ADVTXD_POPTS_RSV		0x00002000 /* POPTS Reserved */
 #define IXGBE_ADVTXD_PAYLEN_SHIFT	14 /* Adv desc PAYLEN shift */
 #define IXGBE_ADVTXD_MACLEN_SHIFT	9  /* Adv ctxt desc mac len shift */
+#define IXGBE_ADVTXD_MACLEN_MASK	(0x7F << IXGBE_ADVTXD_MACLEN_SHIFT) /* Adv ctxt desc mac len mask */
 #define IXGBE_ADVTXD_VLAN_SHIFT		16  /* Adv ctxt vlan tag shift */
 #define IXGBE_ADVTXD_TUCMD_IPV4		0x00000400 /* IP Packet Type: 1=IPv4 */
 #define IXGBE_ADVTXD_TUCMD_IPV6		0x00000000 /* IP Packet Type: 0=IPv6 */
@@ -4030,6 +4081,7 @@ struct ixgbe_mac_operations {
 	s32 (*init_uta_tables)(struct ixgbe_hw *);
 	void (*set_mac_anti_spoofing)(struct ixgbe_hw *, bool, int);
 	void (*set_vlan_anti_spoofing)(struct ixgbe_hw *, bool, int);
+	s32 (*toggle_txdctl)(struct ixgbe_hw *hw, u32 vf_index);
 	s32 (*update_xcast_mode)(struct ixgbe_hw *, int);
 	s32 (*set_rlpml)(struct ixgbe_hw *, u16);
 
