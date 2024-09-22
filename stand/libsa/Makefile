@@ -164,7 +164,7 @@ CFLAGS.bzipfs.c+= -I${SRCTOP}/contrib/bzip2  -DBZ_NO_STDIO -DBZ_NO_COMPRESS
 .PATH: ${SYSDIR}/libkern
 SRCS+=  explicit_bzero.c crc32_libkern.c
 
-# Bits from GELI which are reused elsewhere
+# Bits from GELI reused for some random seeding cases
 .PATH: ${SYSDIR}/geom/eli
 SRCS+=	g_eli_hmac.c pkcs5v2.c
 
