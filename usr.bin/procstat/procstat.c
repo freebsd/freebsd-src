@@ -116,6 +116,8 @@ static const struct procstat_cmd cmd_table[] = {
 	    PS_CMP_NORMAL },
 	{ "rlimit", "rlimit", NULL, &procstat_rlimit, &cmdopt_none,
 	    PS_CMP_NORMAL },
+	{ "rlimitusage", "rlimitusage", NULL, &procstat_rlimitusage,
+	    &cmdopt_none, PS_CMP_NORMAL },
 	{ "rusage", "rusage", "[-Ht]", &procstat_rusage, &cmdopt_rusage,
 	    PS_CMP_NORMAL },
 	{ "sigfastblock", "sigfastblock", NULL, &procstat_sigfastblock,

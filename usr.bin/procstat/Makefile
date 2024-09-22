@@ -17,6 +17,7 @@ SRCS=	procstat.c		\
 	procstat_ptlwpinfo.c	\
 	procstat_pwdx.c		\
 	procstat_rlimit.c	\
+	procstat_rlimitusage.c	\
 	procstat_rusage.c	\
 	procstat_sigs.c		\
 	procstat_threads.c	\
