@@ -3874,7 +3874,7 @@ iflib_completed_tx_reclaim(iflib_txq_t txq, int thresh)
 	if (reclaim <= thresh /* + MAX_TX_DESC(txq->ift_ctx) */) {
 #ifdef INVARIANTS
 		if (iflib_verbose_debug) {
-			printf("%s processed=%ju cleaned=%ju tx_nsegments=%d reclaim=%d thresh=%d\n", __FUNCTION__,
+			printf("%s processed=%ju cleaned=%ju tx_nsegments=%d reclaim=%d thresh=%d\n", __func__,
 			       txq->ift_processed, txq->ift_cleaned, txq->ift_ctx->ifc_softc_ctx.isc_tx_nsegments,
 			       reclaim, thresh);
 		}
@@ -3980,7 +3980,7 @@ iflib_txq_drain(struct ifmp_ring *r, uint32_t cidx, uint32_t pidx)
 	count = MIN(avail, TX_BATCH_SIZE);
 #ifdef INVARIANTS
 	if (iflib_verbose_debug)
-		printf("%s avail=%d ifc_flags=%x txq_avail=%d ", __FUNCTION__,
+		printf("%s avail=%d ifc_flags=%x txq_avail=%d ", __func__,
 		       avail, ctx->ifc_flags, TXQ_AVAIL(txq));
 #endif
 	do_prefetch = (ctx->ifc_flags & IFC_PREFETCH);
