@@ -15211,7 +15211,8 @@ bool BoUpSLP::collectValuesToDemote(
   if (any_of(E.Scalars, [&](Value *V) {
         return !all_of(V->users(), [=](User *U) {
           return getTreeEntry(U) ||
-                 (UserIgnoreList && UserIgnoreList->contains(U)) ||
+                 (E.Idx == 0 && UserIgnoreList &&
+                  UserIgnoreList->contains(U)) ||
                  (!isa<CmpInst>(U) && U->getType()->isSized() &&
                   !U->getType()->isScalableTy() &&
                   DL->getTypeSizeInBits(U->getType()) <= BitWidth);
@@ -15539,6 +15540,11 @@ void BoUpSLP::computeMinimumValueSizes() {
                     const TreeEntry *UserTE = E.UserTreeIndices.back().UserTE;
                     if (TE == UserTE || !TE)
                       return false;
+                    if (!isa<CastInst, BinaryOperator, FreezeInst, PHINode,
+                             SelectInst>(U) ||
+                        !isa<CastInst, BinaryOperator, FreezeInst, PHINode,
+                             SelectInst>(UserTE->getMainOp()))
+                      return true;
                     unsigned UserTESz = DL->getTypeSizeInBits(
                         UserTE->Scalars.front()->getType());
                     auto It = MinBWs.find(TE);
