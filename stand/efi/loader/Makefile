@@ -111,10 +111,14 @@ LDFLAGS+=	-Wl,-T${LDSCRIPT},-Bsymbolic,-znotext -pie
 LDFLAGS+=	-Wl,--no-dynamic-linker
 .endif
 
+.include <bsd.linker.mk>
+
+.if ${LINKER_TYPE} == "lld" && ${LINKER_FREEBSD_VERSION} < 1500001
 # When lld is using multiple threads, which it does by default, it can
 # result in non-reproducible output with the custom linker script. Work
 # around this by disabling threading.
-LDFLAGS.lld+=	-Wl,--threads=1
+LDFLAGS+=	-Wl,--threads=1
+.endif
 
 CLEANFILES+=	${LOADER}.efi
 
