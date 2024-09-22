@@ -501,10 +501,7 @@ intpr(void (*pfunc)(char *), int af)
 		    IFA_STAT(ipackets), link|network, 1);
 		show_stat("lu", nerr_len, "received-errors", IFA_STAT(ierrors),
 		    link, 1);
-		/* Below is kept for backwards compatibility. Will be removed before FreeBSD 16. */
 		show_stat("lu", nerr_len, "dropped-packets", IFA_STAT(iqdrops),
-		    link, 1);
-		show_stat("lu", nerr_len, "dropped-packets-in", IFA_STAT(iqdrops),
 		    link, 1);
 		if (bflag)
 			show_stat("lu", nbyte_len, "received-bytes",
@@ -519,7 +516,7 @@ intpr(void (*pfunc)(char *), int af)
 		show_stat("NRSlu", nerr_len, "collisions", IFA_STAT(collisions),
 		    link, 1);
 		if (dflag)
-			show_stat("LSlu", nerr_len, "dropped-packets-out",
+			show_stat("LSlu", nerr_len, "dropped-packets",
 			    IFA_STAT(oqdrops), link, 1);
 		xo_emit("\n");
 
@@ -708,10 +705,7 @@ loop:
 	    new->ift_ip - old->ift_ip, 1, 1);
 	show_stat("lu", 5, "received-errors",
 	    new->ift_ie - old->ift_ie, 1, 1);
-	/* Below is kept for backwards compatibility. Will be removed before FreeBSD 16. */
 	show_stat("lu", 5, "dropped-packets",
-	    new->ift_id - old->ift_id, 1, 1);
-	show_stat("lu", 5, "dropped-packets-in",
 	    new->ift_id - old->ift_id, 1, 1);
 	show_stat("lu", 10, "received-bytes",
 	    new->ift_ib - old->ift_ib, 1, 0);
@@ -724,7 +718,7 @@ loop:
 	show_stat("NRSlu", 5, "collisions",
 	    new->ift_co - old->ift_co, 1, 1);
 	if (dflag)
-		show_stat("LSlu", 5, "dropped-packets-out",
+		show_stat("LSlu", 5, "dropped-packets",
 		    new->ift_od - old->ift_od, 1, 1);
 	xo_close_instance("stats");
 	xo_emit("\n");
