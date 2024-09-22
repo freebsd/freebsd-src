@@ -8,6 +8,8 @@
 #
 # This file is sorted in git log order (newest commits first).
 
+# style fixes for iflib
+fa7045f99cdb2b699205653f42f3fe78597880a7
 # remove stray whitespaces from sys/amd64/
 f3754afd5901857787271e73f9c34d3b9069a03f
 # style and whitespace fixes for bpf
