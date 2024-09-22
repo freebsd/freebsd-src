@@ -876,17 +876,16 @@ if
 .Ar argument Ns Va _cmd
 is not defined, then a default method is provided by
 .Ic run_rc_command :
-.Bl -tag -width "Argument" -offset indent
-.It Sy Argument
-.Sy Default method
-.It Cm start
+.Bl -column "Argument" "Default Method" -offset indent
+.It Sy Argument Ta Sy Default method
+.It Cm start Ta
 If
 .Va command
 is not running and
 .Ic checkyesno Va rcvar
 succeeds, start
 .Va command .
-.It Cm stop
+.It Cm stop Ta
 Determine the PIDs of
 .Va command
 with
@@ -898,7 +897,7 @@ or
 those PIDs, and run
 .Ic wait_for_pids
 on those PIDs.
-.It Cm reload
+.It Cm reload Ta
 Similar to
 .Cm stop ,
 except that it uses
@@ -915,21 +914,21 @@ It can be enabled via
 if appropriate:
 .Pp
 .Dl "extra_commands=reload"
-.It Cm restart
+.It Cm restart Ta
 Runs the
 .Cm stop
 method, then the
 .Cm start
 method.
-.It Cm status
+.It Cm status Ta
 Show the PID of
 .Va command ,
 or some other script specific status operation.
-.It Cm poll
+.It Cm poll Ta
 Wait for
 .Va command
 to exit.
-.It Cm rcvar
+.It Cm rcvar Ta
 Display which
 .Xr rc.conf 5
 variable is used (if any).
