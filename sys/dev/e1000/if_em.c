@@ -1,8 +1,9 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
+ * Copyright (c) 2001-2024, Intel Corporation
  * Copyright (c) 2016 Nicole Graziano <nicole@nextbsd.org>
- * All rights reserved.
+ * Copyright (c) 2024 Kevin Bowling <kbowling@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -329,10 +330,12 @@ static int	em_sysctl_debug_info(SYSCTL_HANDLER_ARGS);
 static int	em_get_rs(SYSCTL_HANDLER_ARGS);
 static void	em_print_debug_info(struct e1000_softc *);
 static int 	em_is_valid_ether_addr(u8 *);
+static void	em_newitr(struct e1000_softc *, struct em_rx_queue *,
+    struct tx_ring *, struct rx_ring *);
 static bool	em_automask_tso(if_ctx_t);
 static int	em_sysctl_int_delay(SYSCTL_HANDLER_ARGS);
 static void	em_add_int_delay_sysctl(struct e1000_softc *, const char *,
-		    const char *, struct em_int_delay_info *, int, int);
+    const char *, struct em_int_delay_info *, int, int);
 /* Management and WOL Support */
 static void	em_init_manageability(struct e1000_softc *);
 static void	em_release_manageability(struct e1000_softc *);
@@ -548,9 +551,18 @@ SYSCTL_INT(_hw_em, OID_AUTO, eee_setting, CTLFLAG_RDTUN, &eee_setting, 0,
     "Enable Energy Efficient Ethernet");
 
 /*
+ * AIM: Adaptive Interrupt Moderation
+ * which means that the interrupt rate is varied over time based on the
+ * traffic for that interrupt vector
+ */
+static int em_enable_aim = 1;
+SYSCTL_INT(_hw_em, OID_AUTO, enable_aim, CTLFLAG_RWTUN, &em_enable_aim,
+    0, "Enable adaptive interrupt moderation (1=normal, 2=lowlatency)");
+
+/*
 ** Tuneable Interrupt rate
 */
-static int em_max_interrupt_rate = EM_INTS_PER_SEC;
+static int em_max_interrupt_rate = EM_INTS_DEFAULT;
 SYSCTL_INT(_hw_em, OID_AUTO, max_interrupt_rate, CTLFLAG_RDTUN,
     &em_max_interrupt_rate, 0, "Maximum interrupts per second");
 
@@ -833,6 +845,11 @@ em_if_attach_pre(if_ctx_t ctx)
 	SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "nvm",
 	    CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 	    em_sysctl_nvm_info, "I", "NVM Information");
+
+	sc->enable_aim = em_enable_aim;
+	SYSCTL_ADD_INT(ctx_list, child, OID_AUTO, "enable_aim",
+	    CTLFLAG_RW, &sc->enable_aim, 0,
+		"Interrupt Moderation (1=normal, 2=lowlatency)");
 
 	SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "fw_version",
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
@@ -1439,6 +1456,159 @@ em_if_init(if_ctx_t ctx)
 	}
 }
 
+enum itr_latency_target {
+	itr_latency_disabled = 0,
+	itr_latency_lowest = 1,
+	itr_latency_low = 2,
+	itr_latency_bulk = 3
+};
+/*********************************************************************
+ *
+ *  Helper to calculate next (E)ITR value for AIM
+ *
+ *********************************************************************/
+static void
+em_newitr(struct e1000_softc *sc, struct em_rx_queue *que,
+    struct tx_ring *txr, struct rx_ring *rxr)
+{
+	struct e1000_hw *hw = &sc->hw;
+	u32 newitr;
+	u32 bytes;
+	u32 bytes_packets;
+	u32 packets;
+	u8 nextlatency;
+
+	/* Idle, do nothing */
+	if ((txr->tx_bytes == 0) && (rxr->rx_bytes == 0))
+		return;
+
+	newitr = 0;
+
+	if (sc->enable_aim) {
+		nextlatency = rxr->rx_nextlatency;
+
+		/* Use half default (4K) ITR if sub-gig */
+		if (sc->link_speed != 1000) {
+			newitr = EM_INTS_4K;
+			goto em_set_next_itr;
+		}
+		/* Want at least enough packet buffer for two frames to AIM */
+		if (sc->shared->isc_max_frame_size * 2 > (sc->pba << 10)) {
+			newitr = em_max_interrupt_rate;
+			sc->enable_aim = 0;
+			goto em_set_next_itr;
+		}
+
+		/* Get the largest values from the associated tx and rx ring */
+		if (txr->tx_bytes && txr->tx_packets) {
+			bytes = txr->tx_bytes;
+			bytes_packets = txr->tx_bytes/txr->tx_packets;
+			packets = txr->tx_packets;
+		}
+		if (rxr->rx_bytes && rxr->rx_packets) {
+			bytes = max(bytes, rxr->rx_bytes);
+			bytes_packets = max(bytes_packets, rxr->rx_bytes/rxr->rx_packets);
+			packets = max(packets, rxr->rx_packets);
+		}
+
+		/* Latency state machine */
+		switch (nextlatency) {
+		case itr_latency_disabled: /* Bootstrapping */
+			nextlatency = itr_latency_low;
+			break;
+		case itr_latency_lowest: /* 70k ints/s */
+			/* TSO and jumbo frames */
+			if (bytes_packets > 8000)
+				nextlatency = itr_latency_bulk;
+			else if ((packets < 5) && (bytes > 512))
+				nextlatency = itr_latency_low;
+			break;
+		case itr_latency_low: /* 20k ints/s */
+			if (bytes > 10000) {
+				/* Handle TSO */
+				if (bytes_packets > 8000)
+					nextlatency = itr_latency_bulk;
+				else if ((packets < 10) || (bytes_packets > 1200))
+					nextlatency = itr_latency_bulk;
+				else if (packets > 35)
+					nextlatency = itr_latency_lowest;
+			} else if (bytes_packets > 2000) {
+				nextlatency = itr_latency_bulk;
+			} else if (packets < 3 && bytes < 512) {
+				nextlatency = itr_latency_lowest;
+			}
+			break;
+		case itr_latency_bulk: /* 4k ints/s */
+			if (bytes > 25000) {
+				if (packets > 35)
+					nextlatency = itr_latency_low;
+			} else if (bytes < 1500)
+				nextlatency = itr_latency_low;
+			break;
+		default:
+			nextlatency = itr_latency_low;
+			device_printf(sc->dev, "Unexpected newitr transition %d\n",
+			    nextlatency);
+			break;
+		}
+
+		/* Trim itr_latency_lowest for default AIM setting */
+		if (sc->enable_aim == 1 && nextlatency == itr_latency_lowest)
+			nextlatency = itr_latency_low;
+
+		/* Request new latency */
+		rxr->rx_nextlatency = nextlatency;
+	} else {
+		/* We may have toggled to AIM disabled */
+		nextlatency = itr_latency_disabled;
+		rxr->rx_nextlatency = nextlatency;
+	}
+
+	/* ITR state machine */
+	switch(nextlatency) {
+	case itr_latency_lowest:
+		newitr = EM_INTS_70K;
+		break;
+	case itr_latency_low:
+		newitr = EM_INTS_20K;
+		break;
+	case itr_latency_bulk:
+		newitr = EM_INTS_4K;
+		break;
+	case itr_latency_disabled:
+	default:
+		newitr = em_max_interrupt_rate;
+		break;
+	}
+
+em_set_next_itr:
+	if (hw->mac.type >= igb_mac_min) {
+		newitr = IGB_INTS_TO_EITR(newitr);
+
+		if (hw->mac.type == e1000_82575)
+			newitr |= newitr << 16;
+		else
+			newitr |= E1000_EITR_CNT_IGNR;
+
+		if (newitr != que->itr_setting) {
+			que->itr_setting = newitr;
+			E1000_WRITE_REG(hw, E1000_EITR(que->msix), que->itr_setting);
+		}
+	} else {
+		newitr = EM_INTS_TO_ITR(newitr);
+
+		if (newitr != que->itr_setting) {
+			que->itr_setting = newitr;
+			if (hw->mac.type == e1000_82574 && que->msix) {
+				E1000_WRITE_REG(hw,
+				    E1000_EITR_82574(que->msix), que->itr_setting);
+			} else {
+				E1000_WRITE_REG(hw, E1000_ITR, que->itr_setting);
+			}
+		}
+	}
+}
+
 /*********************************************************************
  *
  *  Fast Legacy/MSI Combined Interrupt Service routine
@@ -1448,10 +1618,14 @@ int
 em_intr(void *arg)
 {
 	struct e1000_softc *sc = arg;
+	struct e1000_hw *hw = &sc->hw;
+	struct em_rx_queue *que = &sc->rx_queues[0];
+	struct tx_ring *txr = &sc->tx_queues[0].txr;
+	struct rx_ring *rxr = &que->rxr;
 	if_ctx_t ctx = sc->ctx;
 	u32 reg_icr;
 
-	reg_icr = E1000_READ_REG(&sc->hw, E1000_ICR);
+	reg_icr = E1000_READ_REG(hw, E1000_ICR);
 
 	/* Hot eject? */
 	if (reg_icr == 0xffffffff)
@@ -1465,7 +1639,7 @@ em_intr(void *arg)
 	 * Starting with the 82571 chip, bit 31 should be used to
 	 * determine whether the interrupt belongs to us.
 	 */
-	if (sc->hw.mac.type >= e1000_82571 &&
+	if (hw->mac.type >= e1000_82571 &&
 	    (reg_icr & E1000_ICR_INT_ASSERTED) == 0)
 		return FILTER_STRAY;
 
@@ -1483,6 +1657,15 @@ em_intr(void *arg)
 
 	if (reg_icr & E1000_ICR_RXO)
 		sc->rx_overruns++;
+
+	if (hw->mac.type >= e1000_82540)
+		em_newitr(sc, que, txr, rxr);
+
+	/* Reset state */
+	txr->tx_bytes = 0;
+	txr->tx_packets = 0;
+	rxr->rx_bytes = 0;
+	rxr->rx_packets = 0;
 
 	return (FILTER_SCHEDULE_THREAD);
 }
@@ -1536,8 +1719,19 @@ static int
 em_msix_que(void *arg)
 {
 	struct em_rx_queue *que = arg;
+	struct e1000_softc *sc = que->sc;
+	struct tx_ring *txr = &sc->tx_queues[que->msix].txr;
+	struct rx_ring *rxr = &que->rxr;
 
 	++que->irqs;
+
+	em_newitr(sc, que, txr, rxr);
+
+	/* Reset state */
+	txr->tx_bytes = 0;
+	txr->tx_packets = 0;
+	rxr->rx_bytes = 0;
+	rxr->rx_packets = 0;
 
 	return (FILTER_SCHEDULE_THREAD);
 }
@@ -2884,6 +3078,9 @@ em_reset(if_ctx_t ctx)
 	if (hw->mac.type >= igb_mac_min)
 		igb_init_dmac(sc, pba);
 
+	/* Save the final PBA off if it needs to be used elsewhere i.e. AIM */
+	sc->pba = pba;
+
 	E1000_WRITE_REG(hw, E1000_VET, ETHERTYPE_VLAN);
 	e1000_get_phy_info(hw);
 	e1000_check_for_link(hw);
@@ -3743,6 +3940,7 @@ em_if_intr_enable(if_ctx_t ctx)
 		E1000_WRITE_REG(hw, EM_EIAC, sc->ims);
 		ims_mask |= sc->ims;
 	}
+
 	E1000_WRITE_REG(hw, E1000_IMS, ims_mask);
 	E1000_WRITE_FLUSH(hw);
 }
@@ -4412,6 +4610,57 @@ em_sysctl_reg_handler(SYSCTL_HANDLER_ARGS)
 	return (sysctl_handle_int(oidp, &val, 0, req));
 }
 
+/* Per queue holdoff interrupt rate handler */
+static int
+em_sysctl_interrupt_rate_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct em_rx_queue *rque;
+	struct em_tx_queue *tque;
+	struct e1000_hw *hw;
+	int error;
+	u32 reg, usec, rate;
+
+	bool tx = oidp->oid_arg2;
+
+	if (tx) {
+		tque = oidp->oid_arg1;
+		hw = &tque->sc->hw;
+		if (hw->mac.type >= igb_mac_min)
+			reg = E1000_READ_REG(hw, E1000_EITR(tque->me));
+		else if (hw->mac.type == e1000_82574 && tque->msix)
+			reg = E1000_READ_REG(hw, E1000_EITR_82574(tque->me));
+		else
+			reg = E1000_READ_REG(hw, E1000_ITR);
+	} else {
+		rque = oidp->oid_arg1;
+		hw = &rque->sc->hw;
+		if (hw->mac.type >= igb_mac_min)
+			reg = E1000_READ_REG(hw, E1000_EITR(rque->msix));
+		else if (hw->mac.type == e1000_82574 && rque->msix)
+			reg = E1000_READ_REG(hw, E1000_EITR_82574(rque->msix));
+		else
+			reg = E1000_READ_REG(hw, E1000_ITR);
+	}
+
+	if (hw->mac.type < igb_mac_min) {
+		if (reg > 0)
+			rate = EM_INTS_TO_ITR(reg);
+		else
+			rate = 0;
+	} else {
+		usec = (reg & IGB_QVECTOR_MASK);
+		if (usec > 0)
+			rate = IGB_INTS_TO_EITR(usec);
+		else
+			rate = 0;
+	}
+
+	error = sysctl_handle_int(oidp, &rate, 0, req);
+	if (error || !req->newptr)
+		return error;
+	return 0;
+}
+
 /*
  * Add sysctl variables, one per statistic, to the system.
  */
@@ -4468,6 +4717,11 @@ em_add_hw_stats(struct e1000_softc *sc)
 		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "TX Queue Name");
 		queue_list = SYSCTL_CHILDREN(queue_node);
 
+		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "interrupt_rate",
+		    CTLTYPE_UINT | CTLFLAG_RD, tx_que,
+		    true, em_sysctl_interrupt_rate_handler,
+		    "IU", "Interrupt Rate");
+
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "txd_head",
 		    CTLTYPE_UINT | CTLFLAG_RD, sc,
 		    E1000_TDH(txr->me), em_sysctl_reg_handler, "IU",
@@ -4487,6 +4741,11 @@ em_add_hw_stats(struct e1000_softc *sc)
 		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf,
 		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "RX Queue Name");
 		queue_list = SYSCTL_CHILDREN(queue_node);
+
+		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "interrupt_rate",
+		    CTLTYPE_UINT | CTLFLAG_RD, rx_que,
+		    false, em_sysctl_interrupt_rate_handler,
+		    "IU", "Interrupt Rate");
 
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rxd_head",
 		    CTLTYPE_UINT | CTLFLAG_RD, sc,
