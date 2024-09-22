@@ -125,9 +125,9 @@ kvprintf(char const *fmt, struct snprintf_arg *arg, int radix, va_list ap)
 	char nbuf[MAXNBUF];
 	const char *p, *percent, *q;
 	u_char *up;
-	int ch, n;
+	int ch, n, sign;
 	uintmax_t num;
-	int base, lflag, qflag, tmp, width, ladjust, sharpflag, neg, sign, dot;
+	int base, lflag, qflag, tmp, width, ladjust, sharpflag, dot;
 	int cflag, hflag, jflag, tflag, zflag;
 	int dwidth, upper;
 	char padc;
@@ -150,7 +150,7 @@ kvprintf(char const *fmt, struct snprintf_arg *arg, int radix, va_list ap)
 			PCHAR(ch);
 		}
 		percent = fmt - 1;
-		qflag = 0; lflag = 0; ladjust = 0; sharpflag = 0; neg = 0;
+		qflag = 0; lflag = 0; ladjust = 0; sharpflag = 0;
 		sign = 0; dot = 0; dwidth = 0; upper = 0;
 		cflag = 0; hflag = 0; jflag = 0; tflag = 0; zflag = 0;
 reswitch:	switch (ch = (u_char)*fmt++) {
@@ -161,7 +161,7 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 			sharpflag = 1;
 			goto reswitch;
 		case '+':
-			sign = 1;
+			sign = '+';
 			goto reswitch;
 		case '-':
 			ladjust = 1;
@@ -242,7 +242,6 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 		case 'd':
 		case 'i':
 			base = 10;
-			sign = 1;
 			goto handle_sign;
 		case 'h':
 			if (hflag) {
@@ -291,8 +290,10 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 			goto reswitch;
 		case 'r':
 			base = radix;
-			if (sign)
+			if (sign) {
+				sign = 0;
 				goto handle_sign;
+			}
 			goto handle_nosign;
 		case 's':
 			p = va_arg(ap, char *);
@@ -329,13 +330,11 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 			goto handle_nosign;
 		case 'y':
 			base = 16;
-			sign = 1;
 			goto handle_sign;
 		case 'z':
 			zflag = 1;
 			goto reswitch;
 handle_nosign:
-			sign = 0;
 			if (jflag)
 				num = va_arg(ap, uintmax_t);
 			else if (qflag)
@@ -370,11 +369,11 @@ handle_sign:
 				num = (signed char)va_arg(ap, int);
 			else
 				num = va_arg(ap, int);
-number:
-			if (sign && (intmax_t)num < 0) {
-				neg = 1;
+			if ((intmax_t)num < 0) {
+				sign = '-';
 				num = -(intmax_t)num;
 			}
+number:
 			p = ksprintn(nbuf, num, base, &n, upper);
 			tmp = 0;
 			if (sharpflag && num != 0) {
@@ -383,7 +382,7 @@ number:
 				else if (base == 16)
 					tmp += 2;
 			}
-			if (neg)
+			if (sign)
 				tmp++;
 
 			if (!ladjust && padc == '0')
@@ -393,8 +392,8 @@ number:
 			if (!ladjust)
 				while (width-- > 0)
 					PCHAR(' ');
-			if (neg)
-				PCHAR('-');
+			if (sign)
+				PCHAR(sign);
 			if (sharpflag && num != 0) {
 				if (base == 8) {
 					PCHAR('0');
