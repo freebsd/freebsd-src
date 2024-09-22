@@ -1042,6 +1042,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 #define	KERN_PROC_NFDS		43	/* number of open file descriptors */
 #define	KERN_PROC_SIGFASTBLK	44	/* address of fastsigblk magic word */
 #define	KERN_PROC_VM_LAYOUT	45	/* virtual address space layout info */
+#define	KERN_PROC_RLIMIT_USAGE	46	/* array of rlim_t */
 
 /*
  * KERN_IPC identifiers
