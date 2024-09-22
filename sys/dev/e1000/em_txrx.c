@@ -455,6 +455,10 @@ em_isc_txd_encap(void *arg, if_pkt_info_t pi)
 	    "tx_buffers[%d]->eop = %d ipi_new_pidx=%d\n", first, pidx_last, i);
 	pi->ipi_new_pidx = i;
 
+	/* Sent data accounting for AIM */
+	txr->tx_bytes += pi->ipi_len;
+	++txr->tx_packets;
+
 	return (0);
 }
 
@@ -669,6 +673,7 @@ lem_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 
 		len = le16toh(rxd->length);
 		ri->iri_len += len;
+		rxr->rx_bytes += ri->iri_len;
 
 		eop = (status & E1000_RXD_STAT_EOP) != 0;
 
@@ -689,6 +694,8 @@ lem_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 			cidx = 0;
 		i++;
 	} while (!eop);
+
+	rxr->rx_packets++;
 
 	if (scctx->isc_capenable & IFCAP_RXCSUM)
 		em_receive_checksum(status, errors, ri);
@@ -732,6 +739,7 @@ em_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 
 		len = le16toh(rxd->wb.upper.length);
 		ri->iri_len += len;
+		rxr->rx_bytes += ri->iri_len;
 
 		eop = (staterr & E1000_RXD_STAT_EOP) != 0;
 
@@ -751,6 +759,8 @@ em_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 			cidx = 0;
 		i++;
 	} while (!eop);
+
+	rxr->rx_packets++;
 
 	if (scctx->isc_capenable & IFCAP_RXCSUM)
 		em_receive_checksum(staterr, staterr >> 24, ri);

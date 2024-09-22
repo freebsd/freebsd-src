@@ -1,8 +1,9 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
+ * Copyright (c) 2001-2024, Intel Corporation
  * Copyright (c) 2016 Nicole Graziano <nicole@nextbsd.org>
- * All rights reserved.
+ * Copyright (c) 2024 Kevin Bowling <kbowling@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -243,16 +244,19 @@
 /* Support AutoMediaDetect for Marvell M88 PHY in i354 */
 #define IGB_MEDIA_RESET		(1 << 0)
 
-/* Define the starting Interrupt rate per Queue */
-#define EM_INTS_PER_SEC		8000
+/* Define the interrupt rates and ITR helpers */
+#define EM_INTS_4K		4000
+#define EM_INTS_20K		20000
+#define EM_INTS_70K		70000
+#define EM_INTS_DEFAULT		8000
 #define EM_INTS_MULTIPLIER	256
 #define EM_ITR_DIVIDEND		1000000000
 #define EM_INTS_TO_ITR(i)	(EM_ITR_DIVIDEND/(i * EM_INTS_MULTIPLIER))
-#define IGB_ITR_DIVIDEND	1000000
-#define IGB_ITR_SHIFT		2
+#define IGB_EITR_DIVIDEND	1000000
+#define IGB_EITR_SHIFT		2
 #define IGB_QVECTOR_MASK	0x7FFC
-#define IGB_INTS_TO_EITR(i)	(((IGB_ITR_DIVIDEND/i) & IGB_QVECTOR_MASK) << \
-				    IGB_ITR_SHIFT)
+#define IGB_INTS_TO_EITR(i)	(((IGB_EITR_DIVIDEND/i) & IGB_QVECTOR_MASK) << \
+				    IGB_EITR_SHIFT)
 
 #define IGB_LINK_ITR		2000
 #define I210_LINK_DELAY		1000
@@ -390,7 +394,11 @@ struct tx_ring {
 	/* Interrupt resources */
 	void			*tag;
 	struct resource		*res;
+
+	/* Soft stats */
 	unsigned long		tx_irq;
+	unsigned long		tx_packets;
+	unsigned long		tx_bytes;
 
 	/* Saved csum offloading context information */
 	int			csum_flags;
@@ -426,6 +434,9 @@ struct rx_ring {
 	unsigned long		rx_discarded;
 	unsigned long		rx_packets;
 	unsigned long		rx_bytes;
+
+	/* Next requested ITR latency */
+	u8			rx_nextlatency;
 };
 
 struct em_tx_queue {
@@ -441,6 +452,7 @@ struct em_rx_queue {
 	u32			me;
 	u32			msix;
 	u32			eims;
+	u32			itr_setting;
 	struct rx_ring		rxr;
 	u64			irqs;
 	struct if_irq		que_irq;
@@ -489,6 +501,7 @@ struct e1000_softc {
 
 	u32			rx_mbuf_sz;
 
+	int			enable_aim;
 	/* Management and WOL features */
 	u32			wol;
 	bool			has_manage;
@@ -512,6 +525,7 @@ struct e1000_softc {
 	u16			link_duplex;
 	u32			smartspeed;
 	u32			dmac;
+	u32			pba;
 	int			link_mask;
 	int			tso_automasked;
 
