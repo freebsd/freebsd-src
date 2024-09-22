@@ -1741,3 +1741,53 @@ chgpipecnt(struct uidinfo *uip, int diff, rlim_t max)
 
 	return (chglimit(uip, &uip->ui_pipecnt, diff, max, "pipecnt"));
 }
+
+static int
+sysctl_kern_proc_rlimit_usage(SYSCTL_HANDLER_ARGS)
+{
+	rlim_t resval[RLIM_NLIMITS];
+	struct proc *p;
+	size_t len;
+	int error, *name, i;
+
+	name = (int *)arg1;
+	if ((u_int)arg2 != 1 && (u_int)arg2 != 2)
+		return (EINVAL);
+	if (req->newptr != NULL)
+		return (EINVAL);
+
+	error = pget((pid_t)name[0], PGET_WANTREAD, &p);
+	if (error != 0)
+		return (error);
+
+	if ((u_int)arg2 == 1) {
+		len = sizeof(resval);
+		memset(resval, 0, sizeof(resval));
+		for (i = 0; i < RLIM_NLIMITS; i++) {
+			error = getrlimitusage_one(p, (unsigned)i, 0,
+			    &resval[i]);
+			if (error == ENXIO) {
+				resval[i] = -1;
+				error = 0;
+			} else if (error != 0) {
+				break;
+			}
+		}
+	} else {
+		len = sizeof(resval[0]);
+		error = getrlimitusage_one(p, (unsigned)name[1], 0,
+		    &resval[0]);
+		if (error == ENXIO) {
+			resval[0] = -1;
+			error = 0;
+		}
+	}
+	if (error == 0)
+		error = SYSCTL_OUT(req, resval, len);
+	PRELE(p);
+	return (error);
+}
+static SYSCTL_NODE(_kern_proc, KERN_PROC_RLIMIT_USAGE, rlimit_usage,
+    CTLFLAG_RD | CTLFLAG_ANYBODY | CTLFLAG_MPSAFE,
+    sysctl_kern_proc_rlimit_usage,
+    "Process limited resources usage info");
