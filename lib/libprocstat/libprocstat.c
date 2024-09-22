@@ -2785,3 +2785,56 @@ procstat_freeadvlock(struct procstat *procstat __unused,
 	free(lst);
 }
 
+static rlim_t *
+procstat_getrlimitusage_sysctl(pid_t pid, unsigned *cntp)
+{
+	int error, name[4];
+	rlim_t *val;
+	size_t len;
+
+	name[0] = CTL_KERN;
+	name[1] = KERN_PROC;
+	name[2] = KERN_PROC_RLIMIT_USAGE;
+	name[3] = pid;
+
+	len = 0;
+	error = sysctl(name, nitems(name), NULL, &len, NULL, 0);
+	if (error == -1)
+		return (NULL);
+	val = malloc(len);
+	if (val == NULL)
+		return (NULL);
+
+	error = sysctl(name, nitems(name), val, &len, NULL, 0);
+	if (error == -1) {
+		free(val);
+		return (NULL);
+	}
+	*cntp = len / sizeof(rlim_t);
+	return (val);
+}
+
+rlim_t *
+procstat_getrlimitusage(struct procstat *procstat, struct kinfo_proc *kp,
+    unsigned int *cntp)
+{
+	switch (procstat->type) {
+	case PROCSTAT_KVM:
+		warnx("kvm method is not supported");
+		return (NULL);
+	case PROCSTAT_SYSCTL:
+		return (procstat_getrlimitusage_sysctl(kp->ki_pid, cntp));
+	case PROCSTAT_CORE:
+		warnx("core method is not supported");
+		return (NULL);
+	default:
+		warnx("unknown access method: %d", procstat->type);
+		return (NULL);
+	}
+}
+
+void
+procstat_freerlimitusage(struct procstat *procstat __unused, rlim_t *resusage)
+{
+	free(resusage);
+}
