@@ -8,6 +8,8 @@
 #
 # This file is sorted in git log order (newest commits first).
 
+# remove stray whitespaces from sys/amd64/
+f3754afd5901857787271e73f9c34d3b9069a03f
 # style and whitespace fixes for bpf
 1baf6164e4d671ca1547a3096d8ce8fe69ed4e5c
 # whitespace fixes in sys/mman.h
