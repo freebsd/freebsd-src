@@ -1492,7 +1492,7 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 				else if (cable_tech & IXGBE_SFF_DA_ACTIVE_CABLE)
 					hw->phy.type = ixgbe_phy_sfp_active_unknown;
 				else
-				hw->phy.type = ixgbe_phy_sfp_unknown;
+					hw->phy.type = ixgbe_phy_sfp_unknown;
 				break;
 			}
 		}
