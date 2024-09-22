@@ -831,11 +831,11 @@ em_if_attach_pre(if_ctx_t ctx)
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
 
 	SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "nvm",
-	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+	    CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 	    em_sysctl_nvm_info, "I", "NVM Information");
 
 	SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "fw_version",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, 0,
+	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 	    em_sysctl_print_fw_version, "A",
 	    "Prints FW/NVM Versions");
 
