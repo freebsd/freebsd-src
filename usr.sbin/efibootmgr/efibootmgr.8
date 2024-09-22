@@ -1,3 +1,5 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
 .\"
 .\" Copyright (c) 2017-2018 Netflix, Inc.
 .\"
@@ -22,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 17, 2023
+.Dd September 22, 2024
 .Dt EFIBOOTMGR 8
 .Os
 .Sh NAME
@@ -67,7 +69,8 @@
 .Fl t Ar timeout
 .Nm
 .Fl T
-.Nm Fl u Ar unix-path
+.Nm
+.Fl u Ar unix-path
 .Sh "DESCRIPTION"
 The
 .Nm
@@ -80,8 +83,8 @@ boot method to be tried once upon the next boot.
 .Pp
 The UEFI standard defines how hosts may control what is used to
 bootstrap the system.
-Each method is encapsulated within a persistent UEFI variable, stored
-by the UEFI BIOS of the form
+Each method is encapsulated within a persistent UEFI variable,
+stored by the UEFI BIOS of the form
 .Cm Boot Ns Em XXXX
 (where XXXX are uppercase hexadecimal digits).
 These variables are numbered, each describing where to load the bootstrap
@@ -275,10 +278,11 @@ for the next reboot use:
 .Pp
 .Dl efibootmgr -o 0009,0003,...
 .Sh SEE ALSO
-.Xr efirt 9 ,
 .Xr efivar 8 ,
 .Xr gpart 8 ,
-.Xr uefi 8
+.Xr loader.efi 8 ,
+.Xr uefi 8 ,
+.Xr efirt 9 ,
 .Sh STANDARDS
 The Unified Extensible Firmware Interface Specification is available
 from
