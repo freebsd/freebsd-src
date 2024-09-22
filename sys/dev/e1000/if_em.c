@@ -840,7 +840,7 @@ em_if_attach_pre(if_ctx_t ctx)
 	    "Prints FW/NVM Versions");
 
 	SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "debug",
-	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+	    CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 	    em_sysctl_debug_info, "I", "Debug Information");
 
 	SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "fc",
