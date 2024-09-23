@@ -20,9 +20,7 @@
 
 /* \summary: Extensible Authentication Protocol (EAP) printer */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
@@ -155,6 +153,7 @@ eap_print(netdissect_options *ndo,
     u_int count;
     const char *sep;
 
+    ndo->ndo_protocol = "eap";
     type = GET_U_1(cp);
     len = GET_BE_U_2(cp + 2);
     if (len != length) {

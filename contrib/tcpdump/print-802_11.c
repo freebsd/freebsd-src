@@ -22,9 +22,7 @@
 
 /* \summary: IEEE 802.11 printer */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
@@ -67,7 +65,7 @@
 #define	IEEE802_11_STATUS_LEN		2
 #define	IEEE802_11_REASON_LEN		2
 
-/* Length of previous AP in reassocation frame */
+/* Length of previous AP in reassociation frame */
 #define	IEEE802_11_AP_LEN		6
 
 #define	T_MGMT 0x0  /* management */
@@ -193,26 +191,22 @@ struct mgmt_header_t {
 #define	CAPABILITY_PRIVACY(cap)	((cap) & 0x0010)
 
 struct ssid_t {
-	uint8_t		element_id;
-	uint8_t		length;
+	u_int		length;
 	u_char		ssid[33];  /* 32 + 1 for null */
 };
 
 struct rates_t {
-	uint8_t		element_id;
-	uint8_t		length;
+	u_int		length;
 	uint8_t		rate[16];
 };
 
 struct challenge_t {
-	uint8_t		element_id;
-	uint8_t		length;
+	u_int		length;
 	uint8_t		text[254]; /* 1-253 + 1 for null */
 };
 
 struct fh_t {
-	uint8_t		element_id;
-	uint8_t		length;
+	u_int		length;
 	uint16_t	dwell_time;
 	uint8_t		hop_set;
 	uint8_t	hop_pattern;
@@ -220,14 +214,12 @@ struct fh_t {
 };
 
 struct ds_t {
-	uint8_t		element_id;
-	uint8_t		length;
+	u_int		length;
 	uint8_t		channel;
 };
 
 struct cf_t {
-	uint8_t		element_id;
-	uint8_t		length;
+	u_int		length;
 	uint8_t		count;
 	uint8_t		period;
 	uint16_t	max_duration;
@@ -235,8 +227,7 @@ struct cf_t {
 };
 
 struct tim_t {
-	uint8_t		element_id;
-	uint8_t		length;
+	u_int		length;
 	uint8_t		count;
 	uint8_t		period;
 	uint8_t		bitmap_control;
@@ -369,9 +360,11 @@ struct ctrl_ba_hdr_t {
 	nd_uint16_t	fc;
 	nd_uint16_t	duration;
 	nd_mac_addr	ra;
+	nd_mac_addr	ta;
 };
 
-#define	CTRL_BA_HDRLEN	(IEEE802_11_FC_LEN+IEEE802_11_DUR_LEN+IEEE802_11_RA_LEN)
+#define	CTRL_BA_HDRLEN	(IEEE802_11_FC_LEN+IEEE802_11_DUR_LEN+\
+			 IEEE802_11_RA_LEN+IEEE802_11_TA_LEN)
 
 struct ctrl_bar_hdr_t {
 	nd_uint16_t	fc;
@@ -410,15 +403,15 @@ struct meshcntl_t {
 	ND_PRINT("%s%2.1f%s", _sep, (.5 * ((_r) & 0x7f)), _suf)
 #define PRINT_RATES(p) \
 	if (p.rates_present) { \
-		int z; \
 		const char *sep = " ["; \
-		for (z = 0; z < p.rates.length ; z++) { \
-			PRINT_RATE(sep, p.rates.rate[z], \
-				(p.rates.rate[z] & 0x80 ? "*" : "")); \
-			sep = " "; \
-		} \
-		if (p.rates.length != 0) \
+		if (p.rates.length != 0) { \
+			for (u_int z = 0; z < p.rates.length ; z++) { \
+				PRINT_RATE(sep, p.rates.rate[z], \
+					(p.rates.rate[z] & 0x80 ? "*" : "")); \
+				sep = " "; \
+			} \
 			ND_PRINT(" Mbit]"); \
+		} \
 	}
 
 #define PRINT_DS_CHANNEL(p) \
@@ -1170,7 +1163,7 @@ parse_elements(netdissect_options *ndo,
 
 		switch (GET_U_1(p + offset)) {
 		case E_SSID:
-			memcpy(&ssid, p + offset, 2);
+			ssid.length = elementlen;
 			offset += 2;
 			length -= 2;
 			if (ssid.length != 0) {
@@ -1194,7 +1187,7 @@ parse_elements(netdissect_options *ndo,
 			}
 			break;
 		case E_CHALLENGE:
-			memcpy(&challenge, p + offset, 2);
+			challenge.length = elementlen;
 			offset += 2;
 			length -= 2;
 			if (challenge.length != 0) {
@@ -1220,7 +1213,7 @@ parse_elements(netdissect_options *ndo,
 			}
 			break;
 		case E_RATES:
-			memcpy(&rates, p + offset, 2);
+			rates.length = elementlen;
 			offset += 2;
 			length -= 2;
 			if (rates.length != 0) {
@@ -1252,7 +1245,7 @@ parse_elements(netdissect_options *ndo,
 			}
 			break;
 		case E_DS:
-			memcpy(&ds, p + offset, 2);
+			ds.length = elementlen;
 			offset += 2;
 			length -= 2;
 			if (ds.length != 1) {
@@ -1276,7 +1269,7 @@ parse_elements(netdissect_options *ndo,
 			}
 			break;
 		case E_CF:
-			memcpy(&cf, p + offset, 2);
+			cf.length = elementlen;
 			offset += 2;
 			length -= 2;
 			if (cf.length != 6) {
@@ -1309,7 +1302,7 @@ parse_elements(netdissect_options *ndo,
 			}
 			break;
 		case E_TIM:
-			memcpy(&tim, p + offset, 2);
+			tim.length = elementlen;
 			offset += 2;
 			length -= 2;
 			if (tim.length <= 3U) {
@@ -1749,7 +1742,7 @@ handle_action(netdissect_options *ndo,
 	case 7: ND_PRINT("HT "); PRINT_HT_ACTION(GET_U_1(p + 1)); break;
 	case 13: ND_PRINT("MeshAction "); PRINT_MESH_ACTION(GET_U_1(p + 1)); break;
 	case 14:
-		ND_PRINT("MultiohopAction ");
+		ND_PRINT("MultihopAction");
 		PRINT_MULTIHOP_ACTION(GET_U_1(p + 1)); break;
 	case 15:
 		ND_PRINT("SelfprotectAction ");
@@ -2017,8 +2010,9 @@ ctrl_header_print(netdissect_options *ndo, uint16_t fc, const u_char *p)
 		    GET_LE_U_2(((const struct ctrl_bar_hdr_t *)p)->seq));
 		break;
 	case CTRL_BA:
-		ND_PRINT("RA:%s ",
-		    GET_ETHERADDR_STRING(((const struct ctrl_ba_hdr_t *)p)->ra));
+		ND_PRINT("RA:%s TA:%s ",
+		    GET_ETHERADDR_STRING(((const struct ctrl_ba_hdr_t *)p)->ra),
+		    GET_ETHERADDR_STRING(((const struct ctrl_ba_hdr_t *)p)->ta));
 		break;
 	case CTRL_PS_POLL:
 		ND_PRINT("BSSID:%s TA:%s ",

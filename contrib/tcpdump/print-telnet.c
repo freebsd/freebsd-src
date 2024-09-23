@@ -47,9 +47,7 @@
 
 /* \summary: Telnet option printer */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
@@ -117,7 +115,7 @@ static const char *telcmds[] = {
 #define TELOPT_NAOVTS	14	/* negotiate about vertical tab stops */
 #define TELOPT_NAOVTD	15	/* negotiate about vertical tab disposition */
 #define TELOPT_NAOLFD	16	/* negotiate about output LF disposition */
-#define TELOPT_XASCII	17	/* extended ascic character set */
+#define TELOPT_XASCII	17	/* extended ascii character set */
 #define	TELOPT_LOGOUT	18	/* force logout */
 #define	TELOPT_BM	19	/* byte macro */
 #define	TELOPT_DET	20	/* data entry terminal */

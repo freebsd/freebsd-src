@@ -34,9 +34,7 @@
 
 /* specification: RFC 4271 */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
@@ -1161,6 +1159,8 @@ decode_multicast_vpn(netdissect_options *ndo,
     switch(route_type) {
     case BGP_MULTICAST_VPN_ROUTE_TYPE_INTRA_AS_I_PMSI:
         ND_TCHECK_LEN(pptr, BGP_VPN_RD_LEN);
+        if (route_length < BGP_VPN_RD_LEN)
+            goto trunc;
         offset = (u_int)strlen(buf);
         snprintf(buf + offset, buflen - offset, ", RD: %s, Originator %s",
                     bgp_vpn_rd_print(ndo, pptr),
@@ -1575,7 +1575,7 @@ trunc:
     /*
      * We can come here, either we did not have enough data, or if we
      * try to decode 4 byte ASs in 2 byte format. Either way, return 4,
-     * so that calller can try to decode each AS as of 4 bytes. If indeed
+     * so that caller can try to decode each AS as of 4 bytes. If indeed
      * there was not enough data, it will crib and end the parse anyways.
      */
     return 4;
@@ -1598,7 +1598,7 @@ check_add_path(netdissect_options *ndo, const u_char *pptr, u_int length,
     }
 
     /*
-     * Scan through the NLRI information under the assumpetion that
+     * Scan through the NLRI information under the assumption that
      * it doesn't have path IDs.
      */
     for (offset = 0; offset < length;) {
@@ -2231,8 +2231,10 @@ bgp_attr_print(netdissect_options *ndo,
             ND_PRINT(", no SNPA");
         }
 
-        add_path4 = check_add_path(ndo, tptr, (len-ND_BYTES_BETWEEN(tptr, pptr)), 32);
-        add_path6 = check_add_path(ndo, tptr, (len-ND_BYTES_BETWEEN(tptr, pptr)), 128);
+        add_path4 = check_add_path(ndo, tptr,
+                                   (len-ND_BYTES_BETWEEN(pptr, tptr)), 32);
+        add_path6 = check_add_path(ndo, tptr,
+                                   (len-ND_BYTES_BETWEEN(pptr, tptr)), 128);
 
         while (tptr < pptr + len) {
             advance = bgp_nlri_print(ndo, af, safi, tptr, len, buf, sizeof(buf),
@@ -2258,8 +2260,10 @@ bgp_attr_print(netdissect_options *ndo,
 
         tptr += 3;
 
-        add_path4 = check_add_path(ndo, tptr, (len-ND_BYTES_BETWEEN(tptr, pptr)), 32);
-        add_path6 = check_add_path(ndo, tptr, (len-ND_BYTES_BETWEEN(tptr, pptr)), 128);
+        add_path4 = check_add_path(ndo, tptr,
+                                   (len-ND_BYTES_BETWEEN(pptr, tptr)), 32);
+        add_path6 = check_add_path(ndo, tptr,
+                                   (len-ND_BYTES_BETWEEN(pptr, tptr)), 128);
 
         while (tptr < pptr + len) {
             advance = bgp_nlri_print(ndo, af, safi, tptr, len, buf, sizeof(buf),
@@ -2986,8 +2990,7 @@ bgp_notification_print(netdissect_options *ndo,
             /* garbage, hexdump it all */
             if (shutdown_comm_length > length - (BGP_NOTIFICATION_SIZE + 1)) {
                 ND_PRINT(", invalid Shutdown Communication length");
-            }
-            else if (shutdown_comm_length == 0) {
+            } else if (shutdown_comm_length == 0) {
                 ND_PRINT(", empty Shutdown Communication");
                 remainder_offset += 1;
             }

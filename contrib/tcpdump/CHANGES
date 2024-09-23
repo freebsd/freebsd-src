@@ -1,3 +1,128 @@
+Friday, August 30, 2024 / The Tcpdump Group
+  Summary for 4.99.5 tcpdump release
+    Refine protocol decoding for:
+      Arista: Use the test .pcap file from pull request #955 (HwInfo).
+      BGP: Fix an undefined behavior when it tries to parse a too-short packet.
+      CARP: Print the protocol name before any GET_().
+      CDP: only hex-dump unknown TLVs in verbose mode.
+      DHCP: parse the SZTP redirect tag.
+      DHCPv6: client-id/server-id DUID type 2 correction; parse the user class,
+        boot file URL, and SZTP redirect options; add DUID-UUID printing
+        (RFC6355).
+      DNS: Detect and correctly handle too-short URI RRs.
+      EAP: Assign ndo_protocol in the eap_print() function.
+      ESP: Don't use EVP_add_cipher_alias() (fixes building on OpenBSD 7.5).
+      Frame Relay (Multilink): Fix the Timestamp Information Element printing.
+      ICMPv6: Fix printing the Home Agent Address Discovery Reply Message.
+      IEEE 802.11: no need for an element ID in the structures for IEs, make
+        the length in the IE structures a u_int, include the "TA" field while
+        printing Block Ack Control frame.
+      IP: Enable TSO (TCP Segmentation Offload) support; fix printing invalid
+        cases as invalid, not truncated; use ND_ICHECKMSG_ZU() to test the
+        header length.
+      IPv6: Fix printing invalid cases as invalid, not truncated; use
+        ND_ICHECKMSG_U() to print an invalid version.
+      IPv6: Fix invalid 32-bit versus 64-bit printouts of fragment headers.
+      ISAKMP: Fix printing Delete payload SPI when size is zero.
+      Kerberos: Print the protocol name, remove a redundant bounds check.
+      lwres: Fix an undefined behavior in pointer arithmetic.
+      OpenFlow 1.0: Fix indentation of PORT_MOD, improve handling of
+          some lengths, and fix handling of snapend.
+      TCP: Test ports < 1024 in port order to select the printer.
+      UDP: Move source port equal BCM_LI_PORT to bottom of long if else chain.
+      UDP: Test ports < 1024 in port order to select the printer.
+      LDP: Add missing fields of the Common Session Parameters TLV and fix the
+        offset for the A&D bits.
+      NFLOG: Use correct AF code points on all OSes.
+      NFS: Avoid printing non-ASCII characters.
+      OSPF: Pad TLVs in LS_OPAQUE_TYPE_RI to multiples of 4 bytes.
+      OSPF: Update LS-Ack printing not to run off the end of the packet.
+      OSPF6: Fix an undefined behavior.
+      pflog: use nd_ types in struct pfloghdr.
+      PPP: Check if there is some data to hexdump.
+      PPP: Remove an extra colon before LCP Callback Operation.
+      Use the buffer stack for de-escaping PPP; fixes CVE-2024-2397;
+        Note: This problem does not affect any tcpdump release.
+      PTP: Fix spelling of type SIGNALING, Parse major and minor version
+        correctly, Print majorSdoId field instead of just the first bit.
+      RIP: Make a couple trivial protocol updates.
+      RPKI-Router: Refine length and bounds checks.
+      RX: Use the "%Y-%m-%d" date format.
+      smbutil.c: Use the "%Y-%m-%d" date format.
+      SNMP: Fix two undefined behaviors.
+      Text protocols: Fix printing truncation if it is not the case.
+      ZEP: Use the "%Y-%m-%d" date format.
+      ZMTP: Replace custom code with bittok2str().
+    User interface:
+      Print the supported time stamp types (-J) to stdout instead of stderr.
+      Print the list of data link types (-L) to stdout instead of stderr.
+      Use symmetrical quotation characters in error messages.
+      Update --version option to print 32/64-bit build and time_t size.
+      Improve error messages for invalid interface indexes specified
+        with -i.
+      Support "3des" as an alias for "des_ede3_cbc" even if the crypto
+        library doesn't support adding aliases.
+    Source code:
+      tcpdump: Fix a memory leak.
+      child_cleanup: reap as many child processes as possible.
+      Ignore failures when setting the default "any" device DLL to LINUX_SLL2.
+      Fix for backends which doesn't support capsicum.
+      Update ND_BYTES_BETWEEN() macro for better accuracy.
+      Update ND_BYTES_AVAILABLE_AFTER() macro for better accuracy.
+      Introduce new ND_ICHECK*() macros to deduplicate more code.
+      Skip privilege dropping when using -Z root on --with-user builds.
+      Add a nd_printjn() function.
+      Make nd_trunc_longjmp() not static inline.
+      Include <time.h> from netdissect.h.
+      Remove init_crc10_table() and the entourage.
+      Initialize tzcode early.
+      Capsicum support: Fix a 'not defined' macro error.
+      Update the "Error converting time" tests for packet times.
+      Fix warnings when building for 32-bit and defining _TIME_BITS=64.
+      Free interface list just before exiting where it wasn't being
+        freed.
+    Building and testing:
+      Add a configure option to help debugging (--enable-instrument-functions).
+      At build time require a proof of suitable snprintf(3) implementation in
+        libc (and document Solaris 9 as unsupported because of that).
+      Makefile.in: Add two "touch .devel" commands in the releasecheck target.
+      Autoconf: Get --with-user and --with-chroot right.
+      Autoconf: Fix --static-pcap-only test on Solaris 10.
+      Autoconf: Add some warning flags for clang 13 or newer.
+      Autoconf: Update config.{guess,sub}, timestamps 2024-01-01.
+      Autoconf: Add autogen.sh, remove configure and config.h.in and put
+        these generated files in the release tarball.
+      Autoconf: Update the install-sh script to the 2020-11-14.01 version.
+      configure: Apply autoupdate 2.69.
+      CMake: improve the comment before project(tcpdump C).
+      Do not require vsnprintf().
+      tests: Use the -tttt option, by default, for the tests.
+      Autoconf, CMake: Get the size of a void * and a time_t.
+      Fix propagation of cc_werr_cflags() output.
+      Makefile.in: Fix the depend target.
+      mkdep: Exit with a non-zero status if a command fails.
+      Autoconf: use V_INCLS to update the list of include search paths.
+      Autoconf: don't put anything before -I and -L flags for local libpcap.
+      Autoconf, CMake: work around an Xcode 15+ issue.
+      Autoconf, CMake: use pkg-config and Homebrew when looking for
+        libcrypto.
+      Fix Sun C invocation from CMake.
+      mkdep: Use TMPDIR if it is set and not null.
+      Add initial support for building with TinyCC.
+      Makefile.in: Use the variable MAKE instead of the make command.
+      Makefile.in: Add instrumentation configuration in releasecheck target.
+      Make various improvements to the TESTrun script.
+      Untangle detection of pcap_findalldevs().
+      Autoconf: don't use egrep, use $EGREP.
+      Autoconf: check for gethostbyaddr(), not gethostbyname().
+      Autoconf, CMake: search for gethostbyaddr() in libnetwork.
+      Make illumos build warning-free.
+    Documentation:
+      Fixed errors in doc/README.Win32.md and renamed it to README.windows.md.
+      Make various improvements to the man page.
+      Add initial README file for Haiku.
+      Make various improvements to CONTRIBUTING.md.
+
 Friday, April 7, 2023 / The Tcpdump Group
   Summary for 4.99.4 tcpdump release
     Source code:
@@ -184,7 +309,7 @@ Wednesday, June 9, 2021 by gharris
       Fix "make clean" for out-of-tree autotools builds
       CMake: add stuff from CMAKE_PREFIX_PATH to PKG_CONFIG_PATH.
     Documentation:
-      man: Update a reference as www.cifs.org is gone. [skip ci]
+      man: Update a reference as www.cifs.org is gone.
       man: Update DNS sections
     Solaris:
       Fix a compile error with Sun C
@@ -913,7 +1038,7 @@ Wed.	April 25, 2007. ken@xelerance.com.  Summary for 3.9.6 tcpdump release
 	 RFC 4340.
 	Add support for per-VLAN spanning tree and per-VLAN rapid spanning tree
 	Add support for Multiple-STP as per 802.1s
-	Add support for the cisco propriatry 'dynamic trunking protocol'
+	Add support for the cisco proprietary 'dynamic trunking protocol'
 	Add support for the cisco proprietary VTP protocol
 	Update dhcp6 options table as per IETF standardization activities
 
@@ -1687,7 +1812,7 @@ v2.0.1 Sun Jan 26 21:10:10 PDT
 - Ultrix 4.0 is supported (also thanks to Jeff Mogul).
 
 - IBM RT and Stanford Enetfilter support has been added by
-  Rayan Zachariassen <rayan@canet.ca>.  Tcpdump has been tested under
+  Rayan Zachariassen <rayan@canet.ca>.  tcpdump has been tested under
   both the vanilla Enetfilter interface, and the extended interface
   (#ifdef'd by IBMRTPC) present in the MERIT version of the Enetfilter.
 

@@ -2,21 +2,26 @@ if(WIN32)
     #
     # We need 3.12 or later, so that we can set policy CMP0074; see
     # below.
+    #
     cmake_minimum_required(VERSION 3.12)
 else(WIN32)
     #
-    # For now, require only 2.8.6, just in case somebody is
-    # configuring with CMake on a "long-term support" version
-    # of some OS and that version supplies an older version of
-    # CMake.
+    # For now:
     #
-    # If this is ever updated to CMake 3.1 or later, remove the
-    # stuff in cmake/Modules/FindPCAP.cmake that appends subdirectories
-    # of directories from CMAKE_PREFIX_PATH to the PKG_CONFIG_PATH
-    # environment variable when running pkg-config, to make sure
-    # it finds any .pc file from there.
+    #  if this is a version of CMake less than 3.5, require only
+    #  2.8.12, just in case somebody is configuring with CMake
+    #  on a "long-term support" version # of some OS and that
+    #  version supplies an older version of CMake;
     #
-    cmake_minimum_required(VERSION 2.8.12)
+    #  otherwise, require 3.5, so we don't get messages warning
+    #  that support for versions of CMake lower than 3.5 is
+    #  deprecated.
+    #
+    if(CMAKE_VERSION VERSION_LESS "3.5")
+        cmake_minimum_required(VERSION 2.8.12)
+    else()
+        cmake_minimum_required(VERSION 3.5)
+    endif()
 endif(WIN32)
 
 #
@@ -77,7 +82,7 @@ endif()
 # If, for whatever reason, directories in which we search for external
 # libraries, other than the standard system library directories, are
 # added to the executable's rpath in the build process, we most
-# defintely want them in the installed image's rpath if they are
+# definitely want them in the installed image's rpath if they are
 # necessary in order to find the libraries at run time.
 #
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
@@ -85,7 +90,13 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/Modules)
 
 #
-# OK, this is a royal pain.
+# We explicitly indicate what languages are used in tcpdump to avoid
+# checking for a C++ compiler.
+#
+# One reason to avoid that check is that there's no need to waste
+# configuration time performing it.
+#
+# Another reason is that:
 #
 # CMake will try to determine the sizes of some data types, including
 # void *, early in the process of configuration; apparently, it's done
@@ -111,10 +122,87 @@ set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/Modules)
 # building 32-bit, the size for C++ will win, and, again, hilarity
 # will ensue.
 #
-# So we *explicitly* state that only C is used; there is currently no
-# C++ code in tcpdump.
-#
 project(tcpdump C)
+
+#
+# Export the size of void * as SIZEOF_VOID_P so that it can be
+# tested with #if.
+#
+set(SIZEOF_VOID_P "${CMAKE_SIZEOF_VOID_P}")
+
+#
+# Show the bit width for which we're compiling.
+# This can help debug problems if you're dealing with a compiler that
+# defaults to generating 32-bit code even when running on a 64-bit
+# platform, and where that platform may provide only 64-bit versions of
+# libraries that we might use (looking at *you*, Oracle Studio!).
+#
+if(CMAKE_SIZEOF_VOID_P EQUAL 4)
+  message(STATUS "Building 32-bit")
+elseif(CMAKE_SIZEOF_VOID_P EQUAL 8)
+  message(STATUS "Building 64-bit")
+endif()
+
+#
+# Solaris pkg-config is annoying.  For at least one package (D-Bus, I'm
+# looking at *you*!), there are separate include files for 32-bit and
+# 64-bit builds (I guess using "unsigned long long" as a 64-bit integer
+# type on a 64-bit build is like crossing the beams or something), and
+# there are two separate .pc files, so if we're doing a 32-bit build we
+# should make sure we look in /usr/lib/pkgconfig for .pc files and if
+# we're doing a 64-bit build we should make sure we look in
+# /usr/lib/amd64/pkgconfig for .pc files.
+#
+if(CMAKE_SYSTEM_NAME STREQUAL "SunOS" AND CMAKE_SYSTEM_VERSION MATCHES "5[.][0-9.]*")
+    #
+    # Note: string(REPLACE) does not appear to support using ENV{...}
+    # as an argument, so we set a variable and then use set() to set
+    # the environment variable.
+    #
+    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+        #
+        # 64-bit build.  If /usr/lib/pkgconfig appears in the path,
+        # prepend /usr/lib/amd64/pkgconfig to it; otherwise,
+        # put /usr/lib/amd64 at the end.
+        #
+        if((NOT DEFINED ENV{PKG_CONFIG_PATH}) OR "$ENV{PKG_CONFIG_PATH}" EQUAL "")
+            #
+            # Not set, or empty.  Set it to /usr/lib/amd64/pkgconfig.
+            #
+            set(fixed_path "/usr/lib/amd64/pkgconfig")
+        elseif("$ENV{PKG_CONFIG_PATH}" MATCHES "/usr/lib/pkgconfig")
+            #
+            # It contains /usr/lib/pkgconfig.  Prepend
+            # /usr/lib/amd64/pkgconfig to /usr/lib/pkgconfig.
+            #
+            string(REPLACE "/usr/lib/pkgconfig"
+                "/usr/lib/amd64/pkgconfig:/usr/lib/pkgconfig"
+                fixed_path "$ENV{PKG_CONFIG_PATH}")
+        else()
+            #
+            # Not empty, but doesn't contain /usr/lib/pkgconfig.
+            # Append /usr/lib/amd64/pkgconfig to it.
+            #
+            set(fixed_path "$ENV{PKG_CONFIG_PATH}:/usr/lib/amd64/pkgconfig")
+        endif()
+        set(ENV{PKG_CONFIG_PATH} "${fixed_path}")
+    elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
+        #
+        # 32-bit build.  If /usr/amd64/lib/pkgconfig appears in the path,
+        # prepend /usr/lib/pkgconfig to it.
+        #
+        if("$ENV{PKG_CONFIG_PATH}" MATCHES "/usr/lib/amd64/pkgconfig")
+            #
+            # It contains /usr/lib/amd64/pkgconfig.  Prepend
+            # /usr/lib/pkgconfig to /usr/lib/amd64/pkgconfig.
+            #
+            string(REPLACE "/usr/lib/amd64/pkgconfig"
+                "/usr/lib/pkgconfig:/usr/lib/amd64/pkgconfig"
+                fixed_path "$ENV{PKG_CONFIG_PATH}")
+            set(ENV{PKG_CONFIG_PATH} "${fixed_path}")
+        endif()
+    endif()
+endif()
 
 #
 # For checking if a compiler flag works and adding it if it does.
@@ -266,8 +354,6 @@ file(STRINGS ${tcpdump_SOURCE_DIR}/VERSION
 # Project settings
 ######################################
 
-add_definitions(-DHAVE_CONFIG_H)
-
 include_directories(
     ${CMAKE_CURRENT_BINARY_DIR}
     ${tcpdump_SOURCE_DIR}
@@ -321,9 +407,16 @@ include(CheckVariableExists)
 include(CheckTypeSize)
 
 #
+# Get the size of a time_t, to know whether it's 32-bit or 64-bit.
+#
+cmake_push_check_state()
+set(CMAKE_EXTRA_INCLUDE_FILES time.h)
+check_type_size("time_t" SIZEOF_TIME_T)
+cmake_pop_check_state()
+
+#
 # Header files.
 #
-check_include_file(fcntl.h HAVE_FCNTL_H)
 check_include_file(rpc/rpc.h HAVE_RPC_RPC_H)
 check_include_file(net/if.h HAVE_NET_IF_H)
 if(HAVE_RPC_RPC_H)
@@ -368,7 +461,12 @@ else(WIN32)
             if(LIBNSL_HAS_GETHOSTBYADDR)
                 set(TCPDUMP_LINK_LIBRARIES ${TCPDUMP_LINK_LIBRARIES} nsl)
             else(LIBNSL_HAS_GETHOSTBYADDR)
-                message(FATAL_ERROR "gethostbyaddr is required, but wasn't found")
+                check_library_exists(network gethostbyaddr "" LIBNETWORK_HAS_GETHOSTBYADDR)
+                if(LIBNETWORK_HAS_GETHOSTBYADDR)
+                    set(TCPDUMP_LINK_LIBRARIES ${TCPDUMP_LINK_LIBRARIES} network)
+                else(LIBNETWORK_HAS_GETHOSTBYADDR)
+                    message(FATAL_ERROR "gethostbyaddr is required, but wasn't found")
+                endif(LIBNETWORK_HAS_GETHOSTBYADDR)
             endif(LIBNSL_HAS_GETHOSTBYADDR)
         endif(LIBSOCKET_HAS_GETHOSTBYADDR)
     endif(NOT STDLIBS_HAVE_GETHOSTBYADDR)
@@ -396,18 +494,66 @@ endif(STDLIBS_HAVE_GETSERVENT)
 cmake_pop_check_state()
 
 #
-# Make sure we have vsnprintf() and snprintf(); we require them.
-# We use check_symbol_exists(), as they aren't necessarily external
-# functions - in Visual Studio, for example, they're inline functions
-# calling a common external function.
+# Make sure we have snprintf(); we require it.
+# We use check_symbol_exists(), as it isn't necessarily an external
+# function - in Visual Studio, for example, it is an inline function
+# calling an external function.
 #
-check_symbol_exists(vsnprintf "stdio.h" HAVE_VSNPRINTF)
-if(NOT HAVE_VSNPRINTF)
-    message(FATAL_ERROR "vsnprintf() is required but wasn't found")
-endif(NOT HAVE_VSNPRINTF)
 check_symbol_exists(snprintf "stdio.h" HAVE_SNPRINTF)
 if(NOT HAVE_SNPRINTF)
     message(FATAL_ERROR "snprintf() is required but wasn't found")
+endif()
+
+#
+# Require a proof of suitable snprintf(3), same as in Autoconf.
+#
+include(CheckCSourceRuns)
+check_c_source_runs("
+#include <stdio.h>
+#include <string.h>
+#include <inttypes.h>
+#include <sys/types.h>
+
+int main()
+{
+  char buf[100];
+  uint64_t t = (uint64_t)1 << 32;
+
+  snprintf(buf, sizeof(buf), \"%zu\", sizeof(buf));
+  if (strncmp(buf, \"100\", sizeof(buf)))
+    return 1;
+
+  snprintf(buf, sizeof(buf), \"%zd\", -sizeof(buf));
+  if (strncmp(buf, \"-100\", sizeof(buf)))
+    return 2;
+
+  snprintf(buf, sizeof(buf), \"%\" PRId64, -t);
+  if (strncmp(buf, \"-4294967296\", sizeof(buf)))
+    return 3;
+
+  snprintf(buf, sizeof(buf), \"0o%\" PRIo64, t);
+  if (strncmp(buf, \"0o40000000000\", sizeof(buf)))
+    return 4;
+
+  snprintf(buf, sizeof(buf), \"0x%\" PRIx64, t);
+  if (strncmp(buf, \"0x100000000\", sizeof(buf)))
+    return 5;
+
+  snprintf(buf, sizeof(buf), \"%\" PRIu64, t);
+  if (strncmp(buf, \"4294967296\", sizeof(buf)))
+    return 6;
+
+  return 0;
+}
+
+"
+    SUITABLE_SNPRINTF
+)
+if(NOT SUITABLE_SNPRINTF)
+    message(FATAL_ERROR
+"The snprintf(3) implementation in this libc is not suitable,
+tcpdump would not work correctly even if it managed to compile."
+    )
 endif()
 
 check_function_exists(getopt_long HAVE_GETOPT_LONG)
@@ -619,6 +765,14 @@ set(CMAKE_REQUIRED_INCLUDES ${PCAP_INCLUDE_DIRS})
 check_include_file(pcap/pcap-inttypes.h HAVE_PCAP_PCAP_INTTYPES_H)
 
 #
+# At compile time HAVE_PCAP_FINDALLDEVS depends on HAVE_PCAP_IF_T.
+#
+cmake_push_check_state()
+set(CMAKE_EXTRA_INCLUDE_FILES pcap.h)
+check_type_size(pcap_if_t PCAP_IF_T)
+cmake_pop_check_state()
+
+#
 # Check for various functions in libpcap/WinPcap/Npcap.
 #
 cmake_push_check_state()
@@ -707,19 +861,6 @@ endif(HAVE_PCAP_CREATE)
 # if we have them.
 #
 check_function_exists(pcap_findalldevs HAVE_PCAP_FINDALLDEVS)
-if(HAVE_PCAP_FINDALLDEVS)
-    #
-    # Check for libpcap having pcap_findalldevs() but the pcap.h header
-    # not having pcap_if_t; some versions of Mac OS X shipped with pcap.h
-    # from 0.6 and libpcap 0.8, so that libpcap had pcap_findalldevs but
-    # pcap.h didn't have pcap_if_t.
-    #
-    cmake_push_check_state()
-    set(CMAKE_REQUIRED_INCLUDES ${PCAP_INCLUDE_DIRS})
-    set(CMAKE_EXTRA_INCLUDE_FILES pcap.h)
-    check_type_size(pcap_if_t PCAP_IF_T)
-    cmake_pop_check_state()
-endif(HAVE_PCAP_FINDALLDEVS)
 check_function_exists(pcap_dump_flush HAVE_PCAP_DUMP_FLUSH)
 check_function_exists(pcap_lib_version HAVE_PCAP_LIB_VERSION)
 if(NOT HAVE_PCAP_LIB_VERSION)
@@ -728,8 +869,56 @@ endif(NOT HAVE_PCAP_LIB_VERSION)
 check_function_exists(pcap_setdirection HAVE_PCAP_SETDIRECTION)
 check_function_exists(pcap_set_immediate_mode HAVE_PCAP_SET_IMMEDIATE_MODE)
 check_function_exists(pcap_dump_ftell64 HAVE_PCAP_DUMP_FTELL64)
-check_function_exists(pcap_open HAVE_PCAP_OPEN)
-check_function_exists(pcap_findalldevs_ex HAVE_PCAP_FINDALLDEVS_EX)
+#
+# macOS Sonoma's libpcap includes stub versions of the remote-
+# capture APIs.  They are exported as "weakly linked symbols".
+#
+# Xcode 15 offers only a macOS Sonoma SDK, which has a .tbd
+# file for libpcap that claims it includes those APIs.  (Newer
+# versions of macOS don't provide the system shared libraries,
+# they only provide the dyld shared cache containing those
+# libraries, so the OS provides SDKs that include a .tbd file
+# to use when linking.)
+#
+# This means that check_function_exists() will think that
+# the remote-capture APIs are present, including pcap_open()
+# and pcap_findalldevs_ex().
+#
+# However, they are *not* present in macOS Ventura and earlier,
+# which means that building on Ventura with Xcode 15 produces
+# executables that fail to start because one of those APIs
+# isn't found in the system libpcap.
+#
+# Protecting calls to those APIs with __builtin_available()
+# does not prevent this, because the libpcap header files
+# in the Sonoma SDK mark them as being first available
+# in macOS 10.13, just like all the other routines introduced
+# in libpcap 1.9, even though they're only available if libpcap
+# is built with remote capture enabled or stub routines are
+# provided.  (A fix to enable this has been checked into the
+# libpcap repository, and may end up in a later version of
+# the SDK.)
+#
+# Given all that, and given that the versions of the
+# remote-capture APIs in Sonoma are stubs that always fail,
+# there doesn't seem to be any point in checking for pcap_open()
+# and pcap_findalldevs_ex() if we're linking against the Apple libpcap.
+#
+# However, if we're *not* linking against the Apple libpcap,
+# we should check for it, so that we can use it if it's present.
+#
+# So we check for pcap_open() and pcap_findalldevs_ex() if 1) this isn't
+# macOS or 2) the the libpcap we found is not a system library, meaning
+# that its path begins neither with /usr/lib (meaning it's a system
+# dylib) nor /Application/Xcode.app (meaning it's a file in
+# the Xcode SDK).
+#
+if(NOT APPLE OR NOT
+   (PCAP_LIBRARIES MATCHES "/usr/lib/.*" OR
+    PCAP_LIBRARIES MATCHES "/Application/Xcode.app/.*"))
+    check_function_exists(pcap_open HAVE_PCAP_OPEN)
+    check_function_exists(pcap_findalldevs_ex HAVE_PCAP_FINDALLDEVS_EX)
+endif()
 
 #
 # On Windows, check for pcap_wsockinit(); if we don't have it, check for
@@ -787,11 +976,6 @@ endif(WITH_SMI)
 if(WITH_CRYPTO)
     find_package(CRYPTO)
     if(CRYPTO_FOUND)
-        #
-        # Check for some headers and functions.
-        #
-        check_include_file(openssl/evp.h HAVE_OPENSSL_EVP_H)
-
         #
         # 1) do we have EVP_CIPHER_CTX_new?
         # If so, we use it to allocate an EVP_CIPHER_CTX, as
@@ -958,9 +1142,9 @@ if(EXISTS ${CMAKE_SOURCE_DIR}/.devel OR EXISTS ${CMAKE_BINARY_DIR}/.devel)
         # We do *not* care whether a structure had padding added at
         # the end because of __declspec(align) - *we* don't use
         # __declspec(align), because the only structures whose layout
-        # we precisely specify are those that get overlayed on packet
+        # we precisely specify are those that get overlaid on packet
         # data, and in those every element is an array of octets so
-        # that we have full control over the size and aligmnet, and,
+        # that we have full control over the size and alignment, and,
         # apparently, jmp_buf has such a declaration on x86, meaning
         # that everything that includes netdissect.h, i.e. almost every
         # file in tcpdump, gets a warning.
@@ -979,12 +1163,19 @@ if(EXISTS ${CMAKE_SOURCE_DIR}/.devel OR EXISTS ${CMAKE_BINARY_DIR}/.devel)
         check_and_add_compiler_option(-Wmissing-prototypes)
         check_and_add_compiler_option(-Wmissing-variable-declarations)
         check_and_add_compiler_option(-Wold-style-definition)
-        check_and_add_compiler_option(-Wpedantic)
+        if(NOT CMAKE_C_COMPILER_ID MATCHES "Sun")
+            # In Sun C versions that implement GCC compatibility "-Wpedantic"
+            # means the same as "-pedantic".  The latter is mutually exclusive
+            # with several other options.  One of those is "-xc99", which has
+            # already been set for Sun C above.
+            check_and_add_compiler_option(-Wpedantic)
+        endif()
         check_and_add_compiler_option(-Wpointer-arith)
         check_and_add_compiler_option(-Wpointer-sign)
         check_and_add_compiler_option(-Wshadow)
         check_and_add_compiler_option(-Wsign-compare)
         check_and_add_compiler_option(-Wstrict-prototypes)
+        check_and_add_compiler_option(-Wundef)
         check_and_add_compiler_option(-Wunreachable-code-return)
         check_and_add_compiler_option(-Wused-but-marked-unused)
         check_and_add_compiler_option(-Wwrite-strings)
@@ -998,9 +1189,13 @@ endif()
 # usage: cmake -DEXTRA_CFLAGS='-Wall -Wextra -Werror' ...
 #
 if(NOT "${EXTRA_CFLAGS}" STREQUAL "")
-    foreach(_extra_cflag ${EXTRA_CFLAGS})
-        check_and_add_compiler_option("${_extra_cflag}")
-    endforeach(_extra_cflag)
+    # The meaning of EXTRA_CFLAGS is "use the exact specified options, or the
+    # build risks failing to fail", not "try every specified option, omit those
+    # that do not work and use the rest".  Thus use add_compile_options(), not
+    # foreach()/check_and_add_compiler_option().  Another reason to do that is
+    # that the effect lasts in testprogs/ and testprogs/fuzz/.
+    string(REPLACE " " ";" _extra_cflags_list ${EXTRA_CFLAGS})
+    add_compile_options(${_extra_cflags_list})
     message(STATUS "Added extra compile options (${EXTRA_CFLAGS})")
 endif()
 

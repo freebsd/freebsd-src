@@ -17,16 +17,13 @@
  * Original code by Hannes Gredler (hannes@gredler.at)
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 
 #include "netdissect.h"
 
@@ -44,7 +41,7 @@ for i in range(256):
 			accum ^= 0x633
 	crc_table.append(accum)
 
-for i in range(len(crc_table)/8):
+for i in range(int(len(crc_table)/8)):
 	for j in range(8):
 		sys.stdout.write("0x%04x, " % crc_table[i*8+j])
 	sys.stdout.write("\n")
@@ -86,49 +83,17 @@ static const uint16_t crc10_table[256] =
 	0x021e, 0x002d, 0x004b, 0x0278, 0x0087, 0x02b4, 0x02d2, 0x00e1
 };
 
-static void
-init_crc10_table(void)
-{
-#define CRC10_POLYNOMIAL 0x633
-    int i, j;
-    uint16_t accum;
-    uint16_t verify_crc10_table[256];
-
-    for ( i = 0;  i < 256;  i++ )
-    {
-        accum = ((unsigned short) i << 2);
-        for ( j = 0;  j < 8;  j++ )
-        {
-            if ((accum <<= 1) & 0x400) accum ^= CRC10_POLYNOMIAL;
-        }
-        verify_crc10_table[i] = accum;
-    }
-    assert(memcmp(verify_crc10_table,
-				  crc10_table,
-				  sizeof(verify_crc10_table)) == 0);
-#undef CRC10_POLYNOMIAL
-}
-
 uint16_t
 verify_crc10_cksum(uint16_t accum, const u_char *p, int length)
 {
     int i;
 
-    for ( i = 0;  i < length;  i++ )
-    {
+    for ( i = 0;  i < length;  i++ ) {
         accum = ((accum << 8) & 0x3ff)
             ^ crc10_table[( accum >> 2) & 0xff]
             ^ *p++;
     }
     return accum;
-}
-
-/* precompute checksum tables */
-void
-init_checksum(void) {
-
-    init_crc10_table();
-
 }
 
 /*
