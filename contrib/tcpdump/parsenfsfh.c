@@ -40,14 +40,13 @@
  * Western Research Laboratory
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
 #include <stdio.h>
 #include <string.h>
+#include <limits.h>
 
 #include "netdissect-ctype.h"
 
@@ -138,8 +137,7 @@ Parse_fh(netdissect_options *ndo, const unsigned char *fh, u_int len,
 			/* bytes[2,3] == (0,0); must be Auspex */
 			/* XXX or could be Ultrix+MASSBUS "hp" disk? */
 			fhtype = FHT_AUSPEX;
-		    }
-		    else {
+		    } else {
 			/*
 			 * bytes[2,3] != (0,0); rules out Auspex, could be
 			 * DECOSF, SUNOS4, or IRIX4
@@ -148,23 +146,20 @@ Parse_fh(netdissect_options *ndo, const unsigned char *fh, u_int len,
 				(GET_U_1(fhp + 8) == 12) && (GET_U_1(fhp + 9) == 0)) {
 			    /* seems to be DECOSF, with minor == 0 */
 			    fhtype = FHT_DECOSF;
-			}
-			else {
+			} else {
 			    /* could be SUNOS4 or IRIX4 */
 			    /* XXX the test of fhp[5] == 8 could be wrong */
 			    if ((GET_U_1(fhp + 4) == 0) && (GET_U_1(fhp + 5) == 8) && (GET_U_1(fhp + 6) == 0) &&
 			        (GET_U_1(fhp + 7) == 0)) {
 				/* looks like a length, not a file system typecode */
 				fhtype = FHT_IRIX4;
-			    }
-			    else {
+			    } else {
 				/* by elimination */
 				fhtype = FHT_SUNOS4;
 			    }
 			}
 		    }
-		}
-		else {
+		} else {
 		    /*
 		     * bytes[0,1] != (0,0); rules out Auspex, IRIX4, SUNOS4
 		     * could be IRIX5, DECOSF, UCX, Ultrix, SUNOS5
@@ -183,35 +178,30 @@ Parse_fh(netdissect_options *ndo, const unsigned char *fh, u_int len,
 			/*XXX we probably only need to test of these two bytes */
 			else if ((len >= 24/4) && (GET_U_1(fhp + 21) == 0) && (GET_U_1(fhp + 23) == 0)) {
 			    fhtype = FHT_ULTRIX;
-			}
-			else {
+			} else {
 			    /* Could be SUNOS5/IRIX5, maybe AIX */
 			    /* XXX no obvious difference between SUNOS5 and IRIX5 */
 			    if (GET_U_1(fhp + 9) == 10)
 				fhtype = FHT_SUNOS5;
 			    /* XXX what about AIX? */
 			}
-		    }
-		    else {
+		    } else {
 			/*
 			 * bytes[2,3] != (0,0); rules out Ultrix, could be
 			 * DECOSF, SUNOS5, IRIX5, AIX, HP-UX, or UCX
 			 */
 			if ((GET_U_1(fhp + 8) == 12) && (GET_U_1(fhp + 9) == 0)) {
 			    fhtype = FHT_DECOSF;
-			}
-			else if ((GET_U_1(fhp + 8) == 0) && (GET_U_1(fhp + 9) == 10)) {
+			} else if ((GET_U_1(fhp + 8) == 0) && (GET_U_1(fhp + 9) == 10)) {
 			    /* could be SUNOS5/IRIX5, AIX, HP-UX */
 			    if ((GET_U_1(fhp + 7) == 0) && (GET_U_1(fhp + 6) == 0) &&
 				(GET_U_1(fhp + 5) == 0) && (GET_U_1(fhp + 4) == 0)) {
 				/* XXX is this always true of HP-UX? */
 				fhtype = FHT_HPUX9;
-			    }
-			    else if (GET_U_1(fhp + 7) == 2) {
+			    } else if (GET_U_1(fhp + 7) == 2) {
 				/* This would be MNT_NFS on AIX, which is impossible */
 				fhtype = FHT_SUNOS5;	/* or maybe IRIX5 */
-			    }
-			    else {
+			    } else {
 				/*
 				 * XXX Could be SUNOS5/IRIX5 or AIX.  I don't
 				 * XXX see any way to disambiguate these, so
@@ -220,12 +210,10 @@ Parse_fh(netdissect_options *ndo, const unsigned char *fh, u_int len,
 				 */
 				fhtype = FHT_SUNOS5;	/* or maybe IRIX5 */
 			    }
-		        }
-			else {
+		        } else {
 			    if (is_UCX(ndo, fhp, len)) {
 				fhtype = FHT_VMSUCX;
-			    }
-			    else {
+			    } else {
 				fhtype = FHT_UNKNOWN;
 			    }
 			}
@@ -346,8 +334,7 @@ Parse_fh(netdissect_options *ndo, const unsigned char *fh, u_int len,
 		    memset((char *)fsidp, 0, sizeof(*fsidp));
 		/* just use the whole thing */
 		memcpy((char *)fsidp, (const char *)fh, 14);
-	    }
-	    else {
+	    } else {
 		uint32_t tempa[4];	/* at least 16 bytes, maybe more */
 
 		memset((char *)tempa, 0, sizeof(tempa));
@@ -401,6 +388,7 @@ Parse_fh(netdissect_options *ndo, const unsigned char *fh, u_int len,
 	    (void)fprintf(stderr, "\n");
 #endif
 	    /* Save the actual handle, so it can be display with -u */
+	    /* XXX really ? When -u is used this function is not called */
 	    for (i = 0; i < len*4 && i*2 < sizeof(fsidp->Opaque_Handle) - 1; i++)
 		(void)snprintf(&(fsidp->Opaque_Handle[i*2]), 3, "%.2X",
 			       GET_U_1(fhp + i));
@@ -408,11 +396,12 @@ Parse_fh(netdissect_options *ndo, const unsigned char *fh, u_int len,
 
 	    /* XXX for now, give "bogus" values to aid debugging */
 	    fsidp->fsid_code = 0;
-	    fsidp->Fsid_dev.Minor = 257;
-	    fsidp->Fsid_dev.Major = 257;
+	    fsidp->Fsid_dev.Minor = UINT_MAX;
+	    fsidp->Fsid_dev.Major = UINT_MAX;
 	    *inop = 1;
 
-	    /* display will show this string instead of (257,257) */
+	    /* display will show this string instead of (UINT_MAX,UINT_MAX) */
+	    /* XXX really ? */
 	    if (fsnamep)
 		*fsnamep = "Unknown";
 
@@ -449,12 +438,10 @@ is_UCX(netdissect_options *ndo, const unsigned char *fhp, u_int len)
 		   return(0);
 		else
 		   continue;
-	    }
-	    else if (GET_U_1(fhp + i) == 0) {
+	    } else if (GET_U_1(fhp + i) == 0) {
 		seen_null = 1;
 		continue;
-	    }
-	    else
+	    } else
 		return(0);
 	}
 
