@@ -146,6 +146,8 @@
 /* Max number of timeouted packets before device reset */
 #define ENA_DEFAULT_TX_CMP_THRESHOLD	(128)
 
+#define ENA_ADMIN_POLL_DELAY_US 100
+
 /*
  * Supported PCI vendor and devices IDs
  */
