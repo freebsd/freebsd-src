@@ -2264,12 +2264,9 @@ swp_pager_meta_transfer(vm_object_t srcobject, vm_object_t dstobject,
 /*
  * SWP_PAGER_META_FREE() - free a range of blocks in the object's swap metadata
  *
- *	The requested range of blocks is freed, with any associated swap
- *	returned to the swap bitmap.
- *
- *	This routine will free swap metadata structures as they are cleaned
- *	out.  This routine does *NOT* operate on swap metadata associated
- *	with resident pages.
+ *	Return freed swap blocks to the swap bitmap, and free emptied swblk
+ *	metadata.  With 'freed' set, provide a count of freed blocks that were
+ *	not associated with valid resident pages.
  */
 static void
 swp_pager_meta_free(vm_object_t object, vm_pindex_t pindex, vm_pindex_t count,
