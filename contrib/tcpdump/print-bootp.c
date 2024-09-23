@@ -21,9 +21,7 @@
 
 /* \summary: BOOTP and IPv4 DHCP printer */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
@@ -147,7 +145,7 @@ struct bootp {
 #define	TAG_NIS_P_DOMAIN	((uint8_t)  64)
 #define	TAG_NIS_P_SERVERS	((uint8_t)  65)
 #define	TAG_MOBILE_HOME		((uint8_t)  68)
-#define	TAG_SMPT_SERVER		((uint8_t)  69)
+#define	TAG_SMTP_SERVER		((uint8_t)  69)
 #define	TAG_POP3_SERVER		((uint8_t)  70)
 #define	TAG_NNTP_SERVER		((uint8_t)  71)
 #define	TAG_WWW_SERVER		((uint8_t)  72)
@@ -193,6 +191,8 @@ struct bootp {
 /* RFC 3442 */
 #define TAG_CLASSLESS_STATIC_RT	((uint8_t) 121)
 #define TAG_CLASSLESS_STA_RT_MS	((uint8_t) 249)
+/* RFC8572 */
+#define TAG_SZTP_REDIRECT	((uint8_t) 143)
 /* RFC 5859 - TFTP Server Address Option for DHCPv4 */
 #define	TAG_TFTP_SERVER_ADDRESS	((uint8_t) 150)
 /* https://www.iana.org/assignments/bootp-dhcp-parameters/bootp-dhcp-parameters.xhtml */
@@ -461,7 +461,7 @@ static const struct tok tag2str[] = {
 	{ TAG_NIS_P_DOMAIN,	"sN+D" },
 	{ TAG_NIS_P_SERVERS,	"iN+S" },
 	{ TAG_MOBILE_HOME,	"iMH" },
-	{ TAG_SMPT_SERVER,	"iSMTP" },
+	{ TAG_SMTP_SERVER,	"iSMTP" },
 	{ TAG_POP3_SERVER,	"iPOP3" },
 	{ TAG_NNTP_SERVER,	"iNNTP" },
 	{ TAG_WWW_SERVER,	"iWWW" },
@@ -499,6 +499,8 @@ static const struct tok tag2str[] = {
 /* RFC 3442 */
 	{ TAG_CLASSLESS_STATIC_RT, "$Classless-Static-Route" },
 	{ TAG_CLASSLESS_STA_RT_MS, "$Classless-Static-Route-Microsoft" },
+/* RFC 8572 */
+	{ TAG_SZTP_REDIRECT,	"$SZTP-Redirect" },
 /* RFC 5859 - TFTP Server Address Option for DHCPv4 */
 	{ TAG_TFTP_SERVER_ADDRESS, "iTFTP-Server-Address" },
 /* https://www.iana.org/assignments/bootp-dhcp-parameters/bootp-dhcp-parameters.xhtml#options */
@@ -998,6 +1000,39 @@ rfc1048_print(netdissect_options *ndo,
 				}
 				break;
 			    }
+
+
+			case TAG_SZTP_REDIRECT:
+				/* as per https://datatracker.ietf.org/doc/html/rfc8572#section-8.3
+				 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-...-+-+-+-+-+-+-+
+				 |        uri-length             |          URI                  |
+				 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-...-+-+-+-+-+-+-+
+
+				 * uri-length: 2 octets long; specifies the length of the URI data.
+				 * URI: URI of the SZTP bootstrap server.
+				 */
+				while (len >= 2) {
+					suboptlen = GET_BE_U_2(bp);
+					bp += 2;
+					len -= 2;
+					ND_PRINT("\n\t	    ");
+					ND_PRINT("length %u: ", suboptlen);
+					if (len < suboptlen) {
+						ND_PRINT("length goes past end of option");
+						bp += len;
+						len = 0;
+						break;
+					}
+					ND_PRINT("\"");
+					nd_printjn(ndo, bp, suboptlen);
+					ND_PRINT("\"");
+					len -= suboptlen;
+					bp += suboptlen;
+				}
+				if (len != 0) {
+					ND_PRINT("[ERROR: length < 2 bytes]");
+				}
+				break;
 
 			default:
 				ND_PRINT("[unknown special tag %u, size %u]",

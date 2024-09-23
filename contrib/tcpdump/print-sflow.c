@@ -21,9 +21,7 @@
 
 /* specification: https://sflow.org/developers/specifications.php */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
@@ -690,7 +688,7 @@ sflow_print_flow_records(netdissect_options *ndo,
 
 	sflow_flow_record = (const struct sflow_flow_record_t *)tptr;
 
-	/* so, the funky encoding means we cannot blythly mask-off
+	/* so, the funky encoding means we cannot blithely mask-off
 	   bits, we must also check the enterprise. */
 
 	enterprise = GET_BE_U_4(sflow_flow_record->format);
@@ -876,7 +874,7 @@ sflow_print(netdissect_options *ndo,
                len);
 
         /* skip Common header */
-        ND_LCHECK_ZU(tlen, sizeof(struct sflow_datagram_t));
+        ND_ICHECK_ZU(tlen, <, sizeof(struct sflow_datagram_t));
         tptr += sizeof(struct sflow_datagram_t);
         tlen -= sizeof(struct sflow_datagram_t);
     } else {
@@ -892,7 +890,7 @@ sflow_print(netdissect_options *ndo,
                len);
 
         /* skip Common header */
-        ND_LCHECK_ZU(tlen, sizeof(struct sflow_v6_datagram_t));
+        ND_ICHECK_ZU(tlen, <, sizeof(struct sflow_v6_datagram_t));
         tptr += sizeof(struct sflow_v6_datagram_t);
         tlen -= sizeof(struct sflow_v6_datagram_t);
     }

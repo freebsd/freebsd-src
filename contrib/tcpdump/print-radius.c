@@ -82,9 +82,7 @@
  * TODO: Among other things to print ok MacIntosh and Vendor values
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
@@ -112,38 +110,38 @@
 
 /* Radius packet codes */
 /* https://www.iana.org/assignments/radius-types/radius-types.xhtml#radius-types-27 */
-#define RADCMD_ACCESS_REQ   1 /* Access-Request      */
-#define RADCMD_ACCESS_ACC   2 /* Access-Accept       */
-#define RADCMD_ACCESS_REJ   3 /* Access-Reject       */
-#define RADCMD_ACCOUN_REQ   4 /* Accounting-Request  */
-#define RADCMD_ACCOUN_RES   5 /* Accounting-Response */
-#define RADCMD_ACCESS_CHA  11 /* Access-Challenge    */
-#define RADCMD_STATUS_SER  12 /* Status-Server       */
-#define RADCMD_STATUS_CLI  13 /* Status-Client       */
-#define RADCMD_DISCON_REQ  40 /* Disconnect-Request  */
-#define RADCMD_DISCON_ACK  41 /* Disconnect-ACK      */
-#define RADCMD_DISCON_NAK  42 /* Disconnect-NAK      */
-#define RADCMD_COA_REQ     43 /* CoA-Request         */
-#define RADCMD_COA_ACK     44 /* CoA-ACK             */
-#define RADCMD_COA_NAK     45 /* CoA-NAK             */
-#define RADCMD_RESERVED   255 /* Reserved            */
+#define RADCMD_ACCESS_REQ    1 /* Access-Request      */
+#define RADCMD_ACCESS_ACC    2 /* Access-Accept       */
+#define RADCMD_ACCESS_REJ    3 /* Access-Reject       */
+#define RADCMD_ACCOUNT_REQ   4 /* Accounting-Request  */
+#define RADCMD_ACCOUNT_RES   5 /* Accounting-Response */
+#define RADCMD_ACCESS_CHA   11 /* Access-Challenge    */
+#define RADCMD_STATUS_SER   12 /* Status-Server       */
+#define RADCMD_STATUS_CLI   13 /* Status-Client       */
+#define RADCMD_DISCON_REQ   40 /* Disconnect-Request  */
+#define RADCMD_DISCON_ACK   41 /* Disconnect-ACK      */
+#define RADCMD_DISCON_NAK   42 /* Disconnect-NAK      */
+#define RADCMD_COA_REQ      43 /* CoA-Request         */
+#define RADCMD_COA_ACK      44 /* CoA-ACK             */
+#define RADCMD_COA_NAK      45 /* CoA-NAK             */
+#define RADCMD_RESERVED    255 /* Reserved            */
 
 static const struct tok radius_command_values[] = {
-    { RADCMD_ACCESS_REQ, "Access-Request" },
-    { RADCMD_ACCESS_ACC, "Access-Accept" },
-    { RADCMD_ACCESS_REJ, "Access-Reject" },
-    { RADCMD_ACCOUN_REQ, "Accounting-Request" },
-    { RADCMD_ACCOUN_RES, "Accounting-Response" },
-    { RADCMD_ACCESS_CHA, "Access-Challenge" },
-    { RADCMD_STATUS_SER, "Status-Server" },
-    { RADCMD_STATUS_CLI, "Status-Client" },
-    { RADCMD_DISCON_REQ, "Disconnect-Request" },
-    { RADCMD_DISCON_ACK, "Disconnect-ACK" },
-    { RADCMD_DISCON_NAK, "Disconnect-NAK" },
-    { RADCMD_COA_REQ,    "CoA-Request" },
-    { RADCMD_COA_ACK,    "CoA-ACK" },
-    { RADCMD_COA_NAK,    "CoA-NAK" },
-    { RADCMD_RESERVED,   "Reserved" },
+    { RADCMD_ACCESS_REQ,  "Access-Request" },
+    { RADCMD_ACCESS_ACC,  "Access-Accept" },
+    { RADCMD_ACCESS_REJ,  "Access-Reject" },
+    { RADCMD_ACCOUNT_REQ, "Accounting-Request" },
+    { RADCMD_ACCOUNT_RES, "Accounting-Response" },
+    { RADCMD_ACCESS_CHA,  "Access-Challenge" },
+    { RADCMD_STATUS_SER,  "Status-Server" },
+    { RADCMD_STATUS_CLI,  "Status-Client" },
+    { RADCMD_DISCON_REQ,  "Disconnect-Request" },
+    { RADCMD_DISCON_ACK,  "Disconnect-ACK" },
+    { RADCMD_DISCON_NAK,  "Disconnect-NAK" },
+    { RADCMD_COA_REQ,     "CoA-Request" },
+    { RADCMD_COA_ACK,     "CoA-ACK" },
+    { RADCMD_COA_NAK,     "CoA-NAK" },
+    { RADCMD_RESERVED,    "Reserved" },
     { 0, NULL}
 };
 
@@ -214,7 +212,7 @@ static void print_attr_location_information(netdissect_options *, const u_char *
 static void print_attr_location_data(netdissect_options *, const u_char *, u_int, u_short);
 static void print_basic_location_policy_rules(netdissect_options *, const u_char *, u_int, u_short);
 static void print_attr_time(netdissect_options *, const u_char *, u_int, u_short);
-static void print_attr_vector64(netdissect_options *, register const u_char *, u_int, u_short);
+static void print_attr_vector64(netdissect_options *, const u_char *, u_int, u_short);
 static void print_attr_strange(netdissect_options *, const u_char *, u_int, u_short);
 
 
@@ -773,8 +771,7 @@ print_attr_string(netdissect_options *ndo,
 
    ND_TCHECK_LEN(data, length);
 
-   switch(attr_code)
-   {
+   switch(attr_code) {
       case TUNNEL_PASS:
            if (length < 3)
               goto trunc;
@@ -794,8 +791,7 @@ print_attr_string(netdissect_options *ndo,
       case TUNNEL_ASSIGN_ID:
       case TUNNEL_CLIENT_AUTH:
       case TUNNEL_SERVER_AUTH:
-           if (GET_U_1(data) <= 0x1F)
-           {
+           if (GET_U_1(data) <= 0x1F) {
               if (length < 1)
                  goto trunc;
               if (GET_U_1(data))
@@ -857,15 +853,13 @@ print_vendor_attr(netdissect_options *ndo,
         vendor_type = GET_U_1(data);
         vendor_length = GET_U_1(data + 1);
 
-        if (vendor_length < 2)
-        {
+        if (vendor_length < 2) {
             ND_PRINT("\n\t    Vendor Attribute: %u, Length: %u (bogus, must be >= 2)",
                    vendor_type,
                    vendor_length);
             return;
         }
-        if (vendor_length > length)
-        {
+        if (vendor_length > length) {
             ND_PRINT("\n\t    Vendor Attribute: %u, Length: %u (bogus, goes past end of vendor-specific attribute)",
                    vendor_type,
                    vendor_length);
@@ -902,30 +896,25 @@ print_attr_num(netdissect_options *ndo,
 {
    uint32_t timeout;
 
-   if (length != 4)
-   {
+   if (length != 4) {
        ND_PRINT("ERROR: length %u != 4", length);
        return;
    }
 
                           /* This attribute has standard values */
-   if (attr_type[attr_code].siz_subtypes)
-   {
+   if (attr_type[attr_code].siz_subtypes) {
       static const char **table;
       uint32_t data_value;
       table = attr_type[attr_code].subtypes;
 
-      if ( (attr_code == TUNNEL_TYPE) || (attr_code == TUNNEL_MEDIUM) )
-      {
+      if ( (attr_code == TUNNEL_TYPE) || (attr_code == TUNNEL_MEDIUM) ) {
          if (!GET_U_1(data))
             ND_PRINT("Tag[Unused] ");
          else
             ND_PRINT("Tag[%u] ", GET_U_1(data));
          data++;
          data_value = GET_BE_U_3(data);
-      }
-      else
-      {
+      } else {
          data_value = GET_BE_U_4(data);
       }
       if ( data_value <= (uint32_t)(attr_type[attr_code].siz_subtypes - 1 +
@@ -934,9 +923,7 @@ print_attr_num(netdissect_options *ndo,
          ND_PRINT("%s", table[data_value]);
       else
          ND_PRINT("#%u", data_value);
-   }
-   else
-   {
+   } else {
       switch(attr_code) /* Be aware of special cases... */
       {
         case FRM_IPX:
@@ -954,8 +941,7 @@ print_attr_num(netdissect_options *ndo,
              timeout = GET_BE_U_4(data);
              if ( timeout < 60 )
                 ND_PRINT("%02d secs", timeout);
-             else
-             {
+             else {
                 if ( timeout < 3600 )
                    ND_PRINT("%02d:%02d min",
                           timeout / 60, timeout % 60);
@@ -1017,14 +1003,12 @@ static void
 print_attr_address(netdissect_options *ndo,
                    const u_char *data, u_int length, u_short attr_code)
 {
-   if (length != 4)
-   {
+   if (length != 4) {
        ND_PRINT("ERROR: length %u != 4", length);
        return;
    }
 
-   switch(attr_code)
-   {
+   switch(attr_code) {
       case FRM_IPADDR:
       case LOG_IPHOST:
            if (GET_BE_U_4(data) == 0xFFFFFFFF )
@@ -1053,8 +1037,7 @@ static void
 print_attr_address6(netdissect_options *ndo,
                    const u_char *data, u_int length, u_short attr_code _U_)
 {
-   if (length != 16)
-   {
+   if (length != 16) {
        ND_PRINT("ERROR: length %u != 16", length);
        return;
    }
@@ -1068,14 +1051,12 @@ print_attr_netmask6(netdissect_options *ndo,
 {
    u_char data2[16];
 
-   if (length < 2 || length > 18)
-   {
+   if (length < 2 || length > 18) {
        ND_PRINT("ERROR: length %u not in range (2..18)", length);
        return;
    }
    ND_TCHECK_LEN(data, length);
-   if (GET_U_1(data + 1) > 128)
-   {
+   if (GET_U_1(data + 1) > 128) {
       ND_PRINT("ERROR: netmask %u not in range (0..128)", GET_U_1(data + 1));
       return;
    }
@@ -1099,14 +1080,12 @@ static void
 print_attr_mip6_home_link_prefix(netdissect_options *ndo,
                     const u_char *data, u_int length, u_short attr_code _U_)
 {
-   if (length != 17)
-   {
+   if (length != 17) {
       ND_PRINT("ERROR: length %u != 17", length);
       return;
    }
    ND_TCHECK_LEN(data, length);
-   if (GET_U_1(data) > 128)
-   {
+   if (GET_U_1(data) > 128) {
       ND_PRINT("ERROR: netmask %u not in range (0..128)", GET_U_1(data));
       return;
    }
@@ -1126,8 +1105,7 @@ print_attr_operator_name(netdissect_options *ndo,
    u_int namespace_value;
 
    ND_TCHECK_LEN(data, length);
-   if (length < 2)
-   {
+   if (length < 2) {
       ND_PRINT("ERROR: length %u < 2", length);
       return;
    }
@@ -1151,8 +1129,7 @@ print_attr_location_information(netdissect_options *ndo,
    uint8_t code, entity;
 
    ND_TCHECK_LEN(data, length);
-   if (length < 21)
-   {
+   if (length < 21) {
      ND_PRINT("ERROR: length %u < 21", length);
       return;
    }
@@ -1199,8 +1176,7 @@ print_attr_location_data(netdissect_options *ndo,
    uint16_t index;
 
    ND_TCHECK_LEN(data, length);
-   if (length < 3)
-   {
+   if (length < 3) {
      ND_PRINT("ERROR: length %u < 3", length);
       return;
    }
@@ -1231,8 +1207,7 @@ print_basic_location_policy_rules(netdissect_options *ndo,
    uint16_t flags;
 
    ND_TCHECK_LEN(data, length);
-   if (length < 10)
-   {
+   if (length < 10) {
      ND_PRINT("ERROR: length %u < 10", length);
       return;
    }
@@ -1273,8 +1248,7 @@ print_attr_time(netdissect_options *ndo,
    time_t attr_time;
    char string[26];
 
-   if (length != 4)
-   {
+   if (length != 4) {
        ND_PRINT("ERROR: length %u != 4", length);
        return;
    }
@@ -1288,13 +1262,12 @@ print_attr_time(netdissect_options *ndo,
 
 static void
 print_attr_vector64(netdissect_options *ndo,
-                 register const u_char *data, u_int length, u_short attr_code _U_)
+		    const u_char *data, u_int length, u_short attr_code _U_)
 {
    uint64_t data_value, i;
    const char *sep = "";
 
-   if (length != 8)
-   {
+   if (length != 8) {
        ND_PRINT("ERROR: length %u != 8", length);
        return;
    }
@@ -1330,11 +1303,9 @@ print_attr_strange(netdissect_options *ndo,
    u_short len_data;
    u_int error_cause_value;
 
-   switch(attr_code)
-   {
+   switch(attr_code) {
       case ARAP_PASS:
-           if (length != 16)
-           {
+           if (length != 16) {
                ND_PRINT("ERROR: length %u != 16", length);
                return;
            }
@@ -1348,8 +1319,7 @@ print_attr_strange(netdissect_options *ndo,
         break;
 
       case ARAP_FEATURES:
-           if (length != 14)
-           {
+           if (length != 14) {
                ND_PRINT("ERROR: length %u != 14", length);
                return;
            }
@@ -1372,8 +1342,7 @@ print_attr_strange(netdissect_options *ndo,
         break;
 
       case ARAP_CHALLENGE_RESP:
-           if (length < 8)
-           {
+           if (length < 8) {
                ND_PRINT("ERROR: length %u != 8", length);
                return;
            }
@@ -1382,8 +1351,7 @@ print_attr_strange(netdissect_options *ndo,
         break;
 
       case ERROR_CAUSE:
-           if (length != 4)
-           {
+           if (length != 4) {
                ND_PRINT("Error: length %u != 4", length);
                return;
            }
@@ -1403,8 +1371,7 @@ radius_attrs_print(netdissect_options *ndo,
    const char *attr_string;
    uint8_t type, len;
 
-   while (length > 0)
-   {
+   while (length > 0) {
      if (length < 2)
         goto trunc;
      ND_TCHECK_SIZE(rad_attr);
@@ -1420,22 +1387,18 @@ radius_attrs_print(netdissect_options *ndo,
                attr_string,
                type,
                len);
-     if (len < 2)
-     {
+     if (len < 2) {
        ND_PRINT(" (bogus, must be >= 2)");
        return;
      }
-     if (len > length)
-     {
+     if (len > length) {
         ND_PRINT(" (bogus, goes past end of packet)");
         return;
      }
      ND_PRINT(", Value: ");
 
-     if (type < TAM_SIZE(attr_type))
-     {
-         if (len > 2)
-         {
+     if (type < TAM_SIZE(attr_type)) {
+         if (len > 2) {
              if ( attr_type[type].print_func )
                  (*attr_type[type].print_func)(
                      ndo, ((const u_char *)(rad_attr+1)),
@@ -1467,8 +1430,7 @@ radius_print(netdissect_options *ndo,
    rad = (const struct radius_hdr *)dat;
    len = GET_BE_U_2(rad->len);
 
-   if (len < MIN_RADIUS_LEN)
-   {
+   if (len < MIN_RADIUS_LEN) {
 	  nd_print_trunc(ndo);
 	  return;
    }
@@ -1483,8 +1445,7 @@ radius_print(netdissect_options *ndo,
               GET_U_1(rad->id),
               len);
        return;
-   }
-   else {
+   } else {
        ND_PRINT("RADIUS, length: %u\n\t%s (%u), id: 0x%02x, Authenticator: ",
               len,
               tok2str(radius_command_values,"Unknown Command",GET_U_1(rad->code)),

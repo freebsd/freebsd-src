@@ -18,9 +18,7 @@
 
 /* \summary: Multicast Source Discovery Protocol (MSDP) printer */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 

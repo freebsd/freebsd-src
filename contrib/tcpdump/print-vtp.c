@@ -21,9 +21,7 @@
 
 /* \summary: Cisco VLAN Trunking Protocol (VTP) printer */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
@@ -148,7 +146,7 @@ vtp_print(netdissect_options *ndo,
     ND_PRINT("\n\tDomain name: ");
     mgmtd_len = GET_U_1(tptr + 3);
     if (mgmtd_len < 1 ||  mgmtd_len > VTP_DOMAIN_NAME_LEN) {
-	ND_PRINT(" [invalid MgmtD Len %u]", mgmtd_len);
+	ND_PRINT(" [MgmtD Len %u]", mgmtd_len);
 	goto invalid;
     }
     nd_printjnp(ndo, tptr + 4, mgmtd_len);
@@ -300,7 +298,7 @@ vtp_print(netdissect_options *ndo,
                  * in units of 16-bit words.
                  */
                 if (tlv_len != 1) {
-                    ND_PRINT(" (invalid TLV length %u != 1)", tlv_len);
+                    ND_PRINT(" [TLV length %u != 1]", tlv_len);
                     goto invalid;
                 } else {
                     tlv_value = GET_BE_U_2(tptr + 2);

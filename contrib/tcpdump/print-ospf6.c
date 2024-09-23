@@ -23,9 +23,7 @@
 
 /* \summary: IPv6 Open Shortest Path First (OSPFv3) printer */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
@@ -388,14 +386,23 @@ static int
 ospf6_print_lshdr(netdissect_options *ndo,
                   const struct lsa6_hdr *lshp, const u_char *dataend)
 {
+	u_int ls_length;
+
 	if ((const u_char *)(lshp + 1) > dataend)
 		goto trunc;
+
+	ls_length = GET_BE_U_2(lshp->ls_length);
+	if (ls_length < sizeof(struct lsa_hdr)) {
+		ND_PRINT("\n\t	  Bogus length %u < header (%zu)", ls_length,
+		    sizeof(struct lsa_hdr));
+		goto trunc;
+	}
 
 	ND_PRINT("\n\t  Advertising Router %s, seq 0x%08x, age %us, length %zu",
 		 GET_IPADDR_STRING(lshp->ls_router),
 		 GET_BE_U_4(lshp->ls_seq),
 		 GET_BE_U_2(lshp->ls_age),
-		 GET_BE_U_2(lshp->ls_length)-sizeof(struct lsa6_hdr));
+		 ls_length-sizeof(struct lsa6_hdr));
 
 	ospf6_print_ls_type(ndo, GET_BE_U_2(lshp->ls_type),
 			    &lshp->ls_stateid);
@@ -734,7 +741,7 @@ ospf6_decode_v3(netdissect_options *ndo,
 	const struct lsr6 *lsrp;
 	const struct lsa6_hdr *lshp;
 	const struct lsa6 *lsap;
-	int i;
+	uint32_t i;
 
 	switch (GET_U_1(op->ospf6_type)) {
 
