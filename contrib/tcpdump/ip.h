@@ -107,7 +107,6 @@ struct ip {
 #define	IPOPT_RFC1393           82              /* traceroute RFC 1393 */
 #define	IPOPT_SECURITY		130		/* provide s,c,h,tcc */
 #define	IPOPT_LSRR		131		/* loose source route */
-#define	IPOPT_SATID		136		/* satnet id */
 #define	IPOPT_SSRR		137		/* strict source route */
 #define IPOPT_RA                148             /* router-alert, rfc2113 */
 

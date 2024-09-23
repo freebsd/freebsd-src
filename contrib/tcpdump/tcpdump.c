@@ -33,12 +33,10 @@
  * combined efforts of Van, Steve McCanne and Craig Leres of LBL.
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 /*
- * Some older versions of Mac OS X may ship pcap.h from libpcap 0.6 with a
+ * Some older versions of Mac OS X ship pcap.h from libpcap 0.6 with a
  * libpcap based on 0.8.  That means it has pcap_findalldevs() but the
  * header doesn't define pcap_if_t, meaning that we can't actually *use*
  * pcap_findalldevs().
@@ -63,9 +61,7 @@ The Regents of the University of California.  All rights reserved.\n";
 
 #include <sys/stat.h>
 
-#ifdef HAVE_FCNTL_H
 #include <fcntl.h>
-#endif
 
 #ifdef HAVE_LIBCRYPTO
 #include <openssl/crypto.h>
@@ -439,15 +435,15 @@ show_tstamp_types_and_exit(pcap_t *pc, const char *device)
 		    device);
 		exit_tcpdump(S_SUCCESS);
 	}
-	fprintf(stderr, "Time stamp types for %s (use option -j to set):\n",
+	fprintf(stdout, "Time stamp types for %s (use option -j to set):\n",
 	    device);
 	for (i = 0; i < n_tstamp_types; i++) {
 		tstamp_type_name = pcap_tstamp_type_val_to_name(tstamp_types[i]);
 		if (tstamp_type_name != NULL) {
-			(void) fprintf(stderr, "  %s (%s)\n", tstamp_type_name,
+			(void) fprintf(stdout, "  %s (%s)\n", tstamp_type_name,
 			    pcap_tstamp_type_val_to_description(tstamp_types[i]));
 		} else {
-			(void) fprintf(stderr, "  %d\n", tstamp_types[i]);
+			(void) fprintf(stdout, "  %d\n", tstamp_types[i]);
 		}
 	}
 	pcap_free_tstamp_types(tstamp_types);
@@ -476,28 +472,30 @@ show_dlts_and_exit(pcap_t *pc, const char *device)
 	 * monitor mode might be different from the ones available when
 	 * not in monitor mode).
 	 */
+	(void) fprintf(stdout, "Data link types for ");
 	if (supports_monitor_mode)
-		(void) fprintf(stderr, "Data link types for %s %s (use option -y to set):\n",
+		(void) fprintf(stdout, "%s %s",
 		    device,
 		    Iflag ? "when in monitor mode" : "when not in monitor mode");
 	else
-		(void) fprintf(stderr, "Data link types for %s (use option -y to set):\n",
+		(void) fprintf(stdout, "%s",
 		    device);
+	(void) fprintf(stdout, " (use option -y to set):\n");
 
 	for (i = 0; i < n_dlts; i++) {
 		dlt_name = pcap_datalink_val_to_name(dlts[i]);
 		if (dlt_name != NULL) {
-			(void) fprintf(stderr, "  %s (%s)", dlt_name,
+			(void) fprintf(stdout, "  %s (%s)", dlt_name,
 			    pcap_datalink_val_to_description(dlts[i]));
 
 			/*
 			 * OK, does tcpdump handle that type?
 			 */
 			if (!has_printer(dlts[i]))
-				(void) fprintf(stderr, " (printing not supported)");
-			fprintf(stderr, "\n");
+				(void) fprintf(stdout, " (printing not supported)");
+			fprintf(stdout, "\n");
 		} else {
-			(void) fprintf(stderr, "  DLT %d (printing not supported)\n",
+			(void) fprintf(stdout, "  DLT %d (printing not supported)\n",
 			    dlts[i]);
 		}
 	}
@@ -812,7 +810,7 @@ droproot(const char *username, const char *chroot_dir)
 	} else
 		error("Couldn't find user '%.32s'", username);
 #ifdef HAVE_LIBCAP_NG
-	/* We don't need CAP_SETUID, CAP_SETGID and CAP_SYS_CHROOT any more. */
+	/* We don't need CAP_SETUID, CAP_SETGID and CAP_SYS_CHROOT anymore. */
 DIAG_OFF_ASSIGN_ENUM
 	capng_updatev(
 		CAPNG_DROP,
@@ -983,7 +981,7 @@ tstamp_precision_to_string(int precision)
  * along the lines of ioctl(), the fact that ioctl() operations are
  * largely specific to particular character devices but fcntl() operations
  * are either generic to all descriptors or generic to all descriptors for
- * regular files nonwithstanding.
+ * regular files notwithstanding.
  *
  * The Capsicum people decided that fine-grained control of descriptor
  * operations was required, so that you need to grant permission for
@@ -1170,7 +1168,7 @@ parse_interface_number(const char *device)
 			/*
 			 * No, it's not an ordinal.
 			 */
-			error("Invalid adapter index");
+			error("Invalid adapter index %s", device);
 		}
 		return (devnum);
 	} else {
@@ -1245,8 +1243,11 @@ _U_
 	for (i = 0, dev = devlist; i < devnum-1 && dev != NULL;
 	    i++, dev = dev->next)
 		;
-	if (dev == NULL)
-		error("Invalid adapter index");
+	if (dev == NULL) {
+		pcap_freealldevs(devlist);
+		error("Invalid adapter index %ld: only %ld interfaces found",
+		    devnum, i);
+	}
 	device = strdup(dev->name);
 	pcap_freealldevs(devlist);
 	return (device);
@@ -1564,6 +1565,11 @@ main(int argc, char **argv)
 	if (abort_on_misalignment(ebuf, sizeof(ebuf)) < 0)
 		error("%s", ebuf);
 
+	/*
+	 * An explicit tzset() call is usually not needed as it happens
+	 * implicitly the first time we call localtime() or mktime(),
+	 * but in some cases (sandboxing, chroot) this may be too late.
+	 */
 	tzset();
 
 	while (
@@ -1734,7 +1740,7 @@ main(int argc, char **argv)
 				if (nd_load_smi_module(optarg, ebuf, sizeof(ebuf)) == -1)
 					error("%s", ebuf);
 			} else {
-				(void)fprintf(stderr, "%s: ignoring option `-m %s' ",
+				(void)fprintf(stderr, "%s: ignoring option '-m %s' ",
 					      program_name, optarg);
 				(void)fprintf(stderr, "(no libsmi support)\n");
 			}
@@ -1778,7 +1784,7 @@ main(int argc, char **argv)
 			else if (ascii_strcasecmp(optarg, "inout") == 0)
 				Qflag = PCAP_D_INOUT;
 			else
-				error("unknown capture direction `%s'", optarg);
+				error("unknown capture direction '%s'", optarg);
 			break;
 #endif /* HAVE_PCAP_SETDIRECTION */
 
@@ -1844,7 +1850,7 @@ main(int argc, char **argv)
 			else if (ascii_strcasecmp(optarg, "domain") == 0)
 				ndo->ndo_packettype = PT_DOMAIN;
 			else
-				error("unknown packet type `%s'", optarg);
+				error("unknown packet type '%s'", optarg);
 			break;
 
 		case 'u':
@@ -1977,14 +1983,6 @@ main(int argc, char **argv)
 		show_remote_devices_and_exit();
 #endif
 
-#if defined(DLT_LINUX_SLL2) && defined(HAVE_PCAP_SET_DATALINK)
-/* Set default linktype DLT_LINUX_SLL2 when capturing on the "any" device */
-		if (device != NULL &&
-		    strncmp (device, "any", strlen("any")) == 0
-		    && yflag_dlt == -1)
-			yflag_dlt = DLT_LINUX_SLL2;
-#endif
-
 	switch (ndo->ndo_tflag) {
 
 	case 0: /* Default */
@@ -2034,6 +2032,8 @@ main(int argc, char **argv)
 		/* Run with '-Z root' to restore old behaviour */
 		if (!username)
 			username = WITH_USER;
+		else if (strcmp(username, "root") == 0)
+			username = NULL;
 	}
 #endif
 
@@ -2237,6 +2237,24 @@ main(int argc, char **argv)
 				      pcap_datalink_val_to_name(yflag_dlt));
 			(void)fflush(stderr);
 		}
+#if defined(DLT_LINUX_SLL2) && defined(HAVE_PCAP_SET_DATALINK)
+		else {
+			/*
+			 * Attempt to set default linktype to
+			 * DLT_LINUX_SLL2 when capturing on the
+			 * "any" device.
+			 *
+			 * If the attempt fails, just quietly drive
+			 * on; this may be a non-Linux "any" device
+			 * that doesn't support DLT_LINUX_SLL2.
+			 */
+			if (strcmp(device, "any") == 0) {
+DIAG_OFF_WARN_UNUSED_RESULT
+				(void) pcap_set_datalink(pd, DLT_LINUX_SLL2);
+DIAG_ON_WARN_UNUSED_RESULT
+			}
+		}
+#endif
 		i = pcap_snapshot(pd);
 		if (ndo->ndo_snaplen < i) {
 			if (ndo->ndo_snaplen != 0)
@@ -2288,7 +2306,21 @@ main(int argc, char **argv)
 #endif
 	/* Cooperate with nohup(1) */
 #ifndef _WIN32
+	/*
+	 * In illumos /usr/include/sys/iso/signal_iso.h causes Clang to
+	 * generate a -Wstrict-prototypes warning here, see [1].  The
+	 * __illumos__ macro is available since at least GCC 11 and Clang 13,
+	 * see [2].
+	 * 1: https://www.illumos.org/issues/16344
+	 * 2: https://www.illumos.org/issues/13726
+	 */
+#ifdef __illumos__
+	DIAG_OFF_STRICT_PROTOTYPES
+#endif /* __illumos__ */
 	if ((oldhandler = setsignal(SIGHUP, cleanup)) != SIG_DFL)
+#ifdef __illumos__
+	DIAG_ON_STRICT_PROTOTYPES
+#endif /* __illumos__ */
 		(void)setsignal(SIGHUP, oldhandler);
 #endif /* _WIN32 */
 
@@ -2569,7 +2601,7 @@ DIAG_ON_ASSIGN_ENUM
 	cansandbox = (cansandbox && (ndo->ndo_nflag || capdns != NULL));
 #else
 	cansandbox = (cansandbox && ndo->ndo_nflag);
-#endif	/* HAVE_CASPER */
+#endif /* HAVE_CASPER */
 	cansandbox = (cansandbox && (pcap_fileno(pd) != -1 ||
 	    RFileName != NULL));
 
@@ -2664,6 +2696,8 @@ DIAG_ON_ASSIGN_ENUM
 					 */
 					dlt = new_dlt;
 					ndo->ndo_if_printer = get_if_printer(dlt);
+					/* Free the old filter */
+					pcap_freecode(&fcode);
 					if (pcap_compile(pd, &fcode, cmdbuf, Oflag, netmask) < 0)
 						error("%s", pcap_geterr(pd));
 				}
@@ -2724,7 +2758,14 @@ static void
 		)
 		new.sa_flags = SA_RESTART;
 	if (sigaction(sig, &new, &old) < 0)
+		/* The same workaround as for SIG_DFL above. */
+#ifdef __illumos__
+		DIAG_OFF_STRICT_PROTOTYPES
+#endif /* __illumos__ */
 		return (SIG_ERR);
+#ifdef __illumos__
+		DIAG_ON_STRICT_PROTOTYPES
+#endif /* __illumos__ */
 	return (old.sa_handler);
 #endif
 }
@@ -2786,7 +2827,7 @@ cleanup(int signo _U_)
 static void
 child_cleanup(int signo _U_)
 {
-  wait(NULL);
+  while (waitpid(-1, NULL, WNOHANG) >= 0);
 }
 #endif /* HAVE_FORK && HAVE_VFORK */
 
@@ -3228,6 +3269,8 @@ print_version(FILE *f)
 	(void)fprintf (f, "Compiled with MemorySanitizer/Clang.\n");
 #  endif
 #endif /* __SANITIZE_ADDRESS__ or __has_feature */
+	(void)fprintf (f, "%zu-bit build, %zu-bit time_t\n",
+		       sizeof(void *) * 8, sizeof(time_t) * 8);
 }
 DIAG_ON_DEPRECATION
 

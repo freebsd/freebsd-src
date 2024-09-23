@@ -38,9 +38,7 @@
 
 /* \summary: ASCII packet dump printer */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
@@ -67,7 +65,7 @@ ascii_print(netdissect_options *ndo,
 	int truncated = FALSE;
 
 	ndo->ndo_protocol = "ascii";
-	caplength = (ndo->ndo_snapend > cp) ? ND_BYTES_AVAILABLE_AFTER(cp) : 0;
+	caplength = ND_BYTES_AVAILABLE_AFTER(cp);
 	if (length > caplength) {
 		length = caplength;
 		truncated = TRUE;
@@ -113,7 +111,7 @@ hex_and_ascii_print_with_offset(netdissect_options *ndo, const char *ident,
 	char hexstuff[HEXDUMP_SHORTS_PER_LINE*HEXDUMP_HEXSTUFF_PER_SHORT+1], *hsp;
 	char asciistuff[ASCII_LINELENGTH+1], *asp;
 
-	caplength = (ndo->ndo_snapend > cp) ? ND_BYTES_AVAILABLE_AFTER(cp) : 0;
+	caplength = ND_BYTES_AVAILABLE_AFTER(cp);
 	if (length > caplength) {
 		length = caplength;
 		truncated = TRUE;
@@ -181,7 +179,7 @@ hex_print_with_offset(netdissect_options *ndo,
 	u_int nshorts;
 	int truncated = FALSE;
 
-	caplength = (ndo->ndo_snapend > cp) ? ND_BYTES_AVAILABLE_AFTER(cp) : 0;
+	caplength = ND_BYTES_AVAILABLE_AFTER(cp);
 	if (length > caplength) {
 		length = caplength;
 		truncated = TRUE;

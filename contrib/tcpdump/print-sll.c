@@ -21,9 +21,7 @@
 
 /* \summary: Linux cooked sockets capture printer */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #ifdef HAVE_NET_IF_H
 /*

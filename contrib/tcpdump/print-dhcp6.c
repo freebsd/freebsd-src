@@ -43,9 +43,7 @@
  *  RFC6334: Dual-Stack Lite option,
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
@@ -121,6 +119,10 @@ struct dhcp6_relay {
 /* options */
 #define DH6OPT_CLIENTID	1
 #define DH6OPT_SERVERID	2
+#  define DUID_LLT  1 /* RFC8415 */
+#  define DUID_EN   2 /* RFC8415 */
+#  define DUID_LL   3 /* RFC8415 */
+#  define DUID_UUID 4 /* RFC6355 */
 #define DH6OPT_IA_NA 3
 #define DH6OPT_IA_TA 4
 #define DH6OPT_IA_ADDR 5
@@ -188,8 +190,10 @@ struct dhcp6_relay {
 #  define DH6OPT_NTP_SUBOPTION_SRV_ADDR 1
 #  define DH6OPT_NTP_SUBOPTION_MC_ADDR 2
 #  define DH6OPT_NTP_SUBOPTION_SRV_FQDN 3
+#define DH6OPT_BOOTFILE_URL 59    /* RFC5970 */
 #define DH6OPT_AFTR_NAME 64
 #define DH6OPT_MUDURL 112
+#define DH6OPT_SZTP_REDIRECT 136  /* RFC8572 */
 
 static const struct tok dh6opt_str[] = {
 	{ DH6OPT_CLIENTID,           "client-ID"            },
@@ -239,8 +243,10 @@ static const struct tok dh6opt_str[] = {
 	{ DH6OPT_LQ_RELAY_DATA,      "LQ-relay-data"        },
 	{ DH6OPT_LQ_CLIENT_LINK,     "LQ-client-link"       },
 	{ DH6OPT_NTP_SERVER,         "NTP-server"           },
+	{ DH6OPT_BOOTFILE_URL,       "Bootfile-URL"         },
 	{ DH6OPT_AFTR_NAME,          "AFTR-Name"            },
 	{ DH6OPT_MUDURL,             "MUD-URL"              },
+	{ DH6OPT_SZTP_REDIRECT,      "SZTP-redirect"        },
 	{ 0, NULL }
 };
 
@@ -290,6 +296,8 @@ dhcp6opt_print(netdissect_options *ndo,
 	uint16_t subopt_len;
 	uint8_t dh6_reconf_type;
 	uint8_t dh6_lq_query_type;
+	u_int first_list_value;
+	uint16_t remainder_len;
 
 	if (cp == ep)
 		return;
@@ -314,7 +322,7 @@ dhcp6opt_print(netdissect_options *ndo,
 			}
 			tp = (const u_char *)(dh6o + 1);
 			switch (GET_BE_U_2(tp)) {
-			case 1:
+			case DUID_LLT:
 				if (optlen >= 2 + 6) {
 					ND_PRINT(" hwaddr/time type %u time %u ",
 					    GET_BE_U_2(tp + 2),
@@ -329,10 +337,10 @@ dhcp6opt_print(netdissect_options *ndo,
 					ND_PRINT(" ?)");
 				}
 				break;
-			case 2:
-				if (optlen >= 2 + 8) {
-					ND_PRINT(" vid ");
-					for (i = 2; i < 2 + 8; i++)
+			case DUID_EN:
+				if (optlen >= 2 + 4) {
+					ND_PRINT(" enterprise %u ", GET_BE_U_4(tp + 2));
+					for (i = 2 + 4; i < optlen; i++)
 						ND_PRINT("%02x",
 							 GET_U_1(tp + i));
 					/*(*/
@@ -342,11 +350,24 @@ dhcp6opt_print(netdissect_options *ndo,
 					ND_PRINT(" ?)");
 				}
 				break;
-			case 3:
+			case DUID_LL:
 				if (optlen >= 2 + 2) {
 					ND_PRINT(" hwaddr type %u ",
 					    GET_BE_U_2(tp + 2));
 					for (i = 4; i < optlen; i++)
+						ND_PRINT("%02x",
+							 GET_U_1(tp + i));
+					/*(*/
+					ND_PRINT(")");
+				} else {
+					/*(*/
+					ND_PRINT(" ?)");
+				}
+				break;
+			case DUID_UUID:
+				ND_PRINT(" uuid ");
+				if (optlen == 2 + 16) {
+					for (i = 2; i < optlen; i++)
 						ND_PRINT("%02x",
 							 GET_U_1(tp + i));
 					/*(*/
@@ -781,6 +802,39 @@ dhcp6opt_print(netdissect_options *ndo,
 			tp = (const u_char *)(dh6o + 1);
 			ND_PRINT(" ");
 			nd_printjnp(ndo, tp, optlen);
+			ND_PRINT(")");
+			break;
+
+		case DH6OPT_BOOTFILE_URL:
+			tp = (const u_char *)(dh6o + 1);
+			ND_PRINT(" ");
+			nd_printjn(ndo, tp, optlen);
+			ND_PRINT(")");
+			break;
+
+		case DH6OPT_SZTP_REDIRECT:
+		case DH6OPT_USER_CLASS:
+			ND_PRINT(" ");
+			tp = (const u_char *)(dh6o + 1);
+			first_list_value = TRUE;
+			remainder_len = optlen;
+			while (remainder_len >= 2) {
+				if (first_list_value == FALSE) {
+					ND_PRINT(",");
+				}
+				first_list_value = FALSE;
+				subopt_len = GET_BE_U_2(tp);
+				if (subopt_len > remainder_len-2) {
+					break;
+				}
+				tp += 2;
+				nd_printjn(ndo, tp, subopt_len);
+				tp += subopt_len;
+				remainder_len -= (subopt_len+2);
+			}
+			if (remainder_len != 0 ) {
+				ND_PRINT(" ?");
+			}
 			ND_PRINT(")");
 			break;
 
