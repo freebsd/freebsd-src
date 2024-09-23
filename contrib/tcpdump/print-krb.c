@@ -23,9 +23,7 @@
 
 /* \summary: Kerberos printer */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
@@ -229,13 +227,10 @@ krb_print(netdissect_options *ndo,
 {
 	const struct krb *kp;
 
-	ndo->ndo_protocol = "krb";
-	kp = (const struct krb *)dat;
+	ndo->ndo_protocol = "kerberos";
+	nd_print_protocol(ndo);
 
-	if (dat >= ndo->ndo_snapend) {
-		nd_print_trunc(ndo);
-		return;
-	}
+	kp = (const struct krb *)dat;
 
 	switch (GET_U_1(kp->pvno)) {
 

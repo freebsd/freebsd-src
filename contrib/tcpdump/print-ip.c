@@ -21,9 +21,7 @@
 
 /* \summary: IP printer */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
@@ -318,7 +316,7 @@ static const struct tok ip_frag_values[] = {
 void
 ip_print(netdissect_options *ndo,
 	 const u_char *bp,
-	 u_int length)
+	 const u_int length)
 {
 	const struct ip *ip;
 	u_int off;
@@ -329,51 +327,36 @@ ip_print(netdissect_options *ndo,
 	uint16_t sum, ip_sum;
 	const char *p_name;
 	int truncated = 0;
+	int presumed_tso = 0;
 
 	ndo->ndo_protocol = "ip";
 	ip = (const struct ip *)bp;
-	if (IP_V(ip) != 4) { /* print version and fail if != 4 */
-	    if (IP_V(ip) == 6)
-	      ND_PRINT("IP6, wrong link-layer encapsulation");
-	    else
-	      ND_PRINT("IP%u", IP_V(ip));
-	    nd_print_invalid(ndo);
-	    return;
-	}
-	if (!ndo->ndo_eflag)
-		ND_PRINT("IP ");
 
-	ND_TCHECK_SIZE(ip);
-	if (length < sizeof (struct ip)) {
-		ND_PRINT("truncated-ip %u", length);
-		return;
+	if (!ndo->ndo_eflag) {
+		nd_print_protocol_caps(ndo);
+		ND_PRINT(" ");
 	}
+
+	ND_ICHECK_ZU(length, <, sizeof (struct ip));
+	ND_ICHECKMSG_U("version", IP_V(ip), !=, 4);
+
 	hlen = IP_HL(ip) * 4;
-	if (hlen < sizeof (struct ip)) {
-		ND_PRINT("bad-hlen %u", hlen);
-		return;
-	}
+	ND_ICHECKMSG_ZU("header length", hlen, <, sizeof (struct ip));
 
 	len = GET_BE_U_2(ip->ip_len);
-	if (length < len)
-		ND_PRINT("truncated-ip - %u bytes missing! ",
-			len - length);
-	if (len < hlen) {
-#ifdef GUESS_TSO
-            if (len) {
-                ND_PRINT("bad-len %u", len);
-                return;
-            }
-            else {
-                /* we guess that it is a TSO send */
-                len = length;
-            }
-#else
-            ND_PRINT("bad-len %u", len);
-            return;
-#endif /* GUESS_TSO */
+	if (len > length) {
+		ND_PRINT("[total length %u > length %u]", len, length);
+		nd_print_invalid(ndo);
+		ND_PRINT(" ");
 	}
+	if (len == 0) {
+		/* we guess that it is a TSO send */
+		len = length;
+		presumed_tso = 1;
+	} else
+		ND_ICHECKMSG_U("total length", len, <, hlen);
 
+	ND_TCHECK_SIZE(ip);
 	/*
 	 * Cut off the snapshot length to the end of the IP payload.
 	 */
@@ -426,7 +409,10 @@ ip_print(netdissect_options *ndo,
                          tok2str(ipproto_values, "unknown", ip_proto),
                          ip_proto);
 
-            ND_PRINT(", length %u", GET_BE_U_2(ip->ip_len));
+	    if (presumed_tso)
+                ND_PRINT(", length %u [was 0, presumed TSO]", length);
+	    else
+                ND_PRINT(", length %u", GET_BE_U_2(ip->ip_len));
 
             if ((hlen - sizeof(struct ip)) > 0) {
                 ND_PRINT(", options (");
@@ -513,6 +499,10 @@ ip_print(netdissect_options *ndo,
 
 trunc:
 	nd_print_trunc(ndo);
+	return;
+
+invalid:
+	nd_print_invalid(ndo);
 }
 
 void

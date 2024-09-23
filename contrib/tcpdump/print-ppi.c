@@ -9,9 +9,7 @@
  * https://web.archive.org/web/20160328114748/http://www.cacetech.com/documents/PPI%20Header%20format%201.0.7.pdf
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 

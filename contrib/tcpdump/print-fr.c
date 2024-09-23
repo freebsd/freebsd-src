@@ -21,9 +21,7 @@
 
 /* \summary: Frame Relay printer */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
@@ -526,11 +524,18 @@ mfr_print(netdissect_options *ndo,
                 break;
 
             case MFR_CTRL_IE_TIMESTAMP:
-                if (ie_len == sizeof(struct timeval)) {
-                    ts_print(ndo, (const struct timeval *)tptr);
+                /*
+                 * FRF.16.1 Section 3.4.4 Timestamp Information Element
+                 *
+                 * The maximum length is 14 octets. Format is implementation
+                 * specific.
+                 */
+                if (ie_len > 14) {
+                    ND_PRINT("[Timestamp IE length %d > 14]", ie_len);
+                    nd_print_invalid(ndo);
                     break;
                 }
-                /* fall through and hexdump if no unix timestamp */
+                /* fall through and hexdump */
                 ND_FALL_THROUGH;
 
                 /*
@@ -1142,8 +1147,7 @@ fr_q933_print_ie_codeset_0_5(netdissect_options *ndo, u_int iecode,
             dlci = ((GET_U_1(p) & 0x3F) << 4) | ((GET_U_1(p + 1) & 0x78) >> 3);
             if (ielength == 4) {
                 dlci = (dlci << 6) | ((GET_U_1(p + 2) & 0x7E) >> 1);
-	    }
-            else if (ielength == 5) {
+	    } else if (ielength == 5) {
                 dlci = (dlci << 13) | (GET_U_1(p + 2) & 0x7F) | ((GET_U_1(p + 3) & 0x7E) >> 1);
 	    }
 
