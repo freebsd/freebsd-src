@@ -1954,7 +1954,6 @@ swap_pager_swapoff_object(struct swdevt *sp, vm_object_t object)
 		vm_object_pip_wakeupn(object, 1);
 		KASSERT(vm_page_all_valid(m),
 		    ("%s: Page %p not all valid", __func__, m));
-		swp_pager_force_dirty(&range, m, &sb->d[i]);
 		vm_page_xunbusy(m);
 		i = 0;	/* Restart scan after object lock dropped. */
 	}
