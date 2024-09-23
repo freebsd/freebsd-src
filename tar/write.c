@@ -32,7 +32,9 @@
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
-#ifdef HAVE_ATTR_XATTR_H
+#if HAVE_SYS_XATTR_H
+#include <sys/xattr.h>
+#elif HAVE_ATTR_XATTR_H
 #include <attr/xattr.h>
 #endif
 #ifdef HAVE_ERRNO_H

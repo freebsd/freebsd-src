@@ -273,7 +273,7 @@ struct file_info {
 	char		 re;		/* Having RRIP "RE" extension.	*/
 	char		 re_descendant;
 	uint64_t	 cl_offset;	/* Having RRIP "CL" extension.	*/
-	int		 birthtime_is_set;
+	int		 time_is_set;	/* Bitmask indicating which times are known */
 	time_t		 birthtime;	/* File created time.		*/
 	time_t		 mtime;		/* File last modified time.	*/
 	time_t		 atime;		/* File last accessed time.	*/
@@ -305,6 +305,11 @@ struct file_info {
 		struct file_info	**last;
 	} rede_files;
 };
+
+#define BIRTHTIME_IS_SET 1
+#define MTIME_IS_SET 2
+#define ATIME_IS_SET 4
+#define CTIME_IS_SET 8
 
 struct heap_queue {
 	struct file_info **files;
@@ -394,7 +399,9 @@ static void	dump_isodirrec(FILE *, const unsigned char *isodirrec);
 #endif
 static time_t	time_from_tm(struct tm *);
 static time_t	isodate17(const unsigned char *);
+static int	isodate17_valid(const unsigned char *);
 static time_t	isodate7(const unsigned char *);
+static int	isodate7_valid(const unsigned char *);
 static int	isBootRecord(struct iso9660 *, const unsigned char *);
 static int	isVolumePartition(struct iso9660 *, const unsigned char *);
 static int	isVDSetTerminator(struct iso9660 *, const unsigned char *);
@@ -1351,13 +1358,22 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 	archive_entry_set_uid(entry, file->uid);
 	archive_entry_set_gid(entry, file->gid);
 	archive_entry_set_nlink(entry, file->nlinks);
-	if (file->birthtime_is_set)
+	if ((file->time_is_set & BIRTHTIME_IS_SET))
 		archive_entry_set_birthtime(entry, file->birthtime, 0);
 	else
 		archive_entry_unset_birthtime(entry);
-	archive_entry_set_mtime(entry, file->mtime, 0);
-	archive_entry_set_ctime(entry, file->ctime, 0);
-	archive_entry_set_atime(entry, file->atime, 0);
+	if ((file->time_is_set & MTIME_IS_SET))
+		archive_entry_set_mtime(entry, file->mtime, 0);
+	else
+		archive_entry_unset_mtime(entry);
+	if ((file->time_is_set & CTIME_IS_SET))
+		archive_entry_set_ctime(entry, file->ctime, 0);
+	else
+		archive_entry_unset_ctime(entry);
+	if ((file->time_is_set & ATIME_IS_SET))
+		archive_entry_set_atime(entry, file->atime, 0);
+	else
+		archive_entry_unset_atime(entry);
 	/* N.B.: Rock Ridge supports 64-bit device numbers. */
 	archive_entry_set_rdev(entry, (dev_t)file->rdev);
 	archive_entry_set_size(entry, iso9660->entry_bytes_remaining);
@@ -1898,8 +1914,11 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	file->parent = parent;
 	file->offset = offset;
 	file->size = fsize;
-	file->mtime = isodate7(isodirrec + DR_date_offset);
-	file->ctime = file->atime = file->mtime;
+	if (isodate7_valid(isodirrec + DR_date_offset)) {
+		file->time_is_set |= MTIME_IS_SET | ATIME_IS_SET | CTIME_IS_SET;
+		file->mtime = isodate7(isodirrec + DR_date_offset);
+		file->ctime = file->atime = file->mtime;
+	}
 	file->rede_files.first = NULL;
 	file->rede_files.last = &(file->rede_files.first);
 
@@ -2573,51 +2592,73 @@ parse_rockridge_TF1(struct file_info *file, const unsigned char *data,
 		/* Use 17-byte time format. */
 		if ((flag & 1) && data_length >= 17) {
 			/* Create time. */
-			file->birthtime_is_set = 1;
-			file->birthtime = isodate17(data);
+			if (isodate17_valid(data)) {
+				file->time_is_set |= BIRTHTIME_IS_SET;
+				file->birthtime = isodate17(data);
+			}
 			data += 17;
 			data_length -= 17;
 		}
 		if ((flag & 2) && data_length >= 17) {
 			/* Modify time. */
-			file->mtime = isodate17(data);
+			if (isodate17_valid(data)) {
+				file->time_is_set |= MTIME_IS_SET;
+				file->mtime = isodate17(data);
+			}
 			data += 17;
 			data_length -= 17;
 		}
 		if ((flag & 4) && data_length >= 17) {
 			/* Access time. */
-			file->atime = isodate17(data);
+			if (isodate17_valid(data)) {
+				file->time_is_set |= ATIME_IS_SET;
+				file->atime = isodate17(data);
+			}
 			data += 17;
 			data_length -= 17;
 		}
 		if ((flag & 8) && data_length >= 17) {
 			/* Attribute change time. */
-			file->ctime = isodate17(data);
+			if (isodate17_valid(data)) {
+				file->time_is_set |= CTIME_IS_SET;
+				file->ctime = isodate17(data);
+			}
 		}
 	} else {
 		/* Use 7-byte time format. */
 		if ((flag & 1) && data_length >= 7) {
 			/* Create time. */
-			file->birthtime_is_set = 1;
-			file->birthtime = isodate7(data);
+			if (isodate7_valid(data)) {
+				file->time_is_set |= BIRTHTIME_IS_SET;
+				file->birthtime = isodate7(data);
+			}
 			data += 7;
 			data_length -= 7;
 		}
 		if ((flag & 2) && data_length >= 7) {
 			/* Modify time. */
-			file->mtime = isodate7(data);
+			if (isodate7_valid(data)) {
+				file->time_is_set |= MTIME_IS_SET;
+				file->mtime = isodate7(data);
+			}
 			data += 7;
 			data_length -= 7;
 		}
 		if ((flag & 4) && data_length >= 7) {
 			/* Access time. */
-			file->atime = isodate7(data);
+			if (isodate7_valid(data)) {
+				file->time_is_set |= ATIME_IS_SET;
+				file->atime = isodate7(data);
+			}
 			data += 7;
 			data_length -= 7;
 		}
 		if ((flag & 8) && data_length >= 7) {
 			/* Attribute change time. */
-			file->ctime = isodate7(data);
+			if (isodate7_valid(data)) {
+				file->time_is_set |= CTIME_IS_SET;
+				file->ctime = isodate7(data);
+			}
 		}
 	}
 }
@@ -3226,6 +3267,56 @@ isValid733Integer(const unsigned char *p)
 		&& p[3] == p[4]);
 }
 
+static int
+isodate7_valid(const unsigned char *v)
+{
+	int year = v[0];
+	int month = v[1];
+	int day = v[2];
+	int hour = v[3];
+	int minute = v[4];
+	int second = v[5];
+	int gmt_off = (signed char)v[6];
+
+	/* ECMA-119 9.1.5 "If all seven values are zero, it shall mean
+	 * that the date is unspecified" */
+	if (year == 0
+	    && month == 0
+	    && day == 0
+	    && hour == 0
+	    && minute == 0
+	    && second == 0
+	    && gmt_off == 0)
+		return 0;
+	/*
+	 * Sanity-test each individual field
+	 */
+	/* Year can have any value */
+	/* Month must be 1-12 */
+	if (month < 1 || month > 12)
+		return 0;
+	/* Day must be 1-31 */
+	if (day < 1 || day > 31)
+		return 0;
+	/* Hour must be 0-23 */
+	if (hour > 23)
+		return 0;
+	/* Minute must be 0-59 */
+	if (minute > 59)
+		return 0;
+	/* second must be 0-59 according to ECMA-119 9.1.5 */
+	/* BUT: we should probably allow for the time being in UTC, which
+	   allows up to 61 seconds in a minute in certain cases */
+	if (second > 61)
+		return 0;
+	/* Offset from GMT must be -48 to +52 */
+	if (gmt_off < -48 || gmt_off > +52)
+		return 0;
+
+	/* All tests pass, this is OK */
+	return 1;
+}
+
 static time_t
 isodate7(const unsigned char *v)
 {
@@ -3250,6 +3341,67 @@ isodate7(const unsigned char *v)
 	if (t == (time_t)-1)
 		return ((time_t)0);
 	return (t);
+}
+
+static int
+isodate17_valid(const unsigned char *v)
+{
+	/* First 16 bytes are all ASCII digits */
+	for (int i = 0; i < 16; i++) {
+		if (v[i] < '0' || v[i] > '9')
+			return 0;
+	}
+
+	int year = (v[0] - '0') * 1000 + (v[1] - '0') * 100
+		+ (v[2] - '0') * 10 + (v[3] - '0');
+	int month = (v[4] - '0') * 10 + (v[5] - '0');
+	int day = (v[6] - '0') * 10 + (v[7] - '0');
+	int hour = (v[8] - '0') * 10 + (v[9] - '0');
+	int minute = (v[10] - '0') * 10 + (v[11] - '0');
+	int second = (v[12] - '0') * 10 + (v[13] - '0');
+	int hundredths = (v[14] - '0') * 10 + (v[15] - '0');
+	int gmt_off = (signed char)v[16];
+
+	if (year == 0 && month == 0 && day == 0
+	    && hour == 0 && minute == 0 && second == 0
+	    && hundredths == 0 && gmt_off == 0)
+		return 0;
+	/*
+	 * Sanity-test each individual field
+	 */
+
+	/* Year must be 1900-2300 */
+	/* (Not specified in ECMA-119, but these seem
+	   like reasonable limits. */
+	if (year < 1900 || year > 2300)
+		return 0;
+	/* Month must be 1-12 */
+	if (month < 1 || month > 12)
+		return 0;
+	/* Day must be 1-31 */
+	if (day < 1 || day > 31)
+		return 0;
+	/* Hour must be 0-23 */
+	if (hour > 23)
+		return 0;
+	/* Minute must be 0-59 */
+	if (minute > 59)
+		return 0;
+	/* second must be 0-59 according to ECMA-119 9.1.5 */
+	/* BUT: we should probably allow for the time being in UTC, which
+	   allows up to 61 seconds in a minute in certain cases */
+	if (second > 61)
+		return 0;
+	/* Hundredths must be 0-99 */
+	if (hundredths > 99)
+		return 0;
+	/* Offset from GMT must be -48 to +52 */
+	if (gmt_off < -48 || gmt_off > +52)
+		return 0;
+
+	/* All tests pass, this is OK */
+	return 1;
+
 }
 
 static time_t

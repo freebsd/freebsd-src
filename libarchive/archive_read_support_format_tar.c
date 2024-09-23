@@ -296,6 +296,7 @@ archive_read_format_tar_cleanup(struct archive_read *a)
 	archive_string_free(&tar->entry_pathname_override);
 	archive_string_free(&tar->entry_uname);
 	archive_string_free(&tar->entry_gname);
+	archive_string_free(&tar->entry_linkpath);
 	archive_string_free(&tar->line);
 	archive_string_free(&tar->pax_global);
 	archive_string_free(&tar->longname);
@@ -726,6 +727,7 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 	archive_string_empty(&(tar->entry_pathname));
 	archive_string_empty(&(tar->entry_pathname_override));
 	archive_string_empty(&(tar->entry_uname));
+	archive_string_empty(&tar->entry_linkpath);
 
 	/* Ensure format is set. */
 	if (a->archive.archive_format_name == NULL) {
@@ -1935,6 +1937,7 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
 		*unconsumed += 1;
 		tar_flush_unconsumed(a, unconsumed);
 	}
+	archive_string_free(&attr_name);
 	*unconsumed += ext_size + ext_padding;
 
 	/*

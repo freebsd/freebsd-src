@@ -93,16 +93,20 @@ test_small(const char *name)
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_next_header(a, &ae));
 	assertEqualString(".", archive_entry_pathname(ae));
-	assertEqualIntA(a, 3443989665, archive_entry_atime(ae));
-	assertEqualIntA(a, 0, archive_entry_birthtime(ae));
-	assertEqualIntA(a, 3443989665, archive_entry_ctime(ae));
+	assertEqualInt(0, archive_entry_atime_is_set(ae));
+	assertEqualInt(0, archive_entry_atime(ae));
+	assertEqualInt(0, archive_entry_birthtime_is_set(ae));
+	assertEqualInt(0, archive_entry_birthtime(ae));
+	assertEqualInt(0, archive_entry_ctime_is_set(ae));
+	assertEqualInt(0, archive_entry_ctime(ae));
 	assertEqualIntA(a, 0, archive_entry_dev(ae));
 	assertEqualIntA(a, AE_IFDIR, archive_entry_filetype(ae));
 	assertEqualIntA(a, 0, archive_entry_gid(ae));
 	assertEqualStringA(a, NULL, archive_entry_gname(ae));
 	assertEqualIntA(a, 0, archive_entry_ino(ae));
 	assertEqualIntA(a, AE_IFDIR | 0700, archive_entry_mode(ae));
-	assertEqualIntA(a, 3443989665, archive_entry_mtime(ae));
+	assertEqualInt(0, archive_entry_mtime_is_set(ae));
+	assertEqualInt(0, archive_entry_mtime(ae));
 	assertEqualIntA(a, 4, archive_entry_nlink(ae));
 	assertEqualIntA(a, 0700, archive_entry_perm(ae));
 	assertEqualIntA(a, 2048, archive_entry_size(ae));
