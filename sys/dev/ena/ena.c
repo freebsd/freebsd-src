@@ -3737,6 +3737,8 @@ ena_attach(device_t pdev)
 		goto err_bus_free;
 	}
 
+	ena_dev->ena_min_poll_delay_us = ENA_ADMIN_POLL_DELAY_US;
+
 	/* Initially clear all the flags */
 	ENA_FLAG_ZERO(adapter);
 
