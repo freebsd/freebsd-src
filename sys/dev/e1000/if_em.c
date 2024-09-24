@@ -1094,7 +1094,10 @@ em_if_attach_pre(if_ctx_t ctx)
 			      " due to SOL/IDER session.\n");
 
 	/* Sysctl for setting Energy Efficient Ethernet */
-	hw->dev_spec.ich8lan.eee_disable = eee_setting;
+	if (hw->mac.type < igb_mac_min)
+		hw->dev_spec.ich8lan.eee_disable = eee_setting;
+	else
+		hw->dev_spec._82575.eee_disable = eee_setting;
 	SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "eee_control",
 	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
 	    em_sysctl_eee, "I", "Disable Energy Efficient Ethernet");
@@ -4981,11 +4984,17 @@ em_sysctl_eee(SYSCTL_HANDLER_ARGS)
 	struct e1000_softc *sc = (struct e1000_softc *) arg1;
 	int error, value;
 
-	value = sc->hw.dev_spec.ich8lan.eee_disable;
+	if (sc->hw.mac.type < igb_mac_min)
+		value = sc->hw.dev_spec.ich8lan.eee_disable;
+	else
+		value = sc->hw.dev_spec._82575.eee_disable;
 	error = sysctl_handle_int(oidp, &value, 0, req);
 	if (error || req->newptr == NULL)
 		return (error);
-	sc->hw.dev_spec.ich8lan.eee_disable = (value != 0);
+	if (sc->hw.mac.type < igb_mac_min)
+		sc->hw.dev_spec.ich8lan.eee_disable = (value != 0);
+	else
+		sc->hw.dev_spec._82575.eee_disable = (value != 0);
 	em_if_init(sc->ctx);
 
 	return (0);
