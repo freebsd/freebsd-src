@@ -211,9 +211,6 @@ tcp_default_output(struct tcpcb *tp)
 	struct tcp_log_buffer *lgb;
 	unsigned int wanted_cookie = 0;
 	unsigned int dont_sendalot = 0;
-#if 0
-	int maxburst = TCP_MAXBURST;
-#endif
 #ifdef INET6
 	struct ip6_hdr *ip6 = NULL;
 	const bool isipv6 = (inp->inp_vflag & INP_IPV6) != 0;
