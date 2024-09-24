@@ -4306,6 +4306,10 @@ em_update_stats_counters(struct e1000_softc *sc)
 	sc->stats.roc += E1000_READ_REG(&sc->hw, E1000_ROC);
 	sc->stats.rjc += E1000_READ_REG(&sc->hw, E1000_RJC);
 
+	sc->stats.mgprc += E1000_READ_REG(&sc->hw, E1000_MGTPRC);
+	sc->stats.mgpdc += E1000_READ_REG(&sc->hw, E1000_MGTPDC);
+	sc->stats.mgptc += E1000_READ_REG(&sc->hw, E1000_MGTPTC);
+
 	sc->stats.tor += E1000_READ_REG(&sc->hw, E1000_TORH);
 	sc->stats.tot += E1000_READ_REG(&sc->hw, E1000_TOTH);
 
@@ -4522,6 +4526,9 @@ em_add_hw_stats(struct e1000_softc *sc)
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "missed_packets",
 			CTLFLAG_RD, &sc->stats.mpc,
 			"Missed Packets");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_length_errors",
+			CTLFLAG_RD, &sc->stats.rlec,
+			"Receive Length Errors");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_no_buff",
 			CTLFLAG_RD, &sc->stats.rnbc,
 			"Receive No Buffers");
@@ -4562,6 +4569,18 @@ em_add_hw_stats(struct e1000_softc *sc)
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "xoff_txd",
 			CTLFLAG_RD, &sc->stats.xofftxc,
 			"XOFF Transmitted");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "unsupported_fc_recvd",
+			CTLFLAG_RD, &sc->stats.fcruc,
+			"Unsupported Flow Control Received");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "mgmt_pkts_recvd",
+			CTLFLAG_RD, &sc->stats.mgprc,
+			"Management Packets Received");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "mgmt_pkts_drop",
+			CTLFLAG_RD, &sc->stats.mgpdc,
+			"Management Packets Dropped");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "mgmt_pkts_txd",
+			CTLFLAG_RD, &sc->stats.mgptc,
+			"Management Packets Transmitted");
 
 	/* Packet Reception Stats */
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "total_pkts_recvd",
