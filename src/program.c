@@ -3039,10 +3039,12 @@ bc_program_exec(BcProgram* p)
 #if BC_HAS_COMPUTED_GOTO
 
 #if BC_GCC
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 #endif // BC_GCC
 
 #if BC_CLANG
+#pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-label-as-value"
 #endif // BC_CLANG
 
@@ -3050,11 +3052,11 @@ bc_program_exec(BcProgram* p)
 	BC_PROG_LBLS_ASSERT;
 
 #if BC_CLANG
-#pragma clang diagnostic warning "-Wgnu-label-as-value"
+#pragma clang diagnostic pop
 #endif // BC_CLANG
 
 #if BC_GCC
-#pragma GCC diagnostic warning "-Wpedantic"
+#pragma GCC diagnostic pop
 #endif // BC_GCC
 
 	// BC_INST_INVALID is a marker for the end so that we don't have to have an
@@ -3085,10 +3087,12 @@ bc_program_exec(BcProgram* p)
 #if BC_HAS_COMPUTED_GOTO
 
 #if BC_GCC
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 #endif // BC_GCC
 
 #if BC_CLANG
+#pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-label-as-value"
 #endif // BC_CLANG
 
@@ -3711,11 +3715,11 @@ bc_program_exec(BcProgram* p)
 #if BC_HAS_COMPUTED_GOTO
 
 #if BC_CLANG
-#pragma clang diagnostic warning "-Wgnu-label-as-value"
+#pragma clang diagnostic pop
 #endif // BC_CLANG
 
 #if BC_GCC
-#pragma GCC diagnostic warning "-Wpedantic"
+#pragma GCC diagnostic pop
 #endif // BC_GCC
 
 #else // BC_HAS_COMPUTED_GOTO

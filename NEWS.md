@@ -1,5 +1,11 @@
 # News
 
+## 7.0.3
+
+This is a production release that fixes build warnings on the musl libc.
+
+Other users do ***NOT*** need to upgrade.
+
 ## 7.0.2
 
 This is a production release that fixes `Ctrl+d` on FreeBSD and Linux when using
