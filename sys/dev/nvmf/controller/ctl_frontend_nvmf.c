@@ -19,7 +19,9 @@
 #include <sys/queue.h>
 #include <sys/refcount.h>
 #include <sys/sbuf.h>
+#include <sys/smp.h>
 #include <sys/sx.h>
+#include <sys/taskqueue.h>
 
 #include <machine/bus.h>
 #include <machine/bus_dma.h>
@@ -31,8 +33,10 @@
 
 #include <cam/ctl/ctl.h>
 #include <cam/ctl/ctl_error.h>
+#include <cam/ctl/ctl_ha.h>
 #include <cam/ctl/ctl_io.h>
 #include <cam/ctl/ctl_frontend.h>
+#include <cam/ctl/ctl_private.h>
 
 /*
  * Store pointers to the capsule and qpair in the two pointer members
@@ -47,6 +51,9 @@ static int	nvmft_ioctl(struct cdev *cdev, u_long cmd, caddr_t data,
     int flag, struct thread *td);
 static int	nvmft_shutdown(void);
 
+extern struct ctl_softc *control_softc;
+
+static struct taskqueue *nvmft_taskq;
 static TAILQ_HEAD(, nvmft_port) nvmft_ports;
 static struct sx nvmft_ports_lock;
 
@@ -458,8 +465,8 @@ nvmft_datamove_in(struct ctl_nvmeio *ctnio, struct nvmft_qpair *qp,
 	ctl_datamove_done((union ctl_io *)ctnio, true);
 }
 
-static void
-nvmft_datamove(union ctl_io *io)
+void
+nvmft_handle_datamove(union ctl_io *io)
 {
 	struct nvmf_capsule *nc;
 	struct nvmft_qpair *qp;
@@ -476,6 +483,35 @@ nvmft_datamove(union ctl_io *io)
 		nvmft_datamove_in(&io->nvmeio, qp, nc);
 	else
 		nvmft_datamove_out(&io->nvmeio, qp, nc);
+}
+
+void
+nvmft_abort_datamove(union ctl_io *io)
+{
+	io->io_hdr.port_status = 1;
+	io->io_hdr.flags |= CTL_FLAG_ABORT;
+	ctl_datamove_done(io, true);
+}
+
+static void
+nvmft_datamove(union ctl_io *io)
+{
+	struct nvmft_qpair *qp;
+
+	qp = NVMFT_QP(io);
+	nvmft_qpair_datamove(qp, io);
+}
+
+void
+nvmft_enqueue_task(struct task *task)
+{
+	taskqueue_enqueue(nvmft_taskq, task);
+}
+
+void
+nvmft_drain_task(struct task *task)
+{
+	taskqueue_drain(nvmft_taskq, task);
 }
 
 static void
@@ -561,6 +597,17 @@ end:
 static int
 nvmft_init(void)
 {
+	int error;
+
+	nvmft_taskq = taskqueue_create("nvmft", M_WAITOK,
+	    taskqueue_thread_enqueue, &nvmft_taskq);
+	error = taskqueue_start_threads_in_proc(&nvmft_taskq, mp_ncpus, PWAIT,
+	    control_softc->ctl_proc, "nvmft");
+	if (error != 0) {
+		taskqueue_free(nvmft_taskq);
+		return (error);
+	}
+
 	TAILQ_INIT(&nvmft_ports);
 	sx_init(&nvmft_ports_lock, "nvmft ports");
 	return (0);
@@ -1115,6 +1162,7 @@ nvmft_shutdown(void)
 	if (!TAILQ_EMPTY(&nvmft_ports))
 		return (EBUSY);
 
+	taskqueue_free(nvmft_taskq);
 	sx_destroy(&nvmft_ports_lock);
 	return (0);
 }
