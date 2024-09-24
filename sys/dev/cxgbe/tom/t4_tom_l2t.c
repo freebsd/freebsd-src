@@ -441,7 +441,8 @@ t4_l2_update(struct toedev *tod, if_t ifp, struct sockaddr *sa,
 			mtx_lock(&e->lock);
 			if (atomic_load_acq_int(&e->refcnt))
 				goto found;
-			e->state = L2T_STATE_STALE;
+			if (e->state == L2T_STATE_VALID)
+				e->state = L2T_STATE_STALE;
 			mtx_unlock(&e->lock);
 			break;
 		}
