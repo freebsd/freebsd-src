@@ -530,6 +530,7 @@ function menu.run()
 	drawn_menu = nil
 
 	screen.defcursor()
+	-- We explicitly want the newline print adds
 	print("Exiting menu!")
 end
 
@@ -544,7 +545,7 @@ function menu.autoboot(delay)
 		if last == nil or last ~= time then
 			last = time
 			screen.setcursor(x, y)
-			print("Autoboot in " .. time ..
+			printc("Autoboot in " .. time ..
 			    " seconds. [Space] to pause ")
 			screen.defcursor()
 		end
@@ -553,9 +554,12 @@ function menu.autoboot(delay)
 			if ch == core.KEY_ENTER then
 				break
 			else
-				-- erase autoboot msg
+				-- Erase autoboot msg.  While real VT100s
+				-- wouldn't scroll when receiving a char with
+				-- the cursor at (24, 79), bad emulators do.
+				-- Avoid the issue by stopping at 79.
 				screen.setcursor(0, y)
-				print(string.rep(" ", 80))
+				printc(string.rep(" ", 79))
 				screen.defcursor()
 				return ch
 			end
