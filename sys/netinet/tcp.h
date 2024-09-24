@@ -166,8 +166,6 @@ __tcp_set_flags(struct tcphdr *th, uint16_t flags)
 
 #define TCP_MAX_WINSHIFT	14	/* maximum window shift */
 
-#define TCP_MAXBURST		4	/* maximum segments in a burst */
-
 #define TCP_MAXHLEN	(0xf<<2)	/* max length of header in bytes */
 #define TCP_MAXOLEN	(TCP_MAXHLEN - sizeof(struct tcphdr))
 					/* max space left for options */
