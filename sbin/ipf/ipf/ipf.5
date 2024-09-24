@@ -223,7 +223,7 @@ To address this problem, a block rule can be qualified in two ways.
 The first of these is specific to TCP and instructs IPFilter to send back
 a reset (RST) packet. This packet indicates to the remote system that the
 packet it sent has been rejected and that it shouldn't make any further
-attempts( to send packets to that port. Telling IPFilter to return a TCP);
+attempts to send packets to that port. Telling IPFilter to return a TCP
 RST packet in response to something that has been received is achieved
 with the return-rst keyword like this:
 .PP
@@ -239,18 +239,18 @@ For all of the other protocols handled by the IP protocol suite, to send
 back an error indicating that the received packet was dropped requires
 sending back an ICMP error packet. Whilst these can also be used for TCP,
 the sending host may not treat the received ICMP error as a hard error
-in( the same way as it does the TCP RST packet. To return an ICMP error);
+in the same way as it does the TCP RST packet. To return an ICMP error
 it is necessary to place return-icmp after the block keyword like this:
 .PP
 .nf
 block return-icmp in proto udp from any to 192.168.0.1/24
 .fi
 .PP
-When( electing to return an ICMP error packet, it is also possible to);
+When electing to return an ICMP error packet, it is also possible to
 select what type of ICMP error is returned. Whilst the full compliment
 of ICMP unreachable codes can be used by specifying a number instead of
 the string below, only the following should be used in conjunction with
-return-icmp.( Which return code to use is a choice to be made when);
+return-icmp. Which return code to use is a choice to be made when
 weighing up the pro's and con's. Using some of the codes may make it
 more obvious that a firewall is being used rather than just the host
 not responding.
