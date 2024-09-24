@@ -141,39 +141,39 @@ For a full list of commands available in most rc.d scripts, see
 .Xr rc 8 .
 .Pp
 Enable a service, then start it:
-.Bd -literal -offset -indent
+.Bd -literal -offset indent
 service sshd enable
 service sshd start
 .Ed
 .Pp
 Stop a service, then disable it:
-.Bd -literal -offset -indent
+.Bd -literal -offset indent
 service sshd stop
 service sshd disable
 .Ed
 .Pp
 Start a service which is not enabled:
-.Bd -literal -offset -indent
+.Bd -literal -offset indent
 service sshd onestart
 .Ed
 .Pp
 Report the status of a service:
-.Bd -literal -offset -ident
+.Bd -literal -offset indent
 service named status
 .Ed
 .Pp
 Restart a service running in a jail:
-.Bd -literal -offset -indent
+.Bd -literal -offset indent
 service -j dns named restart
 .Ed
 .Pp
 Start a service with a specific environment variable set:
-.Bd -literal -offset -indent
+.Bd -literal -offset indent
 service -E LC_ALL=C.UTF-8 named start
 .Ed
 .Pp
 Report a verbose listing of all available services:
-.Bd -literal -offset -indent
+.Bd -literal -offset indent
 service -rv
 .Ed
 .Pp
@@ -189,7 +189,7 @@ complete service 'c/-/(e l r v)/' 'p/1/`service -l`/' \e
 The following programmable completion entry can be used in
 .Xr bash 1
 for the names of the rc.d scripts:
-.Bd -literal -offset -ident
+.Bd -literal -offset indent
 _service () {
 	local cur
 	cur=${COMP_WORDS[COMP_CWORD]}
