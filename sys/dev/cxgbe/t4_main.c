@@ -2095,6 +2095,8 @@ stop_lld(struct adapter *sc)
 		if (pi->flags & HAS_TRACEQ) {
 			pi->flags &= ~HAS_TRACEQ;
 			sc->traceq = -1;
+			sc->tracer_valid = 0;
+			sc->tracer_enabled = 0;
 		}
 	}
 	if (sc->flags & FULL_INIT_DONE) {
@@ -2410,6 +2412,15 @@ restart_lld(struct adapter *sc)
 					CH_ERR(vi, "failed to re-initialize "
 					    "interface: %d\n", rc);
 					goto done;
+				}
+				if (sc->traceq < 0 && IS_MAIN_VI(vi)) {
+					sc->traceq = sc->sge.rxq[vi->first_rxq].iq.abs_id;
+					t4_write_reg(sc, is_t4(sc) ?
+					    A_MPS_TRC_RSS_CONTROL :
+					    A_MPS_T5_TRC_RSS_CONTROL,
+					    V_RSSCONTROL(pi->tx_chan) |
+					    V_QUEUENUMBER(sc->traceq));
+					pi->flags |= HAS_TRACEQ;
 				}
 
 				ifp = vi->ifp;
