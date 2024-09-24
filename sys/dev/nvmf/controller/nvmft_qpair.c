@@ -34,6 +34,9 @@ struct nvmft_qpair {
 	uint16_t sqtail;
 	volatile u_int qp_refs;		/* Internal references on 'qp'. */
 
+	struct task datamove_task;
+	STAILQ_HEAD(, ctl_io_hdr) datamove_queue;
+
 	struct mtx lock;
 
 	char	name[16];
@@ -41,6 +44,7 @@ struct nvmft_qpair {
 
 static int	_nvmft_send_generic_error(struct nvmft_qpair *qp,
     struct nvmf_capsule *nc, uint8_t sc_status);
+static void	nvmft_datamove_task(void *context, int pending);
 
 static void
 nvmft_qpair_error(void *arg, int error)
@@ -114,6 +118,8 @@ nvmft_qpair_init(enum nvmf_trtype trtype,
 	strlcpy(qp->name, name, sizeof(qp->name));
 	mtx_init(&qp->lock, "nvmft qp", NULL, MTX_DEF);
 	qp->cids = BITSET_ALLOC(NUM_CIDS, M_NVMFT, M_WAITOK | M_ZERO);
+	STAILQ_INIT(&qp->datamove_queue);
+	TASK_INIT(&qp->datamove_task, 0, nvmft_datamove_task, qp);
 
 	qp->qp = nvmf_allocate_qpair(trtype, true, handoff, nvmft_qpair_error,
 	    qp, nvmft_receive_capsule, qp);
@@ -131,14 +137,25 @@ nvmft_qpair_init(enum nvmf_trtype trtype,
 void
 nvmft_qpair_shutdown(struct nvmft_qpair *qp)
 {
+	STAILQ_HEAD(, ctl_io_hdr) datamove_queue;
 	struct nvmf_qpair *nq;
+	union ctl_io *io;
 
+	STAILQ_INIT(&datamove_queue);
 	mtx_lock(&qp->lock);
 	nq = qp->qp;
 	qp->qp = NULL;
+	STAILQ_CONCAT(&datamove_queue, &qp->datamove_queue);
 	mtx_unlock(&qp->lock);
 	if (nq != NULL && refcount_release(&qp->qp_refs))
 		nvmf_free_qpair(nq);
+
+	while (!STAILQ_EMPTY(&datamove_queue)) {
+		io = (union ctl_io *)STAILQ_FIRST(&datamove_queue);
+		STAILQ_REMOVE_HEAD(&datamove_queue, links);
+		nvmft_abort_datamove(io);
+	}
+	nvmft_drain_task(&qp->datamove_task);
 }
 
 void
@@ -358,4 +375,44 @@ nvmft_finish_accept(struct nvmft_qpair *qp,
 		rsp.sqhd = htole16(0xffff);
 	rsp.status_code_specific.success.cntlid = htole16(ctrlr->cntlid);
 	return (nvmft_send_connect_response(qp, &rsp));
+}
+
+void
+nvmft_qpair_datamove(struct nvmft_qpair *qp, union ctl_io *io)
+{
+	bool enqueue_task;
+
+	mtx_lock(&qp->lock);
+	if (qp->qp == NULL) {
+		mtx_unlock(&qp->lock);
+		nvmft_abort_datamove(io);
+		return;
+	}
+	enqueue_task = STAILQ_EMPTY(&qp->datamove_queue);
+	STAILQ_INSERT_TAIL(&qp->datamove_queue, &io->io_hdr, links);
+	mtx_unlock(&qp->lock);
+	if (enqueue_task)
+		nvmft_enqueue_task(&qp->datamove_task);
+}
+
+static void
+nvmft_datamove_task(void *context, int pending __unused)
+{
+	struct nvmft_qpair *qp = context;
+	union ctl_io *io;
+	bool abort;
+
+	mtx_lock(&qp->lock);
+	while (!STAILQ_EMPTY(&qp->datamove_queue)) {
+		io = (union ctl_io *)STAILQ_FIRST(&qp->datamove_queue);
+		STAILQ_REMOVE_HEAD(&qp->datamove_queue, links);
+		abort = (qp->qp == NULL);
+		mtx_unlock(&qp->lock);
+		if (abort)
+			nvmft_abort_datamove(io);
+		else
+			nvmft_handle_datamove(io);
+		mtx_lock(&qp->lock);
+	}
+	mtx_unlock(&qp->lock);
 }
