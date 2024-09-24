@@ -556,9 +556,9 @@ function menu.autoboot(delay)
 			else
 				-- Erase autoboot msg.  While real VT100s
 				-- wouldn't scroll when receiving a char with
-				-- the cursor at (24, 79), bad emulators do.
+				-- the cursor at (79, 24), bad emulators do.
 				-- Avoid the issue by stopping at 79.
-				screen.setcursor(0, y)
+				screen.setcursor(1, y)
 				printc(string.rep(" ", 79))
 				screen.defcursor()
 				return ch
