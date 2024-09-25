@@ -6652,15 +6652,11 @@ iflib_legacy_setup(if_ctx_t ctx, driver_filter_t filter, void *filter_arg, int *
 	device_t dev;
 	struct grouptask *gtask;
 	struct resource *res;
-	struct taskqgroup *tqg;
-	void *q;
 	int err, tqrid;
 	bool rx_only;
 
-	q = &ctx->ifc_rxqs[0];
-	info = &rxq[0].ifr_filter_info;
-	gtask = &rxq[0].ifr_task;
-	tqg = qgroup_if_io_tqg;
+	info = &rxq->ifr_filter_info;
+	gtask = &rxq->ifr_task;
 	tqrid = *rid;
 	rx_only = (ctx->ifc_sctx->isc_flags & IFLIB_SINGLE_IRQ_RX_ONLY) != 0;
 
@@ -6668,17 +6664,17 @@ iflib_legacy_setup(if_ctx_t ctx, driver_filter_t filter, void *filter_arg, int *
 	info->ifi_filter = filter;
 	info->ifi_filter_arg = filter_arg;
 	info->ifi_task = gtask;
-	info->ifi_ctx = rx_only ? ctx : q;
+	info->ifi_ctx = rxq;
 
 	dev = ctx->ifc_dev;
 	/* We allocate a single interrupt resource */
-	err = _iflib_irq_alloc(ctx, irq, tqrid, rx_only ? iflib_fast_intr_ctx :
+	err = _iflib_irq_alloc(ctx, irq, tqrid, rx_only ? iflib_fast_intr :
 	    iflib_fast_intr_rxtx, NULL, info, name);
 	if (err != 0)
 		return (err);
-	NET_GROUPTASK_INIT(gtask, 0, _task_fn_rx, q);
+	NET_GROUPTASK_INIT(gtask, 0, _task_fn_rx, rxq);
 	res = irq->ii_res;
-	taskqgroup_attach(tqg, gtask, q, dev, res, name);
+	taskqgroup_attach(qgroup_if_io_tqg, gtask, rxq, dev, res, name);
 
 	GROUPTASK_INIT(&txq->ift_task, 0, _task_fn_tx, txq);
 	taskqgroup_attach(qgroup_if_io_tqg, &txq->ift_task, txq, dev, res,
