@@ -104,7 +104,7 @@ in_div_body()
 	sleep 1
 
 	# divapp is expected to "eat" the packet
-	atf_check -s not-exit:0 -o ignore ping -c1 192.0.2.2
+	atf_check -s not-exit:0 -o ignore ping -c1 -t1 192.0.2.2
 
 	wait $divapp_pid
 }
@@ -183,7 +183,7 @@ out_div_body()
 	sleep 1
 
 	# divapp is expected to "eat" the packet
-	atf_check -s not-exit:0 -o ignore ping -c1 192.0.2.2
+	atf_check -s not-exit:0 -o ignore ping -c1 -t1 192.0.2.2
 
 	wait $divapp_pid
 }
