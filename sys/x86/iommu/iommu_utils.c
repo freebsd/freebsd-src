@@ -109,7 +109,8 @@ iommu_pgalloc(vm_object_t obj, vm_pindex_t idx, int flags)
 }
 
 void
-iommu_pgfree(vm_object_t obj, vm_pindex_t idx, int flags)
+iommu_pgfree(vm_object_t obj, vm_pindex_t idx, int flags,
+    struct iommu_map_entry *entry)
 {
 	vm_page_t m;
 
@@ -117,8 +118,13 @@ iommu_pgfree(vm_object_t obj, vm_pindex_t idx, int flags)
 		VM_OBJECT_WLOCK(obj);
 	m = vm_page_grab(obj, idx, VM_ALLOC_NOCREAT);
 	if (m != NULL) {
-		vm_page_free(m);
-		atomic_subtract_int(&iommu_tbl_pagecnt, 1);
+		if (entry == NULL) {
+			vm_page_free(m);
+			atomic_subtract_int(&iommu_tbl_pagecnt, 1);
+		} else {
+			vm_page_remove_xbusy(m);	/* keep page busy */
+			SLIST_INSERT_HEAD(&entry->pgtbl_free, m, plinks.s.ss);
+		}
 	}
 	if ((flags & IOMMU_PGF_OBJL) == 0)
 		VM_OBJECT_WUNLOCK(obj);
@@ -154,7 +160,8 @@ iommu_map_pgtbl(vm_object_t obj, vm_pindex_t idx, int flags,
 		sched_unpin();
 		if (allocated) {
 			VM_OBJECT_ASSERT_WLOCKED(obj);
-			iommu_pgfree(obj, m->pindex, flags | IOMMU_PGF_OBJL);
+			iommu_pgfree(obj, m->pindex, flags | IOMMU_PGF_OBJL,
+			    NULL);
 		}
 		if ((flags & IOMMU_PGF_OBJL) == 0)
 			VM_OBJECT_WUNLOCK(obj);

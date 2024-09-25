@@ -48,7 +48,8 @@ struct vm_object;
 
 struct vm_page *iommu_pgalloc(struct vm_object *obj, vm_pindex_t idx,
     int flags);
-void iommu_pgfree(struct vm_object *obj, vm_pindex_t idx, int flags);
+void iommu_pgfree(struct vm_object *obj, vm_pindex_t idx, int flags,
+    struct iommu_map_entry *entry);
 void *iommu_map_pgtbl(struct vm_object *obj, vm_pindex_t idx, int flags,
     struct sf_buf **sf);
 void iommu_unmap_pgtbl(struct sf_buf *sf);

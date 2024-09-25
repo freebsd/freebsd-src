@@ -31,6 +31,8 @@
 #ifndef _DEV_IOMMU_IOMMU_H_
 #define _DEV_IOMMU_IOMMU_H_
 
+#include <vm/vm.h>
+#include <vm/vm_page.h>
 #include <dev/iommu/iommu_types.h>
 
 struct bus_dma_tag_common;
@@ -61,6 +63,7 @@ struct iommu_map_entry {
 	RB_ENTRY(iommu_map_entry) rb_entry;	 /* Links for domain entries */
 	struct iommu_domain *domain;
 	struct iommu_qi_genseq gseq;
+	struct spglist pgtbl_free;
 };
 
 struct iommu_unit {
