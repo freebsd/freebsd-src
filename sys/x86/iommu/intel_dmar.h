@@ -219,10 +219,10 @@ void dmar_qi_invalidate_iotlb_glob_locked(struct dmar_unit *unit);
 void dmar_qi_invalidate_iec_glob(struct dmar_unit *unit);
 void dmar_qi_invalidate_iec(struct dmar_unit *unit, u_int start, u_int cnt);
 
-vm_object_t domain_get_idmap_pgtbl(struct dmar_domain *domain,
+vm_object_t dmar_get_idmap_pgtbl(struct dmar_domain *domain,
     iommu_gaddr_t maxaddr);
-void put_idmap_pgtbl(vm_object_t obj);
-void domain_flush_iotlb_sync(struct dmar_domain *domain, iommu_gaddr_t base,
+void dmar_put_idmap_pgtbl(vm_object_t obj);
+void dmar_flush_iotlb_sync(struct dmar_domain *domain, iommu_gaddr_t base,
     iommu_gaddr_t size);
 int dmar_domain_alloc_pgtbl(struct dmar_domain *domain);
 void dmar_domain_free_pgtbl(struct dmar_domain *domain);
