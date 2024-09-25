@@ -408,17 +408,15 @@ def parse_args():
         description="Ping test tool")
 
     # Parameters of sent ping request
-    parser.add_argument('--sendif', nargs=1,
-        required=True,
+    parser.add_argument('--sendif', required=True,
         help='The interface through which the packet(s) will be sent')
-    parser.add_argument('--to', nargs=1,
-        required=True,
+    parser.add_argument('--to', required=True,
         help='The destination IP address for the ping request')
     parser.add_argument('--ping-type',
         choices=('icmp', 'tcpsyn'),
         help='Type of ping: ICMP (default) or TCP SYN',
         default='icmp')
-    parser.add_argument('--fromaddr', nargs=1,
+    parser.add_argument('--fromaddr',
         help='The source IP address for the ping request')
 
     # Where to look for packets to analyze.
@@ -431,36 +429,36 @@ def parse_args():
 
     # Packet settings
     parser_send = parser.add_argument_group('Values set in transmitted packets')
-    parser_send.add_argument('--send-flags', nargs=1, type=str,
+    parser_send.add_argument('--send-flags', type=str,
         help='IPv4 fragmentation flags')
-    parser_send.add_argument('--send-frag-length', nargs=1, type=int,
-         help='Force IP fragmentation with given fragment length')
-    parser_send.add_argument('--send-hlim', nargs=1, type=int,
+    parser_send.add_argument('--send-frag-length', type=int,
+        help='Force IP fragmentation with given fragment length')
+    parser_send.add_argument('--send-hlim', type=int,
         help='IPv6 Hop Limit or IPv4 Time To Live')
-    parser_send.add_argument('--send-mss', nargs=1, type=int,
+    parser_send.add_argument('--send-mss', type=int,
         help='TCP Maximum Segment Size')
-    parser_send.add_argument('--send-seq', nargs=1, type=int,
+    parser_send.add_argument('--send-seq', type=int,
         help='TCP sequence number')
-    parser_send.add_argument('--send-length', nargs=1, type=int,
-        default=[len(PAYLOAD_MAGIC)], help='ICMP Echo Request payload size')
-    parser_send.add_argument('--send-tc', nargs=1, type=int,
+    parser_send.add_argument('--send-length', type=int, default=len(PAYLOAD_MAGIC),
+        help='ICMP Echo Request payload size')
+    parser_send.add_argument('--send-tc', type=int,
         help='IPv6 Traffic Class or IPv4 DiffServ / ToS')
     parser_send.add_argument('--send-tcpopt-unaligned', action='store_true',
-         help='Include unaligned TCP options')
+        help='Include unaligned TCP options')
     parser_send.add_argument('--send-nop', action='store_true',
-         help='Include a NOP IPv4 option')
+        help='Include a NOP IPv4 option')
 
     # Expectations
     parser_expect = parser.add_argument_group('Values expected in sniffed packets')
-    parser_expect.add_argument('--expect-flags', nargs=1, type=str,
+    parser_expect.add_argument('--expect-flags', type=str,
         help='IPv4 fragmentation flags')
-    parser_expect.add_argument('--expect-hlim', nargs=1, type=int,
+    parser_expect.add_argument('--expect-hlim', type=int,
         help='IPv6 Hop Limit or IPv4 Time To Live')
-    parser_expect.add_argument('--expect-mss', nargs=1, type=int,
+    parser_expect.add_argument('--expect-mss', type=int,
         help='TCP Maximum Segment Size')
-    parser_send.add_argument('--expect-seq', nargs=1, type=int,
+    parser_send.add_argument('--expect-seq', type=int,
         help='TCP sequence number')
-    parser_expect.add_argument('--expect-tc', nargs=1, type=int,
+    parser_expect.add_argument('--expect-tc', type=int,
         help='IPv6 Traffic Class or IPv4 DiffServ / ToS')
 
     parser.add_argument('-v', '--verbose', action='store_true',
@@ -478,31 +476,26 @@ def main():
     if args.verbose:
         LOGGER.setLevel(logging.DEBUG)
 
-    # Dig out real values of program arguments
-    send_if = args.sendif[0]
-    reply_ifs = args.replyif
-    recv_ifs = args.recvif
-    dst_address = args.to[0]
-
-    # Standardize parameters which have nargs=1.
+    # Split parameters into send and expect parameters. Parameters might be
+    # missing from the command line, always fill the dictionaries with None.
     send_params = {}
     expect_params = {}
     for param_name in ('flags', 'hlim', 'length', 'mss', 'seq', 'tc', 'frag_length'):
         param_arg = vars(args).get(f'send_{param_name}')
-        send_params[param_name] = param_arg[0] if param_arg else None
+        send_params[param_name] = param_arg if param_arg else None
         param_arg = vars(args).get(f'expect_{param_name}')
-        expect_params[param_name] = param_arg[0] if param_arg else None
+        expect_params[param_name] = param_arg if param_arg else None
 
     expect_params['length'] = send_params['length']
     send_params['tcpopt_unaligned'] = args.send_tcpopt_unaligned
     send_params['nop'] = args.send_nop
-    send_params['src_address'] = args.fromaddr[0] if args.fromaddr else None
+    send_params['src_address'] = args.fromaddr if args.fromaddr else None
 
     # We may not have a default route. Tell scapy where to start looking for routes
-    sp.conf.iface6 = send_if
+    sp.conf.iface6 = args.sendif
 
     # Configuration sanity checking.
-    if not (reply_ifs or recv_ifs):
+    if not (args.replyif or args.recvif):
         raise Exception('With no reply or recv interface specified no traffic '
             'can be sniffed and verified!'
         )
@@ -514,22 +507,22 @@ def main():
     else:
         defrag = False
 
-    if recv_ifs:
+    if args.recvif:
         sniffer_params = copy(expect_params)
         sniffer_params['src_address'] = None
-        sniffer_params['dst_address'] = dst_address
-        for iface in recv_ifs:
+        sniffer_params['dst_address'] = args.to
+        for iface in args.recvif:
             LOGGER.debug(f'Installing receive sniffer on {iface}')
             sniffers.append(
                 setup_sniffer(iface, args.ping_type, 'request',
                               sniffer_params, defrag,
             ))
 
-    if reply_ifs:
+    if args.replyif:
         sniffer_params = copy(expect_params)
-        sniffer_params['src_address'] = dst_address
+        sniffer_params['src_address'] = args.to
         sniffer_params['dst_address'] = None
-        for iface in reply_ifs:
+        for iface in args.replyif:
             LOGGER.debug(f'Installing reply sniffer on {iface}')
             sniffers.append(
                 setup_sniffer(iface, args.ping_type, 'reply',
@@ -538,7 +531,7 @@ def main():
 
     LOGGER.debug(f'Installed {len(sniffers)} sniffers')
 
-    send_ping(dst_address, send_if, args.ping_type, send_params)
+    send_ping(args.to, args.sendif, args.ping_type, send_params)
 
     err = 0
     sniffer_num = 0
