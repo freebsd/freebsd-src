@@ -123,7 +123,10 @@ def send_tcp_syn(dst_address, sendif, send_params):
         ip = prepare_ipv6(dst_address, send_params)
     else:
         ip = prepare_ipv4(dst_address, send_params)
-    tcp = sp.TCP(dport=666, flags='S', options=opts, seq=seq)
+    tcp = sp.TCP(
+        sport=send_params.get('sport'), dport=send_params.get('dport'),
+        flags='S', options=opts, seq=seq,
+    )
     req = ether / ip / tcp
     sp.sendp(req, iface=sendif, verbose=False)
 
@@ -439,6 +442,10 @@ def parse_args():
         help='TCP Maximum Segment Size')
     parser_send.add_argument('--send-seq', type=int,
         help='TCP sequence number')
+    parser_send.add_argument('--send-sport', type=int,
+        help='TCP source port')
+    parser_send.add_argument('--send-dport', type=int, default=666,
+        help='TCP destination port')
     parser_send.add_argument('--send-length', type=int, default=len(PAYLOAD_MAGIC),
         help='ICMP Echo Request payload size')
     parser_send.add_argument('--send-tc', type=int,
@@ -480,7 +487,10 @@ def main():
     # missing from the command line, always fill the dictionaries with None.
     send_params = {}
     expect_params = {}
-    for param_name in ('flags', 'hlim', 'length', 'mss', 'seq', 'tc', 'frag_length'):
+    for param_name in (
+        'flags', 'hlim', 'length', 'mss', 'seq', 'tc', 'frag_length',
+        'sport', 'dport',
+    ):
         param_arg = vars(args).get(f'send_{param_name}')
         send_params[param_name] = param_arg if param_arg else None
         param_arg = vars(args).get(f'expect_{param_name}')
