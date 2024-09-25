@@ -450,8 +450,6 @@ __vfprintf(FILE *fp, locale_t locale, int serrno, const char *fmt0, va_list ap)
 		val = GETARG (int); \
 	}
 
-	if (__use_xprintf == 0 && getenv("USE_XPRINTF"))
-		__use_xprintf = 1;
 	if (__use_xprintf > 0)
 		return (__xvprintf(fp, fmt0, ap));
 
