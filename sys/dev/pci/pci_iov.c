@@ -732,6 +732,7 @@ pci_iov_config(struct cdev *cdev, struct pci_iov_arg *arg)
 
 	/* We don't yet support allocating extra bus numbers for VFs. */
 	if (pci_get_bus(dev) != PCI_RID2BUS(last_rid)) {
+		device_printf(dev, "not enough PCIe bus numbers for VFs\n");
 		error = ENOSPC;
 		goto out;
 	}
