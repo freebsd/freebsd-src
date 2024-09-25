@@ -79,7 +79,6 @@
 #include <string.h>
 #include <unistd.h>
 
-
 /*
  * "from" is first in range of changed lines; "to" is last+1
  * from=to=line after point of insertion for added lines.
@@ -90,6 +89,7 @@ struct range {
 };
 
 struct diff {
+#define DIFF_TYPE1 1
 #define DIFF_TYPE2 2
 #define DIFF_TYPE3 3
 	int type;
@@ -147,6 +147,7 @@ static void keep(int, struct range *);
 static void merge(int, int);
 static void prange(struct range *, bool);
 static void repos(int);
+static void separate(const char *);
 static void edscript(int) __dead2;
 static void Ascript(int) __dead2;
 static void mergescript(int) __dead2;
@@ -154,7 +155,7 @@ static void increase(void);
 static void usage(void);
 static void printrange(FILE *, struct range *);
 
-static const char diff3_version[] = "FreeBSD diff3 20220517";
+static const char diff3_version[] = "FreeBSD diff3 20240925";
 
 enum {
 	DIFFPROG_OPT,
@@ -190,48 +191,109 @@ usage(void)
 }
 
 static int
+strtoi(char *str, char **end)
+{
+	intmax_t num;
+
+	errno = 0;
+	num = strtoimax(str, end, 10);
+	if ((end != NULL && *end == str) ||
+	    num < 0 || num > INT_MAX ||
+	    errno == EINVAL || errno == ERANGE)
+		err(1, "error in diff output");
+	return (int)num;
+}
+
+/*
+ * Read diff hunks into the array pointed to by *dd.
+ *
+ * The output from `diff foo bar` consists of a series of hunks describing
+ * an addition (lines in bar not present in foo), change (lines in bar
+ * different from lines in foo), or deletion (lines in foo not present in
+ * bar).  Each record starts with a line of the form:
+ *
+ * a[,b]xc[,d]
+ *
+ * where a, b, c, and d are nonnegative integers (b and d are printed only
+ * if they differ from a and c, respectively), and x is either 'a' for an
+ * addition, 'c' for a change, or 'd' for a deletion.  This is then
+ * followed by a series of lines (which we ignore) giving the added,
+ * changed, or deleted text.
+ *
+ * For an addition, a == b is the last line in 'foo' before the addition,
+ * while c through d is the range of lines in 'bar' to be added to 'foo'.
+ *
+ * For a change, a through b is the range of lines in 'foo' to be replaced
+ * and c through d is the range of lines in 'bar' to replace them with.
+ *
+ * For a deletion, a through b is the range of lines in 'foo' to remove
+ * and c == d is the line in 'bar' which corresponds to the last line
+ * before the deletion.
+ *
+ * The observant reader will have noticed that x is not really needed and
+ * that we can fully describe any hunk using only a, b, c, and d:
+ *
+ * - an addition replaces a zero-length range in one file with a
+ *   non-zero-length range from the other
+ *
+ * - a change replaces a non-zero-length range in one file with a
+ *   non-zero-length range from the other
+ *
+ * - a deletion replaces a non-zero-length range in one file with a
+ *   zero-length range from the other
+ */
+static int
 readin(int fd, struct diff **dd)
 {
 	int a, b, c, d;
-	size_t i;
+	int i;
 	char kind, *p;
 	FILE *f;
 
 	f = fdopen(fd, "r");
 	if (f == NULL)
 		err(2, "fdopen");
-	for (i = 0; (p = getchange(f)); i++) {
+	for (i = 0; (p = getchange(f)) != NULL; i++) {
+		if ((size_t)i >= szchanges - 1)
+			increase();
 #if DEBUG
 		(*dd)[i].line = strdup(p);
 #endif	/* DEBUG */
 
-		if (i >= szchanges - 1)
-			increase();
-		a = b = (int)strtoimax(p, &p, 10);
-		if (*p == ',') {
-			p++;
-			b = (int)strtoimax(p, &p, 10);
-		}
+		a = b = strtoi(p, &p);
+		if (*p == ',')
+			b = strtoi(p + 1, &p);
 		kind = *p++;
-		c = d = (int)strtoimax(p, &p, 10);
-		if (*p == ',') {
-			p++;
-			d = (int)strtoimax(p, &p, 10);
-		}
+		c = d = strtoi(p, &p);
+		if (*p == ',')
+			d = strtoi(p + 1, &p);
+		if (*p != '\n')
+			errx(1, "error in diff output");
 		if (kind == 'a')
 			a++;
-		if (kind == 'd')
+		else if (kind == 'c')
+			/* nothing */ ;
+		else if (kind == 'd')
 			c++;
+		else
+			errx(1, "error in diff output");
 		b++;
 		d++;
+		if (b < a || d < c)
+			errx(1, "error in diff output");
 		(*dd)[i].old.from = a;
 		(*dd)[i].old.to = b;
 		(*dd)[i].new.from = c;
 		(*dd)[i].new.to = d;
+		if (i > 0) {
+			if ((*dd)[i].old.from < (*dd)[i - 1].old.to ||
+			    (*dd)[i].new.from < (*dd)[i - 1].new.to)
+				errx(1, "diff output out of order");
+		}
 	}
-	if (i) {
-		(*dd)[i].old.from = (*dd)[i - 1].old.to;
-		(*dd)[i].new.from = (*dd)[i - 1].new.to;
+	if (i > 0) {
+		(*dd)[i].old.from = (*dd)[i].old.to = (*dd)[i - 1].old.to;
+		(*dd)[i].new.from = (*dd)[i].new.to = (*dd)[i - 1].new.to;
 	}
 	fclose(f);
 	return (i);
@@ -264,7 +326,7 @@ getchange(FILE *b)
 {
 	char *line;
 
-	while ((line = get_line(b, NULL))) {
+	while ((line = get_line(b, NULL)) != NULL) {
 		if (isdigit((unsigned char)line[0]))
 			return (line);
 	}
@@ -305,15 +367,23 @@ merge(int m1, int m2)
 	d2 = d23;
 	j = 0;
 
-	while (t1 = d1 < d13 + m1, t2 = d2 < d23 + m2, t1 || t2) {
+	for (;;) {
+		t1 = (d1 < d13 + m1);
+		t2 = (d2 < d23 + m2);
+		if (!t1 && !t2)
+			break;
+
 		/* first file is different from the others */
 		if (!t2 || (t1 && d1->new.to < d2->new.from)) {
 			/* stuff peculiar to 1st file */
 			if (eflag == EFLAG_NONE) {
-				printf("====1\n");
+				separate("1");
 				change(1, &d1->old, false);
 				keep(2, &d1->new);
 				change(3, &d1->new, false);
+			} else if (eflag == EFLAG_OVERLAP) {
+				j = edit(d2, dup, j, DIFF_TYPE1);
+				printdiff(d2);
 			}
 			d1++;
 			continue;
@@ -321,7 +391,7 @@ merge(int m1, int m2)
 		/* second file is different from others */
 		if (!t1 || (t2 && d2->new.to < d1->new.from)) {
 			if (eflag == EFLAG_NONE) {
-				printf("====2\n");
+				separate("2");
 				keep(1, &d2->new);
 				change(3, &d2->new, false);
 				change(2, &d2->old, false);
@@ -359,7 +429,7 @@ merge(int m1, int m2)
 			 * dup = 1 means files 1 and 2 identical
 			 */
 			if (eflag == EFLAG_NONE) {
-				printf("====%s\n", dup ? "3" : "");
+				separate(dup ? "3" : "");
 				change(1, &d1->old, dup);
 				change(2, &d2->old, false);
 				d3 = d1->old.to > d1->old.from ? d1 : d2;
@@ -398,6 +468,12 @@ merge(int m1, int m2)
 		Ascript(j);
 	else if (eflag)
 		edscript(j);
+}
+
+static void
+separate(const char *s)
+{
+	printf("====%s\n", s);
 }
 
 /*
@@ -555,7 +631,6 @@ printrange(FILE *p, struct range *r)
 	char *line = NULL;
 	size_t len = 0;
 	int i = 1;
-	ssize_t rlen = 0;
 
 	/* We haven't been asked to print anything */
 	if (r->from == r->to)
@@ -570,7 +645,7 @@ printrange(FILE *p, struct range *r)
 	 * files with lots of ranges.
 	 */
 	fseek(p, 0L, SEEK_SET);
-	while ((rlen = getline(&line, &len, p)) > 0) {
+	while (getline(&line, &len, p) > 0) {
 		if (i >= r->from)
 			printf("%s", line);
 		if (++i > r->to - 1)
@@ -591,20 +666,31 @@ edscript(int n)
 		old = &de[n].old;
 
 		delete = (new->from == new->to);
-		if (!oflag || !overlap[n]) {
-			prange(old, delete);
-		} else {
-			printf("%da\n", old->to - 1);
-			printf("%s\n", divider);
-		}
-		printrange(fp[2], new);
-		if (!oflag || !overlap[n]) {
-			if (!delete)
+		if (de[n].type == DIFF_TYPE1) {
+			if (delete)
+				printf("%dd\n", new->from - 1);
+			else if (old->from == new->from && old->to == new->to) {
+				printf("%dc\n", old->from);
+				printrange(fp[2], old);
 				printf(".\n");
+			}
+			continue;
 		} else {
-			printf("%s %s\n.\n", newmark, f3mark);
-			printf("%da\n%s %s\n.\n", old->from - 1,
-				oldmark, f1mark);
+			if (!oflag || !overlap[n]) {
+				prange(old, delete);
+			} else {
+				printf("%da\n", old->to - 1);
+				printf("%s\n", divider);
+			}
+			printrange(fp[2], new);
+			if (!oflag || !overlap[n]) {
+				if (!delete)
+					printf(".\n");
+			} else {
+				printf("%s %s\n.\n", newmark, f3mark);
+				printf("%da\n%s %s\n.\n", old->from - 1,
+					oldmark, f1mark);
+			}
 		}
 	}
 	if (iflag)
@@ -639,10 +725,7 @@ Ascript(int n)
 				prange(old, deletenew);
 				printrange(fp[2], new);
 			} else {
-				startmark = new->to;
-
-				if (!deletenew)
-					startmark--;
+				startmark = new->to - 1;
 
 				printf("%da\n", startmark);
 				printf("%s %s\n", newmark, f3mark);
@@ -711,25 +794,43 @@ mergescript(int i)
 {
 	struct range r, *new, *old;
 	int n;
+	bool delete = false;
 
 	r.from = 1;
 	r.to = 1;
 
-	for (n = 1; n < i+1; n++) {
+	for (n = 1; n <= i; n++) {
 		new = &de[n].new;
 		old = &de[n].old;
 
-		/* print any lines leading up to here */
-		r.to = old->from;
-		printrange(fp[0], &r);
+		/*
+		 * Print any lines leading up to here. If we are merging don't
+		 * print deleted ranges.
+		 */
+		delete = (new->from == new->to);
+		if (de[n].type == DIFF_TYPE1 && delete)
+			r.to = new->from - 1;
+		else if (de[n].type == DIFF_TYPE3 && (old->from == old->to)) {
+			r.from = old->from - 1;
+			r.to = new->from;
+		} else
+			r.to = old->from;
 
-		if (de[n].type == DIFF_TYPE2) {
+		printrange(fp[0], &r);
+		switch (de[n].type) {
+		case DIFF_TYPE1:
+			/* If this isn't a delete print it */
+			if (!delete)
+				printrange(fp[2], new);
+			break;
+		case DIFF_TYPE2:
 			printf("%s %s\n", oldmark, f2mark);
 			printrange(fp[1], old);
 			printf("%s\n", divider);
 			printrange(fp[2], new);
 			printf("%s %s\n", newmark, f3mark);
-		} else if (de[n].type == DIFF_TYPE3) {
+			break;
+		case DIFF_TYPE3:
 			if (!oflag || !overlap[n]) {
 				printrange(fp[2], new);
 			} else {
@@ -737,20 +838,27 @@ mergescript(int i)
 				printf("%s %s\n", oldmark, f1mark);
 				printrange(fp[0], old);
 
-				printf("%s %s\n", orgmark, f2mark);
-				if (old->from == old->to) {
-					struct range or;
-					or.from = old->from - 1;
-					or.to = new->to;
-					printrange(fp[1], &or);
-				} else
-					printrange(fp[1], old);
+				if (eflag != EFLAG_OVERLAP) {
+					printf("%s %s\n", orgmark, f2mark);
+					if (old->from == old->to) {
+						struct range or;
+						or.from = old->from - 1;
+						or.to = new->to;
+						printrange(fp[1], &or);
+					} else {
+						printrange(fp[1], old);
+					}
+				}
 
 				printf("%s\n", divider);
 
 				printrange(fp[2], new);
 				printf("%s %s\n", newmark, f3mark);
 			}
+			break;
+		default:
+			printf("Error: Unhandled diff type - exiting\n");
+			exit(EXIT_FAILURE);
 		}
 
 		if (old->from == old->to)
@@ -758,6 +866,7 @@ mergescript(int i)
 		else
 			r.from = old->to;
 	}
+
 	/*
 	 * Print from the final range to the end of 'myfile'. Any deletions or
 	 * additions to this file should have been handled by now.
@@ -768,21 +877,14 @@ mergescript(int i)
 	 */
 	new = &de[n-1].new;
 	old = &de[n-1].old;
-	if ((old->from == new->from) &&
-		(old->to == new->to))
+
+	if (old->from == new->from && old->to == new->to)
 		r.from--;
 	else if (new->from == new->to)
 		r.from = old->from;
 
-	/*
-	 * If the range is a 3 way merge then we need to skip a line in the
-	 * trailing output.
-	 */
-	if (de[n-1].type == DIFF_TYPE3)
-		r.from++;
-
 	r.to = INT_MAX;
-	printrange(fp[0], &r);
+	printrange(fp[2], &r);
 	exit(overlapcnt > 0);
 }
 
@@ -797,25 +899,25 @@ increase(void)
 	newsz = szchanges == 0 ? 64 : 2 * szchanges;
 	incr = newsz - szchanges;
 
-	p = reallocarray(d13, newsz, sizeof(struct diff));
+	p = reallocarray(d13, newsz, sizeof(*p));
 	if (p == NULL)
 		err(1, NULL);
-	memset(p + szchanges, 0, incr * sizeof(struct diff));
+	memset(p + szchanges, 0, incr * sizeof(*p));
 	d13 = p;
-	p = reallocarray(d23, newsz, sizeof(struct diff));
+	p = reallocarray(d23, newsz, sizeof(*p));
 	if (p == NULL)
 		err(1, NULL);
-	memset(p + szchanges, 0, incr * sizeof(struct diff));
+	memset(p + szchanges, 0, incr * sizeof(*p));
 	d23 = p;
-	p = reallocarray(de, newsz, sizeof(struct diff));
+	p = reallocarray(de, newsz, sizeof(*p));
 	if (p == NULL)
 		err(1, NULL);
-	memset(p + szchanges, 0, incr * sizeof(struct diff));
+	memset(p + szchanges, 0, incr * sizeof(*p));
 	de = p;
-	q = reallocarray(overlap, newsz, sizeof(char));
+	q = reallocarray(overlap, newsz, 1);
 	if (q == NULL)
 		err(1, NULL);
-	memset(q + szchanges, 0, incr * sizeof(char));
+	memset(q + szchanges, 0, incr * 1);
 	overlap = q;
 	szchanges = newsz;
 }
@@ -919,7 +1021,7 @@ main(int argc, char **argv)
 	if (kq == -1)
 		err(2, "kqueue");
 
-	e = malloc(2 * sizeof(struct kevent));
+	e = malloc(2 * sizeof(*e));
 	if (e == NULL)
 		err(2, "malloc");
 
@@ -1007,6 +1109,7 @@ main(int argc, char **argv)
 		}
 		nleft -= nke;
 	}
+	free(e);
 	merge(m, n);
 
 	return (EXIT_SUCCESS);
