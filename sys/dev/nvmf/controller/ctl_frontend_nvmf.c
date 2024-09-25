@@ -51,8 +51,6 @@ static int	nvmft_ioctl(struct cdev *cdev, u_long cmd, caddr_t data,
     int flag, struct thread *td);
 static int	nvmft_shutdown(void);
 
-extern struct ctl_softc *control_softc;
-
 static struct taskqueue *nvmft_taskq;
 static TAILQ_HEAD(, nvmft_port) nvmft_ports;
 static struct sx nvmft_ports_lock;

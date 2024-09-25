@@ -426,6 +426,7 @@ struct ctl_softc {
 
 #ifdef _KERNEL
 
+extern struct ctl_softc *control_softc;
 extern const struct ctl_cmd_entry ctl_cmd_table[256];
 extern const struct ctl_nvme_cmd_entry nvme_admin_cmd_table[256];
 extern const struct ctl_nvme_cmd_entry nvme_nvm_cmd_table[256];

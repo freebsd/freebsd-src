@@ -64,8 +64,6 @@
 #include <cam/ctl/ctl_private.h>
 #include <cam/ctl/ctl_debug.h>
 
-extern struct ctl_softc *control_softc;
-
 int
 ctl_frontend_register(struct ctl_frontend *fe)
 {
