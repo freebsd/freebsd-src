@@ -68,7 +68,8 @@
 #include <x86/iommu/intel_dmar.h>
 
 static int dmar_unmap_buf_locked(struct dmar_domain *domain,
-    iommu_gaddr_t base, iommu_gaddr_t size, int flags);
+    iommu_gaddr_t base, iommu_gaddr_t size, int flags,
+    struct iommu_map_entry *entry);
 
 /*
  * The cache of the identity mapping page tables for the DMARs.  Using
@@ -386,7 +387,8 @@ retry:
 
 static int
 dmar_map_buf_locked(struct dmar_domain *domain, iommu_gaddr_t base,
-    iommu_gaddr_t size, vm_page_t *ma, uint64_t pflags, int flags)
+    iommu_gaddr_t size, vm_page_t *ma, uint64_t pflags, int flags,
+    struct iommu_map_entry *entry)
 {
 	iommu_pte_t *pte;
 	struct sf_buf *sf;
@@ -446,7 +448,7 @@ dmar_map_buf_locked(struct dmar_domain *domain, iommu_gaddr_t base,
 			if (sf != NULL)
 				iommu_unmap_pgtbl(sf);
 			dmar_unmap_buf_locked(domain, base1, base - base1,
-			    flags);
+			    flags, entry);
 			TD_PINNED_ASSERT;
 			return (ENOMEM);
 		}
@@ -517,7 +519,8 @@ dmar_map_buf(struct iommu_domain *iodom, struct iommu_map_entry *entry,
 	KASSERT((flags & ~IOMMU_PGF_WAITOK) == 0, ("invalid flags %x", flags));
 
 	DMAR_DOMAIN_PGLOCK(domain);
-	error = dmar_map_buf_locked(domain, base, size, ma, pflags, flags);
+	error = dmar_map_buf_locked(domain, base, size, ma, pflags, flags,
+	    entry);
 	DMAR_DOMAIN_PGUNLOCK(domain);
 	if (error != 0)
 		return (error);
@@ -535,11 +538,11 @@ dmar_map_buf(struct iommu_domain *iodom, struct iommu_map_entry *entry,
 
 static void dmar_unmap_clear_pte(struct dmar_domain *domain,
     iommu_gaddr_t base, int lvl, int flags, iommu_pte_t *pte,
-    struct sf_buf **sf, bool free_fs);
+    struct sf_buf **sf, struct iommu_map_entry *entry, bool free_fs);
 
 static void
 dmar_free_pgtbl_pde(struct dmar_domain *domain, iommu_gaddr_t base,
-    int lvl, int flags)
+    int lvl, int flags, struct iommu_map_entry *entry)
 {
 	struct sf_buf *sf;
 	iommu_pte_t *pde;
@@ -547,12 +550,14 @@ dmar_free_pgtbl_pde(struct dmar_domain *domain, iommu_gaddr_t base,
 
 	sf = NULL;
 	pde = dmar_pgtbl_map_pte(domain, base, lvl, flags, &idx, &sf);
-	dmar_unmap_clear_pte(domain, base, lvl, flags, pde, &sf, true);
+	dmar_unmap_clear_pte(domain, base, lvl, flags, pde, &sf,
+	    entry, true);
 }
 
 static void
 dmar_unmap_clear_pte(struct dmar_domain *domain, iommu_gaddr_t base, int lvl,
-    int flags, iommu_pte_t *pte, struct sf_buf **sf, bool free_sf)
+    int flags, iommu_pte_t *pte, struct sf_buf **sf,
+    struct iommu_map_entry *entry, bool free_sf)
 {
 	vm_page_t m;
 
@@ -571,8 +576,8 @@ dmar_unmap_clear_pte(struct dmar_domain *domain, iommu_gaddr_t base, int lvl,
 	KASSERT(m->pindex != 0,
 	    ("lost reference (idx) on root pg domain %p base %jx lvl %d",
 	    domain, (uintmax_t)base, lvl));
-	iommu_pgfree(domain->pgtbl_obj, m->pindex, flags, NULL);
-	dmar_free_pgtbl_pde(domain, base, lvl - 1, flags);
+	iommu_pgfree(domain->pgtbl_obj, m->pindex, flags, entry);
+	dmar_free_pgtbl_pde(domain, base, lvl - 1, flags, entry);
 }
 
 /*
@@ -580,7 +585,7 @@ dmar_unmap_clear_pte(struct dmar_domain *domain, iommu_gaddr_t base, int lvl,
  */
 static int
 dmar_unmap_buf_locked(struct dmar_domain *domain, iommu_gaddr_t base,
-    iommu_gaddr_t size, int flags)
+    iommu_gaddr_t size, int flags, struct iommu_map_entry *entry)
 {
 	iommu_pte_t *pte;
 	struct sf_buf *sf;
@@ -631,7 +636,7 @@ dmar_unmap_buf_locked(struct dmar_domain *domain, iommu_gaddr_t base,
 			if ((pte->pte & DMAR_PTE_SP) != 0 ||
 			    lvl == domain->pglvl - 1) {
 				dmar_unmap_clear_pte(domain, base, lvl,
-				    flags, pte, &sf, false);
+				    flags, pte, &sf, entry, false);
 				break;
 			}
 		}
@@ -661,7 +666,7 @@ dmar_unmap_buf(struct iommu_domain *iodom, struct iommu_map_entry *entry,
 
 	DMAR_DOMAIN_PGLOCK(domain);
 	error = dmar_unmap_buf_locked(domain, entry->start, entry->end -
-	    entry->start, flags);
+	    entry->start, flags, entry);
 	DMAR_DOMAIN_PGUNLOCK(domain);
 	return (error);
 }
