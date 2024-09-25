@@ -86,10 +86,10 @@ struct iommu_unit {
 };
 
 struct iommu_domain_map_ops {
-	int (*map)(struct iommu_domain *domain, iommu_gaddr_t base,
-	    iommu_gaddr_t size, vm_page_t *ma, uint64_t pflags, int flags);
-	int (*unmap)(struct iommu_domain *domain, iommu_gaddr_t base,
-	    iommu_gaddr_t size, int flags);
+	int (*map)(struct iommu_domain *domain, struct iommu_map_entry *entry,
+	    vm_page_t *ma, uint64_t pflags, int flags);
+	int (*unmap)(struct iommu_domain *domain, struct iommu_map_entry *entry,
+	    int flags);
 };
 
 /*

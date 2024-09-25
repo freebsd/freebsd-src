@@ -896,8 +896,8 @@ dmar_domain_unload(struct iommu_domain *iodom,
 	TAILQ_FOREACH_SAFE(entry, entries, dmamap_link, entry1) {
 		KASSERT((entry->flags & IOMMU_MAP_ENTRY_MAP) != 0,
 		    ("not mapped entry %p %p", domain, entry));
-		error = iodom->ops->unmap(iodom, entry->start, entry->end -
-		    entry->start, cansleep ? IOMMU_PGF_WAITOK : 0);
+		error = iodom->ops->unmap(iodom, entry,
+		    cansleep ? IOMMU_PGF_WAITOK : 0);
 		KASSERT(error == 0, ("unmap %p error %d", domain, error));
 		if (!unit->qi_enabled) {
 			dmar_flush_iotlb_sync(domain, entry->start,

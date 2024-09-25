@@ -463,13 +463,17 @@ dmar_map_buf_locked(struct dmar_domain *domain, iommu_gaddr_t base,
 }
 
 static int
-dmar_map_buf(struct iommu_domain *iodom, iommu_gaddr_t base,
-    iommu_gaddr_t size, vm_page_t *ma, uint64_t eflags, int flags)
+dmar_map_buf(struct iommu_domain *iodom, struct iommu_map_entry *entry,
+    vm_page_t *ma, uint64_t eflags, int flags)
 {
 	struct dmar_domain *domain;
 	struct dmar_unit *unit;
+	iommu_gaddr_t base, size;
 	uint64_t pflags;
 	int error;
+
+	base = entry->start;
+	size  = entry->end - entry->start;
 
 	pflags = ((eflags & IOMMU_MAP_ENTRY_READ) != 0 ? DMAR_PTE_R : 0) |
 	    ((eflags & IOMMU_MAP_ENTRY_WRITE) != 0 ? DMAR_PTE_W : 0) |
@@ -648,8 +652,8 @@ dmar_unmap_buf_locked(struct dmar_domain *domain, iommu_gaddr_t base,
 }
 
 static int
-dmar_unmap_buf(struct iommu_domain *iodom, iommu_gaddr_t base,
-    iommu_gaddr_t size, int flags)
+dmar_unmap_buf(struct iommu_domain *iodom, struct iommu_map_entry *entry,
+    int flags)
 {
 	struct dmar_domain *domain;
 	int error;
@@ -657,7 +661,8 @@ dmar_unmap_buf(struct iommu_domain *iodom, iommu_gaddr_t base,
 	domain = IODOM2DOM(iodom);
 
 	DMAR_DOMAIN_PGLOCK(domain);
-	error = dmar_unmap_buf_locked(domain, base, size, flags);
+	error = dmar_unmap_buf_locked(domain, entry->start, entry->end -
+	    entry->start, flags);
 	DMAR_DOMAIN_PGUNLOCK(domain);
 	return (error);
 }
