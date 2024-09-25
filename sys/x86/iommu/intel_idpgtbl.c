@@ -367,7 +367,7 @@ retry:
 				    ("loosing root page %p", domain));
 				vm_page_unwire_noq(m);
 				iommu_pgfree(domain->pgtbl_obj, m->pindex,
-				    flags);
+				    flags, NULL);
 				return (NULL);
 			}
 			dmar_pte_store(&ptep->pte, DMAR_PTE_R | DMAR_PTE_W |
@@ -571,7 +571,7 @@ dmar_unmap_clear_pte(struct dmar_domain *domain, iommu_gaddr_t base, int lvl,
 	KASSERT(m->pindex != 0,
 	    ("lost reference (idx) on root pg domain %p base %jx lvl %d",
 	    domain, (uintmax_t)base, lvl));
-	iommu_pgfree(domain->pgtbl_obj, m->pindex, flags);
+	iommu_pgfree(domain->pgtbl_obj, m->pindex, flags, NULL);
 	dmar_free_pgtbl_pde(domain, base, lvl - 1, flags);
 }
 

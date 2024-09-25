@@ -96,9 +96,12 @@ iommu_gas_alloc_entry(struct iommu_domain *domain, u_int flags)
 
 	res = uma_zalloc(iommu_map_entry_zone, ((flags & IOMMU_PGF_WAITOK) !=
 	    0 ? M_WAITOK : M_NOWAIT) | M_ZERO);
-	if (res != NULL && domain != NULL) {
-		res->domain = domain;
-		atomic_add_int(&domain->entries_cnt, 1);
+	if (res != NULL) {
+		SLIST_INIT(&res->pgtbl_free);
+		if (domain != NULL) {
+			res->domain = domain;
+			atomic_add_int(&domain->entries_cnt, 1);
+		}
 	}
 	return (res);
 }
@@ -107,7 +110,12 @@ void
 iommu_gas_free_entry(struct iommu_map_entry *entry)
 {
 	struct iommu_domain *domain;
+	int n __unused;
 
+	n = vm_page_free_pages_toq(&entry->pgtbl_free, false);
+#if defined(__i386__) || defined(__amd64__)
+	atomic_subtract_int(&iommu_tbl_pagecnt, n);
+#endif
 	domain = entry->domain;
 	if (domain != NULL)
 		atomic_subtract_int(&domain->entries_cnt, 1);
