@@ -400,7 +400,7 @@ dmar_domain_alloc(struct dmar_unit *dmar, bool id_mapped)
 
 	if (id_mapped) {
 		if ((dmar->hw_ecap & DMAR_ECAP_PT) == 0) {
-			domain->pgtbl_obj = domain_get_idmap_pgtbl(domain,
+			domain->pgtbl_obj = dmar_get_idmap_pgtbl(domain,
 			    domain->iodom.end);
 		}
 		domain->iodom.flags |= IOMMU_DOMAIN_IDMAP;
@@ -865,7 +865,7 @@ dmar_domain_unload_entry(struct iommu_map_entry *entry, bool free,
 			iommu_domain_free_entry(entry, false);
 		}
 	} else {
-		domain_flush_iotlb_sync(domain, entry->start, entry->end -
+		dmar_flush_iotlb_sync(domain, entry->start, entry->end -
 		    entry->start);
 		iommu_domain_free_entry(entry, free);
 	}
@@ -900,7 +900,7 @@ dmar_domain_unload(struct iommu_domain *iodom,
 		    entry->start, cansleep ? IOMMU_PGF_WAITOK : 0);
 		KASSERT(error == 0, ("unmap %p error %d", domain, error));
 		if (!unit->qi_enabled) {
-			domain_flush_iotlb_sync(domain, entry->start,
+			dmar_flush_iotlb_sync(domain, entry->start,
 			    entry->end - entry->start);
 			TAILQ_REMOVE(entries, entry, dmamap_link);
 			iommu_domain_free_entry(entry, true);
