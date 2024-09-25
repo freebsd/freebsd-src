@@ -24,6 +24,7 @@ ATF_TESTS_SH+=	altq \
 		macro \
 		map_e \
 		match \
+		max_states \
 		mbuf \
 		modulate \
 		names \
