@@ -3643,7 +3643,9 @@ parsecred(char *namelist, struct expcred *cr)
 		cr->cr_uid = name_ul;
 	}
 	cr->cr_ngroups = 0;
-	while (names != NULL && *names != '\0' && cr->cr_ngroups < NGROUPS_MAX) {
+	while (names != NULL && *names != '\0') {
+		gid_t group;
+
 		name = strsep_quote(&names, ":");
 		name_ul = strtoul(name, &end, 10);
 		if (*end != '\0' || end == name) {
@@ -3651,13 +3653,16 @@ parsecred(char *namelist, struct expcred *cr)
 				syslog(LOG_ERR, "unknown group: %s", name);
 				continue;
 			}
-			groups[cr->cr_ngroups++] = gr->gr_gid;
+			group = gr->gr_gid;
 		} else {
-			groups[cr->cr_ngroups++] = name_ul;
+			group = name_ul;
 		}
+		if (cr->cr_ngroups == NGROUPS_MAX) {
+			syslog(LOG_ERR, "too many groups");
+			break;
+		}
+		groups[cr->cr_ngroups++] = group;
 	}
-	if (names != NULL && *names != '\0' && cr->cr_ngroups == NGROUPS_MAX)
-		syslog(LOG_ERR, "too many groups");
 	if (cr->cr_ngroups > SMALLNGROUPS)
 		cr->cr_groups = malloc(cr->cr_ngroups * sizeof(gid_t));
 	memcpy(cr->cr_groups, groups, cr->cr_ngroups * sizeof(gid_t));
