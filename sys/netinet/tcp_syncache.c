@@ -1372,7 +1372,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	int autoflowlabel = 0;
 #endif
 #ifdef MAC
-	struct label *maclabel;
+	struct label *maclabel = NULL;
 #endif
 	struct syncache scs;
 	struct ucred *cred;
@@ -1763,10 +1763,11 @@ donenoprobe:
 tfo_expanded:
 	if (cred != NULL)
 		crfree(cred);
+	if (sc == NULL || sc == &scs) {
 #ifdef MAC
-	if (sc == &scs)
 		mac_syncache_destroy(&maclabel);
 #endif
+	}
 	return (rv);
 }
 
