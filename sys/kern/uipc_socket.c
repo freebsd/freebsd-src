@@ -153,6 +153,7 @@
 #include <net/vnet.h>
 
 #include <security/mac/mac_framework.h>
+#include <security/mac/mac_internal.h>
 
 #include <vm/uma.h>
 
@@ -1484,6 +1485,10 @@ solisten_proto(struct socket *so, int backlog)
 	sbsnd_flags = so->so_snd.sb_flags;
 	sbrcv_timeo = so->so_rcv.sb_timeo;
 	sbsnd_timeo = so->so_snd.sb_timeo;
+
+#ifdef MAC
+	mac_socketpeer_label_free(so->so_peerlabel);
+#endif
 
 	if (!(so->so_proto->pr_flags & PR_SOCKBUF)) {
 		sbdestroy(so, SO_SND);
