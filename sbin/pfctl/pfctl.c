@@ -1038,7 +1038,7 @@ pfctl_print_rule_counters(struct pfctl_rule *rule, int opts)
 {
 	if (opts & PF_OPT_DEBUG) {
 		const char *t[PF_SKIP_COUNT] = { "i", "d", "f",
-		    "p", "sa", "sp", "da", "dp" };
+		    "p", "sa", "da", "sp", "dp" };
 		int i;
 
 		printf("  [ Skip steps: ");
