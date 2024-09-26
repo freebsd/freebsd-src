@@ -32,6 +32,7 @@ SRCS+=	opt_wlan.h opt_inet6.h opt_inet.h
 #CFLAGS+=	-ferror-limit=0
 
 CFLAGS+=	-DKBUILD_MODNAME='"rtw88"'
+CFLAGS+=	-DLINUXKPI_VERSION=60800
 
 CFLAGS+=	-I${DEVRTW88DIR}
 CFLAGS+=	${LINUXKPI_INCLUDES}

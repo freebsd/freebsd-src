@@ -1306,7 +1306,7 @@ out:
 		if (error == 0 && pdev->msi_enabled)
 			return (pdev->dev.irq_end - pdev->dev.irq_start);
 	}
-	if (flags & PCI_IRQ_LEGACY) {
+	if (flags & PCI_IRQ_INTX) {
 		if (pdev->irq)
 			return (1);
 	}
