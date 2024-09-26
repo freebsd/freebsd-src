@@ -58,7 +58,7 @@ nvmf_ccb_done(union ccb *ccb)
 		xpt_done(ccb);
 	} else {
 		ccb->ccb_h.status = CAM_REQ_CMP;
-		xpt_done_direct(ccb);
+		xpt_done(ccb);
 	}
 }
 
