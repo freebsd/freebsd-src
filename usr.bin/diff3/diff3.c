@@ -383,7 +383,6 @@ merge(int m1, int m2)
 				change(3, &d1->new, false);
 			} else if (eflag == EFLAG_OVERLAP) {
 				j = edit(d2, dup, j, DIFF_TYPE1);
-				printdiff(d2);
 			}
 			d1++;
 			continue;
