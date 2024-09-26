@@ -68,7 +68,7 @@ static const struct nlattr_parser nla_p_state[] = {
 	{ .type = PF_ST_ID, .off = _OUT(id), .cb = nlattr_get_uint32 },
 	{ .type = PF_ST_CREATORID, .off = _OUT(creatorid), .cb = nlattr_get_uint32 },
 	{ .type = PF_ST_IFNAME, .arg = (const void *)IFNAMSIZ, .off = _OUT(ifname), .cb = nlattr_get_chara },
-	{ .type = PF_ST_AF, .off = _OUT(proto), .cb = nlattr_get_uint8 },
+	{ .type = PF_ST_AF, .off = _OUT(af), .cb = nlattr_get_uint8 },
 	{ .type = PF_ST_PROTO, .off = _OUT(proto), .cb = nlattr_get_uint16 },
 	{ .type = PF_ST_FILTER_ADDR, .off = _OUT(addr), .cb = nlattr_get_in6_addr },
 	{ .type = PF_ST_FILTER_MASK, .off = _OUT(mask), .cb = nlattr_get_in6_addr },
