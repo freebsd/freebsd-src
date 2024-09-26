@@ -466,6 +466,8 @@ void linuxkpi_free_netdev(struct net_device *);
 
 #define	alloc_netdev(_l, _n, _f, _func)						\
 	linuxkpi_alloc_netdev(_l, _n, _f, _func)
+#define	alloc_netdev_dummy(_l)							\
+	linuxkpi_alloc_netdev(_l, "dummy", NET_NAME_UNKNOWN, NULL)
 #define	free_netdev(_n)								\
 	linuxkpi_free_netdev(_n)
 
