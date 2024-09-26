@@ -3569,7 +3569,6 @@ static void
 parsecred(char *namelist, struct expcred *cr)
 {
 	char *name;
-	int inpos;
 	char *names;
 	struct passwd *pw;
 	struct group *gr;
@@ -3611,23 +3610,12 @@ parsecred(char *namelist, struct expcred *cr)
 			ngroups = NGROUPS_MAX + 1;
 		}
 
-		/*
-		 * Compress out duplicate.
-		 */
-		if (ngroups > 1 && groups[0] == groups[1]) {
-			ngroups--;
-			inpos = 2;
-		} else {
-			inpos = 1;
-		}
 		if (ngroups > NGROUPS_MAX)
 			ngroups = NGROUPS_MAX;
 		if (ngroups > SMALLNGROUPS)
 			cr->cr_groups = malloc(ngroups * sizeof(gid_t));
 		cr->cr_ngroups = ngroups;
-		cr->cr_groups[0] = groups[0];
-		memcpy(&cr->cr_groups[1], &groups[inpos], (ngroups - 1) *
-		    sizeof(gid_t));
+		memcpy(cr->cr_groups, groups, ngroups * sizeof(gid_t));
 		return;
 	}
 	/*
