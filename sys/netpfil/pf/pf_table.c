@@ -2245,7 +2245,7 @@ pfr_pool_get(struct pfr_ktable *kt, int *pidx, struct pf_addr *counter,
 	struct pf_addr		 addr, cur, mask, umask_addr;
 	union sockaddr_union	 uaddr, umask;
 	struct pfr_kentry	*ke, *ke2 = NULL;
-	int			 idx = -1, use_counter = 0;
+	int			 startidx, idx = -1, loop = 0, use_counter = 0;
 
 	MPASS(pidx != NULL);
 	MPASS(counter != NULL);
@@ -2272,18 +2272,29 @@ pfr_pool_get(struct pfr_ktable *kt, int *pidx, struct pf_addr *counter,
 		use_counter = 1;
 	if (idx < 0)
 		idx = 0;
+	startidx = idx;
 
 _next_block:
-	ke = pfr_kentry_byidx(kt, idx, af);
-	if (ke == NULL) {
+	if (loop && startidx == idx) {
 		pfr_kstate_counter_add(&kt->pfrkt_nomatch, 1);
 		return (1);
+	}
+
+	ke = pfr_kentry_byidx(kt, idx, af);
+	if (ke == NULL) {
+		/* we don't have this idx, try looping */
+		if (loop || (ke = pfr_kentry_byidx(kt, 0, af)) == NULL) {
+			pfr_kstate_counter_add(&kt->pfrkt_nomatch, 1);
+			return (1);
+		}
+		idx = 0;
+		loop++;
 	}
 	pfr_prepare_network(&umask, af, ke->pfrke_net);
 	pfr_sockaddr_to_pf_addr(&ke->pfrke_sa, &cur);
 	pfr_sockaddr_to_pf_addr(&umask, &mask);
 
-	if (use_counter) {
+	if (use_counter && !PF_AZERO(counter, af)) {
 		/* is supplied address within block? */
 		if (!PF_MATCHA(0, &cur, &mask, counter, af)) {
 			/* no, go to next block in table */
