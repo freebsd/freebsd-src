@@ -39,14 +39,14 @@ max_states_body()
 
 	pft_set_rules router \
 		"block" \
-		"pass quick inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv }" \
-		"pass in  on ${epair_tester}b keep state (max 3)" \
-		"pass out on ${epair_server}a keep state"
+		"pass inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv }" \
+		"pass in  on ${epair_tester}b inet6 proto tcp keep state (max 3)" \
+		"pass out on ${epair_server}a inet6 proto tcp keep state"
 
-	# The exact limit is off by 1
 	ping_dummy_check_request exit:0 --ping-type=tcpsyn --send-sport=4201
 	ping_dummy_check_request exit:0 --ping-type=tcpsyn --send-sport=4202
-	ping_dummy_check_request exit:1 --ping-type=tcpsyn --send-sport=4203
+	ping_dummy_check_request exit:0 --ping-type=tcpsyn --send-sport=4203
+	ping_dummy_check_request exit:1 --ping-type=tcpsyn --send-sport=4204
 }
 
 max_states_cleanup()
