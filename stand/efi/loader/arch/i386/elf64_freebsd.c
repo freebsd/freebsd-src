@@ -86,8 +86,6 @@ static p2_entry_t *PT2;
 static p2_entry_t *PT2_l0, *PT2_l1, *PT2_l2, *PT2_l3, *PT2_u0, *PT2_u1;
 static gdt_t *GDT;
 
-extern EFI_PHYSICAL_ADDRESS staging;
-
 static void (*trampoline)(uint32_t stack, void *copy_finish, uint32_t kernend,
     uint32_t modulep, uint64_t *pagetable, struct gdtr *gdtr, uint64_t entry);
 
