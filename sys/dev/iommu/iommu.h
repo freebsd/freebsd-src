@@ -67,6 +67,7 @@ struct iommu_unit {
 	struct mtx lock;
 	device_t dev;
 	int unit;
+	struct sysctl_ctx_list sysctl_ctx;
 
 	int dma_enabled;
 

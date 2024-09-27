@@ -256,6 +256,7 @@ dmar_release_resources(device_t dev, struct dmar_unit *unit)
 		vm_object_deallocate(unit->ctx_obj);
 		unit->ctx_obj = NULL;
 	}
+	sysctl_ctx_free(&unit->iommu.sysctl_ctx);
 }
 
 #ifdef DEV_APIC
@@ -337,6 +338,7 @@ dmar_attach(device_t dev)
 	unit = device_get_softc(dev);
 	unit->iommu.unit = device_get_unit(dev);
 	unit->iommu.dev = dev;
+	sysctl_ctx_init(&unit->iommu.sysctl_ctx);
 	dmaru = dmar_find_by_index(unit->iommu.unit);
 	if (dmaru == NULL)
 		return (EINVAL);
