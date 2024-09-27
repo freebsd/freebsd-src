@@ -35,9 +35,6 @@
 
 #include "loader_efi.h"
 
-#define	M(x)	((x) * 1024 * 1024)
-#define	G(x)	(1ULL * (x) * 1024 * 1024 * 1024)
-
 #if defined(__amd64__)
 #include <machine/cpufunc.h>
 #include <machine/specialreg.h>

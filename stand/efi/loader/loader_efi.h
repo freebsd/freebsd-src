@@ -41,6 +41,10 @@ enum {
 extern int copy_staging;
 #endif
 
+/* Useful for various calculations */
+#define	M(x)	((x) * 1024 * 1024)
+#define	G(x)	(1ULL * (x) * 1024 * 1024 * 1024)
+
 extern EFI_LOADED_IMAGE *boot_img;
 
 int	efi_autoload(void);

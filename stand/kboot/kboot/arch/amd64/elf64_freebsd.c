@@ -209,8 +209,7 @@ elf64_exec(struct preloaded_file *fp)
 
 #ifdef EFI
 	trampcode = copy_staging == COPY_STAGING_ENABLE ?
-	    (vm_offset_t)0x0000000040000000 /* 1G */ :
-	    (vm_offset_t)0x0000000100000000; /* 4G */;
+	    (vm_offset_t)G(1) : (vm_offset_t)G(4);
 	err = BS->AllocatePages(AllocateMaxAddress, EfiLoaderData, 1,
 	    (EFI_PHYSICAL_ADDRESS *)&trampcode);
 	if (EFI_ERROR(err)) {
@@ -234,7 +233,7 @@ elf64_exec(struct preloaded_file *fp)
 
 #ifdef EFI
 	if (copy_staging == COPY_STAGING_ENABLE) {
-		PT4 = (pml4_entry_t *)0x0000000040000000; /* 1G */
+		PT4 = (pml4_entry_t *)G(1);
 		err = BS->AllocatePages(AllocateMaxAddress, EfiLoaderData, 3,
 		    (EFI_PHYSICAL_ADDRESS *)&PT4);
 		if (EFI_ERROR(err)) {
@@ -271,11 +270,11 @@ elf64_exec(struct preloaded_file *fp)
 			/*
 			 * The L2 page slots are mapped with 2MB pages for 1GB.
 			 */
-			PT2[i] = (pd_entry_t)i * (2 * 1024 * 1024);
+			PT2[i] = (pd_entry_t)i * M(2);
 			PT2[i] |= PG_V | PG_RW | PG_PS;
 		}
 	} else {
-		PT4 = (pml4_entry_t *)0x0000000100000000; /* 4G */
+		PT4 = (pml4_entry_t *)G(4);
 		err = BS->AllocatePages(AllocateMaxAddress, EfiLoaderData, 9,
 		    (EFI_PHYSICAL_ADDRESS *)&PT4);
 		if (EFI_ERROR(err)) {
