@@ -1033,27 +1033,25 @@ em_if_attach_pre(if_ctx_t ctx)
 	e1000_get_bus_info(hw);
 
 	/* Set up some sysctls for the tunable interrupt delays */
-	em_add_int_delay_sysctl(sc, "rx_int_delay",
-	    "receive interrupt delay in usecs", &sc->rx_int_delay,
-	    E1000_REGISTER(hw, E1000_RDTR), em_rx_int_delay_dflt);
-	em_add_int_delay_sysctl(sc, "tx_int_delay",
-	    "transmit interrupt delay in usecs", &sc->tx_int_delay,
-	    E1000_REGISTER(hw, E1000_TIDV), em_tx_int_delay_dflt);
-	em_add_int_delay_sysctl(sc, "rx_abs_int_delay",
-	    "receive interrupt delay limit in usecs",
-	    &sc->rx_abs_int_delay,
-	    E1000_REGISTER(hw, E1000_RADV),
-	    em_rx_abs_int_delay_dflt);
-	em_add_int_delay_sysctl(sc, "tx_abs_int_delay",
-	    "transmit interrupt delay limit in usecs",
-	    &sc->tx_abs_int_delay,
-	    E1000_REGISTER(hw, E1000_TADV),
-	    em_tx_abs_int_delay_dflt);
-	em_add_int_delay_sysctl(sc, "itr",
-	    "interrupt delay limit in usecs/4",
-	    &sc->tx_itr,
-	    E1000_REGISTER(hw, E1000_ITR),
-	    DEFAULT_ITR);
+	if (hw->mac.type < igb_mac_min) {
+		em_add_int_delay_sysctl(sc, "rx_int_delay",
+		    "receive interrupt delay in usecs", &sc->rx_int_delay,
+		    E1000_REGISTER(hw, E1000_RDTR), em_rx_int_delay_dflt);
+		em_add_int_delay_sysctl(sc, "tx_int_delay",
+		    "transmit interrupt delay in usecs", &sc->tx_int_delay,
+		    E1000_REGISTER(hw, E1000_TIDV), em_tx_int_delay_dflt);
+	}
+	if (hw->mac.type >= e1000_82540 && hw->mac.type < igb_mac_min) {
+		em_add_int_delay_sysctl(sc, "rx_abs_int_delay",
+		    "receive interrupt delay limit in usecs", &sc->rx_abs_int_delay,
+		    E1000_REGISTER(hw, E1000_RADV), em_rx_abs_int_delay_dflt);
+		em_add_int_delay_sysctl(sc, "tx_abs_int_delay",
+		    "transmit interrupt delay limit in usecs", &sc->tx_abs_int_delay,
+		    E1000_REGISTER(hw, E1000_TADV), em_tx_abs_int_delay_dflt);
+		em_add_int_delay_sysctl(sc, "itr",
+		    "interrupt delay limit in usecs/4", &sc->tx_itr,
+		    E1000_REGISTER(hw, E1000_ITR), DEFAULT_ITR);
+	}
 
 	hw->mac.autoneg = DO_AUTO_NEG;
 	hw->phy.autoneg_wait_to_complete = false;
@@ -2287,18 +2285,19 @@ igb_configure_queues(struct e1000_softc *sc)
 		break;
 	}
 
-	/* Set the starting interrupt rate */
-	if (em_max_interrupt_rate > 0)
+	/* Set the igb starting interrupt rate */
+	if (em_max_interrupt_rate > 0) {
 		newitr = (4000000 / em_max_interrupt_rate) & 0x7FFC;
 
-	if (hw->mac.type == e1000_82575)
-		newitr |= newitr << 16;
-	else
-		newitr |= E1000_EITR_CNT_IGNR;
+		if (hw->mac.type == e1000_82575)
+			newitr |= newitr << 16;
+		else
+			newitr |= E1000_EITR_CNT_IGNR;
 
-	for (int i = 0; i < sc->rx_num_queues; i++) {
-		rx_que = &sc->rx_queues[i];
-		E1000_WRITE_REG(hw, E1000_EITR(rx_que->msix), newitr);
+		for (int i = 0; i < sc->rx_num_queues; i++) {
+			rx_que = &sc->rx_queues[i];
+			E1000_WRITE_REG(hw, E1000_EITR(rx_que->msix), newitr);
+		}
 	}
 
 	return;
@@ -3274,12 +3273,16 @@ em_initialize_transmit_unit(if_ctx_t ctx)
 		tipg |= DEFAULT_82543_TIPG_IPGR2 << E1000_TIPG_IPGR2_SHIFT;
 	}
 
-	E1000_WRITE_REG(hw, E1000_TIPG, tipg);
-	E1000_WRITE_REG(hw, E1000_TIDV, sc->tx_int_delay.value);
+	if (hw->mac.type < igb_mac_min) {
+		E1000_WRITE_REG(hw, E1000_TIPG, tipg);
+		E1000_WRITE_REG(hw, E1000_TIDV, sc->tx_int_delay.value);
 
-	if(hw->mac.type >= e1000_82540)
-		E1000_WRITE_REG(hw, E1000_TADV,
-		    sc->tx_abs_int_delay.value);
+		if (sc->tx_int_delay.value > 0)
+			sc->txd_cmd |= E1000_TXD_CMD_IDE;
+	}
+
+	if (hw->mac.type >= e1000_82540)
+		E1000_WRITE_REG(hw, E1000_TADV, sc->tx_abs_int_delay.value);
 
 	if (hw->mac.type == e1000_82571 || hw->mac.type == e1000_82572) {
 		tarc = E1000_READ_REG(hw, E1000_TARC(0));
@@ -3304,16 +3307,13 @@ em_initialize_transmit_unit(if_ctx_t ctx)
 			E1000_WRITE_REG(hw, E1000_TARC(0), tarc);
 	}
 
-	if (sc->tx_int_delay.value > 0)
-		sc->txd_cmd |= E1000_TXD_CMD_IDE;
-
 	/* Program the Transmit Control Register */
 	tctl = E1000_READ_REG(hw, E1000_TCTL);
 	tctl &= ~E1000_TCTL_CT;
 	tctl |= (E1000_TCTL_PSP | E1000_TCTL_RTLC | E1000_TCTL_EN |
 		   (E1000_COLLISION_THRESHOLD << E1000_CT_SHIFT));
 
-	if (hw->mac.type >= e1000_82571)
+	if (hw->mac.type >= e1000_82571 && hw->mac.type < igb_mac_min)
 		tctl |= E1000_TCTL_MULR;
 
 	/* This write will effectively turn on the transmit unit. */
@@ -3381,17 +3381,29 @@ em_initialize_receive_unit(if_ctx_t ctx)
 	if (!em_disable_crc_stripping)
 		rctl |= E1000_RCTL_SECRC;
 
-	if (hw->mac.type >= e1000_82540) {
-		E1000_WRITE_REG(hw, E1000_RADV,
-		    sc->rx_abs_int_delay.value);
+	/* lem/em default interrupt moderation */
+	if (hw->mac.type < igb_mac_min) {
+		if (hw->mac.type >= e1000_82540) {
+			E1000_WRITE_REG(hw, E1000_RADV, sc->rx_abs_int_delay.value);
 
-		/*
-		 * Set the interrupt throttling rate. Value is calculated
-		 * as DEFAULT_ITR = 1/(MAX_INTS_PER_SEC * 256ns)
+			/*
+			 * Set the interrupt throttling rate. Value is calculated
+			 * as DEFAULT_ITR = 1/(MAX_INTS_PER_SEC * 256ns)
+			 */
+			E1000_WRITE_REG(hw, E1000_ITR, DEFAULT_ITR);
+		}
+
+		/* XXX TEMPORARY WORKAROUND: on some systems with 82573
+		 * long latencies are observed, like Lenovo X60. This
+		 * change eliminates the problem, but since having positive
+		 * values in RDTR is a known source of problems on other
+		 * platforms another solution is being sought.
 		 */
-		E1000_WRITE_REG(hw, E1000_ITR, DEFAULT_ITR);
+		if (hw->mac.type == e1000_82573)
+			E1000_WRITE_REG(hw, E1000_RDTR, 0x20);
+		else
+			E1000_WRITE_REG(hw, E1000_RDTR, sc->rx_int_delay.value);
 	}
-	E1000_WRITE_REG(hw, E1000_RDTR, sc->rx_int_delay.value);
 
 	if (hw->mac.type >= em_mac_min) {
 		uint32_t rfctl;
@@ -3440,16 +3452,6 @@ em_initialize_receive_unit(if_ctx_t ctx)
 			em_initialize_rss_mapping(sc);
 	}
 	E1000_WRITE_REG(hw, E1000_RXCSUM, rxcsum);
-
-	/*
-	 * XXX TEMPORARY WORKAROUND: on some systems with 82573
-	 * long latencies are observed, like Lenovo X60. This
-	 * change eliminates the problem, but since having positive
-	 * values in RDTR is a known source of problems on other
-	 * platforms another solution is being sought.
-	 */
-	if (hw->mac.type == e1000_82573)
-		E1000_WRITE_REG(hw, E1000_RDTR, 0x20);
 
 	for (i = 0, que = sc->rx_queues; i < sc->rx_num_queues; i++, que++) {
 		struct rx_ring *rxr = &que->rxr;
