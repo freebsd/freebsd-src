@@ -55,11 +55,12 @@
 /* Valid if HCR_EL2.E2H == 0 */
 #define	CPTR_TRAP_ALL		0xc01037ff /* Enable all traps */
 #define	CPTR_RES0		0x7fefc800
-#define	CPTR_RES1		0x000033ff
+#define	CPTR_RES1		0x000032ff
 #define	CPTR_TFP		0x00000400
 #define	CPTR_TTA		0x00100000
 /* Valid if HCR_EL2.E2H == 1 */
 #define	CPTR_E2H_TRAP_ALL	0xd0000000
+#define	CPTR_E2H_ZPEN		0x00030000
 #define	CPTR_E2H_FPEN		0x00300000
 #define	CPTR_E2H_TTA		0x10000000
 /* Unconditionally valid */
