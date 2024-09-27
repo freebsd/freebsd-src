@@ -71,9 +71,6 @@ struct gdtr {
 #define GDT_RW	0x00020000000000
 #define GDT_L	0x20000000000000
 
-#define M(x)	((x) * 1024 * 1024)
-#define G(x)	(1ULL * (x) * 1024 * 1024 * 1024)
-
 typedef uint64_t p4_entry_t;
 typedef uint64_t p3_entry_t;
 typedef uint64_t p2_entry_t;
