@@ -50,7 +50,7 @@
 /* CPTR_EL2 - Architecture feature trap register */
 /* Valid if HCR_EL2.E2H == 0 */
 #define	CPTR_RES0		0x7fefc800
-#define	CPTR_RES1		0x000033ff
+#define	CPTR_RES1		0x000032ff
 #define	CPTR_TFP		0x00000400
 /* Valid if HCR_EL2.E2H == 1 */
 #define	CPTR_FPEN		0x00300000
