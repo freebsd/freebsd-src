@@ -56,6 +56,10 @@
 
 static EFI_GUID acpi_guid = ACPI_TABLE_GUID;
 static EFI_GUID acpi20_guid = ACPI_20_TABLE_GUID;
+#else
+/* Usually provided by loader_efi.h */
+extern int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp,
+    bool exit_bs);
 #endif
 
 #ifdef EFI
@@ -63,9 +67,6 @@ static EFI_GUID acpi20_guid = ACPI_20_TABLE_GUID;
 #else
 #define LOADER_PAGE_SIZE PAGE_SIZE
 #endif
-
-extern int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp,
-    bool exit_bs);
 
 static int	elf64_exec(struct preloaded_file *amp);
 static int	elf64_obj_exec(struct preloaded_file *amp);
