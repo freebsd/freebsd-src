@@ -325,6 +325,7 @@ information.
 .Bl -column "KERNXMAXFILESPERPROCXXX" "struct clockrateXXX" -offset indent
 .It Sy Second Level Name Ta Sy Type Ta Sy Changeable
 .It Dv KERN_ARGMAX Ta integer Ta no
+.It Dv KERN_ARND Ta integer Ta no
 .It Dv KERN_BOOTFILE Ta string Ta yes
 .It Dv KERN_BOOTTIME Ta struct timeval Ta no
 .It Dv KERN_CLOCKRATE Ta struct clockinfo Ta no
@@ -332,9 +333,13 @@ information.
 .It Dv KERN_HOSTID Ta integer Ta yes
 .It Dv KERN_HOSTUUID Ta string Ta yes
 .It Dv KERN_HOSTNAME Ta string Ta yes
+.It Dv KERN_IOV_MAX Ta integer Ta yes
 .It Dv KERN_JOB_CONTROL Ta integer Ta no
+.It Dv KERN_LOCKF Ta struct kinfo_lockf Ta no
+.It Dv KERN_LOGSIGEXIT Ta integer Ta yes
 .It Dv KERN_MAXFILES Ta integer Ta yes
 .It Dv KERN_MAXFILESPERPROC Ta integer Ta yes
+.It Dv KERN_MAXPHYS Ta integer Ta no
 .It Dv KERN_MAXPROC Ta integer Ta no
 .It Dv KERN_MAXPROCPERUID Ta integer Ta yes
 .It Dv KERN_MAXVNODES Ta integer Ta yes
@@ -346,15 +351,28 @@ information.
 .It Dv KERN_OSTYPE Ta string Ta no
 .It Dv KERN_POSIX1 Ta integer Ta no
 .It Dv KERN_PROC Ta node Ta not applicable
+.It Dv KERN_PS_STRINGS Ta integer Ta no
 .It Dv KERN_SAVED_IDS Ta integer Ta no
 .It Dv KERN_SECURELVL Ta integer Ta raise only
 .It Dv KERN_UPDATEINTERVAL Ta integer Ta no
+.It Dv KERN_USRSTACK Ta integer Ta no
 .It Dv KERN_VERSION Ta string Ta no
 .El
 .Bl -tag -width 6n
 .It Li KERN_ARGMAX
 The maximum bytes of argument to
 .Xr execve 2 .
+.It Li KERN_ARND
+.Xr arc4rand 9
+Fills the buffer with random bytes from in-kernel random data generator.
+This is an alternative interface for
+.Xr read 2
+of
+.Xr random 4
+device, which does not depend on accessibility and correct mounting options
+of the
+.Xr devfs 4
+node.
 .It Li KERN_BOOTFILE
 The full pathname of the file from which the kernel was loaded.
 .It Li KERN_BOOTTIME
@@ -379,8 +397,18 @@ Get or set the host ID.
 Get or set the host's universally unique identifier (UUID).
 .It Li KERN_HOSTNAME
 Get or set the hostname.
+.It Li KERN_IOV_MAX
+The maximum accepted number of elements in an input-output vector (iovec),
+see
+.Xr readv 2
+and
+.Xr writev 2 .
 .It Li KERN_JOB_CONTROL
 Return 1 if job control is available on this system, otherwise 0.
+.It Li KERN_LOCKF
+Returns the list of the file advisory locks currently known to kernel.
+.It Li KERN_LOGSIGEXIT
+Controls logging of process exit due to untrapped signals.
 .It Li KERN_MAXFILES
 The maximum number of files that may be open in the system.
 .It Li KERN_MAXFILESPERPROC
@@ -389,6 +417,10 @@ This limit only applies to processes with an effective uid of nonzero
 at the time of the open request.
 Files that have already been opened are not affected if the limit
 or the effective uid is changed.
+.It Li KERN_MAXPHYS
+Specifies the maximum block I/O size.
+Can be changed by the tunable
+.Ev kern.maxphys .
 .It Li KERN_MAXPROC
 The maximum number of concurrent processes the system will allow.
 .It Li KERN_MAXPROCPERUID
@@ -471,12 +503,18 @@ implies the current process.
 .It Dv KERN_PROC_ARGS Ta "A process ID"
 .It Dv KERN_PROC_PATHNAME Ta "A process ID"
 .El
+.It Li KERN_PS_STRINGS
+Reports the location of the process
+.Vt ps_strings
+structure after exec, for the ABI of the querying process.
 .It Li KERN_SAVED_IDS
 Returns 1 if saved set-group and saved set-user ID is available.
 .It Li KERN_SECURELVL
 The system security level.
 This level may be raised by processes with appropriate privilege.
 It may not be lowered.
+.It Li KERN_USRSTACK
+Reports the top of the main thread user stack for the current process.
 .It Li KERN_VERSION
 The system version string.
 .El
