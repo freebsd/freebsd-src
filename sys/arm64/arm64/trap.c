@@ -730,7 +730,8 @@ do_el0_sync(struct thread *td, struct trapframe *frame)
 		break;
 	}
 
-	KASSERT((td->td_pcb->pcb_fpflags & ~PCB_FP_USERMASK) == 0,
+	KASSERT(
+	    (td->td_pcb->pcb_fpflags & ~(PCB_FP_USERMASK|PCB_FP_SVEVALID)) == 0,
 	    ("Kernel VFP flags set while entering userspace"));
 	KASSERT(
 	    td->td_pcb->pcb_fpusaved == &td->td_pcb->pcb_fpustate,
