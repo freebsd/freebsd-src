@@ -55,6 +55,11 @@ void * efi_translate(vm_offset_t ptr);
 void	efi_copy_finish(void);
 void	efi_copy_finish_nop(void);
 
+#if defined(__amd64__) || defined(__i386__)
+/* Need this to setup page tables */
+extern EFI_PHYSICAL_ADDRESS staging;
+#endif
+
 int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp,
     bool exit_bs);
 
