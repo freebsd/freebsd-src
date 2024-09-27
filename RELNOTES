@@ -10,6 +10,10 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+000000000000:
+	RSA host keys for SSH are deprecated and will no longer be generated
+	by default in FreeBSD 16.
+
 0aabcd75dbc2:
 	EC2 AMIs no longer generate RSA host keys by default for SSH.  RSA
 	host key generation can be re-enabled by setting sshd_rsa_enable="YES"
