@@ -499,9 +499,6 @@ static driver_t igb_if_driver = {
 #define EM_TICKS_TO_USECS(ticks)	((1024 * (ticks) + 500) / 1000)
 #define EM_USECS_TO_TICKS(usecs)	((1000 * (usecs) + 512) / 1024)
 
-#define MAX_INTS_PER_SEC	8000
-#define DEFAULT_ITR		(1000000000/(MAX_INTS_PER_SEC * 256))
-
 /* Allow common code without TSO */
 #ifndef CSUM_TSO
 #define CSUM_TSO	0
@@ -551,7 +548,7 @@ SYSCTL_INT(_hw_em, OID_AUTO, eee_setting, CTLFLAG_RDTUN, &eee_setting, 0,
 /*
 ** Tuneable Interrupt rate
 */
-static int em_max_interrupt_rate = 8000;
+static int em_max_interrupt_rate = EM_INTS_PER_SEC;
 SYSCTL_INT(_hw_em, OID_AUTO, max_interrupt_rate, CTLFLAG_RDTUN,
     &em_max_interrupt_rate, 0, "Maximum interrupts per second");
 
@@ -1050,7 +1047,8 @@ em_if_attach_pre(if_ctx_t ctx)
 		    E1000_REGISTER(hw, E1000_TADV), em_tx_abs_int_delay_dflt);
 		em_add_int_delay_sysctl(sc, "itr",
 		    "interrupt delay limit in usecs/4", &sc->tx_itr,
-		    E1000_REGISTER(hw, E1000_ITR), DEFAULT_ITR);
+		    E1000_REGISTER(hw, E1000_ITR),
+			EM_INTS_TO_ITR(em_max_interrupt_rate));
 	}
 
 	hw->mac.autoneg = DO_AUTO_NEG;
@@ -2287,7 +2285,7 @@ igb_configure_queues(struct e1000_softc *sc)
 
 	/* Set the igb starting interrupt rate */
 	if (em_max_interrupt_rate > 0) {
-		newitr = (4000000 / em_max_interrupt_rate) & 0x7FFC;
+		newitr = IGB_INTS_TO_EITR(em_max_interrupt_rate);
 
 		if (hw->mac.type == e1000_82575)
 			newitr |= newitr << 16;
@@ -3386,11 +3384,9 @@ em_initialize_receive_unit(if_ctx_t ctx)
 		if (hw->mac.type >= e1000_82540) {
 			E1000_WRITE_REG(hw, E1000_RADV, sc->rx_abs_int_delay.value);
 
-			/*
-			 * Set the interrupt throttling rate. Value is calculated
-			 * as DEFAULT_ITR = 1/(MAX_INTS_PER_SEC * 256ns)
-			 */
-			E1000_WRITE_REG(hw, E1000_ITR, DEFAULT_ITR);
+			/* Set the default interrupt throttling rate */
+			E1000_WRITE_REG(hw, E1000_ITR,
+			    EM_INTS_TO_ITR(em_max_interrupt_rate));
 		}
 
 		/* XXX TEMPORARY WORKAROUND: on some systems with 82573
@@ -3418,7 +3414,7 @@ em_initialize_receive_unit(if_ctx_t ctx)
 		if (hw->mac.type == e1000_82574) {
 			for (int i = 0; i < 4; i++)
 				E1000_WRITE_REG(hw, E1000_EITR_82574(i),
-				    DEFAULT_ITR);
+				    EM_INTS_TO_ITR(em_max_interrupt_rate));
 			/* Disable accelerated acknowledge */
 			rfctl |= E1000_RFCTL_ACK_DIS;
 		}
