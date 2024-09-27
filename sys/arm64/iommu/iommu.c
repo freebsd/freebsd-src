@@ -456,6 +456,7 @@ iommu_register(struct iommu_unit *iommu)
 	LIST_INSERT_HEAD(&iommu_list, entry, next);
 	IOMMU_LIST_UNLOCK();
 
+	sysctl_ctx_init(&iommu->sysctl_ctx);
 	iommu_init_busdma(iommu);
 
 	return (0);
@@ -476,6 +477,7 @@ iommu_unregister(struct iommu_unit *iommu)
 	IOMMU_LIST_UNLOCK();
 
 	iommu_fini_busdma(iommu);
+	sysctl_ctx_free(&iommu->sysctl_ctx);
 
 	mtx_destroy(&iommu->lock);
 

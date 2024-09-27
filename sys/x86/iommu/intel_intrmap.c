@@ -326,7 +326,10 @@ clp2(u_int v)
 int
 dmar_init_irt(struct dmar_unit *unit)
 {
-
+	SYSCTL_ADD_INT(&unit->iommu.sysctl_ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(unit->iommu.dev)),
+	    OID_AUTO, "ir", CTLFLAG_RD, &unit->ir_enabled, 0,
+	    "Interrupt remapping ops enabled");
 	if ((unit->hw_ecap & DMAR_ECAP_IR) == 0)
 		return (0);
 	unit->ir_enabled = 1;
