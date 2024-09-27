@@ -150,17 +150,18 @@ void __iwl_dbg(struct device *dev,
 	vaf.va = &args;
 #ifdef CONFIG_IWLWIFI_DEBUG
 	if (iwl_have_debug_level(level) &&
-	    (!limit || net_ratelimit())) {
+	    (!limit || net_ratelimit()))
 #if defined(__linux_)
 		dev_printk(KERN_DEBUG, dev, "%s %pV", function, &vaf);
 #elif defined(__FreeBSD__)
+	{
 		char *str;
 		vasprintf(&str, M_KMALLOC, vaf.fmt, args);
 		dev_printk(KERN_DEBUG, dev, "%d %u %s %s",
 		    curthread->td_tid, (unsigned int)ticks, function, str);
 		free(str, M_KMALLOC);
-#endif
 	}
+#endif
 
 #endif
 	trace_iwlwifi_dbg(level, function, &vaf);

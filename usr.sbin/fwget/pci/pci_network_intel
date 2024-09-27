@@ -408,11 +408,42 @@ pci_network_intel_iwlwifi()
 	0x2729/*/*) addpkg "wifi-firmware-iwlwifi-kmod-ax210"; return 1 ;;
 
 	# bz
+	0x4d40/*/*) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
 	0x272b/*/*) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
 	0x272d/*/*) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
 	0x2727/*/*) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
 	0x7740/*/*) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
-	0xa840/*/*) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
+	0xa840/*/0x0000) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
+	0xa840/*/0x0a10) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
+	0xa840/*/0x00c0) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
+	0xa840/*/0x00c4) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
+	0xa840/*/0x00e0) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
+	0xa840/*/0x00e4) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
+	0xa840/*/0x00e8) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
+	0xa840/*/0x00ec) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
+	0xa840/*/0x009c) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
+	0xa840/*/0x011c) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
+	0xa840/*/0x40c4) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
+	0xa840/*/0x40e0) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
+	0xa840/*/0x0090) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
+	0xa840/*/0x0094) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
+	0xa840/*/0x0098) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
+	0xa840/*/0x0100) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
+	0xa840/*/0x0110) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
+	0xa840/*/0x0114) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
+	0xa840/*/0x0118) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
+	0xa840/*/0x0310) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
+	0xa840/*/0x0314) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
+	0xa840/*/0x0510) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
+	0xa840/*/0x1671) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
+	0xa840/*/0x1672) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
+	0xa840/*/0x1771) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
+	0xa840/*/0x1772) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
+	0xa840/*/0x1791) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
+	0xa840/*/0x1792) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
+	0xa840/*/0x4090) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
+	0xa840/*/0x4110) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
+	0xa840/*/0x4314) addpkg "wifi-firmware-iwlwifi-kmod-bz"; return 1 ;;
 
 	# sc
 	0x6e70/*/*) addpkg "wifi-firmware-iwlwifi-kmod-sc"; return 1 ;;
