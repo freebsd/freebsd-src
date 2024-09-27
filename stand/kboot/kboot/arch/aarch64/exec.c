@@ -42,7 +42,6 @@
 
 #include "bootstrap.h"
 #include "kboot.h"
-#include "bootstrap.h"
 
 #include "platform/acfreebsd.h"
 #include "acconfig.h"
