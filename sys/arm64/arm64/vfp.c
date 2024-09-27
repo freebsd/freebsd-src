@@ -30,12 +30,14 @@
 #ifdef VFP
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/elf.h>
 #include <sys/eventhandler.h>
 #include <sys/limits.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
+#include <sys/reg.h>
 #include <sys/smp.h>
 
 #include <vm/uma.h>
@@ -917,6 +919,145 @@ sve_init(const void *dummy __unused)
 	}
 }
 SYSINIT(sve, SI_SUB_SMP, SI_ORDER_ANY, sve_init, NULL);
+
+static bool
+get_arm64_sve(struct regset *rs, struct thread *td, void *buf,
+    size_t *sizep)
+{
+	struct svereg_header *header;
+	struct pcb *pcb;
+	size_t buf_size;
+	uint16_t sve_flags;
+
+	pcb = td->td_pcb;
+
+	/* If there is no SVE support in HW then we don't support NT_ARM_SVE */
+	if (pcb->pcb_sve_len == 0)
+		return (false);
+
+	sve_flags = 0;
+	if ((pcb->pcb_fpflags & PCB_FP_SVEVALID) == 0) {
+		/* If SVE hasn't been used yet provide the VFP registers */
+		buf_size = sizeof(struct fpreg);
+		sve_flags |= SVEREG_FLAG_FP;
+	} else {
+		/* We have SVE registers */
+		buf_size = sve_buf_size(td);
+		sve_flags |= SVEREG_FLAG_SVE;
+		KASSERT(pcb->pcb_svesaved != NULL, ("%s: no saved sve",
+		    __func__));
+	}
+
+	if (buf != NULL) {
+		KASSERT(*sizep == sizeof(struct svereg_header) + buf_size,
+		    ("%s: invalid size", __func__));
+
+		if (td == curthread && (pcb->pcb_fpflags & PCB_FP_STARTED) != 0)
+			vfp_save_state(td, pcb);
+
+		header = buf;
+		memset(header, 0, sizeof(*header));
+
+		header->sve_size = sizeof(struct svereg_header) + buf_size;
+		header->sve_maxsize = sizeof(struct svereg_header) +
+		    sve_max_buf_size();
+		header->sve_vec_len = pcb->pcb_sve_len;
+		header->sve_max_vec_len = sve_max_vector_len;
+		header->sve_flags = sve_flags;
+
+		if ((sve_flags & SVEREG_FLAG_REGS_MASK) == SVEREG_FLAG_FP) {
+			struct fpreg *fpregs;
+
+			fpregs = (void *)(&header[1]);
+			memcpy(fpregs->fp_q, pcb->pcb_fpustate.vfp_regs,
+			    sizeof(fpregs->fp_q));
+			fpregs->fp_cr = pcb->pcb_fpustate.vfp_fpcr;
+			fpregs->fp_sr = pcb->pcb_fpustate.vfp_fpsr;
+		} else {
+			memcpy((void *)(&header[1]), pcb->pcb_svesaved,
+			    buf_size);
+		}
+	}
+	*sizep = sizeof(struct svereg_header) + buf_size;
+
+	return (true);
+}
+
+static bool
+set_arm64_sve(struct regset *rs, struct thread *td, void *buf, size_t size)
+{
+	struct svereg_header *header;
+	struct pcb *pcb;
+	size_t buf_size;
+	uint16_t sve_flags;
+
+	pcb = td->td_pcb;
+
+	/* If there is no SVE support in HW then we don't support NT_ARM_SVE */
+	if (pcb->pcb_sve_len == 0)
+		return (false);
+
+	sve_flags = 0;
+	if ((pcb->pcb_fpflags & PCB_FP_SVEVALID) == 0) {
+		/*
+		 * If the SVE state is invalid it provide the FP registers.
+		 * This may be beause it hasn't been used, or it has but
+		 * was switched out in a system call.
+		 */
+		buf_size = sizeof(struct fpreg);
+		sve_flags |= SVEREG_FLAG_FP;
+	} else {
+		/* We have SVE registers */
+		MPASS(pcb->pcb_svesaved != NULL);
+		buf_size = sve_buf_size(td);
+		sve_flags |= SVEREG_FLAG_SVE;
+		KASSERT(pcb->pcb_svesaved != NULL, ("%s: no saved sve",
+		    __func__));
+	}
+
+	if (size != sizeof(struct svereg_header) + buf_size)
+		return (false);
+
+	header = buf;
+	/* Sanity checks on the header */
+	if (header->sve_size != sizeof(struct svereg_header) + buf_size)
+		return (false);
+
+	if (header->sve_maxsize != sizeof(struct svereg_header) +
+	    sve_max_buf_size())
+		return (false);
+
+	if (header->sve_vec_len != pcb->pcb_sve_len)
+		return (false);
+
+	if (header->sve_max_vec_len != sve_max_vector_len)
+		return (false);
+
+	if (header->sve_flags != sve_flags)
+		return (false);
+
+	if ((sve_flags & SVEREG_FLAG_REGS_MASK) == SVEREG_FLAG_FP) {
+		struct fpreg *fpregs;
+
+		fpregs = (void *)(&header[1]);
+		memcpy(pcb->pcb_fpustate.vfp_regs, fpregs->fp_q,
+		    sizeof(fpregs->fp_q));
+		pcb->pcb_fpustate.vfp_fpcr = fpregs->fp_cr;
+		pcb->pcb_fpustate.vfp_fpsr = fpregs->fp_sr;
+	} else {
+		/* Restore the SVE registers */
+		memcpy(pcb->pcb_svesaved, (void *)(&header[1]), buf_size);
+	}
+
+	return (true);
+}
+
+static struct regset regset_arm64_sve = {
+	.note = NT_ARM_SVE,
+	.get = get_arm64_sve,
+	.set = set_arm64_sve,
+};
+ELF_REGSET(regset_arm64_sve);
 
 struct fpu_kern_ctx *
 fpu_kern_alloc_ctx(u_int flags)
