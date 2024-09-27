@@ -4177,14 +4177,14 @@ vm_page_free_toq(vm_page_t m)
  *	from any VM object.  In other words, this is equivalent to
  *	calling vm_page_free_toq() for each page of a list of VM objects.
  */
-void
+int
 vm_page_free_pages_toq(struct spglist *free, bool update_wire_count)
 {
 	vm_page_t m;
 	int count;
 
 	if (SLIST_EMPTY(free))
-		return;
+		return (0);
 
 	count = 0;
 	while ((m = SLIST_FIRST(free)) != NULL) {
@@ -4195,6 +4195,7 @@ vm_page_free_pages_toq(struct spglist *free, bool update_wire_count)
 
 	if (update_wire_count)
 		vm_wire_sub(count);
+	return (count);
 }
 
 /*
