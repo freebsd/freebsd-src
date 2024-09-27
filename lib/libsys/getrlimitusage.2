@@ -1,0 +1,100 @@
+.\" Copyright (c) 2024 The FreeBSD Foundation, Inc.
+.\"
+.\" This documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd September 27, 2024
+.Dt GETRLIMITUSAGE 2
+.Os
+.Sh NAME
+.Nm getrlimitusage
+.Nd Query usage of the current process' limited resources
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/resource.h
+.Ft int
+.Fn getrlimitusage "unsigned which" "int flags" "rlim_t *res"
+.Sh DESCRIPTION
+The
+.Nm
+system call allows the process to query current consumption of the resources
+limited by the
+.Xr setrlimit 2
+call.
+.Pp
+The
+.Fa which
+argument specifies the resource, same as for
+.Xr getrlimit 2
+and
+.Xr setrlimit 2
+calls, see their man page for the list of enforced resource types.
+.Pp
+The
+.Fa flags
+argument modifies the behavior of the call in the following ways:
+.Bl -tag -width GETRLIMITUSAGE_XXXXXX
+.It Va GETRLIMITUSAGE_EUID
+Query the resource usage for user identified by effective UID of the process,
+instead of the real UID (which is default for accounting).
+.El
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The
+.Fn getrlimitusage
+system call will fail if:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+The address specified for
+.Fa res
+is invalid.
+.It Bq Er EINVAL
+The resource specified to
+.Fn getrlimitusage
+in the
+.Fa which
+argument is unknown.
+.It Bq Er ENXIO
+The resource specified to
+.Fn getrlimitusage
+in the
+.Fa which
+argument is not accounted, but only enforced in specific situations.
+Examples of such resources are
+.Va RLIMIT_FSIZE
+and
+.Va RLIMIT_CORE .
+.El
+.Sh SEE ALSO
+.Xr procstat 1 ,
+.Xr getrlimit 2 ,
+.Xr setrlimit 2 .
+.Sh HISTORY
+The
+.Fn getrlimitusage
+system call appeared in
+.Bx 15.0 .

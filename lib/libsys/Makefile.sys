@@ -218,6 +218,7 @@ MAN+=	abort2.2 \
 	getpriority.2 \
 	getrandom.2 \
 	getrlimit.2 \
+	getrlimitusage.2 \
 	getrusage.2 \
 	getsid.2 \
 	getsockname.2 \
