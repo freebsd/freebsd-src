@@ -29,14 +29,34 @@
 
 #include <sys/cdefs.h>
 #include <sys/param.h>
+#include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 
+#include <machine/pcb.h>
 #include <machine/sysarch.h>
+
+#include <security/audit/audit.h>
 
 int
 sysarch(struct thread *td, struct sysarch_args *uap)
 {
+	struct pcb *pcb;
+	unsigned long sve_len;
+	int error;
 
-	return (ENOTSUP);
+	switch (uap->op) {
+	case ARM64_GET_SVE_VL:
+		pcb = td->td_pcb;
+		sve_len = pcb->pcb_sve_len;
+		error = EINVAL;
+		if (sve_len != 0)
+			error = copyout(&sve_len, uap->parms, sizeof(sve_len));
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+
+	return (error);
 }
