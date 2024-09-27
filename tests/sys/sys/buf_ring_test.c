@@ -10,6 +10,7 @@
 #include <machine/cpufunc.h>
 
 #include <errno.h>
+#include <stdint.h>
 
 #include <atf-c.h>
 
@@ -116,11 +117,64 @@ MC_SC_TEST(buf_ring_dequeue_mc)
 MC_SC_TEST(buf_ring_dequeue_peek)
 MC_SC_TEST(buf_ring_dequeue_peek_clear_sc)
 
+ATF_TC_WITHOUT_HEAD(overflow);
+ATF_TC_BODY(overflow, tc)
+{
+	struct buf_ring *br;
+
+	br = buf_ring_alloc(4);
+	ATF_REQUIRE_MSG(br != NULL, "buf_ring_alloc returned NULL");
+
+	br->br_prod_head = br->br_cons_head = br->br_prod_tail =
+	    br->br_cons_tail = UINT32_MAX - 1;
+	ATF_REQUIRE(buf_ring_count(br) == 0);
+	ATF_REQUIRE(!buf_ring_full(br));
+	ATF_REQUIRE(buf_ring_empty(br));
+
+	ATF_REQUIRE(buf_ring_enqueue(br, (void *)1) == 0);
+	ATF_REQUIRE(buf_ring_count(br) == 1);
+	ATF_REQUIRE(!buf_ring_full(br));
+	ATF_REQUIRE(!buf_ring_empty(br));
+
+	ATF_REQUIRE(buf_ring_enqueue(br, (void *)2) == 0);
+	ATF_REQUIRE(buf_ring_count(br) == 2);
+	ATF_REQUIRE(!buf_ring_full(br));
+	ATF_REQUIRE(!buf_ring_empty(br));
+
+	ATF_REQUIRE(buf_ring_enqueue(br, (void *)3) == 0);
+	ATF_REQUIRE(buf_ring_count(br) == 3);
+	ATF_REQUIRE(buf_ring_full(br));
+	ATF_REQUIRE(!buf_ring_empty(br));
+
+	ATF_REQUIRE(br->br_prod_head == 1);
+	ATF_REQUIRE(br->br_prod_tail == 1);
+	ATF_REQUIRE(br->br_cons_head == UINT32_MAX - 1);
+	ATF_REQUIRE(br->br_cons_tail == UINT32_MAX - 1);
+
+	ATF_REQUIRE(buf_ring_dequeue_sc(br) == (void *)1);
+	ATF_REQUIRE(buf_ring_count(br) == 2);
+	ATF_REQUIRE(!buf_ring_full(br));
+	ATF_REQUIRE(!buf_ring_empty(br));
+
+	ATF_REQUIRE(buf_ring_dequeue_sc(br) == (void *)2);
+	ATF_REQUIRE(buf_ring_count(br) == 1);
+	ATF_REQUIRE(!buf_ring_full(br));
+	ATF_REQUIRE(!buf_ring_empty(br));
+
+	ATF_REQUIRE(buf_ring_dequeue_sc(br) == (void *)3);
+	ATF_REQUIRE(buf_ring_count(br) == 0);
+	ATF_REQUIRE(!buf_ring_full(br));
+	ATF_REQUIRE(buf_ring_empty(br));
+
+	buf_ring_free(br);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, buf_ring_dequeue_sc);
 	ATF_TP_ADD_TC(tp, buf_ring_dequeue_mc);
 	ATF_TP_ADD_TC(tp, buf_ring_dequeue_peek);
 	ATF_TP_ADD_TC(tp, buf_ring_dequeue_peek_clear_sc);
+	ATF_TP_ADD_TC(tp, overflow);
 	return (atf_no_error());
 }
