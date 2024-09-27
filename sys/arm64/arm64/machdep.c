@@ -801,10 +801,10 @@ bus_probe(void)
 	}
 	/* If no order or an invalid order was set use the default */
 	if (arm64_bus_method == ARM64_BUS_NONE) {
-		if (has_fdt)
-			arm64_bus_method = ARM64_BUS_FDT;
-		else if (has_acpi)
+		if (has_acpi)
 			arm64_bus_method = ARM64_BUS_ACPI;
+		else if (has_fdt)
+			arm64_bus_method = ARM64_BUS_FDT;
 	}
 
 	/*
