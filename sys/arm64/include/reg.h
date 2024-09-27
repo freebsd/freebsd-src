@@ -63,6 +63,19 @@ struct fpreg32 {
 	int dummy;
 };
 
+#define	SVEREG_FLAG_REGS_MASK	0x0001
+#define	SVEREG_FLAG_FP		0x0000
+#define	SVEREG_FLAG_SVE		0x0001
+
+struct svereg_header {
+	__uint32_t	sve_size;
+	__uint32_t	sve_maxsize;
+	__uint16_t	sve_vec_len;
+	__uint16_t	sve_max_vec_len;
+	__uint16_t	sve_flags;
+	__uint16_t	sve_reserved;
+};
+
 struct dbreg {
 	__uint8_t	db_debug_ver;
 	__uint8_t	db_nbkpts;
