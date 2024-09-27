@@ -1618,6 +1618,7 @@ struct pf_pdesc {
 	sa_family_t	 af;
 	u_int8_t	 proto;
 	u_int8_t	 tos;
+	u_int8_t	 ttl;
 	u_int8_t	 dir;		/* direction */
 	u_int8_t	 sidx;		/* key index for source */
 	u_int8_t	 didx;		/* key index for destination */
@@ -2509,7 +2510,7 @@ void			 pf_syncookie_send(struct mbuf *m, int off,
 			    struct pf_pdesc *);
 bool			 pf_syncookie_check(struct pf_pdesc *);
 u_int8_t		 pf_syncookie_validate(struct pf_pdesc *);
-struct mbuf *		 pf_syncookie_recreate_syn(uint8_t, int,
+struct mbuf *		 pf_syncookie_recreate_syn(int,
 			    struct pf_pdesc *);
 
 VNET_DECLARE(struct pf_kstatus, pf_status);

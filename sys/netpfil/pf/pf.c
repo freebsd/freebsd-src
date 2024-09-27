@@ -8666,6 +8666,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		pd->sidx = (dir == PF_IN) ? 0 : 1;
 		pd->didx = (dir == PF_IN) ? 1 : 0;
 		pd->tos = h->ip_tos;
+		pd->ttl = h->ip_ttl;
 		pd->tot_len = ntohs(h->ip_len);
 		pd->act.rtableid = -1;
 
@@ -8724,9 +8725,19 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		pd->sidx = (dir == PF_IN) ? 0 : 1;
 		pd->didx = (dir == PF_IN) ? 1 : 0;
 		pd->tos = IPV6_DSCP(h);
+		pd->ttl = h->ip6_hlim;
 		pd->tot_len = ntohs(h->ip6_plen) + sizeof(struct ip6_hdr);
 		pd->virtual_proto = pd->proto = h->ip6_nxt;
 		pd->act.rtableid = -1;
+
+		/*
+		 * we do not support jumbogram.  if we keep going, zero ip6_plen
+		 * will do something bad, so drop the packet for now.
+		 */
+		if (htons(h->ip6_plen) == 0) {
+			*action = PF_DROP;
+			return (-1);
+		}
 
 		/* We do IP header normalization and packet reassembly here */
 		if (pf_normalize_ip6(m0, kif, *off, reason, pd) !=
@@ -8974,12 +8985,6 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 	struct pfi_kkif		*kif;
 	u_short			 action, reason = 0;
 	struct mbuf		*m = *m0;
-#ifdef INET
-	struct ip		*h = NULL;
-#endif
-#ifdef INET6
-	struct ip6_hdr		*h6 = NULL;
-#endif
 	struct m_tag		*mtag;
 	struct pf_krule		*a = NULL, *r = &V_pf_default_rule;
 	struct pf_kstate	*s = NULL;
@@ -8988,7 +8993,6 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 	int			 off, hdrlen, use_2nd_queue = 0;
 	uint16_t		 tag;
 	uint8_t			 rt;
-	uint8_t			 ttl;
 
 	PF_RULES_RLOCK_TRACKER;
 	KASSERT(dir == PF_IN || dir == PF_OUT, ("%s: bad direction %d\n", __func__, dir));
@@ -9079,23 +9083,6 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 	}
 	m = *m0;
 
-	switch (af) {
-#ifdef INET
-	case AF_INET:
-		h = mtod(m, struct ip *);
-		ttl = h->ip_ttl;
-		break;
-#endif
-#ifdef INET6
-	case AF_INET6:
-		h6 = mtod(m, struct ip6_hdr *);
-		ttl = h6->ip6_hlim;
-		break;
-#endif
-	default:
-		panic("Unknown af %d", af);
-	}
-
 	if (__predict_false(ip_divert_ptr != NULL) &&
 	    ((mtag = m_tag_locate(m, MTAG_PF_DIVERT, 0, NULL)) != NULL)) {
 		struct pf_divert_mtag *dt = (struct pf_divert_mtag *)(mtag+1);
@@ -9118,18 +9105,6 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 		if (mtag != NULL)
 			m_tag_delete(m, mtag);
 	}
-
-#ifdef INET6
-	/*
-	 * we do not support jumbogram.  if we keep going, zero ip6_plen
-	 * will do something bad, so drop the packet for now.
-	 */
-	if (af == AF_INET6 && htons(h6->ip6_plen) == 0) {
-		action = PF_DROP;
-		REASON_SET(&reason, PFRES_NORM);	/*XXX*/
-		goto done;
-	}
-#endif
 
 	switch (pd.proto) {
 	case IPPROTO_TCP: {
@@ -9160,8 +9135,7 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 			    pd.dir == PF_IN) {
 				struct mbuf *msyn;
 
-				msyn = pf_syncookie_recreate_syn(ttl, off,
-				    &pd);
+				msyn = pf_syncookie_recreate_syn(off, &pd);
 				if (msyn == NULL) {
 					action = PF_DROP;
 					break;
@@ -9340,14 +9314,7 @@ done:
 			else
 				pd.pf_mtag->qid = pd.act.qid;
 			/* Add hints for ecn. */
-#ifdef INET
-			if (af == AF_INET)
-				pd.pf_mtag->hdr = h;
-#endif
-#ifdef INET6
-			if (af == AF_INET6)
-				pd.pf_mtag->hdr = h6;
-#endif
+			pd.pf_mtag->hdr = mtod(m, void *);
 		}
 	}
 #endif /* ALTQ */
