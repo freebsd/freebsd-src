@@ -2607,6 +2607,13 @@
 #define	VBAR_EL12_op2			0
 
 /* ZCR_EL1 - SVE Control Register */
+#define	ZCR_EL1			MRS_REG(ZCR_EL1)
+#define	ZCR_EL1_REG		MRS_REG_ALT_NAME(ZCR_EL1_REG)
+#define	ZCR_EL1_REG_op0		3
+#define	ZCR_EL1_REG_op1		0
+#define	ZCR_EL1_REG_CRn		1
+#define	ZCR_EL1_REG_CRm		2
+#define	ZCR_EL1_REG_op2		0
 #define	ZCR_LEN_SHIFT		0
 #define	ZCR_LEN_MASK		(0xf << ZCR_LEN_SHIFT)
 #define	ZCR_LEN_BYTES(x)	((((x) & ZCR_LEN_MASK) + 1) * 16)
