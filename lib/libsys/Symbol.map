@@ -1,5 +1,6 @@
 FBSDprivate_1.0 {
 	__elf_aux_vector;
+	__libsys_errno;
 	__getosreldate;
 	__libsys_interposing_slot;
 	__realpathat;
