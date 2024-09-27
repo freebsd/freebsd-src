@@ -498,7 +498,7 @@ pf_syncookie_generate(struct mbuf *m, int off, struct pf_pdesc *pd,
 }
 
 struct mbuf *
-pf_syncookie_recreate_syn(uint8_t ttl, int off, struct pf_pdesc *pd)
+pf_syncookie_recreate_syn(int off, struct pf_pdesc *pd)
 {
 	uint8_t			 wscale;
 	uint16_t		 mss;
@@ -517,6 +517,6 @@ pf_syncookie_recreate_syn(uint8_t ttl, int off, struct pf_pdesc *pd)
 	wscale = pf_syncookie_wstab[cookie.flags.wscale_idx];
 
 	return (pf_build_tcp(NULL, pd->af, pd->src, pd->dst, *pd->sport,
-	    *pd->dport, seq, 0, TH_SYN, wscale, mss, ttl, false, 0,
+	    *pd->dport, seq, 0, TH_SYN, wscale, mss, pd->ttl, false, 0,
 	    PF_MTAG_FLAG_SYNCOOKIE_RECREATED, pd->act.rtableid));
 }
