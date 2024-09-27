@@ -57,8 +57,6 @@ extern int elf32_loadfile_raw(char *filename, uint64_t dest,
 extern int elf64_load_modmetadata(struct preloaded_file *fp, uint64_t dest);
 extern int elf64_obj_loadfile(char *filename, uint64_t dest,
     struct preloaded_file **result);
-extern int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp,
-    bool exit_bs);
 
 extern void multiboot2_exec(void *entry, uint64_t multiboot_info,
     uint64_t stack);

@@ -55,4 +55,7 @@ void * efi_translate(vm_offset_t ptr);
 void	efi_copy_finish(void);
 void	efi_copy_finish_nop(void);
 
+int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp,
+    bool exit_bs);
+
 #endif	/* _LOADER_EFI_COPY_H_ */
