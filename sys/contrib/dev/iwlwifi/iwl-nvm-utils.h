@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018, 2020-2022 Intel Corporation
+ * Copyright (C) 2005-2014, 2018, 2020-2023 Intel Corporation
  * Copyright (C) 2015 Intel Mobile Communications GmbH
  */
 #ifndef __iwl_eeprom_parse_h__
@@ -57,23 +57,6 @@ struct iwl_nvm_data {
 
 	struct ieee80211_channel channels[];
 };
-
-/**
- * iwl_parse_eeprom_data - parse EEPROM data and return values
- *
- * @dev: device pointer we're parsing for, for debug only
- * @cfg: device configuration for parsing and overrides
- * @eeprom: the EEPROM data
- * @eeprom_size: length of the EEPROM data
- *
- * This function parses all EEPROM values we need and then
- * returns a (newly allocated) struct containing all the
- * relevant values for driver use. The struct must be freed
- * later with iwl_free_nvm_data().
- */
-struct iwl_nvm_data *
-iwl_parse_eeprom_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
-		      const u8 *eeprom, size_t eeprom_size);
 
 int iwl_init_sband_channels(struct iwl_nvm_data *data,
 			    struct ieee80211_supported_band *sband,
