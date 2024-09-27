@@ -70,8 +70,11 @@ extern uint32_t efi_map_size;
 extern vm_paddr_t efi_map_phys_src;	/* From DTB */
 extern vm_paddr_t efi_map_phys_dst;	/* From our memory map metadata module */
 
+/* Usually provided by loader_efi.h */
+#ifndef EFI
 int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp,
     bool exit_bs);
+#endif
 
 static struct file_format arm64_elf = {
 	elf64_loadfile,

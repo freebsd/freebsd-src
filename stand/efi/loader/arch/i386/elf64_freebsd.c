@@ -37,9 +37,6 @@
 
 #include "loader_efi.h"
 
-extern int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp,
-    bool exit_bs);
-
 static int	elf64_exec(struct preloaded_file *amp);
 static int	elf64_obj_exec(struct preloaded_file *amp);
 

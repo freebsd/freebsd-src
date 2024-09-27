@@ -40,8 +40,6 @@
 #include "bootstrap.h"
 #include "loader_efi.h"
 
-extern int bi_load(char *, vm_offset_t *, vm_offset_t *, bool);
-
 static int
 __elfN(arm_load)(char *filename, uint64_t dest,
     struct preloaded_file **result)
