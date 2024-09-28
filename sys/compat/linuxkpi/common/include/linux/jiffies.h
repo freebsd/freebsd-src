@@ -52,6 +52,7 @@
 	(time_after_eq(a,b) && time_before_eq(a,c))
 #define	time_is_after_eq_jiffies(a) time_after_eq(a, jiffies)
 #define	time_is_after_jiffies(a) time_after(a, jiffies)
+#define	time_is_before_jiffies(a)	time_before(a, jiffies)
 
 #define	HZ	hz
 
