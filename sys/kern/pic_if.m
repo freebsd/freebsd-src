@@ -34,6 +34,10 @@
 
 INTERFACE pic;
 
+HEADER {
+	#include "intr_event_if.h"
+};
+
 CODE {
 	static int
 	dflt_pic_bind_intr(device_t dev, struct intr_irqsrc *isrc)
