@@ -552,7 +552,8 @@ atpic_handle_intr(u_int vector, struct trapframe *frame)
 	 * If we don't have an event, see if this is a spurious
 	 * interrupt.
 	 */
-	if (isrc->is_event == NULL && (vector == 7 || vector == 15)) {
+	if (!intr_event_is_valid_(&isrc->is_event) &&
+	    (vector == 7 || vector == 15)) {
 		int port, isr;
 
 		/*
