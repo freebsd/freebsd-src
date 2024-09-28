@@ -104,10 +104,10 @@ int nintrcnt;
 
 static MALLOC_DEFINE(M_INTR, "intr", "Interrupt Sources");
 
-static int	intr_assign_cpu(void *arg, int cpu);
-static void	intr_disable_src(void *arg);
-static void	intr_enable_source(void *arg);
-static void	intr_eoi_source(void *arg);
+static intr_event_assign_cpu_t		intr_assign_cpu;
+static intr_event_pre_ithread_t		intr_disable_src;
+static intr_event_post_ithread_t	intr_enable_source;
+static intr_event_post_filter_t		intr_eoi_source;
 static void	intr_init(void *__dummy);
 static int	intr_pic_registered(x86pic_t pic);
 static void	intrcnt_setname(const char *name, int index);
@@ -264,20 +264,16 @@ intr_register_source(unsigned int vector, struct intsrc *isrc)
 	MPASS(KOBJ_LOOKUP_METHOD((kobj_t)(isrc->is_pic), pic_eoi_source) != NULL);
 	KASSERT(vector < num_io_irqs, ("IRQ %d too large (%u irqs)", vector,
 	    num_io_irqs));
-	if (interrupt_sources[vector] != NULL)
-		return (EEXIST);
-	error = intr_event_create(&isrc->is_event, isrc, 0, vector,
-	    intr_disable_src, intr_enable_source, intr_eoi_source,
-	    intr_assign_cpu, "irq%d:", vector);
-	if (error)
-		return (error);
+	bzero(&isrc->is_event, sizeof(isrc->is_event));
 	sx_xlock(&intrsrc_lock);
-	if (interrupt_sources[vector] != NULL) {
+	if (interrupt_sources[vector] == NULL)
+		error = intr_event_init_(&isrc->is_event, isrc->is_pic,
+		    vector, 0, "irq%d:", vector);
+	else
+		error = EEXIST;
+	if (error) {
 		sx_xunlock(&intrsrc_lock);
-		if ((error = intr_event_destroy_(isrc->is_event)) != 0)
-			printf("ERROR: %s(): intr_event_destroy() ret = %d!\n",
-			    __func__, error);
-		return (EEXIST);
+		return (error);
 	}
 	intrcnt_register(isrc);
 	interrupt_sources[vector] = isrc;
@@ -319,7 +315,7 @@ intr_add_handler(struct intsrc *isrc, const char *name, driver_filter_t filter,
 {
 	int error;
 
-	error = intr_event_add_handler(isrc->is_event, name, filter, handler,
+	error = intr_event_add_handler(&isrc->is_event, name, filter, handler,
 	    arg, intr_priority(flags), flags, cookiep);
 	if (error == 0) {
 		sx_xlock(&intrsrc_lock);
@@ -342,7 +338,7 @@ intr_remove_handler(struct intsrc *isrc, struct intr_handler *handler)
 
 	MPASS(isrc != NULL);
 
-	error = intr_event_remove_handler_(isrc->is_event, handler);
+	error = intr_event_remove_handler_(&isrc->is_event, handler);
 	if (error == 0) {
 		sx_xlock(&intrsrc_lock);
 		isrc->is_handlers--;
@@ -363,26 +359,22 @@ intr_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 }
 
 static void
-intr_disable_src(void *arg)
+intr_disable_src(device_t pic, interrupt_t *isrc)
 {
-	struct intsrc *isrc;
 
-	isrc = arg;
 	PIC_DISABLE_SOURCE(isrc->is_pic, isrc);
 }
 
 static void
-intr_enable_source(void *arg)
+intr_enable_source(device_t pic, interrupt_t *isrc)
 {
-	struct intsrc *isrc = arg;
 
 	PIC_ENABLE_SOURCE(isrc->is_pic, isrc);
 }
 
 static void
-intr_eoi_source(void *arg)
+intr_eoi_source(device_t pic, interrupt_t *isrc)
 {
-	struct intsrc *isrc = arg;
 
 	PIC_EOI_SOURCE(isrc->is_pic, isrc);
 }
@@ -404,9 +396,7 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 	(*isrc->is_count)++;
 	VM_CNT_INC(v_intr);
 
-	ie = isrc->is_event;
-
-	MPASS(ie != NULL);
+	ie = &isrc->is_event;
 
 	/*
 	 * XXX: We assume that IRQ 0 is only used for the ISA timer
@@ -471,17 +461,15 @@ intr_enable_src(u_int irq)
 }
 
 static int
-intr_assign_cpu(void *arg, int cpu)
+intr_assign_cpu(device_t pic, interrupt_t *isrc, u_int cpu)
 {
 #ifdef SMP
-	struct intsrc *isrc;
 	int error;
 
 	MPASS(mp_ncpus == 1 || smp_started);
 
 	/* Nothing to do if there is only a single CPU. */
 	if (mp_ncpus > 1 && cpu != NOCPU) {
-		isrc = arg;
 		sx_xlock(&intrsrc_lock);
 		error = PIC_ASSIGN_CPU(isrc->is_pic, isrc, cpu_apic_ids[cpu]);
 		if (error == 0)
@@ -518,6 +506,12 @@ pic_null_reprogram_pin(device_t pic, struct intsrc *isrc)
 }
 
 static device_method_t pic_base_methods[] = {
+	/* Interrupt event interface (core/shared portion) */
+	DEVMETHOD(intr_event_post_filter,	intr_eoi_source),
+	DEVMETHOD(intr_event_post_ithread,	intr_enable_source),
+	DEVMETHOD(intr_event_pre_ithread,	intr_disable_src),
+	DEVMETHOD(intr_event_assign_cpu,	intr_assign_cpu),
+
 	/* Interrupt controller interface (default implementations) */
 	DEVMETHOD(pic_register_sources,		pic_null_generic),
 	DEVMETHOD(pic_suspend,			pic_null_generic),
@@ -543,7 +537,7 @@ static void
 intrcnt_updatename(struct intsrc *is)
 {
 
-	intrcnt_setname(is->is_event->ie_fullname, is->is_index);
+	intrcnt_setname(is->is_event.ie_fullname, is->is_index);
 }
 
 static void
@@ -551,13 +545,14 @@ intrcnt_register(struct intsrc *is)
 {
 	char straystr[INTRNAME_LEN];
 
-	KASSERT(is->is_event != NULL, ("%s: isrc with no event", __func__));
+	KASSERT(intr_event_is_valid(&is->is_event),
+	    ("%s: isrc with uninitialized event", __func__));
 	mtx_lock_spin(&intrcnt_lock);
 	MPASS(intrcnt_index + 2 <= nintrcnt);
 	is->is_index = intrcnt_index;
 	intrcnt_index += 2;
 	snprintf(straystr, sizeof(straystr), "stray irq%d",
-	    is->is_event->ie_irq);
+	    is->is_event.ie_irq);
 	intrcnt_updatename(is);
 	is->is_count = &intrcnt[is->is_index];
 	intrcnt_setname(straystr, is->is_index + 1);
@@ -630,7 +625,7 @@ intr_describe(struct intsrc *isrc, void *ih, const char *descr)
 {
 	int error;
 
-	error = intr_event_describe_handler_(isrc->is_event, ih, descr);
+	error = intr_event_describe_handler_(&isrc->is_event, ih, descr);
 	if (error)
 		return (error);
 	intrcnt_updatename(isrc);
@@ -670,7 +665,7 @@ DB_SHOW_COMMAND(irqs, db_show_irqs)
 	isrc = interrupt_sources;
 	for (i = 0; i < num_io_irqs && !db_pager_quit; i++, isrc++)
 		if (*isrc != NULL)
-			db_dump_intr_event((*isrc)->is_event, verbose);
+			db_dump_intr_event(&(*isrc)->is_event, verbose);
 }
 #endif
 
@@ -788,7 +783,7 @@ sysctl_hw_intrs(SYSCTL_HANDLER_ARGS)
 		if (isrc == NULL)
 			continue;
 		sbuf_printf(&sbuf, "%s:%d @cpu%d(domain%d): %ld\n",
-		    isrc->is_event->ie_fullname,
+		    isrc->is_event.ie_fullname,
 		    isrc->is_index,
 		    isrc->is_cpu,
 		    isrc->is_domain,
@@ -860,7 +855,7 @@ intr_balance(void *dummy __unused, int pending __unused)
 	 */
 	for (i = num_io_irqs - 1; i >= 0; i--) {
 		isrc = interrupt_sorted[i];
-		if (isrc == NULL  || isrc->is_event->ie_cpu != NOCPU)
+		if (isrc == NULL  || isrc->is_event.ie_cpu != NOCPU)
 			continue;
 		cpu = current_cpu[isrc->is_domain];
 		intr_next_cpu(isrc->is_domain);
