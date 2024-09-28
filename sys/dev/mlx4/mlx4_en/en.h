@@ -232,7 +232,7 @@ enum cq_type {
 /*
  * Useful macros
  */
-#define ROUNDUP_LOG2(x)		ilog2(roundup_pow_of_two(x))
+#define ROUNDUP_LOG2(x)		order_base_2(x)
 #define XNOR(x, y)		(!(x) == !(y))
 #define ILLEGAL_MAC(addr)	(addr == 0xffffffffffffULL || addr == 0x0)
 
