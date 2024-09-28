@@ -30,8 +30,6 @@
 
 #ifdef _KERNEL
 
-#define INTR_EVENT_SOURCE_POINTERS
-
 /* FreeBSD standard interrupt controller interface */
 
 typedef struct intsrc interrupt_t;
@@ -96,8 +94,8 @@ typedef device_t x86pic_t, x86pics_t;
  * or an I/O APIC pointer.
  */
 struct intsrc {
+	struct intr_event is_event;
 	x86pic_t is_pic;
-	struct intr_event *is_event;
 	u_long *is_count;
 	u_long *is_straycount;
 	u_int is_index;

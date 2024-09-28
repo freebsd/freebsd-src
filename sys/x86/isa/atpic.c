@@ -41,6 +41,7 @@
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/msan.h>
+#include <sys/mutex.h>
 
 #include <machine/cpufunc.h>
 #include <machine/frame.h>
@@ -572,7 +573,8 @@ atpic_handle_intr(u_int vector, struct trapframe *frame)
 	 * If we don't have an event, see if this is a spurious
 	 * interrupt.
 	 */
-	if (isrc->is_event == NULL && (vector == 7 || vector == 15)) {
+	if (!mtx_initialized(&isrc->is_event.ie_lock) &&
+	    (vector == 7 || vector == 15)) {
 		int port, isr;
 
 		/*
