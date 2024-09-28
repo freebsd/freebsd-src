@@ -1375,7 +1375,6 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	struct label *maclabel = NULL;
 #endif
 	struct syncache scs;
-	struct ucred *cred;
 	uint64_t tfo_response_cookie;
 	unsigned int *tfo_pending = NULL;
 	int tfo_cookie_valid = 0;
@@ -1392,7 +1391,6 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	 */
 	KASSERT(SOLISTENING(so), ("%s: %p not listening", __func__, so));
 	tp = sototcpcb(so);
-	cred = V_tcp_syncache.see_other ? NULL : crhold(so->so_cred);
 
 #ifdef INET6
 	if (inc->inc_flags & INC_ISIPV6) {
@@ -1623,9 +1621,21 @@ skip_alloc:
 #ifdef MAC
 	sc->sc_label = maclabel;
 #endif
-	sc->sc_cred = cred;
+	/*
+	 * sc_cred is only used in syncache_pcblist() to list TCP endpoints in
+	 * TCPS_SYN_RECEIVED state when V_tcp_syncache.see_other is false.
+	 * Therefore, store the credentials and take a reference count only
+	 * when needed:
+	 * - sc is allocated from the zone and not using the on stack instance.
+	 * - the sysctl variable net.inet.tcp.syncache.see_other is false.
+	 * The reference count is decremented when a zone allocated sc is
+	 * freed in syncache_free().
+	 */
+	if (sc != &scs && !V_tcp_syncache.see_other)
+		sc->sc_cred = crhold(so->so_cred);
+	else
+		sc->sc_cred = NULL;
 	sc->sc_port = port;
-	cred = NULL;
 	sc->sc_ipopts = ipopts;
 	bcopy(inc, &sc->sc_inc, sizeof(struct in_conninfo));
 	sc->sc_ip_tos = ip_tos;
@@ -1761,8 +1771,6 @@ donenoprobe:
 		tcp_fastopen_decrement_counter(tfo_pending);
 
 tfo_expanded:
-	if (cred != NULL)
-		crfree(cred);
 	if (sc == NULL || sc == &scs) {
 #ifdef MAC
 		mac_syncache_destroy(&maclabel);
