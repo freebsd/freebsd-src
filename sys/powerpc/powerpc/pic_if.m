@@ -29,8 +29,13 @@
 #include <sys/bus.h>
 #include <sys/cpuset.h>
 #include <machine/frame.h>
+#include <machine/interrupt.h>
 
 INTERFACE pic;
+
+HEADER {
+	#include "intr_event_if.h"
+};
 
 CODE {
 	static pic_translate_code_t pic_translate_code_default;
