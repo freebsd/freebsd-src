@@ -96,6 +96,7 @@ struct intr_pic;
 
 /* Interrupt source definition. */
 struct intr_irqsrc {
+	struct intr_event	isrc_event;
 	device_t		isrc_dev;	/* where isrc is mapped */
 	u_int			isrc_irq;	/* unique identificator */
 	u_int			isrc_flags;
@@ -104,7 +105,6 @@ struct intr_irqsrc {
 	u_int			isrc_index;
 	u_long *		isrc_count;
 	u_int			isrc_handlers;
-	struct intr_event *	isrc_event;
 #ifdef INTR_SOLO
 	intr_irq_filter_t *	isrc_filter;
 	void *			isrc_arg;
