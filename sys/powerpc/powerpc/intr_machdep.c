@@ -87,7 +87,7 @@
 static MALLOC_DEFINE(M_INTR, "intr", "interrupt handler data");
 
 struct powerpc_intr {
-	struct intr_event *event;
+	struct intr_event event;
 	long	*cntp;
 	void	*priv;		/* PIC-private data */
 	device_t pic;
@@ -244,7 +244,8 @@ smp_intr_init(void *dummy __unused)
 
 	for (vector = 0; vector < nvectors; vector++) {
 		i = powerpc_intrs[vector];
-		if (i != NULL && i->event != NULL && i->pic == root_pic)
+		if (i != NULL && !CK_SLIST_EMPTY(&i->event.ie_handlers) &&
+		    i->pic == root_pic)
 			PIC_BIND(i->pic, i->intline, i->pi_cpuset, &i->priv);
 	}
 
@@ -279,7 +280,7 @@ intr_lookup(u_int irq)
 {
 	char intrname[16];
 	struct powerpc_intr *i, *iscan;
-	int vector;
+	int vector, error;
 
 	mtx_lock(&intr_table_lock);
 	for (vector = 0; vector < nvectors; vector++) {
@@ -296,7 +297,6 @@ intr_lookup(u_int irq)
 		return (NULL);
 	}
 
-	i->event = NULL;
 	i->cntp = NULL;
 	i->priv = NULL;
 	i->trig = INTR_TRIGGER_CONFORM;
@@ -324,12 +324,17 @@ intr_lookup(u_int irq)
 	}
 
 	if (iscan == NULL && i->vector != -1) {
-		powerpc_intrs[i->vector] = i;
-		i->cntindex = atomic_fetchadd_int(&intrcnt_index, 1);
-		i->cntp = &intrcnt[i->cntindex];
-		sprintf(intrname, "irq%u:", i->irq);
-		intrcnt_setname(intrname, i->cntindex);
-		nvectors++;
+		error = intr_event_init(&i->event, NULL, irq, 0,
+		    "irq%u:", irq);
+		if (error == 0) {
+			powerpc_intrs[i->vector] = i;
+			i->cntindex = atomic_fetchadd_int(&intrcnt_index, 1);
+			i->cntp = &intrcnt[i->cntindex];
+			sprintf(intrname, "irq%u:", i->irq);
+			intrcnt_setname(intrname, i->cntindex);
+			nvectors++;
+		} else
+			i->vector = -1;
 	}
 	mtx_unlock(&intr_table_lock);
 
@@ -358,12 +363,12 @@ powerpc_map_irq(struct powerpc_intr *i)
 		return (EINVAL);
 
 	i->intline = i->irq - p->base;
-	i->event->ie_pic = p->dev;
+	i->event.ie_pic = p->dev;
 	i->pic = p->dev;
 
 	/* Try a best guess if that failed */
 	if (i->pic == NULL)
-		i->pic = i->event->ie_pic = root_pic;
+		i->pic = i->event.ie_pic = root_pic;
 
 	return (0);
 }
@@ -564,7 +569,7 @@ powerpc_enable_intr(void)
 		    i->pol != INTR_POLARITY_CONFORM)
 			PIC_CONFIG(i->pic, i->intline, i->trig, i->pol);
 
-		if (i->event != NULL)
+		if (!CK_SLIST_EMPTY(&i->event.ie_handlers))
 			PIC_ENABLE(i->pic, i->intline, vector, &i->priv);
 	}
 
@@ -594,17 +599,15 @@ powerpc_setup_intr_int(const char *name, u_int irq, driver_filter_t filter,
 	if (i == NULL)
 		return (ENOMEM);
 
-	if (i->event == NULL) {
-		error = intr_event_create_device(&i->event,
-		    (ipi ? ipi_pic : i->pic), i, irq, 0, "irq%u:", irq);
-		if (error)
-			return (error);
+	if (CK_SLIST_EMPTY(&i->event.ie_handlers)) {
+		if (ipi)
+			i->event.ie_pic = ipi_pic;
 
 		enable = 1;
 	}
 	i->ipi = ipi;
 
-	error = intr_event_add_handler(i->event, name, filter, handler, arg,
+	error = intr_event_add_handler(&i->event, name, filter, handler, arg,
 	    intr_priority(flags), flags, cookiep);
 	if (error)
 		return (error);
@@ -614,7 +617,7 @@ powerpc_setup_intr_int(const char *name, u_int irq, driver_filter_t filter,
 		CPU_COPY(&cpuset_domain[domain], &i->pi_cpuset);
 	}
 	mtx_lock(&intr_table_lock);
-	intrcnt_setname(i->event->ie_fullname, i->cntindex);
+	intrcnt_setname(i->event.ie_fullname, i->cntindex);
 	mtx_unlock(&intr_table_lock);
 
 	if (!cold) {
@@ -657,7 +660,7 @@ powerpc_bind_intr(u_int irq, u_char cpu)
 	if (i == NULL)
 		return (ENOMEM);
 
-	return (intr_event_bind(i->event, cpu));
+	return (intr_event_bind(&i->event, cpu));
 }
 #endif
 
@@ -713,8 +716,9 @@ powerpc_dispatch_intr(u_int vector, struct trapframe *tf)
 
 	(*i->cntp)++;
 
-	ie = i->event;
-	KASSERT(ie != NULL, ("%s: interrupt without an event", __func__));
+	ie = &i->event;
+	KASSERT(mtx_initialized(&ie->ie_lock),
+	    ("%s: interrupt without an event", __func__));
 
 	/*
 	 * IPIs are magical and need to be EOI'ed before filtering.
