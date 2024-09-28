@@ -1882,7 +1882,7 @@ DB_SHOW_COMMAND_FLAGS(apic, db_show_apic, DB_CMD_MEMSAFE)
 				if (isrc == NULL || verbose == 0)
 					db_printf("IRQ %u\n", irq);
 				else
-					db_dump_intr_event(isrc->is_event,
+					db_dump_intr_event(&isrc->is_event,
 					    verbose == 2);
 			} else
 				db_printf("IRQ %u ???\n", irq);
