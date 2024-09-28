@@ -88,7 +88,7 @@
 static MALLOC_DEFINE(M_INTR, "intr", "interrupt handler data");
 
 struct powerpc_intr {
-	struct intr_event *event;
+	struct intr_event event;
 	long	*cntp;
 	void	*priv;		/* PIC-private data */
 	device_t pic;
@@ -103,6 +103,8 @@ struct powerpc_intr {
 	enum intr_polarity pol;
 	cpuset_t pi_cpuset;
 };
+_Static_assert(offsetof(struct powerpc_intr, event) == 0,
+    ".event misaligned from structure!");
 
 struct pic {
 	device_t dev;
@@ -190,7 +192,6 @@ intr_init_sources(void *arg __unused)
 SYSINIT(intr_init_sources, SI_SUB_KLD, SI_ORDER_ANY, intr_init_sources, NULL);
 
 #ifdef SMP
-#if 0
 static void
 powerpc_ipi_eoi(device_t pic, interrupt_t *i)
 {
@@ -219,15 +220,12 @@ powerpc_ipi_assign_intr_cpu(device_t pic, interrupt_t *i, u_int cpu)
 
 	return (EOPNOTSUPP);
 }
-#endif
 
 static device_method_t pic_ipi_funcs[] = {
-#if 0
 	DEVMETHOD(intr_event_pre_ithread,	powerpc_ipi_pre_ithread),
 	DEVMETHOD(intr_event_post_ithread,	powerpc_ipi_post_ithread),
 	DEVMETHOD(intr_event_post_filter,	powerpc_ipi_eoi),
 	DEVMETHOD(intr_event_assign_cpu,	powerpc_ipi_assign_intr_cpu),
-#endif
 
 	DEVMETHOD_END
 };
@@ -242,7 +240,8 @@ smp_intr_init(void *dummy __unused)
 
 	for (vector = 0; vector < nvectors; vector++) {
 		i = powerpc_intrs[vector];
-		if (i != NULL && i->event != NULL && i->pic == root_pic)
+		if (i != NULL && intr_event_has_handlers_(&i->event) &&
+		    i->pic == root_pic)
 			PIC_BIND(i->pic, i->intline, i->pi_cpuset, &i->priv);
 	}
 
@@ -275,7 +274,7 @@ intr_lookup(u_int irq)
 {
 	char intrname[16];
 	struct powerpc_intr *i, *iscan;
-	int vector;
+	int vector, error;
 
 	mtx_lock(&intr_table_lock);
 	for (vector = 0; vector < nvectors; vector++) {
@@ -292,7 +291,7 @@ intr_lookup(u_int irq)
 		return (NULL);
 	}
 
-	i->event = NULL;
+	bzero(&i->event, sizeof(i->event));
 	i->cntp = NULL;
 	i->priv = NULL;
 	i->trig = INTR_TRIGGER_CONFORM;
@@ -320,12 +319,17 @@ intr_lookup(u_int irq)
 	}
 
 	if (iscan == NULL && i->vector != -1) {
-		powerpc_intrs[i->vector] = i;
-		i->cntindex = atomic_fetchadd_int(&intrcnt_index, 1);
-		i->cntp = &intrcnt[i->cntindex];
-		sprintf(intrname, "irq%u:", i->irq);
-		intrcnt_setname(intrname, i->cntindex);
-		nvectors++;
+		error = intr_event_init_(&i->event, NULL, irq, 0,
+		    "irq%u:", irq);
+		if (error == 0) {
+			powerpc_intrs[i->vector] = i;
+			i->cntindex = atomic_fetchadd_int(&intrcnt_index, 1);
+			i->cntp = &intrcnt[i->cntindex];
+			sprintf(intrname, "irq%u:", i->irq);
+			intrcnt_setname(intrname, i->cntindex);
+			nvectors++;
+		} else
+			i->vector = -1;
 	}
 	mtx_unlock(&intr_table_lock);
 
@@ -354,45 +358,42 @@ powerpc_map_irq(struct powerpc_intr *i)
 		return (EINVAL);
 
 	i->intline = i->irq - p->base;
+	i->event.ie_pic = p->dev;
 	i->pic = p->dev;
 
 	/* Try a best guess if that failed */
 	if (i->pic == NULL)
-		i->pic = root_pic;
+		i->pic = i->event.ie_pic = root_pic;
 
 	return (0);
 }
 
 static void
-powerpc_intr_eoi(void *arg)
+powerpc_intr_eoi(device_t pic, interrupt_t *i)
 {
-	struct powerpc_intr *i = arg;
 
 	PIC_EOI(i->pic, i->intline, i->priv);
 }
 
 static void
-powerpc_intr_pre_ithread(void *arg)
+powerpc_intr_pre_ithread(device_t pic, interrupt_t *i)
 {
-	struct powerpc_intr *i = arg;
 
 	PIC_MASK(i->pic, i->intline, i->priv);
 	PIC_EOI(i->pic, i->intline, i->priv);
 }
 
 static void
-powerpc_intr_post_ithread(void *arg)
+powerpc_intr_post_ithread(device_t pic, interrupt_t *i)
 {
-	struct powerpc_intr *i = arg;
 
 	PIC_UNMASK(i->pic, i->intline, i->priv);
 }
 
 static int
-powerpc_assign_intr_cpu(void *arg, int cpu)
+powerpc_assign_intr_cpu(device_t pic, interrupt_t *i, u_int cpu)
 {
 #ifdef SMP
-	struct powerpc_intr *i = arg;
 
 	if (cpu == NOCPU)
 		i->pi_cpuset = all_cpus;
@@ -409,7 +410,12 @@ powerpc_assign_intr_cpu(void *arg, int cpu)
 }
 
 static device_method_t pic_base_methods[] = {
-	DEVMETHOD_END
+	DEVMETHOD(intr_event_pre_ithread,	powerpc_intr_pre_ithread),
+	DEVMETHOD(intr_event_post_ithread,	powerpc_intr_post_ithread),
+	DEVMETHOD(intr_event_post_filter,	powerpc_intr_eoi),
+	DEVMETHOD(intr_event_assign_cpu,	powerpc_assign_intr_cpu),
+
+        DEVMETHOD_END
 };
 
 PUBLIC_DEFINE_CLASSN(pic_base, pic_base_class, pic_base_methods, 0);
@@ -551,7 +557,7 @@ powerpc_enable_intr(void)
 		    i->pol != INTR_POLARITY_CONFORM)
 			PIC_CONFIG(i->pic, i->intline, i->trig, i->pol);
 
-		if (i->event != NULL)
+		if (intr_event_has_handlers_(&i->event))
 			PIC_ENABLE(i->pic, i->intline, vector, &i->priv);
 	}
 
@@ -581,19 +587,15 @@ powerpc_setup_intr_int(const char *name, u_int irq, driver_filter_t filter,
 	if (i == NULL)
 		return (ENOMEM);
 
-	if (i->event == NULL) {
-		error = intr_event_create(&i->event, (void *)i, 0, irq,
-		    powerpc_intr_pre_ithread, powerpc_intr_post_ithread,
-		    (ipi ? NULL : powerpc_intr_eoi), powerpc_assign_intr_cpu,
-		    "irq%u:", irq);
-		if (error)
-			return (error);
+	if (!intr_event_has_handlers_(&i->event)) {
+		if (ipi)
+			i->event.ie_pic = ipi_pic;
 
 		enable = 1;
 	}
 	i->ipi = ipi;
 
-	error = intr_event_add_handler(i->event, name, filter, handler, arg,
+	error = intr_event_add_handler(&i->event, name, filter, handler, arg,
 	    intr_priority(flags), flags, cookiep);
 	if (error)
 		return (error);
@@ -603,7 +605,7 @@ powerpc_setup_intr_int(const char *name, u_int irq, driver_filter_t filter,
 		CPU_COPY(&cpuset_domain[domain], &i->pi_cpuset);
 	}
 	mtx_lock(&intr_table_lock);
-	intrcnt_setname(i->event->ie_fullname, i->cntindex);
+	intrcnt_setname(i->event.ie_fullname, i->cntindex);
 	mtx_unlock(&intr_table_lock);
 
 	if (!cold) {
@@ -637,7 +639,7 @@ powerpc_teardown_intr(u_int irq, struct intr_handler *cookie)
 	i = intr_lookup(irq);
 	if (i == NULL)
 		return (EINVAL);
-	return (intr_event_remove_handler(i->event, cookie));
+	return (intr_event_remove_handler_(&i->event, cookie));
 }
 
 #ifdef SMP
@@ -650,7 +652,7 @@ powerpc_bind_intr(u_int irq, u_char cpu)
 	if (i == NULL)
 		return (ENOMEM);
 
-	return (intr_event_bind(i->event, cpu));
+	return (intr_event_bind(&i->event, cpu));
 }
 #endif
 
@@ -706,8 +708,9 @@ powerpc_dispatch_intr(u_int vector, struct trapframe *tf)
 
 	(*i->cntp)++;
 
-	ie = i->event;
-	KASSERT(ie != NULL, ("%s: interrupt without an event", __func__));
+	ie = &i->event;
+	KASSERT(intr_event_is_valid(ie),
+	    ("%s: interrupt without an event", __func__));
 
 	/*
 	 * IPIs are magical and need to be EOI'ed before filtering.
