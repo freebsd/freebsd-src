@@ -37,7 +37,7 @@ typedef struct intsrc interrupt_t;
 /* FreeBSD standard interrupt controller interface */
 
 #include <sys/_cpuset.h>
-#include <sys/_interrupt.h>
+#include <sys/interrupt.h>
 #include <sys/types.h>
 
 typedef struct { device_t next, prev; } pic_base_softc_t;
@@ -91,8 +91,8 @@ typedef	device_t		x86pic_t, x86pics_t;
  * or an I/O APIC pointer.
  */
 struct intsrc {
+	struct intr_event is_event;
 	x86pic_t is_pic;
-	struct intr_event *is_event;
 	u_long *is_count;
 	u_long *is_straycount;
 	u_int is_index;
@@ -100,9 +100,9 @@ struct intsrc {
 	u_int is_domain;
 	u_int is_cpu;
 };
+_Static_assert(offsetof(struct intsrc, is_event) == 0,
+    ".is_event misaligned from structure!");
 
-struct trapframe;
-struct intr_handler;
 struct kobj_class; /* driver_t * */
 
 #ifdef SMP
