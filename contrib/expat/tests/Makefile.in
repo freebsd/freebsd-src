@@ -22,9 +22,10 @@
 #                      \___/_/\_\ .__/ \__,_|\__|
 #                               |_| XML parser
 #
-# Copyright (c) 2017-2023 Sebastian Pipping <sebastian@pipping.org>
+# Copyright (c) 2017-2024 Sebastian Pipping <sebastian@pipping.org>
 # Copyright (c) 2017-2022 Rhodri James <rhodri@wildebeest.org.uk>
 # Copyright (c) 2020      Jeffrey Walton <noloader@gmail.com>
+# Copyright (c) 2024      Dag-Erling Smørgrav <des@des.dev>
 # Licensed under the MIT license:
 #
 # Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -151,7 +152,7 @@ am_runtests_OBJECTS = acc_tests.$(OBJEXT) alloc_tests.$(OBJEXT) \
 	nsalloc_tests.$(OBJEXT) runtests.$(OBJEXT) \
 	structdata.$(OBJEXT)
 runtests_OBJECTS = $(am_runtests_OBJECTS)
-runtests_DEPENDENCIES = ../lib/libexpatinternal.la
+runtests_DEPENDENCIES = ../lib/libtestpat.la
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
@@ -168,7 +169,7 @@ am_runtests_cxx_OBJECTS = acc_tests_cxx.$(OBJEXT) \
 	ns_tests_cxx.$(OBJEXT) runtests_cxx.$(OBJEXT) \
 	structdata_cxx.$(OBJEXT)
 runtests_cxx_OBJECTS = $(am_runtests_cxx_OBJECTS)
-runtests_cxx_DEPENDENCIES = ../lib/libexpatinternal.la
+runtests_cxx_DEPENDENCIES = ../lib/libtestpat.la
 runtests_cxx_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CXXLD) $(AM_CXXFLAGS) \
 	$(CXXFLAGS) $(runtests_cxx_LDFLAGS) $(LDFLAGS) -o $@
@@ -485,7 +486,7 @@ TEST_LOG_COMPILE = $(TEST_LOG_COMPILER) $(AM_TEST_LOG_FLAGS) \
 DIST_SUBDIRS = $(SUBDIRS)
 am__DIST_COMMON = $(srcdir)/Makefile.in \
 	$(top_srcdir)/conftools/depcomp \
-	$(top_srcdir)/conftools/test-driver
+	$(top_srcdir)/conftools/test-driver README.md
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 am__relativize = \
   dir0=`pwd`; \
@@ -515,7 +516,7 @@ am__relativize = \
 ACLOCAL = @ACLOCAL@
 AMTAR = @AMTAR@
 AM_CFLAGS = @AM_CFLAGS@
-AM_CPPFLAGS = @AM_CPPFLAGS@ -I$(srcdir)/../lib
+AM_CPPFLAGS = @AM_CPPFLAGS@ -I$(srcdir)/../lib -DXML_TESTING
 AM_CXXFLAGS = @AM_CXXFLAGS@
 AM_DEFAULT_VERBOSITY = @AM_DEFAULT_VERBOSITY@
 AM_LDFLAGS = @AM_LDFLAGS@
@@ -602,6 +603,7 @@ RANLIB = @RANLIB@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
+SIZEOF_VOID_P = @SIZEOF_VOID_P@
 SO_MAJOR = @SO_MAJOR@
 SO_MINOR = @SO_MINOR@
 SO_PATCH = @SO_PATCH@
@@ -615,7 +617,6 @@ ac_ct_AR = @ac_ct_AR@
 ac_ct_CC = @ac_ct_CC@
 ac_ct_CXX = @ac_ct_CXX@
 ac_ct_DUMPBIN = @ac_ct_DUMPBIN@
-ac_cv_sizeof_void_p = @ac_cv_sizeof_void_p@
 am__include = @am__include@
 am__leading_dot = @am__leading_dot@
 am__quote = @am__quote@
@@ -698,8 +699,8 @@ runtests_cxx_SOURCES = \
     runtests_cxx.cpp \
     structdata_cxx.cpp
 
-runtests_LDADD = ../lib/libexpatinternal.la
-runtests_cxx_LDADD = ../lib/libexpatinternal.la
+runtests_LDADD = ../lib/libtestpat.la
+runtests_cxx_LDADD = ../lib/libtestpat.la
 runtests_LDFLAGS = @AM_LDFLAGS@ @LIBM@
 runtests_cxx_LDFLAGS = @AM_LDFLAGS@ @LIBM@
 EXTRA_DIST = \
@@ -716,7 +717,7 @@ EXTRA_DIST = \
     structdata.h \
     minicheck.h \
     memcheck.h \
-    README.txt \
+    README.md \
     udiffer.py \
     xmltest.log.expected \
     xmltest.sh
