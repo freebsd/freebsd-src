@@ -34,6 +34,7 @@
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/pfkeyv2.h>
+#include <netipsec/key.h>
 #include <netipsec/key_var.h>
 #include <netipsec/keydb.h>
 #include <netipsec/ipsec.h>
@@ -257,6 +258,8 @@ static int mlx5e_xfrm_validate_state(struct mlx5_core_dev *mdev,
 		mlx5_core_err(mdev, "FULL offload is not supported\n");
 		return (EINVAL);
 	}
+	if (savp->state == SADB_SASTATE_DEAD)
+		return (EINVAL);
 	if (savp->alg_enc == SADB_EALG_NONE) {
 		mlx5_core_err(mdev, "Cannot offload authenticated xfrm states\n");
 		return (EINVAL);
@@ -325,6 +328,7 @@ mlx5e_if_sa_newkey_onedir(struct ifnet *ifp, void *sav, int dir, u_int drv_spi,
     struct mlx5e_ipsec_sa_entry **privp, struct mlx5e_ipsec_priv_bothdir *pb,
     struct ifnet *ifpo)
 {
+	struct rm_priotracker tracker;
 	struct mlx5e_ipsec_sa_entry *sa_entry = NULL;
 	struct mlx5e_priv *priv = if_getsoftc(ifp);
 	struct mlx5_core_dev *mdev = priv->mdev;
@@ -338,7 +342,9 @@ mlx5e_if_sa_newkey_onedir(struct ifnet *ifp, void *sav, int dir, u_int drv_spi,
 	if (if_gettype(ifpo) == IFT_L2VLAN)
 		VLAN_TAG(ifpo, &vid);
 
+	ipsec_sahtree_rlock(&tracker);
 	err = mlx5e_xfrm_validate_state(mdev, sav);
+	ipsec_sahtree_runlock(&tracker);
 	if (err)
 		return err;
 
@@ -353,7 +359,14 @@ mlx5e_if_sa_newkey_onedir(struct ifnet *ifp, void *sav, int dir, u_int drv_spi,
 	sa_entry->ipsec = ipsec;
 	sa_entry->vid = vid;
 
+	ipsec_sahtree_rlock(&tracker);
+	err = mlx5e_xfrm_validate_state(mdev, sav);
+	if (err != 0) {
+		ipsec_sahtree_runlock(&tracker);
+		goto err_xfrm;
+	}
 	mlx5e_ipsec_build_accel_xfrm_attrs(sa_entry, &sa_entry->attrs, dir);
+	ipsec_sahtree_runlock(&tracker);
 
 	err = mlx5e_ipsec_create_dwork(sa_entry, pb);
 	if (err)
