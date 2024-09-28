@@ -233,7 +233,7 @@ static int		 pf_clearstates_nv(struct pfioc_nv *);
 static int		 pf_getstate(struct pfioc_nv *);
 static int		 pf_getstatus(struct pfioc_nv *);
 static int		 pf_clear_tables(void);
-static void		 pf_clear_srcnodes(struct pf_ksrc_node *);
+static void		 pf_clear_srcnodes(void);
 static void		 pf_kill_srcnodes(struct pfioc_src_node_kill *);
 static int		 pf_keepcounters(struct pfioc_nv *);
 static void		 pf_tbladdr_copyout(struct pf_addr_wrap *);
@@ -5427,7 +5427,7 @@ DIOCCHANGEADDR_error:
 	}
 
 	case DIOCCLRSRCNODES: {
-		pf_clear_srcnodes(NULL);
+		pf_clear_srcnodes();
 		pf_purge_expired_src_nodes();
 		break;
 	}
@@ -5904,40 +5904,32 @@ pf_clear_tables(void)
 }
 
 static void
-pf_clear_srcnodes(struct pf_ksrc_node *n)
+pf_clear_srcnodes(void)
 {
-	struct pf_kstate *s;
-	int i;
+	struct pf_kstate	*s;
+	struct pf_srchash	*sh;
+	struct pf_ksrc_node	*sn;
+	int			 i;
 
 	for (i = 0; i <= V_pf_hashmask; i++) {
 		struct pf_idhash *ih = &V_pf_idhash[i];
 
 		PF_HASHROW_LOCK(ih);
 		LIST_FOREACH(s, &ih->states, entry) {
-			if (n == NULL || n == s->src_node)
-				s->src_node = NULL;
-			if (n == NULL || n == s->nat_src_node)
-				s->nat_src_node = NULL;
+			s->src_node = NULL;
+			s->nat_src_node = NULL;
 		}
 		PF_HASHROW_UNLOCK(ih);
 	}
 
-	if (n == NULL) {
-		struct pf_srchash *sh;
-
-		for (i = 0, sh = V_pf_srchash; i <= V_pf_srchashmask;
-		    i++, sh++) {
-			PF_HASHROW_LOCK(sh);
-			LIST_FOREACH(n, &sh->nodes, entry) {
-				n->expire = 1;
-				n->states = 0;
-			}
-			PF_HASHROW_UNLOCK(sh);
+	for (i = 0, sh = V_pf_srchash; i <= V_pf_srchashmask;
+	    i++, sh++) {
+		PF_HASHROW_LOCK(sh);
+		LIST_FOREACH(sn, &sh->nodes, entry) {
+			sn->expire = 1;
+			sn->states = 0;
 		}
-	} else {
-		/* XXX: hash slot should already be locked here. */
-		n->expire = 1;
-		n->states = 0;
+		PF_HASHROW_UNLOCK(sh);
 	}
 }
 
@@ -6406,7 +6398,7 @@ shutdown_pf(void)
 
 		pf_clear_all_states();
 
-		pf_clear_srcnodes(NULL);
+		pf_clear_srcnodes();
 
 		/* status does not use malloced mem so no need to cleanup */
 		/* fingerprints and interfaces have their own cleanup code */
