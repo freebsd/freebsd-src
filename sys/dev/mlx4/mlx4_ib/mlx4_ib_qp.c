@@ -488,7 +488,7 @@ static int set_kernel_sq_size(struct mlx4_ib_dev *dev, struct ib_qp_cap *cap,
 		      MLX4_IB_QPT_PROXY_GSI | MLX4_IB_QPT_TUN_SMI_OWNER)))
 		qp->sq.wqe_shift = ilog2(64);
 	else
-		qp->sq.wqe_shift = ilog2(roundup_pow_of_two(s));
+		qp->sq.wqe_shift = order_base_2(s);
 
 	for (;;) {
 		qp->sq_max_wqes_per_wr = DIV_ROUND_UP(s, 1U << qp->sq.wqe_shift);
@@ -544,7 +544,7 @@ static int set_user_sq_size(struct mlx4_ib_dev *dev,
 	/* Sanity check SQ size before proceeding */
 	if ((1 << ucmd->log_sq_bb_count) > dev->dev->caps.max_wqes	 ||
 	    ucmd->log_sq_stride >
-		ilog2(roundup_pow_of_two(dev->dev->caps.max_sq_desc_sz)) ||
+		order_base_2(dev->dev->caps.max_sq_desc_sz) ||
 	    ucmd->log_sq_stride < MLX4_IB_MIN_SQ_STRIDE)
 		return -EINVAL;
 
