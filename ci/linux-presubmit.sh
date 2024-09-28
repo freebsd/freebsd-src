@@ -31,7 +31,7 @@
 
 set -euox pipefail
 
-readonly LINUX_LATEST_CONTAINER="gcr.io/google.com/absl-177019/linux_hybrid-latest:20230217"
+readonly LINUX_LATEST_CONTAINER="gcr.io/google.com/absl-177019/linux_hybrid-latest:20240523"
 readonly LINUX_GCC_FLOOR_CONTAINER="gcr.io/google.com/absl-177019/linux_gcc-floor:20230120"
 
 if [[ -z ${GTEST_ROOT:-} ]]; then
@@ -67,6 +67,9 @@ for cc in /usr/local/bin/gcc /opt/llvm/clang/bin/clang; do
 done
 
 # Do one test with an older version of GCC
+# TODO(googletest-team): This currently uses Bazel 5. When upgrading to a
+# version of Bazel that supports Bzlmod, add --enable_bzlmod=false to keep test
+# coverage for the old WORKSPACE dependency management.
 time docker run \
   --volume="${GTEST_ROOT}:/src:ro" \
   --workdir="/src" \
@@ -80,7 +83,6 @@ time docker run \
       --copt="-Wuninitialized" \
       --copt="-Wundef" \
       --copt="-Wno-error=pragmas" \
-      --distdir="/bazel-distdir" \
       --features=external_include_paths \
       --keep_going \
       --show_timestamps \
@@ -102,7 +104,7 @@ for std in ${STD}; do
         --copt="-Wuninitialized" \
         --copt="-Wundef" \
         --define="absl=${absl}" \
-        --distdir="/bazel-distdir" \
+        --enable_bzlmod=true \
         --features=external_include_paths \
         --keep_going \
         --show_timestamps \
@@ -127,7 +129,7 @@ for std in ${STD}; do
         --copt="-Wuninitialized" \
         --copt="-Wundef" \
         --define="absl=${absl}" \
-        --distdir="/bazel-distdir" \
+        --enable_bzlmod=true \
         --features=external_include_paths \
         --keep_going \
         --linkopt="--gcc-toolchain=/usr/local" \
