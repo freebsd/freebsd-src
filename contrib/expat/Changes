@@ -1,6 +1,136 @@
-NOTE: We are looking for help with a few things:
-      https://github.com/libexpat/libexpat/labels/help%20wanted
-      If you can help, please get in touch.  Thanks!
+                           __  __            _
+                        ___\ \/ /_ __   __ _| |_
+                       / _ \\  /| '_ \ / _` | __|
+                      |  __//  \| |_) | (_| | |_
+                       \___/_/\_\ .__/ \__,_|\__|
+                                |_| XML parser
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!! <blink>Expat is UNDERSTAFFED and WITHOUT FUNDING.</blink>                 !!
+!!                 ~~~~~~~~~~~~                                              !!
+!! The following topics need *additional skilled C developers* to progress   !!
+!! in a timely manner or at all (loosely ordered by descending priority):    !!
+!!                                                                           !!
+!! - <blink>fixing a complex non-public security issue</blink>,              !!
+!! - teaming up on researching and fixing future security reports and        !!
+!!   ClusterFuzz findings with few-days-max response times in communication  !!
+!!   in order to (1) have a sound fix ready before the end of a 90 days      !!
+!!   grace period and (2) in a sustainable manner,                           !!
+!! - implementing and auto-testing XML 1.0r5 support                         !!
+!!   (needs discussion before pull requests),                                !!
+!! - smart ideas on fixing the Autotools CMake files generation issue        !!
+!!   without breaking CI (needs discussion before pull requests),            !!
+!! - the Windows binaries topic (needs requirements engineering first),      !!
+!! - pushing migration from `int` to `size_t` further                        !!
+!!   including edge-cases test coverage (needs discussion before anything).  !!
+!!                                                                           !!
+!! For details, please reach out via e-mail to sebastian@pipping.org so we   !!
+!! can schedule a voice call on the topic, in English or German.             !!
+!!                                                                           !!
+!! THANK YOU!                        Sebastian Pipping -- Berlin, 2024-03-09 !!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+Release 2.6.3 Wed September 4 2024
+        Security fixes:
+       #887 #890  CVE-2024-45490 -- Calling function XML_ParseBuffer with
+                    len < 0 without noticing and then calling XML_GetBuffer
+                    will have XML_ParseBuffer fail to recognize the problem
+                    and XML_GetBuffer corrupt memory.
+                    With the fix, XML_ParseBuffer now complains with error
+                    XML_ERROR_INVALID_ARGUMENT just like sibling XML_Parse
+                    has been doing since Expat 2.2.1, and now documented.
+                    Impact is denial of service to potentially artitrary code
+                    execution.
+       #888 #891  CVE-2024-45491 -- Internal function dtdCopy can have an
+                    integer overflow for nDefaultAtts on 32-bit platforms
+                    (where UINT_MAX equals SIZE_MAX).
+                    Impact is denial of service to potentially artitrary code
+                    execution.
+       #889 #892  CVE-2024-45492 -- Internal function nextScaffoldPart can
+                    have an integer overflow for m_groupSize on 32-bit
+                    platforms (where UINT_MAX equals SIZE_MAX).
+                    Impact is denial of service to potentially artitrary code
+                    execution.
+
+        Other changes:
+       #851 #879  Autotools: Sync CMake templates with CMake 3.28
+            #853  Autotools: Always provide path to find(1) for portability
+            #861  Autotools: Ensure that the m4 directory always exists.
+            #870  Autotools: Simplify handling of SIZEOF_VOID_P
+            #869  Autotools: Support non-GNU sed
+            #856  Autotools|CMake: Fix main() to main(void)
+            #865  Autotools|CMake: Fix compile tests for HAVE_SYSCALL_GETRANDOM
+            #863  Autotools|CMake: Stop requiring dos2unix
+       #854 #855  CMake: Fix check for symbols size_t and off_t
+            #864  docs|tests: Convert README to Markdown and update
+            #741  Windows: Drop support for Visual Studio <=15.0/2017
+            #886  Drop needless XML_DTD guards around is_param access
+            #885  Fix typo in a code comment
+       #894 #896  Version info bumped from 10:2:9 (libexpat*.so.1.9.2)
+                    to 10:3:9 (libexpat*.so.1.9.3); see https://verbump.de/
+                    for what these numbers do
+
+        Infrastructure:
+            #880  Readme: Promote the call for help
+            #868  CI: Fix various issues
+            #849  CI: Allow triggering GitHub Actions workflows manually
+    #851 #872 ..
+       #873 #879  CI: Adapt to breaking changes in GitHub Actions
+
+        Special thanks to:
+            Alexander Bluhm
+            Berkay Eren Ürün
+            Dag-Erling Smørgrav
+            Ferenc Géczi
+            TaiYou
+
+Release 2.6.2 Wed March 13 2024
+        Security fixes:
+       #839 #842  CVE-2024-28757 -- Prevent billion laughs attacks with
+                    isolated use of external parsers.  Please see the commit
+                    message of commit 1d50b80cf31de87750103656f6eb693746854aa8
+                    for details.
+
+        Bug fixes:
+       #839 #841  Reject direct parameter entity recursion
+                    and avoid the related undefined behavior
+
+        Other changes:
+            #847  Autotools: Fix build for DOCBOOK_TO_MAN containing spaces
+            #837  Add missing #821 and #824 to 2.6.1 change log
+       #838 #843  Version info bumped from 10:1:9 (libexpat*.so.1.9.1)
+                    to 10:2:9 (libexpat*.so.1.9.2); see https://verbump.de/
+                    for what these numbers do
+
+        Special thanks to:
+            Philippe Antoine
+            Tomas Korbar
+                 and
+            Clang UndefinedBehaviorSanitizer
+            OSS-Fuzz / ClusterFuzz
+
+Release 2.6.1 Thu February 29 2024
+        Bug fixes:
+            #817  Make tests independent of CPU speed, and thus more robust
+       #828 #836  Expose billion laughs API with XML_DTD defined and
+                    XML_GE undefined, regression from 2.6.0
+
+        Other changes:
+            #829  Hide test-only code behind new internal macro
+            #833  Autotools: Reject expat_config.h.in defining SIZEOF_VOID_P
+       #821 #824  Autotools: Fix "make clean" for case:
+                    ./configure --without-docbook && make clean all
+            #819  Address compiler warnings
+       #832 #834  Version info bumped from 10:0:9 (libexpat*.so.1.9.0)
+                    to 10:1:9 (libexpat*.so.1.9.1); see https://verbump.de/
+                    for what these numbers do
+
+        Infrastructure:
+            #818  CI: Adapt to breaking changes in clang-format
+
+        Special thanks to:
+            David Hall
+            Snild Dolkow
 
 Release 2.6.0 Tue February 6 2024
         Security fixes:
