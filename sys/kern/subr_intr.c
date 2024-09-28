@@ -237,7 +237,7 @@ intrcnt_updatename(struct intr_irqsrc *isrc)
 
 	/* QQQ: What about stray counter name? */
 	mtx_assert(&isrc_table_lock, MA_OWNED);
-	intrcnt_setname(isrc->isrc_event->ie_fullname, isrc->isrc_index);
+	intrcnt_setname(isrc->isrc_event.ie_fullname, isrc->isrc_index);
 }
 
 /*
@@ -403,10 +403,8 @@ intr_isrc_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
 			return (0);
 	} else
 #endif
-	if (isrc->isrc_event != NULL) {
-		if (intr_event_handle(isrc->isrc_event, tf) == 0)
-			return (0);
-	}
+	if (intr_event_handle(&isrc->isrc_event, tf) == 0)
+		return (0);
 
 	if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
 		isrc_increment_straycount(isrc);
@@ -427,6 +425,7 @@ static inline int
 isrc_alloc_irq(struct intr_irqsrc *isrc)
 {
 	u_int irq;
+	int error;
 
 	mtx_assert(&isrc_table_lock, MA_OWNED);
 
@@ -446,6 +445,11 @@ isrc_alloc_irq(struct intr_irqsrc *isrc)
 	return (ENOSPC);
 
 found:
+	error = intr_event_init(&isrc->isrc_event, isrc->isrc_dev, irq, 0,
+	    "%s:", isrc->isrc_name);
+	if (error != 0)
+		return (error);
+
 	isrc->isrc_irq = irq;
 	irq_sources[irq] = isrc;
 
@@ -534,12 +538,16 @@ intr_isrc_register(struct intr_irqsrc *isrc, device_t dev, u_int flags,
 int
 intr_isrc_deregister(struct intr_irqsrc *isrc)
 {
-	int error;
+	int error = 0;
 
 	mtx_lock(&isrc_table_lock);
-	if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
-		isrc_release_counters(isrc);
-	error = isrc_free_irq(isrc);
+	if (mtx_initialized(&isrc->isrc_event.ie_lock))
+		error = intr_event_shutdown(&isrc->isrc_event);
+	if (error == 0) {
+		if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
+			isrc_release_counters(isrc);
+		error = isrc_free_irq(isrc);
+	}
 	mtx_unlock(&isrc_table_lock);
 	return (error);
 }
@@ -686,57 +694,6 @@ static device_method_t pic_base_methods[] = {
 PUBLIC_DEFINE_CLASSN(pic_base, pic_base_class, pic_base_methods, 0);
 
 /*
- *  Create interrupt event for interrupt source.
- */
-static int
-isrc_event_create(struct intr_irqsrc *isrc)
-{
-	struct intr_event *ie;
-	int error;
-
-	error = intr_event_create_device(&ie, isrc->isrc_dev, isrc,
-	    isrc->isrc_irq, 0, "%s:", isrc->isrc_name);
-	if (error)
-		return (error);
-
-	mtx_lock(&isrc_table_lock);
-	/*
-	 * Make sure that we do not mix the two ways
-	 * how we handle interrupt sources. Let contested event wins.
-	 */
-#ifdef INTR_SOLO
-	if (isrc->isrc_filter != NULL || isrc->isrc_event != NULL) {
-#else
-	if (isrc->isrc_event != NULL) {
-#endif
-		mtx_unlock(&isrc_table_lock);
-		intr_event_destroy(ie);
-		return (isrc->isrc_event != NULL ? EBUSY : 0);
-	}
-	isrc->isrc_event = ie;
-	mtx_unlock(&isrc_table_lock);
-
-	return (0);
-}
-#ifdef notyet
-/*
- *  Destroy interrupt event for interrupt source.
- */
-static void
-isrc_event_destroy(struct intr_irqsrc *isrc)
-{
-	struct intr_event *ie;
-
-	mtx_lock(&isrc_table_lock);
-	ie = isrc->isrc_event;
-	isrc->isrc_event = NULL;
-	mtx_unlock(&isrc_table_lock);
-
-	if (ie != NULL)
-		intr_event_destroy(ie);
-}
-#endif
-/*
  *  Add handler to interrupt source.
  */
 static int
@@ -746,13 +703,7 @@ isrc_add_handler(struct intr_irqsrc *isrc, const char *name,
 {
 	int error;
 
-	if (isrc->isrc_event == NULL) {
-		error = isrc_event_create(isrc);
-		if (error)
-			return (error);
-	}
-
-	error = intr_event_add_handler(isrc->isrc_event, name, filter, handler,
+	error = intr_event_add_handler(&isrc->isrc_event, name, filter, handler,
 	    arg, intr_priority(flags), flags, cookiep);
 	if (error == 0) {
 		mtx_lock(&isrc_table_lock);
@@ -1225,7 +1176,7 @@ intr_describe_irq(device_t dev, struct resource *res, void *cookie,
 		return (0);
 	}
 #endif
-	error = intr_event_describe_handler(isrc->isrc_event, cookie, descr);
+	error = intr_event_describe_handler(&isrc->isrc_event, cookie, descr);
 	if (error == 0) {
 		mtx_lock(&isrc_table_lock);
 		intrcnt_updatename(isrc);
@@ -1252,7 +1203,7 @@ intr_bind_irq(device_t dev, struct resource *res, int cpu)
 	if (isrc->isrc_filter != NULL)
 		return (intr_isrc_assign_cpu(isrc, cpu));
 #endif
-	return (intr_event_bind(isrc->isrc_event, cpu));
+	return (intr_event_bind(&isrc->isrc_event, cpu));
 }
 
 /*
@@ -1304,9 +1255,8 @@ intr_irq_shuffle(void *arg __unused)
 		    isrc->isrc_flags & (INTR_ISRCF_PPI | INTR_ISRCF_IPI))
 			continue;
 
-		if (isrc->isrc_event != NULL &&
-		    isrc->isrc_flags & INTR_ISRCF_BOUND &&
-		    isrc->isrc_event->ie_cpu != CPU_FFS(&isrc->isrc_cpu) - 1)
+		if (isrc->isrc_flags & INTR_ISRCF_BOUND &&
+		    isrc->isrc_event.ie_cpu != CPU_FFS(&isrc->isrc_cpu) - 1)
 			panic("%s: CPU inconsistency", __func__);
 
 		if ((isrc->isrc_flags & INTR_ISRCF_BOUND) == 0)

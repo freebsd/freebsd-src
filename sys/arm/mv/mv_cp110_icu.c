@@ -331,8 +331,7 @@ mv_cp110_icu_map_intr(device_t dev, struct intr_map_data *data,
 		WR4(sc, ICU_INT_CFG(ICU_INT_SATA0), vector);
 
 	(*isrcp)->isrc_dev = sc->dev;
-	if ((*isrcp)->isrc_event != NULL)
-		(*isrcp)->isrc_event->ie_pic = sc->dev;
+	(*isrcp)->isrc_event.ie_pic = sc->dev;
 	return (ret);
 
 fail:
