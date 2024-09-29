@@ -115,6 +115,10 @@ static void	igc_update_stats_counters(struct igc_adapter *);
 static void	igc_add_hw_stats(struct igc_adapter *adapter);
 static int	igc_if_set_promisc(if_ctx_t ctx, int flags);
 static void	igc_setup_vlan_hw_support(if_ctx_t ctx);
+static void	igc_fw_version(struct igc_adapter *);
+static void	igc_sbuf_fw_version(struct igc_fw_version *, struct sbuf *);
+static void	igc_print_fw_version(struct igc_adapter *);
+static int	igc_sysctl_print_fw_version(SYSCTL_HANDLER_ARGS);
 static int	igc_sysctl_nvm_info(SYSCTL_HANDLER_ARGS);
 static void	igc_print_nvm_info(struct igc_adapter *);
 static int	igc_sysctl_debug_info(SYSCTL_HANDLER_ARGS);
@@ -442,6 +446,12 @@ igc_if_attach_pre(if_ctx_t ctx)
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "fw_version", CTLTYPE_STRING | CTLFLAG_RD,
+	    adapter, 0, igc_sysctl_print_fw_version, "A",
+	    "Prints FW/NVM Versions");
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 	    OID_AUTO, "debug", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	    adapter, 0, igc_sysctl_debug_info, "I", "Debug Information");
 
@@ -585,6 +595,11 @@ igc_if_attach_pre(if_ctx_t ctx)
 		error = EIO;
 		goto err_late;
 	}
+
+	/* Save the EEPROM/NVM versions */
+	igc_fw_version(adapter);
+
+	igc_print_fw_version(adapter);
 
 	/*
 	 * Get Wake-on-Lan and Management info for later use
@@ -2610,6 +2625,95 @@ igc_add_hw_stats(struct igc_adapter *adapter)
 	SYSCTL_ADD_UQUAD(ctx, int_list, OID_AUTO, "rx_desc_min_thresh",
 			CTLFLAG_RD, &adapter->stats.rxdmtc,
 			"Rx Desc Min Thresh Count");
+}
+
+static void
+igc_fw_version(struct igc_adapter *sc)
+{
+	struct igc_hw *hw = &sc->hw;
+	struct igc_fw_version *fw_ver = &sc->fw_ver;
+
+	*fw_ver = (struct igc_fw_version){0};
+
+	igc_get_fw_version(hw, fw_ver);
+}
+
+static void
+igc_sbuf_fw_version(struct igc_fw_version *fw_ver, struct sbuf *buf)
+{
+	const char *space = "";
+
+	if (fw_ver->eep_major || fw_ver->eep_minor || fw_ver->eep_build) {
+		sbuf_printf(buf, "EEPROM V%d.%d-%d", fw_ver->eep_major,
+			    fw_ver->eep_minor, fw_ver->eep_build);
+		space = " ";
+	}
+
+	if (fw_ver->invm_major || fw_ver->invm_minor || fw_ver->invm_img_type) {
+		sbuf_printf(buf, "%sNVM V%d.%d imgtype%d",
+			    space, fw_ver->invm_major, fw_ver->invm_minor,
+			    fw_ver->invm_img_type);
+		space = " ";
+	}
+
+	if (fw_ver->or_valid) {
+		sbuf_printf(buf, "%sOption ROM V%d-b%d-p%d",
+			    space, fw_ver->or_major, fw_ver->or_build,
+			    fw_ver->or_patch);
+		space = " ";
+	}
+
+	if (fw_ver->etrack_id)
+		sbuf_printf(buf, "%seTrack 0x%08x", space, fw_ver->etrack_id);
+}
+
+static void
+igc_print_fw_version(struct igc_adapter *sc )
+{
+	device_t dev = sc->dev;
+	struct sbuf *buf;
+	int error = 0;
+
+	buf = sbuf_new_auto();
+	if (!buf) {
+		device_printf(dev, "Could not allocate sbuf for output.\n");
+		return;
+	}
+
+	igc_sbuf_fw_version(&sc->fw_ver, buf);
+
+	error = sbuf_finish(buf);
+	if (error)
+		device_printf(dev, "Error finishing sbuf: %d\n", error);
+	else if (sbuf_len(buf))
+		device_printf(dev, "%s\n", sbuf_data(buf));
+
+	sbuf_delete(buf);
+}
+
+static int
+igc_sysctl_print_fw_version(SYSCTL_HANDLER_ARGS)
+{
+	struct igc_adapter *sc = (struct igc_adapter *)arg1;
+	device_t dev = sc->dev;
+	struct sbuf *buf;
+	int error = 0;
+
+	buf = sbuf_new_for_sysctl(NULL, NULL, 128, req);
+	if (!buf) {
+		device_printf(dev, "Could not allocate sbuf for output.\n");
+		return (ENOMEM);
+	}
+
+	igc_sbuf_fw_version(&sc->fw_ver, buf);
+
+	error = sbuf_finish(buf);
+	if (error)
+		device_printf(dev, "Error finishing sbuf: %d\n", error);
+
+	sbuf_delete(buf);
+
+	return (0);
 }
 
 /**********************************************************************
