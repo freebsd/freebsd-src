@@ -70,17 +70,6 @@ struct pin_cookie {
 
 #define	lockdep_assert_none_held_once() do { } while (0)
 
-static __inline bool
-lockdep_is_held(void *__m)
-{
-	struct lock_object *__lock;
-	struct thread *__td;
-
-	__lock = __m;
-	return (LOCK_CLASS(__lock)->lc_owner(__lock, &__td) != 0);
-}
-#define	lockdep_is_held_type(_m, _t) lockdep_is_held(_m)
-
 #else
 #define	lockdep_assert(cond) do { } while (0)
 #define	lockdep_assert_once(cond) do { } while (0)
@@ -91,9 +80,22 @@ lockdep_is_held(void *__m)
 
 #define	lockdep_assert_held_once(m) do { (void)(m); } while (0)
 
-#define	lockdep_is_held(m)	1
-#define	lockdep_is_held_type(_m, _t)	1
 #endif
+
+static __inline bool
+lockdep_is_held(void *__m __diagused)
+{
+#ifdef INVARIANTS
+	struct lock_object *__lock;
+	struct thread *__td;
+
+	__lock = __m;
+	return (LOCK_CLASS(__lock)->lc_owner(__lock, &__td) != 0);
+#else
+	return (true);
+#endif
+}
+#define	lockdep_is_held_type(_m, _t)	lockdep_is_held(_m)
 
 #define	might_lock(m)	do { } while (0)
 #define	might_lock_read(m) do { } while (0)

@@ -117,6 +117,10 @@ int linuxkpi_debug;
 SYSCTL_INT(_compat_linuxkpi, OID_AUTO, debug, CTLFLAG_RWTUN,
     &linuxkpi_debug, 0, "Set to enable pr_debug() prints. Clear to disable.");
 
+int linuxkpi_rcu_debug;
+SYSCTL_INT(_compat_linuxkpi, OID_AUTO, rcu_debug, CTLFLAG_RWTUN,
+    &linuxkpi_rcu_debug, 0, "Set to enable RCU warning. Clear to disable.");
+
 int linuxkpi_warn_dump_stack = 0;
 SYSCTL_INT(_compat_linuxkpi, OID_AUTO, warn_dump_stack, CTLFLAG_RWTUN,
     &linuxkpi_warn_dump_stack, 0,
