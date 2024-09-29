@@ -27,7 +27,6 @@
 #define IGC_CONNSW		0x00034  /* Copper/Fiber switch control - RW */
 #define IGC_VET			0x00038  /* VLAN Ether Type - RW */
 #define IGC_ICR			0x01500  /* Intr Cause Read - RC/W1C */
-#define IGC_ITR			0x000C4  /* Interrupt Throttling Rate - RW */
 #define IGC_ICS			0x01504  /* Intr Cause Set - WO */
 #define IGC_IMS			0x01508  /* Intr Mask Set/Read - RW */
 #define IGC_IMC			0x0150C  /* Intr Mask Clear - WO */
@@ -78,8 +77,6 @@
 #define IGC_FCRTV		0x02460  /* Flow Control Refresh Timer Value - RW */
 /* Split and Replication Rx Control - RW */
 #define IGC_RXPBS		0x02404  /* Rx Packet Buffer Size - RW */
-#define IGC_RDTR		0x02820  /* Rx Delay Timer - RW */
-#define IGC_RADV		0x0282C  /* Rx Interrupt Absolute Delay Timer - RW */
 /* Shadow Ram Write Register - RW */
 #define IGC_SRWR		0x12018
 #define IGC_EEC_REG		0x12010
@@ -148,8 +145,6 @@
 #define IGC_FFVT_REG(_i)	(0x09800 + ((_i) * 8))
 #define IGC_FFLT_REG(_i)	(0x05F00 + ((_i) * 8))
 #define IGC_TXPBS		0x03404  /* Tx Packet Buffer Size - RW */
-#define IGC_TIDV		0x03820  /* Tx Interrupt Delay Value - RW */
-#define IGC_TADV		0x0382C  /* Tx Interrupt Absolute Delay Val - RW */
 /* Statistics Register Descriptions */
 #define IGC_CRCERRS		0x04000  /* CRC Error Count - R/clr */
 #define IGC_ALGNERRC		0x04004  /* Alignment Error Count - R/clr */
