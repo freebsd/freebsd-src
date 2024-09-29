@@ -100,7 +100,7 @@ ixgbe_send_vf_msg(struct ixgbe_hw *hw, struct ixgbe_vf *vf, u32 msg)
 	if (vf->flags & IXGBE_VF_CTS)
 		msg |= IXGBE_VT_MSGTYPE_CTS;
 
-	hw->mbx.ops[vf->pool].write(hw, &msg, 1, vf->pool);
+	ixgbe_write_mbx(hw, &msg, 1, vf->pool);
 }
 
 static inline void
@@ -595,8 +595,7 @@ ixgbe_process_vf_msg(if_ctx_t ctx, struct ixgbe_vf *vf)
 
 	hw = &sc->hw;
 
-	error = hw->mbx.ops[vf->pool].read(hw, msg, IXGBE_VFMAILBOX_SIZE,
-	    vf->pool);
+	error = ixgbe_read_mbx(hw, msg, IXGBE_VFMAILBOX_SIZE, vf->pool);
 
 	if (error != 0)
 		return;
