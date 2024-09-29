@@ -1795,7 +1795,7 @@ vm_handle_db(struct vcpu *vcpu, struct vm_exit *vme, bool *retu)
 	int error, fault;
 	uint64_t rsp;
 	uint64_t rflags;
-	struct vm_copyinfo copyinfo;
+	struct vm_copyinfo copyinfo[2];
 
 	*retu = true;
 	if (!vme->u.dbg.pushf_intercept || vme->u.dbg.tf_shadow_val != 0) {
@@ -1804,21 +1804,21 @@ vm_handle_db(struct vcpu *vcpu, struct vm_exit *vme, bool *retu)
 
 	vm_get_register(vcpu, VM_REG_GUEST_RSP, &rsp);
 	error = vm_copy_setup(vcpu, &vme->u.dbg.paging, rsp, sizeof(uint64_t),
-	    VM_PROT_RW, &copyinfo, 1, &fault);
+	    VM_PROT_RW, copyinfo, nitems(copyinfo), &fault);
 	if (error != 0 || fault != 0) {
 		*retu = false;
 		return (EINVAL);
 	}
 
 	/* Read pushed rflags value from top of stack. */
-	vm_copyin(&copyinfo, &rflags, sizeof(uint64_t));
+	vm_copyin(copyinfo, &rflags, sizeof(uint64_t));
 
 	/* Clear TF bit. */
 	rflags &= ~(PSL_T);
 
 	/* Write updated value back to memory. */
-	vm_copyout(&rflags, &copyinfo, sizeof(uint64_t));
-	vm_copy_teardown(&copyinfo, 1);
+	vm_copyout(&rflags, copyinfo, sizeof(uint64_t));
+	vm_copy_teardown(copyinfo, nitems(copyinfo));
 
 	return (0);
 }
