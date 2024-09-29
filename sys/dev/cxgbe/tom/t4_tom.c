@@ -1966,7 +1966,6 @@ t4_tom_deactivate(struct adapter *sc)
 	MPASS(TAILQ_EMPTY(&td->synqe_list));
 	MPASS(TAILQ_EMPTY(&td->stranded_tids));
 	mtx_unlock(&td->toep_list_lock);
-	mtx_unlock(&td->toep_list_lock);
 
 	mtx_lock(&td->lctx_hash_lock);
 	if (td->lctx_count > 0)
