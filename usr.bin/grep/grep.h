@@ -105,6 +105,7 @@ struct parsec {
 	/* XXX TODO: This should be a chunk, not a line */
 	struct str	ln;				/* Current line */
 	size_t		lnstart;			/* Position in line */
+	size_t		prstart;			/* Printing start pos */
 	size_t		matchidx;			/* Latest match index */
 	int		printed;			/* Metadata printed? */
 	bool		binary;				/* Binary file? */
