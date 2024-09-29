@@ -332,6 +332,8 @@ struct igc_adapter {
 
 	u64		que_mask;
 
+	struct igc_fw_version	fw_ver;
+
 	struct igc_int_delay_info tx_int_delay;
 	struct igc_int_delay_info tx_abs_int_delay;
 	struct igc_int_delay_info rx_int_delay;
