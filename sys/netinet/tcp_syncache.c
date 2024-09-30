@@ -1604,8 +1604,6 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 				    ("%s: bucket unexpectedly unlocked",
 				    __func__));
 				SCH_UNLOCK(sch);
-				if (ipopts)
-					(void)m_free(ipopts);
 				goto done;
 			}
 		}
@@ -1775,6 +1773,8 @@ tfo_expanded:
 #ifdef MAC
 		mac_syncache_destroy(&maclabel);
 #endif
+		if (ipopts)
+			(void)m_free(ipopts);
 	}
 	return (rv);
 }
