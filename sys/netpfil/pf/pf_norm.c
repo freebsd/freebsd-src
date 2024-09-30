@@ -1215,19 +1215,11 @@ pf_normalize_ip6(struct mbuf **m0, struct pfi_kkif *kif,
 	struct mbuf		*m;
 	struct pf_krule		*r;
 	struct ip6_frag		 frag;
-	int			 extoff;
-	uint32_t		 jumbolen;
-	uint8_t			 nxt;
 	bool			 scrub_compat;
 
 	PF_RULES_RASSERT();
 
-again:
 	m = *m0;
-
-	if (pf_walk_header6(m, &nxt, &off, &extoff, &jumbolen, reason)
-	    != PF_PASS)
-		return (PF_DROP);
 
 	r = TAILQ_FIRST(pf_main_ruleset.rules[PF_RULESET_SCRUB].active.ptr);
 	/*
@@ -1280,20 +1272,14 @@ again:
 	/* Offset now points to data portion. */
 	off += sizeof(frag);
 
-	if (nxt == IPPROTO_FRAGMENT) {
-		if (pd->flags & PFDESC_IP_REAS)
-			return (PF_DROP);
-
+	if (pd->virtual_proto == PF_VPROTO_FRAGMENT) {
 		/* Returns PF_DROP or *m0 is NULL or completely reassembled
 		 * mbuf. */
-		if (pf_reassemble6(m0, &frag, off, extoff, reason) != PF_PASS)
+		if (pf_reassemble6(m0, &frag, off, pd->extoff, reason) != PF_PASS)
 			return (PF_DROP);
-
-		pd->flags |= PFDESC_IP_REAS;
 		m = *m0;
 		if (m == NULL)
 			return (PF_DROP);
-		goto again;
 	}
 
 	return (PF_PASS);

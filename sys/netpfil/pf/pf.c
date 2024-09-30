@@ -7026,7 +7026,8 @@ pf_test_state_icmp(struct pf_kstate **state, struct pfi_kkif *kif,
 #endif /* INET */
 #ifdef INET6
 		struct ip6_hdr	h2_6;
-		int		terminal = 0;
+		int		fragoff2, extoff2;
+		u_int32_t	jumbolen;
 #endif /* INET6 */
 		int		ipoff2 = 0;
 		int		off2 = 0;
@@ -7078,47 +7079,16 @@ pf_test_state_icmp(struct pf_kstate **state, struct pfi_kkif *kif,
 				    "(ip6)\n"));
 				return (PF_DROP);
 			}
-			pd2.proto = h2_6.ip6_nxt;
+			off2 = ipoff2;
+			if (pf_walk_header6(m, &h2_6, &off2, &extoff2,
+				&fragoff2, &pd2.proto, &jumbolen,
+				reason) != PF_PASS)
+				return (PF_DROP);
+
 			pd2.src = (struct pf_addr *)&h2_6.ip6_src;
 			pd2.dst = (struct pf_addr *)&h2_6.ip6_dst;
 			pd2.ip_sum = NULL;
 			off2 = ipoff2 + sizeof(h2_6);
-			do {
-				switch (pd2.proto) {
-				case IPPROTO_FRAGMENT:
-					/*
-					 * ICMPv6 error messages for
-					 * non-first fragments
-					 */
-					REASON_SET(reason, PFRES_FRAG);
-					return (PF_DROP);
-				case IPPROTO_AH:
-				case IPPROTO_HOPOPTS:
-				case IPPROTO_ROUTING:
-				case IPPROTO_DSTOPTS: {
-					/* get next header and header length */
-					struct ip6_ext opt6;
-
-					if (!pf_pull_hdr(m, off2, &opt6,
-					    sizeof(opt6), NULL, reason,
-					    pd2.af)) {
-						DPFPRINTF(PF_DEBUG_MISC,
-						    ("pf: ICMPv6 short opt\n"));
-						return (PF_DROP);
-					}
-					if (pd2.proto == IPPROTO_AH)
-						off2 += (opt6.ip6e_len + 2) * 4;
-					else
-						off2 += (opt6.ip6e_len + 1) * 8;
-					pd2.proto = opt6.ip6e_nxt;
-					/* goto the next header */
-					break;
-				}
-				default:
-					terminal++;
-					break;
-				}
-			} while (!terminal);
 			break;
 #endif /* INET6 */
 		}
@@ -8537,28 +8507,44 @@ pf_walk_option6(struct mbuf *m, int off, int end, uint32_t *jumbolen,
 }
 
 int
-pf_walk_header6(struct mbuf *m, uint8_t *nxt, int *off, int *extoff,
-    uint32_t *jumbolen, u_short *reason)
+pf_walk_header6(struct mbuf *m, struct ip6_hdr *h, int *off, int *extoff,
+    int *fragoff, uint8_t *nxt, uint32_t *jumbolen, u_short *reason)
 {
+	struct ip6_frag		 frag;
 	struct ip6_ext		 ext;
 	struct ip6_rthdr	 rthdr;
-	struct ip6_hdr		*h = mtod(m, struct ip6_hdr *);
 	int			 rthdr_cnt = 0;
 
+	*off += sizeof(struct ip6_hdr);
+	*extoff = *fragoff = 0;
 	*nxt = h->ip6_nxt;
-	*off = sizeof(struct ip6_hdr);
-	*extoff = 0;
 	*jumbolen = 0;
 	for (;;) {
 		switch (*nxt) {
 		case IPPROTO_FRAGMENT:
+			if (*fragoff != 0) {
+				DPFPRINTF(PF_DEBUG_MISC, ("IPv6 multiple fragment"));
+				REASON_SET(reason, PFRES_FRAG);
+				return (PF_DROP);
+			}
 			/* jumbo payload packets cannot be fragmented */
 			if (*jumbolen != 0) {
 				DPFPRINTF(PF_DEBUG_MISC, ("IPv6 fragmented jumbo"));
 				REASON_SET(reason, PFRES_FRAG);
 				return (PF_DROP);
 			}
-			return (PF_PASS);
+			if (!pf_pull_hdr(m, *off, &frag, sizeof(frag), NULL,
+				reason, AF_INET6)) {
+				DPFPRINTF(PF_DEBUG_MISC, ("IPv6 short fragment"));
+				return (PF_DROP);
+			}
+			*fragoff = *off;
+			/* stop walking over non initial fragments */
+			if ((frag.ip6f_offlg & IP6F_OFF_MASK) != 0)
+				return (PF_PASS);
+			*off += sizeof(frag);
+			*nxt = frag.ip6f_nxt;
+			break;
 		case IPPROTO_ROUTING:
 			if (rthdr_cnt++) {
 				DPFPRINTF(PF_DEBUG_MISC, ("IPv6 multiple rthdr"));
@@ -8567,6 +8553,12 @@ pf_walk_header6(struct mbuf *m, uint8_t *nxt, int *off, int *extoff,
 			}
 			if (!pf_pull_hdr(m, *off, &rthdr, sizeof(rthdr), NULL,
 				reason, AF_INET6)) {
+				/* fragments may be short */
+				if (*fragoff != 0) {
+					*off = *fragoff;
+					*nxt = IPPROTO_FRAGMENT;
+					return (PF_PASS);
+				}
 				DPFPRINTF(PF_DEBUG_MISC, ("IPv6 short rthdr"));
 				return (PF_DROP);
 			}
@@ -8581,11 +8573,19 @@ pf_walk_header6(struct mbuf *m, uint8_t *nxt, int *off, int *extoff,
 		case IPPROTO_DSTOPTS:
 			if (!pf_pull_hdr(m, *off, &ext, sizeof(ext), NULL,
 				reason, AF_INET6)) {
+				/* fragments may be short */
+				if (*fragoff != 0) {
+					*off = *fragoff;
+					*nxt = IPPROTO_FRAGMENT;
+					return (PF_PASS);
+				}
 				DPFPRINTF(PF_DEBUG_MISC, ("IPv6 short exthdr"));
 				return (PF_DROP);
 			}
-			*extoff = *off;
-			if (*nxt == IPPROTO_HOPOPTS) {
+			/* reassembly needs the ext header before the frag */
+			if (*fragoff == 0)
+				*extoff = *off;
+			if (*nxt == IPPROTO_HOPOPTS && *fragoff == 0) {
 				if (pf_walk_option6(m, *off + sizeof(ext),
 					*off + (ext.ip6e_len + 1) * 8, jumbolen,
 					reason) != PF_PASS)
@@ -8603,6 +8603,20 @@ pf_walk_header6(struct mbuf *m, uint8_t *nxt, int *off, int *extoff,
 				*off += (ext.ip6e_len + 1) * 8;
 			*nxt = ext.ip6e_nxt;
 			break;
+		case IPPROTO_TCP:
+		case IPPROTO_UDP:
+		case IPPROTO_SCTP:
+		case IPPROTO_ICMPV6:
+			/* fragments may be short, ignore inner header then */
+			if (*fragoff != 0 && ntohs(h->ip6_plen) < *off +
+			    (*nxt == IPPROTO_TCP ? sizeof(struct tcphdr) :
+			    *nxt == IPPROTO_UDP ? sizeof(struct udphdr) :
+			    *nxt == IPPROTO_SCTP ? sizeof(struct sctphdr) :
+			    sizeof(struct icmp6_hdr))) {
+				*off = *fragoff;
+				*nxt = IPPROTO_FRAGMENT;
+			}
+			/* FALLTHROUGH */
 		default:
 			return (PF_PASS);
 		}
@@ -8705,7 +8719,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 #ifdef INET6
 	case AF_INET6: {
 		struct ip6_hdr *h;
-		int extoff;
+		int fragoff;
 		uint32_t jumbolen;
 		uint8_t nxt;
 
@@ -8719,8 +8733,10 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 			return (-1);
 		}
 
-		if (pf_walk_header6(m, &nxt, off, &extoff, &jumbolen, reason)
-		    != PF_PASS) {
+		h = mtod(m, struct ip6_hdr *);
+		*off = 0;
+		if (pf_walk_header6(m, h, off, &pd->extoff, &fragoff, &nxt,
+		    &jumbolen, reason) != PF_PASS) {
 			*action = PF_DROP;
 			return (-1);
 		}
@@ -8740,6 +8756,9 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		pd->virtual_proto = pd->proto = h->ip6_nxt;
 		pd->act.rtableid = -1;
 
+		if (fragoff != 0)
+			pd->virtual_proto = PF_VPROTO_FRAGMENT;
+
 		/*
 		 * we do not support jumbogram.  if we keep going, zero ip6_plen
 		 * will do something bad, so drop the packet for now.
@@ -8750,7 +8769,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		}
 
 		/* We do IP header normalization and packet reassembly here */
-		if (pf_normalize_ip6(m0, kif, *off, reason, pd) !=
+		if (pf_normalize_ip6(m0, kif, fragoff, reason, pd) !=
 		    PF_PASS) {
 			*action = PF_DROP;
 			return (-1);
@@ -8769,14 +8788,17 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		h = mtod(m, struct ip6_hdr *);
 		pd->virtual_proto = pd->proto = h->ip6_nxt;
 
-		/* recalc offset, refetch header, then update pd */
-		if (pf_walk_header6(m, &nxt, off, &extoff, &jumbolen, reason) !=
-		    PF_PASS) {
+		/* refetch header, recalc offset, then update pd */
+		h = mtod(m, struct ip6_hdr *);
+		*off = 0;
+
+		if (pf_walk_header6(m, h, off, &pd->extoff, &fragoff, &nxt,
+			&jumbolen, reason) != PF_PASS) {
 			*action = PF_DROP;
 			return (-1);
 		}
 
-		if (pd->proto == IPPROTO_FRAGMENT) {
+		if (fragoff != 0) {
 			/*
 			 * handle fragments that aren't reassembled by
 			 * normalization
