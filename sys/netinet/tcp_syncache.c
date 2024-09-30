@@ -237,7 +237,7 @@ syncache_free(struct syncache *sc)
 {
 
 	if (sc->sc_ipopts)
-		(void) m_free(sc->sc_ipopts);
+		(void)m_free(sc->sc_ipopts);
 	if (sc->sc_cred)
 		crfree(sc->sc_cred);
 #ifdef MAC
@@ -1530,7 +1530,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			 * forget it and use the new one we've been given.
 			 */
 			if (sc->sc_ipopts)
-				(void) m_free(sc->sc_ipopts);
+				(void)m_free(sc->sc_ipopts);
 			sc->sc_ipopts = ipopts;
 		}
 		/*
@@ -1615,7 +1615,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 				    __func__));
 				SCH_UNLOCK(sch);
 				if (ipopts)
-					(void) m_free(ipopts);
+					(void)m_free(ipopts);
 				goto done;
 			}
 		}
