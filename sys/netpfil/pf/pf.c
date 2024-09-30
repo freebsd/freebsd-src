@@ -7342,6 +7342,11 @@ pf_test_state_icmp(struct pf_kstate **state, struct pfi_kkif *kif,
 		case IPPROTO_ICMP: {
 			struct icmp	*iih = &pd2.hdr.icmp;
 
+			if (pd2.af != AF_INET) {
+				REASON_SET(reason, PFRES_NORM);
+				return (PF_DROP);
+			}
+
 			if (!pf_pull_hdr(m, off2, iih, ICMP_MINLEN,
 			    NULL, reason, pd2.af)) {
 				DPFPRINTF(PF_DEBUG_MISC,
@@ -7399,6 +7404,11 @@ pf_test_state_icmp(struct pf_kstate **state, struct pfi_kkif *kif,
 #ifdef INET6
 		case IPPROTO_ICMPV6: {
 			struct icmp6_hdr	*iih = &pd2.hdr.icmp6;
+
+			if (pd2.af != AF_INET6) {
+				REASON_SET(reason, PFRES_NORM);
+				return (PF_DROP);
+			}
 
 			if (!pf_pull_hdr(m, off2, iih,
 			    sizeof(struct icmp6_hdr), NULL, reason, pd2.af)) {
@@ -9201,6 +9211,7 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 	case IPPROTO_ICMP: {
 		if (af != AF_INET) {
 			action = PF_DROP;
+			REASON_SET(&reason, PFRES_NORM);
 			DPFPRINTF(PF_DEBUG_MISC,
 			    ("dropping IPv6 packet with ICMPv4 payload"));
 			goto done;
@@ -9220,6 +9231,7 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 	case IPPROTO_ICMPV6: {
 		if (af != AF_INET6) {
 			action = PF_DROP;
+			REASON_SET(&reason, PFRES_NORM);
 			DPFPRINTF(PF_DEBUG_MISC,
 			    ("pf: dropping IPv4 packet with ICMPv6 payload\n"));
 			goto done;
