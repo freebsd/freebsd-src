@@ -538,7 +538,9 @@ luaopen_posix_sys_wait(lua_State *L)
 
 	lua_pushflag(L, WCONTINUED);
 	lua_pushflag(L, WSTOPPED);
+#ifdef WTRAPPED
 	lua_pushflag(L, WTRAPPED);
+#endif
 	lua_pushflag(L, WEXITED);
 	lua_pushflag(L, WNOWAIT);
 #undef lua_pushflag
