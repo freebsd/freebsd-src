@@ -1,4 +1,4 @@
-FBSD_1.7 {
+FBSD_1.8 {
 	MD4Data;
 	MD4End;
 	MD4Fd;
