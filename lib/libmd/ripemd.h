@@ -110,9 +110,6 @@ __BEGIN_DECLS
 #define RIPEMD160_Data		_libmd_RIPEMD160_Data
 #endif
 
-#ifndef RMD160_version
-#define RMD160_version		_libmd_RMD160_version
-#endif
 #ifndef ripemd160_block
 #define ripemd160_block		_libmd_ripemd160_block
 #endif

@@ -69,10 +69,6 @@ __BEGIN_DECLS
 #define SHA512_224_Data		_libmd_SHA512_224_Data
 #endif
 
-#ifndef SHA512_224_version
-#define SHA512_224_version	_libmd_SHA512_224_version
-#endif
-
 #ifndef SHA512_256_Init
 #define SHA512_256_Init		_libmd_SHA512_256_Init
 #endif
@@ -99,10 +95,6 @@ __BEGIN_DECLS
 #endif
 #ifndef SHA512_256_Data
 #define SHA512_256_Data		_libmd_SHA512_256_Data
-#endif
-
-#ifndef SHA512_256_version
-#define SHA512_256_version	_libmd_SHA512_256_version
 #endif
 
 void	SHA512_224_Init(SHA512_CTX *);

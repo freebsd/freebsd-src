@@ -72,10 +72,6 @@ __BEGIN_DECLS
 #define SHA512_Data		_libmd_SHA512_Data
 #endif
 
-#ifndef SHA512_version
-#define SHA512_version		_libmd_SHA512_version
-#endif
-
 void	SHA512_Init(SHA512_CTX *);
 void	SHA512_Update(SHA512_CTX *, const void *, size_t);
 void	SHA512_Final(unsigned char [__min_size(SHA512_DIGEST_LENGTH)],
