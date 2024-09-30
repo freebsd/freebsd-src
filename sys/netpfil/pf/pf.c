@@ -5451,7 +5451,7 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 
 	if (r->rt) {
 		/* pf_map_addr increases the reason counters */
-		if ((reason = pf_map_addr(pd->af, r, pd->src, &s->rt_addr,
+		if ((reason = pf_map_addr_sn(pd->af, r, pd->src, &s->rt_addr,
 		    &s->rt_kif, NULL, &sn)) != 0)
 			goto csfailed;
 		s->rt = r->rt;
@@ -7801,7 +7801,6 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 	struct pfi_kkif		*nkif = NULL;
 	struct ifnet		*ifp = NULL;
 	struct pf_addr		 naddr;
-	struct pf_ksrc_node	*sn = NULL;
 	int			 error = 0;
 	uint16_t		 ip_len, ip_off;
 	uint16_t		 tmp;
@@ -7884,7 +7883,7 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 			goto bad_locked;
 		}
 		pf_map_addr(AF_INET, r, (struct pf_addr *)&ip->ip_src,
-		    &naddr, &nkif, NULL, &sn);
+		    &naddr, &nkif, NULL);
 		if (!PF_AZERO(&naddr, AF_INET))
 			dst.sin_addr.s_addr = naddr.v4.s_addr;
 		ifp = nkif ? nkif->pfik_ifp : NULL;
@@ -8053,7 +8052,6 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 	struct pfi_kkif		*nkif = NULL;
 	struct ifnet		*ifp = NULL;
 	struct pf_addr		 naddr;
-	struct pf_ksrc_node	*sn = NULL;
 	int			 r_rt, r_dir;
 
 	KASSERT(m && *m && r && oifp, ("%s: invalid parameters", __func__));
@@ -8133,7 +8131,7 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 			goto bad_locked;
 		}
 		pf_map_addr(AF_INET6, r, (struct pf_addr *)&ip6->ip6_src,
-		    &naddr, &nkif, NULL, &sn);
+		    &naddr, &nkif, NULL);
 		if (!PF_AZERO(&naddr, AF_INET6))
 			PF_ACPY((struct pf_addr *)&dst.sin6_addr,
 			    &naddr, AF_INET6);
