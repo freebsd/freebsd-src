@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2022 Bjoern A. Zeeb
+.\" Copyright (c) 2022-2024 Bjoern A. Zeeb
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 22, 2023
+.Dd September 30, 2024
 .Dt RTW88 4
 .Os
 .Sh NAME
@@ -51,15 +51,7 @@ It is discouraged to load the driver from
 .Sh DESCRIPTION
 The
 .Nm
-driver is derived from Realtek's Linux rtw88 driver and provides support for
-the following chipsets:
-.Pp
-.Bl -tag -width Ds -offset indent -compact
-.It Realtek 802.11n  wireless 8723de (RTL8723DE)
-.It Realtek 802.11ac wireless 8821ce (RTL8821CE)
-.It Realtek 802.11ac wireless 8822be (RTL8822BE)
-.It Realtek 802.11ac wireless 8822ce (RTL8822CE)
-.El
+driver is derived from Realtek's Linux rtw88 driver.
 .Pp
 The driver uses the
 .\" No LinuxKPI man pages so no .Xr here.
@@ -90,6 +82,17 @@ and reboot once to make it effective.
 This tunable will work around a problem with DMA and limit allocations
 for network buffer memory to the lower 32bit of physical memory and
 make the driver work.
+.El
+.Sh HARDWARE
+The
+.Nm
+driver supports PCIe devices with the following chipsets:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Realtek 802.11n  wireless 8723de (RTL8723DE)
+.It Realtek 802.11ac wireless 8821ce (RTL8821CE)
+.It Realtek 802.11ac wireless 8822be (RTL8822BE)
+.It Realtek 802.11ac wireless 8822ce (RTL8822CE)
 .El
 .Sh BUGS
 Certainly.
