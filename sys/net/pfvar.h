@@ -2619,6 +2619,9 @@ int			 pf_step_out_of_keth_anchor(struct pf_keth_anchor_stackframe *,
 
 u_short			 pf_map_addr(u_int8_t, struct pf_krule *,
 			    struct pf_addr *, struct pf_addr *,
+			    struct pfi_kkif **nkif, struct pf_addr *);
+u_short			 pf_map_addr_sn(u_int8_t, struct pf_krule *,
+			    struct pf_addr *, struct pf_addr *,
 			    struct pfi_kkif **nkif, struct pf_addr *,
 			    struct pf_ksrc_node **);
 u_short			 pf_get_translation(struct pf_pdesc *, struct mbuf *,
