@@ -394,6 +394,20 @@ xctrl_on_watch_event(struct xs_watch *watch, const char **vec, unsigned int len)
 }
 
 /*------------------ Private Device Attachment Functions  --------------------*/
+
+static void
+notify_support(void)
+{
+	/*
+	 * Notify kernel is ready to handle "control/shutdown" events.  Ignore
+	 * errors if the nodes haven't been created by the toolstack, as the
+	 * parent "control" directory should be read-only for the guest.
+	 */
+	xs_write(XST_NIL, "control", "feature-poweroff", "1");
+	xs_write(XST_NIL, "control", "feature-reboot", "1");
+	xs_write(XST_NIL, "control", "feature-suspend", "1");
+}
+
 /**
  * \brief Identify instances of this device type in the system.
  *
@@ -455,6 +469,8 @@ xctrl_attach(device_t dev)
 	EVENTHANDLER_REGISTER(shutdown_final, xctrl_shutdown_final, NULL,
 	    SHUTDOWN_PRI_LAST);
 
+	notify_support();
+
 	return (0);
 }
 
@@ -479,6 +495,14 @@ xctrl_detach(device_t dev)
 	return (0);
 }
 
+static int
+xctrl_resume(device_t dev)
+{
+	notify_support();
+
+	return (0);
+}
+
 /*-------------------- Private Device Attachment Data  -----------------------*/
 static device_method_t xctrl_methods[] = { 
 	/* Device interface */ 
@@ -486,6 +510,7 @@ static device_method_t xctrl_methods[] = {
 	DEVMETHOD(device_probe,         xctrl_probe), 
 	DEVMETHOD(device_attach,        xctrl_attach), 
 	DEVMETHOD(device_detach,        xctrl_detach), 
+	DEVMETHOD(device_resume,        xctrl_resume),
 
 	DEVMETHOD_END
 }; 
