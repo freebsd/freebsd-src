@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20240930: libmd bumped to version 7
+OLD_LIBS+=lib/libmd.so.6
+
 # 20240914 libpcap upgrade from 1.10.4 to 1.10.5
 OLD_FILES+=contrib/libpcap/pcap-haiku.cpp
 OLD_FILES+=contrib/libpcap/pcap-rpcap-int.h
@@ -3229,9 +3232,6 @@ OLD_FILES+=usr/tests/usr.bin/uudecode/legacy_test
 OLD_FILES+=usr/tests/usr.bin/uudecode/regress.153276.in
 OLD_DIRS+=usr/tests/usr.bin/uuencode
 OLD_DIRS+=usr/tests/usr.bin/uudecode
-
-# 20220308: libmd bumped to version 7
-OLD_LIBS+=lib/libmd.so.6
 
 # 20220318: snd_ds1 and snd_maestro drivers removed
 OLD_FILES+=usr/share/man/man4/snd_ds1.4.gz
