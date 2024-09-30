@@ -209,7 +209,7 @@ __tcp_set_flags(struct tcphdr *th, uint16_t flags)
 #define	TCP_CONGESTION		64	/* get/set congestion control algorithm */
 #define	TCP_CCALGOOPT		65	/* get/set cc algorithm specific options */
 #define	TCP_MAXUNACKTIME	68	/* maximum time without making progress (sec) */
-					/* unused; was TCP_MAXPEAKRATE */
+/* unused			69	*/
 #define	TCP_IDLE_REDUCE		70	/* Reduce cwnd on idle input */
 #define	TCP_REMOTE_UDP_ENCAPS_PORT 71	/* Enable TCP over UDP tunneling via the specified port */
 #define	TCP_DELACK		72	/* socket option for delayed ack */
@@ -231,53 +231,52 @@ __tcp_set_flags(struct tcphdr *th, uint16_t flags)
 /* Options for Rack and BBR */
 #define	TCP_REUSPORT_LB_NUMA	1026	/* set listen socket numa domain */
 #define	TCP_RACK_MBUF_QUEUE	1050	/* Do we allow mbuf queuing if supported */
-					/* unused; was TCP_RACK_PROP */
+/* unused			1051	*/
 #define	TCP_RACK_TLP_REDUCE 	1052	/* RACK TLP cwnd reduction (bool) */
-					/* unused; was TCP_RACK_PACE_REDUCE */
+/* unused			1053	*/
 #define	TCP_RACK_PACE_MAX_SEG	1054	/* Max TSO size we will send  */
 #define	TCP_RACK_PACE_ALWAYS	1055	/* Use the always pace method */
-					/* unused; was TCP_RACK_PROP_RATE */
+/* unused			1056	*/
 #define	TCP_RACK_PRR_SENDALOT	1057	/* Allow PRR to send more than one seg */
 #define	TCP_RACK_MIN_TO		1058	/* Minimum time between rack t-o's in ms */
-					/* unused; was TCP_RACK_EARLY_RECOV */
+/* unused			1059	*/
 #define	TCP_RACK_EARLY_SEG	1060	/* If early recovery max segments */
 #define	TCP_RACK_REORD_THRESH	1061	/* RACK reorder threshold (shift amount) */
 #define	TCP_RACK_REORD_FADE	1062	/* Does reordering fade after ms time */
 #define	TCP_RACK_TLP_THRESH	1063	/* RACK TLP theshold i.e. srtt+(srtt/N) */
 #define	TCP_RACK_PKT_DELAY	1064	/* RACK added ms i.e. rack-rtt + reord + N */
-					/* unused; was TCP_RACK_TLP_INC_VAR */
-					/* unused */
+/* unused			1065	*/
+/* unused			1066	*/
 #define	TCP_BBR_IWINTSO		1067	/* Initial TSO window for BBRs first sends */
-					/* unused; was TCP_BBR_RECFORCE */
+/* unused			1068	*/
 #define	TCP_BBR_STARTUP_PG	1069	/* Startup pacing gain */
 #define	TCP_BBR_DRAIN_PG	1070	/* Drain pacing gain */
-					/* unused; was TCP_BBR_RWND_IS_APP */
+/* unused			1071	*/
 #define	TCP_BBR_PROBE_RTT_INT	1072	/* How long in useconds between probe-rtt */
-					/* unused; was TCP_BBR_ONE_RETRAN */
+/* unused			1073	*/
 #define	TCP_BBR_STARTUP_LOSS_EXIT 1074	/* Do we exit a loss during startup if not 20% incr */
-					/* unused; was TCP_BBR_USE_LOWGAIN */
+/* unused			1075	*/
 #define	TCP_BBR_TSLIMITS	1076	/* Do we use experimental Timestamp limiting for our algo */
-#define	TCP_BBR_PACE_OH		1077	/* Reused in 4.2 for pacing overhead setting */
-					/* unused; was TCP_BBR_HOLD_TARGET */
+#define	TCP_BBR_PACE_OH		1077	/* pacing overhead setting */
+/* unused			1078	*/
 #define	TCP_BBR_USEDEL_RATE	1079	/* Enable use of delivery rate for loss recovery */
 #define	TCP_BBR_MIN_RTO		1080	/* Min RTO in milliseconds */
 #define	TCP_BBR_MAX_RTO		1081	/* Max RTO in milliseconds */
-					/* unused; was TCP_BBR_REC_OVER_HPTS */
+/* unused			1082	*/
 #define	TCP_BBR_ALGORITHM	1083	/* What measurement algo does BBR use netflix=0, google=1 */
-					/* unused; was TCP_BBR_DRAIN_INC_EXTRA */
-					/* unused; was TCP_BBR_STARTUP_EXIT_EPOCH */
+/* unused			1084	*/
+/* unused			1085	*/
 #define	TCP_BBR_PACE_PER_SEC	1086
 #define	TCP_BBR_PACE_DEL_TAR	1087
 #define	TCP_BBR_PACE_SEG_MAX	1088
 #define	TCP_BBR_PACE_SEG_MIN	1089
 #define	TCP_BBR_PACE_CROSS	1090
-					/* unused */
-					/* unused; was TCP_RACK_IDLE_REDUCE_HIGH */
-					/* unused; was TCP_RACK_MIN_PACE */
-					/* unused; was TCP_RACK_GP_INCREASE */
+/* unused			1091	*/
+/* unused			1092	*/
+/* unused			1093	*/
+/* unused			1094	*/
 #define	TCP_RACK_TLP_USE	1095
-#define	TCP_BBR_TMR_PACE_OH	1096	/* Recycled in 4.2 */
-					/* unused; was TCP_BBR_EXTRA_GAIN */
+#define	TCP_BBR_TMR_PACE_OH	1096	/* ??? */
 #define	TCP_RACK_DO_DETECTION	1097	/* Recycle of extra gain for rack, attack detection */
 #define	TCP_BBR_RACK_RTT_USE	1098	/* what RTT should we use 0, 1, or 2? */
 #define	TCP_BBR_RETRAN_WTSO	1099
@@ -318,7 +317,7 @@ __tcp_set_flags(struct tcphdr *th, uint16_t flags)
 #define	TCP_REC_ABC_VAL		1134	/* Do we use the ABC value for recovery or the override one from sysctl  */
 #define	TCP_RACK_MEASURE_CNT	1135	/* How many measurements are required in GP pacing */
 #define	TCP_DEFER_OPTIONS	1136	/* Defer options until the proper number of measurements occur, does not defer TCP_RACK_MEASURE_CNT */
-					/* unused; was TCP_FAST_RSM_HACK */
+/* unused			1137	*/
 #define	TCP_RACK_PACING_BETA	1138	/* Changing the beta for pacing */
 #define	TCP_RACK_PACING_BETA_ECN 1139	/* Changing the beta for ecn with pacing */
 #define	TCP_RACK_TIMER_SLOP	1140	/* Set or get the timer slop used */
@@ -330,7 +329,7 @@ __tcp_set_flags(struct tcphdr *th, uint16_t flags)
 #define	TCP_RACK_PACING_DIVISOR	1146	/* Pacing divisor given to rate-limit code for burst sizing */
 #define	TCP_RACK_PACE_MIN_SEG	1147	/* Pacing min seg size rack will use */
 #define	TCP_RACK_DGP_IN_REC	1148	/* Do we use full DGP in recovery? */
-					/* unused; was TCP_POLICER_DETECT */
+/* unused			1149	*/
 #define	TCP_HYBRID_PACING	1150	/* Hybrid pacing enablement */
 #define	TCP_PACING_DND		1151	/* When pacing with rr_config=3 can sacks disturb us */
 #define	TCP_SS_EEXIT		1152	/* Do we do early exit from slowtart if no  b/w growth */
@@ -340,7 +339,7 @@ __tcp_set_flags(struct tcphdr *th, uint16_t flags)
 #define	TCP_REC_IS_DYN		1156	/* Do we allow timely to change recovery multiplier? */
 #define	TCP_SIDECHAN_DIS	1157	/* Disable/enable the side-channel */
 #define	TCP_FILLCW_RATE_CAP	1158	/* Set a cap for DGP's fillcw */
-					/* unused; was TCP_POLICER_MSS */
+/* unused			1159	*/
 #define	TCP_STACK_SPEC_INFO	1160	/* Get stack specific information (if present) */
 #define	RACK_CSPR_IS_FCC	1161
 #define	TCP_GP_USE_LTBW		1162	/* how we use lt_bw 0=not, 1=min, 2=max */
