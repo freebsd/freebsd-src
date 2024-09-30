@@ -138,6 +138,9 @@ __BEGIN_DECLS
 #ifndef SHA1_Data
 #define SHA1_Data	_libmd_SHA1_Data
 #endif
+#ifndef SHA1_Transform
+#define SHA1_Transform	_libmd_SHA1_Transform
+#endif
 
 #ifndef sha1_block
 #define sha1_block	_libmd_sha1_block
