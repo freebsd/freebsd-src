@@ -27,7 +27,6 @@ FBSD_1.7 {
 	RIPEMD160_Final;
 	RIPEMD160_Init;
 	RIPEMD160_Update;
-	RMD160_version;
 	SHA1_Data;
 	SHA1_End;
 	SHA1_Fd;
@@ -37,7 +36,6 @@ FBSD_1.7 {
 	SHA1_Final;
 	SHA1_Init;
 	SHA1_Update;
-	SHA1_version;
 	SHA224_Data;
 	SHA224_End;
 	SHA224_Fd;
@@ -156,7 +154,6 @@ FBSDprivate_1.0 {
 	_libmd_RIPEMD160_Final;
 	_libmd_RIPEMD160_Init;
 	_libmd_RIPEMD160_Update;
-	_libmd_RMD160_version;
 	_libmd_SHA1_Data;
 	_libmd_SHA1_End;
 	_libmd_SHA1_Fd;
@@ -166,7 +163,6 @@ FBSDprivate_1.0 {
 	_libmd_SHA1_Final;
 	_libmd_SHA1_Init;
 	_libmd_SHA1_Update;
-	_libmd_SHA1_version;
 	_libmd_SHA224_Data;
 	_libmd_SHA224_End;
 	_libmd_SHA224_Fd;
@@ -230,7 +226,6 @@ FBSDprivate_1.0 {
 	_libmd_SHA_Final;
 	_libmd_SHA_Init;
 	_libmd_SHA_Update;
-	_libmd_SHA_version;
 	_libmd_SKEIN1024_Data;
 	_libmd_SKEIN1024_End;
 	_libmd_SKEIN1024_Fd;
