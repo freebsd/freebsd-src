@@ -70,8 +70,8 @@ void *	khelp_get_osd(struct osd *hosd, int32_t id);
 
 int32_t	khelp_get_id(char *hname);
 
-int	khelp_add_hhook(struct hookinfo *hki, uint32_t flags);
+int	khelp_add_hhook(const struct hookinfo *hki, uint32_t flags);
 
-int	khelp_remove_hhook(struct hookinfo *hki);
+int	khelp_remove_hhook(const struct hookinfo *hki);
 
 #endif /* _SYS_KHELP_H_ */
