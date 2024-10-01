@@ -97,7 +97,6 @@ struct pic {
 	    enum intr_polarity);
 	int (*pic_assign_cpu)(x86pic_t, struct intsrc *, u_int apic_id);
 	void (*pic_reprogram_pin)(x86pic_t, struct intsrc *);
-	TAILQ_ENTRY(pic) pics;
 };
 
 /* Flags for pic_disable_source() */
